@@ -4,3 +4,6 @@
 [submodule "easyloggingpp"]
 	path = dep/easyloggingpp
 	url = git://github.com/easylogging/easyloggingpp
+[submodule "fcpp"]
+	path = dep/fcpp
+	url = git://github.com/bagder/fcpp
