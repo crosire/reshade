@@ -6,6 +6,9 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="src\Main.cpp" />
+  </ItemGroup>
+  <ItemGroup>
     <ClInclude Include="res\Resource.h">
       <Filter>Resources</Filter>
     </ClInclude>
