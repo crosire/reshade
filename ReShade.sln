@@ -10,6 +10,10 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ReShade", "ReShade.vcxproj"
 		{F3FE1E78-C694-47AD-9AD6-7D7C33D64D2F} = {F3FE1E78-C694-47AD-9AD6-7D7C33D64D2F}
 	EndProjectSection
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Dependencies", "Dependencies", "{11B78243-91C3-4357-9FDD-4EAFBF4EE52B}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "MinHook", "dep\minhook\build\MinHook.vcxproj", "{F142A341-5EE0-442D-A15F-98AE9B48DBAE}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -34,6 +38,14 @@ Global
 		{0401ADF5-D085-4A3D-95B2-D9B7896BB338}.Release|Win32.Build.0 = Release|Win32
 		{0401ADF5-D085-4A3D-95B2-D9B7896BB338}.Release|x64.ActiveCfg = Release|x64
 		{0401ADF5-D085-4A3D-95B2-D9B7896BB338}.Release|x64.Build.0 = Release|x64
+		{F142A341-5EE0-442D-A15F-98AE9B48DBAE}.Debug|Win32.ActiveCfg = Debug|Win32
+		{F142A341-5EE0-442D-A15F-98AE9B48DBAE}.Debug|Win32.Build.0 = Debug|Win32
+		{F142A341-5EE0-442D-A15F-98AE9B48DBAE}.Debug|x64.ActiveCfg = Debug|x64
+		{F142A341-5EE0-442D-A15F-98AE9B48DBAE}.Debug|x64.Build.0 = Debug|x64
+		{F142A341-5EE0-442D-A15F-98AE9B48DBAE}.Release|Win32.ActiveCfg = Release|Win32
+		{F142A341-5EE0-442D-A15F-98AE9B48DBAE}.Release|Win32.Build.0 = Release|Win32
+		{F142A341-5EE0-442D-A15F-98AE9B48DBAE}.Release|x64.ActiveCfg = Release|x64
+		{F142A341-5EE0-442D-A15F-98AE9B48DBAE}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -41,5 +53,6 @@ Global
 	GlobalSection(NestedProjects) = preSolution
 		{F3FE1E78-C694-47AD-9AD6-7D7C33D64D2F} = {2462EBED-BE0C-40BE-8BD6-04051ADE081D}
 		{0401ADF5-D085-4A3D-95B2-D9B7896BB338} = {2462EBED-BE0C-40BE-8BD6-04051ADE081D}
+		{F142A341-5EE0-442D-A15F-98AE9B48DBAE} = {11B78243-91C3-4357-9FDD-4EAFBF4EE52B}
 	EndGlobalSection
 EndGlobal
