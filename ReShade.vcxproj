@@ -127,6 +127,9 @@
       <OptimizeReferences>true</OptimizeReferences>
       <AdditionalLibraryDirectories>$(SolutionDir)\bin\$(Platform)\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
+	<PreBuildEvent>
+      <Command>tools\verbuild res\Version.h *.*.*.+ -xFp -b0.0.0.0 -s</Command>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -144,8 +147,21 @@
       <OptimizeReferences>true</OptimizeReferences>
       <AdditionalLibraryDirectories>$(SolutionDir)\bin\$(Platform)\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
+	<PreBuildEvent>
+      <Command>tools\verbuild res\Version.h *.*.*.+ -xFp -b0.0.0.0 -s</Command>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="res\Resource.h" />
+    <ClInclude Include="res\Version.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="res\Resource.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="res\Resource.rc2" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
