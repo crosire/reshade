@@ -7,3 +7,6 @@
 [submodule "fcpp"]
 	path = dep/fcpp
 	url = git://github.com/bagder/fcpp
+[submodule "gl3w"]
+	path = dep/gl3w
+	url = git://github.com/skaslev/gl3w
