@@ -1,3 +1,6 @@
 [submodule "minhook"]
 	path = dep/minhook
 	url = git://github.com/TsudaKageyu/minhook
+[submodule "easyloggingpp"]
+	path = dep/easyloggingpp
+	url = git://github.com/easylogging/easyloggingpp
