@@ -142,9 +142,11 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="src\Hook.cpp" />
+    <ClCompile Include="src\HookManager.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\Hook.hpp" />
+    <ClInclude Include="src\HookManager.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

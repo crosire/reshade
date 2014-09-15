@@ -1,4 +1,7 @@
 #include <windows.h>
+#include <easylogging++.h>
+
+_INITIALIZE_EASYLOGGINGPP;
 
 // -----------------------------------------------------------------------------------------------------
 

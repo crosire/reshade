@@ -2,8 +2,10 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <ClCompile Include="src\Hook.cpp" />
+    <ClCompile Include="src\HookManager.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\Hook.hpp" />
+    <ClInclude Include="src\HookManager.hpp" />
   </ItemGroup>
 </Project>
