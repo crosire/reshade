@@ -22,5 +22,8 @@
     <None Include="res\Resource.rc2">
       <Filter>Resources</Filter>
     </None>
+    <None Include="res\Exports.def">
+      <Filter>Resources</Filter>
+    </None>
   </ItemGroup>
 </Project>
