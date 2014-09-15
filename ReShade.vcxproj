@@ -98,7 +98,7 @@
       <WarningLevel>Level4</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>$(SolutionDir)\src;$(SolutionDir)\res;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)\src;$(SolutionDir)\res;$(IntDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32_LEAN_AND_MIN;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
@@ -114,7 +114,7 @@
       <WarningLevel>Level4</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>$(SolutionDir)\src;$(SolutionDir)\res;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)\src;$(SolutionDir)\res;$(IntDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32_LEAN_AND_MIN;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
@@ -132,7 +132,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>$(SolutionDir)\src;$(SolutionDir)\res;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)\src;$(SolutionDir)\res;$(IntDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32_LEAN_AND_MIN;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
@@ -155,7 +155,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>$(SolutionDir)\src;$(SolutionDir)\res;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)\src;$(SolutionDir)\res;$(IntDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32_LEAN_AND_MIN;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
@@ -172,14 +172,39 @@
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="src\Effect.cpp" />
     <ClCompile Include="src\Main.cpp" />
     <ClCompile Include="src\Manager.cpp" />
+    <ClCompile Include="obj\$(ProjectName)\$(Platform)\$(Configuration)\EffectLexer.cpp" />
+    <ClCompile Include="obj\$(ProjectName)\$(Platform)\$(Configuration)\EffectParser.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="res\Resource.h" />
     <ClInclude Include="res\Version.h" />
+    <ClInclude Include="src\Effect.hpp" />
+    <ClInclude Include="src\EffectContext.hpp" />
     <ClInclude Include="src\Log.hpp" />
     <ClInclude Include="src\Manager.hpp" />
+    <ClInclude Include="obj\$(ProjectName)\$(Platform)\$(Configuration)\EffectLexer.h" />
+    <ClInclude Include="obj\$(ProjectName)\$(Platform)\$(Configuration)\EffectParser.hpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="src\EffectLexer.l">
+      <Message>Generating Effect Lexer ...</Message>
+      <Outputs>$(IntDir)%(Filename).cpp;$(IntDir)%(Filename).h</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">tools\flex.exe --debug --verbose --bison-bridge --bison-locations --wincompat --outfile="$(IntDir)%(Filename).cpp" --header-file="$(IntDir)%(Filename).h" "%(FullPath)"</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">tools\flex.exe --bison-bridge --bison-locations --wincompat --outfile="$(IntDir)%(Filename).cpp" --header-file="$(IntDir)%(Filename).h" "%(FullPath)"</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">tools\flex.exe --debug --verbose --bison-bridge --bison-locations --wincompat --outfile="$(IntDir)%(Filename).cpp" --header-file="$(IntDir)%(Filename).h" "%(FullPath)"</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">tools\flex.exe --bison-bridge --bison-locations --wincompat --outfile="$(IntDir)%(Filename).cpp" --header-file="$(IntDir)%(Filename).h" "%(FullPath)"</Command>
+    </CustomBuild>
+    <CustomBuild Include="src\EffectParser.y">
+      <Message>Generating Effect Parser ...</Message>
+      <Outputs>$(IntDir)%(Filename).cpp;$(IntDir)%(Filename).hpp</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">tools\bison.exe --debug --verbose --warnings --locations --defines --output="$(IntDir)%(Filename).cpp" --report=all --graph "%(FullPath)"</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">tools\bison.exe --warnings --locations --defines --output="$(IntDir)%(Filename).cpp" --report=all --graph "%(FullPath)"</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">tools\bison.exe --debug --verbose --warnings --locations --defines --output="$(IntDir)%(Filename).cpp" --report=all --graph "%(FullPath)"</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">tools\bison.exe --warnings --locations --defines --output="$(IntDir)%(Filename).cpp" --report=all --graph "%(FullPath)"</Command>
+    </CustomBuild>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="res\Resource.rc" />

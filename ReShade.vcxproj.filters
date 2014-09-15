@@ -4,10 +4,22 @@
     <Filter Include="Resources">
       <UniqueIdentifier>{d408b60a-a09d-437b-9a0f-3ac6ea741b08}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Effects">
+      <UniqueIdentifier>{b8e05bc4-05f8-43c7-b162-6a0818361b7b}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Main.cpp" />
     <ClCompile Include="src\Manager.cpp" />
+    <ClCompile Include="src\Effect.cpp">
+      <Filter>Effects</Filter>
+    </ClCompile>
+    <ClCompile Include="obj\$(ProjectName)\$(Platform)\$(Configuration)\EffectParser.cpp">
+      <Filter>Effects</Filter>
+    </ClCompile>
+    <ClCompile Include="obj\$(ProjectName)\$(Platform)\$(Configuration)\EffectLexer.cpp">
+      <Filter>Effects</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="res\Resource.h">
@@ -18,6 +30,18 @@
     </ClInclude>
     <ClInclude Include="src\Log.hpp" />
     <ClInclude Include="src\Manager.hpp" />
+    <ClInclude Include="src\Effect.hpp">
+      <Filter>Effects</Filter>
+    </ClInclude>
+    <ClInclude Include="src\EffectContext.hpp">
+      <Filter>Effects</Filter>
+    </ClInclude>
+    <ClInclude Include="obj\$(ProjectName)\$(Platform)\$(Configuration)\EffectLexer.h">
+      <Filter>Effects</Filter>
+    </ClInclude>
+    <ClInclude Include="obj\$(ProjectName)\$(Platform)\$(Configuration)\EffectParser.hpp">
+      <Filter>Effects</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="res\Resource.rc">
@@ -31,5 +55,13 @@
     <None Include="res\Exports.def">
       <Filter>Resources</Filter>
     </None>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="src\EffectLexer.l">
+      <Filter>Effects</Filter>
+    </CustomBuild>
+    <CustomBuild Include="src\EffectParser.y">
+      <Filter>Effects</Filter>
+    </CustomBuild>
   </ItemGroup>
 </Project>
