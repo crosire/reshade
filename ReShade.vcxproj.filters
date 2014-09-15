@@ -15,6 +15,7 @@
     <ClInclude Include="res\Version.h">
       <Filter>Resources</Filter>
     </ClInclude>
+    <ClInclude Include="src\Log.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="res\Resource.rc">

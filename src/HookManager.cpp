@@ -1,8 +1,8 @@
+#include "Log.hpp"
 #include "HookManager.hpp"
 
 #include <vector>
 #include <windows.h>
-#include <easylogging++.h>
 #include <boost\algorithm\string.hpp>
 
 namespace ReHook

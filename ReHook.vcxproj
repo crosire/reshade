@@ -147,6 +147,7 @@
   <ItemGroup>
     <ClInclude Include="src\Hook.hpp" />
     <ClInclude Include="src\HookManager.hpp" />
+    <ClInclude Include="src\Log.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
