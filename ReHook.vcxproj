@@ -137,6 +137,10 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="src\Hook.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\Hook.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
