@@ -7,6 +7,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Main.cpp" />
+    <ClCompile Include="src\Manager.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="res\Resource.h">
@@ -16,6 +17,7 @@
       <Filter>Resources</Filter>
     </ClInclude>
     <ClInclude Include="src\Log.hpp" />
+    <ClInclude Include="src\Manager.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="res\Resource.rc">
