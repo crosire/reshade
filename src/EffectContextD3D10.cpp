@@ -87,6 +87,7 @@ namespace ReShade
 			ID3D10ShaderResourceView *							mDepthStencilView;
 			ID3D10DepthStencilView *							mDepthStencil;
 			ID3D10StateBlock *									mStateblock;
+			ID3D10RenderTargetView *							mStateblockTargets[D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT];
 			std::unordered_map<D3D10_SAMPLER_DESC, size_t>		mSamplerDescs;
 			std::vector<ID3D10SamplerState *>					mSamplerStates;
 			std::vector<ID3D10ShaderResourceView *>				mShaderResources;
@@ -2790,6 +2791,8 @@ namespace ReShade
 				return false;
 			}
 
+			this->mEffect->mEffectContext->mDevice->OMGetRenderTargets(D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, this->mEffect->mStateblockTargets, nullptr);
+
 			ID3D10Device *device = this->mEffect->mEffectContext->mDevice;
 			const uintptr_t null = 0;
 			device->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -2822,6 +2825,7 @@ namespace ReShade
 		void													D3D10Technique::End(void) const
 		{
 			this->mEffect->mStateblock->Apply();
+			this->mEffect->mEffectContext->mDevice->OMSetRenderTargets(D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, this->mEffect->mStateblockTargets, nullptr);
 		}
 		void													D3D10Technique::RenderPass(unsigned int index) const
 		{
@@ -2839,7 +2843,9 @@ namespace ReShade
 			device->RSSetState(pass.RS);
 			device->PSSetShader(pass.PS);
 			device->PSSetShaderResources(0, pass.SR.size(), pass.SR.data());
-			device->OMSetBlendState(pass.BS, nullptr, D3D10_DEFAULT_SAMPLE_MASK);
+
+			const FLOAT blendfactor[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
+			device->OMSetBlendState(pass.BS, blendfactor, D3D10_DEFAULT_SAMPLE_MASK);
 			device->OMSetRenderTargets(D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, pass.RT, this->mEffect->mDepthStencil);
 
 			ID3D10Resource *rtres;
