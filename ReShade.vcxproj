@@ -82,32 +82,32 @@
     <OutDir>$(SolutionDir)\bin\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(SolutionDir)\obj\$(ProjectName)\$(Platform)\$(Configuration)\</IntDir>
     <IncludePath>$(IncludePath);$(DXSDK_DIR)\Include</IncludePath>
-    <LibraryPath>$(LibraryPath);$(DXSDK_DIR)\Lib\x86</LibraryPath>
-    <ReferencePath>$(ReferencePath);$(DXSDK_DIR)\Lib\x86</ReferencePath>
+    <LibraryPath>$(DXSDK_DIR)\Lib\x86;$(LibraryPath)</LibraryPath>
+    <ReferencePath>$(DXSDK_DIR)\Lib\x86;$(ReferencePath)</ReferencePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
     <OutDir>$(SolutionDir)\bin\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(SolutionDir)\obj\$(ProjectName)\$(Platform)\$(Configuration)\</IntDir>
     <IncludePath>$(IncludePath);$(DXSDK_DIR)\Include</IncludePath>
-    <LibraryPath>$(LibraryPath);$(DXSDK_DIR)\Lib\x64</LibraryPath>
-    <ReferencePath>$(ReferencePath);$(DXSDK_DIR)\Lib\x64</ReferencePath>
+    <LibraryPath>$(DXSDK_DIR)\Lib\x64;$(LibraryPath)</LibraryPath>
+    <ReferencePath>$(DXSDK_DIR)\Lib\x64;$(ReferencePath)</ReferencePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
     <OutDir>$(SolutionDir)\bin\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(SolutionDir)\obj\$(ProjectName)\$(Platform)\$(Configuration)\</IntDir>
     <IncludePath>$(IncludePath);$(DXSDK_DIR)\Include</IncludePath>
-    <LibraryPath>$(LibraryPath);$(DXSDK_DIR)\Lib\x86</LibraryPath>
-    <ReferencePath>$(ReferencePath);$(DXSDK_DIR)\Lib\x86</ReferencePath>
+    <LibraryPath>$(DXSDK_DIR)\Lib\x86;$(LibraryPath)</LibraryPath>
+    <ReferencePath>$(DXSDK_DIR)\Lib\x86;$(ReferencePath)</ReferencePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
     <OutDir>$(SolutionDir)\bin\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(SolutionDir)\obj\$(ProjectName)\$(Platform)\$(Configuration)\</IntDir>
     <IncludePath>$(IncludePath);$(DXSDK_DIR)\Include</IncludePath>
-    <LibraryPath>$(LibraryPath);$(DXSDK_DIR)\Lib\x64</LibraryPath>
-    <ReferencePath>$(ReferencePath);$(DXSDK_DIR)\Lib\x64</ReferencePath>
+    <LibraryPath>$(DXSDK_DIR)\Lib\x64;$(LibraryPath)</LibraryPath>
+    <ReferencePath>$(DXSDK_DIR)\Lib\x64;$(ReferencePath)</ReferencePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -115,7 +115,7 @@
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
       <AdditionalIncludeDirectories>$(SolutionDir)\src;$(SolutionDir)\res;$(IntDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WIN32_LEAN_AND_MIN;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32_LEAN_AND_MIN;NOMINMAX;_GDI32_;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -123,6 +123,7 @@
       <AdditionalLibraryDirectories>$(SolutionDir)\bin\$(Platform)\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <ModuleDefinitionFile>res\Exports.def</ModuleDefinitionFile>
       <AdditionalDependencies>ReHook.lib;d3dcompiler.lib;d3dx9.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <DelayLoadDLLs>d3dcompiler_43.dll;d3dx9_43.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -131,7 +132,7 @@
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
       <AdditionalIncludeDirectories>$(SolutionDir)\src;$(SolutionDir)\res;$(IntDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WIN32_LEAN_AND_MIN;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32_LEAN_AND_MIN;NOMINMAX;_GDI32_;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -139,6 +140,7 @@
       <AdditionalLibraryDirectories>$(SolutionDir)\bin\$(Platform)\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <ModuleDefinitionFile>res\Exports.def</ModuleDefinitionFile>
       <AdditionalDependencies>ReHook.lib;d3dcompiler.lib;d3dx9.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <DelayLoadDLLs>d3dcompiler_43.dll;d3dx9_43.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -149,7 +151,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
       <AdditionalIncludeDirectories>$(SolutionDir)\src;$(SolutionDir)\res;$(IntDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WIN32_LEAN_AND_MIN;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32_LEAN_AND_MIN;NOMINMAX;_GDI32_;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -159,6 +161,7 @@
       <AdditionalLibraryDirectories>$(SolutionDir)\bin\$(Platform)\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <ModuleDefinitionFile>res\Exports.def</ModuleDefinitionFile>
       <AdditionalDependencies>ReHook.lib;d3dcompiler.lib;d3dx9.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <DelayLoadDLLs>d3dcompiler_43.dll;d3dx9_43.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
     </Link>
     <PreBuildEvent>
       <Command>tools\verbuild res\Version.h *.*.*.+ -xFp -b0.0.0.0 -s</Command>
@@ -172,7 +175,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
       <AdditionalIncludeDirectories>$(SolutionDir)\src;$(SolutionDir)\res;$(IntDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WIN32_LEAN_AND_MIN;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32_LEAN_AND_MIN;NOMINMAX;_GDI32_;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -182,6 +185,7 @@
       <AdditionalLibraryDirectories>$(SolutionDir)\bin\$(Platform)\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <ModuleDefinitionFile>res\Exports.def</ModuleDefinitionFile>
       <AdditionalDependencies>ReHook.lib;d3dcompiler.lib;d3dx9.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <DelayLoadDLLs>d3dcompiler_43.dll;d3dx9_43.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
     </Link>
     <PreBuildEvent>
       <Command>tools\verbuild res\Version.h *.*.*.+ -xFp -b0.0.0.0 -s</Command>
@@ -192,6 +196,7 @@
     <ClCompile Include="src\EffectContextD3D9.cpp" />
     <ClCompile Include="src\EffectContextD3D10.cpp" />
     <ClCompile Include="src\EffectContextD3D11.cpp" />
+    <ClCompile Include="src\EffectContextOGL4.cpp" />
     <ClCompile Include="obj\$(ProjectName)\$(Platform)\$(Configuration)\EffectLexer.cpp" />
     <ClCompile Include="obj\$(ProjectName)\$(Platform)\$(Configuration)\EffectParser.cpp" />
     <ClCompile Include="src\Hooks\d3d8.cpp" />
@@ -199,6 +204,7 @@
     <ClCompile Include="src\Hooks\d3d10.cpp" />
     <ClCompile Include="src\Hooks\d3d11.cpp" />
     <ClCompile Include="src\Hooks\dxgi.cpp" />
+    <ClCompile Include="src\Hooks\opengl32.cpp" />
     <ClCompile Include="src\Main.cpp" />
     <ClCompile Include="src\Manager.cpp" />
   </ItemGroup>

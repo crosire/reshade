@@ -26,6 +26,9 @@
     <ClCompile Include="src\EffectContextD3D11.cpp">
       <Filter>Effect</Filter>
     </ClCompile>
+    <ClCompile Include="src\EffectContextOGL4.cpp">
+      <Filter>Effect</Filter>
+    </ClCompile>
     <ClCompile Include="obj\$(ProjectName)\$(Platform)\$(Configuration)\EffectParser.cpp">
       <Filter>Effect</Filter>
     </ClCompile>
@@ -45,6 +48,9 @@
       <Filter>Hooks</Filter>
     </ClCompile>
     <ClCompile Include="src\Hooks\d3d11.cpp">
+      <Filter>Hooks</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Hooks\opengl32.cpp">
       <Filter>Hooks</Filter>
     </ClCompile>
   </ItemGroup>

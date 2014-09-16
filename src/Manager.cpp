@@ -33,6 +33,7 @@ namespace ReShade
 		ReHook::Register(systemPath / "d3d10_1.dll");
 		ReHook::Register(systemPath / "d3d11.dll");
 		ReHook::Register(systemPath / "dxgi.dll");
+		ReHook::Register(systemPath / "opengl32.dll");
 
 		LOG(INFO) << "Initialized.";
 
