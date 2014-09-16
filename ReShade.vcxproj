@@ -81,33 +81,33 @@
     <LinkIncremental>true</LinkIncremental>
     <OutDir>$(SolutionDir)\bin\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(SolutionDir)\obj\$(ProjectName)\$(Platform)\$(Configuration)\</IntDir>
-    <IncludePath>$(DXSDK_DIR)\Include;$(IncludePath)</IncludePath>
-    <LibraryPath>$(DXSDK_DIR)\Lib\x86;$(LibraryPath)</LibraryPath>
-    <ReferencePath>$(DXSDK_DIR)\Lib\x86;$(ReferencePath)</ReferencePath>
+    <IncludePath>$(IncludePath);$(DXSDK_DIR)\Include</IncludePath>
+    <LibraryPath>$(LibraryPath);$(DXSDK_DIR)\Lib\x86</LibraryPath>
+    <ReferencePath>$(ReferencePath);$(DXSDK_DIR)\Lib\x86</ReferencePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
     <OutDir>$(SolutionDir)\bin\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(SolutionDir)\obj\$(ProjectName)\$(Platform)\$(Configuration)\</IntDir>
-    <IncludePath>$(DXSDK_DIR)\Include;$(IncludePath)</IncludePath>
-    <LibraryPath>$(DXSDK_DIR)\Lib\x64;$(LibraryPath)</LibraryPath>
-    <ReferencePath>$(DXSDK_DIR)\Lib\x64;$(ReferencePath)</ReferencePath>
+    <IncludePath>$(IncludePath);$(DXSDK_DIR)\Include</IncludePath>
+    <LibraryPath>$(LibraryPath);$(DXSDK_DIR)\Lib\x64</LibraryPath>
+    <ReferencePath>$(ReferencePath);$(DXSDK_DIR)\Lib\x64</ReferencePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
     <OutDir>$(SolutionDir)\bin\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(SolutionDir)\obj\$(ProjectName)\$(Platform)\$(Configuration)\</IntDir>
-    <IncludePath>$(DXSDK_DIR)\Include;$(IncludePath)</IncludePath>
-    <LibraryPath>$(DXSDK_DIR)\Lib\x86;$(LibraryPath)</LibraryPath>
-    <ReferencePath>$(DXSDK_DIR)\Lib\x86;$(ReferencePath)</ReferencePath>
+    <IncludePath>$(IncludePath);$(DXSDK_DIR)\Include</IncludePath>
+    <LibraryPath>$(LibraryPath);$(DXSDK_DIR)\Lib\x86</LibraryPath>
+    <ReferencePath>$(ReferencePath);$(DXSDK_DIR)\Lib\x86</ReferencePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
     <OutDir>$(SolutionDir)\bin\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(SolutionDir)\obj\$(ProjectName)\$(Platform)\$(Configuration)\</IntDir>
-    <IncludePath>$(DXSDK_DIR)\Include;$(IncludePath)</IncludePath>
-    <LibraryPath>$(DXSDK_DIR)\Lib\x64;$(LibraryPath)</LibraryPath>
-    <ReferencePath>$(DXSDK_DIR)\Lib\x64;$(ReferencePath)</ReferencePath>
+    <IncludePath>$(IncludePath);$(DXSDK_DIR)\Include</IncludePath>
+    <LibraryPath>$(LibraryPath);$(DXSDK_DIR)\Lib\x64</LibraryPath>
+    <ReferencePath>$(ReferencePath);$(DXSDK_DIR)\Lib\x64</ReferencePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -122,7 +122,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>$(SolutionDir)\bin\$(Platform)\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <ModuleDefinitionFile>res\Exports.def</ModuleDefinitionFile>
-      <AdditionalDependencies>ReHook.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>ReHook.lib;d3dcompiler.lib;d3dx9.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -138,7 +138,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>$(SolutionDir)\bin\$(Platform)\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <ModuleDefinitionFile>res\Exports.def</ModuleDefinitionFile>
-      <AdditionalDependencies>ReHook.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>ReHook.lib;d3dcompiler.lib;d3dx9.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -158,7 +158,7 @@
       <OptimizeReferences>true</OptimizeReferences>
       <AdditionalLibraryDirectories>$(SolutionDir)\bin\$(Platform)\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <ModuleDefinitionFile>res\Exports.def</ModuleDefinitionFile>
-      <AdditionalDependencies>ReHook.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>ReHook.lib;d3dcompiler.lib;d3dx9.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PreBuildEvent>
       <Command>tools\verbuild res\Version.h *.*.*.+ -xFp -b0.0.0.0 -s</Command>
@@ -181,7 +181,7 @@
       <OptimizeReferences>true</OptimizeReferences>
       <AdditionalLibraryDirectories>$(SolutionDir)\bin\$(Platform)\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <ModuleDefinitionFile>res\Exports.def</ModuleDefinitionFile>
-      <AdditionalDependencies>ReHook.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>ReHook.lib;d3dcompiler.lib;d3dx9.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PreBuildEvent>
       <Command>tools\verbuild res\Version.h *.*.*.+ -xFp -b0.0.0.0 -s</Command>
@@ -189,20 +189,28 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="src\Effect.cpp" />
-    <ClCompile Include="src\Main.cpp" />
-    <ClCompile Include="src\Manager.cpp" />
+    <ClCompile Include="src\EffectContextD3D9.cpp" />
+    <ClCompile Include="src\EffectContextD3D10.cpp" />
+    <ClCompile Include="src\EffectContextD3D11.cpp" />
     <ClCompile Include="obj\$(ProjectName)\$(Platform)\$(Configuration)\EffectLexer.cpp" />
     <ClCompile Include="obj\$(ProjectName)\$(Platform)\$(Configuration)\EffectParser.cpp" />
+    <ClCompile Include="src\Hooks\d3d8.cpp" />
+    <ClCompile Include="src\Hooks\d3d9.cpp" />
+    <ClCompile Include="src\Hooks\d3d10.cpp" />
+    <ClCompile Include="src\Hooks\d3d11.cpp" />
+    <ClCompile Include="src\Hooks\dxgi.cpp" />
+    <ClCompile Include="src\Main.cpp" />
+    <ClCompile Include="src\Manager.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="res\Resource.h" />
     <ClInclude Include="res\Version.h" />
+    <ClInclude Include="src\Log.hpp" />
     <ClInclude Include="src\Effect.hpp" />
     <ClInclude Include="src\EffectContext.hpp" />
-    <ClInclude Include="src\Log.hpp" />
-    <ClInclude Include="src\Manager.hpp" />
     <ClInclude Include="obj\$(ProjectName)\$(Platform)\$(Configuration)\EffectLexer.h" />
     <ClInclude Include="obj\$(ProjectName)\$(Platform)\$(Configuration)\EffectParser.hpp" />
+    <ClInclude Include="src\Manager.hpp" />
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="src\EffectLexer.l">

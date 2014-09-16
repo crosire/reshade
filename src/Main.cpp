@@ -10,7 +10,7 @@ _INITIALIZE_EASYLOGGINGPP;
 BOOL APIENTRY													DllMain(HMODULE hModule, DWORD fdwReason, LPVOID lpvReserved)
 {
 	UNREFERENCED_PARAMETER(lpvReserved);
-
+	
 	switch (fdwReason)
 	{
 		case DLL_PROCESS_ATTACH:
@@ -21,7 +21,7 @@ BOOL APIENTRY													DllMain(HMODULE hModule, DWORD fdwReason, LPVOID lpvRe
 			::GetModuleFileName(hModule, pathModule, MAX_PATH);
 			::GetModuleFileName(nullptr, pathExecutable, MAX_PATH);
 			::GetSystemDirectory(pathSystem, MAX_PATH);
-
+			
 			ReShade::Manager::Initialize(pathExecutable, pathModule, pathSystem);
 			break;
 		}

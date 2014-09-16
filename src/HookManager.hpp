@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <boost\filesystem\path.hpp>
 
+#define EXPORT extern "C"
 #define VTable(pointer, offset) reinterpret_cast<ReHook::Hook::Function>((*reinterpret_cast<uintptr_t **>(pointer))[offset])
 
 namespace ReHook

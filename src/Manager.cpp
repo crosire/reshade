@@ -25,7 +25,14 @@ namespace ReShade
 		el::Loggers::reconfigureLogger("default", logConfig);
 
 		// Initialize injector
-		LOG(INFO) << "Initializing version '" BOOST_STRINGIZE(VERSION_FULL) " [" << VERSION_DATE << ":" << VERSION_TIME << "]' loaded from " << injectorPath << " for " << executablePath << " ...";
+		LOG(INFO) << "Initializing version '" BOOST_STRINGIZE(VERSION_FULL) "' built on '" << VERSION_DATE << ":" << VERSION_TIME << "' loaded from " << injectorPath << " for " << executablePath << " ...";
+
+		ReHook::Register(systemPath / "d3d8.dll");
+		ReHook::Register(systemPath / "d3d9.dll");
+		ReHook::Register(systemPath / "d3d10.dll");
+		ReHook::Register(systemPath / "d3d10_1.dll");
+		ReHook::Register(systemPath / "d3d11.dll");
+		ReHook::Register(systemPath / "dxgi.dll");
 
 		LOG(INFO) << "Initialized.";
 
@@ -38,5 +45,34 @@ namespace ReShade
 		ReHook::Cleanup();
 
 		LOG(INFO) << "Exited.";
+	}
+
+	// -----------------------------------------------------------------------------------------------------
+
+	Manager::Manager(std::shared_ptr<EffectContext> context) : mEffectContext(context)
+	{
+		LOG(INFO) << "Acquiring effect context " << this->mEffectContext << "...";
+
+		OnCreate();
+	}
+	Manager::~Manager(void)
+	{
+		OnDelete();
+
+		LOG(INFO) << "Releasing effect context " << this->mEffectContext << ".";
+	}
+
+	bool														Manager::OnCreate(void)
+	{
+		return false;
+	}
+	void														Manager::OnDelete(void)
+	{
+	}
+	void														Manager::OnPostProcess(void)
+	{
+	}
+	void														Manager::OnPresent(void)
+	{
 	}
 }

@@ -1,1 +1,87 @@
 EXPORTS
+	; d3d8.dll
+	Direct3DCreate8
+
+	; d3d9.dll
+	Direct3DCreate9
+	Direct3DCreate9Ex
+
+	D3DPERF_BeginEvent
+	D3DPERF_EndEvent
+	D3DPERF_SetMarker
+	D3DPERF_SetRegion
+	D3DPERF_QueryRepeatFrame
+	D3DPERF_SetOptions
+	D3DPERF_GetStatus
+
+	; d3d10.dll
+	D3D10CreateDevice
+	D3D10CreateDeviceAndSwapChain
+
+	D3D10CreateStateBlock
+	D3D10StateBlockMaskDifference
+	D3D10StateBlockMaskDisableAll
+	D3D10StateBlockMaskDisableCapture
+	D3D10StateBlockMaskEnableAll
+	D3D10StateBlockMaskEnableCapture
+	D3D10StateBlockMaskGetSetting
+	D3D10StateBlockMaskIntersect
+	D3D10StateBlockMaskUnion
+
+	; d3d10_1.dll
+	D3D10CreateDevice1
+	D3D10CreateDeviceAndSwapChain1
+
+	; d3d11.dll
+	D3D11CreateDevice
+	D3D11CreateDeviceAndSwapChain
+
+	; dxgi.dll
+	CreateDXGIFactory
+	CreateDXGIFactory1
+	CreateDXGIFactory2
+
+	DXGID3D10CreateDevice
+	DXGID3D10CreateLayeredDevice
+	DXGID3D10GetLayeredDeviceSize
+	DXGID3D10RegisterLayers
+	DXGIReportAdapterConfiguration
+	DXGIDumpJournal
+
+	D3DKMTCloseAdapter
+	D3DKMTDestroyAllocation
+	D3DKMTDestroyContext
+	D3DKMTDestroyDevice
+	D3DKMTDestroySynchronizationObject
+	D3DKMTQueryAdapterInfo
+	D3DKMTSetDisplayPrivateDriverFormat
+	D3DKMTSignalSynchronizationObject
+	D3DKMTUnlock
+	D3DKMTWaitForSynchronizationObject
+	D3DKMTCreateAllocation
+	D3DKMTCreateContext
+	D3DKMTCreateDevice
+	D3DKMTCreateSynchronizationObject
+	D3DKMTEscape
+	D3DKMTGetContextSchedulingPriority
+	D3DKMTGetDeviceState
+	D3DKMTGetDisplayModeList
+	D3DKMTGetMultisampleMethodList
+	D3DKMTGetRuntimeData
+	D3DKMTGetSharedPrimaryHandle
+	D3DKMTLock
+	D3DKMTOpenAdapterFromHdc
+	D3DKMTOpenResource
+	D3DKMTPresent
+	D3DKMTQueryAllocationResidency
+	D3DKMTQueryResourceInfo
+	D3DKMTRender
+	D3DKMTSetAllocationPriority
+	D3DKMTSetContextSchedulingPriority
+	D3DKMTSetDisplayMode
+	D3DKMTSetGammaRamp
+	D3DKMTSetVidPnSourceOwner
+	D3DKMTWaitForVerticalBlankEvent
+
+	OpenAdapter10
+	OpenAdapter10_2
