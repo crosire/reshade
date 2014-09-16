@@ -223,8 +223,19 @@ namespace ReHook
 		};
 		struct													HookInfo
 		{
-			Hook::Function										Target, Replacement;
-			Hook												Hook;
+			union
+			{
+				struct
+				{
+					Hook										Hook;
+				};
+				struct
+				{
+					Hook::Function								Target, Trampoline;
+				};
+			};
+
+			Hook::Function										Replacement;
 		};
 
 		CriticalSection											sCS;
@@ -302,6 +313,7 @@ namespace ReHook
 
 		HookInfo info;
 		info.Target = target;
+		info.Trampoline = target;
 		info.Replacement = replacement;
 
 		if (!detour || (info.Hook = Hook::Install(target, replacement)).IsInstalled())
@@ -420,7 +432,7 @@ namespace ReHook
 			const auto it = std::find_if(replacementExports.cbegin(), replacementExports.cend(), [=](const Module::Export &it) { return boost::equals(it.Name, symbol.Name); });
 
 			// Filter uninteresting functions
-			if (it == replacementExports.cend() || (boost::starts_with(symbol.Name, "D3DKMT") || boost::starts_with(symbol.Name, "DXGID3D10") || boost::equals(symbol.Name, "DXGIReportAdapterConfiguration") || boost::equals(symbol.Name, "DXGIDumpJournal")))
+			if (it == replacementExports.cend() || (boost::starts_with(symbol.Name, "D3DKMT") || boost::starts_with(symbol.Name, "DXGID3D10") || boost::equals(symbol.Name, "DXGIReportAdapterConfiguration") || boost::equals(symbol.Name, "DXGIDumpJournal") || boost::starts_with(symbol.Name, "OpenAdapter10")))
 			{
 				LOG(TRACE) << line;
 			}
@@ -533,7 +545,7 @@ namespace ReHook
 		CriticalSection::Lock lock(sCS);
 
 		// Lookup hook
-		const auto begin = sHooks.cbegin(), end = sHooks.cend(), it = std::find_if(begin, end, [=](const HookInfo &it) { return it.Replacement == replacement; });
+		const auto begin = sHooks.begin(), end = sHooks.end(), it = std::find_if(begin, end, [=](const HookInfo &it) { return it.Replacement == replacement; });
 
 		if (it != end)
 		{
@@ -544,7 +556,7 @@ namespace ReHook
 	}
 	Hook::Function												Call(const Hook::Function replacement)
 	{
-		Hook hook = Find(replacement);
+		const Hook hook = Find(replacement);
 
 		if (!hook.IsInstalled())
 		{
