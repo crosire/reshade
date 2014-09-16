@@ -1420,7 +1420,7 @@ HRESULT STDMETHODCALLTYPE										IDirect3DDevice8::CopyRects(IDirect3DSurface8
 
 	HRESULT hr = D3DERR_INVALIDCALL;
 
-	if ((descSource.Pool == D3DPOOL_SYSTEMMEM && descSource.Pool == D3DPOOL_DEFAULT) && descSource.Format == descDestination.Format)
+	if ((descSource.Pool == D3DPOOL_SYSTEMMEM && descDestination.Pool == D3DPOOL_DEFAULT) && descSource.Format == descDestination.Format && (descSource.MultiSampleType == D3DMULTISAMPLE_NONE && descDestination.MultiSampleType == D3DMULTISAMPLE_NONE))
 	{
 		if (pSourceRectsArray != nullptr)
 		{
