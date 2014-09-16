@@ -2139,7 +2139,7 @@ namespace ReShade
 			
 			D3DSURFACE_DESC desc;
 			this->mBackBuffer->GetDesc(&desc);
-			//context->mDevice->CreateDepthStencilSurface(desc.Width, desc.Height, D3DFMT_D24S8, D3DMULTISAMPLE_NONE, 0, FALSE, &this->mDepthStencil, nullptr);
+			context->mDevice->CreateDepthStencilSurface(desc.Width, desc.Height, D3DFMT_D24S8, D3DMULTISAMPLE_NONE, 0, FALSE, &this->mDepthStencil, nullptr);
 
 			this->mConstantRegisterCount = 0;
 			this->mConstantStorage = nullptr;
@@ -2194,7 +2194,7 @@ namespace ReShade
 			SAFE_RELEASE(this->mBackBuffer);
 			SAFE_RELEASE(this->mVertexDeclaration);
 			SAFE_RELEASE(this->mVertexBuffer);
-			//SAFE_RELEASE(this->mDepthStencil);
+			SAFE_RELEASE(this->mDepthStencil);
 			SAFE_RELEASE(this->mStateBlock);
 			SAFE_RELEASE(this->mShaderResourceStateblock);
 		}
@@ -2541,7 +2541,11 @@ namespace ReShade
 			device->SetStreamSource(0, this->mEffect->mVertexBuffer, 0, sizeof(float));
 
 			device->SetDepthStencilSurface(this->mEffect->mDepthStencil);
-			device->Clear(0, nullptr, D3DCLEAR_ZBUFFER | D3DCLEAR_STENCIL, 0, 1.0f, 0x00);
+
+			if (this->mEffect->mDepthStencil != nullptr)
+			{
+				device->Clear(0, nullptr, D3DCLEAR_ZBUFFER | D3DCLEAR_STENCIL, 0, 1.0f, 0x0);
+			}
 
 			D3DVIEWPORT9 viewport;
 			device->GetViewport(&viewport);
