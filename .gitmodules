@@ -10,3 +10,6 @@
 [submodule "gl3w"]
 	path = dep/gl3w
 	url = git://github.com/skaslev/gl3w
+[submodule "stb"]
+	path = dep/stb
+	url = git://github.com/nothings/stb
