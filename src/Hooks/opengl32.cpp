@@ -2525,7 +2525,7 @@ EXPORT BOOL WINAPI												wglMakeCurrent(HDC hdc, HGLRC hglrc)
 			}
 			else
 			{
-				LOG(INFO) << "> Context is sharing data with " << sSharedContexts.at(hglrc) << ". Skipping ...";
+				LOG(INFO) << "> Context is sharing data with " << sSharedContexts.at(hglrc) << ". Skipped.";
 			}
 		}
 	}

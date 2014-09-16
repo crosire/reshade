@@ -2058,8 +2058,8 @@ namespace ReShade
 					"#define rsqrt(x) inversesqrt(x)\n"
 					"float rcp(float x) { return 1.0 / x; } vec2 rcp(vec2 x) { return 1.0.xx / x; } vec3 rcp(vec3 x) { return 1.0.xxx / x; } vec4 rcp(vec4 x) { return 1.0.xxxx / x; } mat2 rcp(mat2 x) { return mat2(1.0) / x; } mat3 rcp(mat3 x) { return mat3(1.0) / x; } mat4 rcp(mat4 x) { return mat4(1.0) / x; }\n"
 					"#define frac(x) fract(x)\n"
-					"#define fmod(x) ((x) - (y) * trunc((x) / (y)))"
-					"#define ddx(x) dFdx(x)\n#define ddy(x) dFdy(-(x))"
+					"#define fmod(x) ((x) - (y) * trunc((x) / (y)))\n"
+					"#define ddx(x) dFdx(x)\n#define ddy(x) dFdy(-(x))\n"
 					"#define mul(a, b) ((a) * (b))\n"
 					"#define mad(m, a, b) ((m) * (a) + (b))\n"
 					"#define log10(x) (log(x) / 2.302585093)\n"
@@ -2394,16 +2394,22 @@ namespace ReShade
 
 		OGL4Effect::OGL4Effect(std::shared_ptr<OGL4EffectContext> context) : mEffectContext(context), mDefaultVAO(0), mDefaultVBO(0), mDefaultFBO(0), mUniformDirty(true)
 		{
-			//glGenVertexArrays(1, &this->mDefaultVAO);
-			//glGenBuffers(1, &this->mDefaultVBO);
-			glGenFramebuffers(1, &this->mDefaultFBO);
+			GLCHECK(glGenVertexArrays(1, &this->mDefaultVAO));
+			GLCHECK(glGenBuffers(1, &this->mDefaultVBO));
+			GLCHECK(glGenFramebuffers(1, &this->mDefaultFBO));
+
+			GLint prevBuffer = 0;
+			GLCHECK(glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &prevBuffer));
+			GLCHECK(glBindBuffer(GL_ARRAY_BUFFER, this->mDefaultVBO));
+			GLCHECK(glBufferData(GL_ARRAY_BUFFER, 0, nullptr, GL_STATIC_DRAW));
+			GLCHECK(glBindBuffer(GL_ARRAY_BUFFER, prevBuffer));
 		}
 		OGL4Effect::~OGL4Effect(void)
 		{
-			//glDeleteVertexArrays(1, &this->mDefaultVAO);
-			//glDeleteBuffers(1, &this->mDefaultVBO);
-			glDeleteFramebuffers(1, &this->mDefaultFBO);			
-			glDeleteBuffers(this->mUniformBuffers.size(), &this->mUniformBuffers.front());
+			GLCHECK(glDeleteVertexArrays(1, &this->mDefaultVAO));
+			GLCHECK(glDeleteBuffers(1, &this->mDefaultVBO));
+			GLCHECK(glDeleteFramebuffers(1, &this->mDefaultFBO));			
+			GLCHECK(glDeleteBuffers(this->mUniformBuffers.size(), &this->mUniformBuffers.front()));
 		}
 
 		Effect::Texture *										OGL4Effect::GetTexture(const std::string &name)
@@ -2514,8 +2520,8 @@ namespace ReShade
 		}
 		OGL4Texture::~OGL4Texture(void)
 		{
-			glDeleteTextures(1, &this->mID);
-			glDeleteTextures(1, &this->mSRGBView);
+			GLCHECK(glDeleteTextures(1, &this->mID));
+			GLCHECK(glDeleteTextures(1, &this->mSRGBView));
 		}
 
 		const Effect::Texture::Description						OGL4Texture::GetDescription(void) const
@@ -2597,27 +2603,27 @@ namespace ReShade
 			}
 
 			GLuint previous = 0;
-			glGetIntegerv(TextureBindingFromTarget(this->mTarget), reinterpret_cast<GLint *>(&previous));
+			GLCHECK(glGetIntegerv(TextureBindingFromTarget(this->mTarget), reinterpret_cast<GLint *>(&previous)));
 
-			glBindTexture(this->mTarget, this->mID);
+			GLCHECK(glBindTexture(this->mTarget, this->mID));
 
 			switch (this->mDimension)
 			{
 				case 1:
-					glTexImage1D(this->mTarget, 0, internalformat, desc.Width, 0, format, GL_UNSIGNED_BYTE, nullptr);
+					GLCHECK(glTexImage1D(this->mTarget, 0, internalformat, desc.Width, 0, format, GL_UNSIGNED_BYTE, nullptr));
 					break;
 				case 2:
-					glTexImage2D(this->mTarget, 0, internalformat, desc.Width, desc.Height, 0, format, GL_UNSIGNED_BYTE, nullptr);
+					GLCHECK(glTexImage2D(this->mTarget, 0, internalformat, desc.Width, desc.Height, 0, format, GL_UNSIGNED_BYTE, nullptr));
 					break;
 				case 3:
-					glTexImage3D(this->mTarget, 0, internalformat, desc.Width, desc.Height, desc.Depth, 0, format, GL_UNSIGNED_BYTE, nullptr);
+					GLCHECK(glTexImage3D(this->mTarget, 0, internalformat, desc.Width, desc.Height, desc.Depth, 0, format, GL_UNSIGNED_BYTE, nullptr));
 					break;
 			}
 
-			glTextureView(this->mSRGBView, this->mTarget, this->mID, this->mInternalFormat, 0, desc.Levels, 0, desc.Depth);
-			glTexParameteri(this->mTarget, GL_TEXTURE_MAX_LEVEL, desc.Levels);
+			GLCHECK(glTextureView(this->mSRGBView, this->mTarget, this->mID, this->mInternalFormat, 0, desc.Levels, 0, desc.Depth));
+			GLCHECK(glTexParameteri(this->mTarget, GL_TEXTURE_MAX_LEVEL, desc.Levels));
 
-			glBindTexture(this->mTarget, previous);
+			GLCHECK(glBindTexture(this->mTarget, previous));
 			
 			this->mDesc = desc;
 			this->mInternalFormat = internalformat;
@@ -2627,25 +2633,25 @@ namespace ReShade
 		}
 		void													OGL4Texture::Update(unsigned int level, const unsigned char *data, std::size_t size)
 		{
-			glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+			GLCHECK(glPixelStorei(GL_UNPACK_ALIGNMENT, 1));
 
 			GLint previous = 0;
-			glGetIntegerv(TextureBindingFromTarget(this->mTarget), &previous);
+			GLCHECK(glGetIntegerv(TextureBindingFromTarget(this->mTarget), &previous));
 
-			glBindTexture(this->mTarget, this->mID);
+			GLCHECK(glBindTexture(this->mTarget, this->mID));
 
 			if (this->mDesc.Format >= Texture::Format::DXT1 && this->mDesc.Format <= Texture::Format::LATC2)
 			{
 				switch (this->mDimension)
 				{
 					case 1:
-						glCompressedTexSubImage1D(this->mTarget, level, 0, this->mDesc.Width, GL_UNSIGNED_BYTE, static_cast<GLsizei>(size), data);
+						GLCHECK(glCompressedTexSubImage1D(this->mTarget, level, 0, this->mDesc.Width, GL_UNSIGNED_BYTE, static_cast<GLsizei>(size), data));
 						break;
 					case 2:
-						glCompressedTexSubImage2D(this->mTarget, level, 0, 0, this->mDesc.Width, this->mDesc.Height, GL_UNSIGNED_BYTE, static_cast<GLsizei>(size), data);
+						GLCHECK(glCompressedTexSubImage2D(this->mTarget, level, 0, 0, this->mDesc.Width, this->mDesc.Height, GL_UNSIGNED_BYTE, static_cast<GLsizei>(size), data));
 						break;
 					case 3:
-						glCompressedTexSubImage3D(this->mTarget, level, 0, 0, 0, this->mDesc.Width, this->mDesc.Height, this->mDesc.Depth, GL_UNSIGNED_BYTE, static_cast<GLsizei>(size), data);
+						GLCHECK(glCompressedTexSubImage3D(this->mTarget, level, 0, 0, 0, this->mDesc.Width, this->mDesc.Height, this->mDesc.Depth, GL_UNSIGNED_BYTE, static_cast<GLsizei>(size), data));
 						break;
 				}
 			}
@@ -2654,18 +2660,18 @@ namespace ReShade
 				switch (this->mDimension)
 				{
 					case 1:
-						glTexSubImage1D(this->mTarget, level, 0, this->mDesc.Width, this->mFormat, GL_UNSIGNED_BYTE, data);
+						GLCHECK(glTexSubImage1D(this->mTarget, level, 0, this->mDesc.Width, this->mFormat, GL_UNSIGNED_BYTE, data));
 						break;
 					case 2:
-						glTexSubImage2D(this->mTarget, level, 0, 0, this->mDesc.Width, this->mDesc.Height, this->mFormat, GL_UNSIGNED_BYTE, data);
+						GLCHECK(glTexSubImage2D(this->mTarget, level, 0, 0, this->mDesc.Width, this->mDesc.Height, this->mFormat, GL_UNSIGNED_BYTE, data));
 						break;
 					case 3:
-						glTexSubImage3D(this->mTarget, level, 0, 0, 0, this->mDesc.Width, this->mDesc.Height, this->mDesc.Depth, this->mFormat, GL_UNSIGNED_BYTE, data);
+						GLCHECK(glTexSubImage3D(this->mTarget, level, 0, 0, 0, this->mDesc.Width, this->mDesc.Height, this->mDesc.Depth, this->mFormat, GL_UNSIGNED_BYTE, data));
 						break;
 				}
 			}
 
-			glBindTexture(this->mTarget, previous);
+			GLCHECK(glBindTexture(this->mTarget, previous));
 		}
 		void													OGL4Texture::UpdateFromColorBuffer(void)
 		{
@@ -2749,8 +2755,8 @@ namespace ReShade
 		{
 			for (auto &pass : this->mPasses)
 			{
-				glDeleteProgram(pass.Program);
-				glDeleteFramebuffers(1, &pass.Framebuffer);
+				GLCHECK(glDeleteProgram(pass.Program));
+				GLCHECK(glDeleteFramebuffers(1, &pass.Framebuffer));
 			}
 		}
 
@@ -2837,6 +2843,11 @@ namespace ReShade
 			{
 				for (GLuint i = 0, count = static_cast<GLuint>(this->mEffect->mUniformBuffers.size()); i < count; ++i)
 				{
+					if (this->mEffect->mUniformBuffers[i] == 0)
+					{
+						continue;
+					}
+
 					GLCHECK(glBindBuffer(GL_UNIFORM_BUFFER, this->mEffect->mUniformBuffers[i]));
 					GLCHECK(glBufferSubData(GL_UNIFORM_BUFFER, 0, this->mEffect->mUniformStorages[i].second, this->mEffect->mUniformStorages[i].first));
 				}
