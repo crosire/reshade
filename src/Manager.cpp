@@ -3,10 +3,20 @@
 #include "Manager.hpp"
 #include "HookManager.hpp"
 
+#include <boost\assign\list_of.hpp>
+
 namespace ReShade
 {
+	namespace
+	{
+		boost::filesystem::path									shaderPath;
+	}
+
 	bool														Manager::Initialize(const boost::filesystem::path &executablePath, const boost::filesystem::path &injectorPath, const boost::filesystem::path &systemPath)
 	{
+		shaderPath = injectorPath;
+		shaderPath.replace_extension("fx");
+
 		// Initialize logger
 		boost::filesystem::path logPath = injectorPath;
 		logPath.replace_extension("log");
@@ -51,7 +61,7 @@ namespace ReShade
 
 	// -----------------------------------------------------------------------------------------------------
 
-	Manager::Manager(std::shared_ptr<EffectContext> context) : mEffectContext(context)
+	Manager::Manager(std::shared_ptr<EffectContext> context) : mEffectContext(context), mCreated(false), mEnabled(true), mSelectedTechnique(nullptr)
 	{
 		LOG(INFO) << "Acquiring effect context " << this->mEffectContext << "...";
 
@@ -66,13 +76,96 @@ namespace ReShade
 
 	bool														Manager::OnCreate(void)
 	{
-		return false;
+		if (this->mCreated)
+		{
+			LOG(WARNING) << "Effect environment on context " << this->mEffectContext << " already created. Skipped recreation.";
+
+			return true;
+		}
+
+		LOG(INFO) << "Loading effect from " << shaderPath << " ...";
+
+		std::string errors;
+		unsigned int bufferWidth = 0, bufferHeight = 0;
+		this->mEffectContext->GetDimension(bufferWidth, bufferHeight);
+		const std::vector<std::pair<std::string, std::string>> defines = boost::assign::list_of<std::pair<std::string, std::string>>
+			("RESHADE", "")
+			("BUFFER_WIDTH", std::to_string(bufferWidth))
+			("BUFFER_HEIGHT", std::to_string(bufferHeight))
+			("BUFFER_RCP_WIDTH", "(1.0f / BUFFER_WIDTH)")
+			("BUFFER_RCP_HEIGHT", "(1.0f / BUFFER_HEIGHT)");
+
+		this->mEffect = this->mEffectContext->Compile(shaderPath, defines, errors);
+
+		if (this->mEffect == nullptr)
+		{
+			LOG(ERROR) << "Failed to compile effect on context " << this->mEffectContext << ":\n\n" << errors << "\n";
+
+			return false;
+		}
+		else if (!errors.empty())
+		{
+			LOG(WARNING) << "> Successfully compiled effect with warnings:" << "\n\n" << errors << "\n";
+		}
+		else
+		{
+			LOG(INFO) << "> Successfully compiled effect.";
+		}
+
+		const auto techniques = this->mEffect->GetTechniqueNames();
+
+		if (techniques.empty())
+		{
+			LOG(WARNING) << "> Effect doesn't contain any techniques. Skipped.";
+
+			this->mEffect.reset();
+
+			return false;
+		}
+		else
+		{
+			this->mSelectedTechnique = this->mEffect->GetTechnique(techniques.front());
+		}
+
+		LOG(INFO) << "Recreated effect environment on context " << this->mEffectContext << ".";
+
+		return this->mCreated = true;
 	}
 	void														Manager::OnDelete(void)
 	{
+		if (!this->mCreated)
+		{
+			return;
+		}
+
+		this->mEffect.reset();
+
+		LOG(INFO) << "Destroyed effect environment on context " << this->mEffectContext << ".";
+
+		this->mCreated = false;
 	}
 	void														Manager::OnPostProcess(void)
 	{
+		if (!(this->mCreated && this->mEnabled) || this->mSelectedTechnique == nullptr)
+		{
+			return;
+		}
+
+		unsigned int passes = 0;
+
+		if (this->mSelectedTechnique->Begin(passes))
+		{
+			for (unsigned int i = 0; i < passes; ++i)
+			{
+				this->mSelectedTechnique->RenderPass(i);
+			}
+
+			this->mSelectedTechnique->End();
+		}
+		else
+		{
+			LOG(ERROR) << "Failed to start rendering selected technique!";
+		}
 	}
 	void														Manager::OnPresent(void)
 	{

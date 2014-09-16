@@ -9,7 +9,7 @@ namespace ReShade
 	class														Manager
 	{
 	public:
-		static bool												Initialize(const boost::filesystem::path &executable, const boost::filesystem::path &injector, const boost::filesystem::path &system);
+		static bool												Initialize(const boost::filesystem::path &executablePath, const boost::filesystem::path &injectorPath, const boost::filesystem::path &systemPath);
 		static void												Exit(void);
 
 	public:
@@ -22,6 +22,9 @@ namespace ReShade
 		void													OnPresent(void);
 
 	private:
+		std::unique_ptr<Effect>									mEffect;
 		std::shared_ptr<EffectContext>							mEffectContext;
+		const Effect::Technique *								mSelectedTechnique;
+		bool													mCreated, mEnabled;
 	};
 }

@@ -17,12 +17,12 @@ BOOL APIENTRY													DllMain(HMODULE hModule, DWORD fdwReason, LPVOID lpvRe
 		{
 			::DisableThreadLibraryCalls(hModule);
 
-			TCHAR pathModule[MAX_PATH], pathExecutable[MAX_PATH], pathSystem[MAX_PATH];
-			::GetModuleFileName(hModule, pathModule, MAX_PATH);
-			::GetModuleFileName(nullptr, pathExecutable, MAX_PATH);
-			::GetSystemDirectory(pathSystem, MAX_PATH);
+			TCHAR modulePath[MAX_PATH], executablePath[MAX_PATH], systemPath[MAX_PATH];
+			::GetModuleFileName(hModule, modulePath, MAX_PATH);
+			::GetModuleFileName(nullptr, executablePath, MAX_PATH);
+			::GetSystemDirectory(systemPath, MAX_PATH);
 			
-			ReShade::Manager::Initialize(pathExecutable, pathModule, pathSystem);
+			ReShade::Manager::Initialize(executablePath, modulePath, systemPath);
 			break;
 		}
 		case DLL_PROCESS_DETACH:
