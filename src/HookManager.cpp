@@ -396,7 +396,7 @@ namespace ReHook
 		LOG(INFO) << "> Libraries loaded.";
 
 		std::size_t counter = 0;
-		const bool detour = (targetPath.stem() != replacementPath.stem());
+		const bool detour = !boost::iequals(targetPath.stem().native(), replacementPath.stem().native());
 
 		// Load export tables
 		const std::vector<Module::Export> targetExports = targetModule.GetExports();
@@ -526,7 +526,7 @@ namespace ReHook
 
 		LOG(INFO) << "Registering hooks for " << targetPath << " ...";
 		
-		if (!Module::Loaded(targetPath) && (targetPath.stem() != replacementPath.stem()))
+		if (!Module::Loaded(targetPath) && !boost::iequals(targetPath.stem().native(), replacementPath.stem().native()))
 		{
 			LOG(INFO) << "> Delayed.";
 
