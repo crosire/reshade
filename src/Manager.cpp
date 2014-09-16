@@ -3,6 +3,9 @@
 #include "Manager.hpp"
 #include "HookManager.hpp"
 
+#include <stb_dxt.h>
+#include <stb_image.h>
+#include <boost\filesystem\operations.hpp>
 #include <boost\assign\list_of.hpp>
 
 namespace ReShade
@@ -95,9 +98,9 @@ namespace ReShade
 			("BUFFER_RCP_WIDTH", "(1.0f / BUFFER_WIDTH)")
 			("BUFFER_RCP_HEIGHT", "(1.0f / BUFFER_HEIGHT)");
 
-		this->mEffect = this->mEffectContext->Compile(shaderPath, defines, errors);
+		std::unique_ptr<Effect> effect = this->mEffectContext->Compile(shaderPath, defines, errors);
 
-		if (this->mEffect == nullptr)
+		if (effect == nullptr)
 		{
 			LOG(ERROR) << "Failed to compile effect on context " << this->mEffectContext << ":\n\n" << errors << "\n";
 
@@ -112,22 +115,118 @@ namespace ReShade
 			LOG(INFO) << "> Successfully compiled effect.";
 		}
 
-		const auto techniques = this->mEffect->GetTechniqueNames();
+		const auto techniques = effect->GetTechniqueNames();
 
 		if (techniques.empty())
 		{
 			LOG(WARNING) << "> Effect doesn't contain any techniques. Skipped.";
 
-			this->mEffect.reset();
-
 			return false;
 		}
 		else
 		{
-			this->mSelectedTechnique = this->mEffect->GetTechnique(techniques.front());
+			this->mSelectedTechnique = effect->GetTechnique(techniques.front());
 		}
 
+		#pragma region Parse Texture Annotations
+		for (const std::string &name : effect->GetTextureNames())
+		{
+			Effect::Texture *texture = effect->GetTexture(name);
+			Effect::Texture::Description desc = texture->GetDescription();
+			const std::string source = texture->GetAnnotation("source").As<std::string>();
+
+			if (source.empty())
+			{
+				continue;
+			}
+			else if (source == "backbuffer")
+			{
+				if (desc.Width == bufferWidth && desc.Height == bufferHeight && desc.Depth == 1 && desc.Format == Effect::Texture::Format::RGBA8)
+				{
+					this->mColorTargets.push_back(texture);
+				}
+				else
+				{
+					LOG(ERROR) << "> Texture '" << name << "' doesn't match backbuffer requirements (Width = " << bufferWidth << ", Height = " << bufferHeight << ", Depth = 1, Format = R8G8B8A8).";
+				}
+			}
+			else if (source == "depthbuffer")
+			{
+				if (desc.Width == bufferWidth && desc.Height == bufferHeight && desc.Depth == 1 && desc.Format == Effect::Texture::Format::R8)
+				{
+					this->mDepthTargets.push_back(texture);
+				}
+				else
+				{
+					LOG(ERROR) << "> Texture '" << name << "' doesn't match depthbuffer requirements (Width = " << bufferWidth << ", Height = " << bufferHeight << ", Depth = 1, Format = R8).";
+				}
+			}
+			else if (boost::filesystem::exists(source))
+			{
+				int width = 0, height = 0, channels = STBI_default;
+
+				switch (desc.Format)
+				{
+					case Effect::Texture::Format::R8:
+						channels = STBI_grey;
+						break;
+					case Effect::Texture::Format::RG8:
+						channels = STBI_grey_alpha;
+						break;
+					case Effect::Texture::Format::DXT1:
+						channels = STBI_rgb;
+						break;
+					case Effect::Texture::Format::RGBA8:
+					case Effect::Texture::Format::DXT5:
+						channels = STBI_rgb_alpha;
+						break;
+					case Effect::Texture::Format::RGBA16:
+					case Effect::Texture::Format::RGBA16F:
+					case Effect::Texture::Format::RGBA32F:
+					case Effect::Texture::Format::DXT3:
+					case Effect::Texture::Format::LATC1:
+					case Effect::Texture::Format::LATC2:
+						LOG(ERROR) << "> Texture " << name << " uses unsupported format ('RGBA16'/'RGBA16F'/'RGBA32F'/'DXT3'/'LATC1'/'LATC2') for image loading.";
+						continue;
+				}
+
+				unsigned char *data = stbi_load(source.c_str(), &width, &height, &channels, channels);
+				desc.Size = width * height * channels;
+
+				switch (desc.Format)
+				{
+					case Effect::Texture::Format::DXT1:
+						stb_compress_dxt_block(data, data, FALSE, STB_DXT_NORMAL);
+						desc.Size = ((width + 3) >> 2) * ((height + 3) >> 2) * 8;
+						break;
+					case Effect::Texture::Format::DXT5:
+						stb_compress_dxt_block(data, data, TRUE, STB_DXT_NORMAL);
+						desc.Size = ((width + 3) >> 2) * ((height + 3) >> 2) * 16;
+						break;
+				}
+
+				if (desc.Width == 1 && desc.Height == 1 && desc.Depth == 1)
+				{
+					desc.Width = width;
+					desc.Height = height;
+
+					texture->Resize(desc);
+				}
+				
+				texture->Update(0, data, desc.Size);
+
+				stbi_image_free(data);
+			}
+			else
+			{
+				LOG(ERROR) << "> Source " << boost::filesystem::absolute(source) << " for texture '" << name << "' could not be found.";
+			}
+		}
+		#pragma endregion
+
 		LOG(INFO) << "Recreated effect environment on context " << this->mEffectContext << ".";
+
+		this->mEffect.swap(effect);
 
 		return this->mCreated = true;
 	}
@@ -137,6 +236,9 @@ namespace ReShade
 		{
 			return;
 		}
+
+		this->mColorTargets.clear();
+		this->mDepthTargets.clear();
 
 		this->mEffect.reset();
 
@@ -157,6 +259,15 @@ namespace ReShade
 		{
 			for (unsigned int i = 0; i < passes; ++i)
 			{
+				for (auto &target : this->mColorTargets)
+				{
+					target->UpdateFromColorBuffer();
+				}
+				for (auto &target : this->mDepthTargets)
+				{
+					target->UpdateFromDepthBuffer();
+				}
+
 				this->mSelectedTechnique->RenderPass(i);
 			}
 

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Effect.hpp"
 #include "EffectContext.hpp"
 
 #include <boost\filesystem\path.hpp>
@@ -26,5 +27,6 @@ namespace ReShade
 		std::shared_ptr<EffectContext>							mEffectContext;
 		const Effect::Technique *								mSelectedTechnique;
 		bool													mCreated, mEnabled;
+		std::vector<Effect::Texture *>							mColorTargets, mDepthTargets;
 	};
 }
