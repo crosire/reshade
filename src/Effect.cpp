@@ -11,7 +11,7 @@ namespace ReShade
 	class														EffectPreprocessor
 	{
 	public:
-		EffectPreprocessor(void) : mTags(7), mScratchCursor(0)
+		EffectPreprocessor(void) : mTags(7), mScratch(16384), mScratchCursor(0)
 		{
 			this->mTags[0].tag = FPPTAG_USERDATA;
 			this->mTags[0].data = static_cast<void *>(this);
@@ -127,7 +127,7 @@ namespace ReShade
 		std::fstream											mInput;
 		std::string												mOutput;
 		std::string												mErrors;
-		std::array<char, 16384>									mScratch;
+		std::vector<char>										mScratch;
 		std::size_t												mScratchCursor;
 	};
 
