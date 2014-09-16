@@ -204,6 +204,7 @@
     <ClCompile Include="src\Hooks\d3d10.cpp" />
     <ClCompile Include="src\Hooks\d3d11.cpp" />
     <ClCompile Include="src\Hooks\dxgi.cpp" />
+    <ClCompile Include="src\Hooks\dinput8.cpp" />
     <ClCompile Include="src\Hooks\opengl32.cpp" />
     <ClCompile Include="src\Main.cpp" />
     <ClCompile Include="src\Manager.cpp" />
