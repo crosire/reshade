@@ -80,6 +80,7 @@ namespace ReShade
 				R8												= 1,
 				RG8												= 2,
 				RGBA8											= 4,
+				R32F,
 				RGBA16,
 				RGBA16F,
 				RGBA32F,

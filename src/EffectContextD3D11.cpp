@@ -383,6 +383,9 @@ namespace ReShade
 					case Nodes::Literal::R8:
 						format = Effect::Texture::Format::R8;
 						return DXGI_FORMAT_R8_UNORM;
+					case Nodes::Literal::R32F:
+						format = Effect::Texture::Format::R32F;
+						return DXGI_FORMAT_R32_FLOAT;
 					case Nodes::Literal::RG8:
 						format = Effect::Texture::Format::RG8;
 						return DXGI_FORMAT_R8G8_UNORM;
@@ -2478,6 +2481,9 @@ namespace ReShade
 			{
 				case Effect::Texture::Format::R8:
 					format = DXGI_FORMAT_R8_UNORM;
+					break;
+				case Effect::Texture::Format::R32F:
+					format = DXGI_FORMAT_R32_FLOAT;
 					break;
 				case Effect::Texture::Format::RG8:
 					format = DXGI_FORMAT_R8G8_UNORM;

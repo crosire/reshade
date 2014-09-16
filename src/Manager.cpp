@@ -180,13 +180,14 @@ namespace ReShade
 					case Effect::Texture::Format::DXT5:
 						channels = STBI_rgb_alpha;
 						break;
+					case Effect::Texture::Format::R32F:
 					case Effect::Texture::Format::RGBA16:
 					case Effect::Texture::Format::RGBA16F:
 					case Effect::Texture::Format::RGBA32F:
 					case Effect::Texture::Format::DXT3:
 					case Effect::Texture::Format::LATC1:
 					case Effect::Texture::Format::LATC2:
-						LOG(ERROR) << "> Texture " << name << " uses unsupported format ('RGBA16'/'RGBA16F'/'RGBA32F'/'DXT3'/'LATC1'/'LATC2') for image loading.";
+						LOG(ERROR) << "> Texture " << name << " uses unsupported format ('R32F'/'RGBA16'/'RGBA16F'/'RGBA32F'/'DXT3'/'LATC1'/'LATC2') for image loading.";
 						continue;
 				}
 

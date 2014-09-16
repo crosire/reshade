@@ -408,6 +408,7 @@
 					MIRROR,
 					BORDER,
 					R8,
+					R32F,
 					RG8,
 					RGBA8,
 					RGBA16,

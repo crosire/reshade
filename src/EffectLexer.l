@@ -352,6 +352,7 @@ STRING															\"(\\.|[^\\"])*\"
 <STATE_INITIALIZER>"REPEAT"|"WRAP"								{ yylval->l.Int = ReShade::Nodes::Literal::REPEAT; return TOK_LITERAL_ENUM; }
 <STATE_INITIALIZER>"BORDER"										{ yylval->l.Int = ReShade::Nodes::Literal::BORDER; return TOK_LITERAL_ENUM; }
 <STATE_INITIALIZER>"R8"											{ yylval->l.Int = ReShade::Nodes::Literal::R8; return TOK_LITERAL_ENUM; }
+<STATE_INITIALIZER>"R32F"										{ yylval->l.Int = ReShade::Nodes::Literal::R32F; return TOK_LITERAL_ENUM; }
 <STATE_INITIALIZER>"RG8"|"R8G8"									{ yylval->l.Int = ReShade::Nodes::Literal::RG8; return TOK_LITERAL_ENUM; }
 <STATE_INITIALIZER>"RGBA8"|"R8G8B8A8"							{ yylval->l.Int = ReShade::Nodes::Literal::RGBA8; return TOK_LITERAL_ENUM; }
 <STATE_INITIALIZER>"RGBA16"|"R16G16B16A16"						{ yylval->l.Int = ReShade::Nodes::Literal::RGBA16; return TOK_LITERAL_ENUM; }

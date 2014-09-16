@@ -345,6 +345,9 @@ namespace ReShade
 					case Nodes::Literal::R8:
 						format = Effect::Texture::Format::R8;
 						return D3DFMT_L8;
+					case Nodes::Literal::R32F:
+						format = Effect::Texture::Format::R32F;
+						return D3DFMT_R32F;
 					case Nodes::Literal::RG8:
 						format = Effect::Texture::Format::RG8;
 						return D3DFMT_A8L8;
@@ -2334,6 +2337,9 @@ namespace ReShade
 			{
 				case Texture::Format::R8:
 					format = D3DFMT_L8;
+					break;
+				case Effect::Texture::Format::R32F:
+					format = D3DFMT_R32F;
 					break;
 				case Texture::Format::RG8:
 					format = D3DFMT_A8L8;

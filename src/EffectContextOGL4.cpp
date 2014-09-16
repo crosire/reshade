@@ -366,6 +366,11 @@ namespace ReShade
 						internalformat = internalformatsrgb = GL_R8;
 						format = GL_RED;
 						break;
+					case Nodes::Literal::R32F:
+						format2 = Effect::Texture::Format::R32F;
+						internalformat = internalformatsrgb = GL_R32F;
+						format = GL_RED;
+						break;
 					case Nodes::Literal::RG8:
 						format2 = Effect::Texture::Format::RG8;
 						internalformat = internalformatsrgb = GL_RG8;
@@ -2537,6 +2542,10 @@ namespace ReShade
 			{
 				case Texture::Format::R8:
 					internalformat = internalformatsrgb = GL_R8;
+					format = GL_RED;
+					break;
+				case Texture::Format::R32F:
+					internalformat = internalformatsrgb = GL_R32F;
 					format = GL_RED;
 					break;
 				case Texture::Format::RG8:
