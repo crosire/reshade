@@ -16,6 +16,100 @@ namespace ReShade
 {
 	namespace
 	{
+		struct													OGL4StateBlock
+		{
+			OGL4StateBlock(void)
+			{
+				ZeroMemory(this, sizeof(this));
+			}
+
+			void												Capture(void)
+			{
+				GLCHECK(glGetIntegerv(GL_CURRENT_PROGRAM, reinterpret_cast<GLint *>(&this->mProgram)));
+				GLCHECK(glGetIntegerv(GL_FRAMEBUFFER_BINDING, reinterpret_cast<GLint *>(&this->mFBO)));
+				
+				for (GLuint i = 0; i < 8; ++i)
+				{
+					glGetIntegerv(GL_DRAW_BUFFER0 + i, reinterpret_cast<GLint *>(&this->mDrawBuffers[i]));
+				}
+				
+				GLCHECK(glGetIntegerv(GL_VERTEX_ARRAY_BINDING, reinterpret_cast<GLint *>(&this->mVAO)));
+				GLCHECK(this->mDepthTest = glIsEnabled(GL_DEPTH_TEST));
+				GLCHECK(glGetBooleanv(GL_DEPTH_WRITEMASK, &this->mDepthMask));
+				GLCHECK(this->mStencilTest = glIsEnabled(GL_STENCIL_TEST));
+				GLCHECK(this->mScissorTest = glIsEnabled(GL_SCISSOR_TEST));
+				GLCHECK(glGetIntegerv(GL_FRONT_FACE, reinterpret_cast<GLint *>(&this->mFrontFace)));
+				GLCHECK(glGetIntegerv(GL_POLYGON_MODE, reinterpret_cast<GLint *>(&this->mPolygonMode)));
+				GLCHECK(this->mCullFace = glIsEnabled(GL_CULL_FACE));
+				GLCHECK(this->mSampleAlphaToCoverage = glIsEnabled(GL_SAMPLE_ALPHA_TO_COVERAGE));
+				GLCHECK(this->mBlend = glIsEnabled(GL_BLEND));
+				GLCHECK(glGetIntegerv(GL_STENCIL_VALUE_MASK, reinterpret_cast<GLint *>(&this->mStencilReadMask)));
+				GLCHECK(glGetIntegerv(GL_STENCIL_WRITEMASK, reinterpret_cast<GLint *>(&this->mStencilMask)));
+				GLCHECK(glGetIntegerv(GL_STENCIL_FUNC, reinterpret_cast<GLint *>(&this->mStencilFunc)));
+				GLCHECK(glGetIntegerv(GL_STENCIL_FAIL, reinterpret_cast<GLint *>(&this->mStencilOpFail)));
+				GLCHECK(glGetIntegerv(GL_STENCIL_PASS_DEPTH_FAIL, reinterpret_cast<GLint *>(&this->mStencilOpZFail)));
+				GLCHECK(glGetIntegerv(GL_STENCIL_PASS_DEPTH_PASS, reinterpret_cast<GLint *>(&this->mStencilOpZPass)));
+				GLCHECK(glGetIntegerv(GL_STENCIL_REF, &this->mStencilRef));
+				GLCHECK(glGetIntegerv(GL_ACTIVE_TEXTURE, reinterpret_cast<GLint *>(&this->mActiveTexture)));
+				
+				for (GLuint i = 0; i < ARRAYSIZE(this->mTextures); ++i)
+				{
+					glActiveTexture(GL_TEXTURE0 + i);
+					glGetIntegerv(GL_TEXTURE_BINDING_2D, reinterpret_cast<GLint *>(&this->mTextures[i]));
+				}
+			}
+			void												Apply(void) const
+			{
+#define glEnableb(cap, value) if ((value)) glEnable(cap); else glDisable(cap);
+
+				GLCHECK(glUseProgram(this->mProgram));
+				GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, this->mFBO));
+
+				if (this->mDrawBuffers[1] == GL_NONE &&
+					this->mDrawBuffers[2] == GL_NONE &&
+					this->mDrawBuffers[3] == GL_NONE &&
+					this->mDrawBuffers[4] == GL_NONE &&
+					this->mDrawBuffers[5] == GL_NONE &&
+					this->mDrawBuffers[6] == GL_NONE &&
+					this->mDrawBuffers[7] == GL_NONE)
+				{
+					glDrawBuffer(this->mDrawBuffers[0]);
+				}
+				else
+				{
+					glDrawBuffers(8, this->mDrawBuffers);
+				}
+
+				GLCHECK(glBindVertexArray(this->mVAO));
+				GLCHECK(glEnableb(GL_DEPTH_TEST, this->mDepthTest));
+				GLCHECK(glDepthMask(this->mDepthMask));
+				GLCHECK(glEnableb(GL_STENCIL_TEST, this->mStencilTest));
+				GLCHECK(glEnableb(GL_SCISSOR_TEST, this->mScissorTest));
+				GLCHECK(glFrontFace(this->mFrontFace));
+				GLCHECK(glPolygonMode(GL_FRONT_AND_BACK, this->mPolygonMode));
+				GLCHECK(glEnableb(GL_CULL_FACE, this->mCullFace));
+				GLCHECK(glEnableb(GL_SAMPLE_ALPHA_TO_COVERAGE, this->mSampleAlphaToCoverage));
+				GLCHECK(glEnableb(GL_BLEND, this->mBlend));
+				GLCHECK(glStencilMask(this->mStencilMask));
+				GLCHECK(glStencilFunc(this->mStencilFunc, this->mStencilRef, this->mStencilReadMask));
+				GLCHECK(glStencilOp(this->mStencilOpFail, this->mStencilOpZFail, this->mStencilOpZPass));
+
+				for (GLuint i = 0; i < ARRAYSIZE(this->mTextures); ++i)
+				{
+					GLCHECK(glActiveTexture(GL_TEXTURE0 + i));
+					GLCHECK(glBindTexture(GL_TEXTURE_2D, this->mTextures[i]));
+				}
+
+				GLCHECK(glActiveTexture(this->mActiveTexture));
+			}
+
+			GLint												mStencilRef;
+			GLuint												mStencilMask, mStencilReadMask;
+			GLuint												mProgram, mFBO, mVAO, mTextures[8];
+			GLenum												mDrawBuffers[8], mCullFace, mPolygonMode, mBlendEqColor, mBlendEqAlpha, mBlendFuncSrc, mBlendFuncDest, mDepthFunc, mStencilFunc, mStencilOpFail, mStencilOpZFail, mStencilOpZPass, mFrontFace, mActiveTexture;
+			GLboolean											mScissorTest, mBlend, mDepthMask, mDepthTest, mStencilTest, mColorMaskR, mColorMaskG, mColorMaskB, mColorMaskA, mSampleAlphaToCoverage;
+		};
+
 		class													OGL4EffectContext : public EffectContext, public std::enable_shared_from_this<OGL4EffectContext>
 		{
 			friend struct OGL4Effect;
@@ -142,7 +236,7 @@ namespace ReShade
 			Description											mDesc;
 			std::unordered_map<std::string, Effect::Annotation>	mAnnotations;
 			std::vector<Pass>									mPasses;
-			mutable Pass										mStateblock;
+			mutable OGL4StateBlock								mStateblock;
 		};
 
 		GLenum													TextureBindingFromTarget(GLenum target)
@@ -2791,24 +2885,7 @@ namespace ReShade
 		{
 			passes = static_cast<unsigned int>(this->mPasses.size());
 
-			GLCHECK(glGetIntegerv(GL_CURRENT_PROGRAM, reinterpret_cast<GLint *>(&this->mStateblock.Program)));
-			GLCHECK(glGetIntegerv(GL_FRAMEBUFFER_BINDING, reinterpret_cast<GLint *>(&this->mStateblock.Framebuffer)));
-			GLCHECK(this->mStateblock.DepthTest = glIsEnabled(GL_DEPTH_TEST));
-			GLCHECK(glGetBooleanv(GL_DEPTH_WRITEMASK, &this->mStateblock.DepthMask));
-			GLCHECK(this->mStateblock.StencilTest = glIsEnabled(GL_STENCIL_TEST));
-			GLCHECK(this->mStateblock.ScissorTest = glIsEnabled(GL_SCISSOR_TEST));
-			GLCHECK(glGetIntegerv(GL_FRONT_FACE, reinterpret_cast<GLint *>(&this->mStateblock.FrontFace)));
-			GLCHECK(glGetIntegerv(GL_POLYGON_MODE, reinterpret_cast<GLint *>(&this->mStateblock.PolygonMode)));
-			GLCHECK(this->mStateblock.CullFace = glIsEnabled(GL_CULL_FACE));
-			GLCHECK(this->mStateblock.SampleAlphaToCoverage = glIsEnabled(GL_SAMPLE_ALPHA_TO_COVERAGE));
-			GLCHECK(this->mStateblock.Blend = glIsEnabled(GL_BLEND));
-			GLCHECK(glGetIntegerv(GL_STENCIL_VALUE_MASK, reinterpret_cast<GLint *>(&this->mStateblock.StencilReadMask)));
-			GLCHECK(glGetIntegerv(GL_STENCIL_WRITEMASK, reinterpret_cast<GLint *>(&this->mStateblock.StencilMask)));
-			GLCHECK(glGetIntegerv(GL_STENCIL_FUNC, reinterpret_cast<GLint *>(&this->mStateblock.StencilFunc)));
-			GLCHECK(glGetIntegerv(GL_STENCIL_FAIL, reinterpret_cast<GLint *>(&this->mStateblock.StencilOpFail)));
-			GLCHECK(glGetIntegerv(GL_STENCIL_PASS_DEPTH_FAIL, reinterpret_cast<GLint *>(&this->mStateblock.StencilOpZFail)));
-			GLCHECK(glGetIntegerv(GL_STENCIL_PASS_DEPTH_PASS, reinterpret_cast<GLint *>(&this->mStateblock.StencilOpZPass)));
-			GLCHECK(glGetIntegerv(GL_STENCIL_REF, &this->mStateblock.StencilRef));
+			this->mStateblock.Capture();
 
 			GLCHECK(glBindVertexArray(this->mEffect->mDefaultVAO));
 			GLCHECK(glBindVertexBuffer(0, this->mEffect->mDefaultVBO, 0, sizeof(float)));		
@@ -2831,22 +2908,7 @@ namespace ReShade
 		}
 		void													OGL4Technique::End(void) const
 		{
-#define glEnableb(cap, value) if ((value)) glEnable(cap); else glDisable(cap);
-
-			GLCHECK(glUseProgram(this->mStateblock.Program));
-			GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, this->mStateblock.Framebuffer));
-			GLCHECK(glEnableb(GL_DEPTH_TEST, this->mStateblock.DepthTest));
-			GLCHECK(glDepthMask(this->mStateblock.DepthMask));
-			GLCHECK(glEnableb(GL_STENCIL_TEST, this->mStateblock.StencilTest));
-			GLCHECK(glEnableb(GL_SCISSOR_TEST, this->mStateblock.ScissorTest));
-			GLCHECK(glFrontFace(this->mStateblock.FrontFace));
-			GLCHECK(glPolygonMode(GL_FRONT_AND_BACK, this->mStateblock.PolygonMode));
-			GLCHECK(glEnableb(GL_CULL_FACE, this->mStateblock.CullFace));
-			GLCHECK(glEnableb(GL_SAMPLE_ALPHA_TO_COVERAGE, this->mStateblock.SampleAlphaToCoverage));
-			GLCHECK(glEnableb(GL_BLEND, this->mStateblock.Blend));
-			GLCHECK(glStencilMask(this->mStateblock.StencilMask));
-			GLCHECK(glStencilFunc(this->mStateblock.StencilFunc, this->mStateblock.StencilRef, this->mStateblock.StencilReadMask));
-			GLCHECK(glStencilOp(this->mStateblock.StencilOpFail, this->mStateblock.StencilOpZFail, this->mStateblock.StencilOpZPass));
+			this->mStateblock.Apply();
 		}
 		void													OGL4Technique::RenderPass(unsigned int index) const
 		{
