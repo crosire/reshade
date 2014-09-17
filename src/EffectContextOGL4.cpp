@@ -82,7 +82,7 @@ namespace ReShade
 			OGL4Effect *										mEffect;
 			Description											mDesc;
 			UINT												mDimension;
-			GLenum												mInternalFormat, mFormat;
+			GLenum												mInternalFormat;
 			std::unordered_map<std::string, Effect::Annotation>	mAnnotations;
 			GLenum												mTarget;
 			GLuint												mID, mSRGBView;
@@ -357,86 +357,73 @@ namespace ReShade
 						return GL_MAX;
 				}
 			}
-			static void											ConvertLiteralToFormat(int value, GLenum &internalformat, GLenum &internalformatsrgb, GLenum &format, Effect::Texture::Format &format2)
+			static void											ConvertLiteralToFormat(int value, GLenum &internalformat, GLenum &internalformatsrgb, Effect::Texture::Format &format)
 			{
 				switch (value)
 				{
 					case Nodes::Literal::R8:
-						format2 = Effect::Texture::Format::R8;
+						format = Effect::Texture::Format::R8;
 						internalformat = internalformatsrgb = GL_R8;
-						format = GL_RED;
 						break;
 					case Nodes::Literal::R32F:
-						format2 = Effect::Texture::Format::R32F;
+						format = Effect::Texture::Format::R32F;
 						internalformat = internalformatsrgb = GL_R32F;
-						format = GL_RED;
 						break;
 					case Nodes::Literal::RG8:
-						format2 = Effect::Texture::Format::RG8;
+						format = Effect::Texture::Format::RG8;
 						internalformat = internalformatsrgb = GL_RG8;
-						format = GL_RG;
 						break;
 					case Nodes::Literal::RGBA8:
-						format2 = Effect::Texture::Format::RGBA8;
+						format = Effect::Texture::Format::RGBA8;
 						internalformat = GL_RGBA8;
 						internalformatsrgb = GL_SRGB8_ALPHA8;
-						format = GL_RGBA;
 						break;
 					case Nodes::Literal::RGBA16:
-						format2 = Effect::Texture::Format::RGBA16;
+						format = Effect::Texture::Format::RGBA16;
 						internalformat = internalformatsrgb = GL_RGBA16;
-						format = GL_RGBA;
 						break;
 					case Nodes::Literal::RGBA16F:
-						format2 = Effect::Texture::Format::RGBA16F;
+						format = Effect::Texture::Format::RGBA16F;
 						internalformat = internalformatsrgb = GL_RGBA16F;
-						format = GL_RGBA;
 						break;
 					case Nodes::Literal::RGBA32F:
-						format2 = Effect::Texture::Format::RGBA32F;
+						format = Effect::Texture::Format::RGBA32F;
 						internalformat = internalformatsrgb = GL_RGBA32F;
-						format = GL_RGBA;
 						break;
 					case Nodes::Literal::DXT1:
-	#define GL_COMPRESSED_RGBA_S3TC_DXT1_EXT 0x83F1
-	#define GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT1_EXT 0x8C4D
-						format2 = Effect::Texture::Format::DXT1;
+#define GL_COMPRESSED_RGBA_S3TC_DXT1_EXT 0x83F1
+#define GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT1_EXT 0x8C4D
+						format = Effect::Texture::Format::DXT1;
 						internalformat = GL_COMPRESSED_RGBA_S3TC_DXT1_EXT;
 						internalformatsrgb = GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT1_EXT;
-						format = GL_RGBA;
 						break;
 					case Nodes::Literal::DXT3:
-	#define GL_COMPRESSED_RGBA_S3TC_DXT3_EXT 0x83F2
-	#define GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT3_EXT 0x8C4E
-						format2 = Effect::Texture::Format::DXT3;
+#define GL_COMPRESSED_RGBA_S3TC_DXT3_EXT 0x83F2
+#define GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT3_EXT 0x8C4E
+						format = Effect::Texture::Format::DXT3;
 						internalformat = GL_COMPRESSED_RGBA_S3TC_DXT3_EXT;
 						internalformatsrgb = GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT3_EXT;
-						format = GL_RGBA;
 						break;
 					case Nodes::Literal::DXT5:
-	#define GL_COMPRESSED_RGBA_S3TC_DXT5_EXT 0x83F3
-	#define GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT5_EXT 0x8C4F
-						format2 = Effect::Texture::Format::DXT5;
+#define GL_COMPRESSED_RGBA_S3TC_DXT5_EXT 0x83F3
+#define GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT5_EXT 0x8C4F
+						format = Effect::Texture::Format::DXT5;
 						internalformat = GL_COMPRESSED_RGBA_S3TC_DXT5_EXT;
 						internalformatsrgb = GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT5_EXT;
-						format = GL_RGBA;
 						break;
 					case Nodes::Literal::LATC1:
-	#define GL_COMPRESSED_LUMINANCE_LATC1_EXT 0x8C70
-						format2 = Effect::Texture::Format::LATC1;
+#define GL_COMPRESSED_LUMINANCE_LATC1_EXT 0x8C70
+						format = Effect::Texture::Format::LATC1;
 						internalformat = internalformatsrgb = GL_COMPRESSED_LUMINANCE_LATC1_EXT;
-						format = GL_RGBA;
 						break;
 					case Nodes::Literal::LATC2:
-	#define GL_COMPRESSED_LUMINANCE_ALPHA_LATC2_EXT 0x8C72
-						format2 = Effect::Texture::Format::LATC2;
+#define GL_COMPRESSED_LUMINANCE_ALPHA_LATC2_EXT 0x8C72
+						format = Effect::Texture::Format::LATC2;
 						internalformat = internalformatsrgb = GL_COMPRESSED_LUMINANCE_ALPHA_LATC2_EXT;
-						format = GL_RGBA;
 						break;
 					default:
-						format2 = Effect::Texture::Format::Unknown;
-						internalformat = GL_NONE;
-						format = GL_NONE;
+						format = Effect::Texture::Format::Unknown;
+						internalformat = internalformatsrgb = GL_NONE;
 						break;
 				}
 			}
@@ -490,7 +477,7 @@ namespace ReShade
 					}
 				}
 
-				if (from.Rows < to.Rows)
+				if (from.Rows > 0 && from.Rows < to.Rows)
 				{
 					after += ".";
 					char sub[4] = { 'x', 'y', 'z', 'w' };
@@ -1457,8 +1444,8 @@ namespace ReShade
 			{
 				GLuint texture[2] = { 0, 0 };
 				GLsizei width = 1, height = 1, depth = 1, levels = 1;
-				GLenum internalformat = GL_RGBA8, internalformatSRGB = GL_SRGB8_ALPHA8, format = GL_RGBA;
-				Effect::Texture::Format format2 = Effect::Texture::Format::RGBA8;
+				GLenum internalformat = GL_RGBA8, internalformatSRGB = GL_SRGB8_ALPHA8;
+				Effect::Texture::Format format = Effect::Texture::Format::RGBA8;
 			
 				if (data.HasInitializer())
 				{
@@ -1484,7 +1471,7 @@ namespace ReShade
 								levels = state.Value.AsInt;
 								break;
 							case Nodes::State::Format:
-								ConvertLiteralToFormat(state.Value.AsInt, internalformat, internalformatSRGB, format, format2);
+								ConvertLiteralToFormat(state.Value.AsInt, internalformat, internalformatSRGB, format);
 								break;
 						}
 					}
@@ -1498,7 +1485,7 @@ namespace ReShade
 				obj->mDesc.Height = height;
 				obj->mDesc.Depth = depth;
 				obj->mDesc.Levels = levels;
-				obj->mDesc.Format = format2;
+				obj->mDesc.Format = format;
 				obj->mID = texture[0];
 				obj->mSRGBView = texture[1];
 
@@ -1513,7 +1500,7 @@ namespace ReShade
 
 						glGetIntegerv(GL_TEXTURE_BINDING_1D, &previous);
 						glBindTexture(GL_TEXTURE_1D, texture[0]);
-						glTexImage1D(GL_TEXTURE_1D, 0, internalformat, width, 0, format, GL_UNSIGNED_BYTE, nullptr);
+						glTexStorage1D(GL_TEXTURE_1D, levels, internalformat, width);
 						break;
 					}
 					case Nodes::Type::Texture2D:
@@ -1523,7 +1510,7 @@ namespace ReShade
 
 						glGetIntegerv(GL_TEXTURE_BINDING_2D, &previous);
 						glBindTexture(GL_TEXTURE_2D, texture[0]);
-						glTexImage2D(GL_TEXTURE_2D, 0, internalformat, width, height, 0, format, GL_UNSIGNED_BYTE, nullptr);
+						glTexStorage2D(GL_TEXTURE_2D, levels, internalformat, width, height);
 						break;
 					}
 					case Nodes::Type::Texture3D:
@@ -1533,7 +1520,7 @@ namespace ReShade
 
 						glGetIntegerv(GL_TEXTURE_BINDING_3D, &previous);
 						glBindTexture(GL_TEXTURE_3D, texture[0]);
-						glTexImage3D(GL_TEXTURE_3D, 0, internalformat, width, height, depth, 0, format, GL_UNSIGNED_BYTE, nullptr);
+						glTexStorage3D(GL_TEXTURE_3D, levels, internalformat, width, height, depth);
 						break;
 					}
 				}
@@ -2293,7 +2280,7 @@ namespace ReShade
 				shader = glCreateShader(type);
 
 				const GLchar *src = source.c_str();
-				const GLsizei len = source.length();
+				const GLsizei len = static_cast<GLsizei>(source.length());
 
 				glShaderSource(shader, 1, &src, &len);
 				glCompileShader(shader);
@@ -2542,92 +2529,81 @@ namespace ReShade
 
 		bool													OGL4Texture::Resize(const Description &desc)
 		{
-			GLenum internalformat, internalformatsrgb, format;
+			GLenum internalformat, internalformatsrgb;
 
 			switch (desc.Format)
 			{
 				case Texture::Format::R8:
 					internalformat = internalformatsrgb = GL_R8;
-					format = GL_RED;
 					break;
 				case Texture::Format::R32F:
 					internalformat = internalformatsrgb = GL_R32F;
-					format = GL_RED;
 					break;
 				case Texture::Format::RG8:
 					internalformat = internalformatsrgb = GL_RG8;
-					format = GL_RG;
 					break;
 				case Texture::Format::RGBA8:
 					internalformat = GL_RGBA8;
 					internalformatsrgb = GL_SRGB8_ALPHA8;
-					format = GL_RGBA;
 					break;
 				case Texture::Format::RGBA16:
 					internalformat = internalformatsrgb = GL_RGBA16;
-					format = GL_RGBA;
 					break;
 				case Texture::Format::RGBA16F:
 					internalformat = internalformatsrgb = GL_RGBA16F;
-					format = GL_RGBA;
 					break;
 				case Texture::Format::RGBA32F:
 					internalformat = internalformatsrgb = GL_RGBA32F;
-					format = GL_RGBA;
 					break;
 				case Texture::Format::DXT1:
 					internalformat = GL_COMPRESSED_RGBA_S3TC_DXT1_EXT;
 					internalformatsrgb = GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT1_EXT;
-					format = GL_RGBA;
 					break;
 				case Texture::Format::DXT3:
 					internalformat = GL_COMPRESSED_RGBA_S3TC_DXT3_EXT;
 					internalformatsrgb = GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT3_EXT;
-					format = GL_RGBA;
 					break;
 				case Texture::Format::DXT5:
 					internalformat = GL_COMPRESSED_RGBA_S3TC_DXT5_EXT;
 					internalformatsrgb = GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT5_EXT;
-					format = GL_RGBA;
 					break;
 				case Texture::Format::LATC1:
 					internalformat = internalformatsrgb = GL_COMPRESSED_LUMINANCE_LATC1_EXT;
-					format = GL_RGBA;
 					break;
 				case Texture::Format::LATC2:
 					internalformat = internalformatsrgb = GL_COMPRESSED_LUMINANCE_ALPHA_LATC2_EXT;
-					format = GL_RGBA;
 					break;
 				default:
 					return false;
 			}
 
-			GLuint previous = 0;
+			GLuint texture = 0, previous = 0;
 			GLCHECK(glGetIntegerv(TextureBindingFromTarget(this->mTarget), reinterpret_cast<GLint *>(&previous)));
 
-			GLCHECK(glBindTexture(this->mTarget, this->mID));
+			GLCHECK(glGenTextures(1, &texture));
+			GLCHECK(glBindTexture(this->mTarget, texture));
 
 			switch (this->mDimension)
 			{
 				case 1:
-					GLCHECK(glTexImage1D(this->mTarget, 0, internalformat, desc.Width, 0, format, GL_UNSIGNED_BYTE, nullptr));
+					GLCHECK(glTexStorage1D(this->mTarget, desc.Levels, internalformat, desc.Width));
 					break;
 				case 2:
-					GLCHECK(glTexImage2D(this->mTarget, 0, internalformat, desc.Width, desc.Height, 0, format, GL_UNSIGNED_BYTE, nullptr));
+					GLCHECK(glTexStorage2D(this->mTarget, desc.Levels, internalformat, desc.Width, desc.Height));
 					break;
 				case 3:
-					GLCHECK(glTexImage3D(this->mTarget, 0, internalformat, desc.Width, desc.Height, desc.Depth, 0, format, GL_UNSIGNED_BYTE, nullptr));
+					GLCHECK(glTexStorage3D(this->mTarget, desc.Levels, internalformat, desc.Width, desc.Height, desc.Depth));
 					break;
 			}
 
 			GLCHECK(glTextureView(this->mSRGBView, this->mTarget, this->mID, this->mInternalFormat, 0, desc.Levels, 0, desc.Depth));
-			GLCHECK(glTexParameteri(this->mTarget, GL_TEXTURE_MAX_LEVEL, desc.Levels));
-
 			GLCHECK(glBindTexture(this->mTarget, previous));
-			
+
+			GLCHECK(glDeleteTextures(1, &this->mID));
+
+			this->mID = texture;
 			this->mDesc = desc;
 			this->mInternalFormat = internalformat;
-			this->mFormat = format;
 
 			return true;
 		}
@@ -2657,16 +2633,35 @@ namespace ReShade
 			}
 			else
 			{
+				GLenum format = GL_NONE;
+
+				switch (this->mDesc.Format)
+				{
+					case Texture::Format::R8:
+					case Texture::Format::R32F:
+						format = GL_RED;
+						break;
+					case Texture::Format::RG8:
+						format = GL_RG;
+						break;
+					case Texture::Format::RGBA8:
+					case Texture::Format::RGBA16:
+					case Texture::Format::RGBA16F:
+					case Texture::Format::RGBA32F:
+						format = GL_RGBA;
+						break;
+				}
+
 				switch (this->mDimension)
 				{
 					case 1:
-						GLCHECK(glTexSubImage1D(this->mTarget, level, 0, this->mDesc.Width, this->mFormat, GL_UNSIGNED_BYTE, data));
+						GLCHECK(glTexSubImage1D(this->mTarget, level, 0, this->mDesc.Width, format, GL_UNSIGNED_BYTE, data));
 						break;
 					case 2:
-						GLCHECK(glTexSubImage2D(this->mTarget, level, 0, 0, this->mDesc.Width, this->mDesc.Height, this->mFormat, GL_UNSIGNED_BYTE, data));
+						GLCHECK(glTexSubImage2D(this->mTarget, level, 0, 0, this->mDesc.Width, this->mDesc.Height, format, GL_UNSIGNED_BYTE, data));
 						break;
 					case 3:
-						GLCHECK(glTexSubImage3D(this->mTarget, level, 0, 0, 0, this->mDesc.Width, this->mDesc.Height, this->mDesc.Depth, this->mFormat, GL_UNSIGNED_BYTE, data));
+						GLCHECK(glTexSubImage3D(this->mTarget, level, 0, 0, 0, this->mDesc.Width, this->mDesc.Height, this->mDesc.Depth, format, GL_UNSIGNED_BYTE, data));
 						break;
 				}
 			}
@@ -2678,6 +2673,11 @@ namespace ReShade
 			GLCHECK(glBindFramebuffer(GL_READ_FRAMEBUFFER, 0));
 			GLCHECK(glBindFramebuffer(GL_DRAW_FRAMEBUFFER, this->mEffect->mDefaultFBO));
 			GLCHECK(glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, this->mTarget, this->mID, 0));
+
+#ifdef _DEBUG
+			GLenum status = glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER);
+			assert(status == GL_FRAMEBUFFER_COMPLETE);
+#endif
 
 			GLCHECK(glReadBuffer(GL_BACK));
 			GLCHECK(glDrawBuffer(GL_COLOR_ATTACHMENT0));
