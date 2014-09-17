@@ -2176,7 +2176,7 @@ EXPORT int WINAPI												wglChoosePixelFormat(HDC hdc, CONST PIXELFORMATDESC
 {
 	LOG(INFO) << "Redirecting '" << "wglChoosePixelFormat" << "(" << hdc << ", " << ppfd << ")' ...";
 
-	int format = ReHook::Call(&wglChoosePixelFormat)(hdc, ppfd);
+	const int format = ReHook::Call(&wglChoosePixelFormat)(hdc, ppfd);
 
 	LOG(TRACE) << "> Returned format: " << format;
 
@@ -2452,7 +2452,9 @@ EXPORT HGLRC WINAPI												wglCreateContextAttribsARB(HDC hdc, HGLRC hShareC
 }
 EXPORT HGLRC WINAPI												wglCreateLayerContext(HDC hdc, int iLayerPlane)
 {
-	return ReHook::Call(wglCreateLayerContext)(hdc, iLayerPlane);
+	LOG(INFO) << "Redirecting '" << "wglCreateLayerContext" << "(" << hdc << ", " << iLayerPlane << ")' ...";
+
+	return ReHook::Call(&wglCreateLayerContext)(hdc, iLayerPlane);
 }
 EXPORT BOOL WINAPI												wglDeleteContext(HGLRC hglrc)
 {
