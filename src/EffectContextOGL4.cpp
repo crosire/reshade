@@ -7,7 +7,7 @@
 // -----------------------------------------------------------------------------------------------------
 
 #ifdef _DEBUG
-	#define GLCHECK(call) { call; GLenum __e = glGetError(); if (__e != GL_NO_ERROR) { char __m[1024]; sprintf_s(__m, "OpenGL Error %x at line %d: %s", __e, __LINE__, #call); MessageBoxA(nullptr, __m, 0, MB_ICONERROR); } }
+	#define GLCHECK(call) { glGetError(); call; GLenum __e = glGetError(); if (__e != GL_NO_ERROR) { char __m[1024]; sprintf_s(__m, "OpenGL Error %x at line %d: %s", __e, __LINE__, #call); MessageBoxA(nullptr, __m, 0, MB_ICONERROR); } }
 #else
 	#define GLCHECK(call) call
 #endif
@@ -1525,7 +1525,7 @@ namespace ReShade
 					}
 				}
 
-				glTextureView(obj->mSRGBView, obj->mTarget, obj->mID, internalformatSRGB, 0, levels, 0, depth);
+				glTextureView(texture[1], obj->mTarget, texture[0], internalformatSRGB, 0, levels, 0, depth);
 				glBindTexture(obj->mTarget, previous);
 
 				if (data.Annotations != 0)
@@ -1896,7 +1896,16 @@ namespace ReShade
 							const char *name = this->mAST[state.Value.AsNode].As<Nodes::Variable>().Name;
 							const OGL4Texture *texture = this->mEffect->mTextures.at(name).get();
 
-							glFramebufferTexture(texture->mTarget, GL_COLOR_ATTACHMENT0 + index, texture->mID, 0);
+							glBindFramebuffer(GL_FRAMEBUFFER, info.Framebuffer);
+							glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + index, texture->mID, 0);
+
+#ifdef _DEBUG
+							GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+							assert(status == GL_FRAMEBUFFER_COMPLETE);
+#endif
+
+							glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
 							info.DrawBuffers[index] = GL_COLOR_ATTACHMENT0 + index;
 							break;
 						}
@@ -2529,59 +2538,59 @@ namespace ReShade
 
 		bool													OGL4Texture::Resize(const Description &desc)
 		{
-			GLenum internalformat, internalformatsrgb;
+			GLenum internalformat, internalformatSRGB;
 
 			switch (desc.Format)
 			{
 				case Texture::Format::R8:
-					internalformat = internalformatsrgb = GL_R8;
+					internalformat = internalformatSRGB = GL_R8;
 					break;
 				case Texture::Format::R32F:
-					internalformat = internalformatsrgb = GL_R32F;
+					internalformat = internalformatSRGB = GL_R32F;
 					break;
 				case Texture::Format::RG8:
-					internalformat = internalformatsrgb = GL_RG8;
+					internalformat = internalformatSRGB = GL_RG8;
 					break;
 				case Texture::Format::RGBA8:
 					internalformat = GL_RGBA8;
-					internalformatsrgb = GL_SRGB8_ALPHA8;
+					internalformatSRGB = GL_SRGB8_ALPHA8;
 					break;
 				case Texture::Format::RGBA16:
-					internalformat = internalformatsrgb = GL_RGBA16;
+					internalformat = internalformatSRGB = GL_RGBA16;
 					break;
 				case Texture::Format::RGBA16F:
-					internalformat = internalformatsrgb = GL_RGBA16F;
+					internalformat = internalformatSRGB = GL_RGBA16F;
 					break;
 				case Texture::Format::RGBA32F:
-					internalformat = internalformatsrgb = GL_RGBA32F;
+					internalformat = internalformatSRGB = GL_RGBA32F;
 					break;
 				case Texture::Format::DXT1:
 					internalformat = GL_COMPRESSED_RGBA_S3TC_DXT1_EXT;
-					internalformatsrgb = GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT1_EXT;
+					internalformatSRGB = GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT1_EXT;
 					break;
 				case Texture::Format::DXT3:
 					internalformat = GL_COMPRESSED_RGBA_S3TC_DXT3_EXT;
-					internalformatsrgb = GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT3_EXT;
+					internalformatSRGB = GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT3_EXT;
 					break;
 				case Texture::Format::DXT5:
 					internalformat = GL_COMPRESSED_RGBA_S3TC_DXT5_EXT;
-					internalformatsrgb = GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT5_EXT;
+					internalformatSRGB = GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT5_EXT;
 					break;
 				case Texture::Format::LATC1:
-					internalformat = internalformatsrgb = GL_COMPRESSED_LUMINANCE_LATC1_EXT;
+					internalformat = internalformatSRGB = GL_COMPRESSED_LUMINANCE_LATC1_EXT;
 					break;
 				case Texture::Format::LATC2:
-					internalformat = internalformatsrgb = GL_COMPRESSED_LUMINANCE_ALPHA_LATC2_EXT;
+					internalformat = internalformatSRGB = GL_COMPRESSED_LUMINANCE_ALPHA_LATC2_EXT;
 					break;
 				default:
 					return false;
 			}
 
-			GLuint texture = 0, previous = 0;
+			GLuint texture[2] = { 0, 0 }, previous = 0;
 			GLCHECK(glGetIntegerv(TextureBindingFromTarget(this->mTarget), reinterpret_cast<GLint *>(&previous)));
 
-			GLCHECK(glGenTextures(1, &texture));
-			GLCHECK(glBindTexture(this->mTarget, texture));
+			GLCHECK(glGenTextures(2, texture));
+			GLCHECK(glBindTexture(this->mTarget, texture[0]));
 
 			switch (this->mDimension)
 			{
@@ -2596,12 +2605,14 @@ namespace ReShade
 					break;
 			}
 
-			GLCHECK(glTextureView(this->mSRGBView, this->mTarget, this->mID, this->mInternalFormat, 0, desc.Levels, 0, desc.Depth));
+			GLCHECK(glTextureView(texture[1], this->mTarget, texture[0], internalformatSRGB, 0, desc.Levels, 0, desc.Depth));
 			GLCHECK(glBindTexture(this->mTarget, previous));
 
 			GLCHECK(glDeleteTextures(1, &this->mID));
+			GLCHECK(glDeleteTextures(1, &this->mSRGBView));
 
-			this->mID = texture;
+			this->mID = texture[0];
+			this->mSRGBView = texture[1];
 			this->mDesc = desc;
 			this->mInternalFormat = internalformat;
 
@@ -2800,8 +2811,8 @@ namespace ReShade
 			GLCHECK(glGetIntegerv(GL_STENCIL_REF, &this->mStateblock.StencilRef));
 
 			GLCHECK(glBindVertexArray(this->mEffect->mDefaultVAO));
-			GLCHECK(glBindVertexBuffer(0, this->mEffect->mDefaultVBO, 0, sizeof(float)));
-			
+			GLCHECK(glBindVertexBuffer(0, this->mEffect->mDefaultVBO, 0, sizeof(float)));		
+
 			for (GLuint i = 0, count = static_cast<GLuint>(this->mEffect->mSamplers.size()); i < count; ++i)
 			{
 				const auto &sampler = this->mEffect->mSamplers[i];
