@@ -34,7 +34,7 @@ namespace ReShade
 		logConfig.set(el::Level::Global, el::ConfigurationType::ToStandardOutput, "false");
 		logConfig.set(el::Level::Global, el::ConfigurationType::MaxLogFileSize, "0");
 		logConfig.set(el::Level::Global, el::ConfigurationType::LogFlushThreshold, "0");
-		logConfig.set(el::Level::Global, el::ConfigurationType::Format, "%datetime [%thread] | %level | %msg");
+		logConfig.set(el::Level::Global, el::ConfigurationType::Format, "%datetime | %level | %msg");
 		el::Loggers::reconfigureLogger("default", logConfig);
 
 		// Initialize injector
@@ -66,7 +66,7 @@ namespace ReShade
 
 	Manager::Manager(std::shared_ptr<EffectContext> context) : mEffectContext(context), mCreated(false), mEnabled(true), mSelectedTechnique(nullptr)
 	{
-		LOG(INFO) << "Acquiring effect context " << this->mEffectContext << "...";
+		LOG(INFO) << "Acquiring effect context " << this->mEffectContext << " ...";
 
 		OnCreate();
 	}
