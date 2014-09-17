@@ -175,7 +175,7 @@ namespace ReShade
 		class													ASTVisitor
 		{
 		public:
-			ASTVisitor(const EffectTree &ast, std::string errors) : mAST(ast), mErrors(errors), mCurrentInParameterBlock(false), mCurrentInFunctionBlock(false), mCurrentGlobalSize(0)
+			ASTVisitor(const EffectTree &ast, std::string &errors) : mAST(ast), mErrors(errors), mCurrentInParameterBlock(false), mCurrentInFunctionBlock(false), mCurrentGlobalSize(0)
 			{
 			}
 
