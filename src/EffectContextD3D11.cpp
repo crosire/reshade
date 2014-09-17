@@ -36,43 +36,6 @@ namespace ReShade
 {
 	namespace
 	{
-		struct													D3D11StateBlock
-		{
-			D3D11StateBlock(void) : mDeviceContext(nullptr), mRenderTargets(), mDepthStencilView(nullptr)
-			{
-			}
-			~D3D11StateBlock(void)
-			{
-				Release();
-			}
-
-			void												Capture(ID3D11DeviceContext *context)
-			{
-				Release();
-
-				this->mDeviceContext = context;
-
-				this->mDeviceContext->OMGetRenderTargets(D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT, this->mRenderTargets, &this->mDepthStencilView);
-			}
-			void												Apply(void) const
-			{
-				this->mDeviceContext->OMSetRenderTargets(D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT, this->mRenderTargets, this->mDepthStencilView);
-			}
-			void												Release(void)
-			{
-				for (UINT i = 0; i < D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT; ++i)
-				{
-					SAFE_RELEASE(this->mRenderTargets[i]);
-				}
-
-				SAFE_RELEASE(this->mDepthStencilView);
-			}
-
-			ID3D11DeviceContext *								mDeviceContext;
-			ID3D11RenderTargetView *							mRenderTargets[D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT];
-			ID3D11DepthStencilView *							mDepthStencilView;
-		};
-
 		class													D3D11EffectContext : public EffectContext, public std::enable_shared_from_this<D3D11EffectContext>
 		{
 			friend struct D3D11Effect;
@@ -124,7 +87,6 @@ namespace ReShade
 			ID3D11Texture2D *									mDepthStencilTexture;
 			ID3D11ShaderResourceView *							mDepthStencilView;
 			ID3D11DepthStencilView *							mDepthStencil;
-			D3D11StateBlock										mStateblock;
 			std::unordered_map<D3D11_SAMPLER_DESC, size_t>		mSamplerDescs;
 			std::vector<ID3D11SamplerState *>					mSamplerStates;
 			std::vector<ID3D11ShaderResourceView *>				mShaderResources;
@@ -2811,8 +2773,6 @@ namespace ReShade
 				return false;
 			}
 
-			this->mEffect->mStateblock.Capture(this->mDeferredContext);
-
 			const uintptr_t null = 0;
 			this->mDeferredContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 			this->mDeferredContext->IASetInputLayout(nullptr);
@@ -2829,8 +2789,6 @@ namespace ReShade
 		}
 		void													D3D11Technique::End(void) const
 		{
-			this->mEffect->mStateblock.Apply();
-
 			ID3D11CommandList *list;
 			this->mDeferredContext->FinishCommandList(FALSE, &list);
 
