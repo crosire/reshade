@@ -74,13 +74,20 @@
 
 namespace
 {
+	struct														WindowHook
+	{
+		HHOOK													Handle;
+		ULONG													References;
+		WORD													PreviousWidth, PreviousHeight;
+	};
+
 	std::unordered_map<HGLRC, ReShade::Manager *>				sManagers;
 	std::unordered_map<HGLRC, HGLRC>							sSharedContexts;
 	std::unordered_map<HGLRC, HDC>								sDeviceContexts;
+	std::unordered_map<HWND, WindowHook>						sWindowHooks;
 	thread_local ReShade::Manager *								sCurrentManager = nullptr;
-#ifdef _DEBUG
+	thread_local HGLRC											sCurrentRenderContext = nullptr;
 	thread_local HDC											sCurrentDeviceContext = nullptr;
-#endif
 }
 namespace ReShade
 {
@@ -88,6 +95,37 @@ namespace ReShade
 }
 
 // -----------------------------------------------------------------------------------------------------
+
+// WindowsHook
+LRESULT CALLBACK												CallWndRetProc(int nCode, WPARAM wParam, LPARAM lParam)
+{
+	if (nCode < HC_ACTION)
+	{
+		return ::CallNextHookEx(nullptr, nCode, wParam, lParam);
+	}
+
+	const CWPRETSTRUCT *msg = reinterpret_cast<const CWPRETSTRUCT *>(lParam);
+	
+	if (msg->message == WM_SIZE)
+	{
+		const HDC hdc = ::GetDC(msg->hwnd);
+		const WORD width = LOWORD(msg->lParam), height = HIWORD(msg->lParam);
+		WindowHook &windowhook = sWindowHooks.at(msg->hwnd);
+
+		if ((hdc == sCurrentDeviceContext && sCurrentDeviceContext != nullptr && sCurrentRenderContext != nullptr) && (width != 0 && height != 0) && (width != windowhook.PreviousWidth && height != windowhook.PreviousHeight))
+		{
+			LOG(INFO) << "Resizing context " << sCurrentRenderContext << " to " << width << "x" << height << " (Window just recieved a 'WM_SIZE' message) ...";
+
+			sCurrentManager->OnDelete();
+			sCurrentManager->OnCreate();
+		}
+
+		windowhook.PreviousWidth = width;
+		windowhook.PreviousHeight = height;
+	}
+
+	return ::CallNextHookEx(nullptr, nCode, wParam, lParam);
+}
 
 // GL
 EXPORT void APIENTRY											glAccum(GLenum op, GLfloat value)
@@ -2264,11 +2302,30 @@ EXPORT HGLRC WINAPI												wglCreateContext(HDC hdc)
 {
 	LOG(INFO) << "Redirecting '" << "wglCreateContext" << "(" << hdc << ")' ...";
 
-	HGLRC hglrc = ReHook::Call(&wglCreateContext)(hdc);
+	const HGLRC hglrc = ReHook::Call(&wglCreateContext)(hdc);
 
 	if (hglrc != nullptr)
 	{
 		sDeviceContexts.insert(std::make_pair(hglrc, hdc));
+
+		const HWND hwnd = ::WindowFromDC(hdc);
+		WindowHook &windowhook = sWindowHooks[hwnd];
+
+		if (windowhook.References++ == 0)
+		{
+			windowhook.Handle = ::SetWindowsHookEx(WH_CALLWNDPROCRET, &CallWndRetProc, nullptr, ::GetWindowThreadProcessId(hwnd, nullptr));
+
+			if (windowhook.Handle != nullptr)
+			{
+				LOG(INFO) << "> Created window message loop hook for window " << hwnd << ".";
+			}
+			else
+			{
+				LOG(ERROR) << "Failed to create window message loop hook for window " << hwnd << "!";
+
+				sWindowHooks.erase(hwnd);
+			}
+		}
 	}
 	else
 	{
@@ -2372,12 +2429,31 @@ EXPORT HGLRC WINAPI												wglCreateContextAttribsARB(HDC hdc, HGLRC hShareC
 		}
 	}
 
-	HGLRC hglrc = ReHook::Call(&wglCreateContextAttribsARB)(hdc, hShareContext, reinterpret_cast<const int *>(attribs));
+	const HGLRC hglrc = ReHook::Call(&wglCreateContextAttribsARB)(hdc, hShareContext, reinterpret_cast<const int *>(attribs));
 
 	if (hglrc != nullptr)
 	{
 		sDeviceContexts.insert(std::make_pair(hglrc, hdc));
 		sSharedContexts.insert(std::make_pair(hglrc, hShareContext));
+
+		const HWND hwnd = ::WindowFromDC(hdc);
+		WindowHook &windowhook = sWindowHooks[hwnd];
+
+		if (windowhook.References++ == 0)
+		{
+			windowhook.Handle = ::SetWindowsHookEx(WH_CALLWNDPROCRET, &CallWndRetProc, nullptr, ::GetWindowThreadProcessId(hwnd, nullptr));
+
+			if (windowhook.Handle != nullptr)
+			{
+				LOG(INFO) << "> Create window message loop hook for window " << hwnd << ".";
+			}
+			else
+			{
+				LOG(ERROR) << "Failed to create window message loop hook for window " << hwnd << "!";
+
+				sWindowHooks.erase(hwnd);
+			}
+		}
 	}
 	else
 	{
@@ -2404,7 +2480,20 @@ EXPORT BOOL WINAPI												wglDeleteContext(HGLRC hglrc)
 		const HDC currentDC = wglGetCurrentDC();
 		const HGLRC currentContext = wglGetCurrentContext();
 
-		ReHook::Call(&wglMakeCurrent)(sDeviceContexts.at(hglrc), hglrc);
+		const HDC hdc = sDeviceContexts.at(hglrc);
+		const HWND hwnd = ::WindowFromDC(hdc);
+		WindowHook &windowhook = sWindowHooks[hwnd];
+
+		if (--windowhook.References == 0)
+		{
+			::UnhookWindowsHookEx(windowhook.Handle);
+
+			LOG(INFO) << "> Removed window message loop hook for window " << hwnd << ".";
+
+			sWindowHooks.erase(hwnd);
+		}
+
+		ReHook::Call(&wglMakeCurrent)(hdc, hglrc);
 
 		delete sManagers.at(hglrc);
 		sManagers.erase(hglrc);
@@ -2415,9 +2504,7 @@ EXPORT BOOL WINAPI												wglDeleteContext(HGLRC hglrc)
 	sDeviceContexts.erase(hglrc);
 	sSharedContexts.erase(hglrc);
 
-	BOOL res = ReHook::Call(&wglDeleteContext)(hglrc);
-
-	if (!res)
+	if (!ReHook::Call(&wglDeleteContext)(hglrc))
 	{
 		const DWORD error = GetLastError();
 		TCHAR message[2048];
@@ -2425,9 +2512,11 @@ EXPORT BOOL WINAPI												wglDeleteContext(HGLRC hglrc)
 		message[lstrlen(message) - 2] = TEXT('\0');
 
 		LOG(WARNING) << "'wglDeleteContext' failed with '" << error << " (" << message << ")'!";
+
+		return FALSE;
 	}
 
-	return res;
+	return TRUE;
 }
 EXPORT BOOL WINAPI												wglDescribeLayerPlane(HDC hdc, int iPixelFormat, int iLayerPlane, UINT nBytes, LPLAYERPLANEDESCRIPTOR plpd)
 {
@@ -2492,10 +2581,8 @@ EXPORT BOOL WINAPI												wglMakeCurrent(HDC hdc, HGLRC hglrc)
 	}
 
 	sCurrentManager = nullptr;
-
-#ifdef _DEBUG
 	sCurrentDeviceContext = hdc;
-#endif
+	sCurrentRenderContext = hglrc;
 
 	if (hglrc != nullptr)
 	{
@@ -2554,10 +2641,8 @@ EXPORT BOOL WINAPI												wglSwapBuffers(HDC hdc)
 {
 	static const auto trampoline = ReHook::Call(&wglSwapBuffers);
 
-	if (sCurrentManager != nullptr)
+	if (sCurrentManager != nullptr && sCurrentDeviceContext == hdc)
 	{
-		assert(sCurrentDeviceContext == hdc);
-
 		sCurrentManager->OnPostProcess();
 		sCurrentManager->OnPresent();
 	}
