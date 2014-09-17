@@ -2267,32 +2267,25 @@ EXPORT BOOL WINAPI												wglChoosePixelFormatARB(HDC hdc, const int *piAttr
 
 	LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
 
-	BOOL res = ReHook::Call(&wglChoosePixelFormatARB)(hdc, piAttribIList, pfAttribFList, nMaxFormats, piFormats, nNumFormats);
-
-	if (res)
+	if (!ReHook::Call(&wglChoosePixelFormatARB)(hdc, piAttribIList, pfAttribFList, nMaxFormats, piFormats, nNumFormats))
 	{
-		assert(nNumFormats != nullptr);
+		LOG(WARNING) << "> 'wglChoosePixelFormatARB' failed with '" << ::GetLastError() << "'!";
 
-		std::string formats;
-
-		for (UINT i = 0; i < *nNumFormats; ++i)
-		{
-			formats += " " + std::to_string(piFormats[i]);
-		}
-
-		LOG(TRACE) << "> Returned formats:" << formats;
-	}
-	else
-	{
-		const DWORD error = GetLastError();
-		TCHAR message[2048];
-		FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, nullptr, error, 0, message, ARRAYSIZE(message), nullptr);
-		message[lstrlen(message) - 2] = TEXT('\0');
-
-		LOG(WARNING) << "'wglChoosePixelFormatARB' failed with '" << error << " (" << message << ")'!";
+		return FALSE;
 	}
 
-	return res;
+	assert(nNumFormats != nullptr);
+
+	std::string formats;
+
+	for (UINT i = 0; i < *nNumFormats; ++i)
+	{
+		formats += " " + std::to_string(piFormats[i]);
+	}
+
+	LOG(TRACE) << "> Returned formats:" << formats;
+
+	return TRUE;
 }
 EXPORT BOOL WINAPI												wglCopyContext(HGLRC hglrcSrc, HGLRC hglrcDst, UINT mask)
 {
@@ -2329,12 +2322,7 @@ EXPORT HGLRC WINAPI												wglCreateContext(HDC hdc)
 	}
 	else
 	{
-		const DWORD error = GetLastError();
-		TCHAR message[2048];
-		FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, nullptr, error, 0, message, ARRAYSIZE(message), nullptr);
-		message[lstrlen(message) - 2] = TEXT('\0');
-
-		LOG(WARNING) << "'wglCreateContext' failed with '" << error << " (" << message << ")'!";
+		LOG(WARNING) << "> 'wglCreateContext' failed with '" << ::GetLastError() << "'!";
 	}
 
 	return hglrc;
@@ -2457,12 +2445,7 @@ EXPORT HGLRC WINAPI												wglCreateContextAttribsARB(HDC hdc, HGLRC hShareC
 	}
 	else
 	{
-		const DWORD error = GetLastError();
-		TCHAR message[2048];
-		FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, nullptr, error, 0, message, ARRAYSIZE(message), nullptr);
-		message[lstrlen(message) - 2] = TEXT('\0');
-
-		LOG(WARNING) << "'wglCreateContextAttribsARB' failed with '" << error << " (" << message << ")'!";
+		LOG(WARNING) << "> 'wglCreateContextAttribsARB' failed with '" << ::GetLastError() << "'!";
 	}
 
 	return hglrc;
@@ -2506,12 +2489,7 @@ EXPORT BOOL WINAPI												wglDeleteContext(HGLRC hglrc)
 
 	if (!ReHook::Call(&wglDeleteContext)(hglrc))
 	{
-		const DWORD error = GetLastError();
-		TCHAR message[2048];
-		FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, nullptr, error, 0, message, ARRAYSIZE(message), nullptr);
-		message[lstrlen(message) - 2] = TEXT('\0');
-
-		LOG(WARNING) << "'wglDeleteContext' failed with '" << error << " (" << message << ")'!";
+		LOG(WARNING) << "> 'wglDeleteContext' failed with '" << ::GetLastError() << "'!";
 
 		return FALSE;
 	}
@@ -2570,12 +2548,7 @@ EXPORT BOOL WINAPI												wglMakeCurrent(HDC hdc, HGLRC hglrc)
 
 	if (!trampoline(hdc, hglrc))
 	{
-		const DWORD error = GetLastError();
-		TCHAR message[2048];
-		FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, nullptr, error, 0, message, ARRAYSIZE(message), nullptr);
-		message[lstrlen(message) - 2] = TEXT('\0');
-
-		LOG(WARNING) << "'wglMakeCurrent' failed with '" << error << " (" << message << ")'!";
+		LOG(WARNING) << "'wglMakeCurrent' failed with '" << ::GetLastError() << "'!";
 
 		return FALSE;
 	}
@@ -2631,7 +2604,14 @@ EXPORT BOOL WINAPI												wglSetPixelFormat(HDC hdc, int iPixelFormat, CONST
 {
 	LOG(INFO) << "Redirecting '" << "wglSetPixelFormat" << "(" << hdc << ", " << iPixelFormat << ", " << ppfd << ")' ...";
 
-	return ReHook::Call(&wglSetPixelFormat)(hdc, iPixelFormat, ppfd);
+	if (!ReHook::Call(&wglSetPixelFormat)(hdc, iPixelFormat, ppfd))
+	{
+		LOG(WARNING) << "> 'wglSetPixelFormat' failed with '" << ::GetLastError() << "'!";
+
+		return FALSE;
+	}
+
+	return TRUE;
 }
 EXPORT BOOL WINAPI												wglShareLists(HGLRC hglrc1, HGLRC hglrc2)
 {
