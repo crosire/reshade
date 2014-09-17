@@ -243,7 +243,7 @@ namespace ReHook
 		std::vector<boost::filesystem::path>					sHooksDelayed;
 		std::vector<Module::Handle>								sModules;
 
-		extern "C" HMODULE WINAPI								HookLoadLibraryA(LPCSTR lpFileName)
+		HMODULE WINAPI											HookLoadLibraryA(LPCSTR lpFileName)
 		{
 			const HMODULE handle = Call(&HookLoadLibraryA)(lpFileName);
 
@@ -273,7 +273,7 @@ namespace ReHook
 
 			return handle;
 		}
-		extern "C" HMODULE WINAPI								HookLoadLibraryW(LPCWSTR lpFileName)
+		HMODULE WINAPI											HookLoadLibraryW(LPCWSTR lpFileName)
 		{
 			const HMODULE handle = Call(&HookLoadLibraryW)(lpFileName);
 
@@ -426,13 +426,13 @@ namespace ReHook
 			}
 
 			char line[88];
-			sprintf_s(line, "  | 0x%016IX | %7u | %-50.50s |", reinterpret_cast<uintptr_t>(symbol.Address), symbol.Ordinal, symbol.Name);
+			sprintf_s(line, "  | 0x%016IX | %7hu | %-50.50s |", reinterpret_cast<uintptr_t>(symbol.Address), symbol.Ordinal, symbol.Name);
 
 			// Find appropriate replacement
-			const auto it = std::find_if(replacementExports.cbegin(), replacementExports.cend(), [=](const Module::Export &it) { return boost::equals(it.Name, symbol.Name); });
+			const auto begin = replacementExports.cbegin(), end = replacementExports.cend(), it = std::find_if(begin, end, [&symbol](const Module::Export &it) { return boost::equals(it.Name, symbol.Name); });
 
 			// Filter uninteresting functions
-			if (it == replacementExports.cend() || (boost::starts_with(symbol.Name, "D3DKMT") || boost::starts_with(symbol.Name, "DXGID3D10") || boost::equals(symbol.Name, "DXGIReportAdapterConfiguration") || boost::equals(symbol.Name, "DXGIDumpJournal") || boost::starts_with(symbol.Name, "OpenAdapter10")))
+			if (it == end || (boost::starts_with(symbol.Name, "D3DKMT") || boost::starts_with(symbol.Name, "DXGID3D10") || boost::equals(symbol.Name, "DXGIReportAdapterConfiguration") || boost::equals(symbol.Name, "DXGIDumpJournal") || boost::starts_with(symbol.Name, "OpenAdapter10")))
 			{
 				LOG(TRACE) << line;
 			}
@@ -545,7 +545,7 @@ namespace ReHook
 		CriticalSection::Lock lock(sCS);
 
 		// Lookup hook
-		const auto begin = sHooks.begin(), end = sHooks.end(), it = std::find_if(begin, end, [=](const HookInfo &it) { return it.Replacement == replacement; });
+		const auto begin = sHooks.begin(), end = sHooks.end(), it = std::find_if(begin, end, [&replacement](const HookInfo &it) { return it.Replacement == replacement; });
 
 		if (it != end)
 		{
