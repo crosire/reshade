@@ -1,3 +1,4 @@
+#include "Log.hpp"
 #include "Effect.hpp"
 #include "EffectParser.hpp"
 #include "EffectContext.hpp"
@@ -143,6 +144,8 @@ namespace ReShade
 		}
 
 		preprocessor.AddIncludePath(path.parent_path());
+
+		LOG(TRACE) << "> Running preprocessor ...";
 
 		const std::string source = preprocessor.Run(path, errors);
 		bool status = !source.empty();
@@ -1010,12 +1013,16 @@ namespace ReShade
 				"uint     f32tof16(float);";
 			#pragma endregion
 
+			LOG(TRACE) << "> Running parser ...";
+
 			parser.Parse(intrinsics, ast, false);
 			status = parser.Parse(source, ast, errors, true);
 		}
 
 		if (status)
 		{
+			LOG(TRACE) << "> Running compiler ...";
+
 			return Compile(ast, errors);
 		}
 		else
