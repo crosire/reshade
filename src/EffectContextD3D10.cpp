@@ -2822,6 +2822,11 @@ namespace ReShade
 		{
 			this->mEffect->mStateblock->Apply();
 			this->mEffect->mEffectContext->mDevice->OMSetRenderTargets(D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, this->mEffect->mStateblockTargets, nullptr);
+
+			for (UINT i = 0; i < D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT; ++i)
+			{
+				SAFE_RELEASE(this->mEffect->mStateblockTargets[i]);
+			}
 		}
 		void													D3D10Technique::RenderPass(unsigned int index) const
 		{
