@@ -108,20 +108,23 @@ LRESULT CALLBACK												CallWndRetProc(int nCode, WPARAM wParam, LPARAM lPar
 	
 	if (msg->message == WM_SIZE)
 	{
-		const HDC hdc = ::GetDC(msg->hwnd);
-		const WORD width = LOWORD(msg->lParam), height = HIWORD(msg->lParam);
-		WindowHook &windowhook = sWindowHooks.at(msg->hwnd);
-
-		if ((hdc == sCurrentDeviceContext && sCurrentDeviceContext != nullptr && sCurrentRenderContext != nullptr) && (width != 0 && height != 0) && (width != windowhook.PreviousWidth && height != windowhook.PreviousHeight))
+		if (sWindowHooks.count(msg->hwnd))
 		{
-			LOG(INFO) << "Resizing context " << sCurrentRenderContext << " to " << width << "x" << height << " (Window just recieved a 'WM_SIZE' message) ...";
+			const HDC hdc = ::GetDC(msg->hwnd);
+			const WORD width = LOWORD(msg->lParam), height = HIWORD(msg->lParam);
+			WindowHook &windowhook = sWindowHooks.at(msg->hwnd);
 
-			sCurrentManager->OnDelete();
-			sCurrentManager->OnCreate();
+			if ((hdc == sCurrentDeviceContext && sCurrentDeviceContext != nullptr && sCurrentRenderContext != nullptr) && (width != 0 && height != 0) && (width != windowhook.PreviousWidth && height != windowhook.PreviousHeight))
+			{
+				LOG(INFO) << "Resizing context " << sCurrentRenderContext << " to " << width << "x" << height << " (Window just recieved a 'WM_SIZE' message) ...";
+
+				sCurrentManager->OnDelete();
+				sCurrentManager->OnCreate();
+			}
+
+			windowhook.PreviousWidth = width;
+			windowhook.PreviousHeight = height;
 		}
-
-		windowhook.PreviousWidth = width;
-		windowhook.PreviousHeight = height;
 	}
 
 	return ::CallNextHookEx(nullptr, nCode, wParam, lParam);
