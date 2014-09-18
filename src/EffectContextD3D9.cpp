@@ -1,3 +1,4 @@
+#include "Log.hpp"
 #include "Effect.hpp"
 #include "EffectParser.hpp"
 #include "EffectContext.hpp"
@@ -2011,8 +2012,12 @@ namespace ReShade
 					"#define rcp(x) (1.0f / (x))\n"
 					"uniform float2 _TEXEL_OFFSET_ : register(c223);\n" + this->mCurrentSource;
 
+				const char *entry = this->mAST[state.Value.AsNode].As<Nodes::Function>().Name;
+
+				LOG(TRACE) << "> Compiling shader '" << entry << "':\n\n" << source.c_str() << "\n";
+
 				ID3DBlob *compiled, *errors;
-				HRESULT hr = D3DCompile(source.c_str(), source.length(), nullptr, nullptr, nullptr, this->mAST[state.Value.AsNode].As<Nodes::Function>().Name, profile.c_str(), flags, 0, &compiled, &errors);
+				HRESULT hr = D3DCompile(source.c_str(), source.length(), nullptr, nullptr, nullptr, entry, profile.c_str(), flags, 0, &compiled, &errors);
 
 				if (errors != nullptr)
 				{
@@ -2551,7 +2556,7 @@ namespace ReShade
 			device->GetViewport(&viewport);
 			const float texel_offset[4] = { -1.0f / viewport.Width, 1.0f / viewport.Height };
 			device->SetVertexShaderConstantF(223, texel_offset, 1);
-			
+
 			this->mEffect->mShaderResourceStateblock->Apply();
 
 			return true;

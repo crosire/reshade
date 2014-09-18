@@ -1,3 +1,4 @@
+#include "Log.hpp"
 #include "Effect.hpp"
 #include "EffectParser.hpp"
 #include "EffectContext.hpp"
@@ -2157,8 +2158,12 @@ namespace ReShade
 					"int3   __tex3Dsize(Texture3D t, int lod) { uint w, h, d, l; t.GetDimensions(lod, w, h, d, l); return int3(w, h, d); }\n"
 					"cbuffer __GLOBAL__ : register(b0)\n{\n" + this->mCurrentGlobalConstants + "};\n" + this->mCurrentSource;
 
+				const char *entry = this->mAST[state.Value.AsNode].As<Nodes::Function>().Name;
+
+				LOG(TRACE) << "> Compiling shader '" << entry << "':\n\n" << source.c_str() << "\n";
+
 				ID3DBlob *compiled, *errors;
-				HRESULT hr = D3DCompile(source.c_str(), source.length(), nullptr, nullptr, nullptr, this->mAST[state.Value.AsNode].As<Nodes::Function>().Name, profile, flags, 0, &compiled, &errors);
+				HRESULT hr = D3DCompile(source.c_str(), source.length(), nullptr, nullptr, nullptr, entry, profile, flags, 0, &compiled, &errors);
 
 				if (errors != nullptr)
 				{

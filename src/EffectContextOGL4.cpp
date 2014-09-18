@@ -1,3 +1,4 @@
+#include "Log.hpp"
 #include "Effect.hpp"
 #include "EffectParser.hpp"
 #include "EffectContext.hpp"
@@ -2393,6 +2394,8 @@ namespace ReShade
 
 				const GLchar *src = source.c_str();
 				const GLsizei len = static_cast<GLsizei>(source.length());
+
+				LOG(TRACE) << "> Compiling shader '" << callee.Name << "':\n\n" << source.c_str() << "\n";
 
 				glShaderSource(shader, 1, &src, &len);
 				glCompileShader(shader);
