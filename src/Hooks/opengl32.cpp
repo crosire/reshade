@@ -2463,7 +2463,7 @@ EXPORT BOOL WINAPI												wglDeleteContext(HGLRC hglrc)
 {
 	LOG(INFO) << "Redirecting '" << "wglDeleteContext" << "(" << hglrc << ")' ...";
 
-	if (sManagers.count(hglrc))
+	if (sManagers.count(hglrc) && (!sSharedContexts.count(hglrc) || sSharedContexts.at(hglrc) == nullptr))
 	{
 		const HDC currentDC = wglGetCurrentDC();
 		const HGLRC currentContext = wglGetCurrentContext();
@@ -2572,16 +2572,15 @@ EXPORT BOOL WINAPI												wglMakeCurrent(HDC hdc, HGLRC hglrc)
 		{
 			LOG(INFO) << "Redirecting initial '" << "wglMakeCurrent" << "(" << hdc << ", " << hglrc << ")' ...";
 
+			ReShade::Manager *manager = nullptr;
+
 			if (!sSharedContexts.count(hglrc) || sSharedContexts.at(hglrc) == nullptr)
 			{
 				const std::shared_ptr<ReShade::EffectContext> context = ReShade::CreateEffectContext(hdc, hglrc);
 
 				if (context != nullptr)
 				{
-					ReShade::Manager *manager = new ReShade::Manager(context);
-
-					sManagers.insert(std::make_pair(hglrc, manager));
-					sCurrentManager = manager;
+					manager = new ReShade::Manager(context);
 				}
 				else
 				{
@@ -2590,8 +2589,15 @@ EXPORT BOOL WINAPI												wglMakeCurrent(HDC hdc, HGLRC hglrc)
 			}
 			else
 			{
-				LOG(INFO) << "> Context is sharing data with " << sSharedContexts.at(hglrc) << ". Skipped.";
+				const HGLRC shared = sSharedContexts.at(hglrc);
+
+				LOG(INFO) << "> Context is sharing data with " << shared << ".";
+
+				manager = sManagers.at(shared);
 			}
+
+			sManagers.insert(std::make_pair(hglrc, manager));
+			sCurrentManager = manager;
 		}
 	}
 
