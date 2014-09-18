@@ -23,12 +23,18 @@ BEGIN
         BLOCK "040004b0"
         BEGIN
             VALUE "CompanyName", "Crosire"
-            VALUE "FileDescription", "Crosire's ReShade PostProcessing Injector"
             VALUE "FileVersion", VERSION_FILESTR
-            VALUE "LegalCopyright", "Copyright © 2014. All rights reserved."
-            VALUE "OriginalFilename", "ReShade.dll"
             VALUE "ProductName", "ReShade"
             VALUE "ProductVersion", VERSION_PRODUCTSTR
+            VALUE "LegalCopyright", "Copyright © 2014. All rights reserved."
+#ifdef WIN32
+            VALUE "FileDescription", "Crosire's ReShade PostProcessing Injector for 32-bit"
+            VALUE "OriginalFilename", "ReShade32.dll"
+#endif
+#ifdef WIN64
+            VALUE "FileDescription", "Crosire's ReShade PostProcessing Injector for 64-bit"
+            VALUE "OriginalFilename", "ReShade64.dll"
+#endif
         END
     END
     BLOCK "VarFileInfo"
