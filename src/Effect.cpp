@@ -90,7 +90,7 @@ namespace ReShade
 			}
 			else
 			{
-				this->mErrors = "Could not find \"" + path.string() + "\"!";
+				errors += "File not found!";
 			}
 
 			return this->mOutput;
