@@ -563,6 +563,16 @@ namespace ReShade
 							before += "(";
 							after += ")";
 							break;
+						case Nodes::Type::Int:
+							before += to.Rows > 1 ? "ivec" + std::to_string(to.Rows) : "int";
+							before += "(";
+							after += ")";
+							break;
+						case Nodes::Type::Uint:
+							before += to.Rows > 1 ? "uvec" + std::to_string(to.Rows) : "uint";
+							before += "(";
+							after += ")";
+							break;
 						case Nodes::Type::Float:
 							before += to.Rows > 1 ? "vec" + std::to_string(to.Rows) : "float";
 							before += "(";
@@ -2142,7 +2152,6 @@ namespace ReShade
 			{
 				std::string source =
 					"#version 430\n"
-					"#extension GL_EXT_shader_implicit_conversions : enable\n"
 					"#define lerp(a, b, t) mix(a, b, t)\n"
 					"#define saturate(x) clamp(x, 0.0, 1.0)\n"
 					"#define rsqrt(x) inversesqrt(x)\n"
@@ -2155,8 +2164,8 @@ namespace ReShade
 					"#define log10(x) (log(x) / 2.302585093)\n"
 					"#define atan2(x, y) atan(x, y)\n"
 					"void sincos(float x, out float s, out float c) { s = sin(x); c = cos(x); }\n"
-					"#define asint(x) floatBitsToInt(x)\n#define asuint(x) floatBitsToUint(x)\n#define asfloat(x) uintBitsToFloat(x)"
-					"float f16tof32(uint x) { return uintBitsToFloat(((x & 0x8000) << 16) | (((x & 0x7C00) + 0x1C000) << 13) | ((x & 0x03FF) << 13)); }\nuint f32tof16(float x) { uint f = floatBitsToUint(x); return ((f >> 16) & 0x8000) | ((((f & 0x7F800000) - 0x38000000) >> 13) & 0x7C00) | ((f >> 13) & 0x03FF); }\n"
+					"#define asint(x) floatBitsToInt(x)\n#define asuint(x) floatBitsToUint(x)\n#define asfloat(x) uintBitsToFloat(x)\n"
+					"float f16tof32(int x) { return intBitsToFloat(((x & 0x8000) << 16) | (((x & 0x7C00) + 0x1C000) << 13) | ((x & 0x03FF) << 13)); }\nint f32tof16(float x) { int f = floatBitsToInt(x); return ((f >> 16) & 0x8000) | ((((f & 0x7F800000) - 0x38000000) >> 13) & 0x7C00) | ((f >> 13) & 0x03FF); }\n"
 					"vec4  tex1D(sampler1D s, float c) { return texture(s, c); }\n"
 					"vec4  tex1D(sampler1D s, float c, int offset) { return textureOffset(s, c, offset); }\n"
 					"vec4  tex1Dlod(sampler1D s, vec4 c) { return textureLod(s, c.x, c.w); }\n"
