@@ -206,10 +206,6 @@ namespace ReShade
 
 		class													ASTVisitor
 		{
-			// TODO:
-			// - Structs inside structs/cbuffers
-			// - Sampler/Texture arrays
-
 		public:
 			ASTVisitor(const EffectTree &ast, std::string &errors) : mAST(ast), mEffect(nullptr), mErrors(errors), mCurrentInParameterBlock(false), mCurrentInFunctionBlock(false), mCurrentGlobalSize(0), mCurrentGlobalStorageSize(0)
 			{
@@ -2112,35 +2108,26 @@ namespace ReShade
 
 				std::string source =
 					"struct __sampler1D { Texture1D t; SamplerState s; };\n"
-					"float4 __tex1D(__sampler1D s, float1 c) { return s.t.Sample(s.s, c); }\n"
-					"float4 __tex1D(__sampler1D s, float1 c, int offset) { return s.t.Sample(s.s, c, offset); }\n"
-					"float4 __tex1Dlod(__sampler1D s, float4 c) { return s.t.SampleLevel(s.s, c.x, c.w); }\n"
-					"float4 __tex1Dlod(__sampler1D s, float4 c, int offset) { return s.t.SampleLevel(s.s, c.x, c.w, offset); }\n"
-					"float4 __tex1Dfetch(__sampler1D s, int4 c) { return s.t.Load(c.xw); }\n"
-					"float4 __tex1Dfetch(__sampler1D s, int4 c, int offset) { return s.t.Load(c.xw, offset); }\n"
-					"float4 __tex1Dbias(__sampler1D s, float4 c) { return s.t.SampleBias(s.s, c.x, c.w); }\n"
-					"float4 __tex1Dbias(__sampler1D s, float4 c, int offset) { return s.t.SampleBias(s.s, c.x, c.w, offset); }\n"
-					"int    __tex1Dsize(Texture1D t, int lod) { uint w, l; t.GetDimensions(lod, w, l); return w; }\n"
+					"inline float4 __tex1D(__sampler1D s, float c) { return s.t.Sample(s.s, c); }\n"
+					"inline float4 __tex1Doffset(__sampler1D s, float c, int offset) { return s.t.Sample(s.s, c, offset); }\n"
+					"inline float4 __tex1Dlod(__sampler1D s, float4 c) { return s.t.SampleLevel(s.s, c.x, c.w); }\n"
+					"inline float4 __tex1Dfetch(__sampler1D s, int4 c) { return s.t.Load(c.xw); }\n"
+					"inline float4 __tex1Dbias(__sampler1D s, float4 c) { return s.t.SampleBias(s.s, c.x, c.w); }\n"
+					"inline int __tex1Dsize(__sampler1D s, int lod) { uint w, l; s.t.GetDimensions(lod, w, l); return w; }\n"
 					"struct __sampler2D { Texture2D t; SamplerState s; };\n"
-					"float4 __tex2D(__sampler2D s, float2 c) { return s.t.Sample(s.s, c); }\n"
-					"float4 __tex2D(__sampler2D s, float2 c, int offset) { return s.t.Sample(s.s, c, offset.xx); }\n"
-					"float4 __tex2Dlod(__sampler2D s, float4 c) { return s.t.SampleLevel(s.s, c.xy, c.w); }\n"
-					"float4 __tex2Dlod(__sampler2D s, float4 c, int offset) { return s.t.SampleLevel(s.s, c.xy, c.w, offset.xx); }\n"
-					"float4 __tex2Dfetch(__sampler2D s, int4 c) { return s.t.Load(c.xyw); }\n"
-					"float4 __tex2Dfetch(__sampler2D s, int4 c, int offset) { return s.t.Load(c.xyw, offset.xx); }\n"
-					"float4 __tex2Dbias(__sampler2D s, float4 c) { return s.t.SampleBias(s.s, c.xy, c.w); }\n"
-					"float4 __tex2Dbias(__sampler2D s, float4 c, int offset) { return s.t.SampleBias(s.s, c.xy, c.w, offset.xx); }\n"
-					"int2   __tex2Dsize(Texture2D t, int lod) { uint w, h, l; t.GetDimensions(lod, w, h, l); return int2(w, h); }\n"
+					"inline float4 __tex2D(__sampler2D s, float2 c) { return s.t.Sample(s.s, c); }\n"
+					"inline float4 __tex2Doffset(__sampler2D s, float2 c, int offset) { return s.t.Sample(s.s, c, offset.xx); }\n"
+					"inline float4 __tex2Dlod(__sampler2D s, float4 c) { return s.t.SampleLevel(s.s, c.xy, c.w); }\n"
+					"inline float4 __tex2Dfetch(__sampler2D s, int4 c) { return s.t.Load(c.xyw); }\n"
+					"inline float4 __tex2Dbias(__sampler2D s, float4 c) { return s.t.SampleBias(s.s, c.xy, c.w); }\n"
+					"inline int2 __tex2Dsize(__sampler2D s, int lod) { uint w, h, l; s.t.GetDimensions(lod, w, h, l); return int2(w, h); }\n"
 					"struct __sampler3D { Texture3D t; SamplerState s; };\n"
-					"float4 __tex3D(__sampler3D s, float3 c) { return s.t.Sample(s.s, c); }\n"
-					"float4 __tex3D(__sampler3D s, float3 c, int offset) { return s.t.Sample(s.s, c, offset.xxx); }\n"
-					"float4 __tex3Dlod(__sampler3D s, float4 c) { return s.t.SampleLevel(s.s, c.xyz, c.w); }\n"
-					"float4 __tex3Dlod(__sampler3D s, float4 c, int offset) { return s.t.SampleLevel(s.s, c.xyz, c.w, offset.xxx); }\n"
-					"float4 __tex3Dfetch(__sampler3D s, int4 c) { return s.t.Load(c.xyzw); }\n"
-					"float4 __tex3Dfetch(__sampler3D s, int4 c, int offset) { return s.t.Load(c.xyzw, offset.xxx); }\n"
-					"float4 __tex3Dbias(__sampler3D s, float4 c) { return s.t.SampleBias(s.s, c.xyz, c.w); }\n"
-					"float4 __tex3Dbias(__sampler3D s, float4 c, int offset) { return s.t.SampleBias(s.s, c.xyz, c.w, offset.xxx); }\n"
-					"int3   __tex3Dsize(Texture3D t, int lod) { uint w, h, d, l; t.GetDimensions(lod, w, h, d, l); return int3(w, h, d); }\n"
+					"inline float4 __tex3D(__sampler3D s, float3 c) { return s.t.Sample(s.s, c); }\n"
+					"inline float4 __tex3Doffset(__sampler3D s, float3 c, int offset) { return s.t.Sample(s.s, c, offset.xxx); }\n"
+					"inline float4 __tex3Dlod(__sampler3D s, float4 c) { return s.t.SampleLevel(s.s, c.xyz, c.w); }\n"
+					"inline float4 __tex3Dfetch(__sampler3D s, int4 c) { return s.t.Load(c.xyzw); }\n"
+					"inline float4 __tex3Dbias(__sampler3D s, float4 c) { return s.t.SampleBias(s.s, c.xyz, c.w); }\n"
+					"inline int3 __tex3Dsize(__sampler3D s, int lod) { uint w, h, d, l; s.t.GetDimensions(lod, w, h, d, l); return int3(w, h, d); }\n"
 					"cbuffer __GLOBAL__ : register(b0)\n{\n" + this->mCurrentGlobalConstants + "};\n" + this->mCurrentSource;
 
 				const char *entry = this->mAST[state.Value.AsNode].As<Nodes::Function>().Name;

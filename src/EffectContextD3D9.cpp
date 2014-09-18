@@ -2009,7 +2009,12 @@ namespace ReShade
 
 				std::string source =
 					"#define mad(m, a, b) ((m) * (a) + (b))\n"
-					"#define rcp(x) (1.0f / (x))\n"
+					"#define tex1Doffset(s, c, offset) tex1D(s, (c) + (offset))\n"
+					"#define tex1Dfetch(s, c) tex1D(s, float(c))\n"
+					"#define tex2Doffset(s, c, offset) tex2D(s, (c) + (offset).xx)\n"
+					"#define tex2Dfetch(s, c) tex2D(s, float2(c))\n"
+					"#define tex3Doffset(s, c, offset) tex3D(s, (c) + (offset).xxx)\n"
+					"#define tex3Dfetch(s, c) tex3D(s, float3(c))\n"
 					"uniform float2 _TEXEL_OFFSET_ : register(c223);\n" + this->mCurrentSource;
 
 				const char *entry = this->mAST[state.Value.AsNode].As<Nodes::Function>().Name;
