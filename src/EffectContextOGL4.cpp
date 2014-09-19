@@ -35,15 +35,22 @@ namespace ReShade
 				}
 				
 				GLCHECK(glGetIntegerv(GL_VERTEX_ARRAY_BINDING, reinterpret_cast<GLint *>(&this->mVAO)));
-				GLCHECK(this->mDepthTest = glIsEnabled(GL_DEPTH_TEST));
-				GLCHECK(glGetBooleanv(GL_DEPTH_WRITEMASK, &this->mDepthMask));
 				GLCHECK(this->mStencilTest = glIsEnabled(GL_STENCIL_TEST));
 				GLCHECK(this->mScissorTest = glIsEnabled(GL_SCISSOR_TEST));
 				GLCHECK(glGetIntegerv(GL_FRONT_FACE, reinterpret_cast<GLint *>(&this->mFrontFace)));
 				GLCHECK(glGetIntegerv(GL_POLYGON_MODE, reinterpret_cast<GLint *>(&this->mPolygonMode)));
 				GLCHECK(this->mCullFace = glIsEnabled(GL_CULL_FACE));
+				GLCHECK(glGetIntegerv(GL_CULL_FACE_MODE, reinterpret_cast<GLint *>(&this->mCullFaceMode)));
+				GLCHECK(glGetBooleanv(GL_COLOR_WRITEMASK, this->mColorMask));
 				GLCHECK(this->mSampleAlphaToCoverage = glIsEnabled(GL_SAMPLE_ALPHA_TO_COVERAGE));
 				GLCHECK(this->mBlend = glIsEnabled(GL_BLEND));
+				GLCHECK(glGetIntegerv(GL_BLEND_SRC, reinterpret_cast<GLint *>(&this->mBlendFuncSrc)));
+				GLCHECK(glGetIntegerv(GL_BLEND_DST, reinterpret_cast<GLint *>(&this->mBlendFuncDest)));
+				GLCHECK(glGetIntegerv(GL_BLEND_EQUATION_RGB, reinterpret_cast<GLint *>(&this->mBlendEqColor)));
+				GLCHECK(glGetIntegerv(GL_BLEND_EQUATION_ALPHA, reinterpret_cast<GLint *>(&this->mBlendEqAlpha)));
+				GLCHECK(this->mDepthTest = glIsEnabled(GL_DEPTH_TEST));
+				GLCHECK(glGetBooleanv(GL_DEPTH_WRITEMASK, &this->mDepthMask));
+				GLCHECK(glGetIntegerv(GL_DEPTH_FUNC, reinterpret_cast<GLint *>(&this->mDepthFunc)));
 				GLCHECK(glGetIntegerv(GL_STENCIL_VALUE_MASK, reinterpret_cast<GLint *>(&this->mStencilReadMask)));
 				GLCHECK(glGetIntegerv(GL_STENCIL_WRITEMASK, reinterpret_cast<GLint *>(&this->mStencilMask)));
 				GLCHECK(glGetIntegerv(GL_STENCIL_FUNC, reinterpret_cast<GLint *>(&this->mStencilFunc)));
@@ -82,15 +89,20 @@ namespace ReShade
 				}
 
 				GLCHECK(glBindVertexArray(this->mVAO));
-				GLCHECK(glEnableb(GL_DEPTH_TEST, this->mDepthTest));
-				GLCHECK(glDepthMask(this->mDepthMask));
 				GLCHECK(glEnableb(GL_STENCIL_TEST, this->mStencilTest));
 				GLCHECK(glEnableb(GL_SCISSOR_TEST, this->mScissorTest));
 				GLCHECK(glFrontFace(this->mFrontFace));
 				GLCHECK(glPolygonMode(GL_FRONT_AND_BACK, this->mPolygonMode));
 				GLCHECK(glEnableb(GL_CULL_FACE, this->mCullFace));
+				GLCHECK(glCullFace(this->mCullFaceMode));
+				GLCHECK(glColorMask(this->mColorMask[0], this->mColorMask[1], this->mColorMask[2], this->mColorMask[3]));
 				GLCHECK(glEnableb(GL_SAMPLE_ALPHA_TO_COVERAGE, this->mSampleAlphaToCoverage));
 				GLCHECK(glEnableb(GL_BLEND, this->mBlend));
+				GLCHECK(glBlendFunc(this->mBlendFuncSrc, this->mBlendFuncDest));
+				GLCHECK(glBlendEquationSeparate(this->mBlendEqColor, this->mBlendEqAlpha));
+				GLCHECK(glEnableb(GL_DEPTH_TEST, this->mDepthTest));
+				GLCHECK(glDepthMask(this->mDepthMask));
+				GLCHECK(glDepthFunc(this->mDepthFunc));
 				GLCHECK(glStencilMask(this->mStencilMask));
 				GLCHECK(glStencilFunc(this->mStencilFunc, this->mStencilRef, this->mStencilReadMask));
 				GLCHECK(glStencilOp(this->mStencilOpFail, this->mStencilOpZFail, this->mStencilOpZPass));
@@ -107,8 +119,8 @@ namespace ReShade
 			GLint												mStencilRef;
 			GLuint												mStencilMask, mStencilReadMask;
 			GLuint												mProgram, mFBO, mVAO, mTextures[8];
-			GLenum												mDrawBuffers[8], mCullFace, mPolygonMode, mBlendEqColor, mBlendEqAlpha, mBlendFuncSrc, mBlendFuncDest, mDepthFunc, mStencilFunc, mStencilOpFail, mStencilOpZFail, mStencilOpZPass, mFrontFace, mActiveTexture;
-			GLboolean											mScissorTest, mBlend, mDepthMask, mDepthTest, mStencilTest, mColorMaskR, mColorMaskG, mColorMaskB, mColorMaskA, mSampleAlphaToCoverage;
+			GLenum												mDrawBuffers[8], mCullFace, mCullFaceMode, mPolygonMode, mBlendEqColor, mBlendEqAlpha, mBlendFuncSrc, mBlendFuncDest, mDepthFunc, mStencilFunc, mStencilOpFail, mStencilOpZFail, mStencilOpZPass, mFrontFace, mActiveTexture;
+			GLboolean											mScissorTest, mBlend, mDepthTest, mDepthMask, mStencilTest, mColorMask[4], mSampleAlphaToCoverage;
 		};
 
 		class													OGL4EffectContext : public EffectContext, public std::enable_shared_from_this<OGL4EffectContext>
