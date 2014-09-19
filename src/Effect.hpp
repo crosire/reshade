@@ -41,7 +41,7 @@ namespace ReShade
 			template <typename T> const T						As(void) const;
 			template <> inline const bool						As(void) const
 			{
-				return As<int>() != 0;
+				return As<int>() != 0 || (this->mValue == "true" || this->mValue == "True" || this->mValue == "TRUE");
 			}
 			template <> inline const int						As(void) const
 			{
