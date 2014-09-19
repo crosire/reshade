@@ -2,7 +2,6 @@
 
 #include <string>
 #include <vector>
-#include <type_traits>
 
 namespace ReShade
 {
@@ -45,19 +44,19 @@ namespace ReShade
 			}
 			template <> inline const int						As(void) const
 			{
-				return static_cast<int>(std::stol(this->mValue));
+				return static_cast<int>(std::strtol(this->mValue.c_str(), nullptr, 10));
 			}
 			template <> inline const unsigned int				As(void) const
 			{
-				return static_cast<unsigned int>(std::stoul(this->mValue));
+				return static_cast<unsigned int>(std::strtoul(this->mValue.c_str(), nullptr, 10));
 			}
 			template <> inline const float						As(void) const
 			{
-				return std::stof(this->mValue);
+				return static_cast<float>(std::strtod(this->mValue.c_str(), nullptr));
 			}
 			template <> inline const double						As(void) const
 			{
-				return std::stod(this->mValue);
+				return std::strtod(this->mValue.c_str(), nullptr);
 			}
 			template <> inline const std::string				As(void) const
 			{
