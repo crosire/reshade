@@ -192,17 +192,17 @@ namespace ReShade
 				}
 
 				unsigned char *data = stbi_load(source.c_str(), &width, &height, &channels, channels);
-				desc.Size = width * height * channels;
+				std::size_t dataSize = width * height * channels;
 
 				switch (desc.Format)
 				{
 					case Effect::Texture::Format::DXT1:
 						stb_compress_dxt_block(data, data, FALSE, STB_DXT_NORMAL);
-						desc.Size = ((width + 3) >> 2) * ((height + 3) >> 2) * 8;
+						dataSize = ((width + 3) >> 2) * ((height + 3) >> 2) * 8;
 						break;
 					case Effect::Texture::Format::DXT5:
 						stb_compress_dxt_block(data, data, TRUE, STB_DXT_NORMAL);
-						desc.Size = ((width + 3) >> 2) * ((height + 3) >> 2) * 16;
+						dataSize = ((width + 3) >> 2) * ((height + 3) >> 2) * 16;
 						break;
 				}
 
@@ -214,7 +214,7 @@ namespace ReShade
 					texture->Resize(desc);
 				}
 				
-				texture->Update(0, data, desc.Size);
+				texture->Update(0, data, dataSize);
 
 				stbi_image_free(data);
 			}

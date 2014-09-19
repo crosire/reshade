@@ -94,7 +94,6 @@ namespace ReShade
 			{
 				unsigned int									Width, Height, Depth, Levels;
 				Format											Format;
-				std::size_t										Size;
 			};
 
 		public:
