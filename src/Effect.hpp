@@ -167,7 +167,6 @@ namespace ReShade
 			}
 			virtual bool										Begin(unsigned int &passes) const = 0;
 			virtual void										End(void) const = 0;
-			void												Render(void) const;
 			virtual void										RenderPass(unsigned int index) const = 0;
 			void												RenderPass(const std::string &name) const;
 		};
