@@ -118,21 +118,10 @@ typedef D3DVIEWPORT9											D3DVIEWPORT8;
 typedef D3DMATERIAL9											D3DMATERIAL8;
 typedef D3DLIGHT9												D3DLIGHT8;
 
-struct															IDirect3D8;
-struct															IDirect3DDevice8;
-struct															IDirect3DResource8;
-struct															IDirect3DBaseTexture8;
-struct															IDirect3DTexture8;
-struct															IDirect3DVolumeTexture8;
-struct															IDirect3DCubeTexture8;
-struct															IDirect3DVertexBuffer8;
-struct															IDirect3DIndexBuffer8;
-struct															IDirect3DSurface8;
-struct															IDirect3DVolume8;
-struct															IDirect3DSwapChain8;
-
 struct															IDirect3D8 : public IUnknown
 {
+	friend struct IDirect3DDevice8;
+
 	IDirect3D8(HMODULE hModule, IDirect3D9 *pProxyD3D) : mModule(hModule), mProxy(pProxyD3D)
 	{
 	}
@@ -164,6 +153,17 @@ struct															IDirect3D8 : public IUnknown
 };
 struct															IDirect3DDevice8 : public IUnknown
 {
+	friend struct												IDirect3DResource8;
+	friend struct												IDirect3DBaseTexture8;
+	friend struct												IDirect3DTexture8;
+	friend struct												IDirect3DVolumeTexture8;
+	friend struct												IDirect3DCubeTexture8;
+	friend struct												IDirect3DVertexBuffer8;
+	friend struct												IDirect3DIndexBuffer8;
+	friend struct												IDirect3DSurface8;
+	friend struct												IDirect3DVolume8;
+	friend struct												IDirect3DSwapChain8;
+
 	IDirect3DDevice8(IDirect3D8 *pD3D, IDirect3DDevice9 *pProxyDevice) : mD3D(pD3D), mProxy(pProxyDevice), mBaseVertexIndex(0)
 	{
 	}
@@ -272,11 +272,13 @@ struct															IDirect3DDevice8 : public IUnknown
 	INT															mBaseVertexIndex;
 	std::vector<IDirect3DStateBlock9 *>							mStateBlocks;
 	std::vector<std::pair<IDirect3DVertexShader9 *, IDirect3DVertexDeclaration9 *>> mVertexShaders;
-	std::vector<std::pair<DWORD *, std::size_t>>				mVertexShaderDeclarations;
+	std::vector<std::pair<std::unique_ptr<DWORD[]>, std::size_t>> mVertexShaderDeclarations;
 	std::vector<IDirect3DPixelShader9 *>						mPixelShaders;
 };
 struct															IDirect3DResource8 : public IUnknown
 {
+	friend struct IDirect3DDevice8;
+
 	IDirect3DResource8(IDirect3DDevice8 *pDevice, IDirect3DResource9 *pProxyResource) : mRef(1), mDevice(pDevice), mProxy(pProxyResource)
 	{
 	}
@@ -300,6 +302,8 @@ struct															IDirect3DResource8 : public IUnknown
 };
 struct															IDirect3DBaseTexture8 : public IDirect3DResource8
 {
+	friend struct IDirect3DDevice8;
+
 	IDirect3DBaseTexture8(IDirect3DDevice8 *pDevice, IDirect3DBaseTexture9 *pProxyTexture) : IDirect3DResource8(pDevice, pProxyTexture)
 	{
 	}
@@ -310,6 +314,8 @@ struct															IDirect3DBaseTexture8 : public IDirect3DResource8
 };
 struct															IDirect3DTexture8 : public IDirect3DBaseTexture8
 {
+	friend struct IDirect3DDevice8;
+
 	IDirect3DTexture8(IDirect3DDevice8 *pDevice, IDirect3DTexture9 *pProxyTexture) : IDirect3DBaseTexture8(pDevice, pProxyTexture)
 	{
 	}
@@ -324,6 +330,8 @@ struct															IDirect3DTexture8 : public IDirect3DBaseTexture8
 };
 struct															IDirect3DVolumeTexture8 : public IDirect3DBaseTexture8
 {
+	friend struct IDirect3DDevice8;
+
 	IDirect3DVolumeTexture8(IDirect3DDevice8 *pDevice, IDirect3DVolumeTexture9 *pProxyTexture) : IDirect3DBaseTexture8(pDevice, pProxyTexture)
 	{
 	}
@@ -338,6 +346,8 @@ struct															IDirect3DVolumeTexture8 : public IDirect3DBaseTexture8
 };
 struct															IDirect3DCubeTexture8 : public IDirect3DBaseTexture8
 {
+	friend struct IDirect3DDevice8;
+
 	IDirect3DCubeTexture8(IDirect3DDevice8 *pDevice, IDirect3DCubeTexture9 *pProxyBuffer) : IDirect3DBaseTexture8(pDevice, pProxyBuffer)
 	{
 	}
@@ -352,6 +362,8 @@ struct															IDirect3DCubeTexture8 : public IDirect3DBaseTexture8
 };
 struct															IDirect3DVertexBuffer8 : public IDirect3DResource8
 {
+	friend struct IDirect3DDevice8;
+
 	IDirect3DVertexBuffer8(IDirect3DDevice8 *pDevice, IDirect3DVertexBuffer9 *pProxyBuffer) : IDirect3DResource8(pDevice, pProxyBuffer)
 	{
 	}
@@ -364,6 +376,8 @@ struct															IDirect3DVertexBuffer8 : public IDirect3DResource8
 };
 struct															IDirect3DIndexBuffer8 : public IDirect3DResource8
 {
+	friend struct IDirect3DDevice8;
+
 	IDirect3DIndexBuffer8(IDirect3DDevice8 *pDevice, IDirect3DIndexBuffer9 *pProxyBuffer) : IDirect3DResource8(pDevice, pProxyBuffer)
 	{
 	}
@@ -376,6 +390,8 @@ struct															IDirect3DIndexBuffer8 : public IDirect3DResource8
 };
 struct															IDirect3DSurface8 : public IUnknown
 {
+	friend struct IDirect3DDevice8;
+
 	IDirect3DSurface8(IDirect3DDevice8 *pDevice, IDirect3DSurface9 *pProxyBuffer) : mRef(1), mDevice(pDevice), mProxy(pProxyBuffer)
 	{
 	}
@@ -399,6 +415,8 @@ struct															IDirect3DSurface8 : public IUnknown
 };
 struct															IDirect3DVolume8 : public IUnknown
 {
+	friend struct IDirect3DDevice8;
+
 	IDirect3DVolume8(IDirect3DDevice8 *pDevice, IDirect3DVolume9 *pProxyBuffer) : mRef(1), mDevice(pDevice), mProxy(pProxyBuffer)
 	{
 	}
@@ -422,6 +440,8 @@ struct															IDirect3DVolume8 : public IUnknown
 };
 struct															IDirect3DSwapChain8 : public IUnknown
 {
+	friend struct IDirect3DDevice8;
+
 	IDirect3DSwapChain8(IDirect3DDevice8 *pDevice, IDirect3DSwapChain9 *pProxySwapChain) : mRef(1), mDevice(pDevice), mProxy(pProxySwapChain)
 	{
 	}
@@ -1972,7 +1992,7 @@ HRESULT STDMETHODCALLTYPE										IDirect3DDevice8::CreateVertexShader(CONST DW
 
 	LOG(INFO) << "Redirecting '" << "IDirect3DDevice8::CreateVertexShader" << "(" << this << ", " << pDeclaration << ", " << pFunction << ", " << pHandle << ", " << Usage << ")' ...";
 
-	if (pDeclaration == nullptr || pHandle == nullptr)
+	if (pDeclaration == nullptr || pFunction == nullptr || pHandle == nullptr)
 	{
 		return D3DERR_INVALIDCALL;
 	}
@@ -2158,9 +2178,16 @@ HRESULT STDMETHODCALLTYPE										IDirect3DDevice8::CreateVertexShader(CONST DW
 
 	LOG(INFO) << "> Disassembling shader and translating assembly to Direct3D 9 compatible code ...";
 
-	ID3DXBuffer *disassembly, *assembly;
-	IDirect3DVertexShader9 *shader;
-	IDirect3DVertexDeclaration9 *declaration;
+	if (*pFunction != 0xFFFE0101)
+	{
+		LOG(WARNING) << "> Failed because of version mismatch ('" << *pFunction << "')! Only 'vs_1_1' shaders are supported.";
+
+		return D3DERR_INVALIDCALL;
+	}
+
+	ID3DXBuffer *disassembly = nullptr, *assembly = nullptr;
+	IDirect3DVertexShader9 *shader = nullptr;
+	IDirect3DVertexDeclaration9 *declaration = nullptr;
 
 	HRESULT hr = ::D3DXDisassembleShader(pFunction, FALSE, nullptr, &disassembly);
 
@@ -2239,10 +2266,11 @@ HRESULT STDMETHODCALLTYPE										IDirect3DDevice8::CreateVertexShader(CONST DW
 
 			this->mVertexShaders.push_back(std::make_pair(shader, declaration));
 
-			DWORD *pDeclarationClone = new DWORD[tokens];
-			std::memcpy(pDeclarationClone, pDeclaration, tokens * sizeof(DWORD));
+			std::unique_ptr<DWORD[]> declarationData(new DWORD[tokens]);
+			const std::size_t declarationSize = tokens * sizeof(DWORD);
+			std::memcpy(declarationData.get(), pDeclaration, declarationSize);
 
-			this->mVertexShaderDeclarations.push_back(std::make_pair(pDeclarationClone, tokens * sizeof(DWORD)));
+			this->mVertexShaderDeclarations.push_back(std::make_pair(std::move(declarationData), declarationSize));
 		}
 		else
 		{
@@ -2348,8 +2376,7 @@ HRESULT STDMETHODCALLTYPE										IDirect3DDevice8::DeleteVertexShader(DWORD Ha
 	this->mVertexShaders[Handle].first = nullptr;
 	this->mVertexShaders[Handle].second->Release();
 	this->mVertexShaders[Handle].second = nullptr;
-	delete[] this->mVertexShaderDeclarations[Handle].first;
-	this->mVertexShaderDeclarations[Handle].first = nullptr;
+	this->mVertexShaderDeclarations[Handle].first.reset();
 	this->mVertexShaderDeclarations[Handle].second = 0;
 
 	return D3D_OK;
@@ -2376,7 +2403,7 @@ HRESULT STDMETHODCALLTYPE										IDirect3DDevice8::GetVertexShaderDeclaration(
 		return D3DERR_INVALIDCALL;
 	}
 
-	std::memcpy(pData, this->mVertexShaderDeclarations[Handle].first, *pSizeOfData = std::min(*pSizeOfData, static_cast<DWORD>(this->mVertexShaderDeclarations[Handle].second)));
+	std::memcpy(pData, this->mVertexShaderDeclarations[Handle].first.get(), *pSizeOfData = std::min(*pSizeOfData, static_cast<DWORD>(this->mVertexShaderDeclarations[Handle].second)));
 
 	return D3D_OK;
 }
@@ -2476,8 +2503,17 @@ HRESULT STDMETHODCALLTYPE										IDirect3DDevice8::CreatePixelShader(CONST DWO
 {
 	LOG(INFO) << "Redirecting '" << "IDirect3DDevice8::CreatePixelShader" << "(" << this << ", " << pFunction << ", " << pHandle << ")' ...";
 
-	if (pHandle == nullptr)
+	if (pFunction == nullptr || pHandle == nullptr)
 	{
+		return D3DERR_INVALIDCALL;
+	}
+
+	LOG(INFO) << "> Translating to Direct3D 9 compatible code ...";
+
+	if (*pFunction != 0xFFFF0101)
+	{
+		LOG(WARNING) << "> Failed because of version mismatch ('" << *pFunction << "')! Only 'ps_1_1' shaders are supported.";
+
 		return D3DERR_INVALIDCALL;
 	}
 
@@ -2759,7 +2795,7 @@ HRESULT STDMETHODCALLTYPE										IDirect3D8::CreateDevice(UINT Adapter, D3DDEV
 
 		*ppReturnedDeviceInterface = nullptr;
 
-		return D3DERR_NOTAVAILABLE;
+		return D3DERR_INVALIDCALL;
 	}
 	if (pp.PresentationInterval == D3DPRESENT_RATE_UNLIMITED)
 	{
