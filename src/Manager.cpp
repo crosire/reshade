@@ -161,66 +161,71 @@ namespace ReShade
 					LOG(ERROR) << "> Texture '" << name << "' doesn't match depthbuffer requirements (Width = " << bufferWidth << ", Height = " << bufferHeight << ", Depth = 1, Format = R8).";
 				}
 			}
-			else if (boost::filesystem::exists(source))
-			{
-				int width = 0, height = 0, channels = STBI_default;
-
-				switch (desc.Format)
-				{
-					case Effect::Texture::Format::R8:
-						channels = STBI_grey;
-						break;
-					case Effect::Texture::Format::RG8:
-						channels = STBI_grey_alpha;
-						break;
-					case Effect::Texture::Format::DXT1:
-						channels = STBI_rgb;
-						break;
-					case Effect::Texture::Format::RGBA8:
-					case Effect::Texture::Format::DXT5:
-						channels = STBI_rgb_alpha;
-						break;
-					case Effect::Texture::Format::R32F:
-					case Effect::Texture::Format::RGBA16:
-					case Effect::Texture::Format::RGBA16F:
-					case Effect::Texture::Format::RGBA32F:
-					case Effect::Texture::Format::DXT3:
-					case Effect::Texture::Format::LATC1:
-					case Effect::Texture::Format::LATC2:
-						LOG(ERROR) << "> Texture " << name << " uses unsupported format ('R32F'/'RGBA16'/'RGBA16F'/'RGBA32F'/'DXT3'/'LATC1'/'LATC2') for image loading.";
-						continue;
-				}
-
-				unsigned char *data = stbi_load(source.c_str(), &width, &height, &channels, channels);
-				std::size_t dataSize = width * height * channels;
-
-				switch (desc.Format)
-				{
-					case Effect::Texture::Format::DXT1:
-						stb_compress_dxt_block(data, data, FALSE, STB_DXT_NORMAL);
-						dataSize = ((width + 3) >> 2) * ((height + 3) >> 2) * 8;
-						break;
-					case Effect::Texture::Format::DXT5:
-						stb_compress_dxt_block(data, data, TRUE, STB_DXT_NORMAL);
-						dataSize = ((width + 3) >> 2) * ((height + 3) >> 2) * 16;
-						break;
-				}
-
-				if (desc.Width == 1 && desc.Height == 1 && desc.Depth == 1)
-				{
-					desc.Width = width;
-					desc.Height = height;
-
-					texture->Resize(desc);
-				}
-				
-				texture->Update(0, data, dataSize);
-
-				stbi_image_free(data);
-			}
 			else
 			{
-				LOG(ERROR) << "> Source " << boost::filesystem::absolute(source) << " for texture '" << name << "' could not be found.";
+				const boost::filesystem::path path = boost::filesystem::absolute(source, shaderPath.parent_path());
+
+				if (boost::filesystem::exists(path))
+				{
+					int width = 0, height = 0, channels = STBI_default;
+
+					switch (desc.Format)
+					{
+						case Effect::Texture::Format::R8:
+							channels = STBI_grey;
+							break;
+						case Effect::Texture::Format::RG8:
+							channels = STBI_grey_alpha;
+							break;
+						case Effect::Texture::Format::DXT1:
+							channels = STBI_rgb;
+							break;
+						case Effect::Texture::Format::RGBA8:
+						case Effect::Texture::Format::DXT5:
+							channels = STBI_rgb_alpha;
+							break;
+						case Effect::Texture::Format::R32F:
+						case Effect::Texture::Format::RGBA16:
+						case Effect::Texture::Format::RGBA16F:
+						case Effect::Texture::Format::RGBA32F:
+						case Effect::Texture::Format::DXT3:
+						case Effect::Texture::Format::LATC1:
+						case Effect::Texture::Format::LATC2:
+							LOG(ERROR) << "> Texture " << name << " uses unsupported format ('R32F'/'RGBA16'/'RGBA16F'/'RGBA32F'/'DXT3'/'LATC1'/'LATC2') for image loading.";
+							continue;
+					}
+
+					unsigned char *data = stbi_load(path.string().c_str(), &width, &height, &channels, channels);
+					std::size_t dataSize = width * height * channels;
+
+					switch (desc.Format)
+					{
+						case Effect::Texture::Format::DXT1:
+							stb_compress_dxt_block(data, data, FALSE, STB_DXT_NORMAL);
+							dataSize = ((width + 3) >> 2) * ((height + 3) >> 2) * 8;
+							break;
+						case Effect::Texture::Format::DXT5:
+							stb_compress_dxt_block(data, data, TRUE, STB_DXT_NORMAL);
+							dataSize = ((width + 3) >> 2) * ((height + 3) >> 2) * 16;
+							break;
+					}
+
+					if (desc.Width == 1 && desc.Height == 1 && desc.Depth == 1)
+					{
+						desc.Width = width;
+						desc.Height = height;
+
+						texture->Resize(desc);
+					}
+				
+					texture->Update(0, data, dataSize);
+
+					stbi_image_free(data);
+				}
+				else
+				{
+					LOG(ERROR) << "> Source " << path << " for texture '" << name << "' could not be found.";
+				}
 			}
 		}
 		#pragma endregion
