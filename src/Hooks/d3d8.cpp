@@ -33,6 +33,27 @@ static LPCSTR													DXGetErrorStringA(HRESULT hr)
 
 // -----------------------------------------------------------------------------------------------------
 
+typedef D3DVIEWPORT9											D3DVIEWPORT8;
+typedef D3DCLIPSTATUS9											D3DCLIPSTATUS8;
+typedef D3DMATERIAL9											D3DMATERIAL8;
+typedef D3DLIGHT9												D3DLIGHT8;
+
+struct															D3DPRESENT_PARAMETERS8
+{
+	UINT														BackBufferWidth;
+	UINT														BackBufferHeight;
+	D3DFORMAT													BackBufferFormat;
+	UINT														BackBufferCount;
+	D3DMULTISAMPLE_TYPE											MultiSampleType;
+	D3DSWAPEFFECT												SwapEffect;
+	HWND														hDeviceWindow;
+	BOOL														Windowed;
+	BOOL														EnableAutoDepthStencil;
+	D3DFORMAT													AutoDepthStencilFormat;
+	DWORD														Flags;
+	UINT														FullScreen_RefreshRateInHz;
+	UINT														FullScreen_PresentationInterval;
+};
 struct															D3DADAPTER_IDENTIFIER8
 {
 	char														Driver[MAX_DEVICE_IDENTIFIER_STRING];
@@ -97,26 +118,6 @@ struct															D3DCAPS8
 	DWORD														PixelShaderVersion;
 	float														MaxPixelShaderValue;
 };
-struct															D3DPRESENT_PARAMETERS8
-{
-	UINT														BackBufferWidth;
-	UINT														BackBufferHeight;
-	D3DFORMAT													BackBufferFormat;
-	UINT														BackBufferCount;
-	D3DMULTISAMPLE_TYPE											MultiSampleType;
-	D3DSWAPEFFECT												SwapEffect;
-	HWND														hDeviceWindow;
-	BOOL														Windowed;
-	BOOL														EnableAutoDepthStencil;
-	D3DFORMAT													AutoDepthStencilFormat;
-	DWORD														Flags;
-	UINT														FullScreen_RefreshRateInHz;
-	UINT														FullScreen_PresentationInterval;
-};
-typedef D3DCLIPSTATUS9											D3DCLIPSTATUS8;
-typedef D3DVIEWPORT9											D3DVIEWPORT8;
-typedef D3DMATERIAL9											D3DMATERIAL8;
-typedef D3DLIGHT9												D3DLIGHT8;
 
 struct															IDirect3D8 : public IUnknown
 {
