@@ -26,6 +26,7 @@ namespace ReShade
 
 			void												Capture(void)
 			{
+				GLCHECK(glGetIntegerv(GL_VIEWPORT, this->mViewport));
 				GLCHECK(glGetIntegerv(GL_CURRENT_PROGRAM, reinterpret_cast<GLint *>(&this->mProgram)));
 				GLCHECK(glGetIntegerv(GL_FRAMEBUFFER_BINDING, reinterpret_cast<GLint *>(&this->mFBO)));
 				
@@ -70,6 +71,7 @@ namespace ReShade
 			{
 #define glEnableb(cap, value) if ((value)) glEnable(cap); else glDisable(cap);
 
+				GLCHECK(glViewport(this->mViewport[0], this->mViewport[1], this->mViewport[2], this->mViewport[3]));
 				GLCHECK(glUseProgram(this->mProgram));
 				GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, this->mFBO));
 
@@ -116,7 +118,7 @@ namespace ReShade
 				GLCHECK(glActiveTexture(this->mActiveTexture));
 			}
 
-			GLint												mStencilRef;
+			GLint												mStencilRef, mViewport[4];
 			GLuint												mStencilMask, mStencilReadMask;
 			GLuint												mProgram, mFBO, mVAO, mTextures[8];
 			GLenum												mDrawBuffers[8], mCullFace, mCullFaceMode, mPolygonMode, mBlendEqColor, mBlendEqAlpha, mBlendFuncSrc, mBlendFuncDest, mDepthFunc, mStencilFunc, mStencilOpFail, mStencilOpZFail, mStencilOpZPass, mFrontFace, mActiveTexture;
@@ -231,6 +233,7 @@ namespace ReShade
 				GLuint											Framebuffer;
 				GLint											StencilRef;
 				GLuint											StencilMask, StencilReadMask;
+				GLsizei											ViewportWidth, ViewportHeight;
 				GLenum											DrawBuffers[8], CullFace, PolygonMode, BlendEqColor, BlendEqAlpha, BlendFuncSrc, BlendFuncDest, DepthFunc, StencilFunc, StencilOpFail, StencilOpZFail, StencilOpZPass, FrontFace;
 				GLboolean										ScissorTest, Blend, DepthMask, DepthTest, StencilTest, ColorMaskR, ColorMaskG, ColorMaskB, ColorMaskA, SampleAlphaToCoverage;
 			};
@@ -1975,6 +1978,7 @@ namespace ReShade
 				info.BlendEqColor = info.BlendEqAlpha = GL_FUNC_ADD;
 				info.DrawBuffers[0] = GL_BACK;
 				info.FrontFace = GL_CCW;
+				info.ViewportWidth = info.ViewportHeight = 0;
 
 				GLuint shaders[6] = { 0 };
 
@@ -2012,6 +2016,16 @@ namespace ReShade
 							const GLuint index = state.Type - Nodes::State::RenderTarget0;
 							const char *name = this->mAST[state.Value.AsNode].As<Nodes::Variable>().Name;
 							const OGL4Texture *texture = this->mEffect->mTextures.at(name).get();
+
+							if ((texture->mDesc.Width != info.ViewportWidth || texture->mDesc.Height != info.ViewportHeight) && (info.ViewportWidth == 0 && info.ViewportHeight == 0))
+							{
+								this->mErrors += "Cannot use multiple rendertargets with different sized textures.";
+								this->mFatal = true;
+								return;
+							}
+
+							info.ViewportWidth = texture->mDesc.Width;
+							info.ViewportHeight = texture->mDesc.Height;
 
 							glBindFramebuffer(GL_FRAMEBUFFER, info.Framebuffer);
 							glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + index, texture->mID, 0);
@@ -2125,6 +2139,15 @@ namespace ReShade
 					this->mErrors += log;
 					this->mFatal = true;
 					return;
+				}
+
+				if (info.DrawBuffers[0] == GL_BACK)
+				{
+					RECT rect;
+					::GetClientRect(::WindowFromDC(wglGetCurrentDC()), &rect);
+
+					info.ViewportWidth = static_cast<GLsizei>(rect.right - rect.left);
+					info.ViewportHeight = static_cast<GLsizei>(rect.bottom - rect.top);
 				}
 
 				passes.push_back(info);
@@ -2941,6 +2964,7 @@ namespace ReShade
 
 			const Pass &pass = this->mPasses[index];
 
+			GLCHECK(glViewport(0, 0, pass.ViewportWidth, pass.ViewportHeight));
 			GLCHECK(glUseProgram(pass.Program));
 			GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, pass.Framebuffer));
 
