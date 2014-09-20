@@ -682,6 +682,15 @@ EXPORT void APIENTRY											glFinish(void)
 {
 	static const auto trampoline = ReHook::Call(&glFinish);
 
+	PIXELFORMATDESCRIPTOR pfd;
+	::DescribePixelFormat(sCurrentDeviceContext, ::GetPixelFormat(sCurrentDeviceContext), sizeof(PIXELFORMATDESCRIPTOR), &pfd);
+
+	if (sCurrentManager != nullptr && (pfd.dwFlags & PFD_DOUBLEBUFFER) == 0)
+	{
+		sCurrentManager->OnPostProcess();
+		sCurrentManager->OnPresent();
+	}
+
 	trampoline();
 }
 EXPORT void APIENTRY											glFlush(void)
@@ -2632,6 +2641,7 @@ EXPORT BOOL WINAPI												wglSwapBuffers(HDC hdc)
 {
 	static const auto trampoline = ReHook::Call(&wglSwapBuffers);
 
+	// This requires the game to call "SwapBuffers" on the same thread it made rendering current, which is usually the case.
 	if (sCurrentManager != nullptr && sCurrentDeviceContext == hdc)
 	{
 		sCurrentManager->OnPostProcess();
