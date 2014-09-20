@@ -38,7 +38,7 @@ namespace ReShade
 		el::Loggers::reconfigureLogger("default", logConfig);
 
 		// Initialize injector
-		LOG(INFO) << "Initializing version '" BOOST_STRINGIZE(VERSION_FULL) "' built on '" << VERSION_DATE << ":" << VERSION_TIME << "' loaded from " << injectorPath << " for " << executablePath << " ...";
+		LOG(INFO) << "Initializing version '" BOOST_STRINGIZE(VERSION_FULL) "' built on '" << VERSION_DATE << " " << VERSION_TIME << "' loaded from " << injectorPath << " for " << executablePath << " ...";
 
 		ReHook::Register(systemPath / "d3d8.dll");
 		ReHook::Register(systemPath / "d3d9.dll");
