@@ -2450,15 +2450,12 @@ EXPORT BOOL WINAPI												wglDeleteContext(HGLRC hglrc)
 
 	if (sManagers.count(hglrc) && sSharedContexts.at(hglrc) == nullptr)
 	{
-		const HDC currentDC = wglGetCurrentDC();
-		const HGLRC currentContext = wglGetCurrentContext();
-
 		ReHook::Call(&wglMakeCurrent)(sDeviceContexts.at(hglrc), hglrc);
 
 		delete sManagers.at(hglrc);
 		sManagers.erase(hglrc);
 
-		ReHook::Call(&wglMakeCurrent)(currentDC, currentContext);
+		ReHook::Call(&wglMakeCurrent)(sCurrentDeviceContext, sCurrentRenderContext);
 	}
 
 	sDeviceContexts.erase(hglrc);
@@ -2483,15 +2480,11 @@ EXPORT int WINAPI												wglDescribePixelFormat(HDC hdc, int iPixelFormat, U
 }
 EXPORT HGLRC WINAPI												wglGetCurrentContext(void)
 {
-	static const auto trampoline = ReHook::Call(&wglGetCurrentContext);
-	
-	return trampoline();
+	return sCurrentRenderContext;
 }
 EXPORT HDC WINAPI												wglGetCurrentDC(void)
 {
-	static const auto trampoline = ReHook::Call(&wglGetCurrentDC);
-
-	return trampoline();
+	return sCurrentDeviceContext;
 }
 EXPORT int WINAPI												wglGetLayerPaletteEntries(HDC hdc, int iLayerPlane, int iStart, int cEntries, COLORREF *pcr)
 {
@@ -2523,53 +2516,67 @@ EXPORT BOOL WINAPI												wglMakeCurrent(HDC hdc, HGLRC hglrc)
 {
 	static const auto trampoline = ReHook::Call(&wglMakeCurrent);
 
+	if (hdc == sCurrentDeviceContext && hglrc == sCurrentRenderContext)
+	{
+		return TRUE;
+	}
 	if (!trampoline(hdc, hglrc))
 	{
-		LOG(WARNING) << "'wglMakeCurrent' failed with '" << ::GetLastError() << "'!";
+		LOG(INFO) << "Redirecting '" << "wglMakeCurrent" << "(" << hdc << ", " << hglrc << ")' ...";
+		LOG(WARNING) << "> 'wglMakeCurrent' failed with '" << ::GetLastError() << "'!";
+
+		sCurrentManager = nullptr;
+		sCurrentDeviceContext = nullptr;
+		sCurrentRenderContext = nullptr;
 
 		return FALSE;
 	}
 
-	sCurrentManager = nullptr;
+	if (hglrc == nullptr)
+	{
+		sCurrentManager = nullptr;
+		sCurrentDeviceContext = nullptr;
+		sCurrentRenderContext = nullptr;
+
+		return TRUE;
+	}
+
 	sCurrentDeviceContext = hdc;
 	sCurrentRenderContext = hglrc;
 
-	if (hglrc != nullptr)
+	if (sManagers.count(hglrc))
 	{
-		if (sManagers.count(hglrc))
-		{
-			sCurrentManager = sManagers.at(hglrc);
-		}
-		else
-		{
-			LOG(INFO) << "Redirecting initial '" << "wglMakeCurrent" << "(" << hdc << ", " << hglrc << ")' ...";
+		sCurrentManager = sManagers.at(hglrc);
+	}
+	else
+	{
+		LOG(INFO) << "Redirecting initial '" << "wglMakeCurrent" << "(" << hdc << ", " << hglrc << ")' ...";
 
-			ReShade::Manager *manager = nullptr;
-			const HGLRC shared = sSharedContexts.at(hglrc);
+		ReShade::Manager *manager = nullptr;
+		const HGLRC shared = sSharedContexts.at(hglrc);
 
-			if (shared == nullptr)
+		if (shared == nullptr)
+		{
+			const std::shared_ptr<ReShade::EffectContext> context = ReShade::CreateEffectContext(hdc, hglrc);
+
+			if (context != nullptr)
 			{
-				const std::shared_ptr<ReShade::EffectContext> context = ReShade::CreateEffectContext(hdc, hglrc);
-
-				if (context != nullptr)
-				{
-					manager = new ReShade::Manager(context);
-				}
-				else
-				{
-					LOG(ERROR) << "Failed to initialize OpenGL renderer on OpenGL context " << hglrc << "! Make sure your graphics card supports at least OpenGL 4.3.";
-				}
+				manager = new ReShade::Manager(context);
 			}
 			else
 			{
-				LOG(INFO) << "> Context is sharing data with " << shared << ".";
-
-				manager = sManagers.at(shared);
+				LOG(ERROR) << "Failed to initialize OpenGL renderer on OpenGL context " << hglrc << "! Make sure your graphics card supports at least OpenGL 4.3.";
 			}
-
-			sManagers.insert(std::make_pair(hglrc, manager));
-			sCurrentManager = manager;
 		}
+		else
+		{
+			LOG(INFO) << "> Context is sharing data with " << shared << ".";
+
+			manager = sManagers.at(shared);
+		}
+
+		sManagers.insert(std::make_pair(hglrc, manager));
+		sCurrentManager = manager;
 	}
 
 	const HWND hwnd = ::WindowFromDC(hdc);
