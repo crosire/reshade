@@ -3,6 +3,7 @@
 #include "HookManager.hpp"
 
 #include <gl\gl3w.h>
+#include <unordered_set>
 #include <unordered_map>
 
 #undef glBindTexture
@@ -77,14 +78,15 @@ namespace
 	struct														WindowHook
 	{
 		HHOOK													Handle;
-		ULONG													References;
-		WORD													PreviousWidth, PreviousHeight;
+		ULONG													PreviousWidth, PreviousHeight;
 	};
 
 	std::unordered_map<HGLRC, ReShade::Manager *>				sManagers;
 	std::unordered_map<HGLRC, HGLRC>							sSharedContexts;
 	std::unordered_map<HGLRC, HDC>								sDeviceContexts;
 	std::unordered_map<HWND, WindowHook>						sWindowHooks;
+	std::unordered_set<HWND>									sWindowResizes;
+
 	thread_local ReShade::Manager *								sCurrentManager = nullptr;
 	thread_local HGLRC											sCurrentRenderContext = nullptr;
 	thread_local HDC											sCurrentDeviceContext = nullptr;
@@ -111,15 +113,14 @@ LRESULT CALLBACK												CallWndRetProc(int nCode, WPARAM wParam, LPARAM lPar
 		if (sWindowHooks.count(msg->hwnd))
 		{
 			const HDC hdc = ::GetDC(msg->hwnd);
-			const WORD width = LOWORD(msg->lParam), height = HIWORD(msg->lParam);
+			const ULONG width = LOWORD(msg->lParam), height = HIWORD(msg->lParam);
 			WindowHook &windowhook = sWindowHooks.at(msg->hwnd);
 
-			if ((hdc == sCurrentDeviceContext && sCurrentDeviceContext != nullptr && sCurrentRenderContext != nullptr) && (width != 0 && height != 0) && (width != windowhook.PreviousWidth && height != windowhook.PreviousHeight))
+			if ((width != 0 && height != 0) && (width != windowhook.PreviousWidth || height != windowhook.PreviousHeight))
 			{
-				LOG(INFO) << "Resizing context " << sCurrentRenderContext << " to " << width << "x" << height << " (Window just recieved a 'WM_SIZE' message) ...";
+				LOG(INFO) << "Resizing OpenGL context bound to window " << msg->hwnd << " to " << width << "x" << height << " on next frame (Just recieved a 'WM_SIZE' message) ...";
 
-				sCurrentManager->OnDelete();
-				sCurrentManager->OnCreate();
+				sWindowResizes.insert(msg->hwnd);
 			}
 
 			windowhook.PreviousWidth = width;
@@ -687,6 +688,18 @@ EXPORT void APIENTRY											glFinish(void)
 
 	if (sCurrentManager != nullptr && (pfd.dwFlags & PFD_DOUBLEBUFFER) == 0)
 	{
+		const HWND hwnd = ::WindowFromDC(sCurrentDeviceContext);
+
+		if (sWindowResizes.count(hwnd))
+		{
+			LOG(INFO) << "Resizing single buffered OpenGL context " << sCurrentRenderContext << " ...";
+
+			sCurrentManager->OnDelete();
+			sCurrentManager->OnCreate();
+
+			sWindowResizes.erase(hwnd);
+		}
+
 		sCurrentManager->OnPostProcess();
 		sCurrentManager->OnPresent();
 	}
@@ -2290,12 +2303,12 @@ EXPORT BOOL WINAPI												wglChoosePixelFormatARB(HDC hdc, const int *piAttr
 
 	std::string formats;
 
-	for (UINT i = 0; i < *nNumFormats; ++i)
+	for (UINT i = 0; i < *nNumFormats && piFormats[i] != 0; ++i)
 	{
 		formats += " " + std::to_string(piFormats[i]);
 	}
 
-	LOG(TRACE) << "> Returned formats:" << formats;
+	LOG(TRACE) << "> Returned format(s):" << formats;
 
 	return TRUE;
 }
@@ -2312,25 +2325,7 @@ EXPORT HGLRC WINAPI												wglCreateContext(HDC hdc)
 	if (hglrc != nullptr)
 	{
 		sDeviceContexts.insert(std::make_pair(hglrc, hdc));
-
-		const HWND hwnd = ::WindowFromDC(hdc);
-		WindowHook &windowhook = sWindowHooks[hwnd];
-
-		if (windowhook.References++ == 0)
-		{
-			windowhook.Handle = ::SetWindowsHookEx(WH_CALLWNDPROCRET, &CallWndRetProc, nullptr, ::GetWindowThreadProcessId(hwnd, nullptr));
-
-			if (windowhook.Handle != nullptr)
-			{
-				LOG(INFO) << "> Created window message loop hook for window " << hwnd << ".";
-			}
-			else
-			{
-				LOG(ERROR) << "Failed to create window message loop hook for window " << hwnd << "!";
-
-				sWindowHooks.erase(hwnd);
-			}
-		}
+		sSharedContexts.insert(std::make_pair(hglrc, nullptr));
 	}
 	else
 	{
@@ -2402,7 +2397,7 @@ EXPORT HGLRC WINAPI												wglCreateContextAttribsARB(HDC hdc, HGLRC hShareC
 	}
 
 	LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
-	LOG(TRACE) << "> Requesting " << (core ? "core " : compatibility ? "compatibility " : "") << "context for version " << major << '.' << minor << " ...";
+	LOG(TRACE) << "> Requesting " << (core ? "core " : compatibility ? "compatibility " : "") << "OpenGL context for version " << major << '.' << minor << " ...";
 
 #ifdef _DEBUG
 	flags |= Attrib::WGL_CONTEXT_DEBUG_BIT_ARB;
@@ -2435,25 +2430,6 @@ EXPORT HGLRC WINAPI												wglCreateContextAttribsARB(HDC hdc, HGLRC hShareC
 	{
 		sDeviceContexts.insert(std::make_pair(hglrc, hdc));
 		sSharedContexts.insert(std::make_pair(hglrc, hShareContext));
-
-		const HWND hwnd = ::WindowFromDC(hdc);
-		WindowHook &windowhook = sWindowHooks[hwnd];
-
-		if (windowhook.References++ == 0)
-		{
-			windowhook.Handle = ::SetWindowsHookEx(WH_CALLWNDPROCRET, &CallWndRetProc, nullptr, ::GetWindowThreadProcessId(hwnd, nullptr));
-
-			if (windowhook.Handle != nullptr)
-			{
-				LOG(INFO) << "> Create window message loop hook for window " << hwnd << ".";
-			}
-			else
-			{
-				LOG(ERROR) << "Failed to create window message loop hook for window " << hwnd << "!";
-
-				sWindowHooks.erase(hwnd);
-			}
-		}
 	}
 	else
 	{
@@ -2472,25 +2448,12 @@ EXPORT BOOL WINAPI												wglDeleteContext(HGLRC hglrc)
 {
 	LOG(INFO) << "Redirecting '" << "wglDeleteContext" << "(" << hglrc << ")' ...";
 
-	if (sManagers.count(hglrc) && (!sSharedContexts.count(hglrc) || sSharedContexts.at(hglrc) == nullptr))
+	if (sManagers.count(hglrc) && sSharedContexts.at(hglrc) == nullptr)
 	{
 		const HDC currentDC = wglGetCurrentDC();
 		const HGLRC currentContext = wglGetCurrentContext();
 
-		const HDC hdc = sDeviceContexts.at(hglrc);
-		const HWND hwnd = ::WindowFromDC(hdc);
-		WindowHook &windowhook = sWindowHooks[hwnd];
-
-		if (--windowhook.References == 0)
-		{
-			::UnhookWindowsHookEx(windowhook.Handle);
-
-			LOG(INFO) << "> Removed window message loop hook for window " << hwnd << ".";
-
-			sWindowHooks.erase(hwnd);
-		}
-
-		ReHook::Call(&wglMakeCurrent)(hdc, hglrc);
+		ReHook::Call(&wglMakeCurrent)(sDeviceContexts.at(hglrc), hglrc);
 
 		delete sManagers.at(hglrc);
 		sManagers.erase(hglrc);
@@ -2582,8 +2545,9 @@ EXPORT BOOL WINAPI												wglMakeCurrent(HDC hdc, HGLRC hglrc)
 			LOG(INFO) << "Redirecting initial '" << "wglMakeCurrent" << "(" << hdc << ", " << hglrc << ")' ...";
 
 			ReShade::Manager *manager = nullptr;
+			const HGLRC shared = sSharedContexts.at(hglrc);
 
-			if (!sSharedContexts.count(hglrc) || sSharedContexts.at(hglrc) == nullptr)
+			if (shared == nullptr)
 			{
 				const std::shared_ptr<ReShade::EffectContext> context = ReShade::CreateEffectContext(hdc, hglrc);
 
@@ -2593,13 +2557,11 @@ EXPORT BOOL WINAPI												wglMakeCurrent(HDC hdc, HGLRC hglrc)
 				}
 				else
 				{
-					LOG(ERROR) << "Failed to initialize OpenGL renderer on context " << hglrc << "! Make sure your graphics card supports at least OpenGL 4.3.";
+					LOG(ERROR) << "Failed to initialize OpenGL renderer on OpenGL context " << hglrc << "! Make sure your graphics card supports at least OpenGL 4.3.";
 				}
 			}
 			else
 			{
-				const HGLRC shared = sSharedContexts.at(hglrc);
-
 				LOG(INFO) << "> Context is sharing data with " << shared << ".";
 
 				manager = sManagers.at(shared);
@@ -2607,6 +2569,30 @@ EXPORT BOOL WINAPI												wglMakeCurrent(HDC hdc, HGLRC hglrc)
 
 			sManagers.insert(std::make_pair(hglrc, manager));
 			sCurrentManager = manager;
+		}
+	}
+
+	const HWND hwnd = ::WindowFromDC(hdc);
+
+	if (!sWindowHooks.count(hwnd))
+	{
+		WindowHook windowhook;
+		windowhook.Handle = ::SetWindowsHookEx(WH_CALLWNDPROCRET, &CallWndRetProc, nullptr, ::GetWindowThreadProcessId(hwnd, nullptr));
+
+		if (windowhook.Handle != nullptr)
+		{
+			RECT rect;
+			::GetClientRect(hwnd, &rect);
+			windowhook.PreviousWidth = rect.right - rect.left;
+			windowhook.PreviousHeight = rect.bottom - rect.top;
+
+			LOG(INFO) << "> Created window message loop hook for window " << hwnd << " (Initial size: " << windowhook.PreviousWidth << "x" << windowhook.PreviousHeight << ").";
+
+			sWindowHooks.insert(std::make_pair(hwnd, windowhook));
+		}
+		else
+		{
+			LOG(ERROR) << "Failed to create window message loop hook for window " << hwnd << "!";
 		}
 	}
 
@@ -2644,6 +2630,18 @@ EXPORT BOOL WINAPI												wglSwapBuffers(HDC hdc)
 	// This requires the game to call "SwapBuffers" on the same thread it made rendering current, which is usually the case.
 	if (sCurrentManager != nullptr && sCurrentDeviceContext == hdc)
 	{
+		const HWND hwnd = ::WindowFromDC(hdc);
+
+		if (sWindowResizes.count(hwnd))
+		{
+			LOG(INFO) << "Resizing OpenGL context " << sCurrentRenderContext << " ...";
+
+			sCurrentManager->OnDelete();
+			sCurrentManager->OnCreate();
+
+			sWindowResizes.erase(hwnd);
+		}
+
 		sCurrentManager->OnPostProcess();
 		sCurrentManager->OnPresent();
 	}
