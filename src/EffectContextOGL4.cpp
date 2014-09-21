@@ -2017,7 +2017,7 @@ namespace ReShade
 							const char *name = this->mAST[state.Value.AsNode].As<Nodes::Variable>().Name;
 							const OGL4Texture *texture = this->mEffect->mTextures.at(name).get();
 
-							if ((texture->mDesc.Width != info.ViewportWidth || texture->mDesc.Height != info.ViewportHeight) && (info.ViewportWidth == 0 && info.ViewportHeight == 0))
+							if ((texture->mDesc.Width != info.ViewportWidth || texture->mDesc.Height != info.ViewportHeight) && !(info.ViewportWidth == 0 && info.ViewportHeight == 0))
 							{
 								this->mErrors += "Cannot use multiple rendertargets with different sized textures.";
 								this->mFatal = true;
