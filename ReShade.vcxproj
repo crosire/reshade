@@ -131,8 +131,8 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>$(SolutionDir)\bin\$(Platform)\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <ModuleDefinitionFile>res\Exports.def</ModuleDefinitionFile>
-      <AdditionalDependencies>ReHook.lib;d3dcompiler.lib;d3dx9.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <DelayLoadDLLs>d3dcompiler_43.dll;d3dx9_43.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
+      <AdditionalDependencies>ReHook.lib;d3dcompiler.lib;d3dx9.lib;d3d10.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <DelayLoadDLLs>d3dcompiler_43.dll;d3dx9_43.dll;d3d10.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
     </Link>
     <ResourceCompile>
       <PreprocessorDefinitions>WIN32;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -152,8 +152,8 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>$(SolutionDir)\bin\$(Platform)\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <ModuleDefinitionFile>res\Exports.def</ModuleDefinitionFile>
-      <AdditionalDependencies>ReHook.lib;d3dcompiler.lib;d3dx9.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <DelayLoadDLLs>d3dcompiler_43.dll;d3dx9_43.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
+      <AdditionalDependencies>ReHook.lib;d3dcompiler.lib;d3dx9.lib;d3d10.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <DelayLoadDLLs>d3dcompiler_43.dll;d3dx9_43.dll;d3d10.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
     </Link>
     <ResourceCompile>
       <PreprocessorDefinitions>WIN64;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -177,8 +177,8 @@
       <OptimizeReferences>true</OptimizeReferences>
       <AdditionalLibraryDirectories>$(SolutionDir)\bin\$(Platform)\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <ModuleDefinitionFile>res\Exports.def</ModuleDefinitionFile>
-      <AdditionalDependencies>ReHook.lib;d3dcompiler.lib;d3dx9.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <DelayLoadDLLs>d3dcompiler_43.dll;d3dx9_43.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
+      <AdditionalDependencies>ReHook.lib;d3dcompiler.lib;d3dx9.lib;d3d10.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <DelayLoadDLLs>d3dcompiler_43.dll;d3dx9_43.dll;d3d10.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
     </Link>
     <PreBuildEvent>
       <Command>tools\verbuild res\Version.h *.*.*.+ -xFp -b0.0.0.0 -s</Command>
@@ -205,8 +205,8 @@
       <OptimizeReferences>true</OptimizeReferences>
       <AdditionalLibraryDirectories>$(SolutionDir)\bin\$(Platform)\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <ModuleDefinitionFile>res\Exports.def</ModuleDefinitionFile>
-      <AdditionalDependencies>ReHook.lib;d3dcompiler.lib;d3dx9.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <DelayLoadDLLs>d3dcompiler_43.dll;d3dx9_43.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
+      <AdditionalDependencies>ReHook.lib;d3dcompiler.lib;d3dx9.lib;d3d10.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <DelayLoadDLLs>d3dcompiler_43.dll;d3dx9_43.dll;d3d10.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
     </Link>
     <PreBuildEvent>
       <Command>tools\verbuild res\Version.h *.*.*.+ -xFp -b0.0.0.0 -s</Command>

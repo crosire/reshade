@@ -18,16 +18,6 @@ EXPORTS
 	D3D10CreateDevice
 	D3D10CreateDeviceAndSwapChain
 
-	D3D10CreateStateBlock
-	D3D10StateBlockMaskDifference
-	D3D10StateBlockMaskDisableAll
-	D3D10StateBlockMaskDisableCapture
-	D3D10StateBlockMaskEnableAll
-	D3D10StateBlockMaskEnableCapture
-	D3D10StateBlockMaskGetSetting
-	D3D10StateBlockMaskIntersect
-	D3D10StateBlockMaskUnion
-
 	; d3d10_1.dll
 	D3D10CreateDevice1
 	D3D10CreateDeviceAndSwapChain1
