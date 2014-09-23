@@ -63,6 +63,7 @@ namespace ReShade
 			std::unordered_map<std::string, std::unique_ptr<D3D9Technique>> mTechniques;
 			IDirect3DSurface9 *									mBackBuffer;
 			IDirect3DStateBlock9 *								mStateBlock;
+			IDirect3DSurface9 *									mStateBlockDepthStencil, *mStateBlockRenderTarget;
 			IDirect3DStateBlock9 *								mShaderResourceStateblock;
 			IDirect3DSurface9 *									mDepthStencil;
 			IDirect3DVertexDeclaration9 *						mVertexDeclaration;
@@ -2149,7 +2150,10 @@ namespace ReShade
 			
 			D3DSURFACE_DESC desc;
 			this->mBackBuffer->GetDesc(&desc);
-			context->mDevice->CreateDepthStencilSurface(desc.Width, desc.Height, D3DFMT_D24S8, D3DMULTISAMPLE_NONE, 0, FALSE, &this->mDepthStencil, nullptr);
+			
+			hr = context->mDevice->CreateDepthStencilSurface(desc.Width, desc.Height, D3DFMT_D24S8, D3DMULTISAMPLE_NONE, 0, FALSE, &this->mDepthStencil, nullptr);
+
+			assert(SUCCEEDED(hr));
 
 			this->mConstantRegisterCount = 0;
 			this->mConstantStorage = nullptr;
@@ -2547,27 +2551,31 @@ namespace ReShade
 				return false;
 			}
 
+			device->GetDepthStencilSurface(&this->mEffect->mStateBlockDepthStencil);
+			device->GetRenderTarget(0, &this->mEffect->mStateBlockRenderTarget);
+
 			device->SetVertexDeclaration(this->mEffect->mVertexDeclaration);
 			device->SetStreamSource(0, this->mEffect->mVertexBuffer, 0, sizeof(float));
 
 			device->SetDepthStencilSurface(this->mEffect->mDepthStencil);
+			device->Clear(0, nullptr, D3DCLEAR_ZBUFFER | D3DCLEAR_STENCIL, 0, 1.0f, 0x0);
 
-			if (this->mEffect->mDepthStencil != nullptr)
-			{
-				device->Clear(0, nullptr, D3DCLEAR_ZBUFFER | D3DCLEAR_STENCIL, 0, 1.0f, 0x0);
-			}
+			this->mEffect->mShaderResourceStateblock->Apply();
 
 			D3DVIEWPORT9 viewport;
 			device->GetViewport(&viewport);
 			const float texel_offset[4] = { -1.0f / viewport.Width, 1.0f / viewport.Height };
 			device->SetVertexShaderConstantF(223, texel_offset, 1);
 
-			this->mEffect->mShaderResourceStateblock->Apply();
-
 			return true;
 		}
 		void													D3D9Technique::End(void) const
 		{
+			this->mEffect->mEffectContext->mDevice->SetDepthStencilSurface(this->mEffect->mStateBlockDepthStencil);
+			SAFE_RELEASE(this->mEffect->mStateBlockDepthStencil);
+			this->mEffect->mEffectContext->mDevice->SetRenderTarget(0, this->mEffect->mStateBlockRenderTarget);
+			SAFE_RELEASE(this->mEffect->mStateBlockRenderTarget);
+
 			this->mEffect->mEffectContext->mDevice->EndScene();
 			this->mEffect->mStateBlock->Apply();
 		}
