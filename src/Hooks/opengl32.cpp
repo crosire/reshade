@@ -74,10 +74,54 @@
 
 namespace
 {
+	class														CriticalSection
+	{
+	public:
+		struct													Lock
+		{
+			inline Lock(CriticalSection &cs) : CS(cs)
+			{
+				this->CS.Enter();
+			}
+			inline ~Lock(void)
+			{
+				this->CS.Leave();
+			}
+
+			CriticalSection &									CS;
+
+		private:
+			void												operator =(const Lock &);
+		};
+
+	public:
+		inline CriticalSection(void)
+		{
+			::InitializeCriticalSection(&this->mCS);
+		}
+		inline ~CriticalSection(void)
+		{
+			::DeleteCriticalSection(&this->mCS);
+		}
+
+		inline void												Enter(void)
+		{
+			::EnterCriticalSection(&this->mCS);
+		}
+		inline void												Leave(void)
+		{
+			::LeaveCriticalSection(&this->mCS);
+		}
+
+	private:
+		CRITICAL_SECTION										mCS;
+	};
+	
 	std::unordered_map<HGLRC, ReShade::Manager *>				sManagers;
 	std::unordered_map<HGLRC, HGLRC>							sSharedContexts;
 	std::unordered_map<HGLRC, HDC>								sDeviceContexts;
 	std::unordered_map<HWND, RECT>								sWindowRects;
+	CriticalSection												sCS;
 
 	thread_local ReShade::Manager *								sCurrentManager = nullptr;
 	thread_local HGLRC											sCurrentRenderContext = nullptr;
@@ -2262,6 +2306,8 @@ EXPORT HGLRC WINAPI												wglCreateContext(HDC hdc)
 
 	if (hglrc != nullptr)
 	{
+		CriticalSection::Lock lock(sCS);
+
 		sDeviceContexts.insert(std::make_pair(hglrc, hdc));
 		sSharedContexts.insert(std::make_pair(hglrc, nullptr));
 	}
@@ -2366,6 +2412,8 @@ EXPORT HGLRC WINAPI												wglCreateContextAttribsARB(HDC hdc, HGLRC hShareC
 
 	if (hglrc != nullptr)
 	{
+		CriticalSection::Lock lock(sCS);
+
 		sDeviceContexts.insert(std::make_pair(hglrc, hdc));
 		sSharedContexts.insert(std::make_pair(hglrc, hShareContext));
 	}
@@ -2385,6 +2433,8 @@ EXPORT HGLRC WINAPI												wglCreateLayerContext(HDC hdc, int iLayerPlane)
 EXPORT BOOL WINAPI												wglDeleteContext(HGLRC hglrc)
 {
 	LOG(INFO) << "Redirecting '" << "wglDeleteContext" << "(" << hglrc << ")' ...";
+
+	CriticalSection::Lock lock(sCS);
 
 	const auto it = sManagers.find(hglrc);
 
@@ -2483,6 +2533,8 @@ EXPORT BOOL WINAPI												wglMakeCurrent(HDC hdc, HGLRC hglrc)
 
 	sCurrentDeviceContext = hdc;
 	sCurrentRenderContext = hglrc;
+
+	CriticalSection::Lock lock(sCS);
 
 	const auto it = sManagers.lower_bound(hglrc);
 
