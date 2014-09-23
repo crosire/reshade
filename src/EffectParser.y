@@ -3780,17 +3780,22 @@ RULE_DECLARATION_VARIABLE
 				parser.Error(@1, 3047, "local variables cannot be declared 'uniform'");
 				YYERROR;
 			}
+			if ($1.Type.HasQualifier(ReShade::Nodes::Type::Qualifier::Extern))
+			{
+				parser.Error(@1, 3006, "local variables cannot be declared 'extern'");
+				YYERROR;
+			}
 		}
 		else
 		{
 			if (!$1.Type.HasQualifier(ReShade::Nodes::Type::Qualifier::Static))
 			{
-				$1.Type.Qualifiers |= static_cast<unsigned int>(ReShade::Nodes::Type::Qualifier::Extern);
-
-				if (!$1.Type.HasQualifier(ReShade::Nodes::Type::Qualifier::Const))
+				if (!$1.Type.IsTexture() && !$1.Type.IsSampler())
 				{
-					$1.Type.Qualifiers |= static_cast<unsigned int>(ReShade::Nodes::Type::Qualifier::Uniform);
+					parser.Warning(@1, 3002, "global variables are considered 'uniform' by default");
 				}
+
+				$1.Type.Qualifiers |= static_cast<unsigned int>(ReShade::Nodes::Type::Qualifier::Extern) | static_cast<unsigned int>(ReShade::Nodes::Type::Qualifier::Uniform);
 			}
 		}
 		
