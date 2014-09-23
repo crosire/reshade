@@ -570,8 +570,27 @@ namespace ReShade
 
 				return FixName(name);
 			}
-			static void											FixImplicitCast(const Nodes::Type &from, const Nodes::Type &to, std::string &before, std::string &after)
+			static Nodes::Type									FixImplicitCast(const Nodes::Type &from, const Nodes::Type &to, std::string &before, std::string &after)
 			{
+				Nodes::Type res = from;
+
+				if (from.Rows > 0 && from.Rows < to.Rows)
+				{
+					after += ".";
+					char sub[4] = { 'x', 'y', 'z', 'w' };
+
+					for (unsigned int i = 0; i < from.Rows; ++i)
+					{
+						after += sub[i];
+					}
+					for (unsigned int i = from.Rows; i < to.Rows; ++i)
+					{
+						after += sub[from.Rows - 1];
+					}
+
+					res.Rows = to.Rows;
+				}
+
 				if (from.Class != to.Class)
 				{
 					switch (to.Class)
@@ -597,22 +616,11 @@ namespace ReShade
 							after += ")";
 							break;
 					}
+
+					res.Class = to.Class;
 				}
 
-				if (from.Rows > 0 && from.Rows < to.Rows)
-				{
-					after += ".";
-					char sub[4] = { 'x', 'y', 'z', 'w' };
-
-					for (unsigned int i = 0; i < from.Rows; ++i)
-					{
-						after += sub[i];
-					}
-					for (unsigned int i = from.Rows; i < to.Rows; ++i)
-					{
-						after += sub[from.Rows - 1];
-					}
-				}
+				return res;
 			}
 
 			void												Visit(const EffectTree::Node &node)
@@ -826,78 +834,62 @@ namespace ReShade
 			}
 			void												VisitUnaryExpression(const Nodes::UnaryExpression &data)
 			{
+				std::string part1, part2;
+
 				switch (data.Operator)
 				{
 					case Nodes::Operator::Plus:
-						this->mCurrentSource += '+';
+						part1 = "+";
 						break;
 					case Nodes::Operator::Minus:
-						this->mCurrentSource += '-';
+						part1 = "-";
 						break;
 					case Nodes::Operator::BitwiseNot:
-						this->mCurrentSource += '~';
+						part1 = "~";
 						break;
 					case Nodes::Operator::LogicalNot:
-						this->mCurrentSource += '!';
+						if (data.Type.IsVector())
+						{
+							part1 = "not";
+
+							if (data.Type.Class != Nodes::Type::Bool)
+							{
+								part1 += '(';
+								part1 += "bvec" + std::to_string(data.Type.Rows);
+								part2 += ')';
+							}
+						}
+						else
+						{
+							part1 = "!";
+						}
 						break;
 					case Nodes::Operator::Increase:
-						this->mCurrentSource += "++";
+						part1 = "++";
 						break;
 					case Nodes::Operator::Decrease:
-						this->mCurrentSource += "--";
+						part1 = "--";
+						break;
+					case Nodes::Operator::PostIncrease:
+						part2 = "++";
+						break;
+					case Nodes::Operator::PostDecrease:
+						part2 = "--";
 						break;
 					case Nodes::Operator::Cast:
 						VisitType(data.Type);
 						break;
 				}
 
+				this->mCurrentSource += part1;
 				this->mCurrentSource += '(';
-
 				Visit(this->mAST[data.Operand]);
-
-				switch (data.Operator)
-				{
-					case Nodes::Operator::PostIncrease:
-						this->mCurrentSource += "++";
-						break;
-					case Nodes::Operator::PostDecrease:
-						this->mCurrentSource += "--";
-						break;
-				}
-
+				this->mCurrentSource += part2;
 				this->mCurrentSource += ')';
 			}
 			void												VisitBinaryExpression(const Nodes::BinaryExpression &data)
 			{
-				this->mCurrentSource += '(';
-
-				const auto &left = this->mAST[data.Left].As<Nodes::Expression>();
-				const auto &right = this->mAST[data.Right].As<Nodes::Expression>();
-
-				std::string implicitBefore, implicitAfter;
-				FixImplicitCast(left.Type, right.Type, implicitBefore, implicitAfter);
-
-				if (data.Operator == Nodes::Operator::Modulo && (left.Type.IsFloatingPoint() || right.Type.IsFloatingPoint()))
-				{
-					this->mCurrentSource += "fmod(";
-					this->mCurrentSource += implicitBefore;
-					Visit(this->mAST[data.Left]);
-					this->mCurrentSource += implicitAfter;
-					this->mCurrentSource += ", ";
-					Visit(this->mAST[data.Right]);
-					this->mCurrentSource += ")";
-				}
-				else if (data.Operator == Nodes::Operator::Multiply && (left.Type.IsMatrix() || right.Type.IsMatrix()))
-				{
-					this->mCurrentSource += "matrixCompMult(";
-					this->mCurrentSource += implicitBefore;
-					Visit(this->mAST[data.Left]);
-					this->mCurrentSource += implicitAfter;
-					this->mCurrentSource += ", ";
-					Visit(this->mAST[data.Right]);
-					this->mCurrentSource += ")";
-				}
-				else if (data.Operator == Nodes::Operator::Index)
+				if (data.Operator == Nodes::Operator::Index)
 				{
 					Visit(this->mAST[data.Left]);
 					this->mCurrentSource += '[';
@@ -906,77 +898,156 @@ namespace ReShade
 				}
 				else
 				{
-					this->mCurrentSource += implicitBefore;
-					Visit(this->mAST[data.Left]);
-					this->mCurrentSource += implicitAfter;
-					this->mCurrentSource += ' ';
+					const auto &left = this->mAST[data.Left].As<Nodes::Expression>();
+					const auto &right = this->mAST[data.Right].As<Nodes::Expression>();
+
+					std::string part1, part2, part3, part4, part5;
+					Nodes::Type type = right.Type;
+
+					if (left.Type.IsFloatingPoint())
+					{
+						type.Class = left.Type.Class;
+					}
+
+					type = FixImplicitCast(left.Type, type, part2, part3);
 
 					switch (data.Operator)
 					{
 						case Nodes::Operator::Add:
-							this->mCurrentSource += '+';
+							part4 = " + ";
 							break;
 						case Nodes::Operator::Substract:
-							this->mCurrentSource += '-';
+							part4 = " - ";
 							break;
 						case Nodes::Operator::Multiply:
-							this->mCurrentSource += '*';
+							if (type.IsMatrix())
+							{
+								part1 = "matrixCompMult";
+								part4 = ", ";
+							}
+							else
+							{
+								part4 = " * ";
+							}
 							break;
 						case Nodes::Operator::Divide:
-							this->mCurrentSource += '/';
+							part4 = " / ";
 							break;
 						case Nodes::Operator::Modulo:
-							this->mCurrentSource += '%';
+							if (type.IsFloatingPoint())
+							{
+								part1 = "fmod";
+								part4 = ", ";
+							}
+							else
+							{
+								part4 = " % ";
+							}
 							break;
 						case Nodes::Operator::LeftShift:
-							this->mCurrentSource += "<<";
+							part4 = " << ";
 							break;
 						case Nodes::Operator::RightShift:
-							this->mCurrentSource += ">>";
+							part4 = " >> ";
 							break;
 						case Nodes::Operator::BitwiseAnd:
-							this->mCurrentSource += '&';
+							part4 = " & ";
 							break;
 						case Nodes::Operator::BitwiseXor:
-							this->mCurrentSource += '^';
+							part4 = " ^ ";
 							break;
 						case Nodes::Operator::BitwiseOr:
-							this->mCurrentSource += '|';
+							part4 = " | ";
 							break;
 						case Nodes::Operator::LogicalAnd:
-							this->mCurrentSource += "&&";
+							part4 = " && ";
 							break;
 						case Nodes::Operator::LogicalXor:
-							this->mCurrentSource += "^^";
+							part4 = " ^^ ";
 							break;
 						case Nodes::Operator::LogicalOr:
-							this->mCurrentSource += "||";
+							part4 = " || ";
 							break;
 						case Nodes::Operator::Less:
-							this->mCurrentSource += '<';
+							if (type.IsVector())
+							{
+								part1 = "lessThan";
+								part4 = ", ";
+							}
+							else
+							{
+								part4 = " < ";
+							}
 							break;
 						case Nodes::Operator::Greater:
-							this->mCurrentSource += '>';
+							if (type.IsVector())
+							{
+								part1 = "greaterThan";
+								part4 = ", ";
+							}
+							else
+							{
+								part4 = " > ";
+							}
 							break;
 						case Nodes::Operator::LessOrEqual:
-							this->mCurrentSource += "<=";
+							if (type.IsVector())
+							{
+								part1 = "lessThanEqual";
+								part4 = ", ";
+							}
+							else
+							{
+								part4 = " <= ";
+							}
 							break;
 						case Nodes::Operator::GreaterOrEqual:
-							this->mCurrentSource += ">=";
+							if (type.IsVector())
+							{
+								part1 = "greaterThanEqual";
+								part4 = ", ";
+							}
+							else
+							{
+								part4 = " >= ";
+							}
 							break;
 						case Nodes::Operator::Equal:
-							this->mCurrentSource += "==";
+							if (type.IsVector())
+							{
+								part1 = "equal";
+								part4 = ", ";
+							}
+							else
+							{
+								part4 = " == ";
+							}
 							break;
 						case Nodes::Operator::Unequal:
-							this->mCurrentSource += "!=";
+							if (type.IsVector())
+							{
+								part1 = "notEqual";
+								part4 = ", ";
+							}
+							else
+							{
+								part4 = " != ";
+							}
 							break;
 					}
+					
+					FixImplicitCast(right.Type, type, part4, part5);
 
-					this->mCurrentSource += ' ';
+					this->mCurrentSource += part1;
+					this->mCurrentSource += '(';
+					this->mCurrentSource += part2;
+					Visit(this->mAST[data.Left]);
+					this->mCurrentSource += part3;
+					this->mCurrentSource += part4;
 					Visit(this->mAST[data.Right]);
+					this->mCurrentSource += part5;
+					this->mCurrentSource += ')';
 				}
-
-				this->mCurrentSource += ')';
 			}
 			void												VisitAssignmentExpression(const Nodes::Assignment &data)
 			{
@@ -1033,7 +1104,40 @@ namespace ReShade
 			void												VisitConditionalExpression(const Nodes::Conditional &data)
 			{
 				this->mCurrentSource += '(';
-				Visit(this->mAST[data.Condition]);
+
+				const auto &condition = this->mAST[data.Condition].As<Nodes::Expression>();
+
+				if (condition.Type.IsVector())
+				{
+					this->mCurrentSource += "all(";
+
+					if (condition.Type.Class != Nodes::Type::Bool)
+					{
+						this->mCurrentSource += "bvec" + std::to_string(condition.Type.Rows) + "(";
+						Visit(this->mAST[data.Condition]);
+						this->mCurrentSource += ")";
+					}
+					else
+					{
+						Visit(this->mAST[data.Condition]);
+					}
+
+					this->mCurrentSource += ")";
+				}
+				else
+				{
+					if (condition.Type.Class != Nodes::Type::Bool)
+					{
+						this->mCurrentSource += "bool(";
+						Visit(this->mAST[data.Condition]);
+						this->mCurrentSource += ")";
+					}
+					else
+					{
+						Visit(this->mAST[data.Condition]);
+					}
+				}
+
 				this->mCurrentSource += " ? ";
 				Visit(this->mAST[data.ExpressionTrue]);
 				this->mCurrentSource += " : ";
@@ -1055,12 +1159,20 @@ namespace ReShade
 
 				if (data.Parameters != 0)
 				{
+					const auto &arguments = this->mAST[callee.Arguments].As<Nodes::Aggregate>();
 					const auto &parameters = this->mAST[data.Parameters].As<Nodes::Aggregate>();
 
 					for (size_t i = 0; i < parameters.Length; ++i)
 					{
-						Visit(this->mAST[parameters.Find(this->mAST, i)]);
+						const auto &argument = this->mAST[arguments.Find(this->mAST, i)].As<Nodes::Variable>();
+						const auto &parameter = this->mAST[parameters.Find(this->mAST, i)].As<Nodes::Expression>();
+						
+						std::string before, after;
+						FixImplicitCast(parameter.Type, argument.Type, before, after);
 
+						this->mCurrentSource += before;
+						Visit(this->mAST[parameters.Find(this->mAST, i)]);
+						this->mCurrentSource += after;
 						this->mCurrentSource += ", ";
 					}
 
@@ -2184,7 +2296,14 @@ namespace ReShade
 				source += this->mCurrentSource;
 				this->mCurrentSource = backup;
 
-				source += " " + name + ";\n";
+				source += " " + name;
+
+				for (unsigned int i = 0; i < type.ElementsDimension; ++i)
+				{
+					source += "[" + std::to_string(type.Elements[i]) + "]";
+				}
+
+				source += ";\n";
 			}
 			void												VisitPassShaderDeclaration(const Nodes::State &data, GLuint &shader)
 			{
@@ -2311,7 +2430,7 @@ namespace ReShade
 					source += "_return = ";
 				}
 
-				source += callee.Name;
+				source += FixName(callee.Name);
 				source += "(";
 
 				if (callee.HasArguments())
