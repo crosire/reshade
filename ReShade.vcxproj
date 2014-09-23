@@ -181,7 +181,7 @@
       <DelayLoadDLLs>d3dcompiler_43.dll;d3dx9_43.dll;d3d10.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
     </Link>
     <PreBuildEvent>
-      <Command>tools\verbuild res\Version.h *.*.*.+ -xFp -b0.0.0.0 -s</Command>
+      <Command>tools\verbuild res\Version.h *.*.*.+ -xFP -b0.0.0.0 -s</Command>
     </PreBuildEvent>
     <ResourceCompile>
       <PreprocessorDefinitions>WIN32;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -209,7 +209,7 @@
       <DelayLoadDLLs>d3dcompiler_43.dll;d3dx9_43.dll;d3d10.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
     </Link>
     <PreBuildEvent>
-      <Command>tools\verbuild res\Version.h *.*.*.+ -xFp -b0.0.0.0 -s</Command>
+      <Command>tools\verbuild res\Version.h *.*.*.+ -xFP -b0.0.0.0 -s</Command>
     </PreBuildEvent>
     <ResourceCompile>
       <PreprocessorDefinitions>WIN64;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>

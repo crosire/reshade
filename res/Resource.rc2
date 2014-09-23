@@ -6,8 +6,8 @@
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION VERSION_FILE
- PRODUCTVERSION VERSION_PRODUCT
+ FILEVERSION VERSION_MAJOR,VERSION_MINOR,VERSION_REVISION,VERSION_BUILD
+ PRODUCTVERSION VERSION_MAJOR,VERSION_MINOR,VERSION_REVISION,VERSION_BUILD
  FILEFLAGSMASK VS_FFI_FILEFLAGSMASK
 #ifdef _DEBUG
  FILEFLAGS (VS_FF_PRERELEASE | VS_FF_DEBUG)
@@ -23,9 +23,9 @@ BEGIN
         BLOCK "040004b0"
         BEGIN
             VALUE "CompanyName", "Crosire"
-            VALUE "FileVersion", VERSION_FILESTR
+            VALUE "FileVersion", VERSION_STRING_FILE
             VALUE "ProductName", "ReShade"
-            VALUE "ProductVersion", VERSION_PRODUCTSTR
+            VALUE "ProductVersion", VERSION_STRING_PRODUCT
             VALUE "LegalCopyright", "Copyright © 2014. All rights reserved."
 #ifdef WIN32
             VALUE "FileDescription", "Crosire's ReShade PostProcessing Injector for 32-bit"
