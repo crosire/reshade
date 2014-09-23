@@ -2616,23 +2616,29 @@ EXPORT BOOL WINAPI												wglSwapBuffers(HDC hdc)
 {
 	static const auto trampoline = ReHook::Call(&wglSwapBuffers);
 
-	// This requires the game to call "SwapBuffers" on the same thread it made rendering current, which is usually the case.
-	if (sCurrentManager != nullptr && sCurrentDeviceContext == hdc)
+	if (sCurrentDeviceContext == hdc)
 	{
-		const HWND hwnd = ::WindowFromDC(hdc);
-
-		if (sWindowResizes.find(hwnd) != sWindowResizes.cend())
+		if (sCurrentManager != nullptr)
 		{
-			LOG(INFO) << "Resizing OpenGL context " << sCurrentRenderContext << " ...";
+			const HWND hwnd = ::WindowFromDC(hdc);
 
-			sCurrentManager->OnDelete();
-			sCurrentManager->OnCreate();
+			if (sWindowResizes.find(hwnd) != sWindowResizes.cend())
+			{
+				LOG(INFO) << "Resizing OpenGL context " << sCurrentRenderContext << " ...";
 
-			sWindowResizes.erase(hwnd);
+				sCurrentManager->OnDelete();
+				sCurrentManager->OnCreate();
+
+				sWindowResizes.erase(hwnd);
+			}
+
+			sCurrentManager->OnPostProcess();
+			sCurrentManager->OnPresent();
 		}
-
-		sCurrentManager->OnPostProcess();
-		sCurrentManager->OnPresent();
+	}
+	else
+	{
+		LOG(WARNING) << "Swapping buffers on a device context (" << hdc << ") which is not the one used for rendering in this thread (" << sCurrentDeviceContext << "). Cannot apply effects!";
 	}
 
 	return trampoline(hdc);
