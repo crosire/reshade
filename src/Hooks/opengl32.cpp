@@ -3,7 +3,6 @@
 #include "HookManager.hpp"
 
 #include <gl\gl3w.h>
-#include <unordered_set>
 #include <unordered_map>
 
 #undef glBindTexture
@@ -75,17 +74,10 @@
 
 namespace
 {
-	struct														WindowHook
-	{
-		HHOOK													Handle;
-		ULONG													PreviousWidth, PreviousHeight;
-	};
-
 	std::unordered_map<HGLRC, ReShade::Manager *>				sManagers;
 	std::unordered_map<HGLRC, HGLRC>							sSharedContexts;
 	std::unordered_map<HGLRC, HDC>								sDeviceContexts;
-	std::unordered_map<HWND, WindowHook>						sWindowHooks;
-	std::unordered_set<HWND>									sWindowResizes;
+	std::unordered_map<HWND, RECT>								sWindowRects;
 
 	thread_local ReShade::Manager *								sCurrentManager = nullptr;
 	thread_local HGLRC											sCurrentRenderContext = nullptr;
@@ -97,40 +89,6 @@ namespace ReShade
 }
 
 // -----------------------------------------------------------------------------------------------------
-
-// WindowsHook
-LRESULT CALLBACK												CallWndRetProc(int nCode, WPARAM wParam, LPARAM lParam)
-{
-	if (nCode < HC_ACTION)
-	{
-		return ::CallNextHookEx(nullptr, nCode, wParam, lParam);
-	}
-
-	const CWPRETSTRUCT *msg = reinterpret_cast<const CWPRETSTRUCT *>(lParam);
-	
-	if (msg->message == WM_SIZE)
-	{
-		const auto it = sWindowHooks.find(msg->hwnd);
-
-		if (it != sWindowHooks.end())
-		{
-			WindowHook &windowhook = it->second;
-			const ULONG width = LOWORD(msg->lParam), height = HIWORD(msg->lParam);
-
-			if ((width != 0 && height != 0) && (width != windowhook.PreviousWidth || height != windowhook.PreviousHeight))
-			{
-				LOG(INFO) << "Resizing OpenGL context bound to window " << msg->hwnd << " to " << width << "x" << height << " on next frame (Just recieved a 'WM_SIZE' message) ...";
-
-				sWindowResizes.insert(msg->hwnd);
-			}
-
-			windowhook.PreviousWidth = width;
-			windowhook.PreviousHeight = height;
-		}
-	}
-
-	return ::CallNextHookEx(nullptr, nCode, wParam, lParam);
-}
 
 // GL
 EXPORT void APIENTRY											glAccum(GLenum op, GLfloat value)
@@ -2428,12 +2386,14 @@ EXPORT BOOL WINAPI												wglDeleteContext(HGLRC hglrc)
 {
 	LOG(INFO) << "Redirecting '" << "wglDeleteContext" << "(" << hglrc << ")' ...";
 
-	if (sManagers.count(hglrc) && sSharedContexts.at(hglrc) == nullptr)
+	const auto it = sManagers.find(hglrc);
+
+	if (it != sManagers.end() && sSharedContexts.at(hglrc) == nullptr)
 	{
 		ReHook::Call(&wglMakeCurrent)(sDeviceContexts.at(hglrc), hglrc);
 
-		delete sManagers.at(hglrc);
-		sManagers.erase(hglrc);
+		delete it->second;
+		sManagers.erase(it);
 
 		ReHook::Call(&wglMakeCurrent)(sCurrentDeviceContext, sCurrentRenderContext);
 	}
@@ -2562,28 +2522,7 @@ EXPORT BOOL WINAPI												wglMakeCurrent(HDC hdc, HGLRC hglrc)
 	}
 
 	const HWND hwnd = ::WindowFromDC(hdc);
-
-	if (!sWindowHooks.count(hwnd))
-	{
-		WindowHook windowhook;
-		windowhook.Handle = ::SetWindowsHookEx(WH_CALLWNDPROCRET, &CallWndRetProc, nullptr, ::GetWindowThreadProcessId(hwnd, nullptr));
-
-		if (windowhook.Handle != nullptr)
-		{
-			RECT rect;
-			::GetClientRect(hwnd, &rect);
-			windowhook.PreviousWidth = rect.right - rect.left;
-			windowhook.PreviousHeight = rect.bottom - rect.top;
-
-			LOG(INFO) << "> Created window message loop hook for window " << hwnd << " (Initial size: " << windowhook.PreviousWidth << "x" << windowhook.PreviousHeight << ").";
-
-			sWindowHooks.insert(std::make_pair(hwnd, windowhook));
-		}
-		else
-		{
-			LOG(ERROR) << "Failed to create window message loop hook for window " << hwnd << "!";
-		}
-	}
+	::GetClientRect(hwnd, &sWindowRects[hwnd]);
 
 	return TRUE;
 }
@@ -2621,15 +2560,34 @@ EXPORT BOOL WINAPI												wglSwapBuffers(HDC hdc)
 		if (sCurrentManager != nullptr)
 		{
 			const HWND hwnd = ::WindowFromDC(hdc);
+			RECT &rectPrevious = sWindowRects.at(hwnd), rect;
 
-			if (sWindowResizes.find(hwnd) != sWindowResizes.cend())
+			assert(hwnd != nullptr);
+
+			::GetClientRect(hwnd, &rect);
+			const ULONG width = rect.right - rect.left, height = rect.bottom - rect.top;
+			const ULONG widthPrevious = rectPrevious.right - rectPrevious.left, heightPrevious = rectPrevious.bottom - rectPrevious.top;
+			static thread_local ULONG widthResizing = 0, heightResizing = 0;
+
+			if (width != widthPrevious || height != heightPrevious)
 			{
-				LOG(INFO) << "Resizing OpenGL context " << sCurrentRenderContext << " ...";
+				if (width == widthResizing && height == heightResizing)
+				{
+					widthResizing = 0;
+					heightResizing = 0;
 
-				sCurrentManager->OnDelete();
-				sCurrentManager->OnCreate();
+					LOG(INFO) << "Resizing OpenGL context " << sCurrentRenderContext << " to " << width << "x" << height << " ...";
 
-				sWindowResizes.erase(hwnd);
+					sCurrentManager->OnDelete();
+					sCurrentManager->OnCreate();
+
+					rectPrevious = rect;
+				}
+				else
+				{
+					widthResizing = width;
+					heightResizing = height;
+				}
 			}
 
 			sCurrentManager->OnPostProcess();
