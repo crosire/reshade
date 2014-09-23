@@ -110,11 +110,12 @@ LRESULT CALLBACK												CallWndRetProc(int nCode, WPARAM wParam, LPARAM lPar
 	
 	if (msg->message == WM_SIZE)
 	{
-		if (sWindowHooks.count(msg->hwnd))
+		const auto it = sWindowHooks.find(msg->hwnd);
+
+		if (it != sWindowHooks.end())
 		{
-			const HDC hdc = ::GetDC(msg->hwnd);
+			WindowHook &windowhook = it->second;
 			const ULONG width = LOWORD(msg->lParam), height = HIWORD(msg->lParam);
-			WindowHook &windowhook = sWindowHooks.at(msg->hwnd);
 
 			if ((width != 0 && height != 0) && (width != windowhook.PreviousWidth || height != windowhook.PreviousHeight))
 			{
@@ -690,7 +691,7 @@ EXPORT void APIENTRY											glFinish(void)
 	{
 		const HWND hwnd = ::WindowFromDC(sCurrentDeviceContext);
 
-		if (sWindowResizes.count(hwnd))
+		if (sWindowResizes.find(hwnd) != sWindowResizes.cend())
 		{
 			LOG(INFO) << "Resizing single buffered OpenGL context " << sCurrentRenderContext << " ...";
 
@@ -2544,9 +2545,11 @@ EXPORT BOOL WINAPI												wglMakeCurrent(HDC hdc, HGLRC hglrc)
 	sCurrentDeviceContext = hdc;
 	sCurrentRenderContext = hglrc;
 
-	if (sManagers.count(hglrc))
+	const auto it = sManagers.lower_bound(hglrc);
+
+	if (it != sManagers.end())
 	{
-		sCurrentManager = sManagers.at(hglrc);
+		sCurrentManager = it->second;
 	}
 	else
 	{
@@ -2575,7 +2578,7 @@ EXPORT BOOL WINAPI												wglMakeCurrent(HDC hdc, HGLRC hglrc)
 			manager = sManagers.at(shared);
 		}
 
-		sManagers.insert(std::make_pair(hglrc, manager));
+		sManagers.insert(it, std::make_pair(hglrc, manager));
 		sCurrentManager = manager;
 	}
 
@@ -2639,7 +2642,7 @@ EXPORT BOOL WINAPI												wglSwapBuffers(HDC hdc)
 	{
 		const HWND hwnd = ::WindowFromDC(hdc);
 
-		if (sWindowResizes.count(hwnd))
+		if (sWindowResizes.find(hwnd) != sWindowResizes.cend())
 		{
 			LOG(INFO) << "Resizing OpenGL context " << sCurrentRenderContext << " ...";
 
