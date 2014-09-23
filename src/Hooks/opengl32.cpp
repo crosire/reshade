@@ -684,27 +684,6 @@ EXPORT void APIENTRY											glFinish(void)
 {
 	static const auto trampoline = ReHook::Call(&glFinish);
 
-	PIXELFORMATDESCRIPTOR pfd;
-	::DescribePixelFormat(sCurrentDeviceContext, ::GetPixelFormat(sCurrentDeviceContext), sizeof(PIXELFORMATDESCRIPTOR), &pfd);
-
-	if (sCurrentManager != nullptr && (pfd.dwFlags & PFD_DOUBLEBUFFER) == 0)
-	{
-		const HWND hwnd = ::WindowFromDC(sCurrentDeviceContext);
-
-		if (sWindowResizes.find(hwnd) != sWindowResizes.cend())
-		{
-			LOG(INFO) << "Resizing single buffered OpenGL context " << sCurrentRenderContext << " ...";
-
-			sCurrentManager->OnDelete();
-			sCurrentManager->OnCreate();
-
-			sWindowResizes.erase(hwnd);
-		}
-
-		sCurrentManager->OnPostProcess();
-		sCurrentManager->OnPresent();
-	}
-
 	trampoline();
 }
 EXPORT void APIENTRY											glFlush(void)
