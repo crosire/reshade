@@ -61,10 +61,11 @@ namespace ReShade
 				GLCHECK(glGetIntegerv(GL_STENCIL_REF, &this->mStencilRef));
 				GLCHECK(glGetIntegerv(GL_ACTIVE_TEXTURE, reinterpret_cast<GLint *>(&this->mActiveTexture)));
 				
-				for (GLuint i = 0; i < ARRAYSIZE(this->mTextures); ++i)
+				for (GLuint i = 0; i < ARRAYSIZE(this->mTextures2D); ++i)
 				{
 					glActiveTexture(GL_TEXTURE0 + i);
-					glGetIntegerv(GL_TEXTURE_BINDING_2D, reinterpret_cast<GLint *>(&this->mTextures[i]));
+					glGetIntegerv(GL_TEXTURE_BINDING_2D, reinterpret_cast<GLint *>(&this->mTextures2D[i]));
+					glGetIntegerv(GL_SAMPLER_BINDING, reinterpret_cast<GLint *>(&this->mSamplers[i]));
 				}
 			}
 			void												Apply(void) const
@@ -109,10 +110,11 @@ namespace ReShade
 				GLCHECK(glStencilFunc(this->mStencilFunc, this->mStencilRef, this->mStencilReadMask));
 				GLCHECK(glStencilOp(this->mStencilOpFail, this->mStencilOpZFail, this->mStencilOpZPass));
 
-				for (GLuint i = 0; i < ARRAYSIZE(this->mTextures); ++i)
+				for (GLuint i = 0; i < ARRAYSIZE(this->mTextures2D); ++i)
 				{
 					GLCHECK(glActiveTexture(GL_TEXTURE0 + i));
-					GLCHECK(glBindTexture(GL_TEXTURE_2D, this->mTextures[i]));
+					GLCHECK(glBindTexture(GL_TEXTURE_2D, this->mTextures2D[i]));
+					GLCHECK(glBindSampler(i, this->mSamplers[i]));
 				}
 
 				GLCHECK(glActiveTexture(this->mActiveTexture));
@@ -120,7 +122,7 @@ namespace ReShade
 
 			GLint												mStencilRef, mViewport[4];
 			GLuint												mStencilMask, mStencilReadMask;
-			GLuint												mProgram, mFBO, mVAO, mTextures[8];
+			GLuint												mProgram, mFBO, mVAO, mTextures2D[8], mSamplers[8];
 			GLenum												mDrawBuffers[8], mCullFace, mCullFaceMode, mPolygonMode, mBlendEqColor, mBlendEqAlpha, mBlendFuncSrc, mBlendFuncDest, mDepthFunc, mStencilFunc, mStencilOpFail, mStencilOpZFail, mStencilOpZPass, mFrontFace, mActiveTexture;
 			GLboolean											mScissorTest, mBlend, mDepthTest, mDepthMask, mStencilTest, mColorMask[4], mSampleAlphaToCoverage;
 		};
