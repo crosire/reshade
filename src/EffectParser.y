@@ -200,6 +200,16 @@
 				LogicalNot,
 				Cast
 			};
+			enum class											Attribute
+			{
+				None											= 0,
+				Flatten,
+				Branch,
+				ForceCase,
+				Loop,
+				FastOpt,
+				Unroll
+			};
 			struct 												Type
 			{
 				enum											Class
@@ -474,117 +484,102 @@
 			{
 				enum { NodeType = 6 };
 				
-				EffectTree::Index									Left, Right;
-				Operator											Operator;
+				EffectTree::Index								Left, Right;
+				Operator										Operator;
 			};
-			struct													Assignment : public BinaryExpression
+			struct												Assignment : public BinaryExpression
 			{
 				enum { NodeType = 28 };
 			};
-			struct 													Conditional : public Expression
+			struct 												Conditional : public Expression
 			{
 				enum { NodeType = 7 };
 				
-				EffectTree::Index									Condition, ExpressionTrue, ExpressionFalse;
+				EffectTree::Index								Condition, ExpressionTrue, ExpressionFalse;
 			};
-			struct 													Call : public Expression
+			struct 												Call : public Expression
 			{
 				enum { NodeType = 8 };
 				
-				const char *										CalleeName;
-				EffectTree::Index									Left, Callee, Parameters;
+				const char *									CalleeName;
+				EffectTree::Index								Left, Callee, Parameters;
 			};
-			struct 													Constructor : public Expression
+			struct 												Constructor : public Expression
 			{
 				enum { NodeType = 9 };
 				
-				EffectTree::Index									Parameters;
+				EffectTree::Index								Parameters;
 			};
-			struct 													Field : public Expression
+			struct 												Field : public Expression
 			{
 				enum { NodeType = 10 };
 				
-				EffectTree::Index									Left, Callee;
+				EffectTree::Index								Left, Callee;
 			};
-			struct 													Swizzle : public Expression
+			struct 												Swizzle : public Expression
 			{
 				enum { NodeType = 11 };
 				
-				EffectTree::Index									Left;
-				int													Offsets[4];
+				EffectTree::Index								Left;
+				int												Offsets[4];
 			};
-			struct 													StatementBlock : public Aggregate
+			struct 												StatementBlock : public Aggregate
 			{
 				enum { NodeType = 27 };
 			};
-			struct 													ExpressionStatement
+			struct 												ExpressionStatement
 			{
 				enum { NodeType = 12 };
 				
-				EffectTree::Index									Expression;
+				EffectTree::Index								Expression;
 			};
-			struct 													DeclarationStatement
+			struct 												DeclarationStatement
 			{
 				enum { NodeType = 13 };
 				
-				EffectTree::Index									Declaration;
+				EffectTree::Index								Declaration;
 			};
-			struct 													Selection
+			struct 												Selection
 			{
 				enum { NodeType = 14 };
 				
-				enum												Mode
+				enum											Mode
 				{
 					If,
 					Switch,
 					Case
 				};
-				enum class											Attribute
-				{
-					None											= 0,
-					Flatten,
-					Branch,
-					ForceCase,
-					Call
-				};
 			
-				Mode												Mode;
-				Attribute											Attributes;
-				EffectTree::Index									Condition;
+				Mode											Mode;
+				Attribute										Attributes;
+				EffectTree::Index								Condition;
 				union
 				{
-					EffectTree::Index								Statement;
-					EffectTree::Index								StatementTrue;
+					EffectTree::Index							Statement;
+					EffectTree::Index							StatementTrue;
 				};
-				EffectTree::Index									StatementFalse;
+				EffectTree::Index								StatementFalse;
 			};
-			struct 													Iteration
+			struct 												Iteration
 			{
 				enum { NodeType = 15 };
 				
-				enum												Mode
+				enum											Mode
 				{
 					For,
 					While,
 					DoWhile
 				};
-				enum class 											Attribute
-				{
-					None 											= 0,
-					Unroll,
-					Loop,
-					FastOpt
-				};
 				
-				Mode 												Mode;
-				Attribute 											Attributes;
-				EffectTree::Index									Initialization, Condition, Expression, Statement;
+				Mode 											Mode;
+				Attribute 										Attributes;
+				EffectTree::Index								Initialization, Condition, Expression, Statement;
 			};
-			struct 													Jump
+			struct 												Jump
 			{
 				enum { NodeType = 16 };
 				
-				enum												Mode
+				enum											Mode
 				{
 					Break,
 					Continue,
@@ -592,91 +587,91 @@
 					Discard
 				};
 				
-				Mode 												Mode;
-				EffectTree::Index									Expression;
+				Mode 											Mode;
+				EffectTree::Index								Expression;
 			};
-			struct 													Annotation
+			struct 												Annotation
 			{
 				enum { NodeType = 17 };
 				
-				const char *										Name;
-				Type												Type;
+				const char *									Name;
+				Type											Type;
 				union
 				{
-					int												AsInt;
-					unsigned int									AsUint;
-					float											AsFloat;
-					double											AsDouble;
-					const char *									AsString;
+					int											AsInt;
+					unsigned int								AsUint;
+					float										AsFloat;
+					double										AsDouble;
+					const char *								AsString;
 				} Value;
 			};
-			struct 													Function
+			struct 												Function
 			{
 				enum { NodeType = 18 };
 				
-				inline bool											HasArguments(void) const
+				inline bool										HasArguments(void) const
 				{
 					return this->Arguments != 0;
 				}
-				inline bool											HasDefinition(void) const
+				inline bool										HasDefinition(void) const
 				{
 					return this->Definition != 0;
 				}
 
-				const char *										Name;
-				EffectTree::Index									Arguments, Definition;
-				Type												ReturnType;
-				const char *										ReturnSemantic;
+				const char *									Name;
+				EffectTree::Index								Arguments, Definition;
+				Type											ReturnType;
+				const char *									ReturnSemantic;
 			};
-			struct 													Variable
+			struct 												Variable
 			{
 				enum { NodeType = 19 };
 				
-				inline bool											HasSemantic(void) const
+				inline bool										HasSemantic(void) const
 				{
 					return this->Semantic != nullptr;
 				}
-				inline bool 										HasInitializer(void) const
+				inline bool 									HasInitializer(void) const
 				{
 					return this->Initializer != 0;
 				}
-				inline bool											HasAnnotation(void) const
+				inline bool										HasAnnotation(void) const
 				{
 					return this->Annotations != 0;
 				}
 								
-				const char *										Name;
-				Type												Type;
-				EffectTree::Index									Initializer, Annotations, Parent;
-				const char *										Semantic;
-				bool												Argument;
+				const char *									Name;
+				Type											Type;
+				EffectTree::Index								Initializer, Annotations, Parent;
+				const char *									Semantic;
+				bool											Argument;
 			};
-			struct 													Struct
+			struct 												Struct
 			{
 				enum { NodeType = 20 };
 				
-				const char *										Name;
-				EffectTree::Index									Fields;
+				const char *									Name;
+				EffectTree::Index								Fields;
 			};
-			struct 													Technique
+			struct 												Technique
 			{
 				enum { NodeType = 23 };
 				
-				const char *										Name;
-				EffectTree::Index									Passes, Annotations;
+				const char *									Name;
+				EffectTree::Index								Passes, Annotations;
 			};
-			struct 													Pass
+			struct 												Pass
 			{
 				enum { NodeType = 24 };
 				
-				const char *										Name;
-				EffectTree::Index									States, Annotations;
+				const char *									Name;
+				EffectTree::Index								States, Annotations;
 			};
-			struct 													State
+			struct 												State
 			{
 				enum { NodeType = 25 };
 				
-				enum												Type
+				enum											Type
 				{
 					MinFilter,
 					MagFilter,
@@ -733,20 +728,20 @@
 					SRGBWriteEnable
 				};
 				
-				int													Type;
+				int												Type;
 				union
 				{
-					int												AsInt;
-					float											AsFloat;
-					EffectTree::Index								AsNode;
+					int											AsInt;
+					float										AsFloat;
+					EffectTree::Index							AsNode;
 				} Value;
 			};
-			struct													Typedef
+			struct												Typedef
 			{
 				enum { NodeType = 26 };
 				
-				const char *										Name;
-				Type												Type;
+				const char *									Name;
+				Type											Type;
 			};
 		}
 	}
@@ -854,14 +849,6 @@
 %token<l>		TOK_LINEAR										"linear"
 %token<l>		TOK_CENTROID									"centroid"
 %token<l>		TOK_SAMPLE										"sample"
-
-%token<l>		TOK_FLATTEN										"flatten"
-%token<l>		TOK_BRANCH										"branch"
-%token<l>		TOK_FORCECASE									"forcecase"
-%token<l>		TOK_CALL										"call"
-%token<l>		TOK_UNROLL										"unroll"
-%token<l>		TOK_LOOP										"loop"
-%token<l>		TOK_FASTOPT										"fastopt"
 
 %token<l>		TOK_LITERAL_BOOL								"boolean literal"
 %token<l>		TOK_LITERAL_INT									"integral literal"
@@ -989,8 +976,7 @@
 %type<l>		RULE_OPERATOR_EQUALITY
 %type<l>		RULE_OPERATOR_ASSIGNMENT
 
-%type<l>		RULE_ATTRIBUTE_SELECTION
-%type<l>		RULE_ATTRIBUTE_ITERATION
+%type<l>		RULE_ATTRIBUTE
 
 %type<y.n>		RULE_ANNOTATION
 %type<y.n>		RULE_ANNOTATION_LIST
@@ -1720,57 +1706,41 @@ RULE_OPERATOR_ASSIGNMENT
 
  /* Attributes ------------------------------------------------------------------------------- */
 
-RULE_ATTRIBUTE_SELECTION
-	: "[" "flatten" "]"
+RULE_ATTRIBUTE
+	: "[" TOK_IDENTIFIER "]"
 	{
 		@$ = @1;
-		$$.Int = static_cast<int>(ReShade::Nodes::Selection::Attribute::Flatten);
-	}
-	| "[" "branch" "]"
-	{
-		@$ = @1;
-		$$.Int = static_cast<int>(ReShade::Nodes::Selection::Attribute::Branch);
-	}
-	| "[" "forcecase" "]"
-	{
-		@$ = @1;
-		$$.Int = static_cast<int>(ReShade::Nodes::Selection::Attribute::ForceCase);
-	}
-	| "[" "call" "]"
-	{
-		@$ = @1;
-		$$.Int = static_cast<int>(ReShade::Nodes::Selection::Attribute::Call);
-	}
-	| "[" error "]"
-	{
-		@$ = @1;
-		$$.Int = 0;
-	}
-	|
-	{
-		$$.Int = 0;
-	}
-	;
-RULE_ATTRIBUTE_ITERATION
-	: "[" "unroll" "]"
-	{
-		@$ = @1;
-		$$.Int = static_cast<int>(ReShade::Nodes::Iteration::Attribute::Unroll);
-	}
-	| "[" "loop" "]"
-	{
-		@$ = @1;
-		$$.Int = static_cast<int>(ReShade::Nodes::Iteration::Attribute::Loop);
-	}
-	| "[" "fastopt" "]"
-	{
-		@$ = @1;
-		$$.Int = static_cast<int>(ReShade::Nodes::Iteration::Attribute::FastOpt);
-	}
-	| "[" error "]"
-	{
-		@$ = @1;
-		$$.Int = 0;
+
+		if (::strncmp($2.String.p, "flatten", $2.String.len) == 0)
+		{
+			$$.Int = static_cast<int>(ReShade::Nodes::Attribute::Flatten);
+		}
+		else if (::strncmp($2.String.p, "branch", $2.String.len) == 0)
+		{
+			$$.Int = static_cast<int>(ReShade::Nodes::Attribute::Branch);
+		}
+		else if (::strncmp($2.String.p, "forcecase", $2.String.len) == 0)
+		{
+			$$.Int = static_cast<int>(ReShade::Nodes::Attribute::ForceCase);
+		}
+		else if (::strncmp($2.String.p, "loop", $2.String.len) == 0)
+		{
+			$$.Int = static_cast<int>(ReShade::Nodes::Attribute::Loop);
+		}
+		else if (::strncmp($2.String.p, "fastopt", $2.String.len) == 0)
+		{
+			$$.Int = static_cast<int>(ReShade::Nodes::Attribute::FastOpt);
+		}
+		else if (::strncmp($2.String.p, "unroll", $2.String.len) == 0)
+		{
+			$$.Int = static_cast<int>(ReShade::Nodes::Attribute::Unroll);
+		}
+		else
+		{
+			parser.Warning(@1, 3554, "unknown attribute '%.*s'", $2.String.len, $2.String.p);
+
+			$$.Int = 0;
+		}
 	}
 	|
 	{
@@ -3137,12 +3107,13 @@ RULE_STATEMENT_EXPRESSION
 	;
 
 RULE_STATEMENT_SELECTION
-	: RULE_ATTRIBUTE_SELECTION "if" "(" RULE_EXPRESSION ")" RULE_STATEMENT "else" RULE_STATEMENT
+	: RULE_ATTRIBUTE "if" "(" RULE_EXPRESSION ")" RULE_STATEMENT "else" RULE_STATEMENT
 	{
-		if (static_cast<ReShade::Nodes::Selection::Attribute>($1.Int) == ReShade::Nodes::Selection::Attribute::ForceCase || static_cast<ReShade::Nodes::Selection::Attribute>($1.Int) == ReShade::Nodes::Selection::Attribute::Call)
+		if ($1.Int != 0 && (static_cast<ReShade::Nodes::Attribute>($1.Int) != ReShade::Nodes::Attribute::Branch && static_cast<ReShade::Nodes::Attribute>($1.Int) != ReShade::Nodes::Attribute::Flatten))
 		{
-			parser.Error(@1, 3524, "invalid attribute on 'if' statement");
-			YYERROR;
+			parser.Warning(@1, 3554, "attribute invalid for this statement, valid attributes are: branch, flatten");
+
+			$1.Int = 0;
 		}
 		if (!AST[$4].As<ReShade::Nodes::Expression>().Type.IsScalar())
 		{
@@ -3153,7 +3124,7 @@ RULE_STATEMENT_SELECTION
 		ReShade::EffectTree::Node &node = AST.Add<ReShade::Nodes::Selection>(@2);
 		ReShade::Nodes::Selection &data = node.As<ReShade::Nodes::Selection>();
 		data.Mode = ReShade::Nodes::Selection::If;
-		data.Attributes = static_cast<ReShade::Nodes::Selection::Attribute>($1.Int);
+		data.Attributes = static_cast<ReShade::Nodes::Attribute>($1.Int);
 		data.Condition = $4;
 		data.StatementTrue = $6;
 		data.StatementFalse = $8;
@@ -3161,12 +3132,13 @@ RULE_STATEMENT_SELECTION
 		@$ = @2;
 		$$ = node.Index;
 	}
-	| RULE_ATTRIBUTE_SELECTION "if" "(" RULE_EXPRESSION ")" RULE_STATEMENT %prec TOK_THEN
+	| RULE_ATTRIBUTE "if" "(" RULE_EXPRESSION ")" RULE_STATEMENT %prec TOK_THEN
 	{
-		if (static_cast<ReShade::Nodes::Selection::Attribute>($1.Int) == ReShade::Nodes::Selection::Attribute::ForceCase || static_cast<ReShade::Nodes::Selection::Attribute>($1.Int) == ReShade::Nodes::Selection::Attribute::Call)
+		if ($1.Int != 0 && (static_cast<ReShade::Nodes::Attribute>($1.Int) != ReShade::Nodes::Attribute::Branch && static_cast<ReShade::Nodes::Attribute>($1.Int) != ReShade::Nodes::Attribute::Flatten))
 		{
-			parser.Error(@1, 3524, "invalid attribute on 'if' statement");
-			YYERROR;
+			parser.Warning(@1, 3554, "attribute invalid for this statement, valid attributes are: branch, flatten");
+
+			$1.Int = 0;
 		}
 		if (!AST[$4].As<ReShade::Nodes::Expression>().Type.IsScalar())
 		{
@@ -3177,22 +3149,28 @@ RULE_STATEMENT_SELECTION
 		ReShade::EffectTree::Node &node = AST.Add<ReShade::Nodes::Selection>(@2);
 		ReShade::Nodes::Selection &data = node.As<ReShade::Nodes::Selection>();
 		data.Mode = ReShade::Nodes::Selection::If;
-		data.Attributes = static_cast<ReShade::Nodes::Selection::Attribute>($1.Int);
+		data.Attributes = static_cast<ReShade::Nodes::Attribute>($1.Int);
 		data.Condition = $4;
 		data.StatementTrue = $6;
 		
 		@$ = @2;
 		$$ = node.Index;
 	} 
-	| RULE_ATTRIBUTE_SELECTION "switch" "(" RULE_EXPRESSION ")" "{" "}"
+	| RULE_ATTRIBUTE "switch" "(" RULE_EXPRESSION ")" "{" "}"
 	{
 		parser.Warning(@2, 5000, "switch statement contains no 'case' or 'default' labels");
 		
 		@$ = @2;
 		$$ = 0;
 	}
-	| RULE_ATTRIBUTE_SELECTION "switch" "(" RULE_EXPRESSION ")" "{" RULE_STATEMENT_CASE_LIST "}"
+	| RULE_ATTRIBUTE "switch" "(" RULE_EXPRESSION ")" "{" RULE_STATEMENT_CASE_LIST "}"
 	{
+		if ($1.Int != 0 && (static_cast<ReShade::Nodes::Attribute>($1.Int) != ReShade::Nodes::Attribute::Branch && static_cast<ReShade::Nodes::Attribute>($1.Int) != ReShade::Nodes::Attribute::Flatten && static_cast<ReShade::Nodes::Attribute>($1.Int) != ReShade::Nodes::Attribute::ForceCase))
+		{
+			parser.Warning(@1, 3554, "attribute invalid for this statement, valid attributes are: branch, flatten, forcecase");
+
+			$1.Int = 0;
+		}
 		if (!AST[$4].As<ReShade::Nodes::Expression>().Type.IsScalar())
 		{
 			parser.Error(@4, 3019, "switch statement expression must evaluate to a scalar");
@@ -3202,7 +3180,7 @@ RULE_STATEMENT_SELECTION
 		ReShade::EffectTree::Node &node = AST.Add<ReShade::Nodes::Selection>(@2);
 		ReShade::Nodes::Selection &data = node.As<ReShade::Nodes::Selection>();
 		data.Mode = ReShade::Nodes::Selection::Switch;
-		data.Attributes = static_cast<ReShade::Nodes::Selection::Attribute>($1.Int);
+		data.Attributes = static_cast<ReShade::Nodes::Attribute>($1.Int);
 		data.Condition = $4;
 		data.Statement = $7;
 		
@@ -3292,40 +3270,60 @@ RULE_STATEMENT_CASELABEL_LIST
 	;
 
 RULE_STATEMENT_ITERATION
-	: RULE_ATTRIBUTE_ITERATION "while" "(" { parser.PushScope(); } RULE_EXPRESSION ")" RULE_STATEMENT_SCOPELESS
+	: RULE_ATTRIBUTE "while" "(" { parser.PushScope(); } RULE_EXPRESSION ")" RULE_STATEMENT_SCOPELESS
 	{
+		if ($1.Int != 0 && (static_cast<ReShade::Nodes::Attribute>($1.Int) != ReShade::Nodes::Attribute::Loop && static_cast<ReShade::Nodes::Attribute>($1.Int) != ReShade::Nodes::Attribute::FastOpt && static_cast<ReShade::Nodes::Attribute>($1.Int) != ReShade::Nodes::Attribute::Unroll))
+		{
+			parser.Warning(@1, 3554, "attribute invalid for this statement, valid attributes are: loop, fastopt, unroll");
+
+			$1.Int = 0;
+		}
+
 		parser.PopScope();
 		
 		ReShade::EffectTree::Node &node = AST.Add<ReShade::Nodes::Iteration>(@2);
 		ReShade::Nodes::Iteration &data = node.As<ReShade::Nodes::Iteration>();
 		data.Mode = ReShade::Nodes::Iteration::While;
-		data.Attributes = static_cast<ReShade::Nodes::Iteration::Attribute>($1.Int);
+		data.Attributes = static_cast<ReShade::Nodes::Attribute>($1.Int);
 		data.Condition = $5;
 		data.Statement = $7;
 		
 		@$ = @2;
 		$$ = node.Index;
 	}
-	| RULE_ATTRIBUTE_ITERATION "do" RULE_STATEMENT "while" "(" RULE_EXPRESSION ")" ";"
+	| RULE_ATTRIBUTE "do" RULE_STATEMENT "while" "(" RULE_EXPRESSION ")" ";"
 	{
+		if ($1.Int != 0 && (static_cast<ReShade::Nodes::Attribute>($1.Int) != ReShade::Nodes::Attribute::Loop && static_cast<ReShade::Nodes::Attribute>($1.Int) != ReShade::Nodes::Attribute::FastOpt && static_cast<ReShade::Nodes::Attribute>($1.Int) != ReShade::Nodes::Attribute::Unroll))
+		{
+			parser.Warning(@1, 3554, "attribute invalid for this statement, valid attributes are: loop, fastopt, unroll");
+
+			$1.Int = 0;
+		}
+
 		ReShade::EffectTree::Node &node = AST.Add<ReShade::Nodes::Iteration>(@2);
 		ReShade::Nodes::Iteration &data = node.As<ReShade::Nodes::Iteration>();
 		data.Mode = ReShade::Nodes::Iteration::DoWhile;
-		data.Attributes = static_cast<ReShade::Nodes::Iteration::Attribute>($1.Int);
+		data.Attributes = static_cast<ReShade::Nodes::Attribute>($1.Int);
 		data.Condition = $6;
 		data.Statement = $3;
 		
 		@$ = @2;
 		$$ = node.Index;
 	}
-	| RULE_ATTRIBUTE_ITERATION "for" "(" { parser.PushScope(); } RULE_STATEMENT_FOR_INITIALIZER RULE_STATEMENT_FOR_CONDITION ";" RULE_STATEMENT_FOR_ITERATOR ")" RULE_STATEMENT_SCOPELESS
+	| RULE_ATTRIBUTE "for" "(" { parser.PushScope(); } RULE_STATEMENT_FOR_INITIALIZER RULE_STATEMENT_FOR_CONDITION ";" RULE_STATEMENT_FOR_ITERATOR ")" RULE_STATEMENT_SCOPELESS
 	{
+		if ($1.Int != 0 && (static_cast<ReShade::Nodes::Attribute>($1.Int) != ReShade::Nodes::Attribute::Loop && static_cast<ReShade::Nodes::Attribute>($1.Int) != ReShade::Nodes::Attribute::FastOpt && static_cast<ReShade::Nodes::Attribute>($1.Int) != ReShade::Nodes::Attribute::Unroll))
+		{
+			parser.Warning(@1, 3554, "attribute invalid for this statement, valid attributes are: loop, fastopt, unroll");
+
+			$1.Int = 0;
+		}
 		parser.PopScope();
 		
 		ReShade::EffectTree::Node &node = AST.Add<ReShade::Nodes::Iteration>(@2);
 		ReShade::Nodes::Iteration &data = node.As<ReShade::Nodes::Iteration>();
 		data.Mode = ReShade::Nodes::Iteration::For;
-		data.Attributes = static_cast<ReShade::Nodes::Iteration::Attribute>($1.Int);
+		data.Attributes = static_cast<ReShade::Nodes::Attribute>($1.Int);
 		data.Initialization = $5;
 		data.Condition = $6;
 		data.Expression = $8;

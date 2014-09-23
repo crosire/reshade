@@ -985,10 +985,10 @@ namespace ReShade
 					{
 						switch (data.Attributes)
 						{
-							case Nodes::Selection::Attribute::Flatten:
+							case Nodes::Attribute::Flatten:
 								this->mCurrentSource += "[flatten] ";
 								break;
-							case Nodes::Selection::Attribute::Branch:
+							case Nodes::Attribute::Branch:
 								this->mCurrentSource += "[branch] ";
 								break;
 						}
@@ -1099,13 +1099,13 @@ namespace ReShade
 					{
 						switch (data.Attributes)
 						{
-							case Nodes::Iteration::Attribute::Unroll:
+							case Nodes::Attribute::Unroll:
 								this->mCurrentSource += "[unroll] ";
 								break;
-							case Nodes::Iteration::Attribute::Loop:
+							case Nodes::Attribute::Loop:
 								this->mCurrentSource += "[loop] ";
 								break;
-							case Nodes::Iteration::Attribute::FastOpt:
+							case Nodes::Attribute::FastOpt:
 								this->mCurrentSource += "[fastopt] ";
 								break;
 						}
@@ -1150,13 +1150,13 @@ namespace ReShade
 					{
 						switch (data.Attributes)
 						{
-							case Nodes::Iteration::Attribute::Unroll:
+							case Nodes::Attribute::Unroll:
 								this->mCurrentSource += "[unroll] ";
 								break;
-							case Nodes::Iteration::Attribute::Loop:
+							case Nodes::Attribute::Loop:
 								this->mCurrentSource += "[loop] ";
 								break;
-							case Nodes::Iteration::Attribute::FastOpt:
+							case Nodes::Attribute::FastOpt:
 								this->mCurrentSource += "[fastopt] ";
 								break;
 						}
@@ -1178,7 +1178,7 @@ namespace ReShade
 					{
 						switch (data.Attributes)
 						{
-							case Nodes::Iteration::Attribute::FastOpt:
+							case Nodes::Attribute::FastOpt:
 								this->mCurrentSource += "[fastopt] ";
 								break;
 						}

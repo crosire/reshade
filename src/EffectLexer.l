@@ -43,7 +43,7 @@
 %x STATE_COMMENT STATE_PP
 
 %x STATE_FIELD
-%s STATE_INITIALIZER STATE_TECHNIQUE STATE_PASS STATE_ATTRIBUTE
+%s STATE_INITIALIZER STATE_TECHNIQUE STATE_PASS
 
 /* ----------------------------------------------------------------------------------------------
 |  Rules																						|
@@ -233,14 +233,6 @@ STRING															\"(\\.|[^\\"])*\"
 "linear"														{ return TOK_LINEAR; }
 "centroid"														{ return TOK_CENTROID; }
 "sample"														{ return TOK_SAMPLE; }
-
-<STATE_ATTRIBUTE>"flatten"										{ return TOK_FLATTEN; }
-<STATE_ATTRIBUTE>"branch"										{ return TOK_BRANCH; }
-<STATE_ATTRIBUTE>"forcecase"									{ return TOK_FORCECASE; }
-<STATE_ATTRIBUTE>"call"											{ return TOK_CALL; }
-<STATE_ATTRIBUTE>"unroll"										{ return TOK_UNROLL; }
-<STATE_ATTRIBUTE>"loop"											{ return TOK_LOOP; }
-<STATE_ATTRIBUTE>"fastopt"										{ return TOK_FASTOPT; }
 
 <STATE_INITIALIZER>"MinFilter"									{ yylval->l.Int = ReShade::Nodes::State::MinFilter; return TOK_IDENTIFIER_STATE; }
 <STATE_INITIALIZER>"MagFilter"									{ yylval->l.Int = ReShade::Nodes::State::MagFilter; return TOK_IDENTIFIER_STATE; }
@@ -528,8 +520,8 @@ STRING															\"(\\.|[^\\"])*\"
 "}"																{ yyextra->mNextLexerState = yy_top_state(yyscanner); yy_pop_state(yyscanner); return '}'; }
 "<%"															{ return '{'; }
 "%>"															{ return '}'; }
-"["|"<:"														{ yy_push_state(STATE_ATTRIBUTE, yyscanner); return '['; }
-"]"|":>"														{ yy_pop_state(yyscanner); return ']'; }
+"["|"<:"														{ return '['; }
+"]"|":>"														{ return ']'; }
 
 "=="															{ return TOK_OPERATOR_EQUAL; }
 "!="															{ return TOK_OPERATOR_NOTEQUAL; }
