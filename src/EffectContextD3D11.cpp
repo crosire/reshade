@@ -146,6 +146,7 @@ namespace ReShade
 				ID3D11PixelShader *								PS;
 				ID3D11BlendState *								BS;
 				ID3D11DepthStencilState *						DSS;
+				UINT											StencilRef;
 				ID3D11RenderTargetView *						RT[D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT];
 				std::vector<ID3D11ShaderResourceView *>			SR;
 			};
@@ -1903,6 +1904,7 @@ namespace ReShade
 				info.PS = nullptr;
 				info.BS = nullptr;
 				info.DSS = nullptr;
+				info.StencilRef = 1;
 				info.RS = nullptr;
 				ZeroMemory(info.RT, sizeof(info.RT));
 				CD3D11_RASTERIZER_DESC rdesc(D3D11_DEFAULT);
@@ -2001,6 +2003,9 @@ namespace ReShade
 							break;
 						case Nodes::State::StencilZFail:
 							ddesc.FrontFace.StencilDepthFailOp = ddesc.BackFace.StencilDepthFailOp = ConvertLiteralToStencilOp(state.Value.AsInt);
+							break;
+						case Nodes::State::StencilRef:
+							info.StencilRef = state.Value.AsInt;
 							break;
 						case Nodes::State::AlphaToCoverageEnable:
 							bdesc.AlphaToCoverageEnable = state.Value.AsInt;
@@ -2804,6 +2809,7 @@ namespace ReShade
 
 			const FLOAT blendfactor[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
 			this->mDeferredContext->OMSetBlendState(pass.BS, blendfactor, D3D11_DEFAULT_SAMPLE_MASK);
+			this->mDeferredContext->OMSetDepthStencilState(pass.DSS, pass.StencilRef);
 			this->mDeferredContext->OMSetRenderTargets(D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT, pass.RT, this->mEffect->mDepthStencil);
 
 			for (size_t i = 0; i < D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT; ++i)

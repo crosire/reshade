@@ -147,6 +147,7 @@ namespace ReShade
 				ID3D10PixelShader *								PS;
 				ID3D10BlendState *								BS;
 				ID3D10DepthStencilState *						DSS;
+				UINT											StencilRef;
 				ID3D10RenderTargetView *						RT[D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT];
 				std::vector<ID3D10ShaderResourceView *>			SR;
 			};
@@ -1917,6 +1918,7 @@ namespace ReShade
 				info.PS = nullptr;
 				info.BS = nullptr;
 				info.DSS = nullptr;
+				info.StencilRef = 1;
 				info.RS = nullptr;
 				ZeroMemory(info.RT, sizeof(info.RT));
 				D3D10_RASTERIZER_DESC rdesc;
@@ -2040,6 +2042,9 @@ namespace ReShade
 							break;
 						case Nodes::State::StencilZFail:
 							ddesc.FrontFace.StencilDepthFailOp = ddesc.BackFace.StencilDepthFailOp = ConvertLiteralToStencilOp(state.Value.AsInt);
+							break;
+						case Nodes::State::StencilRef:
+							info.StencilRef = state.Value.AsInt;
 							break;
 						case Nodes::State::AlphaToCoverageEnable:
 							bdesc.AlphaToCoverageEnable = state.Value.AsInt;
@@ -2844,6 +2849,7 @@ namespace ReShade
 
 			const FLOAT blendfactor[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
 			device->OMSetBlendState(pass.BS, blendfactor, D3D10_DEFAULT_SAMPLE_MASK);
+			device->OMSetDepthStencilState(pass.DSS, pass.StencilRef);
 			device->OMSetRenderTargets(D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, pass.RT, this->mEffect->mDepthStencil);
 
 			ID3D10Resource *rtres;

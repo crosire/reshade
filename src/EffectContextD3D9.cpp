@@ -1962,6 +1962,9 @@ namespace ReShade
 						case Nodes::State::StencilZFail:
 							device->SetRenderState(D3DRS_STENCILZFAIL, ConvertLiteralToStencilOp(state.Value.AsInt));
 							break;
+						case Nodes::State::StencilRef:
+							device->SetRenderState(D3DRS_STENCILREF, state.Value.AsInt);
+							break;
 						case Nodes::State::BlendEnable:
 							device->SetRenderState(D3DRS_ALPHABLENDENABLE, state.Value.AsInt);
 							break;
