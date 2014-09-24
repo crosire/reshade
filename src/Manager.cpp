@@ -7,11 +7,24 @@
 #include <stb_image.h>
 #include <boost\filesystem\operations.hpp>
 #include <boost\assign\list_of.hpp>
+#include <boost\algorithm\string.hpp>
 
 namespace ReShade
 {
 	namespace
 	{
+		boost::filesystem::path									ObfuscatePath(const boost::filesystem::path &path)
+		{
+			char username[257];
+			DWORD usernameSize = ARRAYSIZE(username);
+			::GetUserNameA(username, &usernameSize);
+
+			std::string result = path.string();
+			boost::algorithm::replace_all(result, username, std::string(usernameSize - 1, '*'));
+
+			return result;
+		}
+
 		boost::filesystem::path									shaderPath;
 	}
 
@@ -38,7 +51,7 @@ namespace ReShade
 		el::Loggers::reconfigureLogger("default", logConfig);
 
 		// Initialize injector
-		LOG(INFO) << "Initializing version '" BOOST_STRINGIZE(VERSION_FULL) "' built on '" << VERSION_DATE << " " << VERSION_TIME << "' loaded from " << injectorPath << " to " << executablePath << " ...";
+		LOG(INFO) << "Initializing version '" BOOST_STRINGIZE(VERSION_FULL) "' built on '" << VERSION_DATE << " " << VERSION_TIME << "' loaded from " << ObfuscatePath(injectorPath) << " to " << ObfuscatePath(executablePath) << " ...";
 
 		ReHook::Register(systemPath / "d3d8.dll");
 		ReHook::Register(systemPath / "d3d9.dll");
@@ -86,7 +99,7 @@ namespace ReShade
 			return true;
 		}
 
-		LOG(INFO) << "Loading effect from " << shaderPath << " ...";
+		LOG(INFO) << "Loading effect from " << ObfuscatePath(shaderPath) << " ...";
 
 		std::string errors;
 		unsigned int bufferWidth = 0, bufferHeight = 0;
