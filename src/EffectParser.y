@@ -4888,9 +4888,6 @@ namespace ReShade
 		size = std::min(size, capacity);
 		va_end(args);
 
-#ifdef _WIN32
-		buffer[size++] = '\r';
-#endif
 		buffer[size++] = '\n';
 		
 		this->mErrors.append(buffer, size);
@@ -4917,9 +4914,6 @@ namespace ReShade
 		size = std::min(size, capacity);
 		va_end(args);
 
-#ifdef _WIN32
-		buffer[size++] = '\r';
-#endif
 		buffer[size++] = '\n';
 
 		this->mErrors.append(buffer, size);
