@@ -3094,7 +3094,7 @@ namespace ReShade
 			if (pass.Framebuffer == 0)
 			{
 				GLCHECK(glDrawBuffer(GL_BACK));
-				GLCHECK(glClearBufferfv(GL_COLOR, GL_BACK, color));
+				GLCHECK(glClearBufferfv(GL_COLOR, 0, color));
 			}
 			else
 			{
@@ -3106,14 +3106,8 @@ namespace ReShade
 					{
 						continue;
 					}
-					else if (pass.DrawBuffers[i] == GL_BACK)
-					{
-						GLCHECK(glClearBufferfv(GL_COLOR, GL_BACK, color));
-					}
-					else
-					{
-						GLCHECK(glClearBufferfv(GL_COLOR, GL_DRAW_BUFFER0 + i, color));
-					}
+
+					GLCHECK(glClearBufferfv(GL_COLOR, i, color));
 				}
 			}
 
