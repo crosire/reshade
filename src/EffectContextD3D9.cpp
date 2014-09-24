@@ -2594,6 +2594,8 @@ namespace ReShade
 				device->SetRenderTarget(i, pass.RT[i]);
 			}
 
+			device->Clear(0, nullptr, D3DCLEAR_TARGET, D3DCOLOR_ARGB(255, 0, 0, 0), 0.0f, 0x0);
+
 			device->DrawPrimitive(D3DPT_TRIANGLELIST, 0, 1);
 		}
 	}

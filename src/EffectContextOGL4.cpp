@@ -3089,13 +3089,32 @@ namespace ReShade
 			GLCHECK(glUseProgram(pass.Program));
 			GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, pass.Framebuffer));
 
+			const GLfloat color[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
+
 			if (pass.Framebuffer == 0)
 			{
 				GLCHECK(glDrawBuffer(GL_BACK));
+				GLCHECK(glClearBufferfv(GL_COLOR, GL_BACK, color));
 			}
 			else
 			{
 				GLCHECK(glDrawBuffers(8, pass.DrawBuffers));
+
+				for (GLuint i = 0; i < 8; ++i)
+				{
+					if (pass.DrawBuffers[i] == GL_NONE)
+					{
+						continue;
+					}
+					else if (pass.DrawBuffers[i] == GL_BACK)
+					{
+						GLCHECK(glClearBufferfv(GL_COLOR, GL_BACK, color));
+					}
+					else
+					{
+						GLCHECK(glClearBufferfv(GL_COLOR, GL_DRAW_BUFFER0 + i, color));
+					}
+				}
 			}
 
 			GLCHECK(glEnableb(GL_SCISSOR_TEST, pass.ScissorTest));

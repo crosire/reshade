@@ -2807,20 +2807,6 @@ namespace ReShade
 
 			device->ClearDepthStencilView(this->mEffect->mDepthStencil, D3D10_CLEAR_DEPTH | D3D10_CLEAR_STENCIL, 1.0f, 0x00);
 
-			for (auto &pass : this->mPasses)
-			{
-				for (size_t i = 0; i < D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT; ++i)
-				{
-					if (pass.RT[i] == nullptr || pass.RT[i] == this->mEffect->mBackBufferTarget)
-					{
-						continue;
-					}
-
-					const FLOAT color[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
-					device->ClearRenderTargetView(pass.RT[i], color);
-				}
-			}
-
 			return true;
 		}
 		void													D3D10Technique::End(void) const
@@ -2854,6 +2840,17 @@ namespace ReShade
 			device->OMSetBlendState(pass.BS, blendfactor, D3D10_DEFAULT_SAMPLE_MASK);
 			device->OMSetDepthStencilState(pass.DSS, pass.StencilRef);
 			device->OMSetRenderTargets(D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, pass.RT, this->mEffect->mDepthStencil);
+
+			for (UINT i = 0; i < D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT; ++i)
+			{
+				if (pass.RT[i] == nullptr || pass.RT[i] == this->mEffect->mBackBufferTarget)
+				{
+					continue;
+				}
+
+				const FLOAT color[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
+				device->ClearRenderTargetView(pass.RT[i], color);
+			}
 
 			ID3D10Resource *rtres;
 			pass.RT[0]->GetResource(&rtres);

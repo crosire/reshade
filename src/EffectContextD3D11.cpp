@@ -2815,7 +2815,7 @@ namespace ReShade
 			this->mDeferredContext->OMSetDepthStencilState(pass.DSS, pass.StencilRef);
 			this->mDeferredContext->OMSetRenderTargets(D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT, pass.RT, this->mEffect->mDepthStencil);
 
-			for (size_t i = 0; i < D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT; ++i)
+			for (UINT i = 0; i < D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT; ++i)
 			{
 				if (pass.RT[i] == nullptr)
 				{
