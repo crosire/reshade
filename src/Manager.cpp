@@ -167,22 +167,22 @@ namespace ReShade
 
 				if (boost::filesystem::exists(path))
 				{
-					int width = 0, height = 0, channels = STBI_default;
+					int width = 0, height = 0, channelsFile = 0, channels = STBI_default;
 
 					switch (desc.Format)
 					{
 						case Effect::Texture::Format::R8:
-							channels = STBI_grey;
+							channels = STBI_r;
 							break;
 						case Effect::Texture::Format::RG8:
-							channels = STBI_grey_alpha;
+							channels = STBI_rg;
 							break;
 						case Effect::Texture::Format::DXT1:
 							channels = STBI_rgb;
 							break;
 						case Effect::Texture::Format::RGBA8:
 						case Effect::Texture::Format::DXT5:
-							channels = STBI_rgb_alpha;
+							channels = STBI_rgba;
 							break;
 						case Effect::Texture::Format::R32F:
 						case Effect::Texture::Format::RGBA16:
@@ -195,7 +195,7 @@ namespace ReShade
 							continue;
 					}
 
-					unsigned char *data = stbi_load(path.string().c_str(), &width, &height, &channels, channels);
+					unsigned char *data = stbi_load(path.string().c_str(), &width, &height, &channelsFile, channels);
 					std::size_t dataSize = width * height * channels;
 
 					switch (desc.Format)
