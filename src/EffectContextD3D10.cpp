@@ -840,14 +840,17 @@ namespace ReShade
 				}
 
 				if (::strcmp(callee.Name, "tex1D") == 0 ||
+					::strcmp(callee.Name, "tex1Doffset") == 0 ||
 					::strcmp(callee.Name, "tex1Dlod") == 0 ||
 					::strcmp(callee.Name, "tex1Dfetch") == 0 ||
 					::strcmp(callee.Name, "tex1Dbias") == 0 ||
 					::strcmp(callee.Name, "tex2D") == 0 ||
+					::strcmp(callee.Name, "tex2Doffset") == 0 ||
 					::strcmp(callee.Name, "tex2Dlod") == 0 ||
 					::strcmp(callee.Name, "tex2Dfetch") == 0 ||
 					::strcmp(callee.Name, "tex2Dbias") == 0 ||
 					::strcmp(callee.Name, "tex3D") == 0 ||
+					::strcmp(callee.Name, "tex3Doffset") == 0 ||
 					::strcmp(callee.Name, "tex3Dlod") == 0 ||
 					::strcmp(callee.Name, "tex3Dfetch") == 0 ||
 					::strcmp(callee.Name, "tex3Dbias") == 0)
@@ -2137,14 +2140,14 @@ namespace ReShade
 					"inline int __tex1Dsize(__sampler1D s, int lod) { uint w, l; s.t.GetDimensions(lod, w, l); return w; }\n"
 					"struct __sampler2D { Texture2D t; SamplerState s; };\n"
 					"inline float4 __tex2D(__sampler2D s, float2 c) { return s.t.Sample(s.s, c); }\n"
-					"inline float4 __tex2Doffset(__sampler2D s, float2 c, int offset) { return s.t.Sample(s.s, c, offset.xx); }\n"
+					"inline float4 __tex2Doffset(__sampler2D s, float2 c, int2 offset) { return s.t.Sample(s.s, c, offset); }\n"
 					"inline float4 __tex2Dlod(__sampler2D s, float4 c) { return s.t.SampleLevel(s.s, c.xy, c.w); }\n"
 					"inline float4 __tex2Dfetch(__sampler2D s, int4 c) { return s.t.Load(c.xyw); }\n"
 					"inline float4 __tex2Dbias(__sampler2D s, float4 c) { return s.t.SampleBias(s.s, c.xy, c.w); }\n"
 					"inline int2 __tex2Dsize(__sampler2D s, int lod) { uint w, h, l; s.t.GetDimensions(lod, w, h, l); return int2(w, h); }\n"
 					"struct __sampler3D { Texture3D t; SamplerState s; };\n"
 					"inline float4 __tex3D(__sampler3D s, float3 c) { return s.t.Sample(s.s, c); }\n"
-					"inline float4 __tex3Doffset(__sampler3D s, float3 c, int offset) { return s.t.Sample(s.s, c, offset.xxx); }\n"
+					"inline float4 __tex3Doffset(__sampler3D s, float3 c, int3 offset) { return s.t.Sample(s.s, c, offset); }\n"
 					"inline float4 __tex3Dlod(__sampler3D s, float4 c) { return s.t.SampleLevel(s.s, c.xyz, c.w); }\n"
 					"inline float4 __tex3Dfetch(__sampler3D s, int4 c) { return s.t.Load(c.xyzw); }\n"
 					"inline float4 __tex3Dbias(__sampler3D s, float4 c) { return s.t.SampleBias(s.s, c.xyz, c.w); }\n"

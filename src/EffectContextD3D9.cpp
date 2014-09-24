@@ -1213,7 +1213,7 @@ namespace ReShade
 						{
 							case 1:
 							{
-								this->mCurrentSource += this->mCurrentPositionVariable + ".xy += _TEXEL_OFFSET_ * " + this->mCurrentPositionVariable + ".ww;\n";
+								this->mCurrentSource += this->mCurrentPositionVariable + ".xy += _PIXEL_SIZE_.zw * " + this->mCurrentPositionVariable + ".ww;\n";
 							}
 							default:
 							{
@@ -1234,7 +1234,7 @@ namespace ReShade
 								this->mCurrentSource += " _return = ";
 								Visit(expression);
 								this->mCurrentSource += ";\n";
-								this->mCurrentSource += "_return" + this->mCurrentPositionVariable + ".xy += _TEXEL_OFFSET_ * _return" + this->mCurrentPositionVariable + ".ww;\n";
+								this->mCurrentSource += "_return" + this->mCurrentPositionVariable + ".xy += _PIXEL_SIZE_.zw * _return" + this->mCurrentPositionVariable + ".ww;\n";
 								this->mCurrentSource += "return _return";
 								break;
 							}
@@ -1774,7 +1774,7 @@ namespace ReShade
 
 					if (this->mCurrentPositionVariableType == 1)
 					{
-						this->mCurrentSource += this->mCurrentPositionVariable + ".xy += _TEXEL_OFFSET_ * " + this->mCurrentPositionVariable + ".ww;\n";
+						this->mCurrentSource += this->mCurrentPositionVariable + ".xy += _PIXEL_SIZE_.zw * " + this->mCurrentPositionVariable + ".ww;\n";
 					}
 
 					this->mCurrentSource += "}\n";
@@ -2013,13 +2013,13 @@ namespace ReShade
 
 				std::string source =
 					"#define mad(m, a, b) ((m) * (a) + (b))\n"
-					"#define tex1Doffset(s, c, offset) tex1D(s, (c) + (offset))\n"
+					"#define tex1Doffset(s, c, offset) tex1D(s, (c) + (offset) * _PIXEL_SIZE_.xy)\n"
 					"#define tex1Dfetch(s, c) tex1D(s, float(c))\n"
-					"#define tex2Doffset(s, c, offset) tex2D(s, (c) + (offset).xx)\n"
+					"#define tex2Doffset(s, c, offset) tex2D(s, (c) + (offset) * _PIXEL_SIZE_.xy)\n"
 					"#define tex2Dfetch(s, c) tex2D(s, float2(c))\n"
-					"#define tex3Doffset(s, c, offset) tex3D(s, (c) + (offset).xxx)\n"
+					"#define tex3Doffset(s, c, offset) tex3D(s, (c) + (offset) * _PIXEL_SIZE_.xy)\n"
 					"#define tex3Dfetch(s, c) tex3D(s, float3(c))\n"
-					"uniform float2 _TEXEL_OFFSET_ : register(c223);\n" + this->mCurrentSource;
+					"uniform float4 _PIXEL_SIZE_ : register(c223);\n" + this->mCurrentSource;
 
 				const char *entry = this->mAST[state.Value.AsNode].As<Nodes::Function>().Name;
 
@@ -2567,8 +2567,8 @@ namespace ReShade
 
 			D3DVIEWPORT9 viewport;
 			device->GetViewport(&viewport);
-			const float texel_offset[4] = { -1.0f / viewport.Width, 1.0f / viewport.Height };
-			device->SetVertexShaderConstantF(223, texel_offset, 1);
+			const float pixel_size[4] = { +1.0f / viewport.Width, +1.0f / viewport.Height, -1.0f / viewport.Width, +1.0f / viewport.Height };
+			device->SetVertexShaderConstantF(223, pixel_size, 1);
 
 			return true;
 		}
