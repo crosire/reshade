@@ -8,8 +8,5 @@
     <Link>
       <AdditionalDependencies>$(SolutionDir)\dep\minhook\lib\$(Platform)\$(Configuration)\MinHook.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
-    <Lib>
-      <AdditionalDependencies>$(SolutionDir)\dep\minhook\lib\$(Platform)\$(Configuration)\MinHook.lib;%(AdditionalDependencies)</AdditionalDependencies>
-    </Lib>
   </ItemDefinitionGroup>
 </Project>

@@ -4,6 +4,9 @@
     <Filter Include="Resources">
       <UniqueIdentifier>{d408b60a-a09d-437b-9a0f-3ac6ea741b08}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Hook">
+      <UniqueIdentifier>{ed3eb34b-86ef-4bb0-b071-44f1163953bf}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Hooks">
       <UniqueIdentifier>{3c3eb495-1eeb-4c7c-b58f-3bbcf24758f6}</UniqueIdentifier>
     </Filter>
@@ -29,11 +32,17 @@
     <ClCompile Include="src\EffectContextOGL4.cpp">
       <Filter>Effect</Filter>
     </ClCompile>
-    <ClCompile Include="obj\$(ProjectName)\$(Platform)\$(Configuration)\EffectParser.cpp">
+    <ClCompile Include="obj\$(Platform)\$(Configuration)\EffectParser.cpp">
       <Filter>Effect</Filter>
     </ClCompile>
-    <ClCompile Include="obj\$(ProjectName)\$(Platform)\$(Configuration)\EffectLexer.cpp">
+    <ClCompile Include="obj\$(Platform)\$(Configuration)\EffectLexer.cpp">
       <Filter>Effect</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Hook.cpp">
+      <Filter>Hook</Filter>
+    </ClCompile>
+    <ClCompile Include="src\HookManager.cpp">
+      <Filter>Hook</Filter>
     </ClCompile>
     <ClCompile Include="src\Hooks\d3d8.cpp">
       <Filter>Hooks</Filter>
@@ -72,11 +81,17 @@
     <ClInclude Include="src\EffectContext.hpp">
       <Filter>Effect</Filter>
     </ClInclude>
-    <ClInclude Include="obj\$(ProjectName)\$(Platform)\$(Configuration)\EffectLexer.h">
+    <ClInclude Include="obj\$(Platform)\$(Configuration)\EffectLexer.h">
       <Filter>Effect</Filter>
     </ClInclude>
-    <ClInclude Include="obj\$(ProjectName)\$(Platform)\$(Configuration)\EffectParser.hpp">
+    <ClInclude Include="obj\$(Platform)\$(Configuration)\EffectParser.hpp">
       <Filter>Effect</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Hook.hpp">
+      <Filter>Hook</Filter>
+    </ClInclude>
+    <ClInclude Include="src\HookManager.hpp">
+      <Filter>Hook</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

@@ -55,6 +55,7 @@
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
     <Import Project="dep\EasyLogging.props" />
+    <Import Project="dep\MinHook.props" />
     <Import Project="dep\FCPP.props" />
     <Import Project="dep\GL3W.props" />
     <Import Project="dep\STB.props" />
@@ -62,6 +63,7 @@
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
     <Import Project="dep\EasyLogging.props" />
+    <Import Project="dep\MinHook.props" />
     <Import Project="dep\FCPP.props" />
     <Import Project="dep\GL3W.props" />
     <Import Project="dep\STB.props" />
@@ -69,6 +71,7 @@
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
     <Import Project="dep\EasyLogging.props" />
+    <Import Project="dep\MinHook.props" />
     <Import Project="dep\FCPP.props" />
     <Import Project="dep\GL3W.props" />
     <Import Project="dep\STB.props" />
@@ -76,6 +79,7 @@
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
     <Import Project="dep\EasyLogging.props" />
+    <Import Project="dep\MinHook.props" />
     <Import Project="dep\FCPP.props" />
     <Import Project="dep\GL3W.props" />
     <Import Project="dep\STB.props" />
@@ -84,7 +88,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
     <OutDir>$(SolutionDir)\bin\$(Platform)\$(Configuration)\</OutDir>
-    <IntDir>$(SolutionDir)\obj\$(ProjectName)\$(Platform)\$(Configuration)\</IntDir>
+    <IntDir>$(SolutionDir)\obj\$(Platform)\$(Configuration)\</IntDir>
     <IncludePath>$(IncludePath);$(DXSDK_DIR)\Include</IncludePath>
     <LibraryPath>$(DXSDK_DIR)\Lib\x86;$(LibraryPath)</LibraryPath>
     <ReferencePath>$(DXSDK_DIR)\Lib\x86;$(ReferencePath)</ReferencePath>
@@ -93,7 +97,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
     <OutDir>$(SolutionDir)\bin\$(Platform)\$(Configuration)\</OutDir>
-    <IntDir>$(SolutionDir)\obj\$(ProjectName)\$(Platform)\$(Configuration)\</IntDir>
+    <IntDir>$(SolutionDir)\obj\$(Platform)\$(Configuration)\</IntDir>
     <IncludePath>$(IncludePath);$(DXSDK_DIR)\Include</IncludePath>
     <LibraryPath>$(DXSDK_DIR)\Lib\x64;$(LibraryPath)</LibraryPath>
     <ReferencePath>$(DXSDK_DIR)\Lib\x64;$(ReferencePath)</ReferencePath>
@@ -102,7 +106,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
     <OutDir>$(SolutionDir)\bin\$(Platform)\$(Configuration)\</OutDir>
-    <IntDir>$(SolutionDir)\obj\$(ProjectName)\$(Platform)\$(Configuration)\</IntDir>
+    <IntDir>$(SolutionDir)\obj\$(Platform)\$(Configuration)\</IntDir>
     <IncludePath>$(IncludePath);$(DXSDK_DIR)\Include</IncludePath>
     <LibraryPath>$(DXSDK_DIR)\Lib\x86;$(LibraryPath)</LibraryPath>
     <ReferencePath>$(DXSDK_DIR)\Lib\x86;$(ReferencePath)</ReferencePath>
@@ -111,7 +115,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
     <OutDir>$(SolutionDir)\bin\$(Platform)\$(Configuration)\</OutDir>
-    <IntDir>$(SolutionDir)\obj\$(ProjectName)\$(Platform)\$(Configuration)\</IntDir>
+    <IntDir>$(SolutionDir)\obj\$(Platform)\$(Configuration)\</IntDir>
     <IncludePath>$(IncludePath);$(DXSDK_DIR)\Include</IncludePath>
     <LibraryPath>$(DXSDK_DIR)\Lib\x64;$(LibraryPath)</LibraryPath>
     <ReferencePath>$(DXSDK_DIR)\Lib\x64;$(ReferencePath)</ReferencePath>
@@ -221,8 +225,10 @@
     <ClCompile Include="src\EffectContextD3D10.cpp" />
     <ClCompile Include="src\EffectContextD3D11.cpp" />
     <ClCompile Include="src\EffectContextOGL4.cpp" />
-    <ClCompile Include="obj\$(ProjectName)\$(Platform)\$(Configuration)\EffectLexer.cpp" />
-    <ClCompile Include="obj\$(ProjectName)\$(Platform)\$(Configuration)\EffectParser.cpp" />
+    <ClCompile Include="obj\$(Platform)\$(Configuration)\EffectLexer.cpp" />
+    <ClCompile Include="obj\$(Platform)\$(Configuration)\EffectParser.cpp" />
+    <ClCompile Include="src\Hook.cpp" />
+    <ClCompile Include="src\HookManager.cpp" />
     <ClCompile Include="src\Hooks\d3d8.cpp" />
     <ClCompile Include="src\Hooks\d3d9.cpp" />
     <ClCompile Include="src\Hooks\d3d10.cpp" />
@@ -236,11 +242,13 @@
   <ItemGroup>
     <ClInclude Include="res\Resource.h" />
     <ClInclude Include="res\Version.h" />
+    <ClInclude Include="src\Hook.hpp" />
+    <ClInclude Include="src\HookManager.hpp" />
     <ClInclude Include="src\Log.hpp" />
     <ClInclude Include="src\Effect.hpp" />
     <ClInclude Include="src\EffectContext.hpp" />
-    <ClInclude Include="obj\$(ProjectName)\$(Platform)\$(Configuration)\EffectLexer.h" />
-    <ClInclude Include="obj\$(ProjectName)\$(Platform)\$(Configuration)\EffectParser.hpp" />
+    <ClInclude Include="obj\$(Platform)\$(Configuration)\EffectLexer.h" />
+    <ClInclude Include="obj\$(Platform)\$(Configuration)\EffectParser.hpp" />
     <ClInclude Include="src\Manager.hpp" />
   </ItemGroup>
   <ItemGroup>
