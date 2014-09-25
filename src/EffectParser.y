@@ -2999,6 +2999,25 @@ RULE_EXPRESSION_INITIALIZER
 		$$ = $2;
 	}
 	;
+RULE_EXPRESSION_INITIALIZER_LIST
+	: RULE_EXPRESSION_INITIALIZER
+	{
+		ReShade::EffectTree::Node &node = AST.Add<ReShade::Nodes::Aggregate>();
+		ReShade::Nodes::Aggregate &data = node.As<ReShade::Nodes::Aggregate>();
+		data.Link(AST, $1);
+		
+		@$ = @1;
+		$$ = node.Index;
+	}
+	| RULE_EXPRESSION_INITIALIZER_LIST "," RULE_EXPRESSION_INITIALIZER
+	{
+		@$ = @1;
+		$$ = $1;
+
+		AST[$$].As<ReShade::Nodes::Aggregate>().Link(AST, $3);
+	}
+	;
+
 RULE_EXPRESSION_INITIALIZEROBJECT
 	: "{" "}"
 	{
@@ -3060,25 +3079,6 @@ RULE_EXPRESSION_INITIALIZEROBJECTSTATE
 		
 		@$ = @1;
 		$$ = node.Index;
-	}
-	;
-
-RULE_EXPRESSION_INITIALIZER_LIST
-	: RULE_EXPRESSION_INITIALIZER
-	{
-		ReShade::EffectTree::Node &node = AST.Add<ReShade::Nodes::Aggregate>();
-		ReShade::Nodes::Aggregate &data = node.As<ReShade::Nodes::Aggregate>();
-		data.Link(AST, $1);
-		
-		@$ = @1;
-		$$ = node.Index;
-	}
-	| RULE_EXPRESSION_INITIALIZER_LIST "," RULE_EXPRESSION_INITIALIZER
-	{
-		@$ = @1;
-		$$ = $1;
-
-		AST[$$].As<ReShade::Nodes::Aggregate>().Link(AST, $3);
 	}
 	;
 RULE_EXPRESSION_INITIALIZEROBJECTSTATE_LIST
@@ -3220,16 +3220,24 @@ RULE_STATEMENT_SELECTION
 			YYERROR;
 		}
 
-		ReShade::EffectTree::Node &node = AST.Add<ReShade::Nodes::Selection>(@2);
-		ReShade::Nodes::Selection &data = node.As<ReShade::Nodes::Selection>();
-		data.Mode = ReShade::Nodes::Selection::If;
-		data.Attributes = static_cast<ReShade::Nodes::Attribute>($1.Int);
-		data.Condition = $4;
-		data.StatementTrue = $6;
-		data.StatementFalse = $8;
-		
-		@$ = @2;
-		$$ = node.Index;
+		if (AST[$4].Is<ReShade::Nodes::Literal>())
+		{
+			@$ = (AST[$4].As<ReShade::Nodes::Literal>().Value.AsInt) ? @6 : @8;
+			$$ = (AST[$4].As<ReShade::Nodes::Literal>().Value.AsInt) ? $6 : $8;
+		}
+		else
+		{
+			ReShade::EffectTree::Node &node = AST.Add<ReShade::Nodes::Selection>(@2);
+			ReShade::Nodes::Selection &data = node.As<ReShade::Nodes::Selection>();
+			data.Mode = ReShade::Nodes::Selection::If;
+			data.Attributes = static_cast<ReShade::Nodes::Attribute>($1.Int);
+			data.Condition = $4;
+			data.StatementTrue = $6;
+			data.StatementFalse = $8;
+			
+			@$ = @2;
+			$$ = node.Index;
+		}
 	}
 	| RULE_ATTRIBUTE "if" "(" RULE_EXPRESSION ")" RULE_STATEMENT %prec TOK_THEN
 	{
@@ -3245,15 +3253,23 @@ RULE_STATEMENT_SELECTION
 			YYERROR;
 		}
 
-		ReShade::EffectTree::Node &node = AST.Add<ReShade::Nodes::Selection>(@2);
-		ReShade::Nodes::Selection &data = node.As<ReShade::Nodes::Selection>();
-		data.Mode = ReShade::Nodes::Selection::If;
-		data.Attributes = static_cast<ReShade::Nodes::Attribute>($1.Int);
-		data.Condition = $4;
-		data.StatementTrue = $6;
-		
-		@$ = @2;
-		$$ = node.Index;
+		if (AST[$4].Is<ReShade::Nodes::Literal>())
+		{
+			@$ = @6;
+			$$ = (AST[$4].As<ReShade::Nodes::Literal>().Value.AsInt) ? $6 : 0;
+		}
+		else
+		{
+			ReShade::EffectTree::Node &node = AST.Add<ReShade::Nodes::Selection>(@2);
+			ReShade::Nodes::Selection &data = node.As<ReShade::Nodes::Selection>();
+			data.Mode = ReShade::Nodes::Selection::If;
+			data.Attributes = static_cast<ReShade::Nodes::Attribute>($1.Int);
+			data.Condition = $4;
+			data.StatementTrue = $6;
+			
+			@$ = @2;
+			$$ = node.Index;
+		}
 	} 
 	| RULE_ATTRIBUTE "switch" "(" RULE_EXPRESSION ")" "{" "}"
 	{
@@ -3380,15 +3396,22 @@ RULE_STATEMENT_ITERATION
 
 		parser.PopScope();
 		
-		ReShade::EffectTree::Node &node = AST.Add<ReShade::Nodes::Iteration>(@2);
-		ReShade::Nodes::Iteration &data = node.As<ReShade::Nodes::Iteration>();
-		data.Mode = ReShade::Nodes::Iteration::While;
-		data.Attributes = static_cast<ReShade::Nodes::Attribute>($1.Int);
-		data.Condition = $5;
-		data.Statement = $7;
-		
-		@$ = @2;
-		$$ = node.Index;
+		if (AST[$5].Is<ReShade::Nodes::Literal>() && !AST[$5].As<ReShade::Nodes::Literal>().Value.AsInt)
+		{
+			$$ = 0;
+		}
+		else
+		{
+			ReShade::EffectTree::Node &node = AST.Add<ReShade::Nodes::Iteration>(@2);
+			ReShade::Nodes::Iteration &data = node.As<ReShade::Nodes::Iteration>();
+			data.Mode = ReShade::Nodes::Iteration::While;
+			data.Attributes = static_cast<ReShade::Nodes::Attribute>($1.Int);
+			data.Condition = $5;
+			data.Statement = $7;
+			
+			@$ = @2;
+			$$ = node.Index;
+		}
 	}
 	| RULE_ATTRIBUTE "do" RULE_STATEMENT "while" "(" RULE_EXPRESSION ")" ";"
 	{
