@@ -2538,7 +2538,7 @@ namespace ReShade
 					continue;
 				}
 
-				const FLOAT color[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
+				const FLOAT color[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 				device->ClearRenderTargetView(pass.RT[i], color);
 			}
 

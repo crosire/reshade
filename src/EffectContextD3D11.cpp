@@ -2512,7 +2512,7 @@ namespace ReShade
 					continue;
 				}
 
-				const FLOAT color[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
+				const FLOAT color[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 				this->mDeferredContext->ClearRenderTargetView(pass.RT[i], color);
 			}
 

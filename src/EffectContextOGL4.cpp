@@ -2854,7 +2854,7 @@ namespace ReShade
 			GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, pass.Framebuffer));
 			GLCHECK(glEnableb(GL_FRAMEBUFFER_SRGB, pass.FramebufferSRGB));
 
-			const GLfloat color[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
+			const GLfloat color[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 
 			if (pass.Framebuffer == 0)
 			{
