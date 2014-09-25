@@ -1685,7 +1685,7 @@ namespace ReShade
 
 				GLCHECK(glBindTexture(GL_TEXTURE_2D, texture[0]));
 				GLCHECK(glTexStorage2D(GL_TEXTURE_2D, levels, internalformat, width, height));
-				GLCHECK(glTextureView(texture[1], GL_TEXTURE_2D, texture[0], internalformatSRGB, 0, levels, 0, 0));
+				GLCHECK(glTextureView(texture[1], GL_TEXTURE_2D, texture[0], internalformatSRGB, 0, levels, 0, 1));
 				GLCHECK(glBindTexture(GL_TEXTURE_2D, previous));
 
 				if (data.Annotations != 0)
@@ -2239,8 +2239,14 @@ namespace ReShade
 					"vec4 tex2Dlod(sampler2D s, vec4 c) { return textureLod(s, c.xy, c.w); }\n"
 					"vec4 tex2Dfetch(sampler2D s, ivec4 c) { return texelFetch(s, c.xy, c.w); }\n"
 					"vec4 tex2Dbias(sampler2D s, vec4 c) { return textureOffset(s, c.xy, ivec2(0), c.w); }\n"
-					"#define tex2Dsize(s, lod) textureSize(s, lod)\n"
-					+ this->mCurrentSource;
+					"#define tex2Dsize(s, lod) textureSize(s, lod)\n";
+
+				if (data.Type != Nodes::State::PixelShader)
+				{
+					source += "#define discard\n";
+				}
+
+				source += this->mCurrentSource;
 
 				const auto &callee = this->mAST[data.Value.AsNode].As<Nodes::Function>();
 
