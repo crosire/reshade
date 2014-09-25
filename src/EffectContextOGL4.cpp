@@ -188,7 +188,6 @@ namespace ReShade
 
 			OGL4Effect *										mEffect;
 			Description											mDesc;
-			GLenum												mInternalFormat;
 			std::unordered_map<std::string, Effect::Annotation>	mAnnotations;
 			GLuint												mID, mSRGBView;
 		};
@@ -2080,10 +2079,10 @@ namespace ReShade
 						{
 							const GLuint mask = static_cast<GLuint>(state.Value.AsInt);
 
-							info.ColorMaskR = mask & (1 << 0);
-							info.ColorMaskG = mask & (1 << 1);
-							info.ColorMaskB = mask & (1 << 2);
-							info.ColorMaskA = mask & (1 << 3);
+							info.ColorMaskR = (mask & (1 << 0)) != 0;
+							info.ColorMaskG = (mask & (1 << 1)) != 0;
+							info.ColorMaskB = (mask & (1 << 2)) != 0;
+							info.ColorMaskA = (mask & (1 << 3)) != 0;
 							break;
 						}
 						case Nodes::State::DepthEnable:
@@ -2229,7 +2228,7 @@ namespace ReShade
 					"#define fmod(x) ((x) - (y) * trunc((x) / (y)))\n"
 					"#define ddx(x) dFdx(x)\n#define ddy(x) dFdy(-(x))\n"
 					"#define mul(a, b) ((a) * (b))\n"
-					"#define mad(m, a, b) ((m) * (a) + (b))\n"
+					"#define mad(m, a, b) fma(m, a, b)\n"
 					"#define log10(x) (log(x) / 2.302585093)\n"
 					"#define atan2(x, y) atan(x, y)\n"
 					"void sincos(float x, out float s, out float c) { s = sin(x); c = cos(x); }\n"
