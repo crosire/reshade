@@ -1163,6 +1163,7 @@ namespace ReShade
 						{
 							this->mCurrentSource += "\t;";
 						}
+						break;
 					}
 					case Nodes::Iteration::Mode::DoWhile:
 					{
@@ -1179,6 +1180,7 @@ namespace ReShade
 						this->mCurrentSource += "while (";
 						Visit(this->mAST[data.Condition]);
 						this->mCurrentSource += ");\n";
+						break;
 					}
 				}
 			}
