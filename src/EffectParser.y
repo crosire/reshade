@@ -686,11 +686,7 @@
 					MipLevels,
 					Format,
 					VertexShader,
-					HullShader,
-					DomainShader,
-					GeometryShader,
 					PixelShader,
-					ComputeShader,
 					RenderTarget0,
 					RenderTarget1,
 					RenderTarget2,
@@ -700,10 +696,6 @@
 					RenderTarget6,
 					RenderTarget7,
 					RenderTargetWriteMask,
-					CullMode,
-					FillMode,
-					ScissorEnable,
-					AlphaToCoverageEnable,
 					BlendEnable,
 					SrcBlend,
 					DestBlend,
@@ -4403,7 +4395,7 @@ RULE_DECLARATION_PASS
 RULE_DECLARATION_PASSSTATE
 	: TOK_IDENTIFIER_STATE "=" RULE_EXPRESSION_LITERAL ";"
 	{
-		const bool stateShaderAssignment = $1.Int == ReShade::Nodes::State::VertexShader || $1.Int == ReShade::Nodes::State::HullShader || $1.Int == ReShade::Nodes::State::DomainShader || $1.Int == ReShade::Nodes::State::GeometryShader || $1.Int == ReShade::Nodes::State::PixelShader || $1.Int == ReShade::Nodes::State::ComputeShader;
+		const bool stateShaderAssignment = $1.Int == ReShade::Nodes::State::VertexShader || $1.Int == ReShade::Nodes::State::PixelShader;
 		const bool stateRenderTargetAssignment = $1.Int >= ReShade::Nodes::State::RenderTarget0 && $1.Int <= ReShade::Nodes::State::RenderTarget7;
 
 		if (stateShaderAssignment || stateRenderTargetAssignment)
@@ -4447,7 +4439,7 @@ RULE_DECLARATION_PASSSTATE
 	| TOK_IDENTIFIER_STATE "=" RULE_IDENTIFIER_NAME ";"
 	{
 		const char *name = parser.CreateString($3.String.p, $3.String.len);
-		const bool stateShaderAssignment = $1.Int == ReShade::Nodes::State::VertexShader || $1.Int == ReShade::Nodes::State::HullShader || $1.Int == ReShade::Nodes::State::DomainShader || $1.Int == ReShade::Nodes::State::GeometryShader || $1.Int == ReShade::Nodes::State::PixelShader || $1.Int == ReShade::Nodes::State::ComputeShader;
+		const bool stateShaderAssignment = $1.Int == ReShade::Nodes::State::VertexShader || $1.Int == ReShade::Nodes::State::PixelShader;
 		const bool stateRenderTargetAssignment = $1.Int >= ReShade::Nodes::State::RenderTarget0 && $1.Int <= ReShade::Nodes::State::RenderTarget7;
 		
 		ReShade::EffectTree::Index symbol = parser.GetSymbol(name, 0);

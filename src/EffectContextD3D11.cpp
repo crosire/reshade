@@ -1916,15 +1916,6 @@ namespace ReShade
 						case Nodes::State::RenderTargetWriteMask:
 							bdesc.RenderTarget[0].RenderTargetWriteMask = static_cast<UINT8>(state.Value.AsInt);
 							break;
-						case Nodes::State::CullMode:
-							rdesc.CullMode = ConvertLiteralToCullMode(state.Value.AsInt);
-							break;
-						case Nodes::State::FillMode:
-							rdesc.FillMode = ConvertLiteralToFillMode(state.Value.AsInt);
-							break;
-						case Nodes::State::ScissorEnable:
-							rdesc.ScissorEnable = state.Value.AsInt;
-							break;
 						case Nodes::State::DepthEnable:
 							ddesc.DepthEnable = state.Value.AsInt;
 							break;
@@ -1957,9 +1948,6 @@ namespace ReShade
 							break;
 						case Nodes::State::StencilRef:
 							info.StencilRef = state.Value.AsInt;
-							break;
-						case Nodes::State::AlphaToCoverageEnable:
-							bdesc.AlphaToCoverageEnable = state.Value.AsInt;
 							break;
 						case Nodes::State::BlendEnable:
 							bdesc.RenderTarget[0].BlendEnable = state.Value.AsInt;

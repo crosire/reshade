@@ -251,19 +251,10 @@ STRING															\"(\\.|[^\\"])*\"
 <STATE_INITIALIZER>"MipLevels"									{ yylval->l.Int = ReShade::Nodes::State::MipLevels; return TOK_IDENTIFIER_STATE; }
 <STATE_INITIALIZER>"Format"										{ yylval->l.Int = ReShade::Nodes::State::Format; return TOK_IDENTIFIER_STATE; }
 <STATE_PASS>"VertexShader"										{ yylval->l.Int = ReShade::Nodes::State::VertexShader; return TOK_IDENTIFIER_STATE; }
-<STATE_PASS>"HullShader"										{ yylval->l.Int = ReShade::Nodes::State::HullShader; return TOK_IDENTIFIER_STATE; }
-<STATE_PASS>"DomainShader"										{ yylval->l.Int = ReShade::Nodes::State::DomainShader; return TOK_IDENTIFIER_STATE; }
-<STATE_PASS>"GeometryShader"									{ yylval->l.Int = ReShade::Nodes::State::GeometryShader; return TOK_IDENTIFIER_STATE; }
 <STATE_PASS>"PixelShader"										{ yylval->l.Int = ReShade::Nodes::State::PixelShader; return TOK_IDENTIFIER_STATE; }
-<STATE_PASS>"ComputeShader"										{ yylval->l.Int = ReShade::Nodes::State::ComputeShader; return TOK_IDENTIFIER_STATE; }
 <STATE_PASS>"RenderTarget"										{ yylval->l.Int = ReShade::Nodes::State::RenderTarget0; return TOK_IDENTIFIER_STATE; }
 <STATE_PASS>"RenderTarget"[0-7]									{ yylval->l.Int = ReShade::Nodes::State::RenderTarget0 + *(yytext + 12) - '0'; return TOK_IDENTIFIER_STATE; }
-<STATE_PASS>"RenderTarget"{WS}*"["{WS}*[0-7]{WS}*"]"			{ char *p = yytext + 12; while (!::isdigit(*++p)); yylval->l.Int = ReShade::Nodes::State::RenderTarget0 + *p - '0'; return TOK_IDENTIFIER_STATE; }
 <STATE_PASS>"RenderTargetWriteMask"|"ColorWriteMask"			{ yylval->l.Int = ReShade::Nodes::State::RenderTargetWriteMask; return TOK_IDENTIFIER_STATE; }
-<STATE_PASS>"CullMode"											{ yylval->l.Int = ReShade::Nodes::State::CullMode; return TOK_IDENTIFIER_STATE; }
-<STATE_PASS>"FillMode"											{ yylval->l.Int = ReShade::Nodes::State::FillMode; return TOK_IDENTIFIER_STATE; }
-<STATE_PASS>"ScissorEnable"										{ yylval->l.Int = ReShade::Nodes::State::ScissorEnable; return TOK_IDENTIFIER_STATE; }
-<STATE_PASS>"AlphaToCoverageEnable"								{ yylval->l.Int = ReShade::Nodes::State::AlphaToCoverageEnable; return TOK_IDENTIFIER_STATE; }
 <STATE_PASS>"AlphaBlendEnable"|"BlendEnable"					{ yylval->l.Int = ReShade::Nodes::State::BlendEnable; return TOK_IDENTIFIER_STATE; }
 <STATE_PASS>"SrcBlend"											{ yylval->l.Int = ReShade::Nodes::State::SrcBlend; return TOK_IDENTIFIER_STATE; }
 <STATE_PASS>"DestBlend"											{ yylval->l.Int = ReShade::Nodes::State::DestBlend; return TOK_IDENTIFIER_STATE; }

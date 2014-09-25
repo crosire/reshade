@@ -1889,15 +1889,6 @@ namespace ReShade
 						case Nodes::State::RenderTargetWriteMask:
 							device->SetRenderState(D3DRS_COLORWRITEENABLE, state.Value.AsInt);
 							break;
-						case Nodes::State::CullMode:
-							device->SetRenderState(D3DRS_CULLMODE, ConvertLiteralToCullMode(state.Value.AsInt));
-							break;
-						case Nodes::State::FillMode:
-							device->SetRenderState(D3DRS_FILLMODE, ConvertLiteralToFillMode(state.Value.AsInt));
-							break;
-						case Nodes::State::ScissorEnable:
-							device->SetRenderState(D3DRS_SCISSORTESTENABLE, state.Value.AsInt);
-							break;
 						case Nodes::State::DepthEnable:
 							device->SetRenderState(D3DRS_ZENABLE, state.Value.AsInt);
 							break;

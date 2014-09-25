@@ -234,8 +234,8 @@ namespace ReShade
 				GLint											StencilRef;
 				GLuint											StencilMask, StencilReadMask;
 				GLsizei											ViewportWidth, ViewportHeight;
-				GLenum											DrawBuffers[8], CullFace, PolygonMode, BlendEqColor, BlendEqAlpha, BlendFuncSrc, BlendFuncDest, DepthFunc, StencilFunc, StencilOpFail, StencilOpZFail, StencilOpZPass, FrontFace;
-				GLboolean										ScissorTest, Blend, DepthMask, DepthTest, StencilTest, ColorMaskR, ColorMaskG, ColorMaskB, ColorMaskA, SampleAlphaToCoverage;
+				GLenum											DrawBuffers[8], BlendEqColor, BlendEqAlpha, BlendFuncSrc, BlendFuncDest, DepthFunc, StencilFunc, StencilOpFail, StencilOpZFail, StencilOpZPass;
+				GLboolean										FramebufferSRGB, Blend, DepthMask, DepthTest, StencilTest, ColorMaskR, ColorMaskG, ColorMaskB, ColorMaskA;
 			};
 
 			OGL4Technique(OGL4Effect *effect);
@@ -2007,21 +2007,17 @@ namespace ReShade
 				ZeroMemory(&info, sizeof(OGL4Technique::Pass));
 				info.Program = glCreateProgram();
 				info.ColorMaskR = info.ColorMaskG = info.ColorMaskB = info.ColorMaskA = GL_TRUE;
-				info.CullFace = GL_BACK;
 				info.DepthFunc = GL_LESS;
 				info.DepthMask = GL_TRUE;
-				info.PolygonMode = GL_FILL;
 				info.StencilFunc = GL_ALWAYS;
 				info.StencilRef = 0;
 				info.StencilMask = 0xFFFFFFFF;
 				info.StencilReadMask = 0xFFFFFFFF;
 				info.StencilOpFail = info.StencilOpZFail = info.StencilOpZPass = GL_KEEP;
-				info.SampleAlphaToCoverage = GL_FALSE;
 				info.BlendFuncSrc = GL_ONE;
 				info.BlendFuncDest = GL_ZERO;
 				info.BlendEqColor = info.BlendEqAlpha = GL_FUNC_ADD;
 				info.DrawBuffers[0] = GL_BACK;
-				info.FrontFace = GL_CCW;
 				info.ViewportWidth = info.ViewportHeight = 0;
 
 				GLuint shaders[6] = { 0 };
@@ -2094,15 +2090,6 @@ namespace ReShade
 							info.ColorMaskA = mask & (1 << 3);
 							break;
 						}
-						case Nodes::State::CullMode:
-							info.CullFace = ConvertLiteralToCullFace(state.Value.AsInt);
-							break;
-						case Nodes::State::FillMode:
-							info.PolygonMode = ConvertLiteralToPolygonMode(state.Value.AsInt);
-							break;
-						case Nodes::State::ScissorEnable:
-							info.ScissorTest = static_cast<GLboolean>(state.Value.AsInt);
-							break;
 						case Nodes::State::DepthEnable:
 							info.DepthTest = static_cast<GLboolean>(state.Value.AsInt);
 							break;
@@ -2133,9 +2120,6 @@ namespace ReShade
 						case Nodes::State::StencilZFail:
 							info.StencilOpZFail = ConvertLiteralToStencilOp(state.Value.AsInt);
 							break;
-						case Nodes::State::AlphaToCoverageEnable:
-							info.SampleAlphaToCoverage = static_cast<GLboolean>(state.Value.AsInt);
-							break;
 						case Nodes::State::BlendEnable:
 							info.Blend = static_cast<GLboolean>(state.Value.AsInt);
 							break;
@@ -2150,6 +2134,9 @@ namespace ReShade
 							break;
 						case Nodes::State::DestBlend:
 							info.BlendFuncDest = ConvertLiteralToBlendFunc(state.Value.AsInt);
+							break;
+						case Nodes::State::SRGBWriteEnable:
+							info.FramebufferSRGB = state.Value.AsInt != 0;
 							break;
 					}
 				}
@@ -2971,6 +2958,7 @@ namespace ReShade
 			GLCHECK(glViewport(0, 0, pass.ViewportWidth, pass.ViewportHeight));
 			GLCHECK(glUseProgram(pass.Program));
 			GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, pass.Framebuffer));
+			GLCHECK(glEnableb(GL_FRAMEBUFFER_SRGB, pass.FramebufferSRGB));
 
 			const GLfloat color[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
 
@@ -2994,30 +2982,11 @@ namespace ReShade
 				}
 			}
 
-			GLCHECK(glEnableb(GL_SCISSOR_TEST, pass.ScissorTest));
-			GLCHECK(glFrontFace(pass.FrontFace));
-			GLCHECK(glPolygonMode(GL_FRONT_AND_BACK, pass.PolygonMode));
-
-			if (pass.CullFace != GL_NONE)
-			{
-				GLCHECK(glEnable(GL_CULL_FACE));
-				GLCHECK(glCullFace(pass.CullFace));
-			}
-			else
-			{
-				GLCHECK(glDisable(GL_CULL_FACE));
-			}
-
+			GLCHECK(glDisable(GL_SCISSOR_TEST));
+			GLCHECK(glFrontFace(GL_CCW));
+			GLCHECK(glPolygonMode(GL_FRONT_AND_BACK, GL_FILL));
+			GLCHECK(glDisable(GL_CULL_FACE));
 			GLCHECK(glColorMask(pass.ColorMaskR, pass.ColorMaskG, pass.ColorMaskB, pass.ColorMaskA));
-
-			if (pass.SampleAlphaToCoverage)
-			{
-				GLCHECK(glEnable(GL_SAMPLE_ALPHA_TO_COVERAGE));
-			}
-			else
-			{
-				GLCHECK(glDisable(GL_SAMPLE_ALPHA_TO_COVERAGE));
-			}
 
 			if (pass.Blend)
 			{
