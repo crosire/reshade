@@ -221,12 +221,8 @@
 					Half,
 					Float,
 					Double,
-					Texture1D,
-					Texture2D,
-					Texture3D,
-					Sampler1D,
-					Sampler2D,
-					Sampler3D,
+					Texture,
+					Sampler,
 					Struct,
 					String,
 					Function
@@ -299,15 +295,15 @@
 				}
 				inline bool										IsSampler(void) const
 				{
-					return this->Class >= Sampler1D && this->Class <= Sampler3D;
+					return this->Class == Sampler;
 				}
 				inline bool										IsTexture(void) const
 				{
-					return this->Class >= Texture1D && this->Class <= Texture3D;
+					return this->Class == Texture;
 				}
 				inline bool										IsStruct(void) const
 				{
-					return this->Class == Type::Struct;
+					return this->Class == Struct;
 				}
 				
 				inline bool										HasQualifier(Type::Qualifier qualifier) const
@@ -687,7 +683,6 @@
 					Texture,
 					Width,
 					Height,
-					Depth,
 					MipLevels,
 					Format,
 					VertexShader,
@@ -883,12 +878,8 @@
 %token<l>		TOK_TYPE_DOUBLE									"double"
 %token<l>		TOK_TYPE_DOUBLEV								"doubleN"
 %token<l>		TOK_TYPE_DOUBLEM								"doubleNxN"
-%token<l>		TOK_TYPE_TEXTURE1D								"texture1D"
-%token<l>		TOK_TYPE_TEXTURE2D								"texture2D"
-%token<l>		TOK_TYPE_TEXTURE3D								"texture3D"
-%token<l>		TOK_TYPE_SAMPLER1D								"sampler1D"
-%token<l>		TOK_TYPE_SAMPLER2D								"sampler2D"
-%token<l>		TOK_TYPE_SAMPLER3D								"sampler3D"
+%token<l>		TOK_TYPE_TEXTURE								"texture"
+%token<l>		TOK_TYPE_SAMPLER								"sampler"
 %token<l>		TOK_TYPE_STRING									"string"
 %token<l>		TOK_TYPE_VECTOR									"vector"
 %token<l>		TOK_TYPE_MATRIX									"matrix"
@@ -1174,12 +1165,8 @@ RULE_TYPE
 	: RULE_TYPE_SCALAR
 	| RULE_TYPE_VECTOR
 	| RULE_TYPE_MATRIX
-	| "texture1D"
-	| "texture2D"
-	| "texture3D"
-	| "sampler1D"
-	| "sampler2D"
-	| "sampler3D"
+	| "texture"
+	| "sampler"
 	| "void"
 	| TOK_IDENTIFIER_TYPE
 	| RULE_DECLARATION_STRUCT
@@ -4546,7 +4533,7 @@ RULE_DECLARATION_PASSSTATE
 			@$ = @1;
 			$$ = node.Index;
 		}
-		else if (stateRenderTargetAssignment && AST[symbol].Is<ReShade::Nodes::Variable>() && AST[symbol].As<ReShade::Nodes::Variable>().Type.Class == ReShade::Nodes::Type::Texture2D && !AST[symbol].As<ReShade::Nodes::Variable>().Type.IsArray())
+		else if (stateRenderTargetAssignment && AST[symbol].Is<ReShade::Nodes::Variable>() && AST[symbol].As<ReShade::Nodes::Variable>().Type.IsTexture() && !AST[symbol].As<ReShade::Nodes::Variable>().Type.IsArray())
 		{
 			ReShade::EffectTree::Node &node = AST.Add<ReShade::Nodes::State>(@1);
 			ReShade::Nodes::State &data = node.As<ReShade::Nodes::State>();

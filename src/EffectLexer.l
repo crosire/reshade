@@ -248,7 +248,6 @@ STRING															\"(\\.|[^\\"])*\"
 <STATE_INITIALIZER>"Texture"									{ yylval->l.Int = ReShade::Nodes::State::Texture; return TOK_IDENTIFIER_STATE; }
 <STATE_INITIALIZER>"Width"										{ yylval->l.Int = ReShade::Nodes::State::Width; return TOK_IDENTIFIER_STATE; }
 <STATE_INITIALIZER>"Height"										{ yylval->l.Int = ReShade::Nodes::State::Height; return TOK_IDENTIFIER_STATE; }
-<STATE_INITIALIZER>"Depth"										{ yylval->l.Int = ReShade::Nodes::State::Depth; return TOK_IDENTIFIER_STATE; }
 <STATE_INITIALIZER>"MipLevels"									{ yylval->l.Int = ReShade::Nodes::State::MipLevels; return TOK_IDENTIFIER_STATE; }
 <STATE_INITIALIZER>"Format"										{ yylval->l.Int = ReShade::Nodes::State::Format; return TOK_IDENTIFIER_STATE; }
 <STATE_PASS>"VertexShader"										{ yylval->l.Int = ReShade::Nodes::State::VertexShader; return TOK_IDENTIFIER_STATE; }
@@ -425,30 +424,28 @@ STRING															\"(\\.|[^\\"])*\"
 "float"															{ yylval->l.Type = ReShade::Nodes::Type::Undefined; yylval->l.Type.Class = ReShade::Nodes::Type::Float; yylval->l.Type.Rows = 1; yylval->l.Type.Cols = 1; return TOK_TYPE_FLOAT; }
 "double"														{ yylval->l.Type = ReShade::Nodes::Type::Undefined; yylval->l.Type.Class = ReShade::Nodes::Type::Double; yylval->l.Type.Rows = 1; yylval->l.Type.Cols = 1; return TOK_TYPE_DOUBLE; }
 
-"texture1D"														{ yylval->l.Type = ReShade::Nodes::Type::Undefined; yylval->l.Type.Class = ReShade::Nodes::Type::Texture1D; yyextra->mNextLexerState = STATE_INITIALIZER; yyextra->mLexerStateAnnotation = 0; return TOK_TYPE_TEXTURE1D; }
-"Texture1D"														{ yyextra->Error(*yylloc, 3000, "syntax error: unexpected reserved word 'Texture1D'"); }
+"texture"|"texture2D"											{ yylval->l.Type = ReShade::Nodes::Type::Undefined; yylval->l.Type.Class = ReShade::Nodes::Type::Texture; yyextra->mNextLexerState = STATE_INITIALIZER; yyextra->mLexerStateAnnotation = 0; return TOK_TYPE_TEXTURE; }
+[tT]"exture1D"													{ yyextra->Error(*yylloc, 3000, "syntax error: unexpected reserved word 'Texture1D'"); }
 [tT]"exture1DArray"												{ yyextra->Error(*yylloc, 3000, "syntax error: unexpected reserved word 'Texture1DArray'"); }
-"texture2D"|"texture"											{ yylval->l.Type = ReShade::Nodes::Type::Undefined; yylval->l.Type.Class = ReShade::Nodes::Type::Texture2D; yyextra->mNextLexerState = STATE_INITIALIZER; yyextra->mLexerStateAnnotation = 0; return TOK_TYPE_TEXTURE2D; }
 "Texture2D"														{ yyextra->Error(*yylloc, 3000, "syntax error: unexpected reserved word 'Texture2D'"); }
 [tT]"exture2DArray"												{ yyextra->Error(*yylloc, 3000, "syntax error: unexpected reserved word 'Texture2DArray'"); }
 [tT]"exture2DMS"												{ yyextra->Error(*yylloc, 3000, "syntax error: unexpected reserved word 'Texture2DMS'"); }
 [tT]"exture2DMSArray"											{ yyextra->Error(*yylloc, 3000, "syntax error: unexpected reserved word 'Texture2DMSArray'"); }
-"texture3D"														{ yylval->l.Type = ReShade::Nodes::Type::Undefined; yylval->l.Type.Class = ReShade::Nodes::Type::Texture3D; yyextra->mNextLexerState = STATE_INITIALIZER; yyextra->mLexerStateAnnotation = 0; return TOK_TYPE_TEXTURE3D; }
-"Texture3D"														{ yyextra->Error(*yylloc, 3000, "syntax error: unexpected reserved word 'Texture3D'"); }
+[tT]"exture3D"													{ yyextra->Error(*yylloc, 3000, "syntax error: unexpected reserved word 'Texture3D'"); }
 [tT]"exture"("2D")?("Rect"|"RECT")								{ yyextra->Error(*yylloc, 3000, "syntax error: unexpected reserved word 'TextureRect'"); }
 [tT]"exture"("Cube"|"CUBE")										{ yyextra->Error(*yylloc, 3000, "syntax error: unexpected reserved word 'TextureCube'"); }
 [tT]"exture"("Cube"|"CUBE")"Array"								{ yyextra->Error(*yylloc, 3000, "syntax error: unexpected reserved word 'TextureCubeArray'"); }
-"sampler1D"														{ yylval->l.Type = ReShade::Nodes::Type::Undefined; yylval->l.Type.Class = ReShade::Nodes::Type::Sampler1D; yyextra->mNextLexerState = STATE_INITIALIZER; yyextra->mLexerStateAnnotation = 0; return TOK_TYPE_SAMPLER1D; }
+"sampler"|"sampler2D"											{ yylval->l.Type = ReShade::Nodes::Type::Undefined; yylval->l.Type.Class = ReShade::Nodes::Type::Sampler; yyextra->mNextLexerState = STATE_INITIALIZER; yyextra->mLexerStateAnnotation = 0; return TOK_TYPE_SAMPLER; }
+"sampler1D"														{ yyextra->Error(*yylloc, 3000, "syntax error: unexpected reserved word 'sampler1D'"); }
 "sampler1DShadow"												{ yyextra->Error(*yylloc, 3000, "syntax error: unexpected reserved word 'sampler1DShadow'"); }
 "sampler1DArray"												{ yyextra->Error(*yylloc, 3000, "syntax error: unexpected reserved word 'sampler1DArray'"); }
 "sampler1DArrayShadow"											{ yyextra->Error(*yylloc, 3000, "syntax error: unexpected reserved word 'sampler1DArrayShadow'"); }
-"sampler2D"|"sampler"											{ yylval->l.Type = ReShade::Nodes::Type::Undefined; yylval->l.Type.Class = ReShade::Nodes::Type::Sampler2D; yyextra->mNextLexerState = STATE_INITIALIZER; yyextra->mLexerStateAnnotation = 0; return TOK_TYPE_SAMPLER2D; }
 "sampler2DShadow"												{ yyextra->Error(*yylloc, 3000, "syntax error: unexpected reserved word 'sampler2DShadow'"); }
 "sampler2DArray"												{ yyextra->Error(*yylloc, 3000, "syntax error: unexpected reserved word 'sampler2DArray'"); }
 "sampler2DArrayShadow"											{ yyextra->Error(*yylloc, 3000, "syntax error: unexpected reserved word 'sampler2DArrayShadow'"); }
 "sampler2DMS"													{ yyextra->Error(*yylloc, 3000, "syntax error: unexpected reserved word 'sampler2DMS'"); }
 "sampler2DMSArray"												{ yyextra->Error(*yylloc, 3000, "syntax error: unexpected reserved word 'sampler2DMSArray'"); }
-"sampler3D"														{ yylval->l.Type = ReShade::Nodes::Type::Undefined; yylval->l.Type.Class = ReShade::Nodes::Type::Sampler3D; yyextra->mNextLexerState = STATE_INITIALIZER; yyextra->mLexerStateAnnotation = 0; return TOK_TYPE_SAMPLER3D; }
+"sampler3D"														{ yyextra->Error(*yylloc, 3000, "syntax error: unexpected reserved word 'sampler3D'"); }
 "sampler"("2D")?("Rect"|"RECT")									{ yyextra->Error(*yylloc, 3000, "syntax error: unexpected reserved word 'samplerRECT'"); }
 "sampler"("2D")?("Rect"|"RECT")"Shadow"							{ yyextra->Error(*yylloc, 3000, "syntax error: unexpected reserved word 'samplerRECTShadow'"); }
 "sampler"("Cube"|"CUBE")										{ yyextra->Error(*yylloc, 3000, "syntax error: unexpected reserved word 'samplerCUBE'"); }

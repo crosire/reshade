@@ -91,7 +91,7 @@ namespace ReShade
 			};
 			struct												Description
 			{
-				unsigned int									Width, Height, Depth, Levels;
+				unsigned int									Width, Height, Levels;
 				Format											Format;
 			};
 

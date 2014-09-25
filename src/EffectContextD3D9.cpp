@@ -86,13 +86,8 @@ namespace ReShade
 
 			D3D9Effect *										mEffect;
 			Description											mDesc;
-			UINT												mDimension;
 			std::unordered_map<std::string, Effect::Annotation>	mAnnotations;
-			union
-			{
-				IDirect3DTexture9 *									mTexture;
-				IDirect3DVolumeTexture9 *							mVolumeTexture;
-			};
+			IDirect3DTexture9 *									mTexture;
 			IDirect3DSurface9 *									mSurface;
 		};
 		struct													D3D9Sampler
@@ -557,14 +552,8 @@ namespace ReShade
 						else if (type.IsVector())
 							this->mCurrentSource += std::to_string(type.Rows);
 						break;
-					case Nodes::Type::Sampler1D:
-						this->mCurrentSource += "sampler1D";
-						break;
-					case Nodes::Type::Sampler2D:
+					case Nodes::Type::Sampler:
 						this->mCurrentSource += "sampler2D";
-						break;
-					case Nodes::Type::Sampler3D:
-						this->mCurrentSource += "sampler3D";
 						break;
 					case Nodes::Type::Struct:
 						this->mCurrentSource += this->mAST[type.Definition].As<Nodes::Struct>().Name;
@@ -1434,7 +1423,7 @@ namespace ReShade
 					#pragma endregion
 				}
 
-				this->mCurrentSource += "sampler" + std::to_string(sampler.mTexture->mDimension) + "D ";
+				this->mCurrentSource += "sampler2D ";
 				this->mCurrentSource += data.Name;
 				this->mCurrentSource += " : register(s" + std::to_string(this->mEffect->mSamplers.size()) + ");\n";
 
@@ -1443,7 +1432,7 @@ namespace ReShade
 			void												VisitTextureDeclaration(const Nodes::Variable &data)
 			{
 				IDirect3DTexture9 *texture = nullptr;
-				UINT width = 1, height = 1, depth = 1, levels = 1;
+				UINT width = 1, height = 1, levels = 1;
 				D3DFORMAT format1 = D3DFMT_A8R8G8B8;
 				Effect::Texture::Format format2 = Effect::Texture::Format::RGBA8;
 			
@@ -1464,9 +1453,6 @@ namespace ReShade
 							case Nodes::State::Height:
 								height = state.Value.AsInt;
 								break;
-							case Nodes::State::Depth:
-								depth = state.Value.AsInt;
-								break;
 							case Nodes::State::MipLevels:
 								levels = state.Value.AsInt;
 								break;
@@ -1478,38 +1464,18 @@ namespace ReShade
 					#pragma endregion
 				}
 
-				HRESULT hr = E_FAIL;
-			
-				switch (data.Type.Class)
-				{
-					case Nodes::Type::Texture1D:
-					case Nodes::Type::Texture2D:
-					{
-						hr = this->mEffect->mEffectContext->mDevice->CreateTexture(width, height, levels, format1 == D3DFMT_A8R8G8B8 ? D3DUSAGE_RENDERTARGET : 0, format1, D3DPOOL_DEFAULT, &texture, nullptr);
-						break;
-					}
-					case Nodes::Type::Texture3D:
-					{
-						hr = this->mEffect->mEffectContext->mDevice->CreateVolumeTexture(width, height, depth, levels, 0, format1, D3DPOOL_DEFAULT, reinterpret_cast<IDirect3DVolumeTexture9 **>(&texture), nullptr);
-						break;
-					}
-				}
+				HRESULT hr = this->mEffect->mEffectContext->mDevice->CreateTexture(width, height, levels, format1 == D3DFMT_A8R8G8B8 ? D3DUSAGE_RENDERTARGET : 0, format1, D3DPOOL_DEFAULT, &texture, nullptr);
 
 				if (SUCCEEDED(hr))
 				{
 					auto obj = std::unique_ptr<D3D9Texture>(new D3D9Texture(this->mEffect));
 					obj->mDesc.Width = width;
 					obj->mDesc.Height = height;
-					obj->mDesc.Depth = depth;
 					obj->mDesc.Levels = levels;
 					obj->mDesc.Format = format2;
-					obj->mDimension = data.Type.Class - Nodes::Type::Texture1D + 1;
 					obj->mTexture = texture;
 
-					if (obj->mDimension < 3)
-					{
-						obj->mTexture->GetSurfaceLevel(0, &obj->mSurface);
-					}
+					obj->mTexture->GetSurfaceLevel(0, &obj->mSurface);
 
 					if (data.Annotations != 0)
 					{
@@ -2013,12 +1979,8 @@ namespace ReShade
 
 				std::string source =
 					"#define mad(m, a, b) ((m) * (a) + (b))\n"
-					"#define tex1Doffset(s, c, offset) tex1D(s, (c) + (offset) * _PIXEL_SIZE_.xy)\n"
-					"#define tex1Dfetch(s, c) tex1D(s, float(c))\n"
 					"#define tex2Doffset(s, c, offset) tex2D(s, (c) + (offset) * _PIXEL_SIZE_.xy)\n"
 					"#define tex2Dfetch(s, c) tex2D(s, float2(c))\n"
-					"#define tex3Doffset(s, c, offset) tex3D(s, (c) + (offset) * _PIXEL_SIZE_.xy)\n"
-					"#define tex3Dfetch(s, c) tex3D(s, float3(c))\n"
 					"uniform float4 _PIXEL_SIZE_ : register(c223);\n" + this->mCurrentSource;
 
 				const char *entry = this->mAST[state.Value.AsNode].As<Nodes::Function>().Name;
@@ -2390,14 +2352,7 @@ namespace ReShade
 					break;
 			}
 
-			if (this->mDimension == 3)
-			{
-				hr = this->mEffect->mEffectContext->mDevice->CreateVolumeTexture(desc.Width, desc.Height, desc.Depth, desc.Levels, 0, format, D3DPOOL_DEFAULT, reinterpret_cast<IDirect3DVolumeTexture9 **>(&texture), nullptr);
-			}
-			else
-			{
-				hr = this->mEffect->mEffectContext->mDevice->CreateTexture(desc.Width, desc.Height, desc.Levels, D3DUSAGE_RENDERTARGET, format, D3DPOOL_DEFAULT, reinterpret_cast<IDirect3DTexture9 **>(&texture), nullptr);
-			}
+			hr = this->mEffect->mEffectContext->mDevice->CreateTexture(desc.Width, desc.Height, desc.Levels, format == D3DFMT_A8R8G8B8 ? D3DUSAGE_RENDERTARGET : 0, format, D3DPOOL_DEFAULT, reinterpret_cast<IDirect3DTexture9 **>(&texture), nullptr);
 
 			if (FAILED(hr))
 			{

@@ -111,15 +111,9 @@ namespace ReShade
 
 			D3D10Effect *										mEffect;
 			Description											mDesc;
-			unsigned int										mDimension, mRegister;
+			unsigned int										mRegister;
 			std::unordered_map<std::string, Effect::Annotation>	mAnnotations;
-			union
-			{
-				ID3D10Resource *								mTexture;
-				ID3D10Texture1D *								mTexture1D;
-				ID3D10Texture2D *								mTexture2D;
-				ID3D10Texture3D *								mTexture3D;
-			};
+			ID3D10Texture2D *									mTexture;
 			ID3D10ShaderResourceView *							mShaderResourceView[2];
 			ID3D10RenderTargetView *							mRenderTargetView[2];
 		};
@@ -585,14 +579,8 @@ namespace ReShade
 						else if (type.IsVector())
 							this->mCurrentSource += std::to_string(type.Rows);
 						break;
-					case Nodes::Type::Sampler1D:
-						this->mCurrentSource += "__sampler1D";
-						break;
-					case Nodes::Type::Sampler2D:
+					case Nodes::Type::Sampler:
 						this->mCurrentSource += "__sampler2D";
-						break;
-					case Nodes::Type::Sampler3D:
-						this->mCurrentSource += "__sampler3D";
 						break;
 					case Nodes::Type::Struct:
 						this->mCurrentSource += this->mAST[type.Definition].As<Nodes::Struct>().Name;
@@ -1442,7 +1430,7 @@ namespace ReShade
 					this->mCurrentSource += "SamplerState __SamplerState" + std::to_string(it->second) + " : register(s" + std::to_string(it->second) + ");\n";
 				}
 
-				this->mCurrentSource += "static const __sampler" + std::to_string(texture->mDimension) + "D ";
+				this->mCurrentSource += "static const __sampler2D ";
 				this->mCurrentSource += data.Name;
 				this->mCurrentSource += " = { ";
 
@@ -1456,9 +1444,9 @@ namespace ReShade
 			}
 			void												VisitTextureDeclaration(const Nodes::Variable &data)
 			{
-				ID3D10Resource *texture = nullptr;
+				ID3D10Texture2D *texture = nullptr;
 				ID3D10ShaderResourceView *shaderresource[2] = { nullptr };
-				UINT width = 1, height = 1, depth = 1, levels = 1;
+				UINT width = 1, height = 1, levels = 1;
 				DXGI_FORMAT format1 = DXGI_FORMAT_R8G8B8A8_TYPELESS;
 				D3D10_SHADER_RESOURCE_VIEW_DESC srvdesc;
 				Effect::Texture::Format format2 = Effect::Texture::Format::RGBA8;
@@ -1480,9 +1468,6 @@ namespace ReShade
 							case Nodes::State::Height:
 								height = state.Value.AsInt;
 								break;
-							case Nodes::State::Depth:
-								depth = state.Value.AsInt;
-								break;
 							case Nodes::State::MipLevels:
 								levels = state.Value.AsInt;
 								break;
@@ -1494,49 +1479,14 @@ namespace ReShade
 					#pragma endregion
 				}
 
-				HRESULT hr = E_FAIL;
-			
-				switch (data.Type.Class)
-				{
-					case Nodes::Type::Texture1D:
-					{
-						this->mCurrentSource += "Texture1D";
+				this->mCurrentSource += "Texture2D ";
 
-						CD3D10_TEXTURE1D_DESC desc(format1, width, 1, levels, D3D10_BIND_SHADER_RESOURCE);
-						srvdesc.ViewDimension = D3D10_SRV_DIMENSION_TEXTURE1D;
-						srvdesc.Texture1D.MostDetailedMip = 0;
-						srvdesc.Texture1D.MipLevels = levels;
+				CD3D10_TEXTURE2D_DESC desc(format1, width, height, 1, levels, D3D10_BIND_SHADER_RESOURCE | D3D10_BIND_RENDER_TARGET);
+				srvdesc.ViewDimension = D3D10_SRV_DIMENSION_TEXTURE2D;
+				srvdesc.Texture2D.MostDetailedMip = 0;
+				srvdesc.Texture2D.MipLevels = levels;
 
-						hr = this->mEffect->mEffectContext->mDevice->CreateTexture1D(&desc, nullptr, reinterpret_cast<ID3D10Texture1D **>(&texture));
-						break;
-					}
-					case Nodes::Type::Texture2D:
-					{
-						this->mCurrentSource += "Texture2D";
-
-						CD3D10_TEXTURE2D_DESC desc(format1, width, height, 1, levels, D3D10_BIND_SHADER_RESOURCE | D3D10_BIND_RENDER_TARGET);
-						srvdesc.ViewDimension = D3D10_SRV_DIMENSION_TEXTURE2D;
-						srvdesc.Texture2D.MostDetailedMip = 0;
-						srvdesc.Texture2D.MipLevels = levels;
-
-						hr = this->mEffect->mEffectContext->mDevice->CreateTexture2D(&desc, nullptr, reinterpret_cast<ID3D10Texture2D **>(&texture));
-						break;
-					}
-					case Nodes::Type::Texture3D:
-					{
-						this->mCurrentSource += "Texture3D";
-
-						CD3D10_TEXTURE3D_DESC desc(format1, width, height, depth, levels, D3D10_BIND_SHADER_RESOURCE);
-						srvdesc.ViewDimension = D3D10_SRV_DIMENSION_TEXTURE3D;
-						srvdesc.Texture3D.MostDetailedMip = 0;
-						srvdesc.Texture3D.MipLevels = levels;
-
-						hr = this->mEffect->mEffectContext->mDevice->CreateTexture3D(&desc, nullptr, reinterpret_cast<ID3D10Texture3D **>(&texture));
-						break;
-					}
-				}
-
-				this->mCurrentSource += ' ';
+				HRESULT hr = this->mEffect->mEffectContext->mDevice->CreateTexture2D(&desc, nullptr, &texture);
 
 				if (SUCCEEDED(hr))
 				{
@@ -1577,10 +1527,8 @@ namespace ReShade
 					auto obj = std::unique_ptr<D3D10Texture>(new D3D10Texture(this->mEffect));
 					obj->mDesc.Width = width;
 					obj->mDesc.Height = height;
-					obj->mDesc.Depth = depth;
 					obj->mDesc.Levels = levels;
 					obj->mDesc.Format = format2;
-					obj->mDimension = data.Type.Class - Nodes::Type::Texture1D + 1;
 					obj->mRegister = this->mEffect->mShaderResources.size();
 					obj->mTexture = texture;
 					obj->mShaderResourceView[0] = shaderresource[0];
@@ -1980,7 +1928,7 @@ namespace ReShade
 							const char *name = this->mAST[state.Value.AsNode].As<Nodes::Variable>().Name;
 							auto texture = this->mEffect->mTextures.at(name).get();
 							D3D10_TEXTURE2D_DESC desc;
-							texture->mTexture2D->GetDesc(&desc);
+							texture->mTexture->GetDesc(&desc);
 							D3D10_RENDER_TARGET_VIEW_DESC rtvdesc;
 							rtvdesc.ViewDimension = D3D10_RTV_DIMENSION_TEXTURE2D;
 							rtvdesc.Texture2D.MipSlice = 0;
@@ -2131,13 +2079,6 @@ namespace ReShade
 #endif
 
 				std::string source =
-					"struct __sampler1D { Texture1D t; SamplerState s; };\n"
-					"inline float4 __tex1D(__sampler1D s, float c) { return s.t.Sample(s.s, c); }\n"
-					"inline float4 __tex1Doffset(__sampler1D s, float c, int offset) { return s.t.Sample(s.s, c, offset); }\n"
-					"inline float4 __tex1Dlod(__sampler1D s, float4 c) { return s.t.SampleLevel(s.s, c.x, c.w); }\n"
-					"inline float4 __tex1Dfetch(__sampler1D s, int4 c) { return s.t.Load(c.xw); }\n"
-					"inline float4 __tex1Dbias(__sampler1D s, float4 c) { return s.t.SampleBias(s.s, c.x, c.w); }\n"
-					"inline int __tex1Dsize(__sampler1D s, int lod) { uint w, l; s.t.GetDimensions(lod, w, l); return w; }\n"
 					"struct __sampler2D { Texture2D t; SamplerState s; };\n"
 					"inline float4 __tex2D(__sampler2D s, float2 c) { return s.t.Sample(s.s, c); }\n"
 					"inline float4 __tex2Doffset(__sampler2D s, float2 c, int2 offset) { return s.t.Sample(s.s, c, offset); }\n"
@@ -2145,13 +2086,6 @@ namespace ReShade
 					"inline float4 __tex2Dfetch(__sampler2D s, int4 c) { return s.t.Load(c.xyw); }\n"
 					"inline float4 __tex2Dbias(__sampler2D s, float4 c) { return s.t.SampleBias(s.s, c.xy, c.w); }\n"
 					"inline int2 __tex2Dsize(__sampler2D s, int lod) { uint w, h, l; s.t.GetDimensions(lod, w, h, l); return int2(w, h); }\n"
-					"struct __sampler3D { Texture3D t; SamplerState s; };\n"
-					"inline float4 __tex3D(__sampler3D s, float3 c) { return s.t.Sample(s.s, c); }\n"
-					"inline float4 __tex3Doffset(__sampler3D s, float3 c, int3 offset) { return s.t.Sample(s.s, c, offset); }\n"
-					"inline float4 __tex3Dlod(__sampler3D s, float4 c) { return s.t.SampleLevel(s.s, c.xyz, c.w); }\n"
-					"inline float4 __tex3Dfetch(__sampler3D s, int4 c) { return s.t.Load(c.xyzw); }\n"
-					"inline float4 __tex3Dbias(__sampler3D s, float4 c) { return s.t.SampleBias(s.s, c.xyz, c.w); }\n"
-					"inline int3 __tex3Dsize(__sampler3D s, int lod) { uint w, h, d, l; s.t.GetDimensions(lod, w, h, d, l); return int3(w, h, d); }\n"
 					"cbuffer __GLOBAL__ : register(b0)\n{\n" + this->mCurrentGlobalConstants + "};\n" + this->mCurrentSource;
 
 				const char *entry = this->mAST[state.Value.AsNode].As<Nodes::Function>().Name;
@@ -2490,8 +2424,7 @@ namespace ReShade
 
 		bool													D3D10Texture::Resize(const Effect::Texture::Description &desc)
 		{
-			HRESULT hr = E_FAIL;
-			ID3D10Resource *texture = nullptr;
+			ID3D10Texture2D *texture = nullptr;
 			ID3D10ShaderResourceView *shaderresource[2] = { nullptr, nullptr };
 			ID3D10RenderTargetView *rendertarget[2] = { nullptr, nullptr };
 			D3D10_SHADER_RESOURCE_VIEW_DESC srvdesc;
@@ -2538,41 +2471,14 @@ namespace ReShade
 					break;
 			}
 
-			switch (this->mDimension)
-			{
-				case 1:
-				{
-					CD3D10_TEXTURE1D_DESC desc(format, desc.Width, 1, desc.Levels, D3D10_BIND_SHADER_RESOURCE);
-					srvdesc.ViewDimension = D3D10_SRV_DIMENSION_TEXTURE1D;
-					srvdesc.Texture1D.MostDetailedMip = 0;
-					srvdesc.Texture1D.MipLevels = desc.MipLevels;
+			CD3D10_TEXTURE2D_DESC tdesc(format, desc.Width, desc.Height, 1, desc.Levels, D3D10_BIND_SHADER_RESOURCE | D3D10_BIND_RENDER_TARGET);
+			srvdesc.ViewDimension = D3D10_SRV_DIMENSION_TEXTURE2D;
+			srvdesc.Texture2D.MostDetailedMip = 0;
+			srvdesc.Texture2D.MipLevels = tdesc.MipLevels;
+			rtvdesc.ViewDimension = D3D10_RTV_DIMENSION_TEXTURE2D;
+			rtvdesc.Texture2D.MipSlice = 0;
 
-					hr = this->mEffect->mEffectContext->mDevice->CreateTexture1D(&desc, nullptr, reinterpret_cast<ID3D10Texture1D **>(&texture));
-					break;
-				}
-				case 2:
-				{
-					CD3D10_TEXTURE2D_DESC desc(format, desc.Width, desc.Height, 1, desc.Levels, D3D10_BIND_SHADER_RESOURCE | D3D10_BIND_RENDER_TARGET);
-					srvdesc.ViewDimension = D3D10_SRV_DIMENSION_TEXTURE2D;
-					srvdesc.Texture2D.MostDetailedMip = 0;
-					srvdesc.Texture2D.MipLevels = desc.MipLevels;
-					rtvdesc.ViewDimension = D3D10_RTV_DIMENSION_TEXTURE2D;
-					rtvdesc.Texture2D.MipSlice = 0;
-
-					hr = this->mEffect->mEffectContext->mDevice->CreateTexture2D(&desc, nullptr, reinterpret_cast<ID3D10Texture2D **>(&texture));
-					break;
-				}
-				case 3:
-				{
-					CD3D10_TEXTURE3D_DESC desc(format, desc.Width, desc.Height, desc.Depth, desc.Levels, D3D10_BIND_SHADER_RESOURCE);
-					srvdesc.ViewDimension = D3D10_SRV_DIMENSION_TEXTURE3D;
-					srvdesc.Texture3D.MostDetailedMip = 0;
-					srvdesc.Texture3D.MipLevels = desc.MipLevels;
-
-					hr = this->mEffect->mEffectContext->mDevice->CreateTexture3D(&desc, nullptr, reinterpret_cast<ID3D10Texture3D **>(&texture));
-					break;
-				}
-			}
+			HRESULT hr = this->mEffect->mEffectContext->mDevice->CreateTexture2D(&tdesc, nullptr, &texture);
 		
 			if (FAILED(hr))
 			{
@@ -2686,11 +2592,10 @@ namespace ReShade
 
 			if (size == 0) return;
 
-			this->mEffect->mEffectContext->mDevice->UpdateSubresource(this->mTexture, level, nullptr, data, size / (this->mDesc.Height * this->mDesc.Depth), size / this->mDesc.Depth);
+			this->mEffect->mEffectContext->mDevice->UpdateSubresource(this->mTexture, level, nullptr, data, size / this->mDesc.Height, size);
 		}
 		void													D3D10Texture::UpdateFromColorBuffer(void)
 		{
-			assert(this->mDimension == 2);
 			D3D10_TEXTURE2D_DESC desc;
 			this->mEffect->mBackBufferTexture->GetDesc(&desc);
 

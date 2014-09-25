@@ -154,24 +154,24 @@ namespace ReShade
 			}
 			else if (source == "backbuffer")
 			{
-				if (desc.Width == bufferWidth && desc.Height == bufferHeight && desc.Depth == 1 && desc.Format == Effect::Texture::Format::RGBA8)
+				if (desc.Width == bufferWidth && desc.Height == bufferHeight && desc.Format == Effect::Texture::Format::RGBA8)
 				{
 					this->mColorTargets.push_back(texture);
 				}
 				else
 				{
-					LOG(ERROR) << "> Texture '" << name << "' doesn't match backbuffer requirements (Width = " << bufferWidth << ", Height = " << bufferHeight << ", Depth = 1, Format = R8G8B8A8).";
+					LOG(ERROR) << "> Texture '" << name << "' doesn't match backbuffer requirements (Width = " << bufferWidth << ", Height = " << bufferHeight << ", Format = R8G8B8A8).";
 				}
 			}
 			else if (source == "depthbuffer")
 			{
-				if (desc.Width == bufferWidth && desc.Height == bufferHeight && desc.Depth == 1 && desc.Format == Effect::Texture::Format::R8)
+				if (desc.Width == bufferWidth && desc.Height == bufferHeight && desc.Format == Effect::Texture::Format::R8)
 				{
 					this->mDepthTargets.push_back(texture);
 				}
 				else
 				{
-					LOG(ERROR) << "> Texture '" << name << "' doesn't match depthbuffer requirements (Width = " << bufferWidth << ", Height = " << bufferHeight << ", Depth = 1, Format = R8).";
+					LOG(ERROR) << "> Texture '" << name << "' doesn't match depthbuffer requirements (Width = " << bufferWidth << ", Height = " << bufferHeight << ", Format = R8).";
 				}
 			}
 			else
@@ -223,7 +223,7 @@ namespace ReShade
 							break;
 					}
 
-					if (desc.Width == 1 && desc.Height == 1 && desc.Depth == 1)
+					if (desc.Width == 1 && desc.Height == 1)
 					{
 						desc.Width = width;
 						desc.Height = height;

@@ -192,10 +192,8 @@ namespace ReShade
 
 			OGL4Effect *										mEffect;
 			Description											mDesc;
-			UINT												mDimension;
 			GLenum												mInternalFormat;
 			std::unordered_map<std::string, Effect::Annotation>	mAnnotations;
-			GLenum												mTarget;
 			GLuint												mID, mSRGBView;
 		};
 		struct													OGL4Sampler
@@ -256,33 +254,6 @@ namespace ReShade
 			std::vector<Pass>									mPasses;
 			mutable OGL4StateBlock								mStateblock;
 		};
-
-		GLenum													TextureBindingFromTarget(GLenum target)
-		{
-			switch (target)
-			{
-				default:
-					return target;
-				case GL_TEXTURE_1D:
-					return GL_TEXTURE_BINDING_1D;
-				case GL_TEXTURE_1D_ARRAY:
-					return GL_TEXTURE_BINDING_1D_ARRAY;
-				case GL_TEXTURE_2D:
-					return GL_TEXTURE_BINDING_2D;
-				case GL_TEXTURE_2D_ARRAY:
-					return GL_TEXTURE_BINDING_2D_ARRAY;
-				case GL_TEXTURE_2D_MULTISAMPLE:
-					return GL_TEXTURE_BINDING_2D_MULTISAMPLE;
-				case GL_TEXTURE_2D_MULTISAMPLE_ARRAY:
-					return GL_TEXTURE_BINDING_2D_MULTISAMPLE_ARRAY;
-				case GL_TEXTURE_3D:
-					return GL_TEXTURE_BINDING_3D;
-				case GL_TEXTURE_CUBE_MAP:
-					return GL_TEXTURE_BINDING_CUBE_MAP;
-				case GL_TEXTURE_CUBE_MAP_ARRAY:
-					return GL_TEXTURE_BINDING_CUBE_MAP_ARRAY;
-			}
-		}
 
 		class													ASTVisitor
 		{
@@ -772,14 +743,8 @@ namespace ReShade
 						else
 							this->mCurrentSource += "double";
 						break;
-					case Nodes::Type::Sampler1D:
-						this->mCurrentSource += "sampler1D";
-						break;
-					case Nodes::Type::Sampler2D:
+					case Nodes::Type::Sampler:
 						this->mCurrentSource += "sampler2D";
-						break;
-					case Nodes::Type::Sampler3D:
-						this->mCurrentSource += "sampler3D";
 						break;
 					case Nodes::Type::Struct:
 						this->mCurrentSource += FixName(this->mAST[type.Definition].As<Nodes::Struct>().Name);
@@ -1569,7 +1534,7 @@ namespace ReShade
 				std::shared_ptr<OGL4Sampler> obj = std::make_shared<OGL4Sampler>();
 				obj->mSRGB = false;
 
-				glGenSamplers(1, &obj->mID);
+				GLCHECK(glGenSamplers(1, &obj->mID));
 
 				if (data.HasInitializer())
 				{
@@ -1587,35 +1552,35 @@ namespace ReShade
 								obj->mTexture = this->mEffect->mTextures.at(this->mAST[state.Value.AsNode].As<Nodes::Variable>().Name).get();
 								break;
 							case Nodes::State::MinFilter:
-								glSamplerParameteri(obj->mID, GL_TEXTURE_MIN_FILTER, ConvertLiteralToTextureFilter(state.Value.AsInt));
+								GLCHECK(glSamplerParameteri(obj->mID, GL_TEXTURE_MIN_FILTER, ConvertLiteralToTextureFilter(state.Value.AsInt)));
 								break;
 							case Nodes::State::MagFilter:
-								glSamplerParameteri(obj->mID, GL_TEXTURE_MAG_FILTER, ConvertLiteralToTextureFilter(state.Value.AsInt));
+								GLCHECK(glSamplerParameteri(obj->mID, GL_TEXTURE_MAG_FILTER, ConvertLiteralToTextureFilter(state.Value.AsInt)));
 								break;
 							case Nodes::State::MipFilter:
 								mipfilter = state.Value.AsInt;
 								break;
 							case Nodes::State::AddressU:
-								glSamplerParameteri(obj->mID, GL_TEXTURE_WRAP_S, ConvertLiteralToTextureWrap(state.Value.AsInt));
+								GLCHECK(glSamplerParameteri(obj->mID, GL_TEXTURE_WRAP_S, ConvertLiteralToTextureWrap(state.Value.AsInt)));
 								break;
 							case Nodes::State::AddressV:
-								glSamplerParameteri(obj->mID, GL_TEXTURE_WRAP_T, ConvertLiteralToTextureWrap(state.Value.AsInt));
+								GLCHECK(glSamplerParameteri(obj->mID, GL_TEXTURE_WRAP_T, ConvertLiteralToTextureWrap(state.Value.AsInt)));
 								break;
 							case Nodes::State::AddressW:
-								glSamplerParameteri(obj->mID, GL_TEXTURE_WRAP_R, ConvertLiteralToTextureWrap(state.Value.AsInt));
+								GLCHECK(glSamplerParameteri(obj->mID, GL_TEXTURE_WRAP_R, ConvertLiteralToTextureWrap(state.Value.AsInt)));
 								break;
 							case Nodes::State::MipLODBias:
-								glSamplerParameterf(obj->mID, GL_TEXTURE_LOD_BIAS, state.Value.AsFloat);
+								GLCHECK(glSamplerParameterf(obj->mID, GL_TEXTURE_LOD_BIAS, state.Value.AsFloat));
 								break;
 							case Nodes::State::MinLOD:
-								glSamplerParameterf(obj->mID, GL_TEXTURE_MIN_LOD, state.Value.AsFloat);
+								GLCHECK(glSamplerParameterf(obj->mID, GL_TEXTURE_MIN_LOD, state.Value.AsFloat));
 								break;
 							case Nodes::State::MaxLOD:
-								glSamplerParameterf(obj->mID, GL_TEXTURE_MAX_LOD, state.Value.AsFloat);
+								GLCHECK(glSamplerParameterf(obj->mID, GL_TEXTURE_MAX_LOD, state.Value.AsFloat));
 								break;
 							case Nodes::State::MaxAnisotropy:
 	#define GL_TEXTURE_MAX_ANISOTROPY_EXT 0x84FE
-								glSamplerParameterf(obj->mID, GL_TEXTURE_MAX_ANISOTROPY_EXT, static_cast<GLfloat>(state.Value.AsInt));
+								GLCHECK(glSamplerParameterf(obj->mID, GL_TEXTURE_MAX_ANISOTROPY_EXT, static_cast<GLfloat>(state.Value.AsInt)));
 								break;
 							case Nodes::State::SRGB:
 								obj->mSRGB = state.Value.AsInt != 0;
@@ -1626,7 +1591,7 @@ namespace ReShade
 					if (mipfilter != 0)
 					{
 						GLint minfilter;
-						glGetSamplerParameteriv(obj->mID, GL_TEXTURE_MIN_FILTER, &minfilter);
+						GLCHECK(glGetSamplerParameteriv(obj->mID, GL_TEXTURE_MIN_FILTER, &minfilter));
 
 						switch (mipfilter)
 						{
@@ -1658,7 +1623,7 @@ namespace ReShade
 							}
 						}
 
-						glSamplerParameteri(obj->mID, GL_TEXTURE_MIN_FILTER, minfilter);
+						GLCHECK(glSamplerParameteri(obj->mID, GL_TEXTURE_MIN_FILTER, minfilter));
 					}
 					#pragma endregion
 				}
@@ -1668,7 +1633,7 @@ namespace ReShade
 					return;
 				}
 
-				this->mCurrentSource += "layout(binding = " + std::to_string(this->mEffect->mSamplers.size()) + ") uniform sampler" + std::to_string(obj->mTexture->mDimension) + "D ";
+				this->mCurrentSource += "layout(binding = " + std::to_string(this->mEffect->mSamplers.size()) + ") uniform sampler2D ";
 				this->mCurrentSource += FixName(data.Name);
 				this->mCurrentSource += ";\n";
 
@@ -1677,7 +1642,7 @@ namespace ReShade
 			void												VisitTextureDeclaration(const Nodes::Variable &data)
 			{
 				GLuint texture[2] = { 0, 0 };
-				GLsizei width = 1, height = 1, depth = 1, levels = 1;
+				GLsizei width = 1, height = 1, levels = 1;
 				GLenum internalformat = GL_RGBA8, internalformatSRGB = GL_SRGB8_ALPHA8;
 				Effect::Texture::Format format = Effect::Texture::Format::RGBA8;
 			
@@ -1698,9 +1663,6 @@ namespace ReShade
 							case Nodes::State::Height:
 								height = state.Value.AsInt;
 								break;
-							case Nodes::State::Depth:
-								depth = state.Value.AsInt;
-								break;
 							case Nodes::State::MipLevels:
 								levels = state.Value.AsInt;
 								break;
@@ -1712,55 +1674,23 @@ namespace ReShade
 					#pragma endregion
 				}
 
-				glGenTextures(2, texture);
+				GLCHECK(glGenTextures(2, texture));
 			
 				auto obj = std::unique_ptr<OGL4Texture>(new OGL4Texture(this->mEffect));
 				obj->mDesc.Width = width;
 				obj->mDesc.Height = height;
-				obj->mDesc.Depth = depth;
 				obj->mDesc.Levels = levels;
 				obj->mDesc.Format = format;
 				obj->mID = texture[0];
 				obj->mSRGBView = texture[1];
 
 				GLint previous = 0;
+				GLCHECK(glGetIntegerv(GL_TEXTURE_BINDING_2D, &previous));
 
-				switch (data.Type.Class)
-				{
-					case Nodes::Type::Texture1D:
-					{
-						obj->mTarget = GL_TEXTURE_1D;
-						obj->mDimension = 1;
-
-						glGetIntegerv(GL_TEXTURE_BINDING_1D, &previous);
-						glBindTexture(GL_TEXTURE_1D, texture[0]);
-						glTexStorage1D(GL_TEXTURE_1D, levels, internalformat, width);
-						break;
-					}
-					case Nodes::Type::Texture2D:
-					{
-						obj->mTarget = GL_TEXTURE_2D;
-						obj->mDimension = 2;
-
-						glGetIntegerv(GL_TEXTURE_BINDING_2D, &previous);
-						glBindTexture(GL_TEXTURE_2D, texture[0]);
-						glTexStorage2D(GL_TEXTURE_2D, levels, internalformat, width, height);
-						break;
-					}
-					case Nodes::Type::Texture3D:
-					{
-						obj->mTarget = GL_TEXTURE_3D;
-						obj->mDimension = 3;
-
-						glGetIntegerv(GL_TEXTURE_BINDING_3D, &previous);
-						glBindTexture(GL_TEXTURE_3D, texture[0]);
-						glTexStorage3D(GL_TEXTURE_3D, levels, internalformat, width, height, depth);
-						break;
-					}
-				}
-
-				glTextureView(texture[1], obj->mTarget, texture[0], internalformatSRGB, 0, levels, 0, depth);
-				glBindTexture(obj->mTarget, previous);
+				GLCHECK(glBindTexture(GL_TEXTURE_2D, texture[0]));
+				GLCHECK(glTexStorage2D(GL_TEXTURE_2D, levels, internalformat, width, height));
+				GLCHECK(glTextureView(texture[1], GL_TEXTURE_2D, texture[0], internalformatSRGB, 0, levels, 0, 0));
+				GLCHECK(glBindTexture(GL_TEXTURE_2D, previous));
 
 				if (data.Annotations != 0)
 				{
@@ -2321,24 +2251,12 @@ namespace ReShade
 					"#define atan2(x, y) atan(x, y)\n"
 					"void sincos(float x, out float s, out float c) { s = sin(x); c = cos(x); }\n"
 					"#define asint(x) floatBitsToInt(x)\n#define asuint(x) floatBitsToUint(x)\n#define asfloat(x) uintBitsToFloat(x)\n"
-					"#define tex1D(s, c) texture(s, c)\n"
-					"#define tex1Doffset(s, c, offset) textureOffset(s, c, offset)\n"
-					"vec4 tex1Dlod(sampler1D s, vec4 c) { return textureLod(s, c.x, c.w); }\n"
-					"vec4 tex1Dfetch(sampler1D s, ivec4 c) { return texelFetch(s, c.x, c.w); }\n"
-					"vec4 tex1Dbias(sampler1D s, vec4 c) { return textureOffset(s, c.x, 0, c.w); }\n"
-					"#define tex1Dsize(s, lod) textureSize(s, lod)\n"
 					"#define tex2D(s, c) texture(s, c)\n"
 					"#define tex2Doffset(s, c, offset) textureOffset(s, c, offset)\n"
 					"vec4 tex2Dlod(sampler2D s, vec4 c) { return textureLod(s, c.xy, c.w); }\n"
 					"vec4 tex2Dfetch(sampler2D s, ivec4 c) { return texelFetch(s, c.xy, c.w); }\n"
 					"vec4 tex2Dbias(sampler2D s, vec4 c) { return textureOffset(s, c.xy, ivec2(0), c.w); }\n"
 					"#define tex2Dsize(s, lod) textureSize(s, lod)\n"
-					"#define tex3D(s, c) texture(s, c)\n"
-					"#define tex3Doffset(s, c, offset) textureOffset(s, c, offset)\n"
-					"vec4 tex3Dlod(sampler3D s, vec4 c) { return textureLod(s, c.xyz, c.w); }\n"
-					"vec4 tex3Dfetch(sampler3D s, ivec4 c) { return texelFetch(s, c.xyz, c.w); }\n"
-					"vec4 tex3Dbias(sampler3D s, vec4 c) { return textureOffset(s, c.xyz, ivec3(0), c.w); }\n"
-					"#define tex3Dsize(s, lod) textureSize(s, lod)\n"
 					+ this->mCurrentSource;
 
 				const auto &callee = this->mAST[data.Value.AsNode].As<Nodes::Function>();
@@ -2838,26 +2756,13 @@ namespace ReShade
 			}
 
 			GLuint texture[2] = { 0, 0 }, previous = 0;
-			GLCHECK(glGetIntegerv(TextureBindingFromTarget(this->mTarget), reinterpret_cast<GLint *>(&previous)));
+			GLCHECK(glGetIntegerv(GL_TEXTURE_BINDING_2D, reinterpret_cast<GLint *>(&previous)));
 
 			GLCHECK(glGenTextures(2, texture));
-			GLCHECK(glBindTexture(this->mTarget, texture[0]));
-
-			switch (this->mDimension)
-			{
-				case 1:
-					GLCHECK(glTexStorage1D(this->mTarget, desc.Levels, internalformat, desc.Width));
-					break;
-				case 2:
-					GLCHECK(glTexStorage2D(this->mTarget, desc.Levels, internalformat, desc.Width, desc.Height));
-					break;
-				case 3:
-					GLCHECK(glTexStorage3D(this->mTarget, desc.Levels, internalformat, desc.Width, desc.Height, desc.Depth));
-					break;
-			}
-
-			GLCHECK(glTextureView(texture[1], this->mTarget, texture[0], internalformatSRGB, 0, desc.Levels, 0, desc.Depth));
-			GLCHECK(glBindTexture(this->mTarget, previous));
+			GLCHECK(glBindTexture(GL_TEXTURE_2D, texture[0]));
+			GLCHECK(glTexStorage2D(GL_TEXTURE_2D, desc.Levels, internalformat, desc.Width, desc.Height));
+			GLCHECK(glTextureView(texture[1], GL_TEXTURE_2D, texture[0], internalformatSRGB, 0, desc.Levels, 0, 0));
+			GLCHECK(glBindTexture(GL_TEXTURE_2D, previous));
 
 			GLCHECK(glDeleteTextures(1, &this->mID));
 			GLCHECK(glDeleteTextures(1, &this->mSRGBView));
@@ -2874,24 +2779,13 @@ namespace ReShade
 			GLCHECK(glPixelStorei(GL_UNPACK_ALIGNMENT, 1));
 
 			GLint previous = 0;
-			GLCHECK(glGetIntegerv(TextureBindingFromTarget(this->mTarget), &previous));
+			GLCHECK(glGetIntegerv(GL_TEXTURE_BINDING_2D, &previous));
 
-			GLCHECK(glBindTexture(this->mTarget, this->mID));
+			GLCHECK(glBindTexture(GL_TEXTURE_2D, this->mID));
 
 			if (this->mDesc.Format >= Texture::Format::DXT1 && this->mDesc.Format <= Texture::Format::LATC2)
 			{
-				switch (this->mDimension)
-				{
-					case 1:
-						GLCHECK(glCompressedTexSubImage1D(this->mTarget, level, 0, this->mDesc.Width, GL_UNSIGNED_BYTE, static_cast<GLsizei>(size), data));
-						break;
-					case 2:
-						GLCHECK(glCompressedTexSubImage2D(this->mTarget, level, 0, 0, this->mDesc.Width, this->mDesc.Height, GL_UNSIGNED_BYTE, static_cast<GLsizei>(size), data));
-						break;
-					case 3:
-						GLCHECK(glCompressedTexSubImage3D(this->mTarget, level, 0, 0, 0, this->mDesc.Width, this->mDesc.Height, this->mDesc.Depth, GL_UNSIGNED_BYTE, static_cast<GLsizei>(size), data));
-						break;
-				}
+				GLCHECK(glCompressedTexSubImage2D(GL_TEXTURE_2D, level, 0, 0, this->mDesc.Width, this->mDesc.Height, GL_UNSIGNED_BYTE, static_cast<GLsizei>(size), data));
 			}
 			else
 			{
@@ -2914,27 +2808,16 @@ namespace ReShade
 						break;
 				}
 
-				switch (this->mDimension)
-				{
-					case 1:
-						GLCHECK(glTexSubImage1D(this->mTarget, level, 0, this->mDesc.Width, format, GL_UNSIGNED_BYTE, data));
-						break;
-					case 2:
-						GLCHECK(glTexSubImage2D(this->mTarget, level, 0, 0, this->mDesc.Width, this->mDesc.Height, format, GL_UNSIGNED_BYTE, data));
-						break;
-					case 3:
-						GLCHECK(glTexSubImage3D(this->mTarget, level, 0, 0, 0, this->mDesc.Width, this->mDesc.Height, this->mDesc.Depth, format, GL_UNSIGNED_BYTE, data));
-						break;
-				}
+				GLCHECK(glTexSubImage2D(GL_TEXTURE_2D, level, 0, 0, this->mDesc.Width, this->mDesc.Height, format, GL_UNSIGNED_BYTE, data));
 			}
 
-			GLCHECK(glBindTexture(this->mTarget, previous));
+			GLCHECK(glBindTexture(GL_TEXTURE_2D, previous));
 		}
 		void													OGL4Texture::UpdateFromColorBuffer(void)
 		{
 			GLCHECK(glBindFramebuffer(GL_READ_FRAMEBUFFER, 0));
 			GLCHECK(glBindFramebuffer(GL_DRAW_FRAMEBUFFER, this->mEffect->mDefaultFBO));
-			GLCHECK(glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, this->mTarget, this->mID, 0));
+			GLCHECK(glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, this->mID, 0));
 
 #ifdef _DEBUG
 			GLenum status = glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER);
@@ -2953,7 +2836,7 @@ namespace ReShade
 		{
 			GLCHECK(glBindFramebuffer(GL_READ_FRAMEBUFFER, 0));
 			GLCHECK(glBindFramebuffer(GL_DRAW_FRAMEBUFFER, this->mEffect->mDefaultFBO));
-			GLCHECK(glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, this->mTarget, this->mID, 0));
+			GLCHECK(glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, this->mID, 0));
 
 			GLCHECK(glReadBuffer(GL_BACK));
 			GLCHECK(glDrawBuffer(GL_COLOR_ATTACHMENT0));
@@ -3053,7 +2936,7 @@ namespace ReShade
 				const auto &texture = sampler->mTexture;
 
 				GLCHECK(glActiveTexture(GL_TEXTURE0 + i));
-				GLCHECK(glBindTexture(texture->mTarget, sampler->mSRGB ? texture->mSRGBView : texture->mID));
+				GLCHECK(glBindTexture(GL_TEXTURE_2D, sampler->mSRGB ? texture->mSRGBView : texture->mID));
 				GLCHECK(glBindSampler(i, sampler->mID));
 			}
 			for (GLuint i = 0, count = static_cast<GLuint>(this->mEffect->mUniformBuffers.size()); i < count; ++i)
