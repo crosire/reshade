@@ -2492,15 +2492,13 @@ namespace ReShade
 			}
 
 			const Pass &pass = this->mPasses[index];
-			
+
 			this->mDeferredContext->VSSetShader(pass.VS, nullptr, 0);
-			this->mDeferredContext->VSSetShaderResources(0, pass.SR.size(), pass.SR.data());
 			this->mDeferredContext->HSSetShader(nullptr, nullptr, 0);
 			this->mDeferredContext->DSSetShader(nullptr, nullptr, 0);
 			this->mDeferredContext->GSSetShader(nullptr, nullptr, 0);
-			this->mDeferredContext->RSSetState(pass.RS);
 			this->mDeferredContext->PSSetShader(pass.PS, nullptr, 0);
-			this->mDeferredContext->PSSetShaderResources(0, pass.SR.size(), pass.SR.data());
+			this->mDeferredContext->RSSetState(pass.RS);
 
 			const FLOAT blendfactor[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
 			this->mDeferredContext->OMSetBlendState(pass.BS, blendfactor, D3D11_DEFAULT_SAMPLE_MASK);
@@ -2517,6 +2515,9 @@ namespace ReShade
 				const FLOAT color[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
 				this->mDeferredContext->ClearRenderTargetView(pass.RT[i], color);
 			}
+
+			this->mDeferredContext->VSSetShaderResources(0, pass.SR.size(), pass.SR.data());
+			this->mDeferredContext->PSSetShaderResources(0, pass.SR.size(), pass.SR.data());
 
 			ID3D11Resource *rtres;
 			pass.RT[0]->GetResource(&rtres);

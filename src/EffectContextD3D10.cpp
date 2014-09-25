@@ -2522,11 +2522,9 @@ namespace ReShade
 			const Pass &pass = this->mPasses[index];
 			
 			device->VSSetShader(pass.VS);
-			device->VSSetShaderResources(0, pass.SR.size(), pass.SR.data());
 			device->GSSetShader(nullptr);
-			device->RSSetState(pass.RS);
 			device->PSSetShader(pass.PS);
-			device->PSSetShaderResources(0, pass.SR.size(), pass.SR.data());
+			device->RSSetState(pass.RS);
 
 			const FLOAT blendfactor[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
 			device->OMSetBlendState(pass.BS, blendfactor, D3D10_DEFAULT_SAMPLE_MASK);
@@ -2543,6 +2541,9 @@ namespace ReShade
 				const FLOAT color[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
 				device->ClearRenderTargetView(pass.RT[i], color);
 			}
+
+			device->VSSetShaderResources(0, pass.SR.size(), pass.SR.data());
+			device->PSSetShaderResources(0, pass.SR.size(), pass.SR.data());
 
 			ID3D10Resource *rtres;
 			pass.RT[0]->GetResource(&rtres);
