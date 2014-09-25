@@ -2016,6 +2016,7 @@ namespace ReShade
 				info.ViewportWidth = info.ViewportHeight = 0;
 
 				GLuint shaders[6] = { 0 };
+				GLenum targets[8][2] = { 0 };
 
 				const auto &states = this->mAST[data.States].As<Nodes::Aggregate>();
 
@@ -2062,15 +2063,8 @@ namespace ReShade
 							info.ViewportWidth = texture->mDesc.Width;
 							info.ViewportHeight = texture->mDesc.Height;
 
-							glBindFramebuffer(GL_FRAMEBUFFER, info.Framebuffer);
-							glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + index, texture->mID, 0);
-
-#ifdef _DEBUG
-							GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-							assert(status == GL_FRAMEBUFFER_COMPLETE);
-#endif
-
-							glBindFramebuffer(GL_FRAMEBUFFER, 0);
+							targets[index][0] = texture->mID;
+							targets[index][1] = texture->mSRGBView;
 
 							info.DrawBuffers[index] = GL_COLOR_ATTACHMENT0 + index;
 							break;
@@ -2134,6 +2128,22 @@ namespace ReShade
 							info.FramebufferSRGB = state.Value.AsInt != 0;
 							break;
 					}
+				}
+
+				if (info.Framebuffer != 0)
+				{
+					glBindFramebuffer(GL_FRAMEBUFFER, info.Framebuffer);
+
+					for (GLuint i = 0; i < 8; ++i)
+					{
+						glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, targets[i][info.FramebufferSRGB], 0);
+					}
+#ifdef _DEBUG
+					GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+					assert(status == GL_FRAMEBUFFER_COMPLETE);
+#endif
+
+					glBindFramebuffer(GL_FRAMEBUFFER, 0);
 				}
 
 				glLinkProgram(info.Program);
