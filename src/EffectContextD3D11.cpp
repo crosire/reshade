@@ -1899,7 +1899,7 @@ namespace ReShade
 							{
 								rtvdesc.Format = TypelessToSRGBFormat(desc.Format);
 
-								if (desc.Format != desc.Format)
+								if (rtvdesc.Format != desc.Format)
 								{
 									this->mEffect->mEffectContext->mDevice->CreateRenderTargetView(texture->mTexture, &rtvdesc, &texture->mRenderTargetView[1]);
 								}
