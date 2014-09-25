@@ -173,13 +173,18 @@ namespace ReShade
 		{
 		}
 
-		virtual Texture *										GetTexture(const std::string &name) = 0;
 		virtual const Texture *									GetTexture(const std::string &name) const = 0;
+		inline Texture *										GetTexture(const std::string &name)
+		{
+			return const_cast<Texture *>(static_cast<const Effect *>(this)->GetTexture(name));
+		}
 		virtual std::vector<std::string>						GetTextureNames(void) const = 0;
-		virtual Constant *										GetConstant(const std::string &name) = 0;
 		virtual const Constant *								GetConstant(const std::string &name) const = 0;
+		inline Constant *										GetConstant(const std::string &name)
+		{
+			return const_cast<Constant *>(static_cast<const Effect *>(this)->GetConstant(name));
+		}
 		virtual std::vector<std::string>						GetConstantNames(void) const = 0;
-		virtual Technique *										GetTechnique(const std::string &name) = 0;
 		virtual const Technique *								GetTechnique(const std::string &name) const = 0;
 		virtual std::vector<std::string>						GetTechniqueNames(void) const = 0;
 	};

@@ -66,13 +66,10 @@ namespace ReShade
 			D3D10Effect(std::shared_ptr<D3D10EffectContext> context);
 			~D3D10Effect(void);
 
-			Texture *											GetTexture(const std::string &name);
 			const Texture *										GetTexture(const std::string &name) const;
 			std::vector<std::string>							GetTextureNames(void) const;
-			Constant *											GetConstant(const std::string &name);
 			const Constant *									GetConstant(const std::string &name) const;
 			std::vector<std::string>							GetConstantNames(void) const;
-			Technique *											GetTechnique(const std::string &name);
 			const Technique *									GetTechnique(const std::string &name) const;
 			std::vector<std::string>							GetTechniqueNames(void) const;
 
@@ -2246,17 +2243,6 @@ namespace ReShade
 			}
 		}
 
-		Effect::Texture *										D3D10Effect::GetTexture(const std::string &name)
-		{
-			auto it = this->mTextures.find(name);
-
-			if (it == this->mTextures.end())
-			{
-				return nullptr;
-			}
-
-			return it->second.get();
-		}
 		const Effect::Texture *									D3D10Effect::GetTexture(const std::string &name) const
 		{
 			auto it = this->mTextures.find(name);
@@ -2280,17 +2266,6 @@ namespace ReShade
 
 			return names;
 		}
-		Effect::Constant *										D3D10Effect::GetConstant(const std::string &name)
-		{
-			auto it = this->mConstants.find(name);
-
-			if (it == this->mConstants.end())
-			{
-				return nullptr;
-			}
-
-			return it->second.get();
-		}
 		const Effect::Constant *								D3D10Effect::GetConstant(const std::string &name) const
 		{
 			auto it = this->mConstants.find(name);
@@ -2313,17 +2288,6 @@ namespace ReShade
 			}
 
 			return names;
-		}
-		Effect::Technique *										D3D10Effect::GetTechnique(const std::string &name)
-		{
-			auto it = this->mTechniques.find(name);
-
-			if (it == this->mTechniques.end())
-			{
-				return nullptr;
-			}
-
-			return it->second.get();
 		}
 		const Effect::Technique *								D3D10Effect::GetTechnique(const std::string &name) const
 		{
