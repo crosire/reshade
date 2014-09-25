@@ -1832,7 +1832,6 @@ RULE_ANNOTATION
 		$$ = node.Index;
 	}
 	;
-
 RULE_ANNOTATION_LIST
 	: RULE_ANNOTATION
 	{
@@ -1851,6 +1850,7 @@ RULE_ANNOTATION_LIST
 		AST[$$].As<ReShade::Nodes::Aggregate>().Link(AST, $2);
 	}
 	;
+
 RULE_ANNOTATIONS
 	: "<" ">"
 	{
@@ -1881,7 +1881,9 @@ RULE_EXPRESSION
 		else if (AST[$1].Is<ReShade::Nodes::ExpressionSequence>())
 		{
 			@$ = @1;
-			AST[$$ = $1].As<ReShade::Nodes::ExpressionSequence>().Link(AST, $3);
+			$$ = $1;
+			
+			AST[$$].As<ReShade::Nodes::ExpressionSequence>().Link(AST, $3);
 		}
 		else
 		{
@@ -1902,6 +1904,7 @@ RULE_EXPRESSION_LITERAL
 		ReShade::Nodes::Literal &data = node.As<ReShade::Nodes::Literal>();
 		data.Type = ReShade::Nodes::Type::Undefined;
 		data.Type.Class = ReShade::Nodes::Type::Bool;
+		data.Type.Qualifiers = static_cast<int>(ReShade::Nodes::Type::Qualifier::Const);
 		data.Value.AsInt = $1.Int;
 		
 		@$ = @1;
@@ -1913,6 +1916,7 @@ RULE_EXPRESSION_LITERAL
 		ReShade::Nodes::Literal &data = node.As<ReShade::Nodes::Literal>();
 		data.Type = ReShade::Nodes::Type::Undefined;
 		data.Type.Class = ReShade::Nodes::Type::Int;
+		data.Type.Qualifiers = static_cast<int>(ReShade::Nodes::Type::Qualifier::Const);
 		data.Value.AsInt = $1.Int;
 		
 		@$ = @1;
@@ -1924,6 +1928,7 @@ RULE_EXPRESSION_LITERAL
 		ReShade::Nodes::Literal &data = node.As<ReShade::Nodes::Literal>();
 		data.Type = ReShade::Nodes::Type::Undefined;
 		data.Type.Class = ReShade::Nodes::Type::Float;
+		data.Type.Qualifiers = static_cast<int>(ReShade::Nodes::Type::Qualifier::Const);
 		data.Value.AsFloat = $1.Float;
 		
 		@$ = @1;
@@ -1935,6 +1940,7 @@ RULE_EXPRESSION_LITERAL
 		ReShade::Nodes::Literal &data = node.As<ReShade::Nodes::Literal>();
 		data.Type = ReShade::Nodes::Type::Undefined;
 		data.Type.Class = ReShade::Nodes::Type::Double;
+		data.Type.Qualifiers = static_cast<int>(ReShade::Nodes::Type::Qualifier::Const);
 		data.Value.AsDouble = $1.Double;
 		
 		@$ = @1;
@@ -1946,6 +1952,7 @@ RULE_EXPRESSION_LITERAL
 		ReShade::Nodes::Literal &data = node.As<ReShade::Nodes::Literal>();
 		data.Type = ReShade::Nodes::Type::Undefined;
 		data.Type.Class = ReShade::Nodes::Type::Int;
+		data.Type.Qualifiers = static_cast<int>(ReShade::Nodes::Type::Qualifier::Const);
 		data.Value.AsInt = $1.Int;
 		
 		@$ = @1;
@@ -2371,7 +2378,16 @@ RULE_EXPRESSION_UNARY
 		ReShade::Nodes::UnaryExpression &data = node.As<ReShade::Nodes::UnaryExpression>();
 		data.Type = expression.Type;
 		data.Operand = $2;
-		data.Operator = static_cast<ReShade::Nodes::Operator>($1.Int);
+		
+		switch ($1.Int)
+		{
+			case ReShade::Nodes::Operator::PostIncrease:
+				data.Operator = ReShade::Nodes::Operator::Increase;
+				break;
+			case ReShade::Nodes::Operator::PostDecrease:
+				data.Operator = ReShade::Nodes::Operator::Decrease;
+				break;
+		}
 		
 		@$ = @1;
 		$$ = node.Index;
@@ -2393,8 +2409,46 @@ RULE_EXPRESSION_UNARY
 
 		if (static_cast<ReShade::Nodes::Operator>($1.Int) == ReShade::Nodes::Operator::Plus)
 		{
-			@$ = @2;
+			@$ = @1;
 			$$ = $2;
+		}
+		else if (AST[$2].Is<ReShade::Nodes::Literal>())
+		{
+			@$ = @1;
+			$$ = $2;
+
+			ReShade::Nodes::Literal &data = AST[$$].As<ReShade::Nodes::Literal>();
+
+			switch ($1.Int)
+			{
+				case ReShade::Nodes::Operator::Minus:
+				{
+					switch (data.Type.Class)
+					{
+						case ReShade::Nodes::Type::Int:
+						case ReShade::Nodes::Type::Uint:
+							data.Value.AsInt = -data.Value.AsInt;
+							break;
+						case ReShade::Nodes::Type::Float:
+							data.Value.AsFloat = -data.Value.AsFloat;
+							break;
+						case ReShade::Nodes::Type::Double:
+							data.Value.AsDouble = -data.Value.AsDouble;
+							break;
+					}
+					break;
+				}
+				case ReShade::Nodes::Operator::BitwiseNot:
+				{
+					data.Value.AsUint = ~data.Value.AsUint;
+					break;
+				}
+				case ReShade::Nodes::Operator::LogicalNot:
+				{
+					data.Value.AsUint = !data.Value.AsUint;
+					break;
+				}
+			}
 		}
 		else
 		{
@@ -2417,10 +2471,83 @@ RULE_EXPRESSION_UNARY
 			@$ = @4;
 			$$ = $4;
 		}
-		else if ($2.Type.IsStruct() && AST[$4].Is<ReShade::Nodes::Literal>() && AST[$4].As<ReShade::Nodes::Literal>().Type.IsIntegral() && AST[$4].As<ReShade::Nodes::Literal>().Value.AsInt == 0)
+		else if (AST[$4].Is<ReShade::Nodes::Literal>())
 		{
 			@$ = @1;
-			$$ = 0;
+			$$ = $4;
+			
+			ReShade::Nodes::Literal &data = AST[$$].As<ReShade::Nodes::Literal>();
+
+			switch ($2.Type.Class)
+			{
+				case ReShade::Nodes::Type::Bool:
+				{
+					data.Value.AsUint = data.Value.AsUint != 0;
+					break;
+				}
+				case ReShade::Nodes::Type::Int:
+				{
+					switch (data.Type.Class)
+					{
+						case ReShade::Nodes::Type::Float:
+							data.Value.AsInt = static_cast<int>(data.Value.AsFloat);
+							break;
+						case ReShade::Nodes::Type::Double:
+							data.Value.AsInt = static_cast<int>(data.Value.AsDouble);
+							break;
+					}
+					break;
+				}
+				case ReShade::Nodes::Type::Uint:
+				{
+					switch (data.Type.Class)
+					{
+						case ReShade::Nodes::Type::Float:
+							data.Value.AsUint = static_cast<unsigned int>(data.Value.AsFloat);
+							break;
+						case ReShade::Nodes::Type::Double:
+							data.Value.AsUint = static_cast<unsigned int>(data.Value.AsDouble);
+							break;
+					}
+					break;
+				}
+				case ReShade::Nodes::Type::Float:
+				{
+					switch (data.Type.Class)
+					{
+						case ReShade::Nodes::Type::Bool:
+						case ReShade::Nodes::Type::Int:
+							data.Value.AsFloat = static_cast<float>(data.Value.AsInt);
+							break;
+						case ReShade::Nodes::Type::Uint:
+							data.Value.AsFloat = static_cast<float>(data.Value.AsUint);
+							break;
+						case ReShade::Nodes::Type::Double:
+							data.Value.AsFloat = static_cast<float>(data.Value.AsDouble);
+							break;
+					}
+					break;
+				}
+				case ReShade::Nodes::Type::Double:
+				{
+					switch (data.Type.Class)
+					{
+						case ReShade::Nodes::Type::Bool:
+						case ReShade::Nodes::Type::Int:
+							data.Value.AsDouble = static_cast<double>(data.Value.AsInt);
+							break;
+						case ReShade::Nodes::Type::Uint:
+							data.Value.AsDouble = static_cast<double>(data.Value.AsUint);
+							break;
+						case ReShade::Nodes::Type::Float:
+							data.Value.AsDouble = static_cast<double>(data.Value.AsFloat);
+							break;
+					}
+					break;
+				}
+			}
+			
+			data.Type = $2.Type;
 		}
 		else
 		{
