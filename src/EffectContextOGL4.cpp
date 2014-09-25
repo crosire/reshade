@@ -668,8 +668,6 @@ namespace ReShade
 			}
 			void												VisitType(const Nodes::Type &type)
 			{
-				if (type.HasQualifier(Nodes::Type::Qualifier::GroupShared))
-					this->mCurrentSource += "shared ";
 				if (type.HasQualifier(Nodes::Type::Qualifier::Const) || type.HasQualifier(Nodes::Type::Qualifier::Static))
 					this->mCurrentSource += "const ";
 				if (type.HasQualifier(Nodes::Type::Qualifier::Volatile))

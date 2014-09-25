@@ -240,7 +240,6 @@
 					Out											= 1 << 7,
 					InOut										= In | Out,
 					Precise										= 1 << 8,
-					GroupShared									= 1 << 9,
 					NoInterpolation								= 1 << 10,
 					NoPerspective								= 1 << 11,
 					Linear										= 1 << 12,
@@ -819,7 +818,6 @@
 %token<l>		TOK_UNIFORM										"uniform"
 %token<l>		TOK_STATIC										"static"
 %token<l>		TOK_EXTERN										"extern"
-%token<l>		TOK_GROUPSHARED									"groupshared"
 %token<l>		TOK_INLINE										"inline"
 %token<l>		TOK_CONST										"const"
 %token<l>		TOK_VOLATILE									"volatile"
@@ -1265,11 +1263,6 @@ RULE_TYPE_STORAGE
 	{
 		@$ = @1;
 		$$.Int = static_cast<int>(ReShade::Nodes::Type::Qualifier::Precise);
-	}
-	| "groupshared"
-	{
-		@$ = @1;
-		$$.Int = static_cast<int>(ReShade::Nodes::Type::Qualifier::GroupShared);
 	}
 	;
 RULE_TYPE_STORAGE_FUNCTION

@@ -491,8 +491,6 @@ namespace ReShade
 					this->mCurrentSource += "extern ";
 				if (type.HasQualifier(Nodes::Type::Qualifier::Static) || (type.HasQualifier(Nodes::Type::Qualifier::Const) && !this->mCurrentInParameterBlock && !this->mCurrentInFunctionBlock))
 					this->mCurrentSource += "static ";
-				if (type.HasQualifier(Nodes::Type::Qualifier::GroupShared))
-					this->mCurrentSource += "groupshared ";
 				if (type.HasQualifier(Nodes::Type::Qualifier::Const))
 					this->mCurrentSource += "const ";
 				if (type.HasQualifier(Nodes::Type::Qualifier::Volatile))

@@ -156,6 +156,7 @@ STRING															\"(\\.|[^\\"])*\"
 
 "template"														{ yyextra->Error(*yylloc, 3000, "syntax error: unexpected reserved word 'template'"); }
 "new"															{ yyextra->Error(*yylloc, 3000, "syntax error: unexpected reserved word 'new'"); }
+"delete"														{ yyextra->Error(*yylloc, 3000, "syntax error: unexpected reserved word 'delete'"); }
 "try"															{ yyextra->Error(*yylloc, 3000, "syntax error: unexpected reserved word 'try'"); }
 "catch"															{ yyextra->Error(*yylloc, 3000, "syntax error: unexpected reserved word 'catch'"); }
 "operator"														{ yyextra->Error(*yylloc, 3000, "syntax error: unexpected reserved word 'operator'"); }
@@ -163,6 +164,7 @@ STRING															\"(\\.|[^\\"])*\"
 "static_cast"													{ yyextra->Error(*yylloc, 3000, "syntax error: unexpected reserved word 'static_cast'"); }
 "dynamic_cast"													{ yyextra->Error(*yylloc, 3000, "syntax error: unexpected reserved word 'dynamic_cast'"); }
 "reinterpret_cast"												{ yyextra->Error(*yylloc, 3000, "syntax error: unexpected reserved word 'reinterpret_cast'"); }
+"const_cast"													{ yyextra->Error(*yylloc, 3000, "syntax error: unexpected reserved word 'const_cast'"); }
 "private"														{ yyextra->Error(*yylloc, 3000, "syntax error: unexpected reserved word 'private'"); }
 "protected"														{ yyextra->Error(*yylloc, 3000, "syntax error: unexpected reserved word 'protected'"); }
 "public"														{ yyextra->Error(*yylloc, 3000, "syntax error: unexpected reserved word 'public'"); }
@@ -209,7 +211,7 @@ STRING															\"(\\.|[^\\"])*\"
 "extern"														{ return TOK_EXTERN; }
 "export"														{ yyextra->Error(*yylloc, 3000, "syntax error: unexpected reserved word 'export'"); }
 "shared"														{ yyextra->Error(*yylloc, 3000, "syntax error: unexpected reserved word 'shared'"); }
-"groupshared"													{ return TOK_GROUPSHARED; }
+"groupshared"													{ yyextra->Error(*yylloc, 3000, "syntax error: unexpected reserved word 'groupshared'"); }
 "globallycoherent"												{ yyextra->Error(*yylloc, 3000, "syntax error: unexpected reserved word 'globallycoherent'"); }
 "packed"														{ yyextra->Error(*yylloc, 3000, "syntax error: unexpected reserved word 'packed'"); }
 "inline"														{ return TOK_INLINE; }
@@ -409,8 +411,11 @@ STRING															\"(\\.|[^\\"])*\"
 "auto"															{ yyextra->Error(*yylloc, 3000, "syntax error: unexpected reserved word 'auto'"); }
 "void"															{ yylval->l.Type = ReShade::Nodes::Type::Undefined; yylval->l.Type.Class = ReShade::Nodes::Type::Void; return TOK_TYPE_VOID; }
 "bool"															{ yylval->l.Type = ReShade::Nodes::Type::Undefined; yylval->l.Type.Class = ReShade::Nodes::Type::Bool; yylval->l.Type.Rows = 1; yylval->l.Type.Cols = 1; return TOK_TYPE_BOOL; }
+"char"															{ yyextra->Error(*yylloc, 3000, "syntax error: unexpected reserved word 'char'"); }
+"short"															{ yyextra->Error(*yylloc, 3000, "syntax error: unexpected reserved word 'short'"); }
 "int"															{ yylval->l.Type = ReShade::Nodes::Type::Undefined; yylval->l.Type.Class = ReShade::Nodes::Type::Int; yylval->l.Type.Rows = 1; yylval->l.Type.Cols = 1; return TOK_TYPE_INT; }
 "uint"|"dword"													{ yylval->l.Type = ReShade::Nodes::Type::Undefined; yylval->l.Type.Class = ReShade::Nodes::Type::Uint; yylval->l.Type.Rows = 1; yylval->l.Type.Cols = 1; return TOK_TYPE_UINT; }
+"long"															{ yyextra->Error(*yylloc, 3000, "syntax error: unexpected reserved word 'long'"); }
 "half"															{ yylval->l.Type = ReShade::Nodes::Type::Undefined; yylval->l.Type.Class = ReShade::Nodes::Type::Half; yylval->l.Type.Rows = 1; yylval->l.Type.Cols = 1; return TOK_TYPE_HALF; }
 "float"															{ yylval->l.Type = ReShade::Nodes::Type::Undefined; yylval->l.Type.Class = ReShade::Nodes::Type::Float; yylval->l.Type.Rows = 1; yylval->l.Type.Cols = 1; return TOK_TYPE_FLOAT; }
 "double"														{ yylval->l.Type = ReShade::Nodes::Type::Undefined; yylval->l.Type.Class = ReShade::Nodes::Type::Double; yylval->l.Type.Rows = 1; yylval->l.Type.Cols = 1; return TOK_TYPE_DOUBLE; }
