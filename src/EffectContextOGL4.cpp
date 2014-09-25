@@ -1684,6 +1684,8 @@ namespace ReShade
 
 				GLCHECK(glBindTexture(GL_TEXTURE_2D, texture[0]));
 				GLCHECK(glTexStorage2D(GL_TEXTURE_2D, levels, internalformat, width, height));
+				std::vector<unsigned char> nullpixels(width * height, 0);
+				GLCHECK(glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_RED, GL_UNSIGNED_BYTE, nullpixels.data()));
 				GLCHECK(glTextureView(texture[1], GL_TEXTURE_2D, texture[0], internalformatSRGB, 0, levels, 0, 1));
 				GLCHECK(glBindTexture(GL_TEXTURE_2D, previous));
 
@@ -2670,18 +2672,178 @@ namespace ReShade
 			return it->second;
 		}
 
+		inline void												FlipBC1Block(unsigned char *block)
+		{
+			// BC1 Block:
+			//  [0-1]  color 0
+			//  [2-3]  color 1
+			//  [4-7]  color indices
+
+			std::swap(block[4], block[7]);
+			std::swap(block[5], block[6]);
+		}
+		inline void												FlipBC2Block(unsigned char *block)
+		{
+			// BC2 Block:
+			//  [0-7]  alpha indices
+			//  [8-15] color block
+
+			std::swap(block[0], block[6]);
+			std::swap(block[1], block[7]);
+			std::swap(block[2], block[4]);
+			std::swap(block[3], block[5]);
+
+			FlipBC1Block(block + 8);
+		}
+		inline void												FlipBC4Block(unsigned char *block)
+		{
+			// BC4 Block:
+			//  [0]    red 0
+			//  [1]    red 1
+			//  [2-7]  red indices
+
+			const unsigned int line_0_1 = block[2] + 256 * (block[3] + 256 * block[4]);
+			const unsigned int line_2_3 = block[5] + 256 * (block[6] + 256 * block[7]);
+			const unsigned int line_1_0 = ((line_0_1 & 0x000FFF) << 12) | ((line_0_1 & 0xFFF000) >> 12);
+			const unsigned int line_3_2 = ((line_2_3 & 0x000FFF) << 12) | ((line_2_3 & 0xFFF000) >> 12);
+			block[2] = static_cast<unsigned char>((line_3_2 & 0xFF));
+			block[3] = static_cast<unsigned char>((line_3_2 & 0xFF00) >> 8);
+			block[4] = static_cast<unsigned char>((line_3_2 & 0xFF0000) >> 16);
+			block[5] = static_cast<unsigned char>((line_1_0 & 0xFF));
+			block[6] = static_cast<unsigned char>((line_1_0 & 0xFF00) >> 8);
+			block[7] = static_cast<unsigned char>((line_1_0 & 0xFF0000) >> 16);
+		}
+		inline void												FlipBC3Block(unsigned char *block)
+		{
+			// BC3 Block:
+			//  [0-7]  alpha block
+			//  [8-15] color block
+
+			FlipBC4Block(block);
+			FlipBC1Block(block + 8);
+		}
+		inline void												FlipBC5Block(unsigned char *block)
+		{
+			// BC5 Block:
+			//  [0-7]  red block
+			//  [8-15] green block
+
+			FlipBC4Block(block);
+			FlipBC4Block(block + 8);
+		}
+		void													FlipImage(const Effect::Texture::Description &desc, unsigned char *data)
+		{
+			typedef void (*FlipBlockFunc)(unsigned char *block);
+
+			std::size_t blocksize = 0;
+			bool compressed = false;
+			FlipBlockFunc compressedFunc = nullptr;
+
+			switch (desc.Format)
+			{
+				case Effect::Texture::Format::R8:
+					blocksize = 1;
+					break;
+				case Effect::Texture::Format::RG8:
+					blocksize = 2;
+					break;
+				case Effect::Texture::Format::R32F:
+				case Effect::Texture::Format::RGBA8:
+					blocksize = 4;
+					break;
+				case Effect::Texture::Format::RGBA16:
+				case Effect::Texture::Format::RGBA16F:
+					blocksize = 8;
+					break;
+				case Effect::Texture::Format::RGBA32F:
+					blocksize = 16;
+					break;
+				case Effect::Texture::Format::DXT1:
+					blocksize = 8;
+					compressed = true;
+					compressedFunc = &FlipBC1Block;
+					break;
+				case Effect::Texture::Format::DXT3:
+					blocksize = 16;
+					compressed = true;
+					compressedFunc = &FlipBC2Block;
+					break;
+				case Effect::Texture::Format::DXT5:
+					blocksize = 16;
+					compressed = true;
+					compressedFunc = &FlipBC3Block;
+					break;
+				case Effect::Texture::Format::LATC1:
+					blocksize = 8;
+					compressed = true;
+					compressedFunc = &FlipBC4Block;
+					break;
+				case Effect::Texture::Format::LATC2:
+					blocksize = 16;
+					compressed = true;
+					compressedFunc = &FlipBC5Block;
+					break;
+				default:
+					return;
+			}
+
+			if (compressed)
+			{
+				const std::size_t w = (desc.Width + 3) / 4;
+				const std::size_t h = (desc.Height + 3) / 4;
+				const std::size_t stride = w * blocksize;
+
+				for (std::size_t y = 0; y < h; ++y)
+				{
+					unsigned char *dataLine = data + stride * (h - 1 - y);
+
+					for (std::size_t x = 0; x < stride; x += blocksize)
+					{
+						compressedFunc(dataLine + x);
+					}
+				}
+			}
+			else
+			{
+				const std::size_t w = desc.Width;
+				const std::size_t h = desc.Height;
+				const std::size_t stride = w * blocksize;
+				unsigned char *templine = static_cast<unsigned char *>(::alloca(stride));
+
+				for (std::size_t y = 0; 2 * y < h; ++y)
+				{
+					unsigned char *line1 = data + stride * y;
+					unsigned char *line2 = data + stride * (h - 1 - y);
+
+					::memcpy(templine, line1, stride);
+					::memcpy(line1, line2, stride);
+					::memcpy(line2, templine, stride);
+				}
+			}
+		}
+
 		void													OGL4Texture::Update(unsigned int level, const unsigned char *data, std::size_t size)
 		{
-			GLCHECK(glPixelStorei(GL_UNPACK_ALIGNMENT, 1));
+			assert(data != nullptr && size != 0);
+
+			GLCHECK(glPixelStorei(GL_UNPACK_ALIGNMENT, 4));
+			GLCHECK(glPixelStorei(GL_UNPACK_ROW_LENGTH, 0));
+			GLCHECK(glPixelStorei(GL_UNPACK_IMAGE_HEIGHT, 0));
+			GLCHECK(glPixelStorei(GL_UNPACK_SKIP_ROWS, 0));
+			GLCHECK(glPixelStorei(GL_UNPACK_SKIP_PIXELS, 0));
 
 			GLint previous = 0;
 			GLCHECK(glGetIntegerv(GL_TEXTURE_BINDING_2D, &previous));
 
 			GLCHECK(glBindTexture(GL_TEXTURE_2D, this->mID));
 
+			std::unique_ptr<unsigned char[]> dataFlipped(new unsigned char[size]);
+			std::memcpy(dataFlipped.get(), data, size);
+			FlipImage(this->mDesc, dataFlipped.get());
+
 			if (this->mDesc.Format >= Texture::Format::DXT1 && this->mDesc.Format <= Texture::Format::LATC2)
 			{
-				GLCHECK(glCompressedTexSubImage2D(GL_TEXTURE_2D, level, 0, 0, this->mDesc.Width, this->mDesc.Height, GL_UNSIGNED_BYTE, static_cast<GLsizei>(size), data));
+				GLCHECK(glCompressedTexSubImage2D(GL_TEXTURE_2D, level, 0, 0, this->mDesc.Width, this->mDesc.Height, GL_UNSIGNED_BYTE, static_cast<GLsizei>(size), dataFlipped.get()));
 			}
 			else
 			{
@@ -2704,7 +2866,7 @@ namespace ReShade
 						break;
 				}
 
-				GLCHECK(glTexSubImage2D(GL_TEXTURE_2D, level, 0, 0, this->mDesc.Width, this->mDesc.Height, format, GL_UNSIGNED_BYTE, data));
+				GLCHECK(glTexSubImage2D(GL_TEXTURE_2D, level, 0, 0, this->mDesc.Width, this->mDesc.Height, format, GL_UNSIGNED_BYTE, dataFlipped.get()));
 			}
 
 			GLCHECK(glBindTexture(GL_TEXTURE_2D, previous));
