@@ -79,7 +79,6 @@ namespace ReShade
 			const Description									GetDescription(void) const;
 			const Effect::Annotation							GetAnnotation(const std::string &name) const;
 
-			bool												Resize(const Description &desc);
 			void												Update(unsigned int level, const unsigned char *data, std::size_t size);
 			void												UpdateFromColorBuffer(void);
 			void												UpdateFromDepthBuffer(void);
@@ -2299,87 +2298,6 @@ namespace ReShade
 			return it->second;
 		}
 
-		bool													D3D9Texture::Resize(const Description &desc)
-		{
-			HRESULT hr;
-			D3DFORMAT format = D3DFMT_UNKNOWN;
-			IDirect3DBaseTexture9 *texture = nullptr;
-
-			switch (desc.Format)
-			{
-				case Texture::Format::R8:
-					format = D3DFMT_L8;
-					break;
-				case Effect::Texture::Format::R32F:
-					format = D3DFMT_R32F;
-					break;
-				case Texture::Format::RG8:
-					format = D3DFMT_A8L8;
-					break;
-				case Texture::Format::RGBA8:
-					format = D3DFMT_A8B8G8R8;
-					break;
-				case Texture::Format::RGBA16:
-					format = D3DFMT_A16B16G16R16;
-					break;
-				case Texture::Format::RGBA16F:
-					format = D3DFMT_A16B16G16R16F;
-					break;
-				case Texture::Format::RGBA32F:
-					format = D3DFMT_A32B32G32R32F;
-					break;
-				case Texture::Format::DXT1:
-					format = D3DFMT_DXT1;
-					break;
-				case Texture::Format::DXT3:
-					format = D3DFMT_DXT3;
-					break;
-				case Texture::Format::DXT5:
-					format = D3DFMT_DXT5;
-					break;
-				case Texture::Format::LATC1:
-					format = static_cast<D3DFORMAT>(MAKEFOURCC('A', 'T', 'I', '1'));
-					break;
-				case Texture::Format::LATC2:
-					format = static_cast<D3DFORMAT>(MAKEFOURCC('A', 'T', 'I', '2'));
-					break;
-			}
-
-			hr = this->mEffect->mEffectContext->mDevice->CreateTexture(desc.Width, desc.Height, desc.Levels, format == D3DFMT_A8R8G8B8 ? D3DUSAGE_RENDERTARGET : 0, format, D3DPOOL_DEFAULT, reinterpret_cast<IDirect3DTexture9 **>(&texture), nullptr);
-
-			if (FAILED(hr))
-			{
-				return false;
-			}
-
-			if (this->mSurface != nullptr)
-			{
-				IDirect3DSurface9 *surface;
-				static_cast<IDirect3DTexture9 *>(texture)->GetSurfaceLevel(0, &surface);
-
-				for (auto &technique : this->mEffect->mTechniques)
-				{
-					for (auto &pass : technique.second->mPasses)
-					{
-						for (UINT i = 0; i < 4; ++i)
-						{
-							if (pass.RT[i] == this->mSurface)
-							{
-								pass.RT[i] = surface;
-							}
-						}
-					}
-				}
-
-				this->mSurface->Release();
-				this->mSurface = surface;
-			}
-
-			SAFE_RELEASE(this->mTexture);
-			this->mTexture = static_cast<IDirect3DTexture9 *>(texture);
-
-			return true;
-		}
 		void													D3D9Texture::Update(unsigned int level, const unsigned char *data, std::size_t size)
 		{
 			assert(data != nullptr || size == 0);

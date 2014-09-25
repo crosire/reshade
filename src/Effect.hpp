@@ -99,7 +99,6 @@ namespace ReShade
 			virtual const Description							GetDescription(void) const = 0;
 			virtual const Annotation							GetAnnotation(const std::string &name) const = 0;
 
-			virtual bool										Resize(const Description &desc) = 0;
 			virtual void										Update(unsigned int level, const unsigned char *data, std::size_t size) = 0;
 			virtual void										UpdateFromColorBuffer(void) = 0;
 			virtual void										UpdateFromDepthBuffer(void) = 0;

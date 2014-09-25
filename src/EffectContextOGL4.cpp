@@ -185,7 +185,6 @@ namespace ReShade
 			const Description									GetDescription(void) const;
 			const Effect::Annotation							GetAnnotation(const std::string &name) const;
 
-			bool												Resize(const Description &desc);
 			void												Update(unsigned int level, const unsigned char *data, std::size_t size);
 			void												UpdateFromColorBuffer(void);
 			void												UpdateFromDepthBuffer(void);
@@ -2692,75 +2691,6 @@ namespace ReShade
 			return it->second;
 		}
 
-		bool													OGL4Texture::Resize(const Description &desc)
-		{
-			GLenum internalformat, internalformatSRGB;
-
-			switch (desc.Format)
-			{
-				case Texture::Format::R8:
-					internalformat = internalformatSRGB = GL_R8;
-					break;
-				case Texture::Format::R32F:
-					internalformat = internalformatSRGB = GL_R32F;
-					break;
-				case Texture::Format::RG8:
-					internalformat = internalformatSRGB = GL_RG8;
-					break;
-				case Texture::Format::RGBA8:
-					internalformat = GL_RGBA8;
-					internalformatSRGB = GL_SRGB8_ALPHA8;
-					break;
-				case Texture::Format::RGBA16:
-					internalformat = internalformatSRGB = GL_RGBA16;
-					break;
-				case Texture::Format::RGBA16F:
-					internalformat = internalformatSRGB = GL_RGBA16F;
-					break;
-				case Texture::Format::RGBA32F:
-					internalformat = internalformatSRGB = GL_RGBA32F;
-					break;
-				case Texture::Format::DXT1:
-					internalformat = GL_COMPRESSED_RGBA_S3TC_DXT1_EXT;
-					internalformatSRGB = GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT1_EXT;
-					break;
-				case Texture::Format::DXT3:
-					internalformat = GL_COMPRESSED_RGBA_S3TC_DXT3_EXT;
-					internalformatSRGB = GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT3_EXT;
-					break;
-				case Texture::Format::DXT5:
-					internalformat = GL_COMPRESSED_RGBA_S3TC_DXT5_EXT;
-					internalformatSRGB = GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT5_EXT;
-					break;
-				case Texture::Format::LATC1:
-					internalformat = internalformatSRGB = GL_COMPRESSED_LUMINANCE_LATC1_EXT;
-					break;
-				case Texture::Format::LATC2:
-					internalformat = internalformatSRGB = GL_COMPRESSED_LUMINANCE_ALPHA_LATC2_EXT;
-					break;
-				default:
-					return false;
-			}
-
-			GLuint texture[2] = { 0, 0 }, previous = 0;
-			GLCHECK(glGetIntegerv(GL_TEXTURE_BINDING_2D, reinterpret_cast<GLint *>(&previous)));
-
-			GLCHECK(glGenTextures(2, texture));
-			GLCHECK(glBindTexture(GL_TEXTURE_2D, texture[0]));
-			GLCHECK(glTexStorage2D(GL_TEXTURE_2D, desc.Levels, internalformat, desc.Width, desc.Height));
-			GLCHECK(glTextureView(texture[1], GL_TEXTURE_2D, texture[0], internalformatSRGB, 0, desc.Levels, 0, 0));
-			GLCHECK(glBindTexture(GL_TEXTURE_2D, previous));
-
-			GLCHECK(glDeleteTextures(1, &this->mID));
-			GLCHECK(glDeleteTextures(1, &this->mSRGBView));
-
-			this->mID = texture[0];
-			this->mSRGBView = texture[1];
-			this->mDesc = desc;
-			this->mInternalFormat = internalformat;
-
-			return true;
-		}
 		void													OGL4Texture::Update(unsigned int level, const unsigned char *data, std::size_t size)
 		{
 			GLCHECK(glPixelStorei(GL_UNPACK_ALIGNMENT, 1));

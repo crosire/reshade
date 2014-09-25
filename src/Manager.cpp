@@ -5,6 +5,7 @@
 
 #include <stb_dxt.h>
 #include <stb_image.h>
+#include <stb_image_resize.h>
 #include <boost\filesystem\operations.hpp>
 #include <boost\assign\list_of.hpp>
 #include <boost\algorithm\string.hpp>
@@ -177,68 +178,72 @@ namespace ReShade
 			else
 			{
 				const boost::filesystem::path path = boost::filesystem::absolute(source, shaderPath.parent_path());
+				int widthFile = 0, heightFile = 0, channelsFile = 0, channels = STBI_default;
 
-				if (boost::filesystem::exists(path))
+				switch (desc.Format)
 				{
-					int width = 0, height = 0, channelsFile = 0, channels = STBI_default;
+					case Effect::Texture::Format::R8:
+						channels = STBI_r;
+						break;
+					case Effect::Texture::Format::RG8:
+						channels = STBI_rg;
+						break;
+					case Effect::Texture::Format::DXT1:
+						channels = STBI_rgb;
+						break;
+					case Effect::Texture::Format::RGBA8:
+					case Effect::Texture::Format::DXT5:
+						channels = STBI_rgba;
+						break;
+					case Effect::Texture::Format::R32F:
+					case Effect::Texture::Format::RGBA16:
+					case Effect::Texture::Format::RGBA16F:
+					case Effect::Texture::Format::RGBA32F:
+					case Effect::Texture::Format::DXT3:
+					case Effect::Texture::Format::LATC1:
+					case Effect::Texture::Format::LATC2:
+						LOG(ERROR) << "> Texture " << name << " uses unsupported format ('R32F'/'RGBA16'/'RGBA16F'/'RGBA32F'/'DXT3'/'LATC1'/'LATC2') for image loading.";
+						continue;
+				}
 
-					switch (desc.Format)
+				std::size_t dataSize = desc.Width * desc.Height * channels;
+				unsigned char *dataFile = stbi_load(path.string().c_str(), &widthFile, &heightFile, &channelsFile, channels), *data = new unsigned char[dataSize];
+					
+				if (dataFile != nullptr)
+				{
+					if (widthFile != desc.Width || heightFile != desc.Height)
 					{
-						case Effect::Texture::Format::R8:
-							channels = STBI_r;
-							break;
-						case Effect::Texture::Format::RG8:
-							channels = STBI_rg;
-							break;
-						case Effect::Texture::Format::DXT1:
-							channels = STBI_rgb;
-							break;
-						case Effect::Texture::Format::RGBA8:
-						case Effect::Texture::Format::DXT5:
-							channels = STBI_rgba;
-							break;
-						case Effect::Texture::Format::R32F:
-						case Effect::Texture::Format::RGBA16:
-						case Effect::Texture::Format::RGBA16F:
-						case Effect::Texture::Format::RGBA32F:
-						case Effect::Texture::Format::DXT3:
-						case Effect::Texture::Format::LATC1:
-						case Effect::Texture::Format::LATC2:
-							LOG(ERROR) << "> Texture " << name << " uses unsupported format ('R32F'/'RGBA16'/'RGBA16F'/'RGBA32F'/'DXT3'/'LATC1'/'LATC2') for image loading.";
-							continue;
+						LOG(INFO) << "> Resizing image data for texture '" << name << "' from " << widthFile << "x" << heightFile << " to " << desc.Width << "x" << desc.Height << " ...";
+
+						stbir_resize_uint8(dataFile, widthFile, heightFile, 0, data, desc.Width, desc.Height, 0, channels);
+					}
+					else
+					{
+						std::memcpy(data, dataFile, dataSize);
 					}
 
-					unsigned char *data = stbi_load(path.string().c_str(), &width, &height, &channelsFile, channels);
-					std::size_t dataSize = width * height * channels;
+					stbi_image_free(dataFile);
 
 					switch (desc.Format)
 					{
 						case Effect::Texture::Format::DXT1:
 							stb_compress_dxt_block(data, data, FALSE, STB_DXT_NORMAL);
-							dataSize = ((width + 3) >> 2) * ((height + 3) >> 2) * 8;
+							dataSize = ((desc.Width + 3) >> 2) * ((desc.Height + 3) >> 2) * 8;
 							break;
 						case Effect::Texture::Format::DXT5:
 							stb_compress_dxt_block(data, data, TRUE, STB_DXT_NORMAL);
-							dataSize = ((width + 3) >> 2) * ((height + 3) >> 2) * 16;
+							dataSize = ((desc.Width + 3) >> 2) * ((desc.Height + 3) >> 2) * 16;
 							break;
 					}
 
-					if (desc.Width == 1 && desc.Height == 1)
-					{
-						desc.Width = width;
-						desc.Height = height;
-
-						texture->Resize(desc);
-					}
-				
 					texture->Update(0, data, dataSize);
-
-					stbi_image_free(data);
 				}
 				else
 				{
-					LOG(ERROR) << "> Source " << path << " for texture '" << name << "' could not be found.";
+					LOG(ERROR) << "> Source " << ObfuscatePath(path) << " for texture '" << name << "' could not be loaded! Make sure it exists and is saved in a compatible format.";
 				}
+
+				delete[] data;
 			}
 		}
 		#pragma endregion
