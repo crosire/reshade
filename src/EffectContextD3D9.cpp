@@ -1,11 +1,13 @@
 #include "Log.hpp"
 #include "Effect.hpp"
-#include "EffectParser.hpp"
 #include "EffectContext.hpp"
+#include "EffectTree.hpp"
 
 #include <d3d9.h>
 #include <d3dx9math.h>
 #include <d3dcompiler.h>
+#include <vector>
+#include <unordered_map>
 #include <boost\algorithm\string.hpp>
 
 // -----------------------------------------------------------------------------------------------------
@@ -22,7 +24,7 @@ namespace ReShade
 			friend struct D3D9Texture;
 			friend struct D3D9Constant;
 			friend struct D3D9Technique;
-			friend class ASTVisitor;
+			friend class D3D9EffectCompiler;
 
 		public:
 			D3D9EffectContext(IDirect3DDevice9 *device, IDirect3DSwapChain9 *swapchain);
@@ -132,29 +134,25 @@ namespace ReShade
 			std::vector<Pass>									mPasses;
 		};
 
-		inline bool												IsPowerOf2(int x)
-		{
-			return ((x > 0) && ((x & (x - 1)) == 0));
-		}
-
-		class													ASTVisitor
+		class													D3D9EffectCompiler
 		{
 		public:
-			ASTVisitor(const EffectTree &ast, std::string &errors) : mAST(ast), mEffect(nullptr), mErrors(errors), mCurrentInParameterBlock(false), mCurrentInFunctionBlock(false), mCurrentRegisterIndex(0), mCurrentStorageSize(0), mCurrentPositionVariableType(0)
+			D3D9EffectCompiler(const EffectTree &ast) : mAST(ast), mEffect(nullptr), mCurrentInParameterBlock(false), mCurrentInFunctionBlock(false), mCurrentRegisterIndex(0), mCurrentStorageSize(0), mCurrentPositionVariableType(0)
 			{
 			}
 
-			bool												Traverse(D3D9Effect *effect)
+			bool												Traverse(D3D9Effect *effect, std::string &errors)
 			{
 				this->mEffect = effect;
+				this->mErrors.clear();
 				this->mFatal = false;
 				this->mCurrentSource.clear();
 
-				const auto &root = this->mAST[EffectTree::Root].As<Nodes::Aggregate>();
+				const auto &root = this->mAST[EffectTree::Root].As<EffectNodes::List>();
 
-				for (size_t i = 0; i < root.Length; ++i)
+				for (unsigned int i = 0; i < root.Length; ++i)
 				{
-					Visit(this->mAST[root.Find(this->mAST, i)]);
+					this->mAST[root[i]].Accept(*this);
 				}
 
 				IDirect3DDevice9 *device = this->mEffect->mEffectContext->mDevice;
@@ -182,193 +180,172 @@ namespace ReShade
 
 				device->EndStateBlock(&this->mEffect->mShaderResourceStateblock);
 
+				errors += this->mErrors;
+
 				return !this->mFatal;
 			}
 
-		private:
-			void												operator =(const ASTVisitor &);
-
-			static D3DTEXTUREFILTERTYPE							ConvertLiteralToTextureFilter(int value)
+			static inline bool									IsPowerOf2(int x)
+			{
+				return ((x > 0) && ((x & (x - 1)) == 0));
+			}
+			static D3DTEXTUREFILTERTYPE							LiteralToTextureFilter(int value)
 			{
 				switch (value)
 				{
 					default:
 						return D3DTEXF_NONE;
-					case Nodes::Literal::POINT:
+					case EffectNodes::Literal::POINT:
 						return D3DTEXF_POINT;
-					case Nodes::Literal::LINEAR:
+					case EffectNodes::Literal::LINEAR:
 						return D3DTEXF_LINEAR;
-					case Nodes::Literal::ANISOTROPIC:
+					case EffectNodes::Literal::ANISOTROPIC:
 						return D3DTEXF_ANISOTROPIC;
 				}
 			}
-			static D3DTEXTUREADDRESS							ConvertLiteralToTextureAddress(int value)
+			static D3DTEXTUREADDRESS							LiteralToTextureAddress(int value)
 			{
 				switch (value)
 				{
 					default:
-					case Nodes::Literal::CLAMP:
+					case EffectNodes::Literal::CLAMP:
 						return D3DTADDRESS_CLAMP;
-					case Nodes::Literal::REPEAT:
+					case EffectNodes::Literal::REPEAT:
 						return D3DTADDRESS_WRAP;
-					case Nodes::Literal::MIRROR:
+					case EffectNodes::Literal::MIRROR:
 						return D3DTADDRESS_MIRROR;
-					case Nodes::Literal::BORDER:
+					case EffectNodes::Literal::BORDER:
 						return D3DTADDRESS_BORDER;
 				}
 			}
-			static D3DCULL										ConvertLiteralToCullMode(int value)
+			static D3DCMPFUNC									LiteralToCmpFunc(int value)
 			{
 				switch (value)
 				{
 					default:
-					case Nodes::Literal::NONE:
-						return D3DCULL_NONE;
-					case Nodes::Literal::FRONT:
-						return D3DCULL_CW;
-					case Nodes::Literal::BACK:
-						return D3DCULL_CCW;
-				}
-			}
-			static D3DFILLMODE									ConvertLiteralToFillMode(int value)
-			{
-				switch (value)
-				{
-					default:
-					case Nodes::Literal::SOLID:
-						return D3DFILL_SOLID;
-					case Nodes::Literal::WIREFRAME:
-						return D3DFILL_WIREFRAME;
-				}
-			}
-			static D3DCMPFUNC									ConvertLiteralToCompFunc(int value)
-			{
-				switch (value)
-				{
-					default:
-					case Nodes::Literal::ALWAYS:
+					case EffectNodes::Literal::ALWAYS:
 						return D3DCMP_ALWAYS;
-					case Nodes::Literal::NEVER:
+					case EffectNodes::Literal::NEVER:
 						return D3DCMP_NEVER;
-					case Nodes::Literal::EQUAL:
+					case EffectNodes::Literal::EQUAL:
 						return D3DCMP_EQUAL;
-					case Nodes::Literal::NOTEQUAL:
+					case EffectNodes::Literal::NOTEQUAL:
 						return D3DCMP_NOTEQUAL;
-					case Nodes::Literal::LESS:
+					case EffectNodes::Literal::LESS:
 						return D3DCMP_LESS;
-					case Nodes::Literal::LESSEQUAL:
+					case EffectNodes::Literal::LESSEQUAL:
 						return D3DCMP_LESSEQUAL;
-					case Nodes::Literal::GREATER:
+					case EffectNodes::Literal::GREATER:
 						return D3DCMP_GREATER;
-					case Nodes::Literal::GREATEREQUAL:
+					case EffectNodes::Literal::GREATEREQUAL:
 						return D3DCMP_GREATEREQUAL;
 				}
 			}
-			static D3DSTENCILOP									ConvertLiteralToStencilOp(int value)
+			static D3DSTENCILOP									LiteralToStencilOp(int value)
 			{
 				switch (value)
 				{
 					default:
-					case Nodes::Literal::KEEP:
+					case EffectNodes::Literal::KEEP:
 						return D3DSTENCILOP_KEEP;
-					case Nodes::Literal::ZERO:
+					case EffectNodes::Literal::ZERO:
 						return D3DSTENCILOP_ZERO;
-					case Nodes::Literal::REPLACE:
+					case EffectNodes::Literal::REPLACE:
 						return D3DSTENCILOP_REPLACE;
-					case Nodes::Literal::INCR:
+					case EffectNodes::Literal::INCR:
 						return D3DSTENCILOP_INCR;
-					case Nodes::Literal::INCRSAT:
+					case EffectNodes::Literal::INCRSAT:
 						return D3DSTENCILOP_INCRSAT;
-					case Nodes::Literal::DECR:
+					case EffectNodes::Literal::DECR:
 						return D3DSTENCILOP_DECR;
-					case Nodes::Literal::DECRSAT:
+					case EffectNodes::Literal::DECRSAT:
 						return D3DSTENCILOP_DECRSAT;
-					case Nodes::Literal::INVERT:
+					case EffectNodes::Literal::INVERT:
 						return D3DSTENCILOP_INVERT;
 				}
 			}
-			static D3DBLEND										ConvertLiteralToBlend(int value)
+			static D3DBLEND										LiteralToBlend(int value)
 			{
 				switch (value)
 				{
 					default:
-					case Nodes::Literal::ZERO:
+					case EffectNodes::Literal::ZERO:
 						return D3DBLEND_ZERO;
-					case Nodes::Literal::ONE:
+					case EffectNodes::Literal::ONE:
 						return D3DBLEND_ONE;
-					case Nodes::Literal::SRCCOLOR:
+					case EffectNodes::Literal::SRCCOLOR:
 						return D3DBLEND_SRCCOLOR;
-					case Nodes::Literal::SRCALPHA:
+					case EffectNodes::Literal::SRCALPHA:
 						return D3DBLEND_SRCALPHA;
-					case Nodes::Literal::INVSRCCOLOR:
+					case EffectNodes::Literal::INVSRCCOLOR:
 						return D3DBLEND_INVSRCCOLOR;
-					case Nodes::Literal::INVSRCALPHA:
+					case EffectNodes::Literal::INVSRCALPHA:
 						return D3DBLEND_INVSRCALPHA;
-					case Nodes::Literal::DESTCOLOR:
+					case EffectNodes::Literal::DESTCOLOR:
 						return D3DBLEND_DESTCOLOR;
-					case Nodes::Literal::DESTALPHA:
+					case EffectNodes::Literal::DESTALPHA:
 						return D3DBLEND_DESTALPHA;
-					case Nodes::Literal::INVDESTCOLOR:
+					case EffectNodes::Literal::INVDESTCOLOR:
 						return D3DBLEND_INVDESTCOLOR;
-					case Nodes::Literal::INVDESTALPHA:
+					case EffectNodes::Literal::INVDESTALPHA:
 						return D3DBLEND_INVDESTALPHA;
 				}
 			}
-			static D3DBLENDOP									ConvertLiteralToBlendOp(int value)
+			static D3DBLENDOP									LiteralToBlendOp(int value)
 			{
 				switch (value)
 				{
 					default:
-					case Nodes::Literal::ADD:
+					case EffectNodes::Literal::ADD:
 						return D3DBLENDOP_ADD;
-					case Nodes::Literal::SUBSTRACT:
+					case EffectNodes::Literal::SUBTRACT:
 						return D3DBLENDOP_SUBTRACT;
-					case Nodes::Literal::REVSUBSTRACT:
+					case EffectNodes::Literal::REVSUBTRACT:
 						return D3DBLENDOP_REVSUBTRACT;
-					case Nodes::Literal::MIN:
+					case EffectNodes::Literal::MIN:
 						return D3DBLENDOP_MIN;
-					case Nodes::Literal::MAX:
+					case EffectNodes::Literal::MAX:
 						return D3DBLENDOP_MAX;
 				}
 			}
-			static D3DFORMAT									ConvertLiteralToFormat(int value, Effect::Texture::Format &format)
+			static D3DFORMAT									LiteralToFormat(int value, Effect::Texture::Format &format)
 			{
 				switch (value)
 				{
-					case Nodes::Literal::R8:
+					case EffectNodes::Literal::R8:
 						format = Effect::Texture::Format::R8;
 						return D3DFMT_L8;
-					case Nodes::Literal::R32F:
+					case EffectNodes::Literal::R32F:
 						format = Effect::Texture::Format::R32F;
 						return D3DFMT_R32F;
-					case Nodes::Literal::RG8:
+					case EffectNodes::Literal::RG8:
 						format = Effect::Texture::Format::RG8;
-						return D3DFMT_A8L8;
-					case Nodes::Literal::RGBA8:
+						return D3DFMT_V8U8;
+					case EffectNodes::Literal::RGBA8:
 						format = Effect::Texture::Format::RGBA8;
 						return D3DFMT_A8R8G8B8;
-					case Nodes::Literal::RGBA16:
+					case EffectNodes::Literal::RGBA16:
 						format = Effect::Texture::Format::RGBA16;
 						return D3DFMT_A16B16G16R16;
-					case Nodes::Literal::RGBA16F:
+					case EffectNodes::Literal::RGBA16F:
 						format = Effect::Texture::Format::RGBA16F;
 						return D3DFMT_A16B16G16R16F;
-					case Nodes::Literal::RGBA32F:
+					case EffectNodes::Literal::RGBA32F:
 						format = Effect::Texture::Format::RGBA32F;
 						return D3DFMT_A32B32G32R32F;
-					case Nodes::Literal::DXT1:
+					case EffectNodes::Literal::DXT1:
 						format = Effect::Texture::Format::DXT1;
 						return D3DFMT_DXT1;
-					case Nodes::Literal::DXT3:
+					case EffectNodes::Literal::DXT3:
 						format = Effect::Texture::Format::DXT3;
 						return D3DFMT_DXT3;
-					case Nodes::Literal::DXT5:
+					case EffectNodes::Literal::DXT5:
 						format = Effect::Texture::Format::DXT5;
 						return D3DFMT_DXT5;
-					case Nodes::Literal::LATC1:
+					case EffectNodes::Literal::LATC1:
 						format = Effect::Texture::Format::LATC1;
 						return static_cast<D3DFORMAT>(MAKEFOURCC('A', 'T', 'I', '1'));
-					case Nodes::Literal::LATC2:
+					case EffectNodes::Literal::LATC2:
 						format = Effect::Texture::Format::LATC2;
 						return static_cast<D3DFORMAT>(MAKEFOURCC('A', 'T', 'I', '2'));
 					default:
@@ -378,17 +355,21 @@ namespace ReShade
 			}
 			static std::string									ConvertSemantic(const std::string &semantic)
 			{
-				if (boost::istarts_with(semantic, "SV_"))
+				if (boost::starts_with(semantic, "SV_"))
 				{
-					if (boost::iequals(semantic, "SV_Position"))
+					if (semantic == "SV_VERTEXID")
+					{
+						return "TEXCOORD0";
+					}
+					else if (semantic == "SV_POSITION")
 					{
 						return "POSITION";
 					}
-					else if (boost::istarts_with(semantic, "SV_Target"))
+					else if (boost::starts_with(semantic, "SV_TARGET"))
 					{
 						return "COLOR" + semantic.substr(9);
 					}
-					else if (boost::iequals(semantic, "SV_Depth"))
+					else if (semantic == "SV_DEPTH")
 					{
 						return "DEPTH";
 					}
@@ -396,178 +377,594 @@ namespace ReShade
 
 				return semantic;
 			}
-		
-			void												Visit(const EffectTree::Node &node)
+
+			static inline std::string							PrintLocation(const EffectTree::Location &location)
 			{
-				switch (node.Type)
-				{
-					case Nodes::Aggregate::NodeType:
-						VisitAggregate(node.As<Nodes::Aggregate>());
-						break;
-					case Nodes::ExpressionSequence::NodeType:
-						VisitExpressionSequence(node.As<Nodes::ExpressionSequence>());
-						break;
-					case Nodes::Literal::NodeType:
-						VisitLiteral(node.As<Nodes::Literal>());
-						break;
-					case Nodes::Reference::NodeType:
-						VisitReference(node.As<Nodes::Reference>());
-						break;
-					case Nodes::UnaryExpression::NodeType:
-						VisitUnaryExpression(node.As<Nodes::UnaryExpression>());
-						break;
-					case Nodes::BinaryExpression::NodeType:
-						VisitBinaryExpression(node.As<Nodes::BinaryExpression>());
-						break;
-					case Nodes::Assignment::NodeType:
-						VisitAssignmentExpression(node.As<Nodes::Assignment>());
-						break;
-					case Nodes::Conditional::NodeType:
-						VisitConditionalExpression(node.As<Nodes::Conditional>());
-						break;
-					case Nodes::Call::NodeType:
-						VisitCallExpression(node.As<Nodes::Call>());
-						break;
-					case Nodes::Constructor::NodeType:
-						VisitConstructorExpression(node.As<Nodes::Constructor>());
-						break;
-					case Nodes::Field::NodeType:
-						VisitFieldExpression(node.As<Nodes::Field>());
-						break;
-					case Nodes::Swizzle::NodeType:
-						VisitSwizzleExpression(node.As<Nodes::Swizzle>());
-						break;
-					case Nodes::StatementBlock::NodeType:
-						VisitStatementBlock(node.As<Nodes::StatementBlock>());
-						break;
-					case Nodes::ExpressionStatement::NodeType:
-						VisitExpressionStatement(node.As<Nodes::ExpressionStatement>());
-						break;
-					case Nodes::DeclarationStatement::NodeType:
-						VisitDeclarationStatement(node.As<Nodes::DeclarationStatement>());
-						break;
-					case Nodes::Selection::NodeType:
-						VisitSelectionStatement(node.As<Nodes::Selection>());
-						break;
-					case Nodes::Iteration::NodeType:
-						VisitIterationStatement(node.As<Nodes::Iteration>());
-						break;
-					case Nodes::Jump::NodeType:
-						VisitJumpStatement(node.As<Nodes::Jump>());
-						break;
-					case Nodes::Struct::NodeType:
-						VisitStructDeclaration(node.As<Nodes::Struct>());
-						break;
-					case Nodes::Variable::NodeType:
-						VisitVariableDeclaration(node.As<Nodes::Variable>());
-						break;
-					case Nodes::Function::NodeType:
-						VisitFunctionDeclaration(node.As<Nodes::Function>());
-						break;
-					case Nodes::Technique::NodeType:
-						VisitTechniqueDeclaration(node.As<Nodes::Technique>());
-						break;
-				}
+				return std::string(location.Source != nullptr ? location.Source : "") + "(" + std::to_string(location.Line) + ", " + std::to_string(location.Column) + "): ";
 			}
-			void												VisitType(const Nodes::Type &type)
+
+			std::string											PrintType(const EffectNodes::Type &type)
 			{
-				if (type.HasQualifier(Nodes::Type::Qualifier::Static) || (type.HasQualifier(Nodes::Type::Qualifier::Const) && !this->mCurrentInParameterBlock && !this->mCurrentInFunctionBlock))
-					this->mCurrentSource += "static ";
-				if (type.HasQualifier(Nodes::Type::Qualifier::Const))
-					this->mCurrentSource += "const ";
-				if (type.HasQualifier(Nodes::Type::Qualifier::Volatile))
-					this->mCurrentSource += "volatile ";
-				if (type.HasQualifier(Nodes::Type::Qualifier::Precise))
-					this->mCurrentSource += "precise ";
-				if (type.HasQualifier(Nodes::Type::Qualifier::NoInterpolation))
-					this->mCurrentSource += "nointerpolation ";
-				if (type.HasQualifier(Nodes::Type::Qualifier::NoPerspective))
-					this->mCurrentSource += "noperspective ";
-				if (type.HasQualifier(Nodes::Type::Qualifier::Linear))
-					this->mCurrentSource += "linear ";
-				if (type.HasQualifier(Nodes::Type::Qualifier::Centroid))
-					this->mCurrentSource += "centroid ";
-				if (type.HasQualifier(Nodes::Type::Qualifier::Sample))
-					this->mCurrentSource += "sample ";
-				if (type.HasQualifier(Nodes::Type::Qualifier::InOut))
-					this->mCurrentSource += "inout ";
-				else if (type.HasQualifier(Nodes::Type::Qualifier::In))
-					this->mCurrentSource += "in ";
-				else if (type.HasQualifier(Nodes::Type::Qualifier::Out))
-					this->mCurrentSource += "out ";
-				else if (type.HasQualifier(Nodes::Type::Qualifier::Uniform))
-					this->mCurrentSource += "uniform ";
-				if (type.HasQualifier(Nodes::Type::Qualifier::RowMajor))
-					this->mCurrentSource += "row_major ";
-				else if (type.HasQualifier(Nodes::Type::Qualifier::ColumnMajor))
-					this->mCurrentSource += "column_major ";
+				std::string res;
 
 				switch (type.Class)
 				{
-					case Nodes::Type::Void:
-						this->mCurrentSource += "void";
+					case EffectNodes::Type::Void:
+						res += "void";
 						break;
-					case Nodes::Type::Bool:
-						this->mCurrentSource += "bool";
-
-						if (type.IsMatrix())
-							this->mCurrentSource += std::to_string(type.Rows) + "x" + std::to_string(type.Cols);
-						else if (type.IsVector())
-							this->mCurrentSource += std::to_string(type.Rows);
+					case EffectNodes::Type::Bool:
+						res += "bool";
 						break;
-					case Nodes::Type::Int:
-					case Nodes::Type::Uint:
-						this->mCurrentSource += "int";
-
-						if (type.IsMatrix())
-							this->mCurrentSource += std::to_string(type.Rows) + "x" + std::to_string(type.Cols);
-						else if (type.IsVector())
-							this->mCurrentSource += std::to_string(type.Rows);
+					case EffectNodes::Type::Int:
+						res += "int";
 						break;
-					case Nodes::Type::Half:
-						this->mCurrentSource += "half";
-
-						if (type.IsMatrix())
-							this->mCurrentSource += std::to_string(type.Rows) + "x" + std::to_string(type.Cols);
-						else if (type.IsVector())
-							this->mCurrentSource += std::to_string(type.Rows);
+					case EffectNodes::Type::Uint:
+						res += "uint";
 						break;
-					case Nodes::Type::Float:
-						this->mCurrentSource += "float";
-
-						if (type.IsMatrix())
-							this->mCurrentSource += std::to_string(type.Rows) + "x" + std::to_string(type.Cols);
-						else if (type.IsVector())
-							this->mCurrentSource += std::to_string(type.Rows);
+					case EffectNodes::Type::Float:
+						res += "float";
 						break;
-					case Nodes::Type::Double:
-						this->mCurrentSource += "double";
-
-						if (type.IsMatrix())
-							this->mCurrentSource += std::to_string(type.Rows) + "x" + std::to_string(type.Cols);
-						else if (type.IsVector())
-							this->mCurrentSource += std::to_string(type.Rows);
+					case EffectNodes::Type::Sampler:
+						res += "sampler2D";
 						break;
-					case Nodes::Type::Sampler:
-						this->mCurrentSource += "sampler2D";
-						break;
-					case Nodes::Type::Struct:
-						this->mCurrentSource += this->mAST[type.Definition].As<Nodes::Struct>().Name;
+					case EffectNodes::Type::Struct:
+						res += this->mAST[type.Definition].As<EffectNodes::Struct>().Name;
 						break;
 				}
-			}
-			void												VisitAggregate(const Nodes::Aggregate &data)
-			{
-				for (size_t i = 0; i < data.Length; ++i)
+
+				if (type.IsMatrix())
 				{
-					Visit(this->mAST[data.Find(this->mAST, i)]);
+					res += std::to_string(type.Rows) + "x" + std::to_string(type.Cols);
+				}
+				else if (type.IsVector())
+				{
+					res += std::to_string(type.Rows);
+				}
+
+				return res;
+			}
+			std::string											PrintTypeWithQualifiers(const EffectNodes::Type &type)
+			{
+				std::string qualifiers;
+
+				if (type.HasQualifier(EffectNodes::Type::Qualifier::Static))
+					qualifiers += "static ";
+				if (type.HasQualifier(EffectNodes::Type::Qualifier::Const))
+					qualifiers += "const ";
+				if (type.HasQualifier(EffectNodes::Type::Qualifier::Volatile))
+					qualifiers += "volatile ";
+				if (type.HasQualifier(EffectNodes::Type::Qualifier::Precise))
+					qualifiers += "precise ";
+				if (type.HasQualifier(EffectNodes::Type::Qualifier::NoInterpolation))
+					qualifiers += "nointerpolation ";
+				if (type.HasQualifier(EffectNodes::Type::Qualifier::NoPerspective))
+					qualifiers += "noperspective ";
+				if (type.HasQualifier(EffectNodes::Type::Qualifier::Linear))
+					qualifiers += "linear ";
+				if (type.HasQualifier(EffectNodes::Type::Qualifier::Centroid))
+					qualifiers += "centroid ";
+				if (type.HasQualifier(EffectNodes::Type::Qualifier::Sample))
+					qualifiers += "sample ";
+				if (type.HasQualifier(EffectNodes::Type::Qualifier::InOut))
+					qualifiers += "inout ";
+				else if (type.HasQualifier(EffectNodes::Type::Qualifier::In))
+					qualifiers += "in ";
+				else if (type.HasQualifier(EffectNodes::Type::Qualifier::Out))
+					qualifiers += "out ";
+				else if (type.HasQualifier(EffectNodes::Type::Qualifier::Uniform))
+					qualifiers += "uniform ";
+
+				return qualifiers + PrintType(type);
+			}
+
+			void												Visit(const EffectNodes::LValue &node)
+			{
+				this->mCurrentSource += this->mAST[node.Reference].As<EffectNodes::Variable>().Name;
+			}
+			void												Visit(const EffectNodes::Literal &node)
+			{
+				if (!node.Type.IsScalar())
+				{
+					this->mCurrentSource += PrintType(node.Type);
+					this->mCurrentSource += '(';
+				}
+
+				for (unsigned int i = 0; i < node.Type.Rows * node.Type.Cols; ++i)
+				{
+					switch (node.Type.Class)
+					{
+						case EffectNodes::Type::Bool:
+							this->mCurrentSource += node.Value.Bool[i] ? "true" : "false";
+							break;
+						case EffectNodes::Type::Int:
+							this->mCurrentSource += std::to_string(node.Value.Int[i]);
+							break;
+						case EffectNodes::Type::Uint:
+							this->mCurrentSource += std::to_string(node.Value.Uint[i]);
+							break;
+						case EffectNodes::Type::Float:
+							this->mCurrentSource += std::to_string(node.Value.Float[i]) + "f";
+							break;
+					}
+
+					this->mCurrentSource += ", ";
+				}
+
+				this->mCurrentSource.pop_back();
+				this->mCurrentSource.pop_back();
+
+				if (!node.Type.IsScalar())
+				{
+					this->mCurrentSource += ')';
 				}
 			}
-			void												VisitExpressionSequence(const Nodes::ExpressionSequence &data)
+			void												Visit(const EffectNodes::Expression &node)
 			{
-				for (size_t i = 0; i < data.Length; ++i)
+				std::string part1, part2, part3, part4;
+
+				switch (node.Operator)
 				{
-					Visit(this->mAST[data.Find(this->mAST, i)]);
+					case EffectNodes::Expression::Negate:
+						part1 = '-';
+						break;
+					case EffectNodes::Expression::BitNot:
+						part1 = "(4294967295 - ";
+						part2 = ")";
+						break;
+					case EffectNodes::Expression::LogicNot:
+						part1 = '!';
+						break;
+					case EffectNodes::Expression::Increase:
+						part1 = "++";
+						break;
+					case EffectNodes::Expression::Decrease:
+						part1 = "--";
+						break;
+					case EffectNodes::Expression::PostIncrease:
+						part2 = "++";
+						break;
+					case EffectNodes::Expression::PostDecrease:
+						part2 = "--";
+						break;
+					case EffectNodes::Expression::Abs:
+						part1 = "abs(";
+						part2 = ")";
+						break;
+					case EffectNodes::Expression::Sign:
+						part1 = "sign(";
+						part2 = ")";
+						break;
+					case EffectNodes::Expression::Rcp:
+						part1 = "(1.0f / ";
+						part2 = ")";
+						break;
+					case EffectNodes::Expression::All:
+						part1 = "all(";
+						part2 = ")";
+						break;
+					case EffectNodes::Expression::Any:
+						part1 = "any(";
+						part2 = ")";
+						break;
+					case EffectNodes::Expression::Sin:
+						part1 = "sin(";
+						part2 = ")";
+						break;
+					case EffectNodes::Expression::Sinh:
+						part1 = "sinh(";
+						part2 = ")";
+						break;
+					case EffectNodes::Expression::Cos:
+						part1 = "cos(";
+						part2 = ")";
+						break;
+					case EffectNodes::Expression::Cosh:
+						part1 = "cosh(";
+						part2 = ")";
+						break;
+					case EffectNodes::Expression::Tan:
+						part1 = "tan(";
+						part2 = ")";
+						break;
+					case EffectNodes::Expression::Tanh:
+						part1 = "tanh(";
+						part2 = ")";
+						break;
+					case EffectNodes::Expression::Asin:
+						part1 = "asin(";
+						part2 = ")";
+						break;
+					case EffectNodes::Expression::Acos:
+						part1 = "acos(";
+						part2 = ")";
+						break;
+					case EffectNodes::Expression::Atan:
+						part1 = "atan(";
+						part2 = ")";
+						break;
+					case EffectNodes::Expression::Exp:
+						part1 = "exp(";
+						part2 = ")";
+						break;
+					case EffectNodes::Expression::Exp2:
+						part1 = "exp2(";
+						part2 = ")";
+						break;
+					case EffectNodes::Expression::Log:
+						part1 = "log(";
+						part2 = ")";
+						break;
+					case EffectNodes::Expression::Log2:
+						part1 = "log2(";
+						part2 = ")";
+						break;
+					case EffectNodes::Expression::Log10:
+						part1 = "log10(";
+						part2 = ")";
+						break;
+					case EffectNodes::Expression::Sqrt:
+						part1 = "sqrt(";
+						part2 = ")";
+						break;
+					case EffectNodes::Expression::Rsqrt:
+						part1 = "rsqrt(";
+						part2 = ")";
+						break;
+					case EffectNodes::Expression::Ceil:
+						part1 = "ceil(";
+						part2 = ")";
+						break;
+					case EffectNodes::Expression::Floor:
+						part1 = "floor(";
+						part2 = ")";
+						break;
+					case EffectNodes::Expression::Frac:
+						part1 = "frac(";
+						part2 = ")";
+						break;
+					case EffectNodes::Expression::Trunc:
+						part1 = "trunc(";
+						part2 = ")";
+						break;
+					case EffectNodes::Expression::Round:
+						part1 = "round(";
+						part2 = ")";
+						break;
+					case EffectNodes::Expression::Saturate:
+						part1 = "saturate(";
+						part2 = ")";
+						break;
+					case EffectNodes::Expression::Radians:
+						part1 = "radians(";
+						part2 = ")";
+						break;
+					case EffectNodes::Expression::Degrees:
+						part1 = "degrees(";
+						part2 = ")";
+						break;
+					case EffectNodes::Expression::Noise:
+						part1 = "noise(";
+						part2 = ")";
+						break;
+					case EffectNodes::Expression::Length:
+						part1 = "length(";
+						part2 = ")";
+						break;
+					case EffectNodes::Expression::Normalize:
+						part1 = "normalize(";
+						part2 = ")";
+						break;
+					case EffectNodes::Expression::Transpose:
+						part1 = "transpose(";
+						part2 = ")";
+						break;
+					case EffectNodes::Expression::Determinant:
+						part1 = "determinant(";
+						part2 = ")";
+						break;
+					case EffectNodes::Expression::Cast:
+						part1 = PrintType(node.Type) + '(';
+						part2 = ')';
+						break;
+					case EffectNodes::Expression::BitCastInt2Float:
+					case EffectNodes::Expression::BitCastUint2Float:
+					case EffectNodes::Expression::BitCastFloat2Int:
+					case EffectNodes::Expression::BitCastFloat2Uint:
+						this->mErrors += PrintLocation(node.Location) + "Bitwise casts are not supported on legacy targets!\n";
+						this->mFatal = true;
+						return;
+					case EffectNodes::Expression::Add:
+						part1 = '(';
+						part2 = " + ";
+						part3 = ')';
+						break;
+					case EffectNodes::Expression::Subtract:
+						part1 = '(';
+						part2 = " - ";
+						part3 = ')';
+						break;
+					case EffectNodes::Expression::Multiply:
+						part1 = '(';
+						part2 = " * ";
+						part3 = ')';
+						break;
+					case EffectNodes::Expression::Divide:
+						part1 = '(';
+						part2 = " / ";
+						part3 = ')';
+						break;
+					case EffectNodes::Expression::Modulo:
+						part1 = '(';
+						part2 = " % ";
+						part3 = ')';
+						break;
+					case EffectNodes::Expression::Less:
+						part1 = '(';
+						part2 = " < ";
+						part3 = ')';
+						break;
+					case EffectNodes::Expression::Greater:
+						part1 = '(';
+						part2 = " > ";
+						part3 = ')';
+						break;
+					case EffectNodes::Expression::LessOrEqual:
+						part1 = '(';
+						part2 = " <= ";
+						part3 = ')';
+						break;
+					case EffectNodes::Expression::GreaterOrEqual:
+						part1 = '(';
+						part2 = " >= ";
+						part3 = ')';
+						break;
+					case EffectNodes::Expression::Equal:
+						part1 = '(';
+						part2 = " == ";
+						part3 = ')';
+						break;
+					case EffectNodes::Expression::NotEqual:
+						part1 = '(';
+						part2 = " != ";
+						part3 = ')';
+						break;
+					case EffectNodes::Expression::LeftShift:
+						part1 = "((";
+						part2 = ") * pow(2, ";
+						part3 = "))";
+						break;
+					case EffectNodes::Expression::RightShift:
+						part1 = "floor((";
+						part2 = ") / pow(2, ";
+						part3 = "))";
+						break;
+					case EffectNodes::Expression::BitAnd:
+					{
+						const auto &right = this->mAST[node.Operands[1]];
+
+						if (right.Is<EffectNodes::Literal>() && right.As<EffectNodes::Literal>().Type.IsIntegral())
+						{
+							const unsigned int value = right.As<EffectNodes::Literal>().Value.Uint[0];
+
+							if (IsPowerOf2(value + 1))
+							{
+								this->mCurrentSource += "((" + std::to_string(value + 1) + ") * frac((";
+								this->mAST[node.Operands[0]].Accept(*this);
+								this->mCurrentSource += ") / (" + std::to_string(value + 1) + ")))";
+								return;
+							}
+							else if (IsPowerOf2(value))
+							{
+								this->mCurrentSource += "((((";
+								this->mAST[node.Operands[0]].Accept(*this);
+								this->mCurrentSource += ") / (" + std::to_string(value) + ")) % 2) * " + std::to_string(value) + ")";
+								return;
+							}
+						}
+					}
+					case EffectNodes::Expression::BitXor:
+					case EffectNodes::Expression::BitOr:
+						this->mErrors += PrintLocation(node.Location) + "Bitwise operations are not supported on legacy targets!\n";
+						this->mFatal = true;
+						return;
+					case EffectNodes::Expression::LogicAnd:
+						part1 = '(';
+						part2 = " && ";
+						part3 = ')';
+						break;
+					case EffectNodes::Expression::LogicXor:
+						part1 = '(';
+						part2 = " ^^ ";
+						part3 = ')';
+						break;
+					case EffectNodes::Expression::LogicOr:
+						part1 = '(';
+						part2 = " || ";
+						part3 = ')';
+						break;
+					case EffectNodes::Expression::Mul:
+						part1 = "mul(";
+						part2 = ", ";
+						part3 = ")";
+						break;
+					case EffectNodes::Expression::Atan2:
+						part1 = "atan2(";
+						part2 = ", ";
+						part3 = ")";
+						break;
+					case EffectNodes::Expression::Dot:
+						part1 = "dot(";
+						part2 = ", ";
+						part3 = ")";
+						break;
+					case EffectNodes::Expression::Cross:
+						part1 = "cross(";
+						part2 = ", ";
+						part3 = ")";
+						break;
+					case EffectNodes::Expression::Distance:
+						part1 = "distance(";
+						part2 = ", ";
+						part3 = ")";
+						break;
+					case EffectNodes::Expression::Pow:
+						part1 = "pow(";
+						part2 = ", ";
+						part3 = ")";
+						break;
+					case EffectNodes::Expression::Modf:
+						part1 = "modf(";
+						part2 = ", ";
+						part3 = ")";
+						break;
+					case EffectNodes::Expression::Frexp:
+						part1 = "frexp(";
+						part2 = ", ";
+						part3 = ")";
+						break;
+					case EffectNodes::Expression::Ldexp:
+						part1 = "ldexp(";
+						part2 = ", ";
+						part3 = ")";
+						break;
+					case EffectNodes::Expression::Min:
+						part1 = "min(";
+						part2 = ", ";
+						part3 = ")";
+						break;
+					case EffectNodes::Expression::Max:
+						part1 = "max(";
+						part2 = ", ";
+						part3 = ")";
+						break;
+					case EffectNodes::Expression::Step:
+						part1 = "step(";
+						part2 = ", ";
+						part3 = ")";
+						break;
+					case EffectNodes::Expression::Reflect:
+						part1 = "reflect(";
+						part2 = ", ";
+						part3 = ")";
+						break;
+					case EffectNodes::Expression::Extract:
+						part2 = '[';
+						part3 = ']';
+						break;
+					case EffectNodes::Expression::Field:
+						part1 = '(';
+						part2 = (this->mAST[node.Operands[0]].Is<EffectNodes::LValue>() && this->mAST[node.Operands[0]].As<EffectNodes::LValue>().Type.HasQualifier(EffectNodes::Type::Uniform)) ? '_' : '.';
+						part3 = ')';
+						break;
+					case EffectNodes::Expression::Tex:
+						part1 = "tex2D(";
+						part2 = ", ";
+						part3 = ")";
+						break;
+					case EffectNodes::Expression::TexLevel:
+						part1 = "tex2Dlod(";
+						part2 = ", ";
+						part3 = ")";
+						break;
+					case EffectNodes::Expression::TexBias:
+						part1 = "tex2Dbias(";
+						part2 = ", ";
+						part3 = ")";
+						break;
+					case EffectNodes::Expression::TexFetch:
+						part1 = "tex2D(";
+						part2 = ", float2(";
+						part3 = "))";
+						break;
+					case EffectNodes::Expression::TexSize:
+						this->mErrors += PrintLocation(node.Location) + "Texture size query is not supported on legacy targets!\n";
+						this->mFatal = true;
+						return;
+					case EffectNodes::Expression::Mad:
+						part1 = "((";
+						part2 = ") * (";
+						part3 = ") + (";
+						part4 = "))";
+						break;
+					case EffectNodes::Expression::SinCos:
+						part1 = "sincos(";
+						part2 = ", ";
+						part3 = ", ";
+						part4 = ")";
+						break;
+					case EffectNodes::Expression::Lerp:
+						part1 = "lerp(";
+						part2 = ", ";
+						part3 = ", ";
+						part4 = ")";
+						break;
+					case EffectNodes::Expression::Clamp:
+						part1 = "clamp(";
+						part2 = ", ";
+						part3 = ", ";
+						part4 = ")";
+						break;
+					case EffectNodes::Expression::SmoothStep:
+						part1 = "smoothstep(";
+						part2 = ", ";
+						part3 = ", ";
+						part4 = ")";
+						break;
+					case EffectNodes::Expression::Refract:
+						part1 = "refract(";
+						part2 = ", ";
+						part3 = ", ";
+						part4 = ")";
+						break;
+					case EffectNodes::Expression::FaceForward:
+						part1 = "faceforward(";
+						part2 = ", ";
+						part3 = ", ";
+						part4 = ")";
+						break;
+					case EffectNodes::Expression::Conditional:
+						part1 = '(';
+						part2 = " ? ";
+						part3 = " : ";
+						part4 = ')';
+						break;
+					case EffectNodes::Expression::TexOffset:
+						part1 = "tex2D(";
+						part2 = ", ";
+						part3 = "+ (";
+						part4 = ") * _PIXEL_SIZE_.xy)";
+						break;
+					case EffectNodes::Expression::TexLevelOffset:
+						part1 = "tex2Dlod(";
+						part2 = ", ";
+						part3 = "+ (";
+						part4 = ") * _PIXEL_SIZE_.xy)";
+						break;
+				}
+
+				this->mCurrentSource += part1;
+				this->mAST[node.Operands[0]].Accept(*this);
+				this->mCurrentSource += part2;
+
+				if (node.Operands[1] != 0)
+				{
+					this->mAST[node.Operands[1]].Accept(*this);
+				}
+
+				this->mCurrentSource += part3;
+
+				if (node.Operands[2] != 0)
+				{
+					this->mAST[node.Operands[2]].Accept(*this);
+				}
+
+				this->mCurrentSource += part4;
+			}
+			void												Visit(const EffectNodes::Sequence &node)
+			{
+				for (unsigned int i = 0; i < node.Length; ++i)
+				{
+					this->mAST[node[i]].Accept(*this);
 
 					this->mCurrentSource += ", ";
 				}
@@ -575,311 +972,68 @@ namespace ReShade
 				this->mCurrentSource.pop_back();
 				this->mCurrentSource.pop_back();
 			}
-			void												VisitLiteral(const Nodes::Literal &data)
+			void												Visit(const EffectNodes::Assignment &node)
 			{
-				switch (data.Type.Class)
-				{
-					case Nodes::Type::Bool:
-						this->mCurrentSource += data.Value.AsInt ? "true" : "false";
-						break;
-					case Nodes::Type::Int:
-						this->mCurrentSource += std::to_string(data.Value.AsInt);
-						break;
-					case Nodes::Type::Uint:
-						this->mCurrentSource += std::to_string(data.Value.AsUint);
-						break;
-					case Nodes::Type::Float:
-						this->mCurrentSource += std::to_string(data.Value.AsFloat) + "f";
-						break;
-					case Nodes::Type::Double:
-						this->mCurrentSource += std::to_string(data.Value.AsDouble) + "lf";
-						break;
-				}
-			}
-			void												VisitReference(const Nodes::Reference &data)
-			{
-				const auto &symbol = this->mAST[data.Symbol].As<Nodes::Variable>();
+				std::string part1, part2, part3;
 
-				this->mCurrentSource += symbol.Name;
-			}
-			void												VisitUnaryExpression(const Nodes::UnaryExpression &data)
-			{
-				switch (data.Operator)
+				switch (node.Operator)
 				{
-					case Nodes::Operator::Plus:
-						this->mCurrentSource += '+';
+					case EffectNodes::Expression::None:
+						part2 = " = ";
 						break;
-					case Nodes::Operator::Minus:
-						this->mCurrentSource += '-';
+					case EffectNodes::Expression::Add:
+						part2 = " += ";
 						break;
-					case Nodes::Operator::BitwiseNot:
-						this->mCurrentSource += "(4294967295 - ";
+					case EffectNodes::Expression::Subtract:
+						part2 = " -= ";
 						break;
-					case Nodes::Operator::LogicalNot:
-						this->mCurrentSource += '!';
+					case EffectNodes::Expression::Multiply:
+						part2 = " *= ";
 						break;
-					case Nodes::Operator::Increase:
-						this->mCurrentSource += "++";
+					case EffectNodes::Expression::Divide:
+						part2 = " /= ";
 						break;
-					case Nodes::Operator::Decrease:
-						this->mCurrentSource += "--";
+					case EffectNodes::Expression::Modulo:
+						part2 = " %= ";
 						break;
-					case Nodes::Operator::Cast:
-						this->mCurrentSource += '(';
-						VisitType(data.Type);
-						this->mCurrentSource += ')';
+					case EffectNodes::Expression::LeftShift:
+						part1 = "((";
+						part2 = ") *= pow(2, ";
+						part3 = "))";
 						break;
+					case EffectNodes::Expression::RightShift:
+						part1 = "((";
+						part2 = ") /= pow(2, ";
+						part3 = "))";
+						break;
+					case EffectNodes::Expression::BitAnd:
+					case EffectNodes::Expression::BitXor:
+					case EffectNodes::Expression::BitOr:
+						this->mErrors += PrintLocation(node.Location) + "Bitwise operations are not supported on legacy targets!\n";
+						this->mFatal = true;
+						return;
 				}
 
 				this->mCurrentSource += '(';
-
-				Visit(this->mAST[data.Operand]);
-
-				switch (data.Operator)
-				{
-					case Nodes::Operator::BitwiseNot:
-						this->mCurrentSource += ')';
-						break;
-					case Nodes::Operator::PostIncrease:
-						this->mCurrentSource += "++";
-						break;
-					case Nodes::Operator::PostDecrease:
-						this->mCurrentSource += "--";
-						break;
-				}
-
+				this->mCurrentSource += part1;
+				this->mAST[node.Left].Accept(*this);
+				this->mCurrentSource += part2;
+				this->mAST[node.Right].Accept(*this);
+				this->mCurrentSource += part3;
 				this->mCurrentSource += ')';
 			}
-			void												VisitBinaryExpression(const Nodes::BinaryExpression &data)
+			void												Visit(const EffectNodes::Call &node)
 			{
-				if (data.Operator == Nodes::Operator::LeftShift)
-				{
-					this->mCurrentSource += "((";
-					Visit(this->mAST[data.Left]);
-					this->mCurrentSource += ") * pow(2, ";
-					Visit(this->mAST[data.Right]);
-					this->mCurrentSource += "))";
-				}
-				else if (data.Operator == Nodes::Operator::RightShift)
-				{
-					this->mCurrentSource += "floor((";
-					Visit(this->mAST[data.Left]);
-					this->mCurrentSource += ") / pow(2, ";
-					Visit(this->mAST[data.Right]);
-					this->mCurrentSource += "))";
-				}
-				else if (data.Operator == Nodes::Operator::BitwiseAnd)
-				{
-					const auto &right = this->mAST[data.Right];
-
-					if (right.Is<Nodes::Literal>() && right.As<Nodes::Literal>().Type.IsIntegral())
-					{
-						if (IsPowerOf2(right.As<Nodes::Literal>().Value.AsInt + 1))
-						{
-							this->mCurrentSource += "((" + std::to_string(right.As<Nodes::Literal>().Value.AsInt + 1) + ") * frac((";
-							Visit(this->mAST[data.Left]);
-							this->mCurrentSource += ") / (" + std::to_string(right.As<Nodes::Literal>().Value.AsInt + 1) + ")))";
-							return;
-						}
-						else if (IsPowerOf2(right.As<Nodes::Literal>().Value.AsInt))
-						{
-							this->mCurrentSource += "((((";
-							Visit(this->mAST[data.Left]);
-							this->mCurrentSource += ") / (" + std::to_string(right.As<Nodes::Literal>().Value.AsInt) + ")) % 2) * " + std::to_string(right.As<Nodes::Literal>().Value.AsInt) + ")";
-							return;
-						}
-					}
-
-					const auto &location = this->mAST[data.Right].Location;
-
-					this->mErrors += std::string(location.Source != nullptr ? location.Source : "") + "(" + std::to_string(location.Line) + ", " + std::to_string(location.Column) + "): Bitwise operations are not supported on legacy targets!";
-					this->mFatal = true;
-				}
-				else if (data.Operator == Nodes::Operator::BitwiseXor || data.Operator == Nodes::Operator::BitwiseOr)
-				{
-					const auto &location = this->mAST[data.Right].Location;
-
-					this->mErrors += std::string(location.Source != nullptr ? location.Source : "") + "(" + std::to_string(location.Line) + ", " + std::to_string(location.Column) + "): Bitwise operations are not supported on legacy targets!";
-					this->mFatal = true;
-				}
-				else if (data.Operator == Nodes::Operator::Index)
-				{
-					Visit(this->mAST[data.Left]);
-					this->mCurrentSource += '[';
-					Visit(this->mAST[data.Right]);
-					this->mCurrentSource += ']';
-				}
-				else
-				{
-					this->mCurrentSource += '(';
-					Visit(this->mAST[data.Left]);
-					this->mCurrentSource += ' ';
-
-					switch (data.Operator)
-					{
-						case Nodes::Operator::Add:
-							this->mCurrentSource += '+';
-							break;
-						case Nodes::Operator::Substract:
-							this->mCurrentSource += '-';
-							break;
-						case Nodes::Operator::Multiply:
-							this->mCurrentSource += '*';
-							break;
-						case Nodes::Operator::Divide:
-							this->mCurrentSource += '/';
-							break;
-						case Nodes::Operator::Modulo:
-							this->mCurrentSource += '%';
-							break;
-						case Nodes::Operator::LogicalAnd:
-							this->mCurrentSource += "&&";
-							break;
-						case Nodes::Operator::LogicalXor:
-							this->mCurrentSource += "^^";
-							break;
-						case Nodes::Operator::LogicalOr:
-							this->mCurrentSource += "||";
-							break;
-						case Nodes::Operator::Less:
-							this->mCurrentSource += '<';
-							break;
-						case Nodes::Operator::Greater:
-							this->mCurrentSource += '>';
-							break;
-						case Nodes::Operator::LessOrEqual:
-							this->mCurrentSource += "<=";
-							break;
-						case Nodes::Operator::GreaterOrEqual:
-							this->mCurrentSource += ">=";
-							break;
-						case Nodes::Operator::Equal:
-							this->mCurrentSource += "==";
-							break;
-						case Nodes::Operator::Unequal:
-							this->mCurrentSource += "!=";
-							break;
-					}
-
-					this->mCurrentSource += ' ';
-					Visit(this->mAST[data.Right]);
-					this->mCurrentSource += ')';
-				}
-			}
-			void												VisitAssignmentExpression(const Nodes::Assignment &data)
-			{
-				if (data.Operator == Nodes::Operator::LeftShift)
-				{
-					this->mCurrentSource += "((";
-					Visit(this->mAST[data.Left]);
-					this->mCurrentSource += ") *= pow(2, ";
-					Visit(this->mAST[data.Right]);
-					this->mCurrentSource += "))";
-				}
-				else if (data.Operator == Nodes::Operator::RightShift)
-				{
-					this->mCurrentSource += "((";
-					Visit(this->mAST[data.Left]);
-					this->mCurrentSource += ") /= pow(2, ";
-					Visit(this->mAST[data.Right]);
-					this->mCurrentSource += "))";
-				}
-				else if (data.Operator == Nodes::Operator::BitwiseAnd || data.Operator == Nodes::Operator::BitwiseXor || data.Operator == Nodes::Operator::BitwiseOr)
-				{
-					const auto &location = this->mAST[data.Right].Location;
-
-					this->mErrors += std::string(location.Source != nullptr ? location.Source : "") + "(" + std::to_string(location.Line) + ", " + std::to_string(location.Column) + "): Bitwise operations are not supported on legacy targets!";
-					this->mFatal = true;
-					return;
-				}
-				else
-				{
-					this->mCurrentSource += '(';
-					Visit(this->mAST[data.Left]);
-					this->mCurrentSource += ' ';
-
-					switch (data.Operator)
-					{
-						case Nodes::Operator::Add:
-							this->mCurrentSource += "+=";
-							break;
-						case Nodes::Operator::Substract:
-							this->mCurrentSource += "-=";
-							break;
-						case Nodes::Operator::Multiply:
-							this->mCurrentSource += "*=";
-							break;
-						case Nodes::Operator::Divide:
-							this->mCurrentSource += "/=";
-							break;
-						case Nodes::Operator::Modulo:
-							this->mCurrentSource += "%=";
-							break;
-						case Nodes::Operator::None:
-							this->mCurrentSource += '=';
-							break;
-					}
-
-					this->mCurrentSource += ' ';
-					Visit(this->mAST[data.Right]);
-					this->mCurrentSource += ')';
-				}
-			}
-			void												VisitConditionalExpression(const Nodes::Conditional &data)
-			{
-				this->mCurrentSource += '(';
-				Visit(this->mAST[data.Condition]);
-				this->mCurrentSource += " ? ";
-				Visit(this->mAST[data.ExpressionTrue]);
-				this->mCurrentSource += " : ";
-				Visit(this->mAST[data.ExpressionFalse]);
-				this->mCurrentSource += ')';
-			}
-			void												VisitCallExpression(const Nodes::Call &data)
-			{
-				const auto &callee = this->mAST[data.Callee].As<Nodes::Function>();
-
-				if (data.Left != 0)
-				{
-					Visit(this->mAST[data.Left]);
-					this->mCurrentSource += '.';
-				}
-
-				this->mCurrentSource += callee.Name;
+				this->mCurrentSource += node.CalleeName;
 				this->mCurrentSource += '(';
 
-				if (data.Parameters != 0)
+				if (node.HasArguments())
 				{
-					const auto &parameters = this->mAST[data.Parameters].As<Nodes::Aggregate>();
+					const auto &arguments = this->mAST[node.Arguments].As<EffectNodes::List>();
 
-					for (size_t i = 0; i < parameters.Length; ++i)
+					for (unsigned int i = 0; i < arguments.Length; ++i)
 					{
-						Visit(this->mAST[parameters.Find(this->mAST, i)]);
-
-						this->mCurrentSource += ", ";
-					}
-
-					this->mCurrentSource.pop_back();
-					this->mCurrentSource.pop_back();
-				}
-
-				this->mCurrentSource += ")";
-			}
-			void												VisitConstructorExpression(const Nodes::Constructor &data)
-			{
-				auto type = data.Type;
-				type.Qualifiers = 0;			
-				VisitType(type);
-
-				this->mCurrentSource += '(';
-
-				if (data.Parameters != 0)
-				{
-					const auto &parameters = this->mAST[data.Parameters].As<Nodes::Aggregate>();
-
-					for (size_t i = 0; i < parameters.Length; ++i)
-					{
-						Visit(this->mAST[parameters.Find(this->mAST, i)]);
+						this->mAST[arguments[i]].Accept(*this);
 
 						this->mCurrentSource += ", ";
 					}
@@ -890,32 +1044,34 @@ namespace ReShade
 
 				this->mCurrentSource += ')';
 			}
-			void												VisitFieldExpression(const Nodes::Field &data)
+			void												Visit(const EffectNodes::Constructor &node)
 			{
-				const auto &left = this->mAST[data.Left];
+				this->mCurrentSource += PrintType(node.Type);
+				this->mCurrentSource += '(';
 
-				Visit(left);
+				const auto &arguments = this->mAST[node.Arguments].As<EffectNodes::List>();
 
-				if (!left.Is<Nodes::Reference>() || !left.As<Nodes::Reference>().Type.HasQualifier(Nodes::Type::Qualifier::Uniform))
+				for (unsigned int i = 0; i < arguments.Length; ++i)
 				{
-					this->mCurrentSource += '.';
-				}
-				else
-				{
-					this->mCurrentSource += '_';
+					this->mAST[arguments[i]].Accept(*this);
+
+					this->mCurrentSource += ", ";
 				}
 
-				this->mCurrentSource += this->mAST[data.Callee].As<Nodes::Variable>().Name;
+				this->mCurrentSource.pop_back();
+				this->mCurrentSource.pop_back();
+
+				this->mCurrentSource += ')';
 			}
-			void												VisitSwizzleExpression(const Nodes::Swizzle &data)
+			void												Visit(const EffectNodes::Swizzle &node)
 			{
-				const auto &left = this->mAST[data.Left];
+				const EffectNodes::RValue &left = this->mAST[node.Operands[0]].As<EffectNodes::RValue>();
 
-				Visit(left);
+				left.Accept(*this);
 
 				this->mCurrentSource += '.';
 
-				if (left.As<Nodes::Expression>().Type.IsMatrix())
+				if (left.Type.IsMatrix())
 				{
 					const char swizzle[16][5] =
 					{
@@ -925,9 +1081,9 @@ namespace ReShade
 						"_m30", "_m31", "_m32", "_m33"
 					};
 
-					for (int i = 0; i < 4 && data.Offsets[i] >= 0; ++i)
+					for (int i = 0; i < 4 && node.Mask[i] >= 0; ++i)
 					{
-						this->mCurrentSource += swizzle[data.Offsets[i]];
+						this->mCurrentSource += swizzle[node.Mask[i]];
 					}
 				}
 				else
@@ -937,265 +1093,164 @@ namespace ReShade
 						'x', 'y', 'z', 'w'
 					};
 
-					for (int i = 0; i < 4 && data.Offsets[i] >= 0; ++i)
+					for (int i = 0; i < 4 && node.Mask[i] >= 0; ++i)
 					{
-						this->mCurrentSource += swizzle[data.Offsets[i]];
+						this->mCurrentSource += swizzle[node.Mask[i]];
 					}
 				}
 			}
-			void												VisitStatementBlock(const Nodes::StatementBlock &data)
+			void												Visit(const EffectNodes::If &node)
 			{
-				this->mCurrentSource += "{\n";
+				this->mCurrentSource += "if (";
+				this->mAST[node.Condition].Accept(*this);
+				this->mCurrentSource += ")\n";
 
-				for (size_t i = 0; i < data.Length; ++i)
+				if (node.StatementOnTrue != 0)
 				{
-					Visit(this->mAST[data.Find(this->mAST, i)]);
+					this->mAST[node.StatementOnTrue].Accept(*this);
 				}
-
-				this->mCurrentSource += "}\n";
+				else
+				{
+					this->mCurrentSource += "\t;";
+				}
+				if (node.StatementOnFalse != 0)
+				{
+					this->mCurrentSource += "else\n";
+					this->mAST[node.StatementOnFalse].Accept(*this);
+				}
 			}
-			void												VisitExpressionStatement(const Nodes::ExpressionStatement &data)
+			void												Visit(const EffectNodes::Switch &node)
 			{
-				Visit(this->mAST[data.Expression]);
+				this->mErrors += PrintLocation(node.Location) + "Warning: Switch statements do not currently support fallthrough in Direct3D9!\n";
+
+				this->mCurrentSource += "[unroll] do { ";
+				this->mCurrentSource += PrintType(this->mAST[node.Test].As<EffectNodes::RValue>().Type);
+				this->mCurrentSource += " __switch_condition = ";
+				this->mAST[node.Test].Accept(*this);
 				this->mCurrentSource += ";\n";
-			}
-			void												VisitDeclarationStatement(const Nodes::DeclarationStatement &data)
-			{
-				Visit(this->mAST[data.Declaration]);
-			}
-			void												VisitSelectionStatement(const Nodes::Selection &data)
-			{
-				switch (data.Mode)
+
+				const auto &cases = this->mAST[node.Cases].As<EffectNodes::List>();
+
+				for (unsigned int i = 0; i < cases.Length; ++i)
 				{
-					case Nodes::Selection::If:
-					{
-						switch (data.Attributes)
-						{
-							case Nodes::Attribute::Flatten:
-								this->mCurrentSource += "[flatten] ";
-								break;
-							case Nodes::Attribute::Branch:
-								this->mCurrentSource += "[branch] ";
-								break;
-						}
+					this->mCurrentCaseIndex = i;
 
-						this->mCurrentSource += "if (";
-						Visit(this->mAST[data.Condition]);
-						this->mCurrentSource += ")\n";
-
-						if (data.StatementTrue != 0)
-						{
-							Visit(this->mAST[data.StatementTrue]);
-
-							if (data.StatementFalse != 0)
-							{
-								this->mCurrentSource += "else\n";
-								Visit(this->mAST[data.StatementFalse]);
-							}
-						}
-						else
-						{
-							this->mCurrentSource += "\t;";
-						}					
-						break;
-					}
-					case Nodes::Selection::Switch:
-					{
-						this->mErrors += "Warning: Switch statements do not support fallthrough in Direct3D9!\n";
-
-						this->mCurrentSource += "[unroll] do { ";
-						VisitType(this->mAST[data.Condition].As<Nodes::Expression>().Type);
-						this->mCurrentSource += " __switch_condition = ";
-						Visit(this->mAST[data.Condition]);
-						this->mCurrentSource += ";\n";
-
-						this->mCurrentSwitchCaseIndex = 0;
-						this->mCurrentSwitchDefault = 0;
-
-						Visit(this->mAST[data.Statement]);
-
-						if (this->mCurrentSwitchDefault != 0)
-						{
-							if (this->mCurrentSwitchCaseIndex != 0)
-							{
-								this->mCurrentSource += "else\n";
-							}
-
-							Visit(this->mAST[this->mCurrentSwitchDefault]);
-						}
-
-						this->mCurrentSource += "} while (false);\n";
-						break;
-					}
-					case Nodes::Selection::Case:
-					{
-						const auto &cases = this->mAST[data.Condition].As<Nodes::Aggregate>();
-
-						std::vector<EffectTree::Index> items;
-						items.reserve(cases.Length);
-
-						for (size_t i = 0; i < cases.Length; ++i)
-						{
-							EffectTree::Index itemIndex = cases.Find(this->mAST, i);
-							const auto &item = this->mAST[itemIndex];
-
-							if (item.Is<Nodes::Expression>())
-							{
-								this->mCurrentSwitchDefault = data.Statement;
-								return;
-							}
-							else
-							{
-								items.push_back(itemIndex);
-							}
-						}
-
-						if (this->mCurrentSwitchCaseIndex != 0)
-						{
-							this->mCurrentSource += "else ";
-						}
-
-						this->mCurrentSource += "if (";
-
-						for (auto begin = items.cbegin(), end = items.cend(), it = begin; it != end; ++it)
-						{
-							this->mCurrentSwitchCaseIndex++;
-
-							if (it != begin)
-							{
-								this->mCurrentSource += "|| ";
-							}
-
-							this->mCurrentSource += "__switch_condition == (";
-							Visit(this->mAST[*it]);
-							this->mCurrentSource += ")";
-						}
-
-						this->mCurrentSource += ")\n";
-						Visit(this->mAST[data.Statement]);
-						break;
-					}
+					this->mAST[cases[i]].As<EffectNodes::Case>().Accept(*this);
 				}
+
+				this->mCurrentSource += "} while (false);\n";
 			}
-			void												VisitIterationStatement(const Nodes::Iteration &data)
+			void												Visit(const EffectNodes::Case &node)
 			{
-				switch (data.Mode)
+				const auto &labels = this->mAST[node.Labels].As<EffectNodes::List>();
+
+				if (this->mCurrentCaseIndex != 0)
 				{
-					case Nodes::Iteration::For:
+					this->mCurrentSource += "else ";
+				}
+
+				this->mCurrentSource += "if (";
+
+				for (unsigned int i = 0; i < labels.Length; ++i)
+				{
+					const auto &label = this->mAST[labels[i]];
+
+					if (label.Is<EffectNodes::Expression>())
 					{
-						switch (data.Attributes)
-						{
-							case Nodes::Attribute::Unroll:
-								this->mCurrentSource += "[unroll] ";
-								break;
-							case Nodes::Attribute::Loop:
-								this->mCurrentSource += "[loop] ";
-								break;
-							case Nodes::Attribute::FastOpt:
-								this->mCurrentSource += "[fastopt] ";
-								break;
-						}
+						this->mCurrentSource += "true";
+					}
+					else
+					{
+						this->mCurrentSource += "__switch_condition == ";
+						label.As<EffectNodes::Literal>().Accept(*this);
+					}
 
-						this->mCurrentSource += "for (";
+					this->mCurrentSource += " || ";
+				}
 
-						if (data.Initialization != 0)
-						{
-							Visit(this->mAST[data.Initialization]);
+				this->mCurrentSource.pop_back();
+				this->mCurrentSource.pop_back();
+				this->mCurrentSource.pop_back();
+				this->mCurrentSource.pop_back();
 
-							this->mCurrentSource.pop_back();
-							this->mCurrentSource.pop_back();
-						}
+				this->mCurrentSource += ")";
 
-						this->mCurrentSource += "; ";
+				this->mAST[node.Statements].As<EffectNodes::StatementBlock>().Accept(*this);
+			}
+			void												Visit(const EffectNodes::For &node)
+			{
+				this->mCurrentSource += "for (";
+
+				if (node.Initialization != 0)
+				{
+					this->mAST[node.Initialization].Accept(*this);
+
+					this->mCurrentSource.pop_back();
+					this->mCurrentSource.pop_back();
+				}
+
+				this->mCurrentSource += "; ";
 										
-						if (data.Condition != 0)
-						{
-							Visit(this->mAST[data.Condition]);
-						}
+				if (node.Condition != 0)
+				{
+					this->mAST[node.Condition].Accept(*this);
+				}
 
-						this->mCurrentSource += "; ";
+				this->mCurrentSource += "; ";
 
-						if (data.Expression != 0)
-						{
-							Visit(this->mAST[data.Expression]);
-						}
+				if (node.Iteration != 0)
+				{
+					this->mAST[node.Iteration].Accept(*this);
+				}
 
-						this->mCurrentSource += ")\n";
+				this->mCurrentSource += ")\n";
 
-						if (data.Statement != 0)
-						{
-							Visit(this->mAST[data.Statement]);
-						}
-						else
-						{
-							this->mCurrentSource += "\t;";
-						}
-						break;
-					}
-					case Nodes::Iteration::Mode::While:
+				if (node.Statements != 0)
+				{
+					this->mAST[node.Statements].Accept(*this);
+				}
+				else
+				{
+					this->mCurrentSource += "\t;";
+				}
+			}
+			void												Visit(const EffectNodes::While &node)
+			{
+				if (node.DoWhile)
+				{
+					this->mCurrentSource += "do\n{\n";
+
+					if (node.Statements != 0)
 					{
-						switch (data.Attributes)
-						{
-							case Nodes::Attribute::Unroll:
-								this->mCurrentSource += "[unroll] ";
-								break;
-							case Nodes::Attribute::Loop:
-								this->mCurrentSource += "[loop] ";
-								break;
-							case Nodes::Attribute::FastOpt:
-								this->mCurrentSource += "[fastopt] ";
-								break;
-						}
-
-						this->mCurrentSource += "while (";
-						Visit(this->mAST[data.Condition]);
-						this->mCurrentSource += ")\n";
-
-						if (data.Statement != 0)
-						{
-							Visit(this->mAST[data.Statement]);
-						}
-						else
-						{
-							this->mCurrentSource += "\t;";
-						}
-						break;
+						this->mAST[node.Statements].Accept(*this);
 					}
-					case Nodes::Iteration::Mode::DoWhile:
-					{
-						switch (data.Attributes)
-						{
-							case Nodes::Attribute::FastOpt:
-								this->mCurrentSource += "[fastopt] ";
-								break;
-						}
 
-						this->mCurrentSource += "do\n{\n";
-						Visit(this->mAST[data.Statement]);
-						this->mCurrentSource += "}\n";
-						this->mCurrentSource += "while (";
-						Visit(this->mAST[data.Condition]);
-						this->mCurrentSource += ");\n";
-						break;
+					this->mCurrentSource += "}\n";
+					this->mCurrentSource += "while (";
+					this->mAST[node.Condition].Accept(*this);
+					this->mCurrentSource += ");\n";
+				}
+				else
+				{
+					this->mCurrentSource += "while (";
+					this->mAST[node.Condition].Accept(*this);
+					this->mCurrentSource += ")\n";
+
+					if (node.Statements != 0)
+					{
+						this->mAST[node.Statements].Accept(*this);
+					}
+					else
+					{
+						this->mCurrentSource += "\t;";
 					}
 				}
 			}
-			void												VisitJumpStatement(const Nodes::Jump &data)
+			void												Visit(const EffectNodes::Jump &node)
 			{
-				switch (data.Mode)
+				switch (node.Mode)
 				{
-					case Nodes::Jump::Break:
-					{
-						this->mCurrentSource += "break";
-						break;
-					}
-					case Nodes::Jump::Continue:
-					{
-						this->mCurrentSource += "continue";
-						break;
-					}
-					case Nodes::Jump::Return:
-					{
+					case EffectNodes::Jump::Return:
 						switch (this->mCurrentPositionVariableType)
 						{
 							case 1:
@@ -1206,20 +1261,20 @@ namespace ReShade
 							{
 								this->mCurrentSource += "return";
 
-								if (data.Expression != 0)
+								if (node.Value != 0)
 								{
 									this->mCurrentSource += ' ';
-									Visit(this->mAST[data.Expression]);
+									this->mAST[node.Value].Accept(*this);
 								}
 								break;
 							}
 							case 2:
 							{
-								const auto &expression = this->mAST[data.Expression];
+								const auto &value = this->mAST[node.Value];
 
-								VisitType(expression.As<Nodes::Expression>().Type);
+								this->mCurrentSource += PrintType(value.As<EffectNodes::RValue>().Type);
 								this->mCurrentSource += " _return = ";
-								Visit(expression);
+								value.Accept(*this);
 								this->mCurrentSource += ";\n";
 								this->mCurrentSource += "_return" + this->mCurrentPositionVariable + ".xy += _PIXEL_SIZE_.zw * _return" + this->mCurrentPositionVariable + ".ww;\n";
 								this->mCurrentSource += "return _return";
@@ -1227,34 +1282,85 @@ namespace ReShade
 							}
 						}
 						break;
-					}
-					case Nodes::Jump::Discard:
-					{
+					case EffectNodes::Jump::Break:
+						this->mCurrentSource += "break";
+						break;
+					case EffectNodes::Jump::Continue:
+						this->mCurrentSource += "continue";
+						break;
+					case EffectNodes::Jump::Discard:
 						this->mCurrentSource += "discard";
 						break;
-					}
 				}
 
 				this->mCurrentSource += ";\n";
 			}
-			void												VisitStructDeclaration(const Nodes::Struct &data)
+			void												Visit(const EffectNodes::ExpressionStatement &node)
+			{
+				if (node.Expression != 0)
+				{
+					this->mAST[node.Expression].Accept(*this);
+				}
+
+				this->mCurrentSource += ";\n";
+			}
+			void												Visit(const EffectNodes::StatementBlock &node)
+			{
+				this->mCurrentSource += "{\n";
+
+				for (unsigned int i = 0; i < node.Length; ++i)
+				{
+					this->mAST[node[i]].Accept(*this);
+				}
+
+				this->mCurrentSource += "}\n";
+			}
+			void												Visit(const EffectNodes::Annotation &node)
+			{
+				Effect::Annotation annotation;
+				const auto &value = this->mAST[node.Value].As<EffectNodes::Literal>();
+
+				switch (value.Type.Class)
+				{
+					case EffectNodes::Type::Bool:
+						annotation = value.Value.Bool[0] != 0;
+						break;
+					case EffectNodes::Type::Int:
+						annotation = value.Value.Int[0];
+						break;
+					case EffectNodes::Type::Uint:
+						annotation = value.Value.Uint[0];
+						break;
+					case EffectNodes::Type::Float:
+						annotation = value.Value.Float[0];
+						break;
+					case EffectNodes::Type::String:
+						annotation = value.Value.String;
+						break;
+				}
+
+				assert(this->mCurrentAnnotations != nullptr);
+
+				this->mCurrentAnnotations->insert(std::make_pair(node.Name, annotation));
+			}
+			void												Visit(const EffectNodes::Struct &node)
 			{
 				this->mCurrentSource += "struct ";
 
-				if (data.Name != nullptr)
+				if (node.Name != nullptr)
 				{
-					this->mCurrentSource += data.Name;
+					this->mCurrentSource += node.Name;
 				}
 
 				this->mCurrentSource += "\n{\n";
 
-				if (data.Fields != 0)
+				if (node.HasFields())
 				{
-					const auto &fields = this->mAST[data.Fields].As<Nodes::Aggregate>();
+					const auto &fields = this->mAST[node.Fields].As<EffectNodes::List>();
 
-					for (size_t i = 0; i < fields.Length; ++i)
+					for (unsigned int i = 0; i < fields.Length; ++i)
 					{
-						Visit(this->mAST[fields.Find(this->mAST, i)]);
+						this->mAST[fields[i]].As<EffectNodes::Variable>().Accept(*this);
 					}
 				}
 				else
@@ -1264,39 +1370,35 @@ namespace ReShade
 
 				this->mCurrentSource += "};\n";
 			}
-			void												VisitVariableDeclaration(const Nodes::Variable &data)
+			void												Visit(const EffectNodes::Variable &node)
 			{
 				if (!(this->mCurrentInParameterBlock || this->mCurrentInFunctionBlock))
 				{
-					if (data.Type.IsStruct() && data.Type.HasQualifier(Nodes::Type::Qualifier::Uniform))
+					if (node.Type.IsStruct() && node.Type.HasQualifier(EffectNodes::Type::Qualifier::Uniform))
 					{
-						VisitUniformBufferDeclaration(data);
+						VisitUniformBuffer(node);
 						return;
 					}
-					else if (data.Type.IsSampler())
+					else if (node.Type.IsTexture())
 					{
-						VisitSamplerDeclaration(data);
+						VisitTexture(node);
 						return;
 					}
-					else if (data.Type.IsTexture())
+					else if (node.Type.IsSampler())
 					{
-						VisitTextureDeclaration(data);
+						VisitSampler(node);
 						return;
 					}
-					else if (data.Type.HasQualifier(Nodes::Type::Qualifier::Uniform))
+					else if (node.Type.HasQualifier(EffectNodes::Type::Qualifier::Uniform))
 					{
-						VisitUniformSingleDeclaration(data);
+						VisitUniform(node);
 						return;
 					}
 				}
 
-				VisitType(data.Type);
+				this->mCurrentSource += PrintTypeWithQualifiers(node.Type);
 
-				if (data.HasSemantic() && boost::iequals(data.Semantic, "SV_VertexID"))
-				{
-					this->mCurrentSource += " __VERTEXID";
-				}
-				else if (data.Name != nullptr)
+				if (node.Name != nullptr)
 				{
 					this->mCurrentSource += ' ';
 
@@ -1305,383 +1407,271 @@ namespace ReShade
 						this->mCurrentSource += this->mCurrentBlockName + '_';
 					}
 				
-					this->mCurrentSource += data.Name;
+					this->mCurrentSource += node.Name;
 				}
 
-				if (data.Type.IsArray())
+				if (node.Type.IsArray())
 				{
-					for (size_t i = 0; i < data.Type.ElementsDimension; ++i)
-					{
-						this->mCurrentSource += '[';
-						this->mCurrentSource += (data.Type.Elements[i] > 0) ? std::to_string(data.Type.Elements[i]) : "";
-						this->mCurrentSource += ']';
-					}
+					this->mCurrentSource += '[';
+					this->mCurrentSource += (node.Type.ArrayLength >= 1) ? std::to_string(node.Type.ArrayLength) : "";
+					this->mCurrentSource += ']';
 				}
 
-				if (data.HasSemantic())
+				if (node.Semantic != nullptr)
 				{
 					this->mCurrentSource += " : ";
-					this->mCurrentSource += data.Semantic;
+					this->mCurrentSource += ConvertSemantic(node.Semantic);
+				}
+
+				if (node.HasInitializer())
+				{
+					this->mCurrentSource += " = ";
+
+					this->mAST[node.Initializer].Accept(*this);
 				}
 
 				if (!this->mCurrentInParameterBlock)
 				{
-					if (data.HasInitializer())
-					{
-						this->mCurrentSource += " = ";
-
-						const auto &initializer = this->mAST[data.Initializer];
-
-						if (initializer.Is<Nodes::Aggregate>())
-						{
-							this->mCurrentSource += "{ ";
-
-							for (size_t i = 0; i < initializer.As<Nodes::Aggregate>().Length; ++i)
-							{
-								Visit(this->mAST[initializer.As<Nodes::Aggregate>().Find(this->mAST, i)]);
-
-								this->mCurrentSource += ", ";
-							}
-
-							this->mCurrentSource += " }";
-						}
-						else
-						{
-							Visit(initializer);
-						}
-					}
-
 					this->mCurrentSource += ";\n";
 				}
 			}
-			void												VisitSamplerDeclaration(const Nodes::Variable &data)
+			void												VisitTexture(const EffectNodes::Variable &node)
 			{
-				D3D9Sampler sampler;
-				sampler.mStates[D3DSAMP_ADDRESSU] = D3DTADDRESS_WRAP;
-				sampler.mStates[D3DSAMP_ADDRESSV] = D3DTADDRESS_WRAP;
-				sampler.mStates[D3DSAMP_ADDRESSW] = D3DTADDRESS_WRAP;
-				sampler.mStates[D3DSAMP_BORDERCOLOR] = 0;
-				sampler.mStates[D3DSAMP_MINFILTER] = D3DTEXF_POINT;
-				sampler.mStates[D3DSAMP_MAGFILTER] = D3DTEXF_POINT;
-				sampler.mStates[D3DSAMP_MIPFILTER] = D3DTEXF_NONE;
-				sampler.mStates[D3DSAMP_MIPMAPLODBIAS] = 0;
-				sampler.mStates[D3DSAMP_MAXMIPLEVEL] = 0;
-				sampler.mStates[D3DSAMP_MAXANISOTROPY] = 1;
-				sampler.mStates[D3DSAMP_SRGBTEXTURE] = FALSE;
-			
-				if (data.HasInitializer())
-				{
-					#pragma region Fill Description
-					const auto &states = this->mAST[data.Initializer].As<Nodes::Aggregate>();
+				const UINT width = (node.Properties[EffectNodes::Variable::Width] != 0) ? this->mAST[node.Properties[EffectNodes::Variable::Width]].As<EffectNodes::Literal>().Value.Uint[0] : 1;
+				const UINT height = (node.Properties[EffectNodes::Variable::Height] != 0) ? this->mAST[node.Properties[EffectNodes::Variable::Height]].As<EffectNodes::Literal>().Value.Uint[0] : 1;
+				const UINT levels = (node.Properties[EffectNodes::Variable::MipLevels] != 0) ? this->mAST[node.Properties[EffectNodes::Variable::MipLevels]].As<EffectNodes::Literal>().Value.Uint[0] : 1;
 
-					for (size_t i = 0; i < states.Length; ++i)
-					{
-						const auto &state = this->mAST[states.Find(this->mAST, i)].As<Nodes::State>();
-					
-						switch (state.Type)
-						{
-							case Nodes::State::Texture:
-								try
-								{
-									sampler.mTexture = this->mEffect->mTextures.at(this->mAST[state.Value.AsNode].As<Nodes::Variable>().Name).get();
-									break;
-								}
-								catch (...)
-								{
-									return;
-								}
-							case Nodes::State::MinFilter:
-								sampler.mStates[D3DSAMP_MINFILTER] = ConvertLiteralToTextureFilter(state.Value.AsInt);
-								break;
-							case Nodes::State::MagFilter:
-								sampler.mStates[D3DSAMP_MAGFILTER] = ConvertLiteralToTextureFilter(state.Value.AsInt);
-								break;
-							case Nodes::State::MipFilter:
-								sampler.mStates[D3DSAMP_MIPFILTER] = ConvertLiteralToTextureFilter(state.Value.AsInt);
-								break;
-							case Nodes::State::AddressU:
-							case Nodes::State::AddressV:
-							case Nodes::State::AddressW:
-								sampler.mStates[D3DSAMP_ADDRESSU + (state.Type - Nodes::State::AddressU)] = ConvertLiteralToTextureAddress(state.Value.AsInt);
-								break;
-							case Nodes::State::MipLODBias:
-								sampler.mStates[D3DSAMP_MIPMAPLODBIAS] = static_cast<DWORD>(state.Value.AsFloat);
-								break;
-							case Nodes::State::MaxLOD:
-								sampler.mStates[D3DSAMP_MAXMIPLEVEL] = static_cast<DWORD>(state.Value.AsFloat);
-								break;
-							case Nodes::State::MaxAnisotropy:
-								sampler.mStates[D3DSAMP_MAXANISOTROPY] = state.Value.AsInt;
-								break;
-							case Nodes::State::SRGB:
-								sampler.mStates[D3DSAMP_SRGBTEXTURE] = state.Value.AsInt;
-								break;
-						}
-					}
-					#pragma endregion
+				D3DFORMAT d3dformat = D3DFMT_A8R8G8B8;
+				Effect::Texture::Format format = Effect::Texture::Format::RGBA8;
+
+				if (node.Properties[EffectNodes::Variable::Format] != 0)
+				{
+					d3dformat = LiteralToFormat(this->mAST[node.Properties[EffectNodes::Variable::Format]].As<EffectNodes::Literal>().Value.Uint[0], format);
 				}
 
+				std::unique_ptr<D3D9Texture> obj(new D3D9Texture(this->mEffect));
+				obj->mDesc.Width = width;
+				obj->mDesc.Height = height;
+				obj->mDesc.Levels = levels;
+				obj->mDesc.Format = format;
+
+				HRESULT hr = this->mEffect->mEffectContext->mDevice->CreateTexture(width, height, levels, d3dformat == D3DFMT_A8R8G8B8 ? D3DUSAGE_RENDERTARGET : 0, d3dformat, D3DPOOL_DEFAULT, &obj->mTexture, nullptr);
+
+				if (FAILED(hr))
+				{
+					this->mErrors += PrintLocation(node.Location) + "'CreateTexture' failed!\n";
+					this->mFatal = true;
+					return;
+				}
+
+				obj->mTexture->GetSurfaceLevel(0, &obj->mSurface);
+
+				if (node.HasAnnotations())
+				{
+					const auto &annotations = this->mAST[node.Annotations].As<EffectNodes::List>();
+
+					this->mCurrentAnnotations = &obj->mAnnotations;
+
+					for (unsigned int i = 0; i < annotations.Length; ++i)
+					{
+						this->mAST[annotations[i]].As<EffectNodes::Annotation>().Accept(*this);
+					}
+
+					this->mCurrentAnnotations = nullptr;
+				}
+
+				this->mEffect->mTextures.insert(std::make_pair(node.Name, std::move(obj)));
+			}
+			void												VisitSampler(const EffectNodes::Variable &node)
+			{
+				if (node.Properties[EffectNodes::Variable::Texture] == 0)
+				{
+					this->mErrors = PrintLocation(node.Location) + "Sampler '" + std::string(node.Name) + "' is missing required 'Texture' property.\n";
+					this->mFatal;
+					return;
+				}
+
+				D3D9Sampler sampler;
+				sampler.mStates[D3DSAMP_ADDRESSU] = (node.Properties[EffectNodes::Variable::AddressU] != 0) ? LiteralToTextureAddress(this->mAST[node.Properties[EffectNodes::Variable::AddressU]].As<EffectNodes::Literal>().Value.Uint[0]) : D3DTADDRESS_CLAMP;
+				sampler.mStates[D3DSAMP_ADDRESSV] = (node.Properties[EffectNodes::Variable::AddressV] != 0) ? LiteralToTextureAddress(this->mAST[node.Properties[EffectNodes::Variable::AddressV]].As<EffectNodes::Literal>().Value.Uint[0]) : D3DTADDRESS_CLAMP;
+				sampler.mStates[D3DSAMP_ADDRESSW] = (node.Properties[EffectNodes::Variable::AddressW] != 0) ? LiteralToTextureAddress(this->mAST[node.Properties[EffectNodes::Variable::AddressW]].As<EffectNodes::Literal>().Value.Uint[0]) : D3DTADDRESS_CLAMP;
+				sampler.mStates[D3DSAMP_BORDERCOLOR] = 0;
+				sampler.mStates[D3DSAMP_MINFILTER] = (node.Properties[EffectNodes::Variable::MinFilter] != 0) ? LiteralToTextureFilter(this->mAST[node.Properties[EffectNodes::Variable::MinFilter]].As<EffectNodes::Literal>().Value.Uint[0]) : D3DTEXF_LINEAR;
+				sampler.mStates[D3DSAMP_MAGFILTER] = (node.Properties[EffectNodes::Variable::MagFilter] != 0) ? LiteralToTextureFilter(this->mAST[node.Properties[EffectNodes::Variable::MagFilter]].As<EffectNodes::Literal>().Value.Uint[0]) : D3DTEXF_LINEAR;
+				sampler.mStates[D3DSAMP_MIPFILTER] = (node.Properties[EffectNodes::Variable::MipFilter] != 0) ? LiteralToTextureFilter(this->mAST[node.Properties[EffectNodes::Variable::MipFilter]].As<EffectNodes::Literal>().Value.Uint[0]) : D3DTEXF_LINEAR;
+				sampler.mStates[D3DSAMP_MIPMAPLODBIAS] = (node.Properties[EffectNodes::Variable::MipLODBias] != 0) ? static_cast<DWORD>(this->mAST[node.Properties[EffectNodes::Variable::MipLODBias]].As<EffectNodes::Literal>().Value.Float[0]) : 0;
+				sampler.mStates[D3DSAMP_MAXMIPLEVEL] = (node.Properties[EffectNodes::Variable::MaxLOD] != 0) ? static_cast<DWORD>(this->mAST[node.Properties[EffectNodes::Variable::MaxLOD]].As<EffectNodes::Literal>().Value.Float[0]) : 0;
+				sampler.mStates[D3DSAMP_MAXANISOTROPY] = (node.Properties[EffectNodes::Variable::MaxAnisotropy] != 0) ? this->mAST[node.Properties[EffectNodes::Variable::MaxAnisotropy]].As<EffectNodes::Literal>().Value.Uint[0] : 1;
+				sampler.mStates[D3DSAMP_SRGBTEXTURE] = node.Properties[EffectNodes::Variable::SRGBTexture] != 0 && this->mAST[node.Properties[EffectNodes::Variable::SRGBTexture]].As<EffectNodes::Literal>().Value.Bool[0];
+				sampler.mTexture = this->mEffect->mTextures.at(this->mAST[node.Properties[EffectNodes::Variable::Texture]].As<EffectNodes::Variable>().Name).get();
+
 				this->mCurrentSource += "sampler2D ";
-				this->mCurrentSource += data.Name;
+				this->mCurrentSource += node.Name;
 				this->mCurrentSource += " : register(s" + std::to_string(this->mEffect->mSamplers.size()) + ");\n";
 
 				this->mEffect->mSamplers.push_back(sampler);
 			}
-			void												VisitTextureDeclaration(const Nodes::Variable &data)
+			void												VisitUniform(const EffectNodes::Variable &node)
 			{
-				IDirect3DTexture9 *texture = nullptr;
-				UINT width = 1, height = 1, levels = 1;
-				D3DFORMAT format1 = D3DFMT_A8R8G8B8;
-				Effect::Texture::Format format2 = Effect::Texture::Format::RGBA8;
-			
-				if (data.HasInitializer())
-				{
-					#pragma region Fill Description
-					const auto &states = this->mAST[data.Initializer].As<Nodes::Aggregate>();
+				this->mCurrentSource += PrintTypeWithQualifiers(node.Type);
+				this->mCurrentSource += ' ';
 
-					for (size_t i = 0; i < states.Length; ++i)
-					{
-						const auto &state = this->mAST[states.Find(this->mAST, i)].As<Nodes::State>();
-					
-						switch (state.Type)
-						{
-							case Nodes::State::Width:
-								width = state.Value.AsInt;
-								break;
-							case Nodes::State::Height:
-								height = state.Value.AsInt;
-								break;
-							case Nodes::State::MipLevels:
-								levels = state.Value.AsInt;
-								break;
-							case Nodes::State::Format:
-								format1 = ConvertLiteralToFormat(state.Value.AsInt, format2);
-								break;
-						}
-					}
-					#pragma endregion
+				if (!this->mCurrentBlockName.empty())
+				{
+					this->mCurrentSource += this->mCurrentBlockName + '_';
 				}
-
-				HRESULT hr = this->mEffect->mEffectContext->mDevice->CreateTexture(width, height, levels, format1 == D3DFMT_A8R8G8B8 ? D3DUSAGE_RENDERTARGET : 0, format1, D3DPOOL_DEFAULT, &texture, nullptr);
-
-				if (SUCCEEDED(hr))
-				{
-					auto obj = std::unique_ptr<D3D9Texture>(new D3D9Texture(this->mEffect));
-					obj->mDesc.Width = width;
-					obj->mDesc.Height = height;
-					obj->mDesc.Levels = levels;
-					obj->mDesc.Format = format2;
-					obj->mTexture = texture;
-
-					obj->mTexture->GetSurfaceLevel(0, &obj->mSurface);
-
-					if (data.Annotations != 0)
-					{
-						const auto &annotations = this->mAST[data.Annotations].As<Nodes::Aggregate>();
-
-						for (size_t i = 0; i < annotations.Length; ++i)
-						{
-							VisitAnnotation(this->mAST[annotations.Find(this->mAST, i)].As<Nodes::Annotation>(), obj->mAnnotations);
-						}
-					}
-
-					this->mEffect->mTextures.insert(std::make_pair(data.Name, std::move(obj)));
-				}
-				else
-				{
-					this->mFatal = true;
-				}
-			}
-			void												VisitUniformSingleDeclaration(const Nodes::Variable &data)
-			{
-				VisitType(data.Type);
-
-				if (data.Name != nullptr)
-				{
-					this->mCurrentSource += ' ';
-
-					if (!this->mCurrentBlockName.empty())
-					{
-						this->mCurrentSource += this->mCurrentBlockName + '_';
-					}
 				
-					this->mCurrentSource += data.Name;
-				}
+				this->mCurrentSource += node.Name;
 
-				if (data.Type.IsArray())
+				if (node.Type.IsArray())
 				{
-					for (size_t i = 0; i < data.Type.ElementsDimension; ++i)
-					{
-						this->mCurrentSource += '[';
-						this->mCurrentSource += (data.Type.Elements[i] > 0) ? std::to_string(data.Type.Elements[i]) : "";
-						this->mCurrentSource += ']';
-					}
+					this->mCurrentSource += '[';
+					this->mCurrentSource += (node.Type.ArrayLength >= 1) ? std::to_string(node.Type.ArrayLength) : "";
+					this->mCurrentSource += ']';
 				}
 
 				this->mCurrentSource += ";\n";
 
-				Effect::Constant::Description desc;
-				desc.Rows = data.Type.Rows;
-				desc.Columns = data.Type.Cols;
-				desc.Elements = data.Type.Elements[0] + data.Type.Elements[1] + data.Type.Elements[2] + data.Type.Elements[3] + data.Type.Elements[4] + data.Type.Elements[5] + data.Type.Elements[6] + data.Type.Elements[7] + data.Type.Elements[8] + data.Type.Elements[9] + data.Type.Elements[10] + data.Type.Elements[11] + data.Type.Elements[12] + data.Type.Elements[13] + data.Type.Elements[14] + data.Type.Elements[15];
-				desc.Fields = 0;
-				desc.Size = std::max(data.Type.Rows, 1U) * std::max(data.Type.Cols, 1U);
+				std::unique_ptr<D3D9Constant> obj(new D3D9Constant(this->mEffect));
+				obj->mDesc.Rows = node.Type.Rows;
+				obj->mDesc.Columns = node.Type.Cols;
+				obj->mDesc.Elements = node.Type.ArrayLength;
+				obj->mDesc.Fields = 0;
+				obj->mDesc.Size = node.Type.Rows * node.Type.Cols;
 
-				switch (data.Type.Class)
+				switch (node.Type.Class)
 				{
-					case Nodes::Type::Bool:
-						desc.Size *= sizeof(int);
-						desc.Type = Effect::Constant::Type::Bool;
+					case EffectNodes::Type::Bool:
+						obj->mDesc.Size *= sizeof(int);
+						obj->mDesc.Type = Effect::Constant::Type::Bool;
 						break;
-					case Nodes::Type::Int:
-						desc.Size *= sizeof(int);
-						desc.Type = Effect::Constant::Type::Int;
+					case EffectNodes::Type::Int:
+						obj->mDesc.Size *= sizeof(int);
+						obj->mDesc.Type = Effect::Constant::Type::Int;
 						break;
-					case Nodes::Type::Uint:
-						desc.Size *= sizeof(unsigned int);
-						desc.Type = Effect::Constant::Type::Uint;
+					case EffectNodes::Type::Uint:
+						obj->mDesc.Size *= sizeof(unsigned int);
+						obj->mDesc.Type = Effect::Constant::Type::Uint;
 						break;
-					case Nodes::Type::Half:
-						desc.Size *= sizeof(float) / 2;
-						desc.Type = Effect::Constant::Type::Half;
-						break;
-					case Nodes::Type::Float:
-						desc.Size *= sizeof(float);
-						desc.Type = Effect::Constant::Type::Float;
-						break;
-					case Nodes::Type::Double:
-						desc.Size *= sizeof(double);
-						desc.Type = Effect::Constant::Type::Double;
+					case EffectNodes::Type::Float:
+						obj->mDesc.Size *= sizeof(float);
+						obj->mDesc.Type = Effect::Constant::Type::Float;
 						break;
 				}
 
-				auto obj = std::unique_ptr<D3D9Constant>(new D3D9Constant(this->mEffect));
-				obj->mDesc = desc;
 				obj->mRegisterOffset = this->mCurrentRegisterIndex;
 
-				const float registersize = static_cast<float>(desc.Size) / (4 * sizeof(float));
-				const UINT alignment = static_cast<UINT>((registersize - static_cast<UINT>(registersize)) > 0);
-				this->mCurrentRegisterIndex += static_cast<UINT>(registersize) + alignment;
+				const UINT registersize = static_cast<UINT>(static_cast<float>(obj->mDesc.Size) / (4 * sizeof(float)));
+				const UINT alignment = (registersize - registersize) > 0;
+				this->mCurrentRegisterIndex += registersize + alignment;
 
 				if ((this->mCurrentRegisterIndex * sizeof(float) * 4) >= this->mCurrentStorageSize)
 				{
 					this->mEffect->mConstantStorage = static_cast<float *>(::realloc(this->mEffect->mConstantStorage, this->mCurrentStorageSize += sizeof(float) * 4 * 16));
 				}
 
-				if (data.Initializer && this->mAST[data.Initializer].Is<Nodes::Literal>())
+				if (node.HasInitializer())
 				{
-					std::memcpy(this->mEffect->mConstantStorage + obj->mRegisterOffset * 4, &this->mAST[data.Initializer].As<Nodes::Literal>().Value, desc.Size);
+					std::memcpy(this->mEffect->mConstantStorage + obj->mRegisterOffset * 4, &this->mAST[node.Initializer].As<EffectNodes::Literal>().Value, obj->mDesc.Size);
 				}
 				else
 				{
-					std::memset(this->mEffect->mConstantStorage + obj->mRegisterOffset * 4, 0, desc.Size);
+					std::memset(this->mEffect->mConstantStorage + obj->mRegisterOffset * 4, 0, obj->mDesc.Size);
 				}
 
-				this->mEffect->mConstants.insert(std::make_pair(this->mCurrentBlockName.empty() ? data.Name : (this->mCurrentBlockName + '.' + data.Name), std::move(obj)));
+				this->mEffect->mConstants.insert(std::make_pair(this->mCurrentBlockName.empty() ? node.Name : (this->mCurrentBlockName + '.' + node.Name), std::move(obj)));
 				this->mEffect->mConstantRegisterCount = this->mCurrentRegisterIndex;
 			}
-			void												VisitUniformBufferDeclaration(const Nodes::Variable &data)
+			void												VisitUniformBuffer(const EffectNodes::Variable &node)
 			{
-				const auto &structure = this->mAST[data.Type.Definition].As<Nodes::Struct>();
+				const auto &structure = this->mAST[node.Type.Definition].As<EffectNodes::Struct>();
 
-				if (structure.Fields == 0)
+				if (structure.HasFields())
 				{
 					return;
 				}
 
-				this->mCurrentBlockName = data.Name;
+				this->mCurrentBlockName = node.Name;
 
-				const auto &fields = this->mAST[structure.Fields].As<Nodes::Aggregate>();
+				const UINT previousRegisterIndex = this->mCurrentRegisterIndex;
+				const auto &fields = this->mAST[structure.Fields].As<EffectNodes::List>();
 
-				UINT previousIndex = this->mCurrentRegisterIndex;
-
-				for (size_t i = 0; i < fields.Length; ++i)
+				for (unsigned int i = 0; i < fields.Length; ++i)
 				{
-					const auto &field = this->mAST[fields.Find(this->mAST, i)].As<Nodes::Variable>();
-
-					VisitUniformSingleDeclaration(field);
+					VisitUniform(this->mAST[fields[i]].As<EffectNodes::Variable>());
 				}
 
-				auto obj = std::unique_ptr<D3D9Constant>(new D3D9Constant(this->mEffect));
+				this->mCurrentBlockName.clear();
+
+				std::unique_ptr<D3D9Constant> obj(new D3D9Constant(this->mEffect));
 				obj->mDesc.Rows = 0;
 				obj->mDesc.Columns = 0;
 				obj->mDesc.Elements = 0;
 				obj->mDesc.Fields = fields.Length;
-				obj->mDesc.Size = (this->mCurrentRegisterIndex - previousIndex) * sizeof(float) * 4;
+				obj->mDesc.Size = (this->mCurrentRegisterIndex - previousRegisterIndex) * sizeof(float) * 4;
 				obj->mDesc.Type = Effect::Constant::Type::Struct;
 
-				if (data.Annotations != 0)
+				if (node.HasAnnotations())
 				{
-					const auto &annotations = this->mAST[data.Annotations].As<Nodes::Aggregate>();
+					const auto &annotations = this->mAST[node.Annotations].As<EffectNodes::List>();
 
-					for (size_t i = 0; i < annotations.Length; ++i)
+					this->mCurrentAnnotations = &obj->mAnnotations;
+
+					for (unsigned int i = 0; i < annotations.Length; ++i)
 					{
-						VisitAnnotation(this->mAST[annotations.Find(this->mAST, i)].As<Nodes::Annotation>(), obj->mAnnotations);
+						this->mAST[annotations[i]].As<EffectNodes::Annotation>().Accept(*this);
 					}
+
+					this->mCurrentAnnotations = nullptr;
 				}
 
-				this->mEffect->mConstants.insert(std::make_pair(data.Name, std::move(obj)));
-
-				this->mCurrentBlockName.clear();
+				this->mEffect->mConstants.insert(std::make_pair(node.Name, std::move(obj)));
 			}
-			void												VisitFunctionDeclaration(const Nodes::Function &data)
+			void												Visit(const EffectNodes::Function &node)
 			{
-				auto type = data.ReturnType;
-				type.Qualifiers &= ~static_cast<int>(Nodes::Type::Qualifier::Const);
-				VisitType(type);
-
+				this->mCurrentSource += PrintType(node.ReturnType);
 				this->mCurrentSource += ' ';
-				this->mCurrentSource += data.Name;
+				this->mCurrentSource += node.Name;
 				this->mCurrentSource += '(';
 
-				std::string vertexid;
-
-				if (data.HasArguments())
+				if (node.HasParameters())
 				{
-					const auto &arguments = this->mAST[data.Arguments].As<Nodes::Aggregate>();
+					const auto &parameters = this->mAST[node.Parameters].As<EffectNodes::List>();
 
 					this->mCurrentInParameterBlock = true;
 
-					for (size_t i = 0; i < arguments.Length; ++i)
+					for (unsigned int i = 0; i < parameters.Length; ++i)
 					{
-						const auto &argument = this->mAST[arguments.Find(this->mAST, i)].As<Nodes::Variable>();
+						const auto &parameter = this->mAST[parameters[i]].As<EffectNodes::Variable>();
 
-						if (argument.HasSemantic() && boost::iequals(argument.Semantic, "SV_VertexID"))
+						if (parameter.Type.HasQualifier(EffectNodes::Type::Out))
 						{
-							vertexid = argument.Name;
-							this->mCurrentSource += "float __VERTEXID : TEXCOORD0";
-						}
-						else
-						{
-							if (argument.Type.HasQualifier(Nodes::Type::Qualifier::Out))
+							if (parameter.Type.IsStruct() && this->mAST[parameter.Type.Definition].As<EffectNodes::Struct>().HasFields())
 							{
-								if (argument.Type.IsStruct() && this->mAST[argument.Type.Definition].As<Nodes::Struct>().Fields != 0)
+								const auto &fields = this->mAST[this->mAST[parameter.Type.Definition].As<EffectNodes::Struct>().Fields].As<EffectNodes::List>();
+
+								for (unsigned int k = 0; k < fields.Length; ++k)
 								{
-									const auto &fields = this->mAST[this->mAST[argument.Type.Definition].As<Nodes::Struct>().Fields].As<Nodes::Aggregate>();
+									const auto &field = this->mAST[fields[k]].As<EffectNodes::Variable>();
 
-									for (size_t k = 0; k < fields.Length; ++k)
+									if (field.Semantic != nullptr && boost::iequals(field.Semantic, "SV_Position"))
 									{
-										const auto &field = this->mAST[fields.Find(this->mAST, k)].As<Nodes::Variable>();
-
-										if (field.HasSemantic() && boost::iequals(field.Semantic, "SV_Position"))
-										{
-											this->mCurrentPositionVariable = argument.Name;
-											this->mCurrentPositionVariable += '.';
-											this->mCurrentPositionVariable += field.Name;
-											this->mCurrentPositionVariableType = 1;
-											break;
-										}
+										this->mCurrentPositionVariable = parameter.Name;
+										this->mCurrentPositionVariable += '.';
+										this->mCurrentPositionVariable += field.Name;
+										this->mCurrentPositionVariableType = 1;
+										break;
 									}
 								}
-								else if (argument.HasSemantic() && boost::iequals(argument.Semantic, "SV_Position"))
-								{
-									this->mCurrentPositionVariable = argument.Name;
-									this->mCurrentPositionVariableType = 1;
-								}
 							}
-
-							VisitVariableDeclaration(argument);
+							else if (parameter.Semantic != nullptr && boost::iequals(parameter.Semantic, "SV_Position"))
+							{
+								this->mCurrentPositionVariable = parameter.Name;
+								this->mCurrentPositionVariableType = 1;
+							}
 						}
+
+						parameter.Accept(*this);
 
 						this->mCurrentSource += ", ";
 					}
@@ -1693,27 +1683,16 @@ namespace ReShade
 				}
 
 				this->mCurrentSource += ')';
-								
-				if (data.ReturnSemantic != nullptr)
+				
+				if (node.ReturnType.IsStruct() && this->mAST[node.ReturnType.Definition].As<EffectNodes::Struct>().HasFields())
 				{
-					this->mCurrentSource += " : ";
-					this->mCurrentSource += ConvertSemantic(data.ReturnSemantic);
+					const auto &fields = this->mAST[this->mAST[node.ReturnType.Definition].As<EffectNodes::Struct>().Fields].As<EffectNodes::List>();
 
-					if (boost::iequals(data.ReturnSemantic, "SV_Position"))
+					for (unsigned int k = 0; k < fields.Length; ++k)
 					{
-						this->mCurrentPositionVariable = "";
-						this->mCurrentPositionVariableType = 2;
-					}
-				}
-				else if (data.ReturnType.IsStruct() && this->mAST[data.ReturnType.Definition].As<Nodes::Struct>().Fields != 0)
-				{
-					const auto &fields = this->mAST[this->mAST[data.ReturnType.Definition].As<Nodes::Struct>().Fields].As<Nodes::Aggregate>();
+						const auto &field = this->mAST[fields[k]].As<EffectNodes::Variable>();
 
-					for (size_t k = 0; k < fields.Length; ++k)
-					{
-						const auto &field = this->mAST[fields.Find(this->mAST, k)].As<Nodes::Variable>();
-
-						if (field.HasSemantic() && boost::iequals(field.Semantic, "SV_Position"))
+						if (field.Semantic != nullptr && boost::iequals(field.Semantic, "SV_Position"))
 						{
 							this->mCurrentPositionVariable = '.';
 							this->mCurrentPositionVariable += field.Name;
@@ -1722,19 +1701,26 @@ namespace ReShade
 						}
 					}
 				}
+				else if (node.ReturnSemantic != nullptr)
+				{
+					this->mCurrentSource += " : ";
+					this->mCurrentSource += ConvertSemantic(node.ReturnSemantic);
 
-				if (data.HasDefinition())
+					if (boost::iequals(node.ReturnSemantic, "SV_Position"))
+					{
+						this->mCurrentPositionVariable = "";
+						this->mCurrentPositionVariableType = 2;
+					}
+				}
+
+				if (node.HasDefinition())
 				{
 					this->mCurrentSource += '\n';
 					this->mCurrentInFunctionBlock = true;
+
 					this->mCurrentSource += "{\n";
 
-					if (!vertexid.empty())
-					{
-						this->mCurrentSource += "const int " + vertexid + " = (int)__VERTEXID;\n";
-					}
-
-					Visit(this->mAST[data.Definition]);
+					this->mAST[node.Definition].As<EffectNodes::StatementBlock>().Accept(*this);
 
 					if (this->mCurrentPositionVariableType == 1)
 					{
@@ -1742,6 +1728,7 @@ namespace ReShade
 					}
 
 					this->mCurrentSource += "}\n";
+
 					this->mCurrentInFunctionBlock = false;
 				}
 				else
@@ -1751,87 +1738,110 @@ namespace ReShade
 
 				this->mCurrentPositionVariableType = 0;
 			}
-			void												VisitTechniqueDeclaration(const Nodes::Technique &data)
+			void												Visit(const EffectNodes::Technique &node)
 			{
-				auto obj = std::unique_ptr<D3D9Technique>(new D3D9Technique(this->mEffect));
+				std::unique_ptr<D3D9Technique> obj(new D3D9Technique(this->mEffect));
 
-				if (data.Passes != 0)
+				const auto &passes = this->mAST[node.Passes].As<EffectNodes::List>();
+
+				obj->mDesc.Passes.reserve(passes.Length);
+				obj->mPasses.reserve(passes.Length);
+
+				this->mCurrentPasses = &obj->mPasses;
+
+				for (unsigned int i = 0; i < passes.Length; ++i)
 				{
-					const auto &passes = this->mAST[data.Passes].As<Nodes::Aggregate>();
+					const auto &pass = this->mAST[passes[i]].As<EffectNodes::Pass>();
 
-					obj->mDesc.Passes.reserve(passes.Length);
-					obj->mPasses.reserve(passes.Length);
-
-					for (size_t i = 0; i < passes.Length; ++i)
-					{
-						auto &pass = this->mAST[passes.Find(this->mAST, i)].As<Nodes::Pass>();
-
-						obj->mDesc.Passes.push_back(pass.Name != nullptr ? pass.Name : "");
-
-						VisitPassDeclaration(pass, obj->mPasses);
-					}
+					obj->mDesc.Passes.push_back(pass.Name != nullptr ? pass.Name : "");
+					
+					pass.Accept(*this);
 				}
 
-				if (data.Annotations != 0)
-				{
-					const auto &annotations = this->mAST[data.Annotations].As<Nodes::Aggregate>();
+				this->mCurrentPasses = nullptr;
 
-					for (size_t i = 0; i < annotations.Length; ++i)
+				if (node.HasAnnotations())
+				{
+					const auto &annotations = this->mAST[node.Annotations].As<EffectNodes::List>();
+
+					this->mCurrentAnnotations = &obj->mAnnotations;
+
+					for (unsigned int i = 0; i < annotations.Length; ++i)
 					{
-						VisitAnnotation(this->mAST[annotations.Find(this->mAST, i)].As<Nodes::Annotation>(), obj->mAnnotations);
+						this->mAST[annotations[i]].As<EffectNodes::Annotation>().Accept(*this);
 					}
+
+					this->mCurrentAnnotations = nullptr;
 				}
 
-				this->mEffect->mTechniques.insert(std::make_pair(data.Name, std::move(obj)));
+				this->mEffect->mTechniques.insert(std::make_pair(node.Name, std::move(obj)));
 			}
-			void												VisitPassDeclaration(const Nodes::Pass &data, std::vector<D3D9Technique::Pass> &passes)
+			void												Visit(const EffectNodes::Pass &node)
 			{
-				if (data.States == 0)
+				D3D9Technique::Pass pass;
+				ZeroMemory(&pass, sizeof(D3D9Technique::Pass));
+				pass.RT[0] = this->mEffect->mBackBuffer;
+
+				if (node.States[EffectNodes::Pass::VertexShader] != 0)
 				{
-					return;
+					VisitShader(this->mAST[node.States[EffectNodes::Pass::VertexShader]].As<EffectNodes::Function>(), EffectNodes::Pass::VertexShader, pass);
 				}
-				
-				D3D9Technique::Pass info;
-				ZeroMemory(&info, sizeof(D3D9Technique::Pass));
-				info.RT[0] = this->mEffect->mBackBuffer;
+				if (node.States[EffectNodes::Pass::PixelShader] != 0)
+				{
+					VisitShader(this->mAST[node.States[EffectNodes::Pass::PixelShader]].As<EffectNodes::Function>(), EffectNodes::Pass::PixelShader, pass);
+				}
 
 				IDirect3DDevice9 *device = this->mEffect->mEffectContext->mDevice;
-				device->BeginStateBlock();
+				
+				D3DCAPS9 caps;
+				device->GetDeviceCaps(&caps);
 
-				device->SetRenderState(D3DRS_ZENABLE, D3DZB_FALSE);
+				HRESULT hr = device->BeginStateBlock();
+
+				if (FAILED(hr))
+				{
+					this->mErrors += PrintLocation(node.Location) + "'BeginStateBlock' failed!\n";
+					this->mFatal = true;
+					return;
+				}
+
+				device->SetVertexShader(pass.VS);
+				device->SetPixelShader(pass.PS);
+
+				device->SetRenderState(D3DRS_ZENABLE, node.States[EffectNodes::Pass::DepthEnable] != 0 && this->mAST[node.States[EffectNodes::Pass::DepthEnable]].As<EffectNodes::Literal>().Value.Bool[0]);
 				device->SetRenderState(D3DRS_SPECULARENABLE, FALSE);
 				device->SetRenderState(D3DRS_FILLMODE, D3DFILL_SOLID);
 				device->SetRenderState(D3DRS_SHADEMODE, D3DSHADE_GOURAUD);
 				device->SetRenderState(D3DRS_ZWRITEENABLE, TRUE);
 				device->SetRenderState(D3DRS_ALPHATESTENABLE, FALSE);
 				device->SetRenderState(D3DRS_LASTPIXEL, TRUE);
-				device->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_ONE);
-				device->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_ZERO);
-				device->SetRenderState(D3DRS_ZFUNC, D3DCMP_LESSEQUAL);
+				device->SetRenderState(D3DRS_SRCBLEND, (node.States[EffectNodes::Pass::SrcBlend] != 0) ? LiteralToBlend(this->mAST[node.States[EffectNodes::Pass::SrcBlend]].As<EffectNodes::Literal>().Value.Uint[0]) : D3DBLEND_ONE);
+				device->SetRenderState(D3DRS_DESTBLEND, (node.States[EffectNodes::Pass::DestBlend] != 0) ? LiteralToBlend(this->mAST[node.States[EffectNodes::Pass::DestBlend]].As<EffectNodes::Literal>().Value.Uint[0]) : D3DBLEND_ZERO);
+				device->SetRenderState(D3DRS_ZFUNC, (node.States[EffectNodes::Pass::DepthFunc] != 0) ? LiteralToCmpFunc(this->mAST[node.States[EffectNodes::Pass::DepthFunc]].As<EffectNodes::Literal>().Value.Uint[0]) : D3DCMP_LESS);
 				device->SetRenderState(D3DRS_ALPHAREF, 0);
 				device->SetRenderState(D3DRS_ALPHAFUNC, D3DCMP_ALWAYS);
 				device->SetRenderState(D3DRS_DITHERENABLE, FALSE);
 				device->SetRenderState(D3DRS_FOGSTART, 0);
 				device->SetRenderState(D3DRS_FOGEND, 1);
 				device->SetRenderState(D3DRS_FOGDENSITY, 1);
-				device->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
+				device->SetRenderState(D3DRS_ALPHABLENDENABLE, node.States[EffectNodes::Pass::BlendEnable] != 0 && this->mAST[node.States[EffectNodes::Pass::BlendEnable]].As<EffectNodes::Literal>().Value.Bool[0]);
 				device->SetRenderState(D3DRS_DEPTHBIAS, 0);
-				device->SetRenderState(D3DRS_STENCILENABLE, FALSE);
-				device->SetRenderState(D3DRS_STENCILFAIL, D3DSTENCILOP_KEEP);
-				device->SetRenderState(D3DRS_STENCILZFAIL, D3DSTENCILOP_KEEP);
-				device->SetRenderState(D3DRS_STENCILPASS, D3DSTENCILOP_KEEP);
-				device->SetRenderState(D3DRS_STENCILFUNC, D3DCMP_ALWAYS);
-				device->SetRenderState(D3DRS_STENCILREF, 0);
-				device->SetRenderState(D3DRS_STENCILMASK, 0xFFFFFFFF);
-				device->SetRenderState(D3DRS_STENCILWRITEMASK, 0xFFFFFFFF);
+				device->SetRenderState(D3DRS_STENCILENABLE, node.States[EffectNodes::Pass::StencilEnable] != 0 && this->mAST[node.States[EffectNodes::Pass::StencilEnable]].As<EffectNodes::Literal>().Value.Bool[0]);
+				device->SetRenderState(D3DRS_STENCILPASS, (node.States[EffectNodes::Pass::StencilPass] != 0) ? LiteralToStencilOp(this->mAST[node.States[EffectNodes::Pass::StencilPass]].As<EffectNodes::Literal>().Value.Uint[0]) : D3DSTENCILOP_KEEP);
+				device->SetRenderState(D3DRS_STENCILFAIL, (node.States[EffectNodes::Pass::StencilFail] != 0) ? LiteralToStencilOp(this->mAST[node.States[EffectNodes::Pass::StencilFail]].As<EffectNodes::Literal>().Value.Uint[0]) : D3DSTENCILOP_KEEP);
+				device->SetRenderState(D3DRS_STENCILZFAIL, (node.States[EffectNodes::Pass::StencilDepthFail] != 0) ? LiteralToStencilOp(this->mAST[node.States[EffectNodes::Pass::StencilDepthFail]].As<EffectNodes::Literal>().Value.Uint[0]) : D3DSTENCILOP_KEEP);
+				device->SetRenderState(D3DRS_STENCILFUNC, (node.States[EffectNodes::Pass::StencilFunc] != 0) ? LiteralToCmpFunc(this->mAST[node.States[EffectNodes::Pass::StencilFunc]].As<EffectNodes::Literal>().Value.Uint[0]) : D3DCMP_ALWAYS);
+				device->SetRenderState(D3DRS_STENCILREF, (node.States[EffectNodes::Pass::StencilRef] != 0) ? this->mAST[node.States[EffectNodes::Pass::StencilRef]].As<EffectNodes::Literal>().Value.Uint[0] : 0);
+				device->SetRenderState(D3DRS_STENCILMASK, (node.States[EffectNodes::Pass::StencilReadMask] != 0) ? this->mAST[node.States[EffectNodes::Pass::StencilReadMask]].As<EffectNodes::Literal>().Value.Uint[0] & 0xFF : 0xFFFFFFFF);
+				device->SetRenderState(D3DRS_STENCILWRITEMASK, (node.States[EffectNodes::Pass::StencilWriteMask] != 0) ? this->mAST[node.States[EffectNodes::Pass::StencilWriteMask]].As<EffectNodes::Literal>().Value.Uint[0] & 0xFF : 0xFFFFFFFF);
 				device->SetRenderState(D3DRS_TEXTUREFACTOR, 0xFFFFFFFF);
 				device->SetRenderState(D3DRS_LOCALVIEWER, TRUE);
 				device->SetRenderState(D3DRS_EMISSIVEMATERIALSOURCE, D3DMCS_MATERIAL);
 				device->SetRenderState(D3DRS_AMBIENTMATERIALSOURCE, D3DMCS_MATERIAL);
 				device->SetRenderState(D3DRS_DIFFUSEMATERIALSOURCE, D3DMCS_COLOR1);
 				device->SetRenderState(D3DRS_SPECULARMATERIALSOURCE, D3DMCS_COLOR2);
-				device->SetRenderState(D3DRS_COLORWRITEENABLE, 0x0000000F);
-				device->SetRenderState(D3DRS_BLENDOP, D3DBLENDOP_ADD);
+				device->SetRenderState(D3DRS_COLORWRITEENABLE, (node.States[EffectNodes::Pass::ColorWriteMask] != 0) ? this->mAST[node.States[EffectNodes::Pass::ColorWriteMask]].As<EffectNodes::Literal>().Value.Uint[0] & 0xF : 0xF);
+				device->SetRenderState(D3DRS_BLENDOP, (node.States[EffectNodes::Pass::BlendOp] != 0) ? LiteralToBlendOp(this->mAST[node.States[EffectNodes::Pass::BlendOp]].As<EffectNodes::Literal>().Value.Uint[0]) : D3DBLENDOP_ADD);
 				device->SetRenderState(D3DRS_SCISSORTESTENABLE, FALSE);
 				device->SetRenderState(D3DRS_SLOPESCALEDEPTHBIAS, 0);
 				device->SetRenderState(D3DRS_ANTIALIASEDLINEENABLE, FALSE);
@@ -1844,121 +1854,61 @@ namespace ReShade
 				device->SetRenderState(D3DRS_COLORWRITEENABLE2, 0x0000000F);
 				device->SetRenderState(D3DRS_COLORWRITEENABLE3, 0x0000000F);
 				device->SetRenderState(D3DRS_BLENDFACTOR, 0xFFFFFFFF);
-				device->SetRenderState(D3DRS_SRGBWRITEENABLE, FALSE);
+				device->SetRenderState(D3DRS_SRGBWRITEENABLE, node.States[EffectNodes::Pass::SRGBWriteEnable] != 0 && this->mAST[node.States[EffectNodes::Pass::SRGBWriteEnable]].As<EffectNodes::Literal>().Value.Bool[0]);
 				device->SetRenderState(D3DRS_SEPARATEALPHABLENDENABLE, FALSE);
 				device->SetRenderState(D3DRS_SRCBLENDALPHA, D3DBLEND_ONE);
 				device->SetRenderState(D3DRS_DESTBLENDALPHA, D3DBLEND_ZERO);
-				device->SetRenderState(D3DRS_BLENDOPALPHA, D3DBLENDOP_ADD);
+				device->SetRenderState(D3DRS_BLENDOPALPHA, (node.States[EffectNodes::Pass::BlendOpAlpha] != 0) ? LiteralToBlendOp(this->mAST[node.States[EffectNodes::Pass::BlendOpAlpha]].As<EffectNodes::Literal>().Value.Uint[0]) : D3DBLENDOP_ADD);
 				device->SetRenderState(D3DRS_FOGENABLE, FALSE );
 				device->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
 				device->SetRenderState(D3DRS_LIGHTING, FALSE);
 
-				const auto &states = this->mAST[data.States].As<Nodes::Aggregate>();
+				device->EndStateBlock(&pass.Stateblock);
 
-				for (size_t i = 0; i < states.Length; ++i)
+				for (unsigned int i = 0; i < 8; ++i)
 				{
-					const auto &state = this->mAST[states.Find(this->mAST, i)].As<Nodes::State>();
-
-					switch (state.Type)
+					if (node.States[EffectNodes::Pass::RenderTarget0 + i] != 0)
 					{
-						case Nodes::State::VertexShader:
-							VisitPassShaderDeclaration(state, info);
-							device->SetVertexShader(info.VS);
-							break;
-						case Nodes::State::PixelShader:
-							VisitPassShaderDeclaration(state, info);
-							device->SetPixelShader(info.PS);
-							break;
-						case Nodes::State::RenderTarget0:
-						case Nodes::State::RenderTarget1:
-						case Nodes::State::RenderTarget2:
-						case Nodes::State::RenderTarget3:
+						if (i > caps.NumSimultaneousRTs)
 						{
-							const char *name = this->mAST[state.Value.AsNode].As<Nodes::Variable>().Name;
-							info.RT[state.Type - Nodes::State::RenderTarget0] = this->mEffect->mTextures.at(name)->mSurface;
+							this->mErrors += PrintLocation(node.Location) + "Device only supports " + std::to_string(caps.NumSimultaneousRTs) + " simultaneous render targets, but more are in use.\n";
 							break;
 						}
-						case Nodes::State::RenderTarget4:
-						case Nodes::State::RenderTarget5:
-						case Nodes::State::RenderTarget6:
-						case Nodes::State::RenderTarget7:
-							this->mErrors += "Direct3D9 supports only up to 4 simultaneous rendertargets!\n";
+
+						const auto &variable = this->mAST[node.States[EffectNodes::Pass::RenderTarget0 + i]].As<EffectNodes::Variable>();
+	
+						const auto it = this->mEffect->mTextures.find(variable.Name);
+
+						if (it == this->mEffect->mTextures.end())
+						{
+							this->mFatal = true;
 							return;
-						case Nodes::State::RenderTargetWriteMask:
-							device->SetRenderState(D3DRS_COLORWRITEENABLE, state.Value.AsInt);
-							break;
-						case Nodes::State::DepthEnable:
-							device->SetRenderState(D3DRS_ZENABLE, state.Value.AsInt);
-							break;
-						case Nodes::State::DepthFunc:
-							device->SetRenderState(D3DRS_ZFUNC, ConvertLiteralToCompFunc(state.Value.AsInt));
-							break;
-						case Nodes::State::DepthWriteMask:
-							device->SetRenderState(D3DRS_ZWRITEENABLE, state.Value.AsInt);
-							break;
-						case Nodes::State::StencilEnable:
-							device->SetRenderState(D3DRS_STENCILENABLE, state.Value.AsInt);
-							break;
-						case Nodes::State::StencilReadMask:
-							device->SetRenderState(D3DRS_STENCILMASK, state.Value.AsInt & 0xFF);
-							break;
-						case Nodes::State::StencilWriteMask:
-							device->SetRenderState(D3DRS_STENCILWRITEMASK, state.Value.AsInt & 0xFF);
-							break;
-						case Nodes::State::StencilFunc:
-							device->SetRenderState(D3DRS_STENCILFUNC, ConvertLiteralToCompFunc(state.Value.AsInt));
-							break;
-						case Nodes::State::StencilPass:
-							device->SetRenderState(D3DRS_STENCILPASS, ConvertLiteralToStencilOp(state.Value.AsInt));
-							break;
-						case Nodes::State::StencilFail:
-							device->SetRenderState(D3DRS_STENCILFAIL, ConvertLiteralToStencilOp(state.Value.AsInt));
-							break;
-						case Nodes::State::StencilZFail:
-							device->SetRenderState(D3DRS_STENCILZFAIL, ConvertLiteralToStencilOp(state.Value.AsInt));
-							break;
-						case Nodes::State::StencilRef:
-							device->SetRenderState(D3DRS_STENCILREF, state.Value.AsInt);
-							break;
-						case Nodes::State::BlendEnable:
-							device->SetRenderState(D3DRS_ALPHABLENDENABLE, state.Value.AsInt);
-							break;
-						case Nodes::State::BlendOp:
-							device->SetRenderState(D3DRS_BLENDOP, ConvertLiteralToBlendOp(state.Value.AsInt));
-							break;
-						case Nodes::State::BlendOpAlpha:
-							device->SetRenderState(D3DRS_BLENDOPALPHA, ConvertLiteralToBlendOp(state.Value.AsInt));
-							break;
-						case Nodes::State::SrcBlend:
-							device->SetRenderState(D3DRS_SRCBLEND, ConvertLiteralToBlend(state.Value.AsInt));
-							break;
-						case Nodes::State::DestBlend:
-							device->SetRenderState(D3DRS_DESTBLEND, ConvertLiteralToBlend(state.Value.AsInt));
-							break;
-						case Nodes::State::SRGBWriteEnable:
-							device->SetRenderState(D3DRS_SRGBWRITEENABLE, static_cast<DWORD>(state.Value.AsInt));
-							break;
+						}
+						
+						D3D9Texture *texture = it->second.get();
+
+						pass.RT[i] = texture->mSurface;
 					}
 				}
 
-				device->EndStateBlock(&info.Stateblock);
+				assert(this->mCurrentPasses != nullptr);
 
-				passes.push_back(info);
+				this->mCurrentPasses->push_back(std::move(pass));
 			}
-			void												VisitPassShaderDeclaration(const Nodes::State &state, D3D9Technique::Pass &info)
+			void												VisitShader(const EffectNodes::Function &node, unsigned int type, D3D9Technique::Pass &pass)
 			{
-				std::string profile;
+				const char *profile = nullptr;
 
-				switch (state.Type)
+				switch (type)
 				{
-					case Nodes::State::VertexShader:
-						profile = "vs_3_0";
-						break;
-					case Nodes::State::PixelShader:
-						profile = "ps_3_0";
-						break;
 					default:
 						return;
+					case EffectNodes::Pass::VertexShader:
+						profile = "vs_3_0";
+						break;
+					case EffectNodes::Pass::PixelShader:
+						profile = "ps_3_0";
+						break;
 				}
 
 				UINT flags = 0;
@@ -1966,18 +1916,13 @@ namespace ReShade
 				flags |= D3DCOMPILE_DEBUG;
 #endif
 
-				std::string source =
-					"#define mad(m, a, b) ((m) * (a) + (b))\n"
-					"#define tex2Doffset(s, c, offset) tex2D(s, (c) + (offset) * _PIXEL_SIZE_.xy)\n"
-					"#define tex2Dfetch(s, c) tex2D(s, float2(c))\n"
-					"uniform float4 _PIXEL_SIZE_ : register(c223);\n" + this->mCurrentSource;
+				std::string source = "uniform float4 _PIXEL_SIZE_ : register(c223);\n" + this->mCurrentSource;
 
-				const char *entry = this->mAST[state.Value.AsNode].As<Nodes::Function>().Name;
+				LOG(TRACE) << "> Compiling shader '" << node.Name << "':\n\n" << source.c_str() << "\n";
 
-				LOG(TRACE) << "> Compiling shader '" << entry << "':\n\n" << source.c_str() << "\n";
+				ID3DBlob *compiled = nullptr, *errors = nullptr;
 
-				ID3DBlob *compiled, *errors;
-				HRESULT hr = D3DCompile(source.c_str(), source.length(), nullptr, nullptr, nullptr, entry, profile.c_str(), flags, 0, &compiled, &errors);
+				HRESULT hr = D3DCompile(source.c_str(), source.length(), nullptr, nullptr, nullptr, node.Name, profile, flags, 0, &compiled, &errors);
 
 				if (errors != nullptr)
 				{
@@ -1992,13 +1937,13 @@ namespace ReShade
 					return;
 				}
 
-				switch (state.Type)
+				switch (type)
 				{
-					case Nodes::State::VertexShader:
-						hr = this->mEffect->mEffectContext->mDevice->CreateVertexShader(static_cast<const DWORD *>(compiled->GetBufferPointer()), &info.VS);
+					case EffectNodes::Pass::VertexShader:
+						hr = this->mEffect->mEffectContext->mDevice->CreateVertexShader(static_cast<const DWORD *>(compiled->GetBufferPointer()), &pass.VS);
 						break;
-					case Nodes::State::PixelShader:
-						hr = this->mEffect->mEffectContext->mDevice->CreatePixelShader(static_cast<const DWORD *>(compiled->GetBufferPointer()), &info.PS);
+					case EffectNodes::Pass::PixelShader:
+						hr = this->mEffect->mEffectContext->mDevice->CreatePixelShader(static_cast<const DWORD *>(compiled->GetBufferPointer()), &pass.PS);
 						break;
 				}
 
@@ -2006,50 +1951,24 @@ namespace ReShade
 
 				if (FAILED(hr))
 				{
+					this->mErrors += PrintLocation(node.Location) + "'CreateShader' failed!\n";
 					this->mFatal = true;
 					return;
 				}
-			}
-			void												VisitAnnotation(const Nodes::Annotation &annotation, std::unordered_map<std::string, Effect::Annotation> &annotations)
-			{
-				Effect::Annotation value;
-
-				switch (annotation.Type.Class)
-				{
-					case Nodes::Type::Bool:
-						value = annotation.Value.AsInt != 0;
-						break;
-					case Nodes::Type::Int:
-					case Nodes::Type::Uint:
-						value = annotation.Value.AsInt;
-						break;
-					case Nodes::Type::Float:
-						value = annotation.Value.AsFloat;
-						break;
-					case Nodes::Type::Double:
-						value = annotation.Value.AsDouble;
-						break;
-					case Nodes::Type::String:
-						value = annotation.Value.AsString;
-						break;
-				}
-
-				annotations.insert(std::make_pair(annotation.Name, value));
 			}
 
 		private:
 			const EffectTree &									mAST;
 			D3D9Effect *										mEffect;
 			std::string											mCurrentSource;
-			std::string &										mErrors;
+			std::string											mErrors;
 			bool												mFatal;
 			std::string											mCurrentBlockName;
-			UINT												mCurrentRegisterIndex, mCurrentStorageSize;
 			bool												mCurrentInParameterBlock, mCurrentInFunctionBlock;
-			std::size_t											mCurrentSwitchCaseIndex;
-			EffectTree::Index									mCurrentSwitchDefault;
+			unsigned int										mCurrentCaseIndex, mCurrentPositionVariableType, mCurrentRegisterIndex, mCurrentStorageSize;
 			std::string											mCurrentPositionVariable;
-			int													mCurrentPositionVariableType;
+			std::unordered_map<std::string, Effect::Annotation> *mCurrentAnnotations;
+			std::vector<D3D9Technique::Pass> *					mCurrentPasses;
 		};
 
 		// -----------------------------------------------------------------------------------------------------
@@ -2081,9 +2000,9 @@ namespace ReShade
 		{
 			D3D9Effect *effect = new D3D9Effect(shared_from_this());
 			
-			ASTVisitor visitor(ast, errors);
+			D3D9EffectCompiler visitor(ast);
 		
-			if (visitor.Traverse(effect))
+			if (visitor.Traverse(effect, errors))
 			{
 				return std::unique_ptr<Effect>(effect);
 			}
@@ -2287,7 +2206,7 @@ namespace ReShade
 			system->Release();
 		
 			D3DLOCKED_RECT mapped;
-			hr = systemSurface->LockRect(&mapped, nullptr, D3DLOCK_DISCARD);
+			hr = systemSurface->LockRect(&mapped, nullptr, 0);
 
 			if (FAILED(hr))
 			{

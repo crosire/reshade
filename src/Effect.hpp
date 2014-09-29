@@ -27,9 +27,6 @@ namespace ReShade
 			inline Annotation(float value) : mValue(std::to_string(value))
 			{
 			}
-			inline Annotation(double value) : mValue(std::to_string(value))
-			{
-			}
 			inline Annotation(const std::string &value) : mValue(value)
 			{
 			}
@@ -111,9 +108,7 @@ namespace ReShade
 				Bool,
 				Int,
 				Uint,
-				Half,
 				Float,
-				Double,
 				Struct
 			};
 			struct												Description

@@ -1,9 +1,12 @@
 #include "Log.hpp"
 #include "Effect.hpp"
-#include "EffectParser.hpp"
 #include "EffectContext.hpp"
+#include "EffectTree.hpp"
 
 #include <gl\gl3w.h>
+#include <vector>
+#include <unordered_map>
+#include <boost\algorithm\string.hpp>
 
 // -----------------------------------------------------------------------------------------------------
 
@@ -43,7 +46,7 @@ namespace ReShade
 				GLCHECK(this->mCullFace = glIsEnabled(GL_CULL_FACE));
 				GLCHECK(glGetIntegerv(GL_CULL_FACE_MODE, reinterpret_cast<GLint *>(&this->mCullFaceMode)));
 				GLCHECK(glGetBooleanv(GL_COLOR_WRITEMASK, this->mColorMask));
-				GLCHECK(this->mSampleAlphaToCoverage = glIsEnabled(GL_SAMPLE_ALPHA_TO_COVERAGE));
+				GLCHECK(this->mFramebufferSRGB = glIsEnabled(GL_FRAMEBUFFER_SRGB));
 				GLCHECK(this->mBlend = glIsEnabled(GL_BLEND));
 				GLCHECK(glGetIntegerv(GL_BLEND_SRC, reinterpret_cast<GLint *>(&this->mBlendFuncSrc)));
 				GLCHECK(glGetIntegerv(GL_BLEND_DST, reinterpret_cast<GLint *>(&this->mBlendFuncDest)));
@@ -99,7 +102,7 @@ namespace ReShade
 				GLCHECK(glEnableb(GL_CULL_FACE, this->mCullFace));
 				GLCHECK(glCullFace(this->mCullFaceMode));
 				GLCHECK(glColorMask(this->mColorMask[0], this->mColorMask[1], this->mColorMask[2], this->mColorMask[3]));
-				GLCHECK(glEnableb(GL_SAMPLE_ALPHA_TO_COVERAGE, this->mSampleAlphaToCoverage));
+				GLCHECK(glEnableb(GL_FRAMEBUFFER_SRGB, this->mFramebufferSRGB));
 				GLCHECK(glEnableb(GL_BLEND, this->mBlend));
 				GLCHECK(glBlendFunc(this->mBlendFuncSrc, this->mBlendFuncDest));
 				GLCHECK(glBlendEquationSeparate(this->mBlendEqColor, this->mBlendEqAlpha));
@@ -124,7 +127,7 @@ namespace ReShade
 			GLuint												mStencilMask, mStencilReadMask;
 			GLuint												mProgram, mFBO, mVAO, mTextures2D[8], mSamplers[8];
 			GLenum												mDrawBuffers[8], mCullFace, mCullFaceMode, mPolygonMode, mBlendEqColor, mBlendEqAlpha, mBlendFuncSrc, mBlendFuncDest, mDepthFunc, mStencilFunc, mStencilOpFail, mStencilOpZFail, mStencilOpZPass, mFrontFace, mActiveTexture;
-			GLboolean											mScissorTest, mBlend, mDepthTest, mDepthMask, mStencilTest, mColorMask[4], mSampleAlphaToCoverage;
+			GLboolean											mScissorTest, mBlend, mDepthTest, mDepthMask, mStencilTest, mColorMask[4], mFramebufferSRGB;
 		};
 
 		class													OGL4EffectContext : public EffectContext, public std::enable_shared_from_this<OGL4EffectContext>
@@ -133,7 +136,7 @@ namespace ReShade
 			friend struct OGL4Texture;
 			friend struct OGL4Constant;
 			friend struct OGL4Technique;
-			friend class ASTVisitor;
+			friend class OGL4EffectCompiler;
 
 		public:
 			OGL4EffectContext(HDC device, HGLRC context);
@@ -171,7 +174,7 @@ namespace ReShade
 			std::unordered_map<std::string, std::unique_ptr<OGL4Technique>> mTechniques;
 			GLuint												mDefaultVAO, mDefaultVBO, mDefaultFBO;
 			std::vector<GLuint>									mUniformBuffers;
-			std::vector<std::pair<unsigned char *, GLsizeiptr>>	mUniformStorages;
+			std::vector<std::pair<unsigned char *, std::size_t>> mUniformStorages;
 			mutable bool										mUniformDirty;
 		};
 		struct													OGL4Texture : public Effect::Texture
@@ -250,16 +253,17 @@ namespace ReShade
 			mutable OGL4StateBlock								mStateblock;
 		};
 
-		class													ASTVisitor
+		class													OGL4EffectCompiler
 		{
 		public:
-			ASTVisitor(const EffectTree &ast, std::string &errors) : mAST(ast), mErrors(errors), mCurrentInParameterBlock(false), mCurrentInFunctionBlock(false), mCurrentGlobalSize(0)
+			OGL4EffectCompiler(const EffectTree &ast) : mAST(ast), mEffect(nullptr), mCurrentInParameterBlock(false), mCurrentInFunctionBlock(false), mCurrentGlobalSize(0), mCurrentGlobalStorageSize(0)
 			{
 			}
 
-			bool												Traverse(OGL4Effect *effect)
+			bool												Traverse(OGL4Effect *effect, std::string &errors)
 			{
 				this->mEffect = effect;
+				this->mErrors.clear();
 				this->mFatal = false;
 				this->mCurrentSource.clear();
 
@@ -267,11 +271,11 @@ namespace ReShade
 				this->mEffect->mUniformBuffers.push_back(0);
 				this->mEffect->mUniformStorages.push_back(std::make_pair(nullptr, 0));
 
-				const auto &root = this->mAST[EffectTree::Root].As<Nodes::Aggregate>();
+				const auto &root = this->mAST[EffectTree::Root].As<EffectNodes::List>();
 
-				for (size_t i = 0; i < root.Length; ++i)
+				for (unsigned int i = 0; i < root.Length; ++i)
 				{
-					Visit(this->mAST[root.Find(this->mAST, i)]);
+					this->mAST[root[i]].Accept(*this);
 				}
 
 				if (this->mCurrentGlobalSize != 0)
@@ -283,218 +287,194 @@ namespace ReShade
 
 					glBindBuffer(GL_UNIFORM_BUFFER, this->mEffect->mUniformBuffers[0]);
 					glBufferData(GL_UNIFORM_BUFFER, this->mEffect->mUniformStorages[0].second, this->mEffect->mUniformStorages[0].first, GL_DYNAMIC_DRAW);
+					
 					glBindBuffer(GL_UNIFORM_BUFFER, previous);
 				}
+
+				errors += this->mErrors;
 
 				return !this->mFatal;
 			}
 
-		private:
-			void												operator =(const ASTVisitor &);
-
-			static GLenum										ConvertLiteralToTextureFilter(int value)
+			static GLenum										LiteralToTextureFilter(int value)
 			{
 				switch (value)
 				{
 					default:
 						return GL_NONE;
-					case Nodes::Literal::POINT:
+					case EffectNodes::Literal::POINT:
 						return GL_NEAREST;
-					case Nodes::Literal::LINEAR:
+					case EffectNodes::Literal::LINEAR:
 						return GL_LINEAR;
-					case Nodes::Literal::ANISOTROPIC:
+					case EffectNodes::Literal::ANISOTROPIC:
 						return GL_LINEAR_MIPMAP_LINEAR;
 				}
 			}
-			static GLenum										ConvertLiteralToTextureWrap(int value)
+			static GLenum										LiteralToTextureWrap(int value)
 			{
 				switch (value)
 				{
 					default:
-					case Nodes::Literal::CLAMP:
+					case EffectNodes::Literal::CLAMP:
 						return GL_CLAMP_TO_EDGE;
-					case Nodes::Literal::REPEAT:
+					case EffectNodes::Literal::REPEAT:
 						return GL_REPEAT;
-					case Nodes::Literal::MIRROR:
+					case EffectNodes::Literal::MIRROR:
 						return GL_MIRRORED_REPEAT;
-					case Nodes::Literal::BORDER:
+					case EffectNodes::Literal::BORDER:
 						return GL_CLAMP_TO_BORDER;
 				}
 			}
-			static GLenum										ConvertLiteralToCullFace(int value)
+			static GLenum										LiteralToCompFunc(int value)
 			{
 				switch (value)
 				{
 					default:
-					case Nodes::Literal::NONE:
-						return GL_NONE;
-					case Nodes::Literal::FRONT:
-						return GL_FRONT;
-					case Nodes::Literal::BACK:
-						return GL_BACK;
-				}
-			}
-			static GLenum										ConvertLiteralToPolygonMode(int value)
-			{
-				switch (value)
-				{
-					default:
-					case Nodes::Literal::SOLID:
-						return GL_FILL;
-					case Nodes::Literal::WIREFRAME:
-						return GL_LINE;
-				}
-			}
-			static GLenum										ConvertLiteralToCompFunc(int value)
-			{
-				switch (value)
-				{
-					default:
-					case Nodes::Literal::ALWAYS:
+					case EffectNodes::Literal::ALWAYS:
 						return GL_ALWAYS;
-					case Nodes::Literal::NEVER:
+					case EffectNodes::Literal::NEVER:
 						return GL_NEVER;
-					case Nodes::Literal::EQUAL:
+					case EffectNodes::Literal::EQUAL:
 						return GL_EQUAL;
-					case Nodes::Literal::NOTEQUAL:
+					case EffectNodes::Literal::NOTEQUAL:
 						return GL_NOTEQUAL;
-					case Nodes::Literal::LESS:
+					case EffectNodes::Literal::LESS:
 						return GL_LESS;
-					case Nodes::Literal::LESSEQUAL:
+					case EffectNodes::Literal::LESSEQUAL:
 						return GL_LEQUAL;
-					case Nodes::Literal::GREATER:
+					case EffectNodes::Literal::GREATER:
 						return GL_GREATER;
-					case Nodes::Literal::GREATEREQUAL:
+					case EffectNodes::Literal::GREATEREQUAL:
 						return GL_GEQUAL;
 				}
 			}
-			static GLenum										ConvertLiteralToStencilOp(int value)
+			static GLenum										LiteralToStencilOp(int value)
 			{
 				switch (value)
 				{
 					default:
-					case Nodes::Literal::KEEP:
+					case EffectNodes::Literal::KEEP:
 						return GL_KEEP;
-					case Nodes::Literal::ZERO:
+					case EffectNodes::Literal::ZERO:
 						return GL_ZERO;
-					case Nodes::Literal::REPLACE:
+					case EffectNodes::Literal::REPLACE:
 						return GL_REPLACE;
-					case Nodes::Literal::INCR:
+					case EffectNodes::Literal::INCR:
 						return GL_INCR_WRAP;
-					case Nodes::Literal::INCRSAT:
+					case EffectNodes::Literal::INCRSAT:
 						return GL_INCR;
-					case Nodes::Literal::DECR:
+					case EffectNodes::Literal::DECR:
 						return GL_DECR_WRAP;
-					case Nodes::Literal::DECRSAT:
+					case EffectNodes::Literal::DECRSAT:
 						return GL_DECR;
-					case Nodes::Literal::INVERT:
+					case EffectNodes::Literal::INVERT:
 						return GL_INVERT;
 				}
 			}
-			static GLenum										ConvertLiteralToBlendFunc(int value)
+			static GLenum										LiteralToBlendFunc(int value)
 			{
 				switch (value)
 				{
 					default:
-					case Nodes::Literal::ZERO:
+					case EffectNodes::Literal::ZERO:
 						return GL_ZERO;
-					case Nodes::Literal::ONE:
+					case EffectNodes::Literal::ONE:
 						return GL_ONE;
-					case Nodes::Literal::SRCCOLOR:
+					case EffectNodes::Literal::SRCCOLOR:
 						return GL_SRC_COLOR;
-					case Nodes::Literal::SRCALPHA:
+					case EffectNodes::Literal::SRCALPHA:
 						return GL_SRC_ALPHA;
-					case Nodes::Literal::INVSRCCOLOR:
+					case EffectNodes::Literal::INVSRCCOLOR:
 						return GL_ONE_MINUS_SRC_COLOR;
-					case Nodes::Literal::INVSRCALPHA:
+					case EffectNodes::Literal::INVSRCALPHA:
 						return GL_ONE_MINUS_SRC_ALPHA;
-					case Nodes::Literal::DESTCOLOR:
+					case EffectNodes::Literal::DESTCOLOR:
 						return GL_DST_COLOR;
-					case Nodes::Literal::DESTALPHA:
+					case EffectNodes::Literal::DESTALPHA:
 						return GL_DST_ALPHA;
-					case Nodes::Literal::INVDESTCOLOR:
+					case EffectNodes::Literal::INVDESTCOLOR:
 						return GL_ONE_MINUS_DST_COLOR;
-					case Nodes::Literal::INVDESTALPHA:
+					case EffectNodes::Literal::INVDESTALPHA:
 						return GL_ONE_MINUS_DST_ALPHA;
 				}
 			}
-			static GLenum										ConvertLiteralToBlendEquation(int value)
+			static GLenum										LiteralToBlendEq(int value)
 			{
 				switch (value)
 				{
 					default:
-					case Nodes::Literal::ADD:
+					case EffectNodes::Literal::ADD:
 						return GL_FUNC_ADD;
-					case Nodes::Literal::SUBSTRACT:
+					case EffectNodes::Literal::SUBTRACT:
 						return GL_FUNC_SUBTRACT;
-					case Nodes::Literal::REVSUBSTRACT:
+					case EffectNodes::Literal::REVSUBTRACT:
 						return GL_FUNC_REVERSE_SUBTRACT;
-					case Nodes::Literal::MIN:
+					case EffectNodes::Literal::MIN:
 						return GL_MIN;
-					case Nodes::Literal::MAX:
+					case EffectNodes::Literal::MAX:
 						return GL_MAX;
 				}
 			}
-			static void											ConvertLiteralToFormat(int value, GLenum &internalformat, GLenum &internalformatsrgb, Effect::Texture::Format &format)
+			static void											LiteralToFormat(int value, GLenum &internalformat, GLenum &internalformatsrgb, Effect::Texture::Format &format)
 			{
 				switch (value)
 				{
-					case Nodes::Literal::R8:
+					case EffectNodes::Literal::R8:
 						format = Effect::Texture::Format::R8;
 						internalformat = internalformatsrgb = GL_R8;
 						break;
-					case Nodes::Literal::R32F:
+					case EffectNodes::Literal::R32F:
 						format = Effect::Texture::Format::R32F;
 						internalformat = internalformatsrgb = GL_R32F;
 						break;
-					case Nodes::Literal::RG8:
+					case EffectNodes::Literal::RG8:
 						format = Effect::Texture::Format::RG8;
 						internalformat = internalformatsrgb = GL_RG8;
 						break;
-					case Nodes::Literal::RGBA8:
+					case EffectNodes::Literal::RGBA8:
 						format = Effect::Texture::Format::RGBA8;
 						internalformat = GL_RGBA8;
 						internalformatsrgb = GL_SRGB8_ALPHA8;
 						break;
-					case Nodes::Literal::RGBA16:
+					case EffectNodes::Literal::RGBA16:
 						format = Effect::Texture::Format::RGBA16;
 						internalformat = internalformatsrgb = GL_RGBA16;
 						break;
-					case Nodes::Literal::RGBA16F:
+					case EffectNodes::Literal::RGBA16F:
 						format = Effect::Texture::Format::RGBA16F;
 						internalformat = internalformatsrgb = GL_RGBA16F;
 						break;
-					case Nodes::Literal::RGBA32F:
+					case EffectNodes::Literal::RGBA32F:
 						format = Effect::Texture::Format::RGBA32F;
 						internalformat = internalformatsrgb = GL_RGBA32F;
 						break;
-					case Nodes::Literal::DXT1:
+					case EffectNodes::Literal::DXT1:
 #define GL_COMPRESSED_RGBA_S3TC_DXT1_EXT 0x83F1
 #define GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT1_EXT 0x8C4D
 						format = Effect::Texture::Format::DXT1;
 						internalformat = GL_COMPRESSED_RGBA_S3TC_DXT1_EXT;
 						internalformatsrgb = GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT1_EXT;
 						break;
-					case Nodes::Literal::DXT3:
+					case EffectNodes::Literal::DXT3:
 #define GL_COMPRESSED_RGBA_S3TC_DXT3_EXT 0x83F2
 #define GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT3_EXT 0x8C4E
 						format = Effect::Texture::Format::DXT3;
 						internalformat = GL_COMPRESSED_RGBA_S3TC_DXT3_EXT;
 						internalformatsrgb = GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT3_EXT;
 						break;
-					case Nodes::Literal::DXT5:
+					case EffectNodes::Literal::DXT5:
 #define GL_COMPRESSED_RGBA_S3TC_DXT5_EXT 0x83F3
 #define GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT5_EXT 0x8C4F
 						format = Effect::Texture::Format::DXT5;
 						internalformat = GL_COMPRESSED_RGBA_S3TC_DXT5_EXT;
 						internalformatsrgb = GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT5_EXT;
 						break;
-					case Nodes::Literal::LATC1:
+					case EffectNodes::Literal::LATC1:
 #define GL_COMPRESSED_LUMINANCE_LATC1_EXT 0x8C70
 						format = Effect::Texture::Format::LATC1;
 						internalformat = internalformatsrgb = GL_COMPRESSED_LUMINANCE_LATC1_EXT;
 						break;
-					case Nodes::Literal::LATC2:
+					case EffectNodes::Literal::LATC2:
 #define GL_COMPRESSED_LUMINANCE_ALPHA_LATC2_EXT 0x8C72
 						format = Effect::Texture::Format::LATC2;
 						internalformat = internalformatsrgb = GL_COMPRESSED_LUMINANCE_ALPHA_LATC2_EXT;
@@ -505,16 +485,20 @@ namespace ReShade
 						break;
 				}
 			}
+
+			static inline std::string							PrintLocation(const EffectTree::Location &location)
+			{
+				return std::string(location.Source != nullptr ? location.Source : "") + "(" + std::to_string(location.Line) + ", " + std::to_string(location.Column) + "): ";
+			}
+
 			static std::string									FixName(const std::string &name)
 			{
 				std::string res;
 
-				if (name == "gl_" ||
-					name == "output" ||
-					name == "input" ||
-					name == "active" ||
-					name == "filter" ||
-					name == "main")
+				if (boost::starts_with(name, "gl_") ||
+					name == "common" || name == "partition" || name == "input" || name == "ouput" || name == "active" || name == "filter" || name == "superp" ||
+					name == "invariant" || name == "lowp" || name == "mediump" || name == "highp" || name == "precision" || name == "patch" || name == "subroutine" ||
+					name == "abs" || name == "sign" || name == "all" || name == "any" || name == "sin" || name == "sinh" || name == "cos" || name == "cosh" || name == "tan" || name == "tanh" || name == "asin" || name == "acos" || name == "atan" || name == "exp" || name == "exp2" || name == "log" || name == "log2" || name == "sqrt" || name == "inversesqrt" || name == "ceil" || name == "floor" || name == "fract" || name == "trunc" || name == "round" || name == "radians" || name == "degrees" || name == "length" || name == "normalize" || name == "transpose" || name == "determinant" || name == "intBitsToFloat" || name == "uintBitsToFloat" || name == "floatBitsToInt" || name == "floatBitsToUint" || name == "matrixCompMult" || name == "not" || name == "lessThan" || name == "greaterThan" || name == "lessThanEqual" || name == "greaterThanEqual" || name == "equal" || name == "notEqual" || name == "dot" || name == "cross" || name == "distance" || name == "pow" || name == "modf" || name == "frexp" || name == "ldexp" || name == "min" || name == "max" || name == "step" || name == "reflect" || name == "texture" || name == "textureOffset" || name == "fma" || name == "mix" || name == "clamp" || name == "smoothstep" || name == "refract" || name == "faceforward" || name == "textureLod" || name == "textureLodOffset" || name == "texelFetch" || name == "main")
 				{
 					res += '_';
 				}
@@ -536,226 +520,882 @@ namespace ReShade
 
 				return FixName(name);
 			}
-			static Nodes::Type									FixImplicitCast(const Nodes::Type &from, const Nodes::Type &to, std::string &before, std::string &after)
+			std::string											PrintType(const EffectNodes::Type &type)
 			{
-				Nodes::Type res = from;
+				switch (type.Class)
+				{
+					default:
+						return "";
+					case EffectNodes::Type::Void:
+						return "void";
+					case EffectNodes::Type::Bool:
+						if (type.IsMatrix())
+							return "mat" + std::to_string(type.Rows) + "x" + std::to_string(type.Cols);
+						else if (type.IsVector())
+							return "bvec" + std::to_string(type.Rows);
+						else
+							return "bool";
+					case EffectNodes::Type::Int:
+						if (type.IsMatrix())
+							return "mat" + std::to_string(type.Rows) + "x" + std::to_string(type.Cols);
+						else if (type.IsVector())
+							return "ivec" + std::to_string(type.Rows);
+						else
+							return "int";
+					case EffectNodes::Type::Uint:
+						if (type.IsMatrix())
+							return "mat" + std::to_string(type.Rows) + "x" + std::to_string(type.Cols);
+						else if (type.IsVector())
+							return "uvec" + std::to_string(type.Rows);
+						else
+							return "uint";
+					case EffectNodes::Type::Float:
+						if (type.IsMatrix())
+							return "mat" + std::to_string(type.Rows) + "x" + std::to_string(type.Cols);
+						else if (type.IsVector())
+							return "vec" + std::to_string(type.Rows);
+						else
+							return "float";
+					case EffectNodes::Type::Sampler:
+						return "sampler2D";
+					case EffectNodes::Type::Struct:
+						return FixName(this->mAST[type.Definition].As<EffectNodes::Struct>().Name);
+				}
+			}
+			std::string											PrintTypeWithQualifiers(const EffectNodes::Type &type)
+			{
+				std::string qualifiers;
+
+				if (type.HasQualifier(EffectNodes::Type::Qualifier::NoInterpolation))
+					qualifiers += "flat ";
+				if (type.HasQualifier(EffectNodes::Type::Qualifier::NoPerspective))
+					qualifiers += "noperspective ";
+				if (type.HasQualifier(EffectNodes::Type::Qualifier::Linear))
+					qualifiers += "smooth ";
+				if (type.HasQualifier(EffectNodes::Type::Qualifier::Sample))
+					qualifiers += "sample ";
+				if (type.HasQualifier(EffectNodes::Type::Qualifier::Centroid))
+					qualifiers += "centroid ";
+				if (type.HasQualifier(EffectNodes::Type::Qualifier::InOut))
+					qualifiers += "inout ";
+				else if (type.HasQualifier(EffectNodes::Type::Qualifier::In))
+					qualifiers += "in ";
+				else if (type.HasQualifier(EffectNodes::Type::Qualifier::Out))
+					qualifiers += "out ";
+				else if (type.HasQualifier(EffectNodes::Type::Qualifier::Uniform))
+					qualifiers += "uniform ";
+				if (type.HasQualifier(EffectNodes::Type::Qualifier::Const))
+					qualifiers += "const ";
+
+				return qualifiers + PrintType(type);
+			}
+			std::pair<std::string, std::string>					PrintCast(const EffectNodes::Type &from, const EffectNodes::Type &to)
+			{
+				std::pair<std::string, std::string> code;
+
+				if (from.Class != to.Class && !(from.IsMatrix() && to.IsMatrix()))
+				{
+					const EffectNodes::Type type = { to.Class, 0, from.Rows, from.Cols };
+
+					code.first += PrintType(type) + "(";
+					code.second += ")";
+				}
 
 				if (from.Rows > 0 && from.Rows < to.Rows)
 				{
-					after += ".";
-					char sub[4] = { 'x', 'y', 'z', 'w' };
+					const char subscript[4] = { 'x', 'y', 'z', 'w' };
+
+					code.second += '.';
 
 					for (unsigned int i = 0; i < from.Rows; ++i)
 					{
-						after += sub[i];
+						code.second += subscript[i];
 					}
 					for (unsigned int i = from.Rows; i < to.Rows; ++i)
 					{
-						after += sub[from.Rows - 1];
+						code.second += subscript[from.Rows - 1];
 					}
-
-					res.Rows = to.Rows;
 				}
-
-				if (from.Class != to.Class)
+				else if (from.Rows > to.Rows)
 				{
-					switch (to.Class)
+					const char subscript[4] = { 'x', 'y', 'z', 'w' };
+
+					code.second += '.';
+
+					for (unsigned int i = 0; i < to.Rows; ++i)
 					{
-						case Nodes::Type::Bool:
-							before += to.Rows > 1 ? "bvec" + std::to_string(to.Rows) : "bool";
-							before += "(";
-							after += ")";
+						code.second += subscript[i];
+					}
+				}
+
+				return code;
+			}
+
+			void												Visit(const EffectNodes::LValue &node)
+			{
+				this->mCurrentSource += FixName(this->mAST[node.Reference].As<EffectNodes::Variable>().Name);
+			}
+			void												Visit(const EffectNodes::Literal &node)
+			{
+				if (!node.Type.IsScalar())
+				{
+					this->mCurrentSource += PrintType(node.Type);
+					this->mCurrentSource += '(';
+				}
+
+				for (unsigned int i = 0; i < node.Type.Rows * node.Type.Cols; ++i)
+				{
+					switch (node.Type.Class)
+					{
+						case EffectNodes::Type::Bool:
+							this->mCurrentSource += node.Value.Bool[i] ? "true" : "false";
 							break;
-						case Nodes::Type::Int:
-							before += to.Rows > 1 ? "ivec" + std::to_string(to.Rows) : "int";
-							before += "(";
-							after += ")";
+						case EffectNodes::Type::Int:
+							this->mCurrentSource += std::to_string(node.Value.Int[i]);
 							break;
-						case Nodes::Type::Uint:
-							before += to.Rows > 1 ? "uvec" + std::to_string(to.Rows) : "uint";
-							before += "(";
-							after += ")";
+						case EffectNodes::Type::Uint:
+							this->mCurrentSource += std::to_string(node.Value.Uint[i]) + "u";
 							break;
-						case Nodes::Type::Float:
-							before += to.Rows > 1 ? "vec" + std::to_string(to.Rows) : "float";
-							before += "(";
-							after += ")";
+						case EffectNodes::Type::Float:
+							this->mCurrentSource += std::to_string(node.Value.Float[i]);
 							break;
 					}
 
-					res.Class = to.Class;
+					this->mCurrentSource += ", ";
 				}
 
-				return res;
-			}
+				this->mCurrentSource.pop_back();
+				this->mCurrentSource.pop_back();
 
-			void												Visit(const EffectTree::Node &node)
-			{
-				switch (node.Type)
+				if (!node.Type.IsScalar())
 				{
-					case Nodes::Aggregate::NodeType:
-						VisitAggregate(node.As<Nodes::Aggregate>());
-						break;
-					case Nodes::ExpressionSequence::NodeType:
-						VisitExpressionSequence(node.As<Nodes::ExpressionSequence>());
-						break;
-					case Nodes::Literal::NodeType:
-						VisitLiteral(node.As<Nodes::Literal>());
-						break;
-					case Nodes::Reference::NodeType:
-						VisitReference(node.As<Nodes::Reference>());
-						break;
-					case Nodes::UnaryExpression::NodeType:
-						VisitUnaryExpression(node.As<Nodes::UnaryExpression>());
-						break;
-					case Nodes::BinaryExpression::NodeType:
-						VisitBinaryExpression(node.As<Nodes::BinaryExpression>());
-						break;
-					case Nodes::Assignment::NodeType:
-						VisitAssignmentExpression(node.As<Nodes::Assignment>());
-						break;
-					case Nodes::Conditional::NodeType:
-						VisitConditionalExpression(node.As<Nodes::Conditional>());
-						break;
-					case Nodes::Call::NodeType:
-						VisitCallExpression(node.As<Nodes::Call>());
-						break;
-					case Nodes::Constructor::NodeType:
-						VisitConstructorExpression(node.As<Nodes::Constructor>());
-						break;
-					case Nodes::Field::NodeType:
-						VisitFieldExpression(node.As<Nodes::Field>());
-						break;
-					case Nodes::Swizzle::NodeType:
-						VisitSwizzleExpression(node.As<Nodes::Swizzle>());
-						break;
-					case Nodes::StatementBlock::NodeType:
-						VisitStatementBlock(node.As<Nodes::StatementBlock>());
-						break;
-					case Nodes::ExpressionStatement::NodeType:
-						VisitExpressionStatement(node.As<Nodes::ExpressionStatement>());
-						break;
-					case Nodes::DeclarationStatement::NodeType:
-						VisitDeclarationStatement(node.As<Nodes::DeclarationStatement>());
-						break;
-					case Nodes::Selection::NodeType:
-						VisitSelectionStatement(node.As<Nodes::Selection>());
-						break;
-					case Nodes::Iteration::NodeType:
-						VisitIterationStatement(node.As<Nodes::Iteration>());
-						break;
-					case Nodes::Jump::NodeType:
-						VisitJumpStatement(node.As<Nodes::Jump>());
-						break;
-					case Nodes::Struct::NodeType:
-						VisitStructDeclaration(node.As<Nodes::Struct>());
-						break;
-					case Nodes::Variable::NodeType:
-						VisitVariableDeclaration(node.As<Nodes::Variable>());
-						break;
-					case Nodes::Function::NodeType:
-						VisitFunctionDeclaration(node.As<Nodes::Function>());
-						break;
-					case Nodes::Technique::NodeType:
-						VisitTechniqueDeclaration(node.As<Nodes::Technique>());
-						break;
+					this->mCurrentSource += ')';
 				}
 			}
-			void												VisitType(const Nodes::Type &type)
+			void												Visit(const EffectNodes::Expression &node)
 			{
-				if (type.HasQualifier(Nodes::Type::Qualifier::Const) || type.HasQualifier(Nodes::Type::Qualifier::Static))
-					this->mCurrentSource += "const ";
-				if (type.HasQualifier(Nodes::Type::Qualifier::Volatile))
-					this->mCurrentSource += "volatile ";
-				if (type.HasQualifier(Nodes::Type::Qualifier::NoInterpolation))
-					this->mCurrentSource += "flat ";
-				if (type.HasQualifier(Nodes::Type::Qualifier::NoPerspective))
-					this->mCurrentSource += "noperspective ";
-				if (type.HasQualifier(Nodes::Type::Qualifier::Linear))
-					this->mCurrentSource += "smooth ";
-				if (type.HasQualifier(Nodes::Type::Qualifier::Centroid))
-					this->mCurrentSource += "centroid ";
-				if (type.HasQualifier(Nodes::Type::Qualifier::Sample))
-					this->mCurrentSource += "sample ";
-				if (type.HasQualifier(Nodes::Type::Qualifier::InOut))
-					this->mCurrentSource += "inout ";
-				else if (type.HasQualifier(Nodes::Type::Qualifier::In))
-					this->mCurrentSource += "in ";
-				else if (type.HasQualifier(Nodes::Type::Qualifier::Out))
-					this->mCurrentSource += "out ";
-				else if (type.HasQualifier(Nodes::Type::Qualifier::Uniform))
-					this->mCurrentSource += "uniform ";
-				if (type.HasQualifier(Nodes::Type::Qualifier::RowMajor))
-					this->mCurrentSource += "layout(row_major) ";
-				else if (type.HasQualifier(Nodes::Type::Qualifier::ColumnMajor))
-					this->mCurrentSource += "layout(column_major) ";
+				std::string part1, part2, part3, part4;
+				std::pair<std::string, std::string> cast1, cast2, cast3, cast121, cast122;
+				EffectNodes::Type type1, type2, type3, type12;
 
-				switch (type.Class)
+				cast1 = PrintCast(type1 = this->mAST[node.Operands[0]].As<EffectNodes::RValue>().Type, node.Type);
+
+				if (node.Operands[1] != 0)
 				{
-					case Nodes::Type::Void:
-						this->mCurrentSource += "void";
-						break;
-					case Nodes::Type::Bool:
-						if (type.IsMatrix())
-							this->mCurrentSource += "bmat" + std::to_string(type.Rows) + "x" + std::to_string(type.Cols);
-						else if (type.IsVector())
-							this->mCurrentSource += "bvec" + std::to_string(type.Rows);
-						else
-							this->mCurrentSource += "bool";
-						break;
-					case Nodes::Type::Int:
-						if (type.IsMatrix())
-							this->mCurrentSource += "imat" + std::to_string(type.Rows) + "x" + std::to_string(type.Cols);
-						else if (type.IsVector())
-							this->mCurrentSource += "ivec" + std::to_string(type.Rows);
-						else
-							this->mCurrentSource += "int";
-						break;
-					case Nodes::Type::Uint:
-						if (type.IsMatrix())
-							this->mCurrentSource += "umat" + std::to_string(type.Rows) + "x" + std::to_string(type.Cols);
-						else if (type.IsVector())
-							this->mCurrentSource += "uvec" + std::to_string(type.Rows);
-						else
-							this->mCurrentSource += "uint";
-						break;
-					case Nodes::Type::Half:
-					case Nodes::Type::Float:
-						if (type.IsMatrix())
-							this->mCurrentSource += "mat" + std::to_string(type.Rows) + "x" + std::to_string(type.Cols);
-						else if (type.IsVector())
-							this->mCurrentSource += "vec" + std::to_string(type.Rows);
-						else
-							this->mCurrentSource += "float";
-						break;
-					case Nodes::Type::Double:
-						if (type.IsMatrix())
-							this->mCurrentSource += "dmat" + std::to_string(type.Rows) + "x" + std::to_string(type.Cols);
-						else if (type.IsVector())
-							this->mCurrentSource += "dvec" + std::to_string(type.Rows);
-						else
-							this->mCurrentSource += "double";
-						break;
-					case Nodes::Type::Sampler:
-						this->mCurrentSource += "sampler2D";
-						break;
-					case Nodes::Type::Struct:
-						this->mCurrentSource += FixName(this->mAST[type.Definition].As<Nodes::Struct>().Name);
-						break;
+					cast2 = PrintCast(type2 = this->mAST[node.Operands[1]].As<EffectNodes::RValue>().Type, node.Type);
+
+					type12 = type2.IsFloatingPoint() ? type2 : type1;
+					type12.Rows = std::max(type1.Rows, type2.Rows);
+					type12.Cols = std::max(type1.Cols, type2.Cols);
+					cast121 = PrintCast(type1, type12), cast122 = PrintCast(type2, type12);
 				}
-			}
-			void												VisitAggregate(const Nodes::Aggregate &data)
-			{
-				for (size_t i = 0; i < data.Length; ++i)
+				if (node.Operands[2] != 0)
 				{
-					Visit(this->mAST[data.Find(this->mAST, i)]);
+					cast3 = PrintCast(type3 = this->mAST[node.Operands[1]].As<EffectNodes::RValue>().Type, node.Type);
 				}
-			}
-			void												VisitExpressionSequence(const Nodes::ExpressionSequence &data)
-			{
-				for (size_t i = 0; i < data.Length; ++i)
+
+				switch (node.Operator)
 				{
-					Visit(this->mAST[data.Find(this->mAST, i)]);
+					case EffectNodes::Expression::Negate:
+						part1 = '-';
+						break;
+					case EffectNodes::Expression::BitNot:
+						part1 = '~';
+						break;
+					case EffectNodes::Expression::LogicNot:
+					{
+						if (node.Type.IsVector())
+						{
+							part1 = "not(" + cast1.first;
+							part2 = cast1.second + ')';
+						}
+						else
+						{
+							part1 = '!';
+						}
+						break;
+					}
+					case EffectNodes::Expression::Increase:
+						part1 = "++";
+						break;
+					case EffectNodes::Expression::Decrease:
+						part1 = "--";
+						break;
+					case EffectNodes::Expression::PostIncrease:
+						part2 = "++";
+						break;
+					case EffectNodes::Expression::PostDecrease:
+						part2 = "--";
+						break;
+					case EffectNodes::Expression::Abs:
+						part1 = "abs(" + cast1.first;
+						part2 = cast1.second + ')';
+						break;
+					case EffectNodes::Expression::Sign:
+						part1 = cast1.first + "sign(";
+						part2 = ')' + cast1.second;
+						break;
+					case EffectNodes::Expression::Rcp:
+						part1 = '(' + PrintType(node.Type) + "(1.0) / ";
+						part2 = ')';
+						break;
+					case EffectNodes::Expression::All:
+					{
+						if (type1.IsVector())
+						{
+							part1 = "all(bvec" + std::to_string(type1.Rows) + '(';
+							part2 = "))";
+						}
+						else
+						{
+							part1 = "bool(";
+							part2 = ')';
+						}
+						break;
+					}
+					case EffectNodes::Expression::Any:
+					{
+						if (type1.IsVector())
+						{
+							part1 = "any(bvec" + std::to_string(type1.Rows) + '(';
+							part2 = "))";
+						}
+						else
+						{
+							part1 = "bool(";
+							part2 = ')';
+						}
+						break;
+					}
+					case EffectNodes::Expression::Sin:
+						part1 = "sin(" + cast1.first;
+						part2 = cast1.second + ')';
+						break;
+					case EffectNodes::Expression::Sinh:
+						part1 = "sinh(" + cast1.first;
+						part2 = cast1.second + ')';
+						break;
+					case EffectNodes::Expression::Cos:
+						part1 = "cos(" + cast1.first;
+						part2 = cast1.second + ')';
+						break;
+					case EffectNodes::Expression::Cosh:
+						part1 = "cosh(" + cast1.first;
+						part2 = cast1.second + ')';
+						break;
+					case EffectNodes::Expression::Tan:
+						part1 = "tan(" + cast1.first;
+						part2 = cast1.second + ')';
+						break;
+					case EffectNodes::Expression::Tanh:
+						part1 = "tanh(" + cast1.first;
+						part2 = cast1.second + ')';
+						break;
+					case EffectNodes::Expression::Asin:
+						part1 = "asin(" + cast1.first;
+						part2 = cast1.second + ')';
+						break;
+					case EffectNodes::Expression::Acos:
+						part1 = "acos(" + cast1.first;
+						part2 = cast1.second + ')';
+						break;
+					case EffectNodes::Expression::Atan:
+						part1 = "atan(" + cast1.first;
+						part2 = cast1.second + ')';
+						break;
+					case EffectNodes::Expression::Exp:
+						part1 = "exp(" + cast1.first;
+						part2 = cast1.second + ')';
+						break;
+					case EffectNodes::Expression::Exp2:
+						part1 = "exp2(" + cast1.first;
+						part2 = cast1.second + ')';
+						break;
+					case EffectNodes::Expression::Log:
+						part1 = "log(" + cast1.first;
+						part2 = cast1.second + ')';
+						break;
+					case EffectNodes::Expression::Log2:
+						part1 = "log2(" + cast1.first;
+						part2 = cast1.second + ')';
+						break;
+					case EffectNodes::Expression::Log10:
+						part1 = "(log2(" + cast1.first;
+						part2 = cast1.second + ") / " + PrintType(node.Type) + "(2.302585093))";
+						break;
+					case EffectNodes::Expression::Sqrt:
+						part1 = "sqrt(" + cast1.first;
+						part2 = cast1.second + ')';
+						break;
+					case EffectNodes::Expression::Rsqrt:
+						part1 = "inversesqrt(" + cast1.first;
+						part2 = cast1.second + ')';
+						break;
+					case EffectNodes::Expression::Ceil:
+						part1 = "ceil(" + cast1.first;
+						part2 = cast1.second + ')';
+						break;
+					case EffectNodes::Expression::Floor:
+						part1 = "floor(" + cast1.first;
+						part2 = cast1.second + ')';
+						break;
+					case EffectNodes::Expression::Frac:
+						part1 = "fract(" + cast1.first;
+						part2 = cast1.second + ')';
+						break;
+					case EffectNodes::Expression::Trunc:
+						part1 = "trunc(" + cast1.first;
+						part2 = cast1.second + ')';
+						break;
+					case EffectNodes::Expression::Round:
+						part1 = "round(" + cast1.first;
+						part2 = cast1.second + ')';
+						break;
+					case EffectNodes::Expression::Saturate:
+						part1 = "clamp(" + cast1.first;
+						part2 = cast1.second + ", 0.0, 1.0)";
+						break;
+					case EffectNodes::Expression::Radians:
+						part1 = "radians(" + cast1.first;
+						part2 = cast1.second + ')';
+						break;
+					case EffectNodes::Expression::Degrees:
+						part1 = "degrees(" + cast1.first;
+						part2 = cast1.second + ')';
+						break;
+					case EffectNodes::Expression::Noise:
+					{
+						part1 = "noise1(";
+
+						if (!type1.IsFloatingPoint())
+						{
+							type1.Class = EffectNodes::Type::Float;
+							part1 += PrintType(type1) + '(';
+							part2 = ')';
+						}
+
+						part2 += ')';
+						break;
+					}
+					case EffectNodes::Expression::Length:
+					{
+						part1 = "length(";
+
+						if (!type1.IsFloatingPoint())
+						{
+							type1.Class = EffectNodes::Type::Float;
+							part1 += PrintType(type1) + '(';
+							part2 = ')';
+						}
+
+						part2 += ')';
+						break;
+					}
+					case EffectNodes::Expression::Normalize:
+					{
+						part1 = "normalize(";
+
+						if (!type1.IsFloatingPoint())
+						{
+							type1.Class = EffectNodes::Type::Float;
+							part1 += PrintType(type1) + '(';
+							part2 = ')';
+						}
+
+						part2 += ')';
+						break;
+					}
+					case EffectNodes::Expression::Transpose:
+					{
+						part1 = "transpose(";
+
+						if (!type1.IsFloatingPoint())
+						{
+							type1.Class = EffectNodes::Type::Float;
+							part1 += PrintType(type1) + '(';
+							part2 = ')';
+						}
+
+						part2 += ')';
+						break;
+					}
+					case EffectNodes::Expression::Determinant:
+					{
+						part1 = "determinant(";
+
+						if (!type1.IsFloatingPoint())
+						{
+							type1.Class = EffectNodes::Type::Float;
+							part1 += PrintType(type1) + '(';
+							part2 = ')';
+						}
+
+						part2 += ')';
+						break;
+					}
+					case EffectNodes::Expression::Cast:
+						part1 = PrintType(node.Type) + '(';
+						part2 = ')';
+						break;
+					case EffectNodes::Expression::BitCastInt2Float:
+					{
+						part1 = "intBitsToFloat(";
+
+						if (type1.Class != EffectNodes::Type::Int)
+						{
+							type1.Class = EffectNodes::Type::Int;
+							part1 += PrintType(type1) + '(';
+							part2 = ')';
+						}
+
+						part2 += ')';
+						break;
+					}
+					case EffectNodes::Expression::BitCastUint2Float:
+					{
+						part1 = "uintBitsToFloat(";
+
+						if (type1.Class != EffectNodes::Type::Uint)
+						{
+							type1.Class = EffectNodes::Type::Uint;
+							part1 += PrintType(type1) + '(';
+							part2 = ')';
+						}
+
+						part2 += ')';
+						break;
+					}
+					case EffectNodes::Expression::BitCastFloat2Int:
+					{
+						part1 = "floatBitsToInt(";
+
+						if (type1.Class != EffectNodes::Type::Float)
+						{
+							type1.Class = EffectNodes::Type::Float;
+							part1 += PrintType(type1) + '(';
+							part2 = ')';
+						}
+
+						part2 += ')';
+						break;
+					}
+					case EffectNodes::Expression::BitCastFloat2Uint:
+					{
+						part1 = "floatBitsToUint(";
+
+						if (type1.Class != EffectNodes::Type::Float)
+						{
+							type1.Class = EffectNodes::Type::Float;
+							part1 += PrintType(type1) + '(';
+							part2 = ')';
+						}
+
+						part2 += ')';
+						break;
+					}
+					case EffectNodes::Expression::Add:
+						part1 = '(' + cast1.first;
+						part2 = cast1.second + " + " + cast2.first;
+						part3 = cast2.second + ')';
+						break;
+					case EffectNodes::Expression::Subtract:
+						part1 = '(' + cast1.first;
+						part2 = cast1.second + " - " + cast2.first;
+						part3 = cast2.second + ')';
+						break;
+					case EffectNodes::Expression::Multiply:
+						if (node.Type.IsMatrix())
+						{
+							part1 = "matrixCompMult(" + cast1.first;
+							part2 = cast1.second + ", " + cast2.first;
+							part3 = cast2.second + ')';
+						}
+						else
+						{
+							part1 = '(' + cast1.first;
+							part2 = cast1.second + " * " + cast2.first;
+							part3 = cast2.second + ')';
+						}
+						break;
+					case EffectNodes::Expression::Divide:
+						part1 = '(' + cast1.first;
+						part2 = cast1.second + " / " + cast2.first;
+						part3 = cast2.second + ')';
+						break;
+					case EffectNodes::Expression::Modulo:
+						if (node.Type.IsFloatingPoint())
+						{
+							part1 = "_fmod(" + cast1.first;
+							part2 = cast1.second + ", " + cast2.first;
+							part3 = cast2.second + ')';
+						}
+						else
+						{
+							part1 = '(' + cast1.first;
+							part2 = cast1.second + " % " + cast2.first;
+							part3 = cast2.second + ')';
+						}
+						break;
+					case EffectNodes::Expression::Less:
+						if (node.Type.IsVector())
+						{
+							part1 = "lessThan(" + cast121.first;
+							part2 = cast121.second + ", " + cast122.first;
+							part3 = cast122.second + ')';
+						}
+						else
+						{
+							part1 = '(' + cast121.first;
+							part2 = cast121.second + " < " + cast122.first;
+							part3 = cast122.second + ')';
+						}
+						break;
+					case EffectNodes::Expression::Greater:
+						if (node.Type.IsVector())
+						{
+							part1 = "greaterThan(" + cast121.first;
+							part2 = cast121.second + ", " + cast122.first;
+							part3 = cast122.second + ')';
+						}
+						else
+						{
+							part1 = '(' + cast121.first;
+							part2 = cast121.second + " > " + cast122.first;
+							part3 = cast122.second + ')';
+						}
+						break;
+					case EffectNodes::Expression::LessOrEqual:
+						if (node.Type.IsVector())
+						{
+							part1 = "lessThanEqual(" + cast121.first;
+							part2 = cast121.second + ", " + cast122.first;
+							part3 = cast122.second + ')';
+						}
+						else
+						{
+							part1 = '(' + cast121.first;
+							part2 = cast121.second + " <= " + cast122.first;
+							part3 = cast122.second + ')';
+						}
+						break;
+					case EffectNodes::Expression::GreaterOrEqual:
+						if (node.Type.IsVector())
+						{
+							part1 = "greaterThanEqual(" + cast121.first;
+							part2 = cast121.second + ", " + cast122.first;
+							part3 = cast122.second + ')';
+						}
+						else
+						{
+							part1 = '(' + cast121.first;
+							part2 = cast121.second + " >= " + cast122.first;
+							part3 = cast122.second + ')';
+						}
+						break;
+					case EffectNodes::Expression::Equal:
+						if (node.Type.IsVector())
+						{
+							part1 = "equal(" + cast121.first;
+							part2 = cast121.second + ", " + cast122.first;
+							part3 = cast122.second + ")";
+						}
+						else
+						{
+							part1 = '(' + cast121.first;
+							part2 = cast121.second + " == " + cast122.first;
+							part3 = cast122.second + ')';
+						}
+						break;
+					case EffectNodes::Expression::NotEqual:
+						if (node.Type.IsVector())
+						{
+							part1 = "notEqual(" + cast121.first;
+							part2 = cast121.second + ", " + cast122.first;
+							part3 = cast122.second + ")";
+						}
+						else
+						{
+							part1 = '(' + cast121.first;
+							part2 = cast121.second + " != " + cast122.first;
+							part3 = cast122.second + ')';
+						}
+						break;
+					case EffectNodes::Expression::LeftShift:
+						part1 = '(';
+						part2 = " << ";
+						part3 = ')';
+						break;
+					case EffectNodes::Expression::RightShift:
+						part1 = '(';
+						part2 = " >> ";
+						part3 = ')';
+						break;
+					case EffectNodes::Expression::BitAnd:
+						part1 = '(' + cast1.first;
+						part2 = cast1.second + " & " + cast2.first;
+						part3 = cast2.second + ')';
+						break;
+					case EffectNodes::Expression::BitXor:
+						part1 = '(' + cast1.first;
+						part2 = cast1.second + " ^ " + cast2.first;
+						part3 = cast2.second + ')';
+						break;
+					case EffectNodes::Expression::BitOr:
+						part1 = '(' + cast1.first;
+						part2 = cast1.second + " | " + cast2.first;
+						part3 = cast2.second + ')';
+						break;
+					case EffectNodes::Expression::LogicAnd:
+						part1 = '(' + cast121.first;
+						part2 = cast121.second + " && " + cast122.first;
+						part3 = cast122.second + ')';
+						break;
+					case EffectNodes::Expression::LogicXor:
+						part1 = '(' + cast121.first;
+						part2 = cast121.second + " ^^ " + cast122.first;
+						part3 = cast122.second + ')';
+						break;
+					case EffectNodes::Expression::LogicOr:
+						part1 = '(' + cast121.first;
+						part2 = cast121.second + " || " + cast122.first;
+						part3 = cast122.second + ')';
+						break;
+					case EffectNodes::Expression::Mul:
+						part1 = '(';
+						part2 = " * ";
+						part3 = ')';
+						break;
+					case EffectNodes::Expression::Atan2:
+						part1 = "atan(" + cast1.first;
+						part2 = cast1.second + ", " + cast2.first;
+						part3 = cast2.second + ')';
+						break;
+					case EffectNodes::Expression::Dot:
+						part1 = "dot(" + cast121.first;
+						part2 = cast121.second + ", " + cast122.first;
+						part3 = cast122.second + ')';
+						break;
+					case EffectNodes::Expression::Cross:
+						part1 = "cross(" + cast1.first;
+						part2 = cast1.second + ", " + cast2.first;
+						part3 = cast2.second + ')';
+						break;
+					case EffectNodes::Expression::Distance:
+						part1 = "distance(" + cast121.first;
+						part2 = cast121.second + ", " + cast122.first;
+						part3 = cast122.second + ')';
+						break;
+					case EffectNodes::Expression::Pow:
+						part1 = "pow(" + cast1.first;
+						part2 = cast1.second + ", " + cast2.first;
+						part3 = cast2.second + ')';
+						break;
+					case EffectNodes::Expression::Modf:
+						part1 = "modf(" + cast1.first;
+						part2 = cast1.second + ", " + cast2.first;
+						part3 = cast2.second + ')';
+						break;
+					case EffectNodes::Expression::Frexp:
+						part1 = "frexp(" + cast1.first;
+						part2 = cast1.second + ", " + cast2.first;
+						part3 = cast2.second + ')';
+						break;
+					case EffectNodes::Expression::Ldexp:
+						part1 = "ldexp(" + cast1.first;
+						part2 = cast1.second + ", " + cast2.first;
+						part3 = cast2.second + ')';
+						break;
+					case EffectNodes::Expression::Min:
+						part1 = "min(" + cast1.first;
+						part2 = cast1.second + ", " + cast2.first;
+						part3 = cast2.second + ')';
+						break;
+					case EffectNodes::Expression::Max:
+						part1 = "max(" + cast1.first;
+						part2 = cast1.second + ", " + cast2.first;
+						part3 = cast2.second + ')';
+						break;
+					case EffectNodes::Expression::Step:
+						part1 = "step(" + cast1.first;
+						part2 = cast1.second + ", " + cast2.first;
+						part3 = cast2.second + ')';
+						break;
+					case EffectNodes::Expression::Reflect:
+						part1 = "reflect(" + cast1.first;
+						part2 = cast1.second + ", " + cast2.first;
+						part3 = cast2.second + ')';
+						break;
+					case EffectNodes::Expression::Extract:
+						part2 = '[';
+						part3 = ']';
+						break;
+					case EffectNodes::Expression::Field:
+						part1 = '(';
+						part2 = (this->mAST[node.Operands[0]].Is<EffectNodes::LValue>() && this->mAST[node.Operands[0]].As<EffectNodes::LValue>().Type.HasQualifier(EffectNodes::Type::Uniform)) ? '_' : '.';
+						part3 = ')';
+						break;
+					case EffectNodes::Expression::Tex:
+					{
+						part1 = "texture(";
+						const EffectNodes::Type type2to = { EffectNodes::Type::Float, 0, 2, 1 };
+						cast2 = PrintCast(type2, type2to);
+						part2 = ", " + cast2.first;
+						part3 = cast2.second + ')';
+						break;
+					}
+					case EffectNodes::Expression::TexLevel:
+					{
+						part1 = "_textureLod(";
+						const EffectNodes::Type type2to = { EffectNodes::Type::Float, 0, 4, 1 };
+						cast2 = PrintCast(type2, type2to);
+						part2 = ", " + cast2.first;
+						part3 = cast2.second + ')';
+						break;
+					}
+					case EffectNodes::Expression::TexBias:
+					{
+						part1 = "_textureBias(";
+						const EffectNodes::Type type2to = { EffectNodes::Type::Float, 0, 4, 1 };
+						cast2 = PrintCast(type2, type2to);
+						part2 = ", " + cast2.first;
+						part3 = cast2.second + ')';
+						break;
+					}
+					case EffectNodes::Expression::TexFetch:
+					{
+						part1 = "texelFetch(";
+						const EffectNodes::Type type2to = { EffectNodes::Type::Int, 0, 2, 1 };
+						cast2 = PrintCast(type2, type2to);
+						part2 = ", " + cast2.first;
+						part3 = cast2.second + ')';
+						break;
+					}
+					case EffectNodes::Expression::TexSize:
+						part1 = "textureSize(";
+						part2 = ", int(";
+						part3 = "))";
+						break;
+					case EffectNodes::Expression::Mad:
+						part1 = "fma(" + cast1.first;
+						part2 = cast1.second + ", " + cast2.first;
+						part3 = cast2.second + ", " + cast3.first;
+						part4 = cast3.second + ')';
+						break;
+					case EffectNodes::Expression::SinCos:
+					{
+						part1 = "_sincos(";
+
+						if (type1.Class != EffectNodes::Type::Float)
+						{
+							type1.Class = EffectNodes::Type::Float;
+							part1 += PrintType(type1) + '(';
+							part2 = ')';
+						}
+
+						part2 = ", ";
+						part3 = ", ";
+						part4 = ')';
+						break;
+					}
+					case EffectNodes::Expression::Lerp:
+						part1 = "mix(" + cast1.first;
+						part2 = cast1.second + ", " + cast2.first;
+						part3 = cast2.second + ", " + cast3.first;
+						part4 = cast3.second + ')';
+						break;
+					case EffectNodes::Expression::Clamp:
+						part1 = "clamp(" + cast1.first;
+						part2 = cast1.second + ", " + cast2.first;
+						part3 = cast2.second + ", " + cast3.first;
+						part4 = cast3.second + ')';
+						break;
+					case EffectNodes::Expression::SmoothStep:
+						part1 = "smoothstep(" + cast1.first;
+						part2 = cast1.second + ", " + cast2.first;
+						part3 = cast2.second + ", " + cast3.first;
+						part4 = cast3.second + ')';
+						break;
+					case EffectNodes::Expression::Refract:
+						part1 = "refract(" + cast1.first;
+						part2 = cast1.second + ", " + cast2.first;
+						part3 = cast2.second + ", float";
+						part4 = "))";
+						break;
+					case EffectNodes::Expression::FaceForward:
+						part1 = "faceforward(" + cast1.first;
+						part2 = cast1.second + ", " + cast2.first;
+						part3 = cast2.second + ", " + cast3.first;
+						part4 = cast3.second + ')';
+						break;
+					case EffectNodes::Expression::Conditional:
+					{
+						part1 = '(';
+
+						if (this->mAST[node.Operands[0]].As<EffectNodes::RValue>().Type.IsVector())
+						{
+							part1 += "all(bvec" + std::to_string(this->mAST[node.Operands[0]].As<EffectNodes::RValue>().Type.Rows) + '(';
+							part2 = "))";
+						}
+						else
+						{
+							part1 += "bool(";
+							part2 = ')';
+						}
+
+						part2 += " ? " + cast2.first;
+						part3 = cast2.second + " : " + cast3.first;
+						part4 = cast3.second + ')';
+						break;
+					}
+					case EffectNodes::Expression::TexOffset:
+					{
+						part1 = "textureOffset(";
+						const EffectNodes::Type type2to = { EffectNodes::Type::Float, 0, 2, 1 };
+						const EffectNodes::Type type3to = { EffectNodes::Type::Int, 0, 2, 1 };
+						cast2 = PrintCast(type2, type2to);
+						part2 = ", " + cast2.first;
+						cast3 = PrintCast(type3, type3to);
+						part3 = cast2.second + ", " + cast3.first;
+						part4 = cast3.second + ')';
+						break;
+					}
+					case EffectNodes::Expression::TexLevelOffset:
+					{	
+						part1 = "_textureLodOffset(";
+						const EffectNodes::Type type2to = { EffectNodes::Type::Float, 0, 4, 1 };
+						const EffectNodes::Type type3to = { EffectNodes::Type::Int, 0, 2, 1 };
+						cast2 = PrintCast(type2, type2to);
+						part2 = ", " + cast2.first;
+						cast3 = PrintCast(type3, type3to);
+						part3 = cast2.second + ", " + cast3.first;
+						part4 = cast3.second + ')';
+						break;
+					}
+				}
+
+				this->mCurrentSource += part1;
+				this->mAST[node.Operands[0]].Accept(*this);
+				this->mCurrentSource += part2;
+
+				if (node.Operands[1] != 0)
+				{
+					this->mAST[node.Operands[1]].Accept(*this);
+				}
+
+				this->mCurrentSource += part3;
+
+				if (node.Operands[2] != 0)
+				{
+					this->mAST[node.Operands[2]].Accept(*this);
+				}
+
+				this->mCurrentSource += part4;
+			}
+			void												Visit(const EffectNodes::Sequence &node)
+			{
+				for (unsigned int i = 0; i < node.Length; ++i)
+				{
+					this->mAST[node[i]].Accept(*this);
 
 					this->mCurrentSource += ", ";
 				}
@@ -763,434 +1403,124 @@ namespace ReShade
 				this->mCurrentSource.pop_back();
 				this->mCurrentSource.pop_back();
 			}
-			void												VisitLiteral(const Nodes::Literal &data)
+			void												Visit(const EffectNodes::Assignment &node)
 			{
-				switch (data.Type.Class)
-				{
-					case Nodes::Type::Bool:
-						this->mCurrentSource += data.Value.AsInt ? "true" : "false";
-						break;
-					case Nodes::Type::Int:
-						this->mCurrentSource += std::to_string(data.Value.AsInt);
-						break;
-					case Nodes::Type::Uint:
-						this->mCurrentSource += std::to_string(data.Value.AsUint);
-						break;
-					case Nodes::Type::Float:
-						this->mCurrentSource += std::to_string(data.Value.AsFloat);
-						break;
-					case Nodes::Type::Double:
-						this->mCurrentSource += std::to_string(data.Value.AsDouble) + "lf";
-						break;
-				}
-			}
-			void												VisitReference(const Nodes::Reference &data)
-			{
-				const auto &symbol = this->mAST[data.Symbol].As<Nodes::Variable>();
-
-				this->mCurrentSource += FixName(symbol.Name);
-			}
-			void												VisitUnaryExpression(const Nodes::UnaryExpression &data)
-			{
-				std::string part1, part2;
-
-				switch (data.Operator)
-				{
-					case Nodes::Operator::Plus:
-						part1 = "+";
-						break;
-					case Nodes::Operator::Minus:
-						part1 = "-";
-						break;
-					case Nodes::Operator::BitwiseNot:
-						part1 = "~";
-						break;
-					case Nodes::Operator::LogicalNot:
-						if (data.Type.IsVector())
-						{
-							part1 = "not";
-
-							if (data.Type.Class != Nodes::Type::Bool)
-							{
-								part1 += '(';
-								part1 += "bvec" + std::to_string(data.Type.Rows);
-								part2 += ')';
-							}
-						}
-						else
-						{
-							part1 = "!";
-						}
-						break;
-					case Nodes::Operator::Increase:
-						part1 = "++";
-						break;
-					case Nodes::Operator::Decrease:
-						part1 = "--";
-						break;
-					case Nodes::Operator::PostIncrease:
-						part2 = "++";
-						break;
-					case Nodes::Operator::PostDecrease:
-						part2 = "--";
-						break;
-					case Nodes::Operator::Cast:
-						VisitType(data.Type);
-						break;
-				}
-
-				this->mCurrentSource += part1;
 				this->mCurrentSource += '(';
-				Visit(this->mAST[data.Operand]);
-				this->mCurrentSource += part2;
+				this->mAST[node.Left].Accept(*this);
+				this->mCurrentSource += ' ';
+
+				switch (node.Operator)
+				{
+					case EffectNodes::Expression::None:
+						this->mCurrentSource += '=';
+						break;
+					case EffectNodes::Expression::Add:
+						this->mCurrentSource += "+=";
+						break;
+					case EffectNodes::Expression::Subtract:
+						this->mCurrentSource += "-=";
+						break;
+					case EffectNodes::Expression::Multiply:
+						this->mCurrentSource += "*=";
+						break;
+					case EffectNodes::Expression::Divide:
+						this->mCurrentSource += "/=";
+						break;
+					case EffectNodes::Expression::Modulo:
+						this->mCurrentSource += "%=";
+						break;
+					case EffectNodes::Expression::LeftShift:
+						this->mCurrentSource += "<<=";
+						break;
+					case EffectNodes::Expression::RightShift:
+						this->mCurrentSource += ">>=";
+						break;
+					case EffectNodes::Expression::BitAnd:
+						this->mCurrentSource += "&=";
+						break;
+					case EffectNodes::Expression::BitXor:
+						this->mCurrentSource += "^=";
+						break;
+					case EffectNodes::Expression::BitOr:
+						this->mCurrentSource += "|=";
+						break;
+				}
+
+				const std::pair<std::string, std::string> cast = PrintCast(this->mAST[node.Right].As<EffectNodes::RValue>().Type, this->mAST[node.Left].As<EffectNodes::RValue>().Type);
+
+				this->mCurrentSource += ' ';
+				this->mCurrentSource += cast.first;
+				this->mAST[node.Right].Accept(*this);
+				this->mCurrentSource += cast.second;
 				this->mCurrentSource += ')';
 			}
-			void												VisitBinaryExpression(const Nodes::BinaryExpression &data)
+			void												Visit(const EffectNodes::Call &node)
 			{
-				if (data.Operator == Nodes::Operator::Index)
+				this->mCurrentSource += node.CalleeName;
+				this->mCurrentSource += '(';
+
+				if (node.HasArguments())
 				{
-					Visit(this->mAST[data.Left]);
-					this->mCurrentSource += '[';
-					Visit(this->mAST[data.Right]);
-					this->mCurrentSource += ']';
+					const auto &arguments = this->mAST[node.Arguments].As<EffectNodes::List>();
+					const auto &parameters = this->mAST[this->mAST[node.Callee].As<EffectNodes::Function>().Parameters].As<EffectNodes::List>();
+
+					for (unsigned int i = 0; i < arguments.Length; ++i)
+					{
+						const auto &argument = this->mAST[arguments[i]].As<EffectNodes::RValue>();
+						const auto &parameter = this->mAST[parameters[i]].As<EffectNodes::Variable>();
+						
+						const std::pair<std::string , std::string> cast = PrintCast(argument.Type, parameter.Type);
+
+						this->mCurrentSource += cast.first;
+						argument.Accept(*this);
+						this->mCurrentSource += cast.second;
+						this->mCurrentSource += ", ";
+					}
+
+					this->mCurrentSource.pop_back();
+					this->mCurrentSource.pop_back();
 				}
-				else
+
+				this->mCurrentSource += ')';
+			}
+			void												Visit(const EffectNodes::Constructor &node)
+			{
+				if (node.Type.IsMatrix())
 				{
-					const auto &left = this->mAST[data.Left].As<Nodes::Expression>();
-					const auto &right = this->mAST[data.Right].As<Nodes::Expression>();
+					this->mCurrentSource += "transpose(";
+				}
 
-					std::string part1, part2, part3, part4, part5;
-					Nodes::Type type = right.Type;
+				this->mCurrentSource += PrintType(node.Type);
+				this->mCurrentSource += '(';
 
-					if (left.Type.IsFloatingPoint())
-					{
-						type.Class = left.Type.Class;
-					}
+				const auto &arguments = this->mAST[node.Arguments].As<EffectNodes::List>();
 
-					type = FixImplicitCast(left.Type, type, part2, part3);
+				for (unsigned int i = 0; i < arguments.Length; ++i)
+				{
+					this->mAST[arguments[i]].Accept(*this);
 
-					switch (data.Operator)
-					{
-						case Nodes::Operator::Add:
-							part4 = " + ";
-							break;
-						case Nodes::Operator::Substract:
-							part4 = " - ";
-							break;
-						case Nodes::Operator::Multiply:
-							if (type.IsMatrix())
-							{
-								part1 = "matrixCompMult";
-								part4 = ", ";
-							}
-							else
-							{
-								part4 = " * ";
-							}
-							break;
-						case Nodes::Operator::Divide:
-							part4 = " / ";
-							break;
-						case Nodes::Operator::Modulo:
-							if (type.IsFloatingPoint())
-							{
-								part1 = "fmod";
-								part4 = ", ";
-							}
-							else
-							{
-								part4 = " % ";
-							}
-							break;
-						case Nodes::Operator::LeftShift:
-							part4 = " << ";
-							break;
-						case Nodes::Operator::RightShift:
-							part4 = " >> ";
-							break;
-						case Nodes::Operator::BitwiseAnd:
-							part4 = " & ";
-							break;
-						case Nodes::Operator::BitwiseXor:
-							part4 = " ^ ";
-							break;
-						case Nodes::Operator::BitwiseOr:
-							part4 = " | ";
-							break;
-						case Nodes::Operator::LogicalAnd:
-							part4 = " && ";
-							break;
-						case Nodes::Operator::LogicalXor:
-							part4 = " ^^ ";
-							break;
-						case Nodes::Operator::LogicalOr:
-							part4 = " || ";
-							break;
-						case Nodes::Operator::Less:
-							if (type.IsVector())
-							{
-								part1 = "lessThan";
-								part4 = ", ";
-							}
-							else
-							{
-								part4 = " < ";
-							}
-							break;
-						case Nodes::Operator::Greater:
-							if (type.IsVector())
-							{
-								part1 = "greaterThan";
-								part4 = ", ";
-							}
-							else
-							{
-								part4 = " > ";
-							}
-							break;
-						case Nodes::Operator::LessOrEqual:
-							if (type.IsVector())
-							{
-								part1 = "lessThanEqual";
-								part4 = ", ";
-							}
-							else
-							{
-								part4 = " <= ";
-							}
-							break;
-						case Nodes::Operator::GreaterOrEqual:
-							if (type.IsVector())
-							{
-								part1 = "greaterThanEqual";
-								part4 = ", ";
-							}
-							else
-							{
-								part4 = " >= ";
-							}
-							break;
-						case Nodes::Operator::Equal:
-							if (type.IsVector())
-							{
-								part1 = "equal";
-								part4 = ", ";
-							}
-							else
-							{
-								part4 = " == ";
-							}
-							break;
-						case Nodes::Operator::Unequal:
-							if (type.IsVector())
-							{
-								part1 = "notEqual";
-								part4 = ", ";
-							}
-							else
-							{
-								part4 = " != ";
-							}
-							break;
-					}
-					
-					FixImplicitCast(right.Type, type, part4, part5);
+					this->mCurrentSource += ", ";
+				}
 
-					this->mCurrentSource += part1;
-					this->mCurrentSource += '(';
-					this->mCurrentSource += part2;
-					Visit(this->mAST[data.Left]);
-					this->mCurrentSource += part3;
-					this->mCurrentSource += part4;
-					Visit(this->mAST[data.Right]);
-					this->mCurrentSource += part5;
+				this->mCurrentSource.pop_back();
+				this->mCurrentSource.pop_back();
+
+				this->mCurrentSource += ')';
+
+				if (node.Type.IsMatrix())
+				{
 					this->mCurrentSource += ')';
 				}
 			}
-			void												VisitAssignmentExpression(const Nodes::Assignment &data)
+			void												Visit(const EffectNodes::Swizzle &node)
 			{
-				this->mCurrentSource += '(';
-				Visit(this->mAST[data.Left]);
-				this->mCurrentSource += ' ';
+				const EffectNodes::RValue &left = this->mAST[node.Operands[0]].As<EffectNodes::RValue>();
 
-				switch (data.Operator)
-				{
-					case Nodes::Operator::Add:
-						this->mCurrentSource += "+=";
-						break;
-					case Nodes::Operator::Substract:
-						this->mCurrentSource += "-=";
-						break;
-					case Nodes::Operator::Multiply:
-						this->mCurrentSource += "*=";
-						break;
-					case Nodes::Operator::Divide:
-						this->mCurrentSource += "/=";
-						break;
-					case Nodes::Operator::Modulo:
-						this->mCurrentSource += "%=";
-						break;
-					case Nodes::Operator::LeftShift:
-						this->mCurrentSource += "<<=";
-						break;
-					case Nodes::Operator::RightShift:
-						this->mCurrentSource += ">>=";
-						break;
-					case Nodes::Operator::BitwiseAnd:
-						this->mCurrentSource += "&=";
-						break;
-					case Nodes::Operator::BitwiseXor:
-						this->mCurrentSource += "^=";
-						break;
-					case Nodes::Operator::BitwiseOr:
-						this->mCurrentSource += "|=";
-						break;
-					case Nodes::Operator::None:
-						this->mCurrentSource += '=';
-						break;
-				}
-
-				std::string implicitBefore, implicitAfter;
-				FixImplicitCast(this->mAST[data.Right].As<Nodes::Expression>().Type, this->mAST[data.Left].As<Nodes::Expression>().Type, implicitBefore, implicitAfter);
-
-				this->mCurrentSource += ' ';
-				this->mCurrentSource += implicitBefore;
-				Visit(this->mAST[data.Right]);
-				this->mCurrentSource += implicitAfter;
-				this->mCurrentSource += ')';
-			}
-			void												VisitConditionalExpression(const Nodes::Conditional &data)
-			{
-				this->mCurrentSource += '(';
-
-				const auto &condition = this->mAST[data.Condition].As<Nodes::Expression>();
-
-				if (condition.Type.IsVector())
-				{
-					this->mCurrentSource += "all(";
-
-					if (condition.Type.Class != Nodes::Type::Bool)
-					{
-						this->mCurrentSource += "bvec" + std::to_string(condition.Type.Rows) + "(";
-						Visit(this->mAST[data.Condition]);
-						this->mCurrentSource += ")";
-					}
-					else
-					{
-						Visit(this->mAST[data.Condition]);
-					}
-
-					this->mCurrentSource += ")";
-				}
-				else
-				{
-					if (condition.Type.Class != Nodes::Type::Bool)
-					{
-						this->mCurrentSource += "bool(";
-						Visit(this->mAST[data.Condition]);
-						this->mCurrentSource += ")";
-					}
-					else
-					{
-						Visit(this->mAST[data.Condition]);
-					}
-				}
-
-				this->mCurrentSource += " ? ";
-				Visit(this->mAST[data.ExpressionTrue]);
-				this->mCurrentSource += " : ";
-				Visit(this->mAST[data.ExpressionFalse]);
-				this->mCurrentSource += ')';
-			}
-			void												VisitCallExpression(const Nodes::Call &data)
-			{
-				const auto &callee = this->mAST[data.Callee].As<Nodes::Function>();
-
-				if (data.Left != 0)
-				{
-					Visit(this->mAST[data.Left]);
-					this->mCurrentSource += '.';
-				}
-
-				this->mCurrentSource += FixName(callee.Name);
-				this->mCurrentSource += '(';
-
-				if (data.Parameters != 0)
-				{
-					const auto &arguments = this->mAST[callee.Arguments].As<Nodes::Aggregate>();
-					const auto &parameters = this->mAST[data.Parameters].As<Nodes::Aggregate>();
-
-					for (size_t i = 0; i < parameters.Length; ++i)
-					{
-						const auto &argument = this->mAST[arguments.Find(this->mAST, i)].As<Nodes::Variable>();
-						const auto &parameter = this->mAST[parameters.Find(this->mAST, i)].As<Nodes::Expression>();
-						
-						std::string before, after;
-						FixImplicitCast(parameter.Type, argument.Type, before, after);
-
-						this->mCurrentSource += before;
-						Visit(this->mAST[parameters.Find(this->mAST, i)]);
-						this->mCurrentSource += after;
-						this->mCurrentSource += ", ";
-					}
-
-					this->mCurrentSource.pop_back();
-					this->mCurrentSource.pop_back();
-				}
-
-				this->mCurrentSource += ")";
-			}
-			void												VisitConstructorExpression(const Nodes::Constructor &data)
-			{
-				auto type = data.Type;
-				type.Qualifiers = 0;			
-				VisitType(type);
-
-				this->mCurrentSource += '(';
-
-				if (data.Parameters != 0)
-				{
-					const auto &parameters = this->mAST[data.Parameters].As<Nodes::Aggregate>();
-
-					for (size_t i = 0; i < parameters.Length; ++i)
-					{
-						Visit(this->mAST[parameters.Find(this->mAST, i)]);
-
-						this->mCurrentSource += ", ";
-					}
-
-					this->mCurrentSource.pop_back();
-					this->mCurrentSource.pop_back();
-				}
-
-				this->mCurrentSource += ')';
-			}
-			void												VisitFieldExpression(const Nodes::Field &data)
-			{
-				const auto &left = this->mAST[data.Left];
-
-				Visit(left);
-
-				if (!left.Is<Nodes::Reference>() || !left.As<Nodes::Reference>().Type.HasQualifier(Nodes::Type::Qualifier::Uniform))
-				{
-					this->mCurrentSource += '.';
-				}
-				else
-				{
-					this->mCurrentSource += '_';
-				}
-
-				this->mCurrentSource += FixName(this->mAST[data.Callee].As<Nodes::Variable>().Name);
-			}
-			void												VisitSwizzleExpression(const Nodes::Swizzle &data)
-			{
-				const auto &left = this->mAST[data.Left];
-
-				Visit(left);
+				left.Accept(*this);
 
 				this->mCurrentSource += '.';
 
-				if (left.As<Nodes::Expression>().Type.IsMatrix())
+				if (left.Type.IsMatrix())
 				{
 					const char swizzle[16][5] =
 					{
@@ -1200,9 +1530,9 @@ namespace ReShade
 						"_m30", "_m31", "_m32", "_m33"
 					};
 
-					for (int i = 0; i < 4 && data.Offsets[i] >= 0; ++i)
+					for (int i = 0; i < 4 && node.Mask[i] >= 0; ++i)
 					{
-						this->mCurrentSource += swizzle[data.Offsets[i]];
+						this->mCurrentSource += swizzle[node.Mask[i]];
 					}
 				}
 				else
@@ -1212,204 +1542,220 @@ namespace ReShade
 						'x', 'y', 'z', 'w'
 					};
 
-					for (int i = 0; i < 4 && data.Offsets[i] >= 0; ++i)
+					for (int i = 0; i < 4 && node.Mask[i] >= 0; ++i)
 					{
-						this->mCurrentSource += swizzle[data.Offsets[i]];
+						this->mCurrentSource += swizzle[node.Mask[i]];
 					}
 				}
 			}
-			void												VisitStatementBlock(const Nodes::StatementBlock &data)
+			void												Visit(const EffectNodes::If &node)
 			{
-				this->mCurrentSource += "{\n";
+				this->mCurrentSource += "if (";
+				this->mAST[node.Condition].Accept(*this);
+				this->mCurrentSource += ")\n";
 
-				for (size_t i = 0; i < data.Length; ++i)
+				if (node.StatementOnTrue != 0)
 				{
-					Visit(this->mAST[data.Find(this->mAST, i)]);
+					this->mAST[node.StatementOnTrue].Accept(*this);
+				}
+				else
+				{
+					this->mCurrentSource += "\t;";
+				}
+				if (node.StatementOnFalse != 0)
+				{
+					this->mCurrentSource += "else\n";
+					this->mAST[node.StatementOnFalse].Accept(*this);
+				}
+			}
+			void												Visit(const EffectNodes::Switch &node)
+			{
+				this->mCurrentSource += "switch (";
+				this->mAST[node.Test].Accept(*this);
+				this->mCurrentSource += ")\n{\n";
+
+				const auto &cases = this->mAST[node.Cases].As<EffectNodes::List>();
+
+				for (unsigned int i = 0; i < cases.Length; ++i)
+				{
+					this->mAST[cases[i]].As<EffectNodes::Case>().Accept(*this);
 				}
 
 				this->mCurrentSource += "}\n";
 			}
-			void												VisitExpressionStatement(const Nodes::ExpressionStatement &data)
+			void												Visit(const EffectNodes::Case &node)
 			{
-				Visit(this->mAST[data.Expression]);
-				this->mCurrentSource += ";\n";
-			}
-			void												VisitDeclarationStatement(const Nodes::DeclarationStatement &data)
-			{
-				Visit(this->mAST[data.Declaration]);
-			}
-			void												VisitSelectionStatement(const Nodes::Selection &data)
-			{
-				switch (data.Mode)
+				const auto &labels = this->mAST[node.Labels].As<EffectNodes::List>();
+
+				for (unsigned int i = 0; i < labels.Length; ++i)
 				{
-					case Nodes::Selection::If:
+					const auto &label = this->mAST[labels[i]];
+
+					if (label.Is<EffectNodes::Expression>())
 					{
-						this->mCurrentSource += "if (";
-						Visit(this->mAST[data.Condition]);
-						this->mCurrentSource += ")\n";
-
-						if (data.StatementTrue != 0)
-						{
-							Visit(this->mAST[data.StatementTrue]);
-
-							if (data.StatementFalse != 0)
-							{
-								this->mCurrentSource += "else\n";
-								Visit(this->mAST[data.StatementFalse]);
-							}
-						}
-						else
-						{
-							this->mCurrentSource += "\t;";
-						}					
-						break;
+						this->mCurrentSource += "default";
 					}
-					case Nodes::Selection::Switch:
+					else
 					{
-						this->mCurrentSource += "switch (";
-						Visit(this->mAST[data.Condition]);
-						this->mCurrentSource += ")\n{\n";
-						Visit(this->mAST[data.Statement]);
-						this->mCurrentSource += "}\n";
-						break;
+						this->mCurrentSource += "case ";
+						label.As<EffectNodes::Literal>().Accept(*this);
 					}
-					case Nodes::Selection::Case:
-					{
-						const auto &cases = this->mAST[data.Condition].As<Nodes::Aggregate>();
 
-						for (size_t i = 0; i < cases.Length; ++i)
-						{
-							const auto &item = this->mAST[cases.Find(this->mAST, i)];
-
-							if (item.Is<Nodes::Expression>())
-							{
-								this->mCurrentSource += "default";
-							}
-							else
-							{
-								this->mCurrentSource += "case ";
-								Visit(item);
-							}
-
-							this->mCurrentSource += ":\n";
-						}
-
-						Visit(this->mAST[data.Statement]);
-						break;
-					}
+					this->mCurrentSource += ":\n";
 				}
+
+				this->mAST[node.Statements].As<EffectNodes::StatementBlock>().Accept(*this);
 			}
-			void												VisitIterationStatement(const Nodes::Iteration &data)
+			void												Visit(const EffectNodes::For &node)
 			{
-				switch (data.Mode)
+				this->mCurrentSource += "for (";
+
+				if (node.Initialization != 0)
 				{
-					case Nodes::Iteration::For:
-					{
-						this->mCurrentSource += "for (";
+					this->mAST[node.Initialization].Accept(*this);
 
-						if (data.Initialization != 0)
-						{
-							Visit(this->mAST[data.Initialization]);
+					this->mCurrentSource.pop_back();
+					this->mCurrentSource.pop_back();
+				}
 
-							this->mCurrentSource.pop_back();
-							this->mCurrentSource.pop_back();
-						}
-
-						this->mCurrentSource += "; ";
+				this->mCurrentSource += "; ";
 										
-						if (data.Condition != 0)
-						{
-							Visit(this->mAST[data.Condition]);
-						}
+				if (node.Condition != 0)
+				{
+					this->mAST[node.Condition].Accept(*this);
+				}
 
-						this->mCurrentSource += "; ";
+				this->mCurrentSource += "; ";
 
-						if (data.Expression != 0)
-						{
-							Visit(this->mAST[data.Expression]);
-						}
+				if (node.Iteration != 0)
+				{
+					this->mAST[node.Iteration].Accept(*this);
+				}
 
-						this->mCurrentSource += ")\n";
+				this->mCurrentSource += ")\n";
 
-						if (data.Statement != 0)
-						{
-							Visit(this->mAST[data.Statement]);
-						}
-						else
-						{
-							this->mCurrentSource += "\t;";
-						}
-						break;
-					}
-					case Nodes::Iteration::Mode::While:
+				if (node.Statements != 0)
+				{
+					this->mAST[node.Statements].Accept(*this);
+				}
+				else
+				{
+					this->mCurrentSource += "\t;";
+				}
+			}
+			void												Visit(const EffectNodes::While &node)
+			{
+				if (node.DoWhile)
+				{
+					this->mCurrentSource += "do\n{\n";
+
+					if (node.Statements != 0)
 					{
-						this->mCurrentSource += "while (";
-						Visit(this->mAST[data.Condition]);
-						this->mCurrentSource += ")\n";
-
-						if (data.Statement != 0)
-						{
-							Visit(this->mAST[data.Statement]);
-						}
-						else
-						{
-							this->mCurrentSource += "\t;";
-						}
-						break;
+						this->mAST[node.Statements].Accept(*this);
 					}
-					case Nodes::Iteration::Mode::DoWhile:
+
+					this->mCurrentSource += "}\n";
+					this->mCurrentSource += "while (";
+					this->mAST[node.Condition].Accept(*this);
+					this->mCurrentSource += ");\n";
+				}
+				else
+				{
+					this->mCurrentSource += "while (";
+					this->mAST[node.Condition].Accept(*this);
+					this->mCurrentSource += ")\n";
+
+					if (node.Statements != 0)
 					{
-						this->mCurrentSource += "do\n{\n";
-						Visit(this->mAST[data.Statement]);
-						this->mCurrentSource += "}\n";
-						this->mCurrentSource += "while (";
-						Visit(this->mAST[data.Condition]);
-						this->mCurrentSource += ");\n";
-						break;
+						this->mAST[node.Statements].Accept(*this);
+					}
+					else
+					{
+						this->mCurrentSource += "\t;";
 					}
 				}
 			}
-			void												VisitJumpStatement(const Nodes::Jump &data)
+			void												Visit(const EffectNodes::Jump &node)
 			{
-				switch (data.Mode)
+				switch (node.Mode)
 				{
-					case Nodes::Jump::Break:
-					{
-						this->mCurrentSource += "break";
-						break;
-					}
-					case Nodes::Jump::Continue:
-					{
-						this->mCurrentSource += "continue";
-						break;
-					}
-					case Nodes::Jump::Return:
-					{
+					case EffectNodes::Jump::Return:
 						this->mCurrentSource += "return";
 
-						if (data.Expression != 0)
+						if (node.Value != 0)
 						{
 							this->mCurrentSource += ' ';
-							Visit(this->mAST[data.Expression]);
+							this->mAST[node.Value].Accept(*this);
 						}
 						break;
-					}
-					case Nodes::Jump::Discard:
-					{
+					case EffectNodes::Jump::Break:
+						this->mCurrentSource += "break";
+						break;
+					case EffectNodes::Jump::Continue:
+						this->mCurrentSource += "continue";
+						break;
+					case EffectNodes::Jump::Discard:
 						this->mCurrentSource += "discard";
 						break;
-					}
 				}
 
 				this->mCurrentSource += ";\n";
 			}
-			void												VisitStructDeclaration(const Nodes::Struct &data)
+			void												Visit(const EffectNodes::ExpressionStatement &node)
+			{
+				if (node.Expression != 0)
+				{
+					this->mAST[node.Expression].Accept(*this);
+				}
+
+				this->mCurrentSource += ";\n";
+			}
+			void												Visit(const EffectNodes::StatementBlock &node)
+			{
+				this->mCurrentSource += "{\n";
+
+				for (unsigned int i = 0; i < node.Length; ++i)
+				{
+					this->mAST[node[i]].Accept(*this);
+				}
+
+				this->mCurrentSource += "}\n";
+			}
+			void												Visit(const EffectNodes::Annotation &node)
+			{
+				Effect::Annotation annotation;
+				const auto &value = this->mAST[node.Value].As<EffectNodes::Literal>();
+
+				switch (value.Type.Class)
+				{
+					case EffectNodes::Type::Bool:
+						annotation = value.Value.Bool[0] != 0;
+						break;
+					case EffectNodes::Type::Int:
+						annotation = value.Value.Int[0];
+						break;
+					case EffectNodes::Type::Uint:
+						annotation = value.Value.Uint[0];
+						break;
+					case EffectNodes::Type::Float:
+						annotation = value.Value.Float[0];
+						break;
+					case EffectNodes::Type::String:
+						annotation = value.Value.String;
+						break;
+				}
+
+				assert(this->mCurrentAnnotations != nullptr);
+
+				this->mCurrentAnnotations->insert(std::make_pair(node.Name, annotation));
+			}
+			void												Visit(const EffectNodes::Struct &node)
 			{
 				this->mCurrentSource += "struct ";
 
-				if (data.Name != nullptr)
+				if (node.Name != nullptr)
 				{
-					this->mCurrentSource += FixName(data.Name);
+					this->mCurrentSource += FixName(node.Name);
 				}
 				else
 				{
@@ -1418,13 +1764,13 @@ namespace ReShade
 
 				this->mCurrentSource += "\n{\n";
 
-				if (data.Fields != 0)
+				if (node.HasFields())
 				{
-					const auto &fields = this->mAST[data.Fields].As<Nodes::Aggregate>();
+					const auto &fields = this->mAST[node.Fields].As<EffectNodes::List>();
 
-					for (size_t i = 0; i < fields.Length; ++i)
+					for (unsigned int i = 0; i < fields.Length; ++i)
 					{
-						Visit(this->mAST[fields.Find(this->mAST, i)]);
+						this->mAST[fields[i]].As<EffectNodes::Variable>().Accept(*this);
 					}
 				}
 				else
@@ -1434,37 +1780,35 @@ namespace ReShade
 
 				this->mCurrentSource += "};\n";
 			}
-			void												VisitVariableDeclaration(const Nodes::Variable &data)
+			void												Visit(const EffectNodes::Variable &node)
 			{
 				if (!(this->mCurrentInParameterBlock || this->mCurrentInFunctionBlock))
 				{
-					if (data.Type.IsStruct() && data.Type.HasQualifier(Nodes::Type::Qualifier::Uniform))
+					if (node.Type.IsStruct() && node.Type.HasQualifier(EffectNodes::Type::Qualifier::Uniform))
 					{
-						VisitUniformBufferDeclaration(data);
+						VisitUniformBuffer(node);
 						return;
 					}
-					else if (data.Type.IsSampler())
+					else if (node.Type.IsTexture())
 					{
-						VisitSamplerDeclaration(data);
+						VisitTexture(node);
 						return;
 					}
-					else if (data.Type.IsTexture())
+					else if (node.Type.IsSampler())
 					{
-						VisitTextureDeclaration(data);
+						VisitSampler(node);
 						return;
 					}
-					else if (data.Type.HasQualifier(Nodes::Type::Qualifier::Uniform))
+					else if (node.Type.HasQualifier(EffectNodes::Type::Qualifier::Uniform))
 					{
-						VisitUniformSingleDeclaration(data);
+						VisitUniform(node);
 						return;
 					}
 				}
-			
-				auto type = data.Type;
-				type.Qualifiers &= ~static_cast<unsigned int>(Nodes::Type::Qualifier::Uniform);
-				VisitType(type);
 
-				if (data.Name != nullptr)
+				this->mCurrentSource += PrintTypeWithQualifiers(node.Type);
+
+				if (node.Name != nullptr)
 				{
 					this->mCurrentSource += ' ';
 
@@ -1473,436 +1817,303 @@ namespace ReShade
 						this->mCurrentSource += this->mCurrentBlockName + '_';
 					}
 				
-					this->mCurrentSource += FixName(data.Name);
+					this->mCurrentSource += FixName(node.Name);
 				}
 
-				if (data.Type.IsArray())
+				if (node.Type.IsArray())
 				{
-					for (size_t i = 0; i < data.Type.ElementsDimension; ++i)
-					{
-						this->mCurrentSource += '[';
-						this->mCurrentSource += (data.Type.Elements[i] > 0) ? std::to_string(data.Type.Elements[i]) : "";
-						this->mCurrentSource += ']';
-					}
+					this->mCurrentSource += '[';
+					this->mCurrentSource += (node.Type.ArrayLength >= 1) ? std::to_string(node.Type.ArrayLength) : "";
+					this->mCurrentSource += ']';
+				}
+
+				if (node.HasInitializer())
+				{
+					this->mCurrentSource += " = ";
+
+					const auto cast = PrintCast(this->mAST[node.Initializer].As<EffectNodes::RValue>().Type, node.Type);
+
+					this->mCurrentSource += cast.first;
+					this->mAST[node.Initializer].Accept(*this);
+					this->mCurrentSource += cast.second;
 				}
 
 				if (!this->mCurrentInParameterBlock)
 				{
-					if (data.HasInitializer())
-					{
-						this->mCurrentSource += " = ";
-
-						const auto &initializer = this->mAST[data.Initializer];
-
-						if (initializer.Is<Nodes::Aggregate>())
-						{
-							Nodes::Type type = data.Type;
-							type.Qualifiers = 0;
-							VisitType(type);
-							this->mCurrentSource += "(";
-
-							for (size_t i = 0; i < initializer.As<Nodes::Aggregate>().Length; ++i)
-							{
-								Visit(this->mAST[initializer.As<Nodes::Aggregate>().Find(this->mAST, i)]);
-
-								this->mCurrentSource += ", ";
-							}
-
-							this->mCurrentSource += ")";
-						}
-						else
-						{
-							std::string implicitBefore, implicitAfter;
-							FixImplicitCast(initializer.As<Nodes::Expression>().Type, data.Type, implicitBefore, implicitAfter);
-
-							this->mCurrentSource += implicitBefore;
-							Visit(initializer);
-							this->mCurrentSource += implicitAfter;
-						}
-					}
-
 					this->mCurrentSource += ";\n";
 				}
 			}
-			void												VisitSamplerDeclaration(const Nodes::Variable &data)
-			{
-				std::shared_ptr<OGL4Sampler> obj = std::make_shared<OGL4Sampler>();
-				obj->mSRGB = false;
-
-				GLCHECK(glGenSamplers(1, &obj->mID));
-
-				if (data.HasInitializer())
-				{
-					#pragma region Fill Description
-					const auto &states = this->mAST[data.Initializer].As<Nodes::Aggregate>();
-					int mipfilter = 0;
-
-					for (size_t i = 0; i < states.Length; ++i)
-					{
-						const auto &state = this->mAST[states.Find(this->mAST, i)].As<Nodes::State>();
-					
-						switch (state.Type)
-						{
-							case Nodes::State::Texture:
-								obj->mTexture = this->mEffect->mTextures.at(this->mAST[state.Value.AsNode].As<Nodes::Variable>().Name).get();
-								break;
-							case Nodes::State::MinFilter:
-								GLCHECK(glSamplerParameteri(obj->mID, GL_TEXTURE_MIN_FILTER, ConvertLiteralToTextureFilter(state.Value.AsInt)));
-								break;
-							case Nodes::State::MagFilter:
-								GLCHECK(glSamplerParameteri(obj->mID, GL_TEXTURE_MAG_FILTER, ConvertLiteralToTextureFilter(state.Value.AsInt)));
-								break;
-							case Nodes::State::MipFilter:
-								mipfilter = state.Value.AsInt;
-								break;
-							case Nodes::State::AddressU:
-								GLCHECK(glSamplerParameteri(obj->mID, GL_TEXTURE_WRAP_S, ConvertLiteralToTextureWrap(state.Value.AsInt)));
-								break;
-							case Nodes::State::AddressV:
-								GLCHECK(glSamplerParameteri(obj->mID, GL_TEXTURE_WRAP_T, ConvertLiteralToTextureWrap(state.Value.AsInt)));
-								break;
-							case Nodes::State::AddressW:
-								GLCHECK(glSamplerParameteri(obj->mID, GL_TEXTURE_WRAP_R, ConvertLiteralToTextureWrap(state.Value.AsInt)));
-								break;
-							case Nodes::State::MipLODBias:
-								GLCHECK(glSamplerParameterf(obj->mID, GL_TEXTURE_LOD_BIAS, state.Value.AsFloat));
-								break;
-							case Nodes::State::MinLOD:
-								GLCHECK(glSamplerParameterf(obj->mID, GL_TEXTURE_MIN_LOD, state.Value.AsFloat));
-								break;
-							case Nodes::State::MaxLOD:
-								GLCHECK(glSamplerParameterf(obj->mID, GL_TEXTURE_MAX_LOD, state.Value.AsFloat));
-								break;
-							case Nodes::State::MaxAnisotropy:
-	#define GL_TEXTURE_MAX_ANISOTROPY_EXT 0x84FE
-								GLCHECK(glSamplerParameterf(obj->mID, GL_TEXTURE_MAX_ANISOTROPY_EXT, static_cast<GLfloat>(state.Value.AsInt)));
-								break;
-							case Nodes::State::SRGB:
-								obj->mSRGB = state.Value.AsInt != 0;
-								break;
-						}
-					}
-
-					if (mipfilter != 0)
-					{
-						GLint minfilter;
-						GLCHECK(glGetSamplerParameteriv(obj->mID, GL_TEXTURE_MIN_FILTER, &minfilter));
-
-						switch (mipfilter)
-						{
-							case Nodes::Literal::POINT:
-							{
-								switch (minfilter)
-								{
-									case GL_NEAREST:
-										minfilter = GL_NEAREST_MIPMAP_NEAREST;
-										break;
-									case GL_LINEAR:
-										minfilter = GL_LINEAR_MIPMAP_NEAREST;
-										break;
-								}
-								break;
-							}
-							case Nodes::Literal::LINEAR:
-							{
-								switch (minfilter)
-								{
-									case GL_NEAREST:
-										minfilter = GL_LINEAR_MIPMAP_NEAREST;
-										break;
-									case GL_LINEAR:
-										minfilter = GL_LINEAR_MIPMAP_LINEAR;
-										break;
-								}
-								break;
-							}
-						}
-
-						GLCHECK(glSamplerParameteri(obj->mID, GL_TEXTURE_MIN_FILTER, minfilter));
-					}
-					#pragma endregion
-				}
-
-				if (obj->mTexture == nullptr)
-				{
-					return;
-				}
-
-				this->mCurrentSource += "layout(binding = " + std::to_string(this->mEffect->mSamplers.size()) + ") uniform sampler2D ";
-				this->mCurrentSource += FixName(data.Name);
-				this->mCurrentSource += ";\n";
-
-				this->mEffect->mSamplers.push_back(obj);
-			}
-			void												VisitTextureDeclaration(const Nodes::Variable &data)
-			{
-				GLuint texture[2] = { 0, 0 };
-				GLsizei width = 1, height = 1, levels = 1;
+			void												VisitTexture(const EffectNodes::Variable &node)
+			{			
+				const GLsizei width = (node.Properties[EffectNodes::Variable::Width] != 0) ? this->mAST[node.Properties[EffectNodes::Variable::Width]].As<EffectNodes::Literal>().Value.Uint[0] : 1;
+				const GLsizei height = (node.Properties[EffectNodes::Variable::Height] != 0) ? this->mAST[node.Properties[EffectNodes::Variable::Height]].As<EffectNodes::Literal>().Value.Uint[0] : 1;
+				const GLsizei levels = (node.Properties[EffectNodes::Variable::MipLevels] != 0) ? this->mAST[node.Properties[EffectNodes::Variable::MipLevels]].As<EffectNodes::Literal>().Value.Uint[0] : 1;
 				GLenum internalformat = GL_RGBA8, internalformatSRGB = GL_SRGB8_ALPHA8;
 				Effect::Texture::Format format = Effect::Texture::Format::RGBA8;
-			
-				if (data.HasInitializer())
-				{
-					#pragma region Fill Description
-					const auto &states = this->mAST[data.Initializer].As<Nodes::Aggregate>();
 
-					for (size_t i = 0; i < states.Length; ++i)
-					{
-						const auto &state = this->mAST[states.Find(this->mAST, i)].As<Nodes::State>();
-					
-						switch (state.Type)
-						{
-							case Nodes::State::Width:
-								width = state.Value.AsInt;
-								break;
-							case Nodes::State::Height:
-								height = state.Value.AsInt;
-								break;
-							case Nodes::State::MipLevels:
-								levels = state.Value.AsInt;
-								break;
-							case Nodes::State::Format:
-								ConvertLiteralToFormat(state.Value.AsInt, internalformat, internalformatSRGB, format);
-								break;
-						}
-					}
-					#pragma endregion
+				if (node.Properties[EffectNodes::Variable::Format] != 0)
+				{
+					LiteralToFormat(this->mAST[node.Properties[EffectNodes::Variable::Format]].As<EffectNodes::Literal>().Value.Uint[0], internalformat, internalformatSRGB, format);
 				}
 
-				GLCHECK(glGenTextures(2, texture));
-			
-				auto obj = std::unique_ptr<OGL4Texture>(new OGL4Texture(this->mEffect));
+				GLuint textures[2] = { 0, 0 };
+
+				GLCHECK(glGenTextures(2, textures));
+
+				std::unique_ptr<OGL4Texture> obj(new OGL4Texture(this->mEffect));
 				obj->mDesc.Width = width;
 				obj->mDesc.Height = height;
 				obj->mDesc.Levels = levels;
 				obj->mDesc.Format = format;
-				obj->mID = texture[0];
-				obj->mSRGBView = texture[1];
+				obj->mID = textures[0];
+				obj->mSRGBView = textures[1];
 
 				GLint previous = 0;
 				GLCHECK(glGetIntegerv(GL_TEXTURE_BINDING_2D, &previous));
 
-				GLCHECK(glBindTexture(GL_TEXTURE_2D, texture[0]));
+				GLCHECK(glBindTexture(GL_TEXTURE_2D, textures[0]));
 				GLCHECK(glTexStorage2D(GL_TEXTURE_2D, levels, internalformat, width, height));
-				std::vector<unsigned char> nullpixels(width * height, 0);
+				const std::vector<unsigned char> nullpixels(width * height, 0);
 				GLCHECK(glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_RED, GL_UNSIGNED_BYTE, nullpixels.data()));
-				GLCHECK(glTextureView(texture[1], GL_TEXTURE_2D, texture[0], internalformatSRGB, 0, levels, 0, 1));
+				GLCHECK(glTextureView(textures[1], GL_TEXTURE_2D, textures[0], internalformatSRGB, 0, levels, 0, 1));
+
 				GLCHECK(glBindTexture(GL_TEXTURE_2D, previous));
 
-				if (data.Annotations != 0)
+				if (node.HasAnnotations())
 				{
-					const auto &annotations = this->mAST[data.Annotations].As<Nodes::Aggregate>();
+					const auto &annotations = this->mAST[node.Annotations].As<EffectNodes::List>();
 
-					for (size_t i = 0; i < annotations.Length; ++i)
+					this->mCurrentAnnotations = &obj->mAnnotations;
+
+					for (unsigned int i = 0; i < annotations.Length; ++i)
 					{
-						VisitAnnotation(this->mAST[annotations.Find(this->mAST, i)].As<Nodes::Annotation>(), obj->mAnnotations);
+						this->mAST[annotations[i]].Accept(*this);
 					}
+
+					this->mCurrentAnnotations = nullptr;
 				}
 
-				this->mEffect->mTextures.insert(std::make_pair(data.Name, std::move(obj)));
+				this->mEffect->mTextures.insert(std::make_pair(node.Name, std::move(obj)));
 			}
-			void												VisitUniformSingleDeclaration(const Nodes::Variable &data)
+			void												VisitSampler(const EffectNodes::Variable &node)
 			{
-				const std::string temp = this->mCurrentSource;
-				this->mCurrentSource.clear();
-				VisitType(data.Type);
-				this->mCurrentGlobalConstants += this->mCurrentSource;
-				this->mCurrentSource = temp;
-
-				if (data.Name != nullptr)
+				if (node.Properties[EffectNodes::Variable::Texture] == 0)
 				{
-					this->mCurrentGlobalConstants += ' ';
-
-					if (!this->mCurrentBlockName.empty())
-					{
-						this->mCurrentGlobalConstants += this->mCurrentBlockName + '_';
-					}
-				
-					this->mCurrentGlobalConstants += data.Name;
+					this->mErrors = PrintLocation(node.Location) + "Sampler '" + std::string(node.Name) + "' is missing required 'Texture' required.\n";
+					this->mFatal;
+					return;
 				}
 
-				if (data.Type.IsArray())
+				std::shared_ptr<OGL4Sampler> obj = std::make_shared<OGL4Sampler>();
+				obj->mTexture = this->mEffect->mTextures.at(this->mAST[node.Properties[EffectNodes::Variable::Texture]].As<EffectNodes::Variable>().Name).get();
+				obj->mSRGB = node.Properties[EffectNodes::Variable::SRGBTexture] != 0 && this->mAST[node.Properties[EffectNodes::Variable::SRGBTexture]].As<EffectNodes::Literal>().Value.Bool[0] != 0;
+
+				GLCHECK(glGenSamplers(1, &obj->mID));
+
+				GLenum minfilter = (node.Properties[EffectNodes::Variable::MinFilter] != 0) ? LiteralToTextureFilter(this->mAST[node.Properties[EffectNodes::Variable::MinFilter]].As<EffectNodes::Literal>().Value.Uint[0]) : GL_LINEAR;
+				const GLenum mipfilter = (node.Properties[EffectNodes::Variable::MipFilter] != 0) ? LiteralToTextureFilter(this->mAST[node.Properties[EffectNodes::Variable::MipFilter]].As<EffectNodes::Literal>().Value.Uint[0]) : GL_LINEAR;
+				const GLenum mipfilters[2][2] =
 				{
-					for (size_t i = 0; i < data.Type.ElementsDimension; ++i)
-					{
-						this->mCurrentGlobalConstants += '[';
-						this->mCurrentGlobalConstants += (data.Type.Elements[i] > 0) ? std::to_string(data.Type.Elements[i]) : "";
-						this->mCurrentGlobalConstants += ']';
-					}
+					{ GL_NEAREST_MIPMAP_NEAREST, GL_LINEAR_MIPMAP_NEAREST },
+					{ GL_LINEAR_MIPMAP_NEAREST, GL_LINEAR_MIPMAP_LINEAR }
+				};
+
+				minfilter = mipfilters[minfilter - GL_NEAREST][mipfilter - GL_NEAREST];
+
+				GLCHECK(glSamplerParameteri(obj->mID, GL_TEXTURE_WRAP_S, (node.Properties[EffectNodes::Variable::AddressU] != 0) ? LiteralToTextureWrap(this->mAST[node.Properties[EffectNodes::Variable::AddressU]].As<EffectNodes::Literal>().Value.Uint[0]) : GL_CLAMP_TO_EDGE));
+				GLCHECK(glSamplerParameteri(obj->mID, GL_TEXTURE_WRAP_T, (node.Properties[EffectNodes::Variable::AddressV] != 0) ? LiteralToTextureWrap(this->mAST[node.Properties[EffectNodes::Variable::AddressV]].As<EffectNodes::Literal>().Value.Uint[0]) : GL_CLAMP_TO_EDGE));
+				GLCHECK(glSamplerParameteri(obj->mID, GL_TEXTURE_WRAP_R, (node.Properties[EffectNodes::Variable::AddressW] != 0) ? LiteralToTextureWrap(this->mAST[node.Properties[EffectNodes::Variable::AddressW]].As<EffectNodes::Literal>().Value.Uint[0]) : GL_CLAMP_TO_EDGE));
+				GLCHECK(glSamplerParameteri(obj->mID, GL_TEXTURE_MIN_FILTER, minfilter));
+				GLCHECK(glSamplerParameteri(obj->mID, GL_TEXTURE_MAG_FILTER, (node.Properties[EffectNodes::Variable::MagFilter] != 0) ? LiteralToTextureFilter(this->mAST[node.Properties[EffectNodes::Variable::MagFilter]].As<EffectNodes::Literal>().Value.Uint[0]) : GL_LINEAR));
+				GLCHECK(glSamplerParameterf(obj->mID, GL_TEXTURE_LOD_BIAS, (node.Properties[EffectNodes::Variable::MipLODBias] != 0) ? this->mAST[node.Properties[EffectNodes::Variable::MipLODBias]].As<EffectNodes::Literal>().Value.Float[0] : 0.0f));
+				GLCHECK(glSamplerParameterf(obj->mID, GL_TEXTURE_MIN_LOD, (node.Properties[EffectNodes::Variable::MinLOD] != 0) ? this->mAST[node.Properties[EffectNodes::Variable::MinLOD]].As<EffectNodes::Literal>().Value.Float[0] : -1000.0f));
+				GLCHECK(glSamplerParameterf(obj->mID, GL_TEXTURE_MAX_LOD, (node.Properties[EffectNodes::Variable::MaxLOD] != 0) ? this->mAST[node.Properties[EffectNodes::Variable::MaxLOD]].As<EffectNodes::Literal>().Value.Float[0] : 1000.0f));
+	#define GL_TEXTURE_MAX_ANISOTROPY_EXT 0x84FE
+				GLCHECK(glSamplerParameterf(obj->mID, GL_TEXTURE_MAX_ANISOTROPY_EXT, (node.Properties[EffectNodes::Variable::MaxAnisotropy] != 0) ? static_cast<GLfloat>(this->mAST[node.Properties[EffectNodes::Variable::MaxAnisotropy]].As<EffectNodes::Literal>().Value.Uint[0]) : 1.0f));
+
+				this->mCurrentSource += "layout(binding = " + std::to_string(this->mEffect->mSamplers.size()) + ") uniform sampler2D ";
+				this->mCurrentSource += FixName(node.Name);
+				this->mCurrentSource += ";\n";
+
+				this->mEffect->mSamplers.push_back(obj);
+			}
+			void												VisitUniform(const EffectNodes::Variable &node)
+			{
+				this->mCurrentGlobalConstants += PrintTypeWithQualifiers(node.Type);
+				this->mCurrentGlobalConstants += ' ';
+
+				if (!this->mCurrentBlockName.empty())
+				{
+					this->mCurrentGlobalConstants += this->mCurrentBlockName + '_';
+				}
+				
+				this->mCurrentGlobalConstants += node.Name;
+
+				if (node.Type.IsArray())
+				{
+					this->mCurrentGlobalConstants += '[';
+					this->mCurrentGlobalConstants += (node.Type.ArrayLength >= 1) ? std::to_string(node.Type.ArrayLength) : "";
+					this->mCurrentGlobalConstants += ']';
 				}
 
 				this->mCurrentGlobalConstants += ";\n";
 
-				Effect::Constant::Description desc;
-				desc.Rows = data.Type.Rows;
-				desc.Columns = data.Type.Cols;
-				desc.Elements = data.Type.Elements[0] + data.Type.Elements[1] + data.Type.Elements[2] + data.Type.Elements[3] + data.Type.Elements[4] + data.Type.Elements[5] + data.Type.Elements[6] + data.Type.Elements[7] + data.Type.Elements[8] + data.Type.Elements[9] + data.Type.Elements[10] + data.Type.Elements[11] + data.Type.Elements[12] + data.Type.Elements[13] + data.Type.Elements[14] + data.Type.Elements[15];
-				desc.Fields = 0;
-				desc.Size = std::max(data.Type.Rows, 1U) * std::max(data.Type.Cols, 1U);
+				std::unique_ptr<OGL4Constant> obj(new OGL4Constant(this->mEffect));
+				obj->mDesc.Rows = node.Type.Rows;
+				obj->mDesc.Columns = node.Type.Cols;
+				obj->mDesc.Elements = node.Type.ArrayLength;
+				obj->mDesc.Fields = 0;
+				obj->mDesc.Size = node.Type.Rows * node.Type.Cols;
 
-				switch (data.Type.Class)
+				switch (node.Type.Class)
 				{
-					case Nodes::Type::Bool:
-						desc.Size *= sizeof(int);
-						desc.Type = Effect::Constant::Type::Bool;
+					case EffectNodes::Type::Bool:
+						obj->mDesc.Size *= sizeof(int);
+						obj->mDesc.Type = Effect::Constant::Type::Bool;
 						break;
-					case Nodes::Type::Int:
-						desc.Size *= sizeof(int);
-						desc.Type = Effect::Constant::Type::Int;
+					case EffectNodes::Type::Int:
+						obj->mDesc.Size *= sizeof(int);
+						obj->mDesc.Type = Effect::Constant::Type::Int;
 						break;
-					case Nodes::Type::Uint:
-						desc.Size *= sizeof(unsigned int);
-						desc.Type = Effect::Constant::Type::Uint;
+					case EffectNodes::Type::Uint:
+						obj->mDesc.Size *= sizeof(unsigned int);
+						obj->mDesc.Type = Effect::Constant::Type::Uint;
 						break;
-					case Nodes::Type::Half:
-						desc.Size *= sizeof(float) / 2;
-						desc.Type = Effect::Constant::Type::Half;
-						break;
-					case Nodes::Type::Float:
-						desc.Size *= sizeof(float);
-						desc.Type = Effect::Constant::Type::Float;
-						break;
-					case Nodes::Type::Double:
-						desc.Size *= sizeof(double);
-						desc.Type = Effect::Constant::Type::Double;
+					case EffectNodes::Type::Float:
+						obj->mDesc.Size *= sizeof(float);
+						obj->mDesc.Type = Effect::Constant::Type::Float;
 						break;
 				}
 
-				const UINT alignment = 16 - (this->mCurrentGlobalSize % 16);
-				this->mCurrentGlobalSize += (desc.Size > alignment && (alignment != 16 || desc.Size <= 16)) ? desc.Size + alignment : desc.Size;
+				const std::size_t alignment = 16 - (this->mCurrentGlobalSize % 16);
+				this->mCurrentGlobalSize += (obj->mDesc.Size > alignment && (alignment != 16 || obj->mDesc.Size <= 16)) ? obj->mDesc.Size + alignment : obj->mDesc.Size;
 
-				auto obj = std::unique_ptr<OGL4Constant>(new OGL4Constant(this->mEffect));
-				obj->mDesc = desc;
 				obj->mBuffer = 0;
-				obj->mBufferOffset = this->mCurrentGlobalSize - desc.Size;
+				obj->mBufferOffset = this->mCurrentGlobalSize - obj->mDesc.Size;
 
-				if (this->mCurrentGlobalSize >= static_cast<std::size_t>(this->mEffect->mUniformStorages[0].second))
+				if (this->mCurrentGlobalSize >= this->mEffect->mUniformStorages[0].second)
 				{
 					this->mEffect->mUniformStorages[0].first = static_cast<unsigned char *>(::realloc(this->mEffect->mUniformStorages[0].first, this->mEffect->mUniformStorages[0].second += 128));
 				}
 
-				if (data.Initializer && this->mAST[data.Initializer].Is<Nodes::Literal>())
+				if (node.HasInitializer())
 				{
-					std::memcpy(this->mEffect->mUniformStorages[0].first + obj->mBufferOffset, &this->mAST[data.Initializer].As<Nodes::Literal>().Value, desc.Size);
+					std::memcpy(this->mEffect->mUniformStorages[0].first + obj->mBufferOffset, &this->mAST[node.Initializer].As<EffectNodes::Literal>().Value, obj->mDesc.Size);
 				}
 				else
 				{
-					std::memset(this->mEffect->mUniformStorages[0].first + obj->mBufferOffset, 0, desc.Size);
+					std::memset(this->mEffect->mUniformStorages[0].first + obj->mBufferOffset, 0, obj->mDesc.Size);
 				}
 
-				this->mEffect->mConstants.insert(std::make_pair(data.Name, std::move(obj)));
+				this->mEffect->mConstants.insert(std::make_pair(node.Name, std::move(obj)));
 			}
-			void												VisitUniformBufferDeclaration(const Nodes::Variable &data)
+			void												VisitUniformBuffer(const EffectNodes::Variable &node)
 			{
-				const auto &structure = this->mAST[data.Type.Definition].As<Nodes::Struct>();
+				const auto &structure = this->mAST[node.Type.Definition].As<EffectNodes::Struct>();
 
-				if (structure.Fields == 0)
+				if (!structure.HasFields())
 				{
 					return;
 				}
 
 				this->mCurrentSource += "layout(std140, binding = " + std::to_string(this->mEffect->mUniformBuffers.size()) + ") uniform ";
-				this->mCurrentSource += FixName(data.Name);
+				this->mCurrentSource += FixName(node.Name);
 				this->mCurrentSource += "\n{\n";
-				this->mCurrentBlockName = data.Name;
 
-				GLuint buffer;
+				this->mCurrentBlockName = node.Name;
+
 				unsigned char *storage = nullptr;
-				GLsizeiptr totalsize = 0, currentsize = 0;
+				std::size_t totalsize = 0, currentsize = 0;
 
-				const auto &fields = this->mAST[structure.Fields].As<Nodes::Aggregate>();
+				const auto &fields = this->mAST[structure.Fields].As<EffectNodes::List>();
 
-				for (size_t i = 0; i < fields.Length; ++i)
+				for (unsigned int i = 0; i < fields.Length; ++i)
 				{
-					const auto &field = this->mAST[fields.Find(this->mAST, i)].As<Nodes::Variable>();
+					const auto &field = this->mAST[fields[i]].As<EffectNodes::Variable>();
 
-					VisitVariableDeclaration(field);
+					field.Accept(*this);
 
-					Effect::Constant::Description desc;
-					desc.Rows = field.Type.Rows;
-					desc.Columns = field.Type.Cols;
-					desc.Elements = field.Type.Elements[0] + field.Type.Elements[1] + field.Type.Elements[2] + field.Type.Elements[3] + field.Type.Elements[4] + field.Type.Elements[5] + field.Type.Elements[6] + field.Type.Elements[7] + field.Type.Elements[8] + field.Type.Elements[9] + field.Type.Elements[10] + field.Type.Elements[11] + field.Type.Elements[12] + field.Type.Elements[13] + field.Type.Elements[14] + field.Type.Elements[15];
-					desc.Fields = 0;
-					desc.Size = std::max(field.Type.Rows, 1U) * std::max(field.Type.Cols, 1U);
+					std::unique_ptr<OGL4Constant> obj(new OGL4Constant(this->mEffect));
+					obj->mDesc.Rows = field.Type.Rows;
+					obj->mDesc.Columns = field.Type.Cols;
+					obj->mDesc.Elements = field.Type.ArrayLength;
+					obj->mDesc.Fields = 0;
+					obj->mDesc.Size = field.Type.Rows * field.Type.Cols;
 
 					switch (field.Type.Class)
 					{
-						case Nodes::Type::Bool:
-							desc.Size *= sizeof(int);
-							desc.Type = Effect::Constant::Type::Bool;
+						case EffectNodes::Type::Bool:
+							obj->mDesc.Size *= sizeof(int);
+							obj->mDesc.Type = Effect::Constant::Type::Bool;
 							break;
-						case Nodes::Type::Int:
-							desc.Size *= sizeof(int);
-							desc.Type = Effect::Constant::Type::Int;
+						case EffectNodes::Type::Int:
+							obj->mDesc.Size *= sizeof(int);
+							obj->mDesc.Type = Effect::Constant::Type::Int;
 							break;
-						case Nodes::Type::Uint:
-							desc.Size *= sizeof(unsigned int);
-							desc.Type = Effect::Constant::Type::Uint;
+						case EffectNodes::Type::Uint:
+							obj->mDesc.Size *= sizeof(unsigned int);
+							obj->mDesc.Type = Effect::Constant::Type::Uint;
 							break;
-						case Nodes::Type::Half:
-							desc.Size *= sizeof(float) / 2;
-							desc.Type = Effect::Constant::Type::Half;
-							break;
-						case Nodes::Type::Float:
-							desc.Size *= sizeof(float);
-							desc.Type = Effect::Constant::Type::Float;
-							break;
-						case Nodes::Type::Double:
-							desc.Size *= sizeof(double);
-							desc.Type = Effect::Constant::Type::Double;
+						case EffectNodes::Type::Float:
+							obj->mDesc.Size *= sizeof(float);
+							obj->mDesc.Type = Effect::Constant::Type::Float;
 							break;
 					}
 
-					const UINT alignment = 16 - (totalsize % 16);
-					totalsize += (desc.Size > alignment && (alignment != 16 || desc.Size <= 16)) ? desc.Size + alignment : desc.Size;
+					const std::size_t alignment = 16 - (totalsize % 16);
+					totalsize += (obj->mDesc.Size > alignment && (alignment != 16 || obj->mDesc.Size <= 16)) ? obj->mDesc.Size + alignment : obj->mDesc.Size;
 
-					auto obj = std::unique_ptr<OGL4Constant>(new OGL4Constant(this->mEffect));
-					obj->mDesc = desc;
 					obj->mBuffer = this->mEffect->mUniformBuffers.size();
-					obj->mBufferOffset = totalsize - desc.Size;
+					obj->mBufferOffset = totalsize - obj->mDesc.Size;
 
 					if (totalsize >= currentsize)
 					{
 						storage = static_cast<unsigned char *>(::realloc(storage, currentsize += 128));
 					}
 
-					if (field.Initializer && this->mAST[field.Initializer].Is<Nodes::Literal>())
+					if (field.HasInitializer())
 					{
-						std::memcpy(storage + obj->mBufferOffset, &this->mAST[field.Initializer].As<Nodes::Literal>().Value, desc.Size);
+						std::memcpy(storage + obj->mBufferOffset, &this->mAST[field.Initializer].As<EffectNodes::Literal>().Value, obj->mDesc.Size);
 					}
 					else
 					{
-						std::memset(storage + obj->mBufferOffset, 0, desc.Size);
+						std::memset(storage + obj->mBufferOffset, 0, obj->mDesc.Size);
 					}
 
-					this->mEffect->mConstants.insert(std::make_pair(std::string(data.Name) + '.' + std::string(field.Name), std::move(obj)));
+					this->mEffect->mConstants.insert(std::make_pair(std::string(node.Name) + '.' + std::string(field.Name), std::move(obj)));
 				}
 
-				auto obj = std::unique_ptr<OGL4Constant>(new OGL4Constant(this->mEffect));
+				this->mCurrentBlockName.clear();
+
+				this->mCurrentSource += "};\n";
+
+				std::unique_ptr<OGL4Constant> obj(new OGL4Constant(this->mEffect));
+				obj->mDesc.Type = Effect::Constant::Type::Struct;
 				obj->mDesc.Rows = 0;
 				obj->mDesc.Columns = 0;
 				obj->mDesc.Elements = 0;
 				obj->mDesc.Fields = fields.Length;
 				obj->mDesc.Size = totalsize;
-				obj->mDesc.Type = Effect::Constant::Type::Struct;
 				obj->mBuffer = this->mEffect->mUniformBuffers.size();
 				obj->mBufferOffset = 0;
 
-				if (data.Annotations != 0)
+				if (node.HasAnnotations())
 				{
-					const auto &annotations = this->mAST[data.Annotations].As<Nodes::Aggregate>();
+					const auto &annotations = this->mAST[node.Annotations].As<EffectNodes::List>();
 
-					for (size_t i = 0; i < annotations.Length; ++i)
+					this->mCurrentAnnotations = &obj->mAnnotations;
+
+					for (unsigned int i = 0; i < annotations.Length; ++i)
 					{
-						VisitAnnotation(this->mAST[annotations.Find(this->mAST, i)].As<Nodes::Annotation>(), obj->mAnnotations);
+						this->mAST[annotations[i]].As<EffectNodes::Annotation>().Accept(*this);
 					}
+
+					this->mCurrentAnnotations = nullptr;
 				}
 
-				this->mEffect->mConstants.insert(std::make_pair(data.Name, std::move(obj)));
+				this->mEffect->mConstants.insert(std::make_pair(node.Name, std::move(obj)));
 
-				this->mCurrentBlockName.clear();
-				this->mCurrentSource += "};\n";
-
+				GLuint buffer = 0;
 				glGenBuffers(1, &buffer);
 
 				GLint previous = 0;
@@ -1910,30 +2121,28 @@ namespace ReShade
 
 				glBindBuffer(GL_UNIFORM_BUFFER, buffer);
 				glBufferData(GL_UNIFORM_BUFFER, totalsize, storage, GL_DYNAMIC_DRAW);
+
 				glBindBuffer(GL_UNIFORM_BUFFER, previous);
 
 				this->mEffect->mUniformBuffers.push_back(buffer);
 				this->mEffect->mUniformStorages.push_back(std::make_pair(storage, totalsize));
 			}
-			void												VisitFunctionDeclaration(const Nodes::Function &data)
+			void												Visit(const EffectNodes::Function &node)
 			{
-				auto type = data.ReturnType;
-				type.Qualifiers &= ~static_cast<int>(Nodes::Type::Qualifier::Const);
-				VisitType(type);
-
+				this->mCurrentSource += PrintType(node.ReturnType);
 				this->mCurrentSource += ' ';
-				this->mCurrentSource += FixName(data.Name);
+				this->mCurrentSource += FixName(node.Name);
 				this->mCurrentSource += '(';
 
-				if (data.HasArguments())
+				if (node.HasParameters())
 				{
-					const auto &arguments = this->mAST[data.Arguments].As<Nodes::Aggregate>();
+					const auto &parameters = this->mAST[node.Parameters].As<EffectNodes::List>();
 
 					this->mCurrentInParameterBlock = true;
 
-					for (size_t i = 0; i < arguments.Length; ++i)
+					for (unsigned int i = 0; i < parameters.Length; ++i)
 					{
-						VisitVariableDeclaration(this->mAST[arguments.Find(this->mAST, i)].As<Nodes::Variable>());
+						this->mAST[parameters[i]].As<EffectNodes::Variable>().Accept(*this);
 
 						this->mCurrentSource += ", ";
 					}
@@ -1945,13 +2154,13 @@ namespace ReShade
 				}
 
 				this->mCurrentSource += ')';
-								
-				if (data.HasDefinition())
+
+				if (node.HasDefinition())
 				{
 					this->mCurrentSource += '\n';
 					this->mCurrentInFunctionBlock = true;
 
-					Visit(this->mAST[data.Definition]);
+					this->mAST[node.Definition].As<EffectNodes::StatementBlock>().Accept(*this);
 
 					this->mCurrentInFunctionBlock = false;
 				}
@@ -1960,237 +2169,442 @@ namespace ReShade
 					this->mCurrentSource += ";\n";
 				}
 			}
-			void												VisitTechniqueDeclaration(const Nodes::Technique &data)
+			void												Visit(const EffectNodes::Technique &node)
 			{
-				auto obj = std::unique_ptr<OGL4Technique>(new OGL4Technique(this->mEffect));
+				std::unique_ptr<OGL4Technique> obj(new OGL4Technique(this->mEffect));
 
-				if (data.Passes != 0)
+				const auto &passes = this->mAST[node.Passes].As<EffectNodes::List>();
+
+				obj->mDesc.Passes.reserve(passes.Length);
+				obj->mPasses.reserve(passes.Length);
+
+				this->mCurrentPasses = &obj->mPasses;
+
+				for (unsigned int i = 0; i < passes.Length; ++i)
 				{
-					const auto &passes = this->mAST[data.Passes].As<Nodes::Aggregate>();
+					const auto &pass = this->mAST[passes[i]].As<EffectNodes::Pass>();
 
-					obj->mDesc.Passes.reserve(passes.Length);
-					obj->mPasses.reserve(passes.Length);
-
-					for (size_t i = 0; i < passes.Length; ++i)
-					{
-						auto &pass = this->mAST[passes.Find(this->mAST, i)].As<Nodes::Pass>();
-
-						obj->mDesc.Passes.push_back(pass.Name != nullptr ? pass.Name : "");
-
-						VisitPassDeclaration(pass, obj->mPasses);
-					}
+					obj->mDesc.Passes.push_back(pass.Name != nullptr ? pass.Name : "");
+					
+					pass.Accept(*this);
 				}
 
-				if (data.Annotations != 0)
-				{
-					const auto &annotations = this->mAST[data.Annotations].As<Nodes::Aggregate>();
+				this->mCurrentPasses = nullptr;
 
-					for (size_t i = 0; i < annotations.Length; ++i)
+				if (node.HasAnnotations())
+				{
+					const auto &annotations = this->mAST[node.Annotations].As<EffectNodes::List>();
+
+					this->mCurrentAnnotations = &obj->mAnnotations;
+
+					for (unsigned int i = 0; i < annotations.Length; ++i)
 					{
-						VisitAnnotation(this->mAST[annotations.Find(this->mAST, i)].As<Nodes::Annotation>(), obj->mAnnotations);
+						this->mAST[annotations[i]].As<EffectNodes::Annotation>().Accept(*this);
 					}
+
+					this->mCurrentAnnotations = nullptr;
 				}
 
-				this->mEffect->mTechniques.insert(std::make_pair(data.Name, std::move(obj)));
+				this->mEffect->mTechniques.insert(std::make_pair(node.Name, std::move(obj)));
 			}
-			void												VisitPassDeclaration(const Nodes::Pass &data, std::vector<OGL4Technique::Pass> &passes)
+			void												Visit(const EffectNodes::Pass &node)
 			{
-				if (data.States == 0)
+				OGL4Technique::Pass pass;
+				ZeroMemory(&pass, sizeof(OGL4Technique::Pass));
+
+				if (node.States[EffectNodes::Pass::ColorWriteMask] != 0)
 				{
-					return;
+					const GLuint mask = this->mAST[node.States[EffectNodes::Pass::ColorWriteMask]].As<EffectNodes::Literal>().Value.Uint[0];
+
+					pass.ColorMaskR = (mask & (1 << 0)) != 0;
+					pass.ColorMaskG = (mask & (1 << 1)) != 0;
+					pass.ColorMaskB = (mask & (1 << 2)) != 0;
+					pass.ColorMaskA = (mask & (1 << 3)) != 0;
 				}
-			
-				OGL4Technique::Pass info;
-				ZeroMemory(&info, sizeof(OGL4Technique::Pass));
-				info.Program = glCreateProgram();
-				info.ColorMaskR = info.ColorMaskG = info.ColorMaskB = info.ColorMaskA = GL_TRUE;
-				info.DepthFunc = GL_LESS;
-				info.DepthMask = GL_TRUE;
-				info.StencilFunc = GL_ALWAYS;
-				info.StencilRef = 0;
-				info.StencilMask = 0xFFFFFFFF;
-				info.StencilReadMask = 0xFFFFFFFF;
-				info.StencilOpFail = info.StencilOpZFail = info.StencilOpZPass = GL_KEEP;
-				info.BlendFuncSrc = GL_ONE;
-				info.BlendFuncDest = GL_ZERO;
-				info.BlendEqColor = info.BlendEqAlpha = GL_FUNC_ADD;
-				info.DrawBuffers[0] = GL_BACK;
-				info.ViewportWidth = info.ViewportHeight = 0;
-
-				GLuint shaders[6] = { 0 };
-				GLenum targets[8][2] = { 0 };
-
-				const auto &states = this->mAST[data.States].As<Nodes::Aggregate>();
-
-				for (size_t i = 0; i < states.Length; ++i)
+				else
 				{
-					const auto &state = this->mAST[states.Find(this->mAST, i)].As<Nodes::State>();
+					pass.ColorMaskR = pass.ColorMaskG = pass.ColorMaskB = pass.ColorMaskA = GL_TRUE;
+				}
 
-					switch (state.Type)
+				pass.DepthTest = node.States[EffectNodes::Pass::DepthEnable] != 0 && this->mAST[node.States[EffectNodes::Pass::DepthEnable]].As<EffectNodes::Literal>().Value.Bool[0];
+				pass.DepthMask = node.States[EffectNodes::Pass::DepthWriteMask] == 0 || this->mAST[node.States[EffectNodes::Pass::DepthWriteMask]].As<EffectNodes::Literal>().Value.Bool[0];
+				pass.DepthFunc = (node.States[EffectNodes::Pass::DepthFunc] != 0) ? LiteralToCompFunc(this->mAST[node.States[EffectNodes::Pass::DepthFunc]].As<EffectNodes::Literal>().Value.Uint[0]) : GL_LESS;
+				pass.StencilTest = node.States[EffectNodes::Pass::StencilEnable] != 0 && this->mAST[node.States[EffectNodes::Pass::StencilEnable]].As<EffectNodes::Literal>().Value.Bool[0];
+				pass.StencilReadMask = (node.States[EffectNodes::Pass::StencilReadMask] != 0) ? static_cast<UINT8>(this->mAST[node.States[EffectNodes::Pass::StencilReadMask]].As<EffectNodes::Literal>().Value.Uint[0] & 0xFF) : 0xFFFFFFFF;
+				pass.StencilMask = (node.States[EffectNodes::Pass::StencilWriteMask] != 0) != 0 ? static_cast<UINT8>(this->mAST[node.States[EffectNodes::Pass::StencilWriteMask]].As<EffectNodes::Literal>().Value.Uint[0] & 0xFF) : 0xFFFFFFFF;
+				pass.StencilFunc = (node.States[EffectNodes::Pass::StencilFunc] != 0) ? LiteralToCompFunc(this->mAST[node.States[EffectNodes::Pass::StencilFunc]].As<EffectNodes::Literal>().Value.Uint[0]) : GL_ALWAYS;
+				pass.StencilOpZPass = (node.States[EffectNodes::Pass::StencilPass] != 0) ? LiteralToStencilOp(this->mAST[node.States[EffectNodes::Pass::StencilPass]].As<EffectNodes::Literal>().Value.Uint[0]) : GL_KEEP;
+				pass.StencilOpFail = (node.States[EffectNodes::Pass::StencilFail] != 0) ? LiteralToStencilOp(this->mAST[node.States[EffectNodes::Pass::StencilFail]].As<EffectNodes::Literal>().Value.Uint[0]) : GL_KEEP;
+				pass.StencilOpZFail = (node.States[EffectNodes::Pass::StencilDepthFail] != 0) ? LiteralToStencilOp(this->mAST[node.States[EffectNodes::Pass::StencilDepthFail]].As<EffectNodes::Literal>().Value.Uint[0]) : GL_KEEP;
+				pass.Blend = node.States[EffectNodes::Pass::BlendEnable] != 0 && this->mAST[node.States[EffectNodes::Pass::BlendEnable]].As<EffectNodes::Literal>().Value.Bool[0];
+				pass.BlendEqColor = (node.States[EffectNodes::Pass::BlendOp] != 0) ? LiteralToBlendEq(this->mAST[node.States[EffectNodes::Pass::BlendOp]].As<EffectNodes::Literal>().Value.Uint[0]) : GL_FUNC_ADD;
+				pass.BlendEqAlpha = (node.States[EffectNodes::Pass::BlendOpAlpha] != 0) ? LiteralToBlendEq(this->mAST[node.States[EffectNodes::Pass::BlendOpAlpha]].As<EffectNodes::Literal>().Value.Uint[0]) : GL_FUNC_ADD;
+				pass.BlendFuncSrc = (node.States[EffectNodes::Pass::SrcBlend] != 0) ? LiteralToBlendFunc(this->mAST[node.States[EffectNodes::Pass::SrcBlend]].As<EffectNodes::Literal>().Value.Uint[0]) : GL_ONE;
+				pass.BlendFuncDest = (node.States[EffectNodes::Pass::DestBlend] != 0) ? LiteralToBlendFunc(this->mAST[node.States[EffectNodes::Pass::DestBlend]].As<EffectNodes::Literal>().Value.Uint[0]) : GL_ZERO;
+
+				if (node.States[EffectNodes::Pass::SRGBWriteEnable] != 0)
+				{
+					pass.FramebufferSRGB = this->mAST[node.States[EffectNodes::Pass::SRGBWriteEnable]].As<EffectNodes::Literal>().Value.Bool[0] != 0;
+				}
+
+				for (unsigned int i = 0; i < 8; ++i)
+				{
+					if (node.States[EffectNodes::Pass::RenderTarget0 + i] != 0)
 					{
-						case Nodes::State::VertexShader:
-						case Nodes::State::PixelShader:
+						const auto &variable = this->mAST[node.States[EffectNodes::Pass::RenderTarget0 + i]].As<EffectNodes::Variable>();
+
+						const auto it = this->mEffect->mTextures.find(variable.Name);
+
+						if (it == this->mEffect->mTextures.end())
 						{
-							GLuint shader;
-							VisitPassShaderDeclaration(state, shader);
-							glAttachShader(info.Program, shader);
-							shaders[state.Type - Nodes::State::VertexShader] = shader;
-							break;
+							this->mFatal = true;
+							return;
 						}
-						case Nodes::State::RenderTarget0:
-						case Nodes::State::RenderTarget1:
-						case Nodes::State::RenderTarget2:
-						case Nodes::State::RenderTarget3:
-						case Nodes::State::RenderTarget4:
-						case Nodes::State::RenderTarget5:
-						case Nodes::State::RenderTarget6:
-						case Nodes::State::RenderTarget7:
+
+						const OGL4Texture *texture = it->second.get();
+
+						if ((texture->mDesc.Width != static_cast<unsigned int>(pass.ViewportWidth) || texture->mDesc.Height != static_cast<unsigned int>(pass.ViewportHeight)) && !(pass.ViewportWidth == 0 && pass.ViewportHeight == 0))
 						{
-							if (info.Framebuffer == 0)
-							{
-								glGenFramebuffers(1, &info.Framebuffer);
-							}
-
-							const GLuint index = state.Type - Nodes::State::RenderTarget0;
-							const char *name = this->mAST[state.Value.AsNode].As<Nodes::Variable>().Name;
-							const OGL4Texture *texture = this->mEffect->mTextures.at(name).get();
-
-							if ((texture->mDesc.Width != info.ViewportWidth || texture->mDesc.Height != info.ViewportHeight) && !(info.ViewportWidth == 0 && info.ViewportHeight == 0))
-							{
-								this->mErrors += "Cannot use multiple rendertargets with different sized textures.";
-								this->mFatal = true;
-								return;
-							}
-
-							info.ViewportWidth = texture->mDesc.Width;
-							info.ViewportHeight = texture->mDesc.Height;
-
-							targets[index][0] = texture->mID;
-							targets[index][1] = texture->mSRGBView;
-
-							info.DrawBuffers[index] = GL_COLOR_ATTACHMENT0 + index;
-							break;
+							this->mErrors += PrintLocation(node.Location) + "Cannot use multiple rendertargets with different sized textures.\n";
+							this->mFatal = true;
+							return;
 						}
-						case Nodes::State::RenderTargetWriteMask:
+
+						pass.ViewportWidth = texture->mDesc.Width;
+						pass.ViewportHeight = texture->mDesc.Height;
+
+						if (pass.Framebuffer == 0)
 						{
-							const GLuint mask = static_cast<GLuint>(state.Value.AsInt);
-
-							info.ColorMaskR = (mask & (1 << 0)) != 0;
-							info.ColorMaskG = (mask & (1 << 1)) != 0;
-							info.ColorMaskB = (mask & (1 << 2)) != 0;
-							info.ColorMaskA = (mask & (1 << 3)) != 0;
-							break;
+							glGenFramebuffers(1, &pass.Framebuffer);
+							glBindFramebuffer(GL_FRAMEBUFFER, pass.Framebuffer);
 						}
-						case Nodes::State::DepthEnable:
-							info.DepthTest = static_cast<GLboolean>(state.Value.AsInt);
-							break;
-						case Nodes::State::DepthFunc:
-							info.DepthFunc = ConvertLiteralToCompFunc(state.Value.AsInt);
-							break;
-						case Nodes::State::DepthWriteMask:
-							info.DepthMask = static_cast<GLboolean>(state.Value.AsInt);
-							break;
-						case Nodes::State::StencilEnable:
-							info.StencilTest = static_cast<GLboolean>(state.Value.AsInt);
-							break;
-						case Nodes::State::StencilReadMask:
-							info.StencilReadMask = state.Value.AsInt & 0xFF;
-							break;
-						case Nodes::State::StencilWriteMask:
-							info.StencilMask = state.Value.AsInt & 0xFF;
-							break;
-						case Nodes::State::StencilFunc:
-							info.StencilFunc = ConvertLiteralToCompFunc(state.Value.AsInt);
-							break;
-						case Nodes::State::StencilPass:
-							info.StencilOpZPass = ConvertLiteralToStencilOp(state.Value.AsInt);
-							break;
-						case Nodes::State::StencilFail:
-							info.StencilOpFail = ConvertLiteralToStencilOp(state.Value.AsInt);
-							break;
-						case Nodes::State::StencilZFail:
-							info.StencilOpZFail = ConvertLiteralToStencilOp(state.Value.AsInt);
-							break;
-						case Nodes::State::BlendEnable:
-							info.Blend = static_cast<GLboolean>(state.Value.AsInt);
-							break;
-						case Nodes::State::BlendOp:
-							info.BlendEqColor = ConvertLiteralToBlendEquation(state.Value.AsInt);
-							break;
-						case Nodes::State::BlendOpAlpha:
-							info.BlendEqAlpha = ConvertLiteralToBlendEquation(state.Value.AsInt);
-							break;
-						case Nodes::State::SrcBlend:
-							info.BlendFuncSrc = ConvertLiteralToBlendFunc(state.Value.AsInt);
-							break;
-						case Nodes::State::DestBlend:
-							info.BlendFuncDest = ConvertLiteralToBlendFunc(state.Value.AsInt);
-							break;
-						case Nodes::State::SRGBWriteEnable:
-							info.FramebufferSRGB = state.Value.AsInt != 0;
-							break;
+
+						glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, pass.FramebufferSRGB ? texture->mSRGBView : texture->mID, 0);
+
+						pass.DrawBuffers[i] = GL_COLOR_ATTACHMENT0 + i;
 					}
 				}
 
-				if (info.Framebuffer != 0)
+				if (pass.Framebuffer != 0)
 				{
-					glBindFramebuffer(GL_FRAMEBUFFER, info.Framebuffer);
-
-					for (GLuint i = 0; i < 8; ++i)
-					{
-						glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, targets[i][info.FramebufferSRGB], 0);
-					}
 #ifdef _DEBUG
 					GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
 					assert(status == GL_FRAMEBUFFER_COMPLETE);
 #endif
-
 					glBindFramebuffer(GL_FRAMEBUFFER, 0);
 				}
+				else
+				{
+					RECT rect;
+					::GetClientRect(::WindowFromDC(wglGetCurrentDC()), &rect);
 
-				glLinkProgram(info.Program);
+					pass.ViewportWidth = static_cast<GLsizei>(rect.right - rect.left);
+					pass.ViewportHeight = static_cast<GLsizei>(rect.bottom - rect.top);
+				}
 
-				for (size_t i = 0; i < ARRAYSIZE(shaders); ++i)
+				pass.Program = glCreateProgram();
+
+				GLuint shaders[2] = { 0, 0 };
+
+				if (node.States[EffectNodes::Pass::VertexShader] != 0)
+				{
+					shaders[0] = VisitShader(this->mAST[node.States[EffectNodes::Pass::VertexShader]].As<EffectNodes::Function>(), EffectNodes::Pass::VertexShader);
+					glAttachShader(pass.Program, shaders[0]);
+				}
+				if (node.States[EffectNodes::Pass::PixelShader] != 0)
+				{
+					shaders[1] = VisitShader(this->mAST[node.States[EffectNodes::Pass::PixelShader]].As<EffectNodes::Function>(), EffectNodes::Pass::PixelShader);
+					glAttachShader(pass.Program, shaders[1]);
+				}
+
+				glLinkProgram(pass.Program);
+
+				for (unsigned int i = 0; i < 2; ++i)
 				{
 					if (shaders[i] == 0)
 					{
 						continue;
 					}
 
-					glDetachShader(info.Program, shaders[i]);
+					glDetachShader(pass.Program, shaders[i]);
 					glDeleteShader(shaders[i]);
 				}
 
 				GLint status = GL_FALSE;
-				glGetProgramiv(info.Program, GL_LINK_STATUS, &status);
+
+				glGetProgramiv(pass.Program, GL_LINK_STATUS, &status);
 
 				if (status == GL_FALSE)
 				{
 					GLint logsize = 0;
-					glGetProgramiv(info.Program, GL_INFO_LOG_LENGTH, &logsize);
+					glGetProgramiv(pass.Program, GL_INFO_LOG_LENGTH, &logsize);
 
 					std::string log(logsize, '\0');
-					glGetProgramInfoLog(info.Program, logsize, nullptr, &log.front());
+					glGetProgramInfoLog(pass.Program, logsize, nullptr, &log.front());
 
-					glDeleteProgram(info.Program);
+					glDeleteProgram(pass.Program);
 
 					this->mErrors += log;
 					this->mFatal = true;
 					return;
 				}
 
-				if (info.DrawBuffers[0] == GL_BACK)
-				{
-					RECT rect;
-					::GetClientRect(::WindowFromDC(wglGetCurrentDC()), &rect);
+				assert(this->mCurrentPasses != nullptr);
 
-					info.ViewportWidth = static_cast<GLsizei>(rect.right - rect.left);
-					info.ViewportHeight = static_cast<GLsizei>(rect.bottom - rect.top);
+				this->mCurrentPasses->push_back(std::move(pass));
+			}
+			GLuint												VisitShader(const EffectNodes::Function &node, unsigned int type)
+			{
+				std::string source =
+					"#version 430\n"
+					"float _fmod(float x, float y) { return x - y * trunc(x / y); }"
+					"vec2 _fmod(vec2 x, vec2 y) { return x - y * trunc(x / y); }"
+					"vec3 _fmod(vec3 x, vec3 y) { return x - y * trunc(x / y); }"
+					"vec4 _fmod(vec4 x, vec4 y) { return x - y * trunc(x / y); }"
+					"mat2 _fmod(mat2 x, mat2 y) { return x - matrixCompMult(y, mat2(trunc(x[0] / y[0]), trunc(x[1] / y[1]))); }"
+					"mat3 _fmod(mat3 x, mat3 y) { return x - matrixCompMult(y, mat3(trunc(x[0] / y[0]), trunc(x[1] / y[1]), trunc(x[2] / y[2]))); }"
+					"mat4 _fmod(mat4 x, mat4 y) { return x - matrixCompMult(y, mat4(trunc(x[0] / y[0]), trunc(x[1] / y[1]), trunc(x[2] / y[2]), trunc(x[3] / y[3]))); }\n"
+					"void _sincos(float x, out float s, out float c) { s = sin(x), c = cos(x); }"
+					"void _sincos(vec2 x, out vec2 s, out vec2 c) { s = sin(x), c = cos(x); }"
+					"void _sincos(vec3 x, out vec3 s, out vec3 c) { s = sin(x), c = cos(x); }"
+					"void _sincos(vec4 x, out vec4 s, out vec4 c) { s = sin(x), c = cos(x); }\n"
+					"vec4 _textureLod(sampler2D s, vec4 c) { return textureLod(s, c.xy, c.w); }"
+					"vec4 _textureLodOffset(sampler2D s, vec4 c, ivec2 offset) { return textureLodOffset(s, c.xy, c.w, offset); }"
+					"vec4 _textureBias(sampler2D s, vec4 c) { return textureOffset(s, c.xy, ivec2(0), c.w); }\n";
+
+				if (type != EffectNodes::Pass::PixelShader)
+				{
+					source += "#define discard\n";
 				}
 
-				passes.push_back(info);
+				source += this->mCurrentSource;
+
+				if (node.HasParameters())
+				{
+					const auto &parameters = this->mAST[node.Parameters].As<EffectNodes::List>();
+
+					for (unsigned int i = 0; i < parameters.Length; ++i)
+					{
+						const auto &parameter = this->mAST[parameters[i]].As<EffectNodes::Variable>();
+
+						if (parameter.Type.IsStruct())
+						{
+							if (this->mAST[parameter.Type.Definition].As<EffectNodes::Struct>().HasFields())
+							{
+								const auto &fields = this->mAST[this->mAST[parameter.Type.Definition].As<EffectNodes::Struct>().Fields].As<EffectNodes::List>();
+
+								for (unsigned int k = 0; k < fields.Length; ++k)
+								{
+									const auto &field = this->mAST[fields[i]].As<EffectNodes::Variable>();
+
+									VisitShaderVariable(parameter.Type.Qualifiers, field.Type, "_param_" + std::string(parameter.Name) + "_" + std::string(field.Name), parameter.Semantic, source);
+								}
+							}
+						}
+						else
+						{
+							VisitShaderVariable(parameter.Type.Qualifiers, parameter.Type, "_param_" + std::string(parameter.Name), parameter.Semantic, source);
+						}
+					}
+				}
+
+				if (node.ReturnType.IsStruct())
+				{
+					if (this->mAST[node.ReturnType.Definition].As<EffectNodes::Struct>().HasFields())
+					{
+						const auto &fields = this->mAST[this->mAST[node.ReturnType.Definition].As<EffectNodes::Struct>().Fields].As<EffectNodes::List>();
+
+						for (unsigned int i = 0; i < fields.Length; ++i)
+						{
+							const auto &field = this->mAST[fields[i]].As<EffectNodes::Variable>();
+
+							VisitShaderVariable(EffectNodes::Type::Out, field.Type, "_return_" + std::string(field.Name), field.Semantic, source);
+						}
+					}
+				}
+				else if (!node.ReturnType.IsVoid())
+				{
+					VisitShaderVariable(EffectNodes::Type::Out, node.ReturnType, "_return", node.ReturnSemantic, source);
+				}
+
+				source += "void main()\n{\n";
+
+				if (node.HasParameters())
+				{
+					const auto &parameters = this->mAST[node.Parameters].As<EffectNodes::List>();
+				
+					for (unsigned int i = 0; i < parameters.Length; ++i)
+					{
+						const auto &parameter = this->mAST[parameters[i]].As<EffectNodes::Variable>();
+
+						if (parameter.Type.IsStruct())
+						{
+							source += PrintType(parameter.Type) + " _param_" + std::string(parameter.Name) + " = " + this->mAST[parameter.Type.Definition].As<EffectNodes::Struct>().Name + "(";
+
+							if (this->mAST[parameter.Type.Definition].As<EffectNodes::Struct>().HasFields())
+							{
+								const auto &fields = this->mAST[this->mAST[parameter.Type.Definition].As<EffectNodes::Struct>().Fields].As<EffectNodes::List>();
+
+								for (unsigned int k = 0; k < fields.Length; ++k)
+								{
+									const auto &field = this->mAST[fields[i]].As<EffectNodes::Variable>();
+
+									source += "_param_" + std::string(parameter.Name) + "_" + std::string(field.Name) + ", ";
+								}
+
+								source.pop_back();
+								source.pop_back();
+							}
+
+							source += ")\n;";
+						}
+					}
+				}
+				if (node.ReturnType.IsStruct())
+				{
+					source += PrintType(node.ReturnType);
+					source += " ";
+				}
+
+				if (!node.ReturnType.IsVoid())
+				{
+					source += "_return = ";
+				}
+
+				source += FixName(node.Name);
+				source += "(";
+
+				if (node.HasParameters())
+				{
+					const auto &parameters = this->mAST[node.Parameters].As<EffectNodes::List>();
+				
+					for (unsigned int i = 0; i < parameters.Length; ++i)
+					{
+						const auto &parameter = this->mAST[parameters[i]].As<EffectNodes::Variable>();
+
+						if (::strcmp(parameter.Semantic, "SV_VERTEXID") == 0)
+						{
+							source += "gl_VertexID, ";
+						}
+						else if (::strcmp(parameter.Semantic, "SV_INSTANCEID") == 0)
+						{
+							source += "gl_InstanceID, ";
+						}
+						else if (::strcmp(parameter.Semantic, "SV_POSITION") == 0 && type == EffectNodes::Pass::VertexShader)
+						{
+							source += "gl_Position, ";
+						}
+						else if (::strcmp(parameter.Semantic, "SV_POSITION") == 0 && type == EffectNodes::Pass::PixelShader)
+						{
+							source += "gl_FragCoord, ";
+						}
+						else if (::strcmp(parameter.Semantic, "SV_DEPTH") == 0 && type == EffectNodes::Pass::PixelShader)
+						{
+							source += "gl_FragDepth, ";
+						}
+						else
+						{
+							source += "_param_" + std::string(parameter.Name) + ", ";
+						}
+					}
+
+					source.pop_back();
+					source.pop_back();
+				}
+
+				source += ");\n";
+
+				if (node.HasParameters())
+				{
+					const auto &parameters = this->mAST[node.Parameters].As<EffectNodes::List>();
+				
+					for (unsigned int i = 0; i < parameters.Length; ++i)
+					{
+						const auto &parameter = this->mAST[parameters[i]].As<EffectNodes::Variable>();
+
+						if (parameter.Type.IsStruct())
+						{
+							if (this->mAST[parameter.Type.Definition].As<EffectNodes::Struct>().HasFields())
+							{
+								const auto &fields = this->mAST[this->mAST[parameter.Type.Definition].As<EffectNodes::Struct>().Fields].As<EffectNodes::List>();
+
+								for (unsigned int k = 0; k < fields.Length; ++k)
+								{
+									const auto &field = this->mAST[fields[i]].As<EffectNodes::Variable>();
+
+									source += "_param_" + std::string(parameter.Name) + "_" + std::string(field.Name) + " = " + "_param_" + std::string(parameter.Name) + ";\n";
+								}
+							}
+						}
+					}
+				}
+				if (node.ReturnType.IsStruct() && this->mAST[node.ReturnType.Definition].As<EffectNodes::Struct>().HasFields())
+				{
+					const auto &fields = this->mAST[this->mAST[node.ReturnType.Definition].As<EffectNodes::Struct>().Fields].As<EffectNodes::List>();
+
+					for (unsigned int i = 0; i < fields.Length; ++i)
+					{
+						const auto &field = this->mAST[fields[i]].As<EffectNodes::Variable>();
+
+						source += "_return_" + std::string(field.Name) + " = _return." + std::string(field.Name) + ";\n";
+					}
+				}
+			
+				if (type == EffectNodes::Pass::VertexShader)
+				{
+					source += "gl_Position = gl_Position * vec4(1.0, -1.0, 2.0, 1.0) - vec4(0.0, 0.0, gl_Position.w, 0.0);\n";
+				}
+				/*if (type == EffectNodes::Pass::PixelShader)
+				{
+					source += "gl_FragDepth = clamp(gl_FragDepth, 0.0, 1.0);\n";
+				}*/
+
+				source += "}\n";
+
+				GLuint shader;
+
+				switch (type)
+				{
+					default:
+						return 0;
+					case EffectNodes::Pass::VertexShader:
+						shader = glCreateShader(GL_VERTEX_SHADER);
+						break;
+					case EffectNodes::Pass::PixelShader:
+						shader = glCreateShader(GL_FRAGMENT_SHADER);
+						break;
+				}
+
+				const GLchar *src = source.c_str();
+				const GLsizei len = static_cast<GLsizei>(source.length());
+
+				LOG(TRACE) << "> Compiling shader '" << node.Name << "':\n\n" << source.c_str() << "\n";
+
+				glShaderSource(shader, 1, &src, &len);
+				glCompileShader(shader);
+
+				GLint status = GL_FALSE;
+
+				glGetShaderiv(shader, GL_COMPILE_STATUS, &status);
+
+				if (status == GL_FALSE)
+				{
+					GLint logsize = 0;
+					glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &logsize);
+
+					std::string log(logsize, '\0');
+					glGetShaderInfoLog(shader, logsize, nullptr, &log.front());
+
+					glDeleteShader(shader);
+
+					this->mErrors += log;
+					this->mFatal = true;
+					return 0;
+				}
+
+				return shader;
 			}
-			void												VisitShaderVariable(Nodes::Type::Qualifier qualifier, Nodes::Type type, const std::string &name, const char *semantic, std::string &source)
+			void												VisitShaderVariable(unsigned int qualifier, EffectNodes::Type type, const std::string &name, const char *semantic, std::string &source)
 			{
 				unsigned int location = 0;
 
@@ -2213,311 +2627,30 @@ namespace ReShade
 
 				source += "layout(location = " + std::to_string(location) + ") ";
 
-				const std::string backup = this->mCurrentSource;
-				this->mCurrentSource.clear();
 				type.Qualifiers = static_cast<unsigned int>(qualifier);
-				VisitType(type);
-				source += this->mCurrentSource;
-				this->mCurrentSource = backup;
 
-				source += " " + name;
+				source += PrintTypeWithQualifiers(type) + ' ' + name;
 
-				for (unsigned int i = 0; i < type.ElementsDimension; ++i)
+				if (type.IsArray())
 				{
-					source += "[" + std::to_string(type.Elements[i]) + "]";
+					source += "[" + (type.ArrayLength >= 1 ? std::to_string(type.ArrayLength) : "") + "]";
 				}
 
 				source += ";\n";
-			}
-			void												VisitPassShaderDeclaration(const Nodes::State &data, GLuint &shader)
-			{
-				std::string source =
-					"#version 430\n"
-					"#define lerp(a, b, t) mix(a, b, t)\n"
-					"#define saturate(x) clamp(x, 0.0, 1.0)\n"
-					"#define rsqrt(x) inversesqrt(x)\n"
-					"#define frac(x) fract(x)\n"
-					"#define fmod(x) ((x) - (y) * trunc((x) / (y)))\n"
-					"#define ddx(x) dFdx(x)\n#define ddy(x) dFdy(-(x))\n"
-					"#define mul(a, b) ((a) * (b))\n"
-					"#define mad(m, a, b) fma(m, a, b)\n"
-					"#define log10(x) (log(x) / 2.302585093)\n"
-					"#define atan2(x, y) atan(x, y)\n"
-					"void sincos(float x, out float s, out float c) { s = sin(x); c = cos(x); }\n"
-					"#define asint(x) floatBitsToInt(x)\n#define asuint(x) floatBitsToUint(x)\n#define asfloat(x) uintBitsToFloat(x)\n"
-					"#define tex2D(s, c) texture(s, c)\n"
-					"#define tex2Doffset(s, c, offset) textureOffset(s, c, offset)\n"
-					"vec4 tex2Dlod(sampler2D s, vec4 c) { return textureLod(s, c.xy, c.w); }\n"
-					"vec4 tex2Dfetch(sampler2D s, ivec4 c) { return texelFetch(s, c.xy, c.w); }\n"
-					"vec4 tex2Dbias(sampler2D s, vec4 c) { return textureOffset(s, c.xy, ivec2(0), c.w); }\n"
-					"#define tex2Dsize(s, lod) textureSize(s, lod)\n";
-
-				if (data.Type != Nodes::State::PixelShader)
-				{
-					source += "#define discard\n";
-				}
-
-				source += this->mCurrentSource;
-
-				const auto &callee = this->mAST[data.Value.AsNode].As<Nodes::Function>();
-
-				if (callee.HasArguments())
-				{
-					const auto &arguments = this->mAST[callee.Arguments].As<Nodes::Aggregate>();
-
-					for (size_t i = 0; i < arguments.Length; ++i)
-					{
-						const auto &arg = this->mAST[arguments.Find(this->mAST, i)].As<Nodes::Variable>();
-
-						if (arg.Type.IsStruct())
-						{
-							const auto &fields = this->mAST[this->mAST[arg.Type.Definition].As<Nodes::Struct>().Fields].As<Nodes::Aggregate>();
-
-							for (size_t k = 0; k < fields.Length; ++k)
-							{
-								const auto &field = this->mAST[fields.Find(this->mAST, i)].As<Nodes::Variable>();
-
-								VisitShaderVariable(static_cast<Nodes::Type::Qualifier>(arg.Type.Qualifiers), field.Type, "_param_" + std::string(arg.Name != nullptr ? arg.Name : std::to_string(i)) + "_" + std::string(field.Name), arg.Semantic, source);
-							}
-						}
-						else
-						{
-							VisitShaderVariable(static_cast<Nodes::Type::Qualifier>(arg.Type.Qualifiers), arg.Type, "_param_" + std::string(arg.Name != nullptr ? arg.Name : std::to_string(i)), arg.Semantic, source);
-						}
-					}
-				}
-
-				if (callee.ReturnType.IsStruct())
-				{
-					const auto &fields = this->mAST[this->mAST[callee.ReturnType.Definition].As<Nodes::Struct>().Fields].As<Nodes::Aggregate>();
-
-					for (size_t i = 0; i < fields.Length; ++i)
-					{
-						const auto &field = this->mAST[fields.Find(this->mAST, i)].As<Nodes::Variable>();
-
-						VisitShaderVariable(Nodes::Type::Qualifier::Out, field.Type, "_return_" + std::string(field.Name), field.Semantic, source);
-					}
-				}
-				else if (callee.ReturnType.Class != Nodes::Type::Void)
-				{
-					VisitShaderVariable(Nodes::Type::Qualifier::Out, callee.ReturnType, "_return", callee.ReturnSemantic, source);
-				}
-
-				source += "void main()\n{\n";
-
-				if (callee.HasArguments())
-				{
-					const auto &arguments = this->mAST[callee.Arguments].As<Nodes::Aggregate>();
-				
-					for (size_t i = 0; i < arguments.Length; ++i)
-					{
-						const auto &arg = this->mAST[arguments.Find(this->mAST, i)].As<Nodes::Variable>();
-
-						if (arg.Type.IsStruct())
-						{
-							VisitType(arg.Type);
-							source += " _param_" + std::string(arg.Name != nullptr ? arg.Name : std::to_string(i)) + " = " + this->mAST[arg.Type.Definition].As<Nodes::Struct>().Name + "(";
-
-							if (this->mAST[arg.Type.Definition].As<Nodes::Struct>().Fields != 0)
-							{
-								const auto &fields = this->mAST[this->mAST[arg.Type.Definition].As<Nodes::Struct>().Fields].As<Nodes::Aggregate>();
-
-								for (size_t k = 0; k < fields.Length; ++k)
-								{
-									const auto &field = this->mAST[fields.Find(this->mAST, i)].As<Nodes::Variable>();
-
-									source += "_param_" + std::string(arg.Name != nullptr ? arg.Name : std::to_string(i)) + "_" + std::string(field.Name) + ", ";
-								}
-
-								source.pop_back();
-								source.pop_back();
-							}
-
-							source += ")\n;";
-						}
-					}
-				}
-				if (callee.ReturnType.IsStruct())
-				{
-					VisitType(callee.ReturnType);
-					source += " ";
-				}
-
-				if (callee.ReturnType.Class != Nodes::Type::Void)
-				{
-					source += "_return = ";
-				}
-
-				source += FixName(callee.Name);
-				source += "(";
-
-				if (callee.HasArguments())
-				{
-					const auto &arguments = this->mAST[callee.Arguments].As<Nodes::Aggregate>();
-				
-					for (size_t i = 0; i < arguments.Length; ++i)
-					{
-						const auto &arg = this->mAST[arguments.Find(this->mAST, i)].As<Nodes::Variable>();
-
-						if (arg.Name == nullptr)
-						{
-							source += "_param_" + std::to_string(i) + ", ";
-						}
-						else if (strcmp(arg.Semantic, "SV_VERTEXID") == 0)
-						{
-							source += "gl_VertexID, ";
-						}
-						else if (strcmp(arg.Semantic, "SV_INSTANCEID") == 0)
-						{
-							source += "gl_InstanceID, ";
-						}
-						else if (strcmp(arg.Semantic, "SV_POSITION") == 0 && data.Type == Nodes::State::VertexShader)
-						{
-							source += "gl_Position, ";
-						}
-						else if (strcmp(arg.Semantic, "SV_POSITION") == 0 && data.Type == Nodes::State::PixelShader)
-						{
-							source += "gl_FragCoord, ";
-						}
-						else if (strcmp(arg.Semantic, "SV_DEPTH") == 0 && data.Type == Nodes::State::PixelShader)
-						{
-							source += "gl_FragDepth, ";
-						}
-						else
-						{
-							source += "_param_" + std::string(arg.Name) + ", ";
-						}
-					}
-
-					source.pop_back();
-					source.pop_back();
-				}
-
-				source += ");\n";
-
-				if (callee.HasArguments())
-				{
-					const auto &arguments = this->mAST[callee.Arguments].As<Nodes::Aggregate>();
-				
-					for (size_t i = 0; i < arguments.Length; ++i)
-					{
-						const auto &arg = this->mAST[arguments.Find(this->mAST, i)].As<Nodes::Variable>();
-
-						if (arg.Type.IsStruct())
-						{
-							if (this->mAST[arg.Type.Definition].As<Nodes::Struct>().Fields != 0)
-							{
-								const auto &fields = this->mAST[this->mAST[arg.Type.Definition].As<Nodes::Struct>().Fields].As<Nodes::Aggregate>();
-
-								for (size_t k = 0; k < fields.Length; ++k)
-								{
-									const auto &field = this->mAST[fields.Find(this->mAST, i)].As<Nodes::Variable>();
-									const std::string paramname = "_param_" + std::string(arg.Name != nullptr ? arg.Name : std::to_string(i));
-
-									source += paramname + "_" + std::string(field.Name) + " = " + paramname + ";\n";
-								}
-							}
-						}
-					}
-				}
-				if (callee.ReturnType.IsStruct())
-				{
-					const auto &fields = this->mAST[this->mAST[callee.ReturnType.Definition].As<Nodes::Struct>().Fields].As<Nodes::Aggregate>();
-
-					for (size_t i = 0; i < fields.Length; ++i)
-					{
-						const auto &field = this->mAST[fields.Find(this->mAST, i)].As<Nodes::Variable>();
-
-						source += "_return_" + std::string(field.Name) + " = _return." + std::string(field.Name) + ";\n";
-					}
-				}
-			
-				if (data.Type == Nodes::State::VertexShader)
-				{
-					source += "gl_Position = gl_Position * vec4(1.0, -1.0, 2.0, 1.0) - vec4(0.0, 0.0, gl_Position.w, 0.0);\n";
-				}
-
-				source += "}\n";
-
-				GLenum type;
-
-				switch (data.Type)
-				{
-					case Nodes::State::VertexShader:
-						type = GL_VERTEX_SHADER;
-						break;
-					case Nodes::State::PixelShader:
-						type = GL_FRAGMENT_SHADER;
-						break;
-					default:
-						return;
-				}
-
-				shader = glCreateShader(type);
-
-				const GLchar *src = source.c_str();
-				const GLsizei len = static_cast<GLsizei>(source.length());
-
-				LOG(TRACE) << "> Compiling shader '" << callee.Name << "':\n\n" << source.c_str() << "\n";
-
-				glShaderSource(shader, 1, &src, &len);
-				glCompileShader(shader);
-
-				GLint status;
-				glGetShaderiv(shader, GL_COMPILE_STATUS, &status);
-
-				if (status == GL_FALSE)
-				{
-					GLint logsize = 0;
-					glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &logsize);
-
-					std::string log(logsize, '\0');
-					glGetShaderInfoLog(shader, logsize, nullptr, &log.front());
-
-					glDeleteShader(shader);
-
-					this->mErrors += log;
-					this->mFatal = true;
-					return;
-				}
-			}
-			void												VisitAnnotation(const Nodes::Annotation &annotation, std::unordered_map<std::string, Effect::Annotation> &annotations)
-			{
-				Effect::Annotation value;
-
-				switch (annotation.Type.Class)
-				{
-					case Nodes::Type::Bool:
-						value = annotation.Value.AsInt != 0;
-						break;
-					case Nodes::Type::Int:
-					case Nodes::Type::Uint:
-						value = annotation.Value.AsInt;
-						break;
-					case Nodes::Type::Float:
-						value = annotation.Value.AsFloat;
-						break;
-					case Nodes::Type::Double:
-						value = annotation.Value.AsDouble;
-						break;
-					case Nodes::Type::String:
-						value = annotation.Value.AsString;
-						break;
-				}
-
-				annotations.insert(std::make_pair(annotation.Name, value));
 			}
 
 		private:
 			const EffectTree &									mAST;
 			OGL4Effect *										mEffect;
-			std::string &										mErrors;
-			bool												mFatal;
 			std::string											mCurrentSource;
+			std::string											mErrors;
+			bool												mFatal;
 			std::string											mCurrentGlobalConstants;
-			std::size_t											mCurrentGlobalSize;
+			std::size_t											mCurrentGlobalSize, mCurrentGlobalStorageSize;
 			std::string											mCurrentBlockName;
 			bool												mCurrentInParameterBlock, mCurrentInFunctionBlock;
+			std::unordered_map<std::string, Effect::Annotation> *mCurrentAnnotations;
+			std::vector<OGL4Technique::Pass> *					mCurrentPasses;
 		};
 
 		// -----------------------------------------------------------------------------------------------------
@@ -2543,9 +2676,9 @@ namespace ReShade
 		{
 			OGL4Effect *effect = new OGL4Effect(shared_from_this());
 			
-			ASTVisitor visitor(ast, errors);
+			OGL4EffectCompiler visitor(ast);
 		
-			if (visitor.Traverse(effect))
+			if (visitor.Traverse(effect, errors))
 			{
 				return std::unique_ptr<Effect>(effect);
 			}
@@ -3022,6 +3155,8 @@ namespace ReShade
 					GLCHECK(glBindBuffer(GL_UNIFORM_BUFFER, this->mEffect->mUniformBuffers[i]));
 					GLCHECK(glBufferSubData(GL_UNIFORM_BUFFER, 0, this->mEffect->mUniformStorages[i].second, this->mEffect->mUniformStorages[i].first));
 				}
+
+				this->mEffect->mUniformDirty = false;
 			}
 
 			const Pass &pass = this->mPasses[index];

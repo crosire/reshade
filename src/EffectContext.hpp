@@ -1,12 +1,12 @@
 #pragma once
 
-#include "Effect.hpp"
-
 #include <memory>
 #include <boost\filesystem\path.hpp>
 
 namespace ReShade
 {
+	class														Effect;
+
 	class														EffectContext
 	{
 	public:
