@@ -87,6 +87,9 @@
     <ClInclude Include="obj\$(Platform)\$(Configuration)\EffectParser.hpp">
       <Filter>Effect</Filter>
     </ClInclude>
+    <ClInclude Include="src\EffectTree.hpp">
+      <Filter>Effect</Filter>
+    </ClInclude>
     <ClInclude Include="src\Hook.hpp">
       <Filter>Hook</Filter>
     </ClInclude>
