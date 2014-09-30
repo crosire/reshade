@@ -2194,7 +2194,7 @@ namespace ReShade
 			D3DSURFACE_DESC desc;
 			textureSurface->GetDesc(&desc);
 		
-			HRESULT hr = this->mEffect->mEffectContext->mDevice->CreateTexture(desc.Width, desc.Height, 1, desc.Usage, desc.Format, D3DPOOL_SYSTEMMEM, &system, nullptr);
+			HRESULT hr = this->mEffect->mEffectContext->mDevice->CreateTexture(desc.Width, desc.Height, 1, 0, desc.Format, D3DPOOL_SYSTEMMEM, &system, nullptr);
 
 			if (FAILED(hr))
 			{
