@@ -2356,16 +2356,18 @@ namespace ReShade
 		}
 		void													D3D10Texture::UpdateFromColorBuffer(void)
 		{
+			// Must be called after D3D10Technique::Begin!
+
 			D3D10_TEXTURE2D_DESC desc;
-			this->mEffect->mBackBuffer->GetDesc(&desc);
+			this->mEffect->mBackBufferTexture->GetDesc(&desc);
 
 			if (desc.SampleDesc.Count == 1)
 			{
-				this->mEffect->mEffectContext->mDevice->CopyResource(this->mTexture, this->mEffect->mBackBuffer);
+				this->mEffect->mEffectContext->mDevice->CopyResource(this->mTexture, this->mEffect->mBackBufferTexture);
 			}
 			else
 			{
-				this->mEffect->mEffectContext->mDevice->ResolveSubresource(this->mTexture, 0, this->mEffect->mBackBuffer, 0, desc.Format);
+				this->mEffect->mEffectContext->mDevice->ResolveSubresource(this->mTexture, 0, this->mEffect->mBackBufferTexture, 0, desc.Format);
 			}
 		}
 		void													D3D10Texture::UpdateFromDepthBuffer(void)
@@ -2456,6 +2458,8 @@ namespace ReShade
 			{
 				return false;
 			}
+
+			this->mEffect->mEffectContext->mDevice->CopyResource(this->mEffect->mBackBufferTexture, this->mEffect->mBackBuffer);
 
 			this->mEffect->mEffectContext->mDevice->OMGetRenderTargets(D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, this->mEffect->mStateblockTargets, nullptr);
 

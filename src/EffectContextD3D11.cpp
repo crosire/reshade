@@ -82,6 +82,7 @@ namespace ReShade
 			std::unordered_map<std::string, std::unique_ptr<D3D11Texture>> mTextures;
 			std::unordered_map<std::string, std::unique_ptr<D3D11Constant>> mConstants;
 			std::unordered_map<std::string, std::unique_ptr<D3D11Technique>> mTechniques;
+			ID3D11DeviceContext *								mCurrentContext;
 			ID3D11Texture2D *									mBackBuffer;
 			ID3D11Texture2D *									mBackBufferTexture;
 			ID3D11RenderTargetView *							mBackBufferTargets[2];
@@ -2172,7 +2173,7 @@ namespace ReShade
 			}
 		}
 
-		D3D11Effect::D3D11Effect(std::shared_ptr<D3D11EffectContext> context) : mEffectContext(context), mConstantsDirty(true)
+		D3D11Effect::D3D11Effect(std::shared_ptr<D3D11EffectContext> context) : mEffectContext(context), mCurrentContext(context->mImmediateContext), mConstantsDirty(true)
 		{
 			context->mSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), reinterpret_cast<void **>(&this->mBackBuffer));
 
@@ -2201,9 +2202,9 @@ namespace ReShade
 			rtdesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
 			rtdesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 			rtdesc.Texture2D.MipSlice = 0;
-			context->mDevice->CreateRenderTargetView(this->mBackBufferTexture, nullptr, &this->mBackBufferTargets[0]);
+			context->mDevice->CreateRenderTargetView(this->mBackBufferTexture, &rtdesc, &this->mBackBufferTargets[0]);
 			rtdesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
-			context->mDevice->CreateRenderTargetView(this->mBackBufferTexture, nullptr, &this->mBackBufferTargets[1]);
+			context->mDevice->CreateRenderTargetView(this->mBackBufferTexture, &rtdesc, &this->mBackBufferTargets[1]);
 		}
 		D3D11Effect::~D3D11Effect(void)
 		{
@@ -2367,16 +2368,18 @@ namespace ReShade
 		}
 		void													D3D11Texture::UpdateFromColorBuffer(void)
 		{
+			// Must be called between D3D11Technique::Begin and D3D11Technique::End!
+
 			D3D11_TEXTURE2D_DESC desc;
-			this->mEffect->mBackBuffer->GetDesc(&desc);
+			this->mEffect->mBackBufferTexture->GetDesc(&desc);
 
 			if (desc.SampleDesc.Count == 1)
 			{
-				this->mEffect->mEffectContext->mImmediateContext->CopyResource(this->mTexture, this->mEffect->mBackBuffer);
+				this->mEffect->mCurrentContext->CopyResource(this->mTexture, this->mEffect->mBackBufferTexture);
 			}
 			else
 			{
-				this->mEffect->mEffectContext->mImmediateContext->ResolveSubresource(this->mTexture, 0, this->mEffect->mBackBuffer, 0, desc.Format);
+				this->mEffect->mCurrentContext->ResolveSubresource(this->mTexture, 0, this->mEffect->mBackBufferTexture, 0, desc.Format);
 			}
 		}
 		void													D3D11Texture::UpdateFromDepthBuffer(void)
@@ -2471,6 +2474,10 @@ namespace ReShade
 				return false;
 			}
 
+			this->mEffect->mCurrentContext = this->mDeferredContext;
+
+			this->mDeferredContext->CopyResource(this->mEffect->mBackBufferTexture, this->mEffect->mBackBuffer);
+
 			const uintptr_t null = 0;
 			this->mDeferredContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 			this->mDeferredContext->IASetInputLayout(nullptr);
@@ -2494,6 +2501,8 @@ namespace ReShade
 
 			this->mEffect->mEffectContext->mImmediateContext->ExecuteCommandList(list, TRUE);
 			list->Release();
+
+			this->mEffect->mCurrentContext = this->mEffect->mEffectContext->mImmediateContext;
 		}
 		void													D3D11Technique::RenderPass(unsigned int index) const
 		{
