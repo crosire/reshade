@@ -314,13 +314,13 @@ namespace ReShade
 				{
 					case EffectNodes::Literal::R8:
 						format = Effect::Texture::Format::R8;
-						return D3DFMT_L8;
+						return D3DFMT_A8R8G8B8;
 					case EffectNodes::Literal::R32F:
 						format = Effect::Texture::Format::R32F;
 						return D3DFMT_R32F;
 					case EffectNodes::Literal::RG8:
 						format = Effect::Texture::Format::RG8;
-						return D3DFMT_V8U8;
+						return D3DFMT_A8R8G8B8;
 					case EffectNodes::Literal::RGBA8:
 						format = Effect::Texture::Format::RGBA8;
 						return D3DFMT_A8R8G8B8;  // D3DFMT_A8B8G8R8 appearently isn't supported by hardware very well
@@ -2225,21 +2225,41 @@ namespace ReShade
 				return;
 			}
 
-			size = std::min(size, mapped.Pitch * this->mDesc.Height);
+			size = std::min<size_t>(size, mapped.Pitch * this->mDesc.Height);
+			unsigned char *p = static_cast<unsigned char *>(mapped.pBits);
 
-			if (this->mDesc.Format == Format::RGBA8)
+			switch (this->mDesc.Format)
 			{
-				for (std::size_t i = 0; i < size; i += 4)
-				{
-					static_cast<unsigned char *>(mapped.pBits)[i + 0] = data[i + 2];
-					static_cast<unsigned char *>(mapped.pBits)[i + 1] = data[i + 1];
-					static_cast<unsigned char *>(mapped.pBits)[i + 2] = data[i + 0];
-					static_cast<unsigned char *>(mapped.pBits)[i + 3] = data[i + 3];
-				}
-			}
-			else
-			{
-				::memcpy(mapped.pBits, data, size);
+				case Format::R8:
+					for (std::size_t i = 0; i < size; i += 1)
+					{
+						*p++ = 0;
+						*p++ = 0;
+						*p++ = data[i];
+						*p++ = 0;
+					}
+					break;
+				case Format::RG8:
+					for (std::size_t i = 0; i < size; i += 2)
+					{
+						*p++ = 0;
+						*p++ = data[i + 1];
+						*p++ = data[i + 0];
+						*p++ = 0;
+					}
+					break;
+				case Format::RGBA8:
+					for (std::size_t i = 0; i < size; i += 4)
+					{
+						*p++ = data[i + 2];
+						*p++ = data[i + 1];
+						*p++ = data[i + 0];
+						*p++ = data[i + 3];
+					}
+					break;
+				default:
+					::memcpy(p, data, size);
+					break;
 			}
 
 			systemSurface->UnlockRect();
