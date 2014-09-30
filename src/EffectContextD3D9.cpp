@@ -323,7 +323,7 @@ namespace ReShade
 						return D3DFMT_V8U8;
 					case EffectNodes::Literal::RGBA8:
 						format = Effect::Texture::Format::RGBA8;
-						return D3DFMT_A8R8G8B8;
+						return D3DFMT_A8R8G8B8;  // D3DFMT_A8B8G8R8 appearently isn't supported by hardware very well
 					case EffectNodes::Literal::RGBA16:
 						format = Effect::Texture::Format::RGBA16;
 						return D3DFMT_A16B16G16R16;
@@ -2215,7 +2215,22 @@ namespace ReShade
 				return;
 			}
 
-			::memcpy(mapped.pBits, data, size);
+			size = std::min(size, mapped.Pitch * this->mDesc.Height);
+
+			if (this->mDesc.Format == Format::RGBA8)
+			{
+				for (std::size_t i = 0; i < size; i += 4)
+				{
+					static_cast<unsigned char *>(mapped.pBits)[i + 0] = data[i + 2];
+					static_cast<unsigned char *>(mapped.pBits)[i + 1] = data[i + 1];
+					static_cast<unsigned char *>(mapped.pBits)[i + 2] = data[i + 0];
+					static_cast<unsigned char *>(mapped.pBits)[i + 3] = data[i + 3];
+				}
+			}
+			else
+			{
+				::memcpy(mapped.pBits, data, size);
+			}
 
 			systemSurface->UnlockRect();
 
