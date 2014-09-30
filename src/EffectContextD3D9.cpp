@@ -931,13 +931,13 @@ namespace ReShade
 					case EffectNodes::Expression::TexOffset:
 						part1 = "tex2D(";
 						part2 = ", ";
-						part3 = "+ (";
+						part3 = " + (";
 						part4 = ") * _PIXEL_SIZE_.xy)";
 						break;
 					case EffectNodes::Expression::TexLevelOffset:
 						part1 = "tex2Dlod(";
 						part2 = ", ";
-						part3 = "+ (";
+						part3 = " + (";
 						part4 = ") * _PIXEL_SIZE_.xy)";
 						break;
 				}
@@ -2343,6 +2343,7 @@ namespace ReShade
 			device->GetViewport(&viewport);
 			const float pixel_size[4] = { +1.0f / viewport.Width, +1.0f / viewport.Height, -1.0f / viewport.Width, +1.0f / viewport.Height };
 			device->SetVertexShaderConstantF(223, pixel_size, 1);
+			device->SetPixelShaderConstantF(223, pixel_size, 1);
 
 			return true;
 		}
