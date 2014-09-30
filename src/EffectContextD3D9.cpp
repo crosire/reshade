@@ -115,7 +115,7 @@ namespace ReShade
 				IDirect3DVertexShader9 *						VS;
 				IDirect3DPixelShader9 *							PS;
 				IDirect3DStateBlock9 *							Stateblock;
-				IDirect3DSurface9 *								RT[4];
+				IDirect3DSurface9 *								RT[8];
 			};
 
 			D3D9Technique(D3D9Effect *effect);
@@ -1487,7 +1487,7 @@ namespace ReShade
 				if (node.Properties[EffectNodes::Variable::Texture] == 0)
 				{
 					this->mErrors = PrintLocation(node.Location) + "Sampler '" + std::string(node.Name) + "' is missing required 'Texture' property.\n";
-					this->mFatal;
+					this->mFatal = true;
 					return;
 				}
 
@@ -1503,7 +1503,17 @@ namespace ReShade
 				sampler.mStates[D3DSAMP_MAXMIPLEVEL] = (node.Properties[EffectNodes::Variable::MaxLOD] != 0) ? static_cast<DWORD>(this->mAST[node.Properties[EffectNodes::Variable::MaxLOD]].As<EffectNodes::Literal>().Value.Float[0]) : 0;
 				sampler.mStates[D3DSAMP_MAXANISOTROPY] = (node.Properties[EffectNodes::Variable::MaxAnisotropy] != 0) ? this->mAST[node.Properties[EffectNodes::Variable::MaxAnisotropy]].As<EffectNodes::Literal>().Value.Uint[0] : 1;
 				sampler.mStates[D3DSAMP_SRGBTEXTURE] = node.Properties[EffectNodes::Variable::SRGBTexture] != 0 && this->mAST[node.Properties[EffectNodes::Variable::SRGBTexture]].As<EffectNodes::Literal>().Value.Bool[0];
-				sampler.mTexture = this->mEffect->mTextures.at(this->mAST[node.Properties[EffectNodes::Variable::Texture]].As<EffectNodes::Variable>().Name).get();
+
+				const char *texture = this->mAST[node.Properties[EffectNodes::Variable::Texture]].As<EffectNodes::Variable>().Name;
+
+				const auto it = this->mEffect->mTextures.find(texture);
+
+				if (it == this->mEffect->mTextures.end())
+				{
+					this->mErrors = PrintLocation(node.Location) + "Texture '" + std::string(texture) + "' for sampler '" + std::string(node.Name) + "' is missing.\n";
+				}
+
+				sampler.mTexture = it->second.get();
 
 				this->mCurrentSource += "sampler2D ";
 				this->mCurrentSource += node.Name;
