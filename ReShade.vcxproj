@@ -134,7 +134,7 @@
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>$(SolutionDir)\bin\$(Platform)\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <ModuleDefinitionFile>res\Exports.def</ModuleDefinitionFile>
+      <ModuleDefinitionFile>res\Exports32.def</ModuleDefinitionFile>
       <AdditionalDependencies>d3dcompiler.lib;d3dx9.lib;d3d10.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <DelayLoadDLLs>d3dcompiler_43.dll;d3dx9_43.dll;d3d10.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
     </Link>
@@ -155,9 +155,9 @@
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>$(SolutionDir)\bin\$(Platform)\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <ModuleDefinitionFile>res\Exports.def</ModuleDefinitionFile>
+      <ModuleDefinitionFile>res\Exports64.def</ModuleDefinitionFile>
       <AdditionalDependencies>d3dcompiler.lib;d3dx9.lib;d3d10.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <DelayLoadDLLs>d3dcompiler_43.dll;d3dx9_43.dll;d3d10.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
+      <DelayLoadDLLs>d3dcompiler_43.dll;d3d10.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
     </Link>
     <ResourceCompile>
       <PreprocessorDefinitions>WIN64;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -180,7 +180,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <AdditionalLibraryDirectories>$(SolutionDir)\bin\$(Platform)\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <ModuleDefinitionFile>res\Exports.def</ModuleDefinitionFile>
+      <ModuleDefinitionFile>res\Exports32.def</ModuleDefinitionFile>
       <AdditionalDependencies>d3dcompiler.lib;d3dx9.lib;d3d10.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <DelayLoadDLLs>d3dcompiler_43.dll;d3dx9_43.dll;d3d10.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
     </Link>
@@ -208,9 +208,9 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <AdditionalLibraryDirectories>$(SolutionDir)\bin\$(Platform)\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <ModuleDefinitionFile>res\Exports.def</ModuleDefinitionFile>
+      <ModuleDefinitionFile>res\Exports64.def</ModuleDefinitionFile>
       <AdditionalDependencies>d3dcompiler.lib;d3dx9.lib;d3d10.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <DelayLoadDLLs>d3dcompiler_43.dll;d3dx9_43.dll;d3d10.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
+      <DelayLoadDLLs>d3dcompiler_43.dll;d3d10.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
     </Link>
     <PreBuildEvent>
       <Command>tools\verbuild res\Version.h *.*.*.+ -xFP -b0.0.0.0 -s</Command>
@@ -229,7 +229,10 @@
     <ClCompile Include="obj\$(Platform)\$(Configuration)\EffectParser.cpp" />
     <ClCompile Include="src\Hook.cpp" />
     <ClCompile Include="src\HookManager.cpp" />
-    <ClCompile Include="src\Hooks\d3d8.cpp" />
+    <ClCompile Include="src\Hooks\d3d8.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="src\Hooks\d3d9.cpp" />
     <ClCompile Include="src\Hooks\d3d10.cpp" />
     <ClCompile Include="src\Hooks\d3d11.cpp" />
@@ -275,7 +278,8 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="res\Resource.rc2" />
-    <None Include="res\Exports.def" />
+    <None Include="res\Exports32.def" />
+    <None Include="res\Exports64.def" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

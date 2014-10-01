@@ -106,7 +106,10 @@
     <None Include="res\Resource.rc2">
       <Filter>Resources</Filter>
     </None>
-    <None Include="res\Exports.def">
+    <None Include="res\Exports32.def">
+      <Filter>Resources</Filter>
+    </None>
+    <None Include="res\Exports64.def">
       <Filter>Resources</Filter>
     </None>
   </ItemGroup>
