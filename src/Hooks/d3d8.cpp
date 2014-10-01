@@ -5,6 +5,7 @@
 #include <d3d9.h>
 #include <d3dx9shader.h>
 #include <initguid.h>
+#include <unordered_map>
 
 static LPCSTR													DXGetErrorStringA(HRESULT hr)
 {
@@ -270,11 +271,10 @@ struct															IDirect3DDevice8 : public IUnknown
 
 	IDirect3D8 *												mD3D;
 	IDirect3DDevice9 *											mProxy;
+
+private:
 	INT															mBaseVertexIndex;
-	std::vector<IDirect3DStateBlock9 *>							mStateBlocks;
-	std::vector<std::pair<IDirect3DVertexShader9 *, IDirect3DVertexDeclaration9 *>> mVertexShaders;
-	std::vector<std::pair<std::unique_ptr<DWORD[]>, std::size_t>> mVertexShaderDeclarations;
-	std::vector<IDirect3DPixelShader9 *>						mPixelShaders;
+	std::unordered_map<DWORD, IDirect3DVertexDeclaration9 *>	mVertexDeclarations;
 };
 struct															IDirect3DResource8 : public IUnknown
 {
@@ -1707,9 +1707,7 @@ HRESULT STDMETHODCALLTYPE										IDirect3DDevice8::EndStateBlock(DWORD *pToken
 
 	if (SUCCEEDED(hr))
 	{
-		*pToken = static_cast<DWORD>(this->mStateBlocks.size()) + 1;
-
-		this->mStateBlocks.push_back(stateblock);
+		*pToken = reinterpret_cast<DWORD>(stateblock);
 	}
 	else
 	{
@@ -1725,14 +1723,9 @@ HRESULT STDMETHODCALLTYPE										IDirect3DDevice8::ApplyStateBlock(DWORD Token
 		return D3DERR_INVALIDCALL;
 	}
 
-	Token -= 1;
+	IDirect3DStateBlock9 *stateblock = reinterpret_cast<IDirect3DStateBlock9 *>(Token);
 
-	if (Token >= static_cast<DWORD>(this->mStateBlocks.size()))
-	{
-		return D3DERR_INVALIDCALL;
-	}
-
-	return this->mStateBlocks[Token]->Apply();
+	return stateblock->Apply();
 }
 HRESULT STDMETHODCALLTYPE										IDirect3DDevice8::CaptureStateBlock(DWORD Token)
 {
@@ -1741,14 +1734,9 @@ HRESULT STDMETHODCALLTYPE										IDirect3DDevice8::CaptureStateBlock(DWORD Tok
 		return D3DERR_INVALIDCALL;
 	}
 
-	Token -= 1;
+	IDirect3DStateBlock9 *stateblock = reinterpret_cast<IDirect3DStateBlock9 *>(Token);
 
-	if (Token >= static_cast<DWORD>(this->mStateBlocks.size()))
-	{
-		return D3DERR_INVALIDCALL;
-	}
-
-	return this->mStateBlocks[Token]->Capture();
+	return stateblock->Capture();
 }
 HRESULT STDMETHODCALLTYPE										IDirect3DDevice8::DeleteStateBlock(DWORD Token)
 {
@@ -1757,15 +1745,9 @@ HRESULT STDMETHODCALLTYPE										IDirect3DDevice8::DeleteStateBlock(DWORD Toke
 		return D3DERR_INVALIDCALL;
 	}
 
-	Token -= 1;
+	IDirect3DStateBlock9 *stateblock = reinterpret_cast<IDirect3DStateBlock9 *>(Token);
 
-	if (Token >= static_cast<DWORD>(this->mStateBlocks.size()))
-	{
-		return D3DERR_INVALIDCALL;
-	}
-
-	this->mStateBlocks[Token]->Release();
-	this->mStateBlocks[Token] = nullptr;
+	stateblock->Release();
 
 	return D3D_OK;
 }
@@ -1784,9 +1766,7 @@ HRESULT STDMETHODCALLTYPE										IDirect3DDevice8::CreateStateBlock(D3DSTATEBL
 
 	if (SUCCEEDED(hr))
 	{
-		*pToken = static_cast<DWORD>(this->mStateBlocks.size()) + 1;
-
-		this->mStateBlocks.push_back(stateblock);
+		*pToken = reinterpret_cast<DWORD>(stateblock);
 	}
 	else
 	{
@@ -2153,7 +2133,7 @@ HRESULT STDMETHODCALLTYPE										IDirect3DDevice8::CreateVertexShader(CONST DW
 		{
 			LOG(WARNING) << "> Failed because 'D3DVSD_TOKEN_CONSTMEM' is not supported!";
 
-			return D3DERR_NOTAVAILABLE;
+			return E_NOTIMPL;
 		}
 		
 		++tokens;
@@ -2263,15 +2243,11 @@ HRESULT STDMETHODCALLTYPE										IDirect3DDevice8::CreateVertexShader(CONST DW
 
 		if (SUCCEEDED(hr))
 		{
-			*pHandle = static_cast<DWORD>(this->mVertexShaders.size()) + 0xF0000000;
+			*pHandle = reinterpret_cast<DWORD>(shader);
 
-			this->mVertexShaders.push_back(std::make_pair(shader, declaration));
+			assert(*pHandle >= 0xF00);
 
-			std::unique_ptr<DWORD[]> declarationData(new DWORD[tokens]);
-			const std::size_t declarationSize = tokens * sizeof(DWORD);
-			std::memcpy(declarationData.get(), pDeclaration, declarationSize);
-
-			this->mVertexShaderDeclarations.push_back(std::make_pair(std::move(declarationData), declarationSize));
+			this->mVertexDeclarations.insert(std::make_pair(*pHandle, declaration));
 		}
 		else
 		{
@@ -2305,28 +2281,23 @@ HRESULT STDMETHODCALLTYPE										IDirect3DDevice8::SetVertexShader(DWORD Handl
 	{
 		return D3DERR_INVALIDCALL;
 	}
-	else if (Handle < 0xF0000000)
+	else if (Handle < 0xF00)
 	{
 		this->mProxy->SetVertexShader(nullptr);
-
+		
 		return this->mProxy->SetFVF(Handle);
 	}
 
-	Handle -= 0xF0000000;
+	IDirect3DVertexShader9 *shader = reinterpret_cast<IDirect3DVertexShader9 *>(Handle);
 
-	if (Handle >= static_cast<DWORD>(this->mVertexShaders.size()))
-	{
-		return D3DERR_INVALIDCALL;
-	}
-
-	HRESULT hr = this->mProxy->SetVertexShader(this->mVertexShaders[Handle].first);
-
+	HRESULT hr = this->mProxy->SetVertexShader(shader);
+	
 	if (FAILED(hr))
 	{
 		return hr;
 	}
 
-	return this->mProxy->SetVertexDeclaration(this->mVertexShaders[Handle].second);
+	return this->mProxy->SetVertexDeclaration(this->mVertexDeclarations.at(Handle));
 }
 HRESULT STDMETHODCALLTYPE										IDirect3DDevice8::GetVertexShader(DWORD *pHandle)
 {
@@ -2341,16 +2312,7 @@ HRESULT STDMETHODCALLTYPE										IDirect3DDevice8::GetVertexShader(DWORD *pHan
 
 	if (SUCCEEDED(hr) && shader != nullptr)
 	{
-		*pHandle = 0xFFFFFFFF;
-
-		for (std::size_t i = 0, count = this->mVertexShaders.size(); i < count; ++i)
-		{
-			if (this->mVertexShaders[i].first == shader)
-			{
-				*pHandle = static_cast<DWORD>(i) + 0xF0000000;
-				break;
-			}
-		}
+		*pHandle = reinterpret_cast<DWORD>(shader);
 	}
 	else
 	{
@@ -2366,19 +2328,13 @@ HRESULT STDMETHODCALLTYPE										IDirect3DDevice8::DeleteVertexShader(DWORD Ha
 		return D3DERR_INVALIDCALL;
 	}
 
-	Handle -= 0xF0000000;
+	IDirect3DVertexShader9 *shader = reinterpret_cast<IDirect3DVertexShader9 *>(Handle);
+	IDirect3DVertexDeclaration9 *declaration = this->mVertexDeclarations.at(Handle);
+	
+	this->mVertexDeclarations.erase(Handle);
 
-	if (Handle >= static_cast<DWORD>(this->mVertexShaders.size()))
-	{
-		return D3DERR_INVALIDCALL;
-	}
-
-	this->mVertexShaders[Handle].first->Release();
-	this->mVertexShaders[Handle].first = nullptr;
-	this->mVertexShaders[Handle].second->Release();
-	this->mVertexShaders[Handle].second = nullptr;
-	this->mVertexShaderDeclarations[Handle].first.reset();
-	this->mVertexShaderDeclarations[Handle].second = 0;
+	shader->Release();
+	declaration->Release();
 
 	return D3D_OK;
 }
@@ -2392,37 +2348,26 @@ HRESULT STDMETHODCALLTYPE										IDirect3DDevice8::GetVertexShaderConstant(DWO
 }
 HRESULT STDMETHODCALLTYPE										IDirect3DDevice8::GetVertexShaderDeclaration(DWORD Handle, void *pData, DWORD *pSizeOfData)
 {
-	if (Handle == 0 || Handle == 0xFFFFFFFF || Handle < 0xF0000000)
+	UNREFERENCED_PARAMETER(pData);
+	UNREFERENCED_PARAMETER(pSizeOfData);
+
+	if (Handle == 0 || Handle == 0xFFFFFFFF)
 	{
 		return D3DERR_INVALIDCALL;
 	}
 
-	Handle -= 0xF0000000;
-
-	if (Handle >= static_cast<DWORD>(this->mVertexShaders.size()))
-	{
-		return D3DERR_INVALIDCALL;
-	}
-
-	std::memcpy(pData, this->mVertexShaderDeclarations[Handle].first.get(), *pSizeOfData = std::min(*pSizeOfData, static_cast<DWORD>(this->mVertexShaderDeclarations[Handle].second)));
-
-	return D3D_OK;
+	return E_NOTIMPL;
 }
 HRESULT STDMETHODCALLTYPE										IDirect3DDevice8::GetVertexShaderFunction(DWORD Handle, void *pData, DWORD *pSizeOfData)
 {
-	if (Handle == 0 || Handle == 0xFFFFFFFF || Handle <= 0xF0000000)
+	if (Handle == 0 || Handle == 0xFFFFFFFF || Handle < 0xF00)
 	{
 		return D3DERR_INVALIDCALL;
 	}
 
-	Handle -= 0xF0000000;
+	IDirect3DVertexShader9 *shader = reinterpret_cast<IDirect3DVertexShader9 *>(Handle);
 
-	if (Handle >= static_cast<DWORD>(this->mVertexShaders.size()))
-	{
-		return D3DERR_INVALIDCALL;
-	}
-
-	return this->mVertexShaders[Handle].first->GetFunction(pData, reinterpret_cast<UINT *>(pSizeOfData));
+	return shader->GetFunction(pData, reinterpret_cast<UINT *>(pSizeOfData));
 }
 HRESULT STDMETHODCALLTYPE										IDirect3DDevice8::SetStreamSource(UINT StreamNumber, IDirect3DVertexBuffer8 *pStreamData, UINT Stride)
 {
@@ -2483,8 +2428,6 @@ HRESULT STDMETHODCALLTYPE										IDirect3DDevice8::GetIndices(IDirect3DIndexBu
 		return D3DERR_INVALIDCALL;
 	}
 		
-	*pBaseVertexIndex = static_cast<UINT>(this->mBaseVertexIndex);
-
 	IDirect3DIndexBuffer9 *buffer = nullptr;
 
 	HRESULT hr = this->mProxy->GetIndices(&buffer);
@@ -2492,10 +2435,12 @@ HRESULT STDMETHODCALLTYPE										IDirect3DDevice8::GetIndices(IDirect3DIndexBu
 	if (SUCCEEDED(hr) && buffer != nullptr)
 	{
 		*ppIndexData = new IDirect3DIndexBuffer8(this, buffer);
+		*pBaseVertexIndex = static_cast<UINT>(this->mBaseVertexIndex);
 	}
 	else
 	{
 		*ppIndexData = nullptr;
+		*pBaseVertexIndex = 0;
 	}
 
 	return hr;
@@ -2524,9 +2469,7 @@ HRESULT STDMETHODCALLTYPE										IDirect3DDevice8::CreatePixelShader(CONST DWO
 
 	if (SUCCEEDED(hr))
 	{
-		*pHandle = static_cast<DWORD>(this->mPixelShaders.size()) + 0xF0000000;
-
-		this->mPixelShaders.push_back(shader);
+		*pHandle = reinterpret_cast<DWORD>(shader);
 	}
 	else
 	{
@@ -2548,14 +2491,7 @@ HRESULT STDMETHODCALLTYPE										IDirect3DDevice8::SetPixelShader(DWORD Handle
 		return D3DERR_INVALIDCALL;
 	}
 
-	Handle -= 0xF0000000;
-
-	if (Handle >= static_cast<DWORD>(this->mPixelShaders.size()))
-	{
-		return D3DERR_INVALIDCALL;
-	}
-
-	return this->mProxy->SetPixelShader(this->mPixelShaders[Handle]);
+	return this->mProxy->SetPixelShader(reinterpret_cast<IDirect3DPixelShader9 *>(Handle));
 }
 HRESULT STDMETHODCALLTYPE										IDirect3DDevice8::GetPixelShader(DWORD *pHandle)
 {
@@ -2570,16 +2506,7 @@ HRESULT STDMETHODCALLTYPE										IDirect3DDevice8::GetPixelShader(DWORD *pHand
 
 	if (SUCCEEDED(hr) && shader != nullptr)
 	{
-		*pHandle = 0xFFFFFFFF;
-
-		for (std::size_t i = 0, count = this->mPixelShaders.size(); i < count; ++i)
-		{
-			if (this->mPixelShaders[i] == shader)
-			{
-				*pHandle = static_cast<DWORD>(i) + 0xF0000000;
-				break;
-			}
-		}
+		*pHandle = reinterpret_cast<DWORD>(shader);
 	}
 	else
 	{
@@ -2595,15 +2522,9 @@ HRESULT STDMETHODCALLTYPE										IDirect3DDevice8::DeletePixelShader(DWORD Han
 		return D3DERR_INVALIDCALL;
 	}
 
-	Handle -= 0xF0000000;
-		
-	if (Handle >= static_cast<DWORD>(this->mPixelShaders.size()))
-	{
-		return D3DERR_INVALIDCALL;
-	}
+	IDirect3DPixelShader9 *shader = reinterpret_cast<IDirect3DPixelShader9 *>(Handle);
 
-	this->mPixelShaders[Handle]->Release();
-	this->mPixelShaders[Handle] = nullptr;
+	shader->Release();
 
 	return D3D_OK;
 }
@@ -2622,14 +2543,9 @@ HRESULT STDMETHODCALLTYPE										IDirect3DDevice8::GetPixelShaderFunction(DWOR
 		return D3DERR_INVALIDCALL;
 	}
 
-	Handle -= 0xF0000000;
+	IDirect3DPixelShader9 *shader = reinterpret_cast<IDirect3DPixelShader9 *>(Handle);
 
-	if (Handle >= static_cast<DWORD>(this->mPixelShaders.size()))
-	{
-		return D3DERR_INVALIDCALL;
-	}
-
-	return this->mPixelShaders[Handle]->GetFunction(pData, reinterpret_cast<UINT *>(pSizeOfData));
+	return shader->GetFunction(pData, reinterpret_cast<UINT *>(pSizeOfData));
 }
 HRESULT STDMETHODCALLTYPE										IDirect3DDevice8::DrawRectPatch(UINT Handle, CONST float *pNumSegs, CONST D3DRECTPATCH_INFO *pRectPatchInfo)
 {
