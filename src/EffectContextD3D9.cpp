@@ -60,7 +60,7 @@ namespace ReShade
 			std::vector<D3D9Sampler>							mSamplers;
 			std::unordered_map<std::string, std::unique_ptr<D3D9Constant>> mConstants;
 			std::unordered_map<std::string, std::unique_ptr<D3D9Technique>> mTechniques;
-			IDirect3DSurface9 *									mBackBuffer;
+			IDirect3DSurface9 *									mBackBuffer, *mBackBufferNotMultisampled;
 			IDirect3DStateBlock9 *								mStateBlock;
 			IDirect3DSurface9 *									mStateBlockDepthStencil, *mStateBlockRenderTarget;
 			IDirect3DStateBlock9 *								mShaderResourceStateblock;
@@ -1826,7 +1826,7 @@ namespace ReShade
 			{
 				D3D9Technique::Pass pass;
 				ZeroMemory(&pass, sizeof(D3D9Technique::Pass));
-				pass.RT[0] = this->mEffect->mBackBuffer;
+				pass.RT[0] = this->mEffect->mBackBufferNotMultisampled != nullptr ? this->mEffect->mBackBufferNotMultisampled : this->mEffect->mBackBuffer;
 
 				if (node.States[EffectNodes::Pass::VertexShader] != 0)
 				{
@@ -2060,7 +2060,7 @@ namespace ReShade
 			}
 		}
 
-		D3D9Effect::D3D9Effect(std::shared_ptr<D3D9EffectContext> context) : mEffectContext(context), mBackBuffer(nullptr), mStateBlock(nullptr), mDepthStencil(nullptr)
+		D3D9Effect::D3D9Effect(std::shared_ptr<D3D9EffectContext> context) : mEffectContext(context), mBackBuffer(nullptr), mBackBufferNotMultisampled(nullptr), mStateBlock(nullptr), mDepthStencil(nullptr)
 		{
 			HRESULT hr;
 
@@ -2073,6 +2073,13 @@ namespace ReShade
 			hr = context->mDevice->CreateDepthStencilSurface(desc.Width, desc.Height, D3DFMT_D24S8, D3DMULTISAMPLE_NONE, 0, FALSE, &this->mDepthStencil, nullptr);
 
 			assert(SUCCEEDED(hr));
+
+			if (desc.MultiSampleType != D3DMULTISAMPLE_NONE)
+			{
+				hr = context->mDevice->CreateRenderTarget(desc.Width, desc.Height, desc.Format, D3DMULTISAMPLE_NONE, 0, FALSE, &this->mBackBufferNotMultisampled, nullptr);
+
+				assert(SUCCEEDED(hr));
+			}
 
 			this->mConstantRegisterCount = 0;
 			this->mConstantStorage = nullptr;
@@ -2125,6 +2132,7 @@ namespace ReShade
 		D3D9Effect::~D3D9Effect(void)
 		{
 			SAFE_RELEASE(this->mBackBuffer);
+			SAFE_RELEASE(this->mBackBufferNotMultisampled);
 			SAFE_RELEASE(this->mVertexDeclaration);
 			SAFE_RELEASE(this->mVertexBuffer);
 			SAFE_RELEASE(this->mDepthStencil);
@@ -2307,7 +2315,9 @@ namespace ReShade
 		}
 		void													D3D9Texture::UpdateFromColorBuffer(void)
 		{
-			this->mEffect->mEffectContext->mDevice->StretchRect(this->mEffect->mBackBuffer, nullptr, this->mSurface, nullptr, D3DTEXF_NONE);
+			IDirect3DSurface9 *backbuffer = this->mEffect->mBackBufferNotMultisampled != nullptr ? this->mEffect->mBackBufferNotMultisampled : this->mEffect->mBackBuffer;
+
+			this->mEffect->mEffectContext->mDevice->StretchRect(backbuffer, nullptr, this->mSurface, nullptr, D3DTEXF_NONE);
 		}
 		void													D3D9Texture::UpdateFromDepthBuffer(void)
 		{
@@ -2384,14 +2394,19 @@ namespace ReShade
 				return false;
 			}
 
-			device->GetDepthStencilSurface(&this->mEffect->mStateBlockDepthStencil);
-			device->GetRenderTarget(0, &this->mEffect->mStateBlockRenderTarget);
+			if (this->mEffect->mBackBufferNotMultisampled != nullptr)
+			{
+				device->StretchRect(this->mEffect->mBackBuffer, nullptr, this->mEffect->mBackBufferNotMultisampled, nullptr, D3DTEXF_NONE);
+			}
 
-			device->SetVertexDeclaration(this->mEffect->mVertexDeclaration);
-			device->SetStreamSource(0, this->mEffect->mVertexBuffer, 0, sizeof(float));
+			device->GetRenderTarget(0, &this->mEffect->mStateBlockRenderTarget);
+			device->GetDepthStencilSurface(&this->mEffect->mStateBlockDepthStencil);
 
 			device->SetDepthStencilSurface(this->mEffect->mDepthStencil);
 			device->Clear(0, nullptr, D3DCLEAR_ZBUFFER | D3DCLEAR_STENCIL, 0, 1.0f, 0x0);
+
+			device->SetVertexDeclaration(this->mEffect->mVertexDeclaration);
+			device->SetStreamSource(0, this->mEffect->mVertexBuffer, 0, sizeof(float));
 
 			this->mEffect->mShaderResourceStateblock->Apply();
 
@@ -2405,12 +2420,20 @@ namespace ReShade
 		}
 		void													D3D9Technique::End(void) const
 		{
-			this->mEffect->mEffectContext->mDevice->SetDepthStencilSurface(this->mEffect->mStateBlockDepthStencil);
+			IDirect3DDevice9 *device = this->mEffect->mEffectContext->mDevice;
+
+			device->SetDepthStencilSurface(this->mEffect->mStateBlockDepthStencil);
 			SAFE_RELEASE(this->mEffect->mStateBlockDepthStencil);
-			this->mEffect->mEffectContext->mDevice->SetRenderTarget(0, this->mEffect->mStateBlockRenderTarget);
+			device->SetRenderTarget(0, this->mEffect->mStateBlockRenderTarget);
 			SAFE_RELEASE(this->mEffect->mStateBlockRenderTarget);
 
-			this->mEffect->mEffectContext->mDevice->EndScene();
+			device->EndScene();
+
+			if (this->mEffect->mBackBufferNotMultisampled != nullptr)
+			{
+				device->StretchRect(this->mEffect->mBackBufferNotMultisampled, nullptr, this->mEffect->mBackBuffer, nullptr, D3DTEXF_NONE);
+			}
+
 			this->mEffect->mStateBlock->Apply();
 		}
 		void													D3D9Technique::RenderPass(unsigned int index) const
