@@ -74,10 +74,13 @@ HRESULT STDMETHODCALLTYPE										IDXGISwapChain_Present(IDXGISwapChain *pSwapC
 {
 	static const auto trampoline = ReHook::Call(&IDXGISwapChain_Present);
 	
-	if (sManagers.count(pSwapChain))
+	const auto it = sManagers.find(pSwapChain);
+	ReShade::Manager *const manager = it != sManagers.end() ? it->second : nullptr;
+
+	if (manager != nullptr)
 	{
-		sManagers.at(pSwapChain)->OnPostProcess();
-		sManagers.at(pSwapChain)->OnPresent();
+		manager->OnPostProcess();
+		manager->OnPresent();
 	}
 
 	return trampoline(pSwapChain, SyncInterval, Flags);
@@ -92,7 +95,8 @@ HRESULT STDMETHODCALLTYPE										IDXGISwapChain_ResizeBuffers(IDXGISwapChain *
 {
 	LOG(INFO) << "Redirecting '" << "IDXGISwapChain::ResizeBuffers" << "(" << pSwapChain << ", " << BufferCount << ", " << Width << ", " << Height << ", " << NewFormat << ", " << SwapChainFlags << ")' ...";
 
-	ReShade::Manager *manager = sManagers.count(pSwapChain) ? sManagers.at(pSwapChain) : nullptr;
+	const auto it = sManagers.find(pSwapChain);
+	ReShade::Manager *const manager = it != sManagers.end() ? it->second : nullptr;
 
 	if (manager != nullptr)
 	{
@@ -123,10 +127,13 @@ HRESULT STDMETHODCALLTYPE										IDXGISwapChain1_Present1(IDXGISwapChain1 *pSw
 {
 	static const auto trampoline = ReHook::Call(&IDXGISwapChain1_Present1);
 	
-	if (sManagers.count(pSwapChain))
+	const auto it = sManagers.find(pSwapChain);
+	ReShade::Manager *const manager = it != sManagers.end() ? it->second : nullptr;
+
+	if (manager != nullptr)
 	{
-		sManagers.at(pSwapChain)->OnPostProcess();
-		sManagers.at(pSwapChain)->OnPresent();
+		manager->OnPostProcess();
+		manager->OnPresent();
 	}
 
 	return trampoline(pSwapChain, SyncInterval, PresentFlags, pPresentParameters);

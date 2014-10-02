@@ -137,7 +137,8 @@ HRESULT STDMETHODCALLTYPE										IDirect3DDevice9_Reset(IDirect3DDevice9 *pDev
 {
 	LOG(INFO) << "Redirecting '" << "IDirect3DDevice9::Reset" << "(" << pDevice << ", " << pPresentationParameters << ")' ...";
 
-	ReShade::Manager *manager = sManagers.count(pDevice) ? sManagers.at(pDevice) : nullptr;
+	const auto it = sManagers.find(pDevice);
+	ReShade::Manager *const manager = it != sManagers.end() ? it->second : nullptr;
 
 	if (manager != nullptr)
 	{
@@ -166,7 +167,8 @@ HRESULT STDMETHODCALLTYPE										IDirect3DDevice9_Present(IDirect3DDevice9 *pD
 {
 	static const auto trampoline = ReHook::Call(&IDirect3DDevice9_Present);
 	
-	ReShade::Manager *manager = sManagers.count(pDevice) ? sManagers.at(pDevice) : nullptr;
+	const auto it = sManagers.find(pDevice);
+	ReShade::Manager *const manager = it != sManagers.end() ? it->second : nullptr;
 
 	if (manager != nullptr)
 	{
@@ -230,7 +232,8 @@ HRESULT STDMETHODCALLTYPE										IDirect3DDevice9Ex_ResetEx(IDirect3DDevice9Ex
 {
 	LOG(INFO) << "Redirecting '" << "IDirect3DDevice9Ex::ResetEx" << "(" << pDevice << ", " << pPresentationParameters << ", " << pFullscreenDisplayMode << ")' ...";
 
-	ReShade::Manager *manager = sManagers.count(pDevice) ? sManagers.at(pDevice) : nullptr;
+	const auto it = sManagers.find(pDevice);
+	ReShade::Manager *const manager = it != sManagers.end() ? it->second : nullptr;
 
 	if (manager != nullptr)
 	{
@@ -259,7 +262,8 @@ HRESULT STDMETHODCALLTYPE										IDirect3DDevice9Ex_PresentEx(IDirect3DDevice9
 {
 	static const auto trampoline = ReHook::Call(&IDirect3DDevice9Ex_PresentEx);
 
-	ReShade::Manager *manager = sManagers.count(pDevice) ? sManagers.at(pDevice) : nullptr;
+	const auto it = sManagers.find(pDevice);
+	ReShade::Manager *const manager = it != sManagers.end() ? it->second : nullptr;
 
 	if (manager != nullptr)
 	{
