@@ -1094,6 +1094,18 @@ namespace ReShade
 			}
 			void												Visit(const EffectNodes::If &node)
 			{
+				if (node.HasAttributes())
+				{
+					const auto &attributes = this->mAST[node.Attributes].As<EffectNodes::List>();
+
+					for (unsigned int i = 0; i < attributes.Length; ++i)
+					{
+						this->mCurrentSource += '[';
+						this->mCurrentSource += this->mAST[attributes[i]].As<EffectNodes::Literal>().Value.String;
+						this->mCurrentSource += ']';
+					}
+				}
+
 				this->mCurrentSource += "if (";
 				this->mAST[node.Condition].Accept(*this);
 				this->mCurrentSource += ")\n";
@@ -1114,6 +1126,18 @@ namespace ReShade
 			}
 			void												Visit(const EffectNodes::Switch &node)
 			{
+				if (node.HasAttributes())
+				{
+					const auto &attributes = this->mAST[node.Attributes].As<EffectNodes::List>();
+
+					for (unsigned int i = 0; i < attributes.Length; ++i)
+					{
+						this->mCurrentSource += '[';
+						this->mCurrentSource += this->mAST[attributes[i]].As<EffectNodes::Literal>().Value.String;
+						this->mCurrentSource += ']';
+					}
+				}
+
 				this->mCurrentSource += "switch (";
 				this->mAST[node.Test].Accept(*this);
 				this->mCurrentSource += ")\n{\n";
@@ -1152,6 +1176,18 @@ namespace ReShade
 			}
 			void												Visit(const EffectNodes::For &node)
 			{
+				if (node.HasAttributes())
+				{
+					const auto &attributes = this->mAST[node.Attributes].As<EffectNodes::List>();
+
+					for (unsigned int i = 0; i < attributes.Length; ++i)
+					{
+						this->mCurrentSource += '[';
+						this->mCurrentSource += this->mAST[attributes[i]].As<EffectNodes::Literal>().Value.String;
+						this->mCurrentSource += ']';
+					}
+				}
+
 				this->mCurrentSource += "for (";
 
 				if (node.Initialization != 0)
@@ -1189,6 +1225,18 @@ namespace ReShade
 			}
 			void												Visit(const EffectNodes::While &node)
 			{
+				if (node.HasAttributes())
+				{
+					const auto &attributes = this->mAST[node.Attributes].As<EffectNodes::List>();
+
+					for (unsigned int i = 0; i < attributes.Length; ++i)
+					{
+						this->mCurrentSource += '[';
+						this->mCurrentSource += this->mAST[attributes[i]].As<EffectNodes::Literal>().Value.String;
+						this->mCurrentSource += ']';
+					}
+				}
+
 				if (node.DoWhile)
 				{
 					this->mCurrentSource += "do\n{\n";

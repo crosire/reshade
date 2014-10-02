@@ -339,6 +339,10 @@
 %type<y.Index>	RULE_STATEMENT_WHILE
 %type<y.Index>	RULE_STATEMENT_JUMP
 
+%type<y.Index>	RULE_ATTRIBUTE
+%type<y.Index>	RULE_ATTRIBUTE_LIST
+%type<y.Index>	RULE_ATTRIBUTES
+
 %type<y.Index>	RULE_ANNOTATION
 %type<y.Index>	RULE_ANNOTATION_LIST
 %type<y.Index>	RULE_ANNOTATIONS
@@ -1858,13 +1862,49 @@ RULE_STATEMENT_COMPOUND_SCOPELESS
 	;
 
 RULE_STATEMENT_SIMPLE
-	: RULE_STATEMENT_EXPRESSION
-	| RULE_STATEMENT_DECLARATION
-	| RULE_STATEMENT_IF
-	| RULE_STATEMENT_SWITCH
-	| RULE_STATEMENT_FOR
-	| RULE_STATEMENT_WHILE
-	| RULE_STATEMENT_JUMP
+	: RULE_ATTRIBUTES RULE_STATEMENT_EXPRESSION
+	{
+		@$ = @2, $$ = $2;
+	}
+	| RULE_ATTRIBUTES RULE_STATEMENT_DECLARATION
+	{
+		@$ = @2, $$ = $2;
+	}
+	| RULE_ATTRIBUTES RULE_STATEMENT_IF
+	{
+		EffectNodes::If &node = parser.mAST[$2].As<EffectNodes::If>();
+		node.Attributes = $1;
+
+		@$ = node.Location, $$ = node.Index;
+	}
+	| RULE_ATTRIBUTES RULE_STATEMENT_SWITCH
+	{
+		EffectNodes::Switch &node = parser.mAST[$2].As<EffectNodes::Switch>();
+		node.Attributes = $1;
+
+		@$ = node.Location, $$ = node.Index;
+	}
+	| RULE_ATTRIBUTES RULE_STATEMENT_FOR
+	{
+		EffectNodes::For &node = parser.mAST[$2].As<EffectNodes::For>();
+		node.Attributes = $1;
+
+		@$ = node.Location, $$ = node.Index;
+	}
+	| RULE_ATTRIBUTES RULE_STATEMENT_WHILE
+	{
+		EffectNodes::While &node = parser.mAST[$2].As<EffectNodes::While>();
+		node.Attributes = $1;
+
+		@$ = node.Location, $$ = node.Index;
+	}
+	| RULE_ATTRIBUTES RULE_STATEMENT_JUMP
+	{
+		EffectNodes::Jump &node = parser.mAST[$2].As<EffectNodes::Jump>();
+		node.Attributes = $1;
+
+		@$ = node.Location, $$ = node.Index;
+	}
 	| error RULE_STATEMENT_SIMPLE { $$ = $2; }
 	;
 RULE_STATEMENT_EXPRESSION
@@ -2146,6 +2186,47 @@ RULE_STATEMENT_JUMP
 
 		@$ = node.Location, $$ = node.Index;
 	}
+	;
+
+ /* Attributes ------------------------------------------------------------------------------- */
+
+ RULE_ATTRIBUTE
+	: "[" RULE_IDENTIFIER_NAME "]"
+	{
+		EffectNodes::Literal &value = parser.mAST.Add<EffectNodes::Literal>(@1);
+		value.Type.Class = EffectNodes::Type::String;
+		value.Value.String = parser.mAST.AddString($2.String.p, $2.String.len);
+		
+		@$ = value.Location, $$ = value.Index;
+	}
+	| "[" error "]"
+	{
+		$$ = EffectTree::Null;
+	}
+	;
+RULE_ATTRIBUTE_LIST
+	: RULE_ATTRIBUTE
+	{
+		EffectNodes::List &node = parser.mAST.Add<EffectNodes::List>(@1);
+		node.Link(parser.mAST, $1);
+
+		@$ = node.Location, $$ = node.Index;
+	}
+	| RULE_ATTRIBUTE_LIST RULE_ATTRIBUTE
+	{
+		EffectNodes::List &node = parser.mAST[$1].As<EffectNodes::List>();
+		node.Link(parser.mAST, $2);
+
+		@$ = node.Location, $$ = node.Index;
+	}
+	;
+
+RULE_ATTRIBUTES
+	:
+	{
+		$$ = EffectTree::Null;
+	}
+	| RULE_ATTRIBUTE_LIST
 	;
 
  /* Annotations ------------------------------------------------------------------------------ */

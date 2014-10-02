@@ -601,12 +601,21 @@ namespace ReShade
 		{
 			signed char											Mask[4];
 		};
-		struct													If : public EffectTree::NodeImplementation<If>
+		struct													Statement : public EffectTree::NodeImplementation<Statement>
+		{
+			inline bool											HasAttributes(void) const
+			{
+				return this->Attributes != 0;
+			}
+
+			EffectTree::Index									Attributes;
+		};
+		struct													If : public EffectTree::NodeImplementation<If, Statement>
 		{
 			EffectTree::Index									Condition;
 			EffectTree::Index									StatementOnTrue, StatementOnFalse;
 		};
-		struct													Switch : public EffectTree::NodeImplementation<Switch>
+		struct													Switch : public EffectTree::NodeImplementation<Switch, Statement>
 		{
 			EffectTree::Index									Test;
 			EffectTree::Index									Cases;
@@ -616,18 +625,18 @@ namespace ReShade
 			EffectTree::Index									Labels;
 			EffectTree::Index									Statements;
 		};
-		struct													For : public EffectTree::NodeImplementation<For>
+		struct													For : public EffectTree::NodeImplementation<For, Statement>
 		{
 			EffectTree::Index									Initialization, Condition, Iteration;
 			EffectTree::Index									Statements;
 		};
-		struct													While : public EffectTree::NodeImplementation<While>
+		struct													While : public EffectTree::NodeImplementation<While, Statement>
 		{
 			bool												DoWhile;
 			EffectTree::Index									Condition;
 			EffectTree::Index									Statements;
 		};
-		struct													Jump : public EffectTree::NodeImplementation<Jump>
+		struct													Jump : public EffectTree::NodeImplementation<Jump, Statement>
 		{
 			enum												Mode
 			{
