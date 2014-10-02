@@ -70,8 +70,6 @@
 
 // -----------------------------------------------------------------------------------------------------
 
-#define thread_local											__declspec(thread)
-
 namespace
 {
 	class														CriticalSection
@@ -123,9 +121,9 @@ namespace
 	std::unordered_map<HWND, RECT>								sWindowRects;
 	CriticalSection												sCS;
 
-	thread_local ReShade::Manager *								sCurrentManager = nullptr;
-	thread_local HGLRC											sCurrentRenderContext = nullptr;
-	thread_local HDC											sCurrentDeviceContext = nullptr;
+	__declspec(thread) ReShade::Manager *						sCurrentManager = nullptr;
+	__declspec(thread) HGLRC									sCurrentRenderContext = nullptr;
+	__declspec(thread) HDC										sCurrentDeviceContext = nullptr;
 }
 namespace ReShade
 {
@@ -2619,7 +2617,7 @@ EXPORT BOOL WINAPI												wglSwapBuffers(HDC hdc)
 			::GetClientRect(hwnd, &rect);
 			const ULONG width = rect.right - rect.left, height = rect.bottom - rect.top;
 			const ULONG widthPrevious = rectPrevious.right - rectPrevious.left, heightPrevious = rectPrevious.bottom - rectPrevious.top;
-			static thread_local ULONG widthResizing = 0, heightResizing = 0;
+			__declspec(thread) static ULONG widthResizing = 0, heightResizing = 0;
 
 			if (width != widthPrevious || height != heightPrevious)
 			{

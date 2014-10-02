@@ -802,22 +802,6 @@ EXPORT NTSTATUS WINAPI											D3DKMTSetDisplayPrivateDriverFormat(const void 
 }
 
 // DXGI
-EXPORT HRESULT WINAPI											OpenAdapter10(void *pData)
-{
-	UNREFERENCED_PARAMETER(pData);
-
-	assert(false);
-
-	return E_NOTIMPL;
-}
-EXPORT HRESULT WINAPI											OpenAdapter10_2(void *pData)
-{
-	UNREFERENCED_PARAMETER(pData);
-
-	assert(false);
-
-	return E_NOTIMPL;
-}
 EXPORT HRESULT WINAPI											DXGID3D10CreateDevice(HMODULE hModule, IDXGIFactory *pFactory, IDXGIAdapter *pAdapter, UINT Flags, void *pUnknown, void **ppDevice)
 {
 	UNREFERENCED_PARAMETER(hModule);
@@ -865,6 +849,22 @@ EXPORT HRESULT WINAPI											DXGIReportAdapterConfiguration(void)
 }
 EXPORT HRESULT WINAPI											DXGIDumpJournal(void)
 {
+	assert(false);
+
+	return E_NOTIMPL;
+}
+EXPORT HRESULT WINAPI											OpenAdapter10(void *pData)
+{
+	UNREFERENCED_PARAMETER(pData);
+
+	assert(false);
+
+	return E_NOTIMPL;
+}
+EXPORT HRESULT WINAPI											OpenAdapter10_2(void *pData)
+{
+	UNREFERENCED_PARAMETER(pData);
+
 	assert(false);
 
 	return E_NOTIMPL;

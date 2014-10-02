@@ -9,9 +9,9 @@
 #undef IDirect3D9Ex_CreateDeviceEx
 #undef IDirect3DDevice9_AddRef
 #undef IDirect3DDevice9_Release
+#undef IDirect3DDevice9_CreateAdditionalSwapChain
 #undef IDirect3DDevice9_Reset
 #undef IDirect3DDevice9_Present
-#undef IDirect3DDevice9_CreateAdditionalSwapChain
 #undef IDirect3DDevice9Ex_ResetEx
 #undef IDirect3DDevice9Ex_PresentEx
 #undef IDirect3DSwapChain9_AddRef
@@ -133,51 +133,6 @@ ULONG STDMETHODCALLTYPE											IDirect3DDevice9_Release(IDirect3DDevice9 *pDe
 
 	return ref;
 }
-HRESULT STDMETHODCALLTYPE										IDirect3DDevice9_Reset(IDirect3DDevice9 *pDevice, D3DPRESENT_PARAMETERS *pPresentationParameters)
-{
-	LOG(INFO) << "Redirecting '" << "IDirect3DDevice9::Reset" << "(" << pDevice << ", " << pPresentationParameters << ")' ...";
-
-	const auto it = sManagers.find(pDevice);
-	ReShade::Manager *const manager = it != sManagers.end() ? it->second : nullptr;
-
-	if (manager != nullptr)
-	{
-		sReferences.erase(pDevice);
-		manager->OnDelete();
-	}
-
-	HRESULT hr = ReHook::Call(&IDirect3DDevice9_Reset)(pDevice, pPresentationParameters);
-
-	if (SUCCEEDED(hr))
-	{
-		if (manager != nullptr)
-		{
-			manager->OnCreate();
-			sReferences.insert(std::make_pair(pDevice, GetRefCount(pDevice) - 1));
-		}
-	}
-	else
-	{
-		LOG(ERROR) << "'IDirect3DDevice9::Reset' failed with '" << DXGetErrorStringA(hr) << "'!";
-	}
-
-	return hr;
-}
-HRESULT STDMETHODCALLTYPE										IDirect3DDevice9_Present(IDirect3DDevice9 *pDevice, const RECT *pSourceRect, const RECT *pDestRect, HWND hDestWindowOverride, const RGNDATA *pDirtyRegion)
-{
-	static const auto trampoline = ReHook::Call(&IDirect3DDevice9_Present);
-	
-	const auto it = sManagers.find(pDevice);
-	ReShade::Manager *const manager = it != sManagers.end() ? it->second : nullptr;
-
-	if (manager != nullptr)
-	{
-		manager->OnPostProcess();
-		manager->OnPresent();
-	}
-
-	return trampoline(pDevice, pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
-}
 HRESULT STDMETHODCALLTYPE										IDirect3DDevice9_CreateAdditionalSwapChain(IDirect3DDevice9 *pDevice, D3DPRESENT_PARAMETERS *pPresentationParameters, IDirect3DSwapChain9 **ppSwapChain)
 {
 	HRESULT hr = ReHook::Call(&IDirect3DDevice9_CreateAdditionalSwapChain)(pDevice, pPresentationParameters, ppSwapChain);
@@ -225,6 +180,51 @@ HRESULT STDMETHODCALLTYPE										IDirect3DDevice9_CreateAdditionalSwapChain(ID
 	}
 
 	return hr;
+}
+HRESULT STDMETHODCALLTYPE										IDirect3DDevice9_Reset(IDirect3DDevice9 *pDevice, D3DPRESENT_PARAMETERS *pPresentationParameters)
+{
+	LOG(INFO) << "Redirecting '" << "IDirect3DDevice9::Reset" << "(" << pDevice << ", " << pPresentationParameters << ")' ...";
+
+	const auto it = sManagers.find(pDevice);
+	ReShade::Manager *const manager = it != sManagers.end() ? it->second : nullptr;
+
+	if (manager != nullptr)
+	{
+		sReferences.erase(pDevice);
+		manager->OnDelete();
+	}
+
+	HRESULT hr = ReHook::Call(&IDirect3DDevice9_Reset)(pDevice, pPresentationParameters);
+
+	if (SUCCEEDED(hr))
+	{
+		if (manager != nullptr)
+		{
+			manager->OnCreate();
+			sReferences.insert(std::make_pair(pDevice, GetRefCount(pDevice) - 1));
+		}
+	}
+	else
+	{
+		LOG(ERROR) << "'IDirect3DDevice9::Reset' failed with '" << DXGetErrorStringA(hr) << "'!";
+	}
+
+	return hr;
+}
+HRESULT STDMETHODCALLTYPE										IDirect3DDevice9_Present(IDirect3DDevice9 *pDevice, const RECT *pSourceRect, const RECT *pDestRect, HWND hDestWindowOverride, const RGNDATA *pDirtyRegion)
+{
+	static const auto trampoline = ReHook::Call(&IDirect3DDevice9_Present);
+	
+	const auto it = sManagers.find(pDevice);
+	ReShade::Manager *const manager = it != sManagers.end() ? it->second : nullptr;
+
+	if (manager != nullptr)
+	{
+		manager->OnPostProcess();
+		manager->OnPresent();
+	}
+
+	return trampoline(pDevice, pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
 }
 
 // IDirect3DDevice9Ex
