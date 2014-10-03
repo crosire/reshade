@@ -499,10 +499,8 @@ STRING															\"(\\.|[^\\"])*\"
 ")"																{ return ')'; }
 "{"																{ yy_push_state(yyextra->mNextLexerState, yyscanner); return '{'; }
 "}"																{ yyextra->mNextLexerState = yy_top_state(yyscanner); yy_pop_state(yyscanner); return '}'; }
-"<%"															{ return '{'; }
-"%>"															{ return '}'; }
-"["|"<:"														{ return '['; }
-"]"|":>"														{ return ']'; }
+"["																{ return '['; }
+"]"																{ return ']'; }
 
 "=="															{ yylval->l.Uint = ReShade::EffectNodes::Expression::Equal; return TOK_OPERATOR_EQUAL; }
 "!="															{ yylval->l.Uint = ReShade::EffectNodes::Expression::NotEqual; return TOK_OPERATOR_NOTEQUAL; }
