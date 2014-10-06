@@ -249,7 +249,7 @@ STRING															\"(\\.|[^\\"])*\"
 <STATE_PASS>"PixelShader"										{ yylval->l.Uint = ReShade::EffectNodes::Pass::State::PixelShader; return TOK_IDENTIFIER_PASSSTATE; }
 <STATE_PASS>"RenderTarget"										{ yylval->l.Uint = ReShade::EffectNodes::Pass::State::RenderTarget0; return TOK_IDENTIFIER_PASSSTATE; }
 <STATE_PASS>"RenderTarget"[0-7]									{ yylval->l.Uint = ReShade::EffectNodes::Pass::State::RenderTarget0 + *(yytext + 12) - '0'; return TOK_IDENTIFIER_PASSSTATE; }
-<STATE_PASS>"RenderTargetWriteMask"|"ColorWriteMask"			{ yylval->l.Uint = ReShade::EffectNodes::Pass::State::ColorWriteMask; return TOK_IDENTIFIER_PASSSTATE; }
+<STATE_PASS>"RenderTargetWriteMask"|"ColorWriteEnable"			{ yylval->l.Uint = ReShade::EffectNodes::Pass::State::ColorWriteMask; return TOK_IDENTIFIER_PASSSTATE; }
 <STATE_PASS>"SRGBWriteEnable"									{ yylval->l.Uint = ReShade::EffectNodes::Pass::State::SRGBWriteEnable; return TOK_IDENTIFIER_PASSSTATE; }
 <STATE_PASS>("Alpha")?"BlendEnable"								{ yylval->l.Uint = ReShade::EffectNodes::Pass::State::BlendEnable; return TOK_IDENTIFIER_PASSSTATE; }
 <STATE_PASS>"SrcBlend"											{ yylval->l.Uint = ReShade::EffectNodes::Pass::State::SrcBlend; return TOK_IDENTIFIER_PASSSTATE; }
@@ -257,7 +257,7 @@ STRING															\"(\\.|[^\\"])*\"
 <STATE_PASS>"BlendOp"											{ yylval->l.Uint = ReShade::EffectNodes::Pass::State::BlendOp; return TOK_IDENTIFIER_PASSSTATE; }
 <STATE_PASS>"BlendOpAlpha"										{ yylval->l.Uint = ReShade::EffectNodes::Pass::State::BlendOpAlpha; return TOK_IDENTIFIER_PASSSTATE; }
 <STATE_PASS>("Depth"|"Z")"Enable"								{ yylval->l.Uint = ReShade::EffectNodes::Pass::State::DepthEnable; return TOK_IDENTIFIER_PASSSTATE; }
-<STATE_PASS>("Depth"|"Z")"WriteMask"							{ yylval->l.Uint = ReShade::EffectNodes::Pass::State::DepthWriteMask; return TOK_IDENTIFIER_PASSSTATE; }
+<STATE_PASS>"DepthWriteMask"|"ZWriteEnable"						{ yylval->l.Uint = ReShade::EffectNodes::Pass::State::DepthWriteMask; return TOK_IDENTIFIER_PASSSTATE; }
 <STATE_PASS>("Depth"|"Z")"Func"									{ yylval->l.Uint = ReShade::EffectNodes::Pass::State::DepthFunc; return TOK_IDENTIFIER_PASSSTATE; }
 <STATE_PASS>"StencilEnable"										{ yylval->l.Uint = ReShade::EffectNodes::Pass::State::StencilEnable; return TOK_IDENTIFIER_PASSSTATE; }
 <STATE_PASS>"StencilReadMask"|"StencilMask"						{ yylval->l.Uint = ReShade::EffectNodes::Pass::State::StencilReadMask; return TOK_IDENTIFIER_PASSSTATE; }
