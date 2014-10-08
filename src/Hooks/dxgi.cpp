@@ -53,7 +53,9 @@ ULONG STDMETHODCALLTYPE											IDXGISwapChain_Release(IDXGISwapChain *pSwapCh
 
 	ULONG ref = trampoline(pSwapChain);
 
-	if (sReferences.count(pSwapChain) && ref == sReferences.at(pSwapChain))
+	const auto it = sReferences.find(pSwapChain);
+
+	if (it != sReferences.end() && ref == it->second)
 	{
 		LOG(INFO) << "Redirecting final '" << "IDXGISwapChain::Release" << "(" << pSwapChain << ")' ...";
 
@@ -110,8 +112,10 @@ HRESULT STDMETHODCALLTYPE										IDXGISwapChain_ResizeBuffers(IDXGISwapChain *
 	{
 		if (manager != nullptr)
 		{
+			const ULONG ref = GetRefCount(pSwapChain);
+
 			manager->OnCreate();
-			sReferences.insert(std::make_pair(pSwapChain, GetRefCount(pSwapChain) - 1));
+			sReferences.insert(std::make_pair(pSwapChain, GetRefCount(pSwapChain) - ref));
 		}
 	}
 	else

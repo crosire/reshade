@@ -73,7 +73,9 @@ ULONG STDMETHODCALLTYPE											IDirect3DSwapChain9_Release(IDirect3DSwapChain
 	
 	ULONG ref = trampoline(pSwapChain);
 
-	if (sReferences.count(pSwapChain) && ref == sReferences.at(pSwapChain))
+	const auto it = sReferences.find(pSwapChain);
+
+	if (it != sReferences.end() && ref == it->second)
 	{
 		LOG(INFO) << "Redirecting final '" << "IDirect3DSwapChain9::Release" << "(" << pSwapChain << ")' ...";
 
@@ -111,7 +113,9 @@ ULONG STDMETHODCALLTYPE											IDirect3DDevice9_Release(IDirect3DDevice9 *pDe
 	
 	ULONG ref = trampoline(pDevice);
 
-	if (sReferences.count(pDevice) && ref == sReferences.at(pDevice))
+	const auto it = sReferences.find(pDevice);
+
+	if (it != sReferences.end() && ref == it->second)
 	{
 		LOG(INFO) << "Redirecting final '" << "IDirect3DDevice9::Release" << "(" << pDevice << ")' ...";
 
@@ -200,8 +204,10 @@ HRESULT STDMETHODCALLTYPE										IDirect3DDevice9_Reset(IDirect3DDevice9 *pDev
 	{
 		if (manager != nullptr)
 		{
+			const ULONG ref = GetRefCount(pDevice);
+			
 			manager->OnCreate();
-			sReferences.insert(std::make_pair(pDevice, GetRefCount(pDevice) - 1));
+			sReferences.insert(std::make_pair(pDevice, GetRefCount(pDevice) - ref));
 		}
 	}
 	else
@@ -247,8 +253,10 @@ HRESULT STDMETHODCALLTYPE										IDirect3DDevice9Ex_ResetEx(IDirect3DDevice9Ex
 	{
 		if (manager != nullptr)
 		{
+			const ULONG ref = GetRefCount(pDevice);
+
 			manager->OnCreate();
-			sReferences.insert(std::make_pair(pDevice, GetRefCount(pDevice) - 1));
+			sReferences.insert(std::make_pair(pDevice, GetRefCount(pDevice) - ref));
 		}
 	}
 	else
