@@ -1130,7 +1130,7 @@ BOOL STDMETHODCALLTYPE											Direct3DDevice8::ShowCursor(BOOL bShow)
 }
 HRESULT STDMETHODCALLTYPE										Direct3DDevice8::CreateAdditionalSwapChain(D3DPRESENT_PARAMETERS8 *pPresentationParameters, Direct3DSwapChain8 **ppSwapChain)
 {
-	LOG(INFO) << "Redirecting '" << "Direct3DDevice8::CreateAdditionalSwapChain" << "(" << this << ", " << pPresentationParameters << ", " << ppSwapChain << ")' ...";
+	LOG(INFO) << "Redirecting '" << "IDirect3DDevice8::CreateAdditionalSwapChain" << "(" << this << ", " << pPresentationParameters << ", " << ppSwapChain << ")' ...";
 
 	if (ppSwapChain == nullptr)
 	{
@@ -1159,7 +1159,7 @@ HRESULT STDMETHODCALLTYPE										Direct3DDevice8::CreateAdditionalSwapChain(D3
 
 	if (pp.SwapEffect == D3DSWAPEFFECT_COPY_VSYNC)
 	{
-		LOG(WARNING) << "> 'Direct3DDevice8::CreateAdditionalSwapChain' failed because 'D3DSWAPEFFECT_COPY_VSYNC' is not supported!";
+		LOG(WARNING) << "> 'IDirect3DDevice8::CreateAdditionalSwapChain' failed because 'D3DSWAPEFFECT_COPY_VSYNC' is not supported!";
 
 		*ppSwapChain = nullptr;
 
@@ -1192,7 +1192,7 @@ HRESULT STDMETHODCALLTYPE										Direct3DDevice8::CreateAdditionalSwapChain(D3
 }
 HRESULT STDMETHODCALLTYPE										Direct3DDevice8::Reset(D3DPRESENT_PARAMETERS8 *pPresentationParameters)
 {
-	LOG(INFO) << "Redirecting '" << "Direct3DDevice8::Reset" << "(" << this << ", " << pPresentationParameters << ")' ...";
+	LOG(INFO) << "Redirecting '" << "IDirect3DDevice8::Reset" << "(" << this << ", " << pPresentationParameters << ")' ...";
 
 	D3DPRESENT_PARAMETERS pp;
 	pp.BackBufferWidth = pPresentationParameters->BackBufferWidth;
@@ -1212,7 +1212,7 @@ HRESULT STDMETHODCALLTYPE										Direct3DDevice8::Reset(D3DPRESENT_PARAMETERS8
 
 	if (pp.SwapEffect == D3DSWAPEFFECT_COPY_VSYNC)
 	{
-		LOG(WARNING) << "> 'Direct3DDevice8::Reset' failed because 'D3DSWAPEFFECT_COPY_VSYNC' is not supported!";
+		LOG(WARNING) << "> 'IDirect3DDevice8::Reset' failed because 'D3DSWAPEFFECT_COPY_VSYNC' is not supported!";
 
 		return E_NOTIMPL;
 	}
@@ -1513,7 +1513,7 @@ HRESULT STDMETHODCALLTYPE										Direct3DDevice8::CopyRects(Direct3DSurface8 *
 	}
 	else
 	{
-		LOG(WARNING) << "'Direct3DDevice8::CopyRects' failed because surface properties do not allow conversion to Direct3D 9 call!";
+		LOG(WARNING) << "'IDirect3DDevice8::CopyRects' failed because surface properties do not allow conversion to Direct3D 9 call!";
 	}
 
 	return hr;
@@ -1763,7 +1763,7 @@ HRESULT STDMETHODCALLTYPE										Direct3DDevice8::DeleteStateBlock(DWORD Token
 }
 HRESULT STDMETHODCALLTYPE										Direct3DDevice8::CreateStateBlock(D3DSTATEBLOCKTYPE Type, DWORD *pToken)
 {
-	LOG(INFO) << "Redirecting '" << "Direct3DDevice8::CreateStateBlock" << "(" << Type << ", " << pToken << ")' ...";
+	LOG(INFO) << "Redirecting '" << "IDirect3DDevice8::CreateStateBlock" << "(" << Type << ", " << pToken << ")' ...";
 
 	if (pToken == nullptr)
 	{
@@ -1918,7 +1918,7 @@ HRESULT STDMETHODCALLTYPE										Direct3DDevice8::GetInfo(DWORD DevInfoID, voi
 	UNREFERENCED_PARAMETER(pDevInfoStruct);
 	UNREFERENCED_PARAMETER(DevInfoStructSize);
 
-	LOG(WARNING) << "Redirecting '" << "Direct3DDevice8::GetInfo" << "(" << this << ", " << DevInfoID << ", " << pDevInfoStruct << ", " << DevInfoStructSize << ")' ...";
+	LOG(WARNING) << "Redirecting '" << "IDirect3DDevice8::GetInfo" << "(" << this << ", " << DevInfoID << ", " << pDevInfoStruct << ", " << DevInfoStructSize << ")' ...";
 
 	return S_FALSE;
 }
@@ -1981,7 +1981,7 @@ HRESULT STDMETHODCALLTYPE										Direct3DDevice8::CreateVertexShader(CONST DWO
 {
 	UNREFERENCED_PARAMETER(Usage);
 
-	LOG(INFO) << "Redirecting '" << "Direct3DDevice8::CreateVertexShader" << "(" << this << ", " << pDeclaration << ", " << pFunction << ", " << pHandle << ", " << Usage << ")' ...";
+	LOG(INFO) << "Redirecting '" << "IDirect3DDevice8::CreateVertexShader" << "(" << this << ", " << pDeclaration << ", " << pFunction << ", " << pHandle << ", " << Usage << ")' ...";
 
 	if (pDeclaration == nullptr || pFunction == nullptr || pHandle == nullptr)
 	{
@@ -2441,7 +2441,7 @@ HRESULT STDMETHODCALLTYPE										Direct3DDevice8::GetIndices(Direct3DIndexBuff
 }
 HRESULT STDMETHODCALLTYPE										Direct3DDevice8::CreatePixelShader(CONST DWORD *pFunction, DWORD *pHandle)
 {
-	LOG(INFO) << "Redirecting '" << "Direct3DDevice8::CreatePixelShader" << "(" << this << ", " << pFunction << ", " << pHandle << ")' ...";
+	LOG(INFO) << "Redirecting '" << "IDirect3DDevice8::CreatePixelShader" << "(" << this << ", " << pFunction << ", " << pHandle << ")' ...";
 
 	if (pFunction == nullptr || pHandle == nullptr)
 	{
@@ -2679,7 +2679,7 @@ HMONITOR STDMETHODCALLTYPE										Direct3D8::GetAdapterMonitor(UINT Adapter)
 }
 HRESULT STDMETHODCALLTYPE										Direct3D8::CreateDevice(UINT Adapter, D3DDEVTYPE DeviceType, HWND hFocusWindow, DWORD BehaviorFlags, D3DPRESENT_PARAMETERS8 *pPresentationParameters, Direct3DDevice8 **ppReturnedDeviceInterface)
 {
-	LOG(INFO) << "Redirecting '" << "Direct3D8::CreateDevice" << "(" << this << ", " << Adapter << ", " << DeviceType << ", " << hFocusWindow << ", " << BehaviorFlags << ", " << pPresentationParameters << ", " << ppReturnedDeviceInterface << ")' ...";
+	LOG(INFO) << "Redirecting '" << "IDirect3D8::CreateDevice" << "(" << this << ", " << Adapter << ", " << DeviceType << ", " << hFocusWindow << ", " << BehaviorFlags << ", " << pPresentationParameters << ", " << ppReturnedDeviceInterface << ")' ...";
 
 	if (pPresentationParameters == nullptr || ppReturnedDeviceInterface == nullptr)
 	{
@@ -2708,7 +2708,7 @@ HRESULT STDMETHODCALLTYPE										Direct3D8::CreateDevice(UINT Adapter, D3DDEVT
 
 	if (pp.SwapEffect == D3DSWAPEFFECT_COPY_VSYNC)
 	{
-		LOG(WARNING) << "> 'Direct3D8::CreateDevice' failed because 'D3DSWAPEFFECT_COPY_VSYNC' is not supported!";
+		LOG(WARNING) << "> 'IDirect3D8::CreateDevice' failed because 'D3DSWAPEFFECT_COPY_VSYNC' is not supported!";
 
 		*ppReturnedDeviceInterface = nullptr;
 
