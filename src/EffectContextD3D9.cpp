@@ -137,7 +137,7 @@ namespace ReShade
 		class													D3D9EffectCompiler
 		{
 		public:
-			D3D9EffectCompiler(const EffectTree &ast) : mAST(ast), mEffect(nullptr), mCurrentInParameterBlock(false), mCurrentInFunctionBlock(false), mCurrentRegisterIndex(0), mCurrentStorageSize(0), mCurrentPositionVariableType(0)
+			D3D9EffectCompiler(const EffectTree &ast) : mAST(ast), mEffect(nullptr), mCurrentInParameterBlock(false), mCurrentInFunctionBlock(false), mCurrentRegisterIndex(0), mCurrentStorageSize(0)
 			{
 			}
 
@@ -1287,35 +1287,12 @@ namespace ReShade
 				switch (node.Mode)
 				{
 					case EffectNodes::Jump::Return:
-						switch (this->mCurrentPositionVariableType)
+						this->mCurrentSource += "return";
+
+						if (node.Value != 0)
 						{
-							case 1:
-							{
-								this->mCurrentSource += this->mCurrentPositionVariable + ".xy += _PIXEL_SIZE_.zw * " + this->mCurrentPositionVariable + ".ww;\n";
-							}
-							default:
-							{
-								this->mCurrentSource += "return";
-
-								if (node.Value != 0)
-								{
-									this->mCurrentSource += ' ';
-									this->mAST[node.Value].Accept(*this);
-								}
-								break;
-							}
-							case 2:
-							{
-								const auto &value = this->mAST[node.Value];
-
-								this->mCurrentSource += PrintType(value.As<EffectNodes::RValue>().Type);
-								this->mCurrentSource += " _return = ";
-								value.Accept(*this);
-								this->mCurrentSource += ";\n";
-								this->mCurrentSource += "_return" + this->mCurrentPositionVariable + ".xy += _PIXEL_SIZE_.zw * _return" + this->mCurrentPositionVariable + ".ww;\n";
-								this->mCurrentSource += "return _return";
-								break;
-							}
+							this->mCurrentSource += ' ';
+							this->mAST[node.Value].Accept(*this);
 						}
 						break;
 					case EffectNodes::Jump::Break:
@@ -1453,10 +1430,9 @@ namespace ReShade
 					this->mCurrentSource += ']';
 				}
 
-				if (node.Semantic != nullptr)
+				if (!this->mCurrentInParameterBlock && node.Semantic != nullptr)
 				{
-					this->mCurrentSource += " : ";
-					this->mCurrentSource += ConvertSemantic(node.Semantic);
+					this->mCurrentSource += " : " + ConvertSemantic(node.Semantic);
 				}
 
 				if (node.HasInitializer())
@@ -1688,36 +1664,7 @@ namespace ReShade
 
 					for (unsigned int i = 0; i < parameters.Length; ++i)
 					{
-						const auto &parameter = this->mAST[parameters[i]].As<EffectNodes::Variable>();
-
-						if (parameter.Type.HasQualifier(EffectNodes::Type::Out))
-						{
-							if (parameter.Type.IsStruct() && this->mAST[parameter.Type.Definition].As<EffectNodes::Struct>().HasFields())
-							{
-								const auto &fields = this->mAST[this->mAST[parameter.Type.Definition].As<EffectNodes::Struct>().Fields].As<EffectNodes::List>();
-
-								for (unsigned int k = 0; k < fields.Length; ++k)
-								{
-									const auto &field = this->mAST[fields[k]].As<EffectNodes::Variable>();
-
-									if (field.Semantic != nullptr && boost::iequals(field.Semantic, "SV_Position"))
-									{
-										this->mCurrentPositionVariable = parameter.Name;
-										this->mCurrentPositionVariable += '.';
-										this->mCurrentPositionVariable += field.Name;
-										this->mCurrentPositionVariableType = 1;
-										break;
-									}
-								}
-							}
-							else if (parameter.Semantic != nullptr && boost::iequals(parameter.Semantic, "SV_Position"))
-							{
-								this->mCurrentPositionVariable = parameter.Name;
-								this->mCurrentPositionVariableType = 1;
-							}
-						}
-
-						parameter.Accept(*this);
+						this->mAST[parameters[i]].As<EffectNodes::Variable>().Accept(*this);
 
 						this->mCurrentSource += ", ";
 					}
@@ -1729,51 +1676,13 @@ namespace ReShade
 				}
 
 				this->mCurrentSource += ')';
-				
-				if (node.ReturnType.IsStruct() && this->mAST[node.ReturnType.Definition].As<EffectNodes::Struct>().HasFields())
-				{
-					const auto &fields = this->mAST[this->mAST[node.ReturnType.Definition].As<EffectNodes::Struct>().Fields].As<EffectNodes::List>();
-
-					for (unsigned int k = 0; k < fields.Length; ++k)
-					{
-						const auto &field = this->mAST[fields[k]].As<EffectNodes::Variable>();
-
-						if (field.Semantic != nullptr && boost::iequals(field.Semantic, "SV_Position"))
-						{
-							this->mCurrentPositionVariable = '.';
-							this->mCurrentPositionVariable += field.Name;
-							this->mCurrentPositionVariableType = 2;
-							break;
-						}
-					}
-				}
-				else if (node.ReturnSemantic != nullptr)
-				{
-					this->mCurrentSource += " : ";
-					this->mCurrentSource += ConvertSemantic(node.ReturnSemantic);
-
-					if (boost::iequals(node.ReturnSemantic, "SV_Position"))
-					{
-						this->mCurrentPositionVariable = "";
-						this->mCurrentPositionVariableType = 2;
-					}
-				}
 
 				if (node.HasDefinition())
 				{
 					this->mCurrentSource += '\n';
 					this->mCurrentInFunctionBlock = true;
 
-					this->mCurrentSource += "{\n";
-
 					this->mAST[node.Definition].As<EffectNodes::StatementBlock>().Accept(*this);
-
-					if (this->mCurrentPositionVariableType == 1)
-					{
-						this->mCurrentSource += this->mCurrentPositionVariable + ".xy += _PIXEL_SIZE_.zw * " + this->mCurrentPositionVariable + ".ww;\n";
-					}
-
-					this->mCurrentSource += "}\n";
 
 					this->mCurrentInFunctionBlock = false;
 				}
@@ -1781,8 +1690,6 @@ namespace ReShade
 				{
 					this->mCurrentSource += ";\n";
 				}
-
-				this->mCurrentPositionVariableType = 0;
 			}
 			void												Visit(const EffectNodes::Technique &node)
 			{
@@ -1964,11 +1871,209 @@ namespace ReShade
 
 				std::string source = "uniform float4 _PIXEL_SIZE_ : register(c223);\n" + this->mCurrentSource;
 
+				std::string positionVariable, initialization;
+				EffectNodes::Type returnType = node.ReturnType;
+
+				if (node.ReturnType.IsStruct() && this->mAST[node.ReturnType.Definition].As<EffectNodes::Struct>().HasFields())
+				{
+					const auto &fields = this->mAST[this->mAST[node.ReturnType.Definition].As<EffectNodes::Struct>().Fields].As<EffectNodes::List>();
+
+					for (unsigned int k = 0; k < fields.Length; ++k)
+					{
+						const auto &field = this->mAST[fields[k]].As<EffectNodes::Variable>();
+
+						if (field.Semantic == nullptr)
+						{
+							continue;
+						}
+						
+						if (boost::equals(field.Semantic, "SV_POSITION"))
+						{
+							positionVariable = "_return.";
+							positionVariable += field.Name;
+							break;
+						}
+						else if (boost::starts_with(field.Semantic, "SV_TARGET") && field.Type.Rows != 4)
+						{
+							this->mErrors += PrintLocation(node.Location) + "'SV_Target' must be a four-component vector when used inside structs on legacy targets.";
+							this->mFatal = true;
+							return;
+						}
+					}
+				}
+				else if (node.ReturnSemantic != nullptr)
+				{
+					if (boost::equals(node.ReturnSemantic, "SV_POSITION"))
+					{
+						positionVariable = "_return";
+					}
+					else if (boost::starts_with(node.ReturnSemantic, "SV_TARGET"))
+					{
+						returnType.Rows = 4;
+					}
+				}
+
+				source += PrintType(returnType) + ' ' + "__main" + '(';
+				
+				if (node.HasParameters())
+				{
+					const auto &parameters = this->mAST[node.Parameters].As<EffectNodes::List>();
+
+					for (unsigned int i = 0; i < parameters.Length; ++i)
+					{
+						const auto &parameter = this->mAST[parameters[i]].As<EffectNodes::Variable>();
+						EffectNodes::Type parameterType = parameter.Type;
+
+						if (parameter.Type.HasQualifier(EffectNodes::Type::Out))
+						{
+							if (parameter.Type.IsStruct() && this->mAST[parameter.Type.Definition].As<EffectNodes::Struct>().HasFields())
+							{
+								const auto &fields = this->mAST[this->mAST[parameter.Type.Definition].As<EffectNodes::Struct>().Fields].As<EffectNodes::List>();
+
+								for (unsigned int k = 0; k < fields.Length; ++k)
+								{
+									const auto &field = this->mAST[fields[k]].As<EffectNodes::Variable>();
+
+									if (field.Semantic == nullptr)
+									{
+										continue;
+									}
+									
+									if (boost::equals(field.Semantic, "SV_POSITION"))
+									{
+										positionVariable = parameter.Name;
+										positionVariable += '.';
+										positionVariable += field.Name;
+										break;
+									}
+									else if (boost::starts_with(field.Semantic, "SV_TARGET") && field.Type.Rows != 4)
+									{
+										this->mErrors += PrintLocation(node.Location) + "'SV_Target' must be a four-component vector when used inside structs on legacy targets.";
+										this->mFatal = true;
+										return;
+									}
+								}
+							}
+							else if (parameter.Semantic != nullptr)
+							{
+								if (boost::equals(parameter.Semantic, "SV_POSITION"))
+								{
+									positionVariable = parameter.Name;
+								}
+								else if (boost::starts_with(parameter.Semantic, "SV_TARGET"))
+								{
+									parameterType.Rows = 4;
+
+									initialization += parameter.Name;
+									initialization += " = float4(0.0f, 0.0f, 0.0f, 0.0f);\n";
+								}
+							}
+						}
+
+						source += PrintTypeWithQualifiers(parameterType) + ' ' + parameter.Name;
+
+						if (parameterType.IsArray())
+						{
+							source += '[';
+							source += (parameterType.ArrayLength >= 1) ? std::to_string(parameterType.ArrayLength) : "";
+							source += ']';
+						}
+
+						if (parameter.Semantic != nullptr)
+						{
+							source += " : " + ConvertSemantic(parameter.Semantic);
+						}
+
+						source += ", ";
+					}
+
+					source.pop_back();
+					source.pop_back();
+				}
+
+				source += ')';
+
+				if (node.ReturnSemantic != nullptr)
+				{
+					source += " : " + ConvertSemantic(node.ReturnSemantic);
+				}
+
+				source += "\n{\n";
+				source += initialization;
+
+				if (!node.ReturnType.IsVoid())
+				{
+					source += PrintType(returnType) + " _return = ";
+				}
+
+				if (node.ReturnType.Rows != returnType.Rows)
+				{
+					source += "float4(";
+				}
+
+				source += node.Name;
+				source += '(';
+
+				if (node.HasParameters())
+				{
+					const auto &parameters = this->mAST[node.Parameters].As<EffectNodes::List>();
+				
+					for (unsigned int i = 0; i < parameters.Length; ++i)
+					{
+						const auto &parameter = this->mAST[parameters[i]].As<EffectNodes::Variable>();
+
+						source += parameter.Name;
+
+						if (parameter.Semantic != nullptr && boost::starts_with(parameter.Semantic, "SV_TARGET"))
+						{
+							source += '.';
+
+							const char swizzle[] = { 'x', 'y', 'z', 'w' };
+
+							for (unsigned int i = 0; i < parameter.Type.Rows; ++i)
+							{
+								source += swizzle[i];
+							}
+						}
+
+						source += ", ";
+					}
+
+					source.pop_back();
+					source.pop_back();
+				}
+
+				source += ')';
+
+				if (node.ReturnType.Rows != returnType.Rows)
+				{
+					for (unsigned int i = 0; i < 4 - node.ReturnType.Rows; ++i)
+					{
+						source += ", 0.0f";
+					}
+
+					source += ')';
+				}
+
+				source += ";\n";
+				
+				if (type == EffectNodes::Pass::VertexShader)
+				{
+					source += positionVariable + ".xy += _PIXEL_SIZE_.zw * " + positionVariable + ".ww;\n";
+				}
+
+				if (!node.ReturnType.IsVoid())
+				{
+					source += "return _return;\n";
+				}
+
+				source += "}\n";
+
 				LOG(TRACE) << "> Compiling shader '" << node.Name << "':\n\n" << source.c_str() << "\n";
 
 				ID3DBlob *compiled = nullptr, *errors = nullptr;
 
-				HRESULT hr = D3DCompile(source.c_str(), source.length(), nullptr, nullptr, nullptr, node.Name, profile, flags, 0, &compiled, &errors);
+				HRESULT hr = D3DCompile(source.c_str(), source.length(), nullptr, nullptr, nullptr, "__main", profile, flags, 0, &compiled, &errors);
 
 				if (errors != nullptr)
 				{
@@ -2011,8 +2116,7 @@ namespace ReShade
 			bool												mFatal;
 			std::string											mCurrentBlockName;
 			bool												mCurrentInParameterBlock, mCurrentInFunctionBlock;
-			unsigned int										mCurrentCaseIndex, mCurrentPositionVariableType, mCurrentRegisterIndex, mCurrentStorageSize;
-			std::string											mCurrentPositionVariable;
+			unsigned int										mCurrentCaseIndex, mCurrentRegisterIndex, mCurrentStorageSize;
 			std::unordered_map<std::string, Effect::Annotation> *mCurrentAnnotations;
 			std::vector<D3D9Technique::Pass> *					mCurrentPasses;
 		};
