@@ -846,10 +846,12 @@ namespace ReShade
 						part3 = ']';
 						break;
 					case EffectNodes::Expression::Field:
-						part1 = '(';
-						part2 = (this->mAST[node.Operands[0]].Is<EffectNodes::LValue>() && this->mAST[node.Operands[0]].As<EffectNodes::LValue>().Type.HasQualifier(EffectNodes::Type::Uniform)) ? '_' : '.';
-						part3 = ')';
-						break;
+						this->mCurrentSource += '(';
+						this->mAST[node.Operands[0]].Accept(*this);
+						this->mCurrentSource += (this->mAST[node.Operands[0]].Is<EffectNodes::LValue>() && this->mAST[node.Operands[0]].As<EffectNodes::LValue>().Type.HasQualifier(EffectNodes::Type::Uniform)) ? '_' : '.';
+						this->mCurrentSource += this->mAST[node.Operands[1]].As<EffectNodes::Variable>().Name;
+						this->mCurrentSource += ')';
+						return;
 					case EffectNodes::Expression::Tex:
 						part1 = "__tex2D(";
 						part2 = ", ";
