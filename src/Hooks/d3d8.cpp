@@ -2450,9 +2450,9 @@ HRESULT STDMETHODCALLTYPE										Direct3DDevice8::CreatePixelShader(CONST DWOR
 
 	LOG(INFO) << "> Translating to Direct3D 9 compatible code ...";
 
-	if (*pFunction != 0xFFFF0101)
+	if (*pFunction < 0xFFFF0101 && *pFunction > 0xFFFF0104)
 	{
-		LOG(WARNING) << "> Failed because of version mismatch ('" << *pFunction << "')! Only 'ps_1_1' shaders are supported.";
+		LOG(WARNING) << "> Failed because of version mismatch ('" << *pFunction << "')! Only 'ps_1_x' shaders are supported.";
 
 		return D3DERR_INVALIDCALL;
 	}
