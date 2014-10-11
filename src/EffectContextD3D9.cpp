@@ -731,12 +731,12 @@ namespace ReShade
 						break;
 					case EffectNodes::Expression::LeftShift:
 						part1 = "((";
-						part2 = ") * pow(2, ";
+						part2 = ") * exp2(";
 						part3 = "))";
 						break;
 					case EffectNodes::Expression::RightShift:
 						part1 = "floor((";
-						part2 = ") / pow(2, ";
+						part2 = ") / exp2(";
 						part3 = "))";
 						break;
 					case EffectNodes::Expression::BitAnd:
