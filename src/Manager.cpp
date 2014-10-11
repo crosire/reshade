@@ -319,11 +319,16 @@ namespace ReShade
 			const time_t t = ::time(nullptr);
 			::localtime_s(&tm, &t);
 			char timeString[128];
-			::strftime(timeString, 128, "%Y_%m_%d_%H_%M_%S", &tm); 
+			::strftime(timeString, 128, "(%Y-%m-%d %H.%M.%S)", &tm); 
 
-			const boost::filesystem::path path = sExecutablePath.parent_path() / ("screenshot_" + sExecutablePath.stem().string() + "_" + timeString + ".png");
+			const boost::filesystem::path path = sExecutablePath.parent_path() / (sExecutablePath.stem().string() + ' ' + timeString + ".png");
 
-			stbi_write_png(path.string().c_str(), width, height, 4, data, 0);
+			LOG(INFO) << "Saving screenshot to " << ObfuscatePath(path) << " ...";
+
+			if (!stbi_write_png(path.string().c_str(), width, height, 4, data, 0))
+			{
+				LOG(ERROR) << "Failed to write screenshot to " << ObfuscatePath(path) << "!";
+			}
 
 			delete[] data;
 		}
