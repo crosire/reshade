@@ -13,6 +13,7 @@ namespace ReShade
 	{
 	public:
 		virtual void											GetDimension(unsigned int &width, unsigned int &height) const = 0;
+		virtual void											GetScreenshot(unsigned char *buffer, std::size_t size) const = 0;
 
 		inline std::unique_ptr<Effect>							Compile(const boost::filesystem::path &path, const std::vector<std::pair<std::string, std::string>> &defines)
 		{

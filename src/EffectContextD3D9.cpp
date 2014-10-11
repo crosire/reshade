@@ -31,6 +31,7 @@ namespace ReShade
 			~D3D9EffectContext(void);
 
 			void												GetDimension(unsigned int &width, unsigned int &height) const;
+			void												GetScreenshot(unsigned char *buffer, std::size_t size) const;
 
 			std::unique_ptr<Effect>								Compile(const EffectTree &ast, std::string &errors);
 
@@ -2146,6 +2147,105 @@ namespace ReShade
 
 			width = desc.Width;
 			height = desc.Height;
+		}
+		void													D3D9EffectContext::GetScreenshot(unsigned char *buffer, std::size_t size) const
+		{
+			IDirect3DSurface9 *backbuffer = nullptr;
+			IDirect3DSurface9 *surfaceSystem = nullptr;
+
+			HRESULT hr = this->mDevice->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &backbuffer);
+
+			if (FAILED(hr))
+			{
+				return;
+			}
+
+			D3DSURFACE_DESC desc;
+			backbuffer->GetDesc(&desc);
+
+			if (desc.Format != D3DFMT_X8R8G8B8 && desc.Format != D3DFMT_X8B8G8R8 && desc.Format != D3DFMT_A8R8G8B8 && desc.Format != D3DFMT_A8B8G8R8)
+			{
+				backbuffer->Release();
+				return;
+			}
+
+			hr = this->mDevice->CreateOffscreenPlainSurface(desc.Width, desc.Height, desc.Format, D3DPOOL_SYSTEMMEM, &surfaceSystem, nullptr);
+
+			if (FAILED(hr))
+			{
+				backbuffer->Release();
+				return;
+			}
+
+			if (desc.MultiSampleType != D3DMULTISAMPLE_NONE)
+			{
+				IDirect3DSurface9 *surfaceResolve = nullptr;
+
+				hr = this->mDevice->CreateRenderTarget(desc.Width, desc.Height, desc.Format, D3DMULTISAMPLE_NONE, 0, FALSE, &surfaceResolve, nullptr);				
+
+				if (SUCCEEDED(hr))
+				{
+					hr = this->mDevice->StretchRect(backbuffer, nullptr, surfaceResolve, nullptr, D3DTEXF_NONE);
+
+					if (SUCCEEDED(hr))
+					{
+						hr = this->mDevice->GetRenderTargetData(surfaceResolve, surfaceSystem);
+					}
+
+					surfaceResolve->Release();
+				}
+			}
+			else
+			{
+				hr = this->mDevice->GetRenderTargetData(backbuffer, surfaceSystem);
+			}
+
+			backbuffer->Release();
+
+			if (FAILED(hr))
+			{
+				surfaceSystem->Release();
+				return;
+			}
+
+			D3DLOCKED_RECT mapped;
+			ZeroMemory(&mapped, sizeof(D3DLOCKED_RECT));
+
+			// Lock surface
+			hr = surfaceSystem->LockRect(&mapped, nullptr, D3DLOCK_READONLY);
+
+			if (FAILED(hr))
+			{
+				surfaceSystem->Release();
+				return;
+			}
+
+			const UINT pitch = desc.Width * 4;
+
+			BYTE *pBuffer = buffer;
+			BYTE *pMapped = static_cast<BYTE *>(mapped.pBits);
+
+			for (UINT y = 0; y < desc.Height; ++y)
+			{
+				CopyMemory(pBuffer, pMapped, std::min(pitch, static_cast<UINT>(mapped.Pitch)));
+
+				for (UINT x = 0; x < pitch; x += 4)
+				{
+					pBuffer[x + 3] = 0xFF;
+
+					if (desc.Format == D3DFMT_A8R8G8B8)
+					{
+						std::swap(pBuffer[x + 0], pBuffer[x + 2]);
+					}
+				}
+							
+				pBuffer += pitch;
+				pMapped += mapped.Pitch;
+			}
+
+			surfaceSystem->UnlockRect();
+
+			surfaceSystem->Release();
 		}
 
 		std::unique_ptr<Effect>									D3D9EffectContext::Compile(const EffectTree &ast, std::string &errors)

@@ -52,6 +52,7 @@ namespace ReShade
 			~D3D11EffectContext(void);
 
 			void												GetDimension(unsigned int &width, unsigned int &height) const;
+			void												GetScreenshot(unsigned char *buffer, std::size_t size) const;
 
 			std::unique_ptr<Effect>								Compile(const EffectTree &ast, std::string &errors);
 
@@ -2203,6 +2204,116 @@ namespace ReShade
 
 			width = desc.Width;
 			height = desc.Height;
+		}
+		void													D3D11EffectContext::GetScreenshot(unsigned char *buffer, std::size_t size) const
+		{
+			ID3D11Texture2D *backbuffer = nullptr;
+
+			HRESULT hr = this->mSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), reinterpret_cast<void **>(&backbuffer));
+
+			if (FAILED(hr))
+			{
+				return;
+			}
+
+			D3D11_TEXTURE2D_DESC desc;
+			backbuffer->GetDesc(&desc);
+
+			if (desc.Format != DXGI_FORMAT_R8G8B8A8_UNORM && desc.Format != DXGI_FORMAT_R8G8B8A8_UNORM_SRGB && desc.Format != DXGI_FORMAT_B8G8R8A8_UNORM && desc.Format != DXGI_FORMAT_B8G8R8A8_UNORM_SRGB)
+			{
+				backbuffer->Release();
+				return;
+			}
+
+			ID3D11Texture2D *textureStaging = nullptr;
+
+			D3D11_TEXTURE2D_DESC textureDesc;
+			ZeroMemory(&textureDesc, sizeof(D3D11_TEXTURE2D_DESC));
+			textureDesc.ArraySize = 1;
+			textureDesc.Width = desc.Width;
+			textureDesc.Height = desc.Height;
+			textureDesc.Format = desc.Format;
+			textureDesc.Usage = D3D11_USAGE_STAGING;
+			textureDesc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+			textureDesc.MipLevels = 1;
+			textureDesc.SampleDesc.Count = 1;
+			textureDesc.SampleDesc.Quality = 0;
+
+			hr = this->mDevice->CreateTexture2D(&textureDesc, nullptr, &textureStaging);
+
+			if (FAILED(hr))
+			{
+				backbuffer->Release();
+				return;
+			}
+
+			if (desc.SampleDesc.Count > 1)
+			{
+				textureDesc.CPUAccessFlags = 0;
+				textureDesc.Usage = D3D11_USAGE_DEFAULT;
+
+				ID3D11Texture2D *textureResolve = nullptr;
+
+				hr = this->mDevice->CreateTexture2D(&textureDesc, nullptr, &textureResolve);
+
+				if (SUCCEEDED(hr))
+				{
+					this->mImmediateContext->ResolveSubresource(textureResolve, 0, backbuffer, 0, textureDesc.Format);
+					this->mImmediateContext->CopyResource(textureStaging, textureResolve);
+
+					textureResolve->Release();
+				}
+			}
+			else
+			{
+				this->mImmediateContext->CopyResource(textureStaging, backbuffer);
+			}
+
+			backbuffer->Release();
+
+			if (FAILED(hr))
+			{
+				textureStaging->Release();
+				return;
+			}
+				
+			D3D11_MAPPED_SUBRESOURCE mapped;
+			ZeroMemory(&mapped, sizeof(D3D11_MAPPED_SUBRESOURCE));
+
+			hr = this->mImmediateContext->Map(textureStaging, 0, D3D11_MAP_READ, 0, &mapped);
+
+			if (FAILED(hr))
+			{
+				textureStaging->Release();
+				return;
+			}
+
+			const UINT pitch = desc.Width * 4;
+
+			BYTE *pBuffer = buffer;
+			BYTE *pMapped = static_cast<BYTE *>(mapped.pData);
+
+			for (UINT y = 0; y < desc.Height; ++y)
+			{
+				CopyMemory(pBuffer, pMapped, std::min(pitch, static_cast<UINT>(mapped.RowPitch)));
+
+				for (UINT x = 0; x < pitch; x += 4)
+				{
+					pBuffer[x + 3] = 0xFF;
+
+					if (desc.Format == DXGI_FORMAT_B8G8R8A8_UNORM || desc.Format == DXGI_FORMAT_B8G8R8A8_UNORM_SRGB)
+					{
+						std::swap(pBuffer[x + 0], pBuffer[x + 2]);
+					}
+				}
+								
+				pBuffer += pitch;
+				pMapped += mapped.RowPitch;
+			}
+
+			this->mImmediateContext->Unmap(textureStaging, 0);
+
+			textureStaging->Release();
 		}
 
 		std::unique_ptr<Effect>									D3D11EffectContext::Compile(const EffectTree &ast, std::string &errors)

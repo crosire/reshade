@@ -5,6 +5,7 @@
 
 #include <stb_dxt.h>
 #include <stb_image.h>
+#include <stb_image_write.h>
 #include <stb_image_resize.h>
 #include <boost\filesystem\operations.hpp>
 #include <boost\assign\list_of.hpp>
@@ -26,13 +27,14 @@ namespace ReShade
 			return result;
 		}
 
-		boost::filesystem::path									shaderPath;
+		boost::filesystem::path									sExecutablePath, sShaderPath;
 	}
 
 	bool														Manager::Initialize(const boost::filesystem::path &executablePath, const boost::filesystem::path &injectorPath, const boost::filesystem::path &systemPath)
 	{
-		shaderPath = injectorPath;
-		shaderPath.replace_extension("fx");
+		sExecutablePath = executablePath;
+		sShaderPath = injectorPath;
+		sShaderPath.replace_extension("fx");
 
 		// Initialize logger
 		boost::filesystem::path logPath = injectorPath;
@@ -100,7 +102,7 @@ namespace ReShade
 			return true;
 		}
 
-		LOG(INFO) << "Loading effect from " << ObfuscatePath(shaderPath) << " ...";
+		LOG(INFO) << "Loading effect from " << ObfuscatePath(sShaderPath) << " ...";
 
 		std::string errors;
 		unsigned int bufferWidth = 0, bufferHeight = 0;
@@ -112,7 +114,7 @@ namespace ReShade
 			("BUFFER_RCP_WIDTH", "(1.0f / BUFFER_WIDTH)")
 			("BUFFER_RCP_HEIGHT", "(1.0f / BUFFER_HEIGHT)");
 
-		std::unique_ptr<Effect> effect = this->mEffectContext->Compile(shaderPath, defines, errors);
+		std::unique_ptr<Effect> effect = this->mEffectContext->Compile(sShaderPath, defines, errors);
 
 		if (effect == nullptr)
 		{
@@ -177,7 +179,7 @@ namespace ReShade
 			}
 			else
 			{
-				const boost::filesystem::path path = boost::filesystem::absolute(source, shaderPath.parent_path());
+				const boost::filesystem::path path = boost::filesystem::absolute(source, sShaderPath.parent_path());
 				int widthFile = 0, heightFile = 0, channelsFile = 0, channels = STBI_default;
 
 				switch (desc.Format)
@@ -304,5 +306,26 @@ namespace ReShade
 	}
 	void														Manager::OnPresent(void)
 	{
+		if (GetAsyncKeyState(VK_SNAPSHOT) & 0x8000)
+		{
+			unsigned int width = 0, height = 0;
+			this->mEffectContext->GetDimension(width, height);
+
+			const std::size_t dataSize = width * height * 4;
+			unsigned char *data = new unsigned char[dataSize];
+			this->mEffectContext->GetScreenshot(data, dataSize);
+
+			tm tm;
+			const time_t t = ::time(nullptr);
+			::localtime_s(&tm, &t);
+			char timeString[128];
+			::strftime(timeString, 128, "%Y_%m_%d_%H_%M_%S", &tm); 
+
+			const boost::filesystem::path path = sExecutablePath.parent_path() / ("screenshot_" + sExecutablePath.stem().string() + "_" + timeString + ".png");
+
+			stbi_write_png(path.string().c_str(), width, height, 4, data, 0);
+
+			delete[] data;
+		}
 	}
 }

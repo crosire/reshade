@@ -143,6 +143,7 @@ namespace ReShade
 			~OGL4EffectContext(void);
 
 			void												GetDimension(unsigned int &width, unsigned int &height) const;
+			void												GetScreenshot(unsigned char *buffer, std::size_t size) const;
 
 			std::unique_ptr<Effect>								Compile(const EffectTree &ast, std::string &errors);
 
@@ -2672,6 +2673,34 @@ namespace ReShade
 
 			width = static_cast<unsigned int>(rect.right - rect.left);
 			height = static_cast<unsigned int>(rect.bottom - rect.top);
+		}
+		void													OGL4EffectContext::GetScreenshot(unsigned char *buffer, std::size_t size) const
+		{
+			GLCHECK(glReadBuffer(GL_BACK));
+
+			unsigned int width = 0, height = 0;
+			GetDimension(width, height);
+			const unsigned int pitch = width * 4;
+
+			assert(size >= pitch * height);
+
+			glReadPixels(0, 0, static_cast<GLsizei>(width), static_cast<GLsizei>(height), GL_RGBA, GL_UNSIGNED_BYTE, buffer);
+			
+			for (unsigned int y = 0; y * 2 < height; ++y)
+			{
+				const unsigned int i1 = y * pitch;
+				const unsigned int i2 = (height - 1 - y) * pitch;
+
+				for (unsigned int x = 0; x < pitch; x += 4)
+				{
+					buffer[i1 + x + 3] = 0xFF;
+					buffer[i2 + x + 3] = 0xFF;
+
+					std::swap(buffer[i1 + x + 0], buffer[i2 + x + 0]);
+					std::swap(buffer[i1 + x + 1], buffer[i2 + x + 1]);
+					std::swap(buffer[i1 + x + 2], buffer[i2 + x + 2]);
+				}
+			}
 		}
 
 		std::unique_ptr<Effect>									OGL4EffectContext::Compile(const EffectTree &ast, std::string &errors)
