@@ -381,49 +381,42 @@ HRESULT STDMETHODCALLTYPE										IDirect3D9Ex_CreateDeviceEx(IDirect3D9Ex *pD3
 // PIX
 EXPORT int WINAPI												D3DPERF_BeginEvent(D3DCOLOR col, LPCWSTR wszName)
 {
-	static const auto trampoline = ReHook::Call(&D3DPERF_BeginEvent);
+	UNREFERENCED_PARAMETER(col);
+	UNREFERENCED_PARAMETER(wszName);
 
-	return trampoline(col, wszName);
+	return 0;
 }
 EXPORT int WINAPI												D3DPERF_EndEvent(void)
 {
-	static const auto trampoline = ReHook::Call(&D3DPERF_EndEvent);
-
-	return trampoline();
+	return 0;
 }
 EXPORT void WINAPI												D3DPERF_SetMarker(D3DCOLOR col, LPCWSTR wszName)
 {
-	static const auto trampoline = ReHook::Call(&D3DPERF_SetMarker);
-
-	trampoline(col, wszName);
+	UNREFERENCED_PARAMETER(col);
+	UNREFERENCED_PARAMETER(wszName);
 }
 EXPORT void WINAPI												D3DPERF_SetRegion(D3DCOLOR col, LPCWSTR wszName)
 {
-	static const auto trampoline = ReHook::Call(&D3DPERF_SetRegion);
-
-	trampoline(col, wszName);
+	UNREFERENCED_PARAMETER(col);
+	UNREFERENCED_PARAMETER(wszName);
 }
 EXPORT BOOL WINAPI												D3DPERF_QueryRepeatFrame(void)
 {
-	static const auto trampoline = ReHook::Call(&D3DPERF_QueryRepeatFrame);
-
-	return trampoline();
+	return FALSE;
 }
 EXPORT void WINAPI												D3DPERF_SetOptions(DWORD dwOptions)
 {
-	static const auto trampoline = ReHook::Call(&D3DPERF_SetOptions);
+	UNREFERENCED_PARAMETER(dwOptions);
 
 #ifdef _DEBUG
-	dwOptions = 0;
-#endif
+	static const auto trampoline = ReHook::Call(&D3DPERF_SetOptions);
 
-	trampoline(dwOptions);
+	trampoline(0);
+#endif
 }
 EXPORT DWORD WINAPI												D3DPERF_GetStatus(void)
 {
-	static const auto trampoline = ReHook::Call(&D3DPERF_GetStatus);
-
-	return trampoline();
+	return 0;
 }
 
 // D3D9
