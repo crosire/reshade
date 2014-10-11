@@ -2371,8 +2371,8 @@ namespace ReShade
 					"void _sincos(vec2 x, out vec2 s, out vec2 c) { s = sin(x), c = cos(x); }"
 					"void _sincos(vec3 x, out vec3 s, out vec3 c) { s = sin(x), c = cos(x); }"
 					"void _sincos(vec4 x, out vec4 s, out vec4 c) { s = sin(x), c = cos(x); }\n"
-					"vec4 _textureLod(sampler2D s, vec4 c) { return textureLod(s, c.xy, c.w); }"
-					"vec4 _textureLodOffset(sampler2D s, vec4 c, ivec2 offset) { return textureLodOffset(s, c.xy, c.w, offset); }"
+					"vec4 _textureLod(sampler2D s, vec4 c) { return textureLod(s, c.xy, c.w); }\n"
+					"#define _textureLodOffset(s, c, offset) textureLodOffset(s, (c).xy, (c).w, offset)\n"
 					"vec4 _textureBias(sampler2D s, vec4 c) { return textureOffset(s, c.xy, ivec2(0), c.w); }\n";
 
 				if (type != EffectNodes::Pass::PixelShader)
