@@ -2233,7 +2233,7 @@ namespace ReShade
 				{
 					pBuffer[x + 3] = 0xFF;
 
-					if (desc.Format == D3DFMT_A8R8G8B8)
+					if (desc.Format == D3DFMT_A8R8G8B8 || desc.Format == D3DFMT_X8R8G8B8)
 					{
 						std::swap(pBuffer[x + 0], pBuffer[x + 2]);
 					}
