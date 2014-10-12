@@ -18,31 +18,6 @@
 #undef IDirect3DSwapChain9_Release
 #undef IDirect3DSwapChain9_Present
 
-static LPCSTR													DXGetErrorStringA(HRESULT hr)
-{
-	switch (hr)
-	{
-		default:
-			__declspec(thread) static CHAR buf[20];
-			sprintf_s(buf, "0x%lx", hr);
-			return buf;
-		case D3DERR_NOTAVAILABLE:
-			return "D3DERR_NOTAVAILABLE";
-		case D3DERR_INVALIDCALL:
-			return "D3DERR_INVALIDCALL";
-		case D3DERR_INVALIDDEVICE:
-			return "D3DERR_INVALIDDEVICE";
-		case D3DERR_DEVICEHUNG:
-			return "D3DERR_DEVICEHUNG";
-		case D3DERR_DEVICELOST:
-			return "D3DERR_DEVICELOST";
-		case D3DERR_DEVICENOTRESET:
-			return "D3DERR_DEVICENOTRESET";
-		case D3DERR_WASSTILLDRAWING:
-			return "D3DERR_WASSTILLDRAWING";
-	}
-}
-
 // -----------------------------------------------------------------------------------------------------
 
 namespace
@@ -56,6 +31,30 @@ namespace
 		pUnknown->Release();
 
 		return ref - 1;
+	}
+	LPCSTR														GetErrorString(HRESULT hr)
+	{
+		switch (hr)
+		{
+			default:
+				__declspec(thread) static CHAR buf[20];
+				sprintf_s(buf, "0x%lx", hr);
+				return buf;
+			case D3DERR_NOTAVAILABLE:
+				return "D3DERR_NOTAVAILABLE";
+			case D3DERR_INVALIDCALL:
+				return "D3DERR_INVALIDCALL";
+			case D3DERR_INVALIDDEVICE:
+				return "D3DERR_INVALIDDEVICE";
+			case D3DERR_DEVICEHUNG:
+				return "D3DERR_DEVICEHUNG";
+			case D3DERR_DEVICELOST:
+				return "D3DERR_DEVICELOST";
+			case D3DERR_DEVICENOTRESET:
+				return "D3DERR_DEVICENOTRESET";
+			case D3DERR_WASSTILLDRAWING:
+				return "D3DERR_WASSTILLDRAWING";
+		}
 	}
 }
 namespace ReShade
@@ -180,7 +179,7 @@ HRESULT STDMETHODCALLTYPE										IDirect3DDevice9_CreateAdditionalSwapChain(ID
 	}
 	else
 	{
-		LOG(WARNING) << "> 'IDirect3DDevice9::CreateAdditionalSwapChain' failed with '" << DXGetErrorStringA(hr) << "'!";
+		LOG(WARNING) << "> 'IDirect3DDevice9::CreateAdditionalSwapChain' failed with '" << GetErrorString(hr) << "'!";
 	}
 
 	return hr;
@@ -212,7 +211,7 @@ HRESULT STDMETHODCALLTYPE										IDirect3DDevice9_Reset(IDirect3DDevice9 *pDev
 	}
 	else
 	{
-		LOG(ERROR) << "'IDirect3DDevice9::Reset' failed with '" << DXGetErrorStringA(hr) << "'!";
+		LOG(ERROR) << "'IDirect3DDevice9::Reset' failed with '" << GetErrorString(hr) << "'!";
 	}
 
 	return hr;
@@ -261,7 +260,7 @@ HRESULT STDMETHODCALLTYPE										IDirect3DDevice9Ex_ResetEx(IDirect3DDevice9Ex
 	}
 	else
 	{
-		LOG(ERROR) << "'IDirect3DDevice9Ex::ResetEx' failed with '" << DXGetErrorStringA(hr) << "'!";
+		LOG(ERROR) << "'IDirect3DDevice9Ex::ResetEx' failed with '" << GetErrorString(hr) << "'!";
 	}
 
 	return hr;
@@ -323,7 +322,7 @@ HRESULT STDMETHODCALLTYPE										IDirect3D9_CreateDevice(IDirect3D9 *pD3D, UIN
 	}
 	else
 	{
-		LOG(WARNING) << "> 'IDirect3D9::CreateDevice' failed with '" << DXGetErrorStringA(hr) << "'!";
+		LOG(WARNING) << "> 'IDirect3D9::CreateDevice' failed with '" << GetErrorString(hr) << "'!";
 	}
 
 	return hr;
@@ -372,7 +371,7 @@ HRESULT STDMETHODCALLTYPE										IDirect3D9Ex_CreateDeviceEx(IDirect3D9Ex *pD3
 	}
 	else
 	{
-		LOG(WARNING) << "> 'IDirect3D9Ex::CreateDeviceEx' failed with '" << DXGetErrorStringA(hr) << "'!";
+		LOG(WARNING) << "> 'IDirect3D9Ex::CreateDeviceEx' failed with '" << GetErrorString(hr) << "'!";
 	}
 
 	return hr;
@@ -450,7 +449,7 @@ EXPORT HRESULT WINAPI											Direct3DCreate9Ex(UINT SDKVersion, IDirect3D9Ex 
 	}
 	else
 	{
-		LOG(WARNING) << "> 'Direct3DCreate9Ex' failed with '" << DXGetErrorStringA(hr) << "'!";
+		LOG(WARNING) << "> 'Direct3DCreate9Ex' failed with '" << GetErrorString(hr) << "'!";
 	}
 
 	return hr;

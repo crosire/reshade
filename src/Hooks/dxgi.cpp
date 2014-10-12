@@ -7,21 +7,6 @@
 #include <d3d11.h>
 #include <unordered_map>
 
-static LPCSTR													DXGetErrorStringA(HRESULT hr)
-{
-	switch (hr)
-	{
-		default:
-			__declspec(thread) static CHAR buf[20];
-			sprintf_s(buf, "0x%lx", hr);
-			return buf;
-		case DXGI_ERROR_INVALID_CALL:
-			return "DXGI_ERROR_INVALID_CALL";
-		case DXGI_ERROR_UNSUPPORTED:
-			return "DXGI_ERROR_UNSUPPORTED";
-	}
-}
-
 // -----------------------------------------------------------------------------------------------------
 
 namespace
@@ -35,6 +20,20 @@ namespace
 		pUnknown->Release();
 
 		return ref - 1;
+	}
+	LPCSTR														GetErrorString(HRESULT hr)
+	{
+		switch (hr)
+		{
+			default:
+				__declspec(thread) static CHAR buf[20];
+				sprintf_s(buf, "0x%lx", hr);
+				return buf;
+			case DXGI_ERROR_INVALID_CALL:
+				return "DXGI_ERROR_INVALID_CALL";
+			case DXGI_ERROR_UNSUPPORTED:
+				return "DXGI_ERROR_UNSUPPORTED";
+		}
 	}
 }
 namespace ReShade
@@ -120,7 +119,7 @@ HRESULT STDMETHODCALLTYPE										IDXGISwapChain_ResizeBuffers(IDXGISwapChain *
 	}
 	else
 	{
-		LOG(ERROR) << "'IDXGISwapChain::ResizeBuffers' failed with '" << DXGetErrorStringA(hr) << "'!";
+		LOG(ERROR) << "'IDXGISwapChain::ResizeBuffers' failed with '" << GetErrorString(hr) << "'!";
 	}
 
 	return hr;
@@ -244,7 +243,7 @@ HRESULT STDMETHODCALLTYPE										IDXGIFactory_CreateSwapChain(IDXGIFactory *pF
 	}
 	else
 	{
-		LOG(WARNING) << "> 'IDXGIFactory::CreateSwapChain' failed with '" << DXGetErrorStringA(hr) << "'!";
+		LOG(WARNING) << "> 'IDXGIFactory::CreateSwapChain' failed with '" << GetErrorString(hr) << "'!";
 	}
 
 	return hr;
@@ -339,7 +338,7 @@ HRESULT STDMETHODCALLTYPE										IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFac
 	}
 	else
 	{
-		LOG(WARNING) << "> 'IDXGIFactory2::CreateSwapChainForHwnd' failed with '" << DXGetErrorStringA(hr) << "'!";
+		LOG(WARNING) << "> 'IDXGIFactory2::CreateSwapChainForHwnd' failed with '" << GetErrorString(hr) << "'!";
 	}
 
 	return hr;
@@ -432,7 +431,7 @@ HRESULT STDMETHODCALLTYPE										IDXGIFactory2_CreateSwapChainForCoreWindow(ID
 	}
 	else
 	{
-		LOG(WARNING) << "> 'IDXGIFactory2::CreateSwapChainForCoreWindow' failed with '" << DXGetErrorStringA(hr) << "'!";
+		LOG(WARNING) << "> 'IDXGIFactory2::CreateSwapChainForCoreWindow' failed with '" << GetErrorString(hr) << "'!";
 	}
 
 	return hr;
@@ -525,7 +524,7 @@ HRESULT STDMETHODCALLTYPE										IDXGIFactory2_CreateSwapChainForComposition(I
 	}
 	else
 	{
-		LOG(WARNING) << "> 'IDXGIFactory2::CreateSwapChainForComposition' failed with '" << DXGetErrorStringA(hr) << "'!";
+		LOG(WARNING) << "> 'IDXGIFactory2::CreateSwapChainForComposition' failed with '" << GetErrorString(hr) << "'!";
 	}
 
 	return hr;
@@ -889,7 +888,7 @@ EXPORT HRESULT WINAPI											CreateDXGIFactory(REFIID riid, void **ppFactory)
 	}
 	else
 	{
-		LOG(WARNING) << "> 'CreateDXGIFactory' failed with '" << DXGetErrorStringA(hr) << "'!";
+		LOG(WARNING) << "> 'CreateDXGIFactory' failed with '" << GetErrorString(hr) << "'!";
 	}
 
 	return hr;
@@ -909,7 +908,7 @@ EXPORT HRESULT WINAPI											CreateDXGIFactory1(REFIID riid, void **ppFactory
 	}
 	else
 	{
-		LOG(WARNING) << "> 'CreateDXGIFactory1' failed with '" << DXGetErrorStringA(hr) << "'!";
+		LOG(WARNING) << "> 'CreateDXGIFactory1' failed with '" << GetErrorString(hr) << "'!";
 	}
 
 	return hr;
@@ -936,7 +935,7 @@ EXPORT HRESULT WINAPI											CreateDXGIFactory2(UINT flags, REFIID riid, void
 	}
 	else
 	{
-		LOG(WARNING) << "> 'CreateDXGIFactory2' failed with '" << DXGetErrorStringA(hr) << "'!";
+		LOG(WARNING) << "> 'CreateDXGIFactory2' failed with '" << GetErrorString(hr) << "'!";
 	}
 
 	return hr;
