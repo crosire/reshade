@@ -10,4 +10,9 @@
 #define _ELPP_DISABLE_LOGGING_FLAGS_FROM_ARG
 #define _ELPP_DISABLE_CUSTOM_FORMAT_SPECIFIERS
 
+#pragma warning(push)
+#pragma warning(disable: 4127)
+
 #include <easylogging++.h>
+
+#pragma warning(pop)
