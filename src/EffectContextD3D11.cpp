@@ -90,6 +90,7 @@ namespace ReShade
 			ID3D11Texture2D *									mDepthStencilTexture;
 			ID3D11ShaderResourceView *							mDepthStencilView;
 			ID3D11DepthStencilView *							mDepthStencil;
+			ID3D11RasterizerState *								mRasterizerState;
 			std::unordered_map<D3D11_SAMPLER_DESC, size_t>		mSamplerDescs;
 			std::vector<ID3D11SamplerState *>					mSamplerStates;
 			std::vector<ID3D11ShaderResourceView *>				mShaderResources;
@@ -2366,9 +2367,17 @@ namespace ReShade
 			context->mDevice->CreateRenderTargetView(this->mBackBufferTexture, &rtdesc, &this->mBackBufferTargets[0]);
 			rtdesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
 			context->mDevice->CreateRenderTargetView(this->mBackBufferTexture, &rtdesc, &this->mBackBufferTargets[1]);
+
+			D3D11_RASTERIZER_DESC rsdesc;
+			ZeroMemory(&rsdesc, sizeof(D3D11_RASTERIZER_DESC));
+			rsdesc.FillMode = D3D11_FILL_SOLID;
+			rsdesc.CullMode = D3D11_CULL_NONE;
+			rsdesc.DepthClipEnable = TRUE;
+			context->mDevice->CreateRasterizerState(&rsdesc, &this->mRasterizerState);
 		}
 		D3D11Effect::~D3D11Effect(void)
 		{
+			SAFE_RELEASE(this->mRasterizerState);
 			SAFE_RELEASE(this->mDepthStencil);
 			SAFE_RELEASE(this->mDepthStencilView);
 			SAFE_RELEASE(this->mDepthStencilTexture);
@@ -2643,6 +2652,7 @@ namespace ReShade
 			this->mDeferredContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 			this->mDeferredContext->IASetInputLayout(nullptr);
 			this->mDeferredContext->IASetVertexBuffers(0, 1, reinterpret_cast<ID3D11Buffer *const *>(&null), reinterpret_cast<const UINT *>(&null), reinterpret_cast<const UINT *>(&null));
+			this->mDeferredContext->RSSetState(this->mEffect->mRasterizerState);
 
 			this->mDeferredContext->VSSetSamplers(0, this->mEffect->mSamplerStates.size(), this->mEffect->mSamplerStates.data());
 			this->mDeferredContext->PSSetSamplers(0, this->mEffect->mSamplerStates.size(), this->mEffect->mSamplerStates.data());
@@ -2679,7 +2689,6 @@ namespace ReShade
 			this->mDeferredContext->DSSetShader(nullptr, nullptr, 0);
 			this->mDeferredContext->GSSetShader(nullptr, nullptr, 0);
 			this->mDeferredContext->PSSetShader(pass.PS, nullptr, 0);
-			this->mDeferredContext->RSSetState(nullptr);
 
 			const FLOAT blendfactor[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
 			this->mDeferredContext->OMSetBlendState(pass.BS, blendfactor, D3D11_DEFAULT_SAMPLE_MASK);

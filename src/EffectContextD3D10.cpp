@@ -88,6 +88,7 @@ namespace ReShade
 			ID3D10Texture2D *									mDepthStencilTexture;
 			ID3D10ShaderResourceView *							mDepthStencilView;
 			ID3D10DepthStencilView *							mDepthStencil;
+			ID3D10RasterizerState *								mRasterizerState;
 			ID3D10StateBlock *									mStateblock;
 			ID3D10RenderTargetView *							mStateblockTargets[D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT];
 			std::unordered_map<D3D10_SAMPLER_DESC, size_t>		mSamplerDescs;
@@ -2351,10 +2352,18 @@ namespace ReShade
 			context->mDevice->CreateRenderTargetView(this->mBackBufferTexture, &rtdesc, &this->mBackBufferTargets[0]);
 			rtdesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
 			context->mDevice->CreateRenderTargetView(this->mBackBufferTexture, &rtdesc, &this->mBackBufferTargets[1]);
+
+			D3D10_RASTERIZER_DESC rsdesc;
+			ZeroMemory(&rsdesc, sizeof(D3D10_RASTERIZER_DESC));
+			rsdesc.FillMode = D3D10_FILL_SOLID;
+			rsdesc.CullMode = D3D10_CULL_NONE;
+			rsdesc.DepthClipEnable = TRUE;
+			context->mDevice->CreateRasterizerState(&rsdesc, &this->mRasterizerState);
 		}
 		D3D10Effect::~D3D10Effect(void)
 		{
 			SAFE_RELEASE(this->mStateblock);
+			SAFE_RELEASE(this->mRasterizerState);
 			SAFE_RELEASE(this->mDepthStencil);
 			SAFE_RELEASE(this->mDepthStencilView);
 			SAFE_RELEASE(this->mDepthStencilTexture);
@@ -2620,15 +2629,17 @@ namespace ReShade
 				return false;
 			}
 
-			this->mEffect->mEffectContext->mDevice->CopyResource(this->mEffect->mBackBufferTexture, this->mEffect->mBackBuffer);
-
-			this->mEffect->mEffectContext->mDevice->OMGetRenderTargets(D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, this->mEffect->mStateblockTargets, nullptr);
-
 			ID3D10Device *device = this->mEffect->mEffectContext->mDevice;
+
+			device->CopyResource(this->mEffect->mBackBufferTexture, this->mEffect->mBackBuffer);
+
+			device->OMGetRenderTargets(D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, this->mEffect->mStateblockTargets, nullptr);
+
 			const uintptr_t null = 0;
 			device->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 			device->IASetInputLayout(nullptr);
 			device->IASetVertexBuffers(0, 1, reinterpret_cast<ID3D10Buffer *const *>(&null), reinterpret_cast<const UINT *>(&null), reinterpret_cast<const UINT *>(&null));
+			device->RSSetState(this->mEffect->mRasterizerState);
 
 			device->VSSetSamplers(0, this->mEffect->mSamplerStates.size(), this->mEffect->mSamplerStates.data());
 			device->PSSetSamplers(0, this->mEffect->mSamplerStates.size(), this->mEffect->mSamplerStates.data());
@@ -2664,7 +2675,6 @@ namespace ReShade
 			device->VSSetShader(pass.VS);
 			device->GSSetShader(nullptr);
 			device->PSSetShader(pass.PS);
-			device->RSSetState(nullptr);
 
 			const FLOAT blendfactor[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
 			device->OMSetBlendState(pass.BS, blendfactor, D3D10_DEFAULT_SAMPLE_MASK);
