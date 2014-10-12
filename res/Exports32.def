@@ -76,9 +76,6 @@ EXPORTS
 	OpenAdapter10
 	OpenAdapter10_2
 
-	; dinput8.dll
-	DirectInput8Create
-
 	; opengl32.dll
 	glAccum
 	glAlphaFunc

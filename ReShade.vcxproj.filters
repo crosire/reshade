@@ -59,9 +59,6 @@
     <ClCompile Include="src\Hooks\dxgi.cpp">
       <Filter>Hooks</Filter>
     </ClCompile>
-    <ClCompile Include="src\Hooks\dinput8.cpp">
-      <Filter>Hooks</Filter>
-    </ClCompile>
     <ClCompile Include="src\Hooks\opengl32.cpp">
       <Filter>Hooks</Filter>
     </ClCompile>
