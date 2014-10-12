@@ -25,8 +25,8 @@ namespace ReShade
 	private:
 		std::unique_ptr<Effect>									mEffect;
 		std::shared_ptr<EffectContext>							mEffectContext;
-		const Effect::Technique *								mSelectedTechnique;
-		bool													mCreated, mEnabled;
+		bool													mCreated;
+		std::vector<std::pair<const Effect::Technique *, bool>> mTechniques;
 		std::vector<Effect::Texture *>							mColorTargets, mDepthTargets;
 	};
 }

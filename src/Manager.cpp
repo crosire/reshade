@@ -79,7 +79,7 @@ namespace ReShade
 
 	// -----------------------------------------------------------------------------------------------------
 
-	Manager::Manager(std::shared_ptr<EffectContext> context) : mEffectContext(context), mCreated(false), mEnabled(true), mSelectedTechnique(nullptr)
+	Manager::Manager(std::shared_ptr<EffectContext> context) : mEffectContext(context), mCreated(false)
 	{
 		LOG(INFO) << "Acquiring effect context " << this->mEffectContext << " ...";
 
@@ -140,7 +140,14 @@ namespace ReShade
 		}
 		else
 		{
-			this->mSelectedTechnique = effect->GetTechnique(techniques.front());
+			this->mTechniques.reserve(techniques.size());
+
+			for (const auto &name : techniques)
+			{
+				this->mTechniques.push_back(std::make_pair(effect->GetTechnique(name), false));
+			}
+
+			this->mTechniques.front().second = true;
 		}
 
 		#pragma region Parse Texture Annotations
@@ -262,6 +269,7 @@ namespace ReShade
 			return;
 		}
 
+		this->mTechniques.clear();
 		this->mColorTargets.clear();
 		this->mDepthTargets.clear();
 
@@ -273,34 +281,52 @@ namespace ReShade
 	}
 	void														Manager::OnPostProcess(void)
 	{
-		if (!(this->mCreated && this->mEnabled) || this->mSelectedTechnique == nullptr)
+		for (auto &it : this->mTechniques)
 		{
-			return;
-		}
+			const int toggleKey = it.first->GetAnnotation("toggle").As<int>();
+			const int reloadKey = it.first->GetAnnotation("reload").As<int>();
 
-		unsigned int passes = 0;
-
-		if (this->mSelectedTechnique->Begin(passes))
-		{
-			for (unsigned int i = 0; i < passes; ++i)
+			if (toggleKey != 0 && ::GetAsyncKeyState(toggleKey) & 0x8000)
 			{
-				for (auto &target : this->mColorTargets)
-				{
-					target->UpdateFromColorBuffer();
-				}
-				for (auto &target : this->mDepthTargets)
-				{
-					target->UpdateFromDepthBuffer();
-				}
-
-				this->mSelectedTechnique->RenderPass(i);
+				::Sleep(200);
+				it.second = !it.second;
+			}
+			if (reloadKey != 0 && ::GetAsyncKeyState(reloadKey) & 0x8000)
+			{
+				OnDelete();
+				OnCreate();
+				break;
+			}
+			if (!it.second)
+			{
+				continue;
 			}
 
-			this->mSelectedTechnique->End();
-		}
-		else
-		{
-			LOG(ERROR) << "Failed to start rendering selected technique!";
+			const Effect::Technique *technique = it.first;
+			unsigned int passes = 0;
+
+			if (technique->Begin(passes))
+			{
+				for (unsigned int i = 0; i < passes; ++i)
+				{
+					for (auto &target : this->mColorTargets)
+					{
+						target->UpdateFromColorBuffer();
+					}
+					for (auto &target : this->mDepthTargets)
+					{
+						target->UpdateFromDepthBuffer();
+					}
+
+					technique->RenderPass(i);
+				}
+
+				technique->End();
+			}
+			else
+			{
+				LOG(ERROR) << "Failed to start rendering technique!";
+			}
 		}
 	}
 	void														Manager::OnPresent(void)
