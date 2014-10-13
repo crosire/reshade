@@ -469,12 +469,6 @@ RULE_TYPE
 	| RULE_TYPE_VECTOR
 	| RULE_TYPE_MATRIX
 	{
-		if ($1.Type.Rows != $1.Type.Cols)
-		{
-			parser.Error(@1, 3052, "non-square matrices are not currently supported");
-			YYERROR;
-		}
-
 		@$ = @1;
 		$$.Type = $1.Type;
 	}
