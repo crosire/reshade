@@ -1,5 +1,4 @@
 #include "Log.hpp"
-#include "Manager.hpp"
 #include "HookManager.hpp"
 
 #include <d3d9.h>
