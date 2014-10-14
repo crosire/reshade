@@ -2542,13 +2542,20 @@ EXPORT BOOL WINAPI												wglMakeCurrent(HDC hdc, HGLRC hglrc)
 	}
 	else
 	{
-		LOG(INFO) << "Redirecting initial '" << "wglMakeCurrent" << "(" << hdc << ", " << hglrc << ")' ...";
+		LOG(INFO) << "Redirecting '" << "wglMakeCurrent" << "(" << hdc << ", " << hglrc << ")' ...";
 
 		ReShade::Manager *manager = nullptr;
+		const HWND hwnd = ::WindowFromDC(hdc);
 		const HGLRC shared = sSharedContexts.at(hglrc);
 
 		if (shared == nullptr)
 		{
+			RECT rect;
+			::GetClientRect(hwnd, &rect);
+			sWindowRects[hwnd] = rect;
+
+			LOG(INFO) << "> Initial size is " << rect.right - rect.left << "x" << rect.bottom - rect.top << ".";
+
 			const std::shared_ptr<ReShade::EffectContext> context = ReShade::CreateEffectContext(hdc, hglrc);
 
 			if (context != nullptr)
@@ -2570,9 +2577,6 @@ EXPORT BOOL WINAPI												wglMakeCurrent(HDC hdc, HGLRC hglrc)
 		sManagers.insert(it, std::make_pair(hglrc, manager));
 		sCurrentManager = manager;
 	}
-
-	const HWND hwnd = ::WindowFromDC(hdc);
-	::GetClientRect(hwnd, &sWindowRects[hwnd]);
 
 	return TRUE;
 }
@@ -2637,6 +2641,8 @@ EXPORT BOOL WINAPI												wglSwapBuffers(HDC hdc)
 				{
 					widthResizing = width;
 					heightResizing = height;
+
+					return TRUE;
 				}
 			}
 
