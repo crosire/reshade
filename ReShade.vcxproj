@@ -249,6 +249,7 @@
     <ClInclude Include="src\Log.hpp" />
     <ClInclude Include="src\Effect.hpp" />
     <ClInclude Include="src\EffectContext.hpp" />
+    <ClInclude Include="src\EffectPreprocessor.hpp" />
     <ClInclude Include="obj\$(Platform)\$(Configuration)\EffectLexer.h" />
     <ClInclude Include="obj\$(Platform)\$(Configuration)\EffectParser.hpp" />
     <ClInclude Include="src\EffectTree.hpp" />
