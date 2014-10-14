@@ -243,10 +243,14 @@ namespace ReShade
 
 			const int toggleKey = technique->GetAnnotation("toggle").As<int>();
 
-			if (toggleKey != 0 && ::GetAsyncKeyState(toggleKey) & 0x8000)
+			if ((toggleKey > 0 && toggleKey < 256) && ::GetKeyState(toggleKey) & 0x8000)
 			{
-				::Sleep(200);
 				enabled = !enabled;
+
+				BYTE keys[256];
+				::GetKeyboardState(keys);
+				keys[toggleKey] = FALSE;
+				::SetKeyboardState(keys);
 			}
 
 			if (!enabled)
