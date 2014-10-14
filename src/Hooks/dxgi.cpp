@@ -1,5 +1,5 @@
 #include "Log.hpp"
-#include "Manager.hpp"
+#include "Runtime.hpp"
 #include "HookManager.hpp"
 
 #include <dxgi.h>
@@ -11,7 +11,7 @@
 
 namespace
 {
-	std::unordered_map<IDXGISwapChain *, ReShade::Manager *>	sManagers;
+	std::unordered_map<IDXGISwapChain *, std::shared_ptr<ReShade::Runtime>>	sManagers;
 	std::unordered_map<IDXGISwapChain *, ULONG>					sReferences;
 
 	inline ULONG												GetRefCount(IUnknown *pUnknown)
@@ -38,8 +38,8 @@ namespace
 }
 namespace ReShade
 {
-	extern std::shared_ptr<ReShade::EffectContext>				CreateEffectContext(ID3D10Device *device, IDXGISwapChain *swapchain);
-	extern std::shared_ptr<ReShade::EffectContext>				CreateEffectContext(ID3D11Device *device, IDXGISwapChain *swapchain);
+	extern std::shared_ptr<ReShade::Runtime>					CreateEffectRuntime(ID3D10Device *device, IDXGISwapChain *swapchain);
+	extern std::shared_ptr<ReShade::Runtime>					CreateEffectRuntime(ID3D11Device *device, IDXGISwapChain *swapchain);
 }
 
 // -----------------------------------------------------------------------------------------------------
@@ -61,7 +61,6 @@ ULONG STDMETHODCALLTYPE											IDXGISwapChain_Release(IDXGISwapChain *pSwapCh
 		hook.Enable(false);
 		pSwapChain->AddRef();
 
-		delete sManagers.at(pSwapChain);
 		sManagers.erase(pSwapChain);
 		sReferences.erase(pSwapChain);
 
@@ -76,12 +75,13 @@ HRESULT STDMETHODCALLTYPE										IDXGISwapChain_Present(IDXGISwapChain *pSwapC
 	static const auto trampoline = ReHook::Call(&IDXGISwapChain_Present);
 	
 	const auto it = sManagers.find(pSwapChain);
-	ReShade::Manager *const manager = it != sManagers.end() ? it->second : nullptr;
 
-	if (manager != nullptr)
+	if (it != sManagers.end())
 	{
-		manager->OnPostProcess();
-		manager->OnPresent();
+		const std::shared_ptr<ReShade::Runtime> &runtime = it->second;
+
+		runtime->OnPostProcess();
+		runtime->OnPresent();
 	}
 
 	return trampoline(pSwapChain, SyncInterval, Flags);
@@ -97,23 +97,23 @@ HRESULT STDMETHODCALLTYPE										IDXGISwapChain_ResizeBuffers(IDXGISwapChain *
 	LOG(INFO) << "Redirecting '" << "IDXGISwapChain::ResizeBuffers" << "(" << pSwapChain << ", " << BufferCount << ", " << Width << ", " << Height << ", " << NewFormat << ", " << SwapChainFlags << ")' ...";
 
 	const auto it = sManagers.find(pSwapChain);
-	ReShade::Manager *const manager = it != sManagers.end() ? it->second : nullptr;
+	const std::shared_ptr<ReShade::Runtime> runtime = it != sManagers.end() ? it->second : nullptr;
 
-	if (manager != nullptr)
+	if (runtime != nullptr)
 	{
 		sReferences.erase(pSwapChain);
-		manager->OnDelete();
+		runtime->OnDelete();
 	}
 
 	HRESULT hr = ReHook::Call(&IDXGISwapChain_ResizeBuffers)(pSwapChain, BufferCount, Width, Height, NewFormat, SwapChainFlags);
 
 	if (SUCCEEDED(hr))
 	{
-		if (manager != nullptr)
+		if (runtime != nullptr)
 		{
 			const ULONG ref = GetRefCount(pSwapChain);
 
-			manager->OnCreate();
+			runtime->OnCreate(Width, Height);
 			sReferences.insert(std::make_pair(pSwapChain, GetRefCount(pSwapChain) - ref));
 		}
 	}
@@ -131,12 +131,13 @@ HRESULT STDMETHODCALLTYPE										IDXGISwapChain1_Present1(IDXGISwapChain1 *pSw
 	static const auto trampoline = ReHook::Call(&IDXGISwapChain1_Present1);
 	
 	const auto it = sManagers.find(pSwapChain);
-	ReShade::Manager *const manager = it != sManagers.end() ? it->second : nullptr;
 
-	if (manager != nullptr)
+	if (it != sManagers.end())
 	{
-		manager->OnPostProcess();
-		manager->OnPresent();
+		const std::shared_ptr<ReShade::Runtime> &runtime = it->second;
+
+		runtime->OnPostProcess();
+		runtime->OnPresent();
 	}
 
 	return trampoline(pSwapChain, SyncInterval, PresentFlags, pPresentParameters);
@@ -193,15 +194,17 @@ HRESULT STDMETHODCALLTYPE										IDXGIFactory_CreateSwapChain(IDXGIFactory *pF
 		ID3D11Device *deviceD3D11 = nullptr;
 		IDXGISwapChain *swapchain = *ppSwapChain;
 
+		swapchain->GetDesc(&desc);
+
 		if (SUCCEEDED(pDevice->QueryInterface(&deviceD3D10)))
 		{
-			const std::shared_ptr<ReShade::EffectContext> context = ReShade::CreateEffectContext(deviceD3D10, swapchain);
+			const std::shared_ptr<ReShade::Runtime> runtime = ReShade::CreateEffectRuntime(deviceD3D10, swapchain);
 
-			if (context != nullptr)
+			if (runtime != nullptr)
 			{
-				ReShade::Manager *manager = new ReShade::Manager(context);
+				runtime->OnCreate(desc.BufferDesc.Width, desc.BufferDesc.Height);
 
-				sManagers.insert(std::make_pair(swapchain, manager));
+				sManagers.insert(std::make_pair(swapchain, runtime));
 				sReferences.insert(std::make_pair(swapchain, GetRefCount(swapchain) - 1));
 			}
 			else
@@ -213,13 +216,13 @@ HRESULT STDMETHODCALLTYPE										IDXGIFactory_CreateSwapChain(IDXGIFactory *pF
 		}
 		else if (SUCCEEDED(pDevice->QueryInterface(&deviceD3D11)))
 		{
-			const std::shared_ptr<ReShade::EffectContext> context = ReShade::CreateEffectContext(deviceD3D11, swapchain);
+			const std::shared_ptr<ReShade::Runtime> runtime = ReShade::CreateEffectRuntime(deviceD3D11, swapchain);
 
-			if (context != nullptr)
+			if (runtime != nullptr)
 			{
-				ReShade::Manager *manager = new ReShade::Manager(context);
+				runtime->OnCreate(desc.BufferDesc.Width, desc.BufferDesc.Height);
 
-				sManagers.insert(std::make_pair(swapchain, manager));
+				sManagers.insert(std::make_pair(swapchain, runtime));
 				sReferences.insert(std::make_pair(swapchain, GetRefCount(swapchain) - 1));
 			}
 			else
@@ -287,15 +290,17 @@ HRESULT STDMETHODCALLTYPE										IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFac
 		ID3D11Device *deviceD3D11 = nullptr;
 		IDXGISwapChain1 *swapchain = *ppSwapChain;
 
+		swapchain->GetDesc1(&desc);
+
 		if (SUCCEEDED(pDevice->QueryInterface(&deviceD3D10)))
 		{
-			const std::shared_ptr<ReShade::EffectContext> context = ReShade::CreateEffectContext(deviceD3D10, swapchain);
+			const std::shared_ptr<ReShade::Runtime> runtime = ReShade::CreateEffectRuntime(deviceD3D10, swapchain);
 
-			if (context != nullptr)
+			if (runtime != nullptr)
 			{
-				ReShade::Manager *manager = new ReShade::Manager(context);
+				runtime->OnCreate(desc.Width, desc.Height);
 
-				sManagers.insert(std::make_pair(swapchain, manager));
+				sManagers.insert(std::make_pair(swapchain, runtime));
 				sReferences.insert(std::make_pair(swapchain, GetRefCount(swapchain) - 1));
 			}
 			else
@@ -307,13 +312,13 @@ HRESULT STDMETHODCALLTYPE										IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFac
 		}
 		else if (SUCCEEDED(pDevice->QueryInterface(&deviceD3D11)))
 		{
-			const std::shared_ptr<ReShade::EffectContext> context = ReShade::CreateEffectContext(deviceD3D11, swapchain);
+			const std::shared_ptr<ReShade::Runtime> runtime = ReShade::CreateEffectRuntime(deviceD3D11, swapchain);
 
-			if (context != nullptr)
+			if (runtime != nullptr)
 			{
-				ReShade::Manager *manager = new ReShade::Manager(context);
+				runtime->OnCreate(desc.Width, desc.Height);
 
-				sManagers.insert(std::make_pair(swapchain, manager));
+				sManagers.insert(std::make_pair(swapchain, runtime));
 				sReferences.insert(std::make_pair(swapchain, GetRefCount(swapchain) - 1));
 			}
 			else
@@ -380,15 +385,17 @@ HRESULT STDMETHODCALLTYPE										IDXGIFactory2_CreateSwapChainForCoreWindow(ID
 		ID3D11Device *deviceD3D11 = nullptr;
 		IDXGISwapChain1 *swapchain = *ppSwapChain;
 
+		swapchain->GetDesc1(&desc);
+
 		if (SUCCEEDED(pDevice->QueryInterface(&deviceD3D10)))
 		{
-			const std::shared_ptr<ReShade::EffectContext> context = ReShade::CreateEffectContext(deviceD3D10, swapchain);
+			const std::shared_ptr<ReShade::Runtime> runtime = ReShade::CreateEffectRuntime(deviceD3D10, swapchain);
 
-			if (context != nullptr)
+			if (runtime != nullptr)
 			{
-				ReShade::Manager *manager = new ReShade::Manager(context);
+				runtime->OnCreate(desc.Width, desc.Height);
 
-				sManagers.insert(std::make_pair(swapchain, manager));
+				sManagers.insert(std::make_pair(swapchain, runtime));
 				sReferences.insert(std::make_pair(swapchain, GetRefCount(swapchain) - 1));
 			}
 			else
@@ -400,13 +407,13 @@ HRESULT STDMETHODCALLTYPE										IDXGIFactory2_CreateSwapChainForCoreWindow(ID
 		}
 		else if (SUCCEEDED(pDevice->QueryInterface(&deviceD3D11)))
 		{
-			const std::shared_ptr<ReShade::EffectContext> context = ReShade::CreateEffectContext(deviceD3D11, swapchain);
+			const std::shared_ptr<ReShade::Runtime> runtime = ReShade::CreateEffectRuntime(deviceD3D11, swapchain);
 
-			if (context != nullptr)
+			if (runtime != nullptr)
 			{
-				ReShade::Manager *manager = new ReShade::Manager(context);
+				runtime->OnCreate(desc.Width, desc.Height);
 
-				sManagers.insert(std::make_pair(swapchain, manager));
+				sManagers.insert(std::make_pair(swapchain, runtime));
 				sReferences.insert(std::make_pair(swapchain, GetRefCount(swapchain) - 1));
 			}
 			else
@@ -473,15 +480,17 @@ HRESULT STDMETHODCALLTYPE										IDXGIFactory2_CreateSwapChainForComposition(I
 		ID3D11Device *deviceD3D11 = nullptr;
 		IDXGISwapChain1 *swapchain = *ppSwapChain;
 
+		swapchain->GetDesc1(&desc);
+
 		if (SUCCEEDED(pDevice->QueryInterface(&deviceD3D10)))
 		{
-			const std::shared_ptr<ReShade::EffectContext> context = ReShade::CreateEffectContext(deviceD3D10, swapchain);
+			const std::shared_ptr<ReShade::Runtime> runtime = ReShade::CreateEffectRuntime(deviceD3D10, swapchain);
 
-			if (context != nullptr)
+			if (runtime != nullptr)
 			{
-				ReShade::Manager *manager = new ReShade::Manager(context);
+				runtime->OnCreate(desc.Width, desc.Height);
 
-				sManagers.insert(std::make_pair(swapchain, manager));
+				sManagers.insert(std::make_pair(swapchain, runtime));
 				sReferences.insert(std::make_pair(swapchain, GetRefCount(swapchain) - 1));
 			}
 			else
@@ -493,13 +502,13 @@ HRESULT STDMETHODCALLTYPE										IDXGIFactory2_CreateSwapChainForComposition(I
 		}
 		else if (SUCCEEDED(pDevice->QueryInterface(&deviceD3D11)))
 		{
-			const std::shared_ptr<ReShade::EffectContext> context = ReShade::CreateEffectContext(deviceD3D11, swapchain);
+			const std::shared_ptr<ReShade::Runtime> runtime = ReShade::CreateEffectRuntime(deviceD3D11, swapchain);
 
-			if (context != nullptr)
+			if (runtime != nullptr)
 			{
-				ReShade::Manager *manager = new ReShade::Manager(context);
+				runtime->OnCreate(desc.Width, desc.Height);
 
-				sManagers.insert(std::make_pair(swapchain, manager));
+				sManagers.insert(std::make_pair(swapchain, runtime));
 				sReferences.insert(std::make_pair(swapchain, GetRefCount(swapchain) - 1));
 			}
 			else

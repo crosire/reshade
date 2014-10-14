@@ -1,8 +1,8 @@
 #include "Log.hpp"
-#include "Manager.hpp"
+#include "Runtime.hpp"
 #include "HookManager.hpp"
 
-#include <gl\gl3w.h>
+#include <gl\gl.h>
 #include <unordered_map>
 
 #undef glBindTexture
@@ -115,19 +115,19 @@ namespace
 		CRITICAL_SECTION										mCS;
 	};
 	
-	std::unordered_map<HGLRC, ReShade::Manager *>				sManagers;
+	std::unordered_map<HGLRC, std::shared_ptr<ReShade::Runtime>> sManagers;
 	std::unordered_map<HGLRC, HGLRC>							sSharedContexts;
 	std::unordered_map<HGLRC, HDC>								sDeviceContexts;
 	std::unordered_map<HWND, RECT>								sWindowRects;
 	CriticalSection												sCS;
 
-	__declspec(thread) ReShade::Manager *						sCurrentManager = nullptr;
+	__declspec(thread) ReShade::Runtime *						sCurrentManager = nullptr;
 	__declspec(thread) HGLRC									sCurrentRenderContext = nullptr;
 	__declspec(thread) HDC										sCurrentDeviceContext = nullptr;
 }
 namespace ReShade
 {
-	extern std::shared_ptr<ReShade::EffectContext>				CreateEffectContext(HDC hdc, HGLRC hglrc);
+	extern std::shared_ptr<ReShade::Runtime>					CreateEffectRuntime(HDC hdc, HGLRC hglrc);
 }
 
 // -----------------------------------------------------------------------------------------------------
@@ -2440,7 +2440,6 @@ EXPORT BOOL WINAPI												wglDeleteContext(HGLRC hglrc)
 	{
 		ReHook::Call(&wglMakeCurrent)(sDeviceContexts.at(hglrc), hglrc);
 
-		delete it->second;
 		sManagers.erase(it);
 
 		ReHook::Call(&wglMakeCurrent)(sCurrentDeviceContext, sCurrentRenderContext);
@@ -2538,13 +2537,13 @@ EXPORT BOOL WINAPI												wglMakeCurrent(HDC hdc, HGLRC hglrc)
 
 	if (it != sManagers.end())
 	{
-		sCurrentManager = it->second;
+		sCurrentManager = it->second.get();
 	}
 	else
 	{
 		LOG(INFO) << "Redirecting '" << "wglMakeCurrent" << "(" << hdc << ", " << hglrc << ")' ...";
 
-		ReShade::Manager *manager = nullptr;
+		std::shared_ptr<ReShade::Runtime> runtime;
 		const HWND hwnd = ::WindowFromDC(hdc);
 		const HGLRC shared = sSharedContexts.at(hglrc);
 
@@ -2552,15 +2551,16 @@ EXPORT BOOL WINAPI												wglMakeCurrent(HDC hdc, HGLRC hglrc)
 		{
 			RECT rect;
 			::GetClientRect(hwnd, &rect);
+			const LONG width = rect.right - rect.left, height = rect.bottom - rect.top;
 			sWindowRects[hwnd] = rect;
 
-			LOG(INFO) << "> Initial size is " << rect.right - rect.left << "x" << rect.bottom - rect.top << ".";
+			LOG(INFO) << "> Initial size is " << width << "x" << height << ".";
 
-			const std::shared_ptr<ReShade::EffectContext> context = ReShade::CreateEffectContext(hdc, hglrc);
+			runtime = ReShade::CreateEffectRuntime(hdc, hglrc);
 
-			if (context != nullptr)
+			if (runtime != nullptr)
 			{
-				manager = new ReShade::Manager(context);
+				runtime->OnCreate(static_cast<unsigned int>(width), static_cast<unsigned int>(height));
 			}
 			else
 			{
@@ -2571,11 +2571,11 @@ EXPORT BOOL WINAPI												wglMakeCurrent(HDC hdc, HGLRC hglrc)
 		{
 			LOG(INFO) << "> Context is sharing data with " << shared << ".";
 
-			manager = sManagers.at(shared);
+			runtime = sManagers.at(shared);
 		}
 
-		sManagers.insert(it, std::make_pair(hglrc, manager));
-		sCurrentManager = manager;
+		sManagers.insert(it, std::make_pair(hglrc, runtime));
+		sCurrentManager = runtime.get();
 	}
 
 	return TRUE;
@@ -2632,8 +2632,7 @@ EXPORT BOOL WINAPI												wglSwapBuffers(HDC hdc)
 
 					LOG(INFO) << "Resizing OpenGL context " << sCurrentRenderContext << " to " << width << "x" << height << " ...";
 
-					sCurrentManager->OnDelete();
-					sCurrentManager->OnCreate();
+					sCurrentManager->ReCreate(width, height);
 
 					rectPrevious = rect;
 				}

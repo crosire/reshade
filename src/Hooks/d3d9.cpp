@@ -1,5 +1,5 @@
 #include "Log.hpp"
-#include "Manager.hpp"
+#include "Runtime.hpp"
 #include "HookManager.hpp"
 
 #include <d3d9.h>
@@ -22,7 +22,7 @@
 
 namespace
 {
-	std::unordered_map<IUnknown *, ReShade::Manager *>			sManagers;
+	std::unordered_map<IUnknown *, std::shared_ptr<ReShade::Runtime>> sManagers;
 	std::unordered_map<IUnknown *, ULONG>						sReferences;
 
 	inline ULONG												GetRefCount(IUnknown *pUnknown)
@@ -59,7 +59,7 @@ namespace
 }
 namespace ReShade
 {
-	extern std::shared_ptr<ReShade::EffectContext>				CreateEffectContext(IDirect3DDevice9 *device, IDirect3DSwapChain9 *swapchain);
+	extern std::shared_ptr<ReShade::Runtime>					CreateEffectRuntime(IDirect3DDevice9 *device, IDirect3DSwapChain9 *swapchain);
 }
 
 // -----------------------------------------------------------------------------------------------------
@@ -81,7 +81,6 @@ ULONG STDMETHODCALLTYPE											IDirect3DSwapChain9_Release(IDirect3DSwapChain
 		hook.Enable(false);
 		pSwapChain->AddRef();
 		
-		delete sManagers.at(pSwapChain);
 		sManagers.erase(pSwapChain);
 		sReferences.erase(pSwapChain);
 
@@ -124,7 +123,6 @@ ULONG STDMETHODCALLTYPE											IDirect3DDevice9_Release(IDirect3DDevice9 *pDe
 		IDirect3DSwapChain9 *swapchain = nullptr;
 		pDevice->GetSwapChain(0, &swapchain);
 
-		delete sManagers.at(pDevice);
 		sManagers.erase(pDevice);
 		sManagers.erase(swapchain);
 		sReferences.erase(pDevice);
@@ -163,13 +161,16 @@ HRESULT STDMETHODCALLTYPE										IDirect3DDevice9_CreateAdditionalSwapChain(ID
 
 		assert(device != nullptr);
 
-		const std::shared_ptr<ReShade::EffectContext> context = ReShade::CreateEffectContext(device, swapchain);
+		const std::shared_ptr<ReShade::Runtime> runtime = ReShade::CreateEffectRuntime(device, swapchain);
 		
-		if (context != nullptr)
+		if (runtime != nullptr)
 		{
-			ReShade::Manager *manager = new ReShade::Manager(context);
+			D3DPRESENT_PARAMETERS pp;
+			swapchain->GetPresentParameters(&pp);
 
-			sManagers.insert(std::make_pair(swapchain, manager));
+			runtime->OnCreate(pp.BackBufferWidth, pp.BackBufferHeight);
+
+			sManagers.insert(std::make_pair(swapchain, runtime));
 			sReferences.insert(std::make_pair(swapchain, GetRefCount(swapchain) - 1));
 		}
 		else
@@ -188,24 +189,31 @@ HRESULT STDMETHODCALLTYPE										IDirect3DDevice9_Reset(IDirect3DDevice9 *pDev
 {
 	LOG(INFO) << "Redirecting '" << "IDirect3DDevice9::Reset" << "(" << pDevice << ", " << pPresentationParameters << ")' ...";
 
-	const auto it = sManagers.find(pDevice);
-	ReShade::Manager *const manager = it != sManagers.end() ? it->second : nullptr;
+	if (pPresentationParameters == nullptr)
+	{
+		return D3DERR_INVALIDCALL;
+	}
 
-	if (manager != nullptr)
+	const auto it = sManagers.find(pDevice);
+	const std::shared_ptr<ReShade::Runtime> runtime = it != sManagers.end() ? it->second : nullptr;
+
+	if (runtime != nullptr)
 	{
 		sReferences.erase(pDevice);
-		manager->OnDelete();
+		runtime->OnDelete();
 	}
+
+	const UINT width = pPresentationParameters->BackBufferWidth, height = pPresentationParameters->BackBufferHeight;
 
 	HRESULT hr = ReHook::Call(&IDirect3DDevice9_Reset)(pDevice, pPresentationParameters);
 
 	if (SUCCEEDED(hr))
 	{
-		if (manager != nullptr)
+		if (runtime != nullptr)
 		{
 			const ULONG ref = GetRefCount(pDevice);
 			
-			manager->OnCreate();
+			runtime->OnCreate(width, height);
 			sReferences.insert(std::make_pair(pDevice, GetRefCount(pDevice) - ref));
 		}
 	}
@@ -221,12 +229,13 @@ HRESULT STDMETHODCALLTYPE										IDirect3DDevice9_Present(IDirect3DDevice9 *pD
 	static const auto trampoline = ReHook::Call(&IDirect3DDevice9_Present);
 	
 	const auto it = sManagers.find(pDevice);
-	ReShade::Manager *const manager = it != sManagers.end() ? it->second : nullptr;
 
-	if (manager != nullptr)
+	if (it != sManagers.end())
 	{
-		manager->OnPostProcess();
-		manager->OnPresent();
+		const std::shared_ptr<ReShade::Runtime> &runtime = it->second;
+
+		runtime->OnPostProcess();
+		runtime->OnPresent();
 	}
 
 	return trampoline(pDevice, pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
@@ -237,24 +246,31 @@ HRESULT STDMETHODCALLTYPE										IDirect3DDevice9Ex_ResetEx(IDirect3DDevice9Ex
 {
 	LOG(INFO) << "Redirecting '" << "IDirect3DDevice9Ex::ResetEx" << "(" << pDevice << ", " << pPresentationParameters << ", " << pFullscreenDisplayMode << ")' ...";
 
-	const auto it = sManagers.find(pDevice);
-	ReShade::Manager *const manager = it != sManagers.end() ? it->second : nullptr;
+	if (pPresentationParameters == nullptr)
+	{
+		return D3DERR_INVALIDCALL;
+	}
 
-	if (manager != nullptr)
+	const auto it = sManagers.find(pDevice);
+	const std::shared_ptr<ReShade::Runtime> runtime = it != sManagers.end() ? it->second : nullptr;
+
+	if (runtime != nullptr)
 	{
 		sReferences.erase(pDevice);
-		manager->OnDelete();
+		runtime->OnDelete();
 	}
+
+	const UINT width = pPresentationParameters->BackBufferWidth, height = pPresentationParameters->BackBufferHeight;
 
 	HRESULT hr = ReHook::Call(&IDirect3DDevice9Ex_ResetEx)(pDevice, pPresentationParameters, pFullscreenDisplayMode);
 
 	if (SUCCEEDED(hr))
 	{
-		if (manager != nullptr)
+		if (runtime != nullptr)
 		{
 			const ULONG ref = GetRefCount(pDevice);
 
-			manager->OnCreate();
+			runtime->OnCreate(width, height);
 			sReferences.insert(std::make_pair(pDevice, GetRefCount(pDevice) - ref));
 		}
 	}
@@ -270,12 +286,12 @@ HRESULT STDMETHODCALLTYPE										IDirect3DDevice9Ex_PresentEx(IDirect3DDevice9
 	static const auto trampoline = ReHook::Call(&IDirect3DDevice9Ex_PresentEx);
 
 	const auto it = sManagers.find(pDevice);
-	ReShade::Manager *const manager = it != sManagers.end() ? it->second : nullptr;
+	const std::shared_ptr<ReShade::Runtime> runtime = it != sManagers.end() ? it->second : nullptr;
 
-	if (manager != nullptr)
+	if (runtime != nullptr)
 	{
-		manager->OnPostProcess();
-		manager->OnPresent();
+		runtime->OnPostProcess();
+		runtime->OnPresent();
 	}
 
 	return trampoline(pDevice, pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion, dwFlags);
@@ -296,14 +312,17 @@ HRESULT STDMETHODCALLTYPE										IDirect3D9_CreateDevice(IDirect3D9 *pD3D, UIN
 
 		assert(swapchain != nullptr);
 		
-		const std::shared_ptr<ReShade::EffectContext> context = ReShade::CreateEffectContext(device, swapchain);
+		const std::shared_ptr<ReShade::Runtime> runtime = ReShade::CreateEffectRuntime(device, swapchain);
 		
-		if (context != nullptr)
+		if (runtime != nullptr)
 		{
-			ReShade::Manager *manager = new ReShade::Manager(context);
+			D3DPRESENT_PARAMETERS pp;
+			swapchain->GetPresentParameters(&pp);
+			
+			runtime->OnCreate(pp.BackBufferWidth, pp.BackBufferHeight);
 
-			sManagers.insert(std::make_pair(device, manager));
-			sManagers.insert(std::make_pair(swapchain, manager));
+			sManagers.insert(std::make_pair(device, runtime));
+			sManagers.insert(std::make_pair(swapchain, runtime));
 			sReferences.insert(std::make_pair(device, GetRefCount(device) - 1));
 		}
 		else
@@ -343,14 +362,17 @@ HRESULT STDMETHODCALLTYPE										IDirect3D9Ex_CreateDeviceEx(IDirect3D9Ex *pD3
 
 		assert(swapchain != nullptr);
 
-		const std::shared_ptr<ReShade::EffectContext> context = ReShade::CreateEffectContext(device, swapchain);
+		const std::shared_ptr<ReShade::Runtime> runtime = ReShade::CreateEffectRuntime(device, swapchain);
 		
-		if (context != nullptr)
+		if (runtime != nullptr)
 		{
-			ReShade::Manager *manager = new ReShade::Manager(context);
+			D3DPRESENT_PARAMETERS pp;
+			swapchain->GetPresentParameters(&pp);
 
-			sManagers.insert(std::make_pair(device, manager));
-			sManagers.insert(std::make_pair(swapchain, manager));
+			runtime->OnCreate(pp.BackBufferWidth, pp.BackBufferHeight);
+
+			sManagers.insert(std::make_pair(device, runtime));
+			sManagers.insert(std::make_pair(swapchain, runtime));
 			sReferences.insert(std::make_pair(device, GetRefCount(device) - 1));
 		}
 		else

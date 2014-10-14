@@ -1,7 +1,6 @@
 #include "Log.hpp"
 #include "Effect.hpp"
 #include "EffectParser.hpp"
-#include "EffectContext.hpp"
 #include "EffectPreprocessor.hpp"
 
 #include <boost\assign\list_of.hpp>
@@ -441,43 +440,6 @@ namespace ReShade
 		vsprintf_s(buffer, fmt, args);
 
 		pp->mErrors += buffer;
-	}
-
-	// -----------------------------------------------------------------------------------------------------
-
-	std::unique_ptr<Effect>										EffectContext::Compile(const boost::filesystem::path &path, const std::vector<std::pair<std::string, std::string>> &defines, std::string &errors)
-	{
-		EffectTree ast;
-		EffectParser parser(ast);
-		EffectPreprocessor preprocessor;
-		
-		for (auto it = defines.cbegin(), end = defines.cend(); it != end; ++it)
-		{
-			preprocessor.AddDefine(it->first, it->second);
-		}
-
-		preprocessor.AddIncludePath(path.parent_path());
-
-		LOG(TRACE) << "> Running preprocessor ...";
-
-		const std::string source = preprocessor.Run(path, errors);
-		bool status = !source.empty();
-
-		if (status)
-		{
-			LOG(TRACE) << "> Running parser ...";
-
-			status = parser.Parse(source, errors);
-		}
-
-		if (status)
-		{
-			LOG(TRACE) << "> Running compiler ...";
-
-			return Compile(ast, errors);
-		}
-
-		return nullptr;
 	}
 
 	// -----------------------------------------------------------------------------------------------------

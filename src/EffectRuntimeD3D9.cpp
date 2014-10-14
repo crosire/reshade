@@ -1,6 +1,6 @@
 #include "Log.hpp"
+#include "Runtime.hpp"
 #include "Effect.hpp"
-#include "EffectContext.hpp"
 #include "EffectTree.hpp"
 
 #include <d3d9.h>
@@ -18,7 +18,7 @@ namespace ReShade
 {
 	namespace
 	{
-		class													D3D9EffectContext : public EffectContext, public std::enable_shared_from_this<D3D9EffectContext>
+		class													D3D9EffectContext : public Runtime, public std::enable_shared_from_this<D3D9EffectContext>
 		{
 			friend struct D3D9Effect;
 			friend struct D3D9Texture;
@@ -30,10 +30,8 @@ namespace ReShade
 			D3D9EffectContext(IDirect3DDevice9 *device, IDirect3DSwapChain9 *swapchain);
 			~D3D9EffectContext(void);
 
-			void												GetDimension(unsigned int &width, unsigned int &height) const;
-			void												GetScreenshot(unsigned char *buffer, std::size_t size) const;
-
-			std::unique_ptr<Effect>								Compile(const EffectTree &ast, std::string &errors);
+			virtual std::unique_ptr<Effect>						CreateEffect(const EffectTree &ast, std::string &errors) const override;
+			virtual void										CreateScreenshot(unsigned char *buffer, std::size_t size) const override;
 
 		private:
 			IDirect3DDevice9 *									mDevice;
@@ -46,7 +44,7 @@ namespace ReShade
 			friend struct D3D9Constant;
 			friend struct D3D9Technique;
 
-			D3D9Effect(std::shared_ptr<D3D9EffectContext> context);
+			D3D9Effect(std::shared_ptr<const D3D9EffectContext> context);
 			~D3D9Effect(void);
 
 			const Texture *										GetTexture(const std::string &name) const;
@@ -56,7 +54,7 @@ namespace ReShade
 			const Technique *									GetTechnique(const std::string &name) const;
 			std::vector<std::string>							GetTechniqueNames(void) const;
 
-			std::shared_ptr<D3D9EffectContext>					mEffectContext;
+			std::shared_ptr<const D3D9EffectContext>			mEffectContext;
 			std::unordered_map<std::string,std::unique_ptr<D3D9Texture>> mTextures;
 			std::vector<D3D9Sampler>							mSamplers;
 			std::unordered_map<std::string, std::unique_ptr<D3D9Constant>> mConstants;
@@ -2137,18 +2135,24 @@ namespace ReShade
 			this->mSwapChain->Release();
 		}
 
-		void													D3D9EffectContext::GetDimension(unsigned int &width, unsigned int &height) const
+		std::unique_ptr<Effect>									D3D9EffectContext::CreateEffect(const EffectTree &ast, std::string &errors) const
 		{
-			IDirect3DSurface9 *buffer;
-			D3DSURFACE_DESC desc;
-			this->mSwapChain->GetBackBuffer(0, D3DBACKBUFFER_TYPE_MONO, &buffer);
-			buffer->GetDesc(&desc);
-			buffer->Release();
+			D3D9Effect *effect = new D3D9Effect(shared_from_this());
+			
+			D3D9EffectCompiler visitor(ast);
+		
+			if (visitor.Traverse(effect, errors))
+			{
+				return std::unique_ptr<Effect>(effect);
+			}
+			else
+			{
+				delete effect;
 
-			width = desc.Width;
-			height = desc.Height;
+				return nullptr;
+			}
 		}
-		void													D3D9EffectContext::GetScreenshot(unsigned char *buffer, std::size_t size) const
+		void													D3D9EffectContext::CreateScreenshot(unsigned char *buffer, std::size_t size) const
 		{
 			IDirect3DSurface9 *backbuffer = nullptr;
 			IDirect3DSurface9 *surfaceSystem = nullptr;
@@ -2248,25 +2252,7 @@ namespace ReShade
 			surfaceSystem->Release();
 		}
 
-		std::unique_ptr<Effect>									D3D9EffectContext::Compile(const EffectTree &ast, std::string &errors)
-		{
-			D3D9Effect *effect = new D3D9Effect(shared_from_this());
-			
-			D3D9EffectCompiler visitor(ast);
-		
-			if (visitor.Traverse(effect, errors))
-			{
-				return std::unique_ptr<Effect>(effect);
-			}
-			else
-			{
-				delete effect;
-
-				return nullptr;
-			}
-		}
-
-		D3D9Effect::D3D9Effect(std::shared_ptr<D3D9EffectContext> context) : mEffectContext(context), mBackBuffer(nullptr), mBackBufferNotMultisampled(nullptr), mStateBlock(nullptr), mDepthStencil(nullptr)
+		D3D9Effect::D3D9Effect(std::shared_ptr<const D3D9EffectContext> context) : mEffectContext(context), mBackBuffer(nullptr), mBackBufferNotMultisampled(nullptr), mStateBlock(nullptr), mDepthStencil(nullptr)
 		{
 			HRESULT hr;
 
@@ -2662,7 +2648,7 @@ namespace ReShade
 
 	// -----------------------------------------------------------------------------------------------------
 
-	std::shared_ptr<EffectContext>								CreateEffectContext(IDirect3DDevice9 *device, IDirect3DSwapChain9 *swapchain)
+	std::shared_ptr<Runtime>									CreateEffectRuntime(IDirect3DDevice9 *device, IDirect3DSwapChain9 *swapchain)
 	{
 		assert(device != nullptr && swapchain != nullptr);
 

@@ -1,6 +1,6 @@
 #include "Log.hpp"
+#include "Runtime.hpp"
 #include "Effect.hpp"
-#include "EffectContext.hpp"
 #include "EffectTree.hpp"
 
 #include <d3d10_1.h>
@@ -39,7 +39,7 @@ namespace ReShade
 {
 	namespace
 	{
-		class													D3D10EffectContext : public EffectContext, public std::enable_shared_from_this<D3D10EffectContext>
+		class													D3D10EffectContext : public Runtime, public std::enable_shared_from_this<D3D10EffectContext>
 		{
 			friend struct D3D10Effect;
 			friend struct D3D10Texture;
@@ -51,10 +51,8 @@ namespace ReShade
 			D3D10EffectContext(ID3D10Device *device, IDXGISwapChain *swapchain);
 			~D3D10EffectContext(void);
 
-			void												GetDimension(unsigned int &width, unsigned int &height) const;
-			void												GetScreenshot(unsigned char *buffer, std::size_t size) const;
-		
-			std::unique_ptr<Effect>								Compile(const EffectTree &ast, std::string &errors);
+			virtual std::unique_ptr<Effect>						CreateEffect(const EffectTree &ast, std::string &errors) const override;
+			virtual void										CreateScreenshot(unsigned char *buffer, std::size_t size) const override;
 
 		private:
 			ID3D10Device *										mDevice;
@@ -66,7 +64,7 @@ namespace ReShade
 			friend struct D3D10Constant;
 			friend struct D3D10Technique;
 
-			D3D10Effect(std::shared_ptr<D3D10EffectContext> context);
+			D3D10Effect(std::shared_ptr<const D3D10EffectContext> context);
 			~D3D10Effect(void);
 
 			const Texture *										GetTexture(const std::string &name) const;
@@ -78,7 +76,7 @@ namespace ReShade
 
 			void												ApplyConstants(void) const;
 
-			std::shared_ptr<D3D10EffectContext>					mEffectContext;
+			std::shared_ptr<const D3D10EffectContext>			mEffectContext;
 			std::unordered_map<std::string, std::unique_ptr<D3D10Texture>> mTextures;
 			std::unordered_map<std::string, std::unique_ptr<D3D10Constant>> mConstants;
 			std::unordered_map<std::string, std::unique_ptr<D3D10Technique>> mTechniques;
@@ -2176,18 +2174,24 @@ namespace ReShade
 			this->mSwapChain->Release();
 		}
 
-		void													D3D10EffectContext::GetDimension(unsigned int &width, unsigned int &height) const
+		std::unique_ptr<Effect>									D3D10EffectContext::CreateEffect(const EffectTree &ast, std::string &errors) const
 		{
-			ID3D10Texture2D *buffer;
-			D3D10_TEXTURE2D_DESC desc;
-			this->mSwapChain->GetBuffer(0, __uuidof(ID3D10Texture2D), reinterpret_cast<void **>(&buffer));
-			buffer->GetDesc(&desc);
-			buffer->Release();
+			D3D10Effect *effect = new D3D10Effect(shared_from_this());
+			
+			D3D10EffectCompiler visitor(ast);
+		
+			if (visitor.Traverse(effect, errors))
+			{
+				return std::unique_ptr<Effect>(effect);
+			}
+			else
+			{
+				delete effect;
 
-			width = desc.Width;
-			height = desc.Height;
+				return nullptr;
+			}
 		}
-		void													D3D10EffectContext::GetScreenshot(unsigned char *buffer, std::size_t size) const
+		void													D3D10EffectContext::CreateScreenshot(unsigned char *buffer, std::size_t size) const
 		{
 			ID3D10Texture2D *backbuffer = nullptr;
 
@@ -2298,25 +2302,7 @@ namespace ReShade
 			textureStaging->Release();
 		}
 
-		std::unique_ptr<Effect>									D3D10EffectContext::Compile(const EffectTree &ast, std::string &errors)
-		{
-			D3D10Effect *effect = new D3D10Effect(shared_from_this());
-			
-			D3D10EffectCompiler visitor(ast);
-		
-			if (visitor.Traverse(effect, errors))
-			{
-				return std::unique_ptr<Effect>(effect);
-			}
-			else
-			{
-				delete effect;
-
-				return nullptr;
-			}
-		}
-
-		D3D10Effect::D3D10Effect(std::shared_ptr<D3D10EffectContext> context) : mEffectContext(context), mConstantsDirty(true)
+		D3D10Effect::D3D10Effect(std::shared_ptr<const D3D10EffectContext> context) : mEffectContext(context), mConstantsDirty(true)
 		{
 			context->mSwapChain->GetBuffer(0, __uuidof(ID3D10Texture2D), reinterpret_cast<void **>(&this->mBackBuffer));
 
@@ -2718,7 +2704,7 @@ namespace ReShade
 
 	// -----------------------------------------------------------------------------------------------------
 
-	std::shared_ptr<EffectContext>								CreateEffectContext(ID3D10Device *device, IDXGISwapChain *swapchain)
+	std::shared_ptr<Runtime>									CreateEffectRuntime(ID3D10Device *device, IDXGISwapChain *swapchain)
 	{
 		assert (device != nullptr && swapchain != nullptr);
 

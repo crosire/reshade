@@ -7,8 +7,6 @@ namespace ReShade
 {
 	class														Effect
 	{
-		friend class EffectContext;
-
 	public:
 		struct													Annotation
 		{

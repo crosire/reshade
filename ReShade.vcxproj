@@ -239,7 +239,7 @@
     <ClCompile Include="src\Hooks\dxgi.cpp" />
     <ClCompile Include="src\Hooks\opengl32.cpp" />
     <ClCompile Include="src\Main.cpp" />
-    <ClCompile Include="src\Manager.cpp" />
+    <ClCompile Include="src\Runtime.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="res\Resource.h" />
@@ -248,12 +248,11 @@
     <ClInclude Include="src\HookManager.hpp" />
     <ClInclude Include="src\Log.hpp" />
     <ClInclude Include="src\Effect.hpp" />
-    <ClInclude Include="src\EffectContext.hpp" />
     <ClInclude Include="src\EffectPreprocessor.hpp" />
     <ClInclude Include="obj\$(Platform)\$(Configuration)\EffectLexer.h" />
     <ClInclude Include="obj\$(Platform)\$(Configuration)\EffectParser.hpp" />
     <ClInclude Include="src\EffectTree.hpp" />
-    <ClInclude Include="src\Manager.hpp" />
+    <ClInclude Include="src\Runtime.hpp" />
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="src\EffectLexer.l">

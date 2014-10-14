@@ -16,7 +16,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Main.cpp" />
-    <ClCompile Include="src\Manager.cpp" />
+    <ClCompile Include="src\Runtime.cpp" />
     <ClCompile Include="src\Effect.cpp">
       <Filter>Effect</Filter>
     </ClCompile>
@@ -71,11 +71,8 @@
       <Filter>Resources</Filter>
     </ClInclude>
     <ClInclude Include="src\Log.hpp" />
-    <ClInclude Include="src\Manager.hpp" />
+    <ClInclude Include="src\Runtime.hpp" />
     <ClInclude Include="src\Effect.hpp">
-      <Filter>Effect</Filter>
-    </ClInclude>
-    <ClInclude Include="src\EffectContext.hpp">
       <Filter>Effect</Filter>
     </ClInclude>
     <ClInclude Include="src\EffectPreprocessor.hpp">

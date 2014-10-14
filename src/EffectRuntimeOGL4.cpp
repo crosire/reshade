@@ -1,6 +1,6 @@
 #include "Log.hpp"
+#include "Runtime.hpp"
 #include "Effect.hpp"
-#include "EffectContext.hpp"
 #include "EffectTree.hpp"
 
 #include <gl\gl3w.h>
@@ -130,7 +130,7 @@ namespace ReShade
 			GLboolean											mScissorTest, mBlend, mDepthTest, mDepthMask, mStencilTest, mColorMask[4], mFramebufferSRGB;
 		};
 
-		class													OGL4EffectContext : public EffectContext, public std::enable_shared_from_this<OGL4EffectContext>
+		class													OGL4EffectContext : public Runtime, public std::enable_shared_from_this<OGL4EffectContext>
 		{
 			friend struct OGL4Effect;
 			friend struct OGL4Texture;
@@ -142,10 +142,8 @@ namespace ReShade
 			OGL4EffectContext(HDC device, HGLRC context);
 			~OGL4EffectContext(void);
 
-			void												GetDimension(unsigned int &width, unsigned int &height) const;
-			void												GetScreenshot(unsigned char *buffer, std::size_t size) const;
-
-			std::unique_ptr<Effect>								Compile(const EffectTree &ast, std::string &errors);
+			virtual std::unique_ptr<Effect>						CreateEffect(const EffectTree &ast, std::string &errors) const override;
+			virtual void										CreateScreenshot(unsigned char *buffer, std::size_t size) const override;
 
 		private:
 			HDC													mDeviceContext;
@@ -158,7 +156,7 @@ namespace ReShade
 			friend struct OGL4Constant;
 			friend struct OGL4Technique;
 
-			OGL4Effect(std::shared_ptr<OGL4EffectContext> context);
+			OGL4Effect(std::shared_ptr<const OGL4EffectContext> context);
 			~OGL4Effect(void);
 
 			const Texture *										GetTexture(const std::string &name) const;
@@ -168,7 +166,7 @@ namespace ReShade
 			const Technique *									GetTechnique(const std::string &name) const;
 			std::vector<std::string>							GetTechniqueNames(void) const;
 
-			std::shared_ptr<OGL4EffectContext>					mEffectContext;
+			std::shared_ptr<const OGL4EffectContext>			mEffectContext;
 			std::unordered_map<std::string, std::unique_ptr<OGL4Texture>> mTextures;
 			std::vector<std::shared_ptr<OGL4Sampler>>			mSamplers;
 			std::unordered_map<std::string, std::unique_ptr<OGL4Constant>> mConstants;
@@ -2665,45 +2663,7 @@ namespace ReShade
 		{
 		}
 
-		void													OGL4EffectContext::GetDimension(unsigned int &width, unsigned int &height) const
-		{
-			RECT rect;
-			HWND hwnd = ::WindowFromDC(this->mDeviceContext);
-			::GetClientRect(hwnd, &rect);
-
-			width = static_cast<unsigned int>(rect.right - rect.left);
-			height = static_cast<unsigned int>(rect.bottom - rect.top);
-		}
-		void													OGL4EffectContext::GetScreenshot(unsigned char *buffer, std::size_t size) const
-		{
-			GLCHECK(glReadBuffer(GL_BACK));
-
-			unsigned int width = 0, height = 0;
-			GetDimension(width, height);
-			const unsigned int pitch = width * 4;
-
-			assert(size >= pitch * height);
-
-			glReadPixels(0, 0, static_cast<GLsizei>(width), static_cast<GLsizei>(height), GL_RGBA, GL_UNSIGNED_BYTE, buffer);
-			
-			for (unsigned int y = 0; y * 2 < height; ++y)
-			{
-				const unsigned int i1 = y * pitch;
-				const unsigned int i2 = (height - 1 - y) * pitch;
-
-				for (unsigned int x = 0; x < pitch; x += 4)
-				{
-					buffer[i1 + x + 3] = 0xFF;
-					buffer[i2 + x + 3] = 0xFF;
-
-					std::swap(buffer[i1 + x + 0], buffer[i2 + x + 0]);
-					std::swap(buffer[i1 + x + 1], buffer[i2 + x + 1]);
-					std::swap(buffer[i1 + x + 2], buffer[i2 + x + 2]);
-				}
-			}
-		}
-
-		std::unique_ptr<Effect>									OGL4EffectContext::Compile(const EffectTree &ast, std::string &errors)
+		std::unique_ptr<Effect>									OGL4EffectContext::CreateEffect(const EffectTree &ast, std::string &errors) const
 		{
 			OGL4Effect *effect = new OGL4Effect(shared_from_this());
 			
@@ -2720,8 +2680,34 @@ namespace ReShade
 				return nullptr;
 			}
 		}
+		void													OGL4EffectContext::CreateScreenshot(unsigned char *buffer, std::size_t size) const
+		{
+			GLCHECK(glReadBuffer(GL_BACK));
 
-		OGL4Effect::OGL4Effect(std::shared_ptr<OGL4EffectContext> context) : mEffectContext(context), mDefaultVAO(0), mDefaultVBO(0), mDefaultFBO(0), mUniformDirty(true)
+			const unsigned int pitch = this->mWidth * 4;
+
+			assert(size >= pitch * this->mHeight);
+
+			glReadPixels(0, 0, static_cast<GLsizei>(this->mWidth), static_cast<GLsizei>(this->mHeight), GL_RGBA, GL_UNSIGNED_BYTE, buffer);
+			
+			for (unsigned int y = 0; y * 2 < this->mHeight; ++y)
+			{
+				const unsigned int i1 = y * pitch;
+				const unsigned int i2 = (this->mHeight - 1 - y) * pitch;
+
+				for (unsigned int x = 0; x < pitch; x += 4)
+				{
+					buffer[i1 + x + 3] = 0xFF;
+					buffer[i2 + x + 3] = 0xFF;
+
+					std::swap(buffer[i1 + x + 0], buffer[i2 + x + 0]);
+					std::swap(buffer[i1 + x + 1], buffer[i2 + x + 1]);
+					std::swap(buffer[i1 + x + 2], buffer[i2 + x + 2]);
+				}
+			}
+		}
+
+		OGL4Effect::OGL4Effect(std::shared_ptr<const OGL4EffectContext> context) : mEffectContext(context), mDefaultVAO(0), mDefaultVBO(0), mDefaultFBO(0), mUniformDirty(true)
 		{
 			GLCHECK(glGenVertexArrays(1, &this->mDefaultVAO));
 			GLCHECK(glGenBuffers(1, &this->mDefaultVBO));
@@ -3049,10 +3035,7 @@ namespace ReShade
 			GLCHECK(glReadBuffer(GL_BACK));
 			GLCHECK(glDrawBuffer(GL_COLOR_ATTACHMENT0));
 
-			unsigned int backWidth = 0, backHeight = 0;
-			this->mEffect->mEffectContext->GetDimension(backWidth, backHeight);
-
-			GLCHECK(glBlitFramebuffer(0, 0, backWidth, backHeight, 0, 0, this->mDesc.Width, this->mDesc.Height, GL_COLOR_BUFFER_BIT, GL_NEAREST));
+			GLCHECK(glBlitFramebuffer(0, 0, this->mEffect->mEffectContext->mWidth, this->mEffect->mEffectContext->mHeight, 0, 0, this->mDesc.Width, this->mDesc.Height, GL_COLOR_BUFFER_BIT, GL_NEAREST));
 		}
 		void													OGL4Texture::UpdateFromDepthBuffer(void)
 		{
@@ -3063,10 +3046,7 @@ namespace ReShade
 			GLCHECK(glReadBuffer(GL_BACK));
 			GLCHECK(glDrawBuffer(GL_COLOR_ATTACHMENT0));
 
-			unsigned int backWidth = 0, backHeight = 0;
-			this->mEffect->mEffectContext->GetDimension(backWidth, backHeight);
-
-			GLCHECK(glBlitFramebuffer(0, 0, backWidth, backHeight, 0, 0, this->mDesc.Width, this->mDesc.Height, GL_DEPTH_BUFFER_BIT, GL_NEAREST));
+			GLCHECK(glBlitFramebuffer(0, 0, this->mEffect->mEffectContext->mWidth, this->mEffect->mEffectContext->mHeight, 0, 0, this->mDesc.Width, this->mDesc.Height, GL_DEPTH_BUFFER_BIT, GL_NEAREST));
 		}
 
 		OGL4Constant::OGL4Constant(OGL4Effect *effect) : mEffect(effect)
@@ -3275,7 +3255,7 @@ namespace ReShade
 
 	// -----------------------------------------------------------------------------------------------------
 
-	std::shared_ptr<EffectContext>								CreateEffectContext(HDC hdc, HGLRC hglrc)
+	std::shared_ptr<Runtime>									CreateEffectRuntime(HDC hdc, HGLRC hglrc)
 	{
 		assert(hdc != nullptr && hglrc != nullptr);
 		assert(wglGetCurrentDC() == hdc && wglGetCurrentContext() == hglrc);
