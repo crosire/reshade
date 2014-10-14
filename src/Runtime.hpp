@@ -2,6 +2,7 @@
 
 #include "Effect.hpp"
 
+#include <chrono>
 #include <memory>
 #include <vector>
 #include <boost\filesystem\path.hpp>
@@ -40,5 +41,8 @@ namespace ReShade
 		std::unique_ptr<Effect> mEffect;
 		std::vector<std::pair<bool, const Effect::Technique *>> mTechniques;
 		std::vector<Effect::Texture *> mColorTargets;
+		std::chrono::high_resolution_clock::time_point mLastPresent;
+		std::chrono::high_resolution_clock::duration mLastFrametime, mLastPostProcessTime;
+		std::chrono::system_clock::time_point mLastEffectModification;
 	};
 }

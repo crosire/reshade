@@ -29,6 +29,21 @@ namespace ReShade
 
 			return result;
 		}
+		inline std::chrono::system_clock::time_point GetLastWriteTime(const boost::filesystem::path &path)
+		{
+			WIN32_FILE_ATTRIBUTE_DATA attributes;
+			
+			if (!::GetFileAttributesEx(path.c_str(), GetFileExInfoStandard, reinterpret_cast<LPVOID>(&attributes)))
+			{
+				return std::chrono::system_clock::time_point();
+			}
+
+			ULARGE_INTEGER ull;
+			ull.LowPart = attributes.ftLastWriteTime.dwLowDateTime;
+			ull.HighPart = attributes.ftLastWriteTime.dwHighDateTime;
+
+			return std::chrono::system_clock::time_point(std::chrono::system_clock::duration(ull.QuadPart));
+		}
 		inline boost::filesystem::path GetSystemDirectory()
 		{
 			TCHAR path[MAX_PATH];
@@ -219,6 +234,8 @@ namespace ReShade
 	}
 	void Runtime::OnPostProcess()
 	{
+		const auto time = std::chrono::high_resolution_clock::now();
+
 		for (auto &it : this->mTechniques)
 		{
 			bool &enabled = it.first;
@@ -258,19 +275,40 @@ namespace ReShade
 				LOG(ERROR) << "Failed to start rendering technique!";
 			}
 		}
+
+		this->mLastPostProcessTime = std::chrono::high_resolution_clock::now() - time;
 	}
 	void Runtime::OnPresent()
 	{
+		const auto time = std::chrono::high_resolution_clock::now();
+		const std::chrono::seconds uptime = std::chrono::duration_cast<std::chrono::seconds>(time.time_since_epoch());
+		const std::chrono::milliseconds frametime = std::chrono::duration_cast<std::chrono::milliseconds>(time - this->mLastPresent);
+
 		if (::GetAsyncKeyState(VK_SNAPSHOT) & 0x8000)
 		{
 			tm tm;
-			const time_t t = ::time(nullptr);
+			const time_t t = std::chrono::system_clock::to_time_t(time);
 			::localtime_s(&tm, &t);
 			char timeString[128];
 			std::strftime(timeString, 128, "(%Y-%m-%d %H.%M.%S)", &tm); 
 
 			CreateScreenshot(sExecutablePath.parent_path() / (sExecutablePath.stem().string() + ' ' + timeString + ".png"));
 		}
+
+		if (uptime.count() % 5 == 0)
+		{
+			const std::chrono::system_clock::time_point writetime = GetLastWriteTime(sEffectPath);
+
+			if (writetime > this->mLastEffectModification)
+			{
+				ReCreate();
+
+				this->mLastEffectModification = writetime;
+			}
+		}
+
+		this->mLastPresent = time;
+		this->mLastFrametime = frametime;
 	}
 
 	void Runtime::CreateResources()
