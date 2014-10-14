@@ -20,16 +20,16 @@
     <ClCompile Include="src\Effect.cpp">
       <Filter>Effect</Filter>
     </ClCompile>
-    <ClCompile Include="src\EffectContextD3D9.cpp">
+    <ClCompile Include="src\EffectRuntimeD3D9.cpp">
       <Filter>Effect</Filter>
     </ClCompile>
-    <ClCompile Include="src\EffectContextD3D10.cpp">
+    <ClCompile Include="src\EffectRuntimeD3D10.cpp">
       <Filter>Effect</Filter>
     </ClCompile>
-    <ClCompile Include="src\EffectContextD3D11.cpp">
+    <ClCompile Include="src\EffectRuntimeD3D11.cpp">
       <Filter>Effect</Filter>
     </ClCompile>
-    <ClCompile Include="src\EffectContextOGL4.cpp">
+    <ClCompile Include="src\EffectRuntimeOGL4.cpp">
       <Filter>Effect</Filter>
     </ClCompile>
     <ClCompile Include="obj\$(Platform)\$(Configuration)\EffectParser.cpp">
