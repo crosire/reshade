@@ -129,6 +129,21 @@ HRESULT STDMETHODCALLTYPE										IDXGISwapChain_ResizeBuffers(IDXGISwapChain *
 			sReferences.insert(std::make_pair(pSwapChain, GetRefCount(pSwapChain) - ref));
 		}
 	}
+	else if (hr == DXGI_ERROR_INVALID_CALL)
+	{
+		LOG(WARNING) << "'IDXGISwapChain::ResizeBuffers' failed with '" << GetErrorString(hr) << "'!";
+
+		if (runtime != nullptr)
+		{
+			DXGI_SWAP_CHAIN_DESC desc;
+			pSwapChain->GetDesc(&desc);
+
+			const ULONG ref = GetRefCount(pSwapChain);
+
+			runtime->OnCreate(desc.BufferDesc.Width, desc.BufferDesc.Height);
+			sReferences.insert(std::make_pair(pSwapChain, GetRefCount(pSwapChain) - ref));
+		}
+	}
 	else
 	{
 		LOG(ERROR) << "'IDXGISwapChain::ResizeBuffers' failed with '" << GetErrorString(hr) << "'!";
