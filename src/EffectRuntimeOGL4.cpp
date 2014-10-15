@@ -1253,6 +1253,15 @@ namespace ReShade
 						part3 = cast2.second + ')';
 						break;
 					}
+					case EffectNodes::Expression::TexGather:
+					{
+						part1 = "textureGather(";
+						const EffectNodes::Type type2to = { EffectNodes::Type::Float, 0, 2, 1 };
+						cast2 = PrintCast(type2, type2to);
+						part2 = ", " + cast2.first;
+						part3 = cast2.second + ')';
+						break;
+					}
 					case EffectNodes::Expression::TexBias:
 					{
 						part1 = "_textureBias(";
@@ -1364,6 +1373,18 @@ namespace ReShade
 					{	
 						part1 = "_textureLodOffset(";
 						const EffectNodes::Type type2to = { EffectNodes::Type::Float, 0, 4, 1 };
+						const EffectNodes::Type type3to = { EffectNodes::Type::Int, 0, 2, 1 };
+						cast2 = PrintCast(type2, type2to);
+						part2 = ", " + cast2.first;
+						cast3 = PrintCast(type3, type3to);
+						part3 = cast2.second + ", " + cast3.first;
+						part4 = cast3.second + ')';
+						break;
+					}
+					case EffectNodes::Expression::TexGatherOffset:
+					{
+						part1 = "textureGatherOffset(";
+						const EffectNodes::Type type2to = { EffectNodes::Type::Float, 0, 2, 1 };
 						const EffectNodes::Type type3to = { EffectNodes::Type::Int, 0, 2, 1 };
 						cast2 = PrintCast(type2, type2to);
 						part2 = ", " + cast2.first;

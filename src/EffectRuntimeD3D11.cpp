@@ -863,6 +863,11 @@ namespace ReShade
 						part2 = ", ";
 						part3 = ")";
 						break;
+					case EffectNodes::Expression::TexGather:
+						part1 = "__tex2Dgather(";
+						part2 = ", ";
+						part3 = ")";
+						break;
 					case EffectNodes::Expression::TexBias:
 						part1 = "__tex2Dbias(";
 						part2 = ", ";
@@ -934,6 +939,12 @@ namespace ReShade
 						break;
 					case EffectNodes::Expression::TexLevelOffset:
 						part1 = "__tex2Dlodoffset(";
+						part2 = ", ";
+						part3 = ", ";
+						part4 = ")";
+						break;
+					case EffectNodes::Expression::TexGatherOffset:
+						part1 = "__tex2Dgatheroffset(";
 						part2 = ", ";
 						part3 = ", ";
 						part4 = ")";
@@ -2120,6 +2131,8 @@ namespace ReShade
 					"inline float4 __tex2Doffset(__sampler2D s, float2 c, int2 offset) { return s.t.Sample(s.s, c, offset); }\n"
 					"inline float4 __tex2Dlod(__sampler2D s, float4 c) { return s.t.SampleLevel(s.s, c.xy, c.w); }\n"
 					"inline float4 __tex2Dlodoffset(__sampler2D s, float4 c, int2 offset) { return s.t.SampleLevel(s.s, c.xy, c.w, offset); }\n"
+					"inline float4 __tex2Dgather(__sampler2D s, float2 c) { return s.t.Gather(s.s, c); }\n"
+					"inline float4 __tex2Dgatheroffset(__sampler2D s, float2 c, int2 offset) { return s.t.Gather(s.s, c, offset); }\n"
 					"inline float4 __tex2Dfetch(__sampler2D s, int4 c) { return s.t.Load(c.xyw); }\n"
 					"inline float4 __tex2Dbias(__sampler2D s, float4 c) { return s.t.SampleBias(s.s, c.xy, c.w); }\n"
 					"inline int2 __tex2Dsize(__sampler2D s, int lod) { uint w, h, l; s.t.GetDimensions(lod, w, h, l); return int2(w, h); }\n"

@@ -552,6 +552,7 @@ namespace ReShade
 				Field,
 				Tex,
 				TexLevel,
+				TexGather,
 				TexBias,
 				TexFetch,
 				TexSize,
@@ -567,6 +568,7 @@ namespace ReShade
 				Conditional,
 				TexOffset,
 				TexLevelOffset,
+				TexGatherOffset,
 
 				OperatorCount
 			};

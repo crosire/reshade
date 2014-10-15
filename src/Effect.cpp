@@ -148,6 +148,8 @@ namespace ReShade
 			"float4 tex2Doffset(sampler2D s, float2 t, int2 o);"
 			"float4 tex2Dlod(sampler2D s, float4 t);"
 			"float4 tex2Dlodoffset(sampler2D s, float4 t, int2 o);"
+			"float4 tex2Dgather(sampler2D s, float2 t);"
+			"float4 tex2Dgatheroffset(sampler2D s, float2 t, int2 o);"
 			"float4 tex2Dfetch(sampler2D s, int2 t);"
 			"float4 tex2Dbias(sampler2D s, float4 t);"
 			"int2 tex2Dsize(sampler2D s, int lod);";
@@ -215,6 +217,8 @@ namespace ReShade
 			("tex2Doffset", EffectNodes::Expression::TexOffset)
 			("tex2Dlod", EffectNodes::Expression::TexLevel)
 			("tex2Dlodoffset",	EffectNodes::Expression::TexLevelOffset)
+			("tex2Dgather", EffectNodes::Expression::TexGather)
+			("tex2Dgatheroffset", EffectNodes::Expression::TexGatherOffset)
 			("tex2Dbias", EffectNodes::Expression::TexBias)
 			("tex2Dfetch", EffectNodes::Expression::TexFetch)
 			("tex2Dsize", EffectNodes::Expression::TexSize);

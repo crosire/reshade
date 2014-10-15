@@ -867,6 +867,11 @@ namespace ReShade
 						part2 = ", ";
 						part3 = ")";
 						break;
+					case EffectNodes::Expression::TexGather:
+						part1 = "__tex2Dgather(";
+						part2 = ", ";
+						part3 = ")";
+						break;
 					case EffectNodes::Expression::TexBias:
 						part1 = "tex2Dbias(";
 						part2 = ", ";
@@ -937,6 +942,12 @@ namespace ReShade
 						break;
 					case EffectNodes::Expression::TexLevelOffset:
 						part1 = "tex2Dlod(";
+						part2 = ", ";
+						part3 = " + (";
+						part4 = ") * _PIXEL_SIZE_.xy)";
+						break;
+					case EffectNodes::Expression::TexGatherOffset:
+						part1 = "__tex2Dgather(";
 						part2 = ", ";
 						part3 = " + (";
 						part4 = ") * _PIXEL_SIZE_.xy)";
@@ -1870,7 +1881,11 @@ namespace ReShade
 				flags |= D3DCOMPILE_DEBUG;
 #endif
 
-				std::string source = "uniform float4 _PIXEL_SIZE_ : register(c223);\n" + this->mCurrentSource;
+				std::string source =
+					"uniform float4 _PIXEL_SIZE_ : register(c223);\n"
+					"float4 __tex2Dgather(sampler2D s, float2 c) { return float4(tex2D(s, c + float2(0, 1) * _PIXEL_SIZE_.xy).r, tex2D(s, c + float2(1, 1) * _PIXEL_SIZE_.xy).r, tex2D(s, c + float2(1, 0) * _PIXEL_SIZE_.xy).r, tex2D(s, c).r); }\n";
+
+				source += this->mCurrentSource;
 
 				std::string positionVariable, initialization;
 				EffectNodes::Type returnType = node.ReturnType;
