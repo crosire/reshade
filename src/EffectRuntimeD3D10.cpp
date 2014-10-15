@@ -51,6 +51,9 @@ namespace ReShade
 			D3D10EffectContext(ID3D10Device *device, IDXGISwapChain *swapchain);
 			~D3D10EffectContext(void);
 
+			virtual unsigned int								GetVendor() const override;
+			virtual unsigned int								GetRenderer() const override;
+
 			virtual std::unique_ptr<Effect>						CreateEffect(const EffectTree &ast, std::string &errors) const override;
 			virtual void										CreateScreenshot(unsigned char *buffer, std::size_t size) const override;
 
@@ -2185,6 +2188,40 @@ namespace ReShade
 		{
 			this->mDevice->Release();
 			this->mSwapChain->Release();
+		}
+
+		unsigned int											D3D10EffectContext::GetVendor() const
+		{
+			IDXGIDevice *dxgidevice = nullptr;
+
+			HRESULT hr = this->mDevice->QueryInterface(__uuidof(IDXGIDevice), reinterpret_cast<void **>(&dxgidevice));
+
+			if (FAILED(hr))
+			{
+				return 0;
+			}
+
+			IDXGIAdapter *adapter = nullptr;
+
+			hr = dxgidevice->GetAdapter(&adapter);
+
+			dxgidevice->Release();
+
+			if (FAILED(hr))
+			{
+				return 0;
+			}
+
+			DXGI_ADAPTER_DESC desc;
+			adapter->GetDesc(&desc);
+
+			adapter->Release();
+
+			return desc.VendorId;
+		}
+		unsigned int											D3D10EffectContext::GetRenderer() const
+		{
+			return 0xD3D10;
 		}
 
 		std::unique_ptr<Effect>									D3D10EffectContext::CreateEffect(const EffectTree &ast, std::string &errors) const

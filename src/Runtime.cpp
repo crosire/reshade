@@ -135,7 +135,9 @@ namespace ReShade
 
 		// Preprocess
 		EffectPreprocessor preprocessor;
-		preprocessor.AddDefine("RESHADE");
+		preprocessor.AddDefine("__RESHADE__", std::to_string(VERSION_MAJOR * 10000 + VERSION_MINOR * 100 + VERSION_REVISION));
+		preprocessor.AddDefine("__VENDOR__", std::to_string(GetVendor()));
+		preprocessor.AddDefine("__RENDERER__", std::to_string(GetRenderer()));
 		preprocessor.AddDefine("BUFFER_WIDTH", std::to_string(width));
 		preprocessor.AddDefine("BUFFER_HEIGHT", std::to_string(height));
 		preprocessor.AddDefine("BUFFER_RCP_WIDTH", std::to_string(1.0f / static_cast<float>(width)));

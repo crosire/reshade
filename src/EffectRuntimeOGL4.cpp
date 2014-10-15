@@ -142,6 +142,9 @@ namespace ReShade
 			OGL4EffectContext(HDC device, HGLRC context);
 			~OGL4EffectContext(void);
 
+			virtual unsigned int								GetVendor() const override;
+			virtual unsigned int								GetRenderer() const override;
+
 			virtual std::unique_ptr<Effect>						CreateEffect(const EffectTree &ast, std::string &errors) const override;
 			virtual void										CreateScreenshot(unsigned char *buffer, std::size_t size) const override;
 
@@ -2682,6 +2685,36 @@ namespace ReShade
 		}
 		OGL4EffectContext::~OGL4EffectContext(void)
 		{
+		}
+
+		unsigned int											OGL4EffectContext::GetVendor() const
+		{
+			const char *name = reinterpret_cast<const char *>(glGetString(GL_VENDOR));
+
+			if (name == nullptr)
+			{
+				return 0;
+			}
+			else if (boost::contains(name, "NVIDIA"))
+			{
+				return 0x10DE;
+			}
+			else if (boost::contains(name, "AMD") || boost::contains(name, "ATI"))
+			{
+				return 0x1002;
+			}
+			else if (boost::contains(name, "Intel"))
+			{
+				return 0x8086;
+			}
+			else
+			{
+				return 0;
+			}
+		}
+		unsigned int											OGL4EffectContext::GetRenderer() const
+		{
+			return 0x061;
 		}
 
 		std::unique_ptr<Effect>									OGL4EffectContext::CreateEffect(const EffectTree &ast, std::string &errors) const

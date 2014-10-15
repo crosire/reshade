@@ -12,7 +12,7 @@ namespace ReShade
 	public:
 		EffectPreprocessor();
 
-		void													AddDefine(const std::string &name, const std::string &value = "");
+		void													AddDefine(const std::string &name, const std::string &value = "1");
 		void													AddIncludePath(const boost::filesystem::path &path);
 
 		std::string												Run(const boost::filesystem::path &path, std::string &errors);
