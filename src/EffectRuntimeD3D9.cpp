@@ -1607,6 +1607,20 @@ namespace ReShade
 					this->mEffect->mConstantStorage = static_cast<float *>(::realloc(this->mEffect->mConstantStorage, this->mCurrentStorageSize += sizeof(float) * 4 * 16));
 				}
 
+				if (node.HasAnnotations())
+				{
+					const auto &annotations = this->mAST[node.Annotations].As<EffectNodes::List>();
+
+					this->mCurrentAnnotations = &obj->mAnnotations;
+
+					for (unsigned int i = 0; i < annotations.Length; ++i)
+					{
+						this->mAST[annotations[i]].As<EffectNodes::Annotation>().Accept(*this);
+					}
+
+					this->mCurrentAnnotations = nullptr;
+				}
+
 				if (node.HasInitializer())
 				{
 					std::memcpy(this->mEffect->mConstantStorage + obj->mRegisterOffset * 4, &this->mAST[node.Initializer].As<EffectNodes::Literal>().Value, obj->mDesc.Size);

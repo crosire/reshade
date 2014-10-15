@@ -2021,6 +2021,20 @@ namespace ReShade
 					this->mEffect->mUniformStorages[0].first = static_cast<unsigned char *>(::realloc(this->mEffect->mUniformStorages[0].first, this->mEffect->mUniformStorages[0].second += 128));
 				}
 
+				if (node.HasAnnotations())
+				{
+					const auto &annotations = this->mAST[node.Annotations].As<EffectNodes::List>();
+
+					this->mCurrentAnnotations = &obj->mAnnotations;
+
+					for (unsigned int i = 0; i < annotations.Length; ++i)
+					{
+						this->mAST[annotations[i]].As<EffectNodes::Annotation>().Accept(*this);
+					}
+
+					this->mCurrentAnnotations = nullptr;
+				}
+
 				if (node.HasInitializer())
 				{
 					std::memcpy(this->mEffect->mUniformStorages[0].first + obj->mBufferOffset, &this->mAST[node.Initializer].As<EffectNodes::Literal>().Value, obj->mDesc.Size);
