@@ -96,6 +96,18 @@ HRESULT STDMETHODCALLTYPE										IDXGISwapChain_ResizeBuffers(IDXGISwapChain *
 {
 	LOG(INFO) << "Redirecting '" << "IDXGISwapChain::ResizeBuffers" << "(" << pSwapChain << ", " << BufferCount << ", " << Width << ", " << Height << ", " << NewFormat << ", " << SwapChainFlags << ")' ...";
 
+	switch (NewFormat)
+	{
+		case DXGI_FORMAT_B8G8R8A8_UNORM:
+			LOG(WARNING) << "> Replacing buffer format 'DXGI_FORMAT_B8G8R8A8_UNORM' with 'DXGI_FORMAT_R8G8B8A8_UNORM' ...";
+			NewFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
+			break;
+		case DXGI_FORMAT_B8G8R8A8_UNORM_SRGB:
+			LOG(WARNING) << "> Replacing buffer format 'DXGI_FORMAT_B8G8R8A8_UNORM_SRGB' with 'DXGI_FORMAT_R8G8B8A8_UNORM_SRGB' ...";
+			NewFormat = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+			break;
+	}
+
 	const auto it = sManagers.find(pSwapChain);
 	const std::shared_ptr<ReShade::Runtime> runtime = it != sManagers.end() ? it->second : nullptr;
 
@@ -155,11 +167,11 @@ HRESULT STDMETHODCALLTYPE										IDXGIFactory_CreateSwapChain(IDXGIFactory *pF
 	switch (desc.BufferDesc.Format)
 	{
 		case DXGI_FORMAT_B8G8R8A8_UNORM:
-			LOG(WARNING) << "> Replacing 'DXGI_FORMAT_B8G8R8A8_UNORM' with 'DXGI_FORMAT_R8G8B8A8_UNORM' buffer format ...";
+			LOG(WARNING) << "> Replacing buffer format 'DXGI_FORMAT_B8G8R8A8_UNORM' with 'DXGI_FORMAT_R8G8B8A8_UNORM' ...";
 			desc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 			break;
 		case DXGI_FORMAT_B8G8R8A8_UNORM_SRGB:
-			LOG(WARNING) << "> Replacing 'DXGI_FORMAT_B8G8R8A8_UNORM_SRGB' with 'DXGI_FORMAT_R8G8B8A8_UNORM_SRGB' buffer format ...";
+			LOG(WARNING) << "> Replacing buffer format 'DXGI_FORMAT_B8G8R8A8_UNORM_SRGB' with 'DXGI_FORMAT_R8G8B8A8_UNORM_SRGB' ...";
 			desc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
 			break;
 	}
@@ -264,11 +276,11 @@ HRESULT STDMETHODCALLTYPE										IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFac
 	switch (desc.Format)
 	{
 		case DXGI_FORMAT_B8G8R8A8_UNORM:
-			LOG(WARNING) << "> Replacing 'DXGI_FORMAT_B8G8R8A8_UNORM' with 'DXGI_FORMAT_R8G8B8A8_UNORM' buffer format ...";
+			LOG(WARNING) << "> Replacing buffer format 'DXGI_FORMAT_B8G8R8A8_UNORM' with 'DXGI_FORMAT_R8G8B8A8_UNORM' ...";
 			desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 			break;
 		case DXGI_FORMAT_B8G8R8A8_UNORM_SRGB:
-			LOG(WARNING) << "> Replacing 'DXGI_FORMAT_B8G8R8A8_UNORM_SRGB' with 'DXGI_FORMAT_R8G8B8A8_UNORM_SRGB' buffer format ...";
+			LOG(WARNING) << "> Replacing buffer format 'DXGI_FORMAT_B8G8R8A8_UNORM_SRGB' with 'DXGI_FORMAT_R8G8B8A8_UNORM_SRGB' ...";
 			desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
 			break;
 	}
@@ -359,11 +371,11 @@ HRESULT STDMETHODCALLTYPE										IDXGIFactory2_CreateSwapChainForCoreWindow(ID
 	switch (desc.Format)
 	{
 		case DXGI_FORMAT_B8G8R8A8_UNORM:
-			LOG(WARNING) << "> Replacing 'DXGI_FORMAT_B8G8R8A8_UNORM' with 'DXGI_FORMAT_R8G8B8A8_UNORM' buffer format ...";
+			LOG(WARNING) << "> Replacing buffer format 'DXGI_FORMAT_B8G8R8A8_UNORM' with 'DXGI_FORMAT_R8G8B8A8_UNORM' ...";
 			desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 			break;
 		case DXGI_FORMAT_B8G8R8A8_UNORM_SRGB:
-			LOG(WARNING) << "> Replacing 'DXGI_FORMAT_B8G8R8A8_UNORM_SRGB' with 'DXGI_FORMAT_R8G8B8A8_UNORM_SRGB' buffer format ...";
+			LOG(WARNING) << "> Replacing buffer format 'DXGI_FORMAT_B8G8R8A8_UNORM_SRGB' with 'DXGI_FORMAT_R8G8B8A8_UNORM_SRGB' ...";
 			desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
 			break;
 	}
@@ -454,11 +466,11 @@ HRESULT STDMETHODCALLTYPE										IDXGIFactory2_CreateSwapChainForComposition(I
 	switch (desc.Format)
 	{
 		case DXGI_FORMAT_B8G8R8A8_UNORM:
-			LOG(WARNING) << "> Replacing 'DXGI_FORMAT_B8G8R8A8_UNORM' with 'DXGI_FORMAT_R8G8B8A8_UNORM' buffer format ...";
+			LOG(WARNING) << "> Replacing buffer format 'DXGI_FORMAT_B8G8R8A8_UNORM' with 'DXGI_FORMAT_R8G8B8A8_UNORM' ...";
 			desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 			break;
 		case DXGI_FORMAT_B8G8R8A8_UNORM_SRGB:
-			LOG(WARNING) << "> Replacing 'DXGI_FORMAT_B8G8R8A8_UNORM_SRGB' with 'DXGI_FORMAT_R8G8B8A8_UNORM_SRGB' buffer format ...";
+			LOG(WARNING) << "> Replacing buffer format 'DXGI_FORMAT_B8G8R8A8_UNORM_SRGB' with 'DXGI_FORMAT_R8G8B8A8_UNORM_SRGB' ...";
 			desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
 			break;
 	}
