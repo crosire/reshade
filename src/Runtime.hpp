@@ -47,5 +47,6 @@ namespace ReShade
 		std::chrono::high_resolution_clock::time_point mLastPresent;
 		std::chrono::high_resolution_clock::duration mLastFrametime, mLastPostProcessTime;
 		std::chrono::system_clock::time_point mLastEffectModification;
+		unsigned long long mLastFrameCount;
 	};
 }

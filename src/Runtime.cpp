@@ -103,7 +103,7 @@ namespace ReShade
 
 	// -----------------------------------------------------------------------------------------------------
 
-	Runtime::Runtime() : mWidth(0), mHeight(0)
+	Runtime::Runtime() : mWidth(0), mHeight(0), mLastFrameCount(0)
 	{
 	}
 	Runtime::~Runtime()
@@ -315,6 +315,7 @@ namespace ReShade
 
 		this->mLastPresent = time;
 		this->mLastFrametime = frametime;
+		this->mLastFrameCount++;
 	}
 
 	void Runtime::CreateResources()
