@@ -2475,7 +2475,7 @@ RULE_VARIABLE
 		{
 			if (!$1.Type.HasQualifier(EffectNodes::Type::Static))
 			{
-				if (!$1.Type.IsTexture() && !$1.Type.IsSampler())
+				if (!$1.Type.HasQualifier(EffectNodes::Type::Uniform) && !$1.Type.IsTexture() && !$1.Type.IsSampler())
 				{
 					parser.Warning(@1, 5000, "global variables are considered 'uniform' by default");
 				}
