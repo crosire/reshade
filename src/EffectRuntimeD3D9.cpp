@@ -159,8 +159,6 @@ namespace ReShade
 
 				IDirect3DDevice9 *device = this->mEffect->mEffectContext->mDevice;
 				device->BeginStateBlock();
-				device->SetVertexShaderConstantF(0, this->mEffect->mConstantStorage, this->mEffect->mConstantRegisterCount);
-				device->SetPixelShaderConstantF(0, this->mEffect->mConstantStorage, this->mEffect->mConstantRegisterCount);
 			
 				for (DWORD i = 0, count = static_cast<DWORD>(this->mEffect->mSamplers.size()); i < count; ++i)
 				{
@@ -1631,7 +1629,7 @@ namespace ReShade
 				}
 
 				this->mEffect->mConstants.insert(std::make_pair(this->mCurrentBlockName.empty() ? node.Name : (this->mCurrentBlockName + '.' + node.Name), std::move(obj)));
-				this->mEffect->mConstantRegisterCount = this->mCurrentRegisterIndex;
+				this->mEffect->mConstantRegisterCount = this->mCurrentRegisterIndex + 1;
 			}
 			void												VisitUniformBuffer(const EffectNodes::Variable &node)
 			{
@@ -2653,6 +2651,9 @@ namespace ReShade
 			device->SetStreamSource(0, this->mEffect->mVertexBuffer, 0, sizeof(float));
 
 			this->mEffect->mShaderResourceStateblock->Apply();
+
+			device->SetVertexShaderConstantF(0, this->mEffect->mConstantStorage, this->mEffect->mConstantRegisterCount);
+			device->SetPixelShaderConstantF(0, this->mEffect->mConstantStorage, this->mEffect->mConstantRegisterCount);
 
 			D3DVIEWPORT9 viewport;
 			device->GetViewport(&viewport);
