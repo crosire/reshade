@@ -1572,8 +1572,13 @@ namespace ReShade
 			}
 			void												Visit(const EffectNodes::If &node)
 			{
+				const EffectNodes::Type typeto = { EffectNodes::Type::Bool, 0, 1, 1 };
+				const auto cast = PrintCast(this->mAST[node.Condition].As<EffectNodes::RValue>().Type, typeto);
+
 				this->mCurrentSource += "if (";
+				this->mCurrentSource += cast.first;
 				this->mAST[node.Condition].Accept(*this);
+				this->mCurrentSource += cast.second;
 				this->mCurrentSource += ")\n";
 
 				if (node.StatementOnTrue != 0)
