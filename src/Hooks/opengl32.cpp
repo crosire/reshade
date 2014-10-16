@@ -2345,11 +2345,6 @@ EXPORT HGLRC WINAPI												wglCreateContextAttribsARB(HDC hdc, HGLRC hShareC
 	bool core = true, compatibility = false;
 	Attrib attribs[7] = { 0, 0 };
 
-	LOG(TRACE) << "> Dumping Attributes:";
-	LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
-	LOG(TRACE) << "  | Attribute                               | Value                                   |";
-	LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
-
 	for (const int *attrib = attribList; attrib != nullptr && *attrib != 0 && i < 5; attrib += 2, ++i)
 	{
 		attribs[i].Name = attrib[0];
@@ -2371,14 +2366,8 @@ EXPORT HGLRC WINAPI												wglCreateContextAttribsARB(HDC hdc, HGLRC hShareC
 				flags = attrib[1];
 				break;
 		}
-
-		char line[88];
-		sprintf_s(line, "  | 0x%037X | 0x%037X |", attrib[0], attrib[1]);
-
-		LOG(TRACE) << line;
 	}
 
-	LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
 	LOG(TRACE) << "> Requesting " << (core ? "core " : compatibility ? "compatibility " : "") << "OpenGL context for version " << major << '.' << minor << " ...";
 
 #ifdef _DEBUG
@@ -2535,7 +2524,7 @@ EXPORT BOOL WINAPI												wglMakeCurrent(HDC hdc, HGLRC hglrc)
 
 	const auto it = sManagers.lower_bound(hglrc);
 
-	if (it != sManagers.end())
+	if (it != sManagers.end() && sDeviceContexts.at(hglrc) == hdc)
 	{
 		sCurrentManager = it->second.get();
 	}
@@ -2547,25 +2536,16 @@ EXPORT BOOL WINAPI												wglMakeCurrent(HDC hdc, HGLRC hglrc)
 		const HWND hwnd = ::WindowFromDC(hdc);
 		const HGLRC shared = sSharedContexts.at(hglrc);
 
+		RECT rect;
+		::GetClientRect(hwnd, &rect);
+		const LONG width = rect.right - rect.left, height = rect.bottom - rect.top;
+		sWindowRects[hwnd] = rect;
+
+		LOG(INFO) << "> Initial size is " << width << "x" << height << ".";
+
 		if (shared == nullptr)
 		{
-			RECT rect;
-			::GetClientRect(hwnd, &rect);
-			const LONG width = rect.right - rect.left, height = rect.bottom - rect.top;
-			sWindowRects[hwnd] = rect;
-
-			LOG(INFO) << "> Initial size is " << width << "x" << height << ".";
-
 			runtime = ReShade::CreateEffectRuntime(hdc, hglrc);
-
-			if (runtime != nullptr)
-			{
-				runtime->OnCreate(static_cast<unsigned int>(width), static_cast<unsigned int>(height));
-			}
-			else
-			{
-				LOG(ERROR) << "Failed to initialize OpenGL renderer on OpenGL context " << hglrc << "! Make sure your graphics card supports at least OpenGL 4.3.";
-			}
 		}
 		else
 		{
@@ -2574,7 +2554,17 @@ EXPORT BOOL WINAPI												wglMakeCurrent(HDC hdc, HGLRC hglrc)
 			runtime = sManagers.at(shared);
 		}
 
-		sManagers.insert(it, std::make_pair(hglrc, runtime));
+		if (runtime != nullptr)
+		{
+			runtime->OnCreate(static_cast<unsigned int>(width), static_cast<unsigned int>(height));
+		}
+		else
+		{
+			LOG(ERROR) << "Failed to initialize OpenGL renderer on OpenGL context " << hglrc << "! Make sure your graphics card supports at least OpenGL 4.3.";
+		}
+
+		sManagers[hglrc] = runtime;
+		sDeviceContexts[hglrc] = hdc;
 		sCurrentManager = runtime.get();
 	}
 
@@ -2614,7 +2604,7 @@ EXPORT BOOL WINAPI												wglSwapBuffers(HDC hdc)
 		if (sCurrentManager != nullptr)
 		{
 			const HWND hwnd = ::WindowFromDC(hdc);
-			RECT &rectPrevious = sWindowRects.at(hwnd), rect;
+			RECT rect, &rectPrevious = sWindowRects.at(hwnd);
 
 			assert(hwnd != nullptr);
 
