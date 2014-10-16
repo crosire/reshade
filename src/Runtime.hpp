@@ -14,12 +14,20 @@ namespace ReShade
 	class Runtime abstract
 	{
 	public:
+		struct Info
+		{
+			unsigned int VendorId, DeviceId, RendererId;
+		};
+
+	public:
 		static void Startup(const boost::filesystem::path &executablePath, const boost::filesystem::path &injectorPath);
 		static void Shutdown(void);
 
 	public:
 		Runtime();
 		~Runtime();
+
+		virtual Info GetInfo() const = 0;
 
 		bool ReCreate();
 		bool ReCreate(unsigned int width, unsigned int height);
@@ -29,9 +37,6 @@ namespace ReShade
 		void OnPresent();
 
 	protected:
-		virtual unsigned int GetVendor() const = 0;
-		virtual unsigned int GetRenderer() const = 0;
-
 		virtual std::unique_ptr<Effect> CreateEffect(const EffectTree &ast, std::string &errors) const = 0;
 		void CreateResources();
 		virtual void CreateScreenshot(unsigned char *buffer, std::size_t size) const = 0;

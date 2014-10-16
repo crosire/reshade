@@ -142,8 +142,7 @@ namespace ReShade
 			OGL4EffectContext(HDC device, HGLRC context);
 			~OGL4EffectContext(void);
 
-			virtual unsigned int								GetVendor() const override;
-			virtual unsigned int								GetRenderer() const override;
+			virtual Info										GetInfo() const override;
 
 			virtual std::unique_ptr<Effect>						CreateEffect(const EffectTree &ast, std::string &errors) const override;
 			virtual void										CreateScreenshot(unsigned char *buffer, std::size_t size) const override;
@@ -2697,34 +2696,56 @@ namespace ReShade
 		{
 		}
 
-		unsigned int											OGL4EffectContext::GetVendor() const
+		Runtime::Info											OGL4EffectContext::GetInfo() const
 		{
-			const char *name = reinterpret_cast<const char *>(glGetString(GL_VENDOR));
+			Info info;
+			info.VendorId = 0;
+			info.DeviceId = 0;
+			info.RendererId = 0x061;
 
-			if (name == nullptr)
+			if (::GetModuleHandleA("nvd3d9wrap.dll") == nullptr)
 			{
-				return 0;
+				DISPLAY_DEVICEA dd;
+				dd.cb = sizeof(DISPLAY_DEVICEA);
+
+				for (int i = 0; ::EnumDisplayDevicesA(nullptr, i, &dd, 0) != FALSE; ++i)
+				{
+					if ((dd.StateFlags & DISPLAY_DEVICE_PRIMARY_DEVICE) != 0)
+					{
+						const std::string id = dd.DeviceID;
+
+						if (id.length() > 20)
+						{
+							info.VendorId = std::stoi(id.substr(8, 4));
+							info.DeviceId = std::stoi(id.substr(17, 4));
+						}
+						break;
+					}
+				}
 			}
-			else if (boost::contains(name, "NVIDIA"))
+
+			if (info.VendorId == 0)
 			{
-				return 0x10DE;
+				const char *name = reinterpret_cast<const char *>(glGetString(GL_VENDOR));
+
+				if (name != nullptr)
+				{
+					if (boost::contains(name, "NVIDIA"))
+					{
+						info.VendorId = 0x10DE;
+					}
+					else if (boost::contains(name, "AMD") || boost::contains(name, "ATI"))
+					{
+						info.VendorId = 0x1002;
+					}
+					else if (boost::contains(name, "Intel"))
+					{
+						info.VendorId = 0x8086;
+					}
+				}
 			}
-			else if (boost::contains(name, "AMD") || boost::contains(name, "ATI"))
-			{
-				return 0x1002;
-			}
-			else if (boost::contains(name, "Intel"))
-			{
-				return 0x8086;
-			}
-			else
-			{
-				return 0;
-			}
-		}
-		unsigned int											OGL4EffectContext::GetRenderer() const
-		{
-			return 0x061;
+
+			return info;
 		}
 
 		std::unique_ptr<Effect>									OGL4EffectContext::CreateEffect(const EffectTree &ast, std::string &errors) const
