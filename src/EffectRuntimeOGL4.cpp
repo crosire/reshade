@@ -2408,8 +2408,12 @@ namespace ReShade
 					"void _sincos(vec4 x, out vec4 s, out vec4 c) { s = sin(x), c = cos(x); }\n"
 					"vec4 _textureLod(sampler2D s, vec4 c) { return textureLod(s, c.xy, c.w); }\n"
 					"#define _textureLodOffset(s, c, offset) textureLodOffset(s, (c).xy, (c).w, offset)\n"
-					"vec4 _textureBias(sampler2D s, vec4 c) { return textureOffset(s, c.xy, ivec2(0), c.w); }\n"
-					"layout(std140, binding = 0) uniform __GLOBAL__\n{\n" + this->mCurrentGlobalConstants + "};\n";
+					"vec4 _textureBias(sampler2D s, vec4 c) { return textureOffset(s, c.xy, ivec2(0), c.w); }\n";
+
+				if (!this->mCurrentGlobalConstants.empty())
+				{
+					source += "layout(std140, binding = 0) uniform __GLOBAL__\n{\n" + this->mCurrentGlobalConstants + "};\n";
+				}
 
 				if (type != EffectNodes::Pass::PixelShader)
 				{
