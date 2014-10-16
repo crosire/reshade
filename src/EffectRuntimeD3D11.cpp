@@ -150,7 +150,6 @@ namespace ReShade
 			D3D11Technique(D3D11Effect *effect);
 			~D3D11Technique(void);
 
-			const Description									GetDescription(void) const;
 			const Effect::Annotation							GetAnnotation(const std::string &name) const;
 
 			bool												Begin(unsigned int &passes) const;
@@ -158,7 +157,6 @@ namespace ReShade
 			void												RenderPass(unsigned int index) const;
 
 			D3D11Effect *										mEffect;
-			Description											mDesc;
 			std::unordered_map<std::string, Effect::Annotation>	mAnnotations;
 			ID3D11DeviceContext *								mDeferredContext;
 			std::vector<Pass>									mPasses;
@@ -1931,7 +1929,6 @@ namespace ReShade
 
 				const auto &passes = this->mAST[node.Passes].As<EffectNodes::List>();
 
-				obj->mDesc.Passes.reserve(passes.Length);
 				obj->mPasses.reserve(passes.Length);
 
 				this->mCurrentPasses = &obj->mPasses;
@@ -1940,8 +1937,6 @@ namespace ReShade
 				{
 					const auto &pass = this->mAST[passes[i]].As<EffectNodes::Pass>();
 
-					obj->mDesc.Passes.push_back(pass.Name != nullptr ? pass.Name : "");
-					
 					pass.Accept(*this);
 				}
 
@@ -2669,10 +2664,6 @@ namespace ReShade
 			}
 		}
 
-		const Effect::Technique::Description					D3D11Technique::GetDescription(void) const
-		{
-			return this->mDesc;
-		}
 		const Effect::Annotation								D3D11Technique::GetAnnotation(const std::string &name) const
 		{
 			auto it = this->mAnnotations.find(name);

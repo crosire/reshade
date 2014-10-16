@@ -241,7 +241,6 @@ namespace ReShade
 			OGL4Technique(OGL4Effect *effect);
 			~OGL4Technique(void);
 
-			const Description									GetDescription(void) const;
 			const Effect::Annotation							GetAnnotation(const std::string &name) const;
 
 			bool												Begin(unsigned int &passes) const;
@@ -249,7 +248,6 @@ namespace ReShade
 			void												RenderPass(unsigned int index) const;
 
 			OGL4Effect *										mEffect;
-			Description											mDesc;
 			std::unordered_map<std::string, Effect::Annotation>	mAnnotations;
 			std::vector<Pass>									mPasses;
 			mutable OGL4StateBlock								mStateblock;
@@ -2214,7 +2212,6 @@ namespace ReShade
 
 				const auto &passes = this->mAST[node.Passes].As<EffectNodes::List>();
 
-				obj->mDesc.Passes.reserve(passes.Length);
 				obj->mPasses.reserve(passes.Length);
 
 				this->mCurrentPasses = &obj->mPasses;
@@ -2223,8 +2220,6 @@ namespace ReShade
 				{
 					const auto &pass = this->mAST[passes[i]].As<EffectNodes::Pass>();
 
-					obj->mDesc.Passes.push_back(pass.Name != nullptr ? pass.Name : "");
-					
 					pass.Accept(*this);
 				}
 
@@ -3176,10 +3171,6 @@ namespace ReShade
 			}
 		}
 
-		const Effect::Technique::Description					OGL4Technique::GetDescription(void) const
-		{
-			return this->mDesc;
-		}
 		const Effect::Annotation								OGL4Technique::GetAnnotation(const std::string &name) const
 		{
 			auto it = this->mAnnotations.find(name);

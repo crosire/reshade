@@ -1109,23 +1109,4 @@ namespace ReShade
 
 		SetValue(data, dataSize);
 	}
-
-	void														Effect::Technique::RenderPass(const std::string &name) const
-	{
-		if (name.empty())
-		{
-			return;
-		}
-
-		const Description desc = GetDescription();
-
-		for (auto begin = desc.Passes.cbegin(), end = desc.Passes.cend(), it = begin; it != end; ++it)
-		{
-			if (*it == name)
-			{
-				RenderPass(static_cast<unsigned int>(it - begin));
-				break;
-			}
-		}
-	}
 }

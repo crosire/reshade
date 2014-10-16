@@ -123,7 +123,6 @@ namespace ReShade
 			D3D9Technique(D3D9Effect *effect);
 			~D3D9Technique(void);
 
-			const Description									GetDescription(void) const;
 			const Effect::Annotation							GetAnnotation(const std::string &name) const;
 
 			bool												Begin(unsigned int &passes) const;
@@ -131,7 +130,6 @@ namespace ReShade
 			void												RenderPass(unsigned int index) const;
 
 			D3D9Effect *										mEffect;
-			Description											mDesc;
 			std::unordered_map<std::string, Effect::Annotation>	mAnnotations;
 			std::vector<Pass>									mPasses;
 		};
@@ -1724,7 +1722,6 @@ namespace ReShade
 
 				const auto &passes = this->mAST[node.Passes].As<EffectNodes::List>();
 
-				obj->mDesc.Passes.reserve(passes.Length);
 				obj->mPasses.reserve(passes.Length);
 
 				this->mCurrentPasses = &obj->mPasses;
@@ -1733,8 +1730,6 @@ namespace ReShade
 				{
 					const auto &pass = this->mAST[passes[i]].As<EffectNodes::Pass>();
 
-					obj->mDesc.Passes.push_back(pass.Name != nullptr ? pass.Name : "");
-					
 					pass.Accept(*this);
 				}
 
@@ -2609,10 +2604,6 @@ namespace ReShade
 			}
 		}
 
-		const Effect::Technique::Description					D3D9Technique::GetDescription(void) const
-		{
-			return this->mDesc;
-		}
 		const Effect::Annotation								D3D9Technique::GetAnnotation(const std::string &name) const
 		{
 			auto it = this->mAnnotations.find(name);
@@ -2629,7 +2620,7 @@ namespace ReShade
 		{
 			IDirect3DDevice9 *device = this->mEffect->mEffectContext->mDevice;
 
-			passes = static_cast<unsigned int>(this->mDesc.Passes.size());
+			passes = static_cast<unsigned int>(this->mPasses.size());
 
 			if (passes == 0 || FAILED(this->mEffect->mStateBlock->Capture()) || FAILED(device->BeginScene()))
 			{

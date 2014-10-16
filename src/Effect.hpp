@@ -141,13 +141,6 @@ namespace ReShade
 		class													Technique
 		{
 		public:
-			struct												Description
-			{
-				std::vector<std::string>						Passes;
-			};
-
-		public:
-			virtual const Description							GetDescription(void) const = 0;
 			virtual const Annotation							GetAnnotation(const std::string &name) const = 0;
 
 			inline bool											Begin(void) const
@@ -158,7 +151,6 @@ namespace ReShade
 			virtual bool										Begin(unsigned int &passes) const = 0;
 			virtual void										End(void) const = 0;
 			virtual void										RenderPass(unsigned int index) const = 0;
-			void												RenderPass(const std::string &name) const;
 		};
 
 	public:
