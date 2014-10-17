@@ -5,22 +5,57 @@
 #include <dxgi.h>
 #include <dxgi1_2.h>
 #include <d3d11.h>
-#include <unordered_map>
 
 // -----------------------------------------------------------------------------------------------------
 
 namespace
 {
-	std::unordered_map<IDXGISwapChain *, std::shared_ptr<ReShade::Runtime>>	sManagers;
-	std::unordered_map<IDXGISwapChain *, ULONG>					sReferences;
-
-	inline ULONG												GetRefCount(IUnknown *pUnknown)
+	struct														DXGISwapChain : public IDXGISwapChain1
 	{
-		const ULONG ref = pUnknown->AddRef();
-		pUnknown->Release();
+		DXGISwapChain(IDXGIFactory *pFactory, IDXGISwapChain *pOriginalSwapChain, const std::shared_ptr<ReShade::Runtime> runtime) : mRef(1), mFactory(pFactory), mOrig(pOriginalSwapChain), mRuntime(runtime)
+		{
+		}
 
-		return ref - 1;
-	}
+		virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
+		virtual ULONG	STDMETHODCALLTYPE AddRef(void) override;
+		virtual ULONG	STDMETHODCALLTYPE Release(void) override;
+
+		virtual HRESULT STDMETHODCALLTYPE SetPrivateData(REFGUID Name, UINT DataSize, const void *pData) override;
+		virtual HRESULT STDMETHODCALLTYPE SetPrivateDataInterface(REFGUID Name, const IUnknown *pUnknown) override;
+		virtual HRESULT STDMETHODCALLTYPE GetPrivateData(REFGUID Name, UINT *pDataSize, void *pData) override;
+		virtual HRESULT STDMETHODCALLTYPE GetParent(REFIID riid, void **ppParent) override;
+
+		virtual HRESULT STDMETHODCALLTYPE GetDevice(REFIID riid, void **ppDevice) override;
+
+		virtual HRESULT STDMETHODCALLTYPE Present(UINT SyncInterval, UINT Flags) override;
+		virtual HRESULT STDMETHODCALLTYPE GetBuffer(UINT Buffer, REFIID riid, void **ppSurface) override;
+		virtual HRESULT STDMETHODCALLTYPE SetFullscreenState(BOOL Fullscreen, IDXGIOutput *pTarget) override;
+		virtual HRESULT STDMETHODCALLTYPE GetFullscreenState(BOOL *pFullscreen, IDXGIOutput **ppTarget) override;
+		virtual HRESULT STDMETHODCALLTYPE GetDesc(DXGI_SWAP_CHAIN_DESC *pDesc) override;
+		virtual HRESULT STDMETHODCALLTYPE ResizeBuffers(UINT BufferCount, UINT Width, UINT Height, DXGI_FORMAT NewFormat, UINT SwapChainFlags) override;
+		virtual HRESULT STDMETHODCALLTYPE ResizeTarget(const DXGI_MODE_DESC *pNewTargetParameters) override;
+		virtual HRESULT STDMETHODCALLTYPE GetContainingOutput(IDXGIOutput **ppOutput) override;
+		virtual HRESULT STDMETHODCALLTYPE GetFrameStatistics(DXGI_FRAME_STATISTICS *pStats) override;
+		virtual HRESULT STDMETHODCALLTYPE GetLastPresentCount(UINT *pLastPresentCount) override;
+
+		virtual HRESULT STDMETHODCALLTYPE GetDesc1(DXGI_SWAP_CHAIN_DESC1 *pDesc) override;
+		virtual HRESULT STDMETHODCALLTYPE GetFullscreenDesc(DXGI_SWAP_CHAIN_FULLSCREEN_DESC *pDesc) override;
+		virtual HRESULT STDMETHODCALLTYPE GetHwnd(HWND *pHwnd) override;
+		virtual HRESULT STDMETHODCALLTYPE GetCoreWindow(REFIID refiid, void **ppUnk) override;
+		virtual HRESULT STDMETHODCALLTYPE Present1(UINT SyncInterval, UINT PresentFlags, const DXGI_PRESENT_PARAMETERS *pPresentParameters) override;
+		virtual BOOL	STDMETHODCALLTYPE IsTemporaryMonoSupported(void) override;
+		virtual HRESULT STDMETHODCALLTYPE GetRestrictToOutput(IDXGIOutput **ppRestrictToOutput) override;
+		virtual HRESULT STDMETHODCALLTYPE SetBackgroundColor(const DXGI_RGBA *pColor) override;
+		virtual HRESULT STDMETHODCALLTYPE GetBackgroundColor(DXGI_RGBA *pColor) override;
+		virtual HRESULT STDMETHODCALLTYPE SetRotation(DXGI_MODE_ROTATION Rotation) override;
+		virtual HRESULT STDMETHODCALLTYPE GetRotation(DXGI_MODE_ROTATION *pRotation) override;
+
+		ULONG mRef;
+		IDXGIFactory *mFactory;
+		IDXGISwapChain *mOrig;
+		std::shared_ptr<ReShade::Runtime> mRuntime;
+	};
+
 	LPCSTR														GetErrorString(HRESULT hr)
 	{
 		switch (hr)
@@ -45,56 +80,93 @@ namespace ReShade
 // -----------------------------------------------------------------------------------------------------
 
 // IDXGISwapChain
-ULONG STDMETHODCALLTYPE											IDXGISwapChain_Release(IDXGISwapChain *pSwapChain)	
+HRESULT STDMETHODCALLTYPE 										DXGISwapChain::QueryInterface(REFIID riid, void **ppvObj)
 {
-	static ReHook::Hook hook = ReHook::Find(&IDXGISwapChain_Release);
-	static const auto trampoline = ReHook::Call(&IDXGISwapChain_Release);
+	HRESULT hr = this->mOrig->QueryInterface(riid, ppvObj);
 
-	ULONG ref = trampoline(pSwapChain);
-
-	const auto it = sReferences.find(pSwapChain);
-
-	if (it != sReferences.end() && ref == it->second)
+	if (SUCCEEDED(hr) && (riid == __uuidof(IUnknown) || riid == __uuidof(IDXGIObject) || riid == __uuidof(IDXGIDeviceSubObject) || riid == __uuidof(IDXGISwapChain) || riid == __uuidof(IDXGISwapChain1)))
 	{
-		LOG(INFO) << "Redirecting final '" << "IDXGISwapChain::Release" << "(" << pSwapChain << ")' ...";
+		this->mRef++;
 
-		hook.Enable(false);
-		pSwapChain->AddRef();
+		*ppvObj = this;
+	}
 
-		sManagers.erase(pSwapChain);
-		sReferences.erase(pSwapChain);
+	return hr;
+}
+ULONG STDMETHODCALLTYPE 										DXGISwapChain::AddRef(void)
+{
+	this->mRef++;
 
-		ref = pSwapChain->Release();
-		hook.Enable(true);
+	return this->mOrig->AddRef();
+}
+ULONG STDMETHODCALLTYPE 										DXGISwapChain::Release(void)
+{
+	if (--this->mRef == 0)
+	{
+		assert(this->mRuntime != nullptr);
+
+		this->mRuntime.reset();
+	}
+
+	ULONG ref = this->mOrig->Release();
+
+	if (ref == 0)
+	{
+		delete this;
 	}
 
 	return ref;
 }
-HRESULT STDMETHODCALLTYPE										IDXGISwapChain_Present(IDXGISwapChain *pSwapChain, UINT SyncInterval, UINT Flags)
+HRESULT STDMETHODCALLTYPE 										DXGISwapChain::SetPrivateData(REFGUID Name, UINT DataSize, const void *pData)
 {
-	static const auto trampoline = ReHook::Call(&IDXGISwapChain_Present);
-	
-	const auto it = sManagers.find(pSwapChain);
-
-	if (it != sManagers.end())
-	{
-		const std::shared_ptr<ReShade::Runtime> &runtime = it->second;
-
-		runtime->OnPostProcess();
-		runtime->OnPresent();
-	}
-
-	return trampoline(pSwapChain, SyncInterval, Flags);
+	return this->mOrig->SetPrivateData(Name, DataSize, pData);
 }
-HRESULT STDMETHODCALLTYPE										IDXGISwapChain_SetFullscreenState(IDXGISwapChain *pSwapChain, BOOL Fullscreen, IDXGIOutput *pTarget)
+HRESULT STDMETHODCALLTYPE 										DXGISwapChain::SetPrivateDataInterface(REFGUID Name, const IUnknown *pUnknown)
 {
-	LOG(INFO) << "Redirecting '" << "IDXGISwapChain::SetFullscreenState" << "(" << pSwapChain << ", " << Fullscreen << ", " << pTarget << ")' ...";
-
-	return ReHook::Call(&IDXGISwapChain_SetFullscreenState)(pSwapChain, Fullscreen, pTarget);
+	return this->mOrig->SetPrivateDataInterface(Name, pUnknown);
 }
-HRESULT STDMETHODCALLTYPE										IDXGISwapChain_ResizeBuffers(IDXGISwapChain *pSwapChain, UINT BufferCount, UINT Width, UINT Height, DXGI_FORMAT NewFormat, UINT SwapChainFlags)
+HRESULT STDMETHODCALLTYPE 										DXGISwapChain::GetPrivateData(REFGUID Name, UINT *pDataSize, void *pData)
 {
-	LOG(INFO) << "Redirecting '" << "IDXGISwapChain::ResizeBuffers" << "(" << pSwapChain << ", " << BufferCount << ", " << Width << ", " << Height << ", " << NewFormat << ", " << SwapChainFlags << ")' ...";
+	return this->mOrig->GetPrivateData(Name, pDataSize, pData);
+}
+HRESULT STDMETHODCALLTYPE 										DXGISwapChain::GetParent(REFIID riid, void **ppParent)
+{
+	return this->mOrig->GetParent(riid, ppParent);
+}
+HRESULT STDMETHODCALLTYPE 										DXGISwapChain::GetDevice(REFIID riid, void **ppDevice)
+{
+	return this->mOrig->GetDevice(riid, ppDevice);
+}
+HRESULT STDMETHODCALLTYPE										DXGISwapChain::Present(UINT SyncInterval, UINT Flags)
+{
+	assert(this->mRuntime != nullptr);
+
+	this->mRuntime->OnPostProcess();
+	this->mRuntime->OnPresent();
+
+	return this->mOrig->Present(SyncInterval, Flags);
+}
+HRESULT STDMETHODCALLTYPE 										DXGISwapChain::GetBuffer(UINT Buffer, REFIID riid, void **ppSurface)
+{
+	return this->mOrig->GetBuffer(Buffer, riid, ppSurface);
+}
+HRESULT STDMETHODCALLTYPE										DXGISwapChain::SetFullscreenState(BOOL Fullscreen, IDXGIOutput *pTarget)
+{
+	LOG(INFO) << "Redirecting '" << "IDXGISwapChain::SetFullscreenState" << "(" << this << ", " << Fullscreen << ", " << pTarget << ")' ...";
+
+	return this->mOrig->SetFullscreenState(Fullscreen, pTarget);
+}
+HRESULT STDMETHODCALLTYPE 										DXGISwapChain::GetFullscreenState(BOOL *pFullscreen, IDXGIOutput **ppTarget)
+{
+	return this->mOrig->GetFullscreenState(pFullscreen, ppTarget);
+}
+HRESULT STDMETHODCALLTYPE 										DXGISwapChain::GetDesc(DXGI_SWAP_CHAIN_DESC *pDesc)
+{
+	return this->mOrig->GetDesc(pDesc);
+}
+HRESULT STDMETHODCALLTYPE										DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Width, UINT Height, DXGI_FORMAT NewFormat, UINT SwapChainFlags)
+{
+	LOG(INFO) << "Redirecting '" << "IDXGISwapChain::ResizeBuffers" << "(" << this << ", " << BufferCount << ", " << Width << ", " << Height << ", " << NewFormat << ", " << SwapChainFlags << ")' ...";
 
 	switch (NewFormat)
 	{
@@ -108,41 +180,23 @@ HRESULT STDMETHODCALLTYPE										IDXGISwapChain_ResizeBuffers(IDXGISwapChain *
 			break;
 	}
 
-	const auto it = sManagers.find(pSwapChain);
-	const std::shared_ptr<ReShade::Runtime> runtime = it != sManagers.end() ? it->second : nullptr;
+	assert(this->mRuntime != nullptr);
 
-	if (runtime != nullptr)
+	this->mRuntime->OnDelete();
+
+	HRESULT hr = this->mOrig->ResizeBuffers(BufferCount, Width, Height, NewFormat, SwapChainFlags);
+
+	if (SUCCEEDED(hr) || hr == DXGI_ERROR_INVALID_CALL)
 	{
-		sReferences.erase(pSwapChain);
-		runtime->OnDelete();
-	}
-
-	HRESULT hr = ReHook::Call(&IDXGISwapChain_ResizeBuffers)(pSwapChain, BufferCount, Width, Height, NewFormat, SwapChainFlags);
-
-	if (SUCCEEDED(hr))
-	{
-		if (runtime != nullptr)
+		if (hr == DXGI_ERROR_INVALID_CALL)
 		{
-			const ULONG ref = GetRefCount(pSwapChain);
-
-			runtime->OnCreate(Width, Height);
-			sReferences.insert(std::make_pair(pSwapChain, GetRefCount(pSwapChain) - ref));
+			LOG(WARNING) << "'IDXGISwapChain::ResizeBuffers' failed with 'DXGI_ERROR_INVALID_CALL'!";
 		}
-	}
-	else if (hr == DXGI_ERROR_INVALID_CALL)
-	{
-		LOG(WARNING) << "'IDXGISwapChain::ResizeBuffers' failed with '" << GetErrorString(hr) << "'!";
 
-		if (runtime != nullptr)
-		{
-			DXGI_SWAP_CHAIN_DESC desc;
-			pSwapChain->GetDesc(&desc);
+		DXGI_SWAP_CHAIN_DESC desc;
+		this->mOrig->GetDesc(&desc);
 
-			const ULONG ref = GetRefCount(pSwapChain);
-
-			runtime->OnCreate(desc.BufferDesc.Width, desc.BufferDesc.Height);
-			sReferences.insert(std::make_pair(pSwapChain, GetRefCount(pSwapChain) - ref));
-		}
+		this->mRuntime->OnCreate(desc.BufferDesc.Width, desc.BufferDesc.Height);
 	}
 	else
 	{
@@ -151,23 +205,72 @@ HRESULT STDMETHODCALLTYPE										IDXGISwapChain_ResizeBuffers(IDXGISwapChain *
 
 	return hr;
 }
+HRESULT STDMETHODCALLTYPE 										DXGISwapChain::ResizeTarget(const DXGI_MODE_DESC *pNewTargetParameters)
+{
+	return this->mOrig->ResizeTarget(pNewTargetParameters);
+}
+HRESULT STDMETHODCALLTYPE 										DXGISwapChain::GetContainingOutput(IDXGIOutput **ppOutput)
+{
+	return this->mOrig->GetContainingOutput(ppOutput);
+}
+HRESULT STDMETHODCALLTYPE 										DXGISwapChain::GetFrameStatistics(DXGI_FRAME_STATISTICS *pStats)
+{
+	return this->mOrig->GetFrameStatistics(pStats);
+}
+HRESULT STDMETHODCALLTYPE 										DXGISwapChain::GetLastPresentCount(UINT *pLastPresentCount)	
+{
+	return this->mOrig->GetLastPresentCount(pLastPresentCount);
+}
 
 // IDXGISwapChain1
-HRESULT STDMETHODCALLTYPE										IDXGISwapChain1_Present1(IDXGISwapChain1 *pSwapChain, UINT SyncInterval, UINT PresentFlags, const DXGI_PRESENT_PARAMETERS *pPresentParameters)
+HRESULT STDMETHODCALLTYPE 										DXGISwapChain::GetDesc1(DXGI_SWAP_CHAIN_DESC1 *pDesc)
 {
-	static const auto trampoline = ReHook::Call(&IDXGISwapChain1_Present1);
-	
-	const auto it = sManagers.find(pSwapChain);
+	return static_cast<IDXGISwapChain1 *>(this->mOrig)->GetDesc1(pDesc);
+}
+HRESULT STDMETHODCALLTYPE 										DXGISwapChain::GetFullscreenDesc(DXGI_SWAP_CHAIN_FULLSCREEN_DESC *pDesc)
+{
+	return static_cast<IDXGISwapChain1 *>(this->mOrig)->GetFullscreenDesc(pDesc);
+}
+HRESULT STDMETHODCALLTYPE 										DXGISwapChain::GetHwnd(HWND *pHwnd)
+{
+	return static_cast<IDXGISwapChain1 *>(this->mOrig)->GetHwnd(pHwnd);
+}
+HRESULT STDMETHODCALLTYPE 										DXGISwapChain::GetCoreWindow(REFIID refiid, void **ppUnk)
+{
+	return static_cast<IDXGISwapChain1 *>(this->mOrig)->GetCoreWindow(refiid, ppUnk);
+}
+HRESULT STDMETHODCALLTYPE										DXGISwapChain::Present1(UINT SyncInterval, UINT PresentFlags, const DXGI_PRESENT_PARAMETERS *pPresentParameters)
+{
+	assert(this->mRuntime != nullptr);
 
-	if (it != sManagers.end())
-	{
-		const std::shared_ptr<ReShade::Runtime> &runtime = it->second;
+	this->mRuntime->OnPostProcess();
+	this->mRuntime->OnPresent();
 
-		runtime->OnPostProcess();
-		runtime->OnPresent();
-	}
-
-	return trampoline(pSwapChain, SyncInterval, PresentFlags, pPresentParameters);
+	return static_cast<IDXGISwapChain1 *>(this->mOrig)->Present1(SyncInterval, PresentFlags, pPresentParameters);
+}
+BOOL STDMETHODCALLTYPE 											DXGISwapChain::IsTemporaryMonoSupported(void)
+{
+	return static_cast<IDXGISwapChain1 *>(this->mOrig)->IsTemporaryMonoSupported();
+}
+HRESULT STDMETHODCALLTYPE 										DXGISwapChain::GetRestrictToOutput(IDXGIOutput **ppRestrictToOutput)
+{
+	return static_cast<IDXGISwapChain1 *>(this->mOrig)->GetRestrictToOutput(ppRestrictToOutput);
+}
+HRESULT STDMETHODCALLTYPE 										DXGISwapChain::SetBackgroundColor(const DXGI_RGBA *pColor)
+{
+	return static_cast<IDXGISwapChain1 *>(this->mOrig)->SetBackgroundColor(pColor);
+}
+HRESULT STDMETHODCALLTYPE 										DXGISwapChain::GetBackgroundColor(DXGI_RGBA *pColor)
+{
+	return static_cast<IDXGISwapChain1 *>(this->mOrig)->GetBackgroundColor(pColor);
+}
+HRESULT STDMETHODCALLTYPE 										DXGISwapChain::SetRotation(DXGI_MODE_ROTATION Rotation)
+{
+	return static_cast<IDXGISwapChain1 *>(this->mOrig)->SetRotation(Rotation);
+}
+HRESULT STDMETHODCALLTYPE 										DXGISwapChain::GetRotation(DXGI_MODE_ROTATION *pRotation)
+{
+	return static_cast<IDXGISwapChain1 *>(this->mOrig)->GetRotation(pRotation);
 }
 
 // IDXGIFactory
@@ -202,19 +305,6 @@ HRESULT STDMETHODCALLTYPE										IDXGIFactory_CreateSwapChain(IDXGIFactory *pF
 
 			return hr;
 		}
-
-		RECT rect;
-		GetWindowRect(pDesc->OutputWindow, &rect);
-
-		const UINT width = (pDesc->BufferDesc.Width != 0) ? pDesc->BufferDesc.Width : (rect.right - rect.left);
-		const UINT height = (pDesc->BufferDesc.Height != 0) ? pDesc->BufferDesc.Height : (rect.bottom - rect.top);
-
-		if (width <= 100 || height <= 100)
-		{
-			LOG(WARNING) << "> Skipping swapchain due to low target size of " << width << 'x' << height << ".";
-
-			return hr;
-		}
 		#pragma endregion
 
 		ID3D10Device *deviceD3D10 = nullptr;
@@ -231,8 +321,7 @@ HRESULT STDMETHODCALLTYPE										IDXGIFactory_CreateSwapChain(IDXGIFactory *pF
 			{
 				runtime->OnCreate(desc.BufferDesc.Width, desc.BufferDesc.Height);
 
-				sManagers.insert(std::make_pair(swapchain, runtime));
-				sReferences.insert(std::make_pair(swapchain, GetRefCount(swapchain) - 1));
+				*ppSwapChain = new DXGISwapChain(pFactory, swapchain, runtime);
 			}
 			else
 			{
@@ -249,8 +338,7 @@ HRESULT STDMETHODCALLTYPE										IDXGIFactory_CreateSwapChain(IDXGIFactory *pF
 			{
 				runtime->OnCreate(desc.BufferDesc.Width, desc.BufferDesc.Height);
 
-				sManagers.insert(std::make_pair(swapchain, runtime));
-				sReferences.insert(std::make_pair(swapchain, GetRefCount(swapchain) - 1));
+				*ppSwapChain = new DXGISwapChain(pFactory, swapchain, runtime);
 			}
 			else
 			{
@@ -262,14 +350,7 @@ HRESULT STDMETHODCALLTYPE										IDXGIFactory_CreateSwapChain(IDXGIFactory *pF
 		else
 		{
 			LOG(WARNING) << "> Swapchain was created without a Direct3D device. Skipping ...";
-
-			return hr;
 		}
-
-		ReHook::Register(VTable(swapchain, 2), reinterpret_cast<ReHook::Hook::Function>(&IDXGISwapChain_Release));
-		ReHook::Register(VTable(swapchain, 8), reinterpret_cast<ReHook::Hook::Function>(&IDXGISwapChain_Present));
-		ReHook::Register(VTable(swapchain, 10), reinterpret_cast<ReHook::Hook::Function>(&IDXGISwapChain_SetFullscreenState));
-		ReHook::Register(VTable(swapchain, 13), reinterpret_cast<ReHook::Hook::Function>(&IDXGISwapChain_ResizeBuffers));
 	}
 	else
 	{
@@ -327,8 +408,7 @@ HRESULT STDMETHODCALLTYPE										IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFac
 			{
 				runtime->OnCreate(desc.Width, desc.Height);
 
-				sManagers.insert(std::make_pair(swapchain, runtime));
-				sReferences.insert(std::make_pair(swapchain, GetRefCount(swapchain) - 1));
+				*ppSwapChain = new DXGISwapChain(pFactory, swapchain, runtime);
 			}
 			else
 			{
@@ -345,8 +425,7 @@ HRESULT STDMETHODCALLTYPE										IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFac
 			{
 				runtime->OnCreate(desc.Width, desc.Height);
 
-				sManagers.insert(std::make_pair(swapchain, runtime));
-				sReferences.insert(std::make_pair(swapchain, GetRefCount(swapchain) - 1));
+				*ppSwapChain = new DXGISwapChain(pFactory, swapchain, runtime);
 			}
 			else
 			{
@@ -358,15 +437,7 @@ HRESULT STDMETHODCALLTYPE										IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFac
 		else
 		{
 			LOG(WARNING) << "> Swapchain was created without a Direct3D device. Skipping ...";
-
-			return hr;
 		}
-
-		ReHook::Register(VTable(swapchain, 2), reinterpret_cast<ReHook::Hook::Function>(&IDXGISwapChain_Release));
-		ReHook::Register(VTable(swapchain, 8), reinterpret_cast<ReHook::Hook::Function>(&IDXGISwapChain_Present));
-		ReHook::Register(VTable(swapchain, 10), reinterpret_cast<ReHook::Hook::Function>(&IDXGISwapChain_SetFullscreenState));
-		ReHook::Register(VTable(swapchain, 13), reinterpret_cast<ReHook::Hook::Function>(&IDXGISwapChain_ResizeBuffers));
-		ReHook::Register(VTable(swapchain, 22), reinterpret_cast<ReHook::Hook::Function>(&IDXGISwapChain1_Present1));
 	}
 	else
 	{
@@ -422,8 +493,7 @@ HRESULT STDMETHODCALLTYPE										IDXGIFactory2_CreateSwapChainForCoreWindow(ID
 			{
 				runtime->OnCreate(desc.Width, desc.Height);
 
-				sManagers.insert(std::make_pair(swapchain, runtime));
-				sReferences.insert(std::make_pair(swapchain, GetRefCount(swapchain) - 1));
+				*ppSwapChain = new DXGISwapChain(pFactory, swapchain, runtime);
 			}
 			else
 			{
@@ -440,8 +510,7 @@ HRESULT STDMETHODCALLTYPE										IDXGIFactory2_CreateSwapChainForCoreWindow(ID
 			{
 				runtime->OnCreate(desc.Width, desc.Height);
 
-				sManagers.insert(std::make_pair(swapchain, runtime));
-				sReferences.insert(std::make_pair(swapchain, GetRefCount(swapchain) - 1));
+				*ppSwapChain = new DXGISwapChain(pFactory, swapchain, runtime);
 			}
 			else
 			{
@@ -453,15 +522,7 @@ HRESULT STDMETHODCALLTYPE										IDXGIFactory2_CreateSwapChainForCoreWindow(ID
 		else
 		{
 			LOG(WARNING) << "> Swapchain was created without a Direct3D device. Skipping ...";
-
-			return hr;
 		}
-
-		ReHook::Register(VTable(swapchain, 2), reinterpret_cast<ReHook::Hook::Function>(&IDXGISwapChain_Release));
-		ReHook::Register(VTable(swapchain, 8), reinterpret_cast<ReHook::Hook::Function>(&IDXGISwapChain_Present));
-		ReHook::Register(VTable(swapchain, 10), reinterpret_cast<ReHook::Hook::Function>(&IDXGISwapChain_SetFullscreenState));
-		ReHook::Register(VTable(swapchain, 13), reinterpret_cast<ReHook::Hook::Function>(&IDXGISwapChain_ResizeBuffers));
-		ReHook::Register(VTable(swapchain, 22), reinterpret_cast<ReHook::Hook::Function>(&IDXGISwapChain1_Present1));
 	}
 	else
 	{
@@ -517,8 +578,7 @@ HRESULT STDMETHODCALLTYPE										IDXGIFactory2_CreateSwapChainForComposition(I
 			{
 				runtime->OnCreate(desc.Width, desc.Height);
 
-				sManagers.insert(std::make_pair(swapchain, runtime));
-				sReferences.insert(std::make_pair(swapchain, GetRefCount(swapchain) - 1));
+				*ppSwapChain = new DXGISwapChain(pFactory, swapchain, runtime);
 			}
 			else
 			{
@@ -535,8 +595,7 @@ HRESULT STDMETHODCALLTYPE										IDXGIFactory2_CreateSwapChainForComposition(I
 			{
 				runtime->OnCreate(desc.Width, desc.Height);
 
-				sManagers.insert(std::make_pair(swapchain, runtime));
-				sReferences.insert(std::make_pair(swapchain, GetRefCount(swapchain) - 1));
+				*ppSwapChain = new DXGISwapChain(pFactory, swapchain, runtime);
 			}
 			else
 			{
@@ -548,15 +607,7 @@ HRESULT STDMETHODCALLTYPE										IDXGIFactory2_CreateSwapChainForComposition(I
 		else
 		{
 			LOG(WARNING) << "> Swapchain was created without a Direct3D device. Skipping ...";
-
-			return hr;
 		}
-
-		ReHook::Register(VTable(swapchain, 2), reinterpret_cast<ReHook::Hook::Function>(&IDXGISwapChain_Release));
-		ReHook::Register(VTable(swapchain, 8), reinterpret_cast<ReHook::Hook::Function>(&IDXGISwapChain_Present));
-		ReHook::Register(VTable(swapchain, 10), reinterpret_cast<ReHook::Hook::Function>(&IDXGISwapChain_SetFullscreenState));
-		ReHook::Register(VTable(swapchain, 13), reinterpret_cast<ReHook::Hook::Function>(&IDXGISwapChain_ResizeBuffers));
-		ReHook::Register(VTable(swapchain, 22), reinterpret_cast<ReHook::Hook::Function>(&IDXGISwapChain1_Present1));
 	}
 	else
 	{
