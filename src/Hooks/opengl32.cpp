@@ -116,12 +116,11 @@ namespace
 	};
 	
 	std::unordered_map<HGLRC, std::shared_ptr<ReShade::Runtime>> sManagers;
-	std::unordered_map<HGLRC, HGLRC>							sSharedContexts;
 	std::unordered_map<HGLRC, HDC>								sDeviceContexts;
 	std::unordered_map<HWND, RECT>								sWindowRects;
 	CriticalSection												sCS;
 
-	__declspec(thread) ReShade::Runtime *						sCurrentManager = nullptr;
+	std::unordered_map<HDC, ReShade::Runtime *>					sCurrentManagers;
 	__declspec(thread) HGLRC									sCurrentRenderContext = nullptr;
 	__declspec(thread) HDC										sCurrentDeviceContext = nullptr;
 }
@@ -2307,7 +2306,6 @@ EXPORT HGLRC WINAPI												wglCreateContext(HDC hdc)
 		CriticalSection::Lock lock(sCS);
 
 		sDeviceContexts.insert(std::make_pair(hglrc, hdc));
-		sSharedContexts.insert(std::make_pair(hglrc, nullptr));
 	}
 	else
 	{
@@ -2320,25 +2318,25 @@ EXPORT HGLRC WINAPI												wglCreateContextAttribsARB(HDC hdc, HGLRC hShareC
 {
 	LOG(INFO) << "Redirecting '" << "wglCreateContextAttribsARB" << "(" << hdc << ", " << hShareContext << ", " << attribList << ")' ...";
 
-	struct														Attrib
+	struct Attrib
 	{
-		enum													Names
+		enum Names
 		{
-			WGL_CONTEXT_MAJOR_VERSION_ARB						= 0x2091,
-			WGL_CONTEXT_MINOR_VERSION_ARB						= 0x2092,
-			WGL_CONTEXT_LAYER_PLANE_ARB							= 0x2093,
-			WGL_CONTEXT_FLAGS_ARB								= 0x2094,
-			WGL_CONTEXT_PROFILE_MASK_ARB						= 0x9126,
+			WGL_CONTEXT_MAJOR_VERSION_ARB = 0x2091,
+			WGL_CONTEXT_MINOR_VERSION_ARB = 0x2092,
+			WGL_CONTEXT_LAYER_PLANE_ARB = 0x2093,
+			WGL_CONTEXT_FLAGS_ARB = 0x2094,
+			WGL_CONTEXT_PROFILE_MASK_ARB = 0x9126,
 		};
-		enum													Values
+		enum Values
 		{
-			WGL_CONTEXT_DEBUG_BIT_ARB							= 0x0001,
-			WGL_CONTEXT_FORWARD_COMPATIBLE_BIT_ARB				= 0x0002,
-			WGL_CONTEXT_CORE_PROFILE_BIT_ARB					= 0x00000001,
-			WGL_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB			= 0x00000002,
+			WGL_CONTEXT_DEBUG_BIT_ARB = 0x0001,
+			WGL_CONTEXT_FORWARD_COMPATIBLE_BIT_ARB = 0x0002,
+			WGL_CONTEXT_CORE_PROFILE_BIT_ARB = 0x00000001,
+			WGL_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB = 0x00000002,
 		};
 
-		int														Name, Value;
+		int Name, Value;
 	};
 
 	int i = 0, major = 1, minor = 0, flags = 0;
@@ -2402,7 +2400,6 @@ EXPORT HGLRC WINAPI												wglCreateContextAttribsARB(HDC hdc, HGLRC hShareC
 		CriticalSection::Lock lock(sCS);
 
 		sDeviceContexts.insert(std::make_pair(hglrc, hdc));
-		sSharedContexts.insert(std::make_pair(hglrc, hShareContext));
 	}
 	else
 	{
@@ -2425,7 +2422,7 @@ EXPORT BOOL WINAPI												wglDeleteContext(HGLRC hglrc)
 
 	const auto it = sManagers.find(hglrc);
 
-	if (it != sManagers.end() && sSharedContexts.at(hglrc) == nullptr)
+	if (it != sManagers.end())
 	{
 		ReHook::Call(&wglMakeCurrent)(sDeviceContexts.at(hglrc), hglrc);
 
@@ -2435,7 +2432,6 @@ EXPORT BOOL WINAPI												wglDeleteContext(HGLRC hglrc)
 	}
 
 	sDeviceContexts.erase(hglrc);
-	sSharedContexts.erase(hglrc);
 
 	if (!ReHook::Call(&wglDeleteContext)(hglrc))
 	{
@@ -2492,16 +2488,18 @@ EXPORT BOOL WINAPI												wglMakeCurrent(HDC hdc, HGLRC hglrc)
 {
 	static const auto trampoline = ReHook::Call(&wglMakeCurrent);
 
+	LOG(INFO) << "Redirecting '" << "wglMakeCurrent" << "(" << hdc << ", " << hglrc << ")' ...";
+
 	if (hdc == sCurrentDeviceContext && hglrc == sCurrentRenderContext)
 	{
 		return TRUE;
 	}
+
 	if (!trampoline(hdc, hglrc))
 	{
-		LOG(INFO) << "Redirecting '" << "wglMakeCurrent" << "(" << hdc << ", " << hglrc << ")' ...";
 		LOG(WARNING) << "> 'wglMakeCurrent' failed with '" << ::GetLastError() << "'!";
 
-		sCurrentManager = nullptr;
+		sCurrentManagers.erase(hdc);
 		sCurrentDeviceContext = nullptr;
 		sCurrentRenderContext = nullptr;
 
@@ -2510,7 +2508,7 @@ EXPORT BOOL WINAPI												wglMakeCurrent(HDC hdc, HGLRC hglrc)
 
 	if (hglrc == nullptr)
 	{
-		sCurrentManager = nullptr;
+		sCurrentManagers.erase(hdc);
 		sCurrentDeviceContext = nullptr;
 		sCurrentRenderContext = nullptr;
 
@@ -2522,37 +2520,25 @@ EXPORT BOOL WINAPI												wglMakeCurrent(HDC hdc, HGLRC hglrc)
 
 	CriticalSection::Lock lock(sCS);
 
-	const auto it = sManagers.lower_bound(hglrc);
+	const auto it = sManagers.find(hglrc);
 
 	if (it != sManagers.end() && sDeviceContexts.at(hglrc) == hdc)
 	{
-		sCurrentManager = it->second.get();
+		sCurrentManagers[hdc] = it->second.get();
 	}
 	else
 	{
-		LOG(INFO) << "Redirecting '" << "wglMakeCurrent" << "(" << hdc << ", " << hglrc << ")' ...";
-
-		std::shared_ptr<ReShade::Runtime> runtime;
 		const HWND hwnd = ::WindowFromDC(hdc);
-		const HGLRC shared = sSharedContexts.at(hglrc);
+
+		assert(hwnd != nullptr);
 
 		RECT rect;
 		::GetClientRect(hwnd, &rect);
 		const LONG width = rect.right - rect.left, height = rect.bottom - rect.top;
-		sWindowRects[hwnd] = rect;
 
 		LOG(INFO) << "> Initial size is " << width << "x" << height << ".";
 
-		if (shared == nullptr)
-		{
-			runtime = ReShade::CreateEffectRuntime(hdc, hglrc);
-		}
-		else
-		{
-			LOG(INFO) << "> Context is sharing data with " << shared << ".";
-
-			runtime = sManagers.at(shared);
-		}
+		const std::shared_ptr<ReShade::Runtime> runtime = ReShade::CreateEffectRuntime(hdc, hglrc);
 
 		if (runtime != nullptr)
 		{
@@ -2565,7 +2551,8 @@ EXPORT BOOL WINAPI												wglMakeCurrent(HDC hdc, HGLRC hglrc)
 
 		sManagers[hglrc] = runtime;
 		sDeviceContexts[hglrc] = hdc;
-		sCurrentManager = runtime.get();
+		sWindowRects[hwnd] = rect;
+		sCurrentManagers[hdc] = runtime.get();
 	}
 
 	return TRUE;
@@ -2599,49 +2586,32 @@ EXPORT BOOL WINAPI												wglSwapBuffers(HDC hdc)
 {
 	static const auto trampoline = ReHook::Call(&wglSwapBuffers);
 
-	if (sCurrentDeviceContext == hdc)
+	const auto it = sCurrentManagers.find(hdc);
+
+	if (it != sCurrentManagers.end())
 	{
-		if (sCurrentManager != nullptr)
+		ReShade::Runtime *runtime = it->second;
+
+		const HWND hwnd = ::WindowFromDC(hdc);
+		RECT rect, &rectPrevious = sWindowRects.at(hwnd);
+
+		assert(hwnd != nullptr);
+
+		::GetClientRect(hwnd, &rect);
+		const ULONG width = rect.right - rect.left, height = rect.bottom - rect.top;
+		const ULONG widthPrevious = rectPrevious.right - rectPrevious.left, heightPrevious = rectPrevious.bottom - rectPrevious.top;
+
+		if (width != widthPrevious || height != heightPrevious)
 		{
-			const HWND hwnd = ::WindowFromDC(hdc);
-			RECT rect, &rectPrevious = sWindowRects.at(hwnd);
+			LOG(INFO) << "Resizing OpenGL context " << sCurrentRenderContext << " to " << width << "x" << height << " ...";
 
-			assert(hwnd != nullptr);
+			runtime->ReCreate(width, height);
 
-			::GetClientRect(hwnd, &rect);
-			const ULONG width = rect.right - rect.left, height = rect.bottom - rect.top;
-			const ULONG widthPrevious = rectPrevious.right - rectPrevious.left, heightPrevious = rectPrevious.bottom - rectPrevious.top;
-			__declspec(thread) static ULONG widthResizing = 0, heightResizing = 0;
-
-			if (width != widthPrevious || height != heightPrevious)
-			{
-				if (width == widthResizing && height == heightResizing)
-				{
-					widthResizing = 0;
-					heightResizing = 0;
-
-					LOG(INFO) << "Resizing OpenGL context " << sCurrentRenderContext << " to " << width << "x" << height << " ...";
-
-					sCurrentManager->ReCreate(width, height);
-
-					rectPrevious = rect;
-				}
-				else
-				{
-					widthResizing = width;
-					heightResizing = height;
-
-					return TRUE;
-				}
-			}
-
-			sCurrentManager->OnPostProcess();
-			sCurrentManager->OnPresent();
+			rectPrevious = rect;
 		}
-	}
-	else
-	{
-		LOG(WARNING) << "Swapping buffers on a device context (" << hdc << ") which is not the one used for rendering in this thread (" << sCurrentDeviceContext << "). Cannot apply effects!";
+
+		runtime->OnPostProcess();
+		runtime->OnPresent();
 	}
 
 	return trampoline(hdc);
