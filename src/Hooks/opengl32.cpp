@@ -2495,6 +2495,8 @@ EXPORT BOOL WINAPI												wglMakeCurrent(HDC hdc, HGLRC hglrc)
 		return TRUE;
 	}
 
+	CriticalSection::Lock lock(sCS);
+
 	if (!trampoline(hdc, hglrc))
 	{
 		LOG(WARNING) << "> 'wglMakeCurrent' failed with '" << ::GetLastError() << "'!";
@@ -2517,8 +2519,6 @@ EXPORT BOOL WINAPI												wglMakeCurrent(HDC hdc, HGLRC hglrc)
 
 	sCurrentDeviceContext = hdc;
 	sCurrentRenderContext = hglrc;
-
-	CriticalSection::Lock lock(sCS);
 
 	const auto it = sManagers.find(hglrc);
 
