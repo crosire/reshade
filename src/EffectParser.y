@@ -3058,7 +3058,7 @@ namespace ReShade
 			this->mErrors += location.Source;
 		}
 
-		this->mErrors += '(' + std::to_string(location.Line) + ", " + std::to_string(location.Line) + ')' + ": ";
+		this->mErrors += '(' + std::to_string(location.Line) + ", " + std::to_string(location.Column) + ')' + ": ";
 
 		if (code != 0)
 		{
@@ -3091,7 +3091,7 @@ namespace ReShade
 			this->mErrors += location.Source;
 		}
 
-		this->mErrors += '(' + std::to_string(location.Line) + ", " + std::to_string(location.Line) + ')' + ": ";
+		this->mErrors += '(' + std::to_string(location.Line) + ", " + std::to_string(location.Column) + ')' + ": ";
 
 		if (code != 0)
 		{
