@@ -2412,7 +2412,7 @@ namespace ReShade
 
 				if (!this->mCurrentGlobalConstants.empty())
 				{
-					source += "layout(std140, binding = 0) uniform __GLOBAL__\n{\n" + this->mCurrentGlobalConstants + "};\n";
+					source += "layout(std140, binding = 0) uniform _GLOBAL_\n{\n" + this->mCurrentGlobalConstants + "};\n";
 				}
 
 				if (type != EffectNodes::Pass::PixelShader)
