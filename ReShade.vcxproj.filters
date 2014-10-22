@@ -13,31 +13,14 @@
     <Filter Include="Effect">
       <UniqueIdentifier>{b8e05bc4-05f8-43c7-b162-6a0818361b7b}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Effect Parser">
+      <UniqueIdentifier>{c7c87b42-c441-48dc-8d08-ce6e2a6ffa9d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Effect Runtimes">
+      <UniqueIdentifier>{3d98f6bc-aafb-47f4-97de-20bb7012bc62}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="src\Main.cpp" />
-    <ClCompile Include="src\Runtime.cpp" />
-    <ClCompile Include="src\Effect.cpp">
-      <Filter>Effect</Filter>
-    </ClCompile>
-    <ClCompile Include="src\EffectRuntimeD3D9.cpp">
-      <Filter>Effect</Filter>
-    </ClCompile>
-    <ClCompile Include="src\EffectRuntimeD3D10.cpp">
-      <Filter>Effect</Filter>
-    </ClCompile>
-    <ClCompile Include="src\EffectRuntimeD3D11.cpp">
-      <Filter>Effect</Filter>
-    </ClCompile>
-    <ClCompile Include="src\EffectRuntimeOGL4.cpp">
-      <Filter>Effect</Filter>
-    </ClCompile>
-    <ClCompile Include="obj\$(Platform)\$(Configuration)\EffectParser.cpp">
-      <Filter>Effect</Filter>
-    </ClCompile>
-    <ClCompile Include="obj\$(Platform)\$(Configuration)\EffectLexer.cpp">
-      <Filter>Effect</Filter>
-    </ClCompile>
     <ClCompile Include="src\Hook.cpp">
       <Filter>Hook</Filter>
     </ClCompile>
@@ -62,6 +45,29 @@
     <ClCompile Include="src\Hooks\opengl32.cpp">
       <Filter>Hooks</Filter>
     </ClCompile>
+    <ClCompile Include="src\Effect.cpp">
+      <Filter>Effect</Filter>
+    </ClCompile>
+    <ClCompile Include="obj\$(Platform)\$(Configuration)\EffectLexer.cpp">
+      <Filter>Effect Parser</Filter>
+    </ClCompile>
+    <ClCompile Include="obj\$(Platform)\$(Configuration)\EffectParser.cpp">
+      <Filter>Effect Parser</Filter>
+    </ClCompile>	
+    <ClCompile Include="src\Runtimes\EffectRuntimeD3D9.cpp">
+      <Filter>Effect Runtimes</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Runtimes\EffectRuntimeD3D10.cpp">
+      <Filter>Effect Runtimes</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Runtimes\EffectRuntimeD3D11.cpp">
+      <Filter>Effect Runtimes</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Runtimes\EffectRuntimeOGL4.cpp">
+      <Filter>Effect Runtimes</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Main.cpp" />
+    <ClCompile Include="src\Runtime.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="res\Resource.h">
@@ -70,29 +76,29 @@
     <ClInclude Include="res\Version.h">
       <Filter>Resources</Filter>
     </ClInclude>
-    <ClInclude Include="src\Log.hpp" />
-    <ClInclude Include="src\Runtime.hpp" />
-    <ClInclude Include="src\Effect.hpp">
-      <Filter>Effect</Filter>
-    </ClInclude>
-    <ClInclude Include="src\EffectPreprocessor.hpp">
-      <Filter>Effect</Filter>
-    </ClInclude>
-    <ClInclude Include="obj\$(Platform)\$(Configuration)\EffectLexer.h">
-      <Filter>Effect</Filter>
-    </ClInclude>
-    <ClInclude Include="obj\$(Platform)\$(Configuration)\EffectParser.hpp">
-      <Filter>Effect</Filter>
-    </ClInclude>
-    <ClInclude Include="src\EffectTree.hpp">
-      <Filter>Effect</Filter>
-    </ClInclude>
     <ClInclude Include="src\Hook.hpp">
       <Filter>Hook</Filter>
     </ClInclude>
     <ClInclude Include="src\HookManager.hpp">
       <Filter>Hook</Filter>
     </ClInclude>
+    <ClInclude Include="src\Effect.hpp">
+      <Filter>Effect</Filter>
+    </ClInclude>
+    <ClInclude Include="obj\$(Platform)\$(Configuration)\EffectLexer.h">
+      <Filter>Effect Parser</Filter>
+    </ClInclude>
+    <ClInclude Include="obj\$(Platform)\$(Configuration)\EffectParser.hpp">
+      <Filter>Effect Parser</Filter>
+    </ClInclude>
+    <ClInclude Include="src\EffectPreprocessor.hpp">
+      <Filter>Effect Parser</Filter>
+    </ClInclude>
+    <ClInclude Include="src\EffectTree.hpp">
+      <Filter>Effect Parser</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Log.hpp" />
+    <ClInclude Include="src\Runtime.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="res\Resource.rc">
@@ -112,10 +118,10 @@
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="src\EffectLexer.l">
-      <Filter>Effect</Filter>
+      <Filter>Effect Parser</Filter>
     </CustomBuild>
     <CustomBuild Include="src\EffectParser.y">
-      <Filter>Effect</Filter>
+      <Filter>Effect Parser</Filter>
     </CustomBuild>
   </ItemGroup>
 </Project>

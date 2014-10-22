@@ -221,10 +221,10 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="src\Effect.cpp" />
-    <ClCompile Include="src\EffectRuntimeD3D9.cpp" />
-    <ClCompile Include="src\EffectRuntimeD3D10.cpp" />
-    <ClCompile Include="src\EffectRuntimeD3D11.cpp" />
-    <ClCompile Include="src\EffectRuntimeOGL4.cpp" />
+    <ClCompile Include="src\Runtimes\EffectRuntimeD3D9.cpp" />
+    <ClCompile Include="src\Runtimes\EffectRuntimeD3D10.cpp" />
+    <ClCompile Include="src\Runtimes\EffectRuntimeD3D11.cpp" />
+    <ClCompile Include="src\Runtimes\EffectRuntimeOGL4.cpp" />
     <ClCompile Include="obj\$(Platform)\$(Configuration)\EffectLexer.cpp" />
     <ClCompile Include="obj\$(Platform)\$(Configuration)\EffectParser.cpp" />
     <ClCompile Include="src\Hook.cpp" />
