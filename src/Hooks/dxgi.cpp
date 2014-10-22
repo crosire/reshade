@@ -278,12 +278,18 @@ HRESULT STDMETHODCALLTYPE										IDXGIFactory_CreateSwapChain(IDXGIFactory *pF
 {
 	LOG(INFO) << "Redirecting '" << "IDXGIFactory::CreateSwapChain" << "(" << pFactory << ", " << pDevice << ", " << pDesc << ", " << ppSwapChain << ")' ...";
 
-	assert(pDesc != nullptr);
+	if (pDesc == nullptr || ppSwapChain == nullptr)
+	{
+		return DXGI_ERROR_INVALID_CALL;
+	}
 
 	DXGI_SWAP_CHAIN_DESC desc = *pDesc;
 
 	switch (desc.BufferDesc.Format)
 	{
+		case DXGI_FORMAT_R8G8B8A8_UNORM:
+		case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
+			break;
 		case DXGI_FORMAT_B8G8R8A8_UNORM:
 			LOG(WARNING) << "> Replacing buffer format 'DXGI_FORMAT_B8G8R8A8_UNORM' with 'DXGI_FORMAT_R8G8B8A8_UNORM' ...";
 			desc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
@@ -292,6 +298,9 @@ HRESULT STDMETHODCALLTYPE										IDXGIFactory_CreateSwapChain(IDXGIFactory *pF
 			LOG(WARNING) << "> Replacing buffer format 'DXGI_FORMAT_B8G8R8A8_UNORM_SRGB' with 'DXGI_FORMAT_R8G8B8A8_UNORM_SRGB' ...";
 			desc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
 			break;
+		default:
+			LOG(ERROR) << "> Format " << desc.BufferDesc.Format << " is not currently supported.";
+			return DXGI_ERROR_INVALID_CALL;
 	}
 
 	HRESULT hr = ReHook::Call(&IDXGIFactory_CreateSwapChain)(pFactory, pDevice, &desc, ppSwapChain);
@@ -365,12 +374,18 @@ HRESULT STDMETHODCALLTYPE										IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFac
 {
 	LOG(INFO) << "Redirecting '" << "IDXGIFactory2::CreateSwapChainForHwnd" << "(" << pFactory << ", " << pDevice << ", " << hWnd << ", " << pDesc << ", " << pFullscreenDesc << ", " << pRestrictToOutput << ", " << ppSwapChain << ")' ...";
 	
-	assert(pDesc != nullptr);
+	if (pDesc == nullptr || ppSwapChain == nullptr)
+	{
+		return DXGI_ERROR_INVALID_CALL;
+	}
 
 	DXGI_SWAP_CHAIN_DESC1 desc = *pDesc;
 
 	switch (desc.Format)
 	{
+		case DXGI_FORMAT_R8G8B8A8_UNORM:
+		case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
+			break;
 		case DXGI_FORMAT_B8G8R8A8_UNORM:
 			LOG(WARNING) << "> Replacing buffer format 'DXGI_FORMAT_B8G8R8A8_UNORM' with 'DXGI_FORMAT_R8G8B8A8_UNORM' ...";
 			desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
@@ -379,6 +394,9 @@ HRESULT STDMETHODCALLTYPE										IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFac
 			LOG(WARNING) << "> Replacing buffer format 'DXGI_FORMAT_B8G8R8A8_UNORM_SRGB' with 'DXGI_FORMAT_R8G8B8A8_UNORM_SRGB' ...";
 			desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
 			break;
+		default:
+			LOG(ERROR) << "> Format " << desc.Format << " is not currently supported.";
+			return DXGI_ERROR_INVALID_CALL;
 	}
 
 	HRESULT hr = ReHook::Call(&IDXGIFactory2_CreateSwapChainForHwnd)(pFactory, pDevice, hWnd, &desc, pFullscreenDesc, pRestrictToOutput, ppSwapChain);
@@ -450,12 +468,18 @@ HRESULT STDMETHODCALLTYPE										IDXGIFactory2_CreateSwapChainForCoreWindow(ID
 {
 	LOG(INFO) << "Redirecting '" << "IDXGIFactory2::CreateSwapChainForCoreWindow" << "(" << pFactory << ", " << pDevice << ", " << pWindow << ", " << pDesc << ", " << pRestrictToOutput << ", " << ppSwapChain << ")' ...";
 
-	assert(pDesc != nullptr);
+	if (pDesc == nullptr || ppSwapChain == nullptr)
+	{
+		return DXGI_ERROR_INVALID_CALL;
+	}
 
 	DXGI_SWAP_CHAIN_DESC1 desc = *pDesc;
 
 	switch (desc.Format)
 	{
+		case DXGI_FORMAT_R8G8B8A8_UNORM:
+		case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
+			break;
 		case DXGI_FORMAT_B8G8R8A8_UNORM:
 			LOG(WARNING) << "> Replacing buffer format 'DXGI_FORMAT_B8G8R8A8_UNORM' with 'DXGI_FORMAT_R8G8B8A8_UNORM' ...";
 			desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
@@ -464,6 +488,9 @@ HRESULT STDMETHODCALLTYPE										IDXGIFactory2_CreateSwapChainForCoreWindow(ID
 			LOG(WARNING) << "> Replacing buffer format 'DXGI_FORMAT_B8G8R8A8_UNORM_SRGB' with 'DXGI_FORMAT_R8G8B8A8_UNORM_SRGB' ...";
 			desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
 			break;
+		default:
+			LOG(ERROR) << "> Format " << desc.Format << " is not currently supported.";
+			return DXGI_ERROR_INVALID_CALL;
 	}
 
 	HRESULT hr = ReHook::Call(&IDXGIFactory2_CreateSwapChainForCoreWindow)(pFactory, pDevice, pWindow, &desc, pRestrictToOutput, ppSwapChain);
@@ -535,12 +562,18 @@ HRESULT STDMETHODCALLTYPE										IDXGIFactory2_CreateSwapChainForComposition(I
 {
 	LOG(INFO) << "Redirecting '" << "IDXGIFactory2::CreateSwapChainForComposition" << "(" << pFactory << ", " << pDevice << ", " << pDesc << ", " << pRestrictToOutput << ", " << ppSwapChain << ")' ...";
 
-	assert(pDesc != nullptr);
+	if (pDesc == nullptr || ppSwapChain == nullptr)
+	{
+		return DXGI_ERROR_INVALID_CALL;
+	}
 
 	DXGI_SWAP_CHAIN_DESC1 desc = *pDesc;
 
 	switch (desc.Format)
 	{
+		case DXGI_FORMAT_R8G8B8A8_UNORM:
+		case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
+			break;
 		case DXGI_FORMAT_B8G8R8A8_UNORM:
 			LOG(WARNING) << "> Replacing buffer format 'DXGI_FORMAT_B8G8R8A8_UNORM' with 'DXGI_FORMAT_R8G8B8A8_UNORM' ...";
 			desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
@@ -549,6 +582,9 @@ HRESULT STDMETHODCALLTYPE										IDXGIFactory2_CreateSwapChainForComposition(I
 			LOG(WARNING) << "> Replacing buffer format 'DXGI_FORMAT_B8G8R8A8_UNORM_SRGB' with 'DXGI_FORMAT_R8G8B8A8_UNORM_SRGB' ...";
 			desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
 			break;
+		default:
+			LOG(ERROR) << "> Format " << desc.Format << " is not currently supported.";
+			return DXGI_ERROR_INVALID_CALL;
 	}
 
 	HRESULT hr = ReHook::Call(&IDXGIFactory2_CreateSwapChainForComposition)(pFactory, pDevice, &desc, pRestrictToOutput, ppSwapChain);

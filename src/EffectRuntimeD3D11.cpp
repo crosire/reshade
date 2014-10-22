@@ -2395,8 +2395,23 @@ namespace ReShade
 
 			D3D11_TEXTURE2D_DESC dstdesc;
 			this->mBackBuffer->GetDesc(&dstdesc);
+
+			dstdesc.Format = DXGI_FORMAT_R8G8B8A8_TYPELESS;
+			dstdesc.BindFlags = D3D11_BIND_RENDER_TARGET;
+			context->mDevice->CreateTexture2D(&dstdesc, nullptr, &this->mBackBufferTexture);
+
+			D3D11_RENDER_TARGET_VIEW_DESC rtdesc;
+			ZeroMemory(&rtdesc, sizeof(D3D11_RENDER_TARGET_VIEW_DESC));
+			rtdesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
+			rtdesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+			rtdesc.Texture2D.MipSlice = 0;
+			context->mDevice->CreateRenderTargetView(this->mBackBufferTexture, &rtdesc, &this->mBackBufferTargets[0]);
+			rtdesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+			context->mDevice->CreateRenderTargetView(this->mBackBufferTexture, &rtdesc, &this->mBackBufferTargets[1]);
+
 			dstdesc.Format = DXGI_FORMAT_R24G8_TYPELESS;
 			dstdesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_DEPTH_STENCIL;
+
 			D3D11_SHADER_RESOURCE_VIEW_DESC dssdesc;
 			ZeroMemory(&dssdesc, sizeof(D3D11_SHADER_RESOURCE_VIEW_DESC));
 			dssdesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
@@ -2409,18 +2424,6 @@ namespace ReShade
 			context->mDevice->CreateTexture2D(&dstdesc, nullptr, &this->mDepthStencilTexture);
 			context->mDevice->CreateShaderResourceView(this->mDepthStencilTexture, &dssdesc, &this->mDepthStencilView);
 			context->mDevice->CreateDepthStencilView(this->mDepthStencilTexture, &dsdesc, &this->mDepthStencil);
-
-			dstdesc.Format = DXGI_FORMAT_R8G8B8A8_TYPELESS;
-			dstdesc.BindFlags = D3D11_BIND_RENDER_TARGET;
-			context->mDevice->CreateTexture2D(&dstdesc, nullptr, &this->mBackBufferTexture);
-			D3D11_RENDER_TARGET_VIEW_DESC rtdesc;
-			ZeroMemory(&rtdesc, sizeof(D3D11_RENDER_TARGET_VIEW_DESC));
-			rtdesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
-			rtdesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-			rtdesc.Texture2D.MipSlice = 0;
-			context->mDevice->CreateRenderTargetView(this->mBackBufferTexture, &rtdesc, &this->mBackBufferTargets[0]);
-			rtdesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
-			context->mDevice->CreateRenderTargetView(this->mBackBufferTexture, &rtdesc, &this->mBackBufferTargets[1]);
 
 			D3D11_RASTERIZER_DESC rsdesc;
 			ZeroMemory(&rsdesc, sizeof(D3D11_RASTERIZER_DESC));
