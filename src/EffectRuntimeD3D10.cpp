@@ -91,6 +91,7 @@ namespace ReShade
 			ID3D10RasterizerState *								mRasterizerState;
 			ID3D10StateBlock *									mStateblock;
 			ID3D10RenderTargetView *							mStateblockTargets[D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT];
+			ID3D10DepthStencilView *							mStateblockDepthStencil;
 			std::unordered_map<D3D10_SAMPLER_DESC, size_t>		mSamplerDescs;
 			std::vector<ID3D10SamplerState *>					mSamplerStates;
 			std::vector<ID3D10ShaderResourceView *>				mShaderResources;
@@ -2687,7 +2688,7 @@ namespace ReShade
 
 			device->CopyResource(this->mEffect->mBackBufferTexture, this->mEffect->mBackBuffer);
 
-			device->OMGetRenderTargets(D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, this->mEffect->mStateblockTargets, nullptr);
+			device->OMGetRenderTargets(D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, this->mEffect->mStateblockTargets, &this->mEffect->mStateblockDepthStencil);
 
 			const uintptr_t null = 0;
 			device->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -2709,7 +2710,7 @@ namespace ReShade
 			this->mEffect->mEffectContext->mDevice->CopyResource(this->mEffect->mBackBuffer, this->mEffect->mBackBufferTexture);
 
 			this->mEffect->mStateblock->Apply();
-			this->mEffect->mEffectContext->mDevice->OMSetRenderTargets(D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, this->mEffect->mStateblockTargets, nullptr);
+			this->mEffect->mEffectContext->mDevice->OMSetRenderTargets(D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, this->mEffect->mStateblockTargets, this->mEffect->mStateblockDepthStencil);
 
 			for (UINT i = 0; i < D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT; ++i)
 			{
