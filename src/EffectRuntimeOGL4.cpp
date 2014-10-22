@@ -1240,8 +1240,8 @@ namespace ReShade
 						part1 = "texture(";
 						const EffectNodes::Type type2to = { EffectNodes::Type::Float, 0, 2, 1 };
 						cast2 = PrintCast(type2, type2to);
-						part2 = ", " + cast2.first;
-						part3 = cast2.second + ')';
+						part2 = ", fma(" + cast2.first;
+						part3 = cast2.second + ", vec2(1.0, -1.0), vec2(0.0, 1.0)))";
 						break;
 					}
 					case EffectNodes::Expression::TexLevel:
@@ -1249,8 +1249,8 @@ namespace ReShade
 						part1 = "_textureLod(";
 						const EffectNodes::Type type2to = { EffectNodes::Type::Float, 0, 4, 1 };
 						cast2 = PrintCast(type2, type2to);
-						part2 = ", " + cast2.first;
-						part3 = cast2.second + ')';
+						part2 = ", fma(" + cast2.first;
+						part3 = cast2.second + ", vec4(1.0, -1.0, 1.0, 1.0), vec4(0.0, 1.0, 0.0, 0.0)))";
 						break;
 					}
 					case EffectNodes::Expression::TexGather:
@@ -1258,8 +1258,8 @@ namespace ReShade
 						part1 = "textureGather(";
 						const EffectNodes::Type type2to = { EffectNodes::Type::Float, 0, 2, 1 };
 						cast2 = PrintCast(type2, type2to);
-						part2 = ", " + cast2.first;
-						part3 = cast2.second + ')';
+						part2 = ", fma(" + cast2.first;
+						part3 = cast2.second + ", vec2(1.0, -1.0), vec2(0.0, 1.0)))";
 						break;
 					}
 					case EffectNodes::Expression::TexBias:
@@ -1267,8 +1267,8 @@ namespace ReShade
 						part1 = "_textureBias(";
 						const EffectNodes::Type type2to = { EffectNodes::Type::Float, 0, 4, 1 };
 						cast2 = PrintCast(type2, type2to);
-						part2 = ", " + cast2.first;
-						part3 = cast2.second + ')';
+						part2 = ", fma(" + cast2.first;
+						part3 = cast2.second + ", vec4(1.0, -1.0, 1.0, 1.0), vec4(0.0, 1.0, 0.0, 0.0)))";
 						break;
 					}
 					case EffectNodes::Expression::TexFetch:
@@ -1277,7 +1277,7 @@ namespace ReShade
 						const EffectNodes::Type type2to = { EffectNodes::Type::Int, 0, 2, 1 };
 						cast2 = PrintCast(type2, type2to);
 						part2 = ", " + cast2.first;
-						part3 = cast2.second + ')';
+						part3 = cast2.second + " * ivec2(1, -1) + ivec2(0, 1))";
 						break;
 					}
 					case EffectNodes::Expression::TexSize:
@@ -1363,9 +1363,9 @@ namespace ReShade
 						const EffectNodes::Type type2to = { EffectNodes::Type::Float, 0, 2, 1 };
 						const EffectNodes::Type type3to = { EffectNodes::Type::Int, 0, 2, 1 };
 						cast2 = PrintCast(type2, type2to);
-						part2 = ", " + cast2.first;
+						part2 = ", fma(" + cast2.first;
 						cast3 = PrintCast(type3, type3to);
-						part3 = cast2.second + ", " + cast3.first;
+						part3 = cast2.second + ", vec2(1.0, -1.0), vec2(0.0, 1.0)), " + cast3.first;
 						part4 = cast3.second + ')';
 						break;
 					}
@@ -1375,9 +1375,9 @@ namespace ReShade
 						const EffectNodes::Type type2to = { EffectNodes::Type::Float, 0, 4, 1 };
 						const EffectNodes::Type type3to = { EffectNodes::Type::Int, 0, 2, 1 };
 						cast2 = PrintCast(type2, type2to);
-						part2 = ", " + cast2.first;
+						part2 = ", fma(" + cast2.first;
 						cast3 = PrintCast(type3, type3to);
-						part3 = cast2.second + ", " + cast3.first;
+						part3 = cast2.second + ", vec4(1.0, -1.0, 1.0, 1.0), vec4(0.0, 1.0, 0.0, 0.0)), " + cast3.first;
 						part4 = cast3.second + ')';
 						break;
 					}
@@ -1387,9 +1387,9 @@ namespace ReShade
 						const EffectNodes::Type type2to = { EffectNodes::Type::Float, 0, 2, 1 };
 						const EffectNodes::Type type3to = { EffectNodes::Type::Int, 0, 2, 1 };
 						cast2 = PrintCast(type2, type2to);
-						part2 = ", " + cast2.first;
+						part2 = ", fma(" + cast2.first;
 						cast3 = PrintCast(type3, type3to);
-						part3 = cast2.second + ", " + cast3.first;
+						part3 = cast2.second + ", vec2(1.0, -1.0), vec2(0.0, 1.0)), " + cast3.first;
 						part4 = cast3.second + ')';
 						break;
 					}
@@ -2595,7 +2595,7 @@ namespace ReShade
 			
 				if (type == EffectNodes::Pass::VertexShader)
 				{
-					source += "gl_Position = gl_Position * vec4(1.0, -1.0, 2.0, 1.0) - vec4(0.0, 0.0, gl_Position.w, 0.0);\n";
+					source += "gl_Position = fma(gl_Position, vec4(1.0, 1.0, 2.0, 1.0), vec4(0.0, 0.0, -gl_Position.w, 0.0));\n";
 				}
 				/*if (type == EffectNodes::Pass::PixelShader)
 				{
