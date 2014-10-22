@@ -2185,7 +2185,7 @@ HRESULT STDMETHODCALLTYPE										Direct3DDevice8::CreateVertexShader(CONST DWO
 
 	LOG(INFO) << "Redirecting '" << "IDirect3DDevice8::CreateVertexShader" << "(" << this << ", " << pDeclaration << ", " << pFunction << ", " << pHandle << ", " << Usage << ")' ...";
 
-	if (pDeclaration == nullptr || pFunction == nullptr || pHandle == nullptr)
+	if (pDeclaration == nullptr || pHandle == nullptr)
 	{
 		return D3DERR_INVALIDCALL;
 	}
@@ -2353,85 +2353,98 @@ HRESULT STDMETHODCALLTYPE										Direct3DDevice8::CreateVertexShader(CONST DWO
 	const D3DVERTEXELEMENT9 terminator = D3DDECL_END();
 	elements[i] = terminator;
 
-	LOG(INFO) << "> Disassembling shader and translating assembly to Direct3D 9 compatible code ...";
+	HRESULT hr;
+	Direct3DVertexShader8 *shader;
 
-	if (*pFunction != 0xFFFE0101)
+	if (pFunction != nullptr)
 	{
-		LOG(WARNING) << "> Failed because of version mismatch ('" << *pFunction << "')! Only 'vs_1_1' shaders are supported.";
+		LOG(INFO) << "> Disassembling shader and translating assembly to Direct3D 9 compatible code ...";
 
-		return D3DERR_INVALIDCALL;
-	}
-
-	ID3DXBuffer *disassembly = nullptr, *assembly = nullptr;
-
-	HRESULT hr = ::D3DXDisassembleShader(pFunction, FALSE, nullptr, &disassembly);
-
-	if (FAILED(hr))
-	{
-		LOG(ERROR) << "'D3DXDisassembleShader' failed with '" << GetErrorString(hr) << "'!";
-
-		return hr;
-	}
-
-	std::string source(static_cast<const char *>(disassembly->GetBufferPointer()), disassembly->GetBufferSize());
-	std::size_t declpos = source.find("vs_1_1") + 7;
-
-	for (UINT k = 0; k < i; ++k)
-	{
-		std::string decl;
-
-		switch (elements[k].Usage)
+		if (*pFunction != 0xFFFE0101)
 		{
-			case D3DDECLUSAGE_POSITION:
-				decl = "dcl_position";
-				break;
-			case D3DDECLUSAGE_BLENDWEIGHT:
-				decl = "dcl_blendweight";
-				break;
-			case D3DDECLUSAGE_BLENDINDICES:
-				decl = "dcl_blendindices";
-				break;
-			case D3DDECLUSAGE_NORMAL:
-				decl = "dcl_normal";
-				break;
-			case D3DDECLUSAGE_PSIZE:
-				decl = "dcl_psize";
-				break;
-			case D3DDECLUSAGE_COLOR:
-				decl = "dcl_color";
-				break;
-			case D3DDECLUSAGE_TEXCOORD:
-				decl = "dcl_texcoord";
-				break;
+			LOG(WARNING) << "> Failed because of version mismatch ('" << *pFunction << "')! Only 'vs_1_1' shaders are supported.";
+
+			return D3DERR_INVALIDCALL;
 		}
 
-		if (elements[i].UsageIndex > 0)
+		ID3DXBuffer *disassembly = nullptr, *assembly = nullptr;
+
+		hr = ::D3DXDisassembleShader(pFunction, FALSE, nullptr, &disassembly);
+
+		if (FAILED(hr))
 		{
-			decl += std::to_string(elements[i].UsageIndex);
+			LOG(ERROR) << "'D3DXDisassembleShader' failed with '" << GetErrorString(hr) << "'!";
+
+			return hr;
 		}
 
-		decl += " v" + std::to_string(k) + '\n';
+		std::string source(static_cast<const char *>(disassembly->GetBufferPointer()), disassembly->GetBufferSize());
+		std::size_t declpos = source.find("vs_1_1") + 7;
 
-		source.insert(declpos, decl);
-		declpos += decl.length();
+		for (UINT k = 0; k < i; ++k)
+		{
+			std::string decl;
+
+			switch (elements[k].Usage)
+			{
+				case D3DDECLUSAGE_POSITION:
+					decl = "dcl_position";
+					break;
+				case D3DDECLUSAGE_BLENDWEIGHT:
+					decl = "dcl_blendweight";
+					break;
+				case D3DDECLUSAGE_BLENDINDICES:
+					decl = "dcl_blendindices";
+					break;
+				case D3DDECLUSAGE_NORMAL:
+					decl = "dcl_normal";
+					break;
+				case D3DDECLUSAGE_PSIZE:
+					decl = "dcl_psize";
+					break;
+				case D3DDECLUSAGE_COLOR:
+					decl = "dcl_color";
+					break;
+				case D3DDECLUSAGE_TEXCOORD:
+					decl = "dcl_texcoord";
+					break;
+			}
+
+			if (elements[i].UsageIndex > 0)
+			{
+				decl += std::to_string(elements[i].UsageIndex);
+			}
+
+			decl += " v" + std::to_string(k) + '\n';
+
+			source.insert(declpos, decl);
+			declpos += decl.length();
+		}
+
+		hr = ::D3DXAssembleShader(source.data(), static_cast<UINT>(source.size()), nullptr, nullptr, D3DXSHADER_SKIPVALIDATION, &assembly, nullptr);
+
+		disassembly->Release();
+
+		if (FAILED(hr))
+		{
+			LOG(ERROR) << "'D3DXAssembleShader' failed with '" << GetErrorString(hr) << "'!";
+
+			return hr;
+		}
+
+		shader = new Direct3DVertexShader8();
+
+		hr = this->mProxy->CreateVertexShader(static_cast<const DWORD *>(assembly->GetBufferPointer()), &shader->mProxy);
+
+		assembly->Release();
 	}
-
-	hr = ::D3DXAssembleShader(source.data(), static_cast<UINT>(source.size()), nullptr, nullptr, D3DXSHADER_SKIPVALIDATION, &assembly, nullptr);
-
-	disassembly->Release();
-
-	if (FAILED(hr))
+	else
 	{
-		LOG(ERROR) << "'D3DXAssembleShader' failed with '" << GetErrorString(hr) << "'!";
+		shader = new Direct3DVertexShader8();
+		shader->mProxy = nullptr;
 
-		return hr;
+		hr = D3D_OK;
 	}
-
-	Direct3DVertexShader8 *shader = new Direct3DVertexShader8();
-
-	hr = this->mProxy->CreateVertexShader(static_cast<const DWORD *>(assembly->GetBufferPointer()), &shader->mProxy);
-
-	assembly->Release();
 
 	if (SUCCEEDED(hr))
 	{
@@ -2516,7 +2529,11 @@ HRESULT STDMETHODCALLTYPE										Direct3DDevice8::DeleteVertexShader(DWORD Han
 
 	Direct3DVertexShader8 *shader = reinterpret_cast<Direct3DVertexShader8 *>(Handle ^ 0x80000000);
 	
-	shader->mProxy->Release();
+	if (shader->mProxy != nullptr)
+	{
+		shader->mProxy->Release();
+	}
+
 	shader->mDeclaration->Release();
 
 	delete shader;
