@@ -2580,6 +2580,8 @@ EXPORT BOOL WINAPI												wglSetPixelFormat(HDC hdc, int iPixelFormat, CONST
 }
 EXPORT BOOL WINAPI												wglShareLists(HGLRC hglrc1, HGLRC hglrc2)
 {
+	LOG(INFO) << "Redirecting '" << "wglShareLists" << "(" << hglrc1 << ", " << hglrc2 << ")' ...";
+
 	return ReHook::Call(&wglShareLists)(hglrc1, hglrc2);
 }
 EXPORT BOOL WINAPI												wglSwapBuffers(HDC hdc)
