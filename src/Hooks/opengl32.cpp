@@ -2497,23 +2497,19 @@ EXPORT BOOL WINAPI												wglMakeCurrent(HDC hdc, HGLRC hglrc)
 
 	CriticalSection::Lock lock(sCS);
 
+	sCurrentManagers.erase(hdc);
+	sCurrentDeviceContext = nullptr;
+	sCurrentRenderContext = nullptr;
+
 	if (!trampoline(hdc, hglrc))
 	{
 		LOG(WARNING) << "> 'wglMakeCurrent' failed with '" << ::GetLastError() << "'!";
-
-		sCurrentManagers.erase(hdc);
-		sCurrentDeviceContext = nullptr;
-		sCurrentRenderContext = nullptr;
 
 		return FALSE;
 	}
 
 	if (hglrc == nullptr)
 	{
-		sCurrentManagers.erase(hdc);
-		sCurrentDeviceContext = nullptr;
-		sCurrentRenderContext = nullptr;
-
 		return TRUE;
 	}
 
@@ -2530,7 +2526,12 @@ EXPORT BOOL WINAPI												wglMakeCurrent(HDC hdc, HGLRC hglrc)
 	{
 		const HWND hwnd = ::WindowFromDC(hdc);
 
-		assert(hwnd != nullptr);
+		if (hwnd == nullptr)
+		{
+			LOG(ERROR) << "> Aborted because there is no window associated with device context " << hdc << ".";
+
+			return FALSE;
+		}
 
 		RECT rect;
 		::GetClientRect(hwnd, &rect);
@@ -2595,9 +2596,16 @@ EXPORT BOOL WINAPI												wglSwapBuffers(HDC hdc)
 		ReShade::Runtime *runtime = it->second;
 
 		const HWND hwnd = ::WindowFromDC(hdc);
-		RECT rect, &rectPrevious = sWindowRects.at(hwnd);
+		const auto it = sWindowRects.find(hwnd);
 
-		assert(hwnd != nullptr);
+		if (it == sWindowRects.end())
+		{
+			LOG(WARNING) << "Aborted rendering because there is no known window associated with device context " << hdc << ".";
+
+			return FALSE;
+		}
+
+		RECT rect, &rectPrevious = it->second;
 
 		::GetClientRect(hwnd, &rect);
 		const ULONG width = rect.right - rect.left, height = rect.bottom - rect.top;
