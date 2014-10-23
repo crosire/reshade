@@ -690,7 +690,7 @@ namespace ReShade
 				}
 				if (node.Operands[2] != 0)
 				{
-					cast3 = PrintCast(type3 = this->mAST[node.Operands[1]].As<EffectNodes::RValue>().Type, node.Type);
+					cast3 = PrintCast(type3 = this->mAST[node.Operands[2]].As<EffectNodes::RValue>().Type, node.Type);
 				}
 
 				switch (node.Operator)
