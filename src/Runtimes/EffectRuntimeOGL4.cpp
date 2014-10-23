@@ -173,7 +173,7 @@ namespace ReShade
 			std::vector<std::shared_ptr<OGL4Sampler>>			mSamplers;
 			std::unordered_map<std::string, std::unique_ptr<OGL4Constant>> mConstants;
 			std::unordered_map<std::string, std::unique_ptr<OGL4Technique>> mTechniques;
-			GLuint												mDefaultVAO, mDefaultVBO, mDefaultFBO;
+			GLuint												mDefaultVAO, mDefaultVBO, mDefaultFBO, mBackBufferRBO, mDepthStencil;
 			std::vector<GLuint>									mUniformBuffers;
 			std::vector<std::pair<unsigned char *, std::size_t>> mUniformStorages;
 			mutable bool										mUniformDirty;
@@ -2280,10 +2280,19 @@ namespace ReShade
 				pass.BlendFuncSrc = (node.States[EffectNodes::Pass::SrcBlend] != 0) ? LiteralToBlendFunc(this->mAST[node.States[EffectNodes::Pass::SrcBlend]].As<EffectNodes::Literal>().Value.Uint[0]) : GL_ONE;
 				pass.BlendFuncDest = (node.States[EffectNodes::Pass::DestBlend] != 0) ? LiteralToBlendFunc(this->mAST[node.States[EffectNodes::Pass::DestBlend]].As<EffectNodes::Literal>().Value.Uint[0]) : GL_ZERO;
 
+				if (node.States[EffectNodes::Pass::StencilRef] != 0)
+				{
+					pass.StencilRef = this->mAST[node.States[EffectNodes::Pass::StencilRef]].As<EffectNodes::Literal>().Value.Uint[0];
+				}
 				if (node.States[EffectNodes::Pass::SRGBWriteEnable] != 0)
 				{
 					pass.FramebufferSRGB = this->mAST[node.States[EffectNodes::Pass::SRGBWriteEnable]].As<EffectNodes::Literal>().Value.Bool[0] != 0;
 				}
+
+				glGenFramebuffers(1, &pass.Framebuffer);
+				glBindFramebuffer(GL_FRAMEBUFFER, pass.Framebuffer);
+
+				bool backbufferFramebuffer = true;
 
 				for (unsigned int i = 0; i < 8; ++i)
 				{
@@ -2308,37 +2317,30 @@ namespace ReShade
 							return;
 						}
 
-						pass.ViewportWidth = texture->mDesc.Width;
-						pass.ViewportHeight = texture->mDesc.Height;
-
-						if (pass.Framebuffer == 0)
-						{
-							glGenFramebuffers(1, &pass.Framebuffer);
-							glBindFramebuffer(GL_FRAMEBUFFER, pass.Framebuffer);
-						}
+						backbufferFramebuffer = false;
 
 						glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, pass.FramebufferSRGB ? texture->mSRGBView : texture->mID, 0);
 
 						pass.DrawBuffers[i] = GL_COLOR_ATTACHMENT0 + i;
+						pass.ViewportWidth = texture->mDesc.Width;
+						pass.ViewportHeight = texture->mDesc.Height;
 					}
 				}
 
-				if (pass.Framebuffer != 0)
+				if (backbufferFramebuffer)
 				{
-#ifdef _DEBUG
-					GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-					assert(status == GL_FRAMEBUFFER_COMPLETE);
-#endif
-					glBindFramebuffer(GL_FRAMEBUFFER, 0);
-				}
-				else
-				{
-					RECT rect;
-					::GetClientRect(::WindowFromDC(wglGetCurrentDC()), &rect);
+					glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, this->mEffect->mBackBufferRBO);
 
-					pass.ViewportWidth = static_cast<GLsizei>(rect.right - rect.left);
-					pass.ViewportHeight = static_cast<GLsizei>(rect.bottom - rect.top);
+					pass.DrawBuffers[0] = GL_COLOR_ATTACHMENT0;
+					pass.ViewportWidth = static_cast<GLsizei>(this->mEffect->mEffectContext->mWidth);
+					pass.ViewportHeight = static_cast<GLsizei>(this->mEffect->mEffectContext->mHeight);
 				}
+
+				glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, this->mEffect->mDepthStencil);
+
+				assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
+
+				glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 				pass.Program = glCreateProgram();
 
@@ -2801,23 +2803,32 @@ namespace ReShade
 			}
 		}
 
-		OGL4Effect::OGL4Effect(std::shared_ptr<const OGL4EffectContext> context) : mEffectContext(context), mDefaultVAO(0), mDefaultVBO(0), mDefaultFBO(0), mUniformDirty(true)
+		OGL4Effect::OGL4Effect(std::shared_ptr<const OGL4EffectContext> context) : mEffectContext(context), mDefaultVAO(0), mDefaultVBO(0), mDefaultFBO(0), mBackBufferRBO(0), mDepthStencil(0), mUniformDirty(true)
 		{
 			GLCHECK(glGenVertexArrays(1, &this->mDefaultVAO));
 			GLCHECK(glGenBuffers(1, &this->mDefaultVBO));
 			GLCHECK(glGenFramebuffers(1, &this->mDefaultFBO));
+			GLCHECK(glGenRenderbuffers(2, &this->mBackBufferRBO));
 
 			GLint prevBuffer = 0;
 			GLCHECK(glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &prevBuffer));
 			GLCHECK(glBindBuffer(GL_ARRAY_BUFFER, this->mDefaultVBO));
 			GLCHECK(glBufferData(GL_ARRAY_BUFFER, 0, nullptr, GL_STATIC_DRAW));
 			GLCHECK(glBindBuffer(GL_ARRAY_BUFFER, prevBuffer));
+
+			GLCHECK(glGetIntegerv(GL_RENDERBUFFER_BINDING, &prevBuffer));
+			GLCHECK(glBindRenderbuffer(GL_RENDERBUFFER, this->mBackBufferRBO));
+			GLCHECK(glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA8, this->mEffectContext->mWidth, this->mEffectContext->mHeight));
+			GLCHECK(glBindRenderbuffer(GL_RENDERBUFFER, this->mDepthStencil));
+			GLCHECK(glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, this->mEffectContext->mWidth, this->mEffectContext->mHeight));
+			GLCHECK(glBindRenderbuffer(GL_RENDERBUFFER, prevBuffer));
 		}
 		OGL4Effect::~OGL4Effect(void)
 		{
 			GLCHECK(glDeleteVertexArrays(1, &this->mDefaultVAO));
 			GLCHECK(glDeleteBuffers(1, &this->mDefaultVBO));
 			GLCHECK(glDeleteFramebuffers(1, &this->mDefaultFBO));			
+			GLCHECK(glDeleteRenderbuffers(2, &this->mBackBufferRBO));
 			GLCHECK(glDeleteBuffers(this->mUniformBuffers.size(), &this->mUniformBuffers.front()));
 		}
 
@@ -3121,10 +3132,7 @@ namespace ReShade
 			GLCHECK(glBindFramebuffer(GL_DRAW_FRAMEBUFFER, this->mEffect->mDefaultFBO));
 			GLCHECK(glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, this->mID, 0));
 
-#ifdef _DEBUG
-			GLenum status = glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER);
-			assert(status == GL_FRAMEBUFFER_COMPLETE);
-#endif
+			assert(glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
 
 			GLCHECK(glReadBuffer(GL_BACK));
 			GLCHECK(glDrawBuffer(GL_COLOR_ATTACHMENT0));
@@ -3240,6 +3248,18 @@ namespace ReShade
 		}
 		void													OGL4Technique::End(void) const
 		{
+			GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, 0));
+			GLCHECK(glBindFramebuffer(GL_READ_FRAMEBUFFER, this->mEffect->mDefaultFBO));
+			GLCHECK(glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0));
+			GLCHECK(glFramebufferRenderbuffer(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, this->mEffect->mBackBufferRBO));
+
+			assert(glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
+
+			GLCHECK(glReadBuffer(GL_COLOR_ATTACHMENT0));
+			GLCHECK(glDrawBuffer(GL_BACK));
+
+			GLCHECK(glBlitFramebuffer(0, 0, this->mEffect->mEffectContext->mWidth, this->mEffect->mEffectContext->mHeight, 0, 0, this->mEffect->mEffectContext->mWidth, this->mEffect->mEffectContext->mHeight, GL_COLOR_BUFFER_BIT, GL_NEAREST));
+
 			this->mStateblock.Apply();
 		}
 		void													OGL4Technique::RenderPass(unsigned int index) const
@@ -3266,77 +3286,33 @@ namespace ReShade
 			GLCHECK(glUseProgram(pass.Program));
 			GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, pass.Framebuffer));
 			GLCHECK(glEnableb(GL_FRAMEBUFFER_SRGB, pass.FramebufferSRGB));
-
-			const GLfloat color[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
-
-			if (pass.Framebuffer == 0)
-			{
-				GLCHECK(glDrawBuffer(GL_BACK));
-				GLCHECK(glClearBufferfv(GL_COLOR, 0, color));
-			}
-			else
-			{
-				GLCHECK(glDrawBuffers(8, pass.DrawBuffers));
-
-				for (GLuint i = 0; i < 8; ++i)
-				{
-					if (pass.DrawBuffers[i] == GL_NONE)
-					{
-						continue;
-					}
-
-					GLCHECK(glClearBufferfv(GL_COLOR, i, color));
-				}
-			}
-
+			GLCHECK(glDrawBuffers(8, pass.DrawBuffers));
 			GLCHECK(glDisable(GL_SCISSOR_TEST));
 			GLCHECK(glFrontFace(GL_CCW));
 			GLCHECK(glPolygonMode(GL_FRONT_AND_BACK, GL_FILL));
 			GLCHECK(glDisable(GL_CULL_FACE));
 			GLCHECK(glColorMask(pass.ColorMaskR, pass.ColorMaskG, pass.ColorMaskB, pass.ColorMaskA));
+			GLCHECK(glEnableb(GL_BLEND, pass.Blend));
+			GLCHECK(glBlendFunc(pass.BlendFuncSrc, pass.BlendFuncDest));
+			GLCHECK(glBlendEquationSeparate(pass.BlendEqColor, pass.BlendEqAlpha));
+			GLCHECK(glEnableb(GL_DEPTH_TEST, pass.DepthTest));
+			GLCHECK(glDepthMask(pass.DepthMask));
+			GLCHECK(glDepthFunc(pass.DepthFunc));
+			GLCHECK(glEnableb(GL_STENCIL_TEST, pass.StencilTest));
+			GLCHECK(glStencilFunc(pass.StencilFunc, pass.StencilRef, pass.StencilReadMask));
+			GLCHECK(glStencilOp(pass.StencilOpFail, pass.StencilOpZFail, pass.StencilOpZPass));
+			GLCHECK(glStencilMask(pass.StencilMask));
 
-			if (pass.Blend)
-			{
-				GLCHECK(glEnable(GL_BLEND));
-				GLCHECK(glBlendFunc(pass.BlendFuncSrc, pass.BlendFuncDest));
-				GLCHECK(glBlendEquationSeparate(pass.BlendEqColor, pass.BlendEqAlpha));
-			}
-			else
-			{
-				GLCHECK(glDisable(GL_BLEND));
-			}
+			const GLfloat color[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 
-			if (pass.DepthMask)
+			for (GLuint i = 0; i < 8; ++i)
 			{
-				GLCHECK(glEnable(GL_DEPTH_TEST));
-				GLCHECK(glDepthMask(GL_TRUE));
-				GLCHECK(glDepthFunc(pass.DepthTest ? pass.DepthFunc : GL_ALWAYS));
-			}
-			else
-			{
-				GLCHECK(glDepthMask(GL_FALSE));
-
-				if (pass.DepthTest)
+				if (pass.DrawBuffers[i] == GL_NONE)
 				{
-					GLCHECK(glEnable(GL_DEPTH_TEST));
-					GLCHECK(glDepthFunc(pass.DepthFunc));
+					continue;
 				}
-				else
-				{
-					GLCHECK(glDisable(GL_DEPTH_TEST));
-				}
-			}
 
-			if (pass.StencilTest)
-			{
-				GLCHECK(glEnable(GL_STENCIL_TEST));
-				GLCHECK(glStencilFunc(pass.StencilFunc, pass.StencilRef, pass.StencilReadMask));
-				GLCHECK(glStencilOp(pass.StencilOpFail, pass.StencilOpZFail, pass.StencilOpZPass));
-				GLCHECK(glStencilMask(pass.StencilMask));
-			}
-			else
-			{
-				GLCHECK(glDisable(GL_STENCIL_TEST));
+				GLCHECK(glClearBufferfv(GL_COLOR, i, color));
 			}
 
 			GLCHECK(glDrawArrays(GL_TRIANGLES, 0, 3));
