@@ -13,3 +13,6 @@
 [submodule "stb"]
 	path = dep/stb
 	url = git://github.com/nothings/stb
+[submodule "nanovg"]
+	path = dep/nanovg
+	url = git://github.com/memononen/nanovg

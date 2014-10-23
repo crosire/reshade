@@ -59,6 +59,7 @@
     <Import Project="dep\FCPP.props" />
     <Import Project="dep\GL3W.props" />
     <Import Project="dep\STB.props" />
+    <Import Project="dep\NanoVG.props" />
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
@@ -67,6 +68,7 @@
     <Import Project="dep\FCPP.props" />
     <Import Project="dep\GL3W.props" />
     <Import Project="dep\STB.props" />
+    <Import Project="dep\NanoVG.props" />
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
@@ -75,6 +77,7 @@
     <Import Project="dep\FCPP.props" />
     <Import Project="dep\GL3W.props" />
     <Import Project="dep\STB.props" />
+    <Import Project="dep\NanoVG.props" />
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
@@ -83,6 +86,7 @@
     <Import Project="dep\FCPP.props" />
     <Import Project="dep\GL3W.props" />
     <Import Project="dep\STB.props" />
+    <Import Project="dep\NanoVG.props" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
