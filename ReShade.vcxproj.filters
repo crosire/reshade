@@ -53,7 +53,7 @@
     </ClCompile>
     <ClCompile Include="obj\$(Platform)\$(Configuration)\EffectParser.cpp">
       <Filter>Effect Parser</Filter>
-    </ClCompile>	
+    </ClCompile>
     <ClCompile Include="src\Runtimes\EffectRuntimeD3D9.cpp">
       <Filter>Effect Runtimes</Filter>
     </ClCompile>
@@ -68,6 +68,7 @@
     </ClCompile>
     <ClCompile Include="src\Main.cpp" />
     <ClCompile Include="src\Runtime.cpp" />
+    <ClCompile Include="src\FileWatcher.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="res\Resource.h">
@@ -99,6 +100,7 @@
     </ClInclude>
     <ClInclude Include="src\Log.hpp" />
     <ClInclude Include="src\Runtime.hpp" />
+    <ClInclude Include="src\FileWatcher.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="res\Resource.rc">

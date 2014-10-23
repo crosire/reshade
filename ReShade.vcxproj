@@ -221,6 +221,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="src\Effect.cpp" />
+    <ClCompile Include="src\FileWatcher.cpp" />
     <ClCompile Include="src\Runtimes\EffectRuntimeD3D9.cpp" />
     <ClCompile Include="src\Runtimes\EffectRuntimeD3D10.cpp" />
     <ClCompile Include="src\Runtimes\EffectRuntimeD3D11.cpp" />
@@ -244,6 +245,7 @@
   <ItemGroup>
     <ClInclude Include="res\Resource.h" />
     <ClInclude Include="res\Version.h" />
+    <ClInclude Include="src\FileWatcher.hpp" />
     <ClInclude Include="src\Hook.hpp" />
     <ClInclude Include="src\HookManager.hpp" />
     <ClInclude Include="src\Log.hpp" />
@@ -258,17 +260,17 @@
     <CustomBuild Include="src\EffectLexer.l">
       <Message>Generating Effect Lexer ...</Message>
       <Outputs>$(IntDir)%(Filename).cpp;$(IntDir)%(Filename).h</Outputs>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">tools\flex.exe --debug --verbose --bison-bridge --bison-locations --wincompat --outfile="$(IntDir)%(Filename).cpp" --header-file="$(IntDir)%(Filename).h" "%(FullPath)"</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">tools\flex.exe --verbose --bison-bridge --bison-locations --wincompat --outfile="$(IntDir)%(Filename).cpp" --header-file="$(IntDir)%(Filename).h" "%(FullPath)"</Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">tools\flex.exe --bison-bridge --bison-locations --wincompat --outfile="$(IntDir)%(Filename).cpp" --header-file="$(IntDir)%(Filename).h" "%(FullPath)"</Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">tools\flex.exe --debug --verbose --bison-bridge --bison-locations --wincompat --outfile="$(IntDir)%(Filename).cpp" --header-file="$(IntDir)%(Filename).h" "%(FullPath)"</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">tools\flex.exe --verbose --bison-bridge --bison-locations --wincompat --outfile="$(IntDir)%(Filename).cpp" --header-file="$(IntDir)%(Filename).h" "%(FullPath)"</Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">tools\flex.exe --bison-bridge --bison-locations --wincompat --outfile="$(IntDir)%(Filename).cpp" --header-file="$(IntDir)%(Filename).h" "%(FullPath)"</Command>
     </CustomBuild>
     <CustomBuild Include="src\EffectParser.y">
       <Message>Generating Effect Parser ...</Message>
       <Outputs>$(IntDir)%(Filename).cpp;$(IntDir)%(Filename).hpp</Outputs>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">tools\bison.exe --debug --verbose --warnings --locations --defines --output="$(IntDir)%(Filename).cpp" --report=all --graph "%(FullPath)"</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">tools\bison.exe --verbose --warnings --locations --defines --output="$(IntDir)%(Filename).cpp" --report=all --graph "%(FullPath)"</Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">tools\bison.exe --warnings --locations --defines --output="$(IntDir)%(Filename).cpp" --report=all --graph "%(FullPath)"</Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">tools\bison.exe --debug --verbose --warnings --locations --defines --output="$(IntDir)%(Filename).cpp" --report=all --graph "%(FullPath)"</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">tools\bison.exe --verbose --warnings --locations --defines --output="$(IntDir)%(Filename).cpp" --report=all --graph "%(FullPath)"</Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">tools\bison.exe --warnings --locations --defines --output="$(IntDir)%(Filename).cpp" --report=all --graph "%(FullPath)"</Command>
     </CustomBuild>
   </ItemGroup>

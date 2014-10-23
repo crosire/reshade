@@ -18,6 +18,12 @@ namespace ReShade
 		{
 			unsigned int VendorId, DeviceId, RendererId;
 		};
+		struct InfoTechnique
+		{
+			bool Enabled;
+			int Timeout, Timeleft;
+			int Toggle, ToggleTime;
+		};
 
 	public:
 		static void Startup(const boost::filesystem::path &executablePath, const boost::filesystem::path &injectorPath);
@@ -47,11 +53,10 @@ namespace ReShade
 
 	private:
 		std::unique_ptr<Effect> mEffect;
-		std::vector<std::pair<bool, const Effect::Technique *>> mTechniques;
+		std::vector<std::pair<const Effect::Technique *, InfoTechnique>> mTechniques;
 		std::vector<Effect::Texture *> mColorTargets;
 		std::chrono::high_resolution_clock::time_point mLastPresent;
-		std::chrono::high_resolution_clock::duration mLastFrametime, mLastPostProcessTime;
-		std::chrono::system_clock::time_point mLastEffectModification;
+		std::chrono::high_resolution_clock::duration mLastFrametime;
 		unsigned long long mLastFrameCount;
 	};
 }

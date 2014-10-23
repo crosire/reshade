@@ -5,6 +5,7 @@
 #include "EffectTree.hpp"
 #include "EffectPreprocessor.hpp"
 #include "EffectParser.hpp"
+#include "FileWatcher.hpp"
 
 #include <stb_dxt.h>
 #include <stb_image.h>
@@ -51,6 +52,7 @@ namespace ReShade
 			return path;
 		}
 
+		FileWatcher *sEffectWatcher = nullptr;
 		boost::filesystem::path sExecutablePath, sInjectorPath, sEffectPath;
 	}
 
@@ -63,24 +65,33 @@ namespace ReShade
 		sEffectPath.replace_extension("fx");
 		boost::filesystem::path systemPath = GetSystemDirectory();
 
-		boost::filesystem::path logPath = injectorPath;
+		boost::filesystem::path logPath = injectorPath, logTracePath = injectorPath;
 		logPath.replace_extension("log");
+		logTracePath.replace_extension("tracelog");
 
 		el::Configurations logConfig;
 		logConfig.set(el::Level::Global, el::ConfigurationType::Enabled, "true");
-#ifndef _DEBUG
-		DeleteFile(logPath.c_str());
-		//logConfig.set(el::Level::Trace, el::ConfigurationType::Enabled, "false");
-#endif
+		logConfig.set(el::Level::Trace, el::ConfigurationType::Enabled, "false");
 		logConfig.set(el::Level::Global, el::ConfigurationType::Filename, logPath.string());
 		logConfig.set(el::Level::Global, el::ConfigurationType::ToFile, "true");
 		logConfig.set(el::Level::Global, el::ConfigurationType::ToStandardOutput, "false");
 		logConfig.set(el::Level::Global, el::ConfigurationType::MaxLogFileSize, "0");
 		logConfig.set(el::Level::Global, el::ConfigurationType::LogFlushThreshold, "0");
 		logConfig.set(el::Level::Global, el::ConfigurationType::Format, "%datetime | %level | %msg");
+
+		DeleteFile(logPath.c_str());
+
+		if (GetFileAttributes(logTracePath.c_str()) != INVALID_FILE_ATTRIBUTES)
+		{
+			DeleteFile(logTracePath.c_str());
+
+			logConfig.set(el::Level::Trace, el::ConfigurationType::Enabled, "true");
+			logConfig.set(el::Level::Global, el::ConfigurationType::Filename, logTracePath.string());
+		}
+
 		el::Loggers::reconfigureLogger("default", logConfig);
 
-		LOG(INFO) << "Initializing version '" BOOST_STRINGIZE(VERSION_FULL) "' built on '" << VERSION_DATE << " " << VERSION_TIME << "' loaded from " << ObfuscatePath(injectorPath) << " to " << ObfuscatePath(executablePath) << " ...";
+		LOG(INFO) << "Initializing version '" BOOST_STRINGIZE(VERSION_FULL) "' built on '" VERSION_DATE " " VERSION_TIME "' loaded from " << ObfuscatePath(injectorPath) << " to " << ObfuscatePath(executablePath) << " ...";
 
 		ReHook::Register(systemPath / "d3d8.dll");
 		ReHook::Register(systemPath / "d3d9.dll");
@@ -90,11 +101,15 @@ namespace ReShade
 		ReHook::Register(systemPath / "dxgi.dll");
 		ReHook::Register(systemPath / "opengl32.dll");
 
+		sEffectWatcher = new FileWatcher(sEffectPath.parent_path(), true);
+
 		LOG(INFO) << "Initialized.";
 	}
 	void Runtime::Shutdown(void)
 	{
 		LOG(INFO) << "Exiting ...";
+
+		delete sEffectWatcher;
 
 		ReHook::Cleanup();
 
@@ -128,10 +143,14 @@ namespace ReShade
 		}
 		if (width == 0 || height == 0)
 		{
+			LOG(WARNING) << "Failed to reload effects due to invalid size of " << width << "x" << height << ".";
+
 			return false;
 		}
 
-		std::string errors;
+		this->mWidth = width;
+		this->mHeight = height;
+
 		const Info info = GetInfo();
 
 		// Preprocess
@@ -148,6 +167,8 @@ namespace ReShade
 
 		LOG(INFO) << "Loading effect from " << ObfuscatePath(sEffectPath) << " ...";
 		LOG(TRACE) << "> Running preprocessor ...";
+
+		std::string errors;
 
 		const std::string source = preprocessor.Run(sEffectPath, errors);
 		
@@ -204,16 +225,20 @@ namespace ReShade
 		{
 			this->mTechniques.reserve(techniques.size());
 
-			for (const auto &name : techniques)
+			for (const std::string &name : techniques)
 			{
-				this->mTechniques.push_back(std::make_pair(false, effect->GetTechnique(name)));
-			}
+				const Effect::Technique *technique = effect->GetTechnique(name);
+				
+				InfoTechnique info;
+				info.Enabled = technique->GetAnnotation("enabled").As<bool>();
+				info.Timeleft = info.Timeout = technique->GetAnnotation("timeout").As<int>();
+				info.Toggle = technique->GetAnnotation("toggle").As<int>();
+				info.ToggleTime = technique->GetAnnotation("toggletime").As<int>();
 
-			this->mTechniques.front().first = true;
+				this->mTechniques.push_back(std::make_pair(technique, info));
+			}
 		}
 
-		this->mWidth = width;
-		this->mHeight = height;
 		this->mEffect.swap(effect);
 
 		CreateResources();
@@ -238,26 +263,45 @@ namespace ReShade
 	}
 	void Runtime::OnPostProcess()
 	{
-		const auto time = std::chrono::high_resolution_clock::now();
-
 		for (auto &it : this->mTechniques)
 		{
-			bool &enabled = it.first;
-			const Effect::Technique *technique = it.second;
+			const Effect::Technique *technique = it.first;
+			InfoTechnique &info = it.second;
 
-			const int toggleKey = technique->GetAnnotation("toggle").As<int>();
+			tm tm;
+			std::time_t t = std::chrono::system_clock::to_time_t(this->mLastPresent);
+			::localtime_s(&tm, &t);
+			const float date[4] = { static_cast<float>(tm.tm_year + 1900), static_cast<float>(tm.tm_mon + 1), static_cast<float>(tm.tm_mday), static_cast<float>(tm.tm_hour * 3600 + tm.tm_min * 60 + tm.tm_sec + 1) };
 
-			if ((toggleKey > 0 && toggleKey < 256) && ::GetKeyState(toggleKey) & 0x8000)
+			if (info.ToggleTime != 0 && info.ToggleTime == static_cast<int>(date[3]))
 			{
-				enabled = !enabled;
+				info.Enabled = !info.Enabled;
+				info.Timeleft = info.Timeout;
+				info.ToggleTime = 0;
+			}
+			else if ((info.Toggle > 0 && info.Toggle < 256) && ::GetKeyState(info.Toggle) & 0x8000)
+			{
+				info.Enabled = !info.Enabled;
+				info.Timeleft = info.Timeout;
 
 				BYTE keys[256];
 				::GetKeyboardState(keys);
-				keys[toggleKey] = FALSE;
+				keys[info.Toggle] = FALSE;
 				::SetKeyboardState(keys);
 			}
 
-			if (!enabled)
+			if (info.Timeleft > 0)
+			{
+				info.Timeleft -= static_cast<unsigned int>(std::chrono::duration_cast<std::chrono::milliseconds>(this->mLastFrametime).count());
+
+				if (info.Timeleft <= 0)
+				{
+					info.Enabled = !info.Enabled;
+					info.Timeleft = 0;
+				}
+			}
+
+			if (!info.Enabled)
 			{
 				continue;
 			}
@@ -272,6 +316,93 @@ namespace ReShade
 					{
 						target->UpdateFromColorBuffer();
 					}
+					for (const std::string &name : this->mEffect->GetConstantNames())
+					{
+						Effect::Constant *constant = this->mEffect->GetConstant(name);
+						const std::string source = constant->GetAnnotation("source").As<std::string>();
+
+						if (source.empty())
+						{
+							continue;
+						}
+						else if (source == "frametime")
+						{
+							const unsigned int frametime = static_cast<unsigned int>(std::chrono::duration_cast<std::chrono::milliseconds>(this->mLastFrametime).count());
+
+							constant->SetValue(&frametime, 1);
+						}
+						else if (source == "framecount" || source == "framecounter")
+						{
+							switch (constant->GetDescription().Type)
+							{
+								case Effect::Constant::Type::Bool:
+								{
+									const bool even = (this->mLastFrameCount % 2) == 0;
+									constant->SetValue(&even, 1);
+									break;
+								}
+								case Effect::Constant::Type::Int:
+								case Effect::Constant::Type::Uint:
+								{
+									const unsigned int framecount = static_cast<unsigned int>(this->mLastFrameCount % UINT_MAX);
+									constant->SetValue(&framecount, 1);
+									break;
+								}
+								case Effect::Constant::Type::Float:
+								{
+									const float framecount = static_cast<float>(this->mLastFrameCount % 16777216);
+									constant->SetValue(&framecount, 1);
+									break;
+								}
+							}
+						}
+						else if (source == "date")
+						{
+							constant->SetValue(date, 4);
+						}
+						else if (source == "timer")
+						{
+							const unsigned long long timer = std::chrono::duration_cast<std::chrono::milliseconds>(this->mLastPresent.time_since_epoch()).count();
+
+							switch (constant->GetDescription().Type)
+							{
+								case Effect::Constant::Type::Bool:
+								{
+									const bool even = (timer % 2) == 0;
+									constant->SetValue(&even, 1);
+									break;
+								}
+								case Effect::Constant::Type::Int:
+								case Effect::Constant::Type::Uint:
+								{
+									const unsigned int timerInt = static_cast<unsigned int>(timer % UINT_MAX);
+									constant->SetValue(&timerInt, 1);
+									break;
+								}
+								case Effect::Constant::Type::Float:
+								{
+									const float timerFloat = static_cast<float>(timer % 16777216);
+									constant->SetValue(&timerFloat, 1);
+									break;
+								}
+							}
+						}
+						else if (source == "timeleft")
+						{
+							constant->SetValue(&info.Timeleft, 1);
+						}
+						else if (source == "key")
+						{
+							const int key = constant->GetAnnotation("keycode").As<int>();
+
+							if (key > 0 && key < 256)
+							{
+								const bool state = (::GetAsyncKeyState(key) & 0x8000) != 0;
+
+								constant->SetValue(&state, 1);
+							}
+						}
+					}
 
 					technique->RenderPass(i);
 				}
@@ -283,13 +414,10 @@ namespace ReShade
 				LOG(ERROR) << "Failed to start rendering technique!";
 			}
 		}
-
-		this->mLastPostProcessTime = std::chrono::high_resolution_clock::now() - time;
 	}
 	void Runtime::OnPresent()
 	{
 		const auto time = std::chrono::high_resolution_clock::now();
-		const std::chrono::seconds uptime = std::chrono::duration_cast<std::chrono::seconds>(time.time_since_epoch());
 		const std::chrono::milliseconds frametime = std::chrono::duration_cast<std::chrono::milliseconds>(time - this->mLastPresent);
 
 		if (::GetAsyncKeyState(VK_SNAPSHOT) & 0x8000)
@@ -298,20 +426,26 @@ namespace ReShade
 			const time_t t = std::chrono::system_clock::to_time_t(time);
 			::localtime_s(&tm, &t);
 			char timeString[128];
-			std::strftime(timeString, 128, "(%Y-%m-%d %H.%M.%S)", &tm); 
+			std::strftime(timeString, 128, "%Y-%m-%d %H-%M-%S", &tm); 
 
 			CreateScreenshot(sExecutablePath.parent_path() / (sExecutablePath.stem().string() + ' ' + timeString + ".png"));
 		}
 
-		if (uptime.count() % 5 == 0)
+		std::vector<FileWatcher::Change> changes;
+
+		if (sEffectWatcher->GetChanges(changes, 0))
 		{
-			const std::chrono::system_clock::time_point writetime = GetLastWriteTime(sEffectPath);
-
-			if (writetime > this->mLastEffectModification)
+			for (const auto &change : changes)
 			{
-				ReCreate();
-
-				this->mLastEffectModification = writetime;
+				const boost::filesystem::path &path = change.Filename;
+				const boost::filesystem::path extension = path.extension();
+					
+				if (extension == ".fx" || extension == ".txt" || extension == ".h")
+				{
+					LOG(INFO) << "Detected modification to " << path << ". Reloading ...";
+			
+					ReCreate();
+				}
 			}
 		}
 
@@ -381,7 +515,7 @@ namespace ReShade
 					
 				if (dataFile != nullptr)
 				{
-					if (widthFile != desc.Width || heightFile != desc.Height)
+					if (desc.Width != static_cast<unsigned int>(widthFile) || desc.Height != static_cast<unsigned int>(heightFile))
 					{
 						LOG(INFO) << "> Resizing image data for texture '" << name << "' from " << widthFile << "x" << heightFile << " to " << desc.Width << "x" << desc.Height << " ...";
 
@@ -420,6 +554,12 @@ namespace ReShade
 	void Runtime::CreateScreenshot(const boost::filesystem::path &path)
 	{
 		const std::size_t dataSize = this->mWidth * this->mHeight * 4;
+
+		if (dataSize == 0)
+		{
+			return;
+		}
+
 		unsigned char *data = new unsigned char[dataSize];
 		::memset(data, 0, dataSize);
 		CreateScreenshot(data, dataSize);
