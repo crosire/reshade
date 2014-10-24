@@ -1238,45 +1238,50 @@ namespace ReShade
 						return;
 					case EffectNodes::Expression::Tex:
 					{
-						part1 = "texture(";
 						const EffectNodes::Type type2to = { EffectNodes::Type::Float, 0, 2, 1 };
 						cast2 = PrintCast(type2, type2to);
+
+						part1 = "texture(";
 						part2 = ", fma(" + cast2.first;
 						part3 = cast2.second + ", vec2(1.0, -1.0), vec2(0.0, 1.0)))";
 						break;
 					}
 					case EffectNodes::Expression::TexLevel:
 					{
-						part1 = "_textureLod(";
 						const EffectNodes::Type type2to = { EffectNodes::Type::Float, 0, 4, 1 };
 						cast2 = PrintCast(type2, type2to);
+
+						part1 = "_textureLod(";
 						part2 = ", fma(" + cast2.first;
 						part3 = cast2.second + ", vec4(1.0, -1.0, 1.0, 1.0), vec4(0.0, 1.0, 0.0, 0.0)))";
 						break;
 					}
 					case EffectNodes::Expression::TexGather:
 					{
-						part1 = "textureGather(";
 						const EffectNodes::Type type2to = { EffectNodes::Type::Float, 0, 2, 1 };
 						cast2 = PrintCast(type2, type2to);
+
+						part1 = "textureGather(";
 						part2 = ", fma(" + cast2.first;
 						part3 = cast2.second + ", vec2(1.0, -1.0), vec2(0.0, 1.0)))";
 						break;
 					}
 					case EffectNodes::Expression::TexBias:
 					{
-						part1 = "_textureBias(";
 						const EffectNodes::Type type2to = { EffectNodes::Type::Float, 0, 4, 1 };
 						cast2 = PrintCast(type2, type2to);
+
+						part1 = "_textureBias(";
 						part2 = ", fma(" + cast2.first;
 						part3 = cast2.second + ", vec4(1.0, -1.0, 1.0, 1.0), vec4(0.0, 1.0, 0.0, 0.0)))";
 						break;
 					}
 					case EffectNodes::Expression::TexFetch:
 					{
-						part1 = "texelFetch(";
 						const EffectNodes::Type type2to = { EffectNodes::Type::Int, 0, 2, 1 };
 						cast2 = PrintCast(type2, type2to);
+
+						part1 = "texelFetch(";
 						part2 = ", " + cast2.first;
 						part3 = cast2.second + " * ivec2(1, -1) + ivec2(0, 1))";
 						break;
@@ -1360,38 +1365,41 @@ namespace ReShade
 					}
 					case EffectNodes::Expression::TexOffset:
 					{
-						part1 = "textureOffset(";
 						const EffectNodes::Type type2to = { EffectNodes::Type::Float, 0, 2, 1 };
 						const EffectNodes::Type type3to = { EffectNodes::Type::Int, 0, 2, 1 };
 						cast2 = PrintCast(type2, type2to);
-						part2 = ", fma(" + cast2.first;
 						cast3 = PrintCast(type3, type3to);
+
+						part1 = "textureOffset(";
+						part2 = ", fma(" + cast2.first;
 						part3 = cast2.second + ", vec2(1.0, -1.0), vec2(0.0, 1.0)), " + cast3.first;
-						part4 = cast3.second + ')';
+						part4 = cast3.second + " * ivec2(1, -1))";
 						break;
 					}
 					case EffectNodes::Expression::TexLevelOffset:
 					{	
-						part1 = "_textureLodOffset(";
 						const EffectNodes::Type type2to = { EffectNodes::Type::Float, 0, 4, 1 };
 						const EffectNodes::Type type3to = { EffectNodes::Type::Int, 0, 2, 1 };
 						cast2 = PrintCast(type2, type2to);
-						part2 = ", fma(" + cast2.first;
 						cast3 = PrintCast(type3, type3to);
+
+						part1 = "_textureLodOffset(";
+						part2 = ", fma(" + cast2.first;
 						part3 = cast2.second + ", vec4(1.0, -1.0, 1.0, 1.0), vec4(0.0, 1.0, 0.0, 0.0)), " + cast3.first;
-						part4 = cast3.second + ')';
+						part4 = cast3.second + " * ivec2(1, -1))";
 						break;
 					}
 					case EffectNodes::Expression::TexGatherOffset:
 					{
-						part1 = "textureGatherOffset(";
 						const EffectNodes::Type type2to = { EffectNodes::Type::Float, 0, 2, 1 };
 						const EffectNodes::Type type3to = { EffectNodes::Type::Int, 0, 2, 1 };
 						cast2 = PrintCast(type2, type2to);
-						part2 = ", fma(" + cast2.first;
 						cast3 = PrintCast(type3, type3to);
+
+						part1 = "textureGatherOffset(";
+						part2 = ", fma(" + cast2.first;
 						part3 = cast2.second + ", vec2(1.0, -1.0), vec2(0.0, 1.0)), " + cast3.first;
-						part4 = cast3.second + ')';
+						part4 = cast3.second + " * ivec2(1, -1))";
 						break;
 					}
 				}
