@@ -1430,7 +1430,7 @@ RULE_EXPRESSION_MULTIPLICATIVE
 			parser.Error(@3, 3022, "scalar, vector, or matrix expected");
 			YYERROR;
 		}
-		if (!EffectNodes::Type::Compatible(typeLeft, typeRight))
+		if (!EffectNodes::Type::Compatible(typeRight, typeLeft))
 		{
 			parser.Error(@2, 3020, "type mismatch");
 			YYERROR;
@@ -1463,7 +1463,7 @@ RULE_EXPRESSION_ADDITIVE
 			parser.Error(@3, 3022, "scalar, vector, or matrix expected");
 			YYERROR;
 		}
-		if (!EffectNodes::Type::Compatible(typeLeft, typeRight))
+		if (!EffectNodes::Type::Compatible(typeRight, typeLeft))
 		{
 			parser.Error(@2, 3020, "type mismatch");
 			YYERROR;
@@ -1540,7 +1540,7 @@ RULE_EXPRESSION_EQUALITY
 	{
 		const EffectNodes::Type typeLeft = parser.mAST[$1].As<EffectNodes::LValue>().Type, typeRight = parser.mAST[$3].As<EffectNodes::LValue>().Type;
 
-		if (!EffectNodes::Type::Compatible(typeLeft, typeRight) || typeLeft.IsArray() || typeRight.IsArray())
+		if (!EffectNodes::Type::Compatible(typeRight, typeLeft) || typeLeft.IsArray() || typeRight.IsArray())
 		{
 			parser.Error(@2, 3020, "type mismatch");
 			YYERROR;
@@ -2132,7 +2132,7 @@ RULE_STATEMENT_JUMP
 	| "return" RULE_EXPRESSION ";"
 	{
 		const EffectTree::Index function = parser.GetCurrentParent();
-		const EffectNodes::Type valueType = parser.mAST[$2].As<EffectNodes::LValue>().Type, returnType = parser.mAST[function].As<EffectNodes::Function>().ReturnType;
+		const EffectNodes::Type valueType = parser.mAST[$2].As<EffectNodes::RValue>().Type, returnType = parser.mAST[function].As<EffectNodes::Function>().ReturnType;
 
 		if (returnType.IsVoid())
 		{
@@ -2146,10 +2146,15 @@ RULE_STATEMENT_JUMP
 		}
 		else
 		{
-			if (!EffectNodes::Type::Compatible(returnType, valueType))
+			if (!EffectNodes::Type::Compatible(valueType, returnType))
 			{
 				parser.Error(@2, 3020, "type mismatch");
 				YYERROR;
+			}
+
+			if (valueType.Rows > returnType.Rows || valueType.Cols > returnType.Cols)
+			{
+				parser.Warning(@2, 3206, "implicit truncation of vector type");
 			}
 
 			EffectNodes::Jump &node = parser.mAST.Add<EffectNodes::Jump>(@1);
@@ -2510,7 +2515,7 @@ RULE_VARIABLE
 					parser.Error(initializer.Location, 3017, "cannot implicitly convert these vector types");
 					YYERROR;
 				}
-				if (!EffectNodes::Type::Compatible(variable.Type, initializer.Type))
+				if (!EffectNodes::Type::Compatible(initializer.Type, variable.Type))
 				{
 					parser.Error(initializer.Location, 3020, "type mismatch");
 					YYERROR;

@@ -157,21 +157,21 @@ namespace ReShade
 				Sample											= 1 << 14
 			};
 
-			static unsigned int									Compatible(const Type &left, const Type &right)
+			static unsigned int									Compatible(const Type &src, const Type &dst)
 			{
-				if (left.IsArray() != right.IsArray() || left.ArrayLength != right.ArrayLength)
+				if (src.IsArray() != dst.IsArray() || src.ArrayLength != dst.ArrayLength)
 				{
 					return 0;
 				}
-				if (left.IsStruct() || right.IsStruct())
+				if (src.IsStruct() || dst.IsStruct())
 				{
-					return left.Definition == right.Definition;
+					return src.Definition == dst.Definition;
 				}
-				if (left.Class == right.Class && left.Rows == right.Rows && left.Cols == right.Cols)
+				if (src.Class == dst.Class && src.Rows == dst.Rows && src.Cols == dst.Cols)
 				{
 					return 1;
 				}
-				if (!left.IsNumeric() || !right.IsNumeric())
+				if (!src.IsNumeric() || !dst.IsNumeric())
 				{
 					return 0;
 				}
@@ -184,17 +184,17 @@ namespace ReShade
 					{ 4, 4, 4, 0 }
 				};
 
-				const int rank = ranks[left.Class - 1][right.Class - 1] << 2;
+				const int rank = ranks[src.Class - 1][dst.Class - 1] << 2;
 
-				if (left.IsScalar() && right.IsVector())
+				if (src.IsScalar() && dst.IsVector())
 				{
 					return rank | 2;
 				}
-				if (left.IsVector() && right.IsScalar() || (left.IsVector() == right.IsVector() && left.Rows > right.Rows && left.Cols >= right.Cols))
+				if (src.IsVector() && dst.IsScalar() || (src.IsVector() == dst.IsVector() && src.Rows > dst.Rows && src.Cols >= dst.Cols))
 				{
 					return rank | 32;
 				}
-				if (left.IsVector() != right.IsVector() || left.IsMatrix() != right.IsMatrix() || left.Rows * left.Cols != right.Rows * right.Cols)
+				if (src.IsVector() != dst.IsVector() || src.IsMatrix() != dst.IsMatrix() || src.Rows * src.Cols != dst.Rows * dst.Cols)
 				{
 					return 0;
 				}

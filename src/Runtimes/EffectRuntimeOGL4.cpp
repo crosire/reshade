@@ -256,7 +256,7 @@ namespace ReShade
 		class													OGL4EffectCompiler
 		{
 		public:
-			OGL4EffectCompiler(const EffectTree &ast) : mAST(ast), mEffect(nullptr), mCurrentInParameterBlock(false), mCurrentInFunctionBlock(false), mCurrentGlobalSize(0), mCurrentGlobalStorageSize(0)
+			OGL4EffectCompiler(const EffectTree &ast) : mAST(ast), mEffect(nullptr), mCurrentFunction(EffectTree::Null), mCurrentInParameterBlock(false), mCurrentInFunctionBlock(false), mCurrentGlobalSize(0), mCurrentGlobalStorageSize(0)
 			{
 			}
 
@@ -1712,8 +1712,12 @@ namespace ReShade
 
 						if (node.Value != 0)
 						{
+							const auto cast = PrintCast(this->mAST[node.Value].As<EffectNodes::RValue>().Type, this->mAST[this->mCurrentFunction].As<EffectNodes::Function>().ReturnType);
+
 							this->mCurrentSource += ' ';
+							this->mCurrentSource += cast.first;
 							this->mAST[node.Value].Accept(*this);
+							this->mCurrentSource += cast.second;
 						}
 						break;
 					case EffectNodes::Jump::Break:
@@ -2176,6 +2180,8 @@ namespace ReShade
 				this->mCurrentSource += FixName(node.Name);
 				this->mCurrentSource += '(';
 
+				this->mCurrentFunction = node.Index;
+
 				if (node.HasParameters())
 				{
 					const auto &parameters = this->mAST[node.Parameters].As<EffectNodes::List>();
@@ -2210,6 +2216,8 @@ namespace ReShade
 				{
 					this->mCurrentSource += ";\n";
 				}
+
+				this->mCurrentFunction = EffectTree::Null;
 			}
 			void												Visit(const EffectNodes::Technique &node)
 			{
@@ -2694,6 +2702,7 @@ namespace ReShade
 			std::string											mCurrentGlobalConstants;
 			std::size_t											mCurrentGlobalSize, mCurrentGlobalStorageSize;
 			std::string											mCurrentBlockName;
+			EffectTree::Index									mCurrentFunction;
 			bool												mCurrentInParameterBlock, mCurrentInFunctionBlock;
 			std::unordered_map<std::string, Effect::Annotation> *mCurrentAnnotations;
 			std::vector<OGL4Technique::Pass> *					mCurrentPasses;
