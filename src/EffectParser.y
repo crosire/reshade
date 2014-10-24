@@ -321,9 +321,9 @@
 %type<y.Index>	RULE_STATEMENT
 %type<y.Index>	RULE_STATEMENT_SCOPELESS
 %type<y.Index>	RULE_STATEMENT_LIST
-%type<y.Index>	RULE_STATEMENT_COMPOUND
-%type<y.Index>	RULE_STATEMENT_COMPOUND_SCOPELESS
-%type<y.Index>	RULE_STATEMENT_SIMPLE
+%type<y.Index>	RULE_STATEMENT_BLOCK
+%type<y.Index>	RULE_STATEMENT_BLOCK_SCOPELESS
+%type<y.Index>	RULE_STATEMENT_SINGLE
 %type<y.Index>	RULE_STATEMENT_EXPRESSION
 %type<y.Index>	RULE_STATEMENT_DECLARATION
 %type<y.Index>	RULE_STATEMENT_IF
@@ -1430,16 +1430,30 @@ RULE_EXPRESSION_MULTIPLICATIVE
 			parser.Error(@3, 3022, "scalar, vector, or matrix expected");
 			YYERROR;
 		}
-		if (!EffectNodes::Type::Compatible(typeRight, typeLeft))
-		{
-			parser.Error(@2, 3020, "type mismatch");
-			YYERROR;
-		}
 
 		EffectNodes::Expression &node = parser.mAST.Add<EffectNodes::Expression>(@2);
 		node.Type.Class = std::max(typeLeft.Class, typeRight.Class);
-		node.Type.Rows = std::max(typeLeft.Rows, typeRight.Rows);
-		node.Type.Cols = std::max(typeLeft.Cols, typeRight.Cols);
+
+		if ((typeLeft.Rows == 1 && typeRight.Cols == 1) || (typeRight.Rows == 1 && typeRight.Cols == 1))
+		{
+			node.Type.Rows = std::max(typeLeft.Rows, typeRight.Rows);
+			node.Type.Cols = std::max(typeLeft.Cols, typeRight.Cols);
+		}
+		else
+		{
+			node.Type.Rows = std::min(typeLeft.Rows, typeRight.Rows);
+			node.Type.Cols = std::min(typeLeft.Cols, typeRight.Cols);
+
+			if (typeLeft.Rows > typeRight.Rows || typeLeft.Cols > typeRight.Cols)
+			{
+				parser.Warning(@1, 3206, "implicit truncation of vector type");
+			}
+			if (typeRight.Rows > typeLeft.Rows || typeRight.Cols > typeLeft.Cols)
+			{
+				parser.Warning(@3, 3206, "implicit truncation of vector type");
+			}
+		}
+
 		node.Operator = $2.Uint;
 		node.Operands[0] = $1;
 		node.Operands[1] = $3;
@@ -1463,16 +1477,30 @@ RULE_EXPRESSION_ADDITIVE
 			parser.Error(@3, 3022, "scalar, vector, or matrix expected");
 			YYERROR;
 		}
-		if (!EffectNodes::Type::Compatible(typeRight, typeLeft))
-		{
-			parser.Error(@2, 3020, "type mismatch");
-			YYERROR;
-		}
 
 		EffectNodes::Expression &node = parser.mAST.Add<EffectNodes::Expression>(@2);
 		node.Type.Class = std::max(typeLeft.Class, typeRight.Class);
-		node.Type.Rows = std::max(typeLeft.Rows, typeRight.Rows);
-		node.Type.Cols = std::max(typeLeft.Cols, typeRight.Cols);
+
+		if ((typeLeft.Rows == 1 && typeRight.Cols == 1) || (typeRight.Rows == 1 && typeRight.Cols == 1))
+		{
+			node.Type.Rows = std::max(typeLeft.Rows, typeRight.Rows);
+			node.Type.Cols = std::max(typeLeft.Cols, typeRight.Cols);
+		}
+		else
+		{
+			node.Type.Rows = std::min(typeLeft.Rows, typeRight.Rows);
+			node.Type.Cols = std::min(typeLeft.Cols, typeRight.Cols);
+
+			if (typeLeft.Rows > typeRight.Rows || typeLeft.Cols > typeRight.Cols)
+			{
+				parser.Warning(@1, 3206, "implicit truncation of vector type");
+			}
+			if (typeRight.Rows > typeLeft.Rows || typeRight.Cols > typeLeft.Cols)
+			{
+				parser.Warning(@3, 3206, "implicit truncation of vector type");
+			}
+		}
+
 		node.Operator = $2.Uint;
 		node.Operands[0] = $1;
 		node.Operands[1] = $3;
@@ -1499,6 +1527,27 @@ RULE_EXPRESSION_SHIFT
 
 		EffectNodes::Expression &node = parser.mAST.Add<EffectNodes::Expression>(@2);
 		node.Type = typeLeft;
+
+		if ((typeLeft.Rows == 1 && typeRight.Cols == 1) || (typeRight.Rows == 1 && typeRight.Cols == 1))
+		{
+			node.Type.Rows = std::max(typeLeft.Rows, typeRight.Rows);
+			node.Type.Cols = std::max(typeLeft.Cols, typeRight.Cols);
+		}
+		else
+		{
+			node.Type.Rows = std::min(typeLeft.Rows, typeRight.Rows);
+			node.Type.Cols = std::min(typeLeft.Cols, typeRight.Cols);
+
+			if (typeLeft.Rows > typeRight.Rows || typeLeft.Cols > typeRight.Cols)
+			{
+				parser.Warning(@1, 3206, "implicit truncation of vector type");
+			}
+			if (typeRight.Rows > typeLeft.Rows || typeRight.Cols > typeLeft.Cols)
+			{
+				parser.Warning(@3, 3206, "implicit truncation of vector type");
+			}
+		}
+
 		node.Operator = $2.Uint;
 		node.Operands[0] = $1;
 		node.Operands[1] = $3;
@@ -1525,8 +1574,27 @@ RULE_EXPRESSION_RELATIONAL
 
 		EffectNodes::Expression &node = parser.mAST.Add<EffectNodes::Expression>(@2);
 		node.Type.Class = EffectNodes::Type::Bool;
-		node.Type.Rows = std::max(typeLeft.Rows, typeRight.Rows);
-		node.Type.Cols = std::max(typeLeft.Cols, typeRight.Cols);
+
+		if ((typeLeft.Rows == 1 && typeRight.Cols == 1) || (typeRight.Rows == 1 && typeRight.Cols == 1))
+		{
+			node.Type.Rows = std::max(typeLeft.Rows, typeRight.Rows);
+			node.Type.Cols = std::max(typeLeft.Cols, typeRight.Cols);
+		}
+		else
+		{
+			node.Type.Rows = std::min(typeLeft.Rows, typeRight.Rows);
+			node.Type.Cols = std::min(typeLeft.Cols, typeRight.Cols);
+
+			if (typeLeft.Rows > typeRight.Rows || typeLeft.Cols > typeRight.Cols)
+			{
+				parser.Warning(@1, 3206, "implicit truncation of vector type");
+			}
+			if (typeRight.Rows > typeLeft.Rows || typeRight.Cols > typeLeft.Cols)
+			{
+				parser.Warning(@3, 3206, "implicit truncation of vector type");
+			}
+		}
+
 		node.Operator = $2.Uint;
 		node.Operands[0] = $1;
 		node.Operands[1] = $3;
@@ -1540,7 +1608,7 @@ RULE_EXPRESSION_EQUALITY
 	{
 		const EffectNodes::Type typeLeft = parser.mAST[$1].As<EffectNodes::RValue>().Type, typeRight = parser.mAST[$3].As<EffectNodes::RValue>().Type;
 
-		if (!EffectNodes::Type::Compatible(typeRight, typeLeft) || typeLeft.IsArray() || typeRight.IsArray())
+		if (typeLeft.IsArray() || typeRight.IsArray() || typeLeft.Definition != typeRight.Definition)
 		{
 			parser.Error(@2, 3020, "type mismatch");
 			YYERROR;
@@ -1548,8 +1616,27 @@ RULE_EXPRESSION_EQUALITY
 
 		EffectNodes::Expression &node = parser.mAST.Add<EffectNodes::Expression>(@2);
 		node.Type.Class = EffectNodes::Type::Bool;
-		node.Type.Rows = std::max(typeLeft.Rows, typeRight.Rows);
-		node.Type.Cols = std::max(typeLeft.Cols, typeRight.Cols);
+
+		if ((typeLeft.Rows == 1 && typeRight.Cols == 1) || (typeRight.Rows == 1 && typeRight.Cols == 1))
+		{
+			node.Type.Rows = std::max(typeLeft.Rows, typeRight.Rows);
+			node.Type.Cols = std::max(typeLeft.Cols, typeRight.Cols);
+		}
+		else
+		{
+			node.Type.Rows = std::min(typeLeft.Rows, typeRight.Rows);
+			node.Type.Cols = std::min(typeLeft.Cols, typeRight.Cols);
+
+			if (typeLeft.Rows > typeRight.Rows || typeLeft.Cols > typeRight.Cols)
+			{
+				parser.Warning(@1, 3206, "implicit truncation of vector type");
+			}
+			if (typeRight.Rows > typeLeft.Rows || typeRight.Cols > typeLeft.Cols)
+			{
+				parser.Warning(@3, 3206, "implicit truncation of vector type");
+			}
+		}
+
 		node.Operator = $2.Uint;
 		node.Operands[0] = $1;
 		node.Operands[1] = $3;
@@ -1576,8 +1663,27 @@ RULE_EXPRESSION_BITAND
 
 		EffectNodes::Expression &node = parser.mAST.Add<EffectNodes::Expression>(@2);
 		node.Type = typeLeft;
-		node.Type.Rows = std::max(typeLeft.Rows, typeRight.Rows);
-		node.Type.Cols = std::max(typeLeft.Cols, typeRight.Cols);
+
+		if ((typeLeft.Rows == 1 && typeRight.Cols == 1) || (typeRight.Rows == 1 && typeRight.Cols == 1))
+		{
+			node.Type.Rows = std::max(typeLeft.Rows, typeRight.Rows);
+			node.Type.Cols = std::max(typeLeft.Cols, typeRight.Cols);
+		}
+		else
+		{
+			node.Type.Rows = std::min(typeLeft.Rows, typeRight.Rows);
+			node.Type.Cols = std::min(typeLeft.Cols, typeRight.Cols);
+
+			if (typeLeft.Rows > typeRight.Rows || typeLeft.Cols > typeRight.Cols)
+			{
+				parser.Warning(@1, 3206, "implicit truncation of vector type");
+			}
+			if (typeRight.Rows > typeLeft.Rows || typeRight.Cols > typeLeft.Cols)
+			{
+				parser.Warning(@3, 3206, "implicit truncation of vector type");
+			}
+		}
+
 		node.Operator = EffectNodes::Expression::BitAnd;
 		node.Operands[0] = $1;
 		node.Operands[1] = $3;
@@ -1604,8 +1710,27 @@ RULE_EXPRESSION_BITXOR
 
 		EffectNodes::Expression &node = parser.mAST.Add<EffectNodes::Expression>(@2);
 		node.Type = typeLeft;
-		node.Type.Rows = std::max(typeLeft.Rows, typeRight.Rows);
-		node.Type.Cols = std::max(typeLeft.Cols, typeRight.Cols);
+
+		if ((typeLeft.Rows == 1 && typeRight.Cols == 1) || (typeRight.Rows == 1 && typeRight.Cols == 1))
+		{
+			node.Type.Rows = std::max(typeLeft.Rows, typeRight.Rows);
+			node.Type.Cols = std::max(typeLeft.Cols, typeRight.Cols);
+		}
+		else
+		{
+			node.Type.Rows = std::min(typeLeft.Rows, typeRight.Rows);
+			node.Type.Cols = std::min(typeLeft.Cols, typeRight.Cols);
+
+			if (typeLeft.Rows > typeRight.Rows || typeLeft.Cols > typeRight.Cols)
+			{
+				parser.Warning(@1, 3206, "implicit truncation of vector type");
+			}
+			if (typeRight.Rows > typeLeft.Rows || typeRight.Cols > typeLeft.Cols)
+			{
+				parser.Warning(@3, 3206, "implicit truncation of vector type");
+			}
+		}
+
 		node.Operator = EffectNodes::Expression::BitXor;
 		node.Operands[0] = $1;
 		node.Operands[1] = $3;
@@ -1632,8 +1757,27 @@ RULE_EXPRESSION_BITOR
 
 		EffectNodes::Expression &node = parser.mAST.Add<EffectNodes::Expression>(@2);
 		node.Type = typeLeft;
-		node.Type.Rows = std::max(typeLeft.Rows, typeRight.Rows);
-		node.Type.Cols = std::max(typeLeft.Cols, typeRight.Cols);
+
+		if ((typeLeft.Rows == 1 && typeRight.Cols == 1) || (typeRight.Rows == 1 && typeRight.Cols == 1))
+		{
+			node.Type.Rows = std::max(typeLeft.Rows, typeRight.Rows);
+			node.Type.Cols = std::max(typeLeft.Cols, typeRight.Cols);
+		}
+		else
+		{
+			node.Type.Rows = std::min(typeLeft.Rows, typeRight.Rows);
+			node.Type.Cols = std::min(typeLeft.Cols, typeRight.Cols);
+
+			if (typeLeft.Rows > typeRight.Rows || typeLeft.Cols > typeRight.Cols)
+			{
+				parser.Warning(@1, 3206, "implicit truncation of vector type");
+			}
+			if (typeRight.Rows > typeLeft.Rows || typeRight.Cols > typeLeft.Cols)
+			{
+				parser.Warning(@3, 3206, "implicit truncation of vector type");
+			}
+		}
+
 		node.Operator = EffectNodes::Expression::BitOr;
 		node.Operands[0] = $1;
 		node.Operands[1] = $3;
@@ -1660,8 +1804,27 @@ RULE_EXPRESSION_LOGICAND
 
 		EffectNodes::Expression &node = parser.mAST.Add<EffectNodes::Expression>(@2);
 		node.Type.Class = EffectNodes::Type::Bool;
-		node.Type.Rows = std::max(typeLeft.Rows, typeRight.Rows);
-		node.Type.Cols = std::max(typeLeft.Cols, typeRight.Cols);
+
+		if ((typeLeft.Rows == 1 && typeRight.Cols == 1) || (typeRight.Rows == 1 && typeRight.Cols == 1))
+		{
+			node.Type.Rows = std::max(typeLeft.Rows, typeRight.Rows);
+			node.Type.Cols = std::max(typeLeft.Cols, typeRight.Cols);
+		}
+		else
+		{
+			node.Type.Rows = std::min(typeLeft.Rows, typeRight.Rows);
+			node.Type.Cols = std::min(typeLeft.Cols, typeRight.Cols);
+
+			if (typeLeft.Rows > typeRight.Rows || typeLeft.Cols > typeRight.Cols)
+			{
+				parser.Warning(@1, 3206, "implicit truncation of vector type");
+			}
+			if (typeRight.Rows > typeLeft.Rows || typeRight.Cols > typeLeft.Cols)
+			{
+				parser.Warning(@3, 3206, "implicit truncation of vector type");
+			}
+		}
+
 		node.Operator = EffectNodes::Expression::LogicAnd;
 		node.Operands[0] = $1;
 		node.Operands[1] = $3;
@@ -1688,8 +1851,27 @@ RULE_EXPRESSION_LOGICXOR
 
 		EffectNodes::Expression &node = parser.mAST.Add<EffectNodes::Expression>(@2);
 		node.Type.Class = EffectNodes::Type::Bool;
-		node.Type.Rows = std::max(typeLeft.Rows, typeRight.Rows);
-		node.Type.Cols = std::max(typeLeft.Cols, typeRight.Cols);
+
+		if ((typeLeft.Rows == 1 && typeRight.Cols == 1) || (typeRight.Rows == 1 && typeRight.Cols == 1))
+		{
+			node.Type.Rows = std::max(typeLeft.Rows, typeRight.Rows);
+			node.Type.Cols = std::max(typeLeft.Cols, typeRight.Cols);
+		}
+		else
+		{
+			node.Type.Rows = std::min(typeLeft.Rows, typeRight.Rows);
+			node.Type.Cols = std::min(typeLeft.Cols, typeRight.Cols);
+
+			if (typeLeft.Rows > typeRight.Rows || typeLeft.Cols > typeRight.Cols)
+			{
+				parser.Warning(@1, 3206, "implicit truncation of vector type");
+			}
+			if (typeRight.Rows > typeLeft.Rows || typeRight.Cols > typeLeft.Cols)
+			{
+				parser.Warning(@3, 3206, "implicit truncation of vector type");
+			}
+		}
+
 		node.Operator = EffectNodes::Expression::LogicXor;
 		node.Operands[0] = $1;
 		node.Operands[1] = $3;
@@ -1716,8 +1898,27 @@ RULE_EXPRESSION_LOGICOR
 
 		EffectNodes::Expression &node = parser.mAST.Add<EffectNodes::Expression>(@2);
 		node.Type.Class = EffectNodes::Type::Bool;
-		node.Type.Rows = std::max(typeLeft.Rows, typeRight.Rows);
-		node.Type.Cols = std::max(typeLeft.Cols, typeRight.Cols);
+
+		if ((typeLeft.Rows == 1 && typeRight.Cols == 1) || (typeRight.Rows == 1 && typeRight.Cols == 1))
+		{
+			node.Type.Rows = std::max(typeLeft.Rows, typeRight.Rows);
+			node.Type.Cols = std::max(typeLeft.Cols, typeRight.Cols);
+		}
+		else
+		{
+			node.Type.Rows = std::min(typeLeft.Rows, typeRight.Rows);
+			node.Type.Cols = std::min(typeLeft.Cols, typeRight.Cols);
+
+			if (typeLeft.Rows > typeRight.Rows || typeLeft.Cols > typeRight.Cols)
+			{
+				parser.Warning(@1, 3206, "implicit truncation of vector type");
+			}
+			if (typeRight.Rows > typeLeft.Rows || typeRight.Cols > typeLeft.Cols)
+			{
+				parser.Warning(@3, 3206, "implicit truncation of vector type");
+			}
+		}
+
 		node.Operator = EffectNodes::Expression::LogicOr;
 		node.Operands[0] = $1;
 		node.Operands[1] = $3;
@@ -1736,25 +1937,35 @@ RULE_EXPRESSION_CONDITIONAL
 			parser.Error(@1, 3022, "boolean or vector expression expected");
 			YYERROR;
 		}
-		if (!EffectNodes::Type::Compatible(typeLeft, typeRight) || typeLeft.IsArray() || typeRight.IsArray())
+		if (typeLeft.IsArray() || typeRight.IsArray() || typeLeft.Definition != typeRight.Definition)
 		{
 			parser.Error(@1, 3020, "type mismatch between conditional values");
 			YYERROR;
 		}
 
-		if (typeLeft.Rows > typeRight.Rows || typeLeft.Cols > typeRight.Cols)
-		{
-			parser.Warning(@3, 3206, "implicit truncation of vector type");
-		}
-		if (typeRight.Rows > typeLeft.Rows || typeRight.Cols > typeLeft.Cols)
-		{
-			parser.Warning(@5, 3206, "implicit truncation of vector type");
-		}
-
 		EffectNodes::Expression &node = parser.mAST.Add<EffectNodes::Expression>(@2);
 		node.Type.Class = std::max(typeLeft.Class, typeRight.Class);
-		node.Type.Rows = std::min(typeLeft.Rows, typeRight.Rows);
-		node.Type.Cols = std::min(typeLeft.Cols, typeRight.Cols);
+		
+		if ((typeLeft.Rows == 1 && typeRight.Cols == 1) || (typeRight.Rows == 1 && typeRight.Cols == 1))
+		{
+			node.Type.Rows = std::max(typeLeft.Rows, typeRight.Rows);
+			node.Type.Cols = std::max(typeLeft.Cols, typeRight.Cols);
+		}
+		else
+		{
+			node.Type.Rows = std::min(typeLeft.Rows, typeRight.Rows);
+			node.Type.Cols = std::min(typeLeft.Cols, typeRight.Cols);
+
+			if (typeLeft.Rows > typeRight.Rows || typeLeft.Cols > typeRight.Cols)
+			{
+				parser.Warning(@3, 3206, "implicit truncation of vector type");
+			}
+			if (typeRight.Rows > typeLeft.Rows || typeRight.Cols > typeLeft.Cols)
+			{
+				parser.Warning(@5, 3206, "implicit truncation of vector type");
+			}
+		}
+
 		node.Operator = EffectNodes::Expression::Conditional;
 		node.Operands[0] = $1;
 		node.Operands[1] = $3;
@@ -1769,14 +1980,14 @@ RULE_EXPRESSION_ASSIGNMENT
 	{
 		const EffectNodes::Type typeLeft = parser.mAST[$1].As<EffectNodes::RValue>().Type, typeRight = parser.mAST[$3].As<EffectNodes::RValue>().Type;
 
-		if (typeLeft.IsArray())
+		if (typeLeft.IsArray() || typeRight.IsArray() || typeLeft.Definition != typeRight.Definition)
 		{
-			parser.Error(@1, 3017, "cannot assign to an array");
+			parser.Error(@2, 3020, "type mismatch");
 			YYERROR;
 		}
-		if (typeRight.IsArray())
+		if ((typeLeft.Rows > typeRight.Rows || typeLeft.Cols > typeRight.Cols) && !(typeRight.Rows == 1 && typeRight.Cols == 1))
 		{
-			parser.Error(@3, 3017, "cannot assign an array");
+			parser.Error(@2, 3020, "type mismatch");
 			YYERROR;
 		}
 		if (typeLeft.HasQualifier(EffectNodes::Type::Const) || typeLeft.HasQualifier(EffectNodes::Type::Uniform))
@@ -1803,12 +2014,12 @@ RULE_EXPRESSION_ASSIGNMENT
  /* Statements ------------------------------------------------------------------------------- */
 
 RULE_STATEMENT
-	: RULE_STATEMENT_COMPOUND
-	| RULE_STATEMENT_SIMPLE
+	: RULE_STATEMENT_BLOCK
+	| RULE_STATEMENT_SINGLE
 	;
 RULE_STATEMENT_SCOPELESS
-	: RULE_STATEMENT_COMPOUND_SCOPELESS
-	| RULE_STATEMENT_SIMPLE
+	: RULE_STATEMENT_BLOCK_SCOPELESS
+	| RULE_STATEMENT_SINGLE
 	;
 RULE_STATEMENT_LIST
 	: RULE_STATEMENT
@@ -1828,7 +2039,7 @@ RULE_STATEMENT_LIST
 		node.Link(parser.mAST, $2);
 	}
 	;
-RULE_STATEMENT_COMPOUND
+RULE_STATEMENT_BLOCK
 	: "{" "}"
 	{
 		EffectNodes::StatementBlock &node = parser.mAST.Add<EffectNodes::StatementBlock>(@1);
@@ -1842,7 +2053,7 @@ RULE_STATEMENT_COMPOUND
 		@$ = @1, $$ = $3; parser.mAST[$$].Location = @$;
 	}
 	;
-RULE_STATEMENT_COMPOUND_SCOPELESS
+RULE_STATEMENT_BLOCK_SCOPELESS
 	: "{" "}"
 	{
 		EffectNodes::StatementBlock &node = parser.mAST.Add<EffectNodes::StatementBlock>(@1);
@@ -1855,7 +2066,7 @@ RULE_STATEMENT_COMPOUND_SCOPELESS
 	}
 	;
 
-RULE_STATEMENT_SIMPLE
+RULE_STATEMENT_SINGLE
 	: RULE_ATTRIBUTES RULE_STATEMENT_EXPRESSION
 	{
 		@$ = @2, $$ = $2;
@@ -1899,7 +2110,7 @@ RULE_STATEMENT_SIMPLE
 
 		@$ = node.Location, $$ = node.Index;
 	}
-	| error RULE_STATEMENT_SIMPLE { $$ = $2; }
+	| error RULE_STATEMENT_SINGLE { $$ = $2; }
 	;
 RULE_STATEMENT_EXPRESSION
 	: ";"
@@ -2080,7 +2291,7 @@ RULE_STATEMENT_FOR
 	}
 	;
 RULE_STATEMENT_FOR_INITIALIZER
-	: RULE_STATEMENT_SIMPLE
+	: RULE_STATEMENT_SINGLE
 	;
 RULE_STATEMENT_FOR_CONDITION
 	: { $$ = EffectTree::Null; }
@@ -2719,7 +2930,7 @@ RULE_FUNCTION_DEFINITION
 			}
 		}
 	}
-	  RULE_STATEMENT_COMPOUND
+	  RULE_STATEMENT_BLOCK
 	{
 		const EffectTree::Index index = parser.GetCurrentParent();
 		parser.PopScope();

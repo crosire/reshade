@@ -942,8 +942,8 @@ namespace ReShade
 					case EffectNodes::Expression::TexLevelOffset:
 						part1 = "tex2Dlod(";
 						part2 = ", ";
-						part3 = " + (";
-						part4 = ") * _PIXEL_SIZE_.xy)";
+						part3 = " + float4((";
+						part4 = ") * _PIXEL_SIZE_.xy, 0, 0))";
 						break;
 					case EffectNodes::Expression::TexGatherOffset:
 						part1 = "__tex2Dgather(";
