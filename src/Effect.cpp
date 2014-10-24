@@ -126,7 +126,7 @@ namespace ReShade
 			"float2x2 mul(float2x2 a, float b); float3x3 mul(float3x3 a, float b); float4x4 mul(float4x4 a, float b);"
 			"float2 mul(float2 a, float2x2 b); float3 mul(float3 a, float3x3 b); float4 mul(float4 a, float4x4 b);"
 			"float2 mul(float2x2 a, float2 b); float3 mul(float3x3 a, float3 b); float4 mul(float4x4 a, float4 b);"
-			"float mad(float m, float a, float b); float mad(float2 m, float2 a, float2 b); float mad(float3 m, float3 a, float3 b); float mad(float4 m, float4 a, float4 b);"
+			"float mad(float m, float a, float b); float2 mad(float2 m, float2 a, float2 b); float3 mad(float3 m, float3 a, float3 b); float4 mad(float4 m, float4 a, float4 b);"
 			"float dot(float x, float y); float dot(float2 x, float2 y); float dot(float3 x, float3 y); float dot(float4 x, float4 y);"
 			"float3 cross(float3 x, float3 y);"
 			"float distance(float x, float y); float distance(float2 x, float2 y); float distance(float3 x, float3 y); float distance(float4 x, float4 y);"
