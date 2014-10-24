@@ -629,7 +629,7 @@ RULE_TYPE_ARRAY
 	}
 	| "[" RULE_EXPRESSION_CONDITIONAL "]"
 	{
-		if (!parser.mAST[$2].Is<EffectNodes::Literal>() || !parser.mAST[$2].As<EffectNodes::LValue>().Type.IsScalar() || !parser.mAST[$2].As<EffectNodes::LValue>().Type.IsIntegral())
+		if (!parser.mAST[$2].Is<EffectNodes::Literal>() || !parser.mAST[$2].As<EffectNodes::RValue>().Type.IsScalar() || !parser.mAST[$2].As<EffectNodes::RValue>().Type.IsIntegral())
 		{
 			parser.Error(@2, 3058, "array dimensions must be literal scalar expressions");
 			YYERROR;
@@ -984,7 +984,7 @@ RULE_EXPRESSION_POSTFIX
 	}
 	| RULE_EXPRESSION_POSTFIX RULE_OPERATOR_POSTFIX
 	{
-		const EffectNodes::Type type = parser.mAST[$1].As<EffectNodes::LValue>().Type;
+		const EffectNodes::Type type = parser.mAST[$1].As<EffectNodes::RValue>().Type;
 
 		if (!type.IsScalar() && !type.IsVector() && !type.IsMatrix())
 		{
@@ -1006,7 +1006,7 @@ RULE_EXPRESSION_POSTFIX
 	}
 	| RULE_EXPRESSION_POSTFIX "[" RULE_EXPRESSION "]"
 	{
-		const EffectNodes::Type type = parser.mAST[$1].As<EffectNodes::LValue>().Type, indexType = parser.mAST[$3].As<EffectNodes::LValue>().Type;
+		const EffectNodes::Type type = parser.mAST[$1].As<EffectNodes::RValue>().Type, indexType = parser.mAST[$3].As<EffectNodes::RValue>().Type;
 
 		if (!type.IsArray() && !type.IsVector() && !type.IsMatrix())
 		{
@@ -1043,7 +1043,7 @@ RULE_EXPRESSION_POSTFIX
 	}
 	| RULE_EXPRESSION_POSTFIX "." RULE_EXPRESSION_FUNCTION
 	{
-		const EffectNodes::Type type = parser.mAST[$1].As<EffectNodes::LValue>().Type;
+		const EffectNodes::Type type = parser.mAST[$1].As<EffectNodes::RValue>().Type;
 
 		if (!type.IsStruct() || type.IsArray())
 		{
@@ -1058,7 +1058,7 @@ RULE_EXPRESSION_POSTFIX
 	}
 	| RULE_EXPRESSION_POSTFIX "." TOK_IDENTIFIER_FIELD
 	{
-		const EffectNodes::Type type = parser.mAST[$1].As<EffectNodes::LValue>().Type;
+		const EffectNodes::Type type = parser.mAST[$1].As<EffectNodes::RValue>().Type;
 
 		if (type.IsArray())
 		{
@@ -1275,7 +1275,7 @@ RULE_EXPRESSION_UNARY
 	: RULE_EXPRESSION_POSTFIX
 	| RULE_OPERATOR_POSTFIX RULE_EXPRESSION_UNARY
 	{
-		const EffectNodes::Type type = parser.mAST[$2].As<EffectNodes::LValue>().Type;
+		const EffectNodes::Type type = parser.mAST[$2].As<EffectNodes::RValue>().Type;
 
 		if (!type.IsScalar() && !type.IsVector() && !type.IsMatrix())
 		{
@@ -1297,7 +1297,7 @@ RULE_EXPRESSION_UNARY
 	}
 	| RULE_OPERATOR_UNARY RULE_EXPRESSION_UNARY
 	{
-		const EffectNodes::Type type = parser.mAST[$2].As<EffectNodes::LValue>().Type;
+		const EffectNodes::Type type = parser.mAST[$2].As<EffectNodes::RValue>().Type;
 
 		if (!type.IsScalar() && !type.IsVector() && !type.IsMatrix())
 		{
@@ -1347,7 +1347,7 @@ RULE_EXPRESSION_UNARY
 	}
 	| "(" RULE_TYPE ")" RULE_EXPRESSION_UNARY
 	{
-		const EffectNodes::Type expressionType = parser.mAST[$4].As<EffectNodes::LValue>().Type;
+		const EffectNodes::Type expressionType = parser.mAST[$4].As<EffectNodes::RValue>().Type;
 
 		if (expressionType.Class == $2.Type.Class && (expressionType.Rows == $2.Type.Rows && expressionType.Cols == $2.Type.Cols) && !(expressionType.IsArray() || $2.Type.IsArray()))
 		{
@@ -1418,7 +1418,7 @@ RULE_EXPRESSION_MULTIPLICATIVE
 	: RULE_EXPRESSION_UNARY
 	| RULE_EXPRESSION_MULTIPLICATIVE RULE_OPERATOR_MULTIPLICATIVE RULE_EXPRESSION_UNARY
 	{
-		const EffectNodes::Type typeLeft = parser.mAST[$1].As<EffectNodes::LValue>().Type, typeRight = parser.mAST[$3].As<EffectNodes::LValue>().Type;
+		const EffectNodes::Type typeLeft = parser.mAST[$1].As<EffectNodes::RValue>().Type, typeRight = parser.mAST[$3].As<EffectNodes::RValue>().Type;
 
 		if (!typeLeft.IsScalar() && !typeLeft.IsVector() && !typeLeft.IsMatrix())
 		{
@@ -1451,7 +1451,7 @@ RULE_EXPRESSION_ADDITIVE
 	: RULE_EXPRESSION_MULTIPLICATIVE
 	| RULE_EXPRESSION_ADDITIVE RULE_OPERATOR_ADDITIVE RULE_EXPRESSION_MULTIPLICATIVE
 	{
-		const EffectNodes::Type typeLeft = parser.mAST[$1].As<EffectNodes::LValue>().Type, typeRight = parser.mAST[$3].As<EffectNodes::LValue>().Type;
+		const EffectNodes::Type typeLeft = parser.mAST[$1].As<EffectNodes::RValue>().Type, typeRight = parser.mAST[$3].As<EffectNodes::RValue>().Type;
 
 		if (!typeLeft.IsScalar() && !typeLeft.IsVector() && !typeLeft.IsMatrix())
 		{
@@ -1484,7 +1484,7 @@ RULE_EXPRESSION_SHIFT
 	: RULE_EXPRESSION_ADDITIVE
 	| RULE_EXPRESSION_SHIFT RULE_OPERATOR_SHIFT RULE_EXPRESSION_ADDITIVE
 	{
-		const EffectNodes::Type typeLeft = parser.mAST[$1].As<EffectNodes::LValue>().Type, typeRight = parser.mAST[$3].As<EffectNodes::LValue>().Type;
+		const EffectNodes::Type typeLeft = parser.mAST[$1].As<EffectNodes::RValue>().Type, typeRight = parser.mAST[$3].As<EffectNodes::RValue>().Type;
 
 		if (!typeLeft.IsIntegral())
 		{
@@ -1510,7 +1510,7 @@ RULE_EXPRESSION_RELATIONAL
 	: RULE_EXPRESSION_SHIFT
 	| RULE_EXPRESSION_RELATIONAL RULE_OPERATOR_RELATIONAL RULE_EXPRESSION_SHIFT
 	{
-		const EffectNodes::Type typeLeft = parser.mAST[$1].As<EffectNodes::LValue>().Type, typeRight = parser.mAST[$3].As<EffectNodes::LValue>().Type;
+		const EffectNodes::Type typeLeft = parser.mAST[$1].As<EffectNodes::RValue>().Type, typeRight = parser.mAST[$3].As<EffectNodes::RValue>().Type;
 
 		if (!typeLeft.IsScalar() && !typeLeft.IsVector() && !typeLeft.IsMatrix())
 		{
@@ -1538,7 +1538,7 @@ RULE_EXPRESSION_EQUALITY
 	: RULE_EXPRESSION_RELATIONAL
 	| RULE_EXPRESSION_EQUALITY RULE_OPERATOR_EQUALITY RULE_EXPRESSION_RELATIONAL
 	{
-		const EffectNodes::Type typeLeft = parser.mAST[$1].As<EffectNodes::LValue>().Type, typeRight = parser.mAST[$3].As<EffectNodes::LValue>().Type;
+		const EffectNodes::Type typeLeft = parser.mAST[$1].As<EffectNodes::RValue>().Type, typeRight = parser.mAST[$3].As<EffectNodes::RValue>().Type;
 
 		if (!EffectNodes::Type::Compatible(typeRight, typeLeft) || typeLeft.IsArray() || typeRight.IsArray())
 		{
@@ -1561,7 +1561,7 @@ RULE_EXPRESSION_BITAND
 	: RULE_EXPRESSION_EQUALITY
 	| RULE_EXPRESSION_BITAND "&" RULE_EXPRESSION_EQUALITY
 	{
-		const EffectNodes::Type typeLeft = parser.mAST[$1].As<EffectNodes::LValue>().Type, typeRight = parser.mAST[$3].As<EffectNodes::LValue>().Type;
+		const EffectNodes::Type typeLeft = parser.mAST[$1].As<EffectNodes::RValue>().Type, typeRight = parser.mAST[$3].As<EffectNodes::RValue>().Type;
 
 		if (!typeLeft.IsIntegral())
 		{
@@ -1589,7 +1589,7 @@ RULE_EXPRESSION_BITXOR
 	: RULE_EXPRESSION_BITAND
 	| RULE_EXPRESSION_BITXOR "^" RULE_EXPRESSION_BITAND
 	{
-		const EffectNodes::Type typeLeft = parser.mAST[$1].As<EffectNodes::LValue>().Type, typeRight = parser.mAST[$3].As<EffectNodes::LValue>().Type;
+		const EffectNodes::Type typeLeft = parser.mAST[$1].As<EffectNodes::RValue>().Type, typeRight = parser.mAST[$3].As<EffectNodes::RValue>().Type;
 
 		if (!typeLeft.IsIntegral())
 		{
@@ -1617,7 +1617,7 @@ RULE_EXPRESSION_BITOR
 	: RULE_EXPRESSION_BITXOR
 	| RULE_EXPRESSION_BITOR "|" RULE_EXPRESSION_BITXOR
 	{
-		const EffectNodes::Type typeLeft = parser.mAST[$1].As<EffectNodes::LValue>().Type, typeRight = parser.mAST[$3].As<EffectNodes::LValue>().Type;
+		const EffectNodes::Type typeLeft = parser.mAST[$1].As<EffectNodes::RValue>().Type, typeRight = parser.mAST[$3].As<EffectNodes::RValue>().Type;
 
 		if (!typeLeft.IsIntegral())
 		{
@@ -1645,7 +1645,7 @@ RULE_EXPRESSION_LOGICAND
 	: RULE_EXPRESSION_BITOR
 	| RULE_EXPRESSION_LOGICAND "&&" RULE_EXPRESSION_BITOR
 	{
-		const EffectNodes::Type typeLeft = parser.mAST[$1].As<EffectNodes::LValue>().Type, typeRight = parser.mAST[$3].As<EffectNodes::LValue>().Type;
+		const EffectNodes::Type typeLeft = parser.mAST[$1].As<EffectNodes::RValue>().Type, typeRight = parser.mAST[$3].As<EffectNodes::RValue>().Type;
 
 		if (!typeLeft.IsScalar() && !typeLeft.IsVector() && !typeLeft.IsMatrix())
 		{
@@ -1673,7 +1673,7 @@ RULE_EXPRESSION_LOGICXOR
 	: RULE_EXPRESSION_LOGICAND
 	| RULE_EXPRESSION_LOGICXOR "^^" RULE_EXPRESSION_LOGICAND
 	{
-		const EffectNodes::Type typeLeft = parser.mAST[$1].As<EffectNodes::LValue>().Type, typeRight = parser.mAST[$3].As<EffectNodes::LValue>().Type;
+		const EffectNodes::Type typeLeft = parser.mAST[$1].As<EffectNodes::RValue>().Type, typeRight = parser.mAST[$3].As<EffectNodes::RValue>().Type;
 
 		if (!typeLeft.IsScalar() && !typeLeft.IsVector() && !typeLeft.IsMatrix())
 		{
@@ -1701,7 +1701,7 @@ RULE_EXPRESSION_LOGICOR
 	: RULE_EXPRESSION_LOGICXOR
 	| RULE_EXPRESSION_LOGICOR "||" RULE_EXPRESSION_LOGICXOR
 	{
-		const EffectNodes::Type typeLeft = parser.mAST[$1].As<EffectNodes::LValue>().Type, typeRight = parser.mAST[$3].As<EffectNodes::LValue>().Type;
+		const EffectNodes::Type typeLeft = parser.mAST[$1].As<EffectNodes::RValue>().Type, typeRight = parser.mAST[$3].As<EffectNodes::RValue>().Type;
 
 		if (!typeLeft.IsScalar() && !typeLeft.IsVector() && !typeLeft.IsMatrix())
 		{
@@ -1729,7 +1729,7 @@ RULE_EXPRESSION_CONDITIONAL
 	: RULE_EXPRESSION_LOGICOR
 	| RULE_EXPRESSION_LOGICOR "?" RULE_EXPRESSION ":" RULE_EXPRESSION_ASSIGNMENT
 	{
-		const EffectNodes::Type conditionType = parser.mAST[$1].As<EffectNodes::LValue>().Type, typeLeft = parser.mAST[$3].As<EffectNodes::LValue>().Type, typeRight = parser.mAST[$5].As<EffectNodes::LValue>().Type;
+		const EffectNodes::Type conditionType = parser.mAST[$1].As<EffectNodes::RValue>().Type, typeLeft = parser.mAST[$3].As<EffectNodes::RValue>().Type, typeRight = parser.mAST[$5].As<EffectNodes::RValue>().Type;
 
 		if (!conditionType.IsScalar() && !conditionType.IsVector())
 		{
@@ -1767,7 +1767,7 @@ RULE_EXPRESSION_ASSIGNMENT
 	: RULE_EXPRESSION_CONDITIONAL
 	| RULE_EXPRESSION_UNARY RULE_OPERATOR_ASSIGNMENT RULE_EXPRESSION_ASSIGNMENT
 	{
-		const EffectNodes::Type typeLeft = parser.mAST[$1].As<EffectNodes::LValue>().Type, typeRight = parser.mAST[$3].As<EffectNodes::LValue>().Type;
+		const EffectNodes::Type typeLeft = parser.mAST[$1].As<EffectNodes::RValue>().Type, typeRight = parser.mAST[$3].As<EffectNodes::RValue>().Type;
 
 		if (typeLeft.IsArray())
 		{
@@ -1926,7 +1926,7 @@ RULE_STATEMENT_DECLARATION
 RULE_STATEMENT_IF
 	: "if" "(" RULE_EXPRESSION ")" RULE_STATEMENT "else" RULE_STATEMENT
 	{
-		const EffectNodes::Type conditionType = parser.mAST[$3].As<EffectNodes::LValue>().Type;
+		const EffectNodes::Type conditionType = parser.mAST[$3].As<EffectNodes::RValue>().Type;
 
 		if (!conditionType.IsScalar())
 		{
@@ -1943,7 +1943,7 @@ RULE_STATEMENT_IF
 	}
 	| "if" "(" RULE_EXPRESSION ")" RULE_STATEMENT %prec TOK_THEN
 	{
-		const EffectNodes::Type conditionType = parser.mAST[$3].As<EffectNodes::LValue>().Type;
+		const EffectNodes::Type conditionType = parser.mAST[$3].As<EffectNodes::RValue>().Type;
 
 		if (!conditionType.IsScalar())
 		{
@@ -1968,7 +1968,7 @@ RULE_STATEMENT_SWITCH
 	}
 	| "switch" "(" RULE_EXPRESSION ")" "{" RULE_STATEMENT_CASE_LIST "}"
 	{
-		const EffectNodes::Type expressionType = parser.mAST[$3].As<EffectNodes::LValue>().Type;
+		const EffectNodes::Type expressionType = parser.mAST[$3].As<EffectNodes::RValue>().Type;
 
 		if (!expressionType.IsScalar())
 		{
