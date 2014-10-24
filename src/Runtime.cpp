@@ -52,6 +52,12 @@ namespace ReShade
 			::GetSystemDirectory(path, MAX_PATH);
 			return path;
 		}
+		inline boost::filesystem::path GetWindowsDirectory()
+		{
+			TCHAR path[MAX_PATH];
+			::GetWindowsDirectory(path, MAX_PATH);
+			return path;
+		}
 
 		FileWatcher *sEffectWatcher = nullptr;
 		boost::filesystem::path sExecutablePath, sInjectorPath, sEffectPath;
@@ -61,6 +67,7 @@ namespace ReShade
 
 	void Runtime::Startup(const boost::filesystem::path &executablePath, const boost::filesystem::path &injectorPath)
 	{
+		sInjectorPath = injectorPath;
 		sExecutablePath = executablePath;
 		sEffectPath = injectorPath;
 		sEffectPath.replace_extension("fx");
@@ -121,6 +128,7 @@ namespace ReShade
 
 	Runtime::Runtime() : mWidth(0), mHeight(0), mLastFrameCount(0), mNVG(nullptr)
 	{
+		this->mStartTime = std::chrono::high_resolution_clock::now();
 	}
 	Runtime::~Runtime()
 	{
@@ -152,6 +160,11 @@ namespace ReShade
 		this->mWidth = width;
 		this->mHeight = height;
 
+		if (this->mNVG != nullptr)
+		{
+			nvgCreateFont(this->mNVG, "Arial", (GetWindowsDirectory() / "Fonts" / "arial.ttf").string().c_str());
+		}
+
 		const Info info = GetInfo();
 
 		// Preprocess
@@ -169,13 +182,13 @@ namespace ReShade
 		LOG(INFO) << "Loading effect from " << ObfuscatePath(sEffectPath) << " ...";
 		LOG(TRACE) << "> Running preprocessor ...";
 
-		std::string errors;
+		this->mErrors.clear();
 
-		const std::string source = preprocessor.Run(sEffectPath, errors);
+		const std::string source = preprocessor.Run(sEffectPath, this->mErrors);
 		
 		if (source.empty())
 		{
-			LOG(ERROR) << "Failed to preprocess effect on context " << this << ":\n\n" << errors << "\n";
+			LOG(ERROR) << "Failed to preprocess effect on context " << this << ":\n\n" << this->mErrors << "\n";
 
 			return false;
 		}
@@ -186,9 +199,9 @@ namespace ReShade
 
 		LOG(TRACE) << "> Running parser ...";
 
-		if (!parser.Parse(source, errors))
+		if (!parser.Parse(source, this->mErrors))
 		{
-			LOG(ERROR) << "Failed to compile effect on context " << this << ":\n\n" << errors << "\n";
+			LOG(ERROR) << "Failed to compile effect on context " << this << ":\n\n" << this->mErrors << "\n";
 
 			return false;
 		}
@@ -196,17 +209,17 @@ namespace ReShade
 		// Compile
 		LOG(TRACE) << "> Running compiler ...";
 
-		std::unique_ptr<Effect> effect = CreateEffect(ast, errors);
+		std::unique_ptr<Effect> effect = CreateEffect(ast, this->mErrors);
 
 		if (effect == nullptr)
 		{
-			LOG(ERROR) << "Failed to compile effect on context " << this << ":\n\n" << errors << "\n";
+			LOG(ERROR) << "Failed to compile effect on context " << this << ":\n\n" << this->mErrors << "\n";
 
 			return false;
 		}
-		else if (!errors.empty())
+		else if (!this->mErrors.empty())
 		{
-			LOG(WARNING) << "> Successfully compiled effect with warnings:" << "\n\n" << errors << "\n";
+			LOG(WARNING) << "> Successfully compiled effect with warnings:" << "\n\n" << this->mErrors << "\n";
 		}
 		else
 		{
@@ -243,6 +256,8 @@ namespace ReShade
 		this->mEffect.swap(effect);
 
 		CreateResources();
+
+		this->mStartTime = std::chrono::high_resolution_clock::now();
 
 		LOG(INFO) << "Recreated effect environment on context " << this << ".";
 
@@ -448,6 +463,30 @@ namespace ReShade
 					ReCreate();
 				}
 			}
+		}
+
+		if (this->mNVG != nullptr)
+		{
+			nvgBeginFrame(this->mNVG, this->mWidth, this->mHeight, 1);
+
+			const std::chrono::seconds timeSinceStart = std::chrono::duration_cast<std::chrono::seconds>(time - this->mStartTime);
+
+			if (!this->mErrors.empty())
+			{
+				nvgFontFace(this->mNVG, "Arial");
+				nvgFillColor(this->mNVG, nvgRGB(255, 0, 0));
+				nvgTextAlign(this->mNVG, NVG_ALIGN_LEFT | NVG_ALIGN_TOP);
+				nvgTextBox(this->mNVG, 0, 0, static_cast<float>(this->mWidth), ("ReShade failed to compile effect:\n\n" + this->mErrors).c_str(), nullptr);
+			}
+			else if (timeSinceStart.count() < 8)
+			{
+				nvgFontFace(this->mNVG, "Arial");
+				nvgFillColor(this->mNVG, nvgRGB(255, 255, 255));
+				nvgTextAlign(this->mNVG, NVG_ALIGN_LEFT | NVG_ALIGN_TOP);
+				nvgText(this->mNVG, 0, 0, "Loading Crosire's ReShade '" BOOST_STRINGIZE(VERSION_FULL) "' ...", nullptr);
+			}
+
+			nvgEndFrame(this->mNVG);
 		}
 
 		this->mLastPresent = time;

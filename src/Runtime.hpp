@@ -58,8 +58,9 @@ namespace ReShade
 		std::unique_ptr<Effect> mEffect;
 		std::vector<std::pair<const Effect::Technique *, InfoTechnique>> mTechniques;
 		std::vector<Effect::Texture *> mColorTargets;
-		std::chrono::high_resolution_clock::time_point mLastPresent;
+		std::chrono::high_resolution_clock::time_point mStartTime, mLastPresent;
 		std::chrono::high_resolution_clock::duration mLastFrametime;
 		unsigned long long mLastFrameCount;
+		std::string mErrors;
 	};
 }
