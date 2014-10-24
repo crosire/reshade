@@ -7,6 +7,7 @@
 #include <vector>
 #include <unordered_map>
 #include <boost\algorithm\string.hpp>
+#include <nanovg_gl.h>
 
 // -----------------------------------------------------------------------------------------------------
 
@@ -2702,9 +2703,11 @@ namespace ReShade
 
 		OGL4EffectContext::OGL4EffectContext(HDC device, HGLRC context) : mDeviceContext(device), mRenderContext(context)
 		{
+			this->mNVG = nvgCreateGL3(0);
 		}
 		OGL4EffectContext::~OGL4EffectContext(void)
 		{
+			nvgDeleteGL3(this->mNVG);
 		}
 
 		Runtime::Info											OGL4EffectContext::GetInfo() const

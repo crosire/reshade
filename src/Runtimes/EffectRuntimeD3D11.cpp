@@ -7,6 +7,7 @@
 #include <d3dcompiler.h>
 #include <vector>
 #include <unordered_map>
+#include <nanovg_d3d11.h>
 
 // -----------------------------------------------------------------------------------------------------
 
@@ -2215,9 +2216,13 @@ namespace ReShade
 			this->mDevice->AddRef();
 			this->mDevice->GetImmediateContext(&this->mImmediateContext);
 			this->mSwapChain->AddRef();
+
+			this->mNVG = nvgCreateD3D11(this->mDevice, 0);
 		}
 		D3D11EffectContext::~D3D11EffectContext(void)
 		{
+			nvgDeleteD3D11(this->mNVG);
+
 			this->mDevice->Release();
 			this->mImmediateContext->Release();
 			this->mSwapChain->Release();

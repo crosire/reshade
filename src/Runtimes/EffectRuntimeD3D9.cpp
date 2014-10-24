@@ -9,6 +9,7 @@
 #include <vector>
 #include <unordered_map>
 #include <boost\algorithm\string.hpp>
+#include <nanovg_d3d9.h>
 
 // -----------------------------------------------------------------------------------------------------
 
@@ -2152,9 +2153,13 @@ namespace ReShade
 		{
 			this->mDevice->AddRef();
 			this->mSwapChain->AddRef();
+
+			this->mNVG = nvgCreateD3D9(this->mDevice, 0);
 		}
 		D3D9EffectContext::~D3D9EffectContext(void)
 		{
+			nvgDeleteD3D9(this->mNVG);
+
 			this->mDevice->Release();
 			this->mSwapChain->Release();
 		}

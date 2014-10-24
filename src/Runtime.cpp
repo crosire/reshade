@@ -14,6 +14,7 @@
 #include <boost\algorithm\string\replace.hpp>
 #include <boost\filesystem\path.hpp>
 #include <boost\filesystem\operations.hpp>
+#include <nanovg.h>
 
 namespace ReShade
 {
@@ -118,7 +119,7 @@ namespace ReShade
 
 	// -----------------------------------------------------------------------------------------------------
 
-	Runtime::Runtime() : mWidth(0), mHeight(0), mLastFrameCount(0)
+	Runtime::Runtime() : mWidth(0), mHeight(0), mLastFrameCount(0), mNVG(nullptr)
 	{
 	}
 	Runtime::~Runtime()

@@ -7,6 +7,8 @@
 #include <vector>
 #include <boost\filesystem\path.hpp>
 
+struct NVGcontext;
+
 namespace ReShade
 {
 	struct EffectTree;
@@ -50,6 +52,7 @@ namespace ReShade
 
 	protected:
 		unsigned int mWidth, mHeight;
+		NVGcontext *mNVG;
 
 	private:
 		std::unique_ptr<Effect> mEffect;
