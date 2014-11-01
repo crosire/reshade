@@ -52,8 +52,6 @@ namespace ReShade
 			D3D10EffectContext(ID3D10Device *device, IDXGISwapChain *swapchain);
 			~D3D10EffectContext(void);
 
-			virtual Info										GetInfo() const override;
-
 			virtual std::unique_ptr<Effect>						CreateEffect(const EffectTree &ast, std::string &errors) const override;
 			virtual void										CreateScreenshot(unsigned char *buffer, std::size_t size) const override;
 
@@ -2201,51 +2199,26 @@ namespace ReShade
 			this->mSwapChain->AddRef();
 
 			this->mNVG = nvgCreateD3D10(this->mDevice, 0);
+
+			IDXGIDevice *dxgidevice = nullptr;
+			IDXGIAdapter *adapter = nullptr;
+
+			this->mDevice->QueryInterface(__uuidof(IDXGIDevice), reinterpret_cast<void **>(&dxgidevice));
+			dxgidevice->GetAdapter(&adapter);
+			dxgidevice->Release();
+
+			DXGI_ADAPTER_DESC desc;
+			adapter->GetDesc(&desc);
+			adapter->Release();
+			
+			this->mVendorId = desc.VendorId;
+			this->mDeviceId = desc.DeviceId;
+			this->mRendererId = 0xD3D10;
 		}
 		D3D10EffectContext::~D3D10EffectContext(void)
 		{
 			this->mDevice->Release();
 			this->mSwapChain->Release();
-
-			nvgDeleteD3D10(this->mNVG);
-		}
-
-		Runtime::Info											D3D10EffectContext::GetInfo() const
-		{
-			Info info;
-			info.VendorId = 0;
-			info.DeviceId = 0;
-			info.RendererId = 0xD3D10;
-
-			IDXGIDevice *dxgidevice = nullptr;
-
-			HRESULT hr = this->mDevice->QueryInterface(__uuidof(IDXGIDevice), reinterpret_cast<void **>(&dxgidevice));
-
-			if (FAILED(hr))
-			{
-				return info;
-			}
-
-			IDXGIAdapter *adapter = nullptr;
-
-			hr = dxgidevice->GetAdapter(&adapter);
-
-			dxgidevice->Release();
-
-			if (FAILED(hr))
-			{
-				return info;
-			}
-
-			DXGI_ADAPTER_DESC desc;
-			adapter->GetDesc(&desc);
-
-			adapter->Release();
-			
-			info.VendorId = desc.VendorId;
-			info.DeviceId = desc.DeviceId;
-
-			return info;
 		}
 
 		std::unique_ptr<Effect>									D3D10EffectContext::CreateEffect(const EffectTree &ast, std::string &errors) const

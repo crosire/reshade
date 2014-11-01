@@ -143,8 +143,6 @@ namespace ReShade
 			OGL4EffectContext(HDC device, HGLRC context);
 			~OGL4EffectContext(void);
 
-			virtual Info										GetInfo() const override;
-
 			virtual std::unique_ptr<Effect>						CreateEffect(const EffectTree &ast, std::string &errors) const override;
 			virtual void										CreateScreenshot(unsigned char *buffer, std::size_t size) const override;
 
@@ -2721,18 +2719,8 @@ namespace ReShade
 		OGL4EffectContext::OGL4EffectContext(HDC device, HGLRC context) : mDeviceContext(device), mRenderContext(context)
 		{
 			this->mNVG = nvgCreateGL3(0);
-		}
-		OGL4EffectContext::~OGL4EffectContext(void)
-		{
-			nvgDeleteGL3(this->mNVG);
-		}
 
-		Runtime::Info											OGL4EffectContext::GetInfo() const
-		{
-			Info info;
-			info.VendorId = 0;
-			info.DeviceId = 0;
-			info.RendererId = 0x061;
+			this->mRendererId = 0x061;
 
 			if (::GetModuleHandleA("nvd3d9wrap.dll") == nullptr)
 			{
@@ -2747,15 +2735,15 @@ namespace ReShade
 
 						if (id.length() > 20)
 						{
-							info.VendorId = std::stoi(id.substr(8, 4));
-							info.DeviceId = std::stoi(id.substr(17, 4));
+							this->mVendorId = std::stoi(id.substr(8, 4));
+							this->mDeviceId = std::stoi(id.substr(17, 4));
 						}
 						break;
 					}
 				}
 			}
 
-			if (info.VendorId == 0)
+			if (this->mVendorId == 0)
 			{
 				const char *name = reinterpret_cast<const char *>(glGetString(GL_VENDOR));
 
@@ -2763,20 +2751,21 @@ namespace ReShade
 				{
 					if (boost::contains(name, "NVIDIA"))
 					{
-						info.VendorId = 0x10DE;
+						this->mVendorId = 0x10DE;
 					}
 					else if (boost::contains(name, "AMD") || boost::contains(name, "ATI"))
 					{
-						info.VendorId = 0x1002;
+						this->mVendorId = 0x1002;
 					}
 					else if (boost::contains(name, "Intel"))
 					{
-						info.VendorId = 0x8086;
+						this->mVendorId = 0x8086;
 					}
 				}
 			}
-
-			return info;
+		}
+		OGL4EffectContext::~OGL4EffectContext(void)
+		{
 		}
 
 		std::unique_ptr<Effect>									OGL4EffectContext::CreateEffect(const EffectTree &ast, std::string &errors) const

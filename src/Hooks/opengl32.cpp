@@ -2616,12 +2616,12 @@ EXPORT BOOL WINAPI												wglSwapBuffers(HDC hdc)
 		{
 			LOG(INFO) << "Resizing OpenGL context " << sCurrentRenderContext << " to " << width << "x" << height << " ...";
 
-			runtime->ReCreate(width, height);
+			runtime->OnDelete();
+			runtime->OnCreate(width, height);
 
 			rectPrevious = rect;
 		}
 
-		runtime->OnPostProcess();
 		runtime->OnPresent();
 	}
 

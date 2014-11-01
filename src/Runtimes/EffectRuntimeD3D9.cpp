@@ -31,8 +31,6 @@ namespace ReShade
 			D3D9EffectContext(IDirect3DDevice9 *device, IDirect3DSwapChain9 *swapchain);
 			~D3D9EffectContext(void);
 
-			virtual Info										GetInfo() const override;
-
 			virtual std::unique_ptr<Effect>						CreateEffect(const EffectTree &ast, std::string &errors) const override;
 			virtual void										CreateScreenshot(unsigned char *buffer, std::size_t size) const override;
 
@@ -2155,17 +2153,7 @@ namespace ReShade
 			this->mSwapChain->AddRef();
 
 			this->mNVG = nvgCreateD3D9(this->mDevice, 0);
-		}
-		D3D9EffectContext::~D3D9EffectContext(void)
-		{
-			nvgDeleteD3D9(this->mNVG);
 
-			this->mDevice->Release();
-			this->mSwapChain->Release();
-		}
-
-		Runtime::Info											D3D9EffectContext::GetInfo() const
-		{
 			IDirect3D9 *d3d = nullptr;
 			this->mDevice->GetDirect3D(&d3d);
 
@@ -2174,15 +2162,16 @@ namespace ReShade
 
 			D3DADAPTER_IDENTIFIER9 identifier;
 			d3d->GetAdapterIdentifier(params.AdapterOrdinal, 0, &identifier);
-
 			d3d->Release();
 			
-			Info info;
-			info.VendorId = identifier.VendorId;
-			info.DeviceId = identifier.DeviceId;
-			info.RendererId = 0xD3D9;
-
-			return info;
+			this->mVendorId = identifier.VendorId;
+			this->mDeviceId = identifier.DeviceId;
+			this->mRendererId = 0xD3D9;
+		}
+		D3D9EffectContext::~D3D9EffectContext(void)
+		{
+			this->mDevice->Release();
+			this->mSwapChain->Release();
 		}
 
 		std::unique_ptr<Effect>									D3D9EffectContext::CreateEffect(const EffectTree &ast, std::string &errors) const

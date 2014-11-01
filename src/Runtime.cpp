@@ -126,7 +126,7 @@ namespace ReShade
 
 	// -----------------------------------------------------------------------------------------------------
 
-	Runtime::Runtime() : mWidth(0), mHeight(0), mLastFrameCount(0), mNVG(nullptr)
+	Runtime::Runtime() : mWidth(0), mHeight(0), mVendorId(0), mDeviceId(0), mRendererId(0), mLastFrameCount(0), mNVG(nullptr)
 	{
 		this->mStartTime = std::chrono::high_resolution_clock::now();
 	}
@@ -135,15 +135,6 @@ namespace ReShade
 		OnDelete();
 	}
 
-	bool Runtime::ReCreate()
-	{
-		return ReCreate(this->mWidth, this->mHeight);
-	}
-	bool Runtime::ReCreate(unsigned int width, unsigned int height)
-	{
-		OnDelete();
-		return OnCreate(width, height);
-	}
 	bool Runtime::OnCreate(unsigned int width, unsigned int height)
 	{
 		if (this->mEffect != nullptr)
@@ -165,7 +156,6 @@ namespace ReShade
 			nvgCreateFont(this->mNVG, "Arial", (GetWindowsDirectory() / "Fonts" / "arial.ttf").string().c_str());
 		}
 
-		const Info info = GetInfo();
 		boost::filesystem::path path = sEffectPath;
 
 		if (!boost::filesystem::exists(path))
@@ -186,9 +176,9 @@ namespace ReShade
 		// Preprocess
 		EffectPreprocessor preprocessor;
 		preprocessor.AddDefine("__RESHADE__", std::to_string(VERSION_MAJOR * 10000 + VERSION_MINOR * 100 + VERSION_REVISION));
-		preprocessor.AddDefine("__VENDOR__", std::to_string(info.VendorId));
-		preprocessor.AddDefine("__DEVICE__", std::to_string(info.DeviceId));
-		preprocessor.AddDefine("__RENDERER__", std::to_string(info.RendererId));
+		preprocessor.AddDefine("__VENDOR__", std::to_string(this->mVendorId));
+		preprocessor.AddDefine("__DEVICE__", std::to_string(this->mDeviceId));
+		preprocessor.AddDefine("__RENDERER__", std::to_string(this->mRendererId));
 		preprocessor.AddDefine("BUFFER_WIDTH", std::to_string(width));
 		preprocessor.AddDefine("BUFFER_HEIGHT", std::to_string(height));
 		preprocessor.AddDefine("BUFFER_RCP_WIDTH", std::to_string(1.0f / static_cast<float>(width)));
@@ -293,7 +283,7 @@ namespace ReShade
 
 		LOG(INFO) << "Destroyed effect environment on context " << this << ".";
 	}
-	void Runtime::OnPostProcess()
+	void Runtime::OnPresent()
 	{
 		for (auto &it : this->mTechniques)
 		{
@@ -446,9 +436,7 @@ namespace ReShade
 				LOG(ERROR) << "Failed to start rendering technique!";
 			}
 		}
-	}
-	void Runtime::OnPresent()
-	{
+
 		const auto time = std::chrono::high_resolution_clock::now();
 		const std::chrono::milliseconds frametime = std::chrono::duration_cast<std::chrono::milliseconds>(time - this->mLastPresent);
 
@@ -476,7 +464,8 @@ namespace ReShade
 				{
 					LOG(INFO) << "Detected modification to " << path << ". Reloading ...";
 			
-					ReCreate();
+					OnDelete();
+					OnCreate(this->mWidth, this->mHeight);
 				}
 			}
 		}

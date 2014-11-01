@@ -265,7 +265,6 @@ HRESULT STDMETHODCALLTYPE										Direct3DSwapChain9::Present(const RECT *pSour
 {
 	assert(this->mRuntime);
 
-	this->mRuntime->OnPostProcess();
 	this->mRuntime->OnPresent();
 
 	return this->mOrig->Present(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion, dwFlags);
@@ -490,7 +489,6 @@ HRESULT STDMETHODCALLTYPE										Direct3DDevice9::Present(const RECT *pSourceR
 
 	ReShade::Runtime *runtime = this->mImplicitSwapChain->mRuntime.get();
 
-	runtime->OnPostProcess();
 	runtime->OnPresent();
 
 	return this->mOrig->Present(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
@@ -916,7 +914,6 @@ HRESULT STDMETHODCALLTYPE										Direct3DDevice9::PresentEx(const RECT *pSourc
 
 	ReShade::Runtime *runtime = this->mImplicitSwapChain->mRuntime.get();
 
-	runtime->OnPostProcess();
 	runtime->OnPresent();
 
 	return static_cast<IDirect3DDevice9Ex *>(this->mOrig)->PresentEx(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion, dwFlags);

@@ -141,7 +141,6 @@ HRESULT STDMETHODCALLTYPE										DXGISwapChain::Present(UINT SyncInterval, UIN
 {
 	assert(this->mRuntime != nullptr);
 
-	this->mRuntime->OnPostProcess();
 	this->mRuntime->OnPresent();
 
 	return this->mOrig->Present(SyncInterval, Flags);
@@ -243,7 +242,6 @@ HRESULT STDMETHODCALLTYPE										DXGISwapChain::Present1(UINT SyncInterval, UI
 {
 	assert(this->mRuntime != nullptr);
 
-	this->mRuntime->OnPostProcess();
 	this->mRuntime->OnPresent();
 
 	return static_cast<IDXGISwapChain1 *>(this->mOrig)->Present1(SyncInterval, PresentFlags, pPresentParameters);

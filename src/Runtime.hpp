@@ -16,10 +16,6 @@ namespace ReShade
 	class Runtime abstract
 	{
 	public:
-		struct Info
-		{
-			unsigned int VendorId, DeviceId, RendererId;
-		};
 		struct InfoTechnique
 		{
 			bool Enabled;
@@ -35,14 +31,9 @@ namespace ReShade
 		Runtime();
 		virtual ~Runtime();
 
-		virtual Info GetInfo() const = 0;
-
-		bool ReCreate();
-		bool ReCreate(unsigned int width, unsigned int height);
-		bool OnCreate(unsigned int width, unsigned int height);
-		void OnDelete();
-		void OnPostProcess();
-		void OnPresent();
+		virtual bool OnCreate(unsigned int width, unsigned int height);
+		virtual void OnDelete();
+		virtual void OnPresent();
 
 	protected:
 		virtual std::unique_ptr<Effect> CreateEffect(const EffectTree &ast, std::string &errors) const = 0;
@@ -52,6 +43,7 @@ namespace ReShade
 
 	protected:
 		unsigned int mWidth, mHeight;
+		unsigned int mVendorId, mDeviceId, mRendererId;
 		NVGcontext *mNVG;
 
 	private:
