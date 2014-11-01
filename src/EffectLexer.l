@@ -134,7 +134,7 @@ STRING															\"(\\.|[^\\"])*\"
 }
 <STATE_PP_PRAGMA>
 {
-	[^\\\n\t ]+|\\												{ yyextra->mPragmas.back() += yytext; }
+	[^\\\n\t ]+|\\|{STRING}										{ yyextra->mPragmas.back() += yytext; }
 	{WS}+														{ yyextra->mPragmas.back() += ' '; }
 	\\{LF}														{ }
 	{LF}														{ yy_pop_state(yyscanner); }
