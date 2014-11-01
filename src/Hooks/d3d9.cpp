@@ -455,6 +455,13 @@ HRESULT STDMETHODCALLTYPE										Direct3DDevice9::Reset(D3DPRESENT_PARAMETERS 
 		return D3DERR_INVALIDCALL;
 	}
 
+	if (pPresentationParameters->SwapEffect != D3DSWAPEFFECT_COPY && pPresentationParameters->PresentationInterval != D3DPRESENT_INTERVAL_IMMEDIATE && pPresentationParameters->BackBufferCount < 2)
+	{
+		LOG(WARNING) << "> Forcing tripple buffering.";
+
+		pPresentationParameters->BackBufferCount = 2;
+	}
+
 	assert(this->mImplicitSwapChain != nullptr);
 	assert(this->mImplicitSwapChain->mRuntime != nullptr);
 
@@ -963,6 +970,13 @@ HRESULT STDMETHODCALLTYPE										Direct3DDevice9::ResetEx(D3DPRESENT_PARAMETER
 		return D3DERR_INVALIDCALL;
 	}
 
+	if (pPresentationParameters->SwapEffect != D3DSWAPEFFECT_COPY && pPresentationParameters->PresentationInterval != D3DPRESENT_INTERVAL_IMMEDIATE && pPresentationParameters->BackBufferCount < 2)
+	{
+		LOG(WARNING) << "> Forcing tripple buffering.";
+
+		pPresentationParameters->BackBufferCount = 2;
+	}
+
 	assert(this->mImplicitSwapChain != nullptr);
 	assert(this->mImplicitSwapChain->mRuntime != nullptr);
 
@@ -993,6 +1007,18 @@ HRESULT STDMETHODCALLTYPE 										Direct3DDevice9::GetDisplayModeEx(UINT iSwap
 HRESULT STDMETHODCALLTYPE										IDirect3D9_CreateDevice(IDirect3D9 *pD3D, UINT Adapter, D3DDEVTYPE DeviceType, HWND hFocusWindow, DWORD BehaviorFlags, D3DPRESENT_PARAMETERS *pPresentationParameters, IDirect3DDevice9 **ppReturnedDeviceInterface)
 {
 	LOG(INFO) << "Redirecting '" << "IDirect3D9::CreateDevice" << "(" << pD3D << ", " << Adapter << ", " << DeviceType << ", " << hFocusWindow << ", " << BehaviorFlags << ", " << pPresentationParameters << ", " << ppReturnedDeviceInterface << ")' ...";
+
+	if (pPresentationParameters == nullptr)
+	{
+		return D3DERR_INVALIDCALL;
+	}
+
+	if (pPresentationParameters->SwapEffect != D3DSWAPEFFECT_COPY && pPresentationParameters->PresentationInterval != D3DPRESENT_INTERVAL_IMMEDIATE && pPresentationParameters->BackBufferCount < 2)
+	{
+		LOG(WARNING) << "> Forcing tripple buffering.";
+
+		pPresentationParameters->BackBufferCount = 2;
+	}
 
 	HRESULT hr = ReHook::Call(&IDirect3D9_CreateDevice)(pD3D, Adapter, DeviceType, hFocusWindow, BehaviorFlags, pPresentationParameters, ppReturnedDeviceInterface);
 
@@ -1038,6 +1064,18 @@ HRESULT STDMETHODCALLTYPE										IDirect3D9_CreateDevice(IDirect3D9 *pD3D, UIN
 HRESULT STDMETHODCALLTYPE										IDirect3D9Ex_CreateDeviceEx(IDirect3D9Ex *pD3D, UINT Adapter, D3DDEVTYPE DeviceType, HWND hFocusWindow, DWORD BehaviorFlags, D3DPRESENT_PARAMETERS *pPresentationParameters, D3DDISPLAYMODEEX *pFullscreenDisplayMode, IDirect3DDevice9Ex **ppReturnedDeviceInterface)
 {
 	LOG(INFO) << "Redirecting '" << "IDirect3D9Ex::CreateDeviceEx" << "(" << pD3D << ", " << Adapter << ", " << DeviceType << ", " << hFocusWindow << ", " << BehaviorFlags << ", " << pPresentationParameters << ", " << pFullscreenDisplayMode << ", " << ppReturnedDeviceInterface << ")' ...";
+
+	if (pPresentationParameters == nullptr)
+	{
+		return D3DERR_INVALIDCALL;
+	}
+
+	if (pPresentationParameters->SwapEffect != D3DSWAPEFFECT_COPY && pPresentationParameters->PresentationInterval != D3DPRESENT_INTERVAL_IMMEDIATE && pPresentationParameters->BackBufferCount < 2)
+	{
+		LOG(WARNING) << "> Forcing tripple buffering.";
+
+		pPresentationParameters->BackBufferCount = 2;
+	}
 
 	HRESULT hr = ReHook::Call(&IDirect3D9Ex_CreateDeviceEx)(pD3D, Adapter, DeviceType, hFocusWindow, BehaviorFlags, pPresentationParameters, pFullscreenDisplayMode, ppReturnedDeviceInterface);
 
