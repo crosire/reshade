@@ -33,7 +33,7 @@ namespace ReShade
 
 	public:
 		Runtime();
-		~Runtime();
+		virtual ~Runtime();
 
 		virtual Info GetInfo() const = 0;
 
