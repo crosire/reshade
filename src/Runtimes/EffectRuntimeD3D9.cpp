@@ -31,6 +31,9 @@ namespace ReShade
 			D3D9EffectContext(IDirect3DDevice9 *device, IDirect3DSwapChain9 *swapchain);
 			~D3D9EffectContext(void);
 
+			virtual bool										OnCreate(unsigned int width, unsigned int height) override;
+			virtual void										OnDelete() override;
+
 			virtual std::unique_ptr<Effect>						CreateEffect(const EffectTree &ast, std::string &errors) const override;
 			virtual void										CreateScreenshot(unsigned char *buffer, std::size_t size) const override;
 
@@ -2152,8 +2155,6 @@ namespace ReShade
 			this->mDevice->AddRef();
 			this->mSwapChain->AddRef();
 
-			this->mNVG = nvgCreateD3D9(this->mDevice, 0);
-
 			IDirect3D9 *d3d = nullptr;
 			this->mDevice->GetDirect3D(&d3d);
 
@@ -2172,6 +2173,19 @@ namespace ReShade
 		{
 			this->mDevice->Release();
 			this->mSwapChain->Release();
+		}
+
+		bool													D3D9EffectContext::OnCreate(unsigned int width, unsigned int height)
+		{
+			this->mNVG = nvgCreateD3D9(this->mDevice, 0);
+
+			return Runtime::OnCreate(width, height);
+		}
+		void													D3D9EffectContext::OnDelete()
+		{
+			nvgDeleteD3D9(this->mNVG);
+
+			return Runtime::OnDelete();
 		}
 
 		std::unique_ptr<Effect>									D3D9EffectContext::CreateEffect(const EffectTree &ast, std::string &errors) const

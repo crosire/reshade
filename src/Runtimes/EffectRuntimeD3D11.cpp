@@ -52,6 +52,9 @@ namespace ReShade
 			D3D11EffectContext(ID3D11Device *device, IDXGISwapChain *swapchain);
 			~D3D11EffectContext(void);
 
+			virtual bool										OnCreate(unsigned int width, unsigned int height) override;
+			virtual void										OnDelete() override;
+
 			virtual std::unique_ptr<Effect>						CreateEffect(const EffectTree &ast, std::string &errors) const override;
 			virtual void										CreateScreenshot(unsigned char *buffer, std::size_t size) const override;
 
@@ -2215,8 +2218,6 @@ namespace ReShade
 			this->mDevice->GetImmediateContext(&this->mImmediateContext);
 			this->mSwapChain->AddRef();
 
-			this->mNVG = nvgCreateD3D11(this->mDevice, 0);
-
 			IDXGIDevice *dxgidevice = nullptr;
 			IDXGIAdapter *adapter = nullptr;
 
@@ -2237,6 +2238,19 @@ namespace ReShade
 			this->mDevice->Release();
 			this->mImmediateContext->Release();
 			this->mSwapChain->Release();
+		}
+
+		bool													D3D11EffectContext::OnCreate(unsigned int width, unsigned int height)
+		{
+			this->mNVG = nvgCreateD3D11(this->mDevice, 0);
+
+			return Runtime::OnCreate(width, height);
+		}
+		void													D3D11EffectContext::OnDelete()
+		{
+			nvgDeleteD3D11(this->mNVG);
+
+			return Runtime::OnDelete();
 		}
 
 		std::unique_ptr<Effect>									D3D11EffectContext::CreateEffect(const EffectTree &ast, std::string &errors) const

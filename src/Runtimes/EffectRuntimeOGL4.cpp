@@ -143,6 +143,9 @@ namespace ReShade
 			OGL4EffectContext(HDC device, HGLRC context);
 			~OGL4EffectContext(void);
 
+			virtual bool										OnCreate(unsigned int width, unsigned int height) override;
+			virtual void										OnDelete() override;
+
 			virtual std::unique_ptr<Effect>						CreateEffect(const EffectTree &ast, std::string &errors) const override;
 			virtual void										CreateScreenshot(unsigned char *buffer, std::size_t size) const override;
 
@@ -2718,8 +2721,6 @@ namespace ReShade
 
 		OGL4EffectContext::OGL4EffectContext(HDC device, HGLRC context) : mDeviceContext(device), mRenderContext(context)
 		{
-			this->mNVG = nvgCreateGL3(0);
-
 			this->mRendererId = 0x061;
 
 			if (::GetModuleHandleA("nvd3d9wrap.dll") == nullptr)
@@ -2766,6 +2767,19 @@ namespace ReShade
 		}
 		OGL4EffectContext::~OGL4EffectContext(void)
 		{
+		}
+
+		bool													OGL4EffectContext::OnCreate(unsigned int width, unsigned int height)
+		{
+			this->mNVG = nvgCreateGL3(0);
+
+			return Runtime::OnCreate(width, height);
+		}
+		void													OGL4EffectContext::OnDelete()
+		{
+			nvgDeleteGL3(this->mNVG);
+
+			return Runtime::OnDelete();
 		}
 
 		std::unique_ptr<Effect>									OGL4EffectContext::CreateEffect(const EffectTree &ast, std::string &errors) const
