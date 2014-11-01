@@ -3101,7 +3101,6 @@ namespace ReShade
 		{
 			assert(data != nullptr && size != 0);
 
-			GLCHECK(glPixelStorei(GL_UNPACK_ALIGNMENT, 4));
 			GLCHECK(glPixelStorei(GL_UNPACK_ROW_LENGTH, 0));
 			GLCHECK(glPixelStorei(GL_UNPACK_IMAGE_HEIGHT, 0));
 			GLCHECK(glPixelStorei(GL_UNPACK_SKIP_ROWS, 0));
@@ -3122,26 +3121,36 @@ namespace ReShade
 			}
 			else
 			{
-				GLenum format = GL_NONE;
-
+				GLint dataAlignment = 4;
+				GLenum dataFormat = GL_RGBA, dataType = GL_UNSIGNED_BYTE;
+				
 				switch (this->mDesc.Format)
 				{
 					case Texture::Format::R8:
+						dataFormat = GL_RED;
+						dataAlignment = 1;
+						break;
 					case Texture::Format::R32F:
-						format = GL_RED;
+						dataType = GL_FLOAT;
+						dataFormat = GL_RED;
 						break;
 					case Texture::Format::RG8:
-						format = GL_RG;
+						dataFormat = GL_RG;
+						dataAlignment = 2;
 						break;
-					case Texture::Format::RGBA8:
 					case Texture::Format::RGBA16:
 					case Texture::Format::RGBA16F:
+						dataType = GL_UNSIGNED_SHORT;
+						dataAlignment = 2;
+						break;
 					case Texture::Format::RGBA32F:
-						format = GL_RGBA;
+						dataType = GL_FLOAT;
 						break;
 				}
 
-				GLCHECK(glTexSubImage2D(GL_TEXTURE_2D, level, 0, 0, this->mDesc.Width, this->mDesc.Height, format, GL_UNSIGNED_BYTE, dataFlipped.get()));
+				GLCHECK(glPixelStorei(GL_UNPACK_ALIGNMENT, dataAlignment));
+				GLCHECK(glTexSubImage2D(GL_TEXTURE_2D, level, 0, 0, this->mDesc.Width, this->mDesc.Height, dataFormat, dataType, dataFlipped.get()));
+				GLCHECK(glPixelStorei(GL_UNPACK_ALIGNMENT, 4));
 			}
 
 			GLCHECK(glBindTexture(GL_TEXTURE_2D, previous));
