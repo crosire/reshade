@@ -1242,8 +1242,8 @@ namespace ReShade
 						cast2 = PrintCast(type2, type2to);
 
 						part1 = "texture(";
-						part2 = ", fma(" + cast2.first;
-						part3 = cast2.second + ", vec2(1.0, -1.0), vec2(0.0, 1.0)))";
+						part2 = ", " + cast2.first;
+						part3 = cast2.second + " * vec2(1.0, -1.0) + vec2(0.0, 1.0))";
 						break;
 					}
 					case EffectNodes::Expression::TexLevel:
@@ -1252,8 +1252,8 @@ namespace ReShade
 						cast2 = PrintCast(type2, type2to);
 
 						part1 = "_textureLod(";
-						part2 = ", fma(" + cast2.first;
-						part3 = cast2.second + ", vec4(1.0, -1.0, 1.0, 1.0), vec4(0.0, 1.0, 0.0, 0.0)))";
+						part2 = ", " + cast2.first;
+						part3 = cast2.second + " * vec4(1.0, -1.0, 1.0, 1.0) + vec4(0.0, 1.0, 0.0, 0.0))";
 						break;
 					}
 					case EffectNodes::Expression::TexGather:
@@ -1262,8 +1262,8 @@ namespace ReShade
 						cast2 = PrintCast(type2, type2to);
 
 						part1 = "textureGather(";
-						part2 = ", fma(" + cast2.first;
-						part3 = cast2.second + ", vec2(1.0, -1.0), vec2(0.0, 1.0)))";
+						part2 = ", " + cast2.first;
+						part3 = cast2.second + " * vec2(1.0, -1.0) + vec2(0.0, 1.0))";
 						break;
 					}
 					case EffectNodes::Expression::TexBias:
@@ -1272,8 +1272,8 @@ namespace ReShade
 						cast2 = PrintCast(type2, type2to);
 
 						part1 = "_textureBias(";
-						part2 = ", fma(" + cast2.first;
-						part3 = cast2.second + ", vec4(1.0, -1.0, 1.0, 1.0), vec4(0.0, 1.0, 0.0, 0.0)))";
+						part2 = ", " + cast2.first;
+						part3 = cast2.second + " * vec4(1.0, -1.0, 1.0, 1.0) + vec4(0.0, 1.0, 0.0, 0.0))";
 						break;
 					}
 					case EffectNodes::Expression::TexFetch:
@@ -1292,9 +1292,9 @@ namespace ReShade
 						part3 = "))";
 						break;
 					case EffectNodes::Expression::Mad:
-						part1 = "fma(" + cast1.first;
-						part2 = cast1.second + ", " + cast2.first;
-						part3 = cast2.second + ", " + cast3.first;
+						part1 = "(" + cast1.first;
+						part2 = cast1.second + " * " + cast2.first;
+						part3 = cast2.second + " + " + cast3.first;
 						part4 = cast3.second + ')';
 						break;
 					case EffectNodes::Expression::SinCos:
@@ -1371,8 +1371,8 @@ namespace ReShade
 						cast3 = PrintCast(type3, type3to);
 
 						part1 = "textureOffset(";
-						part2 = ", fma(" + cast2.first;
-						part3 = cast2.second + ", vec2(1.0, -1.0), vec2(0.0, 1.0)), " + cast3.first;
+						part2 = ", " + cast2.first;
+						part3 = cast2.second + " * vec2(1.0, -1.0) + vec2(0.0, 1.0), " + cast3.first;
 						part4 = cast3.second + " * ivec2(1, -1))";
 						break;
 					}
@@ -1384,8 +1384,8 @@ namespace ReShade
 						cast3 = PrintCast(type3, type3to);
 
 						part1 = "_textureLodOffset(";
-						part2 = ", fma(" + cast2.first;
-						part3 = cast2.second + ", vec4(1.0, -1.0, 1.0, 1.0), vec4(0.0, 1.0, 0.0, 0.0)), " + cast3.first;
+						part2 = ", " + cast2.first;
+						part3 = cast2.second + " * vec4(1.0, -1.0, 1.0, 1.0) + vec4(0.0, 1.0, 0.0, 0.0), " + cast3.first;
 						part4 = cast3.second + " * ivec2(1, -1))";
 						break;
 					}
@@ -1397,8 +1397,8 @@ namespace ReShade
 						cast3 = PrintCast(type3, type3to);
 
 						part1 = "textureGatherOffset(";
-						part2 = ", fma(" + cast2.first;
-						part3 = cast2.second + ", vec2(1.0, -1.0), vec2(0.0, 1.0)), " + cast3.first;
+						part2 = ", " + cast2.first;
+						part3 = cast2.second + " * vec2(1.0, -1.0) + vec2(0.0, 1.0), " + cast3.first;
 						part4 = cast3.second + " * ivec2(1, -1))";
 						break;
 					}
@@ -2614,7 +2614,7 @@ namespace ReShade
 			
 				if (type == EffectNodes::Pass::VertexShader)
 				{
-					source += "gl_Position = fma(gl_Position, vec4(1.0, 1.0, 2.0, 1.0), vec4(0.0, 0.0, -gl_Position.w, 0.0));\n";
+					source += "gl_Position = gl_Position * vec4(1.0, 1.0, 2.0, 1.0) + vec4(0.0, 0.0, -gl_Position.w, 0.0);\n";
 				}
 				/*if (type == EffectNodes::Pass::PixelShader)
 				{
