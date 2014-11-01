@@ -174,7 +174,7 @@ namespace ReShade
 			std::vector<std::shared_ptr<OGL4Sampler>>			mSamplers;
 			std::unordered_map<std::string, std::unique_ptr<OGL4Constant>> mConstants;
 			std::unordered_map<std::string, std::unique_ptr<OGL4Technique>> mTechniques;
-			GLuint												mDefaultVAO, mDefaultVBO, mDefaultFBO, mBackBufferRBO, mDepthStencil;
+			GLuint												mDefaultVAO, mDefaultVBO, mDefaultFBO[2], mBackBufferRBO, mDepthStencil;
 			std::vector<GLuint>									mUniformBuffers;
 			std::vector<std::pair<unsigned char *, std::size_t>> mUniformStorages;
 			mutable bool										mUniformDirty;
@@ -2823,11 +2823,11 @@ namespace ReShade
 			}
 		}
 
-		OGL4Effect::OGL4Effect(std::shared_ptr<const OGL4EffectContext> context) : mEffectContext(context), mDefaultVAO(0), mDefaultVBO(0), mDefaultFBO(0), mBackBufferRBO(0), mDepthStencil(0), mUniformDirty(true)
+		OGL4Effect::OGL4Effect(std::shared_ptr<const OGL4EffectContext> context) : mEffectContext(context), mDefaultVAO(0), mDefaultVBO(0), mDefaultFBO(), mBackBufferRBO(0), mDepthStencil(0), mUniformDirty(true)
 		{
 			GLCHECK(glGenVertexArrays(1, &this->mDefaultVAO));
 			GLCHECK(glGenBuffers(1, &this->mDefaultVBO));
-			GLCHECK(glGenFramebuffers(1, &this->mDefaultFBO));
+			GLCHECK(glGenFramebuffers(2, this->mDefaultFBO));
 			GLCHECK(glGenRenderbuffers(2, &this->mBackBufferRBO));
 
 			GLint prevBuffer = 0;
@@ -2842,12 +2842,18 @@ namespace ReShade
 			GLCHECK(glBindRenderbuffer(GL_RENDERBUFFER, this->mDepthStencil));
 			GLCHECK(glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, this->mEffectContext->mWidth, this->mEffectContext->mHeight));
 			GLCHECK(glBindRenderbuffer(GL_RENDERBUFFER, prevBuffer));
+
+			GLCHECK(glGetIntegerv(GL_FRAMEBUFFER_BINDING, &prevBuffer));
+			GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, this->mDefaultFBO[0]));
+			GLCHECK(glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, this->mBackBufferRBO));
+			assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
+			GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, prevBuffer));
 		}
 		OGL4Effect::~OGL4Effect(void)
 		{
 			GLCHECK(glDeleteVertexArrays(1, &this->mDefaultVAO));
 			GLCHECK(glDeleteBuffers(1, &this->mDefaultVBO));
-			GLCHECK(glDeleteFramebuffers(1, &this->mDefaultFBO));			
+			GLCHECK(glDeleteFramebuffers(2, this->mDefaultFBO));			
 			GLCHECK(glDeleteRenderbuffers(2, &this->mBackBufferRBO));
 			GLCHECK(glDeleteBuffers(this->mUniformBuffers.size(), &this->mUniformBuffers.front()));
 		}
@@ -3157,27 +3163,19 @@ namespace ReShade
 		}
 		void													OGL4Texture::UpdateFromColorBuffer(void)
 		{
-			GLCHECK(glBindFramebuffer(GL_READ_FRAMEBUFFER, 0));
-			GLCHECK(glBindFramebuffer(GL_DRAW_FRAMEBUFFER, this->mEffect->mDefaultFBO));
-			GLCHECK(glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, this->mID, 0));
+			GLCHECK(glBindFramebuffer(GL_READ_FRAMEBUFFER, this->mEffect->mDefaultFBO[0]));
+			GLCHECK(glBindFramebuffer(GL_DRAW_FRAMEBUFFER, this->mEffect->mDefaultFBO[1]));
+			GLCHECK(glFramebufferTexture(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, this->mID, 0));
 
 			assert(glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
 
-			GLCHECK(glReadBuffer(GL_BACK));
+			GLCHECK(glReadBuffer(GL_COLOR_ATTACHMENT0));
 			GLCHECK(glDrawBuffer(GL_COLOR_ATTACHMENT0));
 
 			GLCHECK(glBlitFramebuffer(0, 0, this->mEffect->mEffectContext->mWidth, this->mEffect->mEffectContext->mHeight, 0, 0, this->mDesc.Width, this->mDesc.Height, GL_COLOR_BUFFER_BIT, GL_NEAREST));
 		}
 		void													OGL4Texture::UpdateFromDepthBuffer(void)
 		{
-			GLCHECK(glBindFramebuffer(GL_READ_FRAMEBUFFER, 0));
-			GLCHECK(glBindFramebuffer(GL_DRAW_FRAMEBUFFER, this->mEffect->mDefaultFBO));
-			GLCHECK(glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, this->mID, 0));
-
-			GLCHECK(glReadBuffer(GL_BACK));
-			GLCHECK(glDrawBuffer(GL_COLOR_ATTACHMENT0));
-
-			GLCHECK(glBlitFramebuffer(0, 0, this->mEffect->mEffectContext->mWidth, this->mEffect->mEffectContext->mHeight, 0, 0, this->mDesc.Width, this->mDesc.Height, GL_DEPTH_BUFFER_BIT, GL_NEAREST));
 		}
 
 		OGL4Constant::OGL4Constant(OGL4Effect *effect) : mEffect(effect)
@@ -3256,6 +3254,12 @@ namespace ReShade
 
 			this->mStateblock.Capture();
 
+			GLCHECK(glBindFramebuffer(GL_READ_FRAMEBUFFER, 0));
+			GLCHECK(glBindFramebuffer(GL_DRAW_FRAMEBUFFER, this->mEffect->mDefaultFBO[0]));
+			GLCHECK(glReadBuffer(GL_BACK));
+			GLCHECK(glDrawBuffer(GL_COLOR_ATTACHMENT0));
+			GLCHECK(glBlitFramebuffer(0, 0, this->mEffect->mEffectContext->mWidth, this->mEffect->mEffectContext->mHeight, 0, 0, this->mEffect->mEffectContext->mWidth, this->mEffect->mEffectContext->mHeight, GL_COLOR_BUFFER_BIT, GL_NEAREST));
+
 			GLCHECK(glBindVertexArray(this->mEffect->mDefaultVAO));
 			GLCHECK(glBindVertexBuffer(0, this->mEffect->mDefaultVBO, 0, sizeof(float)));		
 
@@ -3278,15 +3282,11 @@ namespace ReShade
 		void													OGL4Technique::End(void) const
 		{
 			GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, 0));
-			GLCHECK(glBindFramebuffer(GL_READ_FRAMEBUFFER, this->mEffect->mDefaultFBO));
+
+			GLCHECK(glBindFramebuffer(GL_READ_FRAMEBUFFER, this->mEffect->mDefaultFBO[0]));
 			GLCHECK(glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0));
-			GLCHECK(glFramebufferRenderbuffer(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, this->mEffect->mBackBufferRBO));
-
-			assert(glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
-
 			GLCHECK(glReadBuffer(GL_COLOR_ATTACHMENT0));
 			GLCHECK(glDrawBuffer(GL_BACK));
-
 			GLCHECK(glBlitFramebuffer(0, 0, this->mEffect->mEffectContext->mWidth, this->mEffect->mEffectContext->mHeight, 0, 0, this->mEffect->mEffectContext->mWidth, this->mEffect->mEffectContext->mHeight, GL_COLOR_BUFFER_BIT, GL_NEAREST));
 
 			this->mStateblock.Apply();
