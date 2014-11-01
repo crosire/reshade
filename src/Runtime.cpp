@@ -166,6 +166,22 @@ namespace ReShade
 		}
 
 		const Info info = GetInfo();
+		boost::filesystem::path path = sEffectPath;
+
+		if (!boost::filesystem::exists(path))
+		{
+			path = path.parent_path() / "ReShade.fx";
+		}
+		if (!boost::filesystem::exists(path))
+		{
+			path = path.parent_path() / "Sweet.fx";
+		}
+		if (!boost::filesystem::exists(path))
+		{
+			LOG(ERROR) << "Effect file " << sEffectPath << " does not exist.";
+
+			return false;
+		}
 
 		// Preprocess
 		EffectPreprocessor preprocessor;
@@ -179,12 +195,12 @@ namespace ReShade
 		preprocessor.AddDefine("BUFFER_RCP_HEIGHT", std::to_string(1.0f / static_cast<float>(height)));
 		preprocessor.AddIncludePath(sEffectPath.parent_path());
 
-		LOG(INFO) << "Loading effect from " << ObfuscatePath(sEffectPath) << " ...";
+		LOG(INFO) << "Loading effect from " << ObfuscatePath(path) << " ...";
 		LOG(TRACE) << "> Running preprocessor ...";
 
 		this->mErrors.clear();
 
-		const std::string source = preprocessor.Run(sEffectPath, this->mErrors);
+		const std::string source = preprocessor.Run(path, errors);
 		
 		if (source.empty())
 		{
