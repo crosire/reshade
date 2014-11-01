@@ -29,6 +29,9 @@
 }
 
 %{
+	#include <boost\algorithm\string\trim.hpp>
+	#include <boost\algorithm\string\case_conv.hpp>
+
 	#include "EffectParser.hpp"
 
 	static void													Escape(char *buffer, std::size_t &len);
@@ -43,7 +46,7 @@
 
 %option stack
 
-%x STATE_COMMENT STATE_PP
+%x STATE_COMMENT STATE_PP STATE_PP_LINE STATE_PP_PRAGMA STATE_PP_ERROR STATE_PP_WARNING
 
 %x STATE_FIELD
 %s STATE_PROPERTY STATE_TECHNIQUE STATE_PASS
@@ -76,24 +79,46 @@ STRING															\"(\\.|[^\\"])*\"
 }
 
 ^{WS}*#{WS}*													{ yy_push_state(STATE_PP, yyscanner); }
+^{WS}*#{WS}*"line"{WS}+											{ yy_push_state(STATE_PP_LINE, yyscanner); }
+^{WS}*#{WS}*"pragma"{WS}+										{ yyextra->mPragmas.push_back(std::string()); yy_push_state(STATE_PP_PRAGMA, yyscanner); }
+^{WS}*#{WS}*"error"												{ yyextra->mPragmas.push_back(std::string()); yy_push_state(STATE_PP_ERROR, yyscanner); }
+^{WS}*#{WS}*"warning"											{ yyextra->mPragmas.push_back(std::string()); yy_push_state(STATE_PP_WARNING, yyscanner); }
 <STATE_PP>
 {
-	"line"{WS}+{INTEGRAL}({WS}+{STRING})?{WS}*					{
+	[^\\\n]+													{ yyextra->Error(*yylloc, 1504, "invalid preprocessor command '%s'", yytext); }
+	{WS}+|\\													{ }
+	\\{LF}														{ yycolumn = 1; }
+	{LF}														{ yycolumn = 1; yy_pop_state(yyscanner); }
+}
+<STATE_PP_LINE>
+{
+	{INTEGRAL}													{ yy_pop_state(yyscanner);
 		
-		char *begin = yytext + 4, *end;
+		yylineno = static_cast<int>(::strtol(yytext, nullptr, 10));
 
-		while (!::isdigit(*++begin)) continue;
+		if (yylineno == 0)
+		{
+			yyextra->Warning(*yylloc, 3000, "line numbers should be greater than zero");
+		}
+		else
+		{
+			yylineno--;
+		}
+	}
+	{INTEGRAL}{WS}+{STRING}										{ yy_pop_state(yyscanner);
 		
+		char *begin = yytext, *end;
+
 		yylineno = static_cast<int>(::strtol(begin, &end, 10));
 
 		if (yylineno == 0)
 		{
 			yyextra->Warning(*yylloc, 3000, "line numbers should be greater than zero");
-
-			yylineno = 1;
 		}
-
-		yylineno -= 1;
+		else
+		{
+			yylineno--;
+		}
 
 		while (*end != '\0' && *++end != '"') continue;
 		begin = end;
@@ -106,32 +131,39 @@ STRING															\"(\\.|[^\\"])*\"
 			yylloc->Source = yyextra->mAST.AddString(begin + 1, len - 1);
 		}
 	}
-	"pragma"{WS}+.*												{
+}
+<STATE_PP_PRAGMA>
+{
+	[^\\\n\t ]+|\\												{ yyextra->mPragmas.back() += yytext; }
+	{WS}+														{ yyextra->mPragmas.back() += ' '; }
+	\\{LF}														{ }
+	{LF}														{ yy_pop_state(yyscanner); }
+}
+<STATE_PP_ERROR>
+{
+	[^\\\n]+|\\													{ yyextra->mPragmas.back() += yytext; }
+	\\{LF}														{ }
+	{LF}														{ yy_pop_state(yyscanner);
+	
+		std::string &message = yyextra->mPragmas.back();
+		boost::algorithm::trim(message);
 		
-		std::string pragma = yytext + 7;
-		pragma = pragma.substr(pragma.find_first_not_of("\t "));
-		pragma = pragma.substr(0, pragma.find_last_not_of("\n\t ") + 1);
-
-		yyextra->Warning(*yylloc, 3568, "'%s': unknown pragma ignored", pragma.c_str());
-	}
-	"error".*													{
-
-		std::string message = yytext + 5;
-		message = message.substr(message.find_first_not_of("\t "));
-		message = message.substr(0, message.find_last_not_of("\n\t ") + 1);
-
 		yyextra->Error(*yylloc, 0, "%s", message.c_str());
+		yyextra->mPragmas.pop_back();
 	}
-	"warning".*													{
-
-		std::string message = yytext + 7;
-		message = message.substr(message.find_first_not_of("\t "));
-		message = message.substr(0, message.find_last_not_of("\n\t ") + 1);
-
+}
+<STATE_PP_WARNING>
+{
+	[^\\\n]+|\\													{ yyextra->mPragmas.back() += yytext; }
+	\\{LF}														{ }
+	{LF}														{ yy_pop_state(yyscanner);
+	
+		std::string &message = yyextra->mPragmas.back();
+		boost::algorithm::trim(message);
+		
 		yyextra->Warning(*yylloc, 0, "%s", message.c_str());
+		yyextra->mPragmas.pop_back();
 	}
-	[^\n\\]+													{ yyextra->Error(*yylloc, 1504, "invalid preprocessor command '%s'", yytext); }
-	{LF}														{ yycolumn = 1; yy_pop_state(yyscanner); }
 }
 
 <*><<EOF>>														{
@@ -297,28 +329,28 @@ STRING															\"(\\.|[^\\"])*\"
 "BLENDWEIGHT"{INTEGRAL}?										{ yylval->l.String.p = yytext; yylval->l.String.len = ::strlen(yytext); return TOK_IDENTIFIER_SEMANTIC; }
 "TESSFACTOR"{INTEGRAL}?											{ yylval->l.String.p = yytext; yylval->l.String.len = ::strlen(yytext); return TOK_IDENTIFIER_SEMANTIC; }
 "INDEX"{INTEGRAL}?												{ yylval->l.String.p = yytext; yylval->l.String.len = ::strlen(yytext); return TOK_IDENTIFIER_SEMANTIC; }
-(?i:"SV_ClipDistance"){INTEGRAL}?								{ char *p = yytext; while (*p++ = static_cast<char>(::toupper(*p))); yylval->l.String.p = yytext; yylval->l.String.len = ::strlen(yytext); return TOK_IDENTIFIER_SEMANTIC; }
-(?i:"SV_CullDistance"){INTEGRAL}?								{ char *p = yytext; while (*p++ = static_cast<char>(::toupper(*p))); yylval->l.String.p = yytext; yylval->l.String.len = ::strlen(yytext); return TOK_IDENTIFIER_SEMANTIC; }
-(?i:"SV_Coverage")												{ char *p = yytext; while (*p++ = static_cast<char>(::toupper(*p))); yylval->l.String.p = yytext; yylval->l.String.len = ::strlen(yytext); return TOK_IDENTIFIER_SEMANTIC; }
-(?i:"SV_DispatchThreadID")										{ char *p = yytext; while (*p++ = static_cast<char>(::toupper(*p))); yylval->l.String.p = yytext; yylval->l.String.len = ::strlen(yytext); return TOK_IDENTIFIER_SEMANTIC; }
-(?i:"SV_DomainLocation")										{ char *p = yytext; while (*p++ = static_cast<char>(::toupper(*p))); yylval->l.String.p = yytext; yylval->l.String.len = ::strlen(yytext); return TOK_IDENTIFIER_SEMANTIC; }
-(?i:"SV_GroupID")												{ char *p = yytext; while (*p++ = static_cast<char>(::toupper(*p))); yylval->l.String.p = yytext; yylval->l.String.len = ::strlen(yytext); return TOK_IDENTIFIER_SEMANTIC; }
-(?i:"SV_GroupIndex")											{ char *p = yytext; while (*p++ = static_cast<char>(::toupper(*p))); yylval->l.String.p = yytext; yylval->l.String.len = ::strlen(yytext); return TOK_IDENTIFIER_SEMANTIC; }
-(?i:"SV_GroupThreadID")											{ char *p = yytext; while (*p++ = static_cast<char>(::toupper(*p))); yylval->l.String.p = yytext; yylval->l.String.len = ::strlen(yytext); return TOK_IDENTIFIER_SEMANTIC; }
-(?i:"SV_GSInstanceID")											{ char *p = yytext; while (*p++ = static_cast<char>(::toupper(*p))); yylval->l.String.p = yytext; yylval->l.String.len = ::strlen(yytext); return TOK_IDENTIFIER_SEMANTIC; }
-(?i:"SV_InsideTessFactor")										{ char *p = yytext; while (*p++ = static_cast<char>(::toupper(*p))); yylval->l.String.p = yytext; yylval->l.String.len = ::strlen(yytext); return TOK_IDENTIFIER_SEMANTIC; }
-(?i:"SV_IsFrontFace")											{ char *p = yytext; while (*p++ = static_cast<char>(::toupper(*p))); yylval->l.String.p = yytext; yylval->l.String.len = ::strlen(yytext); return TOK_IDENTIFIER_SEMANTIC; }
-(?i:"SV_OutputControlPointID")									{ char *p = yytext; while (*p++ = static_cast<char>(::toupper(*p))); yylval->l.String.p = yytext; yylval->l.String.len = ::strlen(yytext); return TOK_IDENTIFIER_SEMANTIC; }
-(?i:"SV_Position")												{ char *p = yytext; while (*p++ = static_cast<char>(::toupper(*p))); yylval->l.String.p = yytext; yylval->l.String.len = ::strlen(yytext); return TOK_IDENTIFIER_SEMANTIC; }
-(?i:"SV_RenderTargetArrayIndex")								{ char *p = yytext; while (*p++ = static_cast<char>(::toupper(*p))); yylval->l.String.p = yytext; yylval->l.String.len = ::strlen(yytext); return TOK_IDENTIFIER_SEMANTIC; }
-(?i:"SV_SampleIndex")											{ char *p = yytext; while (*p++ = static_cast<char>(::toupper(*p))); yylval->l.String.p = yytext; yylval->l.String.len = ::strlen(yytext); return TOK_IDENTIFIER_SEMANTIC; }
-(?i:"SV_Target"){INTEGRAL}?										{ char *p = yytext; while (*p++ = static_cast<char>(::toupper(*p))); yylval->l.String.p = yytext; yylval->l.String.len = ::strlen(yytext); return TOK_IDENTIFIER_SEMANTIC; }
-(?i:"SV_TessFactor")											{ char *p = yytext; while (*p++ = static_cast<char>(::toupper(*p))); yylval->l.String.p = yytext; yylval->l.String.len = ::strlen(yytext); return TOK_IDENTIFIER_SEMANTIC; }
-(?i:"SV_ViewportArrayIndex")									{ char *p = yytext; while (*p++ = static_cast<char>(::toupper(*p))); yylval->l.String.p = yytext; yylval->l.String.len = ::strlen(yytext); return TOK_IDENTIFIER_SEMANTIC; }
-(?i:"SV_InstanceID")											{ char *p = yytext; while (*p++ = static_cast<char>(::toupper(*p))); yylval->l.String.p = yytext; yylval->l.String.len = ::strlen(yytext); return TOK_IDENTIFIER_SEMANTIC; }
-(?i:"SV_PrimitiveID")											{ char *p = yytext; while (*p++ = static_cast<char>(::toupper(*p))); yylval->l.String.p = yytext; yylval->l.String.len = ::strlen(yytext); return TOK_IDENTIFIER_SEMANTIC; }
-(?i:"SV_VertexID")												{ char *p = yytext; while (*p++ = static_cast<char>(::toupper(*p))); yylval->l.String.p = yytext; yylval->l.String.len = ::strlen(yytext); return TOK_IDENTIFIER_SEMANTIC; }
-(?i:"SV_Depth")													{ char *p = yytext; while (*p++ = static_cast<char>(::toupper(*p))); yylval->l.String.p = yytext; yylval->l.String.len = ::strlen(yytext); return TOK_IDENTIFIER_SEMANTIC; }
+(?i:"SV_ClipDistance"){INTEGRAL}?								{ boost::algorithm::to_upper(yytext); yylval->l.String.p = yytext; yylval->l.String.len = ::strlen(yytext); return TOK_IDENTIFIER_SEMANTIC; }
+(?i:"SV_CullDistance"){INTEGRAL}?								{ boost::algorithm::to_upper(yytext); yylval->l.String.p = yytext; yylval->l.String.len = ::strlen(yytext); return TOK_IDENTIFIER_SEMANTIC; }
+(?i:"SV_Coverage")												{ boost::algorithm::to_upper(yytext); yylval->l.String.p = yytext; yylval->l.String.len = ::strlen(yytext); return TOK_IDENTIFIER_SEMANTIC; }
+(?i:"SV_DispatchThreadID")										{ boost::algorithm::to_upper(yytext); yylval->l.String.p = yytext; yylval->l.String.len = ::strlen(yytext); return TOK_IDENTIFIER_SEMANTIC; }
+(?i:"SV_DomainLocation")										{ boost::algorithm::to_upper(yytext); yylval->l.String.p = yytext; yylval->l.String.len = ::strlen(yytext); return TOK_IDENTIFIER_SEMANTIC; }
+(?i:"SV_GroupID")												{ boost::algorithm::to_upper(yytext); yylval->l.String.p = yytext; yylval->l.String.len = ::strlen(yytext); return TOK_IDENTIFIER_SEMANTIC; }
+(?i:"SV_GroupIndex")											{ boost::algorithm::to_upper(yytext); yylval->l.String.p = yytext; yylval->l.String.len = ::strlen(yytext); return TOK_IDENTIFIER_SEMANTIC; }
+(?i:"SV_GroupThreadID")											{ boost::algorithm::to_upper(yytext); yylval->l.String.p = yytext; yylval->l.String.len = ::strlen(yytext); return TOK_IDENTIFIER_SEMANTIC; }
+(?i:"SV_GSInstanceID")											{ boost::algorithm::to_upper(yytext); yylval->l.String.p = yytext; yylval->l.String.len = ::strlen(yytext); return TOK_IDENTIFIER_SEMANTIC; }
+(?i:"SV_InsideTessFactor")										{ boost::algorithm::to_upper(yytext); yylval->l.String.p = yytext; yylval->l.String.len = ::strlen(yytext); return TOK_IDENTIFIER_SEMANTIC; }
+(?i:"SV_IsFrontFace")											{ boost::algorithm::to_upper(yytext); yylval->l.String.p = yytext; yylval->l.String.len = ::strlen(yytext); return TOK_IDENTIFIER_SEMANTIC; }
+(?i:"SV_OutputControlPointID")									{ boost::algorithm::to_upper(yytext); yylval->l.String.p = yytext; yylval->l.String.len = ::strlen(yytext); return TOK_IDENTIFIER_SEMANTIC; }
+(?i:"SV_Position")												{ boost::algorithm::to_upper(yytext); yylval->l.String.p = yytext; yylval->l.String.len = ::strlen(yytext); return TOK_IDENTIFIER_SEMANTIC; }
+(?i:"SV_RenderTargetArrayIndex")								{ boost::algorithm::to_upper(yytext); yylval->l.String.p = yytext; yylval->l.String.len = ::strlen(yytext); return TOK_IDENTIFIER_SEMANTIC; }
+(?i:"SV_SampleIndex")											{ boost::algorithm::to_upper(yytext); yylval->l.String.p = yytext; yylval->l.String.len = ::strlen(yytext); return TOK_IDENTIFIER_SEMANTIC; }
+(?i:"SV_Target"){INTEGRAL}?										{ boost::algorithm::to_upper(yytext); yylval->l.String.p = yytext; yylval->l.String.len = ::strlen(yytext); return TOK_IDENTIFIER_SEMANTIC; }
+(?i:"SV_TessFactor")											{ boost::algorithm::to_upper(yytext); yylval->l.String.p = yytext; yylval->l.String.len = ::strlen(yytext); return TOK_IDENTIFIER_SEMANTIC; }
+(?i:"SV_ViewportArrayIndex")									{ boost::algorithm::to_upper(yytext); yylval->l.String.p = yytext; yylval->l.String.len = ::strlen(yytext); return TOK_IDENTIFIER_SEMANTIC; }
+(?i:"SV_InstanceID")											{ boost::algorithm::to_upper(yytext); yylval->l.String.p = yytext; yylval->l.String.len = ::strlen(yytext); return TOK_IDENTIFIER_SEMANTIC; }
+(?i:"SV_PrimitiveID")											{ boost::algorithm::to_upper(yytext); yylval->l.String.p = yytext; yylval->l.String.len = ::strlen(yytext); return TOK_IDENTIFIER_SEMANTIC; }
+(?i:"SV_VertexID")												{ boost::algorithm::to_upper(yytext); yylval->l.String.p = yytext; yylval->l.String.len = ::strlen(yytext); return TOK_IDENTIFIER_SEMANTIC; }
+(?i:"SV_Depth")													{ boost::algorithm::to_upper(yytext); yylval->l.String.p = yytext; yylval->l.String.len = ::strlen(yytext); return TOK_IDENTIFIER_SEMANTIC; }
 
 <STATE_PASS,STATE_PROPERTY>"NONE"								{ yylval->l.Uint = ReShade::EffectNodes::Literal::NONE; return TOK_LITERAL_ENUM; }
 <STATE_PROPERTY>"POINT"|"NEAREST"								{ yylval->l.Uint = ReShade::EffectNodes::Literal::POINT; return TOK_LITERAL_ENUM; }
