@@ -2544,16 +2544,17 @@ EXPORT BOOL WINAPI												wglMakeCurrent(HDC hdc, HGLRC hglrc)
 		if (runtime != nullptr)
 		{
 			runtime->OnCreate(static_cast<unsigned int>(width), static_cast<unsigned int>(height));
+
+			sManagers[hglrc] = runtime;
+			sCurrentManagers[hdc] = runtime.get();
 		}
 		else
 		{
 			LOG(ERROR) << "Failed to initialize OpenGL renderer on OpenGL context " << hglrc << "! Make sure your graphics card supports at least OpenGL 4.3.";
 		}
 
-		sManagers[hglrc] = runtime;
 		sDeviceContexts[hglrc] = hdc;
 		sWindowRects[hwnd] = rect;
-		sCurrentManagers[hdc] = runtime.get();
 	}
 
 	return TRUE;
