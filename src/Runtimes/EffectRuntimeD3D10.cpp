@@ -11,36 +11,32 @@
 
 // -----------------------------------------------------------------------------------------------------
 
-#define SAFE_RELEASE(p)											{ if ((p)) (p)->Release(); (p) = nullptr; }
-
-namespace std
+inline bool operator ==(const D3D10_SAMPLER_DESC &left, const D3D10_SAMPLER_DESC &right)
 {
-	template <> struct											hash<D3D10_SAMPLER_DESC>
-	{
-		inline std::size_t										operator()(const D3D10_SAMPLER_DESC &s) const 
-		{
-			const unsigned char *p = reinterpret_cast<const unsigned char *>(&s);
-			std::size_t h = 2166136261;
-
-			for (std::size_t i = 0; i < sizeof(D3D10_SAMPLER_DESC); ++i)
-			{
-				h = (h * 16777619) ^ p[i];
-			}
-
-			return h;
-		}
-	};
-
-	inline bool													operator ==(const D3D10_SAMPLER_DESC &left, const D3D10_SAMPLER_DESC &right)
-	{
-		return std::memcmp(&left, &right, sizeof(D3D10_SAMPLER_DESC)) == 0;
-	}
+	return std::memcmp(&left, &right, sizeof(D3D10_SAMPLER_DESC)) == 0;
 }
+
 namespace ReShade
 {
 	namespace
 	{
-		class													D3D10EffectContext : public Runtime, public std::enable_shared_from_this<D3D10EffectContext>
+		struct D3D10_SAMPLER_DESC_HASHER
+		{
+			inline std::size_t operator()(const D3D10_SAMPLER_DESC &s) const 
+			{
+				const unsigned char *p = reinterpret_cast<const unsigned char *>(&s);
+				std::size_t h = 2166136261;
+
+				for (std::size_t i = 0; i < sizeof(D3D10_SAMPLER_DESC); ++i)
+				{
+					h = (h * 16777619) ^ p[i];
+				}
+
+				return h;
+			}
+		};
+
+		class D3D10Runtime : public Runtime, public std::enable_shared_from_this<D3D10Runtime>
 		{
 			friend struct D3D10Effect;
 			friend struct D3D10Texture;
@@ -49,129 +45,130 @@ namespace ReShade
 			friend class D3D10EffectCompiler;
 
 		public:
-			D3D10EffectContext(ID3D10Device *device, IDXGISwapChain *swapchain);
-			~D3D10EffectContext(void);
+			D3D10Runtime(ID3D10Device *device, IDXGISwapChain *swapchain);
+			~D3D10Runtime();
 
-			virtual bool										OnCreate(unsigned int width, unsigned int height) override;
-			virtual void										OnDelete() override;
-			virtual void										OnPresent() override;
+			virtual bool OnCreate(unsigned int width, unsigned int height) override;
+			virtual void OnDelete() override;
+			virtual void OnPresent() override;
 
-			virtual std::unique_ptr<Effect>						CreateEffect(const EffectTree &ast, std::string &errors) const override;
-			virtual void										CreateScreenshot(unsigned char *buffer, std::size_t size) const override;
+			virtual std::unique_ptr<Effect> CreateEffect(const EffectTree &ast, std::string &errors) const override;
+			virtual void CreateScreenshot(unsigned char *buffer, std::size_t size) const override;
 
 		private:
-			ID3D10Device *										mDevice;
-			IDXGISwapChain *									mSwapChain;
-			ID3D10StateBlock *									mStateBlock;
-			ID3D10Texture2D *									mBackBuffer;
-			ID3D10Texture2D *									mBackBufferTexture;
-			ID3D10RenderTargetView *							mBackBufferTargets[2];
+			ID3D10Device *mDevice;
+			IDXGISwapChain *mSwapChain;
+			ID3D10StateBlock *mStateBlock;
+			ID3D10Texture2D *mBackBuffer;
+			ID3D10Texture2D *mBackBufferTexture;
+			ID3D10RenderTargetView *mBackBufferTargets[2];
 		};
-		struct													D3D10Effect : public Effect
+
+		struct D3D10Effect : public Effect
 		{
 			friend struct D3D10Texture;
 			friend struct D3D10Constant;
 			friend struct D3D10Technique;
 
-			D3D10Effect(std::shared_ptr<const D3D10EffectContext> context);
-			~D3D10Effect(void);
+			D3D10Effect(std::shared_ptr<const D3D10Runtime> context);
+			~D3D10Effect();
 
-			const Texture *										GetTexture(const std::string &name) const;
-			std::vector<std::string>							GetTextureNames(void) const;
-			const Constant *									GetConstant(const std::string &name) const;
-			std::vector<std::string>							GetConstantNames(void) const;
-			const Technique *									GetTechnique(const std::string &name) const;
-			std::vector<std::string>							GetTechniqueNames(void) const;
+			const Texture *GetTexture(const std::string &name) const;
+			std::vector<std::string> GetTextureNames() const;
+			const Constant *GetConstant(const std::string &name) const;
+			std::vector<std::string> GetConstantNames() const;
+			const Technique *GetTechnique(const std::string &name) const;
+			std::vector<std::string> GetTechniqueNames() const;
 
-			void												ApplyConstants(void) const;
+			void ApplyConstants() const;
 
-			std::shared_ptr<const D3D10EffectContext>			mEffectContext;
+			std::shared_ptr<const D3D10Runtime> mEffectContext;
 			std::unordered_map<std::string, std::unique_ptr<D3D10Texture>> mTextures;
 			std::unordered_map<std::string, std::unique_ptr<D3D10Constant>> mConstants;
 			std::unordered_map<std::string, std::unique_ptr<D3D10Technique>> mTechniques;
-			ID3D10Texture2D *									mDepthStencilTexture;
-			ID3D10ShaderResourceView *							mDepthStencilView;
-			ID3D10DepthStencilView *							mDepthStencil;
-			ID3D10RasterizerState *								mRasterizerState;
-			ID3D10RenderTargetView *							mStateBlockTargets[D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT];
-			ID3D10DepthStencilView *							mStateBlockDepthStencil;
-			std::unordered_map<D3D10_SAMPLER_DESC, size_t>		mSamplerDescs;
-			std::vector<ID3D10SamplerState *>					mSamplerStates;
-			std::vector<ID3D10ShaderResourceView *>				mShaderResources;
-			std::vector<ID3D10Buffer *>							mConstantBuffers;
-			std::vector<unsigned char *>						mConstantStorages;
-			mutable bool										mConstantsDirty;
+			ID3D10Texture2D *mDepthStencilTexture;
+			ID3D10ShaderResourceView *mDepthStencilView;
+			ID3D10DepthStencilView *mDepthStencil;
+			ID3D10RasterizerState *mRasterizerState;
+			ID3D10RenderTargetView *mStateBlockTargets[D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT];
+			ID3D10DepthStencilView *mStateBlockDepthStencil;
+			std::unordered_map<D3D10_SAMPLER_DESC, size_t, D3D10_SAMPLER_DESC_HASHER> mSamplerDescs;
+			std::vector<ID3D10SamplerState *> mSamplerStates;
+			std::vector<ID3D10ShaderResourceView *> mShaderResources;
+			std::vector<ID3D10Buffer *> mConstantBuffers;
+			std::vector<unsigned char *> mConstantStorages;
+			mutable bool mConstantsDirty;
 		};
-		struct													D3D10Texture : public Effect::Texture
+		struct D3D10Texture : public Effect::Texture
 		{
 			D3D10Texture(D3D10Effect *effect);
-			~D3D10Texture(void);
+			~D3D10Texture();
 
-			const Description									GetDescription(void) const;
-			const Effect::Annotation							GetAnnotation(const std::string &name) const;
+			const Description GetDescription() const;
+			const Effect::Annotation GetAnnotation(const std::string &name) const;
 
-			void												Update(unsigned int level, const unsigned char *data, std::size_t size);
-			void												UpdateFromColorBuffer(void);
-			void												UpdateFromDepthBuffer(void);
+			void Update(unsigned int level, const unsigned char *data, std::size_t size);
+			void UpdateFromColorBuffer();
+			void UpdateFromDepthBuffer();
 
-			D3D10Effect *										mEffect;
-			Description											mDesc;
-			unsigned int										mRegister;
+			D3D10Effect *mEffect;
+			Description mDesc;
+			unsigned int mRegister;
 			std::unordered_map<std::string, Effect::Annotation>	mAnnotations;
-			ID3D10Texture2D *									mTexture;
-			ID3D10ShaderResourceView *							mShaderResourceView[2];
-			ID3D10RenderTargetView *							mRenderTargetView[2];
+			ID3D10Texture2D *mTexture;
+			ID3D10ShaderResourceView *mShaderResourceView[2];
+			ID3D10RenderTargetView *mRenderTargetView[2];
 		};
-		struct													D3D10Constant : public Effect::Constant
+		struct D3D10Constant : public Effect::Constant
 		{
 			D3D10Constant(D3D10Effect *effect);
-			~D3D10Constant(void);
+			~D3D10Constant();
 
-			const Description									GetDescription(void) const;
-			const Effect::Annotation							GetAnnotation(const std::string &name) const;
-			void												GetValue(unsigned char *data, std::size_t size) const;
-			void												SetValue(const unsigned char *data, std::size_t size);
+			const Description GetDescription() const;
+			const Effect::Annotation GetAnnotation(const std::string &name) const;
+			void GetValue(unsigned char *data, std::size_t size) const;
+			void SetValue(const unsigned char *data, std::size_t size);
 
-			D3D10Effect *										mEffect;
-			Description											mDesc;
+			D3D10Effect *mEffect;
+			Description mDesc;
 			std::unordered_map<std::string, Effect::Annotation>	mAnnotations;
-			std::size_t											mBuffer, mBufferOffset;
+			std::size_t mBuffer, mBufferOffset;
 		};
-		struct													D3D10Technique : public Effect::Technique
+		struct D3D10Technique : public Effect::Technique
 		{
-			struct												Pass
+			struct Pass
 			{
-				ID3D10VertexShader *							VS;
-				ID3D10PixelShader *								PS;
-				ID3D10BlendState *								BS;
-				ID3D10DepthStencilState *						DSS;
-				UINT											StencilRef;
-				ID3D10RenderTargetView *						RT[D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT];
-				std::vector<ID3D10ShaderResourceView *>			SR;
+				ID3D10VertexShader *VS;
+				ID3D10PixelShader *PS;
+				ID3D10BlendState *BS;
+				ID3D10DepthStencilState *DSS;
+				UINT StencilRef;
+				ID3D10RenderTargetView *RT[D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT];
+				std::vector<ID3D10ShaderResourceView *> SR;
 			};
 
 			D3D10Technique(D3D10Effect *effect);
-			~D3D10Technique(void);
+			~D3D10Technique();
 
-			const Effect::Annotation							GetAnnotation(const std::string &name) const;
+			const Effect::Annotation GetAnnotation(const std::string &name) const;
 
-			bool												Begin(unsigned int &passes) const;
-			void												End(void) const;
-			void												RenderPass(unsigned int index) const;
+			bool Begin(unsigned int &passes) const;
+			void End() const;
+			void RenderPass(unsigned int index) const;
 
-			D3D10Effect *										mEffect;
+			D3D10Effect *mEffect;
 			std::unordered_map<std::string, Effect::Annotation>	mAnnotations;
-			std::vector<Pass>									mPasses;
+			std::vector<Pass> mPasses;
 		};
 
-		class													D3D10EffectCompiler
+		class D3D10EffectCompiler
 		{
 		public:
 			D3D10EffectCompiler(const EffectTree &ast) : mAST(ast), mEffect(nullptr), mCurrentInParameterBlock(false), mCurrentInFunctionBlock(false), mCurrentGlobalSize(0), mCurrentGlobalStorageSize(0)
 			{
 			}
 
-			bool												Traverse(D3D10Effect *effect, std::string &errors)
+			bool Traverse(D3D10Effect *effect, std::string &errors)
 			{
 				this->mEffect = effect;
 				this->mErrors.clear();
@@ -203,11 +200,11 @@ namespace ReShade
 				return !this->mFatal;
 			}
 
-			static inline UINT									RoundToMultipleOf16(UINT size)
+			static inline UINT RoundToMultipleOf16(UINT size)
 			{
 				return (size + 15) & ~15;
 			}
-			static D3D10_TEXTURE_ADDRESS_MODE					LiteralToTextureAddress(int value)
+			static D3D10_TEXTURE_ADDRESS_MODE LiteralToTextureAddress(int value)
 			{
 				switch (value)
 				{
@@ -222,7 +219,7 @@ namespace ReShade
 						return D3D10_TEXTURE_ADDRESS_BORDER;
 				}
 			}
-			static D3D10_COMPARISON_FUNC						LiteralToComparisonFunc(int value)
+			static D3D10_COMPARISON_FUNC LiteralToComparisonFunc(int value)
 			{
 				const D3D10_COMPARISON_FUNC conversion[] =
 				{
@@ -235,7 +232,7 @@ namespace ReShade
 
 				return conversion[conversionIndex];
 			}
-			static D3D10_STENCIL_OP								LiteralToStencilOp(int value)
+			static D3D10_STENCIL_OP LiteralToStencilOp(int value)
 			{
 				switch (value)
 				{
@@ -258,7 +255,7 @@ namespace ReShade
 						return D3D10_STENCIL_OP_INVERT;
 				}
 			}
-			static D3D10_BLEND									LiteralToBlend(int value)
+			static D3D10_BLEND LiteralToBlend(int value)
 			{
 				switch (value)
 				{
@@ -285,7 +282,7 @@ namespace ReShade
 						return D3D10_BLEND_INV_DEST_ALPHA;
 				}
 			}
-			static D3D10_BLEND_OP								LiteralToBlendOp(int value)
+			static D3D10_BLEND_OP LiteralToBlendOp(int value)
 			{
 				switch (value)
 				{
@@ -302,7 +299,7 @@ namespace ReShade
 						return D3D10_BLEND_OP_MAX;
 				}
 			}
-			static DXGI_FORMAT									LiteralToFormat(int value, Effect::Texture::Format &format)
+			static DXGI_FORMAT LiteralToFormat(int value, Effect::Texture::Format &format)
 			{
 				switch (value)
 				{
@@ -347,7 +344,7 @@ namespace ReShade
 						return DXGI_FORMAT_UNKNOWN;
 				}
 			}
-			static DXGI_FORMAT									TypelessToLinearFormat(DXGI_FORMAT format)
+			static DXGI_FORMAT TypelessToLinearFormat(DXGI_FORMAT format)
 			{
 				switch (format)
 				{
@@ -363,7 +360,7 @@ namespace ReShade
 						return format;
 				}
 			}
-			static DXGI_FORMAT									TypelessToSRGBFormat(DXGI_FORMAT format)
+			static DXGI_FORMAT TypelessToSRGBFormat(DXGI_FORMAT format)
 			{
 				switch (format)
 				{
@@ -380,12 +377,12 @@ namespace ReShade
 				}
 			}
 			
-			static inline std::string							PrintLocation(const EffectTree::Location &location)
+			static inline std::string PrintLocation(const EffectTree::Location &location)
 			{
 				return std::string(location.Source != nullptr ? location.Source : "") + "(" + std::to_string(location.Line) + ", " + std::to_string(location.Column) + "): ";
 			}
 
-			std::string											PrintType(const EffectNodes::Type &type)
+			std::string PrintType(const EffectNodes::Type &type)
 			{
 				std::string res;
 
@@ -425,7 +422,7 @@ namespace ReShade
 
 				return res;
 			}
-			std::string											PrintTypeWithQualifiers(const EffectNodes::Type &type)
+			std::string PrintTypeWithQualifiers(const EffectNodes::Type &type)
 			{
 				std::string qualifiers;
 
@@ -461,11 +458,11 @@ namespace ReShade
 				return qualifiers + PrintType(type);
 			}
 
-			void												Visit(const EffectNodes::LValue &node)
+			void Visit(const EffectNodes::LValue &node)
 			{
 				this->mCurrentSource += this->mAST[node.Reference].As<EffectNodes::Variable>().Name;
 			}
-			void												Visit(const EffectNodes::Literal &node)
+			void Visit(const EffectNodes::Literal &node)
 			{
 				if (!node.Type.IsScalar())
 				{
@@ -502,7 +499,7 @@ namespace ReShade
 					this->mCurrentSource += ')';
 				}
 			}
-			void												Visit(const EffectNodes::Expression &node)
+			void Visit(const EffectNodes::Expression &node)
 			{
 				std::string part1, part2, part3, part4;
 
@@ -972,7 +969,7 @@ namespace ReShade
 
 				this->mCurrentSource += part4;
 			}
-			void												Visit(const EffectNodes::Sequence &node)
+			void Visit(const EffectNodes::Sequence &node)
 			{
 				for (unsigned int i = 0; i < node.Length; ++i)
 				{
@@ -984,7 +981,7 @@ namespace ReShade
 				this->mCurrentSource.pop_back();
 				this->mCurrentSource.pop_back();
 			}
-			void												Visit(const EffectNodes::Assignment &node)
+			void Visit(const EffectNodes::Assignment &node)
 			{
 				this->mCurrentSource += '(';
 				this->mAST[node.Left].Accept(*this);
@@ -1031,7 +1028,7 @@ namespace ReShade
 				this->mAST[node.Right].Accept(*this);
 				this->mCurrentSource += ')';
 			}
-			void												Visit(const EffectNodes::Call &node)
+			void Visit(const EffectNodes::Call &node)
 			{
 				this->mCurrentSource += node.CalleeName;
 				this->mCurrentSource += '(';
@@ -1053,7 +1050,7 @@ namespace ReShade
 
 				this->mCurrentSource += ')';
 			}
-			void												Visit(const EffectNodes::Constructor &node)
+			void Visit(const EffectNodes::Constructor &node)
 			{
 				this->mCurrentSource += PrintType(node.Type);
 				this->mCurrentSource += '(';
@@ -1072,7 +1069,7 @@ namespace ReShade
 
 				this->mCurrentSource += ')';
 			}
-			void												Visit(const EffectNodes::Swizzle &node)
+			void Visit(const EffectNodes::Swizzle &node)
 			{
 				const EffectNodes::RValue &left = this->mAST[node.Operands[0]].As<EffectNodes::RValue>();
 
@@ -1108,7 +1105,7 @@ namespace ReShade
 					}
 				}
 			}
-			void												Visit(const EffectNodes::If &node)
+			void Visit(const EffectNodes::If &node)
 			{
 				if (node.HasAttributes())
 				{
@@ -1140,7 +1137,7 @@ namespace ReShade
 					this->mAST[node.StatementOnFalse].Accept(*this);
 				}
 			}
-			void												Visit(const EffectNodes::Switch &node)
+			void Visit(const EffectNodes::Switch &node)
 			{
 				if (node.HasAttributes())
 				{
@@ -1167,7 +1164,7 @@ namespace ReShade
 
 				this->mCurrentSource += "}\n";
 			}
-			void												Visit(const EffectNodes::Case &node)
+			void Visit(const EffectNodes::Case &node)
 			{
 				const auto &labels = this->mAST[node.Labels].As<EffectNodes::List>();
 
@@ -1190,7 +1187,7 @@ namespace ReShade
 
 				this->mAST[node.Statements].As<EffectNodes::StatementBlock>().Accept(*this);
 			}
-			void												Visit(const EffectNodes::For &node)
+			void Visit(const EffectNodes::For &node)
 			{
 				if (node.HasAttributes())
 				{
@@ -1239,7 +1236,7 @@ namespace ReShade
 					this->mCurrentSource += "\t;";
 				}
 			}
-			void												Visit(const EffectNodes::While &node)
+			void Visit(const EffectNodes::While &node)
 			{
 				if (node.HasAttributes())
 				{
@@ -1283,7 +1280,7 @@ namespace ReShade
 					}
 				}
 			}
-			void												Visit(const EffectNodes::Jump &node)
+			void Visit(const EffectNodes::Jump &node)
 			{
 				switch (node.Mode)
 				{
@@ -1309,7 +1306,7 @@ namespace ReShade
 
 				this->mCurrentSource += ";\n";
 			}
-			void												Visit(const EffectNodes::ExpressionStatement &node)
+			void Visit(const EffectNodes::ExpressionStatement &node)
 			{
 				if (node.Expression != 0)
 				{
@@ -1318,7 +1315,7 @@ namespace ReShade
 
 				this->mCurrentSource += ";\n";
 			}
-			void												Visit(const EffectNodes::StatementBlock &node)
+			void Visit(const EffectNodes::StatementBlock &node)
 			{
 				this->mCurrentSource += "{\n";
 
@@ -1329,7 +1326,7 @@ namespace ReShade
 
 				this->mCurrentSource += "}\n";
 			}
-			void												Visit(const EffectNodes::Annotation &node)
+			void Visit(const EffectNodes::Annotation &node)
 			{
 				Effect::Annotation annotation;
 				const auto &value = this->mAST[node.Value].As<EffectNodes::Literal>();
@@ -1357,7 +1354,7 @@ namespace ReShade
 
 				this->mCurrentAnnotations->insert(std::make_pair(node.Name, annotation));
 			}
-			void												Visit(const EffectNodes::Struct &node)
+			void Visit(const EffectNodes::Struct &node)
 			{
 				this->mCurrentSource += "struct ";
 
@@ -1384,7 +1381,7 @@ namespace ReShade
 
 				this->mCurrentSource += "};\n";
 			}
-			void												Visit(const EffectNodes::Variable &node)
+			void Visit(const EffectNodes::Variable &node)
 			{
 				if (!(this->mCurrentInParameterBlock || this->mCurrentInFunctionBlock))
 				{
@@ -1449,7 +1446,7 @@ namespace ReShade
 					this->mCurrentSource += ";\n";
 				}
 			}
-			void												VisitTexture(const EffectNodes::Variable &node)
+			void VisitTexture(const EffectNodes::Variable &node)
 			{			
 				D3D10_TEXTURE2D_DESC desc;
 				desc.ArraySize = 1;
@@ -1553,7 +1550,7 @@ namespace ReShade
 
 				this->mEffect->mTextures.insert(std::make_pair(node.Name, std::move(obj)));
 			}
-			void												VisitSampler(const EffectNodes::Variable &node)
+			void VisitSampler(const EffectNodes::Variable &node)
 			{
 				if (node.Properties[EffectNodes::Variable::Texture] == 0)
 				{
@@ -1671,7 +1668,7 @@ namespace ReShade
 
 				this->mCurrentSource += ", __SamplerState" + std::to_string(it->second) + " };\n";
 			}
-			void												VisitUniform(const EffectNodes::Variable &node)
+			void VisitUniform(const EffectNodes::Variable &node)
 			{
 				this->mCurrentGlobalConstants += PrintTypeWithQualifiers(node.Type);
 				this->mCurrentGlobalConstants += ' ';
@@ -1749,7 +1746,7 @@ namespace ReShade
 
 				this->mEffect->mConstants.insert(std::make_pair(node.Name, std::move(obj)));
 			}
-			void												VisitUniformBuffer(const EffectNodes::Variable &node)
+			void VisitUniformBuffer(const EffectNodes::Variable &node)
 			{
 				const auto &structure = this->mAST[node.Type.Definition].As<EffectNodes::Struct>();
 
@@ -1876,7 +1873,7 @@ namespace ReShade
 					this->mEffect->mConstantStorages.push_back(storage);
 				}
 			}
-			void												Visit(const EffectNodes::Function &node)
+			void Visit(const EffectNodes::Function &node)
 			{
 				this->mCurrentSource += PrintType(node.ReturnType);
 				this->mCurrentSource += ' ';
@@ -1924,7 +1921,7 @@ namespace ReShade
 					this->mCurrentSource += ";\n";
 				}
 			}
-			void												Visit(const EffectNodes::Technique &node)
+			void Visit(const EffectNodes::Technique &node)
 			{
 				std::unique_ptr<D3D10Technique> obj(new D3D10Technique(this->mEffect));
 
@@ -1959,7 +1956,7 @@ namespace ReShade
 
 				this->mEffect->mTechniques.insert(std::make_pair(node.Name, std::move(obj)));
 			}
-			void												Visit(const EffectNodes::Pass &node)
+			void Visit(const EffectNodes::Pass &node)
 			{
 				D3D10Technique::Pass pass;
 				pass.VS = nullptr;
@@ -2102,7 +2099,7 @@ namespace ReShade
 
 				this->mCurrentPasses->push_back(std::move(pass));
 			}
-			void												VisitShader(const EffectNodes::Function &node, unsigned int type, D3D10Technique::Pass &pass)
+			void VisitShader(const EffectNodes::Function &node, unsigned int type, D3D10Technique::Pass &pass)
 			{
 				const char *profile = nullptr;
 
@@ -2182,22 +2179,22 @@ namespace ReShade
 			}
 
 		private:
-			const EffectTree &									mAST;
-			D3D10Effect *										mEffect;
-			std::string											mCurrentSource;
-			std::string											mErrors;
-			bool												mFatal;
-			std::string											mCurrentGlobalConstants;
-			UINT												mCurrentGlobalSize, mCurrentGlobalStorageSize;
-			std::string											mCurrentBlockName;
-			bool												mCurrentInParameterBlock, mCurrentInFunctionBlock;
+			const EffectTree &mAST;
+			D3D10Effect *mEffect;
+			std::string mCurrentSource;
+			std::string mErrors;
+			bool mFatal;
+			std::string mCurrentGlobalConstants;
+			UINT mCurrentGlobalSize, mCurrentGlobalStorageSize;
+			std::string mCurrentBlockName;
+			bool mCurrentInParameterBlock, mCurrentInFunctionBlock;
 			std::unordered_map<std::string, Effect::Annotation> *mCurrentAnnotations;
-			std::vector<D3D10Technique::Pass> *					mCurrentPasses;
+			std::vector<D3D10Technique::Pass> *mCurrentPasses;
 		};
 
 		// -----------------------------------------------------------------------------------------------------
 
-		D3D10EffectContext::D3D10EffectContext(ID3D10Device *device, IDXGISwapChain *swapchain) : mDevice(device), mSwapChain(swapchain)
+		D3D10Runtime::D3D10Runtime(ID3D10Device *device, IDXGISwapChain *swapchain) : mDevice(device), mSwapChain(swapchain)
 		{
 			this->mDevice->AddRef();
 			this->mSwapChain->AddRef();
@@ -2221,15 +2218,15 @@ namespace ReShade
 			D3D10StateBlockMaskEnableAll(&mask);
 			D3D10CreateStateBlock(this->mDevice, &mask, &this->mStateBlock);
 		}
-		D3D10EffectContext::~D3D10EffectContext(void)
+		D3D10Runtime::~D3D10Runtime()
 		{
-			SAFE_RELEASE(this->mStateBlock);
+			this->mStateBlock->Release();
 
 			this->mDevice->Release();
 			this->mSwapChain->Release();
 		}
 
-		bool													D3D10EffectContext::OnCreate(unsigned int width, unsigned int height)
+		bool D3D10Runtime::OnCreate(unsigned int width, unsigned int height)
 		{
 			this->mSwapChain->GetBuffer(0, __uuidof(ID3D10Texture2D), reinterpret_cast<void **>(&this->mBackBuffer));
 
@@ -2252,19 +2249,19 @@ namespace ReShade
 
 			return Runtime::OnCreate(width, height);
 		}
-		void													D3D10EffectContext::OnDelete()
+		void D3D10Runtime::OnDelete()
 		{
 			Runtime::OnDelete();
 
 			nvgDeleteD3D10(this->mNVG);
 			this->mNVG = nullptr;
 
-			SAFE_RELEASE(this->mBackBufferTargets[0]);
-			SAFE_RELEASE(this->mBackBufferTargets[1]);
-			SAFE_RELEASE(this->mBackBufferTexture);
-			SAFE_RELEASE(this->mBackBuffer);
+			this->mBackBufferTargets[0]->Release();
+			this->mBackBufferTargets[1]->Release();
+			this->mBackBufferTexture->Release();
+			this->mBackBuffer->Release();
 		}
-		void													D3D10EffectContext::OnPresent()
+		void D3D10Runtime::OnPresent()
 		{
 			this->mStateBlock->Capture();
 
@@ -2278,7 +2275,7 @@ namespace ReShade
 			this->mStateBlock->Apply();
 		}
 
-		std::unique_ptr<Effect>									D3D10EffectContext::CreateEffect(const EffectTree &ast, std::string &errors) const
+		std::unique_ptr<Effect> D3D10Runtime::CreateEffect(const EffectTree &ast, std::string &errors) const
 		{
 			D3D10Effect *effect = new D3D10Effect(shared_from_this());
 			
@@ -2295,7 +2292,7 @@ namespace ReShade
 				return nullptr;
 			}
 		}
-		void													D3D10EffectContext::CreateScreenshot(unsigned char *buffer, std::size_t size) const
+		void D3D10Runtime::CreateScreenshot(unsigned char *buffer, std::size_t size) const
 		{
 			ID3D10Texture2D *backbuffer = nullptr;
 
@@ -2406,7 +2403,7 @@ namespace ReShade
 			textureStaging->Release();
 		}
 
-		D3D10Effect::D3D10Effect(std::shared_ptr<const D3D10EffectContext> context) : mEffectContext(context), mConstantsDirty(true)
+		D3D10Effect::D3D10Effect(std::shared_ptr<const D3D10Runtime> context) : mEffectContext(context), mConstantsDirty(true)
 		{
 			D3D10_TEXTURE2D_DESC dstdesc;
 			this->mEffectContext->mBackBuffer->GetDesc(&dstdesc);
@@ -2434,12 +2431,12 @@ namespace ReShade
 			rsdesc.DepthClipEnable = TRUE;
 			context->mDevice->CreateRasterizerState(&rsdesc, &this->mRasterizerState);
 		}
-		D3D10Effect::~D3D10Effect(void)
+		D3D10Effect::~D3D10Effect()
 		{
-			SAFE_RELEASE(this->mRasterizerState);
-			SAFE_RELEASE(this->mDepthStencil);
-			SAFE_RELEASE(this->mDepthStencilView);
-			SAFE_RELEASE(this->mDepthStencilTexture);
+			this->mRasterizerState->Release();
+			this->mDepthStencil->Release();
+			this->mDepthStencilView->Release();
+			this->mDepthStencilTexture->Release();
 
 			for (auto &it : this->mSamplerStates)
 			{
@@ -2448,7 +2445,10 @@ namespace ReShade
 			
 			for (auto &it : this->mConstantBuffers)
 			{
-				SAFE_RELEASE(it);
+				if (it != nullptr)
+				{
+					it->Release();
+				}
 			}
 			for (auto &it : this->mConstantStorages)
 			{
@@ -2456,7 +2456,7 @@ namespace ReShade
 			}
 		}
 
-		const Effect::Texture *									D3D10Effect::GetTexture(const std::string &name) const
+		const Effect::Texture *D3D10Effect::GetTexture(const std::string &name) const
 		{
 			auto it = this->mTextures.find(name);
 
@@ -2467,7 +2467,7 @@ namespace ReShade
 
 			return it->second.get();
 		}
-		std::vector<std::string>								D3D10Effect::GetTextureNames(void) const
+		std::vector<std::string> D3D10Effect::GetTextureNames() const
 		{
 			std::vector<std::string> names;
 			names.reserve(this->mTextures.size());
@@ -2479,7 +2479,7 @@ namespace ReShade
 
 			return names;
 		}
-		const Effect::Constant *								D3D10Effect::GetConstant(const std::string &name) const
+		const Effect::Constant *D3D10Effect::GetConstant(const std::string &name) const
 		{
 			auto it = this->mConstants.find(name);
 
@@ -2490,7 +2490,7 @@ namespace ReShade
 
 			return it->second.get();
 		}
-		std::vector<std::string>								D3D10Effect::GetConstantNames(void) const
+		std::vector<std::string> D3D10Effect::GetConstantNames() const
 		{
 			std::vector<std::string> names;
 			names.reserve(this->mConstants.size());
@@ -2502,7 +2502,7 @@ namespace ReShade
 
 			return names;
 		}
-		const Effect::Technique *								D3D10Effect::GetTechnique(const std::string &name) const
+		const Effect::Technique *D3D10Effect::GetTechnique(const std::string &name) const
 		{
 			auto it = this->mTechniques.find(name);
 
@@ -2513,7 +2513,7 @@ namespace ReShade
 
 			return it->second.get();
 		}
-		std::vector<std::string>								D3D10Effect::GetTechniqueNames(void) const
+		std::vector<std::string> D3D10Effect::GetTechniqueNames() const
 		{
 			std::vector<std::string> names;
 			names.reserve(this->mTechniques.size());
@@ -2526,7 +2526,7 @@ namespace ReShade
 			return names;
 		}
 
-		void													D3D10Effect::ApplyConstants(void) const
+		void D3D10Effect::ApplyConstants() const
 		{
 			for (size_t i = 0, count = this->mConstantBuffers.size(); i < count; ++i)
 			{
@@ -2561,20 +2561,30 @@ namespace ReShade
 		D3D10Texture::D3D10Texture(D3D10Effect *effect) : mEffect(effect), mTexture(nullptr), mShaderResourceView(), mRenderTargetView()
 		{
 		}
-		D3D10Texture::~D3D10Texture(void)
+		D3D10Texture::~D3D10Texture()
 		{
-			SAFE_RELEASE(this->mRenderTargetView[0]);
-			SAFE_RELEASE(this->mRenderTargetView[1]);
-			SAFE_RELEASE(this->mShaderResourceView[0]);
-			SAFE_RELEASE(this->mShaderResourceView[1]);
-			SAFE_RELEASE(this->mTexture);
+			this->mRenderTargetView[0]->Release();
+			
+			if (this->mRenderTargetView[1] != nullptr)
+			{
+				this->mRenderTargetView[1]->Release();
+			}
+
+			this->mShaderResourceView[0]->Release();
+			
+			if (this->mShaderResourceView[1] != nullptr)
+			{
+				this->mShaderResourceView[1]->Release();
+			}
+
+			this->mTexture->Release();
 		}
 
-		const Effect::Texture::Description						D3D10Texture::GetDescription(void) const
+		const Effect::Texture::Description D3D10Texture::GetDescription() const
 		{
 			return this->mDesc;
 		}
-		const Effect::Annotation								D3D10Texture::GetAnnotation(const std::string &name) const
+		const Effect::Annotation D3D10Texture::GetAnnotation(const std::string &name) const
 		{
 			auto it = this->mAnnotations.find(name);
 
@@ -2586,7 +2596,7 @@ namespace ReShade
 			return it->second;
 		}
 
-		void													D3D10Texture::Update(unsigned int level, const unsigned char *data, std::size_t size)
+		void D3D10Texture::Update(unsigned int level, const unsigned char *data, std::size_t size)
 		{
 			assert(data != nullptr || size == 0);
 
@@ -2594,7 +2604,7 @@ namespace ReShade
 
 			this->mEffect->mEffectContext->mDevice->UpdateSubresource(this->mTexture, level, nullptr, data, size / this->mDesc.Height, size);
 		}
-		void													D3D10Texture::UpdateFromColorBuffer(void)
+		void D3D10Texture::UpdateFromColorBuffer()
 		{
 			D3D10_TEXTURE2D_DESC desc;
 			this->mEffect->mEffectContext->mBackBufferTexture->GetDesc(&desc);
@@ -2608,22 +2618,22 @@ namespace ReShade
 				this->mEffect->mEffectContext->mDevice->ResolveSubresource(this->mTexture, 0, this->mEffect->mEffectContext->mBackBufferTexture, 0, desc.Format);
 			}
 		}
-		void													D3D10Texture::UpdateFromDepthBuffer(void)
+		void D3D10Texture::UpdateFromDepthBuffer()
 		{
 		}
 
 		D3D10Constant::D3D10Constant(D3D10Effect *effect) : mEffect(effect)
 		{
 		}
-		D3D10Constant::~D3D10Constant(void)
+		D3D10Constant::~D3D10Constant()
 		{
 		}
 
-		const Effect::Constant::Description						D3D10Constant::GetDescription(void) const
+		const Effect::Constant::Description D3D10Constant::GetDescription() const
 		{
 			return this->mDesc;
 		}
-		const Effect::Annotation								D3D10Constant::GetAnnotation(const std::string &name) const
+		const Effect::Annotation D3D10Constant::GetAnnotation(const std::string &name) const
 		{
 			auto it = this->mAnnotations.find(name);
 
@@ -2634,7 +2644,7 @@ namespace ReShade
 
 			return it->second;
 		}
-		void													D3D10Constant::GetValue(unsigned char *data, std::size_t size) const
+		void D3D10Constant::GetValue(unsigned char *data, std::size_t size) const
 		{
 			size = std::min(size, this->mDesc.Size);
 
@@ -2642,7 +2652,7 @@ namespace ReShade
 
 			std::memcpy(data, storage, size);
 		}
-		void													D3D10Constant::SetValue(const unsigned char *data, std::size_t size)
+		void D3D10Constant::SetValue(const unsigned char *data, std::size_t size)
 		{
 			size = std::min(size, this->mDesc.Size);
 
@@ -2661,18 +2671,25 @@ namespace ReShade
 		D3D10Technique::D3D10Technique(D3D10Effect *effect) : mEffect(effect)
 		{
 		}
-		D3D10Technique::~D3D10Technique(void)
+		D3D10Technique::~D3D10Technique()
 		{
 			for (auto &pass : this->mPasses)
 			{
-				SAFE_RELEASE(pass.VS);
-				SAFE_RELEASE(pass.PS);
-				SAFE_RELEASE(pass.BS);
-				SAFE_RELEASE(pass.DSS);
+				if (pass.VS != nullptr)
+				{
+					pass.VS->Release();
+				}
+				if (pass.PS != nullptr)
+				{
+					pass.PS->Release();
+				}
+
+				pass.BS->Release();
+				pass.DSS->Release();
 			}
 		}
 
-		const Effect::Annotation								D3D10Technique::GetAnnotation(const std::string &name) const
+		const Effect::Annotation D3D10Technique::GetAnnotation(const std::string &name) const
 		{
 			auto it = this->mAnnotations.find(name);
 
@@ -2684,7 +2701,7 @@ namespace ReShade
 			return it->second;
 		}
 
-		bool													D3D10Technique::Begin(unsigned int &passes) const
+		bool D3D10Technique::Begin(unsigned int &passes) const
 		{
 			passes = static_cast<unsigned int>(this->mPasses.size());
 
@@ -2712,18 +2729,24 @@ namespace ReShade
 
 			return true;
 		}
-		void													D3D10Technique::End(void) const
+		void D3D10Technique::End() const
 		{
 			this->mEffect->mEffectContext->mDevice->OMSetRenderTargets(D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, this->mEffect->mStateBlockTargets, this->mEffect->mStateBlockDepthStencil);
 
 			for (UINT i = 0; i < D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT; ++i)
 			{
-				SAFE_RELEASE(this->mEffect->mStateBlockTargets[i]);
+				if (this->mEffect->mStateBlockTargets[i] != nullptr)
+				{
+					this->mEffect->mStateBlockTargets[i]->Release();
+				}
 			}
 
-			SAFE_RELEASE(this->mEffect->mStateBlockDepthStencil);
+			if (this->mEffect->mStateBlockDepthStencil != nullptr)
+			{
+				this->mEffect->mStateBlockDepthStencil->Release();
+			}
 		}
-		void													D3D10Technique::RenderPass(unsigned int index) const
+		void D3D10Technique::RenderPass(unsigned int index) const
 		{
 			if (this->mEffect->mConstantsDirty)
 			{
@@ -2779,10 +2802,10 @@ namespace ReShade
 
 	// -----------------------------------------------------------------------------------------------------
 
-	std::shared_ptr<Runtime>									CreateEffectRuntime(ID3D10Device *device, IDXGISwapChain *swapchain)
+	std::shared_ptr<Runtime> CreateEffectRuntime(ID3D10Device *device, IDXGISwapChain *swapchain)
 	{
 		assert (device != nullptr && swapchain != nullptr);
 
-		return std::make_shared<D3D10EffectContext>(device, swapchain);
+		return std::make_shared<D3D10Runtime>(device, swapchain);
 	}
 }

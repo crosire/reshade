@@ -225,6 +225,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="src\Effect.cpp" />
+    <ClCompile Include="src\EffectPreprocessor.cpp" />
     <ClCompile Include="src\FileWatcher.cpp" />
     <ClCompile Include="src\Runtimes\EffectRuntimeD3D9.cpp" />
     <ClCompile Include="src\Runtimes\EffectRuntimeD3D10.cpp" />

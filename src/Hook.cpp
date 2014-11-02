@@ -7,10 +7,10 @@ namespace ReHook
 {
 	namespace
 	{
-		unsigned long											sCounter = 0;
+		unsigned long sCounter = 0;
 	}
 
-	Hook														Hook::Install(Hook::Function target, const Hook::Function replacement)
+	Hook Hook::Install(Hook::Function target, const Hook::Function replacement)
 	{
 		assert(target != nullptr);
 		assert(replacement != nullptr);
@@ -40,7 +40,7 @@ namespace ReHook
 
 		return hook;
 	}
-	bool														Hook::Uninstall(Hook &hook)
+	bool Hook::Uninstall(Hook &hook)
 	{
 		assert(hook.IsInstalled());
 
@@ -65,7 +65,7 @@ namespace ReHook
 		return true;
 	}
 
-	bool														Hook::IsEnabled(void) const
+	bool Hook::IsEnabled() const
 	{
 		assert(IsInstalled());
 
@@ -82,19 +82,19 @@ namespace ReHook
 			return false;
 		}
 	}
-	bool														Hook::IsInstalled(void) const
+	bool Hook::IsInstalled() const
 	{
 		return this->mTrampoline != nullptr;
 	}
 
-	Hook::Function												Hook::Call(void) const
+	Hook::Function Hook::Call() const
 	{
 		assert(IsInstalled());
 
 		return this->mTrampoline;
 	}
 
-	bool														Hook::Enable(bool enable)
+	bool Hook::Enable(bool enable)
 	{
 		if (enable)
 		{

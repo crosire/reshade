@@ -30,66 +30,61 @@
 
 	namespace ReShade
 	{
-		class													EffectParser
+		class EffectParser
 		{
-			public:
-				typedef unsigned int							Scope;
+		public:
+			typedef unsigned int Scope;
 
-			public:
-				EffectParser(EffectTree &ast);
-				~EffectParser(void);
+		public:
+			EffectParser(EffectTree &ast);
+			~EffectParser();
 
-				inline bool										Parse(const std::string &source)
-				{
-					std::string errors;
-					return Parse(source, errors);
-				}
-				bool											Parse(const std::string &source, std::string &errors);
+			inline bool Parse(const std::string &source)
+			{
+				std::string errors;
+				return Parse(source, errors);
+			}
+			bool Parse(const std::string &source, std::string &errors);
 
-				void											Error(const YYLTYPE &location, unsigned int code, const char *message, ...);
-				void											Warning(const YYLTYPE &location, unsigned int code, const char *message, ...);
+			void Error(const YYLTYPE &location, unsigned int code, const char *message, ...);
+			void Warning(const YYLTYPE &location, unsigned int code, const char *message, ...);
 
-			public:
-				inline std::vector<std::string>					GetPragmas(void) const
-				{
-					return this->mPragmas;
-				}
-				Scope											GetCurrentScope(void) const;
-				EffectTree::Index								GetCurrentParent(void) const;
-				inline EffectTree::Index						FindSymbol(const std::string &name) const
-				{
-					return FindSymbol(name, GetCurrentScope(), false);
-				}
-				EffectTree::Index 								FindSymbol(const std::string &name, Scope scope, bool exclusive = false) const;
-				bool											ResolveCall(EffectNodes::Call &call, bool &intrinsic, bool &ambiguous) const;
+		public:
+			inline std::vector<std::string> GetPragmas() const
+			{
+				return this->mPragmas;
+			}
+			Scope GetCurrentScope() const;
+			EffectTree::Index GetCurrentParent() const;
+			inline EffectTree::Index FindSymbol(const std::string &name) const
+			{
+				return FindSymbol(name, GetCurrentScope(), false);
+			}
+			EffectTree::Index FindSymbol(const std::string &name, Scope scope, bool exclusive = false) const;
+			bool ResolveCall(EffectNodes::Call &call, bool &intrinsic, bool &ambiguous) const;
 			
-				void 											PushScope(EffectTree::Index parent = EffectTree::Null);
-				bool											PushSymbol(EffectTree::Index symbol);
-				void 											PopScope(void);
+			void PushScope(EffectTree::Index parent = EffectTree::Null);
+			bool PushSymbol(EffectTree::Index symbol);
+			void PopScope();
 
-			public:
-				EffectTree &									mAST;
-				void *											mLexer;
-				void *											mParser;
-				int												mNextLexerState;
-				std::vector<std::string>						mPragmas;
+		public:
+			EffectTree &mAST;
+			void *mLexer;
+			void *mParser;
+			int mNextLexerState;
+			std::vector<std::string> mPragmas;
 
-			private:
-				std::string										mErrors;
-				unsigned int									mErrorsCount;
-				Scope											mCurrentScope;
-				std::stack<EffectTree::Index>					mParentStack;
-				std::unordered_map<
-					std::string,
-					std::vector<
-						std::pair<Scope, EffectTree::Index>
-					>
-				>												mSymbolStack;
+		private:
+			std::string mErrors;
+			unsigned int mErrorsCount;
+			Scope mCurrentScope;
+			std::stack<EffectTree::Index> mParentStack;
+			std::unordered_map<std::string, std::vector<std::pair<Scope, EffectTree::Index>>> mSymbolStack;
 
-			private:
-				EffectParser(const EffectParser &);
+		private:
+			EffectParser(const EffectParser &);
 		
-				void 											operator =(const EffectParser &);
+			void operator =(const EffectParser &);
 		};
 	}
 }
@@ -133,19 +128,19 @@
 	{
 		union
 		{
-			bool												Bool;
-			int													Int;
-			unsigned int										Uint;
-			float												Float;
-			struct { const char *p; std::size_t len; } 			String;
+			bool Bool;
+			int Int;
+			unsigned int Uint;
+			float Float;
+			struct { const char *p; std::size_t len; } String;
 		};
 
-		ReShade::EffectTree::Index								Node;
-		ReShade::EffectNodes::Type								Type;
+		ReShade::EffectTree::Index Node;
+		ReShade::EffectNodes::Type Type;
 	} l;
 	struct
 	{
-		ReShade::EffectTree::Index								Index, States[ReShade::EffectNodes::Pass::StateCount], Properties[ReShade::EffectNodes::Variable::PropertyCount];
+		ReShade::EffectTree::Index Index, States[ReShade::EffectNodes::Pass::StateCount], Properties[ReShade::EffectNodes::Variable::PropertyCount];
 	} y;
 }
 
@@ -3230,7 +3225,7 @@ namespace ReShade
 		// Add root node
 		this->mAST.Add<EffectNodes::List>();
 	}
-	EffectParser::~EffectParser(void)
+	EffectParser::~EffectParser()
 	{
 		if (this->mLexer != nullptr)
 		{
@@ -3238,7 +3233,7 @@ namespace ReShade
 		}
 	}
 
-	bool 														EffectParser::Parse(const std::string &source, std::string &errors)
+	bool EffectParser::Parse(const std::string &source, std::string &errors)
 	{
 		if (this->mLexer == nullptr)
 		{
@@ -3272,7 +3267,7 @@ namespace ReShade
 		return res;
 	}
 
-	void														EffectParser::Error(const YYLTYPE &location, unsigned int code, const char *message, ...)
+	void EffectParser::Error(const YYLTYPE &location, unsigned int code, const char *message, ...)
 	{
 		if (location.Source != nullptr)
 		{
@@ -3305,7 +3300,7 @@ namespace ReShade
 
 		++this->mErrorsCount;
 	}
-	void														EffectParser::Warning(const YYLTYPE &location, unsigned int code, const char *message, ...)
+	void EffectParser::Warning(const YYLTYPE &location, unsigned int code, const char *message, ...)
 	{
 		if (location.Source != nullptr)
 		{
@@ -3337,15 +3332,15 @@ namespace ReShade
 		this->mErrors += '\n';
 	}
 
-	EffectParser::Scope											EffectParser::GetCurrentScope(void) const
+	EffectParser::Scope EffectParser::GetCurrentScope() const
 	{
 		return this->mCurrentScope;
 	}
-	EffectTree::Index											EffectParser::GetCurrentParent(void) const
+	EffectTree::Index EffectParser::GetCurrentParent() const
 	{
 		return !this->mParentStack.empty() ? this->mParentStack.top() : EffectTree::Null;
 	}
-	EffectTree::Index 											EffectParser::FindSymbol(const std::string &name, Scope scope, bool exclusive) const
+	EffectTree::Index EffectParser::FindSymbol(const std::string &name, Scope scope, bool exclusive) const
 	{
 		const auto it = this->mSymbolStack.find(name);
 	
@@ -3383,7 +3378,7 @@ namespace ReShade
 		return result;
 	}
 
-	void														EffectParser::PushScope(EffectTree::Index parent)
+	void EffectParser::PushScope(EffectTree::Index parent)
 	{
 		if (parent != EffectTree::Null || this->mParentStack.empty())
 		{
@@ -3396,7 +3391,7 @@ namespace ReShade
 
 		++this->mCurrentScope;
 	}
-	bool														EffectParser::PushSymbol(EffectTree::Index symbol)
+	bool EffectParser::PushSymbol(EffectTree::Index symbol)
 	{
 		std::string name;
 		const EffectTree::Node &node = this->mAST[symbol];
@@ -3427,7 +3422,7 @@ namespace ReShade
 
 		return true;
 	}
-	void 														EffectParser::PopScope(void)
+	void EffectParser::PopScope()
 	{
 		for (auto it = this->mSymbolStack.begin(), end = this->mSymbolStack.end(); it != end; ++it)
 		{

@@ -81,64 +81,64 @@ namespace
 			{
 				this->CS.Enter();
 			}
-			inline ~Lock(void)
+			inline ~Lock()
 			{
 				this->CS.Leave();
 			}
 
-			CriticalSection &									CS;
+			CriticalSection &CS;
 
 		private:
-			void												operator =(const Lock &);
+			void operator =(const Lock &);
 		};
 
 	public:
-		inline CriticalSection(void)
+		inline CriticalSection()
 		{
 			::InitializeCriticalSection(&this->mCS);
 		}
-		inline ~CriticalSection(void)
+		inline ~CriticalSection()
 		{
 			::DeleteCriticalSection(&this->mCS);
 		}
 
-		inline void												Enter(void)
+		inline void Enter()
 		{
 			::EnterCriticalSection(&this->mCS);
 		}
-		inline void												Leave(void)
+		inline void Leave()
 		{
 			::LeaveCriticalSection(&this->mCS);
 		}
 
 	private:
-		CRITICAL_SECTION										mCS;
+		CRITICAL_SECTION mCS;
 	};
 	
-	std::unordered_map<HGLRC, std::shared_ptr<ReShade::Runtime>> sManagers;
-	std::unordered_map<HGLRC, HDC>								sDeviceContexts;
-	std::unordered_map<HWND, RECT>								sWindowRects;
-	CriticalSection												sCS;
+	__declspec(thread) HDC sCurrentDeviceContext = nullptr;
+	__declspec(thread) HGLRC sCurrentRenderContext = nullptr;
 
-	std::unordered_map<HDC, ReShade::Runtime *>					sCurrentManagers;
-	__declspec(thread) HGLRC									sCurrentRenderContext = nullptr;
-	__declspec(thread) HDC										sCurrentDeviceContext = nullptr;
+	CriticalSection sCS;
+	std::unordered_map<HWND, RECT> sWindowRects;
+	std::unordered_map<HGLRC, HDC> sDeviceContexts;
+	std::unordered_map<HGLRC, std::shared_ptr<ReShade::Runtime>> sManagers;
+	std::unordered_map<HDC, ReShade::Runtime *> sCurrentManagers;
 }
 namespace ReShade
 {
-	extern std::shared_ptr<ReShade::Runtime>					CreateEffectRuntime(HDC hdc, HGLRC hglrc);
+	extern std::shared_ptr<ReShade::Runtime> CreateEffectRuntime(HDC hdc, HGLRC hglrc);
 }
 
 // -----------------------------------------------------------------------------------------------------
 
 // GL
-EXPORT void WINAPI												glAccum(GLenum op, GLfloat value)
+EXPORT void WINAPI glAccum(GLenum op, GLfloat value)
 {
 	static const auto trampoline = ReHook::Call(&glAccum);
 
 	trampoline(op, value);
 }
-EXPORT void WINAPI												glAlphaFunc(GLenum func, GLclampf ref)
+EXPORT void WINAPI glAlphaFunc(GLenum func, GLclampf ref)
 {
 	static const auto trampoline = ReHook::Call(&glAlphaFunc);
 
@@ -157,697 +157,697 @@ EXPORT void WINAPI												glAlphaFunc(GLenum func, GLclampf ref)
 
 	trampoline(func, ref);
 }
-EXPORT GLboolean WINAPI											glAreTexturesResident(GLsizei n, const GLuint *textures, GLboolean *residences)
+EXPORT GLboolean WINAPI glAreTexturesResident(GLsizei n, const GLuint *textures, GLboolean *residences)
 {
 	static const auto trampoline = ReHook::Call(&glAreTexturesResident);
 
 	return trampoline(n, textures, residences);
 }
-EXPORT void WINAPI												glArrayElement(GLint i)
+EXPORT void WINAPI glArrayElement(GLint i)
 {
 	static const auto trampoline = ReHook::Call(&glArrayElement);
 
 	trampoline(i);
 }
-EXPORT void WINAPI												glBegin(GLenum mode)
+EXPORT void WINAPI glBegin(GLenum mode)
 {
 	static const auto trampoline = ReHook::Call(&glBegin);
 
 	trampoline(mode);
 }
-EXPORT void WINAPI												glBindTexture(GLenum target, GLuint texture)
+EXPORT void WINAPI glBindTexture(GLenum target, GLuint texture)
 {
 	static const auto trampoline = ReHook::Call(&glBindTexture);
 
 	trampoline(target, texture);
 }
-EXPORT void WINAPI												glBitmap(GLsizei width, GLsizei height, GLfloat xorig, GLfloat yorig, GLfloat xmove, GLfloat ymove, const GLubyte *bitmap)
+EXPORT void WINAPI glBitmap(GLsizei width, GLsizei height, GLfloat xorig, GLfloat yorig, GLfloat xmove, GLfloat ymove, const GLubyte *bitmap)
 {
 	static const auto trampoline = ReHook::Call(&glBitmap);
 
 	trampoline(width, height, xorig, yorig, xmove, ymove, bitmap);
 }
-EXPORT void WINAPI												glBlendFunc(GLenum sfactor, GLenum dfactor)
+EXPORT void WINAPI glBlendFunc(GLenum sfactor, GLenum dfactor)
 {
 	static const auto trampoline = ReHook::Call(&glBlendFunc);
 
 	trampoline(sfactor, dfactor);
 }
-EXPORT void WINAPI												glCallList(GLuint list)
+EXPORT void WINAPI glCallList(GLuint list)
 {
 	static const auto trampoline = ReHook::Call(&glCallList);
 
 	trampoline(list);
 }
-EXPORT void WINAPI												glCallLists(GLsizei n, GLenum type, const GLvoid *lists)
+EXPORT void WINAPI glCallLists(GLsizei n, GLenum type, const GLvoid *lists)
 {
 	static const auto trampoline = ReHook::Call(&glCallLists);
 
 	trampoline(n, type, lists);
 }
-EXPORT void WINAPI												glClear(GLbitfield mask)
+EXPORT void WINAPI glClear(GLbitfield mask)
 {
 	static const auto trampoline = ReHook::Call(&glClear);
 
 	trampoline(mask);
 }
-EXPORT void WINAPI												glClearAccum(GLfloat red, GLfloat green, GLfloat blue, GLfloat alpha)
+EXPORT void WINAPI glClearAccum(GLfloat red, GLfloat green, GLfloat blue, GLfloat alpha)
 {
 	static const auto trampoline = ReHook::Call(&glClearAccum);
 
 	trampoline(red, green, blue, alpha);
 }
-EXPORT void WINAPI												glClearColor(GLclampf red, GLclampf green, GLclampf blue, GLclampf alpha)
+EXPORT void WINAPI glClearColor(GLclampf red, GLclampf green, GLclampf blue, GLclampf alpha)
 {
 	static const auto trampoline = ReHook::Call(&glClearColor);
 
 	trampoline(red, green, blue, alpha);
 }
-EXPORT void WINAPI												glClearDepth(GLclampd depth)
+EXPORT void WINAPI glClearDepth(GLclampd depth)
 {
 	static const auto trampoline = ReHook::Call(&glClearDepth);
 
 	trampoline(depth);
 }
-EXPORT void WINAPI												glClearIndex(GLfloat c)
+EXPORT void WINAPI glClearIndex(GLfloat c)
 {
 	static const auto trampoline = ReHook::Call(&glClearIndex);
 
 	trampoline(c);
 }
-EXPORT void WINAPI												glClearStencil(GLint s)
+EXPORT void WINAPI glClearStencil(GLint s)
 {
 	static const auto trampoline = ReHook::Call(&glClearStencil);
 
 	trampoline(s);
 }
-EXPORT void WINAPI												glClipPlane(GLenum plane, const GLdouble *equation)
+EXPORT void WINAPI glClipPlane(GLenum plane, const GLdouble *equation)
 {
 	static const auto trampoline = ReHook::Call(&glClipPlane);
 
 	trampoline(plane, equation);
 }
-EXPORT void WINAPI												glColor3b(GLbyte red, GLbyte green, GLbyte blue)
+EXPORT void WINAPI glColor3b(GLbyte red, GLbyte green, GLbyte blue)
 {
 	static const auto trampoline = ReHook::Call(&glColor3b);
 
 	trampoline(red, green, blue);
 }
-EXPORT void WINAPI												glColor3bv(const GLbyte *v)
+EXPORT void WINAPI glColor3bv(const GLbyte *v)
 {
 	static const auto trampoline = ReHook::Call(&glColor3bv);
 
 	trampoline(v);
 }
-EXPORT void WINAPI												glColor3d(GLdouble red, GLdouble green, GLdouble blue)
+EXPORT void WINAPI glColor3d(GLdouble red, GLdouble green, GLdouble blue)
 {
 	static const auto trampoline = ReHook::Call(&glColor3d);
 
 	trampoline(red, green, blue);
 }
-EXPORT void WINAPI												glColor3dv(const GLdouble *v)
+EXPORT void WINAPI glColor3dv(const GLdouble *v)
 {
 	static const auto trampoline = ReHook::Call(&glColor3dv);
 
 	trampoline(v);
 }
-EXPORT void WINAPI												glColor3f(GLfloat red, GLfloat green, GLfloat blue)
+EXPORT void WINAPI glColor3f(GLfloat red, GLfloat green, GLfloat blue)
 {
 	static const auto trampoline = ReHook::Call(&glColor3f);
 
 	trampoline(red, green, blue);
 }
-EXPORT void WINAPI												glColor3fv(const GLfloat *v)
+EXPORT void WINAPI glColor3fv(const GLfloat *v)
 {
 	static const auto trampoline = ReHook::Call(&glColor3fv);
 
 	trampoline(v);
 }
-EXPORT void WINAPI												glColor3i(GLint red, GLint green, GLint blue)
+EXPORT void WINAPI glColor3i(GLint red, GLint green, GLint blue)
 {
 	static const auto trampoline = ReHook::Call(&glColor3i);
 
 	trampoline(red, green, blue);
 }
-EXPORT void WINAPI												glColor3iv(const GLint *v)
+EXPORT void WINAPI glColor3iv(const GLint *v)
 {
 	static const auto trampoline = ReHook::Call(&glColor3iv);
 
 	trampoline(v);
 }
-EXPORT void WINAPI												glColor3s(GLshort red, GLshort green, GLshort blue)
+EXPORT void WINAPI glColor3s(GLshort red, GLshort green, GLshort blue)
 {
 	static const auto trampoline = ReHook::Call(&glColor3s);
 
 	trampoline(red, green, blue);
 }
-EXPORT void WINAPI												glColor3sv(const GLshort *v)
+EXPORT void WINAPI glColor3sv(const GLshort *v)
 {
 	static const auto trampoline = ReHook::Call(&glColor3sv);
 
 	trampoline(v);
 }
-EXPORT void WINAPI												glColor3ub(GLubyte red, GLubyte green, GLubyte blue)
+EXPORT void WINAPI glColor3ub(GLubyte red, GLubyte green, GLubyte blue)
 {
 	static const auto trampoline = ReHook::Call(&glColor3ub);
 
 	trampoline(red, green, blue);
 }
-EXPORT void WINAPI												glColor3ubv(const GLubyte *v)
+EXPORT void WINAPI glColor3ubv(const GLubyte *v)
 {
 	static const auto trampoline = ReHook::Call(&glColor3ubv);
 
 	trampoline(v);
 }
-EXPORT void WINAPI												glColor3ui(GLuint red, GLuint green, GLuint blue)
+EXPORT void WINAPI glColor3ui(GLuint red, GLuint green, GLuint blue)
 {
 	static const auto trampoline = ReHook::Call(&glColor3ui);
 
 	trampoline(red, green, blue);
 }
-EXPORT void WINAPI												glColor3uiv(const GLuint *v)
+EXPORT void WINAPI glColor3uiv(const GLuint *v)
 {
 	static const auto trampoline = ReHook::Call(&glColor3uiv);
 
 	trampoline(v);
 }
-EXPORT void WINAPI												glColor3us(GLushort red, GLushort green, GLushort blue)
+EXPORT void WINAPI glColor3us(GLushort red, GLushort green, GLushort blue)
 {
 	static const auto trampoline = ReHook::Call(&glColor3us);
 
 	trampoline(red, green, blue);
 }
-EXPORT void WINAPI												glColor3usv(const GLushort *v)
+EXPORT void WINAPI glColor3usv(const GLushort *v)
 {
 	static const auto trampoline = ReHook::Call(&glColor3usv);
 
 	trampoline(v);
 }
-EXPORT void WINAPI												glColor4b(GLbyte red, GLbyte green, GLbyte blue, GLbyte alpha)
+EXPORT void WINAPI glColor4b(GLbyte red, GLbyte green, GLbyte blue, GLbyte alpha)
 {
 	static const auto trampoline = ReHook::Call(&glColor4b);
 
 	trampoline(red, green, blue, alpha);
 }
-EXPORT void WINAPI												glColor4bv(const GLbyte *v)
+EXPORT void WINAPI glColor4bv(const GLbyte *v)
 {
 	static const auto trampoline = ReHook::Call(&glColor4bv);
 
 	trampoline(v);
 }
-EXPORT void WINAPI												glColor4d(GLdouble red, GLdouble green, GLdouble blue, GLdouble alpha)
+EXPORT void WINAPI glColor4d(GLdouble red, GLdouble green, GLdouble blue, GLdouble alpha)
 {
 	static const auto trampoline = ReHook::Call(&glColor4d);
 
 	trampoline(red, green, blue, alpha);
 }
-EXPORT void WINAPI												glColor4dv(const GLdouble *v)
+EXPORT void WINAPI glColor4dv(const GLdouble *v)
 {
 	static const auto trampoline = ReHook::Call(&glColor4dv);
 
 	trampoline(v);
 }
-EXPORT void WINAPI												glColor4f(GLfloat red, GLfloat green, GLfloat blue, GLfloat alpha)
+EXPORT void WINAPI glColor4f(GLfloat red, GLfloat green, GLfloat blue, GLfloat alpha)
 {
 	static const auto trampoline = ReHook::Call(&glColor4f);
 
 	trampoline(red, green, blue, alpha);
 }
-EXPORT void WINAPI												glColor4fv(const GLfloat *v)
+EXPORT void WINAPI glColor4fv(const GLfloat *v)
 {
 	static const auto trampoline = ReHook::Call(&glColor4fv);
 
 	trampoline(v);
 }
-EXPORT void WINAPI												glColor4i(GLint red, GLint green, GLint blue, GLint alpha)
+EXPORT void WINAPI glColor4i(GLint red, GLint green, GLint blue, GLint alpha)
 {
 	static const auto trampoline = ReHook::Call(&glColor4i);
 
 	trampoline(red, green, blue, alpha);
 }
-EXPORT void WINAPI												glColor4iv(const GLint *v)
+EXPORT void WINAPI glColor4iv(const GLint *v)
 {
 	static const auto trampoline = ReHook::Call(&glColor4iv);
 
 	trampoline(v);
 }
-EXPORT void WINAPI												glColor4s(GLshort red, GLshort green, GLshort blue, GLshort alpha)
+EXPORT void WINAPI glColor4s(GLshort red, GLshort green, GLshort blue, GLshort alpha)
 {
 	static const auto trampoline = ReHook::Call(&glColor4s);
 
 	trampoline(red, green, blue, alpha);
 }
-EXPORT void WINAPI												glColor4sv(const GLshort *v)
+EXPORT void WINAPI glColor4sv(const GLshort *v)
 {
 	static const auto trampoline = ReHook::Call(&glColor4sv);
 
 	trampoline(v);
 }
-EXPORT void WINAPI												glColor4ub(GLubyte red, GLubyte green, GLubyte blue, GLubyte alpha)
+EXPORT void WINAPI glColor4ub(GLubyte red, GLubyte green, GLubyte blue, GLubyte alpha)
 {
 	static const auto trampoline = ReHook::Call(&glColor4ub);
 
 	trampoline(red, green, blue, alpha);
 }
-EXPORT void WINAPI												glColor4ubv(const GLubyte *v)
+EXPORT void WINAPI glColor4ubv(const GLubyte *v)
 {
 	static const auto trampoline = ReHook::Call(&glColor4ubv);
 
 	trampoline(v);
 }
-EXPORT void WINAPI												glColor4ui(GLuint red, GLuint green, GLuint blue, GLuint alpha)
+EXPORT void WINAPI glColor4ui(GLuint red, GLuint green, GLuint blue, GLuint alpha)
 {
 	static const auto trampoline = ReHook::Call(&glColor4ui);
 
 	trampoline(red, green, blue, alpha);
 }
-EXPORT void WINAPI												glColor4uiv(const GLuint *v)
+EXPORT void WINAPI glColor4uiv(const GLuint *v)
 {
 	static const auto trampoline = ReHook::Call(&glColor4uiv);
 
 	trampoline(v);
 }
-EXPORT void WINAPI												glColor4us(GLushort red, GLushort green, GLushort blue, GLushort alpha)
+EXPORT void WINAPI glColor4us(GLushort red, GLushort green, GLushort blue, GLushort alpha)
 {
 	static const auto trampoline = ReHook::Call(&glColor4us);
 
 	trampoline(red, green, blue, alpha);
 }
-EXPORT void WINAPI												glColor4usv(const GLushort *v)
+EXPORT void WINAPI glColor4usv(const GLushort *v)
 {
 	static const auto trampoline = ReHook::Call(&glColor4usv);
 
 	trampoline(v);
 }
-EXPORT void WINAPI												glColorMask(GLboolean red, GLboolean green, GLboolean blue, GLboolean alpha)
+EXPORT void WINAPI glColorMask(GLboolean red, GLboolean green, GLboolean blue, GLboolean alpha)
 {
 	static const auto trampoline = ReHook::Call(&glColorMask);
 
 	trampoline(red, green, blue, alpha);
 }
-EXPORT void WINAPI												glColorMaterial(GLenum face, GLenum mode)
+EXPORT void WINAPI glColorMaterial(GLenum face, GLenum mode)
 {
 	static const auto trampoline = ReHook::Call(&glColorMaterial);
 
 	trampoline(face, mode);
 }
-EXPORT void WINAPI												glColorPointer(GLint size, GLenum type, GLsizei stride, const GLvoid *pointer)
+EXPORT void WINAPI glColorPointer(GLint size, GLenum type, GLsizei stride, const GLvoid *pointer)
 {
 	static const auto trampoline = ReHook::Call(&glColorPointer);
 
 	trampoline(size, type, stride, pointer);
 }
-EXPORT void WINAPI												glCopyPixels(GLint x, GLint y, GLsizei width, GLsizei height, GLenum type)
+EXPORT void WINAPI glCopyPixels(GLint x, GLint y, GLsizei width, GLsizei height, GLenum type)
 {
 	static const auto trampoline = ReHook::Call(&glCopyPixels);
 
 	trampoline(x, y, width, height, type);
 }
-EXPORT void WINAPI												glCopyTexImage1D(GLenum target, GLint level, GLenum internalFormat, GLint x, GLint y, GLsizei width, GLint border)
+EXPORT void WINAPI glCopyTexImage1D(GLenum target, GLint level, GLenum internalFormat, GLint x, GLint y, GLsizei width, GLint border)
 {
 	static const auto trampoline = ReHook::Call(&glCopyTexImage1D);
 
 	trampoline(target, level, internalFormat, x, y, width, border);
 }
-EXPORT void WINAPI												glCopyTexImage2D(GLenum target, GLint level, GLenum internalFormat, GLint x, GLint y, GLsizei width, GLsizei height, GLint border)
+EXPORT void WINAPI glCopyTexImage2D(GLenum target, GLint level, GLenum internalFormat, GLint x, GLint y, GLsizei width, GLsizei height, GLint border)
 {
 	static const auto trampoline = ReHook::Call(&glCopyTexImage2D);
 
 	trampoline(target, level, internalFormat, x, y, width, height, border);
 }
-EXPORT void WINAPI												glCopyTexSubImage1D(GLenum target, GLint level, GLint xoffset, GLint x, GLint y, GLsizei width)
+EXPORT void WINAPI glCopyTexSubImage1D(GLenum target, GLint level, GLint xoffset, GLint x, GLint y, GLsizei width)
 {
 	static const auto trampoline = ReHook::Call(&glCopyTexSubImage1D);
 
 	trampoline(target, level, xoffset, x, y, width);
 }
-EXPORT void WINAPI												glCopyTexSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint x, GLint y, GLsizei width, GLsizei height)
+EXPORT void WINAPI glCopyTexSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint x, GLint y, GLsizei width, GLsizei height)
 {
 	static const auto trampoline = ReHook::Call(&glCopyTexSubImage2D);
 
 	trampoline(target, level, xoffset, yoffset, x, y, width, height);
 }
-EXPORT void WINAPI												glCullFace(GLenum mode)
+EXPORT void WINAPI glCullFace(GLenum mode)
 {
 	static const auto trampoline = ReHook::Call(&glCullFace);
 
 	trampoline(mode);
 }
-EXPORT void WINAPI												glDeleteLists(GLuint list, GLsizei range)
+EXPORT void WINAPI glDeleteLists(GLuint list, GLsizei range)
 {
 	static const auto trampoline = ReHook::Call(&glDeleteLists);
 
 	trampoline(list, range);
 }
-EXPORT void WINAPI												glDeleteTextures(GLsizei n, const GLuint *textures)
+EXPORT void WINAPI glDeleteTextures(GLsizei n, const GLuint *textures)
 {
 	static const auto trampoline = ReHook::Call(&glDeleteTextures);
 
 	trampoline(n, textures);
 }
-EXPORT void WINAPI												glDepthFunc(GLenum func)
+EXPORT void WINAPI glDepthFunc(GLenum func)
 {
 	static const auto trampoline = ReHook::Call(&glDepthFunc);
 
 	trampoline(func);
 }
-EXPORT void WINAPI												glDepthMask(GLboolean flag)
+EXPORT void WINAPI glDepthMask(GLboolean flag)
 {
 	static const auto trampoline = ReHook::Call(&glDepthMask);
 
 	trampoline(flag);
 }
-EXPORT void WINAPI												glDepthRange(GLclampd zNear, GLclampd zFar)
+EXPORT void WINAPI glDepthRange(GLclampd zNear, GLclampd zFar)
 {
 	static const auto trampoline = ReHook::Call(&glDepthRange);
 
 	trampoline(zNear, zFar);
 }
-EXPORT void WINAPI												glDisable(GLenum cap)
+EXPORT void WINAPI glDisable(GLenum cap)
 {
 	static const auto trampoline = ReHook::Call(&glDisable);
 
 	trampoline(cap);
 }
-EXPORT void WINAPI												glDisableClientState(GLenum array)
+EXPORT void WINAPI glDisableClientState(GLenum array)
 {
 	static const auto trampoline = ReHook::Call(&glDisableClientState);
 
 	trampoline(array);
 }
-EXPORT void WINAPI												glDrawArrays(GLenum mode, GLint first, GLsizei count)
+EXPORT void WINAPI glDrawArrays(GLenum mode, GLint first, GLsizei count)
 {
 	static const auto trampoline = ReHook::Call(&glDrawArrays);
 
 	trampoline(mode, first, count);
 }
-EXPORT void WINAPI												glDrawBuffer(GLenum mode)
+EXPORT void WINAPI glDrawBuffer(GLenum mode)
 {
 	static const auto trampoline = ReHook::Call(&glDrawBuffer);
 
 	trampoline(mode);
 }
-EXPORT void WINAPI												glDrawElements(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices)
+EXPORT void WINAPI glDrawElements(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices)
 {
 	static const auto trampoline = ReHook::Call(&glDrawElements);
 
 	trampoline(mode, count, type, indices);
 }
-EXPORT void WINAPI												glDrawPixels(GLsizei width, GLsizei height, GLenum format, GLenum type, const GLvoid *pixels)
+EXPORT void WINAPI glDrawPixels(GLsizei width, GLsizei height, GLenum format, GLenum type, const GLvoid *pixels)
 {
 	static const auto trampoline = ReHook::Call(&glDrawPixels);
 
 	trampoline(width, height, format, type, pixels);
 }
-EXPORT void WINAPI												glEdgeFlag(GLboolean flag)
+EXPORT void WINAPI glEdgeFlag(GLboolean flag)
 {
 	static const auto trampoline = ReHook::Call(&glEdgeFlag);
 
 	trampoline(flag);
 }
-EXPORT void WINAPI												glEdgeFlagPointer(GLsizei stride, const GLvoid *pointer)
+EXPORT void WINAPI glEdgeFlagPointer(GLsizei stride, const GLvoid *pointer)
 {
 	static const auto trampoline = ReHook::Call(&glEdgeFlagPointer);
 
 	trampoline(stride, pointer);
 }
-EXPORT void WINAPI												glEdgeFlagv(const GLboolean *flag)
+EXPORT void WINAPI glEdgeFlagv(const GLboolean *flag)
 {
 	static const auto trampoline = ReHook::Call(&glEdgeFlagv);
 
 	trampoline(flag);
 }
-EXPORT void WINAPI												glEnable(GLenum cap)
+EXPORT void WINAPI glEnable(GLenum cap)
 {
 	static const auto trampoline = ReHook::Call(&glEnable);
 
 	trampoline(cap);
 }
-EXPORT void WINAPI												glEnableClientState(GLenum array)
+EXPORT void WINAPI glEnableClientState(GLenum array)
 {
 	static const auto trampoline = ReHook::Call(&glEnableClientState);
 
 	trampoline(array);
 }
-EXPORT void WINAPI												glEnd(void)
+EXPORT void WINAPI glEnd()
 {
 	static const auto trampoline = ReHook::Call(&glEnd);
 
 	trampoline();
 }
-EXPORT void WINAPI												glEndList(void)
+EXPORT void WINAPI glEndList()
 {
 	static const auto trampoline = ReHook::Call(&glEndList);
 
 	trampoline();
 }
-EXPORT void WINAPI												glEvalCoord1d(GLdouble u)
+EXPORT void WINAPI glEvalCoord1d(GLdouble u)
 {
 	static const auto trampoline = ReHook::Call(&glEvalCoord1d);
 
 	trampoline(u);
 }
-EXPORT void WINAPI												glEvalCoord1dv(const GLdouble *u)
+EXPORT void WINAPI glEvalCoord1dv(const GLdouble *u)
 {
 	static const auto trampoline = ReHook::Call(&glEvalCoord1dv);
 
 	trampoline(u);
 }
-EXPORT void WINAPI												glEvalCoord1f(GLfloat u)
+EXPORT void WINAPI glEvalCoord1f(GLfloat u)
 {
 	static const auto trampoline = ReHook::Call(&glEvalCoord1f);
 
 	trampoline(u);
 }
-EXPORT void WINAPI												glEvalCoord1fv(const GLfloat *u)
+EXPORT void WINAPI glEvalCoord1fv(const GLfloat *u)
 {
 	static const auto trampoline = ReHook::Call(&glEvalCoord1fv);
 
 	trampoline(u);
 }
-EXPORT void WINAPI												glEvalCoord2d(GLdouble u, GLdouble v)
+EXPORT void WINAPI glEvalCoord2d(GLdouble u, GLdouble v)
 {
 	static const auto trampoline = ReHook::Call(&glEvalCoord2d);
 
 	trampoline(u, v);
 }
-EXPORT void WINAPI												glEvalCoord2dv(const GLdouble *u)
+EXPORT void WINAPI glEvalCoord2dv(const GLdouble *u)
 {
 	static const auto trampoline = ReHook::Call(&glEvalCoord2dv);
 
 	trampoline(u);
 }
-EXPORT void WINAPI												glEvalCoord2f(GLfloat u, GLfloat v)
+EXPORT void WINAPI glEvalCoord2f(GLfloat u, GLfloat v)
 {
 	static const auto trampoline = ReHook::Call(&glEvalCoord2f);
 
 	trampoline(u, v);
 }
-EXPORT void WINAPI												glEvalCoord2fv(const GLfloat *u)
+EXPORT void WINAPI glEvalCoord2fv(const GLfloat *u)
 {
 	static const auto trampoline = ReHook::Call(&glEvalCoord2fv);
 
 	trampoline(u);
 }
-EXPORT void WINAPI												glEvalMesh1(GLenum mode, GLint i1, GLint i2)
+EXPORT void WINAPI glEvalMesh1(GLenum mode, GLint i1, GLint i2)
 {
 	static const auto trampoline = ReHook::Call(&glEvalMesh1);
 
 	trampoline(mode, i1, i2);
 }
-EXPORT void WINAPI												glEvalMesh2(GLenum mode, GLint i1, GLint i2, GLint j1, GLint j2)
+EXPORT void WINAPI glEvalMesh2(GLenum mode, GLint i1, GLint i2, GLint j1, GLint j2)
 {
 	static const auto trampoline = ReHook::Call(&glEvalMesh2);
 
 	trampoline(mode, i1, i2, j1, j2);
 }
-EXPORT void WINAPI												glEvalPoint1(GLint i)
+EXPORT void WINAPI glEvalPoint1(GLint i)
 {
 	static const auto trampoline = ReHook::Call(&glEvalPoint1);
 
 	trampoline(i);
 }
-EXPORT void WINAPI												glEvalPoint2(GLint i, GLint j)
+EXPORT void WINAPI glEvalPoint2(GLint i, GLint j)
 {
 	static const auto trampoline = ReHook::Call(&glEvalPoint2);
 
 	trampoline(i, j);
 }
-EXPORT void WINAPI												glFeedbackBuffer(GLsizei size, GLenum type, GLfloat *buffer)
+EXPORT void WINAPI glFeedbackBuffer(GLsizei size, GLenum type, GLfloat *buffer)
 {
 	static const auto trampoline = ReHook::Call(&glFeedbackBuffer);
 
 	trampoline(size, type, buffer);
 }
-EXPORT void WINAPI												glFinish(void)
+EXPORT void WINAPI glFinish()
 {
 	static const auto trampoline = ReHook::Call(&glFinish);
 
 	trampoline();
 }
-EXPORT void WINAPI												glFlush(void)
+EXPORT void WINAPI glFlush()
 {
 	static const auto trampoline = ReHook::Call(&glFlush);
 
 	trampoline();
 }
-EXPORT void WINAPI												glFogf(GLenum pname, GLfloat param)
+EXPORT void WINAPI glFogf(GLenum pname, GLfloat param)
 {
 	static const auto trampoline = ReHook::Call(&glFogf);
 
 	trampoline(pname, param);
 }
-EXPORT void WINAPI												glFogfv(GLenum pname, const GLfloat *params)
+EXPORT void WINAPI glFogfv(GLenum pname, const GLfloat *params)
 {
 	static const auto trampoline = ReHook::Call(&glFogfv);
 
 	trampoline(pname, params);
 }
-EXPORT void WINAPI												glFogi(GLenum pname, GLint param)
+EXPORT void WINAPI glFogi(GLenum pname, GLint param)
 {
 	static const auto trampoline = ReHook::Call(&glFogi);
 
 	trampoline(pname, param);
 }
-EXPORT void WINAPI												glFogiv(GLenum pname, const GLint *params)
+EXPORT void WINAPI glFogiv(GLenum pname, const GLint *params)
 {
 	static const auto trampoline = ReHook::Call(&glFogiv);
 
 	trampoline(pname, params);
 }
-EXPORT void WINAPI												glFrontFace(GLenum mode)
+EXPORT void WINAPI glFrontFace(GLenum mode)
 {
 	static const auto trampoline = ReHook::Call(&glFrontFace);
 
 	trampoline(mode);
 }
-EXPORT void WINAPI												glFrustum(GLdouble left, GLdouble right, GLdouble bottom, GLdouble top, GLdouble zNear, GLdouble zFar)
+EXPORT void WINAPI glFrustum(GLdouble left, GLdouble right, GLdouble bottom, GLdouble top, GLdouble zNear, GLdouble zFar)
 {
 	static const auto trampoline = ReHook::Call(&glFrustum);
 
 	trampoline(left, right, bottom, top, zNear, zFar);
 }
-EXPORT GLuint WINAPI											glGenLists(GLsizei range)
+EXPORT GLuint WINAPI glGenLists(GLsizei range)
 {
 	static const auto trampoline = ReHook::Call(&glGenLists);
 
 	return trampoline(range);
 }
-EXPORT void WINAPI												glGenTextures(GLsizei n, GLuint *textures)
+EXPORT void WINAPI glGenTextures(GLsizei n, GLuint *textures)
 {
 	static const auto trampoline = ReHook::Call(&glGenTextures);
 
 	trampoline(n, textures);
 }
-EXPORT void WINAPI												glGetBooleanv(GLenum pname, GLboolean *params)
+EXPORT void WINAPI glGetBooleanv(GLenum pname, GLboolean *params)
 {
 	static const auto trampoline = ReHook::Call(&glGetBooleanv);
 
 	trampoline(pname, params);
 }
-EXPORT void WINAPI												glGetDoublev(GLenum pname, GLdouble *params)
+EXPORT void WINAPI glGetDoublev(GLenum pname, GLdouble *params)
 {
 	static const auto trampoline = ReHook::Call(&glGetDoublev);
 
 	trampoline(pname, params);
 }
-EXPORT void WINAPI												glGetFloatv(GLenum pname, GLfloat *params)
+EXPORT void WINAPI glGetFloatv(GLenum pname, GLfloat *params)
 {
 	static const auto trampoline = ReHook::Call(&glGetFloatv);
 
 	trampoline(pname, params);
 }
-EXPORT void WINAPI												glGetIntegerv(GLenum pname, GLint *params)
+EXPORT void WINAPI glGetIntegerv(GLenum pname, GLint *params)
 {
 	static const auto trampoline = ReHook::Call(&glGetIntegerv);
 
 	trampoline(pname, params);
 }
-EXPORT void WINAPI												glGetClipPlane(GLenum plane, GLdouble *equation)
+EXPORT void WINAPI glGetClipPlane(GLenum plane, GLdouble *equation)
 {
 	static const auto trampoline = ReHook::Call(&glGetClipPlane);
 
 	trampoline(plane, equation);
 }
-EXPORT GLenum WINAPI											glGetError(void)
+EXPORT GLenum WINAPI glGetError()
 {
 	static const auto trampoline = ReHook::Call(&glGetError);
 
 	return trampoline();
 }
-EXPORT void WINAPI												glGetLightfv(GLenum light, GLenum pname, GLfloat *params)
+EXPORT void WINAPI glGetLightfv(GLenum light, GLenum pname, GLfloat *params)
 {
 	static const auto trampoline = ReHook::Call(&glGetLightfv);
 
 	trampoline(light, pname, params);
 }
-EXPORT void WINAPI												glGetLightiv(GLenum light, GLenum pname, GLint *params)
+EXPORT void WINAPI glGetLightiv(GLenum light, GLenum pname, GLint *params)
 {
 	static const auto trampoline = ReHook::Call(&glGetLightiv);
 
 	trampoline(light, pname, params);
 }
-EXPORT void WINAPI												glGetMapdv(GLenum target, GLenum query, GLdouble *v)
+EXPORT void WINAPI glGetMapdv(GLenum target, GLenum query, GLdouble *v)
 {
 	static const auto trampoline = ReHook::Call(&glGetMapdv);
 
 	trampoline(target, query, v);
 }
-EXPORT void WINAPI												glGetMapfv(GLenum target, GLenum query, GLfloat *v)
+EXPORT void WINAPI glGetMapfv(GLenum target, GLenum query, GLfloat *v)
 {
 	static const auto trampoline = ReHook::Call(&glGetMapfv);
 
 	trampoline(target, query, v);
 }
-EXPORT void WINAPI												glGetMapiv(GLenum target, GLenum query, GLint *v)
+EXPORT void WINAPI glGetMapiv(GLenum target, GLenum query, GLint *v)
 {
 	static const auto trampoline = ReHook::Call(&glGetMapiv);
 
 	trampoline(target, query, v);
 }
-EXPORT void WINAPI												glGetMaterialfv(GLenum face, GLenum pname, GLfloat *params)
+EXPORT void WINAPI glGetMaterialfv(GLenum face, GLenum pname, GLfloat *params)
 {
 	static const auto trampoline = ReHook::Call(&glGetMaterialfv);
 
 	trampoline(face, pname, params);
 }
-EXPORT void WINAPI												glGetMaterialiv(GLenum face, GLenum pname, GLint *params)
+EXPORT void WINAPI glGetMaterialiv(GLenum face, GLenum pname, GLint *params)
 {
 	static const auto trampoline = ReHook::Call(&glGetMaterialiv);
 
 	trampoline(face, pname, params);
 }
-EXPORT void WINAPI												glGetPixelMapfv(GLenum map, GLfloat *values)
+EXPORT void WINAPI glGetPixelMapfv(GLenum map, GLfloat *values)
 {
 	static const auto trampoline = ReHook::Call(&glGetPixelMapfv);
 
 	trampoline(map, values);
 }
-EXPORT void WINAPI												glGetPixelMapuiv(GLenum map, GLuint *values)
+EXPORT void WINAPI glGetPixelMapuiv(GLenum map, GLuint *values)
 {
 	static const auto trampoline = ReHook::Call(&glGetPixelMapuiv);
 
 	trampoline(map, values);
 }
-EXPORT void WINAPI												glGetPixelMapusv(GLenum map, GLushort *values)
+EXPORT void WINAPI glGetPixelMapusv(GLenum map, GLushort *values)
 {
 	static const auto trampoline = ReHook::Call(&glGetPixelMapusv);
 
 	trampoline(map, values);
 }
-EXPORT void WINAPI												glGetPointerv(GLenum pname, GLvoid **params)
+EXPORT void WINAPI glGetPointerv(GLenum pname, GLvoid **params)
 {
 	static const auto trampoline = ReHook::Call(&glGetPointerv);
 
 	trampoline(pname, params);
 }
-EXPORT void WINAPI												glGetPolygonStipple(GLubyte *mask)
+EXPORT void WINAPI glGetPolygonStipple(GLubyte *mask)
 {
 	static const auto trampoline = ReHook::Call(&glGetPolygonStipple);
 
 	trampoline(mask);
 }
-EXPORT const GLubyte *WINAPI									glGetString(GLenum name)
+EXPORT const GLubyte *WINAPI glGetString(GLenum name)
 {
 	static const auto trampoline = ReHook::Call(&glGetString);
 
@@ -866,1309 +866,1309 @@ EXPORT const GLubyte *WINAPI									glGetString(GLenum name)
 
 	return res;
 }
-EXPORT void WINAPI												glGetTexEnvfv(GLenum target, GLenum pname, GLfloat *params)
+EXPORT void WINAPI glGetTexEnvfv(GLenum target, GLenum pname, GLfloat *params)
 {
 	static const auto trampoline = ReHook::Call(&glGetTexEnvfv);
 
 	trampoline(target, pname, params);
 }
-EXPORT void WINAPI												glGetTexEnviv(GLenum target, GLenum pname, GLint *params)
+EXPORT void WINAPI glGetTexEnviv(GLenum target, GLenum pname, GLint *params)
 {
 	static const auto trampoline = ReHook::Call(&glGetTexEnviv);
 
 	trampoline(target, pname, params);
 }
-EXPORT void WINAPI												glGetTexGendv(GLenum coord, GLenum pname, GLdouble *params)
+EXPORT void WINAPI glGetTexGendv(GLenum coord, GLenum pname, GLdouble *params)
 {
 	static const auto trampoline = ReHook::Call(&glGetTexGendv);
 
 	trampoline(coord, pname, params);
 }
-EXPORT void WINAPI												glGetTexGenfv(GLenum coord, GLenum pname, GLfloat *params)
+EXPORT void WINAPI glGetTexGenfv(GLenum coord, GLenum pname, GLfloat *params)
 {
 	static const auto trampoline = ReHook::Call(&glGetTexGenfv);
 
 	trampoline(coord, pname, params);
 }
-EXPORT void WINAPI												glGetTexGeniv(GLenum coord, GLenum pname, GLint *params)
+EXPORT void WINAPI glGetTexGeniv(GLenum coord, GLenum pname, GLint *params)
 {
 	static const auto trampoline = ReHook::Call(&glGetTexGeniv);
 
 	trampoline(coord, pname, params);
 }
-EXPORT void WINAPI												glGetTexImage(GLenum target, GLint level, GLenum format, GLenum type, GLvoid *pixels)
+EXPORT void WINAPI glGetTexImage(GLenum target, GLint level, GLenum format, GLenum type, GLvoid *pixels)
 {
 	static const auto trampoline = ReHook::Call(&glGetTexImage);
 
 	trampoline(target, level, format, type, pixels);
 }
-EXPORT void WINAPI												glGetTexLevelParameterfv(GLenum target, GLint level, GLenum pname, GLfloat *params)
+EXPORT void WINAPI glGetTexLevelParameterfv(GLenum target, GLint level, GLenum pname, GLfloat *params)
 {
 	static const auto trampoline = ReHook::Call(&glGetTexLevelParameterfv);
 
 	trampoline(target, level, pname, params);
 }
-EXPORT void WINAPI												glGetTexLevelParameteriv(GLenum target, GLint level, GLenum pname, GLint *params)
+EXPORT void WINAPI glGetTexLevelParameteriv(GLenum target, GLint level, GLenum pname, GLint *params)
 {
 	static const auto trampoline = ReHook::Call(&glGetTexLevelParameteriv);
 
 	trampoline(target, level, pname, params);
 }
-EXPORT void WINAPI												glGetTexParameterfv(GLenum target, GLenum pname, GLfloat *params)
+EXPORT void WINAPI glGetTexParameterfv(GLenum target, GLenum pname, GLfloat *params)
 {
 	static const auto trampoline = ReHook::Call(&glGetTexParameterfv);
 
 	trampoline(target, pname, params);
 }
-EXPORT void WINAPI												glGetTexParameteriv(GLenum target, GLenum pname, GLint *params)
+EXPORT void WINAPI glGetTexParameteriv(GLenum target, GLenum pname, GLint *params)
 {
 	static const auto trampoline = ReHook::Call(&glGetTexParameteriv);
 
 	trampoline(target, pname, params);
 }
-EXPORT void WINAPI												glHint(GLenum target, GLenum mode)
+EXPORT void WINAPI glHint(GLenum target, GLenum mode)
 {
 	static const auto trampoline = ReHook::Call(&glHint);
 
 	trampoline(target, mode);
 }
-EXPORT void WINAPI												glIndexMask(GLuint mask)
+EXPORT void WINAPI glIndexMask(GLuint mask)
 {
 	static const auto trampoline = ReHook::Call(&glIndexMask);
 
 	trampoline(mask);
 }
-EXPORT void WINAPI												glIndexPointer(GLenum type, GLsizei stride, const GLvoid *pointer)
+EXPORT void WINAPI glIndexPointer(GLenum type, GLsizei stride, const GLvoid *pointer)
 {
 	static const auto trampoline = ReHook::Call(&glIndexPointer);
 
 	trampoline(type, stride, pointer);
 }
-EXPORT void WINAPI												glIndexd(GLdouble c)
+EXPORT void WINAPI glIndexd(GLdouble c)
 {
 	static const auto trampoline = ReHook::Call(&glIndexd);
 
 	trampoline(c);
 }
-EXPORT void WINAPI												glIndexdv(const GLdouble *c)
+EXPORT void WINAPI glIndexdv(const GLdouble *c)
 {
 	static const auto trampoline = ReHook::Call(&glIndexdv);
 
 	trampoline(c);
 }
-EXPORT void WINAPI												glIndexf(GLfloat c)
+EXPORT void WINAPI glIndexf(GLfloat c)
 {
 	static const auto trampoline = ReHook::Call(&glIndexf);
 
 	trampoline(c);
 }
-EXPORT void WINAPI												glIndexfv(const GLfloat *c)
+EXPORT void WINAPI glIndexfv(const GLfloat *c)
 {
 	static const auto trampoline = ReHook::Call(&glIndexfv);
 
 	trampoline(c);
 }
-EXPORT void WINAPI												glIndexi(GLint c)
+EXPORT void WINAPI glIndexi(GLint c)
 {
 	static const auto trampoline = ReHook::Call(&glIndexi);
 
 	trampoline(c);
 }
-EXPORT void WINAPI												glIndexiv(const GLint *c)
+EXPORT void WINAPI glIndexiv(const GLint *c)
 {
 	static const auto trampoline = ReHook::Call(&glIndexiv);
 
 	trampoline(c);
 }
-EXPORT void WINAPI												glIndexs(GLshort c)
+EXPORT void WINAPI glIndexs(GLshort c)
 {
 	static const auto trampoline = ReHook::Call(&glIndexs);
 
 	trampoline(c);
 }
-EXPORT void WINAPI												glIndexsv(const GLshort *c)
+EXPORT void WINAPI glIndexsv(const GLshort *c)
 {
 	static const auto trampoline = ReHook::Call(&glIndexsv);
 
 	trampoline(c);
 }
-EXPORT void WINAPI												glIndexub(GLubyte c)
+EXPORT void WINAPI glIndexub(GLubyte c)
 {
 	static const auto trampoline = ReHook::Call(&glIndexub);
 
 	trampoline(c);
 }
-EXPORT void WINAPI												glIndexubv(const GLubyte *c)
+EXPORT void WINAPI glIndexubv(const GLubyte *c)
 {
 	static const auto trampoline = ReHook::Call(&glIndexubv);
 
 	trampoline(c);
 }
-EXPORT void WINAPI												glInitNames(void)
+EXPORT void WINAPI glInitNames()
 {
 	static const auto trampoline = ReHook::Call(&glInitNames);
 
 	trampoline();
 }
-EXPORT void WINAPI												glInterleavedArrays(GLenum format, GLsizei stride, const GLvoid *pointer)
+EXPORT void WINAPI glInterleavedArrays(GLenum format, GLsizei stride, const GLvoid *pointer)
 {
 	static const auto trampoline = ReHook::Call(&glInterleavedArrays);
 
 	trampoline(format, stride, pointer);
 }
-EXPORT GLboolean WINAPI											glIsEnabled(GLenum cap)
+EXPORT GLboolean WINAPI glIsEnabled(GLenum cap)
 {
 	static const auto trampoline = ReHook::Call(&glIsEnabled);
 
 	return trampoline(cap);
 }
-EXPORT GLboolean WINAPI											glIsList(GLuint list)
+EXPORT GLboolean WINAPI glIsList(GLuint list)
 {
 	static const auto trampoline = ReHook::Call(&glIsList);
 
 	return trampoline(list);
 }
-EXPORT GLboolean WINAPI											glIsTexture(GLuint texture)
+EXPORT GLboolean WINAPI glIsTexture(GLuint texture)
 {
 	static const auto trampoline = ReHook::Call(&glIsTexture);
 
 	return trampoline(texture);
 }
-EXPORT void WINAPI												glLightModelf(GLenum pname, GLfloat param)
+EXPORT void WINAPI glLightModelf(GLenum pname, GLfloat param)
 {
 	static const auto trampoline = ReHook::Call(&glLightModelf);
 
 	trampoline(pname, param);
 }
-EXPORT void WINAPI												glLightModelfv(GLenum pname, const GLfloat *params)
+EXPORT void WINAPI glLightModelfv(GLenum pname, const GLfloat *params)
 {
 	static const auto trampoline = ReHook::Call(&glLightModelfv);
 
 	trampoline(pname, params);
 }
-EXPORT void WINAPI												glLightModeli(GLenum pname, GLint param)
+EXPORT void WINAPI glLightModeli(GLenum pname, GLint param)
 {
 	static const auto trampoline = ReHook::Call(&glLightModeli);
 
 	trampoline(pname, param);
 }
-EXPORT void WINAPI												glLightModeliv(GLenum pname, const GLint *params)
+EXPORT void WINAPI glLightModeliv(GLenum pname, const GLint *params)
 {
 	static const auto trampoline = ReHook::Call(&glLightModeliv);
 
 	trampoline(pname, params);
 }
-EXPORT void WINAPI												glLightf(GLenum light, GLenum pname, GLfloat param)
+EXPORT void WINAPI glLightf(GLenum light, GLenum pname, GLfloat param)
 {
 	static const auto trampoline = ReHook::Call(&glLightf);
 
 	trampoline(light, pname, param);
 }
-EXPORT void WINAPI												glLightfv(GLenum light, GLenum pname, const GLfloat *params)
+EXPORT void WINAPI glLightfv(GLenum light, GLenum pname, const GLfloat *params)
 {
 	static const auto trampoline = ReHook::Call(&glLightfv);
 
 	trampoline(light, pname, params);
 }
-EXPORT void WINAPI												glLighti(GLenum light, GLenum pname, GLint param)
+EXPORT void WINAPI glLighti(GLenum light, GLenum pname, GLint param)
 {
 	static const auto trampoline = ReHook::Call(&glLighti);
 
 	trampoline(light, pname, param);
 }
-EXPORT void WINAPI												glLightiv(GLenum light, GLenum pname, const GLint *params)
+EXPORT void WINAPI glLightiv(GLenum light, GLenum pname, const GLint *params)
 {
 	static const auto trampoline = ReHook::Call(&glLightiv);
 
 	trampoline(light, pname, params);
 }
-EXPORT void WINAPI												glLineStipple(GLint factor, GLushort pattern)
+EXPORT void WINAPI glLineStipple(GLint factor, GLushort pattern)
 {
 	static const auto trampoline = ReHook::Call(&glLineStipple);
 
 	trampoline(factor, pattern);
 }
-EXPORT void WINAPI												glLineWidth(GLfloat width)
+EXPORT void WINAPI glLineWidth(GLfloat width)
 {
 	static const auto trampoline = ReHook::Call(&glLineWidth);
 
 	trampoline(width);
 }
-EXPORT void WINAPI												glListBase(GLuint base)
+EXPORT void WINAPI glListBase(GLuint base)
 {
 	static const auto trampoline = ReHook::Call(&glListBase);
 
 	trampoline(base);
 }
-EXPORT void WINAPI												glLoadIdentity(void)
+EXPORT void WINAPI glLoadIdentity()
 {
 	static const auto trampoline = ReHook::Call(&glLoadIdentity);
 
 	trampoline();
 }
-EXPORT void WINAPI												glLoadMatrixd(const GLdouble *m)
+EXPORT void WINAPI glLoadMatrixd(const GLdouble *m)
 {
 	static const auto trampoline = ReHook::Call(&glLoadMatrixd);
 
 	trampoline(m);
 }
-EXPORT void WINAPI												glLoadMatrixf(const GLfloat *m)
+EXPORT void WINAPI glLoadMatrixf(const GLfloat *m)
 {
 	static const auto trampoline = ReHook::Call(&glLoadMatrixf);
 
 	trampoline(m);
 }
-EXPORT void WINAPI												glLoadName(GLuint name)
+EXPORT void WINAPI glLoadName(GLuint name)
 {
 	static const auto trampoline = ReHook::Call(&glLoadName);
 
 	trampoline(name);
 }
-EXPORT void WINAPI												glLogicOp(GLenum opcode)
+EXPORT void WINAPI glLogicOp(GLenum opcode)
 {
 	static const auto trampoline = ReHook::Call(&glLogicOp);
 
 	trampoline(opcode);
 }
-EXPORT void WINAPI												glMap1d(GLenum target, GLdouble u1, GLdouble u2, GLint stride, GLint order, const GLdouble *points)
+EXPORT void WINAPI glMap1d(GLenum target, GLdouble u1, GLdouble u2, GLint stride, GLint order, const GLdouble *points)
 {
 	static const auto trampoline = ReHook::Call(&glMap1d);
 
 	trampoline(target, u1, u2, stride, order, points);
 }
-EXPORT void WINAPI												glMap1f(GLenum target, GLfloat u1, GLfloat u2, GLint stride, GLint order, const GLfloat *points)
+EXPORT void WINAPI glMap1f(GLenum target, GLfloat u1, GLfloat u2, GLint stride, GLint order, const GLfloat *points)
 {
 	static const auto trampoline = ReHook::Call(&glMap1f);
 
 	trampoline(target, u1, u2, stride, order, points);
 }
-EXPORT void WINAPI												glMap2d(GLenum target, GLdouble u1, GLdouble u2, GLint ustride, GLint uorder, GLdouble v1, GLdouble v2, GLint vstride, GLint vorder, const GLdouble *points)
+EXPORT void WINAPI glMap2d(GLenum target, GLdouble u1, GLdouble u2, GLint ustride, GLint uorder, GLdouble v1, GLdouble v2, GLint vstride, GLint vorder, const GLdouble *points)
 {
 	static const auto trampoline = ReHook::Call(&glMap2d);
 
 	trampoline(target, u1, u2, ustride, uorder, v1, v2, vstride, vorder, points);
 }
-EXPORT void WINAPI												glMap2f(GLenum target, GLfloat u1, GLfloat u2, GLint ustride, GLint uorder, GLfloat v1, GLfloat v2, GLint vstride, GLint vorder, const GLfloat *points)
+EXPORT void WINAPI glMap2f(GLenum target, GLfloat u1, GLfloat u2, GLint ustride, GLint uorder, GLfloat v1, GLfloat v2, GLint vstride, GLint vorder, const GLfloat *points)
 {
 	static const auto trampoline = ReHook::Call(&glMap2f);
 
 	trampoline(target, u1, u2, ustride, uorder, v1, v2, vstride, vorder, points);
 }
-EXPORT void WINAPI												glMapGrid1d(GLint un, GLdouble u1, GLdouble u2)
+EXPORT void WINAPI glMapGrid1d(GLint un, GLdouble u1, GLdouble u2)
 {
 	static const auto trampoline = ReHook::Call(&glMapGrid1d);
 
 	trampoline(un, u1, u2);
 }
-EXPORT void WINAPI												glMapGrid1f(GLint un, GLfloat u1, GLfloat u2)
+EXPORT void WINAPI glMapGrid1f(GLint un, GLfloat u1, GLfloat u2)
 {
 	static const auto trampoline = ReHook::Call(&glMapGrid1f);
 
 	trampoline(un, u1, u2);
 }
-EXPORT void WINAPI												glMapGrid2d(GLint un, GLdouble u1, GLdouble u2, GLint vn, GLdouble v1, GLdouble v2)
+EXPORT void WINAPI glMapGrid2d(GLint un, GLdouble u1, GLdouble u2, GLint vn, GLdouble v1, GLdouble v2)
 {
 	static const auto trampoline = ReHook::Call(&glMapGrid2d);
 
 	trampoline(un, u1, u2, vn, v1, v2);
 }
-EXPORT void WINAPI												glMapGrid2f(GLint un, GLfloat u1, GLfloat u2, GLint vn, GLfloat v1, GLfloat v2)
+EXPORT void WINAPI glMapGrid2f(GLint un, GLfloat u1, GLfloat u2, GLint vn, GLfloat v1, GLfloat v2)
 {
 	static const auto trampoline = ReHook::Call(&glMapGrid2f);
 
 	trampoline(un, u1, u2, vn, v1, v2);
 }
-EXPORT void WINAPI												glMaterialf(GLenum face, GLenum pname, GLfloat param)
+EXPORT void WINAPI glMaterialf(GLenum face, GLenum pname, GLfloat param)
 {
 	static const auto trampoline = ReHook::Call(&glMaterialf);
 
 	trampoline(face, pname, param);
 }
-EXPORT void WINAPI												glMaterialfv(GLenum face, GLenum pname, const GLfloat *params)
+EXPORT void WINAPI glMaterialfv(GLenum face, GLenum pname, const GLfloat *params)
 {
 	static const auto trampoline = ReHook::Call(&glMaterialfv);
 
 	trampoline(face, pname, params);
 }
-EXPORT void WINAPI												glMateriali(GLenum face, GLenum pname, GLint param)
+EXPORT void WINAPI glMateriali(GLenum face, GLenum pname, GLint param)
 {
 	static const auto trampoline = ReHook::Call(&glMateriali);
 
 	trampoline(face, pname, param);
 }
-EXPORT void WINAPI												glMaterialiv(GLenum face, GLenum pname, const GLint *params)
+EXPORT void WINAPI glMaterialiv(GLenum face, GLenum pname, const GLint *params)
 {
 	static const auto trampoline = ReHook::Call(&glMaterialiv);
 
 	trampoline(face, pname, params);
 }
-EXPORT void WINAPI												glMatrixMode(GLenum mode)
+EXPORT void WINAPI glMatrixMode(GLenum mode)
 {
 	static const auto trampoline = ReHook::Call(&glMatrixMode);
 
 	trampoline(mode);
 }
-EXPORT void WINAPI												glMultMatrixd(const GLdouble *m)
+EXPORT void WINAPI glMultMatrixd(const GLdouble *m)
 {
 	static const auto trampoline = ReHook::Call(&glMultMatrixd);
 
 	trampoline(m);
 }
-EXPORT void WINAPI												glMultMatrixf(const GLfloat *m)
+EXPORT void WINAPI glMultMatrixf(const GLfloat *m)
 {
 	static const auto trampoline = ReHook::Call(&glMultMatrixf);
 
 	trampoline(m);
 }
-EXPORT void WINAPI												glNewList(GLuint list, GLenum mode)
+EXPORT void WINAPI glNewList(GLuint list, GLenum mode)
 {
 	static const auto trampoline = ReHook::Call(&glNewList);
 
 	trampoline(list, mode);
 }
-EXPORT void WINAPI												glNormal3b(GLbyte nx, GLbyte ny, GLbyte nz)
+EXPORT void WINAPI glNormal3b(GLbyte nx, GLbyte ny, GLbyte nz)
 {
 	static const auto trampoline = ReHook::Call(&glNormal3b);
 
 	trampoline(nx, ny, nz);
 }
-EXPORT void WINAPI												glNormal3bv(const GLbyte *v)
+EXPORT void WINAPI glNormal3bv(const GLbyte *v)
 {
 	static const auto trampoline = ReHook::Call(&glNormal3bv);
 
 	trampoline(v);
 }
-EXPORT void WINAPI												glNormal3d(GLdouble nx, GLdouble ny, GLdouble nz)
+EXPORT void WINAPI glNormal3d(GLdouble nx, GLdouble ny, GLdouble nz)
 {
 	static const auto trampoline = ReHook::Call(&glNormal3d);
 
 	trampoline(nx, ny, nz);
 }
-EXPORT void WINAPI												glNormal3dv(const GLdouble *v)
+EXPORT void WINAPI glNormal3dv(const GLdouble *v)
 {
 	static const auto trampoline = ReHook::Call(&glNormal3dv);
 
 	trampoline(v);
 }
-EXPORT void WINAPI												glNormal3f(GLfloat nx, GLfloat ny, GLfloat nz)
+EXPORT void WINAPI glNormal3f(GLfloat nx, GLfloat ny, GLfloat nz)
 {
 	static const auto trampoline = ReHook::Call(&glNormal3f);
 
 	trampoline(nx, ny, nz);
 }
-EXPORT void WINAPI												glNormal3fv(const GLfloat *v)
+EXPORT void WINAPI glNormal3fv(const GLfloat *v)
 {
 	static const auto trampoline = ReHook::Call(&glNormal3fv);
 
 	trampoline(v);
 }
-EXPORT void WINAPI												glNormal3i(GLint nx, GLint ny, GLint nz)
+EXPORT void WINAPI glNormal3i(GLint nx, GLint ny, GLint nz)
 {
 	static const auto trampoline = ReHook::Call(&glNormal3i);
 
 	trampoline(nx, ny, nz);
 }
-EXPORT void WINAPI												glNormal3iv(const GLint *v)
+EXPORT void WINAPI glNormal3iv(const GLint *v)
 {
 	static const auto trampoline = ReHook::Call(&glNormal3iv);
 
 	trampoline(v);
 }
-EXPORT void WINAPI												glNormal3s(GLshort nx, GLshort ny, GLshort nz)
+EXPORT void WINAPI glNormal3s(GLshort nx, GLshort ny, GLshort nz)
 {
 	static const auto trampoline = ReHook::Call(&glNormal3s);
 
 	trampoline(nx, ny, nz);
 }
-EXPORT void WINAPI												glNormal3sv(const GLshort *v)
+EXPORT void WINAPI glNormal3sv(const GLshort *v)
 {
 	static const auto trampoline = ReHook::Call(&glNormal3sv);
 
 	trampoline(v);
 }
-EXPORT void WINAPI												glNormalPointer(GLenum type, GLsizei stride, const GLvoid *pointer)
+EXPORT void WINAPI glNormalPointer(GLenum type, GLsizei stride, const GLvoid *pointer)
 {
 	static const auto trampoline = ReHook::Call(&glNormalPointer);
 
 	trampoline(type, stride, pointer);
 }
-EXPORT void WINAPI												glOrtho(GLdouble left, GLdouble right, GLdouble bottom, GLdouble top, GLdouble zNear, GLdouble zFar)
+EXPORT void WINAPI glOrtho(GLdouble left, GLdouble right, GLdouble bottom, GLdouble top, GLdouble zNear, GLdouble zFar)
 {
 	static const auto trampoline = ReHook::Call(&glOrtho);
 
 	trampoline(left, right, bottom, top, zNear, zFar);
 }
-EXPORT void WINAPI												glPassThrough(GLfloat token)
+EXPORT void WINAPI glPassThrough(GLfloat token)
 {
 	static const auto trampoline = ReHook::Call(&glPassThrough);
 
 	trampoline(token);
 }
-EXPORT void WINAPI												glPixelMapfv(GLenum map, GLsizei mapsize, const GLfloat *values)
+EXPORT void WINAPI glPixelMapfv(GLenum map, GLsizei mapsize, const GLfloat *values)
 {
 	static const auto trampoline = ReHook::Call(&glPixelMapfv);
 
 	trampoline(map, mapsize, values);
 }
-EXPORT void WINAPI												glPixelMapuiv(GLenum map, GLsizei mapsize, const GLuint *values)
+EXPORT void WINAPI glPixelMapuiv(GLenum map, GLsizei mapsize, const GLuint *values)
 {
 	static const auto trampoline = ReHook::Call(&glPixelMapuiv);
 
 	trampoline(map, mapsize, values);
 }
-EXPORT void WINAPI												glPixelMapusv(GLenum map, GLsizei mapsize, const GLushort *values)
+EXPORT void WINAPI glPixelMapusv(GLenum map, GLsizei mapsize, const GLushort *values)
 {
 	static const auto trampoline = ReHook::Call(&glPixelMapusv);
 
 	trampoline(map, mapsize, values);
 }
-EXPORT void WINAPI												glPixelStoref(GLenum pname, GLfloat param)
+EXPORT void WINAPI glPixelStoref(GLenum pname, GLfloat param)
 {
 	static const auto trampoline = ReHook::Call(&glPixelStoref);
 
 	trampoline(pname, param);
 }
-EXPORT void WINAPI												glPixelStorei(GLenum pname, GLint param)
+EXPORT void WINAPI glPixelStorei(GLenum pname, GLint param)
 {
 	static const auto trampoline = ReHook::Call(&glPixelStorei);
 
 	trampoline(pname, param);
 }
-EXPORT void WINAPI												glPixelTransferf(GLenum pname, GLfloat param)
+EXPORT void WINAPI glPixelTransferf(GLenum pname, GLfloat param)
 {
 	static const auto trampoline = ReHook::Call(&glPixelTransferf);
 
 	trampoline(pname, param);
 }
-EXPORT void WINAPI												glPixelTransferi(GLenum pname, GLint param)
+EXPORT void WINAPI glPixelTransferi(GLenum pname, GLint param)
 {
 	static const auto trampoline = ReHook::Call(&glPixelTransferi);
 
 	trampoline(pname, param);
 }
-EXPORT void WINAPI												glPixelZoom(GLfloat xfactor, GLfloat yfactor)
+EXPORT void WINAPI glPixelZoom(GLfloat xfactor, GLfloat yfactor)
 {
 	static const auto trampoline = ReHook::Call(&glPixelZoom);
 
 	trampoline(xfactor, yfactor);
 }
-EXPORT void WINAPI												glPointSize(GLfloat size)
+EXPORT void WINAPI glPointSize(GLfloat size)
 {
 	static const auto trampoline = ReHook::Call(&glPointSize);
 
 	trampoline(size);
 }
-EXPORT void WINAPI												glPolygonMode(GLenum face, GLenum mode)
+EXPORT void WINAPI glPolygonMode(GLenum face, GLenum mode)
 {
 	static const auto trampoline = ReHook::Call(&glPolygonMode);
 
 	trampoline(face, mode);
 }
-EXPORT void WINAPI												glPolygonOffset(GLfloat factor, GLfloat units)
+EXPORT void WINAPI glPolygonOffset(GLfloat factor, GLfloat units)
 {
 	static const auto trampoline = ReHook::Call(&glPolygonOffset);
 
 	trampoline(factor, units);
 }
-EXPORT void WINAPI												glPolygonStipple(const GLubyte *mask)
+EXPORT void WINAPI glPolygonStipple(const GLubyte *mask)
 {
 	static const auto trampoline = ReHook::Call(&glPolygonStipple);
 
 	trampoline(mask);
 }
-EXPORT void WINAPI												glPopAttrib(void)
+EXPORT void WINAPI glPopAttrib()
 {
 	static const auto trampoline = ReHook::Call(&glPopAttrib);
 
 	trampoline();
 }
-EXPORT void WINAPI												glPopClientAttrib(void)
+EXPORT void WINAPI glPopClientAttrib()
 {
 	static const auto trampoline = ReHook::Call(&glPopClientAttrib);
 
 	trampoline();
 }
-EXPORT void WINAPI												glPopMatrix(void)
+EXPORT void WINAPI glPopMatrix()
 {
 	static const auto trampoline = ReHook::Call(&glPopMatrix);
 
 	trampoline();
 }
-EXPORT void WINAPI												glPopName(void)
+EXPORT void WINAPI glPopName()
 {
 	static const auto trampoline = ReHook::Call(&glPopName);
 
 	trampoline();
 }
-EXPORT void WINAPI												glPrioritizeTextures(GLsizei n, const GLuint *textures, const GLclampf *priorities)
+EXPORT void WINAPI glPrioritizeTextures(GLsizei n, const GLuint *textures, const GLclampf *priorities)
 {
 	static const auto trampoline = ReHook::Call(&glPrioritizeTextures);
 
 	trampoline(n, textures, priorities);
 }
-EXPORT void WINAPI												glPushAttrib(GLbitfield mask)
+EXPORT void WINAPI glPushAttrib(GLbitfield mask)
 {
 	static const auto trampoline = ReHook::Call(&glPushAttrib);
 
 	trampoline(mask);
 }
-EXPORT void WINAPI												glPushClientAttrib(GLbitfield mask)
+EXPORT void WINAPI glPushClientAttrib(GLbitfield mask)
 {
 	static const auto trampoline = ReHook::Call(&glPushClientAttrib);
 
 	trampoline(mask);
 }
-EXPORT void WINAPI												glPushMatrix(void)
+EXPORT void WINAPI glPushMatrix()
 {
 	static const auto trampoline = ReHook::Call(&glPushMatrix);
 
 	trampoline();
 }
-EXPORT void WINAPI												glPushName(GLuint name)
+EXPORT void WINAPI glPushName(GLuint name)
 {
 	static const auto trampoline = ReHook::Call(&glPushName);
 
 	trampoline(name);
 }
-EXPORT void WINAPI												glRasterPos2d(GLdouble x, GLdouble y)
+EXPORT void WINAPI glRasterPos2d(GLdouble x, GLdouble y)
 {
 	static const auto trampoline = ReHook::Call(&glRasterPos2d);
 
 	trampoline(x, y);
 }
-EXPORT void WINAPI												glRasterPos2dv(const GLdouble *v)
+EXPORT void WINAPI glRasterPos2dv(const GLdouble *v)
 {
 	static const auto trampoline = ReHook::Call(&glRasterPos2dv);
 
 	trampoline(v);
 }
-EXPORT void WINAPI												glRasterPos2f(GLfloat x, GLfloat y)
+EXPORT void WINAPI glRasterPos2f(GLfloat x, GLfloat y)
 {
 	static const auto trampoline = ReHook::Call(&glRasterPos2f);
 
 	trampoline(x, y);
 }
-EXPORT void WINAPI												glRasterPos2fv(const GLfloat *v)
+EXPORT void WINAPI glRasterPos2fv(const GLfloat *v)
 {
 	static const auto trampoline = ReHook::Call(&glRasterPos2fv);
 
 	trampoline(v);
 }
-EXPORT void WINAPI												glRasterPos2i(GLint x, GLint y)
+EXPORT void WINAPI glRasterPos2i(GLint x, GLint y)
 {
 	static const auto trampoline = ReHook::Call(&glRasterPos2i);
 
 	trampoline(x, y);
 }
-EXPORT void WINAPI												glRasterPos2iv(const GLint *v)
+EXPORT void WINAPI glRasterPos2iv(const GLint *v)
 {
 	static const auto trampoline = ReHook::Call(&glRasterPos2iv);
 
 	trampoline(v);
 }
-EXPORT void WINAPI												glRasterPos2s(GLshort x, GLshort y)
+EXPORT void WINAPI glRasterPos2s(GLshort x, GLshort y)
 {
 	static const auto trampoline = ReHook::Call(&glRasterPos2s);
 
 	trampoline(x, y);
 }
-EXPORT void WINAPI												glRasterPos2sv(const GLshort *v)
+EXPORT void WINAPI glRasterPos2sv(const GLshort *v)
 {
 	static const auto trampoline = ReHook::Call(&glRasterPos2sv);
 
 	trampoline(v);
 }
-EXPORT void WINAPI												glRasterPos3d(GLdouble x, GLdouble y, GLdouble z)
+EXPORT void WINAPI glRasterPos3d(GLdouble x, GLdouble y, GLdouble z)
 {
 	static const auto trampoline = ReHook::Call(&glRasterPos3d);
 
 	trampoline(x, y, z);
 }
-EXPORT void WINAPI												glRasterPos3dv(const GLdouble *v)
+EXPORT void WINAPI glRasterPos3dv(const GLdouble *v)
 {
 	static const auto trampoline = ReHook::Call(&glRasterPos3dv);
 
 	trampoline(v);
 }
-EXPORT void WINAPI												glRasterPos3f(GLfloat x, GLfloat y, GLfloat z)
+EXPORT void WINAPI glRasterPos3f(GLfloat x, GLfloat y, GLfloat z)
 {
 	static const auto trampoline = ReHook::Call(&glRasterPos3f);
 
 	trampoline(x, y, z);
 }
-EXPORT void WINAPI												glRasterPos3fv(const GLfloat *v)
+EXPORT void WINAPI glRasterPos3fv(const GLfloat *v)
 {
 	static const auto trampoline = ReHook::Call(&glRasterPos3fv);
 
 	trampoline(v);
 }
-EXPORT void WINAPI												glRasterPos3i(GLint x, GLint y, GLint z)
+EXPORT void WINAPI glRasterPos3i(GLint x, GLint y, GLint z)
 {
 	static const auto trampoline = ReHook::Call(&glRasterPos3i);
 
 	trampoline(x, y, z);
 }
-EXPORT void WINAPI												glRasterPos3iv(const GLint *v)
+EXPORT void WINAPI glRasterPos3iv(const GLint *v)
 {
 	static const auto trampoline = ReHook::Call(&glRasterPos3iv);
 
 	trampoline(v);
 }
-EXPORT void WINAPI												glRasterPos3s(GLshort x, GLshort y, GLshort z)
+EXPORT void WINAPI glRasterPos3s(GLshort x, GLshort y, GLshort z)
 {
 	static const auto trampoline = ReHook::Call(&glRasterPos3s);
 
 	trampoline(x, y, z);
 }
-EXPORT void WINAPI												glRasterPos3sv(const GLshort *v)
+EXPORT void WINAPI glRasterPos3sv(const GLshort *v)
 {
 	static const auto trampoline = ReHook::Call(&glRasterPos3sv);
 
 	trampoline(v);
 }
-EXPORT void WINAPI												glRasterPos4d(GLdouble x, GLdouble y, GLdouble z, GLdouble w)
+EXPORT void WINAPI glRasterPos4d(GLdouble x, GLdouble y, GLdouble z, GLdouble w)
 {
 	static const auto trampoline = ReHook::Call(&glRasterPos4d);
 
 	trampoline(x, y, z, w);
 }
-EXPORT void WINAPI												glRasterPos4dv(const GLdouble *v)
+EXPORT void WINAPI glRasterPos4dv(const GLdouble *v)
 {
 	static const auto trampoline = ReHook::Call(&glRasterPos4dv);
 
 	trampoline(v);
 }
-EXPORT void WINAPI												glRasterPos4f(GLfloat x, GLfloat y, GLfloat z, GLfloat w)
+EXPORT void WINAPI glRasterPos4f(GLfloat x, GLfloat y, GLfloat z, GLfloat w)
 {
 	static const auto trampoline = ReHook::Call(&glRasterPos4f);
 
 	trampoline(x, y, z, w);
 }
-EXPORT void WINAPI												glRasterPos4fv(const GLfloat *v)
+EXPORT void WINAPI glRasterPos4fv(const GLfloat *v)
 {
 	static const auto trampoline = ReHook::Call(&glRasterPos4fv);
 
 	trampoline(v);
 }
-EXPORT void WINAPI												glRasterPos4i(GLint x, GLint y, GLint z, GLint w)
+EXPORT void WINAPI glRasterPos4i(GLint x, GLint y, GLint z, GLint w)
 {
 	static const auto trampoline = ReHook::Call(&glRasterPos4i);
 
 	trampoline(x, y, z, w);
 }
-EXPORT void WINAPI												glRasterPos4iv(const GLint *v)
+EXPORT void WINAPI glRasterPos4iv(const GLint *v)
 {
 	static const auto trampoline = ReHook::Call(&glRasterPos4iv);
 
 	trampoline(v);
 }
-EXPORT void WINAPI												glRasterPos4s(GLshort x, GLshort y, GLshort z, GLshort w)
+EXPORT void WINAPI glRasterPos4s(GLshort x, GLshort y, GLshort z, GLshort w)
 {
 	static const auto trampoline = ReHook::Call(&glRasterPos4s);
 
 	trampoline(x, y, z, w);
 }
-EXPORT void WINAPI												glRasterPos4sv(const GLshort *v)
+EXPORT void WINAPI glRasterPos4sv(const GLshort *v)
 {
 	static const auto trampoline = ReHook::Call(&glRasterPos4sv);
 
 	trampoline(v);
 }
-EXPORT void WINAPI												glReadBuffer(GLenum mode)
+EXPORT void WINAPI glReadBuffer(GLenum mode)
 {
 	static const auto trampoline = ReHook::Call(&glReadBuffer);
 
 	trampoline(mode);
 }
-EXPORT void WINAPI												glReadPixels(GLint x, GLint y, GLsizei width, GLsizei height, GLenum format, GLenum type, GLvoid *pixels)
+EXPORT void WINAPI glReadPixels(GLint x, GLint y, GLsizei width, GLsizei height, GLenum format, GLenum type, GLvoid *pixels)
 {
 	static const auto trampoline = ReHook::Call(&glReadPixels);
 
 	trampoline(x, y, width, height, format, type, pixels);
 }
-EXPORT void WINAPI												glRectd(GLdouble x1, GLdouble y1, GLdouble x2, GLdouble y2)
+EXPORT void WINAPI glRectd(GLdouble x1, GLdouble y1, GLdouble x2, GLdouble y2)
 {
 	static const auto trampoline = ReHook::Call(&glRectd);
 
 	trampoline(x1, y1, x2, y2);
 }
-EXPORT void WINAPI												glRectdv(const GLdouble *v1, const GLdouble *v2)
+EXPORT void WINAPI glRectdv(const GLdouble *v1, const GLdouble *v2)
 {
 	static const auto trampoline = ReHook::Call(&glRectdv);
 
 	trampoline(v1, v2);
 }
-EXPORT void WINAPI												glRectf(GLfloat x1, GLfloat y1, GLfloat x2, GLfloat y2)
+EXPORT void WINAPI glRectf(GLfloat x1, GLfloat y1, GLfloat x2, GLfloat y2)
 {
 	static const auto trampoline = ReHook::Call(&glRectf);
 
 	trampoline(x1, y1, x2, y2);
 }
-EXPORT void WINAPI												glRectfv(const GLfloat *v1, const GLfloat *v2)
+EXPORT void WINAPI glRectfv(const GLfloat *v1, const GLfloat *v2)
 {
 	static const auto trampoline = ReHook::Call(&glRectfv);
 
 	trampoline(v1, v2);
 }
-EXPORT void WINAPI												glRecti(GLint x1, GLint y1, GLint x2, GLint y2)
+EXPORT void WINAPI glRecti(GLint x1, GLint y1, GLint x2, GLint y2)
 {
 	static const auto trampoline = ReHook::Call(&glRecti);
 
 	trampoline(x1, y1, x2, y2);
 }
-EXPORT void WINAPI												glRectiv(const GLint *v1, const GLint *v2)
+EXPORT void WINAPI glRectiv(const GLint *v1, const GLint *v2)
 {
 	static const auto trampoline = ReHook::Call(&glRectiv);
 
 	trampoline(v1, v2);
 }
-EXPORT void WINAPI												glRects(GLshort x1, GLshort y1, GLshort x2, GLshort y2)
+EXPORT void WINAPI glRects(GLshort x1, GLshort y1, GLshort x2, GLshort y2)
 {
 	static const auto trampoline = ReHook::Call(&glRects);
 
 	trampoline(x1, y1, x2, y2);
 }
-EXPORT void WINAPI												glRectsv(const GLshort *v1, const GLshort *v2)
+EXPORT void WINAPI glRectsv(const GLshort *v1, const GLshort *v2)
 {
 	static const auto trampoline = ReHook::Call(&glRectsv);
 
 	trampoline(v1, v2);
 }
-EXPORT GLint WINAPI												glRenderMode(GLenum mode)
+EXPORT GLint WINAPI glRenderMode(GLenum mode)
 {
 	static const auto trampoline = ReHook::Call(&glRenderMode);
 
 	return trampoline(mode);
 }
-EXPORT void WINAPI												glRotated(GLdouble angle, GLdouble x, GLdouble y, GLdouble z)
+EXPORT void WINAPI glRotated(GLdouble angle, GLdouble x, GLdouble y, GLdouble z)
 {
 	static const auto trampoline = ReHook::Call(&glRotated);
 
 	trampoline(angle, x, y, z);
 }
-EXPORT void WINAPI												glRotatef(GLfloat angle, GLfloat x, GLfloat y, GLfloat z)
+EXPORT void WINAPI glRotatef(GLfloat angle, GLfloat x, GLfloat y, GLfloat z)
 {
 	static const auto trampoline = ReHook::Call(&glRotatef);
 
 	trampoline(angle, x, y, z);
 }
-EXPORT void WINAPI												glScaled(GLdouble x, GLdouble y, GLdouble z)
+EXPORT void WINAPI glScaled(GLdouble x, GLdouble y, GLdouble z)
 {
 	static const auto trampoline = ReHook::Call(&glScaled);
 
 	trampoline(x, y, z);
 }
-EXPORT void WINAPI												glScalef(GLfloat x, GLfloat y, GLfloat z)
+EXPORT void WINAPI glScalef(GLfloat x, GLfloat y, GLfloat z)
 {
 	static const auto trampoline = ReHook::Call(&glScalef);
 
 	trampoline(x, y, z);
 }
-EXPORT void WINAPI												glScissor(GLint x, GLint y, GLsizei width, GLsizei height)
+EXPORT void WINAPI glScissor(GLint x, GLint y, GLsizei width, GLsizei height)
 {
 	static const auto trampoline = ReHook::Call(&glScissor);
 
 	trampoline(x, y, width, height);
 }
-EXPORT void WINAPI												glSelectBuffer(GLsizei size, GLuint *buffer)
+EXPORT void WINAPI glSelectBuffer(GLsizei size, GLuint *buffer)
 {
 	static const auto trampoline = ReHook::Call(&glSelectBuffer);
 
 	trampoline(size, buffer);
 }
-EXPORT void WINAPI												glShadeModel(GLenum mode)
+EXPORT void WINAPI glShadeModel(GLenum mode)
 {
 	static const auto trampoline = ReHook::Call(&glShadeModel);
 
 	trampoline(mode);
 }
-EXPORT void WINAPI												glStencilFunc(GLenum func, GLint ref, GLuint mask)
+EXPORT void WINAPI glStencilFunc(GLenum func, GLint ref, GLuint mask)
 {
 	static const auto trampoline = ReHook::Call(&glStencilFunc);
 
 	trampoline(func, ref, mask);
 }
-EXPORT void WINAPI												glStencilMask(GLuint mask)
+EXPORT void WINAPI glStencilMask(GLuint mask)
 {
 	static const auto trampoline = ReHook::Call(&glStencilMask);
 
 	trampoline(mask);
 }
-EXPORT void WINAPI												glStencilOp(GLenum fail, GLenum zfail, GLenum zpass)
+EXPORT void WINAPI glStencilOp(GLenum fail, GLenum zfail, GLenum zpass)
 {
 	static const auto trampoline = ReHook::Call(&glStencilOp);
 
 	trampoline(fail, zfail, zpass);
 }
-EXPORT void WINAPI												glTexCoord1d(GLdouble s)
+EXPORT void WINAPI glTexCoord1d(GLdouble s)
 {
 	static const auto trampoline = ReHook::Call(&glTexCoord1d);
 
 	trampoline(s);
 }
-EXPORT void WINAPI												glTexCoord1dv(const GLdouble *v)
+EXPORT void WINAPI glTexCoord1dv(const GLdouble *v)
 {
 	static const auto trampoline = ReHook::Call(&glTexCoord1dv);
 
 	trampoline(v);
 }
-EXPORT void WINAPI												glTexCoord1f(GLfloat s)
+EXPORT void WINAPI glTexCoord1f(GLfloat s)
 {
 	static const auto trampoline = ReHook::Call(&glTexCoord1f);
 
 	trampoline(s);
 }
-EXPORT void WINAPI												glTexCoord1fv(const GLfloat *v)
+EXPORT void WINAPI glTexCoord1fv(const GLfloat *v)
 {
 	static const auto trampoline = ReHook::Call(&glTexCoord1fv);
 
 	trampoline(v);
 }
-EXPORT void WINAPI												glTexCoord1i(GLint s)
+EXPORT void WINAPI glTexCoord1i(GLint s)
 {
 	static const auto trampoline = ReHook::Call(&glTexCoord1i);
 
 	trampoline(s);
 }
-EXPORT void WINAPI												glTexCoord1iv(const GLint *v)
+EXPORT void WINAPI glTexCoord1iv(const GLint *v)
 {
 	static const auto trampoline = ReHook::Call(&glTexCoord1iv);
 
 	trampoline(v);
 }
-EXPORT void WINAPI												glTexCoord1s(GLshort s)
+EXPORT void WINAPI glTexCoord1s(GLshort s)
 {
 	static const auto trampoline = ReHook::Call(&glTexCoord1s);
 
 	trampoline(s);
 }
-EXPORT void WINAPI												glTexCoord1sv(const GLshort *v)
+EXPORT void WINAPI glTexCoord1sv(const GLshort *v)
 {
 	static const auto trampoline = ReHook::Call(&glTexCoord1sv);
 
 	trampoline(v);
 }
-EXPORT void WINAPI												glTexCoord2d(GLdouble s, GLdouble t)
+EXPORT void WINAPI glTexCoord2d(GLdouble s, GLdouble t)
 {
 	static const auto trampoline = ReHook::Call(&glTexCoord2d);
 
 	trampoline(s, t);
 }
-EXPORT void WINAPI												glTexCoord2dv(const GLdouble *v)
+EXPORT void WINAPI glTexCoord2dv(const GLdouble *v)
 {
 	static const auto trampoline = ReHook::Call(&glTexCoord2dv);
 
 	trampoline(v);
 }
-EXPORT void WINAPI												glTexCoord2f(GLfloat s, GLfloat t)
+EXPORT void WINAPI glTexCoord2f(GLfloat s, GLfloat t)
 {
 	static const auto trampoline = ReHook::Call(&glTexCoord2f);
 
 	trampoline(s, t);
 }
-EXPORT void WINAPI												glTexCoord2fv(const GLfloat *v)
+EXPORT void WINAPI glTexCoord2fv(const GLfloat *v)
 {
 	static const auto trampoline = ReHook::Call(&glTexCoord2fv);
 
 	trampoline(v);
 }
-EXPORT void WINAPI												glTexCoord2i(GLint s, GLint t)
+EXPORT void WINAPI glTexCoord2i(GLint s, GLint t)
 {
 	static const auto trampoline = ReHook::Call(&glTexCoord2i);
 
 	trampoline(s, t);
 }
-EXPORT void WINAPI												glTexCoord2iv(const GLint *v)
+EXPORT void WINAPI glTexCoord2iv(const GLint *v)
 {
 	static const auto trampoline = ReHook::Call(&glTexCoord2iv);
 
 	trampoline(v);
 }
-EXPORT void WINAPI												glTexCoord2s(GLshort s, GLshort t)
+EXPORT void WINAPI glTexCoord2s(GLshort s, GLshort t)
 {
 	static const auto trampoline = ReHook::Call(&glTexCoord2s);
 
 	trampoline(s, t);
 }
-EXPORT void WINAPI												glTexCoord2sv(const GLshort *v)
+EXPORT void WINAPI glTexCoord2sv(const GLshort *v)
 {
 	static const auto trampoline = ReHook::Call(&glTexCoord2sv);
 
 	trampoline(v);
 }
-EXPORT void WINAPI												glTexCoord3d(GLdouble s, GLdouble t, GLdouble r)
+EXPORT void WINAPI glTexCoord3d(GLdouble s, GLdouble t, GLdouble r)
 {
 	static const auto trampoline = ReHook::Call(&glTexCoord3d);
 
 	trampoline(s, t, r);
 }
-EXPORT void WINAPI												glTexCoord3dv(const GLdouble *v)
+EXPORT void WINAPI glTexCoord3dv(const GLdouble *v)
 {
 	static const auto trampoline = ReHook::Call(&glTexCoord3dv);
 
 	trampoline(v);
 }
-EXPORT void WINAPI												glTexCoord3f(GLfloat s, GLfloat t, GLfloat r)
+EXPORT void WINAPI glTexCoord3f(GLfloat s, GLfloat t, GLfloat r)
 {
 	static const auto trampoline = ReHook::Call(&glTexCoord3f);
 
 	trampoline(s, t, r);
 }
-EXPORT void WINAPI												glTexCoord3fv(const GLfloat *v)
+EXPORT void WINAPI glTexCoord3fv(const GLfloat *v)
 {
 	static const auto trampoline = ReHook::Call(&glTexCoord3fv);
 
 	trampoline(v);
 }
-EXPORT void WINAPI												glTexCoord3i(GLint s, GLint t, GLint r)
+EXPORT void WINAPI glTexCoord3i(GLint s, GLint t, GLint r)
 {
 	static const auto trampoline = ReHook::Call(&glTexCoord3i);
 
 	trampoline(s, t, r);
 }
-EXPORT void WINAPI												glTexCoord3iv(const GLint *v)
+EXPORT void WINAPI glTexCoord3iv(const GLint *v)
 {
 	static const auto trampoline = ReHook::Call(&glTexCoord3iv);
 
 	trampoline(v);
 }
-EXPORT void WINAPI												glTexCoord3s(GLshort s, GLshort t, GLshort r)
+EXPORT void WINAPI glTexCoord3s(GLshort s, GLshort t, GLshort r)
 {
 	static const auto trampoline = ReHook::Call(&glTexCoord3s);
 
 	trampoline(s, t, r);
 }
-EXPORT void WINAPI												glTexCoord3sv(const GLshort *v)
+EXPORT void WINAPI glTexCoord3sv(const GLshort *v)
 {
 	static const auto trampoline = ReHook::Call(&glTexCoord3sv);
 
 	trampoline(v);
 }
-EXPORT void WINAPI												glTexCoord4d(GLdouble s, GLdouble t, GLdouble r, GLdouble q)
+EXPORT void WINAPI glTexCoord4d(GLdouble s, GLdouble t, GLdouble r, GLdouble q)
 {
 	static const auto trampoline = ReHook::Call(&glTexCoord4d);
 
 	trampoline(s, t, r, q);
 }
-EXPORT void WINAPI												glTexCoord4dv(const GLdouble *v)
+EXPORT void WINAPI glTexCoord4dv(const GLdouble *v)
 {
 	static const auto trampoline = ReHook::Call(&glTexCoord4dv);
 
 	trampoline(v);
 }
-EXPORT void WINAPI												glTexCoord4f(GLfloat s, GLfloat t, GLfloat r, GLfloat q)
+EXPORT void WINAPI glTexCoord4f(GLfloat s, GLfloat t, GLfloat r, GLfloat q)
 {
 	static const auto trampoline = ReHook::Call(&glTexCoord4f);
 
 	trampoline(s, t, r, q);
 }
-EXPORT void WINAPI												glTexCoord4fv(const GLfloat *v)
+EXPORT void WINAPI glTexCoord4fv(const GLfloat *v)
 {
 	static const auto trampoline = ReHook::Call(&glTexCoord4fv);
 
 	trampoline(v);
 }
-EXPORT void WINAPI												glTexCoord4i(GLint s, GLint t, GLint r, GLint q)
+EXPORT void WINAPI glTexCoord4i(GLint s, GLint t, GLint r, GLint q)
 {
 	static const auto trampoline = ReHook::Call(&glTexCoord4i);
 
 	trampoline(s, t, r, q);
 }
-EXPORT void WINAPI												glTexCoord4iv(const GLint *v)
+EXPORT void WINAPI glTexCoord4iv(const GLint *v)
 {
 	static const auto trampoline = ReHook::Call(&glTexCoord4iv);
 
 	trampoline(v);
 }
-EXPORT void WINAPI												glTexCoord4s(GLshort s, GLshort t, GLshort r, GLshort q)
+EXPORT void WINAPI glTexCoord4s(GLshort s, GLshort t, GLshort r, GLshort q)
 {
 	static const auto trampoline = ReHook::Call(&glTexCoord4s);
 
 	trampoline(s, t, r, q);
 }
-EXPORT void WINAPI												glTexCoord4sv(const GLshort *v)
+EXPORT void WINAPI glTexCoord4sv(const GLshort *v)
 {
 	static const auto trampoline = ReHook::Call(&glTexCoord4sv);
 
 	trampoline(v);
 }
-EXPORT void WINAPI												glTexCoordPointer(GLint size, GLenum type, GLsizei stride, const GLvoid *pointer)
+EXPORT void WINAPI glTexCoordPointer(GLint size, GLenum type, GLsizei stride, const GLvoid *pointer)
 {
 	static const auto trampoline = ReHook::Call(&glTexCoordPointer);
 
 	trampoline(size, type, stride, pointer);
 }
-EXPORT void WINAPI												glTexEnvf(GLenum target, GLenum pname, GLfloat param)
+EXPORT void WINAPI glTexEnvf(GLenum target, GLenum pname, GLfloat param)
 {
 	static const auto trampoline = ReHook::Call(&glTexEnvf);
 
 	trampoline(target, pname, param);
 }
-EXPORT void WINAPI												glTexEnvfv(GLenum target, GLenum pname, const GLfloat *params)
+EXPORT void WINAPI glTexEnvfv(GLenum target, GLenum pname, const GLfloat *params)
 {
 	static const auto trampoline = ReHook::Call(&glTexEnvfv);
 
 	trampoline(target, pname, params);
 }
-EXPORT void WINAPI												glTexEnvi(GLenum target, GLenum pname, GLint param)
+EXPORT void WINAPI glTexEnvi(GLenum target, GLenum pname, GLint param)
 {
 	static const auto trampoline = ReHook::Call(&glTexEnvi);
 
 	trampoline(target, pname, param);
 }
-EXPORT void WINAPI												glTexEnviv(GLenum target, GLenum pname, const GLint *params)
+EXPORT void WINAPI glTexEnviv(GLenum target, GLenum pname, const GLint *params)
 {
 	static const auto trampoline = ReHook::Call(&glTexEnviv);
 
 	trampoline(target, pname, params);
 }
-EXPORT void WINAPI												glTexGend(GLenum coord, GLenum pname, GLdouble param)
+EXPORT void WINAPI glTexGend(GLenum coord, GLenum pname, GLdouble param)
 {
 	static const auto trampoline = ReHook::Call(&glTexGend);
 
 	trampoline(coord, pname, param);
 }
-EXPORT void WINAPI												glTexGendv(GLenum coord, GLenum pname, const GLdouble *params)
+EXPORT void WINAPI glTexGendv(GLenum coord, GLenum pname, const GLdouble *params)
 {
 	static const auto trampoline = ReHook::Call(&glTexGendv);
 
 	trampoline(coord, pname, params);
 }
-EXPORT void WINAPI												glTexGenf(GLenum coord, GLenum pname, GLfloat param)
+EXPORT void WINAPI glTexGenf(GLenum coord, GLenum pname, GLfloat param)
 {
 	static const auto trampoline = ReHook::Call(&glTexGenf);
 
 	trampoline(coord, pname, param);
 }
-EXPORT void WINAPI												glTexGenfv(GLenum coord, GLenum pname, const GLfloat *params)
+EXPORT void WINAPI glTexGenfv(GLenum coord, GLenum pname, const GLfloat *params)
 {
 	static const auto trampoline = ReHook::Call(&glTexGenfv);
 
 	trampoline(coord, pname, params);
 }
-EXPORT void WINAPI												glTexGeni(GLenum coord, GLenum pname, GLint param)
+EXPORT void WINAPI glTexGeni(GLenum coord, GLenum pname, GLint param)
 {
 	static const auto trampoline = ReHook::Call(&glTexGeni);
 
 	trampoline(coord, pname, param);
 }
-EXPORT void WINAPI												glTexGeniv(GLenum coord, GLenum pname, const GLint *params)
+EXPORT void WINAPI glTexGeniv(GLenum coord, GLenum pname, const GLint *params)
 {
 	static const auto trampoline = ReHook::Call(&glTexGeniv);
 
 	trampoline(coord, pname, params);
 }
-EXPORT void WINAPI												glTexImage1D(GLenum target, GLint level, GLint internalformat, GLsizei width, GLint border, GLenum format, GLenum type, const GLvoid *pixels)
+EXPORT void WINAPI glTexImage1D(GLenum target, GLint level, GLint internalformat, GLsizei width, GLint border, GLenum format, GLenum type, const GLvoid *pixels)
 {
 	static const auto trampoline = ReHook::Call(&glTexImage1D);
 
 	trampoline(target, level, internalformat, width, border, format, type, pixels);
 }
-EXPORT void WINAPI												glTexImage2D(GLenum target, GLint level, GLint internalformat, GLsizei width, GLsizei height, GLint border, GLenum format, GLenum type, const GLvoid *pixels)
+EXPORT void WINAPI glTexImage2D(GLenum target, GLint level, GLint internalformat, GLsizei width, GLsizei height, GLint border, GLenum format, GLenum type, const GLvoid *pixels)
 {
 	static const auto trampoline = ReHook::Call(&glTexImage2D);
 
 	trampoline(target, level, internalformat, width, height, border, format, type, pixels);
 }
-EXPORT void WINAPI												glTexParameterf(GLenum target, GLenum pname, GLfloat param)
+EXPORT void WINAPI glTexParameterf(GLenum target, GLenum pname, GLfloat param)
 {
 	static const auto trampoline = ReHook::Call(&glTexParameterf);
 
 	trampoline(target, pname, param);
 }
-EXPORT void WINAPI												glTexParameterfv(GLenum target, GLenum pname, const GLfloat *params)
+EXPORT void WINAPI glTexParameterfv(GLenum target, GLenum pname, const GLfloat *params)
 {
 	static const auto trampoline = ReHook::Call(&glTexParameterfv);
 
 	trampoline(target, pname, params);
 }
-EXPORT void WINAPI												glTexParameteri(GLenum target, GLenum pname, GLint param)
+EXPORT void WINAPI glTexParameteri(GLenum target, GLenum pname, GLint param)
 {
 	static const auto trampoline = ReHook::Call(&glTexParameteri);
 
 	trampoline(target, pname, param);
 }
-EXPORT void WINAPI												glTexParameteriv(GLenum target, GLenum pname, const GLint *params)
+EXPORT void WINAPI glTexParameteriv(GLenum target, GLenum pname, const GLint *params)
 {
 	static const auto trampoline = ReHook::Call(&glTexParameteriv);
 
 	trampoline(target, pname, params);
 }
-EXPORT void WINAPI												glTexSubImage1D(GLenum target, GLint level, GLint xoffset, GLsizei width, GLenum format, GLenum type, const GLvoid *pixels)
+EXPORT void WINAPI glTexSubImage1D(GLenum target, GLint level, GLint xoffset, GLsizei width, GLenum format, GLenum type, const GLvoid *pixels)
 {
 	static const auto trampoline = ReHook::Call(&glTexSubImage1D);
 
 	trampoline(target, level, xoffset, width, format, type, pixels);
 }
-EXPORT void WINAPI												glTexSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLenum type, const GLvoid *pixels)
+EXPORT void WINAPI glTexSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLenum type, const GLvoid *pixels)
 {
 	static const auto trampoline = ReHook::Call(&glTexSubImage2D);
 
 	trampoline(target, level, xoffset, yoffset, width, height, format, type, pixels);
 }
-EXPORT void WINAPI												glTranslated(GLdouble x, GLdouble y, GLdouble z)
+EXPORT void WINAPI glTranslated(GLdouble x, GLdouble y, GLdouble z)
 {
 	static const auto trampoline = ReHook::Call(&glTranslated);
 
 	trampoline(x, y, z);
 }
-EXPORT void WINAPI												glTranslatef(GLfloat x, GLfloat y, GLfloat z)
+EXPORT void WINAPI glTranslatef(GLfloat x, GLfloat y, GLfloat z)
 {
 	static const auto trampoline = ReHook::Call(&glTranslatef);
 
 	trampoline(x, y, z);
 }
-EXPORT void WINAPI												glVertex2d(GLdouble x, GLdouble y)
+EXPORT void WINAPI glVertex2d(GLdouble x, GLdouble y)
 {
 	static const auto trampoline = ReHook::Call(&glVertex2d);
 
 	trampoline(x, y);
 }
-EXPORT void WINAPI												glVertex2dv(const GLdouble *v)
+EXPORT void WINAPI glVertex2dv(const GLdouble *v)
 {
 	static const auto trampoline = ReHook::Call(&glVertex2dv);
 
 	trampoline(v);
 }
-EXPORT void WINAPI												glVertex2f(GLfloat x, GLfloat y)
+EXPORT void WINAPI glVertex2f(GLfloat x, GLfloat y)
 {
 	static const auto trampoline = ReHook::Call(&glVertex2f);
 
 	trampoline(x, y);
 }
-EXPORT void WINAPI												glVertex2fv(const GLfloat *v)
+EXPORT void WINAPI glVertex2fv(const GLfloat *v)
 {
 	static const auto trampoline = ReHook::Call(&glVertex2fv);
 
 	trampoline(v);
 }
-EXPORT void WINAPI												glVertex2i(GLint x, GLint y)
+EXPORT void WINAPI glVertex2i(GLint x, GLint y)
 {
 	static const auto trampoline = ReHook::Call(&glVertex2i);
 
 	trampoline(x, y);
 }
-EXPORT void WINAPI												glVertex2iv(const GLint *v)
+EXPORT void WINAPI glVertex2iv(const GLint *v)
 {
 	static const auto trampoline = ReHook::Call(&glVertex2iv);
 
 	trampoline(v);
 }
-EXPORT void WINAPI												glVertex2s(GLshort x, GLshort y)
+EXPORT void WINAPI glVertex2s(GLshort x, GLshort y)
 {
 	static const auto trampoline = ReHook::Call(&glVertex2s);
 
 	trampoline(x, y);
 }
-EXPORT void WINAPI												glVertex2sv(const GLshort *v)
+EXPORT void WINAPI glVertex2sv(const GLshort *v)
 {
 	static const auto trampoline = ReHook::Call(&glVertex2sv);
 
 	trampoline(v);
 }
-EXPORT void WINAPI												glVertex3d(GLdouble x, GLdouble y, GLdouble z)
+EXPORT void WINAPI glVertex3d(GLdouble x, GLdouble y, GLdouble z)
 {
 	static const auto trampoline = ReHook::Call(&glVertex3d);
 
 	trampoline(x, y, z);
 }
-EXPORT void WINAPI												glVertex3dv(const GLdouble *v)
+EXPORT void WINAPI glVertex3dv(const GLdouble *v)
 {
 	static const auto trampoline = ReHook::Call(&glVertex3dv);
 
 	trampoline(v);
 }
-EXPORT void WINAPI												glVertex3f(GLfloat x, GLfloat y, GLfloat z)
+EXPORT void WINAPI glVertex3f(GLfloat x, GLfloat y, GLfloat z)
 {
 	static const auto trampoline = ReHook::Call(&glVertex3f);
 
 	trampoline(x, y, z);
 }
-EXPORT void WINAPI												glVertex3fv(const GLfloat *v)
+EXPORT void WINAPI glVertex3fv(const GLfloat *v)
 {
 	static const auto trampoline = ReHook::Call(&glVertex3fv);
 
 	trampoline(v);
 }
-EXPORT void WINAPI												glVertex3i(GLint x, GLint y, GLint z)
+EXPORT void WINAPI glVertex3i(GLint x, GLint y, GLint z)
 {
 	static const auto trampoline = ReHook::Call(&glVertex3i);
 
 	trampoline(x, y, z);
 }
-EXPORT void WINAPI												glVertex3iv(const GLint *v)
+EXPORT void WINAPI glVertex3iv(const GLint *v)
 {
 	static const auto trampoline = ReHook::Call(&glVertex3iv);
 
 	trampoline(v);
 }
-EXPORT void WINAPI												glVertex3s(GLshort x, GLshort y, GLshort z)
+EXPORT void WINAPI glVertex3s(GLshort x, GLshort y, GLshort z)
 {
 	static const auto trampoline = ReHook::Call(&glVertex3s);
 
 	trampoline(x, y, z);
 }
-EXPORT void WINAPI												glVertex3sv(const GLshort *v)
+EXPORT void WINAPI glVertex3sv(const GLshort *v)
 {
 	static const auto trampoline = ReHook::Call(&glVertex3sv);
 
 	trampoline(v);
 }
-EXPORT void WINAPI												glVertex4d(GLdouble x, GLdouble y, GLdouble z, GLdouble w)
+EXPORT void WINAPI glVertex4d(GLdouble x, GLdouble y, GLdouble z, GLdouble w)
 {
 	static const auto trampoline = ReHook::Call(&glVertex4d);
 
 	trampoline(x, y, z, w);
 }
-EXPORT void WINAPI												glVertex4dv(const GLdouble *v)
+EXPORT void WINAPI glVertex4dv(const GLdouble *v)
 {
 	static const auto trampoline = ReHook::Call(&glVertex4dv);
 
 	trampoline(v);
 }
-EXPORT void WINAPI												glVertex4f(GLfloat x, GLfloat y, GLfloat z, GLfloat w)
+EXPORT void WINAPI glVertex4f(GLfloat x, GLfloat y, GLfloat z, GLfloat w)
 {
 	static const auto trampoline = ReHook::Call(&glVertex4f);
 
 	trampoline(x, y, z, w);
 }
-EXPORT void WINAPI												glVertex4fv(const GLfloat *v)
+EXPORT void WINAPI glVertex4fv(const GLfloat *v)
 {
 	static const auto trampoline = ReHook::Call(&glVertex4fv);
 
 	trampoline(v);
 }
-EXPORT void WINAPI												glVertex4i(GLint x, GLint y, GLint z, GLint w)
+EXPORT void WINAPI glVertex4i(GLint x, GLint y, GLint z, GLint w)
 {
 	static const auto trampoline = ReHook::Call(&glVertex4i);
 
 	trampoline(x, y, z, w);
 }
-EXPORT void WINAPI												glVertex4iv(const GLint *v)
+EXPORT void WINAPI glVertex4iv(const GLint *v)
 {
 	static const auto trampoline = ReHook::Call(&glVertex4iv);
 
 	trampoline(v);
 }
-EXPORT void WINAPI												glVertex4s(GLshort x, GLshort y, GLshort z, GLshort w)
+EXPORT void WINAPI glVertex4s(GLshort x, GLshort y, GLshort z, GLshort w)
 {
 	static const auto trampoline = ReHook::Call(&glVertex4s);
 
 	trampoline(x, y, z, w);
 }
-EXPORT void WINAPI												glVertex4sv(const GLshort *v)
+EXPORT void WINAPI glVertex4sv(const GLshort *v)
 {
 	static const auto trampoline = ReHook::Call(&glVertex4sv);
 
 	trampoline(v);
 }
-EXPORT void WINAPI												glVertexPointer(GLint size, GLenum type, GLsizei stride, const GLvoid *pointer)
+EXPORT void WINAPI glVertexPointer(GLint size, GLenum type, GLsizei stride, const GLvoid *pointer)
 {
 	static const auto trampoline = ReHook::Call(&glVertexPointer);
 
 	trampoline(size, type, stride, pointer);
 }
-EXPORT void WINAPI												glViewport(GLint x, GLint y, GLsizei width, GLsizei height)
+EXPORT void WINAPI glViewport(GLint x, GLint y, GLsizei width, GLsizei height)
 {
 	static const auto trampoline = ReHook::Call(&glViewport);
 
@@ -2176,7 +2176,7 @@ EXPORT void WINAPI												glViewport(GLint x, GLint y, GLsizei width, GLsize
 }
 
 // WGL
-EXPORT int WINAPI												wglChoosePixelFormat(HDC hdc, CONST PIXELFORMATDESCRIPTOR *ppfd)
+EXPORT int WINAPI wglChoosePixelFormat(HDC hdc, CONST PIXELFORMATDESCRIPTOR *ppfd)
 {
 	LOG(INFO) << "Redirecting '" << "wglChoosePixelFormat" << "(" << hdc << ", " << ppfd << ")' ...";
 
@@ -2186,7 +2186,7 @@ EXPORT int WINAPI												wglChoosePixelFormat(HDC hdc, CONST PIXELFORMATDESC
 
 	return format;
 }
-EXPORT BOOL WINAPI												wglChoosePixelFormatARB(HDC hdc, const int *piAttribIList, const FLOAT *pfAttribFList, UINT nMaxFormats, int *piFormats, UINT *nNumFormats)
+EXPORT BOOL WINAPI wglChoosePixelFormatARB(HDC hdc, const int *piAttribIList, const FLOAT *pfAttribFList, UINT nMaxFormats, int *piFormats, UINT *nNumFormats)
 {
 	LOG(INFO) << "Redirecting '" << "wglChoosePixelFormatARB" << "(" << hdc << ", " << piAttribIList << ", " << pfAttribFList << ", " << nMaxFormats << ", " << piFormats << ", " << nNumFormats << ")' ...";
 	
@@ -2291,11 +2291,11 @@ EXPORT BOOL WINAPI												wglChoosePixelFormatARB(HDC hdc, const int *piAttr
 
 	return TRUE;
 }
-EXPORT BOOL WINAPI												wglCopyContext(HGLRC hglrcSrc, HGLRC hglrcDst, UINT mask)
+EXPORT BOOL WINAPI wglCopyContext(HGLRC hglrcSrc, HGLRC hglrcDst, UINT mask)
 {
 	return ReHook::Call(&wglCopyContext)(hglrcSrc, hglrcDst, mask);
 }
-EXPORT HGLRC WINAPI												wglCreateContext(HDC hdc)
+EXPORT HGLRC WINAPI wglCreateContext(HDC hdc)
 {
 	LOG(INFO) << "Redirecting '" << "wglCreateContext" << "(" << hdc << ")' ...";
 
@@ -2314,7 +2314,7 @@ EXPORT HGLRC WINAPI												wglCreateContext(HDC hdc)
 
 	return hglrc;
 }
-EXPORT HGLRC WINAPI												wglCreateContextAttribsARB(HDC hdc, HGLRC hShareContext, const int *attribList)
+EXPORT HGLRC WINAPI wglCreateContextAttribsARB(HDC hdc, HGLRC hShareContext, const int *attribList)
 {
 	LOG(INFO) << "Redirecting '" << "wglCreateContextAttribsARB" << "(" << hdc << ", " << hShareContext << ", " << attribList << ")' ...";
 
@@ -2408,13 +2408,13 @@ EXPORT HGLRC WINAPI												wglCreateContextAttribsARB(HDC hdc, HGLRC hShareC
 
 	return hglrc;
 }
-EXPORT HGLRC WINAPI												wglCreateLayerContext(HDC hdc, int iLayerPlane)
+EXPORT HGLRC WINAPI wglCreateLayerContext(HDC hdc, int iLayerPlane)
 {
 	LOG(INFO) << "Redirecting '" << "wglCreateLayerContext" << "(" << hdc << ", " << iLayerPlane << ")' ...";
 
 	return ReHook::Call(&wglCreateLayerContext)(hdc, iLayerPlane);
 }
-EXPORT BOOL WINAPI												wglDeleteContext(HGLRC hglrc)
+EXPORT BOOL WINAPI wglDeleteContext(HGLRC hglrc)
 {
 	LOG(INFO) << "Redirecting '" << "wglDeleteContext" << "(" << hglrc << ")' ...";
 
@@ -2442,49 +2442,49 @@ EXPORT BOOL WINAPI												wglDeleteContext(HGLRC hglrc)
 
 	return TRUE;
 }
-EXPORT BOOL WINAPI												wglDescribeLayerPlane(HDC hdc, int iPixelFormat, int iLayerPlane, UINT nBytes, LPLAYERPLANEDESCRIPTOR plpd)
+EXPORT BOOL WINAPI wglDescribeLayerPlane(HDC hdc, int iPixelFormat, int iLayerPlane, UINT nBytes, LPLAYERPLANEDESCRIPTOR plpd)
 {
 	return ReHook::Call(&wglDescribeLayerPlane)(hdc, iPixelFormat, iLayerPlane, nBytes, plpd);
 }
-EXPORT int WINAPI												wglDescribePixelFormat(HDC hdc, int iPixelFormat, UINT nBytes, LPPIXELFORMATDESCRIPTOR ppfd)
+EXPORT int WINAPI wglDescribePixelFormat(HDC hdc, int iPixelFormat, UINT nBytes, LPPIXELFORMATDESCRIPTOR ppfd)
 {
 	return ReHook::Call(wglDescribePixelFormat)(hdc, iPixelFormat, nBytes, ppfd);
 }
-EXPORT HGLRC WINAPI												wglGetCurrentContext(void)
+EXPORT HGLRC WINAPI wglGetCurrentContext()
 {
 	return sCurrentRenderContext;
 }
-EXPORT HDC WINAPI												wglGetCurrentDC(void)
+EXPORT HDC WINAPI wglGetCurrentDC()
 {
 	return sCurrentDeviceContext;
 }
-EXPORT int WINAPI												wglGetLayerPaletteEntries(HDC hdc, int iLayerPlane, int iStart, int cEntries, COLORREF *pcr)
+EXPORT int WINAPI wglGetLayerPaletteEntries(HDC hdc, int iLayerPlane, int iStart, int cEntries, COLORREF *pcr)
 {
 	return ReHook::Call(&wglGetLayerPaletteEntries)(hdc, iLayerPlane, iStart, cEntries, pcr);
 }
-EXPORT int WINAPI												wglGetPixelFormat(HDC hdc)
+EXPORT int WINAPI wglGetPixelFormat(HDC hdc)
 {
 	return ReHook::Call(&wglGetPixelFormat)(hdc);
 }
-EXPORT BOOL WINAPI												wglGetPixelFormatAttribivARB(HDC hdc, int iPixelFormat, int iLayerPlane, UINT nAttributes, const int *piAttributes, int *piValues)
+EXPORT BOOL WINAPI wglGetPixelFormatAttribivARB(HDC hdc, int iPixelFormat, int iLayerPlane, UINT nAttributes, const int *piAttributes, int *piValues)
 {
 	return ReHook::Call(&wglGetPixelFormatAttribivARB)(hdc, iPixelFormat, iLayerPlane, nAttributes, piAttributes, piValues);
 }
-EXPORT BOOL WINAPI												wglGetPixelFormatAttribfvARB(HDC hdc, int iPixelFormat, int iLayerPlane, UINT nAttributes, const int *piAttributes, FLOAT *pfValues)
+EXPORT BOOL WINAPI wglGetPixelFormatAttribfvARB(HDC hdc, int iPixelFormat, int iLayerPlane, UINT nAttributes, const int *piAttributes, FLOAT *pfValues)
 {
 	return ReHook::Call(&wglGetPixelFormatAttribfvARB)(hdc, iPixelFormat, iLayerPlane, nAttributes, piAttributes, pfValues);
 }
-EXPORT const char *WINAPI										wglGetExtensionsStringARB(HDC hdc)
+EXPORT const char *WINAPI wglGetExtensionsStringARB(HDC hdc)
 {
 	return ReHook::Call(&wglGetExtensionsStringARB)(hdc);
 }
-EXPORT int WINAPI												wglGetSwapIntervalEXT(void)
+EXPORT int WINAPI wglGetSwapIntervalEXT()
 {
 	static const auto trampoline = ReHook::Call(&wglGetSwapIntervalEXT);
 
 	return trampoline();
 }
-EXPORT BOOL WINAPI												wglMakeCurrent(HDC hdc, HGLRC hglrc)
+EXPORT BOOL WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 {
 	static const auto trampoline = ReHook::Call(&wglMakeCurrent);
 
@@ -2559,15 +2559,15 @@ EXPORT BOOL WINAPI												wglMakeCurrent(HDC hdc, HGLRC hglrc)
 
 	return TRUE;
 }
-EXPORT BOOL WINAPI												wglRealizeLayerPalette(HDC hdc, int iLayerPlane, BOOL b)
+EXPORT BOOL WINAPI wglRealizeLayerPalette(HDC hdc, int iLayerPlane, BOOL b)
 {
 	return ReHook::Call(&wglRealizeLayerPalette)(hdc, iLayerPlane, b);
 }
-EXPORT int WINAPI												wglSetLayerPaletteEntries(HDC hdc, int iLayerPlane, int iStart, int cEntries, CONST COLORREF *pcr)
+EXPORT int WINAPI wglSetLayerPaletteEntries(HDC hdc, int iLayerPlane, int iStart, int cEntries, CONST COLORREF *pcr)
 {
 	return ReHook::Call(&wglSetLayerPaletteEntries)(hdc, iLayerPlane, iStart, cEntries, pcr);
 }
-EXPORT BOOL WINAPI												wglSetPixelFormat(HDC hdc, int iPixelFormat, CONST PIXELFORMATDESCRIPTOR *ppfd)
+EXPORT BOOL WINAPI wglSetPixelFormat(HDC hdc, int iPixelFormat, CONST PIXELFORMATDESCRIPTOR *ppfd)
 {
 	LOG(INFO) << "Redirecting '" << "wglSetPixelFormat" << "(" << hdc << ", " << iPixelFormat << ", " << ppfd << ")' ...";
 
@@ -2580,13 +2580,13 @@ EXPORT BOOL WINAPI												wglSetPixelFormat(HDC hdc, int iPixelFormat, CONST
 
 	return TRUE;
 }
-EXPORT BOOL WINAPI												wglShareLists(HGLRC hglrc1, HGLRC hglrc2)
+EXPORT BOOL WINAPI wglShareLists(HGLRC hglrc1, HGLRC hglrc2)
 {
 	LOG(INFO) << "Redirecting '" << "wglShareLists" << "(" << hglrc1 << ", " << hglrc2 << ")' ...";
 
 	return ReHook::Call(&wglShareLists)(hglrc1, hglrc2);
 }
-EXPORT BOOL WINAPI												wglSwapBuffers(HDC hdc)
+EXPORT BOOL WINAPI wglSwapBuffers(HDC hdc)
 {
 	static const auto trampoline = ReHook::Call(&wglSwapBuffers);
 
@@ -2627,13 +2627,13 @@ EXPORT BOOL WINAPI												wglSwapBuffers(HDC hdc)
 
 	return trampoline(hdc);
 }
-EXPORT BOOL WINAPI												wglSwapLayerBuffers(HDC hdc, UINT i)
+EXPORT BOOL WINAPI wglSwapLayerBuffers(HDC hdc, UINT i)
 {
 	static const auto trampoline = ReHook::Call(&wglSwapLayerBuffers);
 
 	return trampoline(hdc, i);
 }
-EXPORT DWORD WINAPI												wglSwapMultipleBuffers(UINT cNumBuffers, CONST WGLSWAP *pBuffers)
+EXPORT DWORD WINAPI wglSwapMultipleBuffers(UINT cNumBuffers, CONST WGLSWAP *pBuffers)
 {
 	for (UINT i = 0; i < cNumBuffers; ++i)
 	{
@@ -2642,37 +2642,37 @@ EXPORT DWORD WINAPI												wglSwapMultipleBuffers(UINT cNumBuffers, CONST WG
 
 	return 0;
 }
-EXPORT BOOL WINAPI												wglSwapIntervalEXT(int interval)
+EXPORT BOOL WINAPI wglSwapIntervalEXT(int interval)
 {
 	static const auto trampoline = ReHook::Call(&wglSwapIntervalEXT);
 
 	return trampoline(interval);
 }
-EXPORT BOOL WINAPI												wglUseFontBitmapsA(HDC hdc, DWORD dw1, DWORD dw2, DWORD dw3)
+EXPORT BOOL WINAPI wglUseFontBitmapsA(HDC hdc, DWORD dw1, DWORD dw2, DWORD dw3)
 {
 	static const auto trampoline = ReHook::Call(&wglUseFontBitmapsA);
 
 	return trampoline(hdc, dw1, dw2, dw3);
 }
-EXPORT BOOL WINAPI												wglUseFontBitmapsW(HDC hdc, DWORD dw1, DWORD dw2, DWORD dw3)
+EXPORT BOOL WINAPI wglUseFontBitmapsW(HDC hdc, DWORD dw1, DWORD dw2, DWORD dw3)
 {
 	static const auto trampoline = ReHook::Call(&wglUseFontBitmapsW);
 
 	return trampoline(hdc, dw1, dw2, dw3);
 }
-EXPORT BOOL WINAPI												wglUseFontOutlinesA(HDC hdc, DWORD dw1, DWORD dw2, DWORD dw3, FLOAT f1, FLOAT f2, int i, LPGLYPHMETRICSFLOAT pgmf)
+EXPORT BOOL WINAPI wglUseFontOutlinesA(HDC hdc, DWORD dw1, DWORD dw2, DWORD dw3, FLOAT f1, FLOAT f2, int i, LPGLYPHMETRICSFLOAT pgmf)
 {
 	static const auto trampoline = ReHook::Call(&wglUseFontOutlinesA);
 
 	return trampoline(hdc, dw1, dw2, dw3, f1, f2, i, pgmf);
 }
-EXPORT BOOL WINAPI												wglUseFontOutlinesW(HDC hdc, DWORD dw1, DWORD dw2, DWORD dw3, FLOAT f1, FLOAT f2, int i, LPGLYPHMETRICSFLOAT pgmf)
+EXPORT BOOL WINAPI wglUseFontOutlinesW(HDC hdc, DWORD dw1, DWORD dw2, DWORD dw3, FLOAT f1, FLOAT f2, int i, LPGLYPHMETRICSFLOAT pgmf)
 {
 	static const auto trampoline = ReHook::Call(&wglUseFontOutlinesW);
 
 	return trampoline(hdc, dw1, dw2, dw3, f1, f2, i, pgmf);
 }
-EXPORT PROC WINAPI												wglGetProcAddress(LPCSTR lpszProc)
+EXPORT PROC WINAPI wglGetProcAddress(LPCSTR lpszProc)
 {
 	const PROC address = ReHook::Call(&wglGetProcAddress)(lpszProc);
 

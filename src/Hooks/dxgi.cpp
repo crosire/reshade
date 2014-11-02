@@ -10,15 +10,15 @@
 
 namespace
 {
-	struct														DXGISwapChain : public IDXGISwapChain1
+	struct DXGISwapChain : public IDXGISwapChain1
 	{
 		DXGISwapChain(IDXGIFactory *pFactory, IDXGISwapChain *pOriginalSwapChain, const std::shared_ptr<ReShade::Runtime> runtime) : mRef(1), mFactory(pFactory), mOrig(pOriginalSwapChain), mRuntime(runtime)
 		{
 		}
 
 		virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
-		virtual ULONG	STDMETHODCALLTYPE AddRef(void) override;
-		virtual ULONG	STDMETHODCALLTYPE Release(void) override;
+		virtual ULONG STDMETHODCALLTYPE AddRef() override;
+		virtual ULONG STDMETHODCALLTYPE Release() override;
 
 		virtual HRESULT STDMETHODCALLTYPE SetPrivateData(REFGUID Name, UINT DataSize, const void *pData) override;
 		virtual HRESULT STDMETHODCALLTYPE SetPrivateDataInterface(REFGUID Name, const IUnknown *pUnknown) override;
@@ -43,7 +43,7 @@ namespace
 		virtual HRESULT STDMETHODCALLTYPE GetHwnd(HWND *pHwnd) override;
 		virtual HRESULT STDMETHODCALLTYPE GetCoreWindow(REFIID refiid, void **ppUnk) override;
 		virtual HRESULT STDMETHODCALLTYPE Present1(UINT SyncInterval, UINT PresentFlags, const DXGI_PRESENT_PARAMETERS *pPresentParameters) override;
-		virtual BOOL	STDMETHODCALLTYPE IsTemporaryMonoSupported(void) override;
+		virtual BOOL STDMETHODCALLTYPE IsTemporaryMonoSupported() override;
 		virtual HRESULT STDMETHODCALLTYPE GetRestrictToOutput(IDXGIOutput **ppRestrictToOutput) override;
 		virtual HRESULT STDMETHODCALLTYPE SetBackgroundColor(const DXGI_RGBA *pColor) override;
 		virtual HRESULT STDMETHODCALLTYPE GetBackgroundColor(DXGI_RGBA *pColor) override;
@@ -56,7 +56,7 @@ namespace
 		std::shared_ptr<ReShade::Runtime> mRuntime;
 	};
 
-	LPCSTR														GetErrorString(HRESULT hr)
+	LPCSTR GetErrorString(HRESULT hr)
 	{
 		switch (hr)
 		{
@@ -73,14 +73,14 @@ namespace
 }
 namespace ReShade
 {
-	extern std::shared_ptr<ReShade::Runtime>					CreateEffectRuntime(ID3D10Device *device, IDXGISwapChain *swapchain);
-	extern std::shared_ptr<ReShade::Runtime>					CreateEffectRuntime(ID3D11Device *device, IDXGISwapChain *swapchain);
+	extern std::shared_ptr<ReShade::Runtime> CreateEffectRuntime(ID3D10Device *device, IDXGISwapChain *swapchain);
+	extern std::shared_ptr<ReShade::Runtime> CreateEffectRuntime(ID3D11Device *device, IDXGISwapChain *swapchain);
 }
 
 // -----------------------------------------------------------------------------------------------------
 
 // IDXGISwapChain
-HRESULT STDMETHODCALLTYPE 										DXGISwapChain::QueryInterface(REFIID riid, void **ppvObj)
+HRESULT STDMETHODCALLTYPE DXGISwapChain::QueryInterface(REFIID riid, void **ppvObj)
 {
 	HRESULT hr = this->mOrig->QueryInterface(riid, ppvObj);
 
@@ -93,13 +93,13 @@ HRESULT STDMETHODCALLTYPE 										DXGISwapChain::QueryInterface(REFIID riid, v
 
 	return hr;
 }
-ULONG STDMETHODCALLTYPE 										DXGISwapChain::AddRef(void)
+ULONG STDMETHODCALLTYPE DXGISwapChain::AddRef()
 {
 	this->mRef++;
 
 	return this->mOrig->AddRef();
 }
-ULONG STDMETHODCALLTYPE 										DXGISwapChain::Release(void)
+ULONG STDMETHODCALLTYPE DXGISwapChain::Release()
 {
 	if (--this->mRef == 0)
 	{
@@ -117,27 +117,27 @@ ULONG STDMETHODCALLTYPE 										DXGISwapChain::Release(void)
 
 	return ref;
 }
-HRESULT STDMETHODCALLTYPE 										DXGISwapChain::SetPrivateData(REFGUID Name, UINT DataSize, const void *pData)
+HRESULT STDMETHODCALLTYPE DXGISwapChain::SetPrivateData(REFGUID Name, UINT DataSize, const void *pData)
 {
 	return this->mOrig->SetPrivateData(Name, DataSize, pData);
 }
-HRESULT STDMETHODCALLTYPE 										DXGISwapChain::SetPrivateDataInterface(REFGUID Name, const IUnknown *pUnknown)
+HRESULT STDMETHODCALLTYPE DXGISwapChain::SetPrivateDataInterface(REFGUID Name, const IUnknown *pUnknown)
 {
 	return this->mOrig->SetPrivateDataInterface(Name, pUnknown);
 }
-HRESULT STDMETHODCALLTYPE 										DXGISwapChain::GetPrivateData(REFGUID Name, UINT *pDataSize, void *pData)
+HRESULT STDMETHODCALLTYPE DXGISwapChain::GetPrivateData(REFGUID Name, UINT *pDataSize, void *pData)
 {
 	return this->mOrig->GetPrivateData(Name, pDataSize, pData);
 }
-HRESULT STDMETHODCALLTYPE 										DXGISwapChain::GetParent(REFIID riid, void **ppParent)
+HRESULT STDMETHODCALLTYPE DXGISwapChain::GetParent(REFIID riid, void **ppParent)
 {
 	return this->mOrig->GetParent(riid, ppParent);
 }
-HRESULT STDMETHODCALLTYPE 										DXGISwapChain::GetDevice(REFIID riid, void **ppDevice)
+HRESULT STDMETHODCALLTYPE DXGISwapChain::GetDevice(REFIID riid, void **ppDevice)
 {
 	return this->mOrig->GetDevice(riid, ppDevice);
 }
-HRESULT STDMETHODCALLTYPE										DXGISwapChain::Present(UINT SyncInterval, UINT Flags)
+HRESULT STDMETHODCALLTYPE DXGISwapChain::Present(UINT SyncInterval, UINT Flags)
 {
 	assert(this->mRuntime != nullptr);
 
@@ -145,25 +145,25 @@ HRESULT STDMETHODCALLTYPE										DXGISwapChain::Present(UINT SyncInterval, UIN
 
 	return this->mOrig->Present(SyncInterval, Flags);
 }
-HRESULT STDMETHODCALLTYPE 										DXGISwapChain::GetBuffer(UINT Buffer, REFIID riid, void **ppSurface)
+HRESULT STDMETHODCALLTYPE DXGISwapChain::GetBuffer(UINT Buffer, REFIID riid, void **ppSurface)
 {
 	return this->mOrig->GetBuffer(Buffer, riid, ppSurface);
 }
-HRESULT STDMETHODCALLTYPE										DXGISwapChain::SetFullscreenState(BOOL Fullscreen, IDXGIOutput *pTarget)
+HRESULT STDMETHODCALLTYPE DXGISwapChain::SetFullscreenState(BOOL Fullscreen, IDXGIOutput *pTarget)
 {
 	LOG(INFO) << "Redirecting '" << "IDXGISwapChain::SetFullscreenState" << "(" << this << ", " << Fullscreen << ", " << pTarget << ")' ...";
 
 	return this->mOrig->SetFullscreenState(Fullscreen, pTarget);
 }
-HRESULT STDMETHODCALLTYPE 										DXGISwapChain::GetFullscreenState(BOOL *pFullscreen, IDXGIOutput **ppTarget)
+HRESULT STDMETHODCALLTYPE DXGISwapChain::GetFullscreenState(BOOL *pFullscreen, IDXGIOutput **ppTarget)
 {
 	return this->mOrig->GetFullscreenState(pFullscreen, ppTarget);
 }
-HRESULT STDMETHODCALLTYPE 										DXGISwapChain::GetDesc(DXGI_SWAP_CHAIN_DESC *pDesc)
+HRESULT STDMETHODCALLTYPE DXGISwapChain::GetDesc(DXGI_SWAP_CHAIN_DESC *pDesc)
 {
 	return this->mOrig->GetDesc(pDesc);
 }
-HRESULT STDMETHODCALLTYPE										DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Width, UINT Height, DXGI_FORMAT NewFormat, UINT SwapChainFlags)
+HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Width, UINT Height, DXGI_FORMAT NewFormat, UINT SwapChainFlags)
 {
 	LOG(INFO) << "Redirecting '" << "IDXGISwapChain::ResizeBuffers" << "(" << this << ", " << BufferCount << ", " << Width << ", " << Height << ", " << NewFormat << ", " << SwapChainFlags << ")' ...";
 
@@ -204,41 +204,41 @@ HRESULT STDMETHODCALLTYPE										DXGISwapChain::ResizeBuffers(UINT BufferCount
 
 	return hr;
 }
-HRESULT STDMETHODCALLTYPE 										DXGISwapChain::ResizeTarget(const DXGI_MODE_DESC *pNewTargetParameters)
+HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeTarget(const DXGI_MODE_DESC *pNewTargetParameters)
 {
 	return this->mOrig->ResizeTarget(pNewTargetParameters);
 }
-HRESULT STDMETHODCALLTYPE 										DXGISwapChain::GetContainingOutput(IDXGIOutput **ppOutput)
+HRESULT STDMETHODCALLTYPE DXGISwapChain::GetContainingOutput(IDXGIOutput **ppOutput)
 {
 	return this->mOrig->GetContainingOutput(ppOutput);
 }
-HRESULT STDMETHODCALLTYPE 										DXGISwapChain::GetFrameStatistics(DXGI_FRAME_STATISTICS *pStats)
+HRESULT STDMETHODCALLTYPE DXGISwapChain::GetFrameStatistics(DXGI_FRAME_STATISTICS *pStats)
 {
 	return this->mOrig->GetFrameStatistics(pStats);
 }
-HRESULT STDMETHODCALLTYPE 										DXGISwapChain::GetLastPresentCount(UINT *pLastPresentCount)	
+HRESULT STDMETHODCALLTYPE DXGISwapChain::GetLastPresentCount(UINT *pLastPresentCount)	
 {
 	return this->mOrig->GetLastPresentCount(pLastPresentCount);
 }
 
 // IDXGISwapChain1
-HRESULT STDMETHODCALLTYPE 										DXGISwapChain::GetDesc1(DXGI_SWAP_CHAIN_DESC1 *pDesc)
+HRESULT STDMETHODCALLTYPE DXGISwapChain::GetDesc1(DXGI_SWAP_CHAIN_DESC1 *pDesc)
 {
 	return static_cast<IDXGISwapChain1 *>(this->mOrig)->GetDesc1(pDesc);
 }
-HRESULT STDMETHODCALLTYPE 										DXGISwapChain::GetFullscreenDesc(DXGI_SWAP_CHAIN_FULLSCREEN_DESC *pDesc)
+HRESULT STDMETHODCALLTYPE DXGISwapChain::GetFullscreenDesc(DXGI_SWAP_CHAIN_FULLSCREEN_DESC *pDesc)
 {
 	return static_cast<IDXGISwapChain1 *>(this->mOrig)->GetFullscreenDesc(pDesc);
 }
-HRESULT STDMETHODCALLTYPE 										DXGISwapChain::GetHwnd(HWND *pHwnd)
+HRESULT STDMETHODCALLTYPE DXGISwapChain::GetHwnd(HWND *pHwnd)
 {
 	return static_cast<IDXGISwapChain1 *>(this->mOrig)->GetHwnd(pHwnd);
 }
-HRESULT STDMETHODCALLTYPE 										DXGISwapChain::GetCoreWindow(REFIID refiid, void **ppUnk)
+HRESULT STDMETHODCALLTYPE DXGISwapChain::GetCoreWindow(REFIID refiid, void **ppUnk)
 {
 	return static_cast<IDXGISwapChain1 *>(this->mOrig)->GetCoreWindow(refiid, ppUnk);
 }
-HRESULT STDMETHODCALLTYPE										DXGISwapChain::Present1(UINT SyncInterval, UINT PresentFlags, const DXGI_PRESENT_PARAMETERS *pPresentParameters)
+HRESULT STDMETHODCALLTYPE DXGISwapChain::Present1(UINT SyncInterval, UINT PresentFlags, const DXGI_PRESENT_PARAMETERS *pPresentParameters)
 {
 	assert(this->mRuntime != nullptr);
 
@@ -246,33 +246,33 @@ HRESULT STDMETHODCALLTYPE										DXGISwapChain::Present1(UINT SyncInterval, UI
 
 	return static_cast<IDXGISwapChain1 *>(this->mOrig)->Present1(SyncInterval, PresentFlags, pPresentParameters);
 }
-BOOL STDMETHODCALLTYPE 											DXGISwapChain::IsTemporaryMonoSupported(void)
+BOOL STDMETHODCALLTYPE 	DXGISwapChain::IsTemporaryMonoSupported()
 {
 	return static_cast<IDXGISwapChain1 *>(this->mOrig)->IsTemporaryMonoSupported();
 }
-HRESULT STDMETHODCALLTYPE 										DXGISwapChain::GetRestrictToOutput(IDXGIOutput **ppRestrictToOutput)
+HRESULT STDMETHODCALLTYPE DXGISwapChain::GetRestrictToOutput(IDXGIOutput **ppRestrictToOutput)
 {
 	return static_cast<IDXGISwapChain1 *>(this->mOrig)->GetRestrictToOutput(ppRestrictToOutput);
 }
-HRESULT STDMETHODCALLTYPE 										DXGISwapChain::SetBackgroundColor(const DXGI_RGBA *pColor)
+HRESULT STDMETHODCALLTYPE DXGISwapChain::SetBackgroundColor(const DXGI_RGBA *pColor)
 {
 	return static_cast<IDXGISwapChain1 *>(this->mOrig)->SetBackgroundColor(pColor);
 }
-HRESULT STDMETHODCALLTYPE 										DXGISwapChain::GetBackgroundColor(DXGI_RGBA *pColor)
+HRESULT STDMETHODCALLTYPE DXGISwapChain::GetBackgroundColor(DXGI_RGBA *pColor)
 {
 	return static_cast<IDXGISwapChain1 *>(this->mOrig)->GetBackgroundColor(pColor);
 }
-HRESULT STDMETHODCALLTYPE 										DXGISwapChain::SetRotation(DXGI_MODE_ROTATION Rotation)
+HRESULT STDMETHODCALLTYPE DXGISwapChain::SetRotation(DXGI_MODE_ROTATION Rotation)
 {
 	return static_cast<IDXGISwapChain1 *>(this->mOrig)->SetRotation(Rotation);
 }
-HRESULT STDMETHODCALLTYPE 										DXGISwapChain::GetRotation(DXGI_MODE_ROTATION *pRotation)
+HRESULT STDMETHODCALLTYPE DXGISwapChain::GetRotation(DXGI_MODE_ROTATION *pRotation)
 {
 	return static_cast<IDXGISwapChain1 *>(this->mOrig)->GetRotation(pRotation);
 }
 
 // IDXGIFactory
-HRESULT STDMETHODCALLTYPE										IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, IUnknown *pDevice, DXGI_SWAP_CHAIN_DESC *pDesc, IDXGISwapChain **ppSwapChain)
+HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, IUnknown *pDevice, DXGI_SWAP_CHAIN_DESC *pDesc, IDXGISwapChain **ppSwapChain)
 {
 	LOG(INFO) << "Redirecting '" << "IDXGIFactory::CreateSwapChain" << "(" << pFactory << ", " << pDevice << ", " << pDesc << ", " << ppSwapChain << ")' ...";
 
@@ -368,7 +368,7 @@ HRESULT STDMETHODCALLTYPE										IDXGIFactory_CreateSwapChain(IDXGIFactory *pF
 }
 
 // IDXGIFactory2
-HRESULT STDMETHODCALLTYPE										IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pFactory, IUnknown *pDevice, HWND hWnd, const DXGI_SWAP_CHAIN_DESC1 *pDesc, const DXGI_SWAP_CHAIN_FULLSCREEN_DESC *pFullscreenDesc, IDXGIOutput *pRestrictToOutput, IDXGISwapChain1 **ppSwapChain)
+HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pFactory, IUnknown *pDevice, HWND hWnd, const DXGI_SWAP_CHAIN_DESC1 *pDesc, const DXGI_SWAP_CHAIN_FULLSCREEN_DESC *pFullscreenDesc, IDXGIOutput *pRestrictToOutput, IDXGISwapChain1 **ppSwapChain)
 {
 	LOG(INFO) << "Redirecting '" << "IDXGIFactory2::CreateSwapChainForHwnd" << "(" << pFactory << ", " << pDevice << ", " << hWnd << ", " << pDesc << ", " << pFullscreenDesc << ", " << pRestrictToOutput << ", " << ppSwapChain << ")' ...";
 	
@@ -462,7 +462,7 @@ HRESULT STDMETHODCALLTYPE										IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFac
 
 	return hr;
 }
-HRESULT STDMETHODCALLTYPE										IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactory2 *pFactory, IUnknown *pDevice, IUnknown *pWindow, const DXGI_SWAP_CHAIN_DESC1 *pDesc, IDXGIOutput *pRestrictToOutput, IDXGISwapChain1 **ppSwapChain)
+HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactory2 *pFactory, IUnknown *pDevice, IUnknown *pWindow, const DXGI_SWAP_CHAIN_DESC1 *pDesc, IDXGIOutput *pRestrictToOutput, IDXGISwapChain1 **ppSwapChain)
 {
 	LOG(INFO) << "Redirecting '" << "IDXGIFactory2::CreateSwapChainForCoreWindow" << "(" << pFactory << ", " << pDevice << ", " << pWindow << ", " << pDesc << ", " << pRestrictToOutput << ", " << ppSwapChain << ")' ...";
 
@@ -556,7 +556,7 @@ HRESULT STDMETHODCALLTYPE										IDXGIFactory2_CreateSwapChainForCoreWindow(ID
 
 	return hr;
 }
-HRESULT STDMETHODCALLTYPE										IDXGIFactory2_CreateSwapChainForComposition(IDXGIFactory2 *pFactory, IUnknown *pDevice, const DXGI_SWAP_CHAIN_DESC1 *pDesc, IDXGIOutput *pRestrictToOutput, IDXGISwapChain1 **ppSwapChain)
+HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFactory2 *pFactory, IUnknown *pDevice, const DXGI_SWAP_CHAIN_DESC1 *pDesc, IDXGIOutput *pRestrictToOutput, IDXGISwapChain1 **ppSwapChain)
 {
 	LOG(INFO) << "Redirecting '" << "IDXGIFactory2::CreateSwapChainForComposition" << "(" << pFactory << ", " << pDevice << ", " << pDesc << ", " << pRestrictToOutput << ", " << ppSwapChain << ")' ...";
 
@@ -652,7 +652,7 @@ HRESULT STDMETHODCALLTYPE										IDXGIFactory2_CreateSwapChainForComposition(I
 }
 
 // D3DKMT
-EXPORT NTSTATUS WINAPI											D3DKMTCreateAllocation(void *pData)
+EXPORT NTSTATUS WINAPI D3DKMTCreateAllocation(void *pData)
 {
 	UNREFERENCED_PARAMETER(pData);
 
@@ -660,7 +660,7 @@ EXPORT NTSTATUS WINAPI											D3DKMTCreateAllocation(void *pData)
 
 	return STATUS_ENTRYPOINT_NOT_FOUND;
 }
-EXPORT NTSTATUS WINAPI											D3DKMTQueryResourceInfo(void *pData)
+EXPORT NTSTATUS WINAPI D3DKMTQueryResourceInfo(void *pData)
 {
 	UNREFERENCED_PARAMETER(pData);
 
@@ -668,7 +668,7 @@ EXPORT NTSTATUS WINAPI											D3DKMTQueryResourceInfo(void *pData)
 
 	return STATUS_ENTRYPOINT_NOT_FOUND;
 }
-EXPORT NTSTATUS WINAPI											D3DKMTOpenResource(void *pData)
+EXPORT NTSTATUS WINAPI D3DKMTOpenResource(void *pData)
 {
 	UNREFERENCED_PARAMETER(pData);
 
@@ -676,7 +676,7 @@ EXPORT NTSTATUS WINAPI											D3DKMTOpenResource(void *pData)
 
 	return STATUS_ENTRYPOINT_NOT_FOUND;
 }
-EXPORT NTSTATUS WINAPI											D3DKMTDestroyAllocation(const void *pData)
+EXPORT NTSTATUS WINAPI D3DKMTDestroyAllocation(const void *pData)
 {
 	UNREFERENCED_PARAMETER(pData);
 
@@ -684,7 +684,7 @@ EXPORT NTSTATUS WINAPI											D3DKMTDestroyAllocation(const void *pData)
 
 	return STATUS_ENTRYPOINT_NOT_FOUND;
 }
-EXPORT NTSTATUS WINAPI											D3DKMTSetAllocationPriority(const void *pData)
+EXPORT NTSTATUS WINAPI D3DKMTSetAllocationPriority(const void *pData)
 {
 	UNREFERENCED_PARAMETER(pData);
 
@@ -692,7 +692,7 @@ EXPORT NTSTATUS WINAPI											D3DKMTSetAllocationPriority(const void *pData)
 
 	return STATUS_ENTRYPOINT_NOT_FOUND;
 }
-EXPORT NTSTATUS WINAPI											D3DKMTQueryAllocationResidency(const void *pData)
+EXPORT NTSTATUS WINAPI D3DKMTQueryAllocationResidency(const void *pData)
 {
 	UNREFERENCED_PARAMETER(pData);
 
@@ -700,7 +700,7 @@ EXPORT NTSTATUS WINAPI											D3DKMTQueryAllocationResidency(const void *pDat
 
 	return STATUS_ENTRYPOINT_NOT_FOUND;
 }
-EXPORT NTSTATUS WINAPI											D3DKMTCreateDevice(void *pData)
+EXPORT NTSTATUS WINAPI D3DKMTCreateDevice(void *pData)
 {
 	UNREFERENCED_PARAMETER(pData);
 
@@ -708,7 +708,7 @@ EXPORT NTSTATUS WINAPI											D3DKMTCreateDevice(void *pData)
 
 	return STATUS_ENTRYPOINT_NOT_FOUND;
 }
-EXPORT NTSTATUS WINAPI											D3DKMTDestroyDevice(const void *pData)
+EXPORT NTSTATUS WINAPI D3DKMTDestroyDevice(const void *pData)
 {
 	UNREFERENCED_PARAMETER(pData);
 
@@ -716,7 +716,7 @@ EXPORT NTSTATUS WINAPI											D3DKMTDestroyDevice(const void *pData)
 
 	return STATUS_ENTRYPOINT_NOT_FOUND;
 }
-EXPORT NTSTATUS WINAPI											D3DKMTCreateContext(void *pData)
+EXPORT NTSTATUS WINAPI D3DKMTCreateContext(void *pData)
 {
 	UNREFERENCED_PARAMETER(pData);
 
@@ -724,7 +724,7 @@ EXPORT NTSTATUS WINAPI											D3DKMTCreateContext(void *pData)
 
 	return STATUS_ENTRYPOINT_NOT_FOUND;
 }
-EXPORT NTSTATUS WINAPI											D3DKMTDestroyContext(const void *pData)
+EXPORT NTSTATUS WINAPI D3DKMTDestroyContext(const void *pData)
 {
 	UNREFERENCED_PARAMETER(pData);
 
@@ -732,7 +732,7 @@ EXPORT NTSTATUS WINAPI											D3DKMTDestroyContext(const void *pData)
 
 	return STATUS_ENTRYPOINT_NOT_FOUND;
 }
-EXPORT NTSTATUS WINAPI											D3DKMTCreateSynchronizationObject(void *pData)
+EXPORT NTSTATUS WINAPI D3DKMTCreateSynchronizationObject(void *pData)
 {
 	UNREFERENCED_PARAMETER(pData);
 
@@ -740,7 +740,7 @@ EXPORT NTSTATUS WINAPI											D3DKMTCreateSynchronizationObject(void *pData)
 
 	return STATUS_ENTRYPOINT_NOT_FOUND;
 }
-EXPORT NTSTATUS WINAPI											D3DKMTDestroySynchronizationObject(const void *pData)
+EXPORT NTSTATUS WINAPI D3DKMTDestroySynchronizationObject(const void *pData)
 {
 	UNREFERENCED_PARAMETER(pData);
 
@@ -748,7 +748,7 @@ EXPORT NTSTATUS WINAPI											D3DKMTDestroySynchronizationObject(const void *
 
 	return STATUS_ENTRYPOINT_NOT_FOUND;
 }
-EXPORT NTSTATUS WINAPI											D3DKMTWaitForSynchronizationObject(const void *pData)
+EXPORT NTSTATUS WINAPI D3DKMTWaitForSynchronizationObject(const void *pData)
 {
 	UNREFERENCED_PARAMETER(pData);
 
@@ -756,7 +756,7 @@ EXPORT NTSTATUS WINAPI											D3DKMTWaitForSynchronizationObject(const void *
 
 	return STATUS_ENTRYPOINT_NOT_FOUND;
 }
-EXPORT NTSTATUS WINAPI											D3DKMTSignalSynchronizationObject(const void *pData)
+EXPORT NTSTATUS WINAPI D3DKMTSignalSynchronizationObject(const void *pData)
 {
 	UNREFERENCED_PARAMETER(pData);
 
@@ -764,7 +764,7 @@ EXPORT NTSTATUS WINAPI											D3DKMTSignalSynchronizationObject(const void *p
 
 	return STATUS_ENTRYPOINT_NOT_FOUND;
 }
-EXPORT NTSTATUS WINAPI											D3DKMTLock(void *pData)
+EXPORT NTSTATUS WINAPI D3DKMTLock(void *pData)
 {
 	UNREFERENCED_PARAMETER(pData);
 
@@ -772,7 +772,7 @@ EXPORT NTSTATUS WINAPI											D3DKMTLock(void *pData)
 
 	return STATUS_ENTRYPOINT_NOT_FOUND;
 }
-EXPORT NTSTATUS WINAPI											D3DKMTUnlock(const void *pData)
+EXPORT NTSTATUS WINAPI D3DKMTUnlock(const void *pData)
 {
 	UNREFERENCED_PARAMETER(pData);
 
@@ -780,7 +780,7 @@ EXPORT NTSTATUS WINAPI											D3DKMTUnlock(const void *pData)
 
 	return STATUS_ENTRYPOINT_NOT_FOUND;
 }
-EXPORT NTSTATUS WINAPI											D3DKMTGetDisplayModeList(void *pData)
+EXPORT NTSTATUS WINAPI D3DKMTGetDisplayModeList(void *pData)
 {
 	UNREFERENCED_PARAMETER(pData);
 
@@ -788,7 +788,7 @@ EXPORT NTSTATUS WINAPI											D3DKMTGetDisplayModeList(void *pData)
 
 	return STATUS_ENTRYPOINT_NOT_FOUND;
 }
-EXPORT NTSTATUS WINAPI											D3DKMTSetDisplayMode(const void *pData)
+EXPORT NTSTATUS WINAPI D3DKMTSetDisplayMode(const void *pData)
 {
 	UNREFERENCED_PARAMETER(pData);
 
@@ -796,7 +796,7 @@ EXPORT NTSTATUS WINAPI											D3DKMTSetDisplayMode(const void *pData)
 
 	return STATUS_ENTRYPOINT_NOT_FOUND;
 }
-EXPORT NTSTATUS WINAPI											D3DKMTGetMultisampleMethodList(void *pData)
+EXPORT NTSTATUS WINAPI D3DKMTGetMultisampleMethodList(void *pData)
 {
 	UNREFERENCED_PARAMETER(pData);
 
@@ -804,7 +804,7 @@ EXPORT NTSTATUS WINAPI											D3DKMTGetMultisampleMethodList(void *pData)
 
 	return STATUS_ENTRYPOINT_NOT_FOUND;
 }
-EXPORT NTSTATUS WINAPI											D3DKMTPresent(const void *pData)
+EXPORT NTSTATUS WINAPI D3DKMTPresent(const void *pData)
 {
 	UNREFERENCED_PARAMETER(pData);
 
@@ -812,7 +812,7 @@ EXPORT NTSTATUS WINAPI											D3DKMTPresent(const void *pData)
 
 	return STATUS_ENTRYPOINT_NOT_FOUND;
 }
-EXPORT NTSTATUS WINAPI											D3DKMTRender(void *pData)
+EXPORT NTSTATUS WINAPI D3DKMTRender(void *pData)
 {
 	UNREFERENCED_PARAMETER(pData);
 
@@ -820,7 +820,7 @@ EXPORT NTSTATUS WINAPI											D3DKMTRender(void *pData)
 
 	return STATUS_ENTRYPOINT_NOT_FOUND;
 }
-EXPORT NTSTATUS WINAPI											D3DKMTGetRuntimeData(const void *pData)
+EXPORT NTSTATUS WINAPI D3DKMTGetRuntimeData(const void *pData)
 {
 	UNREFERENCED_PARAMETER(pData);
 
@@ -828,7 +828,7 @@ EXPORT NTSTATUS WINAPI											D3DKMTGetRuntimeData(const void *pData)
 
 	return STATUS_ENTRYPOINT_NOT_FOUND;
 }
-EXPORT NTSTATUS WINAPI											D3DKMTQueryAdapterInfo(const void *pData)
+EXPORT NTSTATUS WINAPI D3DKMTQueryAdapterInfo(const void *pData)
 {
 	UNREFERENCED_PARAMETER(pData);
 
@@ -836,7 +836,7 @@ EXPORT NTSTATUS WINAPI											D3DKMTQueryAdapterInfo(const void *pData)
 
 	return STATUS_ENTRYPOINT_NOT_FOUND;
 }
-EXPORT NTSTATUS WINAPI											D3DKMTOpenAdapterFromHdc(void *pData)
+EXPORT NTSTATUS WINAPI D3DKMTOpenAdapterFromHdc(void *pData)
 {
 	UNREFERENCED_PARAMETER(pData);
 
@@ -844,7 +844,7 @@ EXPORT NTSTATUS WINAPI											D3DKMTOpenAdapterFromHdc(void *pData)
 
 	return STATUS_ENTRYPOINT_NOT_FOUND;
 }
-EXPORT NTSTATUS WINAPI											D3DKMTCloseAdapter(const void *pData)
+EXPORT NTSTATUS WINAPI D3DKMTCloseAdapter(const void *pData)
 {
 	UNREFERENCED_PARAMETER(pData);
 
@@ -852,7 +852,7 @@ EXPORT NTSTATUS WINAPI											D3DKMTCloseAdapter(const void *pData)
 
 	return STATUS_ENTRYPOINT_NOT_FOUND;
 }
-EXPORT NTSTATUS WINAPI											D3DKMTGetSharedPrimaryHandle(void *pData)
+EXPORT NTSTATUS WINAPI D3DKMTGetSharedPrimaryHandle(void *pData)
 {
 	UNREFERENCED_PARAMETER(pData);
 
@@ -860,7 +860,7 @@ EXPORT NTSTATUS WINAPI											D3DKMTGetSharedPrimaryHandle(void *pData)
 
 	return STATUS_ENTRYPOINT_NOT_FOUND;
 }
-EXPORT NTSTATUS WINAPI											D3DKMTEscape(const void *pData)
+EXPORT NTSTATUS WINAPI D3DKMTEscape(const void *pData)
 {
 	UNREFERENCED_PARAMETER(pData);
 
@@ -868,7 +868,7 @@ EXPORT NTSTATUS WINAPI											D3DKMTEscape(const void *pData)
 
 	return STATUS_ENTRYPOINT_NOT_FOUND;
 }
-EXPORT NTSTATUS WINAPI											D3DKMTSetVidPnSourceOwner(const void *pData)
+EXPORT NTSTATUS WINAPI D3DKMTSetVidPnSourceOwner(const void *pData)
 {
 	UNREFERENCED_PARAMETER(pData);
 
@@ -876,7 +876,7 @@ EXPORT NTSTATUS WINAPI											D3DKMTSetVidPnSourceOwner(const void *pData)
 
 	return STATUS_ENTRYPOINT_NOT_FOUND;
 }
-EXPORT NTSTATUS WINAPI											D3DKMTWaitForVerticalBlankEvent(const void *pData)
+EXPORT NTSTATUS WINAPI D3DKMTWaitForVerticalBlankEvent(const void *pData)
 {
 	UNREFERENCED_PARAMETER(pData);
 
@@ -884,7 +884,7 @@ EXPORT NTSTATUS WINAPI											D3DKMTWaitForVerticalBlankEvent(const void *pDa
 
 	return STATUS_ENTRYPOINT_NOT_FOUND;
 }
-EXPORT NTSTATUS WINAPI											D3DKMTSetGammaRamp(const void *pData)
+EXPORT NTSTATUS WINAPI D3DKMTSetGammaRamp(const void *pData)
 {
 	UNREFERENCED_PARAMETER(pData);
 
@@ -892,7 +892,7 @@ EXPORT NTSTATUS WINAPI											D3DKMTSetGammaRamp(const void *pData)
 
 	return STATUS_ENTRYPOINT_NOT_FOUND;
 }
-EXPORT NTSTATUS WINAPI											D3DKMTGetDeviceState(void *pData)
+EXPORT NTSTATUS WINAPI D3DKMTGetDeviceState(void *pData)
 {
 	UNREFERENCED_PARAMETER(pData);
 
@@ -900,7 +900,7 @@ EXPORT NTSTATUS WINAPI											D3DKMTGetDeviceState(void *pData)
 
 	return STATUS_ENTRYPOINT_NOT_FOUND;
 }
-EXPORT NTSTATUS WINAPI											D3DKMTSetContextSchedulingPriority(const void *pData)
+EXPORT NTSTATUS WINAPI D3DKMTSetContextSchedulingPriority(const void *pData)
 {
 	UNREFERENCED_PARAMETER(pData);
 
@@ -908,7 +908,7 @@ EXPORT NTSTATUS WINAPI											D3DKMTSetContextSchedulingPriority(const void *
 
 	return STATUS_ENTRYPOINT_NOT_FOUND;
 }
-EXPORT NTSTATUS WINAPI											D3DKMTGetContextSchedulingPriority(void *pData)
+EXPORT NTSTATUS WINAPI D3DKMTGetContextSchedulingPriority(void *pData)
 {
 	UNREFERENCED_PARAMETER(pData);
 
@@ -916,7 +916,7 @@ EXPORT NTSTATUS WINAPI											D3DKMTGetContextSchedulingPriority(void *pData)
 
 	return STATUS_ENTRYPOINT_NOT_FOUND;
 }
-EXPORT NTSTATUS WINAPI											D3DKMTSetDisplayPrivateDriverFormat(const void *pData)
+EXPORT NTSTATUS WINAPI D3DKMTSetDisplayPrivateDriverFormat(const void *pData)
 {
 	UNREFERENCED_PARAMETER(pData);
 
@@ -926,7 +926,7 @@ EXPORT NTSTATUS WINAPI											D3DKMTSetDisplayPrivateDriverFormat(const void 
 }
 
 // DXGI
-EXPORT HRESULT WINAPI											DXGID3D10CreateDevice(HMODULE hModule, IDXGIFactory *pFactory, IDXGIAdapter *pAdapter, UINT Flags, void *pUnknown, void **ppDevice)
+EXPORT HRESULT WINAPI DXGID3D10CreateDevice(HMODULE hModule, IDXGIFactory *pFactory, IDXGIAdapter *pAdapter, UINT Flags, void *pUnknown, void **ppDevice)
 {
 	UNREFERENCED_PARAMETER(hModule);
 	UNREFERENCED_PARAMETER(pFactory);
@@ -939,7 +939,7 @@ EXPORT HRESULT WINAPI											DXGID3D10CreateDevice(HMODULE hModule, IDXGIFact
 
 	return E_NOTIMPL;
 }
-EXPORT HRESULT WINAPI											DXGID3D10CreateLayeredDevice(BYTE pUnknown[20])
+EXPORT HRESULT WINAPI DXGID3D10CreateLayeredDevice(BYTE pUnknown[20])
 {
 	UNREFERENCED_PARAMETER(pUnknown);
 
@@ -947,7 +947,7 @@ EXPORT HRESULT WINAPI											DXGID3D10CreateLayeredDevice(BYTE pUnknown[20])
 
 	return E_NOTIMPL;
 }
-EXPORT SIZE_T WINAPI											DXGID3D10GetLayeredDeviceSize(const void *pLayers, UINT NumLayers)
+EXPORT SIZE_T WINAPI DXGID3D10GetLayeredDeviceSize(const void *pLayers, UINT NumLayers)
 {
 	UNREFERENCED_PARAMETER(pLayers);
 	UNREFERENCED_PARAMETER(NumLayers);
@@ -956,7 +956,7 @@ EXPORT SIZE_T WINAPI											DXGID3D10GetLayeredDeviceSize(const void *pLayers
 
 	return 0;
 }
-EXPORT HRESULT WINAPI											DXGID3D10RegisterLayers(const void *pLayers, UINT NumLayers)
+EXPORT HRESULT WINAPI DXGID3D10RegisterLayers(const void *pLayers, UINT NumLayers)
 {
 	UNREFERENCED_PARAMETER(pLayers);
 	UNREFERENCED_PARAMETER(NumLayers);
@@ -965,27 +965,19 @@ EXPORT HRESULT WINAPI											DXGID3D10RegisterLayers(const void *pLayers, UIN
 
 	return E_NOTIMPL;
 }
-EXPORT HRESULT WINAPI											DXGIReportAdapterConfiguration(void)
+EXPORT HRESULT WINAPI DXGIReportAdapterConfiguration()
 {
 	assert(false);
 
 	return E_NOTIMPL;
 }
-EXPORT HRESULT WINAPI											DXGIDumpJournal(void)
+EXPORT HRESULT WINAPI DXGIDumpJournal()
 {
 	assert(false);
 
 	return E_NOTIMPL;
 }
-EXPORT HRESULT WINAPI											OpenAdapter10(void *pData)
-{
-	UNREFERENCED_PARAMETER(pData);
-
-	assert(false);
-
-	return E_NOTIMPL;
-}
-EXPORT HRESULT WINAPI											OpenAdapter10_2(void *pData)
+EXPORT HRESULT WINAPI OpenAdapter10(void *pData)
 {
 	UNREFERENCED_PARAMETER(pData);
 
@@ -993,8 +985,16 @@ EXPORT HRESULT WINAPI											OpenAdapter10_2(void *pData)
 
 	return E_NOTIMPL;
 }
+EXPORT HRESULT WINAPI OpenAdapter10_2(void *pData)
+{
+	UNREFERENCED_PARAMETER(pData);
 
-EXPORT HRESULT WINAPI											CreateDXGIFactory(REFIID riid, void **ppFactory)
+	assert(false);
+
+	return E_NOTIMPL;
+}
+
+EXPORT HRESULT WINAPI CreateDXGIFactory(REFIID riid, void **ppFactory)
 {
 	OLECHAR guid[40];
 	::StringFromGUID2(riid, guid, ARRAYSIZE(guid));
@@ -1014,7 +1014,7 @@ EXPORT HRESULT WINAPI											CreateDXGIFactory(REFIID riid, void **ppFactory)
 
 	return hr;
 }
-EXPORT HRESULT WINAPI											CreateDXGIFactory1(REFIID riid, void **ppFactory)
+EXPORT HRESULT WINAPI CreateDXGIFactory1(REFIID riid, void **ppFactory)
 {
 	OLECHAR guid[40];
 	::StringFromGUID2(riid, guid, ARRAYSIZE(guid));
@@ -1034,7 +1034,7 @@ EXPORT HRESULT WINAPI											CreateDXGIFactory1(REFIID riid, void **ppFactory
 
 	return hr;
 }
-EXPORT HRESULT WINAPI											CreateDXGIFactory2(UINT flags, REFIID riid, void **ppFactory)
+EXPORT HRESULT WINAPI CreateDXGIFactory2(UINT flags, REFIID riid, void **ppFactory)
 {
 	OLECHAR guid[40];
 	::StringFromGUID2(riid, guid, ARRAYSIZE(guid));

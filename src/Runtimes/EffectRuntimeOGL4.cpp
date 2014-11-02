@@ -21,14 +21,14 @@ namespace ReShade
 {
 	namespace
 	{
-		struct													OGL4StateBlock
+		struct OGL4StateBlock
 		{
-			OGL4StateBlock(void)
+			OGL4StateBlock()
 			{
 				ZeroMemory(this, sizeof(this));
 			}
 
-			void												Capture()
+			void Capture()
 			{
 				GLCHECK(glGetIntegerv(GL_VIEWPORT, this->mViewport));
 				GLCHECK(this->mStencilTest = glIsEnabled(GL_STENCIL_TEST));
@@ -74,7 +74,7 @@ namespace ReShade
 					glGetIntegerv(GL_SAMPLER_BINDING, reinterpret_cast<GLint *>(&this->mSamplers[i]));
 				}
 			}
-			void												Apply() const
+			void Apply() const
 			{
 				GLCHECK(glUseProgram(glIsProgram(this->mProgram) ? this->mProgram : 0));
 				GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, glIsFramebuffer(this->mFBO) ? this->mFBO : 0));
@@ -127,14 +127,14 @@ namespace ReShade
 				}
 			}
 
-			GLint												mStencilRef, mViewport[4];
-			GLuint												mStencilMask, mStencilReadMask;
-			GLuint												mProgram, mFBO, mVAO, mVBO, mUBO, mTextures2D[8], mSamplers[8];
-			GLenum												mDrawBuffers[8], mCullFace, mCullFaceMode, mPolygonMode, mBlendEqColor, mBlendEqAlpha, mBlendFuncSrc, mBlendFuncDest, mDepthFunc, mStencilFunc, mStencilOpFail, mStencilOpZFail, mStencilOpZPass, mFrontFace, mActiveTexture;
-			GLboolean											mScissorTest, mBlend, mDepthTest, mDepthMask, mStencilTest, mColorMask[4], mFramebufferSRGB;
+			GLint mStencilRef, mViewport[4];
+			GLuint mStencilMask, mStencilReadMask;
+			GLuint mProgram, mFBO, mVAO, mVBO, mUBO, mTextures2D[8], mSamplers[8];
+			GLenum mDrawBuffers[8], mCullFace, mCullFaceMode, mPolygonMode, mBlendEqColor, mBlendEqAlpha, mBlendFuncSrc, mBlendFuncDest, mDepthFunc, mStencilFunc, mStencilOpFail, mStencilOpZFail, mStencilOpZPass, mFrontFace, mActiveTexture;
+			GLboolean mScissorTest, mBlend, mDepthTest, mDepthMask, mStencilTest, mColorMask[4], mFramebufferSRGB;
 		};
 
-		class													OGL4EffectContext : public Runtime, public std::enable_shared_from_this<OGL4EffectContext>
+		class OGL4Runtime : public Runtime, public std::enable_shared_from_this<OGL4Runtime>
 		{
 			friend struct OGL4Effect;
 			friend struct OGL4Texture;
@@ -143,130 +143,131 @@ namespace ReShade
 			friend class OGL4EffectCompiler;
 
 		public:
-			OGL4EffectContext(HDC device, HGLRC context);
-			~OGL4EffectContext(void);
+			OGL4Runtime(HDC device, HGLRC context);
+			~OGL4Runtime();
 
-			virtual bool										OnCreate(unsigned int width, unsigned int height) override;
-			virtual void										OnDelete() override;
-			virtual void										OnPresent() override;
+			virtual bool OnCreate(unsigned int width, unsigned int height) override;
+			virtual void OnDelete() override;
+			virtual void OnPresent() override;
 
-			virtual std::unique_ptr<Effect>						CreateEffect(const EffectTree &ast, std::string &errors) const override;
-			virtual void										CreateScreenshot(unsigned char *buffer, std::size_t size) const override;
+			virtual std::unique_ptr<Effect> CreateEffect(const EffectTree &ast, std::string &errors) const override;
+			virtual void CreateScreenshot(unsigned char *buffer, std::size_t size) const override;
 
 		private:
-			HDC													mDeviceContext;
-			HGLRC												mRenderContext;
-			OGL4StateBlock										mStateBlock;
-			GLuint												mBackBufferFBO, mBackBufferRBO;
+			HDC mDeviceContext;
+			HGLRC mRenderContext;
+			OGL4StateBlock mStateBlock;
+			GLuint mBackBufferFBO, mBackBufferRBO;
 		};
-		struct													OGL4Effect : public Effect
+
+		struct OGL4Effect : public Effect
 		{
 			friend struct OGL4Texture;
 			friend struct OGL4Sampler;
 			friend struct OGL4Constant;
 			friend struct OGL4Technique;
 
-			OGL4Effect(std::shared_ptr<const OGL4EffectContext> context);
-			~OGL4Effect(void);
+			OGL4Effect(std::shared_ptr<const OGL4Runtime> context);
+			~OGL4Effect();
 
-			const Texture *										GetTexture(const std::string &name) const;
-			std::vector<std::string>							GetTextureNames(void) const;
-			const Constant *									GetConstant(const std::string &name) const;
-			std::vector<std::string>							GetConstantNames(void) const;
-			const Technique *									GetTechnique(const std::string &name) const;
-			std::vector<std::string>							GetTechniqueNames(void) const;
+			const Texture *GetTexture(const std::string &name) const;
+			std::vector<std::string> GetTextureNames() const;
+			const Constant *GetConstant(const std::string &name) const;
+			std::vector<std::string> GetConstantNames() const;
+			const Technique *GetTechnique(const std::string &name) const;
+			std::vector<std::string> GetTechniqueNames() const;
 
-			std::shared_ptr<const OGL4EffectContext>			mEffectContext;
+			std::shared_ptr<const OGL4Runtime> mEffectContext;
 			std::unordered_map<std::string, std::unique_ptr<OGL4Texture>> mTextures;
-			std::vector<std::shared_ptr<OGL4Sampler>>			mSamplers;
+			std::vector<std::shared_ptr<OGL4Sampler>> mSamplers;
 			std::unordered_map<std::string, std::unique_ptr<OGL4Constant>> mConstants;
 			std::unordered_map<std::string, std::unique_ptr<OGL4Technique>> mTechniques;
-			GLuint												mDefaultVAO, mDefaultVBO, mDefaultFBO, mDepthStencil;
-			std::vector<GLuint>									mUniformBuffers;
+			GLuint mDefaultVAO, mDefaultVBO, mDefaultFBO, mDepthStencil;
+			std::vector<GLuint> mUniformBuffers;
 			std::vector<std::pair<unsigned char *, std::size_t>> mUniformStorages;
-			mutable bool										mUniformDirty;
+			mutable bool mUniformDirty;
 		};
-		struct													OGL4Texture : public Effect::Texture
+		struct OGL4Texture : public Effect::Texture
 		{
 			OGL4Texture(OGL4Effect *effect);
-			~OGL4Texture(void);
+			~OGL4Texture();
 
-			const Description									GetDescription(void) const;
-			const Effect::Annotation							GetAnnotation(const std::string &name) const;
+			const Description GetDescription() const;
+			const Effect::Annotation GetAnnotation(const std::string &name) const;
 
-			void												Update(unsigned int level, const unsigned char *data, std::size_t size);
-			void												UpdateFromColorBuffer(void);
-			void												UpdateFromDepthBuffer(void);
+			void Update(unsigned int level, const unsigned char *data, std::size_t size);
+			void UpdateFromColorBuffer();
+			void UpdateFromDepthBuffer();
 
-			OGL4Effect *										mEffect;
-			Description											mDesc;
+			OGL4Effect *mEffect;
+			Description mDesc;
 			std::unordered_map<std::string, Effect::Annotation>	mAnnotations;
-			GLuint												mID, mSRGBView;
+			GLuint mID, mSRGBView;
 		};
-		struct													OGL4Sampler
+		struct OGL4Sampler
 		{
-			OGL4Sampler(void) : mID(0)
+			OGL4Sampler() : mID(0)
 			{
 			}
-			~OGL4Sampler(void)
+			~OGL4Sampler()
 			{
 				glDeleteSamplers(1, &this->mID);
 			}
 
-			GLuint												mID;
-			OGL4Texture *										mTexture;
-			bool												mSRGB;
+			GLuint mID;
+			OGL4Texture *mTexture;
+			bool mSRGB;
 		};
-		struct													OGL4Constant : public Effect::Constant
+		struct OGL4Constant : public Effect::Constant
 		{
 			OGL4Constant(OGL4Effect *effect);
-			~OGL4Constant(void);
+			~OGL4Constant();
 
-			const Description									GetDescription(void) const;
-			const Effect::Annotation							GetAnnotation(const std::string &name) const;
-			void												GetValue(unsigned char *data, std::size_t size) const;
-			void												SetValue(const unsigned char *data, std::size_t size);
+			const Description GetDescription() const;
+			const Effect::Annotation GetAnnotation(const std::string &name) const;
+			void GetValue(unsigned char *data, std::size_t size) const;
+			void SetValue(const unsigned char *data, std::size_t size);
 
-			OGL4Effect *										mEffect;
-			Description											mDesc;
+			OGL4Effect *mEffect;
+			Description mDesc;
 			std::unordered_map<std::string, Effect::Annotation>	mAnnotations;
-			std::size_t											mBuffer, mBufferOffset;
+			std::size_t mBuffer, mBufferOffset;
 		};
-		struct													OGL4Technique : public Effect::Technique
+		struct OGL4Technique : public Effect::Technique
 		{
-			struct												Pass
+			struct Pass
 			{
-				GLuint											Program;
-				GLuint											Framebuffer;
-				GLint											StencilRef;
-				GLuint											StencilMask, StencilReadMask;
-				GLsizei											ViewportWidth, ViewportHeight;
-				GLenum											DrawBuffers[8], BlendEqColor, BlendEqAlpha, BlendFuncSrc, BlendFuncDest, DepthFunc, StencilFunc, StencilOpFail, StencilOpZFail, StencilOpZPass;
-				GLboolean										FramebufferSRGB, Blend, DepthMask, DepthTest, StencilTest, ColorMaskR, ColorMaskG, ColorMaskB, ColorMaskA;
+				GLuint Program;
+				GLuint Framebuffer;
+				GLint StencilRef;
+				GLuint StencilMask, StencilReadMask;
+				GLsizei ViewportWidth, ViewportHeight;
+				GLenum DrawBuffers[8], BlendEqColor, BlendEqAlpha, BlendFuncSrc, BlendFuncDest, DepthFunc, StencilFunc, StencilOpFail, StencilOpZFail, StencilOpZPass;
+				GLboolean FramebufferSRGB, Blend, DepthMask, DepthTest, StencilTest, ColorMaskR, ColorMaskG, ColorMaskB, ColorMaskA;
 			};
 
 			OGL4Technique(OGL4Effect *effect);
-			~OGL4Technique(void);
+			~OGL4Technique();
 
-			const Effect::Annotation							GetAnnotation(const std::string &name) const;
+			const Effect::Annotation GetAnnotation(const std::string &name) const;
 
-			bool												Begin(unsigned int &passes) const;
-			void												End(void) const;
-			void												RenderPass(unsigned int index) const;
+			bool Begin(unsigned int &passes) const;
+			void End() const;
+			void RenderPass(unsigned int index) const;
 
-			OGL4Effect *										mEffect;
+			OGL4Effect *mEffect;
 			std::unordered_map<std::string, Effect::Annotation>	mAnnotations;
-			std::vector<Pass>									mPasses;
+			std::vector<Pass> mPasses;
 		};
 
-		class													OGL4EffectCompiler
+		class OGL4EffectCompiler
 		{
 		public:
 			OGL4EffectCompiler(const EffectTree &ast) : mAST(ast), mEffect(nullptr), mCurrentFunction(EffectTree::Null), mCurrentInParameterBlock(false), mCurrentInFunctionBlock(false), mCurrentGlobalSize(0), mCurrentGlobalStorageSize(0)
 			{
 			}
 
-			bool												Traverse(OGL4Effect *effect, std::string &errors)
+			bool Traverse(OGL4Effect *effect, std::string &errors)
 			{
 				this->mEffect = effect;
 				this->mErrors.clear();
@@ -302,7 +303,7 @@ namespace ReShade
 				return !this->mFatal;
 			}
 
-			static GLenum										LiteralToTextureFilter(int value)
+			static GLenum LiteralToTextureFilter(int value)
 			{
 				switch (value)
 				{
@@ -316,7 +317,7 @@ namespace ReShade
 						return GL_LINEAR_MIPMAP_LINEAR;
 				}
 			}
-			static GLenum										LiteralToTextureWrap(int value)
+			static GLenum LiteralToTextureWrap(int value)
 			{
 				switch (value)
 				{
@@ -331,7 +332,7 @@ namespace ReShade
 						return GL_CLAMP_TO_BORDER;
 				}
 			}
-			static GLenum										LiteralToCompFunc(int value)
+			static GLenum LiteralToCompFunc(int value)
 			{
 				switch (value)
 				{
@@ -354,7 +355,7 @@ namespace ReShade
 						return GL_GEQUAL;
 				}
 			}
-			static GLenum										LiteralToStencilOp(int value)
+			static GLenum LiteralToStencilOp(int value)
 			{
 				switch (value)
 				{
@@ -377,7 +378,7 @@ namespace ReShade
 						return GL_INVERT;
 				}
 			}
-			static GLenum										LiteralToBlendFunc(int value)
+			static GLenum LiteralToBlendFunc(int value)
 			{
 				switch (value)
 				{
@@ -404,7 +405,7 @@ namespace ReShade
 						return GL_ONE_MINUS_DST_ALPHA;
 				}
 			}
-			static GLenum										LiteralToBlendEq(int value)
+			static GLenum LiteralToBlendEq(int value)
 			{
 				switch (value)
 				{
@@ -421,7 +422,7 @@ namespace ReShade
 						return GL_MAX;
 				}
 			}
-			static void											LiteralToFormat(int value, GLenum &internalformat, GLenum &internalformatsrgb, Effect::Texture::Format &format)
+			static void LiteralToFormat(int value, GLenum &internalformat, GLenum &internalformatsrgb, Effect::Texture::Format &format)
 			{
 				switch (value)
 				{
@@ -492,12 +493,12 @@ namespace ReShade
 				}
 			}
 
-			static inline std::string							PrintLocation(const EffectTree::Location &location)
+			static inline std::string PrintLocation(const EffectTree::Location &location)
 			{
 				return std::string(location.Source != nullptr ? location.Source : "") + "(" + std::to_string(location.Line) + ", " + std::to_string(location.Column) + "): ";
 			}
 
-			static std::string									FixName(const std::string &name)
+			static std::string FixName(const std::string &name)
 			{
 				std::string res;
 
@@ -513,7 +514,7 @@ namespace ReShade
 
 				return res;
 			}
-			static std::string									FixNameWithSemantic(const std::string &name, const std::string &semantic)
+			static std::string FixNameWithSemantic(const std::string &name, const std::string &semantic)
 			{
 				if (semantic == "SV_VERTEXID")
 				{
@@ -526,7 +527,7 @@ namespace ReShade
 
 				return FixName(name);
 			}
-			std::string											PrintType(const EffectNodes::Type &type)
+			std::string PrintType(const EffectNodes::Type &type)
 			{
 				switch (type.Class)
 				{
@@ -568,7 +569,7 @@ namespace ReShade
 						return FixName(this->mAST[type.Definition].As<EffectNodes::Struct>().Name);
 				}
 			}
-			std::string											PrintTypeWithQualifiers(const EffectNodes::Type &type)
+			std::string PrintTypeWithQualifiers(const EffectNodes::Type &type)
 			{
 				std::string qualifiers;
 
@@ -595,7 +596,7 @@ namespace ReShade
 
 				return qualifiers + PrintType(type);
 			}
-			std::pair<std::string, std::string>					PrintCast(const EffectNodes::Type &from, const EffectNodes::Type &to)
+			std::pair<std::string, std::string> PrintCast(const EffectNodes::Type &from, const EffectNodes::Type &to)
 			{
 				std::pair<std::string, std::string> code;
 
@@ -637,11 +638,11 @@ namespace ReShade
 				return code;
 			}
 
-			void												Visit(const EffectNodes::LValue &node)
+			void Visit(const EffectNodes::LValue &node)
 			{
 				this->mCurrentSource += FixName(this->mAST[node.Reference].As<EffectNodes::Variable>().Name);
 			}
-			void												Visit(const EffectNodes::Literal &node)
+			void Visit(const EffectNodes::Literal &node)
 			{
 				if (!node.Type.IsScalar())
 				{
@@ -678,7 +679,7 @@ namespace ReShade
 					this->mCurrentSource += ')';
 				}
 			}
-			void												Visit(const EffectNodes::Expression &node)
+			void Visit(const EffectNodes::Expression &node)
 			{
 				std::string part1, part2, part3, part4;
 				std::pair<std::string, std::string> cast1, cast2, cast3, cast121, cast122;
@@ -1428,7 +1429,7 @@ namespace ReShade
 
 				this->mCurrentSource += part4;
 			}
-			void												Visit(const EffectNodes::Sequence &node)
+			void Visit(const EffectNodes::Sequence &node)
 			{
 				for (unsigned int i = 0; i < node.Length; ++i)
 				{
@@ -1440,7 +1441,7 @@ namespace ReShade
 				this->mCurrentSource.pop_back();
 				this->mCurrentSource.pop_back();
 			}
-			void												Visit(const EffectNodes::Assignment &node)
+			void Visit(const EffectNodes::Assignment &node)
 			{
 				this->mCurrentSource += '(';
 				this->mAST[node.Left].Accept(*this);
@@ -1491,7 +1492,7 @@ namespace ReShade
 				this->mCurrentSource += cast.second;
 				this->mCurrentSource += ')';
 			}
-			void												Visit(const EffectNodes::Call &node)
+			void Visit(const EffectNodes::Call &node)
 			{
 				this->mCurrentSource += node.CalleeName;
 				this->mCurrentSource += '(';
@@ -1520,7 +1521,7 @@ namespace ReShade
 
 				this->mCurrentSource += ')';
 			}
-			void												Visit(const EffectNodes::Constructor &node)
+			void Visit(const EffectNodes::Constructor &node)
 			{
 				if (node.Type.IsMatrix())
 				{
@@ -1549,7 +1550,7 @@ namespace ReShade
 					this->mCurrentSource += ')';
 				}
 			}
-			void												Visit(const EffectNodes::Swizzle &node)
+			void Visit(const EffectNodes::Swizzle &node)
 			{
 				const EffectNodes::RValue &left = this->mAST[node.Operands[0]].As<EffectNodes::RValue>();
 
@@ -1585,7 +1586,7 @@ namespace ReShade
 					}
 				}
 			}
-			void												Visit(const EffectNodes::If &node)
+			void Visit(const EffectNodes::If &node)
 			{
 				const EffectNodes::Type typeto = { EffectNodes::Type::Bool, 0, 1, 1 };
 				const auto cast = PrintCast(this->mAST[node.Condition].As<EffectNodes::RValue>().Type, typeto);
@@ -1610,7 +1611,7 @@ namespace ReShade
 					this->mAST[node.StatementOnFalse].Accept(*this);
 				}
 			}
-			void												Visit(const EffectNodes::Switch &node)
+			void Visit(const EffectNodes::Switch &node)
 			{
 				this->mCurrentSource += "switch (";
 				this->mAST[node.Test].Accept(*this);
@@ -1625,7 +1626,7 @@ namespace ReShade
 
 				this->mCurrentSource += "}\n";
 			}
-			void												Visit(const EffectNodes::Case &node)
+			void Visit(const EffectNodes::Case &node)
 			{
 				const auto &labels = this->mAST[node.Labels].As<EffectNodes::List>();
 
@@ -1648,7 +1649,7 @@ namespace ReShade
 
 				this->mAST[node.Statements].As<EffectNodes::StatementBlock>().Accept(*this);
 			}
-			void												Visit(const EffectNodes::For &node)
+			void Visit(const EffectNodes::For &node)
 			{
 				this->mCurrentSource += "for (";
 
@@ -1685,7 +1686,7 @@ namespace ReShade
 					this->mCurrentSource += "\t;";
 				}
 			}
-			void												Visit(const EffectNodes::While &node)
+			void Visit(const EffectNodes::While &node)
 			{
 				if (node.DoWhile)
 				{
@@ -1717,7 +1718,7 @@ namespace ReShade
 					}
 				}
 			}
-			void												Visit(const EffectNodes::Jump &node)
+			void Visit(const EffectNodes::Jump &node)
 			{
 				switch (node.Mode)
 				{
@@ -1747,7 +1748,7 @@ namespace ReShade
 
 				this->mCurrentSource += ";\n";
 			}
-			void												Visit(const EffectNodes::ExpressionStatement &node)
+			void Visit(const EffectNodes::ExpressionStatement &node)
 			{
 				if (node.Expression != 0)
 				{
@@ -1756,7 +1757,7 @@ namespace ReShade
 
 				this->mCurrentSource += ";\n";
 			}
-			void												Visit(const EffectNodes::StatementBlock &node)
+			void Visit(const EffectNodes::StatementBlock &node)
 			{
 				this->mCurrentSource += "{\n";
 
@@ -1767,7 +1768,7 @@ namespace ReShade
 
 				this->mCurrentSource += "}\n";
 			}
-			void												Visit(const EffectNodes::Annotation &node)
+			void Visit(const EffectNodes::Annotation &node)
 			{
 				Effect::Annotation annotation;
 				const auto &value = this->mAST[node.Value].As<EffectNodes::Literal>();
@@ -1795,7 +1796,7 @@ namespace ReShade
 
 				this->mCurrentAnnotations->insert(std::make_pair(node.Name, annotation));
 			}
-			void												Visit(const EffectNodes::Struct &node)
+			void Visit(const EffectNodes::Struct &node)
 			{
 				this->mCurrentSource += "struct ";
 
@@ -1826,7 +1827,7 @@ namespace ReShade
 
 				this->mCurrentSource += "};\n";
 			}
-			void												Visit(const EffectNodes::Variable &node)
+			void Visit(const EffectNodes::Variable &node)
 			{
 				if (!(this->mCurrentInParameterBlock || this->mCurrentInFunctionBlock))
 				{
@@ -1889,7 +1890,7 @@ namespace ReShade
 					this->mCurrentSource += ";\n";
 				}
 			}
-			void												VisitTexture(const EffectNodes::Variable &node)
+			void VisitTexture(const EffectNodes::Variable &node)
 			{			
 				const GLsizei width = (node.Properties[EffectNodes::Variable::Width] != 0) ? this->mAST[node.Properties[EffectNodes::Variable::Width]].As<EffectNodes::Literal>().Value.Uint[0] : 1;
 				const GLsizei height = (node.Properties[EffectNodes::Variable::Height] != 0) ? this->mAST[node.Properties[EffectNodes::Variable::Height]].As<EffectNodes::Literal>().Value.Uint[0] : 1;
@@ -1941,7 +1942,7 @@ namespace ReShade
 
 				this->mEffect->mTextures.insert(std::make_pair(node.Name, std::move(obj)));
 			}
-			void												VisitSampler(const EffectNodes::Variable &node)
+			void VisitSampler(const EffectNodes::Variable &node)
 			{
 				if (node.Properties[EffectNodes::Variable::Texture] == 0)
 				{
@@ -1983,7 +1984,7 @@ namespace ReShade
 
 				this->mEffect->mSamplers.push_back(obj);
 			}
-			void												VisitUniform(const EffectNodes::Variable &node)
+			void VisitUniform(const EffectNodes::Variable &node)
 			{
 				this->mCurrentGlobalConstants += PrintTypeWithQualifiers(node.Type);
 				this->mCurrentGlobalConstants += ' ';
@@ -2067,7 +2068,7 @@ namespace ReShade
 
 				this->mEffect->mConstants.insert(std::make_pair(node.Name, std::move(obj)));
 			}
-			void												VisitUniformBuffer(const EffectNodes::Variable &node)
+			void VisitUniformBuffer(const EffectNodes::Variable &node)
 			{
 				const auto &structure = this->mAST[node.Type.Definition].As<EffectNodes::Struct>();
 
@@ -2187,7 +2188,7 @@ namespace ReShade
 				this->mEffect->mUniformBuffers.push_back(buffer);
 				this->mEffect->mUniformStorages.push_back(std::make_pair(storage, totalsize));
 			}
-			void												Visit(const EffectNodes::Function &node)
+			void Visit(const EffectNodes::Function &node)
 			{
 				this->mCurrentSource += PrintType(node.ReturnType);
 				this->mCurrentSource += ' ';
@@ -2233,7 +2234,7 @@ namespace ReShade
 
 				this->mCurrentFunction = EffectTree::Null;
 			}
-			void												Visit(const EffectNodes::Technique &node)
+			void Visit(const EffectNodes::Technique &node)
 			{
 				std::unique_ptr<OGL4Technique> obj(new OGL4Technique(this->mEffect));
 
@@ -2268,7 +2269,7 @@ namespace ReShade
 
 				this->mEffect->mTechniques.insert(std::make_pair(node.Name, std::move(obj)));
 			}
-			void												Visit(const EffectNodes::Pass &node)
+			void Visit(const EffectNodes::Pass &node)
 			{
 				OGL4Technique::Pass pass;
 				ZeroMemory(&pass, sizeof(OGL4Technique::Pass));
@@ -2416,7 +2417,7 @@ namespace ReShade
 
 				this->mCurrentPasses->push_back(std::move(pass));
 			}
-			GLuint												VisitShader(const EffectNodes::Function &node, unsigned int type)
+			GLuint VisitShader(const EffectNodes::Function &node, unsigned int type)
 			{
 				std::string source =
 					"#version 430\n"
@@ -2672,7 +2673,7 @@ namespace ReShade
 
 				return shader;
 			}
-			void												VisitShaderVariable(unsigned int qualifier, EffectNodes::Type type, const std::string &name, const char *semantic, std::string &source)
+			void VisitShaderVariable(unsigned int qualifier, EffectNodes::Type type, const std::string &name, const char *semantic, std::string &source)
 			{
 				unsigned int location = 0;
 
@@ -2708,23 +2709,23 @@ namespace ReShade
 			}
 
 		private:
-			const EffectTree &									mAST;
-			OGL4Effect *										mEffect;
-			std::string											mCurrentSource;
-			std::string											mErrors;
-			bool												mFatal;
-			std::string											mCurrentGlobalConstants;
-			std::size_t											mCurrentGlobalSize, mCurrentGlobalStorageSize;
-			std::string											mCurrentBlockName;
-			EffectTree::Index									mCurrentFunction;
-			bool												mCurrentInParameterBlock, mCurrentInFunctionBlock;
+			const EffectTree &mAST;
+			OGL4Effect *mEffect;
+			std::string mCurrentSource;
+			std::string mErrors;
+			bool mFatal;
+			std::string mCurrentGlobalConstants;
+			std::size_t mCurrentGlobalSize, mCurrentGlobalStorageSize;
+			std::string mCurrentBlockName;
+			EffectTree::Index mCurrentFunction;
+			bool mCurrentInParameterBlock, mCurrentInFunctionBlock;
 			std::unordered_map<std::string, Effect::Annotation> *mCurrentAnnotations;
-			std::vector<OGL4Technique::Pass> *					mCurrentPasses;
+			std::vector<OGL4Technique::Pass> *mCurrentPasses;
 		};
 
 		// -----------------------------------------------------------------------------------------------------
 
-		OGL4EffectContext::OGL4EffectContext(HDC device, HGLRC context) : mDeviceContext(device), mRenderContext(context), mBackBufferFBO(0), mBackBufferRBO(0)
+		OGL4Runtime::OGL4Runtime(HDC device, HGLRC context) : mDeviceContext(device), mRenderContext(context), mBackBufferFBO(0), mBackBufferRBO(0)
 		{
 			this->mRendererId = 0x061;
 
@@ -2770,11 +2771,11 @@ namespace ReShade
 				}
 			}
 		}
-		OGL4EffectContext::~OGL4EffectContext(void)
+		OGL4Runtime::~OGL4Runtime()
 		{
 		}
 
-		bool													OGL4EffectContext::OnCreate(unsigned int width, unsigned int height)
+		bool OGL4Runtime::OnCreate(unsigned int width, unsigned int height)
 		{
 			this->mStateBlock.Capture();
 
@@ -2796,7 +2797,7 @@ namespace ReShade
 
 			return res;
 		}
-		void													OGL4EffectContext::OnDelete()
+		void OGL4Runtime::OnDelete()
 		{
 			this->mStateBlock.Capture();
 
@@ -2810,7 +2811,7 @@ namespace ReShade
 
 			this->mStateBlock.Apply();
 		}
-		void													OGL4EffectContext::OnPresent()
+		void OGL4Runtime::OnPresent()
 		{
 			this->mStateBlock.Capture();
 
@@ -2831,7 +2832,7 @@ namespace ReShade
 			this->mStateBlock.Apply();
 		}
 
-		std::unique_ptr<Effect>									OGL4EffectContext::CreateEffect(const EffectTree &ast, std::string &errors) const
+		std::unique_ptr<Effect> OGL4Runtime::CreateEffect(const EffectTree &ast, std::string &errors) const
 		{
 			OGL4Effect *effect = new OGL4Effect(shared_from_this());
 			
@@ -2848,7 +2849,7 @@ namespace ReShade
 				return nullptr;
 			}
 		}
-		void													OGL4EffectContext::CreateScreenshot(unsigned char *buffer, std::size_t size) const
+		void OGL4Runtime::CreateScreenshot(unsigned char *buffer, std::size_t size) const
 		{
 			GLCHECK(glReadBuffer(GL_BACK));
 
@@ -2875,7 +2876,7 @@ namespace ReShade
 			}
 		}
 
-		OGL4Effect::OGL4Effect(std::shared_ptr<const OGL4EffectContext> context) : mEffectContext(context), mDefaultVAO(0), mDefaultVBO(0), mDefaultFBO(0), mDepthStencil(0), mUniformDirty(true)
+		OGL4Effect::OGL4Effect(std::shared_ptr<const OGL4Runtime> context) : mEffectContext(context), mDefaultVAO(0), mDefaultVBO(0), mDefaultFBO(0), mDepthStencil(0), mUniformDirty(true)
 		{
 			GLCHECK(glGenVertexArrays(1, &this->mDefaultVAO));
 			GLCHECK(glGenBuffers(1, &this->mDefaultVBO));
@@ -2890,7 +2891,7 @@ namespace ReShade
 			GLCHECK(glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, this->mEffectContext->mWidth, this->mEffectContext->mHeight));
 			GLCHECK(glBindRenderbuffer(GL_RENDERBUFFER, 0));
 		}
-		OGL4Effect::~OGL4Effect(void)
+		OGL4Effect::~OGL4Effect()
 		{
 			GLCHECK(glDeleteVertexArrays(1, &this->mDefaultVAO));
 			GLCHECK(glDeleteBuffers(1, &this->mDefaultVBO));
@@ -2899,7 +2900,7 @@ namespace ReShade
 			GLCHECK(glDeleteBuffers(this->mUniformBuffers.size(), &this->mUniformBuffers.front()));
 		}
 
-		const Effect::Texture *									OGL4Effect::GetTexture(const std::string &name) const
+		const Effect::Texture *OGL4Effect::GetTexture(const std::string &name) const
 		{
 			auto it = this->mTextures.find(name);
 
@@ -2910,7 +2911,7 @@ namespace ReShade
 
 			return it->second.get();
 		}
-		std::vector<std::string>								OGL4Effect::GetTextureNames(void) const
+		std::vector<std::string> OGL4Effect::GetTextureNames() const
 		{
 			std::vector<std::string> names;
 			names.reserve(this->mTextures.size());
@@ -2922,7 +2923,7 @@ namespace ReShade
 
 			return names;
 		}
-		const Effect::Constant *								OGL4Effect::GetConstant(const std::string &name) const
+		const Effect::Constant *OGL4Effect::GetConstant(const std::string &name) const
 		{
 			auto it = this->mConstants.find(name);
 
@@ -2933,7 +2934,7 @@ namespace ReShade
 
 			return it->second.get();
 		}
-		std::vector<std::string>								OGL4Effect::GetConstantNames(void) const
+		std::vector<std::string> OGL4Effect::GetConstantNames() const
 		{
 			std::vector<std::string> names;
 			names.reserve(this->mConstants.size());
@@ -2945,7 +2946,7 @@ namespace ReShade
 
 			return names;
 		}
-		const Effect::Technique *								OGL4Effect::GetTechnique(const std::string &name) const
+		const Effect::Technique *OGL4Effect::GetTechnique(const std::string &name) const
 		{
 			auto it = this->mTechniques.find(name);
 
@@ -2956,7 +2957,7 @@ namespace ReShade
 
 			return it->second.get();
 		}
-		std::vector<std::string>								OGL4Effect::GetTechniqueNames(void) const
+		std::vector<std::string> OGL4Effect::GetTechniqueNames() const
 		{
 			std::vector<std::string> names;
 			names.reserve(this->mTechniques.size());
@@ -2972,17 +2973,17 @@ namespace ReShade
 		OGL4Texture::OGL4Texture(OGL4Effect *effect) : mEffect(effect), mID(0)
 		{
 		}
-		OGL4Texture::~OGL4Texture(void)
+		OGL4Texture::~OGL4Texture()
 		{
 			GLCHECK(glDeleteTextures(1, &this->mID));
 			GLCHECK(glDeleteTextures(1, &this->mSRGBView));
 		}
 
-		const Effect::Texture::Description						OGL4Texture::GetDescription(void) const
+		const Effect::Texture::Description OGL4Texture::GetDescription() const
 		{
 			return this->mDesc;
 		}
-		const Effect::Annotation								OGL4Texture::GetAnnotation(const std::string &name) const
+		const Effect::Annotation OGL4Texture::GetAnnotation(const std::string &name) const
 		{
 			auto it = this->mAnnotations.find(name);
 
@@ -2994,7 +2995,7 @@ namespace ReShade
 			return it->second;
 		}
 
-		inline void												FlipBC1Block(unsigned char *block)
+		inline void FlipBC1Block(unsigned char *block)
 		{
 			// BC1 Block:
 			//  [0-1]  color 0
@@ -3004,7 +3005,7 @@ namespace ReShade
 			std::swap(block[4], block[7]);
 			std::swap(block[5], block[6]);
 		}
-		inline void												FlipBC2Block(unsigned char *block)
+		inline void FlipBC2Block(unsigned char *block)
 		{
 			// BC2 Block:
 			//  [0-7]  alpha indices
@@ -3017,7 +3018,7 @@ namespace ReShade
 
 			FlipBC1Block(block + 8);
 		}
-		inline void												FlipBC4Block(unsigned char *block)
+		inline void FlipBC4Block(unsigned char *block)
 		{
 			// BC4 Block:
 			//  [0]    red 0
@@ -3035,7 +3036,7 @@ namespace ReShade
 			block[6] = static_cast<unsigned char>((line_1_0 & 0xFF00) >> 8);
 			block[7] = static_cast<unsigned char>((line_1_0 & 0xFF0000) >> 16);
 		}
-		inline void												FlipBC3Block(unsigned char *block)
+		inline void FlipBC3Block(unsigned char *block)
 		{
 			// BC3 Block:
 			//  [0-7]  alpha block
@@ -3044,7 +3045,7 @@ namespace ReShade
 			FlipBC4Block(block);
 			FlipBC1Block(block + 8);
 		}
-		inline void												FlipBC5Block(unsigned char *block)
+		inline void FlipBC5Block(unsigned char *block)
 		{
 			// BC5 Block:
 			//  [0-7]  red block
@@ -3053,7 +3054,7 @@ namespace ReShade
 			FlipBC4Block(block);
 			FlipBC4Block(block + 8);
 		}
-		void													FlipImage(const Effect::Texture::Description &desc, unsigned char *data)
+		void FlipImage(const Effect::Texture::Description &desc, unsigned char *data)
 		{
 			typedef void (*FlipBlockFunc)(unsigned char *block);
 
@@ -3144,7 +3145,7 @@ namespace ReShade
 			}
 		}
 
-		void													OGL4Texture::Update(unsigned int level, const unsigned char *data, std::size_t size)
+		void OGL4Texture::Update(unsigned int level, const unsigned char *data, std::size_t size)
 		{
 			assert(data != nullptr && size != 0);
 
@@ -3202,7 +3203,7 @@ namespace ReShade
 
 			GLCHECK(glBindTexture(GL_TEXTURE_2D, previous));
 		}
-		void													OGL4Texture::UpdateFromColorBuffer(void)
+		void OGL4Texture::UpdateFromColorBuffer()
 		{
 			GLCHECK(glBindFramebuffer(GL_READ_FRAMEBUFFER, this->mEffect->mEffectContext->mBackBufferFBO));
 			GLCHECK(glBindFramebuffer(GL_DRAW_FRAMEBUFFER, this->mEffect->mDefaultFBO));
@@ -3215,22 +3216,22 @@ namespace ReShade
 
 			GLCHECK(glBlitFramebuffer(0, 0, this->mEffect->mEffectContext->mWidth, this->mEffect->mEffectContext->mHeight, 0, 0, this->mDesc.Width, this->mDesc.Height, GL_COLOR_BUFFER_BIT, GL_NEAREST));
 		}
-		void													OGL4Texture::UpdateFromDepthBuffer(void)
+		void OGL4Texture::UpdateFromDepthBuffer()
 		{
 		}
 
 		OGL4Constant::OGL4Constant(OGL4Effect *effect) : mEffect(effect)
 		{
 		}
-		OGL4Constant::~OGL4Constant(void)
+		OGL4Constant::~OGL4Constant()
 		{
 		}
 
-		const Effect::Constant::Description						OGL4Constant::GetDescription(void) const
+		const Effect::Constant::Description OGL4Constant::GetDescription() const
 		{
 			return this->mDesc;
 		}
-		const Effect::Annotation								OGL4Constant::GetAnnotation(const std::string &name) const
+		const Effect::Annotation OGL4Constant::GetAnnotation(const std::string &name) const
 		{
 			auto it = this->mAnnotations.find(name);
 
@@ -3241,7 +3242,7 @@ namespace ReShade
 
 			return it->second;
 		}
-		void													OGL4Constant::GetValue(unsigned char *data, std::size_t size) const
+		void OGL4Constant::GetValue(unsigned char *data, std::size_t size) const
 		{
 			size = std::min(size, this->mDesc.Size);
 
@@ -3249,7 +3250,7 @@ namespace ReShade
 
 			std::memcpy(data, storage, size);
 		}
-		void													OGL4Constant::SetValue(const unsigned char *data, std::size_t size)
+		void OGL4Constant::SetValue(const unsigned char *data, std::size_t size)
 		{
 			size = std::min(size, this->mDesc.Size);
 
@@ -3268,7 +3269,7 @@ namespace ReShade
 		OGL4Technique::OGL4Technique(OGL4Effect *effect) : mEffect(effect)
 		{
 		}
-		OGL4Technique::~OGL4Technique(void)
+		OGL4Technique::~OGL4Technique()
 		{
 			for (auto &pass : this->mPasses)
 			{
@@ -3277,7 +3278,7 @@ namespace ReShade
 			}
 		}
 
-		const Effect::Annotation								OGL4Technique::GetAnnotation(const std::string &name) const
+		const Effect::Annotation OGL4Technique::GetAnnotation(const std::string &name) const
 		{
 			auto it = this->mAnnotations.find(name);
 
@@ -3289,7 +3290,7 @@ namespace ReShade
 			return it->second;
 		}
 
-		bool													OGL4Technique::Begin(unsigned int &passes) const
+		bool OGL4Technique::Begin(unsigned int &passes) const
 		{
 			passes = static_cast<unsigned int>(this->mPasses.size());
 
@@ -3317,12 +3318,12 @@ namespace ReShade
 
 			return true;
 		}
-		void													OGL4Technique::End(void) const
+		void OGL4Technique::End() const
 		{
 			GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, this->mEffect->mEffectContext->mBackBufferFBO));
 			GLCHECK(glBindSampler(0, 0));
 		}
-		void													OGL4Technique::RenderPass(unsigned int index) const
+		void OGL4Technique::RenderPass(unsigned int index) const
 		{
 			if (this->mEffect->mUniformDirty)
 			{
@@ -3381,7 +3382,7 @@ namespace ReShade
 
 	// -----------------------------------------------------------------------------------------------------
 
-	std::shared_ptr<Runtime>									CreateEffectRuntime(HDC hdc, HGLRC hglrc)
+	std::shared_ptr<Runtime> CreateEffectRuntime(HDC hdc, HGLRC hglrc)
 	{
 		assert(hdc != nullptr && hglrc != nullptr);
 		assert(wglGetCurrentDC() == hdc && wglGetCurrentContext() == hglrc);
@@ -3393,6 +3394,6 @@ namespace ReShade
 			return nullptr;
 		}
 
-		return std::make_shared<OGL4EffectContext>(hdc, hglrc);
+		return std::make_shared<OGL4Runtime>(hdc, hglrc);
 	}
 }

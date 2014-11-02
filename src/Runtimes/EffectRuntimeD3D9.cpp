@@ -13,13 +13,11 @@
 
 // -----------------------------------------------------------------------------------------------------
 
-#define SAFE_RELEASE(p)											{ if ((p)) (p)->Release(); (p) = nullptr; }
-
 namespace ReShade
 {
 	namespace
 	{
-		class													D3D9EffectContext : public Runtime, public std::enable_shared_from_this<D3D9EffectContext>
+		class D3D9Runtime : public Runtime, public std::enable_shared_from_this<D3D9Runtime>
 		{
 			friend struct D3D9Effect;
 			friend struct D3D9Texture;
@@ -28,123 +26,124 @@ namespace ReShade
 			friend class D3D9EffectCompiler;
 
 		public:
-			D3D9EffectContext(IDirect3DDevice9 *device, IDirect3DSwapChain9 *swapchain);
-			~D3D9EffectContext(void);
+			D3D9Runtime(IDirect3DDevice9 *device, IDirect3DSwapChain9 *swapchain);
+			~D3D9Runtime();
 
-			virtual bool										OnCreate(unsigned int width, unsigned int height) override;
-			virtual void										OnDelete() override;
-			virtual void										OnPresent() override;
+			virtual bool OnCreate(unsigned int width, unsigned int height) override;
+			virtual void OnDelete() override;
+			virtual void OnPresent() override;
 
-			virtual std::unique_ptr<Effect>						CreateEffect(const EffectTree &ast, std::string &errors) const override;
-			virtual void										CreateScreenshot(unsigned char *buffer, std::size_t size) const override;
+			virtual std::unique_ptr<Effect> CreateEffect(const EffectTree &ast, std::string &errors) const override;
+			virtual void CreateScreenshot(unsigned char *buffer, std::size_t size) const override;
 
 		private:
-			IDirect3DDevice9 *									mDevice;
-			IDirect3DSwapChain9 *								mSwapChain;
-			IDirect3DStateBlock9 *								mStateBlock;
-			IDirect3DSurface9 *									mBackBuffer;
-			IDirect3DSurface9 *									mBackBufferNotMultisampled;
+			IDirect3DDevice9 *mDevice;
+			IDirect3DSwapChain9 *mSwapChain;
+			IDirect3DStateBlock9 *mStateBlock;
+			IDirect3DSurface9 *mBackBuffer;
+			IDirect3DSurface9 *mBackBufferNotMultisampled;
 		};
-		struct													D3D9Effect : public Effect
+		
+		struct D3D9Effect : public Effect
 		{
 			friend struct D3D9Texture;
 			friend struct D3D9Sampler;
 			friend struct D3D9Constant;
 			friend struct D3D9Technique;
 
-			D3D9Effect(std::shared_ptr<const D3D9EffectContext> context);
-			~D3D9Effect(void);
+			D3D9Effect(std::shared_ptr<const D3D9Runtime> context);
+			~D3D9Effect();
 
-			const Texture *										GetTexture(const std::string &name) const;
-			std::vector<std::string>							GetTextureNames(void) const;
-			const Constant *									GetConstant(const std::string &name) const;
-			std::vector<std::string>							GetConstantNames(void) const;
-			const Technique *									GetTechnique(const std::string &name) const;
-			std::vector<std::string>							GetTechniqueNames(void) const;
+			const Texture *GetTexture(const std::string &name) const;
+			std::vector<std::string> GetTextureNames() const;
+			const Constant *GetConstant(const std::string &name) const;
+			std::vector<std::string> GetConstantNames() const;
+			const Technique *GetTechnique(const std::string &name) const;
+			std::vector<std::string> GetTechniqueNames() const;
 
-			std::shared_ptr<const D3D9EffectContext>			mEffectContext;
+			std::shared_ptr<const D3D9Runtime> mEffectContext;
 			std::unordered_map<std::string,std::unique_ptr<D3D9Texture>> mTextures;
-			std::vector<D3D9Sampler>							mSamplers;
+			std::vector<D3D9Sampler> mSamplers;
 			std::unordered_map<std::string, std::unique_ptr<D3D9Constant>> mConstants;
 			std::unordered_map<std::string, std::unique_ptr<D3D9Technique>> mTechniques;
-			IDirect3DSurface9 *									mStateBlockDepthStencil, *mStateBlockRenderTarget;
-			IDirect3DStateBlock9 *								mShaderResourceStateblock;
-			IDirect3DSurface9 *									mDepthStencil;
-			IDirect3DVertexDeclaration9 *						mVertexDeclaration;
-			IDirect3DVertexBuffer9 *							mVertexBuffer;
-			float *												mConstantStorage;
-			UINT												mConstantRegisterCount;
+			IDirect3DSurface9 *mStateBlockDepthStencil, *mStateBlockRenderTarget;
+			IDirect3DStateBlock9 *mShaderResourceStateblock;
+			IDirect3DSurface9 *mDepthStencil;
+			IDirect3DVertexDeclaration9 *mVertexDeclaration;
+			IDirect3DVertexBuffer9 *mVertexBuffer;
+			float *mConstantStorage;
+			UINT mConstantRegisterCount;
 		};
-		struct													D3D9Texture : public Effect::Texture
+		struct D3D9Texture : public Effect::Texture
 		{
 			D3D9Texture(D3D9Effect *effect);
-			~D3D9Texture(void);
+			~D3D9Texture();
 
-			const Description									GetDescription(void) const;
-			const Effect::Annotation							GetAnnotation(const std::string &name) const;
+			const Description GetDescription() const;
+			const Effect::Annotation GetAnnotation(const std::string &name) const;
 
-			void												Update(unsigned int level, const unsigned char *data, std::size_t size);
-			void												UpdateFromColorBuffer(void);
-			void												UpdateFromDepthBuffer(void);
+			void Update(unsigned int level, const unsigned char *data, std::size_t size);
+			void UpdateFromColorBuffer();
+			void UpdateFromDepthBuffer();
 
-			D3D9Effect *										mEffect;
-			Description											mDesc;
+			D3D9Effect *mEffect;
+			Description mDesc;
 			std::unordered_map<std::string, Effect::Annotation>	mAnnotations;
-			IDirect3DTexture9 *									mTexture;
-			IDirect3DSurface9 *									mSurface;
+			IDirect3DTexture9 *mTexture;
+			IDirect3DSurface9 *mSurface;
 		};
-		struct													D3D9Sampler
+		struct D3D9Sampler
 		{
-			DWORD												mStates[12];
-			D3D9Texture *										mTexture;
+			DWORD mStates[12];
+			D3D9Texture *mTexture;
 		};
-		struct													D3D9Constant : public Effect::Constant
+		struct D3D9Constant : public Effect::Constant
 		{
 			D3D9Constant(D3D9Effect *effect);
-			~D3D9Constant(void);
+			~D3D9Constant();
 
-			const Description									GetDescription(void) const;
-			const Effect::Annotation							GetAnnotation(const std::string &name) const;
-			void												GetValue(unsigned char *data, std::size_t size) const;
-			void												SetValue(const unsigned char *data, std::size_t size);
+			const Description GetDescription() const;
+			const Effect::Annotation GetAnnotation(const std::string &name) const;
+			void GetValue(unsigned char *data, std::size_t size) const;
+			void SetValue(const unsigned char *data, std::size_t size);
 
-			D3D9Effect *										mEffect;
-			Description											mDesc;
-			UINT												mRegisterOffset;
+			D3D9Effect *mEffect;
+			Description mDesc;
+			UINT mRegisterOffset;
 			std::unordered_map<std::string, Effect::Annotation>	mAnnotations;
 		};
-		struct													D3D9Technique : public Effect::Technique
+		struct D3D9Technique : public Effect::Technique
 		{
-			struct												Pass
+			struct Pass
 			{
-				IDirect3DVertexShader9 *						VS;
-				IDirect3DPixelShader9 *							PS;
-				IDirect3DStateBlock9 *							Stateblock;
-				IDirect3DSurface9 *								RT[8];
+				IDirect3DVertexShader9 *VS;
+				IDirect3DPixelShader9 *PS;
+				IDirect3DStateBlock9 *Stateblock;
+				IDirect3DSurface9 *RT[8];
 			};
 
 			D3D9Technique(D3D9Effect *effect);
-			~D3D9Technique(void);
+			~D3D9Technique();
 
-			const Effect::Annotation							GetAnnotation(const std::string &name) const;
+			const Effect::Annotation GetAnnotation(const std::string &name) const;
 
-			bool												Begin(unsigned int &passes) const;
-			void												End(void) const;
-			void												RenderPass(unsigned int index) const;
+			bool Begin(unsigned int &passes) const;
+			void End() const;
+			void RenderPass(unsigned int index) const;
 
-			D3D9Effect *										mEffect;
+			D3D9Effect *mEffect;
 			std::unordered_map<std::string, Effect::Annotation>	mAnnotations;
-			std::vector<Pass>									mPasses;
+			std::vector<Pass> mPasses;
 		};
 
-		class													D3D9EffectCompiler
+		class D3D9EffectCompiler
 		{
 		public:
 			D3D9EffectCompiler(const EffectTree &ast) : mAST(ast), mEffect(nullptr), mCurrentInParameterBlock(false), mCurrentInFunctionBlock(false), mCurrentRegisterIndex(0), mCurrentStorageSize(0)
 			{
 			}
 
-			bool												Traverse(D3D9Effect *effect, std::string &errors)
+			bool Traverse(D3D9Effect *effect, std::string &errors)
 			{
 				this->mEffect = effect;
 				this->mErrors.clear();
@@ -186,11 +185,11 @@ namespace ReShade
 				return !this->mFatal;
 			}
 
-			static inline bool									IsPowerOf2(int x)
+			static inline bool IsPowerOf2(int x)
 			{
 				return ((x > 0) && ((x & (x - 1)) == 0));
 			}
-			static D3DTEXTUREFILTERTYPE							LiteralToTextureFilter(int value)
+			static D3DTEXTUREFILTERTYPE LiteralToTextureFilter(int value)
 			{
 				switch (value)
 				{
@@ -204,7 +203,7 @@ namespace ReShade
 						return D3DTEXF_ANISOTROPIC;
 				}
 			}
-			static D3DTEXTUREADDRESS							LiteralToTextureAddress(int value)
+			static D3DTEXTUREADDRESS LiteralToTextureAddress(int value)
 			{
 				switch (value)
 				{
@@ -219,7 +218,7 @@ namespace ReShade
 						return D3DTADDRESS_BORDER;
 				}
 			}
-			static D3DCMPFUNC									LiteralToCmpFunc(int value)
+			static D3DCMPFUNC LiteralToCmpFunc(int value)
 			{
 				switch (value)
 				{
@@ -242,7 +241,7 @@ namespace ReShade
 						return D3DCMP_GREATEREQUAL;
 				}
 			}
-			static D3DSTENCILOP									LiteralToStencilOp(int value)
+			static D3DSTENCILOP LiteralToStencilOp(int value)
 			{
 				switch (value)
 				{
@@ -265,7 +264,7 @@ namespace ReShade
 						return D3DSTENCILOP_INVERT;
 				}
 			}
-			static D3DBLEND										LiteralToBlend(int value)
+			static D3DBLEND LiteralToBlend(int value)
 			{
 				switch (value)
 				{
@@ -292,7 +291,7 @@ namespace ReShade
 						return D3DBLEND_INVDESTALPHA;
 				}
 			}
-			static D3DBLENDOP									LiteralToBlendOp(int value)
+			static D3DBLENDOP LiteralToBlendOp(int value)
 			{
 				switch (value)
 				{
@@ -309,7 +308,7 @@ namespace ReShade
 						return D3DBLENDOP_MAX;
 				}
 			}
-			static D3DFORMAT									LiteralToFormat(int value, Effect::Texture::Format &format)
+			static D3DFORMAT LiteralToFormat(int value, Effect::Texture::Format &format)
 			{
 				switch (value)
 				{
@@ -354,7 +353,7 @@ namespace ReShade
 						return D3DFMT_UNKNOWN;
 				}
 			}
-			static std::string									ConvertSemantic(const std::string &semantic)
+			static std::string ConvertSemantic(const std::string &semantic)
 			{
 				if (boost::starts_with(semantic, "SV_"))
 				{
@@ -379,12 +378,12 @@ namespace ReShade
 				return semantic;
 			}
 
-			static inline std::string							PrintLocation(const EffectTree::Location &location)
+			static inline std::string PrintLocation(const EffectTree::Location &location)
 			{
 				return std::string(location.Source != nullptr ? location.Source : "") + "(" + std::to_string(location.Line) + ", " + std::to_string(location.Column) + "): ";
 			}
 
-			std::string											PrintType(const EffectNodes::Type &type)
+			std::string PrintType(const EffectNodes::Type &type)
 			{
 				std::string res;
 
@@ -424,7 +423,7 @@ namespace ReShade
 
 				return res;
 			}
-			std::string											PrintTypeWithQualifiers(const EffectNodes::Type &type)
+			std::string PrintTypeWithQualifiers(const EffectNodes::Type &type)
 			{
 				std::string qualifiers;
 
@@ -458,11 +457,11 @@ namespace ReShade
 				return qualifiers + PrintType(type);
 			}
 
-			void												Visit(const EffectNodes::LValue &node)
+			void Visit(const EffectNodes::LValue &node)
 			{
 				this->mCurrentSource += this->mAST[node.Reference].As<EffectNodes::Variable>().Name;
 			}
-			void												Visit(const EffectNodes::Literal &node)
+			void Visit(const EffectNodes::Literal &node)
 			{
 				if (!node.Type.IsScalar())
 				{
@@ -499,7 +498,7 @@ namespace ReShade
 					this->mCurrentSource += ')';
 				}
 			}
-			void												Visit(const EffectNodes::Expression &node)
+			void Visit(const EffectNodes::Expression &node)
 			{
 				std::string part1, part2, part3, part4;
 
@@ -974,7 +973,7 @@ namespace ReShade
 
 				this->mCurrentSource += part4;
 			}
-			void												Visit(const EffectNodes::Sequence &node)
+			void Visit(const EffectNodes::Sequence &node)
 			{
 				for (unsigned int i = 0; i < node.Length; ++i)
 				{
@@ -986,7 +985,7 @@ namespace ReShade
 				this->mCurrentSource.pop_back();
 				this->mCurrentSource.pop_back();
 			}
-			void												Visit(const EffectNodes::Assignment &node)
+			void Visit(const EffectNodes::Assignment &node)
 			{
 				std::string part1, part2, part3;
 
@@ -1036,7 +1035,7 @@ namespace ReShade
 				this->mCurrentSource += part3;
 				this->mCurrentSource += ')';
 			}
-			void												Visit(const EffectNodes::Call &node)
+			void Visit(const EffectNodes::Call &node)
 			{
 				this->mCurrentSource += node.CalleeName;
 				this->mCurrentSource += '(';
@@ -1058,7 +1057,7 @@ namespace ReShade
 
 				this->mCurrentSource += ')';
 			}
-			void												Visit(const EffectNodes::Constructor &node)
+			void Visit(const EffectNodes::Constructor &node)
 			{
 				this->mCurrentSource += PrintType(node.Type);
 				this->mCurrentSource += '(';
@@ -1077,7 +1076,7 @@ namespace ReShade
 
 				this->mCurrentSource += ')';
 			}
-			void												Visit(const EffectNodes::Swizzle &node)
+			void Visit(const EffectNodes::Swizzle &node)
 			{
 				const EffectNodes::RValue &left = this->mAST[node.Operands[0]].As<EffectNodes::RValue>();
 
@@ -1113,7 +1112,7 @@ namespace ReShade
 					}
 				}
 			}
-			void												Visit(const EffectNodes::If &node)
+			void Visit(const EffectNodes::If &node)
 			{
 				if (node.HasAttributes())
 				{
@@ -1145,7 +1144,7 @@ namespace ReShade
 					this->mAST[node.StatementOnFalse].Accept(*this);
 				}
 			}
-			void												Visit(const EffectNodes::Switch &node)
+			void Visit(const EffectNodes::Switch &node)
 			{
 				this->mErrors += PrintLocation(node.Location) + "Warning: Switch statements do not currently support fallthrough in Direct3D9!\n";
 
@@ -1166,7 +1165,7 @@ namespace ReShade
 
 				this->mCurrentSource += "} while (false);\n";
 			}
-			void												Visit(const EffectNodes::Case &node)
+			void Visit(const EffectNodes::Case &node)
 			{
 				const auto &labels = this->mAST[node.Labels].As<EffectNodes::List>();
 
@@ -1203,7 +1202,7 @@ namespace ReShade
 
 				this->mAST[node.Statements].As<EffectNodes::StatementBlock>().Accept(*this);
 			}
-			void												Visit(const EffectNodes::For &node)
+			void Visit(const EffectNodes::For &node)
 			{
 				if (node.HasAttributes())
 				{
@@ -1252,7 +1251,7 @@ namespace ReShade
 					this->mCurrentSource += "\t;";
 				}
 			}
-			void												Visit(const EffectNodes::While &node)
+			void Visit(const EffectNodes::While &node)
 			{
 				if (node.HasAttributes())
 				{
@@ -1296,7 +1295,7 @@ namespace ReShade
 					}
 				}
 			}
-			void												Visit(const EffectNodes::Jump &node)
+			void Visit(const EffectNodes::Jump &node)
 			{
 				switch (node.Mode)
 				{
@@ -1322,7 +1321,7 @@ namespace ReShade
 
 				this->mCurrentSource += ";\n";
 			}
-			void												Visit(const EffectNodes::ExpressionStatement &node)
+			void Visit(const EffectNodes::ExpressionStatement &node)
 			{
 				if (node.Expression != 0)
 				{
@@ -1331,7 +1330,7 @@ namespace ReShade
 
 				this->mCurrentSource += ";\n";
 			}
-			void												Visit(const EffectNodes::StatementBlock &node)
+			void Visit(const EffectNodes::StatementBlock &node)
 			{
 				this->mCurrentSource += "{\n";
 
@@ -1342,7 +1341,7 @@ namespace ReShade
 
 				this->mCurrentSource += "}\n";
 			}
-			void												Visit(const EffectNodes::Annotation &node)
+			void Visit(const EffectNodes::Annotation &node)
 			{
 				Effect::Annotation annotation;
 				const auto &value = this->mAST[node.Value].As<EffectNodes::Literal>();
@@ -1370,7 +1369,7 @@ namespace ReShade
 
 				this->mCurrentAnnotations->insert(std::make_pair(node.Name, annotation));
 			}
-			void												Visit(const EffectNodes::Struct &node)
+			void Visit(const EffectNodes::Struct &node)
 			{
 				this->mCurrentSource += "struct ";
 
@@ -1397,7 +1396,7 @@ namespace ReShade
 
 				this->mCurrentSource += "};\n";
 			}
-			void												Visit(const EffectNodes::Variable &node)
+			void Visit(const EffectNodes::Variable &node)
 			{
 				if (!(this->mCurrentInParameterBlock || this->mCurrentInFunctionBlock))
 				{
@@ -1461,7 +1460,7 @@ namespace ReShade
 					this->mCurrentSource += ";\n";
 				}
 			}
-			void												VisitTexture(const EffectNodes::Variable &node)
+			void VisitTexture(const EffectNodes::Variable &node)
 			{
 				const UINT width = (node.Properties[EffectNodes::Variable::Width] != 0) ? this->mAST[node.Properties[EffectNodes::Variable::Width]].As<EffectNodes::Literal>().Value.Uint[0] : 1;
 				const UINT height = (node.Properties[EffectNodes::Variable::Height] != 0) ? this->mAST[node.Properties[EffectNodes::Variable::Height]].As<EffectNodes::Literal>().Value.Uint[0] : 1;
@@ -1508,7 +1507,7 @@ namespace ReShade
 
 				this->mEffect->mTextures.insert(std::make_pair(node.Name, std::move(obj)));
 			}
-			void												VisitSampler(const EffectNodes::Variable &node)
+			void VisitSampler(const EffectNodes::Variable &node)
 			{
 				if (node.Properties[EffectNodes::Variable::Texture] == 0)
 				{
@@ -1547,7 +1546,7 @@ namespace ReShade
 
 				this->mEffect->mSamplers.push_back(sampler);
 			}
-			void												VisitUniform(const EffectNodes::Variable &node)
+			void VisitUniform(const EffectNodes::Variable &node)
 			{
 				this->mCurrentSource += PrintTypeWithQualifiers(node.Type);
 				this->mCurrentSource += ' ';
@@ -1632,7 +1631,7 @@ namespace ReShade
 				this->mEffect->mConstants.insert(std::make_pair(this->mCurrentBlockName.empty() ? node.Name : (this->mCurrentBlockName + '.' + node.Name), std::move(obj)));
 				this->mEffect->mConstantRegisterCount = this->mCurrentRegisterIndex + 1;
 			}
-			void												VisitUniformBuffer(const EffectNodes::Variable &node)
+			void VisitUniformBuffer(const EffectNodes::Variable &node)
 			{
 				const auto &structure = this->mAST[node.Type.Definition].As<EffectNodes::Struct>();
 
@@ -1677,7 +1676,7 @@ namespace ReShade
 
 				this->mEffect->mConstants.insert(std::make_pair(node.Name, std::move(obj)));
 			}
-			void												Visit(const EffectNodes::Function &node)
+			void Visit(const EffectNodes::Function &node)
 			{
 				this->mCurrentSource += PrintType(node.ReturnType);
 				this->mCurrentSource += ' ';
@@ -1719,7 +1718,7 @@ namespace ReShade
 					this->mCurrentSource += ";\n";
 				}
 			}
-			void												Visit(const EffectNodes::Technique &node)
+			void Visit(const EffectNodes::Technique &node)
 			{
 				std::unique_ptr<D3D9Technique> obj(new D3D9Technique(this->mEffect));
 
@@ -1754,7 +1753,7 @@ namespace ReShade
 
 				this->mEffect->mTechniques.insert(std::make_pair(node.Name, std::move(obj)));
 			}
-			void												Visit(const EffectNodes::Pass &node)
+			void Visit(const EffectNodes::Pass &node)
 			{
 				D3D9Technique::Pass pass;
 				ZeroMemory(&pass, sizeof(D3D9Technique::Pass));
@@ -1873,7 +1872,7 @@ namespace ReShade
 
 				this->mCurrentPasses->push_back(std::move(pass));
 			}
-			void												VisitShader(const EffectNodes::Function &node, unsigned int type, D3D9Technique::Pass &pass)
+			void VisitShader(const EffectNodes::Function &node, unsigned int type, D3D9Technique::Pass &pass)
 			{
 				const char *profile = nullptr;
 
@@ -2138,21 +2137,21 @@ namespace ReShade
 			}
 
 		private:
-			const EffectTree &									mAST;
-			D3D9Effect *										mEffect;
-			std::string											mCurrentSource;
-			std::string											mErrors;
-			bool												mFatal;
-			std::string											mCurrentBlockName;
-			bool												mCurrentInParameterBlock, mCurrentInFunctionBlock;
-			unsigned int										mCurrentCaseIndex, mCurrentRegisterIndex, mCurrentStorageSize;
+			const EffectTree &mAST;
+			D3D9Effect *mEffect;
+			std::string mCurrentSource;
+			std::string mErrors;
+			bool mFatal;
+			std::string mCurrentBlockName;
+			bool mCurrentInParameterBlock, mCurrentInFunctionBlock;
+			unsigned int mCurrentCaseIndex, mCurrentRegisterIndex, mCurrentStorageSize;
 			std::unordered_map<std::string, Effect::Annotation> *mCurrentAnnotations;
-			std::vector<D3D9Technique::Pass> *					mCurrentPasses;
+			std::vector<D3D9Technique::Pass> *mCurrentPasses;
 		};
 
 		// -----------------------------------------------------------------------------------------------------
 
-		D3D9EffectContext::D3D9EffectContext(IDirect3DDevice9 *device, IDirect3DSwapChain9 *swapchain) : mDevice(device), mSwapChain(swapchain), mStateBlock(nullptr), mBackBuffer(nullptr), mBackBufferNotMultisampled(nullptr)
+		D3D9Runtime::D3D9Runtime(IDirect3DDevice9 *device, IDirect3DSwapChain9 *swapchain) : mDevice(device), mSwapChain(swapchain), mStateBlock(nullptr), mBackBuffer(nullptr), mBackBufferNotMultisampled(nullptr)
 		{
 			this->mDevice->AddRef();
 			this->mSwapChain->AddRef();
@@ -2173,15 +2172,15 @@ namespace ReShade
 
 			this->mDevice->CreateStateBlock(D3DSBT_ALL, &this->mStateBlock);
 		}
-		D3D9EffectContext::~D3D9EffectContext(void)
+		D3D9Runtime::~D3D9Runtime()
 		{
-			SAFE_RELEASE(this->mStateBlock);
+			this->mStateBlock->Release();
 
 			this->mDevice->Release();
 			this->mSwapChain->Release();
 		}
 
-		bool													D3D9EffectContext::OnCreate(unsigned int width, unsigned int height)
+		bool D3D9Runtime::OnCreate(unsigned int width, unsigned int height)
 		{
 			this->mDevice->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &this->mBackBuffer);
 
@@ -2201,7 +2200,7 @@ namespace ReShade
 
 			return Runtime::OnCreate(width, height);
 		}
-		void													D3D9EffectContext::OnDelete()
+		void D3D9Runtime::OnDelete()
 		{
 			Runtime::OnDelete();
 
@@ -2213,9 +2212,9 @@ namespace ReShade
 				this->mBackBufferNotMultisampled->Release();
 			}
 
-			SAFE_RELEASE(this->mBackBuffer);
+			this->mBackBuffer->Release();
 		}
-		void													D3D9EffectContext::OnPresent()
+		void D3D9Runtime::OnPresent()
 		{
 			this->mDevice->BeginScene();
 			this->mStateBlock->Capture();
@@ -2238,7 +2237,7 @@ namespace ReShade
 			this->mDevice->EndScene();
 		}
 
-		std::unique_ptr<Effect>									D3D9EffectContext::CreateEffect(const EffectTree &ast, std::string &errors) const
+		std::unique_ptr<Effect> D3D9Runtime::CreateEffect(const EffectTree &ast, std::string &errors) const
 		{
 			D3D9Effect *effect = new D3D9Effect(shared_from_this());
 			
@@ -2255,7 +2254,7 @@ namespace ReShade
 				return nullptr;
 			}
 		}
-		void													D3D9EffectContext::CreateScreenshot(unsigned char *buffer, std::size_t size) const
+		void D3D9Runtime::CreateScreenshot(unsigned char *buffer, std::size_t size) const
 		{
 			IDirect3DSurface9 *backbuffer = nullptr;
 			IDirect3DSurface9 *surfaceSystem = nullptr;
@@ -2355,7 +2354,7 @@ namespace ReShade
 			surfaceSystem->Release();
 		}
 
-		D3D9Effect::D3D9Effect(std::shared_ptr<const D3D9EffectContext> context) : mEffectContext(context), mDepthStencil(nullptr)
+		D3D9Effect::D3D9Effect(std::shared_ptr<const D3D9Runtime> context) : mEffectContext(context), mVertexBuffer(nullptr), mVertexDeclaration(nullptr), mDepthStencil(nullptr), mShaderResourceStateblock(nullptr)
 		{
 			HRESULT hr;
 
@@ -2378,34 +2377,17 @@ namespace ReShade
 
 			hr = context->mDevice->CreateVertexBuffer(3 * sizeof(float), D3DUSAGE_WRITEONLY, 0, D3DPOOL_DEFAULT, &this->mVertexBuffer, nullptr);
 
-			if (FAILED(hr))
-			{
-				assert(false);
-				return;
-			}
+			assert(SUCCEEDED(hr));
 
 			hr = context->mDevice->CreateVertexDeclaration(declaration, &this->mVertexDeclaration);
 
-			if (FAILED(hr))
-			{
-				assert(false);
-
-				SAFE_RELEASE(this->mVertexBuffer);
-				return;
-			}
+			assert(SUCCEEDED(hr));
 
 			float *data;
 
 			hr = this->mVertexBuffer->Lock(0, 3 * sizeof(float), reinterpret_cast<void **>(&data), 0);
 
-			if (FAILED(hr))
-			{
-				assert(false);
-
-				SAFE_RELEASE(this->mVertexBuffer);
-				SAFE_RELEASE(this->mVertexDeclaration);
-				return;
-			}
+			assert(SUCCEEDED(hr));
 
 			for (UINT i = 0; i < 3; ++i)
 			{
@@ -2414,15 +2396,15 @@ namespace ReShade
 
 			this->mVertexBuffer->Unlock();
 		}
-		D3D9Effect::~D3D9Effect(void)
+		D3D9Effect::~D3D9Effect()
 		{
-			SAFE_RELEASE(this->mVertexDeclaration);
-			SAFE_RELEASE(this->mVertexBuffer);
-			SAFE_RELEASE(this->mDepthStencil);
-			SAFE_RELEASE(this->mShaderResourceStateblock);
+			this->mVertexBuffer->Release();
+			this->mVertexDeclaration->Release();
+			this->mDepthStencil->Release();
+			this->mShaderResourceStateblock->Release();
 		}
 
-		const Effect::Texture *									D3D9Effect::GetTexture(const std::string &name) const
+		const Effect::Texture *D3D9Effect::GetTexture(const std::string &name) const
 		{
 			auto it = this->mTextures.find(name);
 
@@ -2433,7 +2415,7 @@ namespace ReShade
 
 			return it->second.get();
 		}
-		std::vector<std::string>								D3D9Effect::GetTextureNames(void) const
+		std::vector<std::string> D3D9Effect::GetTextureNames() const
 		{
 			std::vector<std::string> names;
 			names.reserve(this->mTextures.size());
@@ -2445,7 +2427,7 @@ namespace ReShade
 
 			return names;
 		}
-		const Effect::Constant *								D3D9Effect::GetConstant(const std::string &name) const
+		const Effect::Constant *D3D9Effect::GetConstant(const std::string &name) const
 		{
 			auto it = this->mConstants.find(name);
 
@@ -2456,7 +2438,7 @@ namespace ReShade
 
 			return it->second.get();
 		}
-		std::vector<std::string>								D3D9Effect::GetConstantNames(void) const
+		std::vector<std::string> D3D9Effect::GetConstantNames() const
 		{
 			std::vector<std::string> names;
 			names.reserve(this->mConstants.size());
@@ -2468,7 +2450,7 @@ namespace ReShade
 
 			return names;
 		}
-		const Effect::Technique *								D3D9Effect::GetTechnique(const std::string &name) const
+		const Effect::Technique *D3D9Effect::GetTechnique(const std::string &name) const
 		{
 			auto it = this->mTechniques.find(name);
 
@@ -2479,7 +2461,7 @@ namespace ReShade
 
 			return it->second.get();
 		}
-		std::vector<std::string>								D3D9Effect::GetTechniqueNames(void) const
+		std::vector<std::string> D3D9Effect::GetTechniqueNames() const
 		{
 			std::vector<std::string> names;
 			names.reserve(this->mTechniques.size());
@@ -2495,17 +2477,17 @@ namespace ReShade
 		D3D9Texture::D3D9Texture(D3D9Effect *effect) : mEffect(effect), mTexture(nullptr), mSurface(nullptr)
 		{
 		}
-		D3D9Texture::~D3D9Texture(void)
+		D3D9Texture::~D3D9Texture()
 		{
-			SAFE_RELEASE(this->mTexture);
-			SAFE_RELEASE(this->mSurface);
+			this->mTexture->Release();
+			this->mSurface->Release();
 		}
 
-		const Effect::Texture::Description						D3D9Texture::GetDescription(void) const
+		const Effect::Texture::Description D3D9Texture::GetDescription() const
 		{
 			return this->mDesc;
 		}
-		const Effect::Annotation								D3D9Texture::GetAnnotation(const std::string &name) const
+		const Effect::Annotation D3D9Texture::GetAnnotation(const std::string &name) const
 		{
 			auto it = this->mAnnotations.find(name);
 
@@ -2517,7 +2499,7 @@ namespace ReShade
 			return it->second;
 		}
 
-		void													D3D9Texture::Update(unsigned int level, const unsigned char *data, std::size_t size)
+		void D3D9Texture::Update(unsigned int level, const unsigned char *data, std::size_t size)
 		{
 			assert(data != nullptr || size == 0);
 
@@ -2595,26 +2577,26 @@ namespace ReShade
 			systemSurface->Release();
 			textureSurface->Release();
 		}
-		void													D3D9Texture::UpdateFromColorBuffer(void)
+		void D3D9Texture::UpdateFromColorBuffer()
 		{
 			this->mEffect->mEffectContext->mDevice->StretchRect(this->mEffect->mEffectContext->mBackBufferNotMultisampled, nullptr, this->mSurface, nullptr, D3DTEXF_NONE);
 		}
-		void													D3D9Texture::UpdateFromDepthBuffer(void)
+		void D3D9Texture::UpdateFromDepthBuffer()
 		{
 		}
 
 		D3D9Constant::D3D9Constant(D3D9Effect *effect) : mEffect(effect), mRegisterOffset(0)
 		{
 		}
-		D3D9Constant::~D3D9Constant(void)
+		D3D9Constant::~D3D9Constant()
 		{
 		}
 
-		const Effect::Constant::Description						D3D9Constant::GetDescription(void) const
+		const Effect::Constant::Description D3D9Constant::GetDescription() const
 		{
 			return this->mDesc;
 		}
-		const Effect::Annotation								D3D9Constant::GetAnnotation(const std::string &name) const
+		const Effect::Annotation D3D9Constant::GetAnnotation(const std::string &name) const
 		{
 			auto it = this->mAnnotations.find(name);
 
@@ -2625,11 +2607,11 @@ namespace ReShade
 
 			return it->second;
 		}
-		void													D3D9Constant::GetValue(unsigned char *data, std::size_t size) const
+		void D3D9Constant::GetValue(unsigned char *data, std::size_t size) const
 		{
 			std::memcpy(data, this->mEffect->mConstantStorage + (this->mRegisterOffset * 4), size);
 		}
-		void													D3D9Constant::SetValue(const unsigned char *data, std::size_t size)
+		void D3D9Constant::SetValue(const unsigned char *data, std::size_t size)
 		{
 			std::memcpy(this->mEffect->mConstantStorage + (this->mRegisterOffset * 4), data, size);
 		}
@@ -2637,17 +2619,24 @@ namespace ReShade
 		D3D9Technique::D3D9Technique(D3D9Effect *effect) : mEffect(effect)
 		{
 		}
-		D3D9Technique::~D3D9Technique(void)
+		D3D9Technique::~D3D9Technique()
 		{
 			for (Pass &pass : this->mPasses)
 			{
-				SAFE_RELEASE(pass.Stateblock);
-				SAFE_RELEASE(pass.VS);
-				SAFE_RELEASE(pass.PS);
+				pass.Stateblock->Release();
+
+				if (pass.VS != nullptr)
+				{
+					pass.VS->Release();
+				}
+				if (pass.PS != nullptr)
+				{
+					pass.PS->Release();
+				}
 			}
 		}
 
-		const Effect::Annotation								D3D9Technique::GetAnnotation(const std::string &name) const
+		const Effect::Annotation D3D9Technique::GetAnnotation(const std::string &name) const
 		{
 			auto it = this->mAnnotations.find(name);
 
@@ -2659,7 +2648,7 @@ namespace ReShade
 			return it->second;
 		}
 
-		bool													D3D9Technique::Begin(unsigned int &passes) const
+		bool D3D9Technique::Begin(unsigned int &passes) const
 		{
 			IDirect3DDevice9 *device = this->mEffect->mEffectContext->mDevice;
 
@@ -2692,18 +2681,27 @@ namespace ReShade
 
 			return true;
 		}
-		void													D3D9Technique::End(void) const
+		void D3D9Technique::End() const
 		{
 			IDirect3DDevice9 *device = this->mEffect->mEffectContext->mDevice;
 
 			this->mEffect->mEffectContext->mStateBlock->Apply();
 
 			device->SetDepthStencilSurface(this->mEffect->mStateBlockDepthStencil);
-			SAFE_RELEASE(this->mEffect->mStateBlockDepthStencil);
+			
+			if (this->mEffect->mStateBlockDepthStencil != nullptr)
+			{
+				this->mEffect->mStateBlockDepthStencil->Release();
+			}
+
 			device->SetRenderTarget(0, this->mEffect->mStateBlockRenderTarget);
-			SAFE_RELEASE(this->mEffect->mStateBlockRenderTarget);
+
+			if (this->mEffect->mStateBlockRenderTarget != nullptr)
+			{
+				this->mEffect->mStateBlockRenderTarget->Release();
+			}
 		}
-		void													D3D9Technique::RenderPass(unsigned int index) const
+		void D3D9Technique::RenderPass(unsigned int index) const
 		{
 			IDirect3DDevice9 *device = this->mEffect->mEffectContext->mDevice;
 			const Pass &pass = this->mPasses[index];
@@ -2723,10 +2721,10 @@ namespace ReShade
 
 	// -----------------------------------------------------------------------------------------------------
 
-	std::shared_ptr<Runtime>									CreateEffectRuntime(IDirect3DDevice9 *device, IDirect3DSwapChain9 *swapchain)
+	std::shared_ptr<Runtime> CreateEffectRuntime(IDirect3DDevice9 *device, IDirect3DSwapChain9 *swapchain)
 	{
 		assert(device != nullptr && swapchain != nullptr);
 
-		return std::make_shared<D3D9EffectContext>(device, swapchain);
+		return std::make_shared<D3D9Runtime>(device, swapchain);
 	}
 }

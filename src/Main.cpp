@@ -7,7 +7,7 @@ _INITIALIZE_EASYLOGGINGPP;
 
 // -----------------------------------------------------------------------------------------------------
 
-BOOL APIENTRY													DllMain(HMODULE hModule, DWORD fdwReason, LPVOID lpvReserved)
+BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID lpvReserved)
 {
 	UNREFERENCED_PARAMETER(lpvReserved);
 	

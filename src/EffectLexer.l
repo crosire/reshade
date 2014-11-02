@@ -34,7 +34,7 @@
 
 	#include "EffectParser.hpp"
 
-	static void													Escape(char *buffer, std::size_t &len);
+	static void Escape(char *buffer, std::size_t &len);
 
 	// Flex Macros
 	#define YY_USER_ACTION yylloc->Line = yylineno, yylloc->Column = yycolumn, yycolumn += yyleng;
@@ -580,7 +580,7 @@ STRING															\"(\\.|[^\\"])*\"
 
 %%
 
-static char														EscapeRadix(char *buffer, int radix, int digits)
+static char EscapeRadix(char *buffer, int radix, int digits)
 {
 	int n = 0;
 	char res = 0;
@@ -624,7 +624,7 @@ static char														EscapeRadix(char *buffer, int radix, int digits)
 
 	return res;
 }
-static void														Escape(char *buffer, std::size_t &len)
+static void Escape(char *buffer, std::size_t &len)
 {
 	for (std::size_t i = 0; i < len - 1; ++i)
 	{

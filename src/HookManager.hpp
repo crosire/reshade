@@ -10,19 +10,21 @@
 
 namespace ReHook
 {
-	bool														Register(Hook::Function target, const Hook::Function replacement);
-	void														Register(const boost::filesystem::path &dll);
+	void Register(const boost::filesystem::path &module);
+	bool Register(Hook::Function target, const Hook::Function replacement);
 
-	Hook														Find(const Hook::Function replacement);
-	template <typename F> inline Hook							Find(const F replacement)
+	Hook Find(const Hook::Function replacement);
+	template <typename F>
+	inline Hook Find(const F replacement)
 	{
 		return Find(reinterpret_cast<const Hook::Function>(replacement));
 	}
-	Hook::Function												Call(const Hook::Function replacement);
-	template <typename F> inline F								Call(const F replacement)
+	Hook::Function Call(const Hook::Function replacement);
+	template <typename F>
+	inline F Call(const F replacement)
 	{
 		return reinterpret_cast<F>(Call(reinterpret_cast<const Hook::Function>(replacement)));
 	}
 
-	void														Cleanup(void);
+	void Cleanup();
 }

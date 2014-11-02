@@ -54,6 +54,9 @@
     <ClCompile Include="obj\$(Platform)\$(Configuration)\EffectParser.cpp">
       <Filter>Effect Parser</Filter>
     </ClCompile>
+    <ClCompile Include="src\EffectPreprocessor.cpp">
+      <Filter>Effect Parser</Filter>
+    </ClCompile>
     <ClCompile Include="src\Runtimes\EffectRuntimeD3D9.cpp">
       <Filter>Effect Runtimes</Filter>
     </ClCompile>

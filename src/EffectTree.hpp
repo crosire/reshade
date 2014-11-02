@@ -7,122 +7,132 @@
 
 namespace ReShade
 {
-	struct														EffectTree
+	struct EffectTree
 	{
+	public:
+		typedef std::size_t Index;
+		struct Location
+		{
+			const char *Source;
+			unsigned int Line, Column;
+		};
+		struct Node
+		{
 		public:
-			typedef std::size_t 								Index;
-			struct 												Location
+			template <typename T>
+			inline bool Is() const
 			{
-				const char *									Source;
-				unsigned int									Line, Column;
-			};
-			struct 												Node
-			{
-				public:
-					template <typename T> inline bool			Is(void) const
-					{
-						return typeid(T).hash_code() == this->mT;
-					}
-					template <typename T> inline T &			As(void)
-					{
-						static_assert(std::is_base_of<Node, T>::value, "invalid effect tree node type");
-
-						return static_cast<T &>(*this);
-					}
-					template <typename T> inline const T &		As(void) const
-					{
-						static_assert(std::is_base_of<Node, T>::value, "invalid effect tree node type");
-
-						return static_cast<const T &>(*this);
-					}
-
-					template <typename V> void					Accept(V &visitor);
-					template <typename V> void					Accept(V &visitor) const;
-
-					Index										Index;
-					Location									Location;
-
-				protected:
-					std::size_t									mT;
-			};
-			template <class T, class BASE = Node> class			NodeImplementation : public BASE
-			{
-				static_assert(std::is_base_of<Node, BASE>::value, "invalid effect tree node base type");
-
-				public:
-					inline NodeImplementation(void)
-					{
-						this->mT = typeid(T).hash_code();
-					}
-
-					template <typename V> inline void			Accept(V &visitor)
-					{
-						visitor.Visit(static_cast<T &>(*this));
-					}
-					template <typename V> inline void			Accept(V &visitor) const
-					{
-						visitor.Visit(static_cast<const T &>(*this));
-					}
-			};
-
-			static const Index									Null = 0, Root = 1;
-				
-		public:
-			EffectTree(void) : mNodes(Root) // Padding so root node is at index 1
-			{
+				return typeid(T).hash_code() == this->mT;
 			}
-			
-			inline Node &										operator [](Index index)
-			{
-				return Get(index);
-			}
-			inline const Node &									operator [](Index index) const
-			{
-				return Get(index);
-			}
-			
-			template <typename T> inline T &					Add(void)
-			{
-				const Location location = { nullptr, 0, 0 };
-				return Add<T>(location);
-			}
-			template <typename T> T &							Add(const Location &location) // Any pointers to nodes are no longer valid after this call
+			template <typename T>
+			inline T &As()
 			{
 				static_assert(std::is_base_of<Node, T>::value, "invalid effect tree node type");
 
-				const Index index = this->mNodes.size();
+				return static_cast<T &>(*this);
+			}
+			template <typename T>
+			inline const T &As() const
+			{
+				static_assert(std::is_base_of<Node, T>::value, "invalid effect tree node type");
 
-				this->mNodes.resize(index + sizeof(T), 0);
+				return static_cast<const T &>(*this);
+			}
 
-				Node &node = *new (&Get(index)) T;
-				node.Index = index;
-				node.Location = location;
+			template <typename V>
+			void Accept(V &visitor);
+			template <typename V>
+			void Accept(V &visitor) const;
+
+			Index Index;
+			Location Location;
+
+		protected:
+			std::size_t mT;
+		};
+		template <class T, class BASE = Node>
+		class NodeImplementation : public BASE
+		{
+			static_assert(std::is_base_of<Node, BASE>::value, "invalid effect tree node base type");
+
+		public:
+			inline NodeImplementation()
+			{
+				this->mT = typeid(T).hash_code();
+			}
+
+			template <typename V>
+			inline void Accept(V &visitor)
+			{
+				visitor.Visit(static_cast<T &>(*this));
+			}
+			template <typename V>
+			inline void Accept(V &visitor) const
+			{
+				visitor.Visit(static_cast<const T &>(*this));
+			}
+		};
+
+		static const Index Null = 0, Root = 1;
+				
+	public:
+		EffectTree() : mNodes(Root) // Padding so root node is at index 1
+		{
+		}
+			
+		inline Node &operator [](Index index)
+		{
+			return Get(index);
+		}
+		inline const Node &operator [](Index index) const
+		{
+			return Get(index);
+		}
+			
+		template <typename T>
+		inline T &Add()
+		{
+			const Location location = { nullptr, 0, 0 };
+			return Add<T>(location);
+		}
+		template <typename T>
+		T &Add(const Location &location) // Any pointers to nodes are no longer valid after this call
+		{
+			static_assert(std::is_base_of<Node, T>::value, "invalid effect tree node type");
+
+			const Index index = this->mNodes.size();
+
+			this->mNodes.resize(index + sizeof(T), 0);
+
+			Node &node = *new (&Get(index)) T;
+			node.Index = index;
+			node.Location = location;
 					
-				return static_cast<T &>(node);
-			}
-			inline const char *									AddString(const char *string, std::size_t length)
-			{
-				return (*this->mStrings.emplace(string, length).first).c_str();
-			}
-			inline Node &										Get(Index index = Root)
-			{
-				return *reinterpret_cast<Node *>(&this->mNodes[index]);
-			}
-			inline const Node &									Get(Index index = Root) const
-			{
-				return *reinterpret_cast<const Node *>(&this->mNodes[index]);
-			}
+			return static_cast<T &>(node);
+		}
+		inline const char *AddString(const char *string, std::size_t length)
+		{
+			return (*this->mStrings.emplace(string, length).first).c_str();
+		}
+		inline Node &Get(Index index = Root)
+		{
+			return *reinterpret_cast<Node *>(&this->mNodes[index]);
+		}
+		inline const Node &Get(Index index = Root) const
+		{
+			return *reinterpret_cast<const Node *>(&this->mNodes[index]);
+		}
 
-		private:
-			std::vector<unsigned char>							mNodes;
-			std::unordered_set<std::string>						mStrings;
+	private:
+		std::vector<unsigned char> mNodes;
+		std::unordered_set<std::string> mStrings;
 	};
 
-	namespace													EffectNodes
+	namespace EffectNodes
 	{
-		struct													Type
+		struct Type
 		{
-			enum												Base
+			enum Base
 			{
 				Void,
 				Bool,
@@ -134,7 +144,7 @@ namespace ReShade
 				Struct,
 				String
 			};
-			enum												Qualifier
+			enum Qualifier
 			{
 				// Storage
 				Extern											= 1 << 0,
@@ -157,7 +167,7 @@ namespace ReShade
 				Sample											= 1 << 14
 			};
 
-			static unsigned int									Compatible(const Type &src, const Type &dst)
+			static unsigned int Compatible(const Type &src, const Type &dst)
 			{
 				if (src.IsArray() != dst.IsArray() || src.ArrayLength != dst.ArrayLength)
 				{
@@ -202,73 +212,73 @@ namespace ReShade
 				return rank;
 			}
 
-			inline bool											IsArray(void) const
+			inline bool IsArray() const
 			{
 				return this->ArrayLength != 0;
 			}
-			inline bool											IsMatrix(void) const
+			inline bool IsMatrix() const
 			{
 				return this->Rows >= 1 && this->Cols > 1;
 			}
-			inline bool											IsVector(void) const
+			inline bool IsVector() const
 			{
 				return this->Rows > 1 && !IsMatrix();
 			}
-			inline bool											IsScalar(void) const
+			inline bool IsScalar() const
 			{
 				return !IsArray() && !IsMatrix() && !IsVector() && IsNumeric();
 			}
-			inline bool											IsNumeric(void) const
+			inline bool IsNumeric() const
 			{
 				return IsBoolean() || IsIntegral() || IsFloatingPoint();
 			}
-			inline bool											IsVoid(void) const
+			inline bool IsVoid() const
 			{
 				return this->Class == Void;
 			}
-			inline bool											IsBoolean(void) const
+			inline bool IsBoolean() const
 			{
 				return this->Class == Bool;
 			}
-			inline bool											IsIntegral(void) const
+			inline bool IsIntegral() const
 			{
 				return this->Class == Int || this->Class == Uint;
 			}
-			inline bool											IsFloatingPoint(void) const
+			inline bool IsFloatingPoint() const
 			{
 				return this->Class == Float;
 			}
-			inline bool											IsTexture(void) const
+			inline bool IsTexture() const
 			{
 				return this->Class == Texture;
 			}
-			inline bool											IsSampler(void) const
+			inline bool IsSampler() const
 			{
 				return this->Class == Sampler;
 			}
-			inline bool											IsStruct(void) const
+			inline bool IsStruct() const
 			{
 				return this->Class == Struct;
 			}
 
-			inline bool											HasQualifier(Qualifier qualifier) const
+			inline bool HasQualifier(Qualifier qualifier) const
 			{
 				return HasQualifiers(qualifier);
 			}
-			inline bool											HasQualifiers(unsigned int qualifiers) const
+			inline bool HasQualifiers(unsigned int qualifiers) const
 			{
 				return (this->Qualifiers & qualifiers) == qualifiers;
 			}
 
-			Base												Class;
-			unsigned int										Qualifiers;
-			unsigned int										Rows : 4, Cols : 4;
-			int													ArrayLength : 24;
-			EffectTree::Index									Definition;
+			Base Class;
+			unsigned int Qualifiers;
+			unsigned int Rows : 4, Cols : 4;
+			int ArrayLength : 24;
+			EffectTree::Index Definition;
 		};
-		struct 													List : public EffectTree::NodeImplementation<List>
+		struct List : public EffectTree::NodeImplementation<List>
 		{
-			EffectTree::Index									Find(const EffectTree &ast, std::size_t index) const
+			EffectTree::Index Find(const EffectTree &ast, std::size_t index) const
 			{
 				if (index >= this->Length)
 				{
@@ -283,7 +293,7 @@ namespace ReShade
 					return ast[this->Next].As<List>().Find(ast, index - 16);
 				}
 			}
-			void	 											Link(EffectTree &ast, EffectTree::Index node)
+			void Link(EffectTree &ast, EffectTree::Index node)
 			{
 				if (node == 0)
 				{
@@ -325,7 +335,7 @@ namespace ReShade
 					Increment(ast);
 				}
 			}
-			void												Increment(EffectTree &ast)
+			void Increment(EffectTree &ast)
 			{
 				if (this->Previous != 0)
 				{
@@ -335,30 +345,30 @@ namespace ReShade
 				this->Length++;
 			}
 			
-			inline EffectTree::Index							operator[](unsigned int index) const
+			inline EffectTree::Index operator[](unsigned int index) const
 			{
 				return Find(*this->AST, index);
 			}
 
-			EffectTree *										AST;
-			unsigned int										Length;
-			EffectTree::Index									Previous, Next, Nodes[16];
+			EffectTree *AST;
+			unsigned int Length;
+			EffectTree::Index Previous, Next, Nodes[16];
 		};
-		struct													RValue : public EffectTree::Node
+		struct RValue : public EffectTree::Node
 		{
-			Type												Type;
+			Type Type;
 		};
-		struct													LValue : public EffectTree::NodeImplementation<LValue, RValue>
+		struct LValue : public EffectTree::NodeImplementation<LValue, RValue>
 		{
-			EffectTree::Index									Reference;
+			EffectTree::Index Reference;
 		};
-		struct													Literal : public EffectTree::NodeImplementation<Literal, RValue>
+		struct Literal : public EffectTree::NodeImplementation<Literal, RValue>
 		{
-			enum												Enum
+			enum Enum
 			{
-				NONE											= 0,
-				ZERO											= 0,
-				ONE												= 1,
+				NONE = 0,
+				ZERO = 0,
+				ONE = 1,
 				R8,
 				R32F,
 				RG8,
@@ -408,8 +418,10 @@ namespace ReShade
 				NOTEQUAL
 			};
 
-			template <typename T> T								Cast(std::size_t index) const;
-			template <>	int										Cast(std::size_t index) const
+			template <typename T>
+			T Cast(std::size_t index) const;
+			template <>
+			int Cast(std::size_t index) const
 			{
 				switch (this->Type.Class)
 				{
@@ -423,7 +435,8 @@ namespace ReShade
 						return static_cast<int>(this->Value.Float[index]);
 				}
 			}
-			template <>	unsigned int							Cast(std::size_t index) const
+			template <>
+			unsigned int Cast(std::size_t index) const
 			{
 				switch (this->Type.Class)
 				{
@@ -437,7 +450,8 @@ namespace ReShade
 						return static_cast<unsigned int>(this->Value.Float[index]);
 				}
 			}
-			template <>	float									Cast(std::size_t index) const
+			template <>
+			float Cast(std::size_t index) const
 			{
 				switch (this->Type.Class)
 				{
@@ -452,17 +466,17 @@ namespace ReShade
 				}
 			}
 
-			union												Value
+			union Value
 			{
-				int												Int[16], Bool[16];
-				unsigned int									Uint[16];
-				float											Float[16];
-				const char *									String;
+				int Int[16], Bool[16];
+				unsigned int Uint[16];
+				float Float[16];
+				const char *String;
 			} Value;
 		};
-		struct													Expression : public EffectTree::NodeImplementation<Expression, RValue>
+		struct Expression : public EffectTree::NodeImplementation<Expression, RValue>
 		{
-			enum												Operator
+			enum Operator
 			{
 				None,
 
@@ -573,74 +587,74 @@ namespace ReShade
 				OperatorCount
 			};
 
-			unsigned int										Operator;
-			EffectTree::Index									Operands[3];
+			unsigned int Operator;
+			EffectTree::Index Operands[3];
 		};
-		struct													Sequence : public EffectTree::NodeImplementation<Sequence, List>
+		struct Sequence : public EffectTree::NodeImplementation<Sequence, List>
 		{
-			Type												Type;
+			Type Type;
 		};
-		struct													Assignment : public EffectTree::NodeImplementation<Assignment, RValue>
+		struct Assignment : public EffectTree::NodeImplementation<Assignment, RValue>
 		{
-			unsigned int										Operator;
-			EffectTree::Index									Left, Right;
+			unsigned int Operator;
+			EffectTree::Index Left, Right;
 		};
-		struct													Call : public EffectTree::NodeImplementation<Call, RValue>
+		struct Call : public EffectTree::NodeImplementation<Call, RValue>
 		{
-			inline bool											HasArguments(void) const
+			inline bool HasArguments() const
 			{
 				return this->Arguments != 0;
 			}
 
-			const char *										CalleeName;
-			EffectTree::Index									Callee, Arguments;
+			const char *CalleeName;
+			EffectTree::Index Callee, Arguments;
 		};
-		struct													Constructor : public EffectTree::NodeImplementation<Constructor, RValue>
+		struct Constructor : public EffectTree::NodeImplementation<Constructor, RValue>
 		{
-			EffectTree::Index									Arguments;
+			EffectTree::Index Arguments;
 		};
-		struct													Swizzle : public EffectTree::NodeImplementation<Swizzle, Expression>
+		struct Swizzle : public EffectTree::NodeImplementation<Swizzle, Expression>
 		{
-			signed char											Mask[4];
+			signed char Mask[4];
 		};
-		struct													Statement : public EffectTree::NodeImplementation<Statement>
+		struct Statement : public EffectTree::NodeImplementation<Statement>
 		{
-			inline bool											HasAttributes(void) const
+			inline bool HasAttributes() const
 			{
 				return this->Attributes != 0;
 			}
 
-			EffectTree::Index									Attributes;
+			EffectTree::Index Attributes;
 		};
-		struct													If : public EffectTree::NodeImplementation<If, Statement>
+		struct If : public EffectTree::NodeImplementation<If, Statement>
 		{
-			EffectTree::Index									Condition;
-			EffectTree::Index									StatementOnTrue, StatementOnFalse;
+			EffectTree::Index Condition;
+			EffectTree::Index StatementOnTrue, StatementOnFalse;
 		};
-		struct													Switch : public EffectTree::NodeImplementation<Switch, Statement>
+		struct Switch : public EffectTree::NodeImplementation<Switch, Statement>
 		{
-			EffectTree::Index									Test;
-			EffectTree::Index									Cases;
+			EffectTree::Index Test;
+			EffectTree::Index Cases;
 		};
-		struct													Case : public EffectTree::NodeImplementation<Case>
+		struct Case : public EffectTree::NodeImplementation<Case>
 		{
-			EffectTree::Index									Labels;
-			EffectTree::Index									Statements;
+			EffectTree::Index Labels;
+			EffectTree::Index Statements;
 		};
-		struct													For : public EffectTree::NodeImplementation<For, Statement>
+		struct For : public EffectTree::NodeImplementation<For, Statement>
 		{
-			EffectTree::Index									Initialization, Condition, Iteration;
-			EffectTree::Index									Statements;
+			EffectTree::Index Initialization, Condition, Iteration;
+			EffectTree::Index Statements;
 		};
-		struct													While : public EffectTree::NodeImplementation<While, Statement>
+		struct While : public EffectTree::NodeImplementation<While, Statement>
 		{
-			bool												DoWhile;
-			EffectTree::Index									Condition;
-			EffectTree::Index									Statements;
+			bool DoWhile;
+			EffectTree::Index Condition;
+			EffectTree::Index Statements;
 		};
-		struct													Jump : public EffectTree::NodeImplementation<Jump, Statement>
+		struct Jump : public EffectTree::NodeImplementation<Jump, Statement>
 		{
-			enum												Mode
+			enum Mode
 			{
 				Return,
 				Break,
@@ -648,34 +662,34 @@ namespace ReShade
 				Discard
 			};
 
-			Mode												Mode;
-			EffectTree::Index									Value;
+			Mode Mode;
+			EffectTree::Index Value;
 		};
-		struct													ExpressionStatement : public EffectTree::NodeImplementation<ExpressionStatement>
+		struct ExpressionStatement : public EffectTree::NodeImplementation<ExpressionStatement>
 		{
-			EffectTree::Index									Expression;
+			EffectTree::Index Expression;
 		};
-		struct													StatementBlock : public EffectTree::NodeImplementation<StatementBlock, List>
+		struct StatementBlock : public EffectTree::NodeImplementation<StatementBlock, List>
 		{
 		};
-		struct													Annotation : public EffectTree::NodeImplementation<Annotation>
+		struct Annotation : public EffectTree::NodeImplementation<Annotation>
 		{
-			const char *										Name;
-			EffectTree::Index									Value;
+			const char *Name;
+			EffectTree::Index Value;
 		};
-		struct													Struct : public EffectTree::NodeImplementation<Struct>
+		struct Struct : public EffectTree::NodeImplementation<Struct>
 		{
-			inline bool											HasFields(void) const
+			inline bool HasFields() const
 			{
 				return this->Fields != 0;
 			}
 
-			const char *										Name;
-			EffectTree::Index									Fields;
+			const char *Name;
+			EffectTree::Index Fields;
 		};
-		struct													Variable : public EffectTree::NodeImplementation<Variable>
+		struct Variable : public EffectTree::NodeImplementation<Variable>
 		{
-			enum												Property
+			enum Property
 			{
 				Width,
 				Height,
@@ -697,53 +711,53 @@ namespace ReShade
 				PropertyCount
 			};
 
-			inline bool											HasAnnotations(void) const
+			inline bool HasAnnotations() const
 			{
 				return this->Annotations != 0;
 			}
-			inline bool											HasInitializer(void) const
+			inline bool HasInitializer() const
 			{
 				return this->Initializer != 0;
 			}
 
-			Type												Type;
-			const char *										Name;
-			const char *										Semantic;
-			EffectTree::Index									Annotations;
-			EffectTree::Index									Initializer;
-			EffectTree::Index									Properties[PropertyCount];
+			Type Type;
+			const char *Name;
+			const char *Semantic;
+			EffectTree::Index Annotations;
+			EffectTree::Index Initializer;
+			EffectTree::Index Properties[PropertyCount];
 		};
-		struct													Function : public EffectTree::NodeImplementation<Function>
+		struct Function : public EffectTree::NodeImplementation<Function>
 		{
-			inline bool											HasParameters(void) const
+			inline bool HasParameters() const
 			{
 				return this->Parameters != 0;
 			}
-			inline bool											HasDefinition(void) const
+			inline bool HasDefinition() const
 			{
 				return this->Definition != 0;
 			}
 
-			Type												ReturnType;
-			const char *										Name;
-			EffectTree::Index									Parameters;
-			const char *										ReturnSemantic;
-			EffectTree::Index									Definition;
+			Type ReturnType;
+			const char *Name;
+			EffectTree::Index Parameters;
+			const char *ReturnSemantic;
+			EffectTree::Index Definition;
 		};
-		struct													Technique : public EffectTree::NodeImplementation<Technique>
+		struct Technique : public EffectTree::NodeImplementation<Technique>
 		{
-			inline bool											HasAnnotations(void) const
+			inline bool HasAnnotations() const
 			{
 				return this->Annotations != 0;
 			}
 
-			const char *										Name;
-			EffectTree::Index									Annotations;
-			EffectTree::Index									Passes;
+			const char *Name;
+			EffectTree::Index Annotations;
+			EffectTree::Index Passes;
 		};
-		struct													Pass : public EffectTree::NodeImplementation<Pass>
+		struct Pass : public EffectTree::NodeImplementation<Pass>
 		{
-			enum												State
+			enum State
 			{
 				VertexShader,
 				PixelShader,
@@ -777,18 +791,19 @@ namespace ReShade
 				StateCount
 			};
 
-			inline bool											HasAnnotations(void) const
+			inline bool HasAnnotations() const
 			{
 				return this->Annotations != 0;
 			}
 
-			const char *										Name;
-			EffectTree::Index									Annotations;
-			EffectTree::Index									States[StateCount];
+			const char *Name;
+			EffectTree::Index Annotations;
+			EffectTree::Index States[StateCount];
 		};
 	}
 
-	template <typename V> void									EffectTree::Node::Accept(V &visitor)
+	template <typename V>
+	void EffectTree::Node::Accept(V &visitor)
 	{
 		using namespace EffectNodes;
 
@@ -885,7 +900,8 @@ namespace ReShade
 			assert(false);
 		}
 	}
-	template <typename V> void									EffectTree::Node::Accept(V &visitor) const
+	template <typename V>
+	void EffectTree::Node::Accept(V &visitor) const
 	{
 		using namespace EffectNodes;
 

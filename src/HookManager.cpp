@@ -7,243 +7,238 @@
 
 namespace ReHook
 {
-	bool														Install(Hook::Function target, const Hook::Function replacement, bool detour);
-	bool														Install(const boost::filesystem::path &targetPath);
+	bool Install(Hook::Function target, const Hook::Function replacement, bool detour);
+	bool Install(const boost::filesystem::path &targetPath);
 
 	namespace
 	{
-		class													Module
+		class Module
 		{
-			public:
-				typedef HMODULE									Handle;
+		public:
+			typedef HMODULE Handle;
 					
-			public:
-				struct											Export
+		public:
+			struct Export
+			{
+				void *Address;
+				const char *Name;
+				unsigned short Ordinal;
+			};
+			struct Import
+			{
+				const char *Library;
+				const char *Name;
+				unsigned short Ordinal;
+			};
+
+		public:
+			static Handle Load(const boost::filesystem::path &path)
+			{
+				return ::LoadLibrary(path.c_str());
+			}
+			static Handle Loaded(const boost::filesystem::path &path)
+			{
+				return ::GetModuleHandle(path.c_str());
+			}
+			static Module Current()
+			{
+				HMODULE handle = nullptr;
+				::GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT, reinterpret_cast<LPCTSTR>(&Current), &handle);
+				return handle;
+			}
+			static void Free(Handle handle)
+			{
+				assert(handle != nullptr);
+
+				::FreeLibrary(handle);
+			}
+
+		public:
+			inline Module() : mHandle(nullptr)
+			{
+			}
+			inline Module(Handle handle) : mHandle(handle)
+			{
+			}
+
+			inline operator Handle() const
+			{
+				return this->mHandle;
+			}
+
+			boost::filesystem::path GetPath() const
+			{
+				assert(this->mHandle != nullptr);
+
+				TCHAR path[MAX_PATH];
+				::GetModuleFileName(this->mHandle, path, MAX_PATH);
+				return path;
+			}
+			std::vector<Export> GetExports() const
+			{
+				assert(this->mHandle != nullptr);
+
+				std::vector<Export> exports;
+				BYTE *imageBase = reinterpret_cast<BYTE *>(this->mHandle);
+				IMAGE_DOS_HEADER *imageHeader = reinterpret_cast<IMAGE_DOS_HEADER *>(imageBase);
+				IMAGE_NT_HEADERS *imageHeaderNT = reinterpret_cast<IMAGE_NT_HEADERS *>(imageBase + imageHeader->e_lfanew);
+
+				if (imageHeader->e_magic != IMAGE_DOS_SIGNATURE || imageHeaderNT->Signature != IMAGE_NT_SIGNATURE || imageHeaderNT->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].Size == 0)
 				{
-					void *										Address;
-					const char *								Name;
-					unsigned short								Ordinal;
-				};
-				struct											Import
-				{
-					const char *								Library;
-					const char *								Name;
-
-					union
-					{
-						unsigned short							Hint;
-						unsigned short							Ordinal;
-					};
-				};
-
-			public:
-				static Handle									Load(const boost::filesystem::path &path)
-				{
-					return ::LoadLibrary(path.c_str());
-				}
-				static Handle									Loaded(const boost::filesystem::path &path)
-				{
-					return ::GetModuleHandle(path.c_str());
-				}
-				static Module									Current(void)
-				{
-					HMODULE handle = nullptr;
-					::GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT, reinterpret_cast<LPCTSTR>(&Current), &handle);
-					return handle;
-				}
-				static void										Free(Handle handle)
-				{
-					assert(handle != nullptr);
-
-					::FreeLibrary(handle);
-				}
-
-			public:
-				inline Module(void) : mHandle(nullptr)
-				{
-				}
-				inline Module(Handle handle) : mHandle(handle)
-				{
-				}
-
-				inline											operator Handle(void) const
-				{
-					return this->mHandle;
-				}
-
-				boost::filesystem::path							GetPath(void) const
-				{
-					assert(this->mHandle != nullptr);
-
-					TCHAR path[MAX_PATH];
-					::GetModuleFileName(this->mHandle, path, MAX_PATH);
-					return path;
-				}
-				std::vector<Export>								GetExports(void) const
-				{
-					assert(this->mHandle != nullptr);
-
-					std::vector<Export> exports;
-					BYTE *imageBase = reinterpret_cast<BYTE *>(this->mHandle);
-					IMAGE_DOS_HEADER *imageHeader = reinterpret_cast<IMAGE_DOS_HEADER *>(imageBase);
-					IMAGE_NT_HEADERS *imageHeaderNT = reinterpret_cast<IMAGE_NT_HEADERS *>(imageBase + imageHeader->e_lfanew);
-
-					if (imageHeader->e_magic != IMAGE_DOS_SIGNATURE || imageHeaderNT->Signature != IMAGE_NT_SIGNATURE || imageHeaderNT->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].Size == 0)
-					{
-						return exports;
-					}
-
-					IMAGE_EXPORT_DIRECTORY *imageExports = reinterpret_cast<IMAGE_EXPORT_DIRECTORY *>(imageBase + imageHeaderNT->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress);
-
-					const std::size_t count = static_cast<std::size_t>(imageExports->NumberOfNames);
-					exports.reserve(count);
-
-					for (std::size_t i = 0; i < count; ++i)
-					{
-						Export symbol;
-						symbol.Ordinal = reinterpret_cast<WORD *>(imageBase + imageExports->AddressOfNameOrdinals)[i] + static_cast<WORD>(imageExports->Base);
-						symbol.Name = reinterpret_cast<const char *>(imageBase + (reinterpret_cast<DWORD *>(imageBase + imageExports->AddressOfNames)[i]));
-
-						if (imageExports->NumberOfFunctions > 0)
-						{
-							symbol.Address = reinterpret_cast<void *>(imageBase + (reinterpret_cast<DWORD *>(imageBase + imageExports->AddressOfFunctions)[symbol.Ordinal - static_cast<WORD>(imageExports->Base)]));
-						}
-						else
-						{
-							symbol.Address = nullptr;
-						}
-
-						exports.push_back(symbol);
-					}
-
 					return exports;
 				}
-				std::vector<Import>								GetImports(void) const
+
+				IMAGE_EXPORT_DIRECTORY *imageExports = reinterpret_cast<IMAGE_EXPORT_DIRECTORY *>(imageBase + imageHeaderNT->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress);
+
+				const std::size_t count = static_cast<std::size_t>(imageExports->NumberOfNames);
+				exports.reserve(count);
+
+				for (std::size_t i = 0; i < count; ++i)
 				{
-					assert(this->mHandle != nullptr);
+					Export symbol;
+					symbol.Ordinal = reinterpret_cast<WORD *>(imageBase + imageExports->AddressOfNameOrdinals)[i] + static_cast<WORD>(imageExports->Base);
+					symbol.Name = reinterpret_cast<const char *>(imageBase + (reinterpret_cast<DWORD *>(imageBase + imageExports->AddressOfNames)[i]));
 
-					std::vector<Import> imports;
-					BYTE *imageBase = reinterpret_cast<BYTE *>(this->mHandle);
-					IMAGE_DOS_HEADER *imageHeader = reinterpret_cast<IMAGE_DOS_HEADER *>(imageBase);
-					IMAGE_NT_HEADERS *imageHeaderNT = reinterpret_cast<IMAGE_NT_HEADERS *>(imageBase + imageHeader->e_lfanew);
-
-					if (imageHeader->e_magic != IMAGE_DOS_SIGNATURE || imageHeaderNT->Signature != IMAGE_NT_SIGNATURE || imageHeaderNT->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT].Size == 0)
+					if (imageExports->NumberOfFunctions > 0)
 					{
-						return imports;
+						symbol.Address = reinterpret_cast<void *>(imageBase + (reinterpret_cast<DWORD *>(imageBase + imageExports->AddressOfFunctions)[symbol.Ordinal - static_cast<WORD>(imageExports->Base)]));
+					}
+					else
+					{
+						symbol.Address = nullptr;
 					}
 
-					std::size_t i = 0;
-					IMAGE_IMPORT_DESCRIPTOR *imageImports = reinterpret_cast<IMAGE_IMPORT_DESCRIPTOR *>(imageBase + imageHeaderNT->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT].VirtualAddress);
+					exports.push_back(symbol);
+				}
 
-					while (imageImports->Name != 0)
-					{
-						IMAGE_THUNK_DATA *INT = reinterpret_cast<IMAGE_THUNK_DATA *>(imageBase + imageImports->OriginalFirstThunk);
+				return exports;
+			}
+			std::vector<Import> GetImports() const
+			{
+				assert(this->mHandle != nullptr);
 
-						while (INT->u1.Function != 0)
-						{
-							Import symbol;
-							symbol.Library = reinterpret_cast<const char *>(imageBase + imageImports->Name);
+				std::vector<Import> imports;
+				BYTE *imageBase = reinterpret_cast<BYTE *>(this->mHandle);
+				IMAGE_DOS_HEADER *imageHeader = reinterpret_cast<IMAGE_DOS_HEADER *>(imageBase);
+				IMAGE_NT_HEADERS *imageHeaderNT = reinterpret_cast<IMAGE_NT_HEADERS *>(imageBase + imageHeader->e_lfanew);
 
-							if ((INT->u1.Ordinal & IMAGE_ORDINAL_FLAG) != IMAGE_ORDINAL_FLAG)
-							{
-								IMAGE_IMPORT_BY_NAME *import = reinterpret_cast<IMAGE_IMPORT_BY_NAME *>(imageBase + INT->u1.AddressOfData);
-					
-								symbol.Hint = import->Hint;
-								symbol.Name = import->Name;
-							}
-							else
-							{
-								symbol.Ordinal = LOWORD(INT->u1.Ordinal);
-								symbol.Name = nullptr;
-							}
-
-							imports.push_back(symbol);
-
-							++INT;
-							++i;
-						}
-
-						++imageImports;
-					}
-
+				if (imageHeader->e_magic != IMAGE_DOS_SIGNATURE || imageHeaderNT->Signature != IMAGE_NT_SIGNATURE || imageHeaderNT->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT].Size == 0)
+				{
 					return imports;
 				}
 
-				inline	void									Free(void)
-				{
-					Free(*this);
+				std::size_t i = 0;
+				IMAGE_IMPORT_DESCRIPTOR *imageImports = reinterpret_cast<IMAGE_IMPORT_DESCRIPTOR *>(imageBase + imageHeaderNT->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT].VirtualAddress);
 
-					this->mHandle = nullptr;
+				while (imageImports->Name != 0)
+				{
+					IMAGE_THUNK_DATA *INT = reinterpret_cast<IMAGE_THUNK_DATA *>(imageBase + imageImports->OriginalFirstThunk);
+
+					while (INT->u1.Function != 0)
+					{
+						Import symbol;
+						symbol.Library = reinterpret_cast<const char *>(imageBase + imageImports->Name);
+
+						if ((INT->u1.Ordinal & IMAGE_ORDINAL_FLAG) != IMAGE_ORDINAL_FLAG)
+						{
+							IMAGE_IMPORT_BY_NAME *import = reinterpret_cast<IMAGE_IMPORT_BY_NAME *>(imageBase + INT->u1.AddressOfData);
+					
+							symbol.Ordinal = import->Hint;
+							symbol.Name = import->Name;
+						}
+						else
+						{
+							symbol.Ordinal = LOWORD(INT->u1.Ordinal);
+							symbol.Name = nullptr;
+						}
+
+						imports.push_back(symbol);
+
+						++INT;
+						++i;
+					}
+
+					++imageImports;
 				}
 
-			private:
-				Handle											mHandle;
+				return imports;
+			}
+
+			inline void Free()
+			{
+				Free(*this);
+
+				this->mHandle = nullptr;
+			}
+
+		private:
+			Handle mHandle;
 		};
-		class													CriticalSection
+		class CriticalSection
 		{
 		public:
-			struct												Lock
+			struct Lock
 			{
 				inline Lock(CriticalSection &cs) : CS(cs)
 				{
 					this->CS.Enter();
 				}
-				inline ~Lock(void)
+				inline ~Lock()
 				{
 					this->CS.Leave();
 				}
 
-				CriticalSection &								CS;
+				CriticalSection &CS;
 
 			private:
-				void											operator =(const Lock &);
+				void operator =(const Lock &);
 			};
 
 		public:
-			inline CriticalSection(void)
+			inline CriticalSection()
 			{
 				::InitializeCriticalSection(&this->mCS);
 			}
-			inline ~CriticalSection(void)
+			inline ~CriticalSection()
 			{
 				::DeleteCriticalSection(&this->mCS);
 			}
 
-			inline void											Enter(void)
+			inline void Enter()
 			{
 				::EnterCriticalSection(&this->mCS);
 			}
-			inline void											Leave(void)
+			inline void Leave()
 			{
 				::LeaveCriticalSection(&this->mCS);
 			}
 
 		private:
-			CRITICAL_SECTION									mCS;
+			CRITICAL_SECTION mCS;
 		};
-		struct													HookInfo
+		struct HookInfo
 		{
 			union
 			{
 				struct
 				{
-					Hook										Hook;
+					Hook Hook;
 				};
 				struct
 				{
-					Hook::Function								Target, Trampoline;
+					Hook::Function Target, Trampoline;
 				};
 			};
 
-			Hook::Function										Replacement;
+			Hook::Function Replacement;
 		};
 
-		CriticalSection											sCS;
-		std::vector<HookInfo>									sHooks;
-		std::vector<boost::filesystem::path>					sHooksDelayed;
-		std::vector<Module::Handle>								sModules;
+		CriticalSection sCS;
+		std::vector<HookInfo> sHooks;
+		std::vector<boost::filesystem::path> sHooksDelayed;
+		std::vector<Module::Handle> sModules;
 
-		HMODULE WINAPI											HookLoadLibraryA(LPCSTR lpFileName)
+		HMODULE WINAPI HookLoadLibraryA(LPCSTR lpFileName)
 		{
 			const HMODULE handle = Call(&HookLoadLibraryA)(lpFileName);
 
@@ -273,7 +268,7 @@ namespace ReHook
 
 			return handle;
 		}
-		HMODULE WINAPI											HookLoadLibraryW(LPCWSTR lpFileName)
+		HMODULE WINAPI HookLoadLibraryW(LPCWSTR lpFileName)
 		{
 			const HMODULE handle = Call(&HookLoadLibraryW)(lpFileName);
 
@@ -307,37 +302,11 @@ namespace ReHook
 
 	// -----------------------------------------------------------------------------------------------------
 
-	bool														Install(Hook::Function target, const Hook::Function replacement, bool detour = true)
+	bool Install(const boost::filesystem::path &targetPath)
 	{
-		LOG(TRACE) << "Installing hook for '0x" << target << "' with '0x" << replacement << "' ...";
-
-		HookInfo info;
-		info.Target = target;
-		info.Trampoline = target;
-		info.Replacement = replacement;
-
-		if (!detour || (info.Hook = Hook::Install(target, replacement)).IsInstalled())
+		struct ScopeGuard
 		{
-			LOG(TRACE) << "> Succeeded.";
-
-			CriticalSection::Lock lock(sCS);
-
-			sHooks.push_back(info);
-
-			return true;
-		}
-		else
-		{
-			LOG(ERROR) << "Failed to install hook for '0x" << target << "'.";
-
-			return false;
-		}
-	}
-	bool														Install(const boost::filesystem::path &targetPath)
-	{
-		struct													ScopeGuard
-		{
-			ScopeGuard(void)
+			ScopeGuard()
 			{
 				Hook hook;
 
@@ -355,7 +324,7 @@ namespace ReHook
 					hook.Enable(false);
 				}
 			}
-			~ScopeGuard(void)
+			~ScopeGuard()
 			{
 				Hook hook;
 
@@ -469,7 +438,33 @@ namespace ReHook
 			return false;
 		}
 	}
-	void														Cleanup(void)
+	bool Install(Hook::Function target, const Hook::Function replacement, bool detour = true)
+	{
+		LOG(TRACE) << "Installing hook for '0x" << target << "' with '0x" << replacement << "' ...";
+
+		HookInfo info;
+		info.Target = target;
+		info.Trampoline = target;
+		info.Replacement = replacement;
+
+		if (!detour || (info.Hook = Hook::Install(target, replacement)).IsInstalled())
+		{
+			LOG(TRACE) << "> Succeeded.";
+
+			CriticalSection::Lock lock(sCS);
+
+			sHooks.push_back(info);
+
+			return true;
+		}
+		else
+		{
+			LOG(ERROR) << "Failed to install hook for '0x" << target << "'.";
+
+			return false;
+		}
+	}
+	void Cleanup()
 	{
 		CriticalSection::Lock lock(sCS);
 
@@ -505,19 +500,7 @@ namespace ReHook
 		sModules.clear();
 	}
 
-	bool														Register(Hook::Function target, const Hook::Function replacement)
-	{
-		assert(target != nullptr);
-		assert(replacement != nullptr);
-
-		if (Find(replacement).IsInstalled())
-		{
-			return true;
-		}
-
-		return Install(target, replacement);
-	}
-	void														Register(const boost::filesystem::path &targetPath)
+	void Register(const boost::filesystem::path &targetPath)
 	{
 		Register(reinterpret_cast<Hook::Function>(&::LoadLibraryA), reinterpret_cast<Hook::Function>(&HookLoadLibraryA));
 		Register(reinterpret_cast<Hook::Function>(&::LoadLibraryW), reinterpret_cast<Hook::Function>(&HookLoadLibraryW));
@@ -539,8 +522,20 @@ namespace ReHook
 			Install(targetPath);
 		}
 	}
+	bool Register(Hook::Function target, const Hook::Function replacement)
+	{
+		assert(target != nullptr);
+		assert(replacement != nullptr);
 
-	Hook														Find(const Hook::Function replacement)
+		if (Find(replacement).IsInstalled())
+		{
+			return true;
+		}
+
+		return Install(target, replacement);
+	}
+
+	Hook Find(const Hook::Function replacement)
 	{
 		CriticalSection::Lock lock(sCS);
 
@@ -554,7 +549,7 @@ namespace ReHook
 
 		return Hook();
 	}
-	Hook::Function												Call(const Hook::Function replacement)
+	Hook::Function Call(const Hook::Function replacement)
 	{
 		const Hook hook = Find(replacement);
 

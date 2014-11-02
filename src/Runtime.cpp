@@ -113,7 +113,7 @@ namespace ReShade
 
 		LOG(INFO) << "Initialized.";
 	}
-	void Runtime::Shutdown(void)
+	void Runtime::Shutdown()
 	{
 		LOG(INFO) << "Exiting ...";
 

@@ -10,7 +10,7 @@ FileWatcher::FileWatcher(const boost::filesystem::path &path, bool subtree) : mP
 	CreateIoCompletionPort(this->mFileHandle, this->mFileCompletionPortHandle, reinterpret_cast<ULONG_PTR>(this->mFileHandle), 0);
 	ReadDirectoryChangesW(this->mFileHandle, this->mBuffer.get(), this->mBufferSize, this->mSubTree, FILE_NOTIFY_CHANGE_LAST_WRITE, nullptr, &this->mOverlapped, nullptr);
 }
-FileWatcher::~FileWatcher(void)
+FileWatcher::~FileWatcher()
 {
 	CancelIo(this->mFileHandle);
 
