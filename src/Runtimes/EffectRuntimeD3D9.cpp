@@ -66,7 +66,6 @@ namespace ReShade
 			std::vector<D3D9Sampler> mSamplers;
 			std::unordered_map<std::string, std::unique_ptr<D3D9Constant>> mConstants;
 			std::unordered_map<std::string, std::unique_ptr<D3D9Technique>> mTechniques;
-			IDirect3DSurface9 *mStateBlockDepthStencil, *mStateBlockRenderTarget;
 			IDirect3DStateBlock9 *mShaderResourceStateblock;
 			IDirect3DSurface9 *mDepthStencil;
 			IDirect3DVertexDeclaration9 *mVertexDeclaration;
@@ -2169,13 +2168,9 @@ namespace ReShade
 			this->mVendorId = identifier.VendorId;
 			this->mDeviceId = identifier.DeviceId;
 			this->mRendererId = 0xD3D9;
-
-			this->mDevice->CreateStateBlock(D3DSBT_ALL, &this->mStateBlock);
 		}
 		D3D9Runtime::~D3D9Runtime()
 		{
-			this->mStateBlock->Release();
-
 			this->mDevice->Release();
 			this->mSwapChain->Release();
 		}
@@ -2196,6 +2191,8 @@ namespace ReShade
 				this->mBackBufferNotMultisampled = this->mBackBuffer;
 			}
 
+			this->mDevice->CreateStateBlock(D3DSBT_ALL, &this->mStateBlock);
+
 			this->mNVG = nvgCreateD3D9(this->mDevice, 0);
 
 			return Runtime::OnCreate(width, height);
@@ -2207,6 +2204,8 @@ namespace ReShade
 			nvgDeleteD3D9(this->mNVG);
 			this->mNVG = nullptr;
 
+			this->mStateBlock->Release();
+
 			if (this->mBackBufferNotMultisampled != this->mBackBuffer)
 			{
 				this->mBackBufferNotMultisampled->Release();
@@ -2216,8 +2215,14 @@ namespace ReShade
 		}
 		void D3D9Runtime::OnPresent()
 		{
+			IDirect3DSurface9 *stateBlockRenderTarget = nullptr;
+			IDirect3DSurface9 *stateBlockDepthStencil = nullptr;
+
 			this->mDevice->BeginScene();
+
 			this->mStateBlock->Capture();
+			this->mDevice->GetRenderTarget(0, &stateBlockRenderTarget);
+			this->mDevice->GetDepthStencilSurface(&stateBlockDepthStencil);
 
 			if (this->mBackBufferNotMultisampled != this->mBackBuffer)
 			{
@@ -2234,6 +2239,18 @@ namespace ReShade
 			}
 
 			this->mStateBlock->Apply();
+			this->mDevice->SetRenderTarget(0, stateBlockRenderTarget);
+			this->mDevice->SetDepthStencilSurface(stateBlockDepthStencil);
+			
+			if (stateBlockRenderTarget != nullptr)
+			{
+				stateBlockRenderTarget->Release();
+			}
+			if (stateBlockDepthStencil != nullptr)
+			{
+				stateBlockDepthStencil->Release();
+			}
+
 			this->mDevice->EndScene();
 		}
 
@@ -2659,9 +2676,6 @@ namespace ReShade
 				return false;
 			}
 
-			device->GetRenderTarget(0, &this->mEffect->mStateBlockRenderTarget);
-			device->GetDepthStencilSurface(&this->mEffect->mStateBlockDepthStencil);
-
 			device->SetDepthStencilSurface(this->mEffect->mDepthStencil);
 			device->Clear(0, nullptr, D3DCLEAR_ZBUFFER | D3DCLEAR_STENCIL, 0, 1.0f, 0x0);
 
@@ -2683,23 +2697,7 @@ namespace ReShade
 		}
 		void D3D9Technique::End() const
 		{
-			IDirect3DDevice9 *device = this->mEffect->mEffectContext->mDevice;
-
-			this->mEffect->mEffectContext->mStateBlock->Apply();
-
-			device->SetDepthStencilSurface(this->mEffect->mStateBlockDepthStencil);
-			
-			if (this->mEffect->mStateBlockDepthStencil != nullptr)
-			{
-				this->mEffect->mStateBlockDepthStencil->Release();
-			}
-
-			device->SetRenderTarget(0, this->mEffect->mStateBlockRenderTarget);
-
-			if (this->mEffect->mStateBlockRenderTarget != nullptr)
-			{
-				this->mEffect->mStateBlockRenderTarget->Release();
-			}
+			this->mEffect->mEffectContext->mDevice->SetRenderTarget(0, this->mEffect->mEffectContext->mBackBufferNotMultisampled);
 		}
 		void D3D9Technique::RenderPass(unsigned int index) const
 		{

@@ -90,8 +90,6 @@ namespace ReShade
 			ID3D10ShaderResourceView *mDepthStencilView;
 			ID3D10DepthStencilView *mDepthStencil;
 			ID3D10RasterizerState *mRasterizerState;
-			ID3D10RenderTargetView *mStateBlockTargets[D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT];
-			ID3D10DepthStencilView *mStateBlockDepthStencil;
 			std::unordered_map<D3D10_SAMPLER_DESC, size_t, D3D10_SAMPLER_DESC_HASHER> mSamplerDescs;
 			std::vector<ID3D10SamplerState *> mSamplerStates;
 			std::vector<ID3D10ShaderResourceView *> mShaderResources;
@@ -2194,7 +2192,7 @@ namespace ReShade
 
 		// -----------------------------------------------------------------------------------------------------
 
-		D3D10Runtime::D3D10Runtime(ID3D10Device *device, IDXGISwapChain *swapchain) : mDevice(device), mSwapChain(swapchain)
+		D3D10Runtime::D3D10Runtime(ID3D10Device *device, IDXGISwapChain *swapchain) : mDevice(device), mSwapChain(swapchain), mStateBlock(nullptr), mBackBuffer(nullptr), mBackBufferTexture(nullptr), mBackBufferTargets()
 		{
 			this->mDevice->AddRef();
 			this->mSwapChain->AddRef();
@@ -2256,6 +2254,8 @@ namespace ReShade
 			nvgDeleteD3D10(this->mNVG);
 			this->mNVG = nullptr;
 
+			this->mStateBlock->ReleaseAllDeviceObjects();
+
 			this->mBackBufferTargets[0]->Release();
 			this->mBackBufferTargets[1]->Release();
 			this->mBackBufferTexture->Release();
@@ -2263,7 +2263,11 @@ namespace ReShade
 		}
 		void D3D10Runtime::OnPresent()
 		{
+			ID3D10RenderTargetView *stateBlockTargets[D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT] = { nullptr };
+			ID3D10DepthStencilView *stateBlockDepthStencil = nullptr;
+
 			this->mStateBlock->Capture();
+			this->mDevice->OMGetRenderTargets(D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, stateBlockTargets, &stateBlockDepthStencil);
 
 			this->mDevice->CopyResource(this->mBackBufferTexture, this->mBackBuffer);
 			this->mDevice->OMSetRenderTargets(1, &this->mBackBufferTargets[0], nullptr);
@@ -2273,6 +2277,19 @@ namespace ReShade
 			this->mDevice->CopyResource(this->mBackBuffer, this->mBackBufferTexture);
 
 			this->mStateBlock->Apply();
+			this->mDevice->OMSetRenderTargets(D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, stateBlockTargets, stateBlockDepthStencil);
+
+			for (UINT i = 0; i < D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT; ++i)
+			{
+				if (stateBlockTargets[i] != nullptr)
+				{
+					stateBlockTargets[i]->Release();
+				}
+			}
+			if (stateBlockDepthStencil != nullptr)
+			{
+				stateBlockDepthStencil->Release();
+			}
 		}
 
 		std::unique_ptr<Effect> D3D10Runtime::CreateEffect(const EffectTree &ast, std::string &errors) const
@@ -2712,8 +2729,6 @@ namespace ReShade
 
 			ID3D10Device *device = this->mEffect->mEffectContext->mDevice;
 
-			device->OMGetRenderTargets(D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, this->mEffect->mStateBlockTargets, &this->mEffect->mStateBlockDepthStencil);
-
 			const uintptr_t null = 0;
 			device->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 			device->IASetInputLayout(nullptr);
@@ -2731,20 +2746,7 @@ namespace ReShade
 		}
 		void D3D10Technique::End() const
 		{
-			this->mEffect->mEffectContext->mDevice->OMSetRenderTargets(D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, this->mEffect->mStateBlockTargets, this->mEffect->mStateBlockDepthStencil);
-
-			for (UINT i = 0; i < D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT; ++i)
-			{
-				if (this->mEffect->mStateBlockTargets[i] != nullptr)
-				{
-					this->mEffect->mStateBlockTargets[i]->Release();
-				}
-			}
-
-			if (this->mEffect->mStateBlockDepthStencil != nullptr)
-			{
-				this->mEffect->mStateBlockDepthStencil->Release();
-			}
+			this->mEffect->mEffectContext->mDevice->OMSetRenderTargets(1, &this->mEffect->mEffectContext->mBackBufferTargets[0], nullptr);
 		}
 		void D3D10Technique::RenderPass(unsigned int index) const
 		{
