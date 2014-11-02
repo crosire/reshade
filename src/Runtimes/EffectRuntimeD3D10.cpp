@@ -54,6 +54,7 @@ namespace ReShade
 
 			virtual bool										OnCreate(unsigned int width, unsigned int height) override;
 			virtual void										OnDelete() override;
+			virtual void										OnPresent() override;
 
 			virtual std::unique_ptr<Effect>						CreateEffect(const EffectTree &ast, std::string &errors) const override;
 			virtual void										CreateScreenshot(unsigned char *buffer, std::size_t size) const override;
@@ -61,6 +62,10 @@ namespace ReShade
 		private:
 			ID3D10Device *										mDevice;
 			IDXGISwapChain *									mSwapChain;
+			ID3D10StateBlock *									mStateBlock;
+			ID3D10Texture2D *									mBackBuffer;
+			ID3D10Texture2D *									mBackBufferTexture;
+			ID3D10RenderTargetView *							mBackBufferTargets[2];
 		};
 		struct													D3D10Effect : public Effect
 		{
@@ -84,16 +89,12 @@ namespace ReShade
 			std::unordered_map<std::string, std::unique_ptr<D3D10Texture>> mTextures;
 			std::unordered_map<std::string, std::unique_ptr<D3D10Constant>> mConstants;
 			std::unordered_map<std::string, std::unique_ptr<D3D10Technique>> mTechniques;
-			ID3D10Texture2D *									mBackBuffer;
-			ID3D10Texture2D *									mBackBufferTexture;
-			ID3D10RenderTargetView *							mBackBufferTargets[2];
 			ID3D10Texture2D *									mDepthStencilTexture;
 			ID3D10ShaderResourceView *							mDepthStencilView;
 			ID3D10DepthStencilView *							mDepthStencil;
 			ID3D10RasterizerState *								mRasterizerState;
-			ID3D10StateBlock *									mStateblock;
-			ID3D10RenderTargetView *							mStateblockTargets[D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT];
-			ID3D10DepthStencilView *							mStateblockDepthStencil;
+			ID3D10RenderTargetView *							mStateBlockTargets[D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT];
+			ID3D10DepthStencilView *							mStateBlockDepthStencil;
 			std::unordered_map<D3D10_SAMPLER_DESC, size_t>		mSamplerDescs;
 			std::vector<ID3D10SamplerState *>					mSamplerStates;
 			std::vector<ID3D10ShaderResourceView *>				mShaderResources;
@@ -1985,7 +1986,7 @@ namespace ReShade
 					srgb = this->mAST[node.States[EffectNodes::Pass::SRGBWriteEnable]].As<EffectNodes::Literal>().Value.Bool[0];
 				}
 
-				pass.RT[0] = this->mEffect->mBackBufferTargets[srgb];
+				pass.RT[0] = this->mEffect->mEffectContext->mBackBufferTargets[srgb];
 
 				for (unsigned int i = 0; i < 8; ++i)
 				{
@@ -2215,24 +2216,66 @@ namespace ReShade
 			this->mVendorId = desc.VendorId;
 			this->mDeviceId = desc.DeviceId;
 			this->mRendererId = 0xD3D10;
+
+			D3D10_STATE_BLOCK_MASK mask;
+			D3D10StateBlockMaskEnableAll(&mask);
+			D3D10CreateStateBlock(this->mDevice, &mask, &this->mStateBlock);
 		}
 		D3D10EffectContext::~D3D10EffectContext(void)
 		{
+			SAFE_RELEASE(this->mStateBlock);
+
 			this->mDevice->Release();
 			this->mSwapChain->Release();
 		}
 
 		bool													D3D10EffectContext::OnCreate(unsigned int width, unsigned int height)
 		{
+			this->mSwapChain->GetBuffer(0, __uuidof(ID3D10Texture2D), reinterpret_cast<void **>(&this->mBackBuffer));
+
+			D3D10_TEXTURE2D_DESC bbdesc;
+			this->mBackBuffer->GetDesc(&bbdesc);
+
+			bbdesc.Format = DXGI_FORMAT_R8G8B8A8_TYPELESS;
+			bbdesc.BindFlags = D3D10_BIND_RENDER_TARGET;
+			this->mDevice->CreateTexture2D(&bbdesc, nullptr, &this->mBackBufferTexture);
+
+			D3D10_RENDER_TARGET_VIEW_DESC rtdesc;
+			rtdesc.ViewDimension = D3D10_RTV_DIMENSION_TEXTURE2D;
+			rtdesc.Texture2D.MipSlice = 0;
+			rtdesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+			this->mDevice->CreateRenderTargetView(this->mBackBufferTexture, &rtdesc, &this->mBackBufferTargets[0]);
+			rtdesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+			this->mDevice->CreateRenderTargetView(this->mBackBufferTexture, &rtdesc, &this->mBackBufferTargets[1]);
+
 			this->mNVG = nvgCreateD3D10(this->mDevice, 0);
 
 			return Runtime::OnCreate(width, height);
 		}
 		void													D3D10EffectContext::OnDelete()
 		{
-			nvgDeleteD3D10(this->mNVG);
+			Runtime::OnDelete();
 
-			return Runtime::OnDelete();
+			nvgDeleteD3D10(this->mNVG);
+			this->mNVG = nullptr;
+
+			SAFE_RELEASE(this->mBackBufferTargets[0]);
+			SAFE_RELEASE(this->mBackBufferTargets[1]);
+			SAFE_RELEASE(this->mBackBufferTexture);
+			SAFE_RELEASE(this->mBackBuffer);
+		}
+		void													D3D10EffectContext::OnPresent()
+		{
+			this->mStateBlock->Capture();
+
+			this->mDevice->CopyResource(this->mBackBufferTexture, this->mBackBuffer);
+			this->mDevice->OMSetRenderTargets(1, &this->mBackBufferTargets[0], nullptr);
+
+			Runtime::OnPresent();
+
+			this->mDevice->CopyResource(this->mBackBuffer, this->mBackBufferTexture);
+
+			this->mStateBlock->Apply();
 		}
 
 		std::unique_ptr<Effect>									D3D10EffectContext::CreateEffect(const EffectTree &ast, std::string &errors) const
@@ -2365,27 +2408,8 @@ namespace ReShade
 
 		D3D10Effect::D3D10Effect(std::shared_ptr<const D3D10EffectContext> context) : mEffectContext(context), mConstantsDirty(true)
 		{
-			context->mSwapChain->GetBuffer(0, __uuidof(ID3D10Texture2D), reinterpret_cast<void **>(&this->mBackBuffer));
-
-			D3D10_STATE_BLOCK_MASK mask;
-			D3D10StateBlockMaskEnableAll(&mask);
-			D3D10CreateStateBlock(context->mDevice, &mask, &this->mStateblock);
-
 			D3D10_TEXTURE2D_DESC dstdesc;
-			this->mBackBuffer->GetDesc(&dstdesc);
-
-			dstdesc.Format = DXGI_FORMAT_R8G8B8A8_TYPELESS;
-			dstdesc.BindFlags = D3D10_BIND_RENDER_TARGET;
-			context->mDevice->CreateTexture2D(&dstdesc, nullptr, &this->mBackBufferTexture);
-
-			D3D10_RENDER_TARGET_VIEW_DESC rtdesc;
-			ZeroMemory(&rtdesc, sizeof(D3D10_RENDER_TARGET_VIEW_DESC));
-			rtdesc.ViewDimension = D3D10_RTV_DIMENSION_TEXTURE2D;
-			rtdesc.Texture2D.MipSlice = 0;
-			rtdesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-			context->mDevice->CreateRenderTargetView(this->mBackBufferTexture, &rtdesc, &this->mBackBufferTargets[0]);
-			rtdesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
-			context->mDevice->CreateRenderTargetView(this->mBackBufferTexture, &rtdesc, &this->mBackBufferTargets[1]);
+			this->mEffectContext->mBackBuffer->GetDesc(&dstdesc);
 
 			dstdesc.Format = DXGI_FORMAT_R24G8_TYPELESS;
 			dstdesc.BindFlags = D3D10_BIND_SHADER_RESOURCE | D3D10_BIND_DEPTH_STENCIL;
@@ -2412,15 +2436,10 @@ namespace ReShade
 		}
 		D3D10Effect::~D3D10Effect(void)
 		{
-			SAFE_RELEASE(this->mStateblock);
 			SAFE_RELEASE(this->mRasterizerState);
 			SAFE_RELEASE(this->mDepthStencil);
 			SAFE_RELEASE(this->mDepthStencilView);
 			SAFE_RELEASE(this->mDepthStencilTexture);
-			SAFE_RELEASE(this->mBackBufferTargets[0]);
-			SAFE_RELEASE(this->mBackBufferTargets[1]);
-			SAFE_RELEASE(this->mBackBufferTexture);
-			SAFE_RELEASE(this->mBackBuffer);
 
 			for (auto &it : this->mSamplerStates)
 			{
@@ -2577,18 +2596,16 @@ namespace ReShade
 		}
 		void													D3D10Texture::UpdateFromColorBuffer(void)
 		{
-			// Must be called after D3D10Technique::Begin!
-
 			D3D10_TEXTURE2D_DESC desc;
-			this->mEffect->mBackBufferTexture->GetDesc(&desc);
+			this->mEffect->mEffectContext->mBackBufferTexture->GetDesc(&desc);
 
 			if (desc.SampleDesc.Count == 1)
 			{
-				this->mEffect->mEffectContext->mDevice->CopyResource(this->mTexture, this->mEffect->mBackBufferTexture);
+				this->mEffect->mEffectContext->mDevice->CopyResource(this->mTexture, this->mEffect->mEffectContext->mBackBufferTexture);
 			}
 			else
 			{
-				this->mEffect->mEffectContext->mDevice->ResolveSubresource(this->mTexture, 0, this->mEffect->mBackBufferTexture, 0, desc.Format);
+				this->mEffect->mEffectContext->mDevice->ResolveSubresource(this->mTexture, 0, this->mEffect->mEffectContext->mBackBufferTexture, 0, desc.Format);
 			}
 		}
 		void													D3D10Texture::UpdateFromDepthBuffer(void)
@@ -2671,16 +2688,14 @@ namespace ReShade
 		{
 			passes = static_cast<unsigned int>(this->mPasses.size());
 
-			if (passes == 0 || FAILED(this->mEffect->mStateblock->Capture()))
+			if (passes == 0)
 			{
 				return false;
 			}
 
 			ID3D10Device *device = this->mEffect->mEffectContext->mDevice;
 
-			device->CopyResource(this->mEffect->mBackBufferTexture, this->mEffect->mBackBuffer);
-
-			device->OMGetRenderTargets(D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, this->mEffect->mStateblockTargets, &this->mEffect->mStateblockDepthStencil);
+			device->OMGetRenderTargets(D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, this->mEffect->mStateBlockTargets, &this->mEffect->mStateBlockDepthStencil);
 
 			const uintptr_t null = 0;
 			device->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -2699,15 +2714,14 @@ namespace ReShade
 		}
 		void													D3D10Technique::End(void) const
 		{
-			this->mEffect->mEffectContext->mDevice->CopyResource(this->mEffect->mBackBuffer, this->mEffect->mBackBufferTexture);
-
-			this->mEffect->mStateblock->Apply();
-			this->mEffect->mEffectContext->mDevice->OMSetRenderTargets(D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, this->mEffect->mStateblockTargets, this->mEffect->mStateblockDepthStencil);
+			this->mEffect->mEffectContext->mDevice->OMSetRenderTargets(D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, this->mEffect->mStateBlockTargets, this->mEffect->mStateBlockDepthStencil);
 
 			for (UINT i = 0; i < D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT; ++i)
 			{
-				SAFE_RELEASE(this->mEffect->mStateblockTargets[i]);
+				SAFE_RELEASE(this->mEffect->mStateBlockTargets[i]);
 			}
+
+			SAFE_RELEASE(this->mEffect->mStateBlockDepthStencil);
 		}
 		void													D3D10Technique::RenderPass(unsigned int index) const
 		{

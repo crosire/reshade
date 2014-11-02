@@ -33,6 +33,7 @@ namespace ReShade
 
 			virtual bool										OnCreate(unsigned int width, unsigned int height) override;
 			virtual void										OnDelete() override;
+			virtual void										OnPresent() override;
 
 			virtual std::unique_ptr<Effect>						CreateEffect(const EffectTree &ast, std::string &errors) const override;
 			virtual void										CreateScreenshot(unsigned char *buffer, std::size_t size) const override;
@@ -40,6 +41,9 @@ namespace ReShade
 		private:
 			IDirect3DDevice9 *									mDevice;
 			IDirect3DSwapChain9 *								mSwapChain;
+			IDirect3DStateBlock9 *								mStateBlock;
+			IDirect3DSurface9 *									mBackBuffer;
+			IDirect3DSurface9 *									mBackBufferNotMultisampled;
 		};
 		struct													D3D9Effect : public Effect
 		{
@@ -63,8 +67,6 @@ namespace ReShade
 			std::vector<D3D9Sampler>							mSamplers;
 			std::unordered_map<std::string, std::unique_ptr<D3D9Constant>> mConstants;
 			std::unordered_map<std::string, std::unique_ptr<D3D9Technique>> mTechniques;
-			IDirect3DSurface9 *									mBackBuffer, *mBackBufferNotMultisampled;
-			IDirect3DStateBlock9 *								mStateBlock;
 			IDirect3DSurface9 *									mStateBlockDepthStencil, *mStateBlockRenderTarget;
 			IDirect3DStateBlock9 *								mShaderResourceStateblock;
 			IDirect3DSurface9 *									mDepthStencil;
@@ -1756,7 +1758,7 @@ namespace ReShade
 			{
 				D3D9Technique::Pass pass;
 				ZeroMemory(&pass, sizeof(D3D9Technique::Pass));
-				pass.RT[0] = this->mEffect->mBackBufferNotMultisampled != nullptr ? this->mEffect->mBackBufferNotMultisampled : this->mEffect->mBackBuffer;
+				pass.RT[0] = this->mEffect->mEffectContext->mBackBufferNotMultisampled;
 
 				if (node.States[EffectNodes::Pass::VertexShader] != 0)
 				{
@@ -2150,7 +2152,7 @@ namespace ReShade
 
 		// -----------------------------------------------------------------------------------------------------
 
-		D3D9EffectContext::D3D9EffectContext(IDirect3DDevice9 *device, IDirect3DSwapChain9 *swapchain) : mDevice(device), mSwapChain(swapchain)
+		D3D9EffectContext::D3D9EffectContext(IDirect3DDevice9 *device, IDirect3DSwapChain9 *swapchain) : mDevice(device), mSwapChain(swapchain), mStateBlock(nullptr), mBackBuffer(nullptr), mBackBufferNotMultisampled(nullptr)
 		{
 			this->mDevice->AddRef();
 			this->mSwapChain->AddRef();
@@ -2168,24 +2170,72 @@ namespace ReShade
 			this->mVendorId = identifier.VendorId;
 			this->mDeviceId = identifier.DeviceId;
 			this->mRendererId = 0xD3D9;
+
+			this->mDevice->CreateStateBlock(D3DSBT_ALL, &this->mStateBlock);
 		}
 		D3D9EffectContext::~D3D9EffectContext(void)
 		{
+			SAFE_RELEASE(this->mStateBlock);
+
 			this->mDevice->Release();
 			this->mSwapChain->Release();
 		}
 
 		bool													D3D9EffectContext::OnCreate(unsigned int width, unsigned int height)
 		{
+			this->mDevice->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &this->mBackBuffer);
+
+			D3DSURFACE_DESC bbdesc;
+			this->mBackBuffer->GetDesc(&bbdesc);
+
+			if (bbdesc.MultiSampleType != D3DMULTISAMPLE_NONE)
+			{
+				this->mDevice->CreateRenderTarget(bbdesc.Width, bbdesc.Height, bbdesc.Format, D3DMULTISAMPLE_NONE, 0, FALSE, &this->mBackBufferNotMultisampled, nullptr);
+			}
+			else
+			{
+				this->mBackBufferNotMultisampled = this->mBackBuffer;
+			}
+
 			this->mNVG = nvgCreateD3D9(this->mDevice, 0);
 
 			return Runtime::OnCreate(width, height);
 		}
 		void													D3D9EffectContext::OnDelete()
 		{
-			nvgDeleteD3D9(this->mNVG);
+			Runtime::OnDelete();
 
-			return Runtime::OnDelete();
+			nvgDeleteD3D9(this->mNVG);
+			this->mNVG = nullptr;
+
+			if (this->mBackBufferNotMultisampled != this->mBackBuffer)
+			{
+				this->mBackBufferNotMultisampled->Release();
+			}
+
+			SAFE_RELEASE(this->mBackBuffer);
+		}
+		void													D3D9EffectContext::OnPresent()
+		{
+			this->mDevice->BeginScene();
+			this->mStateBlock->Capture();
+
+			if (this->mBackBufferNotMultisampled != this->mBackBuffer)
+			{
+				this->mDevice->StretchRect(this->mBackBuffer, nullptr, this->mBackBufferNotMultisampled, nullptr, D3DTEXF_NONE);
+			}
+
+			this->mDevice->SetRenderTarget(0, this->mBackBufferNotMultisampled);
+
+			Runtime::OnPresent();
+
+			if (this->mBackBufferNotMultisampled != this->mBackBuffer)
+			{
+				this->mDevice->StretchRect(this->mBackBufferNotMultisampled, nullptr, this->mBackBuffer, nullptr, D3DTEXF_NONE);
+			}
+
+			this->mStateBlock->Apply();
+			this->mDevice->EndScene();
 		}
 
 		std::unique_ptr<Effect>									D3D9EffectContext::CreateEffect(const EffectTree &ast, std::string &errors) const
@@ -2305,26 +2355,16 @@ namespace ReShade
 			surfaceSystem->Release();
 		}
 
-		D3D9Effect::D3D9Effect(std::shared_ptr<const D3D9EffectContext> context) : mEffectContext(context), mBackBuffer(nullptr), mBackBufferNotMultisampled(nullptr), mStateBlock(nullptr), mDepthStencil(nullptr)
+		D3D9Effect::D3D9Effect(std::shared_ptr<const D3D9EffectContext> context) : mEffectContext(context), mDepthStencil(nullptr)
 		{
 			HRESULT hr;
 
-			context->mDevice->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &this->mBackBuffer);
-			context->mDevice->CreateStateBlock(D3DSBT_ALL, &this->mStateBlock);
-			
 			D3DSURFACE_DESC desc;
-			this->mBackBuffer->GetDesc(&desc);
+			this->mEffectContext->mBackBuffer->GetDesc(&desc);
 			
 			hr = context->mDevice->CreateDepthStencilSurface(desc.Width, desc.Height, D3DFMT_D24S8, D3DMULTISAMPLE_NONE, 0, FALSE, &this->mDepthStencil, nullptr);
 
 			assert(SUCCEEDED(hr));
-
-			if (desc.MultiSampleType != D3DMULTISAMPLE_NONE)
-			{
-				hr = context->mDevice->CreateRenderTarget(desc.Width, desc.Height, desc.Format, D3DMULTISAMPLE_NONE, 0, FALSE, &this->mBackBufferNotMultisampled, nullptr);
-
-				assert(SUCCEEDED(hr));
-			}
 
 			this->mConstantRegisterCount = 0;
 			this->mConstantStorage = nullptr;
@@ -2376,12 +2416,9 @@ namespace ReShade
 		}
 		D3D9Effect::~D3D9Effect(void)
 		{
-			SAFE_RELEASE(this->mBackBuffer);
-			SAFE_RELEASE(this->mBackBufferNotMultisampled);
 			SAFE_RELEASE(this->mVertexDeclaration);
 			SAFE_RELEASE(this->mVertexBuffer);
 			SAFE_RELEASE(this->mDepthStencil);
-			SAFE_RELEASE(this->mStateBlock);
 			SAFE_RELEASE(this->mShaderResourceStateblock);
 		}
 
@@ -2560,9 +2597,7 @@ namespace ReShade
 		}
 		void													D3D9Texture::UpdateFromColorBuffer(void)
 		{
-			IDirect3DSurface9 *backbuffer = this->mEffect->mBackBufferNotMultisampled != nullptr ? this->mEffect->mBackBufferNotMultisampled : this->mEffect->mBackBuffer;
-
-			this->mEffect->mEffectContext->mDevice->StretchRect(backbuffer, nullptr, this->mSurface, nullptr, D3DTEXF_NONE);
+			this->mEffect->mEffectContext->mDevice->StretchRect(this->mEffect->mEffectContext->mBackBufferNotMultisampled, nullptr, this->mSurface, nullptr, D3DTEXF_NONE);
 		}
 		void													D3D9Texture::UpdateFromDepthBuffer(void)
 		{
@@ -2630,14 +2665,9 @@ namespace ReShade
 
 			passes = static_cast<unsigned int>(this->mPasses.size());
 
-			if (passes == 0 || FAILED(this->mEffect->mStateBlock->Capture()) || FAILED(device->BeginScene()))
+			if (passes == 0)
 			{
 				return false;
-			}
-
-			if (this->mEffect->mBackBufferNotMultisampled != nullptr)
-			{
-				device->StretchRect(this->mEffect->mBackBuffer, nullptr, this->mEffect->mBackBufferNotMultisampled, nullptr, D3DTEXF_NONE);
 			}
 
 			device->GetRenderTarget(0, &this->mEffect->mStateBlockRenderTarget);
@@ -2666,19 +2696,12 @@ namespace ReShade
 		{
 			IDirect3DDevice9 *device = this->mEffect->mEffectContext->mDevice;
 
+			this->mEffect->mEffectContext->mStateBlock->Apply();
+
 			device->SetDepthStencilSurface(this->mEffect->mStateBlockDepthStencil);
 			SAFE_RELEASE(this->mEffect->mStateBlockDepthStencil);
 			device->SetRenderTarget(0, this->mEffect->mStateBlockRenderTarget);
 			SAFE_RELEASE(this->mEffect->mStateBlockRenderTarget);
-
-			device->EndScene();
-
-			if (this->mEffect->mBackBufferNotMultisampled != nullptr)
-			{
-				device->StretchRect(this->mEffect->mBackBufferNotMultisampled, nullptr, this->mEffect->mBackBuffer, nullptr, D3DTEXF_NONE);
-			}
-
-			this->mEffect->mStateBlock->Apply();
 		}
 		void													D3D9Technique::RenderPass(unsigned int index) const
 		{

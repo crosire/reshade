@@ -54,6 +54,7 @@ namespace ReShade
 
 			virtual bool										OnCreate(unsigned int width, unsigned int height) override;
 			virtual void										OnDelete() override;
+			virtual void										OnPresent() override;
 
 			virtual std::unique_ptr<Effect>						CreateEffect(const EffectTree &ast, std::string &errors) const override;
 			virtual void										CreateScreenshot(unsigned char *buffer, std::size_t size) const override;
@@ -61,7 +62,11 @@ namespace ReShade
 		private:
 			ID3D11Device *										mDevice;
 			ID3D11DeviceContext *								mImmediateContext;
+			ID3D11DeviceContext *								mDeferredContext;
 			IDXGISwapChain *									mSwapChain;
+			ID3D11Texture2D *									mBackBuffer;
+			ID3D11Texture2D *									mBackBufferTexture;
+			ID3D11RenderTargetView *							mBackBufferTargets[2];
 		};
 		struct													D3D11Effect : public Effect
 		{
@@ -85,10 +90,6 @@ namespace ReShade
 			std::unordered_map<std::string, std::unique_ptr<D3D11Texture>> mTextures;
 			std::unordered_map<std::string, std::unique_ptr<D3D11Constant>> mConstants;
 			std::unordered_map<std::string, std::unique_ptr<D3D11Technique>> mTechniques;
-			ID3D11DeviceContext *								mCurrentContext;
-			ID3D11Texture2D *									mBackBuffer;
-			ID3D11Texture2D *									mBackBufferTexture;
-			ID3D11RenderTargetView *							mBackBufferTargets[2];
 			ID3D11Texture2D *									mDepthStencilTexture;
 			ID3D11ShaderResourceView *							mDepthStencilView;
 			ID3D11DepthStencilView *							mDepthStencil;
@@ -159,7 +160,6 @@ namespace ReShade
 
 			D3D11Effect *										mEffect;
 			std::unordered_map<std::string, Effect::Annotation>	mAnnotations;
-			ID3D11DeviceContext *								mDeferredContext;
 			std::vector<Pass>									mPasses;
 		};
 
@@ -1986,7 +1986,7 @@ namespace ReShade
 					srgb = this->mAST[node.States[EffectNodes::Pass::SRGBWriteEnable]].As<EffectNodes::Literal>().Value.Bool[0];
 				}
 
-				pass.RT[0] = this->mEffect->mBackBufferTargets[srgb];
+				pass.RT[0] = this->mEffect->mEffectContext->mBackBufferTargets[srgb];
 
 				for (unsigned int i = 0; i < 8; ++i)
 				{
@@ -2212,7 +2212,7 @@ namespace ReShade
 
 		// -----------------------------------------------------------------------------------------------------
 
-		D3D11EffectContext::D3D11EffectContext(ID3D11Device *device, IDXGISwapChain *swapchain) : mDevice(device), mSwapChain(swapchain)
+		D3D11EffectContext::D3D11EffectContext(ID3D11Device *device, IDXGISwapChain *swapchain) : mDevice(device), mSwapChain(swapchain), mImmediateContext(nullptr), mDeferredContext(nullptr), mBackBuffer(nullptr), mBackBufferTexture(nullptr), mBackBufferTargets()
 		{
 			this->mDevice->AddRef();
 			this->mDevice->GetImmediateContext(&this->mImmediateContext);
@@ -2232,25 +2232,66 @@ namespace ReShade
 			this->mVendorId = desc.VendorId;
 			this->mDeviceId = desc.DeviceId;
 			this->mRendererId = 0xD3D11;
+
+			this->mDevice->CreateDeferredContext(0, &this->mDeferredContext);
 		}
 		D3D11EffectContext::~D3D11EffectContext(void)
 		{
-			this->mDevice->Release();
+			this->mDeferredContext->Release();
 			this->mImmediateContext->Release();
+			this->mDevice->Release();
 			this->mSwapChain->Release();
 		}
 
 		bool													D3D11EffectContext::OnCreate(unsigned int width, unsigned int height)
 		{
-			this->mNVG = nvgCreateD3D11(this->mDevice, 0);
+			this->mSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), reinterpret_cast<void **>(&this->mBackBuffer));
+
+			D3D11_TEXTURE2D_DESC bbdesc;
+			this->mBackBuffer->GetDesc(&bbdesc);
+
+			bbdesc.Format = DXGI_FORMAT_R8G8B8A8_TYPELESS;
+			bbdesc.BindFlags = D3D11_BIND_RENDER_TARGET;
+			this->mDevice->CreateTexture2D(&bbdesc, nullptr, &this->mBackBufferTexture);
+
+			D3D11_RENDER_TARGET_VIEW_DESC rtdesc;
+			rtdesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
+			rtdesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+			rtdesc.Texture2D.MipSlice = 0;
+			this->mDevice->CreateRenderTargetView(this->mBackBufferTexture, &rtdesc, &this->mBackBufferTargets[0]);
+			rtdesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+			this->mDevice->CreateRenderTargetView(this->mBackBufferTexture, &rtdesc, &this->mBackBufferTargets[1]);
+
+			this->mNVG = nvgCreateD3D11(this->mDeferredContext, 0);
 
 			return Runtime::OnCreate(width, height);
 		}
 		void													D3D11EffectContext::OnDelete()
 		{
-			nvgDeleteD3D11(this->mNVG);
+			Runtime::OnDelete();
 
-			return Runtime::OnDelete();
+			nvgDeleteD3D11(this->mNVG);
+			this->mNVG = nullptr;
+
+			SAFE_RELEASE(this->mBackBufferTargets[0]);
+			SAFE_RELEASE(this->mBackBufferTargets[1]);
+			SAFE_RELEASE(this->mBackBufferTexture);
+			SAFE_RELEASE(this->mBackBuffer);
+		}
+		void													D3D11EffectContext::OnPresent()
+		{
+			this->mDeferredContext->CopyResource(this->mBackBufferTexture, this->mBackBuffer);
+			this->mDeferredContext->OMSetRenderTargets(1, &this->mBackBufferTargets[0], nullptr);
+
+			Runtime::OnPresent();
+
+			this->mDeferredContext->CopyResource(this->mBackBuffer, this->mBackBufferTexture);
+
+			ID3D11CommandList *list;
+			this->mDeferredContext->FinishCommandList(FALSE, &list);
+
+			this->mImmediateContext->ExecuteCommandList(list, TRUE);
+			list->Release();
 		}
 
 		std::unique_ptr<Effect>									D3D11EffectContext::CreateEffect(const EffectTree &ast, std::string &errors) const
@@ -2381,25 +2422,10 @@ namespace ReShade
 			textureStaging->Release();
 		}
 
-		D3D11Effect::D3D11Effect(std::shared_ptr<const D3D11EffectContext> context) : mEffectContext(context), mCurrentContext(context->mImmediateContext), mConstantsDirty(true)
+		D3D11Effect::D3D11Effect(std::shared_ptr<const D3D11EffectContext> context) : mEffectContext(context), mConstantsDirty(true)
 		{
-			context->mSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), reinterpret_cast<void **>(&this->mBackBuffer));
-
 			D3D11_TEXTURE2D_DESC dstdesc;
-			this->mBackBuffer->GetDesc(&dstdesc);
-
-			dstdesc.Format = DXGI_FORMAT_R8G8B8A8_TYPELESS;
-			dstdesc.BindFlags = D3D11_BIND_RENDER_TARGET;
-			context->mDevice->CreateTexture2D(&dstdesc, nullptr, &this->mBackBufferTexture);
-
-			D3D11_RENDER_TARGET_VIEW_DESC rtdesc;
-			ZeroMemory(&rtdesc, sizeof(D3D11_RENDER_TARGET_VIEW_DESC));
-			rtdesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
-			rtdesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-			rtdesc.Texture2D.MipSlice = 0;
-			context->mDevice->CreateRenderTargetView(this->mBackBufferTexture, &rtdesc, &this->mBackBufferTargets[0]);
-			rtdesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
-			context->mDevice->CreateRenderTargetView(this->mBackBufferTexture, &rtdesc, &this->mBackBufferTargets[1]);
+			this->mEffectContext->mBackBuffer->GetDesc(&dstdesc);
 
 			dstdesc.Format = DXGI_FORMAT_R24G8_TYPELESS;
 			dstdesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_DEPTH_STENCIL;
@@ -2430,10 +2456,6 @@ namespace ReShade
 			SAFE_RELEASE(this->mDepthStencil);
 			SAFE_RELEASE(this->mDepthStencilView);
 			SAFE_RELEASE(this->mDepthStencilTexture);
-			SAFE_RELEASE(this->mBackBufferTargets[0]);
-			SAFE_RELEASE(this->mBackBufferTargets[1]);
-			SAFE_RELEASE(this->mBackBufferTexture);
-			SAFE_RELEASE(this->mBackBuffer);
 
 			for (auto &it : this->mSamplerStates)
 			{
@@ -2587,18 +2609,16 @@ namespace ReShade
 		}
 		void													D3D11Texture::UpdateFromColorBuffer(void)
 		{
-			// Must be called between D3D11Technique::Begin and D3D11Technique::End!
-
 			D3D11_TEXTURE2D_DESC desc;
-			this->mEffect->mBackBufferTexture->GetDesc(&desc);
+			this->mEffect->mEffectContext->mBackBufferTexture->GetDesc(&desc);
 
 			if (desc.SampleDesc.Count == 1)
 			{
-				this->mEffect->mCurrentContext->CopyResource(this->mTexture, this->mEffect->mBackBufferTexture);
+				this->mEffect->mEffectContext->mDeferredContext->CopyResource(this->mTexture, this->mEffect->mEffectContext->mBackBufferTexture);
 			}
 			else
 			{
-				this->mEffect->mCurrentContext->ResolveSubresource(this->mTexture, 0, this->mEffect->mBackBufferTexture, 0, desc.Format);
+				this->mEffect->mEffectContext->mDeferredContext->ResolveSubresource(this->mTexture, 0, this->mEffect->mEffectContext->mBackBufferTexture, 0, desc.Format);
 			}
 		}
 		void													D3D11Texture::UpdateFromDepthBuffer(void)
@@ -2653,12 +2673,9 @@ namespace ReShade
 
 		D3D11Technique::D3D11Technique(D3D11Effect *effect) : mEffect(effect)
 		{
-			this->mEffect->mEffectContext->mDevice->CreateDeferredContext(0, &this->mDeferredContext);
 		}
 		D3D11Technique::~D3D11Technique(void)
 		{
-			SAFE_RELEASE(this->mDeferredContext);
-
 			for (auto &pass : this->mPasses)
 			{
 				SAFE_RELEASE(pass.VS);
@@ -2689,36 +2706,26 @@ namespace ReShade
 				return false;
 			}
 
-			this->mEffect->mCurrentContext = this->mDeferredContext;
-
-			this->mDeferredContext->CopyResource(this->mEffect->mBackBufferTexture, this->mEffect->mBackBuffer);
+			ID3D11DeviceContext *context = mEffect->mEffectContext->mDeferredContext;
 
 			const uintptr_t null = 0;
-			this->mDeferredContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-			this->mDeferredContext->IASetInputLayout(nullptr);
-			this->mDeferredContext->IASetVertexBuffers(0, 1, reinterpret_cast<ID3D11Buffer *const *>(&null), reinterpret_cast<const UINT *>(&null), reinterpret_cast<const UINT *>(&null));
-			this->mDeferredContext->RSSetState(this->mEffect->mRasterizerState);
+			context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+			context->IASetInputLayout(nullptr);
+			context->IASetVertexBuffers(0, 1, reinterpret_cast<ID3D11Buffer *const *>(&null), reinterpret_cast<const UINT *>(&null), reinterpret_cast<const UINT *>(&null));
+			context->RSSetState(this->mEffect->mRasterizerState);
 
-			this->mDeferredContext->VSSetSamplers(0, this->mEffect->mSamplerStates.size(), this->mEffect->mSamplerStates.data());
-			this->mDeferredContext->PSSetSamplers(0, this->mEffect->mSamplerStates.size(), this->mEffect->mSamplerStates.data());
-			this->mDeferredContext->VSSetConstantBuffers(0, this->mEffect->mConstantBuffers.size(), this->mEffect->mConstantBuffers.data());
-			this->mDeferredContext->PSSetConstantBuffers(0, this->mEffect->mConstantBuffers.size(), this->mEffect->mConstantBuffers.data());
+			context->VSSetSamplers(0, this->mEffect->mSamplerStates.size(), this->mEffect->mSamplerStates.data());
+			context->PSSetSamplers(0, this->mEffect->mSamplerStates.size(), this->mEffect->mSamplerStates.data());
+			context->VSSetConstantBuffers(0, this->mEffect->mConstantBuffers.size(), this->mEffect->mConstantBuffers.data());
+			context->PSSetConstantBuffers(0, this->mEffect->mConstantBuffers.size(), this->mEffect->mConstantBuffers.data());
 
-			this->mDeferredContext->ClearDepthStencilView(this->mEffect->mDepthStencil, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0x00);
+			context->ClearDepthStencilView(this->mEffect->mDepthStencil, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0x00);
 
 			return true;
 		}
 		void													D3D11Technique::End(void) const
 		{
-			this->mDeferredContext->CopyResource(this->mEffect->mBackBuffer, this->mEffect->mBackBufferTexture);
-
-			ID3D11CommandList *list;
-			this->mDeferredContext->FinishCommandList(FALSE, &list);
-
-			this->mEffect->mEffectContext->mImmediateContext->ExecuteCommandList(list, TRUE);
-			list->Release();
-
-			this->mEffect->mCurrentContext = this->mEffect->mEffectContext->mImmediateContext;
+			this->mEffect->mEffectContext->mDeferredContext->OMSetRenderTargets(1, &this->mEffect->mEffectContext->mBackBufferTargets[0], nullptr);
 		}
 		void													D3D11Technique::RenderPass(unsigned int index) const
 		{
@@ -2728,17 +2735,18 @@ namespace ReShade
 			}
 
 			const Pass &pass = this->mPasses[index];
+			ID3D11DeviceContext *context = mEffect->mEffectContext->mDeferredContext;
 
-			this->mDeferredContext->VSSetShader(pass.VS, nullptr, 0);
-			this->mDeferredContext->HSSetShader(nullptr, nullptr, 0);
-			this->mDeferredContext->DSSetShader(nullptr, nullptr, 0);
-			this->mDeferredContext->GSSetShader(nullptr, nullptr, 0);
-			this->mDeferredContext->PSSetShader(pass.PS, nullptr, 0);
+			context->VSSetShader(pass.VS, nullptr, 0);
+			context->HSSetShader(nullptr, nullptr, 0);
+			context->DSSetShader(nullptr, nullptr, 0);
+			context->GSSetShader(nullptr, nullptr, 0);
+			context->PSSetShader(pass.PS, nullptr, 0);
 
 			const FLOAT blendfactor[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
-			this->mDeferredContext->OMSetBlendState(pass.BS, blendfactor, D3D11_DEFAULT_SAMPLE_MASK);
-			this->mDeferredContext->OMSetDepthStencilState(pass.DSS, pass.StencilRef);
-			this->mDeferredContext->OMSetRenderTargets(D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT, pass.RT, this->mEffect->mDepthStencil);
+			context->OMSetBlendState(pass.BS, blendfactor, D3D11_DEFAULT_SAMPLE_MASK);
+			context->OMSetDepthStencilState(pass.DSS, pass.StencilRef);
+			context->OMSetRenderTargets(D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT, pass.RT, this->mEffect->mDepthStencil);
 
 			for (UINT i = 0; i < D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT; ++i)
 			{
@@ -2748,11 +2756,11 @@ namespace ReShade
 				}
 
 				const FLOAT color[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
-				this->mDeferredContext->ClearRenderTargetView(pass.RT[i], color);
+				context->ClearRenderTargetView(pass.RT[i], color);
 			}
 
-			this->mDeferredContext->VSSetShaderResources(0, pass.SR.size(), pass.SR.data());
-			this->mDeferredContext->PSSetShaderResources(0, pass.SR.size(), pass.SR.data());
+			context->VSSetShaderResources(0, pass.SR.size(), pass.SR.data());
+			context->PSSetShaderResources(0, pass.SR.size(), pass.SR.data());
 
 			ID3D11Resource *rtres;
 			pass.RT[0]->GetResource(&rtres);
@@ -2767,9 +2775,9 @@ namespace ReShade
 			viewport.TopLeftY = 0.0f;
 			viewport.MinDepth = 0.0f;
 			viewport.MaxDepth = 1.0f;
-			this->mDeferredContext->RSSetViewports(1, &viewport);
+			context->RSSetViewports(1, &viewport);
 
-			this->mDeferredContext->Draw(3, 0);
+			context->Draw(3, 0);
 		}
 	}
 
