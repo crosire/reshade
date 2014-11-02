@@ -134,10 +134,11 @@ STRING															\"(\\.|[^\\"])*\"
 }
 <STATE_PP_PRAGMA>
 {
-	[^\\\n\t ]+|\\|{STRING}										{ yyextra->mPragmas.back() += yytext; }
+	[^\\\n\t ]+|\\												{ yyextra->mPragmas.back() += yytext; }
+	{STRING}													{ std::size_t len = ::strlen(yytext); Escape(yytext, len); yyextra->mPragmas.back().append(yytext, len); }
 	{WS}+														{ yyextra->mPragmas.back() += ' '; }
 	\\{LF}														{ }
-	{LF}														{ yy_pop_state(yyscanner); }
+	{LF}														{ boost::algorithm::trim(yyextra->mPragmas.back()); yy_pop_state(yyscanner); }
 }
 <STATE_PP_ERROR>
 {

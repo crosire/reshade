@@ -53,6 +53,6 @@ namespace ReShade
 		std::chrono::high_resolution_clock::time_point mStartTime, mLastPresent;
 		std::chrono::high_resolution_clock::duration mLastFrametime;
 		unsigned long long mLastFrameCount;
-		std::string mErrors;
+		std::string mErrors, mMessage;
 	};
 }

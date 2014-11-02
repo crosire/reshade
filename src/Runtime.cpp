@@ -12,6 +12,7 @@
 #include <stb_image_write.h>
 #include <stb_image_resize.h>
 #include <boost\algorithm\string\replace.hpp>
+#include <boost\algorithm\string\predicate.hpp>
 #include <boost\filesystem\path.hpp>
 #include <boost\filesystem\operations.hpp>
 #include <nanovg.h>
@@ -99,7 +100,7 @@ namespace ReShade
 
 		el::Loggers::reconfigureLogger("default", logConfig);
 
-		LOG(INFO) << "Initializing version '" BOOST_STRINGIZE(VERSION_FULL) "' built on '" VERSION_DATE " " VERSION_TIME "' loaded from " << ObfuscatePath(injectorPath) << " to " << ObfuscatePath(executablePath) << " ...";
+		LOG(INFO) << "Initializing Crosire's ReShade version '" BOOST_STRINGIZE(VERSION_FULL) "' built on '" VERSION_DATE " " VERSION_TIME "' loaded from " << ObfuscatePath(injectorPath) << " to " << ObfuscatePath(executablePath) << " ...";
 
 		ReHook::Register(systemPath / "d3d8.dll");
 		ReHook::Register(systemPath / "d3d9.dll");
@@ -153,7 +154,7 @@ namespace ReShade
 
 		if (this->mNVG != nullptr)
 		{
-			nvgCreateFont(this->mNVG, "Arial", (GetWindowsDirectory() / "Fonts" / "arial.ttf").string().c_str());
+			nvgCreateFont(this->mNVG, "Courier", (GetWindowsDirectory() / "Fonts" / "cour.ttf").string().c_str());
 		}
 
 		boost::filesystem::path path = sEffectPath;
@@ -189,6 +190,7 @@ namespace ReShade
 		LOG(TRACE) << "> Running preprocessor ...";
 
 		this->mErrors.clear();
+		this->mMessage.clear();
 
 		const std::string source = preprocessor.Run(path, errors);
 		
@@ -210,6 +212,18 @@ namespace ReShade
 			LOG(ERROR) << "Failed to compile effect on context " << this << ":\n\n" << this->mErrors << "\n";
 
 			return false;
+		}
+
+		for (const std::string &pragma : parser.GetPragmas())
+		{
+			if (boost::starts_with(pragma, "message "))
+			{
+				this->mMessage += pragma.substr(9, pragma.length() - 10);
+			}
+			else if (!boost::istarts_with(pragma, "reshade "))
+			{
+				continue;
+			}
 		}
 
 		// Compile
@@ -476,25 +490,35 @@ namespace ReShade
 
 			const std::chrono::seconds timeSinceStart = std::chrono::duration_cast<std::chrono::seconds>(time - this->mStartTime);
 
-			nvgFontFace(this->mNVG, "Arial");
+			nvgFontFace(this->mNVG, "Courier");
 			nvgTextAlign(this->mNVG, NVG_ALIGN_LEFT | NVG_ALIGN_TOP);
+
+			float bounds[4] = { 0, 0, 0, 0 };
 
 			if (timeSinceStart.count() < 8)
 			{
+				std::string message = "ReShade by Crosire\nVersion " BOOST_STRINGIZE(VERSION_FULL);
+
+				if (!this->mMessage.empty())
+				{
+					message += "\n\n" + this->mMessage;
+				}
+
 				nvgFillColor(this->mNVG, nvgRGB(255, 255, 255));
-				nvgText(this->mNVG, 0, 0, "Initializing Crosire's ReShade '" BOOST_STRINGIZE(VERSION_FULL) "' ...", nullptr);
+				nvgTextBoxBounds(this->mNVG, 0, 0, static_cast<float>(this->mWidth), message.c_str(), nullptr, bounds);
+				nvgTextBox(this->mNVG, 0, 0, static_cast<float>(this->mWidth), message.c_str(), nullptr);
 			}
 			if (!this->mErrors.empty())
 			{
 				if (this->mEffect == nullptr)
 				{
 					nvgFillColor(this->mNVG, nvgRGB(255, 0, 0));
-					nvgTextBox(this->mNVG, 0, 0, static_cast<float>(this->mWidth), ("ReShade failed to compile effect:\n\n" + this->mErrors).c_str(), nullptr);
+					nvgTextBox(this->mNVG, 0, bounds[3], static_cast<float>(this->mWidth), ("ReShade failed to compile effect:\n\n" + this->mErrors).c_str(), nullptr);
 				}
 				else if (timeSinceStart.count() < 6)
 				{
 					nvgFillColor(this->mNVG, nvgRGB(255, 255, 0));
-					nvgTextBox(this->mNVG, 0, 16, static_cast<float>(this->mWidth), ("ReShade successfully compiled effect with warnings:\n\n" + this->mErrors).c_str(), nullptr);
+					nvgTextBox(this->mNVG, 0, bounds[3], static_cast<float>(this->mWidth), ("ReShade successfully compiled effect with warnings:\n\n" + this->mErrors).c_str(), nullptr);
 				}
 			}
 
