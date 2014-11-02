@@ -2576,15 +2576,19 @@ namespace ReShade
 		}
 		D3D11Texture::~D3D11Texture()
 		{
-			this->mRenderTargetView[0]->Release();
-
+			if (this->mRenderTargetView[0] != nullptr)
+			{
+				this->mRenderTargetView[0]->Release();
+			}
 			if (this->mRenderTargetView[1] != nullptr)
 			{
 				this->mRenderTargetView[1]->Release();
 			}
 
-			this->mShaderResourceView[0]->Release();
-
+			if (this->mShaderResourceView[0] != nullptr)
+			{
+				this->mShaderResourceView[0]->Release();
+			}
 			if (this->mShaderResourceView[1] != nullptr)
 			{
 				this->mShaderResourceView[1]->Release();

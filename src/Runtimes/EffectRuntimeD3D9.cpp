@@ -2496,8 +2496,14 @@ namespace ReShade
 		}
 		D3D9Texture::~D3D9Texture()
 		{
-			this->mTexture->Release();
-			this->mSurface->Release();
+			if (this->mSurface != nullptr)
+			{
+				this->mSurface->Release();
+			}
+			if (this->mTexture != nullptr)
+			{
+				this->mTexture->Release();
+			}
 		}
 
 		const Effect::Texture::Description D3D9Texture::GetDescription() const
