@@ -2730,7 +2730,7 @@ namespace ReShade
 		{
 			this->mRendererId = 0x061;
 
-			if (::GetModuleHandleA("nvd3d9wrap.dll") == nullptr)
+			if (::GetModuleHandleA("nvd3d9wrap.dll") == nullptr && ::GetModuleHandleA("nvd3d9wrapx.dll") == nullptr)
 			{
 				DISPLAY_DEVICEA dd;
 				dd.cb = sizeof(DISPLAY_DEVICEA);
