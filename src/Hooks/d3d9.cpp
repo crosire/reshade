@@ -249,6 +249,7 @@ ULONG STDMETHODCALLTYPE Direct3DSwapChain9::Release()
 	{
 		assert(this->mRuntime != nullptr);
 
+		this->mRuntime->OnDelete();
 		this->mRuntime.reset();
 	}
 

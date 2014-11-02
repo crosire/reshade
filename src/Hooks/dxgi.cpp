@@ -105,6 +105,7 @@ ULONG STDMETHODCALLTYPE DXGISwapChain::Release()
 	{
 		assert(this->mRuntime != nullptr);
 
+		this->mRuntime->OnDelete();
 		this->mRuntime.reset();
 	}
 

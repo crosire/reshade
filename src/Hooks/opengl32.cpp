@@ -2426,6 +2426,7 @@ EXPORT BOOL WINAPI wglDeleteContext(HGLRC hglrc)
 	{
 		ReHook::Call(&wglMakeCurrent)(sDeviceContexts.at(hglrc), hglrc);
 
+		it->second->OnDelete();
 		sManagers.erase(it);
 
 		ReHook::Call(&wglMakeCurrent)(sCurrentDeviceContext, sCurrentRenderContext);
