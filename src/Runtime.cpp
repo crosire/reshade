@@ -462,7 +462,7 @@ namespace ReShade
 					
 				if (extension == ".fx" || extension == ".txt" || extension == ".h")
 				{
-					LOG(INFO) << "Detected modification to " << path << ". Reloading ...";
+					LOG(INFO) << "Detected modification to " << ObfuscatePath(path) << ". Reloading ...";
 			
 					OnDelete();
 					OnCreate(this->mWidth, this->mHeight);
