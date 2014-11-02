@@ -476,19 +476,26 @@ namespace ReShade
 
 			const std::chrono::seconds timeSinceStart = std::chrono::duration_cast<std::chrono::seconds>(time - this->mStartTime);
 
+			nvgFontFace(this->mNVG, "Arial");
+			nvgTextAlign(this->mNVG, NVG_ALIGN_LEFT | NVG_ALIGN_TOP);
+
+			if (timeSinceStart.count() < 8)
+			{
+				nvgFillColor(this->mNVG, nvgRGB(255, 255, 255));
+				nvgText(this->mNVG, 0, 0, "Initializing Crosire's ReShade '" BOOST_STRINGIZE(VERSION_FULL) "' ...", nullptr);
+			}
 			if (!this->mErrors.empty())
 			{
-				nvgFontFace(this->mNVG, "Arial");
-				nvgFillColor(this->mNVG, nvgRGB(255, 0, 0));
-				nvgTextAlign(this->mNVG, NVG_ALIGN_LEFT | NVG_ALIGN_TOP);
-				nvgTextBox(this->mNVG, 0, 0, static_cast<float>(this->mWidth), ("ReShade failed to compile effect:\n\n" + this->mErrors).c_str(), nullptr);
-			}
-			else if (timeSinceStart.count() < 8)
-			{
-				nvgFontFace(this->mNVG, "Arial");
-				nvgFillColor(this->mNVG, nvgRGB(255, 255, 255));
-				nvgTextAlign(this->mNVG, NVG_ALIGN_LEFT | NVG_ALIGN_TOP);
-				nvgText(this->mNVG, 0, 0, "Loading Crosire's ReShade '" BOOST_STRINGIZE(VERSION_FULL) "' ...", nullptr);
+				if (this->mEffect == nullptr)
+				{
+					nvgFillColor(this->mNVG, nvgRGB(255, 0, 0));
+					nvgTextBox(this->mNVG, 0, 0, static_cast<float>(this->mWidth), ("ReShade failed to compile effect:\n\n" + this->mErrors).c_str(), nullptr);
+				}
+				else if (timeSinceStart.count() < 6)
+				{
+					nvgFillColor(this->mNVG, nvgRGB(255, 255, 0));
+					nvgTextBox(this->mNVG, 0, 16, static_cast<float>(this->mWidth), ("ReShade successfully compiled effect with warnings:\n\n" + this->mErrors).c_str(), nullptr);
+				}
 			}
 
 			nvgEndFrame(this->mNVG);
