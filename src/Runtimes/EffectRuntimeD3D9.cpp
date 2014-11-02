@@ -42,6 +42,7 @@ namespace ReShade
 			IDirect3DStateBlock9 *mStateBlock;
 			IDirect3DSurface9 *mBackBuffer;
 			IDirect3DSurface9 *mBackBufferNotMultisampled;
+			bool mLost;
 		};
 		
 		struct D3D9Effect : public Effect
@@ -2150,7 +2151,7 @@ namespace ReShade
 
 		// -----------------------------------------------------------------------------------------------------
 
-		D3D9Runtime::D3D9Runtime(IDirect3DDevice9 *device, IDirect3DSwapChain9 *swapchain) : mDevice(device), mSwapChain(swapchain), mStateBlock(nullptr), mBackBuffer(nullptr), mBackBufferNotMultisampled(nullptr)
+		D3D9Runtime::D3D9Runtime(IDirect3DDevice9 *device, IDirect3DSwapChain9 *swapchain) : mDevice(device), mSwapChain(swapchain), mStateBlock(nullptr), mBackBuffer(nullptr), mBackBufferNotMultisampled(nullptr), mLost(true)
 		{
 			this->mDevice->AddRef();
 			this->mSwapChain->AddRef();
@@ -2171,6 +2172,8 @@ namespace ReShade
 		}
 		D3D9Runtime::~D3D9Runtime()
 		{
+			assert(this->mLost);
+
 			this->mDevice->Release();
 			this->mSwapChain->Release();
 		}
@@ -2195,6 +2198,8 @@ namespace ReShade
 
 			this->mNVG = nvgCreateD3D9(this->mDevice, 0);
 
+			this->mLost = false;
+
 			return Runtime::OnCreate(width, height);
 		}
 		void D3D9Runtime::OnDelete()
@@ -2204,6 +2209,7 @@ namespace ReShade
 			nvgDeleteD3D9(this->mNVG);
 			this->mNVG = nullptr;
 
+			this->mStateBlock->Apply();
 			this->mStateBlock->Release();
 
 			if (this->mBackBufferNotMultisampled != this->mBackBuffer)
@@ -2212,6 +2218,8 @@ namespace ReShade
 			}
 
 			this->mBackBuffer->Release();
+
+			this->mLost = true;
 		}
 		void D3D9Runtime::OnPresent()
 		{
@@ -2232,6 +2240,11 @@ namespace ReShade
 			this->mDevice->SetRenderTarget(0, this->mBackBufferNotMultisampled);
 
 			Runtime::OnPresent();
+
+			if (this->mLost)
+			{
+				return;
+			}
 
 			if (this->mBackBufferNotMultisampled != this->mBackBuffer)
 			{

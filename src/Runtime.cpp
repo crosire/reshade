@@ -480,6 +480,7 @@ namespace ReShade
 			
 					OnDelete();
 					OnCreate(this->mWidth, this->mHeight);
+					return;
 				}
 			}
 		}

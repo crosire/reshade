@@ -158,6 +158,7 @@ namespace ReShade
 			HGLRC mRenderContext;
 			OGL4StateBlock mStateBlock;
 			GLuint mBackBufferFBO, mBackBufferRBO;
+			bool mLost, mPresenting;
 		};
 
 		struct OGL4Effect : public Effect
@@ -2725,7 +2726,7 @@ namespace ReShade
 
 		// -----------------------------------------------------------------------------------------------------
 
-		OGL4Runtime::OGL4Runtime(HDC device, HGLRC context) : mDeviceContext(device), mRenderContext(context), mBackBufferFBO(0), mBackBufferRBO(0)
+		OGL4Runtime::OGL4Runtime(HDC device, HGLRC context) : mDeviceContext(device), mRenderContext(context), mBackBufferFBO(0), mBackBufferRBO(0), mLost(true), mPresenting(false)
 		{
 			this->mRendererId = 0x061;
 
@@ -2773,6 +2774,7 @@ namespace ReShade
 		}
 		OGL4Runtime::~OGL4Runtime()
 		{
+			assert(this->mLost);
 		}
 
 		bool OGL4Runtime::OnCreate(unsigned int width, unsigned int height)
@@ -2791,6 +2793,8 @@ namespace ReShade
 
 			this->mNVG = nvgCreateGL3(0);
 
+			this->mLost = false;
+
 			const bool res = Runtime::OnCreate(width, height);
 
 			this->mStateBlock.Apply();
@@ -2799,7 +2803,10 @@ namespace ReShade
 		}
 		void OGL4Runtime::OnDelete()
 		{
-			this->mStateBlock.Capture();
+			if (!this->mPresenting)
+			{
+				this->mStateBlock.Capture();
+			}
 
 			Runtime::OnDelete();
 
@@ -2810,10 +2817,14 @@ namespace ReShade
 			GLCHECK(glDeleteRenderbuffers(1, &this->mBackBufferRBO));
 
 			this->mStateBlock.Apply();
+
+			this->mLost = true;
 		}
 		void OGL4Runtime::OnPresent()
 		{
 			this->mStateBlock.Capture();
+
+			this->mPresenting = true;
 
 			GLCHECK(glBindFramebuffer(GL_READ_FRAMEBUFFER, 0));
 			GLCHECK(glBindFramebuffer(GL_DRAW_FRAMEBUFFER, this->mBackBufferFBO));
@@ -2822,6 +2833,13 @@ namespace ReShade
 			GLCHECK(glBlitFramebuffer(0, 0, this->mWidth, this->mHeight, 0, 0, this->mWidth, this->mHeight, GL_COLOR_BUFFER_BIT, GL_NEAREST));
 
 			Runtime::OnPresent();
+
+			this->mPresenting = false;
+
+			if (this->mLost)
+			{
+				return;
+			}
 
 			GLCHECK(glBindFramebuffer(GL_READ_FRAMEBUFFER, this->mBackBufferFBO));
 			GLCHECK(glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0));

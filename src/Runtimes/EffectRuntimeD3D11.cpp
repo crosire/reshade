@@ -63,6 +63,7 @@ namespace ReShade
 			ID3D11Texture2D *mBackBuffer;
 			ID3D11Texture2D *mBackBufferTexture;
 			ID3D11RenderTargetView *mBackBufferTargets[2];
+			bool mLost;
 		};
 
 		struct D3D11Effect : public Effect
@@ -2209,7 +2210,7 @@ namespace ReShade
 
 		// -----------------------------------------------------------------------------------------------------
 
-		D3D11Runtime::D3D11Runtime(ID3D11Device *device, IDXGISwapChain *swapchain) : mDevice(device), mSwapChain(swapchain), mImmediateContext(nullptr), mDeferredContext(nullptr), mBackBuffer(nullptr), mBackBufferTexture(nullptr), mBackBufferTargets()
+		D3D11Runtime::D3D11Runtime(ID3D11Device *device, IDXGISwapChain *swapchain) : mDevice(device), mSwapChain(swapchain), mImmediateContext(nullptr), mDeferredContext(nullptr), mBackBuffer(nullptr), mBackBufferTexture(nullptr), mBackBufferTargets(), mLost(true)
 		{
 			this->mDevice->AddRef();
 			this->mDevice->GetImmediateContext(&this->mImmediateContext);
@@ -2234,6 +2235,8 @@ namespace ReShade
 		}
 		D3D11Runtime::~D3D11Runtime()
 		{
+			assert(this->mLost);
+
 			this->mDeferredContext->Release();
 			this->mImmediateContext->Release();
 			this->mDevice->Release();
@@ -2261,6 +2264,8 @@ namespace ReShade
 
 			this->mNVG = nvgCreateD3D11(this->mDeferredContext, 0);
 
+			this->mLost = false;
+
 			return Runtime::OnCreate(width, height);
 		}
 		void D3D11Runtime::OnDelete()
@@ -2274,6 +2279,8 @@ namespace ReShade
 			this->mBackBufferTargets[1]->Release();
 			this->mBackBufferTexture->Release();
 			this->mBackBuffer->Release();
+
+			this->mLost = true;
 		}
 		void D3D11Runtime::OnPresent()
 		{
@@ -2281,6 +2288,11 @@ namespace ReShade
 			this->mDeferredContext->OMSetRenderTargets(1, &this->mBackBufferTargets[0], nullptr);
 
 			Runtime::OnPresent();
+
+			if (this->mLost)
+			{
+				return;
+			}
 
 			this->mDeferredContext->CopyResource(this->mBackBuffer, this->mBackBufferTexture);
 

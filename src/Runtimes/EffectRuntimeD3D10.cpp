@@ -62,6 +62,7 @@ namespace ReShade
 			ID3D10Texture2D *mBackBuffer;
 			ID3D10Texture2D *mBackBufferTexture;
 			ID3D10RenderTargetView *mBackBufferTargets[2];
+			bool mLost;
 		};
 
 		struct D3D10Effect : public Effect
@@ -2192,7 +2193,7 @@ namespace ReShade
 
 		// -----------------------------------------------------------------------------------------------------
 
-		D3D10Runtime::D3D10Runtime(ID3D10Device *device, IDXGISwapChain *swapchain) : mDevice(device), mSwapChain(swapchain), mStateBlock(nullptr), mBackBuffer(nullptr), mBackBufferTexture(nullptr), mBackBufferTargets()
+		D3D10Runtime::D3D10Runtime(ID3D10Device *device, IDXGISwapChain *swapchain) : mDevice(device), mSwapChain(swapchain), mStateBlock(nullptr), mBackBuffer(nullptr), mBackBufferTexture(nullptr), mBackBufferTargets(), mLost(true)
 		{
 			this->mDevice->AddRef();
 			this->mSwapChain->AddRef();
@@ -2218,6 +2219,8 @@ namespace ReShade
 		}
 		D3D10Runtime::~D3D10Runtime()
 		{
+			assert(this->mLost);
+
 			this->mStateBlock->Release();
 
 			this->mDevice->Release();
@@ -2245,6 +2248,8 @@ namespace ReShade
 
 			this->mNVG = nvgCreateD3D10(this->mDevice, 0);
 
+			this->mLost = false;
+
 			return Runtime::OnCreate(width, height);
 		}
 		void D3D10Runtime::OnDelete()
@@ -2254,12 +2259,15 @@ namespace ReShade
 			nvgDeleteD3D10(this->mNVG);
 			this->mNVG = nullptr;
 
+			this->mStateBlock->Apply();
 			this->mStateBlock->ReleaseAllDeviceObjects();
 
 			this->mBackBufferTargets[0]->Release();
 			this->mBackBufferTargets[1]->Release();
 			this->mBackBufferTexture->Release();
 			this->mBackBuffer->Release();
+
+			this->mLost = true;
 		}
 		void D3D10Runtime::OnPresent()
 		{
@@ -2273,6 +2281,11 @@ namespace ReShade
 			this->mDevice->OMSetRenderTargets(1, &this->mBackBufferTargets[0], nullptr);
 
 			Runtime::OnPresent();
+
+			if (this->mLost)
+			{
+				return;
+			}
 
 			this->mDevice->CopyResource(this->mBackBuffer, this->mBackBufferTexture);
 
