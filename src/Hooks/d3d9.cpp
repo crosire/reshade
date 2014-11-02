@@ -465,7 +465,6 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Reset(D3DPRESENT_PARAMETERS *pPresent
 	assert(this->mImplicitSwapChain->mRuntime != nullptr);
 
 	ReShade::Runtime *runtime = this->mImplicitSwapChain->mRuntime.get();
-	const UINT width = pPresentationParameters->BackBufferWidth, height = pPresentationParameters->BackBufferHeight;
 
 	runtime->OnDelete();
 
@@ -473,7 +472,10 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Reset(D3DPRESENT_PARAMETERS *pPresent
 
 	if (SUCCEEDED(hr))
 	{
-		runtime->OnCreate(width, height);
+		D3DDISPLAYMODE mode;
+		this->mOrig->GetDisplayMode(0, &mode);
+
+		runtime->OnCreate(mode.Width, mode.Height);
 	}
 	else
 	{
@@ -978,7 +980,6 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ResetEx(D3DPRESENT_PARAMETERS *pPrese
 	assert(this->mImplicitSwapChain->mRuntime != nullptr);
 
 	ReShade::Runtime *runtime = this->mImplicitSwapChain->mRuntime.get();
-	const UINT width = pPresentationParameters->BackBufferWidth, height = pPresentationParameters->BackBufferHeight;
 
 	runtime->OnDelete();
 
@@ -986,7 +987,10 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ResetEx(D3DPRESENT_PARAMETERS *pPrese
 
 	if (SUCCEEDED(hr))
 	{
-		runtime->OnCreate(width, height);
+		D3DDISPLAYMODE mode;
+		this->mOrig->GetDisplayMode(0, &mode);
+
+		runtime->OnCreate(mode.Width, mode.Height);
 	}
 	else
 	{
