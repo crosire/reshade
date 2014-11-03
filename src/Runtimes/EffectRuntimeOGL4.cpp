@@ -2912,6 +2912,8 @@ namespace ReShade
 
 			GLCHECK(glDeleteFramebuffers(1, &this->mBackBufferFBO));			
 			GLCHECK(glDeleteRenderbuffers(1, &this->mBackBufferRBO));
+			this->mBackBufferFBO = 0;
+			this->mBackBufferRBO = 0;
 
 			this->mStateBlock.Apply();
 
@@ -2921,13 +2923,9 @@ namespace ReShade
 		{
 			this->mStateBlock.Capture();
 
-			this->mPresenting = true;
+			GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, 0));
 
-			GLCHECK(glBindFramebuffer(GL_READ_FRAMEBUFFER, 0));
-			GLCHECK(glBindFramebuffer(GL_DRAW_FRAMEBUFFER, this->mBackBufferFBO));
-			GLCHECK(glReadBuffer(GL_BACK));
-			GLCHECK(glDrawBuffer(GL_COLOR_ATTACHMENT0));
-			GLCHECK(glBlitFramebuffer(0, 0, this->mWidth, this->mHeight, 0, 0, this->mWidth, this->mHeight, GL_COLOR_BUFFER_BIT, GL_NEAREST));
+			this->mPresenting = true;
 
 			Runtime::OnPresent();
 
@@ -2937,12 +2935,6 @@ namespace ReShade
 			{
 				return;
 			}
-
-			GLCHECK(glBindFramebuffer(GL_READ_FRAMEBUFFER, this->mBackBufferFBO));
-			GLCHECK(glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0));
-			GLCHECK(glReadBuffer(GL_COLOR_ATTACHMENT0));
-			GLCHECK(glDrawBuffer(GL_BACK));
-			GLCHECK(glBlitFramebuffer(0, 0, this->mWidth, this->mHeight, 0, 0, this->mWidth, this->mHeight, GL_COLOR_BUFFER_BIT, GL_NEAREST));
 
 			this->mStateBlock.Apply();
 		}
@@ -3414,6 +3406,12 @@ namespace ReShade
 				return false;
 			}
 
+			GLCHECK(glBindFramebuffer(GL_READ_FRAMEBUFFER, 0));
+			GLCHECK(glBindFramebuffer(GL_DRAW_FRAMEBUFFER, this->mEffect->mEffectContext->mBackBufferFBO));
+			GLCHECK(glReadBuffer(GL_BACK));
+			GLCHECK(glDrawBuffer(GL_COLOR_ATTACHMENT0));
+			GLCHECK(glBlitFramebuffer(0, 0, this->mEffect->mEffectContext->mWidth, this->mEffect->mEffectContext->mHeight, 0, 0, this->mEffect->mEffectContext->mWidth, this->mEffect->mEffectContext->mHeight, GL_COLOR_BUFFER_BIT, GL_NEAREST));
+
 			GLCHECK(glBindVertexArray(this->mEffect->mDefaultVAO));
 			GLCHECK(glBindVertexBuffer(0, this->mEffect->mDefaultVBO, 0, sizeof(float)));		
 
@@ -3435,8 +3433,14 @@ namespace ReShade
 		}
 		void OGL4Technique::End() const
 		{
-			GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, this->mEffect->mEffectContext->mBackBufferFBO));
+			GLCHECK(glBindFramebuffer(GL_READ_FRAMEBUFFER, this->mEffect->mEffectContext->mBackBufferFBO));
+			GLCHECK(glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0));
+			GLCHECK(glReadBuffer(GL_COLOR_ATTACHMENT0));
+			GLCHECK(glDrawBuffer(GL_BACK));
+			GLCHECK(glBlitFramebuffer(0, 0, this->mEffect->mEffectContext->mWidth, this->mEffect->mEffectContext->mHeight, 0, 0, this->mEffect->mEffectContext->mWidth, this->mEffect->mEffectContext->mHeight, GL_COLOR_BUFFER_BIT, GL_NEAREST));
+
 			GLCHECK(glBindSampler(0, 0));
+			GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, 0));
 		}
 		void OGL4Technique::RenderPass(unsigned int index) const
 		{
