@@ -2,9 +2,9 @@
 
 #include "Effect.hpp"
 
-#include <chrono>
 #include <memory>
 #include <vector>
+#include <boost\chrono.hpp>
 #include <boost\filesystem\path.hpp>
 
 struct NVGcontext;
@@ -50,9 +50,10 @@ namespace ReShade
 		std::unique_ptr<Effect> mEffect;
 		std::vector<std::pair<const Effect::Technique *, InfoTechnique>> mTechniques;
 		std::vector<Effect::Texture *> mColorTargets;
-		std::chrono::high_resolution_clock::time_point mStartTime, mLastPresent;
-		std::chrono::high_resolution_clock::duration mLastFrametime;
+		boost::chrono::high_resolution_clock::time_point mStartTime, mLastPresent;
+		boost::chrono::high_resolution_clock::duration mLastFrametime;
 		unsigned long long mLastFrameCount;
 		std::string mErrors, mMessage;
+		bool mShowStatistics;
 	};
 }

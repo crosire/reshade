@@ -32,20 +32,20 @@ namespace ReShade
 
 			return result;
 		}
-		inline std::chrono::system_clock::time_point GetLastWriteTime(const boost::filesystem::path &path)
+		inline boost::chrono::system_clock::time_point GetLastWriteTime(const boost::filesystem::path &path)
 		{
 			WIN32_FILE_ATTRIBUTE_DATA attributes;
 			
 			if (!::GetFileAttributesEx(path.c_str(), GetFileExInfoStandard, reinterpret_cast<LPVOID>(&attributes)))
 			{
-				return std::chrono::system_clock::time_point();
+				return boost::chrono::system_clock::time_point();
 			}
 
 			ULARGE_INTEGER ull;
 			ull.LowPart = attributes.ftLastWriteTime.dwLowDateTime;
 			ull.HighPart = attributes.ftLastWriteTime.dwHighDateTime;
 
-			return std::chrono::system_clock::time_point(std::chrono::system_clock::duration(ull.QuadPart));
+			return boost::chrono::system_clock::time_point(boost::chrono::system_clock::duration(ull.QuadPart));
 		}
 		inline boost::filesystem::path GetSystemDirectory()
 		{
@@ -127,9 +127,9 @@ namespace ReShade
 
 	// -----------------------------------------------------------------------------------------------------
 
-	Runtime::Runtime() : mWidth(0), mHeight(0), mVendorId(0), mDeviceId(0), mRendererId(0), mLastFrameCount(0), mNVG(nullptr)
+	Runtime::Runtime() : mWidth(0), mHeight(0), mVendorId(0), mDeviceId(0), mRendererId(0), mLastFrameCount(0), mNVG(nullptr), mShowStatistics(false)
 	{
-		this->mStartTime = std::chrono::high_resolution_clock::now();
+		this->mStartTime = boost::chrono::high_resolution_clock::now();
 	}
 	Runtime::~Runtime()
 	{
@@ -154,7 +154,7 @@ namespace ReShade
 
 		if (this->mNVG != nullptr)
 		{
-			nvgCreateFont(this->mNVG, "Courier", (GetWindowsDirectory() / "Fonts" / "cour.ttf").string().c_str());
+			nvgCreateFont(this->mNVG, "Courier", (GetWindowsDirectory() / "Fonts" / "courbd.ttf").string().c_str());
 		}
 
 		boost::filesystem::path path = sEffectPath;
@@ -191,6 +191,7 @@ namespace ReShade
 
 		this->mErrors.clear();
 		this->mMessage.clear();
+		this->mShowStatistics = false;
 
 		const std::string source = preprocessor.Run(path, errors);
 		
@@ -223,6 +224,13 @@ namespace ReShade
 			else if (!boost::istarts_with(pragma, "reshade "))
 			{
 				continue;
+			}
+
+			const std::string command = pragma.substr(8);
+
+			if (boost::iequals(command, "statistics") || boost::iequals(command, "showstatistics"))
+			{
+				this->mShowStatistics = true;
 			}
 		}
 
@@ -277,7 +285,7 @@ namespace ReShade
 
 		CreateResources();
 
-		this->mStartTime = std::chrono::high_resolution_clock::now();
+		this->mStartTime = boost::chrono::high_resolution_clock::now();
 
 		LOG(INFO) << "Recreated effect environment on context " << this << ".";
 
@@ -299,15 +307,18 @@ namespace ReShade
 	}
 	void Runtime::OnPresent()
 	{
+		const std::time_t time = ::time(nullptr);
+		const auto timePresent = boost::chrono::high_resolution_clock::now();
+		const boost::chrono::nanoseconds frametime = boost::chrono::duration_cast<boost::chrono::nanoseconds>(timePresent - this->mLastPresent);
+
+		tm tm;
+		::localtime_s(&tm, &time);
+		const float date[4] = { static_cast<float>(tm.tm_year + 1900), static_cast<float>(tm.tm_mon + 1), static_cast<float>(tm.tm_mday), static_cast<float>(tm.tm_hour * 3600 + tm.tm_min * 60 + tm.tm_sec + 1) };
+
 		for (auto &it : this->mTechniques)
 		{
 			const Effect::Technique *technique = it.first;
 			InfoTechnique &info = it.second;
-
-			tm tm;
-			std::time_t t = std::chrono::system_clock::to_time_t(this->mLastPresent);
-			::localtime_s(&tm, &t);
-			const float date[4] = { static_cast<float>(tm.tm_year + 1900), static_cast<float>(tm.tm_mon + 1), static_cast<float>(tm.tm_mday), static_cast<float>(tm.tm_hour * 3600 + tm.tm_min * 60 + tm.tm_sec + 1) };
 
 			if (info.ToggleTime != 0 && info.ToggleTime == static_cast<int>(date[3]))
 			{
@@ -328,7 +339,7 @@ namespace ReShade
 
 			if (info.Timeleft > 0)
 			{
-				info.Timeleft -= static_cast<unsigned int>(std::chrono::duration_cast<std::chrono::milliseconds>(this->mLastFrametime).count());
+				info.Timeleft -= static_cast<unsigned int>(boost::chrono::duration_cast<boost::chrono::milliseconds>(this->mLastFrametime).count());
 
 				if (info.Timeleft <= 0)
 				{
@@ -363,9 +374,9 @@ namespace ReShade
 						}
 						else if (source == "frametime")
 						{
-							const unsigned int frametime = static_cast<unsigned int>(std::chrono::duration_cast<std::chrono::milliseconds>(this->mLastFrametime).count());
+							const unsigned int value = static_cast<unsigned int>(boost::chrono::duration_cast<boost::chrono::milliseconds>(frametime).count());
 
-							constant->SetValue(&frametime, 1);
+							constant->SetValue(&value, 1);
 						}
 						else if (source == "framecount" || source == "framecounter")
 						{
@@ -398,7 +409,7 @@ namespace ReShade
 						}
 						else if (source == "timer")
 						{
-							const unsigned long long timer = std::chrono::duration_cast<std::chrono::milliseconds>(this->mLastPresent.time_since_epoch()).count();
+							const unsigned long long timer = boost::chrono::duration_cast<boost::chrono::milliseconds>(this->mLastPresent.time_since_epoch()).count();
 
 							switch (constant->GetDescription().Type)
 							{
@@ -451,14 +462,11 @@ namespace ReShade
 			}
 		}
 
-		const auto time = std::chrono::high_resolution_clock::now();
-		const std::chrono::milliseconds frametime = std::chrono::duration_cast<std::chrono::milliseconds>(time - this->mLastPresent);
+		const auto timePostProcessing = boost::chrono::high_resolution_clock::now();
+		const boost::chrono::nanoseconds frametimePostProcessing = boost::chrono::duration_cast<boost::chrono::nanoseconds>(timePostProcessing - timePresent);
 
 		if (::GetAsyncKeyState(VK_SNAPSHOT) & 0x8000)
 		{
-			tm tm;
-			const time_t t = std::chrono::system_clock::to_time_t(time);
-			::localtime_s(&tm, &t);
 			char timeString[128];
 			std::strftime(timeString, 128, "%Y-%m-%d %H-%M-%S", &tm); 
 
@@ -489,44 +497,66 @@ namespace ReShade
 		{
 			nvgBeginFrame(this->mNVG, this->mWidth, this->mHeight, 1);
 
-			const std::chrono::seconds timeSinceStart = std::chrono::duration_cast<std::chrono::seconds>(time - this->mStartTime);
+			const boost::chrono::seconds timeSinceStart = boost::chrono::duration_cast<boost::chrono::seconds>(timePresent - this->mStartTime);
 
 			nvgFontFace(this->mNVG, "Courier");
+			nvgFontSize(this->mNVG, 16);
 			nvgTextAlign(this->mNVG, NVG_ALIGN_LEFT | NVG_ALIGN_TOP);
 
-			float bounds[4] = { 0, 0, 0, 0 };
+			float y = 0;
 
 			if (timeSinceStart.count() < 8)
 			{
-				std::string message = "ReShade by Crosire\nVersion " BOOST_STRINGIZE(VERSION_FULL);
-
-				if (!this->mMessage.empty())
-				{
-					message += "\n\n" + this->mMessage;
-				}
+				const std::string dots(timeSinceStart.count() % 4, '.');
 
 				nvgFillColor(this->mNVG, nvgRGB(255, 255, 255));
-				nvgTextBoxBounds(this->mNVG, 0, 0, static_cast<float>(this->mWidth), message.c_str(), nullptr, bounds);
-				nvgTextBox(this->mNVG, 0, 0, static_cast<float>(this->mWidth), message.c_str(), nullptr);
+				nvgText(this->mNVG, 0,  0, "Crosire's ReShade", nullptr);
+				nvgText(this->mNVG, 0, 16, ("Loading Version " BOOST_STRINGIZE(VERSION_FULL) " " + dots).c_str(), nullptr);
+
+				y += 36;
 			}
 			if (!this->mErrors.empty())
 			{
 				if (this->mEffect == nullptr)
 				{
 					nvgFillColor(this->mNVG, nvgRGB(255, 0, 0));
-					nvgTextBox(this->mNVG, 0, bounds[3], static_cast<float>(this->mWidth), ("ReShade failed to compile effect:\n\n" + this->mErrors).c_str(), nullptr);
+					nvgTextBox(this->mNVG, 0, y, static_cast<float>(this->mWidth), ("Failed to compile effect:\n\n" + this->mErrors).c_str(), nullptr);
 				}
 				else if (timeSinceStart.count() < 6)
 				{
 					nvgFillColor(this->mNVG, nvgRGB(255, 255, 0));
-					nvgTextBox(this->mNVG, 0, bounds[3], static_cast<float>(this->mWidth), ("ReShade successfully compiled effect with warnings:\n\n" + this->mErrors).c_str(), nullptr);
+					nvgTextBox(this->mNVG, 0, y, static_cast<float>(this->mWidth), ("Successfully compiled effect with warnings:\n\n" + this->mErrors).c_str(), nullptr);
+
+					float bounds[4] = { 0, 0, 0, 0 };
+					nvgTextBoxBounds(this->mNVG, 0, 0, static_cast<float>(this->mWidth), this->mErrors.c_str(), nullptr, bounds);
+					y += 48 + bounds[3];
 				}
+			}
+			if (timeSinceStart.count() < 8 && !this->mMessage.empty())
+			{
+				y += 16;
+
+				nvgFillColor(this->mNVG, nvgRGB(255, 255, 255));
+				nvgTextBox(this->mNVG, 0, y, static_cast<float>(this->mWidth), this->mMessage.c_str(), nullptr);
+			}
+
+			if (this->mShowStatistics)
+			{
+				std::string stats = "Statistics\n";
+				stats += "Date: " + std::to_string(static_cast<int>(date[0])) + '-' + std::to_string(static_cast<int>(date[1])) + '-' + std::to_string(static_cast<int>(date[2])) + ' ' + std::to_string(static_cast<int>(date[3])) + '\n';
+				stats += "FPS: " + std::to_string(1000 / std::max(boost::chrono::duration_cast<boost::chrono::milliseconds>(frametime).count(), 1LL)) + '\n';
+				stats += "Frame " + std::to_string(this->mLastFrameCount + 1) + ": " + std::to_string(frametime.count() * 10e-6f) + "ms" + '\n';
+				stats += "PostProcessing: " + std::to_string(frametimePostProcessing.count() * 10e-6f) + "ms" + '\n';
+
+				nvgTextAlign(this->mNVG, NVG_ALIGN_RIGHT | NVG_ALIGN_TOP);
+				nvgFillColor(this->mNVG, nvgRGB(255, 255, 255));
+				nvgTextBox(this->mNVG, 0, 0, static_cast<float>(this->mWidth), stats.c_str(), nullptr);
 			}
 
 			nvgEndFrame(this->mNVG);
 		}
 
-		this->mLastPresent = time;
+		this->mLastPresent = timePresent;
 		this->mLastFrametime = frametime;
 		this->mLastFrameCount++;
 	}
