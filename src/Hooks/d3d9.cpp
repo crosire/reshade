@@ -3,6 +3,7 @@
 #include "HookManager.hpp"
 
 #include <d3d9.h>
+#include <boost\noncopyable.hpp>
 
 #undef IDirect3D9_CreateDevice
 #undef IDirect3D9Ex_CreateDeviceEx
@@ -11,7 +12,7 @@
 
 namespace
 {
-	struct Direct3DDevice9 : public IDirect3DDevice9Ex
+	struct Direct3DDevice9 : public IDirect3DDevice9Ex, private boost::noncopyable
 	{
 		friend struct Direct3DSwapChain9;
 
@@ -161,7 +162,7 @@ namespace
 		IDirect3DDevice9 *mOrig;
 		Direct3DSwapChain9 *mImplicitSwapChain;
 	};
-	struct Direct3DSwapChain9 : public IDirect3DSwapChain9Ex
+	struct Direct3DSwapChain9 : public IDirect3DSwapChain9Ex, private boost::noncopyable
 	{
 		friend struct Direct3DDevice9;
 
@@ -199,6 +200,8 @@ namespace
 				__declspec(thread) static CHAR buf[20];
 				sprintf_s(buf, "0x%lx", hr);
 				return buf;
+			case E_INVALIDARG:
+				return "E_INVALIDARG";
 			case D3DERR_NOTAVAILABLE:
 				return "D3DERR_NOTAVAILABLE";
 			case D3DERR_INVALIDCALL:
@@ -226,7 +229,7 @@ namespace ReShade
 // IDirect3DSwapChain9
 HRESULT STDMETHODCALLTYPE Direct3DSwapChain9::QueryInterface(REFIID riid, void **ppvObj)
 {
-	HRESULT hr = this->mOrig->QueryInterface(riid, ppvObj);
+	const HRESULT hr = this->mOrig->QueryInterface(riid, ppvObj);
 
 	if (SUCCEEDED(hr) && (riid == __uuidof(IUnknown) || riid == __uuidof(IDirect3DSwapChain9) || riid == __uuidof(IDirect3DSwapChain9Ex)))
 	{
@@ -239,7 +242,7 @@ HRESULT STDMETHODCALLTYPE Direct3DSwapChain9::QueryInterface(REFIID riid, void *
 }
 ULONG STDMETHODCALLTYPE Direct3DSwapChain9::AddRef()
 {
-	this->mRef++;
+	++this->mRef;
 
 	return this->mOrig->AddRef();
 }
@@ -253,7 +256,7 @@ ULONG STDMETHODCALLTYPE Direct3DSwapChain9::Release()
 		this->mRuntime.reset();
 	}
 
-	ULONG ref = this->mOrig->Release();
+	const ULONG ref = this->mOrig->Release();
 			
 	if (ref == 0)
 	{
@@ -321,7 +324,7 @@ HRESULT STDMETHODCALLTYPE Direct3DSwapChain9::GetDisplayModeEx(D3DDISPLAYMODEEX 
 // IDirect3DDevice9
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::QueryInterface(REFIID riid, void **ppvObj)
 {
-	HRESULT hr = this->mOrig->QueryInterface(riid, ppvObj);
+	const HRESULT hr = this->mOrig->QueryInterface(riid, ppvObj);
 
 	if (SUCCEEDED(hr) && (riid == __uuidof(IUnknown) || riid == __uuidof(IDirect3DDevice9) || riid == __uuidof(IDirect3DDevice9Ex)))
 	{
@@ -334,7 +337,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::QueryInterface(REFIID riid, void **pp
 }
 ULONG STDMETHODCALLTYPE Direct3DDevice9::AddRef()
 {
-	this->mRef++;
+	++this->mRef;
 
 	return this->mOrig->AddRef();
 }
@@ -348,7 +351,7 @@ ULONG STDMETHODCALLTYPE Direct3DDevice9::Release()
 		this->mImplicitSwapChain = nullptr;
 	}
 
-	ULONG ref = this->mOrig->Release();
+	const ULONG ref = this->mOrig->Release();
 			
 	if (ref == 0)
 	{
@@ -399,7 +402,32 @@ BOOL STDMETHODCALLTYPE Direct3DDevice9::ShowCursor(BOOL bShow)
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateAdditionalSwapChain(D3DPRESENT_PARAMETERS *pPresentationParameters, IDirect3DSwapChain9 **ppSwapChain)
 {
-	HRESULT hr = this->mOrig->CreateAdditionalSwapChain(pPresentationParameters, ppSwapChain);
+	if (pPresentationParameters == nullptr)
+	{
+		return D3DERR_INVALIDCALL;
+	}
+
+	D3DPRESENT_PARAMETERS pp = *pPresentationParameters;
+
+	switch (pp.BackBufferFormat)
+	{
+		case D3DFMT_UNKNOWN:
+		case D3DFMT_X8R8G8B8:
+		case D3DFMT_A8R8G8B8:
+			break;
+		default:
+			LOG(ERROR) << "> Format " << pp.BackBufferFormat << " is not currently supported.";
+			return DXGI_ERROR_INVALID_CALL;
+	}
+
+	if (pp.SwapEffect != D3DSWAPEFFECT_COPY && pp.PresentationInterval != D3DPRESENT_INTERVAL_IMMEDIATE && pp.BackBufferCount < 2)
+	{
+		LOG(WARNING) << "> Forcing tripple buffering.";
+
+		pPresentationParameters->BackBufferCount = 2;
+	}
+
+	const HRESULT hr = this->mOrig->CreateAdditionalSwapChain(pPresentationParameters, ppSwapChain);
 
 	if (SUCCEEDED(hr))
 	{
@@ -410,7 +438,6 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateAdditionalSwapChain(D3DPRESENT_
 		
 		if (runtime != nullptr)
 		{
-			D3DPRESENT_PARAMETERS pp;
 			swapchain->GetPresentParameters(&pp);
 
 			runtime->OnCreate(pp.BackBufferWidth, pp.BackBufferHeight);
@@ -431,10 +458,12 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateAdditionalSwapChain(D3DPRESENT_
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetSwapChain(UINT iSwapChain, IDirect3DSwapChain9 **ppSwapChain)
 {
-	if (ppSwapChain == nullptr || iSwapChain > 0)
+	if (ppSwapChain == nullptr || iSwapChain != 0)
 	{
 		return D3DERR_INVALIDCALL;
 	}
+
+	assert(this->mImplicitSwapChain != nullptr);
 			
 	this->mImplicitSwapChain->AddRef();
 
@@ -442,7 +471,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetSwapChain(UINT iSwapChain, IDirect
 
 	return D3D_OK;
 }
-UINT STDMETHODCALLTYPE 	Direct3DDevice9::GetNumberOfSwapChains()
+UINT STDMETHODCALLTYPE Direct3DDevice9::GetNumberOfSwapChains()
 {
 	return 1;
 }
@@ -455,7 +484,20 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Reset(D3DPRESENT_PARAMETERS *pPresent
 		return D3DERR_INVALIDCALL;
 	}
 
-	if (pPresentationParameters->SwapEffect != D3DSWAPEFFECT_COPY && pPresentationParameters->PresentationInterval != D3DPRESENT_INTERVAL_IMMEDIATE && pPresentationParameters->BackBufferCount < 2)
+	D3DPRESENT_PARAMETERS pp = *pPresentationParameters;
+
+	switch (pp.BackBufferFormat)
+	{
+		case D3DFMT_UNKNOWN:
+		case D3DFMT_X8R8G8B8:
+		case D3DFMT_A8R8G8B8:
+			break;
+		default:
+			LOG(ERROR) << "> Format " << pp.BackBufferFormat << " is not currently supported.";
+			return DXGI_ERROR_INVALID_CALL;
+	}
+
+	if (pp.SwapEffect != D3DSWAPEFFECT_COPY && pp.PresentationInterval != D3DPRESENT_INTERVAL_IMMEDIATE && pp.BackBufferCount < 2)
 	{
 		LOG(WARNING) << "> Forcing tripple buffering.";
 
@@ -469,14 +511,13 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Reset(D3DPRESENT_PARAMETERS *pPresent
 
 	runtime->OnDelete();
 
-	HRESULT hr = this->mOrig->Reset(pPresentationParameters);
+	const HRESULT hr = this->mOrig->Reset(pPresentationParameters);
 
 	if (SUCCEEDED(hr))
 	{
-		D3DDISPLAYMODE mode;
-		this->mOrig->GetDisplayMode(0, &mode);
+		this->mImplicitSwapChain->GetPresentParameters(&pp);
 
-		runtime->OnCreate(mode.Width, mode.Height);
+		runtime->OnCreate(pp.BackBufferWidth, pp.BackBufferHeight);
 	}
 	else
 	{
@@ -498,7 +539,14 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Present(const RECT *pSourceRect, cons
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetBackBuffer(UINT iSwapChain, UINT iBackBuffer, D3DBACKBUFFER_TYPE Type, IDirect3DSurface9 **ppBackBuffer)
 {
-	return this->mOrig->GetBackBuffer(iSwapChain, iBackBuffer, Type, ppBackBuffer);
+	if (iSwapChain != 0)
+	{
+		return D3DERR_INVALIDCALL;
+	}
+
+	assert(this->mImplicitSwapChain != nullptr);
+
+	return this->mImplicitSwapChain->GetBackBuffer(iBackBuffer, Type, ppBackBuffer);
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetRasterStatus(UINT iSwapChain, D3DRASTER_STATUS *pRasterStatus)
 {
@@ -970,7 +1018,20 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ResetEx(D3DPRESENT_PARAMETERS *pPrese
 		return D3DERR_INVALIDCALL;
 	}
 
-	if (pPresentationParameters->SwapEffect != D3DSWAPEFFECT_COPY && pPresentationParameters->PresentationInterval != D3DPRESENT_INTERVAL_IMMEDIATE && pPresentationParameters->BackBufferCount < 2)
+	D3DPRESENT_PARAMETERS pp = *pPresentationParameters;
+
+	switch (pp.BackBufferFormat)
+	{
+		case D3DFMT_UNKNOWN:
+		case D3DFMT_X8R8G8B8:
+		case D3DFMT_A8R8G8B8:
+			break;
+		default:
+			LOG(ERROR) << "> Format " << pp.BackBufferFormat << " is not currently supported.";
+			return DXGI_ERROR_INVALID_CALL;
+	}
+
+	if (pp.SwapEffect != D3DSWAPEFFECT_COPY && pp.PresentationInterval != D3DPRESENT_INTERVAL_IMMEDIATE && pp.BackBufferCount < 2)
 	{
 		LOG(WARNING) << "> Forcing tripple buffering.";
 
@@ -984,14 +1045,13 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ResetEx(D3DPRESENT_PARAMETERS *pPrese
 
 	runtime->OnDelete();
 
-	HRESULT hr = static_cast<IDirect3DDevice9Ex *>(this->mOrig)->ResetEx(pPresentationParameters, pFullscreenDisplayMode);
+	const HRESULT hr = static_cast<IDirect3DDevice9Ex *>(this->mOrig)->ResetEx(pPresentationParameters, pFullscreenDisplayMode);
 
 	if (SUCCEEDED(hr))
 	{
-		D3DDISPLAYMODE mode;
-		this->mOrig->GetDisplayMode(0, &mode);
+		this->mImplicitSwapChain->GetPresentParameters(&pp);
 
-		runtime->OnCreate(mode.Width, mode.Height);
+		runtime->OnCreate(pp.BackBufferWidth, pp.BackBufferHeight);
 	}
 	else
 	{
@@ -1015,14 +1075,27 @@ HRESULT STDMETHODCALLTYPE IDirect3D9_CreateDevice(IDirect3D9 *pD3D, UINT Adapter
 		return D3DERR_INVALIDCALL;
 	}
 
-	if (pPresentationParameters->SwapEffect != D3DSWAPEFFECT_COPY && pPresentationParameters->PresentationInterval != D3DPRESENT_INTERVAL_IMMEDIATE && pPresentationParameters->BackBufferCount < 2)
+	D3DPRESENT_PARAMETERS pp = *pPresentationParameters;
+
+	switch (pp.BackBufferFormat)
+	{
+		case D3DFMT_UNKNOWN:
+		case D3DFMT_X8R8G8B8:
+		case D3DFMT_A8R8G8B8:
+			break;
+		default:
+			LOG(ERROR) << "> Format " << pp.BackBufferFormat << " is not currently supported.";
+			return DXGI_ERROR_INVALID_CALL;
+	}
+
+	if (pp.SwapEffect != D3DSWAPEFFECT_COPY && pp.PresentationInterval != D3DPRESENT_INTERVAL_IMMEDIATE && pp.BackBufferCount < 2)
 	{
 		LOG(WARNING) << "> Forcing tripple buffering.";
 
 		pPresentationParameters->BackBufferCount = 2;
 	}
 
-	HRESULT hr = ReHook::Call(&IDirect3D9_CreateDevice)(pD3D, Adapter, DeviceType, hFocusWindow, BehaviorFlags, pPresentationParameters, ppReturnedDeviceInterface);
+	const HRESULT hr = ReHook::Call(&IDirect3D9_CreateDevice)(pD3D, Adapter, DeviceType, hFocusWindow, BehaviorFlags, pPresentationParameters, ppReturnedDeviceInterface);
 
 	if (SUCCEEDED(hr))
 	{
@@ -1036,7 +1109,6 @@ HRESULT STDMETHODCALLTYPE IDirect3D9_CreateDevice(IDirect3D9 *pD3D, UINT Adapter
 		
 		if (runtime != nullptr)
 		{
-			D3DPRESENT_PARAMETERS pp;
 			swapchain->GetPresentParameters(&pp);
 			
 			runtime->OnCreate(pp.BackBufferWidth, pp.BackBufferHeight);
@@ -1072,14 +1144,27 @@ HRESULT STDMETHODCALLTYPE IDirect3D9Ex_CreateDeviceEx(IDirect3D9Ex *pD3D, UINT A
 		return D3DERR_INVALIDCALL;
 	}
 
-	if (pPresentationParameters->SwapEffect != D3DSWAPEFFECT_COPY && pPresentationParameters->PresentationInterval != D3DPRESENT_INTERVAL_IMMEDIATE && pPresentationParameters->BackBufferCount < 2)
+	D3DPRESENT_PARAMETERS pp = *pPresentationParameters;
+
+	switch (pp.BackBufferFormat)
+	{
+		case D3DFMT_UNKNOWN:
+		case D3DFMT_X8R8G8B8:
+		case D3DFMT_A8R8G8B8:
+			break;
+		default:
+			LOG(ERROR) << "> Format " << pp.BackBufferFormat << " is not currently supported.";
+			return DXGI_ERROR_INVALID_CALL;
+	}
+
+	if (pp.SwapEffect != D3DSWAPEFFECT_COPY && pp.PresentationInterval != D3DPRESENT_INTERVAL_IMMEDIATE && pp.BackBufferCount < 2)
 	{
 		LOG(WARNING) << "> Forcing tripple buffering.";
 
 		pPresentationParameters->BackBufferCount = 2;
 	}
 
-	HRESULT hr = ReHook::Call(&IDirect3D9Ex_CreateDeviceEx)(pD3D, Adapter, DeviceType, hFocusWindow, BehaviorFlags, pPresentationParameters, pFullscreenDisplayMode, ppReturnedDeviceInterface);
+	const HRESULT hr = ReHook::Call(&IDirect3D9Ex_CreateDeviceEx)(pD3D, Adapter, DeviceType, hFocusWindow, BehaviorFlags, pPresentationParameters, pFullscreenDisplayMode, ppReturnedDeviceInterface);
 
 	if (SUCCEEDED(hr))
 	{
@@ -1093,7 +1178,6 @@ HRESULT STDMETHODCALLTYPE IDirect3D9Ex_CreateDeviceEx(IDirect3D9Ex *pD3D, UINT A
 		
 		if (runtime != nullptr)
 		{
-			D3DPRESENT_PARAMETERS pp;
 			swapchain->GetPresentParameters(&pp);
 
 			runtime->OnCreate(pp.BackBufferWidth, pp.BackBufferHeight);
@@ -1182,7 +1266,7 @@ EXPORT HRESULT WINAPI Direct3DCreate9Ex(UINT SDKVersion, IDirect3D9Ex **ppD3D)
 {
 	LOG(INFO) << "Redirecting '" << "Direct3DCreate9Ex" << "(" << SDKVersion << ", " << ppD3D << ")' ...";
 
-	HRESULT hr = ReHook::Call(&Direct3DCreate9Ex)(SDKVersion, ppD3D);
+	const HRESULT hr = ReHook::Call(&Direct3DCreate9Ex)(SDKVersion, ppD3D);
 
 	if (SUCCEEDED(hr))
 	{

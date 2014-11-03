@@ -5,12 +5,13 @@
 #include <dxgi.h>
 #include <dxgi1_2.h>
 #include <d3d11.h>
+#include <boost\noncopyable.hpp>
 
 // -----------------------------------------------------------------------------------------------------
 
 namespace
 {
-	struct DXGISwapChain : public IDXGISwapChain1
+	struct DXGISwapChain : public IDXGISwapChain1, private boost::noncopyable
 	{
 		DXGISwapChain(IDXGIFactory *pFactory, IDXGISwapChain *pOriginalSwapChain, const std::shared_ptr<ReShade::Runtime> runtime) : mRef(1), mFactory(pFactory), mOrig(pOriginalSwapChain), mRuntime(runtime)
 		{
@@ -82,7 +83,7 @@ namespace ReShade
 // IDXGISwapChain
 HRESULT STDMETHODCALLTYPE DXGISwapChain::QueryInterface(REFIID riid, void **ppvObj)
 {
-	HRESULT hr = this->mOrig->QueryInterface(riid, ppvObj);
+	const HRESULT hr = this->mOrig->QueryInterface(riid, ppvObj);
 
 	if (SUCCEEDED(hr) && (riid == __uuidof(IUnknown) || riid == __uuidof(IDXGIObject) || riid == __uuidof(IDXGIDeviceSubObject) || riid == __uuidof(IDXGISwapChain) || riid == __uuidof(IDXGISwapChain1)))
 	{
@@ -95,7 +96,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::QueryInterface(REFIID riid, void **ppvO
 }
 ULONG STDMETHODCALLTYPE DXGISwapChain::AddRef()
 {
-	this->mRef++;
+	++this->mRef;
 
 	return this->mOrig->AddRef();
 }
@@ -109,7 +110,7 @@ ULONG STDMETHODCALLTYPE DXGISwapChain::Release()
 		this->mRuntime.reset();
 	}
 
-	ULONG ref = this->mOrig->Release();
+	const ULONG ref = this->mOrig->Release();
 
 	if (ref == 0)
 	{
@@ -184,7 +185,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Wi
 
 	this->mRuntime->OnDelete();
 
-	HRESULT hr = this->mOrig->ResizeBuffers(BufferCount, Width, Height, NewFormat, SwapChainFlags);
+	const HRESULT hr = this->mOrig->ResizeBuffers(BufferCount, Width, Height, NewFormat, SwapChainFlags);
 
 	if (SUCCEEDED(hr) || hr == DXGI_ERROR_INVALID_CALL)
 	{
@@ -247,7 +248,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::Present1(UINT SyncInterval, UINT Presen
 
 	return static_cast<IDXGISwapChain1 *>(this->mOrig)->Present1(SyncInterval, PresentFlags, pPresentParameters);
 }
-BOOL STDMETHODCALLTYPE 	DXGISwapChain::IsTemporaryMonoSupported()
+BOOL STDMETHODCALLTYPE DXGISwapChain::IsTemporaryMonoSupported()
 {
 	return static_cast<IDXGISwapChain1 *>(this->mOrig)->IsTemporaryMonoSupported();
 }
@@ -302,7 +303,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, I
 			return DXGI_ERROR_INVALID_CALL;
 	}
 
-	HRESULT hr = ReHook::Call(&IDXGIFactory_CreateSwapChain)(pFactory, pDevice, &desc, ppSwapChain);
+	const HRESULT hr = ReHook::Call(&IDXGIFactory_CreateSwapChain)(pFactory, pDevice, &desc, ppSwapChain);
 
 	if (SUCCEEDED(hr))
 	{
@@ -398,7 +399,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pF
 			return DXGI_ERROR_INVALID_CALL;
 	}
 
-	HRESULT hr = ReHook::Call(&IDXGIFactory2_CreateSwapChainForHwnd)(pFactory, pDevice, hWnd, &desc, pFullscreenDesc, pRestrictToOutput, ppSwapChain);
+	const HRESULT hr = ReHook::Call(&IDXGIFactory2_CreateSwapChainForHwnd)(pFactory, pDevice, hWnd, &desc, pFullscreenDesc, pRestrictToOutput, ppSwapChain);
 
 	if (SUCCEEDED(hr))
 	{
@@ -492,7 +493,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactor
 			return DXGI_ERROR_INVALID_CALL;
 	}
 
-	HRESULT hr = ReHook::Call(&IDXGIFactory2_CreateSwapChainForCoreWindow)(pFactory, pDevice, pWindow, &desc, pRestrictToOutput, ppSwapChain);
+	const HRESULT hr = ReHook::Call(&IDXGIFactory2_CreateSwapChainForCoreWindow)(pFactory, pDevice, pWindow, &desc, pRestrictToOutput, ppSwapChain);
 
 	if (SUCCEEDED(hr))
 	{
@@ -586,7 +587,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFacto
 			return DXGI_ERROR_INVALID_CALL;
 	}
 
-	HRESULT hr = ReHook::Call(&IDXGIFactory2_CreateSwapChainForComposition)(pFactory, pDevice, &desc, pRestrictToOutput, ppSwapChain);
+	const HRESULT hr = ReHook::Call(&IDXGIFactory2_CreateSwapChainForComposition)(pFactory, pDevice, &desc, pRestrictToOutput, ppSwapChain);
 
 	if (SUCCEEDED(hr))
 	{
@@ -1002,7 +1003,7 @@ EXPORT HRESULT WINAPI CreateDXGIFactory(REFIID riid, void **ppFactory)
 
 	LOG(INFO) << "Redirecting '" << "CreateDXGIFactory" << "(" << guid << ", " << ppFactory << ")' ...";
 	
-	HRESULT hr = ReHook::Call(&CreateDXGIFactory)(riid, ppFactory);
+	const HRESULT hr = ReHook::Call(&CreateDXGIFactory)(riid, ppFactory);
 
 	if (SUCCEEDED(hr))
 	{
@@ -1022,7 +1023,7 @@ EXPORT HRESULT WINAPI CreateDXGIFactory1(REFIID riid, void **ppFactory)
 
 	LOG(INFO) << "Redirecting '" << "CreateDXGIFactory1" << "(" << guid << ", " << ppFactory << ")' ...";
 
-	HRESULT hr = ReHook::Call(&CreateDXGIFactory1)(riid, ppFactory);
+	const HRESULT hr = ReHook::Call(&CreateDXGIFactory1)(riid, ppFactory);
 
 	if (SUCCEEDED(hr))
 	{
@@ -1042,7 +1043,7 @@ EXPORT HRESULT WINAPI CreateDXGIFactory2(UINT flags, REFIID riid, void **ppFacto
 
 	LOG(INFO) << "Redirecting '" << "CreateDXGIFactory2" << "(" << flags << ", " << guid << ", " << ppFactory << ")' ...";
 
-	HRESULT hr = ReHook::Call(&CreateDXGIFactory2)(flags, riid, ppFactory);
+	const HRESULT hr = ReHook::Call(&CreateDXGIFactory2)(flags, riid, ppFactory);
 
 	if (SUCCEEDED(hr))
 	{

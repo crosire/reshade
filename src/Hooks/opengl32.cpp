@@ -5,77 +5,14 @@
 #include <gl\gl.h>
 #include <unordered_map>
 
-#undef glBindTexture
-#undef glBlendFunc
-#undef glClear
-#undef glClearColor
-#undef glClearDepth
-#undef glClearStencil
-#undef glColorMask
-#undef glCopyTexImage1D
-#undef glCopyTexImage2D
-#undef glCopyTexSubImage1D
-#undef glCopyTexSubImage2D
-#undef glCullFace
-#undef glDeleteTextures
-#undef glDepthFunc
-#undef glDepthMask
-#undef glDepthRange
-#undef glDisable
-#undef glDrawArrays
-#undef glDrawBuffer
-#undef glDrawElements
-#undef glEnable
-#undef glFinish
-#undef glFlush
-#undef glFrontFace
-#undef glGenTextures
-#undef glGetBooleanv
-#undef glGetDoublev
-#undef glGetFloatv
-#undef glGetIntegerv
-#undef glGetError
-#undef glGetPointerv
-#undef glGetString
-#undef glGetTexImage
-#undef glGetTexLevelParameterfv
-#undef glGetTexLevelParameteriv
-#undef glGetTexParameterfv
-#undef glGetTexParameteriv
-#undef glHint
-#undef glIsEnabled
-#undef glIsTexture
-#undef glLineWidth
-#undef glLogicOp
-#undef glPixelStoref
-#undef glPixelStorei
-#undef glPointSize
-#undef glPolygonMode
-#undef glPolygonOffset
-#undef glReadBuffer
-#undef glReadPixels
-#undef glScissor
-#undef glStencilFunc
-#undef glStencilMask
-#undef glStencilOp
-#undef glTexImage1D
-#undef glTexImage2D
-#undef glTexParameterf
-#undef glTexParameterfv
-#undef glTexParameteri
-#undef glTexParameteriv
-#undef glTexSubImage1D
-#undef glTexSubImage2D
-#undef glViewport
-
 // -----------------------------------------------------------------------------------------------------
 
 namespace
 {
-	class														CriticalSection
+	class CriticalSection
 	{
 	public:
-		struct													Lock
+		struct Lock
 		{
 			inline Lock(CriticalSection &cs) : CS(cs)
 			{
@@ -141,19 +78,6 @@ EXPORT void WINAPI glAccum(GLenum op, GLfloat value)
 EXPORT void WINAPI glAlphaFunc(GLenum func, GLclampf ref)
 {
 	static const auto trampoline = ReHook::Call(&glAlphaFunc);
-
-	static GLenum lfunc = GL_ALWAYS;
-	static GLclampf lref = 0;
-
-	if (func == lfunc && ref == lref)
-	{
-		return;
-	}
-	else
-	{
-		lfunc = func;
-		lref = ref;
-	}
 
 	trampoline(func, ref);
 }
@@ -851,20 +775,7 @@ EXPORT const GLubyte *WINAPI glGetString(GLenum name)
 {
 	static const auto trampoline = ReHook::Call(&glGetString);
 
-	const GLubyte *res = trampoline(name);
-
-	if (res == nullptr)
-	{
-		return nullptr;
-	}
-
-	if (name == GL_RENDERER)
-	{
-		static const std::basic_string<GLubyte> renderer = res + std::basic_string<GLubyte>(reinterpret_cast<const GLubyte *>(" + ReShade"));
-		res = renderer.c_str();
-	}
-
-	return res;
+	return trampoline(name);
 }
 EXPORT void WINAPI glGetTexEnvfv(GLenum target, GLenum pname, GLfloat *params)
 {
@@ -2190,62 +2101,62 @@ EXPORT BOOL WINAPI wglChoosePixelFormatARB(HDC hdc, const int *piAttribIList, co
 {
 	LOG(INFO) << "Redirecting '" << "wglChoosePixelFormatARB" << "(" << hdc << ", " << piAttribIList << ", " << pfAttribFList << ", " << nMaxFormats << ", " << piFormats << ", " << nNumFormats << ")' ...";
 	
-	struct														Attrib
+	struct Attrib
 	{
-		enum													Names
+		enum Names
 		{
-			WGL_NUMBER_PIXEL_FORMATS_ARB						= 0x2000,
-			WGL_DRAW_TO_WINDOW_ARB								= 0x2001,
-			WGL_DRAW_TO_BITMAP_ARB								= 0x2002,
-			WGL_ACCELERATION_ARB								= 0x2003,
-			WGL_NEED_PALETTE_ARB								= 0x2004,
-			WGL_NEED_SYSTEM_PALETTE_ARB							= 0x2005,
-			WGL_SWAP_LAYER_BUFFERS_ARB							= 0x2006,
-			WGL_SWAP_METHOD_ARB									= 0x2007,
-			WGL_NUMBER_OVERLAYS_ARB								= 0x2008,
-			WGL_NUMBER_UNDERLAYS_ARB							= 0x2009,
-			WGL_TRANSPARENT_ARB									= 0x200A,
-			WGL_TRANSPARENT_RED_VALUE_ARB						= 0x2037,
-			WGL_TRANSPARENT_GREEN_VALUE_ARB						= 0x2038,
-			WGL_TRANSPARENT_BLUE_VALUE_ARB						= 0x2039,
-			WGL_TRANSPARENT_ALPHA_VALUE_ARB						= 0x203A,
-			WGL_TRANSPARENT_INDEX_VALUE_ARB						= 0x203B,
-			WGL_SHARE_DEPTH_ARB									= 0x200C,
-			WGL_SHARE_STENCIL_ARB								= 0x200D,
-			WGL_SHARE_ACCUM_ARB									= 0x200E,
-			WGL_SUPPORT_GDI_ARB									= 0x200F,
-			WGL_SUPPORT_OPENGL_ARB								= 0x2010,
-			WGL_DOUBLE_BUFFER_ARB								= 0x2011,
-			WGL_STEREO_ARB										= 0x2012,
-			WGL_PIXEL_TYPE_ARB									= 0x2013,
-			WGL_COLOR_BITS_ARB									= 0x2014,
-			WGL_RED_BITS_ARB									= 0x2015,
-			WGL_RED_SHIFT_ARB									= 0x2016,
-			WGL_GREEN_BITS_ARB									= 0x2017,
-			WGL_GREEN_SHIFT_ARB									= 0x2018,
-			WGL_BLUE_BITS_ARB									= 0x2019,
-			WGL_BLUE_SHIFT_ARB									= 0x201A,
-			WGL_ALPHA_BITS_ARB									= 0x201B,
-			WGL_ALPHA_SHIFT_ARB									= 0x201C,
-			WGL_ACCUM_BITS_ARB									= 0x201D,
-			WGL_ACCUM_RED_BITS_ARB								= 0x201E,
-			WGL_ACCUM_GREEN_BITS_ARB							= 0x201F,
-			WGL_ACCUM_BLUE_BITS_ARB								= 0x2020,
-			WGL_ACCUM_ALPHA_BITS_ARB							= 0x2021,
-			WGL_DEPTH_BITS_ARB									= 0x2022,
-			WGL_STENCIL_BITS_ARB								= 0x2023,
-			WGL_AUX_BUFFERS_ARB									= 0x2024,
+			WGL_NUMBER_PIXEL_FORMATS_ARB = 0x2000,
+			WGL_DRAW_TO_WINDOW_ARB = 0x2001,
+			WGL_DRAW_TO_BITMAP_ARB = 0x2002,
+			WGL_ACCELERATION_ARB = 0x2003,
+			WGL_NEED_PALETTE_ARB = 0x2004,
+			WGL_NEED_SYSTEM_PALETTE_ARB = 0x2005,
+			WGL_SWAP_LAYER_BUFFERS_ARB = 0x2006,
+			WGL_SWAP_METHOD_ARB = 0x2007,
+			WGL_NUMBER_OVERLAYS_ARB = 0x2008,
+			WGL_NUMBER_UNDERLAYS_ARB = 0x2009,
+			WGL_TRANSPARENT_ARB = 0x200A,
+			WGL_TRANSPARENT_RED_VALUE_ARB = 0x2037,
+			WGL_TRANSPARENT_GREEN_VALUE_ARB = 0x2038,
+			WGL_TRANSPARENT_BLUE_VALUE_ARB = 0x2039,
+			WGL_TRANSPARENT_ALPHA_VALUE_ARB = 0x203A,
+			WGL_TRANSPARENT_INDEX_VALUE_ARB = 0x203B,
+			WGL_SHARE_DEPTH_ARB = 0x200C,
+			WGL_SHARE_STENCIL_ARB = 0x200D,
+			WGL_SHARE_ACCUM_ARB = 0x200E,
+			WGL_SUPPORT_GDI_ARB = 0x200F,
+			WGL_SUPPORT_OPENGL_ARB = 0x2010,
+			WGL_DOUBLE_BUFFER_ARB = 0x2011,
+			WGL_STEREO_ARB = 0x2012,
+			WGL_PIXEL_TYPE_ARB = 0x2013,
+			WGL_COLOR_BITS_ARB = 0x2014,
+			WGL_RED_BITS_ARB = 0x2015,
+			WGL_RED_SHIFT_ARB = 0x2016,
+			WGL_GREEN_BITS_ARB = 0x2017,
+			WGL_GREEN_SHIFT_ARB = 0x2018,
+			WGL_BLUE_BITS_ARB = 0x2019,
+			WGL_BLUE_SHIFT_ARB = 0x201A,
+			WGL_ALPHA_BITS_ARB = 0x201B,
+			WGL_ALPHA_SHIFT_ARB = 0x201C,
+			WGL_ACCUM_BITS_ARB = 0x201D,
+			WGL_ACCUM_RED_BITS_ARB = 0x201E,
+			WGL_ACCUM_GREEN_BITS_ARB = 0x201F,
+			WGL_ACCUM_BLUE_BITS_ARB = 0x2020,
+			WGL_ACCUM_ALPHA_BITS_ARB = 0x2021,
+			WGL_DEPTH_BITS_ARB = 0x2022,
+			WGL_STENCIL_BITS_ARB = 0x2023,
+			WGL_AUX_BUFFERS_ARB = 0x2024,
 		};
-		enum													Values
+		enum Values
 		{
-			WGL_NO_ACCELERATION_ARB								= 0x2025,
-			WGL_GENERIC_ACCELERATION_ARB						= 0x2026,
-			WGL_FULL_ACCELERATION_ARB							= 0x2027,
-			WGL_SWAP_EXCHANGE_ARB								= 0x2028,
-			WGL_SWAP_COPY_ARB									= 0x2029,
-			WGL_SWAP_UNDEFINED_ARB								= 0x202A,
-			WGL_TYPE_RGBA_ARB									= 0x202B,
-			WGL_TYPE_COLORINDEX_ARB								= 0x202C,
+			WGL_NO_ACCELERATION_ARB = 0x2025,
+			WGL_GENERIC_ACCELERATION_ARB = 0x2026,
+			WGL_FULL_ACCELERATION_ARB = 0x2027,
+			WGL_SWAP_EXCHANGE_ARB = 0x2028,
+			WGL_SWAP_COPY_ARB = 0x2029,
+			WGL_SWAP_UNDEFINED_ARB = 0x202A,
+			WGL_TYPE_RGBA_ARB = 0x202B,
+			WGL_TYPE_COLORINDEX_ARB = 0x202C,
 		};
 	};
 
@@ -2273,7 +2184,7 @@ EXPORT BOOL WINAPI wglChoosePixelFormatARB(HDC hdc, const int *piAttribIList, co
 
 	if (!ReHook::Call(&wglChoosePixelFormatARB)(hdc, piAttribIList, pfAttribFList, nMaxFormats, piFormats, nNumFormats))
 	{
-		LOG(WARNING) << "> 'wglChoosePixelFormatARB' failed with '" << ::GetLastError() << "'!";
+		LOG(WARNING) << "> 'wglChoosePixelFormatARB' failed with '" << GetLastError() << "'!";
 
 		return FALSE;
 	}
@@ -2309,7 +2220,7 @@ EXPORT HGLRC WINAPI wglCreateContext(HDC hdc)
 	}
 	else
 	{
-		LOG(WARNING) << "> 'wglCreateContext' failed with '" << ::GetLastError() << "'!";
+		LOG(WARNING) << "> 'wglCreateContext' failed with '" << GetLastError() << "'!";
 	}
 
 	return hglrc;
@@ -2403,7 +2314,7 @@ EXPORT HGLRC WINAPI wglCreateContextAttribsARB(HDC hdc, HGLRC hShareContext, con
 	}
 	else
 	{
-		LOG(WARNING) << "> 'wglCreateContextAttribsARB' failed with '" << ::GetLastError() << "'!";
+		LOG(WARNING) << "> 'wglCreateContextAttribsARB' failed with '" << GetLastError() << "'!";
 	}
 
 	return hglrc;
@@ -2426,7 +2337,11 @@ EXPORT BOOL WINAPI wglDeleteContext(HGLRC hglrc)
 	{
 		ReHook::Call(&wglMakeCurrent)(sDeviceContexts.at(hglrc), hglrc);
 
-		it->second->OnDelete();
+		if (it->second != nullptr)
+		{
+			it->second->OnDelete();
+		}
+
 		sManagers.erase(it);
 
 		ReHook::Call(&wglMakeCurrent)(sCurrentDeviceContext, sCurrentRenderContext);
@@ -2436,7 +2351,7 @@ EXPORT BOOL WINAPI wglDeleteContext(HGLRC hglrc)
 
 	if (!ReHook::Call(&wglDeleteContext)(hglrc))
 	{
-		LOG(WARNING) << "> 'wglDeleteContext' failed with '" << ::GetLastError() << "'!";
+		LOG(WARNING) << "> 'wglDeleteContext' failed with '" << GetLastError() << "'!";
 
 		return FALSE;
 	}
@@ -2504,7 +2419,7 @@ EXPORT BOOL WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 
 	if (!trampoline(hdc, hglrc))
 	{
-		LOG(WARNING) << "> 'wglMakeCurrent' failed with '" << ::GetLastError() << "'!";
+		LOG(WARNING) << "> 'wglMakeCurrent' failed with '" << GetLastError() << "'!";
 
 		return FALSE;
 	}
@@ -2525,7 +2440,7 @@ EXPORT BOOL WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 	}
 	else
 	{
-		const HWND hwnd = ::WindowFromDC(hdc);
+		const HWND hwnd = WindowFromDC(hdc);
 
 		if (hwnd == nullptr)
 		{
@@ -2535,7 +2450,7 @@ EXPORT BOOL WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 		}
 
 		RECT rect;
-		::GetClientRect(hwnd, &rect);
+		GetClientRect(hwnd, &rect);
 		const LONG width = rect.right - rect.left, height = rect.bottom - rect.top;
 
 		LOG(INFO) << "> Initial size is " << width << "x" << height << ".";
@@ -2574,7 +2489,7 @@ EXPORT BOOL WINAPI wglSetPixelFormat(HDC hdc, int iPixelFormat, CONST PIXELFORMA
 
 	if (!ReHook::Call(&wglSetPixelFormat)(hdc, iPixelFormat, ppfd))
 	{
-		LOG(WARNING) << "> 'wglSetPixelFormat' failed with '" << ::GetLastError() << "'!";
+		LOG(WARNING) << "> 'wglSetPixelFormat' failed with '" << GetLastError() << "'!";
 
 		return FALSE;
 	}
@@ -2597,7 +2512,9 @@ EXPORT BOOL WINAPI wglSwapBuffers(HDC hdc)
 	{
 		ReShade::Runtime *runtime = it->second;
 
-		const HWND hwnd = ::WindowFromDC(hdc);
+		assert(runtime != nullptr);
+
+		const HWND hwnd = WindowFromDC(hdc);
 		const auto it = sWindowRects.find(hwnd);
 
 		if (it == sWindowRects.end())
@@ -2609,7 +2526,7 @@ EXPORT BOOL WINAPI wglSwapBuffers(HDC hdc)
 
 		RECT rect, &rectPrevious = it->second;
 
-		::GetClientRect(hwnd, &rect);
+		GetClientRect(hwnd, &rect);
 		const ULONG width = rect.right - rect.left, height = rect.bottom - rect.top;
 		const ULONG widthPrevious = rectPrevious.right - rectPrevious.left, heightPrevious = rectPrevious.bottom - rectPrevious.top;
 
@@ -2681,31 +2598,31 @@ EXPORT PROC WINAPI wglGetProcAddress(LPCSTR lpszProc)
 	{
 		return nullptr;
 	}
-	else if (::strcmp(lpszProc, "wglChoosePixelFormatARB") == 0)
+	else if (strcmp(lpszProc, "wglChoosePixelFormatARB") == 0)
 	{
 		ReHook::Register(reinterpret_cast<ReHook::Hook::Function>(address), reinterpret_cast<ReHook::Hook::Function>(&wglChoosePixelFormatARB));
 	}
-	else if (::strcmp(lpszProc, "wglCreateContextAttribsARB") == 0)
+	else if (strcmp(lpszProc, "wglCreateContextAttribsARB") == 0)
 	{
 		ReHook::Register(reinterpret_cast<ReHook::Hook::Function>(address), reinterpret_cast<ReHook::Hook::Function>(&wglCreateContextAttribsARB));
 	}
-	else if (::strcmp(lpszProc, "wglGetPixelFormatAttribivARB") == 0)
+	else if (strcmp(lpszProc, "wglGetPixelFormatAttribivARB") == 0)
 	{
 		ReHook::Register(reinterpret_cast<ReHook::Hook::Function>(address), reinterpret_cast<ReHook::Hook::Function>(&wglGetPixelFormatAttribivARB));
 	}
-	else if (::strcmp(lpszProc, "wglGetPixelFormatAttribfvARB") == 0)
+	else if (strcmp(lpszProc, "wglGetPixelFormatAttribfvARB") == 0)
 	{
 		ReHook::Register(reinterpret_cast<ReHook::Hook::Function>(address), reinterpret_cast<ReHook::Hook::Function>(&wglGetPixelFormatAttribfvARB));
 	}
-	else if (::strcmp(lpszProc, "wglGetExtensionsStringARB") == 0)
+	else if (strcmp(lpszProc, "wglGetExtensionsStringARB") == 0)
 	{
 		ReHook::Register(reinterpret_cast<ReHook::Hook::Function>(address), reinterpret_cast<ReHook::Hook::Function>(&wglGetExtensionsStringARB));
 	}
-	else if (::strcmp(lpszProc, "wglGetSwapIntervalEXT") == 0)
+	else if (strcmp(lpszProc, "wglGetSwapIntervalEXT") == 0)
 	{
 		ReHook::Register(reinterpret_cast<ReHook::Hook::Function>(address), reinterpret_cast<ReHook::Hook::Function>(&wglGetSwapIntervalEXT));
 	}
-	else if (::strcmp(lpszProc, "wglSwapIntervalEXT") == 0)
+	else if (strcmp(lpszProc, "wglSwapIntervalEXT") == 0)
 	{
 		ReHook::Register(reinterpret_cast<ReHook::Hook::Function>(address), reinterpret_cast<ReHook::Hook::Function>(&wglSwapIntervalEXT));
 	}
