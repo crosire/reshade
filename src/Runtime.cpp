@@ -2,7 +2,6 @@
 #include "Version.h"
 #include "Runtime.hpp"
 #include "HookManager.hpp"
-#include "EffectTree.hpp"
 #include "EffectPreprocessor.hpp"
 #include "EffectParser.hpp"
 #include "FileWatcher.hpp"

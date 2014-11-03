@@ -95,10 +95,10 @@
     <ClInclude Include="obj\$(Platform)\$(Configuration)\EffectParser.hpp">
       <Filter>Effect Parser</Filter>
     </ClInclude>
-    <ClInclude Include="src\EffectPreprocessor.hpp">
+    <ClInclude Include="src\EffectParserTree.hpp">
       <Filter>Effect Parser</Filter>
     </ClInclude>
-    <ClInclude Include="src\EffectTree.hpp">
+    <ClInclude Include="src\EffectPreprocessor.hpp">
       <Filter>Effect Parser</Filter>
     </ClInclude>
     <ClInclude Include="src\Log.hpp" />

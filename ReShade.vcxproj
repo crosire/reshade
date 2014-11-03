@@ -263,7 +263,7 @@ tools\upx --backup "$(TargetPath)"</Command>
     <ClInclude Include="src\EffectPreprocessor.hpp" />
     <ClInclude Include="obj\$(Platform)\$(Configuration)\EffectLexer.h" />
     <ClInclude Include="obj\$(Platform)\$(Configuration)\EffectParser.hpp" />
-    <ClInclude Include="src\EffectTree.hpp" />
+    <ClInclude Include="src\EffectParserTree.hpp" />
     <ClInclude Include="src\Runtime.hpp" />
   </ItemGroup>
   <ItemGroup>

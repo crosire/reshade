@@ -21,7 +21,7 @@
 
 %code requires
 {
-	#include "EffectTree.hpp"
+	#include "EffectParserTree.hpp"
 	
 	#include <stack>
 	#include <unordered_map>

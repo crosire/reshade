@@ -1,7 +1,7 @@
 #include "Log.hpp"
 #include "Runtime.hpp"
 #include "Effect.hpp"
-#include "EffectTree.hpp"
+#include "EffectParserTree.hpp"
 
 #include <d3d11.h>
 #include <d3dcompiler.h>

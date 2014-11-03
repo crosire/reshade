@@ -1,7 +1,7 @@
 #include "Log.hpp"
 #include "Runtime.hpp"
 #include "Effect.hpp"
-#include "EffectTree.hpp"
+#include "EffectParserTree.hpp"
 
 #include <gl\gl3w.h>
 #include <vector>
