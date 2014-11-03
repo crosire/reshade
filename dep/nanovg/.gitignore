@@ -1,0 +1,37 @@
+## Compiled source #
+*.com
+*.class
+*.dll
+*.exe
+*.o
+*.so
+test
+
+## Logs and databases #
+*.log
+*.sql
+*.sqlite
+
+## OS generated files #
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+## Build dir
+build/*
+lib/
+obj/
+
+## xcode specific
+*xcuserdata*
+src/GL/glew.h
+src/GL/glxew.h
+src/GL/wglew.h
+src/GLFW/glfw3.h
+src/GLFW/glfw3native.h
+src/D3D11PixelShaderNoAA.h
+src/D3D11PixelShaderAA.h

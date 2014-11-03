@@ -1,0 +1,6 @@
+build-*
+*.pro.user
+release.info
+bin/*
+logs/*
+experiments/*

@@ -1,0 +1,24 @@
+language: cpp
+compiler:
+  - clang
+before_install:
+ - sudo apt-get update
+ - sudo apt-get install libgtest-dev
+ - "cd /usr/src/gtest && sudo cmake . && sudo cmake --build . && sudo mv libg* /usr/local/lib/ ; cd -"
+before_script:
+ - pwd
+ - cd samples/STL/
+ - pwd
+ - which sh
+script: "sh ./.travis_build.sh && cd ../../test/ && sh ./.travis_build.sh"
+branches:
+  only:
+    - develop
+notifications:
+  recipients:
+    - mkhan3189@gmail.com
+  email:
+    on_success: change
+    on_failure: always
+rvm:
+  - 9.00
