@@ -284,7 +284,8 @@ namespace ReShade
 
 		CreateResources();
 
-		this->mStartTime = boost::chrono::high_resolution_clock::now();
+		this->mLastCreate = boost::chrono::high_resolution_clock::now();
+		this->mLastPresent = this->mLastCreate;
 
 		LOG(INFO) << "Recreated effect environment on context " << this << ".";
 
@@ -373,7 +374,7 @@ namespace ReShade
 						}
 						else if (source == "frametime")
 						{
-							const unsigned int value = static_cast<unsigned int>(boost::chrono::duration_cast<boost::chrono::milliseconds>(frametime).count());
+							const float value = frametime.count() * 1e-6f;
 
 							constant->SetValue(&value, 1);
 						}
@@ -408,7 +409,7 @@ namespace ReShade
 						}
 						else if (source == "timer")
 						{
-							const unsigned long long timer = boost::chrono::duration_cast<boost::chrono::milliseconds>(this->mLastPresent.time_since_epoch()).count();
+							const unsigned long long timer = boost::chrono::duration_cast<boost::chrono::nanoseconds>(this->mLastPresent - this->mStartTime).count();
 
 							switch (constant->GetDescription().Type)
 							{
@@ -427,7 +428,7 @@ namespace ReShade
 								}
 								case Effect::Constant::Type::Float:
 								{
-									const float timerFloat = static_cast<float>(timer % 16777216);
+									const float timerFloat = std::fmod(static_cast<float>(timer * 1e-6f), 16777216.0f);
 									constant->SetValue(&timerFloat, 1);
 									break;
 								}
@@ -496,7 +497,7 @@ namespace ReShade
 		{
 			nvgBeginFrame(this->mNVG, this->mWidth, this->mHeight, 1);
 
-			const boost::chrono::seconds timeSinceStart = boost::chrono::duration_cast<boost::chrono::seconds>(timePresent - this->mStartTime);
+			const boost::chrono::seconds timeSinceCreate = boost::chrono::duration_cast<boost::chrono::seconds>(timePresent - this->mLastCreate);
 
 			nvgFontFace(this->mNVG, "Courier");
 			nvgFontSize(this->mNVG, 16);
@@ -504,9 +505,9 @@ namespace ReShade
 
 			float y = 0;
 
-			if (timeSinceStart.count() < 8)
+			if (timeSinceCreate.count() < 8)
 			{
-				const std::string dots(timeSinceStart.count() % 4, '.');
+				const std::string dots(timeSinceCreate.count() % 4, '.');
 
 				nvgFillColor(this->mNVG, nvgRGB(255, 255, 255));
 				nvgText(this->mNVG, 0,  0, "Crosire's ReShade", nullptr);
@@ -521,7 +522,7 @@ namespace ReShade
 					nvgFillColor(this->mNVG, nvgRGB(255, 0, 0));
 					nvgTextBox(this->mNVG, 0, y, static_cast<float>(this->mWidth), ("Failed to compile effect:\n\n" + this->mErrors).c_str(), nullptr);
 				}
-				else if (timeSinceStart.count() < 6)
+				else if (timeSinceCreate.count() < 6)
 				{
 					nvgFillColor(this->mNVG, nvgRGB(255, 255, 0));
 					nvgTextBox(this->mNVG, 0, y, static_cast<float>(this->mWidth), ("Successfully compiled effect with warnings:\n\n" + this->mErrors).c_str(), nullptr);
@@ -531,7 +532,7 @@ namespace ReShade
 					y += 48 + bounds[3];
 				}
 			}
-			if (timeSinceStart.count() < 8 && !this->mMessage.empty())
+			if (timeSinceCreate.count() < 8 && !this->mMessage.empty())
 			{
 				y += 16;
 
@@ -546,6 +547,7 @@ namespace ReShade
 				stats += "FPS: " + std::to_string(1000 / std::max(boost::chrono::duration_cast<boost::chrono::milliseconds>(frametime).count(), 1LL)) + '\n';
 				stats += "Frame " + std::to_string(this->mLastFrameCount + 1) + ": " + std::to_string(frametime.count() * 1e-6f) + "ms" + '\n';
 				stats += "PostProcessing: " + std::to_string(frametimePostProcessing.count() * 1e-6f) + "ms" + '\n';
+				stats += "Timer: " + std::to_string(std::fmod(boost::chrono::duration_cast<boost::chrono::nanoseconds>(this->mLastPresent - this->mStartTime).count() * 1e-6f, 16777216.0f)) + "ms" + '\n';
 
 				nvgTextAlign(this->mNVG, NVG_ALIGN_RIGHT | NVG_ALIGN_TOP);
 				nvgFillColor(this->mNVG, nvgRGB(255, 255, 255));
