@@ -2,11 +2,10 @@
 
 #include "Hook.hpp"
 
-#include <cstdint>
 #include <boost\filesystem\path.hpp>
 
 #define EXPORT extern "C"
-#define VTable(pointer, offset) reinterpret_cast<ReHook::Hook::Function>((*reinterpret_cast<uintptr_t **>(pointer))[offset])
+#define VTABLE(pointer, offset) ((*reinterpret_cast<ReHook::Hook::Function **>(pointer))[offset])
 
 namespace ReHook
 {

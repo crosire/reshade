@@ -1007,7 +1007,7 @@ EXPORT HRESULT WINAPI CreateDXGIFactory(REFIID riid, void **ppFactory)
 
 	if (SUCCEEDED(hr))
 	{
-		ReHook::Register(VTable(*ppFactory, 10), reinterpret_cast<ReHook::Hook::Function>(&IDXGIFactory_CreateSwapChain));
+		ReHook::Register(VTABLE(*ppFactory, 10), reinterpret_cast<ReHook::Hook::Function>(&IDXGIFactory_CreateSwapChain));
 	}
 	else
 	{
@@ -1027,7 +1027,7 @@ EXPORT HRESULT WINAPI CreateDXGIFactory1(REFIID riid, void **ppFactory)
 
 	if (SUCCEEDED(hr))
 	{
-		ReHook::Register(VTable(*ppFactory, 10), reinterpret_cast<ReHook::Hook::Function>(&IDXGIFactory_CreateSwapChain));
+		ReHook::Register(VTABLE(*ppFactory, 10), reinterpret_cast<ReHook::Hook::Function>(&IDXGIFactory_CreateSwapChain));
 	}
 	else
 	{
@@ -1047,13 +1047,13 @@ EXPORT HRESULT WINAPI CreateDXGIFactory2(UINT flags, REFIID riid, void **ppFacto
 
 	if (SUCCEEDED(hr))
 	{
-		ReHook::Register(VTable(*ppFactory, 10), reinterpret_cast<ReHook::Hook::Function>(&IDXGIFactory_CreateSwapChain));
+		ReHook::Register(VTABLE(*ppFactory, 10), reinterpret_cast<ReHook::Hook::Function>(&IDXGIFactory_CreateSwapChain));
 
 		if (riid == __uuidof(IDXGIFactory2))
 		{
-			ReHook::Register(VTable(*ppFactory, 15), reinterpret_cast<ReHook::Hook::Function>(&IDXGIFactory2_CreateSwapChainForHwnd));
-			ReHook::Register(VTable(*ppFactory, 16), reinterpret_cast<ReHook::Hook::Function>(&IDXGIFactory2_CreateSwapChainForCoreWindow));
-			ReHook::Register(VTable(*ppFactory, 24), reinterpret_cast<ReHook::Hook::Function>(&IDXGIFactory2_CreateSwapChainForComposition));
+			ReHook::Register(VTABLE(*ppFactory, 15), reinterpret_cast<ReHook::Hook::Function>(&IDXGIFactory2_CreateSwapChainForHwnd));
+			ReHook::Register(VTABLE(*ppFactory, 16), reinterpret_cast<ReHook::Hook::Function>(&IDXGIFactory2_CreateSwapChainForCoreWindow));
+			ReHook::Register(VTABLE(*ppFactory, 24), reinterpret_cast<ReHook::Hook::Function>(&IDXGIFactory2_CreateSwapChainForComposition));
 		}
 	}
 	else

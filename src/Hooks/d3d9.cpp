@@ -1253,7 +1253,7 @@ EXPORT IDirect3D9 *WINAPI Direct3DCreate9(UINT SDKVersion)
 
 	if (res != nullptr)
 	{
-		ReHook::Register(VTable(res, 16), reinterpret_cast<ReHook::Hook::Function>(&IDirect3D9_CreateDevice));
+		ReHook::Register(VTABLE(res, 16), reinterpret_cast<ReHook::Hook::Function>(&IDirect3D9_CreateDevice));
 	}
 	else
 	{
@@ -1270,8 +1270,8 @@ EXPORT HRESULT WINAPI Direct3DCreate9Ex(UINT SDKVersion, IDirect3D9Ex **ppD3D)
 
 	if (SUCCEEDED(hr))
 	{
-		ReHook::Register(VTable(*ppD3D, 16), reinterpret_cast<ReHook::Hook::Function>(&IDirect3D9_CreateDevice));
-		ReHook::Register(VTable(*ppD3D, 20), reinterpret_cast<ReHook::Hook::Function>(&IDirect3D9Ex_CreateDeviceEx));
+		ReHook::Register(VTABLE(*ppD3D, 16), reinterpret_cast<ReHook::Hook::Function>(&IDirect3D9_CreateDevice));
+		ReHook::Register(VTABLE(*ppD3D, 20), reinterpret_cast<ReHook::Hook::Function>(&IDirect3D9Ex_CreateDeviceEx));
 	}
 	else
 	{
