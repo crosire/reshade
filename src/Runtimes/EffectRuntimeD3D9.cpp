@@ -139,7 +139,7 @@ namespace ReShade
 		class D3D9EffectCompiler
 		{
 		public:
-			D3D9EffectCompiler(const EffectTree &ast) : mAST(ast), mEffect(nullptr), mCurrentInParameterBlock(false), mCurrentInFunctionBlock(false), mCurrentRegisterIndex(0), mCurrentStorageSize(0)
+			D3D9EffectCompiler(const EffectTree &ast) : mAST(ast), mEffect(nullptr), mCurrentInParameterBlock(false), mCurrentInFunctionBlock(false), mCurrentRegisterOffset(0), mCurrentStorageSize(0)
 			{
 			}
 
@@ -1662,7 +1662,7 @@ namespace ReShade
 					this->mCurrentSource += ']';
 				}
 
-				this->mCurrentSource += ";\n";
+				this->mCurrentSource += " : register(c" + std::to_string(this->mCurrentRegisterOffset / 4) + ");\n";
 
 				std::unique_ptr<D3D9Constant> obj(new D3D9Constant(this->mEffect));
 				obj->mDesc.Rows = node.Type.Rows;
@@ -1691,15 +1691,15 @@ namespace ReShade
 						break;
 				}
 
-				obj->mRegisterOffset = this->mCurrentRegisterIndex;
+				obj->mRegisterOffset = this->mCurrentRegisterOffset;
 
-				const UINT registersize = static_cast<UINT>(static_cast<float>(obj->mDesc.Size) / (4 * sizeof(float)));
-				const UINT alignment = (registersize - registersize) > 0;
-				this->mCurrentRegisterIndex += registersize + alignment;
+				const UINT registersize = static_cast<UINT>(static_cast<float>(obj->mDesc.Size) / sizeof(float));
+				const UINT alignment = 4 - (registersize % 4);
+				this->mCurrentRegisterOffset += registersize + alignment;
 
-				if ((this->mCurrentRegisterIndex * sizeof(float) * 4) >= this->mCurrentStorageSize)
+				if (this->mCurrentRegisterOffset * sizeof(float) >= this->mCurrentStorageSize)
 				{
-					this->mEffect->mConstantStorage = static_cast<float *>(::realloc(this->mEffect->mConstantStorage, this->mCurrentStorageSize += sizeof(float) * 4 * 16));
+					this->mEffect->mConstantStorage = static_cast<float *>(::realloc(this->mEffect->mConstantStorage, this->mCurrentStorageSize += sizeof(float) * 64));
 				}
 
 				if (node.HasAnnotations())
@@ -1718,15 +1718,15 @@ namespace ReShade
 
 				if (node.HasInitializer())
 				{
-					std::memcpy(this->mEffect->mConstantStorage + obj->mRegisterOffset * 4, &this->mAST[node.Initializer].As<EffectNodes::Literal>().Value, obj->mDesc.Size);
+					std::memcpy(this->mEffect->mConstantStorage + obj->mRegisterOffset, &this->mAST[node.Initializer].As<EffectNodes::Literal>().Value, obj->mDesc.Size);
 				}
 				else
 				{
-					std::memset(this->mEffect->mConstantStorage + obj->mRegisterOffset * 4, 0, obj->mDesc.Size);
+					std::memset(this->mEffect->mConstantStorage + obj->mRegisterOffset, 0, obj->mDesc.Size);
 				}
 
 				this->mEffect->mConstants.insert(std::make_pair(this->mCurrentBlockName.empty() ? node.Name : (this->mCurrentBlockName + '.' + node.Name), std::move(obj)));
-				this->mEffect->mConstantRegisterCount = this->mCurrentRegisterIndex + 1;
+				this->mEffect->mConstantRegisterCount = this->mCurrentRegisterOffset / 4;
 			}
 			void VisitUniformBuffer(const EffectNodes::Variable &node)
 			{
@@ -1739,7 +1739,7 @@ namespace ReShade
 
 				this->mCurrentBlockName = node.Name;
 
-				const UINT previousRegisterIndex = this->mCurrentRegisterIndex;
+				const UINT previousOffset = this->mCurrentRegisterOffset;
 				const auto &fields = this->mAST[structure.Fields].As<EffectNodes::List>();
 
 				for (unsigned int i = 0; i < fields.Length; ++i)
@@ -1754,7 +1754,7 @@ namespace ReShade
 				obj->mDesc.Columns = 0;
 				obj->mDesc.Elements = 0;
 				obj->mDesc.Fields = fields.Length;
-				obj->mDesc.Size = (this->mCurrentRegisterIndex - previousRegisterIndex) * sizeof(float) * 4;
+				obj->mDesc.Size = (this->mCurrentRegisterOffset - previousOffset) * sizeof(float);
 				obj->mDesc.Type = Effect::Constant::Type::Struct;
 
 				if (node.HasAnnotations())
@@ -2241,7 +2241,7 @@ namespace ReShade
 			bool mFatal;
 			std::string mCurrentBlockName;
 			bool mCurrentInParameterBlock, mCurrentInFunctionBlock;
-			unsigned int mCurrentCaseIndex, mCurrentRegisterIndex, mCurrentStorageSize;
+			unsigned int mCurrentCaseIndex, mCurrentRegisterOffset, mCurrentStorageSize;
 			std::unordered_map<std::string, Effect::Annotation> *mCurrentAnnotations;
 			std::vector<D3D9Technique::Pass> *mCurrentPasses;
 		};
@@ -2742,11 +2742,11 @@ namespace ReShade
 		}
 		void D3D9Constant::GetValue(unsigned char *data, std::size_t size) const
 		{
-			std::memcpy(data, this->mEffect->mConstantStorage + (this->mRegisterOffset * 4), size);
+			std::memcpy(data, this->mEffect->mConstantStorage + this->mRegisterOffset, size);
 		}
 		void D3D9Constant::SetValue(const unsigned char *data, std::size_t size)
 		{
-			std::memcpy(this->mEffect->mConstantStorage + (this->mRegisterOffset * 4), data, size);
+			std::memcpy(this->mEffect->mConstantStorage + this->mRegisterOffset, data, size);
 		}
 
 		D3D9Technique::D3D9Technique(D3D9Effect *effect) : mEffect(effect)
@@ -2800,9 +2800,6 @@ namespace ReShade
 
 			this->mEffect->mShaderResourceStateblock->Apply();
 
-			device->SetVertexShaderConstantF(0, this->mEffect->mConstantStorage, this->mEffect->mConstantRegisterCount);
-			device->SetPixelShaderConstantF(0, this->mEffect->mConstantStorage, this->mEffect->mConstantRegisterCount);
-
 			D3DVIEWPORT9 viewport;
 			device->GetViewport(&viewport);
 			const float pixel_size[4] = { +1.0f / viewport.Width, +1.0f / viewport.Height, -1.0f / viewport.Width, +1.0f / viewport.Height };
@@ -2819,6 +2816,9 @@ namespace ReShade
 		{
 			IDirect3DDevice9 *device = this->mEffect->mEffectContext->mDevice;
 			const Pass &pass = this->mPasses[index];
+
+			device->SetVertexShaderConstantF(0, this->mEffect->mConstantStorage, this->mEffect->mConstantRegisterCount);
+			device->SetPixelShaderConstantF(0, this->mEffect->mConstantStorage, this->mEffect->mConstantRegisterCount);
 
 			pass.Stateblock->Apply();
 
