@@ -2175,14 +2175,13 @@ namespace ReShade
 						}
 
 						pass.RT[i]->GetResource(&res2);
+						res2->Release();
 
 						if (res1 == res2)
 						{
 							*it = nullptr;
 							break;
 						}
-
-						res2->Release();
 					}
 
 					res1->Release();
