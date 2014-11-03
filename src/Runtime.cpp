@@ -544,8 +544,8 @@ namespace ReShade
 				std::string stats = "Statistics\n";
 				stats += "Date: " + std::to_string(static_cast<int>(date[0])) + '-' + std::to_string(static_cast<int>(date[1])) + '-' + std::to_string(static_cast<int>(date[2])) + ' ' + std::to_string(static_cast<int>(date[3])) + '\n';
 				stats += "FPS: " + std::to_string(1000 / std::max(boost::chrono::duration_cast<boost::chrono::milliseconds>(frametime).count(), 1LL)) + '\n';
-				stats += "Frame " + std::to_string(this->mLastFrameCount + 1) + ": " + std::to_string(frametime.count() * 10e-6f) + "ms" + '\n';
-				stats += "PostProcessing: " + std::to_string(frametimePostProcessing.count() * 10e-6f) + "ms" + '\n';
+				stats += "Frame " + std::to_string(this->mLastFrameCount + 1) + ": " + std::to_string(frametime.count() * 1e-6f) + "ms" + '\n';
+				stats += "PostProcessing: " + std::to_string(frametimePostProcessing.count() * 1e-6f) + "ms" + '\n';
 
 				nvgTextAlign(this->mNVG, NVG_ALIGN_RIGHT | NVG_ALIGN_TOP);
 				nvgFillColor(this->mNVG, nvgRGB(255, 255, 255));
