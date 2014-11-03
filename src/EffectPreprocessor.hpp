@@ -1,9 +1,8 @@
 #pragma once
 
 #include <string>
-#include <fstream>
+#include <memory>
 #include <boost\filesystem\path.hpp>
-#include <fpp.h>
 
 namespace ReShade
 {
@@ -11,23 +10,16 @@ namespace ReShade
 	{
 	public:
 		EffectPreprocessor();
+		~EffectPreprocessor();
 
 		void AddDefine(const std::string &name, const std::string &value = "1");
 		void AddIncludePath(const boost::filesystem::path &path);
 
+		std::string Run(const boost::filesystem::path &path);
 		std::string Run(const boost::filesystem::path &path, std::string &errors);
 
 	private:
-		static char *OnInput(char *buffer, int size, void *userdata);
-		static void OnOutput(int ch, void *userdata);
-		static void OnError(void *userdata, char *fmt, va_list args);
-
-	private:
-		std::vector<fppTag> mTags;
-		std::fstream mInput;
-		std::string mOutput;
-		std::string mErrors;
-		std::vector<char> mScratch;
-		std::size_t mScratchCursor;
+		class Impl;
+		std::unique_ptr<Impl> mImpl;
 	};
 }
