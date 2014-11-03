@@ -182,7 +182,7 @@ namespace ReShade
 
 				for (unsigned int i = 0; i < root.Length; ++i)
 				{
-					this->mAST[root[i]].Accept(*this);
+					Visit(this->mAST[root[i]]);
 				}
 
 				if (this->mCurrentGlobalSize != 0)
@@ -457,6 +457,103 @@ namespace ReShade
 				return qualifiers + PrintType(type);
 			}
 
+			void Visit(const EffectTree::Node &node)
+			{
+				using namespace EffectNodes;
+
+				if (node.Is<Variable>())
+				{
+					Visit(node.As<Variable>());
+				}
+				else if (node.Is<Function>())
+				{
+					Visit(node.As<Function>());
+				}
+				else if (node.Is<Literal>())
+				{
+					Visit(node.As<Literal>());
+				}
+				else if (node.Is<LValue>())
+				{
+					Visit(node.As<LValue>());
+				}
+				else if (node.Is<Expression>())
+				{
+					Visit(node.As<Expression>());
+				}
+				else if (node.Is<Swizzle>())
+				{
+					Visit(node.As<Swizzle>());
+				}
+				else if (node.Is<Assignment>())
+				{
+					Visit(node.As<Assignment>());
+				}
+				else if (node.Is<Sequence>())
+				{
+					Visit(node.As<Sequence>());
+				}
+				else if (node.Is<Constructor>())
+				{
+					Visit(node.As<Constructor>());
+				}
+				else if (node.Is<Call>())
+				{
+					Visit(node.As<Call>());
+				}
+				else if (node.Is<ExpressionStatement>())
+				{
+					Visit(node.As<ExpressionStatement>());
+				}
+				else if (node.Is<If>())
+				{
+					Visit(node.As<If>());
+				}
+				else if (node.Is<Switch>())
+				{
+					Visit(node.As<Switch>());
+				}
+				else if (node.Is<Case>())
+				{
+					Visit(node.As<Case>());
+				}
+				else if (node.Is<For>())
+				{
+					Visit(node.As<For>());
+				}
+				else if (node.Is<While>())
+				{
+					Visit(node.As<While>());
+				}
+				else if (node.Is<Jump>())
+				{
+					Visit(node.As<Jump>());
+				}
+				else if (node.Is<StatementBlock>())
+				{
+					Visit(node.As<StatementBlock>());
+				}
+				else if (node.Is<Annotation>())
+				{
+					Visit(node.As<Annotation>());
+				}
+				else if (node.Is<Struct>())
+				{
+					Visit(node.As<Struct>());
+				}
+				else if (node.Is<Technique>())
+				{
+					Visit(node.As<Technique>());
+				}
+				else if (node.Is<Pass>())
+				{
+					Visit(node.As<Pass>());
+				}
+				else
+				{
+					assert(false);
+				}
+			}
 			void Visit(const EffectNodes::LValue &node)
 			{
 				this->mCurrentSource += this->mAST[node.Reference].As<EffectNodes::Variable>().Name;
@@ -847,7 +944,7 @@ namespace ReShade
 						break;
 					case EffectNodes::Expression::Field:
 						this->mCurrentSource += '(';
-						this->mAST[node.Operands[0]].Accept(*this);
+						Visit(this->mAST[node.Operands[0]]);
 						this->mCurrentSource += (this->mAST[node.Operands[0]].Is<EffectNodes::LValue>() && this->mAST[node.Operands[0]].As<EffectNodes::LValue>().Type.HasQualifier(EffectNodes::Type::Uniform)) ? '_' : '.';
 						this->mCurrentSource += this->mAST[node.Operands[1]].As<EffectNodes::Variable>().Name;
 						this->mCurrentSource += ')';
@@ -951,19 +1048,19 @@ namespace ReShade
 				}
 
 				this->mCurrentSource += part1;
-				this->mAST[node.Operands[0]].Accept(*this);
+				Visit(this->mAST[node.Operands[0]]);
 				this->mCurrentSource += part2;
 
 				if (node.Operands[1] != 0)
 				{
-					this->mAST[node.Operands[1]].Accept(*this);
+					Visit(this->mAST[node.Operands[1]]);
 				}
 
 				this->mCurrentSource += part3;
 
 				if (node.Operands[2] != 0)
 				{
-					this->mAST[node.Operands[2]].Accept(*this);
+					Visit(this->mAST[node.Operands[2]]);
 				}
 
 				this->mCurrentSource += part4;
@@ -972,7 +1069,7 @@ namespace ReShade
 			{
 				for (unsigned int i = 0; i < node.Length; ++i)
 				{
-					this->mAST[node[i]].Accept(*this);
+					Visit(this->mAST[node[i]]);
 
 					this->mCurrentSource += ", ";
 				}
@@ -983,7 +1080,7 @@ namespace ReShade
 			void Visit(const EffectNodes::Assignment &node)
 			{
 				this->mCurrentSource += '(';
-				this->mAST[node.Left].Accept(*this);
+				Visit(this->mAST[node.Left]);
 				this->mCurrentSource += ' ';
 
 				switch (node.Operator)
@@ -1024,7 +1121,7 @@ namespace ReShade
 				}
 
 				this->mCurrentSource += ' ';
-				this->mAST[node.Right].Accept(*this);
+				Visit(this->mAST[node.Right]);
 				this->mCurrentSource += ')';
 			}
 			void Visit(const EffectNodes::Call &node)
@@ -1038,7 +1135,7 @@ namespace ReShade
 
 					for (unsigned int i = 0; i < arguments.Length; ++i)
 					{
-						this->mAST[arguments[i]].Accept(*this);
+						Visit(this->mAST[arguments[i]]);
 
 						this->mCurrentSource += ", ";
 					}
@@ -1058,7 +1155,7 @@ namespace ReShade
 
 				for (unsigned int i = 0; i < arguments.Length; ++i)
 				{
-					this->mAST[arguments[i]].Accept(*this);
+					Visit(this->mAST[arguments[i]]);
 
 					this->mCurrentSource += ", ";
 				}
@@ -1072,7 +1169,7 @@ namespace ReShade
 			{
 				const EffectNodes::RValue &left = this->mAST[node.Operands[0]].As<EffectNodes::RValue>();
 
-				left.Accept(*this);
+				Visit(left);
 
 				this->mCurrentSource += '.';
 
@@ -1119,12 +1216,12 @@ namespace ReShade
 				}
 
 				this->mCurrentSource += "if (";
-				this->mAST[node.Condition].Accept(*this);
+				Visit(this->mAST[node.Condition]);
 				this->mCurrentSource += ")\n";
 
 				if (node.StatementOnTrue != 0)
 				{
-					this->mAST[node.StatementOnTrue].Accept(*this);
+					Visit(this->mAST[node.StatementOnTrue]);
 				}
 				else
 				{
@@ -1133,7 +1230,7 @@ namespace ReShade
 				if (node.StatementOnFalse != 0)
 				{
 					this->mCurrentSource += "else\n";
-					this->mAST[node.StatementOnFalse].Accept(*this);
+					Visit(this->mAST[node.StatementOnFalse]);
 				}
 			}
 			void Visit(const EffectNodes::Switch &node)
@@ -1151,14 +1248,14 @@ namespace ReShade
 				}
 
 				this->mCurrentSource += "switch (";
-				this->mAST[node.Test].Accept(*this);
+				Visit(this->mAST[node.Test]);
 				this->mCurrentSource += ")\n{\n";
 
 				const auto &cases = this->mAST[node.Cases].As<EffectNodes::List>();
 
 				for (unsigned int i = 0; i < cases.Length; ++i)
 				{
-					this->mAST[cases[i]].As<EffectNodes::Case>().Accept(*this);
+					Visit(this->mAST[cases[i]].As<EffectNodes::Case>());
 				}
 
 				this->mCurrentSource += "}\n";
@@ -1178,13 +1275,13 @@ namespace ReShade
 					else
 					{
 						this->mCurrentSource += "case ";
-						label.As<EffectNodes::Literal>().Accept(*this);
+						Visit(label.As<EffectNodes::Literal>());
 					}
 
 					this->mCurrentSource += ":\n";
 				}
 
-				this->mAST[node.Statements].As<EffectNodes::StatementBlock>().Accept(*this);
+				Visit(this->mAST[node.Statements].As<EffectNodes::StatementBlock>());
 			}
 			void Visit(const EffectNodes::For &node)
 			{
@@ -1204,7 +1301,7 @@ namespace ReShade
 
 				if (node.Initialization != 0)
 				{
-					this->mAST[node.Initialization].Accept(*this);
+					Visit(this->mAST[node.Initialization]);
 
 					this->mCurrentSource.pop_back();
 					this->mCurrentSource.pop_back();
@@ -1214,21 +1311,21 @@ namespace ReShade
 										
 				if (node.Condition != 0)
 				{
-					this->mAST[node.Condition].Accept(*this);
+					Visit(this->mAST[node.Condition]);
 				}
 
 				this->mCurrentSource += "; ";
 
 				if (node.Iteration != 0)
 				{
-					this->mAST[node.Iteration].Accept(*this);
+					Visit(this->mAST[node.Iteration]);
 				}
 
 				this->mCurrentSource += ")\n";
 
 				if (node.Statements != 0)
 				{
-					this->mAST[node.Statements].Accept(*this);
+					Visit(this->mAST[node.Statements]);
 				}
 				else
 				{
@@ -1255,23 +1352,23 @@ namespace ReShade
 
 					if (node.Statements != 0)
 					{
-						this->mAST[node.Statements].Accept(*this);
+						Visit(this->mAST[node.Statements]);
 					}
 
 					this->mCurrentSource += "}\n";
 					this->mCurrentSource += "while (";
-					this->mAST[node.Condition].Accept(*this);
+					Visit(this->mAST[node.Condition]);
 					this->mCurrentSource += ");\n";
 				}
 				else
 				{
 					this->mCurrentSource += "while (";
-					this->mAST[node.Condition].Accept(*this);
+					Visit(this->mAST[node.Condition]);
 					this->mCurrentSource += ")\n";
 
 					if (node.Statements != 0)
 					{
-						this->mAST[node.Statements].Accept(*this);
+						Visit(this->mAST[node.Statements]);
 					}
 					else
 					{
@@ -1289,7 +1386,7 @@ namespace ReShade
 						if (node.Value != 0)
 						{
 							this->mCurrentSource += ' ';
-							this->mAST[node.Value].Accept(*this);
+							Visit(this->mAST[node.Value]);
 						}
 						break;
 					case EffectNodes::Jump::Break:
@@ -1309,7 +1406,7 @@ namespace ReShade
 			{
 				if (node.Expression != 0)
 				{
-					this->mAST[node.Expression].Accept(*this);
+					Visit(this->mAST[node.Expression]);
 				}
 
 				this->mCurrentSource += ";\n";
@@ -1320,7 +1417,7 @@ namespace ReShade
 
 				for (unsigned int i = 0; i < node.Length; ++i)
 				{
-					this->mAST[node[i]].Accept(*this);
+					Visit(this->mAST[node[i]]);
 				}
 
 				this->mCurrentSource += "}\n";
@@ -1370,7 +1467,7 @@ namespace ReShade
 
 					for (unsigned int i = 0; i < fields.Length; ++i)
 					{
-						this->mAST[fields[i]].As<EffectNodes::Variable>().Accept(*this);
+						Visit(this->mAST[fields[i]].As<EffectNodes::Variable>());
 					}
 				}
 				else
@@ -1437,7 +1534,7 @@ namespace ReShade
 				{
 					this->mCurrentSource += " = ";
 
-					this->mAST[node.Initializer].Accept(*this);
+					Visit(this->mAST[node.Initializer]);
 				}
 
 				if (!this->mCurrentInParameterBlock)
@@ -1532,7 +1629,7 @@ namespace ReShade
 
 					for (unsigned int i = 0; i < annotations.Length; ++i)
 					{
-						this->mAST[annotations[i]].As<EffectNodes::Annotation>().Accept(*this);
+						Visit(this->mAST[annotations[i]].As<EffectNodes::Annotation>());
 					}
 
 					this->mCurrentAnnotations = nullptr;
@@ -1728,7 +1825,7 @@ namespace ReShade
 
 					for (unsigned int i = 0; i < annotations.Length; ++i)
 					{
-						this->mAST[annotations[i]].As<EffectNodes::Annotation>().Accept(*this);
+						Visit(this->mAST[annotations[i]].As<EffectNodes::Annotation>());
 					}
 
 					this->mCurrentAnnotations = nullptr;
@@ -1771,7 +1868,7 @@ namespace ReShade
 				{
 					const auto &field = this->mAST[fields[i]].As<EffectNodes::Variable>();
 
-					field.Accept(*this);
+					Visit(field);
 
 					std::unique_ptr<D3D10Constant> obj(new D3D10Constant(this->mEffect));
 					obj->mDesc.Rows = field.Type.Rows;
@@ -1845,7 +1942,7 @@ namespace ReShade
 
 					for (unsigned int i = 0; i < annotations.Length; ++i)
 					{
-						this->mAST[annotations[i]].As<EffectNodes::Annotation>().Accept(*this);
+						Visit(this->mAST[annotations[i]].As<EffectNodes::Annotation>());
 					}
 
 					this->mCurrentAnnotations = nullptr;
@@ -1887,7 +1984,7 @@ namespace ReShade
 
 					for (unsigned int i = 0; i < parameters.Length; ++i)
 					{
-						this->mAST[parameters[i]].As<EffectNodes::Variable>().Accept(*this);
+						Visit(this->mAST[parameters[i]].As<EffectNodes::Variable>());
 
 						this->mCurrentSource += ", ";
 					}
@@ -1911,7 +2008,7 @@ namespace ReShade
 					this->mCurrentSource += '\n';
 					this->mCurrentInFunctionBlock = true;
 
-					this->mAST[node.Definition].As<EffectNodes::StatementBlock>().Accept(*this);
+					Visit(this->mAST[node.Definition].As<EffectNodes::StatementBlock>());
 
 					this->mCurrentInFunctionBlock = false;
 				}
@@ -1934,7 +2031,7 @@ namespace ReShade
 				{
 					const auto &pass = this->mAST[passes[i]].As<EffectNodes::Pass>();
 
-					pass.Accept(*this);
+					Visit(pass);
 				}
 
 				this->mCurrentPasses = nullptr;
@@ -1947,7 +2044,7 @@ namespace ReShade
 
 					for (unsigned int i = 0; i < annotations.Length; ++i)
 					{
-						this->mAST[annotations[i]].As<EffectNodes::Annotation>().Accept(*this);
+						Visit(this->mAST[annotations[i]].As<EffectNodes::Annotation>());
 					}
 
 					this->mCurrentAnnotations = nullptr;
