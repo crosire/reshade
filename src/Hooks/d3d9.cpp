@@ -218,6 +218,28 @@ namespace
 				return "D3DERR_WASSTILLDRAWING";
 		}
 	}
+	bool AdjustPresentParameters(D3DPRESENT_PARAMETERS *pp)
+	{
+		switch (pp->BackBufferFormat)
+		{
+			case D3DFMT_UNKNOWN:
+			case D3DFMT_X8R8G8B8:
+			case D3DFMT_A8R8G8B8:
+				break;
+			default:
+				LOG(ERROR) << "> Format " << pp->BackBufferFormat << " is not currently supported.";
+				return false;
+		}
+
+		if (pp->SwapEffect != D3DSWAPEFFECT_COPY && pp->PresentationInterval != D3DPRESENT_INTERVAL_IMMEDIATE && pp->BackBufferCount < 2)
+		{
+			LOG(WARNING) << "> Forcing tripple buffering.";
+
+			pp->BackBufferCount = 2;
+		}
+
+		return true;
+	}
 }
 namespace ReShade
 {
@@ -409,22 +431,9 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateAdditionalSwapChain(D3DPRESENT_
 
 	D3DPRESENT_PARAMETERS pp = *pPresentationParameters;
 
-	switch (pp.BackBufferFormat)
+	if (!AdjustPresentParameters(pPresentationParameters))
 	{
-		case D3DFMT_UNKNOWN:
-		case D3DFMT_X8R8G8B8:
-		case D3DFMT_A8R8G8B8:
-			break;
-		default:
-			LOG(ERROR) << "> Format " << pp.BackBufferFormat << " is not currently supported.";
-			return DXGI_ERROR_INVALID_CALL;
-	}
-
-	if (pp.SwapEffect != D3DSWAPEFFECT_COPY && pp.PresentationInterval != D3DPRESENT_INTERVAL_IMMEDIATE && pp.BackBufferCount < 2)
-	{
-		LOG(WARNING) << "> Forcing tripple buffering.";
-
-		pPresentationParameters->BackBufferCount = 2;
+		return D3DERR_INVALIDCALL;
 	}
 
 	const HRESULT hr = this->mOrig->CreateAdditionalSwapChain(pPresentationParameters, ppSwapChain);
@@ -486,22 +495,9 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Reset(D3DPRESENT_PARAMETERS *pPresent
 
 	D3DPRESENT_PARAMETERS pp = *pPresentationParameters;
 
-	switch (pp.BackBufferFormat)
+	if (!AdjustPresentParameters(pPresentationParameters))
 	{
-		case D3DFMT_UNKNOWN:
-		case D3DFMT_X8R8G8B8:
-		case D3DFMT_A8R8G8B8:
-			break;
-		default:
-			LOG(ERROR) << "> Format " << pp.BackBufferFormat << " is not currently supported.";
-			return DXGI_ERROR_INVALID_CALL;
-	}
-
-	if (pp.SwapEffect != D3DSWAPEFFECT_COPY && pp.PresentationInterval != D3DPRESENT_INTERVAL_IMMEDIATE && pp.BackBufferCount < 2)
-	{
-		LOG(WARNING) << "> Forcing tripple buffering.";
-
-		pPresentationParameters->BackBufferCount = 2;
+		return D3DERR_INVALIDCALL;
 	}
 
 	assert(this->mImplicitSwapChain != nullptr);
@@ -1020,22 +1016,9 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ResetEx(D3DPRESENT_PARAMETERS *pPrese
 
 	D3DPRESENT_PARAMETERS pp = *pPresentationParameters;
 
-	switch (pp.BackBufferFormat)
+	if (!AdjustPresentParameters(pPresentationParameters))
 	{
-		case D3DFMT_UNKNOWN:
-		case D3DFMT_X8R8G8B8:
-		case D3DFMT_A8R8G8B8:
-			break;
-		default:
-			LOG(ERROR) << "> Format " << pp.BackBufferFormat << " is not currently supported.";
-			return DXGI_ERROR_INVALID_CALL;
-	}
-
-	if (pp.SwapEffect != D3DSWAPEFFECT_COPY && pp.PresentationInterval != D3DPRESENT_INTERVAL_IMMEDIATE && pp.BackBufferCount < 2)
-	{
-		LOG(WARNING) << "> Forcing tripple buffering.";
-
-		pPresentationParameters->BackBufferCount = 2;
+		return D3DERR_INVALIDCALL;
 	}
 
 	assert(this->mImplicitSwapChain != nullptr);
@@ -1077,25 +1060,12 @@ HRESULT STDMETHODCALLTYPE IDirect3D9_CreateDevice(IDirect3D9 *pD3D, UINT Adapter
 
 	D3DPRESENT_PARAMETERS pp = *pPresentationParameters;
 
-	switch (pp.BackBufferFormat)
+	if (!AdjustPresentParameters(pPresentationParameters))
 	{
-		case D3DFMT_UNKNOWN:
-		case D3DFMT_X8R8G8B8:
-		case D3DFMT_A8R8G8B8:
-			break;
-		default:
-			LOG(ERROR) << "> Format " << pp.BackBufferFormat << " is not currently supported.";
-			return DXGI_ERROR_INVALID_CALL;
+		return D3DERR_INVALIDCALL;
 	}
 
-	if (pp.SwapEffect != D3DSWAPEFFECT_COPY && pp.PresentationInterval != D3DPRESENT_INTERVAL_IMMEDIATE && pp.BackBufferCount < 2)
-	{
-		LOG(WARNING) << "> Forcing tripple buffering.";
-
-		pPresentationParameters->BackBufferCount = 2;
-	}
-
-	const HRESULT hr = ReHook::Call(&IDirect3D9_CreateDevice)(pD3D, Adapter, DeviceType, hFocusWindow, BehaviorFlags, pPresentationParameters, ppReturnedDeviceInterface);
+	HRESULT hr = ReHook::Call(&IDirect3D9_CreateDevice)(pD3D, Adapter, DeviceType, hFocusWindow, BehaviorFlags, pPresentationParameters, ppReturnedDeviceInterface);
 
 	if (SUCCEEDED(hr))
 	{
@@ -1146,22 +1116,9 @@ HRESULT STDMETHODCALLTYPE IDirect3D9Ex_CreateDeviceEx(IDirect3D9Ex *pD3D, UINT A
 
 	D3DPRESENT_PARAMETERS pp = *pPresentationParameters;
 
-	switch (pp.BackBufferFormat)
+	if (!AdjustPresentParameters(pPresentationParameters))
 	{
-		case D3DFMT_UNKNOWN:
-		case D3DFMT_X8R8G8B8:
-		case D3DFMT_A8R8G8B8:
-			break;
-		default:
-			LOG(ERROR) << "> Format " << pp.BackBufferFormat << " is not currently supported.";
-			return DXGI_ERROR_INVALID_CALL;
-	}
-
-	if (pp.SwapEffect != D3DSWAPEFFECT_COPY && pp.PresentationInterval != D3DPRESENT_INTERVAL_IMMEDIATE && pp.BackBufferCount < 2)
-	{
-		LOG(WARNING) << "> Forcing tripple buffering.";
-
-		pPresentationParameters->BackBufferCount = 2;
+		return D3DERR_INVALIDCALL;
 	}
 
 	const HRESULT hr = ReHook::Call(&IDirect3D9Ex_CreateDeviceEx)(pD3D, Adapter, DeviceType, hFocusWindow, BehaviorFlags, pPresentationParameters, pFullscreenDisplayMode, ppReturnedDeviceInterface);

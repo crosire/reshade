@@ -171,6 +171,10 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Wi
 
 	switch (NewFormat)
 	{
+		case DXGI_FORMAT_UNKNOWN:
+		case DXGI_FORMAT_R8G8B8A8_UNORM:
+		case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
+			break;
 		case DXGI_FORMAT_B8G8R8A8_UNORM:
 			LOG(WARNING) << "> Replacing buffer format 'DXGI_FORMAT_B8G8R8A8_UNORM' with 'DXGI_FORMAT_R8G8B8A8_UNORM' ...";
 			NewFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
@@ -179,6 +183,9 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Wi
 			LOG(WARNING) << "> Replacing buffer format 'DXGI_FORMAT_B8G8R8A8_UNORM_SRGB' with 'DXGI_FORMAT_R8G8B8A8_UNORM_SRGB' ...";
 			NewFormat = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
 			break;
+		default:
+			LOG(ERROR) << "> Format " << NewFormat << " is not currently supported.";
+			return DXGI_ERROR_INVALID_CALL;
 	}
 
 	assert(this->mRuntime != nullptr);
