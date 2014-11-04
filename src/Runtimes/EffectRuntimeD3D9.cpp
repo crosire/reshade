@@ -17,7 +17,7 @@ namespace ReShade
 {
 	namespace
 	{
-		class D3D9Runtime : public Runtime, public std::enable_shared_from_this<D3D9Runtime>
+		struct D3D9Runtime : public Runtime, public std::enable_shared_from_this<D3D9Runtime>
 		{
 			friend struct D3D9Effect;
 			friend struct D3D9Texture;
@@ -25,7 +25,6 @@ namespace ReShade
 			friend struct D3D9Technique;
 			friend class D3D9EffectCompiler;
 
-		public:
 			D3D9Runtime(IDirect3DDevice9 *device, IDirect3DSwapChain9 *swapchain);
 			~D3D9Runtime();
 
@@ -36,15 +35,14 @@ namespace ReShade
 			virtual std::unique_ptr<Effect> CreateEffect(const EffectTree &ast, std::string &errors) const override;
 			virtual void CreateScreenshot(unsigned char *buffer, std::size_t size) const override;
 
-		private:
 			IDirect3DDevice9 *mDevice;
 			IDirect3DSwapChain9 *mSwapChain;
 			IDirect3DStateBlock9 *mStateBlock;
 			IDirect3DSurface9 *mBackBuffer;
 			IDirect3DSurface9 *mBackBufferNotMultisampled;
+			IDirect3DTexture9 *mDepthStencilTexture;
 			bool mLost;
 		};
-		
 		struct D3D9Effect : public Effect
 		{
 			friend struct D3D9Texture;
@@ -67,7 +65,6 @@ namespace ReShade
 			std::vector<D3D9Sampler> mSamplers;
 			std::unordered_map<std::string, std::unique_ptr<D3D9Constant>> mConstants;
 			std::unordered_map<std::string, std::unique_ptr<D3D9Technique>> mTechniques;
-			IDirect3DStateBlock9 *mShaderResourceStateblock;
 			IDirect3DSurface9 *mDepthStencil;
 			IDirect3DVertexDeclaration9 *mVertexDeclaration;
 			IDirect3DVertexBuffer9 *mVertexBuffer;
@@ -156,29 +153,6 @@ namespace ReShade
 				{
 					Visit(this->mAST[root[i]]);
 				}
-
-				IDirect3DDevice9 *device = this->mEffect->mEffectContext->mDevice;
-				device->BeginStateBlock();
-			
-				for (DWORD i = 0, count = static_cast<DWORD>(this->mEffect->mSamplers.size()); i < count; ++i)
-				{
-					const auto &sampler = this->mEffect->mSamplers[i];
-
-					device->SetTexture(i, sampler.mTexture->mTexture);
-
-					device->SetSamplerState(i, D3DSAMP_ADDRESSU, sampler.mStates[D3DSAMP_ADDRESSU]);
-					device->SetSamplerState(i, D3DSAMP_ADDRESSV, sampler.mStates[D3DSAMP_ADDRESSV]);
-					device->SetSamplerState(i, D3DSAMP_ADDRESSW, sampler.mStates[D3DSAMP_ADDRESSW]);
-					device->SetSamplerState(i, D3DSAMP_MAGFILTER, sampler.mStates[D3DSAMP_MAGFILTER]);
-					device->SetSamplerState(i, D3DSAMP_MINFILTER, sampler.mStates[D3DSAMP_MINFILTER]);
-					device->SetSamplerState(i, D3DSAMP_MIPFILTER, sampler.mStates[D3DSAMP_MIPFILTER]);
-					device->SetSamplerState(i, D3DSAMP_MIPMAPLODBIAS, sampler.mStates[D3DSAMP_MIPMAPLODBIAS]);
-					device->SetSamplerState(i, D3DSAMP_MAXMIPLEVEL, sampler.mStates[D3DSAMP_MAXMIPLEVEL]);
-					device->SetSamplerState(i, D3DSAMP_MAXANISOTROPY, sampler.mStates[D3DSAMP_MAXANISOTROPY]);
-					device->SetSamplerState(i, D3DSAMP_SRGBTEXTURE, sampler.mStates[D3DSAMP_SRGBTEXTURE]);
-				}
-
-				device->EndStateBlock(&this->mEffect->mShaderResourceStateblock);
 
 				errors += this->mErrors;
 
@@ -2248,7 +2222,7 @@ namespace ReShade
 
 		// -----------------------------------------------------------------------------------------------------
 
-		D3D9Runtime::D3D9Runtime(IDirect3DDevice9 *device, IDirect3DSwapChain9 *swapchain) : mDevice(device), mSwapChain(swapchain), mStateBlock(nullptr), mBackBuffer(nullptr), mBackBufferNotMultisampled(nullptr), mLost(true)
+		D3D9Runtime::D3D9Runtime(IDirect3DDevice9 *device, IDirect3DSwapChain9 *swapchain) : mDevice(device), mSwapChain(swapchain), mStateBlock(nullptr), mBackBuffer(nullptr), mBackBufferNotMultisampled(nullptr), mDepthStencilTexture(nullptr), mLost(true)
 		{
 			this->mDevice->AddRef();
 			this->mSwapChain->AddRef();
@@ -2320,10 +2294,16 @@ namespace ReShade
 				this->mBackBuffer->Release();
 			}
 
+			if (this->mDepthStencilTexture != nullptr)
+			{
+				this->mDepthStencilTexture->Release();
+			}
+
 			this->mNVG = nullptr;
 			this->mStateBlock = nullptr;
 			this->mBackBuffer = nullptr;
 			this->mBackBufferNotMultisampled = nullptr;
+			this->mDepthStencilTexture = nullptr;
 
 			this->mLost = true;
 		}
@@ -2490,7 +2470,7 @@ namespace ReShade
 			surfaceSystem->Release();
 		}
 
-		D3D9Effect::D3D9Effect(std::shared_ptr<const D3D9Runtime> context) : mEffectContext(context), mVertexBuffer(nullptr), mVertexDeclaration(nullptr), mDepthStencil(nullptr), mShaderResourceStateblock(nullptr)
+		D3D9Effect::D3D9Effect(std::shared_ptr<const D3D9Runtime> context) : mEffectContext(context), mVertexBuffer(nullptr), mVertexDeclaration(nullptr), mDepthStencil(nullptr)
 		{
 			HRESULT hr;
 
@@ -2503,7 +2483,6 @@ namespace ReShade
 
 			this->mConstantRegisterCount = 0;
 			this->mConstantStorage = nullptr;
-			this->mShaderResourceStateblock = nullptr;
 
 			D3DVERTEXELEMENT9 declaration[] =
 			{
@@ -2537,11 +2516,6 @@ namespace ReShade
 			this->mVertexBuffer->Release();
 			this->mVertexDeclaration->Release();
 			this->mDepthStencil->Release();
-
-			if (this->mShaderResourceStateblock != nullptr)
-			{
-				this->mShaderResourceStateblock->Release();
-			}
 		}
 
 		const Effect::Texture *D3D9Effect::GetTexture(const std::string &name) const
@@ -2729,6 +2703,30 @@ namespace ReShade
 		}
 		void D3D9Texture::UpdateFromDepthBuffer()
 		{
+			if (this->mTexture == this->mEffect->mEffectContext->mDepthStencilTexture)
+			{
+				return;
+			}
+
+			if (this->mTexture != nullptr)
+			{
+				this->mTexture->Release();
+			}
+
+			this->mTexture = this->mEffect->mEffectContext->mDepthStencilTexture;
+
+			if (this->mTexture != nullptr)
+			{
+				D3DSURFACE_DESC desc;
+				this->mTexture->GetLevelDesc(0, &desc);
+
+				this->mDesc.Width = desc.Width;
+				this->mDesc.Height = desc.Height;
+				this->mDesc.Format = Effect::Texture::Format::Unknown;
+				this->mDesc.Levels = this->mTexture->GetLevelCount();
+
+				this->mTexture->AddRef();
+			}
 		}
 
 		D3D9Constant::D3D9Constant(D3D9Effect *effect) : mEffect(effect), mRegisterOffset(0)
@@ -2811,7 +2809,23 @@ namespace ReShade
 			device->SetVertexDeclaration(this->mEffect->mVertexDeclaration);
 			device->SetStreamSource(0, this->mEffect->mVertexBuffer, 0, sizeof(float));
 
-			this->mEffect->mShaderResourceStateblock->Apply();
+			for (DWORD i = 0, count = static_cast<DWORD>(this->mEffect->mSamplers.size()); i < count; ++i)
+			{
+				const auto &sampler = this->mEffect->mSamplers[i];
+
+				device->SetTexture(i, sampler.mTexture->mTexture);
+
+				device->SetSamplerState(i, D3DSAMP_ADDRESSU, sampler.mStates[D3DSAMP_ADDRESSU]);
+				device->SetSamplerState(i, D3DSAMP_ADDRESSV, sampler.mStates[D3DSAMP_ADDRESSV]);
+				device->SetSamplerState(i, D3DSAMP_ADDRESSW, sampler.mStates[D3DSAMP_ADDRESSW]);
+				device->SetSamplerState(i, D3DSAMP_MAGFILTER, sampler.mStates[D3DSAMP_MAGFILTER]);
+				device->SetSamplerState(i, D3DSAMP_MINFILTER, sampler.mStates[D3DSAMP_MINFILTER]);
+				device->SetSamplerState(i, D3DSAMP_MIPFILTER, sampler.mStates[D3DSAMP_MIPFILTER]);
+				device->SetSamplerState(i, D3DSAMP_MIPMAPLODBIAS, sampler.mStates[D3DSAMP_MIPMAPLODBIAS]);
+				device->SetSamplerState(i, D3DSAMP_MAXMIPLEVEL, sampler.mStates[D3DSAMP_MAXMIPLEVEL]);
+				device->SetSamplerState(i, D3DSAMP_MAXANISOTROPY, sampler.mStates[D3DSAMP_MAXANISOTROPY]);
+				device->SetSamplerState(i, D3DSAMP_SRGBTEXTURE, sampler.mStates[D3DSAMP_SRGBTEXTURE]);
+			}
 
 			D3DVIEWPORT9 viewport;
 			device->GetViewport(&viewport);
@@ -2853,5 +2867,19 @@ namespace ReShade
 		assert(device != nullptr && swapchain != nullptr);
 
 		return std::make_shared<D3D9Runtime>(device, swapchain);
+	}
+	void SetEffectRuntimeDepthStencilTexture(const std::shared_ptr<Runtime> runtime, IDirect3DTexture9 *texture)
+	{
+		assert(texture != nullptr);
+
+		const std::shared_ptr<D3D9Runtime> d3druntime = std::static_pointer_cast<D3D9Runtime>(runtime);
+
+		if (d3druntime->mDepthStencilTexture != nullptr)
+		{
+			d3druntime->mDepthStencilTexture->Release();
+		}
+
+		d3druntime->mDepthStencilTexture = texture;
+		d3druntime->mDepthStencilTexture->AddRef();
 	}
 }

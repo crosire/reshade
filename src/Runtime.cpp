@@ -300,6 +300,7 @@ namespace ReShade
 
 		this->mTechniques.clear();
 		this->mColorTargets.clear();
+		this->mDepthTargets.clear();
 
 		this->mEffect.reset();
 
@@ -362,6 +363,10 @@ namespace ReShade
 					for (auto &target : this->mColorTargets)
 					{
 						target->UpdateFromColorBuffer();
+					}
+					for (auto &target : this->mDepthTargets)
+					{
+						target->UpdateFromDepthBuffer();
 					}
 					for (const std::string &name : this->mEffect->GetConstantNames())
 					{
@@ -586,6 +591,10 @@ namespace ReShade
 				{
 					LOG(ERROR) << "> Texture '" << name << "' (Width = " << desc.Width << ", Height = " << desc.Height << ") doesn't match backbuffer requirements (Width = " << this->mWidth << ", Height = " << this->mHeight << ", Format = R8G8B8A8).";
 				}
+			}
+			else if (source == "depthbuffer")
+			{
+				this->mDepthTargets.push_back(texture);
 			}
 			else
 			{

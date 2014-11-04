@@ -49,7 +49,7 @@ namespace ReShade
 	private:
 		std::unique_ptr<Effect> mEffect;
 		std::vector<std::pair<const Effect::Technique *, InfoTechnique>> mTechniques;
-		std::vector<Effect::Texture *> mColorTargets;
+		std::vector<Effect::Texture *> mColorTargets, mDepthTargets;
 		boost::chrono::high_resolution_clock::time_point mStartTime, mLastCreate, mLastPresent;
 		boost::chrono::high_resolution_clock::duration mLastFrametime;
 		unsigned long long mLastFrameCount;

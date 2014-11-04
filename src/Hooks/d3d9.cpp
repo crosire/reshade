@@ -4,19 +4,28 @@
 
 #include <d3d9.h>
 #include <boost\noncopyable.hpp>
+#include <unordered_map>
 
 #undef IDirect3D9_CreateDevice
 #undef IDirect3D9Ex_CreateDeviceEx
 
 // -----------------------------------------------------------------------------------------------------
 
+#define D3DFMT_INTZ static_cast<D3DFORMAT>(MAKEFOURCC('I', 'N', 'T', 'Z'))
+
 namespace
 {
+	struct DepthStencilInfo
+	{
+		UINT Width, Height;
+		UINT DrawCallCount;
+	};
+
 	struct Direct3DDevice9 : public IDirect3DDevice9Ex, private boost::noncopyable
 	{
 		friend struct Direct3DSwapChain9;
 
-		Direct3DDevice9(IDirect3D9 *pD3D, IDirect3DDevice9 *pOriginalDevice) : mRef(1), mD3D(pD3D), mOrig(pOriginalDevice), mImplicitSwapChain(nullptr)
+		Direct3DDevice9(IDirect3D9 *pD3D, IDirect3DDevice9 *pOriginalDevice) : mRef(1), mD3D(pD3D), mOrig(pOriginalDevice), mImplicitSwapChain(nullptr), mAutoDepthStencil(nullptr), mBestDepthStencil(nullptr), mBestDepthStencilReplacement(nullptr)
 		{
 		}
 
@@ -157,10 +166,15 @@ namespace
 		virtual HRESULT STDMETHODCALLTYPE ResetEx(D3DPRESENT_PARAMETERS *pPresentationParameters, D3DDISPLAYMODEEX *pFullscreenDisplayMode) override;
 		virtual HRESULT STDMETHODCALLTYPE GetDisplayModeEx(UINT iSwapChain, D3DDISPLAYMODEEX *pMode, D3DDISPLAYROTATION *pRotation) override;
 
+		void DetectBestDepthStencil();
+		void UpdateDepthStencilDrawCallCount();
+
 		ULONG mRef;
 		IDirect3D9 *mD3D;
 		IDirect3DDevice9 *mOrig;
 		Direct3DSwapChain9 *mImplicitSwapChain;
+		std::unordered_map<IDirect3DSurface9 *, DepthStencilInfo> mDepthStencilTable;
+		IDirect3DSurface9 *mAutoDepthStencil, *mBestDepthStencil, *mBestDepthStencilReplacement;
 	};
 	struct Direct3DSwapChain9 : public IDirect3DSwapChain9Ex, private boost::noncopyable
 	{
@@ -238,15 +252,144 @@ namespace
 			pp->BackBufferCount = 2;
 		}
 
+		if (pp->MultiSampleType != D3DMULTISAMPLE_NONE)
+		{
+			LOG(WARNING) << "> Multisampling is enabled. This is not compatible with depth texture, which was therefore disabled.";
+		}
+
 		return true;
 	}
 }
 namespace ReShade
 {
-	extern std::shared_ptr<ReShade::Runtime> CreateEffectRuntime(IDirect3DDevice9 *device, IDirect3DSwapChain9 *swapchain);
+	extern std::shared_ptr<Runtime> CreateEffectRuntime(IDirect3DDevice9 *device, IDirect3DSwapChain9 *swapchain);
+	extern void SetEffectRuntimeDepthStencilTexture(const std::shared_ptr<Runtime> runtime, IDirect3DTexture9 *texture);
 }
 
 // -----------------------------------------------------------------------------------------------------
+
+void Direct3DDevice9::DetectBestDepthStencil()
+{
+	static int cooldown = 0;
+
+	if (cooldown-- > 0)
+	{
+		return;
+	}
+	else
+	{
+		cooldown = 10;
+	}
+
+	if (this->mDepthStencilTable.empty())
+	{
+		return;
+	}
+
+	D3DPRESENT_PARAMETERS pp;
+	this->mImplicitSwapChain->GetPresentParameters(&pp);
+
+	if (pp.MultiSampleType != D3DMULTISAMPLE_NONE)
+	{
+		return;
+	}
+
+	UINT bestDrawCallCount = 0;
+	IDirect3DSurface9 *bestDepthStencil = nullptr;
+
+	for (auto &it : this->mDepthStencilTable)
+	{
+		if (it.second.DrawCallCount == 0)
+		{
+			continue;
+		}
+
+		if (it.second.DrawCallCount >= bestDrawCallCount && (it.second.Width >= pp.BackBufferWidth && it.second.Height >= pp.BackBufferHeight))
+		{
+			bestDrawCallCount = it.second.DrawCallCount;
+			bestDepthStencil = it.first;
+		}
+
+		it.second.DrawCallCount = 0;
+	}
+
+	if (bestDepthStencil != nullptr && this->mBestDepthStencil != bestDepthStencil)
+	{
+		D3DSURFACE_DESC desc;
+		bestDepthStencil->GetDesc(&desc);
+
+		this->mBestDepthStencil = bestDepthStencil;
+
+		if (this->mBestDepthStencilReplacement != nullptr)
+		{
+			this->mBestDepthStencilReplacement->Release();
+			this->mBestDepthStencilReplacement = nullptr;
+		}
+
+		IDirect3DTexture9 *texture = nullptr;
+
+		if (desc.Format != D3DFMT_INTZ)
+		{
+			const HRESULT hr = this->mOrig->CreateTexture(desc.Width, desc.Height, 1, D3DUSAGE_DEPTHSTENCIL, D3DFMT_INTZ, D3DPOOL_DEFAULT, &texture, nullptr);
+
+			if (SUCCEEDED(hr))
+			{
+				texture->GetSurfaceLevel(0, &this->mBestDepthStencilReplacement);
+
+				// Update auto depthstencil
+				IDirect3DSurface9 *depthstencil = nullptr;
+
+				this->mOrig->GetDepthStencilSurface(&depthstencil);
+
+				if (depthstencil != nullptr)
+				{
+					if (depthstencil == this->mBestDepthStencil)
+					{
+						this->mOrig->SetDepthStencilSurface(this->mBestDepthStencilReplacement);
+					}
+
+					depthstencil->Release();
+				}
+			}
+		}
+		else
+		{
+			this->mBestDepthStencilReplacement = bestDepthStencil;
+			this->mBestDepthStencilReplacement->AddRef();
+			this->mBestDepthStencilReplacement->GetContainer(__uuidof(IDirect3DTexture9), reinterpret_cast<void **>(&texture));
+		}
+
+		if (texture != nullptr)
+		{
+			assert(this->mImplicitSwapChain != nullptr);
+
+			ReShade::SetEffectRuntimeDepthStencilTexture(this->mImplicitSwapChain->mRuntime, texture);
+
+			texture->Release();
+		}
+		else
+		{
+			LOG(ERROR) << "Failed to create depthstencil replacement texture.";
+		}
+	}
+}
+void Direct3DDevice9::UpdateDepthStencilDrawCallCount()
+{
+	IDirect3DSurface9 *depthstencil = nullptr;
+	this->mOrig->GetDepthStencilSurface(&depthstencil);
+
+	if (depthstencil != nullptr)
+	{
+		depthstencil->Release();
+
+		if (depthstencil == this->mBestDepthStencilReplacement)
+		{
+			depthstencil = this->mBestDepthStencil;
+		}
+
+		this->mDepthStencilTable.at(depthstencil).DrawCallCount++;
+	}
+}
 
 // IDirect3DSwapChain9
 HRESULT STDMETHODCALLTYPE Direct3DSwapChain9::QueryInterface(REFIID riid, void **ppvObj)
@@ -279,7 +422,7 @@ ULONG STDMETHODCALLTYPE Direct3DSwapChain9::Release()
 	}
 
 	const ULONG ref = this->mOrig->Release();
-			
+
 	if (ref == 0)
 	{
 		delete this;
@@ -289,6 +432,13 @@ ULONG STDMETHODCALLTYPE Direct3DSwapChain9::Release()
 }
 HRESULT STDMETHODCALLTYPE Direct3DSwapChain9::Present(const RECT *pSourceRect, const RECT *pDestRect, HWND hDestWindowOverride, const RGNDATA *pDirtyRegion, DWORD dwFlags)
 {
+	assert(this->mDevice != nullptr);
+
+	if (this == this->mDevice->mImplicitSwapChain)
+	{
+		this->mDevice->DetectBestDepthStencil();
+	}
+
 	assert(this->mRuntime);
 
 	this->mRuntime->OnPresent();
@@ -317,6 +467,8 @@ HRESULT STDMETHODCALLTYPE Direct3DSwapChain9::GetDevice(IDirect3DDevice9 **ppDev
 	{
 		return D3DERR_INVALIDCALL;
 	}
+
+	assert(this->mDevice != nullptr);
 
 	this->mDevice->AddRef();
 
@@ -367,6 +519,17 @@ ULONG STDMETHODCALLTYPE Direct3DDevice9::Release()
 {
 	if (--this->mRef == 0)
 	{
+		if (this->mAutoDepthStencil != nullptr)
+		{
+			this->mAutoDepthStencil->Release();
+			this->mAutoDepthStencil = nullptr;
+		}
+		if (this->mBestDepthStencilReplacement != nullptr)
+		{
+			this->mBestDepthStencilReplacement->Release();
+			this->mBestDepthStencilReplacement = nullptr;
+		}
+
 		assert(this->mImplicitSwapChain != nullptr);
 
 		this->mImplicitSwapChain->Release();
@@ -507,6 +670,20 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Reset(D3DPRESENT_PARAMETERS *pPresent
 
 	runtime->OnDelete();
 
+	this->mDepthStencilTable.clear();
+
+	if (this->mAutoDepthStencil != nullptr)
+	{
+		this->mAutoDepthStencil->Release();
+		this->mAutoDepthStencil = nullptr;
+	}
+	if (this->mBestDepthStencilReplacement != nullptr)
+	{
+		this->mBestDepthStencil = nullptr;
+		this->mBestDepthStencilReplacement->Release();
+		this->mBestDepthStencilReplacement = nullptr;
+	}
+
 	const HRESULT hr = this->mOrig->Reset(pPresentationParameters);
 
 	if (SUCCEEDED(hr))
@@ -514,6 +691,12 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Reset(D3DPRESENT_PARAMETERS *pPresent
 		this->mImplicitSwapChain->GetPresentParameters(&pp);
 
 		runtime->OnCreate(pp.BackBufferWidth, pp.BackBufferHeight);
+
+		if (pp.EnableAutoDepthStencil != FALSE)
+		{
+			this->mOrig->GetDepthStencilSurface(&this->mAutoDepthStencil);
+			SetDepthStencilSurface(this->mAutoDepthStencil);
+		}
 	}
 	else
 	{
@@ -524,6 +707,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Reset(D3DPRESENT_PARAMETERS *pPresent
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::Present(const RECT *pSourceRect, const RECT *pDestRect, HWND hDestWindowOverride, const RGNDATA *pDirtyRegion)
 {
+	DetectBestDepthStencil();
+
 	assert(this->mImplicitSwapChain != nullptr);
 	assert(this->mImplicitSwapChain->mRuntime != nullptr);
 
@@ -626,6 +811,27 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetRenderTarget(DWORD RenderTargetInd
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetDepthStencilSurface(IDirect3DSurface9 *pNewZStencil)
 {
+	if (pNewZStencil != nullptr)
+	{
+		if (this->mDepthStencilTable.find(pNewZStencil) == this->mDepthStencilTable.end())
+		{
+			D3DSURFACE_DESC desc;
+			pNewZStencil->GetDesc(&desc);
+
+			DepthStencilInfo info;
+			info.Width = desc.Width;
+			info.Height = desc.Height;
+			info.DrawCallCount = 0;
+
+			this->mDepthStencilTable.emplace(pNewZStencil, info);
+		}
+
+		if (this->mBestDepthStencilReplacement != nullptr && pNewZStencil == this->mBestDepthStencil)
+		{
+			pNewZStencil = this->mBestDepthStencilReplacement;
+		}
+	}
+
 	return this->mOrig->SetDepthStencilSurface(pNewZStencil);
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetDepthStencilSurface(IDirect3DSurface9 **ppZStencilSurface)
@@ -794,18 +1000,26 @@ float STDMETHODCALLTYPE Direct3DDevice9::GetNPatchMode()
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::DrawPrimitive(D3DPRIMITIVETYPE PrimitiveType, UINT StartVertex, UINT PrimitiveCount)
 {
+	UpdateDepthStencilDrawCallCount();
+
 	return this->mOrig->DrawPrimitive(PrimitiveType, StartVertex, PrimitiveCount);
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::DrawIndexedPrimitive(D3DPRIMITIVETYPE PrimitiveType, INT BaseVertexIndex, UINT MinVertexIndex, UINT NumVertices, UINT startIndex, UINT primCount)
 {
+	UpdateDepthStencilDrawCallCount();
+
 	return this->mOrig->DrawIndexedPrimitive(PrimitiveType, BaseVertexIndex, MinVertexIndex, NumVertices, startIndex, primCount);
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::DrawPrimitiveUP(D3DPRIMITIVETYPE PrimitiveType, UINT PrimitiveCount, const void *pVertexStreamZeroData, UINT VertexStreamZeroStride)
 {
+	UpdateDepthStencilDrawCallCount();
+
 	return this->mOrig->DrawPrimitiveUP(PrimitiveType, PrimitiveCount, pVertexStreamZeroData, VertexStreamZeroStride);
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::DrawIndexedPrimitiveUP(D3DPRIMITIVETYPE PrimitiveType, UINT MinVertexIndex, UINT NumVertices, UINT PrimitiveCount, const void *pIndexData, D3DFORMAT IndexDataFormat, const void *pVertexStreamZeroData, UINT VertexStreamZeroStride)
 {
+	UpdateDepthStencilDrawCallCount();
+
 	return this->mOrig->DrawIndexedPrimitiveUP(PrimitiveType, MinVertexIndex, NumVertices, PrimitiveCount, pIndexData, IndexDataFormat, pVertexStreamZeroData, VertexStreamZeroStride);
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::ProcessVertices(UINT SrcStartIndex, UINT DestIndex, UINT VertexCount, IDirect3DVertexBuffer9 *pDestBuffer, IDirect3DVertexDeclaration9 *pVertexDecl, DWORD Flags)
@@ -956,6 +1170,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ComposeRects(IDirect3DSurface9 *pSrc,
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::PresentEx(const RECT *pSourceRect, const RECT *pDestRect, HWND hDestWindowOverride, const RGNDATA *pDirtyRegion, DWORD dwFlags)
 {
+	DetectBestDepthStencil();
+
 	assert(this->mImplicitSwapChain != nullptr);
 	assert(this->mImplicitSwapChain->mRuntime != nullptr);
 
@@ -1028,6 +1244,20 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ResetEx(D3DPRESENT_PARAMETERS *pPrese
 
 	runtime->OnDelete();
 
+	this->mDepthStencilTable.clear();
+
+	if (this->mAutoDepthStencil != nullptr)
+	{
+		this->mAutoDepthStencil->Release();
+		this->mAutoDepthStencil = nullptr;
+	}
+	if (this->mBestDepthStencilReplacement != nullptr)
+	{
+		this->mBestDepthStencil = nullptr;
+		this->mBestDepthStencilReplacement->Release();
+		this->mBestDepthStencilReplacement = nullptr;
+	}
+
 	const HRESULT hr = static_cast<IDirect3DDevice9Ex *>(this->mOrig)->ResetEx(pPresentationParameters, pFullscreenDisplayMode);
 
 	if (SUCCEEDED(hr))
@@ -1035,6 +1265,12 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ResetEx(D3DPRESENT_PARAMETERS *pPrese
 		this->mImplicitSwapChain->GetPresentParameters(&pp);
 
 		runtime->OnCreate(pp.BackBufferWidth, pp.BackBufferHeight);
+
+		if (pp.EnableAutoDepthStencil != FALSE)
+		{
+			this->mOrig->GetDepthStencilSurface(&this->mAutoDepthStencil);
+			SetDepthStencilSurface(this->mAutoDepthStencil);
+		}
 	}
 	else
 	{
@@ -1088,6 +1324,12 @@ HRESULT STDMETHODCALLTYPE IDirect3D9_CreateDevice(IDirect3D9 *pD3D, UINT Adapter
 
 			deviceProxy->mImplicitSwapChain = swapchainProxy;
 			*ppReturnedDeviceInterface = deviceProxy;
+
+			if (pp.EnableAutoDepthStencil != FALSE)
+			{
+				device->GetDepthStencilSurface(&deviceProxy->mAutoDepthStencil);
+				deviceProxy->SetDepthStencilSurface(deviceProxy->mAutoDepthStencil);
+			}
 		}
 		else
 		{
@@ -1144,6 +1386,12 @@ HRESULT STDMETHODCALLTYPE IDirect3D9Ex_CreateDeviceEx(IDirect3D9Ex *pD3D, UINT A
 
 			deviceProxy->mImplicitSwapChain = swapchainProxy;
 			*ppReturnedDeviceInterface = deviceProxy;
+
+			if (pp.EnableAutoDepthStencil != FALSE)
+			{
+				device->GetDepthStencilSurface(&deviceProxy->mAutoDepthStencil);
+				deviceProxy->SetDepthStencilSurface(deviceProxy->mAutoDepthStencil);
+			}
 		}
 		else
 		{
