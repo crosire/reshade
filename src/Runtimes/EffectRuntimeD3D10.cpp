@@ -1,12 +1,8 @@
 #include "Log.hpp"
-#include "Runtime.hpp"
-#include "Effect.hpp"
 #include "EffectParserTree.hpp"
+#include "EffectRuntimeD3D10.hpp"
 
-#include <d3d10_1.h>
 #include <d3dcompiler.h>
-#include <vector>
-#include <unordered_map>
 #include <nanovg_d3d10.h>
 
 // -----------------------------------------------------------------------------------------------------
@@ -20,146 +16,6 @@ namespace ReShade
 {
 	namespace
 	{
-		struct D3D10_SAMPLER_DESC_HASHER
-		{
-			inline std::size_t operator()(const D3D10_SAMPLER_DESC &s) const 
-			{
-				const unsigned char *p = reinterpret_cast<const unsigned char *>(&s);
-				std::size_t h = 2166136261;
-
-				for (std::size_t i = 0; i < sizeof(D3D10_SAMPLER_DESC); ++i)
-				{
-					h = (h * 16777619) ^ p[i];
-				}
-
-				return h;
-			}
-		};
-
-		class D3D10Runtime : public Runtime, public std::enable_shared_from_this<D3D10Runtime>
-		{
-			friend struct D3D10Effect;
-			friend struct D3D10Texture;
-			friend struct D3D10Constant;
-			friend struct D3D10Technique;
-			friend class D3D10EffectCompiler;
-
-		public:
-			D3D10Runtime(ID3D10Device *device, IDXGISwapChain *swapchain);
-			~D3D10Runtime();
-
-			virtual bool OnCreate(unsigned int width, unsigned int height) override;
-			virtual void OnDelete() override;
-			virtual void OnPresent() override;
-
-			virtual std::unique_ptr<Effect> CreateEffect(const EffectTree &ast, std::string &errors) const override;
-			virtual void CreateScreenshot(unsigned char *buffer, std::size_t size) const override;
-
-		private:
-			ID3D10Device *mDevice;
-			IDXGISwapChain *mSwapChain;
-			ID3D10StateBlock *mStateBlock;
-			ID3D10Texture2D *mBackBuffer;
-			ID3D10Texture2D *mBackBufferTexture;
-			ID3D10RenderTargetView *mBackBufferTargets[2];
-			bool mLost;
-		};
-
-		struct D3D10Effect : public Effect
-		{
-			friend struct D3D10Texture;
-			friend struct D3D10Constant;
-			friend struct D3D10Technique;
-
-			D3D10Effect(std::shared_ptr<const D3D10Runtime> context);
-			~D3D10Effect();
-
-			const Texture *GetTexture(const std::string &name) const;
-			std::vector<std::string> GetTextureNames() const;
-			const Constant *GetConstant(const std::string &name) const;
-			std::vector<std::string> GetConstantNames() const;
-			const Technique *GetTechnique(const std::string &name) const;
-			std::vector<std::string> GetTechniqueNames() const;
-
-			void ApplyConstants() const;
-
-			std::shared_ptr<const D3D10Runtime> mEffectContext;
-			std::unordered_map<std::string, std::unique_ptr<D3D10Texture>> mTextures;
-			std::unordered_map<std::string, std::unique_ptr<D3D10Constant>> mConstants;
-			std::unordered_map<std::string, std::unique_ptr<D3D10Technique>> mTechniques;
-			ID3D10Texture2D *mDepthStencilTexture;
-			ID3D10ShaderResourceView *mDepthStencilView;
-			ID3D10DepthStencilView *mDepthStencil;
-			ID3D10RasterizerState *mRasterizerState;
-			std::unordered_map<D3D10_SAMPLER_DESC, size_t, D3D10_SAMPLER_DESC_HASHER> mSamplerDescs;
-			std::vector<ID3D10SamplerState *> mSamplerStates;
-			std::vector<ID3D10ShaderResourceView *> mShaderResources;
-			std::vector<ID3D10Buffer *> mConstantBuffers;
-			std::vector<unsigned char *> mConstantStorages;
-			mutable bool mConstantsDirty;
-		};
-		struct D3D10Texture : public Effect::Texture
-		{
-			D3D10Texture(D3D10Effect *effect);
-			~D3D10Texture();
-
-			const Description GetDescription() const;
-			const Effect::Annotation GetAnnotation(const std::string &name) const;
-
-			void Update(unsigned int level, const unsigned char *data, std::size_t size);
-			void UpdateFromColorBuffer();
-			void UpdateFromDepthBuffer();
-
-			D3D10Effect *mEffect;
-			Description mDesc;
-			unsigned int mRegister;
-			std::unordered_map<std::string, Effect::Annotation>	mAnnotations;
-			ID3D10Texture2D *mTexture;
-			ID3D10ShaderResourceView *mShaderResourceView[2];
-			ID3D10RenderTargetView *mRenderTargetView[2];
-		};
-		struct D3D10Constant : public Effect::Constant
-		{
-			D3D10Constant(D3D10Effect *effect);
-			~D3D10Constant();
-
-			const Description GetDescription() const;
-			const Effect::Annotation GetAnnotation(const std::string &name) const;
-			void GetValue(unsigned char *data, std::size_t size) const;
-			void SetValue(const unsigned char *data, std::size_t size);
-
-			D3D10Effect *mEffect;
-			Description mDesc;
-			std::unordered_map<std::string, Effect::Annotation>	mAnnotations;
-			std::size_t mBuffer, mBufferOffset;
-		};
-		struct D3D10Technique : public Effect::Technique
-		{
-			struct Pass
-			{
-				ID3D10VertexShader *VS;
-				ID3D10PixelShader *PS;
-				ID3D10BlendState *BS;
-				ID3D10DepthStencilState *DSS;
-				UINT StencilRef;
-				ID3D10RenderTargetView *RT[D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT];
-				std::vector<ID3D10ShaderResourceView *> SR;
-			};
-
-			D3D10Technique(D3D10Effect *effect);
-			~D3D10Technique();
-
-			const Effect::Annotation GetAnnotation(const std::string &name) const;
-
-			bool Begin(unsigned int &passes) const;
-			void End() const;
-			void RenderPass(unsigned int index) const;
-
-			D3D10Effect *mEffect;
-			std::unordered_map<std::string, Effect::Annotation>	mAnnotations;
-			std::vector<Pass> mPasses;
-		};
-
 		class D3D10EffectCompiler
 		{
 		public:
@@ -2286,670 +2142,661 @@ namespace ReShade
 			std::unordered_map<std::string, Effect::Annotation> *mCurrentAnnotations;
 			std::vector<D3D10Technique::Pass> *mCurrentPasses;
 		};
-
-		// -----------------------------------------------------------------------------------------------------
-
-		D3D10Runtime::D3D10Runtime(ID3D10Device *device, IDXGISwapChain *swapchain) : mDevice(device), mSwapChain(swapchain), mStateBlock(nullptr), mBackBuffer(nullptr), mBackBufferTexture(nullptr), mBackBufferTargets(), mLost(true)
-		{
-			this->mDevice->AddRef();
-			this->mSwapChain->AddRef();
-
-			IDXGIDevice *dxgidevice = nullptr;
-			IDXGIAdapter *adapter = nullptr;
-
-			this->mDevice->QueryInterface(__uuidof(IDXGIDevice), reinterpret_cast<void **>(&dxgidevice));
-			dxgidevice->GetAdapter(&adapter);
-			dxgidevice->Release();
-
-			DXGI_ADAPTER_DESC desc;
-			adapter->GetDesc(&desc);
-			adapter->Release();
-			
-			this->mVendorId = desc.VendorId;
-			this->mDeviceId = desc.DeviceId;
-			this->mRendererId = 0xD3D10;
-
-			D3D10_STATE_BLOCK_MASK mask;
-			D3D10StateBlockMaskEnableAll(&mask);
-			D3D10CreateStateBlock(this->mDevice, &mask, &this->mStateBlock);
-		}
-		D3D10Runtime::~D3D10Runtime()
-		{
-			assert(this->mLost);
-
-			this->mStateBlock->Release();
-
-			this->mDevice->Release();
-			this->mSwapChain->Release();
-		}
-
-		bool D3D10Runtime::OnCreate(unsigned int width, unsigned int height)
-		{
-			this->mSwapChain->GetBuffer(0, __uuidof(ID3D10Texture2D), reinterpret_cast<void **>(&this->mBackBuffer));
-
-			D3D10_TEXTURE2D_DESC bbdesc;
-			this->mBackBuffer->GetDesc(&bbdesc);
-
-			bbdesc.Format = DXGI_FORMAT_R8G8B8A8_TYPELESS;
-			bbdesc.BindFlags = D3D10_BIND_RENDER_TARGET;
-			this->mDevice->CreateTexture2D(&bbdesc, nullptr, &this->mBackBufferTexture);
-
-			D3D10_RENDER_TARGET_VIEW_DESC rtdesc;
-			rtdesc.ViewDimension = D3D10_RTV_DIMENSION_TEXTURE2D;
-			rtdesc.Texture2D.MipSlice = 0;
-			rtdesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-			this->mDevice->CreateRenderTargetView(this->mBackBufferTexture, &rtdesc, &this->mBackBufferTargets[0]);
-			rtdesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
-			this->mDevice->CreateRenderTargetView(this->mBackBufferTexture, &rtdesc, &this->mBackBufferTargets[1]);
-
-			this->mNVG = nvgCreateD3D10(this->mDevice, 0);
-
-			this->mLost = false;
-
-			return Runtime::OnCreate(width, height);
-		}
-		void D3D10Runtime::OnDelete()
-		{
-			Runtime::OnDelete();
-
-			nvgDeleteD3D10(this->mNVG);
-
-			if (this->mStateBlock != nullptr)
-			{
-				this->mStateBlock->Apply();
-				this->mStateBlock->ReleaseAllDeviceObjects();
-			}
-
-			if (this->mBackBufferTargets[0] != nullptr)
-			{
-				this->mBackBufferTargets[0]->Release();
-			}
-			if (this->mBackBufferTargets[1] != nullptr)
-			{
-				this->mBackBufferTargets[1]->Release();
-			}
-			if (this->mBackBufferTexture != nullptr)
-			{
-				this->mBackBufferTexture->Release();
-			}
-			if (this->mBackBuffer != nullptr)
-			{
-				this->mBackBuffer->Release();
-			}
-
-			this->mNVG = nullptr;
-			this->mStateBlock = nullptr;
-			this->mBackBuffer = nullptr;
-			this->mBackBufferTexture = nullptr;
-			this->mBackBufferTargets[0] = nullptr;
-			this->mBackBufferTargets[1] = nullptr;
-
-			this->mLost = true;
-		}
-		void D3D10Runtime::OnPresent()
-		{
-			ID3D10RenderTargetView *stateBlockTargets[D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT] = { nullptr };
-			ID3D10DepthStencilView *stateBlockDepthStencil = nullptr;
-
-			this->mStateBlock->Capture();
-			this->mDevice->OMGetRenderTargets(D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, stateBlockTargets, &stateBlockDepthStencil);
-
-			this->mDevice->CopyResource(this->mBackBufferTexture, this->mBackBuffer);
-			this->mDevice->OMSetRenderTargets(1, &this->mBackBufferTargets[0], nullptr);
-
-			Runtime::OnPresent();
-
-			if (this->mLost)
-			{
-				return;
-			}
-
-			this->mDevice->CopyResource(this->mBackBuffer, this->mBackBufferTexture);
-
-			this->mStateBlock->Apply();
-			this->mDevice->OMSetRenderTargets(D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, stateBlockTargets, stateBlockDepthStencil);
-
-			for (UINT i = 0; i < D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT; ++i)
-			{
-				if (stateBlockTargets[i] != nullptr)
-				{
-					stateBlockTargets[i]->Release();
-				}
-			}
-			if (stateBlockDepthStencil != nullptr)
-			{
-				stateBlockDepthStencil->Release();
-			}
-		}
-
-		std::unique_ptr<Effect> D3D10Runtime::CreateEffect(const EffectTree &ast, std::string &errors) const
-		{
-			D3D10Effect *effect = new D3D10Effect(shared_from_this());
-			
-			D3D10EffectCompiler visitor(ast);
-		
-			if (visitor.Traverse(effect, errors))
-			{
-				return std::unique_ptr<Effect>(effect);
-			}
-			else
-			{
-				delete effect;
-
-				return nullptr;
-			}
-		}
-		void D3D10Runtime::CreateScreenshot(unsigned char *buffer, std::size_t size) const
-		{
-			ID3D10Texture2D *backbuffer = nullptr;
-
-			HRESULT hr = this->mSwapChain->GetBuffer(0, __uuidof(ID3D10Texture2D), reinterpret_cast<void **>(&backbuffer));
-
-			if (FAILED(hr))
-			{
-				return;
-			}
-
-			D3D10_TEXTURE2D_DESC desc;
-			backbuffer->GetDesc(&desc);
-
-			if (desc.Format != DXGI_FORMAT_R8G8B8A8_UNORM && desc.Format != DXGI_FORMAT_R8G8B8A8_UNORM_SRGB && desc.Format != DXGI_FORMAT_B8G8R8A8_UNORM && desc.Format != DXGI_FORMAT_B8G8R8A8_UNORM_SRGB)
-			{
-				backbuffer->Release();
-				return;
-			}
-
-			ID3D10Texture2D *textureStaging = nullptr;
-
-			D3D10_TEXTURE2D_DESC textureDesc;
-			ZeroMemory(&textureDesc, sizeof(D3D10_TEXTURE2D_DESC));
-			textureDesc.ArraySize = 1;
-			textureDesc.Width = desc.Width;
-			textureDesc.Height = desc.Height;
-			textureDesc.Format = desc.Format;
-			textureDesc.Usage = D3D10_USAGE_STAGING;
-			textureDesc.CPUAccessFlags = D3D10_CPU_ACCESS_READ;
-			textureDesc.MipLevels = 1;
-			textureDesc.SampleDesc.Count = 1;
-			textureDesc.SampleDesc.Quality = 0;
-
-			hr = this->mDevice->CreateTexture2D(&textureDesc, nullptr, &textureStaging);
-
-			if (FAILED(hr))
-			{
-				backbuffer->Release();
-				return;
-			}
-
-			if (desc.SampleDesc.Count > 1)
-			{
-				textureDesc.CPUAccessFlags = 0;
-				textureDesc.Usage = D3D10_USAGE_DEFAULT;
-
-				ID3D10Texture2D *textureResolve = nullptr;
-
-				hr = this->mDevice->CreateTexture2D(&textureDesc, nullptr, &textureResolve);
-
-				if (SUCCEEDED(hr))
-				{
-					this->mDevice->ResolveSubresource(textureResolve, 0, backbuffer, 0, textureDesc.Format);
-					this->mDevice->CopyResource(textureStaging, textureResolve);
-
-					textureResolve->Release();
-				}
-			}
-			else
-			{
-				this->mDevice->CopyResource(textureStaging, backbuffer);
-			}
-
-			backbuffer->Release();
-
-			if (FAILED(hr))
-			{
-				textureStaging->Release();
-				return;
-			}
-				
-			D3D10_MAPPED_TEXTURE2D mapped;
-			ZeroMemory(&mapped, sizeof(D3D10_MAPPED_TEXTURE2D));
-
-			hr = textureStaging->Map(0, D3D10_MAP_READ, 0, &mapped);
-
-			if (FAILED(hr))
-			{
-				textureStaging->Release();
-				return;
-			}
-
-			const UINT pitch = desc.Width * 4;
-
-			BYTE *pBuffer = buffer;
-			BYTE *pMapped = static_cast<BYTE *>(mapped.pData);
-
-			for (UINT y = 0; y < desc.Height; ++y)
-			{
-				CopyMemory(pBuffer, pMapped, std::min(pitch, static_cast<UINT>(mapped.RowPitch)));
-			
-				for (UINT x = 0; x < pitch; x += 4)
-				{
-					pBuffer[x + 3] = 0xFF;
-
-					if (desc.Format == DXGI_FORMAT_B8G8R8A8_UNORM || desc.Format == DXGI_FORMAT_B8G8R8A8_UNORM_SRGB)
-					{
-						std::swap(pBuffer[x + 0], pBuffer[x + 2]);
-					}
-				}
-								
-				pBuffer += pitch;
-				pMapped += mapped.RowPitch;
-			}
-
-			textureStaging->Unmap(0);
-
-			textureStaging->Release();
-		}
-
-		D3D10Effect::D3D10Effect(std::shared_ptr<const D3D10Runtime> context) : mEffectContext(context), mConstantsDirty(true)
-		{
-			D3D10_TEXTURE2D_DESC dstdesc;
-			this->mEffectContext->mBackBuffer->GetDesc(&dstdesc);
-
-			dstdesc.Format = DXGI_FORMAT_R24G8_TYPELESS;
-			dstdesc.BindFlags = D3D10_BIND_SHADER_RESOURCE | D3D10_BIND_DEPTH_STENCIL;
-
-			D3D10_SHADER_RESOURCE_VIEW_DESC dssdesc;
-			ZeroMemory(&dssdesc, sizeof(D3D10_SHADER_RESOURCE_VIEW_DESC));
-			dssdesc.ViewDimension = D3D10_SRV_DIMENSION_TEXTURE2D;
-			dssdesc.Format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
-			dssdesc.Texture2D.MipLevels = 1;
-			D3D10_DEPTH_STENCIL_VIEW_DESC dsdesc;
-			ZeroMemory(&dsdesc, sizeof(D3D10_DEPTH_STENCIL_VIEW_DESC));
-			dsdesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-			dsdesc.ViewDimension = D3D10_DSV_DIMENSION_TEXTURE2D;
-			context->mDevice->CreateTexture2D(&dstdesc, nullptr, &this->mDepthStencilTexture);
-			context->mDevice->CreateShaderResourceView(this->mDepthStencilTexture, &dssdesc, &this->mDepthStencilView);
-			context->mDevice->CreateDepthStencilView(this->mDepthStencilTexture, &dsdesc, &this->mDepthStencil);
-
-			D3D10_RASTERIZER_DESC rsdesc;
-			ZeroMemory(&rsdesc, sizeof(D3D10_RASTERIZER_DESC));
-			rsdesc.FillMode = D3D10_FILL_SOLID;
-			rsdesc.CullMode = D3D10_CULL_NONE;
-			rsdesc.DepthClipEnable = TRUE;
-			context->mDevice->CreateRasterizerState(&rsdesc, &this->mRasterizerState);
-		}
-		D3D10Effect::~D3D10Effect()
-		{
-			this->mRasterizerState->Release();
-			this->mDepthStencil->Release();
-			this->mDepthStencilView->Release();
-			this->mDepthStencilTexture->Release();
-
-			for (auto &it : this->mSamplerStates)
-			{
-				it->Release();
-			}
-			
-			for (auto &it : this->mConstantBuffers)
-			{
-				if (it != nullptr)
-				{
-					it->Release();
-				}
-			}
-			for (auto &it : this->mConstantStorages)
-			{
-				::free(it);
-			}
-		}
-
-		const Effect::Texture *D3D10Effect::GetTexture(const std::string &name) const
-		{
-			auto it = this->mTextures.find(name);
-
-			if (it == this->mTextures.end())
-			{
-				return nullptr;
-			}
-
-			return it->second.get();
-		}
-		std::vector<std::string> D3D10Effect::GetTextureNames() const
-		{
-			std::vector<std::string> names;
-			names.reserve(this->mTextures.size());
-
-			for (auto it = this->mTextures.begin(), end = this->mTextures.end(); it != end; ++it)
-			{
-				names.push_back(it->first);
-			}
-
-			return names;
-		}
-		const Effect::Constant *D3D10Effect::GetConstant(const std::string &name) const
-		{
-			auto it = this->mConstants.find(name);
-
-			if (it == this->mConstants.end())
-			{
-				return nullptr;
-			}
-
-			return it->second.get();
-		}
-		std::vector<std::string> D3D10Effect::GetConstantNames() const
-		{
-			std::vector<std::string> names;
-			names.reserve(this->mConstants.size());
-
-			for (auto it = this->mConstants.begin(), end = this->mConstants.end(); it != end; ++it)
-			{
-				names.push_back(it->first);
-			}
-
-			return names;
-		}
-		const Effect::Technique *D3D10Effect::GetTechnique(const std::string &name) const
-		{
-			auto it = this->mTechniques.find(name);
-
-			if (it == this->mTechniques.end())
-			{
-				return nullptr;
-			}
-
-			return it->second.get();
-		}
-		std::vector<std::string> D3D10Effect::GetTechniqueNames() const
-		{
-			std::vector<std::string> names;
-			names.reserve(this->mTechniques.size());
-
-			for (auto it = this->mTechniques.begin(), end = this->mTechniques.end(); it != end; ++it)
-			{
-				names.push_back(it->first);
-			}
-
-			return names;
-		}
-
-		void D3D10Effect::ApplyConstants() const
-		{
-			for (size_t i = 0, count = this->mConstantBuffers.size(); i < count; ++i)
-			{
-				ID3D10Buffer *buffer = this->mConstantBuffers[i];
-				const unsigned char *storage = this->mConstantStorages[i];
-
-				if (buffer == nullptr)
-				{
-					continue;
-				}
-
-				void *data;
-
-				HRESULT hr = buffer->Map(D3D10_MAP_WRITE_DISCARD, 0, &data);
-
-				if (FAILED(hr))
-				{
-					continue;
-				}
-
-				D3D10_BUFFER_DESC desc;
-				buffer->GetDesc(&desc);
-
-				std::memcpy(data, storage, desc.ByteWidth);
-
-				buffer->Unmap();
-			}
-
-			this->mConstantsDirty = false;
-		}
-
-		D3D10Texture::D3D10Texture(D3D10Effect *effect) : mEffect(effect), mTexture(nullptr), mShaderResourceView(), mRenderTargetView()
-		{
-		}
-		D3D10Texture::~D3D10Texture()
-		{
-			if (this->mRenderTargetView[0] != nullptr)
-			{
-				this->mRenderTargetView[0]->Release();
-			}
-			if (this->mRenderTargetView[1] != nullptr)
-			{
-				this->mRenderTargetView[1]->Release();
-			}
-
-			if (this->mShaderResourceView[0] != nullptr)
-			{
-				this->mShaderResourceView[0]->Release();
-			}
-			if (this->mShaderResourceView[1] != nullptr)
-			{
-				this->mShaderResourceView[1]->Release();
-			}
-
-			if (this->mTexture != nullptr)
-			{
-				this->mTexture->Release();
-			}
-		}
-
-		const Effect::Texture::Description D3D10Texture::GetDescription() const
-		{
-			return this->mDesc;
-		}
-		const Effect::Annotation D3D10Texture::GetAnnotation(const std::string &name) const
-		{
-			auto it = this->mAnnotations.find(name);
-
-			if (it == this->mAnnotations.end())
-			{
-				return Effect::Annotation();
-			}
-
-			return it->second;
-		}
-
-		void D3D10Texture::Update(unsigned int level, const unsigned char *data, std::size_t size)
-		{
-			assert(data != nullptr || size == 0);
-
-			if (size == 0) return;
-
-			this->mEffect->mEffectContext->mDevice->UpdateSubresource(this->mTexture, level, nullptr, data, size / this->mDesc.Height, size);
-		}
-		void D3D10Texture::UpdateFromColorBuffer()
-		{
-			D3D10_TEXTURE2D_DESC desc;
-			this->mEffect->mEffectContext->mBackBufferTexture->GetDesc(&desc);
-
-			if (desc.SampleDesc.Count == 1)
-			{
-				this->mEffect->mEffectContext->mDevice->CopyResource(this->mTexture, this->mEffect->mEffectContext->mBackBufferTexture);
-			}
-			else
-			{
-				this->mEffect->mEffectContext->mDevice->ResolveSubresource(this->mTexture, 0, this->mEffect->mEffectContext->mBackBufferTexture, 0, desc.Format);
-			}
-		}
-		void D3D10Texture::UpdateFromDepthBuffer()
-		{
-		}
-
-		D3D10Constant::D3D10Constant(D3D10Effect *effect) : mEffect(effect)
-		{
-		}
-		D3D10Constant::~D3D10Constant()
-		{
-		}
-
-		const Effect::Constant::Description D3D10Constant::GetDescription() const
-		{
-			return this->mDesc;
-		}
-		const Effect::Annotation D3D10Constant::GetAnnotation(const std::string &name) const
-		{
-			auto it = this->mAnnotations.find(name);
-
-			if (it == this->mAnnotations.end())
-			{
-				return Effect::Annotation();
-			}
-
-			return it->second;
-		}
-		void D3D10Constant::GetValue(unsigned char *data, std::size_t size) const
-		{
-			size = std::min(size, this->mDesc.Size);
-
-			const unsigned char *storage = this->mEffect->mConstantStorages[this->mBuffer] + this->mBufferOffset;
-
-			std::memcpy(data, storage, size);
-		}
-		void D3D10Constant::SetValue(const unsigned char *data, std::size_t size)
-		{
-			size = std::min(size, this->mDesc.Size);
-
-			unsigned char *storage = this->mEffect->mConstantStorages[this->mBuffer] + this->mBufferOffset;
-
-			if (std::memcmp(storage, data, size) == 0)
-			{
-				return;
-			}
-
-			std::memcpy(storage, data, size);
-
-			this->mEffect->mConstantsDirty = true;
-		}
-
-		D3D10Technique::D3D10Technique(D3D10Effect *effect) : mEffect(effect)
-		{
-		}
-		D3D10Technique::~D3D10Technique()
-		{
-			for (auto &pass : this->mPasses)
-			{
-				if (pass.VS != nullptr)
-				{
-					pass.VS->Release();
-				}
-				if (pass.PS != nullptr)
-				{
-					pass.PS->Release();
-				}
-				if (pass.BS != nullptr)
-				{
-					pass.BS->Release();
-				}
-				if (pass.DSS != nullptr)
-				{
-					pass.DSS->Release();
-				}
-			}
-		}
-
-		const Effect::Annotation D3D10Technique::GetAnnotation(const std::string &name) const
-		{
-			auto it = this->mAnnotations.find(name);
-
-			if (it == this->mAnnotations.end())
-			{
-				return Effect::Annotation();
-			}
-
-			return it->second;
-		}
-
-		bool D3D10Technique::Begin(unsigned int &passes) const
-		{
-			passes = static_cast<unsigned int>(this->mPasses.size());
-
-			if (passes == 0)
-			{
-				return false;
-			}
-
-			ID3D10Device *device = this->mEffect->mEffectContext->mDevice;
-
-			const uintptr_t null = 0;
-			device->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-			device->IASetInputLayout(nullptr);
-			device->IASetVertexBuffers(0, 1, reinterpret_cast<ID3D10Buffer *const *>(&null), reinterpret_cast<const UINT *>(&null), reinterpret_cast<const UINT *>(&null));
-			device->RSSetState(this->mEffect->mRasterizerState);
-
-			device->VSSetSamplers(0, this->mEffect->mSamplerStates.size(), this->mEffect->mSamplerStates.data());
-			device->PSSetSamplers(0, this->mEffect->mSamplerStates.size(), this->mEffect->mSamplerStates.data());
-			device->VSSetConstantBuffers(0, this->mEffect->mConstantBuffers.size(), this->mEffect->mConstantBuffers.data());
-			device->PSSetConstantBuffers(0, this->mEffect->mConstantBuffers.size(), this->mEffect->mConstantBuffers.data());
-
-			device->ClearDepthStencilView(this->mEffect->mDepthStencil, D3D10_CLEAR_DEPTH | D3D10_CLEAR_STENCIL, 1.0f, 0x00);
-
-			return true;
-		}
-		void D3D10Technique::End() const
-		{
-			this->mEffect->mEffectContext->mDevice->OMSetRenderTargets(1, &this->mEffect->mEffectContext->mBackBufferTargets[0], nullptr);
-		}
-		void D3D10Technique::RenderPass(unsigned int index) const
-		{
-			if (this->mEffect->mConstantsDirty)
-			{
-				this->mEffect->ApplyConstants();
-			}
-
-			ID3D10Device *device = this->mEffect->mEffectContext->mDevice;
-			const Pass &pass = this->mPasses[index];
-			
-			device->VSSetShader(pass.VS);
-			device->GSSetShader(nullptr);
-			device->PSSetShader(pass.PS);
-
-			const FLOAT blendfactor[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
-			device->OMSetBlendState(pass.BS, blendfactor, D3D10_DEFAULT_SAMPLE_MASK);
-			device->OMSetDepthStencilState(pass.DSS, pass.StencilRef);
-			device->OMSetRenderTargets(D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, pass.RT, this->mEffect->mDepthStencil);
-
-			for (UINT i = 0; i < D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT; ++i)
-			{
-				if (pass.RT[i] == nullptr)
-				{
-					continue;
-				}
-
-				const FLOAT color[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
-				device->ClearRenderTargetView(pass.RT[i], color);
-			}
-
-			device->VSSetShaderResources(0, pass.SR.size(), pass.SR.data());
-			device->PSSetShaderResources(0, pass.SR.size(), pass.SR.data());
-
-			ID3D10Resource *rtres;
-			pass.RT[0]->GetResource(&rtres);
-			D3D10_TEXTURE2D_DESC rtdesc;
-			static_cast<ID3D10Texture2D *>(rtres)->GetDesc(&rtdesc);
-			rtres->Release();
-
-			D3D10_VIEWPORT viewport;
-			viewport.Width = rtdesc.Width;
-			viewport.Height = rtdesc.Height;
-			viewport.TopLeftX = 0;
-			viewport.TopLeftY = 0;
-			viewport.MinDepth = 0.0f;
-			viewport.MaxDepth = 1.0f;
-			device->RSSetViewports(1, &viewport);
-
-			device->Draw(3, 0);
-
-			device->OMSetRenderTargets(0, nullptr, nullptr);
-		}
 	}
 
 	// -----------------------------------------------------------------------------------------------------
 
-	std::shared_ptr<Runtime> CreateEffectRuntime(ID3D10Device *device, IDXGISwapChain *swapchain)
+	D3D10Runtime::D3D10Runtime(ID3D10Device *device, IDXGISwapChain *swapchain) : mDevice(device), mSwapChain(swapchain), mStateBlock(nullptr), mBackBuffer(nullptr), mBackBufferTexture(nullptr), mBackBufferTargets(), mLost(true)
 	{
-		assert (device != nullptr && swapchain != nullptr);
+		this->mDevice->AddRef();
+		this->mSwapChain->AddRef();
 
-		return std::make_shared<D3D10Runtime>(device, swapchain);
+		IDXGIDevice *dxgidevice = nullptr;
+		IDXGIAdapter *adapter = nullptr;
+
+		this->mDevice->QueryInterface(__uuidof(IDXGIDevice), reinterpret_cast<void **>(&dxgidevice));
+		dxgidevice->GetAdapter(&adapter);
+		dxgidevice->Release();
+
+		DXGI_ADAPTER_DESC desc;
+		adapter->GetDesc(&desc);
+		adapter->Release();
+			
+		this->mVendorId = desc.VendorId;
+		this->mDeviceId = desc.DeviceId;
+		this->mRendererId = 0xD3D10;
+
+		D3D10_STATE_BLOCK_MASK mask;
+		D3D10StateBlockMaskEnableAll(&mask);
+		D3D10CreateStateBlock(this->mDevice, &mask, &this->mStateBlock);
+	}
+	D3D10Runtime::~D3D10Runtime()
+	{
+		assert(this->mLost);
+
+		this->mStateBlock->Release();
+
+		this->mDevice->Release();
+		this->mSwapChain->Release();
+	}
+
+	bool D3D10Runtime::OnCreate(unsigned int width, unsigned int height)
+	{
+		this->mSwapChain->GetBuffer(0, __uuidof(ID3D10Texture2D), reinterpret_cast<void **>(&this->mBackBuffer));
+
+		D3D10_TEXTURE2D_DESC bbdesc;
+		this->mBackBuffer->GetDesc(&bbdesc);
+
+		bbdesc.Format = DXGI_FORMAT_R8G8B8A8_TYPELESS;
+		bbdesc.BindFlags = D3D10_BIND_RENDER_TARGET;
+		this->mDevice->CreateTexture2D(&bbdesc, nullptr, &this->mBackBufferTexture);
+
+		D3D10_RENDER_TARGET_VIEW_DESC rtdesc;
+		rtdesc.ViewDimension = D3D10_RTV_DIMENSION_TEXTURE2D;
+		rtdesc.Texture2D.MipSlice = 0;
+		rtdesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		this->mDevice->CreateRenderTargetView(this->mBackBufferTexture, &rtdesc, &this->mBackBufferTargets[0]);
+		rtdesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+		this->mDevice->CreateRenderTargetView(this->mBackBufferTexture, &rtdesc, &this->mBackBufferTargets[1]);
+
+		this->mNVG = nvgCreateD3D10(this->mDevice, 0);
+
+		this->mLost = false;
+
+		return Runtime::OnCreate(width, height);
+	}
+	void D3D10Runtime::OnDelete()
+	{
+		Runtime::OnDelete();
+
+		nvgDeleteD3D10(this->mNVG);
+
+		if (this->mStateBlock != nullptr)
+		{
+			this->mStateBlock->Apply();
+			this->mStateBlock->ReleaseAllDeviceObjects();
+		}
+
+		if (this->mBackBufferTargets[0] != nullptr)
+		{
+			this->mBackBufferTargets[0]->Release();
+		}
+		if (this->mBackBufferTargets[1] != nullptr)
+		{
+			this->mBackBufferTargets[1]->Release();
+		}
+		if (this->mBackBufferTexture != nullptr)
+		{
+			this->mBackBufferTexture->Release();
+		}
+		if (this->mBackBuffer != nullptr)
+		{
+			this->mBackBuffer->Release();
+		}
+
+		this->mNVG = nullptr;
+		this->mStateBlock = nullptr;
+		this->mBackBuffer = nullptr;
+		this->mBackBufferTexture = nullptr;
+		this->mBackBufferTargets[0] = nullptr;
+		this->mBackBufferTargets[1] = nullptr;
+
+		this->mLost = true;
+	}
+	void D3D10Runtime::OnPresent()
+	{
+		ID3D10RenderTargetView *stateBlockTargets[D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT] = { nullptr };
+		ID3D10DepthStencilView *stateBlockDepthStencil = nullptr;
+
+		this->mStateBlock->Capture();
+		this->mDevice->OMGetRenderTargets(D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, stateBlockTargets, &stateBlockDepthStencil);
+
+		this->mDevice->CopyResource(this->mBackBufferTexture, this->mBackBuffer);
+		this->mDevice->OMSetRenderTargets(1, &this->mBackBufferTargets[0], nullptr);
+
+		Runtime::OnPresent();
+
+		if (this->mLost)
+		{
+			return;
+		}
+
+		this->mDevice->CopyResource(this->mBackBuffer, this->mBackBufferTexture);
+
+		this->mStateBlock->Apply();
+		this->mDevice->OMSetRenderTargets(D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, stateBlockTargets, stateBlockDepthStencil);
+
+		for (UINT i = 0; i < D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT; ++i)
+		{
+			if (stateBlockTargets[i] != nullptr)
+			{
+				stateBlockTargets[i]->Release();
+			}
+		}
+		if (stateBlockDepthStencil != nullptr)
+		{
+			stateBlockDepthStencil->Release();
+		}
+	}
+
+	std::unique_ptr<Effect> D3D10Runtime::CreateEffect(const EffectTree &ast, std::string &errors) const
+	{
+		D3D10Effect *effect = new D3D10Effect(shared_from_this());
+			
+		D3D10EffectCompiler visitor(ast);
+		
+		if (visitor.Traverse(effect, errors))
+		{
+			return std::unique_ptr<Effect>(effect);
+		}
+		else
+		{
+			delete effect;
+
+			return nullptr;
+		}
+	}
+	void D3D10Runtime::CreateScreenshot(unsigned char *buffer, std::size_t size) const
+	{
+		ID3D10Texture2D *backbuffer = nullptr;
+
+		HRESULT hr = this->mSwapChain->GetBuffer(0, __uuidof(ID3D10Texture2D), reinterpret_cast<void **>(&backbuffer));
+
+		if (FAILED(hr))
+		{
+			return;
+		}
+
+		D3D10_TEXTURE2D_DESC desc;
+		backbuffer->GetDesc(&desc);
+
+		if (desc.Format != DXGI_FORMAT_R8G8B8A8_UNORM && desc.Format != DXGI_FORMAT_R8G8B8A8_UNORM_SRGB && desc.Format != DXGI_FORMAT_B8G8R8A8_UNORM && desc.Format != DXGI_FORMAT_B8G8R8A8_UNORM_SRGB)
+		{
+			backbuffer->Release();
+			return;
+		}
+
+		ID3D10Texture2D *textureStaging = nullptr;
+
+		D3D10_TEXTURE2D_DESC textureDesc;
+		ZeroMemory(&textureDesc, sizeof(D3D10_TEXTURE2D_DESC));
+		textureDesc.ArraySize = 1;
+		textureDesc.Width = desc.Width;
+		textureDesc.Height = desc.Height;
+		textureDesc.Format = desc.Format;
+		textureDesc.Usage = D3D10_USAGE_STAGING;
+		textureDesc.CPUAccessFlags = D3D10_CPU_ACCESS_READ;
+		textureDesc.MipLevels = 1;
+		textureDesc.SampleDesc.Count = 1;
+		textureDesc.SampleDesc.Quality = 0;
+
+		hr = this->mDevice->CreateTexture2D(&textureDesc, nullptr, &textureStaging);
+
+		if (FAILED(hr))
+		{
+			backbuffer->Release();
+			return;
+		}
+
+		if (desc.SampleDesc.Count > 1)
+		{
+			textureDesc.CPUAccessFlags = 0;
+			textureDesc.Usage = D3D10_USAGE_DEFAULT;
+
+			ID3D10Texture2D *textureResolve = nullptr;
+
+			hr = this->mDevice->CreateTexture2D(&textureDesc, nullptr, &textureResolve);
+
+			if (SUCCEEDED(hr))
+			{
+				this->mDevice->ResolveSubresource(textureResolve, 0, backbuffer, 0, textureDesc.Format);
+				this->mDevice->CopyResource(textureStaging, textureResolve);
+
+				textureResolve->Release();
+			}
+		}
+		else
+		{
+			this->mDevice->CopyResource(textureStaging, backbuffer);
+		}
+
+		backbuffer->Release();
+
+		if (FAILED(hr))
+		{
+			textureStaging->Release();
+			return;
+		}
+				
+		D3D10_MAPPED_TEXTURE2D mapped;
+		ZeroMemory(&mapped, sizeof(D3D10_MAPPED_TEXTURE2D));
+
+		hr = textureStaging->Map(0, D3D10_MAP_READ, 0, &mapped);
+
+		if (FAILED(hr))
+		{
+			textureStaging->Release();
+			return;
+		}
+
+		const UINT pitch = desc.Width * 4;
+
+		BYTE *pBuffer = buffer;
+		BYTE *pMapped = static_cast<BYTE *>(mapped.pData);
+
+		for (UINT y = 0; y < desc.Height; ++y)
+		{
+			CopyMemory(pBuffer, pMapped, std::min(pitch, static_cast<UINT>(mapped.RowPitch)));
+			
+			for (UINT x = 0; x < pitch; x += 4)
+			{
+				pBuffer[x + 3] = 0xFF;
+
+				if (desc.Format == DXGI_FORMAT_B8G8R8A8_UNORM || desc.Format == DXGI_FORMAT_B8G8R8A8_UNORM_SRGB)
+				{
+					std::swap(pBuffer[x + 0], pBuffer[x + 2]);
+				}
+			}
+								
+			pBuffer += pitch;
+			pMapped += mapped.RowPitch;
+		}
+
+		textureStaging->Unmap(0);
+
+		textureStaging->Release();
+	}
+
+	D3D10Effect::D3D10Effect(std::shared_ptr<const D3D10Runtime> context) : mEffectContext(context), mConstantsDirty(true)
+	{
+		D3D10_TEXTURE2D_DESC dstdesc;
+		this->mEffectContext->mBackBuffer->GetDesc(&dstdesc);
+
+		dstdesc.Format = DXGI_FORMAT_R24G8_TYPELESS;
+		dstdesc.BindFlags = D3D10_BIND_SHADER_RESOURCE | D3D10_BIND_DEPTH_STENCIL;
+
+		D3D10_SHADER_RESOURCE_VIEW_DESC dssdesc;
+		ZeroMemory(&dssdesc, sizeof(D3D10_SHADER_RESOURCE_VIEW_DESC));
+		dssdesc.ViewDimension = D3D10_SRV_DIMENSION_TEXTURE2D;
+		dssdesc.Format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
+		dssdesc.Texture2D.MipLevels = 1;
+		D3D10_DEPTH_STENCIL_VIEW_DESC dsdesc;
+		ZeroMemory(&dsdesc, sizeof(D3D10_DEPTH_STENCIL_VIEW_DESC));
+		dsdesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+		dsdesc.ViewDimension = D3D10_DSV_DIMENSION_TEXTURE2D;
+		context->mDevice->CreateTexture2D(&dstdesc, nullptr, &this->mDepthStencilTexture);
+		context->mDevice->CreateShaderResourceView(this->mDepthStencilTexture, &dssdesc, &this->mDepthStencilView);
+		context->mDevice->CreateDepthStencilView(this->mDepthStencilTexture, &dsdesc, &this->mDepthStencil);
+
+		D3D10_RASTERIZER_DESC rsdesc;
+		ZeroMemory(&rsdesc, sizeof(D3D10_RASTERIZER_DESC));
+		rsdesc.FillMode = D3D10_FILL_SOLID;
+		rsdesc.CullMode = D3D10_CULL_NONE;
+		rsdesc.DepthClipEnable = TRUE;
+		context->mDevice->CreateRasterizerState(&rsdesc, &this->mRasterizerState);
+	}
+	D3D10Effect::~D3D10Effect()
+	{
+		this->mRasterizerState->Release();
+		this->mDepthStencil->Release();
+		this->mDepthStencilView->Release();
+		this->mDepthStencilTexture->Release();
+
+		for (auto &it : this->mSamplerStates)
+		{
+			it->Release();
+		}
+			
+		for (auto &it : this->mConstantBuffers)
+		{
+			if (it != nullptr)
+			{
+				it->Release();
+			}
+		}
+		for (auto &it : this->mConstantStorages)
+		{
+			::free(it);
+		}
+	}
+
+	const Effect::Texture *D3D10Effect::GetTexture(const std::string &name) const
+	{
+		auto it = this->mTextures.find(name);
+
+		if (it == this->mTextures.end())
+		{
+			return nullptr;
+		}
+
+		return it->second.get();
+	}
+	std::vector<std::string> D3D10Effect::GetTextureNames() const
+	{
+		std::vector<std::string> names;
+		names.reserve(this->mTextures.size());
+
+		for (auto it = this->mTextures.begin(), end = this->mTextures.end(); it != end; ++it)
+		{
+			names.push_back(it->first);
+		}
+
+		return names;
+	}
+	const Effect::Constant *D3D10Effect::GetConstant(const std::string &name) const
+	{
+		auto it = this->mConstants.find(name);
+
+		if (it == this->mConstants.end())
+		{
+			return nullptr;
+		}
+
+		return it->second.get();
+	}
+	std::vector<std::string> D3D10Effect::GetConstantNames() const
+	{
+		std::vector<std::string> names;
+		names.reserve(this->mConstants.size());
+
+		for (auto it = this->mConstants.begin(), end = this->mConstants.end(); it != end; ++it)
+		{
+			names.push_back(it->first);
+		}
+
+		return names;
+	}
+	const Effect::Technique *D3D10Effect::GetTechnique(const std::string &name) const
+	{
+		auto it = this->mTechniques.find(name);
+
+		if (it == this->mTechniques.end())
+		{
+			return nullptr;
+		}
+
+		return it->second.get();
+	}
+	std::vector<std::string> D3D10Effect::GetTechniqueNames() const
+	{
+		std::vector<std::string> names;
+		names.reserve(this->mTechniques.size());
+
+		for (auto it = this->mTechniques.begin(), end = this->mTechniques.end(); it != end; ++it)
+		{
+			names.push_back(it->first);
+		}
+
+		return names;
+	}
+
+	void D3D10Effect::ApplyConstants() const
+	{
+		for (size_t i = 0, count = this->mConstantBuffers.size(); i < count; ++i)
+		{
+			ID3D10Buffer *buffer = this->mConstantBuffers[i];
+			const unsigned char *storage = this->mConstantStorages[i];
+
+			if (buffer == nullptr)
+			{
+				continue;
+			}
+
+			void *data;
+
+			HRESULT hr = buffer->Map(D3D10_MAP_WRITE_DISCARD, 0, &data);
+
+			if (FAILED(hr))
+			{
+				continue;
+			}
+
+			D3D10_BUFFER_DESC desc;
+			buffer->GetDesc(&desc);
+
+			std::memcpy(data, storage, desc.ByteWidth);
+
+			buffer->Unmap();
+		}
+
+		this->mConstantsDirty = false;
+	}
+
+	D3D10Texture::D3D10Texture(D3D10Effect *effect) : mEffect(effect), mTexture(nullptr), mShaderResourceView(), mRenderTargetView()
+	{
+	}
+	D3D10Texture::~D3D10Texture()
+	{
+		if (this->mRenderTargetView[0] != nullptr)
+		{
+			this->mRenderTargetView[0]->Release();
+		}
+		if (this->mRenderTargetView[1] != nullptr)
+		{
+			this->mRenderTargetView[1]->Release();
+		}
+
+		if (this->mShaderResourceView[0] != nullptr)
+		{
+			this->mShaderResourceView[0]->Release();
+		}
+		if (this->mShaderResourceView[1] != nullptr)
+		{
+			this->mShaderResourceView[1]->Release();
+		}
+
+		if (this->mTexture != nullptr)
+		{
+			this->mTexture->Release();
+		}
+	}
+
+	const Effect::Texture::Description D3D10Texture::GetDescription() const
+	{
+		return this->mDesc;
+	}
+	const Effect::Annotation D3D10Texture::GetAnnotation(const std::string &name) const
+	{
+		auto it = this->mAnnotations.find(name);
+
+		if (it == this->mAnnotations.end())
+		{
+			return Effect::Annotation();
+		}
+
+		return it->second;
+	}
+
+	void D3D10Texture::Update(unsigned int level, const unsigned char *data, std::size_t size)
+	{
+		assert(data != nullptr || size == 0);
+
+		if (size == 0) return;
+
+		this->mEffect->mEffectContext->mDevice->UpdateSubresource(this->mTexture, level, nullptr, data, size / this->mDesc.Height, size);
+	}
+	void D3D10Texture::UpdateFromColorBuffer()
+	{
+		D3D10_TEXTURE2D_DESC desc;
+		this->mEffect->mEffectContext->mBackBufferTexture->GetDesc(&desc);
+
+		if (desc.SampleDesc.Count == 1)
+		{
+			this->mEffect->mEffectContext->mDevice->CopyResource(this->mTexture, this->mEffect->mEffectContext->mBackBufferTexture);
+		}
+		else
+		{
+			this->mEffect->mEffectContext->mDevice->ResolveSubresource(this->mTexture, 0, this->mEffect->mEffectContext->mBackBufferTexture, 0, desc.Format);
+		}
+	}
+	void D3D10Texture::UpdateFromDepthBuffer()
+	{
+	}
+
+	D3D10Constant::D3D10Constant(D3D10Effect *effect) : mEffect(effect)
+	{
+	}
+	D3D10Constant::~D3D10Constant()
+	{
+	}
+
+	const Effect::Constant::Description D3D10Constant::GetDescription() const
+	{
+		return this->mDesc;
+	}
+	const Effect::Annotation D3D10Constant::GetAnnotation(const std::string &name) const
+	{
+		auto it = this->mAnnotations.find(name);
+
+		if (it == this->mAnnotations.end())
+		{
+			return Effect::Annotation();
+		}
+
+		return it->second;
+	}
+	void D3D10Constant::GetValue(unsigned char *data, std::size_t size) const
+	{
+		size = std::min(size, this->mDesc.Size);
+
+		const unsigned char *storage = this->mEffect->mConstantStorages[this->mBuffer] + this->mBufferOffset;
+
+		std::memcpy(data, storage, size);
+	}
+	void D3D10Constant::SetValue(const unsigned char *data, std::size_t size)
+	{
+		size = std::min(size, this->mDesc.Size);
+
+		unsigned char *storage = this->mEffect->mConstantStorages[this->mBuffer] + this->mBufferOffset;
+
+		if (std::memcmp(storage, data, size) == 0)
+		{
+			return;
+		}
+
+		std::memcpy(storage, data, size);
+
+		this->mEffect->mConstantsDirty = true;
+	}
+
+	D3D10Technique::D3D10Technique(D3D10Effect *effect) : mEffect(effect)
+	{
+	}
+	D3D10Technique::~D3D10Technique()
+	{
+		for (auto &pass : this->mPasses)
+		{
+			if (pass.VS != nullptr)
+			{
+				pass.VS->Release();
+			}
+			if (pass.PS != nullptr)
+			{
+				pass.PS->Release();
+			}
+			if (pass.BS != nullptr)
+			{
+				pass.BS->Release();
+			}
+			if (pass.DSS != nullptr)
+			{
+				pass.DSS->Release();
+			}
+		}
+	}
+
+	const Effect::Annotation D3D10Technique::GetAnnotation(const std::string &name) const
+	{
+		auto it = this->mAnnotations.find(name);
+
+		if (it == this->mAnnotations.end())
+		{
+			return Effect::Annotation();
+		}
+
+		return it->second;
+	}
+
+	bool D3D10Technique::Begin(unsigned int &passes) const
+	{
+		passes = static_cast<unsigned int>(this->mPasses.size());
+
+		if (passes == 0)
+		{
+			return false;
+		}
+
+		ID3D10Device *device = this->mEffect->mEffectContext->mDevice;
+
+		const uintptr_t null = 0;
+		device->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		device->IASetInputLayout(nullptr);
+		device->IASetVertexBuffers(0, 1, reinterpret_cast<ID3D10Buffer *const *>(&null), reinterpret_cast<const UINT *>(&null), reinterpret_cast<const UINT *>(&null));
+		device->RSSetState(this->mEffect->mRasterizerState);
+
+		device->VSSetSamplers(0, this->mEffect->mSamplerStates.size(), this->mEffect->mSamplerStates.data());
+		device->PSSetSamplers(0, this->mEffect->mSamplerStates.size(), this->mEffect->mSamplerStates.data());
+		device->VSSetConstantBuffers(0, this->mEffect->mConstantBuffers.size(), this->mEffect->mConstantBuffers.data());
+		device->PSSetConstantBuffers(0, this->mEffect->mConstantBuffers.size(), this->mEffect->mConstantBuffers.data());
+
+		device->ClearDepthStencilView(this->mEffect->mDepthStencil, D3D10_CLEAR_DEPTH | D3D10_CLEAR_STENCIL, 1.0f, 0x00);
+
+		return true;
+	}
+	void D3D10Technique::End() const
+	{
+		this->mEffect->mEffectContext->mDevice->OMSetRenderTargets(1, &this->mEffect->mEffectContext->mBackBufferTargets[0], nullptr);
+	}
+	void D3D10Technique::RenderPass(unsigned int index) const
+	{
+		if (this->mEffect->mConstantsDirty)
+		{
+			this->mEffect->ApplyConstants();
+		}
+
+		ID3D10Device *device = this->mEffect->mEffectContext->mDevice;
+		const Pass &pass = this->mPasses[index];
+			
+		device->VSSetShader(pass.VS);
+		device->GSSetShader(nullptr);
+		device->PSSetShader(pass.PS);
+
+		const FLOAT blendfactor[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
+		device->OMSetBlendState(pass.BS, blendfactor, D3D10_DEFAULT_SAMPLE_MASK);
+		device->OMSetDepthStencilState(pass.DSS, pass.StencilRef);
+		device->OMSetRenderTargets(D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, pass.RT, this->mEffect->mDepthStencil);
+
+		for (UINT i = 0; i < D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT; ++i)
+		{
+			if (pass.RT[i] == nullptr)
+			{
+				continue;
+			}
+
+			const FLOAT color[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+			device->ClearRenderTargetView(pass.RT[i], color);
+		}
+
+		device->VSSetShaderResources(0, pass.SR.size(), pass.SR.data());
+		device->PSSetShaderResources(0, pass.SR.size(), pass.SR.data());
+
+		ID3D10Resource *rtres;
+		pass.RT[0]->GetResource(&rtres);
+		D3D10_TEXTURE2D_DESC rtdesc;
+		static_cast<ID3D10Texture2D *>(rtres)->GetDesc(&rtdesc);
+		rtres->Release();
+
+		D3D10_VIEWPORT viewport;
+		viewport.Width = rtdesc.Width;
+		viewport.Height = rtdesc.Height;
+		viewport.TopLeftX = 0;
+		viewport.TopLeftY = 0;
+		viewport.MinDepth = 0.0f;
+		viewport.MaxDepth = 1.0f;
+		device->RSSetViewports(1, &viewport);
+
+		device->Draw(3, 0);
+
+		device->OMSetRenderTargets(0, nullptr, nullptr);
 	}
 }

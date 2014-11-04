@@ -1,9 +1,69 @@
 #include "Log.hpp"
-#include "Runtime.hpp"
 #include "HookManager.hpp"
+#include "Runtimes\EffectRuntimeOGL4.hpp"
 
-#include <gl\gl.h>
-#include <unordered_map>
+#undef glBindTexture
+#undef glBlendFunc
+#undef glClear
+#undef glClearColor
+#undef glClearDepth
+#undef glClearStencil
+#undef glColorMask
+#undef glCopyTexImage1D
+#undef glCopyTexImage2D
+#undef glCopyTexSubImage1D
+#undef glCopyTexSubImage2D
+#undef glCullFace
+#undef glDeleteTextures
+#undef glDepthFunc
+#undef glDepthMask
+#undef glDepthRange
+#undef glDisable
+#undef glDrawArrays
+#undef glDrawBuffer
+#undef glDrawElements
+#undef glEnable
+#undef glFinish
+#undef glFlush
+#undef glFrontFace
+#undef glGenTextures
+#undef glGetBooleanv
+#undef glGetDoublev
+#undef glGetFloatv
+#undef glGetIntegerv
+#undef glGetError
+#undef glGetPointerv
+#undef glGetString
+#undef glGetTexImage
+#undef glGetTexLevelParameterfv
+#undef glGetTexLevelParameteriv
+#undef glGetTexParameterfv
+#undef glGetTexParameteriv
+#undef glHint
+#undef glIsEnabled
+#undef glIsTexture
+#undef glLineWidth
+#undef glLogicOp
+#undef glPixelStoref
+#undef glPixelStorei
+#undef glPointSize
+#undef glPolygonMode
+#undef glPolygonOffset
+#undef glReadBuffer
+#undef glReadPixels
+#undef glScissor
+#undef glStencilFunc
+#undef glStencilMask
+#undef glStencilOp
+#undef glTexImage1D
+#undef glTexImage2D
+#undef glTexParameterf
+#undef glTexParameterfv
+#undef glTexParameteri
+#undef glTexParameteriv
+#undef glTexSubImage1D
+#undef glTexSubImage2D
+#undef glViewport
 
 // -----------------------------------------------------------------------------------------------------
 
@@ -58,12 +118,8 @@ namespace
 	CriticalSection sCS;
 	std::unordered_map<HWND, RECT> sWindowRects;
 	std::unordered_map<HGLRC, HDC> sDeviceContexts;
-	std::unordered_map<HGLRC, std::shared_ptr<ReShade::Runtime>> sManagers;
-	std::unordered_map<HDC, ReShade::Runtime *> sCurrentManagers;
-}
-namespace ReShade
-{
-	extern std::shared_ptr<ReShade::Runtime> CreateEffectRuntime(HDC hdc, HGLRC hglrc);
+	std::unordered_map<HGLRC, std::shared_ptr<ReShade::OGL4Runtime>> sRuntimes;
+	std::unordered_map<HDC, ReShade::OGL4Runtime *> sCurrentRuntimes;
 }
 
 // -----------------------------------------------------------------------------------------------------
@@ -2216,7 +2272,7 @@ EXPORT HGLRC WINAPI wglCreateContext(HDC hdc)
 	{
 		CriticalSection::Lock lock(sCS);
 
-		sDeviceContexts.insert(std::make_pair(hglrc, hdc));
+		sDeviceContexts.emplace(hglrc, hdc);
 	}
 	else
 	{
@@ -2310,7 +2366,7 @@ EXPORT HGLRC WINAPI wglCreateContextAttribsARB(HDC hdc, HGLRC hShareContext, con
 	{
 		CriticalSection::Lock lock(sCS);
 
-		sDeviceContexts.insert(std::make_pair(hglrc, hdc));
+		sDeviceContexts.emplace(hglrc, hdc);
 	}
 	else
 	{
@@ -2331,9 +2387,9 @@ EXPORT BOOL WINAPI wglDeleteContext(HGLRC hglrc)
 
 	CriticalSection::Lock lock(sCS);
 
-	const auto it = sManagers.find(hglrc);
+	const auto it = sRuntimes.find(hglrc);
 
-	if (it != sManagers.end())
+	if (it != sRuntimes.end())
 	{
 		ReHook::Call(&wglMakeCurrent)(sDeviceContexts.at(hglrc), hglrc);
 
@@ -2342,7 +2398,7 @@ EXPORT BOOL WINAPI wglDeleteContext(HGLRC hglrc)
 			it->second->OnDelete();
 		}
 
-		sManagers.erase(it);
+		sRuntimes.erase(it);
 
 		ReHook::Call(&wglMakeCurrent)(sCurrentDeviceContext, sCurrentRenderContext);
 	}
@@ -2413,7 +2469,7 @@ EXPORT BOOL WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 
 	CriticalSection::Lock lock(sCS);
 
-	sCurrentManagers.erase(hdc);
+	sCurrentRuntimes.erase(hdc);
 	sCurrentDeviceContext = nullptr;
 	sCurrentRenderContext = nullptr;
 
@@ -2432,11 +2488,11 @@ EXPORT BOOL WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 	sCurrentDeviceContext = hdc;
 	sCurrentRenderContext = hglrc;
 
-	const auto it = sManagers.find(hglrc);
+	const auto it = sRuntimes.find(hglrc);
 
-	if (it != sManagers.end() && sDeviceContexts.at(hglrc) == hdc)
+	if (it != sRuntimes.end() && sDeviceContexts.at(hglrc) == hdc)
 	{
-		sCurrentManagers[hdc] = it->second.get();
+		sCurrentRuntimes[hdc] = it->second.get();
 	}
 	else
 	{
@@ -2455,18 +2511,20 @@ EXPORT BOOL WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 
 		LOG(INFO) << "> Initial size is " << width << "x" << height << ".";
 
-		const std::shared_ptr<ReShade::Runtime> runtime = ReShade::CreateEffectRuntime(hdc, hglrc);
+		gl3wInit();
 
-		if (runtime != nullptr)
+		if (gl3wIsSupported(4, 3))
 		{
+			const std::shared_ptr<ReShade::OGL4Runtime> runtime = std::make_shared<ReShade::OGL4Runtime>(hdc, hglrc);
+
 			runtime->OnCreate(static_cast<unsigned int>(width), static_cast<unsigned int>(height));
 
-			sManagers[hglrc] = runtime;
-			sCurrentManagers[hdc] = runtime.get();
+			sRuntimes[hglrc] = runtime;
+			sCurrentRuntimes[hdc] = runtime.get();
 		}
 		else
 		{
-			LOG(ERROR) << "Failed to initialize OpenGL renderer on OpenGL context " << hglrc << "! Make sure your graphics card supports at least OpenGL 4.3.";
+			LOG(ERROR) << "Your graphics card does not seem to support OpenGL 4.3. Initialization failed.";
 		}
 
 		sDeviceContexts[hglrc] = hdc;
@@ -2506,9 +2564,9 @@ EXPORT BOOL WINAPI wglSwapBuffers(HDC hdc)
 {
 	static const auto trampoline = ReHook::Call(&wglSwapBuffers);
 
-	const auto it = sCurrentManagers.find(hdc);
+	const auto it = sCurrentRuntimes.find(hdc);
 
-	if (it != sCurrentManagers.end())
+	if (it != sCurrentRuntimes.end())
 	{
 		ReShade::Runtime *runtime = it->second;
 

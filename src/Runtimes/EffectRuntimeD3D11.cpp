@@ -1,12 +1,8 @@
 #include "Log.hpp"
-#include "Runtime.hpp"
-#include "Effect.hpp"
 #include "EffectParserTree.hpp"
+#include "EffectRuntimeD3D11.hpp"
 
-#include <d3d11.h>
 #include <d3dcompiler.h>
-#include <vector>
-#include <unordered_map>
 #include <nanovg_d3d11.h>
 
 // -----------------------------------------------------------------------------------------------------
@@ -20,147 +16,6 @@ namespace ReShade
 {
 	namespace
 	{
-		struct D3D11_SAMPLER_DESC_HASHER
-		{
-			inline std::size_t operator()(const D3D11_SAMPLER_DESC &s) const 
-			{
-				const unsigned char *p = reinterpret_cast<const unsigned char *>(&s);
-				std::size_t h = 2166136261;
-
-				for (std::size_t i = 0; i < sizeof(D3D11_SAMPLER_DESC); ++i)
-				{
-					h = (h * 16777619) ^ p[i];
-				}
-
-				return h;
-			}
-		};
-
-		class D3D11Runtime : public Runtime, public std::enable_shared_from_this<D3D11Runtime>
-		{
-			friend struct D3D11Effect;
-			friend struct D3D11Texture;
-			friend struct D3D11Constant;
-			friend struct D3D11Technique;
-			friend class D3D11EffectCompiler;
-
-		public:
-			D3D11Runtime(ID3D11Device *device, IDXGISwapChain *swapchain);
-			~D3D11Runtime();
-
-			virtual bool OnCreate(unsigned int width, unsigned int height) override;
-			virtual void OnDelete() override;
-			virtual void OnPresent() override;
-
-			virtual std::unique_ptr<Effect> CreateEffect(const EffectTree &ast, std::string &errors) const override;
-			virtual void CreateScreenshot(unsigned char *buffer, std::size_t size) const override;
-
-		private:
-			ID3D11Device *mDevice;
-			ID3D11DeviceContext *mImmediateContext;
-			ID3D11DeviceContext *mDeferredContext;
-			IDXGISwapChain *mSwapChain;
-			ID3D11Texture2D *mBackBuffer;
-			ID3D11Texture2D *mBackBufferTexture;
-			ID3D11RenderTargetView *mBackBufferTargets[2];
-			bool mLost;
-		};
-
-		struct D3D11Effect : public Effect
-		{
-			friend struct D3D11Texture;
-			friend struct D3D11Constant;
-			friend struct D3D11Technique;
-
-			D3D11Effect(std::shared_ptr<const D3D11Runtime> context);
-			~D3D11Effect();
-
-			const Texture *GetTexture(const std::string &name) const;
-			std::vector<std::string> GetTextureNames() const;
-			const Constant *GetConstant(const std::string &name) const;
-			std::vector<std::string> GetConstantNames() const;
-			const Technique *GetTechnique(const std::string &name) const;
-			std::vector<std::string> GetTechniqueNames() const;
-
-			void ApplyConstants() const;
-
-			std::shared_ptr<const D3D11Runtime> mEffectContext;
-			std::unordered_map<std::string, std::unique_ptr<D3D11Texture>> mTextures;
-			std::unordered_map<std::string, std::unique_ptr<D3D11Constant>> mConstants;
-			std::unordered_map<std::string, std::unique_ptr<D3D11Technique>> mTechniques;
-			ID3D11Texture2D *mDepthStencilTexture;
-			ID3D11ShaderResourceView *mDepthStencilView;
-			ID3D11DepthStencilView *mDepthStencil;
-			ID3D11RasterizerState *mRasterizerState;
-			std::unordered_map<D3D11_SAMPLER_DESC, size_t, D3D11_SAMPLER_DESC_HASHER> mSamplerDescs;
-			std::vector<ID3D11SamplerState *> mSamplerStates;
-			std::vector<ID3D11ShaderResourceView *> mShaderResources;
-			std::vector<ID3D11Buffer *> mConstantBuffers;
-			std::vector<unsigned char *> mConstantStorages;
-			mutable bool mConstantsDirty;
-		};
-		struct D3D11Texture : public Effect::Texture
-		{
-			D3D11Texture(D3D11Effect *effect);
-			~D3D11Texture();
-
-			const Description GetDescription() const;
-			const Effect::Annotation GetAnnotation(const std::string &name) const;
-
-			void Update(unsigned int level, const unsigned char *data, std::size_t size);
-			void UpdateFromColorBuffer();
-			void UpdateFromDepthBuffer();
-
-			D3D11Effect *mEffect;
-			Description mDesc;
-			unsigned int mRegister;
-			std::unordered_map<std::string, Effect::Annotation>	mAnnotations;
-			ID3D11Texture2D *mTexture;
-			ID3D11ShaderResourceView *mShaderResourceView[2];
-			ID3D11RenderTargetView *mRenderTargetView[2];
-		};
-		struct D3D11Constant : public Effect::Constant
-		{
-			D3D11Constant(D3D11Effect *effect);
-			~D3D11Constant();
-
-			const Description GetDescription() const;
-			const Effect::Annotation GetAnnotation(const std::string &name) const;
-			void GetValue(unsigned char *data, std::size_t size) const;
-			void SetValue(const unsigned char *data, std::size_t size);
-
-			D3D11Effect *mEffect;
-			Description mDesc;
-			std::unordered_map<std::string, Effect::Annotation>	mAnnotations;
-			std::size_t mBuffer, mBufferOffset;
-		};
-		struct D3D11Technique : public Effect::Technique
-		{
-			struct Pass
-			{
-				ID3D11VertexShader *VS;
-				ID3D11PixelShader *PS;
-				ID3D11BlendState *BS;
-				ID3D11DepthStencilState *DSS;
-				UINT StencilRef;
-				ID3D11RenderTargetView *RT[D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT];
-				std::vector<ID3D11ShaderResourceView *> SR;
-			};
-
-			D3D11Technique(D3D11Effect *effect);
-			~D3D11Technique();
-
-			const Effect::Annotation GetAnnotation(const std::string &name) const;
-
-			bool Begin(unsigned int &passes) const;
-			void End() const;
-			void RenderPass(unsigned int index) const;
-
-			D3D11Effect *mEffect;
-			std::unordered_map<std::string, Effect::Annotation>	mAnnotations;
-			std::vector<Pass> mPasses;
-		};
-
 		class D3D11EffectCompiler
 		{
 		public:
@@ -2303,636 +2158,692 @@ namespace ReShade
 			std::unordered_map<std::string, Effect::Annotation> *mCurrentAnnotations;
 			std::vector<D3D11Technique::Pass> *mCurrentPasses;
 		};
+	}
 
-		// -----------------------------------------------------------------------------------------------------
+	// -----------------------------------------------------------------------------------------------------
 
-		D3D11Runtime::D3D11Runtime(ID3D11Device *device, IDXGISwapChain *swapchain) : mDevice(device), mSwapChain(swapchain), mImmediateContext(nullptr), mDeferredContext(nullptr), mBackBuffer(nullptr), mBackBufferTexture(nullptr), mBackBufferTargets(), mLost(true)
+	D3D11Runtime::D3D11Runtime(ID3D11Device *device, IDXGISwapChain *swapchain) : mDevice(device), mSwapChain(swapchain), mImmediateContext(nullptr), mDeferredContext(nullptr), mBackBuffer(nullptr), mBackBufferTexture(nullptr), mBackBufferTargets(), mDepthStencilShaderResourceView(nullptr), mLost(true)
+	{
+		this->mDevice->AddRef();
+		this->mDevice->GetImmediateContext(&this->mImmediateContext);
+		this->mSwapChain->AddRef();
+
+		IDXGIDevice *dxgidevice = nullptr;
+		IDXGIAdapter *adapter = nullptr;
+
+		this->mDevice->QueryInterface(__uuidof(IDXGIDevice), reinterpret_cast<void **>(&dxgidevice));
+		dxgidevice->GetAdapter(&adapter);
+		dxgidevice->Release();
+
+		DXGI_ADAPTER_DESC desc;
+		adapter->GetDesc(&desc);
+		adapter->Release();
+
+		this->mVendorId = desc.VendorId;
+		this->mDeviceId = desc.DeviceId;
+		this->mRendererId = 0xD3D11;
+
+		this->mDevice->CreateDeferredContext(0, &this->mDeferredContext);
+	}
+	D3D11Runtime::~D3D11Runtime()
+	{
+		assert(this->mLost);
+
+		this->mDeferredContext->Release();
+		this->mImmediateContext->Release();
+		this->mDevice->Release();
+		this->mSwapChain->Release();
+	}
+
+	bool D3D11Runtime::OnCreate(unsigned int width, unsigned int height)
+	{
+		this->mSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), reinterpret_cast<void **>(&this->mBackBuffer));
+
+		D3D11_TEXTURE2D_DESC bbdesc;
+		this->mBackBuffer->GetDesc(&bbdesc);
+
+		bbdesc.Format = DXGI_FORMAT_R8G8B8A8_TYPELESS;
+		bbdesc.BindFlags = D3D11_BIND_RENDER_TARGET;
+		this->mDevice->CreateTexture2D(&bbdesc, nullptr, &this->mBackBufferTexture);
+
+		D3D11_RENDER_TARGET_VIEW_DESC rtdesc;
+		rtdesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
+		rtdesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		rtdesc.Texture2D.MipSlice = 0;
+		this->mDevice->CreateRenderTargetView(this->mBackBufferTexture, &rtdesc, &this->mBackBufferTargets[0]);
+		rtdesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+		this->mDevice->CreateRenderTargetView(this->mBackBufferTexture, &rtdesc, &this->mBackBufferTargets[1]);
+
+		this->mNVG = nvgCreateD3D11(this->mDeferredContext, 0);
+
+		this->mLost = false;
+
+		return Runtime::OnCreate(width, height);
+	}
+	void D3D11Runtime::OnDelete()
+	{
+		Runtime::OnDelete();
+
+		nvgDeleteD3D11(this->mNVG);
+
+		if (this->mBackBufferTargets[0] != nullptr)
 		{
-			this->mDevice->AddRef();
-			this->mDevice->GetImmediateContext(&this->mImmediateContext);
-			this->mSwapChain->AddRef();
-
-			IDXGIDevice *dxgidevice = nullptr;
-			IDXGIAdapter *adapter = nullptr;
-
-			this->mDevice->QueryInterface(__uuidof(IDXGIDevice), reinterpret_cast<void **>(&dxgidevice));
-			dxgidevice->GetAdapter(&adapter);
-			dxgidevice->Release();
-
-			DXGI_ADAPTER_DESC desc;
-			adapter->GetDesc(&desc);
-			adapter->Release();
-
-			this->mVendorId = desc.VendorId;
-			this->mDeviceId = desc.DeviceId;
-			this->mRendererId = 0xD3D11;
-
-			this->mDevice->CreateDeferredContext(0, &this->mDeferredContext);
+			this->mBackBufferTargets[0]->Release();
 		}
-		D3D11Runtime::~D3D11Runtime()
+		if (this->mBackBufferTargets[1] != nullptr)
 		{
-			assert(this->mLost);
-
-			this->mDeferredContext->Release();
-			this->mImmediateContext->Release();
-			this->mDevice->Release();
-			this->mSwapChain->Release();
+			this->mBackBufferTargets[1]->Release();
 		}
-
-		bool D3D11Runtime::OnCreate(unsigned int width, unsigned int height)
+		if (this->mBackBufferTexture != nullptr)
 		{
-			this->mSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), reinterpret_cast<void **>(&this->mBackBuffer));
-
-			D3D11_TEXTURE2D_DESC bbdesc;
-			this->mBackBuffer->GetDesc(&bbdesc);
-
-			bbdesc.Format = DXGI_FORMAT_R8G8B8A8_TYPELESS;
-			bbdesc.BindFlags = D3D11_BIND_RENDER_TARGET;
-			this->mDevice->CreateTexture2D(&bbdesc, nullptr, &this->mBackBufferTexture);
-
-			D3D11_RENDER_TARGET_VIEW_DESC rtdesc;
-			rtdesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
-			rtdesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-			rtdesc.Texture2D.MipSlice = 0;
-			this->mDevice->CreateRenderTargetView(this->mBackBufferTexture, &rtdesc, &this->mBackBufferTargets[0]);
-			rtdesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
-			this->mDevice->CreateRenderTargetView(this->mBackBufferTexture, &rtdesc, &this->mBackBufferTargets[1]);
-
-			this->mNVG = nvgCreateD3D11(this->mDeferredContext, 0);
-
-			this->mLost = false;
-
-			return Runtime::OnCreate(width, height);
+			this->mBackBufferTexture->Release();
 		}
-		void D3D11Runtime::OnDelete()
+		if (this->mBackBuffer != nullptr)
 		{
-			Runtime::OnDelete();
-
-			nvgDeleteD3D11(this->mNVG);
-
-			if (this->mBackBufferTargets[0] != nullptr)
-			{
-				this->mBackBufferTargets[0]->Release();
-			}
-			if (this->mBackBufferTargets[1] != nullptr)
-			{
-				this->mBackBufferTargets[1]->Release();
-			}
-			if (this->mBackBufferTexture != nullptr)
-			{
-				this->mBackBufferTexture->Release();
-			}
-			if (this->mBackBuffer != nullptr)
-			{
-				this->mBackBuffer->Release();
-			}
-
-			this->mNVG = nullptr;
-			this->mBackBuffer = nullptr;
-			this->mBackBufferTexture = nullptr;
-			this->mBackBufferTargets[0] = nullptr;
-			this->mBackBufferTargets[1] = nullptr;
-
-			this->mLost = true;
-		}
-		void D3D11Runtime::OnPresent()
-		{
-			this->mDeferredContext->CopyResource(this->mBackBufferTexture, this->mBackBuffer);
-			this->mDeferredContext->OMSetRenderTargets(1, &this->mBackBufferTargets[0], nullptr);
-
-			Runtime::OnPresent();
-
-			if (this->mLost)
-			{
-				return;
-			}
-
-			this->mDeferredContext->CopyResource(this->mBackBuffer, this->mBackBufferTexture);
-
-			ID3D11CommandList *list;
-			this->mDeferredContext->FinishCommandList(FALSE, &list);
-
-			this->mImmediateContext->ExecuteCommandList(list, TRUE);
-			list->Release();
+			this->mBackBuffer->Release();
 		}
 
-		std::unique_ptr<Effect> D3D11Runtime::CreateEffect(const EffectTree &ast, std::string &errors) const
+		if (this->mDepthStencilShaderResourceView != nullptr)
 		{
-			D3D11Effect *effect = new D3D11Effect(shared_from_this());
+			this->mDepthStencilShaderResourceView->Release();
+		}
+
+		this->mNVG = nullptr;
+		this->mBackBuffer = nullptr;
+		this->mBackBufferTexture = nullptr;
+		this->mBackBufferTargets[0] = nullptr;
+		this->mBackBufferTargets[1] = nullptr;
+		this->mDepthStencilShaderResourceView = nullptr;
+
+		this->mLost = true;
+	}
+	void D3D11Runtime::OnPresent()
+	{
+		this->mDeferredContext->CopyResource(this->mBackBufferTexture, this->mBackBuffer);
+		this->mDeferredContext->OMSetRenderTargets(1, &this->mBackBufferTargets[0], nullptr);
+
+		Runtime::OnPresent();
+
+		if (this->mLost)
+		{
+			return;
+		}
+
+		this->mDeferredContext->CopyResource(this->mBackBuffer, this->mBackBufferTexture);
+
+		ID3D11CommandList *list;
+		this->mDeferredContext->FinishCommandList(FALSE, &list);
+
+		this->mImmediateContext->ExecuteCommandList(list, TRUE);
+		list->Release();
+	}
+
+	std::unique_ptr<Effect> D3D11Runtime::CreateEffect(const EffectTree &ast, std::string &errors) const
+	{
+		D3D11Effect *effect = new D3D11Effect(shared_from_this());
 			
-			D3D11EffectCompiler visitor(ast);
+		D3D11EffectCompiler visitor(ast);
 		
-			if (visitor.Traverse(effect, errors))
-			{
-				return std::unique_ptr<Effect>(effect);
-			}
-			else
-			{
-				delete effect;
-
-				return nullptr;
-			}
-		}
-		void D3D11Runtime::CreateScreenshot(unsigned char *buffer, std::size_t size) const
+		if (visitor.Traverse(effect, errors))
 		{
-			ID3D11Texture2D *backbuffer = nullptr;
+			return std::unique_ptr<Effect>(effect);
+		}
+		else
+		{
+			delete effect;
 
-			HRESULT hr = this->mSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), reinterpret_cast<void **>(&backbuffer));
+			return nullptr;
+		}
+	}
+	void D3D11Runtime::CreateScreenshot(unsigned char *buffer, std::size_t size) const
+	{
+		ID3D11Texture2D *backbuffer = nullptr;
 
-			if (FAILED(hr))
-			{
-				return;
-			}
+		HRESULT hr = this->mSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), reinterpret_cast<void **>(&backbuffer));
 
-			D3D11_TEXTURE2D_DESC desc;
-			backbuffer->GetDesc(&desc);
+		if (FAILED(hr))
+		{
+			return;
+		}
 
-			if (desc.Format != DXGI_FORMAT_R8G8B8A8_UNORM && desc.Format != DXGI_FORMAT_R8G8B8A8_UNORM_SRGB && desc.Format != DXGI_FORMAT_B8G8R8A8_UNORM && desc.Format != DXGI_FORMAT_B8G8R8A8_UNORM_SRGB)
-			{
-				backbuffer->Release();
-				return;
-			}
+		D3D11_TEXTURE2D_DESC desc;
+		backbuffer->GetDesc(&desc);
 
-			ID3D11Texture2D *textureStaging = nullptr;
-
-			D3D11_TEXTURE2D_DESC textureDesc;
-			ZeroMemory(&textureDesc, sizeof(D3D11_TEXTURE2D_DESC));
-			textureDesc.ArraySize = 1;
-			textureDesc.Width = desc.Width;
-			textureDesc.Height = desc.Height;
-			textureDesc.Format = desc.Format;
-			textureDesc.Usage = D3D11_USAGE_STAGING;
-			textureDesc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
-			textureDesc.MipLevels = 1;
-			textureDesc.SampleDesc.Count = 1;
-			textureDesc.SampleDesc.Quality = 0;
-
-			hr = this->mDevice->CreateTexture2D(&textureDesc, nullptr, &textureStaging);
-
-			if (FAILED(hr))
-			{
-				backbuffer->Release();
-				return;
-			}
-
-			if (desc.SampleDesc.Count > 1)
-			{
-				textureDesc.CPUAccessFlags = 0;
-				textureDesc.Usage = D3D11_USAGE_DEFAULT;
-
-				ID3D11Texture2D *textureResolve = nullptr;
-
-				hr = this->mDevice->CreateTexture2D(&textureDesc, nullptr, &textureResolve);
-
-				if (SUCCEEDED(hr))
-				{
-					this->mImmediateContext->ResolveSubresource(textureResolve, 0, backbuffer, 0, textureDesc.Format);
-					this->mImmediateContext->CopyResource(textureStaging, textureResolve);
-
-					textureResolve->Release();
-				}
-			}
-			else
-			{
-				this->mImmediateContext->CopyResource(textureStaging, backbuffer);
-			}
-
+		if (desc.Format != DXGI_FORMAT_R8G8B8A8_UNORM && desc.Format != DXGI_FORMAT_R8G8B8A8_UNORM_SRGB && desc.Format != DXGI_FORMAT_B8G8R8A8_UNORM && desc.Format != DXGI_FORMAT_B8G8R8A8_UNORM_SRGB)
+		{
 			backbuffer->Release();
+			return;
+		}
 
-			if (FAILED(hr))
+		ID3D11Texture2D *textureStaging = nullptr;
+
+		D3D11_TEXTURE2D_DESC textureDesc;
+		ZeroMemory(&textureDesc, sizeof(D3D11_TEXTURE2D_DESC));
+		textureDesc.ArraySize = 1;
+		textureDesc.Width = desc.Width;
+		textureDesc.Height = desc.Height;
+		textureDesc.Format = desc.Format;
+		textureDesc.Usage = D3D11_USAGE_STAGING;
+		textureDesc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+		textureDesc.MipLevels = 1;
+		textureDesc.SampleDesc.Count = 1;
+		textureDesc.SampleDesc.Quality = 0;
+
+		hr = this->mDevice->CreateTexture2D(&textureDesc, nullptr, &textureStaging);
+
+		if (FAILED(hr))
+		{
+			backbuffer->Release();
+			return;
+		}
+
+		if (desc.SampleDesc.Count > 1)
+		{
+			textureDesc.CPUAccessFlags = 0;
+			textureDesc.Usage = D3D11_USAGE_DEFAULT;
+
+			ID3D11Texture2D *textureResolve = nullptr;
+
+			hr = this->mDevice->CreateTexture2D(&textureDesc, nullptr, &textureResolve);
+
+			if (SUCCEEDED(hr))
 			{
-				textureStaging->Release();
-				return;
+				this->mImmediateContext->ResolveSubresource(textureResolve, 0, backbuffer, 0, textureDesc.Format);
+				this->mImmediateContext->CopyResource(textureStaging, textureResolve);
+
+				textureResolve->Release();
 			}
-				
-			D3D11_MAPPED_SUBRESOURCE mapped;
-			ZeroMemory(&mapped, sizeof(D3D11_MAPPED_SUBRESOURCE));
+		}
+		else
+		{
+			this->mImmediateContext->CopyResource(textureStaging, backbuffer);
+		}
 
-			hr = this->mImmediateContext->Map(textureStaging, 0, D3D11_MAP_READ, 0, &mapped);
+		backbuffer->Release();
 
-			if (FAILED(hr))
-			{
-				textureStaging->Release();
-				return;
-			}
-
-			const UINT pitch = desc.Width * 4;
-
-			BYTE *pBuffer = buffer;
-			BYTE *pMapped = static_cast<BYTE *>(mapped.pData);
-
-			for (UINT y = 0; y < desc.Height; ++y)
-			{
-				CopyMemory(pBuffer, pMapped, std::min(pitch, static_cast<UINT>(mapped.RowPitch)));
-
-				for (UINT x = 0; x < pitch; x += 4)
-				{
-					pBuffer[x + 3] = 0xFF;
-
-					if (desc.Format == DXGI_FORMAT_B8G8R8A8_UNORM || desc.Format == DXGI_FORMAT_B8G8R8A8_UNORM_SRGB)
-					{
-						std::swap(pBuffer[x + 0], pBuffer[x + 2]);
-					}
-				}
-								
-				pBuffer += pitch;
-				pMapped += mapped.RowPitch;
-			}
-
-			this->mImmediateContext->Unmap(textureStaging, 0);
-
+		if (FAILED(hr))
+		{
 			textureStaging->Release();
+			return;
+		}
+				
+		D3D11_MAPPED_SUBRESOURCE mapped;
+		ZeroMemory(&mapped, sizeof(D3D11_MAPPED_SUBRESOURCE));
+
+		hr = this->mImmediateContext->Map(textureStaging, 0, D3D11_MAP_READ, 0, &mapped);
+
+		if (FAILED(hr))
+		{
+			textureStaging->Release();
+			return;
 		}
 
-		D3D11Effect::D3D11Effect(std::shared_ptr<const D3D11Runtime> context) : mEffectContext(context), mConstantsDirty(true)
+		const UINT pitch = desc.Width * 4;
+
+		BYTE *pBuffer = buffer;
+		BYTE *pMapped = static_cast<BYTE *>(mapped.pData);
+
+		for (UINT y = 0; y < desc.Height; ++y)
 		{
-			D3D11_TEXTURE2D_DESC dstdesc;
-			this->mEffectContext->mBackBuffer->GetDesc(&dstdesc);
+			CopyMemory(pBuffer, pMapped, std::min(pitch, static_cast<UINT>(mapped.RowPitch)));
 
-			dstdesc.Format = DXGI_FORMAT_R24G8_TYPELESS;
-			dstdesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_DEPTH_STENCIL;
+			for (UINT x = 0; x < pitch; x += 4)
+			{
+				pBuffer[x + 3] = 0xFF;
 
-			D3D11_SHADER_RESOURCE_VIEW_DESC dssdesc;
-			ZeroMemory(&dssdesc, sizeof(D3D11_SHADER_RESOURCE_VIEW_DESC));
-			dssdesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-			dssdesc.Format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
-			dssdesc.Texture2D.MipLevels = 1;
-			D3D11_DEPTH_STENCIL_VIEW_DESC dsdesc;
-			ZeroMemory(&dsdesc, sizeof(D3D11_DEPTH_STENCIL_VIEW_DESC));
-			dsdesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-			dsdesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
-			context->mDevice->CreateTexture2D(&dstdesc, nullptr, &this->mDepthStencilTexture);
-			context->mDevice->CreateShaderResourceView(this->mDepthStencilTexture, &dssdesc, &this->mDepthStencilView);
-			context->mDevice->CreateDepthStencilView(this->mDepthStencilTexture, &dsdesc, &this->mDepthStencil);
-
-			D3D11_RASTERIZER_DESC rsdesc;
-			ZeroMemory(&rsdesc, sizeof(D3D11_RASTERIZER_DESC));
-			rsdesc.FillMode = D3D11_FILL_SOLID;
-			rsdesc.CullMode = D3D11_CULL_NONE;
-			rsdesc.DepthClipEnable = TRUE;
-			context->mDevice->CreateRasterizerState(&rsdesc, &this->mRasterizerState);
+				if (desc.Format == DXGI_FORMAT_B8G8R8A8_UNORM || desc.Format == DXGI_FORMAT_B8G8R8A8_UNORM_SRGB)
+				{
+					std::swap(pBuffer[x + 0], pBuffer[x + 2]);
+				}
+			}
+								
+			pBuffer += pitch;
+			pMapped += mapped.RowPitch;
 		}
-		D3D11Effect::~D3D11Effect()
-		{
-			this->mRasterizerState->Release();
-			this->mDepthStencil->Release();
-			this->mDepthStencilView->Release();
-			this->mDepthStencilTexture->Release();
 
-			for (auto &it : this->mSamplerStates)
+		this->mImmediateContext->Unmap(textureStaging, 0);
+
+		textureStaging->Release();
+	}
+
+	D3D11Effect::D3D11Effect(std::shared_ptr<const D3D11Runtime> context) : mEffectContext(context), mConstantsDirty(true)
+	{
+		D3D11_TEXTURE2D_DESC dstdesc;
+		this->mEffectContext->mBackBuffer->GetDesc(&dstdesc);
+
+		dstdesc.Format = DXGI_FORMAT_R24G8_TYPELESS;
+		dstdesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_DEPTH_STENCIL;
+
+		D3D11_SHADER_RESOURCE_VIEW_DESC dssdesc;
+		ZeroMemory(&dssdesc, sizeof(D3D11_SHADER_RESOURCE_VIEW_DESC));
+		dssdesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+		dssdesc.Format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
+		dssdesc.Texture2D.MipLevels = 1;
+		D3D11_DEPTH_STENCIL_VIEW_DESC dsdesc;
+		ZeroMemory(&dsdesc, sizeof(D3D11_DEPTH_STENCIL_VIEW_DESC));
+		dsdesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+		dsdesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
+		context->mDevice->CreateTexture2D(&dstdesc, nullptr, &this->mDepthStencilTexture);
+		context->mDevice->CreateShaderResourceView(this->mDepthStencilTexture, &dssdesc, &this->mDepthStencilView);
+		context->mDevice->CreateDepthStencilView(this->mDepthStencilTexture, &dsdesc, &this->mDepthStencil);
+
+		D3D11_RASTERIZER_DESC rsdesc;
+		ZeroMemory(&rsdesc, sizeof(D3D11_RASTERIZER_DESC));
+		rsdesc.FillMode = D3D11_FILL_SOLID;
+		rsdesc.CullMode = D3D11_CULL_NONE;
+		rsdesc.DepthClipEnable = TRUE;
+		context->mDevice->CreateRasterizerState(&rsdesc, &this->mRasterizerState);
+	}
+	D3D11Effect::~D3D11Effect()
+	{
+		this->mRasterizerState->Release();
+		this->mDepthStencil->Release();
+		this->mDepthStencilView->Release();
+		this->mDepthStencilTexture->Release();
+
+		for (auto &it : this->mSamplerStates)
+		{
+			it->Release();
+		}
+			
+		for (auto &it : this->mConstantBuffers)
+		{
+			if (it != nullptr)
 			{
 				it->Release();
 			}
-			
-			for (auto &it : this->mConstantBuffers)
-			{
-				if (it != nullptr)
-				{
-					it->Release();
-				}
-			}
-			for (auto &it : this->mConstantStorages)
-			{
-				::free(it);
-			}
+		}
+		for (auto &it : this->mConstantStorages)
+		{
+			::free(it);
+		}
+	}
+
+	const Effect::Texture *D3D11Effect::GetTexture(const std::string &name) const
+	{
+		auto it = this->mTextures.find(name);
+
+		if (it == this->mTextures.end())
+		{
+			return nullptr;
 		}
 
-		const Effect::Texture *D3D11Effect::GetTexture(const std::string &name) const
+		return it->second.get();
+	}
+	std::vector<std::string> D3D11Effect::GetTextureNames() const
+	{
+		std::vector<std::string> names;
+		names.reserve(this->mTextures.size());
+
+		for (auto it = this->mTextures.begin(), end = this->mTextures.end(); it != end; ++it)
 		{
-			auto it = this->mTextures.find(name);
-
-			if (it == this->mTextures.end())
-			{
-				return nullptr;
-			}
-
-			return it->second.get();
-		}
-		std::vector<std::string> D3D11Effect::GetTextureNames() const
-		{
-			std::vector<std::string> names;
-			names.reserve(this->mTextures.size());
-
-			for (auto it = this->mTextures.begin(), end = this->mTextures.end(); it != end; ++it)
-			{
-				names.push_back(it->first);
-			}
-
-			return names;
-		}
-		const Effect::Constant *D3D11Effect::GetConstant(const std::string &name) const
-		{
-			auto it = this->mConstants.find(name);
-
-			if (it == this->mConstants.end())
-			{
-				return nullptr;
-			}
-
-			return it->second.get();
-		}
-		std::vector<std::string> D3D11Effect::GetConstantNames() const
-		{
-			std::vector<std::string> names;
-			names.reserve(this->mConstants.size());
-
-			for (auto it = this->mConstants.begin(), end = this->mConstants.end(); it != end; ++it)
-			{
-				names.push_back(it->first);
-			}
-
-			return names;
-		}
-		const Effect::Technique *D3D11Effect::GetTechnique(const std::string &name) const
-		{
-			auto it = this->mTechniques.find(name);
-
-			if (it == this->mTechniques.end())
-			{
-				return nullptr;
-			}
-
-			return it->second.get();
-		}
-		std::vector<std::string> D3D11Effect::GetTechniqueNames() const
-		{
-			std::vector<std::string> names;
-			names.reserve(this->mTechniques.size());
-
-			for (auto it = this->mTechniques.begin(), end = this->mTechniques.end(); it != end; ++it)
-			{
-				names.push_back(it->first);
-			}
-
-			return names;
+			names.push_back(it->first);
 		}
 
-		void D3D11Effect::ApplyConstants() const
+		return names;
+	}
+	const Effect::Constant *D3D11Effect::GetConstant(const std::string &name) const
+	{
+		auto it = this->mConstants.find(name);
+
+		if (it == this->mConstants.end())
 		{
-			for (size_t i = 0, count = this->mConstantBuffers.size(); i < count; ++i)
-			{
-				ID3D11Buffer *buffer = this->mConstantBuffers[i];
-				const unsigned char *storage = this->mConstantStorages[i];
-
-				if (buffer == nullptr)
-				{
-					continue;
-				}
-
-				D3D11_MAPPED_SUBRESOURCE mapped;
-
-				HRESULT hr = this->mEffectContext->mImmediateContext->Map(buffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
-
-				if (FAILED(hr))
-				{
-					continue;
-				}
-
-				std::memcpy(mapped.pData, storage, mapped.RowPitch);
-
-				this->mEffectContext->mImmediateContext->Unmap(buffer, 0);
-			}
-
-			this->mConstantsDirty = false;
+			return nullptr;
 		}
 
-		D3D11Texture::D3D11Texture(D3D11Effect *effect) : mEffect(effect), mTexture(nullptr), mShaderResourceView(), mRenderTargetView()
-		{
-		}
-		D3D11Texture::~D3D11Texture()
-		{
-			if (this->mRenderTargetView[0] != nullptr)
-			{
-				this->mRenderTargetView[0]->Release();
-			}
-			if (this->mRenderTargetView[1] != nullptr)
-			{
-				this->mRenderTargetView[1]->Release();
-			}
+		return it->second.get();
+	}
+	std::vector<std::string> D3D11Effect::GetConstantNames() const
+	{
+		std::vector<std::string> names;
+		names.reserve(this->mConstants.size());
 
-			if (this->mShaderResourceView[0] != nullptr)
-			{
-				this->mShaderResourceView[0]->Release();
-			}
-			if (this->mShaderResourceView[1] != nullptr)
-			{
-				this->mShaderResourceView[1]->Release();
-			}
-
-			if (this->mTexture != nullptr)
-			{
-				this->mTexture->Release();
-			}
+		for (auto it = this->mConstants.begin(), end = this->mConstants.end(); it != end; ++it)
+		{
+			names.push_back(it->first);
 		}
 
-		const Effect::Texture::Description D3D11Texture::GetDescription() const
-		{
-			return this->mDesc;
-		}
-		const Effect::Annotation D3D11Texture::GetAnnotation(const std::string &name) const
-		{
-			auto it = this->mAnnotations.find(name);
+		return names;
+	}
+	const Effect::Technique *D3D11Effect::GetTechnique(const std::string &name) const
+	{
+		auto it = this->mTechniques.find(name);
 
-			if (it == this->mAnnotations.end())
+		if (it == this->mTechniques.end())
+		{
+			return nullptr;
+		}
+
+		return it->second.get();
+	}
+	std::vector<std::string> D3D11Effect::GetTechniqueNames() const
+	{
+		std::vector<std::string> names;
+		names.reserve(this->mTechniques.size());
+
+		for (auto it = this->mTechniques.begin(), end = this->mTechniques.end(); it != end; ++it)
+		{
+			names.push_back(it->first);
+		}
+
+		return names;
+	}
+
+	void D3D11Effect::ApplyConstants() const
+	{
+		for (size_t i = 0, count = this->mConstantBuffers.size(); i < count; ++i)
+		{
+			ID3D11Buffer *buffer = this->mConstantBuffers[i];
+			const unsigned char *storage = this->mConstantStorages[i];
+
+			if (buffer == nullptr)
 			{
-				return Effect::Annotation();
+				continue;
 			}
 
-			return it->second;
+			D3D11_MAPPED_SUBRESOURCE mapped;
+
+			HRESULT hr = this->mEffectContext->mImmediateContext->Map(buffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
+
+			if (FAILED(hr))
+			{
+				continue;
+			}
+
+			std::memcpy(mapped.pData, storage, mapped.RowPitch);
+
+			this->mEffectContext->mImmediateContext->Unmap(buffer, 0);
 		}
 
-		void D3D11Texture::Update(unsigned int level, const unsigned char *data, std::size_t size)
+		this->mConstantsDirty = false;
+	}
+
+	D3D11Texture::D3D11Texture(D3D11Effect *effect) : mEffect(effect), mTexture(nullptr), mShaderResourceView(), mRenderTargetView()
+	{
+	}
+	D3D11Texture::~D3D11Texture()
+	{
+		if (this->mRenderTargetView[0] != nullptr)
 		{
-			assert(data != nullptr || size == 0);
-
-			if (size == 0) return;
-
-			this->mEffect->mEffectContext->mImmediateContext->UpdateSubresource(this->mTexture, level, nullptr, data, size / this->mDesc.Height, size);
+			this->mRenderTargetView[0]->Release();
 		}
-		void D3D11Texture::UpdateFromColorBuffer()
+		if (this->mRenderTargetView[1] != nullptr)
 		{
+			this->mRenderTargetView[1]->Release();
+		}
+
+		if (this->mShaderResourceView[0] != nullptr)
+		{
+			this->mShaderResourceView[0]->Release();
+		}
+		if (this->mShaderResourceView[1] != nullptr)
+		{
+			this->mShaderResourceView[1]->Release();
+		}
+
+		if (this->mTexture != nullptr)
+		{
+			this->mTexture->Release();
+		}
+	}
+
+	const Effect::Texture::Description D3D11Texture::GetDescription() const
+	{
+		return this->mDesc;
+	}
+	const Effect::Annotation D3D11Texture::GetAnnotation(const std::string &name) const
+	{
+		auto it = this->mAnnotations.find(name);
+
+		if (it == this->mAnnotations.end())
+		{
+			return Effect::Annotation();
+		}
+
+		return it->second;
+	}
+
+	void D3D11Texture::Update(unsigned int level, const unsigned char *data, std::size_t size)
+	{
+		assert(data != nullptr || size == 0);
+
+		if (size == 0) return;
+
+		this->mEffect->mEffectContext->mImmediateContext->UpdateSubresource(this->mTexture, level, nullptr, data, size / this->mDesc.Height, size);
+	}
+	void D3D11Texture::UpdateFromColorBuffer()
+	{
+		D3D11_TEXTURE2D_DESC desc;
+		this->mEffect->mEffectContext->mBackBufferTexture->GetDesc(&desc);
+
+		if (desc.SampleDesc.Count == 1)
+		{
+			this->mEffect->mEffectContext->mDeferredContext->CopyResource(this->mTexture, this->mEffect->mEffectContext->mBackBufferTexture);
+		}
+		else
+		{
+			this->mEffect->mEffectContext->mDeferredContext->ResolveSubresource(this->mTexture, 0, this->mEffect->mEffectContext->mBackBufferTexture, 0, desc.Format);
+		}
+	}
+	void D3D11Texture::UpdateFromDepthBuffer()
+	{
+		if (this->mShaderResourceView[0] == this->mEffect->mEffectContext->mDepthStencilShaderResourceView)
+		{
+			return;
+		}
+
+		if (this->mShaderResourceView[0] != nullptr)
+		{
+			this->mShaderResourceView[0]->Release();
+		}
+		if (this->mShaderResourceView[1] != nullptr)
+		{
+			this->mShaderResourceView[1]->Release();
+		}
+		if (this->mTexture != nullptr)
+		{
+			this->mTexture->Release();
+		}
+
+		this->mTexture = nullptr;
+		this->mShaderResourceView[0] = this->mEffect->mEffectContext->mDepthStencilShaderResourceView;
+		this->mShaderResourceView[1] = nullptr;
+
+		if (this->mShaderResourceView[0] != nullptr)
+		{
+			this->mShaderResourceView[0]->GetResource(reinterpret_cast<ID3D11Resource **>(&this->mTexture));
+
 			D3D11_TEXTURE2D_DESC desc;
-			this->mEffect->mEffectContext->mBackBufferTexture->GetDesc(&desc);
+			this->mTexture->GetDesc(&desc);
 
-			if (desc.SampleDesc.Count == 1)
+			this->mDesc.Width = desc.Width;
+			this->mDesc.Height = desc.Height;
+			this->mDesc.Format = Effect::Texture::Format::Unknown;
+			this->mDesc.Levels = desc.MipLevels;
+
+			this->mShaderResourceView[0]->AddRef();
+		}
+
+		for (auto &technique : this->mEffect->mTechniques)
+		{
+			for (auto &pass : technique.second->mPasses)
 			{
-				this->mEffect->mEffectContext->mDeferredContext->CopyResource(this->mTexture, this->mEffect->mEffectContext->mBackBufferTexture);
-			}
-			else
-			{
-				this->mEffect->mEffectContext->mDeferredContext->ResolveSubresource(this->mTexture, 0, this->mEffect->mEffectContext->mBackBufferTexture, 0, desc.Format);
-			}
-		}
-		void D3D11Texture::UpdateFromDepthBuffer()
-		{
-		}
-
-		D3D11Constant::D3D11Constant(D3D11Effect *effect) : mEffect(effect)
-		{
-		}
-		D3D11Constant::~D3D11Constant()
-		{
-		}
-
-		const Effect::Constant::Description D3D11Constant::GetDescription() const
-		{
-			return this->mDesc;
-		}
-		const Effect::Annotation D3D11Constant::GetAnnotation(const std::string &name) const
-		{
-			auto it = this->mAnnotations.find(name);
-
-			if (it == this->mAnnotations.end())
-			{
-				return Effect::Annotation();
-			}
-
-			return it->second;
-		}
-		void D3D11Constant::GetValue(unsigned char *data, std::size_t size) const
-		{
-			size = std::min(size, this->mDesc.Size);
-
-			const unsigned char *storage = this->mEffect->mConstantStorages[this->mBuffer] + this->mBufferOffset;
-
-			std::memcpy(data, storage, size);
-		}
-		void D3D11Constant::SetValue(const unsigned char *data, std::size_t size)
-		{
-			size = std::min(size, this->mDesc.Size);
-
-			unsigned char *storage = this->mEffect->mConstantStorages[this->mBuffer] + this->mBufferOffset;
-
-			if (std::memcmp(storage, data, size) == 0)
-			{
-				return;
-			}
-
-			std::memcpy(storage, data, size);
-
-			this->mEffect->mConstantsDirty = true;
-		}
-
-		D3D11Technique::D3D11Technique(D3D11Effect *effect) : mEffect(effect)
-		{
-		}
-		D3D11Technique::~D3D11Technique()
-		{
-			for (auto &pass : this->mPasses)
-			{
-				if (pass.VS != nullptr)
+				for (auto &SR : pass.SR)
 				{
-					pass.VS->Release();
-				}
-				if (pass.PS != nullptr)
-				{
-					pass.PS->Release();
-				}
-				if (pass.BS != nullptr)
-				{
-					pass.BS->Release();
-				}
-				if (pass.DSS != nullptr)
-				{
-					pass.DSS->Release();
+					if (SR == this->mShaderResourceView[0])
+					{
+						SR = this->mShaderResourceView[0];
+					}
 				}
 			}
 		}
+	}
 
-		const Effect::Annotation D3D11Technique::GetAnnotation(const std::string &name) const
+	D3D11Constant::D3D11Constant(D3D11Effect *effect) : mEffect(effect)
+	{
+	}
+	D3D11Constant::~D3D11Constant()
+	{
+	}
+
+	const Effect::Constant::Description D3D11Constant::GetDescription() const
+	{
+		return this->mDesc;
+	}
+	const Effect::Annotation D3D11Constant::GetAnnotation(const std::string &name) const
+	{
+		auto it = this->mAnnotations.find(name);
+
+		if (it == this->mAnnotations.end())
 		{
-			auto it = this->mAnnotations.find(name);
-
-			if (it == this->mAnnotations.end())
-			{
-				return Effect::Annotation();
-			}
-
-			return it->second;
+			return Effect::Annotation();
 		}
 
-		bool D3D11Technique::Begin(unsigned int &passes) const
-		{
-			passes = static_cast<unsigned int>(this->mPasses.size());
+		return it->second;
+	}
+	void D3D11Constant::GetValue(unsigned char *data, std::size_t size) const
+	{
+		size = std::min(size, this->mDesc.Size);
 
-			if (passes == 0)
+		const unsigned char *storage = this->mEffect->mConstantStorages[this->mBuffer] + this->mBufferOffset;
+
+		std::memcpy(data, storage, size);
+	}
+	void D3D11Constant::SetValue(const unsigned char *data, std::size_t size)
+	{
+		size = std::min(size, this->mDesc.Size);
+
+		unsigned char *storage = this->mEffect->mConstantStorages[this->mBuffer] + this->mBufferOffset;
+
+		if (std::memcmp(storage, data, size) == 0)
+		{
+			return;
+		}
+
+		std::memcpy(storage, data, size);
+
+		this->mEffect->mConstantsDirty = true;
+	}
+
+	D3D11Technique::D3D11Technique(D3D11Effect *effect) : mEffect(effect)
+	{
+	}
+	D3D11Technique::~D3D11Technique()
+	{
+		for (auto &pass : this->mPasses)
+		{
+			if (pass.VS != nullptr)
 			{
-				return false;
+				pass.VS->Release();
+			}
+			if (pass.PS != nullptr)
+			{
+				pass.PS->Release();
+			}
+			if (pass.BS != nullptr)
+			{
+				pass.BS->Release();
+			}
+			if (pass.DSS != nullptr)
+			{
+				pass.DSS->Release();
+			}
+		}
+	}
+
+	const Effect::Annotation D3D11Technique::GetAnnotation(const std::string &name) const
+	{
+		auto it = this->mAnnotations.find(name);
+
+		if (it == this->mAnnotations.end())
+		{
+			return Effect::Annotation();
+		}
+
+		return it->second;
+	}
+
+	bool D3D11Technique::Begin(unsigned int &passes) const
+	{
+		passes = static_cast<unsigned int>(this->mPasses.size());
+
+		if (passes == 0)
+		{
+			return false;
+		}
+
+		ID3D11DeviceContext *context = mEffect->mEffectContext->mDeferredContext;
+
+		const uintptr_t null = 0;
+		context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		context->IASetInputLayout(nullptr);
+		context->IASetVertexBuffers(0, 1, reinterpret_cast<ID3D11Buffer *const *>(&null), reinterpret_cast<const UINT *>(&null), reinterpret_cast<const UINT *>(&null));
+		context->RSSetState(this->mEffect->mRasterizerState);
+
+		context->VSSetSamplers(0, this->mEffect->mSamplerStates.size(), this->mEffect->mSamplerStates.data());
+		context->PSSetSamplers(0, this->mEffect->mSamplerStates.size(), this->mEffect->mSamplerStates.data());
+		context->VSSetConstantBuffers(0, this->mEffect->mConstantBuffers.size(), this->mEffect->mConstantBuffers.data());
+		context->PSSetConstantBuffers(0, this->mEffect->mConstantBuffers.size(), this->mEffect->mConstantBuffers.data());
+
+		context->ClearDepthStencilView(this->mEffect->mDepthStencil, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0x00);
+
+		return true;
+	}
+	void D3D11Technique::End() const
+	{
+		this->mEffect->mEffectContext->mDeferredContext->OMSetRenderTargets(1, &this->mEffect->mEffectContext->mBackBufferTargets[0], nullptr);
+	}
+	void D3D11Technique::RenderPass(unsigned int index) const
+	{
+		if (this->mEffect->mConstantsDirty)
+		{
+			this->mEffect->ApplyConstants();
+		}
+
+		const Pass &pass = this->mPasses[index];
+		ID3D11DeviceContext *context = mEffect->mEffectContext->mDeferredContext;
+
+		context->VSSetShader(pass.VS, nullptr, 0);
+		context->HSSetShader(nullptr, nullptr, 0);
+		context->DSSetShader(nullptr, nullptr, 0);
+		context->GSSetShader(nullptr, nullptr, 0);
+		context->PSSetShader(pass.PS, nullptr, 0);
+
+		const FLOAT blendfactor[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
+		context->OMSetBlendState(pass.BS, blendfactor, D3D11_DEFAULT_SAMPLE_MASK);
+		context->OMSetDepthStencilState(pass.DSS, pass.StencilRef);
+		context->OMSetRenderTargets(D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT, pass.RT, this->mEffect->mDepthStencil);
+
+		for (UINT i = 0; i < D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT; ++i)
+		{
+			if (pass.RT[i] == nullptr)
+			{
+				continue;
 			}
 
-			ID3D11DeviceContext *context = mEffect->mEffectContext->mDeferredContext;
-
-			const uintptr_t null = 0;
-			context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-			context->IASetInputLayout(nullptr);
-			context->IASetVertexBuffers(0, 1, reinterpret_cast<ID3D11Buffer *const *>(&null), reinterpret_cast<const UINT *>(&null), reinterpret_cast<const UINT *>(&null));
-			context->RSSetState(this->mEffect->mRasterizerState);
-
-			context->VSSetSamplers(0, this->mEffect->mSamplerStates.size(), this->mEffect->mSamplerStates.data());
-			context->PSSetSamplers(0, this->mEffect->mSamplerStates.size(), this->mEffect->mSamplerStates.data());
-			context->VSSetConstantBuffers(0, this->mEffect->mConstantBuffers.size(), this->mEffect->mConstantBuffers.data());
-			context->PSSetConstantBuffers(0, this->mEffect->mConstantBuffers.size(), this->mEffect->mConstantBuffers.data());
-
-			context->ClearDepthStencilView(this->mEffect->mDepthStencil, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0x00);
-
-			return true;
+			const FLOAT color[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+			context->ClearRenderTargetView(pass.RT[i], color);
 		}
-		void D3D11Technique::End() const
-		{
-			this->mEffect->mEffectContext->mDeferredContext->OMSetRenderTargets(1, &this->mEffect->mEffectContext->mBackBufferTargets[0], nullptr);
-		}
-		void D3D11Technique::RenderPass(unsigned int index) const
-		{
-			if (this->mEffect->mConstantsDirty)
-			{
-				this->mEffect->ApplyConstants();
-			}
 
-			const Pass &pass = this->mPasses[index];
-			ID3D11DeviceContext *context = mEffect->mEffectContext->mDeferredContext;
+		context->VSSetShaderResources(0, pass.SR.size(), pass.SR.data());
+		context->PSSetShaderResources(0, pass.SR.size(), pass.SR.data());
 
-			context->VSSetShader(pass.VS, nullptr, 0);
-			context->HSSetShader(nullptr, nullptr, 0);
-			context->DSSetShader(nullptr, nullptr, 0);
-			context->GSSetShader(nullptr, nullptr, 0);
-			context->PSSetShader(pass.PS, nullptr, 0);
+		ID3D11Resource *rtres;
+		pass.RT[0]->GetResource(&rtres);
+		D3D11_TEXTURE2D_DESC rtdesc;
+		static_cast<ID3D11Texture2D *>(rtres)->GetDesc(&rtdesc);
+		rtres->Release();
 
-			const FLOAT blendfactor[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
-			context->OMSetBlendState(pass.BS, blendfactor, D3D11_DEFAULT_SAMPLE_MASK);
-			context->OMSetDepthStencilState(pass.DSS, pass.StencilRef);
-			context->OMSetRenderTargets(D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT, pass.RT, this->mEffect->mDepthStencil);
+		D3D11_VIEWPORT viewport;
+		viewport.Width = static_cast<FLOAT>(rtdesc.Width);
+		viewport.Height = static_cast<FLOAT>(rtdesc.Height);
+		viewport.TopLeftX = 0.0f;
+		viewport.TopLeftY = 0.0f;
+		viewport.MinDepth = 0.0f;
+		viewport.MaxDepth = 1.0f;
+		context->RSSetViewports(1, &viewport);
 
-			for (UINT i = 0; i < D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT; ++i)
-			{
-				if (pass.RT[i] == nullptr)
-				{
-					continue;
-				}
-
-				const FLOAT color[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
-				context->ClearRenderTargetView(pass.RT[i], color);
-			}
-
-			context->VSSetShaderResources(0, pass.SR.size(), pass.SR.data());
-			context->PSSetShaderResources(0, pass.SR.size(), pass.SR.data());
-
-			ID3D11Resource *rtres;
-			pass.RT[0]->GetResource(&rtres);
-			D3D11_TEXTURE2D_DESC rtdesc;
-			static_cast<ID3D11Texture2D *>(rtres)->GetDesc(&rtdesc);
-			rtres->Release();
-
-			D3D11_VIEWPORT viewport;
-			viewport.Width = static_cast<FLOAT>(rtdesc.Width);
-			viewport.Height = static_cast<FLOAT>(rtdesc.Height);
-			viewport.TopLeftX = 0.0f;
-			viewport.TopLeftY = 0.0f;
-			viewport.MinDepth = 0.0f;
-			viewport.MaxDepth = 1.0f;
-			context->RSSetViewports(1, &viewport);
-
-			context->Draw(3, 0);
-		}
+		context->Draw(3, 0);
 	}
 
 	// -----------------------------------------------------------------------------------------------------
@@ -2942,5 +2853,19 @@ namespace ReShade
 		assert (device != nullptr && swapchain != nullptr);
 
 		return std::make_shared<D3D11Runtime>(device, swapchain);
+	}
+	void SetEffectRuntimeDepthStencilTexture(const std::shared_ptr<Runtime> runtime, ID3D11ShaderResourceView *resource)
+	{
+		assert(resource != nullptr);
+
+		const std::shared_ptr<D3D11Runtime> d3druntime = std::static_pointer_cast<D3D11Runtime>(runtime);
+
+		if (d3druntime->mDepthStencilShaderResourceView != nullptr)
+		{
+			d3druntime->mDepthStencilShaderResourceView->Release();
+		}
+
+		d3druntime->mDepthStencilShaderResourceView = resource;
+		d3druntime->mDepthStencilShaderResourceView->AddRef();
 	}
 }

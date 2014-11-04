@@ -1,11 +1,10 @@
 #include "Log.hpp"
-#include "Runtime.hpp"
 #include "HookManager.hpp"
+#include "Runtimes\EffectRuntimeD3D10.hpp"
+#include "Runtimes\EffectRuntimeD3D11.hpp"
 
 #include <dxgi.h>
 #include <dxgi1_2.h>
-#include <d3d11.h>
-#include <boost\noncopyable.hpp>
 
 // -----------------------------------------------------------------------------------------------------
 
@@ -71,11 +70,50 @@ namespace
 				return "DXGI_ERROR_UNSUPPORTED";
 		}
 	}
-}
-namespace ReShade
-{
-	extern std::shared_ptr<ReShade::Runtime> CreateEffectRuntime(ID3D10Device *device, IDXGISwapChain *swapchain);
-	extern std::shared_ptr<ReShade::Runtime> CreateEffectRuntime(ID3D11Device *device, IDXGISwapChain *swapchain);
+	bool AdjustPresentParameters(DXGI_SWAP_CHAIN_DESC &desc)
+	{
+		switch (desc.BufferDesc.Format)
+		{
+			case DXGI_FORMAT_R8G8B8A8_UNORM:
+			case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
+				break;
+			case DXGI_FORMAT_B8G8R8A8_UNORM:
+				LOG(WARNING) << "> Replacing buffer format 'DXGI_FORMAT_B8G8R8A8_UNORM' with 'DXGI_FORMAT_R8G8B8A8_UNORM' ...";
+				desc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+				break;
+			case DXGI_FORMAT_B8G8R8A8_UNORM_SRGB:
+				LOG(WARNING) << "> Replacing buffer format 'DXGI_FORMAT_B8G8R8A8_UNORM_SRGB' with 'DXGI_FORMAT_R8G8B8A8_UNORM_SRGB' ...";
+				desc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+				break;
+			default:
+				LOG(ERROR) << "> Format " << desc.BufferDesc.Format << " is not currently supported.";
+				return false;
+		}
+
+		return true;
+	}
+	bool AdjustPresentParameters(DXGI_SWAP_CHAIN_DESC1 &desc)
+	{
+		switch (desc.Format)
+		{
+			case DXGI_FORMAT_R8G8B8A8_UNORM:
+			case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
+				break;
+			case DXGI_FORMAT_B8G8R8A8_UNORM:
+				LOG(WARNING) << "> Replacing buffer format 'DXGI_FORMAT_B8G8R8A8_UNORM' with 'DXGI_FORMAT_R8G8B8A8_UNORM' ...";
+				desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+				break;
+			case DXGI_FORMAT_B8G8R8A8_UNORM_SRGB:
+				LOG(WARNING) << "> Replacing buffer format 'DXGI_FORMAT_B8G8R8A8_UNORM_SRGB' with 'DXGI_FORMAT_R8G8B8A8_UNORM_SRGB' ...";
+				desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+				break;
+			default:
+				LOG(ERROR) << "> Format " << desc.Format << " is not currently supported.";
+				return false;
+		}
+
+		return true;
+	}
 }
 
 // -----------------------------------------------------------------------------------------------------
@@ -292,22 +330,9 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, I
 
 	DXGI_SWAP_CHAIN_DESC desc = *pDesc;
 
-	switch (desc.BufferDesc.Format)
+	if (!AdjustPresentParameters(desc))
 	{
-		case DXGI_FORMAT_R8G8B8A8_UNORM:
-		case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
-			break;
-		case DXGI_FORMAT_B8G8R8A8_UNORM:
-			LOG(WARNING) << "> Replacing buffer format 'DXGI_FORMAT_B8G8R8A8_UNORM' with 'DXGI_FORMAT_R8G8B8A8_UNORM' ...";
-			desc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-			break;
-		case DXGI_FORMAT_B8G8R8A8_UNORM_SRGB:
-			LOG(WARNING) << "> Replacing buffer format 'DXGI_FORMAT_B8G8R8A8_UNORM_SRGB' with 'DXGI_FORMAT_R8G8B8A8_UNORM_SRGB' ...";
-			desc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
-			break;
-		default:
-			LOG(ERROR) << "> Format " << desc.BufferDesc.Format << " is not currently supported.";
-			return DXGI_ERROR_INVALID_CALL;
+		return DXGI_ERROR_INVALID_CALL;
 	}
 
 	const HRESULT hr = ReHook::Call(&IDXGIFactory_CreateSwapChain)(pFactory, pDevice, &desc, ppSwapChain);
@@ -331,35 +356,21 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, I
 
 		if (SUCCEEDED(pDevice->QueryInterface(&deviceD3D10)))
 		{
-			const std::shared_ptr<ReShade::Runtime> runtime = ReShade::CreateEffectRuntime(deviceD3D10, swapchain);
+			const std::shared_ptr<ReShade::D3D10Runtime> runtime = std::make_shared<ReShade::D3D10Runtime>(deviceD3D10, swapchain);
 
-			if (runtime != nullptr)
-			{
-				runtime->OnCreate(desc.BufferDesc.Width, desc.BufferDesc.Height);
+			runtime->OnCreate(desc.BufferDesc.Width, desc.BufferDesc.Height);
 
-				*ppSwapChain = new DXGISwapChain(pFactory, swapchain, runtime);
-			}
-			else
-			{
-				LOG(ERROR) << "Failed to initialize Direct3D 10 renderer on swapchain " << swapchain << "!";
-			}
+			*ppSwapChain = new DXGISwapChain(pFactory, swapchain, runtime);
 
 			deviceD3D10->Release();
 		}
 		else if (SUCCEEDED(pDevice->QueryInterface(&deviceD3D11)))
 		{
-			const std::shared_ptr<ReShade::Runtime> runtime = ReShade::CreateEffectRuntime(deviceD3D11, swapchain);
+			const std::shared_ptr<ReShade::D3D11Runtime> runtime = std::make_shared<ReShade::D3D11Runtime>(deviceD3D11, swapchain);
 
-			if (runtime != nullptr)
-			{
-				runtime->OnCreate(desc.BufferDesc.Width, desc.BufferDesc.Height);
+			runtime->OnCreate(desc.BufferDesc.Width, desc.BufferDesc.Height);
 
-				*ppSwapChain = new DXGISwapChain(pFactory, swapchain, runtime);
-			}
-			else
-			{
-				LOG(ERROR) << "Failed to initialize Direct3D 11 renderer on swapchain " << swapchain << "!";
-			}
+			*ppSwapChain = new DXGISwapChain(pFactory, swapchain, runtime);
 
 			deviceD3D11->Release();
 		}
@@ -388,22 +399,9 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pF
 
 	DXGI_SWAP_CHAIN_DESC1 desc = *pDesc;
 
-	switch (desc.Format)
+	if (!AdjustPresentParameters(desc))
 	{
-		case DXGI_FORMAT_R8G8B8A8_UNORM:
-		case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
-			break;
-		case DXGI_FORMAT_B8G8R8A8_UNORM:
-			LOG(WARNING) << "> Replacing buffer format 'DXGI_FORMAT_B8G8R8A8_UNORM' with 'DXGI_FORMAT_R8G8B8A8_UNORM' ...";
-			desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-			break;
-		case DXGI_FORMAT_B8G8R8A8_UNORM_SRGB:
-			LOG(WARNING) << "> Replacing buffer format 'DXGI_FORMAT_B8G8R8A8_UNORM_SRGB' with 'DXGI_FORMAT_R8G8B8A8_UNORM_SRGB' ...";
-			desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
-			break;
-		default:
-			LOG(ERROR) << "> Format " << desc.Format << " is not currently supported.";
-			return DXGI_ERROR_INVALID_CALL;
+		return DXGI_ERROR_INVALID_CALL;
 	}
 
 	const HRESULT hr = ReHook::Call(&IDXGIFactory2_CreateSwapChainForHwnd)(pFactory, pDevice, hWnd, &desc, pFullscreenDesc, pRestrictToOutput, ppSwapChain);
@@ -427,35 +425,21 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pF
 
 		if (SUCCEEDED(pDevice->QueryInterface(&deviceD3D10)))
 		{
-			const std::shared_ptr<ReShade::Runtime> runtime = ReShade::CreateEffectRuntime(deviceD3D10, swapchain);
+			const std::shared_ptr<ReShade::D3D10Runtime> runtime = std::make_shared<ReShade::D3D10Runtime>(deviceD3D10, swapchain);
 
-			if (runtime != nullptr)
-			{
-				runtime->OnCreate(desc.Width, desc.Height);
+			runtime->OnCreate(desc.Width, desc.Height);
 
-				*ppSwapChain = new DXGISwapChain(pFactory, swapchain, runtime);
-			}
-			else
-			{
-				LOG(ERROR) << "Failed to initialize Direct3D 10 renderer on swapchain " << swapchain << "!";
-			}
+			*ppSwapChain = new DXGISwapChain(pFactory, swapchain, runtime);
 
 			deviceD3D10->Release();
 		}
 		else if (SUCCEEDED(pDevice->QueryInterface(&deviceD3D11)))
 		{
-			const std::shared_ptr<ReShade::Runtime> runtime = ReShade::CreateEffectRuntime(deviceD3D11, swapchain);
+			const std::shared_ptr<ReShade::D3D11Runtime> runtime = std::make_shared<ReShade::D3D11Runtime>(deviceD3D11, swapchain);
 
-			if (runtime != nullptr)
-			{
-				runtime->OnCreate(desc.Width, desc.Height);
+			runtime->OnCreate(desc.Width, desc.Height);
 
-				*ppSwapChain = new DXGISwapChain(pFactory, swapchain, runtime);
-			}
-			else
-			{
-				LOG(ERROR) << "Failed to initialize Direct3D 11 renderer on swapchain " << swapchain << "!";
-			}
+			*ppSwapChain = new DXGISwapChain(pFactory, swapchain, runtime);
 
 			deviceD3D11->Release();
 		}
@@ -482,22 +466,9 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactor
 
 	DXGI_SWAP_CHAIN_DESC1 desc = *pDesc;
 
-	switch (desc.Format)
+	if (!AdjustPresentParameters(desc))
 	{
-		case DXGI_FORMAT_R8G8B8A8_UNORM:
-		case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
-			break;
-		case DXGI_FORMAT_B8G8R8A8_UNORM:
-			LOG(WARNING) << "> Replacing buffer format 'DXGI_FORMAT_B8G8R8A8_UNORM' with 'DXGI_FORMAT_R8G8B8A8_UNORM' ...";
-			desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-			break;
-		case DXGI_FORMAT_B8G8R8A8_UNORM_SRGB:
-			LOG(WARNING) << "> Replacing buffer format 'DXGI_FORMAT_B8G8R8A8_UNORM_SRGB' with 'DXGI_FORMAT_R8G8B8A8_UNORM_SRGB' ...";
-			desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
-			break;
-		default:
-			LOG(ERROR) << "> Format " << desc.Format << " is not currently supported.";
-			return DXGI_ERROR_INVALID_CALL;
+		return DXGI_ERROR_INVALID_CALL;
 	}
 
 	const HRESULT hr = ReHook::Call(&IDXGIFactory2_CreateSwapChainForCoreWindow)(pFactory, pDevice, pWindow, &desc, pRestrictToOutput, ppSwapChain);
@@ -521,35 +492,21 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactor
 
 		if (SUCCEEDED(pDevice->QueryInterface(&deviceD3D10)))
 		{
-			const std::shared_ptr<ReShade::Runtime> runtime = ReShade::CreateEffectRuntime(deviceD3D10, swapchain);
+			const std::shared_ptr<ReShade::D3D10Runtime> runtime = std::make_shared<ReShade::D3D10Runtime>(deviceD3D10, swapchain);
 
-			if (runtime != nullptr)
-			{
-				runtime->OnCreate(desc.Width, desc.Height);
+			runtime->OnCreate(desc.Width, desc.Height);
 
-				*ppSwapChain = new DXGISwapChain(pFactory, swapchain, runtime);
-			}
-			else
-			{
-				LOG(ERROR) << "Failed to initialize Direct3D 10 renderer on swapchain " << swapchain << "!";
-			}
+			*ppSwapChain = new DXGISwapChain(pFactory, swapchain, runtime);
 
 			deviceD3D10->Release();
 		}
 		else if (SUCCEEDED(pDevice->QueryInterface(&deviceD3D11)))
 		{
-			const std::shared_ptr<ReShade::Runtime> runtime = ReShade::CreateEffectRuntime(deviceD3D11, swapchain);
+			const std::shared_ptr<ReShade::D3D11Runtime> runtime = std::make_shared<ReShade::D3D11Runtime>(deviceD3D11, swapchain);
 
-			if (runtime != nullptr)
-			{
-				runtime->OnCreate(desc.Width, desc.Height);
+			runtime->OnCreate(desc.Width, desc.Height);
 
-				*ppSwapChain = new DXGISwapChain(pFactory, swapchain, runtime);
-			}
-			else
-			{
-				LOG(ERROR) << "Failed to initialize Direct3D 11 renderer on swapchain " << swapchain << "!";
-			}
+			*ppSwapChain = new DXGISwapChain(pFactory, swapchain, runtime);
 
 			deviceD3D11->Release();
 		}
@@ -576,22 +533,9 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFacto
 
 	DXGI_SWAP_CHAIN_DESC1 desc = *pDesc;
 
-	switch (desc.Format)
+	if (!AdjustPresentParameters(desc))
 	{
-		case DXGI_FORMAT_R8G8B8A8_UNORM:
-		case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
-			break;
-		case DXGI_FORMAT_B8G8R8A8_UNORM:
-			LOG(WARNING) << "> Replacing buffer format 'DXGI_FORMAT_B8G8R8A8_UNORM' with 'DXGI_FORMAT_R8G8B8A8_UNORM' ...";
-			desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-			break;
-		case DXGI_FORMAT_B8G8R8A8_UNORM_SRGB:
-			LOG(WARNING) << "> Replacing buffer format 'DXGI_FORMAT_B8G8R8A8_UNORM_SRGB' with 'DXGI_FORMAT_R8G8B8A8_UNORM_SRGB' ...";
-			desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
-			break;
-		default:
-			LOG(ERROR) << "> Format " << desc.Format << " is not currently supported.";
-			return DXGI_ERROR_INVALID_CALL;
+		return DXGI_ERROR_INVALID_CALL;
 	}
 
 	const HRESULT hr = ReHook::Call(&IDXGIFactory2_CreateSwapChainForComposition)(pFactory, pDevice, &desc, pRestrictToOutput, ppSwapChain);
@@ -615,35 +559,21 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFacto
 
 		if (SUCCEEDED(pDevice->QueryInterface(&deviceD3D10)))
 		{
-			const std::shared_ptr<ReShade::Runtime> runtime = ReShade::CreateEffectRuntime(deviceD3D10, swapchain);
+			const std::shared_ptr<ReShade::D3D10Runtime> runtime = std::make_shared<ReShade::D3D10Runtime>(deviceD3D10, swapchain);
 
-			if (runtime != nullptr)
-			{
-				runtime->OnCreate(desc.Width, desc.Height);
+			runtime->OnCreate(desc.Width, desc.Height);
 
-				*ppSwapChain = new DXGISwapChain(pFactory, swapchain, runtime);
-			}
-			else
-			{
-				LOG(ERROR) << "Failed to initialize Direct3D 10 renderer on swapchain " << swapchain << "!";
-			}
+			*ppSwapChain = new DXGISwapChain(pFactory, swapchain, runtime);
 
 			deviceD3D10->Release();
 		}
 		else if (SUCCEEDED(pDevice->QueryInterface(&deviceD3D11)))
 		{
-			const std::shared_ptr<ReShade::Runtime> runtime = ReShade::CreateEffectRuntime(deviceD3D11, swapchain);
+			const std::shared_ptr<ReShade::D3D11Runtime> runtime = std::make_shared<ReShade::D3D11Runtime>(deviceD3D11, swapchain);
 
-			if (runtime != nullptr)
-			{
-				runtime->OnCreate(desc.Width, desc.Height);
+			runtime->OnCreate(desc.Width, desc.Height);
 
-				*ppSwapChain = new DXGISwapChain(pFactory, swapchain, runtime);
-			}
-			else
-			{
-				LOG(ERROR) << "Failed to initialize Direct3D 11 renderer on swapchain " << swapchain << "!";
-			}
+			*ppSwapChain = new DXGISwapChain(pFactory, swapchain, runtime);
 
 			deviceD3D11->Release();
 		}

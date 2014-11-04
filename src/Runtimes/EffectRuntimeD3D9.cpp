@@ -1,13 +1,9 @@
 #include "Log.hpp"
-#include "Runtime.hpp"
-#include "Effect.hpp"
 #include "EffectParserTree.hpp"
+#include "EffectRuntimeD3D9.hpp"
 
-#include <d3d9.h>
 #include <d3dx9math.h>
 #include <d3dcompiler.h>
-#include <vector>
-#include <unordered_map>
 #include <boost\algorithm\string.hpp>
 #include <nanovg_d3d9.h>
 
@@ -17,122 +13,6 @@ namespace ReShade
 {
 	namespace
 	{
-		struct D3D9Runtime : public Runtime, public std::enable_shared_from_this<D3D9Runtime>
-		{
-			friend struct D3D9Effect;
-			friend struct D3D9Texture;
-			friend struct D3D9Constant;
-			friend struct D3D9Technique;
-			friend class D3D9EffectCompiler;
-
-			D3D9Runtime(IDirect3DDevice9 *device, IDirect3DSwapChain9 *swapchain);
-			~D3D9Runtime();
-
-			virtual bool OnCreate(unsigned int width, unsigned int height) override;
-			virtual void OnDelete() override;
-			virtual void OnPresent() override;
-
-			virtual std::unique_ptr<Effect> CreateEffect(const EffectTree &ast, std::string &errors) const override;
-			virtual void CreateScreenshot(unsigned char *buffer, std::size_t size) const override;
-
-			IDirect3DDevice9 *mDevice;
-			IDirect3DSwapChain9 *mSwapChain;
-			IDirect3DStateBlock9 *mStateBlock;
-			IDirect3DSurface9 *mBackBuffer;
-			IDirect3DSurface9 *mBackBufferNotMultisampled;
-			IDirect3DTexture9 *mDepthStencilTexture;
-			bool mLost;
-		};
-		struct D3D9Effect : public Effect
-		{
-			friend struct D3D9Texture;
-			friend struct D3D9Sampler;
-			friend struct D3D9Constant;
-			friend struct D3D9Technique;
-
-			D3D9Effect(std::shared_ptr<const D3D9Runtime> context);
-			~D3D9Effect();
-
-			const Texture *GetTexture(const std::string &name) const;
-			std::vector<std::string> GetTextureNames() const;
-			const Constant *GetConstant(const std::string &name) const;
-			std::vector<std::string> GetConstantNames() const;
-			const Technique *GetTechnique(const std::string &name) const;
-			std::vector<std::string> GetTechniqueNames() const;
-
-			std::shared_ptr<const D3D9Runtime> mEffectContext;
-			std::unordered_map<std::string,std::unique_ptr<D3D9Texture>> mTextures;
-			std::vector<D3D9Sampler> mSamplers;
-			std::unordered_map<std::string, std::unique_ptr<D3D9Constant>> mConstants;
-			std::unordered_map<std::string, std::unique_ptr<D3D9Technique>> mTechniques;
-			IDirect3DSurface9 *mDepthStencil;
-			IDirect3DVertexDeclaration9 *mVertexDeclaration;
-			IDirect3DVertexBuffer9 *mVertexBuffer;
-			float *mConstantStorage;
-			UINT mConstantRegisterCount;
-		};
-		struct D3D9Texture : public Effect::Texture
-		{
-			D3D9Texture(D3D9Effect *effect);
-			~D3D9Texture();
-
-			const Description GetDescription() const;
-			const Effect::Annotation GetAnnotation(const std::string &name) const;
-
-			void Update(unsigned int level, const unsigned char *data, std::size_t size);
-			void UpdateFromColorBuffer();
-			void UpdateFromDepthBuffer();
-
-			D3D9Effect *mEffect;
-			Description mDesc;
-			std::unordered_map<std::string, Effect::Annotation>	mAnnotations;
-			IDirect3DTexture9 *mTexture;
-			IDirect3DSurface9 *mSurface;
-		};
-		struct D3D9Sampler
-		{
-			DWORD mStates[12];
-			D3D9Texture *mTexture;
-		};
-		struct D3D9Constant : public Effect::Constant
-		{
-			D3D9Constant(D3D9Effect *effect);
-			~D3D9Constant();
-
-			const Description GetDescription() const;
-			const Effect::Annotation GetAnnotation(const std::string &name) const;
-			void GetValue(unsigned char *data, std::size_t size) const;
-			void SetValue(const unsigned char *data, std::size_t size);
-
-			D3D9Effect *mEffect;
-			Description mDesc;
-			UINT mRegisterOffset;
-			std::unordered_map<std::string, Effect::Annotation>	mAnnotations;
-		};
-		struct D3D9Technique : public Effect::Technique
-		{
-			struct Pass
-			{
-				IDirect3DVertexShader9 *VS;
-				IDirect3DPixelShader9 *PS;
-				IDirect3DStateBlock9 *Stateblock;
-				IDirect3DSurface9 *RT[8];
-			};
-
-			D3D9Technique(D3D9Effect *effect);
-			~D3D9Technique();
-
-			const Effect::Annotation GetAnnotation(const std::string &name) const;
-
-			bool Begin(unsigned int &passes) const;
-			void End() const;
-			void RenderPass(unsigned int index) const;
-
-			D3D9Effect *mEffect;
-			std::unordered_map<std::string, Effect::Annotation>	mAnnotations;
-			std::vector<Pass> mPasses;
-		};
-
 		class D3D9EffectCompiler
 		{
 		public:
@@ -2219,667 +2099,800 @@ namespace ReShade
 			std::unordered_map<std::string, Effect::Annotation> *mCurrentAnnotations;
 			std::vector<D3D9Technique::Pass> *mCurrentPasses;
 		};
-
-		// -----------------------------------------------------------------------------------------------------
-
-		D3D9Runtime::D3D9Runtime(IDirect3DDevice9 *device, IDirect3DSwapChain9 *swapchain) : mDevice(device), mSwapChain(swapchain), mStateBlock(nullptr), mBackBuffer(nullptr), mBackBufferNotMultisampled(nullptr), mDepthStencilTexture(nullptr), mLost(true)
-		{
-			this->mDevice->AddRef();
-			this->mSwapChain->AddRef();
-
-			IDirect3D9 *d3d = nullptr;
-			this->mDevice->GetDirect3D(&d3d);
-
-			D3DDEVICE_CREATION_PARAMETERS params;
-			this->mDevice->GetCreationParameters(&params);
-
-			D3DADAPTER_IDENTIFIER9 identifier;
-			d3d->GetAdapterIdentifier(params.AdapterOrdinal, 0, &identifier);
-			d3d->Release();
-			
-			this->mVendorId = identifier.VendorId;
-			this->mDeviceId = identifier.DeviceId;
-			this->mRendererId = 0xD3D9;
-		}
-		D3D9Runtime::~D3D9Runtime()
-		{
-			assert(this->mLost);
-
-			this->mDevice->Release();
-			this->mSwapChain->Release();
-		}
-
-		bool D3D9Runtime::OnCreate(unsigned int width, unsigned int height)
-		{
-			this->mDevice->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &this->mBackBuffer);
-
-			D3DSURFACE_DESC bbdesc;
-			this->mBackBuffer->GetDesc(&bbdesc);
-
-			if (bbdesc.MultiSampleType != D3DMULTISAMPLE_NONE)
-			{
-				this->mDevice->CreateRenderTarget(bbdesc.Width, bbdesc.Height, bbdesc.Format, D3DMULTISAMPLE_NONE, 0, FALSE, &this->mBackBufferNotMultisampled, nullptr);
-			}
-			else
-			{
-				this->mBackBufferNotMultisampled = this->mBackBuffer;
-			}
-
-			this->mDevice->CreateStateBlock(D3DSBT_ALL, &this->mStateBlock);
-
-			this->mNVG = nvgCreateD3D9(this->mDevice, 0);
-
-			this->mLost = false;
-
-			return Runtime::OnCreate(width, height);
-		}
-		void D3D9Runtime::OnDelete()
-		{
-			Runtime::OnDelete();
-
-			nvgDeleteD3D9(this->mNVG);
-
-			if (this->mStateBlock != nullptr)
-			{
-				this->mStateBlock->Apply();
-				this->mStateBlock->Release();
-			}
-
-			if (this->mBackBufferNotMultisampled != this->mBackBuffer)
-			{
-				this->mBackBufferNotMultisampled->Release();
-			}
-			if (this->mBackBuffer != nullptr)
-			{
-				this->mBackBuffer->Release();
-			}
-
-			if (this->mDepthStencilTexture != nullptr)
-			{
-				this->mDepthStencilTexture->Release();
-			}
-
-			this->mNVG = nullptr;
-			this->mStateBlock = nullptr;
-			this->mBackBuffer = nullptr;
-			this->mBackBufferNotMultisampled = nullptr;
-			this->mDepthStencilTexture = nullptr;
-
-			this->mLost = true;
-		}
-		void D3D9Runtime::OnPresent()
-		{
-			IDirect3DSurface9 *stateBlockRenderTarget = nullptr;
-			IDirect3DSurface9 *stateBlockDepthStencil = nullptr;
-
-			this->mDevice->BeginScene();
-
-			this->mStateBlock->Capture();
-			this->mDevice->GetRenderTarget(0, &stateBlockRenderTarget);
-			this->mDevice->GetDepthStencilSurface(&stateBlockDepthStencil);
-
-			if (this->mBackBufferNotMultisampled != this->mBackBuffer)
-			{
-				this->mDevice->StretchRect(this->mBackBuffer, nullptr, this->mBackBufferNotMultisampled, nullptr, D3DTEXF_NONE);
-			}
-
-			this->mDevice->SetRenderTarget(0, this->mBackBufferNotMultisampled);
-
-			Runtime::OnPresent();
-
-			if (this->mLost)
-			{
-				return;
-			}
-
-			if (this->mBackBufferNotMultisampled != this->mBackBuffer)
-			{
-				this->mDevice->StretchRect(this->mBackBufferNotMultisampled, nullptr, this->mBackBuffer, nullptr, D3DTEXF_NONE);
-			}
-
-			this->mStateBlock->Apply();
-			this->mDevice->SetRenderTarget(0, stateBlockRenderTarget);
-			this->mDevice->SetDepthStencilSurface(stateBlockDepthStencil);
-			
-			if (stateBlockRenderTarget != nullptr)
-			{
-				stateBlockRenderTarget->Release();
-			}
-			if (stateBlockDepthStencil != nullptr)
-			{
-				stateBlockDepthStencil->Release();
-			}
-
-			this->mDevice->EndScene();
-		}
-
-		std::unique_ptr<Effect> D3D9Runtime::CreateEffect(const EffectTree &ast, std::string &errors) const
-		{
-			D3D9Effect *effect = new D3D9Effect(shared_from_this());
-			
-			D3D9EffectCompiler visitor(ast);
-		
-			if (visitor.Traverse(effect, errors))
-			{
-				return std::unique_ptr<Effect>(effect);
-			}
-			else
-			{
-				delete effect;
-
-				return nullptr;
-			}
-		}
-		void D3D9Runtime::CreateScreenshot(unsigned char *buffer, std::size_t size) const
-		{
-			IDirect3DSurface9 *backbuffer = nullptr;
-			IDirect3DSurface9 *surfaceSystem = nullptr;
-
-			HRESULT hr = this->mDevice->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &backbuffer);
-
-			if (FAILED(hr))
-			{
-				return;
-			}
-
-			D3DSURFACE_DESC desc;
-			backbuffer->GetDesc(&desc);
-
-			if (desc.Format != D3DFMT_X8R8G8B8 && desc.Format != D3DFMT_X8B8G8R8 && desc.Format != D3DFMT_A8R8G8B8 && desc.Format != D3DFMT_A8B8G8R8)
-			{
-				backbuffer->Release();
-				return;
-			}
-
-			hr = this->mDevice->CreateOffscreenPlainSurface(desc.Width, desc.Height, desc.Format, D3DPOOL_SYSTEMMEM, &surfaceSystem, nullptr);
-
-			if (FAILED(hr))
-			{
-				backbuffer->Release();
-				return;
-			}
-
-			if (desc.MultiSampleType != D3DMULTISAMPLE_NONE)
-			{
-				IDirect3DSurface9 *surfaceResolve = nullptr;
-
-				hr = this->mDevice->CreateRenderTarget(desc.Width, desc.Height, desc.Format, D3DMULTISAMPLE_NONE, 0, FALSE, &surfaceResolve, nullptr);				
-
-				if (SUCCEEDED(hr))
-				{
-					hr = this->mDevice->StretchRect(backbuffer, nullptr, surfaceResolve, nullptr, D3DTEXF_NONE);
-
-					if (SUCCEEDED(hr))
-					{
-						hr = this->mDevice->GetRenderTargetData(surfaceResolve, surfaceSystem);
-					}
-
-					surfaceResolve->Release();
-				}
-			}
-			else
-			{
-				hr = this->mDevice->GetRenderTargetData(backbuffer, surfaceSystem);
-			}
-
-			backbuffer->Release();
-
-			if (FAILED(hr))
-			{
-				surfaceSystem->Release();
-				return;
-			}
-
-			D3DLOCKED_RECT mapped;
-			ZeroMemory(&mapped, sizeof(D3DLOCKED_RECT));
-
-			// Lock surface
-			hr = surfaceSystem->LockRect(&mapped, nullptr, D3DLOCK_READONLY);
-
-			if (FAILED(hr))
-			{
-				surfaceSystem->Release();
-				return;
-			}
-
-			const UINT pitch = desc.Width * 4;
-
-			BYTE *pBuffer = buffer;
-			BYTE *pMapped = static_cast<BYTE *>(mapped.pBits);
-
-			for (UINT y = 0; y < desc.Height; ++y)
-			{
-				CopyMemory(pBuffer, pMapped, std::min(pitch, static_cast<UINT>(mapped.Pitch)));
-
-				for (UINT x = 0; x < pitch; x += 4)
-				{
-					pBuffer[x + 3] = 0xFF;
-
-					if (desc.Format == D3DFMT_A8R8G8B8 || desc.Format == D3DFMT_X8R8G8B8)
-					{
-						std::swap(pBuffer[x + 0], pBuffer[x + 2]);
-					}
-				}
-							
-				pBuffer += pitch;
-				pMapped += mapped.Pitch;
-			}
-
-			surfaceSystem->UnlockRect();
-
-			surfaceSystem->Release();
-		}
-
-		D3D9Effect::D3D9Effect(std::shared_ptr<const D3D9Runtime> context) : mEffectContext(context), mVertexBuffer(nullptr), mVertexDeclaration(nullptr), mDepthStencil(nullptr)
-		{
-			HRESULT hr;
-
-			D3DSURFACE_DESC desc;
-			this->mEffectContext->mBackBuffer->GetDesc(&desc);
-			
-			hr = context->mDevice->CreateDepthStencilSurface(desc.Width, desc.Height, D3DFMT_D24S8, D3DMULTISAMPLE_NONE, 0, FALSE, &this->mDepthStencil, nullptr);
-
-			assert(SUCCEEDED(hr));
-
-			this->mConstantRegisterCount = 0;
-			this->mConstantStorage = nullptr;
-
-			D3DVERTEXELEMENT9 declaration[] =
-			{
-				{ 0, 0, D3DDECLTYPE_FLOAT1, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD, 0 },
-				D3DDECL_END()
-			};
-
-			hr = context->mDevice->CreateVertexBuffer(3 * sizeof(float), D3DUSAGE_WRITEONLY, 0, D3DPOOL_DEFAULT, &this->mVertexBuffer, nullptr);
-
-			assert(SUCCEEDED(hr));
-
-			hr = context->mDevice->CreateVertexDeclaration(declaration, &this->mVertexDeclaration);
-
-			assert(SUCCEEDED(hr));
-
-			float *data;
-
-			hr = this->mVertexBuffer->Lock(0, 3 * sizeof(float), reinterpret_cast<void **>(&data), 0);
-
-			assert(SUCCEEDED(hr));
-
-			for (UINT i = 0; i < 3; ++i)
-			{
-				data[i] = static_cast<float>(i);
-			}
-
-			this->mVertexBuffer->Unlock();
-		}
-		D3D9Effect::~D3D9Effect()
-		{
-			this->mVertexBuffer->Release();
-			this->mVertexDeclaration->Release();
-			this->mDepthStencil->Release();
-		}
-
-		const Effect::Texture *D3D9Effect::GetTexture(const std::string &name) const
-		{
-			auto it = this->mTextures.find(name);
-
-			if (it == this->mTextures.end())
-			{
-				return nullptr;
-			}
-
-			return it->second.get();
-		}
-		std::vector<std::string> D3D9Effect::GetTextureNames() const
-		{
-			std::vector<std::string> names;
-			names.reserve(this->mTextures.size());
-
-			for (auto it = this->mTextures.begin(), end = this->mTextures.end(); it != end; ++it)
-			{
-				names.push_back(it->first);
-			}
-
-			return names;
-		}
-		const Effect::Constant *D3D9Effect::GetConstant(const std::string &name) const
-		{
-			auto it = this->mConstants.find(name);
-
-			if (it == this->mConstants.end())
-			{
-				return nullptr;
-			}
-
-			return it->second.get();
-		}
-		std::vector<std::string> D3D9Effect::GetConstantNames() const
-		{
-			std::vector<std::string> names;
-			names.reserve(this->mConstants.size());
-
-			for (auto it = this->mConstants.begin(), end = this->mConstants.end(); it != end; ++it)
-			{
-				names.push_back(it->first);
-			}
-
-			return names;
-		}
-		const Effect::Technique *D3D9Effect::GetTechnique(const std::string &name) const
-		{
-			auto it = this->mTechniques.find(name);
-
-			if (it == this->mTechniques.end())
-			{
-				return nullptr;
-			}
-
-			return it->second.get();
-		}
-		std::vector<std::string> D3D9Effect::GetTechniqueNames() const
-		{
-			std::vector<std::string> names;
-			names.reserve(this->mTechniques.size());
-
-			for (auto it = this->mTechniques.begin(), end = this->mTechniques.end(); it != end; ++it)
-			{
-				names.push_back(it->first);
-			}
-
-			return names;
-		}
-
-		D3D9Texture::D3D9Texture(D3D9Effect *effect) : mEffect(effect), mTexture(nullptr), mSurface(nullptr)
-		{
-		}
-		D3D9Texture::~D3D9Texture()
-		{
-			if (this->mSurface != nullptr)
-			{
-				this->mSurface->Release();
-			}
-			if (this->mTexture != nullptr)
-			{
-				this->mTexture->Release();
-			}
-		}
-
-		const Effect::Texture::Description D3D9Texture::GetDescription() const
-		{
-			return this->mDesc;
-		}
-		const Effect::Annotation D3D9Texture::GetAnnotation(const std::string &name) const
-		{
-			auto it = this->mAnnotations.find(name);
-
-			if (it == this->mAnnotations.end())
-			{
-				return Effect::Annotation();
-			}
-
-			return it->second;
-		}
-
-		void D3D9Texture::Update(unsigned int level, const unsigned char *data, std::size_t size)
-		{
-			assert(data != nullptr || size == 0);
-
-			if (size == 0) return;
-
-			IDirect3DTexture9 *system;
-			IDirect3DSurface9 *textureSurface, *systemSurface;
-			this->mTexture->GetSurfaceLevel(level, &textureSurface);
-
-			D3DSURFACE_DESC desc;
-			textureSurface->GetDesc(&desc);
-		
-			HRESULT hr = this->mEffect->mEffectContext->mDevice->CreateTexture(desc.Width, desc.Height, 1, 0, desc.Format, D3DPOOL_SYSTEMMEM, &system, nullptr);
-
-			if (FAILED(hr))
-			{
-				textureSurface->Release();
-				return;
-			}
-
-			system->GetSurfaceLevel(0, &systemSurface);
-			system->Release();
-		
-			D3DLOCKED_RECT mapped;
-			hr = systemSurface->LockRect(&mapped, nullptr, 0);
-
-			if (FAILED(hr))
-			{
-				systemSurface->Release();
-				textureSurface->Release();
-				return;
-			}
-
-			size = std::min<size_t>(size, mapped.Pitch * this->mDesc.Height);
-			unsigned char *p = static_cast<unsigned char *>(mapped.pBits);
-
-			switch (this->mDesc.Format)
-			{
-				case Format::R8:
-					for (std::size_t i = 0; i < size; i += 1)
-					{
-						*p++ = 0;
-						*p++ = 0;
-						*p++ = data[i];
-						*p++ = 0;
-					}
-					break;
-				case Format::RG8:
-					for (std::size_t i = 0; i < size; i += 2)
-					{
-						*p++ = 0;
-						*p++ = data[i + 1];
-						*p++ = data[i + 0];
-						*p++ = 0;
-					}
-					break;
-				case Format::RGBA8:
-					for (std::size_t i = 0; i < size; i += 4)
-					{
-						*p++ = data[i + 2];
-						*p++ = data[i + 1];
-						*p++ = data[i + 0];
-						*p++ = data[i + 3];
-					}
-					break;
-				default:
-					::memcpy(p, data, size);
-					break;
-			}
-
-			systemSurface->UnlockRect();
-
-			hr = this->mEffect->mEffectContext->mDevice->UpdateSurface(systemSurface, nullptr, textureSurface, nullptr);
-
-			systemSurface->Release();
-			textureSurface->Release();
-		}
-		void D3D9Texture::UpdateFromColorBuffer()
-		{
-			this->mEffect->mEffectContext->mDevice->StretchRect(this->mEffect->mEffectContext->mBackBufferNotMultisampled, nullptr, this->mSurface, nullptr, D3DTEXF_NONE);
-		}
-		void D3D9Texture::UpdateFromDepthBuffer()
-		{
-			if (this->mTexture == this->mEffect->mEffectContext->mDepthStencilTexture)
-			{
-				return;
-			}
-
-			if (this->mTexture != nullptr)
-			{
-				this->mTexture->Release();
-			}
-
-			this->mTexture = this->mEffect->mEffectContext->mDepthStencilTexture;
-
-			if (this->mTexture != nullptr)
-			{
-				D3DSURFACE_DESC desc;
-				this->mTexture->GetLevelDesc(0, &desc);
-
-				this->mDesc.Width = desc.Width;
-				this->mDesc.Height = desc.Height;
-				this->mDesc.Format = Effect::Texture::Format::Unknown;
-				this->mDesc.Levels = this->mTexture->GetLevelCount();
-
-				this->mTexture->AddRef();
-			}
-		}
-
-		D3D9Constant::D3D9Constant(D3D9Effect *effect) : mEffect(effect), mRegisterOffset(0)
-		{
-		}
-		D3D9Constant::~D3D9Constant()
-		{
-		}
-
-		const Effect::Constant::Description D3D9Constant::GetDescription() const
-		{
-			return this->mDesc;
-		}
-		const Effect::Annotation D3D9Constant::GetAnnotation(const std::string &name) const
-		{
-			auto it = this->mAnnotations.find(name);
-
-			if (it == this->mAnnotations.end())
-			{
-				return Effect::Annotation();
-			}
-
-			return it->second;
-		}
-		void D3D9Constant::GetValue(unsigned char *data, std::size_t size) const
-		{
-			std::memcpy(data, this->mEffect->mConstantStorage + this->mRegisterOffset, size);
-		}
-		void D3D9Constant::SetValue(const unsigned char *data, std::size_t size)
-		{
-			std::memcpy(this->mEffect->mConstantStorage + this->mRegisterOffset, data, size);
-		}
-
-		D3D9Technique::D3D9Technique(D3D9Effect *effect) : mEffect(effect)
-		{
-		}
-		D3D9Technique::~D3D9Technique()
-		{
-			for (Pass &pass : this->mPasses)
-			{
-				pass.Stateblock->Release();
-
-				if (pass.VS != nullptr)
-				{
-					pass.VS->Release();
-				}
-				if (pass.PS != nullptr)
-				{
-					pass.PS->Release();
-				}
-			}
-		}
-
-		const Effect::Annotation D3D9Technique::GetAnnotation(const std::string &name) const
-		{
-			auto it = this->mAnnotations.find(name);
-
-			if (it == this->mAnnotations.end())
-			{
-				return Effect::Annotation();
-			}
-
-			return it->second;
-		}
-
-		bool D3D9Technique::Begin(unsigned int &passes) const
-		{
-			IDirect3DDevice9 *device = this->mEffect->mEffectContext->mDevice;
-
-			passes = static_cast<unsigned int>(this->mPasses.size());
-
-			if (passes == 0)
-			{
-				return false;
-			}
-
-			device->SetDepthStencilSurface(this->mEffect->mDepthStencil);
-			device->Clear(0, nullptr, D3DCLEAR_ZBUFFER | D3DCLEAR_STENCIL, 0, 1.0f, 0x0);
-
-			device->SetVertexDeclaration(this->mEffect->mVertexDeclaration);
-			device->SetStreamSource(0, this->mEffect->mVertexBuffer, 0, sizeof(float));
-
-			for (DWORD i = 0, count = static_cast<DWORD>(this->mEffect->mSamplers.size()); i < count; ++i)
-			{
-				const auto &sampler = this->mEffect->mSamplers[i];
-
-				device->SetTexture(i, sampler.mTexture->mTexture);
-
-				device->SetSamplerState(i, D3DSAMP_ADDRESSU, sampler.mStates[D3DSAMP_ADDRESSU]);
-				device->SetSamplerState(i, D3DSAMP_ADDRESSV, sampler.mStates[D3DSAMP_ADDRESSV]);
-				device->SetSamplerState(i, D3DSAMP_ADDRESSW, sampler.mStates[D3DSAMP_ADDRESSW]);
-				device->SetSamplerState(i, D3DSAMP_MAGFILTER, sampler.mStates[D3DSAMP_MAGFILTER]);
-				device->SetSamplerState(i, D3DSAMP_MINFILTER, sampler.mStates[D3DSAMP_MINFILTER]);
-				device->SetSamplerState(i, D3DSAMP_MIPFILTER, sampler.mStates[D3DSAMP_MIPFILTER]);
-				device->SetSamplerState(i, D3DSAMP_MIPMAPLODBIAS, sampler.mStates[D3DSAMP_MIPMAPLODBIAS]);
-				device->SetSamplerState(i, D3DSAMP_MAXMIPLEVEL, sampler.mStates[D3DSAMP_MAXMIPLEVEL]);
-				device->SetSamplerState(i, D3DSAMP_MAXANISOTROPY, sampler.mStates[D3DSAMP_MAXANISOTROPY]);
-				device->SetSamplerState(i, D3DSAMP_SRGBTEXTURE, sampler.mStates[D3DSAMP_SRGBTEXTURE]);
-			}
-
-			D3DVIEWPORT9 viewport;
-			device->GetViewport(&viewport);
-			const float pixel_size[4] = { +1.0f / viewport.Width, +1.0f / viewport.Height, -1.0f / viewport.Width, +1.0f / viewport.Height };
-			device->SetVertexShaderConstantF(223, pixel_size, 1);
-			device->SetPixelShaderConstantF(223, pixel_size, 1);
-
-			return true;
-		}
-		void D3D9Technique::End() const
-		{
-			this->mEffect->mEffectContext->mDevice->SetRenderTarget(0, this->mEffect->mEffectContext->mBackBufferNotMultisampled);
-		}
-		void D3D9Technique::RenderPass(unsigned int index) const
-		{
-			IDirect3DDevice9 *device = this->mEffect->mEffectContext->mDevice;
-			const Pass &pass = this->mPasses[index];
-
-			device->SetVertexShaderConstantF(0, this->mEffect->mConstantStorage, this->mEffect->mConstantRegisterCount);
-			device->SetPixelShaderConstantF(0, this->mEffect->mConstantStorage, this->mEffect->mConstantRegisterCount);
-
-			pass.Stateblock->Apply();
-
-			for (DWORD i = 0; i < 4; ++i)
-			{
-				device->SetRenderTarget(i, pass.RT[i]);
-			}
-
-			device->Clear(0, nullptr, D3DCLEAR_TARGET, D3DCOLOR_ARGB(0, 0, 0, 0), 0.0f, 0x0);
-
-			device->DrawPrimitive(D3DPT_TRIANGLELIST, 0, 1);
-		}
 	}
 
 	// -----------------------------------------------------------------------------------------------------
 
-	std::shared_ptr<Runtime> CreateEffectRuntime(IDirect3DDevice9 *device, IDirect3DSwapChain9 *swapchain)
-	{
-		assert(device != nullptr && swapchain != nullptr);
+	#define D3DFMT_INTZ static_cast<D3DFORMAT>(MAKEFOURCC('I', 'N', 'T', 'Z'))
 
-		return std::make_shared<D3D9Runtime>(device, swapchain);
+	D3D9Runtime::D3D9Runtime(IDirect3DDevice9 *device, IDirect3DSwapChain9 *swapchain) : mDevice(device), mSwapChain(swapchain), mStateBlock(nullptr), mBackBuffer(nullptr), mBackBufferNotMultisampled(nullptr), mDepthStencilTexture(nullptr), mBestDepthStencil(nullptr), mBestDepthStencilReplacement(nullptr), mLost(true)
+	{
+		this->mDevice->AddRef();
+		this->mSwapChain->AddRef();
+
+		IDirect3D9 *d3d = nullptr;
+		this->mDevice->GetDirect3D(&d3d);
+
+		D3DDEVICE_CREATION_PARAMETERS params;
+		this->mDevice->GetCreationParameters(&params);
+
+		D3DADAPTER_IDENTIFIER9 identifier;
+		d3d->GetAdapterIdentifier(params.AdapterOrdinal, 0, &identifier);
+		d3d->Release();
+			
+		this->mVendorId = identifier.VendorId;
+		this->mDeviceId = identifier.DeviceId;
+		this->mRendererId = 0xD3D9;
 	}
-	void SetEffectRuntimeDepthStencilTexture(const std::shared_ptr<Runtime> runtime, IDirect3DTexture9 *texture)
+	D3D9Runtime::~D3D9Runtime()
 	{
-		assert(texture != nullptr);
+		assert(this->mLost);
 
-		const std::shared_ptr<D3D9Runtime> d3druntime = std::static_pointer_cast<D3D9Runtime>(runtime);
+		this->mDevice->Release();
+		this->mSwapChain->Release();
+	}
 
-		if (d3druntime->mDepthStencilTexture != nullptr)
+	bool D3D9Runtime::OnCreate(unsigned int width, unsigned int height)
+	{
+		this->mDevice->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &this->mBackBuffer);
+
+		D3DSURFACE_DESC bbdesc;
+		this->mBackBuffer->GetDesc(&bbdesc);
+
+		if (bbdesc.MultiSampleType != D3DMULTISAMPLE_NONE)
 		{
-			d3druntime->mDepthStencilTexture->Release();
+			this->mDevice->CreateRenderTarget(bbdesc.Width, bbdesc.Height, bbdesc.Format, D3DMULTISAMPLE_NONE, 0, FALSE, &this->mBackBufferNotMultisampled, nullptr);
+		}
+		else
+		{
+			this->mBackBufferNotMultisampled = this->mBackBuffer;
 		}
 
-		d3druntime->mDepthStencilTexture = texture;
-		d3druntime->mDepthStencilTexture->AddRef();
+		this->mDevice->CreateStateBlock(D3DSBT_ALL, &this->mStateBlock);
+
+		this->mNVG = nvgCreateD3D9(this->mDevice, 0);
+
+		this->mLost = false;
+
+		return Runtime::OnCreate(width, height);
+	}
+	void D3D9Runtime::OnDelete()
+	{
+		Runtime::OnDelete();
+
+		nvgDeleteD3D9(this->mNVG);
+
+		if (this->mStateBlock != nullptr)
+		{
+			this->mStateBlock->Apply();
+			this->mStateBlock->Release();
+		}
+
+		if (this->mBackBufferNotMultisampled != this->mBackBuffer)
+		{
+			this->mBackBufferNotMultisampled->Release();
+		}
+		if (this->mBackBuffer != nullptr)
+		{
+			this->mBackBuffer->Release();
+		}
+
+		this->mDepthStencilTable.clear();
+
+		if (this->mBestDepthStencilReplacement != nullptr)
+		{
+			this->mBestDepthStencil = nullptr;
+			this->mBestDepthStencilReplacement->Release();
+			this->mBestDepthStencilReplacement = nullptr;
+		}
+		if (this->mDepthStencilTexture != nullptr)
+		{
+			this->mDepthStencilTexture->Release();
+		}
+
+		this->mNVG = nullptr;
+		this->mStateBlock = nullptr;
+		this->mBackBuffer = nullptr;
+		this->mBackBufferNotMultisampled = nullptr;
+		this->mDepthStencilTexture = nullptr;
+
+		this->mLost = true;
+	}
+	void D3D9Runtime::OnPresent()
+	{
+		DetectBestDepthStencil();
+
+		IDirect3DSurface9 *stateBlockRenderTarget = nullptr;
+		IDirect3DSurface9 *stateBlockDepthStencil = nullptr;
+
+		this->mDevice->BeginScene();
+
+		this->mStateBlock->Capture();
+		this->mDevice->GetRenderTarget(0, &stateBlockRenderTarget);
+		this->mDevice->GetDepthStencilSurface(&stateBlockDepthStencil);
+
+		if (this->mBackBufferNotMultisampled != this->mBackBuffer)
+		{
+			this->mDevice->StretchRect(this->mBackBuffer, nullptr, this->mBackBufferNotMultisampled, nullptr, D3DTEXF_NONE);
+		}
+
+		this->mDevice->SetRenderTarget(0, this->mBackBufferNotMultisampled);
+
+		Runtime::OnPresent();
+
+		if (this->mLost)
+		{
+			return;
+		}
+
+		if (this->mBackBufferNotMultisampled != this->mBackBuffer)
+		{
+			this->mDevice->StretchRect(this->mBackBufferNotMultisampled, nullptr, this->mBackBuffer, nullptr, D3DTEXF_NONE);
+		}
+
+		this->mStateBlock->Apply();
+		this->mDevice->SetRenderTarget(0, stateBlockRenderTarget);
+		this->mDevice->SetDepthStencilSurface(stateBlockDepthStencil);
+			
+		if (stateBlockRenderTarget != nullptr)
+		{
+			stateBlockRenderTarget->Release();
+		}
+		if (stateBlockDepthStencil != nullptr)
+		{
+			stateBlockDepthStencil->Release();
+		}
+
+		this->mDevice->EndScene();
+	}
+	void D3D9Runtime::OnDepthStencil(IDirect3DSurface9 *&pNewZStencil)
+	{
+		if (this->mDepthStencilTable.find(pNewZStencil) == this->mDepthStencilTable.end())
+		{
+			D3DSURFACE_DESC desc;
+			pNewZStencil->GetDesc(&desc);
+
+			DepthStencilInfo info;
+			info.Width = desc.Width;
+			info.Height = desc.Height;
+			info.DrawCallCount = 0;
+
+			this->mDepthStencilTable.emplace(pNewZStencil, info);
+		}
+
+		if (this->mBestDepthStencilReplacement != nullptr && pNewZStencil == this->mBestDepthStencil)
+		{
+			pNewZStencil = this->mBestDepthStencilReplacement;
+		}
+	}
+	void D3D9Runtime::OnDraw()
+	{
+		IDirect3DSurface9 *depthstencil = nullptr;
+		this->mDevice->GetDepthStencilSurface(&depthstencil);
+
+		if (depthstencil != nullptr)
+		{
+			depthstencil->Release();
+
+			if (depthstencil == this->mBestDepthStencilReplacement)
+			{
+				depthstencil = this->mBestDepthStencil;
+			}
+
+			this->mDepthStencilTable.at(depthstencil).DrawCallCount++;
+		}
+	}
+
+	std::unique_ptr<Effect> D3D9Runtime::CreateEffect(const EffectTree &ast, std::string &errors) const
+	{
+		D3D9Effect *effect = new D3D9Effect(shared_from_this());
+			
+		D3D9EffectCompiler visitor(ast);
+		
+		if (visitor.Traverse(effect, errors))
+		{
+			return std::unique_ptr<Effect>(effect);
+		}
+		else
+		{
+			delete effect;
+
+			return nullptr;
+		}
+	}
+	void D3D9Runtime::CreateScreenshot(unsigned char *buffer, std::size_t size) const
+	{
+		IDirect3DSurface9 *backbuffer = nullptr;
+		IDirect3DSurface9 *surfaceSystem = nullptr;
+
+		HRESULT hr = this->mDevice->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &backbuffer);
+
+		if (FAILED(hr))
+		{
+			return;
+		}
+
+		D3DSURFACE_DESC desc;
+		backbuffer->GetDesc(&desc);
+
+		if (desc.Format != D3DFMT_X8R8G8B8 && desc.Format != D3DFMT_X8B8G8R8 && desc.Format != D3DFMT_A8R8G8B8 && desc.Format != D3DFMT_A8B8G8R8)
+		{
+			backbuffer->Release();
+			return;
+		}
+
+		hr = this->mDevice->CreateOffscreenPlainSurface(desc.Width, desc.Height, desc.Format, D3DPOOL_SYSTEMMEM, &surfaceSystem, nullptr);
+
+		if (FAILED(hr))
+		{
+			backbuffer->Release();
+			return;
+		}
+
+		if (desc.MultiSampleType != D3DMULTISAMPLE_NONE)
+		{
+			IDirect3DSurface9 *surfaceResolve = nullptr;
+
+			hr = this->mDevice->CreateRenderTarget(desc.Width, desc.Height, desc.Format, D3DMULTISAMPLE_NONE, 0, FALSE, &surfaceResolve, nullptr);				
+
+			if (SUCCEEDED(hr))
+			{
+				hr = this->mDevice->StretchRect(backbuffer, nullptr, surfaceResolve, nullptr, D3DTEXF_NONE);
+
+				if (SUCCEEDED(hr))
+				{
+					hr = this->mDevice->GetRenderTargetData(surfaceResolve, surfaceSystem);
+				}
+
+				surfaceResolve->Release();
+			}
+		}
+		else
+		{
+			hr = this->mDevice->GetRenderTargetData(backbuffer, surfaceSystem);
+		}
+
+		backbuffer->Release();
+
+		if (FAILED(hr))
+		{
+			surfaceSystem->Release();
+			return;
+		}
+
+		D3DLOCKED_RECT mapped;
+		ZeroMemory(&mapped, sizeof(D3DLOCKED_RECT));
+
+		// Lock surface
+		hr = surfaceSystem->LockRect(&mapped, nullptr, D3DLOCK_READONLY);
+
+		if (FAILED(hr))
+		{
+			surfaceSystem->Release();
+			return;
+		}
+
+		const UINT pitch = desc.Width * 4;
+
+		BYTE *pBuffer = buffer;
+		BYTE *pMapped = static_cast<BYTE *>(mapped.pBits);
+
+		for (UINT y = 0; y < desc.Height; ++y)
+		{
+			CopyMemory(pBuffer, pMapped, std::min(pitch, static_cast<UINT>(mapped.Pitch)));
+
+			for (UINT x = 0; x < pitch; x += 4)
+			{
+				pBuffer[x + 3] = 0xFF;
+
+				if (desc.Format == D3DFMT_A8R8G8B8 || desc.Format == D3DFMT_X8R8G8B8)
+				{
+					std::swap(pBuffer[x + 0], pBuffer[x + 2]);
+				}
+			}
+							
+			pBuffer += pitch;
+			pMapped += mapped.Pitch;
+		}
+
+		surfaceSystem->UnlockRect();
+
+		surfaceSystem->Release();
+	}
+
+	void D3D9Runtime::DetectBestDepthStencil()
+	{
+		static int cooldown = 0;
+
+		if (cooldown-- > 0)
+		{
+			return;
+		}
+		else
+		{
+			cooldown = 10;
+		}
+
+		if (this->mDepthStencilTable.empty())
+		{
+			return;
+		}
+
+		D3DPRESENT_PARAMETERS pp;
+		this->mSwapChain->GetPresentParameters(&pp);
+
+		if (pp.MultiSampleType != D3DMULTISAMPLE_NONE)
+		{
+			return;
+		}
+
+		UINT bestDrawCallCount = 0;
+		IDirect3DSurface9 *bestDepthStencil = nullptr;
+
+		for (auto &it : this->mDepthStencilTable)
+		{
+			if (it.second.DrawCallCount == 0)
+			{
+				continue;
+			}
+
+			if (it.second.DrawCallCount >= bestDrawCallCount && (it.second.Width >= pp.BackBufferWidth && it.second.Height >= pp.BackBufferHeight))
+			{
+				bestDrawCallCount = it.second.DrawCallCount;
+				bestDepthStencil = it.first;
+			}
+
+			it.second.DrawCallCount = 0;
+		}
+
+		if (bestDepthStencil != nullptr && this->mBestDepthStencil != bestDepthStencil)
+		{
+			D3DSURFACE_DESC desc;
+			bestDepthStencil->GetDesc(&desc);
+
+			this->mBestDepthStencil = bestDepthStencil;
+
+			if (this->mBestDepthStencilReplacement != nullptr)
+			{
+				this->mBestDepthStencilReplacement->Release();
+				this->mBestDepthStencilReplacement = nullptr;
+			}
+
+			IDirect3DTexture9 *texture = nullptr;
+
+			if (desc.Format != D3DFMT_INTZ)
+			{
+				const HRESULT hr = this->mDevice->CreateTexture(desc.Width, desc.Height, 1, D3DUSAGE_DEPTHSTENCIL, D3DFMT_INTZ, D3DPOOL_DEFAULT, &texture, nullptr);
+
+				if (SUCCEEDED(hr))
+				{
+					texture->GetSurfaceLevel(0, &this->mBestDepthStencilReplacement);
+
+					// Update auto depthstencil
+					IDirect3DSurface9 *depthstencil = nullptr;
+
+					this->mDevice->GetDepthStencilSurface(&depthstencil);
+
+					if (depthstencil != nullptr)
+					{
+						if (depthstencil == this->mBestDepthStencil)
+						{
+							this->mDevice->SetDepthStencilSurface(this->mBestDepthStencilReplacement);
+						}
+
+						depthstencil->Release();
+					}
+				}
+			}
+			else
+			{
+				this->mBestDepthStencilReplacement = bestDepthStencil;
+				this->mBestDepthStencilReplacement->AddRef();
+				this->mBestDepthStencilReplacement->GetContainer(__uuidof(IDirect3DTexture9), reinterpret_cast<void **>(&texture));
+			}
+
+			if (texture != nullptr)
+			{
+				if (this->mDepthStencilTexture != nullptr)
+				{
+					this->mDepthStencilTexture->Release();
+				}
+
+				this->mDepthStencilTexture = texture;
+			}
+			else
+			{
+				LOG(ERROR) << "Failed to create depthstencil replacement texture.";
+			}
+		}
+	}
+
+	D3D9Effect::D3D9Effect(std::shared_ptr<const D3D9Runtime> context) : mEffectContext(context), mVertexBuffer(nullptr), mVertexDeclaration(nullptr), mDepthStencil(nullptr)
+	{
+		HRESULT hr;
+
+		D3DSURFACE_DESC desc;
+		this->mEffectContext->mBackBuffer->GetDesc(&desc);
+			
+		hr = context->mDevice->CreateDepthStencilSurface(desc.Width, desc.Height, D3DFMT_D24S8, D3DMULTISAMPLE_NONE, 0, FALSE, &this->mDepthStencil, nullptr);
+
+		assert(SUCCEEDED(hr));
+
+		this->mConstantRegisterCount = 0;
+		this->mConstantStorage = nullptr;
+
+		D3DVERTEXELEMENT9 declaration[] =
+		{
+			{ 0, 0, D3DDECLTYPE_FLOAT1, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD, 0 },
+			D3DDECL_END()
+		};
+
+		hr = context->mDevice->CreateVertexBuffer(3 * sizeof(float), D3DUSAGE_WRITEONLY, 0, D3DPOOL_DEFAULT, &this->mVertexBuffer, nullptr);
+
+		assert(SUCCEEDED(hr));
+
+		hr = context->mDevice->CreateVertexDeclaration(declaration, &this->mVertexDeclaration);
+
+		assert(SUCCEEDED(hr));
+
+		float *data;
+
+		hr = this->mVertexBuffer->Lock(0, 3 * sizeof(float), reinterpret_cast<void **>(&data), 0);
+
+		assert(SUCCEEDED(hr));
+
+		for (UINT i = 0; i < 3; ++i)
+		{
+			data[i] = static_cast<float>(i);
+		}
+
+		this->mVertexBuffer->Unlock();
+	}
+	D3D9Effect::~D3D9Effect()
+	{
+		this->mVertexBuffer->Release();
+		this->mVertexDeclaration->Release();
+		this->mDepthStencil->Release();
+	}
+
+	const Effect::Texture *D3D9Effect::GetTexture(const std::string &name) const
+	{
+		auto it = this->mTextures.find(name);
+
+		if (it == this->mTextures.end())
+		{
+			return nullptr;
+		}
+
+		return it->second.get();
+	}
+	std::vector<std::string> D3D9Effect::GetTextureNames() const
+	{
+		std::vector<std::string> names;
+		names.reserve(this->mTextures.size());
+
+		for (auto it = this->mTextures.begin(), end = this->mTextures.end(); it != end; ++it)
+		{
+			names.push_back(it->first);
+		}
+
+		return names;
+	}
+	const Effect::Constant *D3D9Effect::GetConstant(const std::string &name) const
+	{
+		auto it = this->mConstants.find(name);
+
+		if (it == this->mConstants.end())
+		{
+			return nullptr;
+		}
+
+		return it->second.get();
+	}
+	std::vector<std::string> D3D9Effect::GetConstantNames() const
+	{
+		std::vector<std::string> names;
+		names.reserve(this->mConstants.size());
+
+		for (auto it = this->mConstants.begin(), end = this->mConstants.end(); it != end; ++it)
+		{
+			names.push_back(it->first);
+		}
+
+		return names;
+	}
+	const Effect::Technique *D3D9Effect::GetTechnique(const std::string &name) const
+	{
+		auto it = this->mTechniques.find(name);
+
+		if (it == this->mTechniques.end())
+		{
+			return nullptr;
+		}
+
+		return it->second.get();
+	}
+	std::vector<std::string> D3D9Effect::GetTechniqueNames() const
+	{
+		std::vector<std::string> names;
+		names.reserve(this->mTechniques.size());
+
+		for (auto it = this->mTechniques.begin(), end = this->mTechniques.end(); it != end; ++it)
+		{
+			names.push_back(it->first);
+		}
+
+		return names;
+	}
+
+	D3D9Texture::D3D9Texture(D3D9Effect *effect) : mEffect(effect), mTexture(nullptr), mSurface(nullptr)
+	{
+	}
+	D3D9Texture::~D3D9Texture()
+	{
+		if (this->mSurface != nullptr)
+		{
+			this->mSurface->Release();
+		}
+		if (this->mTexture != nullptr)
+		{
+			this->mTexture->Release();
+		}
+	}
+
+	const Effect::Texture::Description D3D9Texture::GetDescription() const
+	{
+		return this->mDesc;
+	}
+	const Effect::Annotation D3D9Texture::GetAnnotation(const std::string &name) const
+	{
+		auto it = this->mAnnotations.find(name);
+
+		if (it == this->mAnnotations.end())
+		{
+			return Effect::Annotation();
+		}
+
+		return it->second;
+	}
+
+	void D3D9Texture::Update(unsigned int level, const unsigned char *data, std::size_t size)
+	{
+		assert(data != nullptr || size == 0);
+
+		if (size == 0) return;
+
+		IDirect3DTexture9 *system;
+		IDirect3DSurface9 *textureSurface, *systemSurface;
+		this->mTexture->GetSurfaceLevel(level, &textureSurface);
+
+		D3DSURFACE_DESC desc;
+		textureSurface->GetDesc(&desc);
+		
+		HRESULT hr = this->mEffect->mEffectContext->mDevice->CreateTexture(desc.Width, desc.Height, 1, 0, desc.Format, D3DPOOL_SYSTEMMEM, &system, nullptr);
+
+		if (FAILED(hr))
+		{
+			textureSurface->Release();
+			return;
+		}
+
+		system->GetSurfaceLevel(0, &systemSurface);
+		system->Release();
+		
+		D3DLOCKED_RECT mapped;
+		hr = systemSurface->LockRect(&mapped, nullptr, 0);
+
+		if (FAILED(hr))
+		{
+			systemSurface->Release();
+			textureSurface->Release();
+			return;
+		}
+
+		size = std::min<size_t>(size, mapped.Pitch * this->mDesc.Height);
+		unsigned char *p = static_cast<unsigned char *>(mapped.pBits);
+
+		switch (this->mDesc.Format)
+		{
+			case Format::R8:
+				for (std::size_t i = 0; i < size; i += 1)
+				{
+					*p++ = 0;
+					*p++ = 0;
+					*p++ = data[i];
+					*p++ = 0;
+				}
+				break;
+			case Format::RG8:
+				for (std::size_t i = 0; i < size; i += 2)
+				{
+					*p++ = 0;
+					*p++ = data[i + 1];
+					*p++ = data[i + 0];
+					*p++ = 0;
+				}
+				break;
+			case Format::RGBA8:
+				for (std::size_t i = 0; i < size; i += 4)
+				{
+					*p++ = data[i + 2];
+					*p++ = data[i + 1];
+					*p++ = data[i + 0];
+					*p++ = data[i + 3];
+				}
+				break;
+			default:
+				::memcpy(p, data, size);
+				break;
+		}
+
+		systemSurface->UnlockRect();
+
+		hr = this->mEffect->mEffectContext->mDevice->UpdateSurface(systemSurface, nullptr, textureSurface, nullptr);
+
+		systemSurface->Release();
+		textureSurface->Release();
+	}
+	void D3D9Texture::UpdateFromColorBuffer()
+	{
+		this->mEffect->mEffectContext->mDevice->StretchRect(this->mEffect->mEffectContext->mBackBufferNotMultisampled, nullptr, this->mSurface, nullptr, D3DTEXF_NONE);
+	}
+	void D3D9Texture::UpdateFromDepthBuffer()
+	{
+		if (this->mTexture == this->mEffect->mEffectContext->mDepthStencilTexture)
+		{
+			return;
+		}
+
+		if (this->mTexture != nullptr)
+		{
+			this->mTexture->Release();
+		}
+
+		this->mTexture = this->mEffect->mEffectContext->mDepthStencilTexture;
+
+		if (this->mTexture != nullptr)
+		{
+			D3DSURFACE_DESC desc;
+			this->mTexture->GetLevelDesc(0, &desc);
+
+			this->mDesc.Width = desc.Width;
+			this->mDesc.Height = desc.Height;
+			this->mDesc.Format = Effect::Texture::Format::Unknown;
+			this->mDesc.Levels = this->mTexture->GetLevelCount();
+
+			this->mTexture->AddRef();
+		}
+	}
+
+	D3D9Constant::D3D9Constant(D3D9Effect *effect) : mEffect(effect), mRegisterOffset(0)
+	{
+	}
+	D3D9Constant::~D3D9Constant()
+	{
+	}
+
+	const Effect::Constant::Description D3D9Constant::GetDescription() const
+	{
+		return this->mDesc;
+	}
+	const Effect::Annotation D3D9Constant::GetAnnotation(const std::string &name) const
+	{
+		auto it = this->mAnnotations.find(name);
+
+		if (it == this->mAnnotations.end())
+		{
+			return Effect::Annotation();
+		}
+
+		return it->second;
+	}
+	void D3D9Constant::GetValue(unsigned char *data, std::size_t size) const
+	{
+		std::memcpy(data, this->mEffect->mConstantStorage + this->mRegisterOffset, size);
+	}
+	void D3D9Constant::SetValue(const unsigned char *data, std::size_t size)
+	{
+		std::memcpy(this->mEffect->mConstantStorage + this->mRegisterOffset, data, size);
+	}
+
+	D3D9Technique::D3D9Technique(D3D9Effect *effect) : mEffect(effect)
+	{
+	}
+	D3D9Technique::~D3D9Technique()
+	{
+		for (Pass &pass : this->mPasses)
+		{
+			pass.Stateblock->Release();
+
+			if (pass.VS != nullptr)
+			{
+				pass.VS->Release();
+			}
+			if (pass.PS != nullptr)
+			{
+				pass.PS->Release();
+			}
+		}
+	}
+
+	const Effect::Annotation D3D9Technique::GetAnnotation(const std::string &name) const
+	{
+		auto it = this->mAnnotations.find(name);
+
+		if (it == this->mAnnotations.end())
+		{
+			return Effect::Annotation();
+		}
+
+		return it->second;
+	}
+
+	bool D3D9Technique::Begin(unsigned int &passes) const
+	{
+		IDirect3DDevice9 *device = this->mEffect->mEffectContext->mDevice;
+
+		passes = static_cast<unsigned int>(this->mPasses.size());
+
+		if (passes == 0)
+		{
+			return false;
+		}
+
+		device->SetDepthStencilSurface(this->mEffect->mDepthStencil);
+		device->Clear(0, nullptr, D3DCLEAR_ZBUFFER | D3DCLEAR_STENCIL, 0, 1.0f, 0x0);
+
+		device->SetVertexDeclaration(this->mEffect->mVertexDeclaration);
+		device->SetStreamSource(0, this->mEffect->mVertexBuffer, 0, sizeof(float));
+
+		for (DWORD i = 0, count = static_cast<DWORD>(this->mEffect->mSamplers.size()); i < count; ++i)
+		{
+			const auto &sampler = this->mEffect->mSamplers[i];
+
+			device->SetTexture(i, sampler.mTexture->mTexture);
+
+			device->SetSamplerState(i, D3DSAMP_ADDRESSU, sampler.mStates[D3DSAMP_ADDRESSU]);
+			device->SetSamplerState(i, D3DSAMP_ADDRESSV, sampler.mStates[D3DSAMP_ADDRESSV]);
+			device->SetSamplerState(i, D3DSAMP_ADDRESSW, sampler.mStates[D3DSAMP_ADDRESSW]);
+			device->SetSamplerState(i, D3DSAMP_MAGFILTER, sampler.mStates[D3DSAMP_MAGFILTER]);
+			device->SetSamplerState(i, D3DSAMP_MINFILTER, sampler.mStates[D3DSAMP_MINFILTER]);
+			device->SetSamplerState(i, D3DSAMP_MIPFILTER, sampler.mStates[D3DSAMP_MIPFILTER]);
+			device->SetSamplerState(i, D3DSAMP_MIPMAPLODBIAS, sampler.mStates[D3DSAMP_MIPMAPLODBIAS]);
+			device->SetSamplerState(i, D3DSAMP_MAXMIPLEVEL, sampler.mStates[D3DSAMP_MAXMIPLEVEL]);
+			device->SetSamplerState(i, D3DSAMP_MAXANISOTROPY, sampler.mStates[D3DSAMP_MAXANISOTROPY]);
+			device->SetSamplerState(i, D3DSAMP_SRGBTEXTURE, sampler.mStates[D3DSAMP_SRGBTEXTURE]);
+		}
+
+		D3DVIEWPORT9 viewport;
+		device->GetViewport(&viewport);
+		const float pixel_size[4] = { +1.0f / viewport.Width, +1.0f / viewport.Height, -1.0f / viewport.Width, +1.0f / viewport.Height };
+		device->SetVertexShaderConstantF(223, pixel_size, 1);
+		device->SetPixelShaderConstantF(223, pixel_size, 1);
+
+		return true;
+	}
+	void D3D9Technique::End() const
+	{
+		this->mEffect->mEffectContext->mDevice->SetRenderTarget(0, this->mEffect->mEffectContext->mBackBufferNotMultisampled);
+	}
+	void D3D9Technique::RenderPass(unsigned int index) const
+	{
+		IDirect3DDevice9 *device = this->mEffect->mEffectContext->mDevice;
+		const Pass &pass = this->mPasses[index];
+
+		device->SetVertexShaderConstantF(0, this->mEffect->mConstantStorage, this->mEffect->mConstantRegisterCount);
+		device->SetPixelShaderConstantF(0, this->mEffect->mConstantStorage, this->mEffect->mConstantRegisterCount);
+
+		pass.Stateblock->Apply();
+
+		for (DWORD i = 0; i < 4; ++i)
+		{
+			device->SetRenderTarget(i, pass.RT[i]);
+		}
+
+		device->Clear(0, nullptr, D3DCLEAR_TARGET, D3DCOLOR_ARGB(0, 0, 0, 0), 0.0f, 0x0);
+
+		device->DrawPrimitive(D3DPT_TRIANGLELIST, 0, 1);
 	}
 }

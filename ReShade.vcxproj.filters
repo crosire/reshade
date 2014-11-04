@@ -101,6 +101,18 @@
     <ClInclude Include="src\EffectPreprocessor.hpp">
       <Filter>Effect Parser</Filter>
     </ClInclude>
+    <ClInclude Include="src\Runtimes\EffectRuntimeD3D9.hpp">
+      <Filter>Effect Runtimes</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Runtimes\EffectRuntimeD3D10.hpp">
+      <Filter>Effect Runtimes</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Runtimes\EffectRuntimeD3D11.hpp">
+      <Filter>Effect Runtimes</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Runtimes\EffectRuntimeOGL4.hpp">
+      <Filter>Effect Runtimes</Filter>
+    </ClInclude>
     <ClInclude Include="src\Log.hpp" />
     <ClInclude Include="src\Runtime.hpp" />
     <ClInclude Include="src\FileWatcher.hpp" />

@@ -265,6 +265,10 @@ tools\upx --backup "$(TargetPath)"</Command>
     <ClInclude Include="obj\$(Platform)\$(Configuration)\EffectParser.hpp" />
     <ClInclude Include="src\EffectParserTree.hpp" />
     <ClInclude Include="src\Runtime.hpp" />
+    <ClInclude Include="src\Runtimes\EffectRuntimeD3D10.hpp" />
+    <ClInclude Include="src\Runtimes\EffectRuntimeD3D11.hpp" />
+    <ClInclude Include="src\Runtimes\EffectRuntimeD3D9.hpp" />
+    <ClInclude Include="src\Runtimes\EffectRuntimeOGL4.hpp" />
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="src\EffectLexer.l">

@@ -1,266 +1,16 @@
 #include "Log.hpp"
-#include "Runtime.hpp"
-#include "Effect.hpp"
 #include "EffectParserTree.hpp"
+#include "EffectRuntimeOGL4.hpp"
 
-#include <gl\gl3w.h>
-#include <vector>
-#include <unordered_map>
 #include <boost\algorithm\string.hpp>
 #include <nanovg_gl.h>
 
 // -----------------------------------------------------------------------------------------------------
 
-#ifdef _DEBUG
-	#define GLCHECK(call) { glGetError(); call; GLenum __e = glGetError(); if (__e != GL_NO_ERROR) { char __m[1024]; sprintf_s(__m, "OpenGL Error %x at line %d: %s", __e, __LINE__, #call); MessageBoxA(nullptr, __m, 0, MB_ICONERROR); } }
-#else
-	#define GLCHECK(call) call
-#endif
-
 namespace ReShade
 {
 	namespace
 	{
-		struct OGL4StateBlock
-		{
-			OGL4StateBlock()
-			{
-				ZeroMemory(this, sizeof(this));
-			}
-
-			void Capture()
-			{
-				GLCHECK(glGetIntegerv(GL_VIEWPORT, this->mViewport));
-				GLCHECK(this->mStencilTest = glIsEnabled(GL_STENCIL_TEST));
-				GLCHECK(this->mScissorTest = glIsEnabled(GL_SCISSOR_TEST));
-				GLCHECK(glGetIntegerv(GL_FRONT_FACE, reinterpret_cast<GLint *>(&this->mFrontFace)));
-				GLCHECK(glGetIntegerv(GL_POLYGON_MODE, reinterpret_cast<GLint *>(&this->mPolygonMode)));
-				GLCHECK(this->mCullFace = glIsEnabled(GL_CULL_FACE));
-				GLCHECK(glGetIntegerv(GL_CULL_FACE_MODE, reinterpret_cast<GLint *>(&this->mCullFaceMode)));
-				GLCHECK(glGetBooleanv(GL_COLOR_WRITEMASK, this->mColorMask));
-				GLCHECK(this->mFramebufferSRGB = glIsEnabled(GL_FRAMEBUFFER_SRGB));
-				GLCHECK(this->mBlend = glIsEnabled(GL_BLEND));
-				GLCHECK(glGetIntegerv(GL_BLEND_SRC, reinterpret_cast<GLint *>(&this->mBlendFuncSrc)));
-				GLCHECK(glGetIntegerv(GL_BLEND_DST, reinterpret_cast<GLint *>(&this->mBlendFuncDest)));
-				GLCHECK(glGetIntegerv(GL_BLEND_EQUATION_RGB, reinterpret_cast<GLint *>(&this->mBlendEqColor)));
-				GLCHECK(glGetIntegerv(GL_BLEND_EQUATION_ALPHA, reinterpret_cast<GLint *>(&this->mBlendEqAlpha)));
-				GLCHECK(this->mDepthTest = glIsEnabled(GL_DEPTH_TEST));
-				GLCHECK(glGetBooleanv(GL_DEPTH_WRITEMASK, &this->mDepthMask));
-				GLCHECK(glGetIntegerv(GL_DEPTH_FUNC, reinterpret_cast<GLint *>(&this->mDepthFunc)));
-				GLCHECK(glGetIntegerv(GL_STENCIL_VALUE_MASK, reinterpret_cast<GLint *>(&this->mStencilReadMask)));
-				GLCHECK(glGetIntegerv(GL_STENCIL_WRITEMASK, reinterpret_cast<GLint *>(&this->mStencilMask)));
-				GLCHECK(glGetIntegerv(GL_STENCIL_FUNC, reinterpret_cast<GLint *>(&this->mStencilFunc)));
-				GLCHECK(glGetIntegerv(GL_STENCIL_FAIL, reinterpret_cast<GLint *>(&this->mStencilOpFail)));
-				GLCHECK(glGetIntegerv(GL_STENCIL_PASS_DEPTH_FAIL, reinterpret_cast<GLint *>(&this->mStencilOpZFail)));
-				GLCHECK(glGetIntegerv(GL_STENCIL_PASS_DEPTH_PASS, reinterpret_cast<GLint *>(&this->mStencilOpZPass)));
-				GLCHECK(glGetIntegerv(GL_STENCIL_REF, &this->mStencilRef));
-				GLCHECK(glGetIntegerv(GL_ACTIVE_TEXTURE, reinterpret_cast<GLint *>(&this->mActiveTexture)));
-
-				for (GLuint i = 0; i < 8; ++i)
-				{
-					glGetIntegerv(GL_DRAW_BUFFER0 + i, reinterpret_cast<GLint *>(&this->mDrawBuffers[i]));
-				}
-
-				GLCHECK(glGetIntegerv(GL_CURRENT_PROGRAM, reinterpret_cast<GLint *>(&this->mProgram)));
-				GLCHECK(glGetIntegerv(GL_FRAMEBUFFER_BINDING, reinterpret_cast<GLint *>(&this->mFBO)));
-				GLCHECK(glGetIntegerv(GL_VERTEX_ARRAY_BINDING, reinterpret_cast<GLint *>(&this->mVAO)));
-				GLCHECK(glGetIntegerv(GL_ARRAY_BUFFER_BINDING, reinterpret_cast<GLint *>(&this->mVBO)));
-				GLCHECK(glGetIntegerv(GL_UNIFORM_BUFFER_BINDING, reinterpret_cast<GLint *>(&this->mUBO)));
-				
-				for (GLuint i = 0; i < ARRAYSIZE(this->mTextures2D); ++i)
-				{
-					glActiveTexture(GL_TEXTURE0 + i);
-					glGetIntegerv(GL_TEXTURE_BINDING_2D, reinterpret_cast<GLint *>(&this->mTextures2D[i]));
-					glGetIntegerv(GL_SAMPLER_BINDING, reinterpret_cast<GLint *>(&this->mSamplers[i]));
-				}
-			}
-			void Apply() const
-			{
-				GLCHECK(glUseProgram(glIsProgram(this->mProgram) ? this->mProgram : 0));
-				GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, glIsFramebuffer(this->mFBO) ? this->mFBO : 0));
-				GLCHECK(glBindVertexArray(glIsVertexArray(this->mVAO) ? this->mVAO : 0));
-				GLCHECK(glBindBuffer(GL_ARRAY_BUFFER, glIsBuffer(this->mVBO) ? this->mVBO : 0));
-				GLCHECK(glBindBuffer(GL_UNIFORM_BUFFER, glIsBuffer(this->mUBO) ? this->mUBO : 0));
-
-				for (GLuint i = 0; i < ARRAYSIZE(this->mTextures2D); ++i)
-				{
-					GLCHECK(glActiveTexture(GL_TEXTURE0 + i));
-					GLCHECK(glBindTexture(GL_TEXTURE_2D, glIsTexture(this->mTextures2D[i]) ? this->mTextures2D[i] : 0));
-					GLCHECK(glBindSampler(i, glIsSampler(this->mSamplers[i]) ? this->mSamplers[i] : 0));
-				}
-
-#define glEnableb(cap, value) if ((value)) glEnable(cap); else glDisable(cap);
-
-				GLCHECK(glViewport(this->mViewport[0], this->mViewport[1], this->mViewport[2], this->mViewport[3]));
-				GLCHECK(glEnableb(GL_STENCIL_TEST, this->mStencilTest));
-				GLCHECK(glEnableb(GL_SCISSOR_TEST, this->mScissorTest));
-				GLCHECK(glFrontFace(this->mFrontFace));
-				GLCHECK(glPolygonMode(GL_FRONT_AND_BACK, this->mPolygonMode));
-				GLCHECK(glEnableb(GL_CULL_FACE, this->mCullFace));
-				GLCHECK(glCullFace(this->mCullFaceMode));
-				GLCHECK(glColorMask(this->mColorMask[0], this->mColorMask[1], this->mColorMask[2], this->mColorMask[3]));
-				GLCHECK(glEnableb(GL_FRAMEBUFFER_SRGB, this->mFramebufferSRGB));
-				GLCHECK(glEnableb(GL_BLEND, this->mBlend));
-				GLCHECK(glBlendFunc(this->mBlendFuncSrc, this->mBlendFuncDest));
-				GLCHECK(glBlendEquationSeparate(this->mBlendEqColor, this->mBlendEqAlpha));
-				GLCHECK(glEnableb(GL_DEPTH_TEST, this->mDepthTest));
-				GLCHECK(glDepthMask(this->mDepthMask));
-				GLCHECK(glDepthFunc(this->mDepthFunc));
-				GLCHECK(glStencilMask(this->mStencilMask));
-				GLCHECK(glStencilFunc(this->mStencilFunc, this->mStencilRef, this->mStencilReadMask));
-				GLCHECK(glStencilOp(this->mStencilOpFail, this->mStencilOpZFail, this->mStencilOpZPass));
-				GLCHECK(glActiveTexture(this->mActiveTexture));
-
-				if (this->mDrawBuffers[1] == GL_NONE &&
-					this->mDrawBuffers[2] == GL_NONE &&
-					this->mDrawBuffers[3] == GL_NONE &&
-					this->mDrawBuffers[4] == GL_NONE &&
-					this->mDrawBuffers[5] == GL_NONE &&
-					this->mDrawBuffers[6] == GL_NONE &&
-					this->mDrawBuffers[7] == GL_NONE)
-				{
-					glDrawBuffer(this->mDrawBuffers[0]);
-				}
-				else
-				{
-					glDrawBuffers(8, this->mDrawBuffers);
-				}
-			}
-
-			GLint mStencilRef, mViewport[4];
-			GLuint mStencilMask, mStencilReadMask;
-			GLuint mProgram, mFBO, mVAO, mVBO, mUBO, mTextures2D[8], mSamplers[8];
-			GLenum mDrawBuffers[8], mCullFace, mCullFaceMode, mPolygonMode, mBlendEqColor, mBlendEqAlpha, mBlendFuncSrc, mBlendFuncDest, mDepthFunc, mStencilFunc, mStencilOpFail, mStencilOpZFail, mStencilOpZPass, mFrontFace, mActiveTexture;
-			GLboolean mScissorTest, mBlend, mDepthTest, mDepthMask, mStencilTest, mColorMask[4], mFramebufferSRGB;
-		};
-
-		class OGL4Runtime : public Runtime, public std::enable_shared_from_this<OGL4Runtime>
-		{
-			friend struct OGL4Effect;
-			friend struct OGL4Texture;
-			friend struct OGL4Constant;
-			friend struct OGL4Technique;
-			friend class OGL4EffectCompiler;
-
-		public:
-			OGL4Runtime(HDC device, HGLRC context);
-			~OGL4Runtime();
-
-			virtual bool OnCreate(unsigned int width, unsigned int height) override;
-			virtual void OnDelete() override;
-			virtual void OnPresent() override;
-
-			virtual std::unique_ptr<Effect> CreateEffect(const EffectTree &ast, std::string &errors) const override;
-			virtual void CreateScreenshot(unsigned char *buffer, std::size_t size) const override;
-
-		private:
-			HDC mDeviceContext;
-			HGLRC mRenderContext;
-			OGL4StateBlock mStateBlock;
-			GLuint mBackBufferFBO, mBackBufferRBO;
-			bool mLost, mPresenting;
-		};
-
-		struct OGL4Effect : public Effect
-		{
-			friend struct OGL4Texture;
-			friend struct OGL4Sampler;
-			friend struct OGL4Constant;
-			friend struct OGL4Technique;
-
-			OGL4Effect(std::shared_ptr<const OGL4Runtime> context);
-			~OGL4Effect();
-
-			const Texture *GetTexture(const std::string &name) const;
-			std::vector<std::string> GetTextureNames() const;
-			const Constant *GetConstant(const std::string &name) const;
-			std::vector<std::string> GetConstantNames() const;
-			const Technique *GetTechnique(const std::string &name) const;
-			std::vector<std::string> GetTechniqueNames() const;
-
-			std::shared_ptr<const OGL4Runtime> mEffectContext;
-			std::unordered_map<std::string, std::unique_ptr<OGL4Texture>> mTextures;
-			std::vector<std::shared_ptr<OGL4Sampler>> mSamplers;
-			std::unordered_map<std::string, std::unique_ptr<OGL4Constant>> mConstants;
-			std::unordered_map<std::string, std::unique_ptr<OGL4Technique>> mTechniques;
-			GLuint mDefaultVAO, mDefaultVBO, mDefaultFBO, mDepthStencil;
-			std::vector<GLuint> mUniformBuffers;
-			std::vector<std::pair<unsigned char *, std::size_t>> mUniformStorages;
-			mutable bool mUniformDirty;
-		};
-		struct OGL4Texture : public Effect::Texture
-		{
-			OGL4Texture(OGL4Effect *effect);
-			~OGL4Texture();
-
-			const Description GetDescription() const;
-			const Effect::Annotation GetAnnotation(const std::string &name) const;
-
-			void Update(unsigned int level, const unsigned char *data, std::size_t size);
-			void UpdateFromColorBuffer();
-			void UpdateFromDepthBuffer();
-
-			OGL4Effect *mEffect;
-			Description mDesc;
-			std::unordered_map<std::string, Effect::Annotation>	mAnnotations;
-			GLuint mID, mSRGBView;
-		};
-		struct OGL4Sampler
-		{
-			OGL4Sampler() : mID(0)
-			{
-			}
-			~OGL4Sampler()
-			{
-				glDeleteSamplers(1, &this->mID);
-			}
-
-			GLuint mID;
-			OGL4Texture *mTexture;
-			bool mSRGB;
-		};
-		struct OGL4Constant : public Effect::Constant
-		{
-			OGL4Constant(OGL4Effect *effect);
-			~OGL4Constant();
-
-			const Description GetDescription() const;
-			const Effect::Annotation GetAnnotation(const std::string &name) const;
-			void GetValue(unsigned char *data, std::size_t size) const;
-			void SetValue(const unsigned char *data, std::size_t size);
-
-			OGL4Effect *mEffect;
-			Description mDesc;
-			std::unordered_map<std::string, Effect::Annotation>	mAnnotations;
-			std::size_t mBuffer, mBufferOffset;
-		};
-		struct OGL4Technique : public Effect::Technique
-		{
-			struct Pass
-			{
-				GLuint Program;
-				GLuint Framebuffer;
-				GLint StencilRef;
-				GLuint StencilMask, StencilReadMask;
-				GLsizei ViewportWidth, ViewportHeight;
-				GLenum DrawBuffers[8], BlendEqColor, BlendEqAlpha, BlendFuncSrc, BlendFuncDest, DepthFunc, StencilFunc, StencilOpFail, StencilOpZFail, StencilOpZPass;
-				GLboolean FramebufferSRGB, Blend, DepthMask, DepthTest, StencilTest, ColorMaskR, ColorMaskG, ColorMaskB, ColorMaskA;
-			};
-
-			OGL4Technique(OGL4Effect *effect);
-			~OGL4Technique();
-
-			const Effect::Annotation GetAnnotation(const std::string &name) const;
-
-			bool Begin(unsigned int &passes) const;
-			void End() const;
-			void RenderPass(unsigned int index) const;
-
-			OGL4Effect *mEffect;
-			std::unordered_map<std::string, Effect::Annotation>	mAnnotations;
-			std::vector<Pass> mPasses;
-		};
-
 		class OGL4EffectCompiler
 		{
 		public:
@@ -2001,26 +1751,22 @@ namespace ReShade
 					LiteralToFormat(this->mAST[node.Properties[EffectNodes::Variable::Format]].As<EffectNodes::Literal>().Value.Uint[0], internalformat, internalformatSRGB, format);
 				}
 
-				GLuint textures[2] = { 0, 0 };
-
-				GLCHECK(glGenTextures(2, textures));
-
 				std::unique_ptr<OGL4Texture> obj(new OGL4Texture(this->mEffect));
 				obj->mDesc.Width = width;
 				obj->mDesc.Height = height;
 				obj->mDesc.Levels = levels;
 				obj->mDesc.Format = format;
-				obj->mID = textures[0];
-				obj->mSRGBView = textures[1];
+
+				GLCHECK(glGenTextures(2, obj->mID));
 
 				GLint previous = 0;
 				GLCHECK(glGetIntegerv(GL_TEXTURE_BINDING_2D, &previous));
 
-				GLCHECK(glBindTexture(GL_TEXTURE_2D, textures[0]));
+				GLCHECK(glBindTexture(GL_TEXTURE_2D, obj->mID[0]));
 				GLCHECK(glTexStorage2D(GL_TEXTURE_2D, levels, internalformat, width, height));
 				const std::vector<unsigned char> nullpixels(width * height, 0);
 				GLCHECK(glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_RED, GL_UNSIGNED_BYTE, nullpixels.data()));
-				GLCHECK(glTextureView(textures[1], GL_TEXTURE_2D, textures[0], internalformatSRGB, 0, levels, 0, 1));
+				GLCHECK(glTextureView(obj->mID[1], GL_TEXTURE_2D, obj->mID[0], internalformatSRGB, 0, levels, 0, 1));
 
 				GLCHECK(glBindTexture(GL_TEXTURE_2D, previous));
 
@@ -2441,7 +2187,7 @@ namespace ReShade
 
 						backbufferFramebuffer = false;
 
-						glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, pass.FramebufferSRGB ? texture->mSRGBView : texture->mID, 0);
+						glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, texture->mID[pass.FramebufferSRGB], 0);
 
 						pass.DrawBuffers[i] = GL_COLOR_ATTACHMENT0 + i;
 						pass.ViewportWidth = texture->mDesc.Width;
@@ -2453,9 +2199,12 @@ namespace ReShade
 				{
 					glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, this->mEffect->mEffectContext->mBackBufferRBO);
 
+					RECT rect;
+					GetClientRect(WindowFromDC(this->mEffect->mEffectContext->mDeviceContext), &rect);
+
 					pass.DrawBuffers[0] = GL_COLOR_ATTACHMENT0;
-					pass.ViewportWidth = static_cast<GLsizei>(this->mEffect->mEffectContext->mWidth);
-					pass.ViewportHeight = static_cast<GLsizei>(this->mEffect->mEffectContext->mHeight);
+					pass.ViewportWidth = static_cast<GLsizei>(rect.right - rect.left);
+					pass.ViewportHeight = static_cast<GLsizei>(rect.bottom - rect.top);
 				}
 
 				glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, this->mEffect->mDepthStencil);
@@ -2820,700 +2569,682 @@ namespace ReShade
 			std::unordered_map<std::string, Effect::Annotation> *mCurrentAnnotations;
 			std::vector<OGL4Technique::Pass> *mCurrentPasses;
 		};
-
-		// -----------------------------------------------------------------------------------------------------
-
-		OGL4Runtime::OGL4Runtime(HDC device, HGLRC context) : mDeviceContext(device), mRenderContext(context), mBackBufferFBO(0), mBackBufferRBO(0), mLost(true), mPresenting(false)
-		{
-			this->mRendererId = 0x061;
-
-			if (::GetModuleHandleA("nvd3d9wrap.dll") == nullptr && ::GetModuleHandleA("nvd3d9wrapx.dll") == nullptr)
-			{
-				DISPLAY_DEVICEA dd;
-				dd.cb = sizeof(DISPLAY_DEVICEA);
-
-				for (int i = 0; ::EnumDisplayDevicesA(nullptr, i, &dd, 0) != FALSE; ++i)
-				{
-					if ((dd.StateFlags & DISPLAY_DEVICE_PRIMARY_DEVICE) != 0)
-					{
-						const std::string id = dd.DeviceID;
-
-						if (id.length() > 20)
-						{
-							this->mVendorId = std::stoi(id.substr(8, 4));
-							this->mDeviceId = std::stoi(id.substr(17, 4));
-						}
-						break;
-					}
-				}
-			}
-
-			if (this->mVendorId == 0)
-			{
-				const char *name = reinterpret_cast<const char *>(glGetString(GL_VENDOR));
-
-				if (name != nullptr)
-				{
-					if (boost::contains(name, "NVIDIA"))
-					{
-						this->mVendorId = 0x10DE;
-					}
-					else if (boost::contains(name, "AMD") || boost::contains(name, "ATI"))
-					{
-						this->mVendorId = 0x1002;
-					}
-					else if (boost::contains(name, "Intel"))
-					{
-						this->mVendorId = 0x8086;
-					}
-				}
-			}
-		}
-		OGL4Runtime::~OGL4Runtime()
-		{
-			assert(this->mLost);
-		}
-
-		bool OGL4Runtime::OnCreate(unsigned int width, unsigned int height)
-		{
-			this->mStateBlock.Capture();
-
-			GLCHECK(glGenFramebuffers(1, &this->mBackBufferFBO));
-			GLCHECK(glGenRenderbuffers(1, &this->mBackBufferRBO));
-
-			GLCHECK(glBindRenderbuffer(GL_RENDERBUFFER, this->mBackBufferRBO));
-			GLCHECK(glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA8, width, height));
-			GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, this->mBackBufferFBO));
-			GLCHECK(glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, this->mBackBufferRBO));
-			GLCHECK(glBindRenderbuffer(GL_RENDERBUFFER, 0));
-			GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, 0));
-
-			this->mNVG = nvgCreateGL3(0);
-
-			this->mLost = false;
-
-			const bool res = Runtime::OnCreate(width, height);
-
-			this->mStateBlock.Apply();
-
-			return res;
-		}
-		void OGL4Runtime::OnDelete()
-		{
-			if (!this->mPresenting)
-			{
-				this->mStateBlock.Capture();
-			}
-
-			Runtime::OnDelete();
-
-			nvgDeleteGL3(this->mNVG);
-
-			GLCHECK(glDeleteFramebuffers(1, &this->mBackBufferFBO));			
-			GLCHECK(glDeleteRenderbuffers(1, &this->mBackBufferRBO));
-
-			this->mStateBlock.Apply();
-
-			this->mNVG = nullptr;
-			this->mBackBufferFBO = 0;
-			this->mBackBufferRBO = 0;
-
-			this->mLost = true;
-		}
-		void OGL4Runtime::OnPresent()
-		{
-			this->mStateBlock.Capture();
-
-			GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, 0));
-
-			this->mPresenting = true;
-
-			Runtime::OnPresent();
-
-			this->mPresenting = false;
-
-			if (this->mLost)
-			{
-				return;
-			}
-
-			this->mStateBlock.Apply();
-		}
-
-		std::unique_ptr<Effect> OGL4Runtime::CreateEffect(const EffectTree &ast, std::string &errors) const
-		{
-			OGL4Effect *effect = new OGL4Effect(shared_from_this());
-			
-			OGL4EffectCompiler visitor(ast);
-		
-			if (visitor.Traverse(effect, errors))
-			{
-				return std::unique_ptr<Effect>(effect);
-			}
-			else
-			{
-				delete effect;
-
-				return nullptr;
-			}
-		}
-		void OGL4Runtime::CreateScreenshot(unsigned char *buffer, std::size_t size) const
-		{
-			GLCHECK(glReadBuffer(GL_BACK));
-
-			const unsigned int pitch = this->mWidth * 4;
-
-			assert(size >= pitch * this->mHeight);
-
-			glReadPixels(0, 0, static_cast<GLsizei>(this->mWidth), static_cast<GLsizei>(this->mHeight), GL_RGBA, GL_UNSIGNED_BYTE, buffer);
-			
-			for (unsigned int y = 0; y * 2 < this->mHeight; ++y)
-			{
-				const unsigned int i1 = y * pitch;
-				const unsigned int i2 = (this->mHeight - 1 - y) * pitch;
-
-				for (unsigned int x = 0; x < pitch; x += 4)
-				{
-					buffer[i1 + x + 3] = 0xFF;
-					buffer[i2 + x + 3] = 0xFF;
-
-					std::swap(buffer[i1 + x + 0], buffer[i2 + x + 0]);
-					std::swap(buffer[i1 + x + 1], buffer[i2 + x + 1]);
-					std::swap(buffer[i1 + x + 2], buffer[i2 + x + 2]);
-				}
-			}
-		}
-
-		OGL4Effect::OGL4Effect(std::shared_ptr<const OGL4Runtime> context) : mEffectContext(context), mDefaultVAO(0), mDefaultVBO(0), mDefaultFBO(0), mDepthStencil(0), mUniformDirty(true)
-		{
-			GLCHECK(glGenVertexArrays(1, &this->mDefaultVAO));
-			GLCHECK(glGenBuffers(1, &this->mDefaultVBO));
-			GLCHECK(glGenFramebuffers(1, &this->mDefaultFBO));
-			GLCHECK(glGenRenderbuffers(1, &this->mDepthStencil));
-
-			GLCHECK(glBindBuffer(GL_ARRAY_BUFFER, this->mDefaultVBO));
-			GLCHECK(glBufferData(GL_ARRAY_BUFFER, 0, nullptr, GL_STATIC_DRAW));
-			GLCHECK(glBindBuffer(GL_ARRAY_BUFFER, 0));
-
-			GLCHECK(glBindRenderbuffer(GL_RENDERBUFFER, this->mDepthStencil));
-			GLCHECK(glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, this->mEffectContext->mWidth, this->mEffectContext->mHeight));
-			GLCHECK(glBindRenderbuffer(GL_RENDERBUFFER, 0));
-		}
-		OGL4Effect::~OGL4Effect()
-		{
-			GLCHECK(glDeleteVertexArrays(1, &this->mDefaultVAO));
-			GLCHECK(glDeleteBuffers(1, &this->mDefaultVBO));
-			GLCHECK(glDeleteFramebuffers(1, &this->mDefaultFBO));			
-			GLCHECK(glDeleteRenderbuffers(1, &this->mDepthStencil));
-			GLCHECK(glDeleteBuffers(this->mUniformBuffers.size(), &this->mUniformBuffers.front()));
-		}
-
-		const Effect::Texture *OGL4Effect::GetTexture(const std::string &name) const
-		{
-			auto it = this->mTextures.find(name);
-
-			if (it == this->mTextures.end())
-			{
-				return nullptr;
-			}
-
-			return it->second.get();
-		}
-		std::vector<std::string> OGL4Effect::GetTextureNames() const
-		{
-			std::vector<std::string> names;
-			names.reserve(this->mTextures.size());
-
-			for (auto it = this->mTextures.begin(), end = this->mTextures.end(); it != end; ++it)
-			{
-				names.push_back(it->first);
-			}
-
-			return names;
-		}
-		const Effect::Constant *OGL4Effect::GetConstant(const std::string &name) const
-		{
-			auto it = this->mConstants.find(name);
-
-			if (it == this->mConstants.end())
-			{
-				return nullptr;
-			}
-
-			return it->second.get();
-		}
-		std::vector<std::string> OGL4Effect::GetConstantNames() const
-		{
-			std::vector<std::string> names;
-			names.reserve(this->mConstants.size());
-
-			for (auto it = this->mConstants.begin(), end = this->mConstants.end(); it != end; ++it)
-			{
-				names.push_back(it->first);
-			}
-
-			return names;
-		}
-		const Effect::Technique *OGL4Effect::GetTechnique(const std::string &name) const
-		{
-			auto it = this->mTechniques.find(name);
-
-			if (it == this->mTechniques.end())
-			{
-				return nullptr;
-			}
-
-			return it->second.get();
-		}
-		std::vector<std::string> OGL4Effect::GetTechniqueNames() const
-		{
-			std::vector<std::string> names;
-			names.reserve(this->mTechniques.size());
-
-			for (auto it = this->mTechniques.begin(), end = this->mTechniques.end(); it != end; ++it)
-			{
-				names.push_back(it->first);
-			}
-
-			return names;
-		}
-
-		OGL4Texture::OGL4Texture(OGL4Effect *effect) : mEffect(effect), mID(0)
-		{
-		}
-		OGL4Texture::~OGL4Texture()
-		{
-			GLCHECK(glDeleteTextures(1, &this->mID));
-			GLCHECK(glDeleteTextures(1, &this->mSRGBView));
-		}
-
-		const Effect::Texture::Description OGL4Texture::GetDescription() const
-		{
-			return this->mDesc;
-		}
-		const Effect::Annotation OGL4Texture::GetAnnotation(const std::string &name) const
-		{
-			auto it = this->mAnnotations.find(name);
-
-			if (it == this->mAnnotations.end())
-			{
-				return Effect::Annotation();
-			}
-
-			return it->second;
-		}
-
-		inline void FlipBC1Block(unsigned char *block)
-		{
-			// BC1 Block:
-			//  [0-1]  color 0
-			//  [2-3]  color 1
-			//  [4-7]  color indices
-
-			std::swap(block[4], block[7]);
-			std::swap(block[5], block[6]);
-		}
-		inline void FlipBC2Block(unsigned char *block)
-		{
-			// BC2 Block:
-			//  [0-7]  alpha indices
-			//  [8-15] color block
-
-			std::swap(block[0], block[6]);
-			std::swap(block[1], block[7]);
-			std::swap(block[2], block[4]);
-			std::swap(block[3], block[5]);
-
-			FlipBC1Block(block + 8);
-		}
-		inline void FlipBC4Block(unsigned char *block)
-		{
-			// BC4 Block:
-			//  [0]    red 0
-			//  [1]    red 1
-			//  [2-7]  red indices
-
-			const unsigned int line_0_1 = block[2] + 256 * (block[3] + 256 * block[4]);
-			const unsigned int line_2_3 = block[5] + 256 * (block[6] + 256 * block[7]);
-			const unsigned int line_1_0 = ((line_0_1 & 0x000FFF) << 12) | ((line_0_1 & 0xFFF000) >> 12);
-			const unsigned int line_3_2 = ((line_2_3 & 0x000FFF) << 12) | ((line_2_3 & 0xFFF000) >> 12);
-			block[2] = static_cast<unsigned char>((line_3_2 & 0xFF));
-			block[3] = static_cast<unsigned char>((line_3_2 & 0xFF00) >> 8);
-			block[4] = static_cast<unsigned char>((line_3_2 & 0xFF0000) >> 16);
-			block[5] = static_cast<unsigned char>((line_1_0 & 0xFF));
-			block[6] = static_cast<unsigned char>((line_1_0 & 0xFF00) >> 8);
-			block[7] = static_cast<unsigned char>((line_1_0 & 0xFF0000) >> 16);
-		}
-		inline void FlipBC3Block(unsigned char *block)
-		{
-			// BC3 Block:
-			//  [0-7]  alpha block
-			//  [8-15] color block
-
-			FlipBC4Block(block);
-			FlipBC1Block(block + 8);
-		}
-		inline void FlipBC5Block(unsigned char *block)
-		{
-			// BC5 Block:
-			//  [0-7]  red block
-			//  [8-15] green block
-
-			FlipBC4Block(block);
-			FlipBC4Block(block + 8);
-		}
-		void FlipImage(const Effect::Texture::Description &desc, unsigned char *data)
-		{
-			typedef void (*FlipBlockFunc)(unsigned char *block);
-
-			std::size_t blocksize = 0;
-			bool compressed = false;
-			FlipBlockFunc compressedFunc = nullptr;
-
-			switch (desc.Format)
-			{
-				case Effect::Texture::Format::R8:
-					blocksize = 1;
-					break;
-				case Effect::Texture::Format::RG8:
-					blocksize = 2;
-					break;
-				case Effect::Texture::Format::R32F:
-				case Effect::Texture::Format::RGBA8:
-					blocksize = 4;
-					break;
-				case Effect::Texture::Format::RGBA16:
-				case Effect::Texture::Format::RGBA16F:
-					blocksize = 8;
-					break;
-				case Effect::Texture::Format::RGBA32F:
-					blocksize = 16;
-					break;
-				case Effect::Texture::Format::DXT1:
-					blocksize = 8;
-					compressed = true;
-					compressedFunc = &FlipBC1Block;
-					break;
-				case Effect::Texture::Format::DXT3:
-					blocksize = 16;
-					compressed = true;
-					compressedFunc = &FlipBC2Block;
-					break;
-				case Effect::Texture::Format::DXT5:
-					blocksize = 16;
-					compressed = true;
-					compressedFunc = &FlipBC3Block;
-					break;
-				case Effect::Texture::Format::LATC1:
-					blocksize = 8;
-					compressed = true;
-					compressedFunc = &FlipBC4Block;
-					break;
-				case Effect::Texture::Format::LATC2:
-					blocksize = 16;
-					compressed = true;
-					compressedFunc = &FlipBC5Block;
-					break;
-				default:
-					return;
-			}
-
-			if (compressed)
-			{
-				const std::size_t w = (desc.Width + 3) / 4;
-				const std::size_t h = (desc.Height + 3) / 4;
-				const std::size_t stride = w * blocksize;
-
-				for (std::size_t y = 0; y < h; ++y)
-				{
-					unsigned char *dataLine = data + stride * (h - 1 - y);
-
-					for (std::size_t x = 0; x < stride; x += blocksize)
-					{
-						compressedFunc(dataLine + x);
-					}
-				}
-			}
-			else
-			{
-				const std::size_t w = desc.Width;
-				const std::size_t h = desc.Height;
-				const std::size_t stride = w * blocksize;
-				unsigned char *templine = static_cast<unsigned char *>(::alloca(stride));
-
-				for (std::size_t y = 0; 2 * y < h; ++y)
-				{
-					unsigned char *line1 = data + stride * y;
-					unsigned char *line2 = data + stride * (h - 1 - y);
-
-					::memcpy(templine, line1, stride);
-					::memcpy(line1, line2, stride);
-					::memcpy(line2, templine, stride);
-				}
-			}
-		}
-
-		void OGL4Texture::Update(unsigned int level, const unsigned char *data, std::size_t size)
-		{
-			assert(data != nullptr && size != 0);
-
-			GLCHECK(glPixelStorei(GL_UNPACK_ROW_LENGTH, 0));
-			GLCHECK(glPixelStorei(GL_UNPACK_IMAGE_HEIGHT, 0));
-			GLCHECK(glPixelStorei(GL_UNPACK_SKIP_ROWS, 0));
-			GLCHECK(glPixelStorei(GL_UNPACK_SKIP_PIXELS, 0));
-
-			GLint previous = 0;
-			GLCHECK(glGetIntegerv(GL_TEXTURE_BINDING_2D, &previous));
-
-			GLCHECK(glBindTexture(GL_TEXTURE_2D, this->mID));
-
-			std::unique_ptr<unsigned char[]> dataFlipped(new unsigned char[size]);
-			std::memcpy(dataFlipped.get(), data, size);
-			FlipImage(this->mDesc, dataFlipped.get());
-
-			if (this->mDesc.Format >= Texture::Format::DXT1 && this->mDesc.Format <= Texture::Format::LATC2)
-			{
-				GLCHECK(glCompressedTexSubImage2D(GL_TEXTURE_2D, level, 0, 0, this->mDesc.Width, this->mDesc.Height, GL_UNSIGNED_BYTE, static_cast<GLsizei>(size), dataFlipped.get()));
-			}
-			else
-			{
-				GLint dataAlignment = 4;
-				GLenum dataFormat = GL_RGBA, dataType = GL_UNSIGNED_BYTE;
-				
-				switch (this->mDesc.Format)
-				{
-					case Texture::Format::R8:
-						dataFormat = GL_RED;
-						dataAlignment = 1;
-						break;
-					case Texture::Format::R32F:
-						dataType = GL_FLOAT;
-						dataFormat = GL_RED;
-						break;
-					case Texture::Format::RG8:
-						dataFormat = GL_RG;
-						dataAlignment = 2;
-						break;
-					case Texture::Format::RGBA16:
-					case Texture::Format::RGBA16F:
-						dataType = GL_UNSIGNED_SHORT;
-						dataAlignment = 2;
-						break;
-					case Texture::Format::RGBA32F:
-						dataType = GL_FLOAT;
-						break;
-				}
-
-				GLCHECK(glPixelStorei(GL_UNPACK_ALIGNMENT, dataAlignment));
-				GLCHECK(glTexSubImage2D(GL_TEXTURE_2D, level, 0, 0, this->mDesc.Width, this->mDesc.Height, dataFormat, dataType, dataFlipped.get()));
-				GLCHECK(glPixelStorei(GL_UNPACK_ALIGNMENT, 4));
-			}
-
-			GLCHECK(glBindTexture(GL_TEXTURE_2D, previous));
-		}
-		void OGL4Texture::UpdateFromColorBuffer()
-		{
-			GLCHECK(glBindFramebuffer(GL_READ_FRAMEBUFFER, this->mEffect->mEffectContext->mBackBufferFBO));
-			GLCHECK(glBindFramebuffer(GL_DRAW_FRAMEBUFFER, this->mEffect->mDefaultFBO));
-			GLCHECK(glFramebufferTexture(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, this->mID, 0));
-
-			assert(glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
-
-			GLCHECK(glReadBuffer(GL_COLOR_ATTACHMENT0));
-			GLCHECK(glDrawBuffer(GL_COLOR_ATTACHMENT0));
-
-			GLCHECK(glBlitFramebuffer(0, 0, this->mEffect->mEffectContext->mWidth, this->mEffect->mEffectContext->mHeight, 0, 0, this->mDesc.Width, this->mDesc.Height, GL_COLOR_BUFFER_BIT, GL_NEAREST));
-		}
-		void OGL4Texture::UpdateFromDepthBuffer()
-		{
-		}
-
-		OGL4Constant::OGL4Constant(OGL4Effect *effect) : mEffect(effect)
-		{
-		}
-		OGL4Constant::~OGL4Constant()
-		{
-		}
-
-		const Effect::Constant::Description OGL4Constant::GetDescription() const
-		{
-			return this->mDesc;
-		}
-		const Effect::Annotation OGL4Constant::GetAnnotation(const std::string &name) const
-		{
-			auto it = this->mAnnotations.find(name);
-
-			if (it == this->mAnnotations.end())
-			{
-				return Effect::Annotation();
-			}
-
-			return it->second;
-		}
-		void OGL4Constant::GetValue(unsigned char *data, std::size_t size) const
-		{
-			size = std::min(size, this->mDesc.Size);
-
-			const unsigned char *storage = this->mEffect->mUniformStorages[this->mBuffer].first + this->mBufferOffset;
-
-			std::memcpy(data, storage, size);
-		}
-		void OGL4Constant::SetValue(const unsigned char *data, std::size_t size)
-		{
-			size = std::min(size, this->mDesc.Size);
-
-			unsigned char *storage = this->mEffect->mUniformStorages[this->mBuffer].first + this->mBufferOffset;
-
-			if (std::memcmp(storage, data, size) == 0)
-			{
-				return;
-			}
-
-			std::memcpy(storage, data, size);
-
-			this->mEffect->mUniformDirty = true;
-		}
-
-		OGL4Technique::OGL4Technique(OGL4Effect *effect) : mEffect(effect)
-		{
-		}
-		OGL4Technique::~OGL4Technique()
-		{
-			for (auto &pass : this->mPasses)
-			{
-				GLCHECK(glDeleteProgram(pass.Program));
-				GLCHECK(glDeleteFramebuffers(1, &pass.Framebuffer));
-			}
-		}
-
-		const Effect::Annotation OGL4Technique::GetAnnotation(const std::string &name) const
-		{
-			auto it = this->mAnnotations.find(name);
-
-			if (it == this->mAnnotations.end())
-			{
-				return Effect::Annotation();
-			}
-
-			return it->second;
-		}
-
-		bool OGL4Technique::Begin(unsigned int &passes) const
-		{
-			passes = static_cast<unsigned int>(this->mPasses.size());
-
-			if (passes == 0)
-			{
-				return false;
-			}
-
-			GLCHECK(glBindFramebuffer(GL_READ_FRAMEBUFFER, 0));
-			GLCHECK(glBindFramebuffer(GL_DRAW_FRAMEBUFFER, this->mEffect->mEffectContext->mBackBufferFBO));
-			GLCHECK(glReadBuffer(GL_BACK));
-			GLCHECK(glDrawBuffer(GL_COLOR_ATTACHMENT0));
-			GLCHECK(glBlitFramebuffer(0, 0, this->mEffect->mEffectContext->mWidth, this->mEffect->mEffectContext->mHeight, 0, 0, this->mEffect->mEffectContext->mWidth, this->mEffect->mEffectContext->mHeight, GL_COLOR_BUFFER_BIT, GL_NEAREST));
-
-			GLCHECK(glBindVertexArray(this->mEffect->mDefaultVAO));
-			GLCHECK(glBindVertexBuffer(0, this->mEffect->mDefaultVBO, 0, sizeof(float)));		
-
-			for (GLuint i = 0, count = static_cast<GLuint>(this->mEffect->mSamplers.size()); i < count; ++i)
-			{
-				const auto &sampler = this->mEffect->mSamplers[i];
-				const auto &texture = sampler->mTexture;
-
-				GLCHECK(glActiveTexture(GL_TEXTURE0 + i));
-				GLCHECK(glBindTexture(GL_TEXTURE_2D, sampler->mSRGB ? texture->mSRGBView : texture->mID));
-				GLCHECK(glBindSampler(i, sampler->mID));
-			}
-			for (GLuint i = 0, count = static_cast<GLuint>(this->mEffect->mUniformBuffers.size()); i < count; ++i)
-			{
-				GLCHECK(glBindBufferBase(GL_UNIFORM_BUFFER, i, this->mEffect->mUniformBuffers[i]));
-			}
-
-			return true;
-		}
-		void OGL4Technique::End() const
-		{
-			GLCHECK(glBindFramebuffer(GL_READ_FRAMEBUFFER, this->mEffect->mEffectContext->mBackBufferFBO));
-			GLCHECK(glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0));
-			GLCHECK(glReadBuffer(GL_COLOR_ATTACHMENT0));
-			GLCHECK(glDrawBuffer(GL_BACK));
-			GLCHECK(glBlitFramebuffer(0, 0, this->mEffect->mEffectContext->mWidth, this->mEffect->mEffectContext->mHeight, 0, 0, this->mEffect->mEffectContext->mWidth, this->mEffect->mEffectContext->mHeight, GL_COLOR_BUFFER_BIT, GL_NEAREST));
-
-			GLCHECK(glBindSampler(0, 0));
-			GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, 0));
-		}
-		void OGL4Technique::RenderPass(unsigned int index) const
-		{
-			if (this->mEffect->mUniformDirty)
-			{
-				for (GLuint i = 0, count = static_cast<GLuint>(this->mEffect->mUniformBuffers.size()); i < count; ++i)
-				{
-					if (this->mEffect->mUniformBuffers[i] == 0)
-					{
-						continue;
-					}
-
-					GLCHECK(glBindBuffer(GL_UNIFORM_BUFFER, this->mEffect->mUniformBuffers[i]));
-					GLCHECK(glBufferSubData(GL_UNIFORM_BUFFER, 0, this->mEffect->mUniformStorages[i].second, this->mEffect->mUniformStorages[i].first));
-				}
-
-				this->mEffect->mUniformDirty = false;
-			}
-
-			const Pass &pass = this->mPasses[index];
-
-			GLCHECK(glViewport(0, 0, pass.ViewportWidth, pass.ViewportHeight));
-			GLCHECK(glUseProgram(pass.Program));
-			GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, pass.Framebuffer));
-			GLCHECK(glEnableb(GL_FRAMEBUFFER_SRGB, pass.FramebufferSRGB));
-			GLCHECK(glDrawBuffers(8, pass.DrawBuffers));
-			GLCHECK(glDisable(GL_SCISSOR_TEST));
-			GLCHECK(glFrontFace(GL_CCW));
-			GLCHECK(glPolygonMode(GL_FRONT_AND_BACK, GL_FILL));
-			GLCHECK(glDisable(GL_CULL_FACE));
-			GLCHECK(glColorMask(pass.ColorMaskR, pass.ColorMaskG, pass.ColorMaskB, pass.ColorMaskA));
-			GLCHECK(glEnableb(GL_BLEND, pass.Blend));
-			GLCHECK(glBlendFunc(pass.BlendFuncSrc, pass.BlendFuncDest));
-			GLCHECK(glBlendEquationSeparate(pass.BlendEqColor, pass.BlendEqAlpha));
-			GLCHECK(glEnableb(GL_DEPTH_TEST, pass.DepthTest));
-			GLCHECK(glDepthMask(pass.DepthMask));
-			GLCHECK(glDepthFunc(pass.DepthFunc));
-			GLCHECK(glEnableb(GL_STENCIL_TEST, pass.StencilTest));
-			GLCHECK(glStencilFunc(pass.StencilFunc, pass.StencilRef, pass.StencilReadMask));
-			GLCHECK(glStencilOp(pass.StencilOpFail, pass.StencilOpZFail, pass.StencilOpZPass));
-			GLCHECK(glStencilMask(pass.StencilMask));
-
-			const GLfloat color[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
-
-			for (GLuint i = 0; i < 8; ++i)
-			{
-				if (pass.DrawBuffers[i] == GL_NONE)
-				{
-					continue;
-				}
-
-				GLCHECK(glClearBufferfv(GL_COLOR, i, color));
-			}
-
-			GLCHECK(glDrawArrays(GL_TRIANGLES, 0, 3));
-		}
 	}
 
 	// -----------------------------------------------------------------------------------------------------
 
-	std::shared_ptr<Runtime> CreateEffectRuntime(HDC hdc, HGLRC hglrc)
+	OGL4Runtime::OGL4Runtime(HDC device, HGLRC context) : mDeviceContext(device), mRenderContext(context), mBackBufferFBO(0), mBackBufferRBO(0), mLost(true), mPresenting(false)
 	{
-		assert(hdc != nullptr && hglrc != nullptr);
-		assert(wglGetCurrentDC() == hdc && wglGetCurrentContext() == hglrc);
+		this->mRendererId = 0x061;
 
-		gl3wInit();
+		if (::GetModuleHandleA("nvd3d9wrap.dll") == nullptr && ::GetModuleHandleA("nvd3d9wrapx.dll") == nullptr)
+		{
+			DISPLAY_DEVICEA dd;
+			dd.cb = sizeof(DISPLAY_DEVICEA);
 
-		if (!gl3wIsSupported(4, 3))
+			for (int i = 0; ::EnumDisplayDevicesA(nullptr, i, &dd, 0) != FALSE; ++i)
+			{
+				if ((dd.StateFlags & DISPLAY_DEVICE_PRIMARY_DEVICE) != 0)
+				{
+					const std::string id = dd.DeviceID;
+
+					if (id.length() > 20)
+					{
+						this->mVendorId = std::stoi(id.substr(8, 4));
+						this->mDeviceId = std::stoi(id.substr(17, 4));
+					}
+					break;
+				}
+			}
+		}
+
+		if (this->mVendorId == 0)
+		{
+			const char *name = reinterpret_cast<const char *>(glGetString(GL_VENDOR));
+
+			if (name != nullptr)
+			{
+				if (boost::contains(name, "NVIDIA"))
+				{
+					this->mVendorId = 0x10DE;
+				}
+				else if (boost::contains(name, "AMD") || boost::contains(name, "ATI"))
+				{
+					this->mVendorId = 0x1002;
+				}
+				else if (boost::contains(name, "Intel"))
+				{
+					this->mVendorId = 0x8086;
+				}
+			}
+		}
+	}
+	OGL4Runtime::~OGL4Runtime()
+	{
+		assert(this->mLost);
+	}
+
+	bool OGL4Runtime::OnCreate(unsigned int width, unsigned int height)
+	{
+		this->mStateBlock.Capture();
+
+		GLCHECK(glGenFramebuffers(1, &this->mBackBufferFBO));
+		GLCHECK(glGenRenderbuffers(1, &this->mBackBufferRBO));
+
+		GLCHECK(glBindRenderbuffer(GL_RENDERBUFFER, this->mBackBufferRBO));
+		GLCHECK(glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA8, width, height));
+		GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, this->mBackBufferFBO));
+		GLCHECK(glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, this->mBackBufferRBO));
+		GLCHECK(glBindRenderbuffer(GL_RENDERBUFFER, 0));
+		GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, 0));
+
+		this->mNVG = nvgCreateGL3(0);
+
+		this->mLost = false;
+
+		const bool res = Runtime::OnCreate(width, height);
+
+		this->mStateBlock.Apply();
+
+		return res;
+	}
+	void OGL4Runtime::OnDelete()
+	{
+		if (!this->mPresenting)
+		{
+			this->mStateBlock.Capture();
+		}
+
+		Runtime::OnDelete();
+
+		nvgDeleteGL3(this->mNVG);
+
+		GLCHECK(glDeleteFramebuffers(1, &this->mBackBufferFBO));			
+		GLCHECK(glDeleteRenderbuffers(1, &this->mBackBufferRBO));
+
+		this->mStateBlock.Apply();
+
+		this->mNVG = nullptr;
+		this->mBackBufferFBO = 0;
+		this->mBackBufferRBO = 0;
+
+		this->mLost = true;
+	}
+	void OGL4Runtime::OnPresent()
+	{
+		this->mStateBlock.Capture();
+
+		GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, 0));
+
+		this->mPresenting = true;
+
+		Runtime::OnPresent();
+
+		this->mPresenting = false;
+
+		if (this->mLost)
+		{
+			return;
+		}
+
+		this->mStateBlock.Apply();
+	}
+
+	std::unique_ptr<Effect> OGL4Runtime::CreateEffect(const EffectTree &ast, std::string &errors) const
+	{
+		OGL4Effect *effect = new OGL4Effect(shared_from_this());
+			
+		OGL4EffectCompiler visitor(ast);
+		
+		if (visitor.Traverse(effect, errors))
+		{
+			return std::unique_ptr<Effect>(effect);
+		}
+		else
+		{
+			delete effect;
+
+			return nullptr;
+		}
+	}
+	void OGL4Runtime::CreateScreenshot(unsigned char *buffer, std::size_t size) const
+	{
+		GLCHECK(glReadBuffer(GL_BACK));
+
+		const unsigned int pitch = this->mWidth * 4;
+
+		assert(size >= pitch * this->mHeight);
+
+		glReadPixels(0, 0, static_cast<GLsizei>(this->mWidth), static_cast<GLsizei>(this->mHeight), GL_RGBA, GL_UNSIGNED_BYTE, buffer);
+			
+		for (unsigned int y = 0; y * 2 < this->mHeight; ++y)
+		{
+			const unsigned int i1 = y * pitch;
+			const unsigned int i2 = (this->mHeight - 1 - y) * pitch;
+
+			for (unsigned int x = 0; x < pitch; x += 4)
+			{
+				buffer[i1 + x + 3] = 0xFF;
+				buffer[i2 + x + 3] = 0xFF;
+
+				std::swap(buffer[i1 + x + 0], buffer[i2 + x + 0]);
+				std::swap(buffer[i1 + x + 1], buffer[i2 + x + 1]);
+				std::swap(buffer[i1 + x + 2], buffer[i2 + x + 2]);
+			}
+		}
+	}
+
+	OGL4Effect::OGL4Effect(std::shared_ptr<const OGL4Runtime> context) : mEffectContext(context), mDefaultVAO(0), mDefaultVBO(0), mDefaultFBO(0), mDepthStencil(0), mUniformDirty(true)
+	{
+		GLCHECK(glGenVertexArrays(1, &this->mDefaultVAO));
+		GLCHECK(glGenBuffers(1, &this->mDefaultVBO));
+		GLCHECK(glGenFramebuffers(1, &this->mDefaultFBO));
+		GLCHECK(glGenRenderbuffers(1, &this->mDepthStencil));
+
+		GLCHECK(glBindBuffer(GL_ARRAY_BUFFER, this->mDefaultVBO));
+		GLCHECK(glBufferData(GL_ARRAY_BUFFER, 0, nullptr, GL_STATIC_DRAW));
+		GLCHECK(glBindBuffer(GL_ARRAY_BUFFER, 0));
+
+		GLCHECK(glBindRenderbuffer(GL_RENDERBUFFER, this->mDepthStencil));
+		GLCHECK(glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, this->mEffectContext->mWidth, this->mEffectContext->mHeight));
+		GLCHECK(glBindRenderbuffer(GL_RENDERBUFFER, 0));
+	}
+	OGL4Effect::~OGL4Effect()
+	{
+		GLCHECK(glDeleteVertexArrays(1, &this->mDefaultVAO));
+		GLCHECK(glDeleteBuffers(1, &this->mDefaultVBO));
+		GLCHECK(glDeleteFramebuffers(1, &this->mDefaultFBO));			
+		GLCHECK(glDeleteRenderbuffers(1, &this->mDepthStencil));
+		GLCHECK(glDeleteBuffers(this->mUniformBuffers.size(), &this->mUniformBuffers.front()));
+	}
+
+	const Effect::Texture *OGL4Effect::GetTexture(const std::string &name) const
+	{
+		auto it = this->mTextures.find(name);
+
+		if (it == this->mTextures.end())
 		{
 			return nullptr;
 		}
 
-		return std::make_shared<OGL4Runtime>(hdc, hglrc);
+		return it->second.get();
+	}
+	std::vector<std::string> OGL4Effect::GetTextureNames() const
+	{
+		std::vector<std::string> names;
+		names.reserve(this->mTextures.size());
+
+		for (auto it = this->mTextures.begin(), end = this->mTextures.end(); it != end; ++it)
+		{
+			names.push_back(it->first);
+		}
+
+		return names;
+	}
+	const Effect::Constant *OGL4Effect::GetConstant(const std::string &name) const
+	{
+		auto it = this->mConstants.find(name);
+
+		if (it == this->mConstants.end())
+		{
+			return nullptr;
+		}
+
+		return it->second.get();
+	}
+	std::vector<std::string> OGL4Effect::GetConstantNames() const
+	{
+		std::vector<std::string> names;
+		names.reserve(this->mConstants.size());
+
+		for (auto it = this->mConstants.begin(), end = this->mConstants.end(); it != end; ++it)
+		{
+			names.push_back(it->first);
+		}
+
+		return names;
+	}
+	const Effect::Technique *OGL4Effect::GetTechnique(const std::string &name) const
+	{
+		auto it = this->mTechniques.find(name);
+
+		if (it == this->mTechniques.end())
+		{
+			return nullptr;
+		}
+
+		return it->second.get();
+	}
+	std::vector<std::string> OGL4Effect::GetTechniqueNames() const
+	{
+		std::vector<std::string> names;
+		names.reserve(this->mTechniques.size());
+
+		for (auto it = this->mTechniques.begin(), end = this->mTechniques.end(); it != end; ++it)
+		{
+			names.push_back(it->first);
+		}
+
+		return names;
+	}
+
+	OGL4Texture::OGL4Texture(OGL4Effect *effect) : mEffect(effect), mID()
+	{
+	}
+	OGL4Texture::~OGL4Texture()
+	{
+		GLCHECK(glDeleteTextures(2, this->mID));
+	}
+
+	const Effect::Texture::Description OGL4Texture::GetDescription() const
+	{
+		return this->mDesc;
+	}
+	const Effect::Annotation OGL4Texture::GetAnnotation(const std::string &name) const
+	{
+		auto it = this->mAnnotations.find(name);
+
+		if (it == this->mAnnotations.end())
+		{
+			return Effect::Annotation();
+		}
+
+		return it->second;
+	}
+
+	inline void FlipBC1Block(unsigned char *block)
+	{
+		// BC1 Block:
+		//  [0-1]  color 0
+		//  [2-3]  color 1
+		//  [4-7]  color indices
+
+		std::swap(block[4], block[7]);
+		std::swap(block[5], block[6]);
+	}
+	inline void FlipBC2Block(unsigned char *block)
+	{
+		// BC2 Block:
+		//  [0-7]  alpha indices
+		//  [8-15] color block
+
+		std::swap(block[0], block[6]);
+		std::swap(block[1], block[7]);
+		std::swap(block[2], block[4]);
+		std::swap(block[3], block[5]);
+
+		FlipBC1Block(block + 8);
+	}
+	inline void FlipBC4Block(unsigned char *block)
+	{
+		// BC4 Block:
+		//  [0]    red 0
+		//  [1]    red 1
+		//  [2-7]  red indices
+
+		const unsigned int line_0_1 = block[2] + 256 * (block[3] + 256 * block[4]);
+		const unsigned int line_2_3 = block[5] + 256 * (block[6] + 256 * block[7]);
+		const unsigned int line_1_0 = ((line_0_1 & 0x000FFF) << 12) | ((line_0_1 & 0xFFF000) >> 12);
+		const unsigned int line_3_2 = ((line_2_3 & 0x000FFF) << 12) | ((line_2_3 & 0xFFF000) >> 12);
+		block[2] = static_cast<unsigned char>((line_3_2 & 0xFF));
+		block[3] = static_cast<unsigned char>((line_3_2 & 0xFF00) >> 8);
+		block[4] = static_cast<unsigned char>((line_3_2 & 0xFF0000) >> 16);
+		block[5] = static_cast<unsigned char>((line_1_0 & 0xFF));
+		block[6] = static_cast<unsigned char>((line_1_0 & 0xFF00) >> 8);
+		block[7] = static_cast<unsigned char>((line_1_0 & 0xFF0000) >> 16);
+	}
+	inline void FlipBC3Block(unsigned char *block)
+	{
+		// BC3 Block:
+		//  [0-7]  alpha block
+		//  [8-15] color block
+
+		FlipBC4Block(block);
+		FlipBC1Block(block + 8);
+	}
+	inline void FlipBC5Block(unsigned char *block)
+	{
+		// BC5 Block:
+		//  [0-7]  red block
+		//  [8-15] green block
+
+		FlipBC4Block(block);
+		FlipBC4Block(block + 8);
+	}
+	void FlipImage(const Effect::Texture::Description &desc, unsigned char *data)
+	{
+		typedef void (*FlipBlockFunc)(unsigned char *block);
+
+		std::size_t blocksize = 0;
+		bool compressed = false;
+		FlipBlockFunc compressedFunc = nullptr;
+
+		switch (desc.Format)
+		{
+			case Effect::Texture::Format::R8:
+				blocksize = 1;
+				break;
+			case Effect::Texture::Format::RG8:
+				blocksize = 2;
+				break;
+			case Effect::Texture::Format::R32F:
+			case Effect::Texture::Format::RGBA8:
+				blocksize = 4;
+				break;
+			case Effect::Texture::Format::RGBA16:
+			case Effect::Texture::Format::RGBA16F:
+				blocksize = 8;
+				break;
+			case Effect::Texture::Format::RGBA32F:
+				blocksize = 16;
+				break;
+			case Effect::Texture::Format::DXT1:
+				blocksize = 8;
+				compressed = true;
+				compressedFunc = &FlipBC1Block;
+				break;
+			case Effect::Texture::Format::DXT3:
+				blocksize = 16;
+				compressed = true;
+				compressedFunc = &FlipBC2Block;
+				break;
+			case Effect::Texture::Format::DXT5:
+				blocksize = 16;
+				compressed = true;
+				compressedFunc = &FlipBC3Block;
+				break;
+			case Effect::Texture::Format::LATC1:
+				blocksize = 8;
+				compressed = true;
+				compressedFunc = &FlipBC4Block;
+				break;
+			case Effect::Texture::Format::LATC2:
+				blocksize = 16;
+				compressed = true;
+				compressedFunc = &FlipBC5Block;
+				break;
+			default:
+				return;
+		}
+
+		if (compressed)
+		{
+			const std::size_t w = (desc.Width + 3) / 4;
+			const std::size_t h = (desc.Height + 3) / 4;
+			const std::size_t stride = w * blocksize;
+
+			for (std::size_t y = 0; y < h; ++y)
+			{
+				unsigned char *dataLine = data + stride * (h - 1 - y);
+
+				for (std::size_t x = 0; x < stride; x += blocksize)
+				{
+					compressedFunc(dataLine + x);
+				}
+			}
+		}
+		else
+		{
+			const std::size_t w = desc.Width;
+			const std::size_t h = desc.Height;
+			const std::size_t stride = w * blocksize;
+			unsigned char *templine = static_cast<unsigned char *>(::alloca(stride));
+
+			for (std::size_t y = 0; 2 * y < h; ++y)
+			{
+				unsigned char *line1 = data + stride * y;
+				unsigned char *line2 = data + stride * (h - 1 - y);
+
+				::memcpy(templine, line1, stride);
+				::memcpy(line1, line2, stride);
+				::memcpy(line2, templine, stride);
+			}
+		}
+	}
+
+	void OGL4Texture::Update(unsigned int level, const unsigned char *data, std::size_t size)
+	{
+		assert(data != nullptr && size != 0);
+
+		GLCHECK(glPixelStorei(GL_UNPACK_ROW_LENGTH, 0));
+		GLCHECK(glPixelStorei(GL_UNPACK_IMAGE_HEIGHT, 0));
+		GLCHECK(glPixelStorei(GL_UNPACK_SKIP_ROWS, 0));
+		GLCHECK(glPixelStorei(GL_UNPACK_SKIP_PIXELS, 0));
+
+		GLint previous = 0;
+		GLCHECK(glGetIntegerv(GL_TEXTURE_BINDING_2D, &previous));
+
+		GLCHECK(glBindTexture(GL_TEXTURE_2D, this->mID[0]));
+
+		std::unique_ptr<unsigned char[]> dataFlipped(new unsigned char[size]);
+		std::memcpy(dataFlipped.get(), data, size);
+		FlipImage(this->mDesc, dataFlipped.get());
+
+		if (this->mDesc.Format >= Texture::Format::DXT1 && this->mDesc.Format <= Texture::Format::LATC2)
+		{
+			GLCHECK(glCompressedTexSubImage2D(GL_TEXTURE_2D, level, 0, 0, this->mDesc.Width, this->mDesc.Height, GL_UNSIGNED_BYTE, static_cast<GLsizei>(size), dataFlipped.get()));
+		}
+		else
+		{
+			GLint dataAlignment = 4;
+			GLenum dataFormat = GL_RGBA, dataType = GL_UNSIGNED_BYTE;
+				
+			switch (this->mDesc.Format)
+			{
+				case Texture::Format::R8:
+					dataFormat = GL_RED;
+					dataAlignment = 1;
+					break;
+				case Texture::Format::R32F:
+					dataType = GL_FLOAT;
+					dataFormat = GL_RED;
+					break;
+				case Texture::Format::RG8:
+					dataFormat = GL_RG;
+					dataAlignment = 2;
+					break;
+				case Texture::Format::RGBA16:
+				case Texture::Format::RGBA16F:
+					dataType = GL_UNSIGNED_SHORT;
+					dataAlignment = 2;
+					break;
+				case Texture::Format::RGBA32F:
+					dataType = GL_FLOAT;
+					break;
+			}
+
+			GLCHECK(glPixelStorei(GL_UNPACK_ALIGNMENT, dataAlignment));
+			GLCHECK(glTexSubImage2D(GL_TEXTURE_2D, level, 0, 0, this->mDesc.Width, this->mDesc.Height, dataFormat, dataType, dataFlipped.get()));
+			GLCHECK(glPixelStorei(GL_UNPACK_ALIGNMENT, 4));
+		}
+
+		GLCHECK(glBindTexture(GL_TEXTURE_2D, previous));
+	}
+	void OGL4Texture::UpdateFromColorBuffer()
+	{
+		GLCHECK(glBindFramebuffer(GL_READ_FRAMEBUFFER, this->mEffect->mEffectContext->mBackBufferFBO));
+		GLCHECK(glBindFramebuffer(GL_DRAW_FRAMEBUFFER, this->mEffect->mDefaultFBO));
+		GLCHECK(glFramebufferTexture(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, this->mID[0], 0));
+
+		assert(glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
+
+		GLCHECK(glReadBuffer(GL_COLOR_ATTACHMENT0));
+		GLCHECK(glDrawBuffer(GL_COLOR_ATTACHMENT0));
+
+		GLCHECK(glBlitFramebuffer(0, 0, this->mEffect->mEffectContext->mWidth, this->mEffect->mEffectContext->mHeight, 0, 0, this->mDesc.Width, this->mDesc.Height, GL_COLOR_BUFFER_BIT, GL_NEAREST));
+	}
+	void OGL4Texture::UpdateFromDepthBuffer()
+	{
+	}
+
+	OGL4Constant::OGL4Constant(OGL4Effect *effect) : mEffect(effect)
+	{
+	}
+	OGL4Constant::~OGL4Constant()
+	{
+	}
+
+	const Effect::Constant::Description OGL4Constant::GetDescription() const
+	{
+		return this->mDesc;
+	}
+	const Effect::Annotation OGL4Constant::GetAnnotation(const std::string &name) const
+	{
+		auto it = this->mAnnotations.find(name);
+
+		if (it == this->mAnnotations.end())
+		{
+			return Effect::Annotation();
+		}
+
+		return it->second;
+	}
+	void OGL4Constant::GetValue(unsigned char *data, std::size_t size) const
+	{
+		size = std::min(size, this->mDesc.Size);
+
+		const unsigned char *storage = this->mEffect->mUniformStorages[this->mBuffer].first + this->mBufferOffset;
+
+		std::memcpy(data, storage, size);
+	}
+	void OGL4Constant::SetValue(const unsigned char *data, std::size_t size)
+	{
+		size = std::min(size, this->mDesc.Size);
+
+		unsigned char *storage = this->mEffect->mUniformStorages[this->mBuffer].first + this->mBufferOffset;
+
+		if (std::memcmp(storage, data, size) == 0)
+		{
+			return;
+		}
+
+		std::memcpy(storage, data, size);
+
+		this->mEffect->mUniformDirty = true;
+	}
+
+	OGL4Technique::OGL4Technique(OGL4Effect *effect) : mEffect(effect)
+	{
+	}
+	OGL4Technique::~OGL4Technique()
+	{
+		for (auto &pass : this->mPasses)
+		{
+			GLCHECK(glDeleteProgram(pass.Program));
+			GLCHECK(glDeleteFramebuffers(1, &pass.Framebuffer));
+		}
+	}
+
+	const Effect::Annotation OGL4Technique::GetAnnotation(const std::string &name) const
+	{
+		auto it = this->mAnnotations.find(name);
+
+		if (it == this->mAnnotations.end())
+		{
+			return Effect::Annotation();
+		}
+
+		return it->second;
+	}
+
+	bool OGL4Technique::Begin(unsigned int &passes) const
+	{
+		passes = static_cast<unsigned int>(this->mPasses.size());
+
+		if (passes == 0)
+		{
+			return false;
+		}
+
+		GLCHECK(glBindFramebuffer(GL_READ_FRAMEBUFFER, 0));
+		GLCHECK(glBindFramebuffer(GL_DRAW_FRAMEBUFFER, this->mEffect->mEffectContext->mBackBufferFBO));
+		GLCHECK(glReadBuffer(GL_BACK));
+		GLCHECK(glDrawBuffer(GL_COLOR_ATTACHMENT0));
+		GLCHECK(glBlitFramebuffer(0, 0, this->mEffect->mEffectContext->mWidth, this->mEffect->mEffectContext->mHeight, 0, 0, this->mEffect->mEffectContext->mWidth, this->mEffect->mEffectContext->mHeight, GL_COLOR_BUFFER_BIT, GL_NEAREST));
+
+		GLCHECK(glBindVertexArray(this->mEffect->mDefaultVAO));
+		GLCHECK(glBindVertexBuffer(0, this->mEffect->mDefaultVBO, 0, sizeof(float)));		
+
+		for (GLuint i = 0, count = static_cast<GLuint>(this->mEffect->mSamplers.size()); i < count; ++i)
+		{
+			const auto &sampler = this->mEffect->mSamplers[i];
+			const auto &texture = sampler->mTexture;
+
+			GLCHECK(glActiveTexture(GL_TEXTURE0 + i));
+			GLCHECK(glBindTexture(GL_TEXTURE_2D, texture->mID[sampler->mSRGB]));
+			GLCHECK(glBindSampler(i, sampler->mID));
+		}
+		for (GLuint i = 0, count = static_cast<GLuint>(this->mEffect->mUniformBuffers.size()); i < count; ++i)
+		{
+			GLCHECK(glBindBufferBase(GL_UNIFORM_BUFFER, i, this->mEffect->mUniformBuffers[i]));
+		}
+
+		return true;
+	}
+	void OGL4Technique::End() const
+	{
+		GLCHECK(glBindFramebuffer(GL_READ_FRAMEBUFFER, this->mEffect->mEffectContext->mBackBufferFBO));
+		GLCHECK(glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0));
+		GLCHECK(glReadBuffer(GL_COLOR_ATTACHMENT0));
+		GLCHECK(glDrawBuffer(GL_BACK));
+		GLCHECK(glBlitFramebuffer(0, 0, this->mEffect->mEffectContext->mWidth, this->mEffect->mEffectContext->mHeight, 0, 0, this->mEffect->mEffectContext->mWidth, this->mEffect->mEffectContext->mHeight, GL_COLOR_BUFFER_BIT, GL_NEAREST));
+
+		GLCHECK(glBindSampler(0, 0));
+		GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, 0));
+	}
+	void OGL4Technique::RenderPass(unsigned int index) const
+	{
+		if (this->mEffect->mUniformDirty)
+		{
+			for (GLuint i = 0, count = static_cast<GLuint>(this->mEffect->mUniformBuffers.size()); i < count; ++i)
+			{
+				if (this->mEffect->mUniformBuffers[i] == 0)
+				{
+					continue;
+				}
+
+				GLCHECK(glBindBuffer(GL_UNIFORM_BUFFER, this->mEffect->mUniformBuffers[i]));
+				GLCHECK(glBufferSubData(GL_UNIFORM_BUFFER, 0, this->mEffect->mUniformStorages[i].second, this->mEffect->mUniformStorages[i].first));
+			}
+
+			this->mEffect->mUniformDirty = false;
+		}
+
+		const Pass &pass = this->mPasses[index];
+
+		GLCHECK(glViewport(0, 0, pass.ViewportWidth, pass.ViewportHeight));
+		GLCHECK(glUseProgram(pass.Program));
+		GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, pass.Framebuffer));
+		GLCHECK(glEnableb(GL_FRAMEBUFFER_SRGB, pass.FramebufferSRGB));
+		GLCHECK(glDrawBuffers(8, pass.DrawBuffers));
+		GLCHECK(glDisable(GL_SCISSOR_TEST));
+		GLCHECK(glFrontFace(GL_CCW));
+		GLCHECK(glPolygonMode(GL_FRONT_AND_BACK, GL_FILL));
+		GLCHECK(glDisable(GL_CULL_FACE));
+		GLCHECK(glColorMask(pass.ColorMaskR, pass.ColorMaskG, pass.ColorMaskB, pass.ColorMaskA));
+		GLCHECK(glEnableb(GL_BLEND, pass.Blend));
+		GLCHECK(glBlendFunc(pass.BlendFuncSrc, pass.BlendFuncDest));
+		GLCHECK(glBlendEquationSeparate(pass.BlendEqColor, pass.BlendEqAlpha));
+		GLCHECK(glEnableb(GL_DEPTH_TEST, pass.DepthTest));
+		GLCHECK(glDepthMask(pass.DepthMask));
+		GLCHECK(glDepthFunc(pass.DepthFunc));
+		GLCHECK(glEnableb(GL_STENCIL_TEST, pass.StencilTest));
+		GLCHECK(glStencilFunc(pass.StencilFunc, pass.StencilRef, pass.StencilReadMask));
+		GLCHECK(glStencilOp(pass.StencilOpFail, pass.StencilOpZFail, pass.StencilOpZPass));
+		GLCHECK(glStencilMask(pass.StencilMask));
+
+		const GLfloat color[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+
+		for (GLuint i = 0; i < 8; ++i)
+		{
+			if (pass.DrawBuffers[i] == GL_NONE)
+			{
+				continue;
+			}
+
+			GLCHECK(glClearBufferfv(GL_COLOR, i, color));
+		}
+
+		GLCHECK(glDrawArrays(GL_TRIANGLES, 0, 3));
 	}
 }
