@@ -2304,17 +2304,26 @@ namespace ReShade
 			Runtime::OnDelete();
 
 			nvgDeleteD3D9(this->mNVG);
-			this->mNVG = nullptr;
 
-			this->mStateBlock->Apply();
-			this->mStateBlock->Release();
+			if (this->mStateBlock != nullptr)
+			{
+				this->mStateBlock->Apply();
+				this->mStateBlock->Release();
+			}
 
 			if (this->mBackBufferNotMultisampled != this->mBackBuffer)
 			{
 				this->mBackBufferNotMultisampled->Release();
 			}
+			if (this->mBackBuffer != nullptr)
+			{
+				this->mBackBuffer->Release();
+			}
 
-			this->mBackBuffer->Release();
+			this->mNVG = nullptr;
+			this->mStateBlock = nullptr;
+			this->mBackBuffer = nullptr;
+			this->mBackBufferNotMultisampled = nullptr;
 
 			this->mLost = true;
 		}
@@ -2528,7 +2537,11 @@ namespace ReShade
 			this->mVertexBuffer->Release();
 			this->mVertexDeclaration->Release();
 			this->mDepthStencil->Release();
-			this->mShaderResourceStateblock->Release();
+
+			if (this->mShaderResourceStateblock != nullptr)
+			{
+				this->mShaderResourceStateblock->Release();
+			}
 		}
 
 		const Effect::Texture *D3D9Effect::GetTexture(const std::string &name) const

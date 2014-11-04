@@ -2369,12 +2369,29 @@ namespace ReShade
 			Runtime::OnDelete();
 
 			nvgDeleteD3D11(this->mNVG);
-			this->mNVG = nullptr;
 
-			this->mBackBufferTargets[0]->Release();
-			this->mBackBufferTargets[1]->Release();
-			this->mBackBufferTexture->Release();
-			this->mBackBuffer->Release();
+			if (this->mBackBufferTargets[0] != nullptr)
+			{
+				this->mBackBufferTargets[0]->Release();
+			}
+			if (this->mBackBufferTargets[1] != nullptr)
+			{
+				this->mBackBufferTargets[1]->Release();
+			}
+			if (this->mBackBufferTexture != nullptr)
+			{
+				this->mBackBufferTexture->Release();
+			}
+			if (this->mBackBuffer != nullptr)
+			{
+				this->mBackBuffer->Release();
+			}
+
+			this->mNVG = nullptr;
+			this->mBackBuffer = nullptr;
+			this->mBackBufferTexture = nullptr;
+			this->mBackBufferTargets[0] = nullptr;
+			this->mBackBufferTargets[1] = nullptr;
 
 			this->mLost = true;
 		}
@@ -2702,7 +2719,10 @@ namespace ReShade
 				this->mShaderResourceView[1]->Release();
 			}
 
-			this->mTexture->Release();
+			if (this->mTexture != nullptr)
+			{
+				this->mTexture->Release();
+			}
 		}
 
 		const Effect::Texture::Description D3D11Texture::GetDescription() const
@@ -2808,9 +2828,14 @@ namespace ReShade
 				{
 					pass.PS->Release();
 				}
-				
-				pass.BS->Release();
-				pass.DSS->Release();
+				if (pass.BS != nullptr)
+				{
+					pass.BS->Release();
+				}
+				if (pass.DSS != nullptr)
+				{
+					pass.DSS->Release();
+				}
 			}
 		}
 

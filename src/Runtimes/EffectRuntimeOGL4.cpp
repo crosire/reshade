@@ -2908,14 +2908,15 @@ namespace ReShade
 			Runtime::OnDelete();
 
 			nvgDeleteGL3(this->mNVG);
-			this->mNVG = nullptr;
 
 			GLCHECK(glDeleteFramebuffers(1, &this->mBackBufferFBO));			
 			GLCHECK(glDeleteRenderbuffers(1, &this->mBackBufferRBO));
-			this->mBackBufferFBO = 0;
-			this->mBackBufferRBO = 0;
 
 			this->mStateBlock.Apply();
+
+			this->mNVG = nullptr;
+			this->mBackBufferFBO = 0;
+			this->mBackBufferRBO = 0;
 
 			this->mLost = true;
 		}

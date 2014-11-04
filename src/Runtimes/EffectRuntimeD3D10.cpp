@@ -2353,15 +2353,36 @@ namespace ReShade
 			Runtime::OnDelete();
 
 			nvgDeleteD3D10(this->mNVG);
+
+			if (this->mStateBlock != nullptr)
+			{
+				this->mStateBlock->Apply();
+				this->mStateBlock->ReleaseAllDeviceObjects();
+			}
+
+			if (this->mBackBufferTargets[0] != nullptr)
+			{
+				this->mBackBufferTargets[0]->Release();
+			}
+			if (this->mBackBufferTargets[1] != nullptr)
+			{
+				this->mBackBufferTargets[1]->Release();
+			}
+			if (this->mBackBufferTexture != nullptr)
+			{
+				this->mBackBufferTexture->Release();
+			}
+			if (this->mBackBuffer != nullptr)
+			{
+				this->mBackBuffer->Release();
+			}
+
 			this->mNVG = nullptr;
-
-			this->mStateBlock->Apply();
-			this->mStateBlock->ReleaseAllDeviceObjects();
-
-			this->mBackBufferTargets[0]->Release();
-			this->mBackBufferTargets[1]->Release();
-			this->mBackBufferTexture->Release();
-			this->mBackBuffer->Release();
+			this->mStateBlock = nullptr;
+			this->mBackBuffer = nullptr;
+			this->mBackBufferTexture = nullptr;
+			this->mBackBufferTargets[0] = nullptr;
+			this->mBackBufferTargets[1] = nullptr;
 
 			this->mLost = true;
 		}
@@ -2707,7 +2728,10 @@ namespace ReShade
 				this->mShaderResourceView[1]->Release();
 			}
 
-			this->mTexture->Release();
+			if (this->mTexture != nullptr)
+			{
+				this->mTexture->Release();
+			}
 		}
 
 		const Effect::Texture::Description D3D10Texture::GetDescription() const
@@ -2813,9 +2837,14 @@ namespace ReShade
 				{
 					pass.PS->Release();
 				}
-
-				pass.BS->Release();
-				pass.DSS->Release();
+				if (pass.BS != nullptr)
+				{
+					pass.BS->Release();
+				}
+				if (pass.DSS != nullptr)
+				{
+					pass.DSS->Release();
+				}
 			}
 		}
 
