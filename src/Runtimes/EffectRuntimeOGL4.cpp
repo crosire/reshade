@@ -1342,7 +1342,7 @@ namespace ReShade
 			}
 			void Visit(const EffectNodes::Call &node)
 			{
-				this->mCurrentSource += node.CalleeName;
+				this->mCurrentSource += FixName(node.CalleeName);
 				this->mCurrentSource += '(';
 
 				if (node.HasArguments())
