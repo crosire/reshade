@@ -132,7 +132,9 @@ namespace ReShade
 	{
 		GLint Width, Height, Format;
 		GLint DrawCallCount;
-		bool RenderBuffer;
+		GLuint Framebuffer;
+		GLenum Attachment;
+		bool IsRenderBuffer;
 	};
 	struct OGL4Runtime : public Runtime, public std::enable_shared_from_this<OGL4Runtime>
 	{

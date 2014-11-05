@@ -122,6 +122,7 @@ namespace
 	
 	__declspec(thread) HDC sCurrentDeviceContext = nullptr;
 	__declspec(thread) HGLRC sCurrentRenderContext = nullptr;
+	__declspec(thread) GLuint sCurrentVertexCount = 0;
 
 	CriticalSection sCS;
 	std::unordered_map<HWND, RECT> sWindowRects;
@@ -160,6 +161,8 @@ EXPORT void WINAPI glArrayElement(GLint i)
 EXPORT void WINAPI glBegin(GLenum mode)
 {
 	static const auto trampoline = ReHook::Call(&glBegin);
+
+	sCurrentVertexCount = 0;
 
 	trampoline(mode);
 }
@@ -698,6 +701,13 @@ EXPORT void WINAPI glEnableClientState(GLenum array)
 EXPORT void WINAPI glEnd()
 {
 	static const auto trampoline = ReHook::Call(&glEnd);
+
+	if (sCurrentRuntimes.find(sCurrentDeviceContext) != sCurrentRuntimes.end())
+	{
+		ReShade::OGL4Runtime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
+
+		runtime->OnDraw(sCurrentVertexCount);
+	}
 
 	trampoline();
 }
@@ -2115,11 +2125,15 @@ EXPORT void WINAPI glVertex2d(GLdouble x, GLdouble y)
 {
 	static const auto trampoline = ReHook::Call(&glVertex2d);
 
+	sCurrentVertexCount += 2;
+
 	trampoline(x, y);
 }
 EXPORT void WINAPI glVertex2dv(const GLdouble *v)
 {
 	static const auto trampoline = ReHook::Call(&glVertex2dv);
+
+	sCurrentVertexCount += 2;
 
 	trampoline(v);
 }
@@ -2127,11 +2141,15 @@ EXPORT void WINAPI glVertex2f(GLfloat x, GLfloat y)
 {
 	static const auto trampoline = ReHook::Call(&glVertex2f);
 
+	sCurrentVertexCount += 2;
+
 	trampoline(x, y);
 }
 EXPORT void WINAPI glVertex2fv(const GLfloat *v)
 {
 	static const auto trampoline = ReHook::Call(&glVertex2fv);
+
+	sCurrentVertexCount += 2;
 
 	trampoline(v);
 }
@@ -2139,11 +2157,15 @@ EXPORT void WINAPI glVertex2i(GLint x, GLint y)
 {
 	static const auto trampoline = ReHook::Call(&glVertex2i);
 
+	sCurrentVertexCount += 2;
+
 	trampoline(x, y);
 }
 EXPORT void WINAPI glVertex2iv(const GLint *v)
 {
 	static const auto trampoline = ReHook::Call(&glVertex2iv);
+
+	sCurrentVertexCount += 2;
 
 	trampoline(v);
 }
@@ -2151,11 +2173,15 @@ EXPORT void WINAPI glVertex2s(GLshort x, GLshort y)
 {
 	static const auto trampoline = ReHook::Call(&glVertex2s);
 
+	sCurrentVertexCount += 2;
+
 	trampoline(x, y);
 }
 EXPORT void WINAPI glVertex2sv(const GLshort *v)
 {
 	static const auto trampoline = ReHook::Call(&glVertex2sv);
+
+	sCurrentVertexCount += 2;
 
 	trampoline(v);
 }
@@ -2163,11 +2189,15 @@ EXPORT void WINAPI glVertex3d(GLdouble x, GLdouble y, GLdouble z)
 {
 	static const auto trampoline = ReHook::Call(&glVertex3d);
 
+	sCurrentVertexCount += 3;
+
 	trampoline(x, y, z);
 }
 EXPORT void WINAPI glVertex3dv(const GLdouble *v)
 {
 	static const auto trampoline = ReHook::Call(&glVertex3dv);
+
+	sCurrentVertexCount += 3;
 
 	trampoline(v);
 }
@@ -2175,11 +2205,15 @@ EXPORT void WINAPI glVertex3f(GLfloat x, GLfloat y, GLfloat z)
 {
 	static const auto trampoline = ReHook::Call(&glVertex3f);
 
+	sCurrentVertexCount += 3;
+
 	trampoline(x, y, z);
 }
 EXPORT void WINAPI glVertex3fv(const GLfloat *v)
 {
 	static const auto trampoline = ReHook::Call(&glVertex3fv);
+
+	sCurrentVertexCount += 3;
 
 	trampoline(v);
 }
@@ -2187,11 +2221,15 @@ EXPORT void WINAPI glVertex3i(GLint x, GLint y, GLint z)
 {
 	static const auto trampoline = ReHook::Call(&glVertex3i);
 
+	sCurrentVertexCount += 3;
+
 	trampoline(x, y, z);
 }
 EXPORT void WINAPI glVertex3iv(const GLint *v)
 {
 	static const auto trampoline = ReHook::Call(&glVertex3iv);
+
+	sCurrentVertexCount += 3;
 
 	trampoline(v);
 }
@@ -2199,11 +2237,15 @@ EXPORT void WINAPI glVertex3s(GLshort x, GLshort y, GLshort z)
 {
 	static const auto trampoline = ReHook::Call(&glVertex3s);
 
+	sCurrentVertexCount += 3;
+
 	trampoline(x, y, z);
 }
 EXPORT void WINAPI glVertex3sv(const GLshort *v)
 {
 	static const auto trampoline = ReHook::Call(&glVertex3sv);
+
+	sCurrentVertexCount += 3;
 
 	trampoline(v);
 }
@@ -2211,11 +2253,15 @@ EXPORT void WINAPI glVertex4d(GLdouble x, GLdouble y, GLdouble z, GLdouble w)
 {
 	static const auto trampoline = ReHook::Call(&glVertex4d);
 
+	sCurrentVertexCount += 4;
+
 	trampoline(x, y, z, w);
 }
 EXPORT void WINAPI glVertex4dv(const GLdouble *v)
 {
 	static const auto trampoline = ReHook::Call(&glVertex4dv);
+
+	sCurrentVertexCount += 4;
 
 	trampoline(v);
 }
@@ -2223,11 +2269,15 @@ EXPORT void WINAPI glVertex4f(GLfloat x, GLfloat y, GLfloat z, GLfloat w)
 {
 	static const auto trampoline = ReHook::Call(&glVertex4f);
 
+	sCurrentVertexCount += 4;
+
 	trampoline(x, y, z, w);
 }
 EXPORT void WINAPI glVertex4fv(const GLfloat *v)
 {
 	static const auto trampoline = ReHook::Call(&glVertex4fv);
+
+	sCurrentVertexCount += 4;
 
 	trampoline(v);
 }
@@ -2235,11 +2285,15 @@ EXPORT void WINAPI glVertex4i(GLint x, GLint y, GLint z, GLint w)
 {
 	static const auto trampoline = ReHook::Call(&glVertex4i);
 
+	sCurrentVertexCount += 4;
+
 	trampoline(x, y, z, w);
 }
 EXPORT void WINAPI glVertex4iv(const GLint *v)
 {
 	static const auto trampoline = ReHook::Call(&glVertex4iv);
+
+	sCurrentVertexCount += 4;
 
 	trampoline(v);
 }
@@ -2247,11 +2301,15 @@ EXPORT void WINAPI glVertex4s(GLshort x, GLshort y, GLshort z, GLshort w)
 {
 	static const auto trampoline = ReHook::Call(&glVertex4s);
 
+	sCurrentVertexCount += 4;
+
 	trampoline(x, y, z, w);
 }
 EXPORT void WINAPI glVertex4sv(const GLshort *v)
 {
 	static const auto trampoline = ReHook::Call(&glVertex4sv);
+
+	sCurrentVertexCount += 4;
 
 	trampoline(v);
 }
@@ -2848,6 +2906,16 @@ EXPORT PROC WINAPI wglGetProcAddress(LPCSTR lpszProc)
 	else if (strcmp(lpszProc, "glRenderbufferStorageEXT") == 0)
 	{
 		lpszProc = "glRenderbufferStorage";
+	}
+	#pragma endregion
+	#pragma region Convert ARB extensions to core
+	if (strcmp(lpszProc, "glDrawArraysInstancedARB") == 0)
+	{
+		lpszProc = "glDrawArraysInstanced";
+	}
+	else if (strcmp(lpszProc, "glDrawElementsInstancedARB") == 0)
+	{
+		lpszProc = "glDrawElementsInstancedARB";
 	}
 	#pragma endregion
 
