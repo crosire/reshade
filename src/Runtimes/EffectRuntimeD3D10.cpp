@@ -2506,11 +2506,7 @@ namespace ReShade
 
 			HRESULT hr = S_OK;
 
-			if ((textureDesc.BindFlags & D3D10_BIND_SHADER_RESOURCE) != 0 && textureDesc.Format == DXGI_FORMAT_R24G8_TYPELESS)
-			{
-				texture->AddRef();
-			}
-			else
+			if ((textureDesc.BindFlags & D3D10_BIND_SHADER_RESOURCE) == 0 || textureDesc.Format != DXGI_FORMAT_R24G8_TYPELESS)
 			{
 				texture->Release();
 
@@ -2560,6 +2556,14 @@ namespace ReShade
 					}
 
 					depthstencil->Release();
+				}
+
+				for (UINT i = 0; i < D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT; ++i)
+				{
+					if (rendertargets[i] != nullptr)
+					{
+						rendertargets[i]->Release();
+					}
 				}
 			}
 		}
