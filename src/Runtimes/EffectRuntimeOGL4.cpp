@@ -2858,7 +2858,7 @@ namespace ReShade
 		}
 		else
 		{
-			cooldown = 10;
+			cooldown = 30;
 		}
 
 		if (this->mDepthStencilTable.empty())
@@ -2876,7 +2876,7 @@ namespace ReShade
 				continue;
 			}
 
-			if (it.second.DrawCallCount >= info.DrawCallCount && (it.second.Width >= info.Width && it.second.Height >= info.Height))
+			if (it.second.DrawCallCount >= info.DrawCallCount && (it.second.Width >= this->mWidth && it.second.Height >= this->mHeight))
 			{
 				bestDepthStencil = it.first;
 				info = it.second;

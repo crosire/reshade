@@ -2390,7 +2390,7 @@ namespace ReShade
 		}
 		else
 		{
-			cooldown = 10;
+			cooldown = 30;
 		}
 
 		if (this->mDepthStencilTable.empty())
