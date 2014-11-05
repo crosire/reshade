@@ -2,6 +2,7 @@
 #include "HookManager.hpp"
 #include "Runtimes\EffectRuntimeOGL4.hpp"
 
+#undef glBindFramebuffer
 #undef glBindTexture
 #undef glBlendFunc
 #undef glClear
@@ -20,8 +21,15 @@
 #undef glDepthRange
 #undef glDisable
 #undef glDrawArrays
+#undef glDrawArraysInstanced
+#undef glDrawArraysInstancedBaseInstance
 #undef glDrawBuffer
 #undef glDrawElements
+#undef glDrawElementsBaseVertex
+#undef glDrawElementsInstanced
+#undef glDrawElementsInstancedBaseVertex
+#undef glDrawElementsInstancedBaseInstance
+#undef glDrawElementsInstancedBaseVertexBaseInstance
 #undef glEnable
 #undef glFinish
 #undef glFlush
@@ -154,6 +162,19 @@ EXPORT void WINAPI glBegin(GLenum mode)
 	static const auto trampoline = ReHook::Call(&glBegin);
 
 	trampoline(mode);
+}
+EXPORT void WINAPI glBindFramebuffer(GLenum target, GLuint framebuffer)
+{
+	static const auto trampoline = ReHook::Call(&glBindFramebuffer);
+
+	trampoline(target, framebuffer);
+
+	if ((target == GL_FRAMEBUFFER || target == GL_DRAW_FRAMEBUFFER) && sCurrentRuntimes.find(sCurrentDeviceContext) != sCurrentRuntimes.end())
+	{
+		ReShade::OGL4Runtime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
+
+		runtime->OnBindFramebuffer(framebuffer);
+	}
 }
 EXPORT void WINAPI glBindTexture(GLenum target, GLuint texture)
 {
@@ -519,7 +540,40 @@ EXPORT void WINAPI glDrawArrays(GLenum mode, GLint first, GLsizei count)
 {
 	static const auto trampoline = ReHook::Call(&glDrawArrays);
 
+	if (sCurrentRuntimes.find(sCurrentDeviceContext) != sCurrentRuntimes.end())
+	{
+		ReShade::OGL4Runtime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
+
+		runtime->OnDraw(count);
+	}
+
 	trampoline(mode, first, count);
+}
+EXPORT void WINAPI glDrawArraysInstanced(GLenum mode, GLint first, GLsizei count, GLsizei primcount)
+{
+	static const auto trampoline = ReHook::Call(&glDrawArraysInstanced);
+
+	if (sCurrentRuntimes.find(sCurrentDeviceContext) != sCurrentRuntimes.end())
+	{
+		ReShade::OGL4Runtime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
+
+		runtime->OnDraw(primcount * count);
+	}
+
+	trampoline(mode, first, count, primcount);
+}
+EXPORT void WINAPI glDrawArraysInstancedBaseInstance(GLenum mode, GLint first, GLsizei count, GLsizei primcount, GLuint baseinstance)
+{
+	static const auto trampoline = ReHook::Call(&glDrawArraysInstancedBaseInstance);
+
+	if (sCurrentRuntimes.find(sCurrentDeviceContext) != sCurrentRuntimes.end())
+	{
+		ReShade::OGL4Runtime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
+
+		runtime->OnDraw(primcount * count);
+	}
+
+	trampoline(mode, first, count, primcount, baseinstance);
 }
 EXPORT void WINAPI glDrawBuffer(GLenum mode)
 {
@@ -531,7 +585,79 @@ EXPORT void WINAPI glDrawElements(GLenum mode, GLsizei count, GLenum type, const
 {
 	static const auto trampoline = ReHook::Call(&glDrawElements);
 
+	if (sCurrentRuntimes.find(sCurrentDeviceContext) != sCurrentRuntimes.end())
+	{
+		ReShade::OGL4Runtime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
+
+		runtime->OnDraw(count);
+	}
+
 	trampoline(mode, count, type, indices);
+}
+EXPORT void WINAPI glDrawElementsBaseVertex(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLint basevertex)
+{
+	static const auto trampoline = ReHook::Call(&glDrawElementsBaseVertex);
+
+	if (sCurrentRuntimes.find(sCurrentDeviceContext) != sCurrentRuntimes.end())
+	{
+		ReShade::OGL4Runtime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
+
+		runtime->OnDraw(count);
+	}
+
+	trampoline(mode, count, type, indices, basevertex);
+}
+EXPORT void WINAPI glDrawElementsInstanced(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLsizei primcount)
+{
+	static const auto trampoline = ReHook::Call(&glDrawElementsInstanced);
+
+	if (sCurrentRuntimes.find(sCurrentDeviceContext) != sCurrentRuntimes.end())
+	{
+		ReShade::OGL4Runtime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
+
+		runtime->OnDraw(primcount * count);
+	}
+
+	trampoline(mode, count, type, indices, primcount);
+}
+EXPORT void WINAPI glDrawElementsInstancedBaseVertex(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLsizei primcount, GLint basevertex)
+{
+	static const auto trampoline = ReHook::Call(&glDrawElementsInstancedBaseVertex);
+
+	if (sCurrentRuntimes.find(sCurrentDeviceContext) != sCurrentRuntimes.end())
+	{
+		ReShade::OGL4Runtime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
+
+		runtime->OnDraw(primcount * count);
+	}
+
+	trampoline(mode, count, type, indices, primcount, basevertex);
+}
+EXPORT void WINAPI glDrawElementsInstancedBaseInstance(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLsizei primcount, GLuint baseinstance)
+{
+	static const auto trampoline = ReHook::Call(&glDrawElementsInstancedBaseInstance);
+
+	if (sCurrentRuntimes.find(sCurrentDeviceContext) != sCurrentRuntimes.end())
+	{
+		ReShade::OGL4Runtime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
+
+		runtime->OnDraw(primcount * count);
+	}
+
+	trampoline(mode, count, type, indices, primcount, baseinstance);
+}
+EXPORT void WINAPI glDrawElementsInstancedBaseVertexBaseInstance(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLsizei primcount, GLint basevertex, GLuint baseinstance)
+{
+	static const auto trampoline = ReHook::Call(&glDrawElementsInstancedBaseVertexBaseInstance);
+
+	if (sCurrentRuntimes.find(sCurrentDeviceContext) != sCurrentRuntimes.end())
+	{
+		ReShade::OGL4Runtime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
+
+		runtime->OnDraw(primcount * count);
+	}
+
+	trampoline(mode, count, type, indices, primcount, basevertex, baseinstance);
 }
 EXPORT void WINAPI glDrawPixels(GLsizei width, GLsizei height, GLenum format, GLenum type, const GLvoid *pixels)
 {
@@ -2391,7 +2517,10 @@ EXPORT BOOL WINAPI wglDeleteContext(HGLRC hglrc)
 
 	if (it != sRuntimes.end())
 	{
-		ReHook::Call(&wglMakeCurrent)(sDeviceContexts.at(hglrc), hglrc);
+		const HDC hdcPrevious = sCurrentDeviceContext;
+		const HGLRC hglrcPrevious = sCurrentRenderContext;
+
+		wglMakeCurrent(sDeviceContexts.at(hglrc), hglrc);
 
 		if (it->second != nullptr)
 		{
@@ -2400,7 +2529,7 @@ EXPORT BOOL WINAPI wglDeleteContext(HGLRC hglrc)
 
 		sRuntimes.erase(it);
 
-		ReHook::Call(&wglMakeCurrent)(sCurrentDeviceContext, sCurrentRenderContext);
+		wglMakeCurrent(hdcPrevious, hglrcPrevious);
 	}
 
 	sDeviceContexts.erase(hglrc);
@@ -2517,10 +2646,10 @@ EXPORT BOOL WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 		{
 			const std::shared_ptr<ReShade::OGL4Runtime> runtime = std::make_shared<ReShade::OGL4Runtime>(hdc, hglrc);
 
-			runtime->OnCreate(static_cast<unsigned int>(width), static_cast<unsigned int>(height));
-
 			sRuntimes[hglrc] = runtime;
 			sCurrentRuntimes[hdc] = runtime.get();
+
+			runtime->OnCreate(static_cast<unsigned int>(width), static_cast<unsigned int>(height));
 		}
 		else
 		{
@@ -2568,7 +2697,7 @@ EXPORT BOOL WINAPI wglSwapBuffers(HDC hdc)
 
 	if (it != sCurrentRuntimes.end())
 	{
-		ReShade::Runtime *runtime = it->second;
+		ReShade::OGL4Runtime *runtime = it->second;
 
 		assert(runtime != nullptr);
 
@@ -2650,11 +2779,123 @@ EXPORT BOOL WINAPI wglUseFontOutlinesW(HDC hdc, DWORD dw1, DWORD dw2, DWORD dw3,
 }
 EXPORT PROC WINAPI wglGetProcAddress(LPCSTR lpszProc)
 {
-	const PROC address = ReHook::Call(&wglGetProcAddress)(lpszProc);
-
-	if (address == nullptr || lpszProc == nullptr)
+	if (lpszProc == nullptr)
 	{
 		return nullptr;
+	}
+	
+	#pragma region Convert EXT extensions to core
+	if (strcmp(lpszProc, "glBindFramebufferEXT") == 0)
+	{
+		lpszProc = "glBindFramebuffer";
+	}
+	else if (strcmp(lpszProc, "glBindRenderbufferEXT") == 0)
+	{
+		lpszProc = "glBindRenderbuffer";
+	}
+	else if (strcmp(lpszProc, "glCheckFramebufferStatusEXT") == 0)
+	{
+		lpszProc = "glCheckFramebufferStatus";
+	}
+	else if (strcmp(lpszProc, "glDeleteFramebuffersEXT") == 0)
+	{
+		lpszProc = "glDeleteFramebuffers";
+	}
+	else if (strcmp(lpszProc, "glDeleteRenderbuffersEXT") == 0)
+	{
+		lpszProc = "glDeleteRenderbuffers";
+	}
+	else if (strcmp(lpszProc, "glFramebufferRenderbufferEXT") == 0)
+	{
+		lpszProc = "glFramebufferRenderbuffer";
+	}
+	else if (strcmp(lpszProc, "glFramebufferTexture1DEXT") == 0)
+	{
+		lpszProc = "glFramebufferTexture1D";
+	}
+	else if (strcmp(lpszProc, "glFramebufferTexture2DEXT") == 0)
+	{
+		lpszProc = "glFramebufferTexture2D";
+	}
+	else if (strcmp(lpszProc, "glFramebufferTexture3DEXT") == 0)
+	{
+		lpszProc = "glFramebufferTexture3D";
+	}
+	else if (strcmp(lpszProc, "glGenFramebuffersEXT") == 0)
+	{
+		lpszProc = "glGenFramebuffers";
+	}
+	else if (strcmp(lpszProc, "glGenRenderbuffersEXT") == 0)
+	{
+		lpszProc = "glGenRenderbuffers";
+	}
+	else if (strcmp(lpszProc, "glGetFramebufferAttachmentParameterivEXT") == 0)
+	{
+		lpszProc = "glGetFramebufferAttachmentParameterivEXT";
+	}
+	else if (strcmp(lpszProc, "glGetRenderbufferParameterivEXT") == 0)
+	{
+		lpszProc = "glGetRenderbufferParameteriv";
+	}
+	else if (strcmp(lpszProc, "glIsFramebufferEXT") == 0)
+	{
+		lpszProc = "glIsFramebuffer";
+	}
+	else if (strcmp(lpszProc, "glIsRenderbufferEXT") == 0)
+	{
+		lpszProc = "glIsRenderbuffer";
+	}
+	else if (strcmp(lpszProc, "glRenderbufferStorageEXT") == 0)
+	{
+		lpszProc = "glRenderbufferStorage";
+	}
+	#pragma endregion
+
+	const PROC address = ReHook::Call(&wglGetProcAddress)(lpszProc);
+
+	if (address == nullptr)
+	{
+		return nullptr;
+	}
+	else if (strcmp(lpszProc, "glBindFramebuffer") == 0)
+	{
+		ReHook::Register(reinterpret_cast<ReHook::Hook::Function>(address), reinterpret_cast<ReHook::Hook::Function>(&glBindFramebuffer));
+	}
+	else if (strcmp(lpszProc, "glDrawArrays") == 0)
+	{
+		ReHook::Register(reinterpret_cast<ReHook::Hook::Function>(address), reinterpret_cast<ReHook::Hook::Function>(&glDrawArrays));
+	}
+	else if (strcmp(lpszProc, "glDrawArraysInstanced") == 0)
+	{
+		ReHook::Register(reinterpret_cast<ReHook::Hook::Function>(address), reinterpret_cast<ReHook::Hook::Function>(&glDrawArraysInstanced));
+	}
+	else if (strcmp(lpszProc, "glDrawArraysInstancedBaseInstance") == 0)
+	{
+		ReHook::Register(reinterpret_cast<ReHook::Hook::Function>(address), reinterpret_cast<ReHook::Hook::Function>(&glDrawArraysInstancedBaseInstance));
+	}
+	else if (strcmp(lpszProc, "glDrawElements") == 0)
+	{
+		ReHook::Register(reinterpret_cast<ReHook::Hook::Function>(address), reinterpret_cast<ReHook::Hook::Function>(&glDrawElements));
+	}
+	else if (strcmp(lpszProc, "glDrawElementsBaseVertex") == 0)
+	{
+		ReHook::Register(reinterpret_cast<ReHook::Hook::Function>(address), reinterpret_cast<ReHook::Hook::Function>(&glDrawElementsBaseVertex));
+	}
+	else if (strcmp(lpszProc, "glDrawElementsInstanced") == 0)
+	{
+		ReHook::Register(reinterpret_cast<ReHook::Hook::Function>(address), reinterpret_cast<ReHook::Hook::Function>(&glDrawElementsInstanced));
+	}
+	else if (strcmp(lpszProc, "glDrawElementsInstancedBaseVertex") == 0)
+	{
+		ReHook::Register(reinterpret_cast<ReHook::Hook::Function>(address), reinterpret_cast<ReHook::Hook::Function>(&glDrawElementsInstancedBaseVertex));
+	}
+	else if (strcmp(lpszProc, "glDrawElementsInstancedBaseInstance") == 0)
+	{
+		ReHook::Register(reinterpret_cast<ReHook::Hook::Function>(address), reinterpret_cast<ReHook::Hook::Function>(&glDrawElementsInstancedBaseInstance));
+	}
+	else if (strcmp(lpszProc, "glDrawElementsInstancedBaseVertexBaseInstance") == 0)
+	{
+		ReHook::Register(reinterpret_cast<ReHook::Hook::Function>(address), reinterpret_cast<ReHook::Hook::Function>(&glDrawElementsInstancedBaseVertexBaseInstance));
 	}
 	else if (strcmp(lpszProc, "wglChoosePixelFormatARB") == 0)
 	{

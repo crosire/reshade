@@ -128,6 +128,12 @@ namespace ReShade
 		GLboolean mScissorTest, mBlend, mDepthTest, mDepthMask, mStencilTest, mColorMask[4], mFramebufferSRGB;
 	};
 
+	struct OGL4DepthStencilInfo
+	{
+		GLint Width, Height, Format;
+		GLint DrawCallCount;
+		bool RenderBuffer;
+	};
 	struct OGL4Runtime : public Runtime, public std::enable_shared_from_this<OGL4Runtime>
 	{
 		friend struct OGL4Effect;
@@ -142,14 +148,20 @@ namespace ReShade
 		virtual bool OnCreate(unsigned int width, unsigned int height) override;
 		virtual void OnDelete() override;
 		virtual void OnPresent() override;
+		void OnBindFramebuffer(GLuint framebuffer);
+		void OnDraw(GLsizei vertices);
 
 		virtual std::unique_ptr<Effect> CreateEffect(const EffectTree &ast, std::string &errors) const override;
 		virtual void CreateScreenshot(unsigned char *buffer, std::size_t size) const override;
 
+		void DetectBestDepthStencil();
+
 		HDC mDeviceContext;
 		HGLRC mRenderContext;
 		OGL4StateBlock mStateBlock;
-		GLuint mBackBufferFBO, mBackBufferRBO;
+		GLuint mBackBufferFBO, mBackBufferRBO, mBlitFBO;
+		std::unordered_map<GLuint, OGL4DepthStencilInfo> mDepthStencilTable;
+		GLuint mCurrentDepthStencil, mBestDepthStencil, mBestDepthStencilReplacement;
 		bool mLost, mPresenting;
 	};
 	struct OGL4Effect : public Effect
@@ -174,7 +186,7 @@ namespace ReShade
 		std::vector<std::shared_ptr<OGL4Sampler>> mSamplers;
 		std::unordered_map<std::string, std::unique_ptr<OGL4Constant>> mConstants;
 		std::unordered_map<std::string, std::unique_ptr<OGL4Technique>> mTechniques;
-		GLuint mDefaultVAO, mDefaultVBO, mDefaultFBO, mDepthStencil;
+		GLuint mDefaultVAO, mDefaultVBO, mDepthStencil;
 		std::vector<GLuint> mUniformBuffers;
 		std::vector<std::pair<unsigned char *, std::size_t>> mUniformStorages;
 		mutable bool mUniformDirty;
@@ -195,6 +207,7 @@ namespace ReShade
 		Description mDesc;
 		std::unordered_map<std::string, Effect::Annotation>	mAnnotations;
 		GLuint mID[2];
+		bool mNoDelete;
 	};
 	struct OGL4Sampler
 	{

@@ -2573,7 +2573,7 @@ namespace ReShade
 
 	// -----------------------------------------------------------------------------------------------------
 
-	OGL4Runtime::OGL4Runtime(HDC device, HGLRC context) : mDeviceContext(device), mRenderContext(context), mBackBufferFBO(0), mBackBufferRBO(0), mLost(true), mPresenting(false)
+	OGL4Runtime::OGL4Runtime(HDC device, HGLRC context) : mDeviceContext(device), mRenderContext(context), mBackBufferFBO(0), mBackBufferRBO(0), mBlitFBO(0), mCurrentDepthStencil(0), mBestDepthStencil(0), mBestDepthStencilReplacement(0), mLost(true), mPresenting(false)
 	{
 		this->mRendererId = 0x061;
 
@@ -2628,15 +2628,25 @@ namespace ReShade
 	{
 		this->mStateBlock.Capture();
 
-		GLCHECK(glGenFramebuffers(1, &this->mBackBufferFBO));
 		GLCHECK(glGenRenderbuffers(1, &this->mBackBufferRBO));
-
 		GLCHECK(glBindRenderbuffer(GL_RENDERBUFFER, this->mBackBufferRBO));
 		GLCHECK(glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA8, width, height));
+		GLCHECK(glBindRenderbuffer(GL_RENDERBUFFER, 0));
+
+		GLCHECK(glGenFramebuffers(1, &this->mBackBufferFBO));
 		GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, this->mBackBufferFBO));
 		GLCHECK(glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, this->mBackBufferRBO));
-		GLCHECK(glBindRenderbuffer(GL_RENDERBUFFER, 0));
 		GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, 0));
+
+		GLCHECK(glGenFramebuffers(1, &this->mBlitFBO));
+
+		OGL4DepthStencilInfo defaultinfo;
+		defaultinfo.Width = width;
+		defaultinfo.Height = height;
+		defaultinfo.Format = GL_DEPTH24_STENCIL8;
+		defaultinfo.RenderBuffer = true;
+		defaultinfo.DrawCallCount = 0;
+		this->mDepthStencilTable[0] = defaultinfo;
 
 		this->mNVG = nvgCreateGL3(0);
 
@@ -2660,19 +2670,43 @@ namespace ReShade
 		nvgDeleteGL3(this->mNVG);
 
 		GLCHECK(glDeleteFramebuffers(1, &this->mBackBufferFBO));			
+		GLCHECK(glDeleteFramebuffers(1, &this->mBlitFBO));			
 		GLCHECK(glDeleteRenderbuffers(1, &this->mBackBufferRBO));
+
+		if (this->mBestDepthStencilReplacement != this->mBestDepthStencil)
+		{
+			glDeleteTextures(1, &this->mBestDepthStencilReplacement);
+		}
 
 		this->mStateBlock.Apply();
 
 		this->mNVG = nullptr;
 		this->mBackBufferFBO = 0;
 		this->mBackBufferRBO = 0;
+		this->mBlitFBO = 0;
+		this->mBestDepthStencil = 0;
+		this->mBestDepthStencilReplacement = 0;
 
 		this->mLost = true;
 	}
 	void OGL4Runtime::OnPresent()
 	{
+		DetectBestDepthStencil();
+
 		this->mStateBlock.Capture();
+
+		if (this->mBestDepthStencil == 0 && this->mBestDepthStencilReplacement != 0)
+		{
+			GLCHECK(glBindFramebuffer(GL_READ_FRAMEBUFFER, 0));
+			GLCHECK(glBindFramebuffer(GL_DRAW_FRAMEBUFFER, this->mBlitFBO));
+			GLCHECK(glFramebufferTexture(GL_DRAW_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, this->mBestDepthStencilReplacement, 0));
+			assert(glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
+
+			GLCHECK(glReadBuffer(GL_BACK));
+			GLCHECK(glDrawBuffer(GL_NONE));
+
+			GLCHECK(glBlitFramebuffer(0, 0, this->mWidth, this->mHeight, 0, 0, this->mWidth, this->mHeight, GL_DEPTH_BUFFER_BIT, GL_NEAREST));
+		}
 
 		GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, 0));
 
@@ -2688,6 +2722,86 @@ namespace ReShade
 		}
 
 		this->mStateBlock.Apply();
+	}
+	void OGL4Runtime::OnBindFramebuffer(GLuint framebuffer)
+	{
+		this->mCurrentDepthStencil = 0;
+
+		if (framebuffer == 0)
+		{
+			return;
+		}
+
+		GLint depthstencilType = GL_NONE;
+		GLenum attachment = GL_NONE;
+		GLenum attachments[] = { GL_DEPTH_STENCIL_ATTACHMENT, GL_DEPTH_ATTACHMENT };
+
+		for (int i = 0; i < ARRAYSIZE(attachments); ++i)
+		{
+			glGetFramebufferAttachmentParameteriv(GL_DRAW_FRAMEBUFFER, attachments[i], GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE, &depthstencilType);
+
+			if (glGetError() == GL_NONE && depthstencilType != GL_NONE)
+			{
+				attachment = attachments[i];
+				break;
+			}
+		}
+
+		if (depthstencilType == GL_NONE)
+		{
+			return;
+		}
+
+		GLint depthstencil = 0;
+		GLCHECK(glGetFramebufferAttachmentParameteriv(GL_DRAW_FRAMEBUFFER, attachment, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME, &depthstencil));
+
+		if (depthstencilType == GL_RENDERBUFFER)
+		{
+			depthstencil |= 0x80000000;
+		}
+
+		if (this->mDepthStencilTable.find(depthstencil) == this->mDepthStencilTable.end())
+		{
+			OGL4DepthStencilInfo info = { 0 };
+
+			if (depthstencilType == GL_TEXTURE)
+			{
+				GLint previous = 0;
+				glGetIntegerv(GL_TEXTURE_BINDING_2D, &previous);
+
+				GLCHECK(glBindTexture(GL_TEXTURE_2D, depthstencil));
+				GLCHECK(glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &info.Width));
+				GLCHECK(glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &info.Height));
+				GLCHECK(glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_INTERNAL_FORMAT, &info.Format));
+				GLCHECK(glBindTexture(GL_TEXTURE_2D, previous));
+			}
+			else if (depthstencilType == GL_RENDERBUFFER)
+			{
+				info.RenderBuffer = true;
+
+				GLint previous = 0;
+				glGetIntegerv(GL_RENDERBUFFER_BINDING, &previous);
+
+				GLCHECK(glBindRenderbuffer(GL_RENDERBUFFER, depthstencil ^ 0x80000000));
+				GLCHECK(glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_WIDTH, &info.Width));
+				GLCHECK(glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_HEIGHT, &info.Height));
+				GLCHECK(glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_INTERNAL_FORMAT, &info.Format));
+				GLCHECK(glBindRenderbuffer(GL_RENDERBUFFER, previous));
+			}
+
+			this->mDepthStencilTable.emplace(depthstencil, info);
+		}
+
+		this->mCurrentDepthStencil = depthstencil;
+
+		if (this->mBestDepthStencilReplacement != 0 && depthstencil == this->mBestDepthStencil)
+		{
+			GLCHECK(glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, attachment, GL_TEXTURE_2D, this->mBestDepthStencilReplacement, 0));
+		}
+	}
+	void OGL4Runtime::OnDraw(GLsizei vertices)
+	{
+		this->mDepthStencilTable.at(this->mCurrentDepthStencil).DrawCallCount += vertices;
 	}
 
 	std::unique_ptr<Effect> OGL4Runtime::CreateEffect(const EffectTree &ast, std::string &errors) const
@@ -2734,11 +2848,74 @@ namespace ReShade
 		}
 	}
 
-	OGL4Effect::OGL4Effect(std::shared_ptr<const OGL4Runtime> context) : mEffectContext(context), mDefaultVAO(0), mDefaultVBO(0), mDefaultFBO(0), mDepthStencil(0), mUniformDirty(true)
+	void OGL4Runtime::DetectBestDepthStencil()
+	{
+		static int cooldown = 0;
+
+		if (cooldown-- > 0)
+		{
+			return;
+		}
+		else
+		{
+			cooldown = 10;
+		}
+
+		if (this->mDepthStencilTable.empty())
+		{
+			return;
+		}
+
+		GLuint bestDepthStencil = 0;
+		OGL4DepthStencilInfo info = { 0 };
+
+		for (auto &it : this->mDepthStencilTable)
+		{
+			if (it.second.DrawCallCount == 0)
+			{
+				continue;
+			}
+
+			if (it.second.DrawCallCount >= info.DrawCallCount && (it.second.Width >= info.Width && it.second.Height >= info.Height))
+			{
+				bestDepthStencil = it.first;
+				info = it.second;
+			}
+
+			it.second.DrawCallCount = 0;
+		}
+
+		if (this->mBestDepthStencil != bestDepthStencil || (this->mBestDepthStencil == 0 && this->mBestDepthStencilReplacement == 0))
+		{
+			if (this->mBestDepthStencilReplacement != this->mBestDepthStencil)
+			{
+				glDeleteTextures(1, &this->mBestDepthStencilReplacement);
+			}
+
+			this->mBestDepthStencil = bestDepthStencil;
+
+			if (info.RenderBuffer)
+			{
+				glGenTextures(1, &this->mBestDepthStencilReplacement);
+
+				GLint previous = 0;
+				glGetIntegerv(GL_TEXTURE_BINDING_2D, &previous);
+
+				glBindTexture(GL_TEXTURE_2D, this->mBestDepthStencilReplacement);
+				glTexStorage2D(GL_TEXTURE_2D, 1, info.Format, info.Width, info.Height);
+				glBindTexture(GL_TEXTURE_2D, previous);
+			}
+			else
+			{
+				this->mBestDepthStencilReplacement = bestDepthStencil;
+			}
+		}
+	}
+
+	OGL4Effect::OGL4Effect(std::shared_ptr<const OGL4Runtime> context) : mEffectContext(context), mDefaultVAO(0), mDefaultVBO(0), mDepthStencil(0), mUniformDirty(true)
 	{
 		GLCHECK(glGenVertexArrays(1, &this->mDefaultVAO));
 		GLCHECK(glGenBuffers(1, &this->mDefaultVBO));
-		GLCHECK(glGenFramebuffers(1, &this->mDefaultFBO));
 		GLCHECK(glGenRenderbuffers(1, &this->mDepthStencil));
 
 		GLCHECK(glBindBuffer(GL_ARRAY_BUFFER, this->mDefaultVBO));
@@ -2753,7 +2930,6 @@ namespace ReShade
 	{
 		GLCHECK(glDeleteVertexArrays(1, &this->mDefaultVAO));
 		GLCHECK(glDeleteBuffers(1, &this->mDefaultVBO));
-		GLCHECK(glDeleteFramebuffers(1, &this->mDefaultFBO));			
 		GLCHECK(glDeleteRenderbuffers(1, &this->mDepthStencil));
 		GLCHECK(glDeleteBuffers(this->mUniformBuffers.size(), &this->mUniformBuffers.front()));
 	}
@@ -2828,12 +3004,15 @@ namespace ReShade
 		return names;
 	}
 
-	OGL4Texture::OGL4Texture(OGL4Effect *effect) : mEffect(effect), mID()
+	OGL4Texture::OGL4Texture(OGL4Effect *effect) : mEffect(effect), mID(), mNoDelete(false)
 	{
 	}
 	OGL4Texture::~OGL4Texture()
 	{
-		GLCHECK(glDeleteTextures(2, this->mID));
+		if (!this->mNoDelete)
+		{
+			GLCHECK(glDeleteTextures(2, this->mID));
+		}
 	}
 
 	const Effect::Texture::Description OGL4Texture::GetDescription() const
@@ -3063,9 +3242,8 @@ namespace ReShade
 	void OGL4Texture::UpdateFromColorBuffer()
 	{
 		GLCHECK(glBindFramebuffer(GL_READ_FRAMEBUFFER, this->mEffect->mEffectContext->mBackBufferFBO));
-		GLCHECK(glBindFramebuffer(GL_DRAW_FRAMEBUFFER, this->mEffect->mDefaultFBO));
+		GLCHECK(glBindFramebuffer(GL_DRAW_FRAMEBUFFER, this->mEffect->mEffectContext->mBlitFBO));
 		GLCHECK(glFramebufferTexture(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, this->mID[0], 0));
-
 		assert(glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
 
 		GLCHECK(glReadBuffer(GL_COLOR_ATTACHMENT0));
@@ -3075,6 +3253,18 @@ namespace ReShade
 	}
 	void OGL4Texture::UpdateFromDepthBuffer()
 	{
+		if (this->mID[0] == this->mEffect->mEffectContext->mBestDepthStencilReplacement)
+		{
+			return;
+		}
+
+		if (!this->mNoDelete)
+		{
+			GLCHECK(glDeleteTextures(2, this->mID));
+		}
+
+		this->mID[0] = this->mID[1] = this->mEffect->mEffectContext->mBestDepthStencilReplacement;
+		this->mNoDelete = true;
 	}
 
 	OGL4Constant::OGL4Constant(OGL4Effect *effect) : mEffect(effect)
