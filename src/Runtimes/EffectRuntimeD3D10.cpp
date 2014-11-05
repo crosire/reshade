@@ -16,6 +16,20 @@ namespace ReShade
 {
 	namespace
 	{
+		struct CSLock : boost::noncopyable
+		{
+			CSLock(CRITICAL_SECTION &cs) : mCS(cs)
+			{
+				EnterCriticalSection(&this->mCS);
+			}
+			~CSLock()
+			{
+				LeaveCriticalSection(&this->mCS);
+			}
+
+			CRITICAL_SECTION &mCS;
+		};
+
 		class D3D10EffectCompiler
 		{
 		public:
@@ -1957,9 +1971,9 @@ namespace ReShade
 						texture->mTexture->GetDesc(&desc);
 
 						D3D10_RENDER_TARGET_VIEW_DESC rtvdesc;
-						rtvdesc.ViewDimension = D3D10_RTV_DIMENSION_TEXTURE2D;
-						rtvdesc.Texture2D.MipSlice = 0;
 						rtvdesc.Format = srgb ? TypelessToSRGBFormat(desc.Format) : TypelessToLinearFormat(desc.Format);
+						rtvdesc.ViewDimension = desc.SampleDesc.Count > 1 ? D3D10_RTV_DIMENSION_TEXTURE2DMS : D3D10_RTV_DIMENSION_TEXTURE2D;
+						rtvdesc.Texture2D.MipSlice = 0;
 
 						if (texture->mRenderTargetView[srgb] == nullptr)
 						{
@@ -2146,8 +2160,10 @@ namespace ReShade
 
 	// -----------------------------------------------------------------------------------------------------
 
-	D3D10Runtime::D3D10Runtime(ID3D10Device *device, IDXGISwapChain *swapchain) : mDevice(device), mSwapChain(swapchain), mStateBlock(nullptr), mBackBuffer(nullptr), mBackBufferTexture(nullptr), mBackBufferTargets(), mLost(true)
+	D3D10Runtime::D3D10Runtime(ID3D10Device *device, IDXGISwapChain *swapchain) : mDevice(device), mSwapChain(swapchain), mStateBlock(nullptr), mBackBuffer(nullptr), mBackBufferTexture(nullptr), mBackBufferTargets(), mBestDepthStencil(nullptr), mBestDepthStencilReplacement(nullptr), mDepthStencilShaderResourceView(nullptr), mLost(true)
 	{
+		InitializeCriticalSection(&this->mCS);
+
 		this->mDevice->AddRef();
 		this->mSwapChain->AddRef();
 
@@ -2172,6 +2188,8 @@ namespace ReShade
 	}
 	D3D10Runtime::~D3D10Runtime()
 	{
+		DeleteCriticalSection(&this->mCS);
+
 		assert(this->mLost);
 
 		this->mStateBlock->Release();
@@ -2192,9 +2210,9 @@ namespace ReShade
 		this->mDevice->CreateTexture2D(&bbdesc, nullptr, &this->mBackBufferTexture);
 
 		D3D10_RENDER_TARGET_VIEW_DESC rtdesc;
-		rtdesc.ViewDimension = D3D10_RTV_DIMENSION_TEXTURE2D;
-		rtdesc.Texture2D.MipSlice = 0;
 		rtdesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		rtdesc.ViewDimension = bbdesc.SampleDesc.Count > 1 ? D3D10_RTV_DIMENSION_TEXTURE2DMS : D3D10_RTV_DIMENSION_TEXTURE2D;
+		rtdesc.Texture2D.MipSlice = 0;
 		this->mDevice->CreateRenderTargetView(this->mBackBufferTexture, &rtdesc, &this->mBackBufferTargets[0]);
 		rtdesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
 		this->mDevice->CreateRenderTargetView(this->mBackBufferTexture, &rtdesc, &this->mBackBufferTargets[1]);
@@ -2234,17 +2252,32 @@ namespace ReShade
 			this->mBackBuffer->Release();
 		}
 
+		this->mDepthStencilTable.clear();
+
+		if (this->mBestDepthStencilReplacement != nullptr)
+		{
+			this->mBestDepthStencilReplacement->Release();
+		}
+		if (this->mDepthStencilShaderResourceView != nullptr)
+		{
+			this->mDepthStencilShaderResourceView->Release();
+		}
+
 		this->mNVG = nullptr;
-		this->mStateBlock = nullptr;
 		this->mBackBuffer = nullptr;
 		this->mBackBufferTexture = nullptr;
 		this->mBackBufferTargets[0] = nullptr;
 		this->mBackBufferTargets[1] = nullptr;
+		this->mBestDepthStencil = nullptr;
+		this->mBestDepthStencilReplacement = nullptr;
+		this->mDepthStencilShaderResourceView = nullptr;
 
 		this->mLost = true;
 	}
 	void D3D10Runtime::OnPresent()
 	{
+		DetectBestDepthStencil();
+
 		ID3D10RenderTargetView *stateBlockTargets[D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT] = { nullptr };
 		ID3D10DepthStencilView *stateBlockDepthStencil = nullptr;
 
@@ -2276,6 +2309,25 @@ namespace ReShade
 		if (stateBlockDepthStencil != nullptr)
 		{
 			stateBlockDepthStencil->Release();
+		}
+	}
+	void D3D10Runtime::OnDraw(UINT vertices)
+	{
+		CSLock lock(this->mCS);
+
+		ID3D10DepthStencilView *depthstencil = nullptr;
+		this->mDevice->OMGetRenderTargets(0, nullptr, &depthstencil);
+
+		if (depthstencil != nullptr)
+		{
+			depthstencil->Release();
+
+			if (depthstencil == this->mBestDepthStencilReplacement)
+			{
+				depthstencil = this->mBestDepthStencil;
+			}
+
+			this->mDepthStencilTable.at(depthstencil).DrawCallCount += vertices;
 		}
 	}
 
@@ -2407,6 +2459,162 @@ namespace ReShade
 		textureStaging->Release();
 	}
 
+	void D3D10Runtime::DetectBestDepthStencil()
+	{
+		static int cooldown = 0;
+
+		if (cooldown-- > 0)
+		{
+			return;
+		}
+		else
+		{
+			cooldown = 30;
+		}
+
+		CSLock lock(this->mCS);
+
+		if (this->mDepthStencilTable.empty())
+		{
+			return;
+		}
+
+		DXGI_SWAP_CHAIN_DESC desc;
+		this->mSwapChain->GetDesc(&desc);
+
+		UINT bestDrawCallCount = 0;
+		ID3D10DepthStencilView *bestDepthStencil = nullptr;
+
+		for (auto &it : this->mDepthStencilTable)
+		{
+			if (it.second.DrawCallCount == 0)
+			{
+				continue;
+			}
+
+			if (it.second.DrawCallCount >= bestDrawCallCount && (it.second.Width == desc.BufferDesc.Width && it.second.Height == desc.BufferDesc.Height))
+			{
+				bestDrawCallCount = it.second.DrawCallCount;
+				bestDepthStencil = it.first;
+			}
+
+			it.second.DrawCallCount = 0;
+		}
+
+		if (bestDepthStencil != nullptr && this->mBestDepthStencil != bestDepthStencil)
+		{
+			this->mBestDepthStencil = bestDepthStencil;
+
+			if (this->mBestDepthStencilReplacement != nullptr)
+			{
+				this->mBestDepthStencilReplacement->Release();
+				this->mBestDepthStencilReplacement = nullptr;
+			}
+			if (this->mDepthStencilShaderResourceView != nullptr)
+			{
+				this->mDepthStencilShaderResourceView->Release();
+				this->mDepthStencilShaderResourceView = nullptr;
+			}
+
+			ID3D10Texture2D *texture = nullptr;
+			bestDepthStencil->GetResource(reinterpret_cast<ID3D10Resource **>(&texture));
+
+			D3D10_TEXTURE2D_DESC textureDesc;
+			texture->GetDesc(&textureDesc);
+
+			HRESULT hr = S_OK;
+
+			if ((textureDesc.BindFlags & D3D10_BIND_SHADER_RESOURCE) != 0 && textureDesc.Format == DXGI_FORMAT_R24G8_TYPELESS)
+			{
+				texture->AddRef();
+			}
+			else
+			{
+				texture->Release();
+
+				textureDesc.Format = DXGI_FORMAT_R24G8_TYPELESS;
+				textureDesc.BindFlags = D3D10_BIND_DEPTH_STENCIL | D3D10_BIND_SHADER_RESOURCE;
+
+				hr = this->mDevice->CreateTexture2D(&textureDesc, nullptr, &texture);
+
+				if (SUCCEEDED(hr))
+				{
+					D3D10_DEPTH_STENCIL_VIEW_DESC depthstencilDesc;
+					depthstencilDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+					depthstencilDesc.ViewDimension = textureDesc.SampleDesc.Count > 1 ? D3D10_DSV_DIMENSION_TEXTURE2DMS : D3D10_DSV_DIMENSION_TEXTURE2D;
+					depthstencilDesc.Texture2D.MipSlice = 0;
+
+					this->mDevice->CreateDepthStencilView(texture, &depthstencilDesc, &this->mBestDepthStencilReplacement);
+				}
+				else
+				{
+					LOG(ERROR) << "Failed to create depthstencil replacement texture.";
+				}
+			}
+
+			if (SUCCEEDED(hr))
+			{
+				D3D10_SHADER_RESOURCE_VIEW_DESC textureviewDesc;
+				textureviewDesc.Format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
+				textureviewDesc.ViewDimension = textureDesc.SampleDesc.Count > 1 ? D3D10_SRV_DIMENSION_TEXTURE2DMS : D3D10_SRV_DIMENSION_TEXTURE2D;
+				textureviewDesc.Texture2D.MipLevels = 1;
+				textureviewDesc.Texture2D.MostDetailedMip = 0;
+
+				this->mDevice->CreateShaderResourceView(texture, &textureviewDesc, &this->mDepthStencilShaderResourceView);
+
+				texture->Release();
+
+				// Update auto depthstencil
+				ID3D10RenderTargetView *rendertargets[D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT] = { nullptr };
+				ID3D10DepthStencilView *depthstencil = nullptr;
+
+				this->mDevice->OMGetRenderTargets(D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, rendertargets, &depthstencil);
+
+				if (depthstencil != nullptr)
+				{
+					if (depthstencil == this->mBestDepthStencil)
+					{
+						this->mDevice->OMSetRenderTargets(D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, rendertargets, this->mBestDepthStencilReplacement);
+					}
+
+					depthstencil->Release();
+				}
+			}
+		}
+	}
+	void D3D10Runtime::CreateDepthStencil(ID3D10Resource *resource, ID3D10DepthStencilView *depthstencil)
+	{
+		CSLock lock(this->mCS);
+
+		ID3D10Texture2D *texture = nullptr;
+			
+		const HRESULT hr = resource->QueryInterface(__uuidof(ID3D10Texture2D), reinterpret_cast<void **>(&texture));
+
+		if (SUCCEEDED(hr))
+		{
+			D3D10_TEXTURE2D_DESC desc;
+			texture->GetDesc(&desc);
+
+			D3D10DepthStencilInfo info;
+			info.Width = desc.Width;
+			info.Height = desc.Height;
+			info.DrawCallCount = 0;
+
+			this->mDepthStencilTable.emplace(depthstencil, info);
+
+			texture->Release();
+		}
+	}
+	void D3D10Runtime::ReplaceDepthStencil(ID3D10DepthStencilView **depthstencil)
+	{
+		CSLock lock(this->mCS);
+
+		if (this->mBestDepthStencilReplacement != nullptr && *depthstencil == this->mBestDepthStencil)
+		{
+			*depthstencil = this->mBestDepthStencilReplacement;
+		}
+	}
+
 	D3D10Effect::D3D10Effect(std::shared_ptr<const D3D10Runtime> context) : mEffectContext(context), mConstantsDirty(true)
 	{
 		D3D10_TEXTURE2D_DESC dstdesc;
@@ -2414,16 +2622,16 @@ namespace ReShade
 
 		dstdesc.Format = DXGI_FORMAT_R24G8_TYPELESS;
 		dstdesc.BindFlags = D3D10_BIND_SHADER_RESOURCE | D3D10_BIND_DEPTH_STENCIL;
-
 		D3D10_SHADER_RESOURCE_VIEW_DESC dssdesc;
-		ZeroMemory(&dssdesc, sizeof(D3D10_SHADER_RESOURCE_VIEW_DESC));
-		dssdesc.ViewDimension = D3D10_SRV_DIMENSION_TEXTURE2D;
 		dssdesc.Format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
+		dssdesc.ViewDimension = dstdesc.SampleDesc.Count > 1 ? D3D10_SRV_DIMENSION_TEXTURE2DMS : D3D10_SRV_DIMENSION_TEXTURE2D;
 		dssdesc.Texture2D.MipLevels = 1;
+		dssdesc.Texture2D.MostDetailedMip = 0;
 		D3D10_DEPTH_STENCIL_VIEW_DESC dsdesc;
-		ZeroMemory(&dsdesc, sizeof(D3D10_DEPTH_STENCIL_VIEW_DESC));
 		dsdesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-		dsdesc.ViewDimension = D3D10_DSV_DIMENSION_TEXTURE2D;
+		dsdesc.ViewDimension = dstdesc.SampleDesc.Count > 1 ? D3D10_DSV_DIMENSION_TEXTURE2DMS : D3D10_DSV_DIMENSION_TEXTURE2D;
+		dsdesc.Texture2D.MipSlice = 0;
+
 		context->mDevice->CreateTexture2D(&dstdesc, nullptr, &this->mDepthStencilTexture);
 		context->mDevice->CreateShaderResourceView(this->mDepthStencilTexture, &dssdesc, &this->mDepthStencilView);
 		context->mDevice->CreateDepthStencilView(this->mDepthStencilTexture, &dsdesc, &this->mDepthStencil);
@@ -2626,11 +2834,65 @@ namespace ReShade
 		}
 		else
 		{
-			this->mEffect->mEffectContext->mDevice->ResolveSubresource(this->mTexture, 0, this->mEffect->mEffectContext->mBackBufferTexture, 0, desc.Format);
+			this->mEffect->mEffectContext->mDevice->ResolveSubresource(this->mTexture, 0, this->mEffect->mEffectContext->mBackBufferTexture, 0, D3D10EffectCompiler::TypelessToLinearFormat(desc.Format));
 		}
 	}
 	void D3D10Texture::UpdateFromDepthBuffer()
 	{
+		if (this->mShaderResourceView[0] == this->mEffect->mEffectContext->mDepthStencilShaderResourceView)
+		{
+			return;
+		}
+
+		assert(this->mRenderTargetView[0] == nullptr && this->mRenderTargetView[1] == nullptr);
+
+		if (this->mShaderResourceView[0] != nullptr)
+		{
+			this->mShaderResourceView[0]->Release();
+		}
+		if (this->mShaderResourceView[1] != nullptr)
+		{
+			this->mShaderResourceView[1]->Release();
+		}
+		if (this->mTexture != nullptr)
+		{
+			this->mTexture->Release();
+		}
+
+		ID3D10ShaderResourceView *prevView[2] = { this->mShaderResourceView[0], this->mShaderResourceView[1] };
+
+		this->mTexture = nullptr;
+		this->mShaderResourceView[0] = this->mEffect->mEffectContext->mDepthStencilShaderResourceView;
+		this->mShaderResourceView[1] = nullptr;
+
+		if (this->mShaderResourceView[0] != nullptr)
+		{
+			this->mShaderResourceView[0]->GetResource(reinterpret_cast<ID3D10Resource **>(&this->mTexture));
+
+			D3D10_TEXTURE2D_DESC desc;
+			this->mTexture->GetDesc(&desc);
+
+			this->mDesc.Width = desc.Width;
+			this->mDesc.Height = desc.Height;
+			this->mDesc.Format = Effect::Texture::Format::Unknown;
+			this->mDesc.Levels = desc.MipLevels;
+
+			this->mShaderResourceView[0]->AddRef();
+		}
+
+		for (auto &technique : this->mEffect->mTechniques)
+		{
+			for (auto &pass : technique.second->mPasses)
+			{
+				for (auto &SR : pass.SR)
+				{
+					if (SR == prevView[0] || SR == prevView[1])
+					{
+						SR = this->mShaderResourceView[0];
+					}
+				}
+			}
+		}
 	}
 
 	D3D10Constant::D3D10Constant(D3D10Effect *effect) : mEffect(effect)

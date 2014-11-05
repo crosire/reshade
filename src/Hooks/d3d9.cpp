@@ -643,7 +643,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetDepthStencilSurface(IDirect3DSurfa
 		assert(this->mImplicitSwapChain != nullptr);
 		assert(this->mImplicitSwapChain->mRuntime != nullptr);
 
-		this->mImplicitSwapChain->mRuntime->OnDepthStencil(pNewZStencil);
+		this->mImplicitSwapChain->mRuntime->ReplaceDepthStencil(&pNewZStencil);
 	}
 
 	return this->mOrig->SetDepthStencilSurface(pNewZStencil);
@@ -817,7 +817,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::DrawPrimitive(D3DPRIMITIVETYPE Primit
 	assert(this->mImplicitSwapChain != nullptr);
 	assert(this->mImplicitSwapChain->mRuntime != nullptr);
 
-	this->mImplicitSwapChain->mRuntime->OnDraw();
+	this->mImplicitSwapChain->mRuntime->OnDraw(PrimitiveCount);
 
 	return this->mOrig->DrawPrimitive(PrimitiveType, StartVertex, PrimitiveCount);
 }
@@ -826,7 +826,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::DrawIndexedPrimitive(D3DPRIMITIVETYPE
 	assert(this->mImplicitSwapChain != nullptr);
 	assert(this->mImplicitSwapChain->mRuntime != nullptr);
 
-	this->mImplicitSwapChain->mRuntime->OnDraw();
+	this->mImplicitSwapChain->mRuntime->OnDraw(primCount);
 
 	return this->mOrig->DrawIndexedPrimitive(PrimitiveType, BaseVertexIndex, MinVertexIndex, NumVertices, startIndex, primCount);
 }
@@ -835,7 +835,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::DrawPrimitiveUP(D3DPRIMITIVETYPE Prim
 	assert(this->mImplicitSwapChain != nullptr);
 	assert(this->mImplicitSwapChain->mRuntime != nullptr);
 
-	this->mImplicitSwapChain->mRuntime->OnDraw();
+	this->mImplicitSwapChain->mRuntime->OnDraw(PrimitiveCount);
 
 	return this->mOrig->DrawPrimitiveUP(PrimitiveType, PrimitiveCount, pVertexStreamZeroData, VertexStreamZeroStride);
 }
@@ -844,7 +844,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::DrawIndexedPrimitiveUP(D3DPRIMITIVETY
 	assert(this->mImplicitSwapChain != nullptr);
 	assert(this->mImplicitSwapChain->mRuntime != nullptr);
 
-	this->mImplicitSwapChain->mRuntime->OnDraw();
+	this->mImplicitSwapChain->mRuntime->OnDraw(PrimitiveCount);
 
 	return this->mOrig->DrawIndexedPrimitiveUP(PrimitiveType, MinVertexIndex, NumVertices, PrimitiveCount, pIndexData, IndexDataFormat, pVertexStreamZeroData, VertexStreamZeroStride);
 }

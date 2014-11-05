@@ -2245,27 +2245,7 @@ namespace ReShade
 
 		this->mDevice->EndScene();
 	}
-	void D3D9Runtime::OnDepthStencil(IDirect3DSurface9 *&pNewZStencil)
-	{
-		if (this->mDepthStencilTable.find(pNewZStencil) == this->mDepthStencilTable.end())
-		{
-			D3DSURFACE_DESC desc;
-			pNewZStencil->GetDesc(&desc);
-
-			DepthStencilInfo info;
-			info.Width = desc.Width;
-			info.Height = desc.Height;
-			info.DrawCallCount = 0;
-
-			this->mDepthStencilTable.emplace(pNewZStencil, info);
-		}
-
-		if (this->mBestDepthStencilReplacement != nullptr && pNewZStencil == this->mBestDepthStencil)
-		{
-			pNewZStencil = this->mBestDepthStencilReplacement;
-		}
-	}
-	void D3D9Runtime::OnDraw()
+	void D3D9Runtime::OnDraw(UINT primitives)
 	{
 		IDirect3DSurface9 *depthstencil = nullptr;
 		this->mDevice->GetDepthStencilSurface(&depthstencil);
@@ -2279,7 +2259,7 @@ namespace ReShade
 				depthstencil = this->mBestDepthStencil;
 			}
 
-			this->mDepthStencilTable.at(depthstencil).DrawCallCount++;
+			this->mDepthStencilTable.at(depthstencil).DrawCallCount += primitives;
 		}
 	}
 
@@ -2504,6 +2484,26 @@ namespace ReShade
 			{
 				LOG(ERROR) << "Failed to create depthstencil replacement texture.";
 			}
+		}
+	}
+	void D3D9Runtime::ReplaceDepthStencil(IDirect3DSurface9 **depthstencil)
+	{
+		if (this->mDepthStencilTable.find(*depthstencil) == this->mDepthStencilTable.end())
+		{
+			D3DSURFACE_DESC desc;
+			(*depthstencil)->GetDesc(&desc);
+
+			DepthStencilInfo info;
+			info.Width = desc.Width;
+			info.Height = desc.Height;
+			info.DrawCallCount = 0;
+
+			this->mDepthStencilTable.emplace(*depthstencil, info);
+		}
+
+		if (this->mBestDepthStencilReplacement != nullptr && *depthstencil == this->mBestDepthStencil)
+		{
+			*depthstencil = this->mBestDepthStencilReplacement;
 		}
 	}
 

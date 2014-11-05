@@ -28,13 +28,13 @@ namespace ReShade
 		virtual bool OnCreate(unsigned int width, unsigned int height) override;
 		virtual void OnDelete() override;
 		virtual void OnPresent() override;
-		void OnDepthStencil(IDirect3DSurface9 *&pNewZStencil);
-		void OnDraw();
+		void OnDraw(UINT primitives);
 
 		virtual std::unique_ptr<Effect> CreateEffect(const EffectTree &ast, std::string &errors) const override;
 		virtual void CreateScreenshot(unsigned char *buffer, std::size_t size) const override;
 
 		void DetectBestDepthStencil();
+		void ReplaceDepthStencil(IDirect3DSurface9 **depthstencil);
 
 		IDirect3DDevice9 *mDevice;
 		IDirect3DSwapChain9 *mSwapChain;

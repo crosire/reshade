@@ -25,6 +25,11 @@ namespace ReShade
 		}
 	};
 
+	struct D3D10DepthStencilInfo
+	{
+		UINT Width, Height;
+		UINT DrawCallCount;
+	};
 	struct D3D10Runtime : public Runtime, public std::enable_shared_from_this<D3D10Runtime>
 	{
 		friend struct D3D10Effect;
@@ -38,9 +43,14 @@ namespace ReShade
 		virtual bool OnCreate(unsigned int width, unsigned int height) override;
 		virtual void OnDelete() override;
 		virtual void OnPresent() override;
+		void OnDraw(UINT vertices);
 
 		virtual std::unique_ptr<Effect> CreateEffect(const EffectTree &ast, std::string &errors) const override;
 		virtual void CreateScreenshot(unsigned char *buffer, std::size_t size) const override;
+
+		void DetectBestDepthStencil();
+		void CreateDepthStencil(ID3D10Resource *resource, ID3D10DepthStencilView *depthstencil);
+		void ReplaceDepthStencil(ID3D10DepthStencilView **depthstencil);
 
 		ID3D10Device *mDevice;
 		IDXGISwapChain *mSwapChain;
@@ -48,6 +58,10 @@ namespace ReShade
 		ID3D10Texture2D *mBackBuffer;
 		ID3D10Texture2D *mBackBufferTexture;
 		ID3D10RenderTargetView *mBackBufferTargets[2];
+		std::unordered_map<ID3D10DepthStencilView *, D3D10DepthStencilInfo> mDepthStencilTable;
+		ID3D10DepthStencilView *mBestDepthStencil, *mBestDepthStencilReplacement;
+		ID3D10ShaderResourceView *mDepthStencilShaderResourceView;
+		CRITICAL_SECTION mCS;
 		bool mLost;
 	};
 	struct D3D10Effect : public Effect
