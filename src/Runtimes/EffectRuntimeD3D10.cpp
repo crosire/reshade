@@ -2252,6 +2252,8 @@ namespace ReShade
 			this->mBackBuffer->Release();
 		}
 
+		this->mDepthStencilTable.clear();
+
 		if (this->mBestDepthStencilReplacement != nullptr)
 		{
 			this->mBestDepthStencilReplacement->Release();
@@ -2325,7 +2327,7 @@ namespace ReShade
 				depthstencil = this->mBestDepthStencil;
 			}
 
-			this->mDepthStencilTable.at(depthstencil).DrawCallCount += vertices;
+			this->mDepthStencilTable[depthstencil].DrawCallCount += vertices;
 		}
 	}
 
