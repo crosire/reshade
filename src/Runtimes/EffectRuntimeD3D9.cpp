@@ -2177,8 +2177,6 @@ namespace ReShade
 			this->mBackBuffer->Release();
 		}
 
-		this->mDepthStencilTable.clear();
-
 		if (this->mBestDepthStencilReplacement != nullptr)
 		{
 			this->mBestDepthStencil = nullptr;
