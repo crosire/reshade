@@ -2299,11 +2299,11 @@ namespace ReShade
 
 		this->mDeferredContext->CopyResource(this->mBackBuffer, this->mBackBufferTexture);
 
-		ID3D11CommandList *list;
+		ID3D11CommandList *list = nullptr;
 		this->mDeferredContext->FinishCommandList(FALSE, &list);
 
 		this->mImmediateContext->ExecuteCommandList(list, TRUE);
-		list->Release();
+		list->Release();		
 	}
 	void D3D11Runtime::OnDraw(ID3D11DeviceContext *context, UINT vertices)
 	{
@@ -2344,23 +2344,14 @@ namespace ReShade
 	}
 	void D3D11Runtime::CreateScreenshot(unsigned char *buffer, std::size_t size) const
 	{
-		ID3D11Texture2D *backbuffer = nullptr;
-
-		HRESULT hr = this->mSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), reinterpret_cast<void **>(&backbuffer));
-
-		if (FAILED(hr))
-		{
-			return;
-		}
+		// Flush context
+		ID3D11CommandList *list = nullptr;
+		this->mDeferredContext->FinishCommandList(TRUE, &list);
+		this->mImmediateContext->ExecuteCommandList(list, TRUE);
+		list->Release();
 
 		D3D11_TEXTURE2D_DESC desc;
-		backbuffer->GetDesc(&desc);
-
-		if (desc.Format != DXGI_FORMAT_R8G8B8A8_UNORM && desc.Format != DXGI_FORMAT_R8G8B8A8_UNORM_SRGB && desc.Format != DXGI_FORMAT_B8G8R8A8_UNORM && desc.Format != DXGI_FORMAT_B8G8R8A8_UNORM_SRGB)
-		{
-			backbuffer->Release();
-			return;
-		}
+		this->mBackBufferTexture->GetDesc(&desc);
 
 		ID3D11Texture2D *textureStaging = nullptr;
 
@@ -2369,18 +2360,17 @@ namespace ReShade
 		textureDesc.ArraySize = 1;
 		textureDesc.Width = desc.Width;
 		textureDesc.Height = desc.Height;
-		textureDesc.Format = desc.Format;
+		textureDesc.Format = D3D11EffectCompiler::TypelessToLinearFormat(desc.Format);
 		textureDesc.Usage = D3D11_USAGE_STAGING;
 		textureDesc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
 		textureDesc.MipLevels = 1;
 		textureDesc.SampleDesc.Count = 1;
 		textureDesc.SampleDesc.Quality = 0;
 
-		hr = this->mDevice->CreateTexture2D(&textureDesc, nullptr, &textureStaging);
+		HRESULT hr = this->mDevice->CreateTexture2D(&textureDesc, nullptr, &textureStaging);
 
 		if (FAILED(hr))
 		{
-			backbuffer->Release();
 			return;
 		}
 
@@ -2395,7 +2385,7 @@ namespace ReShade
 
 			if (SUCCEEDED(hr))
 			{
-				this->mImmediateContext->ResolveSubresource(textureResolve, 0, backbuffer, 0, textureDesc.Format);
+				this->mImmediateContext->ResolveSubresource(textureResolve, 0, this->mBackBufferTexture, 0, textureDesc.Format);
 				this->mImmediateContext->CopyResource(textureStaging, textureResolve);
 
 				textureResolve->Release();
@@ -2403,10 +2393,8 @@ namespace ReShade
 		}
 		else
 		{
-			this->mImmediateContext->CopyResource(textureStaging, backbuffer);
+			this->mImmediateContext->CopyResource(textureStaging, this->mBackBufferTexture);
 		}
-
-		backbuffer->Release();
 
 		if (FAILED(hr))
 		{
