@@ -527,9 +527,12 @@ namespace ReHook
 		assert(target != nullptr);
 		assert(replacement != nullptr);
 
-		if (Find(replacement).IsInstalled())
+		const Hook hook = Find(replacement);
+		const HookInfo hookInfo = { hook };
+
+		if (hook.IsInstalled())
 		{
-			return true;
+			return target == hookInfo.Target;
 		}
 
 		return Install(target, replacement);

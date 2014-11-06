@@ -21,11 +21,13 @@
 #undef glDepthRange
 #undef glDisable
 #undef glDrawArrays
+#undef glDrawArraysIndirect
 #undef glDrawArraysInstanced
 #undef glDrawArraysInstancedBaseInstance
 #undef glDrawBuffer
 #undef glDrawElements
 #undef glDrawElementsBaseVertex
+#undef glDrawElementsIndirect
 #undef glDrawElementsInstanced
 #undef glDrawElementsInstancedBaseVertex
 #undef glDrawElementsInstancedBaseInstance
@@ -52,6 +54,11 @@
 #undef glIsTexture
 #undef glLineWidth
 #undef glLogicOp
+#undef glMultiDrawArrays
+#undef glMultiDrawArraysIndirect
+#undef glMultiDrawElements
+#undef glMultiDrawElementsBaseVertex
+#undef glMultiDrawElementsIndirect
 #undef glPixelStoref
 #undef glPixelStorei
 #undef glPointSize
@@ -166,13 +173,13 @@ EXPORT void WINAPI glBegin(GLenum mode)
 
 	trampoline(mode);
 }
-EXPORT void WINAPI glBindFramebuffer(GLenum target, GLuint framebuffer)
+void WINAPI glBindFramebuffer(GLenum target, GLuint framebuffer)
 {
 	static const auto trampoline = ReHook::Call(&glBindFramebuffer);
 
 	trampoline(target, framebuffer);
 
-	if ((target == GL_FRAMEBUFFER || target == GL_DRAW_FRAMEBUFFER) && sCurrentRuntimes.find(sCurrentDeviceContext) != sCurrentRuntimes.end())
+	if (sCurrentRuntimes.find(sCurrentDeviceContext) != sCurrentRuntimes.end())
 	{
 		ReShade::OGL4Runtime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
 
@@ -552,7 +559,13 @@ EXPORT void WINAPI glDrawArrays(GLenum mode, GLint first, GLsizei count)
 
 	trampoline(mode, first, count);
 }
-EXPORT void WINAPI glDrawArraysInstanced(GLenum mode, GLint first, GLsizei count, GLsizei primcount)
+void WINAPI glDrawArraysIndirect(GLenum mode, const GLvoid *indirect)
+{
+	static const auto trampoline = ReHook::Call(&glDrawArraysIndirect);
+
+	trampoline(mode, indirect);
+}
+void WINAPI glDrawArraysInstanced(GLenum mode, GLint first, GLsizei count, GLsizei instancecount)
 {
 	static const auto trampoline = ReHook::Call(&glDrawArraysInstanced);
 
@@ -560,12 +573,12 @@ EXPORT void WINAPI glDrawArraysInstanced(GLenum mode, GLint first, GLsizei count
 	{
 		ReShade::OGL4Runtime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
 
-		runtime->OnDraw(primcount * count);
+		runtime->OnDraw(instancecount * count);
 	}
 
-	trampoline(mode, first, count, primcount);
+	trampoline(mode, first, count, instancecount);
 }
-EXPORT void WINAPI glDrawArraysInstancedBaseInstance(GLenum mode, GLint first, GLsizei count, GLsizei primcount, GLuint baseinstance)
+void WINAPI glDrawArraysInstancedBaseInstance(GLenum mode, GLint first, GLsizei count, GLsizei instancecount, GLuint baseinstance)
 {
 	static const auto trampoline = ReHook::Call(&glDrawArraysInstancedBaseInstance);
 
@@ -573,10 +586,10 @@ EXPORT void WINAPI glDrawArraysInstancedBaseInstance(GLenum mode, GLint first, G
 	{
 		ReShade::OGL4Runtime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
 
-		runtime->OnDraw(primcount * count);
+		runtime->OnDraw(instancecount * count);
 	}
 
-	trampoline(mode, first, count, primcount, baseinstance);
+	trampoline(mode, first, count, instancecount, baseinstance);
 }
 EXPORT void WINAPI glDrawBuffer(GLenum mode)
 {
@@ -597,7 +610,7 @@ EXPORT void WINAPI glDrawElements(GLenum mode, GLsizei count, GLenum type, const
 
 	trampoline(mode, count, type, indices);
 }
-EXPORT void WINAPI glDrawElementsBaseVertex(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLint basevertex)
+void WINAPI glDrawElementsBaseVertex(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLint basevertex)
 {
 	static const auto trampoline = ReHook::Call(&glDrawElementsBaseVertex);
 
@@ -610,7 +623,13 @@ EXPORT void WINAPI glDrawElementsBaseVertex(GLenum mode, GLsizei count, GLenum t
 
 	trampoline(mode, count, type, indices, basevertex);
 }
-EXPORT void WINAPI glDrawElementsInstanced(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLsizei primcount)
+void WINAPI glDrawElementsIndirect(GLenum mode, GLenum type, const GLvoid *indirect)
+{
+	static const auto trampoline = ReHook::Call(&glDrawElementsIndirect);
+
+	trampoline(mode, type, indirect);
+}
+void WINAPI glDrawElementsInstanced(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLsizei instancecount)
 {
 	static const auto trampoline = ReHook::Call(&glDrawElementsInstanced);
 
@@ -618,12 +637,12 @@ EXPORT void WINAPI glDrawElementsInstanced(GLenum mode, GLsizei count, GLenum ty
 	{
 		ReShade::OGL4Runtime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
 
-		runtime->OnDraw(primcount * count);
+		runtime->OnDraw(instancecount * count);
 	}
 
-	trampoline(mode, count, type, indices, primcount);
+	trampoline(mode, count, type, indices, instancecount);
 }
-EXPORT void WINAPI glDrawElementsInstancedBaseVertex(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLsizei primcount, GLint basevertex)
+void WINAPI glDrawElementsInstancedBaseVertex(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLsizei instancecount, GLint basevertex)
 {
 	static const auto trampoline = ReHook::Call(&glDrawElementsInstancedBaseVertex);
 
@@ -631,12 +650,12 @@ EXPORT void WINAPI glDrawElementsInstancedBaseVertex(GLenum mode, GLsizei count,
 	{
 		ReShade::OGL4Runtime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
 
-		runtime->OnDraw(primcount * count);
+		runtime->OnDraw(instancecount * count);
 	}
 
-	trampoline(mode, count, type, indices, primcount, basevertex);
+	trampoline(mode, count, type, indices, instancecount, basevertex);
 }
-EXPORT void WINAPI glDrawElementsInstancedBaseInstance(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLsizei primcount, GLuint baseinstance)
+void WINAPI glDrawElementsInstancedBaseInstance(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLsizei instancecount, GLuint baseinstance)
 {
 	static const auto trampoline = ReHook::Call(&glDrawElementsInstancedBaseInstance);
 
@@ -644,12 +663,12 @@ EXPORT void WINAPI glDrawElementsInstancedBaseInstance(GLenum mode, GLsizei coun
 	{
 		ReShade::OGL4Runtime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
 
-		runtime->OnDraw(primcount * count);
+		runtime->OnDraw(instancecount * count);
 	}
 
-	trampoline(mode, count, type, indices, primcount, baseinstance);
+	trampoline(mode, count, type, indices, instancecount, baseinstance);
 }
-EXPORT void WINAPI glDrawElementsInstancedBaseVertexBaseInstance(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLsizei primcount, GLint basevertex, GLuint baseinstance)
+void WINAPI glDrawElementsInstancedBaseVertexBaseInstance(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLsizei instancecount, GLint basevertex, GLuint baseinstance)
 {
 	static const auto trampoline = ReHook::Call(&glDrawElementsInstancedBaseVertexBaseInstance);
 
@@ -657,10 +676,10 @@ EXPORT void WINAPI glDrawElementsInstancedBaseVertexBaseInstance(GLenum mode, GL
 	{
 		ReShade::OGL4Runtime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
 
-		runtime->OnDraw(primcount * count);
+		runtime->OnDraw(instancecount * count);
 	}
 
-	trampoline(mode, count, type, indices, primcount, basevertex, baseinstance);
+	trampoline(mode, count, type, indices, instancecount, basevertex, baseinstance);
 }
 EXPORT void WINAPI glDrawPixels(GLsizei width, GLsizei height, GLenum format, GLenum type, const GLvoid *pixels)
 {
@@ -1322,6 +1341,78 @@ EXPORT void WINAPI glMultMatrixf(const GLfloat *m)
 	static const auto trampoline = ReHook::Call(&glMultMatrixf);
 
 	trampoline(m);
+}
+void WINAPI glMultiDrawArrays(GLenum mode, const GLint *first, const GLsizei *count, GLsizei drawcount)
+{
+	static const auto trampoline = ReHook::Call(&glMultiDrawArrays);
+
+	if (sCurrentRuntimes.find(sCurrentDeviceContext) != sCurrentRuntimes.end())
+	{
+		ReShade::OGL4Runtime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
+
+		GLsizei totalcount = 0;
+
+		for (GLint i = 0; i < drawcount; ++i)
+		{
+			totalcount += count[i];
+		}
+
+		runtime->OnDraw(totalcount);
+	}
+
+	trampoline(mode, first, count, drawcount);
+}
+void WINAPI glMultiDrawArraysIndirect(GLenum mode, const void *indirect, GLsizei drawcount, GLsizei stride)
+{
+	static const auto trampoline = ReHook::Call(&glMultiDrawArraysIndirect);
+
+	trampoline(mode, indirect, drawcount, stride);
+}
+void WINAPI glMultiDrawElements(GLenum mode, const GLsizei *count, GLenum type, const GLvoid *const *indices, GLsizei drawcount)
+{
+	static const auto trampoline = ReHook::Call(&glMultiDrawElements);
+
+	if (sCurrentRuntimes.find(sCurrentDeviceContext) != sCurrentRuntimes.end())
+	{
+		ReShade::OGL4Runtime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
+
+		GLsizei totalcount = 0;
+
+		for (GLint i = 0; i < drawcount; ++i)
+		{
+			totalcount += count[i];
+		}
+
+		runtime->OnDraw(totalcount);
+	}
+
+	trampoline(mode, count, type, indices, drawcount);
+}
+void WINAPI glMultiDrawElementsBaseVertex(GLenum mode, const GLsizei *count, GLenum type, const GLvoid *const *indices, GLsizei drawcount, const GLint *basevertex)
+{
+	static const auto trampoline = ReHook::Call(&glMultiDrawElementsBaseVertex);
+
+	if (sCurrentRuntimes.find(sCurrentDeviceContext) != sCurrentRuntimes.end())
+	{
+		ReShade::OGL4Runtime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
+
+		GLsizei totalcount = 0;
+
+		for (GLint i = 0; i < drawcount; ++i)
+		{
+			totalcount += count[i];
+		}
+
+		runtime->OnDraw(totalcount);
+	}
+
+	trampoline(mode, count, type, indices, drawcount, basevertex);
+}
+void WINAPI glMultiDrawElementsIndirect(GLenum mode, GLenum type, const void *indirect, GLsizei drawcount, GLsizei stride)
+{
+	static const auto trampoline = ReHook::Call(&glMultiDrawElementsIndirect);
+
+	trampoline(mode, type, indirect, drawcount, stride);
 }
 EXPORT void WINAPI glNewList(GLuint list, GLenum mode)
 {
@@ -2337,7 +2428,7 @@ EXPORT int WINAPI wglChoosePixelFormat(HDC hdc, CONST PIXELFORMATDESCRIPTOR *ppf
 
 	return format;
 }
-EXPORT BOOL WINAPI wglChoosePixelFormatARB(HDC hdc, const int *piAttribIList, const FLOAT *pfAttribFList, UINT nMaxFormats, int *piFormats, UINT *nNumFormats)
+BOOL WINAPI wglChoosePixelFormatARB(HDC hdc, const int *piAttribIList, const FLOAT *pfAttribFList, UINT nMaxFormats, int *piFormats, UINT *nNumFormats)
 {
 	LOG(INFO) << "Redirecting '" << "wglChoosePixelFormatARB" << "(" << hdc << ", " << piAttribIList << ", " << pfAttribFList << ", " << nMaxFormats << ", " << piFormats << ", " << nNumFormats << ")' ...";
 	
@@ -2465,7 +2556,7 @@ EXPORT HGLRC WINAPI wglCreateContext(HDC hdc)
 
 	return hglrc;
 }
-EXPORT HGLRC WINAPI wglCreateContextAttribsARB(HDC hdc, HGLRC hShareContext, const int *attribList)
+HGLRC WINAPI wglCreateContextAttribsARB(HDC hdc, HGLRC hShareContext, const int *attribList)
 {
 	LOG(INFO) << "Redirecting '" << "wglCreateContextAttribsARB" << "(" << hdc << ", " << hShareContext << ", " << attribList << ")' ...";
 
@@ -2625,19 +2716,19 @@ EXPORT int WINAPI wglGetPixelFormat(HDC hdc)
 {
 	return ReHook::Call(&wglGetPixelFormat)(hdc);
 }
-EXPORT BOOL WINAPI wglGetPixelFormatAttribivARB(HDC hdc, int iPixelFormat, int iLayerPlane, UINT nAttributes, const int *piAttributes, int *piValues)
+BOOL WINAPI wglGetPixelFormatAttribivARB(HDC hdc, int iPixelFormat, int iLayerPlane, UINT nAttributes, const int *piAttributes, int *piValues)
 {
 	return ReHook::Call(&wglGetPixelFormatAttribivARB)(hdc, iPixelFormat, iLayerPlane, nAttributes, piAttributes, piValues);
 }
-EXPORT BOOL WINAPI wglGetPixelFormatAttribfvARB(HDC hdc, int iPixelFormat, int iLayerPlane, UINT nAttributes, const int *piAttributes, FLOAT *pfValues)
+BOOL WINAPI wglGetPixelFormatAttribfvARB(HDC hdc, int iPixelFormat, int iLayerPlane, UINT nAttributes, const int *piAttributes, FLOAT *pfValues)
 {
 	return ReHook::Call(&wglGetPixelFormatAttribfvARB)(hdc, iPixelFormat, iLayerPlane, nAttributes, piAttributes, pfValues);
 }
-EXPORT const char *WINAPI wglGetExtensionsStringARB(HDC hdc)
+const char *WINAPI wglGetExtensionsStringARB(HDC hdc)
 {
 	return ReHook::Call(&wglGetExtensionsStringARB)(hdc);
 }
-EXPORT int WINAPI wglGetSwapIntervalEXT()
+int WINAPI wglGetSwapIntervalEXT()
 {
 	static const auto trampoline = ReHook::Call(&wglGetSwapIntervalEXT);
 
@@ -2805,7 +2896,7 @@ EXPORT DWORD WINAPI wglSwapMultipleBuffers(UINT cNumBuffers, CONST WGLSWAP *pBuf
 
 	return 0;
 }
-EXPORT BOOL WINAPI wglSwapIntervalEXT(int interval)
+BOOL WINAPI wglSwapIntervalEXT(int interval)
 {
 	static const auto trampoline = ReHook::Call(&wglSwapIntervalEXT);
 
@@ -2837,13 +2928,15 @@ EXPORT BOOL WINAPI wglUseFontOutlinesW(HDC hdc, DWORD dw1, DWORD dw2, DWORD dw3,
 }
 EXPORT PROC WINAPI wglGetProcAddress(LPCSTR lpszProc)
 {
+	static const auto trampoline = ReHook::Call(&wglGetProcAddress);
+
 	if (lpszProc == nullptr)
 	{
 		return nullptr;
 	}
 	
-	#pragma region Convert EXT extensions to core
-	if (strcmp(lpszProc, "glBindFramebufferEXT") == 0)
+	#pragma region Replace EXT_framebuffer_object with ARB_framebuffer_object
+	else if (strcmp(lpszProc, "glBindFramebufferEXT") == 0)
 	{
 		lpszProc = "glBindFramebuffer";
 	}
@@ -2908,20 +3001,22 @@ EXPORT PROC WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		lpszProc = "glRenderbufferStorage";
 	}
 	#pragma endregion
-	#pragma region Convert ARB extensions to core
-	if (strcmp(lpszProc, "glDrawArraysInstancedARB") == 0)
+	#pragma region Replace EXT_framebuffer_blit with ARB_framebuffer_object
+	else if (strcmp(lpszProc, "glBlitFramebufferEXT") == 0)
 	{
-		lpszProc = "glDrawArraysInstanced";
+		lpszProc = "glBlitFramebuffer";
 	}
-	else if (strcmp(lpszProc, "glDrawElementsInstancedARB") == 0)
+	#pragma endregion
+	#pragma region Replace EXT_framebuffer_multisample with ARB_framebuffer_object
+	else if (strcmp(lpszProc, "glRenderbufferStorageMultisampleEXT") == 0)
 	{
-		lpszProc = "glDrawElementsInstancedARB";
+		lpszProc = "glRenderbufferStorageMultisample";
 	}
 	#pragma endregion
 
-	const PROC address = ReHook::Call(&wglGetProcAddress)(lpszProc);
+	const PROC address = trampoline(lpszProc);
 
-	if (address == nullptr)
+	if (address == nullptr || lpszProc == nullptr)
 	{
 		return nullptr;
 	}
@@ -2929,11 +3024,83 @@ EXPORT PROC WINAPI wglGetProcAddress(LPCSTR lpszProc)
 	{
 		ReHook::Register(reinterpret_cast<ReHook::Hook::Function>(address), reinterpret_cast<ReHook::Hook::Function>(&glBindFramebuffer));
 	}
+	else if (strcmp(lpszProc, "glBindTexture") == 0)
+	{
+		return reinterpret_cast<PROC>(&glBindTexture);
+	}
+	else if (strcmp(lpszProc, "glBlendFunc") == 0)
+	{
+		return reinterpret_cast<PROC>(&glBlendFunc);
+	}
+	else if (strcmp(lpszProc, "glClear") == 0)
+	{
+		return reinterpret_cast<PROC>(&glClear);
+	}
+	else if (strcmp(lpszProc, "glClearColor") == 0)
+	{
+		return reinterpret_cast<PROC>(&glClearColor);
+	}
+	else if (strcmp(lpszProc, "glClearDepth") == 0)
+	{
+		return reinterpret_cast<PROC>(&glClearDepth);
+	}
+	else if (strcmp(lpszProc, "glClearStencil") == 0)
+	{
+		return reinterpret_cast<PROC>(&glClearStencil);
+	}
+	else if (strcmp(lpszProc, "glCopyTexImage1D") == 0)
+	{
+		return reinterpret_cast<PROC>(&glCopyTexImage1D);
+	}
+	else if (strcmp(lpszProc, "glCopyTexImage2D") == 0)
+	{
+		return reinterpret_cast<PROC>(&glCopyTexImage2D);
+	}
+	else if (strcmp(lpszProc, "glCopyTexSubImage1D") == 0)
+	{
+		return reinterpret_cast<PROC>(&glCopyTexSubImage1D);
+	}
+	else if (strcmp(lpszProc, "glCopyTexSubImage2D") == 0)
+	{
+		return reinterpret_cast<PROC>(&glCopyTexSubImage2D);
+	}
+	else if (strcmp(lpszProc, "glCullFace") == 0)
+	{
+		return reinterpret_cast<PROC>(&glCullFace);
+	}
+	else if (strcmp(lpszProc, "glDeleteTextures") == 0)
+	{
+		return reinterpret_cast<PROC>(&glDeleteTextures);
+	}
+	else if (strcmp(lpszProc, "glDepthFunc") == 0)
+	{
+		return reinterpret_cast<PROC>(&glDepthFunc);
+	}
+	else if (strcmp(lpszProc, "glDepthMask") == 0)
+	{
+		return reinterpret_cast<PROC>(&glDepthMask);
+	}
+	else if (strcmp(lpszProc, "glDepthRange") == 0)
+	{
+		return reinterpret_cast<PROC>(&glDepthRange);
+	}
+	else if (strcmp(lpszProc, "glDisable") == 0)
+	{
+		return reinterpret_cast<PROC>(&glDisable);
+	}
 	else if (strcmp(lpszProc, "glDrawArrays") == 0)
 	{
-		ReHook::Register(reinterpret_cast<ReHook::Hook::Function>(address), reinterpret_cast<ReHook::Hook::Function>(&glDrawArrays));
+		return reinterpret_cast<PROC>(&glDrawArrays);
 	}
-	else if (strcmp(lpszProc, "glDrawArraysInstanced") == 0)
+	else if (strcmp(lpszProc, "glDrawArrays") == 0)
+	{
+		return reinterpret_cast<PROC>(&glDrawArrays);
+	}
+	else if (strcmp(lpszProc, "glDrawArraysIndirect") == 0)
+	{
+		ReHook::Register(reinterpret_cast<ReHook::Hook::Function>(address), reinterpret_cast<ReHook::Hook::Function>(&glDrawArraysIndirect));
+	}
+	else if (strcmp(lpszProc, "glDrawArraysInstanced") == 0 || strcmp(lpszProc, "glDrawArraysInstancedARB") == 0)
 	{
 		ReHook::Register(reinterpret_cast<ReHook::Hook::Function>(address), reinterpret_cast<ReHook::Hook::Function>(&glDrawArraysInstanced));
 	}
@@ -2941,15 +3108,23 @@ EXPORT PROC WINAPI wglGetProcAddress(LPCSTR lpszProc)
 	{
 		ReHook::Register(reinterpret_cast<ReHook::Hook::Function>(address), reinterpret_cast<ReHook::Hook::Function>(&glDrawArraysInstancedBaseInstance));
 	}
+	else if (strcmp(lpszProc, "glDrawBuffer") == 0)
+	{
+		return reinterpret_cast<PROC>(&glDrawBuffer);
+	}
 	else if (strcmp(lpszProc, "glDrawElements") == 0)
 	{
-		ReHook::Register(reinterpret_cast<ReHook::Hook::Function>(address), reinterpret_cast<ReHook::Hook::Function>(&glDrawElements));
+		return reinterpret_cast<PROC>(&glDrawElements);
 	}
 	else if (strcmp(lpszProc, "glDrawElementsBaseVertex") == 0)
 	{
 		ReHook::Register(reinterpret_cast<ReHook::Hook::Function>(address), reinterpret_cast<ReHook::Hook::Function>(&glDrawElementsBaseVertex));
 	}
-	else if (strcmp(lpszProc, "glDrawElementsInstanced") == 0)
+	else if (strcmp(lpszProc, "glDrawElementsIndirect") == 0)
+	{
+		ReHook::Register(reinterpret_cast<ReHook::Hook::Function>(address), reinterpret_cast<ReHook::Hook::Function>(&glDrawElementsIndirect));
+	}
+	else if (strcmp(lpszProc, "glDrawElementsInstanced") == 0 || strcmp(lpszProc, "glDrawElementsInstancedARB") == 0)
 	{
 		ReHook::Register(reinterpret_cast<ReHook::Hook::Function>(address), reinterpret_cast<ReHook::Hook::Function>(&glDrawElementsInstanced));
 	}
@@ -2964,6 +3139,194 @@ EXPORT PROC WINAPI wglGetProcAddress(LPCSTR lpszProc)
 	else if (strcmp(lpszProc, "glDrawElementsInstancedBaseVertexBaseInstance") == 0)
 	{
 		ReHook::Register(reinterpret_cast<ReHook::Hook::Function>(address), reinterpret_cast<ReHook::Hook::Function>(&glDrawElementsInstancedBaseVertexBaseInstance));
+	}
+	else if (strcmp(lpszProc, "glEnable") == 0)
+	{
+		return reinterpret_cast<PROC>(&glEnable);
+	}
+	else if (strcmp(lpszProc, "glFinish") == 0)
+	{
+		return reinterpret_cast<PROC>(&glFinish);
+	}
+	else if (strcmp(lpszProc, "glFlush") == 0)
+	{
+		return reinterpret_cast<PROC>(&glFlush);
+	}
+	else if (strcmp(lpszProc, "glFrontFace") == 0)
+	{
+		return reinterpret_cast<PROC>(&glFrontFace);
+	}
+	else if (strcmp(lpszProc, "glGenTextures") == 0)
+	{
+		return reinterpret_cast<PROC>(&glGenTextures);
+	}
+	else if (strcmp(lpszProc, "glGetBooleanv") == 0)
+	{
+		return reinterpret_cast<PROC>(&glGetBooleanv);
+	}
+	else if (strcmp(lpszProc, "glGetDoublev") == 0)
+	{
+		return reinterpret_cast<PROC>(&glGetDoublev);
+	}
+	else if (strcmp(lpszProc, "glGetFloatv") == 0)
+	{
+		return reinterpret_cast<PROC>(&glGetFloatv);
+	}
+	else if (strcmp(lpszProc, "glGetIntegerv") == 0)
+	{
+		return reinterpret_cast<PROC>(&glGetIntegerv);
+	}
+	else if (strcmp(lpszProc, "glGetError") == 0)
+	{
+		return reinterpret_cast<PROC>(&glGetError);
+	}
+	else if (strcmp(lpszProc, "glGetPointerv") == 0)
+	{
+		return reinterpret_cast<PROC>(&glGetPointerv);
+	}
+	else if (strcmp(lpszProc, "glGetString") == 0)
+	{
+		return reinterpret_cast<PROC>(&glGetString);
+	}
+	else if (strcmp(lpszProc, "glGetTexImage") == 0)
+	{
+		return reinterpret_cast<PROC>(&glGetTexImage);
+	}
+	else if (strcmp(lpszProc, "glGetTexLevelParameterfv") == 0)
+	{
+		return reinterpret_cast<PROC>(&glGetTexLevelParameterfv);
+	}
+	else if (strcmp(lpszProc, "glGetTexLevelParameteriv") == 0)
+	{
+		return reinterpret_cast<PROC>(&glGetTexLevelParameteriv);
+	}
+	else if (strcmp(lpszProc, "glGetTexParameterfv") == 0)
+	{
+		return reinterpret_cast<PROC>(&glGetTexParameterfv);
+	}
+	else if (strcmp(lpszProc, "glGetTexParameteriv") == 0)
+	{
+		return reinterpret_cast<PROC>(&glGetTexParameteriv);
+	}
+	else if (strcmp(lpszProc, "glHint") == 0)
+	{
+		return reinterpret_cast<PROC>(&glHint);
+	}
+	else if (strcmp(lpszProc, "glIsEnabled") == 0)
+	{
+		return reinterpret_cast<PROC>(&glIsEnabled);
+	}
+	else if (strcmp(lpszProc, "glIsTexture") == 0)
+	{
+		return reinterpret_cast<PROC>(&glIsTexture);
+	}
+	else if (strcmp(lpszProc, "glLineWidth") == 0)
+	{
+		return reinterpret_cast<PROC>(&glLineWidth);
+	}
+	else if (strcmp(lpszProc, "glLogicOp") == 0)
+	{
+		return reinterpret_cast<PROC>(&glLogicOp);
+	}
+	else if (strcmp(lpszProc, "glMultiDrawArrays") == 0)
+	{
+		ReHook::Register(reinterpret_cast<ReHook::Hook::Function>(address), reinterpret_cast<ReHook::Hook::Function>(&glMultiDrawArrays));
+	}
+	else if (strcmp(lpszProc, "glMultiDrawArraysIndirect") == 0)
+	{
+		ReHook::Register(reinterpret_cast<ReHook::Hook::Function>(address), reinterpret_cast<ReHook::Hook::Function>(&glMultiDrawArraysIndirect));
+	}
+	else if (strcmp(lpszProc, "glMultiDrawElements") == 0)
+	{
+		ReHook::Register(reinterpret_cast<ReHook::Hook::Function>(address), reinterpret_cast<ReHook::Hook::Function>(&glMultiDrawElements));
+	}
+	else if (strcmp(lpszProc, "glMultiDrawElementsBaseVertex") == 0)
+	{
+		ReHook::Register(reinterpret_cast<ReHook::Hook::Function>(address), reinterpret_cast<ReHook::Hook::Function>(&glMultiDrawElementsBaseVertex));
+	}
+	else if (strcmp(lpszProc, "glMultiDrawElementsIndirect") == 0)
+	{
+		ReHook::Register(reinterpret_cast<ReHook::Hook::Function>(address), reinterpret_cast<ReHook::Hook::Function>(&glMultiDrawElementsIndirect));
+	}
+	else if (strcmp(lpszProc, "glPixelStoref") == 0)
+	{
+		return reinterpret_cast<PROC>(&glPixelStoref);
+	}
+	else if (strcmp(lpszProc, "glPixelStorei") == 0)
+	{
+		return reinterpret_cast<PROC>(&glPixelStorei);
+	}
+	else if (strcmp(lpszProc, "glPointSize") == 0)
+	{
+		return reinterpret_cast<PROC>(&glPointSize);
+	}
+	else if (strcmp(lpszProc, "glPolygonMode") == 0)
+	{
+		return reinterpret_cast<PROC>(&glPolygonMode);
+	}
+	else if (strcmp(lpszProc, "glPolygonOffset") == 0)
+	{
+		return reinterpret_cast<PROC>(&glPolygonOffset);
+	}
+	else if (strcmp(lpszProc, "glReadBuffer") == 0)
+	{
+		return reinterpret_cast<PROC>(&glReadBuffer);
+	}
+	else if (strcmp(lpszProc, "glReadPixels") == 0)
+	{
+		return reinterpret_cast<PROC>(&glReadPixels);
+	}
+	else if (strcmp(lpszProc, "glScissor") == 0)
+	{
+		return reinterpret_cast<PROC>(&glScissor);
+	}
+	else if (strcmp(lpszProc, "glStencilFunc") == 0)
+	{
+		return reinterpret_cast<PROC>(&glStencilFunc);
+	}
+	else if (strcmp(lpszProc, "glStencilMask") == 0)
+	{
+		return reinterpret_cast<PROC>(&glStencilMask);
+	}
+	else if (strcmp(lpszProc, "glStencilOp") == 0)
+	{
+		return reinterpret_cast<PROC>(&glStencilOp);
+	}
+	else if (strcmp(lpszProc, "glTexImage1D") == 0)
+	{
+		return reinterpret_cast<PROC>(&glTexImage1D);
+	}
+	else if (strcmp(lpszProc, "glTexImage2D") == 0)
+	{
+		return reinterpret_cast<PROC>(&glTexImage2D);
+	}
+	else if (strcmp(lpszProc, "glTexParameterf") == 0)
+	{
+		return reinterpret_cast<PROC>(&glTexParameterf);
+	}
+	else if (strcmp(lpszProc, "glTexParameterfv") == 0)
+	{
+		return reinterpret_cast<PROC>(&glTexParameterfv);
+	}
+	else if (strcmp(lpszProc, "glTexParameteri") == 0)
+	{
+		return reinterpret_cast<PROC>(&glTexParameteri);
+	}
+	else if (strcmp(lpszProc, "glTexParameteriv") == 0)
+	{
+		return reinterpret_cast<PROC>(&glTexParameteriv);
+	}
+	else if (strcmp(lpszProc, "glTexSubImage1D") == 0)
+	{
+		return reinterpret_cast<PROC>(&glTexSubImage1D);
+	}
+	else if (strcmp(lpszProc, "glTexSubImage2D") == 0)
+	{
+		return reinterpret_cast<PROC>(&glTexSubImage2D);
+	}
+	else if (strcmp(lpszProc, "glViewport") == 0)
+	{
+		return reinterpret_cast<PROC>(&glViewport);
 	}
 	else if (strcmp(lpszProc, "wglChoosePixelFormatARB") == 0)
 	{
