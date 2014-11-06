@@ -235,7 +235,7 @@ tools\upx --backup "$(TargetPath)"</Command>
     <ClCompile Include="src\Runtimes\EffectRuntimeD3D9.cpp" />
     <ClCompile Include="src\Runtimes\EffectRuntimeD3D10.cpp" />
     <ClCompile Include="src\Runtimes\EffectRuntimeD3D11.cpp" />
-    <ClCompile Include="src\Runtimes\EffectRuntimeOGL4.cpp" />
+    <ClCompile Include="src\Runtimes\EffectRuntimeGL.cpp" />
     <ClCompile Include="obj\$(Platform)\$(Configuration)\EffectLexer.cpp" />
     <ClCompile Include="obj\$(Platform)\$(Configuration)\EffectParser.cpp" />
     <ClCompile Include="src\Hook.cpp" />
@@ -268,7 +268,7 @@ tools\upx --backup "$(TargetPath)"</Command>
     <ClInclude Include="src\Runtimes\EffectRuntimeD3D10.hpp" />
     <ClInclude Include="src\Runtimes\EffectRuntimeD3D11.hpp" />
     <ClInclude Include="src\Runtimes\EffectRuntimeD3D9.hpp" />
-    <ClInclude Include="src\Runtimes\EffectRuntimeOGL4.hpp" />
+    <ClInclude Include="src\Runtimes\EffectRuntimeGL.hpp" />
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="src\EffectLexer.l">

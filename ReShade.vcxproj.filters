@@ -66,12 +66,12 @@
     <ClCompile Include="src\Runtimes\EffectRuntimeD3D11.cpp">
       <Filter>Effect Runtimes</Filter>
     </ClCompile>
-    <ClCompile Include="src\Runtimes\EffectRuntimeOGL4.cpp">
-      <Filter>Effect Runtimes</Filter>
-    </ClCompile>
     <ClCompile Include="src\Main.cpp" />
     <ClCompile Include="src\Runtime.cpp" />
     <ClCompile Include="src\FileWatcher.cpp" />
+    <ClCompile Include="src\Runtimes\EffectRuntimeGL.cpp">
+      <Filter>Effect Runtimes</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="res\Resource.h">
@@ -110,12 +110,12 @@
     <ClInclude Include="src\Runtimes\EffectRuntimeD3D11.hpp">
       <Filter>Effect Runtimes</Filter>
     </ClInclude>
-    <ClInclude Include="src\Runtimes\EffectRuntimeOGL4.hpp">
-      <Filter>Effect Runtimes</Filter>
-    </ClInclude>
     <ClInclude Include="src\Log.hpp" />
     <ClInclude Include="src\Runtime.hpp" />
     <ClInclude Include="src\FileWatcher.hpp" />
+    <ClInclude Include="src\Runtimes\EffectRuntimeGL.hpp">
+      <Filter>Effect Runtimes</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="res\Resource.rc">

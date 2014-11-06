@@ -1,6 +1,6 @@
 #include "Log.hpp"
 #include "EffectParserTree.hpp"
-#include "EffectRuntimeOGL4.hpp"
+#include "EffectRuntimeGL.hpp"
 
 #include <boost\algorithm\string.hpp>
 #include <nanovg_gl.h>
@@ -11,14 +11,14 @@ namespace ReShade
 {
 	namespace
 	{
-		class OGL4EffectCompiler
+		class GLEffectCompiler
 		{
 		public:
-			OGL4EffectCompiler(const EffectTree &ast) : mAST(ast), mEffect(nullptr), mCurrentFunction(EffectTree::Null), mCurrentInParameterBlock(false), mCurrentInFunctionBlock(false), mCurrentGlobalSize(0), mCurrentGlobalStorageSize(0)
+			GLEffectCompiler(const EffectTree &ast) : mAST(ast), mEffect(nullptr), mCurrentFunction(EffectTree::Null), mCurrentInParameterBlock(false), mCurrentInFunctionBlock(false), mCurrentGlobalSize(0), mCurrentGlobalStorageSize(0)
 			{
 			}
 
-			bool Traverse(OGL4Effect *effect, std::string &errors)
+			bool Traverse(GLEffect *effect, std::string &errors)
 			{
 				this->mEffect = effect;
 				this->mErrors.clear();
@@ -1751,7 +1751,7 @@ namespace ReShade
 					LiteralToFormat(this->mAST[node.Properties[EffectNodes::Variable::Format]].As<EffectNodes::Literal>().Value.Uint[0], internalformat, internalformatSRGB, format);
 				}
 
-				std::unique_ptr<OGL4Texture> obj(new OGL4Texture(this->mEffect));
+				std::unique_ptr<GLTexture> obj(new GLTexture(this->mEffect));
 				obj->mDesc.Width = width;
 				obj->mDesc.Height = height;
 				obj->mDesc.Levels = levels;
@@ -1795,7 +1795,7 @@ namespace ReShade
 					return;
 				}
 
-				std::shared_ptr<OGL4Sampler> obj = std::make_shared<OGL4Sampler>();
+				std::shared_ptr<GLSampler> obj = std::make_shared<GLSampler>();
 				obj->mTexture = this->mEffect->mTextures.at(this->mAST[node.Properties[EffectNodes::Variable::Texture]].As<EffectNodes::Variable>().Name).get();
 				obj->mSRGB = node.Properties[EffectNodes::Variable::SRGBTexture] != 0 && this->mAST[node.Properties[EffectNodes::Variable::SRGBTexture]].As<EffectNodes::Literal>().Value.Bool[0] != 0;
 
@@ -1849,7 +1849,7 @@ namespace ReShade
 
 				this->mCurrentGlobalConstants += ";\n";
 
-				std::unique_ptr<OGL4Constant> obj(new OGL4Constant(this->mEffect));
+				std::unique_ptr<GLConstant> obj(new GLConstant(this->mEffect));
 				obj->mDesc.Rows = node.Type.Rows;
 				obj->mDesc.Columns = node.Type.Cols;
 				obj->mDesc.Elements = node.Type.ArrayLength;
@@ -1938,7 +1938,7 @@ namespace ReShade
 
 					Visit(field);
 
-					std::unique_ptr<OGL4Constant> obj(new OGL4Constant(this->mEffect));
+					std::unique_ptr<GLConstant> obj(new GLConstant(this->mEffect));
 					obj->mDesc.Rows = field.Type.Rows;
 					obj->mDesc.Columns = field.Type.Cols;
 					obj->mDesc.Elements = field.Type.ArrayLength;
@@ -1992,7 +1992,7 @@ namespace ReShade
 
 				this->mCurrentSource += "};\n";
 
-				std::unique_ptr<OGL4Constant> obj(new OGL4Constant(this->mEffect));
+				std::unique_ptr<GLConstant> obj(new GLConstant(this->mEffect));
 				obj->mDesc.Type = Effect::Constant::Type::Struct;
 				obj->mDesc.Rows = 0;
 				obj->mDesc.Columns = 0;
@@ -2080,7 +2080,7 @@ namespace ReShade
 			}
 			void Visit(const EffectNodes::Technique &node)
 			{
-				std::unique_ptr<OGL4Technique> obj(new OGL4Technique(this->mEffect));
+				std::unique_ptr<GLTechnique> obj(new GLTechnique(this->mEffect));
 
 				const auto &passes = this->mAST[node.Passes].As<EffectNodes::List>();
 
@@ -2115,8 +2115,8 @@ namespace ReShade
 			}
 			void Visit(const EffectNodes::Pass &node)
 			{
-				OGL4Technique::Pass pass;
-				ZeroMemory(&pass, sizeof(OGL4Technique::Pass));
+				GLTechnique::Pass pass;
+				ZeroMemory(&pass, sizeof(GLTechnique::Pass));
 
 				if (node.States[EffectNodes::Pass::ColorWriteMask] != 0)
 				{
@@ -2176,7 +2176,7 @@ namespace ReShade
 							return;
 						}
 
-						const OGL4Texture *texture = it->second.get();
+						const GLTexture *texture = it->second.get();
 
 						if ((texture->mDesc.Width != static_cast<unsigned int>(pass.ViewportWidth) || texture->mDesc.Height != static_cast<unsigned int>(pass.ViewportHeight)) && !(pass.ViewportWidth == 0 && pass.ViewportHeight == 0))
 						{
@@ -2557,7 +2557,7 @@ namespace ReShade
 
 		private:
 			const EffectTree &mAST;
-			OGL4Effect *mEffect;
+			GLEffect *mEffect;
 			std::string mCurrentSource;
 			std::string mErrors;
 			bool mFatal;
@@ -2567,13 +2567,13 @@ namespace ReShade
 			EffectTree::Index mCurrentFunction;
 			bool mCurrentInParameterBlock, mCurrentInFunctionBlock;
 			std::unordered_map<std::string, Effect::Annotation> *mCurrentAnnotations;
-			std::vector<OGL4Technique::Pass> *mCurrentPasses;
+			std::vector<GLTechnique::Pass> *mCurrentPasses;
 		};
 	}
 
 	// -----------------------------------------------------------------------------------------------------
 
-	OGL4Runtime::OGL4Runtime(HDC device, HGLRC context) : mDeviceContext(device), mRenderContext(context), mBackBufferFBO(0), mBackBufferRBO(0), mBlitFBO(0), mCurrentDepthStencil(0), mBestDepthStencil(0), mBestDepthStencilReplacement(0), mLost(true), mPresenting(false)
+	GLRuntime::GLRuntime(HDC device, HGLRC context) : mDeviceContext(device), mRenderContext(context), mBackBufferFBO(0), mBackBufferRBO(0), mBlitFBO(0), mCurrentDepthStencil(0), mBestDepthStencil(0), mBestDepthStencilReplacement(0), mLost(true), mPresenting(false)
 	{
 		this->mRendererId = 0x061;
 
@@ -2619,12 +2619,12 @@ namespace ReShade
 			}
 		}
 	}
-	OGL4Runtime::~OGL4Runtime()
+	GLRuntime::~GLRuntime()
 	{
 		assert(this->mLost);
 	}
 
-	bool OGL4Runtime::OnCreate(unsigned int width, unsigned int height)
+	bool GLRuntime::OnCreate(unsigned int width, unsigned int height)
 	{
 		this->mStateBlock.Capture();
 
@@ -2640,7 +2640,7 @@ namespace ReShade
 
 		GLCHECK(glGenFramebuffers(1, &this->mBlitFBO));
 
-		OGL4DepthStencilInfo defaultinfo;
+		GLDepthStencilInfo defaultinfo;
 		defaultinfo.Width = width;
 		defaultinfo.Height = height;
 		defaultinfo.Format = GL_DEPTH24_STENCIL8;
@@ -2660,7 +2660,7 @@ namespace ReShade
 
 		return res;
 	}
-	void OGL4Runtime::OnDelete()
+	void GLRuntime::OnDelete()
 	{
 		if (!this->mPresenting)
 		{
@@ -2691,7 +2691,7 @@ namespace ReShade
 
 		this->mLost = true;
 	}
-	void OGL4Runtime::OnPresent()
+	void GLRuntime::OnPresent()
 	{
 		DetectBestDepthStencil();
 
@@ -2725,7 +2725,7 @@ namespace ReShade
 
 		this->mStateBlock.Apply();
 	}
-	void OGL4Runtime::OnBindFramebuffer(GLuint framebuffer)
+	void GLRuntime::OnBindFramebuffer(GLuint framebuffer)
 	{
 		this->mCurrentDepthStencil = 0;
 
@@ -2774,7 +2774,7 @@ namespace ReShade
 
 		if (this->mDepthStencilTable.find(depthstencil) == this->mDepthStencilTable.end())
 		{
-			OGL4DepthStencilInfo info = { 0 };
+			GLDepthStencilInfo info = { 0 };
 			info.Framebuffer = framebuffer;
 			info.Attachment = attachment;
 
@@ -2811,16 +2811,16 @@ namespace ReShade
 			GLCHECK(glFramebufferTexture(GL_DRAW_FRAMEBUFFER, attachment, this->mBestDepthStencilReplacement, 0));
 		}
 	}
-	void OGL4Runtime::OnDraw(GLsizei vertices)
+	void GLRuntime::OnDraw(GLsizei vertices)
 	{
 		this->mDepthStencilTable.at(this->mCurrentDepthStencil).DrawCallCount += vertices;
 	}
 
-	std::unique_ptr<Effect> OGL4Runtime::CreateEffect(const EffectTree &ast, std::string &errors) const
+	std::unique_ptr<Effect> GLRuntime::CreateEffect(const EffectTree &ast, std::string &errors) const
 	{
-		OGL4Effect *effect = new OGL4Effect(shared_from_this());
+		GLEffect *effect = new GLEffect(shared_from_this());
 			
-		OGL4EffectCompiler visitor(ast);
+		GLEffectCompiler visitor(ast);
 		
 		if (visitor.Traverse(effect, errors))
 		{
@@ -2833,7 +2833,7 @@ namespace ReShade
 			return nullptr;
 		}
 	}
-	void OGL4Runtime::CreateScreenshot(unsigned char *buffer, std::size_t size) const
+	void GLRuntime::CreateScreenshot(unsigned char *buffer, std::size_t size) const
 	{
 		GLCHECK(glReadBuffer(GL_BACK));
 
@@ -2860,7 +2860,7 @@ namespace ReShade
 		}
 	}
 
-	void OGL4Runtime::DetectBestDepthStencil()
+	void GLRuntime::DetectBestDepthStencil()
 	{
 		static int cooldown = 0;
 
@@ -2879,7 +2879,7 @@ namespace ReShade
 		}
 
 		GLuint bestDepthStencil = 0;
-		OGL4DepthStencilInfo info = { 0 };
+		GLDepthStencilInfo info = { 0 };
 
 		for (auto &it : this->mDepthStencilTable)
 		{
@@ -2935,7 +2935,7 @@ namespace ReShade
 		}
 	}
 
-	OGL4Effect::OGL4Effect(std::shared_ptr<const OGL4Runtime> context) : mEffectContext(context), mDefaultVAO(0), mDefaultVBO(0), mDepthStencil(0), mUniformDirty(true)
+	GLEffect::GLEffect(std::shared_ptr<const GLRuntime> context) : mEffectContext(context), mDefaultVAO(0), mDefaultVBO(0), mDepthStencil(0), mUniformDirty(true)
 	{
 		GLCHECK(glGenVertexArrays(1, &this->mDefaultVAO));
 		GLCHECK(glGenBuffers(1, &this->mDefaultVBO));
@@ -2949,7 +2949,7 @@ namespace ReShade
 		GLCHECK(glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, this->mEffectContext->mWidth, this->mEffectContext->mHeight));
 		GLCHECK(glBindRenderbuffer(GL_RENDERBUFFER, 0));
 	}
-	OGL4Effect::~OGL4Effect()
+	GLEffect::~GLEffect()
 	{
 		GLCHECK(glDeleteVertexArrays(1, &this->mDefaultVAO));
 		GLCHECK(glDeleteBuffers(1, &this->mDefaultVBO));
@@ -2957,7 +2957,7 @@ namespace ReShade
 		GLCHECK(glDeleteBuffers(this->mUniformBuffers.size(), &this->mUniformBuffers.front()));
 	}
 
-	const Effect::Texture *OGL4Effect::GetTexture(const std::string &name) const
+	const Effect::Texture *GLEffect::GetTexture(const std::string &name) const
 	{
 		auto it = this->mTextures.find(name);
 
@@ -2968,7 +2968,7 @@ namespace ReShade
 
 		return it->second.get();
 	}
-	std::vector<std::string> OGL4Effect::GetTextureNames() const
+	std::vector<std::string> GLEffect::GetTextureNames() const
 	{
 		std::vector<std::string> names;
 		names.reserve(this->mTextures.size());
@@ -2980,7 +2980,7 @@ namespace ReShade
 
 		return names;
 	}
-	const Effect::Constant *OGL4Effect::GetConstant(const std::string &name) const
+	const Effect::Constant *GLEffect::GetConstant(const std::string &name) const
 	{
 		auto it = this->mConstants.find(name);
 
@@ -2991,7 +2991,7 @@ namespace ReShade
 
 		return it->second.get();
 	}
-	std::vector<std::string> OGL4Effect::GetConstantNames() const
+	std::vector<std::string> GLEffect::GetConstantNames() const
 	{
 		std::vector<std::string> names;
 		names.reserve(this->mConstants.size());
@@ -3003,7 +3003,7 @@ namespace ReShade
 
 		return names;
 	}
-	const Effect::Technique *OGL4Effect::GetTechnique(const std::string &name) const
+	const Effect::Technique *GLEffect::GetTechnique(const std::string &name) const
 	{
 		auto it = this->mTechniques.find(name);
 
@@ -3014,7 +3014,7 @@ namespace ReShade
 
 		return it->second.get();
 	}
-	std::vector<std::string> OGL4Effect::GetTechniqueNames() const
+	std::vector<std::string> GLEffect::GetTechniqueNames() const
 	{
 		std::vector<std::string> names;
 		names.reserve(this->mTechniques.size());
@@ -3027,10 +3027,10 @@ namespace ReShade
 		return names;
 	}
 
-	OGL4Texture::OGL4Texture(OGL4Effect *effect) : mEffect(effect), mID(), mNoDelete(false)
+	GLTexture::GLTexture(GLEffect *effect) : mEffect(effect), mID(), mNoDelete(false)
 	{
 	}
-	OGL4Texture::~OGL4Texture()
+	GLTexture::~GLTexture()
 	{
 		if (!this->mNoDelete)
 		{
@@ -3038,11 +3038,11 @@ namespace ReShade
 		}
 	}
 
-	const Effect::Texture::Description OGL4Texture::GetDescription() const
+	const Effect::Texture::Description GLTexture::GetDescription() const
 	{
 		return this->mDesc;
 	}
-	const Effect::Annotation OGL4Texture::GetAnnotation(const std::string &name) const
+	const Effect::Annotation GLTexture::GetAnnotation(const std::string &name) const
 	{
 		auto it = this->mAnnotations.find(name);
 
@@ -3204,7 +3204,7 @@ namespace ReShade
 		}
 	}
 
-	void OGL4Texture::Update(unsigned int level, const unsigned char *data, std::size_t size)
+	void GLTexture::Update(unsigned int level, const unsigned char *data, std::size_t size)
 	{
 		assert(data != nullptr && size != 0);
 
@@ -3262,7 +3262,7 @@ namespace ReShade
 
 		GLCHECK(glBindTexture(GL_TEXTURE_2D, previous));
 	}
-	void OGL4Texture::UpdateFromColorBuffer()
+	void GLTexture::UpdateFromColorBuffer()
 	{
 		GLCHECK(glBindFramebuffer(GL_READ_FRAMEBUFFER, this->mEffect->mEffectContext->mBackBufferFBO));
 		GLCHECK(glBindFramebuffer(GL_DRAW_FRAMEBUFFER, this->mEffect->mEffectContext->mBlitFBO));
@@ -3275,7 +3275,7 @@ namespace ReShade
 
 		GLCHECK(glBlitFramebuffer(0, 0, this->mEffect->mEffectContext->mWidth, this->mEffect->mEffectContext->mHeight, 0, 0, this->mDesc.Width, this->mDesc.Height, GL_COLOR_BUFFER_BIT, GL_NEAREST));
 	}
-	void OGL4Texture::UpdateFromDepthBuffer()
+	void GLTexture::UpdateFromDepthBuffer()
 	{
 		if (this->mID[0] == this->mEffect->mEffectContext->mBestDepthStencilReplacement)
 		{
@@ -3291,18 +3291,18 @@ namespace ReShade
 		this->mNoDelete = true;
 	}
 
-	OGL4Constant::OGL4Constant(OGL4Effect *effect) : mEffect(effect)
+	GLConstant::GLConstant(GLEffect *effect) : mEffect(effect)
 	{
 	}
-	OGL4Constant::~OGL4Constant()
+	GLConstant::~GLConstant()
 	{
 	}
 
-	const Effect::Constant::Description OGL4Constant::GetDescription() const
+	const Effect::Constant::Description GLConstant::GetDescription() const
 	{
 		return this->mDesc;
 	}
-	const Effect::Annotation OGL4Constant::GetAnnotation(const std::string &name) const
+	const Effect::Annotation GLConstant::GetAnnotation(const std::string &name) const
 	{
 		auto it = this->mAnnotations.find(name);
 
@@ -3313,7 +3313,7 @@ namespace ReShade
 
 		return it->second;
 	}
-	void OGL4Constant::GetValue(unsigned char *data, std::size_t size) const
+	void GLConstant::GetValue(unsigned char *data, std::size_t size) const
 	{
 		size = std::min(size, this->mDesc.Size);
 
@@ -3321,7 +3321,7 @@ namespace ReShade
 
 		std::memcpy(data, storage, size);
 	}
-	void OGL4Constant::SetValue(const unsigned char *data, std::size_t size)
+	void GLConstant::SetValue(const unsigned char *data, std::size_t size)
 	{
 		size = std::min(size, this->mDesc.Size);
 
@@ -3337,10 +3337,10 @@ namespace ReShade
 		this->mEffect->mUniformDirty = true;
 	}
 
-	OGL4Technique::OGL4Technique(OGL4Effect *effect) : mEffect(effect)
+	GLTechnique::GLTechnique(GLEffect *effect) : mEffect(effect)
 	{
 	}
-	OGL4Technique::~OGL4Technique()
+	GLTechnique::~GLTechnique()
 	{
 		for (auto &pass : this->mPasses)
 		{
@@ -3349,7 +3349,7 @@ namespace ReShade
 		}
 	}
 
-	const Effect::Annotation OGL4Technique::GetAnnotation(const std::string &name) const
+	const Effect::Annotation GLTechnique::GetAnnotation(const std::string &name) const
 	{
 		auto it = this->mAnnotations.find(name);
 
@@ -3361,7 +3361,7 @@ namespace ReShade
 		return it->second;
 	}
 
-	bool OGL4Technique::Begin(unsigned int &passes) const
+	bool GLTechnique::Begin(unsigned int &passes) const
 	{
 		passes = static_cast<unsigned int>(this->mPasses.size());
 
@@ -3395,7 +3395,7 @@ namespace ReShade
 
 		return true;
 	}
-	void OGL4Technique::End() const
+	void GLTechnique::End() const
 	{
 		GLCHECK(glBindFramebuffer(GL_READ_FRAMEBUFFER, this->mEffect->mEffectContext->mBackBufferFBO));
 		GLCHECK(glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0));
@@ -3406,7 +3406,7 @@ namespace ReShade
 		GLCHECK(glBindSampler(0, 0));
 		GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, 0));
 	}
-	void OGL4Technique::RenderPass(unsigned int index) const
+	void GLTechnique::RenderPass(unsigned int index) const
 	{
 		if (this->mEffect->mUniformDirty)
 		{

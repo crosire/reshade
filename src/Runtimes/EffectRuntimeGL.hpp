@@ -15,9 +15,9 @@
 
 namespace ReShade
 {
-	struct OGL4StateBlock
+	struct GLStateBlock
 	{
-		OGL4StateBlock()
+		GLStateBlock()
 		{
 			ZeroMemory(this, sizeof(this));
 		}
@@ -128,7 +128,7 @@ namespace ReShade
 		GLboolean mScissorTest, mBlend, mDepthTest, mDepthMask, mStencilTest, mColorMask[4], mFramebufferSRGB;
 	};
 
-	struct OGL4DepthStencilInfo
+	struct GLDepthStencilInfo
 	{
 		GLint Width, Height, Format;
 		GLint DrawCallCount;
@@ -136,16 +136,16 @@ namespace ReShade
 		GLenum Attachment;
 		bool IsRenderBuffer;
 	};
-	struct OGL4Runtime : public Runtime, public std::enable_shared_from_this<OGL4Runtime>
+	struct GLRuntime : public Runtime, public std::enable_shared_from_this<GLRuntime>
 	{
-		friend struct OGL4Effect;
-		friend struct OGL4Texture;
-		friend struct OGL4Sampler;
-		friend struct OGL4Constant;
-		friend struct OGL4Technique;
+		friend struct GLEffect;
+		friend struct GLTexture;
+		friend struct GLSampler;
+		friend struct GLConstant;
+		friend struct GLTechnique;
 
-		OGL4Runtime(HDC device, HGLRC context);
-		~OGL4Runtime();
+		GLRuntime(HDC device, HGLRC context);
+		~GLRuntime();
 
 		virtual bool OnCreate(unsigned int width, unsigned int height) override;
 		virtual void OnDelete() override;
@@ -160,21 +160,21 @@ namespace ReShade
 
 		HDC mDeviceContext;
 		HGLRC mRenderContext;
-		OGL4StateBlock mStateBlock;
+		GLStateBlock mStateBlock;
 		GLuint mBackBufferFBO, mBackBufferRBO, mBlitFBO;
-		std::unordered_map<GLuint, OGL4DepthStencilInfo> mDepthStencilTable;
+		std::unordered_map<GLuint, GLDepthStencilInfo> mDepthStencilTable;
 		GLuint mCurrentDepthStencil, mBestDepthStencil, mBestDepthStencilReplacement;
 		bool mLost, mPresenting;
 	};
-	struct OGL4Effect : public Effect
+	struct GLEffect : public Effect
 	{
-		friend struct OGL4Texture;
-		friend struct OGL4Sampler;
-		friend struct OGL4Constant;
-		friend struct OGL4Technique;
+		friend struct GLTexture;
+		friend struct GLSampler;
+		friend struct GLConstant;
+		friend struct GLTechnique;
 
-		OGL4Effect(std::shared_ptr<const OGL4Runtime> context);
-		~OGL4Effect();
+		GLEffect(std::shared_ptr<const GLRuntime> context);
+		~GLEffect();
 
 		const Texture *GetTexture(const std::string &name) const;
 		std::vector<std::string> GetTextureNames() const;
@@ -183,20 +183,20 @@ namespace ReShade
 		const Technique *GetTechnique(const std::string &name) const;
 		std::vector<std::string> GetTechniqueNames() const;
 
-		std::shared_ptr<const OGL4Runtime> mEffectContext;
-		std::unordered_map<std::string, std::unique_ptr<OGL4Texture>> mTextures;
-		std::vector<std::shared_ptr<OGL4Sampler>> mSamplers;
-		std::unordered_map<std::string, std::unique_ptr<OGL4Constant>> mConstants;
-		std::unordered_map<std::string, std::unique_ptr<OGL4Technique>> mTechniques;
+		std::shared_ptr<const GLRuntime> mEffectContext;
+		std::unordered_map<std::string, std::unique_ptr<GLTexture>> mTextures;
+		std::vector<std::shared_ptr<GLSampler>> mSamplers;
+		std::unordered_map<std::string, std::unique_ptr<GLConstant>> mConstants;
+		std::unordered_map<std::string, std::unique_ptr<GLTechnique>> mTechniques;
 		GLuint mDefaultVAO, mDefaultVBO, mDepthStencil;
 		std::vector<GLuint> mUniformBuffers;
 		std::vector<std::pair<unsigned char *, std::size_t>> mUniformStorages;
 		mutable bool mUniformDirty;
 	};
-	struct OGL4Texture : public Effect::Texture
+	struct GLTexture : public Effect::Texture
 	{
-		OGL4Texture(OGL4Effect *effect);
-		~OGL4Texture();
+		GLTexture(GLEffect *effect);
+		~GLTexture();
 
 		const Description GetDescription() const;
 		const Effect::Annotation GetAnnotation(const std::string &name) const;
@@ -205,42 +205,42 @@ namespace ReShade
 		void UpdateFromColorBuffer();
 		void UpdateFromDepthBuffer();
 
-		OGL4Effect *mEffect;
+		GLEffect *mEffect;
 		Description mDesc;
 		std::unordered_map<std::string, Effect::Annotation>	mAnnotations;
 		GLuint mID[2];
 		bool mNoDelete;
 	};
-	struct OGL4Sampler
+	struct GLSampler
 	{
-		OGL4Sampler() : mID(0)
+		GLSampler() : mID(0)
 		{
 		}
-		~OGL4Sampler()
+		~GLSampler()
 		{
 			glDeleteSamplers(1, &this->mID);
 		}
 
 		GLuint mID;
-		OGL4Texture *mTexture;
+		GLTexture *mTexture;
 		bool mSRGB;
 	};
-	struct OGL4Constant : public Effect::Constant
+	struct GLConstant : public Effect::Constant
 	{
-		OGL4Constant(OGL4Effect *effect);
-		~OGL4Constant();
+		GLConstant(GLEffect *effect);
+		~GLConstant();
 
 		const Description GetDescription() const;
 		const Effect::Annotation GetAnnotation(const std::string &name) const;
 		void GetValue(unsigned char *data, std::size_t size) const;
 		void SetValue(const unsigned char *data, std::size_t size);
 
-		OGL4Effect *mEffect;
+		GLEffect *mEffect;
 		Description mDesc;
 		std::unordered_map<std::string, Effect::Annotation>	mAnnotations;
 		std::size_t mBuffer, mBufferOffset;
 	};
-	struct OGL4Technique : public Effect::Technique
+	struct GLTechnique : public Effect::Technique
 	{
 		struct Pass
 		{
@@ -253,8 +253,8 @@ namespace ReShade
 			GLboolean FramebufferSRGB, Blend, DepthMask, DepthTest, StencilTest, ColorMaskR, ColorMaskG, ColorMaskB, ColorMaskA;
 		};
 
-		OGL4Technique(OGL4Effect *effect);
-		~OGL4Technique();
+		GLTechnique(GLEffect *effect);
+		~GLTechnique();
 
 		const Effect::Annotation GetAnnotation(const std::string &name) const;
 
@@ -262,7 +262,7 @@ namespace ReShade
 		void End() const;
 		void RenderPass(unsigned int index) const;
 
-		OGL4Effect *mEffect;
+		GLEffect *mEffect;
 		std::unordered_map<std::string, Effect::Annotation>	mAnnotations;
 		std::vector<Pass> mPasses;
 	};

@@ -1,6 +1,6 @@
 #include "Log.hpp"
 #include "HookManager.hpp"
-#include "Runtimes\EffectRuntimeOGL4.hpp"
+#include "Runtimes\EffectRuntimeGL.hpp"
 
 #undef glBindFramebuffer
 #undef glBindTexture
@@ -134,8 +134,8 @@ namespace
 	CriticalSection sCS;
 	std::unordered_map<HWND, RECT> sWindowRects;
 	std::unordered_map<HGLRC, HDC> sDeviceContexts;
-	std::unordered_map<HGLRC, std::shared_ptr<ReShade::OGL4Runtime>> sRuntimes;
-	std::unordered_map<HDC, ReShade::OGL4Runtime *> sCurrentRuntimes;
+	std::unordered_map<HGLRC, std::shared_ptr<ReShade::GLRuntime>> sRuntimes;
+	std::unordered_map<HDC, ReShade::GLRuntime *> sCurrentRuntimes;
 }
 
 // -----------------------------------------------------------------------------------------------------
@@ -181,7 +181,7 @@ void WINAPI glBindFramebuffer(GLenum target, GLuint framebuffer)
 
 	if (sCurrentRuntimes.find(sCurrentDeviceContext) != sCurrentRuntimes.end())
 	{
-		ReShade::OGL4Runtime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
+		ReShade::GLRuntime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
 
 		runtime->OnBindFramebuffer(framebuffer);
 	}
@@ -552,7 +552,7 @@ EXPORT void WINAPI glDrawArrays(GLenum mode, GLint first, GLsizei count)
 
 	if (sCurrentRuntimes.find(sCurrentDeviceContext) != sCurrentRuntimes.end())
 	{
-		ReShade::OGL4Runtime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
+		ReShade::GLRuntime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
 
 		runtime->OnDraw(count);
 	}
@@ -571,7 +571,7 @@ void WINAPI glDrawArraysInstanced(GLenum mode, GLint first, GLsizei count, GLsiz
 
 	if (sCurrentRuntimes.find(sCurrentDeviceContext) != sCurrentRuntimes.end())
 	{
-		ReShade::OGL4Runtime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
+		ReShade::GLRuntime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
 
 		runtime->OnDraw(instancecount * count);
 	}
@@ -584,7 +584,7 @@ void WINAPI glDrawArraysInstancedBaseInstance(GLenum mode, GLint first, GLsizei 
 
 	if (sCurrentRuntimes.find(sCurrentDeviceContext) != sCurrentRuntimes.end())
 	{
-		ReShade::OGL4Runtime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
+		ReShade::GLRuntime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
 
 		runtime->OnDraw(instancecount * count);
 	}
@@ -603,7 +603,7 @@ EXPORT void WINAPI glDrawElements(GLenum mode, GLsizei count, GLenum type, const
 
 	if (sCurrentRuntimes.find(sCurrentDeviceContext) != sCurrentRuntimes.end())
 	{
-		ReShade::OGL4Runtime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
+		ReShade::GLRuntime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
 
 		runtime->OnDraw(count);
 	}
@@ -616,7 +616,7 @@ void WINAPI glDrawElementsBaseVertex(GLenum mode, GLsizei count, GLenum type, co
 
 	if (sCurrentRuntimes.find(sCurrentDeviceContext) != sCurrentRuntimes.end())
 	{
-		ReShade::OGL4Runtime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
+		ReShade::GLRuntime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
 
 		runtime->OnDraw(count);
 	}
@@ -635,7 +635,7 @@ void WINAPI glDrawElementsInstanced(GLenum mode, GLsizei count, GLenum type, con
 
 	if (sCurrentRuntimes.find(sCurrentDeviceContext) != sCurrentRuntimes.end())
 	{
-		ReShade::OGL4Runtime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
+		ReShade::GLRuntime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
 
 		runtime->OnDraw(instancecount * count);
 	}
@@ -648,7 +648,7 @@ void WINAPI glDrawElementsInstancedBaseVertex(GLenum mode, GLsizei count, GLenum
 
 	if (sCurrentRuntimes.find(sCurrentDeviceContext) != sCurrentRuntimes.end())
 	{
-		ReShade::OGL4Runtime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
+		ReShade::GLRuntime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
 
 		runtime->OnDraw(instancecount * count);
 	}
@@ -661,7 +661,7 @@ void WINAPI glDrawElementsInstancedBaseInstance(GLenum mode, GLsizei count, GLen
 
 	if (sCurrentRuntimes.find(sCurrentDeviceContext) != sCurrentRuntimes.end())
 	{
-		ReShade::OGL4Runtime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
+		ReShade::GLRuntime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
 
 		runtime->OnDraw(instancecount * count);
 	}
@@ -674,7 +674,7 @@ void WINAPI glDrawElementsInstancedBaseVertexBaseInstance(GLenum mode, GLsizei c
 
 	if (sCurrentRuntimes.find(sCurrentDeviceContext) != sCurrentRuntimes.end())
 	{
-		ReShade::OGL4Runtime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
+		ReShade::GLRuntime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
 
 		runtime->OnDraw(instancecount * count);
 	}
@@ -723,7 +723,7 @@ EXPORT void WINAPI glEnd()
 
 	if (sCurrentRuntimes.find(sCurrentDeviceContext) != sCurrentRuntimes.end())
 	{
-		ReShade::OGL4Runtime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
+		ReShade::GLRuntime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
 
 		runtime->OnDraw(sCurrentVertexCount);
 	}
@@ -1348,7 +1348,7 @@ void WINAPI glMultiDrawArrays(GLenum mode, const GLint *first, const GLsizei *co
 
 	if (sCurrentRuntimes.find(sCurrentDeviceContext) != sCurrentRuntimes.end())
 	{
-		ReShade::OGL4Runtime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
+		ReShade::GLRuntime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
 
 		GLsizei totalcount = 0;
 
@@ -1374,7 +1374,7 @@ void WINAPI glMultiDrawElements(GLenum mode, const GLsizei *count, GLenum type, 
 
 	if (sCurrentRuntimes.find(sCurrentDeviceContext) != sCurrentRuntimes.end())
 	{
-		ReShade::OGL4Runtime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
+		ReShade::GLRuntime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
 
 		GLsizei totalcount = 0;
 
@@ -1394,7 +1394,7 @@ void WINAPI glMultiDrawElementsBaseVertex(GLenum mode, const GLsizei *count, GLe
 
 	if (sCurrentRuntimes.find(sCurrentDeviceContext) != sCurrentRuntimes.end())
 	{
-		ReShade::OGL4Runtime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
+		ReShade::GLRuntime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
 
 		GLsizei totalcount = 0;
 
@@ -2793,7 +2793,7 @@ EXPORT BOOL WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 
 		if (gl3wIsSupported(4, 3))
 		{
-			const std::shared_ptr<ReShade::OGL4Runtime> runtime = std::make_shared<ReShade::OGL4Runtime>(hdc, hglrc);
+			const std::shared_ptr<ReShade::GLRuntime> runtime = std::make_shared<ReShade::GLRuntime>(hdc, hglrc);
 
 			sRuntimes[hglrc] = runtime;
 			sCurrentRuntimes[hdc] = runtime.get();
@@ -2846,7 +2846,7 @@ EXPORT BOOL WINAPI wglSwapBuffers(HDC hdc)
 
 	if (it != sCurrentRuntimes.end())
 	{
-		ReShade::OGL4Runtime *runtime = it->second;
+		ReShade::GLRuntime *runtime = it->second;
 
 		assert(runtime != nullptr);
 
