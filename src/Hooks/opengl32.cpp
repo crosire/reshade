@@ -35,6 +35,12 @@
 #undef glEnable
 #undef glFinish
 #undef glFlush
+#undef glFramebufferRenderbuffer
+#undef glFramebufferTexture
+#undef glFramebufferTexture1D
+#undef glFramebufferTexture2D
+#undef glFramebufferTexture3D
+#undef glFramebufferTextureLayer
 #undef glFrontFace
 #undef glGenTextures
 #undef glGetBooleanv
@@ -178,13 +184,6 @@ void WINAPI glBindFramebuffer(GLenum target, GLuint framebuffer)
 	static const auto trampoline = ReHook::Call(&glBindFramebuffer);
 
 	trampoline(target, framebuffer);
-
-	if (sCurrentRuntimes.find(sCurrentDeviceContext) != sCurrentRuntimes.end())
-	{
-		ReShade::GLRuntime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
-
-		runtime->OnBindFramebuffer(framebuffer);
-	}
 }
 EXPORT void WINAPI glBindTexture(GLenum target, GLuint texture)
 {
@@ -849,6 +848,84 @@ EXPORT void WINAPI glFogiv(GLenum pname, const GLint *params)
 	static const auto trampoline = ReHook::Call(&glFogiv);
 
 	trampoline(pname, params);
+}
+void WINAPI glFramebufferRenderbuffer(GLenum target, GLenum attachment, GLenum renderbuffertarget, GLuint renderbuffer)
+{
+	static const auto trampoline = ReHook::Call(&glFramebufferRenderbuffer);
+
+	trampoline(target, attachment, renderbuffertarget, renderbuffer);
+
+	if ((attachment == GL_DEPTH_ATTACHMENT || attachment == GL_DEPTH_STENCIL_ATTACHMENT) && sCurrentRuntimes.find(sCurrentDeviceContext) != sCurrentRuntimes.end())
+	{
+		ReShade::GLRuntime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
+
+		runtime->CreateDepthStencil(target, renderbuffertarget, renderbuffer, 0);
+	}
+}
+void WINAPI glFramebufferTexture(GLenum target, GLenum attachment, GLuint texture, GLint level)
+{
+	static const auto trampoline = ReHook::Call(&glFramebufferTexture);
+
+	trampoline(target, attachment, texture, level);
+
+	if ((attachment == GL_DEPTH_ATTACHMENT || attachment == GL_DEPTH_STENCIL_ATTACHMENT) && sCurrentRuntimes.find(sCurrentDeviceContext) != sCurrentRuntimes.end())
+	{
+		ReShade::GLRuntime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
+		
+		runtime->CreateDepthStencil(target, GL_TEXTURE, texture, level);
+	}
+}
+void WINAPI glFramebufferTexture1D(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level)
+{
+	static const auto trampoline = ReHook::Call(&glFramebufferTexture1D);
+
+	trampoline(target, attachment, textarget, texture, level);
+
+	if ((attachment == GL_DEPTH_ATTACHMENT || attachment == GL_DEPTH_STENCIL_ATTACHMENT) && sCurrentRuntimes.find(sCurrentDeviceContext) != sCurrentRuntimes.end())
+	{
+		ReShade::GLRuntime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
+
+		runtime->CreateDepthStencil(target, textarget, texture, level);
+	}
+}
+void WINAPI glFramebufferTexture2D(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level)
+{
+	static const auto trampoline = ReHook::Call(&glFramebufferTexture2D);
+
+	trampoline(target, attachment, textarget, texture, level);
+
+	if ((attachment == GL_DEPTH_ATTACHMENT || attachment == GL_DEPTH_STENCIL_ATTACHMENT) && sCurrentRuntimes.find(sCurrentDeviceContext) != sCurrentRuntimes.end())
+	{
+		ReShade::GLRuntime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
+
+		runtime->CreateDepthStencil(target, textarget, texture, level);
+	}
+}
+void WINAPI glFramebufferTexture3D(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level, GLint zoffset)
+{
+	static const auto trampoline = ReHook::Call(&glFramebufferTexture3D);
+
+	trampoline(target, attachment, textarget, texture, level, zoffset);
+
+	if ((attachment == GL_DEPTH_ATTACHMENT || attachment == GL_DEPTH_STENCIL_ATTACHMENT) && sCurrentRuntimes.find(sCurrentDeviceContext) != sCurrentRuntimes.end())
+	{
+		ReShade::GLRuntime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
+
+		runtime->CreateDepthStencil(target, textarget, texture, level);
+	}
+}
+void WINAPI glFramebufferTextureLayer(GLenum target, GLenum attachment, GLuint texture, GLint level, GLint layer)
+{
+	static const auto trampoline = ReHook::Call(&glFramebufferTextureLayer);
+
+	trampoline(target, attachment, texture, level, layer);
+
+	if ((attachment == GL_DEPTH_ATTACHMENT || attachment == GL_DEPTH_STENCIL_ATTACHMENT) && sCurrentRuntimes.find(sCurrentDeviceContext) != sCurrentRuntimes.end())
+	{
+		ReShade::GLRuntime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
+
+		runtime->CreateDepthStencil(target, GL_TEXTURE, texture, level);
+	}
 }
 EXPORT void WINAPI glFrontFace(GLenum mode)
 {
@@ -3013,6 +3090,12 @@ EXPORT PROC WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		lpszProc = "glRenderbufferStorageMultisample";
 	}
 	#pragma endregion
+	#pragma region Replace EXT_texture_array
+	else if (strcmp(lpszProc, "glFramebufferTextureLayerEXT") == 0)
+	{
+		lpszProc = "glFramebufferTextureLayer";
+	}
+	#pragma endregion
 
 	const PROC address = trampoline(lpszProc);
 
@@ -3151,6 +3234,30 @@ EXPORT PROC WINAPI wglGetProcAddress(LPCSTR lpszProc)
 	else if (strcmp(lpszProc, "glFlush") == 0)
 	{
 		return reinterpret_cast<PROC>(&glFlush);
+	}
+	else if (strcmp(lpszProc, "glFramebufferRenderbuffer") == 0)
+	{
+		ReHook::Register(reinterpret_cast<ReHook::Hook::Function>(address), reinterpret_cast<ReHook::Hook::Function>(&glFramebufferRenderbuffer));
+	}
+	else if (strcmp(lpszProc, "glFramebufferTexture") == 0)
+	{
+		ReHook::Register(reinterpret_cast<ReHook::Hook::Function>(address), reinterpret_cast<ReHook::Hook::Function>(&glFramebufferTexture));
+	}
+	else if (strcmp(lpszProc, "glFramebufferTexture1D") == 0)
+	{
+		ReHook::Register(reinterpret_cast<ReHook::Hook::Function>(address), reinterpret_cast<ReHook::Hook::Function>(&glFramebufferTexture1D));
+	}
+	else if (strcmp(lpszProc, "glFramebufferTexture2D") == 0)
+	{
+		ReHook::Register(reinterpret_cast<ReHook::Hook::Function>(address), reinterpret_cast<ReHook::Hook::Function>(&glFramebufferTexture2D));
+	}
+	else if (strcmp(lpszProc, "glFramebufferTexture3D") == 0)
+	{
+		ReHook::Register(reinterpret_cast<ReHook::Hook::Function>(address), reinterpret_cast<ReHook::Hook::Function>(&glFramebufferTexture3D));
+	}
+	else if (strcmp(lpszProc, "glFramebufferTextureLayer") == 0)
+	{
+		ReHook::Register(reinterpret_cast<ReHook::Hook::Function>(address), reinterpret_cast<ReHook::Hook::Function>(&glFramebufferTextureLayer));
 	}
 	else if (strcmp(lpszProc, "glFrontFace") == 0)
 	{

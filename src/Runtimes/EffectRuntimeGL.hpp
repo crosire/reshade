@@ -128,13 +128,12 @@ namespace ReShade
 		GLboolean mScissorTest, mBlend, mDepthTest, mDepthMask, mStencilTest, mColorMask[4], mFramebufferSRGB;
 	};
 
-	struct GLDepthStencilInfo
+	struct GLFramebufferInfo
 	{
-		GLint Width, Height, Format;
 		GLint DrawCallCount;
-		GLuint Framebuffer;
-		GLenum Attachment;
-		bool IsRenderBuffer;
+		GLuint DepthStencilName;
+		GLenum DepthStencilTarget;
+		GLint DepthStencilWidth, DepthStencilHeight, DepthStencilFormat;
 	};
 	struct GLRuntime : public Runtime, public std::enable_shared_from_this<GLRuntime>
 	{
@@ -150,20 +149,19 @@ namespace ReShade
 		virtual bool OnCreate(unsigned int width, unsigned int height) override;
 		virtual void OnDelete() override;
 		virtual void OnPresent() override;
-		void OnBindFramebuffer(GLuint framebuffer);
 		void OnDraw(GLsizei vertices);
 
 		virtual std::unique_ptr<Effect> CreateEffect(const EffectTree &ast, std::string &errors) const override;
 		virtual void CreateScreenshot(unsigned char *buffer, std::size_t size) const override;
 
+		void CreateDepthStencil(GLenum target, GLenum objecttarget, GLuint object, GLint level);
 		void DetectBestDepthStencil();
 
 		HDC mDeviceContext;
 		HGLRC mRenderContext;
 		GLStateBlock mStateBlock;
-		GLuint mBackBufferFBO, mBackBufferRBO, mBlitFBO;
-		std::unordered_map<GLuint, GLDepthStencilInfo> mDepthStencilTable;
-		GLuint mCurrentDepthStencil, mBestDepthStencil, mBestDepthStencilReplacement;
+		GLuint mBackBufferFBO, mBackBufferRBO, mBestDepthStencilFBO, mBestDepthStencilTexture, mBlitFBO;
+		std::unordered_map<GLuint, GLFramebufferInfo> mFramebufferTable;
 		bool mLost, mPresenting;
 	};
 	struct GLEffect : public Effect
