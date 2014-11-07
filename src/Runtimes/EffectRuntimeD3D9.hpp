@@ -9,10 +9,10 @@
 
 namespace ReShade
 {
-	struct DepthStencilInfo
+	struct D3D9DepthStencilInfo
 	{
 		UINT Width, Height;
-		UINT DrawCallCount;
+		FLOAT DrawCallCount, DrawVerticesCount;
 	};
 	struct D3D9Runtime : public Runtime, public std::enable_shared_from_this<D3D9Runtime>
 	{
@@ -34,7 +34,7 @@ namespace ReShade
 		virtual void CreateScreenshot(unsigned char *buffer, std::size_t size) const override;
 
 		void DetectBestDepthStencil();
-		void ReplaceDepthStencil(IDirect3DSurface9 **depthstencil);
+		void ReplaceDepthStencil(IDirect3DSurface9 **pDepthStencil);
 
 		IDirect3DDevice9 *mDevice;
 		IDirect3DSwapChain9 *mSwapChain;
@@ -42,8 +42,9 @@ namespace ReShade
 		IDirect3DSurface9 *mBackBuffer;
 		IDirect3DSurface9 *mBackBufferNotMultisampled;
 		IDirect3DTexture9 *mDepthStencilTexture;
-		std::unordered_map<IDirect3DSurface9 *, DepthStencilInfo> mDepthStencilTable;
+		std::unordered_map<IDirect3DSurface9 *, D3D9DepthStencilInfo> mDepthStencilTable;
 		IDirect3DSurface9 *mBestDepthStencil, *mBestDepthStencilReplacement;
+		UINT mDrawCallCounter;
 		bool mLost;
 	};
 	struct D3D9Effect : public Effect

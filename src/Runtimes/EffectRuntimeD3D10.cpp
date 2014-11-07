@@ -30,7 +30,7 @@ namespace ReShade
 			CRITICAL_SECTION &mCS;
 		};
 
-		class D3D10EffectCompiler
+		class D3D10EffectCompiler : private boost::noncopyable
 		{
 		public:
 			D3D10EffectCompiler(const EffectTree &ast) : mAST(ast), mEffect(nullptr), mCurrentInParameterBlock(false), mCurrentInFunctionBlock(false), mCurrentGlobalSize(0), mCurrentGlobalStorageSize(0)
@@ -2160,23 +2160,31 @@ namespace ReShade
 
 	// -----------------------------------------------------------------------------------------------------
 
-	D3D10Runtime::D3D10Runtime(ID3D10Device *device, IDXGISwapChain *swapchain) : mDevice(device), mSwapChain(swapchain), mStateBlock(nullptr), mBackBuffer(nullptr), mBackBufferTexture(nullptr), mBackBufferTargets(), mBestDepthStencil(nullptr), mBestDepthStencilReplacement(nullptr), mDepthStencilShaderResourceView(nullptr), mLost(true)
+	D3D10Runtime::D3D10Runtime(ID3D10Device *device, IDXGISwapChain *swapchain) : mDevice(device), mSwapChain(swapchain), mStateBlock(nullptr), mBackBuffer(nullptr), mBackBufferTexture(nullptr), mBackBufferTargets(), mBestDepthStencil(nullptr), mBestDepthStencilReplacement(nullptr), mDepthStencilShaderResourceView(nullptr), mDrawCallCounter(1), mLost(true)
 	{
 		InitializeCriticalSection(&this->mCS);
 
 		this->mDevice->AddRef();
 		this->mSwapChain->AddRef();
 
+		HRESULT hr;
 		IDXGIDevice *dxgidevice = nullptr;
 		IDXGIAdapter *adapter = nullptr;
 
-		this->mDevice->QueryInterface(__uuidof(IDXGIDevice), reinterpret_cast<void **>(&dxgidevice));
-		dxgidevice->GetAdapter(&adapter);
+		hr = this->mDevice->QueryInterface(__uuidof(IDXGIDevice), reinterpret_cast<void **>(&dxgidevice));
+
+		assert(SUCCEEDED(hr));
+
+		hr = dxgidevice->GetAdapter(&adapter);
 		dxgidevice->Release();
 
+		assert(SUCCEEDED(hr));
+
 		DXGI_ADAPTER_DESC desc;
-		adapter->GetDesc(&desc);
+		hr = adapter->GetDesc(&desc);
 		adapter->Release();
+
+		assert(SUCCEEDED(hr));
 			
 		this->mVendorId = desc.VendorId;
 		this->mDeviceId = desc.DeviceId;
@@ -2184,7 +2192,9 @@ namespace ReShade
 
 		D3D10_STATE_BLOCK_MASK mask;
 		D3D10StateBlockMaskEnableAll(&mask);
-		D3D10CreateStateBlock(this->mDevice, &mask, &this->mStateBlock);
+		hr = D3D10CreateStateBlock(this->mDevice, &mask, &this->mStateBlock);
+
+		assert(SUCCEEDED(hr));
 	}
 	D3D10Runtime::~D3D10Runtime()
 	{
@@ -2192,7 +2202,10 @@ namespace ReShade
 
 		assert(this->mLost);
 
-		this->mStateBlock->Release();
+		if (this->mStateBlock != nullptr)
+		{
+			this->mStateBlock->Release();
+		}
 
 		this->mDevice->Release();
 		this->mSwapChain->Release();
@@ -2200,22 +2213,34 @@ namespace ReShade
 
 	bool D3D10Runtime::OnCreate(unsigned int width, unsigned int height)
 	{
-		this->mSwapChain->GetBuffer(0, __uuidof(ID3D10Texture2D), reinterpret_cast<void **>(&this->mBackBuffer));
+		HRESULT hr = this->mSwapChain->GetBuffer(0, __uuidof(ID3D10Texture2D), reinterpret_cast<void **>(&this->mBackBuffer));
+
+		assert(SUCCEEDED(hr));
 
 		D3D10_TEXTURE2D_DESC bbdesc;
 		this->mBackBuffer->GetDesc(&bbdesc);
 
 		bbdesc.Format = DXGI_FORMAT_R8G8B8A8_TYPELESS;
 		bbdesc.BindFlags = D3D10_BIND_RENDER_TARGET;
-		this->mDevice->CreateTexture2D(&bbdesc, nullptr, &this->mBackBufferTexture);
+		
+		hr = this->mDevice->CreateTexture2D(&bbdesc, nullptr, &this->mBackBufferTexture);
+
+		assert(SUCCEEDED(hr));
 
 		D3D10_RENDER_TARGET_VIEW_DESC rtdesc;
 		rtdesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 		rtdesc.ViewDimension = bbdesc.SampleDesc.Count > 1 ? D3D10_RTV_DIMENSION_TEXTURE2DMS : D3D10_RTV_DIMENSION_TEXTURE2D;
 		rtdesc.Texture2D.MipSlice = 0;
-		this->mDevice->CreateRenderTargetView(this->mBackBufferTexture, &rtdesc, &this->mBackBufferTargets[0]);
+		
+		hr = this->mDevice->CreateRenderTargetView(this->mBackBufferTexture, &rtdesc, &this->mBackBufferTargets[0]);
+
+		assert(SUCCEEDED(hr));
+
 		rtdesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
-		this->mDevice->CreateRenderTargetView(this->mBackBufferTexture, &rtdesc, &this->mBackBufferTargets[1]);
+		
+		hr = this->mDevice->CreateRenderTargetView(this->mBackBufferTexture, &rtdesc, &this->mBackBufferTargets[1]);
+
+		assert(SUCCEEDED(hr));
 
 		this->mNVG = nvgCreateD3D10(this->mDevice, 0);
 
@@ -2278,6 +2303,8 @@ namespace ReShade
 	{
 		DetectBestDepthStencil();
 
+		this->mDrawCallCounter = 1;
+
 		ID3D10RenderTargetView *stateBlockTargets[D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT] = { nullptr };
 		ID3D10DepthStencilView *stateBlockDepthStencil = nullptr;
 
@@ -2327,7 +2354,8 @@ namespace ReShade
 				depthstencil = this->mBestDepthStencil;
 			}
 
-			this->mDepthStencilTable[depthstencil].DrawCallCount += vertices;
+			this->mDepthStencilTable[depthstencil].DrawCallCount = static_cast<FLOAT>(this->mDrawCallCounter++);
+			this->mDepthStencilTable[depthstencil].DrawVerticesCount += vertices;
 		}
 	}
 
@@ -2415,6 +2443,8 @@ namespace ReShade
 
 		const UINT pitch = desc.Width * 4;
 
+		assert(size >= pitch * desc.Height);
+
 		BYTE *pBuffer = buffer;
 		BYTE *pMapped = static_cast<BYTE *>(mapped.pData);
 
@@ -2464,8 +2494,8 @@ namespace ReShade
 		DXGI_SWAP_CHAIN_DESC desc;
 		this->mSwapChain->GetDesc(&desc);
 
-		UINT bestDrawCallCount = 0;
-		ID3D10DepthStencilView *bestDepthStencil = nullptr;
+		ID3D10DepthStencilView *best = nullptr;
+		D3D10DepthStencilInfo bestInfo = { 0 };
 
 		for (auto &it : this->mDepthStencilTable)
 		{
@@ -2474,18 +2504,18 @@ namespace ReShade
 				continue;
 			}
 
-			if (it.second.DrawCallCount >= bestDrawCallCount && (it.second.Width == desc.BufferDesc.Width && it.second.Height == desc.BufferDesc.Height))
+			if (((it.second.DrawVerticesCount * (1.2f - it.second.DrawCallCount / this->mDrawCallCounter)) >= (bestInfo.DrawVerticesCount * (1.2f - bestInfo.DrawCallCount / this->mDrawCallCounter))) && (it.second.Width ==  desc.BufferDesc.Width && it.second.Height ==  desc.BufferDesc.Height))
 			{
-				bestDrawCallCount = it.second.DrawCallCount;
-				bestDepthStencil = it.first;
+				best = it.first;
+				bestInfo = it.second;
 			}
 
-			it.second.DrawCallCount = 0;
+			it.second.DrawCallCount = it.second.DrawVerticesCount = 0;
 		}
 
-		if (bestDepthStencil != nullptr && this->mBestDepthStencil != bestDepthStencil)
+		if (best != nullptr && this->mBestDepthStencil != best)
 		{
-			this->mBestDepthStencil = bestDepthStencil;
+			this->mBestDepthStencil = best;
 
 			if (this->mBestDepthStencilReplacement != nullptr)
 			{
@@ -2499,7 +2529,7 @@ namespace ReShade
 			}
 
 			ID3D10Texture2D *texture = nullptr;
-			bestDepthStencil->GetResource(reinterpret_cast<ID3D10Resource **>(&texture));
+			best->GetResource(reinterpret_cast<ID3D10Resource **>(&texture));
 
 			D3D10_TEXTURE2D_DESC textureDesc;
 			texture->GetDesc(&textureDesc);
@@ -2591,18 +2621,21 @@ namespace ReShade
 			texture->Release();
 		}
 	}
-	void D3D10Runtime::ReplaceDepthStencil(ID3D10DepthStencilView **depthstencil)
+	void D3D10Runtime::ReplaceDepthStencil(ID3D10DepthStencilView **pDepthStencil)
 	{
+		ID3D10DepthStencilView *depthstencil = *pDepthStencil;
+
 		CSLock lock(this->mCS);
 
-		if (this->mBestDepthStencilReplacement != nullptr && *depthstencil == this->mBestDepthStencil)
+		if (this->mBestDepthStencilReplacement != nullptr && depthstencil == this->mBestDepthStencil)
 		{
-			*depthstencil = this->mBestDepthStencilReplacement;
+			*pDepthStencil = this->mBestDepthStencilReplacement;
 		}
 	}
 
-	D3D10Effect::D3D10Effect(std::shared_ptr<const D3D10Runtime> context) : mEffectContext(context), mConstantsDirty(true)
+	D3D10Effect::D3D10Effect(std::shared_ptr<const D3D10Runtime> context) : mEffectContext(context), mConstantsDirty(true), mDepthStencilTexture(nullptr), mDepthStencilView(nullptr), mDepthStencil(nullptr), mRasterizerState(nullptr)
 	{
+		HRESULT hr;
 		D3D10_TEXTURE2D_DESC dstdesc;
 		this->mEffectContext->mBackBuffer->GetDesc(&dstdesc);
 
@@ -2618,23 +2651,46 @@ namespace ReShade
 		dsdesc.ViewDimension = dstdesc.SampleDesc.Count > 1 ? D3D10_DSV_DIMENSION_TEXTURE2DMS : D3D10_DSV_DIMENSION_TEXTURE2D;
 		dsdesc.Texture2D.MipSlice = 0;
 
-		context->mDevice->CreateTexture2D(&dstdesc, nullptr, &this->mDepthStencilTexture);
-		context->mDevice->CreateShaderResourceView(this->mDepthStencilTexture, &dssdesc, &this->mDepthStencilView);
-		context->mDevice->CreateDepthStencilView(this->mDepthStencilTexture, &dsdesc, &this->mDepthStencil);
+		hr = context->mDevice->CreateTexture2D(&dstdesc, nullptr, &this->mDepthStencilTexture);
+
+		assert(SUCCEEDED(hr));
+
+		hr = context->mDevice->CreateShaderResourceView(this->mDepthStencilTexture, &dssdesc, &this->mDepthStencilView);
+
+		assert(SUCCEEDED(hr));
+
+		hr = context->mDevice->CreateDepthStencilView(this->mDepthStencilTexture, &dsdesc, &this->mDepthStencil);
+
+		assert(SUCCEEDED(hr));
 
 		D3D10_RASTERIZER_DESC rsdesc;
 		ZeroMemory(&rsdesc, sizeof(D3D10_RASTERIZER_DESC));
 		rsdesc.FillMode = D3D10_FILL_SOLID;
 		rsdesc.CullMode = D3D10_CULL_NONE;
 		rsdesc.DepthClipEnable = TRUE;
-		context->mDevice->CreateRasterizerState(&rsdesc, &this->mRasterizerState);
+
+		hr = context->mDevice->CreateRasterizerState(&rsdesc, &this->mRasterizerState);
+
+		assert(SUCCEEDED(hr));
 	}
 	D3D10Effect::~D3D10Effect()
 	{
-		this->mRasterizerState->Release();
-		this->mDepthStencil->Release();
-		this->mDepthStencilView->Release();
-		this->mDepthStencilTexture->Release();
+		if (this->mRasterizerState != nullptr)
+		{
+			this->mRasterizerState->Release();
+		}
+		if (this->mDepthStencil != nullptr)
+		{
+			this->mDepthStencil->Release();
+		}
+		if (this->mDepthStencilView != nullptr)
+		{
+			this->mDepthStencilView->Release();
+		}
+		if (this->mDepthStencilTexture != nullptr)
+		{
+			this->mDepthStencilTexture->Release();
+		}
 
 		for (auto &it : this->mSamplerStates)
 		{
@@ -2987,6 +3043,8 @@ namespace ReShade
 		device->VSSetConstantBuffers(0, this->mEffect->mConstantBuffers.size(), this->mEffect->mConstantBuffers.data());
 		device->PSSetConstantBuffers(0, this->mEffect->mConstantBuffers.size(), this->mEffect->mConstantBuffers.data());
 
+		assert(this->mEffect->mDepthStencil != nullptr);
+
 		device->ClearDepthStencilView(this->mEffect->mDepthStencil, D3D10_CLEAR_DEPTH | D3D10_CLEAR_STENCIL, 1.0f, 0x00);
 
 		return true;
@@ -3004,7 +3062,7 @@ namespace ReShade
 
 		ID3D10Device *device = this->mEffect->mEffectContext->mDevice;
 		const Pass &pass = this->mPasses[index];
-			
+
 		device->VSSetShader(pass.VS);
 		device->GSSetShader(nullptr);
 		device->PSSetShader(pass.PS);

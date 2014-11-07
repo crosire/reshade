@@ -13,7 +13,7 @@ namespace ReShade
 {
 	namespace
 	{
-		class D3D9EffectCompiler
+		class D3D9EffectCompiler : private boost::noncopyable
 		{
 		public:
 			D3D9EffectCompiler(const EffectTree &ast) : mAST(ast), mEffect(nullptr), mCurrentInParameterBlock(false), mCurrentInFunctionBlock(false), mCurrentRegisterOffset(0), mCurrentStorageSize(0)
@@ -2105,20 +2105,25 @@ namespace ReShade
 
 	#define D3DFMT_INTZ static_cast<D3DFORMAT>(MAKEFOURCC('I', 'N', 'T', 'Z'))
 
-	D3D9Runtime::D3D9Runtime(IDirect3DDevice9 *device, IDirect3DSwapChain9 *swapchain) : mDevice(device), mSwapChain(swapchain), mStateBlock(nullptr), mBackBuffer(nullptr), mBackBufferNotMultisampled(nullptr), mDepthStencilTexture(nullptr), mBestDepthStencil(nullptr), mBestDepthStencilReplacement(nullptr), mLost(true)
+	D3D9Runtime::D3D9Runtime(IDirect3DDevice9 *device, IDirect3DSwapChain9 *swapchain) : mDevice(device), mSwapChain(swapchain), mStateBlock(nullptr), mBackBuffer(nullptr), mBackBufferNotMultisampled(nullptr), mDepthStencilTexture(nullptr), mBestDepthStencil(nullptr), mBestDepthStencilReplacement(nullptr), mDrawCallCounter(1), mLost(true)
 	{
 		this->mDevice->AddRef();
 		this->mSwapChain->AddRef();
 
+		HRESULT hr;
 		IDirect3D9 *d3d = nullptr;
-		this->mDevice->GetDirect3D(&d3d);
+		hr = this->mDevice->GetDirect3D(&d3d);
+
+		assert(SUCCEEDED(hr));
 
 		D3DDEVICE_CREATION_PARAMETERS params;
 		this->mDevice->GetCreationParameters(&params);
 
 		D3DADAPTER_IDENTIFIER9 identifier;
-		d3d->GetAdapterIdentifier(params.AdapterOrdinal, 0, &identifier);
+		hr = d3d->GetAdapterIdentifier(params.AdapterOrdinal, 0, &identifier);
 		d3d->Release();
+
+		assert(SUCCEEDED(hr));
 			
 		this->mVendorId = identifier.VendorId;
 		this->mDeviceId = identifier.DeviceId;
@@ -2134,21 +2139,27 @@ namespace ReShade
 
 	bool D3D9Runtime::OnCreate(unsigned int width, unsigned int height)
 	{
-		this->mDevice->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &this->mBackBuffer);
+		HRESULT hr = this->mDevice->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &this->mBackBuffer);
+
+		assert(SUCCEEDED(hr));
 
 		D3DSURFACE_DESC bbdesc;
 		this->mBackBuffer->GetDesc(&bbdesc);
 
 		if (bbdesc.MultiSampleType != D3DMULTISAMPLE_NONE)
 		{
-			this->mDevice->CreateRenderTarget(bbdesc.Width, bbdesc.Height, bbdesc.Format, D3DMULTISAMPLE_NONE, 0, FALSE, &this->mBackBufferNotMultisampled, nullptr);
+			hr = this->mDevice->CreateRenderTarget(bbdesc.Width, bbdesc.Height, bbdesc.Format, D3DMULTISAMPLE_NONE, 0, FALSE, &this->mBackBufferNotMultisampled, nullptr);
+
+			assert(SUCCEEDED(hr));
 		}
 		else
 		{
 			this->mBackBufferNotMultisampled = this->mBackBuffer;
 		}
 
-		this->mDevice->CreateStateBlock(D3DSBT_ALL, &this->mStateBlock);
+		hr = this->mDevice->CreateStateBlock(D3DSBT_ALL, &this->mStateBlock);
+
+		assert(SUCCEEDED(hr));
 
 		this->mNVG = nvgCreateD3D9(this->mDevice, 0);
 
@@ -2202,10 +2213,14 @@ namespace ReShade
 	{
 		DetectBestDepthStencil();
 
+		this->mDrawCallCounter = 1;
+
 		IDirect3DSurface9 *stateBlockRenderTarget = nullptr;
 		IDirect3DSurface9 *stateBlockDepthStencil = nullptr;
 
-		this->mDevice->BeginScene();
+		HRESULT hr = this->mDevice->BeginScene();
+
+		assert(SUCCEEDED(hr));
 
 		this->mStateBlock->Capture();
 		this->mDevice->GetRenderTarget(0, &stateBlockRenderTarget);
@@ -2259,7 +2274,8 @@ namespace ReShade
 				depthstencil = this->mBestDepthStencil;
 			}
 
-			this->mDepthStencilTable[depthstencil].DrawCallCount += primitives;
+			this->mDepthStencilTable[depthstencil].DrawCallCount = static_cast<FLOAT>(this->mDrawCallCounter++);
+			this->mDepthStencilTable[depthstencil].DrawVerticesCount += primitives;
 		}
 	}
 
@@ -2354,6 +2370,8 @@ namespace ReShade
 
 		const UINT pitch = desc.Width * 4;
 
+		assert(size >= pitch * desc.Height);
+
 		BYTE *pBuffer = buffer;
 		BYTE *pMapped = static_cast<BYTE *>(mapped.pBits);
 
@@ -2406,8 +2424,8 @@ namespace ReShade
 			return;
 		}
 
-		UINT bestDrawCallCount = 0;
-		IDirect3DSurface9 *bestDepthStencil = nullptr;
+		IDirect3DSurface9 *best = nullptr;
+		D3D9DepthStencilInfo bestInfo = { 0 };
 
 		for (auto &it : this->mDepthStencilTable)
 		{
@@ -2416,21 +2434,21 @@ namespace ReShade
 				continue;
 			}
 
-			if (it.second.DrawCallCount >= bestDrawCallCount && (it.second.Width >= pp.BackBufferWidth && it.second.Height >= pp.BackBufferHeight))
+			if (((it.second.DrawVerticesCount * (1.2f - it.second.DrawCallCount / this->mDrawCallCounter)) >= (bestInfo.DrawVerticesCount * (1.2f - bestInfo.DrawCallCount / this->mDrawCallCounter))) && (it.second.Width == pp.BackBufferWidth && it.second.Height == pp.BackBufferHeight))
 			{
-				bestDrawCallCount = it.second.DrawCallCount;
-				bestDepthStencil = it.first;
+				best = it.first;
+				bestInfo = it.second;
 			}
 
-			it.second.DrawCallCount = 0;
+			it.second.DrawCallCount = it.second.DrawVerticesCount = 0;
 		}
 
-		if (bestDepthStencil != nullptr && this->mBestDepthStencil != bestDepthStencil)
+		if (best != nullptr && this->mBestDepthStencil != best)
 		{
 			D3DSURFACE_DESC desc;
-			bestDepthStencil->GetDesc(&desc);
+			best->GetDesc(&desc);
 
-			this->mBestDepthStencil = bestDepthStencil;
+			this->mBestDepthStencil = best;
 
 			if (this->mBestDepthStencilReplacement != nullptr)
 			{
@@ -2466,7 +2484,7 @@ namespace ReShade
 			}
 			else
 			{
-				this->mBestDepthStencilReplacement = bestDepthStencil;
+				this->mBestDepthStencilReplacement = best;
 				this->mBestDepthStencilReplacement->AddRef();
 				this->mBestDepthStencilReplacement->GetContainer(__uuidof(IDirect3DTexture9), reinterpret_cast<void **>(&texture));
 			}
@@ -2486,31 +2504,32 @@ namespace ReShade
 			}
 		}
 	}
-	void D3D9Runtime::ReplaceDepthStencil(IDirect3DSurface9 **depthstencil)
+	void D3D9Runtime::ReplaceDepthStencil(IDirect3DSurface9 **pDepthStencil)
 	{
-		if (this->mDepthStencilTable.find(*depthstencil) == this->mDepthStencilTable.end())
+		IDirect3DSurface9 *depthstencil = *pDepthStencil;
+
+		if (this->mDepthStencilTable.find(depthstencil) == this->mDepthStencilTable.end())
 		{
 			D3DSURFACE_DESC desc;
-			(*depthstencil)->GetDesc(&desc);
+			depthstencil->GetDesc(&desc);
 
-			DepthStencilInfo info;
+			D3D9DepthStencilInfo info;
 			info.Width = desc.Width;
 			info.Height = desc.Height;
 			info.DrawCallCount = 0;
 
-			this->mDepthStencilTable.emplace(*depthstencil, info);
+			this->mDepthStencilTable.emplace(depthstencil, info);
 		}
 
-		if (this->mBestDepthStencilReplacement != nullptr && *depthstencil == this->mBestDepthStencil)
+		if (this->mBestDepthStencilReplacement != nullptr && depthstencil == this->mBestDepthStencil)
 		{
-			*depthstencil = this->mBestDepthStencilReplacement;
+			*pDepthStencil = this->mBestDepthStencilReplacement;
 		}
 	}
 
 	D3D9Effect::D3D9Effect(std::shared_ptr<const D3D9Runtime> context) : mEffectContext(context), mVertexBuffer(nullptr), mVertexDeclaration(nullptr), mDepthStencil(nullptr)
 	{
 		HRESULT hr;
-
 		D3DSURFACE_DESC desc;
 		this->mEffectContext->mBackBuffer->GetDesc(&desc);
 			
@@ -2550,9 +2569,18 @@ namespace ReShade
 	}
 	D3D9Effect::~D3D9Effect()
 	{
-		this->mVertexBuffer->Release();
-		this->mVertexDeclaration->Release();
-		this->mDepthStencil->Release();
+		if (this->mVertexBuffer != nullptr)
+		{
+			this->mVertexBuffer->Release();
+		}
+		if (this->mVertexDeclaration != nullptr)
+		{
+			this->mVertexDeclaration->Release();
+		}
+		if (this->mDepthStencil != nullptr)
+		{
+			this->mDepthStencil->Release();
+		}
 	}
 
 	const Effect::Texture *D3D9Effect::GetTexture(const std::string &name) const
@@ -2804,7 +2832,10 @@ namespace ReShade
 	{
 		for (Pass &pass : this->mPasses)
 		{
-			pass.Stateblock->Release();
+			if (pass.Stateblock != nullptr)
+			{
+				pass.Stateblock->Release();
+			}
 
 			if (pass.VS != nullptr)
 			{
@@ -2840,6 +2871,8 @@ namespace ReShade
 			return false;
 		}
 
+		assert(this->mEffect->mDepthStencil != nullptr);
+
 		device->SetDepthStencilSurface(this->mEffect->mDepthStencil);
 		device->Clear(0, nullptr, D3DCLEAR_ZBUFFER | D3DCLEAR_STENCIL, 0, 1.0f, 0x0);
 
@@ -2866,6 +2899,9 @@ namespace ReShade
 
 		D3DVIEWPORT9 viewport;
 		device->GetViewport(&viewport);
+
+		assert(viewport.Width != 0 && viewport.Height != 0);
+
 		const float pixel_size[4] = { +1.0f / viewport.Width, +1.0f / viewport.Height, -1.0f / viewport.Width, +1.0f / viewport.Height };
 		device->SetVertexShaderConstantF(223, pixel_size, 1);
 		device->SetPixelShaderConstantF(223, pixel_size, 1);

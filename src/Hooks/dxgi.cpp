@@ -523,7 +523,7 @@ void STDMETHODCALLTYPE ID3D11DeviceContext_OMSetRenderTargets(ID3D11DeviceContex
 
 		assert(runtime != nullptr);
 
-		runtime->ReplaceDepthStencil(pDeviceContext, &pDepthStencilView);
+		runtime->ReplaceDepthStencil(&pDepthStencilView);
 	}
 
 	trampoline(pDeviceContext, NumViews, ppRenderTargetViews, pDepthStencilView);
@@ -546,7 +546,7 @@ void STDMETHODCALLTYPE ID3D11DeviceContext_OMSetRenderTargetsAndUnorderedAccessV
 
 		assert(runtime != nullptr);
 
-		runtime->ReplaceDepthStencil(pDeviceContext, &pDepthStencilView);
+		runtime->ReplaceDepthStencil(&pDepthStencilView);
 	}
 
 	trampoline(pDeviceContext, NumRTVs, ppRenderTargetViews, pDepthStencilView, UAVStartSlot, NumUAVs, ppUnorderedAccessViews, pUAVInitialCounts);
@@ -569,7 +569,7 @@ void STDMETHODCALLTYPE ID3D11DeviceContext_ClearDepthStencilView(ID3D11DeviceCon
 
 		assert(runtime != nullptr);
 
-		runtime->ReplaceDepthStencil(pDeviceContext, &pDepthStencilView);
+		runtime->ReplaceDepthStencil(&pDepthStencilView);
 	}
 
 	trampoline(pDeviceContext, pDepthStencilView, ClearFlags, Depth, Stencil);

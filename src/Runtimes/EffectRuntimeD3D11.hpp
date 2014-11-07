@@ -28,7 +28,7 @@ namespace ReShade
 	struct D3D11DepthStencilInfo
 	{
 		UINT Width, Height;
-		UINT DrawCallCount;
+		FLOAT DrawCallCount, DrawVerticesCount;
 	};
 	struct D3D11Runtime : public Runtime, public std::enable_shared_from_this<D3D11Runtime>
 	{
@@ -50,7 +50,7 @@ namespace ReShade
 
 		void DetectBestDepthStencil();
 		void CreateDepthStencil(ID3D11Resource *resource, ID3D11DepthStencilView *depthstencil);
-		void ReplaceDepthStencil(ID3D11DeviceContext *context, ID3D11DepthStencilView **depthstencil);
+		void ReplaceDepthStencil(ID3D11DepthStencilView **pDepthStencil);
 
 		ID3D11Device *mDevice;
 		ID3D11DeviceContext *mImmediateContext;
@@ -62,6 +62,7 @@ namespace ReShade
 		std::unordered_map<ID3D11DepthStencilView *, D3D11DepthStencilInfo> mDepthStencilTable;
 		ID3D11DepthStencilView *mBestDepthStencil, *mBestDepthStencilReplacement;
 		ID3D11ShaderResourceView *mDepthStencilShaderResourceView;
+		UINT mDrawCallCounter;
 		CRITICAL_SECTION mCS;
 		bool mLost;
 	};

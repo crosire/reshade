@@ -130,7 +130,7 @@ namespace ReShade
 
 	struct GLFramebufferInfo
 	{
-		GLint DrawCallCount;
+		GLfloat DrawCallCount, DrawVerticesCount;
 		GLuint DepthStencilName;
 		GLenum DepthStencilTarget;
 		GLint DepthStencilWidth, DepthStencilHeight, DepthStencilFormat;
@@ -162,6 +162,7 @@ namespace ReShade
 		GLStateBlock mStateBlock;
 		GLuint mBackBufferFBO, mBackBufferRBO, mBestDepthStencilFBO, mBestDepthStencilTexture, mBlitFBO;
 		std::unordered_map<GLuint, GLFramebufferInfo> mFramebufferTable;
+		unsigned int mDrawCallCounter;
 		bool mLost, mPresenting;
 	};
 	struct GLEffect : public Effect
