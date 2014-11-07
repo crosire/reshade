@@ -14,7 +14,7 @@ namespace ReShade
 		class GLEffectCompiler : private boost::noncopyable
 		{
 		public:
-			GLEffectCompiler(const EffectTree &ast) : mAST(ast), mEffect(nullptr), mCurrentFunction(EffectTree::Null), mCurrentInParameterBlock(false), mCurrentInFunctionBlock(false), mCurrentGlobalSize(0), mCurrentGlobalStorageSize(0)
+			GLEffectCompiler(const EffectTree &ast) : mAST(ast), mEffect(nullptr), mCurrentFunction(EffectTree::Null), mCurrentInParameterBlock(false), mCurrentInFunctionBlock(false), mCurrentInDeclaratorList(false), mCurrentGlobalSize(0), mCurrentGlobalStorageSize(0)
 			{
 			}
 
@@ -29,12 +29,22 @@ namespace ReShade
 				this->mEffect->mUniformBuffers.push_back(0);
 				this->mEffect->mUniformStorages.push_back(std::make_pair(nullptr, 0));
 
-				const auto &root = this->mAST[EffectTree::Root].As<EffectNodes::List>();
+				const EffectNodes::Root *node = &this->mAST[EffectTree::Root].As<EffectNodes::Root>();
 
-				for (unsigned int i = 0; i < root.Length; ++i)
+				do
 				{
-					Visit(this->mAST[root[i]]);
+					Visit(*node);
+
+					if (node->NextDeclaration != EffectTree::Null)
+					{
+						node = &this->mAST[node->NextDeclaration].As<EffectNodes::Root>();
+					}
+					else
+					{
+						node = nullptr;
+					}
 				}
+				while (node != nullptr);
 
 				if (this->mCurrentGlobalSize != 0)
 				{
@@ -317,6 +327,7 @@ namespace ReShade
 					case EffectNodes::Type::Sampler:
 						return "sampler2D";
 					case EffectNodes::Type::Struct:
+						assert(type.Definition != EffectTree::Null);
 						return FixName(this->mAST[type.Definition].As<EffectNodes::Struct>().Name);
 				}
 			}
@@ -353,7 +364,7 @@ namespace ReShade
 
 				if (from.Class != to.Class && !(from.IsMatrix() && to.IsMatrix()))
 				{
-					const EffectNodes::Type type = { to.Class, 0, from.Rows, from.Cols };
+					const EffectNodes::Type type = { to.Class, 0, from.Rows, from.Cols, 0, to.Definition };
 
 					code.first += PrintType(type) + "(";
 					code.second += ")";
@@ -437,6 +448,10 @@ namespace ReShade
 				{
 					Visit(node.As<ExpressionStatement>());
 				}
+				else if (node.Is<DeclarationStatement>())
+				{
+					Visit(node.As<DeclarationStatement>());
+				}
 				else if (node.Is<If>())
 				{
 					Visit(node.As<If>());
@@ -444,10 +459,6 @@ namespace ReShade
 				else if (node.Is<Switch>())
 				{
 					Visit(node.As<Switch>());
-				}
-				else if (node.Is<Case>())
-				{
-					Visit(node.As<Case>());
 				}
 				else if (node.Is<For>())
 				{
@@ -457,6 +468,10 @@ namespace ReShade
 				{
 					Visit(node.As<While>());
 				}
+				else if (node.Is<Return>())
+				{
+					Visit(node.As<Return>());
+				}
 				else if (node.Is<Jump>())
 				{
 					Visit(node.As<Jump>());
@@ -464,10 +479,6 @@ namespace ReShade
 				else if (node.Is<StatementBlock>())
 				{
 					Visit(node.As<StatementBlock>());
-				}
-				else if (node.Is<Annotation>())
-				{
-					Visit(node.As<Annotation>());
 				}
 				else if (node.Is<Struct>())
 				{
@@ -477,11 +488,7 @@ namespace ReShade
 				{
 					Visit(node.As<Technique>());
 				}
-				else if (node.Is<Pass>())
-				{
-					Visit(node.As<Pass>());
-				}
-				else
+				else if (!node.Is<Root>())
 				{
 					assert(false);
 				}
@@ -1279,15 +1286,24 @@ namespace ReShade
 			}
 			void Visit(const EffectNodes::Sequence &node)
 			{
-				for (unsigned int i = 0; i < node.Length; ++i)
+				const EffectNodes::RValue *expression = &this->mAST[node.Expressions].As<EffectNodes::RValue>();
+
+				do
 				{
-					Visit(this->mAST[node[i]]);
+					Visit(*expression);
 
-					this->mCurrentSource += ", ";
+					if (expression->NextExpression != EffectTree::Null)
+					{
+						this->mCurrentSource += ", ";
+
+						expression = &this->mAST[expression->NextExpression].As<EffectNodes::RValue>();
+					}
+					else
+					{
+						expression = nullptr;
+					}
 				}
-
-				this->mCurrentSource.pop_back();
-				this->mCurrentSource.pop_back();
+				while (expression != nullptr);
 			}
 			void Visit(const EffectNodes::Assignment &node)
 			{
@@ -1345,26 +1361,33 @@ namespace ReShade
 				this->mCurrentSource += FixName(node.CalleeName);
 				this->mCurrentSource += '(';
 
-				if (node.HasArguments())
+				if (node.Arguments != EffectTree::Null)
 				{
-					const auto &arguments = this->mAST[node.Arguments].As<EffectNodes::List>();
-					const auto &parameters = this->mAST[this->mAST[node.Callee].As<EffectNodes::Function>().Parameters].As<EffectNodes::List>();
+					const EffectNodes::RValue *argument = &this->mAST[node.Arguments].As<EffectNodes::RValue>();
+					const EffectNodes::Variable *parameter = &this->mAST[this->mAST[node.Callee].As<EffectNodes::Function>().Parameters].As<EffectNodes::Variable>();
 
-					for (unsigned int i = 0; i < arguments.Length; ++i)
+					do
 					{
-						const auto &argument = this->mAST[arguments[i]].As<EffectNodes::RValue>();
-						const auto &parameter = this->mAST[parameters[i]].As<EffectNodes::Variable>();
-						
-						const std::pair<std::string , std::string> cast = PrintCast(argument.Type, parameter.Type);
+						const std::pair<std::string , std::string> cast = PrintCast(argument->Type, parameter->Type);
 
 						this->mCurrentSource += cast.first;
-						Visit(argument);
+						Visit(*argument);
 						this->mCurrentSource += cast.second;
-						this->mCurrentSource += ", ";
-					}
 
-					this->mCurrentSource.pop_back();
-					this->mCurrentSource.pop_back();
+						if (argument->NextExpression != EffectTree::Null)
+						{
+							this->mCurrentSource += ", ";
+
+							argument = &this->mAST[argument->NextExpression].As<EffectNodes::RValue>();
+							parameter = &this->mAST[parameter->NextDeclaration].As<EffectNodes::Variable>();
+						}
+						else
+						{
+							argument = nullptr;
+							parameter = nullptr;
+						}
+					}
+					while (argument != nullptr && parameter != nullptr);
 				}
 
 				this->mCurrentSource += ')';
@@ -1379,17 +1402,24 @@ namespace ReShade
 				this->mCurrentSource += PrintType(node.Type);
 				this->mCurrentSource += '(';
 
-				const auto &arguments = this->mAST[node.Arguments].As<EffectNodes::List>();
+				const EffectNodes::RValue *argument = &this->mAST[node.Arguments].As<EffectNodes::RValue>();
 
-				for (unsigned int i = 0; i < arguments.Length; ++i)
+				do
 				{
-					Visit(this->mAST[arguments[i]]);
+					Visit(*argument);
 
-					this->mCurrentSource += ", ";
+					if (argument->NextExpression != EffectTree::Null)
+					{
+						this->mCurrentSource += ", ";
+
+						argument = &this->mAST[argument->NextExpression].As<EffectNodes::RValue>();
+					}
+					else
+					{
+						argument = nullptr;
+					}
 				}
-
-				this->mCurrentSource.pop_back();
-				this->mCurrentSource.pop_back();
+				while (argument != nullptr);
 
 				this->mCurrentSource += ')';
 
@@ -1445,7 +1475,7 @@ namespace ReShade
 				this->mCurrentSource += cast.second;
 				this->mCurrentSource += ")\n";
 
-				if (node.StatementOnTrue != 0)
+				if (node.StatementOnTrue != EffectTree::Null)
 				{
 					Visit(this->mAST[node.StatementOnTrue]);
 				}
@@ -1453,7 +1483,7 @@ namespace ReShade
 				{
 					this->mCurrentSource += "\t;";
 				}
-				if (node.StatementOnFalse != 0)
+				if (node.StatementOnFalse != EffectTree::Null)
 				{
 					this->mCurrentSource += "else\n";
 					Visit(this->mAST[node.StatementOnFalse]);
@@ -1465,35 +1495,53 @@ namespace ReShade
 				Visit(this->mAST[node.Test]);
 				this->mCurrentSource += ")\n{\n";
 
-				const auto &cases = this->mAST[node.Cases].As<EffectNodes::List>();
+				const EffectNodes::Case *cases = &this->mAST[node.Cases].As<EffectNodes::Case>();
 
-				for (unsigned int i = 0; i < cases.Length; ++i)
+				do
 				{
-					Visit(this->mAST[cases[i]].As<EffectNodes::Case>());
+					Visit(*cases);
+
+					if (cases->NextCase != EffectTree::Null)
+					{
+						cases = &this->mAST[cases->NextCase].As<EffectNodes::Case>();
+					}
+					else
+					{
+						cases = nullptr;
+					}
 				}
+				while (cases != nullptr);
 
 				this->mCurrentSource += "}\n";
 			}
 			void Visit(const EffectNodes::Case &node)
 			{
-				const auto &labels = this->mAST[node.Labels].As<EffectNodes::List>();
+				const EffectNodes::RValue *label = &this->mAST[node.Labels].As<EffectNodes::RValue>();
 
-				for (unsigned int i = 0; i < labels.Length; ++i)
+				do
 				{
-					const auto &label = this->mAST[labels[i]];
-
-					if (label.Is<EffectNodes::Expression>())
+					if (label->Is<EffectNodes::Expression>())
 					{
 						this->mCurrentSource += "default";
 					}
 					else
 					{
 						this->mCurrentSource += "case ";
-						Visit(label.As<EffectNodes::Literal>());
+						Visit(label->As<EffectNodes::Literal>());
 					}
 
 					this->mCurrentSource += ":\n";
+
+					if (label->NextExpression != EffectTree::Null)
+					{
+						label = &this->mAST[label->NextExpression].As<EffectNodes::RValue>();
+					}
+					else
+					{
+						label = nullptr;
+					}
 				}
+				while (label != nullptr);
 
 				Visit(this->mAST[node.Statements].As<EffectNodes::StatementBlock>());
 			}
@@ -1501,31 +1549,30 @@ namespace ReShade
 			{
 				this->mCurrentSource += "for (";
 
-				if (node.Initialization != 0)
+				if (node.Initialization != EffectTree::Null)
 				{
 					Visit(this->mAST[node.Initialization]);
-
-					this->mCurrentSource.pop_back();
-					this->mCurrentSource.pop_back();
 				}
-
-				this->mCurrentSource += "; ";
+				else
+				{
+					this->mCurrentSource += "; ";
+				}
 										
-				if (node.Condition != 0)
+				if (node.Condition != EffectTree::Null)
 				{
 					Visit(this->mAST[node.Condition]);
 				}
 
 				this->mCurrentSource += "; ";
 
-				if (node.Iteration != 0)
+				if (node.Iteration != EffectTree::Null)
 				{
 					Visit(this->mAST[node.Iteration]);
 				}
 
 				this->mCurrentSource += ")\n";
 
-				if (node.Statements != 0)
+				if (node.Statements != EffectTree::Null)
 				{
 					Visit(this->mAST[node.Statements]);
 				}
@@ -1540,7 +1587,7 @@ namespace ReShade
 				{
 					this->mCurrentSource += "do\n{\n";
 
-					if (node.Statements != 0)
+					if (node.Statements != EffectTree::Null)
 					{
 						Visit(this->mAST[node.Statements]);
 					}
@@ -1556,7 +1603,7 @@ namespace ReShade
 					Visit(this->mAST[node.Condition]);
 					this->mCurrentSource += ")\n";
 
-					if (node.Statements != 0)
+					if (node.Statements != EffectTree::Null)
 					{
 						Visit(this->mAST[node.Statements]);
 					}
@@ -1566,31 +1613,38 @@ namespace ReShade
 					}
 				}
 			}
+			void Visit(const EffectNodes::Return &node)
+			{
+				if (node.Discard)
+				{
+					this->mCurrentSource += "discard";
+				}
+				else
+				{
+					this->mCurrentSource += "return";
+
+					if (node.Value != EffectTree::Null)
+					{
+						const auto cast = PrintCast(this->mAST[node.Value].As<EffectNodes::RValue>().Type, this->mAST[this->mCurrentFunction].As<EffectNodes::Function>().ReturnType);
+
+						this->mCurrentSource += ' ';
+						this->mCurrentSource += cast.first;
+						Visit(this->mAST[node.Value]);
+						this->mCurrentSource += cast.second;
+					}
+				}
+
+				this->mCurrentSource += ";\n";
+			}
 			void Visit(const EffectNodes::Jump &node)
 			{
 				switch (node.Mode)
 				{
-					case EffectNodes::Jump::Return:
-						this->mCurrentSource += "return";
-
-						if (node.Value != 0)
-						{
-							const auto cast = PrintCast(this->mAST[node.Value].As<EffectNodes::RValue>().Type, this->mAST[this->mCurrentFunction].As<EffectNodes::Function>().ReturnType);
-
-							this->mCurrentSource += ' ';
-							this->mCurrentSource += cast.first;
-							Visit(this->mAST[node.Value]);
-							this->mCurrentSource += cast.second;
-						}
-						break;
 					case EffectNodes::Jump::Break:
 						this->mCurrentSource += "break";
 						break;
 					case EffectNodes::Jump::Continue:
 						this->mCurrentSource += "continue";
-						break;
-					case EffectNodes::Jump::Discard:
-						this->mCurrentSource += "discard";
 						break;
 				}
 
@@ -1598,51 +1652,73 @@ namespace ReShade
 			}
 			void Visit(const EffectNodes::ExpressionStatement &node)
 			{
-				if (node.Expression != 0)
+				if (node.Expression != EffectTree::Null)
 				{
 					Visit(this->mAST[node.Expression]);
 				}
 
 				this->mCurrentSource += ";\n";
 			}
+			void Visit(const EffectNodes::DeclarationStatement &node)
+			{
+				Visit(this->mAST[node.Declaration]);
+			}
 			void Visit(const EffectNodes::StatementBlock &node)
 			{
 				this->mCurrentSource += "{\n";
 
-				for (unsigned int i = 0; i < node.Length; ++i)
+				if (node.Statements != EffectTree::Null)
 				{
-					Visit(this->mAST[node[i]]);
+					const EffectNodes::Statement *statement = &this->mAST[node.Statements].As<EffectNodes::Statement>();
+
+					do
+					{
+						Visit(*statement);
+
+						if (statement->NextStatement != EffectTree::Null)
+						{
+							statement = &this->mAST[statement->NextStatement].As<EffectNodes::Statement>();
+						}
+						else
+						{
+							statement = nullptr;
+						}
+					}
+					while (statement != nullptr);
 				}
 
 				this->mCurrentSource += "}\n";
 			}
-			void Visit(const EffectNodes::Annotation &node)
+			void Visit(const EffectNodes::Annotation &node, std::unordered_map<std::string, Effect::Annotation> &annotations)
 			{
-				Effect::Annotation annotation;
+				Effect::Annotation data;
 				const auto &value = this->mAST[node.Value].As<EffectNodes::Literal>();
 
 				switch (value.Type.Class)
 				{
 					case EffectNodes::Type::Bool:
-						annotation = value.Value.Bool[0] != 0;
+						data = value.Value.Bool[0] != 0;
 						break;
 					case EffectNodes::Type::Int:
-						annotation = value.Value.Int[0];
+						data = value.Value.Int[0];
 						break;
 					case EffectNodes::Type::Uint:
-						annotation = value.Value.Uint[0];
+						data = value.Value.Uint[0];
 						break;
 					case EffectNodes::Type::Float:
-						annotation = value.Value.Float[0];
+						data = value.Value.Float[0];
 						break;
 					case EffectNodes::Type::String:
-						annotation = value.Value.String;
+						data = value.Value.String;
 						break;
 				}
 
-				assert(this->mCurrentAnnotations != nullptr);
+				annotations.insert(std::make_pair(node.Name, data));
 
-				this->mCurrentAnnotations->insert(std::make_pair(node.Name, annotation));
+				if (node.NextAnnotation != EffectTree::Null)
+				{
+					Visit(this->mAST[node.NextAnnotation].As<EffectNodes::Annotation>(), annotations);
+				}
 			}
 			void Visit(const EffectNodes::Struct &node)
 			{
@@ -1659,14 +1735,9 @@ namespace ReShade
 
 				this->mCurrentSource += "\n{\n";
 
-				if (node.HasFields())
+				if (node.Fields != EffectTree::Null)
 				{
-					const auto &fields = this->mAST[node.Fields].As<EffectNodes::List>();
-
-					for (unsigned int i = 0; i < fields.Length; ++i)
-					{
-						Visit(this->mAST[fields[i]].As<EffectNodes::Variable>());
-					}
+					Visit(this->mAST[node.Fields].As<EffectNodes::Variable>());
 				}
 				else
 				{
@@ -1701,7 +1772,10 @@ namespace ReShade
 					}
 				}
 
-				this->mCurrentSource += PrintTypeWithQualifiers(node.Type);
+				if (!this->mCurrentInDeclaratorList)
+				{
+					this->mCurrentSource += PrintTypeWithQualifiers(node.Type);
+				}
 
 				if (node.Name != nullptr)
 				{
@@ -1722,7 +1796,7 @@ namespace ReShade
 					this->mCurrentSource += ']';
 				}
 
-				if (node.HasInitializer())
+				if (node.Initializer != EffectTree::Null)
 				{
 					this->mCurrentSource += " = ";
 
@@ -1733,7 +1807,28 @@ namespace ReShade
 					this->mCurrentSource += cast.second;
 				}
 
-				if (!this->mCurrentInParameterBlock)
+				if (node.NextDeclarator != EffectTree::Null)
+				{
+					const auto &next = this->mAST[node.NextDeclarator].As<EffectNodes::Variable>();
+
+					if (next.Type.Class == node.Type.Class && next.Type.Rows == node.Type.Rows && next.Type.Cols == node.Type.Rows && next.Type.Definition == node.Type.Definition)
+					{
+						this->mCurrentSource += ", ";
+
+						this->mCurrentInDeclaratorList = true;
+
+						Visit(next);
+
+						this->mCurrentInDeclaratorList = false;
+					}
+					else
+					{
+						this->mCurrentSource += ";\n";
+
+						Visit(next);
+					}
+				}
+				else if (!this->mCurrentInParameterBlock)
 				{
 					this->mCurrentSource += ";\n";
 				}
@@ -1770,18 +1865,9 @@ namespace ReShade
 
 				GLCHECK(glBindTexture(GL_TEXTURE_2D, previous));
 
-				if (node.HasAnnotations())
+				if (node.Annotations != EffectTree::Null)
 				{
-					const auto &annotations = this->mAST[node.Annotations].As<EffectNodes::List>();
-
-					this->mCurrentAnnotations = &obj->mAnnotations;
-
-					for (unsigned int i = 0; i < annotations.Length; ++i)
-					{
-						Visit(this->mAST[annotations[i]]);
-					}
-
-					this->mCurrentAnnotations = nullptr;
+					Visit(this->mAST[node.Annotations].As<EffectNodes::Annotation>(), obj->mAnnotations);
 				}
 
 				this->mEffect->mTextures.insert(std::make_pair(node.Name, std::move(obj)));
@@ -1897,21 +1983,12 @@ namespace ReShade
 					this->mEffect->mUniformStorages[0].first = static_cast<unsigned char *>(::realloc(this->mEffect->mUniformStorages[0].first, this->mEffect->mUniformStorages[0].second += 128));
 				}
 
-				if (node.HasAnnotations())
+				if (node.Annotations != EffectTree::Null)
 				{
-					const auto &annotations = this->mAST[node.Annotations].As<EffectNodes::List>();
-
-					this->mCurrentAnnotations = &obj->mAnnotations;
-
-					for (unsigned int i = 0; i < annotations.Length; ++i)
-					{
-						Visit(this->mAST[annotations[i]].As<EffectNodes::Annotation>());
-					}
-
-					this->mCurrentAnnotations = nullptr;
+					Visit(this->mAST[node.Annotations].As<EffectNodes::Annotation>(), obj->mAnnotations);
 				}
 
-				if (node.HasInitializer())
+				if (node.Initializer != EffectTree::Null)
 				{
 					std::memcpy(this->mEffect->mUniformStorages[0].first + obj->mBufferOffset, &this->mAST[node.Initializer].As<EffectNodes::Literal>().Value, obj->mDesc.Size);
 				}
@@ -1926,7 +2003,7 @@ namespace ReShade
 			{
 				const auto &structure = this->mAST[node.Type.Definition].As<EffectNodes::Struct>();
 
-				if (!structure.HasFields())
+				if (!structure.Fields != EffectTree::Null)
 				{
 					return;
 				}
@@ -1940,22 +2017,23 @@ namespace ReShade
 				unsigned char *storage = nullptr;
 				std::size_t totalsize = 0, currentsize = 0;
 
-				const auto &fields = this->mAST[structure.Fields].As<EffectNodes::List>();
+				unsigned int fieldCount = 0;
+				const EffectNodes::Variable *field = &this->mAST[structure.Fields].As<EffectNodes::Variable>();
 
-				for (unsigned int i = 0; i < fields.Length; ++i)
+				do
 				{
-					const auto &field = this->mAST[fields[i]].As<EffectNodes::Variable>();
+					fieldCount++;
 
-					Visit(field);
+					Visit(*field);
 
 					std::unique_ptr<GLConstant> obj(new GLConstant(this->mEffect));
-					obj->mDesc.Rows = field.Type.Rows;
-					obj->mDesc.Columns = field.Type.Cols;
-					obj->mDesc.Elements = field.Type.ArrayLength;
+					obj->mDesc.Rows = field->Type.Rows;
+					obj->mDesc.Columns = field->Type.Cols;
+					obj->mDesc.Elements = field->Type.ArrayLength;
 					obj->mDesc.Fields = 0;
-					obj->mDesc.Size = field.Type.Rows * field.Type.Cols;
+					obj->mDesc.Size = field->Type.Rows * field->Type.Cols;
 
-					switch (field.Type.Class)
+					switch (field->Type.Class)
 					{
 						case EffectNodes::Type::Bool:
 							obj->mDesc.Size *= sizeof(int);
@@ -1986,17 +2064,27 @@ namespace ReShade
 						storage = static_cast<unsigned char *>(::realloc(storage, currentsize += 128));
 					}
 
-					if (field.HasInitializer())
+					if (field->Initializer != EffectTree::Null)
 					{
-						std::memcpy(storage + obj->mBufferOffset, &this->mAST[field.Initializer].As<EffectNodes::Literal>().Value, obj->mDesc.Size);
+						std::memcpy(storage + obj->mBufferOffset, &this->mAST[field->Initializer].As<EffectNodes::Literal>().Value, obj->mDesc.Size);
 					}
 					else
 					{
 						std::memset(storage + obj->mBufferOffset, 0, obj->mDesc.Size);
 					}
 
-					this->mEffect->mConstants.insert(std::make_pair(std::string(node.Name) + '.' + std::string(field.Name), std::move(obj)));
+					this->mEffect->mConstants.insert(std::make_pair(std::string(node.Name) + '.' + std::string(field->Name), std::move(obj)));
+
+					if (field->NextDeclarator != EffectTree::Null)
+					{
+						field = &this->mAST[field->NextDeclarator].As<EffectNodes::Variable>();
+					}
+					else
+					{
+						field = nullptr;
+					}
 				}
+				while (field != nullptr);
 
 				this->mCurrentBlockName.clear();
 
@@ -2007,23 +2095,14 @@ namespace ReShade
 				obj->mDesc.Rows = 0;
 				obj->mDesc.Columns = 0;
 				obj->mDesc.Elements = 0;
-				obj->mDesc.Fields = fields.Length;
+				obj->mDesc.Fields = fieldCount;
 				obj->mDesc.Size = totalsize;
 				obj->mBuffer = this->mEffect->mUniformBuffers.size();
 				obj->mBufferOffset = 0;
 
-				if (node.HasAnnotations())
+				if (node.Annotations != EffectTree::Null)
 				{
-					const auto &annotations = this->mAST[node.Annotations].As<EffectNodes::List>();
-
-					this->mCurrentAnnotations = &obj->mAnnotations;
-
-					for (unsigned int i = 0; i < annotations.Length; ++i)
-					{
-						Visit(this->mAST[annotations[i]].As<EffectNodes::Annotation>());
-					}
-
-					this->mCurrentAnnotations = nullptr;
+					Visit(this->mAST[node.Annotations].As<EffectNodes::Annotation>(), obj->mAnnotations);
 				}
 
 				this->mEffect->mConstants.insert(std::make_pair(node.Name, std::move(obj)));
@@ -2051,30 +2130,38 @@ namespace ReShade
 
 				this->mCurrentFunction = node.Index;
 
-				if (node.HasParameters())
+				if (node.Parameters != EffectTree::Null)
 				{
-					const auto &parameters = this->mAST[node.Parameters].As<EffectNodes::List>();
-
 					this->mCurrentInParameterBlock = true;
 
-					for (unsigned int i = 0; i < parameters.Length; ++i)
+					const EffectNodes::Variable *parameter = &this->mAST[node.Parameters].As<EffectNodes::Variable>();
+
+					do
 					{
-						Visit(this->mAST[parameters[i]].As<EffectNodes::Variable>());
+						Visit(*parameter);
 
-						this->mCurrentSource += ", ";
+						if (parameter->NextDeclaration != EffectTree::Null)
+						{
+							this->mCurrentSource += ", ";
+
+							parameter = &this->mAST[parameter->NextDeclaration].As<EffectNodes::Variable>();
+						}
+						else
+						{
+							parameter = nullptr;
+						}
 					}
-
-					this->mCurrentSource.pop_back();
-					this->mCurrentSource.pop_back();
+					while (parameter != nullptr);
 
 					this->mCurrentInParameterBlock = false;
 				}
 
 				this->mCurrentSource += ')';
 
-				if (node.HasDefinition())
+				if (node.Definition != EffectTree::Null)
 				{
 					this->mCurrentSource += '\n';
+
 					this->mCurrentInFunctionBlock = true;
 
 					Visit(this->mAST[node.Definition].As<EffectNodes::StatementBlock>());
@@ -2092,38 +2179,31 @@ namespace ReShade
 			{
 				std::unique_ptr<GLTechnique> obj(new GLTechnique(this->mEffect));
 
-				const auto &passes = this->mAST[node.Passes].As<EffectNodes::List>();
+				const EffectNodes::Pass *pass = &this->mAST[node.Passes].As<EffectNodes::Pass>();
 
-				obj->mPasses.reserve(passes.Length);
-
-				this->mCurrentPasses = &obj->mPasses;
-
-				for (unsigned int i = 0; i < passes.Length; ++i)
+				do
 				{
-					const auto &pass = this->mAST[passes[i]].As<EffectNodes::Pass>();
+					Visit(*pass, obj->mPasses);
 
-					Visit(pass);
-				}
-
-				this->mCurrentPasses = nullptr;
-
-				if (node.HasAnnotations())
-				{
-					const auto &annotations = this->mAST[node.Annotations].As<EffectNodes::List>();
-
-					this->mCurrentAnnotations = &obj->mAnnotations;
-
-					for (unsigned int i = 0; i < annotations.Length; ++i)
+					if (pass->NextPass != EffectTree::Null)
 					{
-						Visit(this->mAST[annotations[i]].As<EffectNodes::Annotation>());
+						pass = &this->mAST[pass->NextPass].As<EffectNodes::Pass>();
 					}
+					else
+					{
+						pass = nullptr;
+					}
+				}
+				while (pass != nullptr);
 
-					this->mCurrentAnnotations = nullptr;
+				if (node.Annotations != EffectTree::Null)
+				{
+					Visit(this->mAST[node.Annotations].As<EffectNodes::Annotation>(), obj->mAnnotations);
 				}
 
 				this->mEffect->mTechniques.insert(std::make_pair(node.Name, std::move(obj)));
 			}
-			void Visit(const EffectNodes::Pass &node)
+			void Visit(const EffectNodes::Pass &node, std::vector<GLTechnique::Pass> &passes)
 			{
 				GLTechnique::Pass pass;
 				ZeroMemory(&pass, sizeof(GLTechnique::Pass));
@@ -2230,12 +2310,20 @@ namespace ReShade
 				if (node.States[EffectNodes::Pass::VertexShader] != 0)
 				{
 					shaders[0] = VisitShader(this->mAST[node.States[EffectNodes::Pass::VertexShader]].As<EffectNodes::Function>(), EffectNodes::Pass::VertexShader);
-					GLCHECK(glAttachShader(pass.Program, shaders[0]));
+
+					if (shaders[0] != 0)
+					{
+						GLCHECK(glAttachShader(pass.Program, shaders[0]));
+					}
 				}
 				if (node.States[EffectNodes::Pass::PixelShader] != 0)
 				{
 					shaders[1] = VisitShader(this->mAST[node.States[EffectNodes::Pass::PixelShader]].As<EffectNodes::Function>(), EffectNodes::Pass::PixelShader);
-					GLCHECK(glAttachShader(pass.Program, shaders[1]));
+
+					if (shaders[1] != 0)
+					{
+						GLCHECK(glAttachShader(pass.Program, shaders[1]));
+					}
 				}
 
 				GLCHECK(glLinkProgram(pass.Program));
@@ -2270,9 +2358,7 @@ namespace ReShade
 					return;
 				}
 
-				assert(this->mCurrentPasses != nullptr);
-
-				this->mCurrentPasses->push_back(std::move(pass));
+				passes.push_back(std::move(pass));
 			}
 			GLuint VisitShader(const EffectNodes::Function &node, unsigned int type)
 			{
@@ -2305,47 +2391,75 @@ namespace ReShade
 
 				source += this->mCurrentSource;
 
-				if (node.HasParameters())
+				if (node.Parameters != EffectTree::Null)
 				{
-					const auto &parameters = this->mAST[node.Parameters].As<EffectNodes::List>();
+					const EffectNodes::Variable *parameter = &this->mAST[node.Parameters].As<EffectNodes::Variable>();
 
-					for (unsigned int i = 0; i < parameters.Length; ++i)
+					do
 					{
-						const auto &parameter = this->mAST[parameters[i]].As<EffectNodes::Variable>();
-
-						if (parameter.Type.IsStruct())
+						if (parameter->Type.IsStruct())
 						{
-							if (this->mAST[parameter.Type.Definition].As<EffectNodes::Struct>().HasFields())
+							const EffectTree::Index fields = this->mAST[parameter->Type.Definition].As<EffectNodes::Struct>().Fields;
+
+							if (fields != EffectTree::Null)
 							{
-								const auto &fields = this->mAST[this->mAST[parameter.Type.Definition].As<EffectNodes::Struct>().Fields].As<EffectNodes::List>();
+								const EffectNodes::Variable *field = &this->mAST[fields].As<EffectNodes::Variable>();
 
-								for (unsigned int k = 0; k < fields.Length; ++k)
+								do
 								{
-									const auto &field = this->mAST[fields[i]].As<EffectNodes::Variable>();
+									VisitShaderVariable(parameter->Type.Qualifiers, field->Type, "_param_" + std::string(parameter->Name) + "_" + std::string(field->Name), field->Semantic, source);
 
-									VisitShaderVariable(parameter.Type.Qualifiers, field.Type, "_param_" + std::string(parameter.Name) + "_" + std::string(field.Name), parameter.Semantic, source);
+									if (field->NextDeclarator != EffectTree::Null)
+									{
+										field = &this->mAST[field->NextDeclarator].As<EffectNodes::Variable>();
+									}
+									else
+									{
+										field = nullptr;
+									}
 								}
+								while (field != nullptr);
 							}
 						}
 						else
 						{
-							VisitShaderVariable(parameter.Type.Qualifiers, parameter.Type, "_param_" + std::string(parameter.Name), parameter.Semantic, source);
+							VisitShaderVariable(parameter->Type.Qualifiers, parameter->Type, "_param_" + std::string(parameter->Name), parameter->Semantic, source);
+						}
+
+						if (parameter->NextDeclaration != EffectTree::Null)
+						{
+							parameter = &this->mAST[parameter->NextDeclaration].As<EffectNodes::Variable>();
+						}
+						else
+						{
+							parameter = nullptr;
 						}
 					}
+					while (parameter != nullptr);
 				}
 
 				if (node.ReturnType.IsStruct())
 				{
-					if (this->mAST[node.ReturnType.Definition].As<EffectNodes::Struct>().HasFields())
+					const EffectTree::Index fields = this->mAST[node.ReturnType.Definition].As<EffectNodes::Struct>().Fields;
+
+					if (fields != EffectTree::Null)
 					{
-						const auto &fields = this->mAST[this->mAST[node.ReturnType.Definition].As<EffectNodes::Struct>().Fields].As<EffectNodes::List>();
+						const EffectNodes::Variable *field = &this->mAST[fields].As<EffectNodes::Variable>();
 
-						for (unsigned int i = 0; i < fields.Length; ++i)
+						do
 						{
-							const auto &field = this->mAST[fields[i]].As<EffectNodes::Variable>();
+							VisitShaderVariable(EffectNodes::Type::Out, field->Type, "_return_" + std::string(field->Name), field->Semantic, source);
 
-							VisitShaderVariable(EffectNodes::Type::Out, field.Type, "_return_" + std::string(field.Name), field.Semantic, source);
+							if (field->NextDeclarator != EffectTree::Null)
+							{
+								field = &this->mAST[field->NextDeclarator].As<EffectNodes::Variable>();
+							}
+							else
+							{
+								field = nullptr;
+							}
 						}
+						while (field != nullptr);
 					}
 				}
 				else if (!node.ReturnType.IsVoid())
@@ -2355,36 +2469,80 @@ namespace ReShade
 
 				source += "void main()\n{\n";
 
-				if (node.HasParameters())
+				if (node.Parameters != EffectTree::Null)
 				{
-					const auto &parameters = this->mAST[node.Parameters].As<EffectNodes::List>();
-				
-					for (unsigned int i = 0; i < parameters.Length; ++i)
+					const EffectNodes::Variable *parameter = &this->mAST[node.Parameters].As<EffectNodes::Variable>();
+
+					do
 					{
-						const auto &parameter = this->mAST[parameters[i]].As<EffectNodes::Variable>();
-
-						if (parameter.Type.IsStruct())
+						if (parameter->Type.IsStruct())
 						{
-							source += PrintType(parameter.Type) + " _param_" + std::string(parameter.Name) + " = " + this->mAST[parameter.Type.Definition].As<EffectNodes::Struct>().Name + "(";
+							source += PrintType(parameter->Type) + " _param_" + std::string(parameter->Name) + " = " + this->mAST[parameter->Type.Definition].As<EffectNodes::Struct>().Name + "(";
 
-							if (this->mAST[parameter.Type.Definition].As<EffectNodes::Struct>().HasFields())
+							const EffectTree::Index fields = this->mAST[parameter->Type.Definition].As<EffectNodes::Struct>().Fields;
+
+							if (fields != EffectTree::Null)
 							{
-								const auto &fields = this->mAST[this->mAST[parameter.Type.Definition].As<EffectNodes::Struct>().Fields].As<EffectNodes::List>();
+								const EffectNodes::Variable *field = &this->mAST[fields].As<EffectNodes::Variable>();
 
-								for (unsigned int k = 0; k < fields.Length; ++k)
+								do
 								{
-									const auto &field = this->mAST[fields[i]].As<EffectNodes::Variable>();
+									if (field->Semantic == nullptr)
+									{
+										source += "_param_" + std::string(parameter->Name) + "_" + std::string(field->Name);
+									}
+									else if (::strcmp(field->Semantic, "SV_VERTEXID") == 0)
+									{
+										source += "gl_VertexID";
+									}
+									else if (::strcmp(field->Semantic, "SV_INSTANCEID") == 0)
+									{
+										source += "gl_InstanceID";
+									}
+									else if (::strcmp(field->Semantic, "SV_POSITION") == 0 && type == EffectNodes::Pass::VertexShader)
+									{
+										source += "gl_Position";
+									}
+									else if (::strcmp(field->Semantic, "SV_POSITION") == 0 && type == EffectNodes::Pass::PixelShader)
+									{
+										source += "gl_FragCoord";
+									}
+									else if (::strcmp(field->Semantic, "SV_DEPTH") == 0 && type == EffectNodes::Pass::PixelShader)
+									{
+										source += "gl_FragDepth";
+									}
+									else
+									{
+										source += "_param_" + std::string(parameter->Name) + "_" + std::string(field->Name);
+									}
 
-									source += "_param_" + std::string(parameter.Name) + "_" + std::string(field.Name) + ", ";
+									if (field->NextDeclarator != EffectTree::Null)
+									{
+										source += ", ";
+
+										field = &this->mAST[field->NextDeclarator].As<EffectNodes::Variable>();
+									}
+									else
+									{
+										field = nullptr;
+									}
 								}
-
-								source.pop_back();
-								source.pop_back();
+								while (field != nullptr);
 							}
 
-							source += ")\n;";
+							source += ");\n";
+						}
+
+						if (parameter->NextDeclaration != EffectTree::Null)
+						{
+							parameter = &this->mAST[parameter->NextDeclaration].As<EffectNodes::Variable>();
+						}
+						else
+						{
+							parameter = nullptr;
 						}
 					}
+					while (parameter != nullptr);
 				}
 				if (node.ReturnType.IsStruct())
 				{
@@ -2400,79 +2558,141 @@ namespace ReShade
 				source += FixName(node.Name);
 				source += "(";
 
-				if (node.HasParameters())
+				if (node.Parameters != EffectTree::Null)
 				{
-					const auto &parameters = this->mAST[node.Parameters].As<EffectNodes::List>();
-				
-					for (unsigned int i = 0; i < parameters.Length; ++i)
-					{
-						const auto &parameter = this->mAST[parameters[i]].As<EffectNodes::Variable>();
+					const EffectNodes::Variable *parameter = &this->mAST[node.Parameters].As<EffectNodes::Variable>();
 
-						if (::strcmp(parameter.Semantic, "SV_VERTEXID") == 0)
+					do
+					{
+						if (parameter->Semantic == nullptr)
 						{
-							source += "gl_VertexID, ";
+							source += "_param_" + std::string(parameter->Name);
 						}
-						else if (::strcmp(parameter.Semantic, "SV_INSTANCEID") == 0)
+						else if (::strcmp(parameter->Semantic, "SV_VERTEXID") == 0)
 						{
-							source += "gl_InstanceID, ";
+							source += "gl_VertexID";
 						}
-						else if (::strcmp(parameter.Semantic, "SV_POSITION") == 0 && type == EffectNodes::Pass::VertexShader)
+						else if (::strcmp(parameter->Semantic, "SV_INSTANCEID") == 0)
 						{
-							source += "gl_Position, ";
+							source += "gl_InstanceID";
 						}
-						else if (::strcmp(parameter.Semantic, "SV_POSITION") == 0 && type == EffectNodes::Pass::PixelShader)
+						else if (::strcmp(parameter->Semantic, "SV_POSITION") == 0 && type == EffectNodes::Pass::VertexShader)
 						{
-							source += "gl_FragCoord, ";
+							source += "gl_Position";
 						}
-						else if (::strcmp(parameter.Semantic, "SV_DEPTH") == 0 && type == EffectNodes::Pass::PixelShader)
+						else if (::strcmp(parameter->Semantic, "SV_POSITION") == 0 && type == EffectNodes::Pass::PixelShader)
 						{
-							source += "gl_FragDepth, ";
+							source += "gl_FragCoord";
+						}
+						else if (::strcmp(parameter->Semantic, "SV_DEPTH") == 0 && type == EffectNodes::Pass::PixelShader)
+						{
+							source += "gl_FragDepth";
 						}
 						else
 						{
-							source += "_param_" + std::string(parameter.Name) + ", ";
+							source += "_param_" + std::string(parameter->Name);
+						}
+
+						if (parameter->NextDeclaration != EffectTree::Null)
+						{
+							source += ", ";
+
+							parameter = &this->mAST[parameter->NextDeclaration].As<EffectNodes::Variable>();
+						}
+						else
+						{
+							parameter = nullptr;
 						}
 					}
-
-					source.pop_back();
-					source.pop_back();
+					while (parameter != nullptr);
 				}
 
 				source += ");\n";
 
-				if (node.HasParameters())
+				if (node.Parameters != EffectTree::Null)
 				{
-					const auto &parameters = this->mAST[node.Parameters].As<EffectNodes::List>();
+					const EffectNodes::Variable *parameter = &this->mAST[node.Parameters].As<EffectNodes::Variable>();
 				
-					for (unsigned int i = 0; i < parameters.Length; ++i)
+					do
 					{
-						const auto &parameter = this->mAST[parameters[i]].As<EffectNodes::Variable>();
-
-						if (parameter.Type.IsStruct())
+						if (parameter->Type.IsStruct() && parameter->Type.HasQualifier(EffectNodes::Type::Qualifier::Out))
 						{
-							if (this->mAST[parameter.Type.Definition].As<EffectNodes::Struct>().HasFields())
+							const EffectTree::Index fields = this->mAST[parameter->Type.Definition].As<EffectNodes::Struct>().Fields;
+
+							if (fields != EffectTree::Null)
 							{
-								const auto &fields = this->mAST[this->mAST[parameter.Type.Definition].As<EffectNodes::Struct>().Fields].As<EffectNodes::List>();
+								const EffectNodes::Variable *field = &this->mAST[fields].As<EffectNodes::Variable>();
 
-								for (unsigned int k = 0; k < fields.Length; ++k)
+								do
 								{
-									const auto &field = this->mAST[fields[i]].As<EffectNodes::Variable>();
+									source += "_param_" + std::string(parameter->Name) + "_" + std::string(field->Name) + " = " + "_param_" + std::string(parameter->Name) + "." + std::string(field->Name) + ";\n";
 
-									source += "_param_" + std::string(parameter.Name) + "_" + std::string(field.Name) + " = " + "_param_" + std::string(parameter.Name) + ";\n";
+									if (field->NextDeclarator != EffectTree::Null)
+									{
+										source += ", ";
+
+										field = &this->mAST[field->NextDeclarator].As<EffectNodes::Variable>();
+									}
+									else
+									{
+										field = nullptr;
+									}
 								}
+								while (field != nullptr);
 							}
 						}
+
+						if (parameter->NextDeclaration != EffectTree::Null)
+						{
+							parameter = &this->mAST[parameter->NextDeclaration].As<EffectNodes::Variable>();
+						}
+						else
+						{
+							parameter = nullptr;
+						}
 					}
+					while (parameter != nullptr);
 				}
-				if (node.ReturnType.IsStruct() && this->mAST[node.ReturnType.Definition].As<EffectNodes::Struct>().HasFields())
+
+				if (node.ReturnType.IsStruct())
 				{
-					const auto &fields = this->mAST[this->mAST[node.ReturnType.Definition].As<EffectNodes::Struct>().Fields].As<EffectNodes::List>();
+					const EffectTree::Index fields = this->mAST[node.ReturnType.Definition].As<EffectNodes::Struct>().Fields;
 
-					for (unsigned int i = 0; i < fields.Length; ++i)
+					if (fields != EffectTree::Null)
 					{
-						const auto &field = this->mAST[fields[i]].As<EffectNodes::Variable>();
+						const EffectNodes::Variable *field = &this->mAST[fields].As<EffectNodes::Variable>();
 
-						source += "_return_" + std::string(field.Name) + " = _return." + std::string(field.Name) + ";\n";
+						do
+						{
+							if (::strcmp(field->Semantic, "SV_POSITION") == 0 && type == EffectNodes::Pass::VertexShader)
+							{
+								source += "gl_Position";
+							}
+							else if (::strcmp(field->Semantic, "SV_POSITION") == 0 && type == EffectNodes::Pass::PixelShader)
+							{
+								source += "gl_FragCoord";
+							}
+							else if (::strcmp(field->Semantic, "SV_DEPTH") == 0 && type == EffectNodes::Pass::PixelShader)
+							{
+								source += "gl_FragDepth";
+							}
+							else
+							{
+								source += "_return_" + std::string(field->Name);
+							}
+
+							source += " = _return." + std::string(field->Name) + ";\n";
+
+							if (field->NextDeclarator != EffectTree::Null)
+							{
+								field = &this->mAST[field->NextDeclarator].As<EffectNodes::Variable>();
+							}
+							else
+							{
+								field = nullptr;
+							}
+						}
+						while (field != nullptr);
 					}
 				}
 			
@@ -2575,9 +2795,7 @@ namespace ReShade
 			std::size_t mCurrentGlobalSize, mCurrentGlobalStorageSize;
 			std::string mCurrentBlockName;
 			EffectTree::Index mCurrentFunction;
-			bool mCurrentInParameterBlock, mCurrentInFunctionBlock;
-			std::unordered_map<std::string, Effect::Annotation> *mCurrentAnnotations;
-			std::vector<GLTechnique::Pass> *mCurrentPasses;
+			bool mCurrentInParameterBlock, mCurrentInFunctionBlock, mCurrentInDeclaratorList;
 		};
 
 		GLenum TargetToBinding(GLenum target)

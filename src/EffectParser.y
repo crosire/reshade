@@ -339,9 +339,9 @@
 %type<y.Index>	RULE_STATEMENT_WHILE
 %type<y.Index>	RULE_STATEMENT_JUMP
 
-%type<y.Index>	RULE_ATTRIBUTE
-%type<y.Index>	RULE_ATTRIBUTE_LIST
-%type<y.Index>	RULE_ATTRIBUTES
+%type<l>		RULE_ATTRIBUTE
+%type<l>		RULE_ATTRIBUTE_LIST
+%type<l>		RULE_ATTRIBUTES
 
 %type<y.Index>	RULE_ANNOTATION
 %type<y.Index>	RULE_ANNOTATION_LIST
@@ -392,11 +392,19 @@ RULE_START
 RULE_MAIN
 	: RULE_MAIN_DECLARATION
 	{
-		parser.mAST.Get().As<EffectNodes::List>().Link(parser.mAST, $1);
+		EffectNodes::Root &root = parser.mAST.Get().As<EffectNodes::Root>();
+		root.NextDeclaration = $1;
 	}
 	| RULE_MAIN RULE_MAIN_DECLARATION
 	{
-		parser.mAST.Get().As<EffectNodes::List>().Link(parser.mAST, $2);
+		EffectNodes::Root *root = &parser.mAST.Get().As<EffectNodes::Root>();
+
+		while (root->NextDeclaration != EffectTree::Null)
+		{
+			root = &parser.mAST[root->NextDeclaration].As<EffectNodes::Root>();
+		}
+
+		root->NextDeclaration = $2;
 	}
 	;
 RULE_MAIN_DECLARATION
@@ -438,7 +446,7 @@ RULE_IDENTIFIER_FUNCTION
 		node.Type = $1.Type;
 		node.Type.Qualifiers = EffectNodes::Type::Const;
 
-		@$ = node.Location, $$ = node.Index;
+		@$ = @1, $$ = node.Index;
 	}
 	| RULE_IDENTIFIER_SYMBOL
 	{
@@ -446,14 +454,14 @@ RULE_IDENTIFIER_FUNCTION
 		node.CalleeName = parser.mAST.AddString($1.String.p, $1.String.len);
 		node.Callee = $1.Node;
 
-		@$ = node.Location, $$ = node.Index;
+		@$ = @1, $$ = node.Index;
 	}
 	| TOK_IDENTIFIER_FIELD
 	{
 		EffectNodes::Call &node = parser.mAST.Add<EffectNodes::Call>(@1);
 		node.CalleeName = parser.mAST.AddString($1.String.p, $1.String.len);
 
-		@$ = node.Location, $$ = node.Index;
+		@$ = @1, $$ = node.Index;
 	}
 	;
 RULE_IDENTIFIER_SEMANTIC
@@ -578,7 +586,7 @@ RULE_TYPE_QUALIFIER
 	}
 	| RULE_TYPE_QUALIFIER RULE_TYPE_STORAGE
 	{
-		if ($1.Type.HasQualifiers($2.Uint))
+		if (($1.Type.Qualifiers & $2.Uint) == $2.Uint)
 		{
 			parser.Error(@2, 3048, "duplicate usages specified");
 			YYERROR;
@@ -588,7 +596,7 @@ RULE_TYPE_QUALIFIER
 	}
 	| RULE_TYPE_QUALIFIER RULE_TYPE_STORAGE_PARAMETER
 	{
-		if ($1.Type.HasQualifiers($2.Uint))
+		if (($1.Type.Qualifiers & $2.Uint) == $2.Uint)
 		{
 			parser.Error(@2, 3048, "duplicate usages specified");
 			YYERROR;
@@ -598,7 +606,7 @@ RULE_TYPE_QUALIFIER
 	}
 	| RULE_TYPE_QUALIFIER RULE_TYPE_MODIFIER
 	{
-		if ($1.Type.HasQualifiers($2.Uint))
+		if (($1.Type.Qualifiers & $2.Uint) == $2.Uint)
 		{
 			parser.Error(@2, 3048, "duplicate usages specified");
 			YYERROR;
@@ -608,7 +616,7 @@ RULE_TYPE_QUALIFIER
 	}
 	| RULE_TYPE_QUALIFIER RULE_TYPE_INTERPOLATION
 	{
-		if ($1.Type.HasQualifiers($2.Uint))
+		if (($1.Type.Qualifiers & $2.Uint) == $2.Uint)
 		{
 			parser.Error(@2, 3048, "duplicate usages specified");
 			YYERROR;
@@ -720,25 +728,23 @@ RULE_EXPRESSION
 	: RULE_EXPRESSION_ASSIGNMENT
 	| RULE_EXPRESSION "," RULE_EXPRESSION_ASSIGNMENT
 	{
-		if (parser.mAST[$1].Is<EffectNodes::Sequence>())
+		EffectNodes::Sequence &node = parser.mAST[$1].Is<EffectNodes::Sequence>() ? parser.mAST[$1].As<EffectNodes::Sequence>() : parser.mAST.Add<EffectNodes::Sequence>(@1);
+
+		if (node.Expressions == EffectTree::Null)
 		{
-			EffectNodes::Sequence &node = parser.mAST[$1].As<EffectNodes::Sequence>();
-			node.Type = parser.mAST[$3].As<EffectNodes::RValue>().Type;
-
-			@$ = node.Location, $$ = node.Index;
-
-			node.Link(parser.mAST, $3);
+			node.Expressions = $1;
 		}
-		else
+
+		EffectNodes::RValue *expression = &parser.mAST[node.Expressions].As<EffectNodes::RValue>();
+
+		while (expression->NextExpression != EffectTree::Null)
 		{
-			EffectNodes::Sequence &node = parser.mAST.Add<EffectNodes::Sequence>();
-			node.Type = parser.mAST[$3].As<EffectNodes::RValue>().Type;
-
-			@$ = node.Location, $$ = node.Index;
-
-			node.Link(parser.mAST, $1);
-			parser.mAST[$$].As<EffectNodes::Sequence>().Link(parser.mAST, $3);
+			expression = &parser.mAST[expression->NextExpression].As<EffectNodes::RValue>();
 		}
+
+		expression->NextExpression = $3;
+
+		@$ = @1, $$ = node.Index;
 	}
 	;
 RULE_EXPRESSION_LITERAL
@@ -750,7 +756,7 @@ RULE_EXPRESSION_LITERAL
 		node.Type.Rows = node.Type.Cols = 1;
 		node.Value.Bool[0] = $1.Int;
 
-		@$ = node.Location, $$ = node.Index;
+		@$ = @1, $$ = node.Index;
 	}
 	| TOK_LITERAL_INT
 	{
@@ -760,7 +766,7 @@ RULE_EXPRESSION_LITERAL
 		node.Type.Rows = node.Type.Cols = 1;
 		node.Value.Int[0] = $1.Int;
 
-		@$ = node.Location, $$ = node.Index;
+		@$ = @1, $$ = node.Index;
 	}
 	| TOK_LITERAL_ENUM
 	{
@@ -770,7 +776,7 @@ RULE_EXPRESSION_LITERAL
 		node.Type.Rows = node.Type.Cols = 1;
 		node.Value.Int[0] = $1.Int;
 
-		@$ = node.Location, $$ = node.Index;
+		@$ = @1, $$ = node.Index;
 	}
 	| TOK_LITERAL_FLOAT
 	{
@@ -780,7 +786,7 @@ RULE_EXPRESSION_LITERAL
 		node.Type.Rows = node.Type.Cols = 1;
 		node.Value.Float[0] = $1.Float;
 
-		@$ = node.Location, $$ = node.Index;
+		@$ = @1, $$ = node.Index;
 	}
 	;
 RULE_EXPRESSION_PRIMARY
@@ -802,7 +808,7 @@ RULE_EXPRESSION_PRIMARY
 		node.Type = parser.mAST[$1.Node].As<EffectNodes::Variable>().Type;
 		node.Reference = $1.Node;
 
-		@$ = node.Location, $$ = node.Index;
+		@$ = @1, $$ = node.Index;
 	}
 	| "(" RULE_EXPRESSION ")"
 	{
@@ -824,32 +830,41 @@ RULE_EXPRESSION_FUNCTION
 	{
 		@$ = @1, $$ = $1;
 
+		unsigned int argumentCount = 1;
+		const EffectNodes::RValue *argument = &parser.mAST[$3].As<EffectNodes::RValue>();
+
+		while (argument->NextExpression != EffectTree::Null)
+		{
+			argument = &parser.mAST[argument->NextExpression].As<EffectNodes::RValue>();
+			argumentCount++;
+		}
+
 		if (parser.mAST[$$].Is<EffectNodes::Call>())
 		{
 			parser.mAST[$$].As<EffectNodes::Call>().Arguments = $3;
+			parser.mAST[$$].As<EffectNodes::Call>().ArgumentCount = argumentCount;
 		}
 		else if (parser.mAST[$$].Is<EffectNodes::Constructor>())
 		{
 			parser.mAST[$$].As<EffectNodes::Constructor>().Arguments = $3;
+			parser.mAST[$$].As<EffectNodes::Constructor>().ArgumentCount = argumentCount;
 		}
 	}
 	;
 RULE_EXPRESSION_FUNCTION_ARGUMENTS
 	: RULE_EXPRESSION_ASSIGNMENT
-	{
-		EffectNodes::List &node = parser.mAST.Add<EffectNodes::List>(@1);
-
-		@$ = node.Location, $$ = node.Index;
-
-		node.Link(parser.mAST, $1);
-	}
 	| RULE_EXPRESSION_FUNCTION_ARGUMENTS "," RULE_EXPRESSION_ASSIGNMENT
 	{
-		EffectNodes::List &node = parser.mAST[$1].As<EffectNodes::List>();
+		EffectNodes::RValue *node = &parser.mAST[$1].As<EffectNodes::RValue>();
 
-		@$ = node.Location, $$ = node.Index;
+		while (node->NextExpression != EffectTree::Null)
+		{
+			node = &parser.mAST[node->NextExpression].As<EffectNodes::RValue>();
+		}
 
-		node.Link(parser.mAST, $3);
+		node->NextExpression = $3;
+
+		@$ = @1, $$ = $1;
 	}
 	;
 RULE_EXPRESSION_POSTFIX
@@ -886,12 +901,19 @@ RULE_EXPRESSION_POSTFIX
 
 				EffectNodes::Expression &node = parser.mAST.Add<EffectNodes::Expression>(@1);
 				node.Type = type;
-				node.Operator = callee;
-				node.Operands[0] = parser.mAST[arguments].As<EffectNodes::List>()[0];
-				node.Operands[1] = parser.mAST[arguments].As<EffectNodes::List>()[1];
-				node.Operands[2] = parser.mAST[arguments].As<EffectNodes::List>()[2];
+				node.Operator = static_cast<unsigned int>(callee);
+				node.Operands[0] = arguments;
+				
+				if (node.Operands[0] != EffectTree::Null)
+				{
+					node.Operands[1] = parser.mAST[node.Operands[0]].As<EffectNodes::RValue>().NextExpression;
+				}
+				if (node.Operands[1] != EffectTree::Null)
+				{
+					node.Operands[2] = parser.mAST[node.Operands[1]].As<EffectNodes::RValue>().NextExpression;
+				}
 
-				@$ = node.Location, $$ = node.Index;
+				@$ = @1, $$ = node.Index;
 			}
 			else
 			{
@@ -904,25 +926,35 @@ RULE_EXPRESSION_POSTFIX
 
 			bool literal = true;
 			unsigned int elements = 0;
-			const EffectNodes::List &arguments = parser.mAST[constructor.Arguments].As<EffectNodes::List>();
+			const EffectNodes::Type type = constructor.Type;
+			const EffectTree::Index arguments = constructor.Arguments;
+			const EffectNodes::RValue *argument = &parser.mAST[arguments].As<EffectNodes::RValue>();
 
-			for (unsigned int i = 0; i < arguments.Length; ++i)
+			do
 			{
-				const EffectNodes::RValue &argument = parser.mAST[arguments[i]].As<EffectNodes::RValue>();
-
-				if (!argument.Type.IsNumeric())
+				if (!argument->Type.IsNumeric())
 				{
-					parser.Error(argument.Location, 3017, "cannot convert non-numeric types");
+					parser.Error(argument->Location, 3017, "cannot convert non-numeric types");
 					YYERROR;
 				}
 
-				if (!argument.Is<EffectNodes::Literal>())
+				if (!argument->Is<EffectNodes::Literal>())
 				{
 					literal = false;
 				}
 
-				elements += argument.Type.Rows * argument.Type.Cols;
+				elements += argument->Type.Rows * argument->Type.Cols;
+
+				if (argument->NextExpression != EffectTree::Null)
+				{
+					argument = &parser.mAST[argument->NextExpression].As<EffectNodes::RValue>();
+				}
+				else
+				{
+					argument = nullptr;
+				}
 			}
+			while (argument != nullptr);
 
 			if (elements != constructor.Type.Rows * constructor.Type.Cols)
 			{
@@ -932,49 +964,40 @@ RULE_EXPRESSION_POSTFIX
 
 			if (literal)
 			{
-				const EffectNodes::Type type = constructor.Type;
-				const EffectTree::Index arguments = constructor.Arguments;
-
 				EffectNodes::Literal &node = parser.mAST.Add<EffectNodes::Literal>(@1);
 				node.Type = type;
 
-				for (unsigned int i = 0, j = 0; i < parser.mAST[arguments].As<EffectNodes::List>().Length; ++i)
-				{
-					const EffectNodes::Literal &argument = parser.mAST[parser.mAST[arguments].As<EffectNodes::List>()[i]].As<EffectNodes::Literal>();
+				unsigned int k = 0;
+				const EffectNodes::Literal *argument = &parser.mAST[arguments].As<EffectNodes::Literal>();
 
-					for (unsigned int k = 0; k < argument.Type.Rows * argument.Type.Cols; ++k, ++j)
+				do
+				{
+					for (unsigned int j = 0; j < argument->Type.Rows * argument->Type.Cols; ++k, ++j)
 					{
-						switch (type.Class)
-						{
-							case EffectNodes::Type::Bool:
-								node.Value.Bool[j] = argument.Cast<int>(k);
-								break;
-							case EffectNodes::Type::Int:
-								node.Value.Int[j] = argument.Cast<int>(k);
-								break;
-							case EffectNodes::Type::Uint:
-								node.Value.Uint[j] = argument.Cast<unsigned int>(k);
-								break;
-							case EffectNodes::Type::Float:
-								node.Value.Float[j] = argument.Cast<float>(k);
-								break;
-						}
+						EffectNodes::Literal::Cast(*argument, k, node, j);
+					}
+
+					if (argument->NextExpression != EffectTree::Null)
+					{
+						argument = &parser.mAST[argument->NextExpression].As<EffectNodes::Literal>();
+					}
+					else
+					{
+						argument = nullptr;
 					}
 				}
+				while (argument != nullptr);
 
-				@$ = node.Location, $$ = node.Index;
+				@$ = @1, $$ = node.Index;
 			}
-			else if (arguments.Length == 1)
+			else if (constructor.ArgumentCount == 1)
 			{
-				const EffectNodes::Type type = constructor.Type;
-				const EffectTree::Index arguments = constructor.Arguments;
-
 				EffectNodes::Expression &node = parser.mAST.Add<EffectNodes::Expression>(@1);
 				node.Type = type;
 				node.Operator = EffectNodes::Expression::Cast;
-				node.Operands[0] = parser.mAST[arguments].As<EffectNodes::List>()[0];
+				node.Operands[0] = arguments;
 
-				@$ = node.Location, $$ = node.Index;
+				@$ = @1, $$ = node.Index;
 			}
 			else
 			{
@@ -1002,7 +1025,7 @@ RULE_EXPRESSION_POSTFIX
 		node.Operator = $2.Uint + (EffectNodes::Expression::PostIncrease - EffectNodes::Expression::Increase);
 		node.Operands[0] = $1;
 
-		@$ = node.Location, $$ = node.Index;
+		@$ = @1, $$ = node.Index;
 	}
 	| RULE_EXPRESSION_POSTFIX "[" RULE_EXPRESSION "]"
 	{
@@ -1039,7 +1062,7 @@ RULE_EXPRESSION_POSTFIX
 			node.Type.Rows = 1;
 		}
 
-		@$ = node.Location, $$ = node.Index;
+		@$ = @1, $$ = node.Index;
 	}
 	| RULE_EXPRESSION_POSTFIX "." RULE_EXPRESSION_FUNCTION
 	{
@@ -1134,7 +1157,7 @@ RULE_EXPRESSION_POSTFIX
 				node.Type.Qualifiers |= EffectNodes::Type::Const;
 			}
 
-			@$ = node.Location, $$ = node.Index;
+			@$ = @1, $$ = node.Index;
 		}
 		else if (type.IsMatrix())
 		{
@@ -1197,26 +1220,35 @@ RULE_EXPRESSION_POSTFIX
 				node.Type.Qualifiers |= EffectNodes::Type::Const;
 			}
 
-			@$ = node.Location, $$ = node.Index;
+			@$ = @1, $$ = node.Index;
 		}
 		else if (type.IsStruct())
 		{
 			EffectTree::Index symbol = EffectTree::Null;
+			const EffectTree::Index fields = parser.mAST[type.Definition].As<EffectNodes::Struct>().Fields;
 
-			if (parser.mAST[type.Definition].As<EffectNodes::Struct>().HasFields())
+			if (fields != EffectTree::Null)
 			{
-				EffectNodes::List fields = parser.mAST[parser.mAST[type.Definition].As<EffectNodes::Struct>().Fields].As<EffectNodes::List>();
+				const EffectNodes::Variable *field = &parser.mAST[fields].As<EffectNodes::Variable>();
 
-				for (unsigned int i = 0; i < fields.Length; ++i)
+				do
 				{
-					const EffectNodes::Variable &field = parser.mAST[fields[i]].As<EffectNodes::Variable>();
-		
-					if (::strncmp(field.Name, $3.String.p, $3.String.len) == 0)
+					if (strncmp(field->Name, $3.String.p, $3.String.len) == 0)
 					{
-						symbol = field.Index;
+						symbol = field->Index;
 						break;
 					}
+
+					if (field->NextDeclarator != EffectTree::Null)
+					{
+						field = &parser.mAST[field->NextDeclarator].As<EffectNodes::Variable>();
+					}
+					else
+					{
+						field = nullptr;
+					}
 				}
+				while (field != nullptr);
 			}
 
 			if (symbol == EffectTree::Null)
@@ -1237,7 +1269,7 @@ RULE_EXPRESSION_POSTFIX
 				node.Type.Qualifiers |= EffectNodes::Type::Const;
 			}
 
-			@$ = node.Location, $$ = node.Index;
+			@$ = @1, $$ = node.Index;
 		}
 		else if (type.IsScalar())
 		{
@@ -1262,7 +1294,7 @@ RULE_EXPRESSION_POSTFIX
 			node.Operands[0] = $1;
 			node.Mask[0] = offsets[0] & 0xFF, node.Mask[1] = offsets[1] & 0xFF, node.Mask[2] = offsets[2] & 0xFF, node.Mask[3] = offsets[3] & 0xFF;
 
-			@$ = node.Location, $$ = node.Index;
+			@$ = @1, $$ = node.Index;
 		}
 		else
 		{
@@ -1293,7 +1325,7 @@ RULE_EXPRESSION_UNARY
 		node.Operator = $1.Uint;
 		node.Operands[0] = $2;
 
-		@$ = node.Location, $$ = node.Index;
+		@$ = @1, $$ = node.Index;
 	}
 	| RULE_OPERATOR_UNARY RULE_EXPRESSION_UNARY
 	{
@@ -1342,7 +1374,7 @@ RULE_EXPRESSION_UNARY
 			node.Operator = $1.Uint;
 			node.Operands[0] = $2;
 
-			@$ = node.Location, $$ = node.Index;
+			@$ = @1, $$ = node.Index;
 		}
 	}
 	| "(" RULE_TYPE ")" RULE_EXPRESSION_UNARY
@@ -1369,31 +1401,14 @@ RULE_EXPRESSION_UNARY
 			if (parser.mAST[$4].Is<EffectNodes::Literal>())
 			{
 				EffectNodes::Literal &node = parser.mAST[$4].As<EffectNodes::Literal>();
+				EffectNodes::Literal value = node;
 				node.Type = $2.Type;
+				::memset(&node.Value, 0, sizeof(node.Value));
 
-				union EffectNodes::Literal::Value value;
-				::memset(&value, 0, sizeof(value));
-
-				for (unsigned int k = 0, size = std::min(expressionType.Rows * expressionType.Cols, $2.Type.Rows * $2.Type.Cols); k < size; ++k)
+				for (unsigned int i = 0, size = std::min(expressionType.Rows * expressionType.Cols, $2.Type.Rows * $2.Type.Cols); i < size; ++i)
 				{
-					switch ($2.Type.Class)
-					{
-						case EffectNodes::Type::Bool:
-							value.Bool[k] = node.Cast<int>(k);
-							break;
-						case EffectNodes::Type::Int:
-							value.Int[k] = node.Cast<int>(k);
-							break;
-						case EffectNodes::Type::Uint:
-							value.Uint[k] = node.Cast<unsigned int>(k);
-							break;
-						case EffectNodes::Type::Float:
-							value.Float[k] = node.Cast<float>(k);
-							break;
-					}
+					EffectNodes::Literal::Cast(value, i, node, i);
 				}
-
-				node.Value = value;
 
 				@$ = @1, $$ = node.Index;
 			}
@@ -1404,7 +1419,7 @@ RULE_EXPRESSION_UNARY
 				node.Operator = EffectNodes::Expression::Cast;
 				node.Operands[0] = $4;
 
-				@$ = node.Location, $$ = node.Index;
+				@$ = @1, $$ = node.Index;
 			}
 		}
 		else
@@ -1458,7 +1473,7 @@ RULE_EXPRESSION_MULTIPLICATIVE
 		node.Operands[0] = $1;
 		node.Operands[1] = $3;
 
-		@$ = node.Location, $$ = node.Index;
+		@$ = @1, $$ = node.Index;
 	}
 	;
 RULE_EXPRESSION_ADDITIVE
@@ -1505,7 +1520,7 @@ RULE_EXPRESSION_ADDITIVE
 		node.Operands[0] = $1;
 		node.Operands[1] = $3;
 
-		@$ = node.Location, $$ = node.Index;
+		@$ = @1, $$ = node.Index;
 	}
 	;
 RULE_EXPRESSION_SHIFT
@@ -1552,7 +1567,7 @@ RULE_EXPRESSION_SHIFT
 		node.Operands[0] = $1;
 		node.Operands[1] = $3;
 
-		@$ = node.Location, $$ = node.Index;
+		@$ = @1, $$ = node.Index;
 	}
 	;
 RULE_EXPRESSION_RELATIONAL
@@ -1599,7 +1614,7 @@ RULE_EXPRESSION_RELATIONAL
 		node.Operands[0] = $1;
 		node.Operands[1] = $3;
 
-		@$ = node.Location, $$ = node.Index;
+		@$ = @1, $$ = node.Index;
 	}
 	;
 RULE_EXPRESSION_EQUALITY
@@ -1641,7 +1656,7 @@ RULE_EXPRESSION_EQUALITY
 		node.Operands[0] = $1;
 		node.Operands[1] = $3;
 
-		@$ = node.Location, $$ = node.Index;
+		@$ = @1, $$ = node.Index;
 	}
 	;
 RULE_EXPRESSION_BITAND
@@ -1688,7 +1703,7 @@ RULE_EXPRESSION_BITAND
 		node.Operands[0] = $1;
 		node.Operands[1] = $3;
 
-		@$ = node.Location, $$ = node.Index;
+		@$ = @1, $$ = node.Index;
 	}
 	;
 RULE_EXPRESSION_BITXOR
@@ -1735,7 +1750,7 @@ RULE_EXPRESSION_BITXOR
 		node.Operands[0] = $1;
 		node.Operands[1] = $3;
 
-		@$ = node.Location, $$ = node.Index;
+		@$ = @1, $$ = node.Index;
 	}
 	;
 RULE_EXPRESSION_BITOR
@@ -1782,7 +1797,7 @@ RULE_EXPRESSION_BITOR
 		node.Operands[0] = $1;
 		node.Operands[1] = $3;
 
-		@$ = node.Location, $$ = node.Index;
+		@$ = @1, $$ = node.Index;
 	}
 	;
 RULE_EXPRESSION_LOGICAND
@@ -1829,7 +1844,7 @@ RULE_EXPRESSION_LOGICAND
 		node.Operands[0] = $1;
 		node.Operands[1] = $3;
 
-		@$ = node.Location, $$ = node.Index;
+		@$ = @1, $$ = node.Index;
 	}
 	;
 RULE_EXPRESSION_LOGICXOR
@@ -1876,7 +1891,7 @@ RULE_EXPRESSION_LOGICXOR
 		node.Operands[0] = $1;
 		node.Operands[1] = $3;
 
-		@$ = node.Location, $$ = node.Index;
+		@$ = @1, $$ = node.Index;
 	}
 	;
 RULE_EXPRESSION_LOGICOR
@@ -1923,7 +1938,7 @@ RULE_EXPRESSION_LOGICOR
 		node.Operands[0] = $1;
 		node.Operands[1] = $3;
 
-		@$ = node.Location, $$ = node.Index;
+		@$ = @1, $$ = node.Index;
 	}
 	;
 RULE_EXPRESSION_CONDITIONAL
@@ -1971,7 +1986,7 @@ RULE_EXPRESSION_CONDITIONAL
 		node.Operands[1] = $3;
 		node.Operands[2] = $5;
 	
-		@$ = node.Location, $$ = node.Index;
+		@$ = @1, $$ = node.Index;
 	}
 	;
 RULE_EXPRESSION_ASSIGNMENT
@@ -2007,7 +2022,7 @@ RULE_EXPRESSION_ASSIGNMENT
 		node.Left = $1;
 		node.Right = $3;
 
-		@$ = node.Location, $$ = node.Index;
+		@$ = @1, $$ = node.Index;
 	}
 	;
 
@@ -2023,20 +2038,18 @@ RULE_STATEMENT_SCOPELESS
 	;
 RULE_STATEMENT_LIST
 	: RULE_STATEMENT
-	{
-		EffectNodes::StatementBlock &node = parser.mAST.Add<EffectNodes::StatementBlock>(@1);
-
-		@$ = node.Location, $$ = node.Index;
-
-		node.Link(parser.mAST, $1);
-	}
 	| RULE_STATEMENT_LIST RULE_STATEMENT
 	{
-		EffectNodes::StatementBlock &node = parser.mAST[$1].As<EffectNodes::StatementBlock>();
+		EffectNodes::Statement *node = &parser.mAST[$1].As<EffectNodes::Statement>();
 
-		@$ = node.Location, $$ = node.Index;
+		while (node->NextStatement != EffectTree::Null)
+		{
+			node = &parser.mAST[node->NextStatement].As<EffectNodes::Statement>();
+		}
 
-		node.Link(parser.mAST, $2);
+		node->NextStatement = $2;
+
+		@$ = @1, $$ = $1;
 	}
 	;
 RULE_STATEMENT_BLOCK
@@ -2044,13 +2057,16 @@ RULE_STATEMENT_BLOCK
 	{
 		EffectNodes::StatementBlock &node = parser.mAST.Add<EffectNodes::StatementBlock>(@1);
 
-		@$ = node.Location, $$ = node.Index;
+		@$ = @1, $$ = node.Index;
 	}
 	| "{" { parser.PushScope(); } RULE_STATEMENT_LIST "}"
 	{
 		parser.PopScope();
 
-		@$ = @1, $$ = $3; parser.mAST[$$].Location = @$;
+		EffectNodes::StatementBlock &node = parser.mAST.Add<EffectNodes::StatementBlock>(@1);
+		node.Statements = $3;
+
+		@$ = @1, $$ = node.Index;
 	}
 	;
 RULE_STATEMENT_BLOCK_SCOPELESS
@@ -2058,57 +2074,66 @@ RULE_STATEMENT_BLOCK_SCOPELESS
 	{
 		EffectNodes::StatementBlock &node = parser.mAST.Add<EffectNodes::StatementBlock>(@1);
 
-		@$ = node.Location, $$ = node.Index;
+		@$ = @1, $$ = node.Index;
 	}
 	| "{" RULE_STATEMENT_LIST "}"
 	{
-		@$ = @1, $$ = $2; parser.mAST[$$].Location = @$;
+		EffectNodes::StatementBlock &node = parser.mAST.Add<EffectNodes::StatementBlock>(@1);
+		node.Statements = $2;
+
+		@$ = @1, $$ = node.Index;
 	}
 	;
 
 RULE_STATEMENT_SINGLE
 	: RULE_ATTRIBUTES RULE_STATEMENT_EXPRESSION
 	{
+		EffectNodes::ExpressionStatement &node = parser.mAST[$2].As<EffectNodes::ExpressionStatement>();
+		node.Attributes = parser.mAST.AddString($1.String.p, $1.String.len);
+
 		@$ = @2, $$ = $2;
 	}
 	| RULE_ATTRIBUTES RULE_STATEMENT_DECLARATION
 	{
+		EffectNodes::DeclarationStatement &node = parser.mAST[$2].As<EffectNodes::DeclarationStatement>();
+		node.Attributes = parser.mAST.AddString($1.String.p, $1.String.len);
+
 		@$ = @2, $$ = $2;
 	}
 	| RULE_ATTRIBUTES RULE_STATEMENT_IF
 	{
 		EffectNodes::If &node = parser.mAST[$2].As<EffectNodes::If>();
-		node.Attributes = $1;
+		node.Attributes = parser.mAST.AddString($1.String.p, $1.String.len);
 
-		@$ = node.Location, $$ = node.Index;
+		@$ = @2, $$ = node.Index;
 	}
 	| RULE_ATTRIBUTES RULE_STATEMENT_SWITCH
 	{
 		EffectNodes::Switch &node = parser.mAST[$2].As<EffectNodes::Switch>();
-		node.Attributes = $1;
+		node.Attributes = parser.mAST.AddString($1.String.p, $1.String.len);
 
-		@$ = node.Location, $$ = node.Index;
+		@$ = @2, $$ = node.Index;
 	}
 	| RULE_ATTRIBUTES RULE_STATEMENT_FOR
 	{
 		EffectNodes::For &node = parser.mAST[$2].As<EffectNodes::For>();
-		node.Attributes = $1;
+		node.Attributes = parser.mAST.AddString($1.String.p, $1.String.len);
 
-		@$ = node.Location, $$ = node.Index;
+		@$ = @2, $$ = node.Index;
 	}
 	| RULE_ATTRIBUTES RULE_STATEMENT_WHILE
 	{
 		EffectNodes::While &node = parser.mAST[$2].As<EffectNodes::While>();
-		node.Attributes = $1;
+		node.Attributes = parser.mAST.AddString($1.String.p, $1.String.len);
 
-		@$ = node.Location, $$ = node.Index;
+		@$ = @2, $$ = node.Index;
 	}
 	| RULE_ATTRIBUTES RULE_STATEMENT_JUMP
 	{
 		EffectNodes::Jump &node = parser.mAST[$2].As<EffectNodes::Jump>();
-		node.Attributes = $1;
+		node.Attributes = parser.mAST.AddString($1.String.p, $1.String.len);
 
-		@$ = node.Location, $$ = node.Index;
+		@$ = @2, $$ = node.Index;
 	}
 	| error RULE_STATEMENT_SINGLE { $$ = $2; }
 	;
@@ -2117,20 +2142,23 @@ RULE_STATEMENT_EXPRESSION
 	{
 		EffectNodes::ExpressionStatement &node = parser.mAST.Add<EffectNodes::ExpressionStatement>(@1);
 
-		@$ = node.Location, $$ = node.Index;
+		@$ = @1, $$ = node.Index;
 	}
 	| RULE_EXPRESSION ";"
 	{
 		EffectNodes::ExpressionStatement &node = parser.mAST.Add<EffectNodes::ExpressionStatement>(@1);
 		node.Expression = $1;
 
-		@$ = node.Location, $$ = node.Index;
+		@$ = @1, $$ = node.Index;
 	}
 	;
 RULE_STATEMENT_DECLARATION
 	: RULE_VARIABLE ";"
 	{
-		@$ = @1, $$ = $1;
+		EffectNodes::DeclarationStatement &node = parser.mAST.Add<EffectNodes::DeclarationStatement>(@1);
+		node.Declaration = $1;
+
+		@$ = @1, $$ = node.Index;
 	}
 	;
 
@@ -2150,7 +2178,7 @@ RULE_STATEMENT_IF
 		node.StatementOnTrue = $5;
 		node.StatementOnFalse = $7;
 	
-		@$ = node.Location, $$ = node.Index;
+		@$ = @1, $$ = node.Index;
 	}
 	| "if" "(" RULE_EXPRESSION ")" RULE_STATEMENT %prec TOK_THEN
 	{
@@ -2166,7 +2194,7 @@ RULE_STATEMENT_IF
 		node.Condition = $3;
 		node.StatementOnTrue = $5;
 	
-		@$ = node.Location, $$ = node.Index;
+		@$ = @1, $$ = node.Index;
 	}
 	;
 
@@ -2175,7 +2203,7 @@ RULE_STATEMENT_SWITCH
 	{
 		parser.Warning(@1, 5002, "switch statement contains no 'case' or 'default' labels");
 
-		@$ = @1, $$ = 0;
+		@$ = @1, $$ = EffectTree::Null;
 	}
 	| "switch" "(" RULE_EXPRESSION ")" "{" RULE_STATEMENT_CASE_LIST "}"
 	{
@@ -2191,48 +2219,47 @@ RULE_STATEMENT_SWITCH
 		node.Test = $3;
 		node.Cases = $6;
 
-		@$ = node.Location, $$ = node.Index;
+		@$ = @1, $$ = node.Index;
 	}
 	;
 RULE_STATEMENT_CASE
 	: RULE_STATEMENT_CASE_LABEL_LIST RULE_STATEMENT
 	{
-		EffectNodes::StatementBlock &statements = parser.mAST.Add<EffectNodes::StatementBlock>(@2);
-		$$ = statements.Index;
-		statements.Link(parser.mAST, $2);
-
 		EffectNodes::Case &node = parser.mAST.Add<EffectNodes::Case>(@1);
 		node.Labels = $1;
-		node.Statements = $$;
+		node.Statements = $2;
 
-		@$ = node.Location, $$ = node.Index;
+		@$ = @1, $$ = node.Index;
 	}
 	| RULE_STATEMENT_CASE RULE_STATEMENT
 	{
 		EffectNodes::Case &node = parser.mAST[$1].As<EffectNodes::Case>();
+		EffectNodes::Statement *statement = &parser.mAST[node.Statements].As<EffectNodes::Statement>();
 
-		@$ = node.Location, $$ = node.Index;
+		while (statement->NextStatement != EffectTree::Null)
+		{
+			statement = &parser.mAST[statement->NextStatement].As<EffectNodes::Statement>();
+		}
 
-		EffectNodes::StatementBlock &statements = parser.mAST[node.Statements].As<EffectNodes::StatementBlock>();
-		statements.Link(parser.mAST, $2);
+		statement->NextStatement = $2;
+
+		@$ = @1, $$ = $1;
 	}
 	;
 RULE_STATEMENT_CASE_LIST
 	: RULE_STATEMENT_CASE
-	{
-		EffectNodes::List &node = parser.mAST.Add<EffectNodes::List>(@1);
-
-		@$ = node.Location, $$ = node.Index;
-
-		node.Link(parser.mAST, $1);
-	}
 	| RULE_STATEMENT_CASE_LIST RULE_STATEMENT_CASE
 	{
-		EffectNodes::List &node = parser.mAST[$1].As<EffectNodes::List>();
+		EffectNodes::Case *node = &parser.mAST[$1].As<EffectNodes::Case>();
 
-		@$ = node.Location, $$ = node.Index;
+		while (node->NextCase != EffectTree::Null)
+		{
+			node = &parser.mAST[node->NextCase].As<EffectNodes::Case>();
+		}
 
-		node.Link(parser.mAST, $2);
+		node->NextCase = $2;
+
+		@$ = @1, $$ = $1;
 	}
 	;
 RULE_STATEMENT_CASE_LABEL
@@ -2254,25 +2281,23 @@ RULE_STATEMENT_CASE_LABEL
 	{
 		EffectNodes::Expression &node = parser.mAST.Add<EffectNodes::Expression>(@1);
 
-		@$ = node.Location, $$ = node.Index;
+		@$ = @1, $$ = node.Index;
 	}
 	;
 RULE_STATEMENT_CASE_LABEL_LIST
 	: RULE_STATEMENT_CASE_LABEL
-	{
-		EffectNodes::List &node = parser.mAST.Add<EffectNodes::List>(@1);
-
-		@$ = node.Location, $$ = node.Index;
-
-		node.Link(parser.mAST, $1);
-	}
 	| RULE_STATEMENT_CASE_LABEL_LIST RULE_STATEMENT_CASE_LABEL
 	{
-		EffectNodes::List &node = parser.mAST[$1].As<EffectNodes::List>();
+		EffectNodes::RValue *node = &parser.mAST[$1].As<EffectNodes::RValue>();
 
-		@$ = node.Location, $$ = node.Index;
+		while (node->NextExpression != EffectTree::Null)
+		{
+			node = &parser.mAST[node->NextExpression].As<EffectNodes::RValue>();
+		}
 
-		node.Link(parser.mAST, $2);
+		node->NextExpression = $2;
+
+		@$ = @1, $$ = $1;
 	}
 	;
 
@@ -2287,7 +2312,7 @@ RULE_STATEMENT_FOR
 		node.Iteration = $7;
 		node.Statements = $9;
 
-		@$ = node.Location, $$ = node.Index;
+		@$ = @1, $$ = node.Index;
 	}
 	;
 RULE_STATEMENT_FOR_INITIALIZER
@@ -2311,7 +2336,7 @@ RULE_STATEMENT_WHILE
 		node.Condition = $4;
 		node.Statements = $6;
 	
-		@$ = node.Location, $$ = node.Index;
+		@$ = @1, $$ = node.Index;
 	}
 	| "do" RULE_STATEMENT "while" "(" RULE_EXPRESSION ")" ";"
 	{
@@ -2320,7 +2345,7 @@ RULE_STATEMENT_WHILE
 		node.Condition = $5;
 		node.Statements = $2;
 
-		@$ = node.Location, $$ = node.Index;
+		@$ = @1, $$ = node.Index;
 	}
 	;
 
@@ -2335,10 +2360,9 @@ RULE_STATEMENT_JUMP
 			YYERROR;
 		}
 
-		EffectNodes::Jump &node = parser.mAST.Add<EffectNodes::Jump>(@1);
-		node.Mode = EffectNodes::Jump::Return;
+		EffectNodes::Return &node = parser.mAST.Add<EffectNodes::Return>(@1);
 
-		@$ = node.Location, $$ = node.Index;
+		@$ = @1, $$ = node.Index;
 	}
 	| "return" RULE_EXPRESSION ";"
 	{
@@ -2368,11 +2392,10 @@ RULE_STATEMENT_JUMP
 				parser.Warning(@2, 3206, "implicit truncation of vector type");
 			}
 
-			EffectNodes::Jump &node = parser.mAST.Add<EffectNodes::Jump>(@1);
-			node.Mode = EffectNodes::Jump::Return;
+			EffectNodes::Return &node = parser.mAST.Add<EffectNodes::Return>(@1);
 			node.Value = $2;
 
-			@$ = node.Location, $$ = node.Index;
+			@$ = @1, $$ = node.Index;
 		}
 	}
 	| "break" ";"
@@ -2380,21 +2403,21 @@ RULE_STATEMENT_JUMP
 		EffectNodes::Jump &node = parser.mAST.Add<EffectNodes::Jump>(@1);
 		node.Mode = EffectNodes::Jump::Break;
 
-		@$ = node.Location, $$ = node.Index;
+		@$ = @1, $$ = node.Index;
 	}
 	| "continue" ";"
 	{
 		EffectNodes::Jump &node = parser.mAST.Add<EffectNodes::Jump>(@1);
 		node.Mode = EffectNodes::Jump::Continue;
 
-		@$ = node.Location, $$ = node.Index;
+		@$ = @1, $$ = node.Index;
 	}
 	| "discard" ";"
 	{
-		EffectNodes::Jump &node = parser.mAST.Add<EffectNodes::Jump>(@1);
-		node.Mode = EffectNodes::Jump::Discard;
+		EffectNodes::Return &node = parser.mAST.Add<EffectNodes::Return>(@1);
+		node.Discard = true;
 
-		@$ = node.Location, $$ = node.Index;
+		@$ = @1, $$ = node.Index;
 	}
 	;
 
@@ -2403,38 +2426,28 @@ RULE_STATEMENT_JUMP
  RULE_ATTRIBUTE
 	: "[" RULE_IDENTIFIER_NAME "]"
 	{
-		EffectNodes::Literal &value = parser.mAST.Add<EffectNodes::Literal>(@1);
-		value.Type.Class = EffectNodes::Type::String;
-		value.Value.String = parser.mAST.AddString($2.String.p, $2.String.len);
-		
-		@$ = value.Location, $$ = value.Index;
+		@$ = @1, $$ = $2;
 	}
 	| "[" error "]"
 	{
-		$$ = EffectTree::Null;
+		$$.String.p = nullptr;
+		$$.String.len = 0;
 	}
 	;
 RULE_ATTRIBUTE_LIST
 	: RULE_ATTRIBUTE
-	{
-		EffectNodes::List &node = parser.mAST.Add<EffectNodes::List>(@1);
-		node.Link(parser.mAST, $1);
-
-		@$ = node.Location, $$ = node.Index;
-	}
 	| RULE_ATTRIBUTE_LIST RULE_ATTRIBUTE
 	{
-		EffectNodes::List &node = parser.mAST[$1].As<EffectNodes::List>();
-		node.Link(parser.mAST, $2);
-
-		@$ = node.Location, $$ = node.Index;
+		parser.Error(@2, 3084, "cannot attach multiple attributes to a statement");
+		YYERROR;
 	}
 	;
 
 RULE_ATTRIBUTES
 	:
 	{
-		$$ = EffectTree::Null;
+		$$.String.p = nullptr;
+		$$.String.len = 0;
 	}
 	| RULE_ATTRIBUTE_LIST
 	;
@@ -2448,7 +2461,7 @@ RULE_ANNOTATION
 		node.Name = parser.mAST.AddString($2.String.p, $2.String.len);
 		node.Value = $4;
 
-		@$ = node.Location, $$ = node.Index;
+		@$ = @1, $$ = node.Index;
 	}
 	| "string" RULE_IDENTIFIER_NAME "=" TOK_LITERAL_STRING ";"
 	{
@@ -2462,7 +2475,7 @@ RULE_ANNOTATION
 		node.Name = parser.mAST.AddString($2.String.p, $2.String.len);
 		node.Value = valueIndex;
 
-		@$ = node.Location, $$ = node.Index;
+		@$ = @1, $$ = node.Index;
 	}
 	| error ";"
 	{
@@ -2471,20 +2484,18 @@ RULE_ANNOTATION
 	;
 RULE_ANNOTATION_LIST
 	: RULE_ANNOTATION
-	{
-		EffectNodes::List &node = parser.mAST.Add<EffectNodes::List>(@1);
-
-		@$ = node.Location, $$ = node.Index;
-
-		node.Link(parser.mAST, $1);
-	}
 	| RULE_ANNOTATION_LIST RULE_ANNOTATION
 	{
-		EffectNodes::List &node = parser.mAST[$1].As<EffectNodes::List>();
+		EffectNodes::Annotation *node = &parser.mAST[$1].As<EffectNodes::Annotation>();
 
-		@$ = node.Location, $$ = node.Index;
+		while (node->NextAnnotation != EffectTree::Null)
+		{
+			node = &parser.mAST[node->NextAnnotation].As<EffectNodes::Annotation>();
+		}
 
-		node.Link(parser.mAST, $2);
+		node->NextAnnotation = $2;
+
+		@$ = @1, $$ = $1;
 	}
 	;
 
@@ -2516,7 +2527,7 @@ RULE_STRUCT
 
 		parser.Warning(@1, 5001, "struct has no members");
 
-		@$ = node.Location, $$ = node.Index;
+		@$ = @1, $$ = node.Index;
 	}
 	| "struct" "{"
 	{
@@ -2532,7 +2543,7 @@ RULE_STRUCT
 		EffectNodes::Struct &node = parser.mAST[index].As<EffectNodes::Struct>();
 		node.Fields = $4;
 
-		@$ = node.Location, $$ = node.Index;
+		@$ = @1, $$ = index;
 	}
 	| "struct" RULE_IDENTIFIER_NAME "{" "}"
 	{
@@ -2547,7 +2558,7 @@ RULE_STRUCT
 			YYERROR;
 		}
 
-		@$ = node.Location, $$ = node.Index;
+		@$ = @1, $$ = node.Index;
 	}
 	| "struct" RULE_IDENTIFIER_NAME "{"
 	{
@@ -2564,13 +2575,13 @@ RULE_STRUCT
 		EffectNodes::Struct &node = parser.mAST[index].As<EffectNodes::Struct>();
 		node.Fields = $5;
 
-		if (!parser.PushSymbol(node.Index))
+		if (!parser.PushSymbol(index))
 		{
 			parser.Error(@2, 3003, "redefinition of '%s'", node.Name);
 			YYERROR;
 		}
 
-		@$ = node.Location, $$ = node.Index;
+		@$ = @1, $$ = index;
 	}
 	;
 
@@ -2588,20 +2599,28 @@ RULE_STRUCT_FIELD
 			YYERROR;
 		}
 
-		EffectNodes::List &fields = parser.mAST[$2].As<EffectNodes::List>();
+		EffectNodes::Variable *field = &parser.mAST[$2].As<EffectNodes::Variable>();
 
-		for (unsigned int i = 0; i < fields.Length; ++i)
+		do
 		{
-			EffectNodes::Variable &field = parser.mAST[fields[i]].As<EffectNodes::Variable>();
-	
-			field.Type.Class = $1.Type.Class;
-			field.Type.Qualifiers = $1.Type.Qualifiers;
-			field.Type.Rows = $1.Type.Rows;
-			field.Type.Cols = $1.Type.Cols;
-			field.Type.Definition = $1.Type.Definition;
-		}
+			field->Type.Class = $1.Type.Class;
+			field->Type.Qualifiers = $1.Type.Qualifiers;
+			field->Type.Rows = $1.Type.Rows;
+			field->Type.Cols = $1.Type.Cols;
+			field->Type.Definition = $1.Type.Definition;
 
-		@$ = @1, $$ = fields.Index;
+			if (field->NextDeclarator != EffectTree::Null)
+			{
+				field = &parser.mAST[field->NextDeclarator].As<EffectNodes::Variable>();
+			}
+			else
+			{
+				field = nullptr;
+			}
+		}
+		while (field != nullptr);
+
+		@$ = @1, $$ = $2;
 	}
 	| error ";"
 	{
@@ -2612,9 +2631,16 @@ RULE_STRUCT_FIELD_LIST
 	: RULE_STRUCT_FIELD
 	| RULE_STRUCT_FIELD_LIST RULE_STRUCT_FIELD
 	{
-		@$ = @1, $$ = $1;
+		EffectNodes::Variable *node = &parser.mAST[$1].As<EffectNodes::Variable>();
 
-		parser.mAST[$1].As<EffectNodes::List>().Link(parser.mAST, $2);
+		while (node->NextDeclarator != EffectTree::Null)
+		{
+			node = &parser.mAST[node->NextDeclarator].As<EffectNodes::Variable>();
+		}
+
+		node->NextDeclarator = $2;
+
+		@$ = @1, $$ = $1;
 	}
 	;
 
@@ -2625,7 +2651,7 @@ RULE_STRUCT_FIELD_DECLARATOR
 		node.Type.ArrayLength = $2.Type.ArrayLength;
 		node.Name = parser.mAST.AddString($1.String.p, $1.String.len);
 
-		@$ = node.Location, $$ = node.Index;
+		@$ = @1, $$ = node.Index;
 	}
 	| RULE_IDENTIFIER_NAME RULE_TYPE_ARRAY ":" RULE_IDENTIFIER_SEMANTIC
 	{
@@ -2634,25 +2660,23 @@ RULE_STRUCT_FIELD_DECLARATOR
 		node.Name = parser.mAST.AddString($1.String.p, $1.String.len);
 		node.Semantic = parser.mAST.AddString($4.String.p, $4.String.len);
 
-		@$ = node.Location, $$ = node.Index;
+		@$ = @1, $$ = node.Index;
 	}
 	;
 RULE_STRUCT_FIELD_DECLARATOR_LIST
 	: RULE_STRUCT_FIELD_DECLARATOR
-	{
-		EffectNodes::List &node = parser.mAST.Add<EffectNodes::List>(@1);
-
-		@$ = node.Location, $$ = node.Index;
-
-		node.Link(parser.mAST, $1);
-	}
 	| RULE_STRUCT_FIELD_DECLARATOR_LIST "," RULE_STRUCT_FIELD_DECLARATOR
 	{
-		EffectNodes::List &node = parser.mAST[$1].As<EffectNodes::List>();
+		EffectNodes::Variable *node = &parser.mAST[$1].As<EffectNodes::Variable>();
 
-		@$ = node.Location, $$ = node.Index;
+		while (node->NextDeclarator != EffectTree::Null)
+		{
+			node = &parser.mAST[node->NextDeclarator].As<EffectNodes::Variable>();
+		}
 
-		node.Link(parser.mAST, $3);
+		node->NextDeclarator = $3;
+
+		@$ = @1, $$ = $1;
 	}
 	;
 
@@ -2700,57 +2724,66 @@ RULE_VARIABLE
 			}
 		}
 
-		EffectNodes::List &declarators = parser.mAST[$2].As<EffectNodes::List>();
+		EffectNodes::Variable *variable = &parser.mAST[$2].As<EffectNodes::Variable>();
 
-		for (unsigned int i = 0; i < declarators.Length; ++i)
+		do
 		{
-			EffectNodes::Variable &variable = parser.mAST[declarators[i]].As<EffectNodes::Variable>();
-			variable.Type.Class = $1.Type.Class;
-			variable.Type.Qualifiers = $1.Type.Qualifiers;
-			variable.Type.Rows = $1.Type.Rows;
-			variable.Type.Cols = $1.Type.Cols;
-			variable.Type.Definition = $1.Type.Definition;
+			variable->Type.Class = $1.Type.Class;
+			variable->Type.Qualifiers = $1.Type.Qualifiers;
+			variable->Type.Rows = $1.Type.Rows;
+			variable->Type.Cols = $1.Type.Cols;
+			variable->Type.Definition = $1.Type.Definition;
 
-			if (!parser.PushSymbol(variable.Index))
+			if (!parser.PushSymbol(variable->Index))
 			{
-				parser.Error(@1, 3003, "redefinition of '%s'", variable.Name);
+				parser.Error(variable->Location, 3003, "redefinition of '%s'", variable->Name);
 				YYERROR;
 			}
 	
-			if (variable.HasInitializer())
+			if (variable->Initializer != EffectTree::Null)
 			{
-				const EffectNodes::RValue &initializer = parser.mAST[variable.Initializer].As<EffectNodes::RValue>();
+				const EffectNodes::RValue *initializer = &parser.mAST[variable->Initializer].As<EffectNodes::RValue>();
 			
-				if ((initializer.Type.Rows < variable.Type.Rows || initializer.Type.Cols < variable.Type.Cols) && !initializer.Type.IsScalar())
+				if ((initializer->Type.Rows < variable->Type.Rows || initializer->Type.Cols < variable->Type.Cols) && !initializer->Type.IsScalar())
 				{
-					parser.Error(initializer.Location, 3017, "cannot implicitly convert these vector types");
+					parser.Error(initializer->Location, 3017, "cannot implicitly convert these vector types");
 					YYERROR;
 				}
-				if (!EffectNodes::Type::Compatible(initializer.Type, variable.Type))
+				if (!EffectNodes::Type::Compatible(initializer->Type, variable->Type))
 				{
-					parser.Error(initializer.Location, 3020, "type mismatch");
+					parser.Error(initializer->Location, 3020, "type mismatch");
 					YYERROR;
 				}
 
-				if (initializer.Type.Rows > variable.Type.Rows || initializer.Type.Cols > variable.Type.Cols)
+				if (initializer->Type.Rows > variable->Type.Rows || initializer->Type.Cols > variable->Type.Cols)
 				{
-					parser.Warning(initializer.Location, 3206, "implicit truncation of vector type");
+					parser.Warning(initializer->Location, 3206, "implicit truncation of vector type");
 				}
 
-				if (parent == EffectTree::Null && !initializer.Is<EffectNodes::Literal>())
+				if (parent == EffectTree::Null && !initializer->Is<EffectNodes::Literal>())
 				{
-					parser.Error(initializer.Location, 3011, "initial value must be a literal expression");
+					parser.Error(initializer->Location, 3011, "initial value must be a literal expression");
 					YYERROR;
 				}
 			}
 			else if ($1.Type.IsNumeric() && $1.Type.HasQualifier(EffectNodes::Type::Const))
 			{
-				parser.Error(variable.Location, 3012, "missing initial value for '%s'", variable.Name);
+				parser.Error(variable->Location, 3012, "missing initial value for '%s'", variable->Name);
 				YYERROR;
 			}
-		}
 
-		@$ = @1, $$ = declarators.Index;
+			if (variable->NextDeclarator != EffectTree::Null)
+			{
+				variable = &parser.mAST[variable->NextDeclarator].As<EffectNodes::Variable>();
+			}
+			else
+			{
+				variable = nullptr;
+			}
+		}
+		while (variable != nullptr);
+
+		@$ = @1, $$ = $2;
 	}
 	;
 
@@ -2762,7 +2795,7 @@ RULE_VARIABLE_DECLARATOR
 		node.Name = parser.mAST.AddString($1.String.p, $1.String.len);
 		node.Annotations = $3;
 
-		@$ = node.Location, $$ = node.Index;
+		@$ = @1, $$ = node.Index;
 	}
 	| RULE_IDENTIFIER_NAME RULE_TYPE_ARRAY RULE_ANNOTATIONS "=" RULE_EXPRESSION_ASSIGNMENT
 	{
@@ -2777,7 +2810,7 @@ RULE_VARIABLE_DECLARATOR
 		node.Annotations = $3;
 		node.Initializer = $5;
 
-		@$ = node.Location, $$ = node.Index;
+		@$ = @1, $$ = node.Index;
 	}
 	| RULE_IDENTIFIER_NAME RULE_TYPE_ARRAY RULE_ANNOTATIONS "{" RULE_VARIABLE_PROPERTY_LIST "}"
 	{
@@ -2796,25 +2829,23 @@ RULE_VARIABLE_DECLARATOR
 			node.Properties[i] = $5.Properties[i];
 		}
 
-		@$ = node.Location, $$ = node.Index;
+		@$ = @1, $$ = node.Index;
 	}
 	;
 RULE_VARIABLE_DECLARATOR_LIST
 	: RULE_VARIABLE_DECLARATOR
-	{
-		EffectNodes::List &node = parser.mAST.Add<EffectNodes::List>(@1);
-
-		@$ = node.Location, $$ = node.Index;
-
-		node.Link(parser.mAST, $1);
-	}
 	| RULE_VARIABLE_DECLARATOR_LIST "," RULE_VARIABLE_DECLARATOR
 	{
-		EffectNodes::List &node = parser.mAST[$1].As<EffectNodes::List>();
+		EffectNodes::Variable *node = &parser.mAST[$1].As<EffectNodes::Variable>();
 
-		@$ = node.Location, $$ = node.Index;
+		while (node->NextDeclarator != EffectTree::Null)
+		{
+			node = &parser.mAST[node->NextDeclarator].As<EffectNodes::Variable>();
+		}
 
-		node.Link(parser.mAST, $3);
+		node->NextDeclarator = $3;
+
+		@$ = @1, $$ = $1;
 	}
 	;
 
@@ -2914,20 +2945,28 @@ RULE_FUNCTION_DEFINITION
 
 		parser.PushScope(node.Index);
 
-		if (node.HasParameters())
+		if (node.Parameters != EffectTree::Null)
 		{
-			const EffectNodes::List &parameters = parser.mAST[node.Parameters].As<EffectNodes::List>();
+			const EffectNodes::Variable *parameter = &parser.mAST[node.Parameters].As<EffectNodes::Variable>();
 	
-			for (unsigned int i = 0; i < parameters.Length; ++i)
+			do
 			{
-				const EffectNodes::Variable &parameter = parser.mAST[parameters[i]].As<EffectNodes::Variable>();
-
-				if (!parser.PushSymbol(parameter.Index))
+				if (!parser.PushSymbol(parameter->Index))
 				{
-					parser.Error(@1, 3003, "redefinition of '%s'", parameter.Name);
+					parser.Error(parameter->Location, 3003, "redefinition of '%s'", parameter->Name);
 					YYERROR;
 				}
+
+				if (parameter->NextDeclaration != EffectTree::Null)
+				{
+					parameter = &parser.mAST[parameter->NextDeclaration].As<EffectNodes::Variable>();
+				}
+				else
+				{
+					parameter = nullptr;
+				}
 			}
+			while (parameter != nullptr);
 		}
 	}
 	  RULE_STATEMENT_BLOCK
@@ -2938,7 +2977,7 @@ RULE_FUNCTION_DEFINITION
 		EffectNodes::Function &node = parser.mAST[index].As<EffectNodes::Function>();
 		node.Definition = $3;
 
-		@$ = node.Location, $$ = node.Index;
+		@$ = @1, $$ = index;
 	}
 	;
 
@@ -2948,7 +2987,7 @@ RULE_FUNCTION_DECLARATOR
 		EffectNodes::Function &node = parser.mAST.Add<EffectNodes::Function>(@1);
 		node.Name = parser.mAST.AddString($1.String.p, $1.String.len);
 
-		@$ = node.Location, $$ = node.Index;
+		@$ = @1, $$ = node.Index;
 	}
 	| RULE_IDENTIFIER_SYMBOL "("
 	{
@@ -2964,8 +3003,18 @@ RULE_FUNCTION_DECLARATOR
 
 		EffectNodes::Function &node = parser.mAST[index].As<EffectNodes::Function>();
 		node.Parameters = $4;
+		node.ParameterCount = 1;
 
-		@$ = node.Location, $$ = node.Index;
+		const EffectNodes::Variable *parameter = &parser.mAST[$4].As<EffectNodes::Variable>();
+
+		while (parameter->NextDeclaration != EffectTree::Null)
+		{
+			node.ParameterCount++;
+
+			parameter = &parser.mAST[parameter->NextDeclaration].As<EffectNodes::Variable>();
+		}
+
+		@$ = @1, $$ = index;
 	}
 	;
 
@@ -3005,25 +3054,23 @@ RULE_FUNCTION_PARAMETER
 		node.Type.Cols = $1.Type.Cols;
 		node.Type.Definition = $1.Type.Definition;
 
-		@$ = node.Location, $$ = node.Index;
+		@$ = @1, $$ = node.Index;
 	}
 	;
 RULE_FUNCTION_PARAMETER_LIST
 	: RULE_FUNCTION_PARAMETER
-	{
-		EffectNodes::List &node = parser.mAST.Add<EffectNodes::List>(@1);
-
-		@$ = node.Location, $$ = node.Index;
-
-		node.Link(parser.mAST, $1);
-	}
 	| RULE_FUNCTION_PARAMETER_LIST "," RULE_FUNCTION_PARAMETER
 	{
-		EffectNodes::List &node = parser.mAST[$1].As<EffectNodes::List>();
+		EffectNodes::Variable *node = &parser.mAST[$1].As<EffectNodes::Variable>();
 
-		@$ = node.Location, $$ = node.Index;
+		while (node->NextDeclaration != EffectTree::Null)
+		{
+			node = &parser.mAST[node->NextDeclaration].As<EffectNodes::Variable>();
+		}
 
-		node.Link(parser.mAST, $3);
+		node->NextDeclaration = $3;
+
+		@$ = @1, $$ = $1;
 	}
 	;
 
@@ -3034,7 +3081,7 @@ RULE_FUNCTION_PARAMETER_DECLARATOR
 		node.Type.ArrayLength = $2.Type.ArrayLength;
 		node.Name = parser.mAST.AddString($1.String.p, $1.String.len);
 
-		@$ = node.Location, $$ = node.Index;
+		@$ = @1, $$ = node.Index;
 	}
 	| RULE_IDENTIFIER_NAME RULE_TYPE_ARRAY ":" RULE_IDENTIFIER_SEMANTIC
 	{
@@ -3043,7 +3090,7 @@ RULE_FUNCTION_PARAMETER_DECLARATOR
 		node.Name = parser.mAST.AddString($1.String.p, $1.String.len);
 		node.Semantic = parser.mAST.AddString($4.String.p, $4.String.len);
 
-		@$ = node.Location, $$ = node.Index;
+		@$ = @1, $$ = node.Index;
 	}
 	;
 
@@ -3062,7 +3109,7 @@ RULE_TECHNIQUE
 		node.Annotations = $3;
 		node.Passes = $5;
 
-		@$ = node.Location, $$ = node.Index;
+		@$ = @1, $$ = node.Index;
 	}
 	;
 
@@ -3079,7 +3126,7 @@ RULE_PASS
 			node.States[i] = EffectTree::Null;
 		}
 
-		@$ = node.Location, $$ = node.Index;
+		@$ = @1, $$ = node.Index;
 	}
 	| "pass" RULE_ANNOTATIONS "{" RULE_PASSSTATE_LIST "}"
 	{
@@ -3091,11 +3138,11 @@ RULE_PASS
 			node.States[i] = $4.States[i];
 		}
 
-		@$ = node.Location, $$ = node.Index;
+		@$ = @1, $$ = node.Index;
 	}
 	| "pass" RULE_IDENTIFIER_NAME RULE_ANNOTATIONS "{" "}"
 	{
-		EffectNodes::Pass &node = parser.mAST.Add<EffectNodes::Pass>(@1);
+		EffectNodes::Pass &node = parser.mAST.Add<EffectNodes::Pass>(@2);
 		node.Name = parser.mAST.AddString($2.String.p, $2.String.len);
 		node.Annotations = $3;
 
@@ -3104,11 +3151,11 @@ RULE_PASS
 			node.States[i] = EffectTree::Null;
 		}
 
-		@$ = node.Location, $$ = node.Index;
+		@$ = @1, $$ = node.Index;
 	}
 	| "pass" RULE_IDENTIFIER_NAME RULE_ANNOTATIONS "{" RULE_PASSSTATE_LIST "}"
 	{
-		EffectNodes::Pass &node = parser.mAST.Add<EffectNodes::Pass>(@1);
+		EffectNodes::Pass &node = parser.mAST.Add<EffectNodes::Pass>(@2);
 		node.Name = parser.mAST.AddString($2.String.p, $2.String.len);
 		node.Annotations = $3;
 
@@ -3117,25 +3164,23 @@ RULE_PASS
 			node.States[i] = $5.States[i];
 		}
 
-		@$ = node.Location, $$ = node.Index;
+		@$ = @1, $$ = node.Index;
 	}
 	;
 RULE_PASS_LIST
 	: RULE_PASS
-	{
-		EffectNodes::List &node = parser.mAST.Add<EffectNodes::List>(@1);
-
-		@$ = node.Location, $$ = node.Index;
-
-		node.Link(parser.mAST, $1);
-	}
 	| RULE_PASS_LIST RULE_PASS
 	{
-		EffectNodes::List &node = parser.mAST[$1].As<EffectNodes::List>();
+		EffectNodes::Pass *node = &parser.mAST[$1].As<EffectNodes::Pass>();
 
-		@$ = node.Location, $$ = node.Index;
+		while (node->NextPass != EffectTree::Null)
+		{
+			node = &parser.mAST[node->NextPass].As<EffectNodes::Pass>();
+		}
 
-		node.Link(parser.mAST, $2);
+		node->NextPass = $2;
+
+		@$ = @1, $$ = $1;
 	}
 	;
 
@@ -3225,7 +3270,7 @@ namespace ReShade
 		}
 
 		// Add root node
-		this->mAST.Add<EffectNodes::List>();
+		this->mAST.Add<EffectNodes::Root>();
 	}
 	EffectParser::~EffectParser()
 	{
@@ -3382,20 +3427,23 @@ namespace ReShade
 	
 	static bool GetCallRanks(const EffectTree &ast, const EffectNodes::Call &call, const EffectTree &ast1, const EffectNodes::Function *function, unsigned int ranks[], unsigned int argumentCount)
 	{
-		const EffectNodes::List &arguments = ast[call.Arguments].As<EffectNodes::List>();
-		const EffectNodes::List &parameters = ast1[function->Parameters].As<EffectNodes::List>();
+		const EffectNodes::RValue *argument = &ast[call.Arguments].As<EffectNodes::RValue>();
+		const EffectNodes::Variable *parameter = &ast1[function->Parameters].As<EffectNodes::Variable>();
 
 		for (unsigned int i = 0; i < argumentCount; ++i)
 		{
-			ranks[i] = EffectNodes::Type::Compatible(ast[arguments[i]].As<EffectNodes::RValue>().Type, ast1[parameters[i]].As<EffectNodes::Variable>().Type);
+			ranks[i] = EffectNodes::Type::Compatible(argument->Type, parameter->Type);
 			
 			if (!ranks[i])
 			{
 				return false;
 			}
+
+			argument = &ast[argument->NextExpression].As<EffectNodes::RValue>();
+			parameter = &ast1[parameter->NextDeclaration].As<EffectNodes::Variable>();
 		}
 
-		return true;
+		return argument != nullptr && parameter != nullptr;
 	}
 	static int CompareFunctions(const EffectTree &ast, const EffectNodes::Call &call, const EffectTree &ast1, const EffectNodes::Function *function1, const EffectTree &ast2, const EffectNodes::Function *function2, unsigned int argumentCount)
 	{
@@ -3601,7 +3649,6 @@ namespace ReShade
 		}
 		#pragma endregion
 
-		const unsigned int argumentCount = call.HasArguments() ? this->mAST[call.Arguments].As<EffectNodes::List>().Length : 0;
 		EffectNodes::Function const *overload = nullptr;
 		unsigned int overloadCount = 0;
 		unsigned int intrinsicOperator = EffectNodes::Expression::None;
@@ -3628,9 +3675,9 @@ namespace ReShade
 
 				const EffectNodes::Function &function = symbol.As<EffectNodes::Function>();
 
-				if (!function.HasParameters())
+				if (!function.Parameters != EffectTree::Null)
 				{
-					if (argumentCount == 0)
+					if (call.ArgumentCount == 0)
 					{
 						overload = &function;
 						overloadCount = 1;
@@ -3641,12 +3688,12 @@ namespace ReShade
 						continue;
 					}
 				}
-				else if (argumentCount != this->mAST[function.Parameters].As<EffectNodes::List>().Length)
+				else if (call.ArgumentCount != function.ParameterCount)
 				{
 					continue;
 				}
 
-				const int result = CompareFunctions(this->mAST, call, this->mAST, &function, this->mAST, overload, argumentCount);
+				const int result = CompareFunctions(this->mAST, call, this->mAST, &function, this->mAST, overload, call.ArgumentCount);
 
 				if (result < 0)
 				{
@@ -3660,36 +3707,47 @@ namespace ReShade
 			}
 		}
 
-		const auto &intrinsics = sIntrinsics.Get().As<EffectNodes::List>();
+		const EffectNodes::Function *intrinsics = &sIntrinsics[sIntrinsics.Get().As<EffectNodes::Root>().NextDeclaration].As<EffectNodes::Function>();
 
-		for (unsigned int i = 0; i < intrinsics.Length; ++i)
+		do
 		{
-			const EffectNodes::Function &function = sIntrinsics[intrinsics[i]].As<EffectNodes::Function>();
+			if (::strcmp(intrinsics->Name, call.CalleeName) == 0)
+			{
+				if (call.ArgumentCount != intrinsics->ParameterCount)
+				{
+					if (overloadCount == 0)
+					{
+						intrinsic = true;
+					}
+					break;
+				}
 
-			if (::strcmp(function.Name, call.CalleeName) != 0)
-			{
-				continue;
-			}
-			if (argumentCount != sIntrinsics[function.Parameters].As<EffectNodes::List>().Length)
-			{
-				break;
+				const int result = CompareFunctions(this->mAST, call, sIntrinsics, intrinsics, intrinsic ? sIntrinsics : this->mAST, overload, call.ArgumentCount);
+
+				if (result < 0)
+				{
+					overload = intrinsics;
+					overloadCount = 1;
+
+					intrinsic = true;
+					intrinsicOperator = sIntrinsicOperators.at(call.CalleeName);
+				}
+				else if (result == 0)
+				{
+					++overloadCount;
+				}
 			}
 
-			const int result = CompareFunctions(this->mAST, call, sIntrinsics, &function, intrinsic ? sIntrinsics : this->mAST, overload, argumentCount);
-				
-			if (result < 0)
+			if (intrinsics->NextDeclaration != EffectTree::Null)
 			{
-				overload = &function;
-				overloadCount = 1;
-
-				intrinsic = true;
-				intrinsicOperator = sIntrinsicOperators.at(call.CalleeName);
+				intrinsics = &sIntrinsics[intrinsics->NextDeclaration].As<EffectNodes::Function>();
 			}
-			else if (result == 0)
+			else
 			{
-				++overloadCount;
+				intrinsics = nullptr;
 			}
 		}
+		while (intrinsics != nullptr);
 
 		if (overloadCount == 1)
 		{

@@ -16,7 +16,7 @@ namespace ReShade
 		class D3D9EffectCompiler : private boost::noncopyable
 		{
 		public:
-			D3D9EffectCompiler(const EffectTree &ast) : mAST(ast), mEffect(nullptr), mCurrentInParameterBlock(false), mCurrentInFunctionBlock(false), mCurrentRegisterOffset(0), mCurrentStorageSize(0)
+			D3D9EffectCompiler(const EffectTree &ast) : mAST(ast), mEffect(nullptr), mCurrentInParameterBlock(false), mCurrentInFunctionBlock(false), mCurrentInDeclaratorList(false), mCurrentRegisterOffset(0), mCurrentStorageSize(0)
 			{
 			}
 
@@ -27,12 +27,22 @@ namespace ReShade
 				this->mFatal = false;
 				this->mCurrentSource.clear();
 
-				const auto &root = this->mAST[EffectTree::Root].As<EffectNodes::List>();
+				const EffectNodes::Root *node = &this->mAST[EffectTree::Root].As<EffectNodes::Root>();
 
-				for (unsigned int i = 0; i < root.Length; ++i)
+				do
 				{
-					Visit(this->mAST[root[i]]);
+					Visit(*node);
+
+					if (node->NextDeclaration != EffectTree::Null)
+					{
+						node = &this->mAST[node->NextDeclaration].As<EffectNodes::Root>();
+					}
+					else
+					{
+						node = nullptr;
+					}
 				}
+				while (node != nullptr);
 
 				errors += this->mErrors;
 
@@ -262,6 +272,7 @@ namespace ReShade
 						res += "sampler2D";
 						break;
 					case EffectNodes::Type::Struct:
+						assert(type.Definition != EffectTree::Null);
 						res += this->mAST[type.Definition].As<EffectNodes::Struct>().Name;
 						break;
 				}
@@ -359,6 +370,10 @@ namespace ReShade
 				{
 					Visit(node.As<ExpressionStatement>());
 				}
+				else if (node.Is<DeclarationStatement>())
+				{
+					Visit(node.As<DeclarationStatement>());
+				}
 				else if (node.Is<If>())
 				{
 					Visit(node.As<If>());
@@ -366,10 +381,6 @@ namespace ReShade
 				else if (node.Is<Switch>())
 				{
 					Visit(node.As<Switch>());
-				}
-				else if (node.Is<Case>())
-				{
-					Visit(node.As<Case>());
 				}
 				else if (node.Is<For>())
 				{
@@ -379,6 +390,10 @@ namespace ReShade
 				{
 					Visit(node.As<While>());
 				}
+				else if (node.Is<Return>())
+				{
+					Visit(node.As<Return>());
+				}
 				else if (node.Is<Jump>())
 				{
 					Visit(node.As<Jump>());
@@ -386,10 +401,6 @@ namespace ReShade
 				else if (node.Is<StatementBlock>())
 				{
 					Visit(node.As<StatementBlock>());
-				}
-				else if (node.Is<Annotation>())
-				{
-					Visit(node.As<Annotation>());
 				}
 				else if (node.Is<Struct>())
 				{
@@ -399,11 +410,7 @@ namespace ReShade
 				{
 					Visit(node.As<Technique>());
 				}
-				else if (node.Is<Pass>())
-				{
-					Visit(node.As<Pass>());
-				}
-				else
+				else if (!node.Is<Root>())
 				{
 					assert(false);
 				}
@@ -926,15 +933,24 @@ namespace ReShade
 			}
 			void Visit(const EffectNodes::Sequence &node)
 			{
-				for (unsigned int i = 0; i < node.Length; ++i)
+				const EffectNodes::RValue *expression = &this->mAST[node.Expressions].As<EffectNodes::RValue>();
+
+				do
 				{
-					Visit(this->mAST[node[i]]);
+					Visit(*expression);
 
-					this->mCurrentSource += ", ";
+					if (expression->NextExpression != EffectTree::Null)
+					{
+						this->mCurrentSource += ", ";
+
+						expression = &this->mAST[expression->NextExpression].As<EffectNodes::RValue>();
+					}
+					else
+					{
+						expression = nullptr;
+					}
 				}
-
-				this->mCurrentSource.pop_back();
-				this->mCurrentSource.pop_back();
+				while (expression != nullptr);
 			}
 			void Visit(const EffectNodes::Assignment &node)
 			{
@@ -991,19 +1007,26 @@ namespace ReShade
 				this->mCurrentSource += node.CalleeName;
 				this->mCurrentSource += '(';
 
-				if (node.HasArguments())
+				if (node.Arguments != EffectTree::Null)
 				{
-					const auto &arguments = this->mAST[node.Arguments].As<EffectNodes::List>();
+					const EffectNodes::RValue *argument = &this->mAST[node.Arguments].As<EffectNodes::RValue>();
 
-					for (unsigned int i = 0; i < arguments.Length; ++i)
+					do
 					{
-						Visit(this->mAST[arguments[i]]);
+						Visit(*argument);
 
-						this->mCurrentSource += ", ";
+						if (argument->NextExpression != EffectTree::Null)
+						{
+							this->mCurrentSource += ", ";
+
+							argument = &this->mAST[argument->NextExpression].As<EffectNodes::RValue>();
+						}
+						else
+						{
+							argument = nullptr;
+						}
 					}
-
-					this->mCurrentSource.pop_back();
-					this->mCurrentSource.pop_back();
+					while (argument != nullptr);
 				}
 
 				this->mCurrentSource += ')';
@@ -1013,17 +1036,24 @@ namespace ReShade
 				this->mCurrentSource += PrintType(node.Type);
 				this->mCurrentSource += '(';
 
-				const auto &arguments = this->mAST[node.Arguments].As<EffectNodes::List>();
+				const EffectNodes::RValue *argument = &this->mAST[node.Arguments].As<EffectNodes::RValue>();
 
-				for (unsigned int i = 0; i < arguments.Length; ++i)
+				do
 				{
-					Visit(this->mAST[arguments[i]]);
+					Visit(*argument);
 
-					this->mCurrentSource += ", ";
+					if (argument->NextExpression != EffectTree::Null)
+					{
+						this->mCurrentSource += ", ";
+
+						argument = &this->mAST[argument->NextExpression].As<EffectNodes::RValue>();
+					}
+					else
+					{
+						argument = nullptr;
+					}
 				}
-
-				this->mCurrentSource.pop_back();
-				this->mCurrentSource.pop_back();
+				while (argument != nullptr);
 
 				this->mCurrentSource += ')';
 			}
@@ -1065,23 +1095,18 @@ namespace ReShade
 			}
 			void Visit(const EffectNodes::If &node)
 			{
-				if (node.HasAttributes())
+				if (node.Attributes != nullptr)
 				{
-					const auto &attributes = this->mAST[node.Attributes].As<EffectNodes::List>();
-
-					for (unsigned int i = 0; i < attributes.Length; ++i)
-					{
-						this->mCurrentSource += '[';
-						this->mCurrentSource += this->mAST[attributes[i]].As<EffectNodes::Literal>().Value.String;
-						this->mCurrentSource += ']';
-					}
+					this->mCurrentSource += '[';
+					this->mCurrentSource += node.Attributes;
+					this->mCurrentSource += ']';
 				}
 
 				this->mCurrentSource += "if (";
 				Visit(this->mAST[node.Condition]);
 				this->mCurrentSource += ")\n";
 
-				if (node.StatementOnTrue != 0)
+				if (node.StatementOnTrue != EffectTree::Null)
 				{
 					Visit(this->mAST[node.StatementOnTrue]);
 				}
@@ -1089,7 +1114,7 @@ namespace ReShade
 				{
 					this->mCurrentSource += "\t;";
 				}
-				if (node.StatementOnFalse != 0)
+				if (node.StatementOnFalse != EffectTree::Null)
 				{
 					this->mCurrentSource += "else\n";
 					Visit(this->mAST[node.StatementOnFalse]);
@@ -1105,49 +1130,63 @@ namespace ReShade
 				Visit(this->mAST[node.Test]);
 				this->mCurrentSource += ";\n";
 
-				const auto &cases = this->mAST[node.Cases].As<EffectNodes::List>();
+				unsigned int caseIndex = 0;
+				const EffectNodes::Case *cases = &this->mAST[node.Cases].As<EffectNodes::Case>();
 
-				for (unsigned int i = 0; i < cases.Length; ++i)
+				do
 				{
-					this->mCurrentCaseIndex = i;
+					Visit(*cases, caseIndex);
 
-					Visit(this->mAST[cases[i]].As<EffectNodes::Case>());
+					if (cases->NextCase != EffectTree::Null)
+					{
+						caseIndex++;
+
+						cases = &this->mAST[cases->NextCase].As<EffectNodes::Case>();
+					}
+					else
+					{
+						cases = nullptr;
+					}
 				}
+				while (cases != nullptr);
 
 				this->mCurrentSource += "} while (false);\n";
 			}
-			void Visit(const EffectNodes::Case &node)
+			void Visit(const EffectNodes::Case &node, unsigned int index)
 			{
-				const auto &labels = this->mAST[node.Labels].As<EffectNodes::List>();
-
-				if (this->mCurrentCaseIndex != 0)
+				if (index != 0)
 				{
 					this->mCurrentSource += "else ";
 				}
 
 				this->mCurrentSource += "if (";
 
-				for (unsigned int i = 0; i < labels.Length; ++i)
-				{
-					const auto &label = this->mAST[labels[i]];
+				const EffectNodes::RValue *label = &this->mAST[node.Labels].As<EffectNodes::RValue>();
 
-					if (label.Is<EffectNodes::Expression>())
+				do
+				{
+					if (label->Is<EffectNodes::Expression>())
 					{
 						this->mCurrentSource += "true";
 					}
 					else
 					{
 						this->mCurrentSource += "__switch_condition == ";
-						Visit(label.As<EffectNodes::Literal>());
+						Visit(label->As<EffectNodes::Literal>());
 					}
 
-					this->mCurrentSource += " || ";
-				}
+					if (label->NextExpression != EffectTree::Null)
+					{
+						this->mCurrentSource += " || ";
 
-				this->mCurrentSource.pop_back();
-				this->mCurrentSource.pop_back();
-				this->mCurrentSource.pop_back();
-				this->mCurrentSource.pop_back();
+						label = &this->mAST[label->NextExpression].As<EffectNodes::RValue>();
+					}
+					else
+					{
+						label = nullptr;
+					}
+				}
+				while (label != nullptr);
 
 				this->mCurrentSource += ")";
 
@@ -1155,45 +1194,39 @@ namespace ReShade
 			}
 			void Visit(const EffectNodes::For &node)
 			{
-				if (node.HasAttributes())
+				if (node.Attributes != nullptr)
 				{
-					const auto &attributes = this->mAST[node.Attributes].As<EffectNodes::List>();
-
-					for (unsigned int i = 0; i < attributes.Length; ++i)
-					{
-						this->mCurrentSource += '[';
-						this->mCurrentSource += this->mAST[attributes[i]].As<EffectNodes::Literal>().Value.String;
-						this->mCurrentSource += ']';
-					}
+					this->mCurrentSource += '[';
+					this->mCurrentSource += node.Attributes;
+					this->mCurrentSource += ']';
 				}
 
 				this->mCurrentSource += "for (";
 
-				if (node.Initialization != 0)
+				if (node.Initialization != EffectTree::Null)
 				{
 					Visit(this->mAST[node.Initialization]);
-
-					this->mCurrentSource.pop_back();
-					this->mCurrentSource.pop_back();
 				}
-
-				this->mCurrentSource += "; ";
+				else
+				{
+					this->mCurrentSource += "; ";
+				}
 										
-				if (node.Condition != 0)
+				if (node.Condition != EffectTree::Null)
 				{
 					Visit(this->mAST[node.Condition]);
 				}
 
 				this->mCurrentSource += "; ";
 
-				if (node.Iteration != 0)
+				if (node.Iteration != EffectTree::Null)
 				{
 					Visit(this->mAST[node.Iteration]);
 				}
 
 				this->mCurrentSource += ")\n";
 
-				if (node.Statements != 0)
+				if (node.Statements != EffectTree::Null)
 				{
 					Visit(this->mAST[node.Statements]);
 				}
@@ -1204,23 +1237,18 @@ namespace ReShade
 			}
 			void Visit(const EffectNodes::While &node)
 			{
-				if (node.HasAttributes())
+				if (node.Attributes != nullptr)
 				{
-					const auto &attributes = this->mAST[node.Attributes].As<EffectNodes::List>();
-
-					for (unsigned int i = 0; i < attributes.Length; ++i)
-					{
-						this->mCurrentSource += '[';
-						this->mCurrentSource += this->mAST[attributes[i]].As<EffectNodes::Literal>().Value.String;
-						this->mCurrentSource += ']';
-					}
+					this->mCurrentSource += '[';
+					this->mCurrentSource += node.Attributes;
+					this->mCurrentSource += ']';
 				}
 
 				if (node.DoWhile)
 				{
 					this->mCurrentSource += "do\n{\n";
 
-					if (node.Statements != 0)
+					if (node.Statements != EffectTree::Null)
 					{
 						Visit(this->mAST[node.Statements]);
 					}
@@ -1236,7 +1264,7 @@ namespace ReShade
 					Visit(this->mAST[node.Condition]);
 					this->mCurrentSource += ")\n";
 
-					if (node.Statements != 0)
+					if (node.Statements != EffectTree::Null)
 					{
 						Visit(this->mAST[node.Statements]);
 					}
@@ -1246,27 +1274,34 @@ namespace ReShade
 					}
 				}
 			}
+			void Visit(const EffectNodes::Return &node)
+			{
+				if (node.Discard)
+				{
+					this->mCurrentSource += "discard";
+				}
+				else
+				{
+					this->mCurrentSource += "return";
+
+					if (node.Value != EffectTree::Null)
+					{
+						this->mCurrentSource += ' ';
+						Visit(this->mAST[node.Value]);
+					}
+				}
+
+				this->mCurrentSource += ";\n";
+			}
 			void Visit(const EffectNodes::Jump &node)
 			{
 				switch (node.Mode)
 				{
-					case EffectNodes::Jump::Return:
-						this->mCurrentSource += "return";
-
-						if (node.Value != 0)
-						{
-							this->mCurrentSource += ' ';
-							Visit(this->mAST[node.Value]);
-						}
-						break;
 					case EffectNodes::Jump::Break:
 						this->mCurrentSource += "break";
 						break;
 					case EffectNodes::Jump::Continue:
 						this->mCurrentSource += "continue";
-						break;
-					case EffectNodes::Jump::Discard:
-						this->mCurrentSource += "discard";
 						break;
 				}
 
@@ -1274,51 +1309,73 @@ namespace ReShade
 			}
 			void Visit(const EffectNodes::ExpressionStatement &node)
 			{
-				if (node.Expression != 0)
+				if (node.Expression != EffectTree::Null)
 				{
 					Visit(this->mAST[node.Expression]);
 				}
 
 				this->mCurrentSource += ";\n";
 			}
+			void Visit(const EffectNodes::DeclarationStatement &node)
+			{
+				Visit(this->mAST[node.Declaration]);
+			}
 			void Visit(const EffectNodes::StatementBlock &node)
 			{
 				this->mCurrentSource += "{\n";
 
-				for (unsigned int i = 0; i < node.Length; ++i)
+				if (node.Statements != EffectTree::Null)
 				{
-					Visit(this->mAST[node[i]]);
+					const EffectNodes::Statement *statement = &this->mAST[node.Statements].As<EffectNodes::Statement>();
+
+					do
+					{
+						Visit(*statement);
+
+						if (statement->NextStatement != EffectTree::Null)
+						{
+							statement = &this->mAST[statement->NextStatement].As<EffectNodes::Statement>();
+						}
+						else
+						{
+							statement = nullptr;
+						}
+					}
+					while (statement != nullptr);
 				}
 
 				this->mCurrentSource += "}\n";
 			}
-			void Visit(const EffectNodes::Annotation &node)
+			void Visit(const EffectNodes::Annotation &node, std::unordered_map<std::string, Effect::Annotation> &annotations)
 			{
-				Effect::Annotation annotation;
+				Effect::Annotation data;
 				const auto &value = this->mAST[node.Value].As<EffectNodes::Literal>();
 
 				switch (value.Type.Class)
 				{
 					case EffectNodes::Type::Bool:
-						annotation = value.Value.Bool[0] != 0;
+						data = value.Value.Bool[0] != 0;
 						break;
 					case EffectNodes::Type::Int:
-						annotation = value.Value.Int[0];
+						data = value.Value.Int[0];
 						break;
 					case EffectNodes::Type::Uint:
-						annotation = value.Value.Uint[0];
+						data = value.Value.Uint[0];
 						break;
 					case EffectNodes::Type::Float:
-						annotation = value.Value.Float[0];
+						data = value.Value.Float[0];
 						break;
 					case EffectNodes::Type::String:
-						annotation = value.Value.String;
+						data = value.Value.String;
 						break;
 				}
 
-				assert(this->mCurrentAnnotations != nullptr);
+				annotations.insert(std::make_pair(node.Name, data));
 
-				this->mCurrentAnnotations->insert(std::make_pair(node.Name, annotation));
+				if (node.NextAnnotation != EffectTree::Null)
+				{
+					Visit(this->mAST[node.NextAnnotation].As<EffectNodes::Annotation>(), annotations);
+				}
 			}
 			void Visit(const EffectNodes::Struct &node)
 			{
@@ -1331,14 +1388,9 @@ namespace ReShade
 
 				this->mCurrentSource += "\n{\n";
 
-				if (node.HasFields())
+				if (node.Fields != EffectTree::Null)
 				{
-					const auto &fields = this->mAST[node.Fields].As<EffectNodes::List>();
-
-					for (unsigned int i = 0; i < fields.Length; ++i)
-					{
-						Visit(this->mAST[fields[i]].As<EffectNodes::Variable>());
-					}
+					Visit(this->mAST[node.Fields].As<EffectNodes::Variable>());
 				}
 				else
 				{
@@ -1373,7 +1425,10 @@ namespace ReShade
 					}
 				}
 
-				this->mCurrentSource += PrintTypeWithQualifiers(node.Type);
+				if (!this->mCurrentInDeclaratorList)
+				{
+					this->mCurrentSource += PrintTypeWithQualifiers(node.Type);
+				}
 
 				if (node.Name != nullptr)
 				{
@@ -1399,14 +1454,35 @@ namespace ReShade
 					this->mCurrentSource += " : " + ConvertSemantic(node.Semantic);
 				}
 
-				if (node.HasInitializer())
+				if (node.Initializer != EffectTree::Null)
 				{
 					this->mCurrentSource += " = ";
 
 					Visit(this->mAST[node.Initializer]);
 				}
 
-				if (!this->mCurrentInParameterBlock)
+				if (node.NextDeclarator != EffectTree::Null)
+				{
+					const auto &next = this->mAST[node.NextDeclarator].As<EffectNodes::Variable>();
+
+					if (next.Type.Class == node.Type.Class && next.Type.Rows == node.Type.Rows && next.Type.Cols == node.Type.Rows && next.Type.Definition == node.Type.Definition)
+					{
+						this->mCurrentSource += ", ";
+
+						this->mCurrentInDeclaratorList = true;
+
+						Visit(next);
+
+						this->mCurrentInDeclaratorList = false;
+					}
+					else
+					{
+						this->mCurrentSource += ";\n";
+
+						Visit(next);
+					}
+				}
+				else if (!this->mCurrentInParameterBlock)
 				{
 					this->mCurrentSource += ";\n";
 				}
@@ -1442,18 +1518,9 @@ namespace ReShade
 
 				obj->mTexture->GetSurfaceLevel(0, &obj->mSurface);
 
-				if (node.HasAnnotations())
+				if (node.Annotations != EffectTree::Null)
 				{
-					const auto &annotations = this->mAST[node.Annotations].As<EffectNodes::List>();
-
-					this->mCurrentAnnotations = &obj->mAnnotations;
-
-					for (unsigned int i = 0; i < annotations.Length; ++i)
-					{
-						Visit(this->mAST[annotations[i]].As<EffectNodes::Annotation>());
-					}
-
-					this->mCurrentAnnotations = nullptr;
+					Visit(this->mAST[node.Annotations].As<EffectNodes::Annotation>(), obj->mAnnotations);
 				}
 
 				this->mEffect->mTextures.insert(std::make_pair(node.Name, std::move(obj)));
@@ -1556,21 +1623,12 @@ namespace ReShade
 					this->mEffect->mConstantStorage = static_cast<float *>(::realloc(this->mEffect->mConstantStorage, this->mCurrentStorageSize += sizeof(float) * 64));
 				}
 
-				if (node.HasAnnotations())
+				if (node.Annotations != EffectTree::Null)
 				{
-					const auto &annotations = this->mAST[node.Annotations].As<EffectNodes::List>();
-
-					this->mCurrentAnnotations = &obj->mAnnotations;
-
-					for (unsigned int i = 0; i < annotations.Length; ++i)
-					{
-						Visit(this->mAST[annotations[i]].As<EffectNodes::Annotation>());
-					}
-
-					this->mCurrentAnnotations = nullptr;
+					Visit(this->mAST[node.Annotations].As<EffectNodes::Annotation>(), obj->mAnnotations);
 				}
 
-				if (node.HasInitializer())
+				if (node.Initializer != EffectTree::Null)
 				{
 					std::memcpy(this->mEffect->mConstantStorage + obj->mRegisterOffset, &this->mAST[node.Initializer].As<EffectNodes::Literal>().Value, obj->mDesc.Size);
 				}
@@ -1586,7 +1644,7 @@ namespace ReShade
 			{
 				const auto &structure = this->mAST[node.Type.Definition].As<EffectNodes::Struct>();
 
-				if (structure.HasFields())
+				if (structure.Fields == EffectTree::Null)
 				{
 					return;
 				}
@@ -1594,12 +1652,26 @@ namespace ReShade
 				this->mCurrentBlockName = node.Name;
 
 				const UINT previousOffset = this->mCurrentRegisterOffset;
-				const auto &fields = this->mAST[structure.Fields].As<EffectNodes::List>();
 
-				for (unsigned int i = 0; i < fields.Length; ++i)
+				unsigned int fieldCount = 0;
+				const EffectNodes::Variable *field = &this->mAST[structure.Fields].As<EffectNodes::Variable>();
+
+				do
 				{
-					VisitUniform(this->mAST[fields[i]].As<EffectNodes::Variable>());
+					fieldCount++;
+
+					VisitUniform(*field);
+
+					if (field->NextDeclarator != EffectTree::Null)
+					{
+						field = &this->mAST[field->NextDeclarator].As<EffectNodes::Variable>();
+					}
+					else
+					{
+						field = nullptr;
+					}
 				}
+				while (field != nullptr);
 
 				this->mCurrentBlockName.clear();
 
@@ -1607,22 +1679,13 @@ namespace ReShade
 				obj->mDesc.Rows = 0;
 				obj->mDesc.Columns = 0;
 				obj->mDesc.Elements = 0;
-				obj->mDesc.Fields = fields.Length;
+				obj->mDesc.Fields = fieldCount;
 				obj->mDesc.Size = (this->mCurrentRegisterOffset - previousOffset) * sizeof(float);
 				obj->mDesc.Type = Effect::Constant::Type::Struct;
 
-				if (node.HasAnnotations())
+				if (node.Annotations != EffectTree::Null)
 				{
-					const auto &annotations = this->mAST[node.Annotations].As<EffectNodes::List>();
-
-					this->mCurrentAnnotations = &obj->mAnnotations;
-
-					for (unsigned int i = 0; i < annotations.Length; ++i)
-					{
-						Visit(this->mAST[annotations[i]].As<EffectNodes::Annotation>());
-					}
-
-					this->mCurrentAnnotations = nullptr;
+					Visit(this->mAST[node.Annotations].As<EffectNodes::Annotation>(), obj->mAnnotations);
 				}
 
 				this->mEffect->mConstants.insert(std::make_pair(node.Name, std::move(obj)));
@@ -1634,30 +1697,38 @@ namespace ReShade
 				this->mCurrentSource += node.Name;
 				this->mCurrentSource += '(';
 
-				if (node.HasParameters())
+				if (node.Parameters != EffectTree::Null)
 				{
-					const auto &parameters = this->mAST[node.Parameters].As<EffectNodes::List>();
-
 					this->mCurrentInParameterBlock = true;
 
-					for (unsigned int i = 0; i < parameters.Length; ++i)
+					const EffectNodes::Variable *parameter = &this->mAST[node.Parameters].As<EffectNodes::Variable>();
+
+					do
 					{
-						Visit(this->mAST[parameters[i]].As<EffectNodes::Variable>());
+						Visit(*parameter);
 
-						this->mCurrentSource += ", ";
+						if (parameter->NextDeclaration != EffectTree::Null)
+						{
+							this->mCurrentSource += ", ";
+
+							parameter = &this->mAST[parameter->NextDeclaration].As<EffectNodes::Variable>();
+						}
+						else
+						{
+							parameter = nullptr;
+						}
 					}
-
-					this->mCurrentSource.pop_back();
-					this->mCurrentSource.pop_back();
+					while (parameter != nullptr);
 
 					this->mCurrentInParameterBlock = false;
 				}
 
 				this->mCurrentSource += ')';
 
-				if (node.HasDefinition())
+				if (node.Definition != EffectTree::Null)
 				{
 					this->mCurrentSource += '\n';
+
 					this->mCurrentInFunctionBlock = true;
 
 					Visit(this->mAST[node.Definition].As<EffectNodes::StatementBlock>());
@@ -1673,38 +1744,31 @@ namespace ReShade
 			{
 				std::unique_ptr<D3D9Technique> obj(new D3D9Technique(this->mEffect));
 
-				const auto &passes = this->mAST[node.Passes].As<EffectNodes::List>();
+				const EffectNodes::Pass *pass = &this->mAST[node.Passes].As<EffectNodes::Pass>();
 
-				obj->mPasses.reserve(passes.Length);
-
-				this->mCurrentPasses = &obj->mPasses;
-
-				for (unsigned int i = 0; i < passes.Length; ++i)
+				do
 				{
-					const auto &pass = this->mAST[passes[i]].As<EffectNodes::Pass>();
+					Visit(*pass, obj->mPasses);
 
-					Visit(pass);
-				}
-
-				this->mCurrentPasses = nullptr;
-
-				if (node.HasAnnotations())
-				{
-					const auto &annotations = this->mAST[node.Annotations].As<EffectNodes::List>();
-
-					this->mCurrentAnnotations = &obj->mAnnotations;
-
-					for (unsigned int i = 0; i < annotations.Length; ++i)
+					if (pass->NextPass != EffectTree::Null)
 					{
-						Visit(this->mAST[annotations[i]].As<EffectNodes::Annotation>());
+						pass = &this->mAST[pass->NextPass].As<EffectNodes::Pass>();
 					}
+					else
+					{
+						pass = nullptr;
+					}
+				}
+				while (pass != nullptr);
 
-					this->mCurrentAnnotations = nullptr;
+				if (node.Annotations != EffectTree::Null)
+				{
+					Visit(this->mAST[node.Annotations].As<EffectNodes::Annotation>(), obj->mAnnotations);
 				}
 
 				this->mEffect->mTechniques.insert(std::make_pair(node.Name, std::move(obj)));
 			}
-			void Visit(const EffectNodes::Pass &node)
+			void Visit(const EffectNodes::Pass &node, std::vector<D3D9Technique::Pass> &passes)
 			{
 				D3D9Technique::Pass pass;
 				ZeroMemory(&pass, sizeof(D3D9Technique::Pass));
@@ -1819,9 +1883,7 @@ namespace ReShade
 					}
 				}
 
-				assert(this->mCurrentPasses != nullptr);
-
-				this->mCurrentPasses->push_back(std::move(pass));
+				passes.push_back(std::move(pass));
 			}
 			void VisitShader(const EffectNodes::Function &node, unsigned int type, D3D9Technique::Pass &pass)
 			{
@@ -1853,31 +1915,42 @@ namespace ReShade
 				std::string positionVariable, initialization;
 				EffectNodes::Type returnType = node.ReturnType;
 
-				if (node.ReturnType.IsStruct() && this->mAST[node.ReturnType.Definition].As<EffectNodes::Struct>().HasFields())
+				if (node.ReturnType.IsStruct())
 				{
-					const auto &fields = this->mAST[this->mAST[node.ReturnType.Definition].As<EffectNodes::Struct>().Fields].As<EffectNodes::List>();
+					const EffectTree::Index fields = this->mAST[node.ReturnType.Definition].As<EffectNodes::Struct>().Fields;
 
-					for (unsigned int k = 0; k < fields.Length; ++k)
+					if (fields != EffectTree::Null)
 					{
-						const auto &field = this->mAST[fields[k]].As<EffectNodes::Variable>();
+						const EffectNodes::Variable *field = &this->mAST[fields].As<EffectNodes::Variable>();
 
-						if (field.Semantic == nullptr)
+						do
 						{
-							continue;
+							if (field->Semantic != nullptr)
+							{
+								if (boost::equals(field->Semantic, "SV_POSITION"))
+								{
+									positionVariable = "_return.";
+									positionVariable += field->Name;
+									break;
+								}
+								else if (boost::starts_with(field->Semantic, "SV_TARGET") && field->Type.Rows != 4)
+								{
+									this->mErrors += PrintLocation(node.Location) + "'SV_Target' must be a four-component vector when used inside structs on legacy targets.";
+									this->mFatal = true;
+									return;
+								}
+							}
+
+							if (field->NextDeclarator != EffectTree::Null)
+							{
+								field = &this->mAST[field->NextDeclarator].As<EffectNodes::Variable>();
+							}
+							else
+							{
+								field = nullptr;
+							}
 						}
-						
-						if (boost::equals(field.Semantic, "SV_POSITION"))
-						{
-							positionVariable = "_return.";
-							positionVariable += field.Name;
-							break;
-						}
-						else if (boost::starts_with(field.Semantic, "SV_TARGET") && field.Type.Rows != 4)
-						{
-							this->mErrors += PrintLocation(node.Location) + "'SV_Target' must be a four-component vector when used inside structs on legacy targets.";
-							this->mFatal = true;
-							return;
-						}
+						while (field != nullptr);
 					}
 				}
 				else if (node.ReturnSemantic != nullptr)
@@ -1894,62 +1967,72 @@ namespace ReShade
 
 				source += PrintType(returnType) + ' ' + "__main" + '(';
 				
-				if (node.HasParameters())
+				if (node.Parameters != EffectTree::Null)
 				{
-					const auto &parameters = this->mAST[node.Parameters].As<EffectNodes::List>();
+					const EffectNodes::Variable *parameter = &this->mAST[node.Parameters].As<EffectNodes::Variable>();
 
-					for (unsigned int i = 0; i < parameters.Length; ++i)
+					do
 					{
-						const auto &parameter = this->mAST[parameters[i]].As<EffectNodes::Variable>();
-						EffectNodes::Type parameterType = parameter.Type;
+						EffectNodes::Type parameterType = parameter->Type;
 
-						if (parameter.Type.HasQualifier(EffectNodes::Type::Out))
+						if (parameterType.HasQualifier(EffectNodes::Type::Out))
 						{
-							if (parameter.Type.IsStruct() && this->mAST[parameter.Type.Definition].As<EffectNodes::Struct>().HasFields())
+							if (parameterType.IsStruct())
 							{
-								const auto &fields = this->mAST[this->mAST[parameter.Type.Definition].As<EffectNodes::Struct>().Fields].As<EffectNodes::List>();
+								const EffectTree::Index fields = this->mAST[parameterType.Definition].As<EffectNodes::Struct>().Fields;
 
-								for (unsigned int k = 0; k < fields.Length; ++k)
+								if (fields != EffectTree::Null)
 								{
-									const auto &field = this->mAST[fields[k]].As<EffectNodes::Variable>();
+									const EffectNodes::Variable *field = &this->mAST[fields].As<EffectNodes::Variable>();
 
-									if (field.Semantic == nullptr)
+									do
 									{
-										continue;
+										if (field->Semantic != nullptr)
+										{
+											if (boost::equals(field->Semantic, "SV_POSITION"))
+											{
+												positionVariable = parameter->Name;
+												positionVariable += '.';
+												positionVariable += field->Name;
+												break;
+											}
+											else if (boost::starts_with(field->Semantic, "SV_TARGET") && field->Type.Rows != 4)
+											{
+												this->mErrors += PrintLocation(node.Location) + "'SV_Target' must be a four-component vector when used inside structs on legacy targets.";
+												this->mFatal = true;
+												return;
+											}
+										}
+
+										if (field->NextDeclarator != EffectTree::Null)
+										{
+											field = &this->mAST[field->NextDeclarator].As<EffectNodes::Variable>();
+										}
+										else
+										{
+											field = nullptr;
+										}
 									}
-									
-									if (boost::equals(field.Semantic, "SV_POSITION"))
-									{
-										positionVariable = parameter.Name;
-										positionVariable += '.';
-										positionVariable += field.Name;
-										break;
-									}
-									else if (boost::starts_with(field.Semantic, "SV_TARGET") && field.Type.Rows != 4)
-									{
-										this->mErrors += PrintLocation(node.Location) + "'SV_Target' must be a four-component vector when used inside structs on legacy targets.";
-										this->mFatal = true;
-										return;
-									}
+									while (field != nullptr);
 								}
 							}
-							else if (parameter.Semantic != nullptr)
+							else if (parameter->Semantic != nullptr)
 							{
-								if (boost::equals(parameter.Semantic, "SV_POSITION"))
+								if (boost::equals(parameter->Semantic, "SV_POSITION"))
 								{
-									positionVariable = parameter.Name;
+									positionVariable = parameter->Name;
 								}
-								else if (boost::starts_with(parameter.Semantic, "SV_TARGET"))
+								else if (boost::starts_with(parameter->Semantic, "SV_TARGET"))
 								{
 									parameterType.Rows = 4;
 
-									initialization += parameter.Name;
+									initialization += parameter->Name;
 									initialization += " = float4(0.0f, 0.0f, 0.0f, 0.0f);\n";
 								}
 							}
 						}
 
-						source += PrintTypeWithQualifiers(parameterType) + ' ' + parameter.Name;
+						source += PrintTypeWithQualifiers(parameterType) + ' ' + parameter->Name;
 
 						if (parameterType.IsArray())
 						{
@@ -1958,16 +2041,23 @@ namespace ReShade
 							source += ']';
 						}
 
-						if (parameter.Semantic != nullptr)
+						if (parameter->Semantic != nullptr)
 						{
-							source += " : " + ConvertSemantic(parameter.Semantic);
+							source += " : " + ConvertSemantic(parameter->Semantic);
 						}
 
-						source += ", ";
-					}
+						if (parameter->NextDeclaration != EffectTree::Null)
+						{
+							source += ", ";
 
-					source.pop_back();
-					source.pop_back();
+							parameter = &this->mAST[parameter->NextDeclaration].As<EffectNodes::Variable>();
+						}
+						else
+						{
+							parameter = nullptr;
+						}
+					}
+					while (parameter != nullptr);
 				}
 
 				source += ')';
@@ -1993,33 +2083,38 @@ namespace ReShade
 				source += node.Name;
 				source += '(';
 
-				if (node.HasParameters())
+				if (node.Parameters != EffectTree::Null)
 				{
-					const auto &parameters = this->mAST[node.Parameters].As<EffectNodes::List>();
+					const EffectNodes::Variable *parameter = &this->mAST[node.Parameters].As<EffectNodes::Variable>();
 				
-					for (unsigned int i = 0; i < parameters.Length; ++i)
+					do
 					{
-						const auto &parameter = this->mAST[parameters[i]].As<EffectNodes::Variable>();
+						source += parameter->Name;
 
-						source += parameter.Name;
-
-						if (parameter.Semantic != nullptr && boost::starts_with(parameter.Semantic, "SV_TARGET"))
+						if (parameter->Semantic != nullptr && boost::starts_with(parameter->Semantic, "SV_TARGET"))
 						{
 							source += '.';
 
 							const char swizzle[] = { 'x', 'y', 'z', 'w' };
 
-							for (unsigned int i = 0; i < parameter.Type.Rows; ++i)
+							for (unsigned int i = 0; i < parameter->Type.Rows; ++i)
 							{
 								source += swizzle[i];
 							}
 						}
 
-						source += ", ";
-					}
+						if (parameter->NextDeclaration != EffectTree::Null)
+						{
+							source += ", ";
 
-					source.pop_back();
-					source.pop_back();
+							parameter = &this->mAST[parameter->NextDeclaration].As<EffectNodes::Variable>();
+						}
+						else
+						{
+							parameter = nullptr;
+						}
+					}
+					while (parameter != nullptr);
 				}
 
 				source += ')';
@@ -2094,10 +2189,8 @@ namespace ReShade
 			std::string mErrors;
 			bool mFatal;
 			std::string mCurrentBlockName;
-			bool mCurrentInParameterBlock, mCurrentInFunctionBlock;
-			unsigned int mCurrentCaseIndex, mCurrentRegisterOffset, mCurrentStorageSize;
-			std::unordered_map<std::string, Effect::Annotation> *mCurrentAnnotations;
-			std::vector<D3D9Technique::Pass> *mCurrentPasses;
+			bool mCurrentInParameterBlock, mCurrentInFunctionBlock, mCurrentInDeclaratorList;
+			unsigned int mCurrentRegisterOffset, mCurrentStorageSize;
 		};
 	}
 
