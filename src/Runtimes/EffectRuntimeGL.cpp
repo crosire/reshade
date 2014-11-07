@@ -1803,13 +1803,23 @@ namespace ReShade
 
 				GLenum minfilter = (node.Properties[EffectNodes::Variable::MinFilter] != 0) ? LiteralToTextureFilter(this->mAST[node.Properties[EffectNodes::Variable::MinFilter]].As<EffectNodes::Literal>().Value.Uint[0]) : GL_LINEAR;
 				const GLenum mipfilter = (node.Properties[EffectNodes::Variable::MipFilter] != 0) ? LiteralToTextureFilter(this->mAST[node.Properties[EffectNodes::Variable::MipFilter]].As<EffectNodes::Literal>().Value.Uint[0]) : GL_LINEAR;
-				const GLenum mipfilters[2][2] =
+				
+				if (minfilter == GL_NEAREST && mipfilter == GL_NEAREST)
 				{
-					{ GL_NEAREST_MIPMAP_NEAREST, GL_LINEAR_MIPMAP_NEAREST },
-					{ GL_LINEAR_MIPMAP_NEAREST, GL_LINEAR_MIPMAP_LINEAR }
-				};
-
-				minfilter = mipfilters[minfilter - GL_NEAREST][mipfilter - GL_NEAREST];
+					minfilter = GL_NEAREST_MIPMAP_NEAREST;
+				}
+				else if (minfilter == GL_NEAREST && mipfilter == GL_LINEAR)
+				{
+					minfilter = GL_NEAREST_MIPMAP_LINEAR;
+				}
+				else if (minfilter == GL_LINEAR && mipfilter == GL_NEAREST)
+				{
+					minfilter = GL_LINEAR_MIPMAP_NEAREST;
+				}
+				else if (minfilter == GL_LINEAR && mipfilter == GL_LINEAR)
+				{
+					minfilter = GL_LINEAR_MIPMAP_LINEAR;
+				}
 
 				GLCHECK(glSamplerParameteri(obj->mID, GL_TEXTURE_WRAP_S, (node.Properties[EffectNodes::Variable::AddressU] != 0) ? LiteralToTextureWrap(this->mAST[node.Properties[EffectNodes::Variable::AddressU]].As<EffectNodes::Literal>().Value.Uint[0]) : GL_CLAMP_TO_EDGE));
 				GLCHECK(glSamplerParameteri(obj->mID, GL_TEXTURE_WRAP_T, (node.Properties[EffectNodes::Variable::AddressV] != 0) ? LiteralToTextureWrap(this->mAST[node.Properties[EffectNodes::Variable::AddressV]].As<EffectNodes::Literal>().Value.Uint[0]) : GL_CLAMP_TO_EDGE));
