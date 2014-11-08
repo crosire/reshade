@@ -3189,5 +3189,9 @@ namespace ReShade
 		device->Draw(3, 0);
 
 		device->OMSetRenderTargets(0, nullptr, nullptr);
+
+		ID3D10ShaderResourceView *null[D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT] = { nullptr };
+		device->VSSetShaderResources(0, pass.SR.size(), null);
+		device->PSSetShaderResources(0, pass.SR.size(), null);
 	}
 }
