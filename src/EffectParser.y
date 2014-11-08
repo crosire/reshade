@@ -2854,7 +2854,7 @@ RULE_VARIABLE_DECLARATOR
 
 		@$ = @1, $$ = node.Index;
 
-		if (parser.mAST[$5].As<EffectNodes::RValue>().NextExpression != EffectTree::Null)
+		if (parser.mAST[$5].As<EffectNodes::RValue>().NextExpression != EffectTree::Null || $2.Type.IsArray())
 		{
 			EffectNodes::InitializerList &initializer = parser.mAST.Add<EffectNodes::InitializerList>(@5);
 			const EffectNodes::RValue *expression = &parser.mAST[$5].As<EffectNodes::RValue>();
