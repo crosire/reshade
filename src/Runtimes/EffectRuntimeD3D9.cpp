@@ -2331,6 +2331,26 @@ namespace ReShade
 
 		this->mLost = true;
 	}
+	void D3D9Runtime::OnDraw(unsigned int vertices)
+	{
+		IDirect3DSurface9 *depthstencil = nullptr;
+		this->mDevice->GetDepthStencilSurface(&depthstencil);
+
+		if (depthstencil != nullptr)
+		{
+			depthstencil->Release();
+
+			if (depthstencil == this->mBestDepthStencilReplacement)
+			{
+				depthstencil = this->mBestDepthStencil;
+			}
+
+			this->mDepthStencilTable[depthstencil].DrawCallCount = static_cast<FLOAT>(this->mDrawCallCounter++);
+			this->mDepthStencilTable[depthstencil].DrawVerticesCount += vertices;
+		}
+
+		Runtime::OnDraw(vertices);
+	}
 	void D3D9Runtime::OnPresent()
 	{
 		DetectBestDepthStencil();
@@ -2381,24 +2401,6 @@ namespace ReShade
 		}
 
 		this->mDevice->EndScene();
-	}
-	void D3D9Runtime::OnDraw(UINT primitives)
-	{
-		IDirect3DSurface9 *depthstencil = nullptr;
-		this->mDevice->GetDepthStencilSurface(&depthstencil);
-
-		if (depthstencil != nullptr)
-		{
-			depthstencil->Release();
-
-			if (depthstencil == this->mBestDepthStencilReplacement)
-			{
-				depthstencil = this->mBestDepthStencil;
-			}
-
-			this->mDepthStencilTable[depthstencil].DrawCallCount = static_cast<FLOAT>(this->mDrawCallCounter++);
-			this->mDepthStencilTable[depthstencil].DrawVerticesCount += primitives;
-		}
 	}
 
 	std::unique_ptr<Effect> D3D9Runtime::CreateEffect(const EffectTree &ast, std::string &errors) const
@@ -3052,5 +3054,7 @@ namespace ReShade
 		device->Clear(0, nullptr, D3DCLEAR_TARGET, D3DCOLOR_ARGB(0, 0, 0, 0), 0.0f, 0x0);
 
 		device->DrawPrimitive(D3DPT_TRIANGLELIST, 0, 1);
+
+		const_cast<D3D9Runtime *>(this->mEffect->mEffectContext.get())->Runtime::OnDraw(3);
 	}
 }

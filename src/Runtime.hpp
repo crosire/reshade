@@ -33,6 +33,7 @@ namespace ReShade
 
 		virtual bool OnCreate(unsigned int width, unsigned int height);
 		virtual void OnDelete();
+		virtual void OnDraw(unsigned int vertices);
 		virtual void OnPresent();
 
 	protected:
@@ -52,7 +53,7 @@ namespace ReShade
 		std::vector<Effect::Texture *> mColorTargets, mDepthTargets;
 		boost::chrono::high_resolution_clock::time_point mStartTime, mLastCreate, mLastPresent;
 		boost::chrono::high_resolution_clock::duration mLastFrametime;
-		unsigned long long mLastFrameCount;
+		unsigned long long mLastFrameCount, mLastDrawCalls, mLastDrawCallVertices;
 		std::string mErrors, mMessage;
 		bool mShowStatistics;
 	};

@@ -2390,6 +2390,28 @@ namespace ReShade
 
 		this->mLost = true;
 	}
+	void D3D11Runtime::OnDraw(ID3D11DeviceContext *context, unsigned int vertices)
+	{
+		CSLock lock(this->mCS);
+
+		ID3D11DepthStencilView *depthstencil = nullptr;
+		context->OMGetRenderTargets(0, nullptr, &depthstencil);
+
+		if (depthstencil != nullptr)
+		{
+			depthstencil->Release();
+
+			if (depthstencil == this->mBestDepthStencilReplacement)
+			{
+				depthstencil = this->mBestDepthStencil;
+			}
+
+			this->mDepthStencilTable[depthstencil].DrawCallCount = static_cast<FLOAT>(this->mDrawCallCounter++);
+			this->mDepthStencilTable[depthstencil].DrawVerticesCount += vertices;
+		}
+
+		Runtime::OnDraw(vertices);
+	}
 	void D3D11Runtime::OnPresent()
 	{
 		DetectBestDepthStencil();
@@ -2415,26 +2437,6 @@ namespace ReShade
 
 		this->mImmediateContext->ExecuteCommandList(list, TRUE);
 		list->Release();		
-	}
-	void D3D11Runtime::OnDraw(ID3D11DeviceContext *context, UINT vertices)
-	{
-		CSLock lock(this->mCS);
-
-		ID3D11DepthStencilView *depthstencil = nullptr;
-		context->OMGetRenderTargets(0, nullptr, &depthstencil);
-
-		if (depthstencil != nullptr)
-		{
-			depthstencil->Release();
-
-			if (depthstencil == this->mBestDepthStencilReplacement)
-			{
-				depthstencil = this->mBestDepthStencil;
-			}
-
-			this->mDepthStencilTable[depthstencil].DrawCallCount = static_cast<FLOAT>(this->mDrawCallCounter++);
-			this->mDepthStencilTable[depthstencil].DrawVerticesCount += vertices;
-		}
 	}
 	
 	std::unique_ptr<Effect> D3D11Runtime::CreateEffect(const EffectTree &ast, std::string &errors) const

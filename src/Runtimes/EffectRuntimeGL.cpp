@@ -2992,6 +2992,21 @@ namespace ReShade
 
 		this->mLost = true;
 	}
+	void GLRuntime::OnDraw(unsigned int vertices)
+	{
+		GLint framebuffer = 0;
+		GLCHECK(glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &framebuffer));
+
+		const auto it = this->mFramebufferTable.find(framebuffer);
+
+		if (it != this->mFramebufferTable.end())
+		{
+			it->second.DrawCallCount = static_cast<GLfloat>(this->mDrawCallCounter++);
+			it->second.DrawVerticesCount += vertices;
+		}
+
+		Runtime::OnDraw(vertices);
+	}
 	void GLRuntime::OnPresent()
 	{
 		DetectBestDepthStencil();
@@ -3024,19 +3039,6 @@ namespace ReShade
 		}
 
 		this->mStateBlock.Apply();
-	}
-	void GLRuntime::OnDraw(GLsizei vertices)
-	{
-		GLint framebuffer = 0;
-		GLCHECK(glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &framebuffer));
-
-		const auto it = this->mFramebufferTable.find(framebuffer);
-
-		if (it != this->mFramebufferTable.end())
-		{
-			it->second.DrawCallCount = static_cast<GLfloat>(this->mDrawCallCounter++);
-			it->second.DrawVerticesCount += vertices;
-		}
 	}
 
 	std::unique_ptr<Effect> GLRuntime::CreateEffect(const EffectTree &ast, std::string &errors) const

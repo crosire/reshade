@@ -126,7 +126,7 @@ namespace ReShade
 
 	// -----------------------------------------------------------------------------------------------------
 
-	Runtime::Runtime() : mWidth(0), mHeight(0), mVendorId(0), mDeviceId(0), mRendererId(0), mLastFrameCount(0), mNVG(nullptr), mShowStatistics(false)
+	Runtime::Runtime() : mWidth(0), mHeight(0), mVendorId(0), mDeviceId(0), mRendererId(0), mLastFrameCount(0), mLastDrawCalls(0), mLastDrawCallVertices(0), mNVG(nullptr), mShowStatistics(false)
 	{
 		this->mStartTime = boost::chrono::high_resolution_clock::now();
 	}
@@ -305,6 +305,11 @@ namespace ReShade
 		this->mEffect.reset();
 
 		LOG(INFO) << "Destroyed effect environment on context " << this << ".";
+	}
+	void Runtime::OnDraw(unsigned int vertices)
+	{
+		this->mLastDrawCalls++;
+		this->mLastDrawCallVertices += vertices;
 	}
 	void Runtime::OnPresent()
 	{
@@ -550,6 +555,7 @@ namespace ReShade
 				std::string stats = "Statistics\n";
 				stats += "Date: " + std::to_string(static_cast<int>(date[0])) + '-' + std::to_string(static_cast<int>(date[1])) + '-' + std::to_string(static_cast<int>(date[2])) + ' ' + std::to_string(static_cast<int>(date[3])) + '\n';
 				stats += "FPS: " + std::to_string(1000 / std::max(boost::chrono::duration_cast<boost::chrono::milliseconds>(frametime).count(), 1LL)) + '\n';
+				stats += "Draw Calls: " + std::to_string(this->mLastDrawCalls) + " (" + std::to_string(this->mLastDrawCallVertices) + " vertices)" + '\n';
 				stats += "Frame " + std::to_string(this->mLastFrameCount + 1) + ": " + std::to_string(frametime.count() * 1e-6f) + "ms" + '\n';
 				stats += "PostProcessing: " + std::to_string(frametimePostProcessing.count() * 1e-6f) + "ms" + '\n';
 				stats += "Timer: " + std::to_string(std::fmod(boost::chrono::duration_cast<boost::chrono::nanoseconds>(this->mLastPresent - this->mStartTime).count() * 1e-6f, 16777216.0f)) + "ms" + '\n';
@@ -565,6 +571,7 @@ namespace ReShade
 		this->mLastPresent = timePresent;
 		this->mLastFrametime = frametime;
 		this->mLastFrameCount++;
+		this->mLastDrawCalls = this->mLastDrawCallVertices = 0;
 	}
 
 	void Runtime::CreateResources()

@@ -60,14 +60,14 @@ namespace
 	{
 		switch (hr)
 		{
-			default:
-				__declspec(thread) static CHAR buf[20];
-				sprintf_s(buf, "0x%lx", hr);
-				return buf;
 			case DXGI_ERROR_INVALID_CALL:
 				return "DXGI_ERROR_INVALID_CALL";
 			case DXGI_ERROR_UNSUPPORTED:
 				return "DXGI_ERROR_UNSUPPORTED";
+			default:
+				__declspec(thread) static CHAR buf[20];
+				sprintf_s(buf, "0x%lx", hr);
+				return buf;
 		}
 	}
 	bool AdjustPresentParameters(DXGI_SWAP_CHAIN_DESC &desc)

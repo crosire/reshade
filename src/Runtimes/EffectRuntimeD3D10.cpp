@@ -2384,6 +2384,28 @@ namespace ReShade
 
 		this->mLost = true;
 	}
+	void D3D10Runtime::OnDraw(unsigned int vertices)
+	{
+		CSLock lock(this->mCS);
+
+		ID3D10DepthStencilView *depthstencil = nullptr;
+		this->mDevice->OMGetRenderTargets(0, nullptr, &depthstencil);
+
+		if (depthstencil != nullptr)
+		{
+			depthstencil->Release();
+
+			if (depthstencil == this->mBestDepthStencilReplacement)
+			{
+				depthstencil = this->mBestDepthStencil;
+			}
+
+			this->mDepthStencilTable[depthstencil].DrawCallCount = static_cast<FLOAT>(this->mDrawCallCounter++);
+			this->mDepthStencilTable[depthstencil].DrawVerticesCount += vertices;
+		}
+
+		Runtime::OnDraw(vertices);
+	}
 	void D3D10Runtime::OnPresent()
 	{
 		DetectBestDepthStencil();
@@ -2421,26 +2443,6 @@ namespace ReShade
 		if (stateBlockDepthStencil != nullptr)
 		{
 			stateBlockDepthStencil->Release();
-		}
-	}
-	void D3D10Runtime::OnDraw(UINT vertices)
-	{
-		CSLock lock(this->mCS);
-
-		ID3D10DepthStencilView *depthstencil = nullptr;
-		this->mDevice->OMGetRenderTargets(0, nullptr, &depthstencil);
-
-		if (depthstencil != nullptr)
-		{
-			depthstencil->Release();
-
-			if (depthstencil == this->mBestDepthStencilReplacement)
-			{
-				depthstencil = this->mBestDepthStencil;
-			}
-
-			this->mDepthStencilTable[depthstencil].DrawCallCount = static_cast<FLOAT>(this->mDrawCallCounter++);
-			this->mDepthStencilTable[depthstencil].DrawVerticesCount += vertices;
 		}
 	}
 

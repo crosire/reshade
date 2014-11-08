@@ -42,8 +42,8 @@ namespace ReShade
 
 		virtual bool OnCreate(unsigned int width, unsigned int height) override;
 		virtual void OnDelete() override;
+		void OnDraw(ID3D11DeviceContext *context, unsigned int vertices);
 		virtual void OnPresent() override;
-		void OnDraw(ID3D11DeviceContext *context, UINT vertices);
 
 		virtual std::unique_ptr<Effect> CreateEffect(const EffectTree &ast, std::string &errors) const override;
 		virtual void CreateScreenshot(unsigned char *buffer, std::size_t size) const override;

@@ -194,10 +194,6 @@ namespace
 	{
 		switch (hr)
 		{
-			default:
-				__declspec(thread) static CHAR buf[20];
-				sprintf_s(buf, "0x%lx", hr);
-				return buf;
 			case E_INVALIDARG:
 				return "E_INVALIDARG";
 			case D3DERR_NOTAVAILABLE:
@@ -214,6 +210,27 @@ namespace
 				return "D3DERR_DEVICENOTRESET";
 			case D3DERR_WASSTILLDRAWING:
 				return "D3DERR_WASSTILLDRAWING";
+			default:
+				__declspec(thread) static CHAR buf[20];
+				sprintf_s(buf, "0x%lx", hr);
+				return buf;
+		}
+	}
+	UINT CalculateVerticesFromPrimitives(D3DPRIMITIVETYPE type, UINT count)
+	{
+		switch (type)
+		{
+			case D3DPT_LINELIST:
+				return count * 2;
+			case D3DPT_LINESTRIP:
+				return count + 1;
+			case D3DPT_TRIANGLELIST:
+				return count * 3;
+			case D3DPT_TRIANGLESTRIP:
+			case D3DPT_TRIANGLEFAN:
+				return count + 2;
+			default:
+				return count;
 		}
 	}
 	bool AdjustPresentParameters(D3DPRESENT_PARAMETERS *pp)
@@ -817,25 +834,25 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::DrawPrimitive(D3DPRIMITIVETYPE Primit
 	assert(this->mImplicitSwapChain != nullptr);
 	assert(this->mImplicitSwapChain->mRuntime != nullptr);
 
-	this->mImplicitSwapChain->mRuntime->OnDraw(PrimitiveCount);
+	this->mImplicitSwapChain->mRuntime->OnDraw(CalculateVerticesFromPrimitives(PrimitiveType, PrimitiveCount));
 
 	return this->mOrig->DrawPrimitive(PrimitiveType, StartVertex, PrimitiveCount);
 }
-HRESULT STDMETHODCALLTYPE Direct3DDevice9::DrawIndexedPrimitive(D3DPRIMITIVETYPE PrimitiveType, INT BaseVertexIndex, UINT MinVertexIndex, UINT NumVertices, UINT startIndex, UINT primCount)
+HRESULT STDMETHODCALLTYPE Direct3DDevice9::DrawIndexedPrimitive(D3DPRIMITIVETYPE PrimitiveType, INT BaseVertexIndex, UINT MinVertexIndex, UINT NumVertices, UINT StartIndex, UINT PrimitiveCount)
 {
 	assert(this->mImplicitSwapChain != nullptr);
 	assert(this->mImplicitSwapChain->mRuntime != nullptr);
 
-	this->mImplicitSwapChain->mRuntime->OnDraw(primCount);
+	this->mImplicitSwapChain->mRuntime->OnDraw(CalculateVerticesFromPrimitives(PrimitiveType, PrimitiveCount));
 
-	return this->mOrig->DrawIndexedPrimitive(PrimitiveType, BaseVertexIndex, MinVertexIndex, NumVertices, startIndex, primCount);
+	return this->mOrig->DrawIndexedPrimitive(PrimitiveType, BaseVertexIndex, MinVertexIndex, NumVertices, StartIndex, PrimitiveCount);
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::DrawPrimitiveUP(D3DPRIMITIVETYPE PrimitiveType, UINT PrimitiveCount, const void *pVertexStreamZeroData, UINT VertexStreamZeroStride)
 {
 	assert(this->mImplicitSwapChain != nullptr);
 	assert(this->mImplicitSwapChain->mRuntime != nullptr);
 
-	this->mImplicitSwapChain->mRuntime->OnDraw(PrimitiveCount);
+	this->mImplicitSwapChain->mRuntime->OnDraw(CalculateVerticesFromPrimitives(PrimitiveType, PrimitiveCount));
 
 	return this->mOrig->DrawPrimitiveUP(PrimitiveType, PrimitiveCount, pVertexStreamZeroData, VertexStreamZeroStride);
 }
@@ -844,7 +861,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::DrawIndexedPrimitiveUP(D3DPRIMITIVETY
 	assert(this->mImplicitSwapChain != nullptr);
 	assert(this->mImplicitSwapChain->mRuntime != nullptr);
 
-	this->mImplicitSwapChain->mRuntime->OnDraw(PrimitiveCount);
+	this->mImplicitSwapChain->mRuntime->OnDraw(CalculateVerticesFromPrimitives(PrimitiveType, PrimitiveCount));
 
 	return this->mOrig->DrawIndexedPrimitiveUP(PrimitiveType, MinVertexIndex, NumVertices, PrimitiveCount, pIndexData, IndexDataFormat, pVertexStreamZeroData, VertexStreamZeroStride);
 }
