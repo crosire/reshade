@@ -317,6 +317,8 @@
 %type<y.Index>	RULE_EXPRESSION_LOGICOR
 %type<y.Index>	RULE_EXPRESSION_CONDITIONAL
 %type<y.Index>	RULE_EXPRESSION_ASSIGNMENT
+%type<y.Index>  RULE_EXPRESSION_INITIALIZER
+%type<y.Index>  RULE_EXPRESSION_INITIALIZER_LIST
 
 %type<y.Index>	RULE_STATEMENT
 %type<y.Index>	RULE_STATEMENT_SCOPELESS
@@ -2026,6 +2028,34 @@ RULE_EXPRESSION_ASSIGNMENT
 	}
 	;
 
+RULE_EXPRESSION_INITIALIZER
+	: RULE_EXPRESSION_ASSIGNMENT
+	| "{" RULE_EXPRESSION_INITIALIZER_LIST "}"
+	{
+		@$ = @1, $$ = $2;
+	}
+	| "{" RULE_EXPRESSION_INITIALIZER_LIST "," "}"
+	{
+		@$ = @1, $$ = $2;
+	}
+	;
+RULE_EXPRESSION_INITIALIZER_LIST
+	: RULE_EXPRESSION_INITIALIZER
+	| RULE_EXPRESSION_INITIALIZER_LIST "," RULE_EXPRESSION_INITIALIZER
+	{
+		EffectNodes::RValue *node = &parser.mAST[$1].As<EffectNodes::RValue>();
+
+		while (node->NextExpression != EffectTree::Null)
+		{
+			node = &parser.mAST[node->NextExpression].As<EffectNodes::RValue>();
+		}
+
+		node->NextExpression = $3;
+
+		@$ = @1, $$ = $1;
+	}
+	;
+
  /* Statements ------------------------------------------------------------------------------- */
 
 RULE_STATEMENT
@@ -2751,7 +2781,7 @@ RULE_VARIABLE
 				}
 				if (!EffectNodes::Type::Compatible(initializer->Type, variable->Type))
 				{
-					parser.Error(initializer->Location, 3020, "type mismatch");
+					parser.Error(initializer->Location, 3017, "initializer does not match type");
 					YYERROR;
 				}
 
@@ -2797,26 +2827,42 @@ RULE_VARIABLE_DECLARATOR
 
 		@$ = @1, $$ = node.Index;
 	}
-	| RULE_IDENTIFIER_NAME RULE_TYPE_ARRAY RULE_ANNOTATIONS "=" RULE_EXPRESSION_ASSIGNMENT
+	| RULE_IDENTIFIER_NAME RULE_TYPE_ARRAY RULE_ANNOTATIONS "=" RULE_EXPRESSION_INITIALIZER
 	{
-		if ($2.Type.IsArray())
-		{
-			parser.Error(@4, 3009, "cannot initialize arrays");
-			YYERROR;
-		}
-
 		EffectNodes::Variable &node = parser.mAST.Add<EffectNodes::Variable>(@1);
+		node.Type.ArrayLength = $2.Type.ArrayLength;
 		node.Name = parser.mAST.AddString($1.String.p, $1.String.len);
 		node.Annotations = $3;
-		node.Initializer = $5;
 
 		@$ = @1, $$ = node.Index;
+
+		if (parser.mAST[$5].As<EffectNodes::RValue>().NextExpression != EffectTree::Null)
+		{
+			EffectNodes::InitializerList &initializer = parser.mAST.Add<EffectNodes::InitializerList>(@5);
+			const EffectNodes::RValue *expression = &parser.mAST[$5].As<EffectNodes::RValue>();
+			initializer.Type = expression->Type;
+			initializer.Type.ArrayLength = 1;
+			initializer.Expressions = $5;
+
+			while (expression->NextExpression != EffectTree::Null)
+			{
+				initializer.Type.ArrayLength++;
+
+				expression = &parser.mAST[expression->NextExpression].As<EffectNodes::RValue>();
+			}
+
+			parser.mAST[$$].As<EffectNodes::Variable>().Initializer = initializer.Index;
+		}
+		else
+		{
+			parser.mAST[$$].As<EffectNodes::Variable>().Initializer = $5;
+		}
 	}
 	| RULE_IDENTIFIER_NAME RULE_TYPE_ARRAY RULE_ANNOTATIONS "{" RULE_VARIABLE_PROPERTY_LIST "}"
 	{
 		if ($2.Type.IsArray())
 		{
-			parser.Error(@4, 3009, "cannot initialize arrays");
+			parser.Error(@4, 3009, "cannot initialize arrays with property list");
 			YYERROR;
 		}
 

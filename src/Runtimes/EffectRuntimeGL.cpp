@@ -1464,6 +1464,37 @@ namespace ReShade
 					}
 				}
 			}
+			void Visit(const EffectNodes::InitializerList &node, const EffectNodes::Type &type)
+			{
+				this->mCurrentSource += PrintType(type);
+				this->mCurrentSource += "[]";
+				this->mCurrentSource += '(';
+
+				const EffectNodes::RValue *expression = &this->mAST[node.Expressions].As<EffectNodes::RValue>();
+
+				do
+				{
+					const auto cast = PrintCast(expression->Type, type);
+
+					this->mCurrentSource += cast.first;
+					Visit(*expression);
+					this->mCurrentSource += cast.second;
+
+					if (expression->NextExpression != EffectTree::Null)
+					{
+						this->mCurrentSource += ", ";
+
+						expression = &this->mAST[expression->NextExpression].As<EffectNodes::RValue>();
+					}
+					else
+					{
+						expression = nullptr;
+					}
+				}
+				while (expression != nullptr);
+
+				this->mCurrentSource += ')';
+			}
 			void Visit(const EffectNodes::If &node)
 			{
 				const EffectNodes::Type typeto = { EffectNodes::Type::Bool, 0, 1, 1 };
@@ -1791,20 +1822,25 @@ namespace ReShade
 
 				if (node.Type.IsArray())
 				{
-					this->mCurrentSource += '[';
-					this->mCurrentSource += (node.Type.ArrayLength >= 1) ? std::to_string(node.Type.ArrayLength) : "";
-					this->mCurrentSource += ']';
+					this->mCurrentSource += '[' + ((node.Type.ArrayLength >= 1) ? std::to_string(node.Type.ArrayLength) : "") + ']';
 				}
 
 				if (node.Initializer != EffectTree::Null)
 				{
 					this->mCurrentSource += " = ";
 
-					const auto cast = PrintCast(this->mAST[node.Initializer].As<EffectNodes::RValue>().Type, node.Type);
+					if (this->mAST[node.Initializer].Is<EffectNodes::InitializerList>())
+					{
+						Visit(this->mAST[node.Initializer].As<EffectNodes::InitializerList>(), node.Type);
+					}
+					else
+					{
+						const auto cast = PrintCast(this->mAST[node.Initializer].As<EffectNodes::RValue>().Type, node.Type);
 
-					this->mCurrentSource += cast.first;
-					Visit(this->mAST[node.Initializer]);
-					this->mCurrentSource += cast.second;
+						this->mCurrentSource += cast.first;
+						Visit(this->mAST[node.Initializer]);
+						this->mCurrentSource += cast.second;
+					}
 				}
 
 				if (node.NextDeclarator != EffectTree::Null)
@@ -1988,7 +2024,7 @@ namespace ReShade
 					Visit(this->mAST[node.Annotations].As<EffectNodes::Annotation>(), obj->mAnnotations);
 				}
 
-				if (node.Initializer != EffectTree::Null)
+				if (node.Initializer != EffectTree::Null && this->mAST[node.Initializer].Is<EffectNodes::Literal>())
 				{
 					std::memcpy(this->mEffect->mUniformStorages[0].first + obj->mBufferOffset, &this->mAST[node.Initializer].As<EffectNodes::Literal>().Value, obj->mDesc.Size);
 				}
@@ -2064,7 +2100,7 @@ namespace ReShade
 						storage = static_cast<unsigned char *>(::realloc(storage, currentsize += 128));
 					}
 
-					if (field->Initializer != EffectTree::Null)
+					if (field->Initializer != EffectTree::Null && this->mAST[field->Initializer].Is<EffectNodes::Literal>())
 					{
 						std::memcpy(storage + obj->mBufferOffset, &this->mAST[field->Initializer].As<EffectNodes::Literal>().Value, obj->mDesc.Size);
 					}

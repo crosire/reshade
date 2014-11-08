@@ -382,6 +382,10 @@ namespace ReShade
 				{
 					Visit(node.As<Call>());
 				}
+				else if (node.Is<InitializerList>())
+				{
+					Visit(node.As<InitializerList>());
+				}
 				else if (node.Is<ExpressionStatement>())
 				{
 					Visit(node.As<ExpressionStatement>());
@@ -1101,6 +1105,31 @@ namespace ReShade
 					}
 				}
 			}
+			void Visit(const EffectNodes::InitializerList &node)
+			{
+				this->mCurrentSource += "{ ";
+
+				const EffectNodes::RValue *expression = &this->mAST[node.Expressions].As<EffectNodes::RValue>();
+
+				do
+				{
+					Visit(*expression);
+
+					if (expression->NextExpression != EffectTree::Null)
+					{
+						this->mCurrentSource += ", ";
+
+						expression = &this->mAST[expression->NextExpression].As<EffectNodes::RValue>();
+					}
+					else
+					{
+						expression = nullptr;
+					}
+				}
+				while (expression != nullptr);
+
+				this->mCurrentSource += " }";
+			}
 			void Visit(const EffectNodes::If &node)
 			{
 				if (node.Attributes != nullptr)
@@ -1758,7 +1787,7 @@ namespace ReShade
 					Visit(this->mAST[node.Annotations].As<EffectNodes::Annotation>(), obj->mAnnotations);
 				}
 
-				if (node.Initializer != EffectTree::Null)
+				if (node.Initializer != EffectTree::Null && this->mAST[node.Initializer].Is<EffectNodes::Literal>())
 				{
 					::memcpy(this->mEffect->mConstantStorages[0] + obj->mBufferOffset, &this->mAST[node.Initializer].As<EffectNodes::Literal>().Value, obj->mDesc.Size);
 				}
@@ -1836,7 +1865,7 @@ namespace ReShade
 						storage = static_cast<unsigned char *>(::realloc(storage, currentsize += 128));
 					}
 
-					if (field->Initializer != EffectTree::Null)
+					if (field->Initializer != EffectTree::Null && this->mAST[field->Initializer].Is<EffectNodes::Literal>())
 					{
 						::memcpy(storage + obj->mBufferOffset, &this->mAST[field->Initializer].As<EffectNodes::Literal>().Value, obj->mDesc.Size);
 					}

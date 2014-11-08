@@ -251,7 +251,7 @@ namespace ReShade
 
 			inline bool HasQualifier(Qualifier qualifier) const
 			{
-				return (this->Qualifiers & qualifier) == qualifier;
+				return (this->Qualifiers & static_cast<unsigned int>(qualifier)) == static_cast<unsigned int>(qualifier);
 			}
 
 			Base Class;
@@ -521,6 +521,10 @@ namespace ReShade
 		struct Swizzle : public EffectTree::NodeImplementation<Swizzle, Expression>
 		{
 			signed char Mask[4];
+		};
+		struct InitializerList : public EffectTree::NodeImplementation<InitializerList, RValue>
+		{
+			EffectTree::Index Expressions;
 		};
 		struct Statement : public EffectTree::NodeImplementation<Statement>
 		{
