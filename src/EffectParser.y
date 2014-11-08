@@ -279,6 +279,7 @@
 %type<l>		RULE_TYPE_SCALAR
 %type<l>		RULE_TYPE_VECTOR
 %type<l>		RULE_TYPE_MATRIX
+%type<l>		RULE_TYPE_SINGLE
 
 %type<l>		RULE_TYPE_STORAGE
 %type<l>		RULE_TYPE_STORAGE_PARAMETER
@@ -508,8 +509,13 @@ RULE_TYPE_VECTOR
 	| "uintN"
 	| "floatN"
 	| "vector"
-	| "vector" "<" RULE_TYPE_SCALAR "," TOK_LITERAL_INT ">"
+	| "vector" "<" RULE_TYPE "," TOK_LITERAL_INT ">"
 	{
+		if (!$3.Type.IsScalar())
+		{
+			parser.Error(@3, 3122, "vector element type must be a scalar type");
+			YYERROR;
+		}
 		if ($5.Int < 1 || $5.Int > 4)
 		{
 			parser.Error(@5, 3052, "vector dimension must be between 1 and 4");
@@ -527,16 +533,21 @@ RULE_TYPE_MATRIX
 	| "uintNxN"
 	| "floatNxN"
 	| "matrix"
-	| "matrix" "<" RULE_TYPE_SCALAR "," TOK_LITERAL_INT "," TOK_LITERAL_INT ">"
+	| "matrix" "<" RULE_TYPE "," TOK_LITERAL_INT "," TOK_LITERAL_INT ">"
 	{
+		if (!$3.Type.IsScalar())
+		{
+			parser.Error(@3, 3123, "matrix element type must be a scalar type");
+			YYERROR;
+		}
 		if ($5.Int < 1 || $5.Int > 4)
 		{
-			parser.Error(@5, 3052, "matrix dimensions must be between 1 and 4");
+			parser.Error(@5, 3053, "matrix dimensions must be between 1 and 4");
 			YYERROR;
 		}
 		if ($7.Int < 1 || $7.Int > 4)
 		{
-			parser.Error(@7, 3052, "matrix dimensions must be between 1 and 4");
+			parser.Error(@7, 3053, "matrix dimensions must be between 1 and 4");
 			YYERROR;
 		}
 
@@ -545,6 +556,10 @@ RULE_TYPE_MATRIX
 		$$.Type.Rows = $5.Uint;
 		$$.Type.Cols = $7.Uint;
 	}
+	;
+RULE_TYPE_SINGLE
+	: RULE_TYPE_SCALAR
+	| "string"
 	;
  
 RULE_TYPE_STORAGE
@@ -787,6 +802,15 @@ RULE_EXPRESSION_LITERAL
 		node.Type.Qualifiers = EffectNodes::Type::Const;
 		node.Type.Rows = node.Type.Cols = 1;
 		node.Value.Float[0] = $1.Float;
+
+		@$ = @1, $$ = node.Index;
+	}
+	| TOK_LITERAL_STRING
+	{
+		EffectNodes::Literal &node = parser.mAST.Add<EffectNodes::Literal>(@1);
+		node.Type.Class = EffectNodes::Type::String;
+		node.Type.Qualifiers = EffectNodes::Type::Const;
+		node.Value.String = parser.mAST.AddString($1.String.p, $1.String.len);
 
 		@$ = @1, $$ = node.Index;
 	}
@@ -2485,25 +2509,19 @@ RULE_ATTRIBUTES
  /* Annotations ------------------------------------------------------------------------------ */
 
 RULE_ANNOTATION
-	: RULE_TYPE_SCALAR RULE_IDENTIFIER_NAME "=" RULE_EXPRESSION_LITERAL ";"
+	: RULE_IDENTIFIER_NAME "=" RULE_EXPRESSION_LITERAL ";"
+	{
+		EffectNodes::Annotation &node = parser.mAST.Add<EffectNodes::Annotation>(@1);
+		node.Name = parser.mAST.AddString($1.String.p, $1.String.len);
+		node.Value = $3;
+
+		@$ = @1, $$ = node.Index;
+	}
+	| RULE_TYPE_SINGLE RULE_IDENTIFIER_NAME "=" RULE_EXPRESSION_LITERAL ";"
 	{
 		EffectNodes::Annotation &node = parser.mAST.Add<EffectNodes::Annotation>(@2);
 		node.Name = parser.mAST.AddString($2.String.p, $2.String.len);
 		node.Value = $4;
-
-		@$ = @1, $$ = node.Index;
-	}
-	| "string" RULE_IDENTIFIER_NAME "=" TOK_LITERAL_STRING ";"
-	{
-		EffectNodes::Literal &value = parser.mAST.Add<EffectNodes::Literal>(@4);
-		value.Type = $1.Type;
-		value.Value.String = parser.mAST.AddString($4.String.p, $4.String.len);
-
-		const EffectTree::Index valueIndex = value.Index;
-
-		EffectNodes::Annotation &node = parser.mAST.Add<EffectNodes::Annotation>(@2);
-		node.Name = parser.mAST.AddString($2.String.p, $2.String.len);
-		node.Value = valueIndex;
 
 		@$ = @1, $$ = node.Index;
 	}
@@ -3088,7 +3106,15 @@ RULE_FUNCTION_PARAMETER
 			YYERROR;
 		}
 
-		if (!$1.Type.HasQualifier(EffectNodes::Type::Out))
+		if ($1.Type.HasQualifier(EffectNodes::Type::Out))
+		{
+			if ($1.Type.HasQualifier(EffectNodes::Type::Const))
+			{
+				parser.Error(@1, 3046, "output parameters cannot be declared 'const'");
+				YYERROR;
+			}
+		}
+		else
 		{
 			$1.Type.Qualifiers |= EffectNodes::Type::In;
 		}
