@@ -7,6 +7,8 @@
 #include <boost\algorithm\string.hpp>
 #include <nanovg_d3d9.h>
 
+#define D3DFMT_INTZ static_cast<D3DFORMAT>(MAKEFOURCC('I', 'N', 'T', 'Z'))
+
 // -----------------------------------------------------------------------------------------------------
 
 namespace ReShade
@@ -1375,7 +1377,7 @@ namespace ReShade
 
 				this->mCurrentSource += "}\n";
 			}
-			void Visit(const EffectNodes::Annotation &node, std::unordered_map<std::string, Effect::Annotation> &annotations)
+			void Visit(const EffectNodes::Annotation &node, D3D9Texture &texture)
 			{
 				Effect::Annotation data;
 				const auto &value = this->mAST[node.Value].As<EffectNodes::Literal>();
@@ -1399,11 +1401,73 @@ namespace ReShade
 						break;
 				}
 
-				annotations.insert(std::make_pair(node.Name, data));
+				texture.AddAnnotation(node.Name, data);
 
 				if (node.NextAnnotation != EffectTree::Null)
 				{
-					Visit(this->mAST[node.NextAnnotation].As<EffectNodes::Annotation>(), annotations);
+					Visit(this->mAST[node.NextAnnotation].As<EffectNodes::Annotation>(), texture);
+				}
+			}
+			void Visit(const EffectNodes::Annotation &node, D3D9Constant &constant)
+			{
+				Effect::Annotation data;
+				const auto &value = this->mAST[node.Value].As<EffectNodes::Literal>();
+
+				switch (value.Type.Class)
+				{
+					case EffectNodes::Type::Bool:
+						data = value.Value.Bool[0] != 0;
+						break;
+					case EffectNodes::Type::Int:
+						data = value.Value.Int[0];
+						break;
+					case EffectNodes::Type::Uint:
+						data = value.Value.Uint[0];
+						break;
+					case EffectNodes::Type::Float:
+						data = value.Value.Float[0];
+						break;
+					case EffectNodes::Type::String:
+						data = value.Value.String;
+						break;
+				}
+
+				constant.AddAnnotation(node.Name, data);
+
+				if (node.NextAnnotation != EffectTree::Null)
+				{
+					Visit(this->mAST[node.NextAnnotation].As<EffectNodes::Annotation>(), constant);
+				}
+			}
+			void Visit(const EffectNodes::Annotation &node, D3D9Technique &technique)
+			{
+				Effect::Annotation data;
+				const auto &value = this->mAST[node.Value].As<EffectNodes::Literal>();
+
+				switch (value.Type.Class)
+				{
+					case EffectNodes::Type::Bool:
+						data = value.Value.Bool[0] != 0;
+						break;
+					case EffectNodes::Type::Int:
+						data = value.Value.Int[0];
+						break;
+					case EffectNodes::Type::Uint:
+						data = value.Value.Uint[0];
+						break;
+					case EffectNodes::Type::Float:
+						data = value.Value.Float[0];
+						break;
+					case EffectNodes::Type::String:
+						data = value.Value.String;
+						break;
+				}
+
+				technique.AddAnnotation(node.Name, data);
+
+				if (node.NextAnnotation != EffectTree::Null)
+				{
+					Visit(this->mAST[node.NextAnnotation].As<EffectNodes::Annotation>(), technique);
 				}
 			}
 			void Visit(const EffectNodes::Struct &node)
@@ -1530,11 +1594,13 @@ namespace ReShade
 					d3dformat = LiteralToFormat(this->mAST[node.Properties[EffectNodes::Variable::Format]].As<EffectNodes::Literal>().Value.Uint[0], format);
 				}
 
-				std::unique_ptr<D3D9Texture> obj(new D3D9Texture(this->mEffect));
-				obj->mDesc.Width = width;
-				obj->mDesc.Height = height;
-				obj->mDesc.Levels = levels;
-				obj->mDesc.Format = format;
+				D3D9Texture::Description objdesc;
+				objdesc.Width = width;
+				objdesc.Height = height;
+				objdesc.Levels = levels;
+				objdesc.Format = format;
+
+				std::unique_ptr<D3D9Texture> obj(new D3D9Texture(this->mEffect, objdesc));
 
 				HRESULT hr = this->mEffect->mEffectContext->mDevice->CreateTexture(width, height, levels, d3dformat == D3DFMT_A8R8G8B8 ? D3DUSAGE_RENDERTARGET : 0, d3dformat, D3DPOOL_DEFAULT, &obj->mTexture, nullptr);
 
@@ -1545,11 +1611,11 @@ namespace ReShade
 					return;
 				}
 
-				obj->mTexture->GetSurfaceLevel(0, &obj->mSurface);
+				obj->mTexture->GetSurfaceLevel(0, &obj->mTextureSurface);
 
 				if (node.Annotations != EffectTree::Null)
 				{
-					Visit(this->mAST[node.Annotations].As<EffectNodes::Annotation>(), obj->mAnnotations);
+					Visit(this->mAST[node.Annotations].As<EffectNodes::Annotation>(), *obj);
 				}
 
 				this->mEffect->mTextures.insert(std::make_pair(node.Name, std::move(obj)));
@@ -1614,36 +1680,37 @@ namespace ReShade
 
 				this->mCurrentSource += " : register(c" + std::to_string(this->mCurrentRegisterOffset / 4) + ");\n";
 
-				std::unique_ptr<D3D9Constant> obj(new D3D9Constant(this->mEffect));
-				obj->mDesc.Rows = node.Type.Rows;
-				obj->mDesc.Columns = node.Type.Cols;
-				obj->mDesc.Elements = node.Type.ArrayLength;
-				obj->mDesc.Fields = 0;
-				obj->mDesc.Size = node.Type.Rows * node.Type.Cols;
+				D3D9Constant::Description objdesc;
+				objdesc.Rows = node.Type.Rows;
+				objdesc.Columns = node.Type.Cols;
+				objdesc.Elements = node.Type.ArrayLength;
+				objdesc.Fields = 0;
+				objdesc.Size = node.Type.Rows * node.Type.Cols;
 
 				switch (node.Type.Class)
 				{
 					case EffectNodes::Type::Bool:
-						obj->mDesc.Size *= sizeof(int);
-						obj->mDesc.Type = Effect::Constant::Type::Bool;
+						objdesc.Size *= sizeof(int);
+						objdesc.Type = Effect::Constant::Type::Bool;
 						break;
 					case EffectNodes::Type::Int:
-						obj->mDesc.Size *= sizeof(int);
-						obj->mDesc.Type = Effect::Constant::Type::Int;
+						objdesc.Size *= sizeof(int);
+						objdesc.Type = Effect::Constant::Type::Int;
 						break;
 					case EffectNodes::Type::Uint:
-						obj->mDesc.Size *= sizeof(unsigned int);
-						obj->mDesc.Type = Effect::Constant::Type::Uint;
+						objdesc.Size *= sizeof(unsigned int);
+						objdesc.Type = Effect::Constant::Type::Uint;
 						break;
 					case EffectNodes::Type::Float:
-						obj->mDesc.Size *= sizeof(float);
-						obj->mDesc.Type = Effect::Constant::Type::Float;
+						objdesc.Size *= sizeof(float);
+						objdesc.Type = Effect::Constant::Type::Float;
 						break;
 				}
 
-				obj->mRegisterOffset = this->mCurrentRegisterOffset;
+				std::unique_ptr<D3D9Constant> obj(new D3D9Constant(this->mEffect, objdesc));
+				obj->mStorageOffset = this->mCurrentRegisterOffset;
 
-				const UINT registersize = static_cast<UINT>(static_cast<float>(obj->mDesc.Size) / sizeof(float));
+				const UINT registersize = static_cast<UINT>(static_cast<float>(objdesc.Size) / sizeof(float));
 				const UINT alignment = 4 - (registersize % 4);
 				this->mCurrentRegisterOffset += registersize + alignment;
 
@@ -1654,16 +1721,16 @@ namespace ReShade
 
 				if (node.Annotations != EffectTree::Null)
 				{
-					Visit(this->mAST[node.Annotations].As<EffectNodes::Annotation>(), obj->mAnnotations);
+					Visit(this->mAST[node.Annotations].As<EffectNodes::Annotation>(), *obj);
 				}
 
 				if (node.Initializer != EffectTree::Null && this->mAST[node.Initializer].Is<EffectNodes::Literal>())
 				{
-					std::memcpy(this->mEffect->mConstantStorage + obj->mRegisterOffset, &this->mAST[node.Initializer].As<EffectNodes::Literal>().Value, obj->mDesc.Size);
+					std::memcpy(this->mEffect->mConstantStorage + obj->mStorageOffset, &this->mAST[node.Initializer].As<EffectNodes::Literal>().Value, objdesc.Size);
 				}
 				else
 				{
-					std::memset(this->mEffect->mConstantStorage + obj->mRegisterOffset, 0, obj->mDesc.Size);
+					std::memset(this->mEffect->mConstantStorage + obj->mStorageOffset, 0, objdesc.Size);
 				}
 
 				this->mEffect->mConstants.insert(std::make_pair(this->mCurrentBlockName.empty() ? node.Name : (this->mCurrentBlockName + '.' + node.Name), std::move(obj)));
@@ -1704,17 +1771,19 @@ namespace ReShade
 
 				this->mCurrentBlockName.clear();
 
-				std::unique_ptr<D3D9Constant> obj(new D3D9Constant(this->mEffect));
-				obj->mDesc.Rows = 0;
-				obj->mDesc.Columns = 0;
-				obj->mDesc.Elements = 0;
-				obj->mDesc.Fields = fieldCount;
-				obj->mDesc.Size = (this->mCurrentRegisterOffset - previousOffset) * sizeof(float);
-				obj->mDesc.Type = Effect::Constant::Type::Struct;
+				D3D9Constant::Description objdesc;
+				objdesc.Rows = 0;
+				objdesc.Columns = 0;
+				objdesc.Elements = 0;
+				objdesc.Fields = fieldCount;
+				objdesc.Size = (this->mCurrentRegisterOffset - previousOffset) * sizeof(float);
+				objdesc.Type = Effect::Constant::Type::Struct;
+
+				std::unique_ptr<D3D9Constant> obj(new D3D9Constant(this->mEffect, objdesc));
 
 				if (node.Annotations != EffectTree::Null)
 				{
-					Visit(this->mAST[node.Annotations].As<EffectNodes::Annotation>(), obj->mAnnotations);
+					Visit(this->mAST[node.Annotations].As<EffectNodes::Annotation>(), *obj);
 				}
 
 				this->mEffect->mConstants.insert(std::make_pair(node.Name, std::move(obj)));
@@ -1792,7 +1861,7 @@ namespace ReShade
 
 				if (node.Annotations != EffectTree::Null)
 				{
-					Visit(this->mAST[node.Annotations].As<EffectNodes::Annotation>(), obj->mAnnotations);
+					Visit(this->mAST[node.Annotations].As<EffectNodes::Annotation>(), *obj);
 				}
 
 				this->mEffect->mTechniques.insert(std::make_pair(node.Name, std::move(obj)));
@@ -1801,7 +1870,7 @@ namespace ReShade
 			{
 				D3D9Technique::Pass pass;
 				ZeroMemory(&pass, sizeof(D3D9Technique::Pass));
-				pass.RT[0] = this->mEffect->mEffectContext->mBackBufferNotMultisampled;
+				pass.RT[0] = this->mEffect->mEffectContext->mBackBufferResolve;
 
 				if (node.States[EffectNodes::Pass::VertexShader] != 0)
 				{
@@ -1908,7 +1977,7 @@ namespace ReShade
 						
 						D3D9Texture *texture = it->second.get();
 
-						pass.RT[i] = texture->mSurface;
+						pass.RT[i] = texture->mTextureSurface;
 					}
 				}
 
@@ -2225,28 +2294,30 @@ namespace ReShade
 
 	// -----------------------------------------------------------------------------------------------------
 
-	#define D3DFMT_INTZ static_cast<D3DFORMAT>(MAKEFOURCC('I', 'N', 'T', 'Z'))
-
-	D3D9Runtime::D3D9Runtime(IDirect3DDevice9 *device, IDirect3DSwapChain9 *swapchain) : mDevice(device), mSwapChain(swapchain), mStateBlock(nullptr), mBackBuffer(nullptr), mBackBufferNotMultisampled(nullptr), mDepthStencilTexture(nullptr), mBestDepthStencil(nullptr), mBestDepthStencilReplacement(nullptr), mDrawCallCounter(1), mLost(true)
+	D3D9Runtime::D3D9Runtime(IDirect3DDevice9 *device, IDirect3DSwapChain9 *swapchain) : mDevice(device), mSwapChain(swapchain), mDeviceCaps(), mStateBlock(nullptr), mBackBuffer(nullptr), mBackBufferResolve(nullptr), mDepthStencil(nullptr), mDepthStencilReplacement(nullptr), mDepthStencilTexture(nullptr), mLost(true)
 	{
+		assert(this->mDevice != nullptr);
+		assert(this->mSwapChain != nullptr);
+
 		this->mDevice->AddRef();
 		this->mSwapChain->AddRef();
 
-		HRESULT hr;
-		IDirect3D9 *d3d = nullptr;
-		hr = this->mDevice->GetDirect3D(&d3d);
+		this->mDevice->GetDeviceCaps(&this->mDeviceCaps);
+		this->mDeviceCaps.NumSimultaneousRTs = std::min(this->mDeviceCaps.NumSimultaneousRTs, static_cast<DWORD>(8));
 
-		assert(SUCCEEDED(hr));
+		ZeroMemory(&this->mPresentParams, sizeof(D3DPRESENT_PARAMETERS));
+
+		IDirect3D9 *d3d = nullptr;
+		this->mDevice->GetDirect3D(&d3d);
 
 		D3DDEVICE_CREATION_PARAMETERS params;
 		this->mDevice->GetCreationParameters(&params);
 
 		D3DADAPTER_IDENTIFIER9 identifier;
-		hr = d3d->GetAdapterIdentifier(params.AdapterOrdinal, 0, &identifier);
+		d3d->GetAdapterIdentifier(params.AdapterOrdinal, 0, &identifier);
+
 		d3d->Release();
 
-		assert(SUCCEEDED(hr));
-			
 		this->mVendorId = identifier.VendorId;
 		this->mDeviceId = identifier.DeviceId;
 		this->mRendererId = 0xD3D9;
@@ -2261,33 +2332,47 @@ namespace ReShade
 
 	bool D3D9Runtime::OnCreate(unsigned int width, unsigned int height)
 	{
+		this->mSwapChain->GetPresentParameters(&this->mPresentParams);
+
 		HRESULT hr = this->mDevice->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &this->mBackBuffer);
 
 		assert(SUCCEEDED(hr));
 
-		D3DSURFACE_DESC bbdesc;
-		this->mBackBuffer->GetDesc(&bbdesc);
-
-		if (bbdesc.MultiSampleType != D3DMULTISAMPLE_NONE)
+		if (this->mPresentParams.MultiSampleType != D3DMULTISAMPLE_NONE)
 		{
-			hr = this->mDevice->CreateRenderTarget(bbdesc.Width, bbdesc.Height, bbdesc.Format, D3DMULTISAMPLE_NONE, 0, FALSE, &this->mBackBufferNotMultisampled, nullptr);
+			hr = this->mDevice->CreateRenderTarget(this->mPresentParams.BackBufferWidth, this->mPresentParams.BackBufferHeight, this->mPresentParams.BackBufferFormat, D3DMULTISAMPLE_NONE, 0, FALSE, &this->mBackBufferResolve, nullptr);
 
-			assert(SUCCEEDED(hr));
+			if (FAILED(hr))
+			{
+				this->mBackBuffer->Release();
+				this->mBackBuffer = nullptr;
+
+				return false;
+			}
 		}
 		else
 		{
-			this->mBackBufferNotMultisampled = this->mBackBuffer;
+			this->mBackBufferResolve = this->mBackBuffer;
+			this->mBackBufferResolve->AddRef();
 		}
 
 		hr = this->mDevice->CreateStateBlock(D3DSBT_ALL, &this->mStateBlock);
 
-		assert(SUCCEEDED(hr));
+		if (FAILED(hr))
+		{
+			this->mBackBuffer->Release();
+			this->mBackBuffer = nullptr;
+			this->mBackBufferResolve->Release();
+			this->mBackBufferResolve = nullptr;
+
+			return false;
+		}
 
 		this->mNVG = nvgCreateD3D9(this->mDevice, 0);
 
-		this->mLost = false;
+		this->mLost = !Runtime::OnCreate(width, height);
 
-		return Runtime::OnCreate(width, height);
+		return !this->mLost;
 	}
 	void D3D9Runtime::OnDelete()
 	{
@@ -2295,44 +2380,52 @@ namespace ReShade
 
 		nvgDeleteD3D9(this->mNVG);
 
+		this->mNVG = nullptr;
+
 		if (this->mStateBlock != nullptr)
 		{
 			this->mStateBlock->Apply();
 			this->mStateBlock->Release();
+			this->mStateBlock = nullptr;
 		}
 
-		if (this->mBackBufferNotMultisampled != this->mBackBuffer)
-		{
-			this->mBackBufferNotMultisampled->Release();
-		}
 		if (this->mBackBuffer != nullptr)
 		{
 			this->mBackBuffer->Release();
+			this->mBackBuffer = nullptr;
+		}
+		if (this->mBackBufferResolve != nullptr)
+		{
+			this->mBackBufferResolve->Release();
+			this->mBackBufferResolve = nullptr;
 		}
 
-		this->mDepthStencilTable.clear();
-
-		if (this->mBestDepthStencilReplacement != nullptr)
+		if (this->mDepthStencil != nullptr)
 		{
-			this->mBestDepthStencil = nullptr;
-			this->mBestDepthStencilReplacement->Release();
-			this->mBestDepthStencilReplacement = nullptr;
+			this->mDepthStencil->Release();
+			this->mDepthStencil = nullptr;
+		}
+		if (this->mDepthStencilReplacement != nullptr)
+		{
+			this->mDepthStencilReplacement->Release();
+			this->mDepthStencilReplacement = nullptr;
 		}
 		if (this->mDepthStencilTexture != nullptr)
 		{
 			this->mDepthStencilTexture->Release();
+			this->mDepthStencilTexture = nullptr;
 		}
 
-		this->mNVG = nullptr;
-		this->mStateBlock = nullptr;
-		this->mBackBuffer = nullptr;
-		this->mBackBufferNotMultisampled = nullptr;
-		this->mDepthStencilTexture = nullptr;
+		ZeroMemory(&this->mPresentParams, sizeof(D3DPRESENT_PARAMETERS));
+
+		this->mDepthStencilTable.clear();
 
 		this->mLost = true;
 	}
 	void D3D9Runtime::OnDraw(unsigned int vertices)
 	{
+		Runtime::OnDraw(vertices);
+
 		IDirect3DSurface9 *depthstencil = nullptr;
 		this->mDevice->GetDepthStencilSurface(&depthstencil);
 
@@ -2340,41 +2433,55 @@ namespace ReShade
 		{
 			depthstencil->Release();
 
-			if (depthstencil == this->mBestDepthStencilReplacement)
+			if (depthstencil == this->mDepthStencilReplacement)
 			{
-				depthstencil = this->mBestDepthStencil;
+				depthstencil = this->mDepthStencil;
 			}
 
-			this->mDepthStencilTable[depthstencil].DrawCallCount = static_cast<FLOAT>(this->mDrawCallCounter++);
+			// Update depthstencil statistics
+			this->mDepthStencilTable[depthstencil].DrawCallCount = static_cast<FLOAT>(this->mLastDrawCalls);
 			this->mDepthStencilTable[depthstencil].DrawVerticesCount += vertices;
 		}
-
-		Runtime::OnDraw(vertices);
 	}
 	void D3D9Runtime::OnPresent()
 	{
-		DetectBestDepthStencil();
-
-		this->mDrawCallCounter = 1;
-
-		IDirect3DSurface9 *stateBlockRenderTarget = nullptr;
-		IDirect3DSurface9 *stateBlockDepthStencil = nullptr;
-
-		HRESULT hr = this->mDevice->BeginScene();
-
-		assert(SUCCEEDED(hr));
-
-		this->mStateBlock->Capture();
-		this->mDevice->GetRenderTarget(0, &stateBlockRenderTarget);
-		this->mDevice->GetDepthStencilSurface(&stateBlockDepthStencil);
-
-		if (this->mBackBufferNotMultisampled != this->mBackBuffer)
+		if (this->mLost)
 		{
-			this->mDevice->StretchRect(this->mBackBuffer, nullptr, this->mBackBufferNotMultisampled, nullptr, D3DTEXF_NONE);
+			return;
 		}
 
-		this->mDevice->SetRenderTarget(0, this->mBackBufferNotMultisampled);
+		DetectBestDepthStencil();
 
+		// Begin post processing
+		HRESULT hr = this->mDevice->BeginScene();
+
+		if (FAILED(hr))
+		{
+			return;
+		}
+
+		// Capture device state
+		this->mStateBlock->Capture();
+
+		IDirect3DSurface9 *stateblockTargets[8] = { nullptr };
+		IDirect3DSurface9 *stateblockDepthStencil = nullptr;
+
+		for (DWORD target = 0, targetCount = std::min(this->mDeviceCaps.NumSimultaneousRTs, static_cast<DWORD>(8)); target < targetCount; ++target)
+		{
+			this->mDevice->GetRenderTarget(target, &stateblockTargets[target]);
+		}
+
+		this->mDevice->GetDepthStencilSurface(&stateblockDepthStencil);
+
+		// Resolve backbuffer
+		if (this->mBackBufferResolve != this->mBackBuffer)
+		{
+			this->mDevice->StretchRect(this->mBackBuffer, nullptr, this->mBackBufferResolve, nullptr, D3DTEXF_NONE);
+		}
+
+		this->mDevice->SetRenderTarget(0, this->mBackBufferResolve);
+
+		// Apply post processing
 		Runtime::OnPresent();
 
 		if (this->mLost)
@@ -2382,144 +2489,166 @@ namespace ReShade
 			return;
 		}
 
-		if (this->mBackBufferNotMultisampled != this->mBackBuffer)
+		// Copy to backbuffer
+		if (this->mBackBufferResolve != this->mBackBuffer)
 		{
-			this->mDevice->StretchRect(this->mBackBufferNotMultisampled, nullptr, this->mBackBuffer, nullptr, D3DTEXF_NONE);
+			this->mDevice->StretchRect(this->mBackBufferResolve, nullptr, this->mBackBuffer, nullptr, D3DTEXF_NONE);
 		}
 
+		// Apply previous device state
 		this->mStateBlock->Apply();
-		this->mDevice->SetRenderTarget(0, stateBlockRenderTarget);
-		this->mDevice->SetDepthStencilSurface(stateBlockDepthStencil);
-			
-		if (stateBlockRenderTarget != nullptr)
+
+		for (DWORD target = 0, targetCount = std::min(this->mDeviceCaps.NumSimultaneousRTs, static_cast<DWORD>(8)); target < targetCount; ++target)
 		{
-			stateBlockRenderTarget->Release();
+			this->mDevice->SetRenderTarget(target, stateblockTargets[target]);
+
+			if (stateblockTargets[target] != nullptr)
+			{
+				stateblockTargets[target]->Release();
+			}
 		}
-		if (stateBlockDepthStencil != nullptr)
+			
+		this->mDevice->SetDepthStencilSurface(stateblockDepthStencil);
+
+		if (stateblockDepthStencil != nullptr)
 		{
-			stateBlockDepthStencil->Release();
+			stateblockDepthStencil->Release();
 		}
 
+		// End post processing
 		this->mDevice->EndScene();
 	}
 
 	std::unique_ptr<Effect> D3D9Runtime::CreateEffect(const EffectTree &ast, std::string &errors) const
 	{
-		D3D9Effect *effect = new D3D9Effect(shared_from_this());
+		std::unique_ptr<D3D9Effect> effect(new D3D9Effect(shared_from_this()));
 			
 		D3D9EffectCompiler visitor(ast);
 		
-		if (visitor.Traverse(effect, errors))
+		if (!visitor.Traverse(effect.get(), errors))
 		{
-			return std::unique_ptr<Effect>(effect);
+			return nullptr;
 		}
-		else
+
+		HRESULT hr = this->mDevice->CreateDepthStencilSurface(this->mPresentParams.BackBufferWidth, this->mPresentParams.BackBufferHeight, D3DFMT_D24S8, D3DMULTISAMPLE_NONE, 0, FALSE, &effect->mDepthStencil, nullptr);
+
+		if (FAILED(hr))
 		{
-			delete effect;
+			return nullptr;
+		}
+
+		hr = this->mDevice->CreateVertexBuffer(3 * sizeof(float), D3DUSAGE_WRITEONLY, 0, D3DPOOL_DEFAULT, &effect->mVertexBuffer, nullptr);
+
+		if (FAILED(hr))
+		{
+			effect->mDepthStencil->Release();
 
 			return nullptr;
 		}
+
+		const D3DVERTEXELEMENT9 declaration[] =
+		{
+			{ 0, 0, D3DDECLTYPE_FLOAT1, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD, 0 },
+			D3DDECL_END()
+		};
+
+		hr = this->mDevice->CreateVertexDeclaration(declaration, &effect->mVertexDeclaration);
+
+		if (FAILED(hr))
+		{
+			effect->mDepthStencil->Release();
+			effect->mVertexBuffer->Release();
+
+			return nullptr;
+		}
+
+		float *data = nullptr;
+
+		hr = effect->mVertexBuffer->Lock(0, 3 * sizeof(float), reinterpret_cast<void **>(&data), 0);
+
+		if (FAILED(hr))
+		{
+			effect->mDepthStencil->Release();
+			effect->mVertexBuffer->Release();
+			effect->mVertexDeclaration->Release();
+
+			return nullptr;
+		}
+
+		for (UINT i = 0; i < 3; ++i)
+		{
+			data[i] = static_cast<float>(i);
+		}
+
+		effect->mVertexBuffer->Unlock();
+
+		return std::unique_ptr<Effect>(effect.release());
 	}
 	void D3D9Runtime::CreateScreenshot(unsigned char *buffer, std::size_t size) const
 	{
-		IDirect3DSurface9 *backbuffer = nullptr;
-		IDirect3DSurface9 *surfaceSystem = nullptr;
+		if (this->mPresentParams.BackBufferFormat != D3DFMT_X8R8G8B8 && this->mPresentParams.BackBufferFormat != D3DFMT_X8B8G8R8 && this->mPresentParams.BackBufferFormat != D3DFMT_A8R8G8B8 && this->mPresentParams.BackBufferFormat != D3DFMT_A8B8G8R8)
+		{
+			return;
+		}
 
-		HRESULT hr = this->mDevice->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &backbuffer);
+		const UINT pitch = this->mPresentParams.BackBufferWidth * 4;
+
+		if (size < static_cast<std::size_t>(pitch * this->mPresentParams.BackBufferHeight))
+		{
+			return;
+		}
+
+		IDirect3DSurface9 *screenshotSurface = nullptr;
+		HRESULT hr = this->mDevice->CreateOffscreenPlainSurface(this->mPresentParams.BackBufferWidth, this->mPresentParams.BackBufferHeight, this->mPresentParams.BackBufferFormat, D3DPOOL_SYSTEMMEM, &screenshotSurface, nullptr);
 
 		if (FAILED(hr))
 		{
 			return;
 		}
 
-		D3DSURFACE_DESC desc;
-		backbuffer->GetDesc(&desc);
-
-		if (desc.Format != D3DFMT_X8R8G8B8 && desc.Format != D3DFMT_X8B8G8R8 && desc.Format != D3DFMT_A8R8G8B8 && desc.Format != D3DFMT_A8B8G8R8)
-		{
-			backbuffer->Release();
-			return;
-		}
-
-		hr = this->mDevice->CreateOffscreenPlainSurface(desc.Width, desc.Height, desc.Format, D3DPOOL_SYSTEMMEM, &surfaceSystem, nullptr);
+		// Copy screenshot data to surface
+		hr = this->mDevice->GetRenderTargetData(this->mBackBufferResolve, screenshotSurface);
 
 		if (FAILED(hr))
 		{
-			backbuffer->Release();
+			screenshotSurface->Release();
 			return;
 		}
 
-		if (desc.MultiSampleType != D3DMULTISAMPLE_NONE)
-		{
-			IDirect3DSurface9 *surfaceResolve = nullptr;
-
-			hr = this->mDevice->CreateRenderTarget(desc.Width, desc.Height, desc.Format, D3DMULTISAMPLE_NONE, 0, FALSE, &surfaceResolve, nullptr);				
-
-			if (SUCCEEDED(hr))
-			{
-				hr = this->mDevice->StretchRect(backbuffer, nullptr, surfaceResolve, nullptr, D3DTEXF_NONE);
-
-				if (SUCCEEDED(hr))
-				{
-					hr = this->mDevice->GetRenderTargetData(surfaceResolve, surfaceSystem);
-				}
-
-				surfaceResolve->Release();
-			}
-		}
-		else
-		{
-			hr = this->mDevice->GetRenderTargetData(backbuffer, surfaceSystem);
-		}
-
-		backbuffer->Release();
+		D3DLOCKED_RECT screenshotLock;
+		hr = screenshotSurface->LockRect(&screenshotLock, nullptr, D3DLOCK_READONLY);
 
 		if (FAILED(hr))
 		{
-			surfaceSystem->Release();
+			screenshotSurface->Release();
 			return;
 		}
 
-		D3DLOCKED_RECT mapped;
-		ZeroMemory(&mapped, sizeof(D3DLOCKED_RECT));
+		BYTE *pMem = buffer;
+		BYTE *pLocked = static_cast<BYTE *>(screenshotLock.pBits);
 
-		// Lock surface
-		hr = surfaceSystem->LockRect(&mapped, nullptr, D3DLOCK_READONLY);
-
-		if (FAILED(hr))
+		// Copy screenshot data to memory
+		for (UINT y = 0; y < this->mPresentParams.BackBufferHeight; ++y)
 		{
-			surfaceSystem->Release();
-			return;
-		}
-
-		const UINT pitch = desc.Width * 4;
-
-		assert(size >= pitch * desc.Height);
-
-		BYTE *pBuffer = buffer;
-		BYTE *pMapped = static_cast<BYTE *>(mapped.pBits);
-
-		for (UINT y = 0; y < desc.Height; ++y)
-		{
-			CopyMemory(pBuffer, pMapped, std::min(pitch, static_cast<UINT>(mapped.Pitch)));
+			CopyMemory(pMem, pLocked, std::min(pitch, static_cast<UINT>(screenshotLock.Pitch)));
 
 			for (UINT x = 0; x < pitch; x += 4)
 			{
-				pBuffer[x + 3] = 0xFF;
+				pMem[x + 3] = 0xFF;
 
-				if (desc.Format == D3DFMT_A8R8G8B8 || desc.Format == D3DFMT_X8R8G8B8)
+				if (this->mPresentParams.BackBufferFormat == D3DFMT_A8R8G8B8 || this->mPresentParams.BackBufferFormat == D3DFMT_X8R8G8B8)
 				{
-					std::swap(pBuffer[x + 0], pBuffer[x + 2]);
+					std::swap(pMem[x + 0], pMem[x + 2]);
 				}
 			}
 							
-			pBuffer += pitch;
-			pMapped += mapped.Pitch;
+			pMem += pitch;
+			pLocked += screenshotLock.Pitch;
 		}
 
-		surfaceSystem->UnlockRect();
+		screenshotSurface->UnlockRect();
 
-		surfaceSystem->Release();
+		screenshotSurface->Release();
 	}
 
 	void D3D9Runtime::DetectBestDepthStencil()
@@ -2540,10 +2669,8 @@ namespace ReShade
 			return;
 		}
 
-		D3DPRESENT_PARAMETERS pp;
-		this->mSwapChain->GetPresentParameters(&pp);
-
-		if (pp.MultiSampleType != D3DMULTISAMPLE_NONE)
+		// Check for multisampling
+		if (this->mPresentParams.MultiSampleType != D3DMULTISAMPLE_NONE)
 		{
 			return;
 		}
@@ -2557,8 +2684,7 @@ namespace ReShade
 			{
 				continue;
 			}
-
-			if (((it.second.DrawVerticesCount * (1.2f - it.second.DrawCallCount / this->mDrawCallCounter)) >= (bestInfo.DrawVerticesCount * (1.2f - bestInfo.DrawCallCount / this->mDrawCallCounter))) && (it.second.Width == pp.BackBufferWidth && it.second.Height == pp.BackBufferHeight))
+			else if (((it.second.DrawVerticesCount * (1.2f - it.second.DrawCallCount / this->mLastDrawCalls)) >= (bestInfo.DrawVerticesCount * (1.2f - bestInfo.DrawCallCount / this->mLastDrawCalls))) && (it.second.Width == this->mPresentParams.BackBufferWidth && it.second.Height == this->mPresentParams.BackBufferHeight))
 			{
 				best = it.first;
 				bestInfo = it.second;
@@ -2567,64 +2693,62 @@ namespace ReShade
 			it.second.DrawCallCount = it.second.DrawVerticesCount = 0;
 		}
 
-		if (best != nullptr && this->mBestDepthStencil != best)
+		if (best != nullptr && this->mDepthStencil != best)
 		{
-			D3DSURFACE_DESC desc;
-			best->GetDesc(&desc);
-
-			this->mBestDepthStencil = best;
-
-			if (this->mBestDepthStencilReplacement != nullptr)
+			if (this->mDepthStencil != nullptr)
 			{
-				this->mBestDepthStencilReplacement->Release();
-				this->mBestDepthStencilReplacement = nullptr;
+				this->mDepthStencil->Release();
+				this->mDepthStencil = nullptr;
+			}
+			if (this->mDepthStencilReplacement != nullptr)
+			{
+				this->mDepthStencilReplacement->Release();
+				this->mDepthStencilReplacement = nullptr;
+			}
+			if (this->mDepthStencilTexture != nullptr)
+			{
+				this->mDepthStencilTexture->Release();
+				this->mDepthStencilTexture = nullptr;
 			}
 
-			IDirect3DTexture9 *texture = nullptr;
+			this->mDepthStencil = best;
+			this->mDepthStencil->AddRef();
+
+			D3DSURFACE_DESC desc;
+			this->mDepthStencil->GetDesc(&desc);
 
 			if (desc.Format != D3DFMT_INTZ)
 			{
-				const HRESULT hr = this->mDevice->CreateTexture(desc.Width, desc.Height, 1, D3DUSAGE_DEPTHSTENCIL, D3DFMT_INTZ, D3DPOOL_DEFAULT, &texture, nullptr);
+				const HRESULT hr = this->mDevice->CreateTexture(desc.Width, desc.Height, 1, D3DUSAGE_DEPTHSTENCIL, D3DFMT_INTZ, D3DPOOL_DEFAULT, &this->mDepthStencilTexture, nullptr);
 
 				if (SUCCEEDED(hr))
 				{
-					texture->GetSurfaceLevel(0, &this->mBestDepthStencilReplacement);
+					this->mDepthStencilTexture->GetSurfaceLevel(0, &this->mDepthStencilReplacement);
 
 					// Update auto depthstencil
 					IDirect3DSurface9 *depthstencil = nullptr;
-
 					this->mDevice->GetDepthStencilSurface(&depthstencil);
 
 					if (depthstencil != nullptr)
 					{
-						if (depthstencil == this->mBestDepthStencil)
-						{
-							this->mDevice->SetDepthStencilSurface(this->mBestDepthStencilReplacement);
-						}
-
 						depthstencil->Release();
+
+						if (depthstencil == this->mDepthStencil)
+						{
+							this->mDevice->SetDepthStencilSurface(this->mDepthStencilReplacement);
+						}
 					}
 				}
-			}
-			else
-			{
-				this->mBestDepthStencilReplacement = best;
-				this->mBestDepthStencilReplacement->AddRef();
-				this->mBestDepthStencilReplacement->GetContainer(__uuidof(IDirect3DTexture9), reinterpret_cast<void **>(&texture));
-			}
-
-			if (texture != nullptr)
-			{
-				if (this->mDepthStencilTexture != nullptr)
+				else
 				{
-					this->mDepthStencilTexture->Release();
+					LOG(ERROR) << "Failed to create depthstencil replacement texture.";
 				}
-
-				this->mDepthStencilTexture = texture;
 			}
 			else
 			{
-				LOG(ERROR) << "Failed to create depthstencil replacement texture.";
+				this->mDepthStencilReplacement = best;
+				this->mDepthStencilReplacement->AddRef();
+				this->mDepthStencilReplacement->GetContainer(__uuidof(IDirect3DTexture9), reinterpret_cast<void **>(&this->mDepthStencilTexture));
 			}
 		}
 	}
@@ -2642,57 +2766,26 @@ namespace ReShade
 			info.Height = desc.Height;
 			info.DrawCallCount = 0;
 
+			// Begin tracking new depthstencil
 			this->mDepthStencilTable.emplace(depthstencil, info);
 		}
 
-		if (this->mBestDepthStencilReplacement != nullptr && depthstencil == this->mBestDepthStencil)
+		if (this->mDepthStencilReplacement != nullptr && depthstencil == this->mDepthStencil)
 		{
-			*pDepthStencil = this->mBestDepthStencilReplacement;
+			// Replace
+			*pDepthStencil = this->mDepthStencilReplacement;
 		}
 	}
 
-	D3D9Effect::D3D9Effect(std::shared_ptr<const D3D9Runtime> context) : mEffectContext(context), mVertexBuffer(nullptr), mVertexDeclaration(nullptr), mDepthStencil(nullptr)
+	D3D9Effect::D3D9Effect(std::shared_ptr<const D3D9Runtime> context) : mEffectContext(context), mVertexBuffer(nullptr), mVertexDeclaration(nullptr), mDepthStencil(nullptr), mConstantRegisterCount(0), mConstantStorage(nullptr)
 	{
-		HRESULT hr;
-		D3DSURFACE_DESC desc;
-		this->mEffectContext->mBackBuffer->GetDesc(&desc);
-			
-		hr = context->mDevice->CreateDepthStencilSurface(desc.Width, desc.Height, D3DFMT_D24S8, D3DMULTISAMPLE_NONE, 0, FALSE, &this->mDepthStencil, nullptr);
-
-		assert(SUCCEEDED(hr));
-
-		this->mConstantRegisterCount = 0;
-		this->mConstantStorage = nullptr;
-
-		D3DVERTEXELEMENT9 declaration[] =
-		{
-			{ 0, 0, D3DDECLTYPE_FLOAT1, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD, 0 },
-			D3DDECL_END()
-		};
-
-		hr = context->mDevice->CreateVertexBuffer(3 * sizeof(float), D3DUSAGE_WRITEONLY, 0, D3DPOOL_DEFAULT, &this->mVertexBuffer, nullptr);
-
-		assert(SUCCEEDED(hr));
-
-		hr = context->mDevice->CreateVertexDeclaration(declaration, &this->mVertexDeclaration);
-
-		assert(SUCCEEDED(hr));
-
-		float *data;
-
-		hr = this->mVertexBuffer->Lock(0, 3 * sizeof(float), reinterpret_cast<void **>(&data), 0);
-
-		assert(SUCCEEDED(hr));
-
-		for (UINT i = 0; i < 3; ++i)
-		{
-			data[i] = static_cast<float>(i);
-		}
-
-		this->mVertexBuffer->Unlock();
 	}
 	D3D9Effect::~D3D9Effect()
 	{
+		if (this->mDepthStencil != nullptr)
+		{
+			this->mDepthStencil->Release();
+		}
 		if (this->mVertexBuffer != nullptr)
 		{
 			this->mVertexBuffer->Release();
@@ -2700,10 +2793,6 @@ namespace ReShade
 		if (this->mVertexDeclaration != nullptr)
 		{
 			this->mVertexDeclaration->Release();
-		}
-		if (this->mDepthStencil != nullptr)
-		{
-			this->mDepthStencil->Release();
 		}
 	}
 
@@ -2777,186 +2866,166 @@ namespace ReShade
 		return names;
 	}
 
-	D3D9Texture::D3D9Texture(D3D9Effect *effect) : mEffect(effect), mTexture(nullptr), mSurface(nullptr)
+	D3D9Texture::D3D9Texture(D3D9Effect *effect, const Description &desc) : Texture(desc), mEffect(effect), mTexture(nullptr), mTextureSurface(nullptr)
 	{
 	}
 	D3D9Texture::~D3D9Texture()
 	{
-		if (this->mSurface != nullptr)
-		{
-			this->mSurface->Release();
-		}
 		if (this->mTexture != nullptr)
 		{
+			assert(this->mTextureSurface != nullptr);
+
+			this->mTextureSurface->Release();
 			this->mTexture->Release();
 		}
 	}
 
-	const Effect::Texture::Description D3D9Texture::GetDescription() const
+	bool D3D9Texture::Update(unsigned int level, const unsigned char *data, std::size_t size)
 	{
-		return this->mDesc;
-	}
-	const Effect::Annotation D3D9Texture::GetAnnotation(const std::string &name) const
-	{
-		auto it = this->mAnnotations.find(name);
-
-		if (it == this->mAnnotations.end())
+		if (data == nullptr || size == 0 || level > this->mDesc.Levels)
 		{
-			return Effect::Annotation();
+			return false;
 		}
 
-		return it->second;
-	}
+		IDirect3DSurface9 *textureSurface = nullptr;
+		HRESULT hr = this->mTexture->GetSurfaceLevel(level, &textureSurface);
 
-	void D3D9Texture::Update(unsigned int level, const unsigned char *data, std::size_t size)
-	{
-		assert(data != nullptr || size == 0);
-
-		if (size == 0) return;
-
-		IDirect3DTexture9 *system;
-		IDirect3DSurface9 *textureSurface, *systemSurface;
-		this->mTexture->GetSurfaceLevel(level, &textureSurface);
+		if (FAILED(hr))
+		{
+			return false;
+		}
 
 		D3DSURFACE_DESC desc;
 		textureSurface->GetDesc(&desc);
 		
-		HRESULT hr = this->mEffect->mEffectContext->mDevice->CreateTexture(desc.Width, desc.Height, 1, 0, desc.Format, D3DPOOL_SYSTEMMEM, &system, nullptr);
+		IDirect3DTexture9 *memTexture = nullptr;
+		hr = this->mEffect->mEffectContext->mDevice->CreateTexture(desc.Width, desc.Height, 1, 0, desc.Format, D3DPOOL_SYSTEMMEM, &memTexture, nullptr);
 
 		if (FAILED(hr))
 		{
 			textureSurface->Release();
-			return;
+
+			return false;
 		}
 
-		system->GetSurfaceLevel(0, &systemSurface);
-		system->Release();
-		
-		D3DLOCKED_RECT mapped;
-		hr = systemSurface->LockRect(&mapped, nullptr, 0);
+		IDirect3DSurface9 *memSurface;
+		memTexture->GetSurfaceLevel(0, &memSurface);
+
+		memTexture->Release();
+
+		D3DLOCKED_RECT memLock;
+		hr = memSurface->LockRect(&memLock, nullptr, 0);
 
 		if (FAILED(hr))
 		{
-			systemSurface->Release();
+			memSurface->Release();
 			textureSurface->Release();
-			return;
+
+			return false;
 		}
 
-		size = std::min<size_t>(size, mapped.Pitch * this->mDesc.Height);
-		unsigned char *p = static_cast<unsigned char *>(mapped.pBits);
+		size = std::min<size_t>(size, memLock.Pitch * this->mDesc.Height);
+		BYTE *pLocked = static_cast<BYTE *>(memLock.pBits);
 
 		switch (this->mDesc.Format)
 		{
 			case Format::R8:
-				for (std::size_t i = 0; i < size; i += 1)
+				for (std::size_t i = 0; i < size; i += 1, pLocked += 4)
 				{
-					*p++ = 0;
-					*p++ = 0;
-					*p++ = data[i];
-					*p++ = 0;
+					pLocked[0] = 0, pLocked[1] = 0, pLocked[2] = data[i], pLocked[3] = 0;
 				}
 				break;
 			case Format::RG8:
-				for (std::size_t i = 0; i < size; i += 2)
+				for (std::size_t i = 0; i < size; i += 2, pLocked += 4)
 				{
-					*p++ = 0;
-					*p++ = data[i + 1];
-					*p++ = data[i + 0];
-					*p++ = 0;
+					pLocked[0] = 0, pLocked[1] = data[i + 1], pLocked[2] = data[i], pLocked[3] = 0;
 				}
 				break;
 			case Format::RGBA8:
-				for (std::size_t i = 0; i < size; i += 4)
+				for (std::size_t i = 0; i < size; i += 4, pLocked += 4)
 				{
-					*p++ = data[i + 2];
-					*p++ = data[i + 1];
-					*p++ = data[i + 0];
-					*p++ = data[i + 3];
+					pLocked[0] = data[i + 2], pLocked[1] = data[i + 1], pLocked[2] = data[i], pLocked[3] = data[i + 3];
 				}
 				break;
 			default:
-				::memcpy(p, data, size);
+				CopyMemory(pLocked, data, size);
 				break;
 		}
 
-		systemSurface->UnlockRect();
+		memSurface->UnlockRect();
 
-		hr = this->mEffect->mEffectContext->mDevice->UpdateSurface(systemSurface, nullptr, textureSurface, nullptr);
+		hr = this->mEffect->mEffectContext->mDevice->UpdateSurface(memSurface, nullptr, textureSurface, nullptr);
 
-		systemSurface->Release();
+		memSurface->Release();
 		textureSurface->Release();
+
+		return SUCCEEDED(hr);
 	}
 	void D3D9Texture::UpdateFromColorBuffer()
 	{
-		this->mEffect->mEffectContext->mDevice->StretchRect(this->mEffect->mEffectContext->mBackBufferNotMultisampled, nullptr, this->mSurface, nullptr, D3DTEXF_NONE);
+		this->mEffect->mEffectContext->mDevice->StretchRect(this->mEffect->mEffectContext->mBackBufferResolve, nullptr, this->mTextureSurface, nullptr, D3DTEXF_NONE);
 	}
 	void D3D9Texture::UpdateFromDepthBuffer()
 	{
-		if (this->mTexture == this->mEffect->mEffectContext->mDepthStencilTexture)
+		if (this->mTexture == this->mEffect->mEffectContext->mDepthStencilTexture || this->mEffect->mEffectContext->mDepthStencilTexture == nullptr)
 		{
 			return;
 		}
-
-		if (this->mTexture != nullptr)
+		else if (this->mTexture != nullptr)
 		{
+			assert(this->mTextureSurface != nullptr);
+
+			this->mTextureSurface->Release();
 			this->mTexture->Release();
 		}
 
+		// Replace with depth texture
 		this->mTexture = this->mEffect->mEffectContext->mDepthStencilTexture;
+		this->mTexture->AddRef();
+		this->mTextureSurface = this->mEffect->mEffectContext->mDepthStencilReplacement;
+		this->mTextureSurface->AddRef();
 
-		if (this->mTexture != nullptr)
-		{
-			D3DSURFACE_DESC desc;
-			this->mTexture->GetLevelDesc(0, &desc);
+		D3DSURFACE_DESC desc;
+		this->mTexture->GetLevelDesc(0, &desc);
 
-			this->mDesc.Width = desc.Width;
-			this->mDesc.Height = desc.Height;
-			this->mDesc.Format = Effect::Texture::Format::Unknown;
-			this->mDesc.Levels = this->mTexture->GetLevelCount();
-
-			this->mTexture->AddRef();
-		}
+		this->mDesc.Width = desc.Width;
+		this->mDesc.Height = desc.Height;
+		this->mDesc.Format = Effect::Texture::Format::Unknown;
+		this->mDesc.Levels = this->mTexture->GetLevelCount();
 	}
 
-	D3D9Constant::D3D9Constant(D3D9Effect *effect) : mEffect(effect), mRegisterOffset(0)
+	D3D9Constant::D3D9Constant(D3D9Effect *effect, const Description &desc) : Constant(desc), mEffect(effect), mStorageOffset(0)
 	{
 	}
 	D3D9Constant::~D3D9Constant()
 	{
 	}
 
-	const Effect::Constant::Description D3D9Constant::GetDescription() const
-	{
-		return this->mDesc;
-	}
-	const Effect::Annotation D3D9Constant::GetAnnotation(const std::string &name) const
-	{
-		auto it = this->mAnnotations.find(name);
-
-		if (it == this->mAnnotations.end())
-		{
-			return Effect::Annotation();
-		}
-
-		return it->second;
-	}
 	void D3D9Constant::GetValue(unsigned char *data, std::size_t size) const
 	{
-		std::memcpy(data, this->mEffect->mConstantStorage + this->mRegisterOffset, size);
+		size = std::min(size, this->mDesc.Size);
+
+		assert(this->mEffect->mConstantStorage != nullptr);
+
+		CopyMemory(data, this->mEffect->mConstantStorage + this->mStorageOffset, size);
 	}
 	void D3D9Constant::SetValue(const unsigned char *data, std::size_t size)
 	{
-		std::memcpy(this->mEffect->mConstantStorage + this->mRegisterOffset, data, size);
+		size = std::min(size, this->mDesc.Size);
+
+		assert(this->mEffect->mConstantStorage != nullptr);
+
+		CopyMemory(this->mEffect->mConstantStorage + this->mStorageOffset, data, size);
 	}
 
-	D3D9Technique::D3D9Technique(D3D9Effect *effect) : mEffect(effect)
+	D3D9Technique::D3D9Technique(D3D9Effect *effect) : Technique(), mEffect(effect)
 	{
 	}
 	D3D9Technique::~D3D9Technique()
 	{
 		for (Pass &pass : this->mPasses)
 		{
-			if (pass.Stateblock != nullptr)
+			if (pass.Stateblock != nullptr) // TODO: Does it hold a reference to VS and PS?
 			{
 				pass.Stateblock->Release();
 			}
@@ -2972,21 +3041,9 @@ namespace ReShade
 		}
 	}
 
-	const Effect::Annotation D3D9Technique::GetAnnotation(const std::string &name) const
-	{
-		auto it = this->mAnnotations.find(name);
-
-		if (it == this->mAnnotations.end())
-		{
-			return Effect::Annotation();
-		}
-
-		return it->second;
-	}
-
 	bool D3D9Technique::Begin(unsigned int &passes) const
 	{
-		IDirect3DDevice9 *device = this->mEffect->mEffectContext->mDevice;
+		IDirect3DDevice9 *const device = this->mEffect->mEffectContext->mDevice;
 
 		passes = static_cast<unsigned int>(this->mPasses.size());
 
@@ -2995,64 +3052,62 @@ namespace ReShade
 			return false;
 		}
 
-		assert(this->mEffect->mDepthStencil != nullptr);
-
-		device->SetDepthStencilSurface(this->mEffect->mDepthStencil);
-		device->Clear(0, nullptr, D3DCLEAR_ZBUFFER | D3DCLEAR_STENCIL, 0, 1.0f, 0x0);
-
-		device->SetVertexDeclaration(this->mEffect->mVertexDeclaration);
+		// Setup vertex input
 		device->SetStreamSource(0, this->mEffect->mVertexBuffer, 0, sizeof(float));
+		device->SetVertexDeclaration(this->mEffect->mVertexDeclaration);
 
-		for (DWORD i = 0, count = static_cast<DWORD>(this->mEffect->mSamplers.size()); i < count; ++i)
+		// Setup shader resources
+		for (DWORD sampler = 0, samplerCount = static_cast<DWORD>(this->mEffect->mSamplers.size()); sampler < samplerCount; ++sampler)
 		{
-			const auto &sampler = this->mEffect->mSamplers[i];
+			device->SetTexture(sampler, this->mEffect->mSamplers[sampler].mTexture->mTexture);
 
-			device->SetTexture(i, sampler.mTexture->mTexture);
-
-			device->SetSamplerState(i, D3DSAMP_ADDRESSU, sampler.mStates[D3DSAMP_ADDRESSU]);
-			device->SetSamplerState(i, D3DSAMP_ADDRESSV, sampler.mStates[D3DSAMP_ADDRESSV]);
-			device->SetSamplerState(i, D3DSAMP_ADDRESSW, sampler.mStates[D3DSAMP_ADDRESSW]);
-			device->SetSamplerState(i, D3DSAMP_MAGFILTER, sampler.mStates[D3DSAMP_MAGFILTER]);
-			device->SetSamplerState(i, D3DSAMP_MINFILTER, sampler.mStates[D3DSAMP_MINFILTER]);
-			device->SetSamplerState(i, D3DSAMP_MIPFILTER, sampler.mStates[D3DSAMP_MIPFILTER]);
-			device->SetSamplerState(i, D3DSAMP_MIPMAPLODBIAS, sampler.mStates[D3DSAMP_MIPMAPLODBIAS]);
-			device->SetSamplerState(i, D3DSAMP_MAXMIPLEVEL, sampler.mStates[D3DSAMP_MAXMIPLEVEL]);
-			device->SetSamplerState(i, D3DSAMP_MAXANISOTROPY, sampler.mStates[D3DSAMP_MAXANISOTROPY]);
-			device->SetSamplerState(i, D3DSAMP_SRGBTEXTURE, sampler.mStates[D3DSAMP_SRGBTEXTURE]);
+			for (DWORD state = 1; state < 12; ++state)
+			{
+				device->SetSamplerState(sampler, static_cast<D3DSAMPLERSTATETYPE>(state), this->mEffect->mSamplers[sampler].mStates[state]);
+			}
 		}
 
-		D3DVIEWPORT9 viewport;
-		device->GetViewport(&viewport);
-
-		assert(viewport.Width != 0 && viewport.Height != 0);
-
-		const float pixel_size[4] = { +1.0f / viewport.Width, +1.0f / viewport.Height, -1.0f / viewport.Width, +1.0f / viewport.Height };
-		device->SetVertexShaderConstantF(223, pixel_size, 1);
-		device->SetPixelShaderConstantF(223, pixel_size, 1);
+		// Setup depthstencil
+		device->SetDepthStencilSurface(this->mEffect->mDepthStencil);
+		device->Clear(0, nullptr, D3DCLEAR_ZBUFFER | D3DCLEAR_STENCIL, 0, 1.0f, 0);
 
 		return true;
 	}
 	void D3D9Technique::End() const
 	{
-		this->mEffect->mEffectContext->mDevice->SetRenderTarget(0, this->mEffect->mEffectContext->mBackBufferNotMultisampled);
+		IDirect3DDevice9 *const device = this->mEffect->mEffectContext->mDevice;
+
+		// Reset rendertarget
+		device->SetRenderTarget(0, this->mEffect->mEffectContext->mBackBufferResolve);
 	}
 	void D3D9Technique::RenderPass(unsigned int index) const
 	{
 		IDirect3DDevice9 *device = this->mEffect->mEffectContext->mDevice;
 		const Pass &pass = this->mPasses[index];
 
-		device->SetVertexShaderConstantF(0, this->mEffect->mConstantStorage, this->mEffect->mConstantRegisterCount);
-		device->SetPixelShaderConstantF(0, this->mEffect->mConstantStorage, this->mEffect->mConstantRegisterCount);
-
+		// Setup states
 		pass.Stateblock->Apply();
 
-		for (DWORD i = 0; i < 4; ++i)
+		// Setup rendertargets
+		for (DWORD target = 0, targetCount = std::min(this->mEffect->mEffectContext->mDeviceCaps.NumSimultaneousRTs, static_cast<DWORD>(8)); target < targetCount; ++target)
 		{
-			device->SetRenderTarget(i, pass.RT[i]);
+			device->SetRenderTarget(target, pass.RT[target]);
 		}
 
-		device->Clear(0, nullptr, D3DCLEAR_TARGET, D3DCOLOR_ARGB(0, 0, 0, 0), 0.0f, 0x0);
+		device->Clear(0, nullptr, D3DCLEAR_TARGET, D3DCOLOR_ARGB(0, 0, 0, 0), 0.0f, 0);
 
+		D3DVIEWPORT9 viewport;
+		device->GetViewport(&viewport);
+
+		const float pixelsize[4] = { 1.0f / viewport.Width, 1.0f / viewport.Height, -1.0f / viewport.Width, 1.0f / viewport.Height };
+
+		// Setup shader constants
+		device->SetVertexShaderConstantF(0, this->mEffect->mConstantStorage, this->mEffect->mConstantRegisterCount);
+		device->SetVertexShaderConstantF(223, pixelsize, 1);
+		device->SetPixelShaderConstantF(0, this->mEffect->mConstantStorage, this->mEffect->mConstantRegisterCount);
+		device->SetPixelShaderConstantF(223, pixelsize, 1);
+
+		// Draw triangle
 		device->DrawPrimitive(D3DPT_TRIANGLELIST, 0, 1);
 
 		const_cast<D3D9Runtime *>(this->mEffect->mEffectContext.get())->Runtime::OnDraw(3);

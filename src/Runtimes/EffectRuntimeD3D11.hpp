@@ -56,13 +56,13 @@ namespace ReShade
 		ID3D11DeviceContext *mImmediateContext;
 		ID3D11DeviceContext *mDeferredContext;
 		IDXGISwapChain *mSwapChain;
+		DXGI_SWAP_CHAIN_DESC mSwapChainDesc;
 		ID3D11Texture2D *mBackBuffer;
 		ID3D11Texture2D *mBackBufferTexture;
 		ID3D11RenderTargetView *mBackBufferTargets[2];
-		std::unordered_map<ID3D11DepthStencilView *, D3D11DepthStencilInfo> mDepthStencilTable;
-		ID3D11DepthStencilView *mBestDepthStencil, *mBestDepthStencilReplacement;
+		ID3D11DepthStencilView *mDepthStencil, *mDepthStencilReplacement;
 		ID3D11ShaderResourceView *mDepthStencilShaderResourceView;
-		UINT mDrawCallCounter;
+		std::unordered_map<ID3D11DepthStencilView *, D3D11DepthStencilInfo> mDepthStencilTable;
 		CRITICAL_SECTION mCS;
 		bool mLost;
 	};
@@ -75,23 +75,23 @@ namespace ReShade
 		D3D11Effect(std::shared_ptr<const D3D11Runtime> context);
 		~D3D11Effect();
 
-		const Texture *GetTexture(const std::string &name) const;
-		std::vector<std::string> GetTextureNames() const;
-		const Constant *GetConstant(const std::string &name) const;
-		std::vector<std::string> GetConstantNames() const;
-		const Technique *GetTechnique(const std::string &name) const;
-		std::vector<std::string> GetTechniqueNames() const;
+		virtual const Texture *GetTexture(const std::string &name) const override;
+		virtual std::vector<std::string> GetTextureNames() const override;
+		virtual const Constant *GetConstant(const std::string &name) const override;
+		virtual std::vector<std::string> GetConstantNames() const override;
+		virtual const Technique *GetTechnique(const std::string &name) const override;
+		virtual std::vector<std::string> GetTechniqueNames() const override;
 
-		void ApplyConstants() const;
+		void UpdateConstants() const;
 
 		std::shared_ptr<const D3D11Runtime> mEffectContext;
 		std::unordered_map<std::string, std::unique_ptr<D3D11Texture>> mTextures;
 		std::unordered_map<std::string, std::unique_ptr<D3D11Constant>> mConstants;
 		std::unordered_map<std::string, std::unique_ptr<D3D11Technique>> mTechniques;
-		ID3D11Texture2D *mDepthStencilTexture;
-		ID3D11ShaderResourceView *mDepthStencilView;
-		ID3D11DepthStencilView *mDepthStencil;
 		ID3D11RasterizerState *mRasterizerState;
+		ID3D11DepthStencilView *mDepthStencil;
+		ID3D11Texture2D *mDepthStencilTexture;
+		ID3D11ShaderResourceView *mDepthStencilShaderResourceView;
 		std::unordered_map<D3D11_SAMPLER_DESC, size_t, D3D11_SAMPLER_DESC_HASHER> mSamplerDescs;
 		std::vector<ID3D11SamplerState *> mSamplerStates;
 		std::vector<ID3D11ShaderResourceView *> mShaderResources;
@@ -101,37 +101,38 @@ namespace ReShade
 	};
 	struct D3D11Texture : public Effect::Texture
 	{
-		D3D11Texture(D3D11Effect *effect);
+		D3D11Texture(D3D11Effect *effect, const Description &desc);
 		~D3D11Texture();
 
-		const Description GetDescription() const;
-		const Effect::Annotation GetAnnotation(const std::string &name) const;
+		inline bool AddAnnotation(const std::string &name, const Effect::Annotation &value)
+		{
+			return this->mAnnotations.emplace(name, value).second;
+		}
 
-		void Update(unsigned int level, const unsigned char *data, std::size_t size);
-		void UpdateFromColorBuffer();
-		void UpdateFromDepthBuffer();
+		virtual bool Update(unsigned int level, const unsigned char *data, std::size_t size) override;
+		virtual void UpdateFromColorBuffer() override;
+		virtual void UpdateFromDepthBuffer() override;
 
 		D3D11Effect *mEffect;
-		Description mDesc;
 		unsigned int mRegister;
-		std::unordered_map<std::string, Effect::Annotation>	mAnnotations;
 		ID3D11Texture2D *mTexture;
 		ID3D11ShaderResourceView *mShaderResourceView[2];
 		ID3D11RenderTargetView *mRenderTargetView[2];
 	};
 	struct D3D11Constant : public Effect::Constant
 	{
-		D3D11Constant(D3D11Effect *effect);
+		D3D11Constant(D3D11Effect *effect, const Description &desc);
 		~D3D11Constant();
 
-		const Description GetDescription() const;
-		const Effect::Annotation GetAnnotation(const std::string &name) const;
-		void GetValue(unsigned char *data, std::size_t size) const;
-		void SetValue(const unsigned char *data, std::size_t size);
+		inline bool AddAnnotation(const std::string &name, const Effect::Annotation &value)
+		{
+			return this->mAnnotations.emplace(name, value).second;
+		}
+
+		virtual void GetValue(unsigned char *data, std::size_t size) const override;
+		virtual void SetValue(const unsigned char *data, std::size_t size) override;
 
 		D3D11Effect *mEffect;
-		Description mDesc;
-		std::unordered_map<std::string, Effect::Annotation>	mAnnotations;
 		std::size_t mBuffer, mBufferOffset;
 	};
 	struct D3D11Technique : public Effect::Technique
@@ -144,20 +145,27 @@ namespace ReShade
 			ID3D11DepthStencilState *DSS;
 			UINT StencilRef;
 			ID3D11RenderTargetView *RT[D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT];
+			D3D11_VIEWPORT Viewport;
 			std::vector<ID3D11ShaderResourceView *> SR;
 		};
 
 		D3D11Technique(D3D11Effect *effect);
 		~D3D11Technique();
 
-		const Effect::Annotation GetAnnotation(const std::string &name) const;
+		inline bool AddAnnotation(const std::string &name, const Effect::Annotation &value)
+		{
+			return this->mAnnotations.emplace(name, value).second;
+		}
+		inline void AddPass(const Pass &pass)
+		{
+			this->mPasses.push_back(pass);
+		}
 
-		bool Begin(unsigned int &passes) const;
-		void End() const;
-		void RenderPass(unsigned int index) const;
+		virtual bool Begin(unsigned int &passes) const override;
+		virtual void End() const override;
+		virtual void RenderPass(unsigned int index) const override;
 
 		D3D11Effect *mEffect;
-		std::unordered_map<std::string, Effect::Annotation>	mAnnotations;
 		std::vector<Pass> mPasses;
 	};
 }

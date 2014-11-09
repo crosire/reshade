@@ -160,9 +160,8 @@ namespace ReShade
 		HDC mDeviceContext;
 		HGLRC mRenderContext;
 		GLStateBlock mStateBlock;
-		GLuint mBackBufferFBO, mBackBufferRBO, mBestDepthStencilFBO, mBestDepthStencilTexture, mBlitFBO;
+		GLuint mBackBufferFBO, mBackBufferRBO, mDepthStencilFBO, mDepthStencilTexture, mBlitFBO;
 		std::unordered_map<GLuint, GLFramebufferInfo> mFramebufferTable;
-		unsigned int mDrawCallCounter;
 		bool mLost, mPresenting;
 	};
 	struct GLEffect : public Effect
@@ -175,12 +174,14 @@ namespace ReShade
 		GLEffect(std::shared_ptr<const GLRuntime> context);
 		~GLEffect();
 
-		const Texture *GetTexture(const std::string &name) const;
-		std::vector<std::string> GetTextureNames() const;
-		const Constant *GetConstant(const std::string &name) const;
-		std::vector<std::string> GetConstantNames() const;
-		const Technique *GetTechnique(const std::string &name) const;
-		std::vector<std::string> GetTechniqueNames() const;
+		virtual const Texture *GetTexture(const std::string &name) const override;
+		virtual std::vector<std::string> GetTextureNames() const override;
+		virtual const Constant *GetConstant(const std::string &name) const override;
+		virtual std::vector<std::string> GetConstantNames() const override;
+		virtual const Technique *GetTechnique(const std::string &name) const override;
+		virtual std::vector<std::string> GetTechniqueNames() const override;
+
+		void UpdateConstants() const;
 
 		std::shared_ptr<const GLRuntime> mEffectContext;
 		std::unordered_map<std::string, std::unique_ptr<GLTexture>> mTextures;
@@ -194,19 +195,19 @@ namespace ReShade
 	};
 	struct GLTexture : public Effect::Texture
 	{
-		GLTexture(GLEffect *effect);
+		GLTexture(GLEffect *effect, const Description &desc);
 		~GLTexture();
 
-		const Description GetDescription() const;
-		const Effect::Annotation GetAnnotation(const std::string &name) const;
+		inline bool AddAnnotation(const std::string &name, const Effect::Annotation &value)
+		{
+			return this->mAnnotations.emplace(name, value).second;
+		}
 
-		void Update(unsigned int level, const unsigned char *data, std::size_t size);
-		void UpdateFromColorBuffer();
-		void UpdateFromDepthBuffer();
+		virtual bool Update(unsigned int level, const unsigned char *data, std::size_t size) override;
+		virtual void UpdateFromColorBuffer() override;
+		virtual void UpdateFromDepthBuffer() override;
 
 		GLEffect *mEffect;
-		Description mDesc;
-		std::unordered_map<std::string, Effect::Annotation>	mAnnotations;
 		GLuint mID[2];
 		bool mNoDelete;
 	};
@@ -226,17 +227,18 @@ namespace ReShade
 	};
 	struct GLConstant : public Effect::Constant
 	{
-		GLConstant(GLEffect *effect);
+		GLConstant(GLEffect *effect, const Description &desc);
 		~GLConstant();
 
-		const Description GetDescription() const;
-		const Effect::Annotation GetAnnotation(const std::string &name) const;
-		void GetValue(unsigned char *data, std::size_t size) const;
-		void SetValue(const unsigned char *data, std::size_t size);
+		inline bool AddAnnotation(const std::string &name, const Effect::Annotation &value)
+		{
+			return this->mAnnotations.emplace(name, value).second;
+		}
+
+		virtual void GetValue(unsigned char *data, std::size_t size) const override;
+		virtual void SetValue(const unsigned char *data, std::size_t size) override;
 
 		GLEffect *mEffect;
-		Description mDesc;
-		std::unordered_map<std::string, Effect::Annotation>	mAnnotations;
 		std::size_t mBuffer, mBufferOffset;
 	};
 	struct GLTechnique : public Effect::Technique
@@ -255,14 +257,20 @@ namespace ReShade
 		GLTechnique(GLEffect *effect);
 		~GLTechnique();
 
-		const Effect::Annotation GetAnnotation(const std::string &name) const;
+		inline bool AddAnnotation(const std::string &name, const Effect::Annotation &value)
+		{
+			return this->mAnnotations.emplace(name, value).second;
+		}
+		inline void AddPass(const Pass &pass)
+		{
+			this->mPasses.push_back(pass);
+		}
 
-		bool Begin(unsigned int &passes) const;
-		void End() const;
-		void RenderPass(unsigned int index) const;
+		virtual bool Begin(unsigned int &passes) const override;
+		virtual void End() const override;
+		virtual void RenderPass(unsigned int index) const override;
 
 		GLEffect *mEffect;
-		std::unordered_map<std::string, Effect::Annotation>	mAnnotations;
 		std::vector<Pass> mPasses;
 	};
 }

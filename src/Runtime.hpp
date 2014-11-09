@@ -45,6 +45,7 @@ namespace ReShade
 	protected:
 		unsigned int mWidth, mHeight;
 		unsigned int mVendorId, mDeviceId, mRendererId;
+		unsigned long mLastDrawCalls, mLastDrawCallVertices;
 		NVGcontext *mNVG;
 
 	private:
@@ -53,7 +54,7 @@ namespace ReShade
 		std::vector<Effect::Texture *> mColorTargets, mDepthTargets;
 		boost::chrono::high_resolution_clock::time_point mStartTime, mLastCreate, mLastPresent;
 		boost::chrono::high_resolution_clock::duration mLastFrametime;
-		unsigned long long mLastFrameCount, mLastDrawCalls, mLastDrawCallVertices;
+		unsigned long long mLastFrameCount;
 		std::string mErrors, mMessage;
 		bool mShowStatistics;
 	};

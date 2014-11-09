@@ -54,15 +54,14 @@ namespace ReShade
 
 		ID3D10Device *mDevice;
 		IDXGISwapChain *mSwapChain;
+		DXGI_SWAP_CHAIN_DESC mSwapChainDesc;
 		ID3D10StateBlock *mStateBlock;
 		ID3D10Texture2D *mBackBuffer;
 		ID3D10Texture2D *mBackBufferTexture;
 		ID3D10RenderTargetView *mBackBufferTargets[2];
-		std::unordered_map<ID3D10DepthStencilView *, D3D10DepthStencilInfo> mDepthStencilTable;
-		ID3D10DepthStencilView *mBestDepthStencil, *mBestDepthStencilReplacement;
+		ID3D10DepthStencilView *mDepthStencil, *mDepthStencilReplacement;
 		ID3D10ShaderResourceView *mDepthStencilShaderResourceView;
-		UINT mDrawCallCounter;
-		CRITICAL_SECTION mCS;
+		std::unordered_map<ID3D10DepthStencilView *, D3D10DepthStencilInfo> mDepthStencilTable;
 		bool mLost;
 	};
 	struct D3D10Effect : public Effect
@@ -74,23 +73,23 @@ namespace ReShade
 		D3D10Effect(std::shared_ptr<const D3D10Runtime> context);
 		~D3D10Effect();
 
-		const Texture *GetTexture(const std::string &name) const;
-		std::vector<std::string> GetTextureNames() const;
-		const Constant *GetConstant(const std::string &name) const;
-		std::vector<std::string> GetConstantNames() const;
-		const Technique *GetTechnique(const std::string &name) const;
-		std::vector<std::string> GetTechniqueNames() const;
+		virtual const Texture *GetTexture(const std::string &name) const override;
+		virtual std::vector<std::string> GetTextureNames() const override;
+		virtual const Constant *GetConstant(const std::string &name) const override;
+		virtual std::vector<std::string> GetConstantNames() const override;
+		virtual const Technique *GetTechnique(const std::string &name) const override;
+		virtual std::vector<std::string> GetTechniqueNames() const override;
 
-		void ApplyConstants() const;
+		void UpdateConstants() const;
 
 		std::shared_ptr<const D3D10Runtime> mEffectContext;
 		std::unordered_map<std::string, std::unique_ptr<D3D10Texture>> mTextures;
 		std::unordered_map<std::string, std::unique_ptr<D3D10Constant>> mConstants;
 		std::unordered_map<std::string, std::unique_ptr<D3D10Technique>> mTechniques;
-		ID3D10Texture2D *mDepthStencilTexture;
-		ID3D10ShaderResourceView *mDepthStencilView;
-		ID3D10DepthStencilView *mDepthStencil;
 		ID3D10RasterizerState *mRasterizerState;
+		ID3D10DepthStencilView *mDepthStencil;
+		ID3D10Texture2D *mDepthStencilTexture;
+		ID3D10ShaderResourceView *mDepthStencilShaderResourceView;
 		std::unordered_map<D3D10_SAMPLER_DESC, size_t, D3D10_SAMPLER_DESC_HASHER> mSamplerDescs;
 		std::vector<ID3D10SamplerState *> mSamplerStates;
 		std::vector<ID3D10ShaderResourceView *> mShaderResources;
@@ -100,37 +99,38 @@ namespace ReShade
 	};
 	struct D3D10Texture : public Effect::Texture
 	{
-		D3D10Texture(D3D10Effect *effect);
+		D3D10Texture(D3D10Effect *effect, const Description &desc);
 		~D3D10Texture();
 
-		const Description GetDescription() const;
-		const Effect::Annotation GetAnnotation(const std::string &name) const;
+		inline bool AddAnnotation(const std::string &name, const Effect::Annotation &value)
+		{
+			return this->mAnnotations.emplace(name, value).second;
+		}
 
-		void Update(unsigned int level, const unsigned char *data, std::size_t size);
-		void UpdateFromColorBuffer();
-		void UpdateFromDepthBuffer();
+		virtual bool Update(unsigned int level, const unsigned char *data, std::size_t size) override;
+		virtual void UpdateFromColorBuffer() override;
+		virtual void UpdateFromDepthBuffer() override;
 
 		D3D10Effect *mEffect;
-		Description mDesc;
 		unsigned int mRegister;
-		std::unordered_map<std::string, Effect::Annotation>	mAnnotations;
 		ID3D10Texture2D *mTexture;
 		ID3D10ShaderResourceView *mShaderResourceView[2];
 		ID3D10RenderTargetView *mRenderTargetView[2];
 	};
 	struct D3D10Constant : public Effect::Constant
 	{
-		D3D10Constant(D3D10Effect *effect);
+		D3D10Constant(D3D10Effect *effect, const Description &desc);
 		~D3D10Constant();
 
-		const Description GetDescription() const;
-		const Effect::Annotation GetAnnotation(const std::string &name) const;
-		void GetValue(unsigned char *data, std::size_t size) const;
-		void SetValue(const unsigned char *data, std::size_t size);
+		inline bool AddAnnotation(const std::string &name, const Effect::Annotation &value)
+		{
+			return this->mAnnotations.emplace(name, value).second;
+		}
+
+		virtual void GetValue(unsigned char *data, std::size_t size) const override;
+		virtual void SetValue(const unsigned char *data, std::size_t size) override;
 
 		D3D10Effect *mEffect;
-		Description mDesc;
-		std::unordered_map<std::string, Effect::Annotation>	mAnnotations;
 		std::size_t mBuffer, mBufferOffset;
 	};
 	struct D3D10Technique : public Effect::Technique
@@ -143,20 +143,27 @@ namespace ReShade
 			ID3D10DepthStencilState *DSS;
 			UINT StencilRef;
 			ID3D10RenderTargetView *RT[D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT];
+			D3D10_VIEWPORT Viewport;
 			std::vector<ID3D10ShaderResourceView *> SR;
 		};
 
 		D3D10Technique(D3D10Effect *effect);
 		~D3D10Technique();
 
-		const Effect::Annotation GetAnnotation(const std::string &name) const;
+		inline bool AddAnnotation(const std::string &name, const Effect::Annotation &value)
+		{
+			return this->mAnnotations.emplace(name, value).second;
+		}
+		inline void AddPass(const Pass &pass)
+		{
+			this->mPasses.push_back(pass);
+		}
 
-		bool Begin(unsigned int &passes) const;
-		void End() const;
-		void RenderPass(unsigned int index) const;
+		virtual bool Begin(unsigned int &passes) const override;
+		virtual void End() const override;
+		virtual void RenderPass(unsigned int index) const override;
 
 		D3D10Effect *mEffect;
-		std::unordered_map<std::string, Effect::Annotation>	mAnnotations;
 		std::vector<Pass> mPasses;
 	};
 }

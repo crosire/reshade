@@ -2,6 +2,7 @@
 
 #include <string>
 #include <vector>
+#include <unordered_map>
 
 namespace ReShade
 {
@@ -99,12 +100,20 @@ namespace ReShade
 			};
 
 		public:
-			virtual const Description GetDescription() const = 0;
-			virtual const Annotation GetAnnotation(const std::string &name) const = 0;
+			const Description GetDescription() const;
+			const Annotation GetAnnotation(const std::string &name) const;
 
-			virtual void Update(unsigned int level, const unsigned char *data, std::size_t size) = 0;
+			virtual bool Update(unsigned int level, const unsigned char *data, std::size_t size) = 0;
 			virtual void UpdateFromColorBuffer() = 0;
 			virtual void UpdateFromDepthBuffer() = 0;
+
+		protected:
+			Texture(const Description &desc);
+			virtual ~Texture();
+
+		protected:
+			Description mDesc;
+			std::unordered_map<std::string, Annotation> mAnnotations;
 		};
 		class Constant
 		{
@@ -125,9 +134,12 @@ namespace ReShade
 			};
 
 		public:
-			virtual const Description GetDescription() const = 0;
-			virtual const Annotation GetAnnotation(const std::string &name) const = 0;
+			const Description GetDescription() const;
+			const Annotation GetAnnotation(const std::string &name) const;
+
 			virtual void GetValue(unsigned char *data, std::size_t size) const = 0;
+			virtual void SetValue(const unsigned char *data, std::size_t size) = 0;
+
 			template <typename T>
 			inline void GetValue(T *values, std::size_t count) const
 			{
@@ -138,7 +150,6 @@ namespace ReShade
 			{
 				GetValue(values, count);
 			}
-			virtual void SetValue(const unsigned char *data, std::size_t size) = 0;
 			template <typename T>
 			inline void SetValue(const T *values, std::size_t count)
 			{
@@ -149,26 +160,35 @@ namespace ReShade
 			{
 				SetValue(values, count);
 			}
+
+		protected:
+			Constant(const Description &desc);
+			virtual ~Constant();
+
+		protected:
+			Description mDesc;
+			std::unordered_map<std::string, Annotation> mAnnotations;
 		};
 		class Technique
 		{
 		public:
-			virtual const Annotation GetAnnotation(const std::string &name) const = 0;
+			const Annotation GetAnnotation(const std::string &name) const;
 
-			inline bool Begin() const
-			{
-				unsigned int passes;
-				return Begin(passes);
-			}
+			bool Begin() const;
 			virtual bool Begin(unsigned int &passes) const = 0;
 			virtual void End() const = 0;
 			virtual void RenderPass(unsigned int index) const = 0;
+
+		protected:
+			Technique();
+			virtual ~Technique();
+
+		protected:
+			std::unordered_map<std::string, Effect::Annotation>	mAnnotations;
 		};
 
 	public:
-		virtual ~Effect()
-		{
-		}
+		virtual ~Effect();
 
 		virtual const Texture *GetTexture(const std::string &name) const = 0;
 		inline Texture *GetTexture(const std::string &name)

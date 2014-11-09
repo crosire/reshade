@@ -38,13 +38,13 @@ namespace ReShade
 
 		IDirect3DDevice9 *mDevice;
 		IDirect3DSwapChain9 *mSwapChain;
+		D3DCAPS9 mDeviceCaps;
+		D3DPRESENT_PARAMETERS mPresentParams;
 		IDirect3DStateBlock9 *mStateBlock;
-		IDirect3DSurface9 *mBackBuffer;
-		IDirect3DSurface9 *mBackBufferNotMultisampled;
+		IDirect3DSurface9 *mBackBuffer, *mBackBufferResolve;
+		IDirect3DSurface9 *mDepthStencil, *mDepthStencilReplacement;
 		IDirect3DTexture9 *mDepthStencilTexture;
 		std::unordered_map<IDirect3DSurface9 *, D3D9DepthStencilInfo> mDepthStencilTable;
-		IDirect3DSurface9 *mBestDepthStencil, *mBestDepthStencilReplacement;
-		UINT mDrawCallCounter;
 		bool mLost;
 	};
 	struct D3D9Effect : public Effect
@@ -57,41 +57,41 @@ namespace ReShade
 		D3D9Effect(std::shared_ptr<const D3D9Runtime> context);
 		~D3D9Effect();
 
-		const Texture *GetTexture(const std::string &name) const;
-		std::vector<std::string> GetTextureNames() const;
-		const Constant *GetConstant(const std::string &name) const;
-		std::vector<std::string> GetConstantNames() const;
-		const Technique *GetTechnique(const std::string &name) const;
-		std::vector<std::string> GetTechniqueNames() const;
+		virtual const Texture *GetTexture(const std::string &name) const override;
+		virtual std::vector<std::string> GetTextureNames() const override;
+		virtual const Constant *GetConstant(const std::string &name) const override;
+		virtual std::vector<std::string> GetConstantNames() const override;
+		virtual const Technique *GetTechnique(const std::string &name) const override;
+		virtual std::vector<std::string> GetTechniqueNames() const override;
 
 		std::shared_ptr<const D3D9Runtime> mEffectContext;
-		std::unordered_map<std::string,std::unique_ptr<D3D9Texture>> mTextures;
+		std::unordered_map<std::string, std::unique_ptr<D3D9Texture>> mTextures;
 		std::vector<D3D9Sampler> mSamplers;
 		std::unordered_map<std::string, std::unique_ptr<D3D9Constant>> mConstants;
 		std::unordered_map<std::string, std::unique_ptr<D3D9Technique>> mTechniques;
 		IDirect3DSurface9 *mDepthStencil;
-		IDirect3DVertexDeclaration9 *mVertexDeclaration;
 		IDirect3DVertexBuffer9 *mVertexBuffer;
+		IDirect3DVertexDeclaration9 *mVertexDeclaration;
 		float *mConstantStorage;
 		UINT mConstantRegisterCount;
 	};
 	struct D3D9Texture : public Effect::Texture
 	{
-		D3D9Texture(D3D9Effect *effect);
+		D3D9Texture(D3D9Effect *effect, const Description &desc);
 		~D3D9Texture();
 
-		const Description GetDescription() const;
-		const Effect::Annotation GetAnnotation(const std::string &name) const;
+		inline bool AddAnnotation(const std::string &name, const Effect::Annotation &value)
+		{
+			return this->mAnnotations.emplace(name, value).second;
+		}
 
-		void Update(unsigned int level, const unsigned char *data, std::size_t size);
-		void UpdateFromColorBuffer();
-		void UpdateFromDepthBuffer();
+		virtual bool Update(unsigned int level, const unsigned char *data, std::size_t size) override;
+		virtual void UpdateFromColorBuffer() override;
+		virtual void UpdateFromDepthBuffer() override;
 
 		D3D9Effect *mEffect;
-		Description mDesc;
-		std::unordered_map<std::string, Effect::Annotation>	mAnnotations;
 		IDirect3DTexture9 *mTexture;
-		IDirect3DSurface9 *mSurface;
+		IDirect3DSurface9 *mTextureSurface;
 	};
 	struct D3D9Sampler
 	{
@@ -100,18 +100,19 @@ namespace ReShade
 	};
 	struct D3D9Constant : public Effect::Constant
 	{
-		D3D9Constant(D3D9Effect *effect);
+		D3D9Constant(D3D9Effect *effect, const Description &desc);
 		~D3D9Constant();
 
-		const Description GetDescription() const;
-		const Effect::Annotation GetAnnotation(const std::string &name) const;
-		void GetValue(unsigned char *data, std::size_t size) const;
-		void SetValue(const unsigned char *data, std::size_t size);
+		inline bool AddAnnotation(const std::string &name, const Effect::Annotation &value)
+		{
+			return this->mAnnotations.emplace(name, value).second;
+		}
+
+		virtual void GetValue(unsigned char *data, std::size_t size) const override;
+		virtual void SetValue(const unsigned char *data, std::size_t size) override;
 
 		D3D9Effect *mEffect;
-		Description mDesc;
-		UINT mRegisterOffset;
-		std::unordered_map<std::string, Effect::Annotation>	mAnnotations;
+		UINT mStorageOffset;
 	};
 	struct D3D9Technique : public Effect::Technique
 	{
@@ -126,14 +127,20 @@ namespace ReShade
 		D3D9Technique(D3D9Effect *effect);
 		~D3D9Technique();
 
-		const Effect::Annotation GetAnnotation(const std::string &name) const;
+		inline bool AddAnnotation(const std::string &name, const Effect::Annotation &value)
+		{
+			return this->mAnnotations.emplace(name, value).second;
+		}
+		inline void AddPass(const Pass &pass)
+		{
+			this->mPasses.push_back(pass);
+		}
 
-		bool Begin(unsigned int &passes) const;
-		void End() const;
-		void RenderPass(unsigned int index) const;
+		virtual bool Begin(unsigned int &passes) const override;
+		virtual void End() const override;
+		virtual void RenderPass(unsigned int index) const override;
 
 		D3D9Effect *mEffect;
-		std::unordered_map<std::string, Effect::Annotation>	mAnnotations;
 		std::vector<Pass> mPasses;
 	};
 }

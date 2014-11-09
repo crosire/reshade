@@ -4,6 +4,60 @@
 
 namespace ReShade
 {
+	Effect::~Effect()
+	{
+	}
+
+	Effect::Texture::Texture(const Description &desc) : mDesc(desc)
+	{
+	}
+	Effect::Texture::~Texture()
+	{
+	}
+
+	const Effect::Texture::Description Effect::Texture::GetDescription() const
+	{
+		return this->mDesc;
+	}
+	const Effect::Annotation Effect::Texture::GetAnnotation(const std::string &name) const
+	{
+		const auto it = this->mAnnotations.find(name);
+
+		if (it != this->mAnnotations.end())
+		{
+			return it->second;
+		}
+		else
+		{
+			return Effect::Annotation();
+		}
+	}
+
+	Effect::Constant::Constant(const Description &desc) : mDesc(desc)
+	{
+	}
+	Effect::Constant::~Constant()
+	{
+	}
+
+	const Effect::Constant::Description Effect::Constant::GetDescription() const
+	{
+		return this->mDesc;
+	}
+	const Effect::Annotation Effect::Constant::GetAnnotation(const std::string &name) const
+	{
+		const auto it = this->mAnnotations.find(name);
+
+		if (it != this->mAnnotations.end())
+		{
+			return it->second;
+		}
+		else
+		{
+			return Effect::Annotation();
+		}
+	}
+
 	template <>
 	void Effect::Constant::GetValue<bool>(bool *values, std::size_t count) const
 	{
@@ -682,5 +736,32 @@ namespace ReShade
 		}
 
 		SetValue(data, dataSize);
+	}
+
+	Effect::Technique::Technique()
+	{
+	}
+	Effect::Technique::~Technique()
+	{
+	}
+
+	const Effect::Annotation Effect::Technique::GetAnnotation(const std::string &name) const
+	{
+		const auto it = this->mAnnotations.find(name);
+
+		if (it != this->mAnnotations.end())
+		{
+			return it->second;
+		}
+		else
+		{
+			return Effect::Annotation();
+		}
+	}
+
+	bool Effect::Technique::Begin() const
+	{
+		unsigned int passes;
+		return Begin(passes);
 	}
 }

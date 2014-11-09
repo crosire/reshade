@@ -1720,7 +1720,7 @@ namespace ReShade
 
 				this->mCurrentSource += "}\n";
 			}
-			void Visit(const EffectNodes::Annotation &node, std::unordered_map<std::string, Effect::Annotation> &annotations)
+			void Visit(const EffectNodes::Annotation &node, GLTexture &texture)
 			{
 				Effect::Annotation data;
 				const auto &value = this->mAST[node.Value].As<EffectNodes::Literal>();
@@ -1744,11 +1744,73 @@ namespace ReShade
 						break;
 				}
 
-				annotations.insert(std::make_pair(node.Name, data));
+				texture.AddAnnotation(node.Name, data);
 
 				if (node.NextAnnotation != EffectTree::Null)
 				{
-					Visit(this->mAST[node.NextAnnotation].As<EffectNodes::Annotation>(), annotations);
+					Visit(this->mAST[node.NextAnnotation].As<EffectNodes::Annotation>(), texture);
+				}
+			}
+			void Visit(const EffectNodes::Annotation &node, GLConstant &constant)
+			{
+				Effect::Annotation data;
+				const auto &value = this->mAST[node.Value].As<EffectNodes::Literal>();
+
+				switch (value.Type.Class)
+				{
+					case EffectNodes::Type::Bool:
+						data = value.Value.Bool[0] != 0;
+						break;
+					case EffectNodes::Type::Int:
+						data = value.Value.Int[0];
+						break;
+					case EffectNodes::Type::Uint:
+						data = value.Value.Uint[0];
+						break;
+					case EffectNodes::Type::Float:
+						data = value.Value.Float[0];
+						break;
+					case EffectNodes::Type::String:
+						data = value.Value.String;
+						break;
+				}
+
+				constant.AddAnnotation(node.Name, data);
+
+				if (node.NextAnnotation != EffectTree::Null)
+				{
+					Visit(this->mAST[node.NextAnnotation].As<EffectNodes::Annotation>(), constant);
+				}
+			}
+			void Visit(const EffectNodes::Annotation &node, GLTechnique &technique)
+			{
+				Effect::Annotation data;
+				const auto &value = this->mAST[node.Value].As<EffectNodes::Literal>();
+
+				switch (value.Type.Class)
+				{
+					case EffectNodes::Type::Bool:
+						data = value.Value.Bool[0] != 0;
+						break;
+					case EffectNodes::Type::Int:
+						data = value.Value.Int[0];
+						break;
+					case EffectNodes::Type::Uint:
+						data = value.Value.Uint[0];
+						break;
+					case EffectNodes::Type::Float:
+						data = value.Value.Float[0];
+						break;
+					case EffectNodes::Type::String:
+						data = value.Value.String;
+						break;
+				}
+
+				technique.AddAnnotation(node.Name, data);
+
+				if (node.NextAnnotation != EffectTree::Null)
+				{
+					Visit(this->mAST[node.NextAnnotation].As<EffectNodes::Annotation>(), technique);
 				}
 			}
 			void Visit(const EffectNodes::Struct &node)
@@ -1882,11 +1944,13 @@ namespace ReShade
 					LiteralToFormat(this->mAST[node.Properties[EffectNodes::Variable::Format]].As<EffectNodes::Literal>().Value.Uint[0], internalformat, internalformatSRGB, format);
 				}
 
-				std::unique_ptr<GLTexture> obj(new GLTexture(this->mEffect));
-				obj->mDesc.Width = width;
-				obj->mDesc.Height = height;
-				obj->mDesc.Levels = levels;
-				obj->mDesc.Format = format;
+				GLTexture::Description objdesc;
+				objdesc.Width = width;
+				objdesc.Height = height;
+				objdesc.Levels = levels;
+				objdesc.Format = format;
+
+				std::unique_ptr<GLTexture> obj(new GLTexture(this->mEffect, objdesc));
 
 				GLCHECK(glGenTextures(2, obj->mID));
 
@@ -1903,7 +1967,7 @@ namespace ReShade
 
 				if (node.Annotations != EffectTree::Null)
 				{
-					Visit(this->mAST[node.Annotations].As<EffectNodes::Annotation>(), obj->mAnnotations);
+					Visit(this->mAST[node.Annotations].As<EffectNodes::Annotation>(), *obj);
 				}
 
 				this->mEffect->mTextures.insert(std::make_pair(node.Name, std::move(obj)));
@@ -1981,38 +2045,40 @@ namespace ReShade
 
 				this->mCurrentGlobalConstants += ";\n";
 
-				std::unique_ptr<GLConstant> obj(new GLConstant(this->mEffect));
-				obj->mDesc.Rows = node.Type.Rows;
-				obj->mDesc.Columns = node.Type.Cols;
-				obj->mDesc.Elements = node.Type.ArrayLength;
-				obj->mDesc.Fields = 0;
-				obj->mDesc.Size = node.Type.Rows * node.Type.Cols;
+				GLConstant::Description objdesc;
+				objdesc.Rows = node.Type.Rows;
+				objdesc.Columns = node.Type.Cols;
+				objdesc.Elements = node.Type.ArrayLength;
+				objdesc.Fields = 0;
+				objdesc.Size = node.Type.Rows * node.Type.Cols;
 
 				switch (node.Type.Class)
 				{
 					case EffectNodes::Type::Bool:
-						obj->mDesc.Size *= sizeof(int);
-						obj->mDesc.Type = Effect::Constant::Type::Bool;
+						objdesc.Size *= sizeof(int);
+						objdesc.Type = Effect::Constant::Type::Bool;
 						break;
 					case EffectNodes::Type::Int:
-						obj->mDesc.Size *= sizeof(int);
-						obj->mDesc.Type = Effect::Constant::Type::Int;
+						objdesc.Size *= sizeof(int);
+						objdesc.Type = Effect::Constant::Type::Int;
 						break;
 					case EffectNodes::Type::Uint:
-						obj->mDesc.Size *= sizeof(unsigned int);
-						obj->mDesc.Type = Effect::Constant::Type::Uint;
+						objdesc.Size *= sizeof(unsigned int);
+						objdesc.Type = Effect::Constant::Type::Uint;
 						break;
 					case EffectNodes::Type::Float:
-						obj->mDesc.Size *= sizeof(float);
-						obj->mDesc.Type = Effect::Constant::Type::Float;
+						objdesc.Size *= sizeof(float);
+						objdesc.Type = Effect::Constant::Type::Float;
 						break;
 				}
 
+				std::unique_ptr<GLConstant> obj(new GLConstant(this->mEffect, objdesc));
+
 				const std::size_t alignment = 16 - (this->mCurrentGlobalSize % 16);
-				this->mCurrentGlobalSize += (obj->mDesc.Size > alignment && (alignment != 16 || obj->mDesc.Size <= 16)) ? obj->mDesc.Size + alignment : obj->mDesc.Size;
+				this->mCurrentGlobalSize += (objdesc.Size > alignment && (alignment != 16 || objdesc.Size <= 16)) ? objdesc.Size + alignment : objdesc.Size;
 
 				obj->mBuffer = 0;
-				obj->mBufferOffset = this->mCurrentGlobalSize - obj->mDesc.Size;
+				obj->mBufferOffset = this->mCurrentGlobalSize - objdesc.Size;
 
 				if (this->mCurrentGlobalSize >= this->mEffect->mUniformStorages[0].second)
 				{
@@ -2021,16 +2087,16 @@ namespace ReShade
 
 				if (node.Annotations != EffectTree::Null)
 				{
-					Visit(this->mAST[node.Annotations].As<EffectNodes::Annotation>(), obj->mAnnotations);
+					Visit(this->mAST[node.Annotations].As<EffectNodes::Annotation>(), *obj);
 				}
 
 				if (node.Initializer != EffectTree::Null && this->mAST[node.Initializer].Is<EffectNodes::Literal>())
 				{
-					std::memcpy(this->mEffect->mUniformStorages[0].first + obj->mBufferOffset, &this->mAST[node.Initializer].As<EffectNodes::Literal>().Value, obj->mDesc.Size);
+					std::memcpy(this->mEffect->mUniformStorages[0].first + obj->mBufferOffset, &this->mAST[node.Initializer].As<EffectNodes::Literal>().Value, objdesc.Size);
 				}
 				else
 				{
-					std::memset(this->mEffect->mUniformStorages[0].first + obj->mBufferOffset, 0, obj->mDesc.Size);
+					std::memset(this->mEffect->mUniformStorages[0].first + obj->mBufferOffset, 0, objdesc.Size);
 				}
 
 				this->mEffect->mConstants.insert(std::make_pair(node.Name, std::move(obj)));
@@ -2062,38 +2128,39 @@ namespace ReShade
 
 					Visit(*field);
 
-					std::unique_ptr<GLConstant> obj(new GLConstant(this->mEffect));
-					obj->mDesc.Rows = field->Type.Rows;
-					obj->mDesc.Columns = field->Type.Cols;
-					obj->mDesc.Elements = field->Type.ArrayLength;
-					obj->mDesc.Fields = 0;
-					obj->mDesc.Size = field->Type.Rows * field->Type.Cols;
+					GLConstant::Description objdesc;
+					objdesc.Rows = field->Type.Rows;
+					objdesc.Columns = field->Type.Cols;
+					objdesc.Elements = field->Type.ArrayLength;
+					objdesc.Fields = 0;
+					objdesc.Size = field->Type.Rows * field->Type.Cols;
 
 					switch (field->Type.Class)
 					{
 						case EffectNodes::Type::Bool:
-							obj->mDesc.Size *= sizeof(int);
-							obj->mDesc.Type = Effect::Constant::Type::Bool;
+							objdesc.Size *= sizeof(int);
+							objdesc.Type = Effect::Constant::Type::Bool;
 							break;
 						case EffectNodes::Type::Int:
-							obj->mDesc.Size *= sizeof(int);
-							obj->mDesc.Type = Effect::Constant::Type::Int;
+							objdesc.Size *= sizeof(int);
+							objdesc.Type = Effect::Constant::Type::Int;
 							break;
 						case EffectNodes::Type::Uint:
-							obj->mDesc.Size *= sizeof(unsigned int);
-							obj->mDesc.Type = Effect::Constant::Type::Uint;
+							objdesc.Size *= sizeof(unsigned int);
+							objdesc.Type = Effect::Constant::Type::Uint;
 							break;
 						case EffectNodes::Type::Float:
-							obj->mDesc.Size *= sizeof(float);
-							obj->mDesc.Type = Effect::Constant::Type::Float;
+							objdesc.Size *= sizeof(float);
+							objdesc.Type = Effect::Constant::Type::Float;
 							break;
 					}
 
+					std::unique_ptr<GLConstant> obj(new GLConstant(this->mEffect, objdesc));
 					const std::size_t alignment = 16 - (totalsize % 16);
-					totalsize += (obj->mDesc.Size > alignment && (alignment != 16 || obj->mDesc.Size <= 16)) ? obj->mDesc.Size + alignment : obj->mDesc.Size;
+					totalsize += (objdesc.Size > alignment && (alignment != 16 || objdesc.Size <= 16)) ? objdesc.Size + alignment : objdesc.Size;
 
 					obj->mBuffer = this->mEffect->mUniformBuffers.size();
-					obj->mBufferOffset = totalsize - obj->mDesc.Size;
+					obj->mBufferOffset = totalsize - objdesc.Size;
 
 					if (totalsize >= currentsize)
 					{
@@ -2102,11 +2169,11 @@ namespace ReShade
 
 					if (field->Initializer != EffectTree::Null && this->mAST[field->Initializer].Is<EffectNodes::Literal>())
 					{
-						std::memcpy(storage + obj->mBufferOffset, &this->mAST[field->Initializer].As<EffectNodes::Literal>().Value, obj->mDesc.Size);
+						std::memcpy(storage + obj->mBufferOffset, &this->mAST[field->Initializer].As<EffectNodes::Literal>().Value, objdesc.Size);
 					}
 					else
 					{
-						std::memset(storage + obj->mBufferOffset, 0, obj->mDesc.Size);
+						std::memset(storage + obj->mBufferOffset, 0, objdesc.Size);
 					}
 
 					this->mEffect->mConstants.insert(std::make_pair(std::string(node.Name) + '.' + std::string(field->Name), std::move(obj)));
@@ -2126,19 +2193,21 @@ namespace ReShade
 
 				this->mCurrentSource += "};\n";
 
-				std::unique_ptr<GLConstant> obj(new GLConstant(this->mEffect));
-				obj->mDesc.Type = Effect::Constant::Type::Struct;
-				obj->mDesc.Rows = 0;
-				obj->mDesc.Columns = 0;
-				obj->mDesc.Elements = 0;
-				obj->mDesc.Fields = fieldCount;
-				obj->mDesc.Size = totalsize;
+				GLConstant::Description objdesc;
+				objdesc.Type = Effect::Constant::Type::Struct;
+				objdesc.Rows = 0;
+				objdesc.Columns = 0;
+				objdesc.Elements = 0;
+				objdesc.Fields = fieldCount;
+				objdesc.Size = totalsize;
+
+				std::unique_ptr<GLConstant> obj(new GLConstant(this->mEffect, objdesc));
 				obj->mBuffer = this->mEffect->mUniformBuffers.size();
 				obj->mBufferOffset = 0;
 
 				if (node.Annotations != EffectTree::Null)
 				{
-					Visit(this->mAST[node.Annotations].As<EffectNodes::Annotation>(), obj->mAnnotations);
+					Visit(this->mAST[node.Annotations].As<EffectNodes::Annotation>(), *obj);
 				}
 
 				this->mEffect->mConstants.insert(std::make_pair(node.Name, std::move(obj)));
@@ -2234,7 +2303,7 @@ namespace ReShade
 
 				if (node.Annotations != EffectTree::Null)
 				{
-					Visit(this->mAST[node.Annotations].As<EffectNodes::Annotation>(), obj->mAnnotations);
+					Visit(this->mAST[node.Annotations].As<EffectNodes::Annotation>(), *obj);
 				}
 
 				this->mEffect->mTechniques.insert(std::make_pair(node.Name, std::move(obj)));
@@ -2303,8 +2372,9 @@ namespace ReShade
 						}
 
 						const GLTexture *texture = it->second.get();
+						const GLTexture::Description desc = texture->GetDescription();
 
-						if ((texture->mDesc.Width != static_cast<unsigned int>(pass.ViewportWidth) || texture->mDesc.Height != static_cast<unsigned int>(pass.ViewportHeight)) && !(pass.ViewportWidth == 0 && pass.ViewportHeight == 0))
+						if ((desc.Width != static_cast<unsigned int>(pass.ViewportWidth) || desc.Height != static_cast<unsigned int>(pass.ViewportHeight)) && !(pass.ViewportWidth == 0 && pass.ViewportHeight == 0))
 						{
 							this->mErrors += PrintLocation(node.Location) + "Cannot use multiple rendertargets with different sized textures.\n";
 							this->mFatal = true;
@@ -2316,8 +2386,8 @@ namespace ReShade
 						GLCHECK(glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, texture->mID[pass.FramebufferSRGB], 0));
 
 						pass.DrawBuffers[i] = GL_COLOR_ATTACHMENT0 + i;
-						pass.ViewportWidth = texture->mDesc.Width;
-						pass.ViewportHeight = texture->mDesc.Height;
+						pass.ViewportWidth = desc.Width;
+						pass.ViewportHeight = desc.Height;
 					}
 				}
 
@@ -2866,24 +2936,176 @@ namespace ReShade
 					return GL_TEXTURE_BINDING_CUBE_MAP;
 				case GL_TEXTURE_CUBE_MAP_ARRAY:
 					return GL_TEXTURE_BINDING_CUBE_MAP_ARRAY;
+				default:
+					return GL_NONE;
+			}
+		}
+		inline void FlipBC1Block(unsigned char *block)
+		{
+			// BC1 Block:
+			//  [0-1]  color 0
+			//  [2-3]  color 1
+			//  [4-7]  color indices
+
+			std::swap(block[4], block[7]);
+			std::swap(block[5], block[6]);
+		}
+		inline void FlipBC2Block(unsigned char *block)
+		{
+			// BC2 Block:
+			//  [0-7]  alpha indices
+			//  [8-15] color block
+
+			std::swap(block[0], block[6]);
+			std::swap(block[1], block[7]);
+			std::swap(block[2], block[4]);
+			std::swap(block[3], block[5]);
+
+			FlipBC1Block(block + 8);
+		}
+		inline void FlipBC4Block(unsigned char *block)
+		{
+			// BC4 Block:
+			//  [0]    red 0
+			//  [1]    red 1
+			//  [2-7]  red indices
+
+			const unsigned int line_0_1 = block[2] + 256 * (block[3] + 256 * block[4]);
+			const unsigned int line_2_3 = block[5] + 256 * (block[6] + 256 * block[7]);
+			const unsigned int line_1_0 = ((line_0_1 & 0x000FFF) << 12) | ((line_0_1 & 0xFFF000) >> 12);
+			const unsigned int line_3_2 = ((line_2_3 & 0x000FFF) << 12) | ((line_2_3 & 0xFFF000) >> 12);
+			block[2] = static_cast<unsigned char>((line_3_2 & 0xFF));
+			block[3] = static_cast<unsigned char>((line_3_2 & 0xFF00) >> 8);
+			block[4] = static_cast<unsigned char>((line_3_2 & 0xFF0000) >> 16);
+			block[5] = static_cast<unsigned char>((line_1_0 & 0xFF));
+			block[6] = static_cast<unsigned char>((line_1_0 & 0xFF00) >> 8);
+			block[7] = static_cast<unsigned char>((line_1_0 & 0xFF0000) >> 16);
+		}
+		inline void FlipBC3Block(unsigned char *block)
+		{
+			// BC3 Block:
+			//  [0-7]  alpha block
+			//  [8-15] color block
+
+			FlipBC4Block(block);
+			FlipBC1Block(block + 8);
+		}
+		inline void FlipBC5Block(unsigned char *block)
+		{
+			// BC5 Block:
+			//  [0-7]  red block
+			//  [8-15] green block
+
+			FlipBC4Block(block);
+			FlipBC4Block(block + 8);
+		}
+		void FlipImageData(const Effect::Texture::Description &desc, unsigned char *data)
+		{
+			typedef void (*FlipBlockFunc)(unsigned char *block);
+
+			std::size_t blocksize = 0;
+			bool compressed = false;
+			FlipBlockFunc compressedFunc = nullptr;
+
+			switch (desc.Format)
+			{
+				case Effect::Texture::Format::R8:
+					blocksize = 1;
+					break;
+				case Effect::Texture::Format::RG8:
+					blocksize = 2;
+					break;
+				case Effect::Texture::Format::R32F:
+				case Effect::Texture::Format::RGBA8:
+					blocksize = 4;
+					break;
+				case Effect::Texture::Format::RGBA16:
+				case Effect::Texture::Format::RGBA16F:
+					blocksize = 8;
+					break;
+				case Effect::Texture::Format::RGBA32F:
+					blocksize = 16;
+					break;
+				case Effect::Texture::Format::DXT1:
+					blocksize = 8;
+					compressed = true;
+					compressedFunc = &FlipBC1Block;
+					break;
+				case Effect::Texture::Format::DXT3:
+					blocksize = 16;
+					compressed = true;
+					compressedFunc = &FlipBC2Block;
+					break;
+				case Effect::Texture::Format::DXT5:
+					blocksize = 16;
+					compressed = true;
+					compressedFunc = &FlipBC3Block;
+					break;
+				case Effect::Texture::Format::LATC1:
+					blocksize = 8;
+					compressed = true;
+					compressedFunc = &FlipBC4Block;
+					break;
+				case Effect::Texture::Format::LATC2:
+					blocksize = 16;
+					compressed = true;
+					compressedFunc = &FlipBC5Block;
+					break;
+				default:
+					return;
 			}
 
-			return GL_NONE;
+			if (compressed)
+			{
+				const std::size_t w = (desc.Width + 3) / 4;
+				const std::size_t h = (desc.Height + 3) / 4;
+				const std::size_t stride = w * blocksize;
+
+				for (std::size_t y = 0; y < h; ++y)
+				{
+					unsigned char *dataLine = data + stride * (h - 1 - y);
+
+					for (std::size_t x = 0; x < stride; x += blocksize)
+					{
+						compressedFunc(dataLine + x);
+					}
+				}
+			}
+			else
+			{
+				const std::size_t w = desc.Width;
+				const std::size_t h = desc.Height;
+				const std::size_t stride = w * blocksize;
+				unsigned char *templine = static_cast<unsigned char *>(::alloca(stride));
+
+				for (std::size_t y = 0; 2 * y < h; ++y)
+				{
+					unsigned char *line1 = data + stride * y;
+					unsigned char *line2 = data + stride * (h - 1 - y);
+
+					std::memcpy(templine, line1, stride);
+					std::memcpy(line1, line2, stride);
+					std::memcpy(line2, templine, stride);
+				}
+			}
 		}
 	}
 
 	// -----------------------------------------------------------------------------------------------------
 
-	GLRuntime::GLRuntime(HDC device, HGLRC context) : mDeviceContext(device), mRenderContext(context), mBackBufferFBO(0), mBackBufferRBO(0), mBestDepthStencilFBO(0), mBestDepthStencilTexture(0), mBlitFBO(0), mDrawCallCounter(1), mLost(true), mPresenting(false)
+	GLRuntime::GLRuntime(HDC device, HGLRC context) : mDeviceContext(device), mRenderContext(context), mBackBufferFBO(0), mBackBufferRBO(0), mDepthStencilFBO(0), mDepthStencilTexture(0), mBlitFBO(0), mLost(true), mPresenting(false)
 	{
-		this->mRendererId = 0x061;
+		assert(device != nullptr);
+		assert(context != nullptr);
 
-		if (::GetModuleHandleA("nvd3d9wrap.dll") == nullptr && ::GetModuleHandleA("nvd3d9wrapx.dll") == nullptr)
+		this->mRendererId = 0x61;
+
+		if (GetModuleHandleA("nvd3d9wrap.dll") == nullptr && GetModuleHandleA("nvd3d9wrapx.dll") == nullptr)
 		{
 			DISPLAY_DEVICEA dd;
 			dd.cb = sizeof(DISPLAY_DEVICEA);
 
-			for (int i = 0; ::EnumDisplayDevicesA(nullptr, i, &dd, 0) != FALSE; ++i)
+			for (DWORD i = 0; EnumDisplayDevicesA(nullptr, i, &dd, 0) != FALSE; ++i)
 			{
 				if ((dd.StateFlags & DISPLAY_DEVICE_PRIMARY_DEVICE) != 0)
 				{
@@ -2948,8 +3170,8 @@ namespace ReShade
 		defaultfbo.DepthStencilTarget = GL_FRAMEBUFFER_DEFAULT;
 		this->mFramebufferTable[0] = defaultfbo;
 
-		GLCHECK(glGenTextures(1, &this->mBestDepthStencilTexture));
-		GLCHECK(glBindTexture(GL_TEXTURE_2D, this->mBestDepthStencilTexture));
+		GLCHECK(glGenTextures(1, &this->mDepthStencilTexture));
+		GLCHECK(glBindTexture(GL_TEXTURE_2D, this->mDepthStencilTexture));
 		GLCHECK(glTexStorage2D(GL_TEXTURE_2D, 1, defaultfbo.DepthStencilFormat, defaultfbo.DepthStencilWidth, defaultfbo.DepthStencilHeight));
 		GLCHECK(glBindTexture(GL_TEXTURE_2D, 0));
 
@@ -2974,63 +3196,65 @@ namespace ReShade
 
 		nvgDeleteGL3(this->mNVG);
 
+		this->mNVG = nullptr;
+
 		GLCHECK(glDeleteFramebuffers(1, &this->mBackBufferFBO));			
 		GLCHECK(glDeleteFramebuffers(1, &this->mBlitFBO));			
 		GLCHECK(glDeleteRenderbuffers(1, &this->mBackBufferRBO));
-		GLCHECK(glDeleteTextures(1, &this->mBestDepthStencilTexture));
+		GLCHECK(glDeleteTextures(1, &this->mDepthStencilTexture));
+
+		this->mBackBufferFBO = 0;
+		this->mBackBufferRBO = 0;
+		this->mDepthStencilFBO = 0;
+		this->mDepthStencilTexture = 0;
+		this->mBlitFBO = 0;
 
 		this->mFramebufferTable.clear();
 
 		this->mStateBlock.Apply();
 
-		this->mNVG = nullptr;
-		this->mBackBufferFBO = 0;
-		this->mBackBufferRBO = 0;
-		this->mBestDepthStencilFBO = 0;
-		this->mBestDepthStencilTexture = 0;
-		this->mBlitFBO = 0;
-
 		this->mLost = true;
+		this->mPresenting = false;
 	}
 	void GLRuntime::OnDraw(unsigned int vertices)
 	{
-		GLint framebuffer = 0;
-		GLCHECK(glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &framebuffer));
+		Runtime::OnDraw(vertices);
 
-		const auto it = this->mFramebufferTable.find(framebuffer);
+		GLint fbo = 0;
+		GLCHECK(glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &fbo));
+
+		const auto it = this->mFramebufferTable.find(fbo);
 
 		if (it != this->mFramebufferTable.end())
 		{
-			it->second.DrawCallCount = static_cast<GLfloat>(this->mDrawCallCounter++);
+			it->second.DrawCallCount = static_cast<GLfloat>(this->mLastDrawCalls++);
 			it->second.DrawVerticesCount += vertices;
 		}
-
-		Runtime::OnDraw(vertices);
 	}
 	void GLRuntime::OnPresent()
 	{
+		if (this->mLost)
+		{
+			return;
+		}
+
 		DetectBestDepthStencil();
 
-		this->mDrawCallCounter = 1;
-
+		// Capture states
 		this->mStateBlock.Capture();
 
-		GLCHECK(glBindFramebuffer(GL_READ_FRAMEBUFFER, this->mBestDepthStencilFBO));
+		// Copy depthbuffer
+		GLCHECK(glBindFramebuffer(GL_READ_FRAMEBUFFER, this->mDepthStencilFBO));
 		GLCHECK(glBindFramebuffer(GL_DRAW_FRAMEBUFFER, this->mBlitFBO));
-		GLCHECK(glFramebufferTexture(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, this->mBestDepthStencilTexture, 0));
-
+		GLCHECK(glFramebufferTexture(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, this->mDepthStencilTexture, 0));
 		assert(glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
-
 		GLCHECK(glBlitFramebuffer(0, 0, this->mWidth, this->mHeight, 0, 0, this->mWidth, this->mHeight, GL_DEPTH_BUFFER_BIT, GL_NEAREST));
-	
 		GLCHECK(glFramebufferTexture(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, 0, 0));
-
 		GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, 0));
 
+		// Apply post processing
 		this->mPresenting = true;
-
 		Runtime::OnPresent();
-
 		this->mPresenting = false;
 
 		if (this->mLost)
@@ -3038,6 +3262,7 @@ namespace ReShade
 			return;
 		}
 
+		// Apply states
 		this->mStateBlock.Apply();
 	}
 
@@ -3092,26 +3317,28 @@ namespace ReShade
 			return;
 		}
 
-		GLint framebuffer = 0;
-		GLCHECK(glGetIntegerv(TargetToBinding(target), &framebuffer));
+		// Get current framebuffer
+		GLint fbo = 0;
+		GLCHECK(glGetIntegerv(TargetToBinding(target), &fbo));
 
-		assert(framebuffer != 0);
+		assert(fbo != 0);
 
-		GLFramebufferInfo &info = this->mFramebufferTable[framebuffer];
+		GLFramebufferInfo &info = this->mFramebufferTable[fbo];
 		info.DepthStencilName = object;
 		info.DepthStencilTarget = objecttarget;
 
 		if (objecttarget == GL_RENDERBUFFER)
 		{
-			GLint prevRBO = 0;
-			GLCHECK(glGetIntegerv(GL_RENDERBUFFER_BINDING, &prevRBO));
+			GLint previous = 0;
+			GLCHECK(glGetIntegerv(GL_RENDERBUFFER_BINDING, &previous));
 
+			// Get depthstencil parameters from renderbuffer
 			GLCHECK(glBindRenderbuffer(GL_RENDERBUFFER, object));
 			GLCHECK(glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_WIDTH, &info.DepthStencilWidth));
 			GLCHECK(glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_HEIGHT, &info.DepthStencilHeight));
 			GLCHECK(glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_INTERNAL_FORMAT, &info.DepthStencilFormat));
 
-			GLCHECK(glBindRenderbuffer(GL_RENDERBUFFER, prevRBO));
+			GLCHECK(glBindRenderbuffer(GL_RENDERBUFFER, previous));
 		}
 		else
 		{
@@ -3120,15 +3347,16 @@ namespace ReShade
 				objecttarget = GL_TEXTURE_2D;
 			}
 
-			GLint prevTex = 0;
-			GLCHECK(glGetIntegerv(TargetToBinding(objecttarget), &prevTex));
+			GLint previous = 0;
+			GLCHECK(glGetIntegerv(TargetToBinding(objecttarget), &previous));
 
+			// Get depthstencil parameters from texture
 			GLCHECK(glBindTexture(objecttarget, object));
 			GLCHECK(glGetTexLevelParameteriv(objecttarget, level, GL_TEXTURE_WIDTH, &info.DepthStencilWidth));
 			GLCHECK(glGetTexLevelParameteriv(objecttarget, level, GL_TEXTURE_HEIGHT, &info.DepthStencilHeight));
 			GLCHECK(glGetTexLevelParameteriv(objecttarget, level, GL_TEXTURE_INTERNAL_FORMAT, &info.DepthStencilFormat));
 			
-			GLCHECK(glBindTexture(objecttarget, prevTex));
+			GLCHECK(glBindTexture(objecttarget, previous));
 		}
 	}
 	void GLRuntime::DetectBestDepthStencil()
@@ -3154,7 +3382,7 @@ namespace ReShade
 				continue;
 			}
 
-			if (((it.second.DrawVerticesCount * (1.2f - it.second.DrawCallCount / this->mDrawCallCounter)) >= (bestInfo.DrawVerticesCount * (1.2f - bestInfo.DrawCallCount / this->mDrawCallCounter))) && (it.second.DepthStencilWidth == this->mWidth && it.second.DepthStencilHeight == this->mHeight))
+			if (((it.second.DrawVerticesCount * (1.2f - it.second.DrawCallCount / this->mLastDrawCalls)) >= (bestInfo.DrawVerticesCount * (1.2f - bestInfo.DrawCallCount / this->mLastDrawCalls))) && (it.second.DepthStencilWidth == static_cast<GLint>(this->mWidth) && it.second.DepthStencilHeight == static_cast<GLint>(this->mHeight)))
 			{
 				best = it.first;
 				bestInfo = it.second;
@@ -3168,21 +3396,21 @@ namespace ReShade
 			bestInfo = this->mFramebufferTable.at(0);
 		}
 
-		if (this->mBestDepthStencilFBO != best)
+		if (this->mDepthStencilFBO != best)
 		{
-			GLint prevTex = 0;
-			GLCHECK(glGetIntegerv(GL_TEXTURE_BINDING_2D, &prevTex));
+			GLint previous = 0;
+			GLCHECK(glGetIntegerv(GL_TEXTURE_BINDING_2D, &previous));
 
-			GLCHECK(glDeleteTextures(1, &this->mBestDepthStencilTexture));
+			GLCHECK(glDeleteTextures(1, &this->mDepthStencilTexture));
 
-			this->mBestDepthStencilFBO = best;
-			this->mBestDepthStencilTexture = 0;
+			this->mDepthStencilFBO = best;
+			this->mDepthStencilTexture = 0;
 
-			GLCHECK(glGenTextures(1, &this->mBestDepthStencilTexture));
-			GLCHECK(glBindTexture(GL_TEXTURE_2D, this->mBestDepthStencilTexture));
+			GLCHECK(glGenTextures(1, &this->mDepthStencilTexture));
+			GLCHECK(glBindTexture(GL_TEXTURE_2D, this->mDepthStencilTexture));
 			GLCHECK(glTexStorage2D(GL_TEXTURE_2D, 1, bestInfo.DepthStencilFormat, bestInfo.DepthStencilWidth, bestInfo.DepthStencilHeight));
 
-			GLCHECK(glBindTexture(GL_TEXTURE_2D, prevTex));
+			GLCHECK(glBindTexture(GL_TEXTURE_2D, previous));
 		}
 	}
 
@@ -3278,7 +3506,28 @@ namespace ReShade
 		return names;
 	}
 
-	GLTexture::GLTexture(GLEffect *effect) : mEffect(effect), mID(), mNoDelete(false)
+	void GLEffect::UpdateConstants() const
+	{
+		if (!this->mUniformDirty)
+		{
+			return;
+		}
+
+		for (GLsizei buffer = 0, bufferCount = static_cast<GLsizei>(this->mUniformBuffers.size()); buffer < bufferCount; ++buffer)
+		{
+			if (this->mUniformBuffers[buffer] == 0)
+			{
+				continue;
+			}
+
+			GLCHECK(glBindBuffer(GL_UNIFORM_BUFFER, this->mUniformBuffers[buffer]));
+			GLCHECK(glBufferSubData(GL_UNIFORM_BUFFER, 0, this->mUniformStorages[buffer].second, this->mUniformStorages[buffer].first));
+		}
+
+		this->mUniformDirty = false;
+	}
+
+	GLTexture::GLTexture(GLEffect *effect, const Description &desc) : Texture(desc), mEffect(effect), mID(), mNoDelete(false)
 	{
 	}
 	GLTexture::~GLTexture()
@@ -3289,175 +3538,12 @@ namespace ReShade
 		}
 	}
 
-	const Effect::Texture::Description GLTexture::GetDescription() const
+	bool GLTexture::Update(unsigned int level, const unsigned char *data, std::size_t size)
 	{
-		return this->mDesc;
-	}
-	const Effect::Annotation GLTexture::GetAnnotation(const std::string &name) const
-	{
-		auto it = this->mAnnotations.find(name);
-
-		if (it == this->mAnnotations.end())
+		if (data == nullptr || size == 0 || level > this->mDesc.Levels)
 		{
-			return Effect::Annotation();
+			return false;
 		}
-
-		return it->second;
-	}
-
-	inline void FlipBC1Block(unsigned char *block)
-	{
-		// BC1 Block:
-		//  [0-1]  color 0
-		//  [2-3]  color 1
-		//  [4-7]  color indices
-
-		std::swap(block[4], block[7]);
-		std::swap(block[5], block[6]);
-	}
-	inline void FlipBC2Block(unsigned char *block)
-	{
-		// BC2 Block:
-		//  [0-7]  alpha indices
-		//  [8-15] color block
-
-		std::swap(block[0], block[6]);
-		std::swap(block[1], block[7]);
-		std::swap(block[2], block[4]);
-		std::swap(block[3], block[5]);
-
-		FlipBC1Block(block + 8);
-	}
-	inline void FlipBC4Block(unsigned char *block)
-	{
-		// BC4 Block:
-		//  [0]    red 0
-		//  [1]    red 1
-		//  [2-7]  red indices
-
-		const unsigned int line_0_1 = block[2] + 256 * (block[3] + 256 * block[4]);
-		const unsigned int line_2_3 = block[5] + 256 * (block[6] + 256 * block[7]);
-		const unsigned int line_1_0 = ((line_0_1 & 0x000FFF) << 12) | ((line_0_1 & 0xFFF000) >> 12);
-		const unsigned int line_3_2 = ((line_2_3 & 0x000FFF) << 12) | ((line_2_3 & 0xFFF000) >> 12);
-		block[2] = static_cast<unsigned char>((line_3_2 & 0xFF));
-		block[3] = static_cast<unsigned char>((line_3_2 & 0xFF00) >> 8);
-		block[4] = static_cast<unsigned char>((line_3_2 & 0xFF0000) >> 16);
-		block[5] = static_cast<unsigned char>((line_1_0 & 0xFF));
-		block[6] = static_cast<unsigned char>((line_1_0 & 0xFF00) >> 8);
-		block[7] = static_cast<unsigned char>((line_1_0 & 0xFF0000) >> 16);
-	}
-	inline void FlipBC3Block(unsigned char *block)
-	{
-		// BC3 Block:
-		//  [0-7]  alpha block
-		//  [8-15] color block
-
-		FlipBC4Block(block);
-		FlipBC1Block(block + 8);
-	}
-	inline void FlipBC5Block(unsigned char *block)
-	{
-		// BC5 Block:
-		//  [0-7]  red block
-		//  [8-15] green block
-
-		FlipBC4Block(block);
-		FlipBC4Block(block + 8);
-	}
-	void FlipImage(const Effect::Texture::Description &desc, unsigned char *data)
-	{
-		typedef void (*FlipBlockFunc)(unsigned char *block);
-
-		std::size_t blocksize = 0;
-		bool compressed = false;
-		FlipBlockFunc compressedFunc = nullptr;
-
-		switch (desc.Format)
-		{
-			case Effect::Texture::Format::R8:
-				blocksize = 1;
-				break;
-			case Effect::Texture::Format::RG8:
-				blocksize = 2;
-				break;
-			case Effect::Texture::Format::R32F:
-			case Effect::Texture::Format::RGBA8:
-				blocksize = 4;
-				break;
-			case Effect::Texture::Format::RGBA16:
-			case Effect::Texture::Format::RGBA16F:
-				blocksize = 8;
-				break;
-			case Effect::Texture::Format::RGBA32F:
-				blocksize = 16;
-				break;
-			case Effect::Texture::Format::DXT1:
-				blocksize = 8;
-				compressed = true;
-				compressedFunc = &FlipBC1Block;
-				break;
-			case Effect::Texture::Format::DXT3:
-				blocksize = 16;
-				compressed = true;
-				compressedFunc = &FlipBC2Block;
-				break;
-			case Effect::Texture::Format::DXT5:
-				blocksize = 16;
-				compressed = true;
-				compressedFunc = &FlipBC3Block;
-				break;
-			case Effect::Texture::Format::LATC1:
-				blocksize = 8;
-				compressed = true;
-				compressedFunc = &FlipBC4Block;
-				break;
-			case Effect::Texture::Format::LATC2:
-				blocksize = 16;
-				compressed = true;
-				compressedFunc = &FlipBC5Block;
-				break;
-			default:
-				return;
-		}
-
-		if (compressed)
-		{
-			const std::size_t w = (desc.Width + 3) / 4;
-			const std::size_t h = (desc.Height + 3) / 4;
-			const std::size_t stride = w * blocksize;
-
-			for (std::size_t y = 0; y < h; ++y)
-			{
-				unsigned char *dataLine = data + stride * (h - 1 - y);
-
-				for (std::size_t x = 0; x < stride; x += blocksize)
-				{
-					compressedFunc(dataLine + x);
-				}
-			}
-		}
-		else
-		{
-			const std::size_t w = desc.Width;
-			const std::size_t h = desc.Height;
-			const std::size_t stride = w * blocksize;
-			unsigned char *templine = static_cast<unsigned char *>(::alloca(stride));
-
-			for (std::size_t y = 0; 2 * y < h; ++y)
-			{
-				unsigned char *line1 = data + stride * y;
-				unsigned char *line2 = data + stride * (h - 1 - y);
-
-				::memcpy(templine, line1, stride);
-				::memcpy(line1, line2, stride);
-				::memcpy(line2, templine, stride);
-			}
-		}
-	}
-
-	void GLTexture::Update(unsigned int level, const unsigned char *data, std::size_t size)
-	{
-		assert(data != nullptr && size != 0);
 
 		GLCHECK(glPixelStorei(GL_UNPACK_ROW_LENGTH, 0));
 		GLCHECK(glPixelStorei(GL_UNPACK_IMAGE_HEIGHT, 0));
@@ -3469,9 +3555,11 @@ namespace ReShade
 
 		GLCHECK(glBindTexture(GL_TEXTURE_2D, this->mID[0]));
 
-		std::unique_ptr<unsigned char[]> dataFlipped(new unsigned char[size]);
+		const std::unique_ptr<unsigned char[]> dataFlipped(new unsigned char[size]);
 		std::memcpy(dataFlipped.get(), data, size);
-		FlipImage(this->mDesc, dataFlipped.get());
+
+		// Flip image vertically
+		FlipImageData(this->mDesc, dataFlipped.get());
 
 		if (this->mDesc.Format >= Texture::Format::DXT1 && this->mDesc.Format <= Texture::Format::LATC2)
 		{
@@ -3512,6 +3600,8 @@ namespace ReShade
 		}
 
 		GLCHECK(glBindTexture(GL_TEXTURE_2D, previous));
+
+		return true;
 	}
 	void GLTexture::UpdateFromColorBuffer()
 	{
@@ -3519,57 +3609,38 @@ namespace ReShade
 		GLCHECK(glBindFramebuffer(GL_DRAW_FRAMEBUFFER, this->mEffect->mEffectContext->mBlitFBO));
 		GLCHECK(glFramebufferTexture(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, this->mID[0], 0));
 		assert(glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
-
 		GLCHECK(glReadBuffer(GL_COLOR_ATTACHMENT0));
 		GLCHECK(glDrawBuffer(GL_COLOR_ATTACHMENT0));
-
 		GLCHECK(glBlitFramebuffer(0, 0, this->mEffect->mEffectContext->mWidth, this->mEffect->mEffectContext->mHeight, 0, 0, this->mDesc.Width, this->mDesc.Height, GL_COLOR_BUFFER_BIT, GL_NEAREST));
 	}
 	void GLTexture::UpdateFromDepthBuffer()
 	{
-		if (this->mID[0] == this->mEffect->mEffectContext->mBestDepthStencilTexture)
+		if (this->mID[0] == this->mEffect->mEffectContext->mDepthStencilTexture || this->mEffect->mEffectContext->mDepthStencilTexture == 0)
 		{
 			return;
 		}
-
-		if (!this->mNoDelete)
+		else if (!this->mNoDelete)
 		{
 			GLCHECK(glDeleteTextures(2, this->mID));
 		}
 
-		this->mID[0] = this->mID[1] = this->mEffect->mEffectContext->mBestDepthStencilTexture;
+		// Replace with depth texture
+		this->mID[0] = this->mID[1] = this->mEffect->mEffectContext->mDepthStencilTexture;
 		this->mNoDelete = true;
 	}
 
-	GLConstant::GLConstant(GLEffect *effect) : mEffect(effect)
+	GLConstant::GLConstant(GLEffect *effect, const Description &desc) : Constant(desc), mEffect(effect)
 	{
 	}
 	GLConstant::~GLConstant()
 	{
 	}
 
-	const Effect::Constant::Description GLConstant::GetDescription() const
-	{
-		return this->mDesc;
-	}
-	const Effect::Annotation GLConstant::GetAnnotation(const std::string &name) const
-	{
-		auto it = this->mAnnotations.find(name);
-
-		if (it == this->mAnnotations.end())
-		{
-			return Effect::Annotation();
-		}
-
-		return it->second;
-	}
 	void GLConstant::GetValue(unsigned char *data, std::size_t size) const
 	{
 		size = std::min(size, this->mDesc.Size);
 
-		const unsigned char *storage = this->mEffect->mUniformStorages[this->mBuffer].first + this->mBufferOffset;
-
-		std::memcpy(data, storage, size);
+		std::memcpy(data, this->mEffect->mUniformStorages[this->mBuffer].first + this->mBufferOffset, size);
 	}
 	void GLConstant::SetValue(const unsigned char *data, std::size_t size)
 	{
@@ -3587,7 +3658,7 @@ namespace ReShade
 		this->mEffect->mUniformDirty = true;
 	}
 
-	GLTechnique::GLTechnique(GLEffect *effect) : mEffect(effect)
+	GLTechnique::GLTechnique(GLEffect *effect) : Technique(), mEffect(effect)
 	{
 	}
 	GLTechnique::~GLTechnique()
@@ -3599,18 +3670,6 @@ namespace ReShade
 		}
 	}
 
-	const Effect::Annotation GLTechnique::GetAnnotation(const std::string &name) const
-	{
-		auto it = this->mAnnotations.find(name);
-
-		if (it == this->mAnnotations.end())
-		{
-			return Effect::Annotation();
-		}
-
-		return it->second;
-	}
-
 	bool GLTechnique::Begin(unsigned int &passes) const
 	{
 		passes = static_cast<unsigned int>(this->mPasses.size());
@@ -3620,67 +3679,56 @@ namespace ReShade
 			return false;
 		}
 
+		// Copy backbuffer
 		GLCHECK(glBindFramebuffer(GL_READ_FRAMEBUFFER, 0));
 		GLCHECK(glBindFramebuffer(GL_DRAW_FRAMEBUFFER, this->mEffect->mEffectContext->mBackBufferFBO));
 		GLCHECK(glReadBuffer(GL_BACK));
 		GLCHECK(glDrawBuffer(GL_COLOR_ATTACHMENT0));
 		GLCHECK(glBlitFramebuffer(0, 0, this->mEffect->mEffectContext->mWidth, this->mEffect->mEffectContext->mHeight, 0, 0, this->mEffect->mEffectContext->mWidth, this->mEffect->mEffectContext->mHeight, GL_COLOR_BUFFER_BIT, GL_NEAREST));
 
+		// Setup vertex input
 		GLCHECK(glBindVertexArray(this->mEffect->mDefaultVAO));
 		GLCHECK(glBindVertexBuffer(0, this->mEffect->mDefaultVBO, 0, sizeof(float)));		
 
-		for (GLuint i = 0, count = static_cast<GLuint>(this->mEffect->mSamplers.size()); i < count; ++i)
+		// Setup shader resources
+		for (GLsizei sampler = 0, samplerCount = static_cast<GLsizei>(this->mEffect->mSamplers.size()); sampler < samplerCount; ++sampler)
 		{
-			const auto &sampler = this->mEffect->mSamplers[i];
-			const auto &texture = sampler->mTexture;
-
-			GLCHECK(glActiveTexture(GL_TEXTURE0 + i));
-			GLCHECK(glBindTexture(GL_TEXTURE_2D, texture->mID[sampler->mSRGB]));
-			GLCHECK(glBindSampler(i, sampler->mID));
+			GLCHECK(glActiveTexture(GL_TEXTURE0 + sampler));
+			GLCHECK(glBindTexture(GL_TEXTURE_2D, this->mEffect->mSamplers[sampler]->mTexture->mID[this->mEffect->mSamplers[sampler]->mSRGB]));
+			GLCHECK(glBindSampler(sampler, this->mEffect->mSamplers[sampler]->mID));
 		}
-		for (GLuint i = 0, count = static_cast<GLuint>(this->mEffect->mUniformBuffers.size()); i < count; ++i)
+
+		// Setup shader constants
+		for (GLsizei buffer = 0, bufferCount = static_cast<GLsizei>(this->mEffect->mUniformBuffers.size()); buffer < bufferCount; ++buffer)
 		{
-			GLCHECK(glBindBufferBase(GL_UNIFORM_BUFFER, i, this->mEffect->mUniformBuffers[i]));
+			GLCHECK(glBindBufferBase(GL_UNIFORM_BUFFER, buffer, this->mEffect->mUniformBuffers[buffer]));
 		}
 
 		return true;
 	}
 	void GLTechnique::End() const
 	{
+		// Copy to backbuffer
 		GLCHECK(glBindFramebuffer(GL_READ_FRAMEBUFFER, this->mEffect->mEffectContext->mBackBufferFBO));
 		GLCHECK(glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0));
 		GLCHECK(glReadBuffer(GL_COLOR_ATTACHMENT0));
 		GLCHECK(glDrawBuffer(GL_BACK));
 		GLCHECK(glBlitFramebuffer(0, 0, this->mEffect->mEffectContext->mWidth, this->mEffect->mEffectContext->mHeight, 0, 0, this->mEffect->mEffectContext->mWidth, this->mEffect->mEffectContext->mHeight, GL_COLOR_BUFFER_BIT, GL_NEAREST));
 
+		// Reset rendertarget
 		GLCHECK(glBindSampler(0, 0));
 		GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, 0));
 	}
 	void GLTechnique::RenderPass(unsigned int index) const
 	{
-		if (this->mEffect->mUniformDirty)
-		{
-			for (GLuint i = 0, count = static_cast<GLuint>(this->mEffect->mUniformBuffers.size()); i < count; ++i)
-			{
-				if (this->mEffect->mUniformBuffers[i] == 0)
-				{
-					continue;
-				}
-
-				GLCHECK(glBindBuffer(GL_UNIFORM_BUFFER, this->mEffect->mUniformBuffers[i]));
-				GLCHECK(glBufferSubData(GL_UNIFORM_BUFFER, 0, this->mEffect->mUniformStorages[i].second, this->mEffect->mUniformStorages[i].first));
-			}
-
-			this->mEffect->mUniformDirty = false;
-		}
-
 		const Pass &pass = this->mPasses[index];
 
-		GLCHECK(glViewport(0, 0, pass.ViewportWidth, pass.ViewportHeight));
+		// Update shader constants
+		this->mEffect->UpdateConstants();
+
+		// Setup states
 		GLCHECK(glUseProgram(pass.Program));
-		GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, pass.Framebuffer));
 		GLCHECK(glEnableb(GL_FRAMEBUFFER_SRGB, pass.FramebufferSRGB));
-		GLCHECK(glDrawBuffers(8, pass.DrawBuffers));
 		GLCHECK(glDisable(GL_SCISSOR_TEST));
 		GLCHECK(glFrontFace(GL_CCW));
 		GLCHECK(glPolygonMode(GL_FRONT_AND_BACK, GL_FILL));
@@ -3697,7 +3745,10 @@ namespace ReShade
 		GLCHECK(glStencilOp(pass.StencilOpFail, pass.StencilOpZFail, pass.StencilOpZPass));
 		GLCHECK(glStencilMask(pass.StencilMask));
 
-		const GLfloat color[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+		// Setup rendertargets
+		GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, pass.Framebuffer));
+		GLCHECK(glDrawBuffers(8, pass.DrawBuffers));
+		GLCHECK(glViewport(0, 0, pass.ViewportWidth, pass.ViewportHeight));
 
 		for (GLuint i = 0; i < 8; ++i)
 		{
@@ -3706,9 +3757,11 @@ namespace ReShade
 				continue;
 			}
 
+			const GLfloat color[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 			GLCHECK(glClearBufferfv(GL_COLOR, i, color));
 		}
 
+		// Draw triangle
 		GLCHECK(glDrawArrays(GL_TRIANGLES, 0, 3));
 	}
 }

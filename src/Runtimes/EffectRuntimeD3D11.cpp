@@ -1374,7 +1374,7 @@ namespace ReShade
 
 				this->mCurrentSource += "}\n";
 			}
-			void Visit(const EffectNodes::Annotation &node, std::unordered_map<std::string, Effect::Annotation> &annotations)
+			void Visit(const EffectNodes::Annotation &node, D3D11Texture &texture)
 			{
 				Effect::Annotation data;
 				const auto &value = this->mAST[node.Value].As<EffectNodes::Literal>();
@@ -1398,11 +1398,73 @@ namespace ReShade
 						break;
 				}
 
-				annotations.insert(std::make_pair(node.Name, data));
+				texture.AddAnnotation(node.Name, data);
 
 				if (node.NextAnnotation != EffectTree::Null)
 				{
-					Visit(this->mAST[node.NextAnnotation].As<EffectNodes::Annotation>(), annotations);
+					Visit(this->mAST[node.NextAnnotation].As<EffectNodes::Annotation>(), texture);
+				}
+			}
+			void Visit(const EffectNodes::Annotation &node, D3D11Constant &constant)
+			{
+				Effect::Annotation data;
+				const auto &value = this->mAST[node.Value].As<EffectNodes::Literal>();
+
+				switch (value.Type.Class)
+				{
+					case EffectNodes::Type::Bool:
+						data = value.Value.Bool[0] != 0;
+						break;
+					case EffectNodes::Type::Int:
+						data = value.Value.Int[0];
+						break;
+					case EffectNodes::Type::Uint:
+						data = value.Value.Uint[0];
+						break;
+					case EffectNodes::Type::Float:
+						data = value.Value.Float[0];
+						break;
+					case EffectNodes::Type::String:
+						data = value.Value.String;
+						break;
+				}
+
+				constant.AddAnnotation(node.Name, data);
+
+				if (node.NextAnnotation != EffectTree::Null)
+				{
+					Visit(this->mAST[node.NextAnnotation].As<EffectNodes::Annotation>(), constant);
+				}
+			}
+			void Visit(const EffectNodes::Annotation &node, D3D11Technique &technique)
+			{
+				Effect::Annotation data;
+				const auto &value = this->mAST[node.Value].As<EffectNodes::Literal>();
+
+				switch (value.Type.Class)
+				{
+					case EffectNodes::Type::Bool:
+						data = value.Value.Bool[0] != 0;
+						break;
+					case EffectNodes::Type::Int:
+						data = value.Value.Int[0];
+						break;
+					case EffectNodes::Type::Uint:
+						data = value.Value.Uint[0];
+						break;
+					case EffectNodes::Type::Float:
+						data = value.Value.Float[0];
+						break;
+					case EffectNodes::Type::String:
+						data = value.Value.String;
+						break;
+				}
+
+				technique.AddAnnotation(node.Name, data);
+
+				if (node.NextAnnotation != EffectTree::Null)
+				{
+					Visit(this->mAST[node.NextAnnotation].As<EffectNodes::Annotation>(), technique);
 				}
 			}
 			void Visit(const EffectNodes::Struct &node)
@@ -1518,36 +1580,38 @@ namespace ReShade
 			}
 			void VisitTexture(const EffectNodes::Variable &node)
 			{			
-				D3D11_TEXTURE2D_DESC desc;
-				desc.ArraySize = 1;
-				desc.Width = (node.Properties[EffectNodes::Variable::Width] != 0) ? this->mAST[node.Properties[EffectNodes::Variable::Width]].As<EffectNodes::Literal>().Value.Uint[0] : 1;
-				desc.Height = (node.Properties[EffectNodes::Variable::Height] != 0) ? this->mAST[node.Properties[EffectNodes::Variable::Height]].As<EffectNodes::Literal>().Value.Uint[0] : 1;
-				desc.MipLevels = (node.Properties[EffectNodes::Variable::MipLevels] != 0) ? this->mAST[node.Properties[EffectNodes::Variable::MipLevels]].As<EffectNodes::Literal>().Value.Uint[0] : 1;
-				desc.Format = DXGI_FORMAT_R8G8B8A8_TYPELESS;
-				desc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
-				desc.Usage = D3D11_USAGE_DEFAULT;
-				desc.CPUAccessFlags = desc.MiscFlags = 0;
-				desc.SampleDesc.Count = 1;
-				desc.SampleDesc.Quality = 0;
+				D3D11_TEXTURE2D_DESC texdesc;
+				texdesc.ArraySize = 1;
+				texdesc.Width = (node.Properties[EffectNodes::Variable::Width] != 0) ? this->mAST[node.Properties[EffectNodes::Variable::Width]].As<EffectNodes::Literal>().Value.Uint[0] : 1;
+				texdesc.Height = (node.Properties[EffectNodes::Variable::Height] != 0) ? this->mAST[node.Properties[EffectNodes::Variable::Height]].As<EffectNodes::Literal>().Value.Uint[0] : 1;
+				texdesc.MipLevels = (node.Properties[EffectNodes::Variable::MipLevels] != 0) ? this->mAST[node.Properties[EffectNodes::Variable::MipLevels]].As<EffectNodes::Literal>().Value.Uint[0] : 1;
+				texdesc.Format = DXGI_FORMAT_R8G8B8A8_TYPELESS;
+				texdesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
+				texdesc.Usage = D3D11_USAGE_DEFAULT;
+				texdesc.CPUAccessFlags = texdesc.MiscFlags = 0;
+				texdesc.SampleDesc.Count = 1;
+				texdesc.SampleDesc.Quality = 0;
 				
 				Effect::Texture::Format format = Effect::Texture::Format::RGBA8;
 
 				if (node.Properties[EffectNodes::Variable::Format] != 0)
 				{
-					desc.Format = LiteralToFormat(this->mAST[node.Properties[EffectNodes::Variable::Format]].As<EffectNodes::Literal>().Value.Uint[0], format);
+					texdesc.Format = LiteralToFormat(this->mAST[node.Properties[EffectNodes::Variable::Format]].As<EffectNodes::Literal>().Value.Uint[0], format);
 				}
 
-				std::unique_ptr<D3D11Texture> obj(new D3D11Texture(this->mEffect));
-				obj->mDesc.Width = desc.Width;
-				obj->mDesc.Height = desc.Height;
-				obj->mDesc.Levels = desc.MipLevels;
-				obj->mDesc.Format = format;
+				D3D11Texture::Description objdesc;
+				objdesc.Width = texdesc.Width;
+				objdesc.Height = texdesc.Height;
+				objdesc.Levels = texdesc.MipLevels;
+				objdesc.Format = format;
+
+				std::unique_ptr<D3D11Texture> obj(new D3D11Texture(this->mEffect, objdesc));
 				obj->mRegister = this->mEffect->mShaderResources.size();
 				obj->mTexture = nullptr;
 				obj->mShaderResourceView[0] = nullptr;
 				obj->mShaderResourceView[1] = nullptr;
 
-				HRESULT hr = this->mEffect->mEffectContext->mDevice->CreateTexture2D(&desc, nullptr, &obj->mTexture);
+				HRESULT hr = this->mEffect->mEffectContext->mDevice->CreateTexture2D(&texdesc, nullptr, &obj->mTexture);
 
 				if (FAILED(hr))
 				{
@@ -1563,8 +1627,8 @@ namespace ReShade
 				D3D11_SHADER_RESOURCE_VIEW_DESC srvdesc;
 				srvdesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
 				srvdesc.Texture2D.MostDetailedMip = 0;
-				srvdesc.Texture2D.MipLevels = desc.MipLevels;
-				srvdesc.Format = TypelessToLinearFormat(desc.Format);
+				srvdesc.Texture2D.MipLevels = texdesc.MipLevels;
+				srvdesc.Format = TypelessToLinearFormat(texdesc.Format);
 
 				hr = this->mEffect->mEffectContext->mDevice->CreateShaderResourceView(obj->mTexture, &srvdesc, &obj->mShaderResourceView[0]);
 
@@ -1575,9 +1639,9 @@ namespace ReShade
 					return;
 				}
 
-				srvdesc.Format = TypelessToSRGBFormat(desc.Format);
+				srvdesc.Format = TypelessToSRGBFormat(texdesc.Format);
 
-				if (srvdesc.Format != desc.Format)
+				if (srvdesc.Format != texdesc.Format)
 				{
 					this->mCurrentSource += ", __";
 					this->mCurrentSource += node.Name;
@@ -1597,7 +1661,7 @@ namespace ReShade
 
 				if (node.Annotations != EffectTree::Null)
 				{
-					Visit(this->mAST[node.Annotations].As<EffectNodes::Annotation>(), obj->mAnnotations);
+					Visit(this->mAST[node.Annotations].As<EffectNodes::Annotation>(), *obj);
 				}
 
 				if (obj->mShaderResourceView[0] != nullptr)
@@ -1744,38 +1808,40 @@ namespace ReShade
 
 				this->mCurrentGlobalConstants += ";\n";
 
-				std::unique_ptr<D3D11Constant> obj(new D3D11Constant(this->mEffect));
-				obj->mDesc.Rows = node.Type.Rows;
-				obj->mDesc.Columns = node.Type.Cols;
-				obj->mDesc.Elements = node.Type.ArrayLength;
-				obj->mDesc.Fields = 0;
-				obj->mDesc.Size = node.Type.Rows * node.Type.Cols;
+				D3D11Constant::Description objdesc;
+				objdesc.Rows = node.Type.Rows;
+				objdesc.Columns = node.Type.Cols;
+				objdesc.Elements = node.Type.ArrayLength;
+				objdesc.Fields = 0;
+				objdesc.Size = node.Type.Rows * node.Type.Cols;
 
 				switch (node.Type.Class)
 				{
 					case EffectNodes::Type::Bool:
-						obj->mDesc.Size *= sizeof(int);
-						obj->mDesc.Type = Effect::Constant::Type::Bool;
+						objdesc.Size *= sizeof(int);
+						objdesc.Type = Effect::Constant::Type::Bool;
 						break;
 					case EffectNodes::Type::Int:
-						obj->mDesc.Size *= sizeof(int);
-						obj->mDesc.Type = Effect::Constant::Type::Int;
+						objdesc.Size *= sizeof(int);
+						objdesc.Type = Effect::Constant::Type::Int;
 						break;
 					case EffectNodes::Type::Uint:
-						obj->mDesc.Size *= sizeof(unsigned int);
-						obj->mDesc.Type = Effect::Constant::Type::Uint;
+						objdesc.Size *= sizeof(unsigned int);
+						objdesc.Type = Effect::Constant::Type::Uint;
 						break;
 					case EffectNodes::Type::Float:
-						obj->mDesc.Size *= sizeof(float);
-						obj->mDesc.Type = Effect::Constant::Type::Float;
+						objdesc.Size *= sizeof(float);
+						objdesc.Type = Effect::Constant::Type::Float;
 						break;
 				}
 
+				std::unique_ptr<D3D11Constant> obj(new D3D11Constant(this->mEffect, objdesc));
+
 				const UINT alignment = 16 - (this->mCurrentGlobalSize % 16);
-				this->mCurrentGlobalSize += (obj->mDesc.Size > alignment && (alignment != 16 || obj->mDesc.Size <= 16)) ? obj->mDesc.Size + alignment : obj->mDesc.Size;
+				this->mCurrentGlobalSize += (objdesc.Size > alignment && (alignment != 16 || objdesc.Size <= 16)) ? objdesc.Size + alignment : objdesc.Size;
 
 				obj->mBuffer = 0;
-				obj->mBufferOffset = this->mCurrentGlobalSize - obj->mDesc.Size;
+				obj->mBufferOffset = this->mCurrentGlobalSize - objdesc.Size;
 
 				if (this->mCurrentGlobalSize >= this->mCurrentGlobalStorageSize)
 				{
@@ -1784,16 +1850,16 @@ namespace ReShade
 
 				if (node.Annotations != EffectTree::Null)
 				{
-					Visit(this->mAST[node.Annotations].As<EffectNodes::Annotation>(), obj->mAnnotations);
+					Visit(this->mAST[node.Annotations].As<EffectNodes::Annotation>(), *obj);
 				}
 
 				if (node.Initializer != EffectTree::Null && this->mAST[node.Initializer].Is<EffectNodes::Literal>())
 				{
-					::memcpy(this->mEffect->mConstantStorages[0] + obj->mBufferOffset, &this->mAST[node.Initializer].As<EffectNodes::Literal>().Value, obj->mDesc.Size);
+					::memcpy(this->mEffect->mConstantStorages[0] + obj->mBufferOffset, &this->mAST[node.Initializer].As<EffectNodes::Literal>().Value, objdesc.Size);
 				}
 				else
 				{
-					::memset(this->mEffect->mConstantStorages[0] + obj->mBufferOffset, 0, obj->mDesc.Size);
+					::memset(this->mEffect->mConstantStorages[0] + obj->mBufferOffset, 0, objdesc.Size);
 				}
 
 				this->mEffect->mConstants.insert(std::make_pair(node.Name, std::move(obj)));
@@ -1827,38 +1893,40 @@ namespace ReShade
 
 					Visit(*field);
 
-					std::unique_ptr<D3D11Constant> obj(new D3D11Constant(this->mEffect));
-					obj->mDesc.Rows = field->Type.Rows;
-					obj->mDesc.Columns = field->Type.Cols;
-					obj->mDesc.Elements = field->Type.ArrayLength;
-					obj->mDesc.Fields = 0;
-					obj->mDesc.Size = field->Type.Rows * field->Type.Cols;
+					D3D11Constant::Description objdesc;
+					objdesc.Rows = field->Type.Rows;
+					objdesc.Columns = field->Type.Cols;
+					objdesc.Elements = field->Type.ArrayLength;
+					objdesc.Fields = 0;
+					objdesc.Size = field->Type.Rows * field->Type.Cols;
 
 					switch (field->Type.Class)
 					{
 						case EffectNodes::Type::Bool:
-							obj->mDesc.Size *= sizeof(int);
-							obj->mDesc.Type = Effect::Constant::Type::Bool;
+							objdesc.Size *= sizeof(int);
+							objdesc.Type = Effect::Constant::Type::Bool;
 							break;
 						case EffectNodes::Type::Int:
-							obj->mDesc.Size *= sizeof(int);
-							obj->mDesc.Type = Effect::Constant::Type::Int;
+							objdesc.Size *= sizeof(int);
+							objdesc.Type = Effect::Constant::Type::Int;
 							break;
 						case EffectNodes::Type::Uint:
-							obj->mDesc.Size *= sizeof(unsigned int);
-							obj->mDesc.Type = Effect::Constant::Type::Uint;
+							objdesc.Size *= sizeof(unsigned int);
+							objdesc.Type = Effect::Constant::Type::Uint;
 							break;
 						case EffectNodes::Type::Float:
-							obj->mDesc.Size *= sizeof(float);
-							obj->mDesc.Type = Effect::Constant::Type::Float;
+							objdesc.Size *= sizeof(float);
+							objdesc.Type = Effect::Constant::Type::Float;
 							break;
 					}
 
+					std::unique_ptr<D3D11Constant> obj(new D3D11Constant(this->mEffect, objdesc));
+
 					const UINT alignment = 16 - (totalsize % 16);
-					totalsize += (obj->mDesc.Size > alignment && (alignment != 16 || obj->mDesc.Size <= 16)) ? obj->mDesc.Size + alignment : obj->mDesc.Size;
+					totalsize += (objdesc.Size > alignment && (alignment != 16 || objdesc.Size <= 16)) ? objdesc.Size + alignment : objdesc.Size;
 
 					obj->mBuffer = this->mEffect->mConstantBuffers.size();
-					obj->mBufferOffset = totalsize - obj->mDesc.Size;
+					obj->mBufferOffset = totalsize - objdesc.Size;
 
 					if (totalsize >= currentsize)
 					{
@@ -1867,11 +1935,11 @@ namespace ReShade
 
 					if (field->Initializer != EffectTree::Null && this->mAST[field->Initializer].Is<EffectNodes::Literal>())
 					{
-						::memcpy(storage + obj->mBufferOffset, &this->mAST[field->Initializer].As<EffectNodes::Literal>().Value, obj->mDesc.Size);
+						::memcpy(storage + obj->mBufferOffset, &this->mAST[field->Initializer].As<EffectNodes::Literal>().Value, objdesc.Size);
 					}
 					else
 					{
-						::memset(storage + obj->mBufferOffset, 0, obj->mDesc.Size);
+						::memset(storage + obj->mBufferOffset, 0, objdesc.Size);
 					}
 
 					this->mEffect->mConstants.insert(std::make_pair(std::string(node.Name) + '.' + std::string(field->Name), std::move(obj)));
@@ -1891,19 +1959,21 @@ namespace ReShade
 
 				this->mCurrentSource += "};\n";
 
-				std::unique_ptr<D3D11Constant> obj(new D3D11Constant(this->mEffect));
-				obj->mDesc.Rows = 0;
-				obj->mDesc.Columns = 0;
-				obj->mDesc.Elements = 0;
-				obj->mDesc.Fields = fieldCount;
-				obj->mDesc.Size = totalsize;
-				obj->mDesc.Type = Effect::Constant::Type::Struct;
+				D3D11Constant::Description objdesc;
+				objdesc.Rows = 0;
+				objdesc.Columns = 0;
+				objdesc.Elements = 0;
+				objdesc.Fields = fieldCount;
+				objdesc.Size = totalsize;
+				objdesc.Type = Effect::Constant::Type::Struct;
+
+				std::unique_ptr<D3D11Constant> obj(new D3D11Constant(this->mEffect, objdesc));
 				obj->mBuffer = this->mEffect->mConstantBuffers.size();
 				obj->mBufferOffset = 0;
 
 				if (node.Annotations != EffectTree::Null)
 				{
-					Visit(this->mAST[node.Annotations].As<EffectNodes::Annotation>(), obj->mAnnotations);
+					Visit(this->mAST[node.Annotations].As<EffectNodes::Annotation>(), *obj);
 				}
 
 				this->mEffect->mConstants.insert(std::make_pair(node.Name, std::move(obj)));
@@ -2007,7 +2077,7 @@ namespace ReShade
 
 				if (node.Annotations != EffectTree::Null)
 				{
-					Visit(this->mAST[node.Annotations].As<EffectNodes::Annotation>(), obj->mAnnotations);
+					Visit(this->mAST[node.Annotations].As<EffectNodes::Annotation>(), *obj);
 				}
 
 				this->mEffect->mTechniques.insert(std::make_pair(node.Name, std::move(obj)));
@@ -2119,6 +2189,19 @@ namespace ReShade
 				{
 					this->mErrors += PrintLocation(node.Location) + "'CreateBlendState' failed!\n";
 				}
+
+				ID3D11Resource *rtres;
+				pass.RT[0]->GetResource(&rtres);
+				D3D11_TEXTURE2D_DESC rtdesc;
+				static_cast<ID3D11Texture2D *>(rtres)->GetDesc(&rtdesc);
+				rtres->Release();
+
+				pass.Viewport.Width = static_cast<FLOAT>(rtdesc.Width);
+				pass.Viewport.Height = static_cast<FLOAT>(rtdesc.Height);
+				pass.Viewport.TopLeftX = 0.0f;
+				pass.Viewport.TopLeftY = 0.0f;
+				pass.Viewport.MinDepth = 0.0f;
+				pass.Viewport.MaxDepth = 1.0f;
 
 				for (auto it = pass.SR.begin(), end = pass.SR.end(); it != end; ++it)
 				{
@@ -2261,9 +2344,12 @@ namespace ReShade
 
 	// -----------------------------------------------------------------------------------------------------
 
-	D3D11Runtime::D3D11Runtime(ID3D11Device *device, IDXGISwapChain *swapchain) : mDevice(device), mSwapChain(swapchain), mImmediateContext(nullptr), mDeferredContext(nullptr), mBackBuffer(nullptr), mBackBufferTexture(nullptr), mBackBufferTargets(), mBestDepthStencil(nullptr), mBestDepthStencilReplacement(nullptr), mDepthStencilShaderResourceView(nullptr), mDrawCallCounter(1), mLost(true)
+	D3D11Runtime::D3D11Runtime(ID3D11Device *device, IDXGISwapChain *swapchain) : mDevice(device), mSwapChain(swapchain), mImmediateContext(nullptr), mDeferredContext(nullptr), mBackBuffer(nullptr), mBackBufferTexture(nullptr), mBackBufferTargets(), mDepthStencil(nullptr), mDepthStencilReplacement(nullptr), mDepthStencilShaderResourceView(nullptr), mLost(true)
 	{
 		InitializeCriticalSection(&this->mCS);
+
+		assert(this->mDevice != nullptr);
+		assert(this->mSwapChain != nullptr);
 
 		this->mDevice->AddRef();
 		this->mDevice->GetImmediateContext(&this->mImmediateContext);
@@ -2271,21 +2357,24 @@ namespace ReShade
 
 		assert(this->mImmediateContext != nullptr);
 
-		HRESULT hr;
+		ZeroMemory(&this->mSwapChainDesc, sizeof(DXGI_SWAP_CHAIN_DESC));
+
 		IDXGIDevice *dxgidevice = nullptr;
 		IDXGIAdapter *adapter = nullptr;
 
-		hr = this->mDevice->QueryInterface(__uuidof(IDXGIDevice), reinterpret_cast<void **>(&dxgidevice));
+		HRESULT hr = this->mDevice->QueryInterface(__uuidof(IDXGIDevice), reinterpret_cast<void **>(&dxgidevice));
 
 		assert(SUCCEEDED(hr));
 
 		hr = dxgidevice->GetAdapter(&adapter);
+
 		dxgidevice->Release();
 
 		assert(SUCCEEDED(hr));
 
 		DXGI_ADAPTER_DESC desc;
 		hr = adapter->GetDesc(&desc);
+
 		adapter->Release();
 
 		assert(SUCCEEDED(hr));
@@ -2294,7 +2383,9 @@ namespace ReShade
 		this->mDeviceId = desc.DeviceId;
 		this->mRendererId = 0xD3D11;
 
-		this->mDevice->CreateDeferredContext(0, &this->mDeferredContext);
+		hr = this->mDevice->CreateDeferredContext(0, &this->mDeferredContext);
+
+		assert(SUCCEEDED(hr));
 	}
 	D3D11Runtime::~D3D11Runtime()
 	{
@@ -2302,7 +2393,11 @@ namespace ReShade
 
 		assert(this->mLost);
 
-		this->mDeferredContext->Release();
+		if (this->mDeferredContext != nullptr)
+		{
+			this->mDeferredContext->Release();
+		}
+
 		this->mImmediateContext->Release();
 		this->mDevice->Release();
 		this->mSwapChain->Release();
@@ -2310,34 +2405,69 @@ namespace ReShade
 
 	bool D3D11Runtime::OnCreate(unsigned int width, unsigned int height)
 	{
+		if (this->mDeferredContext == nullptr)
+		{
+			return false;
+		}
+
+		this->mSwapChain->GetDesc(&this->mSwapChainDesc);
+
 		HRESULT hr = this->mSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), reinterpret_cast<void **>(&this->mBackBuffer));
 
-		assert(SUCCEEDED(hr));
+		if (FAILED(hr))
+		{
+			return false;
+		}
 
 		D3D11_TEXTURE2D_DESC bbdesc;
-		this->mBackBuffer->GetDesc(&bbdesc);
-
+		ZeroMemory(&bbdesc, sizeof(D3D11_TEXTURE2D_DESC));
+		bbdesc.Width = width;
+		bbdesc.Height = height;
+		bbdesc.MipLevels = 1;
+		bbdesc.ArraySize = 1;
 		bbdesc.Format = DXGI_FORMAT_R8G8B8A8_TYPELESS;
+		bbdesc.SampleDesc = this->mSwapChainDesc.SampleDesc;
+		bbdesc.Usage = D3D11_USAGE_DEFAULT;
 		bbdesc.BindFlags = D3D11_BIND_RENDER_TARGET;
 
 		hr = this->mDevice->CreateTexture2D(&bbdesc, nullptr, &this->mBackBufferTexture);
 
-		assert(SUCCEEDED(hr));
+		if (FAILED(hr))
+		{
+			this->mBackBuffer->Release();
+			this->mBackBuffer = nullptr;
+
+			return false;
+		}
 
 		D3D11_RENDER_TARGET_VIEW_DESC rtdesc;
+		ZeroMemory(&rtdesc, sizeof(D3D11_RENDER_TARGET_VIEW_DESC));
 		rtdesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 		rtdesc.ViewDimension = bbdesc.SampleDesc.Count > 1 ? D3D11_RTV_DIMENSION_TEXTURE2DMS : D3D11_RTV_DIMENSION_TEXTURE2D;
-		rtdesc.Texture2D.MipSlice = 0;
 
 		hr = this->mDevice->CreateRenderTargetView(this->mBackBufferTexture, &rtdesc, &this->mBackBufferTargets[0]);
 
-		assert(SUCCEEDED(hr));
+		if (FAILED(hr))
+		{
+			this->mBackBuffer->Release();
+			this->mBackBuffer = nullptr;
+			this->mBackBufferTexture->Release();
+			this->mBackBufferTexture = nullptr;
+		}
 
 		rtdesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
 
 		hr = this->mDevice->CreateRenderTargetView(this->mBackBufferTexture, &rtdesc, &this->mBackBufferTargets[1]);
 
-		assert(SUCCEEDED(hr));
+		if (FAILED(hr))
+		{
+			this->mBackBuffer->Release();
+			this->mBackBuffer = nullptr;
+			this->mBackBufferTexture->Release();
+			this->mBackBufferTexture = nullptr;
+			this->mBackBufferTargets[0]->Release();
+			this->mBackBufferTargets[0] = nullptr;
+		}
 
 		this->mNVG = nvgCreateD3D11(this->mDeferredContext, 0);
 
@@ -2351,48 +2481,56 @@ namespace ReShade
 
 		nvgDeleteD3D11(this->mNVG);
 
-		if (this->mBackBufferTargets[0] != nullptr)
+		this->mNVG = nullptr;
+
+		if (this->mBackBuffer != nullptr)
 		{
-			this->mBackBufferTargets[0]->Release();
-		}
-		if (this->mBackBufferTargets[1] != nullptr)
-		{
-			this->mBackBufferTargets[1]->Release();
+			this->mBackBuffer->Release();
+			this->mBackBuffer = nullptr;
 		}
 		if (this->mBackBufferTexture != nullptr)
 		{
 			this->mBackBufferTexture->Release();
+			this->mBackBufferTexture = nullptr;
 		}
-		if (this->mBackBuffer != nullptr)
+		if (this->mBackBufferTargets[0] != nullptr)
 		{
-			this->mBackBuffer->Release();
+			this->mBackBufferTargets[0]->Release();
+			this->mBackBufferTargets[0] = nullptr;
+		}
+		if (this->mBackBufferTargets[1] != nullptr)
+		{
+			this->mBackBufferTargets[1]->Release();
+			this->mBackBufferTargets[1] = nullptr;
 		}
 
-		this->mDepthStencilTable.clear();
-
-		if (this->mBestDepthStencilReplacement != nullptr)
+		if (this->mDepthStencil != nullptr)
 		{
-			this->mBestDepthStencilReplacement->Release();
+			this->mDepthStencil->Release();
+			this->mDepthStencil = nullptr;
+		}
+		if (this->mDepthStencilReplacement != nullptr)
+		{
+			this->mDepthStencilReplacement->Release();
+			this->mDepthStencilReplacement = nullptr;
 		}
 		if (this->mDepthStencilShaderResourceView != nullptr)
 		{
 			this->mDepthStencilShaderResourceView->Release();
+			this->mDepthStencilShaderResourceView = nullptr;
 		}
 
-		this->mNVG = nullptr;
-		this->mBackBuffer = nullptr;
-		this->mBackBufferTexture = nullptr;
-		this->mBackBufferTargets[0] = nullptr;
-		this->mBackBufferTargets[1] = nullptr;
-		this->mBestDepthStencil = nullptr;
-		this->mBestDepthStencilReplacement = nullptr;
-		this->mDepthStencilShaderResourceView = nullptr;
+		ZeroMemory(&this->mSwapChainDesc, sizeof(DXGI_SWAP_CHAIN_DESC));
+
+		this->mDepthStencilTable.clear();
 
 		this->mLost = true;
 	}
 	void D3D11Runtime::OnDraw(ID3D11DeviceContext *context, unsigned int vertices)
 	{
 		CSLock lock(this->mCS);
+
+		Runtime::OnDraw(vertices);
 
 		ID3D11DepthStencilView *depthstencil = nullptr;
 		context->OMGetRenderTargets(0, nullptr, &depthstencil);
@@ -2401,26 +2539,30 @@ namespace ReShade
 		{
 			depthstencil->Release();
 
-			if (depthstencil == this->mBestDepthStencilReplacement)
+			if (depthstencil == this->mDepthStencilReplacement)
 			{
-				depthstencil = this->mBestDepthStencil;
+				depthstencil = this->mDepthStencil;
 			}
 
-			this->mDepthStencilTable[depthstencil].DrawCallCount = static_cast<FLOAT>(this->mDrawCallCounter++);
+			this->mDepthStencilTable[depthstencil].DrawCallCount = static_cast<FLOAT>(this->mLastDrawCalls++);
 			this->mDepthStencilTable[depthstencil].DrawVerticesCount += vertices;
 		}
-
-		Runtime::OnDraw(vertices);
 	}
 	void D3D11Runtime::OnPresent()
 	{
+		if (this->mLost)
+		{
+			return;
+		}
+
 		DetectBestDepthStencil();
 
-		this->mDrawCallCounter = 1;
-
+		// Copy backbuffer
 		this->mDeferredContext->CopyResource(this->mBackBufferTexture, this->mBackBuffer);
+
 		this->mDeferredContext->OMSetRenderTargets(1, &this->mBackBufferTargets[0], nullptr);
 
+		// Apply post processing
 		Runtime::OnPresent();
 
 		if (this->mLost)
@@ -2428,78 +2570,148 @@ namespace ReShade
 			return;
 		}
 
+		// Copy to backbuffer
 		this->mDeferredContext->CopyResource(this->mBackBuffer, this->mBackBufferTexture);
 
+		// Execute commands
 		ID3D11CommandList *list = nullptr;
-		HRESULT hr = this->mDeferredContext->FinishCommandList(FALSE, &list);
+		
+		if (SUCCEEDED(this->mDeferredContext->FinishCommandList(FALSE, &list)))
+		{
+			this->mImmediateContext->ExecuteCommandList(list, TRUE);
 
-		assert(SUCCEEDED(hr));
-
-		this->mImmediateContext->ExecuteCommandList(list, TRUE);
-		list->Release();		
+			list->Release();
+		}
 	}
 	
 	std::unique_ptr<Effect> D3D11Runtime::CreateEffect(const EffectTree &ast, std::string &errors) const
 	{
-		D3D11Effect *effect = new D3D11Effect(shared_from_this());
-			
+		std::unique_ptr<D3D11Effect> effect(new D3D11Effect(shared_from_this()));
+
 		D3D11EffectCompiler visitor(ast);
 		
-		if (visitor.Traverse(effect, errors))
+		if (!visitor.Traverse(effect.get(), errors))
 		{
-			return std::unique_ptr<Effect>(effect);
+			return nullptr;
 		}
-		else
+
+		D3D11_RASTERIZER_DESC rsdesc;
+		ZeroMemory(&rsdesc, sizeof(D3D11_RASTERIZER_DESC));
+		rsdesc.FillMode = D3D11_FILL_SOLID;
+		rsdesc.CullMode = D3D11_CULL_NONE;
+		rsdesc.DepthClipEnable = TRUE;
+
+		HRESULT hr = this->mDevice->CreateRasterizerState(&rsdesc, &effect->mRasterizerState);
+
+		if (FAILED(hr))
 		{
-			delete effect;
+			return nullptr;
+		}
+
+		D3D11_TEXTURE2D_DESC dstdesc;
+		ZeroMemory(&dstdesc, sizeof(D3D11_TEXTURE2D_DESC));
+		dstdesc.Width = this->mSwapChainDesc.BufferDesc.Width;
+		dstdesc.Height = this->mSwapChainDesc.BufferDesc.Height;
+		dstdesc.MipLevels = 1;
+		dstdesc.ArraySize = 1;
+		dstdesc.Format = DXGI_FORMAT_R24G8_TYPELESS;
+		dstdesc.SampleDesc = this->mSwapChainDesc.SampleDesc;
+		dstdesc.Usage = D3D11_USAGE_DEFAULT;
+		dstdesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_DEPTH_STENCIL;
+
+		D3D11_SHADER_RESOURCE_VIEW_DESC dssdesc;
+		ZeroMemory(&dssdesc, sizeof(D3D11_SHADER_RESOURCE_VIEW_DESC));
+		dssdesc.Format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
+		dssdesc.ViewDimension = dstdesc.SampleDesc.Count > 1 ? D3D11_SRV_DIMENSION_TEXTURE2DMS : D3D11_SRV_DIMENSION_TEXTURE2D;
+		dssdesc.Texture2D.MipLevels = 1;
+
+		D3D11_DEPTH_STENCIL_VIEW_DESC dsdesc;
+		ZeroMemory(&dsdesc, sizeof(D3D11_DEPTH_STENCIL_VIEW_DESC));
+		dsdesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+		dsdesc.ViewDimension = dstdesc.SampleDesc.Count > 1 ? D3D11_DSV_DIMENSION_TEXTURE2DMS : D3D11_DSV_DIMENSION_TEXTURE2D;
+
+		hr = this->mDevice->CreateTexture2D(&dstdesc, nullptr, &effect->mDepthStencilTexture);
+
+		if (FAILED(hr))
+		{
+			effect->mRasterizerState->Release();
 
 			return nullptr;
 		}
+
+		hr = this->mDevice->CreateShaderResourceView(effect->mDepthStencilTexture, &dssdesc, &effect->mDepthStencilShaderResourceView);
+
+		if (FAILED(hr))
+		{
+			effect->mRasterizerState->Release();
+			effect->mDepthStencilTexture->Release();
+
+			return nullptr;
+		}
+
+		hr = this->mDevice->CreateDepthStencilView(effect->mDepthStencilTexture, &dsdesc, &effect->mDepthStencil);
+
+		if (FAILED(hr))
+		{
+			effect->mRasterizerState->Release();
+			effect->mDepthStencilTexture->Release();
+			effect->mDepthStencilShaderResourceView->Release();
+
+			return nullptr;
+		}
+
+		return std::unique_ptr<Effect>(effect.release());
 	}
 	void D3D11Runtime::CreateScreenshot(unsigned char *buffer, std::size_t size) const
 	{
+		if (this->mSwapChainDesc.BufferDesc.Format != DXGI_FORMAT_R8G8B8A8_UNORM && this->mSwapChainDesc.BufferDesc.Format != DXGI_FORMAT_R8G8B8A8_UNORM_SRGB && this->mSwapChainDesc.BufferDesc.Format != DXGI_FORMAT_B8G8R8A8_UNORM && this->mSwapChainDesc.BufferDesc.Format != DXGI_FORMAT_B8G8R8A8_UNORM_SRGB)
+		{
+			return;
+		}
+
+		if (size < static_cast<std::size_t>(this->mSwapChainDesc.BufferDesc.Width * this->mSwapChainDesc.BufferDesc.Height * 4))
+		{
+			return;
+		}
+
 		// Flush context
 		ID3D11CommandList *list = nullptr;
 		this->mDeferredContext->FinishCommandList(TRUE, &list);
 		this->mImmediateContext->ExecuteCommandList(list, TRUE);
 		list->Release();
 
-		D3D11_TEXTURE2D_DESC desc;
-		this->mBackBufferTexture->GetDesc(&desc);
+		D3D11_TEXTURE2D_DESC texdesc;
+		ZeroMemory(&texdesc, sizeof(D3D11_TEXTURE2D_DESC));
+		texdesc.Width = this->mSwapChainDesc.BufferDesc.Width;
+		texdesc.Height = this->mSwapChainDesc.BufferDesc.Height;
+		texdesc.ArraySize = 1;
+		texdesc.MipLevels = 1;
+		texdesc.Format = this->mSwapChainDesc.BufferDesc.Format;
+		texdesc.SampleDesc.Count = 1;
+		texdesc.SampleDesc.Quality = 0;
+		texdesc.Usage = D3D11_USAGE_STAGING;
+		texdesc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
 
 		ID3D11Texture2D *textureStaging = nullptr;
-
-		D3D11_TEXTURE2D_DESC textureDesc;
-		ZeroMemory(&textureDesc, sizeof(D3D11_TEXTURE2D_DESC));
-		textureDesc.ArraySize = 1;
-		textureDesc.Width = desc.Width;
-		textureDesc.Height = desc.Height;
-		textureDesc.Format = D3D11EffectCompiler::TypelessToLinearFormat(desc.Format);
-		textureDesc.Usage = D3D11_USAGE_STAGING;
-		textureDesc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
-		textureDesc.MipLevels = 1;
-		textureDesc.SampleDesc.Count = 1;
-		textureDesc.SampleDesc.Quality = 0;
-
-		HRESULT hr = this->mDevice->CreateTexture2D(&textureDesc, nullptr, &textureStaging);
+		HRESULT hr = this->mDevice->CreateTexture2D(&texdesc, nullptr, &textureStaging);
 
 		if (FAILED(hr))
 		{
 			return;
 		}
 
-		if (desc.SampleDesc.Count > 1)
+		if (this->mSwapChainDesc.SampleDesc.Count > 1)
 		{
-			textureDesc.CPUAccessFlags = 0;
-			textureDesc.Usage = D3D11_USAGE_DEFAULT;
+			texdesc.CPUAccessFlags = 0;
+			texdesc.Usage = D3D11_USAGE_DEFAULT;
 
 			ID3D11Texture2D *textureResolve = nullptr;
 
-			hr = this->mDevice->CreateTexture2D(&textureDesc, nullptr, &textureResolve);
+			hr = this->mDevice->CreateTexture2D(&texdesc, nullptr, &textureResolve);
 
 			if (SUCCEEDED(hr))
 			{
-				this->mImmediateContext->ResolveSubresource(textureResolve, 0, this->mBackBufferTexture, 0, textureDesc.Format);
+				this->mImmediateContext->ResolveSubresource(textureResolve, 0, this->mBackBufferTexture, 0, texdesc.Format);
 				this->mImmediateContext->CopyResource(textureStaging, textureResolve);
 
 				textureResolve->Release();
@@ -2517,8 +2729,6 @@ namespace ReShade
 		}
 				
 		D3D11_MAPPED_SUBRESOURCE mapped;
-		ZeroMemory(&mapped, sizeof(D3D11_MAPPED_SUBRESOURCE));
-
 		hr = this->mImmediateContext->Map(textureStaging, 0, D3D11_MAP_READ, 0, &mapped);
 
 		if (FAILED(hr))
@@ -2527,28 +2737,26 @@ namespace ReShade
 			return;
 		}
 
-		const UINT pitch = desc.Width * 4;
-
-		assert(size >= pitch * desc.Height);
-
-		BYTE *pBuffer = buffer;
+		BYTE *pMem = buffer;
 		BYTE *pMapped = static_cast<BYTE *>(mapped.pData);
 
-		for (UINT y = 0; y < desc.Height; ++y)
+		const UINT pitch = texdesc.Width * 4;
+
+		for (UINT y = 0; y < texdesc.Height; ++y)
 		{
-			CopyMemory(pBuffer, pMapped, std::min(pitch, static_cast<UINT>(mapped.RowPitch)));
+			CopyMemory(pMem, pMapped, std::min(pitch, static_cast<UINT>(mapped.RowPitch)));
 
 			for (UINT x = 0; x < pitch; x += 4)
 			{
-				pBuffer[x + 3] = 0xFF;
+				pMem[x + 3] = 0xFF;
 
-				if (desc.Format == DXGI_FORMAT_B8G8R8A8_UNORM || desc.Format == DXGI_FORMAT_B8G8R8A8_UNORM_SRGB)
+				if (texdesc.Format == DXGI_FORMAT_B8G8R8A8_UNORM || texdesc.Format == DXGI_FORMAT_B8G8R8A8_UNORM_SRGB)
 				{
-					std::swap(pBuffer[x + 0], pBuffer[x + 2]);
+					std::swap(pMem[x + 0], pMem[x + 2]);
 				}
 			}
 								
-			pBuffer += pitch;
+			pMem += pitch;
 			pMapped += mapped.RowPitch;
 		}
 
@@ -2577,9 +2785,6 @@ namespace ReShade
 			return;
 		}
 
-		DXGI_SWAP_CHAIN_DESC desc;
-		this->mSwapChain->GetDesc(&desc);
-
 		ID3D11DepthStencilView *best = nullptr;
 		D3D11DepthStencilInfo bestInfo = { 0 };
 
@@ -2590,7 +2795,7 @@ namespace ReShade
 				continue;
 			}
 
-			if (((it.second.DrawVerticesCount * (1.2f - it.second.DrawCallCount / this->mDrawCallCounter)) >= (bestInfo.DrawVerticesCount * (1.2f - bestInfo.DrawCallCount / this->mDrawCallCounter))) && (it.second.Width == desc.BufferDesc.Width && it.second.Height == desc.BufferDesc.Height))
+			if (((it.second.DrawVerticesCount * (1.2f - it.second.DrawCallCount / this->mLastDrawCalls)) >= (bestInfo.DrawVerticesCount * (1.2f - bestInfo.DrawCallCount / this->mLastDrawCalls))) && (it.second.Width == this->mSwapChainDesc.BufferDesc.Width && it.second.Height == this->mSwapChainDesc.BufferDesc.Height))
 			{
 				best = it.first;
 				bestInfo = it.second;
@@ -2599,14 +2804,17 @@ namespace ReShade
 			it.second.DrawCallCount = it.second.DrawVerticesCount = 0;
 		}
 
-		if (best != nullptr && this->mBestDepthStencil != best)
+		if (best != nullptr && this->mDepthStencil != best)
 		{
-			this->mBestDepthStencil = best;
-
-			if (this->mBestDepthStencilReplacement != nullptr)
+			if (this->mDepthStencil != nullptr)
 			{
-				this->mBestDepthStencilReplacement->Release();
-				this->mBestDepthStencilReplacement = nullptr;
+				this->mDepthStencil->Release();
+				this->mDepthStencil = nullptr;
+			}
+			if (this->mDepthStencilReplacement != nullptr)
+			{
+				this->mDepthStencilReplacement->Release();
+				this->mDepthStencilReplacement = nullptr;
 			}
 			if (this->mDepthStencilShaderResourceView != nullptr)
 			{
@@ -2614,62 +2822,61 @@ namespace ReShade
 				this->mDepthStencilShaderResourceView = nullptr;
 			}
 
+			this->mDepthStencil = best;
+			this->mDepthStencil->AddRef();
+
 			ID3D11Texture2D *texture = nullptr;
 			best->GetResource(reinterpret_cast<ID3D11Resource **>(&texture));
 		
-			D3D11_TEXTURE2D_DESC textureDesc;
-			texture->GetDesc(&textureDesc);
+			D3D11_TEXTURE2D_DESC desc;
+			texture->GetDesc(&desc);
 
 			HRESULT hr = S_OK;
 
-			if ((textureDesc.BindFlags & D3D11_BIND_SHADER_RESOURCE) == 0 || textureDesc.Format != DXGI_FORMAT_R24G8_TYPELESS)
+			if ((desc.BindFlags & D3D11_BIND_SHADER_RESOURCE) == 0 || desc.Format != DXGI_FORMAT_R24G8_TYPELESS)
 			{
 				texture->Release();
+				texture = nullptr;
 
-				textureDesc.Format = DXGI_FORMAT_R24G8_TYPELESS;
-				textureDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_SHADER_RESOURCE;
+				desc.Format = DXGI_FORMAT_R24G8_TYPELESS;
+				desc.BindFlags = D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_SHADER_RESOURCE;
 
-				hr = this->mDevice->CreateTexture2D(&textureDesc, nullptr, &texture);
+				hr = this->mDevice->CreateTexture2D(&desc, nullptr, &texture);
 
 				if (SUCCEEDED(hr))
 				{
-					D3D11_DEPTH_STENCIL_VIEW_DESC depthstencilDesc;
-					depthstencilDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-					depthstencilDesc.ViewDimension = textureDesc.SampleDesc.Count > 1 ? D3D11_DSV_DIMENSION_TEXTURE2DMS : D3D11_DSV_DIMENSION_TEXTURE2D;
-					depthstencilDesc.Flags = 0;
-					depthstencilDesc.Texture2D.MipSlice = 0;
+					D3D11_DEPTH_STENCIL_VIEW_DESC dsdesc;
+					ZeroMemory(&dsdesc, sizeof(D3D11_DEPTH_STENCIL_VIEW_DESC));
+					dsdesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+					dsdesc.ViewDimension = desc.SampleDesc.Count > 1 ? D3D11_DSV_DIMENSION_TEXTURE2DMS : D3D11_DSV_DIMENSION_TEXTURE2D;
 
-					this->mDevice->CreateDepthStencilView(texture, &depthstencilDesc, &this->mBestDepthStencilReplacement);
-				}
-				else
-				{
-					LOG(ERROR) << "Failed to create depthstencil replacement texture.";
+					hr = this->mDevice->CreateDepthStencilView(texture, &dsdesc, &this->mDepthStencilReplacement);
 				}
 			}
 
 			if (SUCCEEDED(hr))
 			{
-				D3D11_SHADER_RESOURCE_VIEW_DESC textureviewDesc;
-				textureviewDesc.Format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
-				textureviewDesc.ViewDimension = textureDesc.SampleDesc.Count > 1 ? D3D11_SRV_DIMENSION_TEXTURE2DMS : D3D11_SRV_DIMENSION_TEXTURE2D;
-				textureviewDesc.Texture2D.MipLevels = 1;
-				textureviewDesc.Texture2D.MostDetailedMip = 0;
+				D3D11_SHADER_RESOURCE_VIEW_DESC srvdesc;
+				ZeroMemory(&srvdesc, sizeof(D3D11_SHADER_RESOURCE_VIEW_DESC));
+				srvdesc.Format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
+				srvdesc.ViewDimension = desc.SampleDesc.Count > 1 ? D3D11_SRV_DIMENSION_TEXTURE2DMS : D3D11_SRV_DIMENSION_TEXTURE2D;
+				srvdesc.Texture2D.MipLevels = 1;
 
-				this->mDevice->CreateShaderResourceView(texture, &textureviewDesc, &this->mDepthStencilShaderResourceView);
+				this->mDevice->CreateShaderResourceView(texture, &srvdesc, &this->mDepthStencilShaderResourceView);
 
 				texture->Release();
 
 				// Update auto depthstencil
-				ID3D11RenderTargetView *rendertargets[D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT] = { nullptr };
+				ID3D11RenderTargetView *targets[D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT] = { nullptr };
 				ID3D11DepthStencilView *depthstencil = nullptr;
 
-				this->mImmediateContext->OMGetRenderTargets(D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT, rendertargets, &depthstencil);
+				this->mImmediateContext->OMGetRenderTargets(D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT, targets, &depthstencil);
 
 				if (depthstencil != nullptr)
 				{
-					if (depthstencil == this->mBestDepthStencil)
+					if (depthstencil == this->mDepthStencil)
 					{
-						this->mImmediateContext->OMSetRenderTargets(D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT, rendertargets, this->mBestDepthStencilReplacement);
+						this->mImmediateContext->OMSetRenderTargets(D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT, targets, this->mDepthStencilReplacement);
 					}
 
 					depthstencil->Release();
@@ -2677,38 +2884,50 @@ namespace ReShade
 
 				for (UINT i = 0; i < D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT; ++i)
 				{
-					if (rendertargets[i] != nullptr)
+					if (targets[i] != nullptr)
 					{
-						rendertargets[i]->Release();
+						targets[i]->Release();
 					}
+				}
+			}
+			else
+			{
+				LOG(ERROR) << "Failed to create depthstencil replacement texture.";
+
+				if (texture != nullptr)
+				{
+					texture->Release();
 				}
 			}
 		}
 	}
 	void D3D11Runtime::CreateDepthStencil(ID3D11Resource *resource, ID3D11DepthStencilView *depthstencil)
 	{
-		CSLock lock(this->mCS);
-
+		assert(resource != nullptr);
 		assert(depthstencil != nullptr);
 
+		CSLock lock(this->mCS);
+
 		ID3D11Texture2D *texture = nullptr;
-			
 		const HRESULT hr = resource->QueryInterface(__uuidof(ID3D11Texture2D), reinterpret_cast<void **>(&texture));
 
-		if (SUCCEEDED(hr))
+		if (FAILED(hr))
 		{
-			D3D11_TEXTURE2D_DESC desc;
-			texture->GetDesc(&desc);
-
-			D3D11DepthStencilInfo info;
-			info.Width = desc.Width;
-			info.Height = desc.Height;
-			info.DrawCallCount = 0;
-
-			this->mDepthStencilTable.emplace(depthstencil, info);
-
-			texture->Release();
+			return;
 		}
+
+		D3D11_TEXTURE2D_DESC desc;
+		texture->GetDesc(&desc);
+
+		texture->Release();
+
+		D3D11DepthStencilInfo info;
+		info.Width = desc.Width;
+		info.Height = desc.Height;
+		info.DrawCallCount = 0;
+
+		// Begin tracking new depthstencil
+		this->mDepthStencilTable.emplace(depthstencil, info);
 	}
 	void D3D11Runtime::ReplaceDepthStencil(ID3D11DepthStencilView **pDepthStencil)
 	{
@@ -2716,52 +2935,15 @@ namespace ReShade
 
 		CSLock lock(this->mCS);
 
-		if (this->mBestDepthStencilReplacement != nullptr && depthstencil == this->mBestDepthStencil)
+		if (this->mDepthStencilReplacement != nullptr && depthstencil == this->mDepthStencil)
 		{
-			*pDepthStencil = this->mBestDepthStencilReplacement;
+			// Replace
+			*pDepthStencil = this->mDepthStencilReplacement;
 		}
 	}
 
-	D3D11Effect::D3D11Effect(std::shared_ptr<const D3D11Runtime> context) : mEffectContext(context), mConstantsDirty(true), mDepthStencilTexture(nullptr), mDepthStencilView(nullptr), mDepthStencil(nullptr), mRasterizerState(nullptr)
+	D3D11Effect::D3D11Effect(std::shared_ptr<const D3D11Runtime> context) : mEffectContext(context), mRasterizerState(nullptr), mDepthStencil(nullptr), mDepthStencilTexture(nullptr), mDepthStencilShaderResourceView(nullptr), mConstantsDirty(true)
 	{
-		HRESULT hr;
-		D3D11_TEXTURE2D_DESC dstdesc;
-		this->mEffectContext->mBackBuffer->GetDesc(&dstdesc);
-
-		dstdesc.Format = DXGI_FORMAT_R24G8_TYPELESS;
-		dstdesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_DEPTH_STENCIL;
-		D3D11_SHADER_RESOURCE_VIEW_DESC dssdesc;
-		dssdesc.Format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
-		dssdesc.ViewDimension = dstdesc.SampleDesc.Count > 1 ? D3D11_SRV_DIMENSION_TEXTURE2DMS : D3D11_SRV_DIMENSION_TEXTURE2D;
-		dssdesc.Texture2D.MipLevels = 1;
-		dssdesc.Texture2D.MostDetailedMip = 0;
-		D3D11_DEPTH_STENCIL_VIEW_DESC dsdesc;
-		dsdesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-		dsdesc.Flags = 0;
-		dsdesc.ViewDimension = dstdesc.SampleDesc.Count > 1 ? D3D11_DSV_DIMENSION_TEXTURE2DMS : D3D11_DSV_DIMENSION_TEXTURE2D;
-		dsdesc.Texture2D.MipSlice = 0;
-
-		hr = context->mDevice->CreateTexture2D(&dstdesc, nullptr, &this->mDepthStencilTexture);
-
-		assert(SUCCEEDED(hr));
-
-		hr = context->mDevice->CreateShaderResourceView(this->mDepthStencilTexture, &dssdesc, &this->mDepthStencilView);
-
-		assert(SUCCEEDED(hr));
-
-		hr = context->mDevice->CreateDepthStencilView(this->mDepthStencilTexture, &dsdesc, &this->mDepthStencil);
-
-		assert(SUCCEEDED(hr));
-
-		D3D11_RASTERIZER_DESC rsdesc;
-		ZeroMemory(&rsdesc, sizeof(D3D11_RASTERIZER_DESC));
-		rsdesc.FillMode = D3D11_FILL_SOLID;
-		rsdesc.CullMode = D3D11_CULL_NONE;
-		rsdesc.DepthClipEnable = TRUE;
-		
-		hr = context->mDevice->CreateRasterizerState(&rsdesc, &this->mRasterizerState);
-		
-		assert(SUCCEEDED(hr));
 	}
 	D3D11Effect::~D3D11Effect()
 	{
@@ -2773,9 +2955,9 @@ namespace ReShade
 		{
 			this->mDepthStencil->Release();
 		}
-		if (this->mDepthStencilView != nullptr)
+		if (this->mDepthStencilShaderResourceView != nullptr)
 		{
-			this->mDepthStencilView->Release();
+			this->mDepthStencilShaderResourceView->Release();
 		}
 		if (this->mDepthStencilTexture != nullptr)
 		{
@@ -2796,7 +2978,7 @@ namespace ReShade
 		}
 		for (auto &it : this->mConstantStorages)
 		{
-			::free(it);
+			free(it);
 		}
 	}
 
@@ -2870,9 +3052,14 @@ namespace ReShade
 		return names;
 	}
 
-	void D3D11Effect::ApplyConstants() const
+	void D3D11Effect::UpdateConstants() const
 	{
-		for (size_t i = 0, count = this->mConstantBuffers.size(); i < count; ++i)
+		if (!this->mConstantsDirty)
+		{
+			return;
+		}
+
+		for (std::size_t i = 0, count = this->mConstantBuffers.size(); i < count; ++i)
 		{
 			ID3D11Buffer *buffer = this->mConstantBuffers[i];
 			const unsigned char *storage = this->mConstantStorages[i];
@@ -2883,23 +3070,22 @@ namespace ReShade
 			}
 
 			D3D11_MAPPED_SUBRESOURCE mapped;
-
-			HRESULT hr = this->mEffectContext->mImmediateContext->Map(buffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
+			HRESULT hr = this->mEffectContext->mDeferredContext->Map(buffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
 
 			if (FAILED(hr))
 			{
 				continue;
 			}
 
-			std::memcpy(mapped.pData, storage, mapped.RowPitch);
+			CopyMemory(mapped.pData, storage, mapped.RowPitch);
 
-			this->mEffectContext->mImmediateContext->Unmap(buffer, 0);
+			this->mEffectContext->mDeferredContext->Unmap(buffer, 0);
 		}
 
 		this->mConstantsDirty = false;
 	}
 
-	D3D11Texture::D3D11Texture(D3D11Effect *effect) : mEffect(effect), mTexture(nullptr), mShaderResourceView(), mRenderTargetView()
+	D3D11Texture::D3D11Texture(D3D11Effect *effect, const Description &desc) : Texture(desc), mEffect(effect), mTexture(nullptr), mShaderResourceView(), mRenderTargetView()
 	{
 	}
 	D3D11Texture::~D3D11Texture()
@@ -2928,29 +3114,18 @@ namespace ReShade
 		}
 	}
 
-	const Effect::Texture::Description D3D11Texture::GetDescription() const
+	bool D3D11Texture::Update(unsigned int level, const unsigned char *data, std::size_t size)
 	{
-		return this->mDesc;
-	}
-	const Effect::Annotation D3D11Texture::GetAnnotation(const std::string &name) const
-	{
-		auto it = this->mAnnotations.find(name);
-
-		if (it == this->mAnnotations.end())
+		if (data == nullptr || size == 0 || level > this->mDesc.Levels)
 		{
-			return Effect::Annotation();
+			return false;
 		}
 
-		return it->second;
-	}
-
-	void D3D11Texture::Update(unsigned int level, const unsigned char *data, std::size_t size)
-	{
-		assert(data != nullptr || size == 0);
-
-		if (size == 0) return;
+		assert(this->mDesc.Height != 0);
 
 		this->mEffect->mEffectContext->mImmediateContext->UpdateSubresource(this->mTexture, level, nullptr, data, size / this->mDesc.Height, size);
+
+		return true;
 	}
 	void D3D11Texture::UpdateFromColorBuffer()
 	{
@@ -2968,54 +3143,52 @@ namespace ReShade
 	}
 	void D3D11Texture::UpdateFromDepthBuffer()
 	{
-		if (this->mShaderResourceView[0] == this->mEffect->mEffectContext->mDepthStencilShaderResourceView)
+		if (this->mShaderResourceView[0] == this->mEffect->mEffectContext->mDepthStencilShaderResourceView || this->mEffect->mEffectContext->mDepthStencilShaderResourceView == nullptr)
 		{
 			return;
 		}
+		else if (this->mTexture != nullptr)
+		{
+			if (this->mShaderResourceView[0] != nullptr)
+			{
+				this->mShaderResourceView[0]->Release();
+			}
+			if (this->mShaderResourceView[1] != nullptr)
+			{
+				this->mShaderResourceView[1]->Release();
+			}
 
-		assert(this->mRenderTargetView[0] == nullptr && this->mRenderTargetView[1] == nullptr);
+			assert(this->mRenderTargetView[0] == nullptr && this->mRenderTargetView[1] == nullptr);
 
-		if (this->mShaderResourceView[0] != nullptr)
-		{
-			this->mShaderResourceView[0]->Release();
-		}
-		if (this->mShaderResourceView[1] != nullptr)
-		{
-			this->mShaderResourceView[1]->Release();
-		}
-		if (this->mTexture != nullptr)
-		{
 			this->mTexture->Release();
 		}
 
-		ID3D11ShaderResourceView *prevView[2] = { this->mShaderResourceView[0], this->mShaderResourceView[1] };
+		ID3D11ShaderResourceView *previous[2] = { this->mShaderResourceView[0], this->mShaderResourceView[1] };
 
+		// Replace with depth texture
 		this->mTexture = nullptr;
 		this->mShaderResourceView[0] = this->mEffect->mEffectContext->mDepthStencilShaderResourceView;
-		this->mShaderResourceView[1] = nullptr;
+		this->mShaderResourceView[0]->AddRef();
+		this->mShaderResourceView[0]->GetResource(reinterpret_cast<ID3D11Resource **>(&this->mTexture));
+		this->mShaderResourceView[1] = this->mEffect->mEffectContext->mDepthStencilShaderResourceView;
+		this->mShaderResourceView[1]->AddRef();
 
-		if (this->mShaderResourceView[0] != nullptr)
-		{
-			this->mShaderResourceView[0]->GetResource(reinterpret_cast<ID3D11Resource **>(&this->mTexture));
+		D3D11_TEXTURE2D_DESC desc;
+		this->mTexture->GetDesc(&desc);
 
-			D3D11_TEXTURE2D_DESC desc;
-			this->mTexture->GetDesc(&desc);
+		this->mDesc.Width = desc.Width;
+		this->mDesc.Height = desc.Height;
+		this->mDesc.Format = Effect::Texture::Format::Unknown;
+		this->mDesc.Levels = desc.MipLevels;
 
-			this->mDesc.Width = desc.Width;
-			this->mDesc.Height = desc.Height;
-			this->mDesc.Format = Effect::Texture::Format::Unknown;
-			this->mDesc.Levels = desc.MipLevels;
-
-			this->mShaderResourceView[0]->AddRef();
-		}
-
+		// Update techniques shader resourceviews
 		for (auto &technique : this->mEffect->mTechniques)
 		{
 			for (auto &pass : technique.second->mPasses)
 			{
 				for (auto &SR : pass.SR)
 				{
-					if (SR == prevView[0] || SR == prevView[1])
+					if (SR == previous[0] || SR == previous[1])
 					{
 						SR = this->mShaderResourceView[0];
 					}
@@ -3024,35 +3197,18 @@ namespace ReShade
 		}
 	}
 
-	D3D11Constant::D3D11Constant(D3D11Effect *effect) : mEffect(effect)
+	D3D11Constant::D3D11Constant(D3D11Effect *effect, const Description &desc) : Constant(desc), mEffect(effect)
 	{
 	}
 	D3D11Constant::~D3D11Constant()
 	{
 	}
 
-	const Effect::Constant::Description D3D11Constant::GetDescription() const
-	{
-		return this->mDesc;
-	}
-	const Effect::Annotation D3D11Constant::GetAnnotation(const std::string &name) const
-	{
-		auto it = this->mAnnotations.find(name);
-
-		if (it == this->mAnnotations.end())
-		{
-			return Effect::Annotation();
-		}
-
-		return it->second;
-	}
 	void D3D11Constant::GetValue(unsigned char *data, std::size_t size) const
 	{
 		size = std::min(size, this->mDesc.Size);
 
-		const unsigned char *storage = this->mEffect->mConstantStorages[this->mBuffer] + this->mBufferOffset;
-
-		std::memcpy(data, storage, size);
+		CopyMemory(data, this->mEffect->mConstantStorages[this->mBuffer] + this->mBufferOffset, size);
 	}
 	void D3D11Constant::SetValue(const unsigned char *data, std::size_t size)
 	{
@@ -3065,12 +3221,12 @@ namespace ReShade
 			return;
 		}
 
-		std::memcpy(storage, data, size);
+		CopyMemory(storage, data, size);
 
 		this->mEffect->mConstantsDirty = true;
 	}
 
-	D3D11Technique::D3D11Technique(D3D11Effect *effect) : mEffect(effect)
+	D3D11Technique::D3D11Technique(D3D11Effect *effect) : Technique(), mEffect(effect)
 	{
 	}
 	D3D11Technique::~D3D11Technique()
@@ -3096,20 +3252,10 @@ namespace ReShade
 		}
 	}
 
-	const Effect::Annotation D3D11Technique::GetAnnotation(const std::string &name) const
-	{
-		auto it = this->mAnnotations.find(name);
-
-		if (it == this->mAnnotations.end())
-		{
-			return Effect::Annotation();
-		}
-
-		return it->second;
-	}
-
 	bool D3D11Technique::Begin(unsigned int &passes) const
 	{
+		ID3D11DeviceContext *const context = mEffect->mEffectContext->mDeferredContext;
+
 		passes = static_cast<unsigned int>(this->mPasses.size());
 
 		if (passes == 0)
@@ -3117,39 +3263,45 @@ namespace ReShade
 			return false;
 		}
 
-		ID3D11DeviceContext *context = mEffect->mEffectContext->mDeferredContext;
-
+		// Setup vertex input
 		const uintptr_t null = 0;
 		context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 		context->IASetInputLayout(nullptr);
 		context->IASetVertexBuffers(0, 1, reinterpret_cast<ID3D11Buffer *const *>(&null), reinterpret_cast<const UINT *>(&null), reinterpret_cast<const UINT *>(&null));
+
 		context->RSSetState(this->mEffect->mRasterizerState);
 
-		context->VSSetSamplers(0, this->mEffect->mSamplerStates.size(), this->mEffect->mSamplerStates.data());
-		context->PSSetSamplers(0, this->mEffect->mSamplerStates.size(), this->mEffect->mSamplerStates.data());
-		context->VSSetConstantBuffers(0, this->mEffect->mConstantBuffers.size(), this->mEffect->mConstantBuffers.data());
-		context->PSSetConstantBuffers(0, this->mEffect->mConstantBuffers.size(), this->mEffect->mConstantBuffers.data());
+		// Setup samplers
+		context->VSSetSamplers(0, static_cast<UINT>(this->mEffect->mSamplerStates.size()), this->mEffect->mSamplerStates.data());
+		context->PSSetSamplers(0, static_cast<UINT>(this->mEffect->mSamplerStates.size()), this->mEffect->mSamplerStates.data());
 
+		// Setup shader constants
+		context->VSSetConstantBuffers(0, static_cast<UINT>(this->mEffect->mConstantBuffers.size()), this->mEffect->mConstantBuffers.data());
+		context->PSSetConstantBuffers(0, static_cast<UINT>(this->mEffect->mConstantBuffers.size()), this->mEffect->mConstantBuffers.data());
+
+		// Setup depthstencil
 		assert(this->mEffect->mDepthStencil != nullptr);
 
-		context->ClearDepthStencilView(this->mEffect->mDepthStencil, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0x00);
+		context->ClearDepthStencilView(this->mEffect->mDepthStencil, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
 
 		return true;
 	}
 	void D3D11Technique::End() const
 	{
-		this->mEffect->mEffectContext->mDeferredContext->OMSetRenderTargets(1, &this->mEffect->mEffectContext->mBackBufferTargets[0], nullptr);
+		ID3D11DeviceContext *const context = this->mEffect->mEffectContext->mDeferredContext;
+
+		// Reset rendertargets
+		context->OMSetRenderTargets(1, &this->mEffect->mEffectContext->mBackBufferTargets[0], nullptr);
 	}
 	void D3D11Technique::RenderPass(unsigned int index) const
 	{
-		if (this->mEffect->mConstantsDirty)
-		{
-			this->mEffect->ApplyConstants();
-		}
-
+		ID3D11DeviceContext *const context = this->mEffect->mEffectContext->mDeferredContext;
 		const Pass &pass = this->mPasses[index];
-		ID3D11DeviceContext *context = mEffect->mEffectContext->mDeferredContext;
 
+		// Update shader constants
+		this->mEffect->UpdateConstants();
+
+		// Setup states
 		context->VSSetShader(pass.VS, nullptr, 0);
 		context->HSSetShader(nullptr, nullptr, 0);
 		context->DSSetShader(nullptr, nullptr, 0);
@@ -3159,7 +3311,14 @@ namespace ReShade
 		const FLOAT blendfactor[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
 		context->OMSetBlendState(pass.BS, blendfactor, D3D11_DEFAULT_SAMPLE_MASK);
 		context->OMSetDepthStencilState(pass.DSS, pass.StencilRef);
+
+		// Setup shader resources
+		context->VSSetShaderResources(0, pass.SR.size(), pass.SR.data());
+		context->PSSetShaderResources(0, pass.SR.size(), pass.SR.data());
+
+		// Setup rendertargets
 		context->OMSetRenderTargets(D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT, pass.RT, this->mEffect->mDepthStencil);
+		context->RSSetViewports(1, &pass.Viewport);
 
 		for (UINT i = 0; i < D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT; ++i)
 		{
@@ -3171,25 +3330,8 @@ namespace ReShade
 			const FLOAT color[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 			context->ClearRenderTargetView(pass.RT[i], color);
 		}
-
-		context->VSSetShaderResources(0, pass.SR.size(), pass.SR.data());
-		context->PSSetShaderResources(0, pass.SR.size(), pass.SR.data());
-
-		ID3D11Resource *rtres;
-		pass.RT[0]->GetResource(&rtres);
-		D3D11_TEXTURE2D_DESC rtdesc;
-		static_cast<ID3D11Texture2D *>(rtres)->GetDesc(&rtdesc);
-		rtres->Release();
-
-		D3D11_VIEWPORT viewport;
-		viewport.Width = static_cast<FLOAT>(rtdesc.Width);
-		viewport.Height = static_cast<FLOAT>(rtdesc.Height);
-		viewport.TopLeftX = 0.0f;
-		viewport.TopLeftY = 0.0f;
-		viewport.MinDepth = 0.0f;
-		viewport.MaxDepth = 1.0f;
-		context->RSSetViewports(1, &viewport);
-
+	
+		// Draw triangle
 		context->Draw(3, 0);
 	}
 }
