@@ -54,6 +54,7 @@ namespace ReShade
 		bool CreateDepthStencil(ID3D10DepthStencilView *depthstencil);
 		void ReplaceBackBuffer(ID3D10Texture2D *&backbuffer);
 		void ReplaceDepthStencil(ID3D10DepthStencilView *&depthstencil);
+		void ReplaceDepthStencilResource(ID3D10Resource *&depthstencil);
 
 		ID3D10Device *mDevice;
 		IDXGISwapChain *mSwapChain;
@@ -64,7 +65,8 @@ namespace ReShade
 		ID3D10ShaderResourceView *mBackBufferTextureSRV[2];
 		ID3D10RenderTargetView *mBackBufferTargets[2];
 		ID3D10DepthStencilView *mDepthStencil, *mDepthStencilReplacement;
-		ID3D10ShaderResourceView *mDepthStencilReplacementSRV;
+		ID3D10Texture2D *mDepthStencilTexture;
+		ID3D10ShaderResourceView *mDepthStencilTextureSRV;
 		std::unordered_map<ID3D10DepthStencilView *, D3D10DepthStencilInfo> mDepthStencilTable;
 		bool mLost;
 	};
