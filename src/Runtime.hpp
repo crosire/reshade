@@ -31,12 +31,12 @@ namespace ReShade
 		Runtime();
 		virtual ~Runtime();
 
-		virtual bool OnCreate(unsigned int width, unsigned int height);
-		virtual void OnDelete();
-		virtual void OnDraw(unsigned int vertices);
-		virtual void OnPresent();
-
 	protected:
+		bool OnCreate(unsigned int width, unsigned int height);
+		void OnDelete();
+		void OnDraw(unsigned int vertices);
+		void OnPresent();
+
 		virtual std::unique_ptr<Effect> CreateEffect(const EffectTree &ast, std::string &errors) const = 0;
 		void CreateResources();
 		virtual void CreateScreenshot(unsigned char *buffer, std::size_t size) const = 0;

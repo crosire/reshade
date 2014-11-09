@@ -3147,7 +3147,7 @@ namespace ReShade
 		assert(this->mLost);
 	}
 
-	bool GLRuntime::OnCreate(unsigned int width, unsigned int height)
+	bool GLRuntime::OnCreateInternal(unsigned int width, unsigned int height)
 	{
 		this->mStateBlock.Capture();
 
@@ -3185,7 +3185,7 @@ namespace ReShade
 
 		return res;
 	}
-	void GLRuntime::OnDelete()
+	void GLRuntime::OnDeleteInternal()
 	{
 		if (!this->mPresenting)
 		{
@@ -3216,7 +3216,7 @@ namespace ReShade
 		this->mLost = true;
 		this->mPresenting = false;
 	}
-	void GLRuntime::OnDraw(unsigned int vertices)
+	void GLRuntime::OnDrawInternal(unsigned int vertices)
 	{
 		Runtime::OnDraw(vertices);
 
@@ -3231,7 +3231,7 @@ namespace ReShade
 			it->second.DrawVerticesCount += vertices;
 		}
 	}
-	void GLRuntime::OnPresent()
+	void GLRuntime::OnPresentInternal()
 	{
 		if (this->mLost)
 		{

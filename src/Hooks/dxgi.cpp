@@ -12,7 +12,10 @@ namespace
 {
 	struct DXGISwapChain : public IDXGISwapChain1, private boost::noncopyable
 	{
-		DXGISwapChain(IDXGIFactory *pFactory, IDXGISwapChain *pOriginalSwapChain, const std::shared_ptr<ReShade::Runtime> runtime) : mRef(1), mFactory(pFactory), mOrig(pOriginalSwapChain), mRuntime(runtime)
+		DXGISwapChain(IDXGIFactory *pFactory, IDXGISwapChain *pOriginalSwapChain, const std::shared_ptr<ReShade::D3D10Runtime> runtime) : mRef(1), mFactory(pFactory), mOrig(pOriginalSwapChain), mDirect3DVersion(10), mRuntime(runtime)
+		{
+		}
+		DXGISwapChain(IDXGIFactory *pFactory, IDXGISwapChain *pOriginalSwapChain, const std::shared_ptr<ReShade::D3D11Runtime> runtime) : mRef(1), mFactory(pFactory), mOrig(pOriginalSwapChain), mDirect3DVersion(11), mRuntime(runtime)
 		{
 		}
 
@@ -51,8 +54,9 @@ namespace
 		virtual HRESULT STDMETHODCALLTYPE GetRotation(DXGI_MODE_ROTATION *pRotation) override;
 
 		ULONG mRef;
-		IDXGIFactory *mFactory;
-		IDXGISwapChain *mOrig;
+		IDXGIFactory *const mFactory;
+		IDXGISwapChain *const mOrig;
+		const unsigned int mDirect3DVersion;
 		std::shared_ptr<ReShade::Runtime> mRuntime;
 	};
 
@@ -146,7 +150,15 @@ ULONG STDMETHODCALLTYPE DXGISwapChain::Release()
 	{
 		assert(this->mRuntime != nullptr);
 
-		this->mRuntime->OnDelete();
+		if (this->mDirect3DVersion == 10)
+		{
+			std::static_pointer_cast<ReShade::D3D10Runtime>(this->mRuntime)->OnDeleteInternal();
+		}
+		else if (this->mDirect3DVersion == 11)
+		{
+			std::static_pointer_cast<ReShade::D3D11Runtime>(this->mRuntime)->OnDeleteInternal();
+		}
+
 		this->mRuntime.reset();
 	}
 
@@ -183,7 +195,15 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::Present(UINT SyncInterval, UINT Flags)
 {
 	assert(this->mRuntime != nullptr);
 
-	this->mRuntime->OnPresent();
+	switch (this->mDirect3DVersion)
+	{
+		case 10:
+			std::static_pointer_cast<ReShade::D3D10Runtime>(this->mRuntime)->OnPresentInternal();
+			break;
+		case 11:
+			std::static_pointer_cast<ReShade::D3D11Runtime>(this->mRuntime)->OnPresentInternal();
+			break;
+	}
 
 	return this->mOrig->Present(SyncInterval, Flags);
 }
@@ -209,30 +229,32 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Wi
 {
 	LOG(INFO) << "Redirecting '" << "IDXGISwapChain::ResizeBuffers" << "(" << this << ", " << BufferCount << ", " << Width << ", " << Height << ", " << NewFormat << ", " << SwapChainFlags << ")' ...";
 
-	switch (NewFormat)
+	DXGI_SWAP_CHAIN_DESC desc;
+	this->mOrig->GetDesc(&desc);
+
+	desc.BufferCount = BufferCount;
+	desc.BufferDesc.Width = Width;
+	desc.BufferDesc.Height = Height;
+	desc.BufferDesc.Format = NewFormat;
+
+	if (!AdjustPresentParameters(desc))
 	{
-		case DXGI_FORMAT_UNKNOWN:
-		case DXGI_FORMAT_R8G8B8A8_UNORM:
-		case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
-			break;
-		case DXGI_FORMAT_B8G8R8A8_UNORM:
-			LOG(WARNING) << "> Replacing buffer format 'DXGI_FORMAT_B8G8R8A8_UNORM' with 'DXGI_FORMAT_R8G8B8A8_UNORM' ...";
-			NewFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
-			break;
-		case DXGI_FORMAT_B8G8R8A8_UNORM_SRGB:
-			LOG(WARNING) << "> Replacing buffer format 'DXGI_FORMAT_B8G8R8A8_UNORM_SRGB' with 'DXGI_FORMAT_R8G8B8A8_UNORM_SRGB' ...";
-			NewFormat = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
-			break;
-		default:
-			LOG(ERROR) << "> Format " << NewFormat << " is not currently supported.";
-			return DXGI_ERROR_INVALID_CALL;
+		return DXGI_ERROR_INVALID_CALL;
 	}
 
 	assert(this->mRuntime != nullptr);
 
-	this->mRuntime->OnDelete();
+	switch (this->mDirect3DVersion)
+	{
+		case 10:
+			std::static_pointer_cast<ReShade::D3D10Runtime>(this->mRuntime)->OnDeleteInternal();
+			break;
+		case 11:
+			std::static_pointer_cast<ReShade::D3D11Runtime>(this->mRuntime)->OnDeleteInternal();
+			break;
+	}
 
-	const HRESULT hr = this->mOrig->ResizeBuffers(BufferCount, Width, Height, NewFormat, SwapChainFlags);
+	const HRESULT hr = this->mOrig->ResizeBuffers(desc.BufferCount, desc.BufferDesc.Width, desc.BufferDesc.Height, desc.BufferDesc.Format, SwapChainFlags);
 
 	if (SUCCEEDED(hr) || hr == DXGI_ERROR_INVALID_CALL)
 	{
@@ -241,10 +263,17 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Wi
 			LOG(WARNING) << "'IDXGISwapChain::ResizeBuffers' failed with 'DXGI_ERROR_INVALID_CALL'!";
 		}
 
-		DXGI_SWAP_CHAIN_DESC desc;
 		this->mOrig->GetDesc(&desc);
 
-		this->mRuntime->OnCreate(desc.BufferDesc.Width, desc.BufferDesc.Height);
+		switch (this->mDirect3DVersion)
+		{
+			case 10:
+				std::static_pointer_cast<ReShade::D3D10Runtime>(this->mRuntime)->OnCreateInternal(desc);
+				break;
+			case 11:
+				std::static_pointer_cast<ReShade::D3D11Runtime>(this->mRuntime)->OnCreateInternal(desc);
+				break;
+		}
 	}
 	else
 	{
@@ -291,7 +320,15 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::Present1(UINT SyncInterval, UINT Presen
 {
 	assert(this->mRuntime != nullptr);
 
-	this->mRuntime->OnPresent();
+	switch (this->mDirect3DVersion)
+	{
+		case 10:
+			std::static_pointer_cast<ReShade::D3D10Runtime>(this->mRuntime)->OnPresentInternal();
+			break;
+		case 11:
+			std::static_pointer_cast<ReShade::D3D11Runtime>(this->mRuntime)->OnPresentInternal();
+			break;
+	}
 
 	return static_cast<IDXGISwapChain1 *>(this->mOrig)->Present1(SyncInterval, PresentFlags, pPresentParameters);
 }
@@ -331,7 +368,7 @@ void STDMETHODCALLTYPE ID3D10Device_DrawIndexed(ID3D10Device *pDevice, UINT Inde
 
 	assert(runtime != nullptr);
 
-	runtime->OnDraw(IndexCount);
+	runtime->OnDrawInternal(IndexCount);
 
 	trampoline(pDevice, IndexCount, StartIndexLocation, BaseVertexLocation);
 }
@@ -345,7 +382,7 @@ void STDMETHODCALLTYPE ID3D10Device_Draw(ID3D10Device *pDevice, UINT VertexCount
 
 	assert(runtime != nullptr);
 
-	runtime->OnDraw(VertexCount);
+	runtime->OnDrawInternal(VertexCount);
 
 	trampoline(pDevice, VertexCount, StartVertexLocation);
 }
@@ -359,7 +396,7 @@ void STDMETHODCALLTYPE ID3D10Device_DrawIndexedInstanced(ID3D10Device *pDevice, 
 
 	assert(runtime != nullptr);
 
-	runtime->OnDraw(IndexCountPerInstance * InstanceCount);
+	runtime->OnDrawInternal(IndexCountPerInstance * InstanceCount);
 
 	trampoline(pDevice, IndexCountPerInstance, InstanceCount, StartIndexLocation, BaseVertexLocation, StartInstanceLocation);
 }
@@ -373,7 +410,7 @@ void STDMETHODCALLTYPE ID3D10Device_DrawInstanced(ID3D10Device *pDevice, UINT Ve
 
 	assert(runtime != nullptr);
 
-	runtime->OnDraw(VertexCountPerInstance * InstanceCount);
+	runtime->OnDrawInternal(VertexCountPerInstance * InstanceCount);
 
 	trampoline(pDevice, VertexCountPerInstance, InstanceCount, StartVertexLocation, StartInstanceLocation);
 }
@@ -389,7 +426,7 @@ void STDMETHODCALLTYPE ID3D10Device_OMSetRenderTargets(ID3D10Device *pDevice, UI
 
 		assert(runtime != nullptr);
 
-		runtime->ReplaceDepthStencil(&pDepthStencilView);
+		runtime->ReplaceDepthStencil(pDepthStencilView);
 	}
 
 	trampoline(pDevice, NumViews, ppRenderTargetViews, pDepthStencilView);
@@ -406,7 +443,7 @@ void STDMETHODCALLTYPE ID3D10Device_ClearDepthStencilView(ID3D10Device *pDevice,
 
 		assert(runtime != nullptr);
 
-		runtime->ReplaceDepthStencil(&pDepthStencilView);
+		runtime->ReplaceDepthStencil(pDepthStencilView);
 	}
 
 	trampoline(pDevice, pDepthStencilView, ClearFlags, Depth, Stencil);
@@ -425,7 +462,7 @@ HRESULT STDMETHODCALLTYPE ID3D10Device_CreateDepthStencilView(ID3D10Device *pDev
 
 		assert(runtime != nullptr);
 
-		runtime->CreateDepthStencil(pResource, *ppDepthStencilView);
+		runtime->OnCreateDepthStencil(pResource, *ppDepthStencilView);
 	}
 
 	return hr;
@@ -446,7 +483,7 @@ HRESULT STDMETHODCALLTYPE ID3D11Device_CreateDepthStencilView(ID3D11Device *pDev
 
 		assert(runtime != nullptr);
 
-		runtime->CreateDepthStencil(pResource, *ppDepthStencilView);
+		runtime->OnCreateDepthStencil(pResource, *ppDepthStencilView);
 	}
 
 	return hr;
@@ -469,7 +506,7 @@ void STDMETHODCALLTYPE ID3D11DeviceContext_DrawIndexed(ID3D11DeviceContext *pDev
 
 	assert(runtime != nullptr);
 
-	runtime->OnDraw(pDeviceContext, IndexCount);
+	runtime->OnDrawInternal(pDeviceContext, IndexCount);
 
 	trampoline(pDeviceContext, IndexCount, StartIndexLocation, BaseVertexLocation);
 }
@@ -489,7 +526,7 @@ void STDMETHODCALLTYPE ID3D11DeviceContext_Draw(ID3D11DeviceContext *pDeviceCont
 
 	assert(runtime != nullptr);
 
-	runtime->OnDraw(pDeviceContext, VertexCount);
+	runtime->OnDrawInternal(pDeviceContext, VertexCount);
 
 	trampoline(pDeviceContext, VertexCount, StartVertexLocation);
 }
@@ -509,7 +546,7 @@ void STDMETHODCALLTYPE ID3D11DeviceContext_DrawIndexedInstanced(ID3D11DeviceCont
 
 	assert(runtime != nullptr);
 
-	runtime->OnDraw(pDeviceContext, IndexCountPerInstance * InstanceCount);
+	runtime->OnDrawInternal(pDeviceContext, IndexCountPerInstance * InstanceCount);
 
 	trampoline(pDeviceContext, IndexCountPerInstance, InstanceCount, StartIndexLocation, BaseVertexLocation, StartInstanceLocation);
 }
@@ -529,7 +566,7 @@ void STDMETHODCALLTYPE ID3D11DeviceContext_DrawInstanced(ID3D11DeviceContext *pD
 
 	assert(runtime != nullptr);
 
-	runtime->OnDraw(pDeviceContext, VertexCountPerInstance * InstanceCount);
+	runtime->OnDrawInternal(pDeviceContext, VertexCountPerInstance * InstanceCount);
 
 	trampoline(pDeviceContext, VertexCountPerInstance, InstanceCount, StartVertexLocation, StartInstanceLocation);
 }
@@ -551,7 +588,7 @@ void STDMETHODCALLTYPE ID3D11DeviceContext_OMSetRenderTargets(ID3D11DeviceContex
 
 		assert(runtime != nullptr);
 
-		runtime->ReplaceDepthStencil(&pDepthStencilView);
+		runtime->ReplaceDepthStencil(pDepthStencilView);
 	}
 
 	trampoline(pDeviceContext, NumViews, ppRenderTargetViews, pDepthStencilView);
@@ -574,7 +611,7 @@ void STDMETHODCALLTYPE ID3D11DeviceContext_OMSetRenderTargetsAndUnorderedAccessV
 
 		assert(runtime != nullptr);
 
-		runtime->ReplaceDepthStencil(&pDepthStencilView);
+		runtime->ReplaceDepthStencil(pDepthStencilView);
 	}
 
 	trampoline(pDeviceContext, NumRTVs, ppRenderTargetViews, pDepthStencilView, UAVStartSlot, NumUAVs, ppUnorderedAccessViews, pUAVInitialCounts);
@@ -597,7 +634,7 @@ void STDMETHODCALLTYPE ID3D11DeviceContext_ClearDepthStencilView(ID3D11DeviceCon
 
 		assert(runtime != nullptr);
 
-		runtime->ReplaceDepthStencil(&pDepthStencilView);
+		runtime->ReplaceDepthStencil(pDepthStencilView);
 	}
 
 	trampoline(pDeviceContext, pDepthStencilView, ClearFlags, Depth, Stencil);
@@ -654,7 +691,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, I
 			ReShade::D3D10Runtime *runtimePtr = runtime.get();
 			deviceD3D10->SetPrivateData(sRuntimeGUID, sizeof(runtimePtr), reinterpret_cast<const void *>(&runtimePtr));
 
-			runtime->OnCreate(desc.BufferDesc.Width, desc.BufferDesc.Height);
+			runtime->OnCreateInternal(desc);
 
 			*ppSwapChain = new DXGISwapChain(pFactory, swapchain, runtime);
 
@@ -679,7 +716,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, I
 			ReShade::D3D11Runtime *runtimePtr = runtime.get();
 			deviceD3D11->SetPrivateData(sRuntimeGUID, sizeof(runtimePtr), reinterpret_cast<const void *>(&runtimePtr));
 
-			runtime->OnCreate(desc.BufferDesc.Width, desc.BufferDesc.Height);
+			runtime->OnCreateInternal(desc);
 
 			*ppSwapChain = new DXGISwapChain(pFactory, swapchain, runtime);
 
@@ -733,7 +770,8 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pF
 		ID3D11Device *deviceD3D11 = nullptr;
 		IDXGISwapChain1 *swapchain = *ppSwapChain;
 
-		swapchain->GetDesc1(&desc);
+		DXGI_SWAP_CHAIN_DESC desc;
+		swapchain->GetDesc(&desc);
 
 		if (SUCCEEDED(pDevice->QueryInterface(&deviceD3D10)))
 		{
@@ -750,7 +788,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pF
 			ReShade::D3D10Runtime *runtimePtr = runtime.get();
 			deviceD3D10->SetPrivateData(sRuntimeGUID, sizeof(runtimePtr), reinterpret_cast<const void *>(&runtimePtr));
 
-			runtime->OnCreate(desc.Width, desc.Height);
+			runtime->OnCreateInternal(desc);
 
 			*ppSwapChain = new DXGISwapChain(pFactory, swapchain, runtime);
 
@@ -775,7 +813,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pF
 			ReShade::D3D11Runtime *runtimePtr = runtime.get();
 			deviceD3D11->SetPrivateData(sRuntimeGUID, sizeof(runtimePtr), reinterpret_cast<const void *>(&runtimePtr));
 
-			runtime->OnCreate(desc.Width, desc.Height);
+			runtime->OnCreateInternal(desc);
 
 			*ppSwapChain = new DXGISwapChain(pFactory, swapchain, runtime);
 
@@ -827,7 +865,8 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactor
 		ID3D11Device *deviceD3D11 = nullptr;
 		IDXGISwapChain1 *swapchain = *ppSwapChain;
 
-		swapchain->GetDesc1(&desc);
+		DXGI_SWAP_CHAIN_DESC desc;
+		swapchain->GetDesc(&desc);
 
 		if (SUCCEEDED(pDevice->QueryInterface(&deviceD3D10)))
 		{
@@ -844,7 +883,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactor
 			ReShade::D3D10Runtime *runtimePtr = runtime.get();
 			deviceD3D10->SetPrivateData(sRuntimeGUID, sizeof(runtimePtr), reinterpret_cast<const void *>(&runtimePtr));
 
-			runtime->OnCreate(desc.Width, desc.Height);
+			runtime->OnCreateInternal(desc);
 
 			*ppSwapChain = new DXGISwapChain(pFactory, swapchain, runtime);
 
@@ -869,7 +908,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactor
 			ReShade::D3D11Runtime *runtimePtr = runtime.get();
 			deviceD3D11->SetPrivateData(sRuntimeGUID, sizeof(runtimePtr), reinterpret_cast<const void *>(&runtimePtr));
 
-			runtime->OnCreate(desc.Width, desc.Height);
+			runtime->OnCreateInternal(desc);
 
 			*ppSwapChain = new DXGISwapChain(pFactory, swapchain, runtime);
 
@@ -921,7 +960,8 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFacto
 		ID3D11Device *deviceD3D11 = nullptr;
 		IDXGISwapChain1 *swapchain = *ppSwapChain;
 
-		swapchain->GetDesc1(&desc);
+		DXGI_SWAP_CHAIN_DESC desc;
+		swapchain->GetDesc(&desc);
 
 		if (SUCCEEDED(pDevice->QueryInterface(&deviceD3D10)))
 		{
@@ -938,7 +978,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFacto
 			ReShade::D3D10Runtime *runtimePtr = runtime.get();
 			deviceD3D10->SetPrivateData(sRuntimeGUID, sizeof(runtimePtr), reinterpret_cast<const void *>(&runtimePtr));
 
-			runtime->OnCreate(desc.Width, desc.Height);
+			runtime->OnCreateInternal(desc);
 
 			*ppSwapChain = new DXGISwapChain(pFactory, swapchain, runtime);
 
@@ -963,7 +1003,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFacto
 			ReShade::D3D11Runtime *runtimePtr = runtime.get();
 			deviceD3D11->SetPrivateData(sRuntimeGUID, sizeof(runtimePtr), reinterpret_cast<const void *>(&runtimePtr));
 
-			runtime->OnCreate(desc.Width, desc.Height);
+			runtime->OnCreateInternal(desc);
 
 			*ppSwapChain = new DXGISwapChain(pFactory, swapchain, runtime);
 

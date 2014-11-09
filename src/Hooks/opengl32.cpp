@@ -553,7 +553,7 @@ EXPORT void WINAPI glDrawArrays(GLenum mode, GLint first, GLsizei count)
 	{
 		ReShade::GLRuntime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
 
-		runtime->OnDraw(count);
+		runtime->OnDrawInternal(count);
 	}
 
 	trampoline(mode, first, count);
@@ -572,7 +572,7 @@ void WINAPI glDrawArraysInstanced(GLenum mode, GLint first, GLsizei count, GLsiz
 	{
 		ReShade::GLRuntime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
 
-		runtime->OnDraw(instancecount * count);
+		runtime->OnDrawInternal(instancecount * count);
 	}
 
 	trampoline(mode, first, count, instancecount);
@@ -585,7 +585,7 @@ void WINAPI glDrawArraysInstancedBaseInstance(GLenum mode, GLint first, GLsizei 
 	{
 		ReShade::GLRuntime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
 
-		runtime->OnDraw(instancecount * count);
+		runtime->OnDrawInternal(instancecount * count);
 	}
 
 	trampoline(mode, first, count, instancecount, baseinstance);
@@ -604,7 +604,7 @@ EXPORT void WINAPI glDrawElements(GLenum mode, GLsizei count, GLenum type, const
 	{
 		ReShade::GLRuntime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
 
-		runtime->OnDraw(count);
+		runtime->OnDrawInternal(count);
 	}
 
 	trampoline(mode, count, type, indices);
@@ -617,7 +617,7 @@ void WINAPI glDrawElementsBaseVertex(GLenum mode, GLsizei count, GLenum type, co
 	{
 		ReShade::GLRuntime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
 
-		runtime->OnDraw(count);
+		runtime->OnDrawInternal(count);
 	}
 
 	trampoline(mode, count, type, indices, basevertex);
@@ -636,7 +636,7 @@ void WINAPI glDrawElementsInstanced(GLenum mode, GLsizei count, GLenum type, con
 	{
 		ReShade::GLRuntime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
 
-		runtime->OnDraw(instancecount * count);
+		runtime->OnDrawInternal(instancecount * count);
 	}
 
 	trampoline(mode, count, type, indices, instancecount);
@@ -649,7 +649,7 @@ void WINAPI glDrawElementsInstancedBaseVertex(GLenum mode, GLsizei count, GLenum
 	{
 		ReShade::GLRuntime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
 
-		runtime->OnDraw(instancecount * count);
+		runtime->OnDrawInternal(instancecount * count);
 	}
 
 	trampoline(mode, count, type, indices, instancecount, basevertex);
@@ -662,7 +662,7 @@ void WINAPI glDrawElementsInstancedBaseInstance(GLenum mode, GLsizei count, GLen
 	{
 		ReShade::GLRuntime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
 
-		runtime->OnDraw(instancecount * count);
+		runtime->OnDrawInternal(instancecount * count);
 	}
 
 	trampoline(mode, count, type, indices, instancecount, baseinstance);
@@ -675,7 +675,7 @@ void WINAPI glDrawElementsInstancedBaseVertexBaseInstance(GLenum mode, GLsizei c
 	{
 		ReShade::GLRuntime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
 
-		runtime->OnDraw(instancecount * count);
+		runtime->OnDrawInternal(instancecount * count);
 	}
 
 	trampoline(mode, count, type, indices, instancecount, basevertex, baseinstance);
@@ -724,7 +724,7 @@ EXPORT void WINAPI glEnd()
 	{
 		ReShade::GLRuntime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
 
-		runtime->OnDraw(sCurrentVertexCount);
+		runtime->OnDrawInternal(sCurrentVertexCount);
 	}
 
 	trampoline();
@@ -1434,7 +1434,7 @@ void WINAPI glMultiDrawArrays(GLenum mode, const GLint *first, const GLsizei *co
 			totalcount += count[i];
 		}
 
-		runtime->OnDraw(totalcount);
+		runtime->OnDrawInternal(totalcount);
 	}
 
 	trampoline(mode, first, count, drawcount);
@@ -1460,7 +1460,7 @@ void WINAPI glMultiDrawElements(GLenum mode, const GLsizei *count, GLenum type, 
 			totalcount += count[i];
 		}
 
-		runtime->OnDraw(totalcount);
+		runtime->OnDrawInternal(totalcount);
 	}
 
 	trampoline(mode, count, type, indices, drawcount);
@@ -1480,7 +1480,7 @@ void WINAPI glMultiDrawElementsBaseVertex(GLenum mode, const GLsizei *count, GLe
 			totalcount += count[i];
 		}
 
-		runtime->OnDraw(totalcount);
+		runtime->OnDrawInternal(totalcount);
 	}
 
 	trampoline(mode, count, type, indices, drawcount, basevertex);
@@ -2750,7 +2750,7 @@ EXPORT BOOL WINAPI wglDeleteContext(HGLRC hglrc)
 
 		if (it->second != nullptr)
 		{
-			it->second->OnDelete();
+			it->second->OnDeleteInternal();
 		}
 
 		sRuntimes.erase(it);
@@ -2875,7 +2875,7 @@ EXPORT BOOL WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 			sRuntimes[hglrc] = runtime;
 			sCurrentRuntimes[hdc] = runtime.get();
 
-			runtime->OnCreate(static_cast<unsigned int>(width), static_cast<unsigned int>(height));
+			runtime->OnCreateInternal(static_cast<unsigned int>(width), static_cast<unsigned int>(height));
 		}
 		else
 		{
@@ -2947,13 +2947,13 @@ EXPORT BOOL WINAPI wglSwapBuffers(HDC hdc)
 		{
 			LOG(INFO) << "Resizing OpenGL context " << sCurrentRenderContext << " to " << width << "x" << height << " ...";
 
-			runtime->OnDelete();
-			runtime->OnCreate(width, height);
+			runtime->OnDeleteInternal();
+			runtime->OnCreateInternal(width, height);
 
 			rectPrevious = rect;
 		}
 
-		runtime->OnPresent();
+		runtime->OnPresentInternal();
 	}
 
 	return trampoline(hdc);

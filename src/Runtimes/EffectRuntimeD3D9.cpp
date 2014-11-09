@@ -1870,7 +1870,7 @@ namespace ReShade
 			{
 				D3D9Technique::Pass pass;
 				ZeroMemory(&pass, sizeof(D3D9Technique::Pass));
-				pass.RT[0] = this->mEffect->mEffectContext->mBackBufferResolve;
+				pass.RT[0] = this->mEffect->mEffectContext->mBackBufferResolved;
 
 				if (node.States[EffectNodes::Pass::VertexShader] != 0)
 				{
@@ -2290,11 +2290,26 @@ namespace ReShade
 			bool mCurrentInParameterBlock, mCurrentInFunctionBlock, mCurrentInDeclaratorList;
 			unsigned int mCurrentRegisterOffset, mCurrentStorageSize;
 		};
+
+		template <typename T>
+		inline ULONG SAFE_RELEASE(T *&object)
+		{
+			if (object == nullptr)
+			{
+				return 0;
+			}
+
+			const ULONG ref = object->Release();
+
+			object = nullptr;
+
+			return ref;
+		}
 	}
 
 	// -----------------------------------------------------------------------------------------------------
 
-	D3D9Runtime::D3D9Runtime(IDirect3DDevice9 *device, IDirect3DSwapChain9 *swapchain) : mDevice(device), mSwapChain(swapchain), mDeviceCaps(), mStateBlock(nullptr), mBackBuffer(nullptr), mBackBufferResolve(nullptr), mDepthStencil(nullptr), mDepthStencilReplacement(nullptr), mDepthStencilTexture(nullptr), mLost(true)
+	D3D9Runtime::D3D9Runtime(IDirect3DDevice9 *device, IDirect3DSwapChain9 *swapchain) : mDevice(device), mSwapChain(swapchain), mDeviceCaps(), mStateBlock(nullptr), mBackBuffer(nullptr), mBackBufferResolved(nullptr), mDepthStencil(nullptr), mDepthStencilReplacement(nullptr), mDepthStencilReplacementTexture(nullptr), mLost(true)
 	{
 		assert(this->mDevice != nullptr);
 		assert(this->mSwapChain != nullptr);
@@ -2330,51 +2345,48 @@ namespace ReShade
 		this->mSwapChain->Release();
 	}
 
-	bool D3D9Runtime::OnCreate(unsigned int width, unsigned int height)
+	bool D3D9Runtime::OnCreateInternal(const D3DPRESENT_PARAMETERS &params)
 	{
-		this->mSwapChain->GetPresentParameters(&this->mPresentParams);
+		this->mPresentParams = params;
 
 		HRESULT hr = this->mDevice->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &this->mBackBuffer);
 
 		assert(SUCCEEDED(hr));
 
-		if (this->mPresentParams.MultiSampleType != D3DMULTISAMPLE_NONE)
+		if (params.MultiSampleType != D3DMULTISAMPLE_NONE)
 		{
-			hr = this->mDevice->CreateRenderTarget(this->mPresentParams.BackBufferWidth, this->mPresentParams.BackBufferHeight, this->mPresentParams.BackBufferFormat, D3DMULTISAMPLE_NONE, 0, FALSE, &this->mBackBufferResolve, nullptr);
+			hr = this->mDevice->CreateRenderTarget(params.BackBufferWidth, params.BackBufferHeight, params.BackBufferFormat, D3DMULTISAMPLE_NONE, 0, FALSE, &this->mBackBufferResolved, nullptr);
 
 			if (FAILED(hr))
 			{
-				this->mBackBuffer->Release();
-				this->mBackBuffer = nullptr;
+				SAFE_RELEASE(this->mBackBuffer);
 
 				return false;
 			}
 		}
 		else
 		{
-			this->mBackBufferResolve = this->mBackBuffer;
-			this->mBackBufferResolve->AddRef();
+			this->mBackBufferResolved = this->mBackBuffer;
+			this->mBackBufferResolved->AddRef();
 		}
 
 		hr = this->mDevice->CreateStateBlock(D3DSBT_ALL, &this->mStateBlock);
 
 		if (FAILED(hr))
 		{
-			this->mBackBuffer->Release();
-			this->mBackBuffer = nullptr;
-			this->mBackBufferResolve->Release();
-			this->mBackBufferResolve = nullptr;
+			SAFE_RELEASE(this->mBackBuffer);
+			SAFE_RELEASE(this->mBackBufferResolved);
 
 			return false;
 		}
 
 		this->mNVG = nvgCreateD3D9(this->mDevice, 0);
 
-		this->mLost = !Runtime::OnCreate(width, height);
+		this->mLost = false;
 
-		return !this->mLost;
+		return Runtime::OnCreate(params.BackBufferWidth, params.BackBufferHeight);
 	}
-	void D3D9Runtime::OnDelete()
+	void D3D9Runtime::OnDeleteInternal()
 	{
 		Runtime::OnDelete();
 
@@ -2389,32 +2401,12 @@ namespace ReShade
 			this->mStateBlock = nullptr;
 		}
 
-		if (this->mBackBuffer != nullptr)
-		{
-			this->mBackBuffer->Release();
-			this->mBackBuffer = nullptr;
-		}
-		if (this->mBackBufferResolve != nullptr)
-		{
-			this->mBackBufferResolve->Release();
-			this->mBackBufferResolve = nullptr;
-		}
+		SAFE_RELEASE(this->mBackBuffer);
+		SAFE_RELEASE(this->mBackBufferResolved);
 
-		if (this->mDepthStencil != nullptr)
-		{
-			this->mDepthStencil->Release();
-			this->mDepthStencil = nullptr;
-		}
-		if (this->mDepthStencilReplacement != nullptr)
-		{
-			this->mDepthStencilReplacement->Release();
-			this->mDepthStencilReplacement = nullptr;
-		}
-		if (this->mDepthStencilTexture != nullptr)
-		{
-			this->mDepthStencilTexture->Release();
-			this->mDepthStencilTexture = nullptr;
-		}
+		SAFE_RELEASE(this->mDepthStencil);
+		SAFE_RELEASE(this->mDepthStencilReplacement);
+		SAFE_RELEASE(this->mDepthStencilReplacementTexture);
 
 		ZeroMemory(&this->mPresentParams, sizeof(D3DPRESENT_PARAMETERS));
 
@@ -2422,8 +2414,27 @@ namespace ReShade
 
 		this->mLost = true;
 	}
-	void D3D9Runtime::OnDraw(unsigned int vertices)
+	void D3D9Runtime::OnDrawInternal(D3DPRIMITIVETYPE type, UINT count)
 	{
+		UINT vertices = count;
+
+		switch (type)
+		{
+			case D3DPT_LINELIST:
+				vertices *= 2;
+				break;
+			case D3DPT_LINESTRIP:
+				vertices += 1;
+				break;
+			case D3DPT_TRIANGLELIST:
+				vertices *= 3;
+				break;
+			case D3DPT_TRIANGLESTRIP:
+			case D3DPT_TRIANGLEFAN:
+				vertices += 2;
+				break;
+		}
+
 		Runtime::OnDraw(vertices);
 
 		IDirect3DSurface9 *depthstencil = nullptr;
@@ -2443,7 +2454,7 @@ namespace ReShade
 			this->mDepthStencilTable[depthstencil].DrawVerticesCount += vertices;
 		}
 	}
-	void D3D9Runtime::OnPresent()
+	void D3D9Runtime::OnPresentInternal()
 	{
 		if (this->mLost)
 		{
@@ -2474,12 +2485,12 @@ namespace ReShade
 		this->mDevice->GetDepthStencilSurface(&stateblockDepthStencil);
 
 		// Resolve backbuffer
-		if (this->mBackBufferResolve != this->mBackBuffer)
+		if (this->mBackBufferResolved != this->mBackBuffer)
 		{
-			this->mDevice->StretchRect(this->mBackBuffer, nullptr, this->mBackBufferResolve, nullptr, D3DTEXF_NONE);
+			this->mDevice->StretchRect(this->mBackBuffer, nullptr, this->mBackBufferResolved, nullptr, D3DTEXF_NONE);
 		}
 
-		this->mDevice->SetRenderTarget(0, this->mBackBufferResolve);
+		this->mDevice->SetRenderTarget(0, this->mBackBufferResolved);
 
 		// Apply post processing
 		Runtime::OnPresent();
@@ -2490,9 +2501,9 @@ namespace ReShade
 		}
 
 		// Copy to backbuffer
-		if (this->mBackBufferResolve != this->mBackBuffer)
+		if (this->mBackBufferResolved != this->mBackBuffer)
 		{
-			this->mDevice->StretchRect(this->mBackBufferResolve, nullptr, this->mBackBuffer, nullptr, D3DTEXF_NONE);
+			this->mDevice->StretchRect(this->mBackBufferResolved, nullptr, this->mBackBuffer, nullptr, D3DTEXF_NONE);
 		}
 
 		// Apply previous device state
@@ -2607,7 +2618,7 @@ namespace ReShade
 		}
 
 		// Copy screenshot data to surface
-		hr = this->mDevice->GetRenderTargetData(this->mBackBufferResolve, screenshotSurface);
+		hr = this->mDevice->GetRenderTargetData(this->mBackBufferResolved, screenshotSurface);
 
 		if (FAILED(hr))
 		{
@@ -2695,67 +2706,61 @@ namespace ReShade
 
 		if (best != nullptr && this->mDepthStencil != best)
 		{
-			if (this->mDepthStencil != nullptr)
-			{
-				this->mDepthStencil->Release();
-				this->mDepthStencil = nullptr;
-			}
-			if (this->mDepthStencilReplacement != nullptr)
-			{
-				this->mDepthStencilReplacement->Release();
-				this->mDepthStencilReplacement = nullptr;
-			}
-			if (this->mDepthStencilTexture != nullptr)
-			{
-				this->mDepthStencilTexture->Release();
-				this->mDepthStencilTexture = nullptr;
-			}
+			CreateDepthStencil(best);
+		}
+	}
+	bool D3D9Runtime::CreateDepthStencil(IDirect3DSurface9 *depthstencil)
+	{
+		SAFE_RELEASE(this->mDepthStencil);
+		SAFE_RELEASE(this->mDepthStencilReplacement);
+		SAFE_RELEASE(this->mDepthStencilReplacementTexture);
 
-			this->mDepthStencil = best;
-			this->mDepthStencil->AddRef();
+		this->mDepthStencil = depthstencil;
+		this->mDepthStencil->AddRef();
 
-			D3DSURFACE_DESC desc;
-			this->mDepthStencil->GetDesc(&desc);
+		D3DSURFACE_DESC desc;
+		this->mDepthStencil->GetDesc(&desc);
 
-			if (desc.Format != D3DFMT_INTZ)
+		if (desc.Format != D3DFMT_INTZ)
+		{
+			const HRESULT hr = this->mDevice->CreateTexture(desc.Width, desc.Height, 1, D3DUSAGE_DEPTHSTENCIL, D3DFMT_INTZ, D3DPOOL_DEFAULT, &this->mDepthStencilReplacementTexture, nullptr);
+
+			if (SUCCEEDED(hr))
 			{
-				const HRESULT hr = this->mDevice->CreateTexture(desc.Width, desc.Height, 1, D3DUSAGE_DEPTHSTENCIL, D3DFMT_INTZ, D3DPOOL_DEFAULT, &this->mDepthStencilTexture, nullptr);
+				this->mDepthStencilReplacementTexture->GetSurfaceLevel(0, &this->mDepthStencilReplacement);
 
-				if (SUCCEEDED(hr))
+				// Update auto depthstencil
+				IDirect3DSurface9 *depthstencil = nullptr;
+				this->mDevice->GetDepthStencilSurface(&depthstencil);
+
+				if (depthstencil != nullptr)
 				{
-					this->mDepthStencilTexture->GetSurfaceLevel(0, &this->mDepthStencilReplacement);
+					depthstencil->Release();
 
-					// Update auto depthstencil
-					IDirect3DSurface9 *depthstencil = nullptr;
-					this->mDevice->GetDepthStencilSurface(&depthstencil);
-
-					if (depthstencil != nullptr)
+					if (depthstencil == this->mDepthStencil)
 					{
-						depthstencil->Release();
-
-						if (depthstencil == this->mDepthStencil)
-						{
-							this->mDevice->SetDepthStencilSurface(this->mDepthStencilReplacement);
-						}
+						this->mDevice->SetDepthStencilSurface(this->mDepthStencilReplacement);
 					}
-				}
-				else
-				{
-					LOG(ERROR) << "Failed to create depthstencil replacement texture.";
 				}
 			}
 			else
 			{
-				this->mDepthStencilReplacement = best;
-				this->mDepthStencilReplacement->AddRef();
-				this->mDepthStencilReplacement->GetContainer(__uuidof(IDirect3DTexture9), reinterpret_cast<void **>(&this->mDepthStencilTexture));
+				LOG(ERROR) << "Failed to create depthstencil replacement texture.";
+
+				return false;
 			}
 		}
-	}
-	void D3D9Runtime::ReplaceDepthStencil(IDirect3DSurface9 **pDepthStencil)
-	{
-		IDirect3DSurface9 *depthstencil = *pDepthStencil;
+		else
+		{
+			this->mDepthStencilReplacement = this->mDepthStencil;
+			this->mDepthStencilReplacement->AddRef();
+			this->mDepthStencilReplacement->GetContainer(__uuidof(IDirect3DTexture9), reinterpret_cast<void **>(&this->mDepthStencilReplacementTexture));
+		}
 
+		return true;
+	}
+	void D3D9Runtime::ReplaceDepthStencil(IDirect3DSurface9 *&depthstencil)
+	{
 		if (this->mDepthStencilTable.find(depthstencil) == this->mDepthStencilTable.end())
 		{
 			D3DSURFACE_DESC desc;
@@ -2772,8 +2777,7 @@ namespace ReShade
 
 		if (this->mDepthStencilReplacement != nullptr && depthstencil == this->mDepthStencil)
 		{
-			// Replace
-			*pDepthStencil = this->mDepthStencilReplacement;
+			depthstencil = this->mDepthStencilReplacement;
 		}
 	}
 
@@ -2871,13 +2875,8 @@ namespace ReShade
 	}
 	D3D9Texture::~D3D9Texture()
 	{
-		if (this->mTexture != nullptr)
-		{
-			assert(this->mTextureSurface != nullptr);
-
-			this->mTextureSurface->Release();
-			this->mTexture->Release();
-		}
+		SAFE_RELEASE(this->mTexture);
+		SAFE_RELEASE(this->mTextureSurface);
 	}
 
 	bool D3D9Texture::Update(unsigned int level, const unsigned char *data, std::size_t size)
@@ -2963,24 +2962,22 @@ namespace ReShade
 	}
 	void D3D9Texture::UpdateFromColorBuffer()
 	{
-		this->mEffect->mEffectContext->mDevice->StretchRect(this->mEffect->mEffectContext->mBackBufferResolve, nullptr, this->mTextureSurface, nullptr, D3DTEXF_NONE);
+		this->mEffect->mEffectContext->mDevice->StretchRect(this->mEffect->mEffectContext->mBackBufferResolved, nullptr, this->mTextureSurface, nullptr, D3DTEXF_NONE);
 	}
 	void D3D9Texture::UpdateFromDepthBuffer()
 	{
-		if (this->mTexture == this->mEffect->mEffectContext->mDepthStencilTexture || this->mEffect->mEffectContext->mDepthStencilTexture == nullptr)
+		if (this->mTexture == this->mEffect->mEffectContext->mDepthStencilReplacementTexture || this->mEffect->mEffectContext->mDepthStencilReplacementTexture == nullptr)
 		{
 			return;
 		}
 		else if (this->mTexture != nullptr)
 		{
-			assert(this->mTextureSurface != nullptr);
-
-			this->mTextureSurface->Release();
-			this->mTexture->Release();
+			SAFE_RELEASE(this->mTexture);
+			SAFE_RELEASE(this->mTextureSurface);
 		}
 
 		// Replace with depth texture
-		this->mTexture = this->mEffect->mEffectContext->mDepthStencilTexture;
+		this->mTexture = this->mEffect->mEffectContext->mDepthStencilReplacementTexture;
 		this->mTexture->AddRef();
 		this->mTextureSurface = this->mEffect->mEffectContext->mDepthStencilReplacement;
 		this->mTextureSurface->AddRef();
@@ -3078,7 +3075,7 @@ namespace ReShade
 		IDirect3DDevice9 *const device = this->mEffect->mEffectContext->mDevice;
 
 		// Reset rendertarget
-		device->SetRenderTarget(0, this->mEffect->mEffectContext->mBackBufferResolve);
+		device->SetRenderTarget(0, this->mEffect->mEffectContext->mBackBufferResolved);
 	}
 	void D3D9Technique::RenderPass(unsigned int index) const
 	{

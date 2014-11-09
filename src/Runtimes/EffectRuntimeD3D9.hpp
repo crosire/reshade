@@ -25,25 +25,26 @@ namespace ReShade
 		D3D9Runtime(IDirect3DDevice9 *device, IDirect3DSwapChain9 *swapchain);
 		~D3D9Runtime();
 
-		virtual bool OnCreate(unsigned int width, unsigned int height) override;
-		virtual void OnDelete() override;
-		virtual void OnDraw(unsigned int vertices) override;
-		virtual void OnPresent() override;
+		bool OnCreateInternal(const D3DPRESENT_PARAMETERS &params);
+		void OnDeleteInternal();
+		void OnDrawInternal(D3DPRIMITIVETYPE type, UINT count);
+		void OnPresentInternal();
 
 		virtual std::unique_ptr<Effect> CreateEffect(const EffectTree &ast, std::string &errors) const override;
 		virtual void CreateScreenshot(unsigned char *buffer, std::size_t size) const override;
 
 		void DetectBestDepthStencil();
-		void ReplaceDepthStencil(IDirect3DSurface9 **pDepthStencil);
+		bool CreateDepthStencil(IDirect3DSurface9 *depthstencil);
+		void ReplaceDepthStencil(IDirect3DSurface9 *&depthstencil);
 
 		IDirect3DDevice9 *mDevice;
 		IDirect3DSwapChain9 *mSwapChain;
 		D3DCAPS9 mDeviceCaps;
 		D3DPRESENT_PARAMETERS mPresentParams;
 		IDirect3DStateBlock9 *mStateBlock;
-		IDirect3DSurface9 *mBackBuffer, *mBackBufferResolve;
+		IDirect3DSurface9 *mBackBuffer, *mBackBufferResolved;
 		IDirect3DSurface9 *mDepthStencil, *mDepthStencilReplacement;
-		IDirect3DTexture9 *mDepthStencilTexture;
+		IDirect3DTexture9 *mDepthStencilReplacementTexture;
 		std::unordered_map<IDirect3DSurface9 *, D3D9DepthStencilInfo> mDepthStencilTable;
 		bool mLost;
 	};

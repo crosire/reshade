@@ -2090,6 +2090,12 @@ namespace ReShade
 				pass.BS = nullptr;
 				pass.DSS = nullptr;
 				pass.StencilRef = 0;
+				pass.Viewport.Width = static_cast<FLOAT>(this->mEffect->mEffectContext->mSwapChainDesc.BufferDesc.Width);
+				pass.Viewport.Height = static_cast<FLOAT>(this->mEffect->mEffectContext->mSwapChainDesc.BufferDesc.Height);
+				pass.Viewport.TopLeftX = 0.0f;
+				pass.Viewport.TopLeftY = 0.0f;
+				pass.Viewport.MinDepth = 0.0f;
+				pass.Viewport.MaxDepth = 1.0f;
 				ZeroMemory(pass.RT, sizeof(pass.RT));
 				pass.SR = this->mEffect->mShaderResources;
 
@@ -2129,6 +2135,9 @@ namespace ReShade
 
 						D3D11_TEXTURE2D_DESC desc;
 						texture->mTexture->GetDesc(&desc);
+
+						pass.Viewport.Width = std::min(pass.Viewport.Width, static_cast<FLOAT>(desc.Width));
+						pass.Viewport.Height = std::min(pass.Viewport.Width, static_cast<FLOAT>(desc.Height));
 
 						D3D11_RENDER_TARGET_VIEW_DESC rtvdesc;
 						rtvdesc.Format = srgb ? TypelessToSRGBFormat(desc.Format) : TypelessToLinearFormat(desc.Format);
@@ -2189,19 +2198,6 @@ namespace ReShade
 				{
 					this->mErrors += PrintLocation(node.Location) + "'CreateBlendState' failed!\n";
 				}
-
-				ID3D11Resource *rtres;
-				pass.RT[0]->GetResource(&rtres);
-				D3D11_TEXTURE2D_DESC rtdesc;
-				static_cast<ID3D11Texture2D *>(rtres)->GetDesc(&rtdesc);
-				rtres->Release();
-
-				pass.Viewport.Width = static_cast<FLOAT>(rtdesc.Width);
-				pass.Viewport.Height = static_cast<FLOAT>(rtdesc.Height);
-				pass.Viewport.TopLeftX = 0.0f;
-				pass.Viewport.TopLeftY = 0.0f;
-				pass.Viewport.MinDepth = 0.0f;
-				pass.Viewport.MaxDepth = 1.0f;
 
 				for (auto it = pass.SR.begin(), end = pass.SR.end(); it != end; ++it)
 				{
@@ -2340,6 +2336,21 @@ namespace ReShade
 			std::string mCurrentBlockName;
 			bool mCurrentInParameterBlock, mCurrentInFunctionBlock, mCurrentInDeclaratorList;
 		};
+
+		template <typename T>
+		inline ULONG SAFE_RELEASE(T *&object)
+		{
+			if (object == nullptr)
+			{
+				return 0;
+			}
+
+			const ULONG ref = object->Release();
+
+			object = nullptr;
+
+			return ref;
+		}
 	}
 
 	// -----------------------------------------------------------------------------------------------------
@@ -2368,14 +2379,14 @@ namespace ReShade
 
 		hr = dxgidevice->GetAdapter(&adapter);
 
-		dxgidevice->Release();
+		SAFE_RELEASE(dxgidevice);
 
 		assert(SUCCEEDED(hr));
 
 		DXGI_ADAPTER_DESC desc;
 		hr = adapter->GetDesc(&desc);
 
-		adapter->Release();
+		SAFE_RELEASE(adapter);
 
 		assert(SUCCEEDED(hr));
 
@@ -2403,14 +2414,14 @@ namespace ReShade
 		this->mSwapChain->Release();
 	}
 
-	bool D3D11Runtime::OnCreate(unsigned int width, unsigned int height)
+	bool D3D11Runtime::OnCreateInternal(const DXGI_SWAP_CHAIN_DESC &desc)
 	{
 		if (this->mDeferredContext == nullptr)
 		{
 			return false;
 		}
 
-		this->mSwapChain->GetDesc(&this->mSwapChainDesc);
+		this->mSwapChainDesc = desc;
 
 		HRESULT hr = this->mSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), reinterpret_cast<void **>(&this->mBackBuffer));
 
@@ -2421,8 +2432,8 @@ namespace ReShade
 
 		D3D11_TEXTURE2D_DESC bbdesc;
 		ZeroMemory(&bbdesc, sizeof(D3D11_TEXTURE2D_DESC));
-		bbdesc.Width = width;
-		bbdesc.Height = height;
+		bbdesc.Width = desc.BufferDesc.Width;
+		bbdesc.Height = desc.BufferDesc.Height;
 		bbdesc.MipLevels = 1;
 		bbdesc.ArraySize = 1;
 		bbdesc.Format = DXGI_FORMAT_R8G8B8A8_TYPELESS;
@@ -2434,8 +2445,7 @@ namespace ReShade
 
 		if (FAILED(hr))
 		{
-			this->mBackBuffer->Release();
-			this->mBackBuffer = nullptr;
+			SAFE_RELEASE(this->mBackBuffer);
 
 			return false;
 		}
@@ -2449,10 +2459,8 @@ namespace ReShade
 
 		if (FAILED(hr))
 		{
-			this->mBackBuffer->Release();
-			this->mBackBuffer = nullptr;
-			this->mBackBufferTexture->Release();
-			this->mBackBufferTexture = nullptr;
+			SAFE_RELEASE(this->mBackBuffer);
+			SAFE_RELEASE(this->mBackBufferTexture);
 		}
 
 		rtdesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
@@ -2461,21 +2469,18 @@ namespace ReShade
 
 		if (FAILED(hr))
 		{
-			this->mBackBuffer->Release();
-			this->mBackBuffer = nullptr;
-			this->mBackBufferTexture->Release();
-			this->mBackBufferTexture = nullptr;
-			this->mBackBufferTargets[0]->Release();
-			this->mBackBufferTargets[0] = nullptr;
+			SAFE_RELEASE(this->mBackBuffer);
+			SAFE_RELEASE(this->mBackBufferTexture);
+			SAFE_RELEASE(this->mBackBufferTargets[0]);
 		}
 
 		this->mNVG = nvgCreateD3D11(this->mDeferredContext, 0);
 
 		this->mLost = false;
 
-		return Runtime::OnCreate(width, height);
+		return Runtime::OnCreate(desc.BufferDesc.Width, desc.BufferDesc.Height);
 	}
-	void D3D11Runtime::OnDelete()
+	void D3D11Runtime::OnDeleteInternal()
 	{
 		Runtime::OnDelete();
 
@@ -2483,42 +2488,14 @@ namespace ReShade
 
 		this->mNVG = nullptr;
 
-		if (this->mBackBuffer != nullptr)
-		{
-			this->mBackBuffer->Release();
-			this->mBackBuffer = nullptr;
-		}
-		if (this->mBackBufferTexture != nullptr)
-		{
-			this->mBackBufferTexture->Release();
-			this->mBackBufferTexture = nullptr;
-		}
-		if (this->mBackBufferTargets[0] != nullptr)
-		{
-			this->mBackBufferTargets[0]->Release();
-			this->mBackBufferTargets[0] = nullptr;
-		}
-		if (this->mBackBufferTargets[1] != nullptr)
-		{
-			this->mBackBufferTargets[1]->Release();
-			this->mBackBufferTargets[1] = nullptr;
-		}
+		SAFE_RELEASE(this->mBackBuffer);
+		SAFE_RELEASE(this->mBackBufferTexture);
+		SAFE_RELEASE(this->mBackBufferTargets[0]);
+		SAFE_RELEASE(this->mBackBufferTargets[1]);
 
-		if (this->mDepthStencil != nullptr)
-		{
-			this->mDepthStencil->Release();
-			this->mDepthStencil = nullptr;
-		}
-		if (this->mDepthStencilReplacement != nullptr)
-		{
-			this->mDepthStencilReplacement->Release();
-			this->mDepthStencilReplacement = nullptr;
-		}
-		if (this->mDepthStencilShaderResourceView != nullptr)
-		{
-			this->mDepthStencilShaderResourceView->Release();
-			this->mDepthStencilShaderResourceView = nullptr;
-		}
+		SAFE_RELEASE(this->mDepthStencil);
+		SAFE_RELEASE(this->mDepthStencilReplacement);
+		SAFE_RELEASE(this->mDepthStencilShaderResourceView);
 
 		ZeroMemory(&this->mSwapChainDesc, sizeof(DXGI_SWAP_CHAIN_DESC));
 
@@ -2526,7 +2503,7 @@ namespace ReShade
 
 		this->mLost = true;
 	}
-	void D3D11Runtime::OnDraw(ID3D11DeviceContext *context, unsigned int vertices)
+	void D3D11Runtime::OnDrawInternal(ID3D11DeviceContext *context, unsigned int vertices)
 	{
 		CSLock lock(this->mCS);
 
@@ -2548,7 +2525,7 @@ namespace ReShade
 			this->mDepthStencilTable[depthstencil].DrawVerticesCount += vertices;
 		}
 	}
-	void D3D11Runtime::OnPresent()
+	void D3D11Runtime::OnPresentInternal()
 	{
 		if (this->mLost)
 		{
@@ -2583,6 +2560,34 @@ namespace ReShade
 			list->Release();
 		}
 	}
+	void D3D11Runtime::OnCreateDepthStencil(ID3D11Resource *resource, ID3D11DepthStencilView *depthstencil)
+	{
+		assert(resource != nullptr);
+		assert(depthstencil != nullptr);
+
+		CSLock lock(this->mCS);
+
+		ID3D11Texture2D *texture = nullptr;
+		const HRESULT hr = resource->QueryInterface(__uuidof(ID3D11Texture2D), reinterpret_cast<void **>(&texture));
+
+		if (FAILED(hr))
+		{
+			return;
+		}
+
+		D3D11_TEXTURE2D_DESC desc;
+		texture->GetDesc(&desc);
+
+		SAFE_RELEASE(texture);
+
+		D3D11DepthStencilInfo info;
+		info.Width = desc.Width;
+		info.Height = desc.Height;
+		info.DrawCallCount = 0;
+
+		// Begin tracking new depthstencil
+		this->mDepthStencilTable.emplace(depthstencil, info);
+	}
 	
 	std::unique_ptr<Effect> D3D11Runtime::CreateEffect(const EffectTree &ast, std::string &errors) const
 	{
@@ -2615,20 +2620,10 @@ namespace ReShade
 		dstdesc.MipLevels = 1;
 		dstdesc.ArraySize = 1;
 		dstdesc.Format = DXGI_FORMAT_R24G8_TYPELESS;
-		dstdesc.SampleDesc = this->mSwapChainDesc.SampleDesc;
+		dstdesc.SampleDesc.Count = 1;
+		dstdesc.SampleDesc.Quality = 0;
 		dstdesc.Usage = D3D11_USAGE_DEFAULT;
 		dstdesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_DEPTH_STENCIL;
-
-		D3D11_SHADER_RESOURCE_VIEW_DESC dssdesc;
-		ZeroMemory(&dssdesc, sizeof(D3D11_SHADER_RESOURCE_VIEW_DESC));
-		dssdesc.Format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
-		dssdesc.ViewDimension = dstdesc.SampleDesc.Count > 1 ? D3D11_SRV_DIMENSION_TEXTURE2DMS : D3D11_SRV_DIMENSION_TEXTURE2D;
-		dssdesc.Texture2D.MipLevels = 1;
-
-		D3D11_DEPTH_STENCIL_VIEW_DESC dsdesc;
-		ZeroMemory(&dsdesc, sizeof(D3D11_DEPTH_STENCIL_VIEW_DESC));
-		dsdesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-		dsdesc.ViewDimension = dstdesc.SampleDesc.Count > 1 ? D3D11_DSV_DIMENSION_TEXTURE2DMS : D3D11_DSV_DIMENSION_TEXTURE2D;
 
 		hr = this->mDevice->CreateTexture2D(&dstdesc, nullptr, &effect->mDepthStencilTexture);
 
@@ -2639,6 +2634,12 @@ namespace ReShade
 			return nullptr;
 		}
 
+		D3D11_SHADER_RESOURCE_VIEW_DESC dssdesc;
+		ZeroMemory(&dssdesc, sizeof(D3D11_SHADER_RESOURCE_VIEW_DESC));
+		dssdesc.Format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
+		dssdesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+		dssdesc.Texture2D.MipLevels = 1;
+
 		hr = this->mDevice->CreateShaderResourceView(effect->mDepthStencilTexture, &dssdesc, &effect->mDepthStencilShaderResourceView);
 
 		if (FAILED(hr))
@@ -2648,6 +2649,11 @@ namespace ReShade
 
 			return nullptr;
 		}
+
+		D3D11_DEPTH_STENCIL_VIEW_DESC dsdesc;
+		ZeroMemory(&dsdesc, sizeof(D3D11_DEPTH_STENCIL_VIEW_DESC));
+		dsdesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+		dsdesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
 
 		hr = this->mDevice->CreateDepthStencilView(effect->mDepthStencilTexture, &dsdesc, &effect->mDepthStencil);
 
@@ -2676,9 +2682,14 @@ namespace ReShade
 
 		// Flush context
 		ID3D11CommandList *list = nullptr;
-		this->mDeferredContext->FinishCommandList(TRUE, &list);
-		this->mImmediateContext->ExecuteCommandList(list, TRUE);
-		list->Release();
+		HRESULT hr = this->mDeferredContext->FinishCommandList(TRUE, &list);
+
+		if (SUCCEEDED(hr))
+		{
+			this->mImmediateContext->ExecuteCommandList(list, TRUE);
+
+			list->Release();
+		}
 
 		D3D11_TEXTURE2D_DESC texdesc;
 		ZeroMemory(&texdesc, sizeof(D3D11_TEXTURE2D_DESC));
@@ -2693,34 +2704,14 @@ namespace ReShade
 		texdesc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
 
 		ID3D11Texture2D *textureStaging = nullptr;
-		HRESULT hr = this->mDevice->CreateTexture2D(&texdesc, nullptr, &textureStaging);
+		hr = this->mDevice->CreateTexture2D(&texdesc, nullptr, &textureStaging);
 
 		if (FAILED(hr))
 		{
 			return;
 		}
 
-		if (this->mSwapChainDesc.SampleDesc.Count > 1)
-		{
-			texdesc.CPUAccessFlags = 0;
-			texdesc.Usage = D3D11_USAGE_DEFAULT;
-
-			ID3D11Texture2D *textureResolve = nullptr;
-
-			hr = this->mDevice->CreateTexture2D(&texdesc, nullptr, &textureResolve);
-
-			if (SUCCEEDED(hr))
-			{
-				this->mImmediateContext->ResolveSubresource(textureResolve, 0, this->mBackBufferTexture, 0, texdesc.Format);
-				this->mImmediateContext->CopyResource(textureStaging, textureResolve);
-
-				textureResolve->Release();
-			}
-		}
-		else
-		{
-			this->mImmediateContext->CopyResource(textureStaging, this->mBackBufferTexture);
-		}
+		this->mImmediateContext->CopyResource(textureStaging, this->mBackBuffer);
 
 		if (FAILED(hr))
 		{
@@ -2806,21 +2797,9 @@ namespace ReShade
 
 		if (best != nullptr && this->mDepthStencil != best)
 		{
-			if (this->mDepthStencil != nullptr)
-			{
-				this->mDepthStencil->Release();
-				this->mDepthStencil = nullptr;
-			}
-			if (this->mDepthStencilReplacement != nullptr)
-			{
-				this->mDepthStencilReplacement->Release();
-				this->mDepthStencilReplacement = nullptr;
-			}
-			if (this->mDepthStencilShaderResourceView != nullptr)
-			{
-				this->mDepthStencilShaderResourceView->Release();
-				this->mDepthStencilShaderResourceView = nullptr;
-			}
+			SAFE_RELEASE(this->mDepthStencil);
+			SAFE_RELEASE(this->mDepthStencilReplacement);
+			SAFE_RELEASE(this->mDepthStencilShaderResourceView);
 
 			this->mDepthStencil = best;
 			this->mDepthStencil->AddRef();
@@ -2835,8 +2814,7 @@ namespace ReShade
 
 			if ((desc.BindFlags & D3D11_BIND_SHADER_RESOURCE) == 0 || desc.Format != DXGI_FORMAT_R24G8_TYPELESS)
 			{
-				texture->Release();
-				texture = nullptr;
+				SAFE_RELEASE(texture);
 
 				desc.Format = DXGI_FORMAT_R24G8_TYPELESS;
 				desc.BindFlags = D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_SHADER_RESOURCE;
@@ -2864,7 +2842,7 @@ namespace ReShade
 
 				this->mDevice->CreateShaderResourceView(texture, &srvdesc, &this->mDepthStencilShaderResourceView);
 
-				texture->Release();
+				SAFE_RELEASE(texture);
 
 				// Update auto depthstencil
 				ID3D11RenderTargetView *targets[D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT] = { nullptr };
@@ -2884,61 +2862,24 @@ namespace ReShade
 
 				for (UINT i = 0; i < D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT; ++i)
 				{
-					if (targets[i] != nullptr)
-					{
-						targets[i]->Release();
-					}
+					SAFE_RELEASE(targets[i]);
 				}
 			}
 			else
 			{
 				LOG(ERROR) << "Failed to create depthstencil replacement texture.";
 
-				if (texture != nullptr)
-				{
-					texture->Release();
-				}
+				SAFE_RELEASE(texture);
 			}
 		}
 	}
-	void D3D11Runtime::CreateDepthStencil(ID3D11Resource *resource, ID3D11DepthStencilView *depthstencil)
+	void D3D11Runtime::ReplaceDepthStencil(ID3D11DepthStencilView *&depthstencil)
 	{
-		assert(resource != nullptr);
-		assert(depthstencil != nullptr);
-
-		CSLock lock(this->mCS);
-
-		ID3D11Texture2D *texture = nullptr;
-		const HRESULT hr = resource->QueryInterface(__uuidof(ID3D11Texture2D), reinterpret_cast<void **>(&texture));
-
-		if (FAILED(hr))
-		{
-			return;
-		}
-
-		D3D11_TEXTURE2D_DESC desc;
-		texture->GetDesc(&desc);
-
-		texture->Release();
-
-		D3D11DepthStencilInfo info;
-		info.Width = desc.Width;
-		info.Height = desc.Height;
-		info.DrawCallCount = 0;
-
-		// Begin tracking new depthstencil
-		this->mDepthStencilTable.emplace(depthstencil, info);
-	}
-	void D3D11Runtime::ReplaceDepthStencil(ID3D11DepthStencilView **pDepthStencil)
-	{
-		ID3D11DepthStencilView *depthstencil = *pDepthStencil;
-
 		CSLock lock(this->mCS);
 
 		if (this->mDepthStencilReplacement != nullptr && depthstencil == this->mDepthStencil)
 		{
-			// Replace
-			*pDepthStencil = this->mDepthStencilReplacement;
+			depthstencil = this->mDepthStencilReplacement;
 		}
 	}
 
@@ -3090,28 +3031,12 @@ namespace ReShade
 	}
 	D3D11Texture::~D3D11Texture()
 	{
-		if (this->mRenderTargetView[0] != nullptr)
-		{
-			this->mRenderTargetView[0]->Release();
-		}
-		if (this->mRenderTargetView[1] != nullptr)
-		{
-			this->mRenderTargetView[1]->Release();
-		}
+		SAFE_RELEASE(this->mRenderTargetView[0]);
+		SAFE_RELEASE(this->mRenderTargetView[1]);
+		SAFE_RELEASE(this->mShaderResourceView[0]);
+		SAFE_RELEASE(this->mShaderResourceView[1]);
 
-		if (this->mShaderResourceView[0] != nullptr)
-		{
-			this->mShaderResourceView[0]->Release();
-		}
-		if (this->mShaderResourceView[1] != nullptr)
-		{
-			this->mShaderResourceView[1]->Release();
-		}
-
-		if (this->mTexture != nullptr)
-		{
-			this->mTexture->Release();
-		}
+		SAFE_RELEASE(this->mTexture);
 	}
 
 	bool D3D11Texture::Update(unsigned int level, const unsigned char *data, std::size_t size)
@@ -3129,57 +3054,42 @@ namespace ReShade
 	}
 	void D3D11Texture::UpdateFromColorBuffer()
 	{
-		D3D11_TEXTURE2D_DESC desc;
-		this->mEffect->mEffectContext->mBackBufferTexture->GetDesc(&desc);
-
-		if (desc.SampleDesc.Count == 1)
-		{
-			this->mEffect->mEffectContext->mDeferredContext->CopyResource(this->mTexture, this->mEffect->mEffectContext->mBackBufferTexture);
-		}
-		else
-		{
-			this->mEffect->mEffectContext->mDeferredContext->ResolveSubresource(this->mTexture, 0, this->mEffect->mEffectContext->mBackBufferTexture, 0, D3D11EffectCompiler::TypelessToLinearFormat(desc.Format));
-		}
+		this->mEffect->mEffectContext->mDeferredContext->CopyResource(this->mTexture, this->mEffect->mEffectContext->mBackBuffer);
 	}
 	void D3D11Texture::UpdateFromDepthBuffer()
 	{
+		const ID3D11ShaderResourceView *previous[2] = { this->mShaderResourceView[0], this->mShaderResourceView[1] };
+
 		if (this->mShaderResourceView[0] == this->mEffect->mEffectContext->mDepthStencilShaderResourceView || this->mEffect->mEffectContext->mDepthStencilShaderResourceView == nullptr)
 		{
 			return;
 		}
 		else if (this->mTexture != nullptr)
 		{
-			if (this->mShaderResourceView[0] != nullptr)
-			{
-				this->mShaderResourceView[0]->Release();
-			}
-			if (this->mShaderResourceView[1] != nullptr)
-			{
-				this->mShaderResourceView[1]->Release();
-			}
-
 			assert(this->mRenderTargetView[0] == nullptr && this->mRenderTargetView[1] == nullptr);
 
+			SAFE_RELEASE(this->mShaderResourceView[0]);
+			SAFE_RELEASE(this->mShaderResourceView[1]);
+			
 			this->mTexture->Release();
 		}
 
-		ID3D11ShaderResourceView *previous[2] = { this->mShaderResourceView[0], this->mShaderResourceView[1] };
+		assert(previous[0] != nullptr);
 
 		// Replace with depth texture
-		this->mTexture = nullptr;
 		this->mShaderResourceView[0] = this->mEffect->mEffectContext->mDepthStencilShaderResourceView;
 		this->mShaderResourceView[0]->AddRef();
 		this->mShaderResourceView[0]->GetResource(reinterpret_cast<ID3D11Resource **>(&this->mTexture));
 		this->mShaderResourceView[1] = this->mEffect->mEffectContext->mDepthStencilShaderResourceView;
 		this->mShaderResourceView[1]->AddRef();
 
-		D3D11_TEXTURE2D_DESC desc;
-		this->mTexture->GetDesc(&desc);
+		D3D11_TEXTURE2D_DESC texdesc;
+		this->mTexture->GetDesc(&texdesc);
 
-		this->mDesc.Width = desc.Width;
-		this->mDesc.Height = desc.Height;
+		this->mDesc.Width = texdesc.Width;
+		this->mDesc.Height = texdesc.Height;
 		this->mDesc.Format = Effect::Texture::Format::Unknown;
-		this->mDesc.Levels = desc.MipLevels;
+		this->mDesc.Levels = texdesc.MipLevels;
 
 		// Update techniques shader resourceviews
 		for (auto &technique : this->mEffect->mTechniques)

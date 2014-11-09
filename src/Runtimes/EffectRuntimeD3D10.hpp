@@ -40,17 +40,17 @@ namespace ReShade
 		D3D10Runtime(ID3D10Device *device, IDXGISwapChain *swapchain);
 		~D3D10Runtime();
 
-		virtual bool OnCreate(unsigned int width, unsigned int height) override;
-		virtual void OnDelete() override;
-		virtual void OnDraw(unsigned int vertices) override;
-		virtual void OnPresent() override;
+		bool OnCreateInternal(const DXGI_SWAP_CHAIN_DESC &desc);
+		void OnDeleteInternal();
+		void OnDrawInternal(unsigned int vertices);
+		void OnPresentInternal();
+		void OnCreateDepthStencil(ID3D10Resource *resource, ID3D10DepthStencilView *depthstencil);
 
 		virtual std::unique_ptr<Effect> CreateEffect(const EffectTree &ast, std::string &errors) const override;
 		virtual void CreateScreenshot(unsigned char *buffer, std::size_t size) const override;
 
 		void DetectBestDepthStencil();
-		void CreateDepthStencil(ID3D10Resource *resource, ID3D10DepthStencilView *depthstencil);
-		void ReplaceDepthStencil(ID3D10DepthStencilView **pDepthStencil);
+		void ReplaceDepthStencil(ID3D10DepthStencilView *&depthstencil);
 
 		ID3D10Device *mDevice;
 		IDXGISwapChain *mSwapChain;

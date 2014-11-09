@@ -155,8 +155,8 @@ namespace
 		virtual HRESULT STDMETHODCALLTYPE GetDisplayModeEx(UINT iSwapChain, D3DDISPLAYMODEEX *pMode, D3DDISPLAYROTATION *pRotation) override;
 
 		ULONG mRef;
-		IDirect3D9 *mD3D;
-		IDirect3DDevice9 *mOrig;
+		IDirect3D9 *const mD3D;
+		IDirect3DDevice9 *const mOrig;
 		Direct3DSwapChain9 *mImplicitSwapChain;
 		IDirect3DSurface9 *mAutoDepthStencil;
 	};
@@ -185,8 +185,8 @@ namespace
 		virtual HRESULT STDMETHODCALLTYPE GetDisplayModeEx(D3DDISPLAYMODEEX *pMode, D3DDISPLAYROTATION *pRotation) override;
 
 		ULONG mRef;
-		Direct3DDevice9 *mDevice;
-		IDirect3DSwapChain9 *mOrig;
+		Direct3DDevice9 *const mDevice;
+		IDirect3DSwapChain9 *const mOrig;
 		std::shared_ptr<ReShade::D3D9Runtime> mRuntime;
 	};
 
@@ -216,23 +216,6 @@ namespace
 				return buf;
 		}
 	}
-	UINT CalculateVerticesFromPrimitives(D3DPRIMITIVETYPE type, UINT count)
-	{
-		switch (type)
-		{
-			case D3DPT_LINELIST:
-				return count * 2;
-			case D3DPT_LINESTRIP:
-				return count + 1;
-			case D3DPT_TRIANGLELIST:
-				return count * 3;
-			case D3DPT_TRIANGLESTRIP:
-			case D3DPT_TRIANGLEFAN:
-				return count + 2;
-			default:
-				return count;
-		}
-	}
 	bool AdjustPresentParameters(D3DPRESENT_PARAMETERS *pp)
 	{
 		switch (pp->BackBufferFormat)
@@ -255,7 +238,7 @@ namespace
 
 		if (pp->MultiSampleType != D3DMULTISAMPLE_NONE)
 		{
-			LOG(WARNING) << "> Multisampling is enabled. This is not compatible with depth texture, which was therefore disabled.";
+			LOG(WARNING) << "> Multisampling is enabled. This is not compatible with depthbuffer access, which was therefore disabled.";
 		}
 
 		return true;
@@ -290,7 +273,8 @@ ULONG STDMETHODCALLTYPE Direct3DSwapChain9::Release()
 	{
 		assert(this->mRuntime != nullptr);
 
-		this->mRuntime->OnDelete();
+		this->mRuntime->OnDeleteInternal();
+
 		this->mRuntime.reset();
 	}
 
@@ -307,7 +291,7 @@ HRESULT STDMETHODCALLTYPE Direct3DSwapChain9::Present(const RECT *pSourceRect, c
 {
 	assert(this->mRuntime);
 
-	this->mRuntime->OnPresent();
+	this->mRuntime->OnPresentInternal();
 
 	return this->mOrig->Present(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion, dwFlags);
 }
@@ -467,11 +451,11 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateAdditionalSwapChain(D3DPRESENT_
 		IDirect3DDevice9 *device = this->mOrig;
 		IDirect3DSwapChain9 *swapchain = *ppSwapChain;
 
-		const std::shared_ptr<ReShade::D3D9Runtime> runtime = std::make_shared<ReShade::D3D9Runtime>(device, swapchain);
-		
 		swapchain->GetPresentParameters(&pp);
 
-		runtime->OnCreate(pp.BackBufferWidth, pp.BackBufferHeight);
+		const std::shared_ptr<ReShade::D3D9Runtime> runtime = std::make_shared<ReShade::D3D9Runtime>(device, swapchain);
+
+		runtime->OnCreateInternal(pp);
 
 		*ppSwapChain = new Direct3DSwapChain9(this, swapchain, runtime);
 	}
@@ -520,9 +504,9 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Reset(D3DPRESENT_PARAMETERS *pPresent
 	assert(this->mImplicitSwapChain != nullptr);
 	assert(this->mImplicitSwapChain->mRuntime != nullptr);
 
-	ReShade::Runtime *runtime = this->mImplicitSwapChain->mRuntime.get();
+	ReShade::D3D9Runtime *runtime = this->mImplicitSwapChain->mRuntime.get();
 
-	runtime->OnDelete();
+	runtime->OnDeleteInternal();
 
 	if (this->mAutoDepthStencil != nullptr)
 	{
@@ -536,7 +520,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Reset(D3DPRESENT_PARAMETERS *pPresent
 	{
 		this->mImplicitSwapChain->GetPresentParameters(&pp);
 
-		runtime->OnCreate(pp.BackBufferWidth, pp.BackBufferHeight);
+		runtime->OnCreateInternal(pp);
 
 		if (pp.EnableAutoDepthStencil != FALSE)
 		{
@@ -556,9 +540,9 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Present(const RECT *pSourceRect, cons
 	assert(this->mImplicitSwapChain != nullptr);
 	assert(this->mImplicitSwapChain->mRuntime != nullptr);
 
-	ReShade::Runtime *runtime = this->mImplicitSwapChain->mRuntime.get();
+	ReShade::D3D9Runtime *runtime = this->mImplicitSwapChain->mRuntime.get();
 
-	runtime->OnPresent();
+	runtime->OnPresentInternal();
 
 	return this->mOrig->Present(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
 }
@@ -660,7 +644,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetDepthStencilSurface(IDirect3DSurfa
 		assert(this->mImplicitSwapChain != nullptr);
 		assert(this->mImplicitSwapChain->mRuntime != nullptr);
 
-		this->mImplicitSwapChain->mRuntime->ReplaceDepthStencil(&pNewZStencil);
+		this->mImplicitSwapChain->mRuntime->ReplaceDepthStencil(pNewZStencil);
 	}
 
 	return this->mOrig->SetDepthStencilSurface(pNewZStencil);
@@ -834,7 +818,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::DrawPrimitive(D3DPRIMITIVETYPE Primit
 	assert(this->mImplicitSwapChain != nullptr);
 	assert(this->mImplicitSwapChain->mRuntime != nullptr);
 
-	this->mImplicitSwapChain->mRuntime->OnDraw(CalculateVerticesFromPrimitives(PrimitiveType, PrimitiveCount));
+	this->mImplicitSwapChain->mRuntime->OnDrawInternal(PrimitiveType, PrimitiveCount);
 
 	return this->mOrig->DrawPrimitive(PrimitiveType, StartVertex, PrimitiveCount);
 }
@@ -843,7 +827,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::DrawIndexedPrimitive(D3DPRIMITIVETYPE
 	assert(this->mImplicitSwapChain != nullptr);
 	assert(this->mImplicitSwapChain->mRuntime != nullptr);
 
-	this->mImplicitSwapChain->mRuntime->OnDraw(CalculateVerticesFromPrimitives(PrimitiveType, PrimitiveCount));
+	this->mImplicitSwapChain->mRuntime->OnDrawInternal(PrimitiveType, PrimitiveCount);
 
 	return this->mOrig->DrawIndexedPrimitive(PrimitiveType, BaseVertexIndex, MinVertexIndex, NumVertices, StartIndex, PrimitiveCount);
 }
@@ -852,7 +836,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::DrawPrimitiveUP(D3DPRIMITIVETYPE Prim
 	assert(this->mImplicitSwapChain != nullptr);
 	assert(this->mImplicitSwapChain->mRuntime != nullptr);
 
-	this->mImplicitSwapChain->mRuntime->OnDraw(CalculateVerticesFromPrimitives(PrimitiveType, PrimitiveCount));
+	this->mImplicitSwapChain->mRuntime->OnDrawInternal(PrimitiveType, PrimitiveCount);
 
 	return this->mOrig->DrawPrimitiveUP(PrimitiveType, PrimitiveCount, pVertexStreamZeroData, VertexStreamZeroStride);
 }
@@ -861,7 +845,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::DrawIndexedPrimitiveUP(D3DPRIMITIVETY
 	assert(this->mImplicitSwapChain != nullptr);
 	assert(this->mImplicitSwapChain->mRuntime != nullptr);
 
-	this->mImplicitSwapChain->mRuntime->OnDraw(CalculateVerticesFromPrimitives(PrimitiveType, PrimitiveCount));
+	this->mImplicitSwapChain->mRuntime->OnDrawInternal(PrimitiveType, PrimitiveCount);
 
 	return this->mOrig->DrawIndexedPrimitiveUP(PrimitiveType, MinVertexIndex, NumVertices, PrimitiveCount, pIndexData, IndexDataFormat, pVertexStreamZeroData, VertexStreamZeroStride);
 }
@@ -1016,9 +1000,9 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::PresentEx(const RECT *pSourceRect, co
 	assert(this->mImplicitSwapChain != nullptr);
 	assert(this->mImplicitSwapChain->mRuntime != nullptr);
 
-	ReShade::Runtime *runtime = this->mImplicitSwapChain->mRuntime.get();
+	ReShade::D3D9Runtime *runtime = this->mImplicitSwapChain->mRuntime.get();
 
-	runtime->OnPresent();
+	runtime->OnPresentInternal();
 
 	return static_cast<IDirect3DDevice9Ex *>(this->mOrig)->PresentEx(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion, dwFlags);
 }
@@ -1081,9 +1065,9 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ResetEx(D3DPRESENT_PARAMETERS *pPrese
 	assert(this->mImplicitSwapChain != nullptr);
 	assert(this->mImplicitSwapChain->mRuntime != nullptr);
 
-	ReShade::Runtime *runtime = this->mImplicitSwapChain->mRuntime.get();
+	ReShade::D3D9Runtime *runtime = this->mImplicitSwapChain->mRuntime.get();
 
-	runtime->OnDelete();
+	runtime->OnDeleteInternal();
 
 	if (this->mAutoDepthStencil != nullptr)
 	{
@@ -1097,7 +1081,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ResetEx(D3DPRESENT_PARAMETERS *pPrese
 	{
 		this->mImplicitSwapChain->GetPresentParameters(&pp);
 
-		runtime->OnCreate(pp.BackBufferWidth, pp.BackBufferHeight);
+		runtime->OnCreateInternal(pp);
 
 		if (pp.EnableAutoDepthStencil != FALSE)
 		{
@@ -1144,11 +1128,11 @@ HRESULT STDMETHODCALLTYPE IDirect3D9_CreateDevice(IDirect3D9 *pD3D, UINT Adapter
 
 		assert(swapchain != nullptr);
 		
-		const std::shared_ptr<ReShade::D3D9Runtime> runtime = std::make_shared<ReShade::D3D9Runtime>(device, swapchain);
-		
 		swapchain->GetPresentParameters(&pp);
 
-		runtime->OnCreate(pp.BackBufferWidth, pp.BackBufferHeight);
+		const std::shared_ptr<ReShade::D3D9Runtime> runtime = std::make_shared<ReShade::D3D9Runtime>(device, swapchain);
+
+		runtime->OnCreateInternal(pp);
 
 		Direct3DDevice9 *deviceProxy = new Direct3DDevice9(pD3D, device);
 		Direct3DSwapChain9 *swapchainProxy = new Direct3DSwapChain9(deviceProxy, swapchain, runtime);
@@ -1197,11 +1181,11 @@ HRESULT STDMETHODCALLTYPE IDirect3D9Ex_CreateDeviceEx(IDirect3D9Ex *pD3D, UINT A
 
 		assert(swapchain != nullptr);
 
-		const std::shared_ptr<ReShade::D3D9Runtime> runtime = std::make_shared<ReShade::D3D9Runtime>(device, swapchain);
-
 		swapchain->GetPresentParameters(&pp);
 
-		runtime->OnCreate(pp.BackBufferWidth, pp.BackBufferHeight);
+		const std::shared_ptr<ReShade::D3D9Runtime> runtime = std::make_shared<ReShade::D3D9Runtime>(device, swapchain);
+
+		runtime->OnCreateInternal(pp);
 
 		Direct3DDevice9 *deviceProxy = new Direct3DDevice9(pD3D, device);
 		Direct3DSwapChain9 *swapchainProxy = new Direct3DSwapChain9(deviceProxy, swapchain, runtime);
