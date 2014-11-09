@@ -3036,12 +3036,15 @@ namespace ReShade
 		// Update effect textures
 		D3D11Effect *effect = static_cast<D3D11Effect *>(this->mEffect.get());
 
-		for (auto &it : effect->mTextures)
+		if (effect != nullptr)
 		{
-			if (it.second->GetSource() == Effect::Texture::Source::Depth)
+			for (auto &it : effect->mTextures)
 			{
-				ID3D11ShaderResourceView *const srv[2] = { this->mDepthStencilTextureSRV, this->mDepthStencilTextureSRV };
-				it.second->SetSource(srv);
+				if (it.second->GetSource() == Effect::Texture::Source::Depth)
+				{
+					ID3D11ShaderResourceView *const srv[2] = { this->mDepthStencilTextureSRV, this->mDepthStencilTextureSRV };
+					it.second->SetSource(srv);
+				}
 			}
 		}
 

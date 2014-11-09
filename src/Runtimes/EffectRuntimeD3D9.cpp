@@ -2773,11 +2773,14 @@ namespace ReShade
 		// Update effect textures
 		D3D9Effect *effect = static_cast<D3D9Effect *>(this->mEffect.get());
 		
-		for (auto &it : effect->mTextures)
+		if (effect != nullptr)
 		{
-			if (it.second->GetSource() == Effect::Texture::Source::Depth)
+			for (auto &it : effect->mTextures)
 			{
-				it.second->SetSource(this->mDepthStencilTexture);
+				if (it.second->GetSource() == Effect::Texture::Source::Depth)
+				{
+					it.second->SetSource(this->mDepthStencilTexture);
+				}
 			}
 		}
 
