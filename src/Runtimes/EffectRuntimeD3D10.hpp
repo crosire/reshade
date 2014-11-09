@@ -50,17 +50,21 @@ namespace ReShade
 		virtual void CreateScreenshot(unsigned char *buffer, std::size_t size) const override;
 
 		void DetectBestDepthStencil();
+		bool CreateBackBuffer(ID3D10Texture2D *backbuffer, const DXGI_SAMPLE_DESC &samples);
+		bool CreateDepthStencil(ID3D10DepthStencilView *depthstencil);
+		void ReplaceBackBuffer(ID3D10Texture2D *&backbuffer);
 		void ReplaceDepthStencil(ID3D10DepthStencilView *&depthstencil);
 
 		ID3D10Device *mDevice;
 		IDXGISwapChain *mSwapChain;
 		DXGI_SWAP_CHAIN_DESC mSwapChainDesc;
 		ID3D10StateBlock *mStateBlock;
-		ID3D10Texture2D *mBackBuffer;
+		ID3D10Texture2D *mBackBuffer, *mBackBufferReplacement;
 		ID3D10Texture2D *mBackBufferTexture;
+		ID3D10ShaderResourceView *mBackBufferTextureSRV[2];
 		ID3D10RenderTargetView *mBackBufferTargets[2];
 		ID3D10DepthStencilView *mDepthStencil, *mDepthStencilReplacement;
-		ID3D10ShaderResourceView *mDepthStencilShaderResourceView;
+		ID3D10ShaderResourceView *mDepthStencilReplacementSRV;
 		std::unordered_map<ID3D10DepthStencilView *, D3D10DepthStencilInfo> mDepthStencilTable;
 		bool mLost;
 	};
@@ -110,6 +114,8 @@ namespace ReShade
 		virtual bool Update(unsigned int level, const unsigned char *data, std::size_t size) override;
 		virtual void UpdateFromColorBuffer() override;
 		virtual void UpdateFromDepthBuffer() override;
+
+		bool Replace(ID3D10ShaderResourceView *srv, ID3D10ShaderResourceView *srvSRGB);
 
 		D3D10Effect *mEffect;
 		unsigned int mRegister;

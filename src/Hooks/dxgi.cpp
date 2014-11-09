@@ -12,10 +12,10 @@ namespace
 {
 	struct DXGISwapChain : public IDXGISwapChain1, private boost::noncopyable
 	{
-		DXGISwapChain(IDXGIFactory *pFactory, IDXGISwapChain *pOriginalSwapChain, const std::shared_ptr<ReShade::D3D10Runtime> runtime) : mRef(1), mFactory(pFactory), mOrig(pOriginalSwapChain), mDirect3DVersion(10), mRuntime(runtime)
+		DXGISwapChain(IDXGIFactory *pFactory, IDXGISwapChain *pOriginalSwapChain, const std::shared_ptr<ReShade::D3D10Runtime> runtime, const DXGI_SAMPLE_DESC &samples) : mRef(1), mFactory(pFactory), mOrig(pOriginalSwapChain), mOrigSamples(samples), mDirect3DVersion(10), mRuntime(runtime)
 		{
 		}
-		DXGISwapChain(IDXGIFactory *pFactory, IDXGISwapChain *pOriginalSwapChain, const std::shared_ptr<ReShade::D3D11Runtime> runtime) : mRef(1), mFactory(pFactory), mOrig(pOriginalSwapChain), mDirect3DVersion(11), mRuntime(runtime)
+		DXGISwapChain(IDXGIFactory *pFactory, IDXGISwapChain *pOriginalSwapChain, const std::shared_ptr<ReShade::D3D11Runtime> runtime, const DXGI_SAMPLE_DESC &samples) : mRef(1), mFactory(pFactory), mOrig(pOriginalSwapChain), mOrigSamples(samples), mDirect3DVersion(11), mRuntime(runtime)
 		{
 		}
 
@@ -56,6 +56,7 @@ namespace
 		ULONG mRef;
 		IDXGIFactory *const mFactory;
 		IDXGISwapChain *const mOrig;
+		const DXGI_SAMPLE_DESC mOrigSamples;
 		const unsigned int mDirect3DVersion;
 		std::shared_ptr<ReShade::Runtime> mRuntime;
 	};
@@ -76,44 +77,24 @@ namespace
 	}
 	bool AdjustPresentParameters(DXGI_SWAP_CHAIN_DESC &desc)
 	{
-		switch (desc.BufferDesc.Format)
+		if (desc.SampleDesc.Count > 1)
 		{
-			case DXGI_FORMAT_R8G8B8A8_UNORM:
-			case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
-				break;
-			case DXGI_FORMAT_B8G8R8A8_UNORM:
-				LOG(WARNING) << "> Replacing buffer format 'DXGI_FORMAT_B8G8R8A8_UNORM' with 'DXGI_FORMAT_R8G8B8A8_UNORM' ...";
-				desc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-				break;
-			case DXGI_FORMAT_B8G8R8A8_UNORM_SRGB:
-				LOG(WARNING) << "> Replacing buffer format 'DXGI_FORMAT_B8G8R8A8_UNORM_SRGB' with 'DXGI_FORMAT_R8G8B8A8_UNORM_SRGB' ...";
-				desc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
-				break;
-			default:
-				LOG(ERROR) << "> Format " << desc.BufferDesc.Format << " is not currently supported.";
-				return false;
+			LOG(WARNING) << "> Multisampling is enabled. This is not compatible with depthbuffer access, which was therefore disabled.";
+
+			desc.SampleDesc.Count = 1;
+			desc.SampleDesc.Quality = 0;
 		}
 
 		return true;
 	}
 	bool AdjustPresentParameters(DXGI_SWAP_CHAIN_DESC1 &desc)
 	{
-		switch (desc.Format)
+		if (desc.SampleDesc.Count > 1)
 		{
-			case DXGI_FORMAT_R8G8B8A8_UNORM:
-			case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
-				break;
-			case DXGI_FORMAT_B8G8R8A8_UNORM:
-				LOG(WARNING) << "> Replacing buffer format 'DXGI_FORMAT_B8G8R8A8_UNORM' with 'DXGI_FORMAT_R8G8B8A8_UNORM' ...";
-				desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-				break;
-			case DXGI_FORMAT_B8G8R8A8_UNORM_SRGB:
-				LOG(WARNING) << "> Replacing buffer format 'DXGI_FORMAT_B8G8R8A8_UNORM_SRGB' with 'DXGI_FORMAT_R8G8B8A8_UNORM_SRGB' ...";
-				desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
-				break;
-			default:
-				LOG(ERROR) << "> Format " << desc.Format << " is not currently supported.";
-				return false;
+			LOG(WARNING) << "> Multisampling is enabled. This is not compatible with depthbuffer access, which was therefore disabled.";
+
+			desc.SampleDesc.Count = 1;
+			desc.SampleDesc.Quality = 0;
 		}
 
 		return true;
@@ -209,6 +190,37 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::Present(UINT SyncInterval, UINT Flags)
 }
 HRESULT STDMETHODCALLTYPE DXGISwapChain::GetBuffer(UINT Buffer, REFIID riid, void **ppSurface)
 {
+	if (ppSurface == nullptr)
+	{
+		return DXGI_ERROR_INVALID_CALL;
+	}
+
+	if (Buffer == 0)
+	{
+		IUnknown *texture = nullptr;
+
+		switch (this->mDirect3DVersion)
+		{
+			case 10:
+				assert(riid == __uuidof(ID3D10Texture2D));
+				std::static_pointer_cast<ReShade::D3D10Runtime>(this->mRuntime)->ReplaceBackBuffer(reinterpret_cast<ID3D10Texture2D *&>(texture));
+				break;
+			case 11:
+				assert(riid == __uuidof(ID3D11Texture2D));
+				std::static_pointer_cast<ReShade::D3D11Runtime>(this->mRuntime)->ReplaceBackBuffer(reinterpret_cast<ID3D11Texture2D *&>(texture));
+				break;
+		}
+
+		if (texture != nullptr)
+		{
+			texture->AddRef();
+
+			*ppSurface = texture;
+
+			return S_OK;
+		}
+	}
+
 	return this->mOrig->GetBuffer(Buffer, riid, ppSurface);
 }
 HRESULT STDMETHODCALLTYPE DXGISwapChain::SetFullscreenState(BOOL Fullscreen, IDXGIOutput *pTarget)
@@ -223,7 +235,14 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::GetFullscreenState(BOOL *pFullscreen, I
 }
 HRESULT STDMETHODCALLTYPE DXGISwapChain::GetDesc(DXGI_SWAP_CHAIN_DESC *pDesc)
 {
-	return this->mOrig->GetDesc(pDesc);
+	const HRESULT hr = this->mOrig->GetDesc(pDesc);
+
+	if (SUCCEEDED(hr))
+	{
+		pDesc->SampleDesc = this->mOrigSamples;
+	}
+
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Width, UINT Height, DXGI_FORMAT NewFormat, UINT SwapChainFlags)
 {
@@ -264,6 +283,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Wi
 		}
 
 		this->mOrig->GetDesc(&desc);
+		desc.SampleDesc = this->mOrigSamples;
 
 		switch (this->mDirect3DVersion)
 		{
@@ -302,7 +322,14 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::GetLastPresentCount(UINT *pLastPresentC
 // IDXGISwapChain1
 HRESULT STDMETHODCALLTYPE DXGISwapChain::GetDesc1(DXGI_SWAP_CHAIN_DESC1 *pDesc)
 {
-	return static_cast<IDXGISwapChain1 *>(this->mOrig)->GetDesc1(pDesc);
+	const HRESULT hr = static_cast<IDXGISwapChain1 *>(this->mOrig)->GetDesc1(pDesc);
+
+	if (SUCCEEDED(hr))
+	{
+		pDesc->SampleDesc = this->mOrigSamples;
+	}
+
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE DXGISwapChain::GetFullscreenDesc(DXGI_SWAP_CHAIN_FULLSCREEN_DESC *pDesc)
 {
@@ -675,6 +702,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, I
 		IDXGISwapChain *swapchain = *ppSwapChain;
 
 		swapchain->GetDesc(&desc);
+		desc.SampleDesc = pDesc->SampleDesc;
 
 		if (SUCCEEDED(pDevice->QueryInterface(&deviceD3D10)))
 		{
@@ -693,7 +721,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, I
 
 			runtime->OnCreateInternal(desc);
 
-			*ppSwapChain = new DXGISwapChain(pFactory, swapchain, runtime);
+			*ppSwapChain = new DXGISwapChain(pFactory, swapchain, runtime, desc.SampleDesc);
 
 			deviceD3D10->Release();
 		}
@@ -718,7 +746,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, I
 
 			runtime->OnCreateInternal(desc);
 
-			*ppSwapChain = new DXGISwapChain(pFactory, swapchain, runtime);
+			*ppSwapChain = new DXGISwapChain(pFactory, swapchain, runtime, desc.SampleDesc);
 
 			deviceContext->Release();
 			deviceD3D11->Release();
@@ -772,6 +800,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pF
 
 		DXGI_SWAP_CHAIN_DESC desc;
 		swapchain->GetDesc(&desc);
+		desc.SampleDesc = pDesc->SampleDesc;
 
 		if (SUCCEEDED(pDevice->QueryInterface(&deviceD3D10)))
 		{
@@ -790,7 +819,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pF
 
 			runtime->OnCreateInternal(desc);
 
-			*ppSwapChain = new DXGISwapChain(pFactory, swapchain, runtime);
+			*ppSwapChain = new DXGISwapChain(pFactory, swapchain, runtime, desc.SampleDesc);
 
 			deviceD3D10->Release();
 		}
@@ -815,7 +844,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pF
 
 			runtime->OnCreateInternal(desc);
 
-			*ppSwapChain = new DXGISwapChain(pFactory, swapchain, runtime);
+			*ppSwapChain = new DXGISwapChain(pFactory, swapchain, runtime, desc.SampleDesc);
 
 			deviceContext->Release();
 			deviceD3D11->Release();
@@ -867,6 +896,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactor
 
 		DXGI_SWAP_CHAIN_DESC desc;
 		swapchain->GetDesc(&desc);
+		desc.SampleDesc = pDesc->SampleDesc;
 
 		if (SUCCEEDED(pDevice->QueryInterface(&deviceD3D10)))
 		{
@@ -885,7 +915,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactor
 
 			runtime->OnCreateInternal(desc);
 
-			*ppSwapChain = new DXGISwapChain(pFactory, swapchain, runtime);
+			*ppSwapChain = new DXGISwapChain(pFactory, swapchain, runtime, desc.SampleDesc);
 
 			deviceD3D10->Release();
 		}
@@ -910,7 +940,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactor
 
 			runtime->OnCreateInternal(desc);
 
-			*ppSwapChain = new DXGISwapChain(pFactory, swapchain, runtime);
+			*ppSwapChain = new DXGISwapChain(pFactory, swapchain, runtime, desc.SampleDesc);
 
 			deviceContext->Release();
 			deviceD3D11->Release();
@@ -962,6 +992,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFacto
 
 		DXGI_SWAP_CHAIN_DESC desc;
 		swapchain->GetDesc(&desc);
+		desc.SampleDesc = pDesc->SampleDesc;
 
 		if (SUCCEEDED(pDevice->QueryInterface(&deviceD3D10)))
 		{
@@ -980,7 +1011,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFacto
 
 			runtime->OnCreateInternal(desc);
 
-			*ppSwapChain = new DXGISwapChain(pFactory, swapchain, runtime);
+			*ppSwapChain = new DXGISwapChain(pFactory, swapchain, runtime, desc.SampleDesc);
 
 			deviceD3D10->Release();
 		}
@@ -1005,7 +1036,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFacto
 
 			runtime->OnCreateInternal(desc);
 
-			*ppSwapChain = new DXGISwapChain(pFactory, swapchain, runtime);
+			*ppSwapChain = new DXGISwapChain(pFactory, swapchain, runtime, desc.SampleDesc);
 
 			deviceContext->Release();
 			deviceD3D11->Release();
