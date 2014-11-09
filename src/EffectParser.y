@@ -2518,16 +2518,28 @@ RULE_ATTRIBUTES
  /* Annotations ------------------------------------------------------------------------------ */
 
 RULE_ANNOTATION
-	: RULE_IDENTIFIER_NAME "=" RULE_EXPRESSION_LITERAL ";"
+	: RULE_IDENTIFIER_NAME "=" RULE_EXPRESSION_ASSIGNMENT ";"
 	{
+		if (!parser.mAST[$3].Is<EffectNodes::Literal>())
+		{
+			parser.Error(@3, 3011, "value must be a literal expression");
+			YYERROR;
+		}
+
 		EffectNodes::Annotation &node = parser.mAST.Add<EffectNodes::Annotation>(@1);
 		node.Name = parser.mAST.AddString($1.String.p, $1.String.len);
 		node.Value = $3;
 
 		@$ = @1, $$ = node.Index;
 	}
-	| RULE_TYPE_SINGLE RULE_IDENTIFIER_NAME "=" RULE_EXPRESSION_LITERAL ";"
+	| RULE_TYPE_SINGLE RULE_IDENTIFIER_NAME "=" RULE_EXPRESSION_ASSIGNMENT ";"
 	{
+		if (!parser.mAST[$4].Is<EffectNodes::Literal>())
+		{
+			parser.Error(@4, 3011, "value must be a literal expression");
+			YYERROR;
+		}
+
 		EffectNodes::Annotation &node = parser.mAST.Add<EffectNodes::Annotation>(@2);
 		node.Name = parser.mAST.AddString($2.String.p, $2.String.len);
 		node.Value = $4;
