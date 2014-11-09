@@ -274,6 +274,7 @@
 %type<y.Index>	RULE_IDENTIFIER_FUNCTION
 %type<l>		RULE_IDENTIFIER_NAME
 %type<l>		RULE_IDENTIFIER_SEMANTIC
+%type<l>		RULE_IDENTIFIER_PASSSTATE
 
 %type<l>		RULE_TYPE
 %type<l>		RULE_TYPE_SCALAR
@@ -470,6 +471,14 @@ RULE_IDENTIFIER_FUNCTION
 RULE_IDENTIFIER_SEMANTIC
 	: TOK_IDENTIFIER_SEMANTIC { @$ = @1, $$.String = $1.String; }
 	| TOK_IDENTIFIER { @$ = @1, $$.String = $1.String; }
+	;
+RULE_IDENTIFIER_PASSSTATE
+	: TOK_IDENTIFIER_PASSSTATE
+	| TOK_IDENTIFIER
+	{
+		parser.Error(@1, 3000, "unrecognized pass state '%.*s'", $1.String.len, $1.String.p);
+		YYERROR;
+	}
 	;
 
  /* Types ------------------------------------------------------------------------------------ */
@@ -3257,7 +3266,7 @@ RULE_PASS_LIST
 	;
 
 RULE_PASSSTATE
-	: TOK_IDENTIFIER_PASSSTATE "=" RULE_EXPRESSION_LITERAL ";"
+	: RULE_IDENTIFIER_PASSSTATE "=" RULE_EXPRESSION_LITERAL ";"
 	{
 		if (($1.Uint == EffectNodes::Pass::VertexShader || $1.Uint == EffectNodes::Pass::PixelShader) || ($1.Uint >= EffectNodes::Pass::RenderTarget0 && $1.Uint <= EffectNodes::Pass::RenderTarget7))
 		{
@@ -3272,7 +3281,7 @@ RULE_PASSSTATE
 
 		@$ = @1, $$.States[$$.Index = $1.Uint] = $3;
 	}
-	| TOK_IDENTIFIER_PASSSTATE "=" RULE_IDENTIFIER_NAME ";"
+	| RULE_IDENTIFIER_PASSSTATE "=" RULE_IDENTIFIER_NAME ";"
 	{
 		const bool stateShaderAssignment = $1.Uint == EffectNodes::Pass::VertexShader || $1.Uint == EffectNodes::Pass::PixelShader;
 		const bool stateRenderTargetAssignment = $1.Uint >= EffectNodes::Pass::RenderTarget0 && $1.Uint <= EffectNodes::Pass::RenderTarget7;
