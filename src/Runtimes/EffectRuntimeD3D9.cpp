@@ -2509,6 +2509,7 @@ namespace ReShade
 		}
 
 		this->mDevice->SetRenderTarget(0, this->mBackBufferResolved);
+		this->mDevice->SetDepthStencilSurface(nullptr);
 
 		// Apply post processing
 		Runtime::OnPresent();
