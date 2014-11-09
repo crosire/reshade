@@ -299,8 +299,6 @@ namespace ReShade
 		}
 
 		this->mTechniques.clear();
-		this->mColorTargets.clear();
-		this->mDepthTargets.clear();
 
 		this->mEffect.reset();
 
@@ -365,14 +363,6 @@ namespace ReShade
 			{
 				for (unsigned int i = 0; i < passes; ++i)
 				{
-					for (auto &target : this->mColorTargets)
-					{
-						target->UpdateFromColorBuffer();
-					}
-					for (auto &target : this->mDepthTargets)
-					{
-						target->UpdateFromDepthBuffer();
-					}
 					for (const std::string &name : this->mEffect->GetConstantNames())
 					{
 						Effect::Constant *constant = this->mEffect->GetConstant(name);
@@ -590,21 +580,16 @@ namespace ReShade
 			}
 			else if (source == "backbuffer")
 			{
-				if (desc.Width == this->mWidth && desc.Height == this->mHeight && desc.Format == Effect::Texture::Format::RGBA8)
-				{
-					this->mColorTargets.push_back(texture);
-				}
-				else
-				{
-					LOG(ERROR) << "> Texture '" << name << "' (Width = " << desc.Width << ", Height = " << desc.Height << ") doesn't match backbuffer requirements (Width = " << this->mWidth << ", Height = " << this->mHeight << ", Format = R8G8B8A8).";
-				}
+				texture->SetSource(Effect::Texture::Source::Color);
 			}
 			else if (source == "depthbuffer")
 			{
-				this->mDepthTargets.push_back(texture);
+				texture->SetSource(Effect::Texture::Source::Depth);
 			}
 			else
 			{
+				texture->SetSource(Effect::Texture::Source::Memory);
+
 				const boost::filesystem::path path = boost::filesystem::absolute(source, sEffectPath.parent_path());
 				int widthFile = 0, heightFile = 0, channelsFile = 0, channels = STBI_default;
 

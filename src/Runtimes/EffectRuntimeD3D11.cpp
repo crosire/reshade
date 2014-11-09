@@ -3033,6 +3033,18 @@ namespace ReShade
 			}
 		}
 
+		// Update effect textures
+		D3D11Effect *effect = static_cast<D3D11Effect *>(this->mEffect.get());
+
+		for (auto &it : effect->mTextures)
+		{
+			if (it.second->GetSource() == Effect::Texture::Source::Depth)
+			{
+				ID3D11ShaderResourceView *const srv[2] = { this->mDepthStencilTextureSRV, this->mDepthStencilTextureSRV };
+				it.second->SetSource(srv);
+			}
+		}
+
 		return true;
 	}
 	void D3D11Runtime::ReplaceBackBuffer(ID3D11Texture2D *&backbuffer)
@@ -3225,57 +3237,47 @@ namespace ReShade
 		SAFE_RELEASE(this->mTexture);
 	}
 
-	bool D3D11Texture::Update(unsigned int level, const unsigned char *data, std::size_t size)
+	void D3D11Texture::SetSource(Source source)
 	{
-		if (data == nullptr || size == 0 || level > this->mDesc.Levels)
+		switch (source)
 		{
-			return false;
+			case Source::Color:
+				SetSource(this->mEffect->mEffectContext->mBackBufferTextureSRV);
+				break;
+			case Source::Depth:
+				ID3D11ShaderResourceView *const srv[2] = { this->mEffect->mEffectContext->mDepthStencilTextureSRV, this->mEffect->mEffectContext->mDepthStencilTextureSRV };
+				SetSource(srv);
+				break;
 		}
 
-		assert(this->mDesc.Height != 0);
-
-		this->mEffect->mEffectContext->mImmediateContext->UpdateSubresource(this->mTexture, level, nullptr, data, size / this->mDesc.Height, size);
-
-		return true;
+		this->mSource = source;
 	}
-	void D3D11Texture::UpdateFromColorBuffer()
-	{
-		Replace(this->mEffect->mEffectContext->mBackBufferTextureSRV[0], this->mEffect->mEffectContext->mBackBufferTextureSRV[1]);
-	}
-	void D3D11Texture::UpdateFromDepthBuffer()
-	{
-		Replace(this->mEffect->mEffectContext->mDepthStencilTextureSRV, this->mEffect->mEffectContext->mDepthStencilTextureSRV);
-	}
-
-	bool D3D11Texture::Replace(ID3D11ShaderResourceView *srv, ID3D11ShaderResourceView *srvSRGB)
+	bool D3D11Texture::SetSource(ID3D11ShaderResourceView *const srv[2])
 	{
 		const ID3D11ShaderResourceView *const previous[2] = { this->mShaderResourceView[0], this->mShaderResourceView[1] };
 
-		if (srv == nullptr || srvSRGB == nullptr)
+		if (srv[0] == nullptr || srv[1] == nullptr)
 		{
 			return false;
 		}
-		else if (this->mShaderResourceView[0] == srv && this->mShaderResourceView[1] == srvSRGB)
+		else if (srv[0] == previous[0] && srv[1] == previous[1])
 		{
 			return true;
 		}
-		else if (this->mTexture != nullptr)
-		{
-			assert(this->mRenderTargetView[0] == nullptr && this->mRenderTargetView[1] == nullptr);
 
-			SAFE_RELEASE(this->mShaderResourceView[0]);
-			SAFE_RELEASE(this->mShaderResourceView[1]);
-			
-			this->mTexture->Release();
-		}
+		SAFE_RELEASE(this->mRenderTargetView[0]);
+		SAFE_RELEASE(this->mRenderTargetView[1]);
+		SAFE_RELEASE(this->mShaderResourceView[0]);
+		SAFE_RELEASE(this->mShaderResourceView[1]);
+
+		SAFE_RELEASE(this->mTexture);
 
 		assert(previous[0] != nullptr && previous[1] != nullptr);
 
-		// Replace with depth texture
-		this->mShaderResourceView[0] = srv;
+		this->mShaderResourceView[0] = srv[0];
 		this->mShaderResourceView[0]->AddRef();
 		this->mShaderResourceView[0]->GetResource(reinterpret_cast<ID3D11Resource **>(&this->mTexture));
-		this->mShaderResourceView[1] = srvSRGB;
+		this->mShaderResourceView[1] = srv[1];
 		this->mShaderResourceView[1]->AddRef();
 
 		D3D11_TEXTURE2D_DESC texdesc;
@@ -3295,15 +3297,29 @@ namespace ReShade
 				{
 					if (SR == previous[0])
 					{
-						SR = srv;
+						SR = srv[0];
 					}
 					else if (SR == previous[1])
 					{
-						SR = srvSRGB;
+						SR = srv[1];
 					}
 				}
 			}
 		}
+
+		return true;
+	}
+
+	bool D3D11Texture::Update(unsigned int level, const unsigned char *data, std::size_t size)
+	{
+		if (data == nullptr || size == 0 || level > this->mDesc.Levels || GetSource() != Source::Memory)
+		{
+			return false;
+		}
+
+		assert(this->mDesc.Height != 0);
+
+		this->mEffect->mEffectContext->mImmediateContext->UpdateSubresource(this->mTexture, level, nullptr, data, size / this->mDesc.Height, size);
 
 		return true;
 	}
@@ -3424,10 +3440,7 @@ namespace ReShade
 		context->OMSetDepthStencilState(pass.DSS, pass.StencilRef);
 
 		// Save backbuffer of previous pass
-		if (pass.RT[0] == this->mEffect->mEffectContext->mBackBufferTargets[0] || pass.RT[0] == this->mEffect->mEffectContext->mBackBufferTargets[1])
-		{
-			context->CopyResource(this->mEffect->mEffectContext->mBackBufferTexture, this->mEffect->mEffectContext->mBackBuffer);
-		}
+		context->CopyResource(this->mEffect->mEffectContext->mBackBufferTexture, this->mEffect->mEffectContext->mBackBuffer);
 
 		// Setup shader resources
 		context->VSSetShaderResources(0, pass.SR.size(), pass.SR.data());

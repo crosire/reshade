@@ -2309,7 +2309,7 @@ namespace ReShade
 
 	// -----------------------------------------------------------------------------------------------------
 
-	D3D9Runtime::D3D9Runtime(IDirect3DDevice9 *device, IDirect3DSwapChain9 *swapchain) : mDevice(device), mSwapChain(swapchain), mDeviceCaps(), mStateBlock(nullptr), mBackBuffer(nullptr), mBackBufferResolved(nullptr), mDepthStencil(nullptr), mDepthStencilReplacement(nullptr), mDepthStencilReplacementTexture(nullptr), mLost(true)
+	D3D9Runtime::D3D9Runtime(IDirect3DDevice9 *device, IDirect3DSwapChain9 *swapchain) : mDevice(device), mSwapChain(swapchain), mDeviceCaps(), mStateBlock(nullptr), mBackBuffer(nullptr), mBackBufferResolved(nullptr), mBackBufferTexture(nullptr), mBackBufferTextureSurface(nullptr), mDepthStencil(nullptr), mDepthStencilReplacement(nullptr), mDepthStencilTexture(nullptr), mLost(true)
 	{
 		assert(this->mDevice != nullptr);
 		assert(this->mSwapChain != nullptr);
@@ -2370,12 +2370,28 @@ namespace ReShade
 			this->mBackBufferResolved->AddRef();
 		}
 
+		hr = this->mDevice->CreateTexture(params.BackBufferWidth, params.BackBufferHeight, 1, D3DUSAGE_RENDERTARGET, params.BackBufferFormat, D3DPOOL_DEFAULT, &this->mBackBufferTexture, nullptr);
+
+		if (SUCCEEDED(hr))
+		{
+			this->mBackBufferTexture->GetSurfaceLevel(0, &this->mBackBufferTextureSurface);
+		}
+		else
+		{
+			SAFE_RELEASE(this->mBackBuffer);
+			SAFE_RELEASE(this->mBackBufferResolved);
+
+			return false;
+		}
+
 		hr = this->mDevice->CreateStateBlock(D3DSBT_ALL, &this->mStateBlock);
 
 		if (FAILED(hr))
 		{
 			SAFE_RELEASE(this->mBackBuffer);
 			SAFE_RELEASE(this->mBackBufferResolved);
+			SAFE_RELEASE(this->mBackBufferTexture);
+			SAFE_RELEASE(this->mBackBufferTextureSurface);
 
 			return false;
 		}
@@ -2403,10 +2419,12 @@ namespace ReShade
 
 		SAFE_RELEASE(this->mBackBuffer);
 		SAFE_RELEASE(this->mBackBufferResolved);
+		SAFE_RELEASE(this->mBackBufferTexture);
+		SAFE_RELEASE(this->mBackBufferTextureSurface);
 
 		SAFE_RELEASE(this->mDepthStencil);
 		SAFE_RELEASE(this->mDepthStencilReplacement);
-		SAFE_RELEASE(this->mDepthStencilReplacementTexture);
+		SAFE_RELEASE(this->mDepthStencilTexture);
 
 		ZeroMemory(&this->mPresentParams, sizeof(D3DPRESENT_PARAMETERS));
 
@@ -2513,18 +2531,12 @@ namespace ReShade
 		{
 			this->mDevice->SetRenderTarget(target, stateblockTargets[target]);
 
-			if (stateblockTargets[target] != nullptr)
-			{
-				stateblockTargets[target]->Release();
-			}
+			SAFE_RELEASE(stateblockTargets[target]);
 		}
 			
 		this->mDevice->SetDepthStencilSurface(stateblockDepthStencil);
 
-		if (stateblockDepthStencil != nullptr)
-		{
-			stateblockDepthStencil->Release();
-		}
+		SAFE_RELEASE(stateblockDepthStencil);
 
 		// End post processing
 		this->mDevice->EndScene();
@@ -2713,7 +2725,7 @@ namespace ReShade
 	{
 		SAFE_RELEASE(this->mDepthStencil);
 		SAFE_RELEASE(this->mDepthStencilReplacement);
-		SAFE_RELEASE(this->mDepthStencilReplacementTexture);
+		SAFE_RELEASE(this->mDepthStencilTexture);
 
 		this->mDepthStencil = depthstencil;
 		this->mDepthStencil->AddRef();
@@ -2723,11 +2735,11 @@ namespace ReShade
 
 		if (desc.Format != D3DFMT_INTZ)
 		{
-			const HRESULT hr = this->mDevice->CreateTexture(desc.Width, desc.Height, 1, D3DUSAGE_DEPTHSTENCIL, D3DFMT_INTZ, D3DPOOL_DEFAULT, &this->mDepthStencilReplacementTexture, nullptr);
+			const HRESULT hr = this->mDevice->CreateTexture(desc.Width, desc.Height, 1, D3DUSAGE_DEPTHSTENCIL, D3DFMT_INTZ, D3DPOOL_DEFAULT, &this->mDepthStencilTexture, nullptr);
 
 			if (SUCCEEDED(hr))
 			{
-				this->mDepthStencilReplacementTexture->GetSurfaceLevel(0, &this->mDepthStencilReplacement);
+				this->mDepthStencilTexture->GetSurfaceLevel(0, &this->mDepthStencilReplacement);
 
 				// Update auto depthstencil
 				IDirect3DSurface9 *depthstencil = nullptr;
@@ -2754,7 +2766,18 @@ namespace ReShade
 		{
 			this->mDepthStencilReplacement = this->mDepthStencil;
 			this->mDepthStencilReplacement->AddRef();
-			this->mDepthStencilReplacement->GetContainer(__uuidof(IDirect3DTexture9), reinterpret_cast<void **>(&this->mDepthStencilReplacementTexture));
+			this->mDepthStencilReplacement->GetContainer(__uuidof(IDirect3DTexture9), reinterpret_cast<void **>(&this->mDepthStencilTexture));
+		}
+
+		// Update effect textures
+		D3D9Effect *effect = static_cast<D3D9Effect *>(this->mEffect.get());
+		
+		for (auto &it : effect->mTextures)
+		{
+			if (it.second->GetSource() == Effect::Texture::Source::Depth)
+			{
+				it.second->SetSource(this->mDepthStencilTexture);
+			}
 		}
 
 		return true;
@@ -2879,9 +2902,54 @@ namespace ReShade
 		SAFE_RELEASE(this->mTextureSurface);
 	}
 
+	void D3D9Texture::SetSource(Source source)
+	{
+		switch (source)
+		{
+			case Source::Color:
+				SetSource(this->mEffect->mEffectContext->mBackBufferTexture);
+				break;
+			case Source::Depth:
+				SetSource(this->mEffect->mEffectContext->mDepthStencilTexture);
+				break;
+		}
+
+		this->mSource = source;
+	}
+	bool D3D9Texture::SetSource(IDirect3DTexture9 *texture)
+	{
+		if (texture == nullptr)
+		{
+			return false;
+		}
+		else if (this->mTexture == texture)
+		{
+			return true;
+		}
+		else if (this->mTexture != nullptr)
+		{
+			SAFE_RELEASE(this->mTexture);
+			SAFE_RELEASE(this->mTextureSurface);
+		}
+
+		this->mTexture = texture;
+		this->mTexture->AddRef();
+		this->mTexture->GetSurfaceLevel(0, &this->mTextureSurface);
+
+		D3DSURFACE_DESC texdesc;
+		this->mTextureSurface->GetDesc(&texdesc);
+
+		this->mDesc.Width = texdesc.Width;
+		this->mDesc.Height = texdesc.Height;
+		this->mDesc.Format = Effect::Texture::Format::Unknown;
+		this->mDesc.Levels = this->mTexture->GetLevelCount();
+
+		return true;
+	}
+
 	bool D3D9Texture::Update(unsigned int level, const unsigned char *data, std::size_t size)
 	{
-		if (data == nullptr || size == 0 || level > this->mDesc.Levels)
+		if (data == nullptr || size == 0 || level > this->mDesc.Levels || this->mSource != Source::Memory)
 		{
 			return false;
 		}
@@ -2959,36 +3027,6 @@ namespace ReShade
 		textureSurface->Release();
 
 		return SUCCEEDED(hr);
-	}
-	void D3D9Texture::UpdateFromColorBuffer()
-	{
-		this->mEffect->mEffectContext->mDevice->StretchRect(this->mEffect->mEffectContext->mBackBufferResolved, nullptr, this->mTextureSurface, nullptr, D3DTEXF_NONE);
-	}
-	void D3D9Texture::UpdateFromDepthBuffer()
-	{
-		if (this->mTexture == this->mEffect->mEffectContext->mDepthStencilReplacementTexture || this->mEffect->mEffectContext->mDepthStencilReplacementTexture == nullptr)
-		{
-			return;
-		}
-		else if (this->mTexture != nullptr)
-		{
-			SAFE_RELEASE(this->mTexture);
-			SAFE_RELEASE(this->mTextureSurface);
-		}
-
-		// Replace with depth texture
-		this->mTexture = this->mEffect->mEffectContext->mDepthStencilReplacementTexture;
-		this->mTexture->AddRef();
-		this->mTextureSurface = this->mEffect->mEffectContext->mDepthStencilReplacement;
-		this->mTextureSurface->AddRef();
-
-		D3DSURFACE_DESC desc;
-		this->mTexture->GetLevelDesc(0, &desc);
-
-		this->mDesc.Width = desc.Width;
-		this->mDesc.Height = desc.Height;
-		this->mDesc.Format = Effect::Texture::Format::Unknown;
-		this->mDesc.Levels = this->mTexture->GetLevelCount();
 	}
 
 	D3D9Constant::D3D9Constant(D3D9Effect *effect, const Description &desc) : Constant(desc), mEffect(effect), mStorageOffset(0)
@@ -3084,6 +3122,9 @@ namespace ReShade
 
 		// Setup states
 		pass.Stateblock->Apply();
+
+		// Save backbuffer of previous pass
+		device->StretchRect(this->mEffect->mEffectContext->mBackBufferResolved, nullptr, this->mEffect->mEffectContext->mBackBufferTextureSurface, nullptr, D3DTEXF_NONE);
 
 		// Setup rendertargets
 		for (DWORD target = 0, targetCount = std::min(this->mEffect->mEffectContext->mDeviceCaps.NumSimultaneousRTs, static_cast<DWORD>(8)); target < targetCount; ++target)

@@ -93,6 +93,12 @@ namespace ReShade
 				LATC1,
 				LATC2
 			};
+			enum class Source
+			{
+				Color,
+				Depth,
+				Memory
+			};
 			struct Description
 			{
 				unsigned int Width, Height, Levels;
@@ -102,10 +108,10 @@ namespace ReShade
 		public:
 			const Description GetDescription() const;
 			const Annotation GetAnnotation(const std::string &name) const;
+			Source GetSource() const;
+			virtual void SetSource(Source source) = 0;
 
 			virtual bool Update(unsigned int level, const unsigned char *data, std::size_t size) = 0;
-			virtual void UpdateFromColorBuffer() = 0;
-			virtual void UpdateFromDepthBuffer() = 0;
 
 		protected:
 			Texture(const Description &desc);
@@ -113,6 +119,7 @@ namespace ReShade
 
 		protected:
 			Description mDesc;
+			Source mSource;
 			std::unordered_map<std::string, Annotation> mAnnotations;
 		};
 		class Constant

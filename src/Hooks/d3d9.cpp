@@ -218,17 +218,6 @@ namespace
 	}
 	bool AdjustPresentParameters(D3DPRESENT_PARAMETERS *pp)
 	{
-		switch (pp->BackBufferFormat)
-		{
-			case D3DFMT_UNKNOWN:
-			case D3DFMT_X8R8G8B8:
-			case D3DFMT_A8R8G8B8:
-				break;
-			default:
-				LOG(ERROR) << "> Format " << pp->BackBufferFormat << " is not currently supported.";
-				return false;
-		}
-
 		if (pp->SwapEffect != D3DSWAPEFFECT_COPY && pp->PresentationInterval != D3DPRESENT_INTERVAL_IMMEDIATE && pp->BackBufferCount < 2)
 		{
 			LOG(WARNING) << "> Forcing tripple buffering.";

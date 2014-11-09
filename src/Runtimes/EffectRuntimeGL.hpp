@@ -160,7 +160,7 @@ namespace ReShade
 		HDC mDeviceContext;
 		HGLRC mRenderContext;
 		GLStateBlock mStateBlock;
-		GLuint mBackBufferFBO, mBackBufferRBO, mDepthStencilFBO, mDepthStencilTexture, mBlitFBO;
+		GLuint mBackBufferFBO, mBackBufferRBO, mBackBufferTexture[2], mDepthStencilFBO, mDepthStencilTexture, mBlitFBO;
 		std::unordered_map<GLuint, GLFramebufferInfo> mFramebufferTable;
 		bool mLost, mPresenting;
 	};
@@ -203,13 +203,13 @@ namespace ReShade
 			return this->mAnnotations.emplace(name, value).second;
 		}
 
+		virtual void SetSource(Source source) override;
+		bool SetSource(const GLuint texture[2]);
+
 		virtual bool Update(unsigned int level, const unsigned char *data, std::size_t size) override;
-		virtual void UpdateFromColorBuffer() override;
-		virtual void UpdateFromDepthBuffer() override;
 
 		GLEffect *mEffect;
 		GLuint mID[2];
-		bool mNoDelete;
 	};
 	struct GLSampler
 	{
