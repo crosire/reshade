@@ -173,12 +173,19 @@ namespace ReShade
 			return false;
 		}
 
+		tm tm;
+		std::time_t time = std::time(nullptr);
+		::localtime_s(&tm, &time);
+
 		// Preprocess
 		EffectPreprocessor preprocessor;
 		preprocessor.AddDefine("__RESHADE__", std::to_string(VERSION_MAJOR * 10000 + VERSION_MINOR * 100 + VERSION_REVISION));
 		preprocessor.AddDefine("__VENDOR__", std::to_string(this->mVendorId));
 		preprocessor.AddDefine("__DEVICE__", std::to_string(this->mDeviceId));
 		preprocessor.AddDefine("__RENDERER__", std::to_string(this->mRendererId));
+		preprocessor.AddDefine("__DATE_YEAR__", std::to_string(tm.tm_year + 1900));
+		preprocessor.AddDefine("__DATE_MONTH__", std::to_string(tm.tm_mday));
+		preprocessor.AddDefine("__DATE_DAY__", std::to_string(tm.tm_mon + 1));
 		preprocessor.AddDefine("BUFFER_WIDTH", std::to_string(width));
 		preprocessor.AddDefine("BUFFER_HEIGHT", std::to_string(height));
 		preprocessor.AddDefine("BUFFER_RCP_WIDTH", std::to_string(1.0f / static_cast<float>(width)));
@@ -507,13 +514,10 @@ namespace ReShade
 
 			if (timeSinceCreate.count() < 8)
 			{
-				const std::string dots(timeSinceCreate.count() % 4, '.');
-
 				nvgFillColor(this->mNVG, nvgRGB(255, 255, 255));
-				nvgText(this->mNVG, 0,  0, "Crosire's ReShade", nullptr);
-				nvgText(this->mNVG, 0, 16, ("Loading Version " BOOST_STRINGIZE(VERSION_FULL) " " + dots).c_str(), nullptr);
+				nvgText(this->mNVG, 0,  0, "ReShade " BOOST_STRINGIZE(VERSION_FULL) " by Crosire", nullptr);
 
-				y += 36;
+				y += 22;
 			}
 			if (!this->mErrors.empty())
 			{
