@@ -1730,7 +1730,7 @@ namespace ReShade
 				this->mCurrentSource += node.Name;
 				this->mCurrentSource += " : register(t" + std::to_string(this->mEffect->mShaderResources.size()) + "), __";
 				this->mCurrentSource += node.Name;
-				this->mCurrentSource += "SRGB : register(t" + std::to_string(this->mEffect->mShaderResources.size()) + ");\n";
+				this->mCurrentSource += "SRGB : register(t" + std::to_string(this->mEffect->mShaderResources.size() + 1) + ");\n";
 
 				this->mEffect->mShaderResources.push_back(obj->mShaderResourceView[0]);
 				this->mEffect->mShaderResources.push_back(obj->mShaderResourceView[1]);
