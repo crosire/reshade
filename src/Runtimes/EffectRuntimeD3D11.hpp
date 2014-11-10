@@ -107,6 +107,13 @@ namespace ReShade
 	};
 	struct D3D11Texture : public Effect::Texture
 	{
+		enum class Source
+		{
+			Memory,
+			BackBuffer,
+			DepthStencil
+		};
+
 		D3D11Texture(D3D11Effect *effect, const Description &desc);
 		~D3D11Texture();
 
@@ -115,12 +122,11 @@ namespace ReShade
 			return this->mAnnotations.emplace(name, value).second;
 		}
 
-		virtual void SetSource(Source source) override;
-		bool SetSource(ID3D11ShaderResourceView *const resource[2]);
-
 		virtual bool Update(unsigned int level, const unsigned char *data, std::size_t size) override;
+		bool UpdateSource(ID3D11ShaderResourceView *srv, ID3D11ShaderResourceView *srvSRGB);
 
 		D3D11Effect *mEffect;
+		Source mSource;
 		unsigned int mRegister;
 		ID3D11Texture2D *mTexture;
 		ID3D11ShaderResourceView *mShaderResourceView[2];

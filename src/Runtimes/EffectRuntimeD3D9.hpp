@@ -79,6 +79,13 @@ namespace ReShade
 	};
 	struct D3D9Texture : public Effect::Texture
 	{
+		enum class Source
+		{
+			Memory,
+			BackBuffer,
+			DepthStencil
+		};
+
 		D3D9Texture(D3D9Effect *effect, const Description &desc);
 		~D3D9Texture();
 
@@ -87,12 +94,11 @@ namespace ReShade
 			return this->mAnnotations.emplace(name, value).second;
 		}
 
-		virtual void SetSource(Source source) override;
-		bool SetSource(IDirect3DTexture9 *texture);
-
 		virtual bool Update(unsigned int level, const unsigned char *data, std::size_t size) override;
+		bool UpdateSource(IDirect3DTexture9 *texture);
 
 		D3D9Effect *mEffect;
+		Source mSource;
 		IDirect3DTexture9 *mTexture;
 		IDirect3DSurface9 *mTextureSurface;
 	};

@@ -1602,20 +1602,44 @@ namespace ReShade
 
 				std::unique_ptr<D3D9Texture> obj(new D3D9Texture(this->mEffect, objdesc));
 
-				HRESULT hr = this->mEffect->mEffectContext->mDevice->CreateTexture(width, height, levels, d3dformat == D3DFMT_A8R8G8B8 ? D3DUSAGE_RENDERTARGET : 0, d3dformat, D3DPOOL_DEFAULT, &obj->mTexture, nullptr);
-
-				if (FAILED(hr))
+				if (node.Semantic != nullptr)
 				{
-					this->mErrors += PrintLocation(node.Location) + "'CreateTexture' failed!\n";
-					this->mFatal = true;
-					return;
+					if (boost::equals(node.Semantic, "COLOR") || boost::equals(node.Semantic, "SV_TARGET"))
+					{
+						obj->mSource = D3D9Texture::Source::BackBuffer;
+						obj->UpdateSource(this->mEffect->mEffectContext->mBackBufferTexture);
+					}
+					if (boost::equals(node.Semantic, "DEPTH") || boost::equals(node.Semantic, "SV_DEPTH"))
+					{
+						obj->mSource = D3D9Texture::Source::DepthStencil;
+						obj->UpdateSource(this->mEffect->mEffectContext->mDepthStencilTexture);
+					}
 				}
 
-				obj->mTexture->GetSurfaceLevel(0, &obj->mTextureSurface);
-
-				if (node.Annotations != EffectTree::Null)
+				if (obj->mSource != D3D9Texture::Source::Memory)
 				{
-					Visit(this->mAST[node.Annotations].As<EffectNodes::Annotation>(), *obj);
+					if (width != 1 || height != 1 || levels != 1 || d3dformat != D3DFMT_A8R8G8B8)
+					{
+						this->mErrors += PrintLocation(node.Location) + "Warning: Texture property on backbuffer textures are ignored.\n";
+					}
+				}
+				else
+				{
+					HRESULT hr = this->mEffect->mEffectContext->mDevice->CreateTexture(width, height, levels, d3dformat == D3DFMT_A8R8G8B8 ? D3DUSAGE_RENDERTARGET : 0, d3dformat, D3DPOOL_DEFAULT, &obj->mTexture, nullptr);
+
+					if (FAILED(hr))
+					{
+						this->mErrors += PrintLocation(node.Location) + "'CreateTexture' failed!\n";
+						this->mFatal = true;
+						return;
+					}
+
+					obj->mTexture->GetSurfaceLevel(0, &obj->mTextureSurface);
+
+					if (node.Annotations != EffectTree::Null)
+					{
+						Visit(this->mAST[node.Annotations].As<EffectNodes::Annotation>(), *obj);
+					}
 				}
 
 				this->mEffect->mTextures.insert(std::make_pair(node.Name, std::move(obj)));
@@ -2777,9 +2801,9 @@ namespace ReShade
 		{
 			for (auto &it : effect->mTextures)
 			{
-				if (it.second->GetSource() == Effect::Texture::Source::Depth)
+				if (it.second->mSource == D3D9Texture::Source::DepthStencil)
 				{
-					it.second->SetSource(this->mDepthStencilTexture);
+					it.second->UpdateSource(this->mDepthStencilTexture);
 				}
 			}
 		}
@@ -2897,58 +2921,13 @@ namespace ReShade
 		return names;
 	}
 
-	D3D9Texture::D3D9Texture(D3D9Effect *effect, const Description &desc) : Texture(desc), mEffect(effect), mTexture(nullptr), mTextureSurface(nullptr)
+	D3D9Texture::D3D9Texture(D3D9Effect *effect, const Description &desc) : Texture(desc), mEffect(effect), mSource(Source::Memory), mTexture(nullptr), mTextureSurface(nullptr)
 	{
 	}
 	D3D9Texture::~D3D9Texture()
 	{
 		SAFE_RELEASE(this->mTexture);
 		SAFE_RELEASE(this->mTextureSurface);
-	}
-
-	void D3D9Texture::SetSource(Source source)
-	{
-		switch (source)
-		{
-			case Source::Color:
-				SetSource(this->mEffect->mEffectContext->mBackBufferTexture);
-				break;
-			case Source::Depth:
-				SetSource(this->mEffect->mEffectContext->mDepthStencilTexture);
-				break;
-		}
-
-		this->mSource = source;
-	}
-	bool D3D9Texture::SetSource(IDirect3DTexture9 *texture)
-	{
-		if (texture == nullptr)
-		{
-			return false;
-		}
-		else if (this->mTexture == texture)
-		{
-			return true;
-		}
-		else if (this->mTexture != nullptr)
-		{
-			SAFE_RELEASE(this->mTexture);
-			SAFE_RELEASE(this->mTextureSurface);
-		}
-
-		this->mTexture = texture;
-		this->mTexture->AddRef();
-		this->mTexture->GetSurfaceLevel(0, &this->mTextureSurface);
-
-		D3DSURFACE_DESC texdesc;
-		this->mTextureSurface->GetDesc(&texdesc);
-
-		this->mDesc.Width = texdesc.Width;
-		this->mDesc.Height = texdesc.Height;
-		this->mDesc.Format = Effect::Texture::Format::Unknown;
-		this->mDesc.Levels = this->mTexture->GetLevelCount();
-
-		return true;
 	}
 
 	bool D3D9Texture::Update(unsigned int level, const unsigned char *data, std::size_t size)
@@ -3031,6 +3010,36 @@ namespace ReShade
 		textureSurface->Release();
 
 		return SUCCEEDED(hr);
+	}
+	bool D3D9Texture::UpdateSource(IDirect3DTexture9 *texture)
+	{
+		if (texture == nullptr)
+		{
+			return false;
+		}
+		else if (this->mTexture == texture)
+		{
+			return true;
+		}
+		else if (this->mTexture != nullptr)
+		{
+			SAFE_RELEASE(this->mTexture);
+			SAFE_RELEASE(this->mTextureSurface);
+		}
+
+		this->mTexture = texture;
+		this->mTexture->AddRef();
+		this->mTexture->GetSurfaceLevel(0, &this->mTextureSurface);
+
+		D3DSURFACE_DESC texdesc;
+		this->mTextureSurface->GetDesc(&texdesc);
+
+		this->mDesc.Width = texdesc.Width;
+		this->mDesc.Height = texdesc.Height;
+		this->mDesc.Format = Effect::Texture::Format::Unknown;
+		this->mDesc.Levels = this->mTexture->GetLevelCount();
+
+		return true;
 	}
 
 	D3D9Constant::D3D9Constant(D3D9Effect *effect, const Description &desc) : Constant(desc), mEffect(effect), mStorageOffset(0)

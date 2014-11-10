@@ -4,6 +4,7 @@
 
 #include <d3dcompiler.h>
 #include <nanovg_d3d11.h>
+#include <boost\algorithm\string.hpp>
 
 // -----------------------------------------------------------------------------------------------------
 
@@ -1607,7 +1608,7 @@ namespace ReShade
 				}
 			}
 			void VisitTexture(const EffectNodes::Variable &node)
-			{			
+			{
 				D3D11_TEXTURE2D_DESC texdesc;
 				texdesc.ArraySize = 1;
 				texdesc.Width = (node.Properties[EffectNodes::Variable::Width] != 0) ? this->mAST[node.Properties[EffectNodes::Variable::Width]].As<EffectNodes::Literal>().Value.Uint[0] : 1;
@@ -1639,43 +1640,45 @@ namespace ReShade
 				obj->mShaderResourceView[0] = nullptr;
 				obj->mShaderResourceView[1] = nullptr;
 
-				HRESULT hr = this->mEffect->mEffectContext->mDevice->CreateTexture2D(&texdesc, nullptr, &obj->mTexture);
-
-				if (FAILED(hr))
+				if (node.Semantic != nullptr)
 				{
-					this->mErrors += PrintLocation(node.Location) + "'CreateTexture2D' failed!\n";
-					this->mFatal = true;
-					return;
+					if (boost::equals(node.Semantic, "COLOR") || boost::equals(node.Semantic, "SV_TARGET"))
+					{
+						obj->mSource = D3D11Texture::Source::BackBuffer;
+						obj->UpdateSource(this->mEffect->mEffectContext->mBackBufferTextureSRV[0], this->mEffect->mEffectContext->mBackBufferTextureSRV[1]);
+					}
+					else if (boost::equals(node.Semantic, "DEPTH") || boost::equals(node.Semantic, "SV_DEPTH"))
+					{
+						obj->mSource = D3D11Texture::Source::DepthStencil;
+						obj->UpdateSource(this->mEffect->mEffectContext->mDepthStencilTextureSRV, nullptr);
+					}
 				}
 
-				this->mCurrentSource += "Texture2D ";
-				this->mCurrentSource += node.Name;
-				this->mCurrentSource += " : register(t" + std::to_string(this->mEffect->mShaderResources.size()) + ")";
-
-				D3D11_SHADER_RESOURCE_VIEW_DESC srvdesc;
-				srvdesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-				srvdesc.Texture2D.MostDetailedMip = 0;
-				srvdesc.Texture2D.MipLevels = texdesc.MipLevels;
-				srvdesc.Format = MakeNonSRBFormat(texdesc.Format);
-
-				hr = this->mEffect->mEffectContext->mDevice->CreateShaderResourceView(obj->mTexture, &srvdesc, &obj->mShaderResourceView[0]);
-
-				if (FAILED(hr))
+				if (obj->mSource != D3D11Texture::Source::Memory)
 				{
-					this->mErrors += PrintLocation(node.Location) + "'CreateShaderResourceView' failed!\n";
-					this->mFatal = true;
-					return;
+					if (texdesc.Width != 1 || texdesc.Height != 1 || texdesc.MipLevels != 1 || texdesc.Format != DXGI_FORMAT_R8G8B8A8_TYPELESS)
+					{
+						this->mErrors += PrintLocation(node.Location) + "Warning: Texture property on backbuffer textures are ignored.\n";
+					}
 				}
-
-				srvdesc.Format = MakeSRGBFormat(texdesc.Format);
-
-				if (srvdesc.Format != texdesc.Format)
+				else
 				{
-					this->mCurrentSource += ", __";
-					this->mCurrentSource += node.Name;
-					this->mCurrentSource += "SRGB : register(t" + std::to_string(this->mEffect->mShaderResources.size() + 1) + ")";
+					HRESULT hr = this->mEffect->mEffectContext->mDevice->CreateTexture2D(&texdesc, nullptr, &obj->mTexture);
 
-					hr = this->mEffect->mEffectContext->mDevice->CreateShaderResourceView(obj->mTexture, &srvdesc, &obj->mShaderResourceView[1]);
+					if (FAILED(hr))
+					{
+						this->mErrors += PrintLocation(node.Location) + "'CreateTexture2D' failed!\n";
+						this->mFatal = true;
+						return;
+					}
+
+					D3D11_SHADER_RESOURCE_VIEW_DESC srvdesc;
+					srvdesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+					srvdesc.Texture2D.MostDetailedMip = 0;
+					srvdesc.Texture2D.MipLevels = texdesc.MipLevels;
+					srvdesc.Format = MakeNonSRBFormat(texdesc.Format);
+
+					hr = this->mEffect->mEffectContext->mDevice->CreateShaderResourceView(obj->mTexture, &srvdesc, &obj->mShaderResourceView[0]);
 
 					if (FAILED(hr))
 					{
@@ -1683,23 +1686,35 @@ namespace ReShade
 						this->mFatal = true;
 						return;
 					}
-				}
 
-				this->mCurrentSource += ";\n";
+					srvdesc.Format = MakeSRGBFormat(texdesc.Format);
+
+					if (srvdesc.Format != texdesc.Format)
+					{
+						hr = this->mEffect->mEffectContext->mDevice->CreateShaderResourceView(obj->mTexture, &srvdesc, &obj->mShaderResourceView[1]);
+
+						if (FAILED(hr))
+						{
+							this->mErrors += PrintLocation(node.Location) + "'CreateShaderResourceView' failed!\n";
+							this->mFatal = true;
+							return;
+						}
+					}
+				}
 
 				if (node.Annotations != EffectTree::Null)
 				{
 					Visit(this->mAST[node.Annotations].As<EffectNodes::Annotation>(), *obj);
 				}
 
-				if (obj->mShaderResourceView[0] != nullptr)
-				{
-					this->mEffect->mShaderResources.push_back(obj->mShaderResourceView[0]);
-				}
-				if (obj->mShaderResourceView[1] != nullptr)
-				{
-					this->mEffect->mShaderResources.push_back(obj->mShaderResourceView[1]);
-				}
+				this->mCurrentSource += "Texture2D ";
+				this->mCurrentSource += node.Name;
+				this->mCurrentSource += " : register(t" + std::to_string(this->mEffect->mShaderResources.size()) + "), __";
+				this->mCurrentSource += node.Name;
+				this->mCurrentSource += "SRGB : register(t" + std::to_string(this->mEffect->mShaderResources.size()) + ");\n";
+
+				this->mEffect->mShaderResources.push_back(obj->mShaderResourceView[0]);
+				this->mEffect->mShaderResources.push_back(obj->mShaderResourceView[1]);
 
 				this->mEffect->mTextures.insert(std::make_pair(node.Name, std::move(obj)));
 			}
@@ -1808,7 +1823,7 @@ namespace ReShade
 				this->mCurrentSource += node.Name;
 				this->mCurrentSource += " = { ";
 
-				if (srgb)
+				if (srgb && this->mEffect->mTextures.at(texture)->mShaderResourceView[1] != nullptr)
 				{
 					this->mCurrentSource += "__";
 					this->mCurrentSource += texture;
@@ -2229,6 +2244,11 @@ namespace ReShade
 
 				for (auto it = pass.SR.begin(), end = pass.SR.end(); it != end; ++it)
 				{
+					if (*it == nullptr)
+					{
+						continue;
+					}
+
 					ID3D11Resource *res1, *res2;
 					(*it)->GetResource(&res1);
 
@@ -3040,10 +3060,9 @@ namespace ReShade
 		{
 			for (auto &it : effect->mTextures)
 			{
-				if (it.second->GetSource() == Effect::Texture::Source::Depth)
+				if (it.second->mSource == D3D11Texture::Source::DepthStencil)
 				{
-					ID3D11ShaderResourceView *const srv[2] = { this->mDepthStencilTextureSRV, this->mDepthStencilTextureSRV };
-					it.second->SetSource(srv);
+					it.second->UpdateSource(this->mDepthStencilTextureSRV, nullptr);
 				}
 			}
 		}
@@ -3227,7 +3246,7 @@ namespace ReShade
 		this->mConstantsDirty = false;
 	}
 
-	D3D11Texture::D3D11Texture(D3D11Effect *effect, const Description &desc) : Texture(desc), mEffect(effect), mTexture(nullptr), mShaderResourceView(), mRenderTargetView()
+	D3D11Texture::D3D11Texture(D3D11Effect *effect, const Description &desc) : Texture(desc), mEffect(effect), mSource(Source::Memory), mTexture(nullptr), mShaderResourceView(), mRenderTargetView()
 	{
 	}
 	D3D11Texture::~D3D11Texture()
@@ -3240,30 +3259,31 @@ namespace ReShade
 		SAFE_RELEASE(this->mTexture);
 	}
 
-	void D3D11Texture::SetSource(Source source)
+	bool D3D11Texture::Update(unsigned int level, const unsigned char *data, std::size_t size)
 	{
-		switch (source)
-		{
-			case Source::Color:
-				SetSource(this->mEffect->mEffectContext->mBackBufferTextureSRV);
-				break;
-			case Source::Depth:
-				ID3D11ShaderResourceView *const srv[2] = { this->mEffect->mEffectContext->mDepthStencilTextureSRV, this->mEffect->mEffectContext->mDepthStencilTextureSRV };
-				SetSource(srv);
-				break;
-		}
-
-		this->mSource = source;
-	}
-	bool D3D11Texture::SetSource(ID3D11ShaderResourceView *const srv[2])
-	{
-		const ID3D11ShaderResourceView *const previous[2] = { this->mShaderResourceView[0], this->mShaderResourceView[1] };
-
-		if (srv[0] == nullptr || srv[1] == nullptr)
+		if (data == nullptr || size == 0 || level > this->mDesc.Levels || this->mSource != Source::Memory)
 		{
 			return false;
 		}
-		else if (srv[0] == previous[0] && srv[1] == previous[1])
+
+		assert(this->mDesc.Height != 0);
+
+		this->mEffect->mEffectContext->mImmediateContext->UpdateSubresource(this->mTexture, level, nullptr, data, size / this->mDesc.Height, size);
+
+		return true;
+	}
+	bool D3D11Texture::UpdateSource(ID3D11ShaderResourceView *srv, ID3D11ShaderResourceView *srvSRGB)
+	{
+		if (srvSRGB == nullptr)
+		{
+			srvSRGB = srv;
+		}
+
+		if (srv == nullptr)
+		{
+			return false;
+		}
+		else if (srv == this->mShaderResourceView[0] && srvSRGB == this->mShaderResourceView[1])
 		{
 			return true;
 		}
@@ -3275,12 +3295,10 @@ namespace ReShade
 
 		SAFE_RELEASE(this->mTexture);
 
-		assert(previous[0] != nullptr && previous[1] != nullptr);
-
-		this->mShaderResourceView[0] = srv[0];
+		this->mShaderResourceView[0] = srv;
 		this->mShaderResourceView[0]->AddRef();
 		this->mShaderResourceView[0]->GetResource(reinterpret_cast<ID3D11Resource **>(&this->mTexture));
-		this->mShaderResourceView[1] = srv[1];
+		this->mShaderResourceView[1] = srvSRGB;
 		this->mShaderResourceView[1]->AddRef();
 
 		D3D11_TEXTURE2D_DESC texdesc;
@@ -3296,33 +3314,10 @@ namespace ReShade
 		{
 			for (auto &pass : technique.second->mPasses)
 			{
-				for (auto &SR : pass.SR)
-				{
-					if (SR == previous[0])
-					{
-						SR = srv[0];
-					}
-					else if (SR == previous[1])
-					{
-						SR = srv[1];
-					}
-				}
+				pass.SR[this->mRegister] = this->mShaderResourceView[0];
+				pass.SR[this->mRegister + 1] = this->mShaderResourceView[1];
 			}
 		}
-
-		return true;
-	}
-
-	bool D3D11Texture::Update(unsigned int level, const unsigned char *data, std::size_t size)
-	{
-		if (data == nullptr || size == 0 || level > this->mDesc.Levels || GetSource() != Source::Memory)
-		{
-			return false;
-		}
-
-		assert(this->mDesc.Height != 0);
-
-		this->mEffect->mEffectContext->mImmediateContext->UpdateSubresource(this->mTexture, level, nullptr, data, size / this->mDesc.Height, size);
 
 		return true;
 	}

@@ -8,7 +8,7 @@ namespace ReShade
 	{
 	}
 
-	Effect::Texture::Texture(const Description &desc) : mDesc(desc), mSource(Source::Memory)
+	Effect::Texture::Texture(const Description &desc) : mDesc(desc)
 	{
 	}
 	Effect::Texture::~Texture()
@@ -31,10 +31,6 @@ namespace ReShade
 		{
 			return Effect::Annotation();
 		}
-	}
-	Effect::Texture::Source Effect::Texture::GetSource() const
-	{
-		return this->mSource;
 	}
 
 	Effect::Constant::Constant(const Description &desc) : mDesc(desc)

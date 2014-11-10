@@ -574,22 +574,8 @@ namespace ReShade
 			Effect::Texture::Description desc = texture->GetDescription();
 			const std::string source = texture->GetAnnotation("source").As<std::string>();
 
-			if (source.empty())
+			if (!source.empty())
 			{
-				continue;
-			}
-			else if (source == "backbuffer")
-			{
-				texture->SetSource(Effect::Texture::Source::Color);
-			}
-			else if (source == "depthbuffer")
-			{
-				texture->SetSource(Effect::Texture::Source::Depth);
-			}
-			else
-			{
-				texture->SetSource(Effect::Texture::Source::Memory);
-
 				const boost::filesystem::path path = boost::filesystem::absolute(source, sEffectPath.parent_path());
 				int widthFile = 0, heightFile = 0, channelsFile = 0, channels = STBI_default;
 

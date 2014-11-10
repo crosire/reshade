@@ -195,6 +195,13 @@ namespace ReShade
 	};
 	struct GLTexture : public Effect::Texture
 	{
+		enum class Source
+		{
+			Memory,
+			BackBuffer,
+			DepthStencil
+		};
+
 		GLTexture(GLEffect *effect, const Description &desc);
 		~GLTexture();
 
@@ -203,12 +210,11 @@ namespace ReShade
 			return this->mAnnotations.emplace(name, value).second;
 		}
 
-		virtual void SetSource(Source source) override;
-		bool SetSource(const GLuint texture[2]);
-
 		virtual bool Update(unsigned int level, const unsigned char *data, std::size_t size) override;
+		bool UpdateSource(GLuint texture, GLuint textureSRGB);
 
 		GLEffect *mEffect;
+		Source mSource;
 		GLuint mID[2];
 	};
 	struct GLSampler

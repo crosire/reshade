@@ -1952,18 +1952,42 @@ namespace ReShade
 
 				std::unique_ptr<GLTexture> obj(new GLTexture(this->mEffect, objdesc));
 
-				GLCHECK(glGenTextures(2, obj->mID));
+				if (node.Semantic != nullptr)
+				{
+					if (boost::equals(node.Semantic, "COLOR") || boost::equals(node.Semantic, "SV_TARGET"))
+					{
+						obj->mSource = GLTexture::Source::BackBuffer;
+						obj->UpdateSource(this->mEffect->mEffectContext->mBackBufferTexture[0], this->mEffect->mEffectContext->mBackBufferTexture[1]);
+					}
+					if (boost::equals(node.Semantic, "DEPTH") || boost::equals(node.Semantic, "SV_DEPTH"))
+					{
+						obj->mSource = GLTexture::Source::DepthStencil;
+						obj->UpdateSource(this->mEffect->mEffectContext->mDepthStencilTexture, 0);
+					}
+				}
 
-				GLint previous = 0;
-				GLCHECK(glGetIntegerv(GL_TEXTURE_BINDING_2D, &previous));
+				if (obj->mSource != GLTexture::Source::Memory)
+				{
+					if (width != 1 || height != 1 || levels != 1 || internalformat != GL_RGBA8)
+					{
+						this->mErrors += PrintLocation(node.Location) + "Warning: Texture property on backbuffer textures are ignored.\n";
+					}
+				}
+				else
+				{
+					GLCHECK(glGenTextures(2, obj->mID));
 
-				GLCHECK(glBindTexture(GL_TEXTURE_2D, obj->mID[0]));
-				GLCHECK(glTexStorage2D(GL_TEXTURE_2D, levels, internalformat, width, height));
-				const std::vector<unsigned char> nullpixels(width * height, 0);
-				GLCHECK(glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_RED, GL_UNSIGNED_BYTE, nullpixels.data()));
-				GLCHECK(glTextureView(obj->mID[1], GL_TEXTURE_2D, obj->mID[0], internalformatSRGB, 0, levels, 0, 1));
+					GLint previous = 0;
+					GLCHECK(glGetIntegerv(GL_TEXTURE_BINDING_2D, &previous));
 
-				GLCHECK(glBindTexture(GL_TEXTURE_2D, previous));
+					GLCHECK(glBindTexture(GL_TEXTURE_2D, obj->mID[0]));
+					GLCHECK(glTexStorage2D(GL_TEXTURE_2D, levels, internalformat, width, height));
+					const std::vector<unsigned char> nullpixels(width * height, 0);
+					GLCHECK(glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_RED, GL_UNSIGNED_BYTE, nullpixels.data()));
+					GLCHECK(glTextureView(obj->mID[1], GL_TEXTURE_2D, obj->mID[0], internalformatSRGB, 0, levels, 0, 1));
+
+					GLCHECK(glBindTexture(GL_TEXTURE_2D, previous));
+				}
 
 				if (node.Annotations != EffectTree::Null)
 				{
@@ -3540,7 +3564,7 @@ namespace ReShade
 		this->mUniformDirty = false;
 	}
 
-	GLTexture::GLTexture(GLEffect *effect, const Description &desc) : Texture(desc), mEffect(effect), mID()
+	GLTexture::GLTexture(GLEffect *effect, const Description &desc) : Texture(desc), mEffect(effect), mSource(Source::Memory), mID()
 	{
 	}
 	GLTexture::~GLTexture()
@@ -3549,45 +3573,6 @@ namespace ReShade
 		{
 			GLCHECK(glDeleteTextures(2, this->mID));
 		}
-	}
-
-	void GLTexture::SetSource(Source source)
-	{
-		switch (source)
-		{
-			case Source::Color:
-				SetSource(this->mEffect->mEffectContext->mBackBufferTexture);
-				break;
-			case Source::Depth:
-				const GLuint texture[2] = { this->mEffect->mEffectContext->mDepthStencilTexture, this->mEffect->mEffectContext->mDepthStencilTexture };
-				SetSource(texture);
-				break;
-		}
-
-		this->mSource = source;
-	}
-	bool GLTexture::SetSource(const GLuint texture[2])
-	{
-		if (this->mSource == Source::Memory)
-		{
-			GLCHECK(glDeleteTextures(2, this->mID));
-		}
-
-		if (texture[0] == 0 || texture[1] == 0)
-		{
-			return false;
-		}
-		else if (this->mID[0] == texture[0] && this->mID[1] == texture[1])
-		{
-			return true;
-		}
-
-		this->mID[0] = texture[0];
-		this->mID[1] = texture[1];
-
-		this->mDesc.Format = Texture::Format::Unknown;
-
-		return true;
 	}
 
 	bool GLTexture::Update(unsigned int level, const unsigned char *data, std::size_t size)
@@ -3652,6 +3637,32 @@ namespace ReShade
 		}
 
 		GLCHECK(glBindTexture(GL_TEXTURE_2D, previous));
+
+		return true;
+	}
+	bool GLTexture::UpdateSource(GLuint texture, GLuint textureSRGB)
+	{
+		if (this->mSource == Source::Memory)
+		{
+			GLCHECK(glDeleteTextures(2, this->mID));
+		}
+
+		if (textureSRGB == 0)
+		{
+			textureSRGB = texture;
+		}
+
+		if (texture == 0)
+		{
+			return false;
+		}
+		else if (this->mID[0] == texture && this->mID[1] == textureSRGB)
+		{
+			return true;
+		}
+
+		this->mID[0] = texture;
+		this->mID[1] = textureSRGB;
 
 		return true;
 	}
