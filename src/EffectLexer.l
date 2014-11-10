@@ -576,7 +576,7 @@ STRING															\"(\\.|[^\\"])*\"
 <*>\r															{ }
 {LF}															{ yycolumn = 1; }
 <*>[\t\v\f ]+													{ }
-<*>.															{ return static_cast<int>(*yytext); }
+<*>.															{ yyextra->Error(*yylloc, 3000, "syntax error: invalid token %s", yyextra); return static_cast<int>(*yytext); }
 
  /* ------------------------------------------------------------------------------------------ */
 
