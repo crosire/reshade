@@ -2,8 +2,8 @@
 #include "EffectParserTree.hpp"
 #include "EffectRuntimeGL.hpp"
 
-#include <boost\algorithm\string.hpp>
 #include <nanovg_gl.h>
+#include <boost\algorithm\string.hpp>
 
 // -----------------------------------------------------------------------------------------------------
 
@@ -275,15 +275,30 @@ namespace ReShade
 
 				return res;
 			}
-			static std::string FixNameWithSemantic(const std::string &name, const std::string &semantic)
+			static std::string FixNameWithSemantic(const std::string &name, const char *semantic, int shadertype)
 			{
-				if (semantic == "SV_VERTEXID")
+				if (semantic != nullptr)
 				{
-					return "glVertexID";
-				}
-				else if (semantic == "SV_POSITION")
-				{
-					return "glPosition";
+					if (boost::equals(semantic, "SV_VERTEXID") || boost::equals(semantic, "VERTEXID"))
+					{
+						return "gl_VertexID";
+					}
+					else if (boost::equals(semantic, "SV_INSTANCEID"))
+					{
+						return "gl_InstanceID";
+					}
+					else if ((boost::equals(semantic, "SV_POSITION") || boost::equals(semantic, "POSITION")) && shadertype == EffectNodes::Pass::VertexShader)
+					{
+						return "gl_Position";
+					}
+					else if ((boost::equals(semantic, "SV_POSITION") || boost::equals(semantic, "VPOS")) && shadertype == EffectNodes::Pass::PixelShader)
+					{
+						return "gl_FragCoord";
+					}
+					else if ((boost::equals(semantic, "SV_DEPTH") || boost::equals(semantic, "DEPTH")) && shadertype == EffectNodes::Pass::PixelShader)
+					{
+						return "gl_FragDepth";
+					}
 				}
 
 				return FixName(name);
@@ -2490,7 +2505,7 @@ namespace ReShade
 
 				passes.push_back(std::move(pass));
 			}
-			GLuint VisitShader(const EffectNodes::Function &node, unsigned int type)
+			GLuint VisitShader(const EffectNodes::Function &node, unsigned int shadertype)
 			{
 				std::string source =
 					"#version 430\n"
@@ -2514,7 +2529,7 @@ namespace ReShade
 					source += "layout(std140, binding = 0) uniform _GLOBAL_\n{\n" + this->mCurrentGlobalConstants + "};\n";
 				}
 
-				if (type != EffectNodes::Pass::PixelShader)
+				if (shadertype != EffectNodes::Pass::PixelShader)
 				{
 					source += "#define discard\n";
 				}
@@ -2537,7 +2552,7 @@ namespace ReShade
 
 								do
 								{
-									VisitShaderVariable(parameter->Type.Qualifiers, field->Type, "_param_" + std::string(parameter->Name) + "_" + std::string(field->Name), field->Semantic, source);
+									VisitShaderVariable(parameter->Type.Qualifiers, field->Type, "_param_" + std::string(parameter->Name) + "_" + std::string(field->Name), field->Semantic, source, shadertype);
 
 									if (field->NextDeclarator != EffectTree::Null)
 									{
@@ -2553,7 +2568,7 @@ namespace ReShade
 						}
 						else
 						{
-							VisitShaderVariable(parameter->Type.Qualifiers, parameter->Type, "_param_" + std::string(parameter->Name), parameter->Semantic, source);
+							VisitShaderVariable(parameter->Type.Qualifiers, parameter->Type, "_param_" + std::string(parameter->Name), parameter->Semantic, source, shadertype);
 						}
 
 						if (parameter->NextDeclaration != EffectTree::Null)
@@ -2578,7 +2593,7 @@ namespace ReShade
 
 						do
 						{
-							VisitShaderVariable(EffectNodes::Type::Out, field->Type, "_return_" + std::string(field->Name), field->Semantic, source);
+							VisitShaderVariable(EffectNodes::Type::Out, field->Type, "_return_" + std::string(field->Name), field->Semantic, source, shadertype);
 
 							if (field->NextDeclarator != EffectTree::Null)
 							{
@@ -2594,7 +2609,7 @@ namespace ReShade
 				}
 				else if (!node.ReturnType.IsVoid())
 				{
-					VisitShaderVariable(EffectNodes::Type::Out, node.ReturnType, "_return", node.ReturnSemantic, source);
+					VisitShaderVariable(EffectNodes::Type::Out, node.ReturnType, "_return", node.ReturnSemantic, source, shadertype);
 				}
 
 				source += "void main()\n{\n";
@@ -2617,34 +2632,7 @@ namespace ReShade
 
 								do
 								{
-									if (field->Semantic == nullptr)
-									{
-										source += "_param_" + std::string(parameter->Name) + "_" + std::string(field->Name);
-									}
-									else if (::strcmp(field->Semantic, "SV_VERTEXID") == 0)
-									{
-										source += "gl_VertexID";
-									}
-									else if (::strcmp(field->Semantic, "SV_INSTANCEID") == 0)
-									{
-										source += "gl_InstanceID";
-									}
-									else if (::strcmp(field->Semantic, "SV_POSITION") == 0 && type == EffectNodes::Pass::VertexShader)
-									{
-										source += "gl_Position";
-									}
-									else if (::strcmp(field->Semantic, "SV_POSITION") == 0 && type == EffectNodes::Pass::PixelShader)
-									{
-										source += "gl_FragCoord";
-									}
-									else if (::strcmp(field->Semantic, "SV_DEPTH") == 0 && type == EffectNodes::Pass::PixelShader)
-									{
-										source += "gl_FragDepth";
-									}
-									else
-									{
-										source += "_param_" + std::string(parameter->Name) + "_" + std::string(field->Name);
-									}
+									source += FixNameWithSemantic("_param_" + std::string(parameter->Name) + "_" + std::string(field->Name), field->Semantic, shadertype);
 
 									if (field->NextDeclarator != EffectTree::Null)
 									{
@@ -2694,34 +2682,7 @@ namespace ReShade
 
 					do
 					{
-						if (parameter->Semantic == nullptr)
-						{
-							source += "_param_" + std::string(parameter->Name);
-						}
-						else if (::strcmp(parameter->Semantic, "SV_VERTEXID") == 0)
-						{
-							source += "gl_VertexID";
-						}
-						else if (::strcmp(parameter->Semantic, "SV_INSTANCEID") == 0)
-						{
-							source += "gl_InstanceID";
-						}
-						else if (::strcmp(parameter->Semantic, "SV_POSITION") == 0 && type == EffectNodes::Pass::VertexShader)
-						{
-							source += "gl_Position";
-						}
-						else if (::strcmp(parameter->Semantic, "SV_POSITION") == 0 && type == EffectNodes::Pass::PixelShader)
-						{
-							source += "gl_FragCoord";
-						}
-						else if (::strcmp(parameter->Semantic, "SV_DEPTH") == 0 && type == EffectNodes::Pass::PixelShader)
-						{
-							source += "gl_FragDepth";
-						}
-						else
-						{
-							source += "_param_" + std::string(parameter->Name);
-						}
+						source += FixNameWithSemantic("_param_" + std::string(parameter->Name), parameter->Semantic, shadertype);
 
 						if (parameter->NextDeclaration != EffectTree::Null)
 						{
@@ -2794,23 +2755,7 @@ namespace ReShade
 
 						do
 						{
-							if (::strcmp(field->Semantic, "SV_POSITION") == 0 && type == EffectNodes::Pass::VertexShader)
-							{
-								source += "gl_Position";
-							}
-							else if (::strcmp(field->Semantic, "SV_POSITION") == 0 && type == EffectNodes::Pass::PixelShader)
-							{
-								source += "gl_FragCoord";
-							}
-							else if (::strcmp(field->Semantic, "SV_DEPTH") == 0 && type == EffectNodes::Pass::PixelShader)
-							{
-								source += "gl_FragDepth";
-							}
-							else
-							{
-								source += "_return_" + std::string(field->Name);
-							}
-
+							source += FixNameWithSemantic("_return_" + std::string(field->Name), field->Semantic, shadertype);
 							source += " = _return." + std::string(field->Name) + ";\n";
 
 							if (field->NextDeclarator != EffectTree::Null)
@@ -2826,11 +2771,11 @@ namespace ReShade
 					}
 				}
 			
-				if (type == EffectNodes::Pass::VertexShader)
+				if (shadertype == EffectNodes::Pass::VertexShader)
 				{
 					source += "gl_Position = gl_Position * vec4(1.0, 1.0, 2.0, 1.0) + vec4(0.0, 0.0, -gl_Position.w, 0.0);\n";
 				}
-				/*if (type == EffectNodes::Pass::PixelShader)
+				/*if (shadertype == EffectNodes::Pass::PixelShader)
 				{
 					source += "gl_FragDepth = clamp(gl_FragDepth, 0.0, 1.0);\n";
 				}*/
@@ -2839,7 +2784,7 @@ namespace ReShade
 
 				GLuint shader;
 
-				switch (type)
+				switch (shadertype)
 				{
 					default:
 						return 0;
@@ -2880,7 +2825,7 @@ namespace ReShade
 
 				return shader;
 			}
-			void VisitShaderVariable(unsigned int qualifier, EffectNodes::Type type, const std::string &name, const char *semantic, std::string &source)
+			void VisitShaderVariable(unsigned int qualifier, EffectNodes::Type type, const std::string &name, const char *semantic, std::string &source, unsigned int shadertype)
 			{
 				unsigned int location = 0;
 
@@ -2888,17 +2833,21 @@ namespace ReShade
 				{
 					return;
 				}
-				else if (::strcmp(semantic, "SV_VERTEXID") == 0 || ::strcmp(semantic, "SV_INSTANCEID") == 0 || ::strcmp(semantic, "SV_POSITION") == 0)
+				else if (!FixNameWithSemantic(std::string(), semantic, shadertype).empty())
 				{
 					return;
 				}
-				else if (::strstr(semantic, "SV_TARGET") == semantic)
+				else if (boost::starts_with(semantic, "COLOR"))
 				{
-					location = static_cast<unsigned int>(::strtol(semantic + 9, nullptr, 10));
+					location = static_cast<unsigned int>(::strtol(semantic + 5, nullptr, 10));
 				}
-				else if (::strstr(semantic, "TEXCOORD") == semantic)
+				else if (boost::starts_with(semantic, "TEXCOORD"))
 				{
 					location = static_cast<unsigned int>(::strtol(semantic + 8, nullptr, 10)) + 1;
+				}
+				else if (boost::starts_with(semantic, "SV_TARGET"))
+				{
+					location = static_cast<unsigned int>(::strtol(semantic + 9, nullptr, 10));
 				}
 
 				source += "layout(location = " + std::to_string(location) + ") ";

@@ -219,6 +219,7 @@ namespace ReShade
 						return D3DFMT_UNKNOWN;
 				}
 			}
+
 			static std::string ConvertSemantic(const std::string &semantic)
 			{
 				if (boost::starts_with(semantic, "SV_"))
@@ -240,15 +241,17 @@ namespace ReShade
 						return "DEPTH";
 					}
 				}
+				else if (semantic == "VERTEXID")
+				{
+					return "TEXCOORD0";
+				}
 
 				return semantic;
 			}
-
 			static inline std::string PrintLocation(const EffectTree::Location &location)
 			{
 				return std::string(location.Source != nullptr ? location.Source : "") + "(" + std::to_string(location.Line) + ", " + std::to_string(location.Column) + "): ";
 			}
-
 			std::string PrintType(const EffectNodes::Type &type)
 			{
 				std::string res;
@@ -2007,11 +2010,11 @@ namespace ReShade
 
 				passes.push_back(std::move(pass));
 			}
-			void VisitShader(const EffectNodes::Function &node, unsigned int type, D3D9Technique::Pass &pass)
+			void VisitShader(const EffectNodes::Function &node, unsigned int shadertype, D3D9Technique::Pass &pass)
 			{
 				const char *profile = nullptr;
 
-				switch (type)
+				switch (shadertype)
 				{
 					default:
 						return;
@@ -2032,6 +2035,11 @@ namespace ReShade
 					"uniform float4 _PIXEL_SIZE_ : register(c223);\n"
 					"float4 __tex2Dgather(sampler2D s, float2 c) { return float4(tex2D(s, c + float2(0, 1) * _PIXEL_SIZE_.xy).r, tex2D(s, c + float2(1, 1) * _PIXEL_SIZE_.xy).r, tex2D(s, c + float2(1, 0) * _PIXEL_SIZE_.xy).r, tex2D(s, c).r); }\n";
 
+				if (shadertype == EffectNodes::Pass::PixelShader)
+				{
+					source += "#define POSITION VPOS\n";
+				}
+
 				source += this->mCurrentSource;
 
 				std::string positionVariable, initialization;
@@ -2049,13 +2057,13 @@ namespace ReShade
 						{
 							if (field->Semantic != nullptr)
 							{
-								if (boost::equals(field->Semantic, "SV_POSITION"))
+								if (boost::equals(field->Semantic, "SV_POSITION") || boost::equals(field->Semantic, "POSITION"))
 								{
 									positionVariable = "_return.";
 									positionVariable += field->Name;
 									break;
 								}
-								else if (boost::starts_with(field->Semantic, "SV_TARGET") && field->Type.Rows != 4)
+								else if ((boost::starts_with(field->Semantic, "SV_TARGET") || boost::starts_with(field->Semantic, "COLOR")) && field->Type.Rows != 4)
 								{
 									this->mErrors += PrintLocation(node.Location) + "'SV_Target' must be a four-component vector when used inside structs on legacy targets.";
 									this->mFatal = true;
@@ -2077,11 +2085,11 @@ namespace ReShade
 				}
 				else if (node.ReturnSemantic != nullptr)
 				{
-					if (boost::equals(node.ReturnSemantic, "SV_POSITION"))
+					if (boost::equals(node.ReturnSemantic, "SV_POSITION") || boost::equals(node.ReturnSemantic, "POSITION"))
 					{
 						positionVariable = "_return";
 					}
-					else if (boost::starts_with(node.ReturnSemantic, "SV_TARGET"))
+					else if (boost::starts_with(node.ReturnSemantic, "SV_TARGET") || boost::starts_with(node.ReturnSemantic, "COLOR"))
 					{
 						returnType.Rows = 4;
 					}
@@ -2111,14 +2119,14 @@ namespace ReShade
 									{
 										if (field->Semantic != nullptr)
 										{
-											if (boost::equals(field->Semantic, "SV_POSITION"))
+											if (boost::equals(field->Semantic, "SV_POSITION") || boost::equals(field->Semantic, "POSITION"))
 											{
 												positionVariable = parameter->Name;
 												positionVariable += '.';
 												positionVariable += field->Name;
 												break;
 											}
-											else if (boost::starts_with(field->Semantic, "SV_TARGET") && field->Type.Rows != 4)
+											else if ((boost::starts_with(field->Semantic, "SV_TARGET") || boost::starts_with(field->Semantic, "COLOR")) && field->Type.Rows != 4)
 											{
 												this->mErrors += PrintLocation(node.Location) + "'SV_Target' must be a four-component vector when used inside structs on legacy targets.";
 												this->mFatal = true;
@@ -2140,11 +2148,11 @@ namespace ReShade
 							}
 							else if (parameter->Semantic != nullptr)
 							{
-								if (boost::equals(parameter->Semantic, "SV_POSITION"))
+								if (boost::equals(parameter->Semantic, "SV_POSITION") || boost::equals(parameter->Semantic, "POSITION"))
 								{
 									positionVariable = parameter->Name;
 								}
-								else if (boost::starts_with(parameter->Semantic, "SV_TARGET"))
+								else if (boost::starts_with(parameter->Semantic, "SV_TARGET") || boost::starts_with(parameter->Semantic, "COLOR"))
 								{
 									parameterType.Rows = 4;
 
@@ -2213,7 +2221,7 @@ namespace ReShade
 					{
 						source += parameter->Name;
 
-						if (parameter->Semantic != nullptr && boost::starts_with(parameter->Semantic, "SV_TARGET"))
+						if (parameter->Semantic != nullptr && (boost::starts_with(parameter->Semantic, "SV_TARGET") || boost::starts_with(parameter->Semantic, "COLOR")))
 						{
 							source += '.';
 
@@ -2253,7 +2261,7 @@ namespace ReShade
 
 				source += ";\n";
 				
-				if (type == EffectNodes::Pass::VertexShader)
+				if (shadertype == EffectNodes::Pass::VertexShader)
 				{
 					source += positionVariable + ".xy += _PIXEL_SIZE_.zw * " + positionVariable + ".ww;\n";
 				}
@@ -2284,7 +2292,7 @@ namespace ReShade
 					return;
 				}
 
-				switch (type)
+				switch (shadertype)
 				{
 					case EffectNodes::Pass::VertexShader:
 						hr = this->mEffect->mEffectContext->mDevice->CreateVertexShader(static_cast<const DWORD *>(compiled->GetBufferPointer()), &pass.VS);

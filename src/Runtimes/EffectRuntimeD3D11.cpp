@@ -285,11 +285,31 @@ namespace ReShade
 				}
 			}
 
+			static std::string ConvertSemantic(const std::string &semantic)
+			{
+				if (semantic == "VERTEXID")
+				{
+					return "SV_VERTEXID";
+				}
+				else if (semantic == "POSITION" || semantic == "VPOS")
+				{
+					return "SV_POSITION";
+				}
+				else if (boost::starts_with(semantic, "COLOR"))
+				{
+					return "SV_TARGET" + semantic.substr(5);
+				}
+				else if (semantic == "DEPTH")
+				{
+					return "SV_DEPTH";
+				}
+
+				return semantic;
+			}
 			static inline std::string PrintLocation(const EffectTree::Location &location)
 			{
 				return std::string(location.Source != nullptr ? location.Source : "") + "(" + std::to_string(location.Line) + ", " + std::to_string(location.Column) + "): ";
 			}
-
 			std::string PrintType(const EffectNodes::Type &type)
 			{
 				std::string res;
@@ -1570,8 +1590,7 @@ namespace ReShade
 
 				if (node.Semantic != nullptr)
 				{
-					this->mCurrentSource += " : ";
-					this->mCurrentSource += node.Semantic;
+					this->mCurrentSource += " : " + ConvertSemantic(node.Semantic);
 				}
 
 				if (node.Initializer != EffectTree::Null)
@@ -2078,8 +2097,7 @@ namespace ReShade
 								
 				if (node.ReturnSemantic != nullptr)
 				{
-					this->mCurrentSource += " : ";
-					this->mCurrentSource += node.ReturnSemantic;
+					this->mCurrentSource += " : " + ConvertSemantic(node.ReturnSemantic);
 				}
 
 				if (node.Definition != EffectTree::Null)
@@ -2274,7 +2292,7 @@ namespace ReShade
 
 				passes.push_back(std::move(pass));
 			}
-			void VisitShader(const EffectNodes::Function &node, unsigned int type, D3D11Technique::Pass &pass)
+			void VisitShader(const EffectNodes::Function &node, unsigned int shadertype, D3D11Technique::Pass &pass)
 			{
 				std::string profile;
 
@@ -2298,7 +2316,8 @@ namespace ReShade
 						profile = "4_0_level_9_3";
 						break;
 				}
-				switch (type)
+
+				switch (shadertype)
 				{
 					default:
 						return;
@@ -2353,7 +2372,7 @@ namespace ReShade
 					return;
 				}
 
-				switch (type)
+				switch (shadertype)
 				{
 					case EffectNodes::Pass::VertexShader:
 						hr = this->mEffect->mEffectContext->mDevice->CreateVertexShader(compiled->GetBufferPointer(), compiled->GetBufferSize(), nullptr, &pass.VS);
