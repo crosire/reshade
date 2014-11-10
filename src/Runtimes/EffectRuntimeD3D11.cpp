@@ -3464,7 +3464,14 @@ namespace ReShade
 		context->PSSetShaderResources(0, pass.SR.size(), pass.SR.data());
 
 		// Setup rendertargets
-		context->OMSetRenderTargets(D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT, pass.RT, this->mEffect->mDepthStencil);
+		ID3D11DepthStencilView *depthstencil = this->mEffect->mDepthStencil;
+
+		if (pass.Viewport.Width != this->mEffect->mEffectContext->mSwapChainDesc.BufferDesc.Width || pass.Viewport.Height != this->mEffect->mEffectContext->mSwapChainDesc.BufferDesc.Height)
+		{
+			depthstencil = nullptr;
+		}
+
+		context->OMSetRenderTargets(D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT, pass.RT, depthstencil);
 		context->RSSetViewports(1, &pass.Viewport);
 
 		for (UINT i = 0; i < D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT; ++i)
@@ -3480,5 +3487,13 @@ namespace ReShade
 	
 		// Draw triangle
 		context->Draw(3, 0);
+
+		// Reset shader resources
+		ID3D11ShaderResourceView *null[D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT] = { nullptr };
+		context->VSSetShaderResources(0, static_cast<UINT>(pass.SR.size()), null);
+		context->PSSetShaderResources(0, static_cast<UINT>(pass.SR.size()), null);
+
+		// Reset rendertargets
+		context->OMSetRenderTargets(0, nullptr, nullptr);
 	}
 }

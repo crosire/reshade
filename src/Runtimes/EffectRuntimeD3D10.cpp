@@ -3411,7 +3411,14 @@ namespace ReShade
 		device->PSSetShaderResources(0, static_cast<UINT>(pass.SR.size()), pass.SR.data());
 
 		// Setup rendertargets
-		device->OMSetRenderTargets(D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, pass.RT, this->mEffect->mDepthStencil);
+		ID3D10DepthStencilView *depthstencil = this->mEffect->mDepthStencil;
+
+		if (pass.Viewport.Width != this->mEffect->mEffectContext->mSwapChainDesc.BufferDesc.Width || pass.Viewport.Height != this->mEffect->mEffectContext->mSwapChainDesc.BufferDesc.Height)
+		{
+			depthstencil = nullptr;
+		}
+
+		device->OMSetRenderTargets(D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, pass.RT, depthstencil);
 		device->RSSetViewports(1, &pass.Viewport);
 
 		for (UINT target = 0; target < D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT; ++target)
