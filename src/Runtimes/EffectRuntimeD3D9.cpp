@@ -1628,7 +1628,19 @@ namespace ReShade
 				}
 				else
 				{
-					HRESULT hr = this->mEffect->mEffectContext->mDevice->CreateTexture(width, height, levels, d3dformat == D3DFMT_A8R8G8B8 ? D3DUSAGE_RENDERTARGET : 0, d3dformat, D3DPOOL_DEFAULT, &obj->mTexture, nullptr);
+					DWORD usage = 0;
+
+					D3DDEVICE_CREATION_PARAMETERS cp;
+					this->mEffect->mEffectContext->mDevice->GetCreationParameters(&cp);
+					
+					HRESULT hr = this->mEffect->mEffectContext->mDirect3D->CheckDeviceFormat(cp.AdapterOrdinal, cp.DeviceType, D3DFMT_X8R8G8B8, D3DUSAGE_RENDERTARGET, D3DRTYPE_TEXTURE, d3dformat);
+
+					if (SUCCEEDED(hr))
+					{
+						usage |= D3DUSAGE_RENDERTARGET;
+					}
+
+					hr = this->mEffect->mEffectContext->mDevice->CreateTexture(width, height, levels, usage, d3dformat, D3DPOOL_DEFAULT, &obj->mTexture, nullptr);
 
 					if (FAILED(hr))
 					{
@@ -2341,29 +2353,27 @@ namespace ReShade
 
 	// -----------------------------------------------------------------------------------------------------
 
-	D3D9Runtime::D3D9Runtime(IDirect3DDevice9 *device, IDirect3DSwapChain9 *swapchain) : mDevice(device), mSwapChain(swapchain), mDeviceCaps(), mStateBlock(nullptr), mBackBuffer(nullptr), mBackBufferResolved(nullptr), mBackBufferTexture(nullptr), mBackBufferTextureSurface(nullptr), mDepthStencil(nullptr), mDepthStencilReplacement(nullptr), mDepthStencilTexture(nullptr), mLost(true)
+	D3D9Runtime::D3D9Runtime(IDirect3DDevice9 *device, IDirect3DSwapChain9 *swapchain) : mDevice(device), mSwapChain(swapchain), mDirect3D(nullptr), mDeviceCaps(), mStateBlock(nullptr), mBackBuffer(nullptr), mBackBufferResolved(nullptr), mBackBufferTexture(nullptr), mBackBufferTextureSurface(nullptr), mDepthStencil(nullptr), mDepthStencilReplacement(nullptr), mDepthStencilTexture(nullptr), mLost(true)
 	{
 		assert(this->mDevice != nullptr);
 		assert(this->mSwapChain != nullptr);
 
 		this->mDevice->AddRef();
+		this->mDevice->GetDirect3D(&this->mDirect3D);
 		this->mSwapChain->AddRef();
+
+		assert(this->mDirect3D != nullptr);
 
 		this->mDevice->GetDeviceCaps(&this->mDeviceCaps);
 		this->mDeviceCaps.NumSimultaneousRTs = std::min(this->mDeviceCaps.NumSimultaneousRTs, static_cast<DWORD>(8));
 
 		ZeroMemory(&this->mPresentParams, sizeof(D3DPRESENT_PARAMETERS));
 
-		IDirect3D9 *d3d = nullptr;
-		this->mDevice->GetDirect3D(&d3d);
-
 		D3DDEVICE_CREATION_PARAMETERS params;
 		this->mDevice->GetCreationParameters(&params);
 
 		D3DADAPTER_IDENTIFIER9 identifier;
-		d3d->GetAdapterIdentifier(params.AdapterOrdinal, 0, &identifier);
-
-		d3d->Release();
+		this->mDirect3D->GetAdapterIdentifier(params.AdapterOrdinal, 0, &identifier);
 
 		this->mVendorId = identifier.VendorId;
 		this->mDeviceId = identifier.DeviceId;
@@ -2375,6 +2385,7 @@ namespace ReShade
 
 		this->mDevice->Release();
 		this->mSwapChain->Release();
+		this->mDirect3D->Release();
 	}
 
 	bool D3D9Runtime::OnCreateInternal(const D3DPRESENT_PARAMETERS &params)

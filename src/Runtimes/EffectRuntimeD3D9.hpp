@@ -39,6 +39,7 @@ namespace ReShade
 
 		IDirect3DDevice9 *mDevice;
 		IDirect3DSwapChain9 *mSwapChain;
+		IDirect3D9 *mDirect3D;
 		D3DCAPS9 mDeviceCaps;
 		D3DPRESENT_PARAMETERS mPresentParams;
 		IDirect3DStateBlock9 *mStateBlock;
