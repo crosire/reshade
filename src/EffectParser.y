@@ -347,6 +347,8 @@
 %type<l>		RULE_ATTRIBUTE_LIST
 %type<l>		RULE_ATTRIBUTES
 
+%type<l>		RULE_SEMANTICS
+
 %type<y.Index>	RULE_ANNOTATION
 %type<y.Index>	RULE_ANNOTATION_LIST
 %type<y.Index>	RULE_ANNOTATIONS
@@ -2515,6 +2517,19 @@ RULE_ATTRIBUTES
 	| RULE_ATTRIBUTE_LIST
 	;
 
+ /* Semantics -------------------------------------------------------------------------------- */
+
+RULE_SEMANTICS
+	:
+	{
+		$$.String.p = nullptr;
+		$$.String.len = 0;
+	}
+	| ":" RULE_IDENTIFIER_SEMANTIC
+	{
+		@$ = @1, $$ = $2;
+	}
+
  /* Annotations ------------------------------------------------------------------------------ */
 
 RULE_ANNOTATION
@@ -2714,20 +2729,12 @@ RULE_STRUCT_FIELD_LIST
 	;
 
 RULE_STRUCT_FIELD_DECLARATOR
-	: RULE_IDENTIFIER_NAME RULE_TYPE_ARRAY
+	: RULE_IDENTIFIER_NAME RULE_TYPE_ARRAY RULE_SEMANTICS
 	{
 		EffectNodes::Variable &node = parser.mAST.Add<EffectNodes::Variable>(@1);
 		node.Type.ArrayLength = $2.Type.ArrayLength;
 		node.Name = parser.mAST.AddString($1.String.p, $1.String.len);
-
-		@$ = @1, $$ = node.Index;
-	}
-	| RULE_IDENTIFIER_NAME RULE_TYPE_ARRAY ":" RULE_IDENTIFIER_SEMANTIC
-	{
-		EffectNodes::Variable &node = parser.mAST.Add<EffectNodes::Variable>(@1);
-		node.Type.ArrayLength = $2.Type.ArrayLength;
-		node.Name = parser.mAST.AddString($1.String.p, $1.String.len);
-		node.Semantic = parser.mAST.AddString($4.String.p, $4.String.len);
+		node.Semantic = ($3.String.p != nullptr) ? parser.mAST.AddString($3.String.p, $3.String.len) : nullptr;
 
 		@$ = @1, $$ = node.Index;
 	}
@@ -2857,31 +2864,33 @@ RULE_VARIABLE
 	;
 
 RULE_VARIABLE_DECLARATOR
-	: RULE_IDENTIFIER_NAME RULE_TYPE_ARRAY RULE_ANNOTATIONS
+	: RULE_IDENTIFIER_NAME RULE_TYPE_ARRAY RULE_SEMANTICS RULE_ANNOTATIONS
 	{
 		EffectNodes::Variable &node = parser.mAST.Add<EffectNodes::Variable>(@1);
 		node.Type.ArrayLength = $2.Type.ArrayLength;
 		node.Name = parser.mAST.AddString($1.String.p, $1.String.len);
-		node.Annotations = $3;
+		node.Semantic = ($3.String.p != nullptr) ? parser.mAST.AddString($3.String.p, $3.String.len) : nullptr;
+		node.Annotations = $4;
 
 		@$ = @1, $$ = node.Index;
 	}
-	| RULE_IDENTIFIER_NAME RULE_TYPE_ARRAY RULE_ANNOTATIONS "=" RULE_EXPRESSION_INITIALIZER
+	| RULE_IDENTIFIER_NAME RULE_TYPE_ARRAY RULE_SEMANTICS RULE_ANNOTATIONS "=" RULE_EXPRESSION_INITIALIZER
 	{
 		EffectNodes::Variable &node = parser.mAST.Add<EffectNodes::Variable>(@1);
 		node.Type.ArrayLength = $2.Type.ArrayLength;
 		node.Name = parser.mAST.AddString($1.String.p, $1.String.len);
-		node.Annotations = $3;
+		node.Semantic = ($3.String.p != nullptr) ? parser.mAST.AddString($3.String.p, $3.String.len) : nullptr;
+		node.Annotations = $4;
 
 		@$ = @1, $$ = node.Index;
 
-		if (parser.mAST[$5].As<EffectNodes::RValue>().NextExpression != EffectTree::Null || $2.Type.IsArray())
+		if (parser.mAST[$6].As<EffectNodes::RValue>().NextExpression != EffectTree::Null || $2.Type.IsArray())
 		{
-			EffectNodes::InitializerList &initializer = parser.mAST.Add<EffectNodes::InitializerList>(@5);
-			const EffectNodes::RValue *expression = &parser.mAST[$5].As<EffectNodes::RValue>();
+			EffectNodes::InitializerList &initializer = parser.mAST.Add<EffectNodes::InitializerList>(@6);
+			const EffectNodes::RValue *expression = &parser.mAST[$6].As<EffectNodes::RValue>();
 			initializer.Type = expression->Type;
 			initializer.Type.ArrayLength = 1;
-			initializer.Expressions = $5;
+			initializer.Expressions = $6;
 
 			while (expression->NextExpression != EffectTree::Null)
 			{
@@ -2894,10 +2903,10 @@ RULE_VARIABLE_DECLARATOR
 		}
 		else
 		{
-			parser.mAST[$$].As<EffectNodes::Variable>().Initializer = $5;
+			parser.mAST[$$].As<EffectNodes::Variable>().Initializer = $6;
 		}
 	}
-	| RULE_IDENTIFIER_NAME RULE_TYPE_ARRAY RULE_ANNOTATIONS "{" RULE_VARIABLE_PROPERTY_LIST "}"
+	| RULE_IDENTIFIER_NAME RULE_TYPE_ARRAY RULE_SEMANTICS RULE_ANNOTATIONS "{" RULE_VARIABLE_PROPERTY_LIST "}"
 	{
 		if ($2.Type.IsArray())
 		{
@@ -2907,11 +2916,12 @@ RULE_VARIABLE_DECLARATOR
 
 		EffectNodes::Variable &node = parser.mAST.Add<EffectNodes::Variable>(@1);
 		node.Name = parser.mAST.AddString($1.String.p, $1.String.len);
-		node.Annotations = $3;
+		node.Semantic = ($3.String.p != nullptr) ? parser.mAST.AddString($3.String.p, $3.String.len) : nullptr;
+		node.Annotations = $4;
 
 		for (unsigned int i = 0; i < EffectNodes::Variable::PropertyCount; ++i)
 		{
-			node.Properties[i] = $5.Properties[i];
+			node.Properties[i] = $6.Properties[i];
 		}
 
 		@$ = @1, $$ = node.Index;
@@ -2984,25 +2994,9 @@ RULE_VARIABLE_PROPERTY_LIST
  /* Function Declaration --------------------------------------------------------------------- */
 
 RULE_FUNCTION_PROTOTYPE
-	: RULE_TYPE_FULLYSPECIFIED RULE_FUNCTION_DECLARATOR
+	: RULE_TYPE_FULLYSPECIFIED RULE_FUNCTION_DECLARATOR RULE_SEMANTICS
 	{
-		if ($1.Type.Qualifiers != 0)
-		{
-			parser.Error(@1, 3047, "function return type cannot have any qualifiers");
-			YYERROR;
-		}
-
-		EffectNodes::Function &node = parser.mAST[$2].As<EffectNodes::Function>();
-		node.ReturnType = $1.Type;
-		node.ReturnType.Qualifiers = EffectNodes::Type::Const;
-
-		parser.PushSymbol(node.Index);
-
-		@$ = @1, $$ = node.Index;
-	}
-	| RULE_TYPE_FULLYSPECIFIED RULE_FUNCTION_DECLARATOR ":" RULE_IDENTIFIER_SEMANTIC
-	{
-		if ($1.Type.IsVoid())
+		if ($3.String.p != nullptr && $1.Type.IsVoid())
 		{
 			parser.Error(@2, 3076, "void function cannot have a semantic");
 			YYERROR;
@@ -3016,7 +3010,7 @@ RULE_FUNCTION_PROTOTYPE
 		EffectNodes::Function &node = parser.mAST[$2].As<EffectNodes::Function>();
 		node.ReturnType = $1.Type;
 		node.ReturnType.Qualifiers = EffectNodes::Type::Const;
-		node.ReturnSemantic = parser.mAST.AddString($4.String.p, $4.String.len);
+		node.ReturnSemantic = ($3.String.p != nullptr) ? parser.mAST.AddString($3.String.p, $3.String.len) : nullptr;
 
 		parser.PushSymbol(node.Index);
 
@@ -3168,20 +3162,12 @@ RULE_FUNCTION_PARAMETER_LIST
 	;
 
 RULE_FUNCTION_PARAMETER_DECLARATOR
-	: RULE_IDENTIFIER_NAME RULE_TYPE_ARRAY
+	: RULE_IDENTIFIER_NAME RULE_TYPE_ARRAY RULE_SEMANTICS
 	{
 		EffectNodes::Variable &node = parser.mAST.Add<EffectNodes::Variable>(@1);
 		node.Type.ArrayLength = $2.Type.ArrayLength;
 		node.Name = parser.mAST.AddString($1.String.p, $1.String.len);
-
-		@$ = @1, $$ = node.Index;
-	}
-	| RULE_IDENTIFIER_NAME RULE_TYPE_ARRAY ":" RULE_IDENTIFIER_SEMANTIC
-	{
-		EffectNodes::Variable &node = parser.mAST.Add<EffectNodes::Variable>(@1);
-		node.Type.ArrayLength = $2.Type.ArrayLength;
-		node.Name = parser.mAST.AddString($1.String.p, $1.String.len);
-		node.Semantic = parser.mAST.AddString($4.String.p, $4.String.len);
+		node.Semantic = ($3.String.p != nullptr) ? parser.mAST.AddString($3.String.p, $3.String.len) : nullptr;
 
 		@$ = @1, $$ = node.Index;
 	}

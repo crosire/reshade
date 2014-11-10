@@ -325,6 +325,7 @@ STRING															\"(\\.|[^\\"])*\"
 "TANGENT"{INTEGRAL}?											{ yylval->l.String.p = yytext; yylval->l.String.len = ::strlen(yytext); return TOK_IDENTIFIER_SEMANTIC; }
 ("BINORMAL"|"BITANGENT"){INTEGRAL}?								{ yylval->l.String.p = yytext; yylval->l.String.len = ::strlen(yytext); return TOK_IDENTIFIER_SEMANTIC; }
 "COLOR"{INTEGRAL}?												{ yylval->l.String.p = yytext; yylval->l.String.len = ::strlen(yytext); return TOK_IDENTIFIER_SEMANTIC; }
+"DEPTH"{INTEGRAL}?												{ yylval->l.String.p = yytext; yylval->l.String.len = ::strlen(yytext); return TOK_IDENTIFIER_SEMANTIC; }
 "PSIZE"{INTEGRAL}?												{ yylval->l.String.p = yytext; yylval->l.String.len = ::strlen(yytext); return TOK_IDENTIFIER_SEMANTIC; }
 "BLENDINDICES"{INTEGRAL}?										{ yylval->l.String.p = yytext; yylval->l.String.len = ::strlen(yytext); return TOK_IDENTIFIER_SEMANTIC; }
 "BLENDWEIGHT"{INTEGRAL}?										{ yylval->l.String.p = yytext; yylval->l.String.len = ::strlen(yytext); return TOK_IDENTIFIER_SEMANTIC; }
