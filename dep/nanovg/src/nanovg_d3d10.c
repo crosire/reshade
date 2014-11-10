@@ -258,9 +258,15 @@ static int D3Dnvg__createShader(struct D3DNVGcontext* D3D, struct D3DNVGshader* 
 	// Shader byte code is created at compile time from the .hlsl files.
 	// No need for error checks; shader errors can be fixed in the IDE.
 	hr = D3D_API_3(D3D->pDevice, CreateVertexShader, vshader, vshader_size, &vert);
-	hr = D3D_API_3(D3D->pDevice, CreatePixelShader, fshader, fshader_size, &frag);
-	
+    if (D3Dnvg__checkError(hr, "Create Vertex Shader"))
+		return 0;
+
 	shader->vert = vert;
+
+	hr = D3D_API_3(D3D->pDevice, CreatePixelShader, fshader, fshader_size, &frag);
+    if (D3Dnvg__checkError(hr, "Create Pixel Shader"))
+		return 0;
+	
 	shader->frag = frag;
 
 	return 1;
@@ -293,6 +299,7 @@ static void D3Dnvg_buildFanIndices(struct D3DNVGcontext* D3D)
 
 static unsigned int D3Dnvg_updateVertexBuffer(struct D3DNVGcontext* D3D)
 {
+	HRESULT hr;
 	void* data;
 	unsigned int retEntry;
 
@@ -302,7 +309,8 @@ static unsigned int D3Dnvg_updateVertexBuffer(struct D3DNVGcontext* D3D)
 
 		D3D_API_RELEASE(D3D->VertexBuffer.pBuffer);
 
-		D3D->VertexBuffer.MaxBufferEntries *= 2;
+		while (D3D->VertexBuffer.MaxBufferEntries < D3D->nverts)
+			D3D->VertexBuffer.MaxBufferEntries *= 2;
 		D3D->VertexBuffer.CurrentBufferEntry = 0;
 
 		memset(&bufferDesc, 0, sizeof(bufferDesc));
@@ -312,8 +320,14 @@ static unsigned int D3Dnvg_updateVertexBuffer(struct D3DNVGcontext* D3D)
 		bufferDesc.MiscFlags = 0;
 		bufferDesc.ByteWidth = sizeof(struct NVGvertex)* D3D->VertexBuffer.MaxBufferEntries;
 
-		D3D_API_3(D3D->pDevice, CreateBuffer, &bufferDesc, NULL, &D3D->VertexBuffer.pBuffer);
+		hr = D3D_API_3(D3D->pDevice, CreateBuffer, &bufferDesc, NULL, &D3D->VertexBuffer.pBuffer);
+		if (D3Dnvg__checkError(hr, "Create Vertex Buffer"))
+		{
+			ZeroMemory(&D3D->VertexBuffer, sizeof(D3D->VertexBuffer));
+			return 0;
+		}
 	}
+
 	if ((D3D->VertexBuffer.CurrentBufferEntry + D3D->nverts) >= D3D->VertexBuffer.MaxBufferEntries || D3D->VertexBuffer.CurrentBufferEntry == 0)
 	{
 		D3D->VertexBuffer.CurrentBufferEntry = 0;
@@ -349,6 +363,8 @@ static void D3Dnvg_setBuffers(struct D3DNVGcontext* D3D, unsigned int dynamicOff
 	D3D_API_1(D3D->pDevice, IASetInputLayout, D3D->pLayoutRenderTriangles);
 }
 
+static void D3Dnvg__renderDelete(void* uptr);
+
 static int D3Dnvg__renderCreate(void* uptr)
 {
 	HRESULT hr;
@@ -376,11 +392,11 @@ static int D3Dnvg__renderCreate(void* uptr)
 	
 	if (D3D->flags & NVG_ANTIALIAS) {
 		if (D3Dnvg__createShader(D3D, &D3D->shader, g_D3D11VertexShader_Main, sizeof(g_D3D11VertexShader_Main), g_D3D11PixelShaderAA_Main, sizeof(g_D3D11PixelShaderAA_Main)) == 0)
-			return 0;
+			goto error;
 	}
 	else {
 		if (D3Dnvg__createShader(D3D, &D3D->shader, g_D3D11VertexShader_Main, sizeof(g_D3D11VertexShader_Main), g_D3D11PixelShader_Main, sizeof(g_D3D11PixelShader_Main)) == 0)
-			return 0;
+			goto error;
 	}
 
 	D3D->VertexBuffer.MaxBufferEntries = 20000;
@@ -395,17 +411,20 @@ static int D3Dnvg__renderCreate(void* uptr)
 	// Create the vertex buffer.
 	bufferDesc.ByteWidth = sizeof(struct NVGvertex)* D3D->VertexBuffer.MaxBufferEntries;
 	hr = D3D_API_3(D3D->pDevice, CreateBuffer, &bufferDesc, NULL, &D3D->VertexBuffer.pBuffer);
-	D3Dnvg__checkError(hr, "Create Vertex Buffer");
+	if (D3Dnvg__checkError(hr, "Create Vertex Buffer"))
+		goto error;
 
 	bufferDesc.BindFlags = D3D10_BIND_INDEX_BUFFER;
 	bufferDesc.ByteWidth = sizeof(WORD)* D3D->VertexBuffer.MaxBufferEntries;
 	hr = D3D_API_3(D3D->pDevice, CreateBuffer, &bufferDesc, NULL, &D3D->pFanIndexBuffer);
-	D3Dnvg__checkError(hr, "Create Vertex Buffer Static");
+	if (D3Dnvg__checkError(hr, "Create Vertex Buffer Static"))
+		goto error;
 
 	D3Dnvg_buildFanIndices(D3D);
 
 	hr = D3D_API_5(D3D->pDevice, CreateInputLayout, LayoutRenderTriangles, 2, g_D3D11VertexShader_Main, sizeof(g_D3D11VertexShader_Main), &D3D->pLayoutRenderTriangles);
-	D3Dnvg__checkError(hr, "Create Input Layout");
+	if (D3Dnvg__checkError(hr, "Create Input Layout"))
+		goto error;
 
 	bufferDesc.Usage = D3D10_USAGE_DYNAMIC;
 	bufferDesc.BindFlags = D3D10_BIND_CONSTANT_BUFFER;
@@ -418,7 +437,8 @@ static int D3Dnvg__renderCreate(void* uptr)
 	}
 
 	hr = D3D_API_3(D3D->pDevice, CreateBuffer, &bufferDesc, NULL, &D3D->pVSConstants);
-	D3Dnvg__checkError(hr, "Create Constant Buffer");
+	if (D3Dnvg__checkError(hr, "Create Constant Buffer"))
+		goto error;
 
 	bufferDesc.ByteWidth = sizeof(struct D3DNVGfragUniforms);
 	if ((bufferDesc.ByteWidth % 16) != 0)
@@ -428,7 +448,8 @@ static int D3Dnvg__renderCreate(void* uptr)
 	D3D->fragSize = bufferDesc.ByteWidth;
 
 	hr = D3D_API_3(D3D->pDevice, CreateBuffer, &bufferDesc, NULL, &D3D->pPSConstants);
-	D3Dnvg__checkError(hr, "Create Constant Buffer");
+	if (D3Dnvg__checkError(hr, "Create Constant Buffer"))
+		goto error;
 
 	ZeroMemory(&rasterDesc, sizeof(rasterDesc));
 	rasterDesc.FillMode = D3D10_FILL_SOLID;
@@ -436,9 +457,13 @@ static int D3Dnvg__renderCreate(void* uptr)
 	rasterDesc.DepthClipEnable = TRUE;
 	rasterDesc.FrontCounterClockwise = TRUE;
 	hr = D3D_API_2(D3D->pDevice, CreateRasterizerState, &rasterDesc, &D3D->pRSNoCull);
+    if (D3Dnvg__checkError(hr, "Create Rasterizer State (NoCull)"))
+		goto error;
 
 	rasterDesc.CullMode = D3D10_CULL_BACK;
 	hr = D3D_API_2(D3D->pDevice, CreateRasterizerState, &rasterDesc, &D3D->pRSCull);
+    if (D3Dnvg__checkError(hr, "Create Rasterizer State (Cull)"))
+		goto error;
 
 	ZeroMemory(&blendDesc, sizeof(blendDesc));
 	blendDesc.BlendEnable[0] = TRUE;
@@ -450,11 +475,14 @@ static int D3Dnvg__renderCreate(void* uptr)
 	blendDesc.DestBlend = D3D10_BLEND_INV_SRC_ALPHA;
 	blendDesc.DestBlendAlpha = D3D10_BLEND_INV_SRC_ALPHA;
 	hr = D3D_API_2(D3D->pDevice, CreateBlendState, &blendDesc, &D3D->pBSBlend);
-
+    if (D3Dnvg__checkError(hr, "Create Blend State (Blend)"))
+		goto error;
 
 	blendDesc.BlendEnable[0] = FALSE;
 	blendDesc.RenderTargetWriteMask[0] = 0;
 	hr = D3D_API_2(D3D->pDevice, CreateBlendState, &blendDesc, &D3D->pBSNoWrite);
+    if (D3Dnvg__checkError(hr, "Create Blend State (NoWrite)"))
+		goto error;
 
 	// Stencil A Draw shapes
 	ZeroMemory(&depthStencilDesc, sizeof(depthStencilDesc));
@@ -470,22 +498,30 @@ static int D3Dnvg__renderCreate(void* uptr)
 	
 	// No color write
 	hr = D3D_API_2(D3D->pDevice, CreateDepthStencilState, &depthStencilDesc, &D3D->pDepthStencilDrawShapes);
+    if (D3Dnvg__checkError(hr, "Create DepthStencil State (DrawShapes)"))
+		goto error;
 
 	// Draw AA
 	depthStencilDesc.FrontFace = aaOp;
 	depthStencilDesc.BackFace = aaOp;
 	
 	hr = D3D_API_2(D3D->pDevice, CreateDepthStencilState, &depthStencilDesc, &D3D->pDepthStencilDrawAA);
+    if (D3Dnvg__checkError(hr, "Create DepthStencil State (DrawAA)"))
+		goto error;
 
 	// Stencil Fill
 	depthStencilDesc.FrontFace = fillOp;
 	depthStencilDesc.BackFace = fillOp;
 	hr = D3D_API_2(D3D->pDevice, CreateDepthStencilState, &depthStencilDesc, &D3D->pDepthStencilFill);
+    if (D3Dnvg__checkError(hr, "Create DepthStencil State (Fill)"))
+		goto error;
 
 	depthStencilDesc.FrontFace = defaultOp;
 	depthStencilDesc.BackFace = defaultOp;
 	depthStencilDesc.StencilEnable = FALSE;
 	hr = D3D_API_2(D3D->pDevice, CreateDepthStencilState, &depthStencilDesc, &D3D->pDepthStencilDefault);
+    if (D3Dnvg__checkError(hr, "Create DepthStencil State (Default)"))
+		goto error;
 
 	ZeroMemory(&sampDesc, sizeof(sampDesc));
 	sampDesc.Filter = D3D10_FILTER_MIN_MAG_MIP_LINEAR;
@@ -497,21 +533,33 @@ static int D3Dnvg__renderCreate(void* uptr)
 
 	sampDesc.AddressU = D3D10_TEXTURE_ADDRESS_CLAMP;
 	sampDesc.AddressV = D3D10_TEXTURE_ADDRESS_CLAMP;
-	D3D_API_2(D3D->pDevice, CreateSamplerState, &sampDesc, &D3D->pSamplerState[0]);
+	hr = D3D_API_2(D3D->pDevice, CreateSamplerState, &sampDesc, &D3D->pSamplerState[0]);
+    if (D3Dnvg__checkError(hr, "Create Sampler State 0"))
+		goto error;
 
 	sampDesc.AddressU = D3D10_TEXTURE_ADDRESS_WRAP;
 	sampDesc.AddressV = D3D10_TEXTURE_ADDRESS_CLAMP;
-	D3D_API_2(D3D->pDevice, CreateSamplerState, &sampDesc, &D3D->pSamplerState[1]);
+	hr = D3D_API_2(D3D->pDevice, CreateSamplerState, &sampDesc, &D3D->pSamplerState[1]);
+    if (D3Dnvg__checkError(hr, "Create Sampler State 1"))
+		goto error;
 
 	sampDesc.AddressU = D3D10_TEXTURE_ADDRESS_CLAMP;
 	sampDesc.AddressV = D3D10_TEXTURE_ADDRESS_WRAP;
-	D3D_API_2(D3D->pDevice, CreateSamplerState, &sampDesc, &D3D->pSamplerState[2]);
+	hr = D3D_API_2(D3D->pDevice, CreateSamplerState, &sampDesc, &D3D->pSamplerState[2]);
+    if (D3Dnvg__checkError(hr, "Create Sampler State 2"))
+		goto error;
 
 	sampDesc.AddressU = D3D10_TEXTURE_ADDRESS_WRAP;
 	sampDesc.AddressV = D3D10_TEXTURE_ADDRESS_WRAP;
-	D3D_API_2(D3D->pDevice, CreateSamplerState, &sampDesc, &D3D->pSamplerState[3]);
+	hr = D3D_API_2(D3D->pDevice, CreateSamplerState, &sampDesc, &D3D->pSamplerState[3]);
+    if (D3Dnvg__checkError(hr, "Create Sampler State 3"))
+		goto error;
 	
 	return 1;
+
+error:
+	D3Dnvg__renderDelete(D3D);
+	return 0;
 }
 
 static int D3Dnvg__renderCreateTexture(void* uptr, int type, int w, int h, int imageFlags, const unsigned char* data)
@@ -564,10 +612,8 @@ static int D3Dnvg__renderCreateTexture(void* uptr, int type, int w, int h, int i
 	texDesc.Usage = D3D10_USAGE_DEFAULT;
 
 	hr = D3D_API_3(D3D->pDevice, CreateTexture2D, &texDesc, NULL, &tex->tex);
-	if (FAILED(hr))
-	{
+	if (D3Dnvg__checkError(hr, "Create texture"))
 		return 0;
-	}
 
 	if (data != NULL)
 	{
@@ -579,15 +625,18 @@ static int D3Dnvg__renderCreateTexture(void* uptr, int type, int w, int h, int i
 	viewDesc.Texture2D.MipLevels = (UINT)-1;
 	viewDesc.Texture2D.MostDetailedMip = 0;
  
-	D3D_API_3(D3D->pDevice, CreateShaderResourceView, (ID3D10Resource*)tex->tex, &viewDesc, &tex->resourceView);
+	hr = D3D_API_3(D3D->pDevice, CreateShaderResourceView, (ID3D10Resource*)tex->tex, &viewDesc, &tex->resourceView);
 
 	if (data != NULL && texDesc.MipLevels == 0)
 	{
 		D3D_API_1(D3D->pDevice, GenerateMips, tex->resourceView);
 	}
 
-	if (D3Dnvg__checkError(hr, "create tex"))
+	if (D3Dnvg__checkError(hr, "Create ShaderResourceView"))
+	{
+		D3D_API_RELEASE(tex->tex);
 		return 0;
+	}
 
 	return tex->id;
 }
