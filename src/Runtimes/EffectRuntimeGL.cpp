@@ -2413,11 +2413,16 @@ namespace ReShade
 						const GLTexture *texture = it->second.get();
 						const GLTexture::Description desc = texture->GetDescription();
 
-						if ((desc.Width != static_cast<unsigned int>(pass.ViewportWidth) || desc.Height != static_cast<unsigned int>(pass.ViewportHeight)) && !(pass.ViewportWidth == 0 && pass.ViewportHeight == 0))
+						if (pass.ViewportWidth != 0 && pass.ViewportHeight != 0 && (desc.Width != static_cast<unsigned int>(pass.ViewportWidth) || desc.Height != static_cast<unsigned int>(pass.ViewportHeight)))
 						{
 							this->mErrors += PrintLocation(node.Location) + "Cannot use multiple rendertargets with different sized textures.\n";
 							this->mFatal = true;
 							return;
+						}
+						else
+						{
+							pass.ViewportWidth = desc.Width;
+							pass.ViewportHeight = desc.Height;
 						}
 
 						backbufferFramebuffer = false;
@@ -2425,8 +2430,6 @@ namespace ReShade
 						GLCHECK(glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, texture->mID[pass.FramebufferSRGB], 0));
 
 						pass.DrawBuffers[i] = GL_COLOR_ATTACHMENT0 + i;
-						pass.ViewportWidth = desc.Width;
-						pass.ViewportHeight = desc.Height;
 					}
 				}
 

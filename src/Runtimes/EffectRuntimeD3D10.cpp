@@ -2136,10 +2136,7 @@ namespace ReShade
 				pass.BS = nullptr;
 				pass.DSS = nullptr;
 				pass.StencilRef = 0;
-				pass.Viewport.Width = this->mEffect->mEffectContext->mSwapChainDesc.BufferDesc.Width;
-				pass.Viewport.Height = this->mEffect->mEffectContext->mSwapChainDesc.BufferDesc.Height;
-				pass.Viewport.TopLeftX = 0;
-				pass.Viewport.TopLeftY = 0;
+				pass.Viewport.TopLeftX = pass.Viewport.TopLeftY = pass.Viewport.Width = pass.Viewport.Height = 0;
 				pass.Viewport.MinDepth = 0.0f;
 				pass.Viewport.MaxDepth = 1.0f;
 				ZeroMemory(pass.RT, sizeof(pass.RT));
@@ -2182,8 +2179,17 @@ namespace ReShade
 						D3D10_TEXTURE2D_DESC desc;
 						texture->mTexture->GetDesc(&desc);
 
-						pass.Viewport.Width = std::min(pass.Viewport.Width, desc.Width);
-						pass.Viewport.Height = std::min(pass.Viewport.Height, desc.Height);
+						if (pass.Viewport.Width != 0 && pass.Viewport.Height != 0 && (desc.Width != pass.Viewport.Width || desc.Height != pass.Viewport.Height))
+						{
+							this->mErrors += PrintLocation(node.Location) + "Cannot use multiple rendertargets with different sized textures.\n";
+							this->mFatal = true;
+							return;
+						}
+						else
+						{
+							pass.Viewport.Width = desc.Width;
+							pass.Viewport.Height = desc.Height;
+						}
 
 						D3D10_RENDER_TARGET_VIEW_DESC rtvdesc;
 						rtvdesc.Format = srgb ? MakeSRGBFormat(desc.Format) : MakeNonSRBFormat(desc.Format);
@@ -2202,6 +2208,12 @@ namespace ReShade
 
 						pass.RT[i] = texture->mRenderTargetView[srgb];
 					}
+				}
+
+				if (pass.Viewport.Width == 0 && pass.Viewport.Height == 0)
+				{
+					pass.Viewport.Width = this->mEffect->mEffectContext->mSwapChainDesc.BufferDesc.Width;
+					pass.Viewport.Height = this->mEffect->mEffectContext->mSwapChainDesc.BufferDesc.Height;
 				}
 
 				D3D10_DEPTH_STENCIL_DESC ddesc;
