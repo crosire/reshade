@@ -2396,9 +2396,19 @@ namespace ReShade
 
 		assert(SUCCEEDED(hr));
 
-		if (params.MultiSampleType != D3DMULTISAMPLE_NONE)
+		if (this->mPresentParams.MultiSampleType != D3DMULTISAMPLE_NONE || (this->mPresentParams.BackBufferFormat == D3DFMT_X8R8G8B8 || this->mPresentParams.BackBufferFormat == D3DFMT_X8B8G8R8))
 		{
-			hr = this->mDevice->CreateRenderTarget(params.BackBufferWidth, params.BackBufferHeight, params.BackBufferFormat, D3DMULTISAMPLE_NONE, 0, FALSE, &this->mBackBufferResolved, nullptr);
+			switch (this->mPresentParams.BackBufferFormat)
+			{
+				case D3DFMT_X8R8G8B8:
+					this->mPresentParams.BackBufferFormat = D3DFMT_A8R8G8B8;
+					break;
+				case D3DFMT_X8B8G8R8:
+					this->mPresentParams.BackBufferFormat = D3DFMT_A8B8G8R8;
+					break;
+			}
+
+			hr = this->mDevice->CreateRenderTarget(this->mPresentParams.BackBufferWidth, this->mPresentParams.BackBufferHeight, this->mPresentParams.BackBufferFormat, D3DMULTISAMPLE_NONE, 0, FALSE, &this->mBackBufferResolved, nullptr);
 
 			if (FAILED(hr))
 			{
@@ -2415,7 +2425,7 @@ namespace ReShade
 			this->mBackBufferResolved->AddRef();
 		}
 
-		hr = this->mDevice->CreateTexture(params.BackBufferWidth, params.BackBufferHeight, 1, D3DUSAGE_RENDERTARGET, params.BackBufferFormat, D3DPOOL_DEFAULT, &this->mBackBufferTexture, nullptr);
+		hr = this->mDevice->CreateTexture(this->mPresentParams.BackBufferWidth, this->mPresentParams.BackBufferHeight, 1, D3DUSAGE_RENDERTARGET, this->mPresentParams.BackBufferFormat, D3DPOOL_DEFAULT, &this->mBackBufferTexture, nullptr);
 
 		if (SUCCEEDED(hr))
 		{
@@ -2431,7 +2441,7 @@ namespace ReShade
 			return false;
 		}
 
-		hr = this->mDevice->CreateDepthStencilSurface(params.BackBufferWidth, params.BackBufferHeight, D3DFMT_D24S8, D3DMULTISAMPLE_NONE, 0, FALSE, &this->mDefaultDepthStencil, nullptr);
+		hr = this->mDevice->CreateDepthStencilSurface(this->mPresentParams.BackBufferWidth, this->mPresentParams.BackBufferHeight, D3DFMT_D24S8, D3DMULTISAMPLE_NONE, 0, FALSE, &this->mDefaultDepthStencil, nullptr);
 
 		if (FAILED(hr))
 		{
@@ -2464,7 +2474,7 @@ namespace ReShade
 
 		this->mLost = false;
 
-		Runtime::OnCreate(params.BackBufferWidth, params.BackBufferHeight);
+		Runtime::OnCreate(this->mPresentParams.BackBufferWidth, this->mPresentParams.BackBufferHeight);
 
 		return true;
 	}

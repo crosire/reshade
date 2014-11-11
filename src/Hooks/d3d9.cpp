@@ -1102,7 +1102,7 @@ HRESULT STDMETHODCALLTYPE IDirect3D9_CreateDevice(IDirect3D9 *pD3D, UINT Adapter
 
 	AdjustPresentParameters(pPresentationParameters);
 
-	HRESULT hr = ReHook::Call(&IDirect3D9_CreateDevice)(pD3D, Adapter, DeviceType, hFocusWindow, BehaviorFlags, pPresentationParameters, ppReturnedDeviceInterface);
+	const HRESULT hr = ReHook::Call(&IDirect3D9_CreateDevice)(pD3D, Adapter, DeviceType, hFocusWindow, BehaviorFlags, pPresentationParameters, ppReturnedDeviceInterface);
 
 	if (SUCCEEDED(hr))
 	{
