@@ -2529,6 +2529,12 @@ RULE_SEMANTICS
 	{
 		@$ = @1, $$ = $2;
 	}
+	| ":" error
+	{
+		$$.String.p = nullptr;
+		$$.String.len = 0;
+	}
+	;
 
  /* Annotations ------------------------------------------------------------------------------ */
 
@@ -2906,6 +2912,16 @@ RULE_VARIABLE_DECLARATOR
 			parser.mAST[$$].As<EffectNodes::Variable>().Initializer = $6;
 		}
 	}
+	| RULE_IDENTIFIER_NAME RULE_TYPE_ARRAY RULE_SEMANTICS RULE_ANNOTATIONS "=" error
+	{
+		EffectNodes::Variable &node = parser.mAST.Add<EffectNodes::Variable>(@1);
+		node.Type.ArrayLength = $2.Type.ArrayLength;
+		node.Name = parser.mAST.AddString($1.String.p, $1.String.len);
+		node.Semantic = ($3.String.p != nullptr) ? parser.mAST.AddString($3.String.p, $3.String.len) : nullptr;
+		node.Annotations = $4;
+
+		@$ = @1, $$ = node.Index;
+	}
 	| RULE_IDENTIFIER_NAME RULE_TYPE_ARRAY RULE_SEMANTICS RULE_ANNOTATIONS "{" RULE_VARIABLE_PROPERTY_LIST "}"
 	{
 		if ($2.Type.IsArray())
@@ -2923,6 +2939,15 @@ RULE_VARIABLE_DECLARATOR
 		{
 			node.Properties[i] = $6.Properties[i];
 		}
+
+		@$ = @1, $$ = node.Index;
+	}
+	| RULE_IDENTIFIER_NAME RULE_TYPE_ARRAY RULE_SEMANTICS RULE_ANNOTATIONS "{" error "}"
+	{
+		EffectNodes::Variable &node = parser.mAST.Add<EffectNodes::Variable>(@1);
+		node.Name = parser.mAST.AddString($1.String.p, $1.String.len);
+		node.Semantic = ($3.String.p != nullptr) ? parser.mAST.AddString($3.String.p, $3.String.len) : nullptr;
+		node.Annotations = $4;
 
 		@$ = @1, $$ = node.Index;
 	}

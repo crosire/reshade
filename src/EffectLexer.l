@@ -49,7 +49,7 @@
 %x STATE_COMMENT STATE_PP STATE_PP_LINE STATE_PP_PRAGMA STATE_PP_ERROR STATE_PP_WARNING
 
 %x STATE_FIELD
-%s STATE_PROPERTY STATE_TECHNIQUE STATE_PASS
+%s STATE_PROPERTY_TEXTURE STATE_PROPERTY_SAMPLER STATE_TECHNIQUE STATE_PASS
 
 /* ----------------------------------------------------------------------------------------------
 |  Rules																						|
@@ -262,22 +262,22 @@ STRING															\"(\\.|[^\\"])*\"
 "centroid"														{ yylval->l.Uint = ReShade::EffectNodes::Type::Centroid; return TOK_CENTROID; }
 "sample"														{ yylval->l.Uint = ReShade::EffectNodes::Type::Sample; return TOK_SAMPLE; }
 
-<STATE_PROPERTY>"Width"											{ yylval->l.Uint = ReShade::EffectNodes::Variable::Property::Width; return TOK_IDENTIFIER_PROPERTY; }
-<STATE_PROPERTY>"Height"										{ yylval->l.Uint = ReShade::EffectNodes::Variable::Property::Height; return TOK_IDENTIFIER_PROPERTY; }
-<STATE_PROPERTY>"MipLevels"										{ yylval->l.Uint = ReShade::EffectNodes::Variable::Property::MipLevels; return TOK_IDENTIFIER_PROPERTY; }
-<STATE_PROPERTY>"Format"										{ yylval->l.Uint = ReShade::EffectNodes::Variable::Property::Format; return TOK_IDENTIFIER_PROPERTY; }
-<STATE_PROPERTY>"Texture"										{ yylval->l.Uint = ReShade::EffectNodes::Variable::Property::Texture; return TOK_IDENTIFIER_PROPERTY; }
-<STATE_PROPERTY>"AddressU"										{ yylval->l.Uint = ReShade::EffectNodes::Variable::Property::AddressU; return TOK_IDENTIFIER_PROPERTY; }
-<STATE_PROPERTY>"AddressV"										{ yylval->l.Uint = ReShade::EffectNodes::Variable::Property::AddressV; return TOK_IDENTIFIER_PROPERTY; }
-<STATE_PROPERTY>"AddressW"										{ yylval->l.Uint = ReShade::EffectNodes::Variable::Property::AddressW; return TOK_IDENTIFIER_PROPERTY; }
-<STATE_PROPERTY>"MinFilter"										{ yylval->l.Uint = ReShade::EffectNodes::Variable::Property::MinFilter; return TOK_IDENTIFIER_PROPERTY; }
-<STATE_PROPERTY>"MagFilter"										{ yylval->l.Uint = ReShade::EffectNodes::Variable::Property::MagFilter; return TOK_IDENTIFIER_PROPERTY; }
-<STATE_PROPERTY>"MipFilter"										{ yylval->l.Uint = ReShade::EffectNodes::Variable::Property::MipFilter; return TOK_IDENTIFIER_PROPERTY; }
-<STATE_PROPERTY>"MipLODBias"|"MipMapLodBias"					{ yylval->l.Uint = ReShade::EffectNodes::Variable::Property::MipLODBias; return TOK_IDENTIFIER_PROPERTY; }
-<STATE_PROPERTY>"MaxAnisotropy"									{ yylval->l.Uint = ReShade::EffectNodes::Variable::Property::MaxAnisotropy; return TOK_IDENTIFIER_PROPERTY; }
-<STATE_PROPERTY>"MinLOD"										{ yylval->l.Uint = ReShade::EffectNodes::Variable::Property::MinLOD; return TOK_IDENTIFIER_PROPERTY; }
-<STATE_PROPERTY>"MaxLOD"|"MaxMipLevel"							{ yylval->l.Uint = ReShade::EffectNodes::Variable::Property::MaxLOD; return TOK_IDENTIFIER_PROPERTY; }
-<STATE_PROPERTY>[sS]"RGB"("Texture")?|"SRGBReadEnable"			{ yylval->l.Uint = ReShade::EffectNodes::Variable::Property::SRGBTexture; return TOK_IDENTIFIER_PROPERTY; }
+<STATE_PROPERTY_TEXTURE>"Width"									{ yylval->l.Uint = ReShade::EffectNodes::Variable::Property::Width; return TOK_IDENTIFIER_PROPERTY; }
+<STATE_PROPERTY_TEXTURE>"Height"								{ yylval->l.Uint = ReShade::EffectNodes::Variable::Property::Height; return TOK_IDENTIFIER_PROPERTY; }
+<STATE_PROPERTY_TEXTURE>"MipLevels"								{ yylval->l.Uint = ReShade::EffectNodes::Variable::Property::MipLevels; return TOK_IDENTIFIER_PROPERTY; }
+<STATE_PROPERTY_TEXTURE>"Format"								{ yylval->l.Uint = ReShade::EffectNodes::Variable::Property::Format; return TOK_IDENTIFIER_PROPERTY; }
+<STATE_PROPERTY_SAMPLER>"Texture"								{ yylval->l.Uint = ReShade::EffectNodes::Variable::Property::Texture; return TOK_IDENTIFIER_PROPERTY; }
+<STATE_PROPERTY_SAMPLER>"AddressU"								{ yylval->l.Uint = ReShade::EffectNodes::Variable::Property::AddressU; return TOK_IDENTIFIER_PROPERTY; }
+<STATE_PROPERTY_SAMPLER>"AddressV"								{ yylval->l.Uint = ReShade::EffectNodes::Variable::Property::AddressV; return TOK_IDENTIFIER_PROPERTY; }
+<STATE_PROPERTY_SAMPLER>"AddressW"								{ yylval->l.Uint = ReShade::EffectNodes::Variable::Property::AddressW; return TOK_IDENTIFIER_PROPERTY; }
+<STATE_PROPERTY_SAMPLER>"MinFilter"								{ yylval->l.Uint = ReShade::EffectNodes::Variable::Property::MinFilter; return TOK_IDENTIFIER_PROPERTY; }
+<STATE_PROPERTY_SAMPLER>"MagFilter"								{ yylval->l.Uint = ReShade::EffectNodes::Variable::Property::MagFilter; return TOK_IDENTIFIER_PROPERTY; }
+<STATE_PROPERTY_SAMPLER>"MipFilter"								{ yylval->l.Uint = ReShade::EffectNodes::Variable::Property::MipFilter; return TOK_IDENTIFIER_PROPERTY; }
+<STATE_PROPERTY_SAMPLER>"MipLODBias"|"MipMapLodBias"			{ yylval->l.Uint = ReShade::EffectNodes::Variable::Property::MipLODBias; return TOK_IDENTIFIER_PROPERTY; }
+<STATE_PROPERTY_SAMPLER>"MaxAnisotropy"							{ yylval->l.Uint = ReShade::EffectNodes::Variable::Property::MaxAnisotropy; return TOK_IDENTIFIER_PROPERTY; }
+<STATE_PROPERTY_SAMPLER>"MinLOD"								{ yylval->l.Uint = ReShade::EffectNodes::Variable::Property::MinLOD; return TOK_IDENTIFIER_PROPERTY; }
+<STATE_PROPERTY_SAMPLER>"MaxLOD"|"MaxMipLevel"					{ yylval->l.Uint = ReShade::EffectNodes::Variable::Property::MaxLOD; return TOK_IDENTIFIER_PROPERTY; }
+<STATE_PROPERTY_SAMPLER>[sS]"RGB"("Texture")?|"SRGBReadEnable"	{ yylval->l.Uint = ReShade::EffectNodes::Variable::Property::SRGBTexture; return TOK_IDENTIFIER_PROPERTY; }
 <STATE_PASS>"VertexShader"										{ yylval->l.Uint = ReShade::EffectNodes::Pass::State::VertexShader; return TOK_IDENTIFIER_PASSSTATE; }
 <STATE_PASS>"PixelShader"										{ yylval->l.Uint = ReShade::EffectNodes::Pass::State::PixelShader; return TOK_IDENTIFIER_PASSSTATE; }
 <STATE_PASS>"RenderTarget"										{ yylval->l.Uint = ReShade::EffectNodes::Pass::State::RenderTarget0; return TOK_IDENTIFIER_PASSSTATE; }
@@ -354,26 +354,26 @@ STRING															\"(\\.|[^\\"])*\"
 (?i:"SV_VertexID")												{ boost::algorithm::to_upper(yytext); yylval->l.String.p = yytext; yylval->l.String.len = ::strlen(yytext); return TOK_IDENTIFIER_SEMANTIC; }
 (?i:"SV_Depth")													{ boost::algorithm::to_upper(yytext); yylval->l.String.p = yytext; yylval->l.String.len = ::strlen(yytext); return TOK_IDENTIFIER_SEMANTIC; }
 
-<STATE_PASS,STATE_PROPERTY>(?i:"NONE")							{ yylval->l.Uint = ReShade::EffectNodes::Literal::NONE; return TOK_LITERAL_ENUM; }
-<STATE_PROPERTY>(?i:"POINT"|"NEAREST")							{ yylval->l.Uint = ReShade::EffectNodes::Literal::POINT; return TOK_LITERAL_ENUM; }
-<STATE_PROPERTY>(?i:"LINEAR")									{ yylval->l.Uint = ReShade::EffectNodes::Literal::LINEAR; return TOK_LITERAL_ENUM; }
-<STATE_PROPERTY>(?i:"ANISOTROPIC")								{ yylval->l.Uint = ReShade::EffectNodes::Literal::ANISOTROPIC; return TOK_LITERAL_ENUM; }
-<STATE_PROPERTY>(?i:"CLAMP")									{ yylval->l.Uint = ReShade::EffectNodes::Literal::CLAMP; return TOK_LITERAL_ENUM; }
-<STATE_PROPERTY>(?i:"MIRROR")									{ yylval->l.Uint = ReShade::EffectNodes::Literal::MIRROR; return TOK_LITERAL_ENUM; }
-<STATE_PROPERTY>(?i:"REPEAT"|"WRAP")							{ yylval->l.Uint = ReShade::EffectNodes::Literal::REPEAT; return TOK_LITERAL_ENUM; }
-<STATE_PROPERTY>(?i:"BORDER")									{ yylval->l.Uint = ReShade::EffectNodes::Literal::BORDER; return TOK_LITERAL_ENUM; }
-<STATE_PROPERTY>(?i:"R8")										{ yylval->l.Uint = ReShade::EffectNodes::Literal::R8; return TOK_LITERAL_ENUM; }
-<STATE_PROPERTY>(?i:"R32F")										{ yylval->l.Uint = ReShade::EffectNodes::Literal::R32F; return TOK_LITERAL_ENUM; }
-<STATE_PROPERTY>(?i:"RG8"|"R8G8")								{ yylval->l.Uint = ReShade::EffectNodes::Literal::RG8; return TOK_LITERAL_ENUM; }
-<STATE_PROPERTY>(?i:"RGBA8"|"R8G8B8A8")							{ yylval->l.Uint = ReShade::EffectNodes::Literal::RGBA8; return TOK_LITERAL_ENUM; }
-<STATE_PROPERTY>(?i:"RGBA16"|"R16G16B16A16")					{ yylval->l.Uint = ReShade::EffectNodes::Literal::RGBA16; return TOK_LITERAL_ENUM; }
-<STATE_PROPERTY>(?i:"RGBA16F"|"R16G16B16A16F")					{ yylval->l.Uint = ReShade::EffectNodes::Literal::RGBA16F; return TOK_LITERAL_ENUM; }
-<STATE_PROPERTY>(?i:"RGBA32F"|"R32G32B32A32F")					{ yylval->l.Uint = ReShade::EffectNodes::Literal::RGBA32F; return TOK_LITERAL_ENUM; }
-<STATE_PROPERTY>(?i:"DXT1"|"BC1")								{ yylval->l.Uint = ReShade::EffectNodes::Literal::DXT1; return TOK_LITERAL_ENUM; }
-<STATE_PROPERTY>(?i:"DXT3"|"BC2")								{ yylval->l.Uint = ReShade::EffectNodes::Literal::DXT3; return TOK_LITERAL_ENUM; }
-<STATE_PROPERTY>(?i:"DXT5"|"BC3")								{ yylval->l.Uint = ReShade::EffectNodes::Literal::DXT5; return TOK_LITERAL_ENUM; }
-<STATE_PROPERTY>(?i:"LATC1"|"BC4")								{ yylval->l.Uint = ReShade::EffectNodes::Literal::LATC1; return TOK_LITERAL_ENUM; }
-<STATE_PROPERTY>(?i:"LATC2"|"BC5")								{ yylval->l.Uint = ReShade::EffectNodes::Literal::LATC2; return TOK_LITERAL_ENUM; }
+<STATE_PASS,STATE_PROPERTY_SAMPLER>(?i:"NONE")					{ yylval->l.Uint = ReShade::EffectNodes::Literal::NONE; return TOK_LITERAL_ENUM; }
+<STATE_PROPERTY_TEXTURE>(?i:"R8")								{ yylval->l.Uint = ReShade::EffectNodes::Literal::R8; return TOK_LITERAL_ENUM; }
+<STATE_PROPERTY_TEXTURE>(?i:"R32F")								{ yylval->l.Uint = ReShade::EffectNodes::Literal::R32F; return TOK_LITERAL_ENUM; }
+<STATE_PROPERTY_TEXTURE>(?i:"RG8"|"R8G8")						{ yylval->l.Uint = ReShade::EffectNodes::Literal::RG8; return TOK_LITERAL_ENUM; }
+<STATE_PROPERTY_TEXTURE>(?i:"RGBA8"|"R8G8B8A8")					{ yylval->l.Uint = ReShade::EffectNodes::Literal::RGBA8; return TOK_LITERAL_ENUM; }
+<STATE_PROPERTY_TEXTURE>(?i:"RGBA16"|"R16G16B16A16")			{ yylval->l.Uint = ReShade::EffectNodes::Literal::RGBA16; return TOK_LITERAL_ENUM; }
+<STATE_PROPERTY_TEXTURE>(?i:"RGBA16F"|"R16G16B16A16F")			{ yylval->l.Uint = ReShade::EffectNodes::Literal::RGBA16F; return TOK_LITERAL_ENUM; }
+<STATE_PROPERTY_TEXTURE>(?i:"RGBA32F"|"R32G32B32A32F")			{ yylval->l.Uint = ReShade::EffectNodes::Literal::RGBA32F; return TOK_LITERAL_ENUM; }
+<STATE_PROPERTY_TEXTURE>(?i:"DXT1"|"BC1")						{ yylval->l.Uint = ReShade::EffectNodes::Literal::DXT1; return TOK_LITERAL_ENUM; }
+<STATE_PROPERTY_TEXTURE>(?i:"DXT3"|"BC2")						{ yylval->l.Uint = ReShade::EffectNodes::Literal::DXT3; return TOK_LITERAL_ENUM; }
+<STATE_PROPERTY_TEXTURE>(?i:"DXT5"|"BC3")						{ yylval->l.Uint = ReShade::EffectNodes::Literal::DXT5; return TOK_LITERAL_ENUM; }
+<STATE_PROPERTY_TEXTURE>(?i:"LATC1"|"BC4")						{ yylval->l.Uint = ReShade::EffectNodes::Literal::LATC1; return TOK_LITERAL_ENUM; }
+<STATE_PROPERTY_TEXTURE>(?i:"LATC2"|"BC5")						{ yylval->l.Uint = ReShade::EffectNodes::Literal::LATC2; return TOK_LITERAL_ENUM; }
+<STATE_PROPERTY_SAMPLER>(?i:"POINT"|"NEAREST")					{ yylval->l.Uint = ReShade::EffectNodes::Literal::POINT; return TOK_LITERAL_ENUM; }
+<STATE_PROPERTY_SAMPLER>(?i:"LINEAR")							{ yylval->l.Uint = ReShade::EffectNodes::Literal::LINEAR; return TOK_LITERAL_ENUM; }
+<STATE_PROPERTY_SAMPLER>(?i:"ANISOTROPIC")						{ yylval->l.Uint = ReShade::EffectNodes::Literal::ANISOTROPIC; return TOK_LITERAL_ENUM; }
+<STATE_PROPERTY_SAMPLER>(?i:"CLAMP")							{ yylval->l.Uint = ReShade::EffectNodes::Literal::CLAMP; return TOK_LITERAL_ENUM; }
+<STATE_PROPERTY_SAMPLER>(?i:"MIRROR")							{ yylval->l.Uint = ReShade::EffectNodes::Literal::MIRROR; return TOK_LITERAL_ENUM; }
+<STATE_PROPERTY_SAMPLER>(?i:"REPEAT"|"WRAP")					{ yylval->l.Uint = ReShade::EffectNodes::Literal::REPEAT; return TOK_LITERAL_ENUM; }
+<STATE_PROPERTY_SAMPLER>(?i:"BORDER")							{ yylval->l.Uint = ReShade::EffectNodes::Literal::BORDER; return TOK_LITERAL_ENUM; }
 <STATE_PASS>(?i:"ZERO")											{ yylval->l.Uint = ReShade::EffectNodes::Literal::ZERO; return TOK_LITERAL_ENUM; }
 <STATE_PASS>(?i:"ONE")											{ yylval->l.Uint = ReShade::EffectNodes::Literal::ONE; return TOK_LITERAL_ENUM; }
 <STATE_PASS>(?i:"SRCCOLOR")										{ yylval->l.Uint = ReShade::EffectNodes::Literal::SRCCOLOR; return TOK_LITERAL_ENUM; }
@@ -445,7 +445,7 @@ STRING															\"(\\.|[^\\"])*\"
 "double"[1-4]x[1-4]												{ yyextra->Error(*yylloc, 3000, "syntax error: unexpected reserved word '%s'", yytext); }
 "fixed"[1-4]x[1-4]												{ yyextra->Error(*yylloc, 3000, "syntax error: unexpected reserved word '%s'", yytext); }
 
-"texture"("2D")?												{ yylval->l.Type.Class = ReShade::EffectNodes::Type::Texture; yylval->l.Type.Qualifiers = 0; yylval->l.Type.Rows = 0; yylval->l.Type.Cols = 0; yylval->l.Type.ArrayLength = 0; yylval->l.Type.Definition = 0; yyextra->mNextLexerState = STATE_PROPERTY; return TOK_TYPE_TEXTURE; }
+"texture"("2D")?												{ yylval->l.Type.Class = ReShade::EffectNodes::Type::Texture; yylval->l.Type.Qualifiers = 0; yylval->l.Type.Rows = 0; yylval->l.Type.Cols = 0; yylval->l.Type.ArrayLength = 0; yylval->l.Type.Definition = 0; yyextra->mNextLexerState = STATE_PROPERTY_TEXTURE; return TOK_TYPE_TEXTURE; }
 [tT]"exture1D"													{ yyextra->Error(*yylloc, 3000, "syntax error: unexpected reserved word '%s'", yytext); }
 [tT]"exture1DArray"												{ yyextra->Error(*yylloc, 3000, "syntax error: unexpected reserved word '%s'", yytext); }
 "Texture2D"														{ yyextra->Error(*yylloc, 3000, "syntax error: unexpected reserved word '%s'", yytext); }
@@ -456,7 +456,7 @@ STRING															\"(\\.|[^\\"])*\"
 [tT]"exture"("2D")?("Rect"|"RECT")								{ yyextra->Error(*yylloc, 3000, "syntax error: unexpected reserved word '%s'", yytext); }
 [tT]"exture"("Cube"|"CUBE")										{ yyextra->Error(*yylloc, 3000, "syntax error: unexpected reserved word '%s'", yytext); }
 [tT]"exture"("Cube"|"CUBE")"Array"								{ yyextra->Error(*yylloc, 3000, "syntax error: unexpected reserved word '%s'", yytext); }
-"sampler"("2D")?												{ yylval->l.Type.Class = ReShade::EffectNodes::Type::Sampler; yylval->l.Type.Qualifiers = 0; yylval->l.Type.Rows = 0; yylval->l.Type.Cols = 0; yylval->l.Type.ArrayLength = 0; yylval->l.Type.Definition = 0; yyextra->mNextLexerState = STATE_PROPERTY; return TOK_TYPE_SAMPLER; }
+"sampler"("2D")?												{ yylval->l.Type.Class = ReShade::EffectNodes::Type::Sampler; yylval->l.Type.Qualifiers = 0; yylval->l.Type.Rows = 0; yylval->l.Type.Cols = 0; yylval->l.Type.ArrayLength = 0; yylval->l.Type.Definition = 0; yyextra->mNextLexerState = STATE_PROPERTY_SAMPLER; return TOK_TYPE_SAMPLER; }
 "sampler1D"														{ yyextra->Error(*yylloc, 3000, "syntax error: unexpected reserved word '%s'", yytext); }
 "sampler1DShadow"												{ yyextra->Error(*yylloc, 3000, "syntax error: unexpected reserved word '%s'", yytext); }
 "sampler1DArray"												{ yyextra->Error(*yylloc, 3000, "syntax error: unexpected reserved word '%s'", yytext); }
