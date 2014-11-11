@@ -216,7 +216,7 @@ namespace
 				return buf;
 		}
 	}
-	bool AdjustPresentParameters(D3DPRESENT_PARAMETERS *pp)
+	void AdjustPresentParameters(D3DPRESENT_PARAMETERS *pp)
 	{
 		if (pp->SwapEffect != D3DSWAPEFFECT_COPY && pp->PresentationInterval != D3DPRESENT_INTERVAL_IMMEDIATE && pp->BackBufferCount < 2)
 		{
@@ -229,8 +229,6 @@ namespace
 		{
 			LOG(WARNING) << "> Multisampling is enabled. This is not compatible with depthbuffer access, which was therefore disabled.";
 		}
-
-		return true;
 	}
 }
 
@@ -428,10 +426,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateAdditionalSwapChain(D3DPRESENT_
 
 	D3DPRESENT_PARAMETERS pp = *pPresentationParameters;
 
-	if (!AdjustPresentParameters(pPresentationParameters))
-	{
-		return D3DERR_INVALIDCALL;
-	}
+	AdjustPresentParameters(pPresentationParameters);
 
 	const HRESULT hr = this->mOrig->CreateAdditionalSwapChain(pPresentationParameters, ppSwapChain);
 
@@ -444,7 +439,10 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateAdditionalSwapChain(D3DPRESENT_
 
 		const std::shared_ptr<ReShade::D3D9Runtime> runtime = std::make_shared<ReShade::D3D9Runtime>(device, swapchain);
 
-		runtime->OnCreateInternal(pp);
+		if (!runtime->OnCreateInternal(pp))
+		{
+			LOG(ERROR) << "Failed to initialize Direct3D9 renderer!";
+		}
 
 		*ppSwapChain = new Direct3DSwapChain9(this, swapchain, runtime);
 	}
@@ -485,10 +483,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Reset(D3DPRESENT_PARAMETERS *pPresent
 
 	D3DPRESENT_PARAMETERS pp = *pPresentationParameters;
 
-	if (!AdjustPresentParameters(pPresentationParameters))
-	{
-		return D3DERR_INVALIDCALL;
-	}
+	AdjustPresentParameters(pPresentationParameters);
 
 	assert(this->mImplicitSwapChain != nullptr);
 	assert(this->mImplicitSwapChain->mRuntime != nullptr);
@@ -509,7 +504,10 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Reset(D3DPRESENT_PARAMETERS *pPresent
 	{
 		this->mImplicitSwapChain->GetPresentParameters(&pp);
 
-		runtime->OnCreateInternal(pp);
+		if (!runtime->OnCreateInternal(pp))
+		{
+			LOG(ERROR) << "Failed to reset Direct3D9 renderer!";
+		}
 
 		if (pp.EnableAutoDepthStencil != FALSE)
 		{
@@ -1046,10 +1044,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ResetEx(D3DPRESENT_PARAMETERS *pPrese
 
 	D3DPRESENT_PARAMETERS pp = *pPresentationParameters;
 
-	if (!AdjustPresentParameters(pPresentationParameters))
-	{
-		return D3DERR_INVALIDCALL;
-	}
+	AdjustPresentParameters(pPresentationParameters);
 
 	assert(this->mImplicitSwapChain != nullptr);
 	assert(this->mImplicitSwapChain->mRuntime != nullptr);
@@ -1070,7 +1065,10 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ResetEx(D3DPRESENT_PARAMETERS *pPrese
 	{
 		this->mImplicitSwapChain->GetPresentParameters(&pp);
 
-		runtime->OnCreateInternal(pp);
+		if (!runtime->OnCreateInternal(pp))
+		{
+			LOG(ERROR) << "Failed to reset Direct3D9 renderer!";
+		}
 
 		if (pp.EnableAutoDepthStencil != FALSE)
 		{
@@ -1102,10 +1100,7 @@ HRESULT STDMETHODCALLTYPE IDirect3D9_CreateDevice(IDirect3D9 *pD3D, UINT Adapter
 
 	D3DPRESENT_PARAMETERS pp = *pPresentationParameters;
 
-	if (!AdjustPresentParameters(pPresentationParameters))
-	{
-		return D3DERR_INVALIDCALL;
-	}
+	AdjustPresentParameters(pPresentationParameters);
 
 	HRESULT hr = ReHook::Call(&IDirect3D9_CreateDevice)(pD3D, Adapter, DeviceType, hFocusWindow, BehaviorFlags, pPresentationParameters, ppReturnedDeviceInterface);
 
@@ -1121,7 +1116,10 @@ HRESULT STDMETHODCALLTYPE IDirect3D9_CreateDevice(IDirect3D9 *pD3D, UINT Adapter
 
 		const std::shared_ptr<ReShade::D3D9Runtime> runtime = std::make_shared<ReShade::D3D9Runtime>(device, swapchain);
 
-		runtime->OnCreateInternal(pp);
+		if (!runtime->OnCreateInternal(pp))
+		{
+			LOG(ERROR) << "Failed to initialize Direct3D9 renderer!";
+		}
 
 		Direct3DDevice9 *deviceProxy = new Direct3DDevice9(pD3D, device);
 		Direct3DSwapChain9 *swapchainProxy = new Direct3DSwapChain9(deviceProxy, swapchain, runtime);
@@ -1155,10 +1153,7 @@ HRESULT STDMETHODCALLTYPE IDirect3D9Ex_CreateDeviceEx(IDirect3D9Ex *pD3D, UINT A
 
 	D3DPRESENT_PARAMETERS pp = *pPresentationParameters;
 
-	if (!AdjustPresentParameters(pPresentationParameters))
-	{
-		return D3DERR_INVALIDCALL;
-	}
+	AdjustPresentParameters(pPresentationParameters);
 
 	const HRESULT hr = ReHook::Call(&IDirect3D9Ex_CreateDeviceEx)(pD3D, Adapter, DeviceType, hFocusWindow, BehaviorFlags, pPresentationParameters, pFullscreenDisplayMode, ppReturnedDeviceInterface);
 
@@ -1174,7 +1169,10 @@ HRESULT STDMETHODCALLTYPE IDirect3D9Ex_CreateDeviceEx(IDirect3D9Ex *pD3D, UINT A
 
 		const std::shared_ptr<ReShade::D3D9Runtime> runtime = std::make_shared<ReShade::D3D9Runtime>(device, swapchain);
 
-		runtime->OnCreateInternal(pp);
+		if (!runtime->OnCreateInternal(pp))
+		{
+			LOG(ERROR) << "Failed to initialize Direct3D9 renderer!";
+		}
 
 		Direct3DDevice9 *deviceProxy = new Direct3DDevice9(pD3D, device);
 		Direct3DSwapChain9 *swapchainProxy = new Direct3DSwapChain9(deviceProxy, swapchain, runtime);

@@ -67,6 +67,7 @@ namespace ReShade
 		ID3D10DepthStencilView *mDepthStencil, *mDepthStencilReplacement;
 		ID3D10Texture2D *mDepthStencilTexture;
 		ID3D10ShaderResourceView *mDepthStencilTextureSRV;
+		ID3D10DepthStencilView *mDefaultDepthStencil;
 		std::unordered_map<ID3D10DepthStencilView *, D3D10DepthStencilInfo> mDepthStencilTable;
 		bool mLost;
 	};
@@ -93,9 +94,6 @@ namespace ReShade
 		std::unordered_map<std::string, std::unique_ptr<D3D10Constant>> mConstants;
 		std::unordered_map<std::string, std::unique_ptr<D3D10Technique>> mTechniques;
 		ID3D10RasterizerState *mRasterizerState;
-		ID3D10DepthStencilView *mDepthStencil;
-		ID3D10Texture2D *mDepthStencilTexture;
-		ID3D10ShaderResourceView *mDepthStencilShaderResourceView;
 		std::unordered_map<D3D10_SAMPLER_DESC, size_t, D3D10_SAMPLER_DESC_HASHER> mSamplerDescs;
 		std::vector<ID3D10SamplerState *> mSamplerStates;
 		std::vector<ID3D10ShaderResourceView *> mShaderResources;

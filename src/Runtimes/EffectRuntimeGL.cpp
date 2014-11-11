@@ -3164,11 +3164,11 @@ namespace ReShade
 
 		this->mLost = false;
 
-		const bool res = Runtime::OnCreate(width, height);
+		Runtime::OnCreate(width, height);
 
 		this->mStateBlock.Apply();
 
-		return res;
+		return true;
 	}
 	void GLRuntime::OnDeleteInternal()
 	{
@@ -3223,6 +3223,7 @@ namespace ReShade
 	{
 		if (this->mLost)
 		{
+			LOG(TRACE) << "Failed to present! Runtime is in a lost state.";
 			return;
 		}
 
@@ -3239,6 +3240,12 @@ namespace ReShade
 		GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, 0));
 
 		// Apply post processing
+		Runtime::OnPostProcess();
+
+		// Reset rendertarget
+		GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, 0));
+
+		// Apply presenting
 		this->mPresenting = true;
 		Runtime::OnPresent();
 		this->mPresenting = false;
@@ -3702,9 +3709,8 @@ namespace ReShade
 		GLCHECK(glDrawBuffer(GL_BACK));
 		GLCHECK(glBlitFramebuffer(0, 0, this->mEffect->mEffectContext->mWidth, this->mEffect->mEffectContext->mHeight, 0, 0, this->mEffect->mEffectContext->mWidth, this->mEffect->mEffectContext->mHeight, GL_COLOR_BUFFER_BIT, GL_NEAREST));
 
-		// Reset rendertarget
+		// Reset states
 		GLCHECK(glBindSampler(0, 0));
-		GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, 0));
 	}
 	void GLTechnique::RenderPass(unsigned int index) const
 	{

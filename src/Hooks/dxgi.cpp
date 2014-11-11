@@ -285,14 +285,21 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Wi
 		this->mOrig->GetDesc(&desc);
 		desc.SampleDesc = this->mOrigSamples;
 
+		bool res = false;
+
 		switch (this->mDirect3DVersion)
 		{
 			case 10:
-				std::static_pointer_cast<ReShade::D3D10Runtime>(this->mRuntime)->OnCreateInternal(desc);
+				res = std::static_pointer_cast<ReShade::D3D10Runtime>(this->mRuntime)->OnCreateInternal(desc);
 				break;
 			case 11:
-				std::static_pointer_cast<ReShade::D3D11Runtime>(this->mRuntime)->OnCreateInternal(desc);
+				res = std::static_pointer_cast<ReShade::D3D11Runtime>(this->mRuntime)->OnCreateInternal(desc);
 				break;
+		}
+
+		if (!res)
+		{
+			LOG(ERROR) << "Failed to resize Direct3D" << this->mDirect3DVersion << " renderer!";
 		}
 	}
 	else
@@ -756,7 +763,10 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, I
 			ReShade::D3D10Runtime *runtimePtr = runtime.get();
 			deviceD3D10->SetPrivateData(sRuntimeGUID, sizeof(runtimePtr), reinterpret_cast<const void *>(&runtimePtr));
 
-			runtime->OnCreateInternal(desc);
+			if (!runtime->OnCreateInternal(desc))
+			{
+				LOG(ERROR) << "Failed to initialize Direct3D10 renderer!";
+			}
 
 			*ppSwapChain = new DXGISwapChain(pFactory, swapchain, runtime, desc.SampleDesc);
 
@@ -782,7 +792,10 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, I
 			ReShade::D3D11Runtime *runtimePtr = runtime.get();
 			deviceD3D11->SetPrivateData(sRuntimeGUID, sizeof(runtimePtr), reinterpret_cast<const void *>(&runtimePtr));
 
-			runtime->OnCreateInternal(desc);
+			if (!runtime->OnCreateInternal(desc))
+			{
+				LOG(ERROR) << "Failed to initialize Direct3D11 renderer!";
+			}
 
 			*ppSwapChain = new DXGISwapChain(pFactory, swapchain, runtime, desc.SampleDesc);
 
@@ -856,7 +869,10 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pF
 			ReShade::D3D10Runtime *runtimePtr = runtime.get();
 			deviceD3D10->SetPrivateData(sRuntimeGUID, sizeof(runtimePtr), reinterpret_cast<const void *>(&runtimePtr));
 
-			runtime->OnCreateInternal(desc);
+			if (!runtime->OnCreateInternal(desc))
+			{
+				LOG(ERROR) << "Failed to initialize Direct3D10 renderer!";
+			}
 
 			*ppSwapChain = new DXGISwapChain(pFactory, swapchain, runtime, desc.SampleDesc);
 
@@ -882,7 +898,10 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pF
 			ReShade::D3D11Runtime *runtimePtr = runtime.get();
 			deviceD3D11->SetPrivateData(sRuntimeGUID, sizeof(runtimePtr), reinterpret_cast<const void *>(&runtimePtr));
 
-			runtime->OnCreateInternal(desc);
+			if (!runtime->OnCreateInternal(desc))
+			{
+				LOG(ERROR) << "Failed to initialize Direct3D11 renderer!";
+			}
 
 			*ppSwapChain = new DXGISwapChain(pFactory, swapchain, runtime, desc.SampleDesc);
 
@@ -954,7 +973,10 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactor
 			ReShade::D3D10Runtime *runtimePtr = runtime.get();
 			deviceD3D10->SetPrivateData(sRuntimeGUID, sizeof(runtimePtr), reinterpret_cast<const void *>(&runtimePtr));
 
-			runtime->OnCreateInternal(desc);
+			if (!runtime->OnCreateInternal(desc))
+			{
+				LOG(ERROR) << "Failed to initialize Direct3D10 renderer!";
+			}
 
 			*ppSwapChain = new DXGISwapChain(pFactory, swapchain, runtime, desc.SampleDesc);
 
@@ -980,7 +1002,10 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactor
 			ReShade::D3D11Runtime *runtimePtr = runtime.get();
 			deviceD3D11->SetPrivateData(sRuntimeGUID, sizeof(runtimePtr), reinterpret_cast<const void *>(&runtimePtr));
 
-			runtime->OnCreateInternal(desc);
+			if (!runtime->OnCreateInternal(desc))
+			{
+				LOG(ERROR) << "Failed to initialize Direct3D11 renderer!";
+			}
 
 			*ppSwapChain = new DXGISwapChain(pFactory, swapchain, runtime, desc.SampleDesc);
 
@@ -1052,7 +1077,10 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFacto
 			ReShade::D3D10Runtime *runtimePtr = runtime.get();
 			deviceD3D10->SetPrivateData(sRuntimeGUID, sizeof(runtimePtr), reinterpret_cast<const void *>(&runtimePtr));
 
-			runtime->OnCreateInternal(desc);
+			if (!runtime->OnCreateInternal(desc))
+			{
+				LOG(ERROR) << "Failed to initialize Direct3D10 renderer!";
+			}
 
 			*ppSwapChain = new DXGISwapChain(pFactory, swapchain, runtime, desc.SampleDesc);
 
@@ -1078,7 +1106,10 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFacto
 			ReShade::D3D11Runtime *runtimePtr = runtime.get();
 			deviceD3D11->SetPrivateData(sRuntimeGUID, sizeof(runtimePtr), reinterpret_cast<const void *>(&runtimePtr));
 
-			runtime->OnCreateInternal(desc);
+			if (!runtime->OnCreateInternal(desc))
+			{
+				LOG(ERROR) << "Failed to initialize Direct3D11 renderer!";
+			}
 
 			*ppSwapChain = new DXGISwapChain(pFactory, swapchain, runtime, desc.SampleDesc);
 

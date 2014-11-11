@@ -31,21 +31,6 @@ namespace ReShade
 
 			return result;
 		}
-		inline boost::chrono::system_clock::time_point GetLastWriteTime(const boost::filesystem::path &path)
-		{
-			WIN32_FILE_ATTRIBUTE_DATA attributes;
-			
-			if (!::GetFileAttributesEx(path.c_str(), GetFileExInfoStandard, reinterpret_cast<LPVOID>(&attributes)))
-			{
-				return boost::chrono::system_clock::time_point();
-			}
-
-			ULARGE_INTEGER ull;
-			ull.LowPart = attributes.ftLastWriteTime.dwLowDateTime;
-			ull.HighPart = attributes.ftLastWriteTime.dwHighDateTime;
-
-			return boost::chrono::system_clock::time_point(boost::chrono::system_clock::duration(ull.QuadPart));
-		}
 		inline boost::filesystem::path GetSystemDirectory()
 		{
 			TCHAR path[MAX_PATH];
@@ -126,7 +111,7 @@ namespace ReShade
 
 	// -----------------------------------------------------------------------------------------------------
 
-	Runtime::Runtime() : mWidth(0), mHeight(0), mVendorId(0), mDeviceId(0), mRendererId(0), mLastFrameCount(0), mLastDrawCalls(0), mLastDrawCallVertices(0), mNVG(nullptr), mShowStatistics(false)
+	Runtime::Runtime() : mWidth(0), mHeight(0), mVendorId(0), mDeviceId(0), mRendererId(0), mLastFrameCount(0), mLastDrawCalls(0), mLastDrawCallVertices(0), mDate(), mNVG(nullptr), mShowStatistics(false)
 	{
 		this->mStartTime = boost::chrono::high_resolution_clock::now();
 	}
@@ -289,7 +274,7 @@ namespace ReShade
 
 		this->mEffect.swap(effect);
 
-		CreateResources();
+		LoadResources();
 
 		this->mLastCreate = boost::chrono::high_resolution_clock::now();
 		this->mLastPresent = this->mLastCreate;
@@ -316,22 +301,16 @@ namespace ReShade
 		this->mLastDrawCalls++;
 		this->mLastDrawCallVertices += vertices;
 	}
-	void Runtime::OnPresent()
+	void Runtime::OnPostProcess()
 	{
-		const std::time_t time = ::time(nullptr);
-		const auto timePresent = boost::chrono::high_resolution_clock::now();
-		const boost::chrono::nanoseconds frametime = boost::chrono::duration_cast<boost::chrono::nanoseconds>(timePresent - this->mLastPresent);
-
-		tm tm;
-		::localtime_s(&tm, &time);
-		const float date[4] = { static_cast<float>(tm.tm_year + 1900), static_cast<float>(tm.tm_mon + 1), static_cast<float>(tm.tm_mday), static_cast<float>(tm.tm_hour * 3600 + tm.tm_min * 60 + tm.tm_sec + 1) };
+		const auto timePostProcessingStarted = boost::chrono::high_resolution_clock::now();
 
 		for (auto &it : this->mTechniques)
 		{
 			const Effect::Technique *technique = it.first;
 			InfoTechnique &info = it.second;
 
-			if (info.ToggleTime != 0 && info.ToggleTime == static_cast<int>(date[3]))
+			if (info.ToggleTime != 0 && info.ToggleTime == static_cast<int>(this->mDate[3]))
 			{
 				info.Enabled = !info.Enabled;
 				info.Timeleft = info.Timeout;
@@ -350,7 +329,7 @@ namespace ReShade
 
 			if (info.Timeleft > 0)
 			{
-				info.Timeleft -= static_cast<unsigned int>(boost::chrono::duration_cast<boost::chrono::milliseconds>(this->mLastFrametime).count());
+				info.Timeleft -= static_cast<unsigned int>(boost::chrono::duration_cast<boost::chrono::milliseconds>(this->mLastFrameDuration).count());
 
 				if (info.Timeleft <= 0)
 				{
@@ -370,6 +349,7 @@ namespace ReShade
 			{
 				for (unsigned int i = 0; i < passes; ++i)
 				{
+					#pragma region Update Constants
 					for (const std::string &name : this->mEffect->GetConstantNames())
 					{
 						Effect::Constant *constant = this->mEffect->GetConstant(name);
@@ -381,7 +361,7 @@ namespace ReShade
 						}
 						else if (source == "frametime")
 						{
-							const float value = frametime.count() * 1e-6f;
+							const float value = this->mLastFrameDuration.count() * 1e-6f;
 
 							constant->SetValue(&value, 1);
 						}
@@ -412,7 +392,7 @@ namespace ReShade
 						}
 						else if (source == "date")
 						{
-							constant->SetValue(date, 4);
+							constant->SetValue(this->mDate, 4);
 						}
 						else if (source == "timer")
 						{
@@ -457,6 +437,7 @@ namespace ReShade
 							}
 						}
 					}
+					#pragma endregion
 
 					technique->RenderPass(i);
 				}
@@ -469,9 +450,18 @@ namespace ReShade
 			}
 		}
 
-		const auto timePostProcessing = boost::chrono::high_resolution_clock::now();
-		const boost::chrono::nanoseconds frametimePostProcessing = boost::chrono::duration_cast<boost::chrono::nanoseconds>(timePostProcessing - timePresent);
+		this->mLastPostProcessingDuration = boost::chrono::high_resolution_clock::now() - timePostProcessingStarted;
+	}
+	void Runtime::OnPresent()
+	{
+		const std::time_t time = std::time(nullptr);
+		const auto timePresent = boost::chrono::high_resolution_clock::now();
+		const boost::chrono::nanoseconds frametime = boost::chrono::duration_cast<boost::chrono::nanoseconds>(timePresent - this->mLastPresent);
 
+		tm tm;
+		::localtime_s(&tm, &time);
+
+		// Create screenshot
 		if (::GetAsyncKeyState(VK_SNAPSHOT) & 0x8000)
 		{
 			char timeString[128];
@@ -480,6 +470,7 @@ namespace ReShade
 			CreateScreenshot(sExecutablePath.parent_path() / (sExecutablePath.stem().string() + ' ' + timeString + ".png"));
 		}
 
+		// Check for file modifications
 		std::vector<FileWatcher::Change> changes;
 
 		if (sEffectWatcher->GetChanges(changes, 0))
@@ -500,6 +491,7 @@ namespace ReShade
 			}
 		}
 
+		// Draw overlay
 		if (this->mNVG != nullptr)
 		{
 			nvgBeginFrame(this->mNVG, this->mWidth, this->mHeight, 1);
@@ -547,11 +539,11 @@ namespace ReShade
 			if (this->mShowStatistics)
 			{
 				std::string stats = "Statistics\n";
-				stats += "Date: " + std::to_string(static_cast<int>(date[0])) + '-' + std::to_string(static_cast<int>(date[1])) + '-' + std::to_string(static_cast<int>(date[2])) + ' ' + std::to_string(static_cast<int>(date[3])) + '\n';
+				stats += "Date: " + std::to_string(static_cast<int>(this->mDate[0])) + '-' + std::to_string(static_cast<int>(this->mDate[1])) + '-' + std::to_string(static_cast<int>(this->mDate[2])) + ' ' + std::to_string(static_cast<int>(this->mDate[3])) + '\n';
 				stats += "FPS: " + std::to_string(1000 / std::max(boost::chrono::duration_cast<boost::chrono::milliseconds>(frametime).count(), 1LL)) + '\n';
 				stats += "Draw Calls: " + std::to_string(this->mLastDrawCalls) + " (" + std::to_string(this->mLastDrawCallVertices) + " vertices)" + '\n';
 				stats += "Frame " + std::to_string(this->mLastFrameCount + 1) + ": " + std::to_string(frametime.count() * 1e-6f) + "ms" + '\n';
-				stats += "PostProcessing: " + std::to_string(frametimePostProcessing.count() * 1e-6f) + "ms" + '\n';
+				stats += "PostProcessing: " + std::to_string(boost::chrono::duration_cast<boost::chrono::nanoseconds>(this->mLastPostProcessingDuration).count() * 1e-6f) + "ms" + '\n';
 				stats += "Timer: " + std::to_string(std::fmod(boost::chrono::duration_cast<boost::chrono::nanoseconds>(this->mLastPresent - this->mStartTime).count() * 1e-6f, 16777216.0f)) + "ms" + '\n';
 
 				nvgTextAlign(this->mNVG, NVG_ALIGN_RIGHT | NVG_ALIGN_TOP);
@@ -562,13 +554,19 @@ namespace ReShade
 			nvgEndFrame(this->mNVG);
 		}
 
+		// Update inputs
+		this->mDate[0] = static_cast<float>(tm.tm_year + 1900);
+		this->mDate[1] = static_cast<float>(tm.tm_mon + 1);
+		this->mDate[2] = static_cast<float>(tm.tm_mday);
+		this->mDate[3] = static_cast<float>(tm.tm_hour * 3600 + tm.tm_min * 60 + tm.tm_sec + 1);
+
 		this->mLastPresent = timePresent;
-		this->mLastFrametime = frametime;
+		this->mLastFrameDuration = frametime;
 		this->mLastFrameCount++;
 		this->mLastDrawCalls = this->mLastDrawCallVertices = 0;
 	}
 
-	void Runtime::CreateResources()
+	void Runtime::LoadResources()
 	{
 		const auto textures = this->mEffect->GetTextureNames();
 

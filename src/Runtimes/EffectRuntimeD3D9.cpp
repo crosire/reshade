@@ -2353,7 +2353,7 @@ namespace ReShade
 
 	// -----------------------------------------------------------------------------------------------------
 
-	D3D9Runtime::D3D9Runtime(IDirect3DDevice9 *device, IDirect3DSwapChain9 *swapchain) : mDevice(device), mSwapChain(swapchain), mDirect3D(nullptr), mDeviceCaps(), mStateBlock(nullptr), mBackBuffer(nullptr), mBackBufferResolved(nullptr), mBackBufferTexture(nullptr), mBackBufferTextureSurface(nullptr), mDepthStencil(nullptr), mDepthStencilReplacement(nullptr), mDepthStencilTexture(nullptr), mLost(true)
+	D3D9Runtime::D3D9Runtime(IDirect3DDevice9 *device, IDirect3DSwapChain9 *swapchain) : mDevice(device), mSwapChain(swapchain), mDirect3D(nullptr), mDeviceCaps(), mStateBlock(nullptr), mBackBuffer(nullptr), mBackBufferResolved(nullptr), mBackBufferTexture(nullptr), mBackBufferTextureSurface(nullptr), mDepthStencil(nullptr), mDepthStencilReplacement(nullptr), mDepthStencilTexture(nullptr), mDefaultDepthStencil(nullptr), mLost(true)
 	{
 		assert(this->mDevice != nullptr);
 		assert(this->mSwapChain != nullptr);
@@ -2402,6 +2402,8 @@ namespace ReShade
 
 			if (FAILED(hr))
 			{
+				LOG(TRACE) << "Failed to create backbuffer resolve texture! HRESULT is '" << hr << "'.";
+
 				SAFE_RELEASE(this->mBackBuffer);
 
 				return false;
@@ -2421,20 +2423,39 @@ namespace ReShade
 		}
 		else
 		{
+			LOG(TRACE) << "Failed to create backbuffer texture! HRESULT is '" << hr << "'.";
+
 			SAFE_RELEASE(this->mBackBuffer);
 			SAFE_RELEASE(this->mBackBufferResolved);
 
 			return false;
 		}
 
-		hr = this->mDevice->CreateStateBlock(D3DSBT_ALL, &this->mStateBlock);
+		hr = this->mDevice->CreateDepthStencilSurface(params.BackBufferWidth, params.BackBufferHeight, D3DFMT_D24S8, D3DMULTISAMPLE_NONE, 0, FALSE, &this->mDefaultDepthStencil, nullptr);
 
 		if (FAILED(hr))
 		{
+			LOG(TRACE) << "Failed to create default depthstencil! HRESULT is '" << hr << "'.";
+
 			SAFE_RELEASE(this->mBackBuffer);
 			SAFE_RELEASE(this->mBackBufferResolved);
 			SAFE_RELEASE(this->mBackBufferTexture);
 			SAFE_RELEASE(this->mBackBufferTextureSurface);
+
+			return nullptr;
+		}
+
+		hr = this->mDevice->CreateStateBlock(D3DSBT_ALL, &this->mStateBlock);
+
+		if (FAILED(hr))
+		{
+			LOG(TRACE) << "Failed to create stateblock! HRESULT is '" << hr << "'.";
+
+			SAFE_RELEASE(this->mBackBuffer);
+			SAFE_RELEASE(this->mBackBufferResolved);
+			SAFE_RELEASE(this->mBackBufferTexture);
+			SAFE_RELEASE(this->mBackBufferTextureSurface);
+			SAFE_RELEASE(this->mDefaultDepthStencil);
 
 			return false;
 		}
@@ -2443,7 +2464,9 @@ namespace ReShade
 
 		this->mLost = false;
 
-		return Runtime::OnCreate(params.BackBufferWidth, params.BackBufferHeight);
+		Runtime::OnCreate(params.BackBufferWidth, params.BackBufferHeight);
+
+		return true;
 	}
 	void D3D9Runtime::OnDeleteInternal()
 	{
@@ -2468,6 +2491,8 @@ namespace ReShade
 		SAFE_RELEASE(this->mDepthStencil);
 		SAFE_RELEASE(this->mDepthStencilReplacement);
 		SAFE_RELEASE(this->mDepthStencilTexture);
+
+		SAFE_RELEASE(this->mDefaultDepthStencil);
 
 		ZeroMemory(&this->mPresentParams, sizeof(D3DPRESENT_PARAMETERS));
 
@@ -2519,6 +2544,7 @@ namespace ReShade
 	{
 		if (this->mLost)
 		{
+			LOG(TRACE) << "Failed to present! Runtime is in a lost state.";
 			return;
 		}
 
@@ -2555,6 +2581,14 @@ namespace ReShade
 		this->mDevice->SetDepthStencilSurface(nullptr);
 
 		// Apply post processing
+		Runtime::OnPostProcess();
+
+		// Reset rendertarget
+		this->mDevice->SetRenderTarget(0, this->mBackBufferResolved);
+		this->mDevice->SetDepthStencilSurface(this->mDefaultDepthStencil);
+		this->mDevice->Clear(0, nullptr, D3DCLEAR_ZBUFFER | D3DCLEAR_STENCIL, 0, 1.0f, 0);
+
+		// Apply presenting
 		Runtime::OnPresent();
 
 		if (this->mLost)
@@ -2597,18 +2631,11 @@ namespace ReShade
 			return nullptr;
 		}
 
-		HRESULT hr = this->mDevice->CreateDepthStencilSurface(this->mPresentParams.BackBufferWidth, this->mPresentParams.BackBufferHeight, D3DFMT_D24S8, D3DMULTISAMPLE_NONE, 0, FALSE, &effect->mDepthStencil, nullptr);
+		HRESULT hr = this->mDevice->CreateVertexBuffer(3 * sizeof(float), D3DUSAGE_WRITEONLY, 0, D3DPOOL_DEFAULT, &effect->mVertexBuffer, nullptr);
 
 		if (FAILED(hr))
 		{
-			return nullptr;
-		}
-
-		hr = this->mDevice->CreateVertexBuffer(3 * sizeof(float), D3DUSAGE_WRITEONLY, 0, D3DPOOL_DEFAULT, &effect->mVertexBuffer, nullptr);
-
-		if (FAILED(hr))
-		{
-			effect->mDepthStencil->Release();
+			LOG(TRACE) << "Failed to create effect vertexbuffer! HRESULT is '" << hr << "'.";
 
 			return nullptr;
 		}
@@ -2623,8 +2650,7 @@ namespace ReShade
 
 		if (FAILED(hr))
 		{
-			effect->mDepthStencil->Release();
-			effect->mVertexBuffer->Release();
+			LOG(TRACE) << "Failed to create effect vertexdeclaration! HRESULT is '" << hr << "'.";
 
 			return nullptr;
 		}
@@ -2635,9 +2661,7 @@ namespace ReShade
 
 		if (FAILED(hr))
 		{
-			effect->mDepthStencil->Release();
-			effect->mVertexBuffer->Release();
-			effect->mVertexDeclaration->Release();
+			LOG(TRACE) << "Failed to lock created effect vertexbuffer! HRESULT is '" << hr << "'.";
 
 			return nullptr;
 		}
@@ -2655,6 +2679,7 @@ namespace ReShade
 	{
 		if (this->mPresentParams.BackBufferFormat != D3DFMT_X8R8G8B8 && this->mPresentParams.BackBufferFormat != D3DFMT_X8B8G8R8 && this->mPresentParams.BackBufferFormat != D3DFMT_A8R8G8B8 && this->mPresentParams.BackBufferFormat != D3DFMT_A8B8G8R8)
 		{
+			LOG(WARNING) << "Screenshots are not supported for backbuffer format " << this->mPresentParams.BackBufferFormat << ".";
 			return;
 		}
 
@@ -2801,7 +2826,7 @@ namespace ReShade
 			}
 			else
 			{
-				LOG(ERROR) << "Failed to create depthstencil replacement texture.";
+				LOG(TRACE) << "Failed to create depthstencil replacement texture! HRESULT is '" << hr << "'. Are you missing support for the 'INTZ' format?";
 
 				return false;
 			}
@@ -2851,23 +2876,13 @@ namespace ReShade
 		}
 	}
 
-	D3D9Effect::D3D9Effect(std::shared_ptr<const D3D9Runtime> context) : mEffectContext(context), mVertexBuffer(nullptr), mVertexDeclaration(nullptr), mDepthStencil(nullptr), mConstantRegisterCount(0), mConstantStorage(nullptr)
+	D3D9Effect::D3D9Effect(std::shared_ptr<const D3D9Runtime> context) : mEffectContext(context), mVertexBuffer(nullptr), mVertexDeclaration(nullptr), mConstantRegisterCount(0), mConstantStorage(nullptr)
 	{
 	}
 	D3D9Effect::~D3D9Effect()
 	{
-		if (this->mDepthStencil != nullptr)
-		{
-			this->mDepthStencil->Release();
-		}
-		if (this->mVertexBuffer != nullptr)
-		{
-			this->mVertexBuffer->Release();
-		}
-		if (this->mVertexDeclaration != nullptr)
-		{
-			this->mVertexDeclaration->Release();
-		}
+		SAFE_RELEASE(this->mVertexBuffer);
+		SAFE_RELEASE(this->mVertexDeclaration);
 	}
 
 	const Effect::Texture *D3D9Effect::GetTexture(const std::string &name) const
@@ -2972,6 +2987,8 @@ namespace ReShade
 
 		if (FAILED(hr))
 		{
+			LOG(TRACE) << "Failed to create memory texture for texture updating! HRESULT is '" << hr << "'.";
+
 			textureSurface->Release();
 
 			return false;
@@ -2987,6 +3004,8 @@ namespace ReShade
 
 		if (FAILED(hr))
 		{
+			LOG(TRACE) << "Failed to lock memory texture for texture updating! HRESULT is '" << hr << "'.";
+
 			memSurface->Release();
 			textureSurface->Release();
 
@@ -3028,7 +3047,14 @@ namespace ReShade
 		memSurface->Release();
 		textureSurface->Release();
 
-		return SUCCEEDED(hr);
+		if (FAILED(hr))
+		{
+			LOG(TRACE) << "Failed to update texture from memory texture! HRESULT is '" << hr << "'.";
+
+			return false;
+		}
+
+		return true;
 	}
 	bool D3D9Texture::UpdateSource(IDirect3DTexture9 *texture)
 	{
@@ -3135,17 +3161,15 @@ namespace ReShade
 		}
 
 		// Setup depthstencil
-		device->SetDepthStencilSurface(this->mEffect->mDepthStencil);
+		assert(this->mEffect->mEffectContext->mDefaultDepthStencil != nullptr);
+
+		device->SetDepthStencilSurface(this->mEffect->mEffectContext->mDefaultDepthStencil);
 		device->Clear(0, nullptr, D3DCLEAR_ZBUFFER | D3DCLEAR_STENCIL, 0, 1.0f, 0);
 
 		return true;
 	}
 	void D3D9Technique::End() const
 	{
-		IDirect3DDevice9 *const device = this->mEffect->mEffectContext->mDevice;
-
-		// Reset rendertarget
-		device->SetRenderTarget(0, this->mEffect->mEffectContext->mBackBufferResolved);
 	}
 	void D3D9Technique::RenderPass(unsigned int index) const
 	{

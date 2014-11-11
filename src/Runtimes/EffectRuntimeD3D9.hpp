@@ -47,6 +47,7 @@ namespace ReShade
 		IDirect3DTexture9 *mBackBufferTexture;
 		IDirect3DSurface9 *mDepthStencil, *mDepthStencilReplacement;
 		IDirect3DTexture9 *mDepthStencilTexture;
+		IDirect3DSurface9 *mDefaultDepthStencil;
 		std::unordered_map<IDirect3DSurface9 *, D3D9DepthStencilInfo> mDepthStencilTable;
 		bool mLost;
 	};
@@ -72,7 +73,6 @@ namespace ReShade
 		std::vector<D3D9Sampler> mSamplers;
 		std::unordered_map<std::string, std::unique_ptr<D3D9Constant>> mConstants;
 		std::unordered_map<std::string, std::unique_ptr<D3D9Technique>> mTechniques;
-		IDirect3DSurface9 *mDepthStencil;
 		IDirect3DVertexBuffer9 *mVertexBuffer;
 		IDirect3DVertexDeclaration9 *mVertexDeclaration;
 		float *mConstantStorage;

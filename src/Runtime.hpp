@@ -35,10 +35,11 @@ namespace ReShade
 		bool OnCreate(unsigned int width, unsigned int height);
 		void OnDelete();
 		void OnDraw(unsigned int vertices);
+		void OnPostProcess();
 		void OnPresent();
 
+		void LoadResources();
 		virtual std::unique_ptr<Effect> CreateEffect(const EffectTree &ast, std::string &errors) const = 0;
-		void CreateResources();
 		virtual void CreateScreenshot(unsigned char *buffer, std::size_t size) const = 0;
 		void CreateScreenshot(const boost::filesystem::path &path);
 
@@ -50,8 +51,9 @@ namespace ReShade
 		std::unique_ptr<Effect> mEffect;
 		std::vector<std::pair<const Effect::Technique *, InfoTechnique>> mTechniques;
 		boost::chrono::high_resolution_clock::time_point mStartTime, mLastCreate, mLastPresent;
-		boost::chrono::high_resolution_clock::duration mLastFrametime;
+		boost::chrono::high_resolution_clock::duration mLastFrameDuration, mLastPostProcessingDuration;
 		unsigned long long mLastFrameCount;
+		float mDate[4];
 		std::string mErrors, mMessage;
 		bool mShowStatistics;
 	};
