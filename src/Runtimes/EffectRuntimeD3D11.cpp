@@ -2434,12 +2434,6 @@ namespace ReShade
 	
 	class D3D11StateBlock
 	{
-		static const UINT sVertexBufferCount = 3;
-		static const UINT sConstantBufferCount = 3;
-		static const UINT sSamplerStateCount = 10;
-		static const UINT sShaderResourceCount = 9;
-		static const UINT sRenderTargetCount = D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT;
-
 	public:
 		D3D11StateBlock(ID3D11Device *device)
 		{
@@ -2461,66 +2455,78 @@ namespace ReShade
 
 			this->mDeviceContext->IAGetPrimitiveTopology(&this->mIAPrimitiveTopology);
 			this->mDeviceContext->IAGetInputLayout(&this->mIAInputLayout);
-			this->mDeviceContext->IAGetVertexBuffers(0, sVertexBufferCount, this->mIAVertexBuffers, this->mIAVertexStrides, this->mIAVertexOffsets);
+			this->mDeviceContext->IAGetVertexBuffers(0, D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT, this->mIAVertexBuffers, this->mIAVertexStrides, this->mIAVertexOffsets);
 			this->mDeviceContext->IAGetIndexBuffer(&this->mIAIndexBuffer, &this->mIAIndexFormat, &this->mIAIndexOffset);
-	
+
 			this->mDeviceContext->RSGetState(&this->mRSState);
 			this->mDeviceContext->RSGetViewports(&this->mRSNumViewports, this->mRSViewports);
-	
+
 			this->mVSNumClassInstances = 256;
 			this->mDeviceContext->VSGetShader(&this->mVS, this->mVSClassInstances, &this->mVSNumClassInstances);
-			this->mDeviceContext->VSGetConstantBuffers(0, sConstantBufferCount, this->mVSConstantBuffers);
-			this->mDeviceContext->VSGetSamplers(0, sSamplerStateCount, this->mVSSamplerStates);
-			this->mDeviceContext->VSGetShaderResources(0, sShaderResourceCount, this->mVSShaderResources);
-	
-			this->mHSNumClassInstances = 256;
-			this->mDeviceContext->HSGetShader(&this->mHS, this->mHSClassInstances, &this->mHSNumClassInstances);
-			
-			this->mDSNumClassInstances = 256;
-			this->mDeviceContext->DSGetShader(&this->mDS, this->mDSClassInstances, &this->mDSNumClassInstances);
+			this->mDeviceContext->VSGetConstantBuffers(0, D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT, this->mVSConstantBuffers);
+			this->mDeviceContext->VSGetSamplers(0, D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT, this->mVSSamplerStates);
+			this->mDeviceContext->VSGetShaderResources(0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, this->mVSShaderResources);
 
-			this->mGSNumClassInstances = 256;
-			this->mDeviceContext->GSGetShader(&this->mGS, this->mGSClassInstances, &this->mGSNumClassInstances);
+			if (this->mFeatureLevel >= D3D_FEATURE_LEVEL_10_0)
+			{
+				if (this->mFeatureLevel >= D3D_FEATURE_LEVEL_11_0)
+				{
+					this->mHSNumClassInstances = 256;
+					this->mDeviceContext->HSGetShader(&this->mHS, this->mHSClassInstances, &this->mHSNumClassInstances);
+
+					this->mDSNumClassInstances = 256;
+					this->mDeviceContext->DSGetShader(&this->mDS, this->mDSClassInstances, &this->mDSNumClassInstances);
+				}
+
+				this->mGSNumClassInstances = 256;
+				this->mDeviceContext->GSGetShader(&this->mGS, this->mGSClassInstances, &this->mGSNumClassInstances);
+			}
 
 			this->mPSNumClassInstances = 256;
 			this->mDeviceContext->PSGetShader(&this->mPS, this->mPSClassInstances, &this->mPSNumClassInstances);
-			this->mDeviceContext->PSGetConstantBuffers(0, sConstantBufferCount, this->mPSConstantBuffers);
-			this->mDeviceContext->PSGetSamplers(0, sSamplerStateCount, this->mPSSamplerStates);
-			this->mDeviceContext->PSGetShaderResources(0, sShaderResourceCount, this->mPSShaderResources);
+			this->mDeviceContext->PSGetConstantBuffers(0, D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT, this->mPSConstantBuffers);
+			this->mDeviceContext->PSGetSamplers(0, D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT, this->mPSSamplerStates);
+			this->mDeviceContext->PSGetShaderResources(0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, this->mPSShaderResources);
 
 			this->mDeviceContext->OMGetBlendState(&this->mOMBlendState, this->mOMBlendFactor, &this->mOMSampleMask);
 			this->mDeviceContext->OMGetDepthStencilState(&this->mOMDepthStencilState, &this->mOMStencilRef);
-			this->mDeviceContext->OMGetRenderTargets(sRenderTargetCount, this->mOMRenderTargets, &this->mOMDepthStencil);
+			this->mDeviceContext->OMGetRenderTargets(D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT, this->mOMRenderTargets, &this->mOMDepthStencil);
 		}
 		void Apply()
 		{
 			this->mDeviceContext->IASetPrimitiveTopology(this->mIAPrimitiveTopology);
 			this->mDeviceContext->IASetInputLayout(this->mIAInputLayout);
-			this->mDeviceContext->IASetVertexBuffers(0, sVertexBufferCount, this->mIAVertexBuffers, this->mIAVertexStrides, this->mIAVertexOffsets);
+			this->mDeviceContext->IASetVertexBuffers(0, D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT, this->mIAVertexBuffers, this->mIAVertexStrides, this->mIAVertexOffsets);
 			this->mDeviceContext->IASetIndexBuffer(this->mIAIndexBuffer, this->mIAIndexFormat, this->mIAIndexOffset);
-	
+
 			this->mDeviceContext->RSSetState(this->mRSState);
 			this->mDeviceContext->RSSetViewports(this->mRSNumViewports, this->mRSViewports);
-	
-			this->mDeviceContext->VSSetShader(this->mVS, this->mVSClassInstances, this->mVSNumClassInstances);
-			this->mDeviceContext->VSSetConstantBuffers(0, sConstantBufferCount, this->mVSConstantBuffers);
-			this->mDeviceContext->VSSetSamplers(0, sSamplerStateCount, this->mVSSamplerStates);
-			this->mDeviceContext->VSSetShaderResources(0, sShaderResourceCount, this->mVSShaderResources);
-	
-			this->mDeviceContext->HSSetShader(this->mHS, this->mHSClassInstances, this->mHSNumClassInstances);
-			
-			this->mDeviceContext->DSSetShader(this->mDS, this->mDSClassInstances, this->mDSNumClassInstances);
 
-			this->mDeviceContext->GSSetShader(this->mGS, this->mGSClassInstances, this->mGSNumClassInstances);
+			this->mDeviceContext->VSSetShader(this->mVS, this->mVSClassInstances, this->mVSNumClassInstances);
+			this->mDeviceContext->VSSetConstantBuffers(0, D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT, this->mVSConstantBuffers);
+			this->mDeviceContext->VSSetSamplers(0, D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT, this->mVSSamplerStates);
+			this->mDeviceContext->VSSetShaderResources(0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, this->mVSShaderResources);
+
+			if (this->mFeatureLevel >= D3D_FEATURE_LEVEL_10_0)
+			{
+				if (this->mFeatureLevel >= D3D_FEATURE_LEVEL_11_0)
+				{
+					this->mDeviceContext->HSSetShader(this->mHS, this->mHSClassInstances, this->mHSNumClassInstances);
+
+					this->mDeviceContext->DSSetShader(this->mDS, this->mDSClassInstances, this->mDSNumClassInstances);
+				}
+
+				this->mDeviceContext->GSSetShader(this->mGS, this->mGSClassInstances, this->mGSNumClassInstances);
+			}
 
 			this->mDeviceContext->PSSetShader(this->mPS, this->mPSClassInstances, this->mPSNumClassInstances);
-			this->mDeviceContext->PSSetConstantBuffers(0, sConstantBufferCount, this->mPSConstantBuffers);
-			this->mDeviceContext->PSSetSamplers(0, sSamplerStateCount, this->mPSSamplerStates);
-			this->mDeviceContext->PSSetShaderResources(0, sShaderResourceCount, this->mPSShaderResources);
+			this->mDeviceContext->PSSetConstantBuffers(0, D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT, this->mPSConstantBuffers);
+			this->mDeviceContext->PSSetSamplers(0, D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT, this->mPSSamplerStates);
+			this->mDeviceContext->PSSetShaderResources(0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, this->mPSShaderResources);
 
 			this->mDeviceContext->OMSetBlendState(this->mOMBlendState, this->mOMBlendFactor, this->mOMSampleMask);
 			this->mDeviceContext->OMSetDepthStencilState(this->mOMDepthStencilState, this->mOMStencilRef);
-			this->mDeviceContext->OMSetRenderTargets(sRenderTargetCount, this->mOMRenderTargets, this->mOMDepthStencil);
+			this->mDeviceContext->OMSetRenderTargets(D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT, this->mOMRenderTargets, this->mOMDepthStencil);
 		}
 		void ReleaseAllDeviceObjects()
 		{

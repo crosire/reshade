@@ -2587,7 +2587,7 @@ namespace ReShade
 		if (this->mBackBufferReplacement != this->mBackBuffer)
 		{
 			this->mDevice->ResolveSubresource(this->mBackBuffer, 0, this->mBackBufferReplacement, 0, this->mSwapChainDesc.BufferDesc.Format);
-		}		
+		}
 
 		// Setup real backbuffer
 		this->mDevice->OMSetRenderTargets(1, &this->mBackBufferTargets[0], nullptr);
