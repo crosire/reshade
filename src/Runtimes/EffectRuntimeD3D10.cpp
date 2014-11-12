@@ -2556,7 +2556,11 @@ namespace ReShade
 		{
 			depthstencil->Release();
 
-			if (depthstencil == this->mDepthStencilReplacement)
+			if (depthstencil == this->mDefaultDepthStencil)
+			{
+				return;
+			}
+			else if (depthstencil == this->mDepthStencilReplacement)
 			{
 				depthstencil = this->mDepthStencil;
 			}
@@ -2622,6 +2626,12 @@ namespace ReShade
 	{
 		assert(resource != nullptr);
 		assert(depthstencil != nullptr);
+
+		// Do not track default depthstencil
+		if (this->mLost)
+		{
+			return;
+		}
 
 		ID3D10Texture2D *texture = nullptr;
 		const HRESULT hr = resource->QueryInterface(__uuidof(ID3D10Texture2D), reinterpret_cast<void **>(&texture));

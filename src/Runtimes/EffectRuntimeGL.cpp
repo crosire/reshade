@@ -3216,7 +3216,7 @@ namespace ReShade
 
 		const auto it = this->mFramebufferTable.find(fbo);
 
-		if (it != this->mFramebufferTable.end())
+		if (it != this->mFramebufferTable.end() && it->first != this->mDepthStencilFBO)
 		{
 			it->second.DrawCallCount = static_cast<GLfloat>(this->mLastDrawCalls++);
 			it->second.DrawVerticesCount += vertices;
