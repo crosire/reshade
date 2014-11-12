@@ -3130,19 +3130,17 @@ namespace ReShade
 		GLCHECK(glGenRenderbuffers(1, &this->mBackBufferRBO));
 		GLCHECK(glBindRenderbuffer(GL_RENDERBUFFER, this->mBackBufferRBO));
 		GLCHECK(glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA8, width, height));
-		GLCHECK(glBindRenderbuffer(GL_RENDERBUFFER, 0));
 
 		GLCHECK(glGenFramebuffers(1, &this->mBackBufferFBO));
 		GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, this->mBackBufferFBO));
 		GLCHECK(glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, this->mBackBufferRBO));
+
 		assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
-		GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, 0));
 
 		GLCHECK(glGenTextures(2, this->mBackBufferTexture));
 		GLCHECK(glBindTexture(GL_TEXTURE_2D, this->mBackBufferTexture[0]));
 		GLCHECK(glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA8, width, height));
 		GLCHECK(glTextureView(this->mBackBufferTexture[1], GL_TEXTURE_2D, this->mBackBufferTexture[0], GL_SRGB8_ALPHA8, 0, 1, 0, 1));
-		GLCHECK(glBindTexture(GL_TEXTURE_2D, 0));
 
 		GLFramebufferInfo defaultfbo = { 0 };
 		defaultfbo.DepthStencilWidth = width;
@@ -3154,13 +3152,16 @@ namespace ReShade
 		GLCHECK(glGenTextures(1, &this->mDepthStencilTexture));
 		GLCHECK(glBindTexture(GL_TEXTURE_2D, this->mDepthStencilTexture));
 		GLCHECK(glTexStorage2D(GL_TEXTURE_2D, 1, defaultfbo.DepthStencilFormat, defaultfbo.DepthStencilWidth, defaultfbo.DepthStencilHeight));
-		GLCHECK(glBindTexture(GL_TEXTURE_2D, 0));
 
 		GLCHECK(glGenFramebuffers(1, &this->mBlitFBO));
 		GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, this->mBlitFBO));
 		GLCHECK(glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, this->mBackBufferTexture[0], 0));
 		GLCHECK(glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, this->mDepthStencilTexture, 0));
+
 		assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
+
+		GLCHECK(glBindTexture(GL_TEXTURE_2D, 0));
+		GLCHECK(glBindRenderbuffer(GL_RENDERBUFFER, 0));
 		GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, 0));
 
 		this->mNVG = nvgCreateGL3(0);
@@ -3398,8 +3399,9 @@ namespace ReShade
 
 		if (this->mDepthStencilFBO != best)
 		{
-			GLint previous = 0;
-			GLCHECK(glGetIntegerv(GL_TEXTURE_BINDING_2D, &previous));
+			GLint previousTex = 0, previousFBO;
+			GLCHECK(glGetIntegerv(GL_TEXTURE_BINDING_2D, &previousTex));
+			GLCHECK(glGetIntegerv(GL_FRAMEBUFFER_BINDING, &previousFBO));
 
 			GLCHECK(glDeleteTextures(1, &this->mDepthStencilTexture));
 
@@ -3410,7 +3412,13 @@ namespace ReShade
 			GLCHECK(glBindTexture(GL_TEXTURE_2D, this->mDepthStencilTexture));
 			GLCHECK(glTexStorage2D(GL_TEXTURE_2D, 1, bestInfo.DepthStencilFormat, bestInfo.DepthStencilWidth, bestInfo.DepthStencilHeight));
 
-			GLCHECK(glBindTexture(GL_TEXTURE_2D, previous));
+			GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, this->mBlitFBO));
+			GLCHECK(glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, this->mDepthStencilTexture, 0));
+
+			assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
+
+			GLCHECK(glBindTexture(GL_TEXTURE_2D, previousTex));
+			GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, previousFBO));
 		}
 	}
 
