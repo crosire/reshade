@@ -2664,6 +2664,7 @@ namespace ReShade
 
 		assert(this->mDevice != nullptr);
 		assert(this->mSwapChain != nullptr);
+		assert(this->mStateBlock != nullptr);
 
 		this->mDevice->AddRef();
 		this->mDevice->GetImmediateContext(&this->mImmediateContext);
@@ -2777,7 +2778,6 @@ namespace ReShade
 
 		this->mNVG = nullptr;
 
-		this->mStateBlock->Apply();
 		this->mStateBlock->ReleaseAllDeviceObjects();
 
 		SAFE_RELEASE(this->mBackBuffer);

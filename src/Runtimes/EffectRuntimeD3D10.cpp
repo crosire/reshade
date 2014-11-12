@@ -2520,7 +2520,6 @@ namespace ReShade
 
 		if (this->mStateBlock != nullptr)
 		{
-			this->mStateBlock->Apply();
 			this->mStateBlock->ReleaseAllDeviceObjects();
 		}
 

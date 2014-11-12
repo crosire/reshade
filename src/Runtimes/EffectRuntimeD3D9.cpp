@@ -2486,12 +2486,7 @@ namespace ReShade
 
 		this->mNVG = nullptr;
 
-		if (this->mStateBlock != nullptr)
-		{
-			this->mStateBlock->Apply();
-			this->mStateBlock->Release();
-			this->mStateBlock = nullptr;
-		}
+		SAFE_RELEASE(this->mStateBlock);
 
 		SAFE_RELEASE(this->mBackBuffer);
 		SAFE_RELEASE(this->mBackBufferResolved);
