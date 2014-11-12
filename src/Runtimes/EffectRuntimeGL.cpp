@@ -3200,8 +3200,6 @@ namespace ReShade
 		this->mDepthStencilTexture = 0;
 		this->mBlitFBO = 0;
 
-		this->mFramebufferTable.clear();
-
 		this->mStateBlock.Apply();
 
 		this->mLost = true;
@@ -3216,7 +3214,7 @@ namespace ReShade
 
 		const auto it = this->mFramebufferTable.find(fbo);
 
-		if (it != this->mFramebufferTable.end() && it->first != this->mDepthStencilFBO)
+		if (it != this->mFramebufferTable.end())
 		{
 			it->second.DrawCallCount = static_cast<GLfloat>(this->mLastDrawCalls++);
 			it->second.DrawVerticesCount += vertices;
@@ -3260,6 +3258,62 @@ namespace ReShade
 
 		// Apply states
 		this->mStateBlock.Apply();
+	}
+	void GLRuntime::OnFramebufferAttachment(GLenum target, GLenum attachment, GLenum objecttarget, GLuint object, GLint level)
+	{
+		if (object == 0 || (attachment != GL_DEPTH_ATTACHMENT && attachment != GL_DEPTH_STENCIL_ATTACHMENT))
+		{
+			return;
+		}
+
+		// Get current framebuffer
+		GLint fbo = 0;
+		GLCHECK(glGetIntegerv(TargetToBinding(target), &fbo));
+
+		assert(fbo != 0);
+
+		if (static_cast<GLuint>(fbo) == this->mBackBufferFBO || static_cast<GLuint>(fbo) == this->mBlitFBO)
+		{
+			return;
+		}
+
+		GLFramebufferInfo &info = this->mFramebufferTable[fbo];
+		info.DepthStencilName = object;
+		info.DepthStencilTarget = objecttarget;
+
+		if (objecttarget == GL_RENDERBUFFER)
+		{
+			GLint previous = 0;
+			GLCHECK(glGetIntegerv(GL_RENDERBUFFER_BINDING, &previous));
+
+			// Get depthstencil parameters from renderbuffer
+			GLCHECK(glBindRenderbuffer(GL_RENDERBUFFER, object));
+			GLCHECK(glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_WIDTH, &info.DepthStencilWidth));
+			GLCHECK(glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_HEIGHT, &info.DepthStencilHeight));
+			GLCHECK(glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_INTERNAL_FORMAT, &info.DepthStencilFormat));
+
+			GLCHECK(glBindRenderbuffer(GL_RENDERBUFFER, previous));
+		}
+		else
+		{
+			if (objecttarget == GL_TEXTURE)
+			{
+				objecttarget = GL_TEXTURE_2D;
+			}
+
+			GLint previous = 0;
+			GLCHECK(glGetIntegerv(TargetToBinding(objecttarget), &previous));
+
+			// Get depthstencil parameters from texture
+			GLCHECK(glBindTexture(objecttarget, object));
+			GLCHECK(glGetTexLevelParameteriv(objecttarget, level, GL_TEXTURE_WIDTH, &info.DepthStencilWidth));
+			GLCHECK(glGetTexLevelParameteriv(objecttarget, level, GL_TEXTURE_HEIGHT, &info.DepthStencilHeight));
+			GLCHECK(glGetTexLevelParameteriv(objecttarget, level, GL_TEXTURE_INTERNAL_FORMAT, &info.DepthStencilFormat));
+			
+			GLCHECK(glBindTexture(objecttarget, previous));
+		}
+
+		LOG(TRACE) << "Adding framebuffer " << fbo << " (Depth Attachment: " << attachment << ", Depth Width: " << info.DepthStencilWidth << ", Depth Height: " << info.DepthStencilHeight << ", Depth Format: " << info.DepthStencilFormat << ") to list of possible depth candidates ...";
 	}
 
 	std::unique_ptr<Effect> GLRuntime::CreateEffect(const EffectTree &ast, std::string &errors) const
@@ -3306,55 +3360,6 @@ namespace ReShade
 		}
 	}
 
-	void GLRuntime::CreateDepthStencil(GLenum target, GLenum objecttarget, GLuint object, GLint level)
-	{
-		if (object == 0)
-		{
-			return;
-		}
-
-		// Get current framebuffer
-		GLint fbo = 0;
-		GLCHECK(glGetIntegerv(TargetToBinding(target), &fbo));
-
-		assert(fbo != 0);
-
-		GLFramebufferInfo &info = this->mFramebufferTable[fbo];
-		info.DepthStencilName = object;
-		info.DepthStencilTarget = objecttarget;
-
-		if (objecttarget == GL_RENDERBUFFER)
-		{
-			GLint previous = 0;
-			GLCHECK(glGetIntegerv(GL_RENDERBUFFER_BINDING, &previous));
-
-			// Get depthstencil parameters from renderbuffer
-			GLCHECK(glBindRenderbuffer(GL_RENDERBUFFER, object));
-			GLCHECK(glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_WIDTH, &info.DepthStencilWidth));
-			GLCHECK(glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_HEIGHT, &info.DepthStencilHeight));
-			GLCHECK(glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_INTERNAL_FORMAT, &info.DepthStencilFormat));
-
-			GLCHECK(glBindRenderbuffer(GL_RENDERBUFFER, previous));
-		}
-		else
-		{
-			if (objecttarget == GL_TEXTURE)
-			{
-				objecttarget = GL_TEXTURE_2D;
-			}
-
-			GLint previous = 0;
-			GLCHECK(glGetIntegerv(TargetToBinding(objecttarget), &previous));
-
-			// Get depthstencil parameters from texture
-			GLCHECK(glBindTexture(objecttarget, object));
-			GLCHECK(glGetTexLevelParameteriv(objecttarget, level, GL_TEXTURE_WIDTH, &info.DepthStencilWidth));
-			GLCHECK(glGetTexLevelParameteriv(objecttarget, level, GL_TEXTURE_HEIGHT, &info.DepthStencilHeight));
-			GLCHECK(glGetTexLevelParameteriv(objecttarget, level, GL_TEXTURE_INTERNAL_FORMAT, &info.DepthStencilFormat));
-			
-			GLCHECK(glBindTexture(objecttarget, previous));
-		}
-	}
 	void GLRuntime::DetectBestDepthStencil()
 	{
 		static int cooldown = 0;
@@ -3377,8 +3382,7 @@ namespace ReShade
 			{
 				continue;
 			}
-
-			if (((it.second.DrawVerticesCount * (1.2f - it.second.DrawCallCount / this->mLastDrawCalls)) >= (bestInfo.DrawVerticesCount * (1.2f - bestInfo.DrawCallCount / this->mLastDrawCalls))) && (it.second.DepthStencilWidth == static_cast<GLint>(this->mWidth) && it.second.DepthStencilHeight == static_cast<GLint>(this->mHeight)))
+			else if (((it.second.DrawVerticesCount * (1.2f - it.second.DrawCallCount / this->mLastDrawCalls)) >= (bestInfo.DrawVerticesCount * (1.2f - bestInfo.DrawCallCount / this->mLastDrawCalls))) && (it.second.DepthStencilWidth == static_cast<GLint>(this->mWidth) && it.second.DepthStencilHeight == static_cast<GLint>(this->mHeight)))
 			{
 				best = it.first;
 				bestInfo = it.second;

@@ -2797,8 +2797,6 @@ namespace ReShade
 
 		ZeroMemory(&this->mSwapChainDesc, sizeof(DXGI_SWAP_CHAIN_DESC));
 
-		this->mDepthStencilTable.clear();
-
 		this->mLost = true;
 	}
 	void D3D11Runtime::OnDrawInternal(ID3D11DeviceContext *context, unsigned int vertices)
@@ -2895,10 +2893,18 @@ namespace ReShade
 
 		SAFE_RELEASE(texture);
 
+		// Early depthstencil rejection
+		if (desc.Width != this->mSwapChainDesc.BufferDesc.Width || desc.Height != this->mSwapChainDesc.BufferDesc.Height)
+		{
+			return;
+		}
+
 		D3D11DepthStencilInfo info;
 		info.Width = desc.Width;
 		info.Height = desc.Height;
 		info.DrawCallCount = 0;
+
+		LOG(TRACE) << "Adding depthstencil " << depthstencil << " (Width: " << desc.Width << ", Height: " << desc.Height << ", Format: " << desc.Format << ") to list of possible depth candidates ...";
 
 		// Begin tracking new depthstencil
 		this->mDepthStencilTable.emplace(depthstencil, info);
@@ -3039,8 +3045,7 @@ namespace ReShade
 			{
 				continue;
 			}
-
-			if (((it.second.DrawVerticesCount * (1.2f - it.second.DrawCallCount / this->mLastDrawCalls)) >= (bestInfo.DrawVerticesCount * (1.2f - bestInfo.DrawCallCount / this->mLastDrawCalls))) && (it.second.Width == this->mSwapChainDesc.BufferDesc.Width && it.second.Height == this->mSwapChainDesc.BufferDesc.Height))
+			else if ((it.second.DrawVerticesCount * (1.2f - it.second.DrawCallCount / this->mLastDrawCalls)) >= (bestInfo.DrawVerticesCount * (1.2f - bestInfo.DrawCallCount / this->mLastDrawCalls)))
 			{
 				best = it.first;
 				bestInfo = it.second;

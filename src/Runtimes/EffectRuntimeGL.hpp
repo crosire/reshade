@@ -150,11 +150,11 @@ namespace ReShade
 		void OnDeleteInternal();
 		void OnDrawInternal(unsigned int vertices);
 		void OnPresentInternal();
+		void OnFramebufferAttachment(GLenum target, GLenum attachment, GLenum objecttarget, GLuint object, GLint level);
 
 		virtual std::unique_ptr<Effect> CreateEffect(const EffectTree &ast, std::string &errors) const override;
 		virtual void CreateScreenshot(unsigned char *buffer, std::size_t size) const override;
 
-		void CreateDepthStencil(GLenum target, GLenum objecttarget, GLuint object, GLint level);
 		void DetectBestDepthStencil();
 
 		HDC mDeviceContext;

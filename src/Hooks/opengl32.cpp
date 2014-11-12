@@ -855,11 +855,13 @@ void WINAPI glFramebufferRenderbuffer(GLenum target, GLenum attachment, GLenum r
 
 	trampoline(target, attachment, renderbuffertarget, renderbuffer);
 
-	if ((attachment == GL_DEPTH_ATTACHMENT || attachment == GL_DEPTH_STENCIL_ATTACHMENT) && sCurrentRuntimes.find(sCurrentDeviceContext) != sCurrentRuntimes.end())
-	{
-		ReShade::GLRuntime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
+	const auto it = sCurrentRuntimes.find(sCurrentDeviceContext);
 
-		runtime->CreateDepthStencil(target, renderbuffertarget, renderbuffer, 0);
+	if (it != sCurrentRuntimes.end())
+	{
+		ReShade::GLRuntime *runtime = it->second;
+
+		runtime->OnFramebufferAttachment(target, attachment, renderbuffertarget, renderbuffer, 0);
 	}
 }
 void WINAPI glFramebufferTexture(GLenum target, GLenum attachment, GLuint texture, GLint level)
@@ -868,11 +870,13 @@ void WINAPI glFramebufferTexture(GLenum target, GLenum attachment, GLuint textur
 
 	trampoline(target, attachment, texture, level);
 
-	if ((attachment == GL_DEPTH_ATTACHMENT || attachment == GL_DEPTH_STENCIL_ATTACHMENT) && sCurrentRuntimes.find(sCurrentDeviceContext) != sCurrentRuntimes.end())
+	const auto it = sCurrentRuntimes.find(sCurrentDeviceContext);
+
+	if (it != sCurrentRuntimes.end())
 	{
-		ReShade::GLRuntime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
+		ReShade::GLRuntime *runtime = it->second;
 		
-		runtime->CreateDepthStencil(target, GL_TEXTURE, texture, level);
+		runtime->OnFramebufferAttachment(target, attachment, GL_TEXTURE, texture, level);
 	}
 }
 void WINAPI glFramebufferTexture1D(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level)
@@ -881,11 +885,13 @@ void WINAPI glFramebufferTexture1D(GLenum target, GLenum attachment, GLenum text
 
 	trampoline(target, attachment, textarget, texture, level);
 
-	if ((attachment == GL_DEPTH_ATTACHMENT || attachment == GL_DEPTH_STENCIL_ATTACHMENT) && sCurrentRuntimes.find(sCurrentDeviceContext) != sCurrentRuntimes.end())
-	{
-		ReShade::GLRuntime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
+	const auto it = sCurrentRuntimes.find(sCurrentDeviceContext);
 
-		runtime->CreateDepthStencil(target, textarget, texture, level);
+	if (it != sCurrentRuntimes.end())
+	{
+		ReShade::GLRuntime *runtime = it->second;
+
+		runtime->OnFramebufferAttachment(target, attachment, textarget, texture, level);
 	}
 }
 void WINAPI glFramebufferTexture2D(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level)
@@ -894,11 +900,13 @@ void WINAPI glFramebufferTexture2D(GLenum target, GLenum attachment, GLenum text
 
 	trampoline(target, attachment, textarget, texture, level);
 
-	if ((attachment == GL_DEPTH_ATTACHMENT || attachment == GL_DEPTH_STENCIL_ATTACHMENT) && sCurrentRuntimes.find(sCurrentDeviceContext) != sCurrentRuntimes.end())
-	{
-		ReShade::GLRuntime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
+	const auto it = sCurrentRuntimes.find(sCurrentDeviceContext);
 
-		runtime->CreateDepthStencil(target, textarget, texture, level);
+	if (it != sCurrentRuntimes.end())
+	{
+		ReShade::GLRuntime *runtime = it->second;
+
+		runtime->OnFramebufferAttachment(target, attachment, textarget, texture, level);
 	}
 }
 void WINAPI glFramebufferTexture3D(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level, GLint zoffset)
@@ -907,11 +915,13 @@ void WINAPI glFramebufferTexture3D(GLenum target, GLenum attachment, GLenum text
 
 	trampoline(target, attachment, textarget, texture, level, zoffset);
 
-	if ((attachment == GL_DEPTH_ATTACHMENT || attachment == GL_DEPTH_STENCIL_ATTACHMENT) && sCurrentRuntimes.find(sCurrentDeviceContext) != sCurrentRuntimes.end())
-	{
-		ReShade::GLRuntime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
+	const auto it = sCurrentRuntimes.find(sCurrentDeviceContext);
 
-		runtime->CreateDepthStencil(target, textarget, texture, level);
+	if (it != sCurrentRuntimes.end())
+	{
+		ReShade::GLRuntime *runtime = it->second;
+
+		runtime->OnFramebufferAttachment(target, attachment, textarget, texture, level);
 	}
 }
 void WINAPI glFramebufferTextureLayer(GLenum target, GLenum attachment, GLuint texture, GLint level, GLint layer)
@@ -920,11 +930,13 @@ void WINAPI glFramebufferTextureLayer(GLenum target, GLenum attachment, GLuint t
 
 	trampoline(target, attachment, texture, level, layer);
 
-	if ((attachment == GL_DEPTH_ATTACHMENT || attachment == GL_DEPTH_STENCIL_ATTACHMENT) && sCurrentRuntimes.find(sCurrentDeviceContext) != sCurrentRuntimes.end())
-	{
-		ReShade::GLRuntime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
+	const auto it = sCurrentRuntimes.find(sCurrentDeviceContext);
 
-		runtime->CreateDepthStencil(target, GL_TEXTURE, texture, level);
+	if (it != sCurrentRuntimes.end())
+	{
+		ReShade::GLRuntime *runtime = it->second;
+
+		runtime->OnFramebufferAttachment(target, attachment, GL_TEXTURE, texture, level);
 	}
 }
 EXPORT void WINAPI glFrontFace(GLenum mode)

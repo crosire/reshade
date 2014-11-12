@@ -2781,7 +2781,7 @@ namespace ReShade
 			{
 				continue;
 			}
-			else if (((it.second.DrawVerticesCount * (1.2f - it.second.DrawCallCount / this->mLastDrawCalls)) >= (bestInfo.DrawVerticesCount * (1.2f - bestInfo.DrawCallCount / this->mLastDrawCalls))) && (it.second.Width == this->mPresentParams.BackBufferWidth && it.second.Height == this->mPresentParams.BackBufferHeight))
+			else if ((it.second.DrawVerticesCount * (1.2f - it.second.DrawCallCount / this->mLastDrawCalls)) >= (bestInfo.DrawVerticesCount * (1.2f - bestInfo.DrawCallCount / this->mLastDrawCalls)))
 			{
 				best = it.first;
 				bestInfo = it.second;
@@ -2866,10 +2866,18 @@ namespace ReShade
 			D3DSURFACE_DESC desc;
 			depthstencil->GetDesc(&desc);
 
+			// Early depthstencil rejection
+			if (desc.Width != this->mPresentParams.BackBufferWidth || desc.Height != this->mPresentParams.BackBufferHeight)
+			{
+				return;
+			}
+	
 			D3D9DepthStencilInfo info;
 			info.Width = desc.Width;
 			info.Height = desc.Height;
 			info.DrawCallCount = 0;
+
+			LOG(TRACE) << "Adding depthstencil " << depthstencil << " (Width: " << desc.Width << ", Height: " << desc.Height << ", Format: " << desc.Format << ") to list of possible depth candidates ...";
 
 			// Begin tracking new depthstencil
 			this->mDepthStencilTable.emplace(depthstencil, info);
