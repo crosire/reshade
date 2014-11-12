@@ -2601,6 +2601,9 @@ namespace ReShade
 		// Reset rendertarget
 		this->mDevice->OMSetRenderTargets(1, &this->mBackBufferTargets[0], this->mDefaultDepthStencil);
 
+		const D3D10_VIEWPORT viewport = { 0, 0, this->mSwapChainDesc.BufferDesc.Width, this->mSwapChainDesc.BufferDesc.Height, 0.0f, 1.0f };
+		this->mDevice->RSSetViewports(1, &viewport);
+
 		// Apply presenting
 		Runtime::OnPresent();
 

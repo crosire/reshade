@@ -2854,6 +2854,9 @@ namespace ReShade
 
 		// Reset rendertargets
 		this->mImmediateContext->OMSetRenderTargets(1, &this->mBackBufferTargets[0], this->mDefaultDepthStencil);
+		
+		const D3D11_VIEWPORT viewport = { 0, 0, static_cast<FLOAT>(this->mSwapChainDesc.BufferDesc.Width), static_cast<FLOAT>(this->mSwapChainDesc.BufferDesc.Height), 0.0f, 1.0f };
+		this->mImmediateContext->RSSetViewports(1, &viewport);
 
 		// Apply presenting
 		Runtime::OnPresent();
