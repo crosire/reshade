@@ -331,35 +331,22 @@ static unsigned int D3Dnvg_updateVertexBuffer(struct D3DNVGcontext* D3D)
 		}
     }
 
-	if (D3D_API(D3D->pDeviceContext, GetType) == D3D11_DEVICE_CONTEXT_IMMEDIATE)
+	if ((D3D->VertexBuffer.CurrentBufferEntry + D3D->nverts) >= D3D->VertexBuffer.MaxBufferEntries || D3D->VertexBuffer.CurrentBufferEntry == 0)
 	{
-		if ((D3D->VertexBuffer.CurrentBufferEntry + D3D->nverts) >= D3D->VertexBuffer.MaxBufferEntries || D3D->VertexBuffer.CurrentBufferEntry == 0)
-		{
-			D3D->VertexBuffer.CurrentBufferEntry = 0;
-			D3D_API_5(D3D->pDeviceContext, Map, (ID3D11Resource*)D3D->VertexBuffer.pBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &resource);
-		}
-		else
-		{
-			D3D_API_5(D3D->pDeviceContext, Map, (ID3D11Resource*)D3D->VertexBuffer.pBuffer, 0, D3D11_MAP_WRITE_NO_OVERWRITE, 0, &resource);
-		}
-
-		memcpy((((struct NVGvertex*)resource.pData) + D3D->VertexBuffer.CurrentBufferEntry), D3D->verts, D3D->nverts * sizeof(struct NVGvertex));
-    
-		D3D_API_2(D3D->pDeviceContext, Unmap, (ID3D11Resource*)D3D->VertexBuffer.pBuffer, 0);
-
-		retEntry = D3D->VertexBuffer.CurrentBufferEntry;
-		D3D->VertexBuffer.CurrentBufferEntry += D3D->nverts;
+		D3D->VertexBuffer.CurrentBufferEntry = 0;
+		D3D_API_5(D3D->pDeviceContext, Map, (ID3D11Resource*)D3D->VertexBuffer.pBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &resource);
 	}
 	else
 	{
-		D3D_API_5(D3D->pDeviceContext, Map, (ID3D11Resource*)D3D->VertexBuffer.pBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &resource);
-
-		memcpy(resource.pData, D3D->verts, D3D->nverts * sizeof(struct NVGvertex));
-    
-		D3D_API_2(D3D->pDeviceContext, Unmap, (ID3D11Resource*)D3D->VertexBuffer.pBuffer, 0);
-
-		retEntry = 0;
+		D3D_API_5(D3D->pDeviceContext, Map, (ID3D11Resource*)D3D->VertexBuffer.pBuffer, 0, D3D11_MAP_WRITE_NO_OVERWRITE, 0, &resource);
 	}
+
+	memcpy((((struct NVGvertex*)resource.pData) + D3D->VertexBuffer.CurrentBufferEntry), D3D->verts, D3D->nverts * sizeof(struct NVGvertex));
+    
+	D3D_API_2(D3D->pDeviceContext, Unmap, (ID3D11Resource*)D3D->VertexBuffer.pBuffer, 0);
+
+	retEntry = D3D->VertexBuffer.CurrentBufferEntry;
+	D3D->VertexBuffer.CurrentBufferEntry += D3D->nverts;
 
 	return retEntry;
 }
@@ -694,7 +681,7 @@ static int D3Dnvg__renderUpdateTexture(void* uptr, int image, int x, int y, int 
     }
 
     pData = (unsigned char*)data + (y * (tex->width * pixelWidthBytes)) + (x * pixelWidthBytes);
-    D3D_API_6(D3D->pDeviceContext, UpdateSubresource, (ID3D11Resource*)tex->tex, 0, &box, pData, tex->width, tex->width * tex->height);
+	D3D_API_6(D3D->pDeviceContext, UpdateSubresource, (ID3D11Resource*)tex->tex, 0, &box, pData, tex->width, tex->width * tex->height);
  
     return 1;
 }
@@ -1377,7 +1364,7 @@ static void D3Dnvg__renderDelete(void* uptr)
 }
 
 
-struct NVGcontext* nvgCreateD3D11(ID3D11DeviceContext* pDeviceContext, int flags)
+struct NVGcontext* nvgCreateD3D11(ID3D11Device* pDevice, int flags)
 {
     struct NVGparams params;
     struct NVGcontext* ctx = NULL;
@@ -1387,9 +1374,9 @@ struct NVGcontext* nvgCreateD3D11(ID3D11DeviceContext* pDeviceContext, int flags
         goto error;
     }
     memset(D3D, 0, sizeof(struct D3DNVGcontext));
-	D3D_API(pDeviceContext, AddRef);
-    D3D->pDeviceContext = pDeviceContext;
-	D3D_API_1(pDeviceContext, GetDevice, &D3D->pDevice);
+	D3D_API(pDevice, AddRef);
+    D3D->pDevice = pDevice;
+	D3D_API_1(D3D->pDevice, GetImmediateContext, &D3D->pDeviceContext);
 
     memset(&params, 0, sizeof(params));
     params.renderCreate = D3Dnvg__renderCreate;

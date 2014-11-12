@@ -2431,10 +2431,228 @@ namespace ReShade
 			return ref;
 		}
 	}
+	
+	class D3D11StateBlock
+	{
+		static const UINT sVertexBufferCount = 3;
+		static const UINT sConstantBufferCount = 3;
+		static const UINT sSamplerStateCount = 10;
+		static const UINT sShaderResourceCount = 9;
+		static const UINT sRenderTargetCount = D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT;
+
+	public:
+		D3D11StateBlock(ID3D11Device *device)
+		{
+			ZeroMemory(this, sizeof(D3D11StateBlock));
+
+			device->GetImmediateContext(&this->mDeviceContext);
+			this->mFeatureLevel = device->GetFeatureLevel();
+		}
+		~D3D11StateBlock()
+		{
+			ReleaseAllDeviceObjects();
+
+			this->mDeviceContext->Release();
+		}
+
+		void Capture()
+		{
+			ReleaseAllDeviceObjects();
+
+			this->mDeviceContext->IAGetPrimitiveTopology(&this->mIAPrimitiveTopology);
+			this->mDeviceContext->IAGetInputLayout(&this->mIAInputLayout);
+			this->mDeviceContext->IAGetVertexBuffers(0, sVertexBufferCount, this->mIAVertexBuffers, this->mIAVertexStrides, this->mIAVertexOffsets);
+			this->mDeviceContext->IAGetIndexBuffer(&this->mIAIndexBuffer, &this->mIAIndexFormat, &this->mIAIndexOffset);
+	
+			this->mDeviceContext->RSGetState(&this->mRSState);
+			this->mDeviceContext->RSGetViewports(&this->mRSNumViewports, this->mRSViewports);
+	
+			this->mVSNumClassInstances = 256;
+			this->mDeviceContext->VSGetShader(&this->mVS, this->mVSClassInstances, &this->mVSNumClassInstances);
+			this->mDeviceContext->VSGetConstantBuffers(0, sConstantBufferCount, this->mVSConstantBuffers);
+			this->mDeviceContext->VSGetSamplers(0, sSamplerStateCount, this->mVSSamplerStates);
+			this->mDeviceContext->VSGetShaderResources(0, sShaderResourceCount, this->mVSShaderResources);
+	
+			this->mHSNumClassInstances = 256;
+			this->mDeviceContext->HSGetShader(&this->mHS, this->mHSClassInstances, &this->mHSNumClassInstances);
+			
+			this->mDSNumClassInstances = 256;
+			this->mDeviceContext->DSGetShader(&this->mDS, this->mDSClassInstances, &this->mDSNumClassInstances);
+
+			this->mGSNumClassInstances = 256;
+			this->mDeviceContext->GSGetShader(&this->mGS, this->mGSClassInstances, &this->mGSNumClassInstances);
+
+			this->mPSNumClassInstances = 256;
+			this->mDeviceContext->PSGetShader(&this->mPS, this->mPSClassInstances, &this->mPSNumClassInstances);
+			this->mDeviceContext->PSGetConstantBuffers(0, sConstantBufferCount, this->mPSConstantBuffers);
+			this->mDeviceContext->PSGetSamplers(0, sSamplerStateCount, this->mPSSamplerStates);
+			this->mDeviceContext->PSGetShaderResources(0, sShaderResourceCount, this->mPSShaderResources);
+
+			this->mDeviceContext->OMGetBlendState(&this->mOMBlendState, this->mOMBlendFactor, &this->mOMSampleMask);
+			this->mDeviceContext->OMGetDepthStencilState(&this->mOMDepthStencilState, &this->mOMStencilRef);
+			this->mDeviceContext->OMGetRenderTargets(sRenderTargetCount, this->mOMRenderTargets, &this->mOMDepthStencil);
+		}
+		void Apply()
+		{
+			this->mDeviceContext->IASetPrimitiveTopology(this->mIAPrimitiveTopology);
+			this->mDeviceContext->IASetInputLayout(this->mIAInputLayout);
+			this->mDeviceContext->IASetVertexBuffers(0, sVertexBufferCount, this->mIAVertexBuffers, this->mIAVertexStrides, this->mIAVertexOffsets);
+			this->mDeviceContext->IASetIndexBuffer(this->mIAIndexBuffer, this->mIAIndexFormat, this->mIAIndexOffset);
+	
+			this->mDeviceContext->RSSetState(this->mRSState);
+			this->mDeviceContext->RSSetViewports(this->mRSNumViewports, this->mRSViewports);
+	
+			this->mDeviceContext->VSSetShader(this->mVS, this->mVSClassInstances, this->mVSNumClassInstances);
+			this->mDeviceContext->VSSetConstantBuffers(0, sConstantBufferCount, this->mVSConstantBuffers);
+			this->mDeviceContext->VSSetSamplers(0, sSamplerStateCount, this->mVSSamplerStates);
+			this->mDeviceContext->VSSetShaderResources(0, sShaderResourceCount, this->mVSShaderResources);
+	
+			this->mDeviceContext->HSSetShader(this->mHS, this->mHSClassInstances, this->mHSNumClassInstances);
+			
+			this->mDeviceContext->DSSetShader(this->mDS, this->mDSClassInstances, this->mDSNumClassInstances);
+
+			this->mDeviceContext->GSSetShader(this->mGS, this->mGSClassInstances, this->mGSNumClassInstances);
+
+			this->mDeviceContext->PSSetShader(this->mPS, this->mPSClassInstances, this->mPSNumClassInstances);
+			this->mDeviceContext->PSSetConstantBuffers(0, sConstantBufferCount, this->mPSConstantBuffers);
+			this->mDeviceContext->PSSetSamplers(0, sSamplerStateCount, this->mPSSamplerStates);
+			this->mDeviceContext->PSSetShaderResources(0, sShaderResourceCount, this->mPSShaderResources);
+
+			this->mDeviceContext->OMSetBlendState(this->mOMBlendState, this->mOMBlendFactor, this->mOMSampleMask);
+			this->mDeviceContext->OMSetDepthStencilState(this->mOMDepthStencilState, this->mOMStencilRef);
+			this->mDeviceContext->OMSetRenderTargets(sRenderTargetCount, this->mOMRenderTargets, this->mOMDepthStencil);
+		}
+		void ReleaseAllDeviceObjects()
+		{
+			SAFE_RELEASE(this->mIAInputLayout);
+
+			for (UINT i = 0; i < D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT; ++i)
+			{
+				SAFE_RELEASE(this->mIAVertexBuffers[i]);
+			}
+
+			SAFE_RELEASE(this->mIAIndexBuffer);
+
+			SAFE_RELEASE(this->mVS);
+
+			for (UINT i = 0; i < this->mVSNumClassInstances; ++i)
+			{
+				SAFE_RELEASE(this->mVSClassInstances[i]);
+			}
+			for (UINT i = 0; i < D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT; ++i)
+			{
+				SAFE_RELEASE(this->mVSConstantBuffers[i]);
+			}
+			for (UINT i = 0; i < D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT; ++i)
+			{
+				SAFE_RELEASE(this->mVSSamplerStates[i]);
+			}
+			for (UINT i = 0; i < D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT; ++i)
+			{
+				SAFE_RELEASE(this->mVSShaderResources[i]);
+			}
+
+			SAFE_RELEASE(this->mHS);
+
+			for (UINT i = 0; i < this->mHSNumClassInstances; ++i)
+			{
+				SAFE_RELEASE(this->mHSClassInstances[i]);
+			}
+
+			SAFE_RELEASE(this->mDS);
+			
+			for (UINT i = 0; i < this->mDSNumClassInstances; ++i)
+			{
+				SAFE_RELEASE(this->mDSClassInstances[i]);
+			}
+
+			SAFE_RELEASE(this->mGS);
+
+			for (UINT i = 0; i < this->mGSNumClassInstances; ++i)
+			{
+				SAFE_RELEASE(this->mGSClassInstances[i]);
+			}
+
+			SAFE_RELEASE(this->mRSState);
+
+			SAFE_RELEASE(this->mPS);
+			
+			for (UINT i = 0; i < this->mPSNumClassInstances; ++i)
+			{
+				SAFE_RELEASE(this->mPSClassInstances[i]);
+			}
+			for (UINT i = 0; i < D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT; ++i)
+			{
+				SAFE_RELEASE(this->mPSConstantBuffers[i]);
+			}
+			for (UINT i = 0; i < D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT; ++i)
+			{
+				SAFE_RELEASE(this->mPSSamplerStates[i]);
+			}
+			for (UINT i = 0; i < D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT; ++i)
+			{
+				SAFE_RELEASE(this->mPSShaderResources[i]);
+			}
+
+			SAFE_RELEASE(this->mOMBlendState);
+			SAFE_RELEASE(this->mOMDepthStencilState);
+
+			for (UINT i = 0; i < D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT; ++i)
+			{
+				SAFE_RELEASE(this->mOMRenderTargets[i]);
+			}
+
+			SAFE_RELEASE(this->mOMDepthStencil);
+		}
+
+	private:
+		ID3D11DeviceContext *mDeviceContext;
+		D3D_FEATURE_LEVEL mFeatureLevel;
+
+		ID3D11InputLayout *mIAInputLayout;
+		D3D11_PRIMITIVE_TOPOLOGY mIAPrimitiveTopology;
+		ID3D11Buffer *mIAVertexBuffers[D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT];
+		UINT mIAVertexStrides[D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT];
+		UINT mIAVertexOffsets[D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT];
+		ID3D11Buffer *mIAIndexBuffer;
+		DXGI_FORMAT mIAIndexFormat;
+		UINT mIAIndexOffset;
+		ID3D11VertexShader *mVS;
+		UINT mVSNumClassInstances;
+		ID3D11ClassInstance *mVSClassInstances[256];
+		ID3D11Buffer *mVSConstantBuffers[D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT];
+		ID3D11SamplerState *mVSSamplerStates[D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT];
+		ID3D11ShaderResourceView *mVSShaderResources[D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT];
+		ID3D11HullShader *mHS;
+		UINT mHSNumClassInstances;
+		ID3D11ClassInstance *mHSClassInstances[256];
+		ID3D11DomainShader *mDS;
+		UINT mDSNumClassInstances;
+		ID3D11ClassInstance *mDSClassInstances[256];
+		ID3D11GeometryShader *mGS;
+		UINT mGSNumClassInstances;
+		ID3D11ClassInstance *mGSClassInstances[256];
+		ID3D11RasterizerState *mRSState;
+		UINT mRSNumViewports;
+		D3D11_VIEWPORT mRSViewports[D3D11_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE];
+		ID3D11PixelShader *mPS;
+		UINT mPSNumClassInstances;
+		ID3D11ClassInstance *mPSClassInstances[256];
+		ID3D11Buffer *mPSConstantBuffers[D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT];
+		ID3D11SamplerState *mPSSamplerStates[D3D11_COMMONSHADER_SAMPLER_SLOT_COUNT];
+		ID3D11ShaderResourceView *mPSShaderResources[D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT];
+		ID3D11BlendState *mOMBlendState;
+		FLOAT mOMBlendFactor[4];
+		UINT mOMSampleMask;
+		ID3D11DepthStencilState *mOMDepthStencilState;
+		UINT mOMStencilRef;
+		ID3D11RenderTargetView *mOMRenderTargets[D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT];
+		ID3D11DepthStencilView *mOMDepthStencil;
+	};
 
 	// -----------------------------------------------------------------------------------------------------
 
-	D3D11Runtime::D3D11Runtime(ID3D11Device *device, IDXGISwapChain *swapchain) : mDevice(device), mSwapChain(swapchain), mImmediateContext(nullptr), mDeferredContext(nullptr), mBackBuffer(nullptr), mBackBufferReplacement(nullptr), mBackBufferTexture(nullptr), mBackBufferTextureSRV(), mBackBufferTargets(), mDepthStencil(nullptr), mDepthStencilReplacement(nullptr), mDepthStencilTexture(nullptr), mDepthStencilTextureSRV(nullptr), mLost(true)
+	D3D11Runtime::D3D11Runtime(ID3D11Device *device, IDXGISwapChain *swapchain) : mDevice(device), mSwapChain(swapchain), mImmediateContext(nullptr), mStateBlock(new D3D11StateBlock(device)), mBackBuffer(nullptr), mBackBufferReplacement(nullptr), mBackBufferTexture(nullptr), mBackBufferTextureSRV(), mBackBufferTargets(), mDepthStencil(nullptr), mDepthStencilReplacement(nullptr), mDepthStencilTexture(nullptr), mDepthStencilTextureSRV(nullptr), mLost(true)
 	{
 		InitializeCriticalSection(&this->mCS);
 
@@ -2472,21 +2690,12 @@ namespace ReShade
 		this->mVendorId = desc.VendorId;
 		this->mDeviceId = desc.DeviceId;
 		this->mRendererId = 0xD3D11;
-
-		hr = this->mDevice->CreateDeferredContext(0, &this->mDeferredContext);
-
-		assert(SUCCEEDED(hr));
 	}
 	D3D11Runtime::~D3D11Runtime()
 	{
 		DeleteCriticalSection(&this->mCS);
 
 		assert(this->mLost);
-
-		if (this->mDeferredContext != nullptr)
-		{
-			this->mDeferredContext->Release();
-		}
 
 		this->mImmediateContext->Release();
 		this->mDevice->Release();
@@ -2495,13 +2704,6 @@ namespace ReShade
 
 	bool D3D11Runtime::OnCreateInternal(const DXGI_SWAP_CHAIN_DESC &desc)
 	{
-		if (this->mDeferredContext == nullptr)
-		{
-			LOG(TRACE) << "Failed to create deferred context for rendering!";
-
-			return false;
-		}
-
 		this->mSwapChainDesc = desc;
 
 		HRESULT hr = this->mSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), reinterpret_cast<void **>(&this->mBackBuffer));
@@ -2553,7 +2755,7 @@ namespace ReShade
 			return false;
 		}
 
-		this->mNVG = nvgCreateD3D11(this->mDeferredContext, 0);
+		this->mNVG = nvgCreateD3D11(this->mDevice, 0);
 
 		this->mLost = false;
 
@@ -2568,6 +2770,9 @@ namespace ReShade
 		nvgDeleteD3D11(this->mNVG);
 
 		this->mNVG = nullptr;
+
+		this->mStateBlock->Apply();
+		this->mStateBlock->ReleaseAllDeviceObjects();
 
 		SAFE_RELEASE(this->mBackBuffer);
 		SAFE_RELEASE(this->mBackBufferReplacement);
@@ -2622,20 +2827,23 @@ namespace ReShade
 
 		DetectBestDepthStencil();
 
+		// Capture device state
+		this->mStateBlock->Capture();
+
 		// Resolve backbuffer
 		if (this->mBackBufferReplacement != this->mBackBuffer)
 		{
-			this->mDeferredContext->ResolveSubresource(this->mBackBuffer, 0, this->mBackBufferReplacement, 0, this->mSwapChainDesc.BufferDesc.Format);
+			this->mImmediateContext->ResolveSubresource(this->mBackBuffer, 0, this->mBackBufferReplacement, 0, this->mSwapChainDesc.BufferDesc.Format);
 		}
 
 		// Setup real backbuffer
-		this->mDeferredContext->OMSetRenderTargets(1, &this->mBackBufferTargets[0], nullptr);
+		this->mImmediateContext->OMSetRenderTargets(1, &this->mBackBufferTargets[0], nullptr);
 
 		// Apply post processing
 		Runtime::OnPostProcess();
 
 		// Reset rendertargets
-		this->mDeferredContext->OMSetRenderTargets(1, &this->mBackBufferTargets[0], this->mDefaultDepthStencil);
+		this->mImmediateContext->OMSetRenderTargets(1, &this->mBackBufferTargets[0], this->mDefaultDepthStencil);
 
 		// Apply presenting
 		Runtime::OnPresent();
@@ -2645,20 +2853,8 @@ namespace ReShade
 			return;
 		}
 
-		// Execute commands
-		ID3D11CommandList *list = nullptr;
-		HRESULT hr = this->mDeferredContext->FinishCommandList(FALSE, &list);
-
-		if (SUCCEEDED(hr))
-		{
-			this->mImmediateContext->ExecuteCommandList(list, TRUE);
-
-			list->Release();
-		}
-		else
-		{
-			LOG(TRACE) << "Failed to finish commandlist! HRESULT is '" << hr << "'.";
-		}
+		// Apply previous device state
+		this->mStateBlock->Apply();
 	}
 	void D3D11Runtime::OnCreateDepthStencil(ID3D11Resource *resource, ID3D11DepthStencilView *depthstencil)
 	{
@@ -2728,21 +2924,6 @@ namespace ReShade
 			return;
 		}
 
-		// Flush context
-		ID3D11CommandList *list = nullptr;
-		HRESULT hr = this->mDeferredContext->FinishCommandList(TRUE, &list);
-
-		if (SUCCEEDED(hr))
-		{
-			this->mImmediateContext->ExecuteCommandList(list, TRUE);
-
-			list->Release();
-		}
-		else
-		{
-			LOG(TRACE) << "Failed to flush commandlist before creating screenshot! HRESULT is '" << hr << "'.";
-		}
-
 		D3D11_TEXTURE2D_DESC texdesc;
 		ZeroMemory(&texdesc, sizeof(D3D11_TEXTURE2D_DESC));
 		texdesc.Width = this->mSwapChainDesc.BufferDesc.Width;
@@ -2756,7 +2937,7 @@ namespace ReShade
 		texdesc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
 
 		ID3D11Texture2D *textureStaging = nullptr;
-		hr = this->mDevice->CreateTexture2D(&texdesc, nullptr, &textureStaging);
+		HRESULT hr = this->mDevice->CreateTexture2D(&texdesc, nullptr, &textureStaging);
 
 		if (FAILED(hr))
 		{
@@ -3253,7 +3434,7 @@ namespace ReShade
 			}
 
 			D3D11_MAPPED_SUBRESOURCE mapped;
-			HRESULT hr = this->mEffectContext->mDeferredContext->Map(buffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
+			HRESULT hr = this->mEffectContext->mImmediateContext->Map(buffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
 
 			if (FAILED(hr))
 			{
@@ -3264,7 +3445,7 @@ namespace ReShade
 
 			CopyMemory(mapped.pData, storage, mapped.RowPitch);
 
-			this->mEffectContext->mDeferredContext->Unmap(buffer, 0);
+			this->mEffectContext->mImmediateContext->Unmap(buffer, 0);
 		}
 
 		this->mConstantsDirty = false;
@@ -3403,7 +3584,7 @@ namespace ReShade
 
 	bool D3D11Technique::Begin(unsigned int &passes) const
 	{
-		ID3D11DeviceContext *const context = mEffect->mEffectContext->mDeferredContext;
+		ID3D11DeviceContext *const context = mEffect->mEffectContext->mImmediateContext;
 
 		passes = static_cast<unsigned int>(this->mPasses.size());
 
@@ -3440,7 +3621,7 @@ namespace ReShade
 	}
 	void D3D11Technique::RenderPass(unsigned int index) const
 	{
-		ID3D11DeviceContext *const context = this->mEffect->mEffectContext->mDeferredContext;
+		ID3D11DeviceContext *const context = this->mEffect->mEffectContext->mImmediateContext;
 		const Pass &pass = this->mPasses[index];
 
 		// Update shader constants

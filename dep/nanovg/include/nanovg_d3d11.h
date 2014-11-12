@@ -23,7 +23,7 @@
 extern "C" {
 #endif
 
-struct NVGcontext* nvgCreateD3D11(ID3D11DeviceContext* pDeviceContext, int edgeaa);
+struct NVGcontext* nvgCreateD3D11(ID3D11Device* pDevice, int edgeaa);
 void nvgDeleteD3D11(struct NVGcontext* ctx);
 
 // These are additional flags on top of NVGimageFlags.

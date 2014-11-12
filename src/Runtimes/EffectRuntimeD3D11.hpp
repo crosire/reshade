@@ -58,9 +58,9 @@ namespace ReShade
 
 		ID3D11Device *mDevice;
 		ID3D11DeviceContext *mImmediateContext;
-		ID3D11DeviceContext *mDeferredContext;
 		IDXGISwapChain *mSwapChain;
 		DXGI_SWAP_CHAIN_DESC mSwapChainDesc;
+		std::unique_ptr<class D3D11StateBlock> mStateBlock;
 		ID3D11Texture2D *mBackBuffer, *mBackBufferReplacement;
 		ID3D11Texture2D *mBackBufferTexture;
 		ID3D11ShaderResourceView *mBackBufferTextureSRV[2];
