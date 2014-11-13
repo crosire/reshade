@@ -160,7 +160,7 @@ namespace ReShade
 		HDC mDeviceContext;
 		HGLRC mRenderContext;
 		GLStateBlock mStateBlock;
-		GLuint mBackBufferFBO, mBackBufferRBO, mBackBufferTexture[2], mDepthStencilFBO, mDepthStencilTexture, mBlitFBO;
+		GLuint mDefaultBackBufferFBO, mDefaultBackBufferRBO[2], mBackBufferTexture[2], mDepthStencilFBO, mDepthStencilTexture, mBlitFBO;
 		std::unordered_map<GLuint, GLFramebufferInfo> mFramebufferTable;
 		bool mLost, mPresenting;
 	};
@@ -188,7 +188,7 @@ namespace ReShade
 		std::vector<std::shared_ptr<GLSampler>> mSamplers;
 		std::unordered_map<std::string, std::unique_ptr<GLConstant>> mConstants;
 		std::unordered_map<std::string, std::unique_ptr<GLTechnique>> mTechniques;
-		GLuint mDefaultVAO, mDefaultVBO, mDepthStencil;
+		GLuint mDefaultVAO, mDefaultVBO;
 		std::vector<GLuint> mUniformBuffers;
 		std::vector<std::pair<unsigned char *, std::size_t>> mUniformStorages;
 		mutable bool mUniformDirty;
