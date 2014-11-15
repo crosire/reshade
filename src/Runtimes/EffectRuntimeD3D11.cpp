@@ -2899,14 +2899,10 @@ namespace ReShade
 			return;
 		}
 
-		D3D11DepthStencilInfo info;
-		info.Width = desc.Width;
-		info.Height = desc.Height;
-		info.DrawCallCount = 0;
-
 		LOG(TRACE) << "Adding depthstencil " << depthstencil << " (Width: " << desc.Width << ", Height: " << desc.Height << ", Format: " << desc.Format << ") to list of possible depth candidates ...";
 
 		// Begin tracking new depthstencil
+		const D3D11DepthStencilInfo info = { desc.Width, desc.Height, 0.0f, 0.0f };
 		this->mDepthStencilTable.emplace(depthstencil, info);
 	}
 	
