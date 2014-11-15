@@ -2910,7 +2910,7 @@ namespace ReShade
 		this->mDepthStencilTable.emplace(depthstencil, info);
 	}
 	
-	std::unique_ptr<Effect> D3D11Runtime::CreateEffect(const EffectTree &ast, std::string &errors) const
+	std::unique_ptr<Effect> D3D11Runtime::CompileEffect(const EffectTree &ast, std::string &errors) const
 	{
 		std::unique_ptr<D3D11Effect> effect(new D3D11Effect(shared_from_this()));
 

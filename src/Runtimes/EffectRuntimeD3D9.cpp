@@ -2625,7 +2625,7 @@ namespace ReShade
 		this->mDevice->EndScene();
 	}
 
-	std::unique_ptr<Effect> D3D9Runtime::CreateEffect(const EffectTree &ast, std::string &errors) const
+	std::unique_ptr<Effect> D3D9Runtime::CompileEffect(const EffectTree &ast, std::string &errors) const
 	{
 		std::unique_ptr<D3D9Effect> effect(new D3D9Effect(shared_from_this()));
 			

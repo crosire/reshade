@@ -111,8 +111,9 @@ namespace ReShade
 
 	// -----------------------------------------------------------------------------------------------------
 
-	Runtime::Runtime() : mWidth(0), mHeight(0), mVendorId(0), mDeviceId(0), mRendererId(0), mLastFrameCount(0), mLastDrawCalls(0), mLastDrawCallVertices(0), mDate(), mNVG(nullptr), mShowStatistics(false)
+	Runtime::Runtime() : mWidth(0), mHeight(0), mVendorId(0), mDeviceId(0), mRendererId(0), mLastFrameCount(0), mLastDrawCalls(0), mLastDrawCallVertices(0), mDate(), mCompileStep(0), mNVG(nullptr), mShowStatistics(false)
 	{
+		this->mStatus = "Initializing ...";
 		this->mStartTime = boost::chrono::high_resolution_clock::now();
 	}
 	Runtime::~Runtime()
@@ -120,17 +121,17 @@ namespace ReShade
 		OnDelete();
 	}
 
-	bool Runtime::OnCreate(unsigned int width, unsigned int height)
+	void Runtime::OnCreate(unsigned int width, unsigned int height)
 	{
 		if (this->mEffect != nullptr)
 		{
-			return false;
+			return;
 		}
 		if (width == 0 || height == 0)
 		{
 			LOG(WARNING) << "Failed to reload effects due to invalid size of " << width << "x" << height << ".";
 
-			return false;
+			return;
 		}
 
 		this->mWidth = width;
@@ -141,147 +142,9 @@ namespace ReShade
 			nvgCreateFont(this->mNVG, "Courier", (GetWindowsDirectory() / "Fonts" / "courbd.ttf").string().c_str());
 		}
 
-		boost::filesystem::path path = sEffectPath;
-
-		if (!boost::filesystem::exists(path))
-		{
-			path = path.parent_path() / "ReShade.fx";
-		}
-		if (!boost::filesystem::exists(path))
-		{
-			path = path.parent_path() / "Sweet.fx";
-		}
-		if (!boost::filesystem::exists(path))
-		{
-			LOG(ERROR) << "Effect file " << sEffectPath << " does not exist.";
-
-			return false;
-		}
-
-		tm tm;
-		std::time_t time = std::time(nullptr);
-		::localtime_s(&tm, &time);
-
-		// Preprocess
-		EffectPreprocessor preprocessor;
-		preprocessor.AddDefine("__RESHADE__", std::to_string(VERSION_MAJOR * 10000 + VERSION_MINOR * 100 + VERSION_REVISION));
-		preprocessor.AddDefine("__VENDOR__", std::to_string(this->mVendorId));
-		preprocessor.AddDefine("__DEVICE__", std::to_string(this->mDeviceId));
-		preprocessor.AddDefine("__RENDERER__", std::to_string(this->mRendererId));
-		preprocessor.AddDefine("__DATE_YEAR__", std::to_string(tm.tm_year + 1900));
-		preprocessor.AddDefine("__DATE_MONTH__", std::to_string(tm.tm_mday));
-		preprocessor.AddDefine("__DATE_DAY__", std::to_string(tm.tm_mon + 1));
-		preprocessor.AddDefine("BUFFER_WIDTH", std::to_string(width));
-		preprocessor.AddDefine("BUFFER_HEIGHT", std::to_string(height));
-		preprocessor.AddDefine("BUFFER_RCP_WIDTH", std::to_string(1.0f / static_cast<float>(width)));
-		preprocessor.AddDefine("BUFFER_RCP_HEIGHT", std::to_string(1.0f / static_cast<float>(height)));
-		preprocessor.AddIncludePath(sEffectPath.parent_path());
-
-		LOG(INFO) << "Loading effect from " << ObfuscatePath(path) << " ...";
-		LOG(TRACE) << "> Running preprocessor ...";
-
-		this->mErrors.clear();
-		this->mMessage.clear();
-		this->mShowStatistics = false;
-
-		const std::string source = preprocessor.Run(path, errors);
-		
-		if (source.empty())
-		{
-			LOG(ERROR) << "Failed to preprocess effect on context " << this << ":\n\n" << this->mErrors << "\n";
-
-			return false;
-		}
-
-		// Parse
-		EffectTree ast;
-		EffectParser parser(ast);
-
-		LOG(TRACE) << "> Running parser ...";
-
-		if (!parser.Parse(source, this->mErrors))
-		{
-			LOG(ERROR) << "Failed to compile effect on context " << this << ":\n\n" << this->mErrors << "\n";
-
-			return false;
-		}
-
-		for (const std::string &pragma : parser.GetPragmas())
-		{
-			if (boost::starts_with(pragma, "message "))
-			{
-				this->mMessage += pragma.substr(9, pragma.length() - 10);
-			}
-			else if (!boost::istarts_with(pragma, "reshade "))
-			{
-				continue;
-			}
-
-			const std::string command = pragma.substr(8);
-
-			if (boost::iequals(command, "statistics") || boost::iequals(command, "showstatistics"))
-			{
-				this->mShowStatistics = true;
-			}
-		}
-
-		// Compile
-		LOG(TRACE) << "> Running compiler ...";
-
-		std::unique_ptr<Effect> effect = CreateEffect(ast, this->mErrors);
-
-		if (effect == nullptr)
-		{
-			LOG(ERROR) << "Failed to compile effect on context " << this << ":\n\n" << this->mErrors << "\n";
-
-			return false;
-		}
-		else if (!this->mErrors.empty())
-		{
-			LOG(WARNING) << "> Successfully compiled effect with warnings:" << "\n\n" << this->mErrors << "\n";
-		}
-		else
-		{
-			LOG(INFO) << "> Successfully compiled effect.";
-		}
-
-		// Process
-		const auto techniques = effect->GetTechniqueNames();
-
-		if (techniques.empty())
-		{
-			LOG(WARNING) << "> Effect doesn't contain any techniques. Skipped.";
-
-			return false;
-		}
-		else
-		{
-			this->mTechniques.reserve(techniques.size());
-
-			for (const std::string &name : techniques)
-			{
-				const Effect::Technique *technique = effect->GetTechnique(name);
-				
-				InfoTechnique info;
-				info.Enabled = technique->GetAnnotation("enabled").As<bool>();
-				info.Timeleft = info.Timeout = technique->GetAnnotation("timeout").As<int>();
-				info.Toggle = technique->GetAnnotation("toggle").As<int>();
-				info.ToggleTime = technique->GetAnnotation("toggletime").As<int>();
-
-				this->mTechniques.push_back(std::make_pair(technique, info));
-			}
-		}
-
-		this->mEffect.swap(effect);
-
-		LoadResources();
-
-		this->mLastCreate = boost::chrono::high_resolution_clock::now();
-		this->mLastPresent = this->mLastCreate;
+		this->mCompileStep = 1;
 
 		LOG(INFO) << "Recreated effect environment on context " << this << ".";
-
-		return true;
 	}
 	void Runtime::OnDelete()
 	{
@@ -483,11 +346,37 @@ namespace ReShade
 				if (extension == ".fx" || extension == ".txt" || extension == ".h")
 				{
 					LOG(INFO) << "Detected modification to " << ObfuscatePath(path) << ". Reloading ...";
-			
-					OnDelete();
-					OnCreate(this->mWidth, this->mHeight);
-					return;
+
+					this->mCompileStep = 1;
+					break;
 				}
+			}
+		}
+
+		if (this->mCompileStep != 0)
+		{
+			this->mLastCreate = timePresent;
+
+			switch (this->mCompileStep)
+			{
+				case 1:
+					this->mStatus = "Loading effect ...";
+					this->mCompileStep++;
+					break;
+				case 2:
+					this->mCompileStep = LoadEffect() ? 3 : 0;
+					break;
+				case 3:
+					this->mStatus = "Compiling effect ...";
+					this->mCompileStep++;
+					break;
+				case 4:
+					this->mCompileStep = CompileEffect() ? 5 : 0;
+					break;
+				case 5:
+					ProcessEffect();
+					this->mCompileStep = 0;
+					break;
 			}
 		}
 
@@ -499,43 +388,43 @@ namespace ReShade
 			const boost::chrono::seconds timeSinceCreate = boost::chrono::duration_cast<boost::chrono::seconds>(timePresent - this->mLastCreate);
 
 			nvgFontFace(this->mNVG, "Courier");
-			nvgFontSize(this->mNVG, 16);
-			nvgTextAlign(this->mNVG, NVG_ALIGN_LEFT | NVG_ALIGN_TOP);
 
-			float y = 0;
-
-			if (timeSinceCreate.count() < 8)
+			if (!this->mStatus.empty())
 			{
 				nvgFillColor(this->mNVG, nvgRGB(255, 255, 255));
-				nvgText(this->mNVG, 0,  0, "ReShade " BOOST_STRINGIZE(VERSION_FULL) " by Crosire", nullptr);
+				nvgTextAlign(this->mNVG, NVG_ALIGN_LEFT | NVG_ALIGN_TOP);
 
-				y += 22;
-			}
-			if (!this->mErrors.empty())
-			{
-				if (this->mEffect == nullptr)
+				nvgFontSize(this->mNVG, 20);
+				nvgText(this->mNVG, 0, 0, "ReShade " BOOST_STRINGIZE(VERSION_FULL) " by Crosire", nullptr);
+				nvgFontSize(this->mNVG, 16);
+				nvgText(this->mNVG, 0, 22, this->mStatus.c_str(), nullptr);
+
+				if (!this->mErrors.empty() && this->mCompileStep == 0)
 				{
-					nvgFillColor(this->mNVG, nvgRGB(255, 0, 0));
-					nvgTextBox(this->mNVG, 0, y, static_cast<float>(this->mWidth), ("Failed to compile effect:\n\n" + this->mErrors).c_str(), nullptr);
-				}
-				else if (timeSinceCreate.count() < 6)
-				{
-					nvgFillColor(this->mNVG, nvgRGB(255, 255, 0));
-					nvgTextBox(this->mNVG, 0, y, static_cast<float>(this->mWidth), ("Successfully compiled effect with warnings:\n\n" + this->mErrors).c_str(), nullptr);
+					if (this->mEffect == nullptr)
+					{
+						nvgFillColor(this->mNVG, nvgRGB(255, 0, 0));
+					}
+					else
+					{
+						nvgFillColor(this->mNVG, nvgRGB(255, 255, 0));
+					}
 
-					float bounds[4] = { 0, 0, 0, 0 };
-					nvgTextBoxBounds(this->mNVG, 0, 0, static_cast<float>(this->mWidth), this->mErrors.c_str(), nullptr, bounds);
-					y += 48 + bounds[3];
+					nvgTextBox(this->mNVG, 0, 46, static_cast<float>(this->mWidth), this->mErrors.c_str(), nullptr);
 				}
 			}
-			if (timeSinceCreate.count() < 8 && !this->mMessage.empty())
-			{
-				y += 16;
 
+			if (!this->mMessage.empty())
+			{
 				nvgFillColor(this->mNVG, nvgRGB(255, 255, 255));
-				nvgTextBox(this->mNVG, 0, y, static_cast<float>(this->mWidth), this->mMessage.c_str(), nullptr);
-			}
+				nvgTextAlign(this->mNVG, NVG_ALIGN_CENTER | NVG_ALIGN_MIDDLE);
+				nvgFontSize(this->mNVG, 16);
 
+				float bounds[4];
+				nvgTextBoxBounds(this->mNVG, 0, 0, static_cast<float>(this->mWidth), this->mMessage.c_str(), nullptr, bounds);
+
+				nvgTextBox(this->mNVG, 0, static_cast<float>(this->mHeight) / 2 - bounds[3] / 2, static_cast<float>(this->mWidth), this->mMessage.c_str(), nullptr);
+			}
 			if (this->mShowStatistics)
 			{
 				std::string stats = "Statistics\n";
@@ -546,12 +435,19 @@ namespace ReShade
 				stats += "PostProcessing: " + std::to_string(boost::chrono::duration_cast<boost::chrono::nanoseconds>(this->mLastPostProcessingDuration).count() * 1e-6f) + "ms" + '\n';
 				stats += "Timer: " + std::to_string(std::fmod(boost::chrono::duration_cast<boost::chrono::nanoseconds>(this->mLastPresent - this->mStartTime).count() * 1e-6f, 16777216.0f)) + "ms" + '\n';
 
-				nvgTextAlign(this->mNVG, NVG_ALIGN_RIGHT | NVG_ALIGN_TOP);
 				nvgFillColor(this->mNVG, nvgRGB(255, 255, 255));
+				nvgTextAlign(this->mNVG, NVG_ALIGN_RIGHT | NVG_ALIGN_TOP);
+				nvgFontSize(this->mNVG, 16);
 				nvgTextBox(this->mNVG, 0, 0, static_cast<float>(this->mWidth), stats.c_str(), nullptr);
 			}
 
 			nvgEndFrame(this->mNVG);
+
+			if (timeSinceCreate.count() > 8 && this->mEffect != nullptr)
+			{
+				this->mStatus.clear();
+				this->mMessage.clear();
+			}
 		}
 
 		// Update inputs
@@ -566,8 +462,172 @@ namespace ReShade
 		this->mLastDrawCalls = this->mLastDrawCallVertices = 0;
 	}
 
-	void Runtime::LoadResources()
+	bool Runtime::LoadEffect()
 	{
+		boost::filesystem::path path = sEffectPath;
+
+		if (!boost::filesystem::exists(path))
+		{
+			path = path.parent_path() / "ReShade.fx";
+		}
+		if (!boost::filesystem::exists(path))
+		{
+			path = path.parent_path() / "Sweet.fx";
+		}
+		if (!boost::filesystem::exists(path))
+		{
+			LOG(ERROR) << "Effect file " << sEffectPath << " does not exist.";
+
+			this->mStatus += " No effect found!";
+
+			return false;
+		}
+
+		tm tm;
+		std::time_t time = std::time(nullptr);
+		::localtime_s(&tm, &time);
+
+		// Preprocess
+		EffectPreprocessor preprocessor;
+		preprocessor.AddDefine("__RESHADE__", std::to_string(VERSION_MAJOR * 10000 + VERSION_MINOR * 100 + VERSION_REVISION));
+		preprocessor.AddDefine("__VENDOR__", std::to_string(this->mVendorId));
+		preprocessor.AddDefine("__DEVICE__", std::to_string(this->mDeviceId));
+		preprocessor.AddDefine("__RENDERER__", std::to_string(this->mRendererId));
+		preprocessor.AddDefine("__DATE_YEAR__", std::to_string(tm.tm_year + 1900));
+		preprocessor.AddDefine("__DATE_MONTH__", std::to_string(tm.tm_mday));
+		preprocessor.AddDefine("__DATE_DAY__", std::to_string(tm.tm_mon + 1));
+		preprocessor.AddDefine("BUFFER_WIDTH", std::to_string(this->mWidth));
+		preprocessor.AddDefine("BUFFER_HEIGHT", std::to_string(this->mHeight));
+		preprocessor.AddDefine("BUFFER_RCP_WIDTH", std::to_string(1.0f / static_cast<float>(this->mWidth)));
+		preprocessor.AddDefine("BUFFER_RCP_HEIGHT", std::to_string(1.0f / static_cast<float>(this->mHeight)));
+		preprocessor.AddIncludePath(sEffectPath.parent_path());
+
+		LOG(INFO) << "Loading effect from " << ObfuscatePath(path) << " ...";
+		LOG(TRACE) << "> Running preprocessor ...";
+
+		std::string errors;
+		const std::string source = preprocessor.Run(path, errors);
+
+		if (source.empty())
+		{
+			LOG(ERROR) << "Failed to preprocess effect on context " << this << ":\n\n" << errors << "\n";
+
+			this->mStatus += " Failed!";
+			this->mErrors = errors;
+			this->mEffectSource.clear();
+
+			return false;
+		}
+		else if (source == this->mEffectSource && this->mEffect != nullptr)
+		{
+			LOG(INFO) << "> Already compiled.";
+
+			this->mStatus += " Already compiled.";
+
+			return false;
+		}
+		else
+		{
+			this->mErrors = errors;
+			this->mEffectSource = source;
+		}
+
+		return true;
+	}
+	bool Runtime::CompileEffect()
+	{
+		this->mMessage.clear();
+		this->mTechniques.clear();
+		this->mEffect.reset();
+		this->mShowStatistics = false;
+
+		EffectTree ast;
+		EffectParser parser(ast);
+
+		LOG(TRACE) << "> Running parser ...";
+
+		if (!parser.Parse(this->mEffectSource, this->mErrors))
+		{
+			LOG(ERROR) << "Failed to compile effect on context " << this << ":\n\n" << this->mErrors << "\n";
+
+			this->mStatus += " Failed!";
+
+			return false;
+		}
+
+		for (const std::string &pragma : parser.GetPragmas())
+		{
+			if (boost::starts_with(pragma, "message "))
+			{
+				this->mMessage += pragma.substr(9, pragma.length() - 10);
+			}
+			else if (!boost::istarts_with(pragma, "reshade "))
+			{
+				continue;
+			}
+
+			const std::string command = pragma.substr(8);
+
+			if (boost::iequals(command, "statistics") || boost::iequals(command, "showstatistics"))
+			{
+				this->mShowStatistics = true;
+			}
+		}
+
+		// Compile
+		LOG(TRACE) << "> Running compiler ...";
+
+		this->mEffect = CompileEffect(ast, this->mErrors);
+
+		if (this->mEffect == nullptr)
+		{
+			LOG(ERROR) << "Failed to compile effect on context " << this << ":\n\n" << this->mErrors << "\n";
+
+			this->mStatus += " Failed!";
+
+			return false;
+		}
+		else if (!this->mErrors.empty())
+		{
+			LOG(WARNING) << "> Successfully compiled effect with warnings:" << "\n\n" << this->mErrors << "\n";
+
+			this->mStatus += " Succeeded!";
+		}
+		else
+		{
+			LOG(INFO) << "> Successfully compiled effect.";
+
+			this->mStatus += " Succeeded!";
+		}
+				
+		return true;
+	}
+	void Runtime::ProcessEffect()
+	{
+		const auto techniques = this->mEffect->GetTechniqueNames();
+
+		if (techniques.empty())
+		{
+			LOG(WARNING) << "> Effect doesn't contain any techniques.";
+
+			return;
+		}
+
+		this->mTechniques.reserve(techniques.size());
+
+		for (const std::string &name : techniques)
+		{
+			const Effect::Technique *technique = this->mEffect->GetTechnique(name);
+				
+			InfoTechnique info;
+			info.Enabled = technique->GetAnnotation("enabled").As<bool>();
+			info.Timeleft = info.Timeout = technique->GetAnnotation("timeout").As<int>();
+			info.Toggle = technique->GetAnnotation("toggle").As<int>();
+			info.ToggleTime = technique->GetAnnotation("toggletime").As<int>();
+
+			this->mTechniques.push_back(std::make_pair(technique, info));
+		}
+
 		const auto textures = this->mEffect->GetTextureNames();
 
 		for (const std::string &name : textures)

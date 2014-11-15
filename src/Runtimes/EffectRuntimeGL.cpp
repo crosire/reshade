@@ -3331,7 +3331,7 @@ namespace ReShade
 		LOG(TRACE) << "Adding framebuffer " << fbo << " (Depth Attachment: " << attachment << ", Depth Width: " << info.DepthStencilWidth << ", Depth Height: " << info.DepthStencilHeight << ", Depth Format: " << info.DepthStencilFormat << ") to list of possible depth candidates ...";
 	}
 
-	std::unique_ptr<Effect> GLRuntime::CreateEffect(const EffectTree &ast, std::string &errors) const
+	std::unique_ptr<Effect> GLRuntime::CompileEffect(const EffectTree &ast, std::string &errors) const
 	{
 		GLEffect *effect = new GLEffect(shared_from_this());
 

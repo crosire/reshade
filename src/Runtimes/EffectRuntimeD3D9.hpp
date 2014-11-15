@@ -30,7 +30,7 @@ namespace ReShade
 		void OnDrawInternal(D3DPRIMITIVETYPE type, UINT count);
 		void OnPresentInternal();
 
-		virtual std::unique_ptr<Effect> CreateEffect(const EffectTree &ast, std::string &errors) const override;
+		virtual std::unique_ptr<Effect> CompileEffect(const EffectTree &ast, std::string &errors) const override;
 		virtual void CreateScreenshot(unsigned char *buffer, std::size_t size) const override;
 
 		void DetectBestDepthStencil();

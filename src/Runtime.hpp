@@ -32,14 +32,16 @@ namespace ReShade
 		virtual ~Runtime();
 
 	protected:
-		bool OnCreate(unsigned int width, unsigned int height);
+		void OnCreate(unsigned int width, unsigned int height);
 		void OnDelete();
 		void OnDraw(unsigned int vertices);
 		void OnPostProcess();
 		void OnPresent();
 
-		void LoadResources();
-		virtual std::unique_ptr<Effect> CreateEffect(const EffectTree &ast, std::string &errors) const = 0;
+		bool LoadEffect();
+		bool CompileEffect();
+		virtual std::unique_ptr<Effect> CompileEffect(const EffectTree &ast, std::string &errors) const = 0;
+		void ProcessEffect();
 		virtual void CreateScreenshot(unsigned char *buffer, std::size_t size) const = 0;
 		void CreateScreenshot(const boost::filesystem::path &path);
 
@@ -53,8 +55,9 @@ namespace ReShade
 		boost::chrono::high_resolution_clock::time_point mStartTime, mLastCreate, mLastPresent;
 		boost::chrono::high_resolution_clock::duration mLastFrameDuration, mLastPostProcessingDuration;
 		unsigned long long mLastFrameCount;
+		unsigned int mCompileStep;
 		float mDate[4];
-		std::string mErrors, mMessage;
+		std::string mStatus, mErrors, mMessage, mEffectSource;
 		bool mShowStatistics;
 	};
 }
