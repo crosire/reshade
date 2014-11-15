@@ -2455,7 +2455,16 @@ namespace ReShade
 
 			this->mDeviceContext->IAGetPrimitiveTopology(&this->mIAPrimitiveTopology);
 			this->mDeviceContext->IAGetInputLayout(&this->mIAInputLayout);
-			this->mDeviceContext->IAGetVertexBuffers(0, D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT, this->mIAVertexBuffers, this->mIAVertexStrides, this->mIAVertexOffsets);
+
+			if (this->mFeatureLevel > D3D_FEATURE_LEVEL_10_0)
+			{
+				this->mDeviceContext->IAGetVertexBuffers(0, D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT, this->mIAVertexBuffers, this->mIAVertexStrides, this->mIAVertexOffsets);
+			}
+			else
+			{
+				this->mDeviceContext->IAGetVertexBuffers(0, D3D10_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT, this->mIAVertexBuffers, this->mIAVertexStrides, this->mIAVertexOffsets);
+			}
+
 			this->mDeviceContext->IAGetIndexBuffer(&this->mIAIndexBuffer, &this->mIAIndexFormat, &this->mIAIndexOffset);
 
 			this->mDeviceContext->RSGetState(&this->mRSState);
@@ -2496,7 +2505,16 @@ namespace ReShade
 		{
 			this->mDeviceContext->IASetPrimitiveTopology(this->mIAPrimitiveTopology);
 			this->mDeviceContext->IASetInputLayout(this->mIAInputLayout);
-			this->mDeviceContext->IASetVertexBuffers(0, D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT, this->mIAVertexBuffers, this->mIAVertexStrides, this->mIAVertexOffsets);
+
+			if (this->mFeatureLevel > D3D_FEATURE_LEVEL_10_0)
+			{
+				this->mDeviceContext->IASetVertexBuffers(0, D3D11_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT, this->mIAVertexBuffers, this->mIAVertexStrides, this->mIAVertexOffsets);
+			}
+			else
+			{
+				this->mDeviceContext->IASetVertexBuffers(0, D3D10_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT, this->mIAVertexBuffers, this->mIAVertexStrides, this->mIAVertexOffsets);
+			}
+
 			this->mDeviceContext->IASetIndexBuffer(this->mIAIndexBuffer, this->mIAIndexFormat, this->mIAIndexOffset);
 
 			this->mDeviceContext->RSSetState(this->mRSState);
