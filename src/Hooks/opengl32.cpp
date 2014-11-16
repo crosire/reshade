@@ -14,6 +14,7 @@
 #undef glCopyTexImage2D
 #undef glCopyTexSubImage1D
 #undef glCopyTexSubImage2D
+#undef glCopyTexSubImage3D
 #undef glCullFace
 #undef glDeleteTextures
 #undef glDepthFunc
@@ -78,12 +79,14 @@
 #undef glStencilOp
 #undef glTexImage1D
 #undef glTexImage2D
+#undef glTexImage3D
 #undef glTexParameterf
 #undef glTexParameterfv
 #undef glTexParameteri
 #undef glTexParameteriv
 #undef glTexSubImage1D
 #undef glTexSubImage2D
+#undef glTexSubImage3D
 #undef glViewport
 
 // -----------------------------------------------------------------------------------------------------
@@ -496,6 +499,12 @@ EXPORT void WINAPI glCopyTexSubImage2D(GLenum target, GLint level, GLint xoffset
 	static const auto trampoline = ReHook::Call(&glCopyTexSubImage2D);
 
 	trampoline(target, level, xoffset, yoffset, x, y, width, height);
+}
+void WINAPI glCopyTexSubImage3D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint zoffset, GLint x, GLint y, GLsizei width, GLsizei height)
+{
+	static const auto trampoline = ReHook::Call(&glCopyTexSubImage3D);
+
+	trampoline(target, level, xoffset, yoffset, zoffset, x, y, width, height);
 }
 EXPORT void WINAPI glCullFace(GLenum mode)
 {
@@ -2245,13 +2254,85 @@ EXPORT void WINAPI glTexImage1D(GLenum target, GLint level, GLint internalformat
 {
 	static const auto trampoline = ReHook::Call(&glTexImage1D);
 
+	switch (internalformat)
+	{
+		case GL_RED:
+			internalformat = GL_R8;
+			break;
+		case GL_RG:
+			internalformat = GL_RG8;
+			break;
+		case GL_RGB:
+			internalformat = GL_RGB8;
+			break;
+		case GL_RGBA:
+			internalformat = GL_RGBA8;
+			break;
+		case GL_DEPTH_COMPONENT:
+			internalformat = GL_DEPTH_COMPONENT16;
+			break;
+		case GL_DEPTH_STENCIL:
+			internalformat = GL_DEPTH24_STENCIL8;
+			break;
+	}
+
 	trampoline(target, level, internalformat, width, border, format, type, pixels);
 }
 EXPORT void WINAPI glTexImage2D(GLenum target, GLint level, GLint internalformat, GLsizei width, GLsizei height, GLint border, GLenum format, GLenum type, const GLvoid *pixels)
 {
 	static const auto trampoline = ReHook::Call(&glTexImage2D);
 
+	switch (internalformat)
+	{
+		case GL_RED:
+			internalformat = GL_R8;
+			break;
+		case GL_RG:
+			internalformat = GL_RG8;
+			break;
+		case GL_RGB:
+			internalformat = GL_RGB8;
+			break;
+		case GL_RGBA:
+			internalformat = GL_RGBA8;
+			break;
+		case GL_DEPTH_COMPONENT:
+			internalformat = GL_DEPTH_COMPONENT16;
+			break;
+		case GL_DEPTH_STENCIL:
+			internalformat = GL_DEPTH24_STENCIL8;
+			break;
+	}
+
 	trampoline(target, level, internalformat, width, height, border, format, type, pixels);
+}
+void WINAPI glTexImage3D(GLenum target, GLint level, GLint internalformat, GLsizei width, GLsizei height, GLsizei depth, GLint border, GLenum format, GLenum type, const GLvoid *pixels)
+{
+	static const auto trampoline = ReHook::Call(&glTexImage3D);
+
+	switch (internalformat)
+	{
+		case GL_RED:
+			internalformat = GL_R8;
+			break;
+		case GL_RG:
+			internalformat = GL_RG8;
+			break;
+		case GL_RGB:
+			internalformat = GL_RGB8;
+			break;
+		case GL_RGBA:
+			internalformat = GL_RGBA8;
+			break;
+		case GL_DEPTH_COMPONENT:
+			internalformat = GL_DEPTH_COMPONENT16;
+			break;
+		case GL_DEPTH_STENCIL:
+			internalformat = GL_DEPTH24_STENCIL8;
+			break;
+	}
+
+	trampoline(target, level, internalformat, width, height, depth, border, format, type, pixels);
 }
 EXPORT void WINAPI glTexParameterf(GLenum target, GLenum pname, GLfloat param)
 {
@@ -2288,6 +2369,12 @@ EXPORT void WINAPI glTexSubImage2D(GLenum target, GLint level, GLint xoffset, GL
 	static const auto trampoline = ReHook::Call(&glTexSubImage2D);
 
 	trampoline(target, level, xoffset, yoffset, width, height, format, type, pixels);
+}
+void WINAPI glTexSubImage3D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei zoffset, GLsizei width, GLsizei height, GLsizei depth, GLenum format, GLenum type, const GLvoid *pixels)
+{
+	static const auto trampoline = ReHook::Call(&glTexSubImage3D);
+
+	trampoline(target, level, xoffset, yoffset, zoffset, width, height, depth, format, type, pixels);
 }
 EXPORT void WINAPI glTranslated(GLdouble x, GLdouble y, GLdouble z)
 {
@@ -3159,6 +3246,10 @@ EXPORT PROC WINAPI wglGetProcAddress(LPCSTR lpszProc)
 	{
 		return reinterpret_cast<PROC>(&glCopyTexSubImage2D);
 	}
+	else if (strcmp(lpszProc, "glCopyTexSubImage3D") == 0)
+	{
+		ReHook::Register(reinterpret_cast<ReHook::Hook::Function>(address), reinterpret_cast<ReHook::Hook::Function>(&glCopyTexSubImage3D));
+	}
 	else if (strcmp(lpszProc, "glCullFace") == 0)
 	{
 		return reinterpret_cast<PROC>(&glCullFace);
@@ -3419,6 +3510,10 @@ EXPORT PROC WINAPI wglGetProcAddress(LPCSTR lpszProc)
 	{
 		return reinterpret_cast<PROC>(&glTexImage2D);
 	}
+	else if (strcmp(lpszProc, "glTexImage3D") == 0)
+	{
+		ReHook::Register(reinterpret_cast<ReHook::Hook::Function>(address), reinterpret_cast<ReHook::Hook::Function>(&glTexImage3D));
+	}
 	else if (strcmp(lpszProc, "glTexParameterf") == 0)
 	{
 		return reinterpret_cast<PROC>(&glTexParameterf);
@@ -3442,6 +3537,10 @@ EXPORT PROC WINAPI wglGetProcAddress(LPCSTR lpszProc)
 	else if (strcmp(lpszProc, "glTexSubImage2D") == 0)
 	{
 		return reinterpret_cast<PROC>(&glTexSubImage2D);
+	}
+	else if (strcmp(lpszProc, "glTexSubImage3D") == 0)
+	{
+		ReHook::Register(reinterpret_cast<ReHook::Hook::Function>(address), reinterpret_cast<ReHook::Hook::Function>(&glTexSubImage3D));
 	}
 	else if (strcmp(lpszProc, "glViewport") == 0)
 	{
