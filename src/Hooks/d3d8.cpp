@@ -2582,12 +2582,23 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::GetVertexShaderDeclaration(DWORD Hand
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice8::GetVertexShaderFunction(DWORD Handle, void *pData, DWORD *pSizeOfData)
 {
+	LOG(INFO) << "Redirecting '" << "IDirect3DDevice8::GetVertexShaderFunction" << "(" << this << ", " << Handle << ", " << pData << ", " << pSizeOfData << ")' ...";
+
 	if ((Handle & 0x80000000) == 0)
 	{
 		return D3DERR_INVALIDCALL;
 	}
 
-	return reinterpret_cast<IDirect3DVertexShader9 *>(Handle ^ 0x80000000)->GetFunction(pData, reinterpret_cast<UINT *>(pSizeOfData));
+	Direct3DVertexShader8 *shader = reinterpret_cast<Direct3DVertexShader8 *>(Handle ^ 0x80000000);
+
+	if (shader->mProxy == nullptr)
+	{
+		return D3DERR_INVALIDCALL;
+	}
+
+	LOG(WARNING) << "> Returning translated shader bytecode.";
+
+	return shader->mProxy->GetFunction(pData, reinterpret_cast<UINT *>(pSizeOfData));
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice8::SetStreamSource(UINT StreamNumber, Direct3DVertexBuffer8 *pStreamData, UINT Stride)
 {
@@ -2769,10 +2780,14 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::GetPixelShaderConstant(DWORD Register
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice8::GetPixelShaderFunction(DWORD Handle, void *pData, DWORD *pSizeOfData)
 {
+	LOG(INFO) << "Redirecting '" << "IDirect3DDevice8::GetPixelShaderFunction" << "(" << this << ", " << Handle << ", " << pData << ", " << pSizeOfData << ")' ...";
+
 	if (Handle == 0)
 	{
 		return D3DERR_INVALIDCALL;
 	}
+
+	LOG(WARNING) << "> Returning translated shader bytecode.";
 
 	return reinterpret_cast<IDirect3DPixelShader9 *>(Handle)->GetFunction(pData, reinterpret_cast<UINT *>(pSizeOfData));
 }
