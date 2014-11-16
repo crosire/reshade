@@ -1362,7 +1362,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::GetDeviceCaps(D3DCAPS8 *pCaps)
 
 	if (SUCCEEDED(hr))
 	{
-		::memcpy(pCaps, &caps, sizeof(D3DCAPS8));
+		CopyMemory(pCaps, &caps, sizeof(D3DCAPS8));
 	}
 
 	return hr;
@@ -2684,14 +2684,49 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreatePixelShader(CONST DWORD *pFunct
 
 	LOG(INFO) << "> Translating to Direct3D 9 compatible code ...";
 
-	if (*pFunction < 0xFFFF0101 && *pFunction > 0xFFFF0104)
+	if (*pFunction < 0xFFFF0100 || *pFunction > 0xFFFF0104)
 	{
 		LOG(WARNING) << "> Failed because of version mismatch ('" << *pFunction << "')! Only 'ps_1_x' shaders are supported.";
 
 		return D3DERR_INVALIDCALL;
 	}
 
-	const HRESULT hr = this->mProxy->CreatePixelShader(pFunction, reinterpret_cast<IDirect3DPixelShader9 **>(pHandle));
+	ID3DXBuffer *disassembly = nullptr, *assembly = nullptr;
+
+	HRESULT hr = ::D3DXDisassembleShader(pFunction, FALSE, nullptr, &disassembly);
+
+	if (FAILED(hr))
+	{
+		LOG(ERROR) << "'D3DXDisassembleShader' failed with '" << GetErrorString(hr) << "'!";
+
+		return hr;
+	}
+
+	std::string source(static_cast<const char *>(disassembly->GetBufferPointer()), disassembly->GetBufferSize());
+
+	const std::size_t pos = source.find("ps_1_0");
+
+	if (pos != std::string::npos)
+	{
+		LOG(WARNING) << "> Replacing version 'ps_1_0' with 'ps_1_1' ...";
+
+		source.replace(pos, 6, "ps_1_1");
+	}
+
+	hr = ::D3DXAssembleShader(source.data(), static_cast<UINT>(source.size()), nullptr, nullptr, D3DXSHADER_SKIPVALIDATION, &assembly, nullptr);
+
+	disassembly->Release();
+
+	if (FAILED(hr))
+	{
+		LOG(ERROR) << "'D3DXAssembleShader' failed with '" << GetErrorString(hr) << "'!";
+
+		return hr;
+	}
+
+	hr = this->mProxy->CreatePixelShader(static_cast<CONST DWORD *>(assembly->GetBufferPointer()), reinterpret_cast<IDirect3DPixelShader9 **>(pHandle));
+
+	assembly->Release();
 
 	if (FAILED(hr))
 	{
@@ -2818,8 +2853,8 @@ HRESULT STDMETHODCALLTYPE Direct3D8::GetAdapterIdentifier(UINT Adapter, DWORD Fl
 
 	if (SUCCEEDED(hr))
 	{
-		::memcpy(pIdentifier->Driver, identifier.Driver, MAX_DEVICE_IDENTIFIER_STRING * sizeof(char));
-		::memcpy(pIdentifier->Description, identifier.Description, MAX_DEVICE_IDENTIFIER_STRING * sizeof(char));
+		CopyMemory(pIdentifier->Driver, identifier.Driver, MAX_DEVICE_IDENTIFIER_STRING * sizeof(char));
+		CopyMemory(pIdentifier->Description, identifier.Description, MAX_DEVICE_IDENTIFIER_STRING * sizeof(char));
 		pIdentifier->DriverVersion = identifier.DriverVersion;
 		pIdentifier->VendorId = identifier.VendorId;
 		pIdentifier->DeviceId = identifier.DeviceId;
@@ -2897,7 +2932,7 @@ HRESULT STDMETHODCALLTYPE Direct3D8::GetDeviceCaps(UINT Adapter, D3DDEVTYPE Devi
 
 	if (SUCCEEDED(hr))
 	{
-		::memcpy(pCaps, &caps, sizeof(D3DCAPS8));
+		CopyMemory(pCaps, &caps, sizeof(D3DCAPS8));
 	}
 
 	return hr;
