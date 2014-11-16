@@ -2578,6 +2578,9 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::GetVertexShaderDeclaration(DWORD Hand
 	UNREFERENCED_PARAMETER(pData);
 	UNREFERENCED_PARAMETER(pSizeOfData);
 
+	LOG(INFO) << "Redirecting '" << "IDirect3DDevice8::GetVertexShaderDeclaration" << "(" << this << ", " << Handle << ", " << pData << ", " << pSizeOfData << ")' ...";
+	LOG(ERROR) << "'IDirect3DDevice8::GetVertexShaderDeclaration' is not implemented!";
+
 	return E_NOTIMPL;
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice8::GetVertexShaderFunction(DWORD Handle, void *pData, DWORD *pSizeOfData)
