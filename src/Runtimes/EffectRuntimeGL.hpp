@@ -252,7 +252,7 @@ namespace ReShade
 		struct Pass
 		{
 			GLuint Program;
-			GLuint Framebuffer;
+			GLuint Framebuffer, DrawTextures[8];
 			GLint StencilRef;
 			GLuint StencilMask, StencilReadMask;
 			GLsizei ViewportWidth, ViewportHeight;

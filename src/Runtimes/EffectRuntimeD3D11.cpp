@@ -1629,16 +1629,17 @@ namespace ReShade
 			void VisitTexture(const EffectNodes::Variable &node)
 			{
 				D3D11_TEXTURE2D_DESC texdesc;
-				texdesc.ArraySize = 1;
+				ZeroMemory(&texdesc, sizeof(D3D11_TEXTURE2D_DESC));
 				texdesc.Width = (node.Properties[EffectNodes::Variable::Width] != 0) ? this->mAST[node.Properties[EffectNodes::Variable::Width]].As<EffectNodes::Literal>().Value.Uint[0] : 1;
 				texdesc.Height = (node.Properties[EffectNodes::Variable::Height] != 0) ? this->mAST[node.Properties[EffectNodes::Variable::Height]].As<EffectNodes::Literal>().Value.Uint[0] : 1;
 				texdesc.MipLevels = (node.Properties[EffectNodes::Variable::MipLevels] != 0) ? this->mAST[node.Properties[EffectNodes::Variable::MipLevels]].As<EffectNodes::Literal>().Value.Uint[0] : 1;
+				texdesc.ArraySize = 1;
 				texdesc.Format = DXGI_FORMAT_R8G8B8A8_TYPELESS;
-				texdesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
-				texdesc.Usage = D3D11_USAGE_DEFAULT;
-				texdesc.CPUAccessFlags = texdesc.MiscFlags = 0;
 				texdesc.SampleDesc.Count = 1;
 				texdesc.SampleDesc.Quality = 0;
+				texdesc.Usage = D3D11_USAGE_DEFAULT;
+				texdesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
+				texdesc.MiscFlags = D3D11_RESOURCE_MISC_GENERATE_MIPS;
 				
 				Effect::Texture::Format format = Effect::Texture::Format::RGBA8;
 
@@ -1692,8 +1693,8 @@ namespace ReShade
 					}
 
 					D3D11_SHADER_RESOURCE_VIEW_DESC srvdesc;
+					ZeroMemory(&srvdesc, sizeof(D3D11_SHADER_RESOURCE_VIEW_DESC));
 					srvdesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-					srvdesc.Texture2D.MostDetailedMip = 0;
 					srvdesc.Texture2D.MipLevels = texdesc.MipLevels;
 					srvdesc.Format = MakeNonSRBFormat(texdesc.Format);
 
@@ -2155,7 +2156,8 @@ namespace ReShade
 				pass.Viewport.MinDepth = 0.0f;
 				pass.Viewport.MaxDepth = 1.0f;
 				ZeroMemory(pass.RT, sizeof(pass.RT));
-				pass.SR = this->mEffect->mShaderResources;
+				ZeroMemory(pass.RTSRV, sizeof(pass.RTSRV));
+				pass.SRV = this->mEffect->mShaderResources;
 
 				if (node.States[EffectNodes::Pass::VertexShader] != 0)
 				{
@@ -2174,6 +2176,7 @@ namespace ReShade
 				}
 
 				pass.RT[0] = this->mEffect->mEffectContext->mBackBufferTargets[srgb];
+				pass.RTSRV[0] = this->mEffect->mEffectContext->mBackBufferTextureSRV[srgb];
 
 				for (unsigned int i = 0; i < 8; ++i)
 				{
@@ -2207,9 +2210,9 @@ namespace ReShade
 						}
 
 						D3D11_RENDER_TARGET_VIEW_DESC rtvdesc;
+						ZeroMemory(&rtvdesc, sizeof(D3D11_RENDER_TARGET_VIEW_DESC));
 						rtvdesc.Format = srgb ? MakeSRGBFormat(desc.Format) : MakeNonSRBFormat(desc.Format);
 						rtvdesc.ViewDimension = desc.SampleDesc.Count > 1 ? D3D11_RTV_DIMENSION_TEXTURE2DMS : D3D11_RTV_DIMENSION_TEXTURE2D;
-						rtvdesc.Texture2D.MipSlice = 0;
 
 						if (texture->mRenderTargetView[srgb] == nullptr)
 						{
@@ -2222,6 +2225,7 @@ namespace ReShade
 						}
 
 						pass.RT[i] = texture->mRenderTargetView[srgb];
+						pass.RTSRV[i] = texture->mShaderResourceView[srgb];
 					}
 				}
 
@@ -2272,34 +2276,33 @@ namespace ReShade
 					this->mErrors += PrintLocation(node.Location) + "'CreateBlendState' failed!\n";
 				}
 
-				for (auto it = pass.SR.begin(), end = pass.SR.end(); it != end; ++it)
+				for (ID3D11ShaderResourceView *&srv : pass.SRV)
 				{
-					if (*it == nullptr)
+					if (srv == nullptr)
 					{
 						continue;
 					}
 
 					ID3D11Resource *res1, *res2;
-					(*it)->GetResource(&res1);
+					srv->GetResource(&res1);
+					res1->Release();
 
-					for (size_t i = 0; i < D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT; ++i)
+					for (ID3D11RenderTargetView *rtv : pass.RT)
 					{
-						if (pass.RT[i] == nullptr)
+						if (rtv == nullptr)
 						{
 							continue;
 						}
 
-						pass.RT[i]->GetResource(&res2);
+						rtv->GetResource(&res2);
 						res2->Release();
 
 						if (res1 == res2)
 						{
-							*it = nullptr;
+							srv = nullptr;
 							break;
 						}
 					}
-
-					res1->Release();
 				}
 
 				passes.push_back(std::move(pass));
@@ -3511,7 +3514,14 @@ namespace ReShade
 
 		assert(this->mDesc.Height != 0);
 
-		this->mEffect->mEffectContext->mImmediateContext->UpdateSubresource(this->mTexture, level, nullptr, data, size / this->mDesc.Height, size);
+		ID3D11DeviceContext *context = this->mEffect->mEffectContext->mImmediateContext;
+
+		context->UpdateSubresource(this->mTexture, level, nullptr, data, size / this->mDesc.Height, size);
+
+		if (level == 0 && this->mDesc.Levels > 1)
+		{
+			context->GenerateMips(this->mShaderResourceView[0]);
+		}
 
 		return true;
 	}
@@ -3557,8 +3567,8 @@ namespace ReShade
 		{
 			for (auto &pass : technique.second->mPasses)
 			{
-				pass.SR[this->mRegister] = this->mShaderResourceView[0];
-				pass.SR[this->mRegister + 1] = this->mShaderResourceView[1];
+				pass.SRV[this->mRegister] = this->mShaderResourceView[0];
+				pass.SRV[this->mRegister + 1] = this->mShaderResourceView[1];
 			}
 		}
 
@@ -3680,8 +3690,8 @@ namespace ReShade
 		context->CopyResource(this->mEffect->mEffectContext->mBackBufferTexture, this->mEffect->mEffectContext->mBackBuffer);
 
 		// Setup shader resources
-		context->VSSetShaderResources(0, pass.SR.size(), pass.SR.data());
-		context->PSSetShaderResources(0, pass.SR.size(), pass.SR.data());
+		context->VSSetShaderResources(0, pass.SRV.size(), pass.SRV.data());
+		context->PSSetShaderResources(0, pass.SRV.size(), pass.SRV.data());
 
 		// Setup rendertargets
 		ID3D11DepthStencilView *depthstencil = this->mEffect->mEffectContext->mDefaultDepthStencil;
@@ -3694,15 +3704,15 @@ namespace ReShade
 		context->OMSetRenderTargets(D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT, pass.RT, depthstencil);
 		context->RSSetViewports(1, &pass.Viewport);
 
-		for (UINT i = 0; i < D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT; ++i)
+		for (ID3D11RenderTargetView *rtv : pass.RT)
 		{
-			if (pass.RT[i] == nullptr)
+			if (rtv == nullptr)
 			{
 				continue;
 			}
 
 			const FLOAT color[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
-			context->ClearRenderTargetView(pass.RT[i], color);
+			context->ClearRenderTargetView(rtv, color);
 		}
 	
 		// Draw triangle
@@ -3710,10 +3720,27 @@ namespace ReShade
 
 		// Reset shader resources
 		ID3D11ShaderResourceView *null[D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT] = { nullptr };
-		context->VSSetShaderResources(0, static_cast<UINT>(pass.SR.size()), null);
-		context->PSSetShaderResources(0, static_cast<UINT>(pass.SR.size()), null);
+		context->VSSetShaderResources(0, static_cast<UINT>(pass.SRV.size()), null);
+		context->PSSetShaderResources(0, static_cast<UINT>(pass.SRV.size()), null);
 
 		// Reset rendertargets
 		context->OMSetRenderTargets(0, nullptr, nullptr);
+
+		// Update shader resources
+		for (ID3D11ShaderResourceView *srv : pass.RTSRV)
+		{
+			if (srv == nullptr)
+			{
+				continue;
+			}
+
+			D3D11_SHADER_RESOURCE_VIEW_DESC srvdesc;
+			srv->GetDesc(&srvdesc);
+
+			if (srvdesc.Texture2D.MipLevels > 1)
+			{
+				context->GenerateMips(srv);
+			}
+		}
 	}
 }

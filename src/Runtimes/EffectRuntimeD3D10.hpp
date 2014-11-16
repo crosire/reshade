@@ -154,8 +154,9 @@ namespace ReShade
 			ID3D10DepthStencilState *DSS;
 			UINT StencilRef;
 			ID3D10RenderTargetView *RT[D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT];
+			ID3D10ShaderResourceView *RTSRV[D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT];
 			D3D10_VIEWPORT Viewport;
-			std::vector<ID3D10ShaderResourceView *> SR;
+			std::vector<ID3D10ShaderResourceView *> SRV;
 		};
 
 		D3D10Technique(D3D10Effect *effect);

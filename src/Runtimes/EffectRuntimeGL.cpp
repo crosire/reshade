@@ -2430,6 +2430,7 @@ namespace ReShade
 						GLCHECK(glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, texture->mID[pass.FramebufferSRGB], 0));
 
 						pass.DrawBuffers[i] = GL_COLOR_ATTACHMENT0 + i;
+						pass.DrawTextures[i] = texture->mID[pass.FramebufferSRGB];
 					}
 				}
 
@@ -2437,10 +2438,12 @@ namespace ReShade
 				{
 					GLCHECK(glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, this->mEffect->mEffectContext->mDefaultBackBufferRBO[0]));
 
+					pass.DrawBuffers[0] = GL_COLOR_ATTACHMENT0;
+					pass.DrawTextures[0] = this->mEffect->mEffectContext->mBackBufferTexture[1];
+
 					RECT rect;
 					GetClientRect(WindowFromDC(this->mEffect->mEffectContext->mDeviceContext), &rect);
 
-					pass.DrawBuffers[0] = GL_COLOR_ATTACHMENT0;
 					pass.ViewportWidth = static_cast<GLsizei>(rect.right - rect.left);
 					pass.ViewportHeight = static_cast<GLsizei>(rect.bottom - rect.top);
 				}
@@ -3158,7 +3161,7 @@ namespace ReShade
 
 		GLCHECK(glGenFramebuffers(1, &this->mBlitFBO));
 		GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, this->mBlitFBO));
-		GLCHECK(glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, this->mBackBufferTexture[0], 0));
+		GLCHECK(glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, this->mBackBufferTexture[1], 0));
 		GLCHECK(glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, this->mDepthStencilTexture, 0));
 
 		assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
@@ -3615,6 +3618,11 @@ namespace ReShade
 			GLCHECK(glPixelStorei(GL_UNPACK_ALIGNMENT, 4));
 		}
 
+		if (level == 0 && this->mDesc.Levels > 1)
+		{
+			GLCHECK(glGenerateMipmap(GL_TEXTURE_2D));
+		}
+
 		GLCHECK(glBindTexture(GL_TEXTURE_2D, previous));
 
 		return true;
@@ -3772,5 +3780,20 @@ namespace ReShade
 
 		// Draw triangle
 		GLCHECK(glDrawArrays(GL_TRIANGLES, 0, 3));
+
+		// Update shader resources
+		for (GLuint id : pass.DrawTextures)
+		{
+			for (GLsizei sampler = 0, samplerCount = static_cast<GLsizei>(this->mEffect->mSamplers.size()); sampler < samplerCount; ++sampler)
+			{
+				const GLTexture *texture = this->mEffect->mSamplers[sampler]->mTexture;
+
+				if ((texture->mID[0] == id || texture->mID[1] == id) && texture->GetDescription().Levels > 1)
+				{
+					GLCHECK(glActiveTexture(GL_TEXTURE0 + sampler));
+					GLCHECK(glGenerateMipmap(GL_TEXTURE_2D));
+				}
+			}
+		}
 	}
 }

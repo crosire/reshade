@@ -1587,7 +1587,7 @@ namespace ReShade
 			{
 				const UINT width = (node.Properties[EffectNodes::Variable::Width] != 0) ? this->mAST[node.Properties[EffectNodes::Variable::Width]].As<EffectNodes::Literal>().Value.Uint[0] : 1;
 				const UINT height = (node.Properties[EffectNodes::Variable::Height] != 0) ? this->mAST[node.Properties[EffectNodes::Variable::Height]].As<EffectNodes::Literal>().Value.Uint[0] : 1;
-				const UINT levels = (node.Properties[EffectNodes::Variable::MipLevels] != 0) ? this->mAST[node.Properties[EffectNodes::Variable::MipLevels]].As<EffectNodes::Literal>().Value.Uint[0] : 1;
+				UINT levels = (node.Properties[EffectNodes::Variable::MipLevels] != 0) ? this->mAST[node.Properties[EffectNodes::Variable::MipLevels]].As<EffectNodes::Literal>().Value.Uint[0] : 1;
 
 				D3DFORMAT d3dformat = D3DFMT_A8R8G8B8;
 				Effect::Texture::Format format = Effect::Texture::Format::RGBA8;
@@ -1629,6 +1629,12 @@ namespace ReShade
 				else
 				{
 					DWORD usage = 0;
+
+					if (levels > 1)
+					{
+						usage |= D3DUSAGE_AUTOGENMIPMAP;
+						levels = 0;
+					}
 
 					D3DDEVICE_CREATION_PARAMETERS cp;
 					this->mEffect->mEffectContext->mDevice->GetCreationParameters(&cp);
@@ -1688,6 +1694,8 @@ namespace ReShade
 				if (it == this->mEffect->mTextures.end())
 				{
 					this->mErrors = PrintLocation(node.Location) + "Texture '" + std::string(texture) + "' for sampler '" + std::string(node.Name) + "' is missing.\n";
+					this->mFatal = true;
+					return;
 				}
 
 				sampler.mTexture = it->second.get();

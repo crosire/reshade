@@ -1625,6 +1625,7 @@ namespace ReShade
 				texdesc.SampleDesc.Quality = 0;
 				texdesc.Usage = D3D10_USAGE_DEFAULT;
 				texdesc.BindFlags = D3D10_BIND_SHADER_RESOURCE | D3D10_BIND_RENDER_TARGET;
+				texdesc.MiscFlags = D3D10_RESOURCE_MISC_GENERATE_MIPS;
 				
 				Effect::Texture::Format format = Effect::Texture::Format::RGBA8;
 
@@ -1678,8 +1679,8 @@ namespace ReShade
 					}
 
 					D3D10_SHADER_RESOURCE_VIEW_DESC srvdesc;
+					ZeroMemory(&srvdesc, sizeof(D3D10_SHADER_RESOURCE_VIEW_DESC));
 					srvdesc.ViewDimension = D3D10_SRV_DIMENSION_TEXTURE2D;
-					srvdesc.Texture2D.MostDetailedMip = 0;
 					srvdesc.Texture2D.MipLevels = texdesc.MipLevels;
 					srvdesc.Format = MakeNonSRBFormat(texdesc.Format);
 
@@ -2140,7 +2141,8 @@ namespace ReShade
 				pass.Viewport.MinDepth = 0.0f;
 				pass.Viewport.MaxDepth = 1.0f;
 				ZeroMemory(pass.RT, sizeof(pass.RT));
-				pass.SR = this->mEffect->mShaderResources;
+				ZeroMemory(pass.RTSRV, sizeof(pass.RTSRV));
+				pass.SRV = this->mEffect->mShaderResources;
 
 				if (node.States[EffectNodes::Pass::VertexShader] != 0)
 				{
@@ -2159,6 +2161,7 @@ namespace ReShade
 				}
 
 				pass.RT[0] = this->mEffect->mEffectContext->mBackBufferTargets[srgb];
+				pass.RTSRV[0] = this->mEffect->mEffectContext->mBackBufferTextureSRV[srgb];
 
 				for (unsigned int i = 0; i < 8; ++i)
 				{
@@ -2192,9 +2195,9 @@ namespace ReShade
 						}
 
 						D3D10_RENDER_TARGET_VIEW_DESC rtvdesc;
+						ZeroMemory(&rtvdesc, sizeof(D3D10_RENDER_TARGET_VIEW_DESC));
 						rtvdesc.Format = srgb ? MakeSRGBFormat(desc.Format) : MakeNonSRBFormat(desc.Format);
 						rtvdesc.ViewDimension = desc.SampleDesc.Count > 1 ? D3D10_RTV_DIMENSION_TEXTURE2DMS : D3D10_RTV_DIMENSION_TEXTURE2D;
-						rtvdesc.Texture2D.MipSlice = 0;
 
 						if (texture->mRenderTargetView[srgb] == nullptr)
 						{
@@ -2207,6 +2210,7 @@ namespace ReShade
 						}
 
 						pass.RT[i] = texture->mRenderTargetView[srgb];
+						pass.RTSRV[i] = texture->mShaderResourceView[srgb];
 					}
 				}
 
@@ -2262,34 +2266,33 @@ namespace ReShade
 					this->mErrors += PrintLocation(node.Location) + "'CreateBlendState' failed!\n";
 				}
 
-				for (auto it = pass.SR.begin(), end = pass.SR.end(); it != end; ++it)
+				for (ID3D10ShaderResourceView *&srv : pass.SRV)
 				{
-					if (*it == nullptr)
+					if (srv == nullptr)
 					{
 						continue;
 					}
 
 					ID3D10Resource *res1, *res2;
-					(*it)->GetResource(&res1);
+					srv->GetResource(&res1);
+					res1->Release();
 
-					for (size_t i = 0; i < D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT; ++i)
+					for (ID3D10RenderTargetView *rtv : pass.RT)
 					{
-						if (pass.RT[i] == nullptr)
+						if (rtv == nullptr)
 						{
 							continue;
 						}
 
-						pass.RT[i]->GetResource(&res2);
+						rtv->GetResource(&res2);
 						res2->Release();
 
 						if (res1 == res2)
 						{
-							*it = nullptr;
+							srv = nullptr;
 							break;
 						}
 					}
-
-					res1->Release();
 				}
 
 				passes.push_back(std::move(pass));
@@ -3249,7 +3252,14 @@ namespace ReShade
 
 		assert(this->mDesc.Height != 0);
 
-		this->mEffect->mEffectContext->mDevice->UpdateSubresource(this->mTexture, level, nullptr, data, size / this->mDesc.Height, size);
+		ID3D10Device *device = this->mEffect->mEffectContext->mDevice;
+
+		device->UpdateSubresource(this->mTexture, level, nullptr, data, size / this->mDesc.Height, size);
+
+		if (level == 0 && this->mDesc.Levels > 1)
+		{
+			device->GenerateMips(this->mShaderResourceView[0]);
+		}
 
 		return true;
 	}
@@ -3295,8 +3305,8 @@ namespace ReShade
 		{
 			for (auto &pass : technique.second->mPasses)
 			{
-				pass.SR[this->mRegister] = this->mShaderResourceView[0];
-				pass.SR[this->mRegister + 1] = this->mShaderResourceView[1];
+				pass.SRV[this->mRegister] = this->mShaderResourceView[0];
+				pass.SRV[this->mRegister + 1] = this->mShaderResourceView[1];
 			}
 		}
 
@@ -3416,8 +3426,8 @@ namespace ReShade
 		device->CopyResource(this->mEffect->mEffectContext->mBackBufferTexture, this->mEffect->mEffectContext->mBackBuffer);
 
 		// Setup shader resources
-		device->VSSetShaderResources(0, static_cast<UINT>(pass.SR.size()), pass.SR.data());
-		device->PSSetShaderResources(0, static_cast<UINT>(pass.SR.size()), pass.SR.data());
+		device->VSSetShaderResources(0, static_cast<UINT>(pass.SRV.size()), pass.SRV.data());
+		device->PSSetShaderResources(0, static_cast<UINT>(pass.SRV.size()), pass.SRV.data());
 
 		// Setup rendertargets
 		ID3D10DepthStencilView *depthstencil = this->mEffect->mEffectContext->mDefaultDepthStencil;
@@ -3446,10 +3456,27 @@ namespace ReShade
 
 		// Reset shader resources
 		ID3D10ShaderResourceView *null[D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT] = { nullptr };
-		device->VSSetShaderResources(0, static_cast<UINT>(pass.SR.size()), null);
-		device->PSSetShaderResources(0, static_cast<UINT>(pass.SR.size()), null);
+		device->VSSetShaderResources(0, static_cast<UINT>(pass.SRV.size()), null);
+		device->PSSetShaderResources(0, static_cast<UINT>(pass.SRV.size()), null);
 
 		// Reset rendertargets
 		device->OMSetRenderTargets(0, nullptr, nullptr);
+
+		// Update shader resources
+		for (ID3D10ShaderResourceView *srv : pass.RTSRV)
+		{
+			if (srv == nullptr)
+			{
+				continue;
+			}
+
+			D3D10_SHADER_RESOURCE_VIEW_DESC srvdesc;
+			srv->GetDesc(&srvdesc);
+
+			if (srvdesc.Texture2D.MipLevels > 1)
+			{
+				device->GenerateMips(srv);
+			}
+		}
 	}
 }
