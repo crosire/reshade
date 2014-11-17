@@ -588,7 +588,8 @@ namespace ReShade
 						}
 						else
 						{
-							part1 = '!';
+							part1 = "!bool(";
+							part2 = ')';
 						}
 						break;
 					}
