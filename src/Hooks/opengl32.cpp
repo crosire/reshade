@@ -729,14 +729,14 @@ EXPORT void WINAPI glEnd()
 {
 	static const auto trampoline = ReHook::Call(&glEnd);
 
+	trampoline();
+
 	if (sCurrentRuntimes.find(sCurrentDeviceContext) != sCurrentRuntimes.end())
 	{
 		ReShade::GLRuntime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
 
 		runtime->OnDrawInternal(sCurrentVertexCount);
 	}
-
-	trampoline();
 }
 EXPORT void WINAPI glEndList()
 {

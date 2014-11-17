@@ -2253,15 +2253,15 @@ namespace ReShade
 				this->mEffect->mConstants.insert(std::make_pair(node.Name, std::move(obj)));
 
 				GLuint buffer = 0;
-				glGenBuffers(1, &buffer);
+				GLCHECK(glGenBuffers(1, &buffer));
 
 				GLint previous = 0;
-				glGetIntegerv(GL_UNIFORM_BUFFER_BINDING, &previous);
+				GLCHECK(glGetIntegerv(GL_UNIFORM_BUFFER_BINDING, &previous));
 
-				glBindBuffer(GL_UNIFORM_BUFFER, buffer);
-				glBufferData(GL_UNIFORM_BUFFER, totalsize, storage, GL_DYNAMIC_DRAW);
+				GLCHECK(glBindBuffer(GL_UNIFORM_BUFFER, buffer));
+				GLCHECK(glBufferData(GL_UNIFORM_BUFFER, totalsize, storage, GL_DYNAMIC_DRAW));
 
-				glBindBuffer(GL_UNIFORM_BUFFER, previous);
+				GLCHECK(glBindBuffer(GL_UNIFORM_BUFFER, previous));
 
 				this->mEffect->mUniformBuffers.push_back(buffer);
 				this->mEffect->mUniformStorages.push_back(std::make_pair(storage, totalsize));
@@ -2808,22 +2808,22 @@ namespace ReShade
 
 				LOG(TRACE) << "> Compiling shader '" << node.Name << "':\n\n" << source.c_str() << "\n";
 
-				glShaderSource(shader, 1, &src, &len);
-				glCompileShader(shader);
+				GLCHECK(glShaderSource(shader, 1, &src, &len));
+				GLCHECK(glCompileShader(shader));
 
 				GLint status = GL_FALSE;
 
-				glGetShaderiv(shader, GL_COMPILE_STATUS, &status);
+				GLCHECK(glGetShaderiv(shader, GL_COMPILE_STATUS, &status));
 
 				if (status == GL_FALSE)
 				{
 					GLint logsize = 0;
-					glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &logsize);
+					GLCHECK(glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &logsize));
 
 					std::string log(logsize, '\0');
-					glGetShaderInfoLog(shader, logsize, nullptr, &log.front());
+					GLCHECK(glGetShaderInfoLog(shader, logsize, nullptr, &log.front()));
 
-					glDeleteShader(shader);
+					GLCHECK(glDeleteShader(shader));
 
 					this->mErrors += log;
 					this->mFatal = true;
