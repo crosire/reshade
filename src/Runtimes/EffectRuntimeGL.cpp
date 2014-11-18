@@ -741,6 +741,14 @@ namespace ReShade
 						part1 = "degrees(" + cast1.first;
 						part2 = cast1.second + ')';
 						break;
+					case EffectNodes::Expression::PartialDerivativeX:
+						part1 = "dFdx(" + cast1.first;
+						part2 = cast1.second + ')';
+						break;
+					case EffectNodes::Expression::PartialDerivativeY:
+						part1 = "dFdy(" + cast1.first;
+						part2 = cast1.second + ')';
+						break;
 					case EffectNodes::Expression::Noise:
 					{
 						part1 = "noise1(";

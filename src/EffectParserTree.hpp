@@ -425,6 +425,8 @@ namespace ReShade
 				Saturate,
 				Radians,
 				Degrees,
+				PartialDerivativeX,
+				PartialDerivativeY,
 				Noise,
 				Length,
 				Normalize,
