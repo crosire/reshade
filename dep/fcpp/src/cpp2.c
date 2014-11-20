@@ -490,7 +490,7 @@ ReturnCode control(Global *global, int *counter /* Pending newline counter */) /
 	}
 
 	/* hash is set to a unique value corresponding to the control keyword (or L_nogood if we think it's nonsense). */
-	if (global->infile->fp == NULL)
+	if (global->infile != NULL && global->infile->fp == NULL)
 	{
 		cwarn(global, WARN_CONTROL_LINE_IN_MACRO, global->tokenbuf);
 	}
@@ -619,6 +619,7 @@ ReturnCode control(Global *global, int *counter /* Pending newline counter */) /
 				(*counter)++;
 				return FPP_OK;
 			}
+
 			*global->ifptr |= ELSE_SEEN;
 
 			if ((*global->ifptr & WAS_COMPILING) != 0)
@@ -680,7 +681,6 @@ ReturnCode control(Global *global, int *counter /* Pending newline counter */) /
 					return ret;
 				}
 				break;
-				
 			}
 
 			cfatal(global, FATAL_TOO_MANY_NESTINGS, global->tokenbuf);
