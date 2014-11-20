@@ -1994,7 +1994,7 @@ namespace ReShade
 				{
 					if (width != 1 || height != 1 || levels != 1 || internalformat != GL_RGBA8)
 					{
-						this->mErrors += PrintLocation(node.Location) + "Warning: Texture property on backbuffer textures are ignored.\n";
+						this->mErrors += PrintLocation(node.Location) + "warning: texture property on backbuffer textures are ignored.\n";
 					}
 				}
 				else
@@ -2024,8 +2024,8 @@ namespace ReShade
 			{
 				if (node.Properties[EffectNodes::Variable::Texture] == 0)
 				{
-					this->mErrors = PrintLocation(node.Location) + "Sampler '" + std::string(node.Name) + "' is missing required 'Texture' required.\n";
-					this->mFatal;
+					this->mErrors += PrintLocation(node.Location) + "error: sampler '" + std::string(node.Name) + "' is missing required 'Texture' required.\n";
+					this->mFatal = true;
 					return;
 				}
 
@@ -2424,7 +2424,7 @@ namespace ReShade
 
 						if (pass.ViewportWidth != 0 && pass.ViewportHeight != 0 && (desc.Width != static_cast<unsigned int>(pass.ViewportWidth) || desc.Height != static_cast<unsigned int>(pass.ViewportHeight)))
 						{
-							this->mErrors += PrintLocation(node.Location) + "Cannot use multiple rendertargets with different sized textures.\n";
+							this->mErrors += PrintLocation(node.Location) + "error: cannot use multiple rendertargets with different sized textures.\n";
 							this->mFatal = true;
 							return;
 						}

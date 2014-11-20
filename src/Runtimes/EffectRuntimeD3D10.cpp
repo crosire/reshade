@@ -1672,7 +1672,7 @@ namespace ReShade
 				{
 					if (texdesc.Width != 1 || texdesc.Height != 1 || texdesc.MipLevels != 1 || texdesc.Format != DXGI_FORMAT_R8G8B8A8_TYPELESS)
 					{
-						this->mErrors += PrintLocation(node.Location) + "Warning: Texture property on backbuffer textures are ignored.\n";
+						this->mErrors += PrintLocation(node.Location) + "warning: texture property on backbuffer textures are ignored.\n";
 					}
 				}
 				else
@@ -1681,7 +1681,7 @@ namespace ReShade
 
 					if (FAILED(hr))
 					{
-						this->mErrors += PrintLocation(node.Location) + "'CreateTexture2D' failed!\n";
+						this->mErrors += PrintLocation(node.Location) + "error: 'CreateTexture2D' failed!\n";
 						this->mFatal = true;
 						return;
 					}
@@ -1696,7 +1696,7 @@ namespace ReShade
 
 					if (FAILED(hr))
 					{
-						this->mErrors += PrintLocation(node.Location) + "'CreateShaderResourceView' failed!\n";
+						this->mErrors += PrintLocation(node.Location) + "error: 'CreateShaderResourceView' failed!\n";
 						this->mFatal = true;
 						return;
 					}
@@ -1709,7 +1709,7 @@ namespace ReShade
 
 						if (FAILED(hr))
 						{
-							this->mErrors += PrintLocation(node.Location) + "'CreateShaderResourceView' failed!\n";
+							this->mErrors += PrintLocation(node.Location) + "error: 'CreateShaderResourceView' failed!\n";
 							this->mFatal = true;
 							return;
 						}
@@ -1736,8 +1736,8 @@ namespace ReShade
 			{
 				if (node.Properties[EffectNodes::Variable::Texture] == 0)
 				{
-					this->mErrors = PrintLocation(node.Location) + "Sampler '" + std::string(node.Name) + "' is missing required 'Texture' property.\n";
-					this->mFatal;
+					this->mErrors += PrintLocation(node.Location) + "error: sampler '" + std::string(node.Name) + "' is missing required 'Texture' property.\n";
+					this->mFatal = true;
 					return;
 				}
 
@@ -1822,7 +1822,7 @@ namespace ReShade
 
 					if (FAILED(hr))
 					{
-						this->mErrors += PrintLocation(node.Location) + "'CreateSamplerState' failed!\n";
+						this->mErrors += PrintLocation(node.Location) + "error: 'CreateSamplerState' failed!\n";
 						this->mFatal = true;
 						return;
 					}
@@ -2192,7 +2192,7 @@ namespace ReShade
 
 						if (pass.Viewport.Width != 0 && pass.Viewport.Height != 0 && (desc.Width != pass.Viewport.Width || desc.Height != pass.Viewport.Height))
 						{
-							this->mErrors += PrintLocation(node.Location) + "Cannot use multiple rendertargets with different sized textures.\n";
+							this->mErrors += PrintLocation(node.Location) + "error: cannot use multiple rendertargets with different sized textures.\n";
 							this->mFatal = true;
 							return;
 						}
@@ -2213,7 +2213,7 @@ namespace ReShade
 
 							if (FAILED(hr))
 							{
-								this->mErrors += PrintLocation(node.Location) + "'CreateRenderTargetView' failed!\n";
+								this->mErrors += PrintLocation(node.Location) + "warning: 'CreateRenderTargetView' failed!\n";
 							}
 						}
 
@@ -2249,7 +2249,7 @@ namespace ReShade
 
 				if (FAILED(hr))
 				{
-					this->mErrors += PrintLocation(node.Location) + "'CreateDepthStencilState' failed!\n";
+					this->mErrors += PrintLocation(node.Location) + "warning: 'CreateDepthStencilState' failed!\n";
 				}
 
 				D3D10_BLEND_DESC bdesc;
@@ -2271,7 +2271,7 @@ namespace ReShade
 
 				if (FAILED(hr))
 				{
-					this->mErrors += PrintLocation(node.Location) + "'CreateBlendState' failed!\n";
+					this->mErrors += PrintLocation(node.Location) + "warning: 'CreateBlendState' failed!\n";
 				}
 
 				for (ID3D10ShaderResourceView *&srv : pass.SRV)
@@ -2378,7 +2378,7 @@ namespace ReShade
 
 				if (FAILED(hr))
 				{
-					this->mErrors += PrintLocation(node.Location) + "'CreateShader' failed!\n";
+					this->mErrors += PrintLocation(node.Location) + "error: 'CreateShader' failed!\n";
 					this->mFatal = true;
 					return;
 				}

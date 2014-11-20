@@ -645,7 +645,7 @@ namespace ReShade
 					case EffectNodes::Expression::BitCastUint2Float:
 					case EffectNodes::Expression::BitCastFloat2Int:
 					case EffectNodes::Expression::BitCastFloat2Uint:
-						this->mErrors += PrintLocation(node.Location) + "Bitwise casts are not supported on legacy targets!\n";
+						this->mErrors += PrintLocation(node.Location) + "error: bitwise casts are not supported on legacy targets!\n";
 						this->mFatal = true;
 						return;
 					case EffectNodes::Expression::Add:
@@ -739,7 +739,7 @@ namespace ReShade
 					}
 					case EffectNodes::Expression::BitXor:
 					case EffectNodes::Expression::BitOr:
-						this->mErrors += PrintLocation(node.Location) + "Bitwise operations are not supported on legacy targets!\n";
+						this->mErrors += PrintLocation(node.Location) + "error: bitwise operations are not supported on legacy targets!\n";
 						this->mFatal = true;
 						return;
 					case EffectNodes::Expression::LogicAnd:
@@ -859,7 +859,7 @@ namespace ReShade
 						part3 = "))";
 						break;
 					case EffectNodes::Expression::TexSize:
-						this->mErrors += PrintLocation(node.Location) + "Texture size query is not supported on legacy targets!\n";
+						this->mErrors += PrintLocation(node.Location) + "error: texture size query is not supported on legacy targets!\n";
 						this->mFatal = true;
 						return;
 					case EffectNodes::Expression::Mad:
@@ -1006,7 +1006,7 @@ namespace ReShade
 					case EffectNodes::Expression::BitAnd:
 					case EffectNodes::Expression::BitXor:
 					case EffectNodes::Expression::BitOr:
-						this->mErrors += PrintLocation(node.Location) + "Bitwise operations are not supported on legacy targets!\n";
+						this->mErrors += PrintLocation(node.Location) + "error: bitwise operations are not supported on legacy targets!\n";
 						this->mFatal = true;
 						return;
 				}
@@ -1164,7 +1164,7 @@ namespace ReShade
 			}
 			void Visit(const EffectNodes::Switch &node)
 			{
-				this->mErrors += PrintLocation(node.Location) + "Warning: Switch statements do not currently support fallthrough in Direct3D9!\n";
+				this->mErrors += PrintLocation(node.Location) + "warning: switch statements do not currently support fallthrough in Direct3D9!\n";
 
 				this->mCurrentSource += "[unroll] do { ";
 				this->mCurrentSource += PrintType(this->mAST[node.Test].As<EffectNodes::RValue>().Type);
@@ -1631,7 +1631,7 @@ namespace ReShade
 				{
 					if (width != 1 || height != 1 || levels != 1 || d3dformat != D3DFMT_A8R8G8B8)
 					{
-						this->mErrors += PrintLocation(node.Location) + "Warning: Texture property on backbuffer textures are ignored.\n";
+						this->mErrors += PrintLocation(node.Location) + "warning: texture property on backbuffer textures are ignored.\n";
 					}
 				}
 				else
@@ -1687,7 +1687,7 @@ namespace ReShade
 			{
 				if (node.Properties[EffectNodes::Variable::Texture] == 0)
 				{
-					this->mErrors = PrintLocation(node.Location) + "Sampler '" + std::string(node.Name) + "' is missing required 'Texture' property.\n";
+					this->mErrors += PrintLocation(node.Location) + "error: sampler '" + std::string(node.Name) + "' is missing required 'Texture' property.\n";
 					this->mFatal = true;
 					return;
 				}
@@ -1711,7 +1711,7 @@ namespace ReShade
 
 				if (it == this->mEffect->mTextures.end())
 				{
-					this->mErrors = PrintLocation(node.Location) + "error: texture '" + std::string(texture) + "' for sampler '" + std::string(node.Name) + "' is missing.\n";
+					this->mErrors += PrintLocation(node.Location) + "error: texture '" + std::string(texture) + "' for sampler '" + std::string(node.Name) + "' is missing.\n";
 					this->mFatal = true;
 					return;
 				}
@@ -1955,7 +1955,7 @@ namespace ReShade
 
 				if (FAILED(hr))
 				{
-					this->mErrors += PrintLocation(node.Location) + "'BeginStateBlock' failed!\n";
+					this->mErrors += PrintLocation(node.Location) + "error: 'BeginStateBlock' failed!\n";
 					this->mFatal = true;
 					return;
 				}
@@ -2026,7 +2026,7 @@ namespace ReShade
 					{
 						if (i > caps.NumSimultaneousRTs)
 						{
-							this->mErrors += PrintLocation(node.Location) + "Device only supports " + std::to_string(caps.NumSimultaneousRTs) + " simultaneous render targets, but more are in use.\n";
+							this->mErrors += PrintLocation(node.Location) + "warning: device only supports " + std::to_string(caps.NumSimultaneousRTs) + " simultaneous render targets, but more are in use.\n";
 							break;
 						}
 
@@ -2103,7 +2103,7 @@ namespace ReShade
 								}
 								else if ((boost::starts_with(field->Semantic, "SV_TARGET") || boost::starts_with(field->Semantic, "COLOR")) && field->Type.Rows != 4)
 								{
-									this->mErrors += PrintLocation(node.Location) + "'SV_Target' must be a four-component vector when used inside structs on legacy targets.";
+									this->mErrors += PrintLocation(node.Location) + "error: 'SV_Target' must be a four-component vector when used inside structs on legacy targets.";
 									this->mFatal = true;
 									return;
 								}
@@ -2166,7 +2166,7 @@ namespace ReShade
 											}
 											else if ((boost::starts_with(field->Semantic, "SV_TARGET") || boost::starts_with(field->Semantic, "COLOR")) && field->Type.Rows != 4)
 											{
-												this->mErrors += PrintLocation(node.Location) + "'SV_Target' must be a four-component vector when used inside structs on legacy targets.";
+												this->mErrors += PrintLocation(node.Location) + "error: 'SV_Target' must be a four-component vector when used inside structs on legacy targets.";
 												this->mFatal = true;
 												return;
 											}
@@ -2344,7 +2344,7 @@ namespace ReShade
 
 				if (FAILED(hr))
 				{
-					this->mErrors += PrintLocation(node.Location) + "'CreateShader' failed!\n";
+					this->mErrors += PrintLocation(node.Location) + "error: 'CreateShader' failed!\n";
 					this->mFatal = true;
 					return;
 				}
