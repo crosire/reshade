@@ -94,16 +94,14 @@
   <ItemGroup>
     <ClInclude Include="include\fpp.h" />
     <ClInclude Include="src\cpp.h" />
-    <ClInclude Include="src\cppadd.h" />
-    <ClInclude Include="src\cppdef.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="src\fpp.c" />
     <ClCompile Include="src\cpp1.c" />
     <ClCompile Include="src\cpp2.c" />
     <ClCompile Include="src\cpp3.c" />
     <ClCompile Include="src\cpp4.c" />
     <ClCompile Include="src\cpp5.c" />
-    <ClCompile Include="src\cpp6.c" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

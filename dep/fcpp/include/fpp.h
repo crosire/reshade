@@ -1,162 +1,119 @@
-/******************************************************************************
- *                               FREXXWARE
- * ----------------------------------------------------------------------------
+/*
  *
- * Project: Frexx C Preprocessor
- * $Source: /home/user/start/cpp/RCS/fpp.h,v $
- * $Revision: 1.5 $
- * $Date: 1994/01/24 09:38:45 $
- * $Author: start $
- * $State: Exp $
- * $Locker: start $
- *
- * ----------------------------------------------------------------------------
- * $Log: fpp.h,v $
- * Revision 1.5  1994/01/24  09:38:45  start
- * Added FPPTAG_RIGHTCONCAT.
- *
- * Revision 1.4  1993/12/06  13:51:20  start
- * A lot of new stuff (too much to mention)
- *
- * Revision 1.3  1993/11/29  14:01:13  start
- * New features added
- *
- * Revision 1.2  1993/11/11  07:16:39  start
- * New stuff
- *
- * Revision 1.1  1993/11/03  09:15:59  start
- * Initial revision
- *
- *
- *****************************************************************************/
-/**********************************************************************
- *
- * fpp.h
+ * Frexx C Preprocessor
  *
  */
 
-
-struct fppTag {
-  int tag;
-  void *data;
-};
-
-#ifndef TRUE
-#define TRUE 1
+#ifdef __cplusplus
+extern "C" {
 #endif
 
-#ifndef FALSE
-#define FALSE 0
-#endif
+typedef enum
+{
+	/* end of taglist */
+	FPPTAG_END = 0,
 
-#define NFLAG_BUILTIN   1
-#define NFLAG_PREDEFINE 2
+	/* To make the preprocessed output keep the comments */
+	FPPTAG_KEEPCOMMENTS, /* data is TRUE or FALSE */
 
-/* end of taglist: */
-#define FPPTAG_END 0
+	/* To define symbols to the preprocessor */
+	FPPTAG_DEFINE, /* data is the string "symbol" or "symbol=<value>" */
 
-/* To make the preprocessed output keep the comments: */
-#define FPPTAG_KEEPCOMMENTS 1 /* data is TRUE or FALSE */
+	/* To make the preprocessor ignore all non-fatal errors */
+	FPPTAG_IGNORE_NONFATAL, /* data is TRUE or FALSE */
 
-/* To define symbols to the preprocessor: */
-#define FPPTAG_DEFINE 2 /* data is the string "symbol" or "symbol=<value>" */
+	/* To add an include directory to the include directory list */
+	FPPTAG_INCLUDE_DIR, /* data is directory name ending with a '/' (on amiga a ':' is also valid) */
+	
+	/* To define predefines like __LINE__, __DATE__, etc. default is TRUE */
+	FPPTAG_PREDEFINES, /* data is TRUE or FALSE */
+	
+	/* To make fpp leave C++ comments in the output */
+	FPPTAG_IGNORE_CPLUSPLUS, /* data is TRUE or FALSE */
 
-/* To make the preprocessor ignore all non-fatal errors: */
-#define FPPTAG_IGNORE_NONFATAL 3 /* data is TRUE or FALSE */
+	/* To undefine symbols */
+	FPPTAG_UNDEFINE, /* data is symbol name */
 
-/* To add an include directory to the include directory list: */
-#define FPPTAG_INCLUDE_DIR 4 /* data is directory name ending with a '/' (on
-				amiga a ':' is also valid) */
+	/* Output all #defines: */
+	FPPTAG_OUTPUT_DEFINES, /* data is TRUE or FALSE */
 
-/* To define all machine specific built-in #defines, default is TRUE: */
-#define FPPTAG_BUILTINS 5 /* data is TRUE or FALSE */
+	/* Initial input file name: */
+	FPPTAG_INPUT_NAME, /* data is string */
 
-/* To define predefines like __LINE__, __DATE__, etc. default is TRUE: */
-#define FPPTAG_PREDEFINES 6 /* data is TRUE or FALSE */
+	/* Input function: */
+	FPPTAG_INPUT, /* data is an input funtion "char *(*)(char *, int, void *)" */
 
-/* To make fpp leave C++ comments in the output: */
-#define FPPTAG_IGNORE_CPLUSPLUS 7 /* data is TRUE or FALSE */
+	/* Output function: */
+	FPPTAG_OUTPUT, /* data is an output function "void (*)(void *, char)" */
 
-/* To define new sizes to #if sizeof: */
-#define FPPTAG_SIZEOF_TABLE 8 /* data is sizeof table string */
+	/* User data, sent in the last argument to the input function: */
+	FPPTAG_USERDATA, /* data is user data */
 
-/* To undefine symbols: */
-#define FPPTAG_UNDEFINE 9 /* data is symbol name */
+	/* Whether to exclude #line instructions in the output, default is FALSE */
+	FPPTAG_LINE, /* data is TRUE or FALSE */
 
-/* Output all #defines: */
-#define FPPTAG_OUTPUT_DEFINES 10 /* data is TRUE or FALSE */
+	/* Error function. This is called when FPP finds any warning/error/fatal: */
+	FPPTAG_ERROR, /* data is function pointer to a "void (*)(void *, const char *, va_list)" */
 
-/* Initial input file name: */
-#define FPPTAG_INPUT_NAME 11 /* data is string */
+	/* Whether to warn for illegal cpp instructions */
+	FPPTAG_WARNILLEGALCPP, /* data is boolean, default is FALSE */
 
-/* Input function: */
-#define FPPTAG_INPUT 12 /* data is an input funtion */
+	/* Output the 'line' keyword on #line-lines? */
+	FPPTAG_OUTPUTLINE, /* data is boolean, default is TRUE */
 
-/* Output function: */
-#define FPPTAG_OUTPUT 13 /* data is an output function */
+	/* Do not output the version information string */
+	FPPTAG_IGNOREVERSION, /* data is boolean, default is FALSE */
 
-/* User data, sent in the last argument to the input function: */
-#define FPPTAG_USERDATA 14 /* data is user data */
+	/* Output all included file names to stderr */
+	FPPTAG_OUTPUTINCLUDES, /* data is boolean, default is FALSE */
 
-/* Whether to exclude #line instructions in the output, default is FALSE */
-#define FPPTAG_LINE 15 /* data is TRUE or FALSE */
+	/* Display warning if there is any brace, bracket or parentheses unbalance */
+	FPPTAG_OUTPUTBALANCE, /* data is boolean, default is FALSE */
 
-/* Error function. This is called when FPP finds any warning/error/fatal: */
-#define FPPTAG_ERROR 16 /* data is function pointer to a
-			   "void (*)(void *, char *, va_list)" */
+	/* Display all whitespaces in the source */
+	FPPTAG_OUTPUTSPACE, /* data is boolean, default is FALSE */
 
-/* Whether to warn for illegal cpp instructions */
-#define FPPTAG_WARNILLEGALCPP 17 /* data is boolean, default is FALSE */
+	/* Allow nested comments */
+	FPPTAG_NESTED_COMMENTS, /* data is boolean, default is FALSE */
 
-/* Output the 'line' keyword on #line-lines? */
-#define FPPTAG_OUTPUTLINE 18 /* data is boolean, default is TRUE */
+	/* Enable warnings at nested comments */
+	FPPTAG_WARN_NESTED_COMMENTS, /* data is boolean, default is FALSE */
 
-/* Do not output the version information string */
-#define FPPTAG_IGNOREVERSION 19 /* data is boolean, default is FALSE */
+	/* Enable warnings at missing includes */
+	FPPTAG_WARNMISSINCLUDE, /* data is boolean, default is TRUE */
 
-/* Output all included file names to stderr */
-#define FPPTAG_OUTPUTINCLUDES 20 /* data is boolean, default is FALSE */
+	/* Output the main file */
+	FPPTAG_OUTPUTMAIN, /* data is boolean, default is TRUE */
 
-/* Display warning if there is any brace, bracket or parentheses unbalance */
-#define FPPTAG_OUTPUTBALANCE 21 /* data is boolean, default is FALSE */
+	/* Include file */
+	FPPTAG_INCLUDE_FILE, /* data is char pointer */
 
-/* Display all whitespaces in the source */
-#define FPPTAG_OUTPUTSPACE 22 /* data is boolean, default is FALSE */
+	/* Include macro file */
+	FPPTAG_INCLUDE_MACRO_FILE, /* data is char pointer */
 
-/* Allow nested comments */
-#define FPPTAG_NESTED_COMMENTS 23 /* data is boolean, default is FALSE */
+	/* Evaluate the right part of a concatenate before the concat */
+	FPPTAG_RIGHTCONCAT, /* data is boolean, default is FALSE */
 
-/* Enable warnings at nested comments */
-#define FPPTAG_WARN_NESTED_COMMENTS 24 /* data is boolean, default is FALSE */
+	/* Include the specified file at the beginning of each function */
+	FPPTAG_INITFUNC, /* data is char pointer or NULL */
 
-/* Enable warnings at missing includes */
-#define FPPTAG_WARNMISSINCLUDE 25 /* data is boolean, default is TRUE */
+	/* Define function to be excluded from the "beginning-function-addings" */
+	FPPTAG_EXCLFUNC, /* data is char pointer */
 
-/* Output the main file */
-#define FPPTAG_OUTPUTMAIN 26 /* data is boolean, default is TRUE */
+	/* Enable output of all function names defined in the source */
+	FPPTAG_DISPLAYFUNCTIONS,
 
-/* Include file */
-#define FPPTAG_INCLUDE_FILE 27 /* data is char pointer */
+	/* Switch on WWW-mode */
+	FPPTAG_WEBMODE,
+} fppTags;
+typedef struct
+{
+	fppTags tag;
+	void *data;
+} fppTag;
 
-/* Include macro file */
-#define FPPTAG_INCLUDE_MACRO_FILE 28 /* data is char pointer */
-
-/* Evaluate the right part of a concatenate before the concat */
-#define FPPTAG_RIGHTCONCAT 29 /* data is boolean, default is FALSE */
-
-/* Include the specified file at the beginning of each function */
-#define FPPTAG_INITFUNC 30 /* data is char pointer or NULL */
-
-/* Define function to be excluded from the "beginning-function-addings" */
-#define FPPTAG_EXCLFUNC 31 /* data is char pointer */
-
-/* Enable output of all function names defined in the source */
-#define FPPTAG_DISPLAYFUNCTIONS 32
-
-/* Switch on WWW-mode */
-#define FPPTAG_WEBMODE 33
+int fppPreProcess(fppTag *);
 
 #ifdef __cplusplus
-extern "C"
+}
 #endif
-	int fppPreProcess(struct fppTag *);

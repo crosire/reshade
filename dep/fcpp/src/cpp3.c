@@ -1,395 +1,722 @@
-/******************************************************************************
-Copyright (c) 1999 Daniel Stenberg
+/*
+ * Copyright (c) 1999 Daniel Stenberg
+ * 
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * 
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ * 
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+#include <stdio.h>	 
+#include "cpp.h"
 
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-******************************************************************************/
-#include        <stdio.h>
-#include        <ctype.h>
-#include        <time.h>        /*OIS*0.92*/
-#include        "cppdef.h"
-#include        "cpp.h"
-
-ReturnCode openfile(struct Global *global, char *filename)
+static ReturnCode checkparm(Global *global, int c, DEFBUF *dp, int quoting /* Preceded by a # ? */) /* Replace this param if it's defined. Note that the macro name is a possible replacement token. We stuff DEF_MAGIC in front of the token which is treated as a LETTER by the token scanner and eaten  by the output routine. This prevents the macro expander from looping if someone writes "#define foo foo". */
 {
-  /*
-   * Open a file, add it to the linked list of open files.
-   * This is called only from openfile() in cpp2.c.
-   */
+	int i;
+	char *cp;
+	ReturnCode ret = FPP_OK;
 
-  FILE *fp;
-  ReturnCode ret;
+	scanid(global, c); /* Get parm to tokenbuf */
 
-  if ((fp = fopen(filename, "r")) == NULL)
-    ret=FPP_OPEN_ERROR;
-  else
-    ret=addfile(global, fp, filename);
+	for (i = 0; i < global->nargs; i++) /* For each argument */
+	{
+		if (strcmp(global->parlist[i], global->tokenbuf) == 0) /* If it's known */
+		{
+			if (quoting)
+			{
+				/* Special handling of #formal inside defn */
+				ret = save(global, QUOTE_PARM);
 
-  if(!ret && global->showincluded) {
-          /* no error occured! */
-          Error(global, "cpp: included \"");
-          Error(global, filename);
-          Error(global, "\"\n");
-  }
-  return(ret);
+				if (ret)
+				{
+					return ret;
+				}
+			}
+			
+			ret = save(global, i + MAC_PARM); /* Save a magic cookie */
+
+			return ret;	/* And exit the search */
+		}
+	}
+
+	if (strcmp(dp->name, global->tokenbuf) == 0) /* Macro name in body? */
+	{
+		ret = save(global, DEF_MAGIC); /* Save magic marker */
+	}
+
+	for (cp = global->tokenbuf; *cp != EOS;)
+	{
+		ret = save(global, *cp++); /* And save the token itself */
+	}
+	
+	return ret;
+	
+}
+static ReturnCode stparmscan(Global *global, int delim) /* Normal string parameter scan. */
+{
+	unsigned char *wp;
+	int i;
+	ReturnCode ret;
+	wp = (unsigned char *)global->workp; /* Here's where it starts */
+
+	ret = scanstring(global, delim, save);
+
+	if (ret)
+	{
+		return ret; /* Exit on scanstring error */
+	}
+
+	global->workp[-1] = EOS; /* Erase trailing quote */
+	wp++; /* -> first string content byte */
+
+	for (i = 0; i < global->nargs; i++)
+	{
+		if (strcmp(global->parlist[i], (char *)wp) == 0)
+		{
+			*wp++ = MAC_PARM + PAR_MAC; /* Stuff a magic marker */
+			*wp++ =(i + MAC_PARM); /* Make a formal marker */
+			*wp = wp[-3]; /* Add on closing quote */
+			global->workp = (char *)wp + 1; /* Reset string end */
+			return FPP_OK;
+		}
+	}
+
+	global->workp[-1] = wp[-1]; /* Nope, reset end quote. */
+
+	return FPP_OK;
+}
+static ReturnCode textput(Global *global, char *text) /* Put the string in the parm[] buffer. */
+{
+	int size = strlen(text) + 1;
+
+	if ((global->parmp + size) >= &global->parm[NPARMWORK])
+	{
+		cfatal(global, FATAL_MACRO_AREA_OVERFLOW);
+		return FPP_WORK_AREA_OVERFLOW;
+	}
+	else
+	{
+		strcpy(global->parmp, text);
+		global->parmp += size;
+	}
+
+	return FPP_OK;
+}
+static ReturnCode charput(Global *global, int c) /* Put the byte in the parm[] buffer. */
+{
+	if (global->parmp >= &global->parm[NPARMWORK])
+	{
+		cfatal(global, FATAL_MACRO_AREA_OVERFLOW);
+		return FPP_WORK_AREA_OVERFLOW;
+	}
+
+	*global->parmp++ = c;
+
+	return FPP_OK;
 }
 
-ReturnCode addfile(struct Global *global,
-                   FILE *fp,            /* Open file pointer */
-                   char *filename)      /* Name of the file  */
+/* Macro Definition */
+ReturnCode dodefine(Global *global)
 {
-  /*
-   * Initialize tables for this open file.  This is called from openfile()
-   * above (for #include files), and from the entry to cpp to open the main
-   * input file. It calls a common routine, getfile() to build the FILEINFO
-   * structure which is used to read characters. (getfile() is also called
-   * to setup a macro replacement.)
-   */
+	/*
+	 * Called from control when a #define is scanned. This module parses formal parameters and the
+	 * replacement string. When the formal parameter name is encountered in the replacement string, it
+	 * is replaced by a character in the range 128 to 128+NPARAM(this allows up to 32 parameters within
+	 * the Dec Multinational range). If cpp is ported to an EBCDIC machine, you will have to make other
+	 * arrangements.  There is some special case code to distinguish #define foo bar from #define
+	 * foo() bar  Also, we make sure that #define foo foo expands to "foo" but doesn't put cpp into an
+	 * infinite loop.  A warning message is printed if you redefine a symbol to a different text. I.e,
+	 * #define foo 123 #define foo 123 is ok, but #define foo 123 #define foo +123 is not.  The
+	 * following subroutines are called from define(): checkparm called when a token is scanned. It
+	 * checks through the array of formal parameters. If a match is found, the token is replaced by a
+	 * control byte which will be used to locate the parameter when the macro is expanded. textput puts
+	 * a string in the macro work area(parm[]), updating parmp to point to the first free byte in
+	 * parm[]. textput() tests for work buffer overflow. charput puts a single character in the macro
+	 * work area(parm[]) in a manner analogous to textput().
+	 */
 
-  FILEINFO *file;
-  ReturnCode ret;
+	int c;
+	DEFBUF * dp; /* -> new definition */
+	int isredefine; /* TRUE if redefined */
+	char *old; /* Remember redefined */
+	ReturnCode ret;
+	int quoting; /* Remember we saw a # */
+	
+	if (type[(c = skipws(global))] != LET)
+	{
+		cerror(global, ERROR_DEFINE_SYNTAX);
+		global->inmacro = FALSE; /* Stop <newline> hack */
+		return FPP_OK;
+	}
 
-  ret = getfile(global, NBUFF, filename, &file);
-  if(ret)
-    return(ret);
-  file->fp = fp;                        /* Better remember FILE *       */
-  file->buffer[0] = EOS;                /* Initialize for first read    */
-  global->line = 1;                     /* Working on line 1 now        */
-  global->wrongline = TRUE;             /* Force out initial #line      */
-  return(FPP_OK);
+	isredefine = FALSE; /* Set if redefining */
+
+	if ((dp = lookid(global, c)) == NULL)
+	{
+		/* If not known now */
+		dp = defendel(global, global->tokenbuf, FALSE);	/* Save the name */
+
+		if (!dp)
+		{
+			return FPP_OUT_OF_MEMORY;
+		}
+	}
+	else
+	{
+		/* It's known: */
+		isredefine = TRUE; /* Remember this fact */
+		old = dp->repl;	/* Remember replacement */
+		dp->repl = NULL; /* No replacement now */
+	}
+
+	global->parlist[0] = global->parmp = global->parm; /* Setup parm buffer */
+
+	if ((c = get(global)) == '(') /* With arguments? */
+	{
+		global->nargs = 0; /* Init formals counter */
+
+		do /* Collect formal parms */
+		{
+			if (global->nargs >= LASTPARM)
+			{
+				cfatal(global, FATAL_TOO_MANY_ARGUMENTS_MACRO);
+				return FPP_TOO_MANY_ARGUMENTS;
+			}
+			else if ((c = skipws(global)) == ')')
+			{
+				break; /* Got them all */
+			}
+			else if (type[c] != LET) /* Bad formal syntax */
+			{
+				cerror(global, ERROR_DEFINE_SYNTAX);
+				global->inmacro = FALSE; /* Stop <newline> hack */
+				return FPP_OK;
+			}
+
+			scanid(global, c); /* Get the formal param */
+			global->parlist[global->nargs++] = global->parmp; /* Save its start */
+			ret = textput(global, global->tokenbuf); /* Save text in parm[] */
+
+			if (ret)
+			{
+				return ret;
+			}
+		}
+		while ((c = skipws(global)) == ',');
+
+		/* Get another argument */
+		if (c != ')') /* Must end at ) */
+		{
+			cerror(global, ERROR_DEFINE_SYNTAX);
+			global->inmacro = FALSE; /* Stop <newline> hack */
+			return FPP_OK;
+		}
+
+		c = ' '; /* Will skip to body */
+	}
+	else
+	{
+		/*  DEF_NOARGS is needed to distinguish between "#define foo" and "#define foo()". */
+		global->nargs = DEF_NOARGS;
+	}
+
+	if (type[c] == SPA) /* At whitespace? */
+	{
+		c = skipws(global);	/* Not any more. */
+	}
+
+	global->workp = global->work; /* Replacement put here */
+	global->inmacro = TRUE;	/* Keep \<newline> now */
+	quoting = 0; /* No # seen yet. */
+
+	while (c != EOF_CHAR && c != '\n') /* Compile macro body */
+	{
+		if (c == '#') /* Token concatenation? */
+		{
+			if ((c = get(global)) != '#')
+			{
+				/* No, not really */
+				quoting = 1; /* Maybe quoting op. */
+				continue;
+				
+			}
+
+			while (global->workp > global->work && type[global->workp[-1]] == SPA)
+			{
+				--global->workp; /* Erase leading spaces */
+			}
+
+			if (ret = save(global, TOK_SEP)) /* Stuff a delimiter */
+			{
+				return ret;
+			}
+
+			c = skipws(global);	/* Eat whitespace */
+			continue;
+		}
+		
+		switch (type[c])
+		{
+			case LET:
+				ret = checkparm(global, c, dp, quoting); /* Might be a formal */
+				
+				if (ret)
+				{
+					return ret;
+				}
+				break;
+			case DIG: /* Number in mac. body */
+			case DOT: /* Maybe a float number */
+				ret = scannumber(global, c, save); /* Scan it off */
+				
+				if (ret)
+				{
+					return ret;
+				}
+				break;
+			case QUO: /* String in mac. body */
+				ret = stparmscan(global, c);
+
+				if (ret)
+				{
+					return ret;
+				}
+				break;
+			case BSH: /* Backslash */
+				ret = save(global, '\\');
+
+				if (ret)
+				{
+					return ret;
+				}
+
+				if ((c = get(global)) == '\n')
+				{
+					global->wrongline = TRUE;
+				}
+
+				ret = save(global, c);
+
+				if (ret)
+				{
+					return ret;
+				}
+				break;
+			case SPA: /* Absorb whitespace */
+				/*  Note: the "end of comment" marker is passed on to allow comments to separate tokens. */
+				if (global->workp[-1] == ' ')
+				{
+					break; /* Absorb multiple spaces */
+				}
+				else if (c == '\t')
+				{
+					c = ' '; /* Normalize tabs */
+				}
+				/* Fall through to store character */
+			default: /* Other character */
+				ret = save(global, c);
+
+				if (ret)
+				{
+					return ret;
+				}
+				break;
+		}
+
+		c = get(global);
+		quoting = 0; /* Only when immediately */
+
+		/* preceding a formal */
+	}
+
+	global->inmacro = FALSE; /* Stop newline hack */
+	unget(global); /* For control check */
+
+	if (global->workp > global->work && global->workp[-1] == ' ')
+	{
+		global->workp--; /* Drop trailing blank */
+	}
+
+	*global->workp = EOS; /* Terminate work */
+	dp->repl = savestring(global, global->work); /* Save the string */
+	dp->nargs = global->nargs; /* Save arg count */
+
+	if (isredefine)
+	{
+		/* Error if redefined */
+		if ((old != NULL && dp->repl != NULL && strcmp(old, dp->repl) != 0) || (old == NULL && dp->repl != NULL) || (old != NULL && dp->repl == NULL))
+		{
+			cerror(global, ERROR_REDEFINE, dp->name);
+		}
+
+		if (old != NULL)
+		{
+			free(old); /* We don't need the old definition now. */
+		}
+		
+	}
+
+	return FPP_OK;
+}
+void doundef(Global *global) /* Remove the symbol from the defined list. Called from the #control processor. */
+{
+	int c;
+
+	if (type[(c = skipws(global))] != LET)
+	{
+		cerror(global, ERROR_ILLEGAL_UNDEF);
+	}
+	else
+	{
+		scanid(global, c); /* Get name to tokenbuf */
+		(void)defendel(global, global->tokenbuf, TRUE);
+	}
 }
 
-int dooptions(struct Global *global, struct fppTag *tags)
+/* Macro Expansion */
+static char *doquoting(char *to, char *from)
 {
-  /*
-   * dooptions is called to process command line arguments (-Detc).
-   * It is called only at cpp startup.
-   */
-  DEFBUF *dp;
-  char end=FALSE; /* end of taglist */
+	*to++ = '"';
 
-  while(tags && !end) {
-    switch(tags->tag) {
-    case FPPTAG_END:
-      end=TRUE;
-      break;
-    case FPPTAG_INITFUNC:
-      global->initialfunc = (char *) tags->data;
-      break;
-    case FPPTAG_DISPLAYFUNCTIONS:
-      global->outputfunctions = tags->data?1:0;
-      break;
-    case FPPTAG_RIGHTCONCAT:
-      global->rightconcat = tags->data?1:0;
-      break;
-    case FPPTAG_OUTPUTMAIN:
-      global->outputfile = tags->data?1:0;
-      break;
-    case FPPTAG_NESTED_COMMENTS:
-      global->nestcomments = tags->data?1:0;
-      break;
-    case FPPTAG_WARNMISSINCLUDE:
-      global->warnnoinclude = tags->data?1:0;
-      break;
-    case FPPTAG_WARN_NESTED_COMMENTS:
-      global->warnnestcomments =  tags->data?1:0;
-      break;
-    case FPPTAG_OUTPUTSPACE:
-      global->showspace = tags->data?1:0;
-      break;
-    case FPPTAG_OUTPUTBALANCE:
-      global->showbalance = tags->data?1:0;
-      break;
-    case FPPTAG_OUTPUTINCLUDES:
-      global->showincluded = tags->data?1:0;
-      break;
-    case FPPTAG_IGNOREVERSION:
-      global->showversion = tags->data?0:1;
-      break;
-    case FPPTAG_WARNILLEGALCPP:
-      global->warnillegalcpp = tags->data?1:0;
-      break;
-    case FPPTAG_OUTPUTLINE:
-      global->outputLINE = tags->data?1:0;
-      break;
-    case FPPTAG_KEEPCOMMENTS:
-      if(tags->data) {
-        global->cflag = TRUE;
-        global->keepcomments = TRUE;
-      }
-      break;
-    case FPPTAG_DEFINE:
-      /*
-       * If the option is just "-Dfoo", make it -Dfoo=1
-       */
-      {
-        char *symbol=(char *)tags->data;
-        char *text=symbol;
-        while (*text != EOS && *text != '=')
-          text++;
-        if (*text == EOS)
-          text = "1";
-        else
-          *text++ = EOS;
-        /*
-         * Now, save the word and its definition.
-         */
-        dp = defendel(global, symbol, FALSE);
-        if(!dp)
-          return(FPP_OUT_OF_MEMORY);
-        dp->repl = savestring(global, text);
-        dp->nargs = DEF_NOARGS;
-      }
-      break;
-    case FPPTAG_IGNORE_NONFATAL:
-      global->eflag = TRUE;
-      break;
-    case FPPTAG_INCLUDE_DIR:
-      if (global->incend >= &global->incdir[NINCLUDE]) {
-          cfatal(global, FATAL_TOO_MANY_INCLUDE_DIRS);
-          return(FPP_TOO_MANY_INCLUDE_DIRS);
-      }
-      *global->incend++ = (char *)tags->data;
-      break;
-    case FPPTAG_INCLUDE_FILE:
-    case FPPTAG_INCLUDE_MACRO_FILE:
-      if (global->included >= NINCLUDE) {
-          cfatal(global, FATAL_TOO_MANY_INCLUDE_FILES);
-          return(FPP_TOO_MANY_INCLUDE_FILES);
-      }
-      global->include[global->included] = (char *)tags->data;
+	while (*from)
+	{
+		if (*from == '\\' || *from == '"')
+		{
+			*to++ = '\\';
+		}
+		
+		*to++ = *from++;
+	}
 
-      global->includeshow[global->included] =
-          (tags->tag == FPPTAG_INCLUDE_FILE);
+	*to++ = '"';
 
-      global->included++;
-      break;
-    case FPPTAG_BUILTINS:
-      global->nflag|=(tags->data?NFLAG_BUILTIN:0);
-      break;
-    case FPPTAG_PREDEFINES:
-      global->nflag|=(tags->data?NFLAG_PREDEFINE:0);
-      break;
-    case FPPTAG_IGNORE_CPLUSPLUS:
-      global->cplusplus=!tags->data;
-      break;
-    case FPPTAG_SIZEOF_TABLE:
-      {
-        SIZES *sizp;    /* For -S               */
-        int size;       /* For -S               */
-        int isdatum;    /* FALSE for -S*        */
-        int endtest;    /* For -S               */
-
-        char *text=(char *)tags->data;
-
-        sizp = size_table;
-        if (isdatum = (*text != '*')) /* If it's just -S,     */
-          endtest = T_FPTR;     /* Stop here            */
-        else {                  /* But if it's -S*      */
-          text++;               /* Step over '*'        */
-          endtest = 0;          /* Stop at end marker   */
-        }
-        while (sizp->bits != endtest && *text != EOS) {
-          if (!isdigit(*text)) {    /* Skip to next digit   */
-            text++;
-            continue;
-          }
-          size = 0;             /* Compile the value    */
-          while (isdigit(*text)) {
-            size *= 10;
-            size += (*text++ - '0');
-          }
-          if (isdatum)
-            sizp->size = size;  /* Datum size           */
-          else
-            sizp->psize = size; /* Pointer size         */
-          sizp++;
-        }
-        if (sizp->bits != endtest)
-          cwarn(global, WARN_TOO_FEW_VALUES_TO_SIZEOF, NULL);
-        else if (*text != EOS)
-          cwarn(global, WARN_TOO_MANY_VALUES_TO_SIZEOF, NULL);
-      }
-      break;
-    case FPPTAG_UNDEFINE:
-      if (defendel(global, (char *)tags->data, TRUE) == NULL)
-        cwarn(global, WARN_NOT_DEFINED, tags->data);
-      break;
-    case FPPTAG_OUTPUT_DEFINES:
-      global->wflag++;
-      break;
-    case FPPTAG_INPUT_NAME:
-      strcpy(global->work, tags->data);    /* Remember input filename */
-      global->first_file=tags->data;
-      break;
-    case FPPTAG_INPUT:
-      global->input=(char *(*)(char *, int, void *))tags->data;
-      break;
-    case FPPTAG_OUTPUT:
-      global->output=(void (*)(int, void *))tags->data;
-      break;
-    case FPPTAG_ERROR:
-      global->error=(void (*)(void *, char *, va_list))tags->data;
-      break;
-    case FPPTAG_USERDATA:
-      global->userdata=tags->data;
-      break;
-    case FPPTAG_LINE:
-      global->linelines= tags->data?1:0;
-      break;
-    case FPPTAG_EXCLFUNC:
-      global->excludedinit[ global->excluded++ ] = (char *)tags->data;
-      break;
-    case FPPTAG_WEBMODE:
-      global->webmode=(tags->data?1:0);
-      break;
-    default:
-      cwarn(global, WARN_INTERNAL_ERROR, NULL);
-      break;
-    }
-    tags++;
-  }
-  return(0);
+	return to;
 }
-
-ReturnCode initdefines(struct Global *global)
+static ReturnCode expcollect(Global *global) /* Collect the actual parameters for this macro. */
 {
-  /*
-   * Initialize the built-in #define's.  There are two flavors:
-   *    #define decus   1               (static definitions)
-   *    #define __FILE__ ??             (dynamic, evaluated by magic)
-   * Called only on cpp startup.
-   *
-   * Note: the built-in static definitions are supressed by the -N option.
-   * __LINE__, __FILE__, __TIME__ and __DATE__ are always present.
-   */
+	int c;
+	int paren; /* For embedded()'s */
+	ReturnCode ret;
 
-  char **pp;
-  char *tp;
-  DEFBUF *dp;
-  struct tm *tm;
+	for (;;) /* Collect all args. */
+	{
+		paren = 0; /* Collect next arg. */
 
-  int i;
-  time_t tvec;
+		while ((c = skipws(global)) == '\n') /* Skip over whitespace and newlines */
+		{
+			global->wrongline = TRUE;
+		}
 
-  static char months[12][4] = {
-    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
-    };
+		if (c == ')') /* At end of all args? */
+		{
+			/* Note that there is a guard byte in parm[] so we don't have to check for overflow here. */
+			*global->parmp = EOS; /* Make sure terminated */
+			break; /* Exit collection loop */
+		}
+		else if (global->nargs >= LASTPARM)
+		{
+			cfatal(global, FATAL_TOO_MANY_ARGUMENTS_EXPANSION);
+			return FPP_TOO_MANY_ARGUMENTS;
+		}
 
-  /*
-   * Predefine the built-in symbols.  Allow the
-   * implementor to pre-define a symbol as "" to
-   * eliminate it.
-   */
-  if (!(global->nflag & NFLAG_BUILTIN)) {
-    for (pp = global->preset; *pp != NULL; pp++) {
-      if (*pp[0] != EOS) {
-        dp = defendel(global, *pp, FALSE);
-        if(!dp)
-          return(FPP_OUT_OF_MEMORY);
-        dp->repl = savestring(global, "1");
-        dp->nargs = DEF_NOARGS;
-      }
-    }
-  }
-  /*
-   * The magic pre-defines (__FILE__ and __LINE__ are
-   * initialized with negative argument counts.  expand()
-   * notices this and calls the appropriate routine.
-   * DEF_NOARGS is one greater than the first "magic" definition.
-   */
-  if (!(global->nflag & NFLAG_PREDEFINE)) {
-    for (pp = global->magic, i = DEF_NOARGS; *pp != NULL; pp++) {
-      dp = defendel(global, *pp, FALSE);
-      if(!dp)
-        return(FPP_OUT_OF_MEMORY);
-      dp->nargs = --i;
-    }
-#if OK_DATE
-    /*
-     * Define __DATE__ as today's date.
-     */
-    dp = defendel(global, "__DATE__", FALSE);
-    tp = malloc(14);
-    if(!tp || !dp)
-      return(FPP_OUT_OF_MEMORY);
-    dp->repl = tp;
-    dp->nargs = DEF_NOARGS;
-    time(&tvec);
-    tm = localtime(&tvec);
-    sprintf(tp, "\"%3s %2d %4d\"",      /* "Aug 20 1988" */
-            months[tm->tm_mon],
-            tm->tm_mday,
-            tm->tm_year + 1900);
+		global->parlist[global->nargs++] = global->parmp; /* At start of new arg */
 
-    /*
-     * Define __TIME__ as this moment's time.
-     */
-    dp = defendel(global, "__TIME__", FALSE);
-    tp = malloc(11);
-    if(!tp || !dp)
-      return(FPP_OUT_OF_MEMORY);
-    dp->repl = tp;
-    dp->nargs = DEF_NOARGS;
-    sprintf(tp, "\"%2d:%02d:%02d\"",    /* "20:42:31" */
-            tm->tm_hour,
-            tm->tm_min,
-            tm->tm_sec);
-#endif
-  }
-  return(FPP_OK);
+		for (;; c = cget(global)) /* Collect an argument */
+		{
+			if (c == EOF_CHAR)
+			{
+				cerror(global, ERROR_EOF_IN_ARGUMENT);
+				return FPP_EOF_IN_MACRO; /* Sorry. */
+			}
+			else if (c == '\\') /* Quote next character */
+			{
+				charput(global, c); /* Save the \ for later */
+				charput(global, cget(global)); /* Save the next char. */
+				continue; /* And go get another */
+			}
+			else if (type[c] == QUO) /* Start of string? */
+			{
+				ret = scanstring(global, c,(ReturnCode(*)(Global *, int)) charput); /* Scan it off */
+				if (ret)
+				{
+					return ret;
+				}
+
+				continue; /* Go get next char */
+			}
+			else if (c == '(')
+			{
+				paren++; /* Worry about balance to know about commas */
+			}
+			else if (c == ')')
+			{	
+				if (paren == 0) /* At the end? */
+				{
+					unget(global); /* Look at it later */
+					break; /* Exit arg getter. */
+				}
+
+				paren--; /* More to come. */
+			}
+			else if (c == ',' && paren == 0) /* Comma delimits args */
+			{
+				break;
+			}
+			else if (c == '\n') /* Newline inside arg? */
+			{
+				global->wrongline = TRUE; /* We'll need a #line */
+			}
+
+			charput(global, c);	/* Store this one */
+		}
+
+		charput(global, EOS); /* Terminate argument */
+	}
+
+	return FPP_OK; /* Normal return */
 }
-
-void deldefines(struct Global *global)
+ReturnCode expstuff(Global *global, char *MacroName, char *MacroReplace) /* Stuff the macro body, replacing formal parameters by actual parameters. */
 {
-  /*
-   * Delete the built-in #define's.
-   */
-  char **pp;
-  int i;
+	int c; /* Current character */
+	char *inp; /* -> repl string */
+	char *defp; /* -> macro output buff */
+	int size; /* Actual parm. size */
+	char *defend; /* -> output buff end */
+	int string_magic; /* String formal hack */
+	FILEINFO * file; /* Funny #include */
+	ReturnCode ret;
+	char quoting; /* Quote macro argument */
 
+	ret = getfile(global, NBUFF, MacroName, &file);
 
-  /*
-   * Delete the built-in symbols, unless -WW.
-   */
-  if (global->wflag < 2) {
-    for (pp = global->preset; *pp != NULL; pp++) {
-      defendel(global, *pp, TRUE);
-    }
-  }
-  /*
-   * The magic pre-defines __FILE__ and __LINE__
-   */
-  for (pp = global->magic, i = DEF_NOARGS; *pp != NULL; pp++) {
-    defendel(global, *pp, TRUE);
-  }
-#if OK_DATE
-  /*
-   * Undefine __DATE__.
-   */
-  defendel(global, "__DATE__", TRUE);
+	if (ret)
+	{
+		return ret;
+	}
 
-  /*
-   * Undefine __TIME__.
-   */
-  defendel(global, "__TIME__", TRUE);
-#endif
-  return;
+	inp = MacroReplace;	/* -> macro replacement */
+	defp = file->buffer; /* -> output buffer */
+	defend = defp +(NBUFF - 1);	/* Note its end */
+
+	if (inp != NULL)
+	{
+		quoting = 0;
+
+		while ((c =(*inp++ &0xFF)) != EOS)
+		{
+			if (c == QUOTE_PARM) /* Special token for # */
+			{
+				quoting = 1; /* Set flag, for later */
+				continue; /* Get next character */
+			}
+
+			if (c >= MAC_PARM && c <=(MAC_PARM + PAR_MAC))
+			{
+				string_magic = (c == (MAC_PARM + PAR_MAC));
+
+				if (string_magic)
+				{
+					c = (*inp++ & 0xFF);
+				}
+				
+				/* Replace formal parameter by actual parameter string. */
+				if ((c -= MAC_PARM) < global->nargs)
+				{
+					size = strlen(global->parlist[c]);
+
+					if (quoting)
+					{
+						size++;
+						size *= 2; /* worst case condition */
+					}
+
+					if ((defp + size) >= defend)
+					{
+						cfatal(global, FATAL_OUT_OF_SPACE_IN_ARGUMENT, MacroName);
+						return FPP_OUT_OF_SPACE_IN_MACRO_EXPANSION;
+					}
+
+					/* Erase the extra set of quotes. */
+					if (string_magic && defp[-1] == global->parlist[c][0])
+					{
+						strcpy(defp - 1, global->parlist[c]);
+						defp +=(size - 2);
+					}
+					else if (quoting)
+					{
+						defp = doquoting(defp, global->parlist[c]);
+					}
+					else
+					{
+						strcpy(defp, global->parlist[c]);
+						defp += size;
+					}
+				}
+			}
+			else if (defp >= defend)
+			{
+				cfatal(global, FATAL_OUT_OF_SPACE_IN_ARGUMENT, MacroName);
+				return FPP_OUT_OF_SPACE_IN_MACRO_EXPANSION;
+			}
+			else
+			{
+				 *defp++ = c;
+			}
+
+			quoting = 0;
+		}
+	}
+
+	*defp = EOS;
+
+	return FPP_OK;
 }
+ReturnCode expand(Global *global, DEFBUF *tokenp) /* Expand a macro. Called from the cpp mainline routine(via subroutine macroid()) when a token is  found in the symbol table. It calls expcollect() to parse actual parameters, checking for the correct number. It then creates a "file" containing a single line containing the macro with  actual parameters inserted appropriately. This is "pushed back" onto the input stream. (When the  get() routine runs off the end of the macro line, it will dismiss the macro itself.) */
+{
+	int c;
+	FILEINFO * file;
+	ReturnCode ret = FPP_OK;
+	
+	/*  If no macro is pending, save the name of this macro for an eventual error message. */
+	if (global->recursion++ == 0)
+	{
+		global->macro = tokenp;
+	}
+	else if (global->recursion == RECURSION_LIMIT)
+	{
+		cerror(global, ERROR_RECURSIVE_MACRO, tokenp->name, global->macro->name);
 
+		if (global->rec_recover)
+		{
+			do
+			{
+				c = get(global);
+			}
+			while(global->infile != NULL && global->infile->fp == NULL);
+
+			unget(global);
+			global->recursion = 0;
+
+			return FPP_OK;
+		}
+	}
+	
+	/* Here's a macro to expand. */
+	global->nargs = 0; /* Formals counter */
+	global->parmp = global->parm; /* Setup parm buffer */
+
+	switch(tokenp->nargs)
+	{
+		case -2: /* __LINE__ */
+			if (global->infile->fp)
+			{
+				/* This is a file */
+				sprintf(global->work, "%d", global->line);
+			}
+			else
+			{
+				/* This is a macro! Find out the file line number! */
+				for (file = global->infile; file != NULL; file = file->parent)
+				{
+					if (file->fp != NULL)
+					{
+						sprintf(global->work, "%d", file->line);
+						break;
+					}
+				}
+			}
+			ret = ungetstring(global, global->work);
+
+			if (ret)
+			{
+				return ret;
+			}
+			break;
+		case -3: /* __FILE__ */
+			for (file = global->infile; file != NULL; file = file->parent)
+			{
+				if (file->fp != NULL)
+				{
+					sprintf(global->work, "\"%s\"", (file->progname != NULL) ? file->progname : file->filename);
+					ret = ungetstring(global, global->work);
+
+					if (ret)
+					{
+						return ret;
+					}
+					break;
+				}
+			}
+			break;
+		case -4: /* __FUNC__ */
+			sprintf(global->work, "\"%s\"", global->functionname[0] ? global->functionname : "<unknown function>");
+			ret = ungetstring(global, global->work);
+			
+			if (ret)
+			{
+				return ret;
+			}
+			break;
+		case -5: /* __FUNC_LINE__ */
+			sprintf(global->work, "%d", global->funcline);
+			ret = ungetstring(global, global->work);
+
+			if (ret)
+			{
+				return ret;
+			}
+			break;
+		default: /*  Nothing funny about this macro. */
+			if (tokenp->nargs < 0)
+			{
+				cfatal(global, FATAL_ILLEGAL_MACRO, tokenp->name);
+				return FPP_ILLEGAL_MACRO;
+			}
+
+			while ((c = skipws(global)) == '\n') /* Look for (, skipping spaces and newlines */
+			{
+				global->wrongline = TRUE;
+			}
+
+			if (c != '(')
+			{
+				/* If the programmer writes #define foo() ... ... foo [no()] just write foo to the output stream. */
+				unget(global);
+				Putstring(global, tokenp->name);
+
+				cwarn(global, WARN_MACRO_NEEDS_ARGUMENTS, tokenp->name);
+
+				return FPP_OK;
+			}
+			else if (!(ret = expcollect(global))) /* Collect arguments */
+			{
+				if (tokenp->nargs != global->nargs)
+				{
+					/* Should be an error? */
+					cwarn(global, WARN_WRONG_NUMBER_ARGUMENTS, tokenp->name);
+				}
+			}
+			else
+			{
+				return ret;	/* We failed in argument colleting! */
+			}
+		case DEF_NOARGS: /* No parameters just stuffs */
+			ret = expstuff(global, tokenp->name, tokenp->repl);	/* expand macro */
+			break;
+	}
+
+	return ret;
+}

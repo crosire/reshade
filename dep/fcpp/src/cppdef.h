@@ -194,13 +194,6 @@
 #endif
 
 /*
- * RECURSION_LIMIT may be set to -1 to disable the macro recursion test.
- */
-#ifndef RECURSION_LIMIT
-#define RECURSION_LIMIT 1000
-#endif
-
-/*
  * BITS_CHAR may be defined to set the number of bits per character.
  * it is needed only for multi-byte character constants.
  */
@@ -208,17 +201,6 @@
 #define BITS_CHAR		8
 #endif
 
-/*
- * BIG_ENDIAN is set TRUE on machines (such as the IBM 360 series)
- * where 'ab' stores 'a' in the high-bits and 'b' in the low-bits.
- * It is set FALSE on machines (such as the PDP-11 and Vax-11)
- * where 'ab' stores 'a' in the low-bits and 'b' in the high-bits.
- * (Or is it the other way around?) -- Warning: BIG_ENDIAN code is untested.
- * [I *seems* to be the other way around, according to the code /OIS]
- */
-#ifndef BIG_ENDIAN
-#define BIG_ENDIAN		FALSE
-#endif
 
 /*
  * COMMENT_INVISIBLE may be defined to allow "old-style" comment
@@ -278,70 +260,7 @@
 #define DEBUG		FALSE
 #endif
 
-/*
- * The following definitions are used to allocate memory for
- * work buffers.  In general, they should not be modified
- * by implementors.
- *
- * PAR_MAC	The maximum number of #define parameters (31 per Standard)
- *		Note: we need another one for strings.
- * NBUFF	Input buffer size
- * NWORK	Work buffer size -- the longest macro
- *		must fit here after expansion.
- * NEXP 	The nesting depth of #if expressions
- * NINCLUDE	The number of directories that may be specified
- *		on a per-system basis, or by the -I option.
- * BLK_NEST	The number of nested #if's permitted.
- */
 
-#ifndef PAR_MAC
-#define PAR_MAC 	   (31 + 1)
-#endif
-
-#ifndef NBUFF
-#define NBUFF			512
-#endif
-
-#ifndef NWORK
-#define NWORK			512
-#endif
-
-#ifndef NEXP
-#define NEXP			128
-#endif
-
-#ifndef NINCLUDE
-#define NINCLUDE		  20
-#endif
-
-#ifndef NPARMWORK
-#define NPARMWORK		(NWORK * 2)
-#endif
-
-#ifndef BLK_NEST
-#define BLK_NEST		32
-#endif
-
-
-/*
- * Some special constants.  These may need to be changed if cpp
- * is ported to a wierd machine.
- *
- * NOTE: if cpp is run on a non-ascii machine, ALERT and VT may
- * need to be changed.	They are used to implement the proposed
- * ANSI standard C control characters '\a' and '\v' only.
- * DEL is used to tag macro tokens to prevent #define foo foo
- * from looping.  Note that we don't try to prevent more elaborate
- * #define loops from occurring.
- */
-
-#ifndef ALERT
-#define ALERT			'\007'          /* '\a' is "Bell"       */
-#endif
-
-#ifndef VT
-#define VT			'\013'          /* Vertical Tab CTRL/K  */
-#endif
 
 /*
  * Functions can be declared/defined static to only become in the
@@ -371,13 +290,3 @@
 #define REG(x)
 #endif
 
-/*
- * SBSIZE defines the number of hash-table slots for the symbol table.
- */
-#ifndef SBSIZE
-#define SBSIZE  64
-#endif
-
-#define VERSION_TEXT "Frexx C Preprocessor v1.5.1 " \
-"Copyright (C) by FrexxWare 1993 - 2002.\n" \
-"Compiled " __DATE__ "\n"

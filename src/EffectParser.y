@@ -50,7 +50,7 @@
 			void Warning(const YYLTYPE &location, unsigned int code, const char *message, ...);
 
 		public:
-			inline std::vector<std::string> GetPragmas() const
+			inline const std::vector<std::string> &GetPragmas() const
 			{
 				return this->mPragmas;
 			}
