@@ -4,6 +4,7 @@
 #include "HookManager.hpp"
 #include "EffectPreprocessor.hpp"
 #include "EffectParser.hpp"
+#include "EffectLexer.h"
 #include "FileWatcher.hpp"
 
 #include <stb_dxt.h>
@@ -464,6 +465,9 @@ namespace ReShade
 
 	bool Runtime::LoadEffect()
 	{
+		this->mMessage.clear();
+		this->mShowStatistics = false;
+
 		boost::filesystem::path path = sEffectPath;
 
 		if (!boost::filesystem::exists(path))
@@ -532,30 +536,7 @@ namespace ReShade
 			this->mEffectSource = source;
 		}
 
-		return true;
-	}
-	bool Runtime::CompileEffect()
-	{
-		this->mMessage.clear();
-		this->mTechniques.clear();
-		this->mEffect.reset();
-		this->mShowStatistics = false;
-
-		EffectTree ast;
-		EffectParser parser(ast);
-
-		LOG(TRACE) << "> Running parser ...";
-
-		if (!parser.Parse(this->mEffectSource, this->mErrors))
-		{
-			LOG(ERROR) << "Failed to compile effect on context " << this << ":\n\n" << this->mErrors << "\n";
-
-			this->mStatus += " Failed!";
-
-			return false;
-		}
-
-		for (const std::string &pragma : parser.GetPragmas())
+		for (const std::string &pragma : preprocessor.GetPragmas())
 		{
 			if (boost::starts_with(pragma, "message "))
 			{
@@ -572,6 +553,34 @@ namespace ReShade
 			{
 				this->mShowStatistics = true;
 			}
+		}
+
+		if (!this->mMessage.empty())
+		{
+			std::size_t len = this->mMessage.length();
+			EscapeString(&this->mMessage.front(), len);
+			this->mMessage = this->mMessage.substr(0, len);
+		}
+
+		return true;
+	}
+	bool Runtime::CompileEffect()
+	{
+		this->mTechniques.clear();
+		this->mEffect.reset();
+
+		EffectTree ast;
+		EffectParser parser(ast);
+
+		LOG(TRACE) << "> Running parser ...";
+
+		if (!parser.Parse(this->mEffectSource, this->mErrors))
+		{
+			LOG(ERROR) << "Failed to compile effect on context " << this << ":\n\n" << this->mErrors << "\n";
+
+			this->mStatus += " Failed!";
+
+			return false;
 		}
 
 		// Compile

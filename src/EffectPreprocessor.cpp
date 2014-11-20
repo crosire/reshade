@@ -1,7 +1,7 @@
 #include "EffectPreprocessor.hpp"
 
 #include <fpp.h>
-#include <fstream>
+#include <boost\algorithm\string\trim.hpp>
 
 namespace ReShade
 {
@@ -9,6 +9,27 @@ namespace ReShade
 	{
 		static void OnOutput(EffectPreprocessor *pp, char ch)
 		{
+			if (pp->mImpl->mLastPragma != std::string::npos)
+			{
+				if (ch == '\n')
+				{
+					std::string pragma = pp->mImpl->mOutput.substr(pp->mImpl->mLastPragma);
+					boost::algorithm::trim(pragma);
+
+					pp->mPragmas.push_back(pragma);
+					pp->mImpl->mLastPragma = std::string::npos;
+				}
+			}
+			else
+			{
+				const std::size_t length = pp->mImpl->mOutput.size();
+
+				if (length > 7 && pp->mImpl->mOutput.substr(length - 7) == "#pragma")
+				{
+					pp->mImpl->mLastPragma = length;
+				}
+			}
+
 			pp->mImpl->mOutput += ch;
 		}
 		static void OnError(EffectPreprocessor *pp, const char *format, va_list args)
@@ -24,6 +45,7 @@ namespace ReShade
 		std::string mErrors;
 		std::vector<char> mScratch;
 		std::size_t mScratchCursor;
+		std::size_t mLastPragma;
 	};
 
 	// -----------------------------------------------------------------------------------------------------
@@ -32,8 +54,9 @@ namespace ReShade
 	{
 		this->mImpl->mScratch.resize(16384);
 		this->mImpl->mScratchCursor = 0;
+		this->mImpl->mLastPragma = std::string::npos;
 
-		this->mImpl->mTags.resize(6);
+		this->mImpl->mTags.resize(7);
 		this->mImpl->mTags[0].tag = FPPTAG_USERDATA;
 		this->mImpl->mTags[0].data = static_cast<void *>(this);
 		this->mImpl->mTags[1].tag = FPPTAG_OUTPUT;
@@ -46,6 +69,8 @@ namespace ReShade
 		this->mImpl->mTags[4].data = reinterpret_cast<void *>(true);
 		this->mImpl->mTags[5].tag = FPPTAG_OUTPUTSPACE;
 		this->mImpl->mTags[5].data = reinterpret_cast<void *>(true);
+		this->mImpl->mTags[6].tag = FPPTAG_OUTPUTINCLUDES;
+		this->mImpl->mTags[6].data = reinterpret_cast<void *>(true);
 	}
 	EffectPreprocessor::~EffectPreprocessor()
 	{
@@ -95,7 +120,23 @@ namespace ReShade
 		tag.data = nullptr;
 		tags.push_back(tag);
 
-		if (fppPreProcess(tags.data()) != 0)
+		const bool success = fppPreProcess(tags.data()) == 0;
+
+		this->mIncludes.clear();
+		this->mIncludes.push_back(path);
+
+		std::size_t pos = 0;
+
+		while ((pos = this->mImpl->mErrors.find("Included", pos)) != std::string::npos)
+		{
+			const std::size_t begin = this->mImpl->mErrors.find_first_of('"', pos) + 1, end = this->mImpl->mErrors.find_first_of('"', begin);
+			const std::string include = this->mImpl->mErrors.substr(begin, end - begin);
+
+			this->mImpl->mErrors.erase(pos, 12 + end - begin);
+			this->mIncludes.push_back(include);
+		}
+
+		if (!success)
 		{
 			errors += this->mImpl->mErrors;
 

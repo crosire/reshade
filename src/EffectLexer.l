@@ -26,6 +26,8 @@
 	#include <limits>
 	#include <ctype.h>
 	#include <stdint.h>
+
+	void EscapeString(char *buffer, std::size_t &len);
 }
 
 %{
@@ -33,8 +35,6 @@
 	#include <boost\algorithm\string\case_conv.hpp>
 
 	#include "EffectParser.hpp"
-
-	static void Escape(char *buffer, std::size_t &len);
 
 	// Flex Macros
 	#define YY_USER_ACTION yylloc->Line = yylineno, yylloc->Column = yycolumn, yycolumn += yyleng;
@@ -80,9 +80,9 @@ STRING															\"(\\.|[^\\"])*\"
 
 ^{WS}*#{WS}*													{ yy_push_state(STATE_PP, yyscanner); }
 ^{WS}*#{WS}*"line"{WS}+											{ yy_push_state(STATE_PP_LINE, yyscanner); }
-^{WS}*#{WS}*"pragma"{WS}+										{ yyextra->mPragmas.push_back(std::string()); yy_push_state(STATE_PP_PRAGMA, yyscanner); }
-^{WS}*#{WS}*"error"												{ yyextra->mPragmas.push_back(std::string()); yy_push_state(STATE_PP_ERROR, yyscanner); }
-^{WS}*#{WS}*"warning"											{ yyextra->mPragmas.push_back(std::string()); yy_push_state(STATE_PP_WARNING, yyscanner); }
+^{WS}*#{WS}*"pragma"{WS}+										{ yyextra->mCurrentDirective.clear(); yy_push_state(STATE_PP_PRAGMA, yyscanner); }
+^{WS}*#{WS}*"error"												{ yyextra->mCurrentDirective.clear(); yy_push_state(STATE_PP_ERROR, yyscanner); }
+^{WS}*#{WS}*"warning"											{ yyextra->mCurrentDirective.clear(); yy_push_state(STATE_PP_WARNING, yyscanner); }
 <STATE_PP>
 {
 	[^\\\n]+													{ yyextra->Error(*yylloc, 1504, "invalid preprocessor command '%s'", yytext); }
@@ -134,36 +134,32 @@ STRING															\"(\\.|[^\\"])*\"
 }
 <STATE_PP_PRAGMA>
 {
-	[^\\\n\t ]+|\\												{ yyextra->mPragmas.back() += yytext; }
-	{STRING}													{ std::size_t len = ::strlen(yytext); Escape(yytext, len); yyextra->mPragmas.back().append(yytext, len); }
-	{WS}+														{ yyextra->mPragmas.back() += ' '; }
+	[^\\\n\t ]+|\\												{ }
 	\\{LF}														{ }
-	{LF}														{ boost::algorithm::trim(yyextra->mPragmas.back()); yy_pop_state(yyscanner); }
+	{LF}														{ yy_pop_state(yyscanner); }
 }
 <STATE_PP_ERROR>
 {
-	[^\\\n]+|\\													{ yyextra->mPragmas.back() += yytext; }
+	[^\\\n]+|\\													{ yyextra->mCurrentDirective += yytext; }
 	\\{LF}														{ }
 	{LF}														{ yy_pop_state(yyscanner);
 	
-		std::string &message = yyextra->mPragmas.back();
+		std::string &message = yyextra->mCurrentDirective;
 		boost::algorithm::trim(message);
 		
 		yyextra->Error(*yylloc, 0, "%s", message.c_str());
-		yyextra->mPragmas.pop_back();
 	}
 }
 <STATE_PP_WARNING>
 {
-	[^\\\n]+|\\													{ yyextra->mPragmas.back() += yytext; }
+	[^\\\n]+|\\													{ yyextra->mCurrentDirective += yytext; }
 	\\{LF}														{ }
 	{LF}														{ yy_pop_state(yyscanner);
 	
-		std::string &message = yyextra->mPragmas.back();
+		std::string &message = yyextra->mCurrentDirective;
 		boost::algorithm::trim(message);
 		
 		yyextra->Warning(*yylloc, 0, "%s", message.c_str());
-		yyextra->mPragmas.pop_back();
 	}
 }
 
@@ -305,7 +301,7 @@ STRING															\"(\\.|[^\\"])*\"
 
 [tT]"rue"|"TRUE"												{ yylval->l.Int = true; return TOK_LITERAL_BOOL; }
 [fF]"alse"|"FALSE"												{ yylval->l.Int = false; return TOK_LITERAL_BOOL; }
-{STRING}														{ yylval->l.String.len = ::strlen(yytext) - 2; char *p = yytext + 1; Escape(p, yylval->l.String.len); yylval->l.String.p = p; return TOK_LITERAL_STRING; }
+{STRING}														{ yylval->l.String.len = ::strlen(yytext) - 2; char *p = yytext + 1; EscapeString(p, yylval->l.String.len); yylval->l.String.p = p; return TOK_LITERAL_STRING; }
 [0-9]+"."[0-9]*([eE][+-]?[0-9]+)?[hHfFlL]?						{ yylval->l.Float = static_cast<float>(::strtod(yytext, nullptr)); return TOK_LITERAL_FLOAT; }
 "."[0-9]+([eE][+-]?[0-9]+)?[hHfFlL]?							{ yylval->l.Float = static_cast<float>(::strtod(yytext, nullptr)); return TOK_LITERAL_FLOAT; }
 [0-9]+[eE][+-]?[0-9]+[hHfFlL]?									{ yylval->l.Float = static_cast<float>(::strtod(yytext, nullptr)); return TOK_LITERAL_FLOAT; }
@@ -626,7 +622,7 @@ static char EscapeRadix(char *buffer, int radix, int digits)
 
 	return res;
 }
-static void Escape(char *buffer, std::size_t &len)
+void EscapeString(char *buffer, std::size_t &len)
 {
 	for (std::size_t i = 0; i < len - 1; ++i)
 	{

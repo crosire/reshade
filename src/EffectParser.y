@@ -50,10 +50,6 @@
 			void Warning(const YYLTYPE &location, unsigned int code, const char *message, ...);
 
 		public:
-			inline const std::vector<std::string> &GetPragmas() const
-			{
-				return this->mPragmas;
-			}
 			Scope GetCurrentScope() const;
 			EffectTree::Index GetCurrentParent() const;
 			inline EffectTree::Index FindSymbol(const std::string &name) const
@@ -72,7 +68,7 @@
 			void *mLexer;
 			void *mParser;
 			int mNextLexerState;
-			std::vector<std::string> mPragmas;
+			std::string mCurrentDirective;
 
 		private:
 			std::string mErrors;

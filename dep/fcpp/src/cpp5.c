@@ -1158,7 +1158,7 @@ static void domsg(Global *global, ErrorCode error, va_list arg) /* Print filenam
 
 	char *tp;
 	FILEINFO *file;
-	char *severity = error < BORDER_ERROR_WARN ? "Error" : error < BORDER_WARN_FATAL ? "Warning" : "Fatal";
+	char *severity = error < BORDER_ERROR_WARN ? "error" : error < BORDER_WARN_FATAL ? "warning" : "fatal";
 
 	for (file = global->infile; file && !file->fp; file = file->parent)
 	{
