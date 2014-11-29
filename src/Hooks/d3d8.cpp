@@ -303,7 +303,7 @@ namespace
 	};
 	struct Direct3DVertexShader8
 	{
-		IDirect3DVertexShader9 *mProxy;
+		IDirect3DVertexShader9 *mShader;
 		IDirect3DVertexDeclaration9 *mDeclaration;
 	};
 	struct Direct3DBaseTexture8 : public Direct3DResource8
@@ -2213,12 +2213,15 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateVertexShader(CONST DWORD *pDecl
 
 	UINT i = 0;
 	std::size_t tokens = 0;
+	std::string constants;
 	WORD stream = 0, offset = 0;
+	DWORD inputs[32];
 	D3DVERTEXELEMENT9 elements[32];
 
 #define D3DVSD_TOKEN_STREAM 1
 #define D3DVSD_TOKEN_STREAMDATA 2
 #define D3DVSD_TOKEN_TESSELLATOR 3
+#define D3DVSD_TOKEN_CONSTMEM 4
 #define D3DVSD_TOKENTYPESHIFT 29
 #define D3DVSD_TOKENTYPEMASK (0x7 << D3DVSD_TOKENTYPESHIFT)
 #define D3DVSD_STREAMNUMBERSHIFT 0
@@ -2231,6 +2234,10 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateVertexShader(CONST DWORD *pDecl
 #define D3DVSD_DATATYPEMASK (0xF << D3DVSD_DATATYPESHIFT)
 #define D3DVSD_SKIPCOUNTSHIFT 16
 #define D3DVSD_SKIPCOUNTMASK (0xF << D3DVSD_SKIPCOUNTSHIFT)
+#define D3DVSD_CONSTCOUNTSHIFT 25
+#define D3DVSD_CONSTCOUNTMASK (0xF << D3DVSD_CONSTCOUNTSHIFT)
+#define D3DVSD_CONSTADDRESSSHIFT 0
+#define D3DVSD_CONSTADDRESSMASK (0x7F << D3DVSD_CONSTADDRESSSHIFT)
 
 	LOG(INFO) << "> Translating vertex declaration ...";
 
@@ -2303,7 +2310,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateVertexShader(CONST DWORD *pDecl
 			elements[i].Usage = sAddressUsage[address][0];
 			elements[i].UsageIndex = sAddressUsage[address][1];
 
-			++i;
+			inputs[i++] = address;
 		}
 		else if (tokenType == D3DVSD_TOKEN_STREAMDATA && (token & 0x10000000))
 		{
@@ -2332,7 +2339,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateVertexShader(CONST DWORD *pDecl
 			elements[i].Usage = sAddressUsage[address][0];
 			elements[i].UsageIndex = sAddressUsage[address][1];
 
-			++i;
+			inputs[i++] = address;
 		}
 		else if (tokenType == D3DVSD_TOKEN_TESSELLATOR && (token & 0x10000000))
 		{
@@ -2344,7 +2351,19 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateVertexShader(CONST DWORD *pDecl
 			elements[i].Usage = sAddressUsage[address][0];
 			elements[i].UsageIndex = sAddressUsage[address][1];
 
-			++i;
+			inputs[i++] = address;
+		}
+		else if (tokenType == D3DVSD_TOKEN_CONSTMEM)
+		{
+			const DWORD count = ((token & D3DVSD_CONSTCOUNTMASK) >> D3DVSD_CONSTCOUNTSHIFT) * 4;
+			DWORD address = (token & D3DVSD_CONSTADDRESSMASK) >> D3DVSD_CONSTADDRESSSHIFT;
+
+			for (DWORD r = 0; r < count; r += 4, ++address)
+			{
+				constants += "def c" + std::to_string(address) + ", " + std::to_string(*reinterpret_cast<const float *>(&pDeclaration[r + 1])) + ", " + std::to_string(*reinterpret_cast<const float *>(&pDeclaration[r + 2])) + ", " + std::to_string(*reinterpret_cast<const float *>(&pDeclaration[r + 3])) + ", " + std::to_string(*reinterpret_cast<const float *>(&pDeclaration[r + 4])) + '\n';
+			}
+
+			pDeclaration += count;
 		}
 		else
 		{
@@ -2357,19 +2376,19 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateVertexShader(CONST DWORD *pDecl
 		++pDeclaration;
 	}
 
-	LOG(TRACE) << "  +------------+------------+--------------+--------------+--------------+------------+";
-	LOG(TRACE) << "  | Stream     | Offset     | Type         | Method       | Usage        | UsageIndex |";
-	LOG(TRACE) << "  +------------+------------+--------------+--------------+--------------+------------+";
+	LOG(TRACE) << "  +----------+---------+---------+--------------+--------------+--------------+-------+";
+	LOG(TRACE) << "  | Register | Stream  | Offset  | Type         | Method       | Usage        | Index |";
+	LOG(TRACE) << "  +----------+---------+---------+--------------+--------------+--------------+-------+";
 
 	for (UINT k = 0; k < i; ++k)
 	{
 		char line[88];
-		sprintf_s(line, "  | %-10hu | %-10hu | 0x%010hhX | 0x%010hhX | 0x%010hhX | %-10hhu |", elements[k].Stream, elements[k].Offset, elements[k].Type, elements[k].Method, elements[k].Usage, elements[k].UsageIndex);
+		sprintf_s(line, "  | r%-7u | %-7hu | %-7hu | 0x%010hhX | 0x%010hhX | 0x%010hhX | %-5hhu |", inputs[k], elements[k].Stream, elements[k].Offset, elements[k].Type, elements[k].Method, elements[k].Usage, elements[k].UsageIndex);
 
 		LOG(TRACE) << line;
 	}
 
-	LOG(TRACE) << "  +------------+------------+--------------+--------------+--------------+------------+";
+	LOG(TRACE) << "  +----------+---------+---------+--------------+--------------+--------------+-------+";
 
 	const D3DVERTEXELEMENT9 terminator = D3DDECL_END();
 	elements[i] = terminator;
@@ -2390,7 +2409,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateVertexShader(CONST DWORD *pDecl
 
 		ID3DXBuffer *disassembly = nullptr, *assembly = nullptr;
 
-		hr = ::D3DXDisassembleShader(pFunction, FALSE, nullptr, &disassembly);
+		hr = D3DXDisassembleShader(pFunction, FALSE, nullptr, &disassembly);
 
 		if (FAILED(hr))
 		{
@@ -2431,18 +2450,20 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateVertexShader(CONST DWORD *pDecl
 					break;
 			}
 
-			if (elements[i].UsageIndex > 0)
+			if (elements[k].UsageIndex > 0)
 			{
-				decl += std::to_string(elements[i].UsageIndex);
+				decl += std::to_string(elements[k].UsageIndex);
 			}
 
-			decl += " v" + std::to_string(k) + '\n';
+			decl += " v" + std::to_string(inputs[k]) + '\n';
 
 			source.insert(declpos, decl);
 			declpos += decl.length();
 		}
 
-		hr = ::D3DXAssembleShader(source.data(), static_cast<UINT>(source.size()), nullptr, nullptr, D3DXSHADER_SKIPVALIDATION, &assembly, nullptr);
+		source.insert(declpos, constants);
+
+		hr = D3DXAssembleShader(source.data(), static_cast<UINT>(source.size()), nullptr, nullptr, D3DXSHADER_SKIPVALIDATION, &assembly, nullptr);
 
 		disassembly->Release();
 
@@ -2455,14 +2476,14 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateVertexShader(CONST DWORD *pDecl
 
 		shader = new Direct3DVertexShader8();
 
-		hr = this->mProxy->CreateVertexShader(static_cast<const DWORD *>(assembly->GetBufferPointer()), &shader->mProxy);
+		hr = this->mProxy->CreateVertexShader(static_cast<const DWORD *>(assembly->GetBufferPointer()), &shader->mShader);
 
 		assembly->Release();
 	}
 	else
 	{
 		shader = new Direct3DVertexShader8();
-		shader->mProxy = nullptr;
+		shader->mShader = nullptr;
 
 		hr = D3D_OK;
 	}
@@ -2479,9 +2500,9 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateVertexShader(CONST DWORD *pDecl
 		{
 			LOG(ERROR) << "'IDirect3DDevice9::CreateVertexDeclaration' failed with '" << GetErrorString(hr) << "'!";
 
-			if (shader->mProxy != nullptr)
+			if (shader->mShader != nullptr)
 			{
-				shader->mProxy->Release();
+				shader->mShader->Release();
 			}
 		}
 	}
@@ -2505,25 +2526,39 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::SetVertexShader(DWORD Handle)
 	{
 		return D3DERR_INVALIDCALL;
 	}
+
+	HRESULT hr;
 	
 	if ((Handle & 0x80000000) == 0)
 	{
-		this->mProxy->SetVertexShader(nullptr);
+		hr = this->mProxy->SetFVF(Handle);
 
-		this->mCurrentVertexShader = nullptr;
+		if (SUCCEEDED(hr))
+		{
+			this->mProxy->SetVertexShader(nullptr);
 
-		return this->mProxy->SetFVF(Handle);
+			this->mCurrentVertexShader = nullptr;
+		}
 	}
-
-	const Direct3DVertexShader8 *shader = reinterpret_cast<Direct3DVertexShader8 *>(Handle ^ 0x80000000);
-
-	const HRESULT hr = this->mProxy->SetVertexShader(shader->mProxy);
-	
-	if (SUCCEEDED(hr))
+	else
 	{
-		this->mCurrentVertexShader = shader;
+		const Direct3DVertexShader8 *shader = reinterpret_cast<Direct3DVertexShader8 *>(Handle ^ 0x80000000);
 
-		this->mProxy->SetVertexDeclaration(shader->mDeclaration);
+		if (shader->mShader != nullptr)
+		{
+			hr = this->mProxy->SetVertexShader(shader->mShader);
+	
+			if (SUCCEEDED(hr))
+			{
+				this->mCurrentVertexShader = shader;
+
+				this->mProxy->SetVertexDeclaration(shader->mDeclaration);
+			}
+		}
+		else
+		{
+			hr = this->mProxy->SetVertexDeclaration(shader->mDeclaration);
+		}
 	}
 
 	return hr;
@@ -2539,10 +2574,12 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::GetVertexShader(DWORD *pHandle)
 	{
 		return this->mProxy->GetFVF(pHandle);
 	}
+	else
+	{
+		*pHandle = reinterpret_cast<DWORD>(this->mCurrentVertexShader) | 0x80000000;
 
-	*pHandle = reinterpret_cast<DWORD>(this->mCurrentVertexShader) | 0x80000000;
-
-	return D3D_OK;
+		return D3D_OK;
+	}
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice8::DeleteVertexShader(DWORD Handle)
 {
@@ -2553,12 +2590,14 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::DeleteVertexShader(DWORD Handle)
 
 	Direct3DVertexShader8 *shader = reinterpret_cast<Direct3DVertexShader8 *>(Handle ^ 0x80000000);
 	
-	if (shader->mProxy != nullptr)
+	if (shader->mShader != nullptr)
 	{
-		shader->mProxy->Release();
+		shader->mShader->Release();
 	}
-
-	shader->mDeclaration->Release();
+	if (shader->mDeclaration != nullptr)
+	{
+		shader->mDeclaration->Release();
+	}
 
 	delete shader;
 
@@ -2594,14 +2633,14 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::GetVertexShaderFunction(DWORD Handle,
 
 	Direct3DVertexShader8 *shader = reinterpret_cast<Direct3DVertexShader8 *>(Handle ^ 0x80000000);
 
-	if (shader->mProxy == nullptr)
+	if (shader->mShader == nullptr)
 	{
 		return D3DERR_INVALIDCALL;
 	}
 
 	LOG(WARNING) << "> Returning translated shader bytecode.";
 
-	return shader->mProxy->GetFunction(pData, reinterpret_cast<UINT *>(pSizeOfData));
+	return shader->mShader->GetFunction(pData, reinterpret_cast<UINT *>(pSizeOfData));
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice8::SetStreamSource(UINT StreamNumber, Direct3DVertexBuffer8 *pStreamData, UINT Stride)
 {
