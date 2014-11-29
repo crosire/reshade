@@ -1363,6 +1363,9 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::GetDeviceCaps(D3DCAPS8 *pCaps)
 	if (SUCCEEDED(hr))
 	{
 		CopyMemory(pCaps, &caps, sizeof(D3DCAPS8));
+
+		pCaps->VertexShaderVersion = 0xFFFE0101;
+		pCaps->PixelShaderVersion = 0xFFFE0104;
 	}
 
 	return hr;
@@ -1939,19 +1942,29 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::SetRenderState(D3DRENDERSTATETYPE Sta
 	switch (static_cast<DWORD>(State))
 	{
 		case D3DRS_LINEPATTERN:
+		case D3DRS_ZVISIBLE:
 		case D3DRS_EDGEANTIALIAS:
+		{
 			return D3DERR_NOTAVAILABLE;
+		}
 		case D3DRS_ZBIAS:
 		{
 			const float biased = static_cast<float>(Value) * -0.000005f;
+
 			return this->mProxy->SetRenderState(D3DRS_DEPTHBIAS, *reinterpret_cast<const DWORD *>(&biased));
 		}
 		case D3DRS_SOFTWAREVERTEXPROCESSING:
+		{
 			return this->mProxy->SetSoftwareVertexProcessing(Value);
+		}
 		case D3DRS_PATCHSEGMENTS:
+		{
 			return D3DERR_INVALIDCALL;
+		}
 		default:
+		{
 			return this->mProxy->SetRenderState(State, Value);
+		}
 	}
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice8::GetRenderState(D3DRENDERSTATETYPE State, DWORD *pValue)
@@ -1964,24 +1977,38 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::GetRenderState(D3DRENDERSTATETYPE Sta
 	switch (static_cast<DWORD>(State))
 	{
 		case D3DRS_LINEPATTERN:
+		case D3DRS_ZVISIBLE:
 		case D3DRS_EDGEANTIALIAS:
+		{
 			*pValue = 0;
+
 			return D3DERR_NOTAVAILABLE;
+		}
 		case D3DRS_ZBIAS:
 		{
 			const HRESULT hr = this->mProxy->GetRenderState(D3DRS_DEPTHBIAS, pValue);
+
 			const float biased = *reinterpret_cast<float *>(pValue) * -500000.0f;
 			*pValue = *reinterpret_cast<const DWORD *>(&biased);
+
 			return hr;
 		}
 		case D3DRS_SOFTWAREVERTEXPROCESSING:
+		{
 			*pValue = this->mProxy->GetSoftwareVertexProcessing();
+
 			return D3D_OK;
+		}
 		case D3DRS_PATCHSEGMENTS:
+		{
 			*pValue = 1;
+
 			return D3D_OK;
+		}
 		default:
+		{
 			return this->mProxy->GetRenderState(State, pValue);
+		}
 	}
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice8::BeginStateBlock()
@@ -2212,11 +2239,11 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateVertexShader(CONST DWORD *pDecl
 	}
 
 	UINT i = 0;
-	std::size_t tokens = 0;
+	const UINT limit = 32;
 	std::string constants;
 	WORD stream = 0, offset = 0;
-	DWORD inputs[32];
-	D3DVERTEXELEMENT9 elements[32];
+	DWORD inputs[limit];
+	D3DVERTEXELEMENT9 elements[limit];
 
 #define D3DVSD_TOKEN_STREAM 1
 #define D3DVSD_TOKEN_STREAMDATA 2
@@ -2282,7 +2309,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateVertexShader(CONST DWORD *pDecl
 		{ D3DDECLUSAGE_NORMAL, 1 }
 	};
 
-	while (i < (ARRAYSIZE(elements) - 1))
+	while (i < limit)
 	{
 		const DWORD token = *pDeclaration;
 		const DWORD tokenType = (token & D3DVSD_TOKENTYPEMASK) >> D3DVSD_TOKENTYPESHIFT;
@@ -2372,7 +2399,6 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateVertexShader(CONST DWORD *pDecl
 			return E_NOTIMPL;
 		}
 		
-		++tokens;
 		++pDeclaration;
 	}
 
@@ -2644,14 +2670,12 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::GetVertexShaderFunction(DWORD Handle,
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice8::SetStreamSource(UINT StreamNumber, Direct3DVertexBuffer8 *pStreamData, UINT Stride)
 {
-	IDirect3DVertexBuffer9 *buffer = nullptr;
-
-	if (pStreamData != nullptr)
+	if (pStreamData == nullptr)
 	{
-		buffer = static_cast<IDirect3DVertexBuffer9 *>(pStreamData->mProxy);
+		return D3DERR_INVALIDCALL;
 	}
 
-	return this->mProxy->SetStreamSource(StreamNumber, buffer, 0, Stride);
+	return this->mProxy->SetStreamSource(StreamNumber, static_cast<IDirect3DVertexBuffer9 *>(pStreamData->mProxy), 0, Stride);
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice8::GetStreamSource(UINT StreamNumber, Direct3DVertexBuffer8 **ppStreamData, UINT *pStride)
 {
@@ -2661,13 +2685,13 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::GetStreamSource(UINT StreamNumber, Di
 	}
 
 	UINT offset;
-	IDirect3DVertexBuffer9 *buffer = nullptr;
+	IDirect3DVertexBuffer9 *source = nullptr;
 
-	const HRESULT hr = this->mProxy->GetStreamSource(StreamNumber, &buffer, &offset, pStride);
+	const HRESULT hr = this->mProxy->GetStreamSource(StreamNumber, &source, &offset, pStride);
 
-	if (SUCCEEDED(hr) && buffer != nullptr)
+	if (SUCCEEDED(hr) && source != nullptr)
 	{
-		*ppStreamData = new Direct3DVertexBuffer8(this, buffer);
+		*ppStreamData = new Direct3DVertexBuffer8(this, source);
 	}
 	else
 	{
@@ -2678,19 +2702,12 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::GetStreamSource(UINT StreamNumber, Di
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice8::SetIndices(Direct3DIndexBuffer8 *pIndexData, UINT BaseVertexIndex)
 {
-	if (BaseVertexIndex > 0x7FFFFFFF)
+	if (pIndexData == nullptr || BaseVertexIndex > 0x7FFFFFFF)
 	{
 		return D3DERR_INVALIDCALL;
 	}
 
-	IDirect3DIndexBuffer9 *buffer = nullptr;
-
-	if (pIndexData != nullptr)
-	{
-		buffer = static_cast<IDirect3DIndexBuffer9 *>(pIndexData->mProxy);
-	}
-
-	const HRESULT hr = this->mProxy->SetIndices(buffer);
+	const HRESULT hr = this->mProxy->SetIndices(static_cast<IDirect3DIndexBuffer9 *>(pIndexData->mProxy));
 
 	if (SUCCEEDED(hr))
 	{
@@ -2706,13 +2723,13 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::GetIndices(Direct3DIndexBuffer8 **ppI
 		return D3DERR_INVALIDCALL;
 	}
 		
-	IDirect3DIndexBuffer9 *buffer = nullptr;
+	IDirect3DIndexBuffer9 *source = nullptr;
 
-	const HRESULT hr = this->mProxy->GetIndices(&buffer);
+	const HRESULT hr = this->mProxy->GetIndices(&source);
 
-	if (SUCCEEDED(hr) && buffer != nullptr)
+	if (SUCCEEDED(hr) && source != nullptr)
 	{
-		*ppIndexData = new Direct3DIndexBuffer8(this, buffer);
+		*ppIndexData = new Direct3DIndexBuffer8(this, source);
 	}
 	else
 	{
@@ -2990,6 +3007,9 @@ HRESULT STDMETHODCALLTYPE Direct3D8::GetDeviceCaps(UINT Adapter, D3DDEVTYPE Devi
 	if (SUCCEEDED(hr))
 	{
 		CopyMemory(pCaps, &caps, sizeof(D3DCAPS8));
+
+		pCaps->VertexShaderVersion = 0xFFFE0101;
+		pCaps->PixelShaderVersion = 0xFFFE0104;
 	}
 
 	return hr;
