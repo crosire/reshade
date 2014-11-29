@@ -3195,6 +3195,16 @@ EXPORT PROC WINAPI wglGetProcAddress(LPCSTR lpszProc)
 		lpszProc = "glFramebufferTextureLayer";
 	}
 	#pragma endregion
+	#pragma region Replace ARB_draw_instanced
+	else if (strcmp(lpszProc, "glDrawArraysInstancedARB") == 0)
+	{
+		lpszProc = "glDrawArraysInstanced";
+	}
+	else if (strcmp(lpszProc, "glDrawElementsInstancedARB") == 0)
+	{
+		lpszProc = "glDrawElementsInstanced";
+	}
+	#pragma endregion
 
 	const PROC address = trampoline(lpszProc);
 
@@ -3286,7 +3296,7 @@ EXPORT PROC WINAPI wglGetProcAddress(LPCSTR lpszProc)
 	{
 		ReHook::Register(reinterpret_cast<ReHook::Hook::Function>(address), reinterpret_cast<ReHook::Hook::Function>(&glDrawArraysIndirect));
 	}
-	else if (strcmp(lpszProc, "glDrawArraysInstanced") == 0 || strcmp(lpszProc, "glDrawArraysInstancedARB") == 0)
+	else if (strcmp(lpszProc, "glDrawArraysInstanced") == 0)
 	{
 		ReHook::Register(reinterpret_cast<ReHook::Hook::Function>(address), reinterpret_cast<ReHook::Hook::Function>(&glDrawArraysInstanced));
 	}
@@ -3310,7 +3320,7 @@ EXPORT PROC WINAPI wglGetProcAddress(LPCSTR lpszProc)
 	{
 		ReHook::Register(reinterpret_cast<ReHook::Hook::Function>(address), reinterpret_cast<ReHook::Hook::Function>(&glDrawElementsIndirect));
 	}
-	else if (strcmp(lpszProc, "glDrawElementsInstanced") == 0 || strcmp(lpszProc, "glDrawElementsInstancedARB") == 0)
+	else if (strcmp(lpszProc, "glDrawElementsInstanced") == 0)
 	{
 		ReHook::Register(reinterpret_cast<ReHook::Hook::Function>(address), reinterpret_cast<ReHook::Hook::Function>(&glDrawElementsInstanced));
 	}
