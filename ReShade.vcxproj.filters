@@ -45,6 +45,9 @@
     <ClCompile Include="src\Hooks\opengl32.cpp">
       <Filter>Hooks</Filter>
     </ClCompile>
+    <ClCompile Include="src\Hooks\ws2_32.cpp">
+      <Filter>Hooks</Filter>
+    </ClCompile>
     <ClCompile Include="src\Effect.cpp">
       <Filter>Effect</Filter>
     </ClCompile>

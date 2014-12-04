@@ -128,7 +128,7 @@
       <SDLCheck>true</SDLCheck>
       <Optimization>Disabled</Optimization>
       <AdditionalIncludeDirectories>$(SolutionDir)\src;$(SolutionDir)\res;$(IntDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WIN32;_DEBUG;WIN32_LEAN_AND_MIN;NOMINMAX;_GDI32_;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_DEBUG;WIN32_LEAN_AND_MEAN;NOMINMAX;_GDI32_;WINSOCK_API_LINKAGE=;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DisableSpecificWarnings>4351;%(DisableSpecificWarnings)</DisableSpecificWarnings>
     </ClCompile>
     <Link>
@@ -149,7 +149,7 @@
       <SDLCheck>true</SDLCheck>
       <Optimization>Disabled</Optimization>
       <AdditionalIncludeDirectories>$(SolutionDir)\src;$(SolutionDir)\res;$(IntDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WIN64;_DEBUG;WIN32_LEAN_AND_MIN;NOMINMAX;_GDI32_;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN64;_DEBUG;WIN32_LEAN_AND_MEAN;NOMINMAX;_GDI32_;WINSOCK_API_LINKAGE=;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DisableSpecificWarnings>4351;%(DisableSpecificWarnings)</DisableSpecificWarnings>
     </ClCompile>
     <Link>
@@ -172,7 +172,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <AdditionalIncludeDirectories>$(SolutionDir)\src;$(SolutionDir)\res;$(IntDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WIN32;NDEBUG;WIN32_LEAN_AND_MIN;NOMINMAX;_GDI32_;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;NDEBUG;WIN32_LEAN_AND_MEAN;NOMINMAX;_GDI32_;WINSOCK_API_LINKAGE=;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DisableSpecificWarnings>4351;%(DisableSpecificWarnings)</DisableSpecificWarnings>
     </ClCompile>
     <Link>
@@ -204,7 +204,7 @@ tools\upx --backup "$(TargetPath)"</Command>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <AdditionalIncludeDirectories>$(SolutionDir)\src;$(SolutionDir)\res;$(IntDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WIN64;NDEBUG;WIN32_LEAN_AND_MIN;NOMINMAX;_GDI32_;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN64;NDEBUG;WIN32_LEAN_AND_MEAN;NOMINMAX;_GDI32_;WINSOCK_API_LINKAGE=;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DisableSpecificWarnings>4351;%(DisableSpecificWarnings)</DisableSpecificWarnings>
     </ClCompile>
     <Link>
@@ -249,6 +249,7 @@ tools\upx --backup "$(TargetPath)"</Command>
     <ClCompile Include="src\Hooks\d3d11.cpp" />
     <ClCompile Include="src\Hooks\dxgi.cpp" />
     <ClCompile Include="src\Hooks\opengl32.cpp" />
+    <ClCompile Include="src\Hooks\ws2_32.cpp" />
     <ClCompile Include="src\Main.cpp" />
     <ClCompile Include="src\Runtime.cpp" />
   </ItemGroup>

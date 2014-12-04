@@ -438,3 +438,15 @@ EXPORTS
 	wglUseFontBitmapsW
 	wglUseFontOutlinesA
 	wglUseFontOutlinesW
+
+	; ws2_32.dll
+	send
+	sendto
+	recv
+	recvfrom
+
+	WSASend
+	WSASendTo
+	WSARecv
+	WSARecvEx
+	WSARecvFrom

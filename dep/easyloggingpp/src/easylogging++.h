@@ -303,9 +303,6 @@
 #elif _ELPP_OS_WINDOWS
 #   include <direct.h>
 #   include <Windows.h>
-#   if defined(WIN32_LEAN_AND_MEAN)
-#      include <winsock.h>
-#   endif // defined(WIN32_LEAN_AND_MEAN)
 #endif  // _ELPP_OS_UNIX
 #include <string>
 #include <vector>
@@ -1516,6 +1513,11 @@ extern bool s_termSupportsColor;
 /// @brief Contains utilities for cross-platform date/time. This class make use of el::base::utils::Str
 class DateTime : base::StaticClass {
 public:
+	struct timeval {
+        long tv_sec;         /* seconds */
+        long tv_usec;        /* and microseconds */
+	};
+
     /// @brief Cross platform gettimeofday for Windows and unix platform. This can be used to determine current millisecond.
     ///
     /// @detail For unix system it uses gettimeofday(timeval*, timezone*) and for Windows, a seperate implementation is provided
@@ -4966,9 +4968,9 @@ public:
     explicit PerformanceTrackingData(DataType dataType) : m_performanceTracker(nullptr), 
         m_dataType(dataType), m_file(""), m_line(0), m_func("") {}
     inline const std::string* blockName(void) const;
-    inline const struct timeval* startTime(void) const;
-    inline const struct timeval* endTime(void) const;
-    inline const struct timeval* lastCheckpointTime(void) const;
+    inline const struct base::utils::DateTime::timeval* startTime(void) const;
+    inline const struct base::utils::DateTime::timeval* endTime(void) const;
+    inline const struct base::utils::DateTime::timeval* lastCheckpointTime(void) const;
     inline const base::PerformanceTracker* performanceTracker(void) const { return m_performanceTracker; }
     inline PerformanceTrackingData::DataType dataType(void) const { return m_dataType; }
     inline bool firstCheckpoint(void) const { return m_firstCheckpoint; }
@@ -5091,7 +5093,7 @@ private:
     bool m_hasChecked;
     std::string m_lastCheckpointId;
     bool m_enabled;
-    struct timeval m_startTime, m_endTime, m_lastCheckpointTime;
+    struct base::utils::DateTime::timeval m_startTime, m_endTime, m_lastCheckpointTime;
 
     PerformanceTracker(void);
 
@@ -5141,14 +5143,14 @@ private:
 inline const std::string* PerformanceTrackingData::blockName() const {
     return const_cast<const std::string*>(&m_performanceTracker->m_blockName);
 }
-inline const struct timeval* PerformanceTrackingData::startTime() const {
-    return const_cast<const struct timeval*>(&m_performanceTracker->m_startTime);
+inline const struct base::utils::DateTime::timeval* PerformanceTrackingData::startTime() const {
+    return const_cast<const struct base::utils::DateTime::timeval*>(&m_performanceTracker->m_startTime);
 }
-inline const struct timeval* PerformanceTrackingData::endTime() const {
-    return const_cast<const struct timeval*>(&m_performanceTracker->m_endTime);
+inline const struct base::utils::DateTime::timeval* PerformanceTrackingData::endTime() const {
+    return const_cast<const struct base::utils::DateTime::timeval*>(&m_performanceTracker->m_endTime);
 }
-inline const struct timeval* PerformanceTrackingData::lastCheckpointTime() const {
-    return const_cast<const struct timeval*>(&m_performanceTracker->m_lastCheckpointTime);
+inline const struct base::utils::DateTime::timeval* PerformanceTrackingData::lastCheckpointTime() const {
+    return const_cast<const struct base::utils::DateTime::timeval*>(&m_performanceTracker->m_lastCheckpointTime);
 }
 inline const std::string& PerformanceTrackingData::loggerId(void) const { return m_performanceTracker->m_loggerId; }
 namespace base {

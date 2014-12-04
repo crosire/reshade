@@ -6,6 +6,10 @@
 #include <dxgi.h>
 #include <dxgi1_2.h>
 
+#ifndef _NTDEF_
+	typedef LONG NTSTATUS;
+#endif
+
 // -----------------------------------------------------------------------------------------------------
 
 namespace
