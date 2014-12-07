@@ -111,6 +111,9 @@ namespace ReShade
 		LOG(INFO) << "Exited.";
 	}
 
+	int Runtime::NetworkTrafficUpload = 0;
+	int Runtime::NetworkTrafficDownload = 0;
+
 	// -----------------------------------------------------------------------------------------------------
 
 	Runtime::Runtime() : mWidth(0), mHeight(0), mVendorId(0), mDeviceId(0), mRendererId(0), mLastFrameCount(0), mLastDrawCalls(0), mLastDrawCallVertices(0), mDate(), mCompileStep(0), mNVG(nullptr), mShowStatistics(false)
@@ -436,6 +439,7 @@ namespace ReShade
 				stats += "Frame " + std::to_string(this->mLastFrameCount + 1) + ": " + std::to_string(frametime.count() * 1e-6f) + "ms" + '\n';
 				stats += "PostProcessing: " + std::to_string(boost::chrono::duration_cast<boost::chrono::nanoseconds>(this->mLastPostProcessingDuration).count() * 1e-6f) + "ms" + '\n';
 				stats += "Timer: " + std::to_string(std::fmod(boost::chrono::duration_cast<boost::chrono::nanoseconds>(this->mLastPresent - this->mStartTime).count() * 1e-6f, 16777216.0f)) + "ms" + '\n';
+				stats += "Network: " + std::to_string(NetworkTrafficUpload) + " bytes up / " + std::to_string(NetworkTrafficDownload) + " bytes down" + '\n';
 
 				nvgFillColor(this->mNVG, nvgRGB(255, 255, 255));
 				nvgTextAlign(this->mNVG, NVG_ALIGN_RIGHT | NVG_ALIGN_TOP);
@@ -462,6 +466,8 @@ namespace ReShade
 		this->mLastFrameDuration = frametime;
 		this->mLastFrameCount++;
 		this->mLastDrawCalls = this->mLastDrawCallVertices = 0;
+		NetworkTrafficUpload = 0;
+		NetworkTrafficDownload = 0;
 	}
 
 	bool Runtime::LoadEffect()

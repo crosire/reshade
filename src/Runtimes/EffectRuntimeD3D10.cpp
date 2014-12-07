@@ -2773,14 +2773,24 @@ namespace ReShade
 
 	void D3D10Runtime::DetectBestDepthStencil()
 	{
-		static int cooldown = 0;
+		static int cooldown = 0, traffic = 0;
 
 		if (cooldown-- > 0)
 		{
+			traffic += (NetworkTrafficDownload + NetworkTrafficUpload) > 0;
+			return;
+		}
+		else if (traffic > 10)
+		{
+			traffic = 0;
+			cooldown = 40;
+
+			CreateDepthStencil(nullptr);
 			return;
 		}
 		else
 		{
+			traffic = 0;
 			cooldown = 30;
 		}
 
@@ -2921,140 +2931,143 @@ namespace ReShade
 		SAFE_RELEASE(this->mDepthStencilTexture);
 		SAFE_RELEASE(this->mDepthStencilTextureSRV);
 
-		this->mDepthStencil = depthstencil;
-		this->mDepthStencil->AddRef();
-		this->mDepthStencil->GetResource(reinterpret_cast<ID3D10Resource **>(&this->mDepthStencilTexture));
-
-		D3D10_TEXTURE2D_DESC texdesc;
-		this->mDepthStencilTexture->GetDesc(&texdesc);
-
-		HRESULT hr = S_OK;
-
-		if ((texdesc.BindFlags & D3D10_BIND_SHADER_RESOURCE) == 0)
+		if (depthstencil != nullptr)
 		{
-			SAFE_RELEASE(this->mDepthStencilTexture);
+			this->mDepthStencil = depthstencil;
+			this->mDepthStencil->AddRef();
+			this->mDepthStencil->GetResource(reinterpret_cast<ID3D10Resource **>(&this->mDepthStencilTexture));
 
-			switch (texdesc.Format)
+			D3D10_TEXTURE2D_DESC texdesc;
+			this->mDepthStencilTexture->GetDesc(&texdesc);
+
+			HRESULT hr = S_OK;
+
+			if ((texdesc.BindFlags & D3D10_BIND_SHADER_RESOURCE) == 0)
 			{
-				case DXGI_FORMAT_R16_TYPELESS:
-				case DXGI_FORMAT_D16_UNORM:
-					texdesc.Format = DXGI_FORMAT_R16_TYPELESS;
-					break;
-				case DXGI_FORMAT_R32_TYPELESS:
-				case DXGI_FORMAT_D32_FLOAT:
-					texdesc.Format = DXGI_FORMAT_R32_TYPELESS;
-					break;
-				default:
-				case DXGI_FORMAT_R24G8_TYPELESS:
-				case DXGI_FORMAT_D24_UNORM_S8_UINT:
-					texdesc.Format = DXGI_FORMAT_R24G8_TYPELESS;
-					break;
-				case DXGI_FORMAT_R32G8X24_TYPELESS:
-				case DXGI_FORMAT_D32_FLOAT_S8X24_UINT:
-					texdesc.Format = DXGI_FORMAT_R32G8X24_TYPELESS;
-					break;
-			}
-
-			texdesc.BindFlags = D3D10_BIND_DEPTH_STENCIL | D3D10_BIND_SHADER_RESOURCE;
-
-			hr = this->mDevice->CreateTexture2D(&texdesc, nullptr, &this->mDepthStencilTexture);
-
-			if (SUCCEEDED(hr))
-			{
-				D3D10_DEPTH_STENCIL_VIEW_DESC dsvdesc;
-				ZeroMemory(&dsvdesc, sizeof(D3D10_DEPTH_STENCIL_VIEW_DESC));
-				dsvdesc.ViewDimension = D3D10_DSV_DIMENSION_TEXTURE2D;
+				SAFE_RELEASE(this->mDepthStencilTexture);
 
 				switch (texdesc.Format)
 				{
 					case DXGI_FORMAT_R16_TYPELESS:
-						dsvdesc.Format = DXGI_FORMAT_D16_UNORM;
+					case DXGI_FORMAT_D16_UNORM:
+						texdesc.Format = DXGI_FORMAT_R16_TYPELESS;
 						break;
 					case DXGI_FORMAT_R32_TYPELESS:
-						dsvdesc.Format = DXGI_FORMAT_D32_FLOAT;
+					case DXGI_FORMAT_D32_FLOAT:
+						texdesc.Format = DXGI_FORMAT_R32_TYPELESS;
 						break;
+					default:
 					case DXGI_FORMAT_R24G8_TYPELESS:
-						dsvdesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+					case DXGI_FORMAT_D24_UNORM_S8_UINT:
+						texdesc.Format = DXGI_FORMAT_R24G8_TYPELESS;
 						break;
 					case DXGI_FORMAT_R32G8X24_TYPELESS:
-						dsvdesc.Format = DXGI_FORMAT_D32_FLOAT_S8X24_UINT;
+					case DXGI_FORMAT_D32_FLOAT_S8X24_UINT:
+						texdesc.Format = DXGI_FORMAT_R32G8X24_TYPELESS;
 						break;
 				}
 
-				hr = this->mDevice->CreateDepthStencilView(this->mDepthStencilTexture, &dsvdesc, &this->mDepthStencilReplacement);
-			}
-		}
-		else
-		{
-			this->mDepthStencilReplacement = this->mDepthStencil;
-			this->mDepthStencilReplacement->AddRef();
-		}
+				texdesc.BindFlags = D3D10_BIND_DEPTH_STENCIL | D3D10_BIND_SHADER_RESOURCE;
 
-		if (FAILED(hr))
-		{
-			LOG(TRACE) << "Failed to create depthstencil replacement texture! HRESULT is '" << hr << "'.";
+				hr = this->mDevice->CreateTexture2D(&texdesc, nullptr, &this->mDepthStencilTexture);
 
-			SAFE_RELEASE(this->mDepthStencil);
-			SAFE_RELEASE(this->mDepthStencilTexture);
-
-			return false;
-		}
-
-		D3D10_SHADER_RESOURCE_VIEW_DESC srvdesc;
-		ZeroMemory(&srvdesc, sizeof(D3D10_SHADER_RESOURCE_VIEW_DESC));
-		srvdesc.ViewDimension = D3D10_SRV_DIMENSION_TEXTURE2D;
-		srvdesc.Texture2D.MipLevels = 1;
-
-		switch (texdesc.Format)
-		{
-			case DXGI_FORMAT_R16_TYPELESS:
-				srvdesc.Format = DXGI_FORMAT_R16_FLOAT;
-				break;
-			case DXGI_FORMAT_R32_TYPELESS:
-				srvdesc.Format = DXGI_FORMAT_R32_FLOAT;
-				break;
-			case DXGI_FORMAT_R24G8_TYPELESS:
-				srvdesc.Format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
-				break;
-			case DXGI_FORMAT_R32G8X24_TYPELESS:
-				srvdesc.Format = DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS;
-				break;
-		}
-
-		hr = this->mDevice->CreateShaderResourceView(this->mDepthStencilTexture, &srvdesc, &this->mDepthStencilTextureSRV);
-
-		if (FAILED(hr))
-		{
-			LOG(TRACE) << "Failed to create depthstencil replacement resource view! HRESULT is '" << hr << "'.";
-
-			SAFE_RELEASE(this->mDepthStencil);
-			SAFE_RELEASE(this->mDepthStencilReplacement);
-			SAFE_RELEASE(this->mDepthStencilTexture);
-
-			return false;
-		}
-
-		if (this->mDepthStencil != this->mDepthStencilReplacement)
-		{
-			// Update auto depthstencil
-			ID3D10RenderTargetView *targets[D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT] = { nullptr };
-			ID3D10DepthStencilView *depthstencil = nullptr;
-
-			this->mDevice->OMGetRenderTargets(D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, targets, &depthstencil);
-
-			if (depthstencil != nullptr)
-			{
-				if (depthstencil == this->mDepthStencil)
+				if (SUCCEEDED(hr))
 				{
-					this->mDevice->OMSetRenderTargets(D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, targets, this->mDepthStencilReplacement);
+					D3D10_DEPTH_STENCIL_VIEW_DESC dsvdesc;
+					ZeroMemory(&dsvdesc, sizeof(D3D10_DEPTH_STENCIL_VIEW_DESC));
+					dsvdesc.ViewDimension = D3D10_DSV_DIMENSION_TEXTURE2D;
+
+					switch (texdesc.Format)
+					{
+						case DXGI_FORMAT_R16_TYPELESS:
+							dsvdesc.Format = DXGI_FORMAT_D16_UNORM;
+							break;
+						case DXGI_FORMAT_R32_TYPELESS:
+							dsvdesc.Format = DXGI_FORMAT_D32_FLOAT;
+							break;
+						case DXGI_FORMAT_R24G8_TYPELESS:
+							dsvdesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+							break;
+						case DXGI_FORMAT_R32G8X24_TYPELESS:
+							dsvdesc.Format = DXGI_FORMAT_D32_FLOAT_S8X24_UINT;
+							break;
+					}
+
+					hr = this->mDevice->CreateDepthStencilView(this->mDepthStencilTexture, &dsvdesc, &this->mDepthStencilReplacement);
+				}
+			}
+			else
+			{
+				this->mDepthStencilReplacement = this->mDepthStencil;
+				this->mDepthStencilReplacement->AddRef();
+			}
+
+			if (FAILED(hr))
+			{
+				LOG(TRACE) << "Failed to create depthstencil replacement texture! HRESULT is '" << hr << "'.";
+
+				SAFE_RELEASE(this->mDepthStencil);
+				SAFE_RELEASE(this->mDepthStencilTexture);
+
+				return false;
+			}
+
+			D3D10_SHADER_RESOURCE_VIEW_DESC srvdesc;
+			ZeroMemory(&srvdesc, sizeof(D3D10_SHADER_RESOURCE_VIEW_DESC));
+			srvdesc.ViewDimension = D3D10_SRV_DIMENSION_TEXTURE2D;
+			srvdesc.Texture2D.MipLevels = 1;
+
+			switch (texdesc.Format)
+			{
+				case DXGI_FORMAT_R16_TYPELESS:
+					srvdesc.Format = DXGI_FORMAT_R16_FLOAT;
+					break;
+				case DXGI_FORMAT_R32_TYPELESS:
+					srvdesc.Format = DXGI_FORMAT_R32_FLOAT;
+					break;
+				case DXGI_FORMAT_R24G8_TYPELESS:
+					srvdesc.Format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
+					break;
+				case DXGI_FORMAT_R32G8X24_TYPELESS:
+					srvdesc.Format = DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS;
+					break;
+			}
+
+			hr = this->mDevice->CreateShaderResourceView(this->mDepthStencilTexture, &srvdesc, &this->mDepthStencilTextureSRV);
+
+			if (FAILED(hr))
+			{
+				LOG(TRACE) << "Failed to create depthstencil replacement resource view! HRESULT is '" << hr << "'.";
+
+				SAFE_RELEASE(this->mDepthStencil);
+				SAFE_RELEASE(this->mDepthStencilReplacement);
+				SAFE_RELEASE(this->mDepthStencilTexture);
+
+				return false;
+			}
+
+			if (this->mDepthStencil != this->mDepthStencilReplacement)
+			{
+				// Update auto depthstencil
+				ID3D10RenderTargetView *targets[D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT] = { nullptr };
+				ID3D10DepthStencilView *depthstencil = nullptr;
+
+				this->mDevice->OMGetRenderTargets(D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, targets, &depthstencil);
+
+				if (depthstencil != nullptr)
+				{
+					if (depthstencil == this->mDepthStencil)
+					{
+						this->mDevice->OMSetRenderTargets(D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, targets, this->mDepthStencilReplacement);
+					}
+
+					depthstencil->Release();
 				}
 
-				depthstencil->Release();
-			}
-
-			for (UINT i = 0; i < D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT; ++i)
-			{
-				SAFE_RELEASE(targets[i]);
+				for (UINT i = 0; i < D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT; ++i)
+				{
+					SAFE_RELEASE(targets[i]);
+				}
 			}
 		}
 
@@ -3278,11 +3291,7 @@ namespace ReShade
 			srvSRGB = srv;
 		}
 
-		if (srv == nullptr)
-		{
-			return false;
-		}
-		else if (srv == this->mShaderResourceView[0] && srvSRGB == this->mShaderResourceView[1])
+		if (srv == this->mShaderResourceView[0] && srvSRGB == this->mShaderResourceView[1])
 		{
 			return true;
 		}
@@ -3294,19 +3303,27 @@ namespace ReShade
 
 		SAFE_RELEASE(this->mTexture);
 
-		this->mShaderResourceView[0] = srv;
-		this->mShaderResourceView[0]->AddRef();
-		this->mShaderResourceView[0]->GetResource(reinterpret_cast<ID3D10Resource **>(&this->mTexture));
-		this->mShaderResourceView[1] = srvSRGB;
-		this->mShaderResourceView[1]->AddRef();
+		if (srv != nullptr)
+		{
+			this->mShaderResourceView[0] = srv;
+			this->mShaderResourceView[0]->AddRef();
+			this->mShaderResourceView[0]->GetResource(reinterpret_cast<ID3D10Resource **>(&this->mTexture));
+			this->mShaderResourceView[1] = srvSRGB;
+			this->mShaderResourceView[1]->AddRef();
 
-		D3D10_TEXTURE2D_DESC texdesc;
-		this->mTexture->GetDesc(&texdesc);
+			D3D10_TEXTURE2D_DESC texdesc;
+			this->mTexture->GetDesc(&texdesc);
 
-		this->mDesc.Width = texdesc.Width;
-		this->mDesc.Height = texdesc.Height;
-		this->mDesc.Format = Effect::Texture::Format::Unknown;
-		this->mDesc.Levels = texdesc.MipLevels;
+			this->mDesc.Width = texdesc.Width;
+			this->mDesc.Height = texdesc.Height;
+			this->mDesc.Format = Effect::Texture::Format::Unknown;
+			this->mDesc.Levels = texdesc.MipLevels;
+		}
+		else
+		{
+			this->mDesc.Width = this->mDesc.Height = this->mDesc.Levels = 0;
+			this->mDesc.Format = Effect::Texture::Format::Unknown;
+		}
 
 		// Update techniques shader resourceviews
 		for (auto &technique : this->mEffect->mTechniques)

@@ -27,6 +27,8 @@ namespace ReShade
 		static void Startup(const boost::filesystem::path &executablePath, const boost::filesystem::path &injectorPath);
 		static void Shutdown();
 
+		static int NetworkTrafficUpload, NetworkTrafficDownload;
+
 	public:
 		Runtime();
 		virtual ~Runtime();

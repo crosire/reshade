@@ -3389,14 +3389,29 @@ namespace ReShade
 
 	void GLRuntime::DetectBestDepthStencil()
 	{
-		static int cooldown = 0;
+		static int cooldown = 0, traffic = 0;
 
 		if (cooldown-- > 0)
 		{
+			traffic += (NetworkTrafficDownload + NetworkTrafficUpload) > 0;
+			return;
+		}
+		else if (traffic > 10)
+		{
+			traffic = 0;
+			cooldown = 40;
+
+			if (this->mDepthStencilTexture != 0)
+			{
+				GLCHECK(glDeleteTextures(1, &this->mDepthStencilTexture));
+
+				this->mDepthStencilTexture = 0;
+			}
 			return;
 		}
 		else
 		{
+			traffic = 0;
 			cooldown = 30;
 		}
 

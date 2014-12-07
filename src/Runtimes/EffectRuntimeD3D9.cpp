@@ -2776,24 +2776,34 @@ namespace ReShade
 
 	void D3D9Runtime::DetectBestDepthStencil()
 	{
-		static int cooldown = 0;
+		static int cooldown = 0, traffic = 0;
 
 		if (cooldown-- > 0)
 		{
+			traffic += (NetworkTrafficDownload + NetworkTrafficUpload) > 0;
+			return;
+		}
+		else if (traffic > 10)
+		{
+			traffic = 0;
+			cooldown = 40;
+
+			CreateDepthStencil(nullptr);
 			return;
 		}
 		else
 		{
+			traffic = 0;
 			cooldown = 30;
-		}
-
-		if (this->mDepthStencilTable.empty())
-		{
-			return;
 		}
 
 		// Check for multisampling
 		if (this->mPresentParams.MultiSampleType != D3DMULTISAMPLE_NONE)
+		{
+			return;
+		}
+
+		if (this->mDepthStencilTable.empty())
 		{
 			return;
 		}
@@ -2827,46 +2837,49 @@ namespace ReShade
 		SAFE_RELEASE(this->mDepthStencilReplacement);
 		SAFE_RELEASE(this->mDepthStencilTexture);
 
-		this->mDepthStencil = depthstencil;
-		this->mDepthStencil->AddRef();
-
-		D3DSURFACE_DESC desc;
-		this->mDepthStencil->GetDesc(&desc);
-
-		if (desc.Format != D3DFMT_INTZ)
+		if (depthstencil != nullptr)
 		{
-			const HRESULT hr = this->mDevice->CreateTexture(desc.Width, desc.Height, 1, D3DUSAGE_DEPTHSTENCIL, D3DFMT_INTZ, D3DPOOL_DEFAULT, &this->mDepthStencilTexture, nullptr);
+			this->mDepthStencil = depthstencil;
+			this->mDepthStencil->AddRef();
 
-			if (SUCCEEDED(hr))
+			D3DSURFACE_DESC desc;
+			this->mDepthStencil->GetDesc(&desc);
+
+			if (desc.Format != D3DFMT_INTZ)
 			{
-				this->mDepthStencilTexture->GetSurfaceLevel(0, &this->mDepthStencilReplacement);
+				const HRESULT hr = this->mDevice->CreateTexture(desc.Width, desc.Height, 1, D3DUSAGE_DEPTHSTENCIL, D3DFMT_INTZ, D3DPOOL_DEFAULT, &this->mDepthStencilTexture, nullptr);
 
-				// Update auto depthstencil
-				IDirect3DSurface9 *depthstencil = nullptr;
-				this->mDevice->GetDepthStencilSurface(&depthstencil);
-
-				if (depthstencil != nullptr)
+				if (SUCCEEDED(hr))
 				{
-					depthstencil->Release();
+					this->mDepthStencilTexture->GetSurfaceLevel(0, &this->mDepthStencilReplacement);
 
-					if (depthstencil == this->mDepthStencil)
+					// Update auto depthstencil
+					IDirect3DSurface9 *depthstencil = nullptr;
+					this->mDevice->GetDepthStencilSurface(&depthstencil);
+
+					if (depthstencil != nullptr)
 					{
-						this->mDevice->SetDepthStencilSurface(this->mDepthStencilReplacement);
+						depthstencil->Release();
+
+						if (depthstencil == this->mDepthStencil)
+						{
+							this->mDevice->SetDepthStencilSurface(this->mDepthStencilReplacement);
+						}
 					}
+				}
+				else
+				{
+					LOG(TRACE) << "Failed to create depthstencil replacement texture! HRESULT is '" << hr << "'. Are you missing support for the 'INTZ' format?";
+
+					return false;
 				}
 			}
 			else
 			{
-				LOG(TRACE) << "Failed to create depthstencil replacement texture! HRESULT is '" << hr << "'. Are you missing support for the 'INTZ' format?";
-
-				return false;
+				this->mDepthStencilReplacement = this->mDepthStencil;
+				this->mDepthStencilReplacement->AddRef();
+				this->mDepthStencilReplacement->GetContainer(__uuidof(IDirect3DTexture9), reinterpret_cast<void **>(&this->mDepthStencilTexture));
 			}
-		}
-		else
-		{
-			this->mDepthStencilReplacement = this->mDepthStencil;
-			this->mDepthStencilReplacement->AddRef();
-			this->mDepthStencilReplacement->GetContainer(__uuidof(IDirect3DTexture9), reinterpret_cast<void **>(&this->mDepthStencilTexture));
 		}
 
 		// Update effect textures
@@ -3093,11 +3106,7 @@ namespace ReShade
 	}
 	bool D3D9Texture::UpdateSource(IDirect3DTexture9 *texture)
 	{
-		if (texture == nullptr)
-		{
-			return false;
-		}
-		else if (this->mTexture == texture)
+		if (this->mTexture == texture)
 		{
 			return true;
 		}
@@ -3107,17 +3116,25 @@ namespace ReShade
 			SAFE_RELEASE(this->mTextureSurface);
 		}
 
-		this->mTexture = texture;
-		this->mTexture->AddRef();
-		this->mTexture->GetSurfaceLevel(0, &this->mTextureSurface);
+		if (texture != nullptr)
+		{
+			this->mTexture = texture;
+			this->mTexture->AddRef();
+			this->mTexture->GetSurfaceLevel(0, &this->mTextureSurface);
 
-		D3DSURFACE_DESC texdesc;
-		this->mTextureSurface->GetDesc(&texdesc);
+			D3DSURFACE_DESC texdesc;
+			this->mTextureSurface->GetDesc(&texdesc);
 
-		this->mDesc.Width = texdesc.Width;
-		this->mDesc.Height = texdesc.Height;
-		this->mDesc.Format = Effect::Texture::Format::Unknown;
-		this->mDesc.Levels = this->mTexture->GetLevelCount();
+			this->mDesc.Width = texdesc.Width;
+			this->mDesc.Height = texdesc.Height;
+			this->mDesc.Format = Effect::Texture::Format::Unknown;
+			this->mDesc.Levels = this->mTexture->GetLevelCount();
+		}
+		else
+		{
+			this->mDesc.Width = this->mDesc.Height = this->mDesc.Levels = 0;
+			this->mDesc.Format = Effect::Texture::Format::Unknown;
+		}
 
 		return true;
 	}

@@ -276,7 +276,7 @@ ULONG STDMETHODCALLTYPE Direct3DSwapChain9::Release()
 }
 HRESULT STDMETHODCALLTYPE Direct3DSwapChain9::Present(const RECT *pSourceRect, const RECT *pDestRect, HWND hDestWindowOverride, const RGNDATA *pDirtyRegion, DWORD dwFlags)
 {
-	assert(this->mRuntime);
+	assert(this->mRuntime != nullptr);
 
 	this->mRuntime->OnPresentInternal();
 
