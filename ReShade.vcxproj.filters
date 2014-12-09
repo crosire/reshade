@@ -16,7 +16,10 @@
     <Filter Include="Effect Parser">
       <UniqueIdentifier>{c7c87b42-c441-48dc-8d08-ce6e2a6ffa9d}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Effect Runtimes">
+    <Filter Include="Runtime">
+      <UniqueIdentifier>{ecdb23a8-21dc-4334-b5cf-2ea57d27001d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Runtimes">
       <UniqueIdentifier>{3d98f6bc-aafb-47f4-97de-20bb7012bc62}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
@@ -60,21 +63,25 @@
     <ClCompile Include="src\EffectPreprocessor.cpp">
       <Filter>Effect Parser</Filter>
     </ClCompile>
-    <ClCompile Include="src\Runtimes\EffectRuntimeD3D9.cpp">
-      <Filter>Effect Runtimes</Filter>
+    <ClCompile Include="src\Runtime.cpp">
+      <Filter>Runtime</Filter>
     </ClCompile>
-    <ClCompile Include="src\Runtimes\EffectRuntimeD3D10.cpp">
-      <Filter>Effect Runtimes</Filter>
+    <ClCompile Include="src\Runtimes\RuntimeD3D10.cpp">
+      <Filter>Runtimes</Filter>
     </ClCompile>
-    <ClCompile Include="src\Runtimes\EffectRuntimeD3D11.cpp">
-      <Filter>Effect Runtimes</Filter>
+    <ClCompile Include="src\Runtimes\RuntimeD3D11.cpp">
+      <Filter>Runtimes</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Runtimes\RuntimeD3D9.cpp">
+      <Filter>Runtimes</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Runtimes\RuntimeGL.cpp">
+      <Filter>Runtimes</Filter>
+    </ClCompile>
+    <ClCompile Include="src\FileWatcher.cpp">
+      <Filter>Runtime</Filter>
     </ClCompile>
     <ClCompile Include="src\Main.cpp" />
-    <ClCompile Include="src\Runtime.cpp" />
-    <ClCompile Include="src\FileWatcher.cpp" />
-    <ClCompile Include="src\Runtimes\EffectRuntimeGL.cpp">
-      <Filter>Effect Runtimes</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="res\Resource.h">
@@ -104,21 +111,25 @@
     <ClInclude Include="src\EffectPreprocessor.hpp">
       <Filter>Effect Parser</Filter>
     </ClInclude>
-    <ClInclude Include="src\Runtimes\EffectRuntimeD3D9.hpp">
-      <Filter>Effect Runtimes</Filter>
+    <ClInclude Include="src\Runtime.hpp">
+      <Filter>Runtime</Filter>
     </ClInclude>
-    <ClInclude Include="src\Runtimes\EffectRuntimeD3D10.hpp">
-      <Filter>Effect Runtimes</Filter>
+    <ClInclude Include="src\Runtimes\RuntimeD3D10.hpp">
+      <Filter>Runtimes</Filter>
     </ClInclude>
-    <ClInclude Include="src\Runtimes\EffectRuntimeD3D11.hpp">
-      <Filter>Effect Runtimes</Filter>
+    <ClInclude Include="src\Runtimes\RuntimeD3D11.hpp">
+      <Filter>Runtimes</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Runtimes\RuntimeD3D9.hpp">
+      <Filter>Runtimes</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Runtimes\RuntimeGL.hpp">
+      <Filter>Runtimes</Filter>
+    </ClInclude>
+    <ClInclude Include="src\FileWatcher.hpp">
+      <Filter>Runtime</Filter>
     </ClInclude>
     <ClInclude Include="src\Log.hpp" />
-    <ClInclude Include="src\Runtime.hpp" />
-    <ClInclude Include="src\FileWatcher.hpp" />
-    <ClInclude Include="src\Runtimes\EffectRuntimeGL.hpp">
-      <Filter>Effect Runtimes</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="res\Resource.rc">

@@ -229,15 +229,6 @@ tools\upx --backup "$(TargetPath)"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="src\Effect.cpp" />
-    <ClCompile Include="src\EffectPreprocessor.cpp" />
-    <ClCompile Include="src\FileWatcher.cpp" />
-    <ClCompile Include="src\Runtimes\EffectRuntimeD3D9.cpp" />
-    <ClCompile Include="src\Runtimes\EffectRuntimeD3D10.cpp" />
-    <ClCompile Include="src\Runtimes\EffectRuntimeD3D11.cpp" />
-    <ClCompile Include="src\Runtimes\EffectRuntimeGL.cpp" />
-    <ClCompile Include="obj\$(Platform)\$(Configuration)\EffectLexer.cpp" />
-    <ClCompile Include="obj\$(Platform)\$(Configuration)\EffectParser.cpp" />
     <ClCompile Include="src\Hook.cpp" />
     <ClCompile Include="src\HookManager.cpp" />
     <ClCompile Include="src\Hooks\d3d8.cpp">
@@ -250,26 +241,35 @@ tools\upx --backup "$(TargetPath)"</Command>
     <ClCompile Include="src\Hooks\dxgi.cpp" />
     <ClCompile Include="src\Hooks\opengl32.cpp" />
     <ClCompile Include="src\Hooks\ws2_32.cpp" />
-    <ClCompile Include="src\Main.cpp" />
+    <ClCompile Include="src\Effect.cpp" />
+    <ClCompile Include="src\EffectPreprocessor.cpp" />
+    <ClCompile Include="obj\$(Platform)\$(Configuration)\EffectLexer.cpp" />
+    <ClCompile Include="obj\$(Platform)\$(Configuration)\EffectParser.cpp" />
     <ClCompile Include="src\Runtime.cpp" />
+    <ClCompile Include="src\Runtimes\RuntimeD3D9.cpp" />
+    <ClCompile Include="src\Runtimes\RuntimeD3D10.cpp" />
+    <ClCompile Include="src\Runtimes\RuntimeD3D11.cpp" />
+    <ClCompile Include="src\Runtimes\RuntimeGL.cpp" />
+    <ClCompile Include="src\FileWatcher.cpp" />
+    <ClCompile Include="src\Main.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="res\Resource.h" />
     <ClInclude Include="res\Version.h" />
-    <ClInclude Include="src\FileWatcher.hpp" />
     <ClInclude Include="src\Hook.hpp" />
     <ClInclude Include="src\HookManager.hpp" />
-    <ClInclude Include="src\Log.hpp" />
     <ClInclude Include="src\Effect.hpp" />
     <ClInclude Include="src\EffectPreprocessor.hpp" />
     <ClInclude Include="obj\$(Platform)\$(Configuration)\EffectLexer.h" />
     <ClInclude Include="obj\$(Platform)\$(Configuration)\EffectParser.hpp" />
     <ClInclude Include="src\EffectParserTree.hpp" />
     <ClInclude Include="src\Runtime.hpp" />
-    <ClInclude Include="src\Runtimes\EffectRuntimeD3D10.hpp" />
-    <ClInclude Include="src\Runtimes\EffectRuntimeD3D11.hpp" />
-    <ClInclude Include="src\Runtimes\EffectRuntimeD3D9.hpp" />
-    <ClInclude Include="src\Runtimes\EffectRuntimeGL.hpp" />
+    <ClInclude Include="src\Runtimes\RuntimeD3D10.hpp" />
+    <ClInclude Include="src\Runtimes\RuntimeD3D11.hpp" />
+    <ClInclude Include="src\Runtimes\RuntimeD3D9.hpp" />
+    <ClInclude Include="src\Runtimes\RuntimeGL.hpp" />
+    <ClInclude Include="src\FileWatcher.hpp" />
+    <ClInclude Include="src\Log.hpp" />
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="src\EffectLexer.l">

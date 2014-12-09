@@ -1,6 +1,6 @@
 #include "Log.hpp"
 #include "HookManager.hpp"
-#include "Runtimes\EffectRuntimeGL.hpp"
+#include "Runtimes\RuntimeGL.hpp"
 
 #undef glBindFramebuffer
 #undef glBindTexture

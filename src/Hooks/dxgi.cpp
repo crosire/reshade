@@ -1,7 +1,7 @@
 #include "Log.hpp"
 #include "HookManager.hpp"
-#include "Runtimes\EffectRuntimeD3D10.hpp"
-#include "Runtimes\EffectRuntimeD3D11.hpp"
+#include "Runtimes\RuntimeD3D10.hpp"
+#include "Runtimes\RuntimeD3D11.hpp"
 
 #include <dxgi.h>
 #include <dxgi1_2.h>

@@ -1,6 +1,6 @@
 #include "Log.hpp"
 #include "HookManager.hpp"
-#include "Runtimes\EffectRuntimeD3D9.hpp"
+#include "Runtimes\RuntimeD3D9.hpp"
 
 #undef IDirect3D9_CreateDevice
 #undef IDirect3D9Ex_CreateDeviceEx
