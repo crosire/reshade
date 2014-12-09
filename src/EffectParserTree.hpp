@@ -376,6 +376,8 @@ namespace ReShade
 
 			union Value
 			{
+				static_assert(sizeof(int) == sizeof(float), "union array requires element size to match to allow for manipulation");
+
 				int Int[16], Bool[16];
 				unsigned int Uint[16];
 				float Float[16];

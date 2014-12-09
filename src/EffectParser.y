@@ -69,6 +69,7 @@
 			void *mParser;
 			int mNextLexerState;
 			std::string mCurrentDirective;
+			bool mLValueFunctionAllowed;
 
 		private:
 			std::string mErrors;
@@ -87,6 +88,7 @@
 %code
 {
 	#include "EffectLexer.h"
+	#include "EffectOptimizer.hpp"
 
 	using namespace ReShade;
 
@@ -831,7 +833,7 @@ RULE_EXPRESSION_PRIMARY
 			parser.Error(@1, 3004, "undeclared identifier '%.*s'", $1.String.len, $1.String.p);
 			YYERROR;
 		}
-		else if (parser.mAST[$1.Node].Is<EffectNodes::Function>())
+		else if (parser.mAST[$1.Node].Is<EffectNodes::Function>() && !parser.mLValueFunctionAllowed)
 		{
 			parser.Error(@1, 3005, "identifier '%.*s' represents a function, not a variable", $1.String.len, $1.String.p);
 			YYERROR;
@@ -946,7 +948,7 @@ RULE_EXPRESSION_POSTFIX
 					node.Operands[2] = parser.mAST[node.Operands[1]].As<EffectNodes::RValue>().NextExpression;
 				}
 
-				@$ = @1, $$ = node.Index;
+				@$ = @1, $$ = OptimizeExpression(parser.mAST, node.Index);
 			}
 			else
 			{
@@ -1030,7 +1032,7 @@ RULE_EXPRESSION_POSTFIX
 				node.Operator = EffectNodes::Expression::Cast;
 				node.Operands[0] = arguments;
 
-				@$ = @1, $$ = node.Index;
+				@$ = @1, $$ = OptimizeExpression(parser.mAST, node.Index);
 			}
 			else
 			{
@@ -1058,7 +1060,7 @@ RULE_EXPRESSION_POSTFIX
 		node.Operator = $2.Uint + (EffectNodes::Expression::PostIncrease - EffectNodes::Expression::Increase);
 		node.Operands[0] = $1;
 
-		@$ = @1, $$ = node.Index;
+		@$ = @1, $$ = OptimizeExpression(parser.mAST, node.Index);
 	}
 	| RULE_EXPRESSION_POSTFIX "[" RULE_EXPRESSION "]"
 	{
@@ -1095,7 +1097,7 @@ RULE_EXPRESSION_POSTFIX
 			node.Type.Rows = 1;
 		}
 
-		@$ = @1, $$ = node.Index;
+		@$ = @1, $$ = OptimizeExpression(parser.mAST, node.Index);
 	}
 	| RULE_EXPRESSION_POSTFIX "." RULE_EXPRESSION_FUNCTION
 	{
@@ -1358,7 +1360,7 @@ RULE_EXPRESSION_UNARY
 		node.Operator = $1.Uint;
 		node.Operands[0] = $2;
 
-		@$ = @1, $$ = node.Index;
+		@$ = @1, $$ = OptimizeExpression(parser.mAST, node.Index);
 	}
 	| RULE_OPERATOR_UNARY RULE_EXPRESSION_UNARY
 	{
@@ -1379,27 +1381,6 @@ RULE_EXPRESSION_UNARY
 		{
 			@$ = @1, $$ = $2;
 		}
-		else if ($1.Uint == EffectNodes::Expression::Negate && parser.mAST[$2].Is<EffectNodes::Literal>())
-		{
-			EffectNodes::Literal &node = parser.mAST[$2].As<EffectNodes::Literal>();
-
-			for (unsigned int i = 0; i < node.Type.Rows * node.Type.Cols; ++i)
-			{
-				switch (node.Type.Class)
-				{
-					case EffectNodes::Type::Bool:
-					case EffectNodes::Type::Int:
-					case EffectNodes::Type::Uint:
-						node.Value.Int[i] = -node.Value.Int[i];
-						break;
-					case EffectNodes::Type::Float:
-						node.Value.Float[i] = -node.Value.Float[i];
-						break;
-				}
-			}
-
-			@$ = @1, $$ = node.Index;
-		}
 		else
 		{
 			EffectNodes::Expression &node = parser.mAST.Add<EffectNodes::Expression>(@1);
@@ -1407,7 +1388,7 @@ RULE_EXPRESSION_UNARY
 			node.Operator = $1.Uint;
 			node.Operands[0] = $2;
 
-			@$ = @1, $$ = node.Index;
+			@$ = @1, $$ = OptimizeExpression(parser.mAST, node.Index);
 		}
 	}
 	| "(" RULE_TYPE ")" RULE_EXPRESSION_UNARY
@@ -1431,29 +1412,12 @@ RULE_EXPRESSION_UNARY
 				parser.Warning(@1, 3206, "implicit truncation of vector type");
 			}
 
-			if (parser.mAST[$4].Is<EffectNodes::Literal>())
-			{
-				EffectNodes::Literal &node = parser.mAST[$4].As<EffectNodes::Literal>();
-				EffectNodes::Literal value = node;
-				node.Type = $2.Type;
-				::memset(&node.Value, 0, sizeof(node.Value));
+			EffectNodes::Expression &node = parser.mAST.Add<EffectNodes::Expression>(@1);
+			node.Type = $2.Type;
+			node.Operator = EffectNodes::Expression::Cast;
+			node.Operands[0] = $4;
 
-				for (unsigned int i = 0, size = std::min(expressionType.Rows * expressionType.Cols, $2.Type.Rows * $2.Type.Cols); i < size; ++i)
-				{
-					EffectNodes::Literal::Cast(value, i, node, i);
-				}
-
-				@$ = @1, $$ = node.Index;
-			}
-			else
-			{
-				EffectNodes::Expression &node = parser.mAST.Add<EffectNodes::Expression>(@1);
-				node.Type = $2.Type;
-				node.Operator = EffectNodes::Expression::Cast;
-				node.Operands[0] = $4;
-
-				@$ = @1, $$ = node.Index;
-			}
+			@$ = @1, $$ = OptimizeExpression(parser.mAST, node.Index);
 		}
 		else
 		{
@@ -1506,7 +1470,7 @@ RULE_EXPRESSION_MULTIPLICATIVE
 		node.Operands[0] = $1;
 		node.Operands[1] = $3;
 
-		@$ = @1, $$ = node.Index;
+		@$ = @1, $$ = OptimizeExpression(parser.mAST, node.Index);
 	}
 	;
 RULE_EXPRESSION_ADDITIVE
@@ -1553,7 +1517,7 @@ RULE_EXPRESSION_ADDITIVE
 		node.Operands[0] = $1;
 		node.Operands[1] = $3;
 
-		@$ = @1, $$ = node.Index;
+		@$ = @1, $$ = OptimizeExpression(parser.mAST, node.Index);
 	}
 	;
 RULE_EXPRESSION_SHIFT
@@ -1600,7 +1564,7 @@ RULE_EXPRESSION_SHIFT
 		node.Operands[0] = $1;
 		node.Operands[1] = $3;
 
-		@$ = @1, $$ = node.Index;
+		@$ = @1, $$ = OptimizeExpression(parser.mAST, node.Index);
 	}
 	;
 RULE_EXPRESSION_RELATIONAL
@@ -1647,7 +1611,7 @@ RULE_EXPRESSION_RELATIONAL
 		node.Operands[0] = $1;
 		node.Operands[1] = $3;
 
-		@$ = @1, $$ = node.Index;
+		@$ = @1, $$ = OptimizeExpression(parser.mAST, node.Index);
 	}
 	;
 RULE_EXPRESSION_EQUALITY
@@ -1689,7 +1653,7 @@ RULE_EXPRESSION_EQUALITY
 		node.Operands[0] = $1;
 		node.Operands[1] = $3;
 
-		@$ = @1, $$ = node.Index;
+		@$ = @1, $$ = OptimizeExpression(parser.mAST, node.Index);
 	}
 	;
 RULE_EXPRESSION_BITAND
@@ -1736,7 +1700,7 @@ RULE_EXPRESSION_BITAND
 		node.Operands[0] = $1;
 		node.Operands[1] = $3;
 
-		@$ = @1, $$ = node.Index;
+		@$ = @1, $$ = OptimizeExpression(parser.mAST, node.Index);
 	}
 	;
 RULE_EXPRESSION_BITXOR
@@ -1783,7 +1747,7 @@ RULE_EXPRESSION_BITXOR
 		node.Operands[0] = $1;
 		node.Operands[1] = $3;
 
-		@$ = @1, $$ = node.Index;
+		@$ = @1, $$ = OptimizeExpression(parser.mAST, node.Index);
 	}
 	;
 RULE_EXPRESSION_BITOR
@@ -1830,7 +1794,7 @@ RULE_EXPRESSION_BITOR
 		node.Operands[0] = $1;
 		node.Operands[1] = $3;
 
-		@$ = @1, $$ = node.Index;
+		@$ = @1, $$ = OptimizeExpression(parser.mAST, node.Index);
 	}
 	;
 RULE_EXPRESSION_LOGICAND
@@ -1877,7 +1841,7 @@ RULE_EXPRESSION_LOGICAND
 		node.Operands[0] = $1;
 		node.Operands[1] = $3;
 
-		@$ = @1, $$ = node.Index;
+		@$ = @1, $$ = OptimizeExpression(parser.mAST, node.Index);
 	}
 	;
 RULE_EXPRESSION_LOGICXOR
@@ -1924,7 +1888,7 @@ RULE_EXPRESSION_LOGICXOR
 		node.Operands[0] = $1;
 		node.Operands[1] = $3;
 
-		@$ = @1, $$ = node.Index;
+		@$ = @1, $$ = OptimizeExpression(parser.mAST, node.Index);
 	}
 	;
 RULE_EXPRESSION_LOGICOR
@@ -1971,7 +1935,7 @@ RULE_EXPRESSION_LOGICOR
 		node.Operands[0] = $1;
 		node.Operands[1] = $3;
 
-		@$ = @1, $$ = node.Index;
+		@$ = @1, $$ = OptimizeExpression(parser.mAST, node.Index);
 	}
 	;
 RULE_EXPRESSION_CONDITIONAL
@@ -2019,7 +1983,7 @@ RULE_EXPRESSION_CONDITIONAL
 		node.Operands[1] = $3;
 		node.Operands[2] = $5;
 	
-		@$ = @1, $$ = node.Index;
+		@$ = @1, $$ = OptimizeExpression(parser.mAST, node.Index);
 	}
 	;
 RULE_EXPRESSION_ASSIGNMENT
@@ -2966,24 +2930,25 @@ RULE_VARIABLE_DECLARATOR_LIST
 	;
 
 RULE_VARIABLE_PROPERTY
-	: TOK_IDENTIFIER_PROPERTY "=" RULE_EXPRESSION_LITERAL ";"
+	: TOK_IDENTIFIER_PROPERTY "=" { parser.mLValueFunctionAllowed = true; } RULE_EXPRESSION_ASSIGNMENT { parser.mLValueFunctionAllowed = false; } ";"
 	{
-		@$ = @1, $$.Properties[$$.Index = $1.Uint] = $3;
-	}
-	| TOK_IDENTIFIER_PROPERTY "=" RULE_IDENTIFIER_NAME ";"
-	{	
-		if ($3.Node == EffectTree::Null)
+		if (parser.mAST[$4].Is<EffectNodes::LValue>())
 		{
-			parser.Error(@3, 3004, "undeclared identifier '%.*s'", $3.String.len, $3.String.p);
-			YYERROR;
+			$4 = parser.mAST[$4].As<EffectNodes::LValue>().Reference;
+
+			if ($1.Uint != EffectNodes::Variable::Texture || !parser.mAST[$4].Is<EffectNodes::Variable>() || !parser.mAST[$4].As<EffectNodes::Variable>().Type.IsTexture() || parser.mAST[$4].As<EffectNodes::Variable>().Type.IsArray())
+			{
+				parser.Error(@2, 3020, "type mismatch");
+				YYERROR;
+			}
 		}
-		if ($1.Uint != EffectNodes::Variable::Texture || !parser.mAST[$3.Node].Is<EffectNodes::Variable>() || !parser.mAST[$3.Node].As<EffectNodes::Variable>().Type.IsTexture() || parser.mAST[$3.Node].As<EffectNodes::Variable>().Type.IsArray())
+		else if (!parser.mAST[$4].Is<EffectNodes::Literal>())
 		{
-			parser.Error(@2, 3020, "type mismatch");
+			parser.Error(@4, 3011, "value must be a literal expression");
 			YYERROR;
 		}
 
-		@$ = @1, $$.Properties[$$.Index = $1.Uint] = $3.Node;
+		@$ = @1, $$.Properties[$$.Index = $1.Uint] = $4;
 	}
 	| error ";"
 	{
@@ -3285,45 +3250,38 @@ RULE_PASS_LIST
 	;
 
 RULE_PASSSTATE
-	: RULE_IDENTIFIER_PASSSTATE "=" RULE_EXPRESSION_LITERAL ";"
+	: RULE_IDENTIFIER_PASSSTATE "=" { parser.mLValueFunctionAllowed = true; } RULE_EXPRESSION_ASSIGNMENT { parser.mLValueFunctionAllowed = false; } ";"
 	{
-		if (($1.Uint == EffectNodes::Pass::VertexShader || $1.Uint == EffectNodes::Pass::PixelShader) || ($1.Uint >= EffectNodes::Pass::RenderTarget0 && $1.Uint <= EffectNodes::Pass::RenderTarget7))
+		const bool stateShaderAssignment = $1.Uint == EffectNodes::Pass::VertexShader || $1.Uint == EffectNodes::Pass::PixelShader;
+		const bool stateRenderTargetAssignment = $1.Uint >= EffectNodes::Pass::RenderTarget0 && $1.Uint <= EffectNodes::Pass::RenderTarget7;
+
+		if (parser.mAST[$4].Is<EffectNodes::LValue>())
 		{
-			if (parser.mAST[$3].As<EffectNodes::Literal>().Value.Uint[0] != 0)
+			$4 = parser.mAST[$4].As<EffectNodes::LValue>().Reference;
+
+			if ((stateShaderAssignment && !parser.mAST[$4].Is<EffectNodes::Function>()) || (stateRenderTargetAssignment && (!parser.mAST[$4].Is<EffectNodes::Variable>() || !parser.mAST[$4].As<EffectNodes::Variable>().Type.IsTexture() || parser.mAST[$4].As<EffectNodes::Variable>().Type.IsArray())))
+			{
+				parser.Error(@2, 3020, "type mismatch");
+				YYERROR;
+			}
+		}
+		else if (!parser.mAST[$4].Is<EffectNodes::Literal>())
+		{
+			parser.Error(@4, 3011, "value must be a literal expression");
+			YYERROR;
+		}
+		else if (stateShaderAssignment || stateRenderTargetAssignment)
+		{
+			if (parser.mAST[$4].As<EffectNodes::Literal>().Value.Uint[0] != 0)
 			{
 				parser.Error(@2, 3020, "type mismatch");
 				YYERROR;
 			}
 
-			$3 = EffectTree::Null;
+			$4 = EffectTree::Null;
 		}
 
-		@$ = @1, $$.States[$$.Index = $1.Uint] = $3;
-	}
-	| RULE_IDENTIFIER_PASSSTATE "=" RULE_IDENTIFIER_NAME ";"
-	{
-		const bool stateShaderAssignment = $1.Uint == EffectNodes::Pass::VertexShader || $1.Uint == EffectNodes::Pass::PixelShader;
-		const bool stateRenderTargetAssignment = $1.Uint >= EffectNodes::Pass::RenderTarget0 && $1.Uint <= EffectNodes::Pass::RenderTarget7;
-
-		if ($3.Node == EffectTree::Null)
-		{
-			if (stateShaderAssignment)
-			{
-				parser.Error(@3, 3501, "entrypoint '%.*s' not found", $3.String.len, $3.String.p);
-			}
-			else
-			{
-				parser.Error(@3, 3004, "undeclared identifier '%.*s'", $3.String.len, $3.String.p);
-			}
-			YYERROR;
-		}
-		if ((stateShaderAssignment && !parser.mAST[$3.Node].Is<EffectNodes::Function>()) || (stateRenderTargetAssignment && (!parser.mAST[$3.Node].Is<EffectNodes::Variable>() || !parser.mAST[$3.Node].As<EffectNodes::Variable>().Type.IsTexture() || parser.mAST[$3.Node].As<EffectNodes::Variable>().Type.IsArray())))
-		{
-			parser.Error(@2, 3020, "type mismatch");
-			YYERROR;
-		}
-
-		@$ = @1, $$.States[$$.Index = $1.Uint] = $3.Node;
+		@$ = @1, $$.States[$$.Index = $1.Uint] = $4;
 	}
 	| error ";"
 	{
@@ -3362,7 +3320,7 @@ RULE_PASSSTATE_LIST
 
 namespace ReShade
 {
-	EffectParser::EffectParser(EffectTree &ast) : mAST(ast), mLexer(nullptr), mParser(nullptr), mNextLexerState(0), mCurrentScope(0)
+	EffectParser::EffectParser(EffectTree &ast) : mAST(ast), mLexer(nullptr), mParser(nullptr), mNextLexerState(0), mLValueFunctionAllowed(false), mCurrentScope(0)
 	{
 		if (yylex_init(&this->mLexer) != 0)
 		{

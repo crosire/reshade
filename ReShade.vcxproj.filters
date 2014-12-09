@@ -57,6 +57,9 @@
     <ClCompile Include="obj\$(Platform)\$(Configuration)\EffectLexer.cpp">
       <Filter>Effect Parser</Filter>
     </ClCompile>
+    <ClCompile Include="src\EffectOptimizer.cpp">
+      <Filter>Effect Parser</Filter>
+    </ClCompile>
     <ClCompile Include="obj\$(Platform)\$(Configuration)\EffectParser.cpp">
       <Filter>Effect Parser</Filter>
     </ClCompile>
@@ -100,6 +103,9 @@
       <Filter>Effect</Filter>
     </ClInclude>
     <ClInclude Include="obj\$(Platform)\$(Configuration)\EffectLexer.h">
+      <Filter>Effect Parser</Filter>
+    </ClInclude>
+    <ClInclude Include="src\EffectOptimizer.hpp">
       <Filter>Effect Parser</Filter>
     </ClInclude>
     <ClInclude Include="obj\$(Platform)\$(Configuration)\EffectParser.hpp">
