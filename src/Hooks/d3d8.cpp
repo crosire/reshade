@@ -483,10 +483,6 @@ namespace
 	{
 		switch (hr)
 		{
-			default:
-				__declspec(thread) static CHAR buf[20];
-				sprintf_s(buf, "0x%lx", hr);
-				return buf;
 			case E_INVALIDARG:
 				return "E_INVALIDARG";
 			case D3DERR_NOTAVAILABLE:
@@ -503,6 +499,10 @@ namespace
 				return "D3DERR_DEVICENOTRESET";
 			case D3DERR_WASSTILLDRAWING:
 				return "D3DERR_WASSTILLDRAWING";
+			default:
+				__declspec(thread) static CHAR buf[20];
+				sprintf_s(buf, "0x%lx", hr);
+				return buf;
 		}
 	}
 	inline UINT CalculateTextureSize(UINT width, UINT height, UINT depth, D3DFORMAT format)
