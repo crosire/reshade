@@ -12,8 +12,10 @@ namespace ReShade
 
 	bool Hook::Install(Hook &hook)
 	{
-		assert(hook.Target != nullptr);
-		assert(hook.Replacement != nullptr);
+		if (!hook.IsValid())
+		{
+			return false;
+		}
 
 		if (sCounter++ == 0)
 		{
@@ -40,7 +42,10 @@ namespace ReShade
 	}
 	bool Hook::Uninstall(Hook &hook)
 	{
-		assert(hook.IsInstalled());
+		if (!hook.IsValid())
+		{
+			return false;
+		}
 
 		const MH_STATUS status = MH_RemoveHook(hook.Target);
 
@@ -70,9 +75,16 @@ namespace ReShade
 	{
 	}
 
+	bool Hook::IsValid() const
+	{
+		return (this->Target != nullptr && this->Replacement != nullptr) && (this->Target != this->Replacement);
+	}
 	bool Hook::IsEnabled() const
 	{
-		assert(IsInstalled());
+		if (!IsValid())
+		{
+			return false;
+		}
 
 		const MH_STATUS status = MH_EnableHook(this->Target);
 

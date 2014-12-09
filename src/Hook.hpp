@@ -15,6 +15,7 @@ namespace ReShade
 		Hook();
 		Hook(Function target, const Function replacement);
 
+		bool IsValid() const;
 		bool IsEnabled() const;
 		bool IsInstalled() const;
 

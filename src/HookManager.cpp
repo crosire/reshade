@@ -541,7 +541,7 @@ namespace ReShade
 		{
 			const Hook hook = Find(replacement);
 
-			if (!hook.IsInstalled())
+			if (!hook.IsValid())
 			{
 				LOG(ERROR) << "Unable to resolve hook for '0x" << replacement << "'!";
 
