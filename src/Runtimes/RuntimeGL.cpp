@@ -7,7 +7,7 @@
 
 // -----------------------------------------------------------------------------------------------------
 
-namespace ReShade
+namespace ReShade { namespace Runtimes
 {
 	namespace
 	{
@@ -3820,4 +3820,4 @@ namespace ReShade
 			}
 		}
 	}
-}
+} }

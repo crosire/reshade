@@ -13,7 +13,7 @@
 	#define GLCHECK(call) call
 #endif
 
-namespace ReShade
+namespace ReShade { namespace Runtimes
 {
 	struct GLStateBlock
 	{
@@ -279,4 +279,4 @@ namespace ReShade
 		GLEffect *mEffect;
 		std::vector<Pass> mPasses;
 	};
-}
+} }

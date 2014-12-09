@@ -164,7 +164,7 @@ namespace
 	{
 		friend struct Direct3DDevice9;
 
-		Direct3DSwapChain9(Direct3DDevice9 *pDevice, IDirect3DSwapChain9 *pOriginalSwapChain, const std::shared_ptr<ReShade::D3D9Runtime> runtime) : mRef(1), mDevice(pDevice), mOrig(pOriginalSwapChain), mRuntime(runtime)
+		Direct3DSwapChain9(Direct3DDevice9 *pDevice, IDirect3DSwapChain9 *pOriginalSwapChain, const std::shared_ptr<ReShade::Runtimes::D3D9Runtime> runtime) : mRef(1), mDevice(pDevice), mOrig(pOriginalSwapChain), mRuntime(runtime)
 		{
 		}
 
@@ -187,7 +187,7 @@ namespace
 		ULONG mRef;
 		Direct3DDevice9 *const mDevice;
 		IDirect3DSwapChain9 *const mOrig;
-		std::shared_ptr<ReShade::D3D9Runtime> mRuntime;
+		std::shared_ptr<ReShade::Runtimes::D3D9Runtime> mRuntime;
 	};
 
 	LPCSTR GetErrorString(HRESULT hr)
@@ -437,7 +437,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateAdditionalSwapChain(D3DPRESENT_
 
 		swapchain->GetPresentParameters(&pp);
 
-		const std::shared_ptr<ReShade::D3D9Runtime> runtime = std::make_shared<ReShade::D3D9Runtime>(device, swapchain);
+		const std::shared_ptr<ReShade::Runtimes::D3D9Runtime> runtime = std::make_shared<ReShade::Runtimes::D3D9Runtime>(device, swapchain);
 
 		if (!runtime->OnCreateInternal(pp))
 		{
@@ -488,7 +488,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Reset(D3DPRESENT_PARAMETERS *pPresent
 	assert(this->mImplicitSwapChain != nullptr);
 	assert(this->mImplicitSwapChain->mRuntime != nullptr);
 
-	ReShade::D3D9Runtime *runtime = this->mImplicitSwapChain->mRuntime.get();
+	ReShade::Runtimes::D3D9Runtime *runtime = this->mImplicitSwapChain->mRuntime.get();
 
 	runtime->OnDeleteInternal();
 
@@ -527,7 +527,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Present(const RECT *pSourceRect, cons
 	assert(this->mImplicitSwapChain != nullptr);
 	assert(this->mImplicitSwapChain->mRuntime != nullptr);
 
-	ReShade::D3D9Runtime *runtime = this->mImplicitSwapChain->mRuntime.get();
+	ReShade::Runtimes::D3D9Runtime *runtime = this->mImplicitSwapChain->mRuntime.get();
 
 	runtime->OnPresentInternal();
 
@@ -987,7 +987,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::PresentEx(const RECT *pSourceRect, co
 	assert(this->mImplicitSwapChain != nullptr);
 	assert(this->mImplicitSwapChain->mRuntime != nullptr);
 
-	ReShade::D3D9Runtime *runtime = this->mImplicitSwapChain->mRuntime.get();
+	ReShade::Runtimes::D3D9Runtime *runtime = this->mImplicitSwapChain->mRuntime.get();
 
 	runtime->OnPresentInternal();
 
@@ -1049,7 +1049,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ResetEx(D3DPRESENT_PARAMETERS *pPrese
 	assert(this->mImplicitSwapChain != nullptr);
 	assert(this->mImplicitSwapChain->mRuntime != nullptr);
 
-	ReShade::D3D9Runtime *runtime = this->mImplicitSwapChain->mRuntime.get();
+	ReShade::Runtimes::D3D9Runtime *runtime = this->mImplicitSwapChain->mRuntime.get();
 
 	runtime->OnDeleteInternal();
 
@@ -1114,7 +1114,7 @@ HRESULT STDMETHODCALLTYPE IDirect3D9_CreateDevice(IDirect3D9 *pD3D, UINT Adapter
 		
 		swapchain->GetPresentParameters(&pp);
 
-		const std::shared_ptr<ReShade::D3D9Runtime> runtime = std::make_shared<ReShade::D3D9Runtime>(device, swapchain);
+		const std::shared_ptr<ReShade::Runtimes::D3D9Runtime> runtime = std::make_shared<ReShade::Runtimes::D3D9Runtime>(device, swapchain);
 
 		if (!runtime->OnCreateInternal(pp))
 		{
@@ -1167,7 +1167,7 @@ HRESULT STDMETHODCALLTYPE IDirect3D9Ex_CreateDeviceEx(IDirect3D9Ex *pD3D, UINT A
 
 		swapchain->GetPresentParameters(&pp);
 
-		const std::shared_ptr<ReShade::D3D9Runtime> runtime = std::make_shared<ReShade::D3D9Runtime>(device, swapchain);
+		const std::shared_ptr<ReShade::Runtimes::D3D9Runtime> runtime = std::make_shared<ReShade::Runtimes::D3D9Runtime>(device, swapchain);
 
 		if (!runtime->OnCreateInternal(pp))
 		{

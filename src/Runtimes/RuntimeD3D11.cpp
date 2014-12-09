@@ -13,7 +13,7 @@ inline bool operator ==(const D3D11_SAMPLER_DESC &left, const D3D11_SAMPLER_DESC
 	return std::memcmp(&left, &right, sizeof(D3D11_SAMPLER_DESC)) == 0;
 }
 
-namespace ReShade
+namespace ReShade { namespace Runtimes
 {
 	namespace
 	{
@@ -3768,4 +3768,4 @@ namespace ReShade
 			}
 		}
 	}
-}
+} }

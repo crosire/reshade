@@ -7,7 +7,7 @@
 #include <vector>
 #include <unordered_map>
 
-namespace ReShade
+namespace ReShade { namespace Runtimes
 {
 	struct D3D9DepthStencilInfo
 	{
@@ -153,4 +153,4 @@ namespace ReShade
 		D3D9Effect *mEffect;
 		std::vector<Pass> mPasses;
 	};
-}
+} }

@@ -7,7 +7,7 @@
 #include <vector>
 #include <unordered_map>
 
-namespace ReShade
+namespace ReShade { namespace Runtimes
 {
 	struct D3D10_SAMPLER_DESC_HASHER
 	{
@@ -178,4 +178,4 @@ namespace ReShade
 		D3D10Effect *mEffect;
 		std::vector<Pass> mPasses;
 	};
-}
+} }
