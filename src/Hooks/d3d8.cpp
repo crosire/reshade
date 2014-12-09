@@ -1,6 +1,7 @@
 #include "Log.hpp"
 #include "HookManager.hpp"
 
+#include <assert.h>
 #include <d3d9.h>
 #include <d3dx9shader.h>
 #include <initguid.h>
@@ -554,11 +555,13 @@ namespace
 			case D3DFMT_D24X4S4:
 				return width * 4 * height * depth;
 			case D3DFMT_DXT1:
+				assert(depth <= 1);
 				return ((width + 3) >> 2) * ((height + 3) >> 2) * 8;
 			case D3DFMT_DXT2:
 			case D3DFMT_DXT3:
 			case D3DFMT_DXT4:
 			case D3DFMT_DXT5:
+				assert(depth <= 1);
 				return ((width + 3) >> 2) * ((height + 3) >> 2) * 16;
 		}
 	}
