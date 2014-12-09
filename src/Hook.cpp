@@ -3,30 +3,28 @@
 #include <assert.h>
 #include <MinHook.h>
 
-namespace ReHook
+namespace ReShade
 {
 	namespace
 	{
 		unsigned long sCounter = 0;
 	}
 
-	Hook Hook::Install(Hook::Function target, const Hook::Function replacement)
+	bool Hook::Install(Hook &hook)
 	{
-		assert(target != nullptr);
-		assert(replacement != nullptr);
-
-		Hook hook;
+		assert(hook.Target != nullptr);
+		assert(hook.Replacement != nullptr);
 
 		if (sCounter++ == 0)
 		{
 			MH_Initialize();
 		}
 		
-		const MH_STATUS status = MH_CreateHook(hook.mTarget = target, replacement, &hook.mTrampoline);
+		const MH_STATUS status = MH_CreateHook(hook.Target, hook.Replacement, &hook.Trampoline);
 
 		if (status == MH_OK)
 		{
-			MH_EnableHook(target);
+			hook.Enable();
 		}
 		else if (status != MH_ERROR_ALREADY_CREATED)
 		{
@@ -35,16 +33,16 @@ namespace ReHook
 				MH_Uninitialize();
 			}
 
-			return Hook();
+			return false;
 		}
 
-		return hook;
+		return true;
 	}
 	bool Hook::Uninstall(Hook &hook)
 	{
 		assert(hook.IsInstalled());
 
-		const MH_STATUS status = MH_RemoveHook(hook.mTarget);
+		const MH_STATUS status = MH_RemoveHook(hook.Target);
 
 		if (status == MH_ERROR_NOT_CREATED)
 		{
@@ -55,7 +53,7 @@ namespace ReHook
 			return false;
 		}
 
-		hook.mTrampoline = nullptr;
+		hook.Trampoline = nullptr;
 
 		if (--sCounter == 0)
 		{
@@ -65,11 +63,18 @@ namespace ReHook
 		return true;
 	}
 
+	Hook::Hook() : Target(nullptr), Replacement(nullptr), Trampoline(nullptr)
+	{
+	}
+	Hook::Hook(Function target, const Function replacement) : Target(target), Replacement(replacement), Trampoline(nullptr)
+	{
+	}
+
 	bool Hook::IsEnabled() const
 	{
 		assert(IsInstalled());
 
-		const MH_STATUS status = MH_EnableHook(this->mTarget);
+		const MH_STATUS status = MH_EnableHook(this->Target);
 
 		if (status == MH_ERROR_ENABLED)
 		{
@@ -77,34 +82,34 @@ namespace ReHook
 		}
 		else
 		{
-			MH_DisableHook(this->mTarget);
+			MH_DisableHook(this->Target);
 
 			return false;
 		}
 	}
 	bool Hook::IsInstalled() const
 	{
-		return this->mTrampoline != nullptr;
+		return this->Trampoline != nullptr;
 	}
 
 	Hook::Function Hook::Call() const
 	{
 		assert(IsInstalled());
 
-		return this->mTrampoline;
+		return this->Trampoline;
 	}
 
 	bool Hook::Enable(bool enable)
 	{
 		if (enable)
 		{
-			const MH_STATUS status = MH_EnableHook(this->mTarget);
+			const MH_STATUS status = MH_EnableHook(this->Target);
 
 			return (status == MH_OK || status == MH_ERROR_ENABLED);
 		}
 		else
 		{
-			const MH_STATUS status = MH_DisableHook(this->mTarget);
+			const MH_STATUS status = MH_DisableHook(this->Target);
 
 			return (status == MH_OK || status == MH_ERROR_DISABLED);
 		}

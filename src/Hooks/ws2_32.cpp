@@ -70,7 +70,7 @@ namespace
 
 EXPORT int WSAAPI send(SOCKET s, const char *buf, int len, int flags)
 {
-	static const auto trampoline = ReHook::Call(&send);
+	static const auto trampoline = ReShade::Hooks::Call(&send);
 
 	NetworkUpload(buf, len);
 
@@ -78,7 +78,7 @@ EXPORT int WSAAPI send(SOCKET s, const char *buf, int len, int flags)
 }
 EXPORT int WSAAPI sendto(SOCKET s, const char *buf, int len, int flags, const struct sockaddr *to, int tolen)
 {
-	static const auto trampoline = ReHook::Call(&sendto);
+	static const auto trampoline = ReShade::Hooks::Call(&sendto);
 
 	NetworkUpload(buf, len);
 
@@ -86,7 +86,7 @@ EXPORT int WSAAPI sendto(SOCKET s, const char *buf, int len, int flags, const st
 }
 EXPORT int WSAAPI recv(SOCKET s, char *buf, int len, int flags)
 {
-	static const auto trampoline = ReHook::Call(&recv);
+	static const auto trampoline = ReShade::Hooks::Call(&recv);
 
 	const int recieved = trampoline(s, buf, len, flags);
 
@@ -99,7 +99,7 @@ EXPORT int WSAAPI recv(SOCKET s, char *buf, int len, int flags)
 }
 EXPORT int WSAAPI recvfrom(SOCKET s, char *buf, int len, int flags, struct sockaddr *from, int *fromlen)
 {
-	static const auto trampoline = ReHook::Call(&recvfrom);
+	static const auto trampoline = ReShade::Hooks::Call(&recvfrom);
 
 	const int recieved = trampoline(s, buf, len, flags, from, fromlen);
 
@@ -113,7 +113,7 @@ EXPORT int WSAAPI recvfrom(SOCKET s, char *buf, int len, int flags, struct socka
 
 EXPORT int WSAAPI WSASend(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPDWORD lpNumberOfBytesSent, DWORD dwFlags, LPWSAOVERLAPPED lpOverlapped, LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine)
 {
-	static const auto trampoline = ReHook::Call(&WSASend);
+	static const auto trampoline = ReShade::Hooks::Call(&WSASend);
 
 	for (DWORD i = 0; i < dwBufferCount; ++i)
 	{
@@ -124,7 +124,7 @@ EXPORT int WSAAPI WSASend(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPD
 }
 EXPORT int WSAAPI WSASendTo(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPDWORD lpNumberOfBytesSent, DWORD dwFlags, const struct sockaddr *lpTo, int iToLen, LPWSAOVERLAPPED lpOverlapped, LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine)
 {
-	static const auto trampoline = ReHook::Call(&WSASendTo);
+	static const auto trampoline = ReShade::Hooks::Call(&WSASendTo);
 
 	for (DWORD i = 0; i < dwBufferCount; ++i)
 	{
@@ -135,7 +135,7 @@ EXPORT int WSAAPI WSASendTo(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, L
 }
 EXPORT int WSAAPI WSARecv(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPDWORD lpNumberOfBytesRecvd, LPDWORD lpFlags, LPWSAOVERLAPPED lpOverlapped, LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine)
 {
-	static const auto trampoline = ReHook::Call(&WSARecv);
+	static const auto trampoline = ReShade::Hooks::Call(&WSARecv);
 
 	DWORD recieved = 0;
 	const int result = trampoline(s, lpBuffers, dwBufferCount, &recieved, lpFlags, lpOverlapped, lpCompletionRoutine);
@@ -171,7 +171,7 @@ EXPORT int WSAAPI WSARecv(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPD
 }
 EXPORT int WSAAPI WSARecvEx(SOCKET s, char *buf, int len, int *flags)
 {
-	static const auto trampoline = ReHook::Call(&WSARecvEx);
+	static const auto trampoline = ReShade::Hooks::Call(&WSARecvEx);
 
 	const int recieved = trampoline(s, buf, len, flags);
 
@@ -184,7 +184,7 @@ EXPORT int WSAAPI WSARecvEx(SOCKET s, char *buf, int len, int *flags)
 }
 EXPORT int WSAAPI WSARecvFrom(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPDWORD lpNumberOfBytesRecvd, LPDWORD lpFlags, struct sockaddr *lpFrom, LPINT lpFromlen, LPWSAOVERLAPPED lpOverlapped, LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine)
 {
-	static const auto trampoline = ReHook::Call(&WSARecvFrom);
+	static const auto trampoline = ReShade::Hooks::Call(&WSARecvFrom);
 
 	DWORD recieved = 0;
 	const int result = trampoline(s, lpBuffers, dwBufferCount, &recieved, lpFlags, lpFrom, lpFromlen, lpOverlapped, lpCompletionRoutine);

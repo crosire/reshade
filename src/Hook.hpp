@@ -1,25 +1,19 @@
 #pragma once
 
-namespace ReHook
+namespace ReShade
 {
-	class Hook
+	struct Hook
 	{
 	public:
 		typedef void *Function;
 
 	public:
-		static Hook Install(Function target, const Function replacement);
-		template <typename F>
-		static inline Hook Install(F target, const F replacement)
-		{
-			return Install(reinterpret_cast<Function>(target), reinterpret_cast<const Function>(replacement));
-		}
+		static bool Install(Hook &hook);
 		static bool Uninstall(Hook &hook);
 
 	public:
-		inline Hook() : mTarget(nullptr), mTrampoline(nullptr)
-		{
-		}
+		Hook();
+		Hook(Function target, const Function replacement);
 
 		bool IsEnabled() const;
 		bool IsInstalled() const;
@@ -37,7 +31,7 @@ namespace ReHook
 			return Uninstall(*this);
 		}
 
-	private:
-		Function mTarget, mTrampoline;
+	public:
+		Function Target, Replacement, Trampoline;
 	};
 }

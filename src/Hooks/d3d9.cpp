@@ -1102,7 +1102,7 @@ HRESULT STDMETHODCALLTYPE IDirect3D9_CreateDevice(IDirect3D9 *pD3D, UINT Adapter
 
 	AdjustPresentParameters(pPresentationParameters);
 
-	const HRESULT hr = ReHook::Call(&IDirect3D9_CreateDevice)(pD3D, Adapter, DeviceType, hFocusWindow, BehaviorFlags, pPresentationParameters, ppReturnedDeviceInterface);
+	const HRESULT hr = ReShade::Hooks::Call(&IDirect3D9_CreateDevice)(pD3D, Adapter, DeviceType, hFocusWindow, BehaviorFlags, pPresentationParameters, ppReturnedDeviceInterface);
 
 	if (SUCCEEDED(hr))
 	{
@@ -1155,7 +1155,7 @@ HRESULT STDMETHODCALLTYPE IDirect3D9Ex_CreateDeviceEx(IDirect3D9Ex *pD3D, UINT A
 
 	AdjustPresentParameters(pPresentationParameters);
 
-	const HRESULT hr = ReHook::Call(&IDirect3D9Ex_CreateDeviceEx)(pD3D, Adapter, DeviceType, hFocusWindow, BehaviorFlags, pPresentationParameters, pFullscreenDisplayMode, ppReturnedDeviceInterface);
+	const HRESULT hr = ReShade::Hooks::Call(&IDirect3D9Ex_CreateDeviceEx)(pD3D, Adapter, DeviceType, hFocusWindow, BehaviorFlags, pPresentationParameters, pFullscreenDisplayMode, ppReturnedDeviceInterface);
 
 	if (SUCCEEDED(hr))
 	{
@@ -1225,7 +1225,7 @@ EXPORT void WINAPI D3DPERF_SetOptions(DWORD dwOptions)
 	UNREFERENCED_PARAMETER(dwOptions);
 
 #ifdef _DEBUG
-	static const auto trampoline = ReHook::Call(&D3DPERF_SetOptions);
+	static const auto trampoline = ReShade::Hooks::Call(&D3DPERF_SetOptions);
 
 	trampoline(0);
 #endif
@@ -1240,11 +1240,11 @@ EXPORT IDirect3D9 *WINAPI Direct3DCreate9(UINT SDKVersion)
 {
 	LOG(INFO) << "Redirecting '" << "Direct3DCreate9" << "(" << SDKVersion << ")' ...";
 
-	IDirect3D9 *res = ReHook::Call(&Direct3DCreate9)(SDKVersion);
+	IDirect3D9 *res = ReShade::Hooks::Call(&Direct3DCreate9)(SDKVersion);
 
 	if (res != nullptr)
 	{
-		ReHook::Register(VTABLE(res, 16), reinterpret_cast<ReHook::Hook::Function>(&IDirect3D9_CreateDevice));
+		ReShade::Hooks::Register(VTABLE(res, 16), reinterpret_cast<ReShade::Hook::Function>(&IDirect3D9_CreateDevice));
 	}
 	else
 	{
@@ -1257,12 +1257,12 @@ EXPORT HRESULT WINAPI Direct3DCreate9Ex(UINT SDKVersion, IDirect3D9Ex **ppD3D)
 {
 	LOG(INFO) << "Redirecting '" << "Direct3DCreate9Ex" << "(" << SDKVersion << ", " << ppD3D << ")' ...";
 
-	const HRESULT hr = ReHook::Call(&Direct3DCreate9Ex)(SDKVersion, ppD3D);
+	const HRESULT hr = ReShade::Hooks::Call(&Direct3DCreate9Ex)(SDKVersion, ppD3D);
 
 	if (SUCCEEDED(hr))
 	{
-		ReHook::Register(VTABLE(*ppD3D, 16), reinterpret_cast<ReHook::Hook::Function>(&IDirect3D9_CreateDevice));
-		ReHook::Register(VTABLE(*ppD3D, 20), reinterpret_cast<ReHook::Hook::Function>(&IDirect3D9Ex_CreateDeviceEx));
+		ReShade::Hooks::Register(VTABLE(*ppD3D, 16), reinterpret_cast<ReShade::Hook::Function>(&IDirect3D9_CreateDevice));
+		ReShade::Hooks::Register(VTABLE(*ppD3D, 20), reinterpret_cast<ReShade::Hook::Function>(&IDirect3D9Ex_CreateDeviceEx));
 	}
 	else
 	{

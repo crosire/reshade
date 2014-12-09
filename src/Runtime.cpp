@@ -87,14 +87,14 @@ namespace ReShade
 
 		LOG(INFO) << "Initializing Crosire's ReShade version '" BOOST_STRINGIZE(VERSION_FULL) "' built on '" VERSION_DATE " " VERSION_TIME "' loaded from " << ObfuscatePath(injectorPath) << " to " << ObfuscatePath(executablePath) << " ...";
 
-		ReHook::Register(systemPath / "d3d8.dll");
-		ReHook::Register(systemPath / "d3d9.dll");
-		ReHook::Register(systemPath / "d3d10.dll");
-		ReHook::Register(systemPath / "d3d10_1.dll");
-		ReHook::Register(systemPath / "d3d11.dll");
-		ReHook::Register(systemPath / "dxgi.dll");
-		ReHook::Register(systemPath / "opengl32.dll");
-		ReHook::Register(systemPath / "ws2_32.dll");
+		Hooks::Register(systemPath / "d3d8.dll");
+		Hooks::Register(systemPath / "d3d9.dll");
+		Hooks::Register(systemPath / "d3d10.dll");
+		Hooks::Register(systemPath / "d3d10_1.dll");
+		Hooks::Register(systemPath / "d3d11.dll");
+		Hooks::Register(systemPath / "dxgi.dll");
+		Hooks::Register(systemPath / "opengl32.dll");
+		Hooks::Register(systemPath / "ws2_32.dll");
 
 		sEffectWatcher = new FileWatcher(sEffectPath.parent_path(), true);
 
@@ -106,7 +106,7 @@ namespace ReShade
 
 		delete sEffectWatcher;
 
-		ReHook::Cleanup();
+		Hooks::Cleanup();
 
 		LOG(INFO) << "Exited.";
 	}
