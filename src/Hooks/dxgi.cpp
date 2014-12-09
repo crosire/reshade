@@ -207,22 +207,16 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::GetBuffer(UINT Buffer, REFIID riid, voi
 		switch (this->mDirect3DVersion)
 		{
 			case 10:
-				assert(riid == __uuidof(ID3D10Texture2D));
 				std::static_pointer_cast<ReShade::Runtimes::D3D10Runtime>(this->mRuntime)->ReplaceBackBuffer(reinterpret_cast<ID3D10Texture2D *&>(texture));
 				break;
 			case 11:
-				assert(riid == __uuidof(ID3D11Texture2D));
 				std::static_pointer_cast<ReShade::Runtimes::D3D11Runtime>(this->mRuntime)->ReplaceBackBuffer(reinterpret_cast<ID3D11Texture2D *&>(texture));
 				break;
 		}
 
 		if (texture != nullptr)
 		{
-			texture->AddRef();
-
-			*ppSurface = texture;
-
-			return S_OK;
+			return texture->QueryInterface(riid, ppSurface);
 		}
 	}
 
