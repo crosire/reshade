@@ -3396,23 +3396,20 @@ namespace ReShade { namespace Runtimes
 			traffic += (NetworkTrafficDownload + NetworkTrafficUpload) > 0;
 			return;
 		}
-		else if (traffic > 10)
-		{
-			traffic = 0;
-			cooldown = 40;
-
-			if (this->mDepthStencilTexture != 0)
-			{
-				GLCHECK(glDeleteTextures(1, &this->mDepthStencilTexture));
-
-				this->mDepthStencilTexture = 0;
-			}
-			return;
-		}
 		else
 		{
-			traffic = 0;
 			cooldown = 30;
+
+			if (traffic > 10, traffic = 0)
+			{
+				if (this->mDepthStencilTexture != 0)
+				{
+					GLCHECK(glDeleteTextures(1, &this->mDepthStencilTexture));
+					this->mDepthStencilTexture = 0;
+				}
+
+				return;
+			}
 		}
 
 		GLuint best = 0;
@@ -3440,6 +3437,8 @@ namespace ReShade { namespace Runtimes
 
 		if (this->mDepthStencilFBO != best)
 		{
+			LOG(TRACE) << "Switched depth source to framebuffer " << best << ".";
+
 			GLint previousTex = 0, previousFBO;
 			GLCHECK(glGetIntegerv(GL_TEXTURE_BINDING_2D, &previousTex));
 			GLCHECK(glGetIntegerv(GL_FRAMEBUFFER_BINDING, &previousFBO));

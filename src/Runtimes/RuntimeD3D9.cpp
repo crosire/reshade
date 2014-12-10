@@ -2783,27 +2783,18 @@ namespace ReShade { namespace Runtimes
 			traffic += (NetworkTrafficDownload + NetworkTrafficUpload) > 0;
 			return;
 		}
-		else if (traffic > 10)
-		{
-			traffic = 0;
-			cooldown = 40;
-
-			CreateDepthStencil(nullptr);
-			return;
-		}
 		else
 		{
-			traffic = 0;
 			cooldown = 30;
+			
+			if (traffic > 10, traffic = 0)
+			{
+				CreateDepthStencil(nullptr);
+				return;
+			}
 		}
 
-		// Check for multisampling
-		if (this->mPresentParams.MultiSampleType != D3DMULTISAMPLE_NONE)
-		{
-			return;
-		}
-
-		if (this->mDepthStencilTable.empty())
+		if (this->mPresentParams.MultiSampleType != D3DMULTISAMPLE_NONE || this->mDepthStencilTable.empty())
 		{
 			return;
 		}
@@ -2828,6 +2819,8 @@ namespace ReShade { namespace Runtimes
 
 		if (best != nullptr && this->mDepthStencil != best)
 		{
+			LOG(TRACE) << "Switched depth source to depthstencil " << best << ".";
+
 			CreateDepthStencil(best);
 		}
 	}
