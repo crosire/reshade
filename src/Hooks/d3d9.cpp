@@ -13,7 +13,7 @@ namespace
 	{
 		friend struct Direct3DSwapChain9;
 
-		Direct3DDevice9(IDirect3D9 *pD3D, IDirect3DDevice9 *pOriginalDevice) : mRef(1), mD3D(pD3D), mOrig(pOriginalDevice), mImplicitSwapChain(nullptr), mAutoDepthStencil(nullptr)
+		Direct3DDevice9(IDirect3D9 *d3d, IDirect3DDevice9 *originalDevice) : mRef(1), mD3D(d3d), mOrig(originalDevice), mImplicitSwapChain(nullptr), mAutoDepthStencil(nullptr)
 		{
 		}
 
@@ -164,7 +164,7 @@ namespace
 	{
 		friend struct Direct3DDevice9;
 
-		Direct3DSwapChain9(Direct3DDevice9 *pDevice, IDirect3DSwapChain9 *pOriginalSwapChain, const std::shared_ptr<ReShade::Runtimes::D3D9Runtime> runtime) : mRef(1), mDevice(pDevice), mOrig(pOriginalSwapChain), mRuntime(runtime)
+		Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapChain9 *originalSwapChain, const std::shared_ptr<ReShade::Runtimes::D3D9Runtime> runtime) : mRef(1), mDevice(device), mOrig(originalSwapChain), mRuntime(runtime)
 		{
 		}
 

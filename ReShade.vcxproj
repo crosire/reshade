@@ -244,7 +244,7 @@ tools\upx --backup "$(TargetPath)"</Command>
     <ClCompile Include="src\Effect.cpp" />
     <ClCompile Include="src\EffectPreprocessor.cpp" />
     <ClCompile Include="obj\$(Platform)\$(Configuration)\EffectLexer.cpp" />
-	<ClCompile Include="src\EffectOptimizer.cpp" />
+    <ClCompile Include="src\EffectOptimizer.cpp" />
     <ClCompile Include="obj\$(Platform)\$(Configuration)\EffectParser.cpp" />
     <ClCompile Include="src\Runtime.cpp" />
     <ClCompile Include="src\Runtimes\RuntimeD3D9.cpp" />
@@ -262,7 +262,7 @@ tools\upx --backup "$(TargetPath)"</Command>
     <ClInclude Include="src\Effect.hpp" />
     <ClInclude Include="src\EffectPreprocessor.hpp" />
     <ClInclude Include="obj\$(Platform)\$(Configuration)\EffectLexer.h" />
-	<ClInclude Include="src\EffectOptimizer.hpp" />
+    <ClInclude Include="src\EffectOptimizer.hpp" />
     <ClInclude Include="obj\$(Platform)\$(Configuration)\EffectParser.hpp" />
     <ClInclude Include="src\EffectParserTree.hpp" />
     <ClInclude Include="src\Runtime.hpp" />

@@ -16,10 +16,10 @@ namespace
 {
 	struct DXGISwapChain : public IDXGISwapChain1, private boost::noncopyable
 	{
-		DXGISwapChain(IDXGIFactory *pFactory, IDXGISwapChain *pOriginalSwapChain, const std::shared_ptr<ReShade::Runtimes::D3D10Runtime> runtime, const DXGI_SAMPLE_DESC &samples) : mRef(1), mFactory(pFactory), mOrig(pOriginalSwapChain), mOrigSamples(samples), mDirect3DVersion(10), mRuntime(runtime)
+		DXGISwapChain(IDXGIFactory *factory, IDXGISwapChain *originalSwapChain, const std::shared_ptr<ReShade::Runtimes::D3D10Runtime> runtime, const DXGI_SAMPLE_DESC &samples) : mRef(1), mFactory(factory), mOrig(originalSwapChain), mOrigSamples(samples), mDirect3DVersion(10), mRuntime(runtime)
 		{
 		}
-		DXGISwapChain(IDXGIFactory *pFactory, IDXGISwapChain *pOriginalSwapChain, const std::shared_ptr<ReShade::Runtimes::D3D11Runtime> runtime, const DXGI_SAMPLE_DESC &samples) : mRef(1), mFactory(pFactory), mOrig(pOriginalSwapChain), mOrigSamples(samples), mDirect3DVersion(11), mRuntime(runtime)
+		DXGISwapChain(IDXGIFactory *factory, IDXGISwapChain *originalSwapChain, const std::shared_ptr<ReShade::Runtimes::D3D11Runtime> runtime, const DXGI_SAMPLE_DESC &samples) : mRef(1), mFactory(factory), mOrig(originalSwapChain), mOrigSamples(samples), mDirect3DVersion(11), mRuntime(runtime)
 		{
 		}
 
@@ -103,9 +103,9 @@ namespace
 
 		return true;
 	}
-
-	static const GUID sRuntimeGUID = { 0xff97cb62, 0x2b9e, 0x4792, { 0xb2, 0x87, 0x82, 0x3a, 0x71, 0x9, 0x57, 0x20 } };
 }
+
+extern const GUID sRuntimeGUID = { 0xff97cb62, 0x2b9e, 0x4792, { 0xb2, 0x87, 0x82, 0x3a, 0x71, 0x9, 0x57, 0x20 } };
 
 // -----------------------------------------------------------------------------------------------------
 
@@ -390,325 +390,6 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::GetRotation(DXGI_MODE_ROTATION *pRotati
 	return static_cast<IDXGISwapChain1 *>(this->mOrig)->GetRotation(pRotation);
 }
 
-// ID3D10Device
-void STDMETHODCALLTYPE ID3D10Device_DrawIndexed(ID3D10Device *pDevice, UINT IndexCount, UINT StartIndexLocation, INT BaseVertexLocation)
-{
-	static const auto trampoline = ReShade::Hooks::Call(&ID3D10Device_DrawIndexed);
-
-	ReShade::Runtimes::D3D10Runtime *runtime = nullptr;
-	UINT size = sizeof(runtime);
-	pDevice->GetPrivateData(sRuntimeGUID, &size, reinterpret_cast<void *>(&runtime));
-
-	assert(runtime != nullptr);
-
-	runtime->OnDrawInternal(IndexCount);
-
-	trampoline(pDevice, IndexCount, StartIndexLocation, BaseVertexLocation);
-}
-void STDMETHODCALLTYPE ID3D10Device_Draw(ID3D10Device *pDevice, UINT VertexCount, UINT StartVertexLocation)
-{
-	static const auto trampoline = ReShade::Hooks::Call(&ID3D10Device_Draw);
-
-	ReShade::Runtimes::D3D10Runtime *runtime = nullptr;
-	UINT size = sizeof(runtime);
-	pDevice->GetPrivateData(sRuntimeGUID, &size, reinterpret_cast<void *>(&runtime));
-
-	assert(runtime != nullptr);
-
-	runtime->OnDrawInternal(VertexCount);
-
-	trampoline(pDevice, VertexCount, StartVertexLocation);
-}
-void STDMETHODCALLTYPE ID3D10Device_DrawIndexedInstanced(ID3D10Device *pDevice, UINT IndexCountPerInstance, UINT InstanceCount, UINT StartIndexLocation, INT BaseVertexLocation, UINT StartInstanceLocation)
-{
-	static const auto trampoline = ReShade::Hooks::Call(&ID3D10Device_DrawIndexedInstanced);
-
-	ReShade::Runtimes::D3D10Runtime *runtime = nullptr;
-	UINT size = sizeof(runtime);
-	pDevice->GetPrivateData(sRuntimeGUID, &size, reinterpret_cast<void *>(&runtime));
-
-	assert(runtime != nullptr);
-
-	runtime->OnDrawInternal(IndexCountPerInstance * InstanceCount);
-
-	trampoline(pDevice, IndexCountPerInstance, InstanceCount, StartIndexLocation, BaseVertexLocation, StartInstanceLocation);
-}
-void STDMETHODCALLTYPE ID3D10Device_DrawInstanced(ID3D10Device *pDevice, UINT VertexCountPerInstance, UINT InstanceCount, UINT StartVertexLocation, UINT StartInstanceLocation)
-{
-	static const auto trampoline = ReShade::Hooks::Call(&ID3D10Device_DrawInstanced);
-
-	ReShade::Runtimes::D3D10Runtime *runtime = nullptr;
-	UINT size = sizeof(runtime);
-	pDevice->GetPrivateData(sRuntimeGUID, &size, reinterpret_cast<void *>(&runtime));
-
-	assert(runtime != nullptr);
-
-	runtime->OnDrawInternal(VertexCountPerInstance * InstanceCount);
-
-	trampoline(pDevice, VertexCountPerInstance, InstanceCount, StartVertexLocation, StartInstanceLocation);
-}
-void STDMETHODCALLTYPE ID3D10Device_OMSetRenderTargets(ID3D10Device *pDevice, UINT NumViews, ID3D10RenderTargetView *const *ppRenderTargetViews, ID3D10DepthStencilView *pDepthStencilView)
-{
-	static const auto trampoline = ReShade::Hooks::Call(&ID3D10Device_OMSetRenderTargets);
-
-	if (pDepthStencilView != nullptr)
-	{
-		ReShade::Runtimes::D3D10Runtime *runtime = nullptr;
-		UINT size = sizeof(runtime);
-		pDevice->GetPrivateData(sRuntimeGUID, &size, reinterpret_cast<void *>(&runtime));
-
-		assert(runtime != nullptr);
-
-		runtime->ReplaceDepthStencil(pDepthStencilView);
-	}
-
-	trampoline(pDevice, NumViews, ppRenderTargetViews, pDepthStencilView);
-}
-void STDMETHODCALLTYPE ID3D10Device_CopyResource(ID3D10Device *pDevice, ID3D10Resource *pDstResource, ID3D10Resource *pSrcResource)
-{
-	static const auto trampoline = ReShade::Hooks::Call(&ID3D10Device_CopyResource);
-
-	ReShade::Runtimes::D3D10Runtime *runtime = nullptr;
-	UINT size = sizeof(runtime);
-	pDevice->GetPrivateData(sRuntimeGUID, &size, reinterpret_cast<void *>(&runtime));
-
-	assert(runtime != nullptr);
-
-	runtime->ReplaceDepthStencilResource(pDstResource);
-	runtime->ReplaceDepthStencilResource(pSrcResource);
-
-	trampoline(pDevice, pDstResource, pSrcResource);
-}
-void STDMETHODCALLTYPE ID3D10Device_ClearDepthStencilView(ID3D10Device *pDevice, ID3D10DepthStencilView *pDepthStencilView, UINT ClearFlags, FLOAT Depth, UINT8 Stencil)
-{
-	static const auto trampoline = ReShade::Hooks::Call(&ID3D10Device_ClearDepthStencilView);
-
-	if (pDepthStencilView != nullptr)
-	{
-		ReShade::Runtimes::D3D10Runtime *runtime = nullptr;
-		UINT size = sizeof(runtime);
-		pDevice->GetPrivateData(sRuntimeGUID, &size, reinterpret_cast<void *>(&runtime));
-
-		assert(runtime != nullptr);
-
-		runtime->ReplaceDepthStencil(pDepthStencilView);
-	}
-
-	trampoline(pDevice, pDepthStencilView, ClearFlags, Depth, Stencil);
-}
-HRESULT STDMETHODCALLTYPE ID3D10Device_CreateDepthStencilView(ID3D10Device *pDevice, ID3D10Resource *pResource, const D3D10_DEPTH_STENCIL_VIEW_DESC *pDesc, ID3D10DepthStencilView **ppDepthStencilView)
-{
-	static const auto trampoline = ReShade::Hooks::Call(&ID3D10Device_CreateDepthStencilView);
-
-	const HRESULT hr = trampoline(pDevice, pResource, pDesc, ppDepthStencilView);
-
-	if (SUCCEEDED(hr))
-	{
-		ReShade::Runtimes::D3D10Runtime *runtime = nullptr;
-		UINT size = sizeof(runtime);
-		pDevice->GetPrivateData(sRuntimeGUID, &size, reinterpret_cast<void *>(&runtime));
-
-		assert(runtime != nullptr);
-
-		runtime->OnCreateDepthStencil(pResource, *ppDepthStencilView);
-	}
-
-	return hr;
-}
-
-// ID3D11Device
-HRESULT STDMETHODCALLTYPE ID3D11Device_CreateDepthStencilView(ID3D11Device *pDevice, ID3D11Resource *pResource, const D3D11_DEPTH_STENCIL_VIEW_DESC *pDesc, ID3D11DepthStencilView **ppDepthStencilView)
-{
-	static const auto trampoline = ReShade::Hooks::Call(&ID3D11Device_CreateDepthStencilView);
-
-	const HRESULT hr = trampoline(pDevice, pResource, pDesc, ppDepthStencilView);
-
-	if (SUCCEEDED(hr))
-	{
-		ReShade::Runtimes::D3D11Runtime *runtime = nullptr;
-		UINT size = sizeof(runtime);
-		pDevice->GetPrivateData(sRuntimeGUID, &size, reinterpret_cast<void *>(&runtime));
-
-		assert(runtime != nullptr);
-
-		runtime->OnCreateDepthStencil(pResource, *ppDepthStencilView);
-	}
-
-	return hr;
-}
-
-// ID3D11DeviceContext
-void STDMETHODCALLTYPE ID3D11DeviceContext_DrawIndexed(ID3D11DeviceContext *pDeviceContext, UINT IndexCount, UINT StartIndexLocation, INT BaseVertexLocation)
-{
-	static const auto trampoline = ReShade::Hooks::Call(&ID3D11DeviceContext_DrawIndexed);
-
-	ID3D11Device *device = nullptr;
-	pDeviceContext->GetDevice(&device);
-
-	assert(device != nullptr);
-
-	ReShade::Runtimes::D3D11Runtime *runtime = nullptr;
-	UINT size = sizeof(runtime);
-	device->GetPrivateData(sRuntimeGUID, &size, reinterpret_cast<void *>(&runtime));
-	device->Release();
-
-	assert(runtime != nullptr);
-
-	runtime->OnDrawInternal(pDeviceContext, IndexCount);
-
-	trampoline(pDeviceContext, IndexCount, StartIndexLocation, BaseVertexLocation);
-}
-void STDMETHODCALLTYPE ID3D11DeviceContext_Draw(ID3D11DeviceContext *pDeviceContext, UINT VertexCount, UINT StartVertexLocation)
-{
-	static const auto trampoline = ReShade::Hooks::Call(&ID3D11DeviceContext_Draw);
-
-	ID3D11Device *device = nullptr;
-	pDeviceContext->GetDevice(&device);
-
-	assert(device != nullptr);
-
-	ReShade::Runtimes::D3D11Runtime *runtime = nullptr;
-	UINT size = sizeof(runtime);
-	device->GetPrivateData(sRuntimeGUID, &size, reinterpret_cast<void *>(&runtime));
-	device->Release();
-
-	assert(runtime != nullptr);
-
-	runtime->OnDrawInternal(pDeviceContext, VertexCount);
-
-	trampoline(pDeviceContext, VertexCount, StartVertexLocation);
-}
-void STDMETHODCALLTYPE ID3D11DeviceContext_DrawIndexedInstanced(ID3D11DeviceContext *pDeviceContext, UINT IndexCountPerInstance, UINT InstanceCount, UINT StartIndexLocation, INT BaseVertexLocation, UINT StartInstanceLocation)
-{
-	static const auto trampoline = ReShade::Hooks::Call(&ID3D11DeviceContext_DrawIndexedInstanced);
-
-	ID3D11Device *device = nullptr;
-	pDeviceContext->GetDevice(&device);
-
-	assert(device != nullptr);
-
-	ReShade::Runtimes::D3D11Runtime *runtime = nullptr;
-	UINT size = sizeof(runtime);
-	device->GetPrivateData(sRuntimeGUID, &size, reinterpret_cast<void *>(&runtime));
-	device->Release();
-
-	assert(runtime != nullptr);
-
-	runtime->OnDrawInternal(pDeviceContext, IndexCountPerInstance * InstanceCount);
-
-	trampoline(pDeviceContext, IndexCountPerInstance, InstanceCount, StartIndexLocation, BaseVertexLocation, StartInstanceLocation);
-}
-void STDMETHODCALLTYPE ID3D11DeviceContext_DrawInstanced(ID3D11DeviceContext *pDeviceContext, UINT VertexCountPerInstance, UINT InstanceCount, UINT StartVertexLocation, UINT StartInstanceLocation)
-{
-	static const auto trampoline = ReShade::Hooks::Call(&ID3D11DeviceContext_DrawInstanced);
-
-	ID3D11Device *device = nullptr;
-	pDeviceContext->GetDevice(&device);
-
-	assert(device != nullptr);
-
-	ReShade::Runtimes::D3D11Runtime *runtime = nullptr;
-	UINT size = sizeof(runtime);
-	device->GetPrivateData(sRuntimeGUID, &size, reinterpret_cast<void *>(&runtime));
-	device->Release();
-
-	assert(runtime != nullptr);
-
-	runtime->OnDrawInternal(pDeviceContext, VertexCountPerInstance * InstanceCount);
-
-	trampoline(pDeviceContext, VertexCountPerInstance, InstanceCount, StartVertexLocation, StartInstanceLocation);
-}
-void STDMETHODCALLTYPE ID3D11DeviceContext_OMSetRenderTargets(ID3D11DeviceContext *pDeviceContext, UINT NumViews, ID3D11RenderTargetView *const *ppRenderTargetViews, ID3D11DepthStencilView *pDepthStencilView)
-{
-	static const auto trampoline = ReShade::Hooks::Call(&ID3D11DeviceContext_OMSetRenderTargets);
-
-	if (pDepthStencilView != nullptr)
-	{
-		ID3D11Device *device = nullptr;
-		pDeviceContext->GetDevice(&device);
-
-		assert(device != nullptr);
-
-		ReShade::Runtimes::D3D11Runtime *runtime = nullptr;
-		UINT size = sizeof(runtime);
-		device->GetPrivateData(sRuntimeGUID, &size, reinterpret_cast<void *>(&runtime));
-		device->Release();
-
-		assert(runtime != nullptr);
-
-		runtime->ReplaceDepthStencil(pDepthStencilView);
-	}
-
-	trampoline(pDeviceContext, NumViews, ppRenderTargetViews, pDepthStencilView);
-}
-void STDMETHODCALLTYPE ID3D11DeviceContext_OMSetRenderTargetsAndUnorderedAccessViews(ID3D11DeviceContext *pDeviceContext, UINT NumRTVs, ID3D11RenderTargetView *const *ppRenderTargetViews, ID3D11DepthStencilView *pDepthStencilView, UINT UAVStartSlot, UINT NumUAVs, ID3D11UnorderedAccessView *const *ppUnorderedAccessViews, const UINT *pUAVInitialCounts)
-{
-	static const auto trampoline = ReShade::Hooks::Call(&ID3D11DeviceContext_OMSetRenderTargetsAndUnorderedAccessViews);
-
-	if (pDepthStencilView != nullptr)
-	{
-		ID3D11Device *device = nullptr;
-		pDeviceContext->GetDevice(&device);
-
-		assert(device != nullptr);
-
-		ReShade::Runtimes::D3D11Runtime *runtime = nullptr;
-		UINT size = sizeof(runtime);
-		device->GetPrivateData(sRuntimeGUID, &size, reinterpret_cast<void *>(&runtime));
-		device->Release();
-
-		assert(runtime != nullptr);
-
-		runtime->ReplaceDepthStencil(pDepthStencilView);
-	}
-
-	trampoline(pDeviceContext, NumRTVs, ppRenderTargetViews, pDepthStencilView, UAVStartSlot, NumUAVs, ppUnorderedAccessViews, pUAVInitialCounts);
-}
-void STDMETHODCALLTYPE ID3D11DeviceContext_CopyResource(ID3D11DeviceContext *pDeviceContext, ID3D11Resource *pDstResource, ID3D11Resource *pSrcResource)
-{
-	static const auto trampoline = ReShade::Hooks::Call(&ID3D11DeviceContext_CopyResource);
-
-	ID3D11Device *device = nullptr;
-	pDeviceContext->GetDevice(&device);
-
-	assert(device != nullptr);
-
-	ReShade::Runtimes::D3D11Runtime *runtime = nullptr;
-	UINT size = sizeof(runtime);
-	device->GetPrivateData(sRuntimeGUID, &size, reinterpret_cast<void *>(&runtime));
-	device->Release();
-
-	assert(runtime != nullptr);
-
-	runtime->ReplaceDepthStencilResource(pDstResource);
-	runtime->ReplaceDepthStencilResource(pSrcResource);
-
-	trampoline(pDeviceContext, pDstResource, pSrcResource);
-}
-void STDMETHODCALLTYPE ID3D11DeviceContext_ClearDepthStencilView(ID3D11DeviceContext *pDeviceContext, ID3D11DepthStencilView *pDepthStencilView, UINT ClearFlags, FLOAT Depth, UINT8 Stencil)
-{
-	static const auto trampoline = ReShade::Hooks::Call(&ID3D11DeviceContext_ClearDepthStencilView);
-
-	if (pDepthStencilView != nullptr)
-	{
-		ID3D11Device *device = nullptr;
-		pDeviceContext->GetDevice(&device);
-
-		assert(device != nullptr);
-
-		ReShade::Runtimes::D3D11Runtime *runtime = nullptr;
-		UINT size = sizeof(runtime);
-		device->GetPrivateData(sRuntimeGUID, &size, reinterpret_cast<void *>(&runtime));
-		device->Release();
-
-		assert(runtime != nullptr);
-
-		runtime->ReplaceDepthStencil(pDepthStencilView);
-	}
-
-	trampoline(pDeviceContext, pDepthStencilView, ClearFlags, Depth, Stencil);
-}
-
 // IDXGIFactory
 HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, IUnknown *pDevice, DXGI_SWAP_CHAIN_DESC *pDesc, IDXGISwapChain **ppSwapChain)
 {
@@ -748,15 +429,6 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, I
 
 		if (SUCCEEDED(pDevice->QueryInterface(&deviceD3D10)))
 		{
-			ReShade::Hooks::Register(VTABLE(deviceD3D10, 8), reinterpret_cast<ReShade::Hook::Function>(&ID3D10Device_DrawIndexed));
-			ReShade::Hooks::Register(VTABLE(deviceD3D10, 9), reinterpret_cast<ReShade::Hook::Function>(&ID3D10Device_Draw));
-			ReShade::Hooks::Register(VTABLE(deviceD3D10, 14), reinterpret_cast<ReShade::Hook::Function>(&ID3D10Device_DrawIndexedInstanced));
-			ReShade::Hooks::Register(VTABLE(deviceD3D10, 15), reinterpret_cast<ReShade::Hook::Function>(&ID3D10Device_DrawInstanced));
-			ReShade::Hooks::Register(VTABLE(deviceD3D10, 24), reinterpret_cast<ReShade::Hook::Function>(&ID3D10Device_OMSetRenderTargets));
-			ReShade::Hooks::Register(VTABLE(deviceD3D10, 33), reinterpret_cast<ReShade::Hook::Function>(&ID3D10Device_CopyResource));
-			ReShade::Hooks::Register(VTABLE(deviceD3D10, 36), reinterpret_cast<ReShade::Hook::Function>(&ID3D10Device_ClearDepthStencilView));
-			ReShade::Hooks::Register(VTABLE(deviceD3D10, 77), reinterpret_cast<ReShade::Hook::Function>(&ID3D10Device_CreateDepthStencilView));
-
 			const std::shared_ptr<ReShade::Runtimes::D3D10Runtime> runtime = std::make_shared<ReShade::Runtimes::D3D10Runtime>(deviceD3D10, swapchain);
 
 			ReShade::Runtimes::D3D10Runtime *runtimePtr = runtime.get();
@@ -773,19 +445,6 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, I
 		}
 		else if (SUCCEEDED(pDevice->QueryInterface(&deviceD3D11)))
 		{
-			ID3D11DeviceContext *deviceContext = nullptr;
-			deviceD3D11->GetImmediateContext(&deviceContext);
-
-			ReShade::Hooks::Register(VTABLE(deviceD3D11, 10), reinterpret_cast<ReShade::Hook::Function>(&ID3D11Device_CreateDepthStencilView));
-			ReShade::Hooks::Register(VTABLE(deviceContext, 12), reinterpret_cast<ReShade::Hook::Function>(&ID3D11DeviceContext_DrawIndexed));
-			ReShade::Hooks::Register(VTABLE(deviceContext, 13), reinterpret_cast<ReShade::Hook::Function>(&ID3D11DeviceContext_Draw));
-			ReShade::Hooks::Register(VTABLE(deviceContext, 20), reinterpret_cast<ReShade::Hook::Function>(&ID3D11DeviceContext_DrawIndexedInstanced));
-			ReShade::Hooks::Register(VTABLE(deviceContext, 21), reinterpret_cast<ReShade::Hook::Function>(&ID3D11DeviceContext_DrawInstanced));
-			ReShade::Hooks::Register(VTABLE(deviceContext, 33), reinterpret_cast<ReShade::Hook::Function>(&ID3D11DeviceContext_OMSetRenderTargets));
-			ReShade::Hooks::Register(VTABLE(deviceContext, 34), reinterpret_cast<ReShade::Hook::Function>(&ID3D11DeviceContext_OMSetRenderTargetsAndUnorderedAccessViews));
-			ReShade::Hooks::Register(VTABLE(deviceContext, 47), reinterpret_cast<ReShade::Hook::Function>(&ID3D11DeviceContext_CopyResource));
-			ReShade::Hooks::Register(VTABLE(deviceContext, 53), reinterpret_cast<ReShade::Hook::Function>(&ID3D11DeviceContext_ClearDepthStencilView));
-
 			const std::shared_ptr<ReShade::Runtimes::D3D11Runtime> runtime = std::make_shared<ReShade::Runtimes::D3D11Runtime>(deviceD3D11, swapchain);
 
 			ReShade::Runtimes::D3D11Runtime *runtimePtr = runtime.get();
@@ -798,7 +457,6 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, I
 
 			*ppSwapChain = new DXGISwapChain(pFactory, swapchain, runtime, desc.SampleDesc);
 
-			deviceContext->Release();
 			deviceD3D11->Release();
 		}
 		else
@@ -854,15 +512,6 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pF
 
 		if (SUCCEEDED(pDevice->QueryInterface(&deviceD3D10)))
 		{
-			ReShade::Hooks::Register(VTABLE(deviceD3D10, 8), reinterpret_cast<ReShade::Hook::Function>(&ID3D10Device_DrawIndexed));
-			ReShade::Hooks::Register(VTABLE(deviceD3D10, 9), reinterpret_cast<ReShade::Hook::Function>(&ID3D10Device_Draw));
-			ReShade::Hooks::Register(VTABLE(deviceD3D10, 14), reinterpret_cast<ReShade::Hook::Function>(&ID3D10Device_DrawIndexedInstanced));
-			ReShade::Hooks::Register(VTABLE(deviceD3D10, 15), reinterpret_cast<ReShade::Hook::Function>(&ID3D10Device_DrawInstanced));
-			ReShade::Hooks::Register(VTABLE(deviceD3D10, 24), reinterpret_cast<ReShade::Hook::Function>(&ID3D10Device_OMSetRenderTargets));
-			ReShade::Hooks::Register(VTABLE(deviceD3D10, 33), reinterpret_cast<ReShade::Hook::Function>(&ID3D10Device_CopyResource));
-			ReShade::Hooks::Register(VTABLE(deviceD3D10, 36), reinterpret_cast<ReShade::Hook::Function>(&ID3D10Device_ClearDepthStencilView));
-			ReShade::Hooks::Register(VTABLE(deviceD3D10, 77), reinterpret_cast<ReShade::Hook::Function>(&ID3D10Device_CreateDepthStencilView));
-
 			const std::shared_ptr<ReShade::Runtimes::D3D10Runtime> runtime = std::make_shared<ReShade::Runtimes::D3D10Runtime>(deviceD3D10, swapchain);
 
 			ReShade::Runtimes::D3D10Runtime *runtimePtr = runtime.get();
@@ -879,19 +528,6 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pF
 		}
 		else if (SUCCEEDED(pDevice->QueryInterface(&deviceD3D11)))
 		{
-			ID3D11DeviceContext *deviceContext = nullptr;
-			deviceD3D11->GetImmediateContext(&deviceContext);
-
-			ReShade::Hooks::Register(VTABLE(deviceD3D11, 10), reinterpret_cast<ReShade::Hook::Function>(&ID3D11Device_CreateDepthStencilView));
-			ReShade::Hooks::Register(VTABLE(deviceContext, 12), reinterpret_cast<ReShade::Hook::Function>(&ID3D11DeviceContext_DrawIndexed));
-			ReShade::Hooks::Register(VTABLE(deviceContext, 13), reinterpret_cast<ReShade::Hook::Function>(&ID3D11DeviceContext_Draw));
-			ReShade::Hooks::Register(VTABLE(deviceContext, 20), reinterpret_cast<ReShade::Hook::Function>(&ID3D11DeviceContext_DrawIndexedInstanced));
-			ReShade::Hooks::Register(VTABLE(deviceContext, 21), reinterpret_cast<ReShade::Hook::Function>(&ID3D11DeviceContext_DrawInstanced));
-			ReShade::Hooks::Register(VTABLE(deviceContext, 33), reinterpret_cast<ReShade::Hook::Function>(&ID3D11DeviceContext_OMSetRenderTargets));
-			ReShade::Hooks::Register(VTABLE(deviceContext, 34), reinterpret_cast<ReShade::Hook::Function>(&ID3D11DeviceContext_OMSetRenderTargetsAndUnorderedAccessViews));
-			ReShade::Hooks::Register(VTABLE(deviceContext, 47), reinterpret_cast<ReShade::Hook::Function>(&ID3D11DeviceContext_CopyResource));
-			ReShade::Hooks::Register(VTABLE(deviceContext, 53), reinterpret_cast<ReShade::Hook::Function>(&ID3D11DeviceContext_ClearDepthStencilView));
-
 			const std::shared_ptr<ReShade::Runtimes::D3D11Runtime> runtime = std::make_shared<ReShade::Runtimes::D3D11Runtime>(deviceD3D11, swapchain);
 
 			ReShade::Runtimes::D3D11Runtime *runtimePtr = runtime.get();
@@ -904,7 +540,6 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pF
 
 			*ppSwapChain = new DXGISwapChain(pFactory, swapchain, runtime, desc.SampleDesc);
 
-			deviceContext->Release();
 			deviceD3D11->Release();
 		}
 		else
@@ -958,15 +593,6 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactor
 
 		if (SUCCEEDED(pDevice->QueryInterface(&deviceD3D10)))
 		{
-			ReShade::Hooks::Register(VTABLE(deviceD3D10, 8), reinterpret_cast<ReShade::Hook::Function>(&ID3D10Device_DrawIndexed));
-			ReShade::Hooks::Register(VTABLE(deviceD3D10, 9), reinterpret_cast<ReShade::Hook::Function>(&ID3D10Device_Draw));
-			ReShade::Hooks::Register(VTABLE(deviceD3D10, 14), reinterpret_cast<ReShade::Hook::Function>(&ID3D10Device_DrawIndexedInstanced));
-			ReShade::Hooks::Register(VTABLE(deviceD3D10, 15), reinterpret_cast<ReShade::Hook::Function>(&ID3D10Device_DrawInstanced));
-			ReShade::Hooks::Register(VTABLE(deviceD3D10, 24), reinterpret_cast<ReShade::Hook::Function>(&ID3D10Device_OMSetRenderTargets));
-			ReShade::Hooks::Register(VTABLE(deviceD3D10, 33), reinterpret_cast<ReShade::Hook::Function>(&ID3D10Device_CopyResource));
-			ReShade::Hooks::Register(VTABLE(deviceD3D10, 36), reinterpret_cast<ReShade::Hook::Function>(&ID3D10Device_ClearDepthStencilView));
-			ReShade::Hooks::Register(VTABLE(deviceD3D10, 77), reinterpret_cast<ReShade::Hook::Function>(&ID3D10Device_CreateDepthStencilView));
-
 			const std::shared_ptr<ReShade::Runtimes::D3D10Runtime> runtime = std::make_shared<ReShade::Runtimes::D3D10Runtime>(deviceD3D10, swapchain);
 
 			ReShade::Runtimes::D3D10Runtime *runtimePtr = runtime.get();
@@ -983,19 +609,6 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactor
 		}
 		else if (SUCCEEDED(pDevice->QueryInterface(&deviceD3D11)))
 		{
-			ID3D11DeviceContext *deviceContext = nullptr;
-			deviceD3D11->GetImmediateContext(&deviceContext);
-
-			ReShade::Hooks::Register(VTABLE(deviceD3D11, 10), reinterpret_cast<ReShade::Hook::Function>(&ID3D11Device_CreateDepthStencilView));
-			ReShade::Hooks::Register(VTABLE(deviceContext, 12), reinterpret_cast<ReShade::Hook::Function>(&ID3D11DeviceContext_DrawIndexed));
-			ReShade::Hooks::Register(VTABLE(deviceContext, 13), reinterpret_cast<ReShade::Hook::Function>(&ID3D11DeviceContext_Draw));
-			ReShade::Hooks::Register(VTABLE(deviceContext, 20), reinterpret_cast<ReShade::Hook::Function>(&ID3D11DeviceContext_DrawIndexedInstanced));
-			ReShade::Hooks::Register(VTABLE(deviceContext, 21), reinterpret_cast<ReShade::Hook::Function>(&ID3D11DeviceContext_DrawInstanced));
-			ReShade::Hooks::Register(VTABLE(deviceContext, 33), reinterpret_cast<ReShade::Hook::Function>(&ID3D11DeviceContext_OMSetRenderTargets));
-			ReShade::Hooks::Register(VTABLE(deviceContext, 34), reinterpret_cast<ReShade::Hook::Function>(&ID3D11DeviceContext_OMSetRenderTargetsAndUnorderedAccessViews));
-			ReShade::Hooks::Register(VTABLE(deviceContext, 47), reinterpret_cast<ReShade::Hook::Function>(&ID3D11DeviceContext_CopyResource));
-			ReShade::Hooks::Register(VTABLE(deviceContext, 53), reinterpret_cast<ReShade::Hook::Function>(&ID3D11DeviceContext_ClearDepthStencilView));
-
 			const std::shared_ptr<ReShade::Runtimes::D3D11Runtime> runtime = std::make_shared<ReShade::Runtimes::D3D11Runtime>(deviceD3D11, swapchain);
 
 			ReShade::Runtimes::D3D11Runtime *runtimePtr = runtime.get();
@@ -1008,7 +621,6 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactor
 
 			*ppSwapChain = new DXGISwapChain(pFactory, swapchain, runtime, desc.SampleDesc);
 
-			deviceContext->Release();
 			deviceD3D11->Release();
 		}
 		else
@@ -1062,15 +674,6 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFacto
 
 		if (SUCCEEDED(pDevice->QueryInterface(&deviceD3D10)))
 		{
-			ReShade::Hooks::Register(VTABLE(deviceD3D10, 8), reinterpret_cast<ReShade::Hook::Function>(&ID3D10Device_DrawIndexed));
-			ReShade::Hooks::Register(VTABLE(deviceD3D10, 9), reinterpret_cast<ReShade::Hook::Function>(&ID3D10Device_Draw));
-			ReShade::Hooks::Register(VTABLE(deviceD3D10, 14), reinterpret_cast<ReShade::Hook::Function>(&ID3D10Device_DrawIndexedInstanced));
-			ReShade::Hooks::Register(VTABLE(deviceD3D10, 15), reinterpret_cast<ReShade::Hook::Function>(&ID3D10Device_DrawInstanced));
-			ReShade::Hooks::Register(VTABLE(deviceD3D10, 24), reinterpret_cast<ReShade::Hook::Function>(&ID3D10Device_OMSetRenderTargets));
-			ReShade::Hooks::Register(VTABLE(deviceD3D10, 33), reinterpret_cast<ReShade::Hook::Function>(&ID3D10Device_CopyResource));
-			ReShade::Hooks::Register(VTABLE(deviceD3D10, 36), reinterpret_cast<ReShade::Hook::Function>(&ID3D10Device_ClearDepthStencilView));
-			ReShade::Hooks::Register(VTABLE(deviceD3D10, 77), reinterpret_cast<ReShade::Hook::Function>(&ID3D10Device_CreateDepthStencilView));
-
 			const std::shared_ptr<ReShade::Runtimes::D3D10Runtime> runtime = std::make_shared<ReShade::Runtimes::D3D10Runtime>(deviceD3D10, swapchain);
 
 			ReShade::Runtimes::D3D10Runtime *runtimePtr = runtime.get();
@@ -1087,19 +690,6 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFacto
 		}
 		else if (SUCCEEDED(pDevice->QueryInterface(&deviceD3D11)))
 		{
-			ID3D11DeviceContext *deviceContext = nullptr;
-			deviceD3D11->GetImmediateContext(&deviceContext);
-
-			ReShade::Hooks::Register(VTABLE(deviceD3D11, 10), reinterpret_cast<ReShade::Hook::Function>(&ID3D11Device_CreateDepthStencilView));
-			ReShade::Hooks::Register(VTABLE(deviceContext, 12), reinterpret_cast<ReShade::Hook::Function>(&ID3D11DeviceContext_DrawIndexed));
-			ReShade::Hooks::Register(VTABLE(deviceContext, 13), reinterpret_cast<ReShade::Hook::Function>(&ID3D11DeviceContext_Draw));
-			ReShade::Hooks::Register(VTABLE(deviceContext, 20), reinterpret_cast<ReShade::Hook::Function>(&ID3D11DeviceContext_DrawIndexedInstanced));
-			ReShade::Hooks::Register(VTABLE(deviceContext, 21), reinterpret_cast<ReShade::Hook::Function>(&ID3D11DeviceContext_DrawInstanced));
-			ReShade::Hooks::Register(VTABLE(deviceContext, 33), reinterpret_cast<ReShade::Hook::Function>(&ID3D11DeviceContext_OMSetRenderTargets));
-			ReShade::Hooks::Register(VTABLE(deviceContext, 34), reinterpret_cast<ReShade::Hook::Function>(&ID3D11DeviceContext_OMSetRenderTargetsAndUnorderedAccessViews));
-			ReShade::Hooks::Register(VTABLE(deviceContext, 47), reinterpret_cast<ReShade::Hook::Function>(&ID3D11DeviceContext_CopyResource));
-			ReShade::Hooks::Register(VTABLE(deviceContext, 53), reinterpret_cast<ReShade::Hook::Function>(&ID3D11DeviceContext_ClearDepthStencilView));
-
 			const std::shared_ptr<ReShade::Runtimes::D3D11Runtime> runtime = std::make_shared<ReShade::Runtimes::D3D11Runtime>(deviceD3D11, swapchain);
 
 			ReShade::Runtimes::D3D11Runtime *runtimePtr = runtime.get();
@@ -1112,7 +702,6 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFacto
 
 			*ppSwapChain = new DXGISwapChain(pFactory, swapchain, runtime, desc.SampleDesc);
 
-			deviceContext->Release();
 			deviceD3D11->Release();
 		}
 		else
