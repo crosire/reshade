@@ -45,6 +45,7 @@ namespace ReShade { namespace Runtimes
 		void OnDrawInternal(unsigned int vertices);
 		void OnPresentInternal();
 		void OnCreateDepthStencil(ID3D10Resource *resource, ID3D10DepthStencilView *depthstencil);
+		void OnDeleteDepthStencil(ID3D10DepthStencilView *depthstencil);
 
 		virtual std::unique_ptr<Effect> CompileEffect(const EffectTree &ast, std::string &errors) const override;
 		virtual void CreateScreenshot(unsigned char *buffer, std::size_t size) const override;

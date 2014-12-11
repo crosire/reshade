@@ -2939,7 +2939,22 @@ namespace ReShade { namespace Runtimes
 		const D3D11DepthStencilInfo info = { desc.Width, desc.Height, 0.0f, 0.0f };
 		this->mDepthStencilTable.emplace(depthstencil, info);
 	}
-	
+	void D3D11Runtime::OnDeleteDepthStencil(ID3D11DepthStencilView *depthstencil)
+	{
+		assert(depthstencil != nullptr);
+
+		CSLock lock(this->mCS);
+
+		const auto it = this->mDepthStencilTable.find(depthstencil);
+
+		if (it != this->mDepthStencilTable.end())
+		{
+			LOG(TRACE) << "Removing depthstencil " << depthstencil << " from list of possible depth candidates ...";
+
+			this->mDepthStencilTable.erase(it);
+		}
+	}
+
 	std::unique_ptr<Effect> D3D11Runtime::CompileEffect(const EffectTree &ast, std::string &errors) const
 	{
 		std::unique_ptr<D3D11Effect> effect(new D3D11Effect(shared_from_this()));

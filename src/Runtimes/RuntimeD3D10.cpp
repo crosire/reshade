@@ -2674,6 +2674,19 @@ namespace ReShade { namespace Runtimes
 		const D3D10DepthStencilInfo info = { desc.Width, desc.Height, 0.0f, 0.0f };
 		this->mDepthStencilTable.emplace(depthstencil, info);
 	}
+	void D3D10Runtime::OnDeleteDepthStencil(ID3D10DepthStencilView *depthstencil)
+	{
+		assert(depthstencil != nullptr);
+
+		const auto it = this->mDepthStencilTable.find(depthstencil);
+		
+		if (it != this->mDepthStencilTable.end())
+		{
+			LOG(TRACE) << "Removing depthstencil " << depthstencil << " from list of possible depth candidates ...";
+
+			this->mDepthStencilTable.erase(it);
+		}
+	}
 
 	std::unique_ptr<Effect> D3D10Runtime::CompileEffect(const EffectTree &ast, std::string &errors) const
 	{

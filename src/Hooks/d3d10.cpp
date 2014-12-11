@@ -10,6 +10,34 @@ extern const GUID sRuntimeGUID;
 
 // -----------------------------------------------------------------------------------------------------
 
+// ID3D10DepthStencilView
+ULONG STDMETHODCALLTYPE ID3D10DepthStencilView_Release(ID3D10DepthStencilView *pDepthStencilView)
+{
+	static const auto trampoline = ReShade::Hooks::Call(&ID3D10DepthStencilView_Release);
+
+	ID3D10Device *device = nullptr;
+	pDepthStencilView->GetDevice(&device);
+
+	assert(device != nullptr);
+
+	const ULONG ref = trampoline(pDepthStencilView);
+
+	if (ref == 0)
+	{
+		ReShade::Runtimes::D3D10Runtime *runtime = nullptr;
+		UINT size = sizeof(runtime);
+
+		if (SUCCEEDED(device->GetPrivateData(sRuntimeGUID, &size, reinterpret_cast<void *>(&runtime))))
+		{
+			runtime->OnDeleteDepthStencil(pDepthStencilView);
+		}
+	}
+
+	device->Release();
+
+	return ref;
+}
+
 // ID3D10Device
 void STDMETHODCALLTYPE ID3D10Device_DrawIndexed(ID3D10Device *pDevice, UINT IndexCount, UINT StartIndexLocation, INT BaseVertexLocation)
 {
@@ -124,6 +152,8 @@ HRESULT STDMETHODCALLTYPE ID3D10Device_CreateDepthStencilView(ID3D10Device *pDev
 
 	if (SUCCEEDED(hr) && SUCCEEDED(pDevice->GetPrivateData(sRuntimeGUID, &size, reinterpret_cast<void *>(&runtime))))
 	{
+		ReShade::Hooks::Register(VTABLE(*ppDepthStencilView), 2, reinterpret_cast<ReShade::Hook::Function>(&ID3D10DepthStencilView_Release));
+
 		runtime->OnCreateDepthStencil(pResource, *ppDepthStencilView);
 	}
 
