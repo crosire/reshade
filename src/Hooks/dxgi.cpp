@@ -16,10 +16,10 @@ namespace
 {
 	struct DXGISwapChain : public IDXGISwapChain1, private boost::noncopyable
 	{
-		DXGISwapChain(IDXGIFactory *factory, IDXGISwapChain *originalSwapChain, const std::shared_ptr<ReShade::Runtimes::D3D10Runtime> runtime, const DXGI_SAMPLE_DESC &samples) : mRef(1), mFactory(factory), mOrig(originalSwapChain), mOrigSamples(samples), mDirect3DVersion(10), mRuntime(runtime)
+		DXGISwapChain(IDXGIFactory *factory, IDXGISwapChain *originalSwapChain, const std::shared_ptr<ReShade::Runtimes::D3D10Runtime> runtime, const DXGI_SAMPLE_DESC &samples) : mRef(1), mFactory(factory), mOrig(originalSwapChain), mOrigSamples(samples), mDirect3DDevice(runtime->mDevice), mDirect3DVersion(10), mRuntime(runtime)
 		{
 		}
-		DXGISwapChain(IDXGIFactory *factory, IDXGISwapChain *originalSwapChain, const std::shared_ptr<ReShade::Runtimes::D3D11Runtime> runtime, const DXGI_SAMPLE_DESC &samples) : mRef(1), mFactory(factory), mOrig(originalSwapChain), mOrigSamples(samples), mDirect3DVersion(11), mRuntime(runtime)
+		DXGISwapChain(IDXGIFactory *factory, IDXGISwapChain *originalSwapChain, const std::shared_ptr<ReShade::Runtimes::D3D11Runtime> runtime, const DXGI_SAMPLE_DESC &samples) : mRef(1), mFactory(factory), mOrig(originalSwapChain), mOrigSamples(samples), mDirect3DDevice(runtime->mDevice), mDirect3DVersion(11), mRuntime(runtime)
 		{
 		}
 
@@ -61,6 +61,7 @@ namespace
 		IDXGIFactory *const mFactory;
 		IDXGISwapChain *const mOrig;
 		const DXGI_SAMPLE_DESC mOrigSamples;
+		IUnknown *const mDirect3DDevice;
 		const unsigned int mDirect3DVersion;
 		std::shared_ptr<ReShade::Runtime> mRuntime;
 	};
@@ -139,9 +140,11 @@ ULONG STDMETHODCALLTYPE DXGISwapChain::Release()
 		{
 			case 10:
 				std::static_pointer_cast<ReShade::Runtimes::D3D10Runtime>(this->mRuntime)->OnDeleteInternal();
+				static_cast<ID3D10Device *>(this->mDirect3DDevice)->SetPrivateData(sRuntimeGUID, 0, nullptr);
 				break;
 			case 11:
 				std::static_pointer_cast<ReShade::Runtimes::D3D11Runtime>(this->mRuntime)->OnDeleteInternal();
+				static_cast<ID3D11Device *>(this->mDirect3DDevice)->SetPrivateData(sRuntimeGUID, 0, nullptr);
 				break;
 		}
 
