@@ -369,7 +369,7 @@ ULONG STDMETHODCALLTYPE Direct3DDevice9::Release()
 	}
 
 	const ULONG ref = this->mOrig->Release();
-			
+
 	if (ref == 0)
 	{
 		delete this;

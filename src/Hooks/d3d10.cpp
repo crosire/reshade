@@ -17,11 +17,11 @@ void STDMETHODCALLTYPE ID3D10Device_DrawIndexed(ID3D10Device *pDevice, UINT Inde
 
 	ReShade::Runtimes::D3D10Runtime *runtime = nullptr;
 	UINT size = sizeof(runtime);
-	pDevice->GetPrivateData(sRuntimeGUID, &size, reinterpret_cast<void *>(&runtime));
 
-	assert(runtime != nullptr);
-
-	runtime->OnDrawInternal(IndexCount);
+	if (SUCCEEDED(pDevice->GetPrivateData(sRuntimeGUID, &size, reinterpret_cast<void *>(&runtime))))
+	{
+		runtime->OnDrawInternal(IndexCount);
+	}
 
 	trampoline(pDevice, IndexCount, StartIndexLocation, BaseVertexLocation);
 }
@@ -31,11 +31,11 @@ void STDMETHODCALLTYPE ID3D10Device_Draw(ID3D10Device *pDevice, UINT VertexCount
 
 	ReShade::Runtimes::D3D10Runtime *runtime = nullptr;
 	UINT size = sizeof(runtime);
-	pDevice->GetPrivateData(sRuntimeGUID, &size, reinterpret_cast<void *>(&runtime));
 
-	assert(runtime != nullptr);
-
-	runtime->OnDrawInternal(VertexCount);
+	if (SUCCEEDED(pDevice->GetPrivateData(sRuntimeGUID, &size, reinterpret_cast<void *>(&runtime))))
+	{
+		runtime->OnDrawInternal(VertexCount);
+	}
 
 	trampoline(pDevice, VertexCount, StartVertexLocation);
 }
@@ -45,11 +45,11 @@ void STDMETHODCALLTYPE ID3D10Device_DrawIndexedInstanced(ID3D10Device *pDevice, 
 
 	ReShade::Runtimes::D3D10Runtime *runtime = nullptr;
 	UINT size = sizeof(runtime);
-	pDevice->GetPrivateData(sRuntimeGUID, &size, reinterpret_cast<void *>(&runtime));
 
-	assert(runtime != nullptr);
-
-	runtime->OnDrawInternal(IndexCountPerInstance * InstanceCount);
+	if (SUCCEEDED(pDevice->GetPrivateData(sRuntimeGUID, &size, reinterpret_cast<void *>(&runtime))))
+	{
+		runtime->OnDrawInternal(IndexCountPerInstance * InstanceCount);
+	}
 
 	trampoline(pDevice, IndexCountPerInstance, InstanceCount, StartIndexLocation, BaseVertexLocation, StartInstanceLocation);
 }
@@ -59,11 +59,11 @@ void STDMETHODCALLTYPE ID3D10Device_DrawInstanced(ID3D10Device *pDevice, UINT Ve
 
 	ReShade::Runtimes::D3D10Runtime *runtime = nullptr;
 	UINT size = sizeof(runtime);
-	pDevice->GetPrivateData(sRuntimeGUID, &size, reinterpret_cast<void *>(&runtime));
 
-	assert(runtime != nullptr);
-
-	runtime->OnDrawInternal(VertexCountPerInstance * InstanceCount);
+	if (SUCCEEDED(pDevice->GetPrivateData(sRuntimeGUID, &size, reinterpret_cast<void *>(&runtime))))
+	{
+		runtime->OnDrawInternal(VertexCountPerInstance * InstanceCount);
+	}
 
 	trampoline(pDevice, VertexCountPerInstance, InstanceCount, StartVertexLocation, StartInstanceLocation);
 }
@@ -75,11 +75,11 @@ void STDMETHODCALLTYPE ID3D10Device_OMSetRenderTargets(ID3D10Device *pDevice, UI
 	{
 		ReShade::Runtimes::D3D10Runtime *runtime = nullptr;
 		UINT size = sizeof(runtime);
-		pDevice->GetPrivateData(sRuntimeGUID, &size, reinterpret_cast<void *>(&runtime));
 
-		assert(runtime != nullptr);
-
-		runtime->ReplaceDepthStencil(pDepthStencilView);
+		if (SUCCEEDED(pDevice->GetPrivateData(sRuntimeGUID, &size, reinterpret_cast<void *>(&runtime))))
+		{
+			runtime->ReplaceDepthStencil(pDepthStencilView);
+		}
 	}
 
 	trampoline(pDevice, NumViews, ppRenderTargetViews, pDepthStencilView);
@@ -90,12 +90,12 @@ void STDMETHODCALLTYPE ID3D10Device_CopyResource(ID3D10Device *pDevice, ID3D10Re
 
 	ReShade::Runtimes::D3D10Runtime *runtime = nullptr;
 	UINT size = sizeof(runtime);
-	pDevice->GetPrivateData(sRuntimeGUID, &size, reinterpret_cast<void *>(&runtime));
 
-	assert(runtime != nullptr);
-
-	runtime->ReplaceDepthStencilResource(pDstResource);
-	runtime->ReplaceDepthStencilResource(pSrcResource);
+	if (SUCCEEDED(pDevice->GetPrivateData(sRuntimeGUID, &size, reinterpret_cast<void *>(&runtime))))
+	{
+		runtime->ReplaceDepthStencilResource(pDstResource);
+		runtime->ReplaceDepthStencilResource(pSrcResource);
+	}
 
 	trampoline(pDevice, pDstResource, pSrcResource);
 }
@@ -103,14 +103,11 @@ void STDMETHODCALLTYPE ID3D10Device_ClearDepthStencilView(ID3D10Device *pDevice,
 {
 	static const auto trampoline = ReShade::Hooks::Call(&ID3D10Device_ClearDepthStencilView);
 
-	if (pDepthStencilView != nullptr)
+	ReShade::Runtimes::D3D10Runtime *runtime = nullptr;
+	UINT size = sizeof(runtime);
+
+	if (SUCCEEDED(pDevice->GetPrivateData(sRuntimeGUID, &size, reinterpret_cast<void *>(&runtime))))
 	{
-		ReShade::Runtimes::D3D10Runtime *runtime = nullptr;
-		UINT size = sizeof(runtime);
-		pDevice->GetPrivateData(sRuntimeGUID, &size, reinterpret_cast<void *>(&runtime));
-
-		assert(runtime != nullptr);
-
 		runtime->ReplaceDepthStencil(pDepthStencilView);
 	}
 
@@ -122,14 +119,11 @@ HRESULT STDMETHODCALLTYPE ID3D10Device_CreateDepthStencilView(ID3D10Device *pDev
 
 	const HRESULT hr = trampoline(pDevice, pResource, pDesc, ppDepthStencilView);
 
-	if (SUCCEEDED(hr))
+	ReShade::Runtimes::D3D10Runtime *runtime = nullptr;
+	UINT size = sizeof(runtime);
+
+	if (SUCCEEDED(hr) && SUCCEEDED(pDevice->GetPrivateData(sRuntimeGUID, &size, reinterpret_cast<void *>(&runtime))))
 	{
-		ReShade::Runtimes::D3D10Runtime *runtime = nullptr;
-		UINT size = sizeof(runtime);
-		pDevice->GetPrivateData(sRuntimeGUID, &size, reinterpret_cast<void *>(&runtime));
-
-		assert(runtime != nullptr);
-
 		runtime->OnCreateDepthStencil(pResource, *ppDepthStencilView);
 	}
 
