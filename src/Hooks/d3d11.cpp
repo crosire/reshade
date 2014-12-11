@@ -232,15 +232,15 @@ EXPORT HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, D3D_
 
 	if (SUCCEEDED(hr) && (ppDevice != nullptr && *ppDevice != nullptr && pImmediateContext != nullptr))
 	{
-		ReShade::Hooks::Register(VTABLE(*ppDevice, 10), reinterpret_cast<ReShade::Hook::Function>(&ID3D11Device_CreateDepthStencilView));
-		ReShade::Hooks::Register(VTABLE(pImmediateContext, 12), reinterpret_cast<ReShade::Hook::Function>(&ID3D11DeviceContext_DrawIndexed));
-		ReShade::Hooks::Register(VTABLE(pImmediateContext, 13), reinterpret_cast<ReShade::Hook::Function>(&ID3D11DeviceContext_Draw));
-		ReShade::Hooks::Register(VTABLE(pImmediateContext, 20), reinterpret_cast<ReShade::Hook::Function>(&ID3D11DeviceContext_DrawIndexedInstanced));
-		ReShade::Hooks::Register(VTABLE(pImmediateContext, 21), reinterpret_cast<ReShade::Hook::Function>(&ID3D11DeviceContext_DrawInstanced));
-		ReShade::Hooks::Register(VTABLE(pImmediateContext, 33), reinterpret_cast<ReShade::Hook::Function>(&ID3D11DeviceContext_OMSetRenderTargets));
-		ReShade::Hooks::Register(VTABLE(pImmediateContext, 34), reinterpret_cast<ReShade::Hook::Function>(&ID3D11DeviceContext_OMSetRenderTargetsAndUnorderedAccessViews));
-		ReShade::Hooks::Register(VTABLE(pImmediateContext, 47), reinterpret_cast<ReShade::Hook::Function>(&ID3D11DeviceContext_CopyResource));
-		ReShade::Hooks::Register(VTABLE(pImmediateContext, 53), reinterpret_cast<ReShade::Hook::Function>(&ID3D11DeviceContext_ClearDepthStencilView));
+		ReShade::Hooks::Register(VTABLE(*ppDevice)[10], reinterpret_cast<ReShade::Hook::Function>(&ID3D11Device_CreateDepthStencilView));
+		ReShade::Hooks::Register(VTABLE(pImmediateContext)[12], reinterpret_cast<ReShade::Hook::Function>(&ID3D11DeviceContext_DrawIndexed));
+		ReShade::Hooks::Register(VTABLE(pImmediateContext)[13], reinterpret_cast<ReShade::Hook::Function>(&ID3D11DeviceContext_Draw));
+		ReShade::Hooks::Register(VTABLE(pImmediateContext)[20], reinterpret_cast<ReShade::Hook::Function>(&ID3D11DeviceContext_DrawIndexedInstanced));
+		ReShade::Hooks::Register(VTABLE(pImmediateContext)[21], reinterpret_cast<ReShade::Hook::Function>(&ID3D11DeviceContext_DrawInstanced));
+		ReShade::Hooks::Register(VTABLE(pImmediateContext)[33], reinterpret_cast<ReShade::Hook::Function>(&ID3D11DeviceContext_OMSetRenderTargets));
+		ReShade::Hooks::Register(VTABLE(pImmediateContext)[34], reinterpret_cast<ReShade::Hook::Function>(&ID3D11DeviceContext_OMSetRenderTargetsAndUnorderedAccessViews));
+		ReShade::Hooks::Register(VTABLE(pImmediateContext)[47], reinterpret_cast<ReShade::Hook::Function>(&ID3D11DeviceContext_CopyResource));
+		ReShade::Hooks::Register(VTABLE(pImmediateContext)[53], reinterpret_cast<ReShade::Hook::Function>(&ID3D11DeviceContext_ClearDepthStencilView));
 	}
 
 	return hr;

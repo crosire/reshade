@@ -5,12 +5,13 @@
 #include <boost\filesystem\path.hpp>
 
 #define EXPORT extern "C"
-#define VTABLE(pointer, offset) ((*reinterpret_cast<ReShade::Hook::Function **>(pointer))[offset])
+#define VTABLE(object) (*reinterpret_cast<ReShade::Hook::Function **>(object))
 
 namespace ReShade { namespace Hooks
 {
 	void Register(const boost::filesystem::path &module);
 	bool Register(Hook::Function target, const Hook::Function replacement);
+	bool Register(ReShade::Hook::Function vtable[], unsigned int offset, const Hook::Function replacement);
 
 	Hook Find(const Hook::Function replacement);
 	template <typename F>

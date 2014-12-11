@@ -220,7 +220,7 @@ namespace ReShade { namespace Hooks
 		};
 
 		CriticalSection sCS;
-		std::vector<Hook> sHooks;
+		std::vector<std::pair<Hook, bool>> sHooks;
 		std::vector<boost::filesystem::path> sHooksDelayed;
 		std::vector<Module::Handle> sModules;
 
@@ -437,7 +437,7 @@ namespace ReShade { namespace Hooks
 
 			CriticalSection::Lock lock(sCS);
 
-			sHooks.push_back(std::move(hook));
+			sHooks.emplace_back(std::move(hook), detour);
 
 			return true;
 		}
@@ -455,15 +455,17 @@ namespace ReShade { namespace Hooks
 		LOG(INFO) << "Uninstalling " << sHooks.size() << " hook(s) ...";
 
 		// Uninstall hooks
-		for (Hook &hook : sHooks)
+		for (auto &it : sHooks)
 		{
+			Hook &hook = it.first;
+
 			LOG(TRACE) << "Uninstalling hook for '0x" << hook.Target << "' ...";
 
 			if (!hook.IsInstalled())
 			{
 				LOG(TRACE) << "> Already uninstalled.";
 			}
-			else if (hook.Uninstall())
+			else if (!it.second || hook.Uninstall())
 			{
 				LOG(TRACE) << "> Succeeded.";
 			}
@@ -520,17 +522,37 @@ namespace ReShade { namespace Hooks
 
 		return Install(target, replacement);
 	}
+	bool Register(ReShade::Hook::Function vtable[], unsigned int offset, const Hook::Function replacement)
+	{
+		DWORD protection = 0;
+		
+		if (::VirtualProtect(static_cast<LPVOID>(vtable + offset), sizeof(ReShade::Hook::Function), PAGE_READWRITE, &protection) != FALSE)
+		{
+			if (vtable[offset] != replacement)
+			{
+				Install(vtable[offset], replacement, false);
+
+				vtable[offset] = replacement;
+			}
+
+			::VirtualProtect(static_cast<LPVOID>(vtable + offset), sizeof(ReShade::Hook::Function), protection, &protection);
+
+			return true;
+		}
+
+		return false;
+	}
 
 	Hook Find(const Hook::Function replacement)
 	{
 		CriticalSection::Lock lock(sCS);
 
 		// Lookup hook
-		const auto begin = sHooks.begin(), end = sHooks.end(), it = std::find_if(begin, end, [&replacement](const Hook &it) { return it.Replacement == replacement; });
+		const auto begin = sHooks.begin(), end = sHooks.end(), it = std::find_if(begin, end, [&replacement](const std::pair<Hook, bool> &it) { return it.first.Replacement == replacement; });
 
 		if (it != end)
 		{
-			return *it;
+			return it->first;
 		}
 
 		return Hook();
