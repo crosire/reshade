@@ -2968,6 +2968,15 @@ namespace ReShade { namespace Runtimes
 			depthstencil = this->mDepthStencilReplacement;
 		}
 	}
+	void D3D11Runtime::OnGetDepthStencilView(ID3D11DepthStencilView *&depthstencil)
+	{
+		CSLock lock(this->mCS);
+
+		if (this->mDepthStencilReplacement != nullptr && depthstencil == this->mDepthStencilReplacement)
+		{
+			depthstencil = this->mDepthStencil;
+		}
+	}
 	void D3D11Runtime::OnClearDepthStencilView(ID3D11DepthStencilView *&depthstencil)
 	{
 		CSLock lock(this->mCS);

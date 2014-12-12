@@ -32,6 +32,7 @@ namespace ReShade { namespace Runtimes
 		void OnCreateDepthStencilView(ID3D11Resource *resource, ID3D11DepthStencilView *depthstencil);
 		void OnDeleteDepthStencilView(ID3D11DepthStencilView *depthstencil);
 		void OnSetDepthStencilView(ID3D11DepthStencilView *&depthstencil);
+		void OnGetDepthStencilView(ID3D11DepthStencilView *&depthstencil);
 		void OnClearDepthStencilView(ID3D11DepthStencilView *&depthstencil);
 		void OnCopyResource(ID3D11Resource *&dest, ID3D11Resource *&source);
 

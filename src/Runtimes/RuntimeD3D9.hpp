@@ -30,6 +30,7 @@ namespace ReShade { namespace Runtimes
 		void OnDrawInternal(D3DPRIMITIVETYPE type, UINT count);
 		void OnPresentInternal();
 		void OnSetDepthStencilSurface(IDirect3DSurface9 *&depthstencil);
+		void OnGetDepthStencilSurface(IDirect3DSurface9 *&depthstencil);
 
 		virtual std::unique_ptr<Effect> CompileEffect(const EffectTree &ast, std::string &errors) const override;
 		virtual void CreateScreenshot(unsigned char *buffer, std::size_t size) const override;

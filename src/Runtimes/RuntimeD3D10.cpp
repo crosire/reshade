@@ -2699,6 +2699,13 @@ namespace ReShade { namespace Runtimes
 			depthstencil = this->mDepthStencilReplacement;
 		}
 	}
+	void D3D10Runtime::OnGetDepthStencilView(ID3D10DepthStencilView *&depthstencil)
+	{
+		if (this->mDepthStencilReplacement != nullptr && depthstencil == this->mDepthStencilReplacement)
+		{
+			depthstencil = this->mDepthStencil;
+		}
+	}
 	void D3D10Runtime::OnClearDepthStencilView(ID3D10DepthStencilView *&depthstencil)
 	{
 		if (this->mDepthStencilReplacement != nullptr && depthstencil == this->mDepthStencil)

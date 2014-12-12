@@ -140,6 +140,23 @@ void STDMETHODCALLTYPE ID3D10Device_ClearDepthStencilView(ID3D10Device *pDevice,
 
 	trampoline(pDevice, pDepthStencilView, ClearFlags, Depth, Stencil);
 }
+void STDMETHODCALLTYPE ID3D10Device_OMGetRenderTargets(ID3D10Device *pDevice, UINT NumViews, ID3D10RenderTargetView **ppRenderTargetViews, ID3D10DepthStencilView **ppDepthStencilView)
+{
+	static const auto trampoline = ReShade::Hooks::Call(&ID3D10Device_OMGetRenderTargets);
+
+	trampoline(pDevice, NumViews, ppRenderTargetViews, ppDepthStencilView);
+
+	if (ppDepthStencilView != nullptr)
+	{
+		ReShade::Runtimes::D3D10Runtime *runtime = nullptr;
+		UINT size = sizeof(runtime);
+
+		if (SUCCEEDED(pDevice->GetPrivateData(sRuntimeGUID, &size, reinterpret_cast<void *>(&runtime))))
+		{
+			runtime->OnGetDepthStencilView(*ppDepthStencilView);
+		}
+	}
+}
 HRESULT STDMETHODCALLTYPE ID3D10Device_CreateDepthStencilView(ID3D10Device *pDevice, ID3D10Resource *pResource, const D3D10_DEPTH_STENCIL_VIEW_DESC *pDesc, ID3D10DepthStencilView **ppDepthStencilView)
 {
 	static const auto trampoline = ReShade::Hooks::Call(&ID3D10Device_CreateDepthStencilView);
@@ -193,6 +210,7 @@ EXPORT HRESULT WINAPI D3D10CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, D3D1
 		ReShade::Hooks::Register(VTABLE(*ppDevice)[24], reinterpret_cast<ReShade::Hook::Function>(&ID3D10Device_OMSetRenderTargets));
 		ReShade::Hooks::Register(VTABLE(*ppDevice)[33], reinterpret_cast<ReShade::Hook::Function>(&ID3D10Device_CopyResource));
 		ReShade::Hooks::Register(VTABLE(*ppDevice)[36], reinterpret_cast<ReShade::Hook::Function>(&ID3D10Device_ClearDepthStencilView));
+		ReShade::Hooks::Register(VTABLE(*ppDevice)[56], reinterpret_cast<ReShade::Hook::Function>(&ID3D10Device_OMGetRenderTargets));
 		ReShade::Hooks::Register(VTABLE(*ppDevice)[77], reinterpret_cast<ReShade::Hook::Function>(&ID3D10Device_CreateDepthStencilView));
 	}
 
@@ -217,6 +235,7 @@ EXPORT HRESULT WINAPI D3D10CreateDeviceAndSwapChain1(IDXGIAdapter *pAdapter, D3D
 		ReShade::Hooks::Register(VTABLE(*ppDevice)[24], reinterpret_cast<ReShade::Hook::Function>(&ID3D10Device_OMSetRenderTargets));
 		ReShade::Hooks::Register(VTABLE(*ppDevice)[33], reinterpret_cast<ReShade::Hook::Function>(&ID3D10Device_CopyResource));
 		ReShade::Hooks::Register(VTABLE(*ppDevice)[36], reinterpret_cast<ReShade::Hook::Function>(&ID3D10Device_ClearDepthStencilView));
+		ReShade::Hooks::Register(VTABLE(*ppDevice)[56], reinterpret_cast<ReShade::Hook::Function>(&ID3D10Device_OMGetRenderTargets));
 		ReShade::Hooks::Register(VTABLE(*ppDevice)[77], reinterpret_cast<ReShade::Hook::Function>(&ID3D10Device_CreateDepthStencilView));
 	}
 

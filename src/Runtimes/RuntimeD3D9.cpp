@@ -2675,6 +2675,15 @@ namespace ReShade { namespace Runtimes
 			depthstencil = this->mDepthStencilReplacement;
 		}
 	}
+	void D3D9Runtime::OnGetDepthStencilSurface(IDirect3DSurface9 *&depthstencil)
+	{
+		if (this->mDepthStencilReplacement != nullptr && depthstencil == this->mDepthStencilReplacement)
+		{
+			depthstencil->Release();
+
+			depthstencil = this->mDepthStencil;
+		}
+	}
 
 	std::unique_ptr<Effect> D3D9Runtime::CompileEffect(const EffectTree &ast, std::string &errors) const
 	{

@@ -213,6 +213,54 @@ void STDMETHODCALLTYPE ID3D11DeviceContext_ClearDepthStencilView(ID3D11DeviceCon
 
 	trampoline(pDeviceContext, pDepthStencilView, ClearFlags, Depth, Stencil);
 }
+void STDMETHODCALLTYPE ID3D11DeviceContext_OMGetRenderTargets(ID3D11DeviceContext *pDeviceContext, UINT NumViews, ID3D11RenderTargetView **ppRenderTargetViews, ID3D11DepthStencilView **ppDepthStencilView)
+{
+	static const auto trampoline = ReShade::Hooks::Call(&ID3D11DeviceContext_OMGetRenderTargets);
+
+	trampoline(pDeviceContext, NumViews, ppRenderTargetViews, ppDepthStencilView);
+
+	if (ppDepthStencilView != nullptr)
+	{
+		ID3D11Device *device = nullptr;
+		pDeviceContext->GetDevice(&device);
+
+		assert(device != nullptr);
+
+		ReShade::Runtimes::D3D11Runtime *runtime = nullptr;
+		UINT size = sizeof(runtime);
+
+		if (SUCCEEDED(device->GetPrivateData(sRuntimeGUID, &size, reinterpret_cast<void *>(&runtime))))
+		{
+			runtime->OnGetDepthStencilView(*ppDepthStencilView);
+		}
+
+		device->Release();
+	}
+}
+void STDMETHODCALLTYPE ID3D11DeviceContext_OMGetRenderTargetsAndUnorderedAccessViews(ID3D11DeviceContext *pDeviceContext, UINT NumRTVs, ID3D11RenderTargetView **ppRenderTargetViews, ID3D11DepthStencilView **ppDepthStencilView, UINT UAVStartSlot, UINT NumUAVs, ID3D11UnorderedAccessView **ppUnorderedAccessViews)
+{
+	static const auto trampoline = ReShade::Hooks::Call(&ID3D11DeviceContext_OMGetRenderTargetsAndUnorderedAccessViews);
+
+	if (ppDepthStencilView != nullptr)
+	{
+		ID3D11Device *device = nullptr;
+		pDeviceContext->GetDevice(&device);
+
+		assert(device != nullptr);
+
+		ReShade::Runtimes::D3D11Runtime *runtime = nullptr;
+		UINT size = sizeof(runtime);
+
+		if (SUCCEEDED(device->GetPrivateData(sRuntimeGUID, &size, reinterpret_cast<void *>(&runtime))))
+		{
+			runtime->OnGetDepthStencilView(*ppDepthStencilView);
+		}
+
+		device->Release();
+	}
+
+	trampoline(pDeviceContext, NumRTVs, ppRenderTargetViews, ppDepthStencilView, UAVStartSlot, NumUAVs, ppUnorderedAccessViews);
+}
 
 // ID3D11Device
 HRESULT STDMETHODCALLTYPE ID3D11Device_CreateDepthStencilView(ID3D11Device *pDevice, ID3D11Resource *pResource, const D3D11_DEPTH_STENCIL_VIEW_DESC *pDesc, ID3D11DepthStencilView **ppDepthStencilView)
@@ -270,6 +318,8 @@ EXPORT HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, D3D_
 		ReShade::Hooks::Register(VTABLE(pImmediateContext)[34], reinterpret_cast<ReShade::Hook::Function>(&ID3D11DeviceContext_OMSetRenderTargetsAndUnorderedAccessViews));
 		ReShade::Hooks::Register(VTABLE(pImmediateContext)[47], reinterpret_cast<ReShade::Hook::Function>(&ID3D11DeviceContext_CopyResource));
 		ReShade::Hooks::Register(VTABLE(pImmediateContext)[53], reinterpret_cast<ReShade::Hook::Function>(&ID3D11DeviceContext_ClearDepthStencilView));
+		ReShade::Hooks::Register(VTABLE(pImmediateContext)[89], reinterpret_cast<ReShade::Hook::Function>(&ID3D11DeviceContext_OMGetRenderTargets));
+		ReShade::Hooks::Register(VTABLE(pImmediateContext)[90], reinterpret_cast<ReShade::Hook::Function>(&ID3D11DeviceContext_OMGetRenderTargetsAndUnorderedAccessViews));
 	}
 
 	return hr;

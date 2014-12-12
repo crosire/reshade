@@ -643,7 +643,17 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetDepthStencilSurface(IDirect3DSurfa
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetDepthStencilSurface(IDirect3DSurface9 **ppZStencilSurface)
 {
-	return this->mOrig->GetDepthStencilSurface(ppZStencilSurface);
+	const HRESULT hr = this->mOrig->GetDepthStencilSurface(ppZStencilSurface);
+
+	if (SUCCEEDED(hr))
+	{
+		assert(this->mImplicitSwapChain != nullptr);
+		assert(this->mImplicitSwapChain->mRuntime != nullptr);
+
+		this->mImplicitSwapChain->mRuntime->OnGetDepthStencilSurface(*ppZStencilSurface);
+	}
+
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::BeginScene()
 {
