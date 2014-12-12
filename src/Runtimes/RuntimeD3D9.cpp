@@ -2650,6 +2650,31 @@ namespace ReShade { namespace Runtimes
 		// End post processing
 		this->mDevice->EndScene();
 	}
+	void D3D9Runtime::OnSetDepthStencilSurface(IDirect3DSurface9 *&depthstencil)
+	{
+		if (this->mDepthStencilTable.find(depthstencil) == this->mDepthStencilTable.end())
+		{
+			D3DSURFACE_DESC desc;
+			depthstencil->GetDesc(&desc);
+
+			// Early depthstencil rejection
+			if (desc.Width != this->mPresentParams.BackBufferWidth || desc.Height != this->mPresentParams.BackBufferHeight)
+			{
+				return;
+			}
+	
+			LOG(TRACE) << "Adding depthstencil " << depthstencil << " (Width: " << desc.Width << ", Height: " << desc.Height << ", Format: " << desc.Format << ") to list of possible depth candidates ...";
+
+			// Begin tracking new depthstencil
+			const DepthStencilInfo info = { desc.Width, desc.Height };
+			this->mDepthStencilTable.emplace(depthstencil, info);
+		}
+
+		if (this->mDepthStencilReplacement != nullptr && depthstencil == this->mDepthStencil)
+		{
+			depthstencil = this->mDepthStencilReplacement;
+		}
+	}
 
 	std::unique_ptr<Effect> D3D9Runtime::CompileEffect(const EffectTree &ast, std::string &errors) const
 	{
@@ -2800,7 +2825,7 @@ namespace ReShade { namespace Runtimes
 		}
 
 		IDirect3DSurface9 *best = nullptr;
-		D3D9DepthStencilInfo bestInfo = { 0 };
+		DepthStencilInfo bestInfo = { 0 };
 
 		for (auto &it : this->mDepthStencilTable)
 		{
@@ -2890,31 +2915,6 @@ namespace ReShade { namespace Runtimes
 		}
 
 		return true;
-	}
-	void D3D9Runtime::ReplaceDepthStencil(IDirect3DSurface9 *&depthstencil)
-	{
-		if (this->mDepthStencilTable.find(depthstencil) == this->mDepthStencilTable.end())
-		{
-			D3DSURFACE_DESC desc;
-			depthstencil->GetDesc(&desc);
-
-			// Early depthstencil rejection
-			if (desc.Width != this->mPresentParams.BackBufferWidth || desc.Height != this->mPresentParams.BackBufferHeight)
-			{
-				return;
-			}
-	
-			LOG(TRACE) << "Adding depthstencil " << depthstencil << " (Width: " << desc.Width << ", Height: " << desc.Height << ", Format: " << desc.Format << ") to list of possible depth candidates ...";
-
-			// Begin tracking new depthstencil
-			const D3D9DepthStencilInfo info = { desc.Width, desc.Height, 0.0f, 0.0f };
-			this->mDepthStencilTable.emplace(depthstencil, info);
-		}
-
-		if (this->mDepthStencilReplacement != nullptr && depthstencil == this->mDepthStencil)
-		{
-			depthstencil = this->mDepthStencilReplacement;
-		}
 	}
 
 	D3D9Effect::D3D9Effect(std::shared_ptr<const D3D9Runtime> context) : mEffectContext(context), mVertexBuffer(nullptr), mVertexDeclaration(nullptr), mConstantRegisterCount(0), mConstantStorage(nullptr)

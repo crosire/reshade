@@ -210,10 +210,10 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::GetBuffer(UINT Buffer, REFIID riid, voi
 		switch (this->mDirect3DVersion)
 		{
 			case 10:
-				std::static_pointer_cast<ReShade::Runtimes::D3D10Runtime>(this->mRuntime)->ReplaceBackBuffer(reinterpret_cast<ID3D10Texture2D *&>(texture));
+				std::static_pointer_cast<ReShade::Runtimes::D3D10Runtime>(this->mRuntime)->OnGetBackBuffer(reinterpret_cast<ID3D10Texture2D *&>(texture));
 				break;
 			case 11:
-				std::static_pointer_cast<ReShade::Runtimes::D3D11Runtime>(this->mRuntime)->ReplaceBackBuffer(reinterpret_cast<ID3D11Texture2D *&>(texture));
+				std::static_pointer_cast<ReShade::Runtimes::D3D11Runtime>(this->mRuntime)->OnGetBackBuffer(reinterpret_cast<ID3D11Texture2D *&>(texture));
 				break;
 		}
 

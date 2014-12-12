@@ -29,7 +29,7 @@ ULONG STDMETHODCALLTYPE ID3D10DepthStencilView_Release(ID3D10DepthStencilView *p
 
 		if (SUCCEEDED(device->GetPrivateData(sRuntimeGUID, &size, reinterpret_cast<void *>(&runtime))))
 		{
-			runtime->OnDeleteDepthStencil(pDepthStencilView);
+			runtime->OnDeleteDepthStencilView(pDepthStencilView);
 		}
 	}
 
@@ -106,7 +106,7 @@ void STDMETHODCALLTYPE ID3D10Device_OMSetRenderTargets(ID3D10Device *pDevice, UI
 
 		if (SUCCEEDED(pDevice->GetPrivateData(sRuntimeGUID, &size, reinterpret_cast<void *>(&runtime))))
 		{
-			runtime->ReplaceDepthStencil(pDepthStencilView);
+			runtime->OnSetDepthStencilView(pDepthStencilView);
 		}
 	}
 
@@ -121,8 +121,7 @@ void STDMETHODCALLTYPE ID3D10Device_CopyResource(ID3D10Device *pDevice, ID3D10Re
 
 	if (SUCCEEDED(pDevice->GetPrivateData(sRuntimeGUID, &size, reinterpret_cast<void *>(&runtime))))
 	{
-		runtime->ReplaceDepthStencilResource(pDstResource);
-		runtime->ReplaceDepthStencilResource(pSrcResource);
+		runtime->OnCopyResource(pDstResource, pSrcResource);
 	}
 
 	trampoline(pDevice, pDstResource, pSrcResource);
@@ -136,7 +135,7 @@ void STDMETHODCALLTYPE ID3D10Device_ClearDepthStencilView(ID3D10Device *pDevice,
 
 	if (SUCCEEDED(pDevice->GetPrivateData(sRuntimeGUID, &size, reinterpret_cast<void *>(&runtime))))
 	{
-		runtime->ReplaceDepthStencil(pDepthStencilView);
+		runtime->OnClearDepthStencilView(pDepthStencilView);
 	}
 
 	trampoline(pDevice, pDepthStencilView, ClearFlags, Depth, Stencil);
@@ -154,7 +153,7 @@ HRESULT STDMETHODCALLTYPE ID3D10Device_CreateDepthStencilView(ID3D10Device *pDev
 	{
 		ReShade::Hooks::Register(VTABLE(*ppDepthStencilView), 2, reinterpret_cast<ReShade::Hook::Function>(&ID3D10DepthStencilView_Release));
 
-		runtime->OnCreateDepthStencil(pResource, *ppDepthStencilView);
+		runtime->OnCreateDepthStencilView(pResource, *ppDepthStencilView);
 	}
 
 	return hr;

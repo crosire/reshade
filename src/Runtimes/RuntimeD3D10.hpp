@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Runtime.hpp"
-#include "Effect.hpp"
 
 #include <d3d10_1.h>
 #include <vector>
@@ -9,33 +8,18 @@
 
 namespace ReShade { namespace Runtimes
 {
-	struct D3D10_SAMPLER_DESC_HASHER
-	{
-		inline std::size_t operator()(const D3D10_SAMPLER_DESC &s) const 
-		{
-			const unsigned char *p = reinterpret_cast<const unsigned char *>(&s);
-			std::size_t h = 2166136261;
-
-			for (std::size_t i = 0; i < sizeof(D3D10_SAMPLER_DESC); ++i)
-			{
-				h = (h * 16777619) ^ p[i];
-			}
-
-			return h;
-		}
-	};
-
-	struct D3D10DepthStencilInfo
-	{
-		UINT Width, Height;
-		FLOAT DrawCallCount, DrawVerticesCount;
-	};
 	struct D3D10Runtime : public Runtime, public std::enable_shared_from_this<D3D10Runtime>
 	{
 		friend struct D3D10Effect;
 		friend struct D3D10Texture;
 		friend struct D3D10Constant;
 		friend struct D3D10Technique;
+
+		struct DepthStencilInfo
+		{
+			UINT Width, Height;
+			FLOAT DrawCallCount, DrawVerticesCount;
+		};
 
 		D3D10Runtime(ID3D10Device *device, IDXGISwapChain *swapchain);
 		~D3D10Runtime();
@@ -44,8 +28,12 @@ namespace ReShade { namespace Runtimes
 		void OnDeleteInternal();
 		void OnDrawInternal(unsigned int vertices);
 		void OnPresentInternal();
-		void OnCreateDepthStencil(ID3D10Resource *resource, ID3D10DepthStencilView *depthstencil);
-		void OnDeleteDepthStencil(ID3D10DepthStencilView *depthstencil);
+		void OnGetBackBuffer(ID3D10Texture2D *&buffer);
+		void OnCreateDepthStencilView(ID3D10Resource *resource, ID3D10DepthStencilView *depthstencil);
+		void OnDeleteDepthStencilView(ID3D10DepthStencilView *depthstencil);
+		void OnSetDepthStencilView(ID3D10DepthStencilView *&depthstencil);
+		void OnClearDepthStencilView(ID3D10DepthStencilView *&depthstencil);
+		void OnCopyResource(ID3D10Resource *&dest, ID3D10Resource *&source);
 
 		virtual std::unique_ptr<Effect> CompileEffect(const EffectTree &ast, std::string &errors) const override;
 		virtual void CreateScreenshot(unsigned char *buffer, std::size_t size) const override;
@@ -53,9 +41,6 @@ namespace ReShade { namespace Runtimes
 		void DetectBestDepthStencil();
 		bool CreateBackBuffer(ID3D10Texture2D *backbuffer, const DXGI_SAMPLE_DESC &samples);
 		bool CreateDepthStencil(ID3D10DepthStencilView *depthstencil);
-		void ReplaceBackBuffer(ID3D10Texture2D *&backbuffer);
-		void ReplaceDepthStencil(ID3D10DepthStencilView *&depthstencil);
-		void ReplaceDepthStencilResource(ID3D10Resource *&depthstencil);
 
 		ID3D10Device *mDevice;
 		IDXGISwapChain *mSwapChain;
@@ -69,14 +54,31 @@ namespace ReShade { namespace Runtimes
 		ID3D10Texture2D *mDepthStencilTexture;
 		ID3D10ShaderResourceView *mDepthStencilTextureSRV;
 		ID3D10DepthStencilView *mDefaultDepthStencil;
-		std::unordered_map<ID3D10DepthStencilView *, D3D10DepthStencilInfo> mDepthStencilTable;
+		std::unordered_map<ID3D10DepthStencilView *, DepthStencilInfo> mDepthStencilTable;
 		bool mLost;
 	};
+
 	struct D3D10Effect : public Effect
 	{
 		friend struct D3D10Texture;
 		friend struct D3D10Constant;
 		friend struct D3D10Technique;
+
+		struct D3D10_SAMPLER_DESC_HASHER
+		{
+			inline std::size_t operator()(const D3D10_SAMPLER_DESC &s) const 
+			{
+				const unsigned char *p = reinterpret_cast<const unsigned char *>(&s);
+				std::size_t h = 2166136261;
+
+				for (std::size_t i = 0; i < sizeof(D3D10_SAMPLER_DESC); ++i)
+				{
+					h = (h * 16777619) ^ p[i];
+				}
+
+				return h;
+			}
+		};
 
 		D3D10Effect(std::shared_ptr<const D3D10Runtime> context);
 		~D3D10Effect();
@@ -95,7 +97,7 @@ namespace ReShade { namespace Runtimes
 		std::unordered_map<std::string, std::unique_ptr<D3D10Constant>> mConstants;
 		std::unordered_map<std::string, std::unique_ptr<D3D10Technique>> mTechniques;
 		ID3D10RasterizerState *mRasterizerState;
-		std::unordered_map<D3D10_SAMPLER_DESC, size_t, D3D10_SAMPLER_DESC_HASHER> mSamplerDescs;
+		std::unordered_map<D3D10_SAMPLER_DESC, std::size_t, D3D10_SAMPLER_DESC_HASHER> mSamplerDescs;
 		std::vector<ID3D10SamplerState *> mSamplerStates;
 		std::vector<ID3D10ShaderResourceView *> mShaderResources;
 		std::vector<ID3D10Buffer *> mConstantBuffers;
@@ -143,7 +145,7 @@ namespace ReShade { namespace Runtimes
 		virtual void SetValue(const unsigned char *data, std::size_t size) override;
 
 		D3D10Effect *mEffect;
-		std::size_t mBuffer, mBufferOffset;
+		std::size_t mBufferIndex, mBufferOffset;
 	};
 	struct D3D10Technique : public Effect::Technique
 	{

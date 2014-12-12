@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Runtime.hpp"
-#include "Effect.hpp"
 
 #include <d3d11_1.h>
 #include <vector>
@@ -9,33 +8,18 @@
 
 namespace ReShade { namespace Runtimes
 {
-	struct D3D11_SAMPLER_DESC_HASHER
-	{
-		inline std::size_t operator()(const D3D11_SAMPLER_DESC &s) const 
-		{
-			const unsigned char *p = reinterpret_cast<const unsigned char *>(&s);
-			std::size_t h = 2166136261;
-
-			for (std::size_t i = 0; i < sizeof(D3D11_SAMPLER_DESC); ++i)
-			{
-				h = (h * 16777619) ^ p[i];
-			}
-
-			return h;
-		}
-	};
-
-	struct D3D11DepthStencilInfo
-	{
-		UINT Width, Height;
-		FLOAT DrawCallCount, DrawVerticesCount;
-	};
 	struct D3D11Runtime : public Runtime, public std::enable_shared_from_this<D3D11Runtime>
 	{
 		friend struct D3D11Effect;
 		friend struct D3D11Texture;
 		friend struct D3D11Constant;
 		friend struct D3D11Technique;
+
+		struct DepthStencilInfo
+		{
+			UINT Width, Height;
+			FLOAT DrawCallCount, DrawVerticesCount;
+		};
 
 		D3D11Runtime(ID3D11Device *device, IDXGISwapChain *swapchain);
 		~D3D11Runtime();
@@ -44,8 +28,12 @@ namespace ReShade { namespace Runtimes
 		void OnDeleteInternal();
 		void OnDrawInternal(ID3D11DeviceContext *context, unsigned int vertices);
 		void OnPresentInternal();
-		void OnCreateDepthStencil(ID3D11Resource *resource, ID3D11DepthStencilView *depthstencil);
-		void OnDeleteDepthStencil(ID3D11DepthStencilView *depthstencil);
+		void OnGetBackBuffer(ID3D11Texture2D *&buffer);
+		void OnCreateDepthStencilView(ID3D11Resource *resource, ID3D11DepthStencilView *depthstencil);
+		void OnDeleteDepthStencilView(ID3D11DepthStencilView *depthstencil);
+		void OnSetDepthStencilView(ID3D11DepthStencilView *&depthstencil);
+		void OnClearDepthStencilView(ID3D11DepthStencilView *&depthstencil);
+		void OnCopyResource(ID3D11Resource *&dest, ID3D11Resource *&source);
 
 		virtual std::unique_ptr<Effect> CompileEffect(const EffectTree &ast, std::string &errors) const override;
 		virtual void CreateScreenshot(unsigned char *buffer, std::size_t size) const override;
@@ -53,9 +41,6 @@ namespace ReShade { namespace Runtimes
 		void DetectBestDepthStencil();
 		bool CreateBackBuffer(ID3D11Texture2D *backbuffer, const DXGI_SAMPLE_DESC &samples);
 		bool CreateDepthStencil(ID3D11DepthStencilView *depthstencil);
-		void ReplaceBackBuffer(ID3D11Texture2D *&backbuffer);
-		void ReplaceDepthStencil(ID3D11DepthStencilView *&depthstencil);
-		void ReplaceDepthStencilResource(ID3D11Resource *&depthstencil);
 
 		ID3D11Device *mDevice;
 		ID3D11DeviceContext *mImmediateContext;
@@ -70,15 +55,32 @@ namespace ReShade { namespace Runtimes
 		ID3D11Texture2D *mDepthStencilTexture;
 		ID3D11ShaderResourceView *mDepthStencilTextureSRV;
 		ID3D11DepthStencilView *mDefaultDepthStencil;
-		std::unordered_map<ID3D11DepthStencilView *, D3D11DepthStencilInfo> mDepthStencilTable;
+		std::unordered_map<ID3D11DepthStencilView *, DepthStencilInfo> mDepthStencilTable;
 		CRITICAL_SECTION mCS;
 		bool mLost;
 	};
+
 	struct D3D11Effect : public Effect
 	{
 		friend struct D3D11Texture;
 		friend struct D3D11Constant;
 		friend struct D3D11Technique;
+
+		struct D3D11_SAMPLER_DESC_HASHER
+		{
+			inline std::size_t operator()(const D3D11_SAMPLER_DESC &s) const 
+			{
+				const unsigned char *p = reinterpret_cast<const unsigned char *>(&s);
+				std::size_t h = 2166136261;
+
+				for (std::size_t i = 0; i < sizeof(D3D11_SAMPLER_DESC); ++i)
+				{
+					h = (h * 16777619) ^ p[i];
+				}
+
+				return h;
+			}
+		};
 
 		D3D11Effect(std::shared_ptr<const D3D11Runtime> context);
 		~D3D11Effect();
@@ -97,7 +99,7 @@ namespace ReShade { namespace Runtimes
 		std::unordered_map<std::string, std::unique_ptr<D3D11Constant>> mConstants;
 		std::unordered_map<std::string, std::unique_ptr<D3D11Technique>> mTechniques;
 		ID3D11RasterizerState *mRasterizerState;
-		std::unordered_map<D3D11_SAMPLER_DESC, size_t, D3D11_SAMPLER_DESC_HASHER> mSamplerDescs;
+		std::unordered_map<D3D11_SAMPLER_DESC, std::size_t, D3D11_SAMPLER_DESC_HASHER> mSamplerDescs;
 		std::vector<ID3D11SamplerState *> mSamplerStates;
 		std::vector<ID3D11ShaderResourceView *> mShaderResources;
 		std::vector<ID3D11Buffer *> mConstantBuffers;
@@ -145,7 +147,7 @@ namespace ReShade { namespace Runtimes
 		virtual void SetValue(const unsigned char *data, std::size_t size) override;
 
 		D3D11Effect *mEffect;
-		std::size_t mBuffer, mBufferOffset;
+		std::size_t mBufferIndex, mBufferOffset;
 	};
 	struct D3D11Technique : public Effect::Technique
 	{

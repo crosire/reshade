@@ -636,7 +636,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetDepthStencilSurface(IDirect3DSurfa
 		assert(this->mImplicitSwapChain != nullptr);
 		assert(this->mImplicitSwapChain->mRuntime != nullptr);
 
-		this->mImplicitSwapChain->mRuntime->ReplaceDepthStencil(pNewZStencil);
+		this->mImplicitSwapChain->mRuntime->OnSetDepthStencilSurface(pNewZStencil);
 	}
 
 	return this->mOrig->SetDepthStencilSurface(pNewZStencil);

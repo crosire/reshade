@@ -1906,12 +1906,11 @@ namespace ReShade { namespace Runtimes
 						break;
 				}
 
-				std::unique_ptr<D3D11Constant> obj(new D3D11Constant(this->mEffect, objdesc));
-
 				const UINT alignment = 16 - (this->mCurrentGlobalSize % 16);
 				this->mCurrentGlobalSize += (objdesc.Size > alignment && (alignment != 16 || objdesc.Size <= 16)) ? objdesc.Size + alignment : objdesc.Size;
 
-				obj->mBuffer = 0;
+				std::unique_ptr<D3D11Constant> obj(new D3D11Constant(this->mEffect, objdesc));
+				obj->mBufferIndex = 0;
 				obj->mBufferOffset = this->mCurrentGlobalSize - objdesc.Size;
 
 				if (this->mCurrentGlobalSize >= this->mCurrentGlobalStorageSize)
@@ -1926,11 +1925,11 @@ namespace ReShade { namespace Runtimes
 
 				if (node.Initializer != EffectTree::Null && this->mAST[node.Initializer].Is<EffectNodes::Literal>())
 				{
-					::memcpy(this->mEffect->mConstantStorages[0] + obj->mBufferOffset, &this->mAST[node.Initializer].As<EffectNodes::Literal>().Value, objdesc.Size);
+					CopyMemory(this->mEffect->mConstantStorages[0] + obj->mBufferOffset, &this->mAST[node.Initializer].As<EffectNodes::Literal>().Value, objdesc.Size);
 				}
 				else
 				{
-					::memset(this->mEffect->mConstantStorages[0] + obj->mBufferOffset, 0, objdesc.Size);
+					ZeroMemory(this->mEffect->mConstantStorages[0] + obj->mBufferOffset, objdesc.Size);
 				}
 
 				this->mEffect->mConstants.insert(std::make_pair(node.Name, std::move(obj)));
@@ -1991,12 +1990,11 @@ namespace ReShade { namespace Runtimes
 							break;
 					}
 
-					std::unique_ptr<D3D11Constant> obj(new D3D11Constant(this->mEffect, objdesc));
-
 					const UINT alignment = 16 - (totalsize % 16);
 					totalsize += (objdesc.Size > alignment && (alignment != 16 || objdesc.Size <= 16)) ? objdesc.Size + alignment : objdesc.Size;
 
-					obj->mBuffer = this->mEffect->mConstantBuffers.size();
+					std::unique_ptr<D3D11Constant> obj(new D3D11Constant(this->mEffect, objdesc));
+					obj->mBufferIndex = this->mEffect->mConstantBuffers.size();
 					obj->mBufferOffset = totalsize - objdesc.Size;
 
 					if (totalsize >= currentsize)
@@ -2006,11 +2004,11 @@ namespace ReShade { namespace Runtimes
 
 					if (field->Initializer != EffectTree::Null && this->mAST[field->Initializer].Is<EffectNodes::Literal>())
 					{
-						::memcpy(storage + obj->mBufferOffset, &this->mAST[field->Initializer].As<EffectNodes::Literal>().Value, objdesc.Size);
+						CopyMemory(storage + obj->mBufferOffset, &this->mAST[field->Initializer].As<EffectNodes::Literal>().Value, objdesc.Size);
 					}
 					else
 					{
-						::memset(storage + obj->mBufferOffset, 0, objdesc.Size);
+						ZeroMemory(storage + obj->mBufferOffset, objdesc.Size);
 					}
 
 					this->mEffect->mConstants.insert(std::make_pair(std::string(node.Name) + '.' + std::string(field->Name), std::move(obj)));
@@ -2039,7 +2037,7 @@ namespace ReShade { namespace Runtimes
 				objdesc.Type = Effect::Constant::Type::Struct;
 
 				std::unique_ptr<D3D11Constant> obj(new D3D11Constant(this->mEffect, objdesc));
-				obj->mBuffer = this->mEffect->mConstantBuffers.size();
+				obj->mBufferIndex = this->mEffect->mConstantBuffers.size();
 				obj->mBufferOffset = 0;
 
 				if (node.Annotations != EffectTree::Null)
@@ -2901,7 +2899,14 @@ namespace ReShade { namespace Runtimes
 		// Apply previous device state
 		this->mStateBlock->Apply();
 	}
-	void D3D11Runtime::OnCreateDepthStencil(ID3D11Resource *resource, ID3D11DepthStencilView *depthstencil)
+	void D3D11Runtime::OnGetBackBuffer(ID3D11Texture2D *&buffer)
+	{
+		if (this->mBackBufferReplacement != nullptr)
+		{
+			buffer = this->mBackBufferReplacement;
+		}
+	}
+	void D3D11Runtime::OnCreateDepthStencilView(ID3D11Resource *resource, ID3D11DepthStencilView *depthstencil)
 	{
 		assert(resource != nullptr);
 		assert(depthstencil != nullptr);
@@ -2936,10 +2941,10 @@ namespace ReShade { namespace Runtimes
 		LOG(TRACE) << "Adding depthstencil " << depthstencil << " (Width: " << desc.Width << ", Height: " << desc.Height << ", Format: " << desc.Format << ") to list of possible depth candidates ...";
 
 		// Begin tracking new depthstencil
-		const D3D11DepthStencilInfo info = { desc.Width, desc.Height, 0.0f, 0.0f };
+		const DepthStencilInfo info = { desc.Width, desc.Height };
 		this->mDepthStencilTable.emplace(depthstencil, info);
 	}
-	void D3D11Runtime::OnDeleteDepthStencil(ID3D11DepthStencilView *depthstencil)
+	void D3D11Runtime::OnDeleteDepthStencilView(ID3D11DepthStencilView *depthstencil)
 	{
 		assert(depthstencil != nullptr);
 
@@ -2952,6 +2957,45 @@ namespace ReShade { namespace Runtimes
 			LOG(TRACE) << "Removing depthstencil " << depthstencil << " from list of possible depth candidates ...";
 
 			this->mDepthStencilTable.erase(it);
+		}
+	}
+	void D3D11Runtime::OnSetDepthStencilView(ID3D11DepthStencilView *&depthstencil)
+	{
+		CSLock lock(this->mCS);
+
+		if (this->mDepthStencilReplacement != nullptr && depthstencil == this->mDepthStencil)
+		{
+			depthstencil = this->mDepthStencilReplacement;
+		}
+	}
+	void D3D11Runtime::OnClearDepthStencilView(ID3D11DepthStencilView *&depthstencil)
+	{
+		CSLock lock(this->mCS);
+
+		if (this->mDepthStencilReplacement != nullptr && depthstencil == this->mDepthStencil)
+		{
+			depthstencil = this->mDepthStencilReplacement;
+		}
+	}
+	void D3D11Runtime::OnCopyResource(ID3D11Resource *&dest, ID3D11Resource *&source)
+	{
+		CSLock lock(this->mCS);
+
+		if (this->mDepthStencilReplacement != nullptr)
+		{
+			ID3D11Resource *resource = nullptr;
+			this->mDepthStencil->GetResource(&resource);
+
+			if (dest == resource)
+			{
+				dest = this->mDepthStencilTexture;
+			}
+			if (source == resource)
+			{
+				source = this->mDepthStencilTexture;
+			}
+
+			resource->Release();
 		}
 	}
 
@@ -3084,7 +3128,7 @@ namespace ReShade { namespace Runtimes
 		}
 
 		ID3D11DepthStencilView *best = nullptr;
-		D3D11DepthStencilInfo bestInfo = { 0 };
+		DepthStencilInfo bestInfo = { 0 };
 
 		for (auto &it : this->mDepthStencilTable)
 		{
@@ -3363,39 +3407,6 @@ namespace ReShade { namespace Runtimes
 
 		return true;
 	}
-	void D3D11Runtime::ReplaceBackBuffer(ID3D11Texture2D *&backbuffer)
-	{
-		if (this->mBackBufferReplacement != nullptr)
-		{
-			backbuffer = this->mBackBufferReplacement;
-		}
-	}
-	void D3D11Runtime::ReplaceDepthStencil(ID3D11DepthStencilView *&depthstencil)
-	{
-		CSLock lock(this->mCS);
-
-		if (this->mDepthStencilReplacement != nullptr && depthstencil == this->mDepthStencil)
-		{
-			depthstencil = this->mDepthStencilReplacement;
-		}
-	}
-	void D3D11Runtime::ReplaceDepthStencilResource(ID3D11Resource *&depthstencil)
-	{
-		CSLock lock(this->mCS);
-
-		if (this->mDepthStencilReplacement != nullptr)
-		{
-			ID3D11Resource *resource = nullptr;
-			this->mDepthStencil->GetResource(&resource);
-
-			if (depthstencil == resource)
-			{
-				depthstencil = this->mDepthStencilTexture;
-			}
-
-			resource->Release();
-		}
-	}
 
 	D3D11Effect::D3D11Effect(std::shared_ptr<const D3D11Runtime> context) : mEffectContext(context), mRasterizerState(nullptr), mConstantsDirty(true)
 	{
@@ -3614,7 +3625,7 @@ namespace ReShade { namespace Runtimes
 		return true;
 	}
 
-	D3D11Constant::D3D11Constant(D3D11Effect *effect, const Description &desc) : Constant(desc), mEffect(effect)
+	D3D11Constant::D3D11Constant(D3D11Effect *effect, const Description &desc) : Constant(desc), mEffect(effect), mBufferIndex(0), mBufferOffset(0)
 	{
 	}
 	D3D11Constant::~D3D11Constant()
@@ -3625,13 +3636,13 @@ namespace ReShade { namespace Runtimes
 	{
 		size = std::min(size, this->mDesc.Size);
 
-		CopyMemory(data, this->mEffect->mConstantStorages[this->mBuffer] + this->mBufferOffset, size);
+		CopyMemory(data, this->mEffect->mConstantStorages[this->mBufferIndex] + this->mBufferOffset, size);
 	}
 	void D3D11Constant::SetValue(const unsigned char *data, std::size_t size)
 	{
 		size = std::min(size, this->mDesc.Size);
 
-		unsigned char *storage = this->mEffect->mConstantStorages[this->mBuffer] + this->mBufferOffset;
+		unsigned char *storage = this->mEffect->mConstantStorages[this->mBufferIndex] + this->mBufferOffset;
 
 		if (std::memcmp(storage, data, size) == 0)
 		{

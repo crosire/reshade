@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Runtime.hpp"
-#include "Effect.hpp"
 
 #include <d3d9.h>
 #include <vector>
@@ -9,11 +8,6 @@
 
 namespace ReShade { namespace Runtimes
 {
-	struct D3D9DepthStencilInfo
-	{
-		UINT Width, Height;
-		FLOAT DrawCallCount, DrawVerticesCount;
-	};
 	struct D3D9Runtime : public Runtime, public std::enable_shared_from_this<D3D9Runtime>
 	{
 		friend struct D3D9Effect;
@@ -22,6 +16,12 @@ namespace ReShade { namespace Runtimes
 		friend struct D3D9Constant;
 		friend struct D3D9Technique;
 
+		struct DepthStencilInfo
+		{
+			UINT Width, Height;
+			FLOAT DrawCallCount, DrawVerticesCount;
+		};
+
 		D3D9Runtime(IDirect3DDevice9 *device, IDirect3DSwapChain9 *swapchain);
 		~D3D9Runtime();
 
@@ -29,13 +29,13 @@ namespace ReShade { namespace Runtimes
 		void OnDeleteInternal();
 		void OnDrawInternal(D3DPRIMITIVETYPE type, UINT count);
 		void OnPresentInternal();
+		void OnSetDepthStencilSurface(IDirect3DSurface9 *&depthstencil);
 
 		virtual std::unique_ptr<Effect> CompileEffect(const EffectTree &ast, std::string &errors) const override;
 		virtual void CreateScreenshot(unsigned char *buffer, std::size_t size) const override;
 
 		void DetectBestDepthStencil();
 		bool CreateDepthStencil(IDirect3DSurface9 *depthstencil);
-		void ReplaceDepthStencil(IDirect3DSurface9 *&depthstencil);
 
 		IDirect3DDevice9 *mDevice;
 		IDirect3DSwapChain9 *mSwapChain;
@@ -48,9 +48,10 @@ namespace ReShade { namespace Runtimes
 		IDirect3DSurface9 *mDepthStencil, *mDepthStencilReplacement;
 		IDirect3DTexture9 *mDepthStencilTexture;
 		IDirect3DSurface9 *mDefaultDepthStencil;
-		std::unordered_map<IDirect3DSurface9 *, D3D9DepthStencilInfo> mDepthStencilTable;
+		std::unordered_map<IDirect3DSurface9 *, DepthStencilInfo> mDepthStencilTable;
 		bool mLost;
 	};
+
 	struct D3D9Effect : public Effect
 	{
 		friend struct D3D9Texture;

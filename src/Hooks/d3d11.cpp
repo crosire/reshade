@@ -29,7 +29,7 @@ ULONG STDMETHODCALLTYPE ID3D11DepthStencilView_Release(ID3D11DepthStencilView *p
 
 		if (SUCCEEDED(device->GetPrivateData(sRuntimeGUID, &size, reinterpret_cast<void *>(&runtime))))
 		{
-			runtime->OnDeleteDepthStencil(pDepthStencilView);
+			runtime->OnDeleteDepthStencilView(pDepthStencilView);
 		}
 	}
 
@@ -139,7 +139,7 @@ void STDMETHODCALLTYPE ID3D11DeviceContext_OMSetRenderTargets(ID3D11DeviceContex
 
 		if (SUCCEEDED(device->GetPrivateData(sRuntimeGUID, &size, reinterpret_cast<void *>(&runtime))))
 		{
-			runtime->ReplaceDepthStencil(pDepthStencilView);
+			runtime->OnSetDepthStencilView(pDepthStencilView);
 		}
 
 		device->Release();
@@ -163,7 +163,7 @@ void STDMETHODCALLTYPE ID3D11DeviceContext_OMSetRenderTargetsAndUnorderedAccessV
 
 		if (SUCCEEDED(device->GetPrivateData(sRuntimeGUID, &size, reinterpret_cast<void *>(&runtime))))
 		{
-			runtime->ReplaceDepthStencil(pDepthStencilView);
+			runtime->OnSetDepthStencilView(pDepthStencilView);
 		}
 
 		device->Release();
@@ -185,8 +185,7 @@ void STDMETHODCALLTYPE ID3D11DeviceContext_CopyResource(ID3D11DeviceContext *pDe
 
 	if (SUCCEEDED(device->GetPrivateData(sRuntimeGUID, &size, reinterpret_cast<void *>(&runtime))))
 	{
-		runtime->ReplaceDepthStencilResource(pDstResource);
-		runtime->ReplaceDepthStencilResource(pSrcResource);
+		runtime->OnCopyResource(pDstResource, pSrcResource);
 	}
 
 	device->Release();
@@ -207,7 +206,7 @@ void STDMETHODCALLTYPE ID3D11DeviceContext_ClearDepthStencilView(ID3D11DeviceCon
 
 	if (SUCCEEDED(device->GetPrivateData(sRuntimeGUID, &size, reinterpret_cast<void *>(&runtime))))
 	{
-		runtime->ReplaceDepthStencil(pDepthStencilView);
+		runtime->OnClearDepthStencilView(pDepthStencilView);
 	}
 
 	device->Release();
@@ -229,7 +228,7 @@ HRESULT STDMETHODCALLTYPE ID3D11Device_CreateDepthStencilView(ID3D11Device *pDev
 	{
 		ReShade::Hooks::Register(VTABLE(*ppDepthStencilView), 2, reinterpret_cast<ReShade::Hook::Function>(&ID3D11DepthStencilView_Release));
 
-		runtime->OnCreateDepthStencil(pResource, *ppDepthStencilView);
+		runtime->OnCreateDepthStencilView(pResource, *ppDepthStencilView);
 	}
 
 	return hr;

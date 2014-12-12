@@ -10,10 +10,7 @@
     <Filter Include="Hooks">
       <UniqueIdentifier>{3c3eb495-1eeb-4c7c-b58f-3bbcf24758f6}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Effect">
-      <UniqueIdentifier>{b8e05bc4-05f8-43c7-b162-6a0818361b7b}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Effect Parser">
+    <Filter Include="Parser">
       <UniqueIdentifier>{c7c87b42-c441-48dc-8d08-ce6e2a6ffa9d}</UniqueIdentifier>
     </Filter>
     <Filter Include="Runtime">
@@ -52,19 +49,19 @@
       <Filter>Hooks</Filter>
     </ClCompile>
     <ClCompile Include="src\Effect.cpp">
-      <Filter>Effect</Filter>
+      <Filter>Runtime</Filter>
     </ClCompile>
     <ClCompile Include="obj\$(Platform)\$(Configuration)\EffectLexer.cpp">
-      <Filter>Effect Parser</Filter>
+      <Filter>Parser</Filter>
     </ClCompile>
     <ClCompile Include="src\EffectOptimizer.cpp">
-      <Filter>Effect Parser</Filter>
+      <Filter>Parser</Filter>
     </ClCompile>
     <ClCompile Include="obj\$(Platform)\$(Configuration)\EffectParser.cpp">
-      <Filter>Effect Parser</Filter>
+      <Filter>Parser</Filter>
     </ClCompile>
     <ClCompile Include="src\EffectPreprocessor.cpp">
-      <Filter>Effect Parser</Filter>
+      <Filter>Parser</Filter>
     </ClCompile>
     <ClCompile Include="src\Runtime.cpp">
       <Filter>Runtime</Filter>
@@ -100,22 +97,22 @@
       <Filter>Hook</Filter>
     </ClInclude>
     <ClInclude Include="src\Effect.hpp">
-      <Filter>Effect</Filter>
+      <Filter>Runtime</Filter>
     </ClInclude>
     <ClInclude Include="obj\$(Platform)\$(Configuration)\EffectLexer.h">
-      <Filter>Effect Parser</Filter>
+      <Filter>Parser</Filter>
     </ClInclude>
     <ClInclude Include="src\EffectOptimizer.hpp">
-      <Filter>Effect Parser</Filter>
+      <Filter>Parser</Filter>
     </ClInclude>
     <ClInclude Include="obj\$(Platform)\$(Configuration)\EffectParser.hpp">
-      <Filter>Effect Parser</Filter>
+      <Filter>Parser</Filter>
     </ClInclude>
     <ClInclude Include="src\EffectParserTree.hpp">
-      <Filter>Effect Parser</Filter>
+      <Filter>Parser</Filter>
     </ClInclude>
     <ClInclude Include="src\EffectPreprocessor.hpp">
-      <Filter>Effect Parser</Filter>
+      <Filter>Parser</Filter>
     </ClInclude>
     <ClInclude Include="src\Runtime.hpp">
       <Filter>Runtime</Filter>
@@ -155,10 +152,10 @@
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="src\EffectLexer.l">
-      <Filter>Effect Parser</Filter>
+      <Filter>Parser</Filter>
     </CustomBuild>
     <CustomBuild Include="src\EffectParser.y">
-      <Filter>Effect Parser</Filter>
+      <Filter>Parser</Filter>
     </CustomBuild>
   </ItemGroup>
 </Project>
