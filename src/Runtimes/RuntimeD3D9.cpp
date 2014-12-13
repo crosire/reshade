@@ -2662,7 +2662,7 @@ namespace ReShade { namespace Runtimes
 			depthstencil->GetDesc(&desc);
 
 			// Early depthstencil rejection
-			if (desc.Width != this->mPresentParams.BackBufferWidth || desc.Height != this->mPresentParams.BackBufferHeight || desc.MultiSampleType != D3DMULTISAMPLE_NONE)
+			if ((desc.Width < this->mPresentParams.BackBufferWidth * 0.95 || desc.Width > this->mPresentParams.BackBufferWidth * 1.05) || (desc.Height < this->mPresentParams.BackBufferHeight * 0.95 || desc.Height > this->mPresentParams.BackBufferHeight * 1.05) || desc.MultiSampleType != D3DMULTISAMPLE_NONE)
 			{
 				return;
 			}
