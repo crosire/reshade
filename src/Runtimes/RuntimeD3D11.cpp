@@ -2744,7 +2744,7 @@ namespace ReShade { namespace Runtimes
 
 		assert(SUCCEEDED(hr));
 
-		if (!CreateBackBuffer(this->mBackBuffer, desc.SampleDesc))
+		if (!CreateBackBufferReplacement(this->mBackBuffer, desc.SampleDesc))
 		{
 			LOG(TRACE) << "Failed to create backbuffer replacement!";
 
@@ -2848,9 +2848,9 @@ namespace ReShade { namespace Runtimes
 				depthstencil = this->mDepthStencil;
 			}
 
-			const auto it = this->mDepthStencilTable.find(depthstencil);
+			const auto it = this->mDepthSourceTable.find(depthstencil);
 
-			if (it != this->mDepthStencilTable.end())
+			if (it != this->mDepthSourceTable.end())
 			{
 				it->second.DrawCallCount = static_cast<FLOAT>(this->mLastDrawCalls++);
 				it->second.DrawVerticesCount += vertices;
@@ -2865,7 +2865,7 @@ namespace ReShade { namespace Runtimes
 			return;
 		}
 
-		DetectBestDepthStencil();
+		DetectDepthSource();
 
 		// Capture device state
 		this->mStateBlock->Capture();
@@ -2941,8 +2941,8 @@ namespace ReShade { namespace Runtimes
 		LOG(TRACE) << "Adding depthstencil " << depthstencil << " (Width: " << desc.Width << ", Height: " << desc.Height << ", Format: " << desc.Format << ") to list of possible depth candidates ...";
 
 		// Begin tracking new depthstencil
-		const DepthStencilInfo info = { desc.Width, desc.Height };
-		this->mDepthStencilTable.emplace(depthstencil, info);
+		const DepthSourceInfo info = { desc.Width, desc.Height };
+		this->mDepthSourceTable.emplace(depthstencil, info);
 	}
 	void D3D11Runtime::OnDeleteDepthStencilView(ID3D11DepthStencilView *depthstencil)
 	{
@@ -2950,13 +2950,13 @@ namespace ReShade { namespace Runtimes
 
 		CSLock lock(this->mCS);
 
-		const auto it = this->mDepthStencilTable.find(depthstencil);
+		const auto it = this->mDepthSourceTable.find(depthstencil);
 
-		if (it != this->mDepthStencilTable.end())
+		if (it != this->mDepthSourceTable.end())
 		{
 			LOG(TRACE) << "Removing depthstencil " << depthstencil << " from list of possible depth candidates ...";
 
-			this->mDepthStencilTable.erase(it);
+			this->mDepthSourceTable.erase(it);
 		}
 	}
 	void D3D11Runtime::OnSetDepthStencilView(ID3D11DepthStencilView *&depthstencil)
@@ -3008,138 +3008,42 @@ namespace ReShade { namespace Runtimes
 		}
 	}
 
-	std::unique_ptr<Effect> D3D11Runtime::CompileEffect(const EffectTree &ast, std::string &errors) const
-	{
-		std::unique_ptr<D3D11Effect> effect(new D3D11Effect(shared_from_this()));
-
-		D3D11EffectCompiler visitor(ast);
-		
-		if (!visitor.Traverse(effect.get(), errors))
-		{
-			return nullptr;
-		}
-
-		D3D11_RASTERIZER_DESC rsdesc;
-		ZeroMemory(&rsdesc, sizeof(D3D11_RASTERIZER_DESC));
-		rsdesc.FillMode = D3D11_FILL_SOLID;
-		rsdesc.CullMode = D3D11_CULL_NONE;
-		rsdesc.DepthClipEnable = TRUE;
-
-		HRESULT hr = this->mDevice->CreateRasterizerState(&rsdesc, &effect->mRasterizerState);
-
-		if (FAILED(hr))
-		{
-			return nullptr;
-		}
-
-		return std::unique_ptr<Effect>(effect.release());
-	}
-	void D3D11Runtime::CreateScreenshot(unsigned char *buffer, std::size_t size) const
-	{
-		if (this->mSwapChainDesc.BufferDesc.Format != DXGI_FORMAT_R8G8B8A8_UNORM && this->mSwapChainDesc.BufferDesc.Format != DXGI_FORMAT_R8G8B8A8_UNORM_SRGB && this->mSwapChainDesc.BufferDesc.Format != DXGI_FORMAT_B8G8R8A8_UNORM && this->mSwapChainDesc.BufferDesc.Format != DXGI_FORMAT_B8G8R8A8_UNORM_SRGB)
-		{
-			LOG(WARNING) << "Screenshots are not supported for backbuffer format " << this->mSwapChainDesc.BufferDesc.Format << ".";
-			return;
-		}
-
-		if (size < static_cast<std::size_t>(this->mSwapChainDesc.BufferDesc.Width * this->mSwapChainDesc.BufferDesc.Height * 4))
-		{
-			return;
-		}
-
-		D3D11_TEXTURE2D_DESC texdesc;
-		ZeroMemory(&texdesc, sizeof(D3D11_TEXTURE2D_DESC));
-		texdesc.Width = this->mSwapChainDesc.BufferDesc.Width;
-		texdesc.Height = this->mSwapChainDesc.BufferDesc.Height;
-		texdesc.ArraySize = 1;
-		texdesc.MipLevels = 1;
-		texdesc.Format = this->mSwapChainDesc.BufferDesc.Format;
-		texdesc.SampleDesc.Count = 1;
-		texdesc.SampleDesc.Quality = 0;
-		texdesc.Usage = D3D11_USAGE_STAGING;
-		texdesc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
-
-		ID3D11Texture2D *textureStaging = nullptr;
-		HRESULT hr = this->mDevice->CreateTexture2D(&texdesc, nullptr, &textureStaging);
-
-		if (FAILED(hr))
-		{
-			LOG(TRACE) << "Failed to create staging resource for screenshot capture! HRESULT is '" << hr << "'.";
-			return;
-		}
-
-		this->mImmediateContext->CopyResource(textureStaging, this->mBackBuffer);
-
-		D3D11_MAPPED_SUBRESOURCE mapped;
-		hr = this->mImmediateContext->Map(textureStaging, 0, D3D11_MAP_READ, 0, &mapped);
-
-		if (FAILED(hr))
-		{
-			LOG(TRACE) << "Failed to map staging resource with screenshot capture! HRESULT is '" << hr << "'.";
-
-			textureStaging->Release();
-			return;
-		}
-
-		BYTE *pMem = buffer;
-		BYTE *pMapped = static_cast<BYTE *>(mapped.pData);
-
-		const UINT pitch = texdesc.Width * 4;
-
-		for (UINT y = 0; y < texdesc.Height; ++y)
-		{
-			CopyMemory(pMem, pMapped, std::min(pitch, static_cast<UINT>(mapped.RowPitch)));
-
-			for (UINT x = 0; x < pitch; x += 4)
-			{
-				pMem[x + 3] = 0xFF;
-
-				if (texdesc.Format == DXGI_FORMAT_B8G8R8A8_UNORM || texdesc.Format == DXGI_FORMAT_B8G8R8A8_UNORM_SRGB)
-				{
-					std::swap(pMem[x + 0], pMem[x + 2]);
-				}
-			}
-								
-			pMem += pitch;
-			pMapped += mapped.RowPitch;
-		}
-
-		this->mImmediateContext->Unmap(textureStaging, 0);
-
-		textureStaging->Release();
-	}
-
-	void D3D11Runtime::DetectBestDepthStencil()
+	void D3D11Runtime::DetectDepthSource()
 	{
 		static int cooldown = 0, traffic = 0;
 
 		if (cooldown-- > 0)
 		{
-			traffic += (NetworkTrafficDownload + NetworkTrafficUpload) > 0;
+			traffic += (sNetworkUpload + sNetworkDownload) > 0;
 			return;
 		}
 		else
 		{
 			cooldown = 30;
 
-			if (traffic > 10, traffic = 0)
+			if (traffic > 10)
 			{
-				CreateDepthStencil(nullptr);
+				traffic = 0;
+				CreateDepthStencilReplacement(nullptr);
 				return;
+			}
+			else
+			{
+				traffic = 0;
 			}
 		}
 
 		CSLock lock(this->mCS);
 
-		if (this->mSwapChainDesc.SampleDesc.Count > 1 || this->mDepthStencilTable.empty())
+		if (this->mSwapChainDesc.SampleDesc.Count > 1 || this->mDepthSourceTable.empty())
 		{
 			return;
 		}
 
+		DepthSourceInfo bestInfo = { 0 };
 		ID3D11DepthStencilView *best = nullptr;
-		DepthStencilInfo bestInfo = { 0 };
 
-		for (auto &it : this->mDepthStencilTable)
+		for (auto &it : this->mDepthSourceTable)
 		{
 			if (it.second.DrawCallCount == 0)
 			{
@@ -3158,10 +3062,10 @@ namespace ReShade { namespace Runtimes
 		{
 			LOG(TRACE) << "Switched depth source to depthstencil " << best << ".";
 
-			CreateDepthStencil(best);
+			CreateDepthStencilReplacement(best);
 		}
 	}
-	bool D3D11Runtime::CreateBackBuffer(ID3D11Texture2D *backbuffer, const DXGI_SAMPLE_DESC &samples)
+	bool D3D11Runtime::CreateBackBufferReplacement(ID3D11Texture2D *backbuffer, const DXGI_SAMPLE_DESC &samples)
 	{
 		D3D11_TEXTURE2D_DESC texdesc;
 		backbuffer->GetDesc(&texdesc);
@@ -3258,7 +3162,7 @@ namespace ReShade { namespace Runtimes
 
 		return true;
 	}
-	bool D3D11Runtime::CreateDepthStencil(ID3D11DepthStencilView *depthstencil)
+	bool D3D11Runtime::CreateDepthStencilReplacement(ID3D11DepthStencilView *depthstencil)
 	{
 		SAFE_RELEASE(this->mDepthStencil);
 		SAFE_RELEASE(this->mDepthStencilReplacement);
@@ -3415,6 +3319,107 @@ namespace ReShade { namespace Runtimes
 		}
 
 		return true;
+	}
+
+	std::unique_ptr<Effect> D3D11Runtime::CompileEffect(const EffectTree &ast, std::string &errors) const
+	{
+		std::unique_ptr<D3D11Effect> effect(new D3D11Effect(shared_from_this()));
+
+		D3D11EffectCompiler visitor(ast);
+		
+		if (!visitor.Traverse(effect.get(), errors))
+		{
+			return nullptr;
+		}
+
+		D3D11_RASTERIZER_DESC rsdesc;
+		ZeroMemory(&rsdesc, sizeof(D3D11_RASTERIZER_DESC));
+		rsdesc.FillMode = D3D11_FILL_SOLID;
+		rsdesc.CullMode = D3D11_CULL_NONE;
+		rsdesc.DepthClipEnable = TRUE;
+
+		HRESULT hr = this->mDevice->CreateRasterizerState(&rsdesc, &effect->mRasterizerState);
+
+		if (FAILED(hr))
+		{
+			return nullptr;
+		}
+
+		return std::unique_ptr<Effect>(effect.release());
+	}
+	void D3D11Runtime::CreateScreenshot(unsigned char *buffer, std::size_t size) const
+	{
+		if (this->mSwapChainDesc.BufferDesc.Format != DXGI_FORMAT_R8G8B8A8_UNORM && this->mSwapChainDesc.BufferDesc.Format != DXGI_FORMAT_R8G8B8A8_UNORM_SRGB && this->mSwapChainDesc.BufferDesc.Format != DXGI_FORMAT_B8G8R8A8_UNORM && this->mSwapChainDesc.BufferDesc.Format != DXGI_FORMAT_B8G8R8A8_UNORM_SRGB)
+		{
+			LOG(WARNING) << "Screenshots are not supported for backbuffer format " << this->mSwapChainDesc.BufferDesc.Format << ".";
+			return;
+		}
+
+		if (size < static_cast<std::size_t>(this->mSwapChainDesc.BufferDesc.Width * this->mSwapChainDesc.BufferDesc.Height * 4))
+		{
+			return;
+		}
+
+		D3D11_TEXTURE2D_DESC texdesc;
+		ZeroMemory(&texdesc, sizeof(D3D11_TEXTURE2D_DESC));
+		texdesc.Width = this->mSwapChainDesc.BufferDesc.Width;
+		texdesc.Height = this->mSwapChainDesc.BufferDesc.Height;
+		texdesc.ArraySize = 1;
+		texdesc.MipLevels = 1;
+		texdesc.Format = this->mSwapChainDesc.BufferDesc.Format;
+		texdesc.SampleDesc.Count = 1;
+		texdesc.SampleDesc.Quality = 0;
+		texdesc.Usage = D3D11_USAGE_STAGING;
+		texdesc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+
+		ID3D11Texture2D *textureStaging = nullptr;
+		HRESULT hr = this->mDevice->CreateTexture2D(&texdesc, nullptr, &textureStaging);
+
+		if (FAILED(hr))
+		{
+			LOG(TRACE) << "Failed to create staging resource for screenshot capture! HRESULT is '" << hr << "'.";
+			return;
+		}
+
+		this->mImmediateContext->CopyResource(textureStaging, this->mBackBuffer);
+
+		D3D11_MAPPED_SUBRESOURCE mapped;
+		hr = this->mImmediateContext->Map(textureStaging, 0, D3D11_MAP_READ, 0, &mapped);
+
+		if (FAILED(hr))
+		{
+			LOG(TRACE) << "Failed to map staging resource with screenshot capture! HRESULT is '" << hr << "'.";
+
+			textureStaging->Release();
+			return;
+		}
+
+		BYTE *pMem = buffer;
+		BYTE *pMapped = static_cast<BYTE *>(mapped.pData);
+
+		const UINT pitch = texdesc.Width * 4;
+
+		for (UINT y = 0; y < texdesc.Height; ++y)
+		{
+			CopyMemory(pMem, pMapped, std::min(pitch, static_cast<UINT>(mapped.RowPitch)));
+
+			for (UINT x = 0; x < pitch; x += 4)
+			{
+				pMem[x + 3] = 0xFF;
+
+				if (texdesc.Format == DXGI_FORMAT_B8G8R8A8_UNORM || texdesc.Format == DXGI_FORMAT_B8G8R8A8_UNORM_SRGB)
+				{
+					std::swap(pMem[x + 0], pMem[x + 2]);
+				}
+			}
+								
+			pMem += pitch;
+			pMapped += mapped.RowPitch;
+		}
+
+		this->mImmediateContext->Unmap(textureStaging, 0);
+
+		textureStaging->Release();
 	}
 
 	D3D11Effect::D3D11Effect(std::shared_ptr<const D3D11Runtime> context) : mEffectContext(context), mRasterizerState(nullptr), mConstantsDirty(true)
@@ -3580,7 +3585,7 @@ namespace ReShade { namespace Runtimes
 
 		return true;
 	}
-	bool D3D11Texture::UpdateSource(ID3D11ShaderResourceView *srv, ID3D11ShaderResourceView *srvSRGB)
+	void D3D11Texture::UpdateSource(ID3D11ShaderResourceView *srv, ID3D11ShaderResourceView *srvSRGB)
 	{
 		if (srvSRGB == nullptr)
 		{
@@ -3589,7 +3594,7 @@ namespace ReShade { namespace Runtimes
 
 		if (srv == this->mShaderResourceView[0] && srvSRGB == this->mShaderResourceView[1])
 		{
-			return true;
+			return;
 		}
 
 		SAFE_RELEASE(this->mRenderTargetView[0]);
@@ -3630,8 +3635,6 @@ namespace ReShade { namespace Runtimes
 				pass.SRV[this->mRegister + 1] = this->mShaderResourceView[1];
 			}
 		}
-
-		return true;
 	}
 
 	D3D11Constant::D3D11Constant(D3D11Effect *effect, const Description &desc) : Constant(desc), mEffect(effect), mBufferIndex(0), mBufferOffset(0)

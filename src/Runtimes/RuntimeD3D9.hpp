@@ -16,7 +16,7 @@ namespace ReShade { namespace Runtimes
 		friend struct D3D9Constant;
 		friend struct D3D9Technique;
 
-		struct DepthStencilInfo
+		struct DepthSourceInfo
 		{
 			UINT Width, Height;
 			FLOAT DrawCallCount, DrawVerticesCount;
@@ -32,11 +32,11 @@ namespace ReShade { namespace Runtimes
 		void OnSetDepthStencilSurface(IDirect3DSurface9 *&depthstencil);
 		void OnGetDepthStencilSurface(IDirect3DSurface9 *&depthstencil);
 
+		void DetectDepthSource();
+		bool CreateDepthStencilReplacement(IDirect3DSurface9 *depthstencil);
+
 		virtual std::unique_ptr<Effect> CompileEffect(const EffectTree &ast, std::string &errors) const override;
 		virtual void CreateScreenshot(unsigned char *buffer, std::size_t size) const override;
-
-		void DetectBestDepthStencil();
-		bool CreateDepthStencil(IDirect3DSurface9 *depthstencil);
 
 		IDirect3DDevice9 *mDevice;
 		IDirect3DSwapChain9 *mSwapChain;
@@ -49,7 +49,7 @@ namespace ReShade { namespace Runtimes
 		IDirect3DSurface9 *mDepthStencil, *mDepthStencilReplacement;
 		IDirect3DTexture9 *mDepthStencilTexture;
 		IDirect3DSurface9 *mDefaultDepthStencil;
-		std::unordered_map<IDirect3DSurface9 *, DepthStencilInfo> mDepthStencilTable;
+		std::unordered_map<IDirect3DSurface9 *, DepthSourceInfo> mDepthSourceTable;
 		bool mLost;
 	};
 
@@ -98,7 +98,7 @@ namespace ReShade { namespace Runtimes
 		}
 
 		virtual bool Update(unsigned int level, const unsigned char *data, std::size_t size) override;
-		bool UpdateSource(IDirect3DTexture9 *texture);
+		void UpdateSource(IDirect3DTexture9 *texture);
 
 		D3D9Effect *mEffect;
 		Source mSource;

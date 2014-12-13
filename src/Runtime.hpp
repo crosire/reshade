@@ -11,8 +11,6 @@ struct NVGcontext;
 
 namespace ReShade
 {
-	struct EffectTree;
-
 	class Runtime abstract
 	{
 	public:
@@ -27,7 +25,8 @@ namespace ReShade
 		static void Startup(const boost::filesystem::path &executablePath, const boost::filesystem::path &injectorPath);
 		static void Shutdown();
 
-		static int NetworkTrafficUpload, NetworkTrafficDownload;
+	public:
+		static unsigned int sNetworkUpload, sNetworkDownload;
 
 	public:
 		Runtime();
@@ -42,10 +41,11 @@ namespace ReShade
 
 		bool LoadEffect();
 		bool CompileEffect();
-		virtual std::unique_ptr<Effect> CompileEffect(const EffectTree &ast, std::string &errors) const = 0;
+		virtual std::unique_ptr<Effect> CompileEffect(const struct EffectTree &ast, std::string &errors) const = 0;
 		void ProcessEffect();
-		virtual void CreateScreenshot(unsigned char *buffer, std::size_t size) const = 0;
+
 		void CreateScreenshot(const boost::filesystem::path &path);
+		virtual void CreateScreenshot(unsigned char *buffer, std::size_t size) const = 0;
 
 	protected:
 		unsigned int mWidth, mHeight;

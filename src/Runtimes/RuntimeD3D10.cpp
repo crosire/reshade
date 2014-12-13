@@ -2474,7 +2474,7 @@ namespace ReShade { namespace Runtimes
 
 		assert(SUCCEEDED(hr));
 
-		if (!CreateBackBuffer(this->mBackBuffer, desc.SampleDesc))
+		if (!CreateBackBufferReplacement(this->mBackBuffer, desc.SampleDesc))
 		{
 			LOG(TRACE) << "Failed to create backbuffer replacement!";
 
@@ -2571,9 +2571,9 @@ namespace ReShade { namespace Runtimes
 				depthstencil = this->mDepthStencil;
 			}
 
-			const auto it = this->mDepthStencilTable.find(depthstencil);
+			const auto it = this->mDepthSourceTable.find(depthstencil);
 
-			if (it != this->mDepthStencilTable.end())
+			if (it != this->mDepthSourceTable.end())
 			{
 				it->second.DrawCallCount = static_cast<FLOAT>(this->mLastDrawCalls++);
 				it->second.DrawVerticesCount += vertices;
@@ -2588,7 +2588,7 @@ namespace ReShade { namespace Runtimes
 			return;
 		}
 
-		DetectBestDepthStencil();
+		DetectDepthSource();
 
 		// Capture device state
 		this->mStateBlock->Capture();
@@ -2676,20 +2676,20 @@ namespace ReShade { namespace Runtimes
 		LOG(TRACE) << "Adding depthstencil " << depthstencil << " (Width: " << desc.Width << ", Height: " << desc.Height << ", Format: " << desc.Format << ") to list of possible depth candidates ...";
 
 		// Begin tracking new depthstencil
-		const DepthStencilInfo info = { desc.Width, desc.Height };
-		this->mDepthStencilTable.emplace(depthstencil, info);
+		const DepthSourceInfo info = { desc.Width, desc.Height };
+		this->mDepthSourceTable.emplace(depthstencil, info);
 	}
 	void D3D10Runtime::OnDeleteDepthStencilView(ID3D10DepthStencilView *depthstencil)
 	{
 		assert(depthstencil != nullptr);
 
-		const auto it = this->mDepthStencilTable.find(depthstencil);
+		const auto it = this->mDepthSourceTable.find(depthstencil);
 		
-		if (it != this->mDepthStencilTable.end())
+		if (it != this->mDepthSourceTable.end())
 		{
 			LOG(TRACE) << "Removing depthstencil " << depthstencil << " from list of possible depth candidates ...";
 
-			this->mDepthStencilTable.erase(it);
+			this->mDepthSourceTable.erase(it);
 		}
 	}
 	void D3D10Runtime::OnSetDepthStencilView(ID3D10DepthStencilView *&depthstencil)
@@ -2733,136 +2733,40 @@ namespace ReShade { namespace Runtimes
 		}
 	}
 
-	std::unique_ptr<Effect> D3D10Runtime::CompileEffect(const EffectTree &ast, std::string &errors) const
-	{
-		std::unique_ptr<D3D10Effect> effect(new D3D10Effect(shared_from_this()));
-
-		D3D10EffectCompiler visitor(ast);
-		
-		if (!visitor.Traverse(effect.get(), errors))
-		{
-			return nullptr;
-		}
-
-		D3D10_RASTERIZER_DESC rsdesc;
-		ZeroMemory(&rsdesc, sizeof(D3D10_RASTERIZER_DESC));
-		rsdesc.FillMode = D3D10_FILL_SOLID;
-		rsdesc.CullMode = D3D10_CULL_NONE;
-		rsdesc.DepthClipEnable = TRUE;
-
-		HRESULT hr = this->mDevice->CreateRasterizerState(&rsdesc, &effect->mRasterizerState);
-
-		if (FAILED(hr))
-		{
-			return nullptr;
-		}
-
-		return std::unique_ptr<Effect>(effect.release());
-	}
-	void D3D10Runtime::CreateScreenshot(unsigned char *buffer, std::size_t size) const
-	{
-		if (this->mSwapChainDesc.BufferDesc.Format != DXGI_FORMAT_R8G8B8A8_UNORM && this->mSwapChainDesc.BufferDesc.Format != DXGI_FORMAT_R8G8B8A8_UNORM_SRGB && this->mSwapChainDesc.BufferDesc.Format != DXGI_FORMAT_B8G8R8A8_UNORM && this->mSwapChainDesc.BufferDesc.Format != DXGI_FORMAT_B8G8R8A8_UNORM_SRGB)
-		{
-			LOG(WARNING) << "Screenshots are not supported for backbuffer format " << this->mSwapChainDesc.BufferDesc.Format << ".";
-			return;
-		}
-
-		if (size < static_cast<std::size_t>(this->mSwapChainDesc.BufferDesc.Width * this->mSwapChainDesc.BufferDesc.Height * 4))
-		{
-			return;
-		}
-
-		D3D10_TEXTURE2D_DESC texdesc;
-		ZeroMemory(&texdesc, sizeof(D3D10_TEXTURE2D_DESC));
-		texdesc.Width = this->mSwapChainDesc.BufferDesc.Width;
-		texdesc.Height = this->mSwapChainDesc.BufferDesc.Height;
-		texdesc.Format = this->mSwapChainDesc.BufferDesc.Format;
-		texdesc.MipLevels = 1;
-		texdesc.ArraySize = 1;
-		texdesc.SampleDesc.Count = 1;
-		texdesc.SampleDesc.Quality = 0;
-		texdesc.Usage = D3D10_USAGE_STAGING;
-		texdesc.CPUAccessFlags = D3D10_CPU_ACCESS_READ;
-
-		ID3D10Texture2D *textureStaging = nullptr;
-		HRESULT hr = this->mDevice->CreateTexture2D(&texdesc, nullptr, &textureStaging);
-
-		if (FAILED(hr))
-		{
-			LOG(TRACE) << "Failed to create staging texture for screenshot capture! HRESULT is '" << hr << "'.";
-			return;
-		}
-
-		this->mDevice->CopyResource(textureStaging, this->mBackBuffer);
-				
-		D3D10_MAPPED_TEXTURE2D mapped;
-		hr = textureStaging->Map(0, D3D10_MAP_READ, 0, &mapped);
-
-		if (FAILED(hr))
-		{
-			LOG(TRACE) << "Failed to map staging texture with screenshot capture! HRESULT is '" << hr << "'.";
-
-			textureStaging->Release();
-			return;
-		}
-
-		BYTE *pMem = buffer;
-		BYTE *pMapped = static_cast<BYTE *>(mapped.pData);
-
-		const UINT pitch = texdesc.Width * 4;
-
-		for (UINT y = 0; y < texdesc.Height; ++y)
-		{
-			CopyMemory(pMem, pMapped, std::min(pitch, static_cast<UINT>(mapped.RowPitch)));
-			
-			for (UINT x = 0; x < pitch; x += 4)
-			{
-				pMem[x + 3] = 0xFF;
-
-				if (this->mSwapChainDesc.BufferDesc.Format == DXGI_FORMAT_B8G8R8A8_UNORM || this->mSwapChainDesc.BufferDesc.Format == DXGI_FORMAT_B8G8R8A8_UNORM_SRGB)
-				{
-					std::swap(pMem[x + 0], pMem[x + 2]);
-				}
-			}
-								
-			pMem += pitch;
-			pMapped += mapped.RowPitch;
-		}
-
-		textureStaging->Unmap(0);
-
-		textureStaging->Release();
-	}
-
-	void D3D10Runtime::DetectBestDepthStencil()
+	void D3D10Runtime::DetectDepthSource()
 	{
 		static int cooldown = 0, traffic = 0;
 
 		if (cooldown-- > 0)
 		{
-			traffic += (NetworkTrafficDownload + NetworkTrafficUpload) > 0;
+			traffic += (sNetworkUpload + sNetworkDownload) > 0;
 			return;
 		}
 		else
 		{
 			cooldown = 30;
 
-			if (traffic > 10, traffic = 0)
+			if (traffic > 10)
 			{
-				CreateDepthStencil(nullptr);
+				traffic = 0;
+				CreateDepthStencilReplacement(nullptr);
 				return;
+			}
+			else
+			{
+				traffic = 0;
 			}
 		}
 
-		if (this->mSwapChainDesc.SampleDesc.Count > 1 || this->mDepthStencilTable.empty())
+		if (this->mSwapChainDesc.SampleDesc.Count > 1 || this->mDepthSourceTable.empty())
 		{
 			return;
 		}
 
+		DepthSourceInfo bestInfo = { 0 };
 		ID3D10DepthStencilView *best = nullptr;
-		DepthStencilInfo bestInfo = { 0 };
 
-		for (auto &it : this->mDepthStencilTable)
+		for (auto &it : this->mDepthSourceTable)
 		{
 			if (it.second.DrawCallCount == 0)
 			{
@@ -2881,10 +2785,10 @@ namespace ReShade { namespace Runtimes
 		{
 			LOG(TRACE) << "Switched depth source to depthstencil " << best << ".";
 
-			CreateDepthStencil(best);
+			CreateDepthStencilReplacement(best);
 		}
 	}
-	bool D3D10Runtime::CreateBackBuffer(ID3D10Texture2D *backbuffer, const DXGI_SAMPLE_DESC &samples)
+	bool D3D10Runtime::CreateBackBufferReplacement(ID3D10Texture2D *backbuffer, const DXGI_SAMPLE_DESC &samples)
 	{
 		D3D10_TEXTURE2D_DESC texdesc;
 		backbuffer->GetDesc(&texdesc);
@@ -2981,7 +2885,7 @@ namespace ReShade { namespace Runtimes
 
 		return true;
 	}
-	bool D3D10Runtime::CreateDepthStencil(ID3D10DepthStencilView *depthstencil)
+	bool D3D10Runtime::CreateDepthStencilReplacement(ID3D10DepthStencilView *depthstencil)
 	{
 		SAFE_RELEASE(this->mDepthStencil);
 		SAFE_RELEASE(this->mDepthStencilReplacement);
@@ -3143,6 +3047,107 @@ namespace ReShade { namespace Runtimes
 		}
 
 		return true;
+	}
+
+	std::unique_ptr<Effect> D3D10Runtime::CompileEffect(const EffectTree &ast, std::string &errors) const
+	{
+		std::unique_ptr<D3D10Effect> effect(new D3D10Effect(shared_from_this()));
+
+		D3D10EffectCompiler visitor(ast);
+		
+		if (!visitor.Traverse(effect.get(), errors))
+		{
+			return nullptr;
+		}
+
+		D3D10_RASTERIZER_DESC rsdesc;
+		ZeroMemory(&rsdesc, sizeof(D3D10_RASTERIZER_DESC));
+		rsdesc.FillMode = D3D10_FILL_SOLID;
+		rsdesc.CullMode = D3D10_CULL_NONE;
+		rsdesc.DepthClipEnable = TRUE;
+
+		HRESULT hr = this->mDevice->CreateRasterizerState(&rsdesc, &effect->mRasterizerState);
+
+		if (FAILED(hr))
+		{
+			return nullptr;
+		}
+
+		return std::unique_ptr<Effect>(effect.release());
+	}
+	void D3D10Runtime::CreateScreenshot(unsigned char *buffer, std::size_t size) const
+	{
+		if (this->mSwapChainDesc.BufferDesc.Format != DXGI_FORMAT_R8G8B8A8_UNORM && this->mSwapChainDesc.BufferDesc.Format != DXGI_FORMAT_R8G8B8A8_UNORM_SRGB && this->mSwapChainDesc.BufferDesc.Format != DXGI_FORMAT_B8G8R8A8_UNORM && this->mSwapChainDesc.BufferDesc.Format != DXGI_FORMAT_B8G8R8A8_UNORM_SRGB)
+		{
+			LOG(WARNING) << "Screenshots are not supported for backbuffer format " << this->mSwapChainDesc.BufferDesc.Format << ".";
+			return;
+		}
+
+		if (size < static_cast<std::size_t>(this->mSwapChainDesc.BufferDesc.Width * this->mSwapChainDesc.BufferDesc.Height * 4))
+		{
+			return;
+		}
+
+		D3D10_TEXTURE2D_DESC texdesc;
+		ZeroMemory(&texdesc, sizeof(D3D10_TEXTURE2D_DESC));
+		texdesc.Width = this->mSwapChainDesc.BufferDesc.Width;
+		texdesc.Height = this->mSwapChainDesc.BufferDesc.Height;
+		texdesc.Format = this->mSwapChainDesc.BufferDesc.Format;
+		texdesc.MipLevels = 1;
+		texdesc.ArraySize = 1;
+		texdesc.SampleDesc.Count = 1;
+		texdesc.SampleDesc.Quality = 0;
+		texdesc.Usage = D3D10_USAGE_STAGING;
+		texdesc.CPUAccessFlags = D3D10_CPU_ACCESS_READ;
+
+		ID3D10Texture2D *textureStaging = nullptr;
+		HRESULT hr = this->mDevice->CreateTexture2D(&texdesc, nullptr, &textureStaging);
+
+		if (FAILED(hr))
+		{
+			LOG(TRACE) << "Failed to create staging texture for screenshot capture! HRESULT is '" << hr << "'.";
+			return;
+		}
+
+		this->mDevice->CopyResource(textureStaging, this->mBackBuffer);
+				
+		D3D10_MAPPED_TEXTURE2D mapped;
+		hr = textureStaging->Map(0, D3D10_MAP_READ, 0, &mapped);
+
+		if (FAILED(hr))
+		{
+			LOG(TRACE) << "Failed to map staging texture with screenshot capture! HRESULT is '" << hr << "'.";
+
+			textureStaging->Release();
+			return;
+		}
+
+		BYTE *pMem = buffer;
+		BYTE *pMapped = static_cast<BYTE *>(mapped.pData);
+
+		const UINT pitch = texdesc.Width * 4;
+
+		for (UINT y = 0; y < texdesc.Height; ++y)
+		{
+			CopyMemory(pMem, pMapped, std::min(pitch, static_cast<UINT>(mapped.RowPitch)));
+			
+			for (UINT x = 0; x < pitch; x += 4)
+			{
+				pMem[x + 3] = 0xFF;
+
+				if (this->mSwapChainDesc.BufferDesc.Format == DXGI_FORMAT_B8G8R8A8_UNORM || this->mSwapChainDesc.BufferDesc.Format == DXGI_FORMAT_B8G8R8A8_UNORM_SRGB)
+				{
+					std::swap(pMem[x + 0], pMem[x + 2]);
+				}
+			}
+								
+			pMem += pitch;
+			pMapped += mapped.RowPitch;
+		}
+
+		textureStaging->Unmap(0);
+
+		textureStaging->Release();
 	}
 
 	D3D10Effect::D3D10Effect(std::shared_ptr<const D3D10Runtime> context) : mEffectContext(context), mRasterizerState(nullptr), mConstantsDirty(true)
@@ -3312,7 +3317,7 @@ namespace ReShade { namespace Runtimes
 
 		return true;
 	}
-	bool D3D10Texture::UpdateSource(ID3D10ShaderResourceView *srv, ID3D10ShaderResourceView *srvSRGB)
+	void D3D10Texture::UpdateSource(ID3D10ShaderResourceView *srv, ID3D10ShaderResourceView *srvSRGB)
 	{
 		if (srvSRGB == nullptr)
 		{
@@ -3321,7 +3326,7 @@ namespace ReShade { namespace Runtimes
 
 		if (srv == this->mShaderResourceView[0] && srvSRGB == this->mShaderResourceView[1])
 		{
-			return true;
+			return;
 		}
 
 		SAFE_RELEASE(this->mRenderTargetView[0]);
@@ -3362,8 +3367,6 @@ namespace ReShade { namespace Runtimes
 				pass.SRV[this->mRegister + 1] = this->mShaderResourceView[1];
 			}
 		}
-
-		return true;
 	}
 
 	D3D10Constant::D3D10Constant(D3D10Effect *effect, const Description &desc) : Constant(desc), mEffect(effect)

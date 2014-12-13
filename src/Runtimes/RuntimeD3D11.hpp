@@ -15,7 +15,7 @@ namespace ReShade { namespace Runtimes
 		friend struct D3D11Constant;
 		friend struct D3D11Technique;
 
-		struct DepthStencilInfo
+		struct DepthSourceInfo
 		{
 			UINT Width, Height;
 			FLOAT DrawCallCount, DrawVerticesCount;
@@ -36,12 +36,12 @@ namespace ReShade { namespace Runtimes
 		void OnClearDepthStencilView(ID3D11DepthStencilView *&depthstencil);
 		void OnCopyResource(ID3D11Resource *&dest, ID3D11Resource *&source);
 
+		void DetectDepthSource();
+		bool CreateBackBufferReplacement(ID3D11Texture2D *backbuffer, const DXGI_SAMPLE_DESC &samples);
+		bool CreateDepthStencilReplacement(ID3D11DepthStencilView *depthstencil);
+
 		virtual std::unique_ptr<Effect> CompileEffect(const EffectTree &ast, std::string &errors) const override;
 		virtual void CreateScreenshot(unsigned char *buffer, std::size_t size) const override;
-
-		void DetectBestDepthStencil();
-		bool CreateBackBuffer(ID3D11Texture2D *backbuffer, const DXGI_SAMPLE_DESC &samples);
-		bool CreateDepthStencil(ID3D11DepthStencilView *depthstencil);
 
 		ID3D11Device *mDevice;
 		ID3D11DeviceContext *mImmediateContext;
@@ -56,7 +56,7 @@ namespace ReShade { namespace Runtimes
 		ID3D11Texture2D *mDepthStencilTexture;
 		ID3D11ShaderResourceView *mDepthStencilTextureSRV;
 		ID3D11DepthStencilView *mDefaultDepthStencil;
-		std::unordered_map<ID3D11DepthStencilView *, DepthStencilInfo> mDepthStencilTable;
+		std::unordered_map<ID3D11DepthStencilView *, DepthSourceInfo> mDepthSourceTable;
 		CRITICAL_SECTION mCS;
 		bool mLost;
 	};
@@ -125,7 +125,7 @@ namespace ReShade { namespace Runtimes
 		}
 
 		virtual bool Update(unsigned int level, const unsigned char *data, std::size_t size) override;
-		bool UpdateSource(ID3D11ShaderResourceView *srv, ID3D11ShaderResourceView *srvSRGB);
+		void UpdateSource(ID3D11ShaderResourceView *srv, ID3D11ShaderResourceView *srvSRGB);
 
 		D3D11Effect *mEffect;
 		Source mSource;

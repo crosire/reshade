@@ -2527,7 +2527,7 @@ namespace ReShade { namespace Runtimes
 
 		ZeroMemory(&this->mPresentParams, sizeof(D3DPRESENT_PARAMETERS));
 
-		this->mDepthStencilTable.clear();
+		this->mDepthSourceTable.clear();
 
 		this->mLost = true;
 	}
@@ -2566,9 +2566,9 @@ namespace ReShade { namespace Runtimes
 				depthstencil = this->mDepthStencil;
 			}
 
-			const auto it = this->mDepthStencilTable.find(depthstencil);
+			const auto it = this->mDepthSourceTable.find(depthstencil);
 
-			if (it != this->mDepthStencilTable.end())
+			if (it != this->mDepthSourceTable.end())
 			{
 				it->second.DrawCallCount = static_cast<FLOAT>(this->mLastDrawCalls);
 				it->second.DrawVerticesCount += vertices;
@@ -2583,7 +2583,7 @@ namespace ReShade { namespace Runtimes
 			return;
 		}
 
-		DetectBestDepthStencil();
+		DetectDepthSource();
 
 		// Begin post processing
 		HRESULT hr = this->mDevice->BeginScene();
@@ -2656,7 +2656,7 @@ namespace ReShade { namespace Runtimes
 	}
 	void D3D9Runtime::OnSetDepthStencilSurface(IDirect3DSurface9 *&depthstencil)
 	{
-		if (this->mDepthStencilTable.find(depthstencil) == this->mDepthStencilTable.end())
+		if (this->mDepthSourceTable.find(depthstencil) == this->mDepthSourceTable.end())
 		{
 			D3DSURFACE_DESC desc;
 			depthstencil->GetDesc(&desc);
@@ -2670,8 +2670,8 @@ namespace ReShade { namespace Runtimes
 			LOG(TRACE) << "Adding depthstencil " << depthstencil << " (Width: " << desc.Width << ", Height: " << desc.Height << ", Format: " << desc.Format << ") to list of possible depth candidates ...";
 
 			// Begin tracking new depthstencil
-			const DepthStencilInfo info = { desc.Width, desc.Height };
-			this->mDepthStencilTable.emplace(depthstencil, info);
+			const DepthSourceInfo info = { desc.Width, desc.Height };
+			this->mDepthSourceTable.emplace(depthstencil, info);
 		}
 
 		if (this->mDepthStencilReplacement != nullptr && depthstencil == this->mDepthStencil)
@@ -2687,6 +2687,129 @@ namespace ReShade { namespace Runtimes
 
 			depthstencil = this->mDepthStencil;
 		}
+	}
+
+	void D3D9Runtime::DetectDepthSource()
+	{
+		static int cooldown = 0, traffic = 0;
+
+		if (cooldown-- > 0)
+		{
+			traffic += (sNetworkUpload + sNetworkDownload) > 0;
+			return;
+		}
+		else
+		{
+			cooldown = 30;
+
+			if (traffic > 10)
+			{
+				traffic = 0;
+				CreateDepthStencilReplacement(nullptr);
+				return;
+			}
+			else
+			{
+				traffic = 0;
+			}
+		}
+
+		if (this->mPresentParams.MultiSampleType != D3DMULTISAMPLE_NONE || this->mDepthSourceTable.empty())
+		{
+			return;
+		}
+
+		DepthSourceInfo bestInfo = { 0 };
+		IDirect3DSurface9 *best = nullptr;
+
+		for (auto &it : this->mDepthSourceTable)
+		{
+			if (it.second.DrawCallCount == 0)
+			{
+				continue;
+			}
+			else if ((it.second.DrawVerticesCount * (1.2f - it.second.DrawCallCount / this->mLastDrawCalls)) >= (bestInfo.DrawVerticesCount * (1.2f - bestInfo.DrawCallCount / this->mLastDrawCalls)))
+			{
+				best = it.first;
+				bestInfo = it.second;
+			}
+
+			it.second.DrawCallCount = it.second.DrawVerticesCount = 0;
+		}
+
+		if (best != nullptr && this->mDepthStencil != best)
+		{
+			LOG(TRACE) << "Switched depth source to depthstencil " << best << ".";
+
+			CreateDepthStencilReplacement(best);
+		}
+	}
+	bool D3D9Runtime::CreateDepthStencilReplacement(IDirect3DSurface9 *depthstencil)
+	{
+		SAFE_RELEASE(this->mDepthStencil);
+		SAFE_RELEASE(this->mDepthStencilReplacement);
+		SAFE_RELEASE(this->mDepthStencilTexture);
+
+		if (depthstencil != nullptr)
+		{
+			this->mDepthStencil = depthstencil;
+			this->mDepthStencil->AddRef();
+
+			D3DSURFACE_DESC desc;
+			this->mDepthStencil->GetDesc(&desc);
+
+			if (desc.Format != D3DFMT_INTZ)
+			{
+				const HRESULT hr = this->mDevice->CreateTexture(desc.Width, desc.Height, 1, D3DUSAGE_DEPTHSTENCIL, D3DFMT_INTZ, D3DPOOL_DEFAULT, &this->mDepthStencilTexture, nullptr);
+
+				if (SUCCEEDED(hr))
+				{
+					this->mDepthStencilTexture->GetSurfaceLevel(0, &this->mDepthStencilReplacement);
+
+					// Update auto depthstencil
+					IDirect3DSurface9 *depthstencil = nullptr;
+					this->mDevice->GetDepthStencilSurface(&depthstencil);
+
+					if (depthstencil != nullptr)
+					{
+						depthstencil->Release();
+
+						if (depthstencil == this->mDepthStencil)
+						{
+							this->mDevice->SetDepthStencilSurface(this->mDepthStencilReplacement);
+						}
+					}
+				}
+				else
+				{
+					LOG(TRACE) << "Failed to create depthstencil replacement texture! HRESULT is '" << hr << "'. Are you missing support for the 'INTZ' format?";
+
+					return false;
+				}
+			}
+			else
+			{
+				this->mDepthStencilReplacement = this->mDepthStencil;
+				this->mDepthStencilReplacement->AddRef();
+				this->mDepthStencilReplacement->GetContainer(__uuidof(IDirect3DTexture9), reinterpret_cast<void **>(&this->mDepthStencilTexture));
+			}
+		}
+
+		// Update effect textures
+		D3D9Effect *effect = static_cast<D3D9Effect *>(this->mEffect.get());
+		
+		if (effect != nullptr)
+		{
+			for (auto &it : effect->mTextures)
+			{
+				if (it.second->mSource == D3D9Texture::Source::DepthStencil)
+				{
+					it.second->UpdateSource(this->mDepthStencilTexture);
+				}
+			}
+		}
+
+		return true;
 	}
 
 	std::unique_ptr<Effect> D3D9Runtime::CompileEffect(const EffectTree &ast, std::string &errors) const
@@ -2810,124 +2933,6 @@ namespace ReShade { namespace Runtimes
 		screenshotSurface->UnlockRect();
 
 		screenshotSurface->Release();
-	}
-
-	void D3D9Runtime::DetectBestDepthStencil()
-	{
-		static int cooldown = 0, traffic = 0;
-
-		if (cooldown-- > 0)
-		{
-			traffic += (NetworkTrafficDownload + NetworkTrafficUpload) > 0;
-			return;
-		}
-		else
-		{
-			cooldown = 30;
-			
-			if (traffic > 10, traffic = 0)
-			{
-				CreateDepthStencil(nullptr);
-				return;
-			}
-		}
-
-		if (this->mPresentParams.MultiSampleType != D3DMULTISAMPLE_NONE || this->mDepthStencilTable.empty())
-		{
-			return;
-		}
-
-		IDirect3DSurface9 *best = nullptr;
-		DepthStencilInfo bestInfo = { 0 };
-
-		for (auto &it : this->mDepthStencilTable)
-		{
-			if (it.second.DrawCallCount == 0)
-			{
-				continue;
-			}
-			else if ((it.second.DrawVerticesCount * (1.2f - it.second.DrawCallCount / this->mLastDrawCalls)) >= (bestInfo.DrawVerticesCount * (1.2f - bestInfo.DrawCallCount / this->mLastDrawCalls)))
-			{
-				best = it.first;
-				bestInfo = it.second;
-			}
-
-			it.second.DrawCallCount = it.second.DrawVerticesCount = 0;
-		}
-
-		if (best != nullptr && this->mDepthStencil != best)
-		{
-			LOG(TRACE) << "Switched depth source to depthstencil " << best << ".";
-
-			CreateDepthStencil(best);
-		}
-	}
-	bool D3D9Runtime::CreateDepthStencil(IDirect3DSurface9 *depthstencil)
-	{
-		SAFE_RELEASE(this->mDepthStencil);
-		SAFE_RELEASE(this->mDepthStencilReplacement);
-		SAFE_RELEASE(this->mDepthStencilTexture);
-
-		if (depthstencil != nullptr)
-		{
-			this->mDepthStencil = depthstencil;
-			this->mDepthStencil->AddRef();
-
-			D3DSURFACE_DESC desc;
-			this->mDepthStencil->GetDesc(&desc);
-
-			if (desc.Format != D3DFMT_INTZ)
-			{
-				const HRESULT hr = this->mDevice->CreateTexture(desc.Width, desc.Height, 1, D3DUSAGE_DEPTHSTENCIL, D3DFMT_INTZ, D3DPOOL_DEFAULT, &this->mDepthStencilTexture, nullptr);
-
-				if (SUCCEEDED(hr))
-				{
-					this->mDepthStencilTexture->GetSurfaceLevel(0, &this->mDepthStencilReplacement);
-
-					// Update auto depthstencil
-					IDirect3DSurface9 *depthstencil = nullptr;
-					this->mDevice->GetDepthStencilSurface(&depthstencil);
-
-					if (depthstencil != nullptr)
-					{
-						depthstencil->Release();
-
-						if (depthstencil == this->mDepthStencil)
-						{
-							this->mDevice->SetDepthStencilSurface(this->mDepthStencilReplacement);
-						}
-					}
-				}
-				else
-				{
-					LOG(TRACE) << "Failed to create depthstencil replacement texture! HRESULT is '" << hr << "'. Are you missing support for the 'INTZ' format?";
-
-					return false;
-				}
-			}
-			else
-			{
-				this->mDepthStencilReplacement = this->mDepthStencil;
-				this->mDepthStencilReplacement->AddRef();
-				this->mDepthStencilReplacement->GetContainer(__uuidof(IDirect3DTexture9), reinterpret_cast<void **>(&this->mDepthStencilTexture));
-			}
-		}
-
-		// Update effect textures
-		D3D9Effect *effect = static_cast<D3D9Effect *>(this->mEffect.get());
-		
-		if (effect != nullptr)
-		{
-			for (auto &it : effect->mTextures)
-			{
-				if (it.second->mSource == D3D9Texture::Source::DepthStencil)
-				{
-					it.second->UpdateSource(this->mDepthStencilTexture);
-				}
-			}
-		}
-
-		return true;
 	}
 
 	D3D9Effect::D3D9Effect(std::shared_ptr<const D3D9Runtime> context) : mEffectContext(context), mVertexBuffer(nullptr), mVertexDeclaration(nullptr), mConstantRegisterCount(0), mConstantStorage(nullptr)
@@ -3110,17 +3115,15 @@ namespace ReShade { namespace Runtimes
 
 		return true;
 	}
-	bool D3D9Texture::UpdateSource(IDirect3DTexture9 *texture)
+	void D3D9Texture::UpdateSource(IDirect3DTexture9 *texture)
 	{
 		if (this->mTexture == texture)
 		{
-			return true;
+			return;
 		}
-		else if (this->mTexture != nullptr)
-		{
-			SAFE_RELEASE(this->mTexture);
-			SAFE_RELEASE(this->mTextureSurface);
-		}
+
+		SAFE_RELEASE(this->mTexture);
+		SAFE_RELEASE(this->mTextureSurface);
 
 		if (texture != nullptr)
 		{
@@ -3141,8 +3144,6 @@ namespace ReShade { namespace Runtimes
 			this->mDesc.Width = this->mDesc.Height = this->mDesc.Levels = 0;
 			this->mDesc.Format = Effect::Texture::Format::Unknown;
 		}
-
-		return true;
 	}
 
 	D3D9Constant::D3D9Constant(D3D9Effect *effect, const Description &desc) : Constant(desc), mEffect(effect), mStorageOffset(0)
@@ -3212,7 +3213,7 @@ namespace ReShade { namespace Runtimes
 		{
 			device->SetTexture(sampler, this->mEffect->mSamplers[sampler].mTexture->mTexture);
 
-			for (DWORD state = 1; state < 12; ++state)
+			for (DWORD state = D3DSAMP_ADDRESSU; state <= D3DSAMP_SRGBTEXTURE; ++state)
 			{
 				device->SetSamplerState(sampler, static_cast<D3DSAMPLERSTATETYPE>(state), this->mEffect->mSamplers[sampler].mStates[state]);
 			}

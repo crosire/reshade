@@ -56,13 +56,13 @@ namespace
 	{
 		CriticalSection::Lock lock(sCS);
 
-		ReShade::Runtime::NetworkTrafficUpload += len;
+		ReShade::Runtime::sNetworkUpload += len;
 	}
 	void NetworkDownload(unsigned int len)
 	{
 		CriticalSection::Lock lock(sCS);
 
-		ReShade::Runtime::NetworkTrafficDownload += len;
+		ReShade::Runtime::sNetworkDownload += len;
 	}
 }
 

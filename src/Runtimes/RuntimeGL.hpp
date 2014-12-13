@@ -16,7 +16,7 @@ namespace ReShade { namespace Runtimes
 		friend struct GLConstant;
 		friend struct GLTechnique;
 
-		struct FBOInfo
+		struct DepthSourceInfo
 		{
 			GLfloat DrawCallCount, DrawVerticesCount;
 			GLuint DepthStencilName;
@@ -33,16 +33,16 @@ namespace ReShade { namespace Runtimes
 		void OnPresentInternal();
 		void OnFramebufferAttachment(GLenum target, GLenum attachment, GLenum objecttarget, GLuint object, GLint level);
 
+		void DetectDepthSource();
+
 		virtual std::unique_ptr<Effect> CompileEffect(const EffectTree &ast, std::string &errors) const override;
 		virtual void CreateScreenshot(unsigned char *buffer, std::size_t size) const override;
-
-		void DetectBestDepthStencil();
 
 		HDC mDeviceContext;
 		HGLRC mRenderContext;
 		std::unique_ptr<class GLStateBlock> mStateBlock;
 		GLuint mDefaultBackBufferFBO, mDefaultBackBufferRBO[2], mBackBufferTexture[2], mDepthStencilFBO, mDepthStencilTexture, mBlitFBO;
-		std::unordered_map<GLuint, FBOInfo> mFramebufferTable;
+		std::unordered_map<GLuint, DepthSourceInfo> mDepthSourceTable;
 		bool mLost, mPresenting;
 	};
 
@@ -93,7 +93,7 @@ namespace ReShade { namespace Runtimes
 		}
 
 		virtual bool Update(unsigned int level, const unsigned char *data, std::size_t size) override;
-		bool UpdateSource(GLuint texture, GLuint textureSRGB);
+		void UpdateSource(GLuint texture, GLuint textureSRGB);
 
 		GLEffect *mEffect;
 		Source mSource;
