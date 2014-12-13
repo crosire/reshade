@@ -2566,9 +2566,13 @@ namespace ReShade { namespace Runtimes
 				depthstencil = this->mDepthStencil;
 			}
 
-			// Update depthstencil statistics
-			this->mDepthStencilTable[depthstencil].DrawCallCount = static_cast<FLOAT>(this->mLastDrawCalls);
-			this->mDepthStencilTable[depthstencil].DrawVerticesCount += vertices;
+			const auto it = this->mDepthStencilTable.find(depthstencil);
+
+			if (it != this->mDepthStencilTable.end())
+			{
+				it->second.DrawCallCount = static_cast<FLOAT>(this->mLastDrawCalls);
+				it->second.DrawVerticesCount += vertices;
+			}
 		}
 	}
 	void D3D9Runtime::OnPresentInternal()
@@ -2658,7 +2662,7 @@ namespace ReShade { namespace Runtimes
 			depthstencil->GetDesc(&desc);
 
 			// Early depthstencil rejection
-			if (desc.Width != this->mPresentParams.BackBufferWidth || desc.Height != this->mPresentParams.BackBufferHeight)
+			if (desc.Width != this->mPresentParams.BackBufferWidth || desc.Height != this->mPresentParams.BackBufferHeight || desc.MultiSampleType != D3DMULTISAMPLE_NONE)
 			{
 				return;
 			}
