@@ -2852,7 +2852,7 @@ namespace ReShade { namespace Runtimes
 
 			if (it != this->mDepthSourceTable.end())
 			{
-				it->second.DrawCallCount = static_cast<FLOAT>(this->mLastDrawCalls++);
+				it->second.DrawCallCount = static_cast<FLOAT>(this->mLastDrawCalls);
 				it->second.DrawVerticesCount += vertices;
 			}
 		}
