@@ -18,10 +18,8 @@ namespace ReShade { namespace Runtimes
 
 		struct DepthSourceInfo
 		{
+			GLint Width, Height, Level, Format;
 			GLfloat DrawCallCount, DrawVerticesCount;
-			GLuint DepthStencilName;
-			GLenum DepthStencilTarget;
-			GLint DepthStencilWidth, DepthStencilHeight, DepthStencilFormat;
 		};
 
 		GLRuntime(HDC device, HGLRC context);
@@ -34,6 +32,7 @@ namespace ReShade { namespace Runtimes
 		void OnFramebufferAttachment(GLenum target, GLenum attachment, GLenum objecttarget, GLuint object, GLint level);
 
 		void DetectDepthSource();
+		void CreateDepthTexture(GLuint width, GLuint height, GLenum format);
 
 		virtual std::unique_ptr<Effect> CompileEffect(const EffectTree &ast, std::string &errors) const override;
 		virtual void CreateScreenshot(unsigned char *buffer, std::size_t size) const override;
@@ -41,7 +40,8 @@ namespace ReShade { namespace Runtimes
 		HDC mDeviceContext;
 		HGLRC mRenderContext;
 		std::unique_ptr<class GLStateBlock> mStateBlock;
-		GLuint mDefaultBackBufferFBO, mDefaultBackBufferRBO[2], mBackBufferTexture[2], mDepthStencilFBO, mDepthStencilTexture, mBlitFBO;
+		GLuint mDefaultBackBufferFBO, mDefaultBackBufferRBO[2], mBackBufferTexture[2];
+		GLuint mDepthSourceFBO, mDepthSource, mDepthTexture, mBlitFBO;
 		std::unordered_map<GLuint, DepthSourceInfo> mDepthSourceTable;
 		bool mLost, mPresenting;
 	};

@@ -1992,7 +1992,7 @@ namespace ReShade { namespace Runtimes
 					if (boost::equals(node.Semantic, "DEPTH") || boost::equals(node.Semantic, "SV_DEPTH"))
 					{
 						obj->mSource = GLTexture::Source::DepthStencil;
-						obj->UpdateSource(this->mEffect->mEffectContext->mDepthStencilTexture, 0);
+						obj->UpdateSource(this->mEffect->mEffectContext->mDepthTexture, 0);
 					}
 				}
 
@@ -3201,7 +3201,7 @@ namespace ReShade { namespace Runtimes
 
 	// -----------------------------------------------------------------------------------------------------
 
-	GLRuntime::GLRuntime(HDC device, HGLRC context) : mDeviceContext(device), mRenderContext(context), mStateBlock(new GLStateBlock), mDefaultBackBufferFBO(0), mDefaultBackBufferRBO(), mBackBufferTexture(), mDepthStencilFBO(0), mDepthStencilTexture(0), mBlitFBO(0), mLost(true), mPresenting(false)
+	GLRuntime::GLRuntime(HDC device, HGLRC context) : mDeviceContext(device), mRenderContext(context), mStateBlock(new GLStateBlock), mDefaultBackBufferFBO(0), mDefaultBackBufferRBO(), mBackBufferTexture(), mDepthSourceFBO(0), mDepthSource(0), mDepthTexture(0), mBlitFBO(0), mLost(true), mPresenting(false)
 	{
 		assert(device != nullptr);
 		assert(context != nullptr);
@@ -3259,6 +3259,7 @@ namespace ReShade { namespace Runtimes
 	{
 		this->mStateBlock->Capture();
 
+		// Generate backbuffer targets
 		GLCHECK(glGenRenderbuffers(2, this->mDefaultBackBufferRBO));
 		GLCHECK(glBindRenderbuffer(GL_RENDERBUFFER, this->mDefaultBackBufferRBO[0]));
 		GLCHECK(glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA8, width, height));
@@ -3277,21 +3278,20 @@ namespace ReShade { namespace Runtimes
 		GLCHECK(glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA8, width, height));
 		GLCHECK(glTextureView(this->mBackBufferTexture[1], GL_TEXTURE_2D, this->mBackBufferTexture[0], GL_SRGB8_ALPHA8, 0, 1, 0, 1));
 
-		DepthSourceInfo defaultfbo = { 0 };
-		defaultfbo.DepthStencilWidth = width;
-		defaultfbo.DepthStencilHeight = height;
-		defaultfbo.DepthStencilFormat = GL_DEPTH24_STENCIL8;
-		defaultfbo.DepthStencilTarget = GL_FRAMEBUFFER_DEFAULT;
-		this->mDepthSourceTable[0] = defaultfbo;
+		// Generate depth targets
+		const DepthSourceInfo defaultdepth = { width, height, 0, GL_DEPTH24_STENCIL8 };
+		this->mDepthSourceTable[0] = defaultdepth;
 
-		GLCHECK(glGenTextures(1, &this->mDepthStencilTexture));
-		GLCHECK(glBindTexture(GL_TEXTURE_2D, this->mDepthStencilTexture));
-		GLCHECK(glTexStorage2D(GL_TEXTURE_2D, 1, defaultfbo.DepthStencilFormat, defaultfbo.DepthStencilWidth, defaultfbo.DepthStencilHeight));
+		LOG(TRACE) << "Switched depth source to default depthstencil.";
+
+		GLCHECK(glGenTextures(1, &this->mDepthTexture));
+		GLCHECK(glBindTexture(GL_TEXTURE_2D, this->mDepthTexture));
+		GLCHECK(glTexStorage2D(GL_TEXTURE_2D, 1, defaultdepth.Format, defaultdepth.Width, defaultdepth.Height));
 
 		GLCHECK(glGenFramebuffers(1, &this->mBlitFBO));
 		GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, this->mBlitFBO));
+		GLCHECK(glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, this->mDepthTexture, 0));
 		GLCHECK(glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, this->mBackBufferTexture[1], 0));
-		GLCHECK(glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, this->mDepthStencilTexture, 0));
 
 		assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
 
@@ -3325,16 +3325,14 @@ namespace ReShade { namespace Runtimes
 		GLCHECK(glDeleteFramebuffers(1, &this->mDefaultBackBufferFBO));			
 		GLCHECK(glDeleteRenderbuffers(2, this->mDefaultBackBufferRBO));
 		GLCHECK(glDeleteTextures(2, this->mBackBufferTexture));
-		GLCHECK(glDeleteTextures(1, &this->mDepthStencilTexture));
+		GLCHECK(glDeleteFramebuffers(1, &this->mDepthSourceFBO));			
+		GLCHECK(glDeleteTextures(1, &this->mDepthTexture));
 		GLCHECK(glDeleteFramebuffers(1, &this->mBlitFBO));			
 
-		this->mDefaultBackBufferFBO = 0;
-		this->mDefaultBackBufferRBO[0] = 0;
-		this->mDefaultBackBufferRBO[1] = 0;
-		this->mBackBufferTexture[0] = 0;
-		this->mBackBufferTexture[1] = 0;
-		this->mDepthStencilFBO = 0;
-		this->mDepthStencilTexture = 0;
+		this->mDefaultBackBufferFBO = this->mDefaultBackBufferRBO[0] = this->mDefaultBackBufferRBO[1] = 0;
+		this->mBackBufferTexture[0] = this->mBackBufferTexture[1] = 0;
+		this->mDepthSourceFBO = this->mDepthSource = 0;
+		this->mDepthTexture = 0;
 		this->mBlitFBO = 0;
 
 		this->mStateBlock->Apply();
@@ -3346,10 +3344,24 @@ namespace ReShade { namespace Runtimes
 	{
 		Runtime::OnDraw(vertices);
 
-		GLint fbo = 0;
+		GLint fbo = 0, object = 0, objecttarget = GL_NONE;
 		GLCHECK(glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &fbo));
 
-		const auto it = this->mDepthSourceTable.find(fbo);
+		if (fbo != 0)
+		{
+			GLCHECK(glGetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE, &objecttarget));
+
+			if (objecttarget == GL_NONE)
+			{
+				return;
+			}
+			else
+			{
+				GLCHECK(glGetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME, &object));
+			}
+		}
+
+		const auto it = this->mDepthSourceTable.find(object | (objecttarget == GL_RENDERBUFFER ? 0x80000000 : 0));
 
 		if (it != this->mDepthSourceTable.end())
 		{
@@ -3378,7 +3390,7 @@ namespace ReShade { namespace Runtimes
 		GLCHECK(glBlitFramebuffer(0, 0, this->mWidth, this->mHeight, 0, 0, this->mWidth, this->mHeight, GL_COLOR_BUFFER_BIT, GL_NEAREST));
 
 		// Copy depthbuffer
-		GLCHECK(glBindFramebuffer(GL_READ_FRAMEBUFFER, this->mDepthStencilFBO));
+		GLCHECK(glBindFramebuffer(GL_READ_FRAMEBUFFER, this->mDepthSourceFBO));
 		GLCHECK(glBindFramebuffer(GL_DRAW_FRAMEBUFFER, this->mBlitFBO));
 		GLCHECK(glBlitFramebuffer(0, 0, this->mWidth, this->mHeight, 0, 0, this->mWidth, this->mHeight, GL_DEPTH_BUFFER_BIT, GL_NEAREST));
 
@@ -3419,14 +3431,19 @@ namespace ReShade { namespace Runtimes
 
 		assert(fbo != 0);
 
-		if (static_cast<GLuint>(fbo) == this->mDefaultBackBufferFBO || static_cast<GLuint>(fbo) == this->mBlitFBO)
+		if (static_cast<GLuint>(fbo) == this->mDefaultBackBufferFBO || static_cast<GLuint>(fbo) == this->mDepthSourceFBO || static_cast<GLuint>(fbo) == this->mBlitFBO)
 		{
 			return;
 		}
 
-		DepthSourceInfo &info = this->mDepthSourceTable[fbo];
-		info.DepthStencilName = object;
-		info.DepthStencilTarget = objecttarget;
+		const GLuint id = object | (objecttarget == GL_RENDERBUFFER ? 0x80000000 : 0);
+		
+		if (this->mDepthSourceTable.find(id) != this->mDepthSourceTable.end())
+		{
+			return;
+		}
+
+		DepthSourceInfo info = { 0, 0, 0, GL_NONE };
 
 		if (objecttarget == GL_RENDERBUFFER)
 		{
@@ -3435,9 +3452,9 @@ namespace ReShade { namespace Runtimes
 
 			// Get depthstencil parameters from renderbuffer
 			GLCHECK(glBindRenderbuffer(GL_RENDERBUFFER, object));
-			GLCHECK(glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_WIDTH, &info.DepthStencilWidth));
-			GLCHECK(glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_HEIGHT, &info.DepthStencilHeight));
-			GLCHECK(glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_INTERNAL_FORMAT, &info.DepthStencilFormat));
+			GLCHECK(glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_WIDTH, &info.Width));
+			GLCHECK(glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_HEIGHT, &info.Height));
+			GLCHECK(glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_INTERNAL_FORMAT, &info.Format));
 
 			GLCHECK(glBindRenderbuffer(GL_RENDERBUFFER, previous));
 		}
@@ -3453,14 +3470,17 @@ namespace ReShade { namespace Runtimes
 
 			// Get depthstencil parameters from texture
 			GLCHECK(glBindTexture(objecttarget, object));
-			GLCHECK(glGetTexLevelParameteriv(objecttarget, level, GL_TEXTURE_WIDTH, &info.DepthStencilWidth));
-			GLCHECK(glGetTexLevelParameteriv(objecttarget, level, GL_TEXTURE_HEIGHT, &info.DepthStencilHeight));
-			GLCHECK(glGetTexLevelParameteriv(objecttarget, level, GL_TEXTURE_INTERNAL_FORMAT, &info.DepthStencilFormat));
+			info.Level = level;
+			GLCHECK(glGetTexLevelParameteriv(objecttarget, level, GL_TEXTURE_WIDTH, &info.Width));
+			GLCHECK(glGetTexLevelParameteriv(objecttarget, level, GL_TEXTURE_HEIGHT, &info.Height));
+			GLCHECK(glGetTexLevelParameteriv(objecttarget, level, GL_TEXTURE_INTERNAL_FORMAT, &info.Format));
 			
 			GLCHECK(glBindTexture(objecttarget, previous));
 		}
 
-		LOG(TRACE) << "Adding framebuffer " << fbo << " (Depth Attachment: " << attachment << ", Depth Width: " << info.DepthStencilWidth << ", Depth Height: " << info.DepthStencilHeight << ", Depth Format: " << info.DepthStencilFormat << ") to list of possible depth candidates ...";
+		LOG(TRACE) << "Adding framebuffer " << fbo << " attachment " << object << " (Attachment Type: " << attachment << ", Object Type: " << objecttarget << ", Width: " << info.Width << ", Height: " << info.Height << ", Format: " << info.Format << ") to list of possible depth candidates ...";
+
+		this->mDepthSourceTable.emplace(id, info);
 	}
 
 	void GLRuntime::DetectDepthSource()
@@ -3479,12 +3499,8 @@ namespace ReShade { namespace Runtimes
 			if (traffic > 10)
 			{
 				traffic = 0;
-
-				if (this->mDepthStencilTexture != 0)
-				{
-					GLCHECK(glDeleteTextures(1, &this->mDepthStencilTexture));
-					this->mDepthStencilTexture = 0;
-				}
+				this->mDepthSource = 0;
+				CreateDepthTexture(0, 0, GL_NONE);
 				return;
 			}
 			else
@@ -3494,7 +3510,7 @@ namespace ReShade { namespace Runtimes
 		}
 
 		GLuint best = 0;
-		DepthSourceInfo bestInfo = { 0 };
+		DepthSourceInfo bestInfo = { 0, 0, 0, GL_NONE };
 
 		for (auto &it : this->mDepthSourceTable)
 		{
@@ -3502,7 +3518,7 @@ namespace ReShade { namespace Runtimes
 			{
 				continue;
 			}
-			else if (((it.second.DrawVerticesCount * (1.2f - it.second.DrawCallCount / this->mLastDrawCalls)) >= (bestInfo.DrawVerticesCount * (1.2f - bestInfo.DrawCallCount / this->mLastDrawCalls))) && (it.second.DepthStencilWidth == static_cast<GLint>(this->mWidth) && it.second.DepthStencilHeight == static_cast<GLint>(this->mHeight)))
+			else if (((it.second.DrawVerticesCount * (1.2f - it.second.DrawCallCount / this->mLastDrawCalls)) >= (bestInfo.DrawVerticesCount * (1.2f - bestInfo.DrawCallCount / this->mLastDrawCalls))) && (it.second.Width == static_cast<GLint>(this->mWidth) && it.second.Height == static_cast<GLint>(this->mHeight)))
 			{
 				best = it.first;
 				bestInfo = it.second;
@@ -3516,30 +3532,95 @@ namespace ReShade { namespace Runtimes
 			bestInfo = this->mDepthSourceTable.at(0);
 		}
 
-		if (this->mDepthStencilFBO != best)
+		if (this->mDepthSource != best || this->mDepthTexture == 0)
 		{
-			LOG(TRACE) << "Switched depth source to framebuffer " << best << ".";
+			const DepthSourceInfo &previousInfo = this->mDepthSourceTable.at(this->mDepthSource);
 
-			GLint previousTex = 0, previousFBO;
-			GLCHECK(glGetIntegerv(GL_TEXTURE_BINDING_2D, &previousTex));
+			if ((bestInfo.Width != previousInfo.Width || bestInfo.Height != previousInfo.Height || bestInfo.Format != previousInfo.Format) || this->mDepthTexture == 0)
+			{
+				// Resize depth texture
+				CreateDepthTexture(bestInfo.Width, bestInfo.Height, bestInfo.Format);
+			}
+
+			GLint previousFBO = 0;
 			GLCHECK(glGetIntegerv(GL_FRAMEBUFFER_BINDING, &previousFBO));
 
-			GLCHECK(glDeleteTextures(1, &this->mDepthStencilTexture));
-
-			this->mDepthStencilFBO = best;
-			this->mDepthStencilTexture = 0;
-
-			GLCHECK(glGenTextures(1, &this->mDepthStencilTexture));
-			GLCHECK(glBindTexture(GL_TEXTURE_2D, this->mDepthStencilTexture));
-			GLCHECK(glTexStorage2D(GL_TEXTURE_2D, 1, bestInfo.DepthStencilFormat, bestInfo.DepthStencilWidth, bestInfo.DepthStencilHeight));
-
 			GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, this->mBlitFBO));
-			GLCHECK(glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, this->mDepthStencilTexture, 0));
+			GLCHECK(glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, this->mDepthTexture, 0));
 
 			assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
 
-			GLCHECK(glBindTexture(GL_TEXTURE_2D, previousTex));
+			this->mDepthSource = best;
+
+			if (best != 0)
+			{
+				if (this->mDepthSourceFBO == 0)
+				{
+					GLCHECK(glGenFramebuffers(1, &this->mDepthSourceFBO));
+				}
+
+				GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, this->mDepthSourceFBO));
+
+				if ((best & 0x80000000) != 0)
+				{
+					best ^= 0x80000000;
+
+					LOG(TRACE) << "Switched depth source to renderbuffer " << best << ".";
+
+					GLCHECK(glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, best));
+				}
+				else
+				{
+					LOG(TRACE) << "Switched depth source to texture " << best << ".";
+
+					GLCHECK(glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, best, bestInfo.Level));
+				}
+
+				assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
+			}
+			else
+			{
+				LOG(TRACE) << "Switched depth source to default framebuffer.";
+				
+				GLCHECK(glDeleteFramebuffers(1, &this->mDepthSourceFBO));
+				this->mDepthSourceFBO = 0;
+			}
+
 			GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, previousFBO));
+		}
+	}
+	void GLRuntime::CreateDepthTexture(GLuint width, GLuint height, GLenum format)
+	{
+		GLCHECK(glDeleteTextures(1, &this->mDepthTexture));
+
+		if (format != GL_NONE)
+		{
+			GLint previousTex = 0;
+			GLCHECK(glGetIntegerv(GL_TEXTURE_BINDING_2D, &previousTex));
+
+			GLCHECK(glGenTextures(1, &this->mDepthTexture));
+			GLCHECK(glBindTexture(GL_TEXTURE_2D, this->mDepthTexture));
+			GLCHECK(glTexStorage2D(GL_TEXTURE_2D, 1, format, width, height));
+
+			GLCHECK(glBindTexture(GL_TEXTURE_2D, previousTex));
+		}
+		else
+		{
+			this->mDepthTexture = 0;
+		}
+
+		// Update effect textures
+		GLEffect *effect = static_cast<GLEffect *>(this->mEffect.get());
+
+		if (effect != nullptr)
+		{
+			for (auto &it : effect->mTextures)
+			{
+				if (it.second->mSource == GLTexture::Source::DepthStencil)
+				{
+					it.second->UpdateSource(this->mDepthTexture, 0);
+				}
+			}
 		}
 	}
 
@@ -3787,11 +3868,7 @@ namespace ReShade { namespace Runtimes
 			textureSRGB = texture;
 		}
 
-		if (texture == 0)
-		{
-			return;
-		}
-		else if (this->mID[0] == texture && this->mID[1] == textureSRGB)
+		if (this->mID[0] == texture && this->mID[1] == textureSRGB)
 		{
 			return;
 		}
