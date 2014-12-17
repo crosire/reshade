@@ -558,11 +558,11 @@ EXPORT void WINAPI glDrawArrays(GLenum mode, GLint first, GLsizei count)
 {
 	static const auto trampoline = ReShade::Hooks::Call(&glDrawArrays);
 
-	if (sCurrentRuntimes.find(sCurrentDeviceContext) != sCurrentRuntimes.end())
-	{
-		ReShade::Runtimes::GLRuntime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
+	const auto it = sCurrentRuntimes.find(sCurrentDeviceContext);
 
-		runtime->OnDrawInternal(count);
+	if (it != sCurrentRuntimes.end())
+	{
+		it->second->OnDrawInternal(count);
 	}
 
 	trampoline(mode, first, count);
@@ -577,11 +577,11 @@ void WINAPI glDrawArraysInstanced(GLenum mode, GLint first, GLsizei count, GLsiz
 {
 	static const auto trampoline = ReShade::Hooks::Call(&glDrawArraysInstanced);
 
-	if (sCurrentRuntimes.find(sCurrentDeviceContext) != sCurrentRuntimes.end())
-	{
-		ReShade::Runtimes::GLRuntime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
+	const auto it = sCurrentRuntimes.find(sCurrentDeviceContext);
 
-		runtime->OnDrawInternal(instancecount * count);
+	if (it != sCurrentRuntimes.end())
+	{
+		it->second->OnDrawInternal(instancecount * count);
 	}
 
 	trampoline(mode, first, count, instancecount);
@@ -590,11 +590,11 @@ void WINAPI glDrawArraysInstancedBaseInstance(GLenum mode, GLint first, GLsizei 
 {
 	static const auto trampoline = ReShade::Hooks::Call(&glDrawArraysInstancedBaseInstance);
 
-	if (sCurrentRuntimes.find(sCurrentDeviceContext) != sCurrentRuntimes.end())
-	{
-		ReShade::Runtimes::GLRuntime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
+	const auto it = sCurrentRuntimes.find(sCurrentDeviceContext);
 
-		runtime->OnDrawInternal(instancecount * count);
+	if (it != sCurrentRuntimes.end())
+	{
+		it->second->OnDrawInternal(instancecount * count);
 	}
 
 	trampoline(mode, first, count, instancecount, baseinstance);
@@ -609,11 +609,11 @@ EXPORT void WINAPI glDrawElements(GLenum mode, GLsizei count, GLenum type, const
 {
 	static const auto trampoline = ReShade::Hooks::Call(&glDrawElements);
 
-	if (sCurrentRuntimes.find(sCurrentDeviceContext) != sCurrentRuntimes.end())
-	{
-		ReShade::Runtimes::GLRuntime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
+	const auto it = sCurrentRuntimes.find(sCurrentDeviceContext);
 
-		runtime->OnDrawInternal(count);
+	if (it != sCurrentRuntimes.end())
+	{
+		it->second->OnDrawInternal(count);
 	}
 
 	trampoline(mode, count, type, indices);
@@ -622,11 +622,11 @@ void WINAPI glDrawElementsBaseVertex(GLenum mode, GLsizei count, GLenum type, co
 {
 	static const auto trampoline = ReShade::Hooks::Call(&glDrawElementsBaseVertex);
 
-	if (sCurrentRuntimes.find(sCurrentDeviceContext) != sCurrentRuntimes.end())
-	{
-		ReShade::Runtimes::GLRuntime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
+	const auto it = sCurrentRuntimes.find(sCurrentDeviceContext);
 
-		runtime->OnDrawInternal(count);
+	if (it != sCurrentRuntimes.end())
+	{
+		it->second->OnDrawInternal(count);
 	}
 
 	trampoline(mode, count, type, indices, basevertex);
@@ -641,11 +641,11 @@ void WINAPI glDrawElementsInstanced(GLenum mode, GLsizei count, GLenum type, con
 {
 	static const auto trampoline = ReShade::Hooks::Call(&glDrawElementsInstanced);
 
-	if (sCurrentRuntimes.find(sCurrentDeviceContext) != sCurrentRuntimes.end())
-	{
-		ReShade::Runtimes::GLRuntime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
+	const auto it = sCurrentRuntimes.find(sCurrentDeviceContext);
 
-		runtime->OnDrawInternal(instancecount * count);
+	if (it != sCurrentRuntimes.end())
+	{
+		it->second->OnDrawInternal(instancecount * count);
 	}
 
 	trampoline(mode, count, type, indices, instancecount);
@@ -654,11 +654,11 @@ void WINAPI glDrawElementsInstancedBaseVertex(GLenum mode, GLsizei count, GLenum
 {
 	static const auto trampoline = ReShade::Hooks::Call(&glDrawElementsInstancedBaseVertex);
 
-	if (sCurrentRuntimes.find(sCurrentDeviceContext) != sCurrentRuntimes.end())
-	{
-		ReShade::Runtimes::GLRuntime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
+	const auto it = sCurrentRuntimes.find(sCurrentDeviceContext);
 
-		runtime->OnDrawInternal(instancecount * count);
+	if (it != sCurrentRuntimes.end())
+	{
+		it->second->OnDrawInternal(instancecount * count);
 	}
 
 	trampoline(mode, count, type, indices, instancecount, basevertex);
@@ -667,11 +667,11 @@ void WINAPI glDrawElementsInstancedBaseInstance(GLenum mode, GLsizei count, GLen
 {
 	static const auto trampoline = ReShade::Hooks::Call(&glDrawElementsInstancedBaseInstance);
 
-	if (sCurrentRuntimes.find(sCurrentDeviceContext) != sCurrentRuntimes.end())
-	{
-		ReShade::Runtimes::GLRuntime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
+	const auto it = sCurrentRuntimes.find(sCurrentDeviceContext);
 
-		runtime->OnDrawInternal(instancecount * count);
+	if (it != sCurrentRuntimes.end())
+	{
+		it->second->OnDrawInternal(instancecount * count);
 	}
 
 	trampoline(mode, count, type, indices, instancecount, baseinstance);
@@ -680,11 +680,11 @@ void WINAPI glDrawElementsInstancedBaseVertexBaseInstance(GLenum mode, GLsizei c
 {
 	static const auto trampoline = ReShade::Hooks::Call(&glDrawElementsInstancedBaseVertexBaseInstance);
 
-	if (sCurrentRuntimes.find(sCurrentDeviceContext) != sCurrentRuntimes.end())
-	{
-		ReShade::Runtimes::GLRuntime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
+	const auto it = sCurrentRuntimes.find(sCurrentDeviceContext);
 
-		runtime->OnDrawInternal(instancecount * count);
+	if (it != sCurrentRuntimes.end())
+	{
+		it->second->OnDrawInternal(instancecount * count);
 	}
 
 	trampoline(mode, count, type, indices, instancecount, basevertex, baseinstance);
@@ -731,11 +731,11 @@ EXPORT void WINAPI glEnd()
 
 	trampoline();
 
-	if (sCurrentRuntimes.find(sCurrentDeviceContext) != sCurrentRuntimes.end())
-	{
-		ReShade::Runtimes::GLRuntime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
+	const auto it = sCurrentRuntimes.find(sCurrentDeviceContext);
 
-		runtime->OnDrawInternal(sCurrentVertexCount);
+	if (it != sCurrentRuntimes.end())
+	{
+		it->second->OnDrawInternal(sCurrentVertexCount);
 	}
 }
 EXPORT void WINAPI glEndList()
@@ -868,9 +868,7 @@ void WINAPI glFramebufferRenderbuffer(GLenum target, GLenum attachment, GLenum r
 
 	if (it != sCurrentRuntimes.end())
 	{
-		ReShade::Runtimes::GLRuntime *runtime = it->second;
-
-		runtime->OnFramebufferAttachment(target, attachment, renderbuffertarget, renderbuffer, 0);
+		it->second->OnFramebufferAttachment(target, attachment, renderbuffertarget, renderbuffer, 0);
 	}
 }
 void WINAPI glFramebufferTexture(GLenum target, GLenum attachment, GLuint texture, GLint level)
@@ -883,9 +881,7 @@ void WINAPI glFramebufferTexture(GLenum target, GLenum attachment, GLuint textur
 
 	if (it != sCurrentRuntimes.end())
 	{
-		ReShade::Runtimes::GLRuntime *runtime = it->second;
-		
-		runtime->OnFramebufferAttachment(target, attachment, GL_TEXTURE, texture, level);
+		it->second->OnFramebufferAttachment(target, attachment, GL_TEXTURE, texture, level);
 	}
 }
 void WINAPI glFramebufferTexture1D(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level)
@@ -898,9 +894,7 @@ void WINAPI glFramebufferTexture1D(GLenum target, GLenum attachment, GLenum text
 
 	if (it != sCurrentRuntimes.end())
 	{
-		ReShade::Runtimes::GLRuntime *runtime = it->second;
-
-		runtime->OnFramebufferAttachment(target, attachment, textarget, texture, level);
+		it->second->OnFramebufferAttachment(target, attachment, textarget, texture, level);
 	}
 }
 void WINAPI glFramebufferTexture2D(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level)
@@ -913,9 +907,7 @@ void WINAPI glFramebufferTexture2D(GLenum target, GLenum attachment, GLenum text
 
 	if (it != sCurrentRuntimes.end())
 	{
-		ReShade::Runtimes::GLRuntime *runtime = it->second;
-
-		runtime->OnFramebufferAttachment(target, attachment, textarget, texture, level);
+		it->second->OnFramebufferAttachment(target, attachment, textarget, texture, level);
 	}
 }
 void WINAPI glFramebufferTexture3D(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level, GLint zoffset)
@@ -928,9 +920,7 @@ void WINAPI glFramebufferTexture3D(GLenum target, GLenum attachment, GLenum text
 
 	if (it != sCurrentRuntimes.end())
 	{
-		ReShade::Runtimes::GLRuntime *runtime = it->second;
-
-		runtime->OnFramebufferAttachment(target, attachment, textarget, texture, level);
+		it->second->OnFramebufferAttachment(target, attachment, textarget, texture, level);
 	}
 }
 void WINAPI glFramebufferTextureLayer(GLenum target, GLenum attachment, GLuint texture, GLint level, GLint layer)
@@ -943,9 +933,7 @@ void WINAPI glFramebufferTextureLayer(GLenum target, GLenum attachment, GLuint t
 
 	if (it != sCurrentRuntimes.end())
 	{
-		ReShade::Runtimes::GLRuntime *runtime = it->second;
-
-		runtime->OnFramebufferAttachment(target, attachment, GL_TEXTURE, texture, level);
+		it->second->OnFramebufferAttachment(target, attachment, GL_TEXTURE, texture, level);
 	}
 }
 EXPORT void WINAPI glFrontFace(GLenum mode)
@@ -1444,10 +1432,10 @@ void WINAPI glMultiDrawArrays(GLenum mode, const GLint *first, const GLsizei *co
 {
 	static const auto trampoline = ReShade::Hooks::Call(&glMultiDrawArrays);
 
-	if (sCurrentRuntimes.find(sCurrentDeviceContext) != sCurrentRuntimes.end())
-	{
-		ReShade::Runtimes::GLRuntime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
+	const auto it = sCurrentRuntimes.find(sCurrentDeviceContext);
 
+	if (it != sCurrentRuntimes.end())
+	{
 		GLsizei totalcount = 0;
 
 		for (GLint i = 0; i < drawcount; ++i)
@@ -1455,7 +1443,7 @@ void WINAPI glMultiDrawArrays(GLenum mode, const GLint *first, const GLsizei *co
 			totalcount += count[i];
 		}
 
-		runtime->OnDrawInternal(totalcount);
+		it->second->OnDrawInternal(totalcount);
 	}
 
 	trampoline(mode, first, count, drawcount);
@@ -1470,10 +1458,10 @@ void WINAPI glMultiDrawElements(GLenum mode, const GLsizei *count, GLenum type, 
 {
 	static const auto trampoline = ReShade::Hooks::Call(&glMultiDrawElements);
 
-	if (sCurrentRuntimes.find(sCurrentDeviceContext) != sCurrentRuntimes.end())
-	{
-		ReShade::Runtimes::GLRuntime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
+	const auto it = sCurrentRuntimes.find(sCurrentDeviceContext);
 
+	if (it != sCurrentRuntimes.end())
+	{
 		GLsizei totalcount = 0;
 
 		for (GLint i = 0; i < drawcount; ++i)
@@ -1481,7 +1469,7 @@ void WINAPI glMultiDrawElements(GLenum mode, const GLsizei *count, GLenum type, 
 			totalcount += count[i];
 		}
 
-		runtime->OnDrawInternal(totalcount);
+		it->second->OnDrawInternal(totalcount);
 	}
 
 	trampoline(mode, count, type, indices, drawcount);
@@ -1490,10 +1478,10 @@ void WINAPI glMultiDrawElementsBaseVertex(GLenum mode, const GLsizei *count, GLe
 {
 	static const auto trampoline = ReShade::Hooks::Call(&glMultiDrawElementsBaseVertex);
 
-	if (sCurrentRuntimes.find(sCurrentDeviceContext) != sCurrentRuntimes.end())
-	{
-		ReShade::Runtimes::GLRuntime *runtime = sCurrentRuntimes.at(sCurrentDeviceContext);
+	const auto it = sCurrentRuntimes.find(sCurrentDeviceContext);
 
+	if (it != sCurrentRuntimes.end())
+	{
 		GLsizei totalcount = 0;
 
 		for (GLint i = 0; i < drawcount; ++i)
@@ -1501,7 +1489,7 @@ void WINAPI glMultiDrawElementsBaseVertex(GLenum mode, const GLsizei *count, GLe
 			totalcount += count[i];
 		}
 
-		runtime->OnDrawInternal(totalcount);
+		it->second->OnDrawInternal(totalcount);
 	}
 
 	trampoline(mode, count, type, indices, drawcount, basevertex);
