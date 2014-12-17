@@ -20,7 +20,7 @@ namespace ReShade { namespace Runtimes
 		class D3D10EffectCompiler : private boost::noncopyable
 		{
 		public:
-			D3D10EffectCompiler(const EffectTree &ast) : mAST(ast), mEffect(nullptr), mCurrentInParameterBlock(false), mCurrentInFunctionBlock(false), mCurrentInDeclaratorList(false), mCurrentGlobalSize(0), mCurrentGlobalStorageSize(0)
+			D3D10EffectCompiler(const EffectTree &ast) : mAST(ast), mEffect(nullptr), mCurrentInParameterBlock(false), mCurrentInFunctionBlock(false), mCurrentInDeclaratorList(false), mCurrentGlobalSize(0), mCurrentGlobalStorageSize(0), mFatal(false)
 			{
 			}
 
@@ -3284,7 +3284,7 @@ namespace ReShade { namespace Runtimes
 		this->mConstantsDirty = false;
 	}
 
-	D3D10Texture::D3D10Texture(D3D10Effect *effect, const Description &desc) : Texture(desc), mEffect(effect), mSource(Source::Memory), mTexture(nullptr), mShaderResourceView(), mRenderTargetView()
+	D3D10Texture::D3D10Texture(D3D10Effect *effect, const Description &desc) : Texture(desc), mEffect(effect), mSource(Source::Memory), mTexture(nullptr), mShaderResourceView(), mRenderTargetView(), mRegister(0)
 	{
 	}
 	D3D10Texture::~D3D10Texture()
@@ -3369,7 +3369,7 @@ namespace ReShade { namespace Runtimes
 		}
 	}
 
-	D3D10Constant::D3D10Constant(D3D10Effect *effect, const Description &desc) : Constant(desc), mEffect(effect)
+	D3D10Constant::D3D10Constant(D3D10Effect *effect, const Description &desc) : Constant(desc), mEffect(effect), mBufferIndex(0), mBufferOffset(0)
 	{
 	}
 	D3D10Constant::~D3D10Constant()

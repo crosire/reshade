@@ -3276,10 +3276,6 @@ EXPORT PROC WINAPI wglGetProcAddress(LPCSTR lpszProc)
 	{
 		return reinterpret_cast<PROC>(&glDrawArrays);
 	}
-	else if (strcmp(lpszProc, "glDrawArrays") == 0)
-	{
-		return reinterpret_cast<PROC>(&glDrawArrays);
-	}
 	else if (strcmp(lpszProc, "glDrawArraysIndirect") == 0)
 	{
 		ReShade::Hooks::Register(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&glDrawArraysIndirect));

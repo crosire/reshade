@@ -101,7 +101,7 @@ namespace ReShade { namespace Runtimes
 	};
 	struct GLSampler
 	{
-		GLSampler() : mID(0)
+		GLSampler() : mID(0), mTexture(nullptr), mSRGB(false)
 		{
 		}
 		~GLSampler()
