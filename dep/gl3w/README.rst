@@ -8,11 +8,6 @@ Introduction
 gl3w_ is the easiest way to get your hands on the functionality offered by the
 OpenGL core profile specification.
 
-Its main part is a simple gl3w_gen.py_ Python script that downloads the
-Khronos_ supported glcorearb.h_ header and generates gl3w.h and gl3w.c from it.
-Those files can then be added and linked (statically or dynamically) into your
-project.
-
 Example
 -------
 
