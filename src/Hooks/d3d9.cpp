@@ -216,8 +216,49 @@ namespace
 				return buf;
 		}
 	}
+	void DumpPresentParameters(const D3DPRESENT_PARAMETERS *pp)
+	{
+		LOG(TRACE) << "> Dumping Presentation Parameters:";
+		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
+		LOG(TRACE) << "  | Parameter                               | Value                                   |";
+		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
+
+		char value[40];
+		sprintf_s(value, "%-39u", pp->BackBufferWidth);
+		LOG(TRACE) << "  | BackBufferWidth                         | " << value << " |";
+		sprintf_s(value, "%-39u", pp->BackBufferHeight);
+		LOG(TRACE) << "  | BackBufferHeight                        | " << value << " |";
+		sprintf_s(value, "%-39u", pp->BackBufferFormat);
+		LOG(TRACE) << "  | BackBufferFormat                        | " << value << " |";
+		sprintf_s(value, "%-39u", pp->BackBufferCount);
+		LOG(TRACE) << "  | BackBufferCount                         | " << value << " |";
+		sprintf_s(value, "%-39u", pp->MultiSampleType);
+		LOG(TRACE) << "  | MultiSampleType                         | " << value << " |";
+		sprintf_s(value, "%-39u", pp->MultiSampleQuality);
+		LOG(TRACE) << "  | MultiSampleQuality                      | " << value << " |";
+		sprintf_s(value, "%-39u", pp->SwapEffect);
+		LOG(TRACE) << "  | SwapEffect                              | " << value << " |";
+		sprintf_s(value, "0x%037IX", static_cast<const void *>(pp->hDeviceWindow));
+		LOG(TRACE) << "  | hDeviceWindow                           | " << value << " |";
+		sprintf_s(value, "%-39d", pp->Windowed);
+		LOG(TRACE) << "  | Windowed                                | " << value << " |";
+		sprintf_s(value, "%-39d", pp->EnableAutoDepthStencil);
+		LOG(TRACE) << "  | EnableAutoDepthStencil                  | " << value << " |";
+		sprintf_s(value, "%-39u", pp->AutoDepthStencilFormat);
+		LOG(TRACE) << "  | AutoDepthStencilFormat                  | " << value << " |";
+		sprintf_s(value, "0x%037X", pp->Flags);
+		LOG(TRACE) << "  | Flags                                   | " << value << " |";
+		sprintf_s(value, "%-39u", pp->FullScreen_RefreshRateInHz);
+		LOG(TRACE) << "  | FullScreen_RefreshRateInHz              | " << value << " |";
+		sprintf_s(value, "%-39u", pp->PresentationInterval);
+		LOG(TRACE) << "  | PresentationInterval                    | " << value << " |";
+
+		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
+	}
 	void AdjustPresentParameters(D3DPRESENT_PARAMETERS *pp)
 	{
+		DumpPresentParameters(pp);
+
 		if (pp->SwapEffect != D3DSWAPEFFECT_COPY && pp->PresentationInterval != D3DPRESENT_INTERVAL_IMMEDIATE && pp->BackBufferCount < 2)
 		{
 			LOG(WARNING) << "> Forcing tripple buffering.";

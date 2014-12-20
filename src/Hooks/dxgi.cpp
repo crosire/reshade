@@ -80,20 +80,84 @@ namespace
 				return buf;
 		}
 	}
-	bool AdjustPresentParameters(DXGI_SWAP_CHAIN_DESC &desc)
+	void DumpSwapChainDescription(const DXGI_SWAP_CHAIN_DESC &desc)
 	{
-		if (desc.SampleDesc.Count > 1)
-		{
-			LOG(WARNING) << "> Multisampling is enabled. This is not compatible with depthbuffer access, which was therefore disabled.";
+		LOG(TRACE) << "> Dumping swapchain description:";
+		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
+		LOG(TRACE) << "  | Parameter                               | Value                                   |";
+		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
 
-			desc.SampleDesc.Count = 1;
-			desc.SampleDesc.Quality = 0;
-		}
+		char value[40];
+		sprintf_s(value, "%-39u", desc.BufferDesc.Width);
+		LOG(TRACE) << "  | BufferDesc Width                        | " << value << " |";
+		sprintf_s(value, "%-39u", desc.BufferDesc.Height);
+		LOG(TRACE) << "  | BufferDesc Height                       | " << value << " |";
+		sprintf_s(value, "%-39u", desc.BufferDesc.RefreshRate);
+		LOG(TRACE) << "  | BufferDesc RefreshRate                  | " << value << " |";
+		sprintf_s(value, "%-39u", desc.BufferDesc.Format);
+		LOG(TRACE) << "  | BufferDesc Format                       | " << value << " |";
+		sprintf_s(value, "%-39u", desc.BufferDesc.ScanlineOrdering);
+		LOG(TRACE) << "  | BufferDesc ScanlineOrdering             | " << value << " |";
+		sprintf_s(value, "%-39u", desc.BufferDesc.Scaling);
+		LOG(TRACE) << "  | BufferDesc Scaling                      | " << value << " |";
+		sprintf_s(value, "%-39u", desc.SampleDesc.Count);
+		LOG(TRACE) << "  | SampleDesc Count                        | " << value << " |";
+		sprintf_s(value, "%-39u", desc.SampleDesc.Quality);
+		LOG(TRACE) << "  | SampleDesc Quality                      | " << value << " |";
+		sprintf_s(value, "%-39u", desc.BufferUsage);
+		LOG(TRACE) << "  | BufferUsage                             | " << value << " |";
+		sprintf_s(value, "%-39u", desc.BufferCount);
+		LOG(TRACE) << "  | BufferCount                             | " << value << " |";
+		sprintf_s(value, "0x%037X", static_cast<const void *>(desc.OutputWindow));
+		LOG(TRACE) << "  | OutputWindow                            | " << value << " |";
+		sprintf_s(value, "%-39d", desc.Windowed);
+		LOG(TRACE) << "  | Windowed                                | " << value << " |";
+		sprintf_s(value, "%-39u", desc.SwapEffect);
+		LOG(TRACE) << "  | SwapEffect                              | " << value << " |";
+		sprintf_s(value, "0x%037X", desc.Flags);
+		LOG(TRACE) << "  | Flags                                   | " << value << " |";
 
-		return true;
+		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
 	}
-	bool AdjustPresentParameters(DXGI_SWAP_CHAIN_DESC1 &desc)
+	void DumpSwapChainDescription(const DXGI_SWAP_CHAIN_DESC1 &desc)
 	{
+		LOG(TRACE) << "> Dumping swapchain description:";
+		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
+		LOG(TRACE) << "  | Parameter                               | Value                                   |";
+		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
+
+		char value[40];
+		sprintf_s(value, "%-39u", desc.Width);
+		LOG(TRACE) << "  | Width                                   | " << value << " |";
+		sprintf_s(value, "%-39u", desc.Height);
+		LOG(TRACE) << "  | Height                                  | " << value << " |";
+		sprintf_s(value, "%-39u", desc.Format);
+		LOG(TRACE) << "  | Format                                  | " << value << " |";
+		sprintf_s(value, "%-39d", desc.Stereo);
+		LOG(TRACE) << "  | Stereo                                  | " << value << " |";
+		sprintf_s(value, "%-39u", desc.SampleDesc.Count);
+		LOG(TRACE) << "  | SampleDesc Count                        | " << value << " |";
+		sprintf_s(value, "%-39u", desc.SampleDesc.Quality);
+		LOG(TRACE) << "  | SampleDesc Quality                      | " << value << " |";
+		sprintf_s(value, "%-39u", desc.BufferUsage);
+		LOG(TRACE) << "  | BufferUsage                             | " << value << " |";
+		sprintf_s(value, "%-39u", desc.BufferCount);
+		LOG(TRACE) << "  | BufferCount                             | " << value << " |";
+		sprintf_s(value, "0x-39u", desc.Scaling);
+		LOG(TRACE) << "  | Scaling                                 | " << value << " |";
+		sprintf_s(value, "%-39u", desc.SwapEffect);
+		LOG(TRACE) << "  | SwapEffect                              | " << value << " |";
+		sprintf_s(value, "0x-39u", desc.AlphaMode);
+		LOG(TRACE) << "  | AlphaMode                               | " << value << " |";
+		sprintf_s(value, "0x%037X", desc.Flags);
+		LOG(TRACE) << "  | Flags                                   | " << value << " |";
+
+		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
+	}
+	void AdjustSwapChainDescription(DXGI_SWAP_CHAIN_DESC &desc)
+	{
+		DumpSwapChainDescription(desc);
+
 		if (desc.SampleDesc.Count > 1)
 		{
 			LOG(WARNING) << "> Multisampling is enabled. This is not compatible with depthbuffer access, which was therefore disabled.";
@@ -101,8 +165,18 @@ namespace
 			desc.SampleDesc.Count = 1;
 			desc.SampleDesc.Quality = 0;
 		}
+	}
+	void AdjustSwapChainDescription(DXGI_SWAP_CHAIN_DESC1 &desc)
+	{
+		DumpSwapChainDescription(desc);
 
-		return true;
+		if (desc.SampleDesc.Count > 1)
+		{
+			LOG(WARNING) << "> Multisampling is enabled. This is not compatible with depthbuffer access, which was therefore disabled.";
+
+			desc.SampleDesc.Count = 1;
+			desc.SampleDesc.Quality = 0;
+		}
 	}
 }
 
@@ -258,10 +332,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Wi
 	desc.BufferDesc.Height = Height;
 	desc.BufferDesc.Format = NewFormat;
 
-	if (!AdjustPresentParameters(desc))
-	{
-		return DXGI_ERROR_INVALID_CALL;
-	}
+	AdjustSwapChainDescription(desc);
 
 	assert(this->mRuntime != nullptr);
 
@@ -405,10 +476,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, I
 
 	DXGI_SWAP_CHAIN_DESC desc = *pDesc;
 
-	if (!AdjustPresentParameters(desc))
-	{
-		return DXGI_ERROR_INVALID_CALL;
-	}
+	AdjustSwapChainDescription(desc);
 
 	const HRESULT hr = ReShade::Hooks::Call(&IDXGIFactory_CreateSwapChain)(pFactory, pDevice, &desc, ppSwapChain);
 
@@ -487,10 +555,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pF
 
 	DXGI_SWAP_CHAIN_DESC1 desc = *pDesc;
 
-	if (!AdjustPresentParameters(desc))
-	{
-		return DXGI_ERROR_INVALID_CALL;
-	}
+	AdjustSwapChainDescription(desc);
 
 	const HRESULT hr = ReShade::Hooks::Call(&IDXGIFactory2_CreateSwapChainForHwnd)(pFactory, pDevice, hWnd, &desc, pFullscreenDesc, pRestrictToOutput, ppSwapChain);
 
@@ -568,10 +633,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactor
 
 	DXGI_SWAP_CHAIN_DESC1 desc = *pDesc;
 
-	if (!AdjustPresentParameters(desc))
-	{
-		return DXGI_ERROR_INVALID_CALL;
-	}
+	AdjustSwapChainDescription(desc);
 
 	const HRESULT hr = ReShade::Hooks::Call(&IDXGIFactory2_CreateSwapChainForCoreWindow)(pFactory, pDevice, pWindow, &desc, pRestrictToOutput, ppSwapChain);
 
@@ -649,10 +711,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFacto
 
 	DXGI_SWAP_CHAIN_DESC1 desc = *pDesc;
 
-	if (!AdjustPresentParameters(desc))
-	{
-		return DXGI_ERROR_INVALID_CALL;
-	}
+	AdjustSwapChainDescription(desc);
 
 	const HRESULT hr = ReShade::Hooks::Call(&IDXGIFactory2_CreateSwapChainForComposition)(pFactory, pDevice, &desc, pRestrictToOutput, ppSwapChain);
 
