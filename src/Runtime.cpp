@@ -347,7 +347,7 @@ namespace ReShade
 				const boost::filesystem::path &path = change.Filename;
 				const boost::filesystem::path extension = path.extension();
 					
-				if (extension == ".fx" || extension == ".txt" || extension == ".h")
+				if (extension == ".fx" || extension == ".hlsl" || extension == ".h" || extension == ".txt")
 				{
 					LOG(INFO) << "Detected modification to " << ObfuscatePath(path) << ". Reloading ...";
 
