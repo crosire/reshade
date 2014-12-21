@@ -67,6 +67,7 @@ namespace ReShade
 		if (ast[expression.Operands[0]].Is<EffectNodes::Literal>()) \
 		{ \
 			EffectNodes::Literal &operand = ast[expression.Operands[0]].As<EffectNodes::Literal>(); \
+			union EffectNodes::Literal::Value result = { 0 }; \
 			\
 			for (unsigned int i = 0; i < operand.Type.Rows * operand.Type.Cols; ++i) \
 			{ \
@@ -80,10 +81,10 @@ namespace ReShade
 							case EffectNodes::Type::Bool: \
 							case EffectNodes::Type::Int: \
 							case EffectNodes::Type::Uint: \
-								operand.Value.Int[i] = static_cast<int>(op(operand.Value.Int[i])); \
+								result.Int[i] = static_cast<int>(op(operand.Value.Int[i])); \
 								break; \
 							case EffectNodes::Type::Float: \
-								operand.Value.Float[i] = static_cast<float>(op(operand.Value.Int[i])); \
+								result.Float[i] = static_cast<float>(op(operand.Value.Int[i])); \
 								break; \
 						} \
 						break; \
@@ -93,16 +94,17 @@ namespace ReShade
 							case EffectNodes::Type::Bool: \
 							case EffectNodes::Type::Int: \
 							case EffectNodes::Type::Uint: \
-								operand.Value.Int[i] = static_cast<int>(op(operand.Value.Float[i])); \
+								result.Int[i] = static_cast<int>(op(operand.Value.Float[i])); \
 								break; \
 							case EffectNodes::Type::Float: \
-								operand.Value.Float[i] = static_cast<float>(op(operand.Value.Float[i])); \
+								result.Float[i] = static_cast<float>(op(operand.Value.Float[i])); \
 								break; \
 						} \
 						break; \
 				} \
 			} \
 			\
+			operand.Value = result; \
 			index = operand.Index; \
 		}
 #define FOLD_UNARY_INT(op) \
@@ -122,6 +124,7 @@ namespace ReShade
 		if (ast[expression.Operands[0]].Is<EffectNodes::Literal>()) \
 		{ \
 			EffectNodes::Literal &operand = ast[expression.Operands[0]].As<EffectNodes::Literal>(); \
+			union EffectNodes::Literal::Value result = { 0 }; \
 			\
 			for (unsigned int i = 0; i < operand.Type.Rows * operand.Type.Cols; ++i) \
 			{ \
@@ -130,17 +133,17 @@ namespace ReShade
 					case EffectNodes::Type::Bool: \
 					case EffectNodes::Type::Int: \
 					case EffectNodes::Type::Uint: \
-						operand.Value.Bool[i] = op(operand.Value.Int[i]); \
+						result.Bool[i] = op(operand.Value.Int[i]); \
 						break; \
 					case EffectNodes::Type::Float: \
-						operand.Value.Bool[i] = op(operand.Value.Float[i]); \
+						result.Bool[i] = op(operand.Value.Float[i]); \
 						break; \
 				} \
 			} \
 			\
 			operand.Type.Class = EffectNodes::Type::Bool; \
+			operand.Value = result; \
 			index = operand.Index; \
-			\
 		}
 #define FOLD_UNARY_FUNCTION(func) FOLD_UNARY(func)
 
@@ -149,6 +152,8 @@ namespace ReShade
 		{ \
 			EffectNodes::Literal &left = ast[expression.Operands[0]].As<EffectNodes::Literal>(); \
 			EffectNodes::Literal &right = ast[expression.Operands[1]].As<EffectNodes::Literal>(); \
+			union EffectNodes::Literal::Value result = { 0 }; \
+			const bool leftScalar = left.Type.Rows * left.Type.Cols == 1, rightScalar = right.Type.Rows * right.Type.Cols == 1; \
 			\
 			for (unsigned int i = 0; i < expression.Type.Rows * expression.Type.Cols; ++i) \
 			{ \
@@ -162,10 +167,10 @@ namespace ReShade
 							case EffectNodes::Type::Bool: \
 							case EffectNodes::Type::Int: \
 							case EffectNodes::Type::Uint: \
-								left.Value.Int[i] = left.Value.Int[i] op right.Value.Int[i]; \
+								result.Int[i] = left.Value.Int[leftScalar ? 0 : i] op right.Value.Int[rightScalar ? 0 : i]; \
 								break; \
 							case EffectNodes::Type::Float: \
-								left.Value.Float[i] = static_cast<float>(left.Value.Int[i]) op right.Value.Float[i]; \
+								result.Float[i] = static_cast<float>(left.Value.Int[leftScalar ? 0 : i]) op right.Value.Float[rightScalar ? 0 : i]; \
 								break; \
 						} \
 						break; \
@@ -175,10 +180,10 @@ namespace ReShade
 							case EffectNodes::Type::Bool: \
 							case EffectNodes::Type::Int: \
 							case EffectNodes::Type::Uint: \
-								left.Value.Float[i] = left.Value.Float[i] op static_cast<float>(right.Value.Int[i]); \
+								result.Float[i] = left.Value.Float[leftScalar ? 0 : i] op static_cast<float>(right.Value.Int[rightScalar ? 0 : i]); \
 								break; \
 							case EffectNodes::Type::Float: \
-								left.Value.Float[i] = left.Value.Float[i] op right.Value.Float[i]; \
+								result.Float[i] = left.Value.Float[leftScalar ? 0 : i] op right.Value.Float[rightScalar ? 0 :i]; \
 								break; \
 						} \
 						break; \
@@ -186,6 +191,7 @@ namespace ReShade
 			} \
 			\
 			left.Type = expression.Type; \
+			left.Value = result; \
 			index = left.Index; \
 		}
 #define FOLD_BINARY_INT(op) \
@@ -193,13 +199,16 @@ namespace ReShade
 		{ \
 			EffectNodes::Literal &left = ast[expression.Operands[0]].As<EffectNodes::Literal>(); \
 			EffectNodes::Literal &right = ast[expression.Operands[1]].As<EffectNodes::Literal>(); \
+			union EffectNodes::Literal::Value result = { 0 }; \
+			const bool leftScalar = left.Type.Rows * left.Type.Cols == 1, rightScalar = right.Type.Rows * right.Type.Cols == 1; \
 			\
 			for (unsigned int i = 0; i < expression.Type.Rows * expression.Type.Cols; ++i) \
 			{ \
-				left.Value.Bool[i] = left.Value.Int[i] op right.Value.Int[i]; \
+				result.Bool[i] = left.Value.Int[leftScalar ? 0 : i] op right.Value.Int[rightScalar ? 0 : i]; \
 			} \
 			\
 			left.Type = expression.Type; \
+			left.Value = result; \
 			index = left.Index; \
 		}
 #define FOLD_BINARY_BOOL(op) \
@@ -207,6 +216,8 @@ namespace ReShade
 		{ \
 			EffectNodes::Literal &left = ast[expression.Operands[0]].As<EffectNodes::Literal>(); \
 			EffectNodes::Literal &right = ast[expression.Operands[1]].As<EffectNodes::Literal>(); \
+			union EffectNodes::Literal::Value result = { 0 }; \
+			const bool leftScalar = left.Type.Rows * left.Type.Cols == 1, rightScalar = right.Type.Rows * right.Type.Cols == 1; \
 			\
 			for (unsigned int i = 0; i < expression.Type.Rows * expression.Type.Cols; ++i) \
 			{ \
@@ -220,10 +231,10 @@ namespace ReShade
 							case EffectNodes::Type::Bool: \
 							case EffectNodes::Type::Int: \
 							case EffectNodes::Type::Uint: \
-								left.Value.Bool[i] = left.Value.Int[i] op right.Value.Int[i]; \
+								result.Bool[i] = left.Value.Int[leftScalar ? 0 : i] op right.Value.Int[rightScalar ? 0 : i]; \
 								break; \
 							case EffectNodes::Type::Float: \
-								left.Value.Bool[i] = static_cast<float>(left.Value.Int[i]) op right.Value.Float[i]; \
+								result.Bool[i] = static_cast<float>(left.Value.Int[leftScalar ? 0 : i]) op right.Value.Float[rightScalar ? 0 : i]; \
 								break; \
 						} \
 						break; \
@@ -233,10 +244,10 @@ namespace ReShade
 							case EffectNodes::Type::Bool: \
 							case EffectNodes::Type::Int: \
 							case EffectNodes::Type::Uint: \
-								left.Value.Bool[i] = left.Value.Float[i] op static_cast<float>(right.Value.Int[i]); \
+								result.Bool[i] = left.Value.Float[leftScalar ? 0 : i] op static_cast<float>(right.Value.Int[rightScalar ? 0 : i]); \
 								break; \
 							case EffectNodes::Type::Float: \
-								left.Value.Bool[i] = left.Value.Float[i] op right.Value.Float[i]; \
+								result.Bool[i] = left.Value.Float[leftScalar ? 0 : i] op right.Value.Float[rightScalar ? 0 : i]; \
 								break; \
 						} \
 						break; \
@@ -244,7 +255,8 @@ namespace ReShade
 			} \
 			\
 			left.Type = expression.Type; \
-			left.Type.Class = EffectNodes::Type::Bool;\
+			left.Type.Class = EffectNodes::Type::Bool; \
+			left.Value = result; \
 			index = left.Index; \
 		}
 
