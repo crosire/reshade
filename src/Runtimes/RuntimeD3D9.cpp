@@ -1611,19 +1611,19 @@ namespace ReShade { namespace Runtimes
 				objdesc.Levels = levels;
 				objdesc.Format = format;
 
-				std::unique_ptr<D3D9Texture> obj(new D3D9Texture(this->mEffect, objdesc));
+				D3D9Texture *obj = new D3D9Texture(this->mEffect, objdesc);
 
 				if (node.Semantic != nullptr)
 				{
 					if (boost::equals(node.Semantic, "COLOR") || boost::equals(node.Semantic, "SV_TARGET"))
 					{
 						obj->mSource = D3D9Texture::Source::BackBuffer;
-						obj->UpdateSource(this->mEffect->mEffectContext->mBackBufferTexture);
+						obj->ChangeSource(this->mEffect->mRuntime->mBackBufferTexture);
 					}
 					if (boost::equals(node.Semantic, "DEPTH") || boost::equals(node.Semantic, "SV_DEPTH"))
 					{
 						obj->mSource = D3D9Texture::Source::DepthStencil;
-						obj->UpdateSource(this->mEffect->mEffectContext->mDepthStencilTexture);
+						obj->ChangeSource(this->mEffect->mRuntime->mDepthStencilTexture);
 					}
 				}
 
@@ -1637,14 +1637,14 @@ namespace ReShade { namespace Runtimes
 				else
 				{
 					D3DDEVICE_CREATION_PARAMETERS cp;
-					this->mEffect->mEffectContext->mDevice->GetCreationParameters(&cp);
+					this->mEffect->mRuntime->mDevice->GetCreationParameters(&cp);
 
 					HRESULT hr;
 					DWORD usage = 0;
 
 					if (levels > 1)
 					{
-						hr = this->mEffect->mEffectContext->mDirect3D->CheckDeviceFormat(cp.AdapterOrdinal, cp.DeviceType, D3DFMT_X8R8G8B8, D3DUSAGE_AUTOGENMIPMAP, D3DRTYPE_TEXTURE, d3dformat);
+						hr = this->mEffect->mRuntime->mDirect3D->CheckDeviceFormat(cp.AdapterOrdinal, cp.DeviceType, D3DFMT_X8R8G8B8, D3DUSAGE_AUTOGENMIPMAP, D3DRTYPE_TEXTURE, d3dformat);
 
 						if (hr == D3D_OK)
 						{
@@ -1657,14 +1657,14 @@ namespace ReShade { namespace Runtimes
 						}
 					}
 					
-					hr = this->mEffect->mEffectContext->mDirect3D->CheckDeviceFormat(cp.AdapterOrdinal, cp.DeviceType, D3DFMT_X8R8G8B8, D3DUSAGE_RENDERTARGET, D3DRTYPE_TEXTURE, d3dformat);
+					hr = this->mEffect->mRuntime->mDirect3D->CheckDeviceFormat(cp.AdapterOrdinal, cp.DeviceType, D3DFMT_X8R8G8B8, D3DUSAGE_RENDERTARGET, D3DRTYPE_TEXTURE, d3dformat);
 
 					if (SUCCEEDED(hr))
 					{
 						usage |= D3DUSAGE_RENDERTARGET;
 					}
 
-					hr = this->mEffect->mEffectContext->mDevice->CreateTexture(width, height, levels, usage, d3dformat, D3DPOOL_DEFAULT, &obj->mTexture, nullptr);
+					hr = this->mEffect->mRuntime->mDevice->CreateTexture(width, height, levels, usage, d3dformat, D3DPOOL_DEFAULT, &obj->mTexture, nullptr);
 
 					if (FAILED(hr))
 					{
@@ -1681,7 +1681,7 @@ namespace ReShade { namespace Runtimes
 					}
 				}
 
-				this->mEffect->mTextures.insert(std::make_pair(node.Name, std::move(obj)));
+				this->mEffect->AddTexture(node.Name, obj);
 			}
 			void VisitSampler(const EffectNodes::Variable &node)
 			{
@@ -1705,18 +1705,17 @@ namespace ReShade { namespace Runtimes
 				sampler.mStates[D3DSAMP_MAXANISOTROPY] = (node.Properties[EffectNodes::Variable::MaxAnisotropy] != 0) ? this->mAST[node.Properties[EffectNodes::Variable::MaxAnisotropy]].As<EffectNodes::Literal>().Value.Uint[0] : 1;
 				sampler.mStates[D3DSAMP_SRGBTEXTURE] = node.Properties[EffectNodes::Variable::SRGBTexture] != 0 && this->mAST[node.Properties[EffectNodes::Variable::SRGBTexture]].As<EffectNodes::Literal>().Value.Bool[0];
 
-				const char *texture = this->mAST[node.Properties[EffectNodes::Variable::Texture]].As<EffectNodes::Variable>().Name;
+				const char *textureName = this->mAST[node.Properties[EffectNodes::Variable::Texture]].As<EffectNodes::Variable>().Name;
+				D3D9Texture *texture = static_cast<D3D9Texture *>(this->mEffect->GetTexture(textureName));
 
-				const auto it = this->mEffect->mTextures.find(texture);
-
-				if (it == this->mEffect->mTextures.end())
+				if (texture == nullptr)
 				{
-					this->mErrors += PrintLocation(node.Location) + "error: texture '" + std::string(texture) + "' for sampler '" + std::string(node.Name) + "' is missing.\n";
+					this->mErrors += PrintLocation(node.Location) + "error: texture '" + std::string(textureName) + "' for sampler '" + std::string(node.Name) + "' is missing.\n";
 					this->mFatal = true;
 					return;
 				}
 
-				sampler.mTexture = it->second.get();
+				sampler.mTexture = texture;
 
 				this->mCurrentSource += "sampler2D ";
 				this->mCurrentSource += node.Name;
@@ -1772,7 +1771,7 @@ namespace ReShade { namespace Runtimes
 						break;
 				}
 
-				std::unique_ptr<D3D9Constant> obj(new D3D9Constant(this->mEffect, objdesc));
+				D3D9Constant *obj = new D3D9Constant(this->mEffect, objdesc);
 				obj->mStorageOffset = this->mCurrentRegisterOffset;
 
 				const UINT registersize = static_cast<UINT>(static_cast<float>(objdesc.Size) / sizeof(float));
@@ -1798,7 +1797,7 @@ namespace ReShade { namespace Runtimes
 					std::memset(this->mEffect->mConstantStorage + obj->mStorageOffset, 0, objdesc.Size);
 				}
 
-				this->mEffect->mConstants.insert(std::make_pair(this->mCurrentBlockName.empty() ? node.Name : (this->mCurrentBlockName + '.' + node.Name), std::move(obj)));
+				this->mEffect->AddConstant(this->mCurrentBlockName.empty() ? node.Name : (this->mCurrentBlockName + '.' + node.Name), obj);
 				this->mEffect->mConstantRegisterCount = this->mCurrentRegisterOffset / 4;
 			}
 			void VisitUniformBuffer(const EffectNodes::Variable &node)
@@ -1844,14 +1843,14 @@ namespace ReShade { namespace Runtimes
 				objdesc.Size = (this->mCurrentRegisterOffset - previousOffset) * sizeof(float);
 				objdesc.Type = Effect::Constant::Type::Struct;
 
-				std::unique_ptr<D3D9Constant> obj(new D3D9Constant(this->mEffect, objdesc));
+				D3D9Constant *obj = new D3D9Constant(this->mEffect, objdesc);
 
 				if (node.Annotations != EffectTree::Null)
 				{
 					Visit(this->mAST[node.Annotations].As<EffectNodes::Annotation>(), *obj);
 				}
 
-				this->mEffect->mConstants.insert(std::make_pair(node.Name, std::move(obj)));
+				this->mEffect->AddConstant(node.Name, obj);
 			}
 			void Visit(const EffectNodes::Function &node)
 			{
@@ -1905,13 +1904,12 @@ namespace ReShade { namespace Runtimes
 			}
 			void Visit(const EffectNodes::Technique &node)
 			{
-				std::unique_ptr<D3D9Technique> obj(new D3D9Technique(this->mEffect));
-
+				std::vector<D3D9Technique::Pass> passes;
 				const EffectNodes::Pass *pass = &this->mAST[node.Passes].As<EffectNodes::Pass>();
 
 				do
 				{
-					Visit(*pass, obj->mPasses);
+					Visit(*pass, passes);
 
 					if (pass->NextPass != EffectTree::Null)
 					{
@@ -1924,18 +1922,24 @@ namespace ReShade { namespace Runtimes
 				}
 				while (pass != nullptr);
 
+				D3D9Technique::Description objdesc;
+				objdesc.Passes = static_cast<unsigned int>(passes.size());
+
+				D3D9Technique *obj = new D3D9Technique(this->mEffect, objdesc);
+				obj->mPasses = std::move(passes);
+
 				if (node.Annotations != EffectTree::Null)
 				{
 					Visit(this->mAST[node.Annotations].As<EffectNodes::Annotation>(), *obj);
 				}
 
-				this->mEffect->mTechniques.insert(std::make_pair(node.Name, std::move(obj)));
+				this->mEffect->AddTechnique(node.Name, obj);
 			}
 			void Visit(const EffectNodes::Pass &node, std::vector<D3D9Technique::Pass> &passes)
 			{
 				D3D9Technique::Pass pass;
 				ZeroMemory(&pass, sizeof(D3D9Technique::Pass));
-				pass.RT[0] = this->mEffect->mEffectContext->mBackBufferResolved;
+				pass.RT[0] = this->mEffect->mRuntime->mBackBufferResolved;
 
 				if (node.States[EffectNodes::Pass::VertexShader] != 0)
 				{
@@ -1946,7 +1950,7 @@ namespace ReShade { namespace Runtimes
 					VisitShader(this->mAST[node.States[EffectNodes::Pass::PixelShader]].As<EffectNodes::Function>(), EffectNodes::Pass::PixelShader, pass);
 				}
 
-				IDirect3DDevice9 *device = this->mEffect->mEffectContext->mDevice;
+				IDirect3DDevice9 *device = this->mEffect->mRuntime->mDevice;
 				
 				D3DCAPS9 caps;
 				device->GetDeviceCaps(&caps);
@@ -2030,17 +2034,14 @@ namespace ReShade { namespace Runtimes
 							break;
 						}
 
-						const auto &variable = this->mAST[node.States[EffectNodes::Pass::RenderTarget0 + i]].As<EffectNodes::Variable>();
-	
-						const auto it = this->mEffect->mTextures.find(variable.Name);
+						const char *textureName = this->mAST[node.States[EffectNodes::Pass::RenderTarget0 + i]].As<EffectNodes::Variable>().Name;
+						D3D9Texture *texture = static_cast<D3D9Texture *>(this->mEffect->GetTexture(textureName));
 
-						if (it == this->mEffect->mTextures.end())
+						if (texture == nullptr)
 						{
 							this->mFatal = true;
 							return;
 						}
-						
-						D3D9Texture *texture = it->second.get();
 
 						pass.RT[i] = texture->mTextureSurface;
 					}
@@ -2333,10 +2334,10 @@ namespace ReShade { namespace Runtimes
 				switch (shadertype)
 				{
 					case EffectNodes::Pass::VertexShader:
-						hr = this->mEffect->mEffectContext->mDevice->CreateVertexShader(static_cast<const DWORD *>(compiled->GetBufferPointer()), &pass.VS);
+						hr = this->mEffect->mRuntime->mDevice->CreateVertexShader(static_cast<const DWORD *>(compiled->GetBufferPointer()), &pass.VS);
 						break;
 					case EffectNodes::Pass::PixelShader:
-						hr = this->mEffect->mEffectContext->mDevice->CreatePixelShader(static_cast<const DWORD *>(compiled->GetBufferPointer()), &pass.PS);
+						hr = this->mEffect->mRuntime->mDevice->CreatePixelShader(static_cast<const DWORD *>(compiled->GetBufferPointer()), &pass.PS);
 						break;
 				}
 
@@ -2802,9 +2803,11 @@ namespace ReShade { namespace Runtimes
 		{
 			for (auto &it : effect->mTextures)
 			{
-				if (it.second->mSource == D3D9Texture::Source::DepthStencil)
+				D3D9Texture *texture = static_cast<D3D9Texture *>(it.second.get());
+
+				if (texture->mSource == D3D9Texture::Source::DepthStencil)
 				{
-					it.second->UpdateSource(this->mDepthStencilTexture);
+					texture->ChangeSource(this->mDepthStencilTexture);
 				}
 			}
 		}
@@ -2935,7 +2938,7 @@ namespace ReShade { namespace Runtimes
 		screenshotSurface->Release();
 	}
 
-	D3D9Effect::D3D9Effect(std::shared_ptr<const D3D9Runtime> context) : mEffectContext(context), mVertexBuffer(nullptr), mVertexDeclaration(nullptr), mConstantRegisterCount(0), mConstantStorage(nullptr)
+	D3D9Effect::D3D9Effect(std::shared_ptr<const D3D9Runtime> runtime) : mRuntime(runtime), mVertexBuffer(nullptr), mVertexDeclaration(nullptr), mConstantRegisterCount(0), mConstantStorage(nullptr)
 	{
 	}
 	D3D9Effect::~D3D9Effect()
@@ -2944,74 +2947,33 @@ namespace ReShade { namespace Runtimes
 		SAFE_RELEASE(this->mVertexDeclaration);
 	}
 
-	const Effect::Texture *D3D9Effect::GetTexture(const std::string &name) const
+	void D3D9Effect::Begin() const
 	{
-		auto it = this->mTextures.find(name);
+		IDirect3DDevice9 *const device = this->mRuntime->mDevice;
 
-		if (it == this->mTextures.end())
+		// Setup vertex input
+		device->SetStreamSource(0, this->mVertexBuffer, 0, sizeof(float));
+		device->SetVertexDeclaration(this->mVertexDeclaration);
+
+		// Setup shader resources
+		for (DWORD sampler = 0, samplerCount = static_cast<DWORD>(this->mSamplers.size()); sampler < samplerCount; ++sampler)
 		{
-			return nullptr;
+			device->SetTexture(sampler, this->mSamplers[sampler].mTexture->mTexture);
+
+			for (DWORD state = D3DSAMP_ADDRESSU; state <= D3DSAMP_SRGBTEXTURE; ++state)
+			{
+				device->SetSamplerState(sampler, static_cast<D3DSAMPLERSTATETYPE>(state), this->mSamplers[sampler].mStates[state]);
+			}
 		}
 
-		return it->second.get();
+		// Setup depthstencil
+		assert(this->mRuntime->mDefaultDepthStencil != nullptr);
+
+		device->SetDepthStencilSurface(this->mRuntime->mDefaultDepthStencil);
+		device->Clear(0, nullptr, D3DCLEAR_ZBUFFER | D3DCLEAR_STENCIL, 0, 1.0f, 0);
 	}
-	std::vector<std::string> D3D9Effect::GetTextureNames() const
+	void D3D9Effect::End() const
 	{
-		std::vector<std::string> names;
-		names.reserve(this->mTextures.size());
-
-		for (auto it = this->mTextures.begin(), end = this->mTextures.end(); it != end; ++it)
-		{
-			names.push_back(it->first);
-		}
-
-		return names;
-	}
-	const Effect::Constant *D3D9Effect::GetConstant(const std::string &name) const
-	{
-		auto it = this->mConstants.find(name);
-
-		if (it == this->mConstants.end())
-		{
-			return nullptr;
-		}
-
-		return it->second.get();
-	}
-	std::vector<std::string> D3D9Effect::GetConstantNames() const
-	{
-		std::vector<std::string> names;
-		names.reserve(this->mConstants.size());
-
-		for (auto it = this->mConstants.begin(), end = this->mConstants.end(); it != end; ++it)
-		{
-			names.push_back(it->first);
-		}
-
-		return names;
-	}
-	const Effect::Technique *D3D9Effect::GetTechnique(const std::string &name) const
-	{
-		auto it = this->mTechniques.find(name);
-
-		if (it == this->mTechniques.end())
-		{
-			return nullptr;
-		}
-
-		return it->second.get();
-	}
-	std::vector<std::string> D3D9Effect::GetTechniqueNames() const
-	{
-		std::vector<std::string> names;
-		names.reserve(this->mTechniques.size());
-
-		for (auto it = this->mTechniques.begin(), end = this->mTechniques.end(); it != end; ++it)
-		{
-			names.push_back(it->first);
-		}
-
-		return names;
 	}
 
 	D3D9Texture::D3D9Texture(D3D9Effect *effect, const Description &desc) : Texture(desc), mEffect(effect), mSource(Source::Memory), mTexture(nullptr), mTextureSurface(nullptr)
@@ -3042,7 +3004,7 @@ namespace ReShade { namespace Runtimes
 		textureSurface->GetDesc(&desc);
 		
 		IDirect3DTexture9 *memTexture = nullptr;
-		hr = this->mEffect->mEffectContext->mDevice->CreateTexture(desc.Width, desc.Height, 1, 0, desc.Format, D3DPOOL_SYSTEMMEM, &memTexture, nullptr);
+		hr = this->mEffect->mRuntime->mDevice->CreateTexture(desc.Width, desc.Height, 1, 0, desc.Format, D3DPOOL_SYSTEMMEM, &memTexture, nullptr);
 
 		if (FAILED(hr))
 		{
@@ -3101,7 +3063,7 @@ namespace ReShade { namespace Runtimes
 
 		memSurface->UnlockRect();
 
-		hr = this->mEffect->mEffectContext->mDevice->UpdateSurface(memSurface, nullptr, textureSurface, nullptr);
+		hr = this->mEffect->mRuntime->mDevice->UpdateSurface(memSurface, nullptr, textureSurface, nullptr);
 
 		memSurface->Release();
 		textureSurface->Release();
@@ -3115,7 +3077,7 @@ namespace ReShade { namespace Runtimes
 
 		return true;
 	}
-	void D3D9Texture::UpdateSource(IDirect3DTexture9 *texture)
+	void D3D9Texture::ChangeSource(IDirect3DTexture9 *texture)
 	{
 		if (this->mTexture == texture)
 		{
@@ -3170,7 +3132,7 @@ namespace ReShade { namespace Runtimes
 		CopyMemory(this->mEffect->mConstantStorage + this->mStorageOffset, data, size);
 	}
 
-	D3D9Technique::D3D9Technique(D3D9Effect *effect) : Technique(), mEffect(effect)
+	D3D9Technique::D3D9Technique(D3D9Effect *effect, const Description &desc) : Technique(desc), mEffect(effect)
 	{
 	}
 	D3D9Technique::~D3D9Technique()
@@ -3193,56 +3155,20 @@ namespace ReShade { namespace Runtimes
 		}
 	}
 
-	bool D3D9Technique::Begin(unsigned int &passes) const
-	{
-		IDirect3DDevice9 *const device = this->mEffect->mEffectContext->mDevice;
-
-		passes = static_cast<unsigned int>(this->mPasses.size());
-
-		if (passes == 0)
-		{
-			return false;
-		}
-
-		// Setup vertex input
-		device->SetStreamSource(0, this->mEffect->mVertexBuffer, 0, sizeof(float));
-		device->SetVertexDeclaration(this->mEffect->mVertexDeclaration);
-
-		// Setup shader resources
-		for (DWORD sampler = 0, samplerCount = static_cast<DWORD>(this->mEffect->mSamplers.size()); sampler < samplerCount; ++sampler)
-		{
-			device->SetTexture(sampler, this->mEffect->mSamplers[sampler].mTexture->mTexture);
-
-			for (DWORD state = D3DSAMP_ADDRESSU; state <= D3DSAMP_SRGBTEXTURE; ++state)
-			{
-				device->SetSamplerState(sampler, static_cast<D3DSAMPLERSTATETYPE>(state), this->mEffect->mSamplers[sampler].mStates[state]);
-			}
-		}
-
-		// Setup depthstencil
-		assert(this->mEffect->mEffectContext->mDefaultDepthStencil != nullptr);
-
-		device->SetDepthStencilSurface(this->mEffect->mEffectContext->mDefaultDepthStencil);
-		device->Clear(0, nullptr, D3DCLEAR_ZBUFFER | D3DCLEAR_STENCIL, 0, 1.0f, 0);
-
-		return true;
-	}
-	void D3D9Technique::End() const
-	{
-	}
 	void D3D9Technique::RenderPass(unsigned int index) const
 	{
-		IDirect3DDevice9 *device = this->mEffect->mEffectContext->mDevice;
-		const Pass &pass = this->mPasses[index];
+		const std::shared_ptr<const D3D9Runtime> runtime = this->mEffect->mRuntime;
+		IDirect3DDevice9 *device = runtime->mDevice;
+		const D3D9Technique::Pass &pass = this->mPasses[index];
 
 		// Setup states
 		pass.Stateblock->Apply();
 
 		// Save backbuffer of previous pass
-		device->StretchRect(this->mEffect->mEffectContext->mBackBufferResolved, nullptr, this->mEffect->mEffectContext->mBackBufferTextureSurface, nullptr, D3DTEXF_NONE);
+		device->StretchRect(runtime->mBackBufferResolved, nullptr, runtime->mBackBufferTextureSurface, nullptr, D3DTEXF_NONE);
 
 		// Setup rendertargets
-		for (DWORD target = 0, targetCount = std::min(this->mEffect->mEffectContext->mDeviceCaps.NumSimultaneousRTs, static_cast<DWORD>(8)); target < targetCount; ++target)
+		for (DWORD target = 0, targetCount = std::min(runtime->mDeviceCaps.NumSimultaneousRTs, static_cast<DWORD>(8)); target < targetCount; ++target)
 		{
 			device->SetRenderTarget(target, pass.RT[target]);
 		}
@@ -3263,12 +3189,12 @@ namespace ReShade { namespace Runtimes
 		// Draw triangle
 		device->DrawPrimitive(D3DPT_TRIANGLELIST, 0, 1);
 
-		const_cast<D3D9Runtime *>(this->mEffect->mEffectContext.get())->Runtime::OnDraw(3);
+		const_cast<D3D9Runtime *>(runtime.get())->Runtime::OnDraw(3);
 
 		// Update shader resources
 		for (IDirect3DSurface9 *target : pass.RT)
 		{
-			if (target == nullptr || target == this->mEffect->mEffectContext->mBackBufferResolved)
+			if (target == nullptr || target == runtime->mBackBufferResolved)
 			{
 				continue;
 			}

@@ -4,8 +4,95 @@
 
 namespace ReShade
 {
+	Effect::Effect()
+	{
+	}
 	Effect::~Effect()
 	{
+	}
+
+	Effect::Texture *Effect::GetTexture(const std::string &name)
+	{
+		return const_cast<Texture *>(static_cast<const Effect *>(this)->GetTexture(name));
+	}
+	const Effect::Texture *Effect::GetTexture(const std::string &name) const
+	{
+		const auto it = this->mTextures.find(name);
+
+		if (it != this->mTextures.end())
+		{
+			return it->second.get();
+		}
+		else
+		{
+			return nullptr;
+		}
+	}
+	Effect::Constant *Effect::GetConstant(const std::string &name)
+	{
+		return const_cast<Constant *>(static_cast<const Effect *>(this)->GetConstant(name));
+	}
+	const Effect::Constant *Effect::GetConstant(const std::string &name) const
+	{
+		const auto it = this->mConstants.find(name);
+
+		if (it != this->mConstants.end())
+		{
+			return it->second.get();
+		}
+		else
+		{
+			return nullptr;
+		}
+	}
+	const Effect::Technique *Effect::GetTechnique(const std::string &name) const
+	{
+		const auto it = this->mTechniques.find(name);
+
+		if (it != this->mTechniques.end())
+		{
+			return it->second.get();
+		}
+		else
+		{
+			return nullptr;
+		}
+	}
+	std::vector<std::string> Effect::GetTextures() const
+	{
+		std::vector<std::string> names;
+		names.reserve(this->mTextures.size());
+		
+		for (const auto &it : this->mTextures)
+		{
+			names.push_back(it.first);
+		}
+
+		return names;
+	}
+	std::vector<std::string> Effect::GetConstants() const
+	{
+		std::vector<std::string> names;
+		names.reserve(this->mConstants.size());
+
+		for (const auto &it : this->mConstants)
+		{
+			names.push_back(it.first);
+		}
+
+		return names;
+	}
+	std::vector<std::string> Effect::GetTechniques() const
+	{
+		std::vector<std::string> names;
+		names.reserve(this->mTechniques.size());
+
+		for (const auto &it : this->mTechniques)
+		{
+			names.push_back(it.first);
+		}
+
+		return names;
 	}
 
 	Effect::Texture::Texture(const Description &desc) : mDesc(desc)
@@ -15,10 +102,6 @@ namespace ReShade
 	{
 	}
 
-	const Effect::Texture::Description Effect::Texture::GetDescription() const
-	{
-		return this->mDesc;
-	}
 	const Effect::Annotation Effect::Texture::GetAnnotation(const std::string &name) const
 	{
 		const auto it = this->mAnnotations.find(name);
@@ -32,6 +115,10 @@ namespace ReShade
 			return Effect::Annotation();
 		}
 	}
+	const Effect::Texture::Description Effect::Texture::GetDescription() const
+	{
+		return this->mDesc;
+	}
 
 	Effect::Constant::Constant(const Description &desc) : mDesc(desc)
 	{
@@ -40,10 +127,6 @@ namespace ReShade
 	{
 	}
 
-	const Effect::Constant::Description Effect::Constant::GetDescription() const
-	{
-		return this->mDesc;
-	}
 	const Effect::Annotation Effect::Constant::GetAnnotation(const std::string &name) const
 	{
 		const auto it = this->mAnnotations.find(name);
@@ -56,6 +139,10 @@ namespace ReShade
 		{
 			return Effect::Annotation();
 		}
+	}
+	const Effect::Constant::Description Effect::Constant::GetDescription() const
+	{
+		return this->mDesc;
 	}
 
 	template <>
@@ -738,7 +825,7 @@ namespace ReShade
 		SetValue(data, dataSize);
 	}
 
-	Effect::Technique::Technique()
+	Effect::Technique::Technique(const Description &desc) : mDesc(desc)
 	{
 	}
 	Effect::Technique::~Technique()
@@ -758,10 +845,16 @@ namespace ReShade
 			return Effect::Annotation();
 		}
 	}
-
-	bool Effect::Technique::Begin() const
+	const Effect::Technique::Description Effect::Technique::GetDescription() const
 	{
-		unsigned int passes;
-		return Begin(passes);
+		return this->mDesc;
+	}
+
+	void Effect::Technique::Render() const
+	{
+		for (unsigned int i = 0; i < this->mDesc.Passes; ++i)
+		{
+			RenderPass(i);
+		}
 	}
 }

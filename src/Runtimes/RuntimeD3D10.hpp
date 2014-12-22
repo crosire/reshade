@@ -3,18 +3,11 @@
 #include "Runtime.hpp"
 
 #include <d3d10_1.h>
-#include <vector>
-#include <unordered_map>
 
 namespace ReShade { namespace Runtimes
 {
 	struct D3D10Runtime : public Runtime, public std::enable_shared_from_this<D3D10Runtime>
 	{
-		friend struct D3D10Effect;
-		friend struct D3D10Texture;
-		friend struct D3D10Constant;
-		friend struct D3D10Technique;
-
 		struct DepthSourceInfo
 		{
 			UINT Width, Height;
@@ -61,44 +54,30 @@ namespace ReShade { namespace Runtimes
 
 	struct D3D10Effect : public Effect
 	{
+		friend struct D3D10Runtime;
 		friend struct D3D10Texture;
-		friend struct D3D10Constant;
-		friend struct D3D10Technique;
 
-		struct D3D10_SAMPLER_DESC_HASHER
-		{
-			inline std::size_t operator()(const D3D10_SAMPLER_DESC &s) const 
-			{
-				const unsigned char *p = reinterpret_cast<const unsigned char *>(&s);
-				std::size_t h = 2166136261;
-
-				for (std::size_t i = 0; i < sizeof(D3D10_SAMPLER_DESC); ++i)
-				{
-					h = (h * 16777619) ^ p[i];
-				}
-
-				return h;
-			}
-		};
-
-		D3D10Effect(std::shared_ptr<const D3D10Runtime> context);
+		D3D10Effect(std::shared_ptr<const D3D10Runtime> runtime);
 		~D3D10Effect();
 
-		virtual const Texture *GetTexture(const std::string &name) const override;
-		virtual std::vector<std::string> GetTextureNames() const override;
-		virtual const Constant *GetConstant(const std::string &name) const override;
-		virtual std::vector<std::string> GetConstantNames() const override;
-		virtual const Technique *GetTechnique(const std::string &name) const override;
-		virtual std::vector<std::string> GetTechniqueNames() const override;
+		inline bool AddTexture(const std::string &name, Texture *texture)
+		{
+			return this->mTextures.emplace(name, std::unique_ptr<Texture>(texture)).second;
+		}
+		inline bool AddConstant(const std::string &name, Constant *constant)
+		{
+			return this->mConstants.emplace(name, std::unique_ptr<Constant>(constant)).second;
+		}
+		inline bool AddTechnique(const std::string &name, Technique *technique)
+		{
+			return this->mTechniques.emplace(name, std::unique_ptr<Technique>(technique)).second;
+		}
 
-		void UpdateConstants() const;
+		virtual void Begin() const override;
+		virtual void End() const override;
 
-		std::shared_ptr<const D3D10Runtime> mEffectContext;
-		std::unordered_map<std::string, std::unique_ptr<D3D10Texture>> mTextures;
-		std::unordered_map<std::string, std::unique_ptr<D3D10Constant>> mConstants;
-		std::unordered_map<std::string, std::unique_ptr<D3D10Technique>> mTechniques;
+		std::shared_ptr<const D3D10Runtime> mRuntime;
 		ID3D10RasterizerState *mRasterizerState;
-		std::unordered_map<D3D10_SAMPLER_DESC, std::size_t, D3D10_SAMPLER_DESC_HASHER> mSamplerDescs;
 		std::vector<ID3D10SamplerState *> mSamplerStates;
 		std::vector<ID3D10ShaderResourceView *> mShaderResources;
 		std::vector<ID3D10Buffer *> mConstantBuffers;
@@ -123,11 +102,11 @@ namespace ReShade { namespace Runtimes
 		}
 
 		virtual bool Update(unsigned int level, const unsigned char *data, std::size_t size) override;
-		void UpdateSource(ID3D10ShaderResourceView *srv, ID3D10ShaderResourceView *srvSRGB);
+		void ChangeSource(ID3D10ShaderResourceView *srv, ID3D10ShaderResourceView *srvSRGB);
 
 		D3D10Effect *mEffect;
 		Source mSource;
-		unsigned int mRegister;
+		std::size_t mRegister;
 		ID3D10Texture2D *mTexture;
 		ID3D10ShaderResourceView *mShaderResourceView[2];
 		ID3D10RenderTargetView *mRenderTargetView[2];
@@ -163,7 +142,7 @@ namespace ReShade { namespace Runtimes
 			std::vector<ID3D10ShaderResourceView *> SRV;
 		};
 
-		D3D10Technique(D3D10Effect *effect);
+		D3D10Technique(D3D10Effect *effect, const Description &desc);
 		~D3D10Technique();
 
 		inline bool AddAnnotation(const std::string &name, const Effect::Annotation &value)
@@ -175,8 +154,6 @@ namespace ReShade { namespace Runtimes
 			this->mPasses.push_back(pass);
 		}
 
-		virtual bool Begin(unsigned int &passes) const override;
-		virtual void End() const override;
 		virtual void RenderPass(unsigned int index) const override;
 
 		D3D10Effect *mEffect;

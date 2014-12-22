@@ -14,11 +14,12 @@ namespace ReShade
 	class Runtime abstract
 	{
 	public:
-		struct InfoTechnique
+		struct TechniqueInfo
 		{
 			bool Enabled;
 			int Timeout, Timeleft;
 			int Toggle, ToggleTime;
+			const Effect::Technique *Technique;
 		};
 
 	public:
@@ -53,7 +54,7 @@ namespace ReShade
 		unsigned long mLastDrawCalls, mLastDrawCallVertices;
 		NVGcontext *mNVG;
 		std::unique_ptr<Effect> mEffect;
-		std::vector<std::pair<const Effect::Technique *, InfoTechnique>> mTechniques;
+		std::vector<TechniqueInfo> mTechniques;
 		boost::chrono::high_resolution_clock::time_point mStartTime, mLastCreate, mLastPresent;
 		boost::chrono::high_resolution_clock::duration mLastFrameDuration, mLastPostProcessingDuration;
 		unsigned long long mLastFrameCount;

@@ -1,8 +1,8 @@
 #pragma once
 
 #include <string>
-#include <vector>
 #include <memory>
+#include <vector>
 #include <boost\filesystem\path.hpp>
 
 namespace ReShade

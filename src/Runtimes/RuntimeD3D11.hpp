@@ -3,18 +3,11 @@
 #include "Runtime.hpp"
 
 #include <d3d11_1.h>
-#include <vector>
-#include <unordered_map>
 
 namespace ReShade { namespace Runtimes
 {
 	struct D3D11Runtime : public Runtime, public std::enable_shared_from_this<D3D11Runtime>
 	{
-		friend struct D3D11Effect;
-		friend struct D3D11Texture;
-		friend struct D3D11Constant;
-		friend struct D3D11Technique;
-
 		struct DepthSourceInfo
 		{
 			UINT Width, Height;
@@ -63,44 +56,30 @@ namespace ReShade { namespace Runtimes
 
 	struct D3D11Effect : public Effect
 	{
+		friend struct D3D11Runtime;
 		friend struct D3D11Texture;
-		friend struct D3D11Constant;
-		friend struct D3D11Technique;
 
-		struct D3D11_SAMPLER_DESC_HASHER
-		{
-			inline std::size_t operator()(const D3D11_SAMPLER_DESC &s) const 
-			{
-				const unsigned char *p = reinterpret_cast<const unsigned char *>(&s);
-				std::size_t h = 2166136261;
-
-				for (std::size_t i = 0; i < sizeof(D3D11_SAMPLER_DESC); ++i)
-				{
-					h = (h * 16777619) ^ p[i];
-				}
-
-				return h;
-			}
-		};
-
-		D3D11Effect(std::shared_ptr<const D3D11Runtime> context);
+		D3D11Effect(std::shared_ptr<const D3D11Runtime> runtime);
 		~D3D11Effect();
 
-		virtual const Texture *GetTexture(const std::string &name) const override;
-		virtual std::vector<std::string> GetTextureNames() const override;
-		virtual const Constant *GetConstant(const std::string &name) const override;
-		virtual std::vector<std::string> GetConstantNames() const override;
-		virtual const Technique *GetTechnique(const std::string &name) const override;
-		virtual std::vector<std::string> GetTechniqueNames() const override;
+		inline bool AddTexture(const std::string &name, Texture *texture)
+		{
+			return this->mTextures.emplace(name, std::unique_ptr<Texture>(texture)).second;
+		}
+		inline bool AddConstant(const std::string &name, Constant *constant)
+		{
+			return this->mConstants.emplace(name, std::unique_ptr<Constant>(constant)).second;
+		}
+		inline bool AddTechnique(const std::string &name, Technique *technique)
+		{
+			return this->mTechniques.emplace(name, std::unique_ptr<Technique>(technique)).second;
+		}
 
-		void UpdateConstants() const;
+		virtual void Begin() const override;
+		virtual void End() const override;
 
-		std::shared_ptr<const D3D11Runtime> mEffectContext;
-		std::unordered_map<std::string, std::unique_ptr<D3D11Texture>> mTextures;
-		std::unordered_map<std::string, std::unique_ptr<D3D11Constant>> mConstants;
-		std::unordered_map<std::string, std::unique_ptr<D3D11Technique>> mTechniques;
+		std::shared_ptr<const D3D11Runtime> mRuntime;
 		ID3D11RasterizerState *mRasterizerState;
-		std::unordered_map<D3D11_SAMPLER_DESC, std::size_t, D3D11_SAMPLER_DESC_HASHER> mSamplerDescs;
 		std::vector<ID3D11SamplerState *> mSamplerStates;
 		std::vector<ID3D11ShaderResourceView *> mShaderResources;
 		std::vector<ID3D11Buffer *> mConstantBuffers;
@@ -125,11 +104,11 @@ namespace ReShade { namespace Runtimes
 		}
 
 		virtual bool Update(unsigned int level, const unsigned char *data, std::size_t size) override;
-		void UpdateSource(ID3D11ShaderResourceView *srv, ID3D11ShaderResourceView *srvSRGB);
+		void ChangeSource(ID3D11ShaderResourceView *srv, ID3D11ShaderResourceView *srvSRGB);
 
 		D3D11Effect *mEffect;
 		Source mSource;
-		unsigned int mRegister;
+		std::size_t mRegister;
 		ID3D11Texture2D *mTexture;
 		ID3D11ShaderResourceView *mShaderResourceView[2];
 		ID3D11RenderTargetView *mRenderTargetView[2];
@@ -165,7 +144,7 @@ namespace ReShade { namespace Runtimes
 			std::vector<ID3D11ShaderResourceView *> SRV;
 		};
 
-		D3D11Technique(D3D11Effect *effect);
+		D3D11Technique(D3D11Effect *effect, const Description &desc);
 		~D3D11Technique();
 
 		inline bool AddAnnotation(const std::string &name, const Effect::Annotation &value)
@@ -177,8 +156,6 @@ namespace ReShade { namespace Runtimes
 			this->mPasses.push_back(pass);
 		}
 
-		virtual bool Begin(unsigned int &passes) const override;
-		virtual void End() const override;
 		virtual void RenderPass(unsigned int index) const override;
 
 		D3D11Effect *mEffect;

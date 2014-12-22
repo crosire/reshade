@@ -1,16 +1,18 @@
 #pragma once
 
 #include <string>
+#include <memory>
 #include <vector>
 #include <unordered_map>
 
 namespace ReShade
 {
-	class Effect
+	class Effect abstract
 	{
 	public:
 		struct Annotation
 		{
+		public:
 			inline Annotation()
 			{
 			}
@@ -100,14 +102,13 @@ namespace ReShade
 			};
 
 		public:
-			const Description GetDescription() const;
-			const Annotation GetAnnotation(const std::string &name) const;
-
-			virtual bool Update(unsigned int level, const unsigned char *data, std::size_t size) = 0;
-
-		protected:
 			Texture(const Description &desc);
 			virtual ~Texture();
+
+			const Annotation GetAnnotation(const std::string &name) const;
+			const Description GetDescription() const;
+
+			virtual bool Update(unsigned int level, const unsigned char *data, std::size_t size) = 0;
 
 		protected:
 			Description mDesc;
@@ -132,8 +133,11 @@ namespace ReShade
 			};
 
 		public:
-			const Description GetDescription() const;
+			Constant(const Description &desc);
+			virtual ~Constant();
+
 			const Annotation GetAnnotation(const std::string &name) const;
+			const Description GetDescription() const;
 
 			virtual void GetValue(unsigned char *data, std::size_t size) const = 0;
 			virtual void SetValue(const unsigned char *data, std::size_t size) = 0;
@@ -160,48 +164,52 @@ namespace ReShade
 			}
 
 		protected:
-			Constant(const Description &desc);
-			virtual ~Constant();
-
-		protected:
 			Description mDesc;
 			std::unordered_map<std::string, Annotation> mAnnotations;
 		};
 		class Technique
 		{
 		public:
-			const Annotation GetAnnotation(const std::string &name) const;
+			struct Description
+			{
+				unsigned int Passes;
+			};
 
-			bool Begin() const;
-			virtual bool Begin(unsigned int &passes) const = 0;
-			virtual void End() const = 0;
+		public:
+			Technique(const Description &desc);
+			virtual ~Technique();
+
+			const Annotation GetAnnotation(const std::string &name) const;
+			const Description GetDescription() const;
+
+			void Render() const;
 			virtual void RenderPass(unsigned int index) const = 0;
 
 		protected:
-			Technique();
-			virtual ~Technique();
-
-		protected:
+			Description mDesc;
 			std::unordered_map<std::string, Effect::Annotation>	mAnnotations;
 		};
 
 	public:
+		Effect();
 		virtual ~Effect();
 
-		virtual const Texture *GetTexture(const std::string &name) const = 0;
-		inline Texture *GetTexture(const std::string &name)
-		{
-			return const_cast<Texture *>(static_cast<const Effect *>(this)->GetTexture(name));
-		}
-		virtual std::vector<std::string> GetTextureNames() const = 0;
-		virtual const Constant *GetConstant(const std::string &name) const = 0;
-		inline Constant *GetConstant(const std::string &name)
-		{
-			return const_cast<Constant *>(static_cast<const Effect *>(this)->GetConstant(name));
-		}
-		virtual std::vector<std::string> GetConstantNames() const = 0;
-		virtual const Technique *GetTechnique(const std::string &name) const = 0;
-		virtual std::vector<std::string> GetTechniqueNames() const = 0;
+		Texture *GetTexture(const std::string &name);
+		const Texture *GetTexture(const std::string &name) const;
+		Constant *GetConstant(const std::string &name);
+		const Constant *GetConstant(const std::string &name) const;
+		const Technique *GetTechnique(const std::string &name) const;
+		std::vector<std::string> GetTextures() const;
+		std::vector<std::string> GetConstants() const;
+		std::vector<std::string> GetTechniques() const;
+
+		virtual void Begin() const = 0;
+		virtual void End() const = 0;
+
+	protected:
+		std::unordered_map<std::string, std::unique_ptr<Texture>> mTextures;
+		std::unordered_map<std::string, std::unique_ptr<Constant>> mConstants;
+		std::unordered_map<std::string, std::unique_ptr<Technique>> mTechniques;
 	};
 
 	// -----------------------------------------------------------------------------------------------------

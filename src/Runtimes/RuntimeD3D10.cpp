@@ -8,11 +8,6 @@
 
 // -----------------------------------------------------------------------------------------------------
 
-inline bool operator ==(const D3D10_SAMPLER_DESC &left, const D3D10_SAMPLER_DESC &right)
-{
-	return std::memcmp(&left, &right, sizeof(D3D10_SAMPLER_DESC)) == 0;
-}
-
 namespace ReShade { namespace Runtimes
 {
 	namespace
@@ -58,7 +53,7 @@ namespace ReShade { namespace Runtimes
 					D3D10_SUBRESOURCE_DATA globalsInitial;
 					globalsInitial.pSysMem = this->mEffect->mConstantStorages[0];
 					globalsInitial.SysMemPitch = globalsInitial.SysMemSlicePitch = this->mCurrentGlobalSize;
-					this->mEffect->mEffectContext->mDevice->CreateBuffer(&globalsDesc, &globalsInitial, &this->mEffect->mConstantBuffers[0]);
+					this->mEffect->mRuntime->mDevice->CreateBuffer(&globalsDesc, &globalsInitial, &this->mEffect->mConstantBuffers[0]);
 				}
 
 				errors += this->mErrors;
@@ -269,6 +264,18 @@ namespace ReShade { namespace Runtimes
 					default:
 						return format;
 				}
+			}
+			static std::size_t D3D10_SAMPLER_DESC_HASH(const D3D10_SAMPLER_DESC &s) 
+			{
+				const unsigned char *p = reinterpret_cast<const unsigned char *>(&s);
+				std::size_t h = 2166136261;
+
+				for (std::size_t i = 0; i < sizeof(D3D10_SAMPLER_DESC); ++i)
+				{
+					h = (h * 16777619) ^ p[i];
+				}
+
+				return h;
 			}
 			
 			static std::string ConvertSemantic(const std::string &semantic)
@@ -1648,7 +1655,7 @@ namespace ReShade { namespace Runtimes
 				objdesc.Levels = texdesc.MipLevels;
 				objdesc.Format = format;
 
-				std::unique_ptr<D3D10Texture> obj(new D3D10Texture(this->mEffect, objdesc));
+				D3D10Texture *obj = new D3D10Texture(this->mEffect, objdesc);
 				obj->mRegister = this->mEffect->mShaderResources.size();
 				obj->mTexture = nullptr;
 				obj->mShaderResourceView[0] = nullptr;
@@ -1659,12 +1666,12 @@ namespace ReShade { namespace Runtimes
 					if (boost::equals(node.Semantic, "COLOR") || boost::equals(node.Semantic, "SV_TARGET"))
 					{
 						obj->mSource = D3D10Texture::Source::BackBuffer;
-						obj->UpdateSource(this->mEffect->mEffectContext->mBackBufferTextureSRV[0], this->mEffect->mEffectContext->mBackBufferTextureSRV[1]);
+						obj->ChangeSource(this->mEffect->mRuntime->mBackBufferTextureSRV[0], this->mEffect->mRuntime->mBackBufferTextureSRV[1]);
 					}
 					if (boost::equals(node.Semantic, "DEPTH") || boost::equals(node.Semantic, "SV_DEPTH"))
 					{
 						obj->mSource = D3D10Texture::Source::DepthStencil;
-						obj->UpdateSource(this->mEffect->mEffectContext->mDepthStencilTextureSRV, nullptr);
+						obj->ChangeSource(this->mEffect->mRuntime->mDepthStencilTextureSRV, nullptr);
 					}
 				}
 
@@ -1677,7 +1684,7 @@ namespace ReShade { namespace Runtimes
 				}
 				else
 				{
-					HRESULT hr = this->mEffect->mEffectContext->mDevice->CreateTexture2D(&texdesc, nullptr, &obj->mTexture);
+					HRESULT hr = this->mEffect->mRuntime->mDevice->CreateTexture2D(&texdesc, nullptr, &obj->mTexture);
 
 					if (FAILED(hr))
 					{
@@ -1692,7 +1699,7 @@ namespace ReShade { namespace Runtimes
 					srvdesc.Texture2D.MipLevels = texdesc.MipLevels;
 					srvdesc.Format = MakeNonSRBFormat(texdesc.Format);
 
-					hr = this->mEffect->mEffectContext->mDevice->CreateShaderResourceView(obj->mTexture, &srvdesc, &obj->mShaderResourceView[0]);
+					hr = this->mEffect->mRuntime->mDevice->CreateShaderResourceView(obj->mTexture, &srvdesc, &obj->mShaderResourceView[0]);
 
 					if (FAILED(hr))
 					{
@@ -1705,7 +1712,7 @@ namespace ReShade { namespace Runtimes
 
 					if (srvdesc.Format != texdesc.Format)
 					{
-						hr = this->mEffect->mEffectContext->mDevice->CreateShaderResourceView(obj->mTexture, &srvdesc, &obj->mShaderResourceView[1]);
+						hr = this->mEffect->mRuntime->mDevice->CreateShaderResourceView(obj->mTexture, &srvdesc, &obj->mShaderResourceView[1]);
 
 						if (FAILED(hr))
 						{
@@ -1730,7 +1737,7 @@ namespace ReShade { namespace Runtimes
 				this->mEffect->mShaderResources.push_back(obj->mShaderResourceView[0]);
 				this->mEffect->mShaderResources.push_back(obj->mShaderResourceView[1]);
 
-				this->mEffect->mTextures.insert(std::make_pair(node.Name, std::move(obj)));
+				this->mEffect->AddTexture(node.Name, obj);
 			}
 			void VisitSampler(const EffectNodes::Variable &node)
 			{
@@ -1810,15 +1817,24 @@ namespace ReShade { namespace Runtimes
 					srgb = this->mAST[node.Properties[EffectNodes::Variable::SRGBTexture]].As<EffectNodes::Literal>().Value.Bool[0] != 0;
 				}
 
-				const char *texture = this->mAST[node.Properties[EffectNodes::Variable::Texture]].As<EffectNodes::Variable>().Name;
+				const char *textureName = this->mAST[node.Properties[EffectNodes::Variable::Texture]].As<EffectNodes::Variable>().Name;
+				D3D10Texture *texture = static_cast<D3D10Texture *>(this->mEffect->GetTexture(textureName));
 
-				auto it = this->mEffect->mSamplerDescs.find(desc);
+				if (texture == nullptr)
+				{
+					this->mErrors += PrintLocation(node.Location) + "error: texture '" + std::string(textureName) + "' for sampler '" + std::string(node.Name) + "' is missing.\n";
+					this->mFatal = true;
+					return;
+				}
 
-				if (it == this->mEffect->mSamplerDescs.end())
+				const std::size_t descHash = D3D10_SAMPLER_DESC_HASH(desc);
+				auto it = this->mSamplerDescs.find(descHash);
+
+				if (it == this->mSamplerDescs.end())
 				{
 					ID3D10SamplerState *sampler = nullptr;
 
-					HRESULT hr = this->mEffect->mEffectContext->mDevice->CreateSamplerState(&desc, &sampler);
+					HRESULT hr = this->mEffect->mRuntime->mDevice->CreateSamplerState(&desc, &sampler);
 
 					if (FAILED(hr))
 					{
@@ -1828,7 +1844,7 @@ namespace ReShade { namespace Runtimes
 					}
 
 					this->mEffect->mSamplerStates.push_back(sampler);
-					it = this->mEffect->mSamplerDescs.insert(std::make_pair(desc, this->mEffect->mSamplerStates.size() - 1)).first;
+					it = this->mSamplerDescs.emplace(descHash, this->mEffect->mSamplerStates.size() - 1).first;
 
 					this->mCurrentSource += "SamplerState __SamplerState" + std::to_string(it->second) + " : register(s" + std::to_string(it->second) + ");\n";
 				}
@@ -1837,15 +1853,15 @@ namespace ReShade { namespace Runtimes
 				this->mCurrentSource += node.Name;
 				this->mCurrentSource += " = { ";
 
-				if (srgb && this->mEffect->mTextures.at(texture)->mShaderResourceView[1] != nullptr)
+				if (srgb && texture->mShaderResourceView[1] != nullptr)
 				{
 					this->mCurrentSource += "__";
-					this->mCurrentSource += texture;
+					this->mCurrentSource += textureName;
 					this->mCurrentSource += "SRGB";
 				}
 				else
 				{
-					this->mCurrentSource += texture;
+					this->mCurrentSource += textureName;
 				}
 
 				this->mCurrentSource += ", __SamplerState" + std::to_string(it->second) + " };\n";
@@ -1893,9 +1909,9 @@ namespace ReShade { namespace Runtimes
 				}
 
 				const UINT alignment = 16 - (this->mCurrentGlobalSize % 16);
-				this->mCurrentGlobalSize += (objdesc.Size > alignment && (alignment != 16 || objdesc.Size <= 16)) ? objdesc.Size + alignment : objdesc.Size;
+				this->mCurrentGlobalSize += static_cast<UINT>((objdesc.Size > alignment && (alignment != 16 || objdesc.Size <= 16)) ? objdesc.Size + alignment : objdesc.Size);
 
-				std::unique_ptr<D3D10Constant> obj(new D3D10Constant(this->mEffect, objdesc));
+				D3D10Constant *obj = new D3D10Constant(this->mEffect, objdesc);
 				obj->mBufferIndex = 0;
 				obj->mBufferOffset = this->mCurrentGlobalSize - objdesc.Size;
 
@@ -1918,7 +1934,7 @@ namespace ReShade { namespace Runtimes
 					ZeroMemory(this->mEffect->mConstantStorages[0] + obj->mBufferOffset, objdesc.Size);
 				}
 
-				this->mEffect->mConstants.insert(std::make_pair(node.Name, std::move(obj)));
+				this->mEffect->AddConstant(node.Name, obj);
 			}
 			void VisitUniformBuffer(const EffectNodes::Variable &node)
 			{
@@ -1977,9 +1993,9 @@ namespace ReShade { namespace Runtimes
 					}
 
 					const UINT alignment = 16 - (totalsize % 16);
-					totalsize += (objdesc.Size > alignment && (alignment != 16 || objdesc.Size <= 16)) ? objdesc.Size + alignment : objdesc.Size;
+					totalsize += static_cast<UINT>((objdesc.Size > alignment && (alignment != 16 || objdesc.Size <= 16)) ? objdesc.Size + alignment : objdesc.Size);
 
-					std::unique_ptr<D3D10Constant> obj(new D3D10Constant(this->mEffect, objdesc));
+					D3D10Constant *obj = new D3D10Constant(this->mEffect, objdesc);
 					obj->mBufferIndex = this->mEffect->mConstantBuffers.size();
 					obj->mBufferOffset = totalsize - objdesc.Size;
 
@@ -1997,7 +2013,7 @@ namespace ReShade { namespace Runtimes
 						ZeroMemory(storage + obj->mBufferOffset, objdesc.Size);
 					}
 
-					this->mEffect->mConstants.insert(std::make_pair(std::string(node.Name) + '.' + std::string(field->Name), std::move(obj)));
+					this->mEffect->AddConstant(std::string(node.Name) + '.' + std::string(field->Name), obj);
 
 					if (field->NextDeclarator != EffectTree::Null)
 					{
@@ -2022,7 +2038,7 @@ namespace ReShade { namespace Runtimes
 				objdesc.Size = totalsize;
 				objdesc.Type = Effect::Constant::Type::Struct;
 
-				std::unique_ptr<D3D10Constant> obj(new D3D10Constant(this->mEffect, objdesc));
+				D3D10Constant *obj = new D3D10Constant(this->mEffect, objdesc);
 				obj->mBufferIndex = this->mEffect->mConstantBuffers.size();
 				obj->mBufferOffset = 0;
 
@@ -2031,7 +2047,7 @@ namespace ReShade { namespace Runtimes
 					Visit(this->mAST[node.Annotations].As<EffectNodes::Annotation>(), *obj);
 				}
 
-				this->mEffect->mConstants.insert(std::make_pair(node.Name, std::move(obj)));
+				this->mEffect->AddConstant(node.Name, obj);
 
 				D3D10_BUFFER_DESC desc;
 				desc.ByteWidth = RoundToMultipleOf16(totalsize);
@@ -2044,7 +2060,7 @@ namespace ReShade { namespace Runtimes
 				initial.pSysMem = storage;
 				initial.SysMemPitch = initial.SysMemSlicePitch = totalsize;
 
-				HRESULT hr = this->mEffect->mEffectContext->mDevice->CreateBuffer(&desc, &initial, &buffer);
+				HRESULT hr = this->mEffect->mRuntime->mDevice->CreateBuffer(&desc, &initial, &buffer);
 
 				if (SUCCEEDED(hr))
 				{
@@ -2109,13 +2125,12 @@ namespace ReShade { namespace Runtimes
 			}
 			void Visit(const EffectNodes::Technique &node)
 			{
-				std::unique_ptr<D3D10Technique> obj(new D3D10Technique(this->mEffect));
-
+				std::vector<D3D10Technique::Pass> passes;
 				const EffectNodes::Pass *pass = &this->mAST[node.Passes].As<EffectNodes::Pass>();
 
 				do
 				{
-					Visit(*pass, obj->mPasses);
+					Visit(*pass, passes);
 
 					if (pass->NextPass != EffectTree::Null)
 					{
@@ -2128,12 +2143,18 @@ namespace ReShade { namespace Runtimes
 				}
 				while (pass != nullptr);
 
+				D3D10Technique::Description objdesc;
+				objdesc.Passes = static_cast<unsigned int>(passes.size());
+
+				D3D10Technique *obj = new D3D10Technique(this->mEffect, objdesc);
+				obj->mPasses = std::move(passes);
+
 				if (node.Annotations != EffectTree::Null)
 				{
 					Visit(this->mAST[node.Annotations].As<EffectNodes::Annotation>(), *obj);
 				}
 
-				this->mEffect->mTechniques.insert(std::make_pair(node.Name, std::move(obj)));
+				this->mEffect->AddTechnique(node.Name, obj);
 			}
 			void Visit(const EffectNodes::Pass &node, std::vector<D3D10Technique::Pass> &passes)
 			{
@@ -2166,24 +2187,21 @@ namespace ReShade { namespace Runtimes
 					srgb = this->mAST[node.States[EffectNodes::Pass::SRGBWriteEnable]].As<EffectNodes::Literal>().Value.Bool[0];
 				}
 
-				pass.RT[0] = this->mEffect->mEffectContext->mBackBufferTargets[srgb];
-				pass.RTSRV[0] = this->mEffect->mEffectContext->mBackBufferTextureSRV[srgb];
+				pass.RT[0] = this->mEffect->mRuntime->mBackBufferTargets[srgb];
+				pass.RTSRV[0] = this->mEffect->mRuntime->mBackBufferTextureSRV[srgb];
 
 				for (unsigned int i = 0; i < 8; ++i)
 				{
 					if (node.States[EffectNodes::Pass::RenderTarget0 + i] != 0)
 					{
-						const auto &variable = this->mAST[node.States[EffectNodes::Pass::RenderTarget0 + i]].As<EffectNodes::Variable>();
+						const char *textureName = this->mAST[node.States[EffectNodes::Pass::RenderTarget0 + i]].As<EffectNodes::Variable>().Name;
+						D3D10Texture *texture = static_cast<D3D10Texture *>(this->mEffect->GetTexture(textureName));
 
-						const auto it = this->mEffect->mTextures.find(variable.Name);
-
-						if (it == this->mEffect->mTextures.end())
+						if (texture == nullptr)
 						{
 							this->mFatal = true;
 							return;
 						}
-
-						D3D10Texture *texture = it->second.get();
 
 						D3D10_TEXTURE2D_DESC desc;
 						texture->mTexture->GetDesc(&desc);
@@ -2207,7 +2225,7 @@ namespace ReShade { namespace Runtimes
 
 						if (texture->mRenderTargetView[srgb] == nullptr)
 						{
-							HRESULT hr = this->mEffect->mEffectContext->mDevice->CreateRenderTargetView(texture->mTexture, &rtvdesc, &texture->mRenderTargetView[srgb]);
+							HRESULT hr = this->mEffect->mRuntime->mDevice->CreateRenderTargetView(texture->mTexture, &rtvdesc, &texture->mRenderTargetView[srgb]);
 
 							if (FAILED(hr))
 							{
@@ -2222,8 +2240,8 @@ namespace ReShade { namespace Runtimes
 
 				if (pass.Viewport.Width == 0 && pass.Viewport.Height == 0)
 				{
-					pass.Viewport.Width = this->mEffect->mEffectContext->mSwapChainDesc.BufferDesc.Width;
-					pass.Viewport.Height = this->mEffect->mEffectContext->mSwapChainDesc.BufferDesc.Height;
+					pass.Viewport.Width = this->mEffect->mRuntime->mSwapChainDesc.BufferDesc.Width;
+					pass.Viewport.Height = this->mEffect->mRuntime->mSwapChainDesc.BufferDesc.Height;
 				}
 
 				D3D10_DEPTH_STENCIL_DESC ddesc;
@@ -2243,7 +2261,7 @@ namespace ReShade { namespace Runtimes
 					pass.StencilRef = this->mAST[node.States[EffectNodes::Pass::StencilRef]].As<EffectNodes::Literal>().Value.Uint[0];
 				}
 
-				HRESULT hr = this->mEffect->mEffectContext->mDevice->CreateDepthStencilState(&ddesc, &pass.DSS);
+				HRESULT hr = this->mEffect->mRuntime->mDevice->CreateDepthStencilState(&ddesc, &pass.DSS);
 
 				if (FAILED(hr))
 				{
@@ -2265,7 +2283,7 @@ namespace ReShade { namespace Runtimes
 					bdesc.BlendEnable[i] = bdesc.BlendEnable[0];
 				}
 
-				hr = this->mEffect->mEffectContext->mDevice->CreateBlendState(&bdesc, &pass.BS);
+				hr = this->mEffect->mRuntime->mDevice->CreateBlendState(&bdesc, &pass.BS);
 
 				if (FAILED(hr))
 				{
@@ -2365,10 +2383,10 @@ namespace ReShade { namespace Runtimes
 				switch (shadertype)
 				{
 					case EffectNodes::Pass::VertexShader:
-						hr = this->mEffect->mEffectContext->mDevice->CreateVertexShader(compiled->GetBufferPointer(), compiled->GetBufferSize(), &pass.VS);
+						hr = this->mEffect->mRuntime->mDevice->CreateVertexShader(compiled->GetBufferPointer(), compiled->GetBufferSize(), &pass.VS);
 						break;
 					case EffectNodes::Pass::PixelShader:
-						hr = this->mEffect->mEffectContext->mDevice->CreatePixelShader(compiled->GetBufferPointer(), compiled->GetBufferSize(), &pass.PS);
+						hr = this->mEffect->mRuntime->mDevice->CreatePixelShader(compiled->GetBufferPointer(), compiled->GetBufferSize(), &pass.PS);
 						break;
 				}
 
@@ -2388,6 +2406,7 @@ namespace ReShade { namespace Runtimes
 			std::string mCurrentSource;
 			std::string mErrors;
 			bool mFatal;
+			std::unordered_map<std::size_t, std::size_t> mSamplerDescs;
 			std::string mCurrentGlobalConstants;
 			UINT mCurrentGlobalSize, mCurrentGlobalStorageSize;
 			std::string mCurrentBlockName;
@@ -3039,9 +3058,11 @@ namespace ReShade { namespace Runtimes
 		{
 			for (auto &it : effect->mTextures)
 			{
-				if (it.second->mSource == D3D10Texture::Source::DepthStencil)
+				D3D10Texture *texture = static_cast<D3D10Texture *>(it.second.get());
+
+				if (texture->mSource == D3D10Texture::Source::DepthStencil)
 				{
-					it.second->UpdateSource(this->mDepthStencilTextureSRV, nullptr);
+					texture->ChangeSource(this->mDepthStencilTextureSRV, nullptr);
 				}
 			}
 		}
@@ -3150,7 +3171,7 @@ namespace ReShade { namespace Runtimes
 		textureStaging->Release();
 	}
 
-	D3D10Effect::D3D10Effect(std::shared_ptr<const D3D10Runtime> context) : mEffectContext(context), mRasterizerState(nullptr), mConstantsDirty(true)
+	D3D10Effect::D3D10Effect(std::shared_ptr<const D3D10Runtime> runtime) : mRuntime(runtime), mRasterizerState(nullptr), mConstantsDirty(true)
 	{
 	}
 	D3D10Effect::~D3D10Effect()
@@ -3175,113 +3196,33 @@ namespace ReShade { namespace Runtimes
 		}
 	}
 
-	const Effect::Texture *D3D10Effect::GetTexture(const std::string &name) const
+	void D3D10Effect::Begin() const
 	{
-		auto it = this->mTextures.find(name);
+		ID3D10Device *const device = this->mRuntime->mDevice;
 
-		if (it == this->mTextures.end())
-		{
-			return nullptr;
-		}
+		// Setup vertex input
+		const uintptr_t null = 0;
+		device->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		device->IASetInputLayout(nullptr);
+		device->IASetVertexBuffers(0, 1, reinterpret_cast<ID3D10Buffer *const *>(&null), reinterpret_cast<const UINT *>(&null), reinterpret_cast<const UINT *>(&null));
 
-		return it->second.get();
+		device->RSSetState(this->mRasterizerState);
+
+		// Setup samplers
+		device->VSSetSamplers(0, static_cast<UINT>(this->mSamplerStates.size()), this->mSamplerStates.data());
+		device->PSSetSamplers(0, static_cast<UINT>(this->mSamplerStates.size()), this->mSamplerStates.data());
+
+		// Setup shader constants
+		device->VSSetConstantBuffers(0, static_cast<UINT>(this->mConstantBuffers.size()), this->mConstantBuffers.data());
+		device->PSSetConstantBuffers(0, static_cast<UINT>(this->mConstantBuffers.size()), this->mConstantBuffers.data());
+
+		// Setup depthstencil
+		assert(this->mRuntime->mDefaultDepthStencil != nullptr);
+
+		device->ClearDepthStencilView(this->mRuntime->mDefaultDepthStencil, D3D10_CLEAR_DEPTH | D3D10_CLEAR_STENCIL, 1.0f, 0);
 	}
-	std::vector<std::string> D3D10Effect::GetTextureNames() const
+	void D3D10Effect::End() const
 	{
-		std::vector<std::string> names;
-		names.reserve(this->mTextures.size());
-
-		for (auto it = this->mTextures.begin(), end = this->mTextures.end(); it != end; ++it)
-		{
-			names.push_back(it->first);
-		}
-
-		return names;
-	}
-	const Effect::Constant *D3D10Effect::GetConstant(const std::string &name) const
-	{
-		auto it = this->mConstants.find(name);
-
-		if (it == this->mConstants.end())
-		{
-			return nullptr;
-		}
-
-		return it->second.get();
-	}
-	std::vector<std::string> D3D10Effect::GetConstantNames() const
-	{
-		std::vector<std::string> names;
-		names.reserve(this->mConstants.size());
-
-		for (auto it = this->mConstants.begin(), end = this->mConstants.end(); it != end; ++it)
-		{
-			names.push_back(it->first);
-		}
-
-		return names;
-	}
-	const Effect::Technique *D3D10Effect::GetTechnique(const std::string &name) const
-	{
-		auto it = this->mTechniques.find(name);
-
-		if (it == this->mTechniques.end())
-		{
-			return nullptr;
-		}
-
-		return it->second.get();
-	}
-	std::vector<std::string> D3D10Effect::GetTechniqueNames() const
-	{
-		std::vector<std::string> names;
-		names.reserve(this->mTechniques.size());
-
-		for (auto it = this->mTechniques.begin(), end = this->mTechniques.end(); it != end; ++it)
-		{
-			names.push_back(it->first);
-		}
-
-		return names;
-	}
-
-	void D3D10Effect::UpdateConstants() const
-	{
-		if (!this->mConstantsDirty)
-		{
-			return;
-		}
-
-		for (std::size_t i = 0, count = this->mConstantBuffers.size(); i < count; ++i)
-		{
-			ID3D10Buffer *buffer = this->mConstantBuffers[i];
-			const unsigned char *storage = this->mConstantStorages[i];
-
-			if (buffer == nullptr)
-			{
-				continue;
-			}
-
-			void *data = nullptr;
-
-			const HRESULT hr = buffer->Map(D3D10_MAP_WRITE_DISCARD, 0, &data);
-
-			if (FAILED(hr))
-			{
-				LOG(TRACE) << "Failed to map constant buffer at slot " << i << "! HRESULT is '" << hr << "'!";
-
-				continue;
-			}
-
-			D3D10_BUFFER_DESC desc;
-			buffer->GetDesc(&desc);
-
-			CopyMemory(data, storage, desc.ByteWidth);
-
-			buffer->Unmap();
-		}
-
-		this->mConstantsDirty = false;
 	}
 
 	D3D10Texture::D3D10Texture(D3D10Effect *effect, const Description &desc) : Texture(desc), mEffect(effect), mSource(Source::Memory), mTexture(nullptr), mShaderResourceView(), mRenderTargetView(), mRegister(0)
@@ -3306,9 +3247,9 @@ namespace ReShade { namespace Runtimes
 
 		assert(this->mDesc.Height != 0);
 
-		ID3D10Device *device = this->mEffect->mEffectContext->mDevice;
+		ID3D10Device *device = this->mEffect->mRuntime->mDevice;
 
-		device->UpdateSubresource(this->mTexture, level, nullptr, data, size / this->mDesc.Height, size);
+		device->UpdateSubresource(this->mTexture, level, nullptr, data, static_cast<UINT>(size / this->mDesc.Height), static_cast<UINT>(size));
 
 		if (level == 0 && this->mDesc.Levels > 1)
 		{
@@ -3317,7 +3258,7 @@ namespace ReShade { namespace Runtimes
 
 		return true;
 	}
-	void D3D10Texture::UpdateSource(ID3D10ShaderResourceView *srv, ID3D10ShaderResourceView *srvSRGB)
+	void D3D10Texture::ChangeSource(ID3D10ShaderResourceView *srv, ID3D10ShaderResourceView *srvSRGB)
 	{
 		if (srvSRGB == nullptr)
 		{
@@ -3361,7 +3302,7 @@ namespace ReShade { namespace Runtimes
 		// Update techniques shader resourceviews
 		for (auto &technique : this->mEffect->mTechniques)
 		{
-			for (auto &pass : technique.second->mPasses)
+			for (auto &pass : static_cast<D3D10Technique *>(technique.second.get())->mPasses)
 			{
 				pass.SRV[this->mRegister] = this->mShaderResourceView[0];
 				pass.SRV[this->mRegister + 1] = this->mShaderResourceView[1];
@@ -3398,7 +3339,7 @@ namespace ReShade { namespace Runtimes
 		this->mEffect->mConstantsDirty = true;
 	}
 
-	D3D10Technique::D3D10Technique(D3D10Effect *effect) : Technique(), mEffect(effect)
+	D3D10Technique::D3D10Technique(D3D10Effect *effect, const Description &desc) : Technique(desc), mEffect(effect)
 	{
 	}
 	D3D10Technique::~D3D10Technique()
@@ -3424,50 +3365,46 @@ namespace ReShade { namespace Runtimes
 		}
 	}
 
-	bool D3D10Technique::Begin(unsigned int &passes) const
-	{
-		ID3D10Device *const device = this->mEffect->mEffectContext->mDevice;
-
-		passes = static_cast<unsigned int>(this->mPasses.size());
-
-		if (passes == 0)
-		{
-			return false;
-		}
-
-		// Setup vertex input
-		const uintptr_t null = 0;
-		device->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-		device->IASetInputLayout(nullptr);
-		device->IASetVertexBuffers(0, 1, reinterpret_cast<ID3D10Buffer *const *>(&null), reinterpret_cast<const UINT *>(&null), reinterpret_cast<const UINT *>(&null));
-
-		device->RSSetState(this->mEffect->mRasterizerState);
-
-		// Setup samplers
-		device->VSSetSamplers(0, static_cast<UINT>(this->mEffect->mSamplerStates.size()), this->mEffect->mSamplerStates.data());
-		device->PSSetSamplers(0, static_cast<UINT>(this->mEffect->mSamplerStates.size()), this->mEffect->mSamplerStates.data());
-
-		// Setup shader constants
-		device->VSSetConstantBuffers(0, static_cast<UINT>(this->mEffect->mConstantBuffers.size()), this->mEffect->mConstantBuffers.data());
-		device->PSSetConstantBuffers(0, static_cast<UINT>(this->mEffect->mConstantBuffers.size()), this->mEffect->mConstantBuffers.data());
-
-		// Setup depthstencil
-		assert(this->mEffect->mEffectContext->mDefaultDepthStencil != nullptr);
-
-		device->ClearDepthStencilView(this->mEffect->mEffectContext->mDefaultDepthStencil, D3D10_CLEAR_DEPTH | D3D10_CLEAR_STENCIL, 1.0f, 0);
-
-		return true;
-	}
-	void D3D10Technique::End() const
-	{
-	}
 	void D3D10Technique::RenderPass(unsigned int index) const
 	{
-		ID3D10Device *const device = this->mEffect->mEffectContext->mDevice;
-		const Pass &pass = this->mPasses[index];
+		const std::shared_ptr<const D3D10Runtime> runtime = this->mEffect->mRuntime;
+		ID3D10Device *const device = runtime->mDevice;
+		const D3D10Technique::Pass &pass = this->mPasses[index];
 
 		// Update shader constants
-		this->mEffect->UpdateConstants();
+		if (this->mEffect->mConstantsDirty)
+		{
+			for (std::size_t i = 0, count = this->mEffect->mConstantBuffers.size(); i < count; ++i)
+			{
+				ID3D10Buffer *buffer = this->mEffect->mConstantBuffers[i];
+				const unsigned char *storage = this->mEffect->mConstantStorages[i];
+
+				if (buffer == nullptr)
+				{
+					continue;
+				}
+
+				void *data = nullptr;
+
+				const HRESULT hr = buffer->Map(D3D10_MAP_WRITE_DISCARD, 0, &data);
+
+				if (FAILED(hr))
+				{
+					LOG(TRACE) << "Failed to map constant buffer at slot " << i << "! HRESULT is '" << hr << "'!";
+
+					continue;
+				}
+
+				D3D10_BUFFER_DESC desc;
+				buffer->GetDesc(&desc);
+
+				CopyMemory(data, storage, desc.ByteWidth);
+
+				buffer->Unmap();
+			}
+
+			this->mEffect->mConstantsDirty = false;
+		}
 
 		// Setup states
 		device->VSSetShader(pass.VS);
@@ -3479,16 +3416,16 @@ namespace ReShade { namespace Runtimes
 		device->OMSetDepthStencilState(pass.DSS, pass.StencilRef);
 
 		// Save backbuffer of previous pass
-		device->CopyResource(this->mEffect->mEffectContext->mBackBufferTexture, this->mEffect->mEffectContext->mBackBuffer);
+		device->CopyResource(runtime->mBackBufferTexture, runtime->mBackBuffer);
 
 		// Setup shader resources
 		device->VSSetShaderResources(0, static_cast<UINT>(pass.SRV.size()), pass.SRV.data());
 		device->PSSetShaderResources(0, static_cast<UINT>(pass.SRV.size()), pass.SRV.data());
 
 		// Setup rendertargets
-		ID3D10DepthStencilView *depthstencil = this->mEffect->mEffectContext->mDefaultDepthStencil;
+		ID3D10DepthStencilView *depthstencil = runtime->mDefaultDepthStencil;
 
-		if (pass.Viewport.Width != this->mEffect->mEffectContext->mSwapChainDesc.BufferDesc.Width || pass.Viewport.Height != this->mEffect->mEffectContext->mSwapChainDesc.BufferDesc.Height)
+		if (pass.Viewport.Width != runtime->mSwapChainDesc.BufferDesc.Width || pass.Viewport.Height != runtime->mSwapChainDesc.BufferDesc.Height)
 		{
 			depthstencil = nullptr;
 		}

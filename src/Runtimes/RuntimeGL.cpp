@@ -1980,19 +1980,19 @@ namespace ReShade { namespace Runtimes
 				objdesc.Levels = levels;
 				objdesc.Format = format;
 
-				std::unique_ptr<GLTexture> obj(new GLTexture(this->mEffect, objdesc));
+				GLTexture *obj = new GLTexture(this->mEffect, objdesc);
 
 				if (node.Semantic != nullptr)
 				{
 					if (boost::equals(node.Semantic, "COLOR") || boost::equals(node.Semantic, "SV_TARGET"))
 					{
 						obj->mSource = GLTexture::Source::BackBuffer;
-						obj->UpdateSource(this->mEffect->mEffectContext->mBackBufferTexture[0], this->mEffect->mEffectContext->mBackBufferTexture[1]);
+						obj->ChangeSource(this->mEffect->mRuntime->mBackBufferTexture[0], this->mEffect->mRuntime->mBackBufferTexture[1]);
 					}
 					if (boost::equals(node.Semantic, "DEPTH") || boost::equals(node.Semantic, "SV_DEPTH"))
 					{
 						obj->mSource = GLTexture::Source::DepthStencil;
-						obj->UpdateSource(this->mEffect->mEffectContext->mDepthTexture, 0);
+						obj->ChangeSource(this->mEffect->mRuntime->mDepthTexture, 0);
 					}
 				}
 
@@ -2024,7 +2024,7 @@ namespace ReShade { namespace Runtimes
 					Visit(this->mAST[node.Annotations].As<EffectNodes::Annotation>(), *obj);
 				}
 
-				this->mEffect->mTextures.insert(std::make_pair(node.Name, std::move(obj)));
+				this->mEffect->AddTexture(node.Name, obj);
 			}
 			void VisitSampler(const EffectNodes::Variable &node)
 			{
@@ -2035,11 +2035,11 @@ namespace ReShade { namespace Runtimes
 					return;
 				}
 
-				std::shared_ptr<GLSampler> obj = std::make_shared<GLSampler>();
-				obj->mTexture = this->mEffect->mTextures.at(this->mAST[node.Properties[EffectNodes::Variable::Texture]].As<EffectNodes::Variable>().Name).get();
-				obj->mSRGB = node.Properties[EffectNodes::Variable::SRGBTexture] != 0 && this->mAST[node.Properties[EffectNodes::Variable::SRGBTexture]].As<EffectNodes::Literal>().Value.Bool[0] != 0;
+				GLSampler sampler;
+				sampler.mTexture = static_cast<GLTexture *>(this->mEffect->GetTexture(this->mAST[node.Properties[EffectNodes::Variable::Texture]].As<EffectNodes::Variable>().Name));
+				sampler.mSRGB = node.Properties[EffectNodes::Variable::SRGBTexture] != 0 && this->mAST[node.Properties[EffectNodes::Variable::SRGBTexture]].As<EffectNodes::Literal>().Value.Bool[0] != 0;
 
-				GLCHECK(glGenSamplers(1, &obj->mID));
+				GLCHECK(glGenSamplers(1, &sampler.mID));
 
 				GLenum minfilter = (node.Properties[EffectNodes::Variable::MinFilter] != 0) ? LiteralToTextureFilter(this->mAST[node.Properties[EffectNodes::Variable::MinFilter]].As<EffectNodes::Literal>().Value.Uint[0]) : GL_LINEAR;
 				const GLenum mipfilter = (node.Properties[EffectNodes::Variable::MipFilter] != 0) ? LiteralToTextureFilter(this->mAST[node.Properties[EffectNodes::Variable::MipFilter]].As<EffectNodes::Literal>().Value.Uint[0]) : GL_LINEAR;
@@ -2061,22 +2061,22 @@ namespace ReShade { namespace Runtimes
 					minfilter = GL_LINEAR_MIPMAP_LINEAR;
 				}
 
-				GLCHECK(glSamplerParameteri(obj->mID, GL_TEXTURE_WRAP_S, (node.Properties[EffectNodes::Variable::AddressU] != 0) ? LiteralToTextureWrap(this->mAST[node.Properties[EffectNodes::Variable::AddressU]].As<EffectNodes::Literal>().Value.Uint[0]) : GL_CLAMP_TO_EDGE));
-				GLCHECK(glSamplerParameteri(obj->mID, GL_TEXTURE_WRAP_T, (node.Properties[EffectNodes::Variable::AddressV] != 0) ? LiteralToTextureWrap(this->mAST[node.Properties[EffectNodes::Variable::AddressV]].As<EffectNodes::Literal>().Value.Uint[0]) : GL_CLAMP_TO_EDGE));
-				GLCHECK(glSamplerParameteri(obj->mID, GL_TEXTURE_WRAP_R, (node.Properties[EffectNodes::Variable::AddressW] != 0) ? LiteralToTextureWrap(this->mAST[node.Properties[EffectNodes::Variable::AddressW]].As<EffectNodes::Literal>().Value.Uint[0]) : GL_CLAMP_TO_EDGE));
-				GLCHECK(glSamplerParameteri(obj->mID, GL_TEXTURE_MIN_FILTER, minfilter));
-				GLCHECK(glSamplerParameteri(obj->mID, GL_TEXTURE_MAG_FILTER, (node.Properties[EffectNodes::Variable::MagFilter] != 0) ? LiteralToTextureFilter(this->mAST[node.Properties[EffectNodes::Variable::MagFilter]].As<EffectNodes::Literal>().Value.Uint[0]) : GL_LINEAR));
-				GLCHECK(glSamplerParameterf(obj->mID, GL_TEXTURE_LOD_BIAS, (node.Properties[EffectNodes::Variable::MipLODBias] != 0) ? this->mAST[node.Properties[EffectNodes::Variable::MipLODBias]].As<EffectNodes::Literal>().Value.Float[0] : 0.0f));
-				GLCHECK(glSamplerParameterf(obj->mID, GL_TEXTURE_MIN_LOD, (node.Properties[EffectNodes::Variable::MinLOD] != 0) ? this->mAST[node.Properties[EffectNodes::Variable::MinLOD]].As<EffectNodes::Literal>().Value.Float[0] : -1000.0f));
-				GLCHECK(glSamplerParameterf(obj->mID, GL_TEXTURE_MAX_LOD, (node.Properties[EffectNodes::Variable::MaxLOD] != 0) ? this->mAST[node.Properties[EffectNodes::Variable::MaxLOD]].As<EffectNodes::Literal>().Value.Float[0] : 1000.0f));
+				GLCHECK(glSamplerParameteri(sampler.mID, GL_TEXTURE_WRAP_S, (node.Properties[EffectNodes::Variable::AddressU] != 0) ? LiteralToTextureWrap(this->mAST[node.Properties[EffectNodes::Variable::AddressU]].As<EffectNodes::Literal>().Value.Uint[0]) : GL_CLAMP_TO_EDGE));
+				GLCHECK(glSamplerParameteri(sampler.mID, GL_TEXTURE_WRAP_T, (node.Properties[EffectNodes::Variable::AddressV] != 0) ? LiteralToTextureWrap(this->mAST[node.Properties[EffectNodes::Variable::AddressV]].As<EffectNodes::Literal>().Value.Uint[0]) : GL_CLAMP_TO_EDGE));
+				GLCHECK(glSamplerParameteri(sampler.mID, GL_TEXTURE_WRAP_R, (node.Properties[EffectNodes::Variable::AddressW] != 0) ? LiteralToTextureWrap(this->mAST[node.Properties[EffectNodes::Variable::AddressW]].As<EffectNodes::Literal>().Value.Uint[0]) : GL_CLAMP_TO_EDGE));
+				GLCHECK(glSamplerParameteri(sampler.mID, GL_TEXTURE_MIN_FILTER, minfilter));
+				GLCHECK(glSamplerParameteri(sampler.mID, GL_TEXTURE_MAG_FILTER, (node.Properties[EffectNodes::Variable::MagFilter] != 0) ? LiteralToTextureFilter(this->mAST[node.Properties[EffectNodes::Variable::MagFilter]].As<EffectNodes::Literal>().Value.Uint[0]) : GL_LINEAR));
+				GLCHECK(glSamplerParameterf(sampler.mID, GL_TEXTURE_LOD_BIAS, (node.Properties[EffectNodes::Variable::MipLODBias] != 0) ? this->mAST[node.Properties[EffectNodes::Variable::MipLODBias]].As<EffectNodes::Literal>().Value.Float[0] : 0.0f));
+				GLCHECK(glSamplerParameterf(sampler.mID, GL_TEXTURE_MIN_LOD, (node.Properties[EffectNodes::Variable::MinLOD] != 0) ? this->mAST[node.Properties[EffectNodes::Variable::MinLOD]].As<EffectNodes::Literal>().Value.Float[0] : -1000.0f));
+				GLCHECK(glSamplerParameterf(sampler.mID, GL_TEXTURE_MAX_LOD, (node.Properties[EffectNodes::Variable::MaxLOD] != 0) ? this->mAST[node.Properties[EffectNodes::Variable::MaxLOD]].As<EffectNodes::Literal>().Value.Float[0] : 1000.0f));
 #define GL_TEXTURE_MAX_ANISOTROPY_EXT 0x84FE
-				GLCHECK(glSamplerParameterf(obj->mID, GL_TEXTURE_MAX_ANISOTROPY_EXT, (node.Properties[EffectNodes::Variable::MaxAnisotropy] != 0) ? static_cast<GLfloat>(this->mAST[node.Properties[EffectNodes::Variable::MaxAnisotropy]].As<EffectNodes::Literal>().Value.Uint[0]) : 1.0f));
+				GLCHECK(glSamplerParameterf(sampler.mID, GL_TEXTURE_MAX_ANISOTROPY_EXT, (node.Properties[EffectNodes::Variable::MaxAnisotropy] != 0) ? static_cast<GLfloat>(this->mAST[node.Properties[EffectNodes::Variable::MaxAnisotropy]].As<EffectNodes::Literal>().Value.Uint[0]) : 1.0f));
 
 				this->mCurrentSource += "layout(binding = " + std::to_string(this->mEffect->mSamplers.size()) + ") uniform sampler2D ";
 				this->mCurrentSource += FixName(node.Name);
 				this->mCurrentSource += ";\n";
 
-				this->mEffect->mSamplers.push_back(obj);
+				this->mEffect->mSamplers.push_back(std::move(sampler));
 			}
 			void VisitUniform(const EffectNodes::Variable &node)
 			{
@@ -2129,7 +2129,7 @@ namespace ReShade { namespace Runtimes
 				const std::size_t alignment = 16 - (this->mCurrentGlobalSize % 16);
 				this->mCurrentGlobalSize += (objdesc.Size > alignment && (alignment != 16 || objdesc.Size <= 16)) ? objdesc.Size + alignment : objdesc.Size;
 
-				std::unique_ptr<GLConstant> obj(new GLConstant(this->mEffect, objdesc));
+				GLConstant *obj = new GLConstant(this->mEffect, objdesc);
 				obj->mBufferIndex = 0;
 				obj->mBufferOffset = this->mCurrentGlobalSize - objdesc.Size;
 
@@ -2152,7 +2152,7 @@ namespace ReShade { namespace Runtimes
 					std::memset(this->mEffect->mUniformStorages[0].first + obj->mBufferOffset, 0, objdesc.Size);
 				}
 
-				this->mEffect->mConstants.insert(std::make_pair(node.Name, std::move(obj)));
+				this->mEffect->AddConstant(node.Name, obj);
 			}
 			void VisitUniformBuffer(const EffectNodes::Variable &node)
 			{
@@ -2211,7 +2211,7 @@ namespace ReShade { namespace Runtimes
 					const std::size_t alignment = 16 - (totalsize % 16);
 					totalsize += (objdesc.Size > alignment && (alignment != 16 || objdesc.Size <= 16)) ? objdesc.Size + alignment : objdesc.Size;
 
-					std::unique_ptr<GLConstant> obj(new GLConstant(this->mEffect, objdesc));
+					GLConstant *obj = new GLConstant(this->mEffect, objdesc);
 					obj->mBufferIndex = this->mEffect->mUniformBuffers.size();
 					obj->mBufferOffset = totalsize - objdesc.Size;
 
@@ -2229,7 +2229,7 @@ namespace ReShade { namespace Runtimes
 						std::memset(storage + obj->mBufferOffset, 0, objdesc.Size);
 					}
 
-					this->mEffect->mConstants.insert(std::make_pair(std::string(node.Name) + '.' + std::string(field->Name), std::move(obj)));
+					this->mEffect->AddConstant(std::string(node.Name) + '.' + std::string(field->Name), obj);
 
 					if (field->NextDeclarator != EffectTree::Null)
 					{
@@ -2254,7 +2254,7 @@ namespace ReShade { namespace Runtimes
 				objdesc.Fields = fieldCount;
 				objdesc.Size = totalsize;
 
-				std::unique_ptr<GLConstant> obj(new GLConstant(this->mEffect, objdesc));
+				GLConstant *obj = new GLConstant(this->mEffect, objdesc);
 				obj->mBufferIndex = this->mEffect->mUniformBuffers.size();
 				obj->mBufferOffset = 0;
 
@@ -2263,7 +2263,7 @@ namespace ReShade { namespace Runtimes
 					Visit(this->mAST[node.Annotations].As<EffectNodes::Annotation>(), *obj);
 				}
 
-				this->mEffect->mConstants.insert(std::make_pair(node.Name, std::move(obj)));
+				this->mEffect->AddConstant(node.Name, obj);
 
 				GLuint buffer = 0;
 				GLCHECK(glGenBuffers(1, &buffer));
@@ -2335,13 +2335,12 @@ namespace ReShade { namespace Runtimes
 			}
 			void Visit(const EffectNodes::Technique &node)
 			{
-				std::unique_ptr<GLTechnique> obj(new GLTechnique(this->mEffect));
-
+				std::vector<GLTechnique::Pass> passes;
 				const EffectNodes::Pass *pass = &this->mAST[node.Passes].As<EffectNodes::Pass>();
 
 				do
 				{
-					Visit(*pass, obj->mPasses);
+					Visit(*pass, passes);
 
 					if (pass->NextPass != EffectTree::Null)
 					{
@@ -2354,12 +2353,18 @@ namespace ReShade { namespace Runtimes
 				}
 				while (pass != nullptr);
 
+				GLTechnique::Description objdesc;
+				objdesc.Passes = static_cast<unsigned int>(passes.size());
+
+				GLTechnique *obj = new GLTechnique(this->mEffect, objdesc);
+				obj->mPasses = std::move(passes);
+
 				if (node.Annotations != EffectTree::Null)
 				{
 					Visit(this->mAST[node.Annotations].As<EffectNodes::Annotation>(), *obj);
 				}
 
-				this->mEffect->mTechniques.insert(std::make_pair(node.Name, std::move(obj)));
+				this->mEffect->AddTechnique(node.Name, obj);
 			}
 			void Visit(const EffectNodes::Pass &node, std::vector<GLTechnique::Pass> &passes)
 			{
@@ -2414,17 +2419,15 @@ namespace ReShade { namespace Runtimes
 				{
 					if (node.States[EffectNodes::Pass::RenderTarget0 + i] != 0)
 					{
-						const auto &variable = this->mAST[node.States[EffectNodes::Pass::RenderTarget0 + i]].As<EffectNodes::Variable>();
+						const char *textureName = this->mAST[node.States[EffectNodes::Pass::RenderTarget0 + i]].As<EffectNodes::Variable>().Name;
+						const GLTexture *texture = static_cast<GLTexture *>(this->mEffect->GetTexture(textureName));
 
-						const auto it = this->mEffect->mTextures.find(variable.Name);
-
-						if (it == this->mEffect->mTextures.end())
+						if (texture == nullptr)
 						{
 							this->mFatal = true;
 							return;
 						}
 
-						const GLTexture *texture = it->second.get();
 						const GLTexture::Description desc = texture->GetDescription();
 
 						if (pass.ViewportWidth != 0 && pass.ViewportHeight != 0 && (desc.Width != static_cast<unsigned int>(pass.ViewportWidth) || desc.Height != static_cast<unsigned int>(pass.ViewportHeight)))
@@ -2450,19 +2453,19 @@ namespace ReShade { namespace Runtimes
 
 				if (backbufferFramebuffer)
 				{
-					GLCHECK(glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, this->mEffect->mEffectContext->mDefaultBackBufferRBO[0]));
+					GLCHECK(glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, this->mEffect->mRuntime->mDefaultBackBufferRBO[0]));
 
 					pass.DrawBuffers[0] = GL_COLOR_ATTACHMENT0;
-					pass.DrawTextures[0] = this->mEffect->mEffectContext->mBackBufferTexture[1];
+					pass.DrawTextures[0] = this->mEffect->mRuntime->mBackBufferTexture[1];
 
 					RECT rect;
-					GetClientRect(WindowFromDC(this->mEffect->mEffectContext->mDeviceContext), &rect);
+					GetClientRect(WindowFromDC(this->mEffect->mRuntime->mDeviceContext), &rect);
 
 					pass.ViewportWidth = static_cast<GLsizei>(rect.right - rect.left);
 					pass.ViewportHeight = static_cast<GLsizei>(rect.bottom - rect.top);
 				}
 
-				GLCHECK(glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, this->mEffect->mEffectContext->mDefaultBackBufferRBO[1]));
+				GLCHECK(glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, this->mEffect->mRuntime->mDefaultBackBufferRBO[1]));
 
 				assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
 
@@ -3616,9 +3619,11 @@ namespace ReShade { namespace Runtimes
 		{
 			for (auto &it : effect->mTextures)
 			{
-				if (it.second->mSource == GLTexture::Source::DepthStencil)
+				GLTexture *texture = static_cast<GLTexture *>(it.second.get());
+
+				if (texture->mSource == GLTexture::Source::DepthStencil)
 				{
-					it.second->UpdateSource(this->mDepthTexture, 0);
+					texture->ChangeSource(this->mDepthTexture, 0);
 				}
 			}
 		}
@@ -3668,7 +3673,7 @@ namespace ReShade { namespace Runtimes
 		}
 	}
 
-	GLEffect::GLEffect(std::shared_ptr<const GLRuntime> context) : mEffectContext(context), mDefaultVAO(0), mDefaultVBO(0), mUniformDirty(true)
+	GLEffect::GLEffect(std::shared_ptr<const GLRuntime> runtime) : mRuntime(runtime), mDefaultVAO(0), mDefaultVBO(0), mUniformDirty(true)
 	{
 		GLCHECK(glGenVertexArrays(1, &this->mDefaultVAO));
 		GLCHECK(glGenBuffers(1, &this->mDefaultVBO));
@@ -3679,100 +3684,40 @@ namespace ReShade { namespace Runtimes
 	}
 	GLEffect::~GLEffect()
 	{
+		for (GLSampler &sampler : this->mSamplers)
+		{
+			GLCHECK(glDeleteSamplers(1, &sampler.mID));
+		}
+
 		GLCHECK(glDeleteVertexArrays(1, &this->mDefaultVAO));
 		GLCHECK(glDeleteBuffers(1, &this->mDefaultVBO));
-		GLCHECK(glDeleteBuffers(this->mUniformBuffers.size(), &this->mUniformBuffers.front()));
+		GLCHECK(glDeleteBuffers(static_cast<GLsizei>(this->mUniformBuffers.size()), &this->mUniformBuffers.front()));
 	}
 
-	const Effect::Texture *GLEffect::GetTexture(const std::string &name) const
+	void GLEffect::Begin() const
 	{
-		auto it = this->mTextures.find(name);
+		// Setup vertex input
+		GLCHECK(glBindVertexArray(this->mDefaultVAO));
+		GLCHECK(glBindVertexBuffer(0, this->mDefaultVBO, 0, sizeof(float)));		
 
-		if (it == this->mTextures.end())
+		// Setup shader resources
+		for (GLsizei sampler = 0, samplerCount = static_cast<GLsizei>(this->mSamplers.size()); sampler < samplerCount; ++sampler)
 		{
-			return nullptr;
+			GLCHECK(glActiveTexture(GL_TEXTURE0 + sampler));
+			GLCHECK(glBindTexture(GL_TEXTURE_2D, this->mSamplers[sampler].mTexture->mID[this->mSamplers[sampler].mSRGB]));
+			GLCHECK(glBindSampler(sampler, this->mSamplers[sampler].mID));
 		}
 
-		return it->second.get();
-	}
-	std::vector<std::string> GLEffect::GetTextureNames() const
-	{
-		std::vector<std::string> names;
-		names.reserve(this->mTextures.size());
-
-		for (auto it = this->mTextures.begin(), end = this->mTextures.end(); it != end; ++it)
-		{
-			names.push_back(it->first);
-		}
-
-		return names;
-	}
-	const Effect::Constant *GLEffect::GetConstant(const std::string &name) const
-	{
-		auto it = this->mConstants.find(name);
-
-		if (it == this->mConstants.end())
-		{
-			return nullptr;
-		}
-
-		return it->second.get();
-	}
-	std::vector<std::string> GLEffect::GetConstantNames() const
-	{
-		std::vector<std::string> names;
-		names.reserve(this->mConstants.size());
-
-		for (auto it = this->mConstants.begin(), end = this->mConstants.end(); it != end; ++it)
-		{
-			names.push_back(it->first);
-		}
-
-		return names;
-	}
-	const Effect::Technique *GLEffect::GetTechnique(const std::string &name) const
-	{
-		auto it = this->mTechniques.find(name);
-
-		if (it == this->mTechniques.end())
-		{
-			return nullptr;
-		}
-
-		return it->second.get();
-	}
-	std::vector<std::string> GLEffect::GetTechniqueNames() const
-	{
-		std::vector<std::string> names;
-		names.reserve(this->mTechniques.size());
-
-		for (auto it = this->mTechniques.begin(), end = this->mTechniques.end(); it != end; ++it)
-		{
-			names.push_back(it->first);
-		}
-
-		return names;
-	}
-
-	void GLEffect::UpdateConstants() const
-	{
-		if (!this->mUniformDirty)
-		{
-			return;
-		}
-
+		// Setup shader constants
 		for (GLsizei buffer = 0, bufferCount = static_cast<GLsizei>(this->mUniformBuffers.size()); buffer < bufferCount; ++buffer)
 		{
-			if (this->mUniformBuffers[buffer] == 0)
-			{
-				continue;
-			}
-
-			GLCHECK(glBindBuffer(GL_UNIFORM_BUFFER, this->mUniformBuffers[buffer]));
-			GLCHECK(glBufferSubData(GL_UNIFORM_BUFFER, 0, this->mUniformStorages[buffer].second, this->mUniformStorages[buffer].first));
+			GLCHECK(glBindBufferBase(GL_UNIFORM_BUFFER, buffer, this->mUniformBuffers[buffer]));
 		}
-
-		this->mUniformDirty = false;
+	}
+	void GLEffect::End() const
+	{
+		// Reset states
+		GLCHECK(glBindSampler(0, 0));
 	}
 
 	GLTexture::GLTexture(GLEffect *effect, const Description &desc) : Texture(desc), mEffect(effect), mSource(Source::Memory), mID()
@@ -3856,7 +3801,7 @@ namespace ReShade { namespace Runtimes
 
 		return true;
 	}
-	void GLTexture::UpdateSource(GLuint texture, GLuint textureSRGB)
+	void GLTexture::ChangeSource(GLuint texture, GLuint textureSRGB)
 	{
 		if (this->mSource == Source::Memory)
 		{
@@ -3906,7 +3851,7 @@ namespace ReShade { namespace Runtimes
 		this->mEffect->mUniformDirty = true;
 	}
 
-	GLTechnique::GLTechnique(GLEffect *effect) : Technique(), mEffect(effect)
+	GLTechnique::GLTechnique(GLEffect *effect, const Description &desc) : Technique(desc), mEffect(effect)
 	{
 	}
 	GLTechnique::~GLTechnique()
@@ -3918,46 +3863,27 @@ namespace ReShade { namespace Runtimes
 		}
 	}
 
-	bool GLTechnique::Begin(unsigned int &passes) const
-	{
-		passes = static_cast<unsigned int>(this->mPasses.size());
-
-		if (passes == 0)
-		{
-			return false;
-		}
-
-		// Setup vertex input
-		GLCHECK(glBindVertexArray(this->mEffect->mDefaultVAO));
-		GLCHECK(glBindVertexBuffer(0, this->mEffect->mDefaultVBO, 0, sizeof(float)));		
-
-		// Setup shader resources
-		for (GLsizei sampler = 0, samplerCount = static_cast<GLsizei>(this->mEffect->mSamplers.size()); sampler < samplerCount; ++sampler)
-		{
-			GLCHECK(glActiveTexture(GL_TEXTURE0 + sampler));
-			GLCHECK(glBindTexture(GL_TEXTURE_2D, this->mEffect->mSamplers[sampler]->mTexture->mID[this->mEffect->mSamplers[sampler]->mSRGB]));
-			GLCHECK(glBindSampler(sampler, this->mEffect->mSamplers[sampler]->mID));
-		}
-
-		// Setup shader constants
-		for (GLsizei buffer = 0, bufferCount = static_cast<GLsizei>(this->mEffect->mUniformBuffers.size()); buffer < bufferCount; ++buffer)
-		{
-			GLCHECK(glBindBufferBase(GL_UNIFORM_BUFFER, buffer, this->mEffect->mUniformBuffers[buffer]));
-		}
-
-		return true;
-	}
-	void GLTechnique::End() const
-	{
-		// Reset states
-		GLCHECK(glBindSampler(0, 0));
-	}
 	void GLTechnique::RenderPass(unsigned int index) const
 	{
-		const Pass &pass = this->mPasses[index];
+		const std::shared_ptr<const GLRuntime> runtime = this->mEffect->mRuntime;
+		const GLTechnique::Pass &pass = this->mPasses[index];
 
 		// Update shader constants
-		this->mEffect->UpdateConstants();
+		if (this->mEffect->mUniformDirty)
+		{
+			for (GLsizei buffer = 0, bufferCount = static_cast<GLsizei>(this->mEffect->mUniformBuffers.size()); buffer < bufferCount; ++buffer)
+			{
+				if (this->mEffect->mUniformBuffers[buffer] == 0)
+				{
+					continue;
+				}
+
+				GLCHECK(glBindBuffer(GL_UNIFORM_BUFFER, this->mEffect->mUniformBuffers[buffer]));
+				GLCHECK(glBufferSubData(GL_UNIFORM_BUFFER, 0, this->mEffect->mUniformStorages[buffer].second, this->mEffect->mUniformStorages[buffer].first));
+			}
+
+			this->mEffect->mUniformDirty = false;
+		}
 
 		// Setup states
 		GLCHECK(glUseProgram(pass.Program));
@@ -3979,11 +3905,11 @@ namespace ReShade { namespace Runtimes
 		GLCHECK(glStencilMask(pass.StencilMask));
 
 		// Save backbuffer of previous pass
-		GLCHECK(glBindFramebuffer(GL_READ_FRAMEBUFFER, this->mEffect->mEffectContext->mDefaultBackBufferFBO));
-		GLCHECK(glBindFramebuffer(GL_DRAW_FRAMEBUFFER, this->mEffect->mEffectContext->mBlitFBO));
+		GLCHECK(glBindFramebuffer(GL_READ_FRAMEBUFFER, runtime->mDefaultBackBufferFBO));
+		GLCHECK(glBindFramebuffer(GL_DRAW_FRAMEBUFFER, runtime->mBlitFBO));
 		GLCHECK(glReadBuffer(GL_COLOR_ATTACHMENT0));
 		GLCHECK(glDrawBuffer(GL_COLOR_ATTACHMENT0));
-		GLCHECK(glBlitFramebuffer(0, 0, this->mEffect->mEffectContext->mWidth, this->mEffect->mEffectContext->mHeight, 0, 0, this->mEffect->mEffectContext->mWidth, this->mEffect->mEffectContext->mHeight, GL_COLOR_BUFFER_BIT, GL_NEAREST));
+		GLCHECK(glBlitFramebuffer(0, 0, runtime->mWidth, runtime->mHeight, 0, 0, runtime->mWidth, runtime->mHeight, GL_COLOR_BUFFER_BIT, GL_NEAREST));
 
 		// Setup rendertargets
 		GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, pass.Framebuffer));
@@ -4009,7 +3935,7 @@ namespace ReShade { namespace Runtimes
 		{
 			for (GLsizei sampler = 0, samplerCount = static_cast<GLsizei>(this->mEffect->mSamplers.size()); sampler < samplerCount; ++sampler)
 			{
-				const GLTexture *texture = this->mEffect->mSamplers[sampler]->mTexture;
+				const GLTexture *texture = this->mEffect->mSamplers[sampler].mTexture;
 
 				if ((texture->mID[0] == id || texture->mID[1] == id) && texture->GetDescription().Levels > 1)
 				{

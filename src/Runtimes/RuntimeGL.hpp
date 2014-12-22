@@ -3,17 +3,11 @@
 #include "Runtime.hpp"
 
 #include <gl\gl3w.h>
-#include <vector>
-#include <unordered_map>
 
 namespace ReShade { namespace Runtimes
 {
 	struct GLRuntime : public Runtime, public std::enable_shared_from_this<GLRuntime>
 	{
-		friend struct GLEffect;
-		friend struct GLTexture;
-		friend struct GLSampler;
-		friend struct GLConstant;
 		friend struct GLTechnique;
 
 		struct DepthSourceInfo
@@ -48,28 +42,29 @@ namespace ReShade { namespace Runtimes
 
 	struct GLEffect : public Effect
 	{
-		friend struct GLTexture;
-		friend struct GLSampler;
-		friend struct GLConstant;
-		friend struct GLTechnique;
+		friend struct GLRuntime;
 
-		GLEffect(std::shared_ptr<const GLRuntime> context);
+		GLEffect(std::shared_ptr<const GLRuntime> runtime);
 		~GLEffect();
 
-		virtual const Texture *GetTexture(const std::string &name) const override;
-		virtual std::vector<std::string> GetTextureNames() const override;
-		virtual const Constant *GetConstant(const std::string &name) const override;
-		virtual std::vector<std::string> GetConstantNames() const override;
-		virtual const Technique *GetTechnique(const std::string &name) const override;
-		virtual std::vector<std::string> GetTechniqueNames() const override;
+		inline bool AddTexture(const std::string &name, Texture *texture)
+		{
+			return this->mTextures.emplace(name, std::unique_ptr<Texture>(texture)).second;
+		}
+		inline bool AddConstant(const std::string &name, Constant *constant)
+		{
+			return this->mConstants.emplace(name, std::unique_ptr<Constant>(constant)).second;
+		}
+		inline bool AddTechnique(const std::string &name, Technique *technique)
+		{
+			return this->mTechniques.emplace(name, std::unique_ptr<Technique>(technique)).second;
+		}
 
-		void UpdateConstants() const;
+		virtual void Begin() const override;
+		virtual void End() const override;
 
-		std::shared_ptr<const GLRuntime> mEffectContext;
-		std::unordered_map<std::string, std::unique_ptr<GLTexture>> mTextures;
-		std::vector<std::shared_ptr<GLSampler>> mSamplers;
-		std::unordered_map<std::string, std::unique_ptr<GLConstant>> mConstants;
-		std::unordered_map<std::string, std::unique_ptr<GLTechnique>> mTechniques;
+		std::shared_ptr<const GLRuntime> mRuntime;
+		std::vector<struct GLSampler> mSamplers;
 		GLuint mDefaultVAO, mDefaultVBO;
 		std::vector<GLuint> mUniformBuffers;
 		std::vector<std::pair<unsigned char *, std::size_t>> mUniformStorages;
@@ -93,7 +88,7 @@ namespace ReShade { namespace Runtimes
 		}
 
 		virtual bool Update(unsigned int level, const unsigned char *data, std::size_t size) override;
-		void UpdateSource(GLuint texture, GLuint textureSRGB);
+		void ChangeSource(GLuint texture, GLuint textureSRGB);
 
 		GLEffect *mEffect;
 		Source mSource;
@@ -101,14 +96,6 @@ namespace ReShade { namespace Runtimes
 	};
 	struct GLSampler
 	{
-		GLSampler() : mID(0), mTexture(nullptr), mSRGB(false)
-		{
-		}
-		~GLSampler()
-		{
-			glDeleteSamplers(1, &this->mID);
-		}
-
 		GLuint mID;
 		GLTexture *mTexture;
 		bool mSRGB;
@@ -142,7 +129,7 @@ namespace ReShade { namespace Runtimes
 			GLboolean FramebufferSRGB, Blend, DepthMask, DepthTest, StencilTest, ColorMaskR, ColorMaskG, ColorMaskB, ColorMaskA;
 		};
 
-		GLTechnique(GLEffect *effect);
+		GLTechnique(GLEffect *effect, const Description &desc);
 		~GLTechnique();
 
 		inline bool AddAnnotation(const std::string &name, const Effect::Annotation &value)
@@ -154,8 +141,6 @@ namespace ReShade { namespace Runtimes
 			this->mPasses.push_back(pass);
 		}
 
-		virtual bool Begin(unsigned int &passes) const override;
-		virtual void End() const override;
 		virtual void RenderPass(unsigned int index) const override;
 
 		GLEffect *mEffect;

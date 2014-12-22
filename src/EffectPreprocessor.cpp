@@ -1,6 +1,7 @@
 #include "EffectPreprocessor.hpp"
 
 #include <fpp.h>
+#include <array>
 #include <boost\algorithm\string\trim.hpp>
 
 namespace ReShade
@@ -42,16 +43,14 @@ namespace ReShade
 
 		std::vector<fppTag> mTags;
 		std::string mOutput, mErrors;
-		std::vector<char> mScratch;
-		std::size_t mScratchCursor;
-		std::size_t mLastPragma;
+		std::size_t mScratchCursor, mLastPragma;
+		std::array<char, 16384> mScratch;
 	};
 
 	// -----------------------------------------------------------------------------------------------------
 
 	EffectPreprocessor::EffectPreprocessor() : mImpl(new Impl())
 	{
-		this->mImpl->mScratch.resize(16384);
 		this->mImpl->mScratchCursor = 0;
 		this->mImpl->mLastPragma = std::string::npos;
 

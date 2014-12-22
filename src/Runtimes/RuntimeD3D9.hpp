@@ -3,17 +3,11 @@
 #include "Runtime.hpp"
 
 #include <d3d9.h>
-#include <vector>
-#include <unordered_map>
 
 namespace ReShade { namespace Runtimes
 {
 	struct D3D9Runtime : public Runtime, public std::enable_shared_from_this<D3D9Runtime>
 	{
-		friend struct D3D9Effect;
-		friend struct D3D9Texture;
-		friend struct D3D9Sampler;
-		friend struct D3D9Constant;
 		friend struct D3D9Technique;
 
 		struct DepthSourceInfo
@@ -55,26 +49,29 @@ namespace ReShade { namespace Runtimes
 
 	struct D3D9Effect : public Effect
 	{
-		friend struct D3D9Texture;
-		friend struct D3D9Sampler;
-		friend struct D3D9Constant;
-		friend struct D3D9Technique;
+		friend struct D3D9Runtime;
 
-		D3D9Effect(std::shared_ptr<const D3D9Runtime> context);
+		D3D9Effect(std::shared_ptr<const D3D9Runtime> runtime);
 		~D3D9Effect();
 
-		virtual const Texture *GetTexture(const std::string &name) const override;
-		virtual std::vector<std::string> GetTextureNames() const override;
-		virtual const Constant *GetConstant(const std::string &name) const override;
-		virtual std::vector<std::string> GetConstantNames() const override;
-		virtual const Technique *GetTechnique(const std::string &name) const override;
-		virtual std::vector<std::string> GetTechniqueNames() const override;
+		inline bool AddTexture(const std::string &name, Texture *texture)
+		{
+			return this->mTextures.emplace(name, std::unique_ptr<Texture>(texture)).second;
+		}
+		inline bool AddConstant(const std::string &name, Constant *constant)
+		{
+			return this->mConstants.emplace(name, std::unique_ptr<Constant>(constant)).second;
+		}
+		inline bool AddTechnique(const std::string &name, Technique *technique)
+		{
+			return this->mTechniques.emplace(name, std::unique_ptr<Technique>(technique)).second;
+		}
 
-		std::shared_ptr<const D3D9Runtime> mEffectContext;
-		std::unordered_map<std::string, std::unique_ptr<D3D9Texture>> mTextures;
-		std::vector<D3D9Sampler> mSamplers;
-		std::unordered_map<std::string, std::unique_ptr<D3D9Constant>> mConstants;
-		std::unordered_map<std::string, std::unique_ptr<D3D9Technique>> mTechniques;
+		virtual void Begin() const override;
+		virtual void End() const override;
+
+		std::shared_ptr<const D3D9Runtime> mRuntime;
+		std::vector<struct D3D9Sampler> mSamplers;
 		IDirect3DVertexBuffer9 *mVertexBuffer;
 		IDirect3DVertexDeclaration9 *mVertexDeclaration;
 		float *mConstantStorage;
@@ -98,7 +95,7 @@ namespace ReShade { namespace Runtimes
 		}
 
 		virtual bool Update(unsigned int level, const unsigned char *data, std::size_t size) override;
-		void UpdateSource(IDirect3DTexture9 *texture);
+		void ChangeSource(IDirect3DTexture9 *texture);
 
 		D3D9Effect *mEffect;
 		Source mSource;
@@ -136,7 +133,7 @@ namespace ReShade { namespace Runtimes
 			IDirect3DSurface9 *RT[8];
 		};
 
-		D3D9Technique(D3D9Effect *effect);
+		D3D9Technique(D3D9Effect *effect, const Description &desc);
 		~D3D9Technique();
 
 		inline bool AddAnnotation(const std::string &name, const Effect::Annotation &value)
@@ -148,8 +145,6 @@ namespace ReShade { namespace Runtimes
 			this->mPasses.push_back(pass);
 		}
 
-		virtual bool Begin(unsigned int &passes) const override;
-		virtual void End() const override;
 		virtual void RenderPass(unsigned int index) const override;
 
 		D3D9Effect *mEffect;
