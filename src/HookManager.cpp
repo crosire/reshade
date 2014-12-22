@@ -2,13 +2,14 @@
 #include "HookManager.hpp"
 
 #include <vector>
+#include <unordered_map>
 #include <windows.h>
 #include <boost\algorithm\string.hpp>
 
 namespace ReShade { namespace Hooks
 {
-	bool Install(Hook::Function target, const Hook::Function replacement, bool detour);
 	bool Install(const boost::filesystem::path &targetPath);
+	bool Install(Hook::Function target, const Hook::Function replacement, HookType type);
 
 	namespace
 	{
@@ -220,8 +221,9 @@ namespace ReShade { namespace Hooks
 		};
 
 		CriticalSection sCS;
-		std::vector<std::pair<Hook, bool>> sHooks;
+		std::vector<std::pair<Hook, HookType>> sHooks;
 		std::vector<boost::filesystem::path> sHooksDelayed;
+		std::unordered_map<Hook::Function, Hook::Function *> sVTableAddresses;
 		std::vector<Module::Handle> sModules;
 
 		HMODULE WINAPI HookLoadLibraryA(LPCSTR lpFileName)
@@ -405,9 +407,9 @@ namespace ReShade { namespace Hooks
 		// Hook matching exports
 		for (const auto &match : matches)
 		{
-			if (Install(match.first, match.second, detour))
+			if (Install(match.first, match.second, detour ? HookType::FunctionHook : HookType::Export))
 			{
-				++counter;
+				counter++;
 			}
 		}
 
@@ -424,20 +426,47 @@ namespace ReShade { namespace Hooks
 			return false;
 		}
 	}
-	bool Install(Hook::Function target, const Hook::Function replacement, bool detour = true)
+	bool Install(Hook::Function target, const Hook::Function replacement, HookType method)
 	{
-		LOG(TRACE) << "Installing hook for '0x" << target << "' with '0x" << replacement << "' ...";
+		LOG(TRACE) << "Installing hook for '0x" << target << "' with '0x" << replacement << "' using method " << static_cast<int>(method) << " ...";
 
 		Hook hook(target, replacement);
 		hook.Trampoline = target;
 
-		if (!detour || Hook::Install(hook))
+		bool success = false;
+
+		switch (method)
+		{
+			case HookType::Export:
+				success = true;
+				break;
+			case HookType::FunctionHook:
+				success = Hook::Install(hook);
+				break;
+			case HookType::VTableHook:
+			{
+				DWORD protection = 0;
+				Hook::Function *const targetAddress = sVTableAddresses.at(target);
+		
+				if (::VirtualProtect(reinterpret_cast<LPVOID *>(targetAddress), sizeof(Hook::Function), PAGE_READWRITE, &protection) != FALSE)
+				{
+					*targetAddress = replacement;
+
+					::VirtualProtect(reinterpret_cast<LPVOID *>(targetAddress), sizeof(Hook::Function), protection, &protection);
+
+					success = true;
+				}
+				break;
+			}
+		}
+
+		if (success)
 		{
 			LOG(TRACE) << "> Succeeded.";
 
 			CriticalSection::Lock lock(sCS);
 
-			sHooks.emplace_back(std::move(hook), detour);
+			sHooks.emplace_back(std::move(hook), method);
 
 			return true;
 		}
@@ -448,42 +477,59 @@ namespace ReShade { namespace Hooks
 			return false;
 		}
 	}
-	void Cleanup()
+	bool Uninstall(Hook &hook, HookType method)
 	{
-		CriticalSection::Lock lock(sCS);
+		LOG(TRACE) << "Uninstalling hook for '0x" << hook.Target << "' ...";
 
-		LOG(INFO) << "Uninstalling " << sHooks.size() << " hook(s) ...";
-
-		// Uninstall hooks
-		for (auto &it : sHooks)
+		if (!hook.IsInstalled())
 		{
-			Hook &hook = it.first;
+			LOG(TRACE) << "> Already uninstalled.";
 
-			LOG(TRACE) << "Uninstalling hook for '0x" << hook.Target << "' ...";
+			return true;
+		}
 
-			if (!hook.IsInstalled())
+		bool success = false;
+
+		switch (method)
+		{
+			case HookType::Export:
+				success = true;
+				break;
+			case HookType::FunctionHook:
+				success = hook.Uninstall();
+				break;
+			case HookType::VTableHook:
 			{
-				LOG(TRACE) << "> Already uninstalled.";
-			}
-			else if (!it.second || hook.Uninstall())
-			{
-				LOG(TRACE) << "> Succeeded.";
-			}
-			else
-			{
-				LOG(WARNING) << "Failed to uninstall hook for '0x" << hook.Target << "'.";
+				DWORD protection = 0;
+				Hook::Function *const targetAddress = sVTableAddresses.at(hook.Target);
+		
+				if (::VirtualProtect(reinterpret_cast<LPVOID *>(targetAddress), sizeof(Hook::Function), PAGE_READWRITE, &protection) != FALSE)
+				{
+					*targetAddress = hook.Target;
+					sVTableAddresses.erase(hook.Target);
+
+					::VirtualProtect(reinterpret_cast<LPVOID *>(targetAddress), sizeof(Hook::Function), protection, &protection);
+
+					success = true;
+				}
+				break;
 			}
 		}
 
-		sHooks.clear();
-
-		// Free loaded modules
-		for (auto module : sModules)
+		if (success)
 		{
-			Module::Free(module);
-		}
+			LOG(TRACE) << "> Succeeded.";
 
-		sModules.clear();
+			hook.Trampoline = nullptr;
+
+			return true;
+		}
+		else
+		{
+			LOG(WARNING) << "Failed to uninstall hook for '0x" << hook.Target << "'.";
+
+			return false;
+		}
 	}
 
 	void Register(const boost::filesystem::path &targetPath)
@@ -520,27 +566,62 @@ namespace ReShade { namespace Hooks
 			return target == hook.Target;
 		}
 
-		return Install(target, replacement);
+		return Install(target, replacement, HookType::FunctionHook);
 	}
-	bool Register(ReShade::Hook::Function vtable[], unsigned int offset, const Hook::Function replacement)
+	bool Register(Hook::Function vtable[], unsigned int offset, const Hook::Function replacement)
 	{
+		assert(vtable != nullptr);
+		assert(replacement != nullptr);
+
 		DWORD protection = 0;
 		
-		if (::VirtualProtect(static_cast<LPVOID>(vtable + offset), sizeof(ReShade::Hook::Function), PAGE_READWRITE, &protection) != FALSE)
+		if (::VirtualProtect(reinterpret_cast<LPVOID>(vtable + offset), sizeof(Hook::Function), PAGE_READONLY, &protection) != FALSE)
 		{
-			if (vtable[offset] != replacement)
+			Hook::Function target = vtable[offset];
+			const auto insert = sVTableAddresses.emplace(target, vtable + offset);
+
+			::VirtualProtect(reinterpret_cast<LPVOID>(vtable + offset), sizeof(Hook::Function), protection, &protection);
+
+			if (insert.second)
 			{
-				Install(vtable[offset], replacement, false);
-
-				vtable[offset] = replacement;
+				if (Install(target, replacement, HookType::VTableHook))
+				{
+					return true;
+				}
+				else
+				{
+					sVTableAddresses.erase(insert.first);
+				}
 			}
-
-			::VirtualProtect(static_cast<LPVOID>(vtable + offset), sizeof(ReShade::Hook::Function), protection, &protection);
-
-			return true;
+			else
+			{
+				return insert.first->first == target;
+			}
 		}
 
 		return false;
+	}
+	void Uninstall()
+	{
+		CriticalSection::Lock lock(sCS);
+
+		LOG(INFO) << "Uninstalling " << sHooks.size() << " hook(s) ...";
+
+		// Uninstall hooks
+		for (auto &it : sHooks)
+		{
+			Uninstall(it.first, it.second);
+		}
+
+		sHooks.clear();
+
+		// Free loaded modules
+		for (auto module : sModules)
+		{
+			Module::Free(module);
+		}
+
+		sModules.clear();
 	}
 
 	Hook Find(const Hook::Function replacement)
@@ -548,7 +629,7 @@ namespace ReShade { namespace Hooks
 		CriticalSection::Lock lock(sCS);
 
 		// Lookup hook
-		const auto begin = sHooks.begin(), end = sHooks.end(), it = std::find_if(begin, end, [&replacement](const std::pair<Hook, bool> &it) { return it.first.Replacement == replacement; });
+		const auto begin = sHooks.begin(), end = sHooks.end(), it = std::find_if(begin, end, [&replacement](const std::pair<Hook, HookType> &it) { return it.first.Replacement == replacement; });
 
 		if (it != end)
 		{

@@ -106,7 +106,7 @@ namespace ReShade
 
 		delete sEffectWatcher;
 
-		Hooks::Cleanup();
+		Hooks::Uninstall();
 
 		LOG(INFO) << "Exited.";
 	}
