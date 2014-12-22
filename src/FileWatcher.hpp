@@ -12,17 +12,10 @@
 class FileWatcher
 {
 public:
-	struct Change
-	{
-		DWORD Action;
-		boost::filesystem::path Filename;
-	};
-
-public:
 	FileWatcher(const boost::filesystem::path &path, bool subtree = true);
 	~FileWatcher();
 
-	bool GetChanges(std::vector<Change> &changes, DWORD timeout);
+	bool GetModifications(std::vector<boost::filesystem::path> &modifications, DWORD timeout = 0);
 
 private:
 	boost::filesystem::path mPath;

@@ -338,13 +338,12 @@ namespace ReShade
 		}
 
 		// Check for file modifications
-		std::vector<FileWatcher::Change> changes;
+		std::vector<boost::filesystem::path> modifications;
 
-		if (sEffectWatcher->GetChanges(changes, 0))
+		if (sEffectWatcher->GetModifications(modifications))
 		{
-			for (const auto &change : changes)
+			for (const auto &path : modifications)
 			{
-				const boost::filesystem::path &path = change.Filename;
 				const boost::filesystem::path extension = path.extension();
 					
 				if (extension == ".fx" || extension == ".hlsl" || extension == ".h" || extension == ".txt")

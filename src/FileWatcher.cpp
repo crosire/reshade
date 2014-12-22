@@ -18,7 +18,7 @@ FileWatcher::~FileWatcher()
 	CloseHandle(this->mFileCompletionPortHandle);
 }
 
-bool FileWatcher::GetChanges(std::vector<Change> &changes, DWORD timeout)
+bool FileWatcher::GetModifications(std::vector<boost::filesystem::path> &modifications, DWORD timeout)
 {
 	DWORD transferred = 0;
 	ULONG_PTR key = 0;
@@ -35,16 +35,14 @@ bool FileWatcher::GetChanges(std::vector<Change> &changes, DWORD timeout)
 
 	while (record != nullptr)
 	{
-		Change change;
-		change.Action = record->Action;
-		change.Filename	= this->mPath / std::wstring(record->FileName, record->FileNameLength / sizeof(WCHAR));
+		const boost::filesystem::path filename = this->mPath / std::wstring(record->FileName, record->FileNameLength / sizeof(WCHAR));
 
-		if (change.Filename != sLastFilename || sLastTime + 2 < std::time(nullptr))
+		if (filename != sLastFilename || sLastTime + 2 < std::time(nullptr))
 		{
-			sLastFilename = change.Filename;
+			sLastFilename = filename;
 			sLastTime = std::time(nullptr);
 		
-			changes.push_back(std::move(change));
+			modifications.push_back(std::move(filename));
 		}
 
 		if (record->NextEntryOffset == 0)
