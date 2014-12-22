@@ -15,11 +15,8 @@
 |  Options																						|
 ---------------------------------------------------------------------------------------------- */
 
-%option reentrant
+%option reentrant never-interactive yylineno nounput noyywrap
 %option bison-bridge bison-locations
-%option yylineno
-%option nounput noyywrap
-%option never-interactive
 %option extra-type="ReShade::EffectParser *"
 
 %top {

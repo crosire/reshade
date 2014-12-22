@@ -13,13 +13,13 @@ namespace ReShade
 		EffectPreprocessor();
 		~EffectPreprocessor();
 
-		inline const std::vector<boost::filesystem::path> &GetIncludes() const
-		{
-			return this->mIncludes;
-		}
 		inline const std::vector<std::string> &GetPragmas() const
 		{
 			return this->mPragmas;
+		}
+		inline const std::vector<boost::filesystem::path> &GetIncludes() const
+		{
+			return this->mIncludes;
 		}
 
 		void AddDefine(const std::string &name, const std::string &value = "1");
@@ -35,7 +35,7 @@ namespace ReShade
 	private:
 		struct Impl;
 		std::unique_ptr<Impl> mImpl;
-		std::vector<boost::filesystem::path> mIncludes;
 		std::vector<std::string> mPragmas;
+		std::vector<boost::filesystem::path> mIncludes;
 	};
 }

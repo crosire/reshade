@@ -32,7 +32,7 @@ namespace ReShade
 
 			pp->mImpl->mOutput += ch;
 		}
-		static void OnError(EffectPreprocessor *pp, const char *format, va_list args)
+		static void OnPrintError(EffectPreprocessor *pp, const char *format, va_list args)
 		{
 			char buffer[1024];
 			vsprintf_s(buffer, format, args);
@@ -41,8 +41,7 @@ namespace ReShade
 		}
 
 		std::vector<fppTag> mTags;
-		std::string mOutput;
-		std::string mErrors;
+		std::string mOutput, mErrors;
 		std::vector<char> mScratch;
 		std::size_t mScratchCursor;
 		std::size_t mLastPragma;
@@ -62,7 +61,7 @@ namespace ReShade
 		this->mImpl->mTags[1].tag = FPPTAG_OUTPUT;
 		this->mImpl->mTags[1].data = reinterpret_cast<void *>(&Impl::OnOutput);
 		this->mImpl->mTags[2].tag = FPPTAG_ERROR;
-		this->mImpl->mTags[2].data = reinterpret_cast<void *>(&Impl::OnError);
+		this->mImpl->mTags[2].data = reinterpret_cast<void *>(&Impl::OnPrintError);
 		this->mImpl->mTags[3].tag = FPPTAG_IGNOREVERSION;
 		this->mImpl->mTags[3].data = reinterpret_cast<void *>(true);
 		this->mImpl->mTags[4].tag = FPPTAG_OUTPUTLINE;
@@ -120,11 +119,10 @@ namespace ReShade
 		tag.data = nullptr;
 		tags.push_back(tag);
 
+		// Run preprocessor
 		const bool success = fppPreProcess(tags.data()) == 0;
 
-		this->mIncludes.clear();
-		this->mIncludes.push_back(path);
-
+		// Add included files
 		std::size_t pos = 0;
 
 		while ((pos = this->mImpl->mErrors.find("Included", pos)) != std::string::npos)
@@ -136,6 +134,10 @@ namespace ReShade
 			this->mIncludes.push_back(include);
 		}
 
+		std::sort(this->mIncludes.begin(), this->mIncludes.end());
+		this->mIncludes.erase(std::unique(this->mIncludes.begin(), this->mIncludes.end()), this->mIncludes.end());
+
+		// Return preprocessed source
 		if (!success)
 		{
 			errors += this->mImpl->mErrors;

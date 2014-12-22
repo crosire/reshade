@@ -876,13 +876,15 @@ RULE_EXPRESSION_FUNCTION
 
 		if (parser.mAST[$$].Is<EffectNodes::Call>())
 		{
-			parser.mAST[$$].As<EffectNodes::Call>().Arguments = $3;
-			parser.mAST[$$].As<EffectNodes::Call>().ArgumentCount = argumentCount;
+			EffectNodes::Call &node = parser.mAST[$$].As<EffectNodes::Call>();
+			node.Arguments = $3;
+			node.ArgumentCount = argumentCount;
 		}
 		else if (parser.mAST[$$].Is<EffectNodes::Constructor>())
 		{
-			parser.mAST[$$].As<EffectNodes::Constructor>().Arguments = $3;
-			parser.mAST[$$].As<EffectNodes::Constructor>().ArgumentCount = argumentCount;
+			EffectNodes::Constructor &node = parser.mAST[$$].As<EffectNodes::Constructor>();
+			node.Arguments = $3;
+			node.ArgumentCount = argumentCount;
 		}
 	}
 	;
@@ -909,7 +911,6 @@ RULE_EXPRESSION_POSTFIX
 		if (parser.mAST[$1].Is<EffectNodes::Call>())
 		{
 			EffectNodes::Call &call = parser.mAST[$1].As<EffectNodes::Call>();
-			
 			bool undeclared = call.Callee == EffectTree::Null, intrinsic = false, ambiguous = false;
 
 			if (!parser.ResolveCall(call, intrinsic, ambiguous))
