@@ -158,6 +158,7 @@ namespace
 		IDirect3D9 *const mD3D;
 		IDirect3DDevice9 *const mOrig;
 		Direct3DSwapChain9 *mImplicitSwapChain;
+		std::vector<Direct3DSwapChain9 *> mAdditionalSwapChains;
 		IDirect3DSurface9 *mAutoDepthStencil;
 	};
 	struct Direct3DSwapChain9 : public IDirect3DSwapChain9Ex, private boost::noncopyable
@@ -310,6 +311,13 @@ ULONG STDMETHODCALLTYPE Direct3DSwapChain9::Release()
 
 	if (ref == 0)
 	{
+		const auto it = std::find(this->mDevice->mAdditionalSwapChains.begin(), this->mDevice->mAdditionalSwapChains.end(), this);
+
+		if (it != this->mDevice->mAdditionalSwapChains.end())
+		{
+			this->mDevice->mAdditionalSwapChains.erase(it);
+		}
+
 		delete this;
 	}
 
@@ -462,6 +470,8 @@ BOOL STDMETHODCALLTYPE Direct3DDevice9::ShowCursor(BOOL bShow)
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateAdditionalSwapChain(D3DPRESENT_PARAMETERS *pPresentationParameters, IDirect3DSwapChain9 **ppSwapChain)
 {
+	LOG(INFO) << "Redirecting '" << "IDirect3DDevice9::CreateAdditionalSwapChain" << "(" << this << ", " << pPresentationParameters << ", " << ppSwapChain << ")' ...";
+
 	if (pPresentationParameters == nullptr)
 	{
 		return D3DERR_INVALIDCALL;
@@ -486,7 +496,10 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateAdditionalSwapChain(D3DPRESENT_
 			LOG(ERROR) << "Failed to initialize Direct3D9 renderer!";
 		}
 
-		*ppSwapChain = new Direct3DSwapChain9(this, swapchain, runtime);
+		Direct3DSwapChain9 *swapchainProxy = new Direct3DSwapChain9(this, swapchain, runtime);
+
+		this->mAdditionalSwapChains.push_back(swapchainProxy);
+		*ppSwapChain = swapchainProxy;
 	}
 	else
 	{
@@ -678,6 +691,13 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetDepthStencilSurface(IDirect3DSurfa
 		assert(this->mImplicitSwapChain->mRuntime != nullptr);
 
 		this->mImplicitSwapChain->mRuntime->OnSetDepthStencilSurface(pNewZStencil);
+
+		for (Direct3DSwapChain9 *swapchain : this->mAdditionalSwapChains)
+		{
+			assert(swapchain->mRuntime != nullptr);
+
+			swapchain->mRuntime->OnSetDepthStencilSurface(pNewZStencil);
+		}
 	}
 
 	return this->mOrig->SetDepthStencilSurface(pNewZStencil);
@@ -692,6 +712,13 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetDepthStencilSurface(IDirect3DSurfa
 		assert(this->mImplicitSwapChain->mRuntime != nullptr);
 
 		this->mImplicitSwapChain->mRuntime->OnGetDepthStencilSurface(*ppZStencilSurface);
+
+		for (Direct3DSwapChain9 *swapchain : this->mAdditionalSwapChains)
+		{
+			assert(swapchain->mRuntime);
+
+			swapchain->mRuntime->OnGetDepthStencilSurface(*ppZStencilSurface);
+		}
 	}
 
 	return hr;
@@ -863,6 +890,13 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::DrawPrimitive(D3DPRIMITIVETYPE Primit
 
 	this->mImplicitSwapChain->mRuntime->OnDrawInternal(PrimitiveType, PrimitiveCount);
 
+	for (Direct3DSwapChain9 *swapchain : this->mAdditionalSwapChains)
+	{
+		assert(swapchain->mRuntime != nullptr);
+
+		swapchain->mRuntime->OnDrawInternal(PrimitiveType, PrimitiveCount);
+	}
+
 	return this->mOrig->DrawPrimitive(PrimitiveType, StartVertex, PrimitiveCount);
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::DrawIndexedPrimitive(D3DPRIMITIVETYPE PrimitiveType, INT BaseVertexIndex, UINT MinVertexIndex, UINT NumVertices, UINT StartIndex, UINT PrimitiveCount)
@@ -871,6 +905,13 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::DrawIndexedPrimitive(D3DPRIMITIVETYPE
 	assert(this->mImplicitSwapChain->mRuntime != nullptr);
 
 	this->mImplicitSwapChain->mRuntime->OnDrawInternal(PrimitiveType, PrimitiveCount);
+
+	for (Direct3DSwapChain9 *swapchain : this->mAdditionalSwapChains)
+	{
+		assert(swapchain->mRuntime != nullptr);
+
+		swapchain->mRuntime->OnDrawInternal(PrimitiveType, PrimitiveCount);
+	}
 
 	return this->mOrig->DrawIndexedPrimitive(PrimitiveType, BaseVertexIndex, MinVertexIndex, NumVertices, StartIndex, PrimitiveCount);
 }
@@ -881,6 +922,13 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::DrawPrimitiveUP(D3DPRIMITIVETYPE Prim
 
 	this->mImplicitSwapChain->mRuntime->OnDrawInternal(PrimitiveType, PrimitiveCount);
 
+	for (Direct3DSwapChain9 *swapchain : this->mAdditionalSwapChains)
+	{
+		assert(swapchain->mRuntime != nullptr);
+
+		swapchain->mRuntime->OnDrawInternal(PrimitiveType, PrimitiveCount);
+	}
+
 	return this->mOrig->DrawPrimitiveUP(PrimitiveType, PrimitiveCount, pVertexStreamZeroData, VertexStreamZeroStride);
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::DrawIndexedPrimitiveUP(D3DPRIMITIVETYPE PrimitiveType, UINT MinVertexIndex, UINT NumVertices, UINT PrimitiveCount, const void *pIndexData, D3DFORMAT IndexDataFormat, const void *pVertexStreamZeroData, UINT VertexStreamZeroStride)
@@ -889,6 +937,13 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::DrawIndexedPrimitiveUP(D3DPRIMITIVETY
 	assert(this->mImplicitSwapChain->mRuntime != nullptr);
 
 	this->mImplicitSwapChain->mRuntime->OnDrawInternal(PrimitiveType, PrimitiveCount);
+
+	for (Direct3DSwapChain9 *swapchain : this->mAdditionalSwapChains)
+	{
+		assert(swapchain->mRuntime != nullptr);
+
+		swapchain->mRuntime->OnDrawInternal(PrimitiveType, PrimitiveCount);
+	}
 
 	return this->mOrig->DrawIndexedPrimitiveUP(PrimitiveType, MinVertexIndex, NumVertices, PrimitiveCount, pIndexData, IndexDataFormat, pVertexStreamZeroData, VertexStreamZeroStride);
 }

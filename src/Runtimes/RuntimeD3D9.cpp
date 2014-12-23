@@ -2419,7 +2419,7 @@ namespace ReShade { namespace Runtimes
 	{
 		this->mPresentParams = params;
 
-		HRESULT hr = this->mDevice->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &this->mBackBuffer);
+		HRESULT hr = this->mSwapChain->GetBackBuffer(0, D3DBACKBUFFER_TYPE_MONO, &this->mBackBuffer);
 
 		assert(SUCCEEDED(hr));
 
