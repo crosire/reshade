@@ -299,6 +299,7 @@
 
 %type<y.Index>	RULE_EXPRESSION
 %type<y.Index>	RULE_EXPRESSION_LITERAL
+%type<y.Index>	RULE_EXPRESSION_LITERAL_STRING
 %type<y.Index>	RULE_EXPRESSION_PRIMARY
 %type<y.Index>	RULE_EXPRESSION_FUNCTION
 %type<y.Index>	RULE_EXPRESSION_FUNCTION_ARGUMENTS
@@ -814,12 +815,27 @@ RULE_EXPRESSION_LITERAL
 
 		@$ = @1, $$ = node.Index;
 	}
-	| TOK_LITERAL_STRING
+	| RULE_EXPRESSION_LITERAL_STRING
+	{
+		@$ = @1, $$ = $1;
+	}
+	;
+RULE_EXPRESSION_LITERAL_STRING
+	: TOK_LITERAL_STRING
 	{
 		EffectNodes::Literal &node = parser.mAST.Add<EffectNodes::Literal>(@1);
 		node.Type.Class = EffectNodes::Type::String;
 		node.Type.Qualifiers = EffectNodes::Type::Const;
 		node.Value.String = parser.mAST.AddString($1.String.p, $1.String.len);
+
+		@$ = @1, $$ = node.Index;
+	}
+	| RULE_EXPRESSION_LITERAL_STRING TOK_LITERAL_STRING
+	{
+		EffectNodes::Literal &node = parser.mAST[$1].As<EffectNodes::Literal>();
+
+		const std::string concatenation = node.Value.String + std::string($2.String.p, $2.String.len);
+		node.Value.String = parser.mAST.AddString(concatenation.c_str(), concatenation.length());
 
 		@$ = @1, $$ = node.Index;
 	}
