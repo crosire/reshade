@@ -1947,9 +1947,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::SetRenderState(D3DRENDERSTATETYPE Sta
 		case D3DRS_LINEPATTERN:
 		case D3DRS_ZVISIBLE:
 		case D3DRS_EDGEANTIALIAS:
-		{
-			return D3DERR_NOTAVAILABLE;
-		}
+			return D3DERR_INVALIDCALL;
 		case D3DRS_ZBIAS:
 		{
 			const float biased = static_cast<float>(Value) * -0.000005f;
@@ -1957,17 +1955,11 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::SetRenderState(D3DRENDERSTATETYPE Sta
 			return this->mProxy->SetRenderState(D3DRS_DEPTHBIAS, *reinterpret_cast<const DWORD *>(&biased));
 		}
 		case D3DRS_SOFTWAREVERTEXPROCESSING:
-		{
 			return this->mProxy->SetSoftwareVertexProcessing(Value);
-		}
 		case D3DRS_PATCHSEGMENTS:
-		{
 			return D3DERR_INVALIDCALL;
-		}
 		default:
-		{
 			return this->mProxy->SetRenderState(State, Value);
-		}
 	}
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice8::GetRenderState(D3DRENDERSTATETYPE State, DWORD *pValue)
@@ -1982,11 +1974,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::GetRenderState(D3DRENDERSTATETYPE Sta
 		case D3DRS_LINEPATTERN:
 		case D3DRS_ZVISIBLE:
 		case D3DRS_EDGEANTIALIAS:
-		{
 			*pValue = 0;
-
-			return D3DERR_NOTAVAILABLE;
-		}
+			return D3DERR_INVALIDCALL;
 		case D3DRS_ZBIAS:
 		{
 			const HRESULT hr = this->mProxy->GetRenderState(D3DRS_DEPTHBIAS, pValue);
@@ -1997,21 +1986,13 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::GetRenderState(D3DRENDERSTATETYPE Sta
 			return hr;
 		}
 		case D3DRS_SOFTWAREVERTEXPROCESSING:
-		{
 			*pValue = this->mProxy->GetSoftwareVertexProcessing();
-
 			return D3D_OK;
-		}
 		case D3DRS_PATCHSEGMENTS:
-		{
 			*pValue = 1;
-
 			return D3D_OK;
-		}
 		default:
-		{
 			return this->mProxy->GetRenderState(State, pValue);
-		}
 	}
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice8::BeginStateBlock()
@@ -2926,7 +2907,7 @@ HRESULT STDMETHODCALLTYPE Direct3D8::GetAdapterIdentifier(UINT Adapter, DWORD Fl
 		Flags ^= D3DENUM_NO_WHQL_LEVEL;
 	}
 
-	HRESULT hr = this->mProxy->GetAdapterIdentifier(Adapter, Flags, &identifier);
+	const HRESULT hr = this->mProxy->GetAdapterIdentifier(Adapter, Flags, &identifier);
 
 	if (SUCCEEDED(hr))
 	{
@@ -3070,6 +3051,9 @@ HRESULT STDMETHODCALLTYPE Direct3D8::CreateDevice(UINT Adapter, D3DDEVTYPE Devic
 
 	if (SUCCEEDED(hr))
 	{
+		// Set a default vertex declaration
+		device->SetFVF(D3DFVF_XYZ);
+
 		*ppReturnedDeviceInterface = new Direct3DDevice8(this, device, (pp.Flags & D3DPRESENTFLAG_DISCARD_DEPTHSTENCIL) != 0);
 	}
 	else
