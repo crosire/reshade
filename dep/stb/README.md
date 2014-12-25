@@ -5,12 +5,11 @@ single-file public domain libraries for C/C++
 
 library    | lastest version | category | description
 --------------------- | ---- | -------- | --------------------------------
-**stb_dxt.h** | 1.04 | 3D&nbsp;graphics | Fabian "ryg" Giesen's real-time DXT compressor
-**stb_image.h** | 1.46 | graphics | image loading/decoding from file/memory: JPG, PNG, TGA, BMP, PSD, GIF, HDR, PIC
-**stb_image_resize.h** | 0.90 | graphics | resize images larger/smaller with good quality
+**stb_image.h** | 2.00 | graphics | image loading/decoding from file/memory: JPG, PNG, TGA, BMP, PSD, GIF, HDR, PIC
+**stb_truetype.h** | 1.02 | graphics | parse, decode, and rasterize characters from truetype fonts
 **stb_image_write.h** | 0.95 | graphics | image writing to disk: PNG, TGA, BMP
-**stb_textedit.h** | 1.5 | UI | guts of a text editor for games etc implementing them from scratch
-**stb_truetype.h** | 0.99 | graphics | parse, decode, and rasterize characters from truetype fonts
+**stb_image_resize.h** | 0.90 | graphics | resize images larger/smaller with good quality
+**stb_dxt.h** | 1.04 | 3D&nbsp;graphics | Fabian "ryg" Giesen's real-time DXT compressor
 
 FAQ
 ---

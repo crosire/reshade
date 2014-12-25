@@ -103,7 +103,6 @@
     <ClInclude Include="include\stb_image.h" />
     <ClInclude Include="include\stb_image_resize.h" />
     <ClInclude Include="include\stb_image_write.h" />
-    <ClInclude Include="include\stb_textedit.h" />
     <ClInclude Include="include\stb_truetype.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
