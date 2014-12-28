@@ -16,11 +16,13 @@ namespace
 {
 	struct DXGISwapChain : public IDXGISwapChain1, private boost::noncopyable
 	{
-		DXGISwapChain(IDXGIFactory *factory, IDXGISwapChain *originalSwapChain, const std::shared_ptr<ReShade::Runtimes::D3D10Runtime> runtime, const DXGI_SAMPLE_DESC &samples) : mRef(1), mFactory(factory), mOrig(originalSwapChain), mOrigSamples(samples), mDirect3DDevice(runtime->mDevice), mDirect3DVersion(10), mRuntime(runtime)
+		DXGISwapChain(IDXGISwapChain *originalSwapChain, const std::shared_ptr<ReShade::Runtimes::D3D10Runtime> runtime, const DXGI_SAMPLE_DESC &samples) : mRef(1), mOrig(originalSwapChain), mOrigSamples(samples), mDirect3DDevice(runtime->mDevice), mDirect3DVersion(10), mRuntime(runtime)
 		{
+			assert(originalSwapChain != nullptr);
 		}
-		DXGISwapChain(IDXGIFactory *factory, IDXGISwapChain *originalSwapChain, const std::shared_ptr<ReShade::Runtimes::D3D11Runtime> runtime, const DXGI_SAMPLE_DESC &samples) : mRef(1), mFactory(factory), mOrig(originalSwapChain), mOrigSamples(samples), mDirect3DDevice(runtime->mDevice), mDirect3DVersion(11), mRuntime(runtime)
+		DXGISwapChain(IDXGISwapChain *originalSwapChain, const std::shared_ptr<ReShade::Runtimes::D3D11Runtime> runtime, const DXGI_SAMPLE_DESC &samples) : mRef(1), mOrig(originalSwapChain), mOrigSamples(samples), mDirect3DDevice(runtime->mDevice), mDirect3DVersion(11), mRuntime(runtime)
 		{
+			assert(originalSwapChain != nullptr);
 		}
 
 		virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
@@ -58,7 +60,6 @@ namespace
 		virtual HRESULT STDMETHODCALLTYPE GetRotation(DXGI_MODE_ROTATION *pRotation) override;
 
 		ULONG mRef;
-		IDXGIFactory *const mFactory;
 		IDXGISwapChain *const mOrig;
 		const DXGI_SAMPLE_DESC mOrigSamples;
 		IUnknown *const mDirect3DDevice;
@@ -89,21 +90,21 @@ namespace
 
 		char value[40];
 		sprintf_s(value, "%-39u", desc.BufferDesc.Width);
-		LOG(TRACE) << "  | BufferDesc Width                        | " << value << " |";
+		LOG(TRACE) << "  | Width                                   | " << value << " |";
 		sprintf_s(value, "%-39u", desc.BufferDesc.Height);
-		LOG(TRACE) << "  | BufferDesc Height                       | " << value << " |";
+		LOG(TRACE) << "  | Height                                  | " << value << " |";
 		sprintf_s(value, "%-39u", desc.BufferDesc.RefreshRate);
-		LOG(TRACE) << "  | BufferDesc RefreshRate                  | " << value << " |";
+		LOG(TRACE) << "  | RefreshRate                             | " << value << " |";
 		sprintf_s(value, "%-39u", desc.BufferDesc.Format);
-		LOG(TRACE) << "  | BufferDesc Format                       | " << value << " |";
+		LOG(TRACE) << "  | Format                                  | " << value << " |";
 		sprintf_s(value, "%-39u", desc.BufferDesc.ScanlineOrdering);
-		LOG(TRACE) << "  | BufferDesc ScanlineOrdering             | " << value << " |";
+		LOG(TRACE) << "  | ScanlineOrdering                        | " << value << " |";
 		sprintf_s(value, "%-39u", desc.BufferDesc.Scaling);
-		LOG(TRACE) << "  | BufferDesc Scaling                      | " << value << " |";
+		LOG(TRACE) << "  | Scaling                                 | " << value << " |";
 		sprintf_s(value, "%-39u", desc.SampleDesc.Count);
-		LOG(TRACE) << "  | SampleDesc Count                        | " << value << " |";
+		LOG(TRACE) << "  | SampleCount                             | " << value << " |";
 		sprintf_s(value, "%-39u", desc.SampleDesc.Quality);
-		LOG(TRACE) << "  | SampleDesc Quality                      | " << value << " |";
+		LOG(TRACE) << "  | SampleQuality                           | " << value << " |";
 		sprintf_s(value, "%-39u", desc.BufferUsage);
 		LOG(TRACE) << "  | BufferUsage                             | " << value << " |";
 		sprintf_s(value, "%-39u", desc.BufferCount);
@@ -136,9 +137,9 @@ namespace
 		sprintf_s(value, "%-39d", desc.Stereo);
 		LOG(TRACE) << "  | Stereo                                  | " << value << " |";
 		sprintf_s(value, "%-39u", desc.SampleDesc.Count);
-		LOG(TRACE) << "  | SampleDesc Count                        | " << value << " |";
+		LOG(TRACE) << "  | SampleCount                             | " << value << " |";
 		sprintf_s(value, "%-39u", desc.SampleDesc.Quality);
-		LOG(TRACE) << "  | SampleDesc Quality                      | " << value << " |";
+		LOG(TRACE) << "  | SampleQuality                           | " << value << " |";
 		sprintf_s(value, "%-39u", desc.BufferUsage);
 		LOG(TRACE) << "  | BufferUsage                             | " << value << " |";
 		sprintf_s(value, "%-39u", desc.BufferCount);
@@ -510,7 +511,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, I
 				LOG(ERROR) << "Failed to initialize Direct3D10 renderer!";
 			}
 
-			*ppSwapChain = new DXGISwapChain(pFactory, swapchain, runtime, desc.SampleDesc);
+			*ppSwapChain = new DXGISwapChain(swapchain, runtime, desc.SampleDesc);
 
 			deviceD3D10->Release();
 		}
@@ -526,7 +527,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, I
 				LOG(ERROR) << "Failed to initialize Direct3D11 renderer!";
 			}
 
-			*ppSwapChain = new DXGISwapChain(pFactory, swapchain, runtime, desc.SampleDesc);
+			*ppSwapChain = new DXGISwapChain(swapchain, runtime, desc.SampleDesc);
 
 			deviceD3D11->Release();
 		}
@@ -590,7 +591,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pF
 				LOG(ERROR) << "Failed to initialize Direct3D10 renderer!";
 			}
 
-			*ppSwapChain = new DXGISwapChain(pFactory, swapchain, runtime, desc.SampleDesc);
+			*ppSwapChain = new DXGISwapChain(swapchain, runtime, desc.SampleDesc);
 
 			deviceD3D10->Release();
 		}
@@ -606,7 +607,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pF
 				LOG(ERROR) << "Failed to initialize Direct3D11 renderer!";
 			}
 
-			*ppSwapChain = new DXGISwapChain(pFactory, swapchain, runtime, desc.SampleDesc);
+			*ppSwapChain = new DXGISwapChain(swapchain, runtime, desc.SampleDesc);
 
 			deviceD3D11->Release();
 		}
@@ -668,7 +669,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactor
 				LOG(ERROR) << "Failed to initialize Direct3D10 renderer!";
 			}
 
-			*ppSwapChain = new DXGISwapChain(pFactory, swapchain, runtime, desc.SampleDesc);
+			*ppSwapChain = new DXGISwapChain(swapchain, runtime, desc.SampleDesc);
 
 			deviceD3D10->Release();
 		}
@@ -684,7 +685,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactor
 				LOG(ERROR) << "Failed to initialize Direct3D11 renderer!";
 			}
 
-			*ppSwapChain = new DXGISwapChain(pFactory, swapchain, runtime, desc.SampleDesc);
+			*ppSwapChain = new DXGISwapChain(swapchain, runtime, desc.SampleDesc);
 
 			deviceD3D11->Release();
 		}
@@ -746,7 +747,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFacto
 				LOG(ERROR) << "Failed to initialize Direct3D10 renderer!";
 			}
 
-			*ppSwapChain = new DXGISwapChain(pFactory, swapchain, runtime, desc.SampleDesc);
+			*ppSwapChain = new DXGISwapChain(swapchain, runtime, desc.SampleDesc);
 
 			deviceD3D10->Release();
 		}
@@ -762,7 +763,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFacto
 				LOG(ERROR) << "Failed to initialize Direct3D11 renderer!";
 			}
 
-			*ppSwapChain = new DXGISwapChain(pFactory, swapchain, runtime, desc.SampleDesc);
+			*ppSwapChain = new DXGISwapChain(swapchain, runtime, desc.SampleDesc);
 
 			deviceD3D11->Release();
 		}

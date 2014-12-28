@@ -13,8 +13,9 @@ namespace
 	{
 		friend struct Direct3DSwapChain9;
 
-		Direct3DDevice9(IDirect3D9 *d3d, IDirect3DDevice9 *originalDevice) : mRef(1), mD3D(d3d), mOrig(originalDevice), mImplicitSwapChain(nullptr), mAutoDepthStencil(nullptr)
+		Direct3DDevice9(IDirect3DDevice9 *originalDevice) : mRef(1), mOrig(originalDevice), mImplicitSwapChain(nullptr), mAutoDepthStencil(nullptr)
 		{
+			assert(originalDevice != nullptr);
 		}
 
 		virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
@@ -155,7 +156,6 @@ namespace
 		virtual HRESULT STDMETHODCALLTYPE GetDisplayModeEx(UINT iSwapChain, D3DDISPLAYMODEEX *pMode, D3DDISPLAYROTATION *pRotation) override;
 
 		ULONG mRef;
-		IDirect3D9 *const mD3D;
 		IDirect3DDevice9 *const mOrig;
 		Direct3DSwapChain9 *mImplicitSwapChain;
 		std::vector<Direct3DSwapChain9 *> mAdditionalSwapChains;
@@ -167,6 +167,8 @@ namespace
 
 		Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapChain9 *originalSwapChain, const std::shared_ptr<ReShade::Runtimes::D3D9Runtime> runtime) : mRef(1), mDevice(device), mOrig(originalSwapChain), mRuntime(runtime)
 		{
+			assert(device != nullptr);
+			assert(originalSwapChain != nullptr);
 		}
 
 		virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
@@ -353,8 +355,6 @@ HRESULT STDMETHODCALLTYPE Direct3DSwapChain9::GetDevice(IDirect3DDevice9 **ppDev
 	{
 		return D3DERR_INVALIDCALL;
 	}
-
-	assert(this->mDevice != nullptr);
 
 	this->mDevice->AddRef();
 
@@ -1234,7 +1234,7 @@ HRESULT STDMETHODCALLTYPE IDirect3D9_CreateDevice(IDirect3D9 *pD3D, UINT Adapter
 			LOG(ERROR) << "Failed to initialize Direct3D9 renderer!";
 		}
 
-		Direct3DDevice9 *deviceProxy = new Direct3DDevice9(pD3D, device);
+		Direct3DDevice9 *deviceProxy = new Direct3DDevice9(device);
 		Direct3DSwapChain9 *swapchainProxy = new Direct3DSwapChain9(deviceProxy, swapchain, runtime);
 
 		deviceProxy->mImplicitSwapChain = swapchainProxy;
@@ -1286,7 +1286,7 @@ HRESULT STDMETHODCALLTYPE IDirect3D9Ex_CreateDeviceEx(IDirect3D9Ex *pD3D, UINT A
 			LOG(ERROR) << "Failed to initialize Direct3D9 renderer!";
 		}
 
-		Direct3DDevice9 *deviceProxy = new Direct3DDevice9(pD3D, device);
+		Direct3DDevice9 *deviceProxy = new Direct3DDevice9(device);
 		Direct3DSwapChain9 *swapchainProxy = new Direct3DSwapChain9(deviceProxy, swapchain, runtime);
 
 		deviceProxy->mImplicitSwapChain = swapchainProxy;
