@@ -1133,7 +1133,7 @@ EXPORT HRESULT WINAPI CreateDXGIFactory(REFIID riid, void **ppFactory)
 
 	if (SUCCEEDED(hr))
 	{
-		ReShade::Hooks::Register(VTABLE(*ppFactory)[10], reinterpret_cast<ReShade::Hook::Function>(&IDXGIFactory_CreateSwapChain));
+		ReShade::Hooks::Install(VTABLE(*ppFactory)[10], reinterpret_cast<ReShade::Hook::Function>(&IDXGIFactory_CreateSwapChain));
 	}
 	else
 	{
@@ -1153,7 +1153,7 @@ EXPORT HRESULT WINAPI CreateDXGIFactory1(REFIID riid, void **ppFactory)
 
 	if (SUCCEEDED(hr))
 	{
-		ReShade::Hooks::Register(VTABLE(*ppFactory)[10], reinterpret_cast<ReShade::Hook::Function>(&IDXGIFactory_CreateSwapChain));
+		ReShade::Hooks::Install(VTABLE(*ppFactory)[10], reinterpret_cast<ReShade::Hook::Function>(&IDXGIFactory_CreateSwapChain));
 	}
 	else
 	{
@@ -1173,13 +1173,13 @@ EXPORT HRESULT WINAPI CreateDXGIFactory2(UINT flags, REFIID riid, void **ppFacto
 
 	if (SUCCEEDED(hr))
 	{
-		ReShade::Hooks::Register(VTABLE(*ppFactory)[10], reinterpret_cast<ReShade::Hook::Function>(&IDXGIFactory_CreateSwapChain));
+		ReShade::Hooks::Install(VTABLE(*ppFactory)[10], reinterpret_cast<ReShade::Hook::Function>(&IDXGIFactory_CreateSwapChain));
 
 		if (riid == __uuidof(IDXGIFactory2))
 		{
-			ReShade::Hooks::Register(VTABLE(*ppFactory)[15], reinterpret_cast<ReShade::Hook::Function>(&IDXGIFactory2_CreateSwapChainForHwnd));
-			ReShade::Hooks::Register(VTABLE(*ppFactory)[16], reinterpret_cast<ReShade::Hook::Function>(&IDXGIFactory2_CreateSwapChainForCoreWindow));
-			ReShade::Hooks::Register(VTABLE(*ppFactory)[24], reinterpret_cast<ReShade::Hook::Function>(&IDXGIFactory2_CreateSwapChainForComposition));
+			ReShade::Hooks::Install(VTABLE(*ppFactory)[15], reinterpret_cast<ReShade::Hook::Function>(&IDXGIFactory2_CreateSwapChainForHwnd));
+			ReShade::Hooks::Install(VTABLE(*ppFactory)[16], reinterpret_cast<ReShade::Hook::Function>(&IDXGIFactory2_CreateSwapChainForCoreWindow));
+			ReShade::Hooks::Install(VTABLE(*ppFactory)[24], reinterpret_cast<ReShade::Hook::Function>(&IDXGIFactory2_CreateSwapChainForComposition));
 		}
 	}
 	else

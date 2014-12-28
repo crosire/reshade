@@ -48,9 +48,7 @@ namespace
 
 	private:
 		CRITICAL_SECTION mCS;
-	};
-
-	CriticalSection sCS;
+	} sCS;
 	
 	void NetworkUpload(const char *buf, unsigned int len)
 	{

@@ -9,20 +9,12 @@
 
 namespace ReShade
 {
-	enum class HookType
-	{
-		Export,
-		FunctionHook,
-		VTableHook
-	};
-
-	// -----------------------------------------------------------------------------------------------------
-
 	namespace Hooks
 	{
 		void Register(const boost::filesystem::path &module);
-		bool Register(Hook::Function target, const Hook::Function replacement);
-		bool Register(Hook::Function vtable[], unsigned int offset, const Hook::Function replacement);
+
+		bool Install(Hook::Function target, const Hook::Function replacement);
+		bool Install(Hook::Function vtable[], unsigned int offset, const Hook::Function replacement);
 		void Uninstall();
 
 		Hook Find(const Hook::Function replacement);

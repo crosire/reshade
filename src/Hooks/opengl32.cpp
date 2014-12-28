@@ -134,13 +134,12 @@ namespace
 
 	private:
 		CRITICAL_SECTION mCS;
-	};
+	} sCS;
 	
 	__declspec(thread) HDC sCurrentDeviceContext = nullptr;
 	__declspec(thread) HGLRC sCurrentRenderContext = nullptr;
 	__declspec(thread) GLuint sCurrentVertexCount = 0;
 
-	CriticalSection sCS;
 	std::unordered_map<HWND, RECT> sWindowRects;
 	std::unordered_map<HGLRC, HDC> sDeviceContexts;
 	std::unordered_map<HGLRC, std::shared_ptr<ReShade::Runtimes::GLRuntime>> sRuntimes;
@@ -3202,7 +3201,7 @@ EXPORT PROC WINAPI wglGetProcAddress(LPCSTR lpszProc)
 	}
 	else if (strcmp(lpszProc, "glBindFramebuffer") == 0)
 	{
-		ReShade::Hooks::Register(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&glBindFramebuffer));
+		ReShade::Hooks::Install(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&glBindFramebuffer));
 	}
 	else if (strcmp(lpszProc, "glBindTexture") == 0)
 	{
@@ -3246,7 +3245,7 @@ EXPORT PROC WINAPI wglGetProcAddress(LPCSTR lpszProc)
 	}
 	else if (strcmp(lpszProc, "glCopyTexSubImage3D") == 0)
 	{
-		ReShade::Hooks::Register(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&glCopyTexSubImage3D));
+		ReShade::Hooks::Install(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&glCopyTexSubImage3D));
 	}
 	else if (strcmp(lpszProc, "glCullFace") == 0)
 	{
@@ -3278,15 +3277,15 @@ EXPORT PROC WINAPI wglGetProcAddress(LPCSTR lpszProc)
 	}
 	else if (strcmp(lpszProc, "glDrawArraysIndirect") == 0)
 	{
-		ReShade::Hooks::Register(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&glDrawArraysIndirect));
+		ReShade::Hooks::Install(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&glDrawArraysIndirect));
 	}
 	else if (strcmp(lpszProc, "glDrawArraysInstanced") == 0)
 	{
-		ReShade::Hooks::Register(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&glDrawArraysInstanced));
+		ReShade::Hooks::Install(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&glDrawArraysInstanced));
 	}
 	else if (strcmp(lpszProc, "glDrawArraysInstancedBaseInstance") == 0)
 	{
-		ReShade::Hooks::Register(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&glDrawArraysInstancedBaseInstance));
+		ReShade::Hooks::Install(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&glDrawArraysInstancedBaseInstance));
 	}
 	else if (strcmp(lpszProc, "glDrawBuffer") == 0)
 	{
@@ -3298,27 +3297,27 @@ EXPORT PROC WINAPI wglGetProcAddress(LPCSTR lpszProc)
 	}
 	else if (strcmp(lpszProc, "glDrawElementsBaseVertex") == 0)
 	{
-		ReShade::Hooks::Register(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&glDrawElementsBaseVertex));
+		ReShade::Hooks::Install(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&glDrawElementsBaseVertex));
 	}
 	else if (strcmp(lpszProc, "glDrawElementsIndirect") == 0)
 	{
-		ReShade::Hooks::Register(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&glDrawElementsIndirect));
+		ReShade::Hooks::Install(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&glDrawElementsIndirect));
 	}
 	else if (strcmp(lpszProc, "glDrawElementsInstanced") == 0)
 	{
-		ReShade::Hooks::Register(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&glDrawElementsInstanced));
+		ReShade::Hooks::Install(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&glDrawElementsInstanced));
 	}
 	else if (strcmp(lpszProc, "glDrawElementsInstancedBaseVertex") == 0)
 	{
-		ReShade::Hooks::Register(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&glDrawElementsInstancedBaseVertex));
+		ReShade::Hooks::Install(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&glDrawElementsInstancedBaseVertex));
 	}
 	else if (strcmp(lpszProc, "glDrawElementsInstancedBaseInstance") == 0)
 	{
-		ReShade::Hooks::Register(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&glDrawElementsInstancedBaseInstance));
+		ReShade::Hooks::Install(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&glDrawElementsInstancedBaseInstance));
 	}
 	else if (strcmp(lpszProc, "glDrawElementsInstancedBaseVertexBaseInstance") == 0)
 	{
-		ReShade::Hooks::Register(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&glDrawElementsInstancedBaseVertexBaseInstance));
+		ReShade::Hooks::Install(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&glDrawElementsInstancedBaseVertexBaseInstance));
 	}
 	else if (strcmp(lpszProc, "glEnable") == 0)
 	{
@@ -3334,27 +3333,27 @@ EXPORT PROC WINAPI wglGetProcAddress(LPCSTR lpszProc)
 	}
 	else if (strcmp(lpszProc, "glFramebufferRenderbuffer") == 0)
 	{
-		ReShade::Hooks::Register(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&glFramebufferRenderbuffer));
+		ReShade::Hooks::Install(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&glFramebufferRenderbuffer));
 	}
 	else if (strcmp(lpszProc, "glFramebufferTexture") == 0)
 	{
-		ReShade::Hooks::Register(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&glFramebufferTexture));
+		ReShade::Hooks::Install(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&glFramebufferTexture));
 	}
 	else if (strcmp(lpszProc, "glFramebufferTexture1D") == 0)
 	{
-		ReShade::Hooks::Register(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&glFramebufferTexture1D));
+		ReShade::Hooks::Install(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&glFramebufferTexture1D));
 	}
 	else if (strcmp(lpszProc, "glFramebufferTexture2D") == 0)
 	{
-		ReShade::Hooks::Register(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&glFramebufferTexture2D));
+		ReShade::Hooks::Install(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&glFramebufferTexture2D));
 	}
 	else if (strcmp(lpszProc, "glFramebufferTexture3D") == 0)
 	{
-		ReShade::Hooks::Register(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&glFramebufferTexture3D));
+		ReShade::Hooks::Install(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&glFramebufferTexture3D));
 	}
 	else if (strcmp(lpszProc, "glFramebufferTextureLayer") == 0)
 	{
-		ReShade::Hooks::Register(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&glFramebufferTextureLayer));
+		ReShade::Hooks::Install(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&glFramebufferTextureLayer));
 	}
 	else if (strcmp(lpszProc, "glFrontFace") == 0)
 	{
@@ -3434,23 +3433,23 @@ EXPORT PROC WINAPI wglGetProcAddress(LPCSTR lpszProc)
 	}
 	else if (strcmp(lpszProc, "glMultiDrawArrays") == 0)
 	{
-		ReShade::Hooks::Register(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&glMultiDrawArrays));
+		ReShade::Hooks::Install(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&glMultiDrawArrays));
 	}
 	else if (strcmp(lpszProc, "glMultiDrawArraysIndirect") == 0)
 	{
-		ReShade::Hooks::Register(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&glMultiDrawArraysIndirect));
+		ReShade::Hooks::Install(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&glMultiDrawArraysIndirect));
 	}
 	else if (strcmp(lpszProc, "glMultiDrawElements") == 0)
 	{
-		ReShade::Hooks::Register(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&glMultiDrawElements));
+		ReShade::Hooks::Install(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&glMultiDrawElements));
 	}
 	else if (strcmp(lpszProc, "glMultiDrawElementsBaseVertex") == 0)
 	{
-		ReShade::Hooks::Register(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&glMultiDrawElementsBaseVertex));
+		ReShade::Hooks::Install(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&glMultiDrawElementsBaseVertex));
 	}
 	else if (strcmp(lpszProc, "glMultiDrawElementsIndirect") == 0)
 	{
-		ReShade::Hooks::Register(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&glMultiDrawElementsIndirect));
+		ReShade::Hooks::Install(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&glMultiDrawElementsIndirect));
 	}
 	else if (strcmp(lpszProc, "glPixelStoref") == 0)
 	{
@@ -3506,7 +3505,7 @@ EXPORT PROC WINAPI wglGetProcAddress(LPCSTR lpszProc)
 	}
 	else if (strcmp(lpszProc, "glTexImage3D") == 0)
 	{
-		ReShade::Hooks::Register(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&glTexImage3D));
+		ReShade::Hooks::Install(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&glTexImage3D));
 	}
 	else if (strcmp(lpszProc, "glTexParameterf") == 0)
 	{
@@ -3534,7 +3533,7 @@ EXPORT PROC WINAPI wglGetProcAddress(LPCSTR lpszProc)
 	}
 	else if (strcmp(lpszProc, "glTexSubImage3D") == 0)
 	{
-		ReShade::Hooks::Register(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&glTexSubImage3D));
+		ReShade::Hooks::Install(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&glTexSubImage3D));
 	}
 	else if (strcmp(lpszProc, "glViewport") == 0)
 	{
@@ -3542,31 +3541,31 @@ EXPORT PROC WINAPI wglGetProcAddress(LPCSTR lpszProc)
 	}
 	else if (strcmp(lpszProc, "wglChoosePixelFormatARB") == 0)
 	{
-		ReShade::Hooks::Register(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&wglChoosePixelFormatARB));
+		ReShade::Hooks::Install(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&wglChoosePixelFormatARB));
 	}
 	else if (strcmp(lpszProc, "wglCreateContextAttribsARB") == 0)
 	{
-		ReShade::Hooks::Register(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&wglCreateContextAttribsARB));
+		ReShade::Hooks::Install(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&wglCreateContextAttribsARB));
 	}
 	else if (strcmp(lpszProc, "wglGetPixelFormatAttribivARB") == 0)
 	{
-		ReShade::Hooks::Register(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&wglGetPixelFormatAttribivARB));
+		ReShade::Hooks::Install(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&wglGetPixelFormatAttribivARB));
 	}
 	else if (strcmp(lpszProc, "wglGetPixelFormatAttribfvARB") == 0)
 	{
-		ReShade::Hooks::Register(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&wglGetPixelFormatAttribfvARB));
+		ReShade::Hooks::Install(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&wglGetPixelFormatAttribfvARB));
 	}
 	else if (strcmp(lpszProc, "wglGetExtensionsStringARB") == 0)
 	{
-		ReShade::Hooks::Register(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&wglGetExtensionsStringARB));
+		ReShade::Hooks::Install(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&wglGetExtensionsStringARB));
 	}
 	else if (strcmp(lpszProc, "wglGetSwapIntervalEXT") == 0)
 	{
-		ReShade::Hooks::Register(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&wglGetSwapIntervalEXT));
+		ReShade::Hooks::Install(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&wglGetSwapIntervalEXT));
 	}
 	else if (strcmp(lpszProc, "wglSwapIntervalEXT") == 0)
 	{
-		ReShade::Hooks::Register(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&wglSwapIntervalEXT));
+		ReShade::Hooks::Install(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&wglSwapIntervalEXT));
 	}
 
 	return address;
