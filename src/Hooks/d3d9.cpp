@@ -1234,8 +1234,8 @@ HRESULT STDMETHODCALLTYPE IDirect3D9_CreateDevice(IDirect3D9 *pD3D, UINT Adapter
 			LOG(ERROR) << "Failed to initialize Direct3D9 renderer!";
 		}
 
-		Direct3DDevice9 *deviceProxy = new Direct3DDevice9(device);
-		Direct3DSwapChain9 *swapchainProxy = new Direct3DSwapChain9(deviceProxy, swapchain, runtime);
+		Direct3DDevice9 *const deviceProxy = new Direct3DDevice9(device);
+		Direct3DSwapChain9 *const swapchainProxy = new Direct3DSwapChain9(deviceProxy, swapchain, runtime);
 
 		deviceProxy->mImplicitSwapChain = swapchainProxy;
 		*ppReturnedDeviceInterface = deviceProxy;
@@ -1286,8 +1286,8 @@ HRESULT STDMETHODCALLTYPE IDirect3D9Ex_CreateDeviceEx(IDirect3D9Ex *pD3D, UINT A
 			LOG(ERROR) << "Failed to initialize Direct3D9 renderer!";
 		}
 
-		Direct3DDevice9 *deviceProxy = new Direct3DDevice9(device);
-		Direct3DSwapChain9 *swapchainProxy = new Direct3DSwapChain9(deviceProxy, swapchain, runtime);
+		Direct3DDevice9 *const deviceProxy = new Direct3DDevice9(device);
+		Direct3DSwapChain9 *const swapchainProxy = new Direct3DSwapChain9(deviceProxy, swapchain, runtime);
 
 		deviceProxy->mImplicitSwapChain = swapchainProxy;
 		*ppReturnedDeviceInterface = deviceProxy;
