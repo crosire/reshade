@@ -402,6 +402,11 @@ namespace ReShade
 			assert(target != nullptr);
 			assert(replacement != nullptr);
 
+			if (target == replacement)
+			{
+				return false;
+			}
+
 			const Hook hook = Find(replacement);
 
 			if (hook.IsInstalled())
@@ -427,7 +432,7 @@ namespace ReShade
 
 				if (insert.second)
 				{
-					if (Install(target, replacement, HookType::VTableHook))
+					if (target != replacement && Install(target, replacement, HookType::VTableHook))
 					{
 						return true;
 					}
