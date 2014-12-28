@@ -68,8 +68,9 @@ namespace ReShade
 			} sCS;
 
 			HMODULE sExportHookModule = nullptr;
+			boost::filesystem::path sExportHookPath;
 			std::vector<std::pair<Hook, HookType>> sHooks;
-			std::vector<boost::filesystem::path> sDelayedHooks;
+			std::vector<boost::filesystem::path> sDelayedHookPaths;
 			std::unordered_map<Hook::Function, Hook::Function *> sVTableAddresses;
 
 			inline HMODULE GetCurrentModuleHandle()
@@ -318,7 +319,7 @@ namespace ReShade
 
 				CriticalSection::Lock lock(sCS);
 				const boost::filesystem::path path = lpFileName;
-				const auto begin = sDelayedHooks.begin(), end = sDelayedHooks.end(), it = std::find_if(begin, end, [&path](const boost::filesystem::path &it) { return boost::iequals(it.stem().native(), path.stem().native()); });
+				const auto begin = sDelayedHookPaths.begin(), end = sDelayedHookPaths.end(), it = std::find_if(begin, end, [&path](const boost::filesystem::path &it) { return boost::iequals(it.stem().native(), path.stem().native()); });
 
 				if (it != end)
 				{
@@ -326,7 +327,7 @@ namespace ReShade
 
 					if (Install(handle, GetCurrentModuleHandle(), HookType::FunctionHook))
 					{
-						sDelayedHooks.erase(it);
+						sDelayedHookPaths.erase(it);
 					}
 				}
 
@@ -343,7 +344,7 @@ namespace ReShade
 
 				CriticalSection::Lock lock(sCS);
 				const boost::filesystem::path path = lpFileName;
-				const auto begin = sDelayedHooks.begin(), end = sDelayedHooks.end(), it = std::find_if(begin, end, [&path](const boost::filesystem::path &it) { return boost::iequals(it.stem().native(), path.stem().native()); });
+				const auto begin = sDelayedHookPaths.begin(), end = sDelayedHookPaths.end(), it = std::find_if(begin, end, [&path](const boost::filesystem::path &it) { return boost::iequals(it.stem().native(), path.stem().native()); });
 
 				if (it != end)
 				{
@@ -351,7 +352,7 @@ namespace ReShade
 
 					if (Install(handle, GetCurrentModuleHandle(), HookType::FunctionHook))
 					{
-						sDelayedHooks.erase(it);
+						sDelayedHookPaths.erase(it);
 					}
 				}
 
@@ -373,13 +374,9 @@ namespace ReShade
 
 			if (boost::iequals(targetPath.stem().native(), replacementPath.stem().native()))
 			{
-				const HMODULE targetModule = LoadLibrary(targetPath.c_str());
+				LOG(INFO) << "> Delayed.";
 
-				Install(targetModule, replacementModule, HookType::Export);
-
-				assert(sExportHookModule == nullptr);
-
-				sExportHookModule = targetModule;
+				sExportHookPath = targetPath;
 			}
 			else
 			{
@@ -395,7 +392,7 @@ namespace ReShade
 				{
 					LOG(INFO) << "> Delayed.";
 
-					sDelayedHooks.push_back(targetPath);
+					sDelayedHookPaths.push_back(targetPath);
 				}
 			}
 		}
@@ -484,6 +481,32 @@ namespace ReShade
 		}
 		Hook::Function Call(const Hook::Function replacement)
 		{
+			CriticalSection::Lock lock(sCS);
+
+			if (!sExportHookPath.empty())
+			{
+				LOG(INFO) << "Installing delayed hooks for " << sExportHookPath << " ...";
+
+				assert(sExportHookModule == nullptr);
+
+				Find(&HookLoadLibraryA).Enable(false);
+				Find(&HookLoadLibraryW).Enable(false);
+				sExportHookModule = LoadLibrary(sExportHookPath.c_str());
+				Find(&HookLoadLibraryA).Enable(true);
+				Find(&HookLoadLibraryW).Enable(true);
+
+				if (sExportHookModule != nullptr)
+				{
+					sExportHookPath.clear();
+
+					Install(sExportHookModule, GetCurrentModuleHandle(), HookType::Export);
+				}
+				else
+				{
+					LOG(ERROR) << "Failed to load " << sExportHookPath << "!";
+				}
+			}
+
 			const Hook hook = Find(replacement);
 
 			if (!hook.IsValid())
