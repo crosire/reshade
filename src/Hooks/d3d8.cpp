@@ -6,6 +6,7 @@
 #include <d3dx9shader.h>
 #include <initguid.h>
 #include <boost\noncopyable.hpp>
+#include <boost\algorithm\string\replace.hpp>
 
 // -----------------------------------------------------------------------------------------------------
 
@@ -2474,6 +2475,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateVertexShader(CONST DWORD *pDecl
 		}
 
 		source.insert(declpos, constants);
+
+		boost::algorithm::replace_all(source, "oFog.x", "oFog");
 
 		hr = D3DXAssembleShader(source.data(), static_cast<UINT>(source.size()), nullptr, nullptr, D3DXSHADER_SKIPVALIDATION, &assembly, nullptr);
 
