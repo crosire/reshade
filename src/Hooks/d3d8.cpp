@@ -129,12 +129,10 @@ namespace
 	{
 		friend struct Direct3DDevice8;
 
-		Direct3D8(HMODULE hModule, IDirect3D9 *pProxyD3D) : mModule(hModule), mProxy(pProxyD3D)
+		Direct3D8(HMODULE hModule, IDirect3D9 *proxyD3D) : mModule(hModule), mProxy(proxyD3D)
 		{
-		}
-		~Direct3D8()
-		{
-			::FreeLibrary(this->mModule);
+			assert(hModule != nullptr);
+			assert(proxyD3D != nullptr);
 		}
 
 		virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
@@ -172,8 +170,10 @@ namespace
 		friend struct Direct3DVolume8;
 		friend struct Direct3DSwapChain8;
 
-		Direct3DDevice8(Direct3D8 *pD3D, IDirect3DDevice9 *pProxyDevice, BOOL ZBufferDiscarding = FALSE) : mD3D(pD3D), mProxy(pProxyDevice), mBaseVertexIndex(0), mZBufferDiscarding(ZBufferDiscarding), mCurrentVertexShader(nullptr)
+		Direct3DDevice8(Direct3D8 *d3d, IDirect3DDevice9 *proxyDevice, BOOL ZBufferDiscarding = FALSE) : mD3D(d3d), mProxy(proxyDevice), mBaseVertexIndex(0), mZBufferDiscarding(ZBufferDiscarding), mCurrentVertexShader(nullptr)
 		{
+			assert(d3d != nullptr);
+			assert(proxyDevice != nullptr);
 		}
 
 		virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
@@ -285,8 +285,10 @@ namespace
 	{
 		friend struct Direct3DDevice8;
 
-		Direct3DResource8(Direct3DDevice8 *pDevice, IDirect3DResource9 *pProxyResource) : mRef(1), mDevice(pDevice), mProxy(pProxyResource)
+		Direct3DResource8(Direct3DDevice8 *device, IDirect3DResource9 *proxyResource) : mRef(1), mDevice(device), mProxy(proxyResource)
 		{
+			assert(device != nullptr);
+			assert(proxyResource != nullptr);
 		}
 
 		virtual HRESULT STDMETHODCALLTYPE GetDevice(Direct3DDevice8 **ppDevice);
@@ -311,7 +313,7 @@ namespace
 	{
 		friend struct Direct3DDevice8;
 
-		Direct3DBaseTexture8(Direct3DDevice8 *pDevice, IDirect3DBaseTexture9 *pProxyTexture) : Direct3DResource8(pDevice, pProxyTexture)
+		Direct3DBaseTexture8(Direct3DDevice8 *device, IDirect3DBaseTexture9 *proxyTexture) : Direct3DResource8(device, proxyTexture)
 		{
 		}
 
@@ -327,7 +329,7 @@ namespace
 	{
 		friend struct Direct3DDevice8;
 
-		Direct3DTexture8(Direct3DDevice8 *pDevice, IDirect3DTexture9 *pProxyTexture) : Direct3DBaseTexture8(pDevice, pProxyTexture)
+		Direct3DTexture8(Direct3DDevice8 *device, IDirect3DTexture9 *proxyTexture) : Direct3DBaseTexture8(device, proxyTexture)
 		{
 		}
 
@@ -345,7 +347,7 @@ namespace
 	{
 		friend struct Direct3DDevice8;
 
-		Direct3DVolumeTexture8(Direct3DDevice8 *pDevice, IDirect3DVolumeTexture9 *pProxyTexture) : Direct3DBaseTexture8(pDevice, pProxyTexture)
+		Direct3DVolumeTexture8(Direct3DDevice8 *device, IDirect3DVolumeTexture9 *proxyTexture) : Direct3DBaseTexture8(device, proxyTexture)
 		{
 		}
 
@@ -363,7 +365,7 @@ namespace
 	{
 		friend struct Direct3DDevice8;
 
-		Direct3DCubeTexture8(Direct3DDevice8 *pDevice, IDirect3DCubeTexture9 *pProxyBuffer) : Direct3DBaseTexture8(pDevice, pProxyBuffer)
+		Direct3DCubeTexture8(Direct3DDevice8 *device, IDirect3DCubeTexture9 *proxyTexture) : Direct3DBaseTexture8(device, proxyTexture)
 		{
 		}
 
@@ -381,7 +383,7 @@ namespace
 	{
 		friend struct Direct3DDevice8;
 
-		Direct3DVertexBuffer8(Direct3DDevice8 *pDevice, IDirect3DVertexBuffer9 *pProxyBuffer) : Direct3DResource8(pDevice, pProxyBuffer)
+		Direct3DVertexBuffer8(Direct3DDevice8 *device, IDirect3DVertexBuffer9 *proxyBuffer) : Direct3DResource8(device, proxyBuffer)
 		{
 		}
 
@@ -397,7 +399,7 @@ namespace
 	{
 		friend struct Direct3DDevice8;
 
-		Direct3DIndexBuffer8(Direct3DDevice8 *pDevice, IDirect3DIndexBuffer9 *pProxyBuffer) : Direct3DResource8(pDevice, pProxyBuffer)
+		Direct3DIndexBuffer8(Direct3DDevice8 *device, IDirect3DIndexBuffer9 *proxyBuffer) : Direct3DResource8(device, proxyBuffer)
 		{
 		}
 
@@ -413,7 +415,7 @@ namespace
 	{
 		friend struct Direct3DDevice8;
 
-		Direct3DSurface8(Direct3DDevice8 *pDevice, IDirect3DSurface9 *pProxyBuffer) : mRef(1), mDevice(pDevice), mProxy(pProxyBuffer)
+		Direct3DSurface8(Direct3DDevice8 *device, IDirect3DSurface9 *proxySurface) : mRef(1), mDevice(device), mProxy(proxySurface)
 		{
 		}
 
@@ -438,7 +440,7 @@ namespace
 	{
 		friend struct Direct3DDevice8;
 
-		Direct3DVolume8(Direct3DDevice8 *pDevice, IDirect3DVolume9 *pProxyBuffer) : mRef(1), mDevice(pDevice), mProxy(pProxyBuffer)
+		Direct3DVolume8(Direct3DDevice8 *device, IDirect3DVolume9 *proxyVolume) : mRef(1), mDevice(device), mProxy(proxyVolume)
 		{
 		}
 
@@ -463,7 +465,7 @@ namespace
 	{
 		friend struct Direct3DDevice8;
 
-		Direct3DSwapChain8(Direct3DDevice8 *pDevice, IDirect3DSwapChain9 *pProxySwapChain) : mRef(1), mDevice(pDevice), mProxy(pProxySwapChain)
+		Direct3DSwapChain8(Direct3DDevice8 *device, IDirect3DSwapChain9 *proxySwapChain) : mRef(1), mDevice(device), mProxy(proxySwapChain)
 		{
 		}
 
@@ -2554,20 +2556,13 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::SetVertexShader(DWORD Handle)
 	{
 		const Direct3DVertexShader8 *shader = reinterpret_cast<Direct3DVertexShader8 *>(Handle ^ 0x80000000);
 
-		if (shader->mShader != nullptr)
-		{
-			hr = this->mProxy->SetVertexShader(shader->mShader);
+		hr = this->mProxy->SetVertexShader(shader->mShader);
 	
-			if (SUCCEEDED(hr))
-			{
-				this->mCurrentVertexShader = shader;
-
-				this->mProxy->SetVertexDeclaration(shader->mDeclaration);
-			}
-		}
-		else
+		if (SUCCEEDED(hr))
 		{
-			hr = this->mProxy->SetVertexDeclaration(shader->mDeclaration);
+			this->mCurrentVertexShader = shader;
+
+			this->mProxy->SetVertexDeclaration(shader->mDeclaration);
 		}
 	}
 
@@ -2599,7 +2594,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::DeleteVertexShader(DWORD Handle)
 	}
 
 	Direct3DVertexShader8 *shader = reinterpret_cast<Direct3DVertexShader8 *>(Handle ^ 0x80000000);
-	
+
 	if (shader->mShader != nullptr)
 	{
 		shader->mShader->Release();
@@ -2877,6 +2872,8 @@ ULONG STDMETHODCALLTYPE Direct3D8::Release()
 
 	if (ref == 0)
 	{
+		FreeLibrary(this->mModule);
+
 		delete this;
 	}
 
@@ -3070,7 +3067,7 @@ EXPORT Direct3D8 *WINAPI Direct3DCreate8(UINT SDKVersion)
 	LOG(INFO) << "Redirecting '" << "Direct3DCreate8" << "(" << SDKVersion << ")' ...";
 	LOG(INFO) << "> Passing on to 'Direct3DCreate9':";
 
-	const HMODULE module = ::LoadLibraryA("d3d9.dll");
+	const HMODULE module = LoadLibraryA("d3d9.dll");
 
 	if (module == nullptr)
 	{
