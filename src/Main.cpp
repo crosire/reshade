@@ -11,20 +11,6 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID lpvReserved)
 {
 	UNREFERENCED_PARAMETER(lpvReserved);
 
-	#pragma region Anti Debugging
-#ifndef _DEBUG
-	OutputDebugString(TEXT("%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s"));
-
-	char ollydbg[] = "effsnhm"; for (int i = 0; i < 7; ++i) ollydbg[i] ^= 42;
-	char windbg[] = "}CDnHMlXKGOiFKYY"; for (int i = 0; i < 16; ++i) windbg[i] ^= 42;
-
-	if (FindWindowA(ollydbg, nullptr) != nullptr || FindWindowA(windbg, nullptr) != nullptr)
-	{
-		ExitProcess(0);
-	}
-#endif
-	#pragma endregion
-
 	switch (fdwReason)
 	{
 		case DLL_PROCESS_ATTACH:
