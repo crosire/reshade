@@ -148,7 +148,7 @@ namespace ReShade
 
 		this->mCompileStep = 1;
 
-		LOG(INFO) << "Recreated effect environment on context " << this << ".";
+		LOG(INFO) << "Recreated effect environment on runtime " << this << ".";
 	}
 	void Runtime::OnDelete()
 	{
@@ -161,7 +161,7 @@ namespace ReShade
 
 		this->mEffect.reset();
 
-		LOG(INFO) << "Destroyed effect environment on context " << this << ".";
+		LOG(INFO) << "Destroyed effect environment on runtime " << this << ".";
 	}
 	void Runtime::OnDraw(unsigned int vertices)
 	{

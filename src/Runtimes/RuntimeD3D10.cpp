@@ -1684,11 +1684,18 @@ namespace ReShade { namespace Runtimes
 				}
 				else
 				{
+					if (texdesc.MipLevels == 0)
+					{
+						this->mErrors += PrintLocation(node.Location) + "warning: a texture cannot have 0 miplevels, changed it to 1.\n";
+
+						texdesc.MipLevels = 1;
+					}
+
 					HRESULT hr = this->mEffect->mRuntime->mDevice->CreateTexture2D(&texdesc, nullptr, &obj->mTexture);
 
 					if (FAILED(hr))
 					{
-						this->mErrors += PrintLocation(node.Location) + "error: 'CreateTexture2D' failed!\n";
+						this->mErrors += PrintLocation(node.Location) + "error: 'ID3D10Device::CreateTexture2D' failed with " + std::to_string(hr) + "!\n";
 						this->mFatal = true;
 						return;
 					}
@@ -1822,7 +1829,7 @@ namespace ReShade { namespace Runtimes
 
 				if (texture == nullptr)
 				{
-					this->mErrors += PrintLocation(node.Location) + "error: texture '" + std::string(textureName) + "' for sampler '" + std::string(node.Name) + "' is missing.\n";
+					this->mErrors += PrintLocation(node.Location) + "error: texture '" + std::string(textureName) + "' for sampler '" + std::string(node.Name) + "' is missing due to previous error.\n";
 					this->mFatal = true;
 					return;
 				}
@@ -1838,7 +1845,7 @@ namespace ReShade { namespace Runtimes
 
 					if (FAILED(hr))
 					{
-						this->mErrors += PrintLocation(node.Location) + "error: 'CreateSamplerState' failed!\n";
+						this->mErrors += PrintLocation(node.Location) + "error: 'ID3D10Device::CreateSamplerState' failed with " + std::to_string(hr) + "!\n";
 						this->mFatal = true;
 						return;
 					}

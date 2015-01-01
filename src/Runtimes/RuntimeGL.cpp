@@ -1965,13 +1965,20 @@ namespace ReShade { namespace Runtimes
 			{			
 				const GLsizei width = (node.Properties[EffectNodes::Variable::Width] != 0) ? this->mAST[node.Properties[EffectNodes::Variable::Width]].As<EffectNodes::Literal>().Value.Uint[0] : 1;
 				const GLsizei height = (node.Properties[EffectNodes::Variable::Height] != 0) ? this->mAST[node.Properties[EffectNodes::Variable::Height]].As<EffectNodes::Literal>().Value.Uint[0] : 1;
-				const GLsizei levels = (node.Properties[EffectNodes::Variable::MipLevels] != 0) ? this->mAST[node.Properties[EffectNodes::Variable::MipLevels]].As<EffectNodes::Literal>().Value.Uint[0] : 1;
+				GLsizei levels = (node.Properties[EffectNodes::Variable::MipLevels] != 0) ? this->mAST[node.Properties[EffectNodes::Variable::MipLevels]].As<EffectNodes::Literal>().Value.Uint[0] : 1;
 				GLenum internalformat = GL_RGBA8, internalformatSRGB = GL_SRGB8_ALPHA8;
 				Effect::Texture::Format format = Effect::Texture::Format::RGBA8;
 
 				if (node.Properties[EffectNodes::Variable::Format] != 0)
 				{
 					LiteralToFormat(this->mAST[node.Properties[EffectNodes::Variable::Format]].As<EffectNodes::Literal>().Value.Uint[0], internalformat, internalformatSRGB, format);
+				}
+
+				if (levels == 0)
+				{
+					this->mErrors += PrintLocation(node.Location) + "warning: a texture cannot have 0 miplevels, changed it to 1.\n";
+
+					levels = 1;
 				}
 
 				GLTexture::Description objdesc;
@@ -2035,9 +2042,18 @@ namespace ReShade { namespace Runtimes
 					return;
 				}
 
+				const char *textureName = this->mAST[node.Properties[EffectNodes::Variable::Texture]].As<EffectNodes::Variable>().Name;
+
 				GLSampler sampler;
-				sampler.mTexture = static_cast<GLTexture *>(this->mEffect->GetTexture(this->mAST[node.Properties[EffectNodes::Variable::Texture]].As<EffectNodes::Variable>().Name));
+				sampler.mTexture = static_cast<GLTexture *>(this->mEffect->GetTexture(textureName));
 				sampler.mSRGB = node.Properties[EffectNodes::Variable::SRGBTexture] != 0 && this->mAST[node.Properties[EffectNodes::Variable::SRGBTexture]].As<EffectNodes::Literal>().Value.Bool[0] != 0;
+
+				if (sampler.mTexture == nullptr)
+				{
+					this->mErrors += PrintLocation(node.Location) + "error: texture '" + std::string(textureName) + "' for sampler '" + std::string(node.Name) + "' is missing due to previous error.\n";
+					this->mFatal = true;
+					return;
+				}
 
 				GLCHECK(glGenSamplers(1, &sampler.mID));
 
