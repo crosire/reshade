@@ -3019,23 +3019,23 @@ HRESULT STDMETHODCALLTYPE Direct3D8::EnumAdapterModes(UINT Adapter, UINT Mode, D
 
 	const D3DFORMAT formats[] = { D3DFMT_A8R8G8B8, D3DFMT_X8R8G8B8, D3DFMT_R5G6B5, D3DFMT_X1R5G5B5, D3DFMT_A1R5G5B5, D3DFMT_A2R10G10B10 };
 
-	UINT modes = 0;
+	UINT offset = 0;
 
 	for (const D3DFORMAT format : formats)
 	{
-		const UINT offset = this->mProxy->GetAdapterModeCount(Adapter, format);
+		const UINT modes = this->mProxy->GetAdapterModeCount(Adapter, format);
 
-		if (offset == 0)
+		if (modes == 0)
 		{
 			continue;
 		}
 
-		modes += offset;
-
-		if (Mode < modes)
+		if (Mode < offset + modes)
 		{
 			return this->mProxy->EnumAdapterModes(Adapter, format, Mode - offset, pMode);
 		}
+
+		offset += modes;
 	}
 
 	return D3DERR_INVALIDCALL;
