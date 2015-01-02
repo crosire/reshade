@@ -1406,7 +1406,9 @@ ULONG STDMETHODCALLTYPE Direct3DSwapChain8::Release()
 }
 HRESULT STDMETHODCALLTYPE Direct3DSwapChain8::Present(CONST RECT *pSourceRect, CONST RECT *pDestRect, HWND hDestWindowOverride, CONST RGNDATA *pDirtyRegion)
 {
-	return this->mProxy->Present(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion, 0);
+	UNREFERENCED_PARAMETER(pDirtyRegion);
+
+	return this->mProxy->Present(pSourceRect, pDestRect, hDestWindowOverride, nullptr, 0);
 }
 HRESULT STDMETHODCALLTYPE Direct3DSwapChain8::GetBackBuffer(UINT iBackBuffer, D3DBACKBUFFER_TYPE Type, Direct3DSurface8 **ppBackBuffer)
 {
@@ -1581,7 +1583,9 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::Reset(D3D8::D3DPRESENT_PARAMETERS *pP
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice8::Present(CONST RECT *pSourceRect, CONST RECT *pDestRect, HWND hDestWindowOverride, CONST RGNDATA *pDirtyRegion)
 {
-	return this->mProxy->Present(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
+	UNREFERENCED_PARAMETER(pDirtyRegion);
+
+	return this->mProxy->Present(pSourceRect, pDestRect, hDestWindowOverride, nullptr);
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice8::GetBackBuffer(UINT iBackBuffer, D3DBACKBUFFER_TYPE Type, Direct3DSurface8 **ppBackBuffer)
 {
