@@ -1821,56 +1821,65 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateImageSurface(UINT Width, UINT H
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice8::CopyRects(Direct3DSurface8 *pSourceSurface, CONST RECT *pSourceRectsArray, UINT cRects, Direct3DSurface8 *pDestinationSurface, CONST POINT *pDestPointsArray)
 {
-	if (pSourceSurface == nullptr || pDestinationSurface == nullptr)
+	if (pSourceSurface == nullptr || pDestinationSurface == nullptr || pSourceSurface == pDestinationSurface)
 	{
 		return D3DERR_INVALIDCALL;
 	}
 
+	D3D9::D3DSURFACE_DESC descSource, descDestination;
+	pSourceSurface->mProxy->GetDesc(&descSource);
+	pDestinationSurface->mProxy->GetDesc(&descDestination);
+
 	HRESULT hr = D3DERR_INVALIDCALL;
 
-	if (pSourceRectsArray != nullptr)
+	for (UINT i = 0; i < std::max(cRects, 1U); ++i)
 	{
-		for (UINT i = 0; i < cRects; ++i)
+		RECT rectSource, rectDestination;
+
+		if (pSourceRectsArray != nullptr)
 		{
-			POINT pt = { 0, 0 };
-
-			if (pDestPointsArray != nullptr)
-			{
-				pt.x = pDestPointsArray[i].x;
-				pt.y = pDestPointsArray[i].y;
-			}
-
-			hr = this->mProxy->UpdateSurface(pSourceSurface->mProxy, &pSourceRectsArray[i], pDestinationSurface->mProxy, &pt);
-			
-			if (FAILED(hr))
-			{
-				RECT destRect;
-				destRect.left = pt.x;
-				destRect.right = pt.x + (pSourceRectsArray[i].right - pSourceRectsArray[i].left);
-				destRect.top = pt.y;
-				destRect.bottom = pt.y + (pSourceRectsArray[i].bottom - pSourceRectsArray[i].top);
-				
-				hr = this->mProxy->StretchRect(pSourceSurface->mProxy, &pSourceRectsArray[i], pDestinationSurface->mProxy, nullptr, D3DTEXF_NONE);
-			}
-			if (FAILED(hr))
-			{
-				break;
-			}
+			rectSource = pSourceRectsArray[i];
 		}
-	}
-	else
-	{
-		hr = this->mProxy->UpdateSurface(pSourceSurface->mProxy, nullptr, pDestinationSurface->mProxy, nullptr);
+		else
+		{
+			rectSource.left = 0;
+			rectSource.right = descSource.Width;
+			rectSource.top = 0;
+			rectSource.bottom = descSource.Height;
+		}
+
+		if (pDestPointsArray != nullptr)
+		{
+			rectDestination.left = pDestPointsArray[i].x;
+			rectDestination.right = rectDestination.left + (rectSource.right - rectSource.left);
+			rectDestination.top = pDestPointsArray[i].y;
+			rectDestination.bottom = rectDestination.top + (rectSource.bottom - rectSource.top);
+		}
+		else
+		{
+			rectDestination = rectSource;
+		}
+
+		if (descSource.Format != descDestination.Format || descSource.Pool == D3DPOOL_MANAGED || descDestination.Pool != D3DPOOL_DEFAULT)
+		{
+			hr = D3DXLoadSurfaceFromSurface(pDestinationSurface->mProxy, nullptr, &rectDestination, pSourceSurface->mProxy, nullptr, &rectSource, D3DX_FILTER_NONE, 0);
+		}
+		else if (descSource.Pool == D3DPOOL_DEFAULT)
+		{
+			hr = this->mProxy->StretchRect(pSourceSurface->mProxy, &rectSource, pDestinationSurface->mProxy, &rectDestination, D3DTEXF_NONE);
+		}
+		else if (descSource.Pool == D3DPOOL_SYSTEMMEM)
+		{
+			const POINT pt = { rectDestination.left, rectDestination.top };
+
+			hr = this->mProxy->UpdateSurface(pSourceSurface->mProxy, &rectSource, pDestinationSurface->mProxy, &pt);
+		}
 
 		if (FAILED(hr))
 		{
-			hr = this->mProxy->StretchRect(pSourceSurface->mProxy, nullptr, pDestinationSurface->mProxy, nullptr, D3DTEXF_NONE);
+			LOG(ERROR) << "Failed to translate 'IDirect3DDevice8::CopyRects' call!";
+			break;
 		}
-	}
-
-	if (FAILED(hr))
-	{
-		LOG(WARNING) << "'IDirect3DDevice8::CopyRects' failed because surface properties do not allow conversion to Direct3D 9 call!";
 	}
 
 	return hr;
