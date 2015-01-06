@@ -131,12 +131,6 @@ namespace ReShade
 		{
 			return;
 		}
-		if (width == 0 || height == 0)
-		{
-			LOG(WARNING) << "Failed to reload effects due to invalid size of " << width << "x" << height << ".";
-
-			return;
-		}
 
 		this->mWidth = width;
 		this->mHeight = height;

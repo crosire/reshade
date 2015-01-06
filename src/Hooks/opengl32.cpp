@@ -2984,16 +2984,7 @@ EXPORT BOOL WINAPI wglSwapBuffers(HDC hdc)
 
 		assert(runtime != nullptr);
 
-		const auto it = sWindowRects.find(hwnd);
-
-		if (it == sWindowRects.end())
-		{
-			LOG(WARNING) << "Aborted rendering because there is no known window associated with device context " << hdc << ".";
-
-			return FALSE;
-		}
-
-		RECT rect, &rectPrevious = it->second;
+		RECT rect, &rectPrevious = sWindowRects.at(hwnd);
 
 		GetClientRect(hwnd, &rect);
 		const ULONG width = rect.right - rect.left, height = rect.bottom - rect.top;
