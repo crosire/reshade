@@ -12,7 +12,7 @@ namespace
 	{
 		friend struct D3D11DeviceContext;
 
-		D3D11Device(ID3D11Device *originalDevice) : mOrig(originalDevice)
+		D3D11Device(ID3D11Device *originalDevice) : mRef(1), mOrig(originalDevice), mImmediateContext(nullptr)
 		{
 			assert(originalDevice != nullptr);
 		}
@@ -70,7 +70,9 @@ namespace
 		virtual HRESULT STDMETHODCALLTYPE OpenSharedResource1(HANDLE hResource, REFIID returnedInterface, void **ppResource) override;
 		virtual HRESULT STDMETHODCALLTYPE OpenSharedResourceByName(LPCWSTR lpName, DWORD dwDesiredAccess, REFIID returnedInterface, void **ppResource) override;
 
+		ULONG mRef;
 		ID3D11Device *const mOrig;
+		D3D11DeviceContext *mImmediateContext;
 	};
 	struct D3D11DeviceContext : public ID3D11DeviceContext1, private boost::noncopyable
 	{
@@ -224,6 +226,21 @@ namespace
 		D3D11Device *const mDevice;
 		ID3D11DeviceContext *const mOrig;
 	};
+
+	LPCSTR GetErrorString(HRESULT hr)
+	{
+		switch (hr)
+		{
+			case E_FAIL:
+				return "E_FAIL";
+			case E_INVALIDARG:
+				return "E_INVALIDARG";
+			default:
+				__declspec(thread) static CHAR buf[20];
+				sprintf_s(buf, "0x%lx", hr);
+				return buf;
+		}
+	}
 }
 
 extern const GUID sRuntimeGUID;
@@ -274,15 +291,22 @@ HRESULT STDMETHODCALLTYPE D3D11DeviceContext::QueryInterface(REFIID riid, void *
 }
 ULONG STDMETHODCALLTYPE D3D11DeviceContext::AddRef()
 {
-	++this->mRef;
+	this->mRef++;
 
 	return this->mOrig->AddRef();
 }
 ULONG STDMETHODCALLTYPE D3D11DeviceContext::Release()
 {
+	this->mRef--;
+
 	const ULONG ref = this->mOrig->Release();
 
-	if (--this->mRef == 0)
+	if (this->mRef == 0 && ref != 0)
+	{
+		LOG(WARNING) << "Reference count for 'ID3D11DeviceContext' object (" << ref << ") is inconsistent.";
+	}
+
+	if (ref == 0)
 	{
 		delete this;
 	}
@@ -921,6 +945,8 @@ HRESULT STDMETHODCALLTYPE D3D11Device::QueryInterface(REFIID riid, void **ppvObj
 
 	if (SUCCEEDED(hr) && (riid == __uuidof(IUnknown) || riid == __uuidof(ID3D11Device) || riid == __uuidof(ID3D11Device1)))
 	{
+		this->mRef++;
+
 		*ppvObj = this;
 	}
 
@@ -928,11 +954,26 @@ HRESULT STDMETHODCALLTYPE D3D11Device::QueryInterface(REFIID riid, void **ppvObj
 }
 ULONG STDMETHODCALLTYPE D3D11Device::AddRef()
 {
+	this->mRef++;
+
 	return this->mOrig->AddRef();
 }
 ULONG STDMETHODCALLTYPE D3D11Device::Release()
 {
+	if (--this->mRef == 0)
+	{
+		assert(this->mImmediateContext != nullptr);
+
+		this->mImmediateContext->Release();
+		this->mImmediateContext = nullptr;
+	}
+
 	const ULONG ref = this->mOrig->Release();
+
+	if (this->mRef == 0 && ref != 0)
+	{
+		LOG(WARNING) << "Reference count for 'ID3D11Device' object (" << ref << ") is inconsistent.";
+	}
 
 	if (ref == 0)
 	{
@@ -1055,7 +1096,18 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDeferredContext(UINT ContextFlags, 
 
 	if (SUCCEEDED(hr))
 	{
-		*ppDeferredContext = new D3D11DeviceContext(this, *ppDeferredContext);
+		assert(ppDeferredContext != nullptr && *ppDeferredContext != nullptr);
+
+		ID3D11DeviceContext *devicecontext = *ppDeferredContext;
+		ID3D11DeviceContext1 *devicecontext1 = nullptr;
+
+		if (SUCCEEDED(devicecontext->QueryInterface(&devicecontext1)))
+		{
+			devicecontext->Release();
+			devicecontext = devicecontext1;
+		}
+
+		*ppDeferredContext = new D3D11DeviceContext(this, devicecontext);
 	}
 
 	return hr;
@@ -1111,9 +1163,9 @@ void STDMETHODCALLTYPE D3D11Device::GetImmediateContext(ID3D11DeviceContext **pp
 		return;
 	}
 
-	this->mOrig->GetImmediateContext(ppImmediateContext);
+	this->mImmediateContext->AddRef();
 
-	*ppImmediateContext = new D3D11DeviceContext(this, *ppImmediateContext);
+	*ppImmediateContext = this->mImmediateContext;
 }
 HRESULT STDMETHODCALLTYPE D3D11Device::SetExceptionMode(UINT RaiseFlags)
 {
@@ -1136,9 +1188,9 @@ void STDMETHODCALLTYPE D3D11Device::GetImmediateContext1(ID3D11DeviceContext1 **
 		return;
 	}
 
-	static_cast<ID3D11Device1 *>(this->mOrig)->GetImmediateContext1(ppImmediateContext);
+	this->mImmediateContext->AddRef();
 
-	*ppImmediateContext = new D3D11DeviceContext(this, *ppImmediateContext);
+	*ppImmediateContext = this->mImmediateContext;
 }
 HRESULT STDMETHODCALLTYPE D3D11Device::CreateDeferredContext1(UINT ContextFlags, ID3D11DeviceContext1 **ppDeferredContext)
 {
@@ -1146,6 +1198,8 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDeferredContext1(UINT ContextFlags,
 
 	if (SUCCEEDED(hr))
 	{
+		assert(ppDeferredContext != nullptr && *ppDeferredContext != nullptr);
+
 		*ppDeferredContext = new D3D11DeviceContext(this, *ppDeferredContext);
 	}
 
@@ -1188,30 +1242,44 @@ EXPORT HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, D3D_
 	Flags |= D3D11_CREATE_DEVICE_DEBUG;
 #endif
 
-	ID3D11DeviceContext *deviceContext = nullptr;
+	ID3D11DeviceContext *devicecontext = nullptr;
 
-	const HRESULT hr = ReShade::Hooks::Call(&D3D11CreateDeviceAndSwapChain)(pAdapter, DriverType, Software, Flags, pFeatureLevels, FeatureLevels, SDKVersion, pSwapChainDesc, ppSwapChain, ppDevice, pFeatureLevel, &deviceContext);
+	const HRESULT hr = ReShade::Hooks::Call(&D3D11CreateDeviceAndSwapChain)(pAdapter, DriverType, Software, Flags, pFeatureLevels, FeatureLevels, SDKVersion, pSwapChainDesc, ppSwapChain, ppDevice, pFeatureLevel, &devicecontext);
 
-	if (SUCCEEDED(hr) && (ppDevice != nullptr && *ppDevice != nullptr && deviceContext != nullptr))
+	if (SUCCEEDED(hr))
 	{
+		assert(ppDevice != nullptr && *ppDevice != nullptr && devicecontext != nullptr);
+
 		ID3D11Device *device = *ppDevice;
 		ID3D11Device1 *device1 = nullptr;
+		ID3D11DeviceContext1 *devicecontext1 = nullptr;
 
 		if (SUCCEEDED(device->QueryInterface(&device1)))
 		{
 			device->Release();
 			device = device1;
 		}
+		if (SUCCEEDED(devicecontext->QueryInterface(&devicecontext1)))
+		{
+			devicecontext->Release();
+			devicecontext = devicecontext1;
+		}
 
 		D3D11Device *const deviceProxy = new D3D11Device(device);
+		D3D11DeviceContext *const devicecontextProxy = new D3D11DeviceContext(deviceProxy, devicecontext);
 
-		deviceContext = new D3D11DeviceContext(deviceProxy, deviceContext);
+		deviceProxy->mImmediateContext = devicecontextProxy;
 		*ppDevice = deviceProxy;
-	}
 
-	if (ppImmediateContext != nullptr)
+		if (ppImmediateContext != nullptr)
+		{
+			devicecontextProxy->AddRef();
+			*ppImmediateContext = devicecontextProxy;
+		}
+	}
+	else
 	{
-		*ppImmediateContext = deviceContext;
+		LOG(WARNING) << "> 'D3D11CreateDeviceAndSwapChain' failed with '" << GetErrorString(hr) << "'!";
 	}
 
 	return hr;

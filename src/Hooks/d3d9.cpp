@@ -294,7 +294,7 @@ HRESULT STDMETHODCALLTYPE Direct3DSwapChain9::QueryInterface(REFIID riid, void *
 }
 ULONG STDMETHODCALLTYPE Direct3DSwapChain9::AddRef()
 {
-	++this->mRef;
+	this->mRef++;
 
 	return this->mOrig->AddRef();
 }
@@ -305,11 +305,15 @@ ULONG STDMETHODCALLTYPE Direct3DSwapChain9::Release()
 		assert(this->mRuntime != nullptr);
 
 		this->mRuntime->OnDeleteInternal();
-
 		this->mRuntime.reset();
 	}
 
 	const ULONG ref = this->mOrig->Release();
+
+	if (this->mRef == 0 && ref != 0)
+	{
+		LOG(WARNING) << "Reference count for 'IDirect3DSwapChain9' object (" << ref << ") is inconsistent.";
+	}
 
 	if (ref == 0)
 	{
@@ -397,7 +401,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::QueryInterface(REFIID riid, void **pp
 }
 ULONG STDMETHODCALLTYPE Direct3DDevice9::AddRef()
 {
-	++this->mRef;
+	this->mRef++;
 
 	return this->mOrig->AddRef();
 }
@@ -418,6 +422,11 @@ ULONG STDMETHODCALLTYPE Direct3DDevice9::Release()
 	}
 
 	const ULONG ref = this->mOrig->Release();
+
+	if (this->mRef == 0 && ref != 0)
+	{
+		LOG(WARNING) << "Reference count for 'IDirect3DDevice9' object (" << ref << ") is inconsistent.";
+	}
 
 	if (ref == 0)
 	{

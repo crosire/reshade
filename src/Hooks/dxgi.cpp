@@ -228,6 +228,11 @@ ULONG STDMETHODCALLTYPE DXGISwapChain::Release()
 
 	const ULONG ref = this->mOrig->Release();
 
+	if (this->mRef == 0 && ref != 0)
+	{
+		LOG(WARNING) << "Reference count for 'IDXGISwapChain' object (" << ref << ") is inconsistent.";
+	}
+
 	if (ref == 0)
 	{
 		delete this;

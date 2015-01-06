@@ -10,7 +10,7 @@ namespace
 {
 	struct D3D10Device : public ID3D10Device1, private boost::noncopyable
 	{
-		D3D10Device(ID3D10Device *originalDevice) : mOrig(originalDevice)
+		D3D10Device(ID3D10Device *originalDevice) : mRef(1), mOrig(originalDevice)
 		{
 			assert(originalDevice != nullptr);
 		}
@@ -119,8 +119,24 @@ namespace
 		virtual HRESULT STDMETHODCALLTYPE CreateBlendState1(const D3D10_BLEND_DESC1 *pBlendStateDesc, ID3D10BlendState1 **ppBlendState) override;
 		virtual D3D10_FEATURE_LEVEL1 STDMETHODCALLTYPE GetFeatureLevel() override;
 
+		ULONG mRef;
 		ID3D10Device *const mOrig;
 	};
+
+	LPCSTR GetErrorString(HRESULT hr)
+	{
+		switch (hr)
+		{
+			case E_FAIL:
+				return "E_FAIL";
+			case E_INVALIDARG:
+				return "E_INVALIDARG";
+			default:
+				__declspec(thread) static CHAR buf[20];
+				sprintf_s(buf, "0x%lx", hr);
+				return buf;
+		}
+	}
 }
 
 extern const GUID sRuntimeGUID;
@@ -162,6 +178,8 @@ HRESULT STDMETHODCALLTYPE D3D10Device::QueryInterface(REFIID riid, void **ppvObj
 
 	if (SUCCEEDED(hr) && (riid == __uuidof(IUnknown) || riid == __uuidof(ID3D10Device) || riid == __uuidof(ID3D10Device1)))
 	{
+		this->mRef++;
+
 		*ppvObj = this;
 	}
 
@@ -169,11 +187,20 @@ HRESULT STDMETHODCALLTYPE D3D10Device::QueryInterface(REFIID riid, void **ppvObj
 }
 ULONG STDMETHODCALLTYPE D3D10Device::AddRef()
 {
+	this->mRef++;
+
 	return this->mOrig->AddRef();
 }
 ULONG STDMETHODCALLTYPE D3D10Device::Release()
 {
+	this->mRef--;
+
 	const ULONG ref = this->mOrig->Release();
+
+	if (this->mRef == 0 && ref != 0)
+	{
+		LOG(WARNING) << "Reference count for 'ID3D10Device' object (" << ref << ") is inconsistent.";
+	}
 
 	if (ref == 0)
 	{
@@ -684,9 +711,15 @@ EXPORT HRESULT WINAPI D3D10CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, D3D1
 
 	const HRESULT hr = ReShade::Hooks::Call(&D3D10CreateDeviceAndSwapChain)(pAdapter, DriverType, Software, Flags, SDKVersion, pSwapChainDesc, ppSwapChain, ppDevice);
 
-	if (SUCCEEDED(hr) && (ppDevice != nullptr && *ppDevice != nullptr))
+	if (SUCCEEDED(hr))
 	{
+		assert(ppDevice != nullptr && *ppDevice != nullptr);
+
 		*ppDevice = new D3D10Device(*ppDevice);
+	}
+	else
+	{
+		LOG(WARNING) << "> 'D3D10CreateDeviceAndSwapChain' failed with '" << GetErrorString(hr) << "'!";
 	}
 
 	return hr;
@@ -701,9 +734,15 @@ EXPORT HRESULT WINAPI D3D10CreateDeviceAndSwapChain1(IDXGIAdapter *pAdapter, D3D
 
 	const HRESULT hr = ReShade::Hooks::Call(&D3D10CreateDeviceAndSwapChain1)(pAdapter, DriverType, Software, Flags, HardwareLevel, SDKVersion, pSwapChainDesc, ppSwapChain, ppDevice);
 
-	if (SUCCEEDED(hr) && (ppDevice != nullptr && *ppDevice != nullptr))
+	if (SUCCEEDED(hr))
 	{
+		assert(ppDevice != nullptr && *ppDevice != nullptr);
+
 		*ppDevice = new D3D10Device(*ppDevice);
+	}
+	else
+	{
+		LOG(WARNING) << "> 'D3D10CreateDeviceAndSwapChain1' failed with '" << GetErrorString(hr) << "'!";
 	}
 
 	return hr;
