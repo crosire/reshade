@@ -206,7 +206,7 @@ namespace
 		friend struct Direct3DVolume8;
 		friend struct Direct3DVertexShader8;
 
-		Direct3DDevice8(Direct3D8 *d3d, IDirect3DDevice9 *proxyDevice, BOOL ZBufferDiscarding = FALSE) : mD3D(d3d), mProxy(proxyDevice), mBaseVertexIndex(0), mZBufferDiscarding(ZBufferDiscarding), mCurrentVertexShader(0), mCurrentPixelShader(0)
+		Direct3DDevice8(Direct3D8 *d3d, IDirect3DDevice9 *proxyDevice, BOOL ZBufferDiscarding = FALSE) : mRef(1), mD3D(d3d), mProxy(proxyDevice), mBaseVertexIndex(0), mZBufferDiscarding(ZBufferDiscarding), mCurrentVertexShader(0), mCurrentPixelShader(0)
 		{
 			assert(d3d != nullptr);
 			assert(proxyDevice != nullptr);
@@ -311,6 +311,7 @@ namespace
 		virtual HRESULT STDMETHODCALLTYPE DrawTriPatch(UINT Handle, CONST float *pNumSegs, CONST D3D8::D3DTRIPATCH_INFO *pTriPatchInfo);
 		virtual HRESULT STDMETHODCALLTYPE DeletePatch(UINT Handle);
 
+		ULONG mRef;
 		Direct3D8 *mD3D;
 		IDirect3DDevice9 *mProxy;
 		INT mBaseVertexIndex;
@@ -343,6 +344,12 @@ namespace
 		{
 			assert(device != nullptr);
 			assert(proxyResource != nullptr);
+
+			this->mDevice->mRef++;
+		}
+		~Direct3DResource8()
+		{
+			this->mDevice->mRef--;
 		}
 
 		virtual HRESULT STDMETHODCALLTYPE GetDevice(Direct3DDevice8 **ppDevice);
@@ -466,6 +473,14 @@ namespace
 
 		Direct3DVolume8(Direct3DDevice8 *device, IDirect3DVolume9 *proxyVolume) : mRef(1), mDevice(device), mProxy(proxyVolume)
 		{
+			assert(device != nullptr);
+			assert(proxyVolume != nullptr);
+
+			this->mDevice->mRef++;
+		}
+		~Direct3DVolume8()
+		{
+			this->mDevice->mRef--;
 		}
 
 		virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
@@ -491,6 +506,14 @@ namespace
 
 		Direct3DSurface8(Direct3DDevice8 *device, IDirect3DSurface9 *proxySurface) : mRef(1), mDevice(device), mProxy(proxySurface)
 		{
+			assert(device != nullptr);
+			assert(proxySurface != nullptr);
+
+			this->mDevice->mRef++;
+		}
+		~Direct3DSurface8()
+		{
+			this->mDevice->mRef--;
 		}
 
 		virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
@@ -777,7 +800,7 @@ HRESULT STDMETHODCALLTYPE Direct3DBaseTexture8::QueryInterface(REFIID riid, void
 }
 ULONG STDMETHODCALLTYPE Direct3DBaseTexture8::AddRef()
 {
-	++this->mRef;
+	this->mRef++;
 
 	return this->mProxy->AddRef();
 }
@@ -827,7 +850,7 @@ HRESULT STDMETHODCALLTYPE Direct3DTexture8::QueryInterface(REFIID riid, void **p
 }
 ULONG STDMETHODCALLTYPE Direct3DTexture8::AddRef()
 {
-	++this->mRef;
+	this->mRef++;
 
 	return this->mProxy->AddRef();
 }
@@ -917,7 +940,7 @@ HRESULT STDMETHODCALLTYPE Direct3DVolumeTexture8::QueryInterface(REFIID riid, vo
 }
 ULONG STDMETHODCALLTYPE Direct3DVolumeTexture8::AddRef()
 {
-	++this->mRef;
+	this->mRef++;
 
 	return this->mProxy->AddRef();
 }
@@ -1007,7 +1030,7 @@ HRESULT STDMETHODCALLTYPE Direct3DCubeTexture8::QueryInterface(REFIID riid, void
 }
 ULONG STDMETHODCALLTYPE Direct3DCubeTexture8::AddRef()
 {
-	++this->mRef;
+	this->mRef++;
 
 	return this->mProxy->AddRef();
 }
@@ -1097,7 +1120,7 @@ HRESULT STDMETHODCALLTYPE Direct3DVertexBuffer8::QueryInterface(REFIID riid, voi
 }
 ULONG STDMETHODCALLTYPE Direct3DVertexBuffer8::AddRef()
 {
-	++this->mRef;
+	this->mRef++;
 
 	return this->mProxy->AddRef();
 }
@@ -1147,7 +1170,7 @@ HRESULT STDMETHODCALLTYPE Direct3DIndexBuffer8::QueryInterface(REFIID riid, void
 }
 ULONG STDMETHODCALLTYPE Direct3DIndexBuffer8::AddRef()
 {
-	++this->mRef;
+	this->mRef++;
 
 	return this->mProxy->AddRef();
 }
@@ -1197,7 +1220,7 @@ HRESULT STDMETHODCALLTYPE Direct3DVolume8::QueryInterface(REFIID riid, void **pp
 }
 ULONG STDMETHODCALLTYPE Direct3DVolume8::AddRef()
 {
-	++this->mRef;
+	this->mRef++;
 
 	return this->mProxy->AddRef();
 }
@@ -1290,7 +1313,7 @@ HRESULT STDMETHODCALLTYPE Direct3DSurface8::QueryInterface(REFIID riid, void **p
 }
 ULONG STDMETHODCALLTYPE Direct3DSurface8::AddRef()
 {
-	++this->mRef;
+	this->mRef++;
 
 	return this->mProxy->AddRef();
 }
@@ -1455,11 +1478,20 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::QueryInterface(REFIID riid, void **pp
 }
 ULONG STDMETHODCALLTYPE Direct3DDevice8::AddRef()
 {
+	this->mRef++;
+
 	return this->mProxy->AddRef();
 }
 ULONG STDMETHODCALLTYPE Direct3DDevice8::Release()
 {
+	this->mRef--;
+
 	const ULONG ref = this->mProxy->Release();
+
+	if (this->mRef == 0 && ref != 0)
+	{
+		LOG(WARNING) << "Reference count for 'IDirect3DDevice8' object (" << ref << ") is inconsistent.";
+	}
 
 	if (ref == 0)
 	{
@@ -1904,16 +1936,6 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::GetFrontBuffer(Direct3DSurface8 *pDes
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice8::SetRenderTarget(Direct3DSurface8 *pRenderTarget, Direct3DSurface8 *pNewZStencil)
 {
-	if (pRenderTarget != nullptr)
-	{
-		const HRESULT hr = this->mProxy->SetRenderTarget(0, pRenderTarget->mProxy);
-	
-		if (FAILED(hr))
-		{
-			return hr;
-		}
-	}
-
 	IDirect3DSurface9 *depthstencil = nullptr;
 
 	if (pNewZStencil != nullptr)
@@ -1921,7 +1943,32 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::SetRenderTarget(Direct3DSurface8 *pRe
 		depthstencil = pNewZStencil->mProxy;
 	}
 
-	return this->mProxy->SetDepthStencilSurface(depthstencil);
+	HRESULT hr = this->mProxy->SetDepthStencilSurface(depthstencil);
+
+	if (FAILED(hr))
+	{
+		return hr;
+	}
+
+	IDirect3DSurface9 *rendertarget = nullptr;
+
+	if (pRenderTarget != nullptr)
+	{
+		rendertarget = pRenderTarget->mProxy;
+		rendertarget->AddRef();
+	}
+	else
+	{
+		this->mProxy->GetRenderTarget(0, &rendertarget);
+	}
+
+	assert(rendertarget != nullptr);
+
+	hr = this->mProxy->SetRenderTarget(0, rendertarget);
+
+	rendertarget->Release();
+
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice8::GetRenderTarget(Direct3DSurface8 **ppRenderTarget)
 {
@@ -1937,6 +1984,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::GetRenderTarget(Direct3DSurface8 **pp
 	if (SUCCEEDED(hr))
 	{
 		*ppRenderTarget = new Direct3DSurface8(this, surface);
+
+		static_cast<Direct3DSurface8 *>(*ppRenderTarget)->mRef++;
 	}
 	else
 	{
@@ -1959,6 +2008,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::GetDepthStencilSurface(Direct3DSurfac
 	if (SUCCEEDED(hr))
 	{
 		*ppZStencilSurface = new Direct3DSurface8(this, surface);
+
+		static_cast<Direct3DSurface8 *>(*ppZStencilSurface)->mRef++;
 	}
 	else
 	{
