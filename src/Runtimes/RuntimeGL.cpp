@@ -3240,8 +3240,8 @@ namespace ReShade { namespace Runtimes
 
 					if (id.length() > 20)
 					{
-						this->mVendorId = std::stoi(id.substr(8, 4));
-						this->mDeviceId = std::stoi(id.substr(17, 4));
+						this->mVendorId = std::stoi(id.substr(8, 4), nullptr, 16);
+						this->mDeviceId = std::stoi(id.substr(17, 4), nullptr, 16);
 					}
 					break;
 				}
