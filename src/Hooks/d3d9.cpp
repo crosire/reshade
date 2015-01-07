@@ -241,7 +241,7 @@ namespace
 		LOG(TRACE) << "  | MultiSampleQuality                      | " << value << " |";
 		sprintf_s(value, "%-39u", pp->SwapEffect);
 		LOG(TRACE) << "  | SwapEffect                              | " << value << " |";
-		sprintf_s(value, "0x%037IX", static_cast<const void *>(pp->hDeviceWindow));
+		sprintf_s(value, "0x%016IX                     ", static_cast<const void *>(pp->hDeviceWindow));
 		LOG(TRACE) << "  | hDeviceWindow                           | " << value << " |";
 		sprintf_s(value, "%-39d", pp->Windowed);
 		LOG(TRACE) << "  | Windowed                                | " << value << " |";
@@ -249,7 +249,7 @@ namespace
 		LOG(TRACE) << "  | EnableAutoDepthStencil                  | " << value << " |";
 		sprintf_s(value, "%-39u", pp->AutoDepthStencilFormat);
 		LOG(TRACE) << "  | AutoDepthStencilFormat                  | " << value << " |";
-		sprintf_s(value, "0x%037X", pp->Flags);
+		sprintf_s(value, "0x%016X                     ", pp->Flags);
 		LOG(TRACE) << "  | Flags                                   | " << value << " |";
 		sprintf_s(value, "%-39u", pp->FullScreen_RefreshRateInHz);
 		LOG(TRACE) << "  | FullScreen_RefreshRateInHz              | " << value << " |";

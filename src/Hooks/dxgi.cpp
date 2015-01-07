@@ -109,13 +109,13 @@ namespace
 		LOG(TRACE) << "  | BufferUsage                             | " << value << " |";
 		sprintf_s(value, "%-39u", desc.BufferCount);
 		LOG(TRACE) << "  | BufferCount                             | " << value << " |";
-		sprintf_s(value, "0x%037X", static_cast<const void *>(desc.OutputWindow));
+		sprintf_s(value, "0x%016IX                     ", static_cast<const void *>(desc.OutputWindow));
 		LOG(TRACE) << "  | OutputWindow                            | " << value << " |";
 		sprintf_s(value, "%-39d", desc.Windowed);
 		LOG(TRACE) << "  | Windowed                                | " << value << " |";
 		sprintf_s(value, "%-39u", desc.SwapEffect);
 		LOG(TRACE) << "  | SwapEffect                              | " << value << " |";
-		sprintf_s(value, "0x%037X", desc.Flags);
+		sprintf_s(value, "0x%016X                     ", desc.Flags);
 		LOG(TRACE) << "  | Flags                                   | " << value << " |";
 
 		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
@@ -201,7 +201,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::QueryInterface(REFIID riid, void **ppvO
 }
 ULONG STDMETHODCALLTYPE DXGISwapChain::AddRef()
 {
-	++this->mRef;
+	this->mRef++;
 
 	return this->mOrig->AddRef();
 }
@@ -337,6 +337,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Wi
 	desc.BufferDesc.Width = Width;
 	desc.BufferDesc.Height = Height;
 	desc.BufferDesc.Format = NewFormat;
+	desc.SampleDesc = this->mOrigSamples;
 
 	AdjustSwapChainDescription(desc);
 
@@ -358,7 +359,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Wi
 	{
 		if (hr == DXGI_ERROR_INVALID_CALL)
 		{
-			LOG(WARNING) << "'IDXGISwapChain::ResizeBuffers' failed with 'DXGI_ERROR_INVALID_CALL'!";
+			LOG(WARNING) << "> 'IDXGISwapChain::ResizeBuffers' failed with 'DXGI_ERROR_INVALID_CALL'!";
 		}
 
 		this->mOrig->GetDesc(&desc);
@@ -383,7 +384,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Wi
 	}
 	else
 	{
-		LOG(ERROR) << "'IDXGISwapChain::ResizeBuffers' failed with '" << GetErrorString(hr) << "'!";
+		LOG(ERROR) << "> 'IDXGISwapChain::ResizeBuffers' failed with '" << GetErrorString(hr) << "'!";
 	}
 
 	return hr;
