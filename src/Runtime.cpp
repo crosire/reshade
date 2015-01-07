@@ -7,6 +7,7 @@
 #include "EffectLexer.h"
 #include "FileWatcher.hpp"
 
+#include <sstream>
 #include <stb_dxt.h>
 #include <stb_image.h>
 #include <stb_image_write.h>
@@ -414,19 +415,21 @@ namespace ReShade
 			}
 			if (this->mShowStatistics)
 			{
-				std::string stats = "Statistics\n";
-				stats += "Date: " + std::to_string(static_cast<int>(this->mDate[0])) + '-' + std::to_string(static_cast<int>(this->mDate[1])) + '-' + std::to_string(static_cast<int>(this->mDate[2])) + ' ' + std::to_string(static_cast<int>(this->mDate[3])) + '\n';
-				stats += "FPS: " + std::to_string(1000 / std::max(boost::chrono::duration_cast<boost::chrono::milliseconds>(frametime).count(), 1LL)) + '\n';
-				stats += "Draw Calls: " + std::to_string(this->mLastDrawCalls) + " (" + std::to_string(this->mLastDrawCallVertices) + " vertices)" + '\n';
-				stats += "Frame " + std::to_string(this->mLastFrameCount + 1) + ": " + std::to_string(frametime.count() * 1e-6f) + "ms" + '\n';
-				stats += "PostProcessing: " + std::to_string(boost::chrono::duration_cast<boost::chrono::nanoseconds>(this->mLastPostProcessingDuration).count() * 1e-6f) + "ms" + '\n';
-				stats += "Timer: " + std::to_string(std::fmod(boost::chrono::duration_cast<boost::chrono::nanoseconds>(this->mLastPresent - this->mStartTime).count() * 1e-6f, 16777216.0f)) + "ms" + '\n';
-				stats += "Network: " + std::to_string(sNetworkUpload) + " bytes up / " + std::to_string(sNetworkDownload) + " bytes down" + '\n';
+				std::stringstream stats;
+				stats << "Statistics" << std::endl;
+				stats << "Date: " << static_cast<int>(this->mDate[0]) << '-' << static_cast<int>(this->mDate[1]) << '-' << static_cast<int>(this->mDate[2]) << ' ' << static_cast<int>(this->mDate[3]) << '\n';
+				stats << "Device: " << std::hex << std::uppercase << this->mVendorId << ' ' << this->mDeviceId << std::nouppercase << std::dec << std::endl;
+				stats << "FPS: " << (1000 / std::max(boost::chrono::duration_cast<boost::chrono::milliseconds>(frametime).count(), 1LL)) << std::endl;
+				stats << "Draw Calls: " << this->mLastDrawCalls << " (" << this->mLastDrawCallVertices << " vertices)" << std::endl;
+				stats << "Frame " << (this->mLastFrameCount + 1) << ": " << (frametime.count() * 1e-6f) << "ms" << std::endl;
+				stats << "PostProcessing: " << (boost::chrono::duration_cast<boost::chrono::nanoseconds>(this->mLastPostProcessingDuration).count() * 1e-6f) << "ms" << std::endl;
+				stats << "Timer: " << std::fmod(boost::chrono::duration_cast<boost::chrono::nanoseconds>(this->mLastPresent - this->mStartTime).count() * 1e-6f, 16777216.0f) << "ms" << std::endl;
+				stats << "Network: " << sNetworkUpload << "B up / " << sNetworkDownload << "B down" << std::endl;
 
 				nvgFillColor(this->mNVG, nvgRGB(255, 255, 255));
 				nvgTextAlign(this->mNVG, NVG_ALIGN_RIGHT | NVG_ALIGN_TOP);
 				nvgFontSize(this->mNVG, 16);
-				nvgTextBox(this->mNVG, 0, 0, static_cast<float>(this->mWidth), stats.c_str(), nullptr);
+				nvgTextBox(this->mNVG, 0, 0, static_cast<float>(this->mWidth), stats.str().c_str(), nullptr);
 			}
 
 			nvgEndFrame(this->mNVG);
