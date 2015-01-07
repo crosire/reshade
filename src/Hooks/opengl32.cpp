@@ -2650,8 +2650,10 @@ BOOL WINAPI wglChoosePixelFormatARB(HDC hdc, const int *piAttribIList, const FLO
 
 	std::string formats;
 
-	for (UINT i = 0; i < *nNumFormats && piFormats[i] != 0; ++i)
+	for (UINT i = 0; i < std::min(*nNumFormats, nMaxFormats); ++i)
 	{
+		assert(piFormats[i] != 0);
+
 		formats += " " + std::to_string(piFormats[i]);
 	}
 
@@ -2910,7 +2912,7 @@ EXPORT BOOL WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 	{
 		if (hwnd == nullptr)
 		{
-			LOG(ERROR) << "> Aborted because there is no window associated with device context " << hdc << ".";
+			LOG(WARNING) << "> Aborted because there is no window associated with device context " << hdc << ".";
 
 			return FALSE;
 		}
