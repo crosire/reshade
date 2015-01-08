@@ -12,7 +12,11 @@ namespace
 	{
 		friend struct D3D11DeviceContext;
 
-		D3D11Device(ID3D11Device *originalDevice) : mRef(1), mOrig(originalDevice), mImmediateContext(nullptr)
+		D3D11Device(ID3D11Device *originalDevice) : mRef(1), mOrig(originalDevice), mInterfaceVersion(0), mImmediateContext(nullptr)
+		{
+			assert(originalDevice != nullptr);
+		}
+		D3D11Device(ID3D11Device1 *originalDevice) : mRef(1), mOrig(originalDevice), mInterfaceVersion(1), mImmediateContext(nullptr)
 		{
 			assert(originalDevice != nullptr);
 		}
@@ -71,14 +75,20 @@ namespace
 		virtual HRESULT STDMETHODCALLTYPE OpenSharedResourceByName(LPCWSTR lpName, DWORD dwDesiredAccess, REFIID returnedInterface, void **ppResource) override;
 
 		ULONG mRef;
-		ID3D11Device *const mOrig;
+		ID3D11Device *mOrig;
+		unsigned int mInterfaceVersion;
 		D3D11DeviceContext *mImmediateContext;
 	};
 	struct D3D11DeviceContext : public ID3D11DeviceContext1, private boost::noncopyable
 	{
 		friend struct D3D11Device;
 
-		D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext *originalDeviceContext) : mRef(1), mDevice(device), mOrig(originalDeviceContext)
+		D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext *originalDeviceContext) : mRef(1), mDevice(device), mOrig(originalDeviceContext), mInterfaceVersion(0)
+		{
+			assert(device != nullptr);
+			assert(originalDeviceContext != nullptr);
+		}
+		D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext1 *originalDeviceContext) : mRef(1), mDevice(device), mOrig(originalDeviceContext), mInterfaceVersion(1)
 		{
 			assert(device != nullptr);
 			assert(originalDeviceContext != nullptr);
@@ -224,7 +234,8 @@ namespace
 
 		ULONG mRef;
 		D3D11Device *const mDevice;
-		ID3D11DeviceContext *const mOrig;
+		ID3D11DeviceContext *mOrig;
+		unsigned int mInterfaceVersion;
 	};
 
 	LPCSTR GetErrorString(HRESULT hr)
@@ -282,6 +293,24 @@ HRESULT STDMETHODCALLTYPE D3D11DeviceContext::QueryInterface(REFIID riid, void *
 
 	if (SUCCEEDED(hr) && (riid == __uuidof(IUnknown) || riid == __uuidof(ID3D11DeviceChild) || riid == __uuidof(ID3D11DeviceContext) || riid == __uuidof(ID3D11DeviceContext1)))
 	{
+		#pragma region Update to ID3D11DeviceContext1 interface
+		if (riid == __uuidof(ID3D11DeviceContext1) && this->mInterfaceVersion < 1)
+		{
+			ID3D11DeviceContext1 *const devicecontext1 = static_cast<ID3D11DeviceContext1 *>(*ppvObj);
+
+			assert(devicecontext1 != nullptr);
+
+			devicecontext1->AddRef();
+
+			this->mOrig->Release();
+			this->mOrig = devicecontext1;
+
+			this->mInterfaceVersion = 1;
+
+			LOG(INFO) << "Upgraded 'ID3D11DeviceContext' interface " << this << " to 'ID3D11DeviceContext1'.";
+		}
+		#pragma endregion
+
 		this->mRef++;
 
 		*ppvObj = this;
@@ -945,6 +974,30 @@ HRESULT STDMETHODCALLTYPE D3D11Device::QueryInterface(REFIID riid, void **ppvObj
 
 	if (SUCCEEDED(hr) && (riid == __uuidof(IUnknown) || riid == __uuidof(ID3D11Device) || riid == __uuidof(ID3D11Device1)))
 	{
+		#pragma region Update to ID3D11Device1 interface
+		if (riid == __uuidof(ID3D11Device1) && this->mInterfaceVersion < 1)
+		{
+			ID3D11Device1 *const device1 = static_cast<ID3D11Device1 *>(*ppvObj);
+			ID3D11DeviceContext1 *devicecontext1 = nullptr;
+
+			assert(device1 != nullptr);
+
+			device1->AddRef();
+			device1->GetImmediateContext1(&devicecontext1);
+
+			assert(devicecontext1 != nullptr);
+
+			this->mOrig->Release();
+			this->mOrig = device1;
+			this->mImmediateContext->mOrig->Release();
+			this->mImmediateContext->mOrig = devicecontext1;
+
+			this->mInterfaceVersion = this->mImmediateContext->mInterfaceVersion = 1;
+
+			LOG(INFO) << "Upgraded 'ID3D11Device' interface " << this << " to 'ID3D11Device1'.";
+		}
+		#pragma endregion
+
 		this->mRef++;
 
 		*ppvObj = this;
@@ -1105,18 +1158,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDeferredContext(UINT ContextFlags, 
 	{
 		assert(*ppDeferredContext != nullptr);
 
-		#pragma region Retrieve D3D11.1 interface
-		ID3D11DeviceContext *devicecontext = *ppDeferredContext;
-		ID3D11DeviceContext1 *devicecontext1 = nullptr;
-
-		if (SUCCEEDED(devicecontext->QueryInterface(&devicecontext1)))
-		{
-			devicecontext->Release();
-			devicecontext = devicecontext1;
-		}
-		#pragma endregion
-
-		*ppDeferredContext = new D3D11DeviceContext(this, devicecontext);
+		*ppDeferredContext = new D3D11DeviceContext(this, *ppDeferredContext);
 	}
 
 	return hr;
@@ -1200,6 +1242,7 @@ void STDMETHODCALLTYPE D3D11Device::GetImmediateContext1(ID3D11DeviceContext1 **
 	}
 
 	assert(this->mImmediateContext != nullptr);
+	assert(this->mImmediateContext->mInterfaceVersion >= 1);
 
 	this->mImmediateContext->AddRef();
 
@@ -1272,24 +1315,7 @@ EXPORT HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, D3D_
 		{
 			assert(*ppDevice != nullptr && devicecontext != nullptr);
 
-			#pragma region Retrieve D3D11.1 interfaces
-			ID3D11Device *device = *ppDevice;
-			ID3D11Device1 *device1 = nullptr;
-			ID3D11DeviceContext1 *devicecontext1 = nullptr;
-
-			if (SUCCEEDED(device->QueryInterface(&device1)))
-			{
-				device->Release();
-				device = device1;
-			}
-			if (SUCCEEDED(devicecontext->QueryInterface(&devicecontext1)))
-			{
-				devicecontext->Release();
-				devicecontext = devicecontext1;
-			}
-			#pragma endregion
-
-			D3D11Device *const deviceProxy = new D3D11Device(device);
+			D3D11Device *const deviceProxy = new D3D11Device(*ppDevice);
 			D3D11DeviceContext *const devicecontextProxy = new D3D11DeviceContext(deviceProxy, devicecontext);
 
 			deviceProxy->mImmediateContext = devicecontextProxy;

@@ -10,7 +10,11 @@ namespace
 {
 	struct D3D10Device : public ID3D10Device1, private boost::noncopyable
 	{
-		D3D10Device(ID3D10Device *originalDevice) : mRef(1), mOrig(originalDevice)
+		D3D10Device(ID3D10Device *originalDevice) : mRef(1), mOrig(originalDevice), mInterfaceVersion(0)
+		{
+			assert(originalDevice != nullptr);
+		}
+		D3D10Device(ID3D10Device1 *originalDevice) : mRef(1), mOrig(originalDevice), mInterfaceVersion(1)
 		{
 			assert(originalDevice != nullptr);
 		}
@@ -121,6 +125,7 @@ namespace
 
 		ULONG mRef;
 		ID3D10Device *const mOrig;
+		const unsigned int mInterfaceVersion;
 	};
 
 	LPCSTR GetErrorString(HRESULT hr)
