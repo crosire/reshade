@@ -2508,6 +2508,7 @@ namespace ReShade { namespace Runtimes
 			this->mDeviceContext->IAGetIndexBuffer(&this->mIAIndexBuffer, &this->mIAIndexFormat, &this->mIAIndexOffset);
 
 			this->mDeviceContext->RSGetState(&this->mRSState);
+			this->mDeviceContext->RSGetViewports(&this->mRSNumViewports, nullptr);
 			this->mDeviceContext->RSGetViewports(&this->mRSNumViewports, this->mRSViewports);
 
 			this->mVSNumClassInstances = 256;
