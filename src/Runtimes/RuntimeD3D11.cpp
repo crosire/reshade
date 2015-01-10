@@ -3730,6 +3730,8 @@ namespace ReShade { namespace Runtimes
 		// Draw triangle
 		devicecontext->Draw(3, 0);
 
+		const_cast<D3D11Runtime *>(runtime.get())->Runtime::OnDraw(3);
+
 		// Reset shader resources
 		ID3D11ShaderResourceView *null[D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT] = { nullptr };
 		devicecontext->VSSetShaderResources(0, static_cast<UINT>(pass.SRV.size()), null);

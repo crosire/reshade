@@ -78,6 +78,7 @@ namespace
 		ID3D11Device *mOrig;
 		unsigned int mInterfaceVersion;
 		D3D11DeviceContext *mImmediateContext;
+		std::vector<std::shared_ptr<ReShade::Runtimes::D3D11Runtime>> mRuntimes;
 	};
 	struct D3D11DeviceContext : public ID3D11DeviceContext1, private boost::noncopyable
 	{
@@ -254,7 +255,90 @@ namespace
 	}
 }
 
-extern const GUID sRuntimeGUID;
+#pragma region DXGI Bridge
+class DXGID3D11Bridge : public IUnknown
+{
+public:
+	static const IID sIID;
+	
+public:
+	DXGID3D11Bridge(D3D11Device *device) : mRef(1), mDevice(device)
+	{
+		assert(device != nullptr);
+
+		this->mDevice->AddRef();
+	}
+	~DXGID3D11Bridge()
+	{
+		this->mDevice->Release();
+	}
+
+	virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override
+	{
+		if (ppvObj == nullptr)
+		{
+			return E_POINTER;
+		}
+		else if (riid == __uuidof(IUnknown))
+		{
+			*ppvObj = this;
+
+			return S_OK;
+		}
+		else
+		{
+			*ppvObj = nullptr;
+
+			return E_NOINTERFACE;
+		}
+	}
+	virtual ULONG STDMETHODCALLTYPE AddRef() override
+	{
+		return ++this->mRef;
+	}
+	virtual ULONG STDMETHODCALLTYPE Release() override
+	{
+		const ULONG ref = --this->mRef;
+
+		if (ref == 0)
+		{
+			delete this;
+		}
+
+		return ref;
+	}
+
+	ID3D11Device *GetOriginalDevice();
+	void AddRuntime(std::shared_ptr<ReShade::Runtimes::D3D11Runtime> runtime);
+	void RemoveRuntime(std::shared_ptr<ReShade::Runtimes::D3D11Runtime> runtime);
+
+private:
+	ULONG mRef;
+	D3D11Device *mDevice;
+};
+
+// -----------------------------------------------------------------------------------------------------
+
+const IID DXGID3D11Bridge::sIID = { 0xff97cb62, 0x2b9e, 0x4792, { 0xb2, 0x87, 0x82, 0x3a, 0x71, 0x9, 0x57, 0x21 } };
+
+ID3D11Device *DXGID3D11Bridge::GetOriginalDevice()
+{
+	return this->mDevice->mOrig;
+}
+void DXGID3D11Bridge::AddRuntime(std::shared_ptr<ReShade::Runtimes::D3D11Runtime> runtime)
+{
+	this->mDevice->mRuntimes.push_back(runtime);
+}
+void DXGID3D11Bridge::RemoveRuntime(std::shared_ptr<ReShade::Runtimes::D3D11Runtime> runtime)
+{
+	const auto it = std::find(this->mDevice->mRuntimes.begin(), this->mDevice->mRuntimes.end(), runtime);
+
+	if (it != this->mDevice->mRuntimes.end())
+	{
+		this->mDevice->mRuntimes.erase(it);
+	}
+}
+#pragma endregion
 
 // -----------------------------------------------------------------------------------------------------
 
@@ -270,12 +354,12 @@ ULONG STDMETHODCALLTYPE ID3D11DepthStencilView_Release(ID3D11DepthStencilView *p
 
 	const ULONG ref = trampoline(pDepthStencilView);
 
-	if (ref == 0)
-	{
-		ReShade::Runtimes::D3D11Runtime *runtime = nullptr;
-		UINT size = sizeof(runtime);
+	D3D11Device *deviceProxy = nullptr;
+	UINT size = sizeof(deviceProxy);
 
-		if (SUCCEEDED(device->GetPrivateData(sRuntimeGUID, &size, reinterpret_cast<void *>(&runtime))))
+	if (ref == 0 && SUCCEEDED(device->GetPrivateData(DXGID3D11Bridge::sIID, &size, reinterpret_cast<void *>(&deviceProxy))))
+	{
+		for (auto runtime : deviceProxy->mRuntimes)
 		{
 			runtime->OnDeleteDepthStencilView(pDepthStencilView);
 		}
@@ -387,10 +471,7 @@ void STDMETHODCALLTYPE D3D11DeviceContext::VSSetShader(ID3D11VertexShader *pVert
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::DrawIndexed(UINT IndexCount, UINT StartIndexLocation, INT BaseVertexLocation)
 {
-	ReShade::Runtimes::D3D11Runtime *runtime = nullptr;
-	UINT size = sizeof(runtime);
-
-	if (SUCCEEDED(this->mDevice->GetPrivateData(sRuntimeGUID, &size, reinterpret_cast<void *>(&runtime))))
+	for (auto runtime : this->mDevice->mRuntimes)
 	{
 		runtime->OnDrawInternal(this->mOrig, IndexCount);
 	}
@@ -399,10 +480,7 @@ void STDMETHODCALLTYPE D3D11DeviceContext::DrawIndexed(UINT IndexCount, UINT Sta
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::Draw(UINT VertexCount, UINT StartVertexLocation)
 {
-	ReShade::Runtimes::D3D11Runtime *runtime = nullptr;
-	UINT size = sizeof(runtime);
-
-	if (SUCCEEDED(this->mDevice->GetPrivateData(sRuntimeGUID, &size, reinterpret_cast<void *>(&runtime))))
+	for (auto runtime : this->mDevice->mRuntimes)
 	{
 		runtime->OnDrawInternal(this->mOrig, VertexCount);
 	}
@@ -435,10 +513,7 @@ void STDMETHODCALLTYPE D3D11DeviceContext::IASetIndexBuffer(ID3D11Buffer *pIndex
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::DrawIndexedInstanced(UINT IndexCountPerInstance, UINT InstanceCount, UINT StartIndexLocation, INT BaseVertexLocation, UINT StartInstanceLocation)
 {
-	ReShade::Runtimes::D3D11Runtime *runtime = nullptr;
-	UINT size = sizeof(runtime);
-
-	if (SUCCEEDED(this->mDevice->GetPrivateData(sRuntimeGUID, &size, reinterpret_cast<void *>(&runtime))))
+	for (auto runtime : this->mDevice->mRuntimes)
 	{
 		runtime->OnDrawInternal(this->mOrig, IndexCountPerInstance * InstanceCount);
 	}
@@ -447,10 +522,7 @@ void STDMETHODCALLTYPE D3D11DeviceContext::DrawIndexedInstanced(UINT IndexCountP
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::DrawInstanced(UINT VertexCountPerInstance, UINT InstanceCount, UINT StartVertexLocation, UINT StartInstanceLocation)
 {
-	ReShade::Runtimes::D3D11Runtime *runtime = nullptr;
-	UINT size = sizeof(runtime);
-
-	if (SUCCEEDED(this->mDevice->GetPrivateData(sRuntimeGUID, &size, reinterpret_cast<void *>(&runtime))))
+	for (auto runtime : this->mDevice->mRuntimes)
 	{
 		runtime->OnDrawInternal(this->mOrig, VertexCountPerInstance * InstanceCount);
 	}
@@ -505,10 +577,7 @@ void STDMETHODCALLTYPE D3D11DeviceContext::OMSetRenderTargets(UINT NumViews, ID3
 {
 	if (pDepthStencilView != nullptr)
 	{
-		ReShade::Runtimes::D3D11Runtime *runtime = nullptr;
-		UINT size = sizeof(runtime);
-
-		if (SUCCEEDED(this->mDevice->GetPrivateData(sRuntimeGUID, &size, reinterpret_cast<void *>(&runtime))))
+		for (auto runtime : this->mDevice->mRuntimes)
 		{
 			runtime->OnSetDepthStencilView(pDepthStencilView);
 		}
@@ -520,10 +589,7 @@ void STDMETHODCALLTYPE D3D11DeviceContext::OMSetRenderTargetsAndUnorderedAccessV
 {
 	if (pDepthStencilView != nullptr)
 	{
-		ReShade::Runtimes::D3D11Runtime *runtime = nullptr;
-		UINT size = sizeof(runtime);
-
-		if (SUCCEEDED(this->mDevice->GetPrivateData(sRuntimeGUID, &size, reinterpret_cast<void *>(&runtime))))
+		for (auto runtime : this->mDevice->mRuntimes)
 		{
 			runtime->OnSetDepthStencilView(pDepthStencilView);
 		}
@@ -581,10 +647,7 @@ void STDMETHODCALLTYPE D3D11DeviceContext::CopySubresourceRegion(ID3D11Resource 
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::CopyResource(ID3D11Resource *pDstResource, ID3D11Resource *pSrcResource)
 {
-	ReShade::Runtimes::D3D11Runtime *runtime = nullptr;
-	UINT size = sizeof(runtime);
-
-	if (SUCCEEDED(this->mDevice->GetPrivateData(sRuntimeGUID, &size, reinterpret_cast<void *>(&runtime))))
+	for (auto runtime : this->mDevice->mRuntimes)
 	{
 		runtime->OnCopyResource(pDstResource, pSrcResource);
 	}
@@ -613,10 +676,7 @@ void STDMETHODCALLTYPE D3D11DeviceContext::ClearUnorderedAccessViewFloat(ID3D11U
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::ClearDepthStencilView(ID3D11DepthStencilView *pDepthStencilView, UINT ClearFlags, FLOAT Depth, UINT8 Stencil)
 {
-	ReShade::Runtimes::D3D11Runtime *runtime = nullptr;
-	UINT size = sizeof(runtime);
-
-	if (SUCCEEDED(this->mDevice->GetPrivateData(sRuntimeGUID, &size, reinterpret_cast<void *>(&runtime))))
+	for (auto runtime : this->mDevice->mRuntimes)
 	{
 		runtime->OnClearDepthStencilView(pDepthStencilView);
 	}
@@ -768,10 +828,7 @@ void STDMETHODCALLTYPE D3D11DeviceContext::OMGetRenderTargets(UINT NumViews, ID3
 
 	if (ppDepthStencilView != nullptr)
 	{
-		ReShade::Runtimes::D3D11Runtime *runtime = nullptr;
-		UINT size = sizeof(runtime);
-
-		if (SUCCEEDED(this->mDevice->GetPrivateData(sRuntimeGUID, &size, reinterpret_cast<void *>(&runtime))))
+		for (auto runtime : this->mDevice->mRuntimes)
 		{
 			runtime->OnGetDepthStencilView(*ppDepthStencilView);
 		}
@@ -783,10 +840,7 @@ void STDMETHODCALLTYPE D3D11DeviceContext::OMGetRenderTargetsAndUnorderedAccessV
 
 	if (ppDepthStencilView != nullptr)
 	{
-		ReShade::Runtimes::D3D11Runtime *runtime = nullptr;
-		UINT size = sizeof(runtime);
-
-		if (SUCCEEDED(this->mDevice->GetPrivateData(sRuntimeGUID, &size, reinterpret_cast<void *>(&runtime))))
+		for (auto runtime : this->mDevice->mRuntimes)
 		{
 			runtime->OnGetDepthStencilView(*ppDepthStencilView);
 		}
@@ -970,6 +1024,13 @@ void STDMETHODCALLTYPE D3D11DeviceContext::DiscardView1(ID3D11View *pResourceVie
 // ID3D11Device
 HRESULT STDMETHODCALLTYPE D3D11Device::QueryInterface(REFIID riid, void **ppvObj)
 {
+	if (riid == DXGID3D11Bridge::sIID && ppvObj != nullptr)
+	{
+		*ppvObj = new DXGID3D11Bridge(this);
+
+		return S_OK;
+	}
+
 	const HRESULT hr = this->mOrig->QueryInterface(riid, ppvObj);
 
 	if (SUCCEEDED(hr) && (riid == __uuidof(IUnknown) || riid == __uuidof(ID3D11Device) || riid == __uuidof(ID3D11Device1)))
@@ -1067,14 +1128,14 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDepthStencilView(ID3D11Resource *pR
 {
 	const HRESULT hr = this->mOrig->CreateDepthStencilView(pResource, pDesc, ppDepthStencilView);
 
-	ReShade::Runtimes::D3D11Runtime *runtime = nullptr;
-	UINT size = sizeof(runtime);
-
-	if (SUCCEEDED(hr) && SUCCEEDED(GetPrivateData(sRuntimeGUID, &size, reinterpret_cast<void *>(&runtime))))
+	if (SUCCEEDED(hr))
 	{
 		ReShade::Hooks::Install(VTABLE(*ppDepthStencilView), 2, reinterpret_cast<ReShade::Hook::Function>(&ID3D11DepthStencilView_Release));
 
-		runtime->OnCreateDepthStencilView(pResource, *ppDepthStencilView);
+		for (auto runtime : this->mRuntimes)
+		{
+			runtime->OnCreateDepthStencilView(pResource, *ppDepthStencilView);
+		}
 	}
 
 	return hr;
@@ -1305,26 +1366,54 @@ EXPORT HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, D3D_
 	Flags |= D3D11_CREATE_DEVICE_DEBUG;
 #endif
 
-	ID3D11DeviceContext *devicecontext = nullptr;
-
-	const HRESULT hr = ReShade::Hooks::Call(&D3D11CreateDeviceAndSwapChain)(pAdapter, DriverType, Software, Flags, pFeatureLevels, FeatureLevels, SDKVersion, pSwapChainDesc, ppSwapChain, ppDevice, pFeatureLevel, ppDevice != nullptr ? &devicecontext : nullptr);
+	HRESULT hr = ReShade::Hooks::Call(&D3D11CreateDeviceAndSwapChain)(pAdapter, DriverType, Software, Flags, pFeatureLevels, FeatureLevels, SDKVersion, nullptr, nullptr, ppDevice, pFeatureLevel, nullptr);
 
 	if (SUCCEEDED(hr))
 	{
 		if (ppDevice != nullptr)
 		{
-			assert(*ppDevice != nullptr && devicecontext != nullptr);
+			assert(*ppDevice != nullptr);
 
-			D3D11Device *const deviceProxy = new D3D11Device(*ppDevice);
+			ID3D11Device *const device = *ppDevice;
+			ID3D11DeviceContext *devicecontext = nullptr;
+			device->GetImmediateContext(&devicecontext);
+
+			D3D11Device *const deviceProxy = new D3D11Device(device);
 			D3D11DeviceContext *const devicecontextProxy = new D3D11DeviceContext(deviceProxy, devicecontext);
-
 			deviceProxy->mImmediateContext = devicecontextProxy;
-			*ppDevice = deviceProxy;
 
-			if (ppImmediateContext != nullptr)
+			device->SetPrivateData(DXGID3D11Bridge::sIID, sizeof(deviceProxy), reinterpret_cast<const void *>(&deviceProxy));
+
+			if (pSwapChainDesc != nullptr)
 			{
-				devicecontextProxy->AddRef();
-				*ppImmediateContext = devicecontextProxy;
+				assert(ppSwapChain != nullptr);
+
+				IDXGIFactory *factory = nullptr;
+
+				hr = CreateDXGIFactory(__uuidof(IDXGIFactory), reinterpret_cast<void **>(&factory));
+
+				if (SUCCEEDED(hr))
+				{
+					hr = factory->CreateSwapChain(deviceProxy, const_cast<DXGI_SWAP_CHAIN_DESC *>(pSwapChainDesc), ppSwapChain);
+
+					factory->Release();
+				}
+			}
+
+			if (SUCCEEDED(hr))
+			{
+				*ppDevice = deviceProxy;
+
+				if (ppImmediateContext != nullptr)
+				{
+					devicecontextProxy->AddRef();
+					*ppImmediateContext = devicecontextProxy;
+				}
+			}
+			else
+			{
+				devicecontextProxy->Release();
+				deviceProxy->Release();
 			}
 		}
 	}

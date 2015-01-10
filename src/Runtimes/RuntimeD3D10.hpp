@@ -8,6 +8,8 @@ namespace ReShade { namespace Runtimes
 {
 	struct D3D10Runtime : public Runtime, public std::enable_shared_from_this<D3D10Runtime>
 	{
+		friend struct D3D10Technique;
+
 		struct DepthSourceInfo
 		{
 			UINT Width, Height;
