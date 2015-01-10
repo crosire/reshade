@@ -457,7 +457,10 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetDeviceCaps(D3DCAPS9 *pCaps)
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetDisplayMode(UINT iSwapChain, D3DDISPLAYMODE *pMode)
 {
-	assert(iSwapChain == 0);
+	if (iSwapChain != 0)
+	{
+		return D3DERR_INVALIDCALL;
+	}
 
 	return this->mOrig->GetDisplayMode(0, pMode);
 }
@@ -495,6 +498,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateAdditionalSwapChain(D3DPRESENT_
 		IDirect3DDevice9 *device = this->mOrig;
 		IDirect3DSwapChain9 *swapchain = *ppSwapChain;
 
+		assert(swapchain != nullptr);
+
 		D3DPRESENT_PARAMETERS pp;
 		swapchain->GetPresentParameters(&pp);
 
@@ -505,7 +510,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateAdditionalSwapChain(D3DPRESENT_
 			LOG(ERROR) << "Failed to initialize Direct3D9 renderer!";
 		}
 
-		Direct3DSwapChain9 *swapchainProxy = new Direct3DSwapChain9(this, swapchain, runtime);
+		Direct3DSwapChain9 *const swapchainProxy = new Direct3DSwapChain9(this, swapchain, runtime);
 
 		this->mAdditionalSwapChains.push_back(swapchainProxy);
 		*ppSwapChain = swapchainProxy;
@@ -519,12 +524,11 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateAdditionalSwapChain(D3DPRESENT_
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetSwapChain(UINT iSwapChain, IDirect3DSwapChain9 **ppSwapChain)
 {
-	if (ppSwapChain == nullptr)
+	if (iSwapChain != 0 || ppSwapChain == nullptr)
 	{
 		return D3DERR_INVALIDCALL;
 	}
 
-	assert(iSwapChain == 0);
 	assert(this->mImplicitSwapChain != nullptr);
 			
 	this->mImplicitSwapChain->AddRef();
@@ -551,7 +555,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Reset(D3DPRESENT_PARAMETERS *pPresent
 	assert(this->mImplicitSwapChain != nullptr);
 	assert(this->mImplicitSwapChain->mRuntime != nullptr);
 
-	ReShade::Runtimes::D3D9Runtime *runtime = this->mImplicitSwapChain->mRuntime.get();
+	const std::shared_ptr<ReShade::Runtimes::D3D9Runtime> runtime = this->mImplicitSwapChain->mRuntime;
 
 	runtime->OnDeleteInternal();
 
@@ -581,7 +585,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Reset(D3DPRESENT_PARAMETERS *pPresent
 	}
 	else
 	{
-		LOG(ERROR) << "'IDirect3DDevice9::Reset' failed with '" << GetErrorString(hr) << "'!";
+		LOG(ERROR) << "> 'IDirect3DDevice9::Reset' failed with '" << GetErrorString(hr) << "'!";
 	}
 
 	return hr;
@@ -591,22 +595,27 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Present(const RECT *pSourceRect, cons
 	assert(this->mImplicitSwapChain != nullptr);
 	assert(this->mImplicitSwapChain->mRuntime != nullptr);
 
-	ReShade::Runtimes::D3D9Runtime *runtime = this->mImplicitSwapChain->mRuntime.get();
-
-	runtime->OnPresentInternal();
+	this->mImplicitSwapChain->mRuntime->OnPresentInternal();
 
 	return this->mOrig->Present(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetBackBuffer(UINT iSwapChain, UINT iBackBuffer, D3DBACKBUFFER_TYPE Type, IDirect3DSurface9 **ppBackBuffer)
 {
-	assert(iSwapChain == 0);
+	if (iSwapChain != 0)
+	{
+		return D3DERR_INVALIDCALL;
+	}
+
 	assert(this->mImplicitSwapChain != nullptr);
 
 	return this->mImplicitSwapChain->GetBackBuffer(iBackBuffer, Type, ppBackBuffer);
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetRasterStatus(UINT iSwapChain, D3DRASTER_STATUS *pRasterStatus)
 {
-	assert(iSwapChain == 0);
+	if (iSwapChain != 0)
+	{
+		return D3DERR_INVALIDCALL;
+	}
 
 	return this->mOrig->GetRasterStatus(0, pRasterStatus);
 }
@@ -616,13 +625,19 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetDialogBoxMode(BOOL bEnableDialogs)
 }
 void STDMETHODCALLTYPE Direct3DDevice9::SetGammaRamp(UINT iSwapChain, DWORD Flags, const D3DGAMMARAMP *pRamp)
 {
-	assert(iSwapChain == 0);
+	if (iSwapChain != 0)
+	{
+		return;
+	}
 
 	return this->mOrig->SetGammaRamp(0, Flags, pRamp);
 }
 void STDMETHODCALLTYPE Direct3DDevice9::GetGammaRamp(UINT iSwapChain, D3DGAMMARAMP *pRamp)
 {
-	assert(iSwapChain == 0);
+	if (iSwapChain != 0)
+	{
+		return;
+	}
 
 	return this->mOrig->GetGammaRamp(0, pRamp);
 }
@@ -668,7 +683,10 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetRenderTargetData(IDirect3DSurface9
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetFrontBufferData(UINT iSwapChain, IDirect3DSurface9 *pDestSurface)
 {
-	assert(iSwapChain == 0);
+	if (iSwapChain != 0)
+	{
+		return D3DERR_INVALIDCALL;
+	}
 
 	return this->mOrig->GetFrontBufferData(0, pDestSurface);
 }
@@ -1107,9 +1125,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::PresentEx(const RECT *pSourceRect, co
 	assert(this->mImplicitSwapChain != nullptr);
 	assert(this->mImplicitSwapChain->mRuntime != nullptr);
 
-	ReShade::Runtimes::D3D9Runtime *runtime = this->mImplicitSwapChain->mRuntime.get();
-
-	runtime->OnPresentInternal();
+	this->mImplicitSwapChain->mRuntime->OnPresentInternal();
 
 	return static_cast<IDirect3DDevice9Ex *>(this->mOrig)->PresentEx(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion, dwFlags);
 }
@@ -1123,7 +1139,10 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetGPUThreadPriority(INT Priority)
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::WaitForVBlank(UINT iSwapChain)
 {
-	assert(iSwapChain == 0);
+	if (iSwapChain != 0)
+	{
+		return D3DERR_INVALIDCALL;
+	}
 
 	return static_cast<IDirect3DDevice9Ex *>(this->mOrig)->WaitForVBlank(0);
 }
@@ -1169,7 +1188,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ResetEx(D3DPRESENT_PARAMETERS *pPrese
 	assert(this->mImplicitSwapChain != nullptr);
 	assert(this->mImplicitSwapChain->mRuntime != nullptr);
 
-	ReShade::Runtimes::D3D9Runtime *runtime = this->mImplicitSwapChain->mRuntime.get();
+	const std::shared_ptr<ReShade::Runtimes::D3D9Runtime> runtime = this->mImplicitSwapChain->mRuntime;
 
 	runtime->OnDeleteInternal();
 
@@ -1199,14 +1218,17 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ResetEx(D3DPRESENT_PARAMETERS *pPrese
 	}
 	else
 	{
-		LOG(ERROR) << "'IDirect3DDevice9Ex::ResetEx' failed with '" << GetErrorString(hr) << "'!";
+		LOG(ERROR) << "> 'IDirect3DDevice9Ex::ResetEx' failed with '" << GetErrorString(hr) << "'!";
 	}
 
 	return hr;
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetDisplayModeEx(UINT iSwapChain, D3DDISPLAYMODEEX *pMode, D3DDISPLAYROTATION *pRotation)
 {
-	assert(iSwapChain == 0);
+	if (iSwapChain != 0)
+	{
+		return D3DERR_INVALIDCALL;
+	}
 
 	return static_cast<IDirect3DDevice9Ex *>(this->mOrig)->GetDisplayModeEx(0, pMode, pRotation);
 }
