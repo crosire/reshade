@@ -1227,32 +1227,39 @@ HRESULT STDMETHODCALLTYPE IDirect3D9_CreateDevice(IDirect3D9 *pD3D, UINT Adapter
 
 	if (SUCCEEDED(hr))
 	{
-		IDirect3DDevice9 *device = *ppReturnedDeviceInterface;
-		IDirect3DSwapChain9 *swapchain = nullptr;
-		device->GetSwapChain(0, &swapchain);
+		if (DeviceType != D3DDEVTYPE_NULLREF)
+		{
+			IDirect3DDevice9 *device = *ppReturnedDeviceInterface;
+			IDirect3DSwapChain9 *swapchain = nullptr;
+			device->GetSwapChain(0, &swapchain);
 
-		assert(swapchain != nullptr);
+			assert(swapchain != nullptr);
 		
-		D3DPRESENT_PARAMETERS pp;
-		swapchain->GetPresentParameters(&pp);
+			D3DPRESENT_PARAMETERS pp;
+			swapchain->GetPresentParameters(&pp);
 
-		const std::shared_ptr<ReShade::Runtimes::D3D9Runtime> runtime = std::make_shared<ReShade::Runtimes::D3D9Runtime>(device, swapchain);
+			const std::shared_ptr<ReShade::Runtimes::D3D9Runtime> runtime = std::make_shared<ReShade::Runtimes::D3D9Runtime>(device, swapchain);
 
-		if (!runtime->OnCreateInternal(pp))
-		{
-			LOG(ERROR) << "Failed to initialize Direct3D9 renderer!";
+			if (!runtime->OnCreateInternal(pp))
+			{
+				LOG(ERROR) << "Failed to initialize Direct3D9 renderer!";
+			}
+
+			Direct3DDevice9 *const deviceProxy = new Direct3DDevice9(device);
+			Direct3DSwapChain9 *const swapchainProxy = new Direct3DSwapChain9(deviceProxy, swapchain, runtime);
+
+			deviceProxy->mImplicitSwapChain = swapchainProxy;
+			*ppReturnedDeviceInterface = deviceProxy;
+
+			if (pp.EnableAutoDepthStencil != FALSE)
+			{
+				device->GetDepthStencilSurface(&deviceProxy->mAutoDepthStencil);
+				deviceProxy->SetDepthStencilSurface(deviceProxy->mAutoDepthStencil);
+			}
 		}
-
-		Direct3DDevice9 *const deviceProxy = new Direct3DDevice9(device);
-		Direct3DSwapChain9 *const swapchainProxy = new Direct3DSwapChain9(deviceProxy, swapchain, runtime);
-
-		deviceProxy->mImplicitSwapChain = swapchainProxy;
-		*ppReturnedDeviceInterface = deviceProxy;
-
-		if (pp.EnableAutoDepthStencil != FALSE)
+		else
 		{
-			device->GetDepthStencilSurface(&deviceProxy->mAutoDepthStencil);
-			deviceProxy->SetDepthStencilSurface(deviceProxy->mAutoDepthStencil);
+			LOG(WARNING) << "> Skipping device due to device type being 'D3DDEVTYPE_NULLREF'.";
 		}
 	}
 	else
@@ -1279,32 +1286,39 @@ HRESULT STDMETHODCALLTYPE IDirect3D9Ex_CreateDeviceEx(IDirect3D9Ex *pD3D, UINT A
 
 	if (SUCCEEDED(hr))
 	{
-		IDirect3DDevice9Ex *device = *ppReturnedDeviceInterface;
-		IDirect3DSwapChain9 *swapchain = nullptr;
-		device->GetSwapChain(0, &swapchain);
-
-		assert(swapchain != nullptr);
-
-		D3DPRESENT_PARAMETERS pp;
-		swapchain->GetPresentParameters(&pp);
-
-		const std::shared_ptr<ReShade::Runtimes::D3D9Runtime> runtime = std::make_shared<ReShade::Runtimes::D3D9Runtime>(device, swapchain);
-
-		if (!runtime->OnCreateInternal(pp))
+		if (DeviceType != D3DDEVTYPE_NULLREF)
 		{
-			LOG(ERROR) << "Failed to initialize Direct3D9 renderer!";
+			IDirect3DDevice9Ex *device = *ppReturnedDeviceInterface;
+			IDirect3DSwapChain9 *swapchain = nullptr;
+			device->GetSwapChain(0, &swapchain);
+
+			assert(swapchain != nullptr);
+
+			D3DPRESENT_PARAMETERS pp;
+			swapchain->GetPresentParameters(&pp);
+
+			const std::shared_ptr<ReShade::Runtimes::D3D9Runtime> runtime = std::make_shared<ReShade::Runtimes::D3D9Runtime>(device, swapchain);
+
+			if (!runtime->OnCreateInternal(pp))
+			{
+				LOG(ERROR) << "Failed to initialize Direct3D9 renderer!";
+			}
+
+			Direct3DDevice9 *const deviceProxy = new Direct3DDevice9(device);
+			Direct3DSwapChain9 *const swapchainProxy = new Direct3DSwapChain9(deviceProxy, swapchain, runtime);
+
+			deviceProxy->mImplicitSwapChain = swapchainProxy;
+			*ppReturnedDeviceInterface = deviceProxy;
+
+			if (pp.EnableAutoDepthStencil != FALSE)
+			{
+				device->GetDepthStencilSurface(&deviceProxy->mAutoDepthStencil);
+				deviceProxy->SetDepthStencilSurface(deviceProxy->mAutoDepthStencil);
+			}
 		}
-
-		Direct3DDevice9 *const deviceProxy = new Direct3DDevice9(device);
-		Direct3DSwapChain9 *const swapchainProxy = new Direct3DSwapChain9(deviceProxy, swapchain, runtime);
-
-		deviceProxy->mImplicitSwapChain = swapchainProxy;
-		*ppReturnedDeviceInterface = deviceProxy;
-
-		if (pp.EnableAutoDepthStencil != FALSE)
+		else
 		{
-			device->GetDepthStencilSurface(&deviceProxy->mAutoDepthStencil);
-			deviceProxy->SetDepthStencilSurface(deviceProxy->mAutoDepthStencil);
+			LOG(WARNING) << "> Skipping device due to device type being 'D3DDEVTYPE_NULLREF'.";
 		}
 	}
 	else
