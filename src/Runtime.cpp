@@ -116,7 +116,7 @@ namespace ReShade
 
 	// -----------------------------------------------------------------------------------------------------
 
-	Runtime::Runtime() : mWidth(0), mHeight(0), mVendorId(0), mDeviceId(0), mRendererId(0), mLastFrameCount(0), mLastDrawCalls(0), mLastDrawCallVertices(0), mDate(), mCompileStep(0), mNVG(nullptr), mShowStatistics(false)
+	Runtime::Runtime() : mWidth(0), mHeight(0), mVendorId(0), mDeviceId(0), mRendererId(0), mLastFrameCount(0), mLastDrawCalls(0), mLastDrawCallVertices(0), mDate(), mCompileStep(0), mNVG(nullptr), mScreenshotFormat("png"), mShowStatistics(false)
 	{
 		this->mStatus = "Initializing ...";
 		this->mStartTime = boost::chrono::high_resolution_clock::now();
@@ -319,7 +319,7 @@ namespace ReShade
 			char timeString[128];
 			std::strftime(timeString, 128, "%Y-%m-%d %H-%M-%S", &tm); 
 
-			CreateScreenshot(sExecutablePath.parent_path() / (sExecutablePath.stem().string() + ' ' + timeString + ".png"));
+			CreateScreenshot(sExecutablePath.parent_path() / (sExecutablePath.stem().string() + ' ' + timeString + '.' + this->mScreenshotFormat));
 		}
 
 		// Check for file modifications
@@ -544,6 +544,10 @@ namespace ReShade
 			{
 				this->mShowStatistics = true;
 			}
+			else if (boost::istarts_with(command, "screenshot_format "))
+			{
+				this->mScreenshotFormat = command.substr(18);
+			}
 		}
 
 		if (!this->mMessage.empty())
@@ -726,7 +730,18 @@ namespace ReShade
 
 		LOG(INFO) << "Saving screenshot to " << ObfuscatePath(path) << " ...";
 
-		if (!stbi_write_png(path.string().c_str(), this->mWidth, this->mHeight, 4, data, 0))
+		bool success = false;
+
+		if (path.extension() == ".bmp")
+		{
+			success = stbi_write_bmp(path.string().c_str(), this->mWidth, this->mHeight, 4, data) != 0;
+		}
+		else if (path.extension() == ".png")
+		{
+			success = stbi_write_png(path.string().c_str(), this->mWidth, this->mHeight, 4, data, 0) != 0;
+		}
+
+		if (!success)
 		{
 			LOG(ERROR) << "Failed to write screenshot to " << ObfuscatePath(path) << "!";
 		}

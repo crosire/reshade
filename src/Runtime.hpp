@@ -61,6 +61,7 @@ namespace ReShade
 		unsigned int mCompileStep;
 		float mDate[4];
 		std::string mStatus, mErrors, mMessage, mEffectSource;
+		std::string mScreenshotFormat;
 		bool mShowStatistics;
 	};
 }
