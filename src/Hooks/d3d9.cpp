@@ -165,7 +165,7 @@ namespace
 	{
 		friend struct Direct3DDevice9;
 
-		Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapChain9 *originalSwapChain, const std::shared_ptr<ReShade::Runtimes::D3D9Runtime> runtime) : mRef(1), mDevice(device), mOrig(originalSwapChain), mRuntime(runtime)
+		Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapChain9 *originalSwapChain, const std::shared_ptr<ReShade::Runtimes::D3D9Runtime> &runtime) : mRef(1), mDevice(device), mOrig(originalSwapChain), mRuntime(runtime)
 		{
 			assert(device != nullptr);
 			assert(originalSwapChain != nullptr);

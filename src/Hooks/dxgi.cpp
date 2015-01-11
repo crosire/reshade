@@ -16,12 +16,12 @@ namespace
 {
 	struct DXGISwapChain : public IDXGISwapChain1, private boost::noncopyable
 	{
-		DXGISwapChain(IUnknown *deviceBridge, IDXGISwapChain *originalSwapChain, const std::shared_ptr<ReShade::Runtimes::D3D10Runtime> runtime, const DXGI_SAMPLE_DESC &samples) : mRef(1), mOrig(originalSwapChain), mOrigSamples(samples), mDirect3DBridge(deviceBridge), mDirect3DVersion(10), mRuntime(runtime)
+		DXGISwapChain(IUnknown *deviceBridge, IDXGISwapChain *originalSwapChain, const std::shared_ptr<ReShade::Runtimes::D3D10Runtime> &runtime, const DXGI_SAMPLE_DESC &samples) : mRef(1), mOrig(originalSwapChain), mOrigSamples(samples), mDirect3DBridge(deviceBridge), mDirect3DVersion(10), mRuntime(runtime)
 		{
 			assert(deviceBridge != nullptr);
 			assert(originalSwapChain != nullptr);
 		}
-		DXGISwapChain(IUnknown *deviceBridge, IDXGISwapChain *originalSwapChain, const std::shared_ptr<ReShade::Runtimes::D3D11Runtime> runtime, const DXGI_SAMPLE_DESC &samples) : mRef(1), mOrig(originalSwapChain), mOrigSamples(samples), mDirect3DBridge(deviceBridge), mDirect3DVersion(11), mRuntime(runtime)
+		DXGISwapChain(IUnknown *deviceBridge, IDXGISwapChain *originalSwapChain, const std::shared_ptr<ReShade::Runtimes::D3D11Runtime> &runtime, const DXGI_SAMPLE_DESC &samples) : mRef(1), mOrig(originalSwapChain), mOrigSamples(samples), mDirect3DBridge(deviceBridge), mDirect3DVersion(11), mRuntime(runtime)
 		{
 			assert(deviceBridge != nullptr);
 			assert(originalSwapChain != nullptr);
@@ -1115,7 +1115,7 @@ EXPORT HRESULT WINAPI OpenAdapter10_2(void *pData)
 EXPORT HRESULT WINAPI CreateDXGIFactory(REFIID riid, void **ppFactory)
 {
 	OLECHAR guid[40];
-	::StringFromGUID2(riid, guid, ARRAYSIZE(guid));
+	StringFromGUID2(riid, guid, ARRAYSIZE(guid));
 
 	LOG(INFO) << "Redirecting '" << "CreateDXGIFactory" << "(" << guid << ", " << ppFactory << ")' ...";
 	
@@ -1135,7 +1135,7 @@ EXPORT HRESULT WINAPI CreateDXGIFactory(REFIID riid, void **ppFactory)
 EXPORT HRESULT WINAPI CreateDXGIFactory1(REFIID riid, void **ppFactory)
 {
 	OLECHAR guid[40];
-	::StringFromGUID2(riid, guid, ARRAYSIZE(guid));
+	StringFromGUID2(riid, guid, ARRAYSIZE(guid));
 
 	LOG(INFO) << "Redirecting '" << "CreateDXGIFactory1" << "(" << guid << ", " << ppFactory << ")' ...";
 
@@ -1155,7 +1155,7 @@ EXPORT HRESULT WINAPI CreateDXGIFactory1(REFIID riid, void **ppFactory)
 EXPORT HRESULT WINAPI CreateDXGIFactory2(UINT flags, REFIID riid, void **ppFactory)
 {
 	OLECHAR guid[40];
-	::StringFromGUID2(riid, guid, ARRAYSIZE(guid));
+	StringFromGUID2(riid, guid, ARRAYSIZE(guid));
 
 	LOG(INFO) << "Redirecting '" << "CreateDXGIFactory2" << "(" << flags << ", " << guid << ", " << ppFactory << ")' ...";
 
