@@ -56,11 +56,11 @@ namespace ReShade
 
 				inline void Enter()
 				{
-					//::EnterCriticalSection(&this->mCS);
+					::EnterCriticalSection(&this->mCS);
 				}
 				inline void Leave()
 				{
-					//::LeaveCriticalSection(&this->mCS);
+					::LeaveCriticalSection(&this->mCS);
 				}
 
 			private:
