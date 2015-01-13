@@ -1464,22 +1464,19 @@ namespace ReShade { namespace Runtimes
 
 				Visit(left);
 
-				this->mCurrentSource += '.';
-
 				if (left.Type.IsMatrix())
 				{
-					const char swizzle[16][5] =
+					if (node.Mask[1] >= 0)
 					{
-						"_m00", "_m01", "_m02", "_m03",
-						"_m10", "_m11", "_m12", "_m13",
-						"_m20", "_m21", "_m22", "_m23",
-						"_m30", "_m31", "_m32", "_m33"
-					};
-
-					for (int i = 0; i < 4 && node.Mask[i] >= 0; ++i)
-					{
-						this->mCurrentSource += swizzle[node.Mask[i]];
+						this->mErrors += PrintLocation(node.Location) + "error: multiple component matrix swizzeling is not supported in OpenGL!\n";
+						this->mFatal = true;
+						return;
 					}
+
+					const unsigned int row = node.Mask[0] % 4;
+					const unsigned int col = (node.Mask[0] - row) / 4;
+
+					this->mCurrentSource += '[' + std::to_string(row) + "][" + std::to_string(col) + ']';
 				}
 				else
 				{
@@ -1487,6 +1484,8 @@ namespace ReShade { namespace Runtimes
 					{
 						'x', 'y', 'z', 'w'
 					};
+
+					this->mCurrentSource += '.';
 
 					for (int i = 0; i < 4 && node.Mask[i] >= 0; ++i)
 					{
