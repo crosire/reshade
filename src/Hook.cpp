@@ -10,11 +10,11 @@ namespace ReShade
 		unsigned long sCounter = 0;
 	}
 
-	bool Hook::Install(Hook &hook)
+	Hook::Status Hook::Install(Hook &hook)
 	{
 		if (!hook.IsValid())
 		{
-			return false;
+			return Status::UnsupportedFunction;
 		}
 
 		if (sCounter++ == 0)
@@ -35,27 +35,27 @@ namespace ReShade
 				MH_Uninitialize();
 			}
 
-			return false;
+			return static_cast<Status>(status);
 		}
 
-		return true;
+		return Status::Success;
 	}
-	bool Hook::Uninstall(Hook &hook)
+	Hook::Status Hook::Uninstall(Hook &hook)
 	{
 		if (!hook.IsValid())
 		{
-			return false;
+			return Status::UnsupportedFunction;
 		}
 
 		const MH_STATUS status = MH_RemoveHook(hook.Target);
 
 		if (status == MH_ERROR_NOT_CREATED)
 		{
-			return true;
+			return Status::Success;
 		}
 		else if (status != MH_OK)
 		{
-			return false;
+			return static_cast<Status>(status);
 		}
 
 		hook.Trampoline = nullptr;
@@ -65,7 +65,7 @@ namespace ReShade
 			MH_Uninitialize();
 		}
 
-		return true;
+		return Status::Success;
 	}
 
 	Hook::Hook() : Target(nullptr), Replacement(nullptr), Trampoline(nullptr)

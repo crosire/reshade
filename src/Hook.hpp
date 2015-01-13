@@ -6,10 +6,19 @@ namespace ReShade
 	{
 	public:
 		typedef void *Function;
+		enum class Status
+		{
+			Unknown = -1,
+			Success,
+			NotExecutable = 7,
+			UnsupportedFunction,
+			AllocationFailure,
+			MemoryProtectionFailure,
+		};
 
 	public:
-		static bool Install(Hook &hook);
-		static bool Uninstall(Hook &hook);
+		static Status Install(Hook &hook);
+		static Status Uninstall(Hook &hook);
 
 	public:
 		Hook();
@@ -27,7 +36,7 @@ namespace ReShade
 		}
 
 		bool Enable(bool enable = true);
-		inline bool Uninstall()
+		inline Status Uninstall()
 		{
 			return Uninstall(*this);
 		}

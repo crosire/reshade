@@ -132,16 +132,20 @@ namespace ReShade
 				Hook hook(target, replacement);
 				hook.Trampoline = target;
 
-				bool success = false;
+				Hook::Status status = Hook::Status::Unknown;
 
 				switch (method)
 				{
 					case HookType::Export:
-						success = true;
+					{
+						status = Hook::Status::Success;
 						break;
+					}
 					case HookType::FunctionHook:
-						success = Hook::Install(hook);
+					{
+						status = Hook::Install(hook);
 						break;
+					}
 					case HookType::VTableHook:
 					{
 						DWORD protection = 0;
@@ -153,13 +157,17 @@ namespace ReShade
 
 							VirtualProtect(reinterpret_cast<LPVOID *>(targetAddress), sizeof(Hook::Function), protection, &protection);
 
-							success = true;
+							status = Hook::Status::Success;
+						}
+						else
+						{
+							status = Hook::Status::MemoryProtectionFailure;
 						}
 						break;
 					}
 				}
 
-				if (success)
+				if (status == Hook::Status::Success)
 				{
 					LOG(TRACE) << "> Succeeded.";
 
@@ -171,7 +179,7 @@ namespace ReShade
 				}
 				else
 				{
-					LOG(ERROR) << "Failed to install hook for '0x" << target << "'.";
+					LOG(ERROR) << "Failed to install hook for '0x" << target << "' with status code " << static_cast<int>(status) << ".";
 
 					return false;
 				}
@@ -263,17 +271,22 @@ namespace ReShade
 
 					return true;
 				}
+				else if (method == HookType::Export)
+				{
+					LOG(TRACE) << "> Skipped.";
 
-				bool success = false;
+					return true;
+				}
+
+				Hook::Status status = Hook::Status::Unknown;
 
 				switch (method)
 				{
-					case HookType::Export:
-						success = true;
-						break;
 					case HookType::FunctionHook:
-						success = hook.Uninstall();
+					{
+						status = hook.Uninstall();
 						break;
+					}
 					case HookType::VTableHook:
 					{
 						DWORD protection = 0;
@@ -286,13 +299,17 @@ namespace ReShade
 
 							VirtualProtect(reinterpret_cast<LPVOID *>(targetAddress), sizeof(Hook::Function), protection, &protection);
 
-							success = true;
+							status = Hook::Status::Success;
+						}
+						else
+						{
+							status = Hook::Status::MemoryProtectionFailure;
 						}
 						break;
 					}
 				}
 
-				if (success)
+				if (status == Hook::Status::Success)
 				{
 					LOG(TRACE) << "> Succeeded.";
 
@@ -302,7 +319,7 @@ namespace ReShade
 				}
 				else
 				{
-					LOG(WARNING) << "Failed to uninstall hook for '0x" << hook.Target << "'.";
+					LOG(WARNING) << "Failed to uninstall hook for '0x" << hook.Target << "' with status code " << static_cast<int>(status) << ".";
 
 					return false;
 				}
@@ -494,10 +511,8 @@ namespace ReShade
 
 				assert(sExportHookModule == nullptr);
 
-				Find(&HookLoadLibraryA).Enable(false);
 				Find(&HookLoadLibraryW).Enable(false);
-				sExportHookModule = LoadLibrary(sExportHookPath.c_str());
-				Find(&HookLoadLibraryA).Enable(true);
+				sExportHookModule = LoadLibraryW(sExportHookPath.c_str());
 				Find(&HookLoadLibraryW).Enable(true);
 
 				if (sExportHookModule != nullptr)
