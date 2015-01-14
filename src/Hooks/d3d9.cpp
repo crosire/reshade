@@ -219,60 +219,49 @@ namespace
 				return buf;
 		}
 	}
-	void DumpPresentParameters(const D3DPRESENT_PARAMETERS *pp)
+	void DumpPresentParameters(const D3DPRESENT_PARAMETERS &pp)
 	{
+		if (pp.MultiSampleType != D3DMULTISAMPLE_NONE)
+		{
+			LOG(WARNING) << "> Multisampling is enabled. This is not compatible with depthbuffer access, which was therefore disabled.";
+		}
+
 		LOG(TRACE) << "> Dumping Presentation Parameters:";
 		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
 		LOG(TRACE) << "  | Parameter                               | Value                                   |";
 		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
 
 		char value[40];
-		sprintf_s(value, "%-39u", pp->BackBufferWidth);
+		sprintf_s(value, "%-39u", pp.BackBufferWidth);
 		LOG(TRACE) << "  | BackBufferWidth                         | " << value << " |";
-		sprintf_s(value, "%-39u", pp->BackBufferHeight);
+		sprintf_s(value, "%-39u", pp.BackBufferHeight);
 		LOG(TRACE) << "  | BackBufferHeight                        | " << value << " |";
-		sprintf_s(value, "%-39u", pp->BackBufferFormat);
+		sprintf_s(value, "%-39u", pp.BackBufferFormat);
 		LOG(TRACE) << "  | BackBufferFormat                        | " << value << " |";
-		sprintf_s(value, "%-39u", pp->BackBufferCount);
+		sprintf_s(value, "%-39u", pp.BackBufferCount);
 		LOG(TRACE) << "  | BackBufferCount                         | " << value << " |";
-		sprintf_s(value, "%-39u", pp->MultiSampleType);
+		sprintf_s(value, "%-39u", pp.MultiSampleType);
 		LOG(TRACE) << "  | MultiSampleType                         | " << value << " |";
-		sprintf_s(value, "%-39u", pp->MultiSampleQuality);
+		sprintf_s(value, "%-39u", pp.MultiSampleQuality);
 		LOG(TRACE) << "  | MultiSampleQuality                      | " << value << " |";
-		sprintf_s(value, "%-39u", pp->SwapEffect);
+		sprintf_s(value, "%-39u", pp.SwapEffect);
 		LOG(TRACE) << "  | SwapEffect                              | " << value << " |";
-		sprintf_s(value, "0x%016IX                     ", static_cast<const void *>(pp->hDeviceWindow));
+		sprintf_s(value, "0x%016IX                     ", static_cast<const void *>(pp.hDeviceWindow));
 		LOG(TRACE) << "  | hDeviceWindow                           | " << value << " |";
-		sprintf_s(value, "%-39d", pp->Windowed);
+		sprintf_s(value, "%-39d", pp.Windowed);
 		LOG(TRACE) << "  | Windowed                                | " << value << " |";
-		sprintf_s(value, "%-39d", pp->EnableAutoDepthStencil);
+		sprintf_s(value, "%-39d", pp.EnableAutoDepthStencil);
 		LOG(TRACE) << "  | EnableAutoDepthStencil                  | " << value << " |";
-		sprintf_s(value, "%-39u", pp->AutoDepthStencilFormat);
+		sprintf_s(value, "%-39u", pp.AutoDepthStencilFormat);
 		LOG(TRACE) << "  | AutoDepthStencilFormat                  | " << value << " |";
-		sprintf_s(value, "0x%016X                     ", pp->Flags);
+		sprintf_s(value, "0x%016X                     ", pp.Flags);
 		LOG(TRACE) << "  | Flags                                   | " << value << " |";
-		sprintf_s(value, "%-39u", pp->FullScreen_RefreshRateInHz);
+		sprintf_s(value, "%-39u", pp.FullScreen_RefreshRateInHz);
 		LOG(TRACE) << "  | FullScreen_RefreshRateInHz              | " << value << " |";
-		sprintf_s(value, "%-39u", pp->PresentationInterval);
+		sprintf_s(value, "%-39u", pp.PresentationInterval);
 		LOG(TRACE) << "  | PresentationInterval                    | " << value << " |";
 
 		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
-	}
-	void AdjustPresentParameters(D3DPRESENT_PARAMETERS *pp)
-	{
-		DumpPresentParameters(pp);
-
-		if (pp->SwapEffect != D3DSWAPEFFECT_COPY && pp->PresentationInterval != D3DPRESENT_INTERVAL_IMMEDIATE && pp->BackBufferCount < 2)
-		{
-			LOG(WARNING) << "> Forcing tripple buffering.";
-
-			pp->BackBufferCount = 2;
-		}
-
-		if (pp->MultiSampleType != D3DMULTISAMPLE_NONE)
-		{
-			LOG(WARNING) << "> Multisampling is enabled. This is not compatible with depthbuffer access, which was therefore disabled.";
-		}
 	}
 }
 
@@ -489,7 +478,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateAdditionalSwapChain(D3DPRESENT_
 		return D3DERR_INVALIDCALL;
 	}
 
-	AdjustPresentParameters(pPresentationParameters);
+	DumpPresentParameters(*pPresentationParameters);
 
 	const HRESULT hr = this->mOrig->CreateAdditionalSwapChain(pPresentationParameters, ppSwapChain);
 
@@ -550,7 +539,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Reset(D3DPRESENT_PARAMETERS *pPresent
 		return D3DERR_INVALIDCALL;
 	}
 
-	AdjustPresentParameters(pPresentationParameters);
+	DumpPresentParameters(*pPresentationParameters);
 
 	assert(this->mImplicitSwapChain != nullptr);
 	assert(this->mImplicitSwapChain->mRuntime != nullptr);
@@ -1183,7 +1172,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ResetEx(D3DPRESENT_PARAMETERS *pPrese
 		return D3DERR_INVALIDCALL;
 	}
 
-	AdjustPresentParameters(pPresentationParameters);
+	DumpPresentParameters(*pPresentationParameters);
 
 	assert(this->mImplicitSwapChain != nullptr);
 	assert(this->mImplicitSwapChain->mRuntime != nullptr);
@@ -1243,7 +1232,7 @@ HRESULT STDMETHODCALLTYPE IDirect3D9_CreateDevice(IDirect3D9 *pD3D, UINT Adapter
 		return D3DERR_INVALIDCALL;
 	}
 
-	AdjustPresentParameters(pPresentationParameters);
+	DumpPresentParameters(*pPresentationParameters);
 
 	const HRESULT hr = ReShade::Hooks::Call(&IDirect3D9_CreateDevice)(pD3D, Adapter, DeviceType, hFocusWindow, BehaviorFlags, pPresentationParameters, ppReturnedDeviceInterface);
 
@@ -1302,7 +1291,7 @@ HRESULT STDMETHODCALLTYPE IDirect3D9Ex_CreateDeviceEx(IDirect3D9Ex *pD3D, UINT A
 		return D3DERR_INVALIDCALL;
 	}
 
-	AdjustPresentParameters(pPresentationParameters);
+	DumpPresentParameters(*pPresentationParameters);
 
 	const HRESULT hr = ReShade::Hooks::Call(&IDirect3D9Ex_CreateDeviceEx)(pD3D, Adapter, DeviceType, hFocusWindow, BehaviorFlags, pPresentationParameters, pFullscreenDisplayMode, ppReturnedDeviceInterface);
 
