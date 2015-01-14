@@ -143,6 +143,7 @@ namespace
 
 	std::unordered_map<HWND, RECT> sWindowRects;
 	std::unordered_map<HGLRC, HDC> sDeviceContexts;
+	std::unordered_map<HGLRC, HGLRC> sSharedContexts;
 	std::unordered_map<HGLRC, std::shared_ptr<ReShade::Runtimes::GLRuntime>> sRuntimes;
 	std::unordered_map<HWND, ReShade::Runtimes::GLRuntime *> sCurrentRuntimes;
 }
@@ -2676,6 +2677,7 @@ EXPORT HGLRC WINAPI wglCreateContext(HDC hdc)
 		CriticalSection::Lock lock(sCS);
 
 		sDeviceContexts.emplace(hglrc, hdc);
+		sSharedContexts.emplace(hglrc, nullptr);
 	}
 	else
 	{
@@ -2770,6 +2772,14 @@ HGLRC WINAPI wglCreateContextAttribsARB(HDC hdc, HGLRC hShareContext, const int 
 		CriticalSection::Lock lock(sCS);
 
 		sDeviceContexts.emplace(hglrc, hdc);
+		sSharedContexts.emplace(hglrc, hShareContext);
+
+		assert(sSharedContexts.find(hShareContext) != sSharedContexts.end());
+
+		while (sSharedContexts.at(hShareContext) != nullptr)
+		{
+			sSharedContexts.at(hglrc) = hShareContext = sSharedContexts.at(hShareContext);
+		}
 	}
 	else
 	{
@@ -2816,6 +2826,21 @@ EXPORT BOOL WINAPI wglDeleteContext(HGLRC hglrc)
 	}
 
 	sDeviceContexts.erase(hglrc);
+
+	for (auto it = sSharedContexts.begin(); it != sSharedContexts.end();)
+	{
+		if (it->first == hglrc)
+		{
+			it = sSharedContexts.erase(it);
+			continue;
+		}
+		else if (it->second == hglrc)
+		{
+			it->second = nullptr;
+		}
+
+		++it;
+	}
 
 	if (!ReShade::Hooks::Call(&wglDeleteContext)(hglrc))
 	{
@@ -2902,6 +2927,13 @@ EXPORT BOOL WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 	sCurrentDeviceContext = hdc;
 	sCurrentRenderContext = hglrc;
 
+	if (sSharedContexts.at(hglrc) != nullptr)
+	{
+		hglrc = sSharedContexts.at(hglrc);
+
+		LOG(INFO) << "> Using shared OpenGL context " << hglrc << ".";
+	}
+
 	const auto it = sRuntimes.find(hglrc);
 
 	if (it != sRuntimes.end() && sDeviceContexts.at(hglrc) == hdc)
@@ -2969,6 +3001,10 @@ EXPORT BOOL WINAPI wglSetPixelFormat(HDC hdc, int iPixelFormat, CONST PIXELFORMA
 EXPORT BOOL WINAPI wglShareLists(HGLRC hglrc1, HGLRC hglrc2)
 {
 	LOG(INFO) << "Redirecting '" << "wglShareLists" << "(" << hglrc1 << ", " << hglrc2 << ")' ...";
+
+	CriticalSection::Lock lock(sCS);
+
+	sSharedContexts[hglrc2] = hglrc1;
 
 	return ReShade::Hooks::Call(&wglShareLists)(hglrc1, hglrc2);
 }
