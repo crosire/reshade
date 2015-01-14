@@ -3207,8 +3207,12 @@ namespace ReShade { namespace Runtimes
 
 			if (SUCCEEDED(target->GetContainer(__uuidof(IDirect3DBaseTexture9), reinterpret_cast<void **>(&texture))))
 			{
-				texture->SetAutoGenFilterType(D3DTEXF_LINEAR);
-				texture->GenerateMipSubLevels();
+				if (texture->GetLevelCount() > 1)
+				{
+					texture->SetAutoGenFilterType(D3DTEXF_LINEAR);
+					texture->GenerateMipSubLevels();
+				}
+
 				texture->Release();
 			}
 		}
