@@ -769,281 +769,19 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFacto
 	return hr;
 }
 
-// D3DKMT
-EXPORT NTSTATUS WINAPI D3DKMTCreateAllocation(void *pData)
-{
-	UNREFERENCED_PARAMETER(pData);
-
-	assert(false);
-
-	return STATUS_ENTRYPOINT_NOT_FOUND;
-}
-EXPORT NTSTATUS WINAPI D3DKMTQueryResourceInfo(void *pData)
-{
-	UNREFERENCED_PARAMETER(pData);
-
-	assert(false);
-
-	return STATUS_ENTRYPOINT_NOT_FOUND;
-}
-EXPORT NTSTATUS WINAPI D3DKMTOpenResource(void *pData)
-{
-	UNREFERENCED_PARAMETER(pData);
-
-	assert(false);
-
-	return STATUS_ENTRYPOINT_NOT_FOUND;
-}
-EXPORT NTSTATUS WINAPI D3DKMTDestroyAllocation(const void *pData)
-{
-	UNREFERENCED_PARAMETER(pData);
-
-	assert(false);
-
-	return STATUS_ENTRYPOINT_NOT_FOUND;
-}
-EXPORT NTSTATUS WINAPI D3DKMTSetAllocationPriority(const void *pData)
-{
-	UNREFERENCED_PARAMETER(pData);
-
-	assert(false);
-
-	return STATUS_ENTRYPOINT_NOT_FOUND;
-}
-EXPORT NTSTATUS WINAPI D3DKMTQueryAllocationResidency(const void *pData)
-{
-	UNREFERENCED_PARAMETER(pData);
-
-	assert(false);
-
-	return STATUS_ENTRYPOINT_NOT_FOUND;
-}
-EXPORT NTSTATUS WINAPI D3DKMTCreateDevice(void *pData)
-{
-	UNREFERENCED_PARAMETER(pData);
-
-	assert(false);
-
-	return STATUS_ENTRYPOINT_NOT_FOUND;
-}
-EXPORT NTSTATUS WINAPI D3DKMTDestroyDevice(const void *pData)
-{
-	UNREFERENCED_PARAMETER(pData);
-
-	assert(false);
-
-	return STATUS_ENTRYPOINT_NOT_FOUND;
-}
-EXPORT NTSTATUS WINAPI D3DKMTCreateContext(void *pData)
-{
-	UNREFERENCED_PARAMETER(pData);
-
-	assert(false);
-
-	return STATUS_ENTRYPOINT_NOT_FOUND;
-}
-EXPORT NTSTATUS WINAPI D3DKMTDestroyContext(const void *pData)
-{
-	UNREFERENCED_PARAMETER(pData);
-
-	assert(false);
-
-	return STATUS_ENTRYPOINT_NOT_FOUND;
-}
-EXPORT NTSTATUS WINAPI D3DKMTCreateSynchronizationObject(void *pData)
-{
-	UNREFERENCED_PARAMETER(pData);
-
-	assert(false);
-
-	return STATUS_ENTRYPOINT_NOT_FOUND;
-}
-EXPORT NTSTATUS WINAPI D3DKMTDestroySynchronizationObject(const void *pData)
-{
-	UNREFERENCED_PARAMETER(pData);
-
-	assert(false);
-
-	return STATUS_ENTRYPOINT_NOT_FOUND;
-}
-EXPORT NTSTATUS WINAPI D3DKMTWaitForSynchronizationObject(const void *pData)
-{
-	UNREFERENCED_PARAMETER(pData);
-
-	assert(false);
-
-	return STATUS_ENTRYPOINT_NOT_FOUND;
-}
-EXPORT NTSTATUS WINAPI D3DKMTSignalSynchronizationObject(const void *pData)
-{
-	UNREFERENCED_PARAMETER(pData);
-
-	assert(false);
-
-	return STATUS_ENTRYPOINT_NOT_FOUND;
-}
-EXPORT NTSTATUS WINAPI D3DKMTLock(void *pData)
-{
-	UNREFERENCED_PARAMETER(pData);
-
-	assert(false);
-
-	return STATUS_ENTRYPOINT_NOT_FOUND;
-}
-EXPORT NTSTATUS WINAPI D3DKMTUnlock(const void *pData)
-{
-	UNREFERENCED_PARAMETER(pData);
-
-	assert(false);
-
-	return STATUS_ENTRYPOINT_NOT_FOUND;
-}
-EXPORT NTSTATUS WINAPI D3DKMTGetDisplayModeList(void *pData)
-{
-	UNREFERENCED_PARAMETER(pData);
-
-	assert(false);
-
-	return STATUS_ENTRYPOINT_NOT_FOUND;
-}
-EXPORT NTSTATUS WINAPI D3DKMTSetDisplayMode(const void *pData)
-{
-	UNREFERENCED_PARAMETER(pData);
-
-	assert(false);
-
-	return STATUS_ENTRYPOINT_NOT_FOUND;
-}
-EXPORT NTSTATUS WINAPI D3DKMTGetMultisampleMethodList(void *pData)
-{
-	UNREFERENCED_PARAMETER(pData);
-
-	assert(false);
-
-	return STATUS_ENTRYPOINT_NOT_FOUND;
-}
-EXPORT NTSTATUS WINAPI D3DKMTPresent(const void *pData)
-{
-	UNREFERENCED_PARAMETER(pData);
-
-	assert(false);
-
-	return STATUS_ENTRYPOINT_NOT_FOUND;
-}
-EXPORT NTSTATUS WINAPI D3DKMTRender(void *pData)
-{
-	UNREFERENCED_PARAMETER(pData);
-
-	assert(false);
-
-	return STATUS_ENTRYPOINT_NOT_FOUND;
-}
-EXPORT NTSTATUS WINAPI D3DKMTGetRuntimeData(const void *pData)
-{
-	UNREFERENCED_PARAMETER(pData);
-
-	assert(false);
-
-	return STATUS_ENTRYPOINT_NOT_FOUND;
-}
-EXPORT NTSTATUS WINAPI D3DKMTQueryAdapterInfo(const void *pData)
-{
-	UNREFERENCED_PARAMETER(pData);
-
-	assert(false);
-
-	return STATUS_ENTRYPOINT_NOT_FOUND;
-}
-EXPORT NTSTATUS WINAPI D3DKMTOpenAdapterFromHdc(void *pData)
-{
-	UNREFERENCED_PARAMETER(pData);
-
-	assert(false);
-
-	return STATUS_ENTRYPOINT_NOT_FOUND;
-}
-EXPORT NTSTATUS WINAPI D3DKMTCloseAdapter(const void *pData)
-{
-	UNREFERENCED_PARAMETER(pData);
-
-	assert(false);
-
-	return STATUS_ENTRYPOINT_NOT_FOUND;
-}
-EXPORT NTSTATUS WINAPI D3DKMTGetSharedPrimaryHandle(void *pData)
-{
-	UNREFERENCED_PARAMETER(pData);
-
-	assert(false);
-
-	return STATUS_ENTRYPOINT_NOT_FOUND;
-}
-EXPORT NTSTATUS WINAPI D3DKMTEscape(const void *pData)
-{
-	UNREFERENCED_PARAMETER(pData);
-
-	assert(false);
-
-	return STATUS_ENTRYPOINT_NOT_FOUND;
-}
-EXPORT NTSTATUS WINAPI D3DKMTSetVidPnSourceOwner(const void *pData)
-{
-	UNREFERENCED_PARAMETER(pData);
-
-	assert(false);
-
-	return STATUS_ENTRYPOINT_NOT_FOUND;
-}
-EXPORT NTSTATUS WINAPI D3DKMTWaitForVerticalBlankEvent(const void *pData)
-{
-	UNREFERENCED_PARAMETER(pData);
-
-	assert(false);
-
-	return STATUS_ENTRYPOINT_NOT_FOUND;
-}
-EXPORT NTSTATUS WINAPI D3DKMTSetGammaRamp(const void *pData)
-{
-	UNREFERENCED_PARAMETER(pData);
-
-	assert(false);
-
-	return STATUS_ENTRYPOINT_NOT_FOUND;
-}
-EXPORT NTSTATUS WINAPI D3DKMTGetDeviceState(void *pData)
-{
-	UNREFERENCED_PARAMETER(pData);
-
-	assert(false);
-
-	return STATUS_ENTRYPOINT_NOT_FOUND;
-}
-EXPORT NTSTATUS WINAPI D3DKMTSetContextSchedulingPriority(const void *pData)
-{
-	UNREFERENCED_PARAMETER(pData);
-
-	assert(false);
-
-	return STATUS_ENTRYPOINT_NOT_FOUND;
-}
-EXPORT NTSTATUS WINAPI D3DKMTGetContextSchedulingPriority(void *pData)
-{
-	UNREFERENCED_PARAMETER(pData);
-
-	assert(false);
-
-	return STATUS_ENTRYPOINT_NOT_FOUND;
-}
-EXPORT NTSTATUS WINAPI D3DKMTSetDisplayPrivateDriverFormat(const void *pData)
-{
-	UNREFERENCED_PARAMETER(pData);
-
-	assert(false);
-
-	return STATUS_ENTRYPOINT_NOT_FOUND;
-}
-
 // DXGI
+EXPORT HRESULT WINAPI DXGIDumpJournal()
+{
+	assert(false);
+
+	return E_NOTIMPL;
+}
+EXPORT HRESULT WINAPI DXGIReportAdapterConfiguration()
+{
+	assert(false);
+
+	return E_NOTIMPL;
+}
 EXPORT HRESULT WINAPI DXGID3D10CreateDevice(HMODULE hModule, IDXGIFactory *pFactory, IDXGIAdapter *pAdapter, UINT Flags, void *pUnknown, void **ppDevice)
 {
 	UNREFERENCED_PARAMETER(hModule);
@@ -1057,9 +795,13 @@ EXPORT HRESULT WINAPI DXGID3D10CreateDevice(HMODULE hModule, IDXGIFactory *pFact
 
 	return E_NOTIMPL;
 }
-EXPORT HRESULT WINAPI DXGID3D10CreateLayeredDevice(BYTE pUnknown[20])
+EXPORT HRESULT WINAPI DXGID3D10CreateLayeredDevice(void *pUnknown1, void *pUnknown2, void *pUnknown3, void *pUnknown4, void *pUnknown5)
 {
-	UNREFERENCED_PARAMETER(pUnknown);
+	UNREFERENCED_PARAMETER(pUnknown1);
+	UNREFERENCED_PARAMETER(pUnknown2);
+	UNREFERENCED_PARAMETER(pUnknown3);
+	UNREFERENCED_PARAMETER(pUnknown4);
+	UNREFERENCED_PARAMETER(pUnknown5);
 
 	assert(false);
 
@@ -1078,34 +820,6 @@ EXPORT HRESULT WINAPI DXGID3D10RegisterLayers(const void *pLayers, UINT NumLayer
 {
 	UNREFERENCED_PARAMETER(pLayers);
 	UNREFERENCED_PARAMETER(NumLayers);
-
-	assert(false);
-
-	return E_NOTIMPL;
-}
-EXPORT HRESULT WINAPI DXGIReportAdapterConfiguration()
-{
-	assert(false);
-
-	return E_NOTIMPL;
-}
-EXPORT HRESULT WINAPI DXGIDumpJournal()
-{
-	assert(false);
-
-	return E_NOTIMPL;
-}
-EXPORT HRESULT WINAPI OpenAdapter10(void *pData)
-{
-	UNREFERENCED_PARAMETER(pData);
-
-	assert(false);
-
-	return E_NOTIMPL;
-}
-EXPORT HRESULT WINAPI OpenAdapter10_2(void *pData)
-{
-	UNREFERENCED_PARAMETER(pData);
 
 	assert(false);
 
