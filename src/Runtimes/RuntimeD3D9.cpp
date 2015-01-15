@@ -3182,6 +3182,8 @@ namespace ReShade { namespace Runtimes
 		D3DVIEWPORT9 viewport;
 		device->GetViewport(&viewport);
 
+		device->SetDepthStencilSurface((viewport.Width == runtime->mPresentParams.BackBufferWidth && viewport.Height == runtime->mPresentParams.BackBufferHeight) ? runtime->mDefaultDepthStencil : nullptr);
+
 		const float pixelsize[4] = { 1.0f / viewport.Width, 1.0f / viewport.Height, -1.0f / viewport.Width, 1.0f / viewport.Height };
 
 		// Setup shader constants
