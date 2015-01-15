@@ -813,6 +813,8 @@ EXPORT HRESULT WINAPI D3D10CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, D3D1
 			if (SUCCEEDED(hr))
 			{
 				*ppDevice = deviceProxy;
+
+				LOG(TRACE) << "> Returned device object: " << *ppDevice;
 			}
 			else
 			{
@@ -867,6 +869,8 @@ EXPORT HRESULT WINAPI D3D10CreateDeviceAndSwapChain1(IDXGIAdapter *pAdapter, D3D
 			if (SUCCEEDED(hr))
 			{
 				*ppDevice = deviceProxy;
+
+				LOG(TRACE) << "> Returned device object: " << *ppDevice;
 			}
 			else
 			{

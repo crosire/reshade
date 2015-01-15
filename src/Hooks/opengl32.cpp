@@ -2678,6 +2678,8 @@ EXPORT HGLRC WINAPI wglCreateContext(HDC hdc)
 
 		sDeviceContexts.emplace(hglrc, hdc);
 		sSharedContexts.emplace(hglrc, nullptr);
+
+		LOG(TRACE) << "> Returned OpenGL context: " << hglrc;
 	}
 	else
 	{
@@ -2783,6 +2785,8 @@ HGLRC WINAPI wglCreateContextAttribsARB(HDC hdc, HGLRC hShareContext, const int 
 				it = sSharedContexts.find(sSharedContexts.at(hglrc) = it->second);
 			}
 		}
+
+		LOG(TRACE) << "> Returned OpenGL context: " << hglrc;
 	}
 	else
 	{

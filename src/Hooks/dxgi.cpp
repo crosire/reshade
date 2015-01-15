@@ -557,6 +557,8 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, I
 		{
 			LOG(WARNING) << "> Skipping swapchain because it was created without a (hooked) Direct3D device.";
 		}
+
+		LOG(TRACE) << "> Returned swapchain object: " << *ppSwapChain;
 	}
 	else
 	{
@@ -626,6 +628,8 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pF
 		{
 			LOG(WARNING) << "> Skipping swapchain because it was created without a (hooked) Direct3D device.";
 		}
+
+		LOG(TRACE) << "> Returned swapchain object: " << *ppSwapChain;
 	}
 	else
 	{
@@ -693,6 +697,8 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactor
 		{
 			LOG(WARNING) << "> Skipping swapchain because it was created without a (hooked) Direct3D device.";
 		}
+
+		LOG(TRACE) << "> Returned swapchain object: " << *ppSwapChain;
 	}
 	else
 	{
@@ -760,6 +766,8 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFacto
 		{
 			LOG(WARNING) << "> Skipping swapchain because it was created without a (hooked) Direct3D device.";
 		}
+
+		LOG(TRACE) << "> Returned swapchain object: " << *ppSwapChain;
 	}
 	else
 	{
@@ -838,6 +846,8 @@ EXPORT HRESULT WINAPI CreateDXGIFactory(REFIID riid, void **ppFactory)
 	if (SUCCEEDED(hr))
 	{
 		ReShade::Hooks::Install(VTABLE(*ppFactory)[10], reinterpret_cast<ReShade::Hook::Function>(&IDXGIFactory_CreateSwapChain));
+
+		LOG(TRACE) << "> Returned factory object: " << *ppFactory;
 	}
 	else
 	{
@@ -858,6 +868,8 @@ EXPORT HRESULT WINAPI CreateDXGIFactory1(REFIID riid, void **ppFactory)
 	if (SUCCEEDED(hr))
 	{
 		ReShade::Hooks::Install(VTABLE(*ppFactory)[10], reinterpret_cast<ReShade::Hook::Function>(&IDXGIFactory_CreateSwapChain));
+
+		LOG(TRACE) << "> Returned factory object: " << *ppFactory;
 	}
 	else
 	{
@@ -885,6 +897,8 @@ EXPORT HRESULT WINAPI CreateDXGIFactory2(UINT flags, REFIID riid, void **ppFacto
 			ReShade::Hooks::Install(VTABLE(*ppFactory)[16], reinterpret_cast<ReShade::Hook::Function>(&IDXGIFactory2_CreateSwapChainForCoreWindow));
 			ReShade::Hooks::Install(VTABLE(*ppFactory)[24], reinterpret_cast<ReShade::Hook::Function>(&IDXGIFactory2_CreateSwapChainForComposition));
 		}
+
+		LOG(TRACE) << "> Returned factory object: " << *ppFactory;
 	}
 	else
 	{

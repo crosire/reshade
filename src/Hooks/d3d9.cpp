@@ -503,6 +503,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateAdditionalSwapChain(D3DPRESENT_
 
 		this->mAdditionalSwapChains.push_back(swapchainProxy);
 		*ppSwapChain = swapchainProxy;
+
+		LOG(TRACE) << "> Returned swapchain object: " << *ppSwapChain;
 	}
 	else
 	{
@@ -1272,6 +1274,8 @@ HRESULT STDMETHODCALLTYPE IDirect3D9_CreateDevice(IDirect3D9 *pD3D, UINT Adapter
 		{
 			LOG(WARNING) << "> Skipping device due to device type being 'D3DDEVTYPE_NULLREF'.";
 		}
+
+		LOG(TRACE) << "> Returned device object: " << *ppReturnedDeviceInterface;
 	}
 	else
 	{
@@ -1331,6 +1335,8 @@ HRESULT STDMETHODCALLTYPE IDirect3D9Ex_CreateDeviceEx(IDirect3D9Ex *pD3D, UINT A
 		{
 			LOG(WARNING) << "> Skipping device due to device type being 'D3DDEVTYPE_NULLREF'.";
 		}
+
+		LOG(TRACE) << "> Returned device object: " << *ppReturnedDeviceInterface;
 	}
 	else
 	{
@@ -1391,6 +1397,8 @@ EXPORT IDirect3D9 *WINAPI Direct3DCreate9(UINT SDKVersion)
 	if (res != nullptr)
 	{
 		ReShade::Hooks::Install(VTABLE(res)[16], reinterpret_cast<ReShade::Hook::Function>(&IDirect3D9_CreateDevice));
+
+		LOG(TRACE) << "> Returned factory object: " << res;
 	}
 	else
 	{
@@ -1409,6 +1417,8 @@ EXPORT HRESULT WINAPI Direct3DCreate9Ex(UINT SDKVersion, IDirect3D9Ex **ppD3D)
 	{
 		ReShade::Hooks::Install(VTABLE(*ppD3D)[16], reinterpret_cast<ReShade::Hook::Function>(&IDirect3D9_CreateDevice));
 		ReShade::Hooks::Install(VTABLE(*ppD3D)[20], reinterpret_cast<ReShade::Hook::Function>(&IDirect3D9Ex_CreateDeviceEx));
+
+		LOG(TRACE) << "> Returned factory object: " << *ppD3D;
 	}
 	else
 	{

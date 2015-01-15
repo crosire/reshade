@@ -1410,6 +1410,8 @@ EXPORT HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, D3D_
 					devicecontextProxy->AddRef();
 					*ppImmediateContext = devicecontextProxy;
 				}
+
+				LOG(TRACE) << "> Returned device object: " << *ppDevice;
 			}
 			else
 			{
