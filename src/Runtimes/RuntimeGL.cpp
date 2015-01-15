@@ -3826,6 +3826,10 @@ namespace ReShade { namespace Runtimes
 		{
 			GLCHECK(glBindBufferBase(GL_UNIFORM_BUFFER, buffer, this->mUniformBuffers[buffer]));
 		}
+
+		// Clear depthstencil
+		GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, this->mRuntime->mDefaultBackBufferFBO));
+		GLCHECK(glClearBufferfi(GL_DEPTH_STENCIL, 0, 1.0f, 0));
 	}
 	void GLEffect::End() const
 	{

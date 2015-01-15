@@ -3223,7 +3223,7 @@ namespace ReShade { namespace Runtimes
 		device->VSSetConstantBuffers(0, static_cast<UINT>(this->mConstantBuffers.size()), this->mConstantBuffers.data());
 		device->PSSetConstantBuffers(0, static_cast<UINT>(this->mConstantBuffers.size()), this->mConstantBuffers.data());
 
-		// Setup depthstencil
+		// Clear depthstencil
 		assert(this->mRuntime->mDefaultDepthStencil != nullptr);
 
 		device->ClearDepthStencilView(this->mRuntime->mDefaultDepthStencil, D3D10_CLEAR_DEPTH | D3D10_CLEAR_STENCIL, 1.0f, 0);

@@ -2970,7 +2970,7 @@ namespace ReShade { namespace Runtimes
 			}
 		}
 
-		// Setup depthstencil
+		// Clear depthstencil
 		assert(this->mRuntime->mDefaultDepthStencil != nullptr);
 
 		device->SetDepthStencilSurface(this->mRuntime->mDefaultDepthStencil);
