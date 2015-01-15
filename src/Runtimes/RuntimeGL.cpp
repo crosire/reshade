@@ -3284,45 +3284,121 @@ namespace ReShade { namespace Runtimes
 
 		this->mStateBlock->Capture();
 
+		// Clear errors
+		GLenum status = glGetError();
+
 		// Generate backbuffer targets
 		GLCHECK(glGenRenderbuffers(2, this->mDefaultBackBufferRBO));
+
 		GLCHECK(glBindRenderbuffer(GL_RENDERBUFFER, this->mDefaultBackBufferRBO[0]));
-		GLCHECK(glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA8, width, height));
+		glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA8, width, height);
 		GLCHECK(glBindRenderbuffer(GL_RENDERBUFFER, this->mDefaultBackBufferRBO[1]));
-		GLCHECK(glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, width, height));
+		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, width, height);
+
+		status = glGetError();
+
+		GLCHECK(glBindRenderbuffer(GL_RENDERBUFFER, 0));
+
+		if (status != GL_NO_ERROR)
+		{
+			LOG(TRACE) << "Failed to create backbuffer renderbuffer with error code " << status;
+
+			GLCHECK(glDeleteRenderbuffers(2, this->mDefaultBackBufferRBO));
+
+			return false;
+		}
 
 		GLCHECK(glGenFramebuffers(1, &this->mDefaultBackBufferFBO));
+
 		GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, this->mDefaultBackBufferFBO));
 		GLCHECK(glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, this->mDefaultBackBufferRBO[0]));
 		GLCHECK(glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, this->mDefaultBackBufferRBO[1]));
 
-		assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
+		status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+
+		GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, 0));
+
+		if (status != GL_FRAMEBUFFER_COMPLETE)
+		{
+			LOG(TRACE) << "Failed to create backbuffer framebuffer object with status code " << status;
+
+			GLCHECK(glDeleteFramebuffers(1, &this->mDefaultBackBufferFBO));
+			GLCHECK(glDeleteRenderbuffers(2, this->mDefaultBackBufferRBO));
+
+			return false;
+		}
 
 		GLCHECK(glGenTextures(2, this->mBackBufferTexture));
+
 		GLCHECK(glBindTexture(GL_TEXTURE_2D, this->mBackBufferTexture[0]));
-		GLCHECK(glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA8, width, height));
-		GLCHECK(glTextureView(this->mBackBufferTexture[1], GL_TEXTURE_2D, this->mBackBufferTexture[0], GL_SRGB8_ALPHA8, 0, 1, 0, 1));
+		glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA8, width, height);
+		glTextureView(this->mBackBufferTexture[1], GL_TEXTURE_2D, this->mBackBufferTexture[0], GL_SRGB8_ALPHA8, 0, 1, 0, 1);
+		
+		status = glGetError();
+
+		GLCHECK(glBindTexture(GL_TEXTURE_2D, 0));
+
+		if (status != GL_NO_ERROR)
+		{
+			LOG(TRACE) << "Failed to create backbuffer texture with error code " << status;
+
+			GLCHECK(glDeleteTextures(2, this->mBackBufferTexture));
+			GLCHECK(glDeleteFramebuffers(1, &this->mDefaultBackBufferFBO));
+			GLCHECK(glDeleteRenderbuffers(2, this->mDefaultBackBufferRBO));
+
+			return false;
+		}
 
 		// Generate depth targets
 		const DepthSourceInfo defaultdepth = { width, height, 0, GL_DEPTH24_STENCIL8 };
+
 		this->mDepthSourceTable[0] = defaultdepth;
 
 		LOG(TRACE) << "Switched depth source to default depthstencil.";
 
 		GLCHECK(glGenTextures(1, &this->mDepthTexture));
+
 		GLCHECK(glBindTexture(GL_TEXTURE_2D, this->mDepthTexture));
-		GLCHECK(glTexStorage2D(GL_TEXTURE_2D, 1, defaultdepth.Format, defaultdepth.Width, defaultdepth.Height));
+		glTexStorage2D(GL_TEXTURE_2D, 1, defaultdepth.Format, defaultdepth.Width, defaultdepth.Height);
+
+		status = glGetError();
+
+		GLCHECK(glBindTexture(GL_TEXTURE_2D, 0));
+
+		if (status != GL_NO_ERROR)
+		{
+			LOG(TRACE) << "Failed to create depth texture with error code " << status;
+
+			GLCHECK(glDeleteTextures(1, &this->mDepthTexture));
+			GLCHECK(glDeleteTextures(2, this->mBackBufferTexture));
+			GLCHECK(glDeleteFramebuffers(1, &this->mDefaultBackBufferFBO));
+			GLCHECK(glDeleteRenderbuffers(2, this->mDefaultBackBufferRBO));
+
+			return false;
+		}
 
 		GLCHECK(glGenFramebuffers(1, &this->mBlitFBO));
+
 		GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, this->mBlitFBO));
 		GLCHECK(glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, this->mDepthTexture, 0));
 		GLCHECK(glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, this->mBackBufferTexture[1], 0));
 
-		assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
+		status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
 
-		GLCHECK(glBindTexture(GL_TEXTURE_2D, 0));
-		GLCHECK(glBindRenderbuffer(GL_RENDERBUFFER, 0));
 		GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, 0));
+
+		if (status != GL_FRAMEBUFFER_COMPLETE)
+		{
+			LOG(TRACE) << "Failed to create blit framebuffer object with status code " << status;
+
+			GLCHECK(glDeleteFramebuffers(1, &this->mBlitFBO));
+			GLCHECK(glDeleteTextures(1, &this->mDepthTexture));
+			GLCHECK(glDeleteTextures(2, this->mBackBufferTexture));
+			GLCHECK(glDeleteFramebuffers(1, &this->mDefaultBackBufferFBO));
+			GLCHECK(glDeleteRenderbuffers(2, this->mDefaultBackBufferRBO));
+
+			return false;
+		}
 
 		this->mNVG = nvgCreateGL3(0);
 
@@ -3623,9 +3699,24 @@ namespace ReShade { namespace Runtimes
 			GLint previousTex = 0;
 			GLCHECK(glGetIntegerv(GL_TEXTURE_BINDING_2D, &previousTex));
 
+			// Clear errors
+			GLenum status = glGetError();
+
 			GLCHECK(glGenTextures(1, &this->mDepthTexture));
+
 			GLCHECK(glBindTexture(GL_TEXTURE_2D, this->mDepthTexture));
-			GLCHECK(glTexStorage2D(GL_TEXTURE_2D, 1, format, width, height));
+			glTexStorage2D(GL_TEXTURE_2D, 1, format, width, height);
+
+			status = glGetError();
+
+			if (status != GL_NO_ERROR)
+			{
+				LOG(ERROR) << "Failed to create depth texture with error code " << status;
+
+				GLCHECK(glDeleteTextures(1, &this->mDepthTexture));
+
+				this->mDepthTexture = 0;
+			}
 
 			GLCHECK(glBindTexture(GL_TEXTURE_2D, previousTex));
 		}
