@@ -3619,7 +3619,7 @@ namespace ReShade { namespace Runtimes
 			{
 				continue;
 			}
-			else if (((it.second.DrawVerticesCount * (1.2f - it.second.DrawCallCount / this->mLastDrawCalls)) >= (bestInfo.DrawVerticesCount * (1.2f - bestInfo.DrawCallCount / this->mLastDrawCalls))) && (it.second.Width == static_cast<GLint>(this->mWidth) && it.second.Height == static_cast<GLint>(this->mHeight)))
+			else if (((it.second.DrawVerticesCount * (1.2f - it.second.DrawCallCount / this->mLastDrawCalls)) >= (bestInfo.DrawVerticesCount * (1.2f - bestInfo.DrawCallCount / this->mLastDrawCalls))) && ((it.second.Width > this->mWidth * 0.95 && it.second.Width < this->mWidth * 1.05) && (it.second.Height > this->mHeight * 0.95 && it.second.Height < this->mHeight * 1.05)))
 			{
 				best = it.first;
 				bestInfo = it.second;

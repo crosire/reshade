@@ -521,7 +521,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetSwapChain(UINT iSwapChain, IDirect
 	}
 
 	assert(this->mImplicitSwapChain != nullptr);
-			
+
 	this->mImplicitSwapChain->AddRef();
 
 	*ppSwapChain = this->mImplicitSwapChain;
