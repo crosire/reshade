@@ -2971,7 +2971,10 @@ EXPORT BOOL WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 			sRuntimes[hglrc] = runtime;
 			sCurrentRuntimes[hwnd] = sCurrentRuntime = runtime.get();
 
-			runtime->OnCreateInternal(static_cast<unsigned int>(width), static_cast<unsigned int>(height));
+			if (!runtime->OnCreateInternal(static_cast<unsigned int>(width), static_cast<unsigned int>(height)))
+			{
+				LOG(ERROR) << "Failed to initialize OpenGL renderer!";
+			}
 		}
 		else
 		{
