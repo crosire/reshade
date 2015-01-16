@@ -2958,9 +2958,8 @@ EXPORT BOOL WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 
 		RECT rect;
 		GetClientRect(hwnd, &rect);
-		const LONG width = rect.right - rect.left, height = rect.bottom - rect.top;
 
-		LOG(INFO) << "> Initial size is " << width << "x" << height << ".";
+		LOG(INFO) << "> Initial size is " << rect.right << "x" << rect.bottom << ".";
 
 		gl3wInit();
 
@@ -2971,7 +2970,7 @@ EXPORT BOOL WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 			sRuntimes[hglrc] = runtime;
 			sCurrentRuntimes[hwnd] = sCurrentRuntime = runtime.get();
 
-			if (!runtime->OnCreateInternal(static_cast<unsigned int>(width), static_cast<unsigned int>(height)))
+			if (!runtime->OnCreateInternal(static_cast<unsigned int>(rect.right), static_cast<unsigned int>(rect.bottom)))
 			{
 				LOG(ERROR) << "Failed to initialize OpenGL renderer!";
 			}
@@ -3023,7 +3022,6 @@ EXPORT BOOL WINAPI wglSwapBuffers(HDC hdc)
 	static const auto trampoline = ReShade::Hooks::Call(&wglSwapBuffers);
 
 	const HWND hwnd = WindowFromDC(hdc);
-
 	const auto it = sCurrentRuntimes.find(hwnd);
 
 	if (it != sCurrentRuntimes.end())
@@ -3033,17 +3031,14 @@ EXPORT BOOL WINAPI wglSwapBuffers(HDC hdc)
 		assert(runtime != nullptr);
 
 		RECT rect, &rectPrevious = sWindowRects.at(hwnd);
-
 		GetClientRect(hwnd, &rect);
-		const ULONG width = rect.right - rect.left, height = rect.bottom - rect.top;
-		const ULONG widthPrevious = rectPrevious.right - rectPrevious.left, heightPrevious = rectPrevious.bottom - rectPrevious.top;
 
-		if (width != widthPrevious || height != heightPrevious)
+		if (rect.right != rectPrevious.right || rect.bottom != rectPrevious.bottom)
 		{
-			LOG(INFO) << "Resizing OpenGL context " << sCurrentRenderContext << " to " << width << "x" << height << " ...";
+			LOG(INFO) << "Resizing OpenGL context " << sCurrentRenderContext << " to " << rect.right << "x" << rect.bottom << " ...";
 
 			runtime->OnDeleteInternal();
-			runtime->OnCreateInternal(width, height);
+			runtime->OnCreateInternal(rect.right, rect.bottom);
 
 			rectPrevious = rect;
 		}
