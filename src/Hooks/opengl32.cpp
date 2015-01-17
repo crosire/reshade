@@ -138,16 +138,14 @@ namespace
 		CRITICAL_SECTION mCS;
 	} sCS;
 	
+	__declspec(thread) GLuint sCurrentVertexCount = 0;
 	__declspec(thread) HDC sCurrentDeviceContext = nullptr;
 	__declspec(thread) HGLRC sCurrentRenderContext = nullptr;
 	__declspec(thread) ReShade::Runtimes::GLRuntime *sCurrentRuntime = nullptr;
-	__declspec(thread) GLuint sCurrentVertexCount = 0;
 
 	std::unordered_map<HWND, RECT> sWindowRects;
-	std::unordered_map<HGLRC, HDC> sDeviceContexts;
 	std::unordered_map<HGLRC, HGLRC> sSharedContexts;
-	std::unordered_map<HGLRC, std::shared_ptr<ReShade::Runtimes::GLRuntime>> sRuntimes;
-	std::unordered_map<HWND, ReShade::Runtimes::GLRuntime *> sCurrentRuntimes;
+	std::unordered_map<HDC, std::shared_ptr<ReShade::Runtimes::GLRuntime>> sRuntimes;
 }
 
 // -----------------------------------------------------------------------------------------------------
@@ -2826,7 +2824,6 @@ EXPORT HGLRC WINAPI wglCreateContext(HDC hdc)
 	{
 		CriticalSection::Lock lock(sCS);
 
-		sDeviceContexts.emplace(hglrc, hdc);
 		sSharedContexts.emplace(hglrc, nullptr);
 
 		LOG(TRACE) << "> Returned OpenGL context: " << hglrc;
@@ -2923,7 +2920,6 @@ HGLRC WINAPI wglCreateContextAttribsARB(HDC hdc, HGLRC hShareContext, const int 
 	{
 		CriticalSection::Lock lock(sCS);
 
-		sDeviceContexts.emplace(hglrc, hdc);
 		sSharedContexts.emplace(hglrc, hShareContext);
 
 		if (hShareContext != nullptr)
@@ -2957,32 +2953,35 @@ EXPORT BOOL WINAPI wglDeleteContext(HGLRC hglrc)
 
 	CriticalSection::Lock lock(sCS);
 
-	const auto it = sRuntimes.find(hglrc);
-
-	if (it != sRuntimes.end())
+	for (auto it = sRuntimes.begin(); it != sRuntimes.end();)
 	{
-		const HDC hdcPrevious = sCurrentDeviceContext;
-		const HGLRC hglrcPrevious = sCurrentRenderContext;
+		assert(it->second != nullptr);
 
-		LOG(INFO) << "> Cleaning up runtime resources ...";
-
-		if (wglMakeCurrent(sDeviceContexts.at(hglrc), hglrc) != FALSE)
+		if (it->second->mRenderContext == hglrc)
 		{
-			assert(it->second != nullptr);
+			const HDC hdc = it->first, hdcPrevious = sCurrentDeviceContext;
+			const HGLRC hglrcPrevious = sCurrentRenderContext;
 
-			it->second->OnDeleteInternal();
+			LOG(INFO) << "> Cleaning up runtime resources ...";
+
+			if (wglMakeCurrent(hdc, hglrc) != FALSE)
+			{
+				it->second->OnDeleteInternal();
+			}
+			else
+			{
+				LOG(ERROR) << "Could not switch to device context " << hdc << " to clean up. Reverting ...";
+			}
+
+			it = sRuntimes.erase(it);
+
+			wglMakeCurrent(hdcPrevious, hglrcPrevious);
 		}
 		else
 		{
-			LOG(ERROR) << "Could not switch to device context " << sDeviceContexts.at(hglrc) << " to clean up. Reverting ...";
+			++it;
 		}
-
-		sRuntimes.erase(it);
-
-		wglMakeCurrent(hdcPrevious, hglrcPrevious);
 	}
-
-	sDeviceContexts.erase(hglrc);
 
 	for (auto it = sSharedContexts.begin(); it != sSharedContexts.end();)
 	{
@@ -3061,11 +3060,7 @@ EXPORT BOOL WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 		return TRUE;
 	}
 
-	const HWND hwnd = WindowFromDC(hdc);
-
-	CriticalSection::Lock lock(sCS);
-
-	sCurrentRuntimes.erase(hwnd);
+	sCurrentRuntime = nullptr;
 	sCurrentDeviceContext = nullptr;
 	sCurrentRenderContext = nullptr;
 
@@ -3084,6 +3079,8 @@ EXPORT BOOL WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 	sCurrentDeviceContext = hdc;
 	sCurrentRenderContext = hglrc;
 
+	CriticalSection::Lock lock(sCS);
+
 	if (sSharedContexts.at(hglrc) != nullptr)
 	{
 		hglrc = sSharedContexts.at(hglrc);
@@ -3091,14 +3088,16 @@ EXPORT BOOL WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 		LOG(INFO) << "> Using shared OpenGL context " << hglrc << ".";
 	}
 
-	const auto it = sRuntimes.find(hglrc);
+	const auto it = sRuntimes.find(hdc);
 
-	if (it != sRuntimes.end() && sDeviceContexts.at(hglrc) == hdc)
+	if (it != sRuntimes.end() && it->second->mRenderContext == hglrc)
 	{
-		sCurrentRuntimes[hwnd] = sCurrentRuntime = it->second.get();
+		sCurrentRuntime = it->second.get();
 	}
 	else
 	{
+		const HWND hwnd = WindowFromDC(hdc);
+
 		if (hwnd == nullptr)
 		{
 			LOG(WARNING) << "> Aborted because there is no window associated with device context " << hdc << ".";
@@ -3106,8 +3105,18 @@ EXPORT BOOL WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 			return FALSE;
 		}
 
+		LONG classstyle = GetClassLongPtr(hwnd, GCL_STYLE);
+
+		if ((classstyle & CS_OWNDC) == 0)
+		{
+			LOG(INFO) << "> Adding 'CS_OWNDC' to window class style for window " << hwnd << ".";
+
+			SetClassLongPtr(hwnd, GCL_STYLE, classstyle |= CS_OWNDC);
+		}
+
 		RECT rect;
 		GetClientRect(hwnd, &rect);
+		sWindowRects[hwnd] = rect;
 
 		LOG(INFO) << "> Initial size is " << rect.right << "x" << rect.bottom << ".";
 
@@ -3117,8 +3126,8 @@ EXPORT BOOL WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 		{
 			const std::shared_ptr<ReShade::Runtimes::GLRuntime> runtime = std::make_shared<ReShade::Runtimes::GLRuntime>(hdc, hglrc);
 
-			sRuntimes[hglrc] = runtime;
-			sCurrentRuntimes[hwnd] = sCurrentRuntime = runtime.get();
+			sRuntimes[hdc] = runtime;
+			sCurrentRuntime = runtime.get();
 
 			if (!runtime->OnCreateInternal(static_cast<unsigned int>(rect.right), static_cast<unsigned int>(rect.bottom)))
 			{
@@ -3129,9 +3138,6 @@ EXPORT BOOL WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 		{
 			LOG(ERROR) << "Your graphics card does not seem to support OpenGL 4.3. Initialization failed.";
 		}
-
-		sDeviceContexts[hglrc] = hdc;
-		sWindowRects[hwnd] = rect;
 	}
 
 	return TRUE;
@@ -3171,29 +3177,27 @@ EXPORT BOOL WINAPI wglSwapBuffers(HDC hdc)
 {
 	static const auto trampoline = ReShade::Hooks::Call(&wglSwapBuffers);
 
-	const HWND hwnd = WindowFromDC(hdc);
-	const auto it = sCurrentRuntimes.find(hwnd);
+	const auto it = sRuntimes.find(hdc);
 
-	if (it != sCurrentRuntimes.end())
+	if (it != sRuntimes.end())
 	{
-		ReShade::Runtimes::GLRuntime *runtime = it->second;
+		assert(it->second != nullptr);
 
-		assert(runtime != nullptr);
-
+		const HWND hwnd = WindowFromDC(hdc);
 		RECT rect, &rectPrevious = sWindowRects.at(hwnd);
 		GetClientRect(hwnd, &rect);
 
 		if (rect.right != rectPrevious.right || rect.bottom != rectPrevious.bottom)
 		{
-			LOG(INFO) << "Resizing OpenGL context " << sCurrentRenderContext << " to " << rect.right << "x" << rect.bottom << " ...";
+			LOG(INFO) << "Resizing runtime on device context " << hdc << " to " << rect.right << "x" << rect.bottom << " ...";
 
-			runtime->OnDeleteInternal();
-			runtime->OnCreateInternal(rect.right, rect.bottom);
+			it->second->OnDeleteInternal();
+			it->second->OnCreateInternal(rect.right, rect.bottom);
 
 			rectPrevious = rect;
 		}
 
-		runtime->OnPresentInternal();
+		it->second->OnPresentInternal();
 	}
 
 	return trampoline(hdc);
