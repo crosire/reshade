@@ -2780,7 +2780,7 @@ HGLRC WINAPI wglCreateContextAttribsARB(HDC hdc, HGLRC hShareContext, const int 
 		{
 			auto it = sSharedContexts.find(hShareContext);
 
-			while (it != sSharedContexts.end())
+			while (it != sSharedContexts.end() && it->second != nullptr)
 			{
 				it = sSharedContexts.find(sSharedContexts.at(hglrc) = it->second);
 			}
