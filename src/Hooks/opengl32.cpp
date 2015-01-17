@@ -33,6 +33,8 @@
 #undef glDrawElementsInstancedBaseVertex
 #undef glDrawElementsInstancedBaseInstance
 #undef glDrawElementsInstancedBaseVertexBaseInstance
+#undef glDrawRangeElements
+#undef glDrawRangeElementsBaseVertex
 #undef glEnable
 #undef glFinish
 #undef glFlush
@@ -182,12 +184,6 @@ EXPORT void WINAPI glBegin(GLenum mode)
 	sCurrentVertexCount = 0;
 
 	trampoline(mode);
-}
-void WINAPI glBindFramebuffer(GLenum target, GLuint framebuffer)
-{
-	static const auto trampoline = ReShade::Hooks::Call(&glBindFramebuffer);
-
-	trampoline(target, framebuffer);
 }
 EXPORT void WINAPI glBindTexture(GLenum target, GLuint texture)
 {
@@ -572,27 +568,49 @@ void WINAPI glDrawArraysIndirect(GLenum mode, const GLvoid *indirect)
 
 	trampoline(mode, indirect);
 }
-void WINAPI glDrawArraysInstanced(GLenum mode, GLint first, GLsizei count, GLsizei instancecount)
+void WINAPI glDrawArraysInstanced(GLenum mode, GLint first, GLsizei count, GLsizei primcount)
 {
 	static const auto trampoline = ReShade::Hooks::Call(&glDrawArraysInstanced);
 
 	if (sCurrentRuntime != nullptr)
 	{
-		sCurrentRuntime->OnDrawInternal(instancecount * count);
+		sCurrentRuntime->OnDrawInternal(primcount * count);
 	}
 
-	trampoline(mode, first, count, instancecount);
+	trampoline(mode, first, count, primcount);
 }
-void WINAPI glDrawArraysInstancedBaseInstance(GLenum mode, GLint first, GLsizei count, GLsizei instancecount, GLuint baseinstance)
+void WINAPI glDrawArraysInstancedARB(GLenum mode, GLint first, GLsizei count, GLsizei primcount)
+{
+	static const auto trampoline = ReShade::Hooks::Call(&glDrawArraysInstancedARB);
+
+	if (sCurrentRuntime != nullptr)
+	{
+		sCurrentRuntime->OnDrawInternal(primcount * count);
+	}
+
+	trampoline(mode, first, count, primcount);
+}
+void WINAPI glDrawArraysInstancedEXT(GLenum mode, GLint first, GLsizei count, GLsizei primcount)
+{
+	static const auto trampoline = ReShade::Hooks::Call(&glDrawArraysInstancedEXT);
+
+	if (sCurrentRuntime != nullptr)
+	{
+		sCurrentRuntime->OnDrawInternal(primcount * count);
+	}
+
+	trampoline(mode, first, count, primcount);
+}
+void WINAPI glDrawArraysInstancedBaseInstance(GLenum mode, GLint first, GLsizei count, GLsizei primcount, GLuint baseinstance)
 {
 	static const auto trampoline = ReShade::Hooks::Call(&glDrawArraysInstancedBaseInstance);
 
 	if (sCurrentRuntime != nullptr)
 	{
-		sCurrentRuntime->OnDrawInternal(instancecount * count);
+		sCurrentRuntime->OnDrawInternal(primcount * count);
 	}
 
-	trampoline(mode, first, count, instancecount, baseinstance);
+	trampoline(mode, first, count, primcount, baseinstance);
 }
 EXPORT void WINAPI glDrawBuffer(GLenum mode)
 {
@@ -628,55 +646,99 @@ void WINAPI glDrawElementsIndirect(GLenum mode, GLenum type, const GLvoid *indir
 
 	trampoline(mode, type, indirect);
 }
-void WINAPI glDrawElementsInstanced(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLsizei instancecount)
+void WINAPI glDrawElementsInstanced(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLsizei primcount)
 {
 	static const auto trampoline = ReShade::Hooks::Call(&glDrawElementsInstanced);
 
 	if (sCurrentRuntime != nullptr)
 	{
-		sCurrentRuntime->OnDrawInternal(instancecount * count);
+		sCurrentRuntime->OnDrawInternal(primcount * count);
 	}
 
-	trampoline(mode, count, type, indices, instancecount);
+	trampoline(mode, count, type, indices, primcount);
 }
-void WINAPI glDrawElementsInstancedBaseVertex(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLsizei instancecount, GLint basevertex)
+void WINAPI glDrawElementsInstancedARB(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLsizei primcount)
+{
+	static const auto trampoline = ReShade::Hooks::Call(&glDrawElementsInstancedARB);
+
+	if (sCurrentRuntime != nullptr)
+	{
+		sCurrentRuntime->OnDrawInternal(primcount * count);
+	}
+
+	trampoline(mode, count, type, indices, primcount);
+}
+void WINAPI glDrawElementsInstancedEXT(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLsizei primcount)
+{
+	static const auto trampoline = ReShade::Hooks::Call(&glDrawElementsInstancedEXT);
+
+	if (sCurrentRuntime != nullptr)
+	{
+		sCurrentRuntime->OnDrawInternal(primcount * count);
+	}
+
+	trampoline(mode, count, type, indices, primcount);
+}
+void WINAPI glDrawElementsInstancedBaseVertex(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLsizei primcount, GLint basevertex)
 {
 	static const auto trampoline = ReShade::Hooks::Call(&glDrawElementsInstancedBaseVertex);
 
 	if (sCurrentRuntime != nullptr)
 	{
-		sCurrentRuntime->OnDrawInternal(instancecount * count);
+		sCurrentRuntime->OnDrawInternal(primcount * count);
 	}
 
-	trampoline(mode, count, type, indices, instancecount, basevertex);
+	trampoline(mode, count, type, indices, primcount, basevertex);
 }
-void WINAPI glDrawElementsInstancedBaseInstance(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLsizei instancecount, GLuint baseinstance)
+void WINAPI glDrawElementsInstancedBaseInstance(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLsizei primcount, GLuint baseinstance)
 {
 	static const auto trampoline = ReShade::Hooks::Call(&glDrawElementsInstancedBaseInstance);
 
 	if (sCurrentRuntime != nullptr)
 	{
-		sCurrentRuntime->OnDrawInternal(instancecount * count);
+		sCurrentRuntime->OnDrawInternal(primcount * count);
 	}
 
-	trampoline(mode, count, type, indices, instancecount, baseinstance);
+	trampoline(mode, count, type, indices, primcount, baseinstance);
 }
-void WINAPI glDrawElementsInstancedBaseVertexBaseInstance(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLsizei instancecount, GLint basevertex, GLuint baseinstance)
+void WINAPI glDrawElementsInstancedBaseVertexBaseInstance(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLsizei primcount, GLint basevertex, GLuint baseinstance)
 {
 	static const auto trampoline = ReShade::Hooks::Call(&glDrawElementsInstancedBaseVertexBaseInstance);
 
 	if (sCurrentRuntime != nullptr)
 	{
-		sCurrentRuntime->OnDrawInternal(instancecount * count);
+		sCurrentRuntime->OnDrawInternal(primcount * count);
 	}
 
-	trampoline(mode, count, type, indices, instancecount, basevertex, baseinstance);
+	trampoline(mode, count, type, indices, primcount, basevertex, baseinstance);
 }
 EXPORT void WINAPI glDrawPixels(GLsizei width, GLsizei height, GLenum format, GLenum type, const GLvoid *pixels)
 {
 	static const auto trampoline = ReShade::Hooks::Call(&glDrawPixels);
 
 	trampoline(width, height, format, type, pixels);
+}
+void WINAPI glDrawRangeElements(GLenum mode, GLuint start, GLuint end, GLsizei count, GLenum type, const GLvoid *indices)
+{
+	static const auto trampoline = ReShade::Hooks::Call(&glDrawRangeElements);
+
+	if (sCurrentRuntime != nullptr)
+	{
+		sCurrentRuntime->OnDrawInternal(count);
+	}
+
+	trampoline(mode, start, end, count, type, indices);
+}
+void WINAPI glDrawRangeElementsBaseVertex(GLenum mode, GLuint start, GLuint end, GLsizei count, GLenum type, const GLvoid *indices, GLint basevertex)
+{
+	static const auto trampoline = ReShade::Hooks::Call(&glDrawRangeElementsBaseVertex);
+
+	if (sCurrentRuntime != nullptr)
+	{
+		sCurrentRuntime->OnDrawInternal(count);
+	}
+
+	trampoline(mode, start, end, count, type, indices, basevertex);
 }
 EXPORT void WINAPI glEdgeFlag(GLboolean flag)
 {
@@ -850,9 +912,42 @@ void WINAPI glFramebufferRenderbuffer(GLenum target, GLenum attachment, GLenum r
 		sCurrentRuntime->OnFramebufferAttachment(target, attachment, renderbuffertarget, renderbuffer, 0);
 	}
 }
+void WINAPI glFramebufferRenderbufferEXT(GLenum target, GLenum attachment, GLenum renderbuffertarget, GLuint renderbuffer)
+{
+	static const auto trampoline = ReShade::Hooks::Call(&glFramebufferRenderbufferEXT);
+
+	trampoline(target, attachment, renderbuffertarget, renderbuffer);
+
+	if (sCurrentRuntime != nullptr)
+	{
+		sCurrentRuntime->OnFramebufferAttachment(target, attachment, renderbuffertarget, renderbuffer, 0);
+	}
+}
 void WINAPI glFramebufferTexture(GLenum target, GLenum attachment, GLuint texture, GLint level)
 {
 	static const auto trampoline = ReShade::Hooks::Call(&glFramebufferTexture);
+
+	trampoline(target, attachment, texture, level);
+
+	if (sCurrentRuntime != nullptr)
+	{
+		sCurrentRuntime->OnFramebufferAttachment(target, attachment, GL_TEXTURE, texture, level);
+	}
+}
+void WINAPI glFramebufferTextureARB(GLenum target, GLenum attachment, GLuint texture, GLint level)
+{
+	static const auto trampoline = ReShade::Hooks::Call(&glFramebufferTextureARB);
+
+	trampoline(target, attachment, texture, level);
+
+	if (sCurrentRuntime != nullptr)
+	{
+		sCurrentRuntime->OnFramebufferAttachment(target, attachment, GL_TEXTURE, texture, level);
+	}
+}
+void WINAPI glFramebufferTextureEXT(GLenum target, GLenum attachment, GLuint texture, GLint level)
+{
+	static const auto trampoline = ReShade::Hooks::Call(&glFramebufferTextureEXT);
 
 	trampoline(target, attachment, texture, level);
 
@@ -872,9 +967,31 @@ void WINAPI glFramebufferTexture1D(GLenum target, GLenum attachment, GLenum text
 		sCurrentRuntime->OnFramebufferAttachment(target, attachment, textarget, texture, level);
 	}
 }
+void WINAPI glFramebufferTexture1DEXT(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level)
+{
+	static const auto trampoline = ReShade::Hooks::Call(&glFramebufferTexture1DEXT);
+
+	trampoline(target, attachment, textarget, texture, level);
+
+	if (sCurrentRuntime != nullptr)
+	{
+		sCurrentRuntime->OnFramebufferAttachment(target, attachment, textarget, texture, level);
+	}
+}
 void WINAPI glFramebufferTexture2D(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level)
 {
 	static const auto trampoline = ReShade::Hooks::Call(&glFramebufferTexture2D);
+
+	trampoline(target, attachment, textarget, texture, level);
+
+	if (sCurrentRuntime != nullptr)
+	{
+		sCurrentRuntime->OnFramebufferAttachment(target, attachment, textarget, texture, level);
+	}
+}
+void WINAPI glFramebufferTexture2DEXT(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level)
+{
+	static const auto trampoline = ReShade::Hooks::Call(&glFramebufferTexture2DEXT);
 
 	trampoline(target, attachment, textarget, texture, level);
 
@@ -894,9 +1011,42 @@ void WINAPI glFramebufferTexture3D(GLenum target, GLenum attachment, GLenum text
 		sCurrentRuntime->OnFramebufferAttachment(target, attachment, textarget, texture, level);
 	}
 }
+void WINAPI glFramebufferTexture3DEXT(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level, GLint zoffset)
+{
+	static const auto trampoline = ReShade::Hooks::Call(&glFramebufferTexture3DEXT);
+
+	trampoline(target, attachment, textarget, texture, level, zoffset);
+
+	if (sCurrentRuntime != nullptr)
+	{
+		sCurrentRuntime->OnFramebufferAttachment(target, attachment, textarget, texture, level);
+	}
+}
 void WINAPI glFramebufferTextureLayer(GLenum target, GLenum attachment, GLuint texture, GLint level, GLint layer)
 {
 	static const auto trampoline = ReShade::Hooks::Call(&glFramebufferTextureLayer);
+
+	trampoline(target, attachment, texture, level, layer);
+
+	if (sCurrentRuntime != nullptr)
+	{
+		sCurrentRuntime->OnFramebufferAttachment(target, attachment, GL_TEXTURE, texture, level);
+	}
+}
+void WINAPI glFramebufferTextureLayerARB(GLenum target, GLenum attachment, GLuint texture, GLint level, GLint layer)
+{
+	static const auto trampoline = ReShade::Hooks::Call(&glFramebufferTextureLayerARB);
+
+	trampoline(target, attachment, texture, level, layer);
+
+	if (sCurrentRuntime != nullptr)
+	{
+		sCurrentRuntime->OnFramebufferAttachment(target, attachment, GL_TEXTURE, texture, level);
+	}
+}
+void WINAPI glFramebufferTextureLayerEXT(GLenum target, GLenum attachment, GLuint texture, GLint level, GLint layer)
+{
+	static const auto trampoline = ReShade::Hooks::Call(&glFramebufferTextureLayerEXT);
 
 	trampoline(target, attachment, texture, level, layer);
 
@@ -3097,115 +3247,11 @@ EXPORT PROC WINAPI wglGetProcAddress(LPCSTR lpszProc)
 {
 	static const auto trampoline = ReShade::Hooks::Call(&wglGetProcAddress);
 
-	if (lpszProc == nullptr)
-	{
-		return nullptr;
-	}
-	
-	#pragma region Replace EXT_framebuffer_object with ARB_framebuffer_object
-	else if (strcmp(lpszProc, "glBindFramebufferEXT") == 0)
-	{
-		lpszProc = "glBindFramebuffer";
-	}
-	else if (strcmp(lpszProc, "glBindRenderbufferEXT") == 0)
-	{
-		lpszProc = "glBindRenderbuffer";
-	}
-	else if (strcmp(lpszProc, "glCheckFramebufferStatusEXT") == 0)
-	{
-		lpszProc = "glCheckFramebufferStatus";
-	}
-	else if (strcmp(lpszProc, "glDeleteFramebuffersEXT") == 0)
-	{
-		lpszProc = "glDeleteFramebuffers";
-	}
-	else if (strcmp(lpszProc, "glDeleteRenderbuffersEXT") == 0)
-	{
-		lpszProc = "glDeleteRenderbuffers";
-	}
-	else if (strcmp(lpszProc, "glFramebufferRenderbufferEXT") == 0)
-	{
-		lpszProc = "glFramebufferRenderbuffer";
-	}
-	else if (strcmp(lpszProc, "glFramebufferTexture1DEXT") == 0)
-	{
-		lpszProc = "glFramebufferTexture1D";
-	}
-	else if (strcmp(lpszProc, "glFramebufferTexture2DEXT") == 0)
-	{
-		lpszProc = "glFramebufferTexture2D";
-	}
-	else if (strcmp(lpszProc, "glFramebufferTexture3DEXT") == 0)
-	{
-		lpszProc = "glFramebufferTexture3D";
-	}
-	else if (strcmp(lpszProc, "glGenFramebuffersEXT") == 0)
-	{
-		lpszProc = "glGenFramebuffers";
-	}
-	else if (strcmp(lpszProc, "glGenRenderbuffersEXT") == 0)
-	{
-		lpszProc = "glGenRenderbuffers";
-	}
-	else if (strcmp(lpszProc, "glGetFramebufferAttachmentParameterivEXT") == 0)
-	{
-		lpszProc = "glGetFramebufferAttachmentParameterivEXT";
-	}
-	else if (strcmp(lpszProc, "glGetRenderbufferParameterivEXT") == 0)
-	{
-		lpszProc = "glGetRenderbufferParameteriv";
-	}
-	else if (strcmp(lpszProc, "glIsFramebufferEXT") == 0)
-	{
-		lpszProc = "glIsFramebuffer";
-	}
-	else if (strcmp(lpszProc, "glIsRenderbufferEXT") == 0)
-	{
-		lpszProc = "glIsRenderbuffer";
-	}
-	else if (strcmp(lpszProc, "glRenderbufferStorageEXT") == 0)
-	{
-		lpszProc = "glRenderbufferStorage";
-	}
-	#pragma endregion
-	#pragma region Replace EXT_framebuffer_blit with ARB_framebuffer_object
-	else if (strcmp(lpszProc, "glBlitFramebufferEXT") == 0)
-	{
-		lpszProc = "glBlitFramebuffer";
-	}
-	#pragma endregion
-	#pragma region Replace EXT_framebuffer_multisample with ARB_framebuffer_object
-	else if (strcmp(lpszProc, "glRenderbufferStorageMultisampleEXT") == 0)
-	{
-		lpszProc = "glRenderbufferStorageMultisample";
-	}
-	#pragma endregion
-	#pragma region Replace EXT_texture_array
-	else if (strcmp(lpszProc, "glFramebufferTextureLayerEXT") == 0)
-	{
-		lpszProc = "glFramebufferTextureLayer";
-	}
-	#pragma endregion
-	#pragma region Replace ARB_draw_instanced
-	else if (strcmp(lpszProc, "glDrawArraysInstancedARB") == 0)
-	{
-		lpszProc = "glDrawArraysInstanced";
-	}
-	else if (strcmp(lpszProc, "glDrawElementsInstancedARB") == 0)
-	{
-		lpszProc = "glDrawElementsInstanced";
-	}
-	#pragma endregion
-
 	const PROC address = trampoline(lpszProc);
 
 	if (address == nullptr || lpszProc == nullptr)
 	{
 		return nullptr;
-	}
-	else if (strcmp(lpszProc, "glBindFramebuffer") == 0)
-	{
-		ReShade::Hooks::Install(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&glBindFramebuffer));
 	}
 	else if (strcmp(lpszProc, "glBindTexture") == 0)
 	{
@@ -3287,6 +3333,14 @@ EXPORT PROC WINAPI wglGetProcAddress(LPCSTR lpszProc)
 	{
 		ReShade::Hooks::Install(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&glDrawArraysInstanced));
 	}
+	else if (strcmp(lpszProc, "glDrawArraysInstancedARB") == 0)
+	{
+		ReShade::Hooks::Install(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&glDrawArraysInstancedARB));
+	}
+	else if (strcmp(lpszProc, "glDrawArraysInstancedEXT") == 0)
+	{
+		ReShade::Hooks::Install(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&glDrawArraysInstancedEXT));
+	}
 	else if (strcmp(lpszProc, "glDrawArraysInstancedBaseInstance") == 0)
 	{
 		ReShade::Hooks::Install(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&glDrawArraysInstancedBaseInstance));
@@ -3311,6 +3365,14 @@ EXPORT PROC WINAPI wglGetProcAddress(LPCSTR lpszProc)
 	{
 		ReShade::Hooks::Install(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&glDrawElementsInstanced));
 	}
+	else if (strcmp(lpszProc, "glDrawElementsInstancedARB") == 0)
+	{
+		ReShade::Hooks::Install(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&glDrawElementsInstancedARB));
+	}
+	else if (strcmp(lpszProc, "glDrawElementsInstancedEXT") == 0)
+	{
+		ReShade::Hooks::Install(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&glDrawElementsInstancedEXT));
+	}
 	else if (strcmp(lpszProc, "glDrawElementsInstancedBaseVertex") == 0)
 	{
 		ReShade::Hooks::Install(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&glDrawElementsInstancedBaseVertex));
@@ -3322,6 +3384,14 @@ EXPORT PROC WINAPI wglGetProcAddress(LPCSTR lpszProc)
 	else if (strcmp(lpszProc, "glDrawElementsInstancedBaseVertexBaseInstance") == 0)
 	{
 		ReShade::Hooks::Install(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&glDrawElementsInstancedBaseVertexBaseInstance));
+	}
+	else if (strcmp(lpszProc, "glDrawRangeElements") == 0)
+	{
+		ReShade::Hooks::Install(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&glDrawRangeElements));
+	}
+	else if (strcmp(lpszProc, "glDrawRangeElementsBaseVertex") == 0)
+	{
+		ReShade::Hooks::Install(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&glDrawRangeElementsBaseVertex));
 	}
 	else if (strcmp(lpszProc, "glEnable") == 0)
 	{
@@ -3339,25 +3409,57 @@ EXPORT PROC WINAPI wglGetProcAddress(LPCSTR lpszProc)
 	{
 		ReShade::Hooks::Install(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&glFramebufferRenderbuffer));
 	}
+	else if (strcmp(lpszProc, "glFramebufferRenderbufferEXT") == 0)
+	{
+		ReShade::Hooks::Install(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&glFramebufferRenderbufferEXT));
+	}
 	else if (strcmp(lpszProc, "glFramebufferTexture") == 0)
 	{
 		ReShade::Hooks::Install(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&glFramebufferTexture));
+	}
+	else if (strcmp(lpszProc, "glFramebufferTextureARB") == 0)
+	{
+		ReShade::Hooks::Install(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&glFramebufferTextureARB));
+	}
+	else if (strcmp(lpszProc, "glFramebufferTextureEXT") == 0)
+	{
+		ReShade::Hooks::Install(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&glFramebufferTextureEXT));
 	}
 	else if (strcmp(lpszProc, "glFramebufferTexture1D") == 0)
 	{
 		ReShade::Hooks::Install(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&glFramebufferTexture1D));
 	}
+	else if (strcmp(lpszProc, "glFramebufferTexture1DEXT") == 0)
+	{
+		ReShade::Hooks::Install(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&glFramebufferTexture1DEXT));
+	}
 	else if (strcmp(lpszProc, "glFramebufferTexture2D") == 0)
 	{
 		ReShade::Hooks::Install(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&glFramebufferTexture2D));
+	}
+	else if (strcmp(lpszProc, "glFramebufferTexture2DEXT") == 0)
+	{
+		ReShade::Hooks::Install(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&glFramebufferTexture2DEXT));
 	}
 	else if (strcmp(lpszProc, "glFramebufferTexture3D") == 0)
 	{
 		ReShade::Hooks::Install(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&glFramebufferTexture3D));
 	}
+	else if (strcmp(lpszProc, "glFramebufferTexture3DEXT") == 0)
+	{
+		ReShade::Hooks::Install(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&glFramebufferTexture3DEXT));
+	}
 	else if (strcmp(lpszProc, "glFramebufferTextureLayer") == 0)
 	{
 		ReShade::Hooks::Install(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&glFramebufferTextureLayer));
+	}
+	else if (strcmp(lpszProc, "glFramebufferTextureLayerARB") == 0)
+	{
+		ReShade::Hooks::Install(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&glFramebufferTextureLayerARB));
+	}
+	else if (strcmp(lpszProc, "glFramebufferTextureLayerEXT") == 0)
+	{
+		ReShade::Hooks::Install(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&glFramebufferTextureLayerEXT));
 	}
 	else if (strcmp(lpszProc, "glFrontFace") == 0)
 	{
