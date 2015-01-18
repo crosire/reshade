@@ -2911,6 +2911,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreatePixelShader(CONST DWORD *pFunct
 		source.replace(pos, 6, "ps_1_1");
 	}
 
+	boost::algorithm::replace_all(source, "-c", "/*-*/c");
+
 	LOG(TRACE) << "> Dumping shader disassembly:\n\n" << source;
 
 	hr = D3DXAssembleShader(source.data(), static_cast<UINT>(source.size()), nullptr, nullptr, 0, &assembly, &errors);
