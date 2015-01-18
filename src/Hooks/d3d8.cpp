@@ -559,6 +559,8 @@ namespace
 				return "D3DERR_DEVICENOTRESET";
 			case D3DERR_WASSTILLDRAWING:
 				return "D3DERR_WASSTILLDRAWING";
+			case D3DXERR_INVALIDDATA:
+				return "D3DXERR_INVALIDDATA";
 			default:
 				__declspec(thread) static CHAR buf[20];
 				sprintf_s(buf, "0x%lx", hr);
@@ -2537,7 +2539,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateVertexShader(CONST DWORD *pDecl
 	for (UINT k = 0; k < i; ++k)
 	{
 		char line[88];
-		sprintf_s(line, "  | r%-7u | %-7hu | %-7hu | 0x%010hhX | 0x%010hhX | 0x%010hhX | %-5hhu |", inputs[k], elements[k].Stream, elements[k].Offset, elements[k].Type, elements[k].Method, elements[k].Usage, elements[k].UsageIndex);
+		sprintf_s(line, "  | v%-7u | %-7hu | %-7hu | 0x%010hhX | 0x%010hhX | 0x%010hhX | %-5hhu |", inputs[k], elements[k].Stream, elements[k].Offset, elements[k].Type, elements[k].Method, elements[k].Usage, elements[k].UsageIndex);
 
 		LOG(TRACE) << line;
 	}
@@ -2561,13 +2563,13 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateVertexShader(CONST DWORD *pDecl
 			return D3DERR_INVALIDCALL;
 		}
 
-		ID3DXBuffer *disassembly = nullptr, *assembly = nullptr;
+		ID3DXBuffer *disassembly = nullptr, *assembly = nullptr, *errors = nullptr;
 
 		hr = D3DXDisassembleShader(pFunction, FALSE, nullptr, &disassembly);
 
 		if (FAILED(hr))
 		{
-			LOG(ERROR) << "'D3DXDisassembleShader' failed with '" << GetErrorString(hr) << "'!";
+			LOG(ERROR) << "> Failed to disassemble shader with '" << GetErrorString(hr) << "'!";
 
 			return hr;
 		}
@@ -2618,14 +2620,26 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateVertexShader(CONST DWORD *pDecl
 		source.insert(declpos, constants);
 
 		boost::algorithm::replace_all(source, "oFog.x", "oFog");
+		boost::algorithm::replace_all(source, "oPts.x", "oPts");
 
-		hr = D3DXAssembleShader(source.data(), static_cast<UINT>(source.size()), nullptr, nullptr, D3DXSHADER_SKIPVALIDATION, &assembly, nullptr);
+		LOG(TRACE) << "> Dumping shader disassembly:\n\n" << source;
+
+		hr = D3DXAssembleShader(source.data(), static_cast<UINT>(source.size()), nullptr, nullptr, 0, &assembly, &errors);
 
 		disassembly->Release();
 
 		if (FAILED(hr))
 		{
-			LOG(ERROR) << "'D3DXAssembleShader' failed with '" << GetErrorString(hr) << "'!";
+			if (errors != nullptr)
+			{
+				LOG(ERROR) << "> Failed to reassemble shader:\n\n" << static_cast<const char *>(errors->GetBufferPointer());
+
+				errors->Release();
+			}
+			else
+			{
+				LOG(ERROR) << "> Failed to reassemble shader with '" << GetErrorString(hr) << "'!";
+			}
 
 			return hr;
 		}
@@ -2654,7 +2668,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateVertexShader(CONST DWORD *pDecl
 		}
 		else
 		{
-			LOG(ERROR) << "'IDirect3DDevice9::CreateVertexDeclaration' failed with '" << GetErrorString(hr) << "'!";
+			LOG(ERROR) << "> 'IDirect3DDevice9::CreateVertexDeclaration' failed with '" << GetErrorString(hr) << "'!";
 
 			if (shader->mShader != nullptr)
 			{
@@ -2664,7 +2678,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateVertexShader(CONST DWORD *pDecl
 	}
 	else
 	{
-		LOG(ERROR) << "'IDirect3DDevice9::CreateVertexShader' failed with '" << GetErrorString(hr) << "'!";
+		LOG(ERROR) << "> 'IDirect3DDevice9::CreateVertexShader' failed with '" << GetErrorString(hr) << "'!";
 	}
 		
 	if (FAILED(hr))
@@ -2876,37 +2890,45 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreatePixelShader(CONST DWORD *pFunct
 		return D3DERR_INVALIDCALL;
 	}
 
-	ID3DXBuffer *disassembly = nullptr, *assembly = nullptr;
+	ID3DXBuffer *disassembly = nullptr, *assembly = nullptr, *errors = nullptr;
 
 	HRESULT hr = D3DXDisassembleShader(pFunction, FALSE, nullptr, &disassembly);
 
 	if (FAILED(hr))
 	{
-		LOG(ERROR) << "'D3DXDisassembleShader' failed with '" << GetErrorString(hr) << "'!";
+		LOG(ERROR) << "> Failed to disassemble shader with '" << GetErrorString(hr) << "'!";
 
 		return hr;
 	}
 
 	std::string source(static_cast<const char *>(disassembly->GetBufferPointer()), disassembly->GetBufferSize());
-
 	const std::size_t pos = source.find("ps_1_0");
 
 	if (pos != std::string::npos)
 	{
-		LOG(WARNING) << "> Replacing version 'ps_1_0' with 'ps_1_1' ...";
+		LOG(INFO) << "> Replacing version 'ps_1_0' with 'ps_1_1' ...";
 
 		source.replace(pos, 6, "ps_1_1");
 	}
 
-	hr = D3DXAssembleShader(source.data(), static_cast<UINT>(source.size()), nullptr, nullptr, D3DXSHADER_SKIPVALIDATION, &assembly, nullptr);
+	LOG(TRACE) << "> Dumping shader disassembly:\n\n" << source;
+
+	hr = D3DXAssembleShader(source.data(), static_cast<UINT>(source.size()), nullptr, nullptr, 0, &assembly, &errors);
 
 	disassembly->Release();
 
 	if (FAILED(hr))
 	{
-		LOG(ERROR) << "'D3DXAssembleShader' failed with '" << GetErrorString(hr) << "'!";
+		if (errors != nullptr)
+		{
+			LOG(ERROR) << "> Failed to reassemble shader:\n\n" << static_cast<const char *>(errors->GetBufferPointer());
 
-		return hr;
+			errors->Release();
+		}
+		else
+		{
+			LOG(ERROR) << "> Failed to reassemble shader with '" << GetErrorString(hr) << "'!";
+		}
 	}
 
 	hr = this->mProxy->CreatePixelShader(static_cast<CONST DWORD *>(assembly->GetBufferPointer()), reinterpret_cast<IDirect3DPixelShader9 **>(pHandle));
@@ -2915,7 +2937,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreatePixelShader(CONST DWORD *pFunct
 
 	if (FAILED(hr))
 	{
-		LOG(ERROR) << "'IDirect3DDevice9::CreatePixelShader' failed with '" << GetErrorString(hr) << "'!";
+		LOG(ERROR) << "> 'IDirect3DDevice9::CreatePixelShader' failed with '" << GetErrorString(hr) << "'!";
 	}
 
 	return hr;
