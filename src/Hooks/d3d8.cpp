@@ -2556,9 +2556,9 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateVertexShader(CONST DWORD *pDecl
 	{
 		LOG(INFO) << "> Disassembling shader and translating assembly to Direct3D 9 compatible code ...";
 
-		if (*pFunction != 0xFFFE0101)
+		if (*pFunction < 0xFFFE0100 || *pFunction > 0xFFFE0101)
 		{
-			LOG(WARNING) << "> Failed because of version mismatch ('" << *pFunction << "')! Only 'vs_1_1' shaders are supported.";
+			LOG(WARNING) << "> Failed because of version mismatch ('" << *pFunction << "')! Only 'vs_1_x' shaders are supported.";
 
 			return D3DERR_INVALIDCALL;
 		}
@@ -2575,7 +2575,18 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateVertexShader(CONST DWORD *pDecl
 		}
 
 		std::string source(static_cast<const char *>(disassembly->GetBufferPointer()), disassembly->GetBufferSize());
-		std::size_t declpos = source.find("vs_1_1") + 7;
+		const std::size_t verpos = source.find("vs_1_");
+
+		assert(verpos != std::string::npos);
+
+		if (source.at(verpos + 5) == '0')
+		{
+			LOG(INFO) << "> Replacing version 'vs_1_0' with 'vs_1_1' ...";
+
+			source.replace(verpos, 6, "vs_1_1");
+		}
+
+		std::size_t declpos = verpos + 7;
 
 		for (UINT k = 0; k < i; ++k)
 		{
@@ -2619,6 +2630,9 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateVertexShader(CONST DWORD *pDecl
 
 		source.insert(declpos, constants);
 
+		boost::algorithm::replace_all(source, "m3x2", "/*m3x2*/m3x4");
+		boost::algorithm::replace_all(source, "m3x3", "/*m3x3*/m3x4");
+		boost::algorithm::replace_all(source, "m4x3", "/*m4x3*/m4x4");
 		boost::algorithm::replace_all(source, "oFog.x", "oFog");
 		boost::algorithm::replace_all(source, "oPts.x", "oPts");
 
@@ -2902,15 +2916,20 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreatePixelShader(CONST DWORD *pFunct
 	}
 
 	std::string source(static_cast<const char *>(disassembly->GetBufferPointer()), disassembly->GetBufferSize());
-	const std::size_t pos = source.find("ps_1_0");
+	const std::size_t verpos = source.find("ps_1_");
 
-	if (pos != std::string::npos)
+	assert(verpos != std::string::npos);
+
+	if (source.at(verpos + 5) == '0')
 	{
 		LOG(INFO) << "> Replacing version 'ps_1_0' with 'ps_1_1' ...";
 
-		source.replace(pos, 6, "ps_1_1");
+		source.replace(verpos, 6, "ps_1_1");
 	}
 
+	boost::algorithm::replace_all(source, "m3x2", "/*m3x2*/m3x4");
+	boost::algorithm::replace_all(source, "m3x3", "/*m3x3*/m3x4");
+	boost::algorithm::replace_all(source, "m4x3", "/*m4x3*/m4x4");
 	boost::algorithm::replace_all(source, "-c", "/*-*/c");
 
 	LOG(TRACE) << "> Dumping shader disassembly:\n\n" << source;
