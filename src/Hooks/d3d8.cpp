@@ -893,17 +893,16 @@ HRESULT STDMETHODCALLTYPE Direct3DTexture8::GetSurfaceLevel(UINT Level, Direct3D
 	}
 
 	IDirect3DSurface9 *surface = nullptr;
+	Direct3DSurface8 *surfaceProxy = nullptr;
 
 	const HRESULT hr = static_cast<IDirect3DTexture9 *>(this->mProxy)->GetSurfaceLevel(Level, &surface);
 
 	if (SUCCEEDED(hr))
 	{
-		*ppSurfaceLevel = new Direct3DSurface8(this->mDevice, surface);
+		surfaceProxy = new Direct3DSurface8(this->mDevice, surface);
 	}
-	else
-	{
-		*ppSurfaceLevel = nullptr;
-	}
+
+	*ppSurfaceLevel = surfaceProxy;
 
 	return hr;
 }
@@ -983,17 +982,16 @@ HRESULT STDMETHODCALLTYPE Direct3DVolumeTexture8::GetVolumeLevel(UINT Level, Dir
 	}
 
 	IDirect3DVolume9 *volume = nullptr;
+	Direct3DVolume8 *volumeProxy = nullptr;
 
 	const HRESULT hr = static_cast<IDirect3DVolumeTexture9 *>(this->mProxy)->GetVolumeLevel(Level, &volume);
 
 	if (SUCCEEDED(hr))
 	{
-		*ppVolumeLevel = new Direct3DVolume8(this->mDevice, volume);
+		volumeProxy = new Direct3DVolume8(this->mDevice, volume);
 	}
-	else
-	{
-		*ppVolumeLevel = nullptr;
-	}
+
+	*ppVolumeLevel = volumeProxy;
 
 	return hr;
 }
@@ -1073,17 +1071,16 @@ HRESULT STDMETHODCALLTYPE Direct3DCubeTexture8::GetCubeMapSurface(D3DCUBEMAP_FAC
 	}
 
 	IDirect3DSurface9 *surface = nullptr;
+	Direct3DSurface8 *surfaceProxy = nullptr;
 
 	const HRESULT hr = static_cast<IDirect3DCubeTexture9 *>(this->mProxy)->GetCubeMapSurface(FaceType, Level, &surface);
 
 	if (SUCCEEDED(hr))
 	{
-		*ppCubeMapSurface = new Direct3DSurface8(this->mDevice, surface);
+		surfaceProxy = new Direct3DSurface8(this->mDevice, surface);
 	}
-	else
-	{
-		*ppCubeMapSurface = nullptr;
-	}
+
+	*ppCubeMapSurface = surfaceProxy;
 
 	return hr;
 }
@@ -1443,17 +1440,16 @@ HRESULT STDMETHODCALLTYPE Direct3DSwapChain8::GetBackBuffer(UINT iBackBuffer, D3
 	}
 
 	IDirect3DSurface9 *surface = nullptr;
+	Direct3DSurface8 *surfaceProxy = nullptr;
 
 	const HRESULT hr = this->mProxy->GetBackBuffer(iBackBuffer, Type, &surface);
 
 	if (SUCCEEDED(hr))
 	{
-		*ppBackBuffer = new Direct3DSurface8(this->mDevice, surface);
+		surfaceProxy = new Direct3DSurface8(this->mDevice, surface);
 	}
-	else
-	{
-		*ppBackBuffer = nullptr;
-	}
+
+	*ppBackBuffer = surfaceProxy;
 		
 	return hr;
 }
@@ -1629,17 +1625,16 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::GetBackBuffer(UINT iBackBuffer, D3DBA
 	}
 
 	IDirect3DSurface9 *surface = nullptr;
+	Direct3DSurface8 *surfaceProxy = nullptr;
 
 	const HRESULT hr = this->mProxy->GetBackBuffer(0, iBackBuffer, Type, &surface);
 
 	if (SUCCEEDED(hr))
 	{
-		*ppBackBuffer = new Direct3DSurface8(this, surface);
+		surfaceProxy = new Direct3DSurface8(this, surface);
 	}
-	else
-	{
-		*ppBackBuffer = nullptr;
-	}
+
+	*ppBackBuffer = surfaceProxy;
 
 	return hr;
 }
@@ -1952,23 +1947,10 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::SetRenderTarget(Direct3DSurface8 *pRe
 		return hr;
 	}
 
-	IDirect3DSurface9 *rendertarget = nullptr;
-
 	if (pRenderTarget != nullptr)
 	{
-		rendertarget = pRenderTarget->mProxy;
-		rendertarget->AddRef();
+		hr = this->mProxy->SetRenderTarget(0, pRenderTarget->mProxy);
 	}
-	else
-	{
-		this->mProxy->GetRenderTarget(0, &rendertarget);
-	}
-
-	assert(rendertarget != nullptr);
-
-	hr = this->mProxy->SetRenderTarget(0, rendertarget);
-
-	rendertarget->Release();
 
 	return hr;
 }
@@ -1980,19 +1962,17 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::GetRenderTarget(Direct3DSurface8 **pp
 	}
 
 	IDirect3DSurface9 *surface = nullptr;
+	Direct3DSurface8 *surfaceProxy = nullptr;
 
 	const HRESULT hr = this->mProxy->GetRenderTarget(0, &surface);
 
 	if (SUCCEEDED(hr))
 	{
-		*ppRenderTarget = new Direct3DSurface8(this, surface);
+		surfaceProxy = new Direct3DSurface8(this, surface);
+		surfaceProxy->AddRef();
+	}
 
-		static_cast<Direct3DSurface8 *>(*ppRenderTarget)->mRef++;
-	}
-	else
-	{
-		*ppRenderTarget = nullptr;
-	}
+	*ppRenderTarget = surfaceProxy;
 
 	return hr;
 }
@@ -2004,19 +1984,17 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::GetDepthStencilSurface(Direct3DSurfac
 	}
 
 	IDirect3DSurface9 *surface = nullptr;
+	Direct3DSurface8 *surfaceProxy = nullptr;
 
 	const HRESULT hr = this->mProxy->GetDepthStencilSurface(&surface);
 
 	if (SUCCEEDED(hr))
 	{
-		*ppZStencilSurface = new Direct3DSurface8(this, surface);
+		surfaceProxy = new Direct3DSurface8(this, surface);
+		surfaceProxy->AddRef();
+	}
 
-		static_cast<Direct3DSurface8 *>(*ppZStencilSurface)->mRef++;
-	}
-	else
-	{
-		*ppZStencilSurface = nullptr;
-	}
+	*ppZStencilSurface = surfaceProxy;
 
 	return hr;
 }
@@ -2210,17 +2188,16 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::GetTexture(DWORD Stage, Direct3DBaseT
 	}
 
 	IDirect3DBaseTexture9 *texture = nullptr;
+	Direct3DBaseTexture8 *textureProxy = nullptr;
 
 	const HRESULT hr = this->mProxy->GetTexture(Stage, &texture);
 
-	if (SUCCEEDED(hr) && texture != nullptr)
+	if (SUCCEEDED(hr))
 	{
-		*ppTexture = new Direct3DBaseTexture8(this, texture);
+		textureProxy = new Direct3DBaseTexture8(this, texture);
 	}
-	else
-	{
-		*ppTexture = nullptr;
-	}
+	
+	*ppTexture = textureProxy;
 
 	return hr;
 }
