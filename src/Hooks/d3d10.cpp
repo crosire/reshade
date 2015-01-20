@@ -3,6 +3,7 @@
 #include "Runtimes\RuntimeD3D10.hpp"
 
 #include <d3d10_1.h>
+#include <dxgi1_2.h>
 
 // -----------------------------------------------------------------------------------------------------
 
@@ -10,11 +11,11 @@ namespace
 {
 	struct D3D10Device : public ID3D10Device1, private boost::noncopyable
 	{
-		D3D10Device(ID3D10Device *originalDevice) : mRef(1), mOrig(originalDevice), mInterfaceVersion(0)
+		D3D10Device(ID3D10Device *originalDevice) : mRef(1), mOrig(originalDevice), mInterfaceVersion(0), mDXGIDevice(nullptr)
 		{
 			assert(originalDevice != nullptr);
 		}
-		D3D10Device(ID3D10Device1 *originalDevice) : mRef(1), mOrig(originalDevice), mInterfaceVersion(1)
+		D3D10Device(ID3D10Device1 *originalDevice) : mRef(1), mOrig(originalDevice), mInterfaceVersion(1), mDXGIDevice(nullptr)
 		{
 			assert(originalDevice != nullptr);
 		}
@@ -126,6 +127,7 @@ namespace
 		ULONG mRef;
 		ID3D10Device *const mOrig;
 		const unsigned int mInterfaceVersion;
+		IDXGIDevice *mDXGIDevice;
 		std::vector<std::shared_ptr<ReShade::Runtimes::D3D10Runtime>> mRuntimes;
 	};
 
@@ -198,6 +200,8 @@ public:
 		return ref;
 	}
 
+	IDXGIDevice *GetProxyDXGIDevice();
+	static IDXGIDevice *GetProxyDXGIDevice(IDXGIDevice *deviceDXGI, ID3D10Device *deviceD3D10);
 	ID3D10Device *GetOriginalDevice();
 	void AddRuntime(std::shared_ptr<ReShade::Runtimes::D3D10Runtime> runtime);
 	void RemoveRuntime(std::shared_ptr<ReShade::Runtimes::D3D10Runtime> runtime);
@@ -211,6 +215,10 @@ private:
 
 const IID DXGID3D10Bridge::sIID = { 0xff97cb62, 0x2b9e, 0x4792, { 0xb2, 0x87, 0x82, 0x3a, 0x71, 0x9, 0x57, 0x20 } };
 
+IDXGIDevice *DXGID3D10Bridge::GetProxyDXGIDevice()
+{
+	return this->mDevice->mDXGIDevice;
+}
 ID3D10Device *DXGID3D10Bridge::GetOriginalDevice()
 {
 	return this->mDevice->mOrig;
@@ -263,11 +271,22 @@ ULONG STDMETHODCALLTYPE ID3D10DepthStencilView_Release(ID3D10DepthStencilView *p
 // ID3D10Device
 HRESULT STDMETHODCALLTYPE D3D10Device::QueryInterface(REFIID riid, void **ppvObj)
 {
-	if (riid == DXGID3D10Bridge::sIID && ppvObj != nullptr)
+	if (ppvObj == nullptr)
+	{
+		return E_POINTER;
+	}
+
+	if (riid == DXGID3D10Bridge::sIID)
 	{
 		*ppvObj = new DXGID3D10Bridge(this);
 
 		return S_OK;
+	}
+	else if (riid == __uuidof(IDXGIDevice) || riid == __uuidof(IDXGIDevice1) || riid == __uuidof(IDXGIDevice2))
+	{
+		assert(this->mDXGIDevice != nullptr);
+
+		return this->mDXGIDevice->QueryInterface(riid, ppvObj);
 	}
 
 	const HRESULT hr = this->mOrig->QueryInterface(riid, ppvObj);
@@ -295,7 +314,7 @@ ULONG STDMETHODCALLTYPE D3D10Device::Release()
 
 	if (this->mRef == 0 && ref != 0)
 	{
-		LOG(WARNING) << "Reference count for 'ID3D10Device' object (" << ref << ") is inconsistent.";
+		LOG(WARNING) << "Reference count for 'ID3D10Device' object " << this << " (" << ref << ") is inconsistent.";
 	}
 
 	if (ref == 0)
@@ -790,7 +809,11 @@ EXPORT HRESULT WINAPI D3D10CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, D3D1
 			assert(*ppDevice != nullptr);
 
 			ID3D10Device *const device = *ppDevice;
+			IDXGIDevice *deviceDXGI = nullptr;
+			device->QueryInterface(&deviceDXGI);
+
 			D3D10Device *const deviceProxy = new D3D10Device(device);
+			deviceProxy->mDXGIDevice = DXGID3D10Bridge::GetProxyDXGIDevice(deviceDXGI, deviceProxy);
 
 			device->SetPrivateData(DXGID3D10Bridge::sIID, sizeof(deviceProxy), reinterpret_cast<const void *>(&deviceProxy));
 
@@ -814,7 +837,7 @@ EXPORT HRESULT WINAPI D3D10CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, D3D1
 			{
 				*ppDevice = deviceProxy;
 
-				LOG(TRACE) << "> Returned device object: " << *ppDevice;
+				LOG(TRACE) << "> Returned device object: " << deviceProxy << ", " << deviceProxy->mDXGIDevice;
 			}
 			else
 			{
@@ -846,7 +869,11 @@ EXPORT HRESULT WINAPI D3D10CreateDeviceAndSwapChain1(IDXGIAdapter *pAdapter, D3D
 			assert(*ppDevice != nullptr);
 
 			ID3D10Device1 *const device = *ppDevice;
+			IDXGIDevice *deviceDXGI = nullptr;
+			device->QueryInterface(&deviceDXGI);
+
 			D3D10Device *const deviceProxy = new D3D10Device(device);
+			deviceProxy->mDXGIDevice = DXGID3D10Bridge::GetProxyDXGIDevice(deviceDXGI, deviceProxy);
 
 			device->SetPrivateData(DXGID3D10Bridge::sIID, sizeof(deviceProxy), reinterpret_cast<const void *>(&deviceProxy));
 
@@ -870,7 +897,7 @@ EXPORT HRESULT WINAPI D3D10CreateDeviceAndSwapChain1(IDXGIAdapter *pAdapter, D3D
 			{
 				*ppDevice = deviceProxy;
 
-				LOG(TRACE) << "> Returned device object: " << *ppDevice;
+				LOG(TRACE) << "> Returned device object: " << deviceProxy << ", " << deviceProxy->mDXGIDevice;
 			}
 			else
 			{

@@ -14,6 +14,47 @@
 
 namespace
 {
+	struct DXGIDevice : public IDXGIDevice2, private boost::noncopyable
+	{
+		DXGIDevice(IDXGIDevice *originalDevice, ID3D10Device *direct3DDevice) : mRef(1), mOrig(originalDevice), mInterfaceVersion(0), mDirect3DDevice(direct3DDevice), mDirect3DVersion(10)
+		{
+			assert(originalDevice != nullptr);
+			assert(direct3DDevice != nullptr);
+		}
+		DXGIDevice(IDXGIDevice *originalDevice, ID3D11Device *direct3DDevice) : mRef(1), mOrig(originalDevice), mInterfaceVersion(0), mDirect3DDevice(direct3DDevice), mDirect3DVersion(11)
+		{
+			assert(originalDevice != nullptr);
+			assert(direct3DDevice != nullptr);
+		}
+
+		virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
+		virtual ULONG STDMETHODCALLTYPE AddRef() override;
+		virtual ULONG STDMETHODCALLTYPE Release() override;
+
+		virtual HRESULT STDMETHODCALLTYPE SetPrivateData(REFGUID Name, UINT DataSize, const void *pData) override;
+		virtual HRESULT STDMETHODCALLTYPE SetPrivateDataInterface(REFGUID Name, const IUnknown *pUnknown) override;
+		virtual HRESULT STDMETHODCALLTYPE GetPrivateData(REFGUID Name, UINT *pDataSize, void *pData) override;
+		virtual HRESULT STDMETHODCALLTYPE GetParent(REFIID riid, void **ppParent) override;
+
+		virtual HRESULT STDMETHODCALLTYPE GetAdapter(IDXGIAdapter **pAdapter) override;
+		virtual HRESULT STDMETHODCALLTYPE CreateSurface(const DXGI_SURFACE_DESC *pDesc, UINT NumSurfaces, DXGI_USAGE Usage, const DXGI_SHARED_RESOURCE *pSharedResource, IDXGISurface **ppSurface) override;
+		virtual HRESULT STDMETHODCALLTYPE QueryResourceResidency(IUnknown *const *ppResources, DXGI_RESIDENCY *pResidencyStatus, UINT NumResources) override;
+		virtual HRESULT STDMETHODCALLTYPE SetGPUThreadPriority(INT Priority) override;
+		virtual HRESULT STDMETHODCALLTYPE GetGPUThreadPriority(INT *pPriority) override;
+
+		virtual HRESULT STDMETHODCALLTYPE SetMaximumFrameLatency(UINT MaxLatency) override;
+		virtual HRESULT STDMETHODCALLTYPE GetMaximumFrameLatency(UINT *pMaxLatency) override;
+
+		virtual HRESULT STDMETHODCALLTYPE OfferResources(UINT NumResources, IDXGIResource *const *ppResources, DXGI_OFFER_RESOURCE_PRIORITY Priority) override;
+		virtual HRESULT STDMETHODCALLTYPE ReclaimResources(UINT NumResources, IDXGIResource *const *ppResources, BOOL *pDiscarded) override;
+		virtual HRESULT STDMETHODCALLTYPE EnqueueSetEvent(HANDLE hEvent) override;
+
+		ULONG mRef;
+		IDXGIDevice *mOrig;
+		unsigned int mInterfaceVersion;
+		IUnknown *const mDirect3DDevice;
+		const unsigned int mDirect3DVersion;
+	};
 	struct DXGISwapChain : public IDXGISwapChain1, private boost::noncopyable
 	{
 		DXGISwapChain(IUnknown *deviceBridge, IDXGISwapChain *originalSwapChain, const std::shared_ptr<ReShade::Runtimes::D3D10Runtime> &runtime, const DXGI_SAMPLE_DESC &samples) : mRef(1), mOrig(originalSwapChain), mOrigSamples(samples), mDirect3DBridge(deviceBridge), mDirect3DVersion(10), mRuntime(runtime)
@@ -190,6 +231,8 @@ public:
 	static const IID sIID;
 
 public:
+	IDXGIDevice *GetProxyDXGIDevice();
+	static IDXGIDevice *GetProxyDXGIDevice(IDXGIDevice *deviceDXGI, ID3D10Device *deviceD3D10);
 	ID3D10Device *GetOriginalDevice();
 	void AddRuntime(std::shared_ptr<ReShade::Runtimes::D3D10Runtime> runtime);
 	void RemoveRuntime(std::shared_ptr<ReShade::Runtimes::D3D10Runtime> runtime);
@@ -200,10 +243,23 @@ public:
 	static const IID sIID;
 	
 public:
+	IDXGIDevice *GetProxyDXGIDevice();
+	static IDXGIDevice *GetProxyDXGIDevice(IDXGIDevice *deviceDXGI, ID3D11Device *deviceD3D11);
 	ID3D11Device *GetOriginalDevice();
 	void AddRuntime(std::shared_ptr<ReShade::Runtimes::D3D11Runtime> runtime);
 	void RemoveRuntime(std::shared_ptr<ReShade::Runtimes::D3D11Runtime> runtime);
 };
+
+// -----------------------------------------------------------------------------------------------------
+
+IDXGIDevice *DXGID3D10Bridge::GetProxyDXGIDevice(IDXGIDevice *deviceDXGI, ID3D10Device *deviceD3D10)
+{
+	return new DXGIDevice(deviceDXGI, deviceD3D10);
+}
+IDXGIDevice *DXGID3D11Bridge::GetProxyDXGIDevice(IDXGIDevice *deviceDXGI, ID3D11Device *deviceD3D11)
+{
+	return new DXGIDevice(deviceDXGI, deviceD3D11);
+}
 #pragma endregion
 
 // -----------------------------------------------------------------------------------------------------
@@ -257,7 +313,7 @@ ULONG STDMETHODCALLTYPE DXGISwapChain::Release()
 
 	if (this->mRef == 0 && ref != 0)
 	{
-		LOG(WARNING) << "Reference count for 'IDXGISwapChain' object (" << ref << ") is inconsistent.";
+		LOG(WARNING) << "Reference count for 'IDXGISwapChain' object " << this << " (" << ref << ") is inconsistent.";
 	}
 
 	if (ref == 0)
@@ -496,6 +552,159 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::SetRotation(DXGI_MODE_ROTATION Rotation
 HRESULT STDMETHODCALLTYPE DXGISwapChain::GetRotation(DXGI_MODE_ROTATION *pRotation)
 {
 	return static_cast<IDXGISwapChain1 *>(this->mOrig)->GetRotation(pRotation);
+}
+
+// IDXGIDevice
+HRESULT STDMETHODCALLTYPE DXGIDevice::QueryInterface(REFIID riid, void **ppvObj)
+{
+	if (ppvObj == nullptr)
+	{
+		return E_POINTER;
+	}
+
+	switch (this->mDirect3DVersion)
+	{
+		case 10:
+			if (riid == DXGID3D10Bridge::sIID || riid == __uuidof(ID3D10Device) || riid == __uuidof(ID3D10Device1))
+			{
+				return this->mDirect3DDevice->QueryInterface(riid, ppvObj);
+			}
+			break;
+		case 11:
+			if (riid == DXGID3D11Bridge::sIID || riid == __uuidof(ID3D11Device) || riid == __uuidof(ID3D11Device1))
+			{
+				return this->mDirect3DDevice->QueryInterface(riid, ppvObj);
+			}
+			break;
+	}
+
+	const HRESULT hr = this->mOrig->QueryInterface(riid, ppvObj);
+
+	if (SUCCEEDED(hr) && (riid == __uuidof(IUnknown) || riid == __uuidof(IDXGIObject) || riid == __uuidof(IDXGIDevice) || riid == __uuidof(IDXGIDevice1) || riid == __uuidof(IDXGIDevice2)))
+	{
+		#pragma region Update to IDXGIDevice1 interface
+		if (riid == __uuidof(IDXGIDevice1) && this->mInterfaceVersion < 1)
+		{
+			IDXGIDevice1 *const dxgidevice1 = static_cast<IDXGIDevice1 *>(*ppvObj);
+
+			assert(dxgidevice1 != nullptr);
+
+			dxgidevice1->AddRef();
+
+			this->mOrig->Release();
+			this->mOrig = dxgidevice1;
+
+			this->mInterfaceVersion = 1;
+
+			LOG(INFO) << "Upgraded 'IDXGIDevice' interface " << this << " to 'IDXGIDevice1'.";
+		}
+		#pragma endregion
+		#pragma region Update to IDXGIDevice2 interface
+		if (riid == __uuidof(IDXGIDevice2) && this->mInterfaceVersion < 2)
+		{
+			IDXGIDevice2 *const dxgidevice2 = static_cast<IDXGIDevice2 *>(*ppvObj);
+
+			assert(dxgidevice2 != nullptr);
+
+			dxgidevice2->AddRef();
+
+			this->mOrig->Release();
+			this->mOrig = dxgidevice2;
+
+			this->mInterfaceVersion = 2;
+
+			LOG(INFO) << "Upgraded 'IDXGIDevice' interface " << this << " to 'IDXGIDevice2'.";
+		}
+		#pragma endregion
+
+		this->mRef++;
+
+		*ppvObj = this;
+	}
+
+	return hr;
+}
+ULONG STDMETHODCALLTYPE DXGIDevice::AddRef()
+{
+	this->mRef++;
+
+	return this->mOrig->AddRef();
+}
+ULONG STDMETHODCALLTYPE DXGIDevice::Release()
+{
+	const ULONG ref = this->mOrig->Release();
+
+	if (this->mRef == 0 && ref != 0)
+	{
+		LOG(WARNING) << "Reference count for 'IDXGIDevice' object " << this << " (" << ref << ") is inconsistent.";
+	}
+
+	if (ref == 0)
+	{
+		delete this;
+	}
+
+	return ref;
+}
+HRESULT STDMETHODCALLTYPE DXGIDevice::SetPrivateData(REFGUID Name, UINT DataSize, const void *pData)
+{
+	return this->mOrig->SetPrivateData(Name, DataSize, pData);
+}
+HRESULT STDMETHODCALLTYPE DXGIDevice::SetPrivateDataInterface(REFGUID Name, const IUnknown *pUnknown)
+{
+	return this->mOrig->SetPrivateDataInterface(Name, pUnknown);
+}
+HRESULT STDMETHODCALLTYPE DXGIDevice::GetPrivateData(REFGUID Name, UINT *pDataSize, void *pData)
+{
+	return this->mOrig->GetPrivateData(Name, pDataSize, pData);
+}
+HRESULT STDMETHODCALLTYPE DXGIDevice::GetParent(REFIID riid, void **ppParent)
+{
+	return this->mOrig->GetParent(riid, ppParent);
+}
+HRESULT STDMETHODCALLTYPE DXGIDevice::GetAdapter(IDXGIAdapter **pAdapter)
+{
+	return this->mOrig->GetAdapter(pAdapter);
+}
+HRESULT STDMETHODCALLTYPE DXGIDevice::CreateSurface(const DXGI_SURFACE_DESC *pDesc, UINT NumSurfaces, DXGI_USAGE Usage, const DXGI_SHARED_RESOURCE *pSharedResource, IDXGISurface **ppSurface)
+{
+	return this->mOrig->CreateSurface(pDesc, NumSurfaces, Usage, pSharedResource, ppSurface);
+}
+HRESULT STDMETHODCALLTYPE DXGIDevice::QueryResourceResidency(IUnknown *const *ppResources, DXGI_RESIDENCY *pResidencyStatus, UINT NumResources)
+{
+	return this->mOrig->QueryResourceResidency(ppResources, pResidencyStatus, NumResources);
+}
+HRESULT STDMETHODCALLTYPE DXGIDevice::SetGPUThreadPriority(INT Priority)
+{
+	return this->mOrig->SetGPUThreadPriority(Priority);
+}
+HRESULT STDMETHODCALLTYPE DXGIDevice::GetGPUThreadPriority(INT *pPriority)
+{
+	return this->mOrig->GetGPUThreadPriority(pPriority);
+}
+
+// IDXGIDevice1
+HRESULT STDMETHODCALLTYPE DXGIDevice::SetMaximumFrameLatency(UINT MaxLatency)
+{
+	return static_cast<IDXGIDevice1 *>(this->mOrig)->SetMaximumFrameLatency(MaxLatency);
+}
+HRESULT STDMETHODCALLTYPE DXGIDevice::GetMaximumFrameLatency(UINT *pMaxLatency)
+{
+	return static_cast<IDXGIDevice1 *>(this->mOrig)->GetMaximumFrameLatency(pMaxLatency);
+}
+
+// IDXGIDevice2
+HRESULT STDMETHODCALLTYPE DXGIDevice::OfferResources(UINT NumResources, IDXGIResource *const *ppResources, DXGI_OFFER_RESOURCE_PRIORITY Priority)
+{
+	return static_cast<IDXGIDevice2 *>(this->mOrig)->OfferResources(NumResources, ppResources, Priority);
+}
+HRESULT STDMETHODCALLTYPE DXGIDevice::ReclaimResources(UINT NumResources, IDXGIResource *const *ppResources, BOOL *pDiscarded)
+{
+	return static_cast<IDXGIDevice2 *>(this->mOrig)->ReclaimResources(NumResources, ppResources, pDiscarded);
+}
+HRESULT STDMETHODCALLTYPE DXGIDevice::EnqueueSetEvent(HANDLE hEvent)
+{
+	return static_cast<IDXGIDevice2 *>(this->mOrig)->EnqueueSetEvent(hEvent);
 }
 
 // IDXGIFactory

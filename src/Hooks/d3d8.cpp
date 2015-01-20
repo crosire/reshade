@@ -1488,7 +1488,7 @@ ULONG STDMETHODCALLTYPE Direct3DDevice8::Release()
 
 	if (this->mRef == 0 && ref != 0)
 	{
-		LOG(WARNING) << "Reference count for 'IDirect3DDevice8' object (" << ref << ") is inconsistent.";
+		LOG(WARNING) << "Reference count for 'IDirect3DDevice8' object " << this << " (" << ref << ") is inconsistent.";
 	}
 
 	if (ref == 0)

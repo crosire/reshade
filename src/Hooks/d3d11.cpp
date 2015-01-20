@@ -3,6 +3,7 @@
 #include "Runtimes\RuntimeD3D11.hpp"
 
 #include <d3d11_1.h>
+#include <dxgi1_2.h>
 
 // -----------------------------------------------------------------------------------------------------
 
@@ -12,11 +13,11 @@ namespace
 	{
 		friend struct D3D11DeviceContext;
 
-		D3D11Device(ID3D11Device *originalDevice) : mRef(1), mOrig(originalDevice), mInterfaceVersion(0), mImmediateContext(nullptr)
+		D3D11Device(ID3D11Device *originalDevice) : mRef(1), mOrig(originalDevice), mInterfaceVersion(0), mDXGIDevice(nullptr), mImmediateContext(nullptr)
 		{
 			assert(originalDevice != nullptr);
 		}
-		D3D11Device(ID3D11Device1 *originalDevice) : mRef(1), mOrig(originalDevice), mInterfaceVersion(1), mImmediateContext(nullptr)
+		D3D11Device(ID3D11Device1 *originalDevice) : mRef(1), mOrig(originalDevice), mInterfaceVersion(1), mDXGIDevice(nullptr), mImmediateContext(nullptr)
 		{
 			assert(originalDevice != nullptr);
 		}
@@ -77,6 +78,7 @@ namespace
 		ULONG mRef;
 		ID3D11Device *mOrig;
 		unsigned int mInterfaceVersion;
+		IDXGIDevice *mDXGIDevice;
 		D3D11DeviceContext *mImmediateContext;
 		std::vector<std::shared_ptr<ReShade::Runtimes::D3D11Runtime>> mRuntimes;
 	};
@@ -308,6 +310,8 @@ public:
 		return ref;
 	}
 
+	IDXGIDevice *GetProxyDXGIDevice();
+	static IDXGIDevice *GetProxyDXGIDevice(IDXGIDevice *deviceDXGI, ID3D11Device *deviceD3D11);
 	ID3D11Device *GetOriginalDevice();
 	void AddRuntime(std::shared_ptr<ReShade::Runtimes::D3D11Runtime> runtime);
 	void RemoveRuntime(std::shared_ptr<ReShade::Runtimes::D3D11Runtime> runtime);
@@ -321,6 +325,10 @@ private:
 
 const IID DXGID3D11Bridge::sIID = { 0xff97cb62, 0x2b9e, 0x4792, { 0xb2, 0x87, 0x82, 0x3a, 0x71, 0x9, 0x57, 0x21 } };
 
+IDXGIDevice *DXGID3D11Bridge::GetProxyDXGIDevice()
+{
+	return this->mDevice->mDXGIDevice;
+}
 ID3D11Device *DXGID3D11Bridge::GetOriginalDevice()
 {
 	return this->mDevice->mOrig;
@@ -416,7 +424,7 @@ ULONG STDMETHODCALLTYPE D3D11DeviceContext::Release()
 
 	if (this->mRef == 0 && ref != 0)
 	{
-		LOG(WARNING) << "Reference count for 'ID3D11DeviceContext' object (" << ref << ") is inconsistent.";
+		LOG(WARNING) << "Reference count for 'ID3D11DeviceContext' object " << this << " (" << ref << ") is inconsistent.";
 	}
 
 	if (ref == 0)
@@ -1025,11 +1033,22 @@ void STDMETHODCALLTYPE D3D11DeviceContext::DiscardView1(ID3D11View *pResourceVie
 // ID3D11Device
 HRESULT STDMETHODCALLTYPE D3D11Device::QueryInterface(REFIID riid, void **ppvObj)
 {
-	if (riid == DXGID3D11Bridge::sIID && ppvObj != nullptr)
+	if (ppvObj == nullptr)
+	{
+		return E_POINTER;
+	}
+
+	if (riid == DXGID3D11Bridge::sIID)
 	{
 		*ppvObj = new DXGID3D11Bridge(this);
 
 		return S_OK;
+	}
+	else if (riid == __uuidof(IDXGIDevice) || riid == __uuidof(IDXGIDevice1) || riid == __uuidof(IDXGIDevice2))
+	{
+		assert(this->mDXGIDevice != nullptr);
+
+		return this->mDXGIDevice->QueryInterface(riid, ppvObj);
 	}
 
 	const HRESULT hr = this->mOrig->QueryInterface(riid, ppvObj);
@@ -1087,7 +1106,7 @@ ULONG STDMETHODCALLTYPE D3D11Device::Release()
 
 	if (this->mRef == 0 && ref != 0)
 	{
-		LOG(WARNING) << "Reference count for 'ID3D11Device' object (" << ref << ") is inconsistent.";
+		LOG(WARNING) << "Reference count for 'ID3D11Device' object " << this << " (" << ref << ") is inconsistent.";
 	}
 
 	if (ref == 0)
@@ -1376,10 +1395,13 @@ EXPORT HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, D3D_
 			assert(*ppDevice != nullptr);
 
 			ID3D11Device *const device = *ppDevice;
+			IDXGIDevice *deviceDXGI = nullptr;
+			device->QueryInterface(&deviceDXGI);
 			ID3D11DeviceContext *devicecontext = nullptr;
 			device->GetImmediateContext(&devicecontext);
 
 			D3D11Device *const deviceProxy = new D3D11Device(device);
+			deviceProxy->mDXGIDevice = DXGID3D11Bridge::GetProxyDXGIDevice(deviceDXGI, deviceProxy);
 			D3D11DeviceContext *const devicecontextProxy = new D3D11DeviceContext(deviceProxy, devicecontext);
 			deviceProxy->mImmediateContext = devicecontextProxy;
 
@@ -1411,7 +1433,7 @@ EXPORT HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, D3D_
 					*ppImmediateContext = devicecontextProxy;
 				}
 
-				LOG(TRACE) << "> Returned device object: " << *ppDevice;
+				LOG(TRACE) << "> Returned device object: " << deviceProxy << ", " << deviceProxy->mDXGIDevice;
 			}
 			else
 			{

@@ -301,7 +301,7 @@ ULONG STDMETHODCALLTYPE Direct3DSwapChain9::Release()
 
 	if (this->mRef == 0 && ref != 0)
 	{
-		LOG(WARNING) << "Reference count for 'IDirect3DSwapChain9' object (" << ref << ") is inconsistent.";
+		LOG(WARNING) << "Reference count for 'IDirect3DSwapChain9' object " << this << " (" << ref << ") is inconsistent.";
 	}
 
 	if (ref == 0)
@@ -414,7 +414,7 @@ ULONG STDMETHODCALLTYPE Direct3DDevice9::Release()
 
 	if (this->mRef == 0 && ref != 0)
 	{
-		LOG(WARNING) << "Reference count for 'IDirect3DDevice9' object (" << ref << ") is inconsistent.";
+		LOG(WARNING) << "Reference count for 'IDirect3DDevice9' object " << this << " (" << ref << ") is inconsistent.";
 	}
 
 	if (ref == 0)
