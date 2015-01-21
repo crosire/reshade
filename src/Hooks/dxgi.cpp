@@ -57,15 +57,15 @@ namespace
 	};
 	struct DXGISwapChain : public IDXGISwapChain1, private boost::noncopyable
 	{
-		DXGISwapChain(IUnknown *deviceBridge, IDXGISwapChain *originalSwapChain, const std::shared_ptr<ReShade::Runtimes::D3D10Runtime> &runtime, const DXGI_SAMPLE_DESC &samples) : mRef(1), mOrig(originalSwapChain), mOrigSamples(samples), mDirect3DBridge(deviceBridge), mDirect3DVersion(10), mRuntime(runtime)
+		DXGISwapChain(IDXGISwapChain *originalSwapChain, IUnknown *direct3dbridge, const std::shared_ptr<ReShade::Runtimes::D3D10Runtime> &runtime, const DXGI_SAMPLE_DESC &samples) : mRef(1), mOrig(originalSwapChain), mOrigSamples(samples), mDirect3DBridge(direct3dbridge), mDirect3DVersion(10), mRuntime(runtime)
 		{
-			assert(deviceBridge != nullptr);
 			assert(originalSwapChain != nullptr);
+			assert(direct3dbridge != nullptr);
 		}
-		DXGISwapChain(IUnknown *deviceBridge, IDXGISwapChain *originalSwapChain, const std::shared_ptr<ReShade::Runtimes::D3D11Runtime> &runtime, const DXGI_SAMPLE_DESC &samples) : mRef(1), mOrig(originalSwapChain), mOrigSamples(samples), mDirect3DBridge(deviceBridge), mDirect3DVersion(11), mRuntime(runtime)
+		DXGISwapChain(IDXGISwapChain *originalSwapChain, IUnknown *direct3dbridge, const std::shared_ptr<ReShade::Runtimes::D3D11Runtime> &runtime, const DXGI_SAMPLE_DESC &samples) : mRef(1), mOrig(originalSwapChain), mOrigSamples(samples), mDirect3DBridge(direct3dbridge), mDirect3DVersion(11), mRuntime(runtime)
 		{
-			assert(deviceBridge != nullptr);
 			assert(originalSwapChain != nullptr);
+			assert(direct3dbridge != nullptr);
 		}
 
 		virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
@@ -232,10 +232,17 @@ public:
 
 public:
 	IDXGIDevice *GetProxyDXGIDevice();
-	static IDXGIDevice *GetProxyDXGIDevice(IDXGIDevice *deviceDXGI, ID3D10Device *deviceD3D10);
-	ID3D10Device *GetOriginalDevice();
+	static IDXGIDevice *GetProxyDXGIDevice(IDXGIDevice *dxgidevice, ID3D10Device *direct3ddevice);
+	IDXGIDevice *GetOriginalDXGIDevice();
+	ID3D10Device *GetProxyD3D10Device();
+	ID3D10Device *GetOriginalD3D10Device();
 	void AddRuntime(std::shared_ptr<ReShade::Runtimes::D3D10Runtime> runtime);
 	void RemoveRuntime(std::shared_ptr<ReShade::Runtimes::D3D10Runtime> runtime);
+
+private:
+	ULONG mRef;
+	DXGIDevice *mDXGIDevice;
+	ID3D10Device *mD3D10Device;
 };
 class DXGID3D11Bridge : public IUnknown
 {
@@ -244,21 +251,53 @@ public:
 	
 public:
 	IDXGIDevice *GetProxyDXGIDevice();
-	static IDXGIDevice *GetProxyDXGIDevice(IDXGIDevice *deviceDXGI, ID3D11Device *deviceD3D11);
-	ID3D11Device *GetOriginalDevice();
+	static IDXGIDevice *GetProxyDXGIDevice(IDXGIDevice *dxgidevice, ID3D11Device *direct3ddevice);
+	IDXGIDevice *GetOriginalDXGIDevice();
+	ID3D11Device *GetProxyD3D11Device();
+	ID3D11Device *GetOriginalD3D11Device();
 	void AddRuntime(std::shared_ptr<ReShade::Runtimes::D3D11Runtime> runtime);
 	void RemoveRuntime(std::shared_ptr<ReShade::Runtimes::D3D11Runtime> runtime);
+
+private:
+	ULONG mRef;
+	DXGIDevice *mDXGIDevice;
+	ID3D11Device *mD3D11Device;
 };
 
 // -----------------------------------------------------------------------------------------------------
 
-IDXGIDevice *DXGID3D10Bridge::GetProxyDXGIDevice(IDXGIDevice *deviceDXGI, ID3D10Device *deviceD3D10)
+IDXGIDevice *DXGID3D10Bridge::GetProxyDXGIDevice()
 {
-	return new DXGIDevice(deviceDXGI, deviceD3D10);
+	return this->mDXGIDevice;
 }
-IDXGIDevice *DXGID3D11Bridge::GetProxyDXGIDevice(IDXGIDevice *deviceDXGI, ID3D11Device *deviceD3D11)
+IDXGIDevice *DXGID3D10Bridge::GetProxyDXGIDevice(IDXGIDevice *dxgidevice, ID3D10Device *direct3ddevice)
 {
-	return new DXGIDevice(deviceDXGI, deviceD3D11);
+	return new DXGIDevice(dxgidevice, direct3ddevice);
+}
+IDXGIDevice *DXGID3D10Bridge::GetOriginalDXGIDevice()
+{
+	GetProxyDXGIDevice();
+
+	return this->mDXGIDevice->mOrig;
+}
+IDXGIDevice *DXGID3D11Bridge::GetProxyDXGIDevice()
+{
+	if (this->mDXGIDevice == nullptr && SUCCEEDED(this->mD3D11Device->QueryInterface(__uuidof(IDXGIDevice), reinterpret_cast<void **>(&this->mDXGIDevice))))
+	{
+		this->mDXGIDevice = new DXGIDevice(this->mDXGIDevice, this->mD3D11Device);
+	}
+
+	return this->mDXGIDevice;
+}
+IDXGIDevice *DXGID3D11Bridge::GetProxyDXGIDevice(IDXGIDevice *dxgidevice, ID3D11Device *direct3ddevice)
+{
+	return new DXGIDevice(dxgidevice, direct3ddevice);
+}
+IDXGIDevice *DXGID3D11Bridge::GetOriginalDXGIDevice()
+{
+	GetProxyDXGIDevice();
+
+	return this->mDXGIDevice->mOrig;
 }
 #pragma endregion
 
@@ -562,6 +601,56 @@ HRESULT STDMETHODCALLTYPE DXGIDevice::QueryInterface(REFIID riid, void **ppvObj)
 		return E_POINTER;
 	}
 
+	if (riid == __uuidof(IUnknown) || riid == __uuidof(IDXGIObject) || riid == __uuidof(IDXGIDevice) || riid == __uuidof(IDXGIDevice1) || riid == __uuidof(IDXGIDevice2))
+	{
+		#pragma region Update to IDXGIDevice1 interface
+		if (riid == __uuidof(IDXGIDevice1) && this->mInterfaceVersion < 1)
+		{
+			IDXGIDevice1 *dxgidevice1 = nullptr;
+
+			const HRESULT hr = this->mOrig->QueryInterface(&dxgidevice1);
+
+			if (FAILED(hr))
+			{
+				return hr;
+			}
+
+			this->mOrig->Release();
+			this->mOrig = dxgidevice1;
+
+			this->mInterfaceVersion = 1;
+
+			LOG(TRACE) << "Upgraded 'IDXGIDevice' object " << this << " to 'IDXGIDevice1'.";
+		}
+		#pragma endregion
+		#pragma region Update to IDXGIDevice2 interface
+		if (riid == __uuidof(IDXGIDevice2) && this->mInterfaceVersion < 2)
+		{
+			IDXGIDevice2 *dxgidevice2 = nullptr;
+
+			const HRESULT hr = this->mOrig->QueryInterface(&dxgidevice2);
+
+			if (FAILED(hr))
+			{
+				return hr;
+			}
+
+			this->mOrig->Release();
+			this->mOrig = dxgidevice2;
+
+			this->mInterfaceVersion = 2;
+
+			LOG(TRACE) << "Upgraded 'IDXGIDevice' object " << this << " to 'IDXGIDevice2'.";
+		}
+		#pragma endregion
+
+		AddRef();
+
+		*ppvObj = this;
+
+		return S_OK;
+	}
+
 	switch (this->mDirect3DVersion)
 	{
 		case 10:
@@ -578,51 +667,7 @@ HRESULT STDMETHODCALLTYPE DXGIDevice::QueryInterface(REFIID riid, void **ppvObj)
 			break;
 	}
 
-	const HRESULT hr = this->mOrig->QueryInterface(riid, ppvObj);
-
-	if (SUCCEEDED(hr) && (riid == __uuidof(IUnknown) || riid == __uuidof(IDXGIObject) || riid == __uuidof(IDXGIDevice) || riid == __uuidof(IDXGIDevice1) || riid == __uuidof(IDXGIDevice2)))
-	{
-		#pragma region Update to IDXGIDevice1 interface
-		if (riid == __uuidof(IDXGIDevice1) && this->mInterfaceVersion < 1)
-		{
-			IDXGIDevice1 *const dxgidevice1 = static_cast<IDXGIDevice1 *>(*ppvObj);
-
-			assert(dxgidevice1 != nullptr);
-
-			dxgidevice1->AddRef();
-
-			this->mOrig->Release();
-			this->mOrig = dxgidevice1;
-
-			this->mInterfaceVersion = 1;
-
-			LOG(INFO) << "Upgraded 'IDXGIDevice' interface " << this << " to 'IDXGIDevice1'.";
-		}
-		#pragma endregion
-		#pragma region Update to IDXGIDevice2 interface
-		if (riid == __uuidof(IDXGIDevice2) && this->mInterfaceVersion < 2)
-		{
-			IDXGIDevice2 *const dxgidevice2 = static_cast<IDXGIDevice2 *>(*ppvObj);
-
-			assert(dxgidevice2 != nullptr);
-
-			dxgidevice2->AddRef();
-
-			this->mOrig->Release();
-			this->mOrig = dxgidevice2;
-
-			this->mInterfaceVersion = 2;
-
-			LOG(INFO) << "Upgraded 'IDXGIDevice' interface " << this << " to 'IDXGIDevice2'.";
-		}
-		#pragma endregion
-
-		this->mRef++;
-
-		*ppvObj = this;
-	}
-
-	return hr;
+	return this->mOrig->QueryInterface(riid, ppvObj);
 }
 ULONG STDMETHODCALLTYPE DXGIDevice::AddRef()
 {
@@ -632,6 +677,8 @@ ULONG STDMETHODCALLTYPE DXGIDevice::AddRef()
 }
 ULONG STDMETHODCALLTYPE DXGIDevice::Release()
 {
+	this->mRef--;
+
 	const ULONG ref = this->mOrig->Release();
 
 	if (this->mRef == 0 && ref != 0)
@@ -738,7 +785,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, I
 		}
 		else if (SUCCEEDED(pDevice->QueryInterface(DXGID3D10Bridge::sIID, reinterpret_cast<void **>(&bridgeD3D10))))
 		{
-			const std::shared_ptr<ReShade::Runtimes::D3D10Runtime> runtime = std::make_shared<ReShade::Runtimes::D3D10Runtime>(bridgeD3D10->GetOriginalDevice(), swapchain);
+			const std::shared_ptr<ReShade::Runtimes::D3D10Runtime> runtime = std::make_shared<ReShade::Runtimes::D3D10Runtime>(bridgeD3D10->GetOriginalD3D10Device(), swapchain);
 
 			if (!runtime->OnCreateInternal(desc))
 			{
@@ -747,11 +794,11 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, I
 
 			bridgeD3D10->AddRuntime(runtime);
 
-			*ppSwapChain = new DXGISwapChain(bridgeD3D10, swapchain, runtime, desc.SampleDesc);
+			*ppSwapChain = new DXGISwapChain(swapchain, bridgeD3D10, runtime, desc.SampleDesc);
 		}
 		else if (SUCCEEDED(pDevice->QueryInterface(DXGID3D11Bridge::sIID, reinterpret_cast<void **>(&bridgeD3D11))))
 		{
-			const std::shared_ptr<ReShade::Runtimes::D3D11Runtime> runtime = std::make_shared<ReShade::Runtimes::D3D11Runtime>(bridgeD3D11->GetOriginalDevice(), swapchain);
+			const std::shared_ptr<ReShade::Runtimes::D3D11Runtime> runtime = std::make_shared<ReShade::Runtimes::D3D11Runtime>(bridgeD3D11->GetOriginalD3D11Device(), swapchain);
 
 			if (!runtime->OnCreateInternal(desc))
 			{
@@ -760,7 +807,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, I
 
 			bridgeD3D11->AddRuntime(runtime);
 
-			*ppSwapChain = new DXGISwapChain(bridgeD3D11, swapchain, runtime, desc.SampleDesc);
+			*ppSwapChain = new DXGISwapChain(swapchain, bridgeD3D11, runtime, desc.SampleDesc);
 		}
 		else
 		{
@@ -809,7 +856,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pF
 		}
 		else if (SUCCEEDED(pDevice->QueryInterface(DXGID3D10Bridge::sIID, reinterpret_cast<void **>(&bridgeD3D10))))
 		{
-			const std::shared_ptr<ReShade::Runtimes::D3D10Runtime> runtime = std::make_shared<ReShade::Runtimes::D3D10Runtime>(bridgeD3D10->GetOriginalDevice(), swapchain);
+			const std::shared_ptr<ReShade::Runtimes::D3D10Runtime> runtime = std::make_shared<ReShade::Runtimes::D3D10Runtime>(bridgeD3D10->GetOriginalD3D10Device(), swapchain);
 
 			if (!runtime->OnCreateInternal(desc))
 			{
@@ -818,11 +865,11 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pF
 
 			bridgeD3D10->AddRuntime(runtime);
 
-			*ppSwapChain = new DXGISwapChain(bridgeD3D10, swapchain, runtime, desc.SampleDesc);
+			*ppSwapChain = new DXGISwapChain(swapchain, bridgeD3D10, runtime, desc.SampleDesc);
 		}
 		else if (SUCCEEDED(pDevice->QueryInterface(DXGID3D11Bridge::sIID, reinterpret_cast<void **>(&bridgeD3D11))))
 		{
-			const std::shared_ptr<ReShade::Runtimes::D3D11Runtime> runtime = std::make_shared<ReShade::Runtimes::D3D11Runtime>(bridgeD3D11->GetOriginalDevice(), swapchain);
+			const std::shared_ptr<ReShade::Runtimes::D3D11Runtime> runtime = std::make_shared<ReShade::Runtimes::D3D11Runtime>(bridgeD3D11->GetOriginalD3D11Device(), swapchain);
 
 			if (!runtime->OnCreateInternal(desc))
 			{
@@ -831,7 +878,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pF
 
 			bridgeD3D11->AddRuntime(runtime);
 
-			*ppSwapChain = new DXGISwapChain(bridgeD3D11, swapchain, runtime, desc.SampleDesc);
+			*ppSwapChain = new DXGISwapChain(swapchain, bridgeD3D11, runtime, desc.SampleDesc);
 		}
 		else
 		{
@@ -878,7 +925,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactor
 		}
 		else if (SUCCEEDED(pDevice->QueryInterface(DXGID3D10Bridge::sIID, reinterpret_cast<void **>(&bridgeD3D10))))
 		{
-			const std::shared_ptr<ReShade::Runtimes::D3D10Runtime> runtime = std::make_shared<ReShade::Runtimes::D3D10Runtime>(bridgeD3D10->GetOriginalDevice(), swapchain);
+			const std::shared_ptr<ReShade::Runtimes::D3D10Runtime> runtime = std::make_shared<ReShade::Runtimes::D3D10Runtime>(bridgeD3D10->GetOriginalD3D10Device(), swapchain);
 
 			if (!runtime->OnCreateInternal(desc))
 			{
@@ -887,11 +934,11 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactor
 
 			bridgeD3D10->AddRuntime(runtime);
 
-			*ppSwapChain = new DXGISwapChain(bridgeD3D10, swapchain, runtime, desc.SampleDesc);
+			*ppSwapChain = new DXGISwapChain(swapchain, bridgeD3D10, runtime, desc.SampleDesc);
 		}
 		else if (SUCCEEDED(pDevice->QueryInterface(DXGID3D11Bridge::sIID, reinterpret_cast<void **>(&bridgeD3D11))))
 		{
-			const std::shared_ptr<ReShade::Runtimes::D3D11Runtime> runtime = std::make_shared<ReShade::Runtimes::D3D11Runtime>(bridgeD3D11->GetOriginalDevice(), swapchain);
+			const std::shared_ptr<ReShade::Runtimes::D3D11Runtime> runtime = std::make_shared<ReShade::Runtimes::D3D11Runtime>(bridgeD3D11->GetOriginalD3D11Device(), swapchain);
 
 			if (!runtime->OnCreateInternal(desc))
 			{
@@ -900,7 +947,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactor
 
 			bridgeD3D11->AddRuntime(runtime);
 
-			*ppSwapChain = new DXGISwapChain(bridgeD3D11, swapchain, runtime, desc.SampleDesc);
+			*ppSwapChain = new DXGISwapChain(swapchain, bridgeD3D11, runtime, desc.SampleDesc);
 		}
 		else
 		{
@@ -947,7 +994,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFacto
 		}
 		else if (SUCCEEDED(pDevice->QueryInterface(DXGID3D10Bridge::sIID, reinterpret_cast<void **>(&bridgeD3D10))))
 		{
-			const std::shared_ptr<ReShade::Runtimes::D3D10Runtime> runtime = std::make_shared<ReShade::Runtimes::D3D10Runtime>(bridgeD3D10->GetOriginalDevice(), swapchain);
+			const std::shared_ptr<ReShade::Runtimes::D3D10Runtime> runtime = std::make_shared<ReShade::Runtimes::D3D10Runtime>(bridgeD3D10->GetOriginalD3D10Device(), swapchain);
 
 			if (!runtime->OnCreateInternal(desc))
 			{
@@ -956,11 +1003,11 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFacto
 
 			bridgeD3D10->AddRuntime(runtime);
 
-			*ppSwapChain = new DXGISwapChain(bridgeD3D10, swapchain, runtime, desc.SampleDesc);
+			*ppSwapChain = new DXGISwapChain(swapchain, bridgeD3D10, runtime, desc.SampleDesc);
 		}
 		else if (SUCCEEDED(pDevice->QueryInterface(DXGID3D11Bridge::sIID, reinterpret_cast<void **>(&bridgeD3D11))))
 		{
-			const std::shared_ptr<ReShade::Runtimes::D3D11Runtime> runtime = std::make_shared<ReShade::Runtimes::D3D11Runtime>(bridgeD3D11->GetOriginalDevice(), swapchain);
+			const std::shared_ptr<ReShade::Runtimes::D3D11Runtime> runtime = std::make_shared<ReShade::Runtimes::D3D11Runtime>(bridgeD3D11->GetOriginalD3D11Device(), swapchain);
 
 			if (!runtime->OnCreateInternal(desc))
 			{
@@ -969,7 +1016,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFacto
 
 			bridgeD3D11->AddRuntime(runtime);
 
-			*ppSwapChain = new DXGISwapChain(bridgeD3D11, swapchain, runtime, desc.SampleDesc);
+			*ppSwapChain = new DXGISwapChain(swapchain, bridgeD3D11, runtime, desc.SampleDesc);
 		}
 		else
 		{

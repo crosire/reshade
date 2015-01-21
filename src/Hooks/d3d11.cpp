@@ -3,7 +3,6 @@
 #include "Runtimes\RuntimeD3D11.hpp"
 
 #include <d3d11_1.h>
-#include <dxgi1_2.h>
 
 // -----------------------------------------------------------------------------------------------------
 
@@ -264,15 +263,20 @@ public:
 	static const IID sIID;
 	
 public:
-	DXGID3D11Bridge(D3D11Device *device) : mRef(1), mDevice(device)
+	DXGID3D11Bridge(D3D11Device *device) : mRef(1), mDXGIDevice(nullptr), mD3D11Device(device)
 	{
 		assert(device != nullptr);
 
-		this->mDevice->AddRef();
+		this->mD3D11Device->AddRef();
 	}
 	~DXGID3D11Bridge()
 	{
-		this->mDevice->Release();
+		if (this->mDXGIDevice != nullptr)
+		{
+			this->mDXGIDevice->Release();
+		}
+
+		this->mD3D11Device->Release();
 	}
 
 	virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override
@@ -281,7 +285,8 @@ public:
 		{
 			return E_POINTER;
 		}
-		else if (riid == __uuidof(IUnknown))
+
+		if (riid == __uuidof(IUnknown))
 		{
 			*ppvObj = this;
 
@@ -311,39 +316,42 @@ public:
 	}
 
 	IDXGIDevice *GetProxyDXGIDevice();
-	static IDXGIDevice *GetProxyDXGIDevice(IDXGIDevice *deviceDXGI, ID3D11Device *deviceD3D11);
-	ID3D11Device *GetOriginalDevice();
+	static IDXGIDevice *GetProxyDXGIDevice(IDXGIDevice *dxgidevice, ID3D11Device *direct3ddevice);
+	IDXGIDevice *GetOriginalDXGIDevice();
+	ID3D11Device *GetProxyD3D11Device();
+	ID3D11Device *GetOriginalD3D11Device();
 	void AddRuntime(std::shared_ptr<ReShade::Runtimes::D3D11Runtime> runtime);
 	void RemoveRuntime(std::shared_ptr<ReShade::Runtimes::D3D11Runtime> runtime);
 
 private:
 	ULONG mRef;
-	D3D11Device *mDevice;
+	IDXGIDevice *mDXGIDevice;
+	D3D11Device *mD3D11Device;
 };
 
 // -----------------------------------------------------------------------------------------------------
 
 const IID DXGID3D11Bridge::sIID = { 0xff97cb62, 0x2b9e, 0x4792, { 0xb2, 0x87, 0x82, 0x3a, 0x71, 0x9, 0x57, 0x21 } };
 
-IDXGIDevice *DXGID3D11Bridge::GetProxyDXGIDevice()
+ID3D11Device *DXGID3D11Bridge::GetProxyD3D11Device()
 {
-	return this->mDevice->mDXGIDevice;
+	return this->mD3D11Device;
 }
-ID3D11Device *DXGID3D11Bridge::GetOriginalDevice()
+ID3D11Device *DXGID3D11Bridge::GetOriginalD3D11Device()
 {
-	return this->mDevice->mOrig;
+	return this->mD3D11Device->mOrig;
 }
 void DXGID3D11Bridge::AddRuntime(std::shared_ptr<ReShade::Runtimes::D3D11Runtime> runtime)
 {
-	this->mDevice->mRuntimes.push_back(runtime);
+	this->mD3D11Device->mRuntimes.push_back(runtime);
 }
 void DXGID3D11Bridge::RemoveRuntime(std::shared_ptr<ReShade::Runtimes::D3D11Runtime> runtime)
 {
-	const auto it = std::find(this->mDevice->mRuntimes.begin(), this->mDevice->mRuntimes.end(), runtime);
+	const auto it = std::find(this->mD3D11Device->mRuntimes.begin(), this->mD3D11Device->mRuntimes.end(), runtime);
 
-	if (it != this->mDevice->mRuntimes.end())
+	if (it != this->mD3D11Device->mRuntimes.end())
 	{
-		this->mDevice->mRuntimes.erase(it);
+		this->mD3D11Device->mRuntimes.erase(it);
 	}
 }
 #pragma endregion
@@ -381,34 +389,42 @@ ULONG STDMETHODCALLTYPE ID3D11DepthStencilView_Release(ID3D11DepthStencilView *p
 // ID3D11DeviceContext
 HRESULT STDMETHODCALLTYPE D3D11DeviceContext::QueryInterface(REFIID riid, void **ppvObj)
 {
-	const HRESULT hr = this->mOrig->QueryInterface(riid, ppvObj);
+	if (ppvObj == nullptr)
+	{
+		return E_POINTER;
+	}
 
-	if (SUCCEEDED(hr) && (riid == __uuidof(IUnknown) || riid == __uuidof(ID3D11DeviceChild) || riid == __uuidof(ID3D11DeviceContext) || riid == __uuidof(ID3D11DeviceContext1)))
+	if (riid == __uuidof(IUnknown) || riid == __uuidof(ID3D11DeviceChild) || riid == __uuidof(ID3D11DeviceContext) || riid == __uuidof(ID3D11DeviceContext1))
 	{
 		#pragma region Update to ID3D11DeviceContext1 interface
 		if (riid == __uuidof(ID3D11DeviceContext1) && this->mInterfaceVersion < 1)
 		{
-			ID3D11DeviceContext1 *const devicecontext1 = static_cast<ID3D11DeviceContext1 *>(*ppvObj);
+			ID3D11DeviceContext1 *devicecontext1 = nullptr;
 
-			assert(devicecontext1 != nullptr);
+			const HRESULT hr = this->mOrig->QueryInterface(&devicecontext1);
 
-			devicecontext1->AddRef();
+			if (FAILED(hr))
+			{
+				return hr;
+			}
 
 			this->mOrig->Release();
 			this->mOrig = devicecontext1;
 
 			this->mInterfaceVersion = 1;
 
-			LOG(INFO) << "Upgraded 'ID3D11DeviceContext' interface " << this << " to 'ID3D11DeviceContext1'.";
+			LOG(TRACE) << "Upgraded 'ID3D11DeviceContext' object " << this << " to 'ID3D11DeviceContext1'.";
 		}
 		#pragma endregion
 
-		this->mRef++;
+		AddRef();
 
 		*ppvObj = this;
+
+		return S_OK;
 	}
 
-	return hr;
+	return this->mOrig->QueryInterface(riid, ppvObj);
 }
 ULONG STDMETHODCALLTYPE D3D11DeviceContext::AddRef()
 {
@@ -1044,47 +1060,46 @@ HRESULT STDMETHODCALLTYPE D3D11Device::QueryInterface(REFIID riid, void **ppvObj
 
 		return S_OK;
 	}
-	else if (riid == __uuidof(IDXGIDevice) || riid == __uuidof(IDXGIDevice1) || riid == __uuidof(IDXGIDevice2))
-	{
-		assert(this->mDXGIDevice != nullptr);
 
-		return this->mDXGIDevice->QueryInterface(riid, ppvObj);
-	}
-
-	const HRESULT hr = this->mOrig->QueryInterface(riid, ppvObj);
-
-	if (SUCCEEDED(hr) && (riid == __uuidof(IUnknown) || riid == __uuidof(ID3D11Device) || riid == __uuidof(ID3D11Device1)))
+	if (riid == __uuidof(IUnknown) || riid == __uuidof(ID3D11Device) || riid == __uuidof(ID3D11Device1))
 	{
 		#pragma region Update to ID3D11Device1 interface
 		if (riid == __uuidof(ID3D11Device1) && this->mInterfaceVersion < 1)
 		{
-			ID3D11Device1 *const device1 = static_cast<ID3D11Device1 *>(*ppvObj);
-			ID3D11DeviceContext1 *devicecontext1 = nullptr;
+			ID3D11Device1 *device1 = nullptr;
 
-			assert(device1 != nullptr);
+			const HRESULT hr = this->mOrig->QueryInterface(&device1);
 
-			device1->AddRef();
-			device1->GetImmediateContext1(&devicecontext1);
-
-			assert(devicecontext1 != nullptr);
+			if (FAILED(hr))
+			{
+				return hr;
+			}
 
 			this->mOrig->Release();
 			this->mOrig = device1;
-			this->mImmediateContext->mOrig->Release();
-			this->mImmediateContext->mOrig = devicecontext1;
 
-			this->mInterfaceVersion = this->mImmediateContext->mInterfaceVersion = 1;
+			this->mInterfaceVersion = 1;
 
-			LOG(INFO) << "Upgraded 'ID3D11Device' interface " << this << " to 'ID3D11Device1'.";
+			LOG(TRACE) << "Upgraded 'ID3D11Device' object " << this << " to 'ID3D11Device1'.";
+
+			ID3D11DeviceContext1 *devicecontext1 = nullptr;
+
+			this->mImmediateContext->QueryInterface(__uuidof(ID3D11DeviceContext1), reinterpret_cast<void **>(&devicecontext1));
+
+			devicecontext1->Release();
 		}
 		#pragma endregion
 
-		this->mRef++;
+		AddRef();
 
 		*ppvObj = this;
+
+		return S_OK;
 	}
 
-	return hr;
+	assert(this->mDXGIDevice != nullptr);
+
+	return this->mDXGIDevice->QueryInterface(riid, ppvObj);
 }
 ULONG STDMETHODCALLTYPE D3D11Device::AddRef()
 {
@@ -1096,6 +1111,11 @@ ULONG STDMETHODCALLTYPE D3D11Device::Release()
 {
 	if (--this->mRef == 0)
 	{
+		assert(this->mDXGIDevice != nullptr);
+
+		this->mDXGIDevice->Release();
+		this->mDXGIDevice = nullptr;
+
 		assert(this->mImmediateContext != nullptr);
 
 		this->mImmediateContext->Release();
@@ -1395,13 +1415,16 @@ EXPORT HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, D3D_
 			assert(*ppDevice != nullptr);
 
 			ID3D11Device *const device = *ppDevice;
-			IDXGIDevice *deviceDXGI = nullptr;
-			device->QueryInterface(&deviceDXGI);
+			IDXGIDevice *dxgidevice = nullptr;
+			device->QueryInterface(&dxgidevice);
 			ID3D11DeviceContext *devicecontext = nullptr;
 			device->GetImmediateContext(&devicecontext);
 
+			assert(dxgidevice != nullptr);
+			assert(devicecontext != nullptr);
+
 			D3D11Device *const deviceProxy = new D3D11Device(device);
-			deviceProxy->mDXGIDevice = DXGID3D11Bridge::GetProxyDXGIDevice(deviceDXGI, deviceProxy);
+			deviceProxy->mDXGIDevice = DXGID3D11Bridge::GetProxyDXGIDevice(dxgidevice, deviceProxy);
 			D3D11DeviceContext *const devicecontextProxy = new D3D11DeviceContext(deviceProxy, devicecontext);
 			deviceProxy->mImmediateContext = devicecontextProxy;
 
@@ -1433,7 +1456,7 @@ EXPORT HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, D3D_
 					*ppImmediateContext = devicecontextProxy;
 				}
 
-				LOG(TRACE) << "> Returned device object: " << deviceProxy << ", " << deviceProxy->mDXGIDevice;
+				LOG(TRACE) << "> Returned device objects: " << deviceProxy << ", " << deviceProxy->mDXGIDevice;
 			}
 			else
 			{
