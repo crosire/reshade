@@ -821,9 +821,9 @@ EXPORT HRESULT WINAPI D3D10CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, D3D1
 			{
 				assert(ppSwapChain != nullptr);
 
-				IDXGIFactory *factory = nullptr;
+				IDXGIFactory1 *factory = nullptr;
 				
-				hr = CreateDXGIFactory(__uuidof(IDXGIFactory), reinterpret_cast<void **>(&factory));
+				hr = CreateDXGIFactory1(__uuidof(IDXGIFactory1), reinterpret_cast<void **>(&factory));
 
 				if (SUCCEEDED(hr))
 				{
@@ -881,9 +881,9 @@ EXPORT HRESULT WINAPI D3D10CreateDeviceAndSwapChain1(IDXGIAdapter *pAdapter, D3D
 			{
 				assert(ppSwapChain != nullptr);
 
-				IDXGIFactory *factory = nullptr;
+				IDXGIFactory1 *factory = nullptr;
 
-				hr = CreateDXGIFactory(__uuidof(IDXGIFactory), reinterpret_cast<void **>(&factory));
+				hr = CreateDXGIFactory1(__uuidof(IDXGIFactory1), reinterpret_cast<void **>(&factory));
 
 				if (SUCCEEDED(hr))
 				{

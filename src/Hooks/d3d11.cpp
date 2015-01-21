@@ -1411,9 +1411,9 @@ EXPORT HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, D3D_
 			{
 				assert(ppSwapChain != nullptr);
 
-				IDXGIFactory *factory = nullptr;
+				IDXGIFactory1 *factory = nullptr;
 
-				hr = CreateDXGIFactory(__uuidof(IDXGIFactory), reinterpret_cast<void **>(&factory));
+				hr = CreateDXGIFactory1(__uuidof(IDXGIFactory1), reinterpret_cast<void **>(&factory));
 
 				if (SUCCEEDED(hr))
 				{
