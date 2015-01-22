@@ -3,6 +3,7 @@
 #include "Runtimes\RuntimeD3D10.hpp"
 
 #include <d3d10_1.h>
+#include <boost\noncopyable.hpp>
 
 // -----------------------------------------------------------------------------------------------------
 
@@ -138,6 +139,8 @@ namespace
 				return "E_FAIL";
 			case E_INVALIDARG:
 				return "E_INVALIDARG";
+			case DXGI_ERROR_UNSUPPORTED:
+				return "DXGI_ERROR_UNSUPPORTED";
 			default:
 				__declspec(thread) static CHAR buf[20];
 				sprintf_s(buf, "0x%lx", hr);
@@ -298,7 +301,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::QueryInterface(REFIID riid, void **ppvObj
 		{
 			ID3D10Device1 *device1 = nullptr;
 
-			const HRESULT hr = this->mOrig->QueryInterface(&device1);
+			const HRESULT hr = this->mOrig->QueryInterface(__uuidof(ID3D10Device1), reinterpret_cast<void **>(&device1));
 
 			if (FAILED(hr))
 			{
@@ -797,14 +800,20 @@ void STDMETHODCALLTYPE D3D10Device::GetTextFilterSize(UINT *pWidth, UINT *pHeigh
 // ID3D10Device1
 HRESULT STDMETHODCALLTYPE D3D10Device::CreateShaderResourceView1(ID3D10Resource *pResource, const D3D10_SHADER_RESOURCE_VIEW_DESC1 *pDesc, ID3D10ShaderResourceView1 **ppSRView)
 {
+	assert(this->mInterfaceVersion >= 1);
+
 	return static_cast<ID3D10Device1 *>(this->mOrig)->CreateShaderResourceView1(pResource, pDesc, ppSRView);
 }
 HRESULT STDMETHODCALLTYPE D3D10Device::CreateBlendState1(const D3D10_BLEND_DESC1 *pBlendStateDesc, ID3D10BlendState1 **ppBlendState)
 {
+	assert(this->mInterfaceVersion >= 1);
+
 	return static_cast<ID3D10Device1 *>(this->mOrig)->CreateBlendState1(pBlendStateDesc, ppBlendState);
 }
 D3D10_FEATURE_LEVEL1 STDMETHODCALLTYPE D3D10Device::GetFeatureLevel()
 {
+	assert(this->mInterfaceVersion >= 1);
+
 	return static_cast<ID3D10Device1 *>(this->mOrig)->GetFeatureLevel();
 }
 
@@ -833,54 +842,54 @@ EXPORT HRESULT WINAPI D3D10CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, D3D1
 
 	HRESULT hr = ReShade::Hooks::Call(&D3D10CreateDeviceAndSwapChain)(pAdapter, DriverType, Software, Flags, SDKVersion, nullptr, nullptr, ppDevice);
 
-	if (SUCCEEDED(hr))
+	if (FAILED(hr))
 	{
-		if (ppDevice != nullptr)
+		LOG(WARNING) << "> 'D3D10CreateDeviceAndSwapChain' failed with '" << GetErrorString(hr) << "'!";
+
+		return hr;
+	}
+
+	if (ppDevice != nullptr)
+	{
+		assert(*ppDevice != nullptr);
+
+		ID3D10Device *const device = *ppDevice;
+		IDXGIDevice *dxgidevice = nullptr;
+		device->QueryInterface(&dxgidevice);
+
+		assert(dxgidevice != nullptr);
+
+		D3D10Device *const deviceProxy = new D3D10Device(device);
+		deviceProxy->mDXGIDevice = DXGID3D10Bridge::GetProxyDXGIDevice(dxgidevice, deviceProxy);
+
+		device->SetPrivateData(DXGID3D10Bridge::sIID, sizeof(deviceProxy), reinterpret_cast<const void *>(&deviceProxy));
+
+		if (pSwapChainDesc != nullptr)
 		{
-			assert(*ppDevice != nullptr);
+			assert(ppSwapChain != nullptr);
 
-			ID3D10Device *const device = *ppDevice;
-			IDXGIDevice *dxgidevice = nullptr;
-			device->QueryInterface(&dxgidevice);
-
-			assert(dxgidevice != nullptr);
-
-			D3D10Device *const deviceProxy = new D3D10Device(device);
-			deviceProxy->mDXGIDevice = DXGID3D10Bridge::GetProxyDXGIDevice(dxgidevice, deviceProxy);
-
-			device->SetPrivateData(DXGID3D10Bridge::sIID, sizeof(deviceProxy), reinterpret_cast<const void *>(&deviceProxy));
-
-			if (pSwapChainDesc != nullptr)
-			{
-				assert(ppSwapChain != nullptr);
-
-				IDXGIFactory1 *factory = nullptr;
+			IDXGIFactory1 *factory = nullptr;
 				
-				hr = CreateDXGIFactory1(__uuidof(IDXGIFactory1), reinterpret_cast<void **>(&factory));
-
-				if (SUCCEEDED(hr))
-				{
-					hr = factory->CreateSwapChain(deviceProxy, pSwapChainDesc, ppSwapChain);
-
-					factory->Release();
-				}
-			}
+			hr = CreateDXGIFactory1(__uuidof(IDXGIFactory1), reinterpret_cast<void **>(&factory));
 
 			if (SUCCEEDED(hr))
 			{
-				*ppDevice = deviceProxy;
+				hr = factory->CreateSwapChain(deviceProxy, pSwapChainDesc, ppSwapChain);
 
-				LOG(TRACE) << "> Returned device objects: " << deviceProxy << ", " << deviceProxy->mDXGIDevice;
-			}
-			else
-			{
-				deviceProxy->Release();
+				factory->Release();
 			}
 		}
-	}
-	else
-	{
-		LOG(WARNING) << "> 'D3D10CreateDeviceAndSwapChain' failed with '" << GetErrorString(hr) << "'!";
+
+		if (SUCCEEDED(hr))
+		{
+			*ppDevice = deviceProxy;
+
+			LOG(TRACE) << "> Returned device objects: " << deviceProxy << ", " << deviceProxy->mDXGIDevice;
+		}
+		else
+		{
+			deviceProxy->Release();
+		}
 	}
 
 	return hr;
@@ -897,52 +906,52 @@ EXPORT HRESULT WINAPI D3D10CreateDeviceAndSwapChain1(IDXGIAdapter *pAdapter, D3D
 
 	if (SUCCEEDED(hr))
 	{
-		if (ppDevice != nullptr)
+		LOG(WARNING) << "> 'D3D10CreateDeviceAndSwapChain1' failed with '" << GetErrorString(hr) << "'!";
+
+		return hr;
+	}
+
+	if (ppDevice != nullptr)
+	{
+		assert(*ppDevice != nullptr);
+
+		ID3D10Device1 *const device = *ppDevice;
+		IDXGIDevice *dxgidevice = nullptr;
+		device->QueryInterface(&dxgidevice);
+
+		assert(dxgidevice != nullptr);
+
+		D3D10Device *const deviceProxy = new D3D10Device(device);
+		deviceProxy->mDXGIDevice = DXGID3D10Bridge::GetProxyDXGIDevice(dxgidevice, deviceProxy);
+
+		device->SetPrivateData(DXGID3D10Bridge::sIID, sizeof(deviceProxy), reinterpret_cast<const void *>(&deviceProxy));
+
+		if (pSwapChainDesc != nullptr)
 		{
-			assert(*ppDevice != nullptr);
+			assert(ppSwapChain != nullptr);
 
-			ID3D10Device1 *const device = *ppDevice;
-			IDXGIDevice *dxgidevice = nullptr;
-			device->QueryInterface(&dxgidevice);
+			IDXGIFactory1 *factory = nullptr;
 
-			assert(dxgidevice != nullptr);
-
-			D3D10Device *const deviceProxy = new D3D10Device(device);
-			deviceProxy->mDXGIDevice = DXGID3D10Bridge::GetProxyDXGIDevice(dxgidevice, deviceProxy);
-
-			device->SetPrivateData(DXGID3D10Bridge::sIID, sizeof(deviceProxy), reinterpret_cast<const void *>(&deviceProxy));
-
-			if (pSwapChainDesc != nullptr)
-			{
-				assert(ppSwapChain != nullptr);
-
-				IDXGIFactory1 *factory = nullptr;
-
-				hr = CreateDXGIFactory1(__uuidof(IDXGIFactory1), reinterpret_cast<void **>(&factory));
-
-				if (SUCCEEDED(hr))
-				{
-					hr = factory->CreateSwapChain(deviceProxy, pSwapChainDesc, ppSwapChain);
-
-					factory->Release();
-				}
-			}
+			hr = CreateDXGIFactory1(__uuidof(IDXGIFactory1), reinterpret_cast<void **>(&factory));
 
 			if (SUCCEEDED(hr))
 			{
-				*ppDevice = deviceProxy;
+				hr = factory->CreateSwapChain(deviceProxy, pSwapChainDesc, ppSwapChain);
 
-				LOG(TRACE) << "> Returned device objects: " << deviceProxy << ", " << deviceProxy->mDXGIDevice;
-			}
-			else
-			{
-				deviceProxy->Release();
+				factory->Release();
 			}
 		}
-	}
-	else
-	{
-		LOG(WARNING) << "> 'D3D10CreateDeviceAndSwapChain1' failed with '" << GetErrorString(hr) << "'!";
+
+		if (SUCCEEDED(hr))
+		{
+			*ppDevice = deviceProxy;
+
+			LOG(TRACE) << "> Returned device objects: " << deviceProxy << ", " << deviceProxy->mDXGIDevice;
+		}
+		else
+		{
+			deviceProxy->Release();
+		}
 	}
 
 	return hr;

@@ -2,6 +2,10 @@
 #include "HookManager.hpp"
 #include "Runtimes\RuntimeGL.hpp"
 
+#include <mutex>
+#include <unordered_map>
+
+#pragma region Undefine Function Names
 #undef glBindFramebuffer
 #undef glBindTexture
 #undef glBlendFunc
@@ -90,62 +94,18 @@
 #undef glTexSubImage2D
 #undef glTexSubImage3D
 #undef glViewport
+#pragma endregion
 
 // -----------------------------------------------------------------------------------------------------
 
 namespace
 {
-	class CriticalSection
-	{
-	public:
-		struct Lock
-		{
-			inline Lock(CriticalSection &cs) : CS(cs)
-			{
-				this->CS.Enter();
-			}
-			inline ~Lock()
-			{
-				this->CS.Leave();
-			}
-
-			CriticalSection &CS;
-
-		private:
-			void operator =(const Lock &);
-		};
-
-	public:
-		inline CriticalSection()
-		{
-			::InitializeCriticalSection(&this->mCS);
-		}
-		inline ~CriticalSection()
-		{
-			::DeleteCriticalSection(&this->mCS);
-		}
-
-		inline void Enter()
-		{
-			::EnterCriticalSection(&this->mCS);
-		}
-		inline void Leave()
-		{
-			::LeaveCriticalSection(&this->mCS);
-		}
-
-	private:
-		CRITICAL_SECTION mCS;
-	} sCS;
-	
-	__declspec(thread) GLuint sCurrentVertexCount = 0;
-	__declspec(thread) HDC sCurrentDeviceContext = nullptr;
-	__declspec(thread) HGLRC sCurrentRenderContext = nullptr;
-	__declspec(thread) ReShade::Runtimes::GLRuntime *sCurrentRuntime = nullptr;
-
+	std::mutex sLockMutex;
 	std::unordered_map<HWND, RECT> sWindowRects;
 	std::unordered_map<HGLRC, HGLRC> sSharedContexts;
 	std::unordered_map<HDC, std::shared_ptr<ReShade::Runtimes::GLRuntime>> sRuntimes;
+	__declspec(thread) GLuint sCurrentVertexCount = 0;
+	__declspec(thread) ReShade::Runtimes::GLRuntime *sCurrentRuntime = nullptr;
 }
 
 // -----------------------------------------------------------------------------------------------------
@@ -2820,18 +2780,18 @@ EXPORT HGLRC WINAPI wglCreateContext(HDC hdc)
 
 	const HGLRC hglrc = ReShade::Hooks::Call(&wglCreateContext)(hdc);
 
-	if (hglrc != nullptr)
-	{
-		CriticalSection::Lock lock(sCS);
-
-		sSharedContexts.emplace(hglrc, nullptr);
-
-		LOG(TRACE) << "> Returned OpenGL context: " << hglrc;
-	}
-	else
+	if (hglrc == nullptr)
 	{
 		LOG(WARNING) << "> 'wglCreateContext' failed with '" << GetLastError() << "'!";
+
+		return nullptr;
 	}
+
+	std::lock_guard<std::mutex> lock(sLockMutex);
+
+	sSharedContexts.emplace(hglrc, nullptr);
+
+	LOG(TRACE) << "> Returned OpenGL context: " << hglrc;
 
 	return hglrc;
 }
@@ -2916,28 +2876,28 @@ HGLRC WINAPI wglCreateContextAttribsARB(HDC hdc, HGLRC hShareContext, const int 
 
 	const HGLRC hglrc = ReShade::Hooks::Call(&wglCreateContextAttribsARB)(hdc, hShareContext, reinterpret_cast<const int *>(attribs));
 
-	if (hglrc != nullptr)
-	{
-		CriticalSection::Lock lock(sCS);
-
-		sSharedContexts.emplace(hglrc, hShareContext);
-
-		if (hShareContext != nullptr)
-		{
-			auto it = sSharedContexts.find(hShareContext);
-
-			while (it != sSharedContexts.end() && it->second != nullptr)
-			{
-				it = sSharedContexts.find(sSharedContexts.at(hglrc) = it->second);
-			}
-		}
-
-		LOG(TRACE) << "> Returned OpenGL context: " << hglrc;
-	}
-	else
+	if (hglrc == nullptr)
 	{
 		LOG(WARNING) << "> 'wglCreateContextAttribsARB' failed with '" << GetLastError() << "'!";
+
+		return nullptr;
 	}
+
+	std::lock_guard<std::mutex> lock(sLockMutex);
+
+	sSharedContexts.emplace(hglrc, hShareContext);
+
+	if (hShareContext != nullptr)
+	{
+		auto it = sSharedContexts.find(hShareContext);
+
+		while (it != sSharedContexts.end() && it->second != nullptr)
+		{
+			it = sSharedContexts.find(sSharedContexts.at(hglrc) = it->second);
+		}
+	}
+
+	LOG(TRACE) << "> Returned OpenGL context: " << hglrc;
 
 	return hglrc;
 }
@@ -2951,7 +2911,7 @@ EXPORT BOOL WINAPI wglDeleteContext(HGLRC hglrc)
 {
 	LOG(INFO) << "Redirecting '" << "wglDeleteContext" << "(" << hglrc << ")' ...";
 
-	CriticalSection::Lock lock(sCS);
+	std::lock_guard<std::mutex> lock(sLockMutex);
 
 	for (auto it = sRuntimes.begin(); it != sRuntimes.end();)
 	{
@@ -2959,23 +2919,23 @@ EXPORT BOOL WINAPI wglDeleteContext(HGLRC hglrc)
 
 		if (it->second->mRenderContext == hglrc)
 		{
-			const HDC hdc = it->first, hdcPrevious = sCurrentDeviceContext;
-			const HGLRC hglrcPrevious = sCurrentRenderContext;
+			const HDC hdc = it->first, hdcPrevious = wglGetCurrentDC();
+			const HGLRC hglrcPrevious = wglGetCurrentContext();
 
 			LOG(INFO) << "> Cleaning up runtime resources ...";
 
-			if (wglMakeCurrent(hdc, hglrc) != FALSE)
+			if (ReShade::Hooks::Call(&wglMakeCurrent)(hdc, hglrc) != FALSE)
 			{
 				it->second->OnDeleteInternal();
 			}
 			else
 			{
-				LOG(ERROR) << "Could not switch to device context " << hdc << " to clean up. Reverting ...";
+				LOG(ERROR) << "> Could not switch to device context " << hdc << " to clean up. Reverting ...";
 			}
 
 			it = sRuntimes.erase(it);
 
-			wglMakeCurrent(hdcPrevious, hglrcPrevious);
+			ReShade::Hooks::Call(&wglMakeCurrent)(hdcPrevious, hglrcPrevious);
 		}
 		else
 		{
@@ -3017,11 +2977,15 @@ EXPORT int WINAPI wglDescribePixelFormat(HDC hdc, int iPixelFormat, UINT nBytes,
 }
 EXPORT HGLRC WINAPI wglGetCurrentContext()
 {
-	return sCurrentRenderContext;
+	static const auto trampoline = ReShade::Hooks::Call(&wglGetCurrentContext);
+
+	return trampoline();
 }
 EXPORT HDC WINAPI wglGetCurrentDC()
 {
-	return sCurrentDeviceContext;
+	static const auto trampoline = ReShade::Hooks::Call(&wglGetCurrentDC);
+
+	return trampoline();
 }
 EXPORT int WINAPI wglGetLayerPaletteEntries(HDC hdc, int iLayerPlane, int iStart, int cEntries, COLORREF *pcr)
 {
@@ -3055,14 +3019,7 @@ EXPORT BOOL WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 
 	LOG(INFO) << "Redirecting '" << "wglMakeCurrent" << "(" << hdc << ", " << hglrc << ")' ...";
 
-	if (hdc == sCurrentDeviceContext && hglrc == sCurrentRenderContext)
-	{
-		return TRUE;
-	}
-
 	sCurrentRuntime = nullptr;
-	sCurrentDeviceContext = nullptr;
-	sCurrentRenderContext = nullptr;
 
 	if (!trampoline(hdc, hglrc))
 	{
@@ -3076,10 +3033,7 @@ EXPORT BOOL WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 		return TRUE;
 	}
 
-	sCurrentDeviceContext = hdc;
-	sCurrentRenderContext = hglrc;
-
-	CriticalSection::Lock lock(sCS);
+	std::lock_guard<std::mutex> lock(sLockMutex);
 
 	if (sSharedContexts.at(hglrc) != nullptr)
 	{
@@ -3102,7 +3056,7 @@ EXPORT BOOL WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 		{
 			LOG(WARNING) << "> Aborted because there is no window associated with device context " << hdc << ".";
 
-			return FALSE;
+			return TRUE;
 		}
 
 		ULONG_PTR classstyle = GetClassLongPtr(hwnd, GCL_STYLE);
@@ -3118,7 +3072,7 @@ EXPORT BOOL WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 		GetClientRect(hwnd, &rect);
 		sWindowRects[hwnd] = rect;
 
-		LOG(INFO) << "> Initial size is " << rect.right << "x" << rect.bottom << ".";
+		LOG(TRACE) << "> Initial size is " << rect.right << "x" << rect.bottom << ".";
 
 		gl3wInit();
 
@@ -3131,7 +3085,7 @@ EXPORT BOOL WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 
 			if (!runtime->OnCreateInternal(static_cast<unsigned int>(rect.right), static_cast<unsigned int>(rect.bottom)))
 			{
-				LOG(ERROR) << "Failed to initialize OpenGL renderer!";
+				LOG(ERROR) << "Failed to initialize OpenGL renderer! Check tracelog for details.";
 			}
 		}
 		else
@@ -3167,11 +3121,18 @@ EXPORT BOOL WINAPI wglShareLists(HGLRC hglrc1, HGLRC hglrc2)
 {
 	LOG(INFO) << "Redirecting '" << "wglShareLists" << "(" << hglrc1 << ", " << hglrc2 << ")' ...";
 
-	CriticalSection::Lock lock(sCS);
+	if (!ReShade::Hooks::Call(&wglShareLists)(hglrc1, hglrc2))
+	{
+		LOG(WARNING) << "> 'wglShareLists' failed with '" << GetLastError() << "'!";
+
+		return FALSE;
+	}
+
+	std::lock_guard<std::mutex> lock(sLockMutex);
 
 	sSharedContexts[hglrc2] = hglrc1;
 
-	return ReShade::Hooks::Call(&wglShareLists)(hglrc1, hglrc2);
+	return TRUE;
 }
 EXPORT BOOL WINAPI wglSwapBuffers(HDC hdc)
 {
@@ -3187,12 +3148,12 @@ EXPORT BOOL WINAPI wglSwapBuffers(HDC hdc)
 		RECT rect, &rectPrevious = sWindowRects.at(hwnd);
 		GetClientRect(hwnd, &rect);
 
-		if (rect.right != rectPrevious.right || rect.bottom != rectPrevious.bottom)
+		if ((rect.right != rectPrevious.right || rect.bottom != rectPrevious.bottom) && !(rect.right == 0 && rect.bottom == 0))
 		{
 			LOG(INFO) << "Resizing runtime on device context " << hdc << " to " << rect.right << "x" << rect.bottom << " ...";
 
 			it->second->OnDeleteInternal();
-			it->second->OnCreateInternal(rect.right, rect.bottom);
+			it->second->OnCreateInternal(static_cast<unsigned int>(rect.right), static_cast<unsigned int>(rect.bottom));
 
 			rectPrevious = rect;
 		}
@@ -3212,6 +3173,8 @@ EXPORT DWORD WINAPI wglSwapMultipleBuffers(UINT cNumBuffers, CONST WGLSWAP *pBuf
 {
 	for (UINT i = 0; i < cNumBuffers; ++i)
 	{
+		assert(pBuffers != nullptr);
+
 		wglSwapBuffers(pBuffers[i].hdc);
 	}
 
@@ -3249,12 +3212,16 @@ EXPORT BOOL WINAPI wglUseFontOutlinesW(HDC hdc, DWORD dw1, DWORD dw2, DWORD dw3,
 }
 EXPORT PROC WINAPI wglGetProcAddress(LPCSTR lpszProc)
 {
+	LOG(TRACE) << "Redirecting '" << "wglGetProcAddress" << "(\"" << lpszProc << "\")' ...";
+
 	static const auto trampoline = ReShade::Hooks::Call(&wglGetProcAddress);
 
 	const PROC address = trampoline(lpszProc);
 
 	if (address == nullptr || lpszProc == nullptr)
 	{
+		LOG(TRACE) << "> 'wglGetProcAddress' failed with '" << GetLastError() << "'!";
+
 		return nullptr;
 	}
 	else if (strcmp(lpszProc, "glBindTexture") == 0)

@@ -5,6 +5,7 @@
 
 #include <dxgi.h>
 #include <dxgi1_2.h>
+#include <boost\noncopyable.hpp>
 
 #ifndef _NTDEF_
 	typedef LONG NTSTATUS;
@@ -57,12 +58,22 @@ namespace
 	};
 	struct DXGISwapChain : public IDXGISwapChain1, private boost::noncopyable
 	{
-		DXGISwapChain(IDXGISwapChain *originalSwapChain, IUnknown *direct3dbridge, const std::shared_ptr<ReShade::Runtimes::D3D10Runtime> &runtime, const DXGI_SAMPLE_DESC &samples) : mRef(1), mOrig(originalSwapChain), mOrigSamples(samples), mDirect3DBridge(direct3dbridge), mDirect3DVersion(10), mRuntime(runtime)
+		DXGISwapChain(IDXGISwapChain *originalSwapChain, IUnknown *direct3dbridge, const std::shared_ptr<ReShade::Runtimes::D3D10Runtime> &runtime, const DXGI_SAMPLE_DESC &samples) : mRef(1), mOrig(originalSwapChain), mInterfaceVersion(0), mOrigSamples(samples), mDirect3DBridge(direct3dbridge), mDirect3DVersion(10), mRuntime(runtime)
 		{
 			assert(originalSwapChain != nullptr);
 			assert(direct3dbridge != nullptr);
 		}
-		DXGISwapChain(IDXGISwapChain *originalSwapChain, IUnknown *direct3dbridge, const std::shared_ptr<ReShade::Runtimes::D3D11Runtime> &runtime, const DXGI_SAMPLE_DESC &samples) : mRef(1), mOrig(originalSwapChain), mOrigSamples(samples), mDirect3DBridge(direct3dbridge), mDirect3DVersion(11), mRuntime(runtime)
+		DXGISwapChain(IDXGISwapChain1 *originalSwapChain, IUnknown *direct3dbridge, const std::shared_ptr<ReShade::Runtimes::D3D10Runtime> &runtime, const DXGI_SAMPLE_DESC &samples) : mRef(1), mOrig(originalSwapChain), mInterfaceVersion(1), mOrigSamples(samples), mDirect3DBridge(direct3dbridge), mDirect3DVersion(10), mRuntime(runtime)
+		{
+			assert(originalSwapChain != nullptr);
+			assert(direct3dbridge != nullptr);
+		}
+		DXGISwapChain(IDXGISwapChain *originalSwapChain, IUnknown *direct3dbridge, const std::shared_ptr<ReShade::Runtimes::D3D11Runtime> &runtime, const DXGI_SAMPLE_DESC &samples) : mRef(1), mOrig(originalSwapChain), mInterfaceVersion(0), mOrigSamples(samples), mDirect3DBridge(direct3dbridge), mDirect3DVersion(11), mRuntime(runtime)
+		{
+			assert(originalSwapChain != nullptr);
+			assert(direct3dbridge != nullptr);
+		}
+		DXGISwapChain(IDXGISwapChain1 *originalSwapChain, IUnknown *direct3dbridge, const std::shared_ptr<ReShade::Runtimes::D3D11Runtime> &runtime, const DXGI_SAMPLE_DESC &samples) : mRef(1), mOrig(originalSwapChain), mInterfaceVersion(1), mOrigSamples(samples), mDirect3DBridge(direct3dbridge), mDirect3DVersion(11), mRuntime(runtime)
 		{
 			assert(originalSwapChain != nullptr);
 			assert(direct3dbridge != nullptr);
@@ -103,7 +114,8 @@ namespace
 		virtual HRESULT STDMETHODCALLTYPE GetRotation(DXGI_MODE_ROTATION *pRotation) override;
 
 		ULONG mRef;
-		IDXGISwapChain *const mOrig;
+		IDXGISwapChain *mOrig;
+		unsigned int mInterfaceVersion;
 		const DXGI_SAMPLE_DESC mOrigSamples;
 		IUnknown *mDirect3DBridge;
 		const unsigned int mDirect3DVersion;
@@ -306,16 +318,42 @@ IDXGIDevice *DXGID3D11Bridge::GetOriginalDXGIDevice()
 // IDXGISwapChain
 HRESULT STDMETHODCALLTYPE DXGISwapChain::QueryInterface(REFIID riid, void **ppvObj)
 {
-	const HRESULT hr = this->mOrig->QueryInterface(riid, ppvObj);
-
-	if (SUCCEEDED(hr) && (riid == __uuidof(IUnknown) || riid == __uuidof(IDXGIObject) || riid == __uuidof(IDXGIDeviceSubObject) || riid == __uuidof(IDXGISwapChain) || riid == __uuidof(IDXGISwapChain1)))
+	if (ppvObj == nullptr)
 	{
-		this->mRef++;
-
-		*ppvObj = this;
+		return E_POINTER;
 	}
 
-	return hr;
+	if (riid == __uuidof(IUnknown) || riid == __uuidof(IDXGIObject) || riid == __uuidof(IDXGIDeviceSubObject) || riid == __uuidof(IDXGISwapChain) || riid == __uuidof(IDXGISwapChain1))
+	{
+		#pragma region Update to IDXGISwapChain1 interface
+		if (riid == __uuidof(IDXGISwapChain1) && this->mInterfaceVersion < 1)
+		{
+			IDXGISwapChain1 *swapchain1 = nullptr;
+
+			const HRESULT hr = this->mOrig->QueryInterface(__uuidof(IDXGISwapChain1), reinterpret_cast<void **>(&swapchain1));
+
+			if (FAILED(hr))
+			{
+				return hr;
+			}
+
+			this->mOrig->Release();
+			this->mOrig = swapchain1;
+
+			this->mInterfaceVersion = 1;
+
+			LOG(TRACE) << "Upgraded 'IDXGISwapChain' object " << this << " to 'IDXGISwapChain1'.";
+		}
+		#pragma endregion
+
+		AddRef();
+
+		*ppvObj = this;
+
+		return S_OK;
+	}
+
+	return this->mOrig->QueryInterface(riid, ppvObj);
 }
 ULONG STDMETHODCALLTYPE DXGISwapChain::AddRef()
 {
@@ -380,6 +418,27 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::GetParent(REFIID riid, void **ppParent)
 }
 HRESULT STDMETHODCALLTYPE DXGISwapChain::GetDevice(REFIID riid, void **ppDevice)
 {
+	if (ppDevice == nullptr)
+	{
+		return DXGI_ERROR_INVALID_CALL;
+	}
+
+	switch (this->mDirect3DVersion)
+	{
+		case 10:
+			if (riid == __uuidof(IUnknown) || riid == __uuidof(IDXGIObject) || riid == __uuidof(IDXGIDevice) || riid == __uuidof(IDXGIDevice1) || riid == __uuidof(IDXGIDevice2) || riid == __uuidof(ID3D10Device) || riid == __uuidof(ID3D10Device1))
+			{
+				return static_cast<DXGID3D10Bridge *>(this->mDirect3DBridge)->GetProxyDXGIDevice()->QueryInterface(riid, ppDevice);
+			}
+			break;
+		case 11:
+			if (riid == __uuidof(IUnknown) || riid == __uuidof(IDXGIObject) || riid == __uuidof(IDXGIDevice) || riid == __uuidof(IDXGIDevice1) || riid == __uuidof(IDXGIDevice2) || riid == __uuidof(ID3D11Device) || riid == __uuidof(ID3D11Device1))
+			{
+				return static_cast<DXGID3D11Bridge *>(this->mDirect3DBridge)->GetProxyDXGIDevice()->QueryInterface(riid, ppDevice);
+			}
+			break;
+	}
+
 	return this->mOrig->GetDevice(riid, ppDevice);
 }
 HRESULT STDMETHODCALLTYPE DXGISwapChain::Present(UINT SyncInterval, UINT Flags)
@@ -441,12 +500,14 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::GetDesc(DXGI_SWAP_CHAIN_DESC *pDesc)
 {
 	const HRESULT hr = this->mOrig->GetDesc(pDesc);
 
-	if (SUCCEEDED(hr))
+	if (FAILED(hr))
 	{
-		pDesc->SampleDesc = this->mOrigSamples;
+		return hr;
 	}
 
-	return hr;
+	pDesc->SampleDesc = this->mOrigSamples;
+
+	return S_OK;
 }
 HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Width, UINT Height, DXGI_FORMAT NewFormat, UINT SwapChainFlags)
 {
@@ -454,7 +515,6 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Wi
 
 	DXGI_SWAP_CHAIN_DESC desc;
 	this->mOrig->GetDesc(&desc);
-
 	desc.BufferCount = BufferCount;
 	desc.BufferDesc.Width = Width;
 	desc.BufferDesc.Height = Height;
@@ -477,36 +537,35 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Wi
 
 	const HRESULT hr = this->mOrig->ResizeBuffers(desc.BufferCount, desc.BufferDesc.Width, desc.BufferDesc.Height, desc.BufferDesc.Format, SwapChainFlags);
 
-	if (SUCCEEDED(hr) || hr == DXGI_ERROR_INVALID_CALL)
+	if (hr == DXGI_ERROR_INVALID_CALL)
 	{
-		if (hr == DXGI_ERROR_INVALID_CALL)
-		{
-			LOG(WARNING) << "> 'IDXGISwapChain::ResizeBuffers' failed with 'DXGI_ERROR_INVALID_CALL'!";
-		}
-
-		this->mOrig->GetDesc(&desc);
-		desc.SampleDesc = this->mOrigSamples;
-
-		bool res = false;
-
-		switch (this->mDirect3DVersion)
-		{
-			case 10:
-				res = std::static_pointer_cast<ReShade::Runtimes::D3D10Runtime>(this->mRuntime)->OnCreateInternal(desc);
-				break;
-			case 11:
-				res = std::static_pointer_cast<ReShade::Runtimes::D3D11Runtime>(this->mRuntime)->OnCreateInternal(desc);
-				break;
-		}
-
-		if (!res)
-		{
-			LOG(ERROR) << "Failed to resize Direct3D" << this->mDirect3DVersion << " renderer!";
-		}
+		LOG(WARNING) << "> 'IDXGISwapChain::ResizeBuffers' failed with 'DXGI_ERROR_INVALID_CALL'!";
 	}
-	else
+	else if (FAILED(hr))
 	{
 		LOG(ERROR) << "> 'IDXGISwapChain::ResizeBuffers' failed with '" << GetErrorString(hr) << "'!";
+
+		return hr;
+	}
+
+	this->mOrig->GetDesc(&desc);
+	desc.SampleDesc = this->mOrigSamples;
+
+	bool created = false;
+
+	switch (this->mDirect3DVersion)
+	{
+		case 10:
+			created = std::static_pointer_cast<ReShade::Runtimes::D3D10Runtime>(this->mRuntime)->OnCreateInternal(desc);
+			break;
+		case 11:
+			created = std::static_pointer_cast<ReShade::Runtimes::D3D11Runtime>(this->mRuntime)->OnCreateInternal(desc);
+			break;
+	}
+
+	if (!created)
+	{
+		LOG(ERROR) << "Failed to resize Direct3D" << this->mDirect3DVersion << " renderer! Check tracelog for details.";
 	}
 
 	return hr;
@@ -531,29 +590,40 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::GetLastPresentCount(UINT *pLastPresentC
 // IDXGISwapChain1
 HRESULT STDMETHODCALLTYPE DXGISwapChain::GetDesc1(DXGI_SWAP_CHAIN_DESC1 *pDesc)
 {
+	assert(this->mInterfaceVersion >= 1);
+
 	const HRESULT hr = static_cast<IDXGISwapChain1 *>(this->mOrig)->GetDesc1(pDesc);
 
-	if (SUCCEEDED(hr))
+	if (FAILED(hr))
 	{
-		pDesc->SampleDesc = this->mOrigSamples;
+		return hr;
 	}
 
-	return hr;
+	pDesc->SampleDesc = this->mOrigSamples;
+
+	return S_OK;
 }
 HRESULT STDMETHODCALLTYPE DXGISwapChain::GetFullscreenDesc(DXGI_SWAP_CHAIN_FULLSCREEN_DESC *pDesc)
 {
+	assert(this->mInterfaceVersion >= 1);
+
 	return static_cast<IDXGISwapChain1 *>(this->mOrig)->GetFullscreenDesc(pDesc);
 }
 HRESULT STDMETHODCALLTYPE DXGISwapChain::GetHwnd(HWND *pHwnd)
 {
+	assert(this->mInterfaceVersion >= 1);
+
 	return static_cast<IDXGISwapChain1 *>(this->mOrig)->GetHwnd(pHwnd);
 }
 HRESULT STDMETHODCALLTYPE DXGISwapChain::GetCoreWindow(REFIID refiid, void **ppUnk)
 {
+	assert(this->mInterfaceVersion >= 1);
+
 	return static_cast<IDXGISwapChain1 *>(this->mOrig)->GetCoreWindow(refiid, ppUnk);
 }
 HRESULT STDMETHODCALLTYPE DXGISwapChain::Present1(UINT SyncInterval, UINT PresentFlags, const DXGI_PRESENT_PARAMETERS *pPresentParameters)
 {
+	assert(this->mInterfaceVersion >= 1);
 	assert(this->mRuntime != nullptr);
 
 	switch (this->mDirect3DVersion)
@@ -570,26 +640,38 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::Present1(UINT SyncInterval, UINT Presen
 }
 BOOL STDMETHODCALLTYPE DXGISwapChain::IsTemporaryMonoSupported()
 {
+	assert(this->mInterfaceVersion >= 1);
+
 	return static_cast<IDXGISwapChain1 *>(this->mOrig)->IsTemporaryMonoSupported();
 }
 HRESULT STDMETHODCALLTYPE DXGISwapChain::GetRestrictToOutput(IDXGIOutput **ppRestrictToOutput)
 {
+	assert(this->mInterfaceVersion >= 1);
+
 	return static_cast<IDXGISwapChain1 *>(this->mOrig)->GetRestrictToOutput(ppRestrictToOutput);
 }
 HRESULT STDMETHODCALLTYPE DXGISwapChain::SetBackgroundColor(const DXGI_RGBA *pColor)
 {
+	assert(this->mInterfaceVersion >= 1);
+
 	return static_cast<IDXGISwapChain1 *>(this->mOrig)->SetBackgroundColor(pColor);
 }
 HRESULT STDMETHODCALLTYPE DXGISwapChain::GetBackgroundColor(DXGI_RGBA *pColor)
 {
+	assert(this->mInterfaceVersion >= 1);
+
 	return static_cast<IDXGISwapChain1 *>(this->mOrig)->GetBackgroundColor(pColor);
 }
 HRESULT STDMETHODCALLTYPE DXGISwapChain::SetRotation(DXGI_MODE_ROTATION Rotation)
 {
+	assert(this->mInterfaceVersion >= 1);
+
 	return static_cast<IDXGISwapChain1 *>(this->mOrig)->SetRotation(Rotation);
 }
 HRESULT STDMETHODCALLTYPE DXGISwapChain::GetRotation(DXGI_MODE_ROTATION *pRotation)
 {
+	assert(this->mInterfaceVersion >= 1);
+
 	return static_cast<IDXGISwapChain1 *>(this->mOrig)->GetRotation(pRotation);
 }
 
@@ -606,9 +688,9 @@ HRESULT STDMETHODCALLTYPE DXGIDevice::QueryInterface(REFIID riid, void **ppvObj)
 		#pragma region Update to IDXGIDevice1 interface
 		if (riid == __uuidof(IDXGIDevice1) && this->mInterfaceVersion < 1)
 		{
-			IDXGIDevice1 *dxgidevice1 = nullptr;
+			IDXGIDevice1 *device1 = nullptr;
 
-			const HRESULT hr = this->mOrig->QueryInterface(&dxgidevice1);
+			const HRESULT hr = this->mOrig->QueryInterface(__uuidof(IDXGIDevice1), reinterpret_cast<void **>(&device1));
 
 			if (FAILED(hr))
 			{
@@ -616,7 +698,7 @@ HRESULT STDMETHODCALLTYPE DXGIDevice::QueryInterface(REFIID riid, void **ppvObj)
 			}
 
 			this->mOrig->Release();
-			this->mOrig = dxgidevice1;
+			this->mOrig = device1;
 
 			this->mInterfaceVersion = 1;
 
@@ -626,9 +708,9 @@ HRESULT STDMETHODCALLTYPE DXGIDevice::QueryInterface(REFIID riid, void **ppvObj)
 		#pragma region Update to IDXGIDevice2 interface
 		if (riid == __uuidof(IDXGIDevice2) && this->mInterfaceVersion < 2)
 		{
-			IDXGIDevice2 *dxgidevice2 = nullptr;
+			IDXGIDevice2 *device2 = nullptr;
 
-			const HRESULT hr = this->mOrig->QueryInterface(&dxgidevice2);
+			const HRESULT hr = this->mOrig->QueryInterface(__uuidof(IDXGIDevice2), reinterpret_cast<void **>(&device2));
 
 			if (FAILED(hr))
 			{
@@ -636,7 +718,7 @@ HRESULT STDMETHODCALLTYPE DXGIDevice::QueryInterface(REFIID riid, void **ppvObj)
 			}
 
 			this->mOrig->Release();
-			this->mOrig = dxgidevice2;
+			this->mOrig = device2;
 
 			this->mInterfaceVersion = 2;
 
@@ -733,24 +815,34 @@ HRESULT STDMETHODCALLTYPE DXGIDevice::GetGPUThreadPriority(INT *pPriority)
 // IDXGIDevice1
 HRESULT STDMETHODCALLTYPE DXGIDevice::SetMaximumFrameLatency(UINT MaxLatency)
 {
+	assert(this->mInterfaceVersion >= 1);
+
 	return static_cast<IDXGIDevice1 *>(this->mOrig)->SetMaximumFrameLatency(MaxLatency);
 }
 HRESULT STDMETHODCALLTYPE DXGIDevice::GetMaximumFrameLatency(UINT *pMaxLatency)
 {
+	assert(this->mInterfaceVersion >= 1);
+
 	return static_cast<IDXGIDevice1 *>(this->mOrig)->GetMaximumFrameLatency(pMaxLatency);
 }
 
 // IDXGIDevice2
 HRESULT STDMETHODCALLTYPE DXGIDevice::OfferResources(UINT NumResources, IDXGIResource *const *ppResources, DXGI_OFFER_RESOURCE_PRIORITY Priority)
 {
+	assert(this->mInterfaceVersion >= 2);
+
 	return static_cast<IDXGIDevice2 *>(this->mOrig)->OfferResources(NumResources, ppResources, Priority);
 }
 HRESULT STDMETHODCALLTYPE DXGIDevice::ReclaimResources(UINT NumResources, IDXGIResource *const *ppResources, BOOL *pDiscarded)
 {
+	assert(this->mInterfaceVersion >= 2);
+
 	return static_cast<IDXGIDevice2 *>(this->mOrig)->ReclaimResources(NumResources, ppResources, pDiscarded);
 }
 HRESULT STDMETHODCALLTYPE DXGIDevice::EnqueueSetEvent(HANDLE hEvent)
 {
+	assert(this->mInterfaceVersion >= 2);
+
 	return static_cast<IDXGIDevice2 *>(this->mOrig)->EnqueueSetEvent(hEvent);
 }
 
@@ -770,58 +862,58 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, I
 
 	const HRESULT hr = ReShade::Hooks::Call(&IDXGIFactory_CreateSwapChain)(pFactory, pDevice, &desc, ppSwapChain);
 
-	if (SUCCEEDED(hr))
+	if (FAILED(hr))
 	{
-		DXGID3D10Bridge *bridgeD3D10 = nullptr;
-		DXGID3D11Bridge *bridgeD3D11 = nullptr;
-		IDXGISwapChain *swapchain = *ppSwapChain;
+		LOG(WARNING) << "> 'IDXGIFactory::CreateSwapChain' failed with '" << GetErrorString(hr) << "'!";
 
-		swapchain->GetDesc(&desc);
-		desc.SampleDesc = pDesc->SampleDesc;
+		return hr;
+	}
 
-		if ((desc.BufferUsage & DXGI_USAGE_RENDER_TARGET_OUTPUT) == 0)
+	DXGID3D10Bridge *bridgeD3D10 = nullptr;
+	DXGID3D11Bridge *bridgeD3D11 = nullptr;
+	IDXGISwapChain *swapchain = *ppSwapChain;
+
+	swapchain->GetDesc(&desc);
+	desc.SampleDesc = pDesc->SampleDesc;
+
+	if ((desc.BufferUsage & DXGI_USAGE_RENDER_TARGET_OUTPUT) == 0)
+	{
+		LOG(WARNING) << "> Skipping swapchain due to missing 'DXGI_USAGE_RENDER_TARGET_OUTPUT' flag.";
+	}
+	else if (SUCCEEDED(pDevice->QueryInterface(DXGID3D10Bridge::sIID, reinterpret_cast<void **>(&bridgeD3D10))))
+	{
+		const std::shared_ptr<ReShade::Runtimes::D3D10Runtime> runtime = std::make_shared<ReShade::Runtimes::D3D10Runtime>(bridgeD3D10->GetOriginalD3D10Device(), swapchain);
+
+		if (!runtime->OnCreateInternal(desc))
 		{
-			LOG(WARNING) << "> Skipping swapchain due to missing 'DXGI_USAGE_RENDER_TARGET_OUTPUT' flag.";
-		}
-		else if (SUCCEEDED(pDevice->QueryInterface(DXGID3D10Bridge::sIID, reinterpret_cast<void **>(&bridgeD3D10))))
-		{
-			const std::shared_ptr<ReShade::Runtimes::D3D10Runtime> runtime = std::make_shared<ReShade::Runtimes::D3D10Runtime>(bridgeD3D10->GetOriginalD3D10Device(), swapchain);
-
-			if (!runtime->OnCreateInternal(desc))
-			{
-				LOG(ERROR) << "Failed to initialize Direct3D10 renderer!";
-			}
-
-			bridgeD3D10->AddRuntime(runtime);
-
-			*ppSwapChain = new DXGISwapChain(swapchain, bridgeD3D10, runtime, desc.SampleDesc);
-		}
-		else if (SUCCEEDED(pDevice->QueryInterface(DXGID3D11Bridge::sIID, reinterpret_cast<void **>(&bridgeD3D11))))
-		{
-			const std::shared_ptr<ReShade::Runtimes::D3D11Runtime> runtime = std::make_shared<ReShade::Runtimes::D3D11Runtime>(bridgeD3D11->GetOriginalD3D11Device(), swapchain);
-
-			if (!runtime->OnCreateInternal(desc))
-			{
-				LOG(ERROR) << "Failed to initialize Direct3D11 renderer!";
-			}
-
-			bridgeD3D11->AddRuntime(runtime);
-
-			*ppSwapChain = new DXGISwapChain(swapchain, bridgeD3D11, runtime, desc.SampleDesc);
-		}
-		else
-		{
-			LOG(WARNING) << "> Skipping swapchain because it was created without a (hooked) Direct3D device.";
+			LOG(ERROR) << "Failed to initialize Direct3D10 renderer! Check tracelog for details.";
 		}
 
-		LOG(TRACE) << "> Returned swapchain object: " << *ppSwapChain;
+		bridgeD3D10->AddRuntime(runtime);
+
+		*ppSwapChain = new DXGISwapChain(swapchain, bridgeD3D10, runtime, desc.SampleDesc);
+	}
+	else if (SUCCEEDED(pDevice->QueryInterface(DXGID3D11Bridge::sIID, reinterpret_cast<void **>(&bridgeD3D11))))
+	{
+		const std::shared_ptr<ReShade::Runtimes::D3D11Runtime> runtime = std::make_shared<ReShade::Runtimes::D3D11Runtime>(bridgeD3D11->GetOriginalD3D11Device(), swapchain);
+
+		if (!runtime->OnCreateInternal(desc))
+		{
+			LOG(ERROR) << "Failed to initialize Direct3D11 renderer! Check tracelog for details.";
+		}
+
+		bridgeD3D11->AddRuntime(runtime);
+
+		*ppSwapChain = new DXGISwapChain(swapchain, bridgeD3D11, runtime, desc.SampleDesc);
 	}
 	else
 	{
-		LOG(WARNING) << "> 'IDXGIFactory::CreateSwapChain' failed with '" << GetErrorString(hr) << "'!";
+		LOG(WARNING) << "> Skipping swapchain because it was created without a (hooked) Direct3D device.";
 	}
 
-	return hr;
+	LOG(TRACE) << "> Returned swapchain object: " << *ppSwapChain;
+
+	return S_OK;
 }
 
 // IDXGIFactory2
@@ -834,65 +926,65 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pF
 		return DXGI_ERROR_INVALID_CALL;
 	}
 
-	DXGI_SWAP_CHAIN_DESC1 desc = *pDesc;
+	DXGI_SWAP_CHAIN_DESC1 desc1 = *pDesc;
 
-	AdjustSwapChainDescription(desc);
+	AdjustSwapChainDescription(desc1);
 
-	const HRESULT hr = ReShade::Hooks::Call(&IDXGIFactory2_CreateSwapChainForHwnd)(pFactory, pDevice, hWnd, &desc, pFullscreenDesc, pRestrictToOutput, ppSwapChain);
+	const HRESULT hr = ReShade::Hooks::Call(&IDXGIFactory2_CreateSwapChainForHwnd)(pFactory, pDevice, hWnd, &desc1, pFullscreenDesc, pRestrictToOutput, ppSwapChain);
 
-	if (SUCCEEDED(hr))
+	if (FAILED(hr))
 	{
-		DXGID3D10Bridge *bridgeD3D10 = nullptr;
-		DXGID3D11Bridge *bridgeD3D11 = nullptr;
-		IDXGISwapChain1 *swapchain = *ppSwapChain;
+		LOG(WARNING) << "> 'IDXGIFactory2::CreateSwapChainForHwnd' failed with '" << GetErrorString(hr) << "'!";
 
-		DXGI_SWAP_CHAIN_DESC desc;
-		swapchain->GetDesc(&desc);
-		desc.SampleDesc = pDesc->SampleDesc;
+		return hr;
+	}
 
-		if ((desc.BufferUsage & DXGI_USAGE_RENDER_TARGET_OUTPUT) == 0)
+	DXGID3D10Bridge *bridgeD3D10 = nullptr;
+	DXGID3D11Bridge *bridgeD3D11 = nullptr;
+	IDXGISwapChain1 *swapchain = *ppSwapChain;
+
+	DXGI_SWAP_CHAIN_DESC desc;
+	swapchain->GetDesc(&desc);
+	desc.SampleDesc = pDesc->SampleDesc;
+
+	if ((desc.BufferUsage & DXGI_USAGE_RENDER_TARGET_OUTPUT) == 0)
+	{
+		LOG(WARNING) << "> Skipping swapchain due to missing 'DXGI_USAGE_RENDER_TARGET_OUTPUT' flag.";
+	}
+	else if (SUCCEEDED(pDevice->QueryInterface(DXGID3D10Bridge::sIID, reinterpret_cast<void **>(&bridgeD3D10))))
+	{
+		const std::shared_ptr<ReShade::Runtimes::D3D10Runtime> runtime = std::make_shared<ReShade::Runtimes::D3D10Runtime>(bridgeD3D10->GetOriginalD3D10Device(), swapchain);
+
+		if (!runtime->OnCreateInternal(desc))
 		{
-			LOG(WARNING) << "> Skipping swapchain due to missing 'DXGI_USAGE_RENDER_TARGET_OUTPUT' flag.";
-		}
-		else if (SUCCEEDED(pDevice->QueryInterface(DXGID3D10Bridge::sIID, reinterpret_cast<void **>(&bridgeD3D10))))
-		{
-			const std::shared_ptr<ReShade::Runtimes::D3D10Runtime> runtime = std::make_shared<ReShade::Runtimes::D3D10Runtime>(bridgeD3D10->GetOriginalD3D10Device(), swapchain);
-
-			if (!runtime->OnCreateInternal(desc))
-			{
-				LOG(ERROR) << "Failed to initialize Direct3D10 renderer!";
-			}
-
-			bridgeD3D10->AddRuntime(runtime);
-
-			*ppSwapChain = new DXGISwapChain(swapchain, bridgeD3D10, runtime, desc.SampleDesc);
-		}
-		else if (SUCCEEDED(pDevice->QueryInterface(DXGID3D11Bridge::sIID, reinterpret_cast<void **>(&bridgeD3D11))))
-		{
-			const std::shared_ptr<ReShade::Runtimes::D3D11Runtime> runtime = std::make_shared<ReShade::Runtimes::D3D11Runtime>(bridgeD3D11->GetOriginalD3D11Device(), swapchain);
-
-			if (!runtime->OnCreateInternal(desc))
-			{
-				LOG(ERROR) << "Failed to initialize Direct3D11 renderer!";
-			}
-
-			bridgeD3D11->AddRuntime(runtime);
-
-			*ppSwapChain = new DXGISwapChain(swapchain, bridgeD3D11, runtime, desc.SampleDesc);
-		}
-		else
-		{
-			LOG(WARNING) << "> Skipping swapchain because it was created without a (hooked) Direct3D device.";
+			LOG(ERROR) << "Failed to initialize Direct3D10 renderer! Check tracelog for details.";
 		}
 
-		LOG(TRACE) << "> Returned swapchain object: " << *ppSwapChain;
+		bridgeD3D10->AddRuntime(runtime);
+
+		*ppSwapChain = new DXGISwapChain(swapchain, bridgeD3D10, runtime, desc.SampleDesc);
+	}
+	else if (SUCCEEDED(pDevice->QueryInterface(DXGID3D11Bridge::sIID, reinterpret_cast<void **>(&bridgeD3D11))))
+	{
+		const std::shared_ptr<ReShade::Runtimes::D3D11Runtime> runtime = std::make_shared<ReShade::Runtimes::D3D11Runtime>(bridgeD3D11->GetOriginalD3D11Device(), swapchain);
+
+		if (!runtime->OnCreateInternal(desc))
+		{
+			LOG(ERROR) << "Failed to initialize Direct3D11 renderer! Check tracelog for details.";
+		}
+
+		bridgeD3D11->AddRuntime(runtime);
+
+		*ppSwapChain = new DXGISwapChain(swapchain, bridgeD3D11, runtime, desc.SampleDesc);
 	}
 	else
 	{
-		LOG(WARNING) << "> 'IDXGIFactory2::CreateSwapChainForHwnd' failed with '" << GetErrorString(hr) << "'!";
+		LOG(WARNING) << "> Skipping swapchain because it was created without a (hooked) Direct3D device.";
 	}
 
-	return hr;
+	LOG(TRACE) << "> Returned swapchain object: " << *ppSwapChain;
+
+	return S_OK;
 }
 HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactory2 *pFactory, IUnknown *pDevice, IUnknown *pWindow, const DXGI_SWAP_CHAIN_DESC1 *pDesc, IDXGIOutput *pRestrictToOutput, IDXGISwapChain1 **ppSwapChain)
 {
@@ -903,65 +995,65 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactor
 		return DXGI_ERROR_INVALID_CALL;
 	}
 
-	DXGI_SWAP_CHAIN_DESC1 desc = *pDesc;
+	DXGI_SWAP_CHAIN_DESC1 desc1 = *pDesc;
 
-	AdjustSwapChainDescription(desc);
+	AdjustSwapChainDescription(desc1);
 
-	const HRESULT hr = ReShade::Hooks::Call(&IDXGIFactory2_CreateSwapChainForCoreWindow)(pFactory, pDevice, pWindow, &desc, pRestrictToOutput, ppSwapChain);
+	const HRESULT hr = ReShade::Hooks::Call(&IDXGIFactory2_CreateSwapChainForCoreWindow)(pFactory, pDevice, pWindow, &desc1, pRestrictToOutput, ppSwapChain);
 
-	if (SUCCEEDED(hr))
+	if (FAILED(hr))
 	{
-		DXGID3D10Bridge *bridgeD3D10 = nullptr;
-		DXGID3D11Bridge *bridgeD3D11 = nullptr;
-		IDXGISwapChain1 *swapchain = *ppSwapChain;
+		LOG(WARNING) << "> 'IDXGIFactory2::CreateSwapChainForCoreWindow' failed with '" << GetErrorString(hr) << "'!";
 
-		DXGI_SWAP_CHAIN_DESC desc;
-		swapchain->GetDesc(&desc);
-		desc.SampleDesc = pDesc->SampleDesc;
+		return hr;
+	}
 
-		if ((desc.BufferUsage & DXGI_USAGE_RENDER_TARGET_OUTPUT) == 0)
+	DXGID3D10Bridge *bridgeD3D10 = nullptr;
+	DXGID3D11Bridge *bridgeD3D11 = nullptr;
+	IDXGISwapChain1 *swapchain = *ppSwapChain;
+
+	DXGI_SWAP_CHAIN_DESC desc;
+	swapchain->GetDesc(&desc);
+	desc.SampleDesc = pDesc->SampleDesc;
+
+	if ((desc.BufferUsage & DXGI_USAGE_RENDER_TARGET_OUTPUT) == 0)
+	{
+		LOG(WARNING) << "> Skipping swapchain due to missing 'DXGI_USAGE_RENDER_TARGET_OUTPUT' flag.";
+	}
+	else if (SUCCEEDED(pDevice->QueryInterface(DXGID3D10Bridge::sIID, reinterpret_cast<void **>(&bridgeD3D10))))
+	{
+		const std::shared_ptr<ReShade::Runtimes::D3D10Runtime> runtime = std::make_shared<ReShade::Runtimes::D3D10Runtime>(bridgeD3D10->GetOriginalD3D10Device(), swapchain);
+
+		if (!runtime->OnCreateInternal(desc))
 		{
-			LOG(WARNING) << "> Skipping swapchain due to missing 'DXGI_USAGE_RENDER_TARGET_OUTPUT' flag.";
-		}
-		else if (SUCCEEDED(pDevice->QueryInterface(DXGID3D10Bridge::sIID, reinterpret_cast<void **>(&bridgeD3D10))))
-		{
-			const std::shared_ptr<ReShade::Runtimes::D3D10Runtime> runtime = std::make_shared<ReShade::Runtimes::D3D10Runtime>(bridgeD3D10->GetOriginalD3D10Device(), swapchain);
-
-			if (!runtime->OnCreateInternal(desc))
-			{
-				LOG(ERROR) << "Failed to initialize Direct3D10 renderer!";
-			}
-
-			bridgeD3D10->AddRuntime(runtime);
-
-			*ppSwapChain = new DXGISwapChain(swapchain, bridgeD3D10, runtime, desc.SampleDesc);
-		}
-		else if (SUCCEEDED(pDevice->QueryInterface(DXGID3D11Bridge::sIID, reinterpret_cast<void **>(&bridgeD3D11))))
-		{
-			const std::shared_ptr<ReShade::Runtimes::D3D11Runtime> runtime = std::make_shared<ReShade::Runtimes::D3D11Runtime>(bridgeD3D11->GetOriginalD3D11Device(), swapchain);
-
-			if (!runtime->OnCreateInternal(desc))
-			{
-				LOG(ERROR) << "Failed to initialize Direct3D11 renderer!";
-			}
-
-			bridgeD3D11->AddRuntime(runtime);
-
-			*ppSwapChain = new DXGISwapChain(swapchain, bridgeD3D11, runtime, desc.SampleDesc);
-		}
-		else
-		{
-			LOG(WARNING) << "> Skipping swapchain because it was created without a (hooked) Direct3D device.";
+			LOG(ERROR) << "Failed to initialize Direct3D10 renderer! Check tracelog for details.";
 		}
 
-		LOG(TRACE) << "> Returned swapchain object: " << *ppSwapChain;
+		bridgeD3D10->AddRuntime(runtime);
+
+		*ppSwapChain = new DXGISwapChain(swapchain, bridgeD3D10, runtime, desc.SampleDesc);
+	}
+	else if (SUCCEEDED(pDevice->QueryInterface(DXGID3D11Bridge::sIID, reinterpret_cast<void **>(&bridgeD3D11))))
+	{
+		const std::shared_ptr<ReShade::Runtimes::D3D11Runtime> runtime = std::make_shared<ReShade::Runtimes::D3D11Runtime>(bridgeD3D11->GetOriginalD3D11Device(), swapchain);
+
+		if (!runtime->OnCreateInternal(desc))
+		{
+			LOG(ERROR) << "Failed to initialize Direct3D11 renderer! Check tracelog for details.";
+		}
+
+		bridgeD3D11->AddRuntime(runtime);
+
+		*ppSwapChain = new DXGISwapChain(swapchain, bridgeD3D11, runtime, desc.SampleDesc);
 	}
 	else
 	{
-		LOG(WARNING) << "> 'IDXGIFactory2::CreateSwapChainForCoreWindow' failed with '" << GetErrorString(hr) << "'!";
+		LOG(WARNING) << "> Skipping swapchain because it was created without a (hooked) Direct3D device.";
 	}
 
-	return hr;
+	LOG(TRACE) << "> Returned swapchain object: " << *ppSwapChain;
+
+	return S_OK;
 }
 HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFactory2 *pFactory, IUnknown *pDevice, const DXGI_SWAP_CHAIN_DESC1 *pDesc, IDXGIOutput *pRestrictToOutput, IDXGISwapChain1 **ppSwapChain)
 {
@@ -972,65 +1064,65 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFacto
 		return DXGI_ERROR_INVALID_CALL;
 	}
 
-	DXGI_SWAP_CHAIN_DESC1 desc = *pDesc;
+	DXGI_SWAP_CHAIN_DESC1 desc1 = *pDesc;
 
-	AdjustSwapChainDescription(desc);
+	AdjustSwapChainDescription(desc1);
 
-	const HRESULT hr = ReShade::Hooks::Call(&IDXGIFactory2_CreateSwapChainForComposition)(pFactory, pDevice, &desc, pRestrictToOutput, ppSwapChain);
+	const HRESULT hr = ReShade::Hooks::Call(&IDXGIFactory2_CreateSwapChainForComposition)(pFactory, pDevice, &desc1, pRestrictToOutput, ppSwapChain);
 
-	if (SUCCEEDED(hr))
+	if (FAILED(hr))
 	{
-		DXGID3D10Bridge *bridgeD3D10 = nullptr;
-		DXGID3D11Bridge *bridgeD3D11 = nullptr;
-		IDXGISwapChain1 *swapchain = *ppSwapChain;
+		LOG(WARNING) << "> 'IDXGIFactory2::CreateSwapChainForComposition' failed with '" << GetErrorString(hr) << "'!";
 
-		DXGI_SWAP_CHAIN_DESC desc;
-		swapchain->GetDesc(&desc);
-		desc.SampleDesc = pDesc->SampleDesc;
+		return hr;
+	}
 
-		if ((desc.BufferUsage & DXGI_USAGE_RENDER_TARGET_OUTPUT) == 0)
+	DXGID3D10Bridge *bridgeD3D10 = nullptr;
+	DXGID3D11Bridge *bridgeD3D11 = nullptr;
+	IDXGISwapChain1 *swapchain = *ppSwapChain;
+
+	DXGI_SWAP_CHAIN_DESC desc;
+	swapchain->GetDesc(&desc);
+	desc.SampleDesc = pDesc->SampleDesc;
+
+	if ((desc.BufferUsage & DXGI_USAGE_RENDER_TARGET_OUTPUT) == 0)
+	{
+		LOG(WARNING) << "> Skipping swapchain due to missing 'DXGI_USAGE_RENDER_TARGET_OUTPUT' flag.";
+	}
+	else if (SUCCEEDED(pDevice->QueryInterface(DXGID3D10Bridge::sIID, reinterpret_cast<void **>(&bridgeD3D10))))
+	{
+		const std::shared_ptr<ReShade::Runtimes::D3D10Runtime> runtime = std::make_shared<ReShade::Runtimes::D3D10Runtime>(bridgeD3D10->GetOriginalD3D10Device(), swapchain);
+
+		if (!runtime->OnCreateInternal(desc))
 		{
-			LOG(WARNING) << "> Skipping swapchain due to missing 'DXGI_USAGE_RENDER_TARGET_OUTPUT' flag.";
-		}
-		else if (SUCCEEDED(pDevice->QueryInterface(DXGID3D10Bridge::sIID, reinterpret_cast<void **>(&bridgeD3D10))))
-		{
-			const std::shared_ptr<ReShade::Runtimes::D3D10Runtime> runtime = std::make_shared<ReShade::Runtimes::D3D10Runtime>(bridgeD3D10->GetOriginalD3D10Device(), swapchain);
-
-			if (!runtime->OnCreateInternal(desc))
-			{
-				LOG(ERROR) << "Failed to initialize Direct3D10 renderer!";
-			}
-
-			bridgeD3D10->AddRuntime(runtime);
-
-			*ppSwapChain = new DXGISwapChain(swapchain, bridgeD3D10, runtime, desc.SampleDesc);
-		}
-		else if (SUCCEEDED(pDevice->QueryInterface(DXGID3D11Bridge::sIID, reinterpret_cast<void **>(&bridgeD3D11))))
-		{
-			const std::shared_ptr<ReShade::Runtimes::D3D11Runtime> runtime = std::make_shared<ReShade::Runtimes::D3D11Runtime>(bridgeD3D11->GetOriginalD3D11Device(), swapchain);
-
-			if (!runtime->OnCreateInternal(desc))
-			{
-				LOG(ERROR) << "Failed to initialize Direct3D11 renderer!";
-			}
-
-			bridgeD3D11->AddRuntime(runtime);
-
-			*ppSwapChain = new DXGISwapChain(swapchain, bridgeD3D11, runtime, desc.SampleDesc);
-		}
-		else
-		{
-			LOG(WARNING) << "> Skipping swapchain because it was created without a (hooked) Direct3D device.";
+			LOG(ERROR) << "Failed to initialize Direct3D10 renderer! Check tracelog for details.";
 		}
 
-		LOG(TRACE) << "> Returned swapchain object: " << *ppSwapChain;
+		bridgeD3D10->AddRuntime(runtime);
+
+		*ppSwapChain = new DXGISwapChain(swapchain, bridgeD3D10, runtime, desc.SampleDesc);
+	}
+	else if (SUCCEEDED(pDevice->QueryInterface(DXGID3D11Bridge::sIID, reinterpret_cast<void **>(&bridgeD3D11))))
+	{
+		const std::shared_ptr<ReShade::Runtimes::D3D11Runtime> runtime = std::make_shared<ReShade::Runtimes::D3D11Runtime>(bridgeD3D11->GetOriginalD3D11Device(), swapchain);
+
+		if (!runtime->OnCreateInternal(desc))
+		{
+			LOG(ERROR) << "Failed to initialize Direct3D11 renderer! Check tracelog for details.";
+		}
+
+		bridgeD3D11->AddRuntime(runtime);
+
+		*ppSwapChain = new DXGISwapChain(swapchain, bridgeD3D11, runtime, desc.SampleDesc);
 	}
 	else
 	{
-		LOG(WARNING) << "> 'IDXGIFactory2::CreateSwapChainForComposition' failed with '" << GetErrorString(hr) << "'!";
+		LOG(WARNING) << "> Skipping swapchain because it was created without a (hooked) Direct3D device.";
 	}
 
-	return hr;
+	LOG(TRACE) << "> Returned swapchain object: " << *ppSwapChain;
+
+	return S_OK;
 }
 
 // DXGI
@@ -1099,18 +1191,18 @@ EXPORT HRESULT WINAPI CreateDXGIFactory(REFIID riid, void **ppFactory)
 	
 	const HRESULT hr = ReShade::Hooks::Call(&CreateDXGIFactory)(riid, ppFactory);
 
-	if (SUCCEEDED(hr))
-	{
-		ReShade::Hooks::Install(VTABLE(*ppFactory)[10], reinterpret_cast<ReShade::Hook::Function>(&IDXGIFactory_CreateSwapChain));
-
-		LOG(TRACE) << "> Returned factory object: " << *ppFactory;
-	}
-	else
+	if (FAILED(hr))
 	{
 		LOG(WARNING) << "> 'CreateDXGIFactory' failed with '" << GetErrorString(hr) << "'!";
+
+		return hr;
 	}
 
-	return hr;
+	ReShade::Hooks::Install(VTABLE(*ppFactory)[10], reinterpret_cast<ReShade::Hook::Function>(&IDXGIFactory_CreateSwapChain));
+
+	LOG(TRACE) << "> Returned factory object: " << *ppFactory;
+
+	return S_OK;
 }
 EXPORT HRESULT WINAPI CreateDXGIFactory1(REFIID riid, void **ppFactory)
 {
@@ -1121,18 +1213,18 @@ EXPORT HRESULT WINAPI CreateDXGIFactory1(REFIID riid, void **ppFactory)
 
 	const HRESULT hr = ReShade::Hooks::Call(&CreateDXGIFactory1)(riid, ppFactory);
 
-	if (SUCCEEDED(hr))
-	{
-		ReShade::Hooks::Install(VTABLE(*ppFactory)[10], reinterpret_cast<ReShade::Hook::Function>(&IDXGIFactory_CreateSwapChain));
-
-		LOG(TRACE) << "> Returned factory object: " << *ppFactory;
-	}
-	else
+	if (FAILED(hr))
 	{
 		LOG(WARNING) << "> 'CreateDXGIFactory1' failed with '" << GetErrorString(hr) << "'!";
+
+		return hr;
 	}
 
-	return hr;
+	ReShade::Hooks::Install(VTABLE(*ppFactory)[10], reinterpret_cast<ReShade::Hook::Function>(&IDXGIFactory_CreateSwapChain));
+
+	LOG(TRACE) << "> Returned factory object: " << *ppFactory;
+
+	return S_OK;
 }
 EXPORT HRESULT WINAPI CreateDXGIFactory2(UINT flags, REFIID riid, void **ppFactory)
 {
@@ -1143,23 +1235,23 @@ EXPORT HRESULT WINAPI CreateDXGIFactory2(UINT flags, REFIID riid, void **ppFacto
 
 	const HRESULT hr = ReShade::Hooks::Call(&CreateDXGIFactory2)(flags, riid, ppFactory);
 
-	if (SUCCEEDED(hr))
-	{
-		ReShade::Hooks::Install(VTABLE(*ppFactory)[10], reinterpret_cast<ReShade::Hook::Function>(&IDXGIFactory_CreateSwapChain));
-
-		if (riid == __uuidof(IDXGIFactory2))
-		{
-			ReShade::Hooks::Install(VTABLE(*ppFactory)[15], reinterpret_cast<ReShade::Hook::Function>(&IDXGIFactory2_CreateSwapChainForHwnd));
-			ReShade::Hooks::Install(VTABLE(*ppFactory)[16], reinterpret_cast<ReShade::Hook::Function>(&IDXGIFactory2_CreateSwapChainForCoreWindow));
-			ReShade::Hooks::Install(VTABLE(*ppFactory)[24], reinterpret_cast<ReShade::Hook::Function>(&IDXGIFactory2_CreateSwapChainForComposition));
-		}
-
-		LOG(TRACE) << "> Returned factory object: " << *ppFactory;
-	}
-	else
+	if (FAILED(hr))
 	{
 		LOG(WARNING) << "> 'CreateDXGIFactory2' failed with '" << GetErrorString(hr) << "'!";
+
+		return hr;
 	}
 
-	return hr;
+	ReShade::Hooks::Install(VTABLE(*ppFactory)[10], reinterpret_cast<ReShade::Hook::Function>(&IDXGIFactory_CreateSwapChain));
+
+	if (riid == __uuidof(IDXGIFactory2))
+	{
+		ReShade::Hooks::Install(VTABLE(*ppFactory)[15], reinterpret_cast<ReShade::Hook::Function>(&IDXGIFactory2_CreateSwapChainForHwnd));
+		ReShade::Hooks::Install(VTABLE(*ppFactory)[16], reinterpret_cast<ReShade::Hook::Function>(&IDXGIFactory2_CreateSwapChainForCoreWindow));
+		ReShade::Hooks::Install(VTABLE(*ppFactory)[24], reinterpret_cast<ReShade::Hook::Function>(&IDXGIFactory2_CreateSwapChainForComposition));
+	}
+
+	LOG(TRACE) << "> Returned factory object: " << *ppFactory;
+
+	return S_OK;
 }

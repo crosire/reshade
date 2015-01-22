@@ -1,64 +1,24 @@
 #include "Runtime.hpp"
 #include "HookManager.hpp"
 
+#include <mutex>
 #include <Winsock2.h>
 
 // -----------------------------------------------------------------------------------------------------
 
 namespace
 {
-	class CriticalSection
-	{
-	public:
-		struct Lock
-		{
-			inline Lock(CriticalSection &cs) : CS(cs)
-			{
-				this->CS.Enter();
-			}
-			inline ~Lock()
-			{
-				this->CS.Leave();
-			}
-
-			CriticalSection &CS;
-
-		private:
-			void operator =(const Lock &);
-		};
-
-	public:
-		inline CriticalSection()
-		{
-			::InitializeCriticalSection(&this->mCS);
-		}
-		inline ~CriticalSection()
-		{
-			::DeleteCriticalSection(&this->mCS);
-		}
-
-		inline void Enter()
-		{
-			::EnterCriticalSection(&this->mCS);
-		}
-		inline void Leave()
-		{
-			::LeaveCriticalSection(&this->mCS);
-		}
-
-	private:
-		CRITICAL_SECTION mCS;
-	} sCS;
+	std::mutex sLockMutex;
 	
 	void NetworkUpload(const char *buf, unsigned int len)
 	{
-		CriticalSection::Lock lock(sCS);
+		std::lock_guard<std::mutex> lock(sLockMutex);
 
 		ReShade::Runtime::sNetworkUpload += len;
 	}
 	void NetworkDownload(unsigned int len)
 	{
-		CriticalSection::Lock lock(sCS);
+		std::lock_guard<std::mutex> lock(sLockMutex);
 
 		ReShade::Runtime::sNetworkDownload += len;
 	}

@@ -3,6 +3,7 @@
 #include "Runtimes\RuntimeD3D11.hpp"
 
 #include <d3d11_1.h>
+#include <boost\noncopyable.hpp>
 
 // -----------------------------------------------------------------------------------------------------
 
@@ -248,6 +249,8 @@ namespace
 				return "E_FAIL";
 			case E_INVALIDARG:
 				return "E_INVALIDARG";
+			case DXGI_ERROR_UNSUPPORTED:
+				return "DXGI_ERROR_UNSUPPORTED";
 			default:
 				__declspec(thread) static CHAR buf[20];
 				sprintf_s(buf, "0x%lx", hr);
@@ -401,7 +404,7 @@ HRESULT STDMETHODCALLTYPE D3D11DeviceContext::QueryInterface(REFIID riid, void *
 		{
 			ID3D11DeviceContext1 *devicecontext1 = nullptr;
 
-			const HRESULT hr = this->mOrig->QueryInterface(&devicecontext1);
+			const HRESULT hr = this->mOrig->QueryInterface(__uuidof(ID3D11DeviceContext1), reinterpret_cast<void **>(&devicecontext1));
 
 			if (FAILED(hr))
 			{
@@ -971,78 +974,116 @@ D3D11_DEVICE_CONTEXT_TYPE STDMETHODCALLTYPE D3D11DeviceContext::GetType()
 // ID3D11DeviceContext1
 void STDMETHODCALLTYPE D3D11DeviceContext::CopySubresourceRegion1(ID3D11Resource *pDstResource, UINT DstSubresource, UINT DstX, UINT DstY, UINT DstZ, ID3D11Resource *pSrcResource, UINT SrcSubresource, const D3D11_BOX *pSrcBox, UINT CopyFlags)
 {
+	assert(this->mInterfaceVersion >= 1);
+
 	static_cast<ID3D11DeviceContext1 *>(this->mOrig)->CopySubresourceRegion1(pDstResource, DstSubresource, DstX, DstY, DstZ, pSrcResource, SrcSubresource, pSrcBox, CopyFlags);
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::UpdateSubresource1(ID3D11Resource *pDstResource, UINT DstSubresource, const D3D11_BOX *pDstBox, const void *pSrcData, UINT SrcRowPitch, UINT SrcDepthPitch, UINT CopyFlags)
 {
+	assert(this->mInterfaceVersion >= 1);
+
 	static_cast<ID3D11DeviceContext1 *>(this->mOrig)->UpdateSubresource1(pDstResource, DstSubresource, pDstBox, pSrcData, SrcRowPitch, SrcDepthPitch, CopyFlags);
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::DiscardResource(ID3D11Resource *pResource)
 {
+	assert(this->mInterfaceVersion >= 1);
+
 	static_cast<ID3D11DeviceContext1 *>(this->mOrig)->DiscardResource(pResource);
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::DiscardView(ID3D11View *pResourceView)
 {
+	assert(this->mInterfaceVersion >= 1);
+
 	static_cast<ID3D11DeviceContext1 *>(this->mOrig)->DiscardView(pResourceView);
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::VSSetConstantBuffers1(UINT StartSlot, UINT NumBuffers, ID3D11Buffer *const *ppConstantBuffers, const UINT *pFirstConstant, const UINT *pNumConstants)
 {
+	assert(this->mInterfaceVersion >= 1);
+
 	static_cast<ID3D11DeviceContext1 *>(this->mOrig)->VSSetConstantBuffers1(StartSlot, NumBuffers, ppConstantBuffers, pFirstConstant, pNumConstants);
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::HSSetConstantBuffers1(UINT StartSlot, UINT NumBuffers, ID3D11Buffer *const *ppConstantBuffers, const UINT *pFirstConstant, const UINT *pNumConstants)
 {
+	assert(this->mInterfaceVersion >= 1);
+
 	static_cast<ID3D11DeviceContext1 *>(this->mOrig)->HSSetConstantBuffers1(StartSlot, NumBuffers, ppConstantBuffers, pFirstConstant, pNumConstants);
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::DSSetConstantBuffers1(UINT StartSlot, UINT NumBuffers, ID3D11Buffer *const *ppConstantBuffers, const UINT *pFirstConstant, const UINT *pNumConstants)
 {
+	assert(this->mInterfaceVersion >= 1);
+
 	static_cast<ID3D11DeviceContext1 *>(this->mOrig)->DSSetConstantBuffers1(StartSlot, NumBuffers, ppConstantBuffers, pFirstConstant, pNumConstants);
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::GSSetConstantBuffers1(UINT StartSlot, UINT NumBuffers, ID3D11Buffer *const *ppConstantBuffers, const UINT *pFirstConstant, const UINT *pNumConstants)
 {
+	assert(this->mInterfaceVersion >= 1);
+
 	static_cast<ID3D11DeviceContext1 *>(this->mOrig)->GSSetConstantBuffers1(StartSlot, NumBuffers, ppConstantBuffers, pFirstConstant, pNumConstants);
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::PSSetConstantBuffers1(UINT StartSlot, UINT NumBuffers, ID3D11Buffer *const *ppConstantBuffers, const UINT *pFirstConstant, const UINT *pNumConstants)
 {
+	assert(this->mInterfaceVersion >= 1);
+
 	static_cast<ID3D11DeviceContext1 *>(this->mOrig)->PSSetConstantBuffers1(StartSlot, NumBuffers, ppConstantBuffers, pFirstConstant, pNumConstants);
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::CSSetConstantBuffers1(UINT StartSlot, UINT NumBuffers, ID3D11Buffer *const *ppConstantBuffers, const UINT *pFirstConstant, const UINT *pNumConstants)
 {
+	assert(this->mInterfaceVersion >= 1);
+
 	static_cast<ID3D11DeviceContext1 *>(this->mOrig)->CSSetConstantBuffers1(StartSlot, NumBuffers, ppConstantBuffers, pFirstConstant, pNumConstants);
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::VSGetConstantBuffers1(UINT StartSlot, UINT NumBuffers, ID3D11Buffer **ppConstantBuffers, UINT *pFirstConstant, UINT *pNumConstants)
 {
+	assert(this->mInterfaceVersion >= 1);
+
 	static_cast<ID3D11DeviceContext1 *>(this->mOrig)->VSGetConstantBuffers1(StartSlot, NumBuffers, ppConstantBuffers, pFirstConstant, pNumConstants);
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::HSGetConstantBuffers1(UINT StartSlot, UINT NumBuffers, ID3D11Buffer **ppConstantBuffers, UINT *pFirstConstant, UINT *pNumConstants)
 {
+	assert(this->mInterfaceVersion >= 1);
+
 	static_cast<ID3D11DeviceContext1 *>(this->mOrig)->HSGetConstantBuffers1(StartSlot, NumBuffers, ppConstantBuffers, pFirstConstant, pNumConstants);
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::DSGetConstantBuffers1(UINT StartSlot, UINT NumBuffers, ID3D11Buffer **ppConstantBuffers, UINT *pFirstConstant, UINT *pNumConstants)
 {
+	assert(this->mInterfaceVersion >= 1);
+
 	static_cast<ID3D11DeviceContext1 *>(this->mOrig)->DSGetConstantBuffers1(StartSlot, NumBuffers, ppConstantBuffers, pFirstConstant, pNumConstants);
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::GSGetConstantBuffers1(UINT StartSlot, UINT NumBuffers, ID3D11Buffer **ppConstantBuffers, UINT *pFirstConstant, UINT *pNumConstants)
 {
+	assert(this->mInterfaceVersion >= 1);
+
 	static_cast<ID3D11DeviceContext1 *>(this->mOrig)->GSGetConstantBuffers1(StartSlot, NumBuffers, ppConstantBuffers, pFirstConstant, pNumConstants);
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::PSGetConstantBuffers1(UINT StartSlot, UINT NumBuffers, ID3D11Buffer **ppConstantBuffers, UINT *pFirstConstant, UINT *pNumConstants)
 {
+	assert(this->mInterfaceVersion >= 1);
+
 	static_cast<ID3D11DeviceContext1 *>(this->mOrig)->PSGetConstantBuffers1(StartSlot, NumBuffers, ppConstantBuffers, pFirstConstant, pNumConstants);
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::CSGetConstantBuffers1(UINT StartSlot, UINT NumBuffers, ID3D11Buffer **ppConstantBuffers, UINT *pFirstConstant, UINT *pNumConstants)
 {
+	assert(this->mInterfaceVersion >= 1);
+
 	static_cast<ID3D11DeviceContext1 *>(this->mOrig)->CSGetConstantBuffers1(StartSlot, NumBuffers, ppConstantBuffers, pFirstConstant, pNumConstants);
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::SwapDeviceContextState(ID3DDeviceContextState *pState, ID3DDeviceContextState **ppPreviousState)
 {
+	assert(this->mInterfaceVersion >= 1);
+
 	static_cast<ID3D11DeviceContext1 *>(this->mOrig)->SwapDeviceContextState(pState, ppPreviousState);
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::ClearView(ID3D11View *pView, const FLOAT Color[4], const D3D11_RECT *pRect, UINT NumRects)
 {
+	assert(this->mInterfaceVersion >= 1);
+
 	static_cast<ID3D11DeviceContext1 *>(this->mOrig)->ClearView(pView, Color, pRect, NumRects);
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::DiscardView1(ID3D11View *pResourceView, const D3D11_RECT *pRects, UINT NumRects)
 {
+	assert(this->mInterfaceVersion >= 1);
+
 	static_cast<ID3D11DeviceContext1 *>(this->mOrig)->DiscardView1(pResourceView, pRects, NumRects);
 }
 
@@ -1068,7 +1109,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::QueryInterface(REFIID riid, void **ppvObj
 		{
 			ID3D11Device1 *device1 = nullptr;
 
-			const HRESULT hr = this->mOrig->QueryInterface(&device1);
+			const HRESULT hr = this->mOrig->QueryInterface(__uuidof(ID3D11Device1), reinterpret_cast<void **>(&device1));
 
 			if (FAILED(hr))
 			{
@@ -1255,14 +1296,18 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDeferredContext(UINT ContextFlags, 
 
 	const HRESULT hr = this->mOrig->CreateDeferredContext(ContextFlags, ppDeferredContext);
 
-	if (SUCCEEDED(hr))
+	if (FAILED(hr))
 	{
-		assert(*ppDeferredContext != nullptr);
+		LOG(WARNING) << "> 'ID3D11Device::CreateDeferredContext' failed with '" << GetErrorString(hr) << "'!";
 
-		*ppDeferredContext = new D3D11DeviceContext(this, *ppDeferredContext);
+		return hr;
 	}
 
-	return hr;
+	assert(*ppDeferredContext != nullptr);
+
+	*ppDeferredContext = new D3D11DeviceContext(this, *ppDeferredContext);
+
+	return S_OK;
 }
 HRESULT STDMETHODCALLTYPE D3D11Device::OpenSharedResource(HANDLE hResource, REFIID ReturnedInterface, void **ppResource)
 {
@@ -1342,6 +1387,7 @@ void STDMETHODCALLTYPE D3D11Device::GetImmediateContext1(ID3D11DeviceContext1 **
 		return;
 	}
 
+	assert(this->mInterfaceVersion >= 1);
 	assert(this->mImmediateContext != nullptr);
 	assert(this->mImmediateContext->mInterfaceVersion >= 1);
 
@@ -1358,35 +1404,51 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDeferredContext1(UINT ContextFlags,
 		return E_INVALIDARG;
 	}
 
+	assert(this->mInterfaceVersion >= 1);
+
 	const HRESULT hr = static_cast<ID3D11Device1 *>(this->mOrig)->CreateDeferredContext1(ContextFlags, ppDeferredContext);
 
-	if (SUCCEEDED(hr))
+	if (FAILED(hr))
 	{
-		assert(*ppDeferredContext != nullptr);
+		LOG(WARNING) << "> 'ID3D11Device1::CreateDeferredContext1' failed with '" << GetErrorString(hr) << "'!";
 
-		*ppDeferredContext = new D3D11DeviceContext(this, *ppDeferredContext);
+		return hr;
 	}
 
-	return hr;
+	assert(*ppDeferredContext != nullptr);
+
+	*ppDeferredContext = new D3D11DeviceContext(this, *ppDeferredContext);
+
+	return S_OK;
 }
 HRESULT STDMETHODCALLTYPE D3D11Device::CreateBlendState1(const D3D11_BLEND_DESC1 *pBlendStateDesc, ID3D11BlendState1 **ppBlendState)
 {
+	assert(this->mInterfaceVersion >= 1);
+
 	return static_cast<ID3D11Device1 *>(this->mOrig)->CreateBlendState1(pBlendStateDesc, ppBlendState);
 }
 HRESULT STDMETHODCALLTYPE D3D11Device::CreateRasterizerState1(const D3D11_RASTERIZER_DESC1 *pRasterizerDesc, ID3D11RasterizerState1 **ppRasterizerState)
 {
+	assert(this->mInterfaceVersion >= 1);
+
 	return static_cast<ID3D11Device1 *>(this->mOrig)->CreateRasterizerState1(pRasterizerDesc, ppRasterizerState);
 }
 HRESULT STDMETHODCALLTYPE D3D11Device::CreateDeviceContextState(UINT Flags, const D3D_FEATURE_LEVEL *pFeatureLevels, UINT FeatureLevels, UINT SDKVersion, REFIID EmulatedInterface, D3D_FEATURE_LEVEL *pChosenFeatureLevel, ID3DDeviceContextState **ppContextState)
 {
+	assert(this->mInterfaceVersion >= 1);
+
 	return static_cast<ID3D11Device1 *>(this->mOrig)->CreateDeviceContextState(Flags, pFeatureLevels, FeatureLevels, SDKVersion, EmulatedInterface, pChosenFeatureLevel, ppContextState);
 }
 HRESULT STDMETHODCALLTYPE D3D11Device::OpenSharedResource1(HANDLE hResource, REFIID returnedInterface, void **ppResource)
 {
+	assert(this->mInterfaceVersion >= 1);
+
 	return static_cast<ID3D11Device1 *>(this->mOrig)->OpenSharedResource1(hResource, returnedInterface, ppResource);
 }
 HRESULT STDMETHODCALLTYPE D3D11Device::OpenSharedResourceByName(LPCWSTR lpName, DWORD dwDesiredAccess, REFIID returnedInterface, void **ppResource)
 {
+	assert(this->mInterfaceVersion >= 1);
+
 	return static_cast<ID3D11Device1 *>(this->mOrig)->OpenSharedResourceByName(lpName, dwDesiredAccess, returnedInterface, ppResource);
 }
 
@@ -1408,66 +1470,66 @@ EXPORT HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, D3D_
 
 	HRESULT hr = ReShade::Hooks::Call(&D3D11CreateDeviceAndSwapChain)(pAdapter, DriverType, Software, Flags, pFeatureLevels, FeatureLevels, SDKVersion, nullptr, nullptr, ppDevice, pFeatureLevel, nullptr);
 
-	if (SUCCEEDED(hr))
+	if (FAILED(hr))
 	{
-		if (ppDevice != nullptr)
+		LOG(WARNING) << "> 'D3D11CreateDeviceAndSwapChain' failed with '" << GetErrorString(hr) << "'!";
+
+		return hr;
+	}
+
+	if (ppDevice != nullptr)
+	{
+		assert(*ppDevice != nullptr);
+
+		ID3D11Device *const device = *ppDevice;
+		IDXGIDevice *dxgidevice = nullptr;
+		device->QueryInterface(&dxgidevice);
+		ID3D11DeviceContext *devicecontext = nullptr;
+		device->GetImmediateContext(&devicecontext);
+
+		assert(dxgidevice != nullptr);
+		assert(devicecontext != nullptr);
+
+		D3D11Device *const deviceProxy = new D3D11Device(device);
+		deviceProxy->mDXGIDevice = DXGID3D11Bridge::GetProxyDXGIDevice(dxgidevice, deviceProxy);
+		D3D11DeviceContext *const devicecontextProxy = new D3D11DeviceContext(deviceProxy, devicecontext);
+		deviceProxy->mImmediateContext = devicecontextProxy;
+
+		device->SetPrivateData(DXGID3D11Bridge::sIID, sizeof(deviceProxy), reinterpret_cast<const void *>(&deviceProxy));
+
+		if (pSwapChainDesc != nullptr)
 		{
-			assert(*ppDevice != nullptr);
+			assert(ppSwapChain != nullptr);
 
-			ID3D11Device *const device = *ppDevice;
-			IDXGIDevice *dxgidevice = nullptr;
-			device->QueryInterface(&dxgidevice);
-			ID3D11DeviceContext *devicecontext = nullptr;
-			device->GetImmediateContext(&devicecontext);
+			IDXGIFactory1 *factory = nullptr;
 
-			assert(dxgidevice != nullptr);
-			assert(devicecontext != nullptr);
-
-			D3D11Device *const deviceProxy = new D3D11Device(device);
-			deviceProxy->mDXGIDevice = DXGID3D11Bridge::GetProxyDXGIDevice(dxgidevice, deviceProxy);
-			D3D11DeviceContext *const devicecontextProxy = new D3D11DeviceContext(deviceProxy, devicecontext);
-			deviceProxy->mImmediateContext = devicecontextProxy;
-
-			device->SetPrivateData(DXGID3D11Bridge::sIID, sizeof(deviceProxy), reinterpret_cast<const void *>(&deviceProxy));
-
-			if (pSwapChainDesc != nullptr)
-			{
-				assert(ppSwapChain != nullptr);
-
-				IDXGIFactory1 *factory = nullptr;
-
-				hr = CreateDXGIFactory1(__uuidof(IDXGIFactory1), reinterpret_cast<void **>(&factory));
-
-				if (SUCCEEDED(hr))
-				{
-					hr = factory->CreateSwapChain(deviceProxy, const_cast<DXGI_SWAP_CHAIN_DESC *>(pSwapChainDesc), ppSwapChain);
-
-					factory->Release();
-				}
-			}
+			hr = CreateDXGIFactory1(__uuidof(IDXGIFactory1), reinterpret_cast<void **>(&factory));
 
 			if (SUCCEEDED(hr))
 			{
-				*ppDevice = deviceProxy;
+				hr = factory->CreateSwapChain(deviceProxy, const_cast<DXGI_SWAP_CHAIN_DESC *>(pSwapChainDesc), ppSwapChain);
 
-				if (ppImmediateContext != nullptr)
-				{
-					devicecontextProxy->AddRef();
-					*ppImmediateContext = devicecontextProxy;
-				}
-
-				LOG(TRACE) << "> Returned device objects: " << deviceProxy << ", " << deviceProxy->mDXGIDevice;
-			}
-			else
-			{
-				devicecontextProxy->Release();
-				deviceProxy->Release();
+				factory->Release();
 			}
 		}
-	}
-	else
-	{
-		LOG(WARNING) << "> 'D3D11CreateDeviceAndSwapChain' failed with '" << GetErrorString(hr) << "'!";
+
+		if (SUCCEEDED(hr))
+		{
+			*ppDevice = deviceProxy;
+
+			if (ppImmediateContext != nullptr)
+			{
+				devicecontextProxy->AddRef();
+				*ppImmediateContext = devicecontextProxy;
+			}
+
+			LOG(TRACE) << "> Returned device objects: " << deviceProxy << ", " << deviceProxy->mDXGIDevice;
+		}
+		else
+		{
+			devicecontextProxy->Release();
+			deviceProxy->Release();
+		}
 	}
 
 	return hr;
