@@ -636,8 +636,14 @@ namespace
 
 		output.Caps2 |= D3DCAPS2_CANRENDERWINDOWED;
 		output.RasterCaps |= D3DPRASTERCAPS_ZBIAS;
-		output.VertexShaderVersion = 0xFFFE0101;
-		output.PixelShaderVersion = 0xFFFE0104;
+		output.StencilCaps &= ~D3DSTENCILCAPS_TWOSIDED;
+		output.VertexShaderVersion = D3DVS_VERSION(1, 1);
+		output.PixelShaderVersion = D3DPS_VERSION(1, 4);
+
+		if (output.MaxVertexShaderConst > 256)
+		{
+			output.MaxVertexShaderConst = 256;
+		}
 	}
 	void ConvertVolumeDesc(D3D9::D3DVOLUME_DESC &input, D3D8::D3DVOLUME_DESC &output)
 	{
@@ -2521,7 +2527,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateVertexShader(CONST DWORD *pDecl
 	{
 		LOG(INFO) << "> Disassembling shader and translating assembly to Direct3D 9 compatible code ...";
 
-		if (*pFunction < 0xFFFE0100 || *pFunction > 0xFFFE0101)
+		if (*pFunction < D3DVS_VERSION(1, 0) || *pFunction > D3DVS_VERSION(1, 1))
 		{
 			LOG(WARNING) << "> Failed because of version mismatch ('" << *pFunction << "')! Only 'vs_1_x' shaders are supported.";
 
@@ -2862,7 +2868,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreatePixelShader(CONST DWORD *pFunct
 
 	LOG(INFO) << "> Disassembling shader and translating assembly to Direct3D 9 compatible code ...";
 
-	if (*pFunction < 0xFFFF0100 || *pFunction > 0xFFFF0104)
+	if (*pFunction < D3DPS_VERSION(1, 0) || *pFunction > D3DPS_VERSION(1, 4))
 	{
 		LOG(WARNING) << "> Failed because of version mismatch ('" << *pFunction << "')! Only 'ps_1_x' shaders are supported.";
 
