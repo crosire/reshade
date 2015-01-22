@@ -3105,7 +3105,7 @@ EXPORT BOOL WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 			return FALSE;
 		}
 
-		LONG classstyle = GetClassLongPtr(hwnd, GCL_STYLE);
+		ULONG_PTR classstyle = GetClassLongPtr(hwnd, GCL_STYLE);
 
 		if ((classstyle & CS_OWNDC) == 0)
 		{
