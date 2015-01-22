@@ -2192,7 +2192,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::GetTexture(DWORD Stage, Direct3DBaseT
 
 	const HRESULT hr = this->mProxy->GetTexture(Stage, &texture);
 
-	if (SUCCEEDED(hr))
+	if (SUCCEEDED(hr) && texture != nullptr)
 	{
 		textureProxy = new Direct3DBaseTexture8(this, texture);
 	}
