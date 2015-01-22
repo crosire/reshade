@@ -1961,7 +1961,7 @@ namespace ReShade { namespace Runtimes
 				}
 			}
 			void VisitTexture(const EffectNodes::Variable &node)
-			{			
+			{
 				const GLsizei width = (node.Properties[EffectNodes::Variable::Width] != 0) ? this->mAST[node.Properties[EffectNodes::Variable::Width]].As<EffectNodes::Literal>().Value.Uint[0] : 1;
 				const GLsizei height = (node.Properties[EffectNodes::Variable::Height] != 0) ? this->mAST[node.Properties[EffectNodes::Variable::Height]].As<EffectNodes::Literal>().Value.Uint[0] : 1;
 				GLsizei levels = (node.Properties[EffectNodes::Variable::MipLevels] != 0) ? this->mAST[node.Properties[EffectNodes::Variable::MipLevels]].As<EffectNodes::Literal>().Value.Uint[0] : 1;
@@ -2013,14 +2013,21 @@ namespace ReShade { namespace Runtimes
 				{
 					GLCHECK(glGenTextures(2, obj->mID));
 
-					GLint previous = 0;
+					GLint previous = 0, previousFBO = 0;
 					GLCHECK(glGetIntegerv(GL_TEXTURE_BINDING_2D, &previous));
+					GLCHECK(glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &previousFBO));
 
 					GLCHECK(glBindTexture(GL_TEXTURE_2D, obj->mID[0]));
 					GLCHECK(glTexStorage2D(GL_TEXTURE_2D, levels, internalformat, width, height));
-					const std::vector<unsigned char> nullpixels(width * height, 0);
-					GLCHECK(glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_RED, GL_UNSIGNED_BYTE, nullpixels.data()));
 					GLCHECK(glTextureView(obj->mID[1], GL_TEXTURE_2D, obj->mID[0], internalformatSRGB, 0, levels, 0, 1));
+
+					GLCHECK(glBindFramebuffer(GL_DRAW_FRAMEBUFFER, this->mEffect->mRuntime->mBlitFBO));
+					GLCHECK(glFramebufferTexture(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, obj->mID[0], 0));
+					GLCHECK(glDrawBuffer(GL_COLOR_ATTACHMENT1));
+					const GLuint clearColor[4] = { 0, 0, 0, 0 };
+					GLCHECK(glClearBufferuiv(GL_COLOR, 0, clearColor));
+					GLCHECK(glFramebufferTexture(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, 0, 0));
+					GLCHECK(glBindFramebuffer(GL_DRAW_FRAMEBUFFER, previousFBO));
 
 					GLCHECK(glBindTexture(GL_TEXTURE_2D, previous));
 				}
