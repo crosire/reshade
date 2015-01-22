@@ -2601,13 +2601,13 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateVertexShader(CONST DWORD *pDecl
 
 		source.insert(declpos, constants);
 
-		boost::algorithm::replace_all(source, "m3x2", "/*m3x2*/m3x4");
-		boost::algorithm::replace_all(source, "m3x3", "/*m3x3*/m3x4");
-		boost::algorithm::replace_all(source, "m4x3", "/*m4x3*/m4x4");
+		boost::algorithm::replace_all(source, "m3x2 ", "/*m3x2*/m3x4 ");
+		boost::algorithm::replace_all(source, "m3x3 ", "/*m3x3*/m3x4 ");
+		boost::algorithm::replace_all(source, "m4x3 ", "/*m4x3*/m4x4 ");
 		boost::algorithm::replace_all(source, "oFog.x", "oFog");
 		boost::algorithm::replace_all(source, "oPts.x", "oPts");
 
-		LOG(TRACE) << "> Dumping shader disassembly:\n\n" << source;
+		LOG(TRACE) << "> Dumping translated shader assembly:\n\n" << source;
 
 		hr = D3DXAssembleShader(source.data(), static_cast<UINT>(source.size()), nullptr, nullptr, 0, &assembly, &errors);
 
@@ -2898,12 +2898,12 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreatePixelShader(CONST DWORD *pFunct
 		source.replace(verpos, 6, "ps_1_1");
 	}
 
-	boost::algorithm::replace_all(source, "m3x2", "/*m3x2*/m3x4");
-	boost::algorithm::replace_all(source, "m3x3", "/*m3x3*/m3x4");
-	boost::algorithm::replace_all(source, "m4x3", "/*m4x3*/m4x4");
+	boost::algorithm::replace_all(source, "m3x2 ", "/*m3x2*/m3x4 ");
+	boost::algorithm::replace_all(source, "m3x3 ", "/*m3x3*/m3x4 ");
+	boost::algorithm::replace_all(source, "m4x3 ", "/*m4x3*/m4x4 ");
 	boost::algorithm::replace_all(source, "-c", "/*-*/c");
 
-	LOG(TRACE) << "> Dumping shader disassembly:\n\n" << source;
+	LOG(TRACE) << "> Dumping translated shader assembly:\n\n" << source;
 
 	hr = D3DXAssembleShader(source.data(), static_cast<UINT>(source.size()), nullptr, nullptr, 0, &assembly, &errors);
 
