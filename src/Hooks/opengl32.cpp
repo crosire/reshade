@@ -3212,16 +3212,12 @@ EXPORT BOOL WINAPI wglUseFontOutlinesW(HDC hdc, DWORD dw1, DWORD dw2, DWORD dw3,
 }
 EXPORT PROC WINAPI wglGetProcAddress(LPCSTR lpszProc)
 {
-	LOG(TRACE) << "Redirecting '" << "wglGetProcAddress" << "(\"" << lpszProc << "\")' ...";
-
 	static const auto trampoline = ReShade::Hooks::Call(&wglGetProcAddress);
 
 	const PROC address = trampoline(lpszProc);
 
 	if (address == nullptr || lpszProc == nullptr)
 	{
-		LOG(TRACE) << "> 'wglGetProcAddress' failed with '" << GetLastError() << "'!";
-
 		return nullptr;
 	}
 	else if (strcmp(lpszProc, "glBindTexture") == 0)
