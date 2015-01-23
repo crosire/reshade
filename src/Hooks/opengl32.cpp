@@ -2837,24 +2837,30 @@ HGLRC WINAPI wglCreateContextAttribsARB(HDC hdc, HGLRC hShareContext, const int 
 			case Attrib::WGL_CONTEXT_MINOR_VERSION_ARB:
 				minor = attrib[1];
 				break;
+			case Attrib::WGL_CONTEXT_FLAGS_ARB:
+				flags = attrib[1];
+				break;
 			case Attrib::WGL_CONTEXT_PROFILE_MASK_ARB:
 				core = (attrib[1] & Attrib::WGL_CONTEXT_CORE_PROFILE_BIT_ARB) != 0;
 				compatibility = (attrib[1] & Attrib::WGL_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB) != 0;
 				break;
-			case Attrib::WGL_CONTEXT_FLAGS_ARB:
-				flags = attrib[1];
-				break;
 		}
 	}
 
-	LOG(TRACE) << "> Requesting " << (core ? "core " : compatibility ? "compatibility " : "") << "OpenGL context for version " << major << '.' << minor << " ...";
+	if (major < 3 || minor < 2)
+	{
+		core = compatibility = false;
+	}
 
 #ifdef _DEBUG
-	flags |= Attrib::WGL_CONTEXT_DEBUG_BIT_ARB;
+	attribs[i].Name = Attrib::WGL_CONTEXT_FLAGS_ARB;
+	attribs[i++].Value = flags | Attrib::WGL_CONTEXT_DEBUG_BIT_ARB;
 #endif
 
-	attribs[5].Name = Attrib::WGL_CONTEXT_FLAGS_ARB;
-	attribs[5].Value = flags;
+	attribs[i].Name = Attrib::WGL_CONTEXT_PROFILE_MASK_ARB;
+	attribs[i++].Value = compatibility ? Attrib::WGL_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB : Attrib::WGL_CONTEXT_CORE_PROFILE_BIT_ARB;
+
+	LOG(TRACE) << "> Requesting " << (core ? "core " : compatibility ? "compatibility " : "") << "OpenGL context for version " << major << '.' << minor << " ...";
 
 	if (major < 4 || minor < 3)
 	{
@@ -2869,6 +2875,9 @@ HGLRC WINAPI wglCreateContextAttribsARB(HDC hdc, HGLRC hShareContext, const int 
 					break;
 				case Attrib::WGL_CONTEXT_MINOR_VERSION_ARB:
 					attribs[k].Value = 3;
+					break;
+				case Attrib::WGL_CONTEXT_PROFILE_MASK_ARB:
+					attribs[k].Value = Attrib::WGL_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB;
 					break;
 			}
 		}
