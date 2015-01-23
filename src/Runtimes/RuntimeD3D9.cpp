@@ -2691,6 +2691,7 @@ namespace ReShade { namespace Runtimes
 			depthstencil->Release();
 
 			depthstencil = this->mDepthStencil;
+			depthstencil->AddRef();
 		}
 	}
 
