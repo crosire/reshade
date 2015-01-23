@@ -2,7 +2,6 @@
 #include "HookManager.hpp"
 #include "Runtimes\RuntimeGL.hpp"
 
-#include <mutex>
 #include <unordered_map>
 
 #pragma region Undefine Function Names
@@ -100,7 +99,39 @@
 
 namespace
 {
-	std::mutex sLockMutex;
+	class CriticalSection
+	{
+	public:
+		struct Lock
+		{
+			Lock(CriticalSection &cs) : CS(cs)
+			{
+				EnterCriticalSection(&this->CS.mCS);
+			}
+			~Lock()
+			{
+				LeaveCriticalSection(&this->CS.mCS);
+			}
+
+			CriticalSection &CS;
+
+		private:
+			void operator =(const Lock &);
+		};
+
+	public:
+		CriticalSection()
+		{
+			InitializeCriticalSection(&this->mCS);
+		}
+		~CriticalSection()
+		{
+			DeleteCriticalSection(&this->mCS);
+		}
+
+	private:
+		CRITICAL_SECTION mCS;
+	} sCS;
 	std::unordered_map<HWND, RECT> sWindowRects;
 	std::unordered_map<HGLRC, HGLRC> sSharedContexts;
 	std::unordered_map<HDC, std::shared_ptr<ReShade::Runtimes::GLRuntime>> sRuntimes;
@@ -2787,7 +2818,7 @@ EXPORT HGLRC WINAPI wglCreateContext(HDC hdc)
 		return nullptr;
 	}
 
-	std::lock_guard<std::mutex> lock(sLockMutex);
+	CriticalSection::Lock lock(sCS);
 
 	sSharedContexts.emplace(hglrc, nullptr);
 
@@ -2892,7 +2923,7 @@ HGLRC WINAPI wglCreateContextAttribsARB(HDC hdc, HGLRC hShareContext, const int 
 		return nullptr;
 	}
 
-	std::lock_guard<std::mutex> lock(sLockMutex);
+	CriticalSection::Lock lock(sCS);
 
 	sSharedContexts.emplace(hglrc, hShareContext);
 
@@ -2920,7 +2951,7 @@ EXPORT BOOL WINAPI wglDeleteContext(HGLRC hglrc)
 {
 	LOG(INFO) << "Redirecting '" << "wglDeleteContext" << "(" << hglrc << ")' ...";
 
-	std::lock_guard<std::mutex> lock(sLockMutex);
+	CriticalSection::Lock lock(sCS);
 
 	for (auto it = sRuntimes.begin(); it != sRuntimes.end();)
 	{
@@ -3042,7 +3073,7 @@ EXPORT BOOL WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 		return TRUE;
 	}
 
-	std::lock_guard<std::mutex> lock(sLockMutex);
+	CriticalSection::Lock lock(sCS);
 
 	if (sSharedContexts.at(hglrc) != nullptr)
 	{
@@ -3137,7 +3168,7 @@ EXPORT BOOL WINAPI wglShareLists(HGLRC hglrc1, HGLRC hglrc2)
 		return FALSE;
 	}
 
-	std::lock_guard<std::mutex> lock(sLockMutex);
+	CriticalSection::Lock lock(sCS);
 
 	sSharedContexts[hglrc2] = hglrc1;
 

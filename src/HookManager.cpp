@@ -29,13 +29,13 @@ namespace ReShade
 			public:
 				struct Lock
 				{
-					inline Lock(CriticalSection &cs) : CS(cs)
+					Lock(CriticalSection &cs) : CS(cs)
 					{
-						this->CS.Enter();
+						EnterCriticalSection(&this->CS.mCS);
 					}
-					inline ~Lock()
+					~Lock()
 					{
-						this->CS.Leave();
+						LeaveCriticalSection(&this->CS.mCS);
 					}
 
 					CriticalSection &CS;
@@ -45,22 +45,13 @@ namespace ReShade
 				};
 
 			public:
-				inline CriticalSection()
+				CriticalSection()
 				{
-					::InitializeCriticalSection(&this->mCS);
+					InitializeCriticalSection(&this->mCS);
 				}
-				inline ~CriticalSection()
+				~CriticalSection()
 				{
-					::DeleteCriticalSection(&this->mCS);
-				}
-
-				inline void Enter()
-				{
-					::EnterCriticalSection(&this->mCS);
-				}
-				inline void Leave()
-				{
-					::LeaveCriticalSection(&this->mCS);
+					DeleteCriticalSection(&this->mCS);
 				}
 
 			private:
