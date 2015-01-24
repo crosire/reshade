@@ -205,7 +205,7 @@ namespace
 		friend struct Direct3DVolume8;
 		friend struct Direct3DVertexShader8;
 
-		Direct3DDevice8(Direct3D8 *d3d, IDirect3DDevice9 *proxyDevice, BOOL ZBufferDiscarding = FALSE) : mRef(1), mD3D(d3d), mProxy(proxyDevice), mBaseVertexIndex(0), mZBufferDiscarding(ZBufferDiscarding), mCurrentVertexShader(0), mCurrentPixelShader(0)
+		Direct3DDevice8(Direct3D8 *d3d, IDirect3DDevice9 *proxyDevice, BOOL ZBufferDiscarding = FALSE) : mRef(1), mD3D(d3d), mProxy(proxyDevice), mBaseVertexIndex(0), mZBufferDiscarding(ZBufferDiscarding), mCurrentVertexShader(0), mCurrentPixelShader(0), mCurrentRenderTarget(nullptr), mCurrentDepthStencil(nullptr)
 		{
 			assert(d3d != nullptr);
 			assert(proxyDevice != nullptr);
@@ -316,6 +316,7 @@ namespace
 		INT mBaseVertexIndex;
 		const BOOL mZBufferDiscarding;
 		DWORD mCurrentVertexShader, mCurrentPixelShader;
+		Direct3DSurface8 *mCurrentRenderTarget, *mCurrentDepthStencil;
 	};
 	struct Direct3DSwapChain8 : public IUnknown, private boost::noncopyable
 	{
@@ -1481,7 +1482,19 @@ ULONG STDMETHODCALLTYPE Direct3DDevice8::AddRef()
 }
 ULONG STDMETHODCALLTYPE Direct3DDevice8::Release()
 {
-	this->mRef--;
+	if (--this->mRef <= 2)
+	{
+		if (this->mCurrentRenderTarget != nullptr)
+		{
+			this->mCurrentRenderTarget->Release();
+			this->mCurrentRenderTarget = nullptr;
+		}
+		if (this->mCurrentDepthStencil != nullptr)
+		{
+			this->mCurrentDepthStencil->Release();
+			this->mCurrentDepthStencil = nullptr;
+		}
+	}
 
 	const ULONG ref = this->mProxy->Release();
 
@@ -1608,7 +1621,47 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::Reset(D3D8::D3DPRESENT_PARAMETERS *pP
 	D3DPRESENT_PARAMETERS pp;
 	ConvertPresentParameters(*pPresentationParameters, pp);
 
-	return this->mProxy->Reset(&pp);
+	if (this->mCurrentRenderTarget != nullptr)
+	{
+		this->mCurrentRenderTarget->Release();
+		this->mCurrentRenderTarget = nullptr;
+	}
+	if (this->mCurrentDepthStencil != nullptr)
+	{
+		this->mCurrentDepthStencil->Release();
+		this->mCurrentDepthStencil = nullptr;
+	}
+
+	const HRESULT hr = this->mProxy->Reset(&pp);
+
+	if (FAILED(hr))
+	{
+		return hr;
+	}
+
+	// Set default rendertarget
+	IDirect3DSurface9 *rendertarget = nullptr, *depthstencil = nullptr;
+	Direct3DSurface8 *rendertargetProxy = nullptr, *depthstencilProxy = nullptr;
+
+	this->mProxy->GetRenderTarget(0, &rendertarget);
+	this->mProxy->GetDepthStencilSurface(&depthstencil);
+
+	if (rendertarget != nullptr)
+	{
+		rendertargetProxy = new Direct3DSurface8(this, rendertarget);
+
+		rendertarget->Release();
+	}
+	if (depthstencil != nullptr)
+	{
+		depthstencilProxy = new Direct3DSurface8(this, depthstencil);
+
+		depthstencil->Release();
+	}
+
+	SetRenderTarget(rendertargetProxy, depthstencilProxy);
+
+	return D3D_OK;
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice8::Present(CONST RECT *pSourceRect, CONST RECT *pDestRect, HWND hDestWindowOverride, CONST RGNDATA *pDirtyRegion)
 {
@@ -1915,26 +1968,56 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::GetFrontBuffer(Direct3DSurface8 *pDes
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice8::SetRenderTarget(Direct3DSurface8 *pRenderTarget, Direct3DSurface8 *pNewZStencil)
 {
-	IDirect3DSurface9 *depthstencil = nullptr;
-
-	if (pNewZStencil != nullptr)
-	{
-		depthstencil = pNewZStencil->mProxy;
-	}
-
-	HRESULT hr = this->mProxy->SetDepthStencilSurface(depthstencil);
-
-	if (FAILED(hr))
-	{
-		return hr;
-	}
+	HRESULT hr;
 
 	if (pRenderTarget != nullptr)
 	{
 		hr = this->mProxy->SetRenderTarget(0, pRenderTarget->mProxy);
+
+		if (FAILED(hr))
+		{
+			return hr;
+		}
+
+		if (this->mCurrentRenderTarget != nullptr)
+		{
+			this->mCurrentRenderTarget->Release();
+		}
+
+		this->mCurrentRenderTarget = pRenderTarget;
+		this->mCurrentRenderTarget->AddRef();
 	}
 
-	return hr;
+	if (pNewZStencil != nullptr)
+	{
+		hr = this->mProxy->SetDepthStencilSurface(pNewZStencil->mProxy);
+
+		if (FAILED(hr))
+		{
+			return hr;
+		}
+
+		if (this->mCurrentDepthStencil != nullptr)
+		{
+			this->mCurrentDepthStencil->Release();
+		}
+
+		this->mCurrentDepthStencil = pNewZStencil;
+		this->mCurrentDepthStencil->AddRef();
+	}
+	else
+	{
+		hr = this->mProxy->SetDepthStencilSurface(nullptr);
+
+		if (this->mCurrentDepthStencil != nullptr)
+		{
+			this->mCurrentDepthStencil->Release();
+		}
+
+		this->mCurrentDepthStencil = nullptr;
+	}
+
+	return D3D_OK;
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice8::GetRenderTarget(Direct3DSurface8 **ppRenderTarget)
 {
@@ -1943,21 +2026,12 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::GetRenderTarget(Direct3DSurface8 **pp
 		return D3DERR_INVALIDCALL;
 	}
 
-	IDirect3DSurface9 *surface = nullptr;
-
-	const HRESULT hr = this->mProxy->GetRenderTarget(0, &surface);
-
-	if (FAILED(hr))
+	if (this->mCurrentRenderTarget != nullptr)
 	{
-		return hr;
+		this->mCurrentRenderTarget->AddRef();
 	}
 
-	assert(surface != nullptr);
-
-	Direct3DSurface8 *surfaceProxy = new Direct3DSurface8(this, surface);
-	surfaceProxy->AddRef();
-
-	*ppRenderTarget = surfaceProxy;
+	*ppRenderTarget = this->mCurrentRenderTarget;
 
 	return D3D_OK;
 }
@@ -1968,21 +2042,12 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::GetDepthStencilSurface(Direct3DSurfac
 		return D3DERR_INVALIDCALL;
 	}
 
-	IDirect3DSurface9 *surface = nullptr;
-
-	const HRESULT hr = this->mProxy->GetDepthStencilSurface(&surface);
-
-	if (FAILED(hr))
+	if (this->mCurrentDepthStencil != nullptr)
 	{
-		return hr;
+		this->mCurrentDepthStencil->AddRef();
 	}
 
-	assert(surface != nullptr);
-
-	Direct3DSurface8 *surfaceProxy = new Direct3DSurface8(this, surface);
-	surfaceProxy->AddRef();
-
-	*ppZStencilSurface = surfaceProxy;
+	*ppZStencilSurface = this->mCurrentDepthStencil;
 
 	return D3D_OK;
 }
@@ -2693,7 +2758,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::SetVertexShader(DWORD Handle)
 	}
 	else
 	{
-		const Direct3DVertexShader8 *shader = reinterpret_cast<Direct3DVertexShader8 *>(Handle ^ 0x80000000);
+		Direct3DVertexShader8 *const shader = reinterpret_cast<Direct3DVertexShader8 *>(Handle ^ 0x80000000);
 
 		hr = this->mProxy->SetVertexShader(shader->mShader);
 		this->mProxy->SetVertexDeclaration(shader->mDeclaration);
@@ -2733,7 +2798,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::DeleteVertexShader(DWORD Handle)
 		SetVertexShader(0);
 	}
 
-	Direct3DVertexShader8 *shader = reinterpret_cast<Direct3DVertexShader8 *>(Handle ^ 0x80000000);
+	Direct3DVertexShader8 *const shader = reinterpret_cast<Direct3DVertexShader8 *>(Handle ^ 0x80000000);
 
 	if (shader->mShader != nullptr)
 	{
@@ -2776,16 +2841,16 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::GetVertexShaderFunction(DWORD Handle,
 		return D3DERR_INVALIDCALL;
 	}
 
-	Direct3DVertexShader8 *shader = reinterpret_cast<Direct3DVertexShader8 *>(Handle ^ 0x80000000);
+	IDirect3DVertexShader9 *const shader = reinterpret_cast<Direct3DVertexShader8 *>(Handle ^ 0x80000000)->mShader;
 
-	if (shader->mShader == nullptr)
+	if (shader == nullptr)
 	{
 		return D3DERR_INVALIDCALL;
 	}
 
 	LOG(WARNING) << "> Returning translated shader bytecode.";
 
-	return shader->mShader->GetFunction(pData, reinterpret_cast<UINT *>(pSizeOfData));
+	return shader->GetFunction(pData, reinterpret_cast<UINT *>(pSizeOfData));
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice8::SetStreamSource(UINT StreamNumber, Direct3DVertexBuffer8 *pStreamData, UINT Stride)
 {
@@ -2808,16 +2873,21 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::GetStreamSource(UINT StreamNumber, Di
 
 	const HRESULT hr = this->mProxy->GetStreamSource(StreamNumber, &source, &offset, pStride);
 
-	if (SUCCEEDED(hr) && source != nullptr)
+	if (FAILED(hr))
 	{
-		*ppStreamData = new Direct3DVertexBuffer8(this, source);
-	}
-	else
-	{
-		*ppStreamData = nullptr;
+		return hr;
 	}
 
-	return hr;
+	Direct3DVertexBuffer8 *sourceProxy = nullptr;
+
+	if (source != nullptr)
+	{
+		sourceProxy = new Direct3DVertexBuffer8(this, source);
+	}
+
+	*ppStreamData = sourceProxy;
+
+	return D3D_OK;
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice8::SetIndices(Direct3DIndexBuffer8 *pIndexData, UINT BaseVertexIndex)
 {
@@ -2846,16 +2916,21 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::GetIndices(Direct3DIndexBuffer8 **ppI
 
 	const HRESULT hr = this->mProxy->GetIndices(&source);
 
-	if (SUCCEEDED(hr) && source != nullptr)
+	if (FAILED(hr))
 	{
-		*ppIndexData = new Direct3DIndexBuffer8(this, source);
-	}
-	else
-	{
-		*ppIndexData = nullptr;
+		return hr;
 	}
 
-	return hr;
+	Direct3DIndexBuffer8 *sourceProxy = nullptr;
+
+	if (source != nullptr)
+	{
+		sourceProxy = new Direct3DIndexBuffer8(this, source);
+	}
+
+	*ppIndexData = sourceProxy;
+
+	return D3D_OK;
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreatePixelShader(CONST DWORD *pFunction, DWORD *pHandle)
 {
@@ -2984,9 +3059,11 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::GetPixelShaderFunction(DWORD Handle, 
 		return D3DERR_INVALIDCALL;
 	}
 
+	IDirect3DPixelShader9 *const shader = reinterpret_cast<IDirect3DPixelShader9 *>(Handle);
+
 	LOG(WARNING) << "> Returning translated shader bytecode.";
 
-	return reinterpret_cast<IDirect3DPixelShader9 *>(Handle)->GetFunction(pData, reinterpret_cast<UINT *>(pSizeOfData));
+	return shader->GetFunction(pData, reinterpret_cast<UINT *>(pSizeOfData));
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice8::DrawRectPatch(UINT Handle, CONST float *pNumSegs, CONST D3D8::D3DRECTPATCH_INFO *pRectPatchInfo)
 {
@@ -3186,10 +3263,34 @@ HRESULT STDMETHODCALLTYPE Direct3D8::CreateDevice(UINT Adapter, D3DDEVTYPE Devic
 		return hr;
 	}
 
-	// Set a default vertex declaration
+	Direct3DDevice8 *const deviceProxy = new Direct3DDevice8(this, device, (pp.Flags & D3DPRESENTFLAG_DISCARD_DEPTHSTENCIL) != 0);
+
+	// Set default vertex declaration
 	device->SetFVF(D3DFVF_XYZ);
 
-	*ppReturnedDeviceInterface = new Direct3DDevice8(this, device, (pp.Flags & D3DPRESENTFLAG_DISCARD_DEPTHSTENCIL) != 0);
+	// Set default rendertarget
+	IDirect3DSurface9 *rendertarget = nullptr, *depthstencil = nullptr;
+	Direct3DSurface8 *rendertargetProxy = nullptr, *depthstencilProxy = nullptr;
+
+	device->GetRenderTarget(0, &rendertarget);
+	device->GetDepthStencilSurface(&depthstencil);
+
+	if (rendertarget != nullptr)
+	{
+		rendertargetProxy = new Direct3DSurface8(deviceProxy, rendertarget);
+
+		rendertarget->Release();
+	}
+	if (depthstencil != nullptr)
+	{
+		depthstencilProxy = new Direct3DSurface8(deviceProxy, depthstencil);
+
+		depthstencil->Release();
+	}
+
+	deviceProxy->SetRenderTarget(rendertargetProxy, depthstencilProxy);
+
+	*ppReturnedDeviceInterface = deviceProxy;
 
 	return D3D_OK;
 }
