@@ -2548,10 +2548,10 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateVertexShader(CONST DWORD *pDecl
 		}
 		else if (tokenType == D3DVSD_TOKEN_CONSTMEM)
 		{
-			const DWORD count = ((token & D3DVSD_CONSTCOUNTMASK) >> D3DVSD_CONSTCOUNTSHIFT) * 4;
+			const DWORD count = (token & D3DVSD_CONSTCOUNTMASK) >> D3DVSD_CONSTCOUNTSHIFT;
 			DWORD address = (token & D3DVSD_CONSTADDRESSMASK) >> D3DVSD_CONSTADDRESSSHIFT;
 
-			for (DWORD r = 0; r < count; r += 4, ++address)
+			for (DWORD r = 0; r < count * 4; r += 4, ++address)
 			{
 				constants += "def c" + std::to_string(address) + ", " + std::to_string(*reinterpret_cast<const float *>(&pDeclaration[r + 1])) + ", " + std::to_string(*reinterpret_cast<const float *>(&pDeclaration[r + 2])) + ", " + std::to_string(*reinterpret_cast<const float *>(&pDeclaration[r + 3])) + ", " + std::to_string(*reinterpret_cast<const float *>(&pDeclaration[r + 4])) + '\n';
 			}
@@ -2665,6 +2665,11 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateVertexShader(CONST DWORD *pDecl
 		}
 
 		source.insert(declpos, constants);
+
+		if (source.find("oT") != std::string::npos)
+		{
+			source.insert(declpos, "def c95, 0, 0, 0, 0\nmov oT0, c95\nmov oT1, c95\nmov oT2, c95\nmov oT3, c95\nmov oT4, c95\nmov oT5, c95\nmov oT6, c95\nmov oT7, c95\n");
+		}
 
 		boost::algorithm::replace_all(source, "m3x2 ", "/*m3x2*/m3x4 ");
 		boost::algorithm::replace_all(source, "m3x3 ", "/*m3x3*/m3x4 ");
