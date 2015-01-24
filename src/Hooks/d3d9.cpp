@@ -1091,7 +1091,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetFVF(DWORD *pFVF)
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateVertexShader(const DWORD *pFunction, IDirect3DVertexShader9 **ppShader)
 {
-	LOG(INFO) << "Redirecting '" << "IDirect3DDevice9::CreateVertexShader" << "(" << this << ", " << pFunction << ", " << ppShader << ")' ...";
+	LOG(TRACE) << "Redirecting '" << "IDirect3DDevice9::CreateVertexShader" << "(" << this << ", " << pFunction << ", " << ppShader << ")' ...";
 
 	return this->mOrig->CreateVertexShader(pFunction, ppShader);
 }
@@ -1153,7 +1153,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetIndices(IDirect3DIndexBuffer9 **pp
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreatePixelShader(const DWORD *pFunction, IDirect3DPixelShader9 **ppShader)
 {
-	LOG(INFO) << "Redirecting '" << "IDirect3DDevice9::CreatePixelShader" << "(" << this << ", " << pFunction << ", " << ppShader << ")' ...";
+	LOG(TRACE) << "Redirecting '" << "IDirect3DDevice9::CreatePixelShader" << "(" << this << ", " << pFunction << ", " << ppShader << ")' ...";
 
 	return this->mOrig->CreatePixelShader(pFunction, ppShader);
 }

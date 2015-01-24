@@ -1227,6 +1227,8 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateInputLayout(const D3D11_INPUT_ELEME
 }
 HRESULT STDMETHODCALLTYPE D3D11Device::CreateVertexShader(const void *pShaderBytecode, SIZE_T BytecodeLength, ID3D11ClassLinkage *pClassLinkage, ID3D11VertexShader **ppVertexShader)
 {
+	LOG(TRACE) << "Redirecting '" << "ID3D11Device::CreateVertexShader" << "(" << this << ", " << pShaderBytecode << ", " << BytecodeLength << ", " << pClassLinkage << ", " << ppVertexShader << ")' ...";
+
 	return this->mOrig->CreateVertexShader(pShaderBytecode, BytecodeLength, pClassLinkage, ppVertexShader);
 }
 HRESULT STDMETHODCALLTYPE D3D11Device::CreateGeometryShader(const void *pShaderBytecode, SIZE_T BytecodeLength, ID3D11ClassLinkage *pClassLinkage, ID3D11GeometryShader **ppGeometryShader)
@@ -1239,6 +1241,8 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateGeometryShaderWithStreamOutput(cons
 }
 HRESULT STDMETHODCALLTYPE D3D11Device::CreatePixelShader(const void *pShaderBytecode, SIZE_T BytecodeLength, ID3D11ClassLinkage *pClassLinkage, ID3D11PixelShader **ppPixelShader)
 {
+	LOG(TRACE) << "Redirecting '" << "ID3D11Device::CreatePixelShader" << "(" << this << ", " << pShaderBytecode << ", " << BytecodeLength << ", " << pClassLinkage << ", " << ppPixelShader << ")' ...";
+
 	return this->mOrig->CreatePixelShader(pShaderBytecode, BytecodeLength, pClassLinkage, ppPixelShader);
 }
 HRESULT STDMETHODCALLTYPE D3D11Device::CreateHullShader(const void *pShaderBytecode, SIZE_T BytecodeLength, ID3D11ClassLinkage *pClassLinkage, ID3D11HullShader **ppHullShader)

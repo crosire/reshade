@@ -13,6 +13,7 @@
 #undef glClearDepth
 #undef glClearStencil
 #undef glColorMask
+#undef glCompileShader
 #undef glCopyTexImage1D
 #undef glCopyTexImage2D
 #undef glCopyTexSubImage1D
@@ -455,6 +456,14 @@ EXPORT void WINAPI glColorPointer(GLint size, GLenum type, GLsizei stride, const
 	static const auto trampoline = ReShade::Hooks::Call(&glColorPointer);
 
 	trampoline(size, type, stride, pointer);
+}
+void WINAPI glCompileShader(GLuint shader)
+{
+	LOG(TRACE) << "Redirecting '" << "glCompileShader" << "(" << shader << ")' ...";
+
+	static const auto trampoline = ReShade::Hooks::Call(&glCompileShader);
+
+	return trampoline(shader);
 }
 EXPORT void WINAPI glCopyPixels(GLint x, GLint y, GLsizei width, GLsizei height, GLenum type)
 {
@@ -3283,6 +3292,10 @@ EXPORT PROC WINAPI wglGetProcAddress(LPCSTR lpszProc)
 	else if (strcmp(lpszProc, "glClearStencil") == 0)
 	{
 		return reinterpret_cast<PROC>(&glClearStencil);
+	}
+	else if (strcmp(lpszProc, "glCompileShader") == 0)
+	{
+		ReShade::Hooks::Install(reinterpret_cast<ReShade::Hook::Function>(address), reinterpret_cast<ReShade::Hook::Function>(&glCompileShader));
 	}
 	else if (strcmp(lpszProc, "glCopyTexImage1D") == 0)
 	{
