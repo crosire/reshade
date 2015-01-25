@@ -63,6 +63,9 @@
     <ClCompile Include="src\EffectPreprocessor.cpp">
       <Filter>Parser</Filter>
     </ClCompile>
+    <ClCompile Include="src\Network.cpp">
+      <Filter>Runtime</Filter>
+    </ClCompile>
     <ClCompile Include="src\Runtime.cpp">
       <Filter>Runtime</Filter>
     </ClCompile>
@@ -113,6 +116,9 @@
     </ClInclude>
     <ClInclude Include="src\EffectPreprocessor.hpp">
       <Filter>Parser</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Network.hpp">
+      <Filter>Runtime</Filter>
     </ClInclude>
     <ClInclude Include="src\Runtime.hpp">
       <Filter>Runtime</Filter>

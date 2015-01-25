@@ -1,4 +1,4 @@
-#include "Runtime.hpp"
+#include "Network.hpp"
 #include "HookManager.hpp"
 
 #include <Winsock2.h>
@@ -40,73 +40,70 @@ namespace
 	private:
 		CRITICAL_SECTION mCS;
 	} sCS;
-	
-	void NetworkUpload(const char *buf, unsigned int len)
-	{
-		CriticalSection::Lock lock(sCS);
-
-		ReShade::Runtime::sNetworkUpload += len;
-	}
-	void NetworkDownload(unsigned int len)
-	{
-		CriticalSection::Lock lock(sCS);
-
-		ReShade::Runtime::sNetworkDownload += len;
-	}
 }
 
 // -----------------------------------------------------------------------------------------------------
 
 EXPORT int WSAAPI send(SOCKET s, const char *buf, int len, int flags)
 {
-	static const auto trampoline = ReShade::Hooks::Call(&send);
+	DWORD sent = 0;
+	WSABUF data = { len, const_cast<CHAR *>(buf) };
 
-	NetworkUpload(buf, len);
+	if (WSASend(s, &data, 1, &sent, flags, nullptr, nullptr) == SOCKET_ERROR)
+	{
+		return SOCKET_ERROR;
+	}
 
-	return trampoline(s, buf, len, flags);
+	return static_cast<int>(sent);
 }
 EXPORT int WSAAPI sendto(SOCKET s, const char *buf, int len, int flags, const struct sockaddr *to, int tolen)
 {
-	static const auto trampoline = ReShade::Hooks::Call(&sendto);
+	DWORD sent = 0;
+	WSABUF data = { len, const_cast<CHAR *>(buf) };
 
-	NetworkUpload(buf, len);
+	if (WSASendTo(s, &data, 1, &sent, flags, to, tolen, nullptr, nullptr) == SOCKET_ERROR)
+	{
+		return SOCKET_ERROR;
+	}
 
-	return trampoline(s, buf, len, flags, to, tolen);
+	return static_cast<int>(sent);
 }
 EXPORT int WSAAPI recv(SOCKET s, char *buf, int len, int flags)
 {
-	static const auto trampoline = ReShade::Hooks::Call(&recv);
+	DWORD recieved = 0;
+	WSABUF data = { len, buf };
 
-	const int recieved = trampoline(s, buf, len, flags);
-
-	if (recieved > 0)
+	if (WSARecv(s, &data, 1, &recieved, reinterpret_cast<LPDWORD>(&flags), nullptr, nullptr) == SOCKET_ERROR)
 	{
-		NetworkDownload(recieved);
+		return SOCKET_ERROR;
 	}
 
-	return recieved;
+	return static_cast<int>(recieved);
 }
 EXPORT int WSAAPI recvfrom(SOCKET s, char *buf, int len, int flags, struct sockaddr *from, int *fromlen)
 {
-	static const auto trampoline = ReShade::Hooks::Call(&recvfrom);
+	DWORD recieved = 0;
+	WSABUF data = { len, buf };
 
-	const int recieved = trampoline(s, buf, len, flags, from, fromlen);
-
-	if (recieved > 0)
+	if (WSARecvFrom(s, &data, 1, &recieved, reinterpret_cast<LPDWORD>(&flags), from, fromlen, nullptr, nullptr) == SOCKET_ERROR)
 	{
-		NetworkDownload(recieved);
+		return SOCKET_ERROR;
 	}
 
-	return recieved;
+	return static_cast<int>(recieved);
 }
 
 EXPORT int WSAAPI WSASend(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPDWORD lpNumberOfBytesSent, DWORD dwFlags, LPWSAOVERLAPPED lpOverlapped, LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine)
 {
 	static const auto trampoline = ReShade::Hooks::Call(&WSASend);
 
-	for (DWORD i = 0; i < dwBufferCount; ++i)
 	{
-		NetworkUpload(lpBuffers[i].buf, lpBuffers[i].len);
+		CriticalSection::Lock lock(sCS);
+
+		for (DWORD i = 0; i < dwBufferCount; ++i)
+		{
+			ReShade::Network::OnSend(lpBuffers[i].buf, lpBuffers[i].len);
+		}
 	}
 
 	return trampoline(s, lpBuffers, dwBufferCount, lpNumberOfBytesSent, dwFlags, lpOverlapped, lpCompletionRoutine);
@@ -115,9 +112,13 @@ EXPORT int WSAAPI WSASendTo(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, L
 {
 	static const auto trampoline = ReShade::Hooks::Call(&WSASendTo);
 
-	for (DWORD i = 0; i < dwBufferCount; ++i)
 	{
-		NetworkUpload(lpBuffers[i].buf, lpBuffers[i].len);
+		CriticalSection::Lock lock(sCS);
+
+		for (DWORD i = 0; i < dwBufferCount; ++i)
+		{
+			ReShade::Network::OnSend(lpBuffers[i].buf, lpBuffers[i].len);
+		}
 	}
 
 	return trampoline(s, lpBuffers, dwBufferCount, lpNumberOfBytesSent, dwFlags, lpTo, iToLen, lpOverlapped, lpCompletionRoutine);
@@ -127,36 +128,25 @@ EXPORT int WSAAPI WSARecv(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPD
 	static const auto trampoline = ReShade::Hooks::Call(&WSARecv);
 
 	DWORD recieved = 0;
-	const int result = trampoline(s, lpBuffers, dwBufferCount, &recieved, lpFlags, lpOverlapped, lpCompletionRoutine);
+
+	const int status = trampoline(s, lpBuffers, dwBufferCount, &recieved, lpFlags, lpOverlapped, lpCompletionRoutine);
 
 	if (lpNumberOfBytesRecvd != nullptr)
 	{
 		*lpNumberOfBytesRecvd = recieved;
 	}
 
-	if (lpOverlapped == nullptr)
+	if (status == 0 && recieved > 0)
 	{
-		if (result == SOCKET_ERROR)
-		{
-			return SOCKET_ERROR;
-		}
-	}
-	else
-	{
-		recieved = 0;
+		CriticalSection::Lock lock(sCS);
 
-		for (DWORD i = 0; i < dwBufferCount; ++i)
+		for (DWORD i = 0; i < dwBufferCount; recieved -= lpBuffers[i++].len)
 		{
-			recieved += lpBuffers[i].len;
+			ReShade::Network::OnRecieve(lpBuffers[i].buf, std::min(recieved, lpBuffers[i].len));
 		}
 	}
 
-	if (recieved != 0)
-	{
-		NetworkDownload(recieved);
-	}
-
-	return result;
+	return status;
 }
 EXPORT int WSAAPI WSARecvEx(SOCKET s, char *buf, int len, int *flags)
 {
@@ -166,7 +156,9 @@ EXPORT int WSAAPI WSARecvEx(SOCKET s, char *buf, int len, int *flags)
 
 	if (recieved > 0)
 	{
-		NetworkDownload(recieved);
+		CriticalSection::Lock lock(sCS);
+
+		ReShade::Network::OnRecieve(buf, recieved);
 	}
 
 	return recieved;
@@ -176,34 +168,23 @@ EXPORT int WSAAPI WSARecvFrom(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount,
 	static const auto trampoline = ReShade::Hooks::Call(&WSARecvFrom);
 
 	DWORD recieved = 0;
-	const int result = trampoline(s, lpBuffers, dwBufferCount, &recieved, lpFlags, lpFrom, lpFromlen, lpOverlapped, lpCompletionRoutine);
+
+	const int status = trampoline(s, lpBuffers, dwBufferCount, &recieved, lpFlags, lpFrom, lpFromlen, lpOverlapped, lpCompletionRoutine);
 
 	if (lpNumberOfBytesRecvd != nullptr)
 	{
 		*lpNumberOfBytesRecvd = recieved;
 	}
 
-	if (lpOverlapped == nullptr)
+	if (status == 0 && recieved > 0)
 	{
-		if (result == SOCKET_ERROR)
-		{
-			return SOCKET_ERROR;
-		}
-	}
-	else
-	{
-		recieved = 0;
+		CriticalSection::Lock lock(sCS);
 
-		for (DWORD i = 0; i < dwBufferCount; ++i)
+		for (DWORD i = 0; i < dwBufferCount; recieved -= lpBuffers[i++].len)
 		{
-			recieved += lpBuffers[i].len;
+			ReShade::Network::OnRecieve(lpBuffers[i].buf, std::min(recieved, lpBuffers[i].len));
 		}
 	}
 
-	if (recieved != 0)
-	{
-		NetworkDownload(recieved);
-	}
-
-	return result;
+	return status;
 }
