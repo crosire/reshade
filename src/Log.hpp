@@ -12,6 +12,7 @@
 #pragma warning(push)
 #pragma warning(disable: 4127)
 
+#include <iomanip>
 #include <easylogging++.h>
 
 #pragma warning(pop)

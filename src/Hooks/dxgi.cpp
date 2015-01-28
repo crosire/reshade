@@ -142,37 +142,20 @@ namespace
 		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
 		LOG(TRACE) << "  | Parameter                               | Value                                   |";
 		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
-
-		char value[40];
-		sprintf_s(value, "%-39u", desc.BufferDesc.Width);
-		LOG(TRACE) << "  | Width                                   | " << value << " |";
-		sprintf_s(value, "%-39u", desc.BufferDesc.Height);
-		LOG(TRACE) << "  | Height                                  | " << value << " |";
-		sprintf_s(value, "%-39u", desc.BufferDesc.RefreshRate);
-		LOG(TRACE) << "  | RefreshRate                             | " << value << " |";
-		sprintf_s(value, "%-39u", desc.BufferDesc.Format);
-		LOG(TRACE) << "  | Format                                  | " << value << " |";
-		sprintf_s(value, "%-39u", desc.BufferDesc.ScanlineOrdering);
-		LOG(TRACE) << "  | ScanlineOrdering                        | " << value << " |";
-		sprintf_s(value, "%-39u", desc.BufferDesc.Scaling);
-		LOG(TRACE) << "  | Scaling                                 | " << value << " |";
-		sprintf_s(value, "%-39u", desc.SampleDesc.Count);
-		LOG(TRACE) << "  | SampleCount                             | " << value << " |";
-		sprintf_s(value, "%-39u", desc.SampleDesc.Quality);
-		LOG(TRACE) << "  | SampleQuality                           | " << value << " |";
-		sprintf_s(value, "%-39u", desc.BufferUsage);
-		LOG(TRACE) << "  | BufferUsage                             | " << value << " |";
-		sprintf_s(value, "%-39u", desc.BufferCount);
-		LOG(TRACE) << "  | BufferCount                             | " << value << " |";
-		sprintf_s(value, "0x%016IX                     ", static_cast<const void *>(desc.OutputWindow));
-		LOG(TRACE) << "  | OutputWindow                            | " << value << " |";
-		sprintf_s(value, "%-39d", desc.Windowed);
-		LOG(TRACE) << "  | Windowed                                | " << value << " |";
-		sprintf_s(value, "%-39u", desc.SwapEffect);
-		LOG(TRACE) << "  | SwapEffect                              | " << value << " |";
-		sprintf_s(value, "0x%016X                     ", desc.Flags);
-		LOG(TRACE) << "  | Flags                                   | " << value << " |";
-
+		LOG(TRACE) << "  | " << "Width" << "                                  " << " | " << std::left << std::setw(39) << desc.BufferDesc.Width << " |";
+		LOG(TRACE) << "  | " << "Height" << "                                 " << " | " << std::setw(39) << desc.BufferDesc.Height << " |";
+		LOG(TRACE) << "  | " << "RefreshRate" << "                            " << " | " << std::setw(19) << desc.BufferDesc.RefreshRate.Numerator << " " << std::setw(19) << desc.BufferDesc.RefreshRate.Denominator << " |";
+		LOG(TRACE) << "  | " << "Format" << "                                 " << " | " << std::setw(39) << desc.BufferDesc.Format << " |";
+		LOG(TRACE) << "  | " << "ScanlineOrdering" << "                       " << " | " << std::setw(39) << desc.BufferDesc.ScanlineOrdering << " |";
+		LOG(TRACE) << "  | " << "Scaling" << "                                " << " | " << std::setw(39) << desc.BufferDesc.Scaling << " |";
+		LOG(TRACE) << "  | " << "SampleCount" << "                            " << " | " << std::setw(39) << desc.SampleDesc.Count << " |";
+		LOG(TRACE) << "  | " << "SampleQuality" << "                          " << " | " << std::setw(39) << desc.SampleDesc.Quality << " |";
+		LOG(TRACE) << "  | " << "BufferUsage" << "                            " << " | " << std::setw(39) << desc.BufferUsage << " |";
+		LOG(TRACE) << "  | " << "BufferCount" << "                            " << " | " << std::setw(39) << desc.BufferCount << " |";
+		LOG(TRACE) << "  | " << "OutputWindow" << "                           " << " | 0x" << std::setw(37) << desc.OutputWindow << " |";
+		LOG(TRACE) << "  | " << "Windowed" << "                               " << " | " << (desc.Windowed != FALSE ? "TRUE " : "FALSE") << "                                  " << " |";
+		LOG(TRACE) << "  | " << "SwapEffect" << "                             " << " | " << std::setw(39) << desc.SwapEffect << " |";
+		LOG(TRACE) << "  | " << "Flags" << "                                  " << " | 0x" << std::setw(37) << std::hex << desc.Flags << std::dec << std::internal << " |";
 		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
 	}
 	void DumpSwapChainDescription(const DXGI_SWAP_CHAIN_DESC1 &desc)
@@ -181,39 +164,22 @@ namespace
 		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
 		LOG(TRACE) << "  | Parameter                               | Value                                   |";
 		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
-
-		char value[40];
-		sprintf_s(value, "%-39u", desc.Width);
-		LOG(TRACE) << "  | Width                                   | " << value << " |";
-		sprintf_s(value, "%-39u", desc.Height);
-		LOG(TRACE) << "  | Height                                  | " << value << " |";
-		sprintf_s(value, "%-39u", desc.Format);
-		LOG(TRACE) << "  | Format                                  | " << value << " |";
-		sprintf_s(value, "%-39d", desc.Stereo);
-		LOG(TRACE) << "  | Stereo                                  | " << value << " |";
-		sprintf_s(value, "%-39u", desc.SampleDesc.Count);
-		LOG(TRACE) << "  | SampleCount                             | " << value << " |";
-		sprintf_s(value, "%-39u", desc.SampleDesc.Quality);
-		LOG(TRACE) << "  | SampleQuality                           | " << value << " |";
-		sprintf_s(value, "%-39u", desc.BufferUsage);
-		LOG(TRACE) << "  | BufferUsage                             | " << value << " |";
-		sprintf_s(value, "%-39u", desc.BufferCount);
-		LOG(TRACE) << "  | BufferCount                             | " << value << " |";
-		sprintf_s(value, "0x-39u", desc.Scaling);
-		LOG(TRACE) << "  | Scaling                                 | " << value << " |";
-		sprintf_s(value, "%-39u", desc.SwapEffect);
-		LOG(TRACE) << "  | SwapEffect                              | " << value << " |";
-		sprintf_s(value, "0x-39u", desc.AlphaMode);
-		LOG(TRACE) << "  | AlphaMode                               | " << value << " |";
-		sprintf_s(value, "0x%037X", desc.Flags);
-		LOG(TRACE) << "  | Flags                                   | " << value << " |";
-
+		LOG(TRACE) << "  | " << "Width" << "                                  " << " | " << std::left << std::setw(39) << desc.Width << " |";
+		LOG(TRACE) << "  | " << "Height" << "                                 " << " | " << std::setw(39) << desc.Height << " |";
+		LOG(TRACE) << "  | " << "Format" << "                                 " << " | " << std::setw(39) << desc.Format << " |";
+		LOG(TRACE) << "  | " << "Stereo" << "                                 " << " | " << (desc.Stereo != FALSE ? "TRUE " : "FALSE") << "                                  " << " |";
+		LOG(TRACE) << "  | " << "SampleCount" << "                            " << " | " << std::setw(39) << desc.SampleDesc.Count << " |";
+		LOG(TRACE) << "  | " << "SampleQuality" << "                          " << " | " << std::setw(39) << desc.SampleDesc.Quality << " |";
+		LOG(TRACE) << "  | " << "BufferUsage" << "                            " << " | " << std::setw(39) << desc.BufferUsage << " |";
+		LOG(TRACE) << "  | " << "BufferCount" << "                            " << " | " << std::setw(39) << desc.BufferCount << " |";
+		LOG(TRACE) << "  | " << "Scaling" << "                                " << " | " << std::setw(39) << desc.Scaling << " |";
+		LOG(TRACE) << "  | " << "SwapEffect" << "                             " << " | " << std::setw(39) << desc.SwapEffect << " |";
+		LOG(TRACE) << "  | " << "AlphaMode" << "                              " << " | " << std::setw(39) << desc.AlphaMode << " |";
+		LOG(TRACE) << "  | " << "Flags" << "                                  " << " | 0x" << std::setw(37) << std::hex << desc.Flags << std::dec << std::internal << " |";
 		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
 	}
 	void AdjustSwapChainDescription(DXGI_SWAP_CHAIN_DESC &desc)
 	{
-		DumpSwapChainDescription(desc);
-
 		if (desc.SampleDesc.Count > 1)
 		{
 			LOG(WARNING) << "> Multisampling is enabled. This is not compatible with depthbuffer access, which was therefore disabled.";
@@ -224,8 +190,6 @@ namespace
 	}
 	void AdjustSwapChainDescription(DXGI_SWAP_CHAIN_DESC1 &desc)
 	{
-		DumpSwapChainDescription(desc);
-
 		if (desc.SampleDesc.Count > 1)
 		{
 			LOG(WARNING) << "> Multisampling is enabled. This is not compatible with depthbuffer access, which was therefore disabled.";
@@ -521,6 +485,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Wi
 	desc.BufferDesc.Format = NewFormat;
 	desc.SampleDesc = this->mOrigSamples;
 
+	DumpSwapChainDescription(desc);
 	AdjustSwapChainDescription(desc);
 
 	assert(this->mRuntime != nullptr);
@@ -858,6 +823,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, I
 
 	DXGI_SWAP_CHAIN_DESC desc = *pDesc;
 
+	DumpSwapChainDescription(desc);
 	AdjustSwapChainDescription(desc);
 
 	const HRESULT hr = ReShade::Hooks::Call(&IDXGIFactory_CreateSwapChain)(pFactory, pDevice, &desc, ppSwapChain);
@@ -928,6 +894,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pF
 
 	DXGI_SWAP_CHAIN_DESC1 desc1 = *pDesc;
 
+	DumpSwapChainDescription(desc1);
 	AdjustSwapChainDescription(desc1);
 
 	const HRESULT hr = ReShade::Hooks::Call(&IDXGIFactory2_CreateSwapChainForHwnd)(pFactory, pDevice, hWnd, &desc1, pFullscreenDesc, pRestrictToOutput, ppSwapChain);
@@ -997,6 +964,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactor
 
 	DXGI_SWAP_CHAIN_DESC1 desc1 = *pDesc;
 
+	DumpSwapChainDescription(desc1);
 	AdjustSwapChainDescription(desc1);
 
 	const HRESULT hr = ReShade::Hooks::Call(&IDXGIFactory2_CreateSwapChainForCoreWindow)(pFactory, pDevice, pWindow, &desc1, pRestrictToOutput, ppSwapChain);
@@ -1066,6 +1034,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFacto
 
 	DXGI_SWAP_CHAIN_DESC1 desc1 = *pDesc;
 
+	DumpSwapChainDescription(desc1);
 	AdjustSwapChainDescription(desc1);
 
 	const HRESULT hr = ReShade::Hooks::Call(&IDXGIFactory2_CreateSwapChainForComposition)(pFactory, pDevice, &desc1, pRestrictToOutput, ppSwapChain);

@@ -208,20 +208,17 @@ namespace ReShade
 						continue;
 					}
 
-					char line[88];
-					sprintf_s(line, "  | 0x%016IX | %7hu | %-50.50s |", reinterpret_cast<uintptr_t>(symbol.Address), symbol.Ordinal, symbol.Name);
-
 					// Find appropriate replacement
 					const auto begin = replacementExports.cbegin(), end = replacementExports.cend(), it = std::find_if(begin, end, [&symbol](const ModuleExport &it) { return boost::equals(it.Name, symbol.Name); });
 
 					// Filter uninteresting functions
 					if (it == end || (boost::equals(symbol.Name, "DXGIReportAdapterConfiguration") || boost::equals(symbol.Name, "DXGIDumpJournal") || boost::starts_with(symbol.Name, "DXGID3D10")))
 					{
-						LOG(TRACE) << line;
+						LOG(TRACE) << "  | 0x" << std::left << std::setw(16) << symbol.Address << " | " << std::setw(7) << symbol.Ordinal << " | " << std::setw(50) << symbol.Name << std::internal << " |";
 					}
 					else
 					{
-						LOG(TRACE) << line << " <";
+						LOG(TRACE) << "  | 0x" << std::left << std::setw(16) << symbol.Address << " | " << std::setw(7) << symbol.Ordinal << " | " << std::setw(50) << symbol.Name << std::internal << " | <";
 
 						matches.push_back(std::make_pair(reinterpret_cast<Hook::Function>(symbol.Address), reinterpret_cast<Hook::Function>(it->Address)));
 					}

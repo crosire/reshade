@@ -2697,6 +2697,24 @@ EXPORT int WINAPI wglChoosePixelFormat(HDC hdc, CONST PIXELFORMATDESCRIPTOR *ppf
 {
 	LOG(INFO) << "Redirecting '" << "wglChoosePixelFormat" << "(" << hdc << ", " << ppfd << ")' ...";
 
+	if (ppfd != nullptr)
+	{
+		LOG(TRACE) << "> Dumping pixel format descriptor:";
+		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
+		LOG(TRACE) << "  | Name                                    | Value                                   |";
+		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
+		LOG(TRACE) << "  | " << "Flags" << "                                  " << " | 0x" << std::left << std::setw(37) << std::hex << ppfd->dwFlags << std::dec << " |";
+		LOG(TRACE) << "  | " << "ColorBits" << "                              " << " | " << std::setw(39) << static_cast<unsigned int>(ppfd->cColorBits) << " |";
+		LOG(TRACE) << "  | " << "DepthBits" << "                              " << " | " << std::setw(39) << static_cast<unsigned int>(ppfd->cDepthBits) << " |";
+		LOG(TRACE) << "  | " << "StencilBits" << "                            " << " | " << std::setw(39) << static_cast<unsigned int>(ppfd->cStencilBits) << std::internal << " |";
+		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
+
+		if ((ppfd->dwFlags & PFD_DOUBLEBUFFER) == 0)
+		{
+			LOG(WARNING) << "> Single buffered OpenGL contexts are not supported.";
+		}
+	}
+
 	const int format = ReShade::Hooks::Call(&wglChoosePixelFormat)(hdc, ppfd);
 
 	LOG(TRACE) << "> Returned format: " << format;
@@ -2706,7 +2724,7 @@ EXPORT int WINAPI wglChoosePixelFormat(HDC hdc, CONST PIXELFORMATDESCRIPTOR *ppf
 BOOL WINAPI wglChoosePixelFormatARB(HDC hdc, const int *piAttribIList, const FLOAT *pfAttribFList, UINT nMaxFormats, int *piFormats, UINT *nNumFormats)
 {
 	LOG(INFO) << "Redirecting '" << "wglChoosePixelFormatARB" << "(" << hdc << ", " << piAttribIList << ", " << pfAttribFList << ", " << nMaxFormats << ", " << piFormats << ", " << nNumFormats << ")' ...";
-	
+
 	struct Attrib
 	{
 		enum Names
@@ -2752,6 +2770,8 @@ BOOL WINAPI wglChoosePixelFormatARB(HDC hdc, const int *piAttribIList, const FLO
 			WGL_DEPTH_BITS_ARB = 0x2022,
 			WGL_STENCIL_BITS_ARB = 0x2023,
 			WGL_AUX_BUFFERS_ARB = 0x2024,
+			WGL_SAMPLE_BUFFERS_ARB = 0x2041,
+			WGL_SAMPLES_ARB = 0x2042,
 		};
 		enum Values
 		{
@@ -2766,6 +2786,8 @@ BOOL WINAPI wglChoosePixelFormatARB(HDC hdc, const int *piAttribIList, const FLO
 		};
 	};
 
+	bool doublebuffered = false;
+
 	LOG(TRACE) << "> Dumping Attributes:";
 	LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
 	LOG(TRACE) << "  | Attribute                               | Value                                   |";
@@ -2773,20 +2795,85 @@ BOOL WINAPI wglChoosePixelFormatARB(HDC hdc, const int *piAttribIList, const FLO
 
 	for (const int *attrib = piAttribIList; attrib != nullptr && *attrib != 0; attrib += 2)
 	{
-		char line[88];
-		sprintf_s(line, "  | 0x%037X | 0x%037X |", attrib[0], attrib[1]);
-
-		LOG(TRACE) << line;
+		switch (attrib[0])
+		{
+			case Attrib::WGL_DRAW_TO_WINDOW_ARB:
+				LOG(TRACE) << "  | " << "WGL_DRAW_TO_WINDOW_ARB" << "                 " << " | " << (attrib[1] != FALSE ? "TRUE " : "FALSE") << "                                  " << " |";
+				break;
+			case Attrib::WGL_DRAW_TO_BITMAP_ARB:
+				LOG(TRACE) << "  | " << "WGL_DRAW_TO_BITMAP_ARB" << "                 " << " | " << (attrib[1] != FALSE ? "TRUE " : "FALSE") << "                                  " << " |";
+				break;
+			case Attrib::WGL_ACCELERATION_ARB:
+				LOG(TRACE) << "  | " << "WGL_ACCELERATION_ARB" << "                   " << " | 0x" << std::left << std::setw(37) << std::hex << attrib[1] << std::dec << std::internal << " |";
+				break;
+			case Attrib::WGL_SWAP_LAYER_BUFFERS_ARB:
+				LOG(TRACE) << "  | " << "WGL_SWAP_LAYER_BUFFERS_ARB" << "             " << " | " << (attrib[1] != FALSE ? "TRUE " : "FALSE") << "                                  " << " |";
+				break;
+			case Attrib::WGL_SWAP_METHOD_ARB:
+				LOG(TRACE) << "  | " << "WGL_SWAP_METHOD_ARB" << "                    " << " | 0x" << std::left << std::setw(37) << std::hex << attrib[1] << std::dec << std::internal << " |";
+				break;
+			case Attrib::WGL_NUMBER_OVERLAYS_ARB:
+				LOG(TRACE) << "  | " << "WGL_NUMBER_OVERLAYS_ARB" << "                " << " | " << std::left << std::setw(39) << attrib[1] << std::internal << " |";
+				break;
+			case Attrib::WGL_NUMBER_UNDERLAYS_ARB:
+				LOG(TRACE) << "  | " << "WGL_NUMBER_UNDERLAYS_ARB" << "               " << " | " << std::left << std::setw(39) << attrib[1] << std::internal << " |";
+				break;
+			case Attrib::WGL_SUPPORT_GDI_ARB:
+				LOG(TRACE) << "  | " << "WGL_SUPPORT_GDI_ARB" << "                    " << " | " << (attrib[1] != FALSE ? "TRUE " : "FALSE") << "                                  " << " |";
+				break;
+			case Attrib::WGL_SUPPORT_OPENGL_ARB:
+				LOG(TRACE) << "  | " << "WGL_SUPPORT_OPENGL_ARB" << "                 " << " | " << (attrib[1] != FALSE ? "TRUE " : "FALSE") << "                                  " << " |";
+				break;
+			case Attrib::WGL_DOUBLE_BUFFER_ARB:
+				doublebuffered = attrib[1] != FALSE;
+				LOG(TRACE) << "  | " << "WGL_DOUBLE_BUFFER_ARB" << "                  " << " | " << (doublebuffered ? "TRUE " : "FALSE") << "                                  " << " |";
+				break;
+			case Attrib::WGL_STEREO_ARB:
+				LOG(TRACE) << "  | " << "WGL_STEREO_ARB" << "                         " << " | " << (attrib[1] != FALSE ? "TRUE " : "FALSE") << "                                  " << " |";
+				break;
+			case Attrib::WGL_RED_BITS_ARB:
+				LOG(TRACE) << "  | " << "WGL_RED_BITS_ARB" << "                       " << " | " << std::left << std::setw(39) << attrib[1] << std::internal << " |";
+				break;
+			case Attrib::WGL_GREEN_BITS_ARB:
+				LOG(TRACE) << "  | " << "WGL_GREEN_BITS_ARB" << "                     " << " | " << std::left << std::setw(39) << attrib[1] << std::internal << " |";
+				break;
+			case Attrib::WGL_BLUE_BITS_ARB:
+				LOG(TRACE) << "  | " << "WGL_BLUE_BITS_ARB" << "                      " << " | " << std::left << std::setw(39) << attrib[1] << std::internal << " |";
+				break;
+			case Attrib::WGL_ALPHA_BITS_ARB:
+				LOG(TRACE) << "  | " << "WGL_ALPHA_BITS_ARB" << "                     " << " | " << std::left << std::setw(39) << attrib[1] << std::internal << " |";
+				break;
+			case Attrib::WGL_COLOR_BITS_ARB:
+				LOG(TRACE) << "  | " << "WGL_COLOR_BITS_ARB" << "                     " << " | " << std::left << std::setw(39) << attrib[1] << std::internal << " |";
+				break;
+			case Attrib::WGL_DEPTH_BITS_ARB:
+				LOG(TRACE) << "  | " << "WGL_DEPTH_BITS_ARB" << "                     " << " | " << std::left << std::setw(39) << attrib[1] << std::internal << " |";
+				break;
+			case Attrib::WGL_STENCIL_BITS_ARB:
+				LOG(TRACE) << "  | " << "WGL_STENCIL_BITS_ARB" << "                   " << " | " << std::left << std::setw(39) << attrib[1] << std::internal << " |";
+				break;
+			case Attrib::WGL_SAMPLE_BUFFERS_ARB:
+				LOG(TRACE) << "  | " << "WGL_SAMPLE_BUFFERS_ARB" << "                 " << " | " << std::left << std::setw(39) << attrib[1] << std::internal << " |";
+				break;
+			case Attrib::WGL_SAMPLES_ARB:
+				LOG(TRACE) << "  | " << "WGL_SAMPLES_ARB" << "                        " << " | " << std::left << std::setw(39) << attrib[1] << std::internal << " |";
+				break;
+			default:
+				LOG(TRACE) << "  | 0x" << std::left << std::hex << std::setw(37) << attrib[0] << " | 0x" << std::setw(37) << attrib[1] << std::dec << std::internal << " |";
+				break;
+		}
 	}
 	for (const FLOAT *attrib = pfAttribFList; attrib != nullptr && *attrib != 0.0f; attrib += 2)
 	{
-		char line[88];
-		sprintf_s(line, "  | 0x%037X | %39.2f |", static_cast<int>(attrib[0]), attrib[1]);
-
-		LOG(TRACE) << line;
+		LOG(TRACE) << "  | 0x" << std::left << std::hex << std::setw(37) << static_cast<int>(attrib[0]) << " | " << std::setw(39) << attrib[1] << std::dec << std::internal << " |";
 	}
 
 	LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
+
+	if (!doublebuffered)
+	{
+		LOG(WARNING) << "> Single buffered OpenGL contexts are not supported.";
+	}
 
 	if (!ReShade::Hooks::Call(&wglChoosePixelFormatARB)(hdc, piAttribIList, pfAttribFList, nMaxFormats, piFormats, nNumFormats))
 	{
@@ -2822,7 +2909,7 @@ EXPORT HGLRC WINAPI wglCreateContext(HDC hdc)
 
 	if (hglrc == nullptr)
 	{
-		LOG(WARNING) << "> 'wglCreateContext' failed with '" << GetLastError() << "'!";
+		LOG(WARNING) << "> 'wglCreateContext' failed with error code " << GetLastError() << "!";
 
 		return nullptr;
 	}
@@ -2927,7 +3014,7 @@ HGLRC WINAPI wglCreateContextAttribsARB(HDC hdc, HGLRC hShareContext, const int 
 
 	if (hglrc == nullptr)
 	{
-		LOG(WARNING) << "> 'wglCreateContextAttribsARB' failed with '" << GetLastError() << "'!";
+		LOG(WARNING) << "> 'wglCreateContextAttribsARB' failed with error code " << GetLastError() << "!";
 
 		return nullptr;
 	}
@@ -2979,7 +3066,7 @@ EXPORT BOOL WINAPI wglDeleteContext(HGLRC hglrc)
 			}
 			else
 			{
-				LOG(ERROR) << "> Could not switch to device context " << hdc << " to clean up. Reverting ...";
+				LOG(ERROR) << "> Could not switch to device context " << hdc << " to clean up (error code " << GetLastError() << "). Reverting ...";
 			}
 
 			it = sRuntimes.erase(it);
@@ -3009,7 +3096,7 @@ EXPORT BOOL WINAPI wglDeleteContext(HGLRC hglrc)
 
 	if (!ReShade::Hooks::Call(&wglDeleteContext)(hglrc))
 	{
-		LOG(WARNING) << "> 'wglDeleteContext' failed with '" << GetLastError() << "'!";
+		LOG(WARNING) << "> 'wglDeleteContext' failed with error code " << GetLastError() << "!";
 
 		return FALSE;
 	}
@@ -3072,7 +3159,7 @@ EXPORT BOOL WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 
 	if (!trampoline(hdc, hglrc))
 	{
-		LOG(WARNING) << "> 'wglMakeCurrent' failed with '" << GetLastError() << "'!";
+		LOG(WARNING) << "> 'wglMakeCurrent' failed with error code " << GetLastError() << "!";
 
 		return FALSE;
 	}
@@ -3159,7 +3246,7 @@ EXPORT BOOL WINAPI wglSetPixelFormat(HDC hdc, int iPixelFormat, CONST PIXELFORMA
 
 	if (!ReShade::Hooks::Call(&wglSetPixelFormat)(hdc, iPixelFormat, ppfd))
 	{
-		LOG(WARNING) << "> 'wglSetPixelFormat' failed with '" << GetLastError() << "'!";
+		LOG(WARNING) << "> 'wglSetPixelFormat' failed with error code " << GetLastError() << "!";
 
 		return FALSE;
 	}
@@ -3172,7 +3259,7 @@ EXPORT BOOL WINAPI wglShareLists(HGLRC hglrc1, HGLRC hglrc2)
 
 	if (!ReShade::Hooks::Call(&wglShareLists)(hglrc1, hglrc2))
 	{
-		LOG(WARNING) << "> 'wglShareLists' failed with '" << GetLastError() << "'!";
+		LOG(WARNING) << "> 'wglShareLists' failed with error code " << GetLastError() << "!";
 
 		return FALSE;
 	}

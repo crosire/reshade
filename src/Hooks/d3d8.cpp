@@ -2574,10 +2574,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateVertexShader(CONST DWORD *pDecl
 
 	for (UINT k = 0; k < i; ++k)
 	{
-		char line[88];
-		sprintf_s(line, "  | v%-7u | %-7hu | %-7hu | 0x%010hhX | 0x%010hhX | 0x%010hhX | %-5hhu |", inputs[k], elements[k].Stream, elements[k].Offset, elements[k].Type, elements[k].Method, elements[k].Usage, elements[k].UsageIndex);
-
-		LOG(TRACE) << line;
+		LOG(TRACE) << "  | " << "v" << std::left << std::setw(7) << inputs[k] << " | " << std::setw(7) << elements[k].Stream << " | " << std::setw(7) << elements[k].Offset << " | 0x" << std::hex << std::setw(10) << static_cast<UINT>(elements[k].Type) << " | 0x" << std::setw(10) << static_cast<UINT>(elements[k].Method) << " | 0x" << std::setw(10) << static_cast<UINT>(elements[k].Usage) << std::dec << " | " << std::setw(5) << static_cast<UINT>(elements[k].UsageIndex) << std::internal << " |";
 	}
 
 	LOG(TRACE) << "  +----------+---------+---------+--------------+--------------+--------------+-------+";

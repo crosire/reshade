@@ -240,37 +240,20 @@ namespace
 		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
 		LOG(TRACE) << "  | Parameter                               | Value                                   |";
 		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
-
-		char value[40];
-		sprintf_s(value, "%-39u", pp.BackBufferWidth);
-		LOG(TRACE) << "  | BackBufferWidth                         | " << value << " |";
-		sprintf_s(value, "%-39u", pp.BackBufferHeight);
-		LOG(TRACE) << "  | BackBufferHeight                        | " << value << " |";
-		sprintf_s(value, "%-39u", pp.BackBufferFormat);
-		LOG(TRACE) << "  | BackBufferFormat                        | " << value << " |";
-		sprintf_s(value, "%-39u", pp.BackBufferCount);
-		LOG(TRACE) << "  | BackBufferCount                         | " << value << " |";
-		sprintf_s(value, "%-39u", pp.MultiSampleType);
-		LOG(TRACE) << "  | MultiSampleType                         | " << value << " |";
-		sprintf_s(value, "%-39u", pp.MultiSampleQuality);
-		LOG(TRACE) << "  | MultiSampleQuality                      | " << value << " |";
-		sprintf_s(value, "%-39u", pp.SwapEffect);
-		LOG(TRACE) << "  | SwapEffect                              | " << value << " |";
-		sprintf_s(value, "0x%016IX                     ", static_cast<const void *>(pp.hDeviceWindow));
-		LOG(TRACE) << "  | hDeviceWindow                           | " << value << " |";
-		sprintf_s(value, "%-39d", pp.Windowed);
-		LOG(TRACE) << "  | Windowed                                | " << value << " |";
-		sprintf_s(value, "%-39d", pp.EnableAutoDepthStencil);
-		LOG(TRACE) << "  | EnableAutoDepthStencil                  | " << value << " |";
-		sprintf_s(value, "%-39u", pp.AutoDepthStencilFormat);
-		LOG(TRACE) << "  | AutoDepthStencilFormat                  | " << value << " |";
-		sprintf_s(value, "0x%016X                     ", pp.Flags);
-		LOG(TRACE) << "  | Flags                                   | " << value << " |";
-		sprintf_s(value, "%-39u", pp.FullScreen_RefreshRateInHz);
-		LOG(TRACE) << "  | FullScreen_RefreshRateInHz              | " << value << " |";
-		sprintf_s(value, "%-39u", pp.PresentationInterval);
-		LOG(TRACE) << "  | PresentationInterval                    | " << value << " |";
-
+		LOG(TRACE) << "  | " << "BackBufferWidth" << "                        " << " | " << std::left << std::setw(39) << pp.BackBufferWidth << " |";
+		LOG(TRACE) << "  | " << "BackBufferHeight" << "                       " << " | " << std::setw(39) << pp.BackBufferHeight << " |";
+		LOG(TRACE) << "  | " << "BackBufferFormat" << "                       " << " | " << std::setw(39) << pp.BackBufferFormat << " |";
+		LOG(TRACE) << "  | " << "BackBufferCount" << "                        " << " | " << std::setw(39) << pp.BackBufferCount << " |";
+		LOG(TRACE) << "  | " << "MultiSampleType" << "                        " << " | " << std::setw(39) << pp.MultiSampleType << " |";
+		LOG(TRACE) << "  | " << "MultiSampleQuality" << "                     " << " | " << std::setw(39) << pp.MultiSampleQuality << " |";
+		LOG(TRACE) << "  | " << "SwapEffect" << "                             " << " | " << std::setw(39) << pp.SwapEffect << " |";
+		LOG(TRACE) << "  | " << "DeviceWindow" << "                           " << " | 0x" << std::setw(37) << pp.hDeviceWindow << " |";
+		LOG(TRACE) << "  | " << "Windowed" << "                               " << " | " << (pp.Windowed != FALSE ? "TRUE " : "FALSE") << "                                  " << " |";
+		LOG(TRACE) << "  | " << "EnableAutoDepthStencil" << "                 " << " | " << (pp.EnableAutoDepthStencil != FALSE ? "TRUE " : "FALSE") << "                                  " << " |";
+		LOG(TRACE) << "  | " << "AutoDepthStencilFormat" << "                 " << " | " << std::setw(39) << pp.AutoDepthStencilFormat << " |";
+		LOG(TRACE) << "  | " << "Flags" << "                                  " << " | 0x" << std::setw(37) << std::hex << pp.Flags << std::dec << " |";
+		LOG(TRACE) << "  | " << "FullScreen_RefreshRateInHz" << "             " << " | " << std::setw(39) << pp.FullScreen_RefreshRateInHz << " |";
+		LOG(TRACE) << "  | " << "PresentationInterval" << "                   " << " | 0x" << std::setw(37) << std::hex << pp.PresentationInterval << std::dec << std::internal << " |";
 		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
 
 		if (pp.MultiSampleType != D3DMULTISAMPLE_NONE)
