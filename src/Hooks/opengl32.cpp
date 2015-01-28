@@ -3214,9 +3214,16 @@ EXPORT BOOL WINAPI wglSwapBuffers(HDC hdc)
 }
 EXPORT BOOL WINAPI wglSwapLayerBuffers(HDC hdc, UINT i)
 {
-	static const auto trampoline = ReShade::Hooks::Call(&wglSwapLayerBuffers);
+	if (i != WGL_SWAP_MAIN_PLANE)
+	{
+		static const auto trampoline = ReShade::Hooks::Call(&wglSwapLayerBuffers);
 
-	return trampoline(hdc, i);
+		return trampoline(hdc, i);
+	}
+	else
+	{
+		return wglSwapBuffers(hdc);
+	}
 }
 EXPORT DWORD WINAPI wglSwapMultipleBuffers(UINT cNumBuffers, CONST WGLSWAP *pBuffers)
 {
