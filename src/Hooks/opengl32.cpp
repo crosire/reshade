@@ -3275,12 +3275,12 @@ EXPORT BOOL WINAPI wglSwapBuffers(HDC hdc)
 	static const auto trampoline = ReShade::Hooks::Call(&wglSwapBuffers);
 
 	const auto it = sRuntimes.find(hdc);
+	const HWND hwnd = WindowFromDC(hdc);
 
-	if (it != sRuntimes.end())
+	if (hwnd != nullptr && it != sRuntimes.end())
 	{
 		assert(it->second != nullptr);
 
-		const HWND hwnd = WindowFromDC(hdc);
 		RECT rect, &rectPrevious = sWindowRects.at(hwnd);
 		GetClientRect(hwnd, &rect);
 
