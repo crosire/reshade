@@ -2695,6 +2695,10 @@ namespace ReShade { namespace Runtimes
 
 							source += ");\n";
 						}
+						else if (parameter->Semantic != nullptr && (boost::starts_with(parameter->Semantic, "COLOR") || boost::starts_with(parameter->Semantic, "SV_TARGET")))
+						{
+							source += "_param_" + std::string(parameter->Name) + " = vec4(0, 0, 0, 1);\n";
+						}
 
 						if (parameter->NextDeclaration != EffectTree::Null)
 						{
@@ -2716,6 +2720,13 @@ namespace ReShade { namespace Runtimes
 				if (!node.ReturnType.IsVoid())
 				{
 					source += "_return = ";
+
+					if (node.ReturnSemantic != nullptr && (boost::starts_with(node.ReturnSemantic, "COLOR") || boost::starts_with(node.ReturnSemantic, "SV_TARGET")) && node.ReturnType.Rows < 4)
+					{
+						std::string swizzle[3] = { "x", "xy", "xyz" };
+
+						source += "vec4(0, 0, 0, 1);\n_return." + swizzle[node.ReturnType.Rows - 1] + " = ";
+					}
 				}
 
 				source += FixName(node.Name);
@@ -2728,6 +2739,13 @@ namespace ReShade { namespace Runtimes
 					do
 					{
 						source += FixNameWithSemantic("_param_" + std::string(parameter->Name), parameter->Semantic, shadertype);
+
+						if (parameter->Semantic != nullptr && (boost::starts_with(parameter->Semantic, "COLOR") || boost::starts_with(parameter->Semantic, "SV_TARGET")) && parameter->Type.Rows < 4)
+						{
+							std::string swizzle[3] = { "x", "xy", "xyz" };
+
+							source += "." + swizzle[parameter->Type.Rows - 1];
+						}
 
 						if (parameter->NextDeclaration != EffectTree::Null)
 						{
@@ -2884,6 +2902,8 @@ namespace ReShade { namespace Runtimes
 				}
 				else if (boost::starts_with(semantic, "COLOR"))
 				{
+					type.Rows = 4;
+
 					location = static_cast<unsigned int>(::strtol(semantic + 5, nullptr, 10));
 				}
 				else if (boost::starts_with(semantic, "TEXCOORD"))
@@ -2892,6 +2912,8 @@ namespace ReShade { namespace Runtimes
 				}
 				else if (boost::starts_with(semantic, "SV_TARGET"))
 				{
+					type.Rows = 4;
+
 					location = static_cast<unsigned int>(::strtol(semantic + 9, nullptr, 10));
 				}
 
