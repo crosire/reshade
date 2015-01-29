@@ -3195,7 +3195,7 @@ EXPORT BOOL WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 		}
 		else if ((GetClassLongPtr(hwnd, GCL_STYLE) & CS_OWNDC) == 0)
 		{
-			LOG(WARNING) << "> Window class style is missing 'CS_OWNDC' flag.";
+			LOG(WARNING) << "> Window class style of window " << hwnd << " is missing 'CS_OWNDC' flag.";
 		}
 
 		RECT rect;
@@ -3278,12 +3278,16 @@ EXPORT BOOL WINAPI wglSwapBuffers(HDC hdc)
 		RECT rect, &rectPrevious = sWindowRects.at(hwnd);
 		GetClientRect(hwnd, &rect);
 
-		if ((rect.right != rectPrevious.right || rect.bottom != rectPrevious.bottom) && !(rect.right == 0 && rect.bottom == 0))
+		if (rect.right != rectPrevious.right || rect.bottom != rectPrevious.bottom)
 		{
 			LOG(INFO) << "Resizing runtime on device context " << hdc << " to " << rect.right << "x" << rect.bottom << " ...";
 
 			it->second->OnDeleteInternal();
-			it->second->OnCreateInternal(static_cast<unsigned int>(rect.right), static_cast<unsigned int>(rect.bottom));
+
+			if (!(rect.right == 0 && rect.bottom == 0) && !it->second->OnCreateInternal(static_cast<unsigned int>(rect.right), static_cast<unsigned int>(rect.bottom)))
+			{
+				LOG(ERROR) << "Failed to reinitialize OpenGL renderer! Check tracelog for details.";
+			}
 
 			rectPrevious = rect;
 		}
