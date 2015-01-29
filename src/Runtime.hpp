@@ -59,6 +59,7 @@ namespace ReShade
 		boost::chrono::high_resolution_clock::duration mLastFrameDuration, mLastPostProcessingDuration;
 		unsigned long long mLastFrameCount;
 		unsigned int mCompileStep;
+		static unsigned int sCompileCounter;
 		float mDate[4];
 		std::string mStatus, mErrors, mMessage, mEffectSource;
 		std::string mScreenshotFormat;

@@ -1396,16 +1396,16 @@ namespace ReShade { namespace Runtimes
 				switch (value.Type.Class)
 				{
 					case EffectNodes::Type::Bool:
-						data = value.Value.Bool[0] != 0;
+						data = value.Value.Bool;
 						break;
 					case EffectNodes::Type::Int:
-						data = value.Value.Int[0];
+						data = value.Value.Int;
 						break;
 					case EffectNodes::Type::Uint:
-						data = value.Value.Uint[0];
+						data = value.Value.Uint;
 						break;
 					case EffectNodes::Type::Float:
-						data = value.Value.Float[0];
+						data = value.Value.Float;
 						break;
 					case EffectNodes::Type::String:
 						data = value.Value.String;
@@ -1427,16 +1427,16 @@ namespace ReShade { namespace Runtimes
 				switch (value.Type.Class)
 				{
 					case EffectNodes::Type::Bool:
-						data = value.Value.Bool[0] != 0;
+						data = value.Value.Bool;
 						break;
 					case EffectNodes::Type::Int:
-						data = value.Value.Int[0];
+						data = value.Value.Int;
 						break;
 					case EffectNodes::Type::Uint:
-						data = value.Value.Uint[0];
+						data = value.Value.Uint;
 						break;
 					case EffectNodes::Type::Float:
-						data = value.Value.Float[0];
+						data = value.Value.Float;
 						break;
 					case EffectNodes::Type::String:
 						data = value.Value.String;
@@ -1458,16 +1458,16 @@ namespace ReShade { namespace Runtimes
 				switch (value.Type.Class)
 				{
 					case EffectNodes::Type::Bool:
-						data = value.Value.Bool[0] != 0;
+						data = value.Value.Bool;
 						break;
 					case EffectNodes::Type::Int:
-						data = value.Value.Int[0];
+						data = value.Value.Int;
 						break;
 					case EffectNodes::Type::Uint:
-						data = value.Value.Uint[0];
+						data = value.Value.Uint;
 						break;
 					case EffectNodes::Type::Float:
-						data = value.Value.Float[0];
+						data = value.Value.Float;
 						break;
 					case EffectNodes::Type::String:
 						data = value.Value.String;

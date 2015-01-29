@@ -114,6 +114,7 @@ namespace ReShade
 	}
 
 	unsigned int Runtime::sNetworkUpload = 0, Runtime::sNetworkDownload = 0;
+	unsigned int Runtime::sCompileCounter = 0;
 
 	// -----------------------------------------------------------------------------------------------------
 
@@ -248,6 +249,34 @@ namespace ReShade
 							}
 						}
 					}
+					else if (source == "pingpong")
+					{
+						float value[2] = { 0, 0 };
+						constant->GetValue(value, 2);
+
+						const float min = constant->GetAnnotation("min").As<float>(), max = constant->GetAnnotation("max").As<float>();
+						const float stepMin = constant->GetAnnotation("step").As<float>(0), stepMax = constant->GetAnnotation("step").As<float>(1);
+						const float increment = stepMax == 0 ? stepMin : (stepMin + std::fmodf(std::rand(), stepMax - stepMin + 1));
+
+						if (value[1] >= 0)
+						{
+							if ((value[0] += increment) >= max)
+							{
+								value[0] = max;
+								value[1] = -1;
+							}
+						}
+						else
+						{
+							if ((value[0] -= increment) <= min)
+							{
+								value[0] = min;
+								value[1] = +1;
+							}
+						}
+						
+						constant->SetValue(value, 2);
+					}
 					else if (source == "date")
 					{
 						constant->SetValue(this->mDate, 4);
@@ -293,6 +322,13 @@ namespace ReShade
 
 							constant->SetValue(&state, 1);
 						}
+					}
+					else if (source == "random")
+					{
+						const int min = constant->GetAnnotation("min").As<int>(), max = constant->GetAnnotation("max").As<int>();
+						const int value = min + (std::rand() % (max - min + 1));
+
+						constant->SetValue(&value, 1);
 					}
 				}
 				#pragma endregion
@@ -532,7 +568,10 @@ namespace ReShade
 		{
 			if (boost::starts_with(pragma, "message "))
 			{
-				this->mMessage += pragma.substr(9, pragma.length() - 10);
+				if (sCompileCounter == 0)
+				{
+					this->mMessage += pragma.substr(9, pragma.length() - 10);
+				}
 			}
 			else if (!boost::istarts_with(pragma, "reshade "))
 			{
@@ -604,6 +643,8 @@ namespace ReShade
 
 			this->mStatus += " Succeeded!";
 		}
+
+		sCompileCounter++;
 				
 		return true;
 	}

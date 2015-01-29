@@ -16,65 +16,99 @@ namespace ReShade
 			inline Annotation()
 			{
 			}
-			inline Annotation(bool value) : mValue(value ? "1" : "0")
+			inline Annotation(bool value)
 			{
+				this->mValue[0] = value ? "1" : "0";
 			}
-			inline Annotation(int value) : mValue(std::to_string(value))
+			inline Annotation(const bool values[4])
 			{
+				this->mValue[0] = values[0] ? "1" : "0";
+				this->mValue[1] = values[1] ? "1" : "0";
+				this->mValue[2] = values[2] ? "1" : "0";
+				this->mValue[3] = values[3] ? "1" : "0";
 			}
-			inline Annotation(unsigned int value) : mValue(std::to_string(value))
+			inline Annotation(int value)
 			{
+				this->mValue[0] = std::to_string(value);
 			}
-			inline Annotation(float value) : mValue(std::to_string(value))
+			inline Annotation(const int values[4])
 			{
+				this->mValue[0] = std::to_string(values[0]);
+				this->mValue[1] = std::to_string(values[1]);
+				this->mValue[2] = std::to_string(values[2]);
+				this->mValue[3] = std::to_string(values[3]);
 			}
-			inline Annotation(const std::string &value) : mValue(value)
+			inline Annotation(unsigned int value)
 			{
+				this->mValue[0] = std::to_string(value);
 			}
-			inline Annotation(const char *value) : mValue(value)
+			inline Annotation(const unsigned int values[4])
 			{
+				this->mValue[0] = std::to_string(values[0]);
+				this->mValue[1] = std::to_string(values[1]);
+				this->mValue[2] = std::to_string(values[2]);
+				this->mValue[3] = std::to_string(values[3]);
+			}
+			inline Annotation(float value)
+			{
+				this->mValue[0] = std::to_string(value);
+			}
+			inline Annotation(const float values[4])
+			{
+				this->mValue[0] = std::to_string(values[0]);
+				this->mValue[1] = std::to_string(values[1]);
+				this->mValue[2] = std::to_string(values[2]);
+				this->mValue[3] = std::to_string(values[3]);
+			}
+			inline Annotation(const std::string &value)
+			{
+				this->mValue[0] = value;
+			}
+			inline Annotation(const char *value)
+			{
+				this->mValue[0] = value;
 			}
 
 			template <typename T>
-			const T As() const;
+			const T As(std::size_t index = 0) const;
 			template <>
-			inline const bool As() const
+			inline const bool As(std::size_t i) const
 			{
-				return As<int>() != 0 || (this->mValue == "true" || this->mValue == "True" || this->mValue == "TRUE");
+				return As<int>(i) != 0 || (this->mValue[i] == "true" || this->mValue[i] == "True" || this->mValue[i] == "TRUE");
 			}
 			template <>
-			inline const int As() const
+			inline const int As(std::size_t i) const
 			{
-				return static_cast<int>(std::strtol(this->mValue.c_str(), nullptr, 10));
+				return static_cast<int>(std::strtol(this->mValue[i].c_str(), nullptr, 10));
 			}
 			template <>
-			inline const unsigned int As() const
+			inline const unsigned int As(std::size_t i) const
 			{
-				return static_cast<unsigned int>(std::strtoul(this->mValue.c_str(), nullptr, 10));
+				return static_cast<unsigned int>(std::strtoul(this->mValue[i].c_str(), nullptr, 10));
 			}
 			template <>
-			inline const float As() const
+			inline const float As(std::size_t i) const
 			{
-				return static_cast<float>(std::strtod(this->mValue.c_str(), nullptr));
+				return static_cast<float>(std::strtod(this->mValue[i].c_str(), nullptr));
 			}
 			template <>
-			inline const double As() const
+			inline const double As(std::size_t i) const
 			{
-				return std::strtod(this->mValue.c_str(), nullptr);
+				return std::strtod(this->mValue[i].c_str(), nullptr);
 			}
 			template <>
-			inline const std::string As() const
+			inline const std::string As(std::size_t i) const
 			{
-				return this->mValue;
+				return this->mValue[i];
 			}
 			template <>
-			inline const char *const As() const
+			inline const char *const As(std::size_t i) const
 			{
-				return this->mValue.c_str();
+				return this->mValue[i].c_str();
 			}
 
 		private:
-			std::string mValue;
+			std::string mValue[4];
 		};
 		class Texture
 		{
