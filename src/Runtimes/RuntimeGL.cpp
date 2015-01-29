@@ -3706,7 +3706,15 @@ namespace ReShade { namespace Runtimes
 					GLCHECK(glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, best, bestInfo.Level));
 				}
 
-				assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
+				const GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+
+				if (status != GL_FRAMEBUFFER_COMPLETE)
+				{
+					LOG(TRACE) << "Failed to create depth source framebuffer with status code " << status << ".";
+
+					GLCHECK(glDeleteFramebuffers(1, &this->mDepthSourceFBO));
+					this->mDepthSourceFBO = 0;
+				}
 			}
 			else
 			{
