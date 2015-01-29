@@ -95,6 +95,7 @@ namespace ReShade
 		Hooks::Register(systemPath / "d3d11.dll");
 		Hooks::Register(systemPath / "dxgi.dll");
 		Hooks::Register(systemPath / "opengl32.dll");
+		Hooks::Register(systemPath / "user32.dll");
 		Hooks::Register(systemPath / "ws2_32.dll");
 
 		sEffectWatcher = new FileWatcher(sEffectPath.parent_path(), true);

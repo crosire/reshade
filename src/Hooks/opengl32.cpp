@@ -2697,22 +2697,21 @@ EXPORT int WINAPI wglChoosePixelFormat(HDC hdc, CONST PIXELFORMATDESCRIPTOR *ppf
 {
 	LOG(INFO) << "Redirecting '" << "wglChoosePixelFormat" << "(" << hdc << ", " << ppfd << ")' ...";
 
-	if (ppfd != nullptr)
-	{
-		LOG(TRACE) << "> Dumping pixel format descriptor:";
-		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
-		LOG(TRACE) << "  | Name                                    | Value                                   |";
-		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
-		LOG(TRACE) << "  | " << "Flags" << "                                  " << " | 0x" << std::left << std::setw(37) << std::hex << ppfd->dwFlags << std::dec << " |";
-		LOG(TRACE) << "  | " << "ColorBits" << "                              " << " | " << std::setw(39) << static_cast<unsigned int>(ppfd->cColorBits) << " |";
-		LOG(TRACE) << "  | " << "DepthBits" << "                              " << " | " << std::setw(39) << static_cast<unsigned int>(ppfd->cDepthBits) << " |";
-		LOG(TRACE) << "  | " << "StencilBits" << "                            " << " | " << std::setw(39) << static_cast<unsigned int>(ppfd->cStencilBits) << std::internal << " |";
-		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
+	assert(ppfd != nullptr);
 
-		if ((ppfd->dwFlags & PFD_DOUBLEBUFFER) == 0)
-		{
-			LOG(WARNING) << "> Single buffered OpenGL contexts are not supported.";
-		}
+	LOG(TRACE) << "> Dumping pixel format descriptor:";
+	LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
+	LOG(TRACE) << "  | Name                                    | Value                                   |";
+	LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
+	LOG(TRACE) << "  | " << "Flags" << "                                  " << " | 0x" << std::left << std::setw(37) << std::hex << ppfd->dwFlags << std::dec << " |";
+	LOG(TRACE) << "  | " << "ColorBits" << "                              " << " | " << std::setw(39) << static_cast<unsigned int>(ppfd->cColorBits) << " |";
+	LOG(TRACE) << "  | " << "DepthBits" << "                              " << " | " << std::setw(39) << static_cast<unsigned int>(ppfd->cDepthBits) << " |";
+	LOG(TRACE) << "  | " << "StencilBits" << "                            " << " | " << std::setw(39) << static_cast<unsigned int>(ppfd->cStencilBits) << std::internal << " |";
+	LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
+
+	if ((ppfd->dwFlags & PFD_DOUBLEBUFFER) == 0)
+	{
+		LOG(WARNING) << "> Single buffered OpenGL contexts are not supported.";
 	}
 
 	const int format = ReShade::Hooks::Call(&wglChoosePixelFormat)(hdc, ppfd);
@@ -3194,21 +3193,16 @@ EXPORT BOOL WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 
 			return TRUE;
 		}
-
-		ULONG_PTR classstyle = GetClassLongPtr(hwnd, GCL_STYLE);
-
-		if ((classstyle & CS_OWNDC) == 0)
+		else if ((GetClassLongPtr(hwnd, GCL_STYLE) & CS_OWNDC) == 0)
 		{
-			LOG(INFO) << "> Adding 'CS_OWNDC' to window class style for window " << hwnd << ".";
-
-			SetClassLongPtr(hwnd, GCL_STYLE, classstyle |= CS_OWNDC);
+			LOG(WARNING) << "> Window class style is missing 'CS_OWNDC' flag.";
 		}
 
 		RECT rect;
 		GetClientRect(hwnd, &rect);
 		sWindowRects[hwnd] = rect;
 
-		LOG(TRACE) << "> Initial size is " << rect.right << "x" << rect.bottom << ".";
+		LOG(TRACE) << "> Initial size of window " << hwnd << " is " << rect.right << "x" << rect.bottom << ".";
 
 		gl3wInit();
 

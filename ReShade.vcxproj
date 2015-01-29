@@ -240,6 +240,7 @@ tools\upx --backup "$(TargetPath)"</Command>
     <ClCompile Include="src\Hooks\d3d11.cpp" />
     <ClCompile Include="src\Hooks\dxgi.cpp" />
     <ClCompile Include="src\Hooks\opengl32.cpp" />
+    <ClCompile Include="src\Hooks\user32.cpp" />
     <ClCompile Include="src\Hooks\ws2_32.cpp" />
     <ClCompile Include="src\Effect.cpp" />
     <ClCompile Include="src\EffectPreprocessor.cpp" />

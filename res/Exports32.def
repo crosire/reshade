@@ -401,6 +401,12 @@ EXPORTS
 	wglUseFontOutlinesA
 	wglUseFontOutlinesW
 
+	; user32.dll
+	RegisterClassA
+	RegisterClassW
+	RegisterClassExA
+	RegisterClassExW
+
 	; ws2_32.dll
 	send
 	sendto
