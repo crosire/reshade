@@ -2665,7 +2665,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateVertexShader(CONST DWORD *pDecl
 
 		if (source.find("oT") != std::string::npos)
 		{
-			source.insert(declpos, "def c95, 0, 0, 0, 0\nmov oT0, c95\nmov oT1, c95\nmov oT2, c95\nmov oT3, c95\nmov oT4, c95\nmov oT5, c95\nmov oT6, c95\nmov oT7, c95\n");
+			source.insert(declpos + constants.size(), "def c95, 0, 0, 0, 0\nmov oT0, c95\nmov oT1, c95\nmov oT2, c95\nmov oT3, c95\nmov oT4, c95\nmov oT5, c95\nmov oT6, c95\nmov oT7, c95\n");
 		}
 
 		boost::algorithm::replace_all(source, "m3x2 ", "/*m3x2*/m3x4 ");
