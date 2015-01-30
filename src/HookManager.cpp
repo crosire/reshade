@@ -209,10 +209,10 @@ namespace ReShade
 					}
 
 					// Find appropriate replacement
-					const auto begin = replacementExports.cbegin(), end = replacementExports.cend(), it = std::find_if(begin, end, [&symbol](const ModuleExport &it) { return boost::equals(it.Name, symbol.Name); });
+					const auto it = std::find_if(replacementExports.cbegin(), replacementExports.cend(), [&symbol](const ModuleExport &it) { return boost::equals(it.Name, symbol.Name); });
 
 					// Filter uninteresting functions
-					if (it == end || (boost::equals(symbol.Name, "DXGIReportAdapterConfiguration") || boost::equals(symbol.Name, "DXGIDumpJournal") || boost::starts_with(symbol.Name, "DXGID3D10")))
+					if (it == replacementExports.cend() || (boost::equals(symbol.Name, "DXGIReportAdapterConfiguration") || boost::equals(symbol.Name, "DXGIDumpJournal") || boost::starts_with(symbol.Name, "DXGID3D10")))
 					{
 						LOG(TRACE) << "  | 0x" << std::left << std::setw(16) << symbol.Address << " | " << std::setw(7) << symbol.Ordinal << " | " << std::setw(50) << symbol.Name << std::internal << " |";
 					}
@@ -323,18 +323,22 @@ namespace ReShade
 				}
 
 				CriticalSection::Lock lock(sCS);
-				const boost::filesystem::path path = lpFileName;
-				const auto begin = sDelayedHookPaths.begin(), end = sDelayedHookPaths.end(), it = std::find_if(begin, end, [&path](const boost::filesystem::path &it) { return boost::iequals(it.stem().native(), path.stem().native()); });
 
-				if (it != end)
+				const auto remove = std::remove_if(sDelayedHookPaths.begin(), sDelayedHookPaths.end(), [lpFileName](const boost::filesystem::path &it)
 				{
-					LOG(INFO) << "Installing delayed hooks for " << *it << " (Just loaded via 'LoadLibraryA(" << path << ")') ...";
+					const HMODULE handle = GetModuleHandleW(it.c_str());
 
-					if (Install(handle, GetCurrentModuleHandle(), HookType::FunctionHook))
+					if (handle == nullptr)
 					{
-						sDelayedHookPaths.erase(it);
+						return false;
 					}
-				}
+
+					LOG(INFO) << "Installing delayed hooks for " << it << " (Just loaded via 'LoadLibraryA(\"" << lpFileName << "\")') ...";
+
+					return Install(handle, GetCurrentModuleHandle(), HookType::FunctionHook);
+				});
+
+				sDelayedHookPaths.erase(remove, sDelayedHookPaths.end());
 
 				return handle;
 			}
@@ -348,18 +352,22 @@ namespace ReShade
 				}
 
 				CriticalSection::Lock lock(sCS);
-				const boost::filesystem::path path = lpFileName;
-				const auto begin = sDelayedHookPaths.begin(), end = sDelayedHookPaths.end(), it = std::find_if(begin, end, [&path](const boost::filesystem::path &it) { return boost::iequals(it.stem().native(), path.stem().native()); });
 
-				if (it != end)
+				const auto remove = std::remove_if(sDelayedHookPaths.begin(), sDelayedHookPaths.end(), [lpFileName](const boost::filesystem::path &it)
 				{
-					LOG(INFO) << "Installing delayed hooks for " << *it << " (Just loaded via 'LoadLibraryW(" << path << ")') ...";
+					const HMODULE handle = GetModuleHandleW(it.c_str());
 
-					if (Install(handle, GetCurrentModuleHandle(), HookType::FunctionHook))
+					if (handle == nullptr)
 					{
-						sDelayedHookPaths.erase(it);
+						return false;
 					}
-				}
+
+					LOG(INFO) << "Installing delayed hooks for " << it << " (Just loaded via 'LoadLibraryW(\"" << lpFileName << "\")') ...";
+
+					return Install(handle, GetCurrentModuleHandle(), HookType::FunctionHook);
+				});
+
+				sDelayedHookPaths.erase(remove, sDelayedHookPaths.end());
 
 				return handle;
 			}
@@ -385,7 +393,7 @@ namespace ReShade
 			}
 			else
 			{
-				const HMODULE targetModule = GetModuleHandle(targetPath.c_str());
+				const HMODULE targetModule = GetModuleHandleW(targetPath.c_str());
 
 				if (targetModule != nullptr)
 				{
@@ -480,9 +488,9 @@ namespace ReShade
 			CriticalSection::Lock lock(sCS);
 
 			// Lookup hook
-			const auto begin = sHooks.begin(), end = sHooks.end(), it = std::find_if(begin, end, [&replacement](const std::pair<Hook, HookType> &it) { return it.first.Replacement == replacement; });
+			const auto it =	std::find_if(sHooks.cbegin(), sHooks.cend(), [&replacement](const std::pair<Hook, HookType> &it) { return it.first.Replacement == replacement; });
 
-			if (it != end)
+			if (it != sHooks.cend())
 			{
 				return it->first;
 			}
