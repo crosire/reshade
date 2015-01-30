@@ -3248,7 +3248,7 @@ namespace ReShade { namespace Runtimes
 
 	// -----------------------------------------------------------------------------------------------------
 
-	GLRuntime::GLRuntime(HDC device, HGLRC context) : mDeviceContext(device), mRenderContext(context), mStateBlock(new GLStateBlock), mDefaultBackBufferFBO(0), mDefaultBackBufferRBO(), mBackBufferTexture(), mDepthSourceFBO(0), mDepthSource(0), mDepthTexture(0), mBlitFBO(0), mLost(true), mPresenting(false)
+	GLRuntime::GLRuntime(HDC device, HGLRC context) : mDeviceContext(device), mRenderContext(context), mReferenceCount(1), mStateBlock(new GLStateBlock), mDefaultBackBufferFBO(0), mDefaultBackBufferRBO(), mBackBufferTexture(), mDepthSourceFBO(0), mDepthSource(0), mDepthTexture(0), mBlitFBO(0), mLost(true), mPresenting(false)
 	{
 		assert(device != nullptr);
 		assert(context != nullptr);

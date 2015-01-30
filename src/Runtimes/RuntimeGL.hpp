@@ -2,6 +2,7 @@
 
 #include "Runtime.hpp"
 
+#include <atomic>
 #include <gl\gl3w.h>
 
 namespace ReShade { namespace Runtimes
@@ -33,6 +34,7 @@ namespace ReShade { namespace Runtimes
 
 		HDC mDeviceContext;
 		HGLRC mRenderContext;
+		std::atomic<GLuint> mReferenceCount;
 		std::unique_ptr<class GLStateBlock> mStateBlock;
 		GLuint mDefaultBackBufferFBO, mDefaultBackBufferRBO[2], mBackBufferTexture[2];
 		GLuint mDepthSourceFBO, mDepthSource, mDepthTexture, mBlitFBO;

@@ -2908,7 +2908,7 @@ EXPORT HGLRC WINAPI wglCreateContext(HDC hdc)
 
 	if (hglrc == nullptr)
 	{
-		LOG(WARNING) << "> 'wglCreateContext' failed with error code " << GetLastError() << "!";
+		LOG(WARNING) << "> 'wglCreateContext' failed with error code " << (GetLastError() & 0xFFFF) << "!";
 
 		return nullptr;
 	}
@@ -3013,7 +3013,7 @@ HGLRC WINAPI wglCreateContextAttribsARB(HDC hdc, HGLRC hShareContext, const int 
 
 	if (hglrc == nullptr)
 	{
-		LOG(WARNING) << "> 'wglCreateContextAttribsARB' failed with error code " << GetLastError() << "!";
+		LOG(WARNING) << "> 'wglCreateContextAttribsARB' failed with error code " << (GetLastError() & 0xFFFF) << "!";
 
 		return nullptr;
 	}
@@ -3044,39 +3044,14 @@ EXPORT HGLRC WINAPI wglCreateLayerContext(HDC hdc, int iLayerPlane)
 }
 EXPORT BOOL WINAPI wglDeleteContext(HGLRC hglrc)
 {
+	if (wglGetCurrentContext() == hglrc)
+	{
+		wglMakeCurrent(nullptr, nullptr);
+	}
+
 	LOG(INFO) << "Redirecting '" << "wglDeleteContext" << "(" << hglrc << ")' ...";
 
 	CriticalSection::Lock lock(sCS);
-
-	for (auto it = sRuntimes.begin(); it != sRuntimes.end();)
-	{
-		assert(it->second != nullptr);
-
-		if (it->second->mRenderContext == hglrc)
-		{
-			const HDC hdc = it->first, hdcPrevious = wglGetCurrentDC();
-			const HGLRC hglrcPrevious = wglGetCurrentContext();
-
-			LOG(INFO) << "> Cleaning up runtime resources ...";
-
-			if (ReShade::Hooks::Call(&wglMakeCurrent)(hdc, hglrc) != FALSE)
-			{
-				it->second->OnDeleteInternal();
-			}
-			else
-			{
-				LOG(ERROR) << "> Could not switch to device context " << hdc << " to clean up (error code " << GetLastError() << "). Reverting ...";
-			}
-
-			it = sRuntimes.erase(it);
-
-			ReShade::Hooks::Call(&wglMakeCurrent)(hdcPrevious, hglrcPrevious);
-		}
-		else
-		{
-			++it;
-		}
-	}
 
 	for (auto it = sSharedContexts.begin(); it != sSharedContexts.end();)
 	{
@@ -3095,7 +3070,7 @@ EXPORT BOOL WINAPI wglDeleteContext(HGLRC hglrc)
 
 	if (!ReShade::Hooks::Call(&wglDeleteContext)(hglrc))
 	{
-		LOG(WARNING) << "> 'wglDeleteContext' failed with error code " << GetLastError() << "!";
+		LOG(WARNING) << "> 'wglDeleteContext' failed with error code " << (GetLastError() & 0xFFFF) << "!";
 
 		return FALSE;
 	}
@@ -3154,11 +3129,29 @@ EXPORT BOOL WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 
 	LOG(INFO) << "Redirecting '" << "wglMakeCurrent" << "(" << hdc << ", " << hglrc << ")' ...";
 
+	const HDC hdcPrevious = wglGetCurrentDC();
+	const HGLRC hglrcPrevious = wglGetCurrentContext();
+
+	if (hdc == hdcPrevious && hglrc == hglrcPrevious)
+	{
+		return TRUE;
+	}
+	else if (hdc != hdcPrevious && hdcPrevious != nullptr && --sCurrentRuntime->mReferenceCount == 0)
+	{
+		CriticalSection::Lock lock(sCS);
+
+		LOG(INFO) << "> Cleaning up runtime " << sCurrentRuntime << " ...";
+
+		sCurrentRuntime->OnDeleteInternal();
+
+		sRuntimes.erase(hdcPrevious);
+	}
+
 	sCurrentRuntime = nullptr;
 
 	if (!trampoline(hdc, hglrc))
 	{
-		LOG(WARNING) << "> 'wglMakeCurrent' failed with error code " << GetLastError() << "!";
+		LOG(WARNING) << "> 'wglMakeCurrent' failed with error code " << (GetLastError() & 0xFFFF) << "!";
 
 		return FALSE;
 	}
@@ -3182,6 +3175,9 @@ EXPORT BOOL WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 	if (it != sRuntimes.end() && it->second->mRenderContext == hglrc)
 	{
 		sCurrentRuntime = it->second.get();
+		sCurrentRuntime->mReferenceCount++;
+
+		LOG(INFO) << "> Switched to existing runtime " << sCurrentRuntime << ".";
 	}
 	else
 	{
@@ -3213,6 +3209,8 @@ EXPORT BOOL WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 			sRuntimes[hdc] = runtime;
 			sCurrentRuntime = runtime.get();
 
+			LOG(INFO) << "> Switched to new runtime " << runtime << ".";
+
 			if (!runtime->OnCreateInternal(static_cast<unsigned int>(rect.right), static_cast<unsigned int>(rect.bottom)))
 			{
 				LOG(ERROR) << "Failed to initialize OpenGL renderer! Check tracelog for details.";
@@ -3240,7 +3238,7 @@ EXPORT BOOL WINAPI wglSetPixelFormat(HDC hdc, int iPixelFormat, CONST PIXELFORMA
 
 	if (!ReShade::Hooks::Call(&wglSetPixelFormat)(hdc, iPixelFormat, ppfd))
 	{
-		LOG(WARNING) << "> 'wglSetPixelFormat' failed with error code " << GetLastError() << "!";
+		LOG(WARNING) << "> 'wglSetPixelFormat' failed with error code " << (GetLastError() & 0xFFFF) << "!";
 
 		return FALSE;
 	}
@@ -3253,7 +3251,7 @@ EXPORT BOOL WINAPI wglShareLists(HGLRC hglrc1, HGLRC hglrc2)
 
 	if (!ReShade::Hooks::Call(&wglShareLists)(hglrc1, hglrc2))
 	{
-		LOG(WARNING) << "> 'wglShareLists' failed with error code " << GetLastError() << "!";
+		LOG(WARNING) << "> 'wglShareLists' failed with error code " << (GetLastError() & 0xFFFF) << "!";
 
 		return FALSE;
 	}
@@ -3280,7 +3278,7 @@ EXPORT BOOL WINAPI wglSwapBuffers(HDC hdc)
 
 		if (rect.right != rectPrevious.right || rect.bottom != rectPrevious.bottom)
 		{
-			LOG(INFO) << "Resizing runtime on device context " << hdc << " to " << rect.right << "x" << rect.bottom << " ...";
+			LOG(INFO) << "Resizing runtime " << it->second << " on device context " << hdc << " to " << rect.right << "x" << rect.bottom << " ...";
 
 			it->second->OnDeleteInternal();
 
