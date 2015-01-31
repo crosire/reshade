@@ -72,7 +72,7 @@ namespace ReShade
 		logConfig.set(el::Level::Global, el::ConfigurationType::ToStandardOutput, "false");
 		logConfig.set(el::Level::Global, el::ConfigurationType::MaxLogFileSize, "0");
 		logConfig.set(el::Level::Global, el::ConfigurationType::LogFlushThreshold, "0");
-		logConfig.set(el::Level::Global, el::ConfigurationType::Format, "%datetime | %level | %msg");
+		logConfig.set(el::Level::Global, el::ConfigurationType::Format, "%datetime [%thread] | %level | %msg");
 
 		DeleteFile(logPath.c_str());
 

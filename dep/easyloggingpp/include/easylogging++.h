@@ -1017,7 +1017,11 @@ private:
 };
 }  // namespace internal
 static inline std::string getCurrentThreadId(void) {
-    return std::string();
+    std::stringstream ss;
+#      if (_ELPP_OS_WINDOWS)
+    ss << GetCurrentThreadId();
+#      endif  // (_ELPP_OS_WINDOWS)
+    return ss.str();
 }
 typedef base::threading::internal::NoMutex Mutex;
 typedef base::threading::internal::NoScopedLock<base::threading::Mutex> ScopedLock;
