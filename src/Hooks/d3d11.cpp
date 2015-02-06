@@ -1303,8 +1303,6 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDeferredContext(UINT ContextFlags, 
 		return hr;
 	}
 
-	assert(*ppDeferredContext != nullptr);
-
 	*ppDeferredContext = new D3D11DeviceContext(this, *ppDeferredContext);
 
 	return S_OK;
@@ -1414,8 +1412,6 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDeferredContext1(UINT ContextFlags,
 
 		return hr;
 	}
-
-	assert(*ppDeferredContext != nullptr);
 
 	*ppDeferredContext = new D3D11DeviceContext(this, *ppDeferredContext);
 

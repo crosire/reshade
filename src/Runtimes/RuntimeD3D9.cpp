@@ -2659,6 +2659,19 @@ namespace ReShade { namespace Runtimes
 		// End post processing
 		this->mDevice->EndScene();
 	}
+	void D3D9Runtime::OnDeleteDepthStencilSurface(IDirect3DSurface9 *depthstencil)
+	{
+		assert(depthstencil != nullptr);
+
+		const auto it = this->mDepthSourceTable.find(depthstencil);
+
+		if (it != this->mDepthSourceTable.end())
+		{
+			LOG(TRACE) << "Removing depthstencil " << depthstencil << " from list of possible depth candidates ...";
+
+			this->mDepthSourceTable.erase(it);
+		}
+	}
 	void D3D9Runtime::OnSetDepthStencilSurface(IDirect3DSurface9 *&depthstencil)
 	{
 		if (this->mDepthSourceTable.find(depthstencil) == this->mDepthSourceTable.end())

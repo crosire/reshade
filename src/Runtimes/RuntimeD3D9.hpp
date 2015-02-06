@@ -23,6 +23,7 @@ namespace ReShade { namespace Runtimes
 		void OnDeleteInternal();
 		void OnDrawInternal(D3DPRIMITIVETYPE type, UINT count);
 		void OnPresentInternal();
+		void OnDeleteDepthStencilSurface(IDirect3DSurface9 *depthstencil);
 		void OnSetDepthStencilSurface(IDirect3DSurface9 *&depthstencil);
 		void OnGetDepthStencilSurface(IDirect3DSurface9 *&depthstencil);
 

@@ -5,6 +5,7 @@
 #include <boost\noncopyable.hpp>
 
 #pragma region Undefine Function Names
+#undef IDirect3DSurface9_Release
 #undef IDirect3D9_CreateDevice
 #undef IDirect3D9Ex_CreateDeviceEx
 #pragma endregion
@@ -261,9 +262,39 @@ namespace
 			LOG(WARNING) << "> Multisampling is enabled. This is not compatible with depthbuffer access, which was therefore disabled.";
 		}
 	}
+
+	const GUID sDeviceProxyGUID = { 0x91d5bbd1, 0x939b, 0x4fc2, { 0xa7, 0xaa, 0xe9, 0xf9, 0xf8, 0x8, 0xfd, 0x24 } };
 }
 
 // -----------------------------------------------------------------------------------------------------
+
+// IDirect3DSurface9
+ULONG STDMETHODCALLTYPE IDirect3DSurface9_Release(IDirect3DSurface9 *pSurface)
+{
+	static const auto trampoline = ReShade::Hooks::Call(&IDirect3DSurface9_Release);
+
+	Direct3DDevice9 *deviceProxy = nullptr;
+	DWORD size = sizeof(deviceProxy);
+
+	const bool deviceCheck = SUCCEEDED(pSurface->GetPrivateData(sDeviceProxyGUID, &deviceProxy, &size));
+	const ULONG ref = trampoline(pSurface);
+
+	if (ref == 0 && deviceCheck)
+	{
+		assert(deviceProxy->mImplicitSwapChain->mRuntime != nullptr);
+
+		deviceProxy->mImplicitSwapChain->mRuntime->OnDeleteDepthStencilSurface(pSurface);
+
+		for (Direct3DSwapChain9 *swapchain : deviceProxy->mAdditionalSwapChains)
+		{
+			assert(swapchain->mRuntime != nullptr);
+
+			swapchain->mRuntime->OnDeleteDepthStencilSurface(pSurface);
+		}
+	}
+
+	return ref;
+}
 
 // IDirect3DSwapChain9
 HRESULT STDMETHODCALLTYPE Direct3DSwapChain9::QueryInterface(REFIID riid, void **ppvObj)
@@ -735,7 +766,21 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateRenderTarget(UINT Width, UINT H
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateDepthStencilSurface(UINT Width, UINT Height, D3DFORMAT Format, D3DMULTISAMPLE_TYPE MultiSample, DWORD MultisampleQuality, BOOL Discard, IDirect3DSurface9 **ppSurface, HANDLE *pSharedHandle)
 {
-	return this->mOrig->CreateDepthStencilSurface(Width, Height, Format, MultiSample, MultisampleQuality, Discard, ppSurface, pSharedHandle);
+	const HRESULT hr = this->mOrig->CreateDepthStencilSurface(Width, Height, Format, MultiSample, MultisampleQuality, Discard, ppSurface, pSharedHandle);
+
+	if (SUCCEEDED(hr))
+	{
+		assert(ppSurface != nullptr);
+
+		ReShade::Hooks::Install(VTABLE(*ppSurface), 2, reinterpret_cast<ReShade::Hook::Function>(&IDirect3DSurface9_Release));
+
+		Direct3DDevice9 *deviceProxy = this;
+		IDirect3DSurface9 *const surface = *ppSurface;
+
+		surface->SetPrivateData(sDeviceProxyGUID, reinterpret_cast<const void *>(&deviceProxy), sizeof(deviceProxy), 0);
+	}
+
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::UpdateSurface(IDirect3DSurface9 *pSourceSurface, const RECT *pSourceRect, IDirect3DSurface9 *pDestinationSurface, const POINT *pDestPoint)
 {
