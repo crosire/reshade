@@ -2709,6 +2709,14 @@ EXPORT int WINAPI wglChoosePixelFormat(HDC hdc, CONST PIXELFORMATDESCRIPTOR *ppf
 	LOG(TRACE) << "  | " << "StencilBits" << "                            " << " | " << std::setw(39) << static_cast<unsigned int>(ppfd->cStencilBits) << std::internal << " |";
 	LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
 
+	if (ppfd->iLayerType != PFD_MAIN_PLANE || ppfd->bReserved != 0)
+	{
+		LOG(ERROR) << "> Layered OpenGL contexts of type " << ppfd->iLayerType << " are not supported.";
+
+		SetLastError(ERROR_INVALID_PARAMETER);
+
+		return 0;
+	}
 	if ((ppfd->dwFlags & PFD_DOUBLEBUFFER) == 0)
 	{
 		LOG(WARNING) << "> Single buffered OpenGL contexts are not supported.";
@@ -2785,7 +2793,7 @@ BOOL WINAPI wglChoosePixelFormatARB(HDC hdc, const int *piAttribIList, const FLO
 		};
 	};
 
-	bool doublebuffered = false;
+	bool layerplanes = false, doublebuffered = false;
 
 	LOG(TRACE) << "> Dumping Attributes:";
 	LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
@@ -2806,15 +2814,18 @@ BOOL WINAPI wglChoosePixelFormatARB(HDC hdc, const int *piAttribIList, const FLO
 				LOG(TRACE) << "  | " << "WGL_ACCELERATION_ARB" << "                   " << " | 0x" << std::left << std::setw(37) << std::hex << attrib[1] << std::dec << std::internal << " |";
 				break;
 			case Attrib::WGL_SWAP_LAYER_BUFFERS_ARB:
+				layerplanes = layerplanes || attrib[1] != FALSE;
 				LOG(TRACE) << "  | " << "WGL_SWAP_LAYER_BUFFERS_ARB" << "             " << " | " << (attrib[1] != FALSE ? "TRUE " : "FALSE") << "                                  " << " |";
 				break;
 			case Attrib::WGL_SWAP_METHOD_ARB:
 				LOG(TRACE) << "  | " << "WGL_SWAP_METHOD_ARB" << "                    " << " | 0x" << std::left << std::setw(37) << std::hex << attrib[1] << std::dec << std::internal << " |";
 				break;
 			case Attrib::WGL_NUMBER_OVERLAYS_ARB:
+				layerplanes = layerplanes || attrib[1] != 0;
 				LOG(TRACE) << "  | " << "WGL_NUMBER_OVERLAYS_ARB" << "                " << " | " << std::left << std::setw(39) << attrib[1] << std::internal << " |";
 				break;
 			case Attrib::WGL_NUMBER_UNDERLAYS_ARB:
+				layerplanes = layerplanes || attrib[1] != 0;
 				LOG(TRACE) << "  | " << "WGL_NUMBER_UNDERLAYS_ARB" << "               " << " | " << std::left << std::setw(39) << attrib[1] << std::internal << " |";
 				break;
 			case Attrib::WGL_SUPPORT_GDI_ARB:
@@ -2869,6 +2880,14 @@ BOOL WINAPI wglChoosePixelFormatARB(HDC hdc, const int *piAttribIList, const FLO
 
 	LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
 
+	if (layerplanes)
+	{
+		LOG(ERROR) << "> Layered OpenGL contexts are not supported.";
+
+		SetLastError(ERROR_INVALID_PARAMETER);
+
+		return FALSE;
+	}
 	if (!doublebuffered)
 	{
 		LOG(WARNING) << "> Single buffered OpenGL contexts are not supported.";
@@ -2876,7 +2895,7 @@ BOOL WINAPI wglChoosePixelFormatARB(HDC hdc, const int *piAttribIList, const FLO
 
 	if (!ReShade::Hooks::Call(&wglChoosePixelFormatARB)(hdc, piAttribIList, pfAttribFList, nMaxFormats, piFormats, nNumFormats))
 	{
-		LOG(WARNING) << "> 'wglChoosePixelFormatARB' failed with '" << GetLastError() << "'!";
+		LOG(WARNING) << "> 'wglChoosePixelFormatARB' failed with error code '" << (GetLastError() & 0xFFFF) << "'!";
 
 		return FALSE;
 	}
@@ -3040,6 +3059,15 @@ EXPORT HGLRC WINAPI wglCreateLayerContext(HDC hdc, int iLayerPlane)
 {
 	LOG(INFO) << "Redirecting '" << "wglCreateLayerContext" << "(" << hdc << ", " << iLayerPlane << ")' ...";
 
+	if (iLayerPlane != 0)
+	{
+		LOG(WARNING) << "Access to layer plane at index " << iLayerPlane << " is prohibited.";
+
+		SetLastError(ERROR_INVALID_PARAMETER);
+
+		return nullptr;
+	}
+
 	return ReShade::Hooks::Call(&wglCreateLayerContext)(hdc, iLayerPlane);
 }
 EXPORT BOOL WINAPI wglDeleteContext(HGLRC hglrc)
@@ -3079,6 +3107,15 @@ EXPORT BOOL WINAPI wglDeleteContext(HGLRC hglrc)
 }
 EXPORT BOOL WINAPI wglDescribeLayerPlane(HDC hdc, int iPixelFormat, int iLayerPlane, UINT nBytes, LPLAYERPLANEDESCRIPTOR plpd)
 {
+	if (iLayerPlane != 0)
+	{
+		LOG(WARNING) << "Access to layer plane at index " << iLayerPlane << " is prohibited.";
+
+		SetLastError(ERROR_INVALID_PARAMETER);
+
+		return FALSE;
+	}
+
 	return ReShade::Hooks::Call(&wglDescribeLayerPlane)(hdc, iPixelFormat, iLayerPlane, nBytes, plpd);
 }
 EXPORT int WINAPI wglDescribePixelFormat(HDC hdc, int iPixelFormat, UINT nBytes, LPPIXELFORMATDESCRIPTOR ppfd)
@@ -3099,7 +3136,12 @@ EXPORT HDC WINAPI wglGetCurrentDC()
 }
 EXPORT int WINAPI wglGetLayerPaletteEntries(HDC hdc, int iLayerPlane, int iStart, int cEntries, COLORREF *pcr)
 {
-	return ReShade::Hooks::Call(&wglGetLayerPaletteEntries)(hdc, iLayerPlane, iStart, cEntries, pcr);
+	LOG(INFO) << "Redirecting '" << "wglGetLayerPaletteEntries" << "(" << hdc << ", " << iLayerPlane << ", " << iStart << ", " << cEntries << ", " << pcr << ")' ...";
+	LOG(WARNING) << "Access to layer plane at index " << iLayerPlane << " is prohibited.";
+
+	SetLastError(ERROR_NOT_SUPPORTED);
+
+	return 0;
 }
 EXPORT int WINAPI wglGetPixelFormat(HDC hdc)
 {
@@ -3107,10 +3149,28 @@ EXPORT int WINAPI wglGetPixelFormat(HDC hdc)
 }
 BOOL WINAPI wglGetPixelFormatAttribivARB(HDC hdc, int iPixelFormat, int iLayerPlane, UINT nAttributes, const int *piAttributes, int *piValues)
 {
+	if (iLayerPlane != 0)
+	{
+		LOG(WARNING) << "Access to layer plane at index " << iLayerPlane << " is prohibited.";
+
+		SetLastError(ERROR_INVALID_PARAMETER);
+
+		return FALSE;
+	}
+
 	return ReShade::Hooks::Call(&wglGetPixelFormatAttribivARB)(hdc, iPixelFormat, iLayerPlane, nAttributes, piAttributes, piValues);
 }
 BOOL WINAPI wglGetPixelFormatAttribfvARB(HDC hdc, int iPixelFormat, int iLayerPlane, UINT nAttributes, const int *piAttributes, FLOAT *pfValues)
 {
+	if (iLayerPlane != 0)
+	{
+		LOG(WARNING) << "Access to layer plane at index " << iLayerPlane << " is prohibited.";
+
+		SetLastError(ERROR_INVALID_PARAMETER);
+
+		return FALSE;
+	}
+
 	return ReShade::Hooks::Call(&wglGetPixelFormatAttribfvARB)(hdc, iPixelFormat, iLayerPlane, nAttributes, piAttributes, pfValues);
 }
 const char *WINAPI wglGetExtensionsStringARB(HDC hdc)
@@ -3226,11 +3286,21 @@ EXPORT BOOL WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 }
 EXPORT BOOL WINAPI wglRealizeLayerPalette(HDC hdc, int iLayerPlane, BOOL b)
 {
-	return ReShade::Hooks::Call(&wglRealizeLayerPalette)(hdc, iLayerPlane, b);
+	LOG(INFO) << "Redirecting '" << "wglRealizeLayerPalette" << "(" << hdc << ", " << iLayerPlane << ", " << b << ")' ...";
+	LOG(WARNING) << "Access to layer plane at index " << iLayerPlane << " is prohibited.";
+
+	SetLastError(ERROR_NOT_SUPPORTED);
+
+	return FALSE;
 }
 EXPORT int WINAPI wglSetLayerPaletteEntries(HDC hdc, int iLayerPlane, int iStart, int cEntries, CONST COLORREF *pcr)
 {
-	return ReShade::Hooks::Call(&wglSetLayerPaletteEntries)(hdc, iLayerPlane, iStart, cEntries, pcr);
+	LOG(INFO) << "Redirecting '" << "wglSetLayerPaletteEntries" << "(" << hdc << ", " << iLayerPlane << ", " << iStart << ", " << cEntries << ", " << pcr << ")' ...";
+	LOG(WARNING) << "Access to layer plane at index " << iLayerPlane << " is prohibited.";
+
+	SetLastError(ERROR_NOT_SUPPORTED);
+
+	return 0;
 }
 EXPORT BOOL WINAPI wglSetPixelFormat(HDC hdc, int iPixelFormat, CONST PIXELFORMATDESCRIPTOR *ppfd)
 {
@@ -3299,14 +3369,14 @@ EXPORT BOOL WINAPI wglSwapLayerBuffers(HDC hdc, UINT i)
 {
 	if (i != WGL_SWAP_MAIN_PLANE)
 	{
-		static const auto trampoline = ReShade::Hooks::Call(&wglSwapLayerBuffers);
+		LOG(WARNING) << "Access to layer plane " << i << " is prohibited.";
 
-		return trampoline(hdc, i);
+		SetLastError(ERROR_INVALID_PARAMETER);
+
+		return FALSE;
 	}
-	else
-	{
-		return wglSwapBuffers(hdc);
-	}
+
+	return wglSwapBuffers(hdc);
 }
 EXPORT DWORD WINAPI wglSwapMultipleBuffers(UINT cNumBuffers, CONST WGLSWAP *pBuffers)
 {
