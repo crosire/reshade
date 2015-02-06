@@ -459,8 +459,6 @@ EXPORT void WINAPI glColorPointer(GLint size, GLenum type, GLsizei stride, const
 }
 void WINAPI glCompileShader(GLuint shader)
 {
-	LOG(TRACE) << "Redirecting '" << "glCompileShader" << "(" << shader << ")' ...";
-
 	static const auto trampoline = ReShade::Hooks::Call(&glCompileShader);
 
 	return trampoline(shader);

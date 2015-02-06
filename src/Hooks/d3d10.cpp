@@ -722,8 +722,6 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateInputLayout(const D3D10_INPUT_ELEME
 }
 HRESULT STDMETHODCALLTYPE D3D10Device::CreateVertexShader(const void *pShaderBytecode, SIZE_T BytecodeLength, ID3D10VertexShader **ppVertexShader)
 {
-	LOG(TRACE) << "Redirecting '" << "ID3D10Device::CreateVertexShader" << "(" << this << ", " << pShaderBytecode << ", " << BytecodeLength << ", " << ppVertexShader << ")' ...";
-
 	return this->mOrig->CreateVertexShader(pShaderBytecode, BytecodeLength, ppVertexShader);
 }
 HRESULT STDMETHODCALLTYPE D3D10Device::CreateGeometryShader(const void *pShaderBytecode, SIZE_T BytecodeLength, ID3D10GeometryShader **ppGeometryShader)
@@ -736,8 +734,6 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateGeometryShaderWithStreamOutput(cons
 }
 HRESULT STDMETHODCALLTYPE D3D10Device::CreatePixelShader(const void *pShaderBytecode, SIZE_T BytecodeLength, ID3D10PixelShader **ppPixelShader)
 {
-	LOG(TRACE) << "Redirecting '" << "ID3D10Device::CreatePixelShader" << "(" << this << ", " << pShaderBytecode << ", " << BytecodeLength << ", " << ppPixelShader << ")' ...";
-
 	return this->mOrig->CreatePixelShader(pShaderBytecode, BytecodeLength, ppPixelShader);
 }
 HRESULT STDMETHODCALLTYPE D3D10Device::CreateBlendState(const D3D10_BLEND_DESC *pBlendStateDesc, ID3D10BlendState **ppBlendState)
