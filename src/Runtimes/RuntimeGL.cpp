@@ -755,20 +755,6 @@ namespace ReShade { namespace Runtimes
 						part1 = "dFdy(" + cast1.first;
 						part2 = cast1.second + ')';
 						break;
-					case EffectNodes::Expression::Noise:
-					{
-						part1 = "noise1(";
-
-						if (!type1.IsFloatingPoint())
-						{
-							type1.Class = EffectNodes::Type::Float;
-							part1 += PrintType(type1) + '(';
-							part2 = ')';
-						}
-
-						part2 += ')';
-						break;
-					}
 					case EffectNodes::Expression::Length:
 					{
 						part1 = "length(";

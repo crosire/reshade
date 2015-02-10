@@ -617,10 +617,6 @@ namespace ReShade { namespace Runtimes
 						part1 = "ddy(";
 						part2 = ")";
 						break;
-					case EffectNodes::Expression::Noise:
-						part1 = "noise(";
-						part2 = ")";
-						break;
 					case EffectNodes::Expression::Length:
 						part1 = "length(";
 						part2 = ")";

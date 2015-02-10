@@ -3607,7 +3607,6 @@ namespace ReShade
 			"float ddy(float x); float2 ddy(float2 x); float3 ddy(float3 x); float4 ddy(float4 x);"
 			"float radians(float x); float2 radians(float2 x); float3 radians(float3 x); float4 radians(float4 x);"
 			"float degrees(float x); float2 degrees(float2 x); float3 degrees(float3 x); float4 degrees(float4 x);"
-			"float noise(float x); float noise(float2 x); float noise(float3 x); float noise(float4 x);"
 			"float length(float x); float length(float2 x); float length(float3 x); float length(float4 x);"
 			"float normalize(float x); float2 normalize(float2 x); float3 normalize(float3 x); float4 normalize(float4 x);"
 			"float2x2 transpose(float2x2 m); float3x3 transpose(float3x3 m); float4x4 transpose(float4x4 m);"
@@ -3684,7 +3683,6 @@ namespace ReShade
 			("degrees", EffectNodes::Expression::Degrees)
 			("ddx", EffectNodes::Expression::PartialDerivativeX)
 			("ddy", EffectNodes::Expression::PartialDerivativeY)
-			("noise", EffectNodes::Expression::Noise)
 			("length", EffectNodes::Expression::Length)
 			("normalize", EffectNodes::Expression::Normalize)
 			("transpose", EffectNodes::Expression::Transpose)

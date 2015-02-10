@@ -427,7 +427,6 @@ namespace ReShade
 				Degrees,
 				PartialDerivativeX,
 				PartialDerivativeY,
-				Noise,
 				Length,
 				Normalize,
 				Transpose,
