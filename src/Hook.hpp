@@ -4,7 +4,6 @@ namespace ReShade
 {
 	struct Hook
 	{
-	public:
 		typedef void *Function;
 		enum class Status
 		{
@@ -16,11 +15,9 @@ namespace ReShade
 			MemoryProtectionFailure,
 		};
 
-	public:
 		static Status Install(Hook &hook);
 		static Status Uninstall(Hook &hook);
 
-	public:
 		Hook();
 		Hook(Function target, const Function replacement);
 
@@ -41,7 +38,6 @@ namespace ReShade
 			return Uninstall(*this);
 		}
 
-	public:
 		Function Target, Replacement, Trampoline;
 	};
 }

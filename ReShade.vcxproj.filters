@@ -4,144 +4,142 @@
     <Filter Include="Resources">
       <UniqueIdentifier>{d408b60a-a09d-437b-9a0f-3ac6ea741b08}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Hook">
+    <Filter Include="Core">
+      <UniqueIdentifier>{7dea67a5-a2de-4e39-94a8-e8f01b6f070f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Core\Hooking">
       <UniqueIdentifier>{ed3eb34b-86ef-4bb0-b071-44f1163953bf}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Hooks">
-      <UniqueIdentifier>{3c3eb495-1eeb-4c7c-b58f-3bbcf24758f6}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Parser">
+    <Filter Include="Core\Effect Parsing">
       <UniqueIdentifier>{c7c87b42-c441-48dc-8d08-ce6e2a6ffa9d}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Runtime">
+    <Filter Include="Core\Effect Runtime">
       <UniqueIdentifier>{ecdb23a8-21dc-4334-b5cf-2ea57d27001d}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Runtimes">
+    <Filter Include="Implementation">
+      <UniqueIdentifier>{46bec447-8902-4b8a-99fe-6bf6e239ea01}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Implementation\Hooks">
+      <UniqueIdentifier>{3c3eb495-1eeb-4c7c-b58f-3bbcf24758f6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Implementation\Runtimes">
       <UniqueIdentifier>{3d98f6bc-aafb-47f4-97de-20bb7012bc62}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="src\Main.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
     <ClCompile Include="src\Hook.cpp">
-      <Filter>Hook</Filter>
+      <Filter>Core\Hooking</Filter>
     </ClCompile>
     <ClCompile Include="src\HookManager.cpp">
-      <Filter>Hook</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Hooks\d3d8.cpp">
-      <Filter>Hooks</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Hooks\d3d9.cpp">
-      <Filter>Hooks</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Hooks\d3d10.cpp">
-      <Filter>Hooks</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Hooks\d3d11.cpp">
-      <Filter>Hooks</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Hooks\dxgi.cpp">
-      <Filter>Hooks</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Hooks\opengl32.cpp">
-      <Filter>Hooks</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Hooks\user32.cpp">
-      <Filter>Hooks</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Hooks\ws2_32.cpp">
-      <Filter>Hooks</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Effect.cpp">
-      <Filter>Runtime</Filter>
-    </ClCompile>
-    <ClCompile Include="obj\$(Platform)\$(Configuration)\EffectLexer.cpp">
-      <Filter>Parser</Filter>
+      <Filter>Core\Hooking</Filter>
     </ClCompile>
     <ClCompile Include="src\EffectOptimizer.cpp">
-      <Filter>Parser</Filter>
-    </ClCompile>
-    <ClCompile Include="obj\$(Platform)\$(Configuration)\EffectParser.cpp">
-      <Filter>Parser</Filter>
+      <Filter>Core\Effect Parsing</Filter>
     </ClCompile>
     <ClCompile Include="src\EffectPreprocessor.cpp">
-      <Filter>Parser</Filter>
+      <Filter>Core\Effect Parsing</Filter>
     </ClCompile>
-    <ClCompile Include="src\Network.cpp">
-      <Filter>Runtime</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Runtime.cpp">
-      <Filter>Runtime</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Runtimes\RuntimeD3D10.cpp">
-      <Filter>Runtimes</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Runtimes\RuntimeD3D11.cpp">
-      <Filter>Runtimes</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Runtimes\RuntimeD3D9.cpp">
-      <Filter>Runtimes</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Runtimes\RuntimeGL.cpp">
-      <Filter>Runtimes</Filter>
+    <ClCompile Include="src\Effect.cpp">
+      <Filter>Core\Effect Runtime</Filter>
     </ClCompile>
     <ClCompile Include="src\FileWatcher.cpp">
-      <Filter>Runtime</Filter>
+      <Filter>Core\Effect Runtime</Filter>
     </ClCompile>
-    <ClCompile Include="src\Main.cpp" />
+    <ClCompile Include="src\Network.cpp">
+      <Filter>Core\Effect Runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Runtime.cpp">
+      <Filter>Core\Effect Runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Hooks\d3d8.cpp">
+      <Filter>Implementation\Hooks</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Hooks\d3d9.cpp">
+      <Filter>Implementation\Hooks</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Hooks\d3d10.cpp">
+      <Filter>Implementation\Hooks</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Hooks\d3d11.cpp">
+      <Filter>Implementation\Hooks</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Hooks\dxgi.cpp">
+      <Filter>Implementation\Hooks</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Hooks\opengl32.cpp">
+      <Filter>Implementation\Hooks</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Hooks\user32.cpp">
+      <Filter>Implementation\Hooks</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Hooks\ws2_32.cpp">
+      <Filter>Implementation\Hooks</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Runtimes\RuntimeD3D10.cpp">
+      <Filter>Implementation\Runtimes</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Runtimes\RuntimeD3D11.cpp">
+      <Filter>Implementation\Runtimes</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Runtimes\RuntimeD3D9.cpp">
+      <Filter>Implementation\Runtimes</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Runtimes\RuntimeGL.cpp">
+      <Filter>Implementation\Runtimes</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\Log.hpp">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Hook.hpp">
+      <Filter>Core\Hooking</Filter>
+    </ClInclude>
+    <ClInclude Include="src\HookManager.hpp">
+      <Filter>Core\Hooking</Filter>
+    </ClInclude>
+    <ClInclude Include="src\EffectOptimizer.hpp">
+      <Filter>Core\Effect Parsing</Filter>
+    </ClInclude>
+    <ClInclude Include="src\EffectParserTree.hpp">
+      <Filter>Core\Effect Parsing</Filter>
+    </ClInclude>
+    <ClInclude Include="src\EffectPreprocessor.hpp">
+      <Filter>Core\Effect Parsing</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Effect.hpp">
+      <Filter>Core\Effect Runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="src\FileWatcher.hpp">
+      <Filter>Core\Effect Runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Network.hpp">
+      <Filter>Core\Effect Runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Runtime.hpp">
+      <Filter>Core\Effect Runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Runtimes\RuntimeD3D10.hpp">
+      <Filter>Implementation\Runtimes</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Runtimes\RuntimeD3D11.hpp">
+      <Filter>Implementation\Runtimes</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Runtimes\RuntimeD3D9.hpp">
+      <Filter>Implementation\Runtimes</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Runtimes\RuntimeGL.hpp">
+      <Filter>Implementation\Runtimes</Filter>
+    </ClInclude>
     <ClInclude Include="res\Resource.h">
       <Filter>Resources</Filter>
     </ClInclude>
     <ClInclude Include="res\Version.h">
       <Filter>Resources</Filter>
     </ClInclude>
-    <ClInclude Include="src\Hook.hpp">
-      <Filter>Hook</Filter>
-    </ClInclude>
-    <ClInclude Include="src\HookManager.hpp">
-      <Filter>Hook</Filter>
-    </ClInclude>
-    <ClInclude Include="src\Effect.hpp">
-      <Filter>Runtime</Filter>
-    </ClInclude>
-    <ClInclude Include="obj\$(Platform)\$(Configuration)\EffectLexer.h">
-      <Filter>Parser</Filter>
-    </ClInclude>
-    <ClInclude Include="src\EffectOptimizer.hpp">
-      <Filter>Parser</Filter>
-    </ClInclude>
-    <ClInclude Include="obj\$(Platform)\$(Configuration)\EffectParser.hpp">
-      <Filter>Parser</Filter>
-    </ClInclude>
-    <ClInclude Include="src\EffectParserTree.hpp">
-      <Filter>Parser</Filter>
-    </ClInclude>
-    <ClInclude Include="src\EffectPreprocessor.hpp">
-      <Filter>Parser</Filter>
-    </ClInclude>
-    <ClInclude Include="src\Network.hpp">
-      <Filter>Runtime</Filter>
-    </ClInclude>
-    <ClInclude Include="src\Runtime.hpp">
-      <Filter>Runtime</Filter>
-    </ClInclude>
-    <ClInclude Include="src\Runtimes\RuntimeD3D10.hpp">
-      <Filter>Runtimes</Filter>
-    </ClInclude>
-    <ClInclude Include="src\Runtimes\RuntimeD3D11.hpp">
-      <Filter>Runtimes</Filter>
-    </ClInclude>
-    <ClInclude Include="src\Runtimes\RuntimeD3D9.hpp">
-      <Filter>Runtimes</Filter>
-    </ClInclude>
-    <ClInclude Include="src\Runtimes\RuntimeGL.hpp">
-      <Filter>Runtimes</Filter>
-    </ClInclude>
-    <ClInclude Include="src\FileWatcher.hpp">
-      <Filter>Runtime</Filter>
-    </ClInclude>
-    <ClInclude Include="src\Log.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="res\Resource.rc">
@@ -149,22 +147,22 @@
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="res\Resource.rc2">
-      <Filter>Resources</Filter>
+    <None Include="res\Exports64.def">
+      <Filter>Implementation</Filter>
     </None>
     <None Include="res\Exports32.def">
-      <Filter>Resources</Filter>
+      <Filter>Implementation</Filter>
     </None>
-    <None Include="res\Exports64.def">
+    <None Include="res\Resource.rc2">
       <Filter>Resources</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="src\EffectLexer.l">
-      <Filter>Parser</Filter>
+      <Filter>Core\Effect Parsing</Filter>
     </CustomBuild>
     <CustomBuild Include="src\EffectParser.y">
-      <Filter>Parser</Filter>
+      <Filter>Core\Effect Parsing</Filter>
     </CustomBuild>
   </ItemGroup>
 </Project>
