@@ -43,7 +43,7 @@
 
 %option stack
 
-%x STATE_COMMENT STATE_PP STATE_PP_LINE STATE_PP_PRAGMA STATE_PP_ERROR STATE_PP_WARNING
+%x STATE_COMMENT STATE_PP STATE_PP_LINE STATE_PP_ERROR STATE_PP_WARNING
 
 %x STATE_FIELD
 %s STATE_PROPERTY_TEXTURE STATE_PROPERTY_SAMPLER STATE_TECHNIQUE STATE_PASS
@@ -77,32 +77,17 @@ STRING															\"(\\.|[^\\"])*\"
 
 ^{WS}*#{WS}*													{ yy_push_state(STATE_PP, yyscanner); }
 ^{WS}*#{WS}*"line"{WS}+											{ yy_push_state(STATE_PP_LINE, yyscanner); }
-^{WS}*#{WS}*"pragma"{WS}+										{ yyextra->mCurrentDirective.clear(); yy_push_state(STATE_PP_PRAGMA, yyscanner); }
 ^{WS}*#{WS}*"error"												{ yyextra->mCurrentDirective.clear(); yy_push_state(STATE_PP_ERROR, yyscanner); }
 ^{WS}*#{WS}*"warning"											{ yyextra->mCurrentDirective.clear(); yy_push_state(STATE_PP_WARNING, yyscanner); }
 <STATE_PP>
 {
-	[^\\\n]+													{ yyextra->Error(*yylloc, 1504, "invalid preprocessor command '%s'", yytext); }
-	{WS}+|\\													{ }
+	[^\\\n]+|{WS}+|\\											{ }
 	\\{LF}														{ yycolumn = 1; }
 	{LF}														{ yycolumn = 1; yy_pop_state(yyscanner); }
 }
 <STATE_PP_LINE>
 {
-	{INTEGRAL}													{ yy_pop_state(yyscanner);
-		
-		yylineno = static_cast<int>(::strtol(yytext, nullptr, 10));
-
-		if (yylineno == 0)
-		{
-			yyextra->Warning(*yylloc, 3000, "line numbers should be greater than zero");
-		}
-		else
-		{
-			yylineno--;
-		}
-	}
-	{INTEGRAL}{WS}+{STRING}										{ yy_pop_state(yyscanner);
+	{INTEGRAL}({WS}+{STRING})?									{ yy_pop_state(yyscanner);
 		
 		char *begin = yytext, *end;
 
@@ -129,22 +114,15 @@ STRING															\"(\\.|[^\\"])*\"
 		}
 	}
 }
-<STATE_PP_PRAGMA>
-{
-	[^\\\n\t ]+|\\												{ }
-	\\{LF}														{ }
-	{LF}														{ yy_pop_state(yyscanner); }
-}
 <STATE_PP_ERROR>
 {
 	[^\\\n]+|\\													{ yyextra->mCurrentDirective += yytext; }
 	\\{LF}														{ }
 	{LF}														{ yy_pop_state(yyscanner);
 	
-		std::string &message = yyextra->mCurrentDirective;
-		boost::algorithm::trim(message);
+		boost::algorithm::trim(yyextra->mCurrentDirective);
 		
-		yyextra->Error(*yylloc, 0, "%s", message.c_str());
+		yyextra->Error(*yylloc, 0, "%s", yyextra->mCurrentDirective.c_str());
 	}
 }
 <STATE_PP_WARNING>
@@ -153,10 +131,9 @@ STRING															\"(\\.|[^\\"])*\"
 	\\{LF}														{ }
 	{LF}														{ yy_pop_state(yyscanner);
 	
-		std::string &message = yyextra->mCurrentDirective;
-		boost::algorithm::trim(message);
+		boost::algorithm::trim(yyextra->mCurrentDirective);
 		
-		yyextra->Warning(*yylloc, 0, "%s", message.c_str());
+		yyextra->Warning(*yylloc, 0, "%s", yyextra->mCurrentDirective.c_str());
 	}
 }
 
@@ -404,8 +381,8 @@ STRING															\"(\\.|[^\\"])*\"
 
  /* Types ------------------------------------------------------------------------------------ */
 
-"vector"														{ yylval->l.Type.Class = ReShade::EffectNodes::Type::Void; yylval->l.Type.Qualifiers = 0; yylval->l.Type.Rows = 4; yylval->l.Type.Cols = 1; yylval->l.Type.ArrayLength = 0; yylval->l.Type.Definition = 0; return TOK_TYPE_VECTOR; }
-"matrix"														{ yylval->l.Type.Class = ReShade::EffectNodes::Type::Void; yylval->l.Type.Qualifiers = 0; yylval->l.Type.Rows = 4; yylval->l.Type.Cols = 4; yylval->l.Type.ArrayLength = 0; yylval->l.Type.Definition = 0; return TOK_TYPE_MATRIX; }
+"vector"														{ yylval->l.Type.Class = ReShade::EffectNodes::Type::Float; yylval->l.Type.Qualifiers = 0; yylval->l.Type.Rows = 4; yylval->l.Type.Cols = 1; yylval->l.Type.ArrayLength = 0; yylval->l.Type.Definition = 0; return TOK_TYPE_VECTOR; }
+"matrix"														{ yylval->l.Type.Class = ReShade::EffectNodes::Type::Float; yylval->l.Type.Qualifiers = 0; yylval->l.Type.Rows = 4; yylval->l.Type.Cols = 4; yylval->l.Type.ArrayLength = 0; yylval->l.Type.Definition = 0; return TOK_TYPE_MATRIX; }
 
 "auto"															{ yyextra->Error(*yylloc, 3000, "syntax error: unexpected reserved word '%s'", yytext); }
 "void"															{ yylval->l.Type.Class = ReShade::EffectNodes::Type::Void; yylval->l.Type.Qualifiers = 0; yylval->l.Type.Rows = 0; yylval->l.Type.Cols = 0; yylval->l.Type.ArrayLength = 0; yylval->l.Type.Definition = 0; return TOK_TYPE_VOID; }
@@ -566,9 +543,8 @@ STRING															\"(\\.|[^\\"])*\"
 
  /* ------------------------------------------------------------------------------------------ */
 
-<*>\r															{ }
 {LF}															{ yycolumn = 1; }
-<*>[\t\v\f ]+													{ }
+<*>[\r\t\v\f ]+													{ }
 <*>.															{ yyextra->Error(*yylloc, 3000, "syntax error: invalid token %s", yyextra); return static_cast<int>(*yytext); }
 
  /* ------------------------------------------------------------------------------------------ */

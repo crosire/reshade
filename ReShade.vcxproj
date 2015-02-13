@@ -252,7 +252,6 @@ tools\upx --backup "$(TargetPath)"</Command>
     <ClCompile Include="src\Hooks\ws2_32.cpp" />
     <ClCompile Include="src\Effect.cpp" />
     <ClCompile Include="src\EffectPreprocessor.cpp" />
-    <ClCompile Include="src\EffectOptimizer.cpp" />
     <ClCompile Include="src\Network.cpp" />
     <ClCompile Include="src\Runtime.cpp" />
     <ClCompile Include="src\Runtimes\RuntimeD3D9.cpp" />
@@ -269,7 +268,6 @@ tools\upx --backup "$(TargetPath)"</Command>
     <ClInclude Include="src\HookManager.hpp" />
     <ClInclude Include="src\Effect.hpp" />
     <ClInclude Include="src\EffectPreprocessor.hpp" />
-    <ClInclude Include="src\EffectOptimizer.hpp" />
     <ClInclude Include="src\EffectParserTree.hpp" />
     <ClInclude Include="src\Network.hpp" />
     <ClInclude Include="src\Runtime.hpp" />

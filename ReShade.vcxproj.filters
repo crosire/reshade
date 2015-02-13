@@ -36,9 +36,6 @@
     <ClCompile Include="src\HookManager.cpp">
       <Filter>Core\Hooking</Filter>
     </ClCompile>
-    <ClCompile Include="src\EffectOptimizer.cpp">
-      <Filter>Core\Effect Parsing</Filter>
-    </ClCompile>
     <ClCompile Include="src\EffectPreprocessor.cpp">
       <Filter>Core\Effect Parsing</Filter>
     </ClCompile>
@@ -100,9 +97,6 @@
     </ClInclude>
     <ClInclude Include="src\HookManager.hpp">
       <Filter>Core\Hooking</Filter>
-    </ClInclude>
-    <ClInclude Include="src\EffectOptimizer.hpp">
-      <Filter>Core\Effect Parsing</Filter>
     </ClInclude>
     <ClInclude Include="src\EffectParserTree.hpp">
       <Filter>Core\Effect Parsing</Filter>
