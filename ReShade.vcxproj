@@ -127,10 +127,9 @@
       <WarningLevel>Level4</WarningLevel>
       <SDLCheck>true</SDLCheck>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>$(SolutionDir)\src;$(SolutionDir)\res;$(IntDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)\src;$(SolutionDir)\res;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;_DEBUG;WIN32_LEAN_AND_MEAN;NOMINMAX;_GDI32_;WINSOCK_API_LINKAGE=;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DisableSpecificWarnings>4351;%(DisableSpecificWarnings)</DisableSpecificWarnings>
-      <AdditionalOptions>"$(IntDir)EffectLexer.cpp" "$(IntDir)EffectParser.cpp" %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -139,7 +138,6 @@
       <ModuleDefinitionFile>res\Exports32.def</ModuleDefinitionFile>
       <AdditionalDependencies>d3dcompiler.lib;d3dx9.lib;d3d10.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <DelayLoadDLLs>d3dcompiler_43.dll;d3dx9_43.dll;d3d10.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
-      <AdditionalOptions>"$(IntDir)EffectLexer.obj" "$(IntDir)EffectParser.obj" %(AdditionalOptions)</AdditionalOptions>
     </Link>
     <ResourceCompile>
       <PreprocessorDefinitions>WIN32;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -150,10 +148,9 @@
       <WarningLevel>Level4</WarningLevel>
       <SDLCheck>true</SDLCheck>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>$(SolutionDir)\src;$(SolutionDir)\res;$(IntDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)\src;$(SolutionDir)\res;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN64;_DEBUG;WIN32_LEAN_AND_MEAN;NOMINMAX;_GDI32_;WINSOCK_API_LINKAGE=;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DisableSpecificWarnings>4351;%(DisableSpecificWarnings)</DisableSpecificWarnings>
-      <AdditionalOptions>"$(IntDir)EffectLexer.cpp" "$(IntDir)EffectParser.cpp" %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -162,7 +159,6 @@
       <ModuleDefinitionFile>res\Exports64.def</ModuleDefinitionFile>
       <AdditionalDependencies>d3dcompiler.lib;d3dx9.lib;d3d10.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <DelayLoadDLLs>d3dcompiler_43.dll;d3d10.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
-      <AdditionalOptions>"$(IntDir)EffectLexer.obj" "$(IntDir)EffectParser.obj" %(AdditionalOptions)</AdditionalOptions>
     </Link>
     <ResourceCompile>
       <PreprocessorDefinitions>WIN64;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -175,10 +171,9 @@
       <Optimization>MaxSpeed</Optimization>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <FunctionLevelLinking>true</FunctionLevelLinking>
-      <AdditionalIncludeDirectories>$(SolutionDir)\src;$(SolutionDir)\res;$(IntDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)\src;$(SolutionDir)\res;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;NDEBUG;WIN32_LEAN_AND_MEAN;NOMINMAX;_GDI32_;WINSOCK_API_LINKAGE=;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DisableSpecificWarnings>4351;%(DisableSpecificWarnings)</DisableSpecificWarnings>
-      <AdditionalOptions>"$(IntDir)EffectLexer.cpp" "$(IntDir)EffectParser.cpp" %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -189,7 +184,6 @@
       <ModuleDefinitionFile>res\Exports32.def</ModuleDefinitionFile>
       <AdditionalDependencies>d3dcompiler.lib;d3dx9.lib;d3d10.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <DelayLoadDLLs>d3dcompiler_43.dll;d3dx9_43.dll;d3d10.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
-      <AdditionalOptions>"$(IntDir)EffectLexer.obj" "$(IntDir)EffectParser.obj" %(AdditionalOptions)</AdditionalOptions>
     </Link>
     <ResourceCompile>
       <PreprocessorDefinitions>WIN32;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -209,10 +203,9 @@ tools\upx --backup "$(TargetPath)"</Command>
       <Optimization>MaxSpeed</Optimization>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <FunctionLevelLinking>true</FunctionLevelLinking>
-      <AdditionalIncludeDirectories>$(SolutionDir)\src;$(SolutionDir)\res;$(IntDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)\src;$(SolutionDir)\res;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN64;NDEBUG;WIN32_LEAN_AND_MEAN;NOMINMAX;_GDI32_;WINSOCK_API_LINKAGE=;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DisableSpecificWarnings>4351;%(DisableSpecificWarnings)</DisableSpecificWarnings>
-      <AdditionalOptions>"$(IntDir)EffectLexer.cpp" "$(IntDir)EffectParser.cpp" %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -223,7 +216,6 @@ tools\upx --backup "$(TargetPath)"</Command>
       <ModuleDefinitionFile>res\Exports64.def</ModuleDefinitionFile>
       <AdditionalDependencies>d3dcompiler.lib;d3dx9.lib;d3d10.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <DelayLoadDLLs>d3dcompiler_43.dll;d3d10.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
-      <AdditionalOptions>"$(IntDir)EffectLexer.obj" "$(IntDir)EffectParser.obj" %(AdditionalOptions)</AdditionalOptions>
     </Link>
     <ResourceCompile>
       <PreprocessorDefinitions>WIN64;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -251,7 +243,9 @@ tools\upx --backup "$(TargetPath)"</Command>
     <ClCompile Include="src\Hooks\user32.cpp" />
     <ClCompile Include="src\Hooks\ws2_32.cpp" />
     <ClCompile Include="src\Effect.cpp" />
-    <ClCompile Include="src\EffectPreprocessor.cpp" />
+    <ClCompile Include="src\EffectLexer.cpp" />
+    <ClCompile Include="src\EffectParser.cpp" />
+    <ClCompile Include="src\EffectPreProcessor.cpp" />
     <ClCompile Include="src\Network.cpp" />
     <ClCompile Include="src\Runtime.cpp" />
     <ClCompile Include="src\Runtimes\RuntimeD3D9.cpp" />
@@ -267,8 +261,11 @@ tools\upx --backup "$(TargetPath)"</Command>
     <ClInclude Include="src\Hook.hpp" />
     <ClInclude Include="src\HookManager.hpp" />
     <ClInclude Include="src\Effect.hpp" />
-    <ClInclude Include="src\EffectPreprocessor.hpp" />
-    <ClInclude Include="src\EffectParserTree.hpp" />
+    <ClInclude Include="src\EffectLexer.hpp" />
+    <ClInclude Include="src\EffectParser.hpp" />
+    <ClInclude Include="src\EffectPreProcessor.hpp" />
+    <ClInclude Include="src\EffectTree.hpp" />
+    <ClInclude Include="src\EffectTreeNodes.hpp" />
     <ClInclude Include="src\Network.hpp" />
     <ClInclude Include="src\Runtime.hpp" />
     <ClInclude Include="src\Runtimes\RuntimeD3D10.hpp" />
@@ -277,24 +274,6 @@ tools\upx --backup "$(TargetPath)"</Command>
     <ClInclude Include="src\Runtimes\RuntimeGL.hpp" />
     <ClInclude Include="src\FileWatcher.hpp" />
     <ClInclude Include="src\Log.hpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <CustomBuild Include="src\EffectLexer.l">
-      <Message>Generating Effect Lexer ...</Message>
-      <Outputs>$(IntDir)%(Filename).cpp;$(IntDir)%(Filename).h</Outputs>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">tools\flex.exe --bison-bridge --bison-locations --wincompat --outfile="$(IntDir)%(Filename).cpp" --header-file="$(IntDir)%(Filename).h" "%(FullPath)"</Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">tools\flex.exe --bison-bridge --bison-locations --wincompat --outfile="$(IntDir)%(Filename).cpp" --header-file="$(IntDir)%(Filename).h" "%(FullPath)"</Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">tools\flex.exe --bison-bridge --bison-locations --wincompat --outfile="$(IntDir)%(Filename).cpp" --header-file="$(IntDir)%(Filename).h" "%(FullPath)"</Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">tools\flex.exe --bison-bridge --bison-locations --wincompat --outfile="$(IntDir)%(Filename).cpp" --header-file="$(IntDir)%(Filename).h" "%(FullPath)"</Command>
-    </CustomBuild>
-    <CustomBuild Include="src\EffectParser.y">
-      <Message>Generating Effect Parser ...</Message>
-      <Outputs>$(IntDir)%(Filename).cpp;$(IntDir)%(Filename).hpp</Outputs>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">tools\bison.exe --verbose --warnings --locations --defines --output="$(IntDir)%(Filename).cpp" --report=all --graph "%(FullPath)"</Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">tools\bison.exe --verbose --warnings --locations --defines --output="$(IntDir)%(Filename).cpp" --report=all --graph "%(FullPath)"</Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">tools\bison.exe --warnings --locations --defines --output="$(IntDir)%(Filename).cpp" "%(FullPath)"</Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">tools\bison.exe --warnings --locations --defines --output="$(IntDir)%(Filename).cpp" "%(FullPath)"</Command>
-    </CustomBuild>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="res\Resource.rc" />

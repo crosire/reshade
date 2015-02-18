@@ -2,9 +2,8 @@
 #include "Version.h"
 #include "Runtime.hpp"
 #include "HookManager.hpp"
-#include "EffectPreprocessor.hpp"
 #include "EffectParser.hpp"
-#include "EffectLexer.h"
+#include "EffectPreProcessor.hpp"
 #include "FileWatcher.hpp"
 
 #include <sstream>
@@ -22,6 +21,53 @@ namespace ReShade
 {
 	namespace
 	{
+		void EscapeString(std::string &buffer)
+		{
+			for (auto it = buffer.begin(); it != buffer.end(); ++it)
+			{
+				if (it[0] == '\\')
+				{
+					switch (it[1])
+					{
+						case '"':
+							it[0] = '"';
+							break;
+						case '\'':
+							it[0] = '\'';
+							break;
+						case '\\':
+							it[0] = '\\';
+							break;
+						case 'a':
+							it[0] = '\a';
+							break;
+						case 'b':
+							it[0] = '\b';
+							break;
+						case 'f':
+							it[0] = '\f';
+							break;
+						case 'n':
+							it[0] = '\n';
+							break;
+						case 'r':
+							it[0] = '\r';
+							break;
+						case 't':
+							it[0] = '\t';
+							break;
+						case 'v':
+							it[0] = '\v';
+							break;
+						default:
+							it[0] = it[1];
+							break;
+					}
+
+					it = std::prev(buffer.erase(it + 1));
+				}
+			}
+		}
 		boost::filesystem::path ObfuscatePath(const boost::filesystem::path &path)
 		{
 			char username[257];
@@ -211,7 +257,7 @@ namespace ReShade
 				#pragma region Update Constants
 				for (const std::string &name : this->mEffect->GetConstants())
 				{
-					Effect::Constant *constant = this->mEffect->GetConstant(name);
+					FX::Effect::Constant *constant = this->mEffect->GetConstant(name);
 					const std::string source = constant->GetAnnotation("source").As<std::string>();
 
 					if (source.empty())
@@ -228,20 +274,20 @@ namespace ReShade
 					{
 						switch (constant->GetDescription().Type)
 						{
-							case Effect::Constant::Type::Bool:
+							case FX::Effect::Constant::Type::Bool:
 							{
 								const bool even = (this->mLastFrameCount % 2) == 0;
 								constant->SetValue(&even, 1);
 								break;
 							}
-							case Effect::Constant::Type::Int:
-							case Effect::Constant::Type::Uint:
+							case FX::Effect::Constant::Type::Int:
+							case FX::Effect::Constant::Type::Uint:
 							{
 								const unsigned int framecount = static_cast<unsigned int>(this->mLastFrameCount % UINT_MAX);
 								constant->SetValue(&framecount, 1);
 								break;
 							}
-							case Effect::Constant::Type::Float:
+							case FX::Effect::Constant::Type::Float:
 							{
 								const float framecount = static_cast<float>(this->mLastFrameCount % 16777216);
 								constant->SetValue(&framecount, 1);
@@ -287,20 +333,20 @@ namespace ReShade
 
 						switch (constant->GetDescription().Type)
 						{
-							case Effect::Constant::Type::Bool:
+							case FX::Effect::Constant::Type::Bool:
 							{
 								const bool even = (timer % 2) == 0;
 								constant->SetValue(&even, 1);
 								break;
 							}
-							case Effect::Constant::Type::Int:
-							case Effect::Constant::Type::Uint:
+							case FX::Effect::Constant::Type::Int:
+							case FX::Effect::Constant::Type::Uint:
 							{
 								const unsigned int timerInt = static_cast<unsigned int>(timer % UINT_MAX);
 								constant->SetValue(&timerInt, 1);
 								break;
 							}
-							case Effect::Constant::Type::Float:
+							case FX::Effect::Constant::Type::Float:
 							{
 								const float timerFloat = std::fmod(static_cast<float>(timer * 1e-6f), 16777216.0f);
 								constant->SetValue(&timerFloat, 1);
@@ -520,7 +566,7 @@ namespace ReShade
 		::localtime_s(&tm, &time);
 
 		// Preprocess
-		EffectPreprocessor preprocessor;
+		FX::PreProcessor preprocessor;
 		preprocessor.AddDefine("__RESHADE__", std::to_string(VERSION_MAJOR * 10000 + VERSION_MINOR * 100 + VERSION_REVISION));
 		preprocessor.AddDefine("__VENDOR__", std::to_string(this->mVendorId));
 		preprocessor.AddDefine("__DEVICE__", std::to_string(this->mDeviceId));
@@ -590,12 +636,7 @@ namespace ReShade
 			}
 		}
 
-		if (!this->mMessage.empty())
-		{
-			std::size_t len = this->mMessage.length();
-			EscapeString(&this->mMessage.front(), len);
-			this->mMessage = this->mMessage.substr(0, len);
-		}
+		EscapeString(this->mMessage);
 
 		return true;
 	}
@@ -604,13 +645,16 @@ namespace ReShade
 		this->mTechniques.clear();
 		this->mEffect.reset();
 
-		EffectTree ast;
-		EffectParser parser(ast);
+		FX::Tree ast;
+		FX::Lexer lexer(this->mEffectSource);
+		FX::Parser parser(lexer, ast);
 
 		LOG(TRACE) << "> Running parser ...";
 
-		if (!parser.Parse(this->mEffectSource, this->mErrors))
+		if (!parser.Parse())
 		{
+			this->mErrors += lexer.GetErrors();
+
 			LOG(ERROR) << "Failed to compile effect on context " << this << ":\n\n" << this->mErrors << "\n";
 
 			this->mStatus += " Failed!";
@@ -663,7 +707,7 @@ namespace ReShade
 
 		for (const std::string &name : techniques)
 		{
-			const Effect::Technique *technique = this->mEffect->GetTechnique(name);
+			const FX::Effect::Technique *technique = this->mEffect->GetTechnique(name);
 				
 			TechniqueInfo info;
 			info.Technique = technique;
@@ -680,8 +724,8 @@ namespace ReShade
 
 		for (const std::string &name : textures)
 		{
-			Effect::Texture *texture = this->mEffect->GetTexture(name);
-			Effect::Texture::Description desc = texture->GetDescription();
+			FX::Effect::Texture *texture = this->mEffect->GetTexture(name);
+			FX::Effect::Texture::Description desc = texture->GetDescription();
 			const std::string source = texture->GetAnnotation("source").As<std::string>();
 
 			if (!source.empty())
@@ -691,26 +735,26 @@ namespace ReShade
 
 				switch (desc.Format)
 				{
-					case Effect::Texture::Format::R8:
+					case FX::Effect::Texture::Format::R8:
 						channels = STBI_r;
 						break;
-					case Effect::Texture::Format::RG8:
+					case FX::Effect::Texture::Format::RG8:
 						channels = STBI_rg;
 						break;
-					case Effect::Texture::Format::DXT1:
+					case FX::Effect::Texture::Format::DXT1:
 						channels = STBI_rgb;
 						break;
-					case Effect::Texture::Format::RGBA8:
-					case Effect::Texture::Format::DXT5:
+					case FX::Effect::Texture::Format::RGBA8:
+					case FX::Effect::Texture::Format::DXT5:
 						channels = STBI_rgba;
 						break;
-					case Effect::Texture::Format::R32F:
-					case Effect::Texture::Format::RGBA16:
-					case Effect::Texture::Format::RGBA16F:
-					case Effect::Texture::Format::RGBA32F:
-					case Effect::Texture::Format::DXT3:
-					case Effect::Texture::Format::LATC1:
-					case Effect::Texture::Format::LATC2:
+					case FX::Effect::Texture::Format::R32F:
+					case FX::Effect::Texture::Format::RGBA16:
+					case FX::Effect::Texture::Format::RGBA16F:
+					case FX::Effect::Texture::Format::RGBA32F:
+					case FX::Effect::Texture::Format::DXT3:
+					case FX::Effect::Texture::Format::LATC1:
+					case FX::Effect::Texture::Format::LATC2:
 						LOG(ERROR) << "> Texture " << name << " uses unsupported format ('R32F'/'RGBA16'/'RGBA16F'/'RGBA32F'/'DXT3'/'LATC1'/'LATC2') for image loading.";
 						continue;
 				}
@@ -735,11 +779,11 @@ namespace ReShade
 
 					switch (desc.Format)
 					{
-						case Effect::Texture::Format::DXT1:
+						case FX::Effect::Texture::Format::DXT1:
 							stb_compress_dxt_block(data, data, FALSE, STB_DXT_NORMAL);
 							dataSize = ((desc.Width + 3) >> 2) * ((desc.Height + 3) >> 2) * 8;
 							break;
-						case Effect::Texture::Format::DXT5:
+						case FX::Effect::Texture::Format::DXT5:
 							stb_compress_dxt_block(data, data, TRUE, STB_DXT_NORMAL);
 							dataSize = ((desc.Width + 3) >> 2) * ((desc.Height + 3) >> 2) * 16;
 							break;

@@ -2913,6 +2913,23 @@ BOOL WINAPI wglChoosePixelFormatARB(HDC hdc, const int *piAttribIList, const FLO
 
 	return TRUE;
 }
+EXPORT int WINAPI wglGetPixelFormat(HDC hdc)
+{
+	return ReShade::Hooks::Call(&wglGetPixelFormat)(hdc);
+}
+EXPORT BOOL WINAPI wglSetPixelFormat(HDC hdc, int iPixelFormat, CONST PIXELFORMATDESCRIPTOR *ppfd)
+{
+	LOG(INFO) << "Redirecting '" << "wglSetPixelFormat" << "(" << hdc << ", " << iPixelFormat << ", " << ppfd << ")' ...";
+
+	if (!ReShade::Hooks::Call(&wglSetPixelFormat)(hdc, iPixelFormat, ppfd))
+	{
+		LOG(WARNING) << "> 'wglSetPixelFormat' failed with error code " << (GetLastError() & 0xFFFF) << "!";
+
+		return FALSE;
+	}
+
+	return TRUE;
+}
 EXPORT BOOL WINAPI wglCopyContext(HGLRC hglrcSrc, HGLRC hglrcDst, UINT mask)
 {
 	return ReShade::Hooks::Call(&wglCopyContext)(hglrcSrc, hglrcDst, mask);
@@ -2920,6 +2937,11 @@ EXPORT BOOL WINAPI wglCopyContext(HGLRC hglrcSrc, HGLRC hglrcDst, UINT mask)
 EXPORT HGLRC WINAPI wglCreateContext(HDC hdc)
 {
 	LOG(INFO) << "Redirecting '" << "wglCreateContext" << "(" << hdc << ")' ...";
+
+	/*int format = GetPixelFormat(hdc);
+	PIXELFORMATDESCRIPTOR pfd = { sizeof(PIXELFORMATDESCRIPTOR) };
+	DescribePixelFormat(hdc, format, pfd.nSize, &pfd);
+	SetPixelFormat(hdc, format, &pfd);*/
 
 	const HGLRC hglrc = ReShade::Hooks::Call(&wglCreateContext)(hdc);
 
@@ -3141,10 +3163,6 @@ EXPORT int WINAPI wglGetLayerPaletteEntries(HDC hdc, int iLayerPlane, int iStart
 
 	return 0;
 }
-EXPORT int WINAPI wglGetPixelFormat(HDC hdc)
-{
-	return ReShade::Hooks::Call(&wglGetPixelFormat)(hdc);
-}
 BOOL WINAPI wglGetPixelFormatAttribivARB(HDC hdc, int iPixelFormat, int iLayerPlane, UINT nAttributes, const int *piAttributes, int *piValues)
 {
 	if (iLayerPlane != 0)
@@ -3299,19 +3317,6 @@ EXPORT int WINAPI wglSetLayerPaletteEntries(HDC hdc, int iLayerPlane, int iStart
 	SetLastError(ERROR_NOT_SUPPORTED);
 
 	return 0;
-}
-EXPORT BOOL WINAPI wglSetPixelFormat(HDC hdc, int iPixelFormat, CONST PIXELFORMATDESCRIPTOR *ppfd)
-{
-	LOG(INFO) << "Redirecting '" << "wglSetPixelFormat" << "(" << hdc << ", " << iPixelFormat << ", " << ppfd << ")' ...";
-
-	if (!ReShade::Hooks::Call(&wglSetPixelFormat)(hdc, iPixelFormat, ppfd))
-	{
-		LOG(WARNING) << "> 'wglSetPixelFormat' failed with error code " << (GetLastError() & 0xFFFF) << "!";
-
-		return FALSE;
-	}
-
-	return TRUE;
 }
 EXPORT BOOL WINAPI wglShareLists(HGLRC hglrc1, HGLRC hglrc2)
 {

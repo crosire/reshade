@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Effect.hpp"
+#include "EffectTree.hpp"
 
 #include <memory>
 #include <vector>
@@ -19,7 +20,7 @@ namespace ReShade
 			bool Enabled;
 			int Timeout, Timeleft;
 			int Toggle, ToggleTime;
-			const Effect::Technique *Technique;
+			const FX::Effect::Technique *Technique;
 		};
 
 	public:
@@ -42,7 +43,7 @@ namespace ReShade
 
 		bool LoadEffect();
 		bool CompileEffect();
-		virtual std::unique_ptr<Effect> CompileEffect(const struct EffectTree &ast, std::string &errors) const = 0;
+		virtual std::unique_ptr<FX::Effect> CompileEffect(const FX::Tree &ast, std::string &errors) const = 0;
 		void ProcessEffect();
 
 		void CreateScreenshot(const boost::filesystem::path &path);
@@ -53,7 +54,7 @@ namespace ReShade
 		unsigned int mVendorId, mDeviceId, mRendererId;
 		unsigned long mLastDrawCalls, mLastDrawCallVertices;
 		NVGcontext *mNVG;
-		std::unique_ptr<Effect> mEffect;
+		std::unique_ptr<FX::Effect> mEffect;
 		std::vector<TechniqueInfo> mTechniques;
 		boost::chrono::high_resolution_clock::time_point mStartTime, mLastCreate, mLastPresent;
 		boost::chrono::high_resolution_clock::duration mLastFrameDuration, mLastPostProcessingDuration;
