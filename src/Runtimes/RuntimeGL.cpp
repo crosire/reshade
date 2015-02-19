@@ -32,16 +32,18 @@ namespace ReShade
 			class GLEffectCompiler : private boost::noncopyable
 			{
 			public:
-				GLEffectCompiler(const FX::Tree &ast) : mAST(ast), mEffect(nullptr), mCurrentFunction(nullptr), mCurrentInParameterBlock(false), mCurrentInFunctionBlock(false), mCurrentInForInitialization(0), mCurrentGlobalSize(0), mCurrentGlobalStorageSize(0), mFatal(false)
+				GLEffectCompiler(const FX::Tree &ast) : mAST(ast), mEffect(nullptr), mFatal(false), mCurrentFunction(nullptr), mCurrentGlobalSize(0)
 				{
 				}
 
-				bool Traverse(GLEffect *effect, std::string &errors)
+				bool Compile(GLEffect *effect, std::string &errors)
 				{
 					this->mEffect = effect;
-					this->mErrors.clear();
+
 					this->mFatal = false;
-					this->mCurrentSource.clear();
+					this->mErrors.clear();
+
+					this->mGlobalCode.clear();
 
 					// Global uniform buffer
 					this->mEffect->mUniformBuffers.push_back(0);
@@ -49,19 +51,45 @@ namespace ReShade
 
 					for (auto type : this->mAST.Types)
 					{
-						Visit(type);
+						Visit(this->mGlobalCode, type);
 					}
+
 					for (auto uniform : this->mAST.Uniforms)
 					{
-						Visit(uniform);
+						if (uniform->Type.IsStruct() && uniform->Type.HasQualifier(FX::Nodes::Type::Qualifier::Uniform))
+						{
+							VisitUniformStruct(uniform);
+						}
+						else if (uniform->Type.IsTexture())
+						{
+							VisitTexture(uniform);
+						}
+						else if (uniform->Type.IsSampler())
+						{
+							VisitSampler(uniform);
+						}
+						else if (uniform->Type.HasQualifier(FX::Nodes::Type::Qualifier::Uniform))
+						{
+							VisitUniform(uniform, "", 0, this->mCurrentGlobalSize);
+						}
+						else
+						{
+							Visit(this->mGlobalCode, uniform);
+
+							this->mGlobalCode += ";\n";
+						}
 					}
+
 					for (auto function : this->mAST.Functions)
 					{
-						Visit(function);
+						this->mCurrentFunction = function;
+
+						Visit(this->mFunctions[function].SourceCode, function);
 					}
+
 					for (auto technique : this->mAST.Techniques)
 					{
-						Visit(technique);
+						VisitTechnique(technique);
 					}
 
 					if (this->mCurrentGlobalSize != 0)
@@ -266,12 +294,6 @@ namespace ReShade
 							break;
 					}
 				}
-
-				static inline std::string PrintLocation(const FX::Lexer::Location &location)
-				{
-					return location.Source + "(" + std::to_string(location.Line) + ", " + std::to_string(location.Column) + "): ";
-				}
-
 				static std::string FixName(const std::string &name)
 				{
 					std::string res;
@@ -313,72 +335,101 @@ namespace ReShade
 
 					return FixName(name);
 				}
-				std::string PrintType(const FX::Nodes::Type &type)
+
+			private:
+				void Error(const FX::Lexer::Location &location, const char *message, ...)
+				{
+					char formatted[512];
+
+					va_list args;
+					va_start(args, message);
+					vsprintf_s(formatted, message, args);
+					va_end(args);
+
+					this->mErrors += location.Source + "(" + std::to_string(location.Line) + ", " + std::to_string(location.Column) + "): error: " + formatted + '\n';
+					this->mFatal = true;
+				}
+				void Warning(const FX::Lexer::Location &location, const char *message, ...)
+				{
+					char formatted[512];
+
+					va_list args;
+					va_start(args, message);
+					vsprintf_s(formatted, message, args);
+					va_end(args);
+
+					this->mErrors += location.Source + "(" + std::to_string(location.Line) + ", " + std::to_string(location.Column) + "): warning: " + formatted + '\n';
+				}
+
+				void VisitType(std::string &output, const FX::Nodes::Type &type)
+				{
+					if (type.HasQualifier(FX::Nodes::Type::Qualifier::Linear))
+						output += "smooth ";
+					if (type.HasQualifier(FX::Nodes::Type::Qualifier::NoPerspective))
+						output += "noperspective ";
+					if (type.HasQualifier(FX::Nodes::Type::Qualifier::Centroid))
+						output += "centroid ";
+					if (type.HasQualifier(FX::Nodes::Type::Qualifier::NoInterpolation))
+						output += "flat ";
+					if (type.HasQualifier(FX::Nodes::Type::Qualifier::InOut))
+						output += "inout ";
+					else if (type.HasQualifier(FX::Nodes::Type::Qualifier::In))
+						output += "in ";
+					else if (type.HasQualifier(FX::Nodes::Type::Qualifier::Out))
+						output += "out ";
+					else if (type.HasQualifier(FX::Nodes::Type::Qualifier::Uniform))
+						output += "uniform ";
+					if (type.HasQualifier(FX::Nodes::Type::Qualifier::Const))
+						output += "const ";
+
+					VisitTypeClass(output, type);
+				}
+				void VisitTypeClass(std::string &output, const FX::Nodes::Type &type)
 				{
 					switch (type.BaseClass)
 					{
 						case FX::Nodes::Type::Class::Void:
-							return "void";
+							output += "void";
+							break;
 						case FX::Nodes::Type::Class::Bool:
 							if (type.IsMatrix())
-								return "mat" + std::to_string(type.Rows) + "x" + std::to_string(type.Cols);
+								output += "mat" + std::to_string(type.Rows) + "x" + std::to_string(type.Cols);
 							else if (type.IsVector())
-								return "bvec" + std::to_string(type.Rows);
+								output += "bvec" + std::to_string(type.Rows);
 							else
-								return "bool";
+								output += "bool";
+							break;
 						case FX::Nodes::Type::Class::Int:
 							if (type.IsMatrix())
-								return "mat" + std::to_string(type.Rows) + "x" + std::to_string(type.Cols);
+								output += "mat" + std::to_string(type.Rows) + "x" + std::to_string(type.Cols);
 							else if (type.IsVector())
-								return "ivec" + std::to_string(type.Rows);
+								output += "ivec" + std::to_string(type.Rows);
 							else
-								return "int";
+								output += "int";
+							break;
 						case FX::Nodes::Type::Class::Uint:
 							if (type.IsMatrix())
-								return "mat" + std::to_string(type.Rows) + "x" + std::to_string(type.Cols);
+								output += "mat" + std::to_string(type.Rows) + "x" + std::to_string(type.Cols);
 							else if (type.IsVector())
-								return "uvec" + std::to_string(type.Rows);
+								output += "uvec" + std::to_string(type.Rows);
 							else
-								return "uint";
+								output += "uint";
+							break;
 						case FX::Nodes::Type::Class::Float:
 							if (type.IsMatrix())
-								return "mat" + std::to_string(type.Rows) + "x" + std::to_string(type.Cols);
+								output += "mat" + std::to_string(type.Rows) + "x" + std::to_string(type.Cols);
 							else if (type.IsVector())
-								return "vec" + std::to_string(type.Rows);
+								output += "vec" + std::to_string(type.Rows);
 							else
-								return "float";
+								output += "float";
+							break;
 						case FX::Nodes::Type::Class::Sampler2D:
-							return "sampler2D";
+							output += "sampler2D";
+							break;
 						case FX::Nodes::Type::Class::Struct:
-							return FixName(type.Definition->Name);
+							output += FixName(type.Definition->Name);
+							break;
 					}
-
-					return "";
-				}
-				std::string PrintTypeWithQualifiers(const FX::Nodes::Type &type)
-				{
-					std::string qualifiers;
-
-					if (type.HasQualifier(FX::Nodes::Type::Qualifier::Linear))
-						qualifiers += "smooth ";
-					if (type.HasQualifier(FX::Nodes::Type::Qualifier::NoPerspective))
-						qualifiers += "noperspective ";
-					if (type.HasQualifier(FX::Nodes::Type::Qualifier::Centroid))
-						qualifiers += "centroid ";
-					if (type.HasQualifier(FX::Nodes::Type::Qualifier::NoInterpolation))
-						qualifiers += "flat ";
-					if (type.HasQualifier(FX::Nodes::Type::Qualifier::InOut))
-						qualifiers += "inout ";
-					else if (type.HasQualifier(FX::Nodes::Type::Qualifier::In))
-						qualifiers += "in ";
-					else if (type.HasQualifier(FX::Nodes::Type::Qualifier::Out))
-						qualifiers += "out ";
-					else if (type.HasQualifier(FX::Nodes::Type::Qualifier::Uniform))
-						qualifiers += "uniform ";
-					if (type.HasQualifier(FX::Nodes::Type::Qualifier::Const))
-						qualifiers += "const ";
-
-					return qualifiers + PrintType(type);
 				}
 				std::pair<std::string, std::string> PrintCast(const FX::Nodes::Type &from, const FX::Nodes::Type &to)
 				{
@@ -388,8 +439,9 @@ namespace ReShade
 					{
 						const FX::Nodes::Type type = { to.BaseClass, 0, from.Rows, from.Cols, 0, to.Definition };
 
-						code.first += PrintType(type) + "(";
-						code.second += ")";
+						VisitType(code.first, type);
+						code.first += '(';
+						code.second += ')';
 					}
 
 					if (from.Rows > 0 && from.Rows < to.Rows)
@@ -422,7 +474,7 @@ namespace ReShade
 					return code;
 				}
 
-				void Visit(const FX::Nodes::Statement *node)
+				void Visit(std::string &output, const FX::Nodes::Statement *node)
 				{
 					if (node == nullptr)
 					{
@@ -432,79 +484,79 @@ namespace ReShade
 					switch (node->NodeId)
 					{
 						case FX::Node::Id::Compound:
-							Visit(static_cast<const FX::Nodes::Compound *>(node));
+							Visit(output, static_cast<const FX::Nodes::Compound *>(node));
 							break;
 						case FX::Node::Id::DeclaratorList:
-							Visit(static_cast<const FX::Nodes::DeclaratorList *>(node));
+							Visit(output, static_cast<const FX::Nodes::DeclaratorList *>(node));
 							break;
 						case FX::Node::Id::ExpressionStatement:
-							Visit(static_cast<const FX::Nodes::ExpressionStatement *>(node));
+							Visit(output, static_cast<const FX::Nodes::ExpressionStatement *>(node));
 							break;
 						case FX::Node::Id::If:
-							Visit(static_cast<const FX::Nodes::If *>(node));
+							Visit(output, static_cast<const FX::Nodes::If *>(node));
 							break;
 						case FX::Node::Id::Switch:
-							Visit(static_cast<const FX::Nodes::Switch *>(node));
+							Visit(output, static_cast<const FX::Nodes::Switch *>(node));
 							break;
 						case FX::Node::Id::For:
-							Visit(static_cast<const FX::Nodes::For *>(node));
+							Visit(output, static_cast<const FX::Nodes::For *>(node));
 							break;
 						case FX::Node::Id::While:
-							Visit(static_cast<const FX::Nodes::While *>(node));
+							Visit(output, static_cast<const FX::Nodes::While *>(node));
 							break;
 						case FX::Node::Id::Return:
-							Visit(static_cast<const FX::Nodes::Return *>(node));
+							Visit(output, static_cast<const FX::Nodes::Return *>(node));
 							break;
 						case FX::Node::Id::Jump:
-							Visit(static_cast<const FX::Nodes::Jump *>(node));
+							Visit(output, static_cast<const FX::Nodes::Jump *>(node));
 							break;
 						default:
 							assert(false);
 							break;
 					}
 				}
-				void Visit(const FX::Nodes::Expression *node)
+				void Visit(std::string &output, const FX::Nodes::Expression *node)
 				{
 					switch (node->NodeId)
 					{
 						case FX::Node::Id::LValue:
-							Visit(static_cast<const FX::Nodes::LValue *>(node));
+							Visit(output, static_cast<const FX::Nodes::LValue *>(node));
 							break;
 						case FX::Node::Id::Literal:
-							Visit(static_cast<const FX::Nodes::Literal *>(node));
+							Visit(output, static_cast<const FX::Nodes::Literal *>(node));
 							break;
 						case FX::Node::Id::Sequence:
-							Visit(static_cast<const FX::Nodes::Sequence *>(node));
+							Visit(output, static_cast<const FX::Nodes::Sequence *>(node));
 							break;
 						case FX::Node::Id::Unary:
-							Visit(static_cast<const FX::Nodes::Unary *>(node));
+							Visit(output, static_cast<const FX::Nodes::Unary *>(node));
 							break;
 						case FX::Node::Id::Binary:
-							Visit(static_cast<const FX::Nodes::Binary *>(node));
+							Visit(output, static_cast<const FX::Nodes::Binary *>(node));
 							break;
 						case FX::Node::Id::Intrinsic:
-							Visit(static_cast<const FX::Nodes::Intrinsic *>(node));
+							Visit(output, static_cast<const FX::Nodes::Intrinsic *>(node));
 							break;
 						case FX::Node::Id::Conditional:
-							Visit(static_cast<const FX::Nodes::Conditional *>(node));
+							Visit(output, static_cast<const FX::Nodes::Conditional *>(node));
 							break;
 						case FX::Node::Id::Swizzle:
-							Visit(static_cast<const FX::Nodes::Swizzle *>(node));
+							Visit(output, static_cast<const FX::Nodes::Swizzle *>(node));
 							break;
 						case FX::Node::Id::FieldSelection:
-							Visit(static_cast<const FX::Nodes::FieldSelection *>(node));
+							Visit(output, static_cast<const FX::Nodes::FieldSelection *>(node));
 							break;
 						case FX::Node::Id::Assignment:
-							Visit(static_cast<const FX::Nodes::Assignment *>(node));
+							Visit(output, static_cast<const FX::Nodes::Assignment *>(node));
 							break;
 						case FX::Node::Id::Call:
-							Visit(static_cast<const FX::Nodes::Call *>(node));
+							Visit(output, static_cast<const FX::Nodes::Call *>(node));
 							break;
 						case FX::Node::Id::Constructor:
-							Visit(static_cast<const FX::Nodes::Constructor *>(node));
+							Visit(output, static_cast<const FX::Nodes::Constructor *>(node));
 							break;
 						case FX::Node::Id::InitializerList:
-							Visit(static_cast<const FX::Nodes::InitializerList *>(node));
+							Visit(output, static_cast<const FX::Nodes::InitializerList *>(node));
 							break;
 						default:
 							assert(false);
@@ -512,182 +564,199 @@ namespace ReShade
 					}
 				}
 
-				void Visit(const FX::Nodes::Compound *node)
+				void Visit(std::string &output, const FX::Nodes::Compound *node)
 				{
-					this->mCurrentSource += "{\n";
+					output += "{\n";
 
 					for (auto statement : node->Statements)
 					{
-						Visit(statement);
+						Visit(output, statement);
 					}
 
-					this->mCurrentSource += "}\n";
+					output += "}\n";
 				}
-				void Visit(const FX::Nodes::DeclaratorList *node)
+				void Visit(std::string &output, const FX::Nodes::DeclaratorList *node, bool singlestatement = false)
 				{
+					bool includetype = true;
+
 					for (auto declarator : node->Declarators)
 					{
-						Visit(declarator);
+						Visit(output, declarator, includetype);
 
-						if (this->mCurrentInForInitialization)
+						if (singlestatement)
 						{
-							this->mCurrentSource += ", ";
-							this->mCurrentInForInitialization++;
+							output += ", ";
+
+							includetype = false;
 						}
 						else
 						{
-							this->mCurrentSource += ";\n";
+							output += ";\n";
 						}
 					}
-				}
-				void Visit(const FX::Nodes::ExpressionStatement *node)
-				{
-					Visit(node->Expression);
 
-					this->mCurrentSource += ";\n";
+					if (singlestatement)
+					{
+						output.erase(output.end() - 2, output.end());
+
+						output += ";\n";
+					}
 				}
-				void Visit(const FX::Nodes::If *node)
+				void Visit(std::string &output, const FX::Nodes::ExpressionStatement *node)
+				{
+					Visit(output, node->Expression);
+
+					output += ";\n";
+				}
+				void Visit(std::string &output, const FX::Nodes::If *node)
 				{
 					const FX::Nodes::Type typeto = { FX::Nodes::Type::Class::Bool, 0, 1, 1 };
 					const auto cast = PrintCast(node->Condition->Type, typeto);
 
-					this->mCurrentSource += "if (";
-					this->mCurrentSource += cast.first;
-					Visit(node->Condition);
-					this->mCurrentSource += cast.second;
-					this->mCurrentSource += ")\n";
+					output += "if (" + cast.first;
+
+					Visit(output, node->Condition);
+
+					output += cast.second + ")\n";
 
 					if (node->StatementOnTrue != nullptr)
 					{
-						Visit(node->StatementOnTrue);
+						Visit(output, node->StatementOnTrue);
 					}
 					else
 					{
-						this->mCurrentSource += "\t;";
+						output += "\t;";
 					}
 
 					if (node->StatementOnFalse != nullptr)
 					{
-						this->mCurrentSource += "else\n";
+						output += "else\n";
 
-						Visit(node->StatementOnFalse);
+						Visit(output, node->StatementOnFalse);
 					}
 				}
-				void Visit(const FX::Nodes::Switch *node)
+				void Visit(std::string &output, const FX::Nodes::Switch *node)
 				{
-					this->mCurrentSource += "switch (";
-					Visit(node->Test);
-					this->mCurrentSource += ")\n{\n";
+					output += "switch (";
 
-					for (auto cases : node->Cases)
+					Visit(output, node->Test);
+
+					output += ")\n{\n";
+
+					for (auto currcase : node->Cases)
 					{
-						Visit(cases);
+						Visit(output, currcase);
 					}
 
-					this->mCurrentSource += "}\n";
+					output += "}\n";
 				}
-				void Visit(const FX::Nodes::Case *node)
+				void Visit(std::string &output, const FX::Nodes::Case *node)
 				{
 					for (auto label : node->Labels)
 					{
 						if (label == nullptr)
 						{
-							this->mCurrentSource += "default";
+							output += "default";
 						}
 						else
 						{
-							this->mCurrentSource += "case ";
+							output += "case ";
 
-							Visit(label);
+							Visit(output, label);
 						}
 
-						this->mCurrentSource += ":\n";
+						output += ":\n";
 					}
 
-					Visit(node->Statements);
+					Visit(output, node->Statements);
 				}
-				void Visit(const FX::Nodes::For *node)
+				void Visit(std::string &output, const FX::Nodes::For *node)
 				{
-					this->mCurrentSource += "for (";
+					output += "for (";
 
 					if (node->Initialization != nullptr)
 					{
-						this->mCurrentInForInitialization = true;
-
-						Visit(node->Initialization);
-
-						this->mCurrentInForInitialization = false;
-
-						this->mCurrentSource.pop_back();
-						this->mCurrentSource.pop_back();
-					}
-
-					this->mCurrentSource += "; ";
-
-					if (node->Condition != nullptr)
-					{
-						Visit(node->Condition);
-					}
-
-					this->mCurrentSource += "; ";
-
-					if (node->Increment != nullptr)
-					{
-						Visit(node->Increment);
-					}
-
-					this->mCurrentSource += ")\n";
-
-					if (node->Statements != nullptr)
-					{
-						Visit(node->Statements);
-					}
-					else
-					{
-						this->mCurrentSource += "\t;";
-					}
-				}
-				void Visit(const FX::Nodes::While *node)
-				{
-					if (node->DoWhile)
-					{
-						this->mCurrentSource += "do\n{\n";
-
-						if (node->Statements != nullptr)
+						if (node->Initialization->NodeId == FX::Node::Id::DeclaratorList)
 						{
-							Visit(node->Statements);
-						}
+							Visit(output, static_cast<FX::Nodes::DeclaratorList *>(node->Initialization), true);
 
-						this->mCurrentSource += "}\n";
-						this->mCurrentSource += "while (";
-						Visit(node->Condition);
-						this->mCurrentSource += ");\n";
-					}
-					else
-					{
-						this->mCurrentSource += "while (";
-						Visit(node->Condition);
-						this->mCurrentSource += ")\n";
-
-						if (node->Statements != nullptr)
-						{
-							Visit(node->Statements);
+							output.erase(output.end() - 2, output.end());
 						}
 						else
 						{
-							this->mCurrentSource += "\t;";
+							Visit(output, static_cast<FX::Nodes::ExpressionStatement *>(node->Initialization)->Expression);
 						}
 					}
-				}
-				void Visit(const FX::Nodes::Return *node)
-				{
-					if (node->Discard)
+
+					output += "; ";
+
+					if (node->Condition != nullptr)
 					{
-						this->mCurrentSource += "discard";
+						Visit(output, node->Condition);
+					}
+
+					output += "; ";
+
+					if (node->Increment != nullptr)
+					{
+						Visit(output, node->Increment);
+					}
+
+					output += ")\n";
+
+					if (node->Statements != nullptr)
+					{
+						Visit(output, node->Statements);
 					}
 					else
 					{
-						this->mCurrentSource += "return";
+						output += "\t;";
+					}
+				}
+				void Visit(std::string &output, const FX::Nodes::While *node)
+				{
+					if (node->DoWhile)
+					{
+						output += "do\n{\n";
+
+						if (node->Statements != nullptr)
+						{
+							Visit(output, node->Statements);
+						}
+
+						output += "}\nwhile (";
+
+						Visit(output, node->Condition);
+
+						output += ");\n";
+					}
+					else
+					{
+						output += "while (";
+
+						Visit(output, node->Condition);
+
+						output += ")\n";
+
+						if (node->Statements != nullptr)
+						{
+							Visit(output, node->Statements);
+						}
+						else
+						{
+							output += "\t;";
+						}
+					}
+				}
+				void Visit(std::string &output, const FX::Nodes::Return *node)
+				{
+					if (node->Discard)
+					{
+						output += "discard";
+					}
+					else
+					{
+						output += "return";
 
 						if (node->Value != nullptr)
 						{
@@ -695,40 +764,42 @@ namespace ReShade
 
 							const auto cast = PrintCast(node->Value->Type, this->mCurrentFunction->ReturnType);
 
-							this->mCurrentSource += ' ';
-							this->mCurrentSource += cast.first;
-							Visit(node->Value);
-							this->mCurrentSource += cast.second;
+							output += ' ' + cast.first;
+							
+							Visit(output, node->Value);
+							
+							output += cast.second;
 						}
 					}
 
-					this->mCurrentSource += ";\n";
+					output += ";\n";
 				}
-				void Visit(const FX::Nodes::Jump *node)
+				void Visit(std::string &output, const FX::Nodes::Jump *node)
 				{
 					switch (node->Mode)
 					{
 						case FX::Nodes::Jump::Break:
-							this->mCurrentSource += "break";
+							output += "break";
 							break;
 						case FX::Nodes::Jump::Continue:
-							this->mCurrentSource += "continue";
+							output += "continue";
 							break;
 					}
 
-					this->mCurrentSource += ";\n";
+					output += ";\n";
 				}
 
-				void Visit(const FX::Nodes::LValue *node)
+				void Visit(std::string &output, const FX::Nodes::LValue *node)
 				{
-					this->mCurrentSource += FixName(node->Reference->Name);
+					output += FixName(node->Reference->Name);
 				}
-				void Visit(const FX::Nodes::Literal *node)
+				void Visit(std::string &output, const FX::Nodes::Literal *node)
 				{
 					if (!node->Type.IsScalar())
 					{
-						this->mCurrentSource += PrintType(node->Type);
-						this->mCurrentSource += '(';
+						VisitTypeClass(output, node->Type);
+
+						output += '(';
 					}
 
 					for (unsigned int i = 0; i < node->Type.Rows * node->Type.Cols; ++i)
@@ -736,43 +807,41 @@ namespace ReShade
 						switch (node->Type.BaseClass)
 						{
 							case FX::Nodes::Type::Class::Bool:
-								this->mCurrentSource += node->Value.Int[i] ? "true" : "false";
+								output += node->Value.Int[i] ? "true" : "false";
 								break;
 							case FX::Nodes::Type::Class::Int:
-								this->mCurrentSource += std::to_string(node->Value.Int[i]);
+								output += std::to_string(node->Value.Int[i]);
 								break;
 							case FX::Nodes::Type::Class::Uint:
-								this->mCurrentSource += std::to_string(node->Value.Uint[i]) + "u";
+								output += std::to_string(node->Value.Uint[i]) + "u";
 								break;
 							case FX::Nodes::Type::Class::Float:
-								this->mCurrentSource += std::to_string(node->Value.Float[i]);
+								output += std::to_string(node->Value.Float[i]);
 								break;
 						}
 
-						this->mCurrentSource += ", ";
+						output += ", ";
 					}
 
-					this->mCurrentSource.pop_back();
-					this->mCurrentSource.pop_back();
+					output.erase(output.end() - 2, output.end());
 
 					if (!node->Type.IsScalar())
 					{
-						this->mCurrentSource += ')';
+						output += ')';
 					}
 				}
-				void Visit(const FX::Nodes::Sequence *node)
+				void Visit(std::string &output, const FX::Nodes::Sequence *node)
 				{
 					for (auto expression : node->Expressions)
 					{
-						Visit(expression);
+						Visit(output, expression);
 
-						this->mCurrentSource += ", ";
+						output += ", ";
 					}
 
-					this->mCurrentSource.pop_back();
-					this->mCurrentSource.pop_back();
+					output.erase(output.end() - 2, output.end());
 				}
-				void Visit(const FX::Nodes::Unary *node)
+				void Visit(std::string &output, const FX::Nodes::Unary *node)
 				{
 					std::string part1, part2;
 
@@ -811,16 +880,17 @@ namespace ReShade
 							part2 = "--";
 							break;
 						case FX::Nodes::Unary::Op::Cast:
-							part1 = PrintType(node->Type) + '(';
+							VisitTypeClass(part1, node->Type);
+							part1 += '(';
 							part2 = ')';
 							break;
 					}
 
-					this->mCurrentSource += part1;
-					Visit(node->Operand);
-					this->mCurrentSource += part2;
+					output += part1;
+					Visit(output, node->Operand);
+					output += part2;
 				}
-				void Visit(const FX::Nodes::Binary *node)
+				void Visit(std::string &output, const FX::Nodes::Binary *node)
 				{
 					const auto type1 = node->Operands[0]->Type;
 					const auto type2 = node->Operands[1]->Type;				
@@ -1003,13 +1073,13 @@ namespace ReShade
 							break;
 					}
 
-					this->mCurrentSource += part1;
-					Visit(node->Operands[0]);
-					this->mCurrentSource += part2;
-					Visit(node->Operands[1]);
-					this->mCurrentSource += part3;
+					output += part1;
+					Visit(output, node->Operands[0]);
+					output += part2;
+					Visit(output, node->Operands[1]);
+					output += part3;
 				}
-				void Visit(const FX::Nodes::Intrinsic *node)
+				void Visit(std::string &output, const FX::Nodes::Intrinsic *node)
 				{
 					FX::Nodes::Type type1, type2, type3, type12;
 					std::pair<std::string, std::string> cast1, cast2, cast3, cast121, cast122;
@@ -1076,7 +1146,9 @@ namespace ReShade
 							if (type1.BaseClass != FX::Nodes::Type::Class::Int)
 							{
 								type1.BaseClass = FX::Nodes::Type::Class::Int;
-								part1 += PrintType(type1) + '(';
+
+								VisitTypeClass(part1, type1);
+								part1 += '(';
 								part2 = ')';
 							}
 
@@ -1088,7 +1160,9 @@ namespace ReShade
 							if (type1.BaseClass != FX::Nodes::Type::Class::Uint)
 							{
 								type1.BaseClass = FX::Nodes::Type::Class::Uint;
-								part1 += PrintType(type1) + '(';
+								
+								VisitTypeClass(part1, type1);
+								part1 += '(';
 								part2 = ')';
 							}
 
@@ -1104,7 +1178,9 @@ namespace ReShade
 							if (type1.BaseClass != FX::Nodes::Type::Class::Float)
 							{
 								type1.BaseClass = FX::Nodes::Type::Class::Float;
-								part1 += PrintType(type1) + '(';
+								
+								VisitTypeClass(part1, type1);
+								part1 += '(';
 								part2 = ')';
 							}
 
@@ -1116,7 +1192,9 @@ namespace ReShade
 							if (type1.BaseClass != FX::Nodes::Type::Class::Float)
 							{
 								type1.BaseClass = FX::Nodes::Type::Class::Float;
-								part1 += PrintType(type1) + '(';
+								
+								VisitTypeClass(part1, type1);
+								part1 += '(';
 								part2 = ')';
 							}
 
@@ -1172,7 +1250,9 @@ namespace ReShade
 							if (!type1.IsFloatingPoint())
 							{
 								type1.BaseClass = FX::Nodes::Type::Class::Float;
-								part1 += PrintType(type1) + '(';
+								
+								VisitTypeClass(part1, type1);
+								part1 += '(';
 								part2 = ')';
 							}
 
@@ -1230,7 +1310,9 @@ namespace ReShade
 							if (!type1.IsFloatingPoint())
 							{
 								type1.BaseClass = FX::Nodes::Type::Class::Float;
-								part1 += PrintType(type1) + '(';
+								
+								VisitTypeClass(part1, type1);
+								part1 += '(';
 								part2 = ')';
 							}
 
@@ -1248,7 +1330,9 @@ namespace ReShade
 							break;
 						case FX::Nodes::Intrinsic::Op::Log10:
 							part1 = "(log2(" + cast1.first;
-							part2 = cast1.second + ") / " + PrintType(node->Type) + "(2.302585093))";
+							part2 = cast1.second + ") / ";
+							VisitTypeClass(part2, node->Type);
+							part2 += "(2.302585093))";
 							break;
 						case FX::Nodes::Intrinsic::Op::Log2:
 							part1 = "log2(" + cast1.first;
@@ -1286,7 +1370,9 @@ namespace ReShade
 							if (!type1.IsFloatingPoint())
 							{
 								type1.BaseClass = FX::Nodes::Type::Class::Float;
-								part1 += PrintType(type1) + '(';
+								
+								VisitTypeClass(part1, type1);
+								part1 += '(';
 								part2 = ')';
 							}
 
@@ -1302,7 +1388,9 @@ namespace ReShade
 							part2 = cast1.second + ')';
 							break;
 						case FX::Nodes::Intrinsic::Op::Rcp:
-							part1 = '(' + PrintType(node->Type) + "(1.0) / ";
+							part1 = '(';
+							VisitTypeClass(part1, node->Type);
+							part1 += "(1.0) / ";
 							part2 = ')';
 							break;
 						case FX::Nodes::Intrinsic::Op::Reflect:
@@ -1342,7 +1430,9 @@ namespace ReShade
 							if (type1.BaseClass != FX::Nodes::Type::Class::Float)
 							{
 								type1.BaseClass = FX::Nodes::Type::Class::Float;
-								part1 += PrintType(type1) + '(';
+								
+								VisitTypeClass(part1, type1);
+								part1 += '(';
 								part2 = ')';
 							}
 
@@ -1477,7 +1567,9 @@ namespace ReShade
 							if (!type1.IsFloatingPoint())
 							{
 								type1.BaseClass = FX::Nodes::Type::Class::Float;
-								part1 += PrintType(type1) + '(';
+								
+								VisitTypeClass(part1, type1);
+								part1 += '(';
 								part2 = ')';
 							}
 
@@ -1489,250 +1581,341 @@ namespace ReShade
 							break;
 					}
 
-					this->mCurrentSource += part1;
+					output += part1;
 
 					if (node->Arguments[0] != nullptr)
 					{
-						Visit(node->Arguments[0]);
+						Visit(output, node->Arguments[0]);
 					}
 
-					this->mCurrentSource += part2;
+					output += part2;
 
 					if (node->Arguments[1] != nullptr)
 					{
-						Visit(node->Arguments[1]);
+						Visit(output, node->Arguments[1]);
 					}
 
-					this->mCurrentSource += part3;
+					output += part3;
 
 					if (node->Arguments[2] != nullptr)
 					{
-						Visit(node->Arguments[2]);
+						Visit(output, node->Arguments[2]);
 					}
 
-					this->mCurrentSource += part4;
+					output += part4;
 				}
-				void Visit(const FX::Nodes::Conditional *node)
+				void Visit(std::string &output, const FX::Nodes::Conditional *node)
 				{
-					this->mCurrentSource += '(';
+					output += '(';
 
 					if (node->Condition->Type.IsVector())
 					{
-						this->mCurrentSource += "all(bvec" + std::to_string(node->Condition->Type.Rows) + '(';
-						Visit(node->Condition);
-						this->mCurrentSource += "))";
+						output += "all(bvec" + std::to_string(node->Condition->Type.Rows) + '(';
+						
+						Visit(output, node->Condition);
+						
+						output += "))";
 					}
 					else
 					{
-						this->mCurrentSource += "bool(";
-						Visit(node->Condition);
-						this->mCurrentSource += ')';
+						output += "bool(";
+						
+						Visit(output, node->Condition);
+						
+						output += ')';
 					}
 
 					const std::pair<std::string, std::string> cast1 = PrintCast(node->ExpressionOnTrue->Type, node->Type);
 					const std::pair<std::string, std::string> cast2 = PrintCast(node->ExpressionOnFalse->Type, node->Type);
 
-					this->mCurrentSource += " ? " + cast1.first;
-					Visit(node->ExpressionOnTrue);
-					this->mCurrentSource += cast1.second + " : " + cast2.first;
-					Visit(node->ExpressionOnFalse);
-					this->mCurrentSource += cast2.second + ')';
+					output += " ? " + cast1.first;
+					Visit(output, node->ExpressionOnTrue);
+					output += cast1.second + " : " + cast2.first;
+					Visit(output, node->ExpressionOnFalse);
+					output += cast2.second + ')';
 				}
-				void Visit(const FX::Nodes::Swizzle *node)
+				void Visit(std::string &output, const FX::Nodes::Swizzle *node)
 				{
-					Visit(node->Operand);
+					Visit(output, node->Operand);
 
 					if (node->Operand->Type.IsMatrix())
 					{
 						if (node->Mask[1] >= 0)
 						{
-							this->mErrors += PrintLocation(node->Location) + "error: multiple component matrix swizzeling is not supported in OpenGL!\n";
-							this->mFatal = true;
+							Error(node->Location, "multiple component matrix swizzeling is not supported in OpenGL");
 							return;
 						}
 
 						const unsigned int row = node->Mask[0] % 4;
 						const unsigned int col = (node->Mask[0] - row) / 4;
 
-						this->mCurrentSource += '[' + std::to_string(row) + "][" + std::to_string(col) + ']';
+						output += '[' + std::to_string(row) + "][" + std::to_string(col) + ']';
 					}
 					else
 					{
-						const char swizzle[4] =
-						{
-							'x', 'y', 'z', 'w'
-						};
+						const char swizzle[4] = { 'x', 'y', 'z', 'w' };
 
-						this->mCurrentSource += '.';
+						output += '.';
 
 						for (int i = 0; i < 4 && node->Mask[i] >= 0; ++i)
 						{
-							this->mCurrentSource += swizzle[node->Mask[i]];
+							output += swizzle[node->Mask[i]];
 						}
 					}
 				}
-				void Visit(const FX::Nodes::FieldSelection *node)
+				void Visit(std::string &output, const FX::Nodes::FieldSelection *node)
 				{
-					this->mCurrentSource += '(';
+					output += '(';
 
-					Visit(node->Operand);
+					Visit(output, node->Operand);
 
 					if (node->Field->Type.HasQualifier(FX::Nodes::Type::Uniform))
 					{
-						this->mCurrentSource += '_';
+						output += '_';
 					}
 					else
 					{
-						this->mCurrentSource += '.';
+						output += '.';
 					}
 
-					this->mCurrentSource += node->Field->Name;
-
-					this->mCurrentSource += ')';
+					output += node->Field->Name + ')';
 				}
-				void Visit(const FX::Nodes::Assignment *node)
+				void Visit(std::string &output, const FX::Nodes::Assignment *node)
 				{
-					this->mCurrentSource += '(';
-					Visit(node->Left);
-					this->mCurrentSource += ' ';
+					output += '(';
+					
+					Visit(output, node->Left);
+					
+					output += ' ';
 
 					switch (node->Operator)
 					{
 						case FX::Nodes::Assignment::Op::None:
-							this->mCurrentSource += '=';
+							output += '=';
 							break;
 						case FX::Nodes::Assignment::Op::Add:
-							this->mCurrentSource += "+=";
+							output += "+=";
 							break;
 						case FX::Nodes::Assignment::Op::Subtract:
-							this->mCurrentSource += "-=";
+							output += "-=";
 							break;
 						case FX::Nodes::Assignment::Op::Multiply:
-							this->mCurrentSource += "*=";
+							output += "*=";
 							break;
 						case FX::Nodes::Assignment::Op::Divide:
-							this->mCurrentSource += "/=";
+							output += "/=";
 							break;
 						case FX::Nodes::Assignment::Op::Modulo:
-							this->mCurrentSource += "%=";
+							output += "%=";
 							break;
 						case FX::Nodes::Assignment::Op::LeftShift:
-							this->mCurrentSource += "<<=";
+							output += "<<=";
 							break;
 						case FX::Nodes::Assignment::Op::RightShift:
-							this->mCurrentSource += ">>=";
+							output += ">>=";
 							break;
 						case FX::Nodes::Assignment::Op::BitwiseAnd:
-							this->mCurrentSource += "&=";
+							output += "&=";
 							break;
 						case FX::Nodes::Assignment::Op::BitwiseOr:
-							this->mCurrentSource += "|=";
+							output += "|=";
 							break;
 						case FX::Nodes::Assignment::Op::BitwiseXor:
-							this->mCurrentSource += "^=";
+							output += "^=";
 							break;
 					}
 
 					const std::pair<std::string, std::string> cast = PrintCast(node->Right->Type, node->Left->Type);
 
-					this->mCurrentSource += ' ';
-					this->mCurrentSource += cast.first;
-					Visit(node->Right);
-					this->mCurrentSource += cast.second;
-					this->mCurrentSource += ')';
-				}
-				void Visit(const FX::Nodes::Call *node)
-				{
-					this->mCurrentSource += FixName(node->CalleeName);
-					this->mCurrentSource += '(';
-
-					for (std::size_t i = 0, count = node->Arguments.size(); i < count; ++i)
-					{
-						const auto argument = node->Arguments[i];
-						const auto parameter = node->Callee->Parameters[i];
+					output += ' ' + cast.first;
 					
-						const std::pair<std::string , std::string> cast = PrintCast(argument->Type, parameter->Type);
-
-						this->mCurrentSource += cast.first;
-						Visit(argument);
-						this->mCurrentSource += cast.second;
-
-						this->mCurrentSource += ", ";
-					}
+					Visit(output, node->Right);
+					
+					output += cast.second + ')';
+				}
+				void Visit(std::string &output, const FX::Nodes::Call *node)
+				{
+					output += FixName(node->CalleeName) + '(';
 
 					if (!node->Arguments.empty())
 					{
-						this->mCurrentSource.pop_back();
-						this->mCurrentSource.pop_back();
+						for (std::size_t i = 0, count = node->Arguments.size(); i < count; ++i)
+						{
+							const auto argument = node->Arguments[i];
+							const auto parameter = node->Callee->Parameters[i];
+
+							const std::pair<std::string , std::string> cast = PrintCast(argument->Type, parameter->Type);
+
+							output += cast.first;
+
+							Visit(output, argument);
+
+							output += cast.second + ", ";
+						}
+
+						output.erase(output.end() - 2, output.end());
 					}
 
-					this->mCurrentSource += ')';
+					output += ')';
+
+					auto &info = this->mFunctions.at(this->mCurrentFunction);
+					auto &infoCallee = this->mFunctions.at(node->Callee);
+					
+					for (auto dependency : infoCallee.FunctionDependencies)
+					{
+						if (std::find(info.FunctionDependencies.begin(), info.FunctionDependencies.end(), dependency) == info.FunctionDependencies.end())
+						{
+							info.FunctionDependencies.push_back(dependency);
+						}
+					}
+
+					if (std::find(info.FunctionDependencies.begin(), info.FunctionDependencies.end(), node->Callee) == info.FunctionDependencies.end())
+					{
+						info.FunctionDependencies.push_back(node->Callee);
+					}
 				}
-				void Visit(const FX::Nodes::Constructor *node)
+				void Visit(std::string &output, const FX::Nodes::Constructor *node)
 				{
 					if (node->Type.IsMatrix())
 					{
-						this->mCurrentSource += "transpose(";
+						output += "transpose(";
 					}
 
-					this->mCurrentSource += PrintType(node->Type);
-					this->mCurrentSource += '(';
-
-					for (auto argument : node->Arguments)
-					{
-						Visit(argument);
-
-						this->mCurrentSource += ", ";
-					}
+					VisitTypeClass(output, node->Type);
+					output += '(';
 
 					if (!node->Arguments.empty())
 					{
-						this->mCurrentSource.pop_back();
-						this->mCurrentSource.pop_back();
+						for (auto argument : node->Arguments)
+						{
+							Visit(output, argument);
+
+							output += ", ";
+						}
+
+						output.erase(output.end() - 2, output.end());
 					}
 
-					this->mCurrentSource += ')';
+					output += ')';
 
 					if (node->Type.IsMatrix())
 					{
-						this->mCurrentSource += ')';
+						output += ')';
 					}
 				}
-				void Visit(const FX::Nodes::InitializerList *node, const FX::Nodes::Type &type)
+				void Visit(std::string &output, const FX::Nodes::InitializerList *node, const FX::Nodes::Type &type)
 				{
-					this->mCurrentSource += PrintType(type);
-					this->mCurrentSource += "[]";
-					this->mCurrentSource += '(';
-
-					for (auto expression : node->Values)
-					{
-						if (expression->NodeId == FX::Node::Id::InitializerList)
-						{
-							Visit(static_cast<FX::Nodes::InitializerList *>(expression), node->Type);
-						}
-						else
-						{
-							const auto cast = PrintCast(expression->Type, type);
-
-							this->mCurrentSource += cast.first;
-							Visit(expression);
-							this->mCurrentSource += cast.second;
-						}
-
-						this->mCurrentSource += ", ";
-					}
+					VisitTypeClass(output, type);
+					
+					output += "[](";
 
 					if (!node->Values.empty())
 					{
-						this->mCurrentSource.pop_back();
-						this->mCurrentSource.pop_back();
+						for (auto expression : node->Values)
+						{
+							if (expression->NodeId == FX::Node::Id::InitializerList)
+							{
+								Visit(output, static_cast<FX::Nodes::InitializerList *>(expression), node->Type);
+							}
+							else
+							{
+								const auto cast = PrintCast(expression->Type, type);
+
+								output += cast.first;
+							
+								Visit(output, expression);
+							
+								output += cast.second;
+							}
+
+							output += ", ";
+						}
+
+						output.erase(output.end() - 2, output.end());
 					}
 
-					this->mCurrentSource += ')';
+					output += ')';
+				}
+
+				void Visit(std::string &output, const FX::Nodes::Struct *node)
+				{
+					output += "struct " + FixName(node->Name) + "\n{\n";
+
+					if (!node->Fields.empty())
+					{
+						for (auto field : node->Fields)
+						{
+							Visit(output, field);
+
+							output += ";\n";
+						}
+					}
+					else
+					{
+						output += "float _dummy;\n";
+					}
+
+					output += "};\n";
+				}
+				void Visit(std::string &output, const FX::Nodes::Variable *node, bool includetype = true)
+				{
+					if (includetype)
+					{
+						VisitType(output, node->Type);
+					}
+
+					output += ' ' + FixName(node->Name);
+
+					if (node->Type.IsArray())
+					{
+						output += '[' + ((node->Type.ArrayLength >= 1) ? std::to_string(node->Type.ArrayLength) : "") + ']';
+					}
+
+					if (node->Initializer != nullptr)
+					{
+						output += " = ";
+
+						if (node->Initializer->NodeId == FX::Node::Id::InitializerList)
+						{
+							Visit(output, static_cast<FX::Nodes::InitializerList *>(node->Initializer), node->Type);
+						}
+						else
+						{
+							const auto cast = PrintCast(node->Initializer->Type, node->Type);
+
+							output += cast.first;
+							
+							Visit(output, node->Initializer);
+							
+							output += cast.second;
+						}
+					}
+				}
+				void Visit(std::string &output, const FX::Nodes::Function *node)
+				{
+					VisitTypeClass(output, node->ReturnType);
+
+					output += ' ' + FixName(node->Name) + '(';
+
+					if (!node->Parameters.empty())
+					{
+						for (auto parameter : node->Parameters)
+						{
+							Visit(output, parameter);
+
+							output += ", ";
+						}
+
+						output.erase(output.end() - 2, output.end());
+					}
+
+					output += ")\n";
+
+					Visit(output, node->Definition);
 				}
 
 				template <typename T>
-				void Visit(const std::vector<FX::Nodes::Annotation> &annotations, T &object)
+				void VisitAnnotation(const std::vector<FX::Nodes::Annotation> &annotations, T &object)
 				{
 					for (auto &annotation : annotations)
 					{
@@ -1758,124 +1941,33 @@ namespace ReShade
 						object.AddAnnotation(annotation.Name, data);
 					}
 				}
-				void Visit(const FX::Nodes::Struct *node)
-				{
-					this->mCurrentSource += "struct ";
-					this->mCurrentSource += FixName(node->Name);
-					this->mCurrentSource += "\n{\n";
-
-					if (!node->Fields.empty())
-					{
-						for (auto field : node->Fields)
-						{
-							Visit(field);
-						}
-					}
-					else
-					{
-						this->mCurrentSource += "float _dummy;\n";
-					}
-
-					this->mCurrentSource += "};\n";
-				}
-				void Visit(const FX::Nodes::Variable *node)
-				{
-					if (!(this->mCurrentInParameterBlock || this->mCurrentInFunctionBlock))
-					{
-						if (node->Type.IsStruct() && node->Type.HasQualifier(FX::Nodes::Type::Qualifier::Uniform))
-						{
-							VisitUniformBuffer(node);
-							return;
-						}
-						else if (node->Type.IsTexture())
-						{
-							VisitTexture(node);
-							return;
-						}
-						else if (node->Type.IsSampler())
-						{
-							VisitSampler(node);
-							return;
-						}
-						else if (node->Type.HasQualifier(FX::Nodes::Type::Qualifier::Uniform))
-						{
-							VisitUniform(node);
-							return;
-						}
-					}
-
-					if (this->mCurrentInForInitialization <= 1)
-					{
-						this->mCurrentSource += PrintTypeWithQualifiers(node->Type);
-					}
-
-					if (!node->Name.empty())
-					{
-						this->mCurrentSource += ' ';
-
-						if (!this->mCurrentBlockName.empty())
-						{
-							this->mCurrentSource += this->mCurrentBlockName + '_';
-						}
-				
-						this->mCurrentSource += FixName(node->Name);
-					}
-
-					if (node->Type.IsArray())
-					{
-						this->mCurrentSource += '[' + ((node->Type.ArrayLength >= 1) ? std::to_string(node->Type.ArrayLength) : "") + ']';
-					}
-
-					if (node->Initializer != nullptr)
-					{
-						this->mCurrentSource += " = ";
-
-						if (node->Initializer->NodeId == FX::Node::Id::InitializerList)
-						{
-							Visit(static_cast<FX::Nodes::InitializerList *>(node->Initializer), node->Type);
-						}
-						else
-						{
-							const auto cast = PrintCast(node->Initializer->Type, node->Type);
-
-							this->mCurrentSource += cast.first;
-							Visit(node->Initializer);
-							this->mCurrentSource += cast.second;
-						}
-					}
-
-					if (!(this->mCurrentInParameterBlock || this->mCurrentInFunctionBlock))
-					{
-						this->mCurrentSource += ";\n";
-					}
-				}
 				void VisitTexture(const FX::Nodes::Variable *node)
 				{
-					GLTexture::Description objdesc;
-					const GLuint width = objdesc.Width = node->Properties.Width;
-					const GLuint height = objdesc.Height = node->Properties.Height;
-					GLuint levels = objdesc.Levels = node->Properties.MipLevels;
+					GLTexture::Description desc;
+					desc.Width = node->Properties.Width;
+					desc.Height = node->Properties.Height;
+					desc.Levels = node->Properties.MipLevels;
 
 					GLenum internalformat = GL_RGBA8, internalformatSRGB = GL_SRGB8_ALPHA8;
-					LiteralToFormat(node->Properties.Format, internalformat, internalformatSRGB, objdesc.Format);
+					LiteralToFormat(node->Properties.Format, internalformat, internalformatSRGB, desc.Format);
 
-					if (levels == 0)
+					if (desc.Levels == 0)
 					{
-						this->mErrors += PrintLocation(node->Location) + "warning: a texture cannot have 0 miplevels, changed it to 1.\n";
+						Warning(node->Location, "a texture cannot have 0 miplevels, changed it to 1");
 
-						levels = 1;
+						desc.Levels = 1;
 					}
 
-					GLTexture *obj = new GLTexture(this->mEffect, objdesc);
+					GLTexture *const obj = new GLTexture(this->mEffect, desc);
 
-					Visit(node->Annotations, *obj);
+					VisitAnnotation(node->Annotations, *obj);
 
 					if (node->Semantic == "COLOR" || node->Semantic == "SV_TARGET")
 					{
 						obj->mSource = GLTexture::Source::BackBuffer;
 						obj->ChangeSource(this->mEffect->mRuntime->mBackBufferTexture[0], this->mEffect->mRuntime->mBackBufferTexture[1]);
 					}
-					if (node->Semantic == "DEPTH" || node->Semantic == "SV_DEPTH")
+					else if (node->Semantic == "DEPTH" || node->Semantic == "SV_DEPTH")
 					{
 						obj->mSource = GLTexture::Source::DepthStencil;
 						obj->ChangeSource(this->mEffect->mRuntime->mDepthTexture, 0);
@@ -1883,9 +1975,9 @@ namespace ReShade
 
 					if (obj->mSource != GLTexture::Source::Memory)
 					{
-						if (width != 1 || height != 1 || levels != 1 || internalformat != GL_RGBA8)
+						if (desc.Width != 1 || desc.Height != 1 || desc.Levels != 1 || internalformat != GL_RGBA8)
 						{
-							this->mErrors += PrintLocation(node->Location) + "warning: texture property on backbuffer textures are ignored.\n";
+							Warning(node->Location, "texture property on backbuffer textures are ignored");
 						}
 					}
 					else
@@ -1897,9 +1989,11 @@ namespace ReShade
 						GLCHECK(glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &previousFBO));
 
 						GLCHECK(glBindTexture(GL_TEXTURE_2D, obj->mID[0]));
-						GLCHECK(glTexStorage2D(GL_TEXTURE_2D, levels, internalformat, width, height));
-						GLCHECK(glTextureView(obj->mID[1], GL_TEXTURE_2D, obj->mID[0], internalformatSRGB, 0, levels, 0, 1));
+						GLCHECK(glTexStorage2D(GL_TEXTURE_2D, desc.Levels, internalformat, desc.Width, desc.Height));
+						GLCHECK(glTextureView(obj->mID[1], GL_TEXTURE_2D, obj->mID[0], internalformatSRGB, 0, desc.Levels, 0, 1));
+						GLCHECK(glBindTexture(GL_TEXTURE_2D, previous));
 
+						// Clear texture to black
 						GLCHECK(glBindFramebuffer(GL_DRAW_FRAMEBUFFER, this->mEffect->mRuntime->mBlitFBO));
 						GLCHECK(glFramebufferTexture(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, obj->mID[0], 0));
 						GLCHECK(glDrawBuffer(GL_COLOR_ATTACHMENT1));
@@ -1907,8 +2001,6 @@ namespace ReShade
 						GLCHECK(glClearBufferuiv(GL_COLOR, 0, clearColor));
 						GLCHECK(glFramebufferTexture(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, 0, 0));
 						GLCHECK(glBindFramebuffer(GL_DRAW_FRAMEBUFFER, previousFBO));
-
-						GLCHECK(glBindTexture(GL_TEXTURE_2D, previous));
 					}
 
 					this->mEffect->AddTexture(node->Name, obj);
@@ -1917,23 +2009,21 @@ namespace ReShade
 				{
 					if (node->Properties.Texture == nullptr)
 					{
-						this->mErrors += PrintLocation(node->Location) + "error: sampler '" + node->Name + "' is missing required 'Texture' required.\n";
+						Error(node->Location, "sampler '%s' is missing required 'Texture' property", node->Name.c_str());
+						return;
+					}
+
+					GLTexture *const texture = static_cast<GLTexture *>(this->mEffect->GetTexture(node->Properties.Texture->Name));
+
+					if (texture == nullptr)
+					{
 						this->mFatal = true;
 						return;
 					}
 
 					GLSampler sampler;
-					sampler.mTexture = static_cast<GLTexture *>(this->mEffect->GetTexture(node->Properties.Texture->Name));
+					sampler.mTexture = texture;
 					sampler.mSRGB = node->Properties.SRGBTexture;
-
-					if (sampler.mTexture == nullptr)
-					{
-						this->mErrors += PrintLocation(node->Location) + "error: texture '" + node->Properties.Texture->Name + "' for sampler '" + node->Name + "' is missing due to previous error.\n";
-						this->mFatal = true;
-						return;
-					}
-
-					GLCHECK(glGenSamplers(1, &sampler.mID));
 
 					GLenum minfilter = LiteralToTextureFilter(node->Properties.MinFilter);
 					const GLenum mipfilter = LiteralToTextureFilter(node->Properties.MipFilter);
@@ -1955,6 +2045,7 @@ namespace ReShade
 						minfilter = GL_LINEAR_MIPMAP_LINEAR;
 					}
 
+					GLCHECK(glGenSamplers(1, &sampler.mID));
 					GLCHECK(glSamplerParameteri(sampler.mID, GL_TEXTURE_WRAP_S, LiteralToTextureWrap(node->Properties.AddressU)));
 					GLCHECK(glSamplerParameteri(sampler.mID, GL_TEXTURE_WRAP_T, LiteralToTextureWrap(node->Properties.AddressV)));
 					GLCHECK(glSamplerParameteri(sampler.mID, GL_TEXTURE_WRAP_R, LiteralToTextureWrap(node->Properties.AddressW)));
@@ -1965,168 +2056,110 @@ namespace ReShade
 					GLCHECK(glSamplerParameterf(sampler.mID, GL_TEXTURE_MAX_LOD, node->Properties.MaxLOD));
 					GLCHECK(glSamplerParameterf(sampler.mID, GL_TEXTURE_MAX_ANISOTROPY_EXT, static_cast<GLfloat>(node->Properties.MaxAnisotropy)));
 
-					this->mCurrentSource += "layout(binding = " + std::to_string(this->mEffect->mSamplers.size()) + ") uniform sampler2D ";
-					this->mCurrentSource += FixName(node->Name);
-					this->mCurrentSource += ";\n";
+					this->mGlobalCode += "layout(binding = " + std::to_string(this->mEffect->mSamplers.size()) + ") uniform sampler2D ";
+					this->mGlobalCode += FixName(node->Name);
+					this->mGlobalCode += ";\n";
 
 					this->mEffect->mSamplers.push_back(std::move(sampler));
 				}
-				void VisitUniform(const FX::Nodes::Variable *node)
+				void VisitUniform(const FX::Nodes::Variable *node, const std::string &bufferName, std::size_t bufferIndex, std::size_t &bufferSize)
 				{
-					this->mCurrentGlobalConstants += PrintTypeWithQualifiers(node->Type);
-					this->mCurrentGlobalConstants += ' ';
+					VisitType(this->mGlobalUniforms, node->Type);
 
-					if (!this->mCurrentBlockName.empty())
+					this->mGlobalUniforms += ' ';
+
+					if (!bufferName.empty())
 					{
-						this->mCurrentGlobalConstants += this->mCurrentBlockName + '_';
+						this->mGlobalUniforms += bufferName + '_';
 					}
 				
-					this->mCurrentGlobalConstants += node->Name;
+					this->mGlobalUniforms += node->Name;
 
 					if (node->Type.IsArray())
 					{
-						this->mCurrentGlobalConstants += '[';
-						this->mCurrentGlobalConstants += (node->Type.ArrayLength >= 1) ? std::to_string(node->Type.ArrayLength) : "";
-						this->mCurrentGlobalConstants += ']';
+						this->mGlobalUniforms += '[' + ((node->Type.ArrayLength >= 1) ? std::to_string(node->Type.ArrayLength) : "") + ']';
 					}
 
-					this->mCurrentGlobalConstants += ";\n";
+					this->mGlobalUniforms += ";\n";
 
-					GLConstant::Description objdesc;
-					objdesc.Rows = node->Type.Rows;
-					objdesc.Columns = node->Type.Cols;
-					objdesc.Elements = node->Type.ArrayLength;
-					objdesc.Fields = 0;
-					objdesc.Size = node->Type.Rows * node->Type.Cols;
+					GLConstant::Description desc;
+					desc.Rows = node->Type.Rows;
+					desc.Columns = node->Type.Cols;
+					desc.Elements = node->Type.ArrayLength;
+					desc.Size = desc.Rows * desc.Columns * std::max(1u, desc.Elements);
+					desc.Fields = 0;
 
 					switch (node->Type.BaseClass)
 					{
 						case FX::Nodes::Type::Class::Bool:
-							objdesc.Size *= sizeof(int);
-							objdesc.Type = FX::Effect::Constant::Type::Bool;
+							desc.Size *= sizeof(int);
+							desc.Type = FX::Effect::Constant::Type::Bool;
 							break;
 						case FX::Nodes::Type::Class::Int:
-							objdesc.Size *= sizeof(int);
-							objdesc.Type = FX::Effect::Constant::Type::Int;
+							desc.Size *= sizeof(int);
+							desc.Type = FX::Effect::Constant::Type::Int;
 							break;
 						case FX::Nodes::Type::Class::Uint:
-							objdesc.Size *= sizeof(unsigned int);
-							objdesc.Type = FX::Effect::Constant::Type::Uint;
+							desc.Size *= sizeof(unsigned int);
+							desc.Type = FX::Effect::Constant::Type::Uint;
 							break;
 						case FX::Nodes::Type::Class::Float:
-							objdesc.Size *= sizeof(float);
-							objdesc.Type = FX::Effect::Constant::Type::Float;
+							desc.Size *= sizeof(float);
+							desc.Type = FX::Effect::Constant::Type::Float;
 							break;
 					}
 
 					const std::size_t alignment = 16 - (this->mCurrentGlobalSize % 16);
-					this->mCurrentGlobalSize += (objdesc.Size > alignment && (alignment != 16 || objdesc.Size <= 16)) ? objdesc.Size + alignment : objdesc.Size;
+					bufferSize += (desc.Size > alignment && (alignment != 16 || desc.Size <= 16)) ? desc.Size + alignment : desc.Size;
 
-					GLConstant *obj = new GLConstant(this->mEffect, objdesc);
-					obj->mBufferIndex = 0;
-					obj->mBufferOffset = this->mCurrentGlobalSize - objdesc.Size;
+					GLConstant *const obj = new GLConstant(this->mEffect, desc);
+					obj->mBufferIndex = bufferIndex;
+					obj->mBufferOffset = bufferSize - desc.Size;
 
-					Visit(node->Annotations, *obj);
+					VisitAnnotation(node->Annotations, *obj);
 
-					if (this->mCurrentGlobalSize >= this->mEffect->mUniformStorages[0].second)
+					if (bufferSize >= this->mEffect->mUniformStorages[bufferIndex].second)
 					{
-						this->mEffect->mUniformStorages[0].first = static_cast<unsigned char *>(::realloc(this->mEffect->mUniformStorages[0].first, this->mEffect->mUniformStorages[0].second += 128));
+						this->mEffect->mUniformStorages[bufferIndex].first = static_cast<unsigned char *>(::realloc(this->mEffect->mUniformStorages[bufferIndex].first, this->mEffect->mUniformStorages[bufferIndex].second += 128));
 					}
 
 					if (node->Initializer != nullptr && node->Initializer->NodeId == FX::Node::Id::Literal)
 					{
-						std::memcpy(this->mEffect->mUniformStorages[0].first + obj->mBufferOffset, &static_cast<const FX::Nodes::Literal *>(node->Initializer)->Value, objdesc.Size);
+						std::memcpy(this->mEffect->mUniformStorages[bufferIndex].first + obj->mBufferOffset, &static_cast<const FX::Nodes::Literal *>(node->Initializer)->Value, desc.Size);
 					}
 					else
 					{
-						std::memset(this->mEffect->mUniformStorages[0].first + obj->mBufferOffset, 0, objdesc.Size);
+						std::memset(this->mEffect->mUniformStorages[bufferIndex].first + obj->mBufferOffset, 0, desc.Size);
 					}
 
-					this->mEffect->AddConstant(node->Name, obj);
+					this->mEffect->AddConstant(bufferName.empty() ? node->Name : (bufferName + '.' + node->Name), obj);
 				}
-				void VisitUniformBuffer(const FX::Nodes::Variable *node)
+				void VisitUniformStruct(const FX::Nodes::Variable *node)
 				{
-					this->mCurrentSource += "layout(std140, binding = " + std::to_string(this->mEffect->mUniformBuffers.size()) + ") uniform ";
-					this->mCurrentSource += FixName(node->Name);
-					this->mCurrentSource += "\n{\n";
+					const std::size_t bufferIndex = this->mEffect->mUniformBuffers.size();
+					this->mEffect->mUniformStorages.push_back(std::make_pair(nullptr, 0));
 
-					this->mCurrentBlockName = node->Name;
+					GLConstant::Description desc;
+					desc.Type = FX::Effect::Constant::Type::Struct;
+					desc.Rows = desc.Columns = desc.Elements = desc.Size = 0;
+					desc.Fields = static_cast<unsigned int>(node->Type.Definition->Fields.size());
 
-					unsigned char *storage = nullptr;
-					std::size_t totalsize = 0, currentsize = 0;
+					this->mGlobalUniforms += "layout(std140, binding = " + std::to_string(this->mEffect->mUniformBuffers.size()) + ") uniform ";
+					this->mGlobalUniforms += FixName(node->Name);
+					this->mGlobalUniforms += "\n{\n";
 
 					for (auto field : node->Type.Definition->Fields)
 					{
-						Visit(field);
-
-						GLConstant::Description objdesc;
-						objdesc.Rows = field->Type.Rows;
-						objdesc.Columns = field->Type.Cols;
-						objdesc.Elements = field->Type.ArrayLength;
-						objdesc.Fields = 0;
-						objdesc.Size = field->Type.Rows * field->Type.Cols;
-
-						switch (field->Type.BaseClass)
-						{
-							case FX::Nodes::Type::Class::Bool:
-								objdesc.Size *= sizeof(int);
-								objdesc.Type = FX::Effect::Constant::Type::Bool;
-								break;
-							case FX::Nodes::Type::Class::Int:
-								objdesc.Size *= sizeof(int);
-								objdesc.Type = FX::Effect::Constant::Type::Int;
-								break;
-							case FX::Nodes::Type::Class::Uint:
-								objdesc.Size *= sizeof(unsigned int);
-								objdesc.Type = FX::Effect::Constant::Type::Uint;
-								break;
-							case FX::Nodes::Type::Class::Float:
-								objdesc.Size *= sizeof(float);
-								objdesc.Type = FX::Effect::Constant::Type::Float;
-								break;
-						}
-
-						const std::size_t alignment = 16 - (totalsize % 16);
-						totalsize += (objdesc.Size > alignment && (alignment != 16 || objdesc.Size <= 16)) ? objdesc.Size + alignment : objdesc.Size;
-
-						GLConstant *obj = new GLConstant(this->mEffect, objdesc);
-						obj->mBufferIndex = this->mEffect->mUniformBuffers.size();
-						obj->mBufferOffset = totalsize - objdesc.Size;
-
-						if (totalsize >= currentsize)
-						{
-							storage = static_cast<unsigned char *>(::realloc(storage, currentsize += 128));
-						}
-
-						if (field->Initializer != nullptr && field->Initializer->NodeId == FX::Node::Id::Literal)
-						{
-							std::memcpy(storage + obj->mBufferOffset, &static_cast<const FX::Nodes::Literal *>(field->Initializer)->Value, objdesc.Size);
-						}
-						else
-						{
-							std::memset(storage + obj->mBufferOffset, 0, objdesc.Size);
-						}
-
-						this->mEffect->AddConstant(node->Name + '.' + field->Name, obj);
+						VisitUniform(field, node->Name, bufferIndex, desc.Size);
 					}
 
-					this->mCurrentBlockName.clear();
+					this->mGlobalUniforms += "};\n";
 
-					this->mCurrentSource += "};\n";
-
-					GLConstant::Description objdesc;
-					objdesc.Type = FX::Effect::Constant::Type::Struct;
-					objdesc.Rows = 0;
-					objdesc.Columns = 0;
-					objdesc.Elements = 0;
-					objdesc.Fields = static_cast<unsigned int>(node->Type.Definition->Fields.size());
-					objdesc.Size = totalsize;
-
-					GLConstant *obj = new GLConstant(this->mEffect, objdesc);
-					obj->mBufferIndex = this->mEffect->mUniformBuffers.size();
+					GLConstant *const obj = new GLConstant(this->mEffect, desc);
+					obj->mBufferIndex = bufferIndex;
 					obj->mBufferOffset = 0;
 
-					Visit(node->Annotations, *obj);
+					VisitAnnotation(node->Annotations, *obj);
 
 					this->mEffect->AddConstant(node->Name, obj);
 
@@ -2137,67 +2170,28 @@ namespace ReShade
 					GLCHECK(glGetIntegerv(GL_UNIFORM_BUFFER_BINDING, &previous));
 
 					GLCHECK(glBindBuffer(GL_UNIFORM_BUFFER, buffer));
-					GLCHECK(glBufferData(GL_UNIFORM_BUFFER, totalsize, storage, GL_DYNAMIC_DRAW));
-
+					GLCHECK(glBufferData(GL_UNIFORM_BUFFER, this->mEffect->mUniformStorages[bufferIndex].second, this->mEffect->mUniformStorages[bufferIndex].first, GL_DYNAMIC_DRAW));
 					GLCHECK(glBindBuffer(GL_UNIFORM_BUFFER, previous));
 
 					this->mEffect->mUniformBuffers.push_back(buffer);
-					this->mEffect->mUniformStorages.push_back(std::make_pair(storage, totalsize));
 				}
-				void Visit(const FX::Nodes::Function *node)
+				void VisitTechnique(const FX::Nodes::Technique *node)
 				{
-					this->mCurrentSource += PrintType(node->ReturnType);
-					this->mCurrentSource += ' ';
-					this->mCurrentSource += FixName(node->Name);
-					this->mCurrentSource += '(';
+					GLTechnique::Description desc;
+					desc.Passes = static_cast<unsigned int>(node->Passes.size());
 
-					this->mCurrentFunction = node;		
+					GLTechnique *const obj = new GLTechnique(this->mEffect, desc);
 
-					this->mCurrentInParameterBlock = true;
-
-					for (auto parameter : node->Parameters)
-					{
-						Visit(parameter);
-
-						this->mCurrentSource += ", ";
-					}
-
-					if (!node->Parameters.empty())
-					{
-						this->mCurrentSource.pop_back();
-						this->mCurrentSource.pop_back();
-					}
-
-					this->mCurrentInParameterBlock = false;
-
-					this->mCurrentSource += ')';
-					this->mCurrentSource += '\n';
-
-					this->mCurrentInFunctionBlock = true;
-
-					Visit(node->Definition);
-
-					this->mCurrentInFunctionBlock = false;
-
-					this->mCurrentFunction = nullptr;
-				}
-				void Visit(const FX::Nodes::Technique *node)
-				{
-					GLTechnique::Description objdesc;
-					objdesc.Passes = static_cast<unsigned int>(node->Passes.size());
-
-					GLTechnique *obj = new GLTechnique(this->mEffect, objdesc);
-
-					Visit(node->Annotations, *obj);
+					VisitAnnotation(node->Annotations, *obj);
 
 					for (auto pass : node->Passes)
 					{
-						Visit(pass, obj->mPasses);
+						VisitTechniquePass(pass, obj->mPasses);
 					}
 
 					this->mEffect->AddTechnique(node->Name, obj);
 				}
-				void Visit(const FX::Nodes::Pass *node, std::vector<GLTechnique::Pass> &passes)
+				void VisitTechniquePass(const FX::Nodes::Pass *node, std::vector<GLTechnique::Pass> &passes)
 				{
 					GLTechnique::Pass pass;
 					ZeroMemory(&pass, sizeof(GLTechnique::Pass));
@@ -2235,7 +2229,7 @@ namespace ReShade
 							continue;
 						}
 
-						const GLTexture *texture = static_cast<GLTexture *>(this->mEffect->GetTexture(node->States.RenderTargets[i]->Name));
+						const GLTexture *const texture = static_cast<GLTexture *>(this->mEffect->GetTexture(node->States.RenderTargets[i]->Name));
 
 						if (texture == nullptr)
 						{
@@ -2247,8 +2241,7 @@ namespace ReShade
 
 						if (pass.ViewportWidth != 0 && pass.ViewportHeight != 0 && (desc.Width != static_cast<unsigned int>(pass.ViewportWidth) || desc.Height != static_cast<unsigned int>(pass.ViewportHeight)))
 						{
-							this->mErrors += PrintLocation(node->Location) + "error: cannot use multiple rendertargets with different sized textures.\n";
-							this->mFatal = true;
+							Error(node->Location, "cannot use multiple rendertargets with different sized textures");
 							return;
 						}
 						else
@@ -2285,26 +2278,21 @@ namespace ReShade
 
 					GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, 0));
 
+					GLuint shaders[2] = { 0, 0 };
+					GLenum shaderTypes[2] = { GL_VERTEX_SHADER, GL_FRAGMENT_SHADER };
+					const FX::Nodes::Function *shaderFunctions[2] = { node->States.VertexShader, node->States.PixelShader };
+
 					pass.Program = glCreateProgram();
 
-					GLuint shaders[2] = { 0, 0 };
-
-					if (node->States.VertexShader != nullptr)
+					for (unsigned int i = 0; i < 2; ++i)
 					{
-						shaders[0] = VisitShader(node->States.VertexShader, GL_VERTEX_SHADER);
-
-						if (shaders[0] != 0)
+						if (shaderFunctions[i] != nullptr)
 						{
-							GLCHECK(glAttachShader(pass.Program, shaders[0]));
-						}
-					}
-					if (node->States.PixelShader != nullptr)
-					{
-						shaders[1] = VisitShader(node->States.PixelShader, GL_FRAGMENT_SHADER);
+							shaders[i] = glCreateShader(shaderTypes[i]);
 
-						if (shaders[1] != 0)
-						{
-							GLCHECK(glAttachShader(pass.Program, shaders[1]));
+							VisitTechniquePassShader(shaderFunctions[i], shaderTypes[i], shaders[i]);
+
+							GLCHECK(glAttachShader(pass.Program, shaders[i]));
 						}
 					}
 
@@ -2312,11 +2300,6 @@ namespace ReShade
 
 					for (unsigned int i = 0; i < 2; ++i)
 					{
-						if (shaders[i] == 0)
-						{
-							continue;
-						}
-
 						GLCHECK(glDetachShader(pass.Program, shaders[i]));
 						GLCHECK(glDeleteShader(shaders[i]));
 					}
@@ -2342,7 +2325,7 @@ namespace ReShade
 
 					passes.push_back(std::move(pass));
 				}
-				GLuint VisitShader(const FX::Nodes::Function *node, GLuint shadertype)
+				void VisitTechniquePassShader(const FX::Nodes::Function *node, GLuint shadertype, GLuint &shader)
 				{
 					std::string source =
 						"#version 430\n"
@@ -2361,9 +2344,9 @@ namespace ReShade
 						"#define _textureLodOffset(s, c, offset) textureLodOffset(s, (c).xy, (c).w, offset)\n"
 						"vec4 _textureBias(sampler2D s, vec4 c) { return textureOffset(s, c.xy, ivec2(0), c.w); }\n";
 
-					if (!this->mCurrentGlobalConstants.empty())
+					if (!this->mGlobalUniforms.empty())
 					{
-						source += "layout(std140, binding = 0) uniform _GLOBAL_\n{\n" + this->mCurrentGlobalConstants + "};\n";
+						source += "layout(std140, binding = 0) uniform _GLOBAL_\n{\n" + this->mGlobalUniforms + "};\n";
 					}
 
 					if (shadertype != GL_FRAGMENT_SHADER)
@@ -2371,7 +2354,14 @@ namespace ReShade
 						source += "#define discard\n";
 					}
 
-					source += this->mCurrentSource;
+					source += this->mGlobalCode;
+
+					for (auto dependency : this->mFunctions.at(node).FunctionDependencies)
+					{
+						source += this->mFunctions.at(dependency).SourceCode;
+					}
+
+					source += this->mFunctions.at(node).SourceCode;
 
 					for (auto parameter : node->Parameters)
 					{
@@ -2406,18 +2396,18 @@ namespace ReShade
 					{
 						if (parameter->Type.IsStruct())
 						{
-							source += PrintType(parameter->Type) + " _param_" + parameter->Name + " = " + parameter->Type.Definition->Name + "(";
+							VisitTypeClass(source, parameter->Type);
 
-							for (auto field : parameter->Type.Definition->Fields)
-							{
-								source += FixNameWithSemantic("_param_" + parameter->Name + "_" + field->Name, field->Semantic, shadertype);
-								source += ", ";
-							}
+							source += " _param_" + parameter->Name + " = " + parameter->Type.Definition->Name + "(";
 
 							if (!parameter->Type.Definition->Fields.empty())
 							{
-								source.pop_back();
-								source.pop_back();
+								for (auto field : parameter->Type.Definition->Fields)
+								{
+									source += FixNameWithSemantic("_param_" + parameter->Name + "_" + field->Name, field->Semantic, shadertype) + ", ";
+								}
+
+								source.erase(source.end() - 2, source.end());
 							}
 
 							source += ");\n";
@@ -2430,8 +2420,9 @@ namespace ReShade
 
 					if (node->ReturnType.IsStruct())
 					{
-						source += PrintType(node->ReturnType);
-						source += " ";
+						VisitTypeClass(source, node->ReturnType);
+
+						source += ' ';
 					}
 
 					if (!node->ReturnType.IsVoid())
@@ -2446,27 +2437,25 @@ namespace ReShade
 						}
 					}
 
-					source += FixName(node->Name);
-					source += "(";
-
-					for (auto parameter : node->Parameters)
-					{
-						source += FixNameWithSemantic("_param_" + parameter->Name, parameter->Semantic, shadertype);
-
-						if ((boost::starts_with(parameter->Semantic, "COLOR") || boost::starts_with(parameter->Semantic, "SV_TARGET")) && parameter->Type.Rows < 4)
-						{
-							const std::string swizzle[3] = { "x", "xy", "xyz" };
-
-							source += "." + swizzle[parameter->Type.Rows - 1];
-						}
-
-						source += ", ";
-					}
+					source += FixName(node->Name) + '(';
 
 					if (!node->Parameters.empty())
 					{
-						source.pop_back();
-						source.pop_back();
+						for (auto parameter : node->Parameters)
+						{
+							source += FixNameWithSemantic("_param_" + parameter->Name, parameter->Semantic, shadertype);
+
+							if ((boost::starts_with(parameter->Semantic, "COLOR") || boost::starts_with(parameter->Semantic, "SV_TARGET")) && parameter->Type.Rows < 4)
+							{
+								const std::string swizzle[3] = { "x", "xy", "xyz" };
+
+								source += "." + swizzle[parameter->Type.Rows - 1];
+							}
+
+							source += ", ";
+						}
+
+						source.erase(source.end() - 2, source.end());
 					}
 
 					source += ");\n";
@@ -2486,8 +2475,7 @@ namespace ReShade
 					{
 						for (auto field : node->ReturnType.Definition->Fields)
 						{
-							source += FixNameWithSemantic("_return_" + field->Name, field->Semantic, shadertype);
-							source += " = _return." + std::string(field->Name) + ";\n";
+							source += FixNameWithSemantic("_return_" + field->Name, field->Semantic, shadertype) + " = _return." + field->Name + ";\n";
 						}
 					}
 			
@@ -2495,24 +2483,17 @@ namespace ReShade
 					{
 						source += "gl_Position = gl_Position * vec4(1.0, 1.0, 2.0, 1.0) + vec4(0.0, 0.0, -gl_Position.w, 0.0);\n";
 					}
-					/*if (shadertype == GL_FRAGMENT_SHADER)
-					{
-						source += "gl_FragDepth = clamp(gl_FragDepth, 0.0, 1.0);\n";
-					}*/
 
 					source += "}\n";
 
-					GLuint shader = glCreateShader(shadertype);
+					LOG(TRACE) << "> Compiling shader '" << node->Name << "':\n\n" << source.c_str() << "\n";
+
+					GLint status = GL_FALSE;
 					const GLchar *src = source.c_str();
 					const GLsizei len = static_cast<GLsizei>(source.length());
 
-					LOG(TRACE) << "> Compiling shader '" << node->Name << "':\n\n" << source.c_str() << "\n";
-
 					GLCHECK(glShaderSource(shader, 1, &src, &len));
 					GLCHECK(glCompileShader(shader));
-
-					GLint status = GL_FALSE;
-
 					GLCHECK(glGetShaderiv(shader, GL_COMPILE_STATUS, &status));
 
 					if (status == GL_FALSE)
@@ -2523,14 +2504,9 @@ namespace ReShade
 						std::string log(logsize, '\0');
 						GLCHECK(glGetShaderInfoLog(shader, logsize, nullptr, &log.front()));
 
-						GLCHECK(glDeleteShader(shader));
-
 						this->mErrors += log;
 						this->mFatal = true;
-						return 0;
 					}
-
-					return shader;
 				}
 				void VisitShaderVariable(unsigned int qualifier, FX::Nodes::Type type, const std::string &name, const std::string &semantic, std::string &source, GLuint shadertype)
 				{
@@ -2561,7 +2537,9 @@ namespace ReShade
 
 					type.Qualifiers = static_cast<unsigned int>(qualifier);
 
-					source += PrintTypeWithQualifiers(type) + ' ' + name;
+					VisitType(source, type);
+
+					source += ' ' + name;
 
 					if (type.IsArray())
 					{
@@ -2572,16 +2550,20 @@ namespace ReShade
 				}
 
 			private:
-				const FX::Tree &mAST;
+				struct Function
+				{
+					std::string SourceCode;
+					std::vector<const FX::Nodes::Function *> FunctionDependencies;
+				};
+
 				GLEffect *mEffect;
-				std::string mCurrentSource;
-				std::string mErrors;
+				const FX::Tree &mAST;
 				bool mFatal;
-				std::string mCurrentGlobalConstants;
-				std::size_t mCurrentGlobalSize, mCurrentGlobalStorageSize, mCurrentInForInitialization;
-				std::string mCurrentBlockName;
+				std::string mErrors;
+				std::string mGlobalCode, mGlobalUniforms;
+				std::size_t mCurrentGlobalSize;
 				const FX::Nodes::Function *mCurrentFunction;
-				bool mCurrentInParameterBlock, mCurrentInFunctionBlock;
+				std::unordered_map<const FX::Nodes::Function *, Function> mFunctions;
 			};
 
 			GLenum TargetToBinding(GLenum target)
@@ -3425,7 +3407,7 @@ namespace ReShade
 
 			GLEffectCompiler visitor(ast);
 
-			if (visitor.Traverse(effect, errors))
+			if (visitor.Compile(effect, errors))
 			{
 				return std::unique_ptr<FX::Effect>(effect);
 			}

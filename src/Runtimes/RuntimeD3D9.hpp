@@ -74,7 +74,6 @@ namespace ReShade
 			virtual void End() const override;
 
 			std::shared_ptr<const D3D9Runtime> mRuntime;
-			std::vector<struct D3D9Sampler> mSamplers;
 			IDirect3DVertexBuffer9 *mVertexBuffer;
 			IDirect3DVertexDeclaration9 *mVertexDeclaration;
 			float *mConstantStorage;
@@ -132,6 +131,8 @@ namespace ReShade
 			{
 				IDirect3DVertexShader9 *VS;
 				IDirect3DPixelShader9 *PS;
+				D3D9Sampler Samplers[16];
+				DWORD SamplerCount;
 				IDirect3DStateBlock9 *Stateblock;
 				IDirect3DSurface9 *RT[8];
 			};

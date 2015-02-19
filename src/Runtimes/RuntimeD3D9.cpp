@@ -6,6 +6,7 @@
 #include <d3dcompiler.h>
 #include <boost\algorithm\string.hpp>
 #include <nanovg_d3d9.h>
+#include <unordered_set>
 
 #define D3DFMT_INTZ static_cast<D3DFORMAT>(MAKEFOURCC('I', 'N', 'T', 'Z'))
 
@@ -20,32 +21,60 @@ namespace ReShade
 			class D3D9EffectCompiler : private boost::noncopyable
 			{
 			public:
-				D3D9EffectCompiler(const FX::Tree &ast) : mAST(ast), mEffect(nullptr), mCurrentInParameterBlock(false), mCurrentInFunctionBlock(false), mCurrentInForInitialization(0), mCurrentRegisterOffset(0), mCurrentStorageSize(0), mFatal(false)
+				D3D9EffectCompiler(const FX::Tree &ast) : mAST(ast), mEffect(nullptr), mFatal(false), mCurrentFunction(nullptr), mCurrentRegisterOffset(0), mCurrentStorageSize(0)
 				{
 				}
 
-				bool Traverse(D3D9Effect *effect, std::string &errors)
+				bool Compile(D3D9Effect *effect, std::string &errors)
 				{
 					this->mEffect = effect;
-					this->mErrors.clear();
+
 					this->mFatal = false;
-					this->mCurrentSource.clear();
+					this->mErrors.clear();
+
+					this->mGlobalCode.clear();
 
 					for (auto structure : this->mAST.Types)
 					{
-						Visit(structure);
+						Visit(this->mGlobalCode, structure);
 					}
+
 					for (auto uniform : this->mAST.Uniforms)
 					{
-						Visit(uniform);
+						if (uniform->Type.IsStruct() && uniform->Type.HasQualifier(FX::Nodes::Type::Qualifier::Uniform))
+						{
+							VisitUniformStruct(uniform);
+						}
+						else if (uniform->Type.IsTexture())
+						{
+							VisitTexture(uniform);
+						}
+						else if (uniform->Type.IsSampler())
+						{
+							VisitSampler(uniform);
+						}
+						else if (uniform->Type.HasQualifier(FX::Nodes::Type::Qualifier::Uniform))
+						{
+							VisitUniform(uniform);
+						}
+						else
+						{
+							Visit(this->mGlobalCode, uniform);
+
+							this->mGlobalCode += ";\n";
+						}
 					}
+
 					for (auto function : this->mAST.Functions)
 					{
-						Visit(function);
+						this->mCurrentFunction = function;
+
+						Visit(this->mFunctions[function].SourceCode, function);
 					}
+
 					for (auto technique : this->mAST.Techniques)
 					{
-						Visit(technique);
+						VisitTechnique(technique);
 					}
 
 					errors += this->mErrors;
@@ -123,7 +152,6 @@ namespace ReShade
 							return D3DFMT_UNKNOWN;
 					}
 				}
-
 				static std::string ConvertSemantic(const std::string &semantic)
 				{
 					if (boost::starts_with(semantic, "SV_"))
@@ -152,83 +180,99 @@ namespace ReShade
 
 					return semantic;
 				}
-				static inline std::string PrintLocation(const FX::Lexer::Location &location)
-				{
-					return location.Source + "(" + std::to_string(location.Line) + ", " + std::to_string(location.Column) + "): ";
-				}
-				std::string PrintType(const FX::Nodes::Type &type)
-				{
-					std::string res;
 
+			private:
+				void Error(const FX::Lexer::Location &location, const char *message, ...)
+				{
+					char formatted[512];
+
+					va_list args;
+					va_start(args, message);
+					vsprintf_s(formatted, message, args);
+					va_end(args);
+
+					this->mErrors += location.Source + "(" + std::to_string(location.Line) + ", " + std::to_string(location.Column) + "): error: " + formatted + '\n';
+					this->mFatal = true;
+				}
+				void Warning(const FX::Lexer::Location &location, const char *message, ...)
+				{
+					char formatted[512];
+
+					va_list args;
+					va_start(args, message);
+					vsprintf_s(formatted, message, args);
+					va_end(args);
+
+					this->mErrors += location.Source + "(" + std::to_string(location.Line) + ", " + std::to_string(location.Column) + "): warning: " + formatted + '\n';
+				}
+
+				void VisitType(std::string &source, const FX::Nodes::Type &type)
+				{
+					if (type.HasQualifier(FX::Nodes::Type::Qualifier::Static))
+						source += "static ";
+					if (type.HasQualifier(FX::Nodes::Type::Qualifier::Const))
+						source += "const ";
+					if (type.HasQualifier(FX::Nodes::Type::Qualifier::Volatile))
+						source += "volatile ";
+					if (type.HasQualifier(FX::Nodes::Type::Qualifier::Precise))
+						source += "precise ";
+					if (type.HasQualifier(FX::Nodes::Type::Qualifier::Linear))
+						source += "linear ";
+					if (type.HasQualifier(FX::Nodes::Type::Qualifier::NoPerspective))
+						source += "noperspective ";
+					if (type.HasQualifier(FX::Nodes::Type::Qualifier::Centroid))
+						source += "centroid ";
+					if (type.HasQualifier(FX::Nodes::Type::Qualifier::NoInterpolation))
+						source += "nointerpolation ";
+					if (type.HasQualifier(FX::Nodes::Type::Qualifier::InOut))
+						source += "inout ";
+					else if (type.HasQualifier(FX::Nodes::Type::Qualifier::In))
+						source += "in ";
+					else if (type.HasQualifier(FX::Nodes::Type::Qualifier::Out))
+						source += "out ";
+					else if (type.HasQualifier(FX::Nodes::Type::Qualifier::Uniform))
+						source += "uniform ";
+
+					VisitTypeClass(source, type);
+				}
+				void VisitTypeClass(std::string &source, const FX::Nodes::Type &type)
+				{
 					switch (type.BaseClass)
 					{
 						case FX::Nodes::Type::Class::Void:
-							res += "void";
+							source += "void";
 							break;
 						case FX::Nodes::Type::Class::Bool:
-							res += "bool";
+							source += "bool";
 							break;
 						case FX::Nodes::Type::Class::Int:
-							res += "int";
+							source += "int";
 							break;
 						case FX::Nodes::Type::Class::Uint:
-							res += "uint";
+							source += "uint";
 							break;
 						case FX::Nodes::Type::Class::Float:
-							res += "float";
+							source += "float";
 							break;
 						case FX::Nodes::Type::Class::Sampler2D:
-							res += "sampler2D";
+							source += "sampler2D";
 							break;
 						case FX::Nodes::Type::Class::Struct:
-							res += type.Definition->Name;
+							source += type.Definition->Name;
 							break;
 					}
 
 					if (type.IsMatrix())
 					{
-						res += std::to_string(type.Rows) + "x" + std::to_string(type.Cols);
+						source += std::to_string(type.Rows) + "x" + std::to_string(type.Cols);
 					}
 					else if (type.IsVector())
 					{
-						res += std::to_string(type.Rows);
+						source += std::to_string(type.Rows);
 					}
-
-					return res;
-				}
-				std::string PrintTypeWithQualifiers(const FX::Nodes::Type &type)
-				{
-					std::string qualifiers;
-
-					if (type.HasQualifier(FX::Nodes::Type::Qualifier::Static))
-						qualifiers += "static ";
-					if (type.HasQualifier(FX::Nodes::Type::Qualifier::Const))
-						qualifiers += "const ";
-					if (type.HasQualifier(FX::Nodes::Type::Qualifier::Volatile))
-						qualifiers += "volatile ";
-					if (type.HasQualifier(FX::Nodes::Type::Qualifier::Precise))
-						qualifiers += "precise ";
-					if (type.HasQualifier(FX::Nodes::Type::Qualifier::Linear))
-						qualifiers += "linear ";
-					if (type.HasQualifier(FX::Nodes::Type::Qualifier::NoPerspective))
-						qualifiers += "noperspective ";
-					if (type.HasQualifier(FX::Nodes::Type::Qualifier::Centroid))
-						qualifiers += "centroid ";
-					if (type.HasQualifier(FX::Nodes::Type::Qualifier::NoInterpolation))
-						qualifiers += "nointerpolation ";
-					if (type.HasQualifier(FX::Nodes::Type::Qualifier::InOut))
-						qualifiers += "inout ";
-					else if (type.HasQualifier(FX::Nodes::Type::Qualifier::In))
-						qualifiers += "in ";
-					else if (type.HasQualifier(FX::Nodes::Type::Qualifier::Out))
-						qualifiers += "out ";
-					else if (type.HasQualifier(FX::Nodes::Type::Qualifier::Uniform))
-						qualifiers += "uniform ";
-
-					return qualifiers + PrintType(type);
 				}
 
-				void Visit(const FX::Nodes::Statement *node)
+				void Visit(std::string &output, const FX::Nodes::Statement *node)
 				{
 					if (node == nullptr)
 					{
@@ -238,79 +282,79 @@ namespace ReShade
 					switch (node->NodeId)
 					{
 						case FX::Node::Id::Compound:
-							Visit(static_cast<const FX::Nodes::Compound *>(node));
+							Visit(output, static_cast<const FX::Nodes::Compound *>(node));
 							break;
 						case FX::Node::Id::DeclaratorList:
-							Visit(static_cast<const FX::Nodes::DeclaratorList *>(node));
+							Visit(output, static_cast<const FX::Nodes::DeclaratorList *>(node));
 							break;
 						case FX::Node::Id::ExpressionStatement:
-							Visit(static_cast<const FX::Nodes::ExpressionStatement *>(node));
+							Visit(output, static_cast<const FX::Nodes::ExpressionStatement *>(node));
 							break;
 						case FX::Node::Id::If:
-							Visit(static_cast<const FX::Nodes::If *>(node));
+							Visit(output, static_cast<const FX::Nodes::If *>(node));
 							break;
 						case FX::Node::Id::Switch:
-							Visit(static_cast<const FX::Nodes::Switch *>(node));
+							Visit(output, static_cast<const FX::Nodes::Switch *>(node));
 							break;
 						case FX::Node::Id::For:
-							Visit(static_cast<const FX::Nodes::For *>(node));
+							Visit(output, static_cast<const FX::Nodes::For *>(node));
 							break;
 						case FX::Node::Id::While:
-							Visit(static_cast<const FX::Nodes::While *>(node));
+							Visit(output, static_cast<const FX::Nodes::While *>(node));
 							break;
 						case FX::Node::Id::Return:
-							Visit(static_cast<const FX::Nodes::Return *>(node));
+							Visit(output, static_cast<const FX::Nodes::Return *>(node));
 							break;
 						case FX::Node::Id::Jump:
-							Visit(static_cast<const FX::Nodes::Jump *>(node));
+							Visit(output, static_cast<const FX::Nodes::Jump *>(node));
 							break;
 						default:
 							assert(false);
 							break;
 					}
 				}
-				void Visit(const FX::Nodes::Expression *node)
+				void Visit(std::string &output, const FX::Nodes::Expression *node)
 				{
 					switch (node->NodeId)
 					{
 						case FX::Node::Id::LValue:
-							Visit(static_cast<const FX::Nodes::LValue *>(node));
+							Visit(output, static_cast<const FX::Nodes::LValue *>(node));
 							break;
 						case FX::Node::Id::Literal:
-							Visit(static_cast<const FX::Nodes::Literal *>(node));
+							Visit(output, static_cast<const FX::Nodes::Literal *>(node));
 							break;
 						case FX::Node::Id::Sequence:
-							Visit(static_cast<const FX::Nodes::Sequence *>(node));
+							Visit(output, static_cast<const FX::Nodes::Sequence *>(node));
 							break;
 						case FX::Node::Id::Unary:
-							Visit(static_cast<const FX::Nodes::Unary *>(node));
+							Visit(output, static_cast<const FX::Nodes::Unary *>(node));
 							break;
 						case FX::Node::Id::Binary:
-							Visit(static_cast<const FX::Nodes::Binary *>(node));
+							Visit(output, static_cast<const FX::Nodes::Binary *>(node));
 							break;
 						case FX::Node::Id::Intrinsic:
-							Visit(static_cast<const FX::Nodes::Intrinsic *>(node));
+							Visit(output, static_cast<const FX::Nodes::Intrinsic *>(node));
 							break;
 						case FX::Node::Id::Conditional:
-							Visit(static_cast<const FX::Nodes::Conditional *>(node));
+							Visit(output, static_cast<const FX::Nodes::Conditional *>(node));
 							break;
 						case FX::Node::Id::Swizzle:
-							Visit(static_cast<const FX::Nodes::Swizzle *>(node));
+							Visit(output, static_cast<const FX::Nodes::Swizzle *>(node));
 							break;
 						case FX::Node::Id::FieldSelection:
-							Visit(static_cast<const FX::Nodes::FieldSelection *>(node));
+							Visit(output, static_cast<const FX::Nodes::FieldSelection *>(node));
 							break;
 						case FX::Node::Id::Assignment:
-							Visit(static_cast<const FX::Nodes::Assignment *>(node));
+							Visit(output, static_cast<const FX::Nodes::Assignment *>(node));
 							break;
 						case FX::Node::Id::Call:
-							Visit(static_cast<const FX::Nodes::Call *>(node));
+							Visit(output, static_cast<const FX::Nodes::Call *>(node));
 							break;
 						case FX::Node::Id::Constructor:
-							Visit(static_cast<const FX::Nodes::Constructor *>(node));
+							Visit(output, static_cast<const FX::Nodes::Constructor *>(node));
 							break;
 						case FX::Node::Id::InitializerList:
-							Visit(static_cast<const FX::Nodes::InitializerList *>(node));
+							Visit(output, static_cast<const FX::Nodes::InitializerList *>(node));
 							break;
 						default:
 							assert(false);
@@ -318,249 +362,269 @@ namespace ReShade
 					}
 				}
 
-				void Visit(const FX::Nodes::Compound *node)
+				void Visit(std::string &output, const FX::Nodes::Compound *node)
 				{
-					this->mCurrentSource += "{\n";
+					output += "{\n";
 
 					for (auto statement : node->Statements)
 					{
-						Visit(statement);
+						Visit(output, statement);
 					}
 
-					this->mCurrentSource += "}\n";
+					output += "}\n";
 				}
-				void Visit(const FX::Nodes::DeclaratorList *node)
+				void Visit(std::string &output, const FX::Nodes::DeclaratorList *node, bool singlestatement = false)
 				{
+					bool includetype = true;
+
 					for (auto declarator : node->Declarators)
 					{
-						Visit(declarator);
+						Visit(output, declarator, includetype);
 
-						if (this->mCurrentInForInitialization)
+						if (singlestatement)
 						{
-							this->mCurrentSource += ", ";
-							this->mCurrentInForInitialization++;
+							output += ", ";
+
+							includetype = false;
 						}
 						else
 						{
-							this->mCurrentSource += ";\n";
+							output += ";\n";
 						}
 					}
-				}
-				void Visit(const FX::Nodes::ExpressionStatement *node)
-				{
-					Visit(node->Expression);
 
-					this->mCurrentSource += ";\n";
+					if (singlestatement)
+					{
+						output.erase(output.end() - 2, output.end());
+
+						output += ";\n";
+					}
 				}
-				void Visit(const FX::Nodes::If *node)
+				void Visit(std::string &output, const FX::Nodes::ExpressionStatement *node)
+				{
+					Visit(output, node->Expression);
+
+					output += ";\n";
+				}
+				void Visit(std::string &output, const FX::Nodes::If *node)
 				{
 					for (auto &attribute : node->Attributes)
 					{
-						this->mCurrentSource += '[';
-						this->mCurrentSource += attribute;
-						this->mCurrentSource += ']';
+						output += '[' + attribute + ']';
 					}
 
-					this->mCurrentSource += "if (";
-					Visit(node->Condition);
-					this->mCurrentSource += ")\n";
+					output += "if (";
+
+					Visit(output, node->Condition);
+					
+					output += ")\n";
 
 					if (node->StatementOnTrue != nullptr)
 					{
-						Visit(node->StatementOnTrue);
+						Visit(output, node->StatementOnTrue);
 					}
 					else
 					{
-						this->mCurrentSource += "\t;";
+						output += "\t;";
 					}
 
 					if (node->StatementOnFalse != nullptr)
 					{
-						this->mCurrentSource += "else\n";
+						output += "else\n";
 
-						Visit(node->StatementOnFalse);
+						Visit(output, node->StatementOnFalse);
 					}
 				}
-				void Visit(const FX::Nodes::Switch *node)
+				void Visit(std::string &output, const FX::Nodes::Switch *node)
 				{
-					this->mErrors += PrintLocation(node->Location) + "warning: switch statements do not currently support fallthrough in Direct3D9!\n";
+					Warning(node->Location, "switch statements do not currently support fallthrough in Direct3D9!");
 
-					this->mCurrentSource += "[unroll] do { ";
-					this->mCurrentSource += PrintType(node->Test->Type);
-					this->mCurrentSource += " __switch_condition = ";
-					Visit(node->Test);
-					this->mCurrentSource += ";\n";
+					output += "[unroll] do { ";
+					
+					VisitTypeClass(output, node->Test->Type);
+						
+					output += " __switch_condition = ";
 
-					for (std::size_t i = 0, count = node->Cases.size(); i < count; ++i)
+					Visit(output, node->Test);
+
+					output += ";\n";
+
+					Visit(output, node->Cases[0]);
+
+					for (std::size_t i = 1, count = node->Cases.size(); i < count; ++i)
 					{
-						Visit(node->Cases[i], i);
+						output += "else ";
+
+						Visit(output, node->Cases[i]);
 					}
 
-					this->mCurrentSource += "} while (false);\n";
+					output += "} while (false);\n";
 				}
-				void Visit(const FX::Nodes::Case *node, std::size_t index)
+				void Visit(std::string &output, const FX::Nodes::Case *node)
 				{
-					if (index != 0)
-					{
-						this->mCurrentSource += "else ";
-					}
-
-					this->mCurrentSource += "if (";
+					output += "if (";
 
 					for (auto label : node->Labels)
 					{
 						if (label == nullptr)
 						{
-							this->mCurrentSource += "true";
+							output += "true";
 						}
 						else
 						{
-							this->mCurrentSource += "__switch_condition == ";
+							output += "__switch_condition == ";
 
-							Visit(label);
+							Visit(output, label);
 						}
 
-						this->mCurrentSource += " || ";
+						output += " || ";
 					}
 
-					this->mCurrentSource.erase(this->mCurrentSource.end() - 4, this->mCurrentSource.end());
+					output.erase(output.end() - 4, output.end());
 
-					this->mCurrentSource += ")";
+					output += ")";
 
-					Visit(node->Statements);
+					Visit(output, node->Statements);
 				}
-				void Visit(const FX::Nodes::For *node)
+				void Visit(std::string &output, const FX::Nodes::For *node)
 				{
 					for (auto &attribute : node->Attributes)
 					{
-						this->mCurrentSource += '[';
-						this->mCurrentSource += attribute;
-						this->mCurrentSource += ']';
+						output += '[' + attribute + ']';
 					}
 
-					this->mCurrentSource += "for (";
+					output += "for (";
 
 					if (node->Initialization != nullptr)
 					{
-						this->mCurrentInForInitialization = 1;
+						if (node->Initialization->NodeId == FX::Node::Id::DeclaratorList)
+						{
+							Visit(output, static_cast<FX::Nodes::DeclaratorList *>(node->Initialization), true);
 
-						Visit(node->Initialization);
-
-						this->mCurrentInForInitialization = 0;
-
-						this->mCurrentSource.pop_back();
-						this->mCurrentSource.pop_back();
+							output.erase(output.end() - 2, output.end());
+						}
+						else
+						{
+							Visit(output, static_cast<FX::Nodes::ExpressionStatement *>(node->Initialization)->Expression);
+						}
 					}
 
-					this->mCurrentSource += "; ";
+					output += "; ";
 										
 					if (node->Condition != nullptr)
 					{
-						Visit(node->Condition);
+						Visit(output, node->Condition);
 					}
 
-					this->mCurrentSource += "; ";
+					output += "; ";
 
 					if (node->Increment != nullptr)
 					{
-						Visit(node->Increment);
+						Visit(output, node->Increment);
 					}
 
-					this->mCurrentSource += ")\n";
+					output += ")\n";
 
 					if (node->Statements != nullptr)
 					{
-						Visit(node->Statements);
+						Visit(output, node->Statements);
 					}
 					else
 					{
-						this->mCurrentSource += "\t;";
+						output += "\t;";
 					}
 				}
-				void Visit(const FX::Nodes::While *node)
+				void Visit(std::string &output, const FX::Nodes::While *node)
 				{
 					for (auto &attribute : node->Attributes)
 					{
-						this->mCurrentSource += '[';
-						this->mCurrentSource += attribute;
-						this->mCurrentSource += ']';
+						output += '[' + attribute + ']';
 					}
 
 					if (node->DoWhile)
 					{
-						this->mCurrentSource += "do\n{\n";
+						output += "do\n{\n";
 
 						if (node->Statements != nullptr)
 						{
-							Visit(node->Statements);
+							Visit(output, node->Statements);
 						}
 
-						this->mCurrentSource += "}\n";
-						this->mCurrentSource += "while (";
-						Visit(node->Condition);
-						this->mCurrentSource += ");\n";
+						output += "}\nwhile (";
+
+						Visit(output, node->Condition);
+
+						output += ");\n";
 					}
 					else
 					{
-						this->mCurrentSource += "while (";
-						Visit(node->Condition);
-						this->mCurrentSource += ")\n";
+						output += "while (";
+						
+						Visit(output, node->Condition);
+						
+						output += ")\n";
 
 						if (node->Statements != nullptr)
 						{
-							Visit(node->Statements);
+							Visit(output, node->Statements);
 						}
 						else
 						{
-							this->mCurrentSource += "\t;";
+							output += "\t;";
 						}
 					}
 				}
-				void Visit(const FX::Nodes::Return *node)
+				void Visit(std::string &output, const FX::Nodes::Return *node)
 				{
 					if (node->Discard)
 					{
-						this->mCurrentSource += "discard";
+						output += "discard";
 					}
 					else
 					{
-						this->mCurrentSource += "return";
+						output += "return";
 
 						if (node->Value != nullptr)
 						{
-							this->mCurrentSource += ' ';
+							output += ' ';
 
-							Visit(node->Value);
+							Visit(output, node->Value);
 						}
 					}
 
-					this->mCurrentSource += ";\n";
+					output += ";\n";
 				}
-				void Visit(const FX::Nodes::Jump *node)
+				void Visit(std::string &output, const FX::Nodes::Jump *node)
 				{
 					switch (node->Mode)
 					{
 						case FX::Nodes::Jump::Break:
-							this->mCurrentSource += "break";
+							output += "break";
 							break;
 						case FX::Nodes::Jump::Continue:
-							this->mCurrentSource += "continue";
+							output += "continue";
 							break;
 					}
 
-					this->mCurrentSource += ";\n";
+					output += ";\n";
 				}
 
-				void Visit(const FX::Nodes::LValue *node)
+				void Visit(std::string &output, const FX::Nodes::LValue *node)
 				{
-					this->mCurrentSource += node->Reference->Name;
+					output += node->Reference->Name;
+
+					if (node->Reference->Type.IsSampler() && (this->mSamplers.find(node->Reference->Name) != this->mSamplers.end()))
+					{
+						this->mFunctions.at(this->mCurrentFunction).SamplerDependencies.insert(node->Reference->Name);
+					}
 				}
-				void Visit(const FX::Nodes::Literal *node)
+				void Visit(std::string &output, const FX::Nodes::Literal *node)
 				{
 					if (!node->Type.IsScalar())
 					{
-						this->mCurrentSource += PrintType(node->Type);
-						this->mCurrentSource += '(';
+						VisitTypeClass(output, node->Type);
+						
+						output += '(';
 					}
 
 					for (unsigned int i = 0; i < node->Type.Rows * node->Type.Cols; ++i)
@@ -568,43 +632,41 @@ namespace ReShade
 						switch (node->Type.BaseClass)
 						{
 							case FX::Nodes::Type::Class::Bool:
-								this->mCurrentSource += node->Value.Int[i] ? "true" : "false";
+								output += node->Value.Int[i] ? "true" : "false";
 								break;
 							case FX::Nodes::Type::Class::Int:
-								this->mCurrentSource += std::to_string(node->Value.Int[i]);
+								output += std::to_string(node->Value.Int[i]);
 								break;
 							case FX::Nodes::Type::Class::Uint:
-								this->mCurrentSource += std::to_string(node->Value.Uint[i]);
+								output += std::to_string(node->Value.Uint[i]);
 								break;
 							case FX::Nodes::Type::Class::Float:
-								this->mCurrentSource += std::to_string(node->Value.Float[i]) + "f";
+								output += std::to_string(node->Value.Float[i]) + "f";
 								break;
 						}
 
-						this->mCurrentSource += ", ";
+						output += ", ";
 					}
 
-					this->mCurrentSource.pop_back();
-					this->mCurrentSource.pop_back();
+					output.erase(output.end() - 2, output.end());
 
 					if (!node->Type.IsScalar())
 					{
-						this->mCurrentSource += ')';
+						output += ')';
 					}
 				}
-				void Visit(const FX::Nodes::Sequence *node)
+				void Visit(std::string &output, const FX::Nodes::Sequence *node)
 				{
 					for (auto expression : node->Expressions)
 					{
-						Visit(expression);
+						Visit(output, expression);
 
-						this->mCurrentSource += ", ";
+						output += ", ";
 					}
 
-					this->mCurrentSource.pop_back();
-					this->mCurrentSource.pop_back();
+					output.erase(output.end() - 2, output.end());
 				}
-				void Visit(const FX::Nodes::Unary *node)
+				void Visit(std::string &output, const FX::Nodes::Unary *node)
 				{
 					std::string part1, part2;
 
@@ -633,16 +695,17 @@ namespace ReShade
 							part2 = "--";
 							break;
 						case FX::Nodes::Unary::Op::Cast:
-							part1 = PrintType(node->Type) + '(';
+							VisitTypeClass(part1, node->Type);
+							part1 += '(';
 							part2 = ')';
 							break;
 					}
 
-					this->mCurrentSource += part1;
-					Visit(node->Operand);
-					this->mCurrentSource += part2;
+					output += part1;
+					Visit(output, node->Operand);
+					output += part2;
 				}
-				void Visit(const FX::Nodes::Binary *node)
+				void Visit(std::string &output, const FX::Nodes::Binary *node)
 				{
 					std::string part1, part2, part3;
 
@@ -720,23 +783,22 @@ namespace ReShade
 
 								if (IsPowerOf2(value + 1))
 								{
-									this->mCurrentSource += "((" + std::to_string(value + 1) + ") * frac((";
-									Visit(node->Operands[0]);
-									this->mCurrentSource += ") / (" + std::to_string(value + 1) + ")))";
+									output += "((" + std::to_string(value + 1) + ") * frac((";
+									Visit(output, node->Operands[0]);
+									output += ") / (" + std::to_string(value + 1) + ")))";
 									return;
 								}
 								else if (IsPowerOf2(value))
 								{
-									this->mCurrentSource += "((((";
-									Visit(node->Operands[0]);
-									this->mCurrentSource += ") / (" + std::to_string(value) + ")) % 2) * " + std::to_string(value) + ")";
+									output += "((((";
+									Visit(output, node->Operands[0]);
+									output += ") / (" + std::to_string(value) + ")) % 2) * " + std::to_string(value) + ")";
 									return;
 								}
 							}
 						case FX::Nodes::Binary::Op::BitwiseOr:
 						case FX::Nodes::Binary::Op::BitwiseXor:
-							this->mErrors += PrintLocation(node->Location) + "error: bitwise operations are not supported on legacy targets!\n";
-							this->mFatal = true;
+							Error(node->Location, "bitwise operations are not supported in Direct3D9");
 							return;
 						case FX::Nodes::Binary::Op::LogicalAnd:
 							part1 = '(';
@@ -754,13 +816,13 @@ namespace ReShade
 							break;
 					}
 
-					this->mCurrentSource += part1;
-					Visit(node->Operands[0]);
-					this->mCurrentSource += part2;
-					Visit(node->Operands[1]);
-					this->mCurrentSource += part3;
+					output += part1;
+					Visit(output, node->Operands[0]);
+					output += part2;
+					Visit(output, node->Operands[1]);
+					output += part3;
 				}
-				void Visit(const FX::Nodes::Intrinsic *node)
+				void Visit(std::string &output, const FX::Nodes::Intrinsic *node)
 				{
 					std::string part1, part2, part3, part4;
 
@@ -786,8 +848,7 @@ namespace ReShade
 						case FX::Nodes::Intrinsic::Op::BitCastUint2Float:
 						case FX::Nodes::Intrinsic::Op::BitCastFloat2Int:
 						case FX::Nodes::Intrinsic::Op::BitCastFloat2Uint:
-							this->mErrors += PrintLocation(node->Location) + "error: bitwise casts are not supported under Direct3D9!\n";
-							this->mFatal = true;
+							Error(node->Location, "'asint', 'asuint' and 'asfloat' are not supported in Direct3D9");
 							return;
 						case FX::Nodes::Intrinsic::Op::Asin:
 							part1 = "asin(";
@@ -1060,8 +1121,7 @@ namespace ReShade
 							part4 = ") * _PIXEL_SIZE_.xy)";
 							break;
 						case FX::Nodes::Intrinsic::Op::Tex2DSize:
-							this->mErrors += PrintLocation(node->Location) + "error: 'tex2Dsize' is not supported under Direct3D9!\n";
-							this->mFatal = true;
+							Error(node->Location, "'tex2Dsize' is not supported in Direct3D9");
 							return;
 						case FX::Nodes::Intrinsic::Op::Transpose:
 							part1 = "transpose(";
@@ -1073,93 +1133,83 @@ namespace ReShade
 							break;
 					}
 
-					this->mCurrentSource += part1;
+					output += part1;
 
 					if (node->Arguments[0] != nullptr)
 					{
-						Visit(node->Arguments[0]);
+						Visit(output, node->Arguments[0]);
 					}
 
-					this->mCurrentSource += part2;
+					output += part2;
 
 					if (node->Arguments[1] != nullptr)
 					{
-						Visit(node->Arguments[1]);
+						Visit(output, node->Arguments[1]);
 					}
 
-					this->mCurrentSource += part3;
+					output += part3;
 
 					if (node->Arguments[2] != nullptr)
 					{
-						Visit(node->Arguments[2]);
+						Visit(output, node->Arguments[2]);
 					}
 
-					this->mCurrentSource += part4;
+					output += part4;
 				}
-				void Visit(const FX::Nodes::Conditional *node)
+				void Visit(std::string &output, const FX::Nodes::Conditional *node)
 				{
-					this->mCurrentSource += '(';
-					Visit(node->Condition);
-					this->mCurrentSource += " ? ";
-					Visit(node->ExpressionOnTrue);
-					this->mCurrentSource += " : ";
-					Visit(node->ExpressionOnFalse);
-					this->mCurrentSource += ')';
+					output += '(';
+					Visit(output, node->Condition);
+					output += " ? ";
+					Visit(output, node->ExpressionOnTrue);
+					output += " : ";
+					Visit(output, node->ExpressionOnFalse);
+					output += ')';
 				}
-				void Visit(const FX::Nodes::Swizzle *node)
+				void Visit(std::string &output, const FX::Nodes::Swizzle *node)
 				{
-					Visit(node->Operand);
+					Visit(output, node->Operand);
 
-					this->mCurrentSource += '.';
+					output += '.';
 
 					if (node->Operand->Type.IsMatrix())
 					{
-						const char swizzle[16][5] =
-						{
-							"_m00", "_m01", "_m02", "_m03",
-							"_m10", "_m11", "_m12", "_m13",
-							"_m20", "_m21", "_m22", "_m23",
-							"_m30", "_m31", "_m32", "_m33"
-						};
+						const char swizzle[16][5] = { "_m00", "_m01", "_m02", "_m03", "_m10", "_m11", "_m12", "_m13", "_m20", "_m21", "_m22", "_m23", "_m30", "_m31", "_m32", "_m33" };
 
 						for (int i = 0; i < 4 && node->Mask[i] >= 0; ++i)
 						{
-							this->mCurrentSource += swizzle[node->Mask[i]];
+							output += swizzle[node->Mask[i]];
 						}
 					}
 					else
 					{
-						const char swizzle[4] =
-						{
-							'x', 'y', 'z', 'w'
-						};
+						const char swizzle[4] = { 'x', 'y', 'z', 'w' };
 
 						for (int i = 0; i < 4 && node->Mask[i] >= 0; ++i)
 						{
-							this->mCurrentSource += swizzle[node->Mask[i]];
+							output += swizzle[node->Mask[i]];
 						}
 					}
 				}
-				void Visit(const FX::Nodes::FieldSelection *node)
+				void Visit(std::string &output, const FX::Nodes::FieldSelection *node)
 				{
-					this->mCurrentSource += '(';
+					output += '(';
 
-					Visit(node->Operand);
+					Visit(output, node->Operand);
 
-					if (node->Field->Type.HasQualifier(FX::Nodes::Type::Uniform))
+					if (node->Field->Type.HasQualifier(FX::Nodes::Type::Qualifier::Uniform))
 					{
-						this->mCurrentSource += '_';
+						output += '_';
 					}
 					else
 					{
-						this->mCurrentSource += '.';
+						output += '.';
 					}
 
-					this->mCurrentSource += node->Field->Name;
-
-					this->mCurrentSource += ')';
+					output += node->Field->Name;
+					output += ')';
 				}
-				void Visit(const FX::Nodes::Assignment *node)
+				void Visit(std::string &output, const FX::Nodes::Assignment *node)
 				{
 					std::string part1, part2, part3;
 
@@ -1196,75 +1246,163 @@ namespace ReShade
 						case FX::Nodes::Assignment::Op::BitwiseAnd:
 						case FX::Nodes::Assignment::Op::BitwiseOr:
 						case FX::Nodes::Assignment::Op::BitwiseXor:
-							this->mErrors += PrintLocation(node->Location) + "error: bitwise operations are not supported on legacy targets!\n";
-							this->mFatal = true;
+							Error(node->Location, "bitwise operations are not supported in Direct3D9");
 							return;
 					}
 
-					this->mCurrentSource += '(';
-					this->mCurrentSource += part1;
-					Visit(node->Left);
-					this->mCurrentSource += part2;
-					Visit(node->Right);
-					this->mCurrentSource += part3;
-					this->mCurrentSource += ')';
+					output += '(';
+
+					output += part1;
+					Visit(output, node->Left);
+					output += part2;
+					Visit(output, node->Right);
+					output += part3;
+
+					output += ')';
 				}
-				void Visit(const FX::Nodes::Call *node)
+				void Visit(std::string &output, const FX::Nodes::Call *node)
 				{
-					this->mCurrentSource += node->CalleeName;
-					this->mCurrentSource += '(';
-
-					for (auto argument : node->Arguments)
-					{
-						Visit(argument);
-
-						this->mCurrentSource += ", ";
-					}
+					output += node->CalleeName + '(';
 
 					if (!node->Arguments.empty())
 					{
-						this->mCurrentSource.pop_back();
-						this->mCurrentSource.pop_back();
+						for (auto argument : node->Arguments)
+						{
+							Visit(output, argument);
+
+							output += ", ";
+						}
+
+						output.erase(output.end() - 2, output.end());
 					}
 
-					this->mCurrentSource += ')';
-				}
-				void Visit(const FX::Nodes::Constructor *node)
-				{
-					this->mCurrentSource += PrintType(node->Type);
-					this->mCurrentSource += '(';
+					output += ')';
 
-					for (auto argument : node->Arguments)
+					auto &info = this->mFunctions.at(this->mCurrentFunction);
+					auto &infoCallee = this->mFunctions.at(node->Callee);
+					
+					info.SamplerDependencies.insert(infoCallee.SamplerDependencies.begin(), infoCallee.SamplerDependencies.end());
+
+					for (auto dependency : infoCallee.FunctionDependencies)
 					{
-						Visit(argument);
-
-						this->mCurrentSource += ", ";
+						if (std::find(info.FunctionDependencies.begin(), info.FunctionDependencies.end(), dependency) == info.FunctionDependencies.end())
+						{
+							info.FunctionDependencies.push_back(dependency);
+						}
 					}
+
+					if (std::find(info.FunctionDependencies.begin(), info.FunctionDependencies.end(), node->Callee) == info.FunctionDependencies.end())
+					{
+						info.FunctionDependencies.push_back(node->Callee);
+					}
+				}
+				void Visit(std::string &output, const FX::Nodes::Constructor *node)
+				{
+					VisitTypeClass(output, node->Type);
+
+					output += '(';
 
 					if (!node->Arguments.empty())
 					{
-						this->mCurrentSource.pop_back();
-						this->mCurrentSource.pop_back();
+						for (auto argument : node->Arguments)
+						{
+							Visit(output, argument);
+
+							output += ", ";
+						}
+
+						output.erase(output.end() - 2, output.end());
 					}
 
-					this->mCurrentSource += ')';
+					output += ')';
 				}
-				void Visit(const FX::Nodes::InitializerList *node)
+				void Visit(std::string &output, const FX::Nodes::InitializerList *node)
 				{
-					this->mCurrentSource += "{ ";
+					output += "{ ";
 
 					for (auto expression : node->Values)
 					{
-						Visit(expression);
+						Visit(output, expression);
 
-						this->mCurrentSource += ", ";
+						output += ", ";
 					}
 
-					this->mCurrentSource += " }";
+					output += " }";
+				}
+
+				void Visit(std::string &output, const FX::Nodes::Struct *node)
+				{
+					output += "struct " + node->Name + "\n{\n";
+
+					if (!node->Fields.empty())
+					{
+						for (auto field : node->Fields)
+						{
+							Visit(output, field);
+
+							output += ";\n";
+						}
+					}
+					else
+					{
+						output += "float _dummy;\n";
+					}
+
+					output += "};\n";
+				}
+				void Visit(std::string &output, const FX::Nodes::Variable *node, bool includetype = true, bool includesemantic = true)
+				{
+					if (includetype)
+					{
+						VisitType(output, node->Type);
+
+						output += ' ';
+					}
+
+					output += node->Name;
+
+					if (node->Type.IsArray())
+					{
+						output += '[' + ((node->Type.ArrayLength > 0) ? std::to_string(node->Type.ArrayLength) : "") + ']';
+					}
+
+					if (includesemantic && !node->Semantic.empty())
+					{
+						output += " : " + ConvertSemantic(node->Semantic);
+					}
+
+					if (node->Initializer != nullptr)
+					{
+						output += " = ";
+
+						Visit(output, node->Initializer);
+					}
+				}
+				void Visit(std::string &output, const FX::Nodes::Function *node)
+				{
+					VisitTypeClass(output, node->ReturnType);
+					
+					output += ' ' + node->Name + '(';
+
+					if (!node->Parameters.empty())
+					{
+						for (auto parameter : node->Parameters)
+						{
+							Visit(output, parameter, true, false);
+
+							output += ", ";
+						}
+
+						output.erase(output.end() - 2, output.end());
+					}
+
+					output += ")\n";
+
+					Visit(output, node->Definition);
 				}
 
 				template <typename T>
-				void Visit(const std::vector<FX::Nodes::Annotation> &annotations, T &object)
+				void VisitAnnotation(const std::vector<FX::Nodes::Annotation> &annotations, T &object)
 				{
 					for (auto &annotation : annotations)
 					{
@@ -1290,111 +1428,23 @@ namespace ReShade
 						object.AddAnnotation(annotation.Name, data);
 					}
 				}
-				void Visit(const FX::Nodes::Struct *node)
-				{
-					this->mCurrentSource += "struct ";
-					this->mCurrentSource += node->Name;
-					this->mCurrentSource += "\n{\n";
-
-					if (!node->Fields.empty())
-					{
-						for (auto field : node->Fields)
-						{
-							Visit(field);
-						}
-					}
-					else
-					{
-						this->mCurrentSource += "float _dummy;\n";
-					}
-
-					this->mCurrentSource += "};\n";
-				}
-				void Visit(const FX::Nodes::Variable *node)
-				{
-					if (!(this->mCurrentInParameterBlock || this->mCurrentInFunctionBlock))
-					{
-						if (node->Type.IsStruct() && node->Type.HasQualifier(FX::Nodes::Type::Qualifier::Uniform))
-						{
-							VisitUniformBuffer(node);
-							return;
-						}
-						else if (node->Type.IsTexture())
-						{
-							VisitTexture(node);
-							return;
-						}
-						else if (node->Type.IsSampler())
-						{
-							VisitSampler(node);
-							return;
-						}
-						else if (node->Type.HasQualifier(FX::Nodes::Type::Qualifier::Uniform))
-						{
-							VisitUniform(node);
-							return;
-						}
-					}
-
-					if (this->mCurrentInForInitialization <= 1)
-					{
-						this->mCurrentSource += PrintTypeWithQualifiers(node->Type);
-					}
-
-					if (!node->Name.empty())
-					{
-						this->mCurrentSource += ' ';
-
-						if (!this->mCurrentBlockName.empty())
-						{
-							this->mCurrentSource += this->mCurrentBlockName + '_';
-						}
-				
-						this->mCurrentSource += node->Name;
-					}
-
-					if (node->Type.IsArray())
-					{
-						this->mCurrentSource += '[';
-						this->mCurrentSource += (node->Type.ArrayLength >= 1) ? std::to_string(node->Type.ArrayLength) : "";
-						this->mCurrentSource += ']';
-					}
-
-					if (!this->mCurrentInParameterBlock && !node->Semantic.empty())
-					{
-						this->mCurrentSource += " : " + ConvertSemantic(node->Semantic);
-					}
-
-					if (node->Initializer != nullptr)
-					{
-						this->mCurrentSource += " = ";
-
-						Visit(node->Initializer);
-					}
-
-					if (!(this->mCurrentInParameterBlock || this->mCurrentInFunctionBlock))
-					{
-						this->mCurrentSource += ";\n";
-					}
-				}
 				void VisitTexture(const FX::Nodes::Variable *node)
 				{
-					D3D9Texture::Description objdesc;
-					const UINT width = objdesc.Width = node->Properties.Width;
-					const UINT height = objdesc.Height = node->Properties.Height;
-					UINT levels = objdesc.Levels = node->Properties.MipLevels;
-					const D3DFORMAT d3dformat = LiteralToFormat(node->Properties.Format, objdesc.Format);
+					D3D9Texture::Description desc;
+					desc.Width = node->Properties.Width;
+					desc.Height = node->Properties.Height;
+					UINT levels = desc.Levels = node->Properties.MipLevels;
+					const D3DFORMAT format = LiteralToFormat(node->Properties.Format, desc.Format);
+					D3D9Texture *const obj = new D3D9Texture(this->mEffect, desc);
 
-					D3D9Texture *obj = new D3D9Texture(this->mEffect, objdesc);
-
-					Visit(node->Annotations, *obj);
+					VisitAnnotation(node->Annotations, *obj);
 
 					if (node->Semantic == "COLOR" || node->Semantic == "SV_TARGET")
 					{
 						obj->mSource = D3D9Texture::Source::BackBuffer;
 						obj->ChangeSource(this->mEffect->mRuntime->mBackBufferTexture);
 					}
-					if (node->Semantic == "DEPTH" || node->Semantic == "SV_DEPTH")
+					else if (node->Semantic == "DEPTH" || node->Semantic == "SV_DEPTH")
 					{
 						obj->mSource = D3D9Texture::Source::DepthStencil;
 						obj->ChangeSource(this->mEffect->mRuntime->mDepthStencilTexture);
@@ -1402,22 +1452,25 @@ namespace ReShade
 
 					if (obj->mSource != D3D9Texture::Source::Memory)
 					{
-						if (width != 1 || height != 1 || levels != 1 || d3dformat != D3DFMT_A8R8G8B8)
+						if (desc.Width != 1 || desc.Height != 1 || levels != 1 || format != D3DFMT_A8R8G8B8)
 						{
-							this->mErrors += PrintLocation(node->Location) + "warning: texture property on backbuffer textures are ignored.\n";
+							Warning(node->Location, "texture properties on backbuffer textures are ignored");
 						}
 					}
 					else
 					{
-						D3DDEVICE_CREATION_PARAMETERS cp;
-						this->mEffect->mRuntime->mDevice->GetCreationParameters(&cp);
-
 						HRESULT hr;
 						DWORD usage = 0;
 
+						IDirect3D9 *const factory = this->mEffect->mRuntime->mDirect3D;
+						IDirect3DDevice9 *const device = this->mEffect->mRuntime->mDevice;
+
+						D3DDEVICE_CREATION_PARAMETERS cp;
+						device->GetCreationParameters(&cp);
+
 						if (levels > 1)
 						{
-							hr = this->mEffect->mRuntime->mDirect3D->CheckDeviceFormat(cp.AdapterOrdinal, cp.DeviceType, D3DFMT_X8R8G8B8, D3DUSAGE_AUTOGENMIPMAP, D3DRTYPE_TEXTURE, d3dformat);
+							hr = factory->CheckDeviceFormat(cp.AdapterOrdinal, cp.DeviceType, D3DFMT_X8R8G8B8, D3DUSAGE_AUTOGENMIPMAP, D3DRTYPE_TEXTURE, format);
 
 							if (hr == D3D_OK)
 							{
@@ -1426,33 +1479,34 @@ namespace ReShade
 							}
 							else
 							{
-								this->mErrors += PrintLocation(node->Location) + "warning: autogenerated miplevels are not supported for this format on your computer.\n";
+								Warning(node->Location, "autogenerated miplevels are not supported for this format");
 							}
 						}
 						else if (levels == 0)
 						{
-							this->mErrors += PrintLocation(node->Location) + "warning: a texture cannot have 0 miplevels, changed it to 1.\n";
+							Warning(node->Location, "a texture cannot have 0 miplevels, changed it to 1");
 
 							levels = 1;
 						}
 					
-						hr = this->mEffect->mRuntime->mDirect3D->CheckDeviceFormat(cp.AdapterOrdinal, cp.DeviceType, D3DFMT_X8R8G8B8, D3DUSAGE_RENDERTARGET, D3DRTYPE_TEXTURE, d3dformat);
+						hr = factory->CheckDeviceFormat(cp.AdapterOrdinal, cp.DeviceType, D3DFMT_X8R8G8B8, D3DUSAGE_RENDERTARGET, D3DRTYPE_TEXTURE, format);
 
 						if (SUCCEEDED(hr))
 						{
 							usage |= D3DUSAGE_RENDERTARGET;
 						}
 
-						hr = this->mEffect->mRuntime->mDevice->CreateTexture(width, height, levels, usage, d3dformat, D3DPOOL_DEFAULT, &obj->mTexture, nullptr);
+						hr = this->mEffect->mRuntime->mDevice->CreateTexture(desc.Width, desc.Height, levels, usage, format, D3DPOOL_DEFAULT, &obj->mTexture, nullptr);
 
 						if (FAILED(hr))
 						{
-							this->mErrors += PrintLocation(node->Location) + "error: 'IDirect3DCreate9::CreateTexture' failed with " + std::to_string(hr) + "!\n";
-							this->mFatal = true;
+							Error(node->Location, "internal texture creation failed with '%u'!", hr);
 							return;
 						}
 
-						obj->mTexture->GetSurfaceLevel(0, &obj->mTextureSurface);
+						hr = obj->mTexture->GetSurfaceLevel(0, &obj->mTextureSurface);
+
+						assert(SUCCEEDED(hr));
 					}
 
 					this->mEffect->AddTexture(node->Name, obj);
@@ -1461,12 +1515,20 @@ namespace ReShade
 				{
 					if (node->Properties.Texture == nullptr)
 					{
-						this->mErrors += PrintLocation(node->Location) + "error: sampler '" + node->Name + "' is missing required 'Texture' property.\n";
+						Error(node->Location, "sampler '%s' is missing required 'Texture' property", node->Name);
+						return;
+					}
+
+					D3D9Texture *const texture = static_cast<D3D9Texture *>(this->mEffect->GetTexture(node->Properties.Texture->Name));
+
+					if (texture == nullptr)
+					{
 						this->mFatal = true;
 						return;
 					}
 
 					D3D9Sampler sampler;
+					sampler.mTexture = texture;
 					sampler.mStates[D3DSAMP_ADDRESSU] = static_cast<D3DTEXTUREADDRESS>(node->Properties.AddressU);
 					sampler.mStates[D3DSAMP_ADDRESSV] = static_cast<D3DTEXTUREADDRESS>(node->Properties.AddressV);
 					sampler.mStates[D3DSAMP_ADDRESSW] = static_cast<D3DTEXTUREADDRESS>(node->Properties.AddressW);
@@ -1479,197 +1541,165 @@ namespace ReShade
 					sampler.mStates[D3DSAMP_MAXANISOTROPY] = node->Properties.MaxAnisotropy;
 					sampler.mStates[D3DSAMP_SRGBTEXTURE] = node->Properties.SRGBTexture;
 
-					sampler.mTexture = static_cast<D3D9Texture *>(this->mEffect->GetTexture(node->Properties.Texture->Name));
-
-					if (sampler.mTexture == nullptr)
-					{
-						this->mErrors += PrintLocation(node->Location) + "error: texture '" + node->Properties.Texture->Name + "' for sampler '" + node->Name + "' is missing due to previous error.\n";
-						this->mFatal = true;
-						return;
-					}
-
-					this->mCurrentSource += "sampler2D ";
-					this->mCurrentSource += node->Name;
-					this->mCurrentSource += " : register(s" + std::to_string(this->mEffect->mSamplers.size()) + ");\n";
-
-					this->mEffect->mSamplers.push_back(sampler);
+					this->mSamplers[node->Name] = sampler;
 				}
-				void VisitUniform(const FX::Nodes::Variable *node)
+				void VisitUniform(const FX::Nodes::Variable *node, const std::string &parentname = "")
 				{
-					this->mCurrentSource += PrintTypeWithQualifiers(node->Type);
-					this->mCurrentSource += ' ';
+					VisitType(this->mGlobalCode, node->Type);
+					
+					this->mGlobalCode += ' ';
 
-					if (!this->mCurrentBlockName.empty())
+					if (!parentname.empty())
 					{
-						this->mCurrentSource += this->mCurrentBlockName + '_';
+						this->mGlobalCode += parentname + '_';
 					}
 				
-					this->mCurrentSource += node->Name;
+					this->mGlobalCode += node->Name;
 
 					if (node->Type.IsArray())
 					{
-						this->mCurrentSource += '[';
-						this->mCurrentSource += (node->Type.ArrayLength >= 1) ? std::to_string(node->Type.ArrayLength) : "";
-						this->mCurrentSource += ']';
+						this->mGlobalCode += '[' + ((node->Type.ArrayLength > 0) ? std::to_string(node->Type.ArrayLength) : "") + ']';
 					}
 
-					this->mCurrentSource += " : register(c" + std::to_string(this->mCurrentRegisterOffset / 4) + ");\n";
+					this->mGlobalCode += " : register(c" + std::to_string(this->mCurrentRegisterOffset / 4) + ");\n";
 
-					D3D9Constant::Description objdesc;
-					objdesc.Rows = node->Type.Rows;
-					objdesc.Columns = node->Type.Cols;
-					objdesc.Elements = node->Type.ArrayLength;
-					objdesc.Fields = 0;
-					objdesc.Size = node->Type.Rows * node->Type.Cols;
+					D3D9Constant::Description desc;
+					desc.Rows = node->Type.Rows;
+					desc.Columns = node->Type.Cols;
+					desc.Elements = node->Type.ArrayLength;
+					desc.Size = desc.Rows * desc.Columns * std::max(1u, desc.Elements);
+					desc.Fields = 0;
 
 					switch (node->Type.BaseClass)
 					{
 						case FX::Nodes::Type::Class::Bool:
-							objdesc.Size *= sizeof(int);
-							objdesc.Type = FX::Effect::Constant::Type::Bool;
+							desc.Size *= sizeof(int);
+							desc.Type = FX::Effect::Constant::Type::Bool;
 							break;
 						case FX::Nodes::Type::Class::Int:
-							objdesc.Size *= sizeof(int);
-							objdesc.Type = FX::Effect::Constant::Type::Int;
+							desc.Size *= sizeof(int);
+							desc.Type = FX::Effect::Constant::Type::Int;
 							break;
 						case FX::Nodes::Type::Class::Uint:
-							objdesc.Size *= sizeof(unsigned int);
-							objdesc.Type = FX::Effect::Constant::Type::Uint;
+							desc.Size *= sizeof(unsigned int);
+							desc.Type = FX::Effect::Constant::Type::Uint;
 							break;
 						case FX::Nodes::Type::Class::Float:
-							objdesc.Size *= sizeof(float);
-							objdesc.Type = FX::Effect::Constant::Type::Float;
+							desc.Size *= sizeof(float);
+							desc.Type = FX::Effect::Constant::Type::Float;
 							break;
 					}
 
-					D3D9Constant *obj = new D3D9Constant(this->mEffect, objdesc);
+					D3D9Constant *const obj = new D3D9Constant(this->mEffect, desc);
+
+					VisitAnnotation(node->Annotations, *obj);
+
+					const UINT regsize = static_cast<UINT>(static_cast<float>(desc.Size) / sizeof(float));
+					const UINT regalignment = 4 - (regsize % 4);
+
 					obj->mStorageOffset = this->mCurrentRegisterOffset;
-
-					Visit(node->Annotations, *obj);
-
-					const UINT registersize = static_cast<UINT>(static_cast<float>(objdesc.Size) / sizeof(float));
-					const UINT alignment = 4 - (registersize % 4);
-					this->mCurrentRegisterOffset += registersize + alignment;
+					this->mCurrentRegisterOffset += regsize + regalignment;
 
 					if (this->mCurrentRegisterOffset * sizeof(float) >= this->mCurrentStorageSize)
 					{
 						this->mEffect->mConstantStorage = static_cast<float *>(::realloc(this->mEffect->mConstantStorage, this->mCurrentStorageSize += sizeof(float) * 64));
 					}
 
+					this->mEffect->mConstantRegisterCount = this->mCurrentRegisterOffset / 4;
+
 					if (node->Initializer != nullptr && node->Initializer->NodeId == FX::Node::Id::Literal)
 					{
-						CopyMemory(this->mEffect->mConstantStorage + obj->mStorageOffset, &static_cast<const FX::Nodes::Literal *>(node->Initializer)->Value, objdesc.Size);
+						CopyMemory(this->mEffect->mConstantStorage + obj->mStorageOffset, &static_cast<const FX::Nodes::Literal *>(node->Initializer)->Value, desc.Size);
 					}
 					else
 					{
-						ZeroMemory(this->mEffect->mConstantStorage + obj->mStorageOffset, objdesc.Size);
+						ZeroMemory(this->mEffect->mConstantStorage + obj->mStorageOffset, desc.Size);
 					}
 
-					this->mEffect->AddConstant(this->mCurrentBlockName.empty() ? node->Name : (this->mCurrentBlockName + '.' + node->Name), obj);
-					this->mEffect->mConstantRegisterCount = this->mCurrentRegisterOffset / 4;
+					this->mEffect->AddConstant(parentname.empty() ? node->Name : (parentname + '.' + node->Name), obj);
 				}
-				void VisitUniformBuffer(const FX::Nodes::Variable *node)
+				void VisitUniformStruct(const FX::Nodes::Variable *node)
 				{
-					this->mCurrentBlockName = node->Name;
-
 					const UINT previousOffset = this->mCurrentRegisterOffset;
 
 					for (auto field : node->Type.Definition->Fields)
 					{
-						VisitUniform(field);
+						VisitUniform(field, node->Name);
 					}
 
-					this->mCurrentBlockName.clear();
+					D3D9Constant::Description desc;
+					desc.Type = FX::Effect::Constant::Type::Struct;
+					desc.Rows = desc.Columns = desc.Elements = 0;
+					desc.Size = (this->mCurrentRegisterOffset - previousOffset) * sizeof(float);
+					desc.Fields = static_cast<unsigned int>(node->Type.Definition->Fields.size());
 
-					D3D9Constant::Description objdesc;
-					objdesc.Rows = 0;
-					objdesc.Columns = 0;
-					objdesc.Elements = 0;
-					objdesc.Fields = static_cast<unsigned int>(node->Type.Definition->Fields.size());
-					objdesc.Size = (this->mCurrentRegisterOffset - previousOffset) * sizeof(float);
-					objdesc.Type = FX::Effect::Constant::Type::Struct;
+					D3D9Constant *const obj = new D3D9Constant(this->mEffect, desc);
 
-					D3D9Constant *obj = new D3D9Constant(this->mEffect, objdesc);
-
-					Visit(node->Annotations, *obj);
+					VisitAnnotation(node->Annotations, *obj);
 
 					this->mEffect->AddConstant(node->Name, obj);
 				}
-				void Visit(const FX::Nodes::Function *node)
+				void VisitTechnique(const FX::Nodes::Technique *node)
 				{
-					this->mCurrentSource += PrintType(node->ReturnType);
-					this->mCurrentSource += ' ';
-					this->mCurrentSource += node->Name;
-					this->mCurrentSource += '(';
+					D3D9Technique::Description desc;
+					desc.Passes = static_cast<unsigned int>(node->Passes.size());
 
-					if (!node->Parameters.empty())
-					{
-						this->mCurrentInParameterBlock = true;
+					D3D9Technique *const obj = new D3D9Technique(this->mEffect, desc);
 
-						for (auto parameter : node->Parameters)
-						{
-							Visit(parameter);
-
-							this->mCurrentSource += ", ";
-						}
-
-						this->mCurrentSource.pop_back();
-						this->mCurrentSource.pop_back();
-
-						this->mCurrentInParameterBlock = false;
-					}
-
-					this->mCurrentSource += ')';
-					this->mCurrentSource += '\n';
-
-					this->mCurrentInFunctionBlock = true;
-
-					Visit(node->Definition);
-
-					this->mCurrentInFunctionBlock = false;
-				}
-				void Visit(const FX::Nodes::Technique *node)
-				{
-					D3D9Technique::Description objdesc;
-					objdesc.Passes = static_cast<unsigned int>(node->Passes.size());
-
-					D3D9Technique *obj = new D3D9Technique(this->mEffect, objdesc);
-
-					Visit(node->Annotations, *obj);
+					VisitAnnotation(node->Annotations, *obj);
 
 					for (auto pass : node->Passes)
 					{
-						Visit(pass, obj->mPasses);
+						VisitTechniquePass(pass, obj->mPasses);
 					}
 
 					this->mEffect->AddTechnique(node->Name, obj);
 				}
-				void Visit(const FX::Nodes::Pass *node, std::vector<D3D9Technique::Pass> &passes)
+				void VisitTechniquePass(const FX::Nodes::Pass *node, std::vector<D3D9Technique::Pass> &passes)
 				{
 					D3D9Technique::Pass pass;
 					ZeroMemory(&pass, sizeof(D3D9Technique::Pass));
 					pass.RT[0] = this->mEffect->mRuntime->mBackBufferResolved;
 
-					if (node->States.VertexShader != nullptr)
+					std::string samplers;
+					const char shaderTypes[2][3] = { "vs", "ps" };
+					const FX::Nodes::Function *shaderFunctions[2] = { node->States.VertexShader, node->States.PixelShader };
+
+					for (unsigned int i = 0; i < 2; ++i)
 					{
-						VisitShader(node->States.VertexShader, "vs", pass);
-					}
-					if (node->States.PixelShader != nullptr)
-					{
-						VisitShader(node->States.PixelShader, "ps", pass);
+						if (shaderFunctions[i] == nullptr)
+						{
+							continue;
+						}
+
+						for (auto sampler : this->mFunctions.at(shaderFunctions[i]).SamplerDependencies)
+						{
+							pass.Samplers[pass.SamplerCount] = this->mSamplers.at(sampler);
+							samplers += "sampler2D " + sampler + " : register(s" + std::to_string(pass.SamplerCount++) + ");\n";
+
+							if (pass.SamplerCount == 16)
+							{
+								Error(node->Location, "maximum sampler count of 16 reached in pass '%s'", node->Name.c_str());
+								return;
+							}
+						}
 					}
 
-					IDirect3DDevice9 *device = this->mEffect->mRuntime->mDevice;
+					for (unsigned int i = 0; i < 2; ++i)
+					{
+						if (shaderFunctions[i] != nullptr)
+						{
+							VisitTechniquePassShader(shaderFunctions[i], shaderTypes[i], samplers, pass);
+						}
+					}
+
+					IDirect3DDevice9 *const device = this->mEffect->mRuntime->mDevice;
 				
-					D3DCAPS9 caps;
-					device->GetDeviceCaps(&caps);
-
-					HRESULT hr = device->BeginStateBlock();
+					const HRESULT hr = device->BeginStateBlock();
 
 					if (FAILED(hr))
 					{
-						this->mErrors += PrintLocation(node->Location) + "error: 'BeginStateBlock' failed!\n";
-						this->mFatal = true;
+						Error(node->Location, "internal pass stateblock creation failed with '%u'!", hr);
 						return;
 					}
 
@@ -1733,6 +1763,9 @@ namespace ReShade
 
 					device->EndStateBlock(&pass.Stateblock);
 
+					D3DCAPS9 caps;
+					device->GetDeviceCaps(&caps);
+
 					for (unsigned int i = 0; i < 8; ++i)
 					{
 						if (node->States.RenderTargets[i] == nullptr)
@@ -1742,11 +1775,11 @@ namespace ReShade
 
 						if (i > caps.NumSimultaneousRTs)
 						{
-							this->mErrors += PrintLocation(node->Location) + "warning: device only supports " + std::to_string(caps.NumSimultaneousRTs) + " simultaneous render targets, but more are in use.\n";
+							Warning(node->Location, "device only supports %u simultaneous render targets, but pass '%s' uses more, which are ignored", caps.NumSimultaneousRTs, node->Name.c_str());
 							break;
 						}
 
-						D3D9Texture *texture = static_cast<D3D9Texture *>(this->mEffect->GetTexture(node->States.RenderTargets[i]->Name));
+						D3D9Texture *const texture = static_cast<D3D9Texture *>(this->mEffect->GetTexture(node->States.RenderTargets[i]->Name));
 
 						if (texture == nullptr)
 						{
@@ -1759,7 +1792,7 @@ namespace ReShade
 
 					passes.push_back(std::move(pass));
 				}
-				void VisitShader(const FX::Nodes::Function *node, const std::string &shadertype, D3D9Technique::Pass &pass)
+				void VisitTechniquePassShader(const FX::Nodes::Function *node, const std::string &shadertype, const std::string &samplers, D3D9Technique::Pass &pass)
 				{
 					std::string source =
 						"uniform float4 _PIXEL_SIZE_ : register(c223);\n"
@@ -1770,7 +1803,15 @@ namespace ReShade
 						source += "#define POSITION VPOS\n";
 					}
 
-					source += this->mCurrentSource;
+					source += samplers;
+					source += this->mGlobalCode;
+
+					for (auto dependency : this->mFunctions.at(node).FunctionDependencies)
+					{
+						source += this->mFunctions.at(dependency).SourceCode;
+					}
+
+					source += this->mFunctions.at(node).SourceCode;
 
 					std::string positionVariable, initialization;
 					FX::Nodes::Type returnType = node->ReturnType;
@@ -1779,23 +1820,21 @@ namespace ReShade
 					{
 						for (auto field : node->ReturnType.Definition->Fields)
 						{
-							if (boost::equals(field->Semantic, "SV_POSITION") || boost::equals(field->Semantic, "POSITION"))
+							if (field->Semantic == "SV_POSITION" || field->Semantic == "POSITION")
 							{
-								positionVariable = "_return.";
-								positionVariable += field->Name;
+								positionVariable = "_return." + field->Name;
 								break;
 							}
 							else if ((boost::starts_with(field->Semantic, "SV_TARGET") || boost::starts_with(field->Semantic, "COLOR")) && field->Type.Rows != 4)
 							{
-								this->mErrors += PrintLocation(node->Location) + "error: 'SV_Target' must be a four-component vector when used inside structs on legacy targets.";
-								this->mFatal = true;
+								Error(node->Location, "'SV_Target' must be a four-component vector when used inside structs in Direct3D9");
 								return;
 							}
 						}
 					}
 					else
 					{
-						if (boost::equals(node->ReturnSemantic, "SV_POSITION") || boost::equals(node->ReturnSemantic, "POSITION"))
+						if (node->ReturnSemantic == "SV_POSITION" || node->ReturnSemantic == "POSITION")
 						{
 							positionVariable = "_return";
 						}
@@ -1805,70 +1844,67 @@ namespace ReShade
 						}
 					}
 
-					source += PrintType(returnType) + ' ' + "__main" + '(';
+					VisitTypeClass(source, returnType);
+					
+					source += " __main(";
 				
-					for (auto parameter : node->Parameters)
-					{
-						FX::Nodes::Type parameterType = parameter->Type;
-
-						if (parameter->Type.HasQualifier(FX::Nodes::Type::Out))
-						{
-							if (parameterType.IsStruct())
-							{
-								for (auto field : parameterType.Definition->Fields)
-								{
-									if (boost::equals(field->Semantic, "SV_POSITION") || boost::equals(field->Semantic, "POSITION"))
-									{
-										positionVariable = parameter->Name;
-										positionVariable += '.';
-										positionVariable += field->Name;
-										break;
-									}
-									else if ((boost::starts_with(field->Semantic, "SV_TARGET") || boost::starts_with(field->Semantic, "COLOR")) && field->Type.Rows != 4)
-									{
-										this->mErrors += PrintLocation(node->Location) + "error: 'SV_Target' must be a four-component vector when used inside structs on legacy targets.";
-										this->mFatal = true;
-										return;
-									}
-								}
-							}
-							else
-							{
-								if (boost::equals(parameter->Semantic, "SV_POSITION") || boost::equals(parameter->Semantic, "POSITION"))
-								{
-									positionVariable = parameter->Name;
-								}
-								else if (boost::starts_with(parameter->Semantic, "SV_TARGET") || boost::starts_with(parameter->Semantic, "COLOR"))
-								{
-									parameterType.Rows = 4;
-
-									initialization += parameter->Name;
-									initialization += " = float4(0.0f, 0.0f, 0.0f, 0.0f);\n";
-								}
-							}
-						}
-
-						source += PrintTypeWithQualifiers(parameterType) + ' ' + parameter->Name;
-
-						if (parameterType.IsArray())
-						{
-							source += '[';
-							source += (parameterType.ArrayLength >= 1) ? std::to_string(parameterType.ArrayLength) : "";
-							source += ']';
-						}
-
-						if (!parameter->Semantic.empty())
-						{
-							source += " : " + ConvertSemantic(parameter->Semantic);
-						}
-
-						source += ", ";
-					}
-
 					if (!node->Parameters.empty())
 					{
-						source.pop_back();
-						source.pop_back();
+						for (auto parameter : node->Parameters)
+						{
+							FX::Nodes::Type parameterType = parameter->Type;
+
+							if (parameter->Type.HasQualifier(FX::Nodes::Type::Out))
+							{
+								if (parameterType.IsStruct())
+								{
+									for (auto field : parameterType.Definition->Fields)
+									{
+										if (field->Semantic == "SV_POSITION" || field->Semantic == "POSITION")
+										{
+											positionVariable = parameter->Name + '.' + field->Name;
+											break;
+										}
+										else if ((boost::starts_with(field->Semantic, "SV_TARGET") || boost::starts_with(field->Semantic, "COLOR")) && field->Type.Rows != 4)
+										{
+											Error(node->Location, "'SV_Target' must be a four-component vector when used inside structs in Direct3D9");
+											return;
+										}
+									}
+								}
+								else
+								{
+									if (parameter->Semantic == "SV_POSITION" || parameter->Semantic == "POSITION")
+									{
+										positionVariable = parameter->Name;
+									}
+									else if (boost::starts_with(parameter->Semantic, "SV_TARGET") || boost::starts_with(parameter->Semantic, "COLOR"))
+									{
+										parameterType.Rows = 4;
+
+										initialization += parameter->Name + " = float4(0.0f, 0.0f, 0.0f, 0.0f);\n";
+									}
+								}
+							}
+
+							VisitType(source, parameterType);
+						
+							source += ' ' + parameter->Name;
+
+							if (parameterType.IsArray())
+							{
+								source += '[' + ((parameterType.ArrayLength >= 1) ? std::to_string(parameterType.ArrayLength) : "") + ']';
+							}
+
+							if (!parameter->Semantic.empty())
+							{
+								source += " : " + ConvertSemantic(parameter->Semantic);
+							}
+
+							source += ", ";
+						}
+
+						source.erase(source.end() - 2, source.end());
 					}
 
 					source += ')';
@@ -1883,7 +1919,9 @@ namespace ReShade
 
 					if (!node->ReturnType.IsVoid())
 					{
-						source += PrintType(returnType) + " _return = ";
+						VisitTypeClass(source, returnType);
+						
+						source += " _return = ";
 					}
 
 					if (node->ReturnType.Rows != returnType.Rows)
@@ -1894,29 +1932,28 @@ namespace ReShade
 					source += node->Name;
 					source += '(';
 
-					for (auto parameter : node->Parameters)
-					{
-						source += parameter->Name;
-
-						if (boost::starts_with(parameter->Semantic, "SV_TARGET") || boost::starts_with(parameter->Semantic, "COLOR"))
-						{
-							source += '.';
-
-							const char swizzle[] = { 'x', 'y', 'z', 'w' };
-
-							for (unsigned int i = 0; i < parameter->Type.Rows; ++i)
-							{
-								source += swizzle[i];
-							}
-						}
-
-						source += ", ";
-					}
-
 					if (!node->Parameters.empty())
 					{
-						source.pop_back();
-						source.pop_back();
+						for (auto parameter : node->Parameters)
+						{
+							source += parameter->Name;
+
+							if (boost::starts_with(parameter->Semantic, "SV_TARGET") || boost::starts_with(parameter->Semantic, "COLOR"))
+							{
+								source += '.';
+
+								const char swizzle[] = { 'x', 'y', 'z', 'w' };
+
+								for (unsigned int i = 0; i < parameter->Type.Rows; ++i)
+								{
+									source += swizzle[i];
+								}
+							}
+
+							source += ", ";
+						}
+
+						source.erase(source.end() - 2, source.end());
 					}
 
 					source += ')';
@@ -1953,7 +1990,7 @@ namespace ReShade
 
 					if (errors != nullptr)
 					{
-						this->mErrors += std::string(static_cast<const char *>(errors->GetBufferPointer()), errors->GetBufferSize());
+						this->mErrors.append(static_cast<const char *>(errors->GetBufferPointer()), errors->GetBufferSize());
 
 						errors->Release();
 					}
@@ -1966,32 +2003,39 @@ namespace ReShade
 
 					if (shadertype == "vs")
 					{
-							hr = this->mEffect->mRuntime->mDevice->CreateVertexShader(static_cast<const DWORD *>(compiled->GetBufferPointer()), &pass.VS);
+						hr = this->mEffect->mRuntime->mDevice->CreateVertexShader(static_cast<const DWORD *>(compiled->GetBufferPointer()), &pass.VS);
 					}
 					else if (shadertype == "ps")
 					{
-							hr = this->mEffect->mRuntime->mDevice->CreatePixelShader(static_cast<const DWORD *>(compiled->GetBufferPointer()), &pass.PS);
+						hr = this->mEffect->mRuntime->mDevice->CreatePixelShader(static_cast<const DWORD *>(compiled->GetBufferPointer()), &pass.PS);
 					}
 
 					compiled->Release();
 
 					if (FAILED(hr))
 					{
-						this->mErrors += PrintLocation(node->Location) + "error: 'CreateShader' failed!\n";
-						this->mFatal = true;
+						Error(node->Location, "internal shader creation failed with '%u'!", hr);
 						return;
 					}
 				}
 
 			private:
-				const FX::Tree &mAST;
+				struct Function
+				{
+					std::string SourceCode;
+					std::unordered_set<std::string> SamplerDependencies;
+					std::vector<const FX::Nodes::Function *> FunctionDependencies;
+				};
+
 				D3D9Effect *mEffect;
-				std::string mCurrentSource;
-				std::string mErrors;
+				const FX::Tree &mAST;
 				bool mFatal;
-				std::string mCurrentBlockName;
-				bool mCurrentInParameterBlock, mCurrentInFunctionBlock;
-				unsigned int mCurrentRegisterOffset, mCurrentStorageSize, mCurrentInForInitialization;
+				std::string mErrors;
+				std::string mGlobalCode;
+				unsigned int mCurrentRegisterOffset, mCurrentStorageSize;
+				const FX::Nodes::Function *mCurrentFunction;
+				std::unordered_map<std::string, D3D9Sampler> mSamplers;
+				std::unordered_map<const FX::Nodes::Function *, Function> mFunctions;
 			};
 
 			template <typename T>
@@ -2467,7 +2511,7 @@ namespace ReShade
 			
 			D3D9EffectCompiler visitor(ast);
 		
-			if (!visitor.Traverse(effect.get(), errors))
+			if (!visitor.Compile(effect.get(), errors))
 			{
 				return nullptr;
 			}
@@ -2600,17 +2644,6 @@ namespace ReShade
 			// Setup vertex input
 			device->SetStreamSource(0, this->mVertexBuffer, 0, sizeof(float));
 			device->SetVertexDeclaration(this->mVertexDeclaration);
-
-			// Setup shader resources
-			for (DWORD sampler = 0, samplerCount = static_cast<DWORD>(this->mSamplers.size()); sampler < samplerCount; ++sampler)
-			{
-				device->SetTexture(sampler, this->mSamplers[sampler].mTexture->mTexture);
-
-				for (DWORD state = D3DSAMP_ADDRESSU; state <= D3DSAMP_SRGBTEXTURE; ++state)
-				{
-					device->SetSamplerState(sampler, static_cast<D3DSAMPLERSTATETYPE>(state), this->mSamplers[sampler].mStates[state]);
-				}
-			}
 
 			// Clear depthstencil
 			assert(this->mRuntime->mDefaultDepthStencil != nullptr);
@@ -2812,6 +2845,17 @@ namespace ReShade
 
 			// Save backbuffer of previous pass
 			device->StretchRect(runtime->mBackBufferResolved, nullptr, runtime->mBackBufferTextureSurface, nullptr, D3DTEXF_NONE);
+
+			// Setup shader resources
+			for (DWORD sampler = 0; sampler < pass.SamplerCount; ++sampler)
+			{
+				device->SetTexture(sampler, pass.Samplers[sampler].mTexture->mTexture);
+
+				for (DWORD state = D3DSAMP_ADDRESSU; state <= D3DSAMP_SRGBTEXTURE; ++state)
+				{
+					device->SetSamplerState(sampler, static_cast<D3DSAMPLERSTATETYPE>(state), pass.Samplers[sampler].mStates[state]);
+				}
+			}
 
 			// Setup rendertargets
 			for (DWORD target = 0, targetCount = std::min(runtime->mDeviceCaps.NumSimultaneousRTs, static_cast<DWORD>(8)); target < targetCount; ++target)
