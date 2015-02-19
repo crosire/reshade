@@ -1978,6 +1978,15 @@ namespace ReShade
 					}
 					else
 					{
+						const Node *const parent = this->mParentStack.empty() ? nullptr : this->mParentStack.top();
+
+						if (parent == callexpression->Callee)
+						{
+							this->mLexer.Error(location, 3500, "recursive function calls are not allowed");
+
+							return false;
+						}
+
 						node = callexpression;
 					}
 
