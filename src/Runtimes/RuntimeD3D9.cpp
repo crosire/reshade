@@ -20,7 +20,7 @@ namespace ReShade
 			class D3D9EffectCompiler : private boost::noncopyable
 			{
 			public:
-				D3D9EffectCompiler(const FX::Tree &ast) : mAST(ast), mEffect(nullptr), mCurrentInParameterBlock(false), mCurrentInFunctionBlock(false), mCurrentInDeclaratorList(false), mCurrentRegisterOffset(0), mCurrentStorageSize(0), mFatal(false)
+				D3D9EffectCompiler(const FX::Tree &ast) : mAST(ast), mEffect(nullptr), mCurrentInParameterBlock(false), mCurrentInFunctionBlock(false), mCurrentInForInitialization(0), mCurrentRegisterOffset(0), mCurrentStorageSize(0), mFatal(false)
 				{
 				}
 
@@ -335,7 +335,15 @@ namespace ReShade
 					{
 						Visit(declarator);
 
-						this->mCurrentSource += ";\n";
+						if (this->mCurrentInForInitialization)
+						{
+							this->mCurrentSource += ", ";
+							this->mCurrentInForInitialization++;
+						}
+						else
+						{
+							this->mCurrentSource += ";\n";
+						}
 					}
 				}
 				void Visit(const FX::Nodes::ExpressionStatement *node)
@@ -434,12 +442,11 @@ namespace ReShade
 
 					if (node->Initialization != nullptr)
 					{
-						for (auto declarator : node->Initialization->Declarators)
-						{
-							Visit(declarator);
+						this->mCurrentInForInitialization = 1;
 
-							this->mCurrentSource += ", ";
-						}
+						Visit(node->Initialization);
+
+						this->mCurrentInForInitialization = 0;
 
 						this->mCurrentSource.pop_back();
 						this->mCurrentSource.pop_back();
@@ -1329,7 +1336,7 @@ namespace ReShade
 						}
 					}
 
-					if (!this->mCurrentInDeclaratorList)
+					if (this->mCurrentInForInitialization <= 1)
 					{
 						this->mCurrentSource += PrintTypeWithQualifiers(node->Type);
 					}
@@ -1850,7 +1857,12 @@ namespace ReShade
 							source += ']';
 						}
 
-						source += " : " + ConvertSemantic(parameter->Semantic) + ", ";
+						if (!parameter->Semantic.empty())
+						{
+							source += " : " + ConvertSemantic(parameter->Semantic);
+						}
+
+						source += ", ";
 					}
 
 					if (!node->Parameters.empty())
@@ -1978,8 +1990,8 @@ namespace ReShade
 				std::string mErrors;
 				bool mFatal;
 				std::string mCurrentBlockName;
-				bool mCurrentInParameterBlock, mCurrentInFunctionBlock, mCurrentInDeclaratorList;
-				unsigned int mCurrentRegisterOffset, mCurrentStorageSize;
+				bool mCurrentInParameterBlock, mCurrentInFunctionBlock;
+				unsigned int mCurrentRegisterOffset, mCurrentStorageSize, mCurrentInForInitialization;
 			};
 
 			template <typename T>

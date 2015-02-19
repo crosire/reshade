@@ -236,7 +236,7 @@ namespace ReShade
 			};
 			struct For : public Statement
 			{
-				DeclaratorList *Initialization;
+				Statement *Initialization;
 				Expression *Condition, *Increment;
 				Statement *Statements;
 				

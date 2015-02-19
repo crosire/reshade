@@ -1140,7 +1140,18 @@ namespace ReShade
 
 				EnterScope();
 
-				ParseDeclaration(newstatement->Initialization);
+				if (!ParseDeclaration(reinterpret_cast<Nodes::DeclaratorList *&>(newstatement->Initialization)))
+				{
+					Nodes::Expression *expression = nullptr;
+					
+					if (ParseExpression(expression))
+					{
+						Nodes::ExpressionStatement *const initialization = this->mAST.CreateNode<Nodes::ExpressionStatement>(expression->Location);
+						initialization->Expression = expression;
+
+						newstatement->Initialization = initialization;
+					}
+				}
 
 				if (!Expect(';'))
 				{

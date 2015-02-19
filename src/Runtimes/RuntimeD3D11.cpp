@@ -36,7 +36,7 @@ namespace ReShade
 			class D3D11EffectCompiler : private boost::noncopyable
 			{
 			public:
-				D3D11EffectCompiler(const FX::Tree &ast) : mAST(ast), mEffect(nullptr), mCurrentInParameterBlock(false), mCurrentInFunctionBlock(false), mCurrentInDeclaratorList(false), mCurrentGlobalSize(0), mCurrentGlobalStorageSize(0), mFatal(false)
+				D3D11EffectCompiler(const FX::Tree &ast) : mAST(ast), mEffect(nullptr), mCurrentInParameterBlock(false), mCurrentInFunctionBlock(false), mCurrentInForInitialization(0), mCurrentGlobalSize(0), mCurrentGlobalStorageSize(0), mFatal(false)
 				{
 				}
 
@@ -431,7 +431,15 @@ namespace ReShade
 					{
 						Visit(declarator);
 
-						this->mCurrentSource += ";\n";
+						if (this->mCurrentInForInitialization)
+						{
+							this->mCurrentSource += ", ";
+							this->mCurrentInForInitialization++;
+						}
+						else
+						{
+							this->mCurrentSource += ";\n";
+						}
 					}
 				}
 				void Visit(const FX::Nodes::ExpressionStatement *node)
@@ -522,12 +530,11 @@ namespace ReShade
 
 					if (node->Initialization != nullptr)
 					{
-						for (auto declarator : node->Initialization->Declarators)
-						{
-							Visit(declarator);
+						this->mCurrentInForInitialization = 1;
 
-							this->mCurrentSource += ", ";
-						}
+						Visit(node->Initialization);
+
+						this->mCurrentInForInitialization = 0;
 
 						this->mCurrentSource.pop_back();
 						this->mCurrentSource.pop_back();
@@ -1413,7 +1420,7 @@ namespace ReShade
 						}
 					}
 
-					if (!this->mCurrentInDeclaratorList)
+					if (this->mCurrentInForInitialization <= 1)
 					{
 						this->mCurrentSource += PrintTypeWithQualifiers(node->Type);
 					}
@@ -2135,9 +2142,9 @@ namespace ReShade
 				bool mFatal;
 				std::unordered_map<std::size_t, std::size_t> mSamplerDescs;
 				std::string mCurrentGlobalConstants;
-				UINT mCurrentGlobalSize, mCurrentGlobalStorageSize;
+				UINT mCurrentGlobalSize, mCurrentGlobalStorageSize, mCurrentInForInitialization;
 				std::string mCurrentBlockName;
-				bool mCurrentInParameterBlock, mCurrentInFunctionBlock, mCurrentInDeclaratorList;
+				bool mCurrentInParameterBlock, mCurrentInFunctionBlock;
 			};
 
 			template <typename T>

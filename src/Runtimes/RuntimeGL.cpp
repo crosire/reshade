@@ -32,7 +32,7 @@ namespace ReShade
 			class GLEffectCompiler : private boost::noncopyable
 			{
 			public:
-				GLEffectCompiler(const FX::Tree &ast) : mAST(ast), mEffect(nullptr), mCurrentFunction(nullptr), mCurrentInParameterBlock(false), mCurrentInFunctionBlock(false), mCurrentInDeclaratorList(false), mCurrentGlobalSize(0), mCurrentGlobalStorageSize(0), mFatal(false)
+				GLEffectCompiler(const FX::Tree &ast) : mAST(ast), mEffect(nullptr), mCurrentFunction(nullptr), mCurrentInParameterBlock(false), mCurrentInFunctionBlock(false), mCurrentInForInitialization(0), mCurrentGlobalSize(0), mCurrentGlobalStorageSize(0), mFatal(false)
 				{
 				}
 
@@ -529,7 +529,15 @@ namespace ReShade
 					{
 						Visit(declarator);
 
-						this->mCurrentSource += ";\n";
+						if (this->mCurrentInForInitialization)
+						{
+							this->mCurrentSource += ", ";
+							this->mCurrentInForInitialization++;
+						}
+						else
+						{
+							this->mCurrentSource += ";\n";
+						}
 					}
 				}
 				void Visit(const FX::Nodes::ExpressionStatement *node)
@@ -604,19 +612,18 @@ namespace ReShade
 
 					if (node->Initialization != nullptr)
 					{
-						for (auto declarator : node->Initialization->Declarators)
-						{
-							Visit(declarator);
+						this->mCurrentInForInitialization = true;
 
-							this->mCurrentSource += ", ";
-						}
+						Visit(node->Initialization);
+
+						this->mCurrentInForInitialization = false;
 
 						this->mCurrentSource.pop_back();
 						this->mCurrentSource.pop_back();
 					}
 
 					this->mCurrentSource += "; ";
-										
+
 					if (node->Condition != nullptr)
 					{
 						Visit(node->Condition);
@@ -1797,7 +1804,7 @@ namespace ReShade
 						}
 					}
 
-					if (!this->mCurrentInDeclaratorList)
+					if (this->mCurrentInForInitialization <= 1)
 					{
 						this->mCurrentSource += PrintTypeWithQualifiers(node->Type);
 					}
@@ -2571,10 +2578,10 @@ namespace ReShade
 				std::string mErrors;
 				bool mFatal;
 				std::string mCurrentGlobalConstants;
-				std::size_t mCurrentGlobalSize, mCurrentGlobalStorageSize;
+				std::size_t mCurrentGlobalSize, mCurrentGlobalStorageSize, mCurrentInForInitialization;
 				std::string mCurrentBlockName;
 				const FX::Nodes::Function *mCurrentFunction;
-				bool mCurrentInParameterBlock, mCurrentInFunctionBlock, mCurrentInDeclaratorList;
+				bool mCurrentInParameterBlock, mCurrentInFunctionBlock;
 			};
 
 			GLenum TargetToBinding(GLenum target)
