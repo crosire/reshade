@@ -3314,11 +3314,11 @@ namespace ReShade
 					{
 						ScalarLiteralCast(valueLiteral, 0, variable->Properties.MaxAnisotropy);
 					}
-					else if (name == "MinLOD")
+					else if (name == "MinLOD" || name == "MaxMipLevel")
 					{
 						ScalarLiteralCast(valueLiteral, 0, variable->Properties.MinLOD);
 					}
-					else if (name == "MaxLOD" || name == "MaxMipLevel")
+					else if (name == "MaxLOD")
 					{
 						ScalarLiteralCast(valueLiteral, 0, variable->Properties.MaxLOD);
 					}

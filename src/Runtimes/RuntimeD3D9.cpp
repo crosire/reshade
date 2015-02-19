@@ -1475,7 +1475,7 @@ namespace ReShade
 					sampler.mStates[D3DSAMP_MAGFILTER] = static_cast<D3DTEXTUREFILTERTYPE>(node->Properties.MagFilter);
 					sampler.mStates[D3DSAMP_MIPFILTER] = static_cast<D3DTEXTUREFILTERTYPE>(node->Properties.MipFilter);
 					sampler.mStates[D3DSAMP_MIPMAPLODBIAS] = *reinterpret_cast<const DWORD *>(&node->Properties.MipLODBias);
-					sampler.mStates[D3DSAMP_MAXMIPLEVEL] = static_cast<DWORD>(node->Properties.MaxLOD);
+					sampler.mStates[D3DSAMP_MAXMIPLEVEL] = static_cast<DWORD>(std::max(0.0f, node->Properties.MinLOD));
 					sampler.mStates[D3DSAMP_MAXANISOTROPY] = node->Properties.MaxAnisotropy;
 					sampler.mStates[D3DSAMP_SRGBTEXTURE] = node->Properties.SRGBTexture;
 
