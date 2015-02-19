@@ -2661,16 +2661,16 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateVertexShader(CONST DWORD *pDecl
 			declpos += decl.length();
 		}
 
+		constants += "def c95, 0, 0, 0, 0\n";
+
 		source.insert(declpos, constants);
+		source.insert(declpos + constants.size(), "mov r0, c95\nmov r1, c95\nmov r2, c95\nmov r3, c95\nmov r4, c95\nmov r5, c95\nmov r6, c95\nmov r7, c95\nmov r8, c95\nmov r9, c95\nmov r10, c95\nmov r11, c95\n");
 
 		if (source.find("oT") != std::string::npos)
 		{
-			source.insert(declpos + constants.size(), "def c95, 0, 0, 0, 0\nmov oT0, c95\nmov oT1, c95\nmov oT2, c95\nmov oT3, c95\nmov oT4, c95\nmov oT5, c95\nmov oT6, c95\nmov oT7, c95\n");
+			source.insert(declpos + constants.size(), "mov oT0, c95\nmov oT1, c95\nmov oT2, c95\nmov oT3, c95\nmov oT4, c95\nmov oT5, c95\nmov oT6, c95\nmov oT7, c95\n");
 		}
 
-		boost::algorithm::replace_all(source, "m3x2 ", "/*m3x2*/m3x4 ");
-		boost::algorithm::replace_all(source, "m3x3 ", "/*m3x3*/m3x4 ");
-		boost::algorithm::replace_all(source, "m4x3 ", "/*m4x3*/m4x4 ");
 		boost::algorithm::replace_all(source, "oFog.x", "oFog");
 		boost::algorithm::replace_all(source, "oPts.x", "oPts");
 
@@ -2975,9 +2975,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreatePixelShader(CONST DWORD *pFunct
 		source.replace(verpos, 6, "ps_1_1");
 	}
 
-	boost::algorithm::replace_all(source, "m3x2 ", "/*m3x2*/m3x4 ");
-	boost::algorithm::replace_all(source, "m3x3 ", "/*m3x3*/m3x4 ");
-	boost::algorithm::replace_all(source, "m4x3 ", "/*m4x3*/m4x4 ");
+	source.insert(verpos + 7, "def c95, 0, 0, 0, 0\nmov r0, c95\nmov r1, c95\n");
+
 	boost::algorithm::replace_all(source, "-c", "/*-*/c");
 
 	LOG(TRACE) << "> Dumping translated shader assembly:\n\n" << source;
