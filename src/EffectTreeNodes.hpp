@@ -426,7 +426,6 @@ namespace ReShade
 					Tan,
 					Tanh,
 					Tex2D,
-					Tex2DBias,
 					Tex2DFetch,
 					Tex2DGather,
 					Tex2DGatherOffset,

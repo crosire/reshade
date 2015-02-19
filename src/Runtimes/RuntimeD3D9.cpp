@@ -1082,11 +1082,6 @@ namespace ReShade
 							part2 = ", ";
 							part3 = ")";
 							break;
-						case FX::Nodes::Intrinsic::Op::Tex2DBias:
-							part1 = "tex2Dbias(";
-							part2 = ", ";
-							part3 = ")";
-							break;
 						case FX::Nodes::Intrinsic::Op::Tex2DFetch:
 							part1 = "tex2D(";
 							part2 = ", float2(";

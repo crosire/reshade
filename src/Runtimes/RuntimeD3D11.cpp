@@ -1107,11 +1107,6 @@ namespace ReShade
 							part2 = ", ";
 							part3 = ")";
 							break;
-						case FX::Nodes::Intrinsic::Op::Tex2DBias:
-							part1 = "__tex2Dbias(";
-							part2 = ", ";
-							part3 = ")";
-							break;
 						case FX::Nodes::Intrinsic::Op::Tex2DFetch:
 							part1 = "__tex2Dfetch(";
 							part2 = ", ";
@@ -2086,7 +2081,6 @@ namespace ReShade
 						"inline float4 __tex2Dgather(__sampler2D s, float2 c) { return s.t.Gather(s.s, c); }\n"
 						"inline float4 __tex2Dgatheroffset(__sampler2D s, float2 c, int2 offset) { return s.t.Gather(s.s, c, offset); }\n"
 						"inline float4 __tex2Dfetch(__sampler2D s, int4 c) { return s.t.Load(c.xyw); }\n"
-						"inline float4 __tex2Dbias(__sampler2D s, float4 c) { return s.t.SampleBias(s.s, c.xy, c.w); }\n"
 						"inline int2 __tex2Dsize(__sampler2D s, int lod) { uint w, h, l; s.t.GetDimensions(lod, w, h, l); return int2(w, h); }\n";
 
 					if (!this->mCurrentGlobalConstants.empty())

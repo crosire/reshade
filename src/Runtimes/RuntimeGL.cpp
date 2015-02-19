@@ -1477,16 +1477,6 @@ namespace ReShade
 							part3 = cast2.second + " * vec2(1.0, -1.0) + vec2(0.0, 1.0))";
 							break;
 						}
-						case FX::Nodes::Intrinsic::Op::Tex2DBias:
-						{
-							const FX::Nodes::Type type2to = { FX::Nodes::Type::Class::Float, 0, 4, 1 };
-							cast2 = PrintCast(type2, type2to);
-
-							part1 = "_textureBias(";
-							part2 = ", " + cast2.first;
-							part3 = cast2.second + " * vec4(1.0, -1.0, 1.0, 1.0) + vec4(0.0, 1.0, 0.0, 0.0))";
-							break;
-						}
 						case FX::Nodes::Intrinsic::Op::Tex2DFetch:
 						{
 							const FX::Nodes::Type type2to = { FX::Nodes::Type::Class::Int, 0, 2, 1 };
@@ -2341,8 +2331,7 @@ namespace ReShade
 						"void _sincos(vec3 x, out vec3 s, out vec3 c) { s = sin(x), c = cos(x); }"
 						"void _sincos(vec4 x, out vec4 s, out vec4 c) { s = sin(x), c = cos(x); }\n"
 						"vec4 _textureLod(sampler2D s, vec4 c) { return textureLod(s, c.xy, c.w); }\n"
-						"#define _textureLodOffset(s, c, offset) textureLodOffset(s, (c).xy, (c).w, offset)\n"
-						"vec4 _textureBias(sampler2D s, vec4 c) { return textureOffset(s, c.xy, ivec2(0), c.w); }\n";
+						"#define _textureLodOffset(s, c, offset) textureLodOffset(s, (c).xy, (c).w, offset)\n";
 
 					if (!this->mGlobalUniforms.empty())
 					{
