@@ -36,7 +36,7 @@ namespace ReShade
 			class D3D11EffectCompiler : private boost::noncopyable
 			{
 			public:
-				D3D11EffectCompiler(const FX::Tree &ast) : mAST(ast), mEffect(nullptr), mCurrentInParameterBlock(false), mCurrentInFunctionBlock(false), mCurrentInForInitialization(0), mCurrentGlobalSize(0), mCurrentGlobalStorageSize(0), mFatal(false)
+				D3D11EffectCompiler(const FX::Tree &ast, bool skipoptimization = false) : mAST(ast), mEffect(nullptr), mFatal(false), mSkipShaderOptimization(skipoptimization), mCurrentInParameterBlock(false), mCurrentInFunctionBlock(false), mCurrentInForInitialization(0), mCurrentGlobalSize(0), mCurrentGlobalStorageSize(0)
 				{
 				}
 
@@ -2092,9 +2092,15 @@ namespace ReShade
 
 					LOG(TRACE) << "> Compiling shader '" << node->Name << "':\n\n" << source.c_str() << "\n";
 
+					UINT flags = D3DCOMPILE_ENABLE_STRICTNESS;
 					ID3DBlob *compiled = nullptr, *errors = nullptr;
 
-					HRESULT hr = D3DCompile(source.c_str(), source.length(), nullptr, nullptr, nullptr, node->Name.c_str(), profile.c_str(), D3DCOMPILE_ENABLE_STRICTNESS, 0, &compiled, &errors);
+					if (this->mSkipShaderOptimization)
+					{
+						flags |= D3DCOMPILE_SKIP_OPTIMIZATION;
+					}
+
+					HRESULT hr = D3DCompile(source.c_str(), source.length(), nullptr, nullptr, nullptr, node->Name.c_str(), profile.c_str(), flags, 0, &compiled, &errors);
 
 					if (errors != nullptr)
 					{
@@ -2133,7 +2139,7 @@ namespace ReShade
 				D3D11Effect *mEffect;
 				std::string mCurrentSource;
 				std::string mErrors;
-				bool mFatal;
+				bool mFatal, mSkipShaderOptimization;
 				std::unordered_map<std::size_t, std::size_t> mSamplerDescs;
 				std::string mCurrentGlobalConstants;
 				UINT mCurrentGlobalSize, mCurrentGlobalStorageSize, mCurrentInForInitialization;
@@ -3044,7 +3050,7 @@ namespace ReShade
 		{
 			std::unique_ptr<D3D11Effect> effect(new D3D11Effect(shared_from_this()));
 
-			D3D11EffectCompiler visitor(ast);
+			D3D11EffectCompiler visitor(ast, this->mSkipShaderOptimization);
 		
 			if (!visitor.Traverse(effect.get(), errors))
 			{

@@ -164,7 +164,7 @@ namespace ReShade
 
 	// -----------------------------------------------------------------------------------------------------
 
-	Runtime::Runtime() : mWidth(0), mHeight(0), mVendorId(0), mDeviceId(0), mRendererId(0), mLastFrameCount(0), mLastDrawCalls(0), mLastDrawCallVertices(0), mDate(), mCompileStep(0), mNVG(nullptr), mScreenshotFormat("png"), mShowStatistics(false)
+	Runtime::Runtime() : mWidth(0), mHeight(0), mVendorId(0), mDeviceId(0), mRendererId(0), mLastFrameCount(0), mLastDrawCalls(0), mLastDrawCallVertices(0), mDate(), mCompileStep(0), mNVG(nullptr), mScreenshotFormat("png"), mShowStatistics(false), mSkipShaderOptimization(false)
 	{
 		this->mStatus = "Initializing ...";
 		this->mStartTime = boost::chrono::high_resolution_clock::now();
@@ -414,7 +414,7 @@ namespace ReShade
 			{
 				const boost::filesystem::path extension = path.extension();
 					
-				if (extension == ".fx" || extension == ".hlsl" || extension == ".h" || extension == ".txt")
+				if (extension == ".fx" || extension == ".hlsl" || extension == ".h" || (extension == ".txt" && (path.stem() == "ReShade_settings.txt" || path.stem() == "SweetFX_settings.txt")))
 				{
 					LOG(INFO) << "Detected modification to " << ObfuscatePath(path) << ". Reloading ...";
 
@@ -540,7 +540,7 @@ namespace ReShade
 	bool Runtime::LoadEffect()
 	{
 		this->mMessage.clear();
-		this->mShowStatistics = false;
+		this->mShowStatistics = this->mSkipShaderOptimization = false;
 
 		boost::filesystem::path path = sEffectPath;
 
@@ -551,6 +551,10 @@ namespace ReShade
 		if (!boost::filesystem::exists(path))
 		{
 			path = path.parent_path() / "Sweet.fx";
+		}
+		if (!boost::filesystem::exists(path))
+		{
+			path = path.parent_path() / "ReShade" / "Core" / "ReShade.fx";
 		}
 		if (!boost::filesystem::exists(path))
 		{
@@ -629,6 +633,10 @@ namespace ReShade
 			if (boost::iequals(command, "statistics") || boost::iequals(command, "showstatistics"))
 			{
 				this->mShowStatistics = true;
+			}
+			else if (boost::iequals(command, "skipoptimization") || boost::iequals(command, "nooptimization"))
+			{
+				this->mSkipShaderOptimization = true;
 			}
 			else if (boost::istarts_with(command, "screenshot_format "))
 			{

@@ -21,7 +21,7 @@ namespace ReShade
 			class D3D9EffectCompiler : private boost::noncopyable
 			{
 			public:
-				D3D9EffectCompiler(const FX::Tree &ast) : mAST(ast), mEffect(nullptr), mFatal(false), mCurrentFunction(nullptr), mCurrentRegisterOffset(0), mCurrentStorageSize(0)
+				D3D9EffectCompiler(const FX::Tree &ast, bool skipoptimization = false) : mAST(ast), mEffect(nullptr), mFatal(false), mSkipShaderOptimization(skipoptimization), mCurrentFunction(nullptr), mCurrentRegisterOffset(0), mCurrentStorageSize(0)
 				{
 				}
 
@@ -1979,9 +1979,15 @@ namespace ReShade
 
 					LOG(TRACE) << "> Compiling shader '" << node->Name << "':\n\n" << source.c_str() << "\n";
 
+					UINT flags = 0;
 					ID3DBlob *compiled = nullptr, *errors = nullptr;
 
-					HRESULT hr = D3DCompile(source.c_str(), source.length(), nullptr, nullptr, nullptr, "__main", (shadertype + "_3_0").c_str(), 0, 0, &compiled, &errors);
+					if (this->mSkipShaderOptimization)
+					{
+						flags |= D3DCOMPILE_SKIP_OPTIMIZATION;
+					}
+
+					HRESULT hr = D3DCompile(source.c_str(), source.length(), nullptr, nullptr, nullptr, "__main", (shadertype + "_3_0").c_str(), flags, 0, &compiled, &errors);
 
 					if (errors != nullptr)
 					{
@@ -2024,7 +2030,7 @@ namespace ReShade
 
 				D3D9Effect *mEffect;
 				const FX::Tree &mAST;
-				bool mFatal;
+				bool mFatal, mSkipShaderOptimization;
 				std::string mErrors;
 				std::string mGlobalCode;
 				unsigned int mCurrentRegisterOffset, mCurrentStorageSize;
@@ -2504,7 +2510,7 @@ namespace ReShade
 		{
 			std::unique_ptr<D3D9Effect> effect(new D3D9Effect(shared_from_this()));
 			
-			D3D9EffectCompiler visitor(ast);
+			D3D9EffectCompiler visitor(ast, this->mSkipShaderOptimization);
 		
 			if (!visitor.Compile(effect.get(), errors))
 			{
