@@ -2952,9 +2952,17 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreatePixelShader(CONST DWORD *pFunct
 		return D3DERR_INVALIDCALL;
 	}
 
-	ID3DXBuffer *disassembly = nullptr, *assembly = nullptr, *errors = nullptr;
+	std::vector<DWORD> assembly;
+	ID3DXBuffer *disassembly = nullptr;
 
-	HRESULT hr = D3DXDisassembleShader(pFunction, FALSE, nullptr, &disassembly);
+	while (*pFunction != 0x0000FFFF)
+	{
+		assembly.push_back(*pFunction++);
+	}
+
+	assembly.push_back(0x0000FFFF);
+
+	HRESULT hr = D3DXDisassembleShader(assembly.data(), FALSE, nullptr, &disassembly);
 
 	if (FAILED(hr))
 	{
@@ -2972,36 +2980,15 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreatePixelShader(CONST DWORD *pFunct
 	{
 		LOG(INFO) << "> Replacing version 'ps_1_0' with 'ps_1_1' ...";
 
+		assembly[0] = D3DPS_VERSION(1, 1);
 		source.replace(verpos, 6, "ps_1_1");
 	}
 
-	source.insert(verpos + 7, "def c95, 0, 0, 0, 0\nmov r0, c95\nmov r1, c95\n");
-
-	boost::algorithm::replace_all(source, "-c", "/*-*/c");
-
 	LOG(TRACE) << "> Dumping translated shader assembly:\n\n" << source;
-
-	hr = D3DXAssembleShader(source.data(), static_cast<UINT>(source.size()), nullptr, nullptr, 0, &assembly, &errors);
 
 	disassembly->Release();
 
-	if (FAILED(hr))
-	{
-		if (errors != nullptr)
-		{
-			LOG(ERROR) << "> Failed to reassemble shader:\n\n" << static_cast<const char *>(errors->GetBufferPointer());
-
-			errors->Release();
-		}
-		else
-		{
-			LOG(ERROR) << "> Failed to reassemble shader with '" << GetErrorString(hr) << "'!";
-		}
-	}
-
-	hr = this->mProxy->CreatePixelShader(static_cast<CONST DWORD *>(assembly->GetBufferPointer()), reinterpret_cast<IDirect3DPixelShader9 **>(pHandle));
-
-	assembly->Release();
+	hr = this->mProxy->CreatePixelShader(assembly.data(), reinterpret_cast<IDirect3DPixelShader9 **>(pHandle));
 
 	if (FAILED(hr))
 	{
