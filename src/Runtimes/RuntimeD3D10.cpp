@@ -2405,6 +2405,11 @@ namespace ReShade
 				LOG(TRACE) << "Removing depthstencil " << depthstencil << " from list of possible depth candidates ...";
 
 				this->mDepthSourceTable.erase(it);
+
+				if (depthstencil == this->mDepthStencil)
+				{
+					CreateDepthStencilReplacement(nullptr);
+				}
 			}
 		}
 		void D3D10Runtime::OnSetDepthStencilView(ID3D10DepthStencilView *&depthstencil)
@@ -2418,7 +2423,10 @@ namespace ReShade
 		{
 			if (this->mDepthStencilReplacement != nullptr && depthstencil == this->mDepthStencilReplacement)
 			{
+				depthstencil->Release();
+
 				depthstencil = this->mDepthStencil;
+				depthstencil->AddRef();
 			}
 		}
 		void D3D10Runtime::OnClearDepthStencilView(ID3D10DepthStencilView *&depthstencil)
