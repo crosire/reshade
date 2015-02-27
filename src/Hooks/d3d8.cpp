@@ -539,6 +539,19 @@ namespace
 		IDirect3DVertexDeclaration9 *mDeclaration;
 	};
 
+	LPCSTR GetPoolString(D3DPOOL pool)
+	{
+		switch (pool)
+		{
+			default:
+			case D3DPOOL_DEFAULT:
+				return "D3DPOOL_DEFAULT";
+			case D3DPOOL_MANAGED:
+				return "D3DPOOL_MANAGED";
+			case D3DPOOL_SYSTEMMEM:
+				return "D3DPOOL_SYSTEMMEM";
+		}
+	}
 	LPCSTR GetErrorString(HRESULT hr)
 	{
 		switch (hr)
@@ -1708,6 +1721,24 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateTexture(UINT Width, UINT Height
 		return D3DERR_INVALIDCALL;
 	}
 
+	if (Pool == D3DPOOL_DEFAULT)
+	{
+		D3DDEVICE_CREATION_PARAMETERS cp;
+		this->mProxy->GetCreationParameters(&cp);
+
+		if (SUCCEEDED(this->mD3D->CheckDeviceFormat(cp.AdapterOrdinal, cp.DeviceType, D3DFMT_X8R8G8B8, D3DUSAGE_RENDERTARGET, D3DRTYPE_TEXTURE, Format)))
+		{
+			if ((Usage & D3DUSAGE_DYNAMIC) == 0)
+			{
+				Usage |= D3DUSAGE_RENDERTARGET;
+			}
+		}
+		else
+		{
+			Pool = D3DPOOL_MANAGED;
+		}
+	}
+
 	IDirect3DTexture9 *texture = nullptr;
 
 	const HRESULT hr = this->mProxy->CreateTexture(Width, Height, Levels, Usage, Format, Pool, &texture, nullptr);
@@ -1876,6 +1907,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateImageSurface(UINT Width, UINT H
 
 	if (FAILED(hr))
 	{
+		LOG(ERROR) << "Failed to translate 'IDirect3DDevice8::CreateImageSurface' call for '[" << Width << ", " << Height << ", " << Format << "]'!";
+
 		return hr;
 	}
 
@@ -1894,9 +1927,19 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CopyRects(Direct3DSurface8 *pSourceSu
 	pSourceSurface->mProxy->GetDesc(&descSource);
 	pDestinationSurface->mProxy->GetDesc(&descDestination);
 
+	if (descSource.Format != descDestination.Format)
+	{
+		return D3DERR_INVALIDCALL;
+	}
+
 	HRESULT hr = D3DERR_INVALIDCALL;
 
-	for (UINT i = 0; i < std::max(cRects, 1U); ++i)
+	if (cRects == 0)
+	{
+		cRects = 1;
+	}
+
+	for (UINT i = 0; i < cRects; ++i)
 	{
 		RECT rectSource, rectDestination;
 
@@ -1924,7 +1967,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CopyRects(Direct3DSurface8 *pSourceSu
 			rectDestination = rectSource;
 		}
 
-		if (descSource.Format != descDestination.Format || descSource.Pool == D3DPOOL_MANAGED || descDestination.Pool != D3DPOOL_DEFAULT)
+		if (descSource.Pool == D3DPOOL_MANAGED || descDestination.Pool != D3DPOOL_DEFAULT)
 		{
 			hr = D3DXLoadSurfaceFromSurface(pDestinationSurface->mProxy, nullptr, &rectDestination, pSourceSurface->mProxy, nullptr, &rectSource, D3DX_FILTER_NONE, 0);
 		}
@@ -1941,7 +1984,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CopyRects(Direct3DSurface8 *pSourceSu
 
 		if (FAILED(hr))
 		{
-			LOG(ERROR) << "Failed to translate 'IDirect3DDevice8::CopyRects' call!";
+			LOG(ERROR) << "Failed to translate 'IDirect3DDevice8::CopyRects' call from '[" << descSource.Width << ", " << descSource.Height << ", " << descSource.Format << ", " << descSource.MultiSampleType << ", " << descSource.Usage << ", " << GetPoolString(descSource.Pool) << "]' to '[" << descDestination.Width << ", " << descDestination.Height << ", " << descDestination.Format << ", " << descDestination.MultiSampleType << ", " << descDestination.Usage << ", " << GetPoolString(descDestination.Pool) << "]'!";
 			break;
 		}
 	}
@@ -1953,6 +1996,26 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::UpdateTexture(Direct3DBaseTexture8 *p
 	if (pSourceTexture == nullptr || pDestinationTexture == nullptr)
 	{
 		return D3DERR_INVALIDCALL;
+	}
+
+	if (pSourceTexture->GetType() == D3DRTYPE_TEXTURE && pDestinationTexture->GetType() == D3DRTYPE_TEXTURE)
+	{
+		D3D9::D3DSURFACE_DESC desc;
+		static_cast<IDirect3DTexture9 *>(pDestinationTexture->mProxy)->GetLevelDesc(0, &desc);
+
+		if (desc.Pool == D3DPOOL_MANAGED)
+		{
+			IDirect3DSurface9 *surfaceSource = nullptr, *surfaceDestination = nullptr;
+			static_cast<IDirect3DTexture9 *>(pSourceTexture->mProxy)->GetSurfaceLevel(0, &surfaceSource);
+			static_cast<IDirect3DTexture9 *>(pDestinationTexture->mProxy)->GetSurfaceLevel(0, &surfaceDestination);
+			
+			const HRESULT hr = D3DXLoadSurfaceFromSurface(surfaceDestination, nullptr, nullptr, surfaceSource, nullptr, nullptr, D3DX_FILTER_NONE, 0);
+
+			surfaceSource->Release();
+			surfaceDestination->Release();
+
+			return hr;
+		}
 	}
 
 	return this->mProxy->UpdateTexture(static_cast<IDirect3DBaseTexture9 *>(pSourceTexture->mProxy), static_cast<IDirect3DBaseTexture9 *>(pDestinationTexture->mProxy));
