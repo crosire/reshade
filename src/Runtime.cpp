@@ -134,15 +134,15 @@ namespace ReShade
 
 		LOG(INFO) << "Initializing Crosire's ReShade version '" BOOST_STRINGIZE(VERSION_FULL) "' built on '" VERSION_DATE " " VERSION_TIME "' loaded from " << ObfuscatePath(injectorPath) << " to " << ObfuscatePath(executablePath) << " ...";
 
-		Hooks::Register(systemPath / "d3d8.dll");
-		Hooks::Register(systemPath / "d3d9.dll");
-		Hooks::Register(systemPath / "d3d10.dll");
-		Hooks::Register(systemPath / "d3d10_1.dll");
-		Hooks::Register(systemPath / "d3d11.dll");
-		Hooks::Register(systemPath / "dxgi.dll");
-		Hooks::Register(systemPath / "opengl32.dll");
-		Hooks::Register(systemPath / "user32.dll");
-		Hooks::Register(systemPath / "ws2_32.dll");
+		Hooks::RegisterModule(systemPath / "d3d8.dll");
+		Hooks::RegisterModule(systemPath / "d3d9.dll");
+		Hooks::RegisterModule(systemPath / "d3d10.dll");
+		Hooks::RegisterModule(systemPath / "d3d10_1.dll");
+		Hooks::RegisterModule(systemPath / "d3d11.dll");
+		Hooks::RegisterModule(systemPath / "dxgi.dll");
+		Hooks::RegisterModule(systemPath / "opengl32.dll");
+		Hooks::RegisterModule(systemPath / "user32.dll");
+		Hooks::RegisterModule(systemPath / "ws2_32.dll");
 
 		sEffectWatcher = new FileWatcher(sEffectPath.parent_path(), true);
 
@@ -414,7 +414,7 @@ namespace ReShade
 			{
 				const boost::filesystem::path extension = path.extension();
 					
-				if (extension == ".fx" || extension == ".hlsl" || extension == ".h" || (extension == ".txt" && (path.stem() == "ReShade_settings.txt" || path.stem() == "SweetFX_settings.txt")))
+				if (extension == ".fx" || extension == ".hlsl" || extension == ".h" || (extension == ".txt" && (path.stem() == "ReShade_settings" || path.stem() == "SweetFX_settings")))
 				{
 					LOG(INFO) << "Detected modification to " << ObfuscatePath(path) << ". Reloading ...";
 
