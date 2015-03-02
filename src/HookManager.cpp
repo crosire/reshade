@@ -58,10 +58,10 @@ namespace ReShade
 				CRITICAL_SECTION mCS;
 			} sCS;
 
-			HMODULE sExportHookModule = nullptr;
 			boost::filesystem::path sExportHookPath;
-			std::vector<std::pair<Hook, HookType>> sHooks;
+			std::vector<HMODULE> sDelayedHookModules;
 			std::vector<boost::filesystem::path> sDelayedHookPaths;
+			std::vector<std::pair<Hook, HookType>> sHooks;
 			std::unordered_map<Hook::Function, Hook::Function *> sVTableAddresses;
 
 			inline HMODULE GetCurrentModuleHandle()
@@ -334,7 +334,9 @@ namespace ReShade
 
 			HMODULE WINAPI HookLoadLibraryA(LPCSTR lpFileName)
 			{
-				const HMODULE handle = CallUnchecked(&HookLoadLibraryA)(lpFileName);
+				static const auto trampoline = CallUnchecked(&HookLoadLibraryA);
+
+				const HMODULE handle = trampoline(lpFileName);
 
 				if (handle == nullptr)
 				{
@@ -345,7 +347,8 @@ namespace ReShade
 
 				const auto remove = std::remove_if(sDelayedHookPaths.begin(), sDelayedHookPaths.end(), [lpFileName](const boost::filesystem::path &it)
 				{
-					const HMODULE handle = GetModuleHandleW(it.c_str());
+					HMODULE handle = nullptr;
+					GetModuleHandleExW(0, it.c_str(), &handle);
 
 					if (handle == nullptr)
 					{
@@ -353,6 +356,8 @@ namespace ReShade
 					}
 
 					LOG(INFO) << "Installing delayed hooks for " << it << " (Just loaded via 'LoadLibraryA(\"" << lpFileName << "\")') ...";
+
+					sDelayedHookModules.push_back(handle);
 
 					return Install(handle, GetCurrentModuleHandle(), HookType::FunctionHook);
 				});
@@ -363,7 +368,9 @@ namespace ReShade
 			}
 			HMODULE WINAPI HookLoadLibraryW(LPCWSTR lpFileName)
 			{
-				const HMODULE handle = CallUnchecked(&HookLoadLibraryW)(lpFileName);
+				static const auto trampoline = CallUnchecked(&HookLoadLibraryW);
+
+				const HMODULE handle = trampoline(lpFileName);
 
 				if (handle == nullptr)
 				{
@@ -374,7 +381,8 @@ namespace ReShade
 
 				const auto remove = std::remove_if(sDelayedHookPaths.begin(), sDelayedHookPaths.end(), [lpFileName](const boost::filesystem::path &it)
 				{
-					const HMODULE handle = GetModuleHandleW(it.c_str());
+					HMODULE handle = nullptr;
+					GetModuleHandleExW(0, it.c_str(), &handle);
 
 					if (handle == nullptr)
 					{
@@ -382,6 +390,8 @@ namespace ReShade
 					}
 
 					LOG(INFO) << "Installing delayed hooks for " << it << " (Just loaded via 'LoadLibraryW(\"" << lpFileName << "\")') ...";
+
+					sDelayedHookModules.push_back(handle);
 
 					return Install(handle, GetCurrentModuleHandle(), HookType::FunctionHook);
 				});
@@ -462,11 +472,13 @@ namespace ReShade
 
 			sHooks.clear();
 
-			// Free loaded module
-			if (sExportHookModule != nullptr)
+			// Free loaded modules
+			for (HMODULE module : sDelayedHookModules)
 			{
-				FreeLibrary(sExportHookModule);
+				FreeLibrary(module);
 			}
+
+			sDelayedHookModules.clear();
 		}
 		void RegisterModule(const boost::filesystem::path &targetPath) // Unsafe
 		{
@@ -486,11 +498,14 @@ namespace ReShade
 			}
 			else
 			{
-				const HMODULE targetModule = GetModuleHandleW(targetPath.c_str());
+				HMODULE targetModule = nullptr;
+				GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_PIN, targetPath.c_str(), &targetModule);
 
 				if (targetModule != nullptr)
 				{
 					LOG(INFO) << "> Libraries loaded.";
+
+					sDelayedHookModules.push_back(targetModule);
 
 					Install(targetModule, replacementModule, HookType::FunctionHook);
 				}
@@ -509,17 +524,16 @@ namespace ReShade
 
 			if (!sExportHookPath.empty())
 			{
-				assert(sExportHookModule == nullptr);
-
-				sExportHookModule = HookLoadLibraryW(sExportHookPath.c_str());
+				const HMODULE handle = HookLoadLibraryW(sExportHookPath.c_str());
 
 				LOG(INFO) << "Installing delayed hooks for " << sExportHookPath << " ...";
 
-				if (sExportHookModule != nullptr)
+				if (handle != nullptr)
 				{
-					Install(sExportHookModule, GetCurrentModuleHandle(), HookType::Export);
-
 					sExportHookPath.clear();
+					sDelayedHookModules.push_back(handle);
+
+					Install(handle, GetCurrentModuleHandle(), HookType::Export);
 				}
 				else
 				{
