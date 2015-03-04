@@ -1,7 +1,5 @@
 #pragma once
 
-#include "EffectLexer.hpp"
-
 #include <vector>
 #include <string>
 
@@ -9,6 +7,18 @@ namespace ReShade
 {
 	namespace FX
 	{
+		struct Location
+		{
+			Location(unsigned int line = 1, unsigned int column = 1) : Source(""), Line(line), Column(column)
+			{
+			}
+			Location(const std::string &source, unsigned int line = 1, unsigned int column = 1) : Source(source), Line(line), Column(column)
+			{
+			}
+
+			std::string Source;
+			unsigned int Line, Column;
+		};
 		class Node abstract
 		{
 		public:
@@ -50,7 +60,7 @@ namespace ReShade
 			};
 			
 			const Id NodeId;
-			Lexer::Location Location;
+			Location Location;
 			
 		protected:
 			Node(Id id) : NodeId(id), Location()

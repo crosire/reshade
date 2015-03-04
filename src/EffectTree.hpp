@@ -15,7 +15,7 @@ namespace ReShade
 
 		public:
 			template <typename T>
-			inline T *CreateNode(const Lexer::Location &location)
+			inline T *CreateNode(const Location &location)
 			{
 				T *const node = this->mMemoryPool.Add<T>();
 				node->Location = location;

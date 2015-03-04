@@ -939,7 +939,7 @@ namespace ReShade
 
 			AcceptTypeQualifiers(type);
 
-			const Lexer::Location location = this->mNextToken.GetLocation();
+			const Location location = this->mNextToken.GetLocation();
 
 			if (!AcceptTypeClass(type))
 			{
@@ -977,7 +977,7 @@ namespace ReShade
 				}
 			}
 
-			const Lexer::Location location = this->mNextToken.GetLocation();
+			const Location location = this->mNextToken.GetLocation();
 
 			if (Peek('{'))
 			{
@@ -1008,7 +1008,7 @@ namespace ReShade
 					return false;
 				}
 
-				const Lexer::Location conditionLocation = this->mNextToken.GetLocation();
+				const Location conditionLocation = this->mNextToken.GetLocation();
 				
 				if (!(ParseExpression(newstatement->Condition) && Expect(')')))
 				{
@@ -1049,7 +1049,7 @@ namespace ReShade
 					return false;
 				}
 
-				const Lexer::Location conditionLocation = this->mNextToken.GetLocation();
+				const Location conditionLocation = this->mNextToken.GetLocation();
 				
 				if (!(ParseExpression(newstatement->Test) && Expect(')') && Expect('{')))
 				{
@@ -1065,7 +1065,7 @@ namespace ReShade
 
 				while (!Peek('}') && !Peek(Lexer::Token::Id::EndOfStream))
 				{
-					Nodes::Case *const casenode = this->mAST.CreateNode<Nodes::Case>(Lexer::Location());
+					Nodes::Case *const casenode = this->mAST.CreateNode<Nodes::Case>(Location());
 
 					while (Accept(Lexer::Token::Id::Case) || Accept(Lexer::Token::Id::Default))
 					{
@@ -1073,7 +1073,7 @@ namespace ReShade
 
 						if (this->mToken == Lexer::Token::Id::Case)
 						{
-							const Lexer::Location labelLocation = this->mNextToken.GetLocation();
+							const Location labelLocation = this->mNextToken.GetLocation();
 
 							if (!ParseExpression(label))
 							{
@@ -1622,7 +1622,7 @@ namespace ReShade
 			Nodes::Unary::Op op;
 			const Node *symbol = nullptr;
 			std::string identifier;
-			Lexer::Location location = this->mNextToken.GetLocation();
+			Location location = this->mNextToken.GetLocation();
 
 			#pragma region Prefix
 			if (AcceptUnaryOp(op))
@@ -1849,7 +1849,7 @@ namespace ReShade
 					}
 
 					Nodes::Expression *argument = nullptr;
-					const Lexer::Location argumentLocation = this->mNextToken.GetLocation();
+					const Location argumentLocation = this->mNextToken.GetLocation();
 
 					if (!ParseExpressionAssignment(argument))
 					{
@@ -2360,7 +2360,7 @@ namespace ReShade
 		}
 		bool Parser::ParseExpressionMultary(Nodes::Expression *&left, unsigned int leftPrecedence)
 		{
-			const Lexer::Location leftLocation = this->mNextToken.GetLocation();
+			const Location leftLocation = this->mNextToken.GetLocation();
 
 			if (!ParseExpressionUnary(left))
 			{
@@ -2373,7 +2373,7 @@ namespace ReShade
 			while (PeekMultaryOp(op, rightPrecedence))
 			{
 				bool boolean = false;
-				Lexer::Location rightLocation = this->mNextToken.GetLocation();
+				Location rightLocation = this->mNextToken.GetLocation();
 				Nodes::Expression *right1 = nullptr, *right2 = nullptr;
 
 				if (rightPrecedence <= leftPrecedence)
@@ -2510,7 +2510,7 @@ namespace ReShade
 		bool Parser::ParseExpressionAssignment(Nodes::Expression *&node)
 		{
 			Nodes::Expression *left, *right;
-			const Lexer::Location leftLocation = this->mNextToken.GetLocation();
+			const Location leftLocation = this->mNextToken.GetLocation();
 
 			if (!ParseExpressionMultary(left))
 			{
@@ -2523,7 +2523,7 @@ namespace ReShade
 
 			if (AcceptAssignmentOp(op))
 			{
-				const Lexer::Location rightLocation = this->mNextToken.GetLocation();
+				const Location rightLocation = this->mNextToken.GetLocation();
 
 				if (!ParseExpressionMultary(right))
 				{
@@ -2625,7 +2625,7 @@ namespace ReShade
 			else if (ParseType(type))
 			{
 				std::string name;
-				const Lexer::Location location = this->mToken.GetLocation();
+				const Location location = this->mToken.GetLocation();
 
 				if (!ExpectIdentifier(name))
 				{
@@ -2757,7 +2757,7 @@ namespace ReShade
 				return false;
 			}
 
-			const Lexer::Location location = this->mToken.GetLocation();
+			const Location location = this->mToken.GetLocation();
 
 			structure = this->mAST.CreateNode<Nodes::Struct>(location);
 
@@ -2856,7 +2856,7 @@ namespace ReShade
 			Nodes::Type type;
 			std::string name;
 
-			const Lexer::Location location = this->mNextToken.GetLocation();
+			const Location location = this->mNextToken.GetLocation();
 
 			if (!ParseType(type))
 			{
@@ -2894,7 +2894,7 @@ namespace ReShade
 		}
 		bool Parser::ParseFunctionResidue(Nodes::Type &type, const std::string &name, Nodes::Function *&function)
 		{
-			const Lexer::Location location = this->mToken.GetLocation();
+			const Location location = this->mToken.GetLocation();
 
 			if (!Expect('('))
 			{
@@ -2927,7 +2927,7 @@ namespace ReShade
 					return false;
 				}
 
-				Nodes::Variable *const parameter = this->mAST.CreateNode<Nodes::Variable>(Lexer::Location());
+				Nodes::Variable *const parameter = this->mAST.CreateNode<Nodes::Variable>(Location());
 
 				if (!ParseType(parameter->Type) || !ExpectIdentifier(parameter->Name))
 				{
@@ -2936,7 +2936,7 @@ namespace ReShade
 					return false;
 				}
 
-				const Lexer::Location parameterLocation = this->mToken.GetLocation();
+				const Location parameterLocation = this->mToken.GetLocation();
 				parameter->Location = parameterLocation;
 
 				if (parameter->Type.IsVoid())
@@ -3053,7 +3053,7 @@ namespace ReShade
 		}
 		bool Parser::ParseVariableResidue(Nodes::Type &type, const std::string &name, Nodes::Variable *&variable)
 		{
-			const Lexer::Location location = this->mToken.GetLocation();
+			const Location location = this->mToken.GetLocation();
 
 			if (type.IsVoid())
 			{
@@ -3126,7 +3126,7 @@ namespace ReShade
 
 			if (Accept('='))
 			{
-				const Lexer::Location location = this->mToken.GetLocation();
+				const Location location = this->mToken.GetLocation();
 
 				if (!ParseVariableAssignment(variable->Initializer))
 				{
@@ -3241,7 +3241,7 @@ namespace ReShade
 				}
 
 				Nodes::Expression *value = nullptr;
-				const Lexer::Location location = this->mToken.GetLocation();
+				const Location location = this->mToken.GetLocation();
 
 				if (!(Expect('=') && ParseVariablePropertiesExpression(value) && Expect(';')))
 				{
@@ -3353,7 +3353,7 @@ namespace ReShade
 		bool Parser::ParseVariablePropertiesExpression(Nodes::Expression *&expression)
 		{
 			std::string identifier;
-			const Lexer::Location location = this->mNextToken.GetLocation();
+			const Location location = this->mNextToken.GetLocation();
 
 			if (AcceptIdentifier(identifier))
 			{
@@ -3474,7 +3474,7 @@ namespace ReShade
 			{
 				std::string passstate;
 				Nodes::Expression *value = nullptr;
-				const Lexer::Location location = this->mNextToken.GetLocation();
+				const Location location = this->mNextToken.GetLocation();
 
 				if (!(ExpectIdentifier(passstate) && Expect('=') && ParseTechniquePassExpression(value) && Expect(';')))
 				{
@@ -3620,7 +3620,7 @@ namespace ReShade
 		bool Parser::ParseTechniquePassExpression(Nodes::Expression *&expression)
 		{
 			std::string identifier;
-			const Lexer::Location location = this->mNextToken.GetLocation();
+			const Location location = this->mNextToken.GetLocation();
 
 			if (AcceptIdentifier(identifier))
 			{

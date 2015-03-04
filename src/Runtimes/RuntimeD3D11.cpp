@@ -246,7 +246,7 @@ namespace ReShade
 
 					return semantic;
 				}
-				static inline std::string PrintLocation(const FX::Lexer::Location &location)
+				static inline std::string PrintLocation(const FX::Location &location)
 				{
 					return location.Source + "(" + std::to_string(location.Line) + ", " + std::to_string(location.Column) + "): ";
 				}

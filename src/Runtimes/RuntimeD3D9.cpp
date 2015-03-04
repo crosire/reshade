@@ -182,7 +182,7 @@ namespace ReShade
 				}
 
 			private:
-				void Error(const FX::Lexer::Location &location, const char *message, ...)
+				void Error(const FX::Location &location, const char *message, ...)
 				{
 					char formatted[512];
 
@@ -194,7 +194,7 @@ namespace ReShade
 					this->mErrors += location.Source + "(" + std::to_string(location.Line) + ", " + std::to_string(location.Column) + "): error: " + formatted + '\n';
 					this->mFatal = true;
 				}
-				void Warning(const FX::Lexer::Location &location, const char *message, ...)
+				void Warning(const FX::Location &location, const char *message, ...)
 				{
 					char formatted[512];
 

@@ -1,6 +1,7 @@
 #pragma once
 
-#include <string>
+#include "EffectTree.hpp"
+
 #include <assert.h>
 
 namespace ReShade
@@ -10,18 +11,6 @@ namespace ReShade
 		class Lexer
 		{
 		public:
-			struct Location
-			{
-				Location(unsigned int line = 1, unsigned int column = 1) : Source(""), Line(line), Column(column)
-				{
-				}
-				Location(const std::string &source, unsigned int line = 1, unsigned int column = 1) : Source(source), Line(line), Column(column)
-				{
-				}
-
-				std::string Source;
-				unsigned int Line, Column;
-			};
 			class Token
 			{
 				friend class Lexer;
