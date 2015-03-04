@@ -499,10 +499,9 @@ namespace ReShade
 			if (this->mShowStatistics)
 			{
 				std::stringstream stats;
-				stats << "Statistics" << std::endl;
 				stats << "Date: " << static_cast<int>(this->mDate[0]) << '-' << static_cast<int>(this->mDate[1]) << '-' << static_cast<int>(this->mDate[2]) << ' ' << static_cast<int>(this->mDate[3]) << '\n';
 				stats << "Device: " << std::hex << std::uppercase << this->mVendorId << ' ' << this->mDeviceId << std::nouppercase << std::dec << std::endl;
-				stats << "FPS: " << (1000 / std::max(boost::chrono::duration_cast<boost::chrono::milliseconds>(frametime).count(), 1LL)) << std::endl;
+				stats << "FPS: " << this->mFramerate << std::endl;
 				stats << "Draw Calls: " << this->mLastDrawCalls << " (" << this->mLastDrawCallVertices << " vertices)" << std::endl;
 				stats << "Frame " << (this->mLastFrameCount + 1) << ": " << (frametime.count() * 1e-6f) << "ms" << std::endl;
 				stats << "PostProcessing: " << (boost::chrono::duration_cast<boost::chrono::nanoseconds>(this->mLastPostProcessingDuration).count() * 1e-6f) << "ms" << std::endl;
@@ -517,7 +516,7 @@ namespace ReShade
 
 			nvgEndFrame(this->mNVG);
 
-			if (timeSinceCreate.count() > 8 && this->mEffect != nullptr)
+			if (timeSinceCreate.count() > (this->mErrors.empty() ? 4 : 8) && this->mEffect != nullptr)
 			{
 				this->mStatus.clear();
 				this->mMessage.clear();
@@ -535,6 +534,7 @@ namespace ReShade
 		this->mLastFrameDuration = frametime;
 		this->mLastFrameCount++;
 		this->mLastDrawCalls = this->mLastDrawCallVertices = 0;
+		this->mFramerate.Calculate(frametime.count());
 	}
 
 	bool Runtime::LoadEffect()
