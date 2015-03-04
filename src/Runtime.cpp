@@ -164,7 +164,7 @@ namespace ReShade
 
 	// -----------------------------------------------------------------------------------------------------
 
-	Runtime::Runtime() : mWidth(0), mHeight(0), mVendorId(0), mDeviceId(0), mRendererId(0), mLastFrameCount(0), mLastDrawCalls(0), mLastDrawCallVertices(0), mDate(), mCompileStep(0), mNVG(nullptr), mScreenshotFormat("png"), mShowStatistics(false), mSkipShaderOptimization(false)
+	Runtime::Runtime() : mWidth(0), mHeight(0), mVendorId(0), mDeviceId(0), mRendererId(0), mLastFrameCount(0), mLastDrawCalls(0), mLastDrawCallVertices(0), mDate(), mCompileStep(0), mNVG(nullptr), mScreenshotFormat("png"), mShowStatistics(false), mShowFPS(false), mShowClock(false), mSkipShaderOptimization(false)
 	{
 		this->mStatus = "Initializing ...";
 		this->mStartTime = boost::chrono::high_resolution_clock::now();
@@ -496,9 +496,19 @@ namespace ReShade
 
 				nvgTextBox(this->mNVG, 0, static_cast<float>(this->mHeight) / 2 - bounds[3] / 2, static_cast<float>(this->mWidth), this->mMessage.c_str(), nullptr);
 			}
+
+			std::stringstream stats;
+
+			if (this->mShowClock)
+			{
+				stats << std::setfill('0') << std::setw(2) << tm.tm_hour << ':' << std::setw(2) << tm.tm_min << std::endl;
+			}
+			if (this->mShowFPS)
+			{
+				stats << this->mFramerate << std::endl;
+			}
 			if (this->mShowStatistics)
 			{
-				std::stringstream stats;
 				stats << "Date: " << static_cast<int>(this->mDate[0]) << '-' << static_cast<int>(this->mDate[1]) << '-' << static_cast<int>(this->mDate[2]) << ' ' << static_cast<int>(this->mDate[3]) << '\n';
 				stats << "Device: " << std::hex << std::uppercase << this->mVendorId << ' ' << this->mDeviceId << std::nouppercase << std::dec << std::endl;
 				stats << "FPS: " << this->mFramerate << std::endl;
@@ -507,12 +517,12 @@ namespace ReShade
 				stats << "PostProcessing: " << (boost::chrono::duration_cast<boost::chrono::nanoseconds>(this->mLastPostProcessingDuration).count() * 1e-6f) << "ms" << std::endl;
 				stats << "Timer: " << std::fmod(boost::chrono::duration_cast<boost::chrono::nanoseconds>(this->mLastPresent - this->mStartTime).count() * 1e-6f, 16777216.0f) << "ms" << std::endl;
 				stats << "Network: " << sNetworkUpload << "B up / " << sNetworkDownload << "B down" << std::endl;
-
-				nvgFillColor(this->mNVG, nvgRGB(255, 255, 255));
-				nvgTextAlign(this->mNVG, NVG_ALIGN_RIGHT | NVG_ALIGN_TOP);
-				nvgFontSize(this->mNVG, 16);
-				nvgTextBox(this->mNVG, 0, 0, static_cast<float>(this->mWidth), stats.str().c_str(), nullptr);
 			}
+
+			nvgFillColor(this->mNVG, nvgRGB(255, 255, 255));
+			nvgTextAlign(this->mNVG, NVG_ALIGN_RIGHT | NVG_ALIGN_TOP);
+			nvgFontSize(this->mNVG, 16);
+			nvgTextBox(this->mNVG, 0, 0, static_cast<float>(this->mWidth), stats.str().c_str(), nullptr);
 
 			nvgEndFrame(this->mNVG);
 
@@ -527,7 +537,7 @@ namespace ReShade
 		this->mDate[0] = static_cast<float>(tm.tm_year + 1900);
 		this->mDate[1] = static_cast<float>(tm.tm_mon + 1);
 		this->mDate[2] = static_cast<float>(tm.tm_mday);
-		this->mDate[3] = static_cast<float>(tm.tm_hour * 3600 + tm.tm_min * 60 + tm.tm_sec + 1);
+		this->mDate[3] = static_cast<float>(tm.tm_hour * 3600 + tm.tm_min * 60 + tm.tm_sec);
 
 		sNetworkUpload = sNetworkDownload = 0;
 		this->mLastPresent = timePresent;
@@ -540,7 +550,7 @@ namespace ReShade
 	bool Runtime::LoadEffect()
 	{
 		this->mMessage.clear();
-		this->mShowStatistics = this->mSkipShaderOptimization = false;
+		this->mShowStatistics = this->mShowFPS = this->mShowClock = this->mSkipShaderOptimization = false;
 
 		boost::filesystem::path path = sEffectPath;
 
@@ -630,9 +640,17 @@ namespace ReShade
 
 			const std::string command = pragma.substr(8);
 
-			if (boost::iequals(command, "statistics") || boost::iequals(command, "showstatistics"))
+			if (boost::iequals(command, "showstatistics"))
 			{
 				this->mShowStatistics = true;
+			}
+			else if (boost::iequals(command, "showfps"))
+			{
+				this->mShowFPS = true;
+			}
+			else if (boost::iequals(command, "showclock"))
+			{
+				this->mShowClock = true;
 			}
 			else if (boost::iequals(command, "skipoptimization") || boost::iequals(command, "nooptimization"))
 			{
