@@ -3397,7 +3397,7 @@ namespace ReShade
 			}
 		}
 
-		GLEffect::GLEffect(std::shared_ptr<const GLRuntime> runtime) : mRuntime(runtime), mDefaultVAO(0), mDefaultVBO(0), mUniformDirty(true)
+		GLEffect::GLEffect(std::shared_ptr<const GLRuntime> runtime) : mRuntime(runtime), mDefaultVAO(0), mDefaultVBO(0), mUBO(0), mUniformStorage(nullptr), mUniformStorageSize(0), mUniformDirty(true)
 		{
 			GLCHECK(glGenVertexArrays(1, &this->mDefaultVAO));
 			GLCHECK(glGenBuffers(1, &this->mDefaultVBO));
