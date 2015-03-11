@@ -3329,6 +3329,7 @@ namespace ReShade
 					("LINEAR", Nodes::Variable::Properties::LINEAR)
 					("ANISOTROPIC", Nodes::Variable::Properties::ANISOTROPIC)
 					("CLAMP", Nodes::Variable::Properties::CLAMP)
+					("WRAP", Nodes::Variable::Properties::REPEAT)
 					("REPEAT", Nodes::Variable::Properties::REPEAT)
 					("MIRROR", Nodes::Variable::Properties::MIRROR)
 					("BORDER", Nodes::Variable::Properties::BORDER)
