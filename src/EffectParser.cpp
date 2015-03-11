@@ -603,11 +603,6 @@ namespace ReShade
 					return false;
 				}
 			}
-			else if (ParseStruct(type.Definition))
-			{
-				type.Rows = type.Cols = 0;
-				type.BaseClass = Nodes::Type::Class::Struct;
-			}
 			else if (Accept(Lexer::Token::Id::Vector))
 			{
 				type.Rows = 4, type.Cols = 1;
@@ -2584,37 +2579,6 @@ namespace ReShade
 				if (!ParseStruct(structure))
 				{
 					return false;
-				}
-
-				if (Peek(Lexer::Token::Id::Identifier))
-				{
-					std::string name;
-					unsigned int count = 0;
-
-					type.BaseClass = Nodes::Type::Class::Struct;
-					type.Definition = structure;
-
-					while (!Peek(';'))
-					{
-						if (count++ > 0 && !Expect(','))
-						{
-							return false;
-						}
-
-						if (!ExpectIdentifier(name))
-						{
-							return false;
-						}
-
-						Nodes::Variable *variable = nullptr;
-
-						if (!ParseVariableResidue(type, name, variable))
-						{
-							return false;
-						}
-
-						this->mAST.Uniforms.push_back(variable);
-					}
 				}
 
 				if (!Expect(';'))

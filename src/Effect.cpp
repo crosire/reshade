@@ -154,8 +154,8 @@ namespace ReShade
 
 			assert(count == 0 || values != nullptr);
 
-			unsigned char *data = static_cast<unsigned char *>(::alloca(desc.Size));
-			GetValue(data, desc.Size);
+			unsigned char *data = static_cast<unsigned char *>(::alloca(desc.StorageSize));
+			GetValue(data, desc.StorageSize);
 
 			switch (desc.Type)
 			{
@@ -192,8 +192,8 @@ namespace ReShade
 			}
 			else
 			{
-				unsigned char *data = static_cast<unsigned char *>(::alloca(desc.Size));
-				GetValue(data, desc.Size);
+				unsigned char *data = static_cast<unsigned char *>(::alloca(desc.StorageSize));
+				GetValue(data, desc.StorageSize);
 
 				for (std::size_t i = 0; i < count; ++i)
 				{
@@ -214,8 +214,8 @@ namespace ReShade
 			}
 			else
 			{
-				unsigned char *data = static_cast<unsigned char *>(::alloca(desc.Size));
-				GetValue(data, desc.Size);
+				unsigned char *data = static_cast<unsigned char *>(::alloca(desc.StorageSize));
+				GetValue(data, desc.StorageSize);
 
 				for (std::size_t i = 0; i < count; ++i)
 				{
@@ -230,8 +230,8 @@ namespace ReShade
 
 			assert(count == 0 || values != nullptr);
 
-			unsigned char *data = static_cast<unsigned char *>(::alloca(desc.Size));
-			GetValue(data, desc.Size);
+			unsigned char *data = static_cast<unsigned char *>(::alloca(desc.StorageSize));
+			GetValue(data, desc.StorageSize);
 
 			switch (desc.Type)
 			{
@@ -269,8 +269,8 @@ namespace ReShade
 
 			assert(count == 0 || values != nullptr);
 
-			unsigned char *data = static_cast<unsigned char *>(::alloca(desc.Size));
-			GetValue(data, desc.Size);
+			unsigned char *data = static_cast<unsigned char *>(::alloca(desc.StorageSize));
+			GetValue(data, desc.StorageSize);
 
 			switch (desc.Type)
 			{
@@ -308,8 +308,8 @@ namespace ReShade
 
 			assert(count == 0 || values != nullptr);
 
-			unsigned char *data = static_cast<unsigned char *>(::alloca(desc.Size));
-			GetValue(data, desc.Size);
+			unsigned char *data = static_cast<unsigned char *>(::alloca(desc.StorageSize));
+			GetValue(data, desc.StorageSize);
 
 			switch (desc.Type)
 			{
@@ -347,8 +347,8 @@ namespace ReShade
 
 			assert(count == 0 || values != nullptr);
 
-			unsigned char *data = static_cast<unsigned char *>(::alloca(desc.Size));
-			GetValue(data, desc.Size);
+			unsigned char *data = static_cast<unsigned char *>(::alloca(desc.StorageSize));
+			GetValue(data, desc.StorageSize);
 
 			switch (desc.Type)
 			{
@@ -392,8 +392,8 @@ namespace ReShade
 				return;
 			}
 
-			unsigned char *data = static_cast<unsigned char *>(::alloca(desc.Size));
-			GetValue(data, desc.Size);
+			unsigned char *data = static_cast<unsigned char *>(::alloca(desc.StorageSize));
+			GetValue(data, desc.StorageSize);
 
 			switch (desc.Type)
 			{
@@ -423,8 +423,8 @@ namespace ReShade
 
 			assert(count == 0 || values != nullptr);
 
-			unsigned char *data = static_cast<unsigned char *>(::alloca(desc.Size));
-			GetValue(data, desc.Size);
+			unsigned char *data = static_cast<unsigned char *>(::alloca(desc.StorageSize));
+			GetValue(data, desc.StorageSize);
 
 			switch (desc.Type)
 			{
@@ -858,6 +858,6 @@ namespace ReShade
 			{
 				RenderPass(i);
 			}
-	}
+		}
 	}
 }

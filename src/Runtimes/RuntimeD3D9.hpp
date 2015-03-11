@@ -123,7 +123,6 @@ namespace ReShade
 			virtual void SetValue(const unsigned char *data, std::size_t size) override;
 
 			D3D9Effect *mEffect;
-			UINT mStorageOffset;
 		};
 		struct D3D9Technique : public FX::Effect::Technique
 		{

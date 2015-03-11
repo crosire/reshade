@@ -86,8 +86,8 @@ namespace ReShade
 			ID3D11RasterizerState *mRasterizerState;
 			std::vector<ID3D11SamplerState *> mSamplerStates;
 			std::vector<ID3D11ShaderResourceView *> mShaderResources;
-			std::vector<ID3D11Buffer *> mConstantBuffers;
-			std::vector<unsigned char *> mConstantStorages;
+			ID3D11Buffer *mConstantBuffer;
+			unsigned char *mConstantStorage;
 			mutable bool mConstantsDirty;
 		};
 		struct D3D11Texture : public FX::Effect::Texture
@@ -131,7 +131,6 @@ namespace ReShade
 			virtual void SetValue(const unsigned char *data, std::size_t size) override;
 
 			D3D11Effect *mEffect;
-			std::size_t mBufferIndex, mBufferOffset;
 		};
 		struct D3D11Technique : public FX::Effect::Technique
 		{

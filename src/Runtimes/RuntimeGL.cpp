@@ -45,10 +45,6 @@ namespace ReShade
 
 					this->mGlobalCode.clear();
 
-					// Global uniform buffer
-					this->mEffect->mUniformBuffers.push_back(0);
-					this->mEffect->mUniformStorages.push_back(std::make_pair(nullptr, 0));
-
 					for (auto type : this->mAST.Types)
 					{
 						Visit(this->mGlobalCode, type);
@@ -56,11 +52,7 @@ namespace ReShade
 
 					for (auto uniform : this->mAST.Uniforms)
 					{
-						if (uniform->Type.IsStruct() && uniform->Type.HasQualifier(FX::Nodes::Type::Qualifier::Uniform))
-						{
-							VisitUniformStruct(uniform);
-						}
-						else if (uniform->Type.IsTexture())
+						if (uniform->Type.IsTexture())
 						{
 							VisitTexture(uniform);
 						}
@@ -70,7 +62,7 @@ namespace ReShade
 						}
 						else if (uniform->Type.HasQualifier(FX::Nodes::Type::Qualifier::Uniform))
 						{
-							VisitUniform(uniform, "", 0, this->mCurrentGlobalSize);
+							VisitUniform(uniform);
 						}
 						else
 						{
@@ -94,13 +86,13 @@ namespace ReShade
 
 					if (this->mCurrentGlobalSize != 0)
 					{
-						glGenBuffers(1, &this->mEffect->mUniformBuffers[0]);
+						glGenBuffers(1, &this->mEffect->mUBO);
 
 						GLint previous = 0;
 						glGetIntegerv(GL_UNIFORM_BUFFER_BINDING, &previous);
 
-						glBindBuffer(GL_UNIFORM_BUFFER, this->mEffect->mUniformBuffers[0]);
-						glBufferData(GL_UNIFORM_BUFFER, this->mEffect->mUniformStorages[0].second, this->mEffect->mUniformStorages[0].first, GL_DYNAMIC_DRAW);
+						glBindBuffer(GL_UNIFORM_BUFFER, this->mEffect->mUBO);
+						glBufferData(GL_UNIFORM_BUFFER, this->mEffect->mUniformStorageSize, this->mEffect->mUniformStorage, GL_DYNAMIC_DRAW);
 					
 						glBindBuffer(GL_UNIFORM_BUFFER, previous);
 					}
@@ -2052,17 +2044,11 @@ namespace ReShade
 
 					this->mEffect->mSamplers.push_back(std::move(sampler));
 				}
-				void VisitUniform(const FX::Nodes::Variable *node, const std::string &bufferName, std::size_t bufferIndex, std::size_t &bufferSize)
+				void VisitUniform(const FX::Nodes::Variable *node)
 				{
 					VisitType(this->mGlobalUniforms, node->Type);
 
-					this->mGlobalUniforms += ' ';
-
-					if (!bufferName.empty())
-					{
-						this->mGlobalUniforms += bufferName + '_';
-					}
-				
+					this->mGlobalUniforms += ' ';			
 					this->mGlobalUniforms += node->Name;
 
 					if (node->Type.IsArray())
@@ -2076,94 +2062,51 @@ namespace ReShade
 					desc.Rows = node->Type.Rows;
 					desc.Columns = node->Type.Cols;
 					desc.Elements = node->Type.ArrayLength;
-					desc.Size = desc.Rows * desc.Columns * std::max(1u, desc.Elements);
-					desc.Fields = 0;
+					desc.StorageSize = desc.Rows * desc.Columns * std::max(1u, desc.Elements);
 
 					switch (node->Type.BaseClass)
 					{
 						case FX::Nodes::Type::Class::Bool:
-							desc.Size *= sizeof(int);
 							desc.Type = FX::Effect::Constant::Type::Bool;
+							desc.StorageSize *= sizeof(int);
 							break;
 						case FX::Nodes::Type::Class::Int:
-							desc.Size *= sizeof(int);
 							desc.Type = FX::Effect::Constant::Type::Int;
+							desc.StorageSize *= sizeof(int);
 							break;
 						case FX::Nodes::Type::Class::Uint:
-							desc.Size *= sizeof(unsigned int);
 							desc.Type = FX::Effect::Constant::Type::Uint;
+							desc.StorageSize *= sizeof(unsigned int);
 							break;
 						case FX::Nodes::Type::Class::Float:
-							desc.Size *= sizeof(float);
 							desc.Type = FX::Effect::Constant::Type::Float;
+							desc.StorageSize *= sizeof(float);
 							break;
 					}
 
 					const std::size_t alignment = 16 - (this->mCurrentGlobalSize % 16);
-					bufferSize += (desc.Size > alignment && (alignment != 16 || desc.Size <= 16)) ? desc.Size + alignment : desc.Size;
+					this->mCurrentGlobalSize += (desc.StorageSize > alignment && (alignment != 16 || desc.StorageSize <= 16)) ? desc.StorageSize + alignment : desc.StorageSize;
+					desc.StorageOffset = this->mCurrentGlobalSize - desc.StorageSize;
 
 					GLConstant *const obj = new GLConstant(this->mEffect, desc);
-					obj->mBufferIndex = bufferIndex;
-					obj->mBufferOffset = bufferSize - desc.Size;
 
 					VisitAnnotation(node->Annotations, *obj);
 
-					if (bufferSize >= this->mEffect->mUniformStorages[bufferIndex].second)
+					if (this->mCurrentGlobalSize >= this->mEffect->mUniformStorageSize)
 					{
-						this->mEffect->mUniformStorages[bufferIndex].first = static_cast<unsigned char *>(::realloc(this->mEffect->mUniformStorages[bufferIndex].first, this->mEffect->mUniformStorages[bufferIndex].second += 128));
+						this->mEffect->mUniformStorage = static_cast<unsigned char *>(::realloc(this->mEffect->mUniformStorage, this->mEffect->mUniformStorageSize += 128));
 					}
 
 					if (node->Initializer != nullptr && node->Initializer->NodeId == FX::Node::Id::Literal)
 					{
-						std::memcpy(this->mEffect->mUniformStorages[bufferIndex].first + obj->mBufferOffset, &static_cast<const FX::Nodes::Literal *>(node->Initializer)->Value, desc.Size);
+						std::memcpy(this->mEffect->mUniformStorage + desc.StorageOffset, &static_cast<const FX::Nodes::Literal *>(node->Initializer)->Value, desc.StorageSize);
 					}
 					else
 					{
-						std::memset(this->mEffect->mUniformStorages[bufferIndex].first + obj->mBufferOffset, 0, desc.Size);
+						std::memset(this->mEffect->mUniformStorage + desc.StorageOffset, 0, desc.StorageSize);
 					}
-
-					this->mEffect->AddConstant(bufferName.empty() ? node->Name : (bufferName + '.' + node->Name), obj);
-				}
-				void VisitUniformStruct(const FX::Nodes::Variable *node)
-				{
-					const std::size_t bufferIndex = this->mEffect->mUniformBuffers.size();
-					this->mEffect->mUniformStorages.push_back(std::make_pair(nullptr, 0));
-
-					GLConstant::Description desc;
-					desc.Type = FX::Effect::Constant::Type::Struct;
-					desc.Rows = desc.Columns = desc.Elements = desc.Size = 0;
-					desc.Fields = static_cast<unsigned int>(node->Type.Definition->Fields.size());
-
-					this->mGlobalUniforms += "layout(std140, binding = " + std::to_string(this->mEffect->mUniformBuffers.size()) + ") uniform ";
-					this->mGlobalUniforms += FixName(node->Name);
-					this->mGlobalUniforms += "\n{\n";
-
-					for (auto field : node->Type.Definition->Fields)
-					{
-						VisitUniform(field, node->Name, bufferIndex, desc.Size);
-					}
-
-					this->mGlobalUniforms += "};\n";
-
-					GLConstant *const obj = new GLConstant(this->mEffect, desc);
-					obj->mBufferIndex = bufferIndex;
-					obj->mBufferOffset = 0;
-
-					VisitAnnotation(node->Annotations, *obj);
 
 					this->mEffect->AddConstant(node->Name, obj);
-
-					GLuint buffer = 0;
-					GLCHECK(glGenBuffers(1, &buffer));
-
-					GLint previous = 0;
-					GLCHECK(glGetIntegerv(GL_UNIFORM_BUFFER_BINDING, &previous));
-
-					GLCHECK(glBindBuffer(GL_UNIFORM_BUFFER, buffer));
-					GLCHECK(glBufferData(GL_UNIFORM_BUFFER, this->mEffect->mUniformStorages[bufferIndex].second, this->mEffect->mUniformStorages[bufferIndex].first, GL_DYNAMIC_DRAW));
-					GLCHECK(glBindBuffer(GL_UNIFORM_BUFFER, previous));
-
-					this->mEffect->mUniformBuffers.push_back(buffer);
 				}
 				void VisitTechnique(const FX::Nodes::Technique *node)
 				{
@@ -3452,7 +3395,7 @@ namespace ReShade
 
 			GLCHECK(glDeleteVertexArrays(1, &this->mDefaultVAO));
 			GLCHECK(glDeleteBuffers(1, &this->mDefaultVBO));
-			GLCHECK(glDeleteBuffers(static_cast<GLsizei>(this->mUniformBuffers.size()), &this->mUniformBuffers.front()));
+			GLCHECK(glDeleteBuffers(1, &this->mUBO));
 		}
 
 		void GLEffect::Begin() const
@@ -3470,10 +3413,7 @@ namespace ReShade
 			}
 
 			// Setup shader constants
-			for (GLsizei buffer = 0, bufferCount = static_cast<GLsizei>(this->mUniformBuffers.size()); buffer < bufferCount; ++buffer)
-			{
-				GLCHECK(glBindBufferBase(GL_UNIFORM_BUFFER, buffer, this->mUniformBuffers[buffer]));
-			}
+			GLCHECK(glBindBufferBase(GL_UNIFORM_BUFFER, 0, this->mUBO));
 
 			// Clear depthstencil
 			GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, this->mRuntime->mDefaultBackBufferFBO));
@@ -3587,7 +3527,7 @@ namespace ReShade
 			this->mID[1] = textureSRGB;
 		}
 
-		GLConstant::GLConstant(GLEffect *effect, const Description &desc) : Constant(desc), mEffect(effect), mBufferIndex(0), mBufferOffset(0)
+		GLConstant::GLConstant(GLEffect *effect, const Description &desc) : Constant(desc), mEffect(effect)
 		{
 		}
 		GLConstant::~GLConstant()
@@ -3596,15 +3536,15 @@ namespace ReShade
 
 		void GLConstant::GetValue(unsigned char *data, std::size_t size) const
 		{
-			size = std::min(size, this->mDesc.Size);
+			size = std::min(size, this->mDesc.StorageSize);
 
-			std::memcpy(data, this->mEffect->mUniformStorages[this->mBufferIndex].first + this->mBufferOffset, size);
+			std::memcpy(data, this->mEffect->mUniformStorage + this->mDesc.StorageOffset, size);
 		}
 		void GLConstant::SetValue(const unsigned char *data, std::size_t size)
 		{
-			size = std::min(size, this->mDesc.Size);
+			size = std::min(size, this->mDesc.StorageSize);
 
-			unsigned char *storage = this->mEffect->mUniformStorages[this->mBufferIndex].first + this->mBufferOffset;
+			unsigned char *storage = this->mEffect->mUniformStorage + this->mDesc.StorageOffset;
 
 			if (std::memcmp(storage, data, size) == 0)
 			{
@@ -3613,7 +3553,7 @@ namespace ReShade
 
 			std::memcpy(storage, data, size);
 
-			this->mEffect->mUniformDirty = true;
+			this->mEffect->mUniformDirty = this->mEffect->mUBO != 0;
 		}
 
 		GLTechnique::GLTechnique(GLEffect *effect, const Description &desc) : Technique(desc), mEffect(effect)
@@ -3636,16 +3576,8 @@ namespace ReShade
 			// Update shader constants
 			if (this->mEffect->mUniformDirty)
 			{
-				for (GLsizei buffer = 0, bufferCount = static_cast<GLsizei>(this->mEffect->mUniformBuffers.size()); buffer < bufferCount; ++buffer)
-				{
-					if (this->mEffect->mUniformBuffers[buffer] == 0)
-					{
-						continue;
-					}
-
-					GLCHECK(glBindBuffer(GL_UNIFORM_BUFFER, this->mEffect->mUniformBuffers[buffer]));
-					GLCHECK(glBufferSubData(GL_UNIFORM_BUFFER, 0, this->mEffect->mUniformStorages[buffer].second, this->mEffect->mUniformStorages[buffer].first));
-				}
+				GLCHECK(glBindBuffer(GL_UNIFORM_BUFFER, this->mEffect->mUBO));
+				GLCHECK(glBufferSubData(GL_UNIFORM_BUFFER, 0, this->mEffect->mUniformStorageSize, this->mEffect->mUniformStorage));
 
 				this->mEffect->mUniformDirty = false;
 			}

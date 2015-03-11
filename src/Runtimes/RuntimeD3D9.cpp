@@ -41,11 +41,7 @@ namespace ReShade
 
 					for (auto uniform : this->mAST.Uniforms)
 					{
-						if (uniform->Type.IsStruct() && uniform->Type.HasQualifier(FX::Nodes::Type::Qualifier::Uniform))
-						{
-							VisitUniformStruct(uniform);
-						}
-						else if (uniform->Type.IsTexture())
+						if (uniform->Type.IsTexture())
 						{
 							VisitTexture(uniform);
 						}
@@ -1538,17 +1534,11 @@ namespace ReShade
 
 					this->mSamplers[node->Name] = sampler;
 				}
-				void VisitUniform(const FX::Nodes::Variable *node, const std::string &parentname = "")
+				void VisitUniform(const FX::Nodes::Variable *node)
 				{
 					VisitType(this->mGlobalCode, node->Type);
 					
 					this->mGlobalCode += ' ';
-
-					if (!parentname.empty())
-					{
-						this->mGlobalCode += parentname + '_';
-					}
-				
 					this->mGlobalCode += node->Name;
 
 					if (node->Type.IsArray())
@@ -1562,26 +1552,25 @@ namespace ReShade
 					desc.Rows = node->Type.Rows;
 					desc.Columns = node->Type.Cols;
 					desc.Elements = node->Type.ArrayLength;
-					desc.Size = desc.Rows * desc.Columns * std::max(1u, desc.Elements);
-					desc.Fields = 0;
+					desc.StorageSize = desc.Rows * desc.Columns * std::max(1u, desc.Elements);
 
 					switch (node->Type.BaseClass)
 					{
 						case FX::Nodes::Type::Class::Bool:
-							desc.Size *= sizeof(int);
 							desc.Type = FX::Effect::Constant::Type::Bool;
+							desc.StorageSize *= sizeof(int);
 							break;
 						case FX::Nodes::Type::Class::Int:
-							desc.Size *= sizeof(int);
 							desc.Type = FX::Effect::Constant::Type::Int;
+							desc.StorageSize *= sizeof(int);
 							break;
 						case FX::Nodes::Type::Class::Uint:
-							desc.Size *= sizeof(unsigned int);
 							desc.Type = FX::Effect::Constant::Type::Uint;
+							desc.StorageSize *= sizeof(unsigned int);
 							break;
 						case FX::Nodes::Type::Class::Float:
-							desc.Size *= sizeof(float);
 							desc.Type = FX::Effect::Constant::Type::Float;
+							desc.StorageSize *= sizeof(float);
 							break;
 					}
 
@@ -1589,10 +1578,10 @@ namespace ReShade
 
 					VisitAnnotation(node->Annotations, *obj);
 
-					const UINT regsize = static_cast<UINT>(static_cast<float>(desc.Size) / sizeof(float));
+					const UINT regsize = static_cast<UINT>(static_cast<float>(desc.StorageSize) / sizeof(float));
 					const UINT regalignment = 4 - (regsize % 4);
 
-					obj->mStorageOffset = this->mCurrentRegisterOffset;
+					desc.StorageOffset = this->mCurrentRegisterOffset;
 					this->mCurrentRegisterOffset += regsize + regalignment;
 
 					if (this->mCurrentRegisterOffset * sizeof(float) >= this->mCurrentStorageSize)
@@ -1604,33 +1593,12 @@ namespace ReShade
 
 					if (node->Initializer != nullptr && node->Initializer->NodeId == FX::Node::Id::Literal)
 					{
-						CopyMemory(this->mEffect->mConstantStorage + obj->mStorageOffset, &static_cast<const FX::Nodes::Literal *>(node->Initializer)->Value, desc.Size);
+						CopyMemory(this->mEffect->mConstantStorage + desc.StorageOffset, &static_cast<const FX::Nodes::Literal *>(node->Initializer)->Value, desc.StorageSize);
 					}
 					else
 					{
-						ZeroMemory(this->mEffect->mConstantStorage + obj->mStorageOffset, desc.Size);
+						ZeroMemory(this->mEffect->mConstantStorage + desc.StorageOffset, desc.StorageSize);
 					}
-
-					this->mEffect->AddConstant(parentname.empty() ? node->Name : (parentname + '.' + node->Name), obj);
-				}
-				void VisitUniformStruct(const FX::Nodes::Variable *node)
-				{
-					const UINT previousOffset = this->mCurrentRegisterOffset;
-
-					for (auto field : node->Type.Definition->Fields)
-					{
-						VisitUniform(field, node->Name);
-					}
-
-					D3D9Constant::Description desc;
-					desc.Type = FX::Effect::Constant::Type::Struct;
-					desc.Rows = desc.Columns = desc.Elements = 0;
-					desc.Size = (this->mCurrentRegisterOffset - previousOffset) * sizeof(float);
-					desc.Fields = static_cast<unsigned int>(node->Type.Definition->Fields.size());
-
-					D3D9Constant *const obj = new D3D9Constant(this->mEffect, desc);
-
-					VisitAnnotation(node->Annotations, *obj);
 
 					this->mEffect->AddConstant(node->Name, obj);
 				}
@@ -2788,7 +2756,7 @@ namespace ReShade
 			}
 		}
 
-		D3D9Constant::D3D9Constant(D3D9Effect *effect, const Description &desc) : Constant(desc), mEffect(effect), mStorageOffset(0)
+		D3D9Constant::D3D9Constant(D3D9Effect *effect, const Description &desc) : Constant(desc), mEffect(effect)
 		{
 		}
 		D3D9Constant::~D3D9Constant()
@@ -2797,19 +2765,19 @@ namespace ReShade
 
 		void D3D9Constant::GetValue(unsigned char *data, std::size_t size) const
 		{
-			size = std::min(size, this->mDesc.Size);
+			size = std::min(size, this->mDesc.StorageSize);
 
 			assert(this->mEffect->mConstantStorage != nullptr);
 
-			CopyMemory(data, this->mEffect->mConstantStorage + this->mStorageOffset, size);
+			CopyMemory(data, this->mEffect->mConstantStorage + this->mDesc.StorageOffset, size);
 		}
 		void D3D9Constant::SetValue(const unsigned char *data, std::size_t size)
 		{
-			size = std::min(size, this->mDesc.Size);
+			size = std::min(size, this->mDesc.StorageSize);
 
 			assert(this->mEffect->mConstantStorage != nullptr);
 
-			CopyMemory(this->mEffect->mConstantStorage + this->mStorageOffset, data, size);
+			CopyMemory(this->mEffect->mConstantStorage + this->mDesc.StorageOffset, data, size);
 		}
 
 		D3D9Technique::D3D9Technique(D3D9Effect *effect, const Description &desc) : Technique(desc), mEffect(effect)

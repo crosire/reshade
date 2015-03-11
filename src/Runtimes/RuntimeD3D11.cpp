@@ -47,10 +47,6 @@ namespace ReShade
 					this->mFatal = false;
 					this->mCurrentSource.clear();
 
-					// Global constant buffer
-					this->mEffect->mConstantBuffers.push_back(nullptr);
-					this->mEffect->mConstantStorages.push_back(nullptr);
-
 					for (auto type : this->mAST.Types)
 					{
 						Visit(type);
@@ -72,9 +68,9 @@ namespace ReShade
 					{
 						CD3D11_BUFFER_DESC globalsDesc(RoundToMultipleOf16(this->mCurrentGlobalSize), D3D11_BIND_CONSTANT_BUFFER, D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE);
 						D3D11_SUBRESOURCE_DATA globalsInitial;
-						globalsInitial.pSysMem = this->mEffect->mConstantStorages[0];
+						globalsInitial.pSysMem = this->mEffect->mConstantStorage;
 						globalsInitial.SysMemPitch = globalsInitial.SysMemSlicePitch = this->mCurrentGlobalSize;
-						this->mEffect->mRuntime->mDevice->CreateBuffer(&globalsDesc, &globalsInitial, &this->mEffect->mConstantBuffers[0]);
+						this->mEffect->mRuntime->mDevice->CreateBuffer(&globalsDesc, &globalsInitial, &this->mEffect->mConstantBuffer);
 					}
 
 					errors += this->mErrors;
@@ -1393,12 +1389,7 @@ namespace ReShade
 				{
 					if (!(this->mCurrentInParameterBlock || this->mCurrentInFunctionBlock))
 					{
-						if (node->Type.IsStruct() && node->Type.HasQualifier(FX::Nodes::Type::Qualifier::Uniform))
-						{
-							VisitUniformBuffer(node);
-							return;
-						}
-						else if (node->Type.IsTexture())
+						if (node->Type.IsTexture())
 						{
 							VisitTexture(node);
 							return;
@@ -1681,165 +1672,55 @@ namespace ReShade
 
 					this->mCurrentGlobalConstants += ";\n";
 
-					D3D11Constant::Description objdesc;
-					objdesc.Rows = node->Type.Rows;
-					objdesc.Columns = node->Type.Cols;
-					objdesc.Elements = node->Type.ArrayLength;
-					objdesc.Fields = 0;
-					objdesc.Size = node->Type.Rows * node->Type.Cols;
+					D3D11Constant::Description desc;
+					desc.Rows = node->Type.Rows;
+					desc.Columns = node->Type.Cols;
+					desc.Elements = node->Type.ArrayLength;
+					desc.StorageSize = node->Type.Rows * node->Type.Cols;
 
 					switch (node->Type.BaseClass)
 					{
 						case FX::Nodes::Type::Class::Bool:
-							objdesc.Size *= sizeof(int);
-							objdesc.Type = FX::Effect::Constant::Type::Bool;
+							desc.Type = FX::Effect::Constant::Type::Bool;
+							desc.StorageSize *= sizeof(int);
 							break;
 						case FX::Nodes::Type::Class::Int:
-							objdesc.Size *= sizeof(int);
-							objdesc.Type = FX::Effect::Constant::Type::Int;
+							desc.Type = FX::Effect::Constant::Type::Int;
+							desc.StorageSize *= sizeof(int);
 							break;
 						case FX::Nodes::Type::Class::Uint:
-							objdesc.Size *= sizeof(unsigned int);
-							objdesc.Type = FX::Effect::Constant::Type::Uint;
+							desc.Type = FX::Effect::Constant::Type::Uint;
+							desc.StorageSize *= sizeof(unsigned int);
 							break;
 						case FX::Nodes::Type::Class::Float:
-							objdesc.Size *= sizeof(float);
-							objdesc.Type = FX::Effect::Constant::Type::Float;
+							desc.Type = FX::Effect::Constant::Type::Float;
+							desc.StorageSize *= sizeof(float);
 							break;
 					}
 
 					const UINT alignment = 16 - (this->mCurrentGlobalSize % 16);
-					this->mCurrentGlobalSize += static_cast<UINT>((objdesc.Size > alignment && (alignment != 16 || objdesc.Size <= 16)) ? objdesc.Size + alignment : objdesc.Size);
+					this->mCurrentGlobalSize += static_cast<UINT>((desc.StorageSize > alignment && (alignment != 16 || desc.StorageSize <= 16)) ? desc.StorageSize + alignment : desc.StorageSize);
+					desc.StorageOffset = this->mCurrentGlobalSize - desc.StorageSize;
 
-					D3D11Constant *obj = new D3D11Constant(this->mEffect, objdesc);
-					obj->mBufferIndex = 0;
-					obj->mBufferOffset = this->mCurrentGlobalSize - objdesc.Size;
+					D3D11Constant *obj = new D3D11Constant(this->mEffect, desc);
 
 					Visit(node->Annotations, *obj);
 
 					if (this->mCurrentGlobalSize >= this->mCurrentGlobalStorageSize)
 					{
-						this->mEffect->mConstantStorages[0] = static_cast<unsigned char *>(::realloc(this->mEffect->mConstantStorages[0], this->mCurrentGlobalStorageSize += 128));
+						this->mEffect->mConstantStorage = static_cast<unsigned char *>(::realloc(this->mEffect->mConstantStorage, this->mCurrentGlobalStorageSize += 128));
 					}
 
 					if (node->Initializer != nullptr && node->Initializer->NodeId == FX::Node::Id::Literal)
 					{
-						CopyMemory(this->mEffect->mConstantStorages[0] + obj->mBufferOffset, &static_cast<const FX::Nodes::Literal *>(node->Initializer)->Value, objdesc.Size);
+						CopyMemory(this->mEffect->mConstantStorage + desc.StorageOffset, &static_cast<const FX::Nodes::Literal *>(node->Initializer)->Value, desc.StorageSize);
 					}
 					else
 					{
-						ZeroMemory(this->mEffect->mConstantStorages[0] + obj->mBufferOffset, objdesc.Size);
+						ZeroMemory(this->mEffect->mConstantStorage + desc.StorageOffset, desc.StorageSize);
 					}
 
 					this->mEffect->AddConstant(node->Name, obj);
-				}
-				void VisitUniformBuffer(const FX::Nodes::Variable *node)
-				{
-					this->mCurrentSource += "cbuffer ";
-					this->mCurrentSource += node->Name;
-					this->mCurrentSource += " : register(b" + std::to_string(this->mEffect->mConstantBuffers.size()) + ")";
-					this->mCurrentSource += "\n{\n";
-
-					this->mCurrentBlockName = node->Name;
-
-					ID3D11Buffer *buffer = nullptr;
-					unsigned char *storage = nullptr;
-					UINT totalsize = 0, currentsize = 0;
-
-					for (auto field : node->Type.Definition->Fields)
-					{
-						Visit(field);
-
-						D3D11Constant::Description objdesc;
-						objdesc.Rows = field->Type.Rows;
-						objdesc.Columns = field->Type.Cols;
-						objdesc.Elements = field->Type.ArrayLength;
-						objdesc.Fields = 0;
-						objdesc.Size = field->Type.Rows * field->Type.Cols;
-
-						switch (field->Type.BaseClass)
-						{
-							case FX::Nodes::Type::Class::Bool:
-								objdesc.Size *= sizeof(int);
-								objdesc.Type = FX::Effect::Constant::Type::Bool;
-								break;
-							case FX::Nodes::Type::Class::Int:
-								objdesc.Size *= sizeof(int);
-								objdesc.Type = FX::Effect::Constant::Type::Int;
-								break;
-							case FX::Nodes::Type::Class::Uint:
-								objdesc.Size *= sizeof(unsigned int);
-								objdesc.Type = FX::Effect::Constant::Type::Uint;
-								break;
-							case FX::Nodes::Type::Class::Float:
-								objdesc.Size *= sizeof(float);
-								objdesc.Type = FX::Effect::Constant::Type::Float;
-								break;
-						}
-
-						const UINT alignment = 16 - (totalsize % 16);
-						totalsize += static_cast<UINT>((objdesc.Size > alignment && (alignment != 16 || objdesc.Size <= 16)) ? objdesc.Size + alignment : objdesc.Size);
-
-						D3D11Constant *obj = new D3D11Constant(this->mEffect, objdesc);
-						obj->mBufferIndex = this->mEffect->mConstantBuffers.size();
-						obj->mBufferOffset = totalsize - objdesc.Size;
-
-						if (totalsize >= currentsize)
-						{
-							storage = static_cast<unsigned char *>(::realloc(storage, currentsize += 128));
-						}
-
-						if (field->Initializer != nullptr && field->Initializer->NodeId == FX::Node::Id::Literal)
-						{
-							CopyMemory(storage + obj->mBufferOffset, &static_cast<const FX::Nodes::Literal *>(field->Initializer)->Value, objdesc.Size);
-						}
-						else
-						{
-							ZeroMemory(storage + obj->mBufferOffset, objdesc.Size);
-						}
-
-						this->mEffect->AddConstant(node->Name + '.' + field->Name, obj);
-					}
-
-					this->mCurrentBlockName.clear();
-
-					this->mCurrentSource += "};\n";
-
-					D3D11Constant::Description objdesc;
-					objdesc.Rows = 0;
-					objdesc.Columns = 0;
-					objdesc.Elements = 0;
-					objdesc.Fields = static_cast<unsigned int>(node->Type.Definition->Fields.size());
-					objdesc.Size = totalsize;
-					objdesc.Type = FX::Effect::Constant::Type::Struct;
-
-					D3D11Constant *obj = new D3D11Constant(this->mEffect, objdesc);
-					obj->mBufferIndex = this->mEffect->mConstantBuffers.size();
-					obj->mBufferOffset = 0;
-
-					Visit(node->Annotations, *obj);
-
-					this->mEffect->AddConstant(node->Name, obj);
-
-					D3D11_BUFFER_DESC desc;
-					desc.ByteWidth = RoundToMultipleOf16(totalsize);
-					desc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-					desc.Usage = D3D11_USAGE_DYNAMIC;
-					desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-					desc.MiscFlags = 0;
-					desc.StructureByteStride = 0;
-
-					D3D11_SUBRESOURCE_DATA initial;
-					initial.pSysMem = storage;
-					initial.SysMemPitch = initial.SysMemSlicePitch = totalsize;
-
-					HRESULT hr = this->mEffect->mRuntime->mDevice->CreateBuffer(&desc, &initial, &buffer);
-
-					if (SUCCEEDED(hr))
-					{
-						this->mEffect->mConstantBuffers.push_back(buffer);
-						this->mEffect->mConstantStorages.push_back(storage);
-					}
 				}
 				void Visit(const FX::Nodes::Function *node)
 				{
@@ -3155,29 +3036,24 @@ namespace ReShade
 			textureStaging->Release();
 		}
 
-		D3D11Effect::D3D11Effect(std::shared_ptr<const D3D11Runtime> runtime) : mRuntime(runtime), mRasterizerState(nullptr), mConstantsDirty(true)
+		D3D11Effect::D3D11Effect(std::shared_ptr<const D3D11Runtime> runtime) : mRuntime(runtime), mRasterizerState(nullptr), mConstantBuffer(nullptr), mConstantStorage(nullptr), mConstantsDirty(true)
 		{
 		}
 		D3D11Effect::~D3D11Effect()
 		{
 			SAFE_RELEASE(this->mRasterizerState);
 
-			for (auto &it : this->mSamplerStates)
+			for (ID3D11SamplerState *it : this->mSamplerStates)
 			{
 				it->Release();
 			}
 			
-			for (auto &it : this->mConstantBuffers)
+			if (this->mConstantBuffer != nullptr)
 			{
-				if (it != nullptr)
-				{
-					it->Release();
-				}
+				this->mConstantBuffer->Release();
 			}
-			for (auto &it : this->mConstantStorages)
-			{
-				free(it);
-			}
+
+			free(this->mConstantStorage);
 		}
 
 		void D3D11Effect::Begin() const
@@ -3197,8 +3073,8 @@ namespace ReShade
 			devicecontext->PSSetSamplers(0, static_cast<UINT>(this->mSamplerStates.size()), this->mSamplerStates.data());
 
 			// Setup shader constants
-			devicecontext->VSSetConstantBuffers(0, static_cast<UINT>(this->mConstantBuffers.size()), this->mConstantBuffers.data());
-			devicecontext->PSSetConstantBuffers(0, static_cast<UINT>(this->mConstantBuffers.size()), this->mConstantBuffers.data());
+			devicecontext->VSSetConstantBuffers(0, 1, &this->mConstantBuffer);
+			devicecontext->PSSetConstantBuffers(0, 1, &this->mConstantBuffer);
 
 			// Clear depthstencil
 			assert(this->mRuntime->mDefaultDepthStencil != nullptr);
@@ -3294,7 +3170,7 @@ namespace ReShade
 			}
 		}
 
-		D3D11Constant::D3D11Constant(D3D11Effect *effect, const Description &desc) : Constant(desc), mEffect(effect), mBufferIndex(0), mBufferOffset(0)
+		D3D11Constant::D3D11Constant(D3D11Effect *effect, const Description &desc) : Constant(desc), mEffect(effect)
 		{
 		}
 		D3D11Constant::~D3D11Constant()
@@ -3303,15 +3179,15 @@ namespace ReShade
 
 		void D3D11Constant::GetValue(unsigned char *data, std::size_t size) const
 		{
-			size = std::min(size, this->mDesc.Size);
+			size = std::min(size, this->mDesc.StorageSize);
 
-			CopyMemory(data, this->mEffect->mConstantStorages[this->mBufferIndex] + this->mBufferOffset, size);
+			CopyMemory(data, this->mEffect->mConstantStorage + this->mDesc.StorageOffset, size);
 		}
 		void D3D11Constant::SetValue(const unsigned char *data, std::size_t size)
 		{
-			size = std::min(size, this->mDesc.Size);
+			size = std::min(size, this->mDesc.StorageSize);
 
-			unsigned char *storage = this->mEffect->mConstantStorages[this->mBufferIndex] + this->mBufferOffset;
+			unsigned char *storage = this->mEffect->mConstantStorage + this->mDesc.StorageOffset;
 
 			if (std::memcmp(storage, data, size) == 0)
 			{
@@ -3320,7 +3196,7 @@ namespace ReShade
 
 			CopyMemory(storage, data, size);
 
-			this->mEffect->mConstantsDirty = true;
+			this->mEffect->mConstantsDirty = this->mEffect->mConstantBuffer != nullptr;
 		}
 
 		D3D11Technique::D3D11Technique(D3D11Effect *effect, const Description &desc) : Technique(desc), mEffect(effect)
@@ -3358,32 +3234,22 @@ namespace ReShade
 			// Update shader constants
 			if (this->mEffect->mConstantsDirty)
 			{
-				for (std::size_t i = 0, count = this->mEffect->mConstantBuffers.size(); i < count; ++i)
+				D3D11_MAPPED_SUBRESOURCE mapped;
+
+				const HRESULT hr = devicecontext->Map(this->mEffect->mConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
+
+				if (SUCCEEDED(hr))
 				{
-					ID3D11Buffer *buffer = this->mEffect->mConstantBuffers[i];
-					const unsigned char *storage = this->mEffect->mConstantStorages[i];
+					CopyMemory(mapped.pData, this->mEffect->mConstantStorage, mapped.RowPitch);
 
-					if (buffer == nullptr)
-					{
-						continue;
-					}
+					devicecontext->Unmap(this->mEffect->mConstantBuffer, 0);
 
-					D3D11_MAPPED_SUBRESOURCE mapped;
-					HRESULT hr = devicecontext->Map(buffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
-
-					if (FAILED(hr))
-					{
-						LOG(TRACE) << "Failed to map constant buffer at slot " << i << "! HRESULT is '" << hr << "'!";
-
-						continue;
-					}
-
-					CopyMemory(mapped.pData, storage, mapped.RowPitch);
-
-					devicecontext->Unmap(buffer, 0);
+					this->mEffect->mConstantsDirty = false;
 				}
-
-				this->mEffect->mConstantsDirty = false;
+				else
+				{
+					LOG(TRACE) << "Failed to map constant buffer! HRESULT is '" << hr << "'!";
+				}
 			}
 
 			// Setup states

@@ -66,10 +66,6 @@ namespace ReShade
 				{
 					this->mValue[0] = value;
 				}
-				inline Annotation(const char *value)
-				{
-					this->mValue[0] = value;
-				}
 
 				template <typename T>
 				const T As(std::size_t index = 0) const;
@@ -117,14 +113,16 @@ namespace ReShade
 			public:
 				enum class Format
 				{
-					Unknown = 0,
-					R8 = 1,
-					RG8 = 2,
-					RGBA8 = 4,
+					Unknown,
+
+					R8,
+					RG8,
+					RGBA8,
 					R32F,
 					RGBA16,
 					RGBA16F,
 					RGBA32F,
+
 					DXT1,
 					DXT3,
 					DXT5,
@@ -158,14 +156,13 @@ namespace ReShade
 					Bool,
 					Int,
 					Uint,
-					Float,
-					Struct
+					Float
 				};
 				struct Description
 				{
 					Type Type;
-					unsigned int Rows, Columns, Fields, Elements;
-					std::size_t Size;
+					unsigned int Rows, Columns, Elements;
+					std::size_t StorageOffset, StorageSize;
 				};
 
 			public:

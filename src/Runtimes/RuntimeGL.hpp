@@ -69,9 +69,9 @@ namespace ReShade
 
 			std::shared_ptr<const GLRuntime> mRuntime;
 			std::vector<struct GLSampler> mSamplers;
-			GLuint mDefaultVAO, mDefaultVBO;
-			std::vector<GLuint> mUniformBuffers;
-			std::vector<std::pair<unsigned char *, std::size_t>> mUniformStorages;
+			GLuint mDefaultVAO, mDefaultVBO, mUBO;
+			GLubyte *mUniformStorage;
+			std::size_t mUniformStorageSize;
 			mutable bool mUniformDirty;
 		};
 		struct GLTexture : public FX::Effect::Texture
@@ -118,7 +118,6 @@ namespace ReShade
 			virtual void SetValue(const unsigned char *data, std::size_t size) override;
 
 			GLEffect *mEffect;
-			std::size_t mBufferIndex, mBufferOffset;
 		};
 		struct GLTechnique : public FX::Effect::Technique
 		{
