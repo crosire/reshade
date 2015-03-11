@@ -3478,7 +3478,7 @@ namespace ReShade
 						return false;
 					}
 
-					if (value->NodeId != Node::Id::LValue || static_cast<Nodes::LValue *>(value)->Reference->NodeId != Node::Id::Variable || !static_cast<Nodes::LValue *>(value)->Reference->Type.IsTexture() || static_cast<Nodes::LValue *>(value)->Reference->Type.IsArray())
+					if (value->NodeId != Node::Id::LValue || static_cast<Nodes::LValue *>(value)->Reference->NodeId != Node::Id::Variable || static_cast<Nodes::LValue *>(value)->Reference->Type.BaseClass != Nodes::Type::Class::Texture2D || static_cast<Nodes::LValue *>(value)->Reference->Type.IsArray())
 					{
 						this->mLexer.Error(location, 3020, "type mismatch, expected texture name");
 
