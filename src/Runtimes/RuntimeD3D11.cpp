@@ -1943,8 +1943,9 @@ namespace ReShade
 				void VisitShader(const FX::Nodes::Function *node, const std::string &shadertype, D3D11Technique::Pass &pass)
 				{
 					std::string profile = shadertype;
+					const D3D_FEATURE_LEVEL featurelevel = this->mEffect->mRuntime->mDevice->GetFeatureLevel();
 
-					switch (this->mEffect->mRuntime->mDevice->GetFeatureLevel())
+					switch (featurelevel)
 					{
 						default:
 						case D3D_FEATURE_LEVEL_11_0:
@@ -1971,10 +1972,21 @@ namespace ReShade
 						"inline float4 __tex2Doffset(__sampler2D s, float2 c, int2 offset) { return s.t.Sample(s.s, c, offset); }\n"
 						"inline float4 __tex2Dlod(__sampler2D s, float4 c) { return s.t.SampleLevel(s.s, c.xy, c.w); }\n"
 						"inline float4 __tex2Dlodoffset(__sampler2D s, float4 c, int2 offset) { return s.t.SampleLevel(s.s, c.xy, c.w, offset); }\n"
-						"inline float4 __tex2Dgather(__sampler2D s, float2 c) { return s.t.Gather(s.s, c); }\n"
-						"inline float4 __tex2Dgatheroffset(__sampler2D s, float2 c, int2 offset) { return s.t.Gather(s.s, c, offset); }\n"
 						"inline float4 __tex2Dfetch(__sampler2D s, int4 c) { return s.t.Load(c.xyw); }\n"
 						"inline int2 __tex2Dsize(__sampler2D s, int lod) { uint w, h, l; s.t.GetDimensions(lod, w, h, l); return int2(w, h); }\n";
+
+					if (featurelevel >= D3D_FEATURE_LEVEL_10_1)
+					{
+						source +=
+							"inline float4 __tex2Dgather(__sampler2D s, float2 c) { return s.t.Gather(s.s, c); }\n"
+							"inline float4 __tex2Dgatheroffset(__sampler2D s, float2 c, int2 offset) { return s.t.Gather(s.s, c, offset); }\n";
+					}
+					else
+					{
+						source +=
+							"inline float4 __tex2Dgather(__sampler2D s, float2 c) { return float4( s.t.SampleLevel(s.s, c, 0, int2(0, 1)).r, s.t.SampleLevel(s.s, c, 0, int2(1, 1)).r, s.t.SampleLevel(s.s, c, 0, int2(1, 0)).r, s.t.SampleLevel(s.s, c, 0).r); }\n"
+							"inline float4 __tex2Dgatheroffset(__sampler2D s, float2 c) { return float4( s.t.SampleLevel(s.s, c, 0, offset + int2(0, 1)).r, s.t.SampleLevel(s.s, c, 0, offset + int2(1, 1)).r, s.t.SampleLevel(s.s, c, 0, offset + int2(1, 0)).r, s.t.SampleLevel(s.s, c, 0, offset).r); }\n";
+					}
 
 					if (!this->mCurrentGlobalConstants.empty())
 					{

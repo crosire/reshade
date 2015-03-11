@@ -1771,7 +1771,7 @@ namespace ReShade
 				{
 					std::string source =
 						"uniform float4 _PIXEL_SIZE_ : register(c223);\n"
-						"float4 __tex2Dgather(sampler2D s, float2 c) { return float4(tex2D(s, c + float2(0, 1) * _PIXEL_SIZE_.xy).r, tex2D(s, c + float2(1, 1) * _PIXEL_SIZE_.xy).r, tex2D(s, c + float2(1, 0) * _PIXEL_SIZE_.xy).r, tex2D(s, c).r); }\n";
+						"float4 __tex2Dgather(sampler2D s, float2 c) { return float4(tex2Dlod(s, float4(c + float2(0, 1) * _PIXEL_SIZE_.xy, 0, 0)).r, tex2Dlod(s, float4(c + float2(1, 1) * _PIXEL_SIZE_.xy, 0, 0)).r, tex2Dlod(s, float4(c + float2(1, 0) * _PIXEL_SIZE_.xy, 0, 0)).r, tex2Dlod(s, float4(c, 0, 0)).r); }\n";
 
 					if (shadertype == "ps")
 					{
