@@ -2823,7 +2823,11 @@ namespace ReShade
 			assert(device != nullptr);
 			assert(context != nullptr);
 
-			this->mRendererId = 0x61;
+			GLint major = 0, minor = 0;
+			GLCHECK(glGetIntegerv(GL_MAJOR_VERSION, &major));
+			GLCHECK(glGetIntegerv(GL_MAJOR_VERSION, &minor));
+
+			this->mRendererId = 0x10000 | (major << 12) | (minor << 8);
 
 			if (GetModuleHandleA("nvd3d9wrap.dll") == nullptr && GetModuleHandleA("nvd3d9wrapx.dll") == nullptr)
 			{

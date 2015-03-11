@@ -2061,7 +2061,7 @@ namespace ReShade
 
 			this->mVendorId = identifier.VendorId;
 			this->mDeviceId = identifier.DeviceId;
-			this->mRendererId = 0xD3D9;
+			this->mRendererId = D3D_FEATURE_LEVEL_9_3;
 		}
 		D3D9Runtime::~D3D9Runtime()
 		{

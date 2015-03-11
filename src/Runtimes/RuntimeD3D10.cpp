@@ -2075,7 +2075,7 @@ namespace ReShade
 			IDXGIDevice *dxgidevice = nullptr;
 			IDXGIAdapter *adapter = nullptr;
 
-			HRESULT hr = this->mDevice->QueryInterface(__uuidof(IDXGIDevice), reinterpret_cast<void **>(&dxgidevice));
+			HRESULT hr = this->mDevice->QueryInterface(&dxgidevice);
 
 			assert(SUCCEEDED(hr));
 
@@ -2091,10 +2091,24 @@ namespace ReShade
 			adapter->Release();
 
 			assert(SUCCEEDED(hr));
+
+			ID3D10Device1 *device1 = nullptr;
+
+			hr = this->mDevice->QueryInterface(&device1);
+
+			if (SUCCEEDED(hr))
+			{
+				this->mRendererId = device1->GetFeatureLevel();
+
+				device1->Release();
+			}
+			else
+			{
+				this->mRendererId = D3D10_FEATURE_LEVEL_10_0;
+			}
 			
 			this->mVendorId = desc.VendorId;
 			this->mDeviceId = desc.DeviceId;
-			this->mRendererId = 0xD3D10;
 
 			D3D10_STATE_BLOCK_MASK mask;
 			D3D10StateBlockMaskEnableAll(&mask);

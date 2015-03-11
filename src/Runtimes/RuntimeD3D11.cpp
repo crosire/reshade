@@ -2351,7 +2351,7 @@ namespace ReShade
 
 			this->mVendorId = desc.VendorId;
 			this->mDeviceId = desc.DeviceId;
-			this->mRendererId = 0xD3D11;
+			this->mRendererId = this->mDevice->GetFeatureLevel();
 		}
 		D3D11Runtime::~D3D11Runtime()
 		{
