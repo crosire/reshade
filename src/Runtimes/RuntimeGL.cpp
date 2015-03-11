@@ -1942,6 +1942,7 @@ namespace ReShade
 				void VisitTexture(const FX::Nodes::Variable *node)
 				{
 					GLTexture::Description desc;
+					desc.Name = node->Name;
 					desc.Width = node->Properties.Width;
 					desc.Height = node->Properties.Height;
 					desc.Levels = node->Properties.MipLevels;
@@ -2075,6 +2076,7 @@ namespace ReShade
 					this->mGlobalUniforms += ";\n";
 
 					GLConstant::Description desc;
+					desc.Name = node->Name;
 					desc.Rows = node->Type.Rows;
 					desc.Columns = node->Type.Cols;
 					desc.Elements = node->Type.ArrayLength;
@@ -2127,6 +2129,7 @@ namespace ReShade
 				void VisitTechnique(const FX::Nodes::Technique *node)
 				{
 					GLTechnique::Description desc;
+					desc.Name = node->Name;
 					desc.Passes = static_cast<unsigned int>(node->Passes.size());
 
 					GLTechnique *const obj = new GLTechnique(this->mEffect, desc);

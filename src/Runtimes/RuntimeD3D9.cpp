@@ -1434,6 +1434,7 @@ namespace ReShade
 				void VisitTexture(const FX::Nodes::Variable *node)
 				{
 					D3D9Texture::Description desc;
+					desc.Name = node->Name;
 					desc.Width = node->Properties.Width;
 					desc.Height = node->Properties.Height;
 					UINT levels = desc.Levels = node->Properties.MipLevels;
@@ -1561,6 +1562,7 @@ namespace ReShade
 					this->mGlobalCode += " : register(c" + std::to_string(this->mCurrentRegisterOffset / 4) + ");\n";
 
 					D3D9Constant::Description desc;
+					desc.Name = node->Name;
 					desc.Rows = node->Type.Rows;
 					desc.Columns = node->Type.Cols;
 					desc.Elements = node->Type.ArrayLength;
@@ -1617,6 +1619,7 @@ namespace ReShade
 				void VisitTechnique(const FX::Nodes::Technique *node)
 				{
 					D3D9Technique::Description desc;
+					desc.Name = node->Name;
 					desc.Passes = static_cast<unsigned int>(node->Passes.size());
 
 					D3D9Technique *const obj = new D3D9Technique(this->mEffect, desc);

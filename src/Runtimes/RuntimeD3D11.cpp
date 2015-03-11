@@ -1464,7 +1464,7 @@ namespace ReShade
 					D3D11_TEXTURE2D_DESC texdesc;
 					ZeroMemory(&texdesc, sizeof(D3D11_TEXTURE2D_DESC));
 					D3D11Texture::Description objdesc;
-
+					objdesc.Name = node->Name;
 					texdesc.Width = objdesc.Width = node->Properties.Width;
 					texdesc.Height = objdesc.Height = node->Properties.Height;
 					texdesc.MipLevels = objdesc.Levels = node->Properties.MipLevels;
@@ -1685,6 +1685,7 @@ namespace ReShade
 					this->mCurrentGlobalConstants += ";\n";
 
 					D3D11Constant::Description desc;
+					desc.Name = node->Name;
 					desc.Rows = node->Type.Rows;
 					desc.Columns = node->Type.Cols;
 					desc.Elements = node->Type.ArrayLength;
@@ -1775,10 +1776,11 @@ namespace ReShade
 				}
 				void Visit(const FX::Nodes::Technique *node)
 				{
-					D3D11Technique::Description objdesc;
-					objdesc.Passes = static_cast<unsigned int>(node->Passes.size());
+					D3D11Technique::Description desc;
+					desc.Name = node->Name;
+					desc.Passes = static_cast<unsigned int>(node->Passes.size());
 
-					D3D11Technique *obj = new D3D11Technique(this->mEffect, objdesc);
+					D3D11Technique *obj = new D3D11Technique(this->mEffect, desc);
 
 					Visit(node->Annotations, *obj);
 

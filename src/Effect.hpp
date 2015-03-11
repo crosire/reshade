@@ -135,6 +135,7 @@ namespace ReShade
 				};
 				struct Description
 				{
+					std::string Name;
 					unsigned int Width, Height, Levels;
 					Format Format;
 				};
@@ -165,6 +166,7 @@ namespace ReShade
 				struct Description
 				{
 					Type Type;
+					std::string Name;
 					unsigned int Rows, Columns, Elements;
 					std::size_t StorageOffset, StorageSize;
 				};
@@ -209,6 +211,7 @@ namespace ReShade
 			public:
 				struct Description
 				{
+					std::string Name;
 					unsigned int Passes;
 				};
 
