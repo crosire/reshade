@@ -91,12 +91,24 @@ namespace ReShade
 						case FX::Nodes::Variable::Properties::R8:
 							name = FX::Effect::Texture::Format::R8;
 							return DXGI_FORMAT_R8_UNORM;
+						case FX::Nodes::Variable::Properties::R16F:
+							name = FX::Effect::Texture::Format::R16F;
+							return DXGI_FORMAT_R16_FLOAT;
 						case FX::Nodes::Variable::Properties::R32F:
 							name = FX::Effect::Texture::Format::R32F;
 							return DXGI_FORMAT_R32_FLOAT;
 						case FX::Nodes::Variable::Properties::RG8:
 							name = FX::Effect::Texture::Format::RG8;
 							return DXGI_FORMAT_R8G8_UNORM;
+						case FX::Nodes::Variable::Properties::RG16:
+							name = FX::Effect::Texture::Format::RG16;
+							return DXGI_FORMAT_R16G16_UNORM;
+						case FX::Nodes::Variable::Properties::RG16F:
+							name = FX::Effect::Texture::Format::RG16F;
+							return DXGI_FORMAT_R16G16_FLOAT;
+						case FX::Nodes::Variable::Properties::RG32F:
+							name = FX::Effect::Texture::Format::RG32F;
+							return DXGI_FORMAT_R32G32_FLOAT;
 						case FX::Nodes::Variable::Properties::RGBA8:
 							name = FX::Effect::Texture::Format::RGBA8;
 							return DXGI_FORMAT_R8G8B8A8_TYPELESS;

@@ -232,6 +232,10 @@ namespace ReShade
 							name = FX::Effect::Texture::Format::R8;
 							internalformat = internalformatsrgb = GL_R8;
 							break;
+						case FX::Nodes::Variable::Properties::R16F:
+							name = FX::Effect::Texture::Format::R16F;
+							internalformat = internalformatsrgb = GL_R16F;
+							break;
 						case FX::Nodes::Variable::Properties::R32F:
 							name = FX::Effect::Texture::Format::R32F;
 							internalformat = internalformatsrgb = GL_R32F;
@@ -239,6 +243,18 @@ namespace ReShade
 						case FX::Nodes::Variable::Properties::RG8:
 							name = FX::Effect::Texture::Format::RG8;
 							internalformat = internalformatsrgb = GL_RG8;
+							break;
+						case FX::Nodes::Variable::Properties::RG16:
+							name = FX::Effect::Texture::Format::RG16;
+							internalformat = internalformatsrgb = GL_RG16;
+							break;
+						case FX::Nodes::Variable::Properties::RG16F:
+							name = FX::Effect::Texture::Format::RG16F;
+							internalformat = internalformatsrgb = GL_RG16F;
+							break;
+						case FX::Nodes::Variable::Properties::RG32F:
+							name = FX::Effect::Texture::Format::RG32F;
+							internalformat = internalformatsrgb = GL_RG32F;
 							break;
 						case FX::Nodes::Variable::Properties::RGBA8:
 							name = FX::Effect::Texture::Format::RGBA8;

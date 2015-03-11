@@ -560,8 +560,12 @@ namespace ReShade
 						NONE = 0,
 
 						R8 = 50,
+						R16F = 111,
 						R32F = 114,
 						RG8 = 51,
+						RG16 = 34,
+						RG16F = 112,
+						RG32F = 115,
 						RGBA8 = 32,
 						RGBA16 = 36,
 						RGBA16F = 113,

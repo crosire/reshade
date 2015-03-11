@@ -110,12 +110,24 @@ namespace ReShade
 						case FX::Nodes::Variable::Properties::R8:
 							name = FX::Effect::Texture::Format::R8;
 							return D3DFMT_A8R8G8B8;
+						case FX::Nodes::Variable::Properties::R16F:
+							name = FX::Effect::Texture::Format::R16F;
+							return D3DFMT_R16F;
 						case FX::Nodes::Variable::Properties::R32F:
 							name = FX::Effect::Texture::Format::R32F;
 							return D3DFMT_R32F;
 						case FX::Nodes::Variable::Properties::RG8:
 							name = FX::Effect::Texture::Format::RG8;
 							return D3DFMT_A8R8G8B8;
+						case FX::Nodes::Variable::Properties::RG16:
+							name = FX::Effect::Texture::Format::RG16;
+							return D3DFMT_G16R16;
+						case FX::Nodes::Variable::Properties::RG16F:
+							name = FX::Effect::Texture::Format::RG16F;
+							return D3DFMT_G16R16F;
+						case FX::Nodes::Variable::Properties::RG32F:
+							name = FX::Effect::Texture::Format::RG32F;
+							return D3DFMT_G32R32F;
 						case FX::Nodes::Variable::Properties::RGBA8:
 							name = FX::Effect::Texture::Format::RGBA8;
 							return D3DFMT_A8R8G8B8;  // D3DFMT_A8B8G8R8 appearently isn't supported by hardware very well
