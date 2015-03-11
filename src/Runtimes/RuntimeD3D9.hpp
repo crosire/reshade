@@ -70,8 +70,8 @@ namespace ReShade
 				return this->mTechniques.emplace(name, std::unique_ptr<Technique>(technique)).second;
 			}
 
-			virtual void Begin() const override;
-			virtual void End() const override;
+			virtual void Enter() const override;
+			virtual void Leave() const override;
 
 			std::shared_ptr<const D3D9Runtime> mRuntime;
 			IDirect3DVertexBuffer9 *mVertexBuffer;

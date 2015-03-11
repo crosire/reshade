@@ -236,8 +236,8 @@ namespace ReShade
 			std::vector<std::string> GetConstants() const;
 			std::vector<std::string> GetTechniques() const;
 
-			virtual void Begin() const = 0;
-			virtual void End() const = 0;
+			virtual void Enter() const = 0;
+			virtual void Leave() const = 0;
 
 		protected:
 			std::unordered_map<std::string, std::unique_ptr<Texture>> mTextures;

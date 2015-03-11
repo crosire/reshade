@@ -2777,7 +2777,7 @@ namespace ReShade
 			free(this->mConstantStorage);
 		}
 
-		void D3D10Effect::Begin() const
+		void D3D10Effect::Enter() const
 		{
 			ID3D10Device *const device = this->mRuntime->mDevice;
 
@@ -2796,13 +2796,8 @@ namespace ReShade
 			// Setup shader constants
 			device->VSSetConstantBuffers(0, 1, &this->mConstantBuffer);
 			device->PSSetConstantBuffers(0, 1, &this->mConstantBuffer);
-
-			// Clear depthstencil
-			assert(this->mRuntime->mDefaultDepthStencil != nullptr);
-
-			device->ClearDepthStencilView(this->mRuntime->mDefaultDepthStencil, D3D10_CLEAR_DEPTH | D3D10_CLEAR_STENCIL, 1.0f, 0);
 		}
-		void D3D10Effect::End() const
+		void D3D10Effect::Leave() const
 		{
 		}
 
@@ -2951,6 +2946,14 @@ namespace ReShade
 			const std::shared_ptr<const D3D10Runtime> runtime = this->mEffect->mRuntime;
 			ID3D10Device *const device = runtime->mDevice;
 			const D3D10Technique::Pass &pass = this->mPasses[index];
+
+			if (index == 0)
+			{
+				// Clear depthstencil
+				assert(runtime->mDefaultDepthStencil != nullptr);
+
+				device->ClearDepthStencilView(runtime->mDefaultDepthStencil, D3D10_CLEAR_DEPTH | D3D10_CLEAR_STENCIL, 1.0f, 0);
+			}
 
 			// Update shader constants
 			if (this->mEffect->mConstantsDirty)

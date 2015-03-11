@@ -215,6 +215,8 @@ namespace ReShade
 	{
 		const auto timePostProcessingStarted = boost::chrono::high_resolution_clock::now();
 
+		this->mEffect->Enter();
+
 		for (TechniqueInfo &info : this->mTechniques)
 		{
 			if (info.ToggleTime != 0 && info.ToggleTime == static_cast<int>(this->mDate[3]))
@@ -250,140 +252,135 @@ namespace ReShade
 				continue;
 			}
 
-			this->mEffect->Begin();
-
-			for (unsigned int i = 0, passes = info.Technique->GetDescription().Passes; i < passes; ++i)
+			#pragma region Update Constants
+			for (const std::string &name : this->mEffect->GetConstants())
 			{
-				#pragma region Update Constants
-				for (const std::string &name : this->mEffect->GetConstants())
+				FX::Effect::Constant *constant = this->mEffect->GetConstant(name);
+				const std::string source = constant->GetAnnotation("source").As<std::string>();
+
+				if (source.empty())
 				{
-					FX::Effect::Constant *constant = this->mEffect->GetConstant(name);
-					const std::string source = constant->GetAnnotation("source").As<std::string>();
+					continue;
+				}
+				else if (source == "frametime")
+				{
+					const float value = this->mLastFrameDuration.count() * 1e-6f;
 
-					if (source.empty())
+					constant->SetValue(&value, 1);
+				}
+				else if (source == "framecount" || source == "framecounter")
+				{
+					switch (constant->GetDescription().Type)
 					{
-						continue;
+					case FX::Effect::Constant::Type::Bool:
+					{
+						const bool even = (this->mLastFrameCount % 2) == 0;
+						constant->SetValue(&even, 1);
+						break;
 					}
-					else if (source == "frametime")
+					case FX::Effect::Constant::Type::Int:
+					case FX::Effect::Constant::Type::Uint:
 					{
-						const float value = this->mLastFrameDuration.count() * 1e-6f;
-
-						constant->SetValue(&value, 1);
+						const unsigned int framecount = static_cast<unsigned int>(this->mLastFrameCount % UINT_MAX);
+						constant->SetValue(&framecount, 1);
+						break;
 					}
-					else if (source == "framecount" || source == "framecounter")
+					case FX::Effect::Constant::Type::Float:
 					{
-						switch (constant->GetDescription().Type)
-						{
-							case FX::Effect::Constant::Type::Bool:
-							{
-								const bool even = (this->mLastFrameCount % 2) == 0;
-								constant->SetValue(&even, 1);
-								break;
-							}
-							case FX::Effect::Constant::Type::Int:
-							case FX::Effect::Constant::Type::Uint:
-							{
-								const unsigned int framecount = static_cast<unsigned int>(this->mLastFrameCount % UINT_MAX);
-								constant->SetValue(&framecount, 1);
-								break;
-							}
-							case FX::Effect::Constant::Type::Float:
-							{
-								const float framecount = static_cast<float>(this->mLastFrameCount % 16777216);
-								constant->SetValue(&framecount, 1);
-								break;
-							}
-						}
+						const float framecount = static_cast<float>(this->mLastFrameCount % 16777216);
+						constant->SetValue(&framecount, 1);
+						break;
 					}
-					else if (source == "pingpong")
-					{
-						float value[2] = { 0, 0 };
-						constant->GetValue(value, 2);
-
-						const float min = constant->GetAnnotation("min").As<float>(), max = constant->GetAnnotation("max").As<float>();
-						const float stepMin = constant->GetAnnotation("step").As<float>(0), stepMax = constant->GetAnnotation("step").As<float>(1);
-						const float increment = stepMax == 0 ? stepMin : (stepMin + std::fmodf(std::rand(), stepMax - stepMin + 1));
-
-						if (value[1] >= 0)
-						{
-							if ((value[0] += increment) >= max)
-							{
-								value[0] = max;
-								value[1] = -1;
-							}
-						}
-						else
-						{
-							if ((value[0] -= increment) <= min)
-							{
-								value[0] = min;
-								value[1] = +1;
-							}
-						}
-						
-						constant->SetValue(value, 2);
-					}
-					else if (source == "date")
-					{
-						constant->SetValue(this->mDate, 4);
-					}
-					else if (source == "timer")
-					{
-						const unsigned long long timer = boost::chrono::duration_cast<boost::chrono::nanoseconds>(this->mLastPresent - this->mStartTime).count();
-
-						switch (constant->GetDescription().Type)
-						{
-							case FX::Effect::Constant::Type::Bool:
-							{
-								const bool even = (timer % 2) == 0;
-								constant->SetValue(&even, 1);
-								break;
-							}
-							case FX::Effect::Constant::Type::Int:
-							case FX::Effect::Constant::Type::Uint:
-							{
-								const unsigned int timerInt = static_cast<unsigned int>(timer % UINT_MAX);
-								constant->SetValue(&timerInt, 1);
-								break;
-							}
-							case FX::Effect::Constant::Type::Float:
-							{
-								const float timerFloat = std::fmod(static_cast<float>(timer * 1e-6f), 16777216.0f);
-								constant->SetValue(&timerFloat, 1);
-								break;
-							}
-						}
-					}
-					else if (source == "timeleft")
-					{
-						constant->SetValue(&info.Timeleft, 1);
-					}
-					else if (source == "key")
-					{
-						const int key = constant->GetAnnotation("keycode").As<int>();
-
-						if (key > 0 && key < 256)
-						{
-							const bool state = (::GetAsyncKeyState(key) & 0x8000) != 0;
-
-							constant->SetValue(&state, 1);
-						}
-					}
-					else if (source == "random")
-					{
-						const int min = constant->GetAnnotation("min").As<int>(), max = constant->GetAnnotation("max").As<int>();
-						const int value = min + (std::rand() % (max - min + 1));
-
-						constant->SetValue(&value, 1);
 					}
 				}
-				#pragma endregion
+				else if (source == "pingpong")
+				{
+					float value[2] = { 0, 0 };
+					constant->GetValue(value, 2);
 
-				info.Technique->RenderPass(i);
+					const float min = constant->GetAnnotation("min").As<float>(), max = constant->GetAnnotation("max").As<float>();
+					const float stepMin = constant->GetAnnotation("step").As<float>(0), stepMax = constant->GetAnnotation("step").As<float>(1);
+					const float increment = stepMax == 0 ? stepMin : (stepMin + std::fmodf(std::rand(), stepMax - stepMin + 1));
+
+					if (value[1] >= 0)
+					{
+						if ((value[0] += increment) >= max)
+						{
+							value[0] = max;
+							value[1] = -1;
+						}
+					}
+					else
+					{
+						if ((value[0] -= increment) <= min)
+						{
+							value[0] = min;
+							value[1] = +1;
+						}
+					}
+
+					constant->SetValue(value, 2);
+				}
+				else if (source == "date")
+				{
+					constant->SetValue(this->mDate, 4);
+				}
+				else if (source == "timer")
+				{
+					const unsigned long long timer = boost::chrono::duration_cast<boost::chrono::nanoseconds>(this->mLastPresent - this->mStartTime).count();
+
+					switch (constant->GetDescription().Type)
+					{
+					case FX::Effect::Constant::Type::Bool:
+					{
+						const bool even = (timer % 2) == 0;
+						constant->SetValue(&even, 1);
+						break;
+					}
+					case FX::Effect::Constant::Type::Int:
+					case FX::Effect::Constant::Type::Uint:
+					{
+						const unsigned int timerInt = static_cast<unsigned int>(timer % UINT_MAX);
+						constant->SetValue(&timerInt, 1);
+						break;
+					}
+					case FX::Effect::Constant::Type::Float:
+					{
+						const float timerFloat = std::fmod(static_cast<float>(timer * 1e-6f), 16777216.0f);
+						constant->SetValue(&timerFloat, 1);
+						break;
+					}
+					}
+				}
+				else if (source == "timeleft")
+				{
+					constant->SetValue(&info.Timeleft, 1);
+				}
+				else if (source == "key")
+				{
+					const int key = constant->GetAnnotation("keycode").As<int>();
+
+					if (key > 0 && key < 256)
+					{
+						const bool state = (::GetAsyncKeyState(key) & 0x8000) != 0;
+
+						constant->SetValue(&state, 1);
+					}
+				}
+				else if (source == "random")
+				{
+					const int min = constant->GetAnnotation("min").As<int>(), max = constant->GetAnnotation("max").As<int>();
+					const int value = min + (std::rand() % (max - min + 1));
+
+					constant->SetValue(&value, 1);
+				}
 			}
+			#pragma endregion
 
-			this->mEffect->End();
+			info.Technique->Render();
 		}
+
+		this->mEffect->Leave();
 
 		this->mLastPostProcessingDuration = boost::chrono::high_resolution_clock::now() - timePostProcessingStarted;
 	}

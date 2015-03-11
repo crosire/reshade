@@ -2606,21 +2606,15 @@ namespace ReShade
 			SAFE_RELEASE(this->mVertexDeclaration);
 		}
 
-		void D3D9Effect::Begin() const
+		void D3D9Effect::Enter() const
 		{
 			IDirect3DDevice9 *const device = this->mRuntime->mDevice;
 
 			// Setup vertex input
 			device->SetStreamSource(0, this->mVertexBuffer, 0, sizeof(float));
 			device->SetVertexDeclaration(this->mVertexDeclaration);
-
-			// Clear depthstencil
-			assert(this->mRuntime->mDefaultDepthStencil != nullptr);
-
-			device->SetDepthStencilSurface(this->mRuntime->mDefaultDepthStencil);
-			device->Clear(0, nullptr, D3DCLEAR_ZBUFFER | D3DCLEAR_STENCIL, 0, 1.0f, 0);
 		}
-		void D3D9Effect::End() const
+		void D3D9Effect::Leave() const
 		{
 		}
 
@@ -2808,6 +2802,15 @@ namespace ReShade
 			const std::shared_ptr<const D3D9Runtime> runtime = this->mEffect->mRuntime;
 			IDirect3DDevice9 *device = runtime->mDevice;
 			const D3D9Technique::Pass &pass = this->mPasses[index];
+
+			if (index == 0)
+			{
+				// Clear depthstencil
+				assert(runtime->mDefaultDepthStencil != nullptr);
+
+				device->SetDepthStencilSurface(runtime->mDefaultDepthStencil);
+				device->Clear(0, nullptr, D3DCLEAR_ZBUFFER | D3DCLEAR_STENCIL, 0, 1.0f, 0);
+			}
 
 			// Setup states
 			pass.Stateblock->Apply();

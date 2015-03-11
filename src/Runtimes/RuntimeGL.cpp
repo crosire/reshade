@@ -3398,7 +3398,7 @@ namespace ReShade
 			GLCHECK(glDeleteBuffers(1, &this->mUBO));
 		}
 
-		void GLEffect::Begin() const
+		void GLEffect::Enter() const
 		{
 			// Setup vertex input
 			GLCHECK(glBindVertexArray(this->mDefaultVAO));
@@ -3414,12 +3414,8 @@ namespace ReShade
 
 			// Setup shader constants
 			GLCHECK(glBindBufferBase(GL_UNIFORM_BUFFER, 0, this->mUBO));
-
-			// Clear depthstencil
-			GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, this->mRuntime->mDefaultBackBufferFBO));
-			GLCHECK(glClearBufferfi(GL_DEPTH_STENCIL, 0, 1.0f, 0));
 		}
-		void GLEffect::End() const
+		void GLEffect::Leave() const
 		{
 			// Reset states
 			GLCHECK(glBindSampler(0, 0));
@@ -3572,6 +3568,13 @@ namespace ReShade
 		{
 			const std::shared_ptr<const GLRuntime> runtime = this->mEffect->mRuntime;
 			const GLTechnique::Pass &pass = this->mPasses[index];
+
+			if (index == 0)
+			{
+				// Clear depthstencil
+				GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, runtime->mDefaultBackBufferFBO));
+				GLCHECK(glClearBufferfi(GL_DEPTH_STENCIL, 0, 1.0f, 0));
+			}
 
 			// Update shader constants
 			if (this->mEffect->mUniformDirty)
