@@ -2636,6 +2636,8 @@ namespace ReShade
 			}
 			else if (!Accept(';'))
 			{
+				this->mLexer.Error(this->mNextToken.GetLocation(), 3000, "syntax error: unexpected '%s'", this->mNextToken.GetName().c_str());
+
 				return false;
 			}
 
