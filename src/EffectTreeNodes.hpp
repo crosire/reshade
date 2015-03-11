@@ -112,7 +112,7 @@ namespace ReShade
 					Centroid = 1 << 12,
 					NoInterpolation = 1 << 13,
 				};
-		
+
 				inline bool IsArray() const
 				{
 					return this->ArrayLength != 0;

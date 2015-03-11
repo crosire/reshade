@@ -680,10 +680,12 @@ namespace ReShade
 
 		LOG(TRACE) << "> Running parser ...";
 
-		if (!parser.Parse())
-		{
-			this->mErrors += lexer.GetErrors();
+		const bool success = parser.Parse();
 
+		this->mErrors += lexer.GetErrors();
+
+		if (!success)
+		{
 			LOG(ERROR) << "Failed to compile effect on context " << this << ":\n\n" << this->mErrors << "\n";
 
 			this->mStatus += " Failed!";
