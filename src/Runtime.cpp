@@ -213,6 +213,12 @@ namespace ReShade
 	}
 	void Runtime::OnPostProcess()
 	{
+		if (this->mEffect == nullptr)
+		{
+			this->mLastPostProcessingDuration = boost::chrono::high_resolution_clock::duration(0);
+			return;
+		}
+
 		const auto timePostProcessingStarted = boost::chrono::high_resolution_clock::now();
 
 		this->mEffect->Enter();

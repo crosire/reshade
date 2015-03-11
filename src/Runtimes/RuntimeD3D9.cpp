@@ -1586,15 +1586,15 @@ namespace ReShade
 							break;
 					}
 
-					D3D9Constant *const obj = new D3D9Constant(this->mEffect, desc);
-
-					VisitAnnotation(node->Annotations, *obj);
-
 					const UINT regsize = static_cast<UINT>(static_cast<float>(desc.StorageSize) / sizeof(float));
 					const UINT regalignment = 4 - (regsize % 4);
 
 					desc.StorageOffset = this->mCurrentRegisterOffset;
 					this->mCurrentRegisterOffset += regsize + regalignment;
+
+					D3D9Constant *const obj = new D3D9Constant(this->mEffect, desc);
+
+					VisitAnnotation(node->Annotations, *obj);
 
 					if (this->mCurrentRegisterOffset * sizeof(float) >= this->mCurrentStorageSize)
 					{
