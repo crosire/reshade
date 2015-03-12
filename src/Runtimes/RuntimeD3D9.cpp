@@ -2055,6 +2055,14 @@ namespace ReShade
 
 				return ref;
 			}
+			inline ULONG GetRefCount(IUnknown *object)
+			{
+				const ULONG ref = object->AddRef() - 1;
+
+				object->Release();
+
+				return ref;
+			}
 		}
 
 		// -----------------------------------------------------------------------------------------------------
@@ -2207,6 +2215,13 @@ namespace ReShade
 
 			ZeroMemory(&this->mPresentParams, sizeof(D3DPRESENT_PARAMETERS));
 
+			for (auto &it : this->mDepthSourceTable)
+			{
+				LOG(TRACE) << "Removing depthstencil " << it.first << " from list of possible depth candidates ...";
+
+				it.first->Release();
+			}
+
 			this->mDepthSourceTable.clear();
 
 			this->mLost = true;
@@ -2334,19 +2349,6 @@ namespace ReShade
 			// End post processing
 			this->mDevice->EndScene();
 		}
-		void D3D9Runtime::OnDeleteDepthStencilSurface(IDirect3DSurface9 *depthstencil)
-		{
-			assert(depthstencil != nullptr);
-
-			const auto it = this->mDepthSourceTable.find(depthstencil);
-
-			if (it != this->mDepthSourceTable.end())
-			{
-				LOG(TRACE) << "Removing depthstencil " << depthstencil << " from list of possible depth candidates ...";
-
-				this->mDepthSourceTable.erase(it);
-			}
-		}
 		void D3D9Runtime::OnSetDepthStencilSurface(IDirect3DSurface9 *&depthstencil)
 		{
 			if (this->mDepthSourceTable.find(depthstencil) == this->mDepthSourceTable.end())
@@ -2361,6 +2363,8 @@ namespace ReShade
 				}
 	
 				LOG(TRACE) << "Adding depthstencil " << depthstencil << " (Width: " << desc.Width << ", Height: " << desc.Height << ", Format: " << desc.Format << ") to list of possible depth candidates ...";
+
+				depthstencil->AddRef();
 
 				// Begin tracking new depthstencil
 				const DepthSourceInfo info = { desc.Width, desc.Height };
@@ -2416,22 +2420,33 @@ namespace ReShade
 			DepthSourceInfo bestInfo = { 0 };
 			IDirect3DSurface9 *best = nullptr;
 
-			for (auto &it : this->mDepthSourceTable)
+			for (auto it = this->mDepthSourceTable.begin(); it != this->mDepthSourceTable.end(); ++it)
 			{
-				if (it.second.DrawCallCount == 0)
+				if (GetRefCount(it->first) == 1)
+				{
+					LOG(TRACE) << "Removing depthstencil " << it->first << " from list of possible depth candidates ...";
+
+					it->first->Release();
+
+					it = this->mDepthSourceTable.erase(it);
+					it = std::prev(it);
+					continue;
+				}
+
+				if (it->second.DrawCallCount == 0)
 				{
 					continue;
 				}
-				else if ((it.second.DrawVerticesCount * (1.2f - it.second.DrawCallCount / this->mLastDrawCalls)) >= (bestInfo.DrawVerticesCount * (1.2f - bestInfo.DrawCallCount / this->mLastDrawCalls)))
+				else if ((it->second.DrawVerticesCount * (1.2f - it->second.DrawCallCount / this->mLastDrawCalls)) >= (bestInfo.DrawVerticesCount * (1.2f - bestInfo.DrawCallCount / this->mLastDrawCalls)))
 				{
-					best = it.first;
-					bestInfo = it.second;
+					best = it->first;
+					bestInfo = it->second;
 				}
 
-				it.second.DrawCallCount = it.second.DrawVerticesCount = 0;
+				it->second.DrawCallCount = it->second.DrawVerticesCount = 0;
 			}
 
-			if (best != nullptr && this->mDepthStencil != best)
+			if (this->mDepthStencil != best)
 			{
 				LOG(TRACE) << "Switched depth source to depthstencil " << best << ".";
 
