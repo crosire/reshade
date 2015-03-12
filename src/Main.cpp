@@ -1,9 +1,6 @@
-#include "Log.hpp"
 #include "Runtime.hpp"
 
 #include <windows.h>
-
-_INITIALIZE_EASYLOGGINGPP;
 
 // -----------------------------------------------------------------------------------------------------
 

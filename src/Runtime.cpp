@@ -110,27 +110,18 @@ namespace ReShade
 		logPath.replace_extension("log");
 		logTracePath.replace_extension("tracelog");
 
-		el::Configurations logConfig;
-		logConfig.set(el::Level::Global, el::ConfigurationType::Enabled, "true");
-		logConfig.set(el::Level::Trace, el::ConfigurationType::Enabled, "false");
-		logConfig.set(el::Level::Global, el::ConfigurationType::Filename, logPath.string());
-		logConfig.set(el::Level::Global, el::ConfigurationType::ToFile, "true");
-		logConfig.set(el::Level::Global, el::ConfigurationType::ToStandardOutput, "false");
-		logConfig.set(el::Level::Global, el::ConfigurationType::MaxLogFileSize, "0");
-		logConfig.set(el::Level::Global, el::ConfigurationType::LogFlushThreshold, "0");
-		logConfig.set(el::Level::Global, el::ConfigurationType::Format, "%datetime [%thread] | %level | %msg");
-
 		DeleteFile(logPath.c_str());
 
 		if (GetFileAttributes(logTracePath.c_str()) != INVALID_FILE_ATTRIBUTES)
 		{
 			DeleteFile(logTracePath.c_str());
 
-			logConfig.set(el::Level::Trace, el::ConfigurationType::Enabled, "true");
-			logConfig.set(el::Level::Global, el::ConfigurationType::Filename, logTracePath.string());
+			Log::Global.Open(logTracePath, Log::Level::Trace);
 		}
-
-		el::Loggers::reconfigureLogger("default", logConfig);
+		else
+		{
+			Log::Global.Open(logPath, Log::Level::Info);
+		}
 
 		LOG(INFO) << "Initializing Crosire's ReShade version '" BOOST_STRINGIZE(VERSION_FULL) "' built on '" VERSION_DATE " " VERSION_TIME "' loaded from " << ObfuscatePath(injectorPath) << " to " << ObfuscatePath(executablePath) << " ...";
 

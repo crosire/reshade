@@ -52,7 +52,6 @@
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-    <Import Project="dep\EasyLogging.props" />
     <Import Project="dep\MinHook.props" />
     <Import Project="dep\FCPP.props" />
     <Import Project="dep\GL3W.props" />
@@ -61,7 +60,6 @@
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-    <Import Project="dep\EasyLogging.props" />
     <Import Project="dep\MinHook.props" />
     <Import Project="dep\FCPP.props" />
     <Import Project="dep\GL3W.props" />
@@ -70,7 +68,6 @@
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-    <Import Project="dep\EasyLogging.props" />
     <Import Project="dep\MinHook.props" />
     <Import Project="dep\FCPP.props" />
     <Import Project="dep\GL3W.props" />
@@ -79,7 +76,6 @@
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-    <Import Project="dep\EasyLogging.props" />
     <Import Project="dep\MinHook.props" />
     <Import Project="dep\FCPP.props" />
     <Import Project="dep\GL3W.props" />
@@ -254,6 +250,7 @@ tools\upx --backup "$(TargetPath)"</Command>
     <ClCompile Include="src\Runtimes\RuntimeGL.cpp" />
     <ClCompile Include="src\FileWatcher.cpp" />
     <ClCompile Include="src\Main.cpp" />
+    <ClCompile Include="src\Log.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="res\Resource.h" />

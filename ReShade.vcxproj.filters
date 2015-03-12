@@ -27,6 +27,9 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="src\Log.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
     <ClCompile Include="src\Main.cpp">
       <Filter>Core</Filter>
     </ClCompile>
