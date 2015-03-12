@@ -155,7 +155,7 @@ namespace ReShade
 
 	// -----------------------------------------------------------------------------------------------------
 
-	Runtime::Runtime() : mWidth(0), mHeight(0), mVendorId(0), mDeviceId(0), mRendererId(0), mLastFrameCount(0), mLastDrawCalls(0), mLastDrawCallVertices(0), mDate(), mCompileStep(0), mNVG(nullptr), mScreenshotFormat("png"), mShowStatistics(false), mShowFPS(false), mShowClock(false), mSkipShaderOptimization(false)
+	Runtime::Runtime() : mWidth(0), mHeight(0), mVendorId(0), mDeviceId(0), mRendererId(0), mLastFrameCount(0), mLastDrawCalls(0), mLastDrawCallVertices(0), mDate(), mCompileStep(0), mNVG(nullptr), mScreenshotFormat("png"), mShowStatistics(false), mShowFPS(false), mShowClock(false), mShowToggleMessage(false), mSkipShaderOptimization(false)
 	{
 		this->mStatus = "Initializing ...";
 		this->mStartTime = boost::chrono::high_resolution_clock::now();
@@ -226,6 +226,13 @@ namespace ReShade
 			{
 				info.Enabled = !info.Enabled;
 				info.Timeleft = info.Timeout;
+
+				if (this->mShowToggleMessage)
+				{
+					this->mStatus = info.Enabled ? "Enabled" : "Disabled";
+					this->mStatus += " technique \"" + info.Technique->GetDescription().Name + "\"!";
+					this->mLastCreate = timePostProcessingStarted;
+				}
 
 				BYTE keys[256];
 				::GetKeyboardState(keys);
@@ -544,7 +551,7 @@ namespace ReShade
 	bool Runtime::LoadEffect()
 	{
 		this->mMessage.clear();
-		this->mShowStatistics = this->mShowFPS = this->mShowClock = this->mSkipShaderOptimization = false;
+		this->mShowStatistics = this->mShowFPS = this->mShowClock = this->mShowToggleMessage = this->mSkipShaderOptimization = false;
 
 		boost::filesystem::path path = sEffectPath;
 
@@ -645,6 +652,10 @@ namespace ReShade
 			else if (boost::iequals(command, "showclock"))
 			{
 				this->mShowClock = true;
+			}
+			else if (boost::iequals(command, "showtogglemessage"))
+			{
+				this->mShowToggleMessage = true;
 			}
 			else if (boost::iequals(command, "skipoptimization") || boost::iequals(command, "nooptimization"))
 			{

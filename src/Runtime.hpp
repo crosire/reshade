@@ -95,6 +95,6 @@ namespace ReShade
 		float mDate[4];
 		std::string mStatus, mErrors, mMessage, mEffectSource;
 		std::string mScreenshotFormat;
-		bool mShowStatistics, mShowFPS, mShowClock, mSkipShaderOptimization;
+		bool mShowStatistics, mShowFPS, mShowClock, mShowToggleMessage, mSkipShaderOptimization;
 	};
 }
