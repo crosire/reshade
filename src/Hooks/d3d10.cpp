@@ -11,11 +11,11 @@ namespace
 {
 	struct D3D10Device : public ID3D10Device1, private boost::noncopyable
 	{
-		D3D10Device(ID3D10Device *originalDevice) : mRef(1), mOrig(originalDevice), mInterfaceVersion(0), mDXGIDevice(nullptr)
+		D3D10Device(ID3D10Device *originalDevice) : mRef(1), mOrig(originalDevice), mInterfaceVersion(0), mDXGIDevice(nullptr), mCurrentDepthStencil(nullptr)
 		{
 			assert(originalDevice != nullptr);
 		}
-		D3D10Device(ID3D10Device1 *originalDevice) : mRef(1), mOrig(originalDevice), mInterfaceVersion(1), mDXGIDevice(nullptr)
+		D3D10Device(ID3D10Device1 *originalDevice) : mRef(1), mOrig(originalDevice), mInterfaceVersion(1), mDXGIDevice(nullptr), mCurrentDepthStencil(nullptr)
 		{
 			assert(originalDevice != nullptr);
 		}
@@ -129,6 +129,34 @@ namespace
 		unsigned int mInterfaceVersion;
 		IDXGIDevice *mDXGIDevice;
 		std::vector<std::shared_ptr<ReShade::Runtimes::D3D10Runtime>> mRuntimes;
+		struct D3D10DepthStencilView *mCurrentDepthStencil;
+	};
+	struct D3D10DepthStencilView : public ID3D10DepthStencilView, private boost::noncopyable
+	{
+		friend struct D3D10Device;
+
+		D3D10DepthStencilView(D3D10Device *device, ID3D10DepthStencilView *originalDepthStencil) : mRef(1), mDevice(device), mOrig(originalDepthStencil)
+		{
+			assert(device != nullptr);
+			assert(originalDepthStencil != nullptr);
+		}
+
+		virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
+		virtual ULONG STDMETHODCALLTYPE AddRef() override;
+		virtual ULONG STDMETHODCALLTYPE Release() override;
+
+		virtual void STDMETHODCALLTYPE GetDevice(ID3D10Device **ppDevice) override;
+		virtual HRESULT STDMETHODCALLTYPE GetPrivateData(REFGUID guid, UINT *pDataSize, void *pData) override;
+		virtual HRESULT STDMETHODCALLTYPE SetPrivateData(REFGUID guid, UINT DataSize, const void *pData) override;
+		virtual HRESULT STDMETHODCALLTYPE SetPrivateDataInterface(REFGUID guid, const IUnknown *pData) override;
+
+		virtual void STDMETHODCALLTYPE GetResource(ID3D10Resource **ppResource) override;
+
+		virtual void STDMETHODCALLTYPE GetDesc(D3D10_DEPTH_STENCIL_VIEW_DESC *pDesc) override;
+
+		ULONG mRef;
+		D3D10Device *const mDevice;
+		ID3D10DepthStencilView *mOrig;
 	};
 
 	LPCSTR GetErrorString(HRESULT hr)
@@ -252,31 +280,84 @@ void DXGID3D10Bridge::RemoveRuntime(std::shared_ptr<ReShade::Runtimes::D3D10Runt
 // -----------------------------------------------------------------------------------------------------
 
 // ID3D10DepthStencilView
-ULONG STDMETHODCALLTYPE ID3D10DepthStencilView_Release(ID3D10DepthStencilView *pDepthStencilView)
+HRESULT STDMETHODCALLTYPE D3D10DepthStencilView::QueryInterface(REFIID riid, void **ppvObj)
 {
-	static const auto trampoline = ReShade::Hooks::Call(&ID3D10DepthStencilView_Release);
-
-	ID3D10Device *device = nullptr;
-	pDepthStencilView->GetDevice(&device);
-
-	assert(device != nullptr);
-
-	const ULONG ref = trampoline(pDepthStencilView);
-
-	D3D10Device *deviceProxy = nullptr;
-	UINT size = sizeof(deviceProxy);
-
-	if (ref == 0 && SUCCEEDED(device->GetPrivateData(DXGID3D10Bridge::sIID, &size, reinterpret_cast<void *>(&deviceProxy))))
+	if (ppvObj == nullptr)
 	{
-		for (auto runtime : deviceProxy->mRuntimes)
+		return E_POINTER;
+	}
+
+	if (riid == __uuidof(IUnknown) || riid == __uuidof(ID3D10DeviceChild) || riid == __uuidof(ID3D10View) || riid == __uuidof(ID3D10DepthStencilView))
+	{
+		AddRef();
+
+		*ppvObj = this;
+
+		return S_OK;
+	}
+
+	return this->mOrig->QueryInterface(riid, ppvObj);
+}
+ULONG STDMETHODCALLTYPE D3D10DepthStencilView::AddRef()
+{
+	this->mRef++;
+
+	return this->mOrig->AddRef();
+}
+ULONG STDMETHODCALLTYPE D3D10DepthStencilView::Release()
+{
+	if (--this->mRef == 0)
+	{
+		for (auto runtime : this->mDevice->mRuntimes)
 		{
-			runtime->OnDeleteDepthStencilView(pDepthStencilView);
+			runtime->OnDeleteDepthStencilView(this->mOrig);
 		}
 	}
 
-	device->Release();
+	const ULONG ref = this->mOrig->Release();
+
+	if (this->mRef == 0 && ref != 0)
+	{
+		LOG(WARNING) << "Reference count for 'ID3D10DepthStencilView' object " << this << " (" << ref << ") is inconsistent.";
+	}
+
+	if (ref == 0)
+	{
+		delete this;
+	}
 
 	return ref;
+}
+void STDMETHODCALLTYPE D3D10DepthStencilView::GetDevice(ID3D10Device **ppDevice)
+{
+	if (ppDevice == nullptr)
+	{
+		return;
+	}
+
+	this->mDevice->AddRef();
+
+	*ppDevice = this->mDevice;
+}
+HRESULT STDMETHODCALLTYPE D3D10DepthStencilView::GetPrivateData(REFGUID guid, UINT *pDataSize, void *pData)
+{
+	return this->mOrig->GetPrivateData(guid, pDataSize, pData);
+}
+HRESULT STDMETHODCALLTYPE D3D10DepthStencilView::SetPrivateData(REFGUID guid, UINT DataSize, const void *pData)
+{
+	return this->mOrig->SetPrivateData(guid, DataSize, pData);
+}
+HRESULT STDMETHODCALLTYPE D3D10DepthStencilView::SetPrivateDataInterface(REFGUID guid, const IUnknown *pData)
+{
+	return this->mOrig->SetPrivateDataInterface(guid, pData);
+}
+void STDMETHODCALLTYPE D3D10DepthStencilView::GetResource(ID3D10Resource **ppResource)
+{
+	return this->mOrig->GetResource(ppResource);
+}
+void STDMETHODCALLTYPE D3D10DepthStencilView::GetDesc(D3D10_DEPTH_STENCIL_VIEW_DESC *pDesc)
+{
+	return this->mOrig->GetDesc(pDesc);
 }
 
 // ID3D10Device
@@ -464,8 +545,12 @@ void STDMETHODCALLTYPE D3D10Device::GSSetSamplers(UINT StartSlot, UINT NumSample
 }
 void STDMETHODCALLTYPE D3D10Device::OMSetRenderTargets(UINT NumViews, ID3D10RenderTargetView *const *ppRenderTargetViews, ID3D10DepthStencilView *pDepthStencilView)
 {
+	this->mCurrentDepthStencil = static_cast<D3D10DepthStencilView *>(pDepthStencilView);
+
 	if (pDepthStencilView != nullptr)
 	{
+		pDepthStencilView = this->mCurrentDepthStencil->mOrig;
+
 		for (auto runtime : this->mRuntimes)
 		{
 			runtime->OnSetDepthStencilView(pDepthStencilView);
@@ -525,6 +610,8 @@ void STDMETHODCALLTYPE D3D10Device::ClearRenderTargetView(ID3D10RenderTargetView
 }
 void STDMETHODCALLTYPE D3D10Device::ClearDepthStencilView(ID3D10DepthStencilView *pDepthStencilView, UINT ClearFlags, FLOAT Depth, UINT8 Stencil)
 {
+	pDepthStencilView = static_cast<D3D10DepthStencilView *>(pDepthStencilView)->mOrig;
+
 	for (auto runtime : this->mRuntimes)
 	{
 		runtime->OnClearDepthStencilView(pDepthStencilView);
@@ -618,6 +705,8 @@ void STDMETHODCALLTYPE D3D10Device::OMGetRenderTargets(UINT NumViews, ID3D10Rend
 		{
 			runtime->OnGetDepthStencilView(*ppDepthStencilView);
 		}
+
+		*ppDepthStencilView = this->mCurrentDepthStencil;
 	}
 }
 void STDMETHODCALLTYPE D3D10Device::OMGetBlendState(ID3D10BlendState **ppBlendState, FLOAT BlendFactor[4], UINT *pSampleMask)
@@ -702,19 +791,26 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateRenderTargetView(ID3D10Resource *pR
 }
 HRESULT STDMETHODCALLTYPE D3D10Device::CreateDepthStencilView(ID3D10Resource *pResource, const D3D10_DEPTH_STENCIL_VIEW_DESC *pDesc, ID3D10DepthStencilView **ppDepthStencilView)
 {
-	const HRESULT hr = this->mOrig->CreateDepthStencilView(pResource, pDesc, ppDepthStencilView);
-
-	if (SUCCEEDED(hr))
+	if (ppDepthStencilView == nullptr)
 	{
-		ReShade::Hooks::Install(VTABLE(*ppDepthStencilView), 2, reinterpret_cast<ReShade::Hook::Function>(&ID3D10DepthStencilView_Release));
-
-		for (auto runtime : this->mRuntimes)
-		{
-			runtime->OnCreateDepthStencilView(pResource, *ppDepthStencilView);
-		}
+		return E_INVALIDARG;
 	}
 
-	return hr;
+	const HRESULT hr = this->mOrig->CreateDepthStencilView(pResource, pDesc, ppDepthStencilView);
+
+	if (FAILED(hr))
+	{
+		return hr;
+	}
+
+	for (auto runtime : this->mRuntimes)
+	{
+		runtime->OnCreateDepthStencilView(pResource, *ppDepthStencilView);
+	}
+
+	*ppDepthStencilView = new D3D10DepthStencilView(this, *ppDepthStencilView);
+
+	return S_OK;
 }
 HRESULT STDMETHODCALLTYPE D3D10Device::CreateInputLayout(const D3D10_INPUT_ELEMENT_DESC *pInputElementDescs, UINT NumElements, const void *pShaderBytecodeWithInputSignature, SIZE_T BytecodeLength, ID3D10InputLayout **ppInputLayout)
 {
