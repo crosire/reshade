@@ -828,7 +828,7 @@ namespace ReShade
 				}
 				void Visit(const FX::Nodes::Intrinsic *node)
 				{
-					std::string part1, part2, part3, part4;
+					std::string part1, part2, part3, part4, part5;
 
 					switch (node->Operator)
 					{
@@ -1112,6 +1112,13 @@ namespace ReShade
 							part3 = ", ";
 							part4 = ")";
 							break;
+						case FX::Nodes::Intrinsic::Op::Tex2DGrad:
+							part1 = "__tex2Dgrad(";
+							part2 = ", ";
+							part3 = ", ";
+							part4 = ", ";
+							part5 = ")";
+							break;
 						case FX::Nodes::Intrinsic::Op::Tex2DLevel:
 							part1 = "__tex2Dlod(";
 							part2 = ", ";
@@ -1128,6 +1135,11 @@ namespace ReShade
 							part2 = ", ";
 							part3 = ", ";
 							part4 = ")";
+							break;
+						case FX::Nodes::Intrinsic::Op::Tex2DProj:
+							part1 = "__tex2Dproj(";
+							part2 = ", ";
+							part3 = ")";
 							break;
 						case FX::Nodes::Intrinsic::Op::Tex2DSize:
 							part1 = "__tex2Dsize(";
@@ -1166,6 +1178,13 @@ namespace ReShade
 					}
 
 					this->mCurrentSource += part4;
+
+					if (node->Arguments[3] != nullptr)
+					{
+						Visit(node->Arguments[3]);
+					}
+
+					this->mCurrentSource += part5;
 				}
 				void Visit(const FX::Nodes::Conditional *node)
 				{
@@ -1963,10 +1982,12 @@ namespace ReShade
 					std::string source =
 						"struct __sampler2D { Texture2D t; SamplerState s; };\n"
 						"inline float4 __tex2D(__sampler2D s, float2 c) { return s.t.Sample(s.s, c); }\n"
-						"inline float4 __tex2Doffset(__sampler2D s, float2 c, int2 offset) { return s.t.Sample(s.s, c, offset); }\n"
+						"inline float4 __tex2Dfetch(__sampler2D s, int4 c) { return s.t.Load(c.xyw); }\n"
+						"inline float4 __tex2Dgrad(__sampler2D s, float2 c, float2 ddx, float2 ddy) { return s.t.SampleGrad(s.s, c, ddx, ddy); }\n"
 						"inline float4 __tex2Dlod(__sampler2D s, float4 c) { return s.t.SampleLevel(s.s, c.xy, c.w); }\n"
 						"inline float4 __tex2Dlodoffset(__sampler2D s, float4 c, int2 offset) { return s.t.SampleLevel(s.s, c.xy, c.w, offset); }\n"
-						"inline float4 __tex2Dfetch(__sampler2D s, int4 c) { return s.t.Load(c.xyw); }\n"
+						"inline float4 __tex2Doffset(__sampler2D s, float2 c, int2 offset) { return s.t.Sample(s.s, c, offset); }\n"
+						"inline float4 __tex2Dproj(__sampler2D s, float4 c) { return s.t.Sample(s.s, c.xy / c.w); }\n"
 						"inline int2 __tex2Dsize(__sampler2D s, int lod) { uint w, h, l; s.t.GetDimensions(lod, w, h, l); return int2(w, h); }\n";
 
 					if (featurelevel >= D3D10_FEATURE_LEVEL_10_1)

@@ -439,16 +439,18 @@ namespace ReShade
 					Tex2DFetch,
 					Tex2DGather,
 					Tex2DGatherOffset,
+					Tex2DGrad,
 					Tex2DLevel,
 					Tex2DLevelOffset,
 					Tex2DOffset,
+					Tex2DProj,
 					Tex2DSize,
 					Transpose,
 					Trunc,
 				};
 
 				Op Operator;
-				Expression *Arguments[3];
+				Expression *Arguments[4];
 
 				Intrinsic() : Expression(Id::Intrinsic), Operator(Op::None), Arguments()
 				{

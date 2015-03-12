@@ -73,10 +73,35 @@ namespace ReShade
 					this->Function.Parameters.push_back(&Arguments[1]);
 					this->Function.Parameters.push_back(&Arguments[2]);
 				}
+				explicit Intrinsic(const std::string &name, Nodes::Intrinsic::Op op, Nodes::Type::Class returntype, unsigned int returnrows, unsigned int returncols, Nodes::Type::Class arg0type, unsigned int arg0rows, unsigned int arg0cols, Nodes::Type::Class arg1type, unsigned int arg1rows, unsigned int arg1cols, Nodes::Type::Class arg2type, unsigned int arg2rows, unsigned int arg2cols, Nodes::Type::Class arg3type, unsigned int arg3rows, unsigned int arg3cols)
+				{
+					this->Op = op;
+					this->Function.Name = name;
+					this->Function.ReturnType.BaseClass = returntype;
+					this->Function.ReturnType.Rows = returnrows;
+					this->Function.ReturnType.Cols = returncols;
+					this->Arguments[0].Type.BaseClass = arg0type;
+					this->Arguments[0].Type.Rows = arg0rows;
+					this->Arguments[0].Type.Cols = arg0cols;
+					this->Arguments[1].Type.BaseClass = arg1type;
+					this->Arguments[1].Type.Rows = arg1rows;
+					this->Arguments[1].Type.Cols = arg1cols;
+					this->Arguments[2].Type.BaseClass = arg2type;
+					this->Arguments[2].Type.Rows = arg2rows;
+					this->Arguments[2].Type.Cols = arg2cols;
+					this->Arguments[3].Type.BaseClass = arg3type;
+					this->Arguments[3].Type.Rows = arg3rows;
+					this->Arguments[3].Type.Cols = arg3cols;
+
+					this->Function.Parameters.push_back(&Arguments[0]);
+					this->Function.Parameters.push_back(&Arguments[1]);
+					this->Function.Parameters.push_back(&Arguments[2]);
+					this->Function.Parameters.push_back(&Arguments[3]);
+				}
 
 				Nodes::Intrinsic::Op Op;
 				Nodes::Function Function;
-				Nodes::Variable Arguments[3];
+				Nodes::Variable Arguments[4];
 			};
 
 			const Intrinsic sIntrinsics[] =
@@ -328,10 +353,12 @@ namespace ReShade
 				Intrinsic("tex2Dfetch",			Nodes::Intrinsic::Op::Tex2DFetch,			Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Sampler2D, 0, 0, Nodes::Type::Class::Int,   2, 1),
 				Intrinsic("tex2Dgather",		Nodes::Intrinsic::Op::Tex2DGather,			Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Sampler2D, 0, 0, Nodes::Type::Class::Float, 2, 1),
 				Intrinsic("tex2Dgatheroffset",	Nodes::Intrinsic::Op::Tex2DGatherOffset,	Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Sampler2D, 0, 0, Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Int, 2, 1),
+				Intrinsic("tex2Dgrad",			Nodes::Intrinsic::Op::Tex2DGrad,			Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Sampler2D, 0, 0, Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Float, 2, 1),
 				Intrinsic("tex2Dlod",			Nodes::Intrinsic::Op::Tex2DLevel,			Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Sampler2D, 0, 0, Nodes::Type::Class::Float, 4, 1),
 				Intrinsic("tex2Dlodoffset",		Nodes::Intrinsic::Op::Tex2DLevelOffset,		Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Sampler2D, 0, 0, Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Int, 2, 1),
 				Intrinsic("tex2Doffset",		Nodes::Intrinsic::Op::Tex2DOffset,			Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Sampler2D, 0, 0, Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Int, 2, 1),
-				Intrinsic("tex2Dsize",			Nodes::Intrinsic::Op::Tex2DSize,			Nodes::Type::Class::Int,   2, 1, Nodes::Type::Class::Sampler2D, 0, 0, Nodes::Type::Class::Int,   1, 1),
+				Intrinsic("tex2Dproj",			Nodes::Intrinsic::Op::Tex2D,				Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Sampler2D, 0, 0, Nodes::Type::Class::Float, 4, 1),
+				Intrinsic("tex2Dsize",			Nodes::Intrinsic::Op::Tex2DSize,			Nodes::Type::Class::Int,   2, 1, Nodes::Type::Class::Sampler2D, 0, 0, Nodes::Type::Class::Int, 1, 1),
 				Intrinsic("transpose", 			Nodes::Intrinsic::Op::Transpose, 			Nodes::Type::Class::Float, 2, 2, Nodes::Type::Class::Float, 2, 2),
 				Intrinsic("transpose", 			Nodes::Intrinsic::Op::Transpose, 			Nodes::Type::Class::Float, 3, 3, Nodes::Type::Class::Float, 3, 3),
 				Intrinsic("transpose",			Nodes::Intrinsic::Op::Transpose, 			Nodes::Type::Class::Float, 4, 4, Nodes::Type::Class::Float, 4, 4),
@@ -1955,17 +1982,9 @@ namespace ReShade
 						newexpression->Type = callexpression->Type;
 						newexpression->Operator = static_cast<Nodes::Intrinsic::Op>(reinterpret_cast<unsigned int>(callexpression->Callee));
 
-						if (callexpression->Arguments.size() > 0)
+						for (std::size_t i = 0, count = std::min(callexpression->Arguments.size(), 4u); i < count; ++i)
 						{
-							newexpression->Arguments[0] = callexpression->Arguments[0];
-						}
-						if (callexpression->Arguments.size() > 1)
-						{
-							newexpression->Arguments[1] = callexpression->Arguments[1];
-						}
-						if (callexpression->Arguments.size() > 2)
-						{
-							newexpression->Arguments[2] = callexpression->Arguments[2];
+							newexpression->Arguments[i] = callexpression->Arguments[i];
 						}
 
 						node = FoldConstantExpression(newexpression);

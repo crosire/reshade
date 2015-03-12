@@ -832,7 +832,7 @@ namespace ReShade
 				}
 				void Visit(std::string &output, const FX::Nodes::Intrinsic *node)
 				{
-					std::string part1, part2, part3, part4;
+					std::string part1, part2, part3, part4, part5;
 
 					switch (node->Operator)
 					{
@@ -1106,6 +1106,13 @@ namespace ReShade
 							part3 = " + (";
 							part4 = ") * _PIXEL_SIZE_.xy)";
 							break;
+						case FX::Nodes::Intrinsic::Op::Tex2DGrad:
+							part1 = "tex2Dgrad(";
+							part2 = ", ";
+							part3 = ", ";
+							part4 = ", ";
+							part5 = ")";
+							break;
 						case FX::Nodes::Intrinsic::Op::Tex2DLevel:
 							part1 = "tex2Dlod(";
 							part2 = ", ";
@@ -1122,6 +1129,11 @@ namespace ReShade
 							part2 = ", ";
 							part3 = " + (";
 							part4 = ") * _PIXEL_SIZE_.xy)";
+							break;
+						case FX::Nodes::Intrinsic::Op::Tex2DProj:
+							part1 = "tex2Dproj(";
+							part2 = ", ";
+							part3 = ")";
 							break;
 						case FX::Nodes::Intrinsic::Op::Tex2DSize:
 							Error(node->Location, "'tex2Dsize' is not supported in Direct3D9");
@@ -1158,6 +1170,13 @@ namespace ReShade
 					}
 
 					output += part4;
+
+					if (node->Arguments[3] != nullptr)
+					{
+						Visit(output, node->Arguments[3]);
+					}
+
+					output += part5;
 				}
 				void Visit(std::string &output, const FX::Nodes::Conditional *node)
 				{

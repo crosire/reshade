@@ -1089,8 +1089,8 @@ namespace ReShade
 				}
 				void Visit(std::string &output, const FX::Nodes::Intrinsic *node)
 				{
-					FX::Nodes::Type type1, type2, type3, type12;
-					std::pair<std::string, std::string> cast1, cast2, cast3, cast121, cast122;
+					FX::Nodes::Type type1, type2, type3, type4, type12;
+					std::pair<std::string, std::string> cast1, cast2, cast3, cast4, cast121, cast122;
 
 					if (node->Arguments[0] != nullptr)
 					{
@@ -1111,8 +1111,12 @@ namespace ReShade
 					{
 						cast3 = PrintCast(type3 = node->Arguments[2]->Type, node->Type);
 					}
+					if (node->Arguments[3] != nullptr)
+					{
+						cast4 = PrintCast(type4 = node->Arguments[2]->Type, node->Type);
+					}
 
-					std::string part1, part2, part3, part4;
+					std::string part1, part2, part3, part4, part5;
 
 					switch (node->Operator)
 					{
@@ -1518,6 +1522,20 @@ namespace ReShade
 							part4 = cast3.second + " * ivec2(1, -1))";
 							break;
 						}
+						case FX::Nodes::Intrinsic::Op::Tex2DGrad:
+						{
+							const FX::Nodes::Type type2to = { FX::Nodes::Type::Class::Float, 0, 2, 1 };
+							cast2 = PrintCast(type2, type2to);
+							cast3 = PrintCast(type3, type2to);
+							cast4 = PrintCast(type4, type2to);
+
+							part1 = "textureGrad(";
+							part2 = ", " + cast2.first;
+							part3 = cast2.second + " * vec2(1.0, -1.0) + vec2(0.0, 1.0), " + cast3.first;
+							part4 = cast3.second + ", " + cast4.first;
+							part5 = cast4.second + ")";
+							break;
+						}
 						case FX::Nodes::Intrinsic::Op::Tex2DLevel:
 						{
 							const FX::Nodes::Type type2to = { FX::Nodes::Type::Class::Float, 0, 4, 1 };
@@ -1552,6 +1570,16 @@ namespace ReShade
 							part2 = ", " + cast2.first;
 							part3 = cast2.second + " * vec2(1.0, -1.0) + vec2(0.0, 1.0), " + cast3.first;
 							part4 = cast3.second + " * ivec2(1, -1))";
+							break;
+						}
+						case FX::Nodes::Intrinsic::Op::Tex2DProj:
+						{
+							const FX::Nodes::Type type2to = { FX::Nodes::Type::Class::Float, 0, 4, 1 };
+							cast2 = PrintCast(type2, type2to);
+
+							part1 = "textureProj(";
+							part2 = ", " + cast2.first;
+							part3 = cast2.second + " * vec4(1.0, -1.0, 1.0, 1.0) + vec4(0.0, 1.0, 0.0, 0.0))";
 							break;
 						}
 						case FX::Nodes::Intrinsic::Op::Tex2DSize:
@@ -1601,6 +1629,13 @@ namespace ReShade
 					}
 
 					output += part4;
+
+					if (node->Arguments[3] != nullptr)
+					{
+						Visit(output, node->Arguments[3]);
+					}
+
+					output += part5;
 				}
 				void Visit(std::string &output, const FX::Nodes::Conditional *node)
 				{
