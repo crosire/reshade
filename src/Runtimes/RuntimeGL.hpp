@@ -37,6 +37,7 @@ namespace ReShade
 			HDC mDeviceContext;
 			HGLRC mRenderContext;
 			std::atomic<GLuint> mReferenceCount;
+			GLuint mCurrentVertexCount;
 			std::unique_ptr<class GLStateBlock> mStateBlock;
 			GLuint mDefaultBackBufferFBO, mDefaultBackBufferRBO[2], mBackBufferTexture[2];
 			GLuint mDepthSourceFBO, mDepthSource, mDepthTexture, mBlitFBO;
