@@ -100,6 +100,43 @@
 
 namespace
 {
+	std::string GetErrorString(DWORD code)
+	{
+		code &= 0xFFFF;
+
+		std::stringstream res;
+
+		switch (code)
+		{
+			case ERROR_INVALID_HANDLE:
+				res << "ERROR_INVALID_HANDLE (" << ERROR_INVALID_HANDLE << ")";
+				break;
+			case ERROR_GEN_FAILURE:
+				res << "ERROR_GEN_FAILURE (" << ERROR_GEN_FAILURE << ")";
+				break;
+			case ERROR_INVALID_PARAMETER:
+				res << "ERROR_INVALID_PARAMETER (" << ERROR_INVALID_PARAMETER << ")";
+				break;
+			case ERROR_BUSY:
+				res << "ERROR_BUSY (" << ERROR_BUSY << ")";
+				break;
+			case ERROR_INVALID_PIXEL_FORMAT:
+				res << "ERROR_INVALID_PIXEL_FORMAT (" << ERROR_INVALID_PIXEL_FORMAT << ")";
+				break;
+			case 0x2095:
+				res << "ERROR_INVALID_VERSION_ARB (0x2095)";
+				break;
+			case 0x2096:
+				res << "ERROR_INVALID_PROFILE_ARB (0x2096)";
+				break;
+			default:
+				res << code;
+				break;
+		}
+
+		return res.str();
+	}
+
 	class CriticalSection
 	{
 	public:
@@ -3083,7 +3120,7 @@ BOOL WINAPI wglChoosePixelFormatARB(HDC hdc, const int *piAttribIList, const FLO
 
 	if (!ReShade::Hooks::Call(&wglChoosePixelFormatARB)(hdc, piAttribIList, pfAttribFList, nMaxFormats, piFormats, nNumFormats))
 	{
-		LOG(WARNING) << "> 'wglChoosePixelFormatARB' failed with error code '" << (GetLastError() & 0xFFFF) << "'!";
+		LOG(WARNING) << "> 'wglChoosePixelFormatARB' failed with '" << GetErrorString(GetLastError()) << "'!";
 
 		return FALSE;
 	}
@@ -3113,7 +3150,7 @@ EXPORT BOOL WINAPI wglSetPixelFormat(HDC hdc, int iPixelFormat, CONST PIXELFORMA
 
 	if (!ReShade::Hooks::Call(&wglSetPixelFormat)(hdc, iPixelFormat, ppfd))
 	{
-		LOG(WARNING) << "> 'wglSetPixelFormat' failed with error code " << (GetLastError() & 0xFFFF) << "!";
+		LOG(WARNING) << "> 'wglSetPixelFormat' failed with '" << GetErrorString(GetLastError()) << "'!";
 
 		return FALSE;
 	}
@@ -3132,7 +3169,7 @@ EXPORT HGLRC WINAPI wglCreateContext(HDC hdc)
 
 	if (hglrc == nullptr)
 	{
-		LOG(WARNING) << "> 'wglCreateContext' failed with error code " << (GetLastError() & 0xFFFF) << "!";
+		LOG(WARNING) << "> 'wglCreateContext' failed with '" << GetErrorString(GetLastError()) << "'!";
 
 		return nullptr;
 	}
@@ -3237,7 +3274,7 @@ HGLRC WINAPI wglCreateContextAttribsARB(HDC hdc, HGLRC hShareContext, const int 
 
 	if (hglrc == nullptr)
 	{
-		LOG(WARNING) << "> 'wglCreateContextAttribsARB' failed with error code " << (GetLastError() & 0xFFFF) << "!";
+		LOG(WARNING) << "> 'wglCreateContextAttribsARB' failed with '" << GetErrorString(GetLastError()) << "'!";
 
 		return nullptr;
 	}
@@ -3303,7 +3340,7 @@ EXPORT BOOL WINAPI wglDeleteContext(HGLRC hglrc)
 
 	if (!ReShade::Hooks::Call(&wglDeleteContext)(hglrc))
 	{
-		LOG(WARNING) << "> 'wglDeleteContext' failed with error code " << (GetLastError() & 0xFFFF) << "!";
+		LOG(WARNING) << "> 'wglDeleteContext' failed with '" << GetErrorString(GetLastError()) << "'!";
 
 		return FALSE;
 	}
@@ -3411,7 +3448,7 @@ EXPORT BOOL WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 
 	if (!trampoline(hdc, hglrc))
 	{
-		LOG(WARNING) << "> 'wglMakeCurrent' failed with error code " << (GetLastError() & 0xFFFF) << "!";
+		LOG(WARNING) << "> 'wglMakeCurrent' failed with '" << GetErrorString(GetLastError()) << "'!";
 
 		return FALSE;
 	}
@@ -3504,7 +3541,7 @@ EXPORT BOOL WINAPI wglShareLists(HGLRC hglrc1, HGLRC hglrc2)
 
 	if (!ReShade::Hooks::Call(&wglShareLists)(hglrc1, hglrc2))
 	{
-		LOG(WARNING) << "> 'wglShareLists' failed with error code " << (GetLastError() & 0xFFFF) << "!";
+		LOG(WARNING) << "> 'wglShareLists' failed with '" << GetErrorString(GetLastError()) << "'!";
 
 		return FALSE;
 	}
