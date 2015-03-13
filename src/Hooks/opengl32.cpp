@@ -3163,6 +3163,10 @@ EXPORT BOOL WINAPI wglCopyContext(HGLRC hglrcSrc, HGLRC hglrcDst, UINT mask)
 }
 EXPORT HGLRC WINAPI wglCreateContext(HDC hdc)
 {
+	// Reset pixel format
+	const PIXELFORMATDESCRIPTOR nullpfd = { sizeof(PIXELFORMATDESCRIPTOR) };
+	ReShade::Hooks::Call(&wglSetPixelFormat)(hdc, ReShade::Hooks::Call(&wglGetPixelFormat)(hdc), &nullpfd);
+
 	LOG(INFO) << "Redirecting '" << "wglCreateContext" << "(" << hdc << ")' ...";
 
 	const HGLRC hglrc = ReShade::Hooks::Call(&wglCreateContext)(hdc);
@@ -3184,6 +3188,10 @@ EXPORT HGLRC WINAPI wglCreateContext(HDC hdc)
 }
 HGLRC WINAPI wglCreateContextAttribsARB(HDC hdc, HGLRC hShareContext, const int *attribList)
 {
+	// Reset pixel format
+	const PIXELFORMATDESCRIPTOR nullpfd = { sizeof(PIXELFORMATDESCRIPTOR) };
+	ReShade::Hooks::Call(&wglSetPixelFormat)(hdc, ReShade::Hooks::Call(&wglGetPixelFormat)(hdc), &nullpfd);
+
 	LOG(INFO) << "Redirecting '" << "wglCreateContextAttribsARB" << "(" << hdc << ", " << hShareContext << ", " << attribList << ")' ...";
 
 	struct Attrib
