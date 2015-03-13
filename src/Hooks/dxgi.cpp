@@ -5,7 +5,6 @@
 
 #include <dxgi.h>
 #include <dxgi1_2.h>
-#include <boost\noncopyable.hpp>
 
 #ifndef _NTDEF_
 	typedef LONG NTSTATUS;
@@ -17,14 +16,16 @@ namespace
 {
 	struct DXGIDevice : public IDXGIDevice2, private boost::noncopyable
 	{
-		DXGIDevice(IDXGIDevice *originalDevice, ID3D10Device *direct3DDevice) : mRef(1), mOrig(originalDevice), mInterfaceVersion(0), mDirect3DDevice(direct3DDevice), mDirect3DVersion(10)
+		DXGIDevice(IDXGIDevice *originalDevice, IUnknown *direct3DBridge, ID3D10Device *direct3DDevice) : mRef(1), mOrig(originalDevice), mInterfaceVersion(0), mDirect3DBridge(direct3DBridge), mDirect3DDevice(direct3DDevice), mDirect3DVersion(10)
 		{
 			assert(originalDevice != nullptr);
+			assert(direct3DBridge != nullptr);
 			assert(direct3DDevice != nullptr);
 		}
-		DXGIDevice(IDXGIDevice *originalDevice, ID3D11Device *direct3DDevice) : mRef(1), mOrig(originalDevice), mInterfaceVersion(0), mDirect3DDevice(direct3DDevice), mDirect3DVersion(11)
+		DXGIDevice(IDXGIDevice *originalDevice, IUnknown *direct3DBridge, ID3D11Device *direct3DDevice) : mRef(1), mOrig(originalDevice), mInterfaceVersion(0), mDirect3DBridge(direct3DBridge), mDirect3DDevice(direct3DDevice), mDirect3DVersion(11)
 		{
 			assert(originalDevice != nullptr);
+			assert(direct3DBridge != nullptr);
 			assert(direct3DDevice != nullptr);
 		}
 
@@ -53,30 +54,20 @@ namespace
 		ULONG mRef;
 		IDXGIDevice *mOrig;
 		unsigned int mInterfaceVersion;
-		IUnknown *const mDirect3DDevice;
+		IUnknown *mDirect3DBridge, *mDirect3DDevice;
 		const unsigned int mDirect3DVersion;
 	};
 	struct DXGISwapChain : public IDXGISwapChain1, private boost::noncopyable
 	{
-		DXGISwapChain(IDXGISwapChain *originalSwapChain, IUnknown *direct3dbridge, const std::shared_ptr<ReShade::Runtimes::D3D10Runtime> &runtime, const DXGI_SAMPLE_DESC &samples) : mRef(1), mOrig(originalSwapChain), mInterfaceVersion(0), mOrigSamples(samples), mDirect3DBridge(direct3dbridge), mDirect3DVersion(10), mRuntime(runtime)
+		DXGISwapChain(DXGIDevice *device, IDXGISwapChain *originalSwapChain, const std::shared_ptr<ReShade::Runtime> &runtime, const DXGI_SAMPLE_DESC &samples) : mRef(1), mOrig(originalSwapChain), mInterfaceVersion(0), mDevice(device), mOrigSamples(samples), mRuntime(runtime)
 		{
+			assert(device != nullptr);
 			assert(originalSwapChain != nullptr);
-			assert(direct3dbridge != nullptr);
 		}
-		DXGISwapChain(IDXGISwapChain1 *originalSwapChain, IUnknown *direct3dbridge, const std::shared_ptr<ReShade::Runtimes::D3D10Runtime> &runtime, const DXGI_SAMPLE_DESC &samples) : mRef(1), mOrig(originalSwapChain), mInterfaceVersion(1), mOrigSamples(samples), mDirect3DBridge(direct3dbridge), mDirect3DVersion(10), mRuntime(runtime)
+		DXGISwapChain(DXGIDevice *device, IDXGISwapChain1 *originalSwapChain, const std::shared_ptr<ReShade::Runtime> &runtime, const DXGI_SAMPLE_DESC &samples) : mRef(1), mOrig(originalSwapChain), mInterfaceVersion(1), mDevice(device), mOrigSamples(samples), mRuntime(runtime)
 		{
+			assert(device != nullptr);
 			assert(originalSwapChain != nullptr);
-			assert(direct3dbridge != nullptr);
-		}
-		DXGISwapChain(IDXGISwapChain *originalSwapChain, IUnknown *direct3dbridge, const std::shared_ptr<ReShade::Runtimes::D3D11Runtime> &runtime, const DXGI_SAMPLE_DESC &samples) : mRef(1), mOrig(originalSwapChain), mInterfaceVersion(0), mOrigSamples(samples), mDirect3DBridge(direct3dbridge), mDirect3DVersion(11), mRuntime(runtime)
-		{
-			assert(originalSwapChain != nullptr);
-			assert(direct3dbridge != nullptr);
-		}
-		DXGISwapChain(IDXGISwapChain1 *originalSwapChain, IUnknown *direct3dbridge, const std::shared_ptr<ReShade::Runtimes::D3D11Runtime> &runtime, const DXGI_SAMPLE_DESC &samples) : mRef(1), mOrig(originalSwapChain), mInterfaceVersion(1), mOrigSamples(samples), mDirect3DBridge(direct3dbridge), mDirect3DVersion(11), mRuntime(runtime)
-		{
-			assert(originalSwapChain != nullptr);
-			assert(direct3dbridge != nullptr);
 		}
 
 		virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
@@ -116,164 +107,127 @@ namespace
 		ULONG mRef;
 		IDXGISwapChain *mOrig;
 		unsigned int mInterfaceVersion;
+		DXGIDevice *const mDevice;
 		const DXGI_SAMPLE_DESC mOrigSamples;
-		IUnknown *mDirect3DBridge;
-		const unsigned int mDirect3DVersion;
 		std::shared_ptr<ReShade::Runtime> mRuntime;
 	};
 
-	LPCSTR GetErrorString(HRESULT hr)
+	std::string GetErrorString(HRESULT hr)
 	{
+		std::stringstream res;
+
 		switch (hr)
 		{
 			case DXGI_ERROR_INVALID_CALL:
-				return "DXGI_ERROR_INVALID_CALL";
+				res << "DXGI_ERROR_INVALID_CALL";
+				break;
 			case DXGI_ERROR_UNSUPPORTED:
-				return "DXGI_ERROR_UNSUPPORTED";
+				res << "DXGI_ERROR_UNSUPPORTED";
+				break;
 			default:
-				__declspec(thread) static CHAR buf[20];
-				sprintf_s(buf, "0x%lx", hr);
-				return buf;
+				res << std::showbase << std::hex << hr;
+				break;
 		}
+
+		return res.str();
 	}
 	void DumpSwapChainDescription(const DXGI_SWAP_CHAIN_DESC &desc)
 	{
 		LOG(TRACE) << "> Dumping swapchain description:";
 		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
 		LOG(TRACE) << "  | Parameter                               | Value                                   |";
-		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
-		LOG(TRACE) << "  | " << "Width" << "                                  " << " | " << std::left << std::setw(39) << desc.BufferDesc.Width << " |";
-		LOG(TRACE) << "  | " << "Height" << "                                 " << " | " << std::setw(39) << desc.BufferDesc.Height << " |";
-		LOG(TRACE) << "  | " << "RefreshRate" << "                            " << " | " << std::setw(19) << desc.BufferDesc.RefreshRate.Numerator << " " << std::setw(19) << desc.BufferDesc.RefreshRate.Denominator << " |";
-		LOG(TRACE) << "  | " << "Format" << "                                 " << " | " << std::setw(39) << desc.BufferDesc.Format << " |";
-		LOG(TRACE) << "  | " << "ScanlineOrdering" << "                       " << " | " << std::setw(39) << desc.BufferDesc.ScanlineOrdering << " |";
-		LOG(TRACE) << "  | " << "Scaling" << "                                " << " | " << std::setw(39) << desc.BufferDesc.Scaling << " |";
-		LOG(TRACE) << "  | " << "SampleCount" << "                            " << " | " << std::setw(39) << desc.SampleDesc.Count << " |";
-		LOG(TRACE) << "  | " << "SampleQuality" << "                          " << " | " << std::setw(39) << desc.SampleDesc.Quality << " |";
-		LOG(TRACE) << "  | " << "BufferUsage" << "                            " << " | " << std::setw(39) << desc.BufferUsage << " |";
-		LOG(TRACE) << "  | " << "BufferCount" << "                            " << " | " << std::setw(39) << desc.BufferCount << " |";
-		LOG(TRACE) << "  | " << "OutputWindow" << "                           " << " | 0x" << std::setw(37) << desc.OutputWindow << " |";
-		LOG(TRACE) << "  | " << "Windowed" << "                               " << " | " << (desc.Windowed != FALSE ? "TRUE " : "FALSE") << "                                  " << " |";
-		LOG(TRACE) << "  | " << "SwapEffect" << "                             " << " | " << std::setw(39) << desc.SwapEffect << " |";
-		LOG(TRACE) << "  | " << "Flags" << "                                  " << " | 0x" << std::setw(37) << std::hex << desc.Flags << std::dec << std::internal << " |";
-		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
+		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+" << std::left;
+		LOG(TRACE) << "  | Width                                   | " << std::setw(39) << desc.BufferDesc.Width << " |";
+		LOG(TRACE) << "  | Height                                  | " << std::setw(39) << desc.BufferDesc.Height << " |";
+		LOG(TRACE) << "  | RefreshRate                             | " << std::setw(19) << desc.BufferDesc.RefreshRate.Numerator << ' ' << std::setw(19) << desc.BufferDesc.RefreshRate.Denominator << " |";
+		LOG(TRACE) << "  | Format                                  | " << std::setw(39) << desc.BufferDesc.Format << " |";
+		LOG(TRACE) << "  | ScanlineOrdering                        | " << std::setw(39) << desc.BufferDesc.ScanlineOrdering << " |";
+		LOG(TRACE) << "  | Scaling                                 | " << std::setw(39) << desc.BufferDesc.Scaling << " |";
+		LOG(TRACE) << "  | SampleCount                             | " << std::setw(39) << desc.SampleDesc.Count << " |";
+		LOG(TRACE) << "  | SampleQuality                           | " << std::setw(39) << desc.SampleDesc.Quality << " |";
+		LOG(TRACE) << "  | BufferUsage                             | " << std::setw(39) << desc.BufferUsage << " |";
+		LOG(TRACE) << "  | BufferCount                             | " << std::setw(39) << desc.BufferCount << " |";
+		LOG(TRACE) << "  | OutputWindow                            | " << std::setw(39) << desc.OutputWindow << " |";
+		LOG(TRACE) << "  | Windowed                                | " << std::setw(39) << (desc.Windowed != FALSE ? "TRUE" : "FALSE") << " |";
+		LOG(TRACE) << "  | SwapEffect                              | " << std::setw(39) << desc.SwapEffect << " |";
+		LOG(TRACE) << "  | Flags                                   | " << std::setw(39) << std::showbase << std::hex << desc.Flags << std::dec << std::noshowbase << " |";
+		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+" << std::internal;
+
+		if (desc.SampleDesc.Count > 1)
+		{
+			LOG(WARNING) << "> Multisampling is enabled. This is not compatible with depthbuffer access, which was therefore disabled.";
+		}
 	}
 	void DumpSwapChainDescription(const DXGI_SWAP_CHAIN_DESC1 &desc)
 	{
 		LOG(TRACE) << "> Dumping swapchain description:";
 		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
 		LOG(TRACE) << "  | Parameter                               | Value                                   |";
-		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
-		LOG(TRACE) << "  | " << "Width" << "                                  " << " | " << std::left << std::setw(39) << desc.Width << " |";
-		LOG(TRACE) << "  | " << "Height" << "                                 " << " | " << std::setw(39) << desc.Height << " |";
-		LOG(TRACE) << "  | " << "Format" << "                                 " << " | " << std::setw(39) << desc.Format << " |";
-		LOG(TRACE) << "  | " << "Stereo" << "                                 " << " | " << (desc.Stereo != FALSE ? "TRUE " : "FALSE") << "                                  " << " |";
-		LOG(TRACE) << "  | " << "SampleCount" << "                            " << " | " << std::setw(39) << desc.SampleDesc.Count << " |";
-		LOG(TRACE) << "  | " << "SampleQuality" << "                          " << " | " << std::setw(39) << desc.SampleDesc.Quality << " |";
-		LOG(TRACE) << "  | " << "BufferUsage" << "                            " << " | " << std::setw(39) << desc.BufferUsage << " |";
-		LOG(TRACE) << "  | " << "BufferCount" << "                            " << " | " << std::setw(39) << desc.BufferCount << " |";
-		LOG(TRACE) << "  | " << "Scaling" << "                                " << " | " << std::setw(39) << desc.Scaling << " |";
-		LOG(TRACE) << "  | " << "SwapEffect" << "                             " << " | " << std::setw(39) << desc.SwapEffect << " |";
-		LOG(TRACE) << "  | " << "AlphaMode" << "                              " << " | " << std::setw(39) << desc.AlphaMode << " |";
-		LOG(TRACE) << "  | " << "Flags" << "                                  " << " | 0x" << std::setw(37) << std::hex << desc.Flags << std::dec << std::internal << " |";
-		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
-	}
-	void AdjustSwapChainDescription(DXGI_SWAP_CHAIN_DESC &desc)
-	{
+		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+" << std::left;
+		LOG(TRACE) << "  | Width                                   | " << std::setw(39) << desc.Width << " |";
+		LOG(TRACE) << "  | Height                                  | " << std::setw(39) << desc.Height << " |";
+		LOG(TRACE) << "  | Format                                  | " << std::setw(39) << desc.Format << " |";
+		LOG(TRACE) << "  | Stereo                                  | " << std::setw(39) << (desc.Stereo != FALSE ? "TRUE" : "FALSE") << " |";
+		LOG(TRACE) << "  | SampleCount                             | " << std::setw(39) << desc.SampleDesc.Count << " |";
+		LOG(TRACE) << "  | SampleQuality                           | " << std::setw(39) << desc.SampleDesc.Quality << " |";
+		LOG(TRACE) << "  | BufferUsage                             | " << std::setw(39) << desc.BufferUsage << " |";
+		LOG(TRACE) << "  | BufferCount                             | " << std::setw(39) << desc.BufferCount << " |";
+		LOG(TRACE) << "  | Scaling                                 | " << std::setw(39) << desc.Scaling << " |";
+		LOG(TRACE) << "  | SwapEffect                              | " << std::setw(39) << desc.SwapEffect << " |";
+		LOG(TRACE) << "  | AlphaMode                               | " << std::setw(39) << desc.AlphaMode << " |";
+		LOG(TRACE) << "  | Flags                                   | " << std::setw(39) << std::showbase << std::hex << desc.Flags << std::dec << std::noshowbase << " |";
+		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+" << std::internal;
+
 		if (desc.SampleDesc.Count > 1)
 		{
 			LOG(WARNING) << "> Multisampling is enabled. This is not compatible with depthbuffer access, which was therefore disabled.";
-
-			desc.SampleDesc.Count = 1;
-			desc.SampleDesc.Quality = 0;
-		}
-	}
-	void AdjustSwapChainDescription(DXGI_SWAP_CHAIN_DESC1 &desc)
-	{
-		if (desc.SampleDesc.Count > 1)
-		{
-			LOG(WARNING) << "> Multisampling is enabled. This is not compatible with depthbuffer access, which was therefore disabled.";
-
-			desc.SampleDesc.Count = 1;
-			desc.SampleDesc.Quality = 0;
 		}
 	}
 }
 
 #pragma region DXGI Bridge
-class DXGID3D10Bridge : public IUnknown
+class DXGID3D10Bridge : public IUnknown, private boost::noncopyable
 {
 public:
 	static const IID sIID;
 
 public:
-	IDXGIDevice *GetProxyDXGIDevice();
-	static IDXGIDevice *GetProxyDXGIDevice(IDXGIDevice *dxgidevice, ID3D10Device *direct3ddevice);
-	IDXGIDevice *GetOriginalDXGIDevice();
-	ID3D10Device *GetProxyD3D10Device();
+	IDXGIDevice *CreateDXGIDevice(IDXGIDevice *originalDevice);
 	ID3D10Device *GetOriginalD3D10Device();
-	void AddRuntime(std::shared_ptr<ReShade::Runtimes::D3D10Runtime> runtime);
-	void RemoveRuntime(std::shared_ptr<ReShade::Runtimes::D3D10Runtime> runtime);
+	void AddRuntime(const std::shared_ptr<ReShade::Runtimes::D3D10Runtime> &runtime);
+	void RemoveRuntime(const std::shared_ptr<ReShade::Runtimes::D3D10Runtime> &runtime);
 
 private:
 	ULONG mRef;
-	DXGIDevice *mDXGIDevice;
 	ID3D10Device *mD3D10Device;
 };
-class DXGID3D11Bridge : public IUnknown
+class DXGID3D11Bridge : public IUnknown, private boost::noncopyable
 {
 public:
 	static const IID sIID;
 	
 public:
-	IDXGIDevice *GetProxyDXGIDevice();
-	static IDXGIDevice *GetProxyDXGIDevice(IDXGIDevice *dxgidevice, ID3D11Device *direct3ddevice);
-	IDXGIDevice *GetOriginalDXGIDevice();
-	ID3D11Device *GetProxyD3D11Device();
+	IDXGIDevice *CreateDXGIDevice(IDXGIDevice *originalDevice);
 	ID3D11Device *GetOriginalD3D11Device();
-	void AddRuntime(std::shared_ptr<ReShade::Runtimes::D3D11Runtime> runtime);
-	void RemoveRuntime(std::shared_ptr<ReShade::Runtimes::D3D11Runtime> runtime);
+	void AddRuntime(const std::shared_ptr<ReShade::Runtimes::D3D11Runtime> &runtime);
+	void RemoveRuntime(const std::shared_ptr<ReShade::Runtimes::D3D11Runtime> &runtime);
 
 private:
 	ULONG mRef;
-	DXGIDevice *mDXGIDevice;
 	ID3D11Device *mD3D11Device;
 };
 
-// -----------------------------------------------------------------------------------------------------
+IDXGIDevice *DXGID3D10Bridge::CreateDXGIDevice(IDXGIDevice *originalDevice)
+{
+	AddRef();
 
-IDXGIDevice *DXGID3D10Bridge::GetProxyDXGIDevice()
-{
-	return this->mDXGIDevice;
+	return new DXGIDevice(originalDevice, this, this->mD3D10Device);
 }
-IDXGIDevice *DXGID3D10Bridge::GetProxyDXGIDevice(IDXGIDevice *dxgidevice, ID3D10Device *direct3ddevice)
+IDXGIDevice *DXGID3D11Bridge::CreateDXGIDevice(IDXGIDevice *originalDevice)
 {
-	return new DXGIDevice(dxgidevice, direct3ddevice);
-}
-IDXGIDevice *DXGID3D10Bridge::GetOriginalDXGIDevice()
-{
-	GetProxyDXGIDevice();
+	AddRef();
 
-	return this->mDXGIDevice->mOrig;
-}
-IDXGIDevice *DXGID3D11Bridge::GetProxyDXGIDevice()
-{
-	if (this->mDXGIDevice == nullptr && SUCCEEDED(this->mD3D11Device->QueryInterface(__uuidof(IDXGIDevice), reinterpret_cast<void **>(&this->mDXGIDevice))))
-	{
-		this->mDXGIDevice = new DXGIDevice(this->mDXGIDevice, this->mD3D11Device);
-	}
-
-	return this->mDXGIDevice;
-}
-IDXGIDevice *DXGID3D11Bridge::GetProxyDXGIDevice(IDXGIDevice *dxgidevice, ID3D11Device *direct3ddevice)
-{
-	return new DXGIDevice(dxgidevice, direct3ddevice);
-}
-IDXGIDevice *DXGID3D11Bridge::GetOriginalDXGIDevice()
-{
-	GetProxyDXGIDevice();
-
-	return this->mDXGIDevice->mOrig;
+	return new DXGIDevice(originalDevice, this, this->mD3D11Device);
 }
 #pragma endregion
 
@@ -329,33 +283,32 @@ ULONG STDMETHODCALLTYPE DXGISwapChain::Release()
 {
 	if (--this->mRef == 0)
 	{
+		assert(this->mDevice->mDirect3DBridge != nullptr);
 		assert(this->mRuntime != nullptr);
-		assert(this->mDirect3DBridge != nullptr);
 
-		switch (this->mDirect3DVersion)
+		switch (this->mDevice->mDirect3DVersion)
 		{
 			case 10:
 				std::static_pointer_cast<ReShade::Runtimes::D3D10Runtime>(this->mRuntime)->OnDeleteInternal();
-				static_cast<DXGID3D10Bridge *>(this->mDirect3DBridge)->RemoveRuntime(std::static_pointer_cast<ReShade::Runtimes::D3D10Runtime>(this->mRuntime));
+				static_cast<DXGID3D10Bridge *>(this->mDevice->mDirect3DBridge)->RemoveRuntime(std::static_pointer_cast<ReShade::Runtimes::D3D10Runtime>(this->mRuntime));
 				break;
 			case 11:
 				std::static_pointer_cast<ReShade::Runtimes::D3D11Runtime>(this->mRuntime)->OnDeleteInternal();
-				static_cast<DXGID3D11Bridge *>(this->mDirect3DBridge)->RemoveRuntime(std::static_pointer_cast<ReShade::Runtimes::D3D11Runtime>(this->mRuntime));
+				static_cast<DXGID3D11Bridge *>(this->mDevice->mDirect3DBridge)->RemoveRuntime(std::static_pointer_cast<ReShade::Runtimes::D3D11Runtime>(this->mRuntime));
 				break;
 		}
 
 		this->mRuntime.reset();
-
-		this->mDirect3DBridge->Release();
-		this->mDirect3DBridge = nullptr;
 	}
 
-	const ULONG ref = this->mOrig->Release();
+	ULONG ref = this->mOrig->Release();
 
 	if (this->mRef == 0 && ref != 0)
 	{
-		LOG(WARNING) << "Reference count for 'IDXGISwapChain' object " << this << " (" << ref << ") is inconsistent.";
+		LOG(WARNING) << "Reference count for 'IDXGISwapChain" << (this->mInterfaceVersion >= 1 ? std::to_string(this->mInterfaceVersion) : "") << "' object " << this << " (" << ref << ") is inconsistent.";
 	}
+
+	ref = this->mRef;
 
 	if (ref == 0)
 	{
@@ -387,29 +340,13 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::GetDevice(REFIID riid, void **ppDevice)
 		return DXGI_ERROR_INVALID_CALL;
 	}
 
-	switch (this->mDirect3DVersion)
-	{
-		case 10:
-			if (riid == __uuidof(IUnknown) || riid == __uuidof(IDXGIObject) || riid == __uuidof(IDXGIDevice) || riid == __uuidof(IDXGIDevice1) || riid == __uuidof(IDXGIDevice2) || riid == __uuidof(ID3D10Device) || riid == __uuidof(ID3D10Device1))
-			{
-				return static_cast<DXGID3D10Bridge *>(this->mDirect3DBridge)->GetProxyDXGIDevice()->QueryInterface(riid, ppDevice);
-			}
-			break;
-		case 11:
-			if (riid == __uuidof(IUnknown) || riid == __uuidof(IDXGIObject) || riid == __uuidof(IDXGIDevice) || riid == __uuidof(IDXGIDevice1) || riid == __uuidof(IDXGIDevice2) || riid == __uuidof(ID3D11Device) || riid == __uuidof(ID3D11Device1))
-			{
-				return static_cast<DXGID3D11Bridge *>(this->mDirect3DBridge)->GetProxyDXGIDevice()->QueryInterface(riid, ppDevice);
-			}
-			break;
-	}
-
-	return this->mOrig->GetDevice(riid, ppDevice);
+	return this->mDevice->QueryInterface(riid, ppDevice);
 }
 HRESULT STDMETHODCALLTYPE DXGISwapChain::Present(UINT SyncInterval, UINT Flags)
 {
 	assert(this->mRuntime != nullptr);
 
-	switch (this->mDirect3DVersion)
+	switch (this->mDevice->mDirect3DVersion)
 	{
 		case 10:
 			std::static_pointer_cast<ReShade::Runtimes::D3D10Runtime>(this->mRuntime)->OnPresentInternal();
@@ -432,7 +369,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::GetBuffer(UINT Buffer, REFIID riid, voi
 	{
 		IUnknown *texture = nullptr;
 
-		switch (this->mDirect3DVersion)
+		switch (this->mDevice->mDirect3DVersion)
 		{
 			case 10:
 				std::static_pointer_cast<ReShade::Runtimes::D3D10Runtime>(this->mRuntime)->OnGetBackBuffer(reinterpret_cast<ID3D10Texture2D *&>(texture));
@@ -452,7 +389,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::GetBuffer(UINT Buffer, REFIID riid, voi
 }
 HRESULT STDMETHODCALLTYPE DXGISwapChain::SetFullscreenState(BOOL Fullscreen, IDXGIOutput *pTarget)
 {
-	LOG(INFO) << "Redirecting '" << "IDXGISwapChain::SetFullscreenState" << "(" << this << ", " << Fullscreen << ", " << pTarget << ")' ...";
+	LOG(INFO) << "Redirecting '" << "IDXGISwapChain::SetFullscreenState" << "(" << this << ", " << (Fullscreen != FALSE ? "TRUE" : "FALSE") << ", " << pTarget << ")' ...";
 
 	return this->mOrig->SetFullscreenState(Fullscreen, pTarget);
 }
@@ -475,22 +412,11 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::GetDesc(DXGI_SWAP_CHAIN_DESC *pDesc)
 }
 HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Width, UINT Height, DXGI_FORMAT NewFormat, UINT SwapChainFlags)
 {
-	LOG(INFO) << "Redirecting '" << "IDXGISwapChain::ResizeBuffers" << "(" << this << ", " << BufferCount << ", " << Width << ", " << Height << ", " << NewFormat << ", " << SwapChainFlags << ")' ...";
-
-	DXGI_SWAP_CHAIN_DESC desc;
-	this->mOrig->GetDesc(&desc);
-	desc.BufferCount = BufferCount;
-	desc.BufferDesc.Width = Width;
-	desc.BufferDesc.Height = Height;
-	desc.BufferDesc.Format = NewFormat;
-	desc.SampleDesc = this->mOrigSamples;
-
-	DumpSwapChainDescription(desc);
-	AdjustSwapChainDescription(desc);
+	LOG(INFO) << "Redirecting '" << "IDXGISwapChain::ResizeBuffers" << "(" << this << ", " << BufferCount << ", " << Width << ", " << Height << ", " << NewFormat << ", " << std::showbase << std::hex << SwapChainFlags << std::dec << std::noshowbase << ")' ...";
 
 	assert(this->mRuntime != nullptr);
 
-	switch (this->mDirect3DVersion)
+	switch (this->mDevice->mDirect3DVersion)
 	{
 		case 10:
 			std::static_pointer_cast<ReShade::Runtimes::D3D10Runtime>(this->mRuntime)->OnDeleteInternal();
@@ -500,7 +426,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Wi
 			break;
 	}
 
-	const HRESULT hr = this->mOrig->ResizeBuffers(desc.BufferCount, desc.BufferDesc.Width, desc.BufferDesc.Height, desc.BufferDesc.Format, SwapChainFlags);
+	const HRESULT hr = this->mOrig->ResizeBuffers(BufferCount, Width, Height, NewFormat, SwapChainFlags);
 
 	if (hr == DXGI_ERROR_INVALID_CALL)
 	{
@@ -513,12 +439,13 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Wi
 		return hr;
 	}
 
+	DXGI_SWAP_CHAIN_DESC desc;
 	this->mOrig->GetDesc(&desc);
 	desc.SampleDesc = this->mOrigSamples;
 
 	bool created = false;
 
-	switch (this->mDirect3DVersion)
+	switch (this->mDevice->mDirect3DVersion)
 	{
 		case 10:
 			created = std::static_pointer_cast<ReShade::Runtimes::D3D10Runtime>(this->mRuntime)->OnCreateInternal(desc);
@@ -530,7 +457,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Wi
 
 	if (!created)
 	{
-		LOG(ERROR) << "Failed to resize Direct3D" << this->mDirect3DVersion << " renderer! Check tracelog for details.";
+		LOG(ERROR) << "Failed to resize Direct3D" << this->mDevice->mDirect3DVersion << " renderer! Check tracelog for details.";
 	}
 
 	return hr;
@@ -591,7 +518,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::Present1(UINT SyncInterval, UINT Presen
 	assert(this->mInterfaceVersion >= 1);
 	assert(this->mRuntime != nullptr);
 
-	switch (this->mDirect3DVersion)
+	switch (this->mDevice->mDirect3DVersion)
 	{
 		case 10:
 			std::static_pointer_cast<ReShade::Runtimes::D3D10Runtime>(this->mRuntime)->OnPresentInternal();
@@ -724,14 +651,22 @@ ULONG STDMETHODCALLTYPE DXGIDevice::AddRef()
 }
 ULONG STDMETHODCALLTYPE DXGIDevice::Release()
 {
-	this->mRef--;
-
-	const ULONG ref = this->mOrig->Release();
-
-	if (this->mRef == 0 && ref != 0)
+	if (--this->mRef == 0)
 	{
-		LOG(WARNING) << "Reference count for 'IDXGIDevice' object " << this << " (" << ref << ") is inconsistent.";
+		assert(this->mDirect3DBridge != nullptr);
+
+		this->mDirect3DBridge->Release();
+		this->mDirect3DBridge = nullptr;
 	}
+
+	ULONG ref = this->mOrig->Release();
+
+	if (this->mRef == 0 && ref != 1)
+	{
+		LOG(WARNING) << "Reference count for 'IDXGIDevice" << (this->mInterfaceVersion >= 1 ? std::to_string(this->mInterfaceVersion) : "") << "' object " << this << " (" << ref << ") is inconsistent.";
+	}
+
+	ref = this->mRef;
 
 	if (ref == 0)
 	{
@@ -821,10 +756,11 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, I
 		return DXGI_ERROR_INVALID_CALL;
 	}
 
-	DXGI_SWAP_CHAIN_DESC desc = *pDesc;
+	DumpSwapChainDescription(*pDesc);
 
-	DumpSwapChainDescription(desc);
-	AdjustSwapChainDescription(desc);
+	DXGI_SWAP_CHAIN_DESC desc = *pDesc;
+	desc.SampleDesc.Count = 1;
+	desc.SampleDesc.Quality = 0;
 
 	const HRESULT hr = ReShade::Hooks::Call(&IDXGIFactory_CreateSwapChain)(pFactory, pDevice, &desc, ppSwapChain);
 
@@ -837,7 +773,8 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, I
 
 	DXGID3D10Bridge *bridgeD3D10 = nullptr;
 	DXGID3D11Bridge *bridgeD3D11 = nullptr;
-	IDXGISwapChain *swapchain = *ppSwapChain;
+	DXGIDevice *deviceProxy = nullptr;
+	IDXGISwapChain *const swapchain = *ppSwapChain;
 
 	swapchain->GetDesc(&desc);
 	desc.SampleDesc = pDesc->SampleDesc;
@@ -846,7 +783,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, I
 	{
 		LOG(WARNING) << "> Skipping swapchain due to missing 'DXGI_USAGE_RENDER_TARGET_OUTPUT' flag.";
 	}
-	else if (SUCCEEDED(pDevice->QueryInterface(DXGID3D10Bridge::sIID, reinterpret_cast<void **>(&bridgeD3D10))))
+	else if (SUCCEEDED(pDevice->QueryInterface(DXGID3D10Bridge::sIID, reinterpret_cast<void **>(&bridgeD3D10))) && SUCCEEDED(pDevice->QueryInterface(__uuidof(IDXGIDevice), reinterpret_cast<void **>(&deviceProxy))))
 	{
 		const std::shared_ptr<ReShade::Runtimes::D3D10Runtime> runtime = std::make_shared<ReShade::Runtimes::D3D10Runtime>(bridgeD3D10->GetOriginalD3D10Device(), swapchain);
 
@@ -857,9 +794,12 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, I
 
 		bridgeD3D10->AddRuntime(runtime);
 
-		*ppSwapChain = new DXGISwapChain(swapchain, bridgeD3D10, runtime, desc.SampleDesc);
+		*ppSwapChain = new DXGISwapChain(deviceProxy, swapchain, runtime, desc.SampleDesc);
+
+		bridgeD3D10->Release();
+		deviceProxy->Release();
 	}
-	else if (SUCCEEDED(pDevice->QueryInterface(DXGID3D11Bridge::sIID, reinterpret_cast<void **>(&bridgeD3D11))))
+	else if (SUCCEEDED(pDevice->QueryInterface(DXGID3D11Bridge::sIID, reinterpret_cast<void **>(&bridgeD3D11))) && SUCCEEDED(pDevice->QueryInterface(__uuidof(IDXGIDevice), reinterpret_cast<void **>(&deviceProxy))))
 	{
 		const std::shared_ptr<ReShade::Runtimes::D3D11Runtime> runtime = std::make_shared<ReShade::Runtimes::D3D11Runtime>(bridgeD3D11->GetOriginalD3D11Device(), swapchain);
 
@@ -870,7 +810,10 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, I
 
 		bridgeD3D11->AddRuntime(runtime);
 
-		*ppSwapChain = new DXGISwapChain(swapchain, bridgeD3D11, runtime, desc.SampleDesc);
+		*ppSwapChain = new DXGISwapChain(deviceProxy, swapchain, runtime, desc.SampleDesc);
+
+		bridgeD3D11->Release();
+		deviceProxy->Release();
 	}
 	else
 	{
@@ -892,10 +835,11 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pF
 		return DXGI_ERROR_INVALID_CALL;
 	}
 
+	DumpSwapChainDescription(*pDesc);
+	
 	DXGI_SWAP_CHAIN_DESC1 desc1 = *pDesc;
-
-	DumpSwapChainDescription(desc1);
-	AdjustSwapChainDescription(desc1);
+	desc1.SampleDesc.Count = 1;
+	desc1.SampleDesc.Quality = 0;
 
 	const HRESULT hr = ReShade::Hooks::Call(&IDXGIFactory2_CreateSwapChainForHwnd)(pFactory, pDevice, hWnd, &desc1, pFullscreenDesc, pRestrictToOutput, ppSwapChain);
 
@@ -908,7 +852,8 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pF
 
 	DXGID3D10Bridge *bridgeD3D10 = nullptr;
 	DXGID3D11Bridge *bridgeD3D11 = nullptr;
-	IDXGISwapChain1 *swapchain = *ppSwapChain;
+	DXGIDevice *deviceProxy = nullptr;
+	IDXGISwapChain1 *const swapchain = *ppSwapChain;
 
 	DXGI_SWAP_CHAIN_DESC desc;
 	swapchain->GetDesc(&desc);
@@ -918,7 +863,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pF
 	{
 		LOG(WARNING) << "> Skipping swapchain due to missing 'DXGI_USAGE_RENDER_TARGET_OUTPUT' flag.";
 	}
-	else if (SUCCEEDED(pDevice->QueryInterface(DXGID3D10Bridge::sIID, reinterpret_cast<void **>(&bridgeD3D10))))
+	else if (SUCCEEDED(pDevice->QueryInterface(DXGID3D10Bridge::sIID, reinterpret_cast<void **>(&bridgeD3D10))) && SUCCEEDED(pDevice->QueryInterface(__uuidof(IDXGIDevice), reinterpret_cast<void **>(&deviceProxy))))
 	{
 		const std::shared_ptr<ReShade::Runtimes::D3D10Runtime> runtime = std::make_shared<ReShade::Runtimes::D3D10Runtime>(bridgeD3D10->GetOriginalD3D10Device(), swapchain);
 
@@ -929,9 +874,12 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pF
 
 		bridgeD3D10->AddRuntime(runtime);
 
-		*ppSwapChain = new DXGISwapChain(swapchain, bridgeD3D10, runtime, desc.SampleDesc);
+		*ppSwapChain = new DXGISwapChain(deviceProxy, swapchain, runtime, desc.SampleDesc);
+
+		bridgeD3D10->Release();
+		deviceProxy->Release();
 	}
-	else if (SUCCEEDED(pDevice->QueryInterface(DXGID3D11Bridge::sIID, reinterpret_cast<void **>(&bridgeD3D11))))
+	else if (SUCCEEDED(pDevice->QueryInterface(DXGID3D11Bridge::sIID, reinterpret_cast<void **>(&bridgeD3D11))) && SUCCEEDED(pDevice->QueryInterface(__uuidof(IDXGIDevice), reinterpret_cast<void **>(&deviceProxy))))
 	{
 		const std::shared_ptr<ReShade::Runtimes::D3D11Runtime> runtime = std::make_shared<ReShade::Runtimes::D3D11Runtime>(bridgeD3D11->GetOriginalD3D11Device(), swapchain);
 
@@ -942,7 +890,10 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pF
 
 		bridgeD3D11->AddRuntime(runtime);
 
-		*ppSwapChain = new DXGISwapChain(swapchain, bridgeD3D11, runtime, desc.SampleDesc);
+		*ppSwapChain = new DXGISwapChain(deviceProxy, swapchain, runtime, desc.SampleDesc);
+
+		bridgeD3D11->Release();
+		deviceProxy->Release();
 	}
 	else
 	{
@@ -962,10 +913,11 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactor
 		return DXGI_ERROR_INVALID_CALL;
 	}
 
+	DumpSwapChainDescription(*pDesc);
+	
 	DXGI_SWAP_CHAIN_DESC1 desc1 = *pDesc;
-
-	DumpSwapChainDescription(desc1);
-	AdjustSwapChainDescription(desc1);
+	desc1.SampleDesc.Count = 1;
+	desc1.SampleDesc.Quality = 0;
 
 	const HRESULT hr = ReShade::Hooks::Call(&IDXGIFactory2_CreateSwapChainForCoreWindow)(pFactory, pDevice, pWindow, &desc1, pRestrictToOutput, ppSwapChain);
 
@@ -978,7 +930,8 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactor
 
 	DXGID3D10Bridge *bridgeD3D10 = nullptr;
 	DXGID3D11Bridge *bridgeD3D11 = nullptr;
-	IDXGISwapChain1 *swapchain = *ppSwapChain;
+	DXGIDevice *deviceProxy = nullptr;
+	IDXGISwapChain1 *const swapchain = *ppSwapChain;
 
 	DXGI_SWAP_CHAIN_DESC desc;
 	swapchain->GetDesc(&desc);
@@ -988,7 +941,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactor
 	{
 		LOG(WARNING) << "> Skipping swapchain due to missing 'DXGI_USAGE_RENDER_TARGET_OUTPUT' flag.";
 	}
-	else if (SUCCEEDED(pDevice->QueryInterface(DXGID3D10Bridge::sIID, reinterpret_cast<void **>(&bridgeD3D10))))
+	else if (SUCCEEDED(pDevice->QueryInterface(DXGID3D10Bridge::sIID, reinterpret_cast<void **>(&bridgeD3D10))) && SUCCEEDED(pDevice->QueryInterface(__uuidof(IDXGIDevice), reinterpret_cast<void **>(&deviceProxy))))
 	{
 		const std::shared_ptr<ReShade::Runtimes::D3D10Runtime> runtime = std::make_shared<ReShade::Runtimes::D3D10Runtime>(bridgeD3D10->GetOriginalD3D10Device(), swapchain);
 
@@ -999,9 +952,12 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactor
 
 		bridgeD3D10->AddRuntime(runtime);
 
-		*ppSwapChain = new DXGISwapChain(swapchain, bridgeD3D10, runtime, desc.SampleDesc);
+		*ppSwapChain = new DXGISwapChain(deviceProxy, swapchain, runtime, desc.SampleDesc);
+
+		bridgeD3D10->Release();
+		deviceProxy->Release();
 	}
-	else if (SUCCEEDED(pDevice->QueryInterface(DXGID3D11Bridge::sIID, reinterpret_cast<void **>(&bridgeD3D11))))
+	else if (SUCCEEDED(pDevice->QueryInterface(DXGID3D11Bridge::sIID, reinterpret_cast<void **>(&bridgeD3D11))) && SUCCEEDED(pDevice->QueryInterface(__uuidof(IDXGIDevice), reinterpret_cast<void **>(&deviceProxy))))
 	{
 		const std::shared_ptr<ReShade::Runtimes::D3D11Runtime> runtime = std::make_shared<ReShade::Runtimes::D3D11Runtime>(bridgeD3D11->GetOriginalD3D11Device(), swapchain);
 
@@ -1012,7 +968,10 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactor
 
 		bridgeD3D11->AddRuntime(runtime);
 
-		*ppSwapChain = new DXGISwapChain(swapchain, bridgeD3D11, runtime, desc.SampleDesc);
+		*ppSwapChain = new DXGISwapChain(deviceProxy, swapchain, runtime, desc.SampleDesc);
+
+		bridgeD3D11->Release();
+		deviceProxy->Release();
 	}
 	else
 	{
@@ -1032,10 +991,11 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFacto
 		return DXGI_ERROR_INVALID_CALL;
 	}
 
-	DXGI_SWAP_CHAIN_DESC1 desc1 = *pDesc;
+	DumpSwapChainDescription(*pDesc);
 
-	DumpSwapChainDescription(desc1);
-	AdjustSwapChainDescription(desc1);
+	DXGI_SWAP_CHAIN_DESC1 desc1 = *pDesc;
+	desc1.SampleDesc.Count = 1;
+	desc1.SampleDesc.Quality = 0;
 
 	const HRESULT hr = ReShade::Hooks::Call(&IDXGIFactory2_CreateSwapChainForComposition)(pFactory, pDevice, &desc1, pRestrictToOutput, ppSwapChain);
 
@@ -1048,7 +1008,8 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFacto
 
 	DXGID3D10Bridge *bridgeD3D10 = nullptr;
 	DXGID3D11Bridge *bridgeD3D11 = nullptr;
-	IDXGISwapChain1 *swapchain = *ppSwapChain;
+	DXGIDevice *deviceProxy = nullptr;
+	IDXGISwapChain1 *const swapchain = *ppSwapChain;
 
 	DXGI_SWAP_CHAIN_DESC desc;
 	swapchain->GetDesc(&desc);
@@ -1058,7 +1019,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFacto
 	{
 		LOG(WARNING) << "> Skipping swapchain due to missing 'DXGI_USAGE_RENDER_TARGET_OUTPUT' flag.";
 	}
-	else if (SUCCEEDED(pDevice->QueryInterface(DXGID3D10Bridge::sIID, reinterpret_cast<void **>(&bridgeD3D10))))
+	else if (SUCCEEDED(pDevice->QueryInterface(DXGID3D10Bridge::sIID, reinterpret_cast<void **>(&bridgeD3D10))) && SUCCEEDED(pDevice->QueryInterface(__uuidof(IDXGIDevice), reinterpret_cast<void **>(&deviceProxy))))
 	{
 		const std::shared_ptr<ReShade::Runtimes::D3D10Runtime> runtime = std::make_shared<ReShade::Runtimes::D3D10Runtime>(bridgeD3D10->GetOriginalD3D10Device(), swapchain);
 
@@ -1069,9 +1030,12 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFacto
 
 		bridgeD3D10->AddRuntime(runtime);
 
-		*ppSwapChain = new DXGISwapChain(swapchain, bridgeD3D10, runtime, desc.SampleDesc);
+		*ppSwapChain = new DXGISwapChain(deviceProxy, swapchain, runtime, desc.SampleDesc);
+
+		bridgeD3D10->Release();
+		deviceProxy->Release();
 	}
-	else if (SUCCEEDED(pDevice->QueryInterface(DXGID3D11Bridge::sIID, reinterpret_cast<void **>(&bridgeD3D11))))
+	else if (SUCCEEDED(pDevice->QueryInterface(DXGID3D11Bridge::sIID, reinterpret_cast<void **>(&bridgeD3D11))) && SUCCEEDED(pDevice->QueryInterface(__uuidof(IDXGIDevice), reinterpret_cast<void **>(&deviceProxy))))
 	{
 		const std::shared_ptr<ReShade::Runtimes::D3D11Runtime> runtime = std::make_shared<ReShade::Runtimes::D3D11Runtime>(bridgeD3D11->GetOriginalD3D11Device(), swapchain);
 
@@ -1082,7 +1046,10 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFacto
 
 		bridgeD3D11->AddRuntime(runtime);
 
-		*ppSwapChain = new DXGISwapChain(swapchain, bridgeD3D11, runtime, desc.SampleDesc);
+		*ppSwapChain = new DXGISwapChain(deviceProxy, swapchain, runtime, desc.SampleDesc);
+
+		bridgeD3D11->Release();
+		deviceProxy->Release();
 	}
 	else
 	{

@@ -328,24 +328,26 @@ ULONG STDMETHODCALLTYPE Direct3DSwapChain9::Release()
 
 		this->mRuntime->OnDeleteInternal();
 		this->mRuntime.reset();
-	}
 
-	const ULONG ref = this->mOrig->Release();
-
-	if (this->mRef == 0 && ref != 0)
-	{
-		LOG(WARNING) << "Reference count for 'IDirect3DSwapChain9' object " << this << " (" << ref << ") is inconsistent.";
-	}
-
-	if (ref == 0)
-	{
 		const auto it = std::find(this->mDevice->mAdditionalSwapChains.begin(), this->mDevice->mAdditionalSwapChains.end(), this);
 
 		if (it != this->mDevice->mAdditionalSwapChains.end())
 		{
 			this->mDevice->mAdditionalSwapChains.erase(it);
 		}
+	}
 
+	ULONG ref = this->mOrig->Release();
+
+	if (this->mRef == 0 && ref != 0)
+	{
+		LOG(WARNING) << "Reference count for 'IDirect3DSwapChain9" << (this->mInterfaceVersion >= 1 ? "Ex" : "") << "' object " << this << " (" << ref << ") is inconsistent.";
+	}
+
+	ref = this->mRef;
+
+	if (ref == 0)
+	{
 		delete this;
 	}
 
@@ -469,19 +471,19 @@ ULONG STDMETHODCALLTYPE Direct3DDevice9::Release()
 			this->mAutoDepthStencil = nullptr;
 		}
 
-		if (this->mImplicitSwapChain != nullptr)
-		{
-			this->mImplicitSwapChain->Release();
-			this->mImplicitSwapChain = nullptr;
-		}
+		assert(this->mImplicitSwapChain != nullptr);
+
+		this->mImplicitSwapChain->Release();
 	}
 
-	const ULONG ref = this->mOrig->Release();
+	ULONG ref = this->mOrig->Release();
 
 	if (this->mRef == 0 && ref != 0)
 	{
-		LOG(WARNING) << "Reference count for 'IDirect3DDevice9' object " << this << " (" << ref << ") is inconsistent.";
+		LOG(WARNING) << "Reference count for 'IDirect3DDevice9" << (this->mInterfaceVersion >= 1 ? "Ex" : "") << "' object " << this << " (" << ref << ") is inconsistent.";
 	}
+
+	ref = this->mRef;
 
 	if (ref == 0)
 	{

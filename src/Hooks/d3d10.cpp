@@ -3,7 +3,6 @@
 #include "Runtimes\RuntimeD3D10.hpp"
 
 #include <d3d10_1.h>
-#include <boost\noncopyable.hpp>
 
 // -----------------------------------------------------------------------------------------------------
 
@@ -11,11 +10,11 @@ namespace
 {
 	struct D3D10Device : public ID3D10Device1, private boost::noncopyable
 	{
-		D3D10Device(ID3D10Device *originalDevice) : mRef(1), mOrig(originalDevice), mInterfaceVersion(0), mDXGIDevice(nullptr), mCurrentDepthStencil(nullptr)
+		D3D10Device(ID3D10Device *originalDevice) : mRef(1), mOrig(originalDevice), mInterfaceVersion(0), mDXGIBridge(nullptr), mDXGIDevice(nullptr), mCurrentDepthStencil(nullptr)
 		{
 			assert(originalDevice != nullptr);
 		}
-		D3D10Device(ID3D10Device1 *originalDevice) : mRef(1), mOrig(originalDevice), mInterfaceVersion(1), mDXGIDevice(nullptr), mCurrentDepthStencil(nullptr)
+		D3D10Device(ID3D10Device1 *originalDevice) : mRef(1), mOrig(originalDevice), mInterfaceVersion(1), mDXGIBridge(nullptr), mDXGIDevice(nullptr), mCurrentDepthStencil(nullptr)
 		{
 			assert(originalDevice != nullptr);
 		}
@@ -127,14 +126,13 @@ namespace
 		ULONG mRef;
 		ID3D10Device *mOrig;
 		unsigned int mInterfaceVersion;
+		IUnknown *mDXGIBridge;
 		IDXGIDevice *mDXGIDevice;
 		std::vector<std::shared_ptr<ReShade::Runtimes::D3D10Runtime>> mRuntimes;
 		struct D3D10DepthStencilView *mCurrentDepthStencil;
 	};
 	struct D3D10DepthStencilView : public ID3D10DepthStencilView, private boost::noncopyable
 	{
-		friend struct D3D10Device;
-
 		D3D10DepthStencilView(D3D10Device *device, ID3D10DepthStencilView *originalDepthStencil) : mRef(1), mDevice(device), mOrig(originalDepthStencil)
 		{
 			assert(device != nullptr);
@@ -159,114 +157,100 @@ namespace
 		ID3D10DepthStencilView *mOrig;
 	};
 
-	LPCSTR GetErrorString(HRESULT hr)
+	std::string GetErrorString(HRESULT hr)
 	{
+		std::stringstream res;
+
 		switch (hr)
 		{
 			case E_FAIL:
-				return "E_FAIL";
+				res << "E_INVALIDARG";
+				break;
 			case E_INVALIDARG:
-				return "E_INVALIDARG";
+				res << "E_INVALIDARG";
+				break;
 			case DXGI_ERROR_UNSUPPORTED:
-				return "DXGI_ERROR_UNSUPPORTED";
+				res << "DXGI_ERROR_UNSUPPORTED";
+				break;
 			default:
-				__declspec(thread) static CHAR buf[20];
-				sprintf_s(buf, "0x%lx", hr);
-				return buf;
+				res << std::showbase << std::hex << hr;
+				break;
 		}
+
+		return res.str();
 	}
 }
 
 #pragma region DXGI Bridge
-class DXGID3D10Bridge : public IUnknown
+class DXGID3D10Bridge : public IUnknown, private boost::noncopyable
 {
 public:
 	static const IID sIID;
 	
 public:
-	DXGID3D10Bridge(D3D10Device *device) : mRef(1), mDXGIDevice(nullptr), mD3D10Device(device)
+	DXGID3D10Bridge(D3D10Device *device) : mRef(1), mD3D10Device(device)
 	{
 		assert(device != nullptr);
-
-		this->mD3D10Device->AddRef();
-	}
-	~DXGID3D10Bridge()
-	{
-		if (this->mDXGIDevice != nullptr)
-		{
-			this->mDXGIDevice->Release();
-		}
-
-		this->mD3D10Device->Release();
 	}
 
-	virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override
-	{
-		if (ppvObj == nullptr)
-		{
-			return E_POINTER;
-		}
+	virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
+	virtual ULONG STDMETHODCALLTYPE AddRef() override;
+	virtual ULONG STDMETHODCALLTYPE Release() override;
 
-		if (riid == __uuidof(IUnknown))
-		{
-			*ppvObj = this;
-
-			return S_OK;
-		}
-		else
-		{
-			*ppvObj = nullptr;
-
-			return E_NOINTERFACE;
-		}
-	}
-	virtual ULONG STDMETHODCALLTYPE AddRef() override
-	{
-		return ++this->mRef;
-	}
-	virtual ULONG STDMETHODCALLTYPE Release() override
-	{
-		const ULONG ref = --this->mRef;
-
-		if (ref == 0)
-		{
-			delete this;
-		}
-
-		return ref;
-	}
-
-	IDXGIDevice *GetProxyDXGIDevice();
-	static IDXGIDevice *GetProxyDXGIDevice(IDXGIDevice *dxgidevice, ID3D10Device *direct3ddevice);
-	IDXGIDevice *GetOriginalDXGIDevice();
-	ID3D10Device *GetProxyD3D10Device();
+	IDXGIDevice *CreateDXGIDevice(IDXGIDevice *originalDevice);
 	ID3D10Device *GetOriginalD3D10Device();
-	void AddRuntime(std::shared_ptr<ReShade::Runtimes::D3D10Runtime> runtime);
-	void RemoveRuntime(std::shared_ptr<ReShade::Runtimes::D3D10Runtime> runtime);
+	void AddRuntime(const std::shared_ptr<ReShade::Runtimes::D3D10Runtime> &runtime);
+	void RemoveRuntime(const std::shared_ptr<ReShade::Runtimes::D3D10Runtime> &runtime);
 
 private:
 	ULONG mRef;
-	IDXGIDevice *mDXGIDevice;
 	D3D10Device *mD3D10Device;
 };
 
-// -----------------------------------------------------------------------------------------------------
-
 const IID DXGID3D10Bridge::sIID = { 0xff97cb62, 0x2b9e, 0x4792, { 0xb2, 0x87, 0x82, 0x3a, 0x71, 0x9, 0x57, 0x20 } };
 
-ID3D10Device *DXGID3D10Bridge::GetProxyD3D10Device()
+HRESULT STDMETHODCALLTYPE DXGID3D10Bridge::QueryInterface(REFIID riid, void **ppvObj)
 {
-	return this->mD3D10Device;
+	if (ppvObj == nullptr)
+	{
+		return E_POINTER;
+	}
+
+	*ppvObj = nullptr;
+
+	if (riid == __uuidof(IUnknown) || riid == sIID)
+	{
+		*ppvObj = this;
+
+		return S_OK;
+	}
+
+	return E_NOINTERFACE;
+}
+ULONG STDMETHODCALLTYPE DXGID3D10Bridge::AddRef()
+{
+	return ++this->mRef;
+}
+ULONG STDMETHODCALLTYPE DXGID3D10Bridge::Release()
+{
+	const ULONG ref = --this->mRef;
+
+	if (ref == 0)
+	{
+		delete this;
+	}
+
+	return ref;
 }
 ID3D10Device *DXGID3D10Bridge::GetOriginalD3D10Device()
 {
 	return this->mD3D10Device->mOrig;
 }
-void DXGID3D10Bridge::AddRuntime(std::shared_ptr<ReShade::Runtimes::D3D10Runtime> runtime)
+void DXGID3D10Bridge::AddRuntime(const std::shared_ptr<ReShade::Runtimes::D3D10Runtime> &runtime)
 {
 	this->mD3D10Device->mRuntimes.push_back(runtime);
 }
-void DXGID3D10Bridge::RemoveRuntime(std::shared_ptr<ReShade::Runtimes::D3D10Runtime> runtime)
+void DXGID3D10Bridge::RemoveRuntime(const std::shared_ptr<ReShade::Runtimes::D3D10Runtime> &runtime)
 {
 	const auto it = std::find(this->mD3D10Device->mRuntimes.begin(), this->mD3D10Device->mRuntimes.end(), runtime);
 
@@ -315,11 +299,6 @@ ULONG STDMETHODCALLTYPE D3D10DepthStencilView::Release()
 	}
 
 	const ULONG ref = this->mOrig->Release();
-
-	if (this->mRef == 0 && ref != 0)
-	{
-		LOG(WARNING) << "Reference count for 'ID3D10DepthStencilView' object " << this << " (" << ref << ") is inconsistent.";
-	}
 
 	if (ref == 0)
 	{
@@ -370,12 +349,13 @@ HRESULT STDMETHODCALLTYPE D3D10Device::QueryInterface(REFIID riid, void **ppvObj
 
 	if (riid == DXGID3D10Bridge::sIID)
 	{
-		*ppvObj = new DXGID3D10Bridge(this);
+		this->mDXGIBridge->AddRef();
+
+		*ppvObj = this->mDXGIBridge;
 
 		return S_OK;
 	}
-
-	if (riid == __uuidof(IUnknown) || riid == __uuidof(ID3D10Device) || riid == __uuidof(ID3D10Device1))
+	else if (riid == __uuidof(IUnknown) || riid == __uuidof(ID3D10Device) || riid == __uuidof(ID3D10Device1))
 	{
 		#pragma region Update to ID3D10Device1 interface
 		if (riid == __uuidof(ID3D10Device1) && this->mInterfaceVersion < 1)
@@ -419,18 +399,21 @@ ULONG STDMETHODCALLTYPE D3D10Device::Release()
 {
 	if (--this->mRef == 0)
 	{
+		assert(this->mDXGIBridge != nullptr);
 		assert(this->mDXGIDevice != nullptr);
 
+		this->mDXGIBridge->Release();
 		this->mDXGIDevice->Release();
-		this->mDXGIDevice = nullptr;
 	}
 
-	const ULONG ref = this->mOrig->Release();
+	ULONG ref = this->mOrig->Release();
 
 	if (this->mRef == 0 && ref != 0)
 	{
-		LOG(WARNING) << "Reference count for 'ID3D10Device' object " << this << " (" << ref << ") is inconsistent.";
+		LOG(WARNING) << "Reference count for 'ID3D10Device" << (this->mInterfaceVersion >= 1 ? std::to_string(this->mInterfaceVersion) : "") << "' object " << this << " (" << ref << ") is inconsistent.";
 	}
+
+	ref = this->mRef;
 
 	if (ref == 0)
 	{
@@ -916,21 +899,21 @@ D3D10_FEATURE_LEVEL1 STDMETHODCALLTYPE D3D10Device::GetFeatureLevel()
 // D3D10
 EXPORT HRESULT WINAPI D3D10CreateDevice(IDXGIAdapter *pAdapter, D3D10_DRIVER_TYPE DriverType, HMODULE Software, UINT Flags, UINT SDKVersion, ID3D10Device **ppDevice)
 {
-	LOG(INFO) << "Redirecting '" << "D3D10CreateDevice" << "(" << pAdapter << ", " << DriverType << ", " << Software << ", " << Flags << ", " << SDKVersion << ", " << ppDevice << ")' ...";
+	LOG(INFO) << "Redirecting '" << "D3D10CreateDevice" << "(" << pAdapter << ", " << DriverType << ", " << Software << ", " << std::showbase << std::hex << Flags << std::dec << std::noshowbase << ", " << SDKVersion << ", " << ppDevice << ")' ...";
 	LOG(INFO) << "> Passing on to 'D3D10CreateDeviceAndSwapChain':";
 
 	return D3D10CreateDeviceAndSwapChain(pAdapter, DriverType, Software, Flags, SDKVersion, nullptr, nullptr, ppDevice);
 }
 EXPORT HRESULT WINAPI D3D10CreateDevice1(IDXGIAdapter *pAdapter, D3D10_DRIVER_TYPE DriverType, HMODULE Software, UINT Flags, D3D10_FEATURE_LEVEL1 HardwareLevel, UINT SDKVersion, ID3D10Device1 **ppDevice)
 {
-	LOG(INFO) << "Redirecting '" << "D3D10CreateDevice1" << "(" << pAdapter << ", " << DriverType << ", " << Software << ", " << Flags << ", " << HardwareLevel << ", " << SDKVersion << ", " << ppDevice << ")' ...";
+	LOG(INFO) << "Redirecting '" << "D3D10CreateDevice1" << "(" << pAdapter << ", " << DriverType << ", " << Software << ", " << std::showbase << std::hex << Flags << std::dec << std::noshowbase << ", " << HardwareLevel << ", " << SDKVersion << ", " << ppDevice << ")' ...";
 	LOG(INFO) << "> Passing on to 'D3D10CreateDeviceAndSwapChain1':";
 
 	return D3D10CreateDeviceAndSwapChain1(pAdapter, DriverType, Software, Flags, HardwareLevel, SDKVersion, nullptr, nullptr, ppDevice);
 }
 EXPORT HRESULT WINAPI D3D10CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, D3D10_DRIVER_TYPE DriverType, HMODULE Software, UINT Flags, UINT SDKVersion, DXGI_SWAP_CHAIN_DESC *pSwapChainDesc, IDXGISwapChain **ppSwapChain, ID3D10Device **ppDevice)
 {
-	LOG(INFO) << "Redirecting '" << "D3D10CreateDeviceAndSwapChain" << "(" << pAdapter << ", " << DriverType << ", " << Software << ", " << Flags << ", " << SDKVersion << ", " << pSwapChainDesc << ", " << ppSwapChain << ", " << ppDevice << ")' ...";
+	LOG(INFO) << "Redirecting '" << "D3D10CreateDeviceAndSwapChain" << "(" << pAdapter << ", " << DriverType << ", " << Software << ", " << std::showbase << std::hex << Flags << std::dec << std::noshowbase << ", " << SDKVersion << ", " << pSwapChainDesc << ", " << ppSwapChain << ", " << ppDevice << ")' ...";
 
 #ifdef _DEBUG
 	Flags |= D3D10_CREATE_DEVICE_DEBUG;
@@ -956,9 +939,10 @@ EXPORT HRESULT WINAPI D3D10CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, D3D1
 		assert(dxgidevice != nullptr);
 
 		D3D10Device *const deviceProxy = new D3D10Device(device);
-		deviceProxy->mDXGIDevice = DXGID3D10Bridge::GetProxyDXGIDevice(dxgidevice, deviceProxy);
+		DXGID3D10Bridge *const dxgibridge = new DXGID3D10Bridge(deviceProxy);
 
-		device->SetPrivateData(DXGID3D10Bridge::sIID, sizeof(deviceProxy), reinterpret_cast<const void *>(&deviceProxy));
+		deviceProxy->mDXGIBridge = dxgibridge;
+		deviceProxy->mDXGIDevice = dxgibridge->CreateDXGIDevice(dxgidevice);
 
 		if (pSwapChainDesc != nullptr)
 		{
@@ -992,7 +976,7 @@ EXPORT HRESULT WINAPI D3D10CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, D3D1
 }
 EXPORT HRESULT WINAPI D3D10CreateDeviceAndSwapChain1(IDXGIAdapter *pAdapter, D3D10_DRIVER_TYPE DriverType, HMODULE Software, UINT Flags, D3D10_FEATURE_LEVEL1 HardwareLevel, UINT SDKVersion, DXGI_SWAP_CHAIN_DESC *pSwapChainDesc, IDXGISwapChain **ppSwapChain, ID3D10Device1 **ppDevice)
 {
-	LOG(INFO) << "Redirecting '" << "D3D10CreateDeviceAndSwapChain1" << "(" << pAdapter << ", " << DriverType << ", " << Software << ", " << Flags << ", " << HardwareLevel << ", " << SDKVersion << ", " << pSwapChainDesc << ", " << ppSwapChain << ", " << ppDevice << ")' ...";
+	LOG(INFO) << "Redirecting '" << "D3D10CreateDeviceAndSwapChain1" << "(" << pAdapter << ", " << DriverType << ", " << Software << ", " << std::showbase << std::hex << Flags << std::dec << std::noshowbase << ", " << HardwareLevel << ", " << SDKVersion << ", " << pSwapChainDesc << ", " << ppSwapChain << ", " << ppDevice << ")' ...";
 
 #ifdef _DEBUG
 	Flags |= D3D10_CREATE_DEVICE_DEBUG;
@@ -1000,7 +984,7 @@ EXPORT HRESULT WINAPI D3D10CreateDeviceAndSwapChain1(IDXGIAdapter *pAdapter, D3D
 
 	HRESULT hr = ReShade::Hooks::Call(&D3D10CreateDeviceAndSwapChain1)(pAdapter, DriverType, Software, Flags, HardwareLevel, SDKVersion, nullptr, nullptr, ppDevice);
 
-	if (SUCCEEDED(hr))
+	if (FAILED(hr))
 	{
 		LOG(WARNING) << "> 'D3D10CreateDeviceAndSwapChain1' failed with '" << GetErrorString(hr) << "'!";
 
@@ -1018,9 +1002,10 @@ EXPORT HRESULT WINAPI D3D10CreateDeviceAndSwapChain1(IDXGIAdapter *pAdapter, D3D
 		assert(dxgidevice != nullptr);
 
 		D3D10Device *const deviceProxy = new D3D10Device(device);
-		deviceProxy->mDXGIDevice = DXGID3D10Bridge::GetProxyDXGIDevice(dxgidevice, deviceProxy);
+		DXGID3D10Bridge *const dxgibridge = new DXGID3D10Bridge(deviceProxy);
 
-		device->SetPrivateData(DXGID3D10Bridge::sIID, sizeof(deviceProxy), reinterpret_cast<const void *>(&deviceProxy));
+		deviceProxy->mDXGIBridge = dxgibridge;
+		deviceProxy->mDXGIDevice = dxgibridge->CreateDXGIDevice(dxgidevice);
 
 		if (pSwapChainDesc != nullptr)
 		{

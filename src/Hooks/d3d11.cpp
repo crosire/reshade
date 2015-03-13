@@ -3,7 +3,6 @@
 #include "Runtimes\RuntimeD3D11.hpp"
 
 #include <d3d11_1.h>
-#include <boost\noncopyable.hpp>
 
 // -----------------------------------------------------------------------------------------------------
 
@@ -13,11 +12,11 @@ namespace
 	{
 		friend struct D3D11DeviceContext;
 
-		D3D11Device(ID3D11Device *originalDevice) : mRef(1), mOrig(originalDevice), mInterfaceVersion(0), mDXGIDevice(nullptr), mImmediateContext(nullptr)
+		D3D11Device(ID3D11Device *originalDevice) : mRef(1), mOrig(originalDevice), mInterfaceVersion(0), mDXGIBridge(nullptr), mDXGIDevice(nullptr), mImmediateContext(nullptr)
 		{
 			assert(originalDevice != nullptr);
 		}
-		D3D11Device(ID3D11Device1 *originalDevice) : mRef(1), mOrig(originalDevice), mInterfaceVersion(1), mDXGIDevice(nullptr), mImmediateContext(nullptr)
+		D3D11Device(ID3D11Device1 *originalDevice) : mRef(1), mOrig(originalDevice), mInterfaceVersion(1), mDXGIBridge(nullptr), mDXGIDevice(nullptr), mImmediateContext(nullptr)
 		{
 			assert(originalDevice != nullptr);
 		}
@@ -78,6 +77,7 @@ namespace
 		ULONG mRef;
 		ID3D11Device *mOrig;
 		unsigned int mInterfaceVersion;
+		IUnknown *mDXGIBridge;
 		IDXGIDevice *mDXGIDevice;
 		D3D11DeviceContext *mImmediateContext;
 		std::vector<std::shared_ptr<ReShade::Runtimes::D3D11Runtime>> mRuntimes;
@@ -243,8 +243,6 @@ namespace
 	};
 	struct D3D11DepthStencilView : public ID3D11DepthStencilView, private boost::noncopyable
 	{
-		friend struct D3D11Device;
-
 		D3D11DepthStencilView(D3D11Device *device, ID3D11DepthStencilView *originalDepthStencil) : mRef(1), mDevice(device), mOrig(originalDepthStencil)
 		{
 			assert(device != nullptr);
@@ -269,114 +267,100 @@ namespace
 		ID3D11DepthStencilView *mOrig;
 	};
 
-	LPCSTR GetErrorString(HRESULT hr)
+	std::string GetErrorString(HRESULT hr)
 	{
+		std::stringstream res;
+
 		switch (hr)
 		{
 			case E_FAIL:
-				return "E_FAIL";
+				res << "E_INVALIDARG";
+				break;
 			case E_INVALIDARG:
-				return "E_INVALIDARG";
+				res << "E_INVALIDARG";
+				break;
 			case DXGI_ERROR_UNSUPPORTED:
-				return "DXGI_ERROR_UNSUPPORTED";
+				res << "DXGI_ERROR_UNSUPPORTED";
+				break;
 			default:
-				__declspec(thread) static CHAR buf[20];
-				sprintf_s(buf, "0x%lx", hr);
-				return buf;
+				res << std::showbase << std::hex << hr;
+				break;
 		}
+
+		return res.str();
 	}
 }
 
 #pragma region DXGI Bridge
-class DXGID3D11Bridge : public IUnknown
+class DXGID3D11Bridge : public IUnknown, private boost::noncopyable
 {
 public:
 	static const IID sIID;
 	
 public:
-	DXGID3D11Bridge(D3D11Device *device) : mRef(1), mDXGIDevice(nullptr), mD3D11Device(device)
+	DXGID3D11Bridge(D3D11Device *device) : mRef(1), mD3D11Device(device)
 	{
 		assert(device != nullptr);
-
-		this->mD3D11Device->AddRef();
-	}
-	~DXGID3D11Bridge()
-	{
-		if (this->mDXGIDevice != nullptr)
-		{
-			this->mDXGIDevice->Release();
-		}
-
-		this->mD3D11Device->Release();
 	}
 
-	virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override
-	{
-		if (ppvObj == nullptr)
-		{
-			return E_POINTER;
-		}
+	virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
+	virtual ULONG STDMETHODCALLTYPE AddRef() override;
+	virtual ULONG STDMETHODCALLTYPE Release() override;
 
-		if (riid == __uuidof(IUnknown))
-		{
-			*ppvObj = this;
-
-			return S_OK;
-		}
-		else
-		{
-			*ppvObj = nullptr;
-
-			return E_NOINTERFACE;
-		}
-	}
-	virtual ULONG STDMETHODCALLTYPE AddRef() override
-	{
-		return ++this->mRef;
-	}
-	virtual ULONG STDMETHODCALLTYPE Release() override
-	{
-		const ULONG ref = --this->mRef;
-
-		if (ref == 0)
-		{
-			delete this;
-		}
-
-		return ref;
-	}
-
-	IDXGIDevice *GetProxyDXGIDevice();
-	static IDXGIDevice *GetProxyDXGIDevice(IDXGIDevice *dxgidevice, ID3D11Device *direct3ddevice);
-	IDXGIDevice *GetOriginalDXGIDevice();
-	ID3D11Device *GetProxyD3D11Device();
+	IDXGIDevice *CreateDXGIDevice(IDXGIDevice *originalDevice);
 	ID3D11Device *GetOriginalD3D11Device();
-	void AddRuntime(std::shared_ptr<ReShade::Runtimes::D3D11Runtime> runtime);
-	void RemoveRuntime(std::shared_ptr<ReShade::Runtimes::D3D11Runtime> runtime);
+	void AddRuntime(const std::shared_ptr<ReShade::Runtimes::D3D11Runtime> &runtime);
+	void RemoveRuntime(const std::shared_ptr<ReShade::Runtimes::D3D11Runtime> &runtime);
 
 private:
 	ULONG mRef;
-	IDXGIDevice *mDXGIDevice;
-	D3D11Device *mD3D11Device;
+	D3D11Device *const mD3D11Device;
 };
-
-// -----------------------------------------------------------------------------------------------------
 
 const IID DXGID3D11Bridge::sIID = { 0xff97cb62, 0x2b9e, 0x4792, { 0xb2, 0x87, 0x82, 0x3a, 0x71, 0x9, 0x57, 0x21 } };
 
-ID3D11Device *DXGID3D11Bridge::GetProxyD3D11Device()
+HRESULT STDMETHODCALLTYPE DXGID3D11Bridge::QueryInterface(REFIID riid, void **ppvObj)
 {
-	return this->mD3D11Device;
+	if (ppvObj == nullptr)
+	{
+		return E_POINTER;
+	}
+
+	*ppvObj = nullptr;
+
+	if (riid == __uuidof(IUnknown) || riid == sIID)
+	{
+		*ppvObj = this;
+
+		return S_OK;
+	}
+
+	return E_NOINTERFACE;
+}
+ULONG STDMETHODCALLTYPE DXGID3D11Bridge::AddRef()
+{
+	return ++this->mRef;
+}
+ULONG STDMETHODCALLTYPE DXGID3D11Bridge::Release()
+{
+	const ULONG ref = --this->mRef;
+
+	if (ref == 0)
+	{
+		delete this;
+	}
+
+	return ref;
 }
 ID3D11Device *DXGID3D11Bridge::GetOriginalD3D11Device()
 {
 	return this->mD3D11Device->mOrig;
 }
-void DXGID3D11Bridge::AddRuntime(std::shared_ptr<ReShade::Runtimes::D3D11Runtime> runtime)
+void DXGID3D11Bridge::AddRuntime(const std::shared_ptr<ReShade::Runtimes::D3D11Runtime> &runtime)
 {
 	this->mD3D11Device->mRuntimes.push_back(runtime);
 }
-void DXGID3D11Bridge::RemoveRuntime(std::shared_ptr<ReShade::Runtimes::D3D11Runtime> runtime)
+void DXGID3D11Bridge::RemoveRuntime(const std::shared_ptr<ReShade::Runtimes::D3D11Runtime> &runtime)
 {
 	const auto it = std::find(this->mD3D11Device->mRuntimes.begin(), this->mD3D11Device->mRuntimes.end(), runtime);
 
@@ -425,11 +409,6 @@ ULONG STDMETHODCALLTYPE D3D11DepthStencilView::Release()
 	}
 
 	const ULONG ref = this->mOrig->Release();
-
-	if (this->mRef == 0 && ref != 0)
-	{
-		LOG(WARNING) << "Reference count for 'ID3D11DepthStencilView' object " << this << " (" << ref << ") is inconsistent.";
-	}
 
 	if (ref == 0)
 	{
@@ -520,12 +499,14 @@ ULONG STDMETHODCALLTYPE D3D11DeviceContext::Release()
 {
 	this->mRef--;
 
-	const ULONG ref = this->mOrig->Release();
+	ULONG ref = this->mOrig->Release();
 
 	if (this->mRef == 0 && ref != 0)
 	{
-		LOG(WARNING) << "Reference count for 'ID3D11DeviceContext' object " << this << " (" << ref << ") is inconsistent.";
+		LOG(WARNING) << "Reference count for 'ID3D11DeviceContext" << (this->mInterfaceVersion >= 1 ? std::to_string(this->mInterfaceVersion) : "") << "' object " << this << " (" << ref << ") is inconsistent.";
 	}
+
+	ref = this->mRef;
 
 	if (ref == 0)
 	{
@@ -1192,12 +1173,13 @@ HRESULT STDMETHODCALLTYPE D3D11Device::QueryInterface(REFIID riid, void **ppvObj
 
 	if (riid == DXGID3D11Bridge::sIID)
 	{
-		*ppvObj = new DXGID3D11Bridge(this);
+		this->mDXGIBridge->AddRef();
+
+		*ppvObj = this->mDXGIBridge;
 
 		return S_OK;
 	}
-
-	if (riid == __uuidof(IUnknown) || riid == __uuidof(ID3D11Device) || riid == __uuidof(ID3D11Device1))
+	else if (riid == __uuidof(IUnknown) || riid == __uuidof(ID3D11Device) || riid == __uuidof(ID3D11Device1))
 	{
 		#pragma region Update to ID3D11Device1 interface
 		if (riid == __uuidof(ID3D11Device1) && this->mInterfaceVersion < 1)
@@ -1247,23 +1229,23 @@ ULONG STDMETHODCALLTYPE D3D11Device::Release()
 {
 	if (--this->mRef == 0)
 	{
+		assert(this->mDXGIBridge != nullptr);
 		assert(this->mDXGIDevice != nullptr);
-
-		this->mDXGIDevice->Release();
-		this->mDXGIDevice = nullptr;
-
 		assert(this->mImmediateContext != nullptr);
 
+		this->mDXGIBridge->Release();
+		this->mDXGIDevice->Release();
 		this->mImmediateContext->Release();
-		this->mImmediateContext = nullptr;
 	}
 
-	const ULONG ref = this->mOrig->Release();
+	ULONG ref = this->mOrig->Release();
 
 	if (this->mRef == 0 && ref != 0)
 	{
-		LOG(WARNING) << "Reference count for 'ID3D11Device' object " << this << " (" << ref << ") is inconsistent.";
+		LOG(WARNING) << "Reference count for 'ID3D11Device" << (this->mInterfaceVersion >= 1 ? std::to_string(this->mInterfaceVersion) : "") << "' object " << this << " (" << ref << ") is inconsistent.";
 	}
+
+	ref = this->mRef;
 
 	if (ref == 0)
 	{
@@ -1553,14 +1535,14 @@ HRESULT STDMETHODCALLTYPE D3D11Device::OpenSharedResourceByName(LPCWSTR lpName, 
 // D3D11
 EXPORT HRESULT WINAPI D3D11CreateDevice(IDXGIAdapter *pAdapter, D3D_DRIVER_TYPE DriverType, HMODULE Software, UINT Flags, const D3D_FEATURE_LEVEL *pFeatureLevels, UINT FeatureLevels, UINT SDKVersion, ID3D11Device **ppDevice, D3D_FEATURE_LEVEL *pFeatureLevel, ID3D11DeviceContext **ppImmediateContext)
 {
-	LOG(INFO) << "Redirecting '" << "D3D11CreateDevice" << "(" << pAdapter << ", " << DriverType << ", " << Software << ", " << Flags << ", " << pFeatureLevels << ", " << FeatureLevels << ", " << SDKVersion << ", " << ppDevice << ", " << pFeatureLevel << ", " << ppImmediateContext << ")' ...";
+	LOG(INFO) << "Redirecting '" << "D3D11CreateDevice" << "(" << pAdapter << ", " << DriverType << ", " << Software << ", " << std::showbase << std::hex << Flags << std::dec << std::noshowbase << ", " << pFeatureLevels << ", " << FeatureLevels << ", " << SDKVersion << ", " << ppDevice << ", " << pFeatureLevel << ", " << ppImmediateContext << ")' ...";
 	LOG(INFO) << "> Passing on to 'D3D11CreateDeviceAndSwapChain':";
 
 	return D3D11CreateDeviceAndSwapChain(pAdapter, DriverType, Software, Flags, pFeatureLevels, FeatureLevels, SDKVersion, nullptr, nullptr, ppDevice, pFeatureLevel, ppImmediateContext);
 }
 EXPORT HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, D3D_DRIVER_TYPE DriverType, HMODULE Software, UINT Flags, const D3D_FEATURE_LEVEL *pFeatureLevels, UINT FeatureLevels, UINT SDKVersion, const DXGI_SWAP_CHAIN_DESC *pSwapChainDesc, IDXGISwapChain **ppSwapChain, ID3D11Device **ppDevice, D3D_FEATURE_LEVEL *pFeatureLevel, ID3D11DeviceContext **ppImmediateContext)
 {
-	LOG(INFO) << "Redirecting '" << "D3D11CreateDeviceAndSwapChain" << "(" << pAdapter << ", " << DriverType << ", " << Software << ", " << Flags << ", " << pFeatureLevels << ", " << FeatureLevels << ", " << SDKVersion << ", " << pSwapChainDesc << ", " << ppSwapChain << ", " << ppDevice << ", " << pFeatureLevel << ", " << ppImmediateContext << ")' ...";
+	LOG(INFO) << "Redirecting '" << "D3D11CreateDeviceAndSwapChain" << "(" << pAdapter << ", " << DriverType << ", " << Software << ", " << std::showbase << std::hex << Flags << std::dec << std::noshowbase << ", " << pFeatureLevels << ", " << FeatureLevels << ", " << SDKVersion << ", " << pSwapChainDesc << ", " << ppSwapChain << ", " << ppDevice << ", " << pFeatureLevel << ", " << ppImmediateContext << ")' ...";
 
 #ifdef _DEBUG
 	Flags |= D3D11_CREATE_DEVICE_DEBUG;
@@ -1589,11 +1571,12 @@ EXPORT HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, D3D_
 		assert(devicecontext != nullptr);
 
 		D3D11Device *const deviceProxy = new D3D11Device(device);
-		deviceProxy->mDXGIDevice = DXGID3D11Bridge::GetProxyDXGIDevice(dxgidevice, deviceProxy);
 		D3D11DeviceContext *const devicecontextProxy = new D3D11DeviceContext(deviceProxy, devicecontext);
-		deviceProxy->mImmediateContext = devicecontextProxy;
+		DXGID3D11Bridge *const dxgibridge = new DXGID3D11Bridge(deviceProxy);
 
-		device->SetPrivateData(DXGID3D11Bridge::sIID, sizeof(deviceProxy), reinterpret_cast<const void *>(&deviceProxy));
+		deviceProxy->mDXGIBridge = dxgibridge;
+		deviceProxy->mDXGIDevice = dxgibridge->CreateDXGIDevice(dxgidevice);
+		deviceProxy->mImmediateContext = devicecontextProxy;
 
 		if (pSwapChainDesc != nullptr)
 		{
