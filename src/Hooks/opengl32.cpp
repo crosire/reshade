@@ -2889,12 +2889,12 @@ EXPORT int WINAPI wglChoosePixelFormat(HDC hdc, CONST PIXELFORMATDESCRIPTOR *ppf
 	LOG(TRACE) << "> Dumping pixel format descriptor:";
 	LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
 	LOG(TRACE) << "  | Name                                    | Value                                   |";
-	LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
-	LOG(TRACE) << "  | " << "Flags" << "                                  " << " | 0x" << std::left << std::setw(37) << std::hex << ppfd->dwFlags << std::dec << " |";
-	LOG(TRACE) << "  | " << "ColorBits" << "                              " << " | " << std::setw(39) << static_cast<unsigned int>(ppfd->cColorBits) << " |";
-	LOG(TRACE) << "  | " << "DepthBits" << "                              " << " | " << std::setw(39) << static_cast<unsigned int>(ppfd->cDepthBits) << " |";
-	LOG(TRACE) << "  | " << "StencilBits" << "                            " << " | " << std::setw(39) << static_cast<unsigned int>(ppfd->cStencilBits) << std::internal << " |";
-	LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
+	LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+" << std::left;
+	LOG(TRACE) << "  | Flags                                   | " << std::setw(39) << std::showbase << std::hex << ppfd->dwFlags << std::dec << std::noshowbase << " |";
+	LOG(TRACE) << "  | ColorBits                               | " << std::setw(39) << static_cast<unsigned int>(ppfd->cColorBits) << " |";
+	LOG(TRACE) << "  | DepthBits                               | " << std::setw(39) << static_cast<unsigned int>(ppfd->cDepthBits) << " |";
+	LOG(TRACE) << "  | StencilBits                             | " << std::setw(39) << static_cast<unsigned int>(ppfd->cStencilBits) << " |";
+	LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+" << std::internal;
 
 	if (ppfd->iLayerType != PFD_MAIN_PLANE || ppfd->bReserved != 0)
 	{
@@ -2904,7 +2904,7 @@ EXPORT int WINAPI wglChoosePixelFormat(HDC hdc, CONST PIXELFORMATDESCRIPTOR *ppf
 
 		return 0;
 	}
-	if ((ppfd->dwFlags & PFD_DOUBLEBUFFER) == 0)
+	else if ((ppfd->dwFlags & PFD_DOUBLEBUFFER) == 0)
 	{
 		LOG(WARNING) << "> Single buffered OpenGL contexts are not supported.";
 	}
@@ -2985,87 +2985,88 @@ BOOL WINAPI wglChoosePixelFormatARB(HDC hdc, const int *piAttribIList, const FLO
 	LOG(TRACE) << "> Dumping Attributes:";
 	LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
 	LOG(TRACE) << "  | Attribute                               | Value                                   |";
-	LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
+	LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+" << std::left;
 
 	for (const int *attrib = piAttribIList; attrib != nullptr && *attrib != 0; attrib += 2)
 	{
 		switch (attrib[0])
 		{
 			case Attrib::WGL_DRAW_TO_WINDOW_ARB:
-				LOG(TRACE) << "  | " << "WGL_DRAW_TO_WINDOW_ARB" << "                 " << " | " << (attrib[1] != FALSE ? "TRUE " : "FALSE") << "                                  " << " |";
+				LOG(TRACE) << "  | WGL_DRAW_TO_WINDOW_ARB                  | " << std::setw(39) << (attrib[1] != FALSE ? "TRUE" : "FALSE") << " |";
 				break;
 			case Attrib::WGL_DRAW_TO_BITMAP_ARB:
-				LOG(TRACE) << "  | " << "WGL_DRAW_TO_BITMAP_ARB" << "                 " << " | " << (attrib[1] != FALSE ? "TRUE " : "FALSE") << "                                  " << " |";
+				LOG(TRACE) << "  | WGL_DRAW_TO_BITMAP_ARB                  | " << std::setw(39) << (attrib[1] != FALSE ? "TRUE" : "FALSE") << " |";
 				break;
 			case Attrib::WGL_ACCELERATION_ARB:
-				LOG(TRACE) << "  | " << "WGL_ACCELERATION_ARB" << "                   " << " | 0x" << std::left << std::setw(37) << std::hex << attrib[1] << std::dec << std::internal << " |";
+				LOG(TRACE) << "  | WGL_ACCELERATION_ARB                    | " << std::setw(39) << std::showbase << std::hex << attrib[1] << std::dec << std::noshowbase << " |";
 				break;
 			case Attrib::WGL_SWAP_LAYER_BUFFERS_ARB:
 				layerplanes = layerplanes || attrib[1] != FALSE;
-				LOG(TRACE) << "  | " << "WGL_SWAP_LAYER_BUFFERS_ARB" << "             " << " | " << (attrib[1] != FALSE ? "TRUE " : "FALSE") << "                                  " << " |";
+				LOG(TRACE) << "  | WGL_SWAP_LAYER_BUFFERS_ARB              | " << std::setw(39) << (attrib[1] != FALSE ? "TRUE" : "FALSE") << " |";
 				break;
 			case Attrib::WGL_SWAP_METHOD_ARB:
-				LOG(TRACE) << "  | " << "WGL_SWAP_METHOD_ARB" << "                    " << " | 0x" << std::left << std::setw(37) << std::hex << attrib[1] << std::dec << std::internal << " |";
+				LOG(TRACE) << "  | WGL_SWAP_METHOD_ARB                     | " << std::setw(39) << std::showbase << std::hex << attrib[1] << std::dec << std::noshowbase << " |";
 				break;
 			case Attrib::WGL_NUMBER_OVERLAYS_ARB:
 				layerplanes = layerplanes || attrib[1] != 0;
-				LOG(TRACE) << "  | " << "WGL_NUMBER_OVERLAYS_ARB" << "                " << " | " << std::left << std::setw(39) << attrib[1] << std::internal << " |";
+				LOG(TRACE) << "  | WGL_NUMBER_OVERLAYS_ARB                 | " << std::setw(39) << attrib[1] << " |";
 				break;
 			case Attrib::WGL_NUMBER_UNDERLAYS_ARB:
 				layerplanes = layerplanes || attrib[1] != 0;
-				LOG(TRACE) << "  | " << "WGL_NUMBER_UNDERLAYS_ARB" << "               " << " | " << std::left << std::setw(39) << attrib[1] << std::internal << " |";
+				LOG(TRACE) << "  | WGL_NUMBER_UNDERLAYS_ARB                | " << std::setw(39) << attrib[1] << " |";
 				break;
 			case Attrib::WGL_SUPPORT_GDI_ARB:
-				LOG(TRACE) << "  | " << "WGL_SUPPORT_GDI_ARB" << "                    " << " | " << (attrib[1] != FALSE ? "TRUE " : "FALSE") << "                                  " << " |";
+				LOG(TRACE) << "  | WGL_SUPPORT_GDI_ARB                     | " << std::setw(39) << (attrib[1] != FALSE ? "TRUE" : "FALSE") << " |";
 				break;
 			case Attrib::WGL_SUPPORT_OPENGL_ARB:
-				LOG(TRACE) << "  | " << "WGL_SUPPORT_OPENGL_ARB" << "                 " << " | " << (attrib[1] != FALSE ? "TRUE " : "FALSE") << "                                  " << " |";
+				LOG(TRACE) << "  | WGL_SUPPORT_OPENGL_ARB                  | " << std::setw(39) << (attrib[1] != FALSE ? "TRUE" : "FALSE") << " |";
 				break;
 			case Attrib::WGL_DOUBLE_BUFFER_ARB:
 				doublebuffered = attrib[1] != FALSE;
-				LOG(TRACE) << "  | " << "WGL_DOUBLE_BUFFER_ARB" << "                  " << " | " << (doublebuffered ? "TRUE " : "FALSE") << "                                  " << " |";
+				LOG(TRACE) << "  | WGL_DOUBLE_BUFFER_ARB                   | " << std::setw(39) << (attrib[1] != FALSE ? "TRUE" : "FALSE") << " |";
 				break;
 			case Attrib::WGL_STEREO_ARB:
-				LOG(TRACE) << "  | " << "WGL_STEREO_ARB" << "                         " << " | " << (attrib[1] != FALSE ? "TRUE " : "FALSE") << "                                  " << " |";
+				LOG(TRACE) << "  | WGL_STEREO_ARB                          | " << std::setw(39) << (attrib[1] != FALSE ? "TRUE" : "FALSE") << " |";
 				break;
 			case Attrib::WGL_RED_BITS_ARB:
-				LOG(TRACE) << "  | " << "WGL_RED_BITS_ARB" << "                       " << " | " << std::left << std::setw(39) << attrib[1] << std::internal << " |";
+				LOG(TRACE) << "  | WGL_RED_BITS_ARB                        | " << std::setw(39) << attrib[1] << " |";
 				break;
 			case Attrib::WGL_GREEN_BITS_ARB:
-				LOG(TRACE) << "  | " << "WGL_GREEN_BITS_ARB" << "                     " << " | " << std::left << std::setw(39) << attrib[1] << std::internal << " |";
+				LOG(TRACE) << "  | WGL_GREEN_BITS_ARB                      | " << std::setw(39) << attrib[1] << " |";
 				break;
 			case Attrib::WGL_BLUE_BITS_ARB:
-				LOG(TRACE) << "  | " << "WGL_BLUE_BITS_ARB" << "                      " << " | " << std::left << std::setw(39) << attrib[1] << std::internal << " |";
+				LOG(TRACE) << "  | WGL_BLUE_BITS_ARB                       | " << std::setw(39) << attrib[1] << " |";
 				break;
 			case Attrib::WGL_ALPHA_BITS_ARB:
-				LOG(TRACE) << "  | " << "WGL_ALPHA_BITS_ARB" << "                     " << " | " << std::left << std::setw(39) << attrib[1] << std::internal << " |";
+				LOG(TRACE) << "  | WGL_ALPHA_BITS_ARB                      | " << std::setw(39) << attrib[1] << " |";
 				break;
 			case Attrib::WGL_COLOR_BITS_ARB:
-				LOG(TRACE) << "  | " << "WGL_COLOR_BITS_ARB" << "                     " << " | " << std::left << std::setw(39) << attrib[1] << std::internal << " |";
+				LOG(TRACE) << "  | WGL_COLOR_BITS_ARB                      | " << std::setw(39) << attrib[1] << " |";
 				break;
 			case Attrib::WGL_DEPTH_BITS_ARB:
-				LOG(TRACE) << "  | " << "WGL_DEPTH_BITS_ARB" << "                     " << " | " << std::left << std::setw(39) << attrib[1] << std::internal << " |";
+				LOG(TRACE) << "  | WGL_DEPTH_BITS_ARB                      | " << std::setw(39) << attrib[1] << " |";
 				break;
 			case Attrib::WGL_STENCIL_BITS_ARB:
-				LOG(TRACE) << "  | " << "WGL_STENCIL_BITS_ARB" << "                   " << " | " << std::left << std::setw(39) << attrib[1] << std::internal << " |";
+				LOG(TRACE) << "  | WGL_STENCIL_BITS_ARB                    | " << std::setw(39) << attrib[1] << " |";
 				break;
 			case Attrib::WGL_SAMPLE_BUFFERS_ARB:
-				LOG(TRACE) << "  | " << "WGL_SAMPLE_BUFFERS_ARB" << "                 " << " | " << std::left << std::setw(39) << attrib[1] << std::internal << " |";
+				LOG(TRACE) << "  | WGL_SAMPLE_BUFFERS_ARB                  | " << std::setw(39) << attrib[1] << " |";
 				break;
 			case Attrib::WGL_SAMPLES_ARB:
-				LOG(TRACE) << "  | " << "WGL_SAMPLES_ARB" << "                        " << " | " << std::left << std::setw(39) << attrib[1] << std::internal << " |";
+				LOG(TRACE) << "  | WGL_SAMPLES_ARB                         | " << std::setw(39) << attrib[1] << " |";
 				break;
 			default:
-				LOG(TRACE) << "  | 0x" << std::left << std::hex << std::setw(37) << attrib[0] << " | 0x" << std::setw(37) << attrib[1] << std::dec << std::internal << " |";
+				LOG(TRACE) << "  | " << std::showbase << std::hex << std::setw(39) << attrib[0] << " | " << std::setw(39) << attrib[1] << std::dec << std::noshowbase << " |";
 				break;
 		}
 	}
+
 	for (const FLOAT *attrib = pfAttribFList; attrib != nullptr && *attrib != 0.0f; attrib += 2)
 	{
-		LOG(TRACE) << "  | 0x" << std::left << std::hex << std::setw(37) << static_cast<int>(attrib[0]) << " | " << std::setw(39) << attrib[1] << std::dec << std::internal << " |";
+		LOG(TRACE) << "  | " << std::showbase << std::hex << std::setw(39) << static_cast<int>(attrib[0]) << " | " << std::setw(39) << attrib[1] << std::dec << std::noshowbase << " |";
 	}
 
-	LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
+	LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+" << std::internal;
 
 	if (layerplanes)
 	{
@@ -3075,7 +3076,7 @@ BOOL WINAPI wglChoosePixelFormatARB(HDC hdc, const int *piAttribIList, const FLO
 
 		return FALSE;
 	}
-	if (!doublebuffered)
+	else if (!doublebuffered)
 	{
 		LOG(WARNING) << "> Single buffered OpenGL contexts are not supported.";
 	}
@@ -3126,11 +3127,6 @@ EXPORT BOOL WINAPI wglCopyContext(HGLRC hglrcSrc, HGLRC hglrcDst, UINT mask)
 EXPORT HGLRC WINAPI wglCreateContext(HDC hdc)
 {
 	LOG(INFO) << "Redirecting '" << "wglCreateContext" << "(" << hdc << ")' ...";
-
-	/*int format = GetPixelFormat(hdc);
-	PIXELFORMATDESCRIPTOR pfd = { sizeof(PIXELFORMATDESCRIPTOR) };
-	DescribePixelFormat(hdc, format, pfd.nSize, &pfd);
-	SetPixelFormat(hdc, format, &pfd);*/
 
 	const HGLRC hglrc = ReShade::Hooks::Call(&wglCreateContext)(hdc);
 
@@ -3270,18 +3266,18 @@ EXPORT HGLRC WINAPI wglCreateLayerContext(HDC hdc, int iLayerPlane)
 
 	if (iLayerPlane != 0)
 	{
-		LOG(WARNING) << "Access to layer plane at index " << iLayerPlane << " is prohibited.";
+		LOG(WARNING) << "Access to layer plane at index " << iLayerPlane << " is unsupported.";
 
 		SetLastError(ERROR_INVALID_PARAMETER);
 
 		return nullptr;
 	}
 
-	return ReShade::Hooks::Call(&wglCreateLayerContext)(hdc, iLayerPlane);
+	return ReShade::Hooks::Call(&wglCreateLayerContext)(hdc, 0);
 }
 EXPORT BOOL WINAPI wglDeleteContext(HGLRC hglrc)
 {
-	if (wglGetCurrentContext() == hglrc)
+	if (hglrc == wglGetCurrentContext())
 	{
 		wglMakeCurrent(nullptr, nullptr);
 	}
@@ -3316,16 +3312,12 @@ EXPORT BOOL WINAPI wglDeleteContext(HGLRC hglrc)
 }
 EXPORT BOOL WINAPI wglDescribeLayerPlane(HDC hdc, int iPixelFormat, int iLayerPlane, UINT nBytes, LPLAYERPLANEDESCRIPTOR plpd)
 {
-	if (iLayerPlane != 0)
-	{
-		LOG(WARNING) << "Access to layer plane at index " << iLayerPlane << " is prohibited.";
+	LOG(INFO) << "Redirecting '" << "wglDescribeLayerPlane" << "(" << hdc << ", " << iPixelFormat << ", " << iLayerPlane << ", " << nBytes << ", " << plpd << ")' ...";
+	LOG(WARNING) << "Access to layer plane at index " << iLayerPlane << " is unsupported.";
 
-		SetLastError(ERROR_INVALID_PARAMETER);
+	SetLastError(ERROR_NOT_SUPPORTED);
 
-		return FALSE;
-	}
-
-	return ReShade::Hooks::Call(&wglDescribeLayerPlane)(hdc, iPixelFormat, iLayerPlane, nBytes, plpd);
+	return FALSE;
 }
 EXPORT int WINAPI wglDescribePixelFormat(HDC hdc, int iPixelFormat, UINT nBytes, LPPIXELFORMATDESCRIPTOR ppfd)
 {
@@ -3346,7 +3338,7 @@ EXPORT HDC WINAPI wglGetCurrentDC()
 EXPORT int WINAPI wglGetLayerPaletteEntries(HDC hdc, int iLayerPlane, int iStart, int cEntries, COLORREF *pcr)
 {
 	LOG(INFO) << "Redirecting '" << "wglGetLayerPaletteEntries" << "(" << hdc << ", " << iLayerPlane << ", " << iStart << ", " << cEntries << ", " << pcr << ")' ...";
-	LOG(WARNING) << "Access to layer plane at index " << iLayerPlane << " is prohibited.";
+	LOG(WARNING) << "Access to layer plane at index " << iLayerPlane << " is unsupported.";
 
 	SetLastError(ERROR_NOT_SUPPORTED);
 
@@ -3356,27 +3348,27 @@ BOOL WINAPI wglGetPixelFormatAttribivARB(HDC hdc, int iPixelFormat, int iLayerPl
 {
 	if (iLayerPlane != 0)
 	{
-		LOG(WARNING) << "Access to layer plane at index " << iLayerPlane << " is prohibited.";
+		LOG(WARNING) << "Access to layer plane at index " << iLayerPlane << " is unsupported.";
 
 		SetLastError(ERROR_INVALID_PARAMETER);
 
 		return FALSE;
 	}
 
-	return ReShade::Hooks::Call(&wglGetPixelFormatAttribivARB)(hdc, iPixelFormat, iLayerPlane, nAttributes, piAttributes, piValues);
+	return ReShade::Hooks::Call(&wglGetPixelFormatAttribivARB)(hdc, iPixelFormat, 0, nAttributes, piAttributes, piValues);
 }
 BOOL WINAPI wglGetPixelFormatAttribfvARB(HDC hdc, int iPixelFormat, int iLayerPlane, UINT nAttributes, const int *piAttributes, FLOAT *pfValues)
 {
 	if (iLayerPlane != 0)
 	{
-		LOG(WARNING) << "Access to layer plane at index " << iLayerPlane << " is prohibited.";
+		LOG(WARNING) << "Access to layer plane at index " << iLayerPlane << " is unsupported.";
 
 		SetLastError(ERROR_INVALID_PARAMETER);
 
 		return FALSE;
 	}
 
-	return ReShade::Hooks::Call(&wglGetPixelFormatAttribfvARB)(hdc, iPixelFormat, iLayerPlane, nAttributes, piAttributes, pfValues);
+	return ReShade::Hooks::Call(&wglGetPixelFormatAttribfvARB)(hdc, iPixelFormat, 0, nAttributes, piAttributes, pfValues);
 }
 const char *WINAPI wglGetExtensionsStringARB(HDC hdc)
 {
@@ -3397,6 +3389,8 @@ EXPORT BOOL WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 	const HDC hdcPrevious = wglGetCurrentDC();
 	const HGLRC hglrcPrevious = wglGetCurrentContext();
 
+	CriticalSection::Lock lock(sCS);
+
 	if (hdc == hdcPrevious && hglrc == hglrcPrevious)
 	{
 		return TRUE;
@@ -3407,8 +3401,6 @@ EXPORT BOOL WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 
 		if (hdc != hdcPrevious && hdcPrevious != nullptr && --it->second->mReferenceCount == 0)
 		{
-			CriticalSection::Lock lock(sCS);
-
 			LOG(INFO) << "> Cleaning up runtime " << it->second << " ...";
 
 			it->second->OnDeleteInternal();
@@ -3428,8 +3420,6 @@ EXPORT BOOL WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 	{
 		return TRUE;
 	}
-
-	CriticalSection::Lock lock(sCS);
 
 	if (sSharedContexts.at(hglrc) != nullptr)
 	{
@@ -3493,7 +3483,7 @@ EXPORT BOOL WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 EXPORT BOOL WINAPI wglRealizeLayerPalette(HDC hdc, int iLayerPlane, BOOL b)
 {
 	LOG(INFO) << "Redirecting '" << "wglRealizeLayerPalette" << "(" << hdc << ", " << iLayerPlane << ", " << b << ")' ...";
-	LOG(WARNING) << "Access to layer plane at index " << iLayerPlane << " is prohibited.";
+	LOG(WARNING) << "Access to layer plane at index " << iLayerPlane << " is unsupported.";
 
 	SetLastError(ERROR_NOT_SUPPORTED);
 
@@ -3502,7 +3492,7 @@ EXPORT BOOL WINAPI wglRealizeLayerPalette(HDC hdc, int iLayerPlane, BOOL b)
 EXPORT int WINAPI wglSetLayerPaletteEntries(HDC hdc, int iLayerPlane, int iStart, int cEntries, CONST COLORREF *pcr)
 {
 	LOG(INFO) << "Redirecting '" << "wglSetLayerPaletteEntries" << "(" << hdc << ", " << iLayerPlane << ", " << iStart << ", " << cEntries << ", " << pcr << ")' ...";
-	LOG(WARNING) << "Access to layer plane at index " << iLayerPlane << " is prohibited.";
+	LOG(WARNING) << "Access to layer plane at index " << iLayerPlane << " is unsupported.";
 
 	SetLastError(ERROR_NOT_SUPPORTED);
 
@@ -3535,6 +3525,7 @@ EXPORT BOOL WINAPI wglSwapBuffers(HDC hdc)
 	if (hwnd != nullptr && it != sRuntimes.end())
 	{
 		assert(it->second != nullptr);
+		assert(hdc == wglGetCurrentDC());
 
 		RECT rect, &rectPrevious = sWindowRects.at(hwnd);
 		GetClientRect(hwnd, &rect);
@@ -3562,7 +3553,9 @@ EXPORT BOOL WINAPI wglSwapLayerBuffers(HDC hdc, UINT i)
 {
 	if (i != WGL_SWAP_MAIN_PLANE)
 	{
-		LOG(WARNING) << "Access to layer plane " << i << " is prohibited.";
+		const int index = i >= WGL_SWAP_UNDERLAY1 ? static_cast<int>(-std::log(i >> 16) / std::log(2) - 1) : static_cast<int>(std::log(i) / std::log(2));
+
+		LOG(WARNING) << "Access to layer plane at index " << index << " is unsupported.";
 
 		SetLastError(ERROR_INVALID_PARAMETER);
 

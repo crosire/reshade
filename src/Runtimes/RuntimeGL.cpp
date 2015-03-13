@@ -3637,8 +3637,11 @@ namespace ReShade
 			// Update shader constants
 			if (this->mEffect->mUniformDirty)
 			{
-				GLCHECK(glBindBuffer(GL_UNIFORM_BUFFER, this->mEffect->mUBO));
-				GLCHECK(glBufferSubData(GL_UNIFORM_BUFFER, 0, this->mEffect->mUniformStorageSize, this->mEffect->mUniformStorage));
+				if (this->mEffect->mUniformStorageSize != 0)
+				{
+					GLCHECK(glBindBuffer(GL_UNIFORM_BUFFER, this->mEffect->mUBO));
+					GLCHECK(glBufferSubData(GL_UNIFORM_BUFFER, 0, this->mEffect->mUniformStorageSize, this->mEffect->mUniformStorage));
+				}
 
 				this->mEffect->mUniformDirty = false;
 			}
