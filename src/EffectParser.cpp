@@ -432,7 +432,7 @@ namespace ReShade
 
 			unsigned int GetTypeRank(const Nodes::Type &src, const Nodes::Type &dst)
 			{
-				if (src.IsArray() != dst.IsArray() || src.ArrayLength != dst.ArrayLength)
+				if (src.IsArray() != dst.IsArray() || (src.ArrayLength != dst.ArrayLength && src.ArrayLength > 0 && dst.ArrayLength > 0))
 				{
 					return 0;
 				}
@@ -1312,6 +1312,13 @@ namespace ReShade
 						return false;
 					}
 
+					if (!GetTypeRank(newstatement->Value->Type, parent->ReturnType))
+					{
+						this->mLexer.Error(location, 3017, "expression does not match function return type");
+
+						return false;
+					}
+
 					if (newstatement->Value->Type.Rows > parent->ReturnType.Rows || newstatement->Value->Type.Cols > parent->ReturnType.Cols)
 					{
 						this->mLexer.Warning(location, 3206, "implicit truncation of vector type");
@@ -1982,7 +1989,7 @@ namespace ReShade
 						newexpression->Type = callexpression->Type;
 						newexpression->Operator = static_cast<Nodes::Intrinsic::Op>(reinterpret_cast<unsigned int>(callexpression->Callee));
 
-						for (std::size_t i = 0, count = std::min(callexpression->Arguments.size(), 4u); i < count; ++i)
+						for (std::size_t i = 0, count = std::min(callexpression->Arguments.size(), static_cast<std::size_t>(4)); i < count; ++i)
 						{
 							newexpression->Arguments[i] = callexpression->Arguments[i];
 						}
@@ -3083,12 +3090,12 @@ namespace ReShade
 				}
 			}
 
+			ParseArray(type.ArrayLength);
+
 			variable = this->mAST.CreateNode<Nodes::Variable>(location);
 
 			variable->Type = type;
 			variable->Name = name;
-
-			ParseArray(variable->Type.ArrayLength);
 
 			if (!InsertSymbol(variable))
 			{
@@ -3125,6 +3132,12 @@ namespace ReShade
 					return false;
 				}
 
+				if (!GetTypeRank(variable->Initializer->Type, type))
+				{
+					this->mLexer.Error(location, 3017, "initial value does not match variable type");
+
+					return false;
+				}
 				if ((variable->Initializer->Type.Rows < type.Rows || variable->Initializer->Type.Cols < type.Cols) && !variable->Initializer->Type.IsScalar())
 				{
 					this->mLexer.Error(location, 3017, "cannot implicitly convert these vector types");
