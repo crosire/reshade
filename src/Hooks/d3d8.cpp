@@ -1909,16 +1909,13 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateTexture(UINT Width, UINT Height
 		D3DDEVICE_CREATION_PARAMETERS cp;
 		this->mProxy->GetCreationParameters(&cp);
 
-		if (SUCCEEDED(this->mD3D->CheckDeviceFormat(cp.AdapterOrdinal, cp.DeviceType, D3DFMT_X8R8G8B8, D3DUSAGE_RENDERTARGET, D3DRTYPE_TEXTURE, Format)))
+		if (SUCCEEDED(this->mD3D->CheckDeviceFormat(cp.AdapterOrdinal, cp.DeviceType, D3DFMT_X8R8G8B8, D3DUSAGE_RENDERTARGET, D3DRTYPE_TEXTURE, Format)) && (Usage & D3DUSAGE_DYNAMIC) == 0)
 		{
-			if ((Usage & D3DUSAGE_DYNAMIC) == 0)
-			{
-				Usage |= D3DUSAGE_RENDERTARGET;
-			}
+			Usage |= D3DUSAGE_RENDERTARGET;
 		}
 		else
 		{
-			Pool = D3DPOOL_MANAGED;
+			Usage |= D3DUSAGE_DYNAMIC;
 		}
 	}
 
@@ -2179,26 +2176,6 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::UpdateTexture(Direct3DBaseTexture8 *p
 	if (pSourceTexture == nullptr || pDestinationTexture == nullptr || pSourceTexture->GetType() != pDestinationTexture->GetType())
 	{
 		return D3DERR_INVALIDCALL;
-	}
-
-	if (pSourceTexture->GetType() == D3DRTYPE_TEXTURE && pDestinationTexture->GetType() == D3DRTYPE_TEXTURE)
-	{
-		D3D9::D3DSURFACE_DESC desc;
-		static_cast<IDirect3DTexture9 *>(pDestinationTexture->mProxy)->GetLevelDesc(0, &desc);
-
-		if (desc.Pool == D3DPOOL_MANAGED)
-		{
-			IDirect3DSurface9 *surfaceSource = nullptr, *surfaceDestination = nullptr;
-			static_cast<IDirect3DTexture9 *>(pSourceTexture->mProxy)->GetSurfaceLevel(0, &surfaceSource);
-			static_cast<IDirect3DTexture9 *>(pDestinationTexture->mProxy)->GetSurfaceLevel(0, &surfaceDestination);
-			
-			const HRESULT hr = D3DXLoadSurfaceFromSurface(surfaceDestination, nullptr, nullptr, surfaceSource, nullptr, nullptr, D3DX_FILTER_NONE, 0);
-
-			surfaceSource->Release();
-			surfaceDestination->Release();
-
-			return hr;
-		}
 	}
 
 	IDirect3DBaseTexture9 *basetextureSource = nullptr, *basetextureDestination = nullptr;
