@@ -3,6 +3,7 @@
 #include <fstream>
 #include <sstream>
 #include <iomanip>
+#include <codecvt>
 #include <boost\noncopyable.hpp>
 #include <boost\filesystem\path.hpp>
 
@@ -43,6 +44,28 @@ namespace ReShade
 			inline Message &operator <<(const T &value)
 			{
 				this->mStream << value;
+
+				return *this;
+			}
+			inline Message &operator <<(const char *message)
+			{
+				return operator <<<std::string>(message);
+			}
+			inline Message &operator <<(const wchar_t *message)
+			{
+				return operator <<<std::wstring>(message);
+			}
+			template <>
+			inline Message &operator <<(const std::string &message)
+			{
+				this->mStream << message;
+
+				return *this;
+			}
+			template <>
+			inline Message &operator <<(const std::wstring &message)
+			{
+				this->mStream << std::wstring_convert<std::codecvt_utf8<wchar_t>>().to_bytes(message);
 
 				return *this;
 			}
