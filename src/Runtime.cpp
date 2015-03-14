@@ -368,7 +368,24 @@ namespace ReShade
 					{
 						const bool state = (::GetAsyncKeyState(key) & 0x8000) != 0;
 
-						constant->SetValue(&state, 1);
+						if (constant->GetAnnotation("toggle").As<bool>())
+						{
+							bool current = false;
+							constant->GetValue(&current, 1);
+
+							if (state)
+							{
+								current = !current;
+
+								constant->SetValue(&current, 1);
+
+								Sleep(100);
+							}
+						}
+						else
+						{
+							constant->SetValue(&state, 1);
+						}
 					}
 				}
 				else if (source == "random")
@@ -565,7 +582,7 @@ namespace ReShade
 		}
 		if (!boost::filesystem::exists(path))
 		{
-			path = path.parent_path() / "ReShade" / "Core" / "ReShade.fx";
+			path = path.parent_path() / "ReShade" / "Common" / "ReShade.fx";
 		}
 		if (!boost::filesystem::exists(path))
 		{
