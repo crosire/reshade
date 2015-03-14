@@ -1076,8 +1076,16 @@ namespace ReShade
 							part3 = cast122.second + ')';
 							break;
 						case FX::Nodes::Binary::Op::ElementExtract:
-							part2 = '[';
-							part3 = ']';
+							if (type2.BaseClass != FX::Nodes::Type::Class::Uint)
+							{
+								part2 = "[uint(";
+								part3 = ")]";
+							}
+							else
+							{
+								part2 = '[';
+								part3 = ']';
+							}
 							break;
 					}
 
