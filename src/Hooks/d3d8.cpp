@@ -919,6 +919,10 @@ HRESULT STDMETHODCALLTYPE Direct3DTexture8::GetSurfaceLevel(UINT Level, Direct3D
 	{
 		return D3DERR_INVALIDCALL;
 	}
+	else
+	{
+		*ppSurfaceLevel = nullptr;
+	}
 
 	IDirect3DSurface9 *surface = nullptr;
 
@@ -1061,6 +1065,10 @@ HRESULT STDMETHODCALLTYPE Direct3DVolumeTexture8::GetVolumeLevel(UINT Level, Dir
 	{
 		return D3DERR_INVALIDCALL;
 	}
+	else
+	{
+		*ppVolumeLevel = nullptr;
+	}
 
 	IDirect3DVolume9 *volume = nullptr;
 
@@ -1202,6 +1210,10 @@ HRESULT STDMETHODCALLTYPE Direct3DCubeTexture8::GetCubeMapSurface(D3DCUBEMAP_FAC
 	if (ppCubeMapSurface == nullptr)
 	{
 		return D3DERR_INVALIDCALL;
+	}
+	else
+	{
+		*ppCubeMapSurface = nullptr;
 	}
 
 	IDirect3DSurface9 *surface = nullptr;
@@ -1644,6 +1656,10 @@ HRESULT STDMETHODCALLTYPE Direct3DSwapChain8::GetBackBuffer(UINT iBackBuffer, D3
 	{
 		return D3DERR_INVALIDCALL;
 	}
+	else
+	{
+		*ppBackBuffer = nullptr;
+	}
 
 	IDirect3DSurface9 *surface = nullptr;
 
@@ -1796,6 +1812,10 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateAdditionalSwapChain(D3D8::D3DPR
 	{
 		return D3DERR_INVALIDCALL;
 	}
+	else
+	{
+		*ppSwapChain = nullptr;
+	}
 
 	D3D9::D3DPRESENT_PARAMETERS pp;
 	IDirect3DSwapChain9 *swapchain = nullptr;
@@ -1879,6 +1899,10 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::GetBackBuffer(UINT iBackBuffer, D3DBA
 	{
 		return D3DERR_INVALIDCALL;
 	}
+	else
+	{
+		*ppBackBuffer = nullptr;
+	}
 
 	IDirect3DSurface9 *surface = nullptr;
 
@@ -1910,6 +1934,10 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateTexture(UINT Width, UINT Height
 	if (ppTexture == nullptr)
 	{
 		return D3DERR_INVALIDCALL;
+	}
+	else
+	{
+		*ppTexture = nullptr;
 	}
 
 	if (Pool == D3DPOOL_DEFAULT)
@@ -1946,6 +1974,10 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateVolumeTexture(UINT Width, UINT 
 	{
 		return D3DERR_INVALIDCALL;
 	}
+	else
+	{
+		*ppVolumeTexture = nullptr;
+	}
 
 	IDirect3DVolumeTexture9 *texture = nullptr;
 
@@ -1965,6 +1997,10 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateCubeTexture(UINT EdgeLength, UI
 	if (ppCubeTexture == nullptr)
 	{
 		return D3DERR_INVALIDCALL;
+	}
+	else
+	{
+		*ppCubeTexture = nullptr;
 	}
 
 	IDirect3DCubeTexture9 *texture = nullptr;
@@ -1986,6 +2022,10 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateVertexBuffer(UINT Length, DWORD
 	{
 		return D3DERR_INVALIDCALL;
 	}
+	else
+	{
+		*ppVertexBuffer = nullptr;
+	}
 
 	IDirect3DVertexBuffer9 *buffer = nullptr;
 
@@ -2006,6 +2046,10 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateIndexBuffer(UINT Length, DWORD 
 	{
 		return D3DERR_INVALIDCALL;
 	}
+	else
+	{
+		*ppIndexBuffer = nullptr;
+	}
 
 	IDirect3DIndexBuffer9 *buffer = nullptr;
 
@@ -2025,6 +2069,10 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateRenderTarget(UINT Width, UINT H
 	if (ppSurface == nullptr)
 	{
 		return D3DERR_INVALIDCALL;
+	}
+	else
+	{
+		*ppSurface = nullptr;
 	}
 
 	DWORD qualityLevels = 1;
@@ -2057,6 +2105,10 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateDepthStencilSurface(UINT Width,
 	{
 		return D3DERR_INVALIDCALL;
 	}
+	else
+	{
+		*ppSurface = nullptr;
+	}
 
 	DWORD qualityLevels = 1;
 	D3DDEVICE_CREATION_PARAMETERS params;
@@ -2087,6 +2139,10 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateImageSurface(UINT Width, UINT H
 	if (ppSurface == nullptr)
 	{
 		return D3DERR_INVALIDCALL;
+	}
+	else
+	{
+		*ppSurface = nullptr;
 	}
 
 	IDirect3DSurface9 *surface = nullptr;
@@ -2488,6 +2544,10 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::GetTexture(DWORD Stage, Direct3DBaseT
 	{
 		return D3DERR_INVALIDCALL;
 	}
+	else
+	{
+		*ppTexture = nullptr;
+	}
 
 	IDirect3DBaseTexture9 *basetexture = nullptr;
 
@@ -2498,11 +2558,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::GetTexture(DWORD Stage, Direct3DBaseT
 		return hr;
 	}
 
-	if (basetexture == nullptr)
-	{
-		*ppTexture = nullptr;
-	}
-	else
+	if (basetexture != nullptr)
 	{
 		IDirect3DTexture9 *texture = nullptr;
 		IDirect3DVolumeTexture9 *volumetexture = nullptr;
@@ -2686,6 +2742,10 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateVertexShader(CONST DWORD *pDecl
 	if (pDeclaration == nullptr || pHandle == nullptr)
 	{
 		return D3DERR_INVALIDCALL;
+	}
+	else
+	{
+		*pHandle = 0;
 	}
 
 	UINT i = 0;
@@ -3019,8 +3079,6 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateVertexShader(CONST DWORD *pDecl
 		
 	if (FAILED(hr))
 	{
-		*pHandle = 0;
-
 		delete shader;
 	}
 
@@ -3028,11 +3086,6 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateVertexShader(CONST DWORD *pDecl
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice8::SetVertexShader(DWORD Handle)
 {
-	if (Handle == 0)
-	{
-		return D3DERR_INVALIDCALL;
-	}
-
 	HRESULT hr;
 	
 	if ((Handle & 0x80000000) == 0)
@@ -3153,6 +3206,10 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::GetStreamSource(UINT StreamNumber, Di
 	{
 		return D3DERR_INVALIDCALL;
 	}
+	else
+	{
+		*ppStreamData = nullptr;
+	}
 
 	UINT offset;
 	IDirect3DVertexBuffer9 *source = nullptr;
@@ -3164,11 +3221,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::GetStreamSource(UINT StreamNumber, Di
 		return hr;
 	}
 
-	if (source == nullptr)
-	{
-		*ppStreamData = nullptr;
-	}
-	else
+	if (source != nullptr)
 	{
 		*ppStreamData = new Direct3DVertexBuffer8(this, source);
 	}
@@ -3192,6 +3245,10 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::GetIndices(Direct3DIndexBuffer8 **ppI
 	{
 		return D3DERR_INVALIDCALL;
 	}
+	else
+	{
+		*ppIndexData = nullptr;
+	}
 
 	if (pBaseVertexIndex != nullptr)
 	{
@@ -3207,11 +3264,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::GetIndices(Direct3DIndexBuffer8 **ppI
 		return hr;
 	}
 
-	if (source == nullptr)
-	{
-		*ppIndexData = nullptr;
-	}
-	else
+	if (source != nullptr)
 	{
 		*ppIndexData = new Direct3DIndexBuffer8(this, source);
 	}
@@ -3225,6 +3278,10 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreatePixelShader(CONST DWORD *pFunct
 	if (pFunction == nullptr || pHandle == nullptr)
 	{
 		return D3DERR_INVALIDCALL;
+	}
+	else
+	{
+		*pHandle = 0;
 	}
 
 	LOG(INFO) << "> Disassembling shader and translating assembly to Direct3D 9 compatible code ...";
@@ -3521,6 +3578,10 @@ HRESULT STDMETHODCALLTYPE Direct3D8::CreateDevice(UINT Adapter, D3DDEVTYPE Devic
 	if (pPresentationParameters == nullptr || ppReturnedDeviceInterface == nullptr)
 	{
 		return D3DERR_INVALIDCALL;
+	}
+	else
+	{
+		*ppReturnedDeviceInterface = nullptr;
 	}
 
 	D3D9::D3DPRESENT_PARAMETERS pp;
