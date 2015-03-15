@@ -3132,6 +3132,23 @@ namespace ReShade
 					return false;
 				}
 
+				if (variable->Initializer->NodeId == Node::Id::InitializerList)
+				{
+					Nodes::Literal *const nullval = this->mAST.CreateNode<Nodes::Literal>(location);
+					nullval->Type.BaseClass = type.BaseClass;
+					nullval->Type.Qualifiers = Nodes::Type::Qualifier::Const;
+					nullval->Type.Rows = type.Rows, nullval->Type.Cols = type.Cols, nullval->Type.ArrayLength = 0;
+					nullval->Value.Uint[0] = 0;
+
+					Nodes::InitializerList *const initializerlist = static_cast<Nodes::InitializerList *>(variable->Initializer);
+
+					while (initializerlist->Type.ArrayLength < type.ArrayLength)
+					{
+						initializerlist->Type.ArrayLength++;
+						initializerlist->Values.push_back(nullval);
+					}
+				}
+
 				if (!GetTypeRank(variable->Initializer->Type, type))
 				{
 					this->mLexer.Error(location, 3017, "initial value does not match variable type");
