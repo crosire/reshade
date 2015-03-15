@@ -1,10 +1,10 @@
 #include "Log.hpp"
 #include "HookManager.hpp"
 
+#include <regex>
 #include <d3d9.h>
 #include <d3dx9shader.h>
 #include <initguid.h>
-#include <boost\algorithm\string\replace.hpp>
 
 // -----------------------------------------------------------------------------------------------------
 
@@ -2897,7 +2897,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateVertexShader(CONST DWORD *pDecl
 
 			for (DWORD r = 0; r < count; r += 4, ++address)
 			{
-				constants += "def c" + std::to_string(address) + ", " + std::to_string(*reinterpret_cast<const float *>(&pDeclaration[r + 1])) + ", " + std::to_string(*reinterpret_cast<const float *>(&pDeclaration[r + 2])) + ", " + std::to_string(*reinterpret_cast<const float *>(&pDeclaration[r + 3])) + ", " + std::to_string(*reinterpret_cast<const float *>(&pDeclaration[r + 4])) + '\n';
+				constants += "    def c" + std::to_string(address) + ", " + std::to_string(*reinterpret_cast<const float *>(&pDeclaration[r + 1])) + ", " + std::to_string(*reinterpret_cast<const float *>(&pDeclaration[r + 2])) + ", " + std::to_string(*reinterpret_cast<const float *>(&pDeclaration[r + 3])) + ", " + std::to_string(*reinterpret_cast<const float *>(&pDeclaration[r + 4])) + " /* vertex declaration constant */\n";
 			}
 
 			pDeclaration += count;
@@ -2967,30 +2967,30 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateVertexShader(CONST DWORD *pDecl
 
 		for (UINT k = 0; k < i; ++k)
 		{
-			std::string decl;
+			std::string decl = "    ";
 
 			switch (elements[k].Usage)
 			{
 				case D3DDECLUSAGE_POSITION:
-					decl = "dcl_position";
+					decl += "dcl_position";
 					break;
 				case D3DDECLUSAGE_BLENDWEIGHT:
-					decl = "dcl_blendweight";
+					decl += "dcl_blendweight";
 					break;
 				case D3DDECLUSAGE_BLENDINDICES:
-					decl = "dcl_blendindices";
+					decl += "dcl_blendindices";
 					break;
 				case D3DDECLUSAGE_NORMAL:
-					decl = "dcl_normal";
+					decl += "dcl_normal";
 					break;
 				case D3DDECLUSAGE_PSIZE:
-					decl = "dcl_psize";
+					decl += "dcl_psize";
 					break;
 				case D3DDECLUSAGE_COLOR:
-					decl = "dcl_color";
+					decl += "dcl_color";
 					break;
 				case D3DDECLUSAGE_TEXCOORD:
-					decl = "dcl_texcoord";
+					decl += "dcl_texcoord";
 					break;
 			}
 
@@ -3005,18 +3005,44 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateVertexShader(CONST DWORD *pDecl
 			declpos += decl.length();
 		}
 
-		constants += "def c95, 0, 0, 0, 0\n";
+		#pragma region Fill registers with default value
+		constants += "    def c95, 0, 0, 0, 0\n";
 
 		source.insert(declpos, constants);
-		source.insert(declpos + constants.size(), "mov r0, c95\nmov r1, c95\nmov r2, c95\nmov r3, c95\nmov r4, c95\nmov r5, c95\nmov r6, c95\nmov r7, c95\nmov r8, c95\nmov r9, c95\nmov r10, c95\nmov r11, c95\n");
 
-		if (source.find("oT") != std::string::npos)
+		for (std::size_t i = 0; i < 2; ++i)
 		{
-			source.insert(declpos + constants.size(), "mov oT0, c95\nmov oT1, c95\nmov oT2, c95\nmov oT3, c95\nmov oT4, c95\nmov oT5, c95\nmov oT6, c95\nmov oT7, c95\n");
-		}
+			const std::string reg = "oD" + std::to_string(i);
 
-		boost::algorithm::replace_all(source, "oFog.x", "oFog");
-		boost::algorithm::replace_all(source, "oPts.x", "oPts");
+			if (source.find(reg) != std::string::npos)
+			{
+				source.insert(declpos + constants.size(), "    mov " + reg + ", c95 /* initialize output register " + reg + " */\n");
+			}
+		}
+		for (std::size_t i = 0; i < 8; ++i)
+		{
+			const std::string reg = "oT" + std::to_string(i);
+
+			if (source.find(reg) != std::string::npos)
+			{
+				source.insert(declpos + constants.size(), "    mov " + reg + ", c95 /* initialize output register " + reg + " */\n");
+			}
+		}
+		for (std::size_t i = 0; i < 12; ++i)
+		{
+			const std::string reg = "r" + std::to_string(i);
+
+			if (source.find(reg) != std::string::npos)
+			{
+				source.insert(declpos + constants.size(), "    mov " + reg + ", c95 /* initialize register " + reg + " */\n");
+			}
+		}
+		#pragma endregion
+
+		source = std::regex_replace(source, std::regex("    \\/\\/ vs\\.1\\.1\\n((?! ).+\\n)+"), "");
+		source = std::regex_replace(source, std::regex("(oFog|oPts)\\.x"), "$1 /* removed swizzle */");
+		source = std::regex_replace(source, std::regex("(add|sub|mul|min|max) (oFog|oPts), ([cr][0-9]+), (.+)\\n"), "$1 $2, $3.x /* added swizzle */, $4\n");
+		source = std::regex_replace(source, std::regex("(add|sub|mul|min|max) (oFog|oPts), (.+), ([cr][0-9]+)\\n"), "$1 $2, $3, $4.x /* added swizzle */\n");
 
 		LOG(TRACE) << "> Dumping translated shader assembly:\n\n" << source;
 
@@ -3293,17 +3319,9 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreatePixelShader(CONST DWORD *pFunct
 		return D3DERR_INVALIDCALL;
 	}
 
-	std::vector<DWORD> assembly;
-	ID3DXBuffer *disassembly = nullptr;
+	ID3DXBuffer *disassembly = nullptr, *assembly = nullptr, *errors = nullptr;
 
-	while (*pFunction != 0x0000FFFF)
-	{
-		assembly.push_back(*pFunction++);
-	}
-
-	assembly.push_back(0x0000FFFF);
-
-	HRESULT hr = D3DXDisassembleShader(assembly.data(), FALSE, nullptr, &disassembly);
+	HRESULT hr = D3DXDisassembleShader(pFunction, FALSE, nullptr, &disassembly);
 
 	if (FAILED(hr))
 	{
@@ -3321,15 +3339,36 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreatePixelShader(CONST DWORD *pFunct
 	{
 		LOG(INFO) << "> Replacing version 'ps_1_0' with 'ps_1_1' ...";
 
-		assembly[0] = D3DPS_VERSION(1, 1);
 		source.replace(verpos, 6, "ps_1_1");
 	}
 
+	source = std::regex_replace(source, std::regex("    \\/\\/ ps\\.1\\.[1-4]\\n((?! ).+\\n)+"), "");
+	source = std::regex_replace(source, std::regex("(1?-)(c[0-9]+)"), "$2 /* removed modifier $1 */");
+	source = std::regex_replace(source, std::regex("(c[0-9]+)(_bx2|_bias)"), "$1 /* removed modifier $2 */");
+
 	LOG(TRACE) << "> Dumping translated shader assembly:\n\n" << source;
+
+	hr = D3DXAssembleShader(source.data(), static_cast<UINT>(source.size()), nullptr, nullptr, 0, &assembly, &errors);
 
 	disassembly->Release();
 
-	hr = this->mProxy->CreatePixelShader(assembly.data(), reinterpret_cast<IDirect3DPixelShader9 **>(pHandle));
+	if (FAILED(hr))
+	{
+		if (errors != nullptr)
+		{
+			LOG(ERROR) << "> Failed to reassemble shader:\n\n" << static_cast<const char *>(errors->GetBufferPointer());
+
+			errors->Release();
+		}
+		else
+		{
+			LOG(ERROR) << "> Failed to reassemble shader with '" << GetErrorString(hr) << "'!";
+		}
+
+		return hr;
+	}
+
+	hr = this->mProxy->CreatePixelShader(static_cast<const DWORD *>(assembly->GetBufferPointer()), reinterpret_cast<IDirect3DPixelShader9 **>(pHandle));
 
 	if (FAILED(hr))
 	{
