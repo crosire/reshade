@@ -620,20 +620,28 @@ namespace
 		{
 			case E_INVALIDARG:
 				res << "E_INVALIDARG";
+				break;
 			case D3DERR_NOTAVAILABLE:
 				res << "D3DERR_NOTAVAILABLE";
+				break;
 			case D3DERR_INVALIDCALL:
 				res << "D3DERR_INVALIDCALL";
+				break;
 			case D3DERR_INVALIDDEVICE:
 				res << "D3DERR_INVALIDDEVICE";
+				break;
 			case D3DERR_DEVICEHUNG:
 				res << "D3DERR_DEVICEHUNG";
+				break;
 			case D3DERR_DEVICELOST:
 				res << "D3DERR_DEVICELOST";
+				break;
 			case D3DERR_DEVICENOTRESET:
 				res << "D3DERR_DEVICENOTRESET";
+				break;
 			case D3DERR_WASSTILLDRAWING:
 				res << "D3DERR_WASSTILLDRAWING";
+				break;
 			case D3DXERR_INVALIDDATA:
 				res << "D3DXERR_INVALIDDATA";
 				break;
@@ -2836,7 +2844,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateVertexShader(CONST DWORD *pDecl
 		}
 		else
 		{
-			LOG(WARNING) << "> Failed because token type '" << tokenType << "' is not supported!";
+			LOG(ERROR) << "> Failed because token type '" << tokenType << "' is not supported!";
 
 			return E_NOTIMPL;
 		}
@@ -2846,14 +2854,14 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateVertexShader(CONST DWORD *pDecl
 
 	LOG(TRACE) << "  +----------+---------+---------+--------------+--------------+--------------+-------+";
 	LOG(TRACE) << "  | Register | Stream  | Offset  | Type         | Method       | Usage        | Index |";
-	LOG(TRACE) << "  +----------+---------+---------+--------------+--------------+--------------+-------+";
+	LOG(TRACE) << "  +----------+---------+---------+--------------+--------------+--------------+-------+" << std::left;
 
 	for (UINT k = 0; k < i; ++k)
 	{
-		LOG(TRACE) << "  | " << "v" << std::left << std::setw(7) << inputs[k] << " | " << std::setw(7) << elements[k].Stream << " | " << std::setw(7) << elements[k].Offset << " | 0x" << std::hex << std::setw(10) << static_cast<UINT>(elements[k].Type) << " | 0x" << std::setw(10) << static_cast<UINT>(elements[k].Method) << " | 0x" << std::setw(10) << static_cast<UINT>(elements[k].Usage) << std::dec << " | " << std::setw(5) << static_cast<UINT>(elements[k].UsageIndex) << std::internal << " |";
+		LOG(TRACE) << "  | v" << std::setw(7) << inputs[k] << " | " << std::setw(7) << elements[k].Stream << " | " << std::setw(7) << elements[k].Offset << " | " << std::showbase << std::hex << std::setw(12) << static_cast<UINT>(elements[k].Type) << " | " << std::setw(12) << static_cast<UINT>(elements[k].Method) << " | " << std::setw(12) << static_cast<UINT>(elements[k].Usage) << std::dec << std::noshowbase << " | " << std::setw(5) << static_cast<UINT>(elements[k].UsageIndex) << " |";
 	}
 
-	LOG(TRACE) << "  +----------+---------+---------+--------------+--------------+--------------+-------+";
+	LOG(TRACE) << "  +----------+---------+---------+--------------+--------------+--------------+-------+" << std::internal;
 
 	const D3DVERTEXELEMENT9 terminator = D3DDECL_END();
 	elements[i] = terminator;
@@ -2867,7 +2875,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateVertexShader(CONST DWORD *pDecl
 
 		if (*pFunction < D3DVS_VERSION(1, 0) || *pFunction > D3DVS_VERSION(1, 1))
 		{
-			LOG(WARNING) << "> Failed because of version mismatch ('" << *pFunction << "')! Only 'vs_1_x' shaders are supported.";
+			LOG(ERROR) << "> Failed because of version mismatch ('" << std::showbase << std::hex << *pFunction << std::dec << std::noshowbase << "')! Only 'vs_1_x' shaders are supported.";
 
 			return D3DERR_INVALIDCALL;
 		}
@@ -2883,7 +2891,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateVertexShader(CONST DWORD *pDecl
 			return hr;
 		}
 
-		std::string source(static_cast<const char *>(disassembly->GetBufferPointer()), disassembly->GetBufferSize());
+		std::string source(static_cast<const char *>(disassembly->GetBufferPointer()), disassembly->GetBufferSize() - 1);
 		const std::size_t verpos = source.find("vs_1_");
 
 		assert(verpos != std::string::npos);
@@ -3223,7 +3231,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreatePixelShader(CONST DWORD *pFunct
 
 	if (*pFunction < D3DPS_VERSION(1, 0) || *pFunction > D3DPS_VERSION(1, 4))
 	{
-		LOG(WARNING) << "> Failed because of version mismatch ('" << *pFunction << "')! Only 'ps_1_x' shaders are supported.";
+		LOG(ERROR) << "> Failed because of version mismatch ('" << std::showbase << std::hex << *pFunction << std::dec << std::noshowbase << "')! Only 'ps_1_x' shaders are supported.";
 
 		return D3DERR_INVALIDCALL;
 	}
@@ -3247,7 +3255,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreatePixelShader(CONST DWORD *pFunct
 		return hr;
 	}
 
-	std::string source(static_cast<const char *>(disassembly->GetBufferPointer()), disassembly->GetBufferSize());
+	std::string source(static_cast<const char *>(disassembly->GetBufferPointer()), disassembly->GetBufferSize() - 1);
 	const std::size_t verpos = source.find("ps_1_");
 
 	assert(verpos != std::string::npos);
