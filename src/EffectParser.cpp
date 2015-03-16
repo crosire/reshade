@@ -2921,7 +2921,16 @@ namespace ReShade
 
 				Nodes::Variable *const parameter = this->mAST.CreateNode<Nodes::Variable>(Location());
 
-				if (!ParseType(parameter->Type) || !ExpectIdentifier(parameter->Name))
+				if (!ParseType(parameter->Type))
+				{
+					LeaveScope();
+
+					this->mLexer.Error(this->mNextToken.GetLocation(), 3000, "syntax error: unexpected '%s', expected parameter type", this->mNextToken.GetName().c_str());
+
+					return false;
+				}
+				
+				if (!ExpectIdentifier(parameter->Name))
 				{
 					LeaveScope();
 
