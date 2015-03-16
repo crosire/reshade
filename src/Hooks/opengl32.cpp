@@ -3512,7 +3512,7 @@ EXPORT BOOL WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 
 			LOG(INFO) << "> Switched to new runtime " << runtime << ".";
 
-			if (!runtime->OnCreateInternal(static_cast<unsigned int>(rect.right), static_cast<unsigned int>(rect.bottom)))
+			if (!(rect.right == 0 || rect.bottom == 0) && !runtime->OnCreateInternal(static_cast<unsigned int>(rect.right), static_cast<unsigned int>(rect.bottom)))
 			{
 				LOG(ERROR) << "Failed to initialize OpenGL renderer! Check tracelog for details.";
 			}

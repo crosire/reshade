@@ -2924,12 +2924,7 @@ namespace ReShade
 
 		bool GLRuntime::OnCreateInternal(unsigned int width, unsigned int height)
 		{
-			if (width == 0 || height == 0)
-			{
-				LOG(WARNING) << "Failed to resize runtime due to invalid size of " << width << "x" << height << ".";
-
-				return false;
-			}
+			assert(width != 0 && height != 0);
 
 			this->mStateBlock->Capture();
 
