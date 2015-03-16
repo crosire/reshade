@@ -3514,17 +3514,13 @@ namespace ReShade
 
 					(passstate[0] == 'V' ? pass->States.VertexShader : pass->States.PixelShader) = reinterpret_cast<const Nodes::Function *>(static_cast<Nodes::LValue *>(value)->Reference);
 				}
-				else if (boost::starts_with(passstate, "RenderTarget"))
+				else if (boost::starts_with(passstate, "RenderTarget") && (passstate == "RenderTarget" || (passstate[12] >= '0' && passstate[12] < '8')))
 				{
 					std::size_t index = 0;
 
 					if (passstate.size() == 13)
 					{
 						index = passstate[12] - '0';
-					}
-					if (passstate.size() > 13 || index >= 8)
-					{
-						return false;
 					}
 
 					if (value->NodeId != Node::Id::LValue || static_cast<Nodes::LValue *>(value)->Reference->NodeId != Node::Id::Variable || static_cast<Nodes::LValue *>(value)->Reference->Type.BaseClass != Nodes::Type::Class::Texture2D || static_cast<Nodes::LValue *>(value)->Reference->Type.IsArray())
