@@ -3132,13 +3132,12 @@ namespace ReShade
 					return false;
 				}
 
-				if (variable->Initializer->NodeId == Node::Id::InitializerList)
+				if (variable->Initializer->NodeId == Node::Id::InitializerList && (type.IsScalar() || type.IsVector() || type.IsMatrix()))
 				{
 					Nodes::Literal *const nullval = this->mAST.CreateNode<Nodes::Literal>(location);
 					nullval->Type.BaseClass = type.BaseClass;
 					nullval->Type.Qualifiers = Nodes::Type::Qualifier::Const;
 					nullval->Type.Rows = type.Rows, nullval->Type.Cols = type.Cols, nullval->Type.ArrayLength = 0;
-					nullval->Value.Uint[0] = 0;
 
 					Nodes::InitializerList *const initializerlist = static_cast<Nodes::InitializerList *>(variable->Initializer);
 
