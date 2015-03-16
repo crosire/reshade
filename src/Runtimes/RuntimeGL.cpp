@@ -3610,7 +3610,7 @@ namespace ReShade
 
 			std::memcpy(storage, data, size);
 
-			this->mEffect->mUniformDirty = this->mEffect->mUBO != 0;
+			this->mEffect->mUniformDirty = true;
 		}
 
 		GLTechnique::GLTechnique(GLEffect *effect, const Description &desc) : Technique(desc), mEffect(effect)
@@ -3640,7 +3640,7 @@ namespace ReShade
 			// Update shader constants
 			if (this->mEffect->mUniformDirty)
 			{
-				if (this->mEffect->mUniformStorageSize != 0)
+				if (this->mEffect->mUniformStorageSize != 0 && this->mEffect->mUBO != 0)
 				{
 					GLCHECK(glBindBuffer(GL_UNIFORM_BUFFER, this->mEffect->mUBO));
 					GLCHECK(glBufferSubData(GL_UNIFORM_BUFFER, 0, this->mEffect->mUniformStorageSize, this->mEffect->mUniformStorage));
@@ -3709,5 +3709,5 @@ namespace ReShade
 				}
 			}
 		}
-}
+	}
 }

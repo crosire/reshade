@@ -3002,7 +3002,7 @@ namespace ReShade
 
 			CopyMemory(storage, data, size);
 
-			this->mEffect->mConstantsDirty = this->mEffect->mConstantBuffer != nullptr;
+			this->mEffect->mConstantsDirty = true;
 		}
 
 		D3D10Technique::D3D10Technique(D3D10Effect *effect, const Description &desc) : Technique(desc), mEffect(effect)
@@ -3046,7 +3046,7 @@ namespace ReShade
 			}
 
 			// Update shader constants
-			if (this->mEffect->mConstantsDirty)
+			if (this->mEffect->mConstantsDirty && this->mEffect->mConstantBuffer != nullptr)
 			{
 				void *data = nullptr;
 

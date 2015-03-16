@@ -3238,7 +3238,7 @@ namespace ReShade
 
 			CopyMemory(storage, data, size);
 
-			this->mEffect->mConstantsDirty = this->mEffect->mConstantBuffer != nullptr;
+			this->mEffect->mConstantsDirty = true;
 		}
 
 		D3D11Technique::D3D11Technique(D3D11Effect *effect, const Description &desc) : Technique(desc), mEffect(effect)
@@ -3282,7 +3282,7 @@ namespace ReShade
 			}
 
 			// Update shader constants
-			if (this->mEffect->mConstantsDirty)
+			if (this->mEffect->mConstantsDirty && this->mEffect->mConstantBuffer != nullptr)
 			{
 				D3D11_MAPPED_SUBRESOURCE mapped;
 
