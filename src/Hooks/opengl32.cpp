@@ -3439,11 +3439,11 @@ EXPORT BOOL WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 	{
 		return TRUE;
 	}
-	else
+	else if (hdcPrevious != nullptr)
 	{
 		const auto it = sRuntimes.find(hdcPrevious);
 
-		if (hdc != hdcPrevious && hdcPrevious != nullptr && --it->second->mReferenceCount == 0)
+		if (it != sRuntimes.end() && --it->second->mReferenceCount == 0)
 		{
 			LOG(INFO) << "> Cleaning up runtime " << it->second << " ...";
 
@@ -3474,7 +3474,7 @@ EXPORT BOOL WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 
 	const auto it = sRuntimes.find(hdc);
 
-	if (it != sRuntimes.end() && it->second->mRenderContext == hglrc)
+	if (it != sRuntimes.end())
 	{
 		it->second->mReferenceCount++;
 
@@ -3495,12 +3495,6 @@ EXPORT BOOL WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 			LOG(WARNING) << "> Window class style of window " << hwnd << " is missing 'CS_OWNDC' flag.";
 		}
 
-		RECT rect;
-		GetClientRect(hwnd, &rect);
-		sWindowRects[hwnd] = rect;
-
-		LOG(TRACE) << "> Initial size of window " << hwnd << " is " << rect.right << "x" << rect.bottom << ".";
-
 		gl3wInit();
 
 		if (gl3wIsSupported(4, 3))
@@ -3510,16 +3504,13 @@ EXPORT BOOL WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 			sRuntimes[hdc] = runtime;
 
 			LOG(INFO) << "> Switched to new runtime " << runtime << ".";
-
-			if (!(rect.right == 0 || rect.bottom == 0) && !runtime->OnCreateInternal(static_cast<unsigned int>(rect.right), static_cast<unsigned int>(rect.bottom)))
-			{
-				LOG(ERROR) << "Failed to initialize OpenGL renderer! Check tracelog for details.";
-			}
 		}
 		else
 		{
 			LOG(ERROR) << "Your graphics card does not seem to support OpenGL 4.3. Initialization failed.";
 		}
+
+		sWindowRects[hwnd].left = sWindowRects[hwnd].top = sWindowRects[hwnd].right = sWindowRects[hwnd].bottom = 0;
 	}
 
 	return TRUE;
