@@ -2136,6 +2136,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateDepthStencilSurface(UINT Width,
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateImageSurface(UINT Width, UINT Height, D3DFORMAT Format, Direct3DSurface8 **ppSurface)
 {
+	LOG(INFO) << "Redirecting '" << "IDirect3DDevice8::CreateImageSurface" << "(" << this << ", " << Width << ", " << Height << ", " << Format << ", " << ppSurface << ")' ...";
+
 	if (ppSurface == nullptr)
 	{
 		return D3DERR_INVALIDCALL;
@@ -2145,13 +2147,20 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateImageSurface(UINT Width, UINT H
 		*ppSurface = nullptr;
 	}
 
+	if (Format == D3DFMT_R8G8B8)
+	{
+		LOG(WARNING) << "> Replacing format 'D3DFMT_R8G8B8' with 'D3DFMT_X8R8G8B8' ...";
+
+		Format = D3DFMT_X8R8G8B8;
+	}
+
 	IDirect3DSurface9 *surface = nullptr;
 
 	const HRESULT hr = this->mProxy->CreateOffscreenPlainSurface(Width, Height, Format, D3DPOOL_SYSTEMMEM, &surface, nullptr);
 
 	if (FAILED(hr))
 	{
-		LOG(ERROR) << "Failed to translate 'IDirect3DDevice8::CreateImageSurface' call for '[" << Width << "x" << Height << ", " << Format << "]'!";
+		LOG(WARNING) << "> 'IDirect3DDevice8::CreateImageSurface' failed with '" << GetErrorString(hr) << "'!";
 
 		return hr;
 	}
