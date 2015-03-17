@@ -3056,6 +3056,11 @@ namespace ReShade
 		}
 		void GLRuntime::OnDeleteInternal()
 		{
+			if (this->mLost)
+			{
+				return;
+			}
+
 			if (!this->mPresenting)
 			{
 				this->mStateBlock->Capture();

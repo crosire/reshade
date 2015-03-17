@@ -2208,6 +2208,11 @@ namespace ReShade
 		}
 		void D3D10Runtime::OnDeleteInternal()
 		{
+			if (this->mLost)
+			{
+				return;
+			}
+
 			Runtime::OnDelete();
 
 			nvgDeleteD3D10(this->mNVG);
