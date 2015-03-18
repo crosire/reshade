@@ -3097,6 +3097,13 @@ namespace ReShade
 				
 					return false;
 				}
+
+				if (type.IsTexture() || type.IsSampler())
+				{
+					this->mLexer.Error(location, 3038, "local variables cannot be textures or samplers");
+
+					return false;
+				}
 			}
 
 			ParseArray(type.ArrayLength);
