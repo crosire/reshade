@@ -2446,6 +2446,10 @@ namespace ReShade
 
 			Runtime::OnCreate(desc.BufferDesc.Width, desc.BufferDesc.Height);
 
+			// Clear reference count to make UnrealEngine happy
+			this->mBackBuffer->Release();
+			this->mBackBuffer->Release();
+
 			return true;
 		}
 		void D3D11Runtime::OnDeleteInternal()
@@ -2463,7 +2467,10 @@ namespace ReShade
 
 			this->mStateBlock->ReleaseAllDeviceObjects();
 
-			SAFE_RELEASE(this->mBackBuffer);
+			// Reset reference count to make UnrealEngine happy
+			this->mBackBuffer->AddRef();
+			this->mBackBuffer = nullptr;
+
 			SAFE_RELEASE(this->mBackBufferReplacement);
 			SAFE_RELEASE(this->mBackBufferTexture);
 			SAFE_RELEASE(this->mBackBufferTextureSRV[0]);
