@@ -480,7 +480,7 @@ namespace ReShade
 
 			if (!this->mStatus.empty())
 			{
-				nvgFillColor(this->mNVG, nvgRGB(255, 255, 255));
+				nvgFillColor(this->mNVG, nvgRGB(188, 188, 188));
 				nvgTextAlign(this->mNVG, NVG_ALIGN_LEFT | NVG_ALIGN_TOP);
 
 				nvgFontSize(this->mNVG, 20);
@@ -503,11 +503,12 @@ namespace ReShade
 				}
 			}
 
+			nvgFontSize(this->mNVG, 16);
+			nvgFillColor(this->mNVG, nvgRGB(188, 188, 188));
+
 			if (!this->mMessage.empty())
 			{
-				nvgFillColor(this->mNVG, nvgRGB(255, 255, 255));
 				nvgTextAlign(this->mNVG, NVG_ALIGN_CENTER | NVG_ALIGN_MIDDLE);
-				nvgFontSize(this->mNVG, 16);
 
 				float bounds[4];
 				nvgTextBoxBounds(this->mNVG, 0, 0, static_cast<float>(this->mWidth), this->mMessage.c_str(), nullptr, bounds);
@@ -537,9 +538,8 @@ namespace ReShade
 				stats << "Network: " << sNetworkUpload << "B up / " << sNetworkDownload << "B down" << std::endl;
 			}
 
-			nvgFillColor(this->mNVG, nvgRGB(255, 255, 255));
 			nvgTextAlign(this->mNVG, NVG_ALIGN_RIGHT | NVG_ALIGN_TOP);
-			nvgFontSize(this->mNVG, 16);
+
 			nvgTextBox(this->mNVG, 0, 0, static_cast<float>(this->mWidth), stats.str().c_str(), nullptr);
 
 			nvgEndFrame(this->mNVG);
