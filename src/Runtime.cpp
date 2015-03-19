@@ -229,8 +229,7 @@ namespace ReShade
 
 				if (this->mShowToggleMessage)
 				{
-					this->mStatus = info.Enabled ? "Enabled" : "Disabled";
-					this->mStatus += " technique \"" + info.Technique->GetDescription().Name + "\"!";
+					this->mStatus = info.Technique->GetDescription().Name + (info.Enabled ? " enabled." : " disabled.");
 					this->mLastCreate = timePostProcessingStarted;
 				}
 
@@ -842,6 +841,8 @@ namespace ReShade
 				}
 				else
 				{
+					this->mErrors += "Unable to load source for texture '" + name + "'!";
+
 					LOG(ERROR) << "> Source " << ObfuscatePath(path) << " for texture '" << name << "' could not be loaded! Make sure it exists and of a compatible format.";
 				}
 
