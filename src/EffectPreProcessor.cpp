@@ -3,6 +3,7 @@
 #include <fpp.h>
 #include <array>
 #include <boost\algorithm\string\trim.hpp>
+#include <boost\filesystem\operations.hpp>
 
 namespace ReShade
 {
@@ -129,7 +130,7 @@ namespace ReShade
 			while ((pos = this->mImpl->mErrors.find("Included", pos)) != std::string::npos)
 			{
 				const std::size_t begin = this->mImpl->mErrors.find_first_of('"', pos) + 1, end = this->mImpl->mErrors.find_first_of('"', begin);
-				const std::string include = this->mImpl->mErrors.substr(begin, end - begin);
+				const boost::filesystem::path include = boost::filesystem::canonical(this->mImpl->mErrors.substr(begin, end - begin)).make_preferred();
 
 				this->mImpl->mErrors.erase(pos, 12 + end - begin);
 				this->mIncludes.push_back(include);

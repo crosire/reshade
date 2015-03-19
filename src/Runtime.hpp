@@ -86,6 +86,7 @@ namespace ReShade
 		NVGcontext *mNVG;
 		std::unique_ptr<FX::Effect> mEffect;
 		std::vector<TechniqueInfo> mTechniques;
+		std::vector<boost::filesystem::path> mIncludedFiles;
 		boost::chrono::high_resolution_clock::time_point mStartTime, mLastCreate, mLastPresent;
 		boost::chrono::high_resolution_clock::duration mLastFrameDuration, mLastPostProcessingDuration;
 		unsigned long long mLastFrameCount;

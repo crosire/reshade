@@ -424,21 +424,18 @@ namespace ReShade
 		}
 
 		// Check for file modifications
-		std::vector<boost::filesystem::path> modifications;
+		std::vector<boost::filesystem::path> modifications, matchedmodifications;
 
 		if (sEffectWatcher->GetModifications(modifications))
 		{
-			for (const auto &path : modifications)
-			{
-				const boost::filesystem::path extension = path.extension();
-					
-				if (extension == ".fx" || extension == ".hlsl" || extension == ".h" || (extension == ".txt" && (path.stem() == "ReShade_settings" || path.stem() == "SweetFX_settings")))
-				{
-					LOG(INFO) << "Detected modification to " << ObfuscatePath(path) << ". Reloading ...";
+			std::sort(modifications.begin(), modifications.end());
+			std::set_intersection(modifications.begin(), modifications.end(), this->mIncludedFiles.begin(), this->mIncludedFiles.end(), std::back_inserter(matchedmodifications));
 
-					this->mCompileStep = 1;
-					break;
-				}
+			if (!matchedmodifications.empty())
+			{
+				LOG(INFO) << "Detected modification to " << ObfuscatePath(matchedmodifications.front()) << ". Reloading ...";
+
+				this->mCompileStep = 1;
 			}
 		}
 
@@ -641,6 +638,8 @@ namespace ReShade
 			this->mErrors = errors;
 			this->mEffectSource = source;
 		}
+
+		this->mIncludedFiles = preprocessor.GetIncludes();
 
 		for (const std::string &pragma : preprocessor.GetPragmas())
 		{
