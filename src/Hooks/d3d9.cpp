@@ -334,6 +334,8 @@ ULONG STDMETHODCALLTYPE Direct3DSwapChain9::Release()
 		if (it != this->mDevice->mAdditionalSwapChains.end())
 		{
 			this->mDevice->mAdditionalSwapChains.erase(it);
+
+			this->mDevice->Release();
 		}
 	}
 
@@ -575,6 +577,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateAdditionalSwapChain(D3DPRESENT_
 	{
 		LOG(ERROR) << "Failed to initialize Direct3D9 renderer! Check tracelog for details.";
 	}
+
+	AddRef();
 
 	Direct3DSwapChain9 *const swapchainProxy = new Direct3DSwapChain9(this, swapchain, runtime);
 

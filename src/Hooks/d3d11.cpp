@@ -1229,13 +1229,15 @@ ULONG STDMETHODCALLTYPE D3D11Device::Release()
 {
 	if (--this->mRef == 0)
 	{
+		assert(this->mImmediateContext != nullptr);
+
+		this->mImmediateContext->Release();
+
 		assert(this->mDXGIBridge != nullptr);
 		assert(this->mDXGIDevice != nullptr);
-		assert(this->mImmediateContext != nullptr);
 
 		this->mDXGIBridge->Release();
 		this->mDXGIDevice->Release();
-		this->mImmediateContext->Release();
 	}
 
 	ULONG ref = this->mOrig->Release();

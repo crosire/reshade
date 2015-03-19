@@ -54,7 +54,7 @@ namespace
 		ULONG mRef;
 		IDXGIDevice *mOrig;
 		unsigned int mInterfaceVersion;
-		IUnknown *mDirect3DBridge, *mDirect3DDevice;
+		IUnknown *const mDirect3DBridge, *const mDirect3DDevice;
 		const unsigned int mDirect3DVersion;
 	};
 	struct DXGISwapChain : public IDXGISwapChain1, private boost::noncopyable
@@ -283,8 +283,8 @@ ULONG STDMETHODCALLTYPE DXGISwapChain::Release()
 {
 	if (--this->mRef == 0)
 	{
-		assert(this->mDevice->mDirect3DBridge != nullptr);
 		assert(this->mRuntime != nullptr);
+		assert(this->mDevice->mDirect3DBridge != nullptr);
 
 		switch (this->mDevice->mDirect3DVersion)
 		{
@@ -299,6 +299,8 @@ ULONG STDMETHODCALLTYPE DXGISwapChain::Release()
 		}
 
 		this->mRuntime.reset();
+
+		this->mDevice->Release();
 	}
 
 	ULONG ref = this->mOrig->Release();
@@ -653,10 +655,7 @@ ULONG STDMETHODCALLTYPE DXGIDevice::Release()
 {
 	if (--this->mRef == 0)
 	{
-		assert(this->mDirect3DBridge != nullptr);
-
 		this->mDirect3DBridge->Release();
-		this->mDirect3DBridge = nullptr;
 	}
 
 	ULONG ref = this->mOrig->Release();
@@ -797,7 +796,6 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, I
 		*ppSwapChain = new DXGISwapChain(deviceProxy, swapchain, runtime, desc.SampleDesc);
 
 		bridgeD3D10->Release();
-		deviceProxy->Release();
 	}
 	else if (SUCCEEDED(pDevice->QueryInterface(DXGID3D11Bridge::sIID, reinterpret_cast<void **>(&bridgeD3D11))) && SUCCEEDED(pDevice->QueryInterface(__uuidof(IDXGIDevice), reinterpret_cast<void **>(&deviceProxy))))
 	{
@@ -813,7 +811,6 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, I
 		*ppSwapChain = new DXGISwapChain(deviceProxy, swapchain, runtime, desc.SampleDesc);
 
 		bridgeD3D11->Release();
-		deviceProxy->Release();
 	}
 	else
 	{
@@ -877,7 +874,6 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pF
 		*ppSwapChain = new DXGISwapChain(deviceProxy, swapchain, runtime, desc.SampleDesc);
 
 		bridgeD3D10->Release();
-		deviceProxy->Release();
 	}
 	else if (SUCCEEDED(pDevice->QueryInterface(DXGID3D11Bridge::sIID, reinterpret_cast<void **>(&bridgeD3D11))) && SUCCEEDED(pDevice->QueryInterface(__uuidof(IDXGIDevice), reinterpret_cast<void **>(&deviceProxy))))
 	{
@@ -893,7 +889,6 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pF
 		*ppSwapChain = new DXGISwapChain(deviceProxy, swapchain, runtime, desc.SampleDesc);
 
 		bridgeD3D11->Release();
-		deviceProxy->Release();
 	}
 	else
 	{
@@ -955,7 +950,6 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactor
 		*ppSwapChain = new DXGISwapChain(deviceProxy, swapchain, runtime, desc.SampleDesc);
 
 		bridgeD3D10->Release();
-		deviceProxy->Release();
 	}
 	else if (SUCCEEDED(pDevice->QueryInterface(DXGID3D11Bridge::sIID, reinterpret_cast<void **>(&bridgeD3D11))) && SUCCEEDED(pDevice->QueryInterface(__uuidof(IDXGIDevice), reinterpret_cast<void **>(&deviceProxy))))
 	{
@@ -971,7 +965,6 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactor
 		*ppSwapChain = new DXGISwapChain(deviceProxy, swapchain, runtime, desc.SampleDesc);
 
 		bridgeD3D11->Release();
-		deviceProxy->Release();
 	}
 	else
 	{
@@ -1033,7 +1026,6 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFacto
 		*ppSwapChain = new DXGISwapChain(deviceProxy, swapchain, runtime, desc.SampleDesc);
 
 		bridgeD3D10->Release();
-		deviceProxy->Release();
 	}
 	else if (SUCCEEDED(pDevice->QueryInterface(DXGID3D11Bridge::sIID, reinterpret_cast<void **>(&bridgeD3D11))) && SUCCEEDED(pDevice->QueryInterface(__uuidof(IDXGIDevice), reinterpret_cast<void **>(&deviceProxy))))
 	{
@@ -1049,7 +1041,6 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFacto
 		*ppSwapChain = new DXGISwapChain(deviceProxy, swapchain, runtime, desc.SampleDesc);
 
 		bridgeD3D11->Release();
-		deviceProxy->Release();
 	}
 	else
 	{
