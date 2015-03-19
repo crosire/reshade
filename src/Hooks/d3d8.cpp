@@ -1759,8 +1759,6 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::GetDirect3D(Direct3D8 **ppD3D8)
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice8::GetDeviceCaps(D3D8::D3DCAPS8 *pCaps)
 {
-	LOG(INFO) << "Redirecting '" << "IDirect3DDevice8::GetDeviceCaps" << "(" << this << ", " << pCaps << ")' ...";
-
 	if (pCaps == nullptr)
 	{
 		return D3DERR_INVALIDCALL;
@@ -3595,8 +3593,6 @@ HRESULT STDMETHODCALLTYPE Direct3D8::CheckDepthStencilMatch(UINT Adapter, D3DDEV
 }
 HRESULT STDMETHODCALLTYPE Direct3D8::GetDeviceCaps(UINT Adapter, D3DDEVTYPE DeviceType, D3D8::D3DCAPS8 *pCaps)
 {
-	LOG(INFO) << "Redirecting '" << "IDirect3D8::GetDeviceCaps" << "(" << this << ", " << Adapter << ", " << DeviceType << ", " << pCaps << ")' ...";
-
 	if (pCaps == nullptr)
 	{
 		return D3DERR_INVALIDCALL;
