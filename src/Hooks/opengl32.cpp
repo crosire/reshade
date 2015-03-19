@@ -3,6 +3,7 @@
 #include "Runtimes\RuntimeGL.hpp"
 
 #include <unordered_map>
+#include <unordered_set>
 
 DECLARE_HANDLE(HPBUFFERARB);
 
@@ -182,6 +183,7 @@ namespace
 		CRITICAL_SECTION mCS;
 	} sCS;
 	std::unordered_map<HWND, RECT> sWindowRects;
+	std::unordered_set<HDC> sPbufferDeviceContexts;
 	std::unordered_map<HGLRC, HGLRC> sSharedContexts;
 	std::unordered_map<HDC, std::shared_ptr<ReShade::Runtimes::GLRuntime>> sRuntimes;
 }
@@ -3369,6 +3371,12 @@ HPBUFFERARB WINAPI wglCreatePbufferARB(HDC hdc, int iPixelFormat, int iWidth, in
 			case Attrib::WGL_PBUFFER_LARGEST_ARB:
 				LOG(TRACE) << "  | WGL_PBUFFER_LARGEST_ARB                 | " << std::setw(39) << (attrib[1] != FALSE ? "TRUE" : "FALSE") << " |";
 				break;
+			case Attrib::WGL_TEXTURE_FORMAT_ARB:
+				LOG(TRACE) << "  | WGL_TEXTURE_FORMAT_ARB                  | " << std::setw(39) << std::showbase << std::hex << attrib[1] << std::dec << std::noshowbase << " |";
+				break;
+			case Attrib::WGL_TEXTURE_TARGET_ARB:
+				LOG(TRACE) << "  | WGL_TEXTURE_TARGET_ARB                  | " << std::setw(39) << std::showbase << std::hex << attrib[1] << std::dec << std::noshowbase << " |";
+				break;
 			default:
 				LOG(TRACE) << "  | " << std::showbase << std::hex << std::setw(39) << attrib[0] << " | " << std::setw(39) << attrib[1] << std::dec << std::noshowbase << " |";
 				break;
@@ -3489,6 +3497,10 @@ HDC WINAPI wglGetPbufferDCARB(HPBUFFERARB hPbuffer)
 		return nullptr;
 	}
 
+	CriticalSection::Lock lock(sCS);
+
+	sPbufferDeviceContexts.insert(hdc);
+
 	LOG(TRACE) << "> Returned pbuffer device context: " << hdc;
 
 	return hdc;
@@ -3534,17 +3546,20 @@ EXPORT BOOL WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 	const HDC hdcPrevious = wglGetCurrentDC();
 	const HGLRC hglrcPrevious = wglGetCurrentContext();
 
-	CriticalSection::Lock lock(sCS);
-
 	if (hdc == hdcPrevious && hglrc == hglrcPrevious)
 	{
 		return TRUE;
 	}
-	else if (hdcPrevious != nullptr)
+	
+	CriticalSection::Lock lock(sCS);
+
+	const bool isPbufferDeviceContext = sPbufferDeviceContexts.find(hdc) != sPbufferDeviceContexts.end();
+	
+	if (hdcPrevious != nullptr)
 	{
 		const auto it = sRuntimes.find(hdcPrevious);
 
-		if (it != sRuntimes.end() && --it->second->mReferenceCount == 0)
+		if (it != sRuntimes.end() && --it->second->mReferenceCount == 0 && !isPbufferDeviceContext)
 		{
 			LOG(INFO) << "> Cleaning up runtime " << it->second << " ...";
 
@@ -3578,7 +3593,7 @@ EXPORT BOOL WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 	{
 		const HWND hwnd = WindowFromDC(hdc);
 
-		if (hwnd == nullptr)
+		if (hwnd == nullptr || isPbufferDeviceContext)
 		{
 			LOG(WARNING) << "> Skipped because there is no window associated with this device context.";
 
@@ -3639,6 +3654,10 @@ int WINAPI wglReleasePbufferDCARB(HPBUFFERARB hPbuffer, HDC hdc)
 
 		return FALSE;
 	}
+
+	CriticalSection::Lock lock(sCS);
+
+	sPbufferDeviceContexts.erase(hdc);
 
 	return TRUE;
 }
