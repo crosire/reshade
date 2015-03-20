@@ -264,7 +264,7 @@ namespace ReShade
 							res += "__sampler2D";
 							break;
 						case FX::Nodes::Type::Class::Struct:
-							res += type.Definition->Name;
+							res += PrintName(type.Definition);
 							break;
 					}
 
@@ -311,6 +311,10 @@ namespace ReShade
 						qualifiers += "uniform ";
 
 					return qualifiers + PrintType(type);
+				}
+				inline std::string PrintName(const FX::Nodes::Declaration *declaration)
+				{
+					return boost::replace_all_copy(declaration->Namespace, "::", "_NS") + declaration->Name;
 				}
 
 				void Visit(const FX::Nodes::Statement *node)
@@ -630,7 +634,7 @@ namespace ReShade
 
 				void Visit(const FX::Nodes::LValue *node)
 				{
-					this->mCurrentSource += node->Reference->Name;
+					this->mCurrentSource += PrintName(node->Reference);
 				}
 				void Visit(const FX::Nodes::Literal *node)
 				{
@@ -1298,7 +1302,7 @@ namespace ReShade
 				}
 				void Visit(const FX::Nodes::Call *node)
 				{
-					this->mCurrentSource += node->CalleeName;
+					this->mCurrentSource += PrintName(node->Callee);
 					this->mCurrentSource += '(';
 
 					for (auto argument : node->Arguments)
@@ -1380,7 +1384,7 @@ namespace ReShade
 				void Visit(const FX::Nodes::Struct *node)
 				{
 					this->mCurrentSource += "struct ";
-					this->mCurrentSource += node->Name;
+					this->mCurrentSource += PrintName(node);
 					this->mCurrentSource += "\n{\n";
 
 					if (!node->Fields.empty())
@@ -1432,7 +1436,7 @@ namespace ReShade
 							this->mCurrentSource += this->mCurrentBlockName + '_';
 						}
 				
-						this->mCurrentSource += node->Name;
+						this->mCurrentSource += PrintName(node);
 					}
 
 					if (node->Type.IsArray())
@@ -1551,9 +1555,9 @@ namespace ReShade
 					}
 
 					this->mCurrentSource += "Texture2D ";
-					this->mCurrentSource += node->Name;
+					this->mCurrentSource += PrintName(node);
 					this->mCurrentSource += " : register(t" + std::to_string(this->mEffect->mShaderResources.size()) + "), __";
-					this->mCurrentSource += node->Name;
+					this->mCurrentSource += PrintName(node);
 					this->mCurrentSource += "SRGB : register(t" + std::to_string(this->mEffect->mShaderResources.size() + 1) + ");\n";
 
 					this->mEffect->mShaderResources.push_back(obj->mShaderResourceView[0]);
@@ -1653,18 +1657,18 @@ namespace ReShade
 					}
 
 					this->mCurrentSource += "static const __sampler2D ";
-					this->mCurrentSource += node->Name;
+					this->mCurrentSource += PrintName(node);
 					this->mCurrentSource += " = { ";
 
 					if (node->Properties.SRGBTexture && texture->mShaderResourceView[1] != nullptr)
 					{
 						this->mCurrentSource += "__";
-						this->mCurrentSource += node->Properties.Texture->Name;
+						this->mCurrentSource += PrintName(node->Properties.Texture);
 						this->mCurrentSource += "SRGB";
 					}
 					else
 					{
-						this->mCurrentSource += node->Properties.Texture->Name;
+						this->mCurrentSource += PrintName(node->Properties.Texture);
 					}
 
 					this->mCurrentSource += ", __SamplerState" + std::to_string(it->second) + " };\n";
@@ -1673,7 +1677,7 @@ namespace ReShade
 				{
 					this->mCurrentGlobalConstants += PrintTypeWithQualifiers(node->Type);
 					this->mCurrentGlobalConstants += ' ';
-					this->mCurrentGlobalConstants += node->Name;
+					this->mCurrentGlobalConstants += PrintName(node);
 
 					if (node->Type.IsArray())
 					{

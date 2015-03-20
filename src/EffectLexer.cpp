@@ -163,6 +163,8 @@ namespace ReShade
 					return "floating point literal";
 				case Id::StringLiteral:
 					return "string literal";
+				case Id::Namespace:
+					return "namespace";
 				case Id::Struct:
 					return "struct";
 				case Id::Technique:
@@ -809,7 +811,7 @@ NextToken:
 				("explicit", Token::Id::ReservedWord)
 				("virtual", Token::Id::ReservedWord)
 				("external", Token::Id::ReservedWord)
-				("namespace", Token::Id::ReservedWord)
+				("namespace", Token::Id::Namespace)
 				("technique", Token::Id::Technique)
 				("pass", Token::Id::Pass)
 				("class", Token::Id::ReservedWord)

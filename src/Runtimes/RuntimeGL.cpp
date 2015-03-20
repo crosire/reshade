@@ -302,9 +302,9 @@ namespace ReShade
 							break;
 					}
 				}
-				static std::string FixName(const std::string &name)
+				static std::string FixName(const std::string &name, const std::string &ns)
 				{
-					std::string res;
+					std::string res = boost::replace_all_copy(ns, "::", "_NS");
 
 					if (boost::starts_with(name, "gl_") ||
 						name == "common" || name == "partition" || name == "input" || name == "ouput" || name == "active" || name == "filter" || name == "superp" ||
@@ -314,7 +314,7 @@ namespace ReShade
 						res += '_';
 					}
 
-					res += name;
+					res += boost::replace_all_copy(name, "__", "_US");
 
 					return res;
 				}
@@ -341,7 +341,7 @@ namespace ReShade
 						return "gl_FragDepth";
 					}
 
-					return FixName(name);
+					return FixName(name, "");
 				}
 
 			private:
@@ -435,7 +435,7 @@ namespace ReShade
 							output += "sampler2D";
 							break;
 						case FX::Nodes::Type::Class::Struct:
-							output += FixName(type.Definition->Name);
+							output += FixName(type.Definition->Name, type.Definition->Namespace);
 							break;
 					}
 				}
@@ -799,7 +799,7 @@ namespace ReShade
 
 				void Visit(std::string &output, const FX::Nodes::LValue *node)
 				{
-					output += FixName(node->Reference->Name);
+					output += FixName(node->Reference->Name, node->Reference->Namespace);
 				}
 				void Visit(std::string &output, const FX::Nodes::Literal *node)
 				{
@@ -1776,7 +1776,7 @@ namespace ReShade
 				}
 				void Visit(std::string &output, const FX::Nodes::Call *node)
 				{
-					output += FixName(node->CalleeName) + '(';
+					output += FixName(node->Callee->Name, node->Callee->Namespace) + '(';
 
 					if (!node->Arguments.empty())
 					{
@@ -1880,7 +1880,7 @@ namespace ReShade
 
 				void Visit(std::string &output, const FX::Nodes::Struct *node)
 				{
-					output += "struct " + FixName(node->Name) + "\n{\n";
+					output += "struct " + FixName(node->Name, node->Namespace) + "\n{\n";
 
 					if (!node->Fields.empty())
 					{
@@ -1905,7 +1905,7 @@ namespace ReShade
 						VisitType(output, node->Type);
 					}
 
-					output += ' ' + FixName(node->Name);
+					output += ' ' + FixName(node->Name, node->Namespace);
 
 					if (node->Type.IsArray())
 					{
@@ -1936,7 +1936,7 @@ namespace ReShade
 				{
 					VisitTypeClass(output, node->ReturnType);
 
-					output += ' ' + FixName(node->Name) + '(';
+					output += ' ' + FixName(node->Name, node->Namespace) + '(';
 
 					if (!node->Parameters.empty())
 					{
@@ -2099,7 +2099,7 @@ namespace ReShade
 					GLCHECK(glSamplerParameterf(sampler.mID, GL_TEXTURE_MAX_ANISOTROPY_EXT, static_cast<GLfloat>(node->Properties.MaxAnisotropy)));
 
 					this->mGlobalCode += "layout(binding = " + std::to_string(this->mEffect->mSamplers.size()) + ") uniform sampler2D ";
-					this->mGlobalCode += FixName(node->Name);
+					this->mGlobalCode += FixName(node->Name, node->Namespace);
 					this->mGlobalCode += ";\n";
 
 					this->mEffect->mSamplers.push_back(std::move(sampler));
@@ -2109,7 +2109,7 @@ namespace ReShade
 					VisitType(this->mGlobalUniforms, node->Type);
 
 					this->mGlobalUniforms += ' ';			
-					this->mGlobalUniforms += node->Name;
+					this->mGlobalUniforms += FixName(node->Name, node->Namespace);
 
 					if (node->Type.IsArray())
 					{
@@ -2392,7 +2392,11 @@ namespace ReShade
 						{
 							VisitTypeClass(source, parameter->Type);
 
-							source += " _param_" + parameter->Name + " = " + parameter->Type.Definition->Name + "(";
+							source += " _param_" + parameter->Name + " = ";
+
+							VisitTypeClass(source, parameter->Type);
+
+							source += "(";
 
 							if (!parameter->Type.Definition->Fields.empty())
 							{
@@ -2431,7 +2435,7 @@ namespace ReShade
 						}
 					}
 
-					source += FixName(node->Name) + '(';
+					source += FixName(node->Name, node->Namespace) + '(';
 
 					if (!node->Parameters.empty())
 					{

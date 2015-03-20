@@ -266,7 +266,7 @@ namespace ReShade
 							source += "sampler2D";
 							break;
 						case FX::Nodes::Type::Class::Struct:
-							source += type.Definition->Name;
+							VisitName(source, type.Definition);
 							break;
 					}
 
@@ -278,6 +278,10 @@ namespace ReShade
 					{
 						source += std::to_string(type.Rows);
 					}
+				}
+				inline void VisitName(std::string &source, const FX::Nodes::Declaration *declaration)
+				{
+					source += boost::replace_all_copy(declaration->Namespace, "::", "_NS") + declaration->Name;
 				}
 
 				void Visit(std::string &output, const FX::Nodes::Statement *node)
@@ -619,11 +623,11 @@ namespace ReShade
 
 				void Visit(std::string &output, const FX::Nodes::LValue *node)
 				{
-					output += node->Reference->Name;
+					VisitName(output, node->Reference);
 
 					if (node->Reference->Type.IsSampler() && (this->mSamplers.find(node->Reference->Name) != this->mSamplers.end()))
 					{
-						this->mFunctions.at(this->mCurrentFunction).SamplerDependencies.insert(node->Reference->Name);
+						this->mFunctions.at(this->mCurrentFunction).SamplerDependencies.insert(node->Reference);
 					}
 				}
 				void Visit(std::string &output, const FX::Nodes::Literal *node)
@@ -1284,7 +1288,9 @@ namespace ReShade
 				}
 				void Visit(std::string &output, const FX::Nodes::Call *node)
 				{
-					output += node->CalleeName + '(';
+					VisitName(output, node->Callee);
+
+					output += '(';
 
 					if (!node->Arguments.empty())
 					{
@@ -1354,7 +1360,11 @@ namespace ReShade
 
 				void Visit(std::string &output, const FX::Nodes::Struct *node)
 				{
-					output += "struct " + node->Name + "\n{\n";
+					output += "struct ";
+					
+					VisitName(output, node);
+
+					output += "\n{\n";
 
 					if (!node->Fields.empty())
 					{
@@ -1381,7 +1391,7 @@ namespace ReShade
 						output += ' ';
 					}
 
-					output += node->Name;
+					VisitName(output, node);
 
 					if (node->Type.IsArray())
 					{
@@ -1404,7 +1414,11 @@ namespace ReShade
 				{
 					VisitTypeClass(output, node->ReturnType);
 					
-					output += ' ' + node->Name + '(';
+					output += ' ';
+
+					VisitName(output, node);
+
+					output += '(';
 
 					if (!node->Parameters.empty())
 					{
@@ -1571,7 +1585,8 @@ namespace ReShade
 					VisitType(this->mGlobalCode, node->Type);
 					
 					this->mGlobalCode += ' ';
-					this->mGlobalCode += node->Name;
+
+					VisitName(this->mGlobalCode, node);
 
 					if (node->Type.IsArray())
 					{
@@ -1671,8 +1686,11 @@ namespace ReShade
 
 						for (auto sampler : this->mFunctions.at(shaderFunctions[i]).SamplerDependencies)
 						{
-							pass.Samplers[pass.SamplerCount] = this->mSamplers.at(sampler);
-							samplers += "sampler2D " + sampler + " : register(s" + std::to_string(pass.SamplerCount++) + ");\n";
+							pass.Samplers[pass.SamplerCount] = this->mSamplers.at(sampler->Name);
+
+							samplers += "sampler2D ";
+							VisitName(samplers, sampler);
+							samplers += " : register(s" + std::to_string(pass.SamplerCount++) + ");\n";
 
 							if (pass.SamplerCount == 16)
 							{
@@ -1926,7 +1944,8 @@ namespace ReShade
 						source += "float4(";
 					}
 
-					source += node->Name;
+					VisitName(source, node);
+
 					source += '(';
 
 					if (!node->Parameters.empty())
@@ -2026,7 +2045,7 @@ namespace ReShade
 				struct Function
 				{
 					std::string SourceCode;
-					std::unordered_set<std::string> SamplerDependencies;
+					std::unordered_set<const FX::Nodes::Declaration *> SamplerDependencies;
 					std::vector<const FX::Nodes::Function *> FunctionDependencies;
 				};
 

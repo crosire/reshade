@@ -88,6 +88,7 @@ namespace ReShade
 					StringLiteral,
 
 					// Keywords
+					Namespace,
 					Struct,
 					Technique,
 					Pass,

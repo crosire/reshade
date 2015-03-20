@@ -479,7 +479,7 @@ namespace ReShade
 				for (std::size_t i = 0, count = call->Arguments.size(); i < count; ++i)
 				{
 					ranks[i] = GetTypeRank(call->Arguments[i]->Type, function->Parameters[i]->Type);
-			
+
 					if (ranks[i] == 0)
 					{
 						return false;
@@ -505,23 +505,12 @@ namespace ReShade
 
 				if (!(function1Viable && function2Viable))
 				{
-					if (function1Viable)
-					{
-						return -1;
-					}
-					else if (function2Viable)
-					{
-						return +1;
-					}
-					else
-					{
-						return 0;
-					}
+					return function2Viable - function1Viable;
 				}
-		
+
 				std::sort(function1Ranks, function1Ranks + count, std::greater<unsigned int>());
 				std::sort(function2Ranks, function2Ranks + count, std::greater<unsigned int>());
-		
+
 				for (std::size_t i = 0; i < count; ++i)
 				{
 					if (function1Ranks[i] < function2Ranks[i])
@@ -538,27 +527,9 @@ namespace ReShade
 			}
 		}
 
-		Parser::Parser(Lexer &lexer, Tree &ast) : mAST(ast), mLexer(lexer), mBackupLexer(lexer), mOrigLexer(lexer), mCurrentScope(0)
+		Parser::Parser(Lexer &lexer, Tree &ast) : mAST(ast), mLexer(lexer), mBackupLexer(lexer), mOrigLexer(lexer), mCurrentScope(), mCurrentNamespace("::")
 		{
 			Consume();
-		}
-
-		bool Parser::Parse()
-		{
-			bool success = true;
-
-			while (!Peek(Lexer::Token::Id::EndOfStream))
-			{
-				if (!ParseTopLevel())
-				{
-					success = false;
-					break;
-				}
-			}
-
-			this->mOrigLexer = this->mLexer;
-
-			return success;
 		}
 
 		void Parser::Backup()
@@ -572,11 +543,27 @@ namespace ReShade
 			this->mNextToken = this->mBackupToken;
 		}
 
-		bool Parser::AcceptIdentifier(std::string &identifier)
+		bool Parser::Peek(Lexer::Token::Id token)
 		{
-			if (Accept(Lexer::Token::Id::Identifier))
+			return this->mNextToken == token;
+		}
+		void Parser::Consume()
+		{
+			this->mToken = this->mNextToken;
+			this->mNextToken = this->mLexer.Lex();
+		}
+		void Parser::ConsumeUntil(Lexer::Token::Id token)
+		{
+			while (!Accept(token) && !Peek(Lexer::Token::Id::EndOfStream))
 			{
-				identifier = this->mToken.GetRawData();
+				Consume();
+			}
+		}
+		bool Parser::Accept(Lexer::Token::Id token)
+		{
+			if (Peek(token))
+			{
+				Consume();
 
 				return true;
 			}
@@ -593,17 +580,6 @@ namespace ReShade
 			}
 
 			return true;
-		}
-		bool Parser::ExpectIdentifier(std::string &identifier)
-		{
-			if (Expect(Lexer::Token::Id::Identifier))
-			{
-				identifier = this->mToken.GetRawData();
-
-				return true;
-			}
-
-			return false;
 		}
 
 		// Types
@@ -643,7 +619,7 @@ namespace ReShade
 
 						return false;
 					}
-					
+
 					if (!type.IsScalar())
 					{
 						this->mLexer.Error(this->mToken.GetLocation(), 3122, "vector element type must be a scalar type");
@@ -655,7 +631,7 @@ namespace ReShade
 					{
 						return false;
 					}
-					
+
 					if (this->mToken.GetLiteral<int>() < 1 || this->mToken.GetLiteral<int>() > 4)
 					{
 						this->mLexer.Error(this->mToken.GetLocation(), 3052, "vector dimension must be between 1 and 4");
@@ -684,7 +660,7 @@ namespace ReShade
 
 						return false;
 					}
-					
+
 					if (!type.IsScalar())
 					{
 						this->mLexer.Error(this->mToken.GetLocation(), 3123, "matrix element type must be a scalar type");
@@ -696,7 +672,7 @@ namespace ReShade
 					{
 						return false;
 					}
-					
+
 					if (this->mToken.GetLiteral<int>() < 1 || this->mToken.GetLiteral<int>() > 4)
 					{
 						this->mLexer.Error(this->mToken.GetLocation(), 3053, "matrix dimensions must be between 1 and 4");
@@ -710,7 +686,7 @@ namespace ReShade
 					{
 						return false;
 					}
-					
+
 					if (this->mToken.GetLiteral<int>() < 1 || this->mToken.GetLiteral<int>() > 4)
 					{
 						this->mLexer.Error(this->mToken.GetLocation(), 3053, "matrix dimensions must be between 1 and 4");
@@ -971,7 +947,7 @@ namespace ReShade
 			if (type.IsIntegral() && (type.HasQualifier(Nodes::Type::Qualifier::Centroid) || type.HasQualifier(Nodes::Type::Qualifier::NoPerspective)))
 			{
 				this->mLexer.Error(location, 4576, "signature specifies invalid interpolation mode for integer component type");
-				
+
 				return false;
 			}
 
@@ -981,458 +957,6 @@ namespace ReShade
 			}
 
 			return true;
-		}
-
-		// Statements
-		bool Parser::ParseStatement(Nodes::Statement *&statement, bool scoped)
-		{
-			std::vector<std::string> attributes;
-
-			// Attributes
-			while (Accept('['))
-			{
-				std::string attribute;
-
-				if (ExpectIdentifier(attribute) && Expect(']'))
-				{
-					attributes.push_back(attribute);
-				}
-			}
-
-			const Location location = this->mNextToken.GetLocation();
-
-			if (Peek('{'))
-			{
-				if (!ParseStatementCompound(statement, scoped))
-				{
-					return false;
-				}
-
-				statement->Attributes = attributes;
-
-				return true;
-			}
-			if (Accept(';'))
-			{
-				statement = nullptr;
-
-				return true;
-			}
-
-			#pragma region If
-			if (Accept(Lexer::Token::Id::If))
-			{
-				Nodes::If *const newstatement = this->mAST.CreateNode<Nodes::If>(location);
-				newstatement->Attributes = attributes;
-
-				if (!Expect('('))
-				{
-					return false;
-				}
-
-				const Location conditionLocation = this->mNextToken.GetLocation();
-				
-				if (!(ParseExpression(newstatement->Condition) && Expect(')')))
-				{
-					return false;
-				}
-
-				if (!newstatement->Condition->Type.IsScalar())
-				{
-					this->mLexer.Error(conditionLocation, 3019, "if statement conditional expressions must evaluate to a scalar");
-
-					return false;
-				}
-
-				if (!ParseStatement(newstatement->StatementOnTrue))
-				{
-					return false;
-				}
-
-				statement = newstatement;
-
-				if (Accept(Lexer::Token::Id::Else))
-				{
-					return ParseStatement(newstatement->StatementOnFalse);
-				}
-
-				return true;
-			}
-			#pragma endregion
-
-			#pragma region Switch
-			if (Accept(Lexer::Token::Id::Switch))
-			{
-				Nodes::Switch *const newstatement = this->mAST.CreateNode<Nodes::Switch>(location);
-				newstatement->Attributes = attributes;
-
-				if (!Expect('('))
-				{
-					return false;
-				}
-
-				const Location conditionLocation = this->mNextToken.GetLocation();
-				
-				if (!(ParseExpression(newstatement->Test) && Expect(')') && Expect('{')))
-				{
-					return false;
-				}
-
-				if (!newstatement->Test->Type.IsScalar())
-				{
-					this->mLexer.Error(conditionLocation, 3019, "switch statement expression must evaluate to a scalar");
-
-					return false;
-				}
-
-				while (!Peek('}') && !Peek(Lexer::Token::Id::EndOfStream))
-				{
-					Nodes::Case *const casenode = this->mAST.CreateNode<Nodes::Case>(Location());
-
-					while (Accept(Lexer::Token::Id::Case) || Accept(Lexer::Token::Id::Default))
-					{
-						Nodes::Expression *label = nullptr;
-
-						if (this->mToken == Lexer::Token::Id::Case)
-						{
-							const Location labelLocation = this->mNextToken.GetLocation();
-
-							if (!ParseExpression(label))
-							{
-								return false;
-							}
-
-							if (label->NodeId != Node::Id::Literal || !label->Type.IsNumeric())
-							{
-								this->mLexer.Error(labelLocation, 3020, "non-numeric case expression");
-								
-								return false;
-							}
-						}
-
-						if (!Expect(':'))
-						{
-							return false;
-						}
-
-						casenode->Labels.push_back(static_cast<Nodes::Literal *>(label));
-					}
-
-					if (casenode->Labels.empty())
-					{
-						return false;
-					}
-
-					casenode->Location = casenode->Labels[0]->Location;
-
-					if (!ParseStatement(casenode->Statements))
-					{
-						return false;
-					}
-
-					newstatement->Cases.push_back(casenode);
-				}
-
-				if (newstatement->Cases.empty())
-				{
-					this->mLexer.Warning(location, 5002, "switch statement contains no 'case' or 'default' labels");
-
-					statement = nullptr;
-				}
-				else
-				{
-					statement = newstatement;
-				}
-
-				return Expect('}');
-			}
-			#pragma endregion
-
-			#pragma region For
-			if (Accept(Lexer::Token::Id::For))
-			{
-				Nodes::For *const newstatement = this->mAST.CreateNode<Nodes::For>(location);
-				newstatement->Attributes = attributes;
-
-				if (!Expect('('))
-				{
-					return false;
-				}
-
-				EnterScope();
-
-				if (!ParseDeclaration(reinterpret_cast<Nodes::DeclaratorList *&>(newstatement->Initialization)))
-				{
-					Nodes::Expression *expression = nullptr;
-					
-					if (ParseExpression(expression))
-					{
-						Nodes::ExpressionStatement *const initialization = this->mAST.CreateNode<Nodes::ExpressionStatement>(expression->Location);
-						initialization->Expression = expression;
-
-						newstatement->Initialization = initialization;
-					}
-				}
-
-				if (!Expect(';'))
-				{
-					LeaveScope();
-
-					return false;
-				}
-
-				ParseExpression(newstatement->Condition);
-
-				if (!Expect(';'))
-				{
-					LeaveScope();
-
-					return false;
-				}
-
-				ParseExpression(newstatement->Increment);
-
-				if (!Expect(')'))
-				{
-					LeaveScope();
-
-					return false;
-				}
-
-				if (!ParseStatement(newstatement->Statements, false))
-				{
-					LeaveScope();
-
-					return false;
-				}
-
-				LeaveScope();
-
-				statement = newstatement;
-
-				return true;
-			}
-			#pragma endregion
-
-			#pragma region While
-			if (Accept(Lexer::Token::Id::While))
-			{
-				Nodes::While *const newstatement = this->mAST.CreateNode<Nodes::While>(location);
-				newstatement->Attributes = attributes;
-				newstatement->DoWhile = false;
-
-				if (!Expect('('))
-				{
-					return false;
-				}
-
-				EnterScope();
-				
-				if (!(ParseExpression(newstatement->Condition) && Expect(')') && ParseStatement(newstatement->Statements, false)))
-				{
-					LeaveScope();
-
-					return false;
-				}
-
-				LeaveScope();
-
-				statement = newstatement;
-
-				return true;
-			}
-			#pragma endregion
-
-			#pragma region DoWhile
-			if (Accept(Lexer::Token::Id::Do))
-			{
-				Nodes::While *const newstatement = this->mAST.CreateNode<Nodes::While>(location);
-				newstatement->Attributes = attributes;
-				newstatement->DoWhile = true;
-
-				if (!(ParseStatement(newstatement->Statements) && Expect(Lexer::Token::Id::While) && Expect('(') && ParseExpression(newstatement->Condition) && Expect(')') && Expect(';')))
-				{
-					return false;
-				}
-
-				statement = newstatement;
-
-				return true;
-			}
-			#pragma endregion
-
-			#pragma region Break
-			if (Accept(Lexer::Token::Id::Break))
-			{
-				Nodes::Jump *const newstatement = this->mAST.CreateNode<Nodes::Jump>(location);
-				newstatement->Attributes = attributes;
-				newstatement->Mode = Nodes::Jump::Break;
-
-				statement = newstatement;
-
-				return Expect(';');
-			}
-			#pragma endregion
-
-			#pragma region Continue
-			if (Accept(Lexer::Token::Id::Continue))
-			{
-				Nodes::Jump *const newstatement = this->mAST.CreateNode<Nodes::Jump>(location);
-				newstatement->Attributes = attributes;
-				newstatement->Mode = Nodes::Jump::Continue;
-
-				statement = newstatement;
-
-				return Expect(';');
-			}
-			#pragma endregion
-
-			#pragma region Return
-			if (Accept(Lexer::Token::Id::Return))
-			{
-				Nodes::Return *const newstatement = this->mAST.CreateNode<Nodes::Return>(location);
-				newstatement->Attributes = attributes;
-				newstatement->Discard = false;
-
-				const Nodes::Function *const parent = static_cast<const Nodes::Function *>(this->mParentStack.top());
-
-				if (!Peek(';'))
-				{
-					if (!ParseExpression(newstatement->Value))
-					{
-						return false;
-					}
-
-					if (parent->ReturnType.IsVoid())
-					{
-						this->mLexer.Error(location, 3079, "void functions cannot return a value");
-
-						Accept(';');
-
-						return false;
-					}
-
-					if (!GetTypeRank(newstatement->Value->Type, parent->ReturnType))
-					{
-						this->mLexer.Error(location, 3017, "expression does not match function return type");
-
-						return false;
-					}
-
-					if (newstatement->Value->Type.Rows > parent->ReturnType.Rows || newstatement->Value->Type.Cols > parent->ReturnType.Cols)
-					{
-						this->mLexer.Warning(location, 3206, "implicit truncation of vector type");
-					}
-				}
-				else if (!parent->ReturnType.IsVoid())
-				{
-					this->mLexer.Error(location, 3080, "function must return a value");
-
-					Accept(';');
-
-					return false;
-				}
-
-				statement = newstatement;
-
-				return Expect(';');
-			}
-			#pragma endregion
-
-			#pragma region Discard
-			if (Accept(Lexer::Token::Id::Discard))
-			{
-				Nodes::Return *const newstatement = this->mAST.CreateNode<Nodes::Return>(location);
-				newstatement->Attributes = attributes;
-				newstatement->Discard = true;
-
-				statement = newstatement;
-
-				return Expect(';');
-			}
-			#pragma endregion
-
-			#pragma region Declaration
-			Nodes::DeclaratorList *declaration = nullptr;
-
-			if (ParseDeclaration(declaration))
-			{
-				declaration->Attributes = attributes;
-
-				statement = declaration;
-
-				return Expect(';');
-			}
-			#pragma endregion
-
-			#pragma region Expression
-			Nodes::Expression *expression = nullptr;
-
-			if (ParseExpression(expression))
-			{
-				Nodes::ExpressionStatement *const newstatement = this->mAST.CreateNode<Nodes::ExpressionStatement>(location);
-				newstatement->Attributes = attributes;
-				newstatement->Expression = expression;
-
-				statement = newstatement;
-
-				return Expect(';');
-			}
-			else
-			{
-				while (!Accept(';') && !Peek(Lexer::Token::Id::EndOfStream))
-				{
-					Consume();
-				}
-			}
-			#pragma endregion
-
-			return false;
-		}
-		bool Parser::ParseStatementCompound(Nodes::Statement *&statement, bool scoped)
-		{
-			if (!Expect('{'))
-			{
-				return false;
-			}
-
-			Nodes::Compound *const compound = this->mAST.CreateNode<Nodes::Compound>(this->mToken.GetLocation());
-
-			if (scoped)
-			{
-				EnterScope();
-			}
-
-			while (!Peek('}') && !Peek(Lexer::Token::Id::EndOfStream))
-			{
-				Nodes::Statement *statement = nullptr;
-
-				if (!ParseStatement(statement))
-				{
-					if (scoped)
-					{
-						LeaveScope();
-					}
-
-					while (!Accept('}') && !Peek(Lexer::Token::Id::EndOfStream))
-					{
-						Consume();
-					}
-
-					return false;
-				}
-
-				compound->Statements.push_back(statement);
-			}
-
-			if (scoped)
-			{
-				LeaveScope();
-			}
-
-			statement = compound;
-
-			return Expect('}');
 		}
 
 		// Expressions
@@ -1627,20 +1151,19 @@ namespace ReShade
 				Nodes::Sequence *const sequence = this->mAST.CreateNode<Nodes::Sequence>(node->Location);
 				sequence->Expressions.push_back(node);
 
-				node = sequence;
-			}
-
-			while (Accept(','))
-			{
-				Nodes::Expression *expression = nullptr;
-
-				if (!ParseExpressionAssignment(expression))
+				while (Accept(','))
 				{
-					return false;
+					Nodes::Expression *expression = nullptr;
+
+					if (!ParseExpressionAssignment(expression))
+					{
+						return false;
+					}
+
+					sequence->Expressions.push_back(std::move(expression));
 				}
 
-				Nodes::Sequence *const sequence = static_cast<Nodes::Sequence *>(node);
-				sequence->Expressions.push_back(expression);
+				node = sequence;
 			}
 
 			return true;
@@ -1649,15 +1172,11 @@ namespace ReShade
 		{
 			Nodes::Type type;
 			Nodes::Unary::Op op;
-			const Node *symbol = nullptr;
-			std::string identifier;
 			Location location = this->mNextToken.GetLocation();
 
 			#pragma region Prefix
 			if (AcceptUnaryOp(op))
 			{
-				location = this->mNextToken.GetLocation();
-
 				if (!ParseExpressionUnary(node))
 				{
 					return false;
@@ -1665,7 +1184,7 @@ namespace ReShade
 
 				if (!node->Type.IsScalar() && !node->Type.IsVector() && !node->Type.IsMatrix())
 				{
-					this->mLexer.Error(location, 3022, "scalar, vector, or matrix expected");
+					this->mLexer.Error(node->Location, 3022, "scalar, vector, or matrix expected");
 
 					return false;
 				}
@@ -1674,17 +1193,17 @@ namespace ReShade
 				{
 					if (op == Nodes::Unary::Op::BitwiseNot && !node->Type.IsIntegral())
 					{
-						this->mLexer.Error(location, 3082, "int or unsigned int type required");
+						this->mLexer.Error(node->Location, 3082, "int or unsigned int type required");
 
 						return false;
 					}
 					else if ((op == Nodes::Unary::Op::Increase || op == Nodes::Unary::Op::Decrease) && (node->Type.HasQualifier(Nodes::Type::Qualifier::Const) || node->Type.HasQualifier(Nodes::Type::Qualifier::Uniform)))
 					{
-						this->mLexer.Error(location, 3025, "l-value specifies const object");
+						this->mLexer.Error(node->Location, 3025, "l-value specifies const object");
 
 						return false;
 					}
-					
+
 					Nodes::Unary *const newexpression = this->mAST.CreateNode<Nodes::Unary>(location);
 					newexpression->Type = node->Type;
 					newexpression->Operator = op;
@@ -1705,9 +1224,9 @@ namespace ReShade
 					{
 						Restore();
 					}
-					else
+					else if (Expect(')'))
 					{
-						if (!(Expect(')') && ParseExpressionUnary(node)))
+						if (!ParseExpressionUnary(node))
 						{
 							return false;
 						}
@@ -1721,7 +1240,7 @@ namespace ReShade
 							if ((node->Type.Rows < type.Rows || node->Type.Cols < type.Cols) && !node->Type.IsScalar())
 							{
 								this->mLexer.Error(location, 3017, "cannot convert these vector types");
-								
+
 								return false;
 							}
 
@@ -1746,6 +1265,10 @@ namespace ReShade
 
 							return false;
 						}
+					}
+					else
+					{
+						return false;
 					}
 				}
 
@@ -1845,15 +1368,15 @@ namespace ReShade
 			}
 			else if (AcceptTypeClass(type))
 			{
+				if (!Expect('('))
+				{
+					return false;
+				}
+
 				if (!type.IsNumeric())
 				{
 					this->mLexer.Error(location, 3037, "constructors only defined for numeric base types");
 
-					return false;
-				}
-
-				if (!Expect('('))
-				{
 					return false;
 				}
 
@@ -1865,8 +1388,8 @@ namespace ReShade
 				}
 
 				Nodes::Constructor *const constructor = this->mAST.CreateNode<Nodes::Constructor>(location);
-				type.Qualifiers = Nodes::Type::Qualifier::Const;
 				constructor->Type = type;
+				constructor->Type.Qualifiers = Nodes::Type::Qualifier::Const;
 
 				unsigned int elements = 0;
 
@@ -1878,7 +1401,6 @@ namespace ReShade
 					}
 
 					Nodes::Expression *argument = nullptr;
-					const Location argumentLocation = this->mNextToken.GetLocation();
 
 					if (!ParseExpressionAssignment(argument))
 					{
@@ -1887,14 +1409,14 @@ namespace ReShade
 
 					if (!argument->Type.IsNumeric())
 					{
-						this->mLexer.Error(argumentLocation, 3017, "cannot convert non-numeric types");
+						this->mLexer.Error(argument->Location, 3017, "cannot convert non-numeric types");
 
 						return false;
 					}
 
 					elements += argument->Type.Rows * argument->Type.Cols;
 
-					constructor->Arguments.push_back(argument);
+					constructor->Arguments.push_back(std::move(argument));
 				}
 
 				if (!Expect(')'))
@@ -1912,6 +1434,7 @@ namespace ReShade
 				if (constructor->Arguments.size() > 1)
 				{
 					node = constructor;
+					type = constructor->Type;
 				}
 				else
 				{
@@ -1925,9 +1448,43 @@ namespace ReShade
 
 				node = FoldConstantExpression(node);
 			}
-			else if (ExpectIdentifier(identifier))
+			else
 			{
-				symbol = FindSymbol(identifier);
+				Scope scope;
+				bool exclusive;
+				std::string identifier;
+
+				if (Accept(Lexer::Token::Id::ColonColon))
+				{
+					scope.NamespaceLevel = scope.Level = 0;
+					exclusive = true;
+				}
+				else
+				{
+					scope = this->mCurrentScope;
+					exclusive = false;
+				}
+
+				if (exclusive ? Expect(Lexer::Token::Id::Identifier) : Accept(Lexer::Token::Id::Identifier))
+				{
+					identifier = this->mToken.GetRawData();
+				}
+				else
+				{
+					return false;
+				}
+
+				while (Accept(Lexer::Token::Id::ColonColon))
+				{
+					if (!Expect(Lexer::Token::Id::Identifier))
+					{
+						return false;
+					}
+
+					identifier += "::" + this->mToken.GetRawData();
+				}
+
+				const Node *symbol = FindSymbol(identifier, scope, exclusive);
 
 				if (Accept('('))
 				{
@@ -1955,7 +1512,7 @@ namespace ReShade
 							return false;
 						}
 
-						callexpression->Arguments.push_back(argument);
+						callexpression->Arguments.push_back(std::move(argument));
 					}
 
 					if (!Expect(')'))
@@ -1965,7 +1522,7 @@ namespace ReShade
 
 					bool undeclared = symbol == nullptr, intrinsic = false, ambiguous = false;
 
-					if (!ResolveCall(callexpression, intrinsic, ambiguous))
+					if (!ResolveCall(callexpression, scope, intrinsic, ambiguous))
 					{
 						if (undeclared && !intrinsic)
 						{
@@ -1989,7 +1546,7 @@ namespace ReShade
 						newexpression->Type = callexpression->Type;
 						newexpression->Operator = static_cast<Nodes::Intrinsic::Op>(reinterpret_cast<unsigned int>(callexpression->Callee));
 
-						for (std::size_t i = 0, count = std::min(callexpression->Arguments.size(), static_cast<std::size_t>(4)); i < count; ++i)
+						for (std::size_t i = 0, count = std::min(callexpression->Arguments.size(), sizeof(newexpression->Arguments) / sizeof(*newexpression->Arguments)); i < count; ++i)
 						{
 							newexpression->Arguments[i] = callexpression->Arguments[i];
 						}
@@ -2036,27 +1593,25 @@ namespace ReShade
 					type = node->Type;
 				}
 			}
-			else
-			{
-				return false;
-			}
 			#pragma endregion
 
 			#pragma region Postfix
 			while (!Peek(Lexer::Token::Id::EndOfStream))
 			{
+				location = this->mNextToken.GetLocation();
+
 				if (AcceptPostfixOp(op))
 				{
 					if (!type.IsScalar() && !type.IsVector() && !type.IsMatrix())
 					{
-						this->mLexer.Error(location, 3022, "scalar, vector, or matrix expected");
+						this->mLexer.Error(node->Location, 3022, "scalar, vector, or matrix expected");
 
 						return false;
 					}
 
 					if (type.HasQualifier(Nodes::Type::Qualifier::Const) || type.HasQualifier(Nodes::Type::Qualifier::Uniform))
 					{
-						this->mLexer.Error(location, 3025, "l-value specifies const object");
+						this->mLexer.Error(node->Location, 3025, "l-value specifies const object");
 
 						return false;
 					}
@@ -2066,20 +1621,19 @@ namespace ReShade
 					newexpression->Type.Qualifiers |= Nodes::Type::Qualifier::Const;
 					newexpression->Operator = op;
 					newexpression->Operand = node;
-		
+
 					node = newexpression;
 					type = node->Type;
 				}
 				else if (Accept('.'))
 				{
-					std::string subscript;
-
-					if (!ExpectIdentifier(subscript))
+					if (!Expect(Lexer::Token::Id::Identifier))
 					{
 						return false;
 					}
 
 					location = this->mToken.GetLocation();
+					const std::string subscript = this->mToken.GetRawData();
 
 					if (Accept('('))
 					{
@@ -2145,10 +1699,10 @@ namespace ReShade
 							if (static_cast<unsigned int>(offsets[i]) >= type.Rows)
 							{
 								this->mLexer.Error(location, 3018, "invalid subscript '%s', swizzle out of range", subscript.c_str());
-	
+
 								return false;
 							}
-		
+
 							for (std::size_t k = 0; k < i; ++k)
 							{
 								if (offsets[k] == offsets[i])
@@ -2219,7 +1773,7 @@ namespace ReShade
 							}
 
 							offsets[j] = static_cast<unsigned char>(row * 4 + col);
-		
+
 							for (std::size_t k = 0; k < j; ++k)
 							{
 								if (offsets[k] == offsets[j])
@@ -2324,7 +1878,7 @@ namespace ReShade
 				{
 					if (!type.IsArray() && !type.IsVector() && !type.IsMatrix())
 					{
-						this->mLexer.Error(location, 3121, "array, matrix, vector, or indexable object type expected in index expression");
+						this->mLexer.Error(node->Location, 3121, "array, matrix, vector, or indexable object type expected in index expression");
 
 						return false;
 					}
@@ -2334,8 +1888,6 @@ namespace ReShade
 					newexpression->Operator = Nodes::Binary::Op::ElementExtract;
 					newexpression->Operands[0] = node;
 
-					location = this->mNextToken.GetLocation();
-
 					if (!ParseExpression(newexpression->Operands[1]))
 					{
 						return false;
@@ -2343,7 +1895,7 @@ namespace ReShade
 
 					if (!newexpression->Operands[1]->Type.IsScalar())
 					{
-						this->mLexer.Error(location, 3120, "invalid type for index - index must be a scalar");
+						this->mLexer.Error(newexpression->Operands[1]->Location, 3120, "invalid type for index - index must be a scalar");
 
 						return false;
 					}
@@ -2381,8 +1933,6 @@ namespace ReShade
 		}
 		bool Parser::ParseExpressionMultary(Nodes::Expression *&left, unsigned int leftPrecedence)
 		{
-			const Location leftLocation = this->mNextToken.GetLocation();
-
 			if (!ParseExpressionUnary(left))
 			{
 				return false;
@@ -2394,7 +1944,6 @@ namespace ReShade
 			while (PeekMultaryOp(op, rightPrecedence))
 			{
 				bool boolean = false;
-				Location rightLocation = this->mNextToken.GetLocation();
 				Nodes::Expression *right1 = nullptr, *right2 = nullptr;
 
 				if (rightPrecedence <= leftPrecedence)
@@ -2419,7 +1968,7 @@ namespace ReShade
 
 						if (left->Type.IsArray() || right1->Type.IsArray() || left->Type.Definition != right1->Type.Definition)
 						{
-							this->mLexer.Error(rightLocation, 3020, "type mismatch");
+							this->mLexer.Error(right1->Location, 3020, "type mismatch");
 
 							return false;
 						}
@@ -2428,13 +1977,13 @@ namespace ReShade
 					{
 						if (!left->Type.IsIntegral())
 						{
-							this->mLexer.Error(leftLocation, 3082, "int or unsigned int type required");
+							this->mLexer.Error(left->Location, 3082, "int or unsigned int type required");
 
 							return false;
 						}
 						if (!right1->Type.IsIntegral())
 						{
-							this->mLexer.Error(rightLocation, 3082, "int or unsigned int type required");
+							this->mLexer.Error(right1->Location, 3082, "int or unsigned int type required");
 
 							return false;
 						}
@@ -2445,31 +1994,31 @@ namespace ReShade
 
 						if (!left->Type.IsScalar() && !left->Type.IsVector() && !left->Type.IsMatrix())
 						{
-							this->mLexer.Error(leftLocation, 3022, "scalar, vector, or matrix expected");
+							this->mLexer.Error(left->Location, 3022, "scalar, vector, or matrix expected");
 
 							return false;
 						}
 						if (!right1->Type.IsScalar() && !right1->Type.IsVector() && !right1->Type.IsMatrix())
 						{
-							this->mLexer.Error(rightLocation, 3022, "scalar, vector, or matrix expected");
+							this->mLexer.Error(right1->Location, 3022, "scalar, vector, or matrix expected");
 
 							return false;
 						}
 					}
 
-					Nodes::Binary *const newexpression = this->mAST.CreateNode<Nodes::Binary>(leftLocation);
+					Nodes::Binary *const newexpression = this->mAST.CreateNode<Nodes::Binary>(left->Location);
 					newexpression->Operator = op;
 					newexpression->Operands[0] = left;
 					newexpression->Operands[1] = right1;
 
-					right2 = right1, right1 = left, rightLocation = leftLocation;
+					right2 = right1, right1 = left;
 					left = newexpression;
 				}
 				else
 				{
 					if (!left->Type.IsScalar() && !left->Type.IsVector())
 					{
-						this->mLexer.Error(leftLocation, 3022, "boolean or vector expression expected");
+						this->mLexer.Error(left->Location, 3022, "boolean or vector expression expected");
 
 						return false;
 					}
@@ -2478,15 +2027,15 @@ namespace ReShade
 					{
 						return false;
 					}
-					
+
 					if (right1->Type.IsArray() || right2->Type.IsArray() || right1->Type.Definition != right2->Type.Definition)
 					{
-						this->mLexer.Error(leftLocation, 3020, "type mismatch between conditional values");
+						this->mLexer.Error(left->Location, 3020, "type mismatch between conditional values");
 
 						return false;
 					}
 
-					Nodes::Conditional *const newexpression = this->mAST.CreateNode<Nodes::Conditional>(leftLocation);
+					Nodes::Conditional *const newexpression = this->mAST.CreateNode<Nodes::Conditional>(left->Location);
 					newexpression->Condition = left;
 					newexpression->ExpressionOnTrue = right1;
 					newexpression->ExpressionOnFalse = right2;
@@ -2515,11 +2064,11 @@ namespace ReShade
 
 					if (right1->Type.Rows > right2->Type.Rows || right1->Type.Cols > right2->Type.Cols)
 					{
-						this->mLexer.Warning(rightLocation, 3206, "implicit truncation of vector type");
+						this->mLexer.Warning(right1->Location, 3206, "implicit truncation of vector type");
 					}
 					if (right2->Type.Rows > right1->Type.Rows || right2->Type.Cols > right1->Type.Cols)
 					{
-						this->mLexer.Warning(this->mToken.GetLocation(), 3206, "implicit truncation of vector type");
+						this->mLexer.Warning(right2->Location, 3206, "implicit truncation of vector type");
 					}
 				}
 
@@ -2528,23 +2077,18 @@ namespace ReShade
 
 			return true;
 		}
-		bool Parser::ParseExpressionAssignment(Nodes::Expression *&node)
+		bool Parser::ParseExpressionAssignment(Nodes::Expression *&left)
 		{
-			Nodes::Expression *left, *right;
-			const Location leftLocation = this->mNextToken.GetLocation();
-
 			if (!ParseExpressionMultary(left))
 			{
 				return false;
 			}
 
-			node = left;
-
 			Nodes::Assignment::Op op;
 
 			if (AcceptAssignmentOp(op))
 			{
-				const Location rightLocation = this->mNextToken.GetLocation();
+				Nodes::Expression *right = nullptr;
 
 				if (!ParseExpressionMultary(right))
 				{
@@ -2553,21 +2097,21 @@ namespace ReShade
 
 				if (left->Type.HasQualifier(Nodes::Type::Qualifier::Const) || left->Type.HasQualifier(Nodes::Type::Qualifier::Uniform))
 				{
-					this->mLexer.Error(leftLocation, 3025, "l-value specifies const object");
+					this->mLexer.Error(left->Location, 3025, "l-value specifies const object");
 
 					return false;
 				}
 
-				if (left->Type.IsArray() || right->Type.IsArray() || left->Type.Definition != right->Type.Definition || ((left->Type.Rows > right->Type.Rows || left->Type.Cols > right->Type.Cols) && !(right->Type.Rows == 1 && right->Type.Cols == 1)))
+				if (left->Type.IsArray() || right->Type.IsArray() || !GetTypeRank(left->Type, right->Type))
 				{
-					this->mLexer.Error(rightLocation, 3020, "type mismatch");
+					this->mLexer.Error(right->Location, 3020, "cannot convert these types");
 
 					return false;
 				}
 
 				if (right->Type.Rows > left->Type.Rows || right->Type.Cols > left->Type.Cols)
 				{
-					this->mLexer.Warning(rightLocation, 3206, "implicit truncation of vector type");
+					this->mLexer.Warning(right->Location, 3206, "implicit truncation of vector type");
 				}
 
 				Nodes::Assignment *const assignment = this->mAST.CreateNode<Nodes::Assignment>(left->Location);
@@ -2576,27 +2120,557 @@ namespace ReShade
 				assignment->Left = left;
 				assignment->Right = right;
 
-				node = assignment;
+				left = assignment;
 			}
 
 			return true;
 		}
 
-		// Declarations
-		bool Parser::ParseTopLevel()
+		// Statements
+		bool Parser::ParseStatement(Nodes::Statement *&statement, bool scoped)
 		{
-			Nodes::Type type = { Nodes::Type::Class::Void };
+			std::vector<std::string> attributes;
 
-			if (Peek(Lexer::Token::Id::Technique))
+			// Attributes
+			while (Accept('['))
 			{
-				Nodes::Technique *technique = nullptr;
+				if (Expect(Lexer::Token::Id::Identifier))
+				{
+					const std::string attribute = this->mToken.GetRawData();
 
-				if (!ParseTechnique(technique))
+					if (Expect(']'))
+					{
+						attributes.push_back(attribute);
+					}
+				}
+				else
+				{
+					Accept(']');
+				}
+			}
+
+			if (Peek('{'))
+			{
+				if (!ParseStatementBlock(statement, scoped))
 				{
 					return false;
 				}
 
-				this->mAST.Techniques.push_back(technique);
+				statement->Attributes = attributes;
+
+				return true;
+			}
+
+			if (Accept(';'))
+			{
+				statement = nullptr;
+
+				return true;
+			}
+
+			#pragma region If
+			if (Accept(Lexer::Token::Id::If))
+			{
+				Nodes::If *const newstatement = this->mAST.CreateNode<Nodes::If>(this->mToken.GetLocation());
+				newstatement->Attributes = attributes;
+
+				if (!(Expect('(') && ParseExpression(newstatement->Condition) && Expect(')')))
+				{
+					return false;
+				}
+
+				if (!newstatement->Condition->Type.IsScalar())
+				{
+					this->mLexer.Error(newstatement->Condition->Location, 3019, "if statement conditional expressions must evaluate to a scalar");
+
+					return false;
+				}
+
+				if (!ParseStatement(newstatement->StatementOnTrue))
+				{
+					return false;
+				}
+
+				statement = newstatement;
+
+				if (Accept(Lexer::Token::Id::Else))
+				{
+					return ParseStatement(newstatement->StatementOnFalse);
+				}
+
+				return true;
+			}
+			#pragma endregion
+
+			#pragma region Switch
+			if (Accept(Lexer::Token::Id::Switch))
+			{
+				Nodes::Switch *const newstatement = this->mAST.CreateNode<Nodes::Switch>(this->mToken.GetLocation());
+				newstatement->Attributes = attributes;
+
+				if (!(Expect('(') && ParseExpression(newstatement->Test) && Expect(')')))
+				{
+					return false;
+				}
+
+				if (!newstatement->Test->Type.IsScalar())
+				{
+					this->mLexer.Error(newstatement->Test->Location, 3019, "switch statement expression must evaluate to a scalar");
+
+					return false;
+				}
+
+				if (!Expect('{'))
+				{
+					return false;
+				}
+
+				while (!Peek('}') && !Peek(Lexer::Token::Id::EndOfStream))
+				{
+					Nodes::Case *const casenode = this->mAST.CreateNode<Nodes::Case>(Location());
+
+					while (Accept(Lexer::Token::Id::Case) || Accept(Lexer::Token::Id::Default))
+					{
+						Nodes::Expression *label = nullptr;
+
+						if (this->mToken == Lexer::Token::Id::Case)
+						{
+							if (!ParseExpression(label))
+							{
+								return false;
+							}
+
+							if (label->NodeId != Node::Id::Literal || !label->Type.IsNumeric())
+							{
+								this->mLexer.Error(label->Location, 3020, "non-numeric case expression");
+
+								return false;
+							}
+						}
+
+						if (!Expect(':'))
+						{
+							return false;
+						}
+
+						casenode->Labels.push_back(static_cast<Nodes::Literal *>(label));
+					}
+
+					if (casenode->Labels.empty())
+					{
+						return false;
+					}
+
+					casenode->Location = casenode->Labels[0]->Location;
+
+					if (!ParseStatement(casenode->Statements))
+					{
+						return false;
+					}
+
+					newstatement->Cases.push_back(casenode);
+				}
+
+				if (newstatement->Cases.empty())
+				{
+					this->mLexer.Warning(newstatement->Location, 5002, "switch statement contains no 'case' or 'default' labels");
+
+					statement = nullptr;
+				}
+				else
+				{
+					statement = newstatement;
+				}
+
+				return Expect('}');
+			}
+			#pragma endregion
+
+			#pragma region For
+			if (Accept(Lexer::Token::Id::For))
+			{
+				Nodes::For *const newstatement = this->mAST.CreateNode<Nodes::For>(this->mToken.GetLocation());
+				newstatement->Attributes = attributes;
+
+				if (!Expect('('))
+				{
+					return false;
+				}
+
+				EnterScope();
+
+				if (!ParseStatementDeclaratorList(newstatement->Initialization))
+				{
+					Nodes::Expression *expression = nullptr;
+
+					if (ParseExpression(expression))
+					{
+						Nodes::ExpressionStatement *const initialization = this->mAST.CreateNode<Nodes::ExpressionStatement>(expression->Location);
+						initialization->Expression = expression;
+
+						newstatement->Initialization = initialization;
+					}
+				}
+
+				if (!Expect(';'))
+				{
+					LeaveScope();
+
+					return false;
+				}
+
+				ParseExpression(newstatement->Condition);
+
+				if (!Expect(';'))
+				{
+					LeaveScope();
+
+					return false;
+				}
+
+				ParseExpression(newstatement->Increment);
+
+				if (!Expect(')'))
+				{
+					LeaveScope();
+
+					return false;
+				}
+
+				if (!newstatement->Condition->Type.IsScalar())
+				{
+					this->mLexer.Error(newstatement->Condition->Location, 3019, "scalar value expected");
+
+					return false;
+				}
+
+				if (!ParseStatement(newstatement->Statements, false))
+				{
+					LeaveScope();
+
+					return false;
+				}
+
+				LeaveScope();
+
+				statement = newstatement;
+
+				return true;
+			}
+			#pragma endregion
+
+			#pragma region While
+			if (Accept(Lexer::Token::Id::While))
+			{
+				Nodes::While *const newstatement = this->mAST.CreateNode<Nodes::While>(this->mToken.GetLocation());
+				newstatement->Attributes = attributes;
+				newstatement->DoWhile = false;
+
+				EnterScope();
+
+				if (!(Expect('(') && ParseExpression(newstatement->Condition) && Expect(')')))
+				{
+					LeaveScope();
+
+					return false;
+				}
+
+				if (!newstatement->Condition->Type.IsScalar())
+				{
+					this->mLexer.Error(newstatement->Condition->Location, 3019, "scalar value expected");
+
+					LeaveScope();
+
+					return false;
+				}
+
+				if (!ParseStatement(newstatement->Statements, false))
+				{
+					LeaveScope();
+
+					return false;
+				}
+
+				LeaveScope();
+
+				statement = newstatement;
+
+				return true;
+			}
+			#pragma endregion
+
+			#pragma region DoWhile
+			if (Accept(Lexer::Token::Id::Do))
+			{
+				Nodes::While *const newstatement = this->mAST.CreateNode<Nodes::While>(this->mToken.GetLocation());
+				newstatement->Attributes = attributes;
+				newstatement->DoWhile = true;
+
+				if (!(ParseStatement(newstatement->Statements) && Expect(Lexer::Token::Id::While) && Expect('(') && ParseExpression(newstatement->Condition) && Expect(')') && Expect(';')))
+				{
+					return false;
+				}
+
+				if (!newstatement->Condition->Type.IsScalar())
+				{
+					this->mLexer.Error(newstatement->Condition->Location, 3019, "scalar value expected");
+
+					return false;
+				}
+
+				statement = newstatement;
+
+				return true;
+			}
+			#pragma endregion
+
+			#pragma region Break
+			if (Accept(Lexer::Token::Id::Break))
+			{
+				Nodes::Jump *const newstatement = this->mAST.CreateNode<Nodes::Jump>(this->mToken.GetLocation());
+				newstatement->Attributes = attributes;
+				newstatement->Mode = Nodes::Jump::Break;
+
+				statement = newstatement;
+
+				return Expect(';');
+			}
+			#pragma endregion
+
+			#pragma region Continue
+			if (Accept(Lexer::Token::Id::Continue))
+			{
+				Nodes::Jump *const newstatement = this->mAST.CreateNode<Nodes::Jump>(this->mToken.GetLocation());
+				newstatement->Attributes = attributes;
+				newstatement->Mode = Nodes::Jump::Continue;
+
+				statement = newstatement;
+
+				return Expect(';');
+			}
+			#pragma endregion
+
+			#pragma region Return
+			if (Accept(Lexer::Token::Id::Return))
+			{
+				Nodes::Return *const newstatement = this->mAST.CreateNode<Nodes::Return>(this->mToken.GetLocation());
+				newstatement->Attributes = attributes;
+				newstatement->Discard = false;
+
+				const Nodes::Function *const parent = static_cast<const Nodes::Function *>(this->mParentStack.top());
+
+				if (!Peek(';'))
+				{
+					if (!ParseExpression(newstatement->Value))
+					{
+						return false;
+					}
+
+					if (parent->ReturnType.IsVoid())
+					{
+						this->mLexer.Error(newstatement->Location, 3079, "void functions cannot return a value");
+
+						Accept(';');
+
+						return false;
+					}
+
+					if (!GetTypeRank(newstatement->Value->Type, parent->ReturnType))
+					{
+						this->mLexer.Error(newstatement->Location, 3017, "expression does not match function return type");
+
+						return false;
+					}
+
+					if (newstatement->Value->Type.Rows > parent->ReturnType.Rows || newstatement->Value->Type.Cols > parent->ReturnType.Cols)
+					{
+						this->mLexer.Warning(newstatement->Location, 3206, "implicit truncation of vector type");
+					}
+				}
+				else if (!parent->ReturnType.IsVoid())
+				{
+					this->mLexer.Error(newstatement->Location, 3080, "function must return a value");
+
+					Accept(';');
+
+					return false;
+				}
+
+				statement = newstatement;
+
+				return Expect(';');
+			}
+			#pragma endregion
+
+			#pragma region Discard
+			if (Accept(Lexer::Token::Id::Discard))
+			{
+				Nodes::Return *const newstatement = this->mAST.CreateNode<Nodes::Return>(this->mToken.GetLocation());
+				newstatement->Attributes = attributes;
+				newstatement->Discard = true;
+
+				statement = newstatement;
+
+				return Expect(';');
+			}
+			#pragma endregion
+
+			#pragma region Declaration
+			if (ParseStatementDeclaratorList(statement))
+			{
+				statement->Attributes = attributes;
+
+				return Expect(';');
+			}
+			#pragma endregion
+
+			#pragma region Expression
+			Nodes::Expression *expression = nullptr;
+
+			if (ParseExpression(expression))
+			{
+				Nodes::ExpressionStatement *const newstatement = this->mAST.CreateNode<Nodes::ExpressionStatement>(expression->Location);
+				newstatement->Attributes = attributes;
+				newstatement->Expression = expression;
+
+				statement = newstatement;
+
+				return Expect(';');
+			}
+			#pragma endregion
+
+			ConsumeUntil(';');
+
+			return false;
+		}
+		bool Parser::ParseStatementBlock(Nodes::Statement *&statement, bool scoped)
+		{
+			if (!Expect('{'))
+			{
+				return false;
+			}
+
+			Nodes::Compound *const compound = this->mAST.CreateNode<Nodes::Compound>(this->mToken.GetLocation());
+
+			if (scoped)
+			{
+				EnterScope();
+			}
+
+			while (!Peek('}') && !Peek(Lexer::Token::Id::EndOfStream))
+			{
+				Nodes::Statement *statement = nullptr;
+
+				if (!ParseStatement(statement))
+				{
+					if (scoped)
+					{
+						LeaveScope();
+					}
+
+					unsigned level = 0;
+
+					while (!Peek(Lexer::Token::Id::EndOfStream))
+					{
+						if (Accept('{'))
+						{
+							++level;
+						}
+						else if (Accept('}'))
+						{
+							if (level-- == 0)
+							{
+								break;
+							}
+						}
+						else
+						{
+							Consume();
+						}
+					}
+
+					return false;
+				}
+
+				compound->Statements.push_back(statement);
+			}
+
+			if (scoped)
+			{
+				LeaveScope();
+			}
+
+			statement = compound;
+
+			return Expect('}');
+		}
+		bool Parser::ParseStatementDeclaratorList(Nodes::Statement *&statement)
+		{
+			Nodes::Type type;
+
+			const Location location = this->mNextToken.GetLocation();
+
+			if (!ParseType(type))
+			{
+				return false;
+			}
+
+			unsigned int count = 0;
+			Nodes::DeclaratorList *const declarators = this->mAST.CreateNode<Nodes::DeclaratorList>(location);
+
+			do
+			{
+				if (count++ > 0 && !Expect(','))
+				{
+					return false;
+				}
+
+				if (!Expect(Lexer::Token::Id::Identifier))
+				{
+					return false;
+				}
+
+				Nodes::Variable *declarator = nullptr;
+
+				if (!ParseVariableResidue(type, this->mToken.GetRawData(), declarator))
+				{
+					return false;
+				}
+
+				declarators->Declarators.push_back(std::move(declarator));
+			}
+			while (!Peek(';'));
+
+			statement = declarators;
+
+			return true;
+		}
+
+		// Declarations
+		bool Parser::Parse()
+		{
+			bool success = true;
+
+			while (!Peek(Lexer::Token::Id::EndOfStream))
+			{
+				if (!ParseTopLevel())
+				{
+					success = false;
+					break;
+				}
+			}
+
+			this->mOrigLexer = this->mLexer;
+
+			return success;
+		}
+		bool Parser::ParseTopLevel()
+		{
+			Nodes::Type type = { Nodes::Type::Class::Void };
+
+			if (Peek(Lexer::Token::Id::Namespace))
+			{
+				return ParseNamespace();
 			}
 			else if (Peek(Lexer::Token::Id::Struct))
 			{
@@ -2612,12 +2686,20 @@ namespace ReShade
 					return false;
 				}
 			}
+			else if (Peek(Lexer::Token::Id::Technique))
+			{
+				Nodes::Technique *technique = nullptr;
+
+				if (!ParseTechnique(technique))
+				{
+					return false;
+				}
+
+				this->mAST.Techniques.push_back(std::move(technique));
+			}
 			else if (ParseType(type))
 			{
-				std::string name;
-				const Location location = this->mToken.GetLocation();
-
-				if (!ExpectIdentifier(name))
+				if (!Expect(Lexer::Token::Id::Identifier))
 				{
 					return false;
 				}
@@ -2626,12 +2708,12 @@ namespace ReShade
 				{
 					Nodes::Function *function = nullptr;
 
-					if (!ParseFunctionResidue(type, name, function))
+					if (!ParseFunctionResidue(type, this->mToken.GetRawData(), function))
 					{
 						return false;
 					}
 
-					this->mAST.Functions.push_back(function);
+					this->mAST.Functions.push_back(std::move(function));
 				}
 				else
 				{
@@ -2639,19 +2721,21 @@ namespace ReShade
 
 					while (!Peek(';'))
 					{
-						if (count++ > 0 && !(Expect(',') && ExpectIdentifier(name)))
+						if (count++ > 0 && !(Expect(',') && Expect(Lexer::Token::Id::Identifier)))
 						{
 							return false;
 						}
 
 						Nodes::Variable *variable = nullptr;
 
-						if (!ParseVariableResidue(type, name, variable))
+						if (!ParseVariableResidue(type, this->mToken.GetRawData(), variable, true))
 						{
+							ConsumeUntil(';');
+
 							return false;
 						}
 
-						this->mAST.Uniforms.push_back(variable);
+						this->mAST.Uniforms.push_back(std::move(variable));
 					}
 
 					if (!Expect(';'))
@@ -2662,12 +2746,50 @@ namespace ReShade
 			}
 			else if (!Accept(';'))
 			{
-				this->mLexer.Error(this->mNextToken.GetLocation(), 3000, "syntax error: unexpected '%s'", this->mNextToken.GetName().c_str());
+				Consume();
+
+				this->mLexer.Error(this->mToken.GetLocation(), 3000, "syntax error: unexpected '%s'", this->mToken.GetName().c_str());
 
 				return false;
 			}
 
 			return true;
+		}
+		bool Parser::ParseNamespace()
+		{
+			if (!Accept(Lexer::Token::Id::Namespace))
+			{
+				return false;
+			}
+
+			if (!Expect(Lexer::Token::Id::Identifier))
+			{
+				return false;
+			}
+
+			const std::string name = this->mToken.GetRawData();
+
+			if (!Expect('{'))
+			{
+				return false;
+			}
+
+			EnterNamespace(name);
+
+			bool success = true;
+
+			while (!Peek('}'))
+			{
+				if (!ParseTopLevel())
+				{
+					success = false;
+					break;
+				}
+			}
+
+			LeaveNamespace();
+
+			return success && Expect('}');
 		}
 		bool Parser::ParseArray(int &size)
 		{
@@ -2680,13 +2802,15 @@ namespace ReShade
 				if (Accept(']'))
 				{
 					size = -1;
+
 					return true;
 				}
 				else if (ParseExpression(expression) && Expect(']'))
 				{
 					if (expression->NodeId != Node::Id::Literal || !(expression->Type.IsScalar() && expression->Type.IsIntegral()))
 					{
-						this->mLexer.Error(this->mToken.GetLocation(), 3058, "array dimensions must be literal scalar expressions");
+						this->mLexer.Error(expression->Location, 3058, "array dimensions must be literal scalar expressions");
+
 						return false;
 					}
 
@@ -2694,7 +2818,8 @@ namespace ReShade
 
 					if (size < 1 || size > 65536)
 					{
-						this->mLexer.Error(this->mToken.GetLocation(), 3059, "array dimension must be between 1 and 65536");
+						this->mLexer.Error(expression->Location, 3059, "array dimension must be between 1 and 65536");
+
 						return false;
 					}
 
@@ -2714,17 +2839,21 @@ namespace ReShade
 			while (!Peek('>'))
 			{
 				Nodes::Type type;
+
 				AcceptTypeClass(type);
 
 				Nodes::Annotation annotation;
 
-				if (!ExpectIdentifier(annotation.Name))
+				if (!Expect(Lexer::Token::Id::Identifier))
 				{
 					return false;
 				}
 
+				annotation.Name = this->mToken.GetRawData();
+				annotation.Location = this->mToken.GetLocation();
+
 				Nodes::Expression *expression = nullptr;
-		
+
 				if (!(Expect('=') && ParseExpressionAssignment(expression) && Expect(';')))
 				{
 					return false;
@@ -2732,12 +2861,14 @@ namespace ReShade
 
 				if (expression->NodeId != Node::Id::Literal)
 				{
+					this->mLexer.Error(expression->Location, 3011, "value must be a literal expression");
+
 					continue;
 				}
 
 				annotation.Value = static_cast<Nodes::Literal *>(expression);
 
-				annotations.push_back(annotation);
+				annotations.push_back(std::move(annotation));
 			}
 
 			return Expect('>');
@@ -2749,13 +2880,14 @@ namespace ReShade
 				return false;
 			}
 
-			const Location location = this->mToken.GetLocation();
+			structure = this->mAST.CreateNode<Nodes::Struct>(this->mToken.GetLocation());
+			structure->Namespace = this->mCurrentNamespace;
 
-			structure = this->mAST.CreateNode<Nodes::Struct>(location);
-
-			if (AcceptIdentifier(structure->Name))
+			if (Accept(Lexer::Token::Id::Identifier))
 			{
-				if (!InsertSymbol(structure))
+				structure->Name = this->mToken.GetRawData();
+
+				if (!InsertSymbol(structure, true))
 				{
 					this->mLexer.Error(this->mToken.GetLocation(), 3003, "redefinition of '%s'", structure->Name.c_str());
 
@@ -2764,7 +2896,7 @@ namespace ReShade
 			}
 			else
 			{
-				structure->Name = "__anonymous_struct_" + std::to_string(this->mToken.GetLocation().Line) + '_' + std::to_string(this->mToken.GetLocation().Column);
+				structure->Name = "__anonymous_struct_" + std::to_string(structure->Location.Line) + '_' + std::to_string(structure->Location.Column);
 			}
 
 			if (!Expect('{'))
@@ -2778,19 +2910,25 @@ namespace ReShade
 
 				if (!ParseType(type))
 				{
+					ConsumeUntil('}');
+
 					return false;
 				}
 
 				if (type.IsVoid())
 				{
 					this->mLexer.Error(this->mNextToken.GetLocation(), 3038, "struct members cannot be void");
-					
+
+					ConsumeUntil('}');
+
 					return false;
 				}
 				if (type.HasQualifier(Nodes::Type::Qualifier::In) || type.HasQualifier(Nodes::Type::Qualifier::Out))
 				{
 					this->mLexer.Error(this->mNextToken.GetLocation(), 3055, "struct members cannot be declared 'in' or 'out'");
-					
+
+					ConsumeUntil('}');
+
 					return false;
 				}
 
@@ -2800,89 +2938,57 @@ namespace ReShade
 				{
 					if (count++ > 0 && !Expect(','))
 					{
+						ConsumeUntil('}');
+
 						return false;
 					}
 
-					Nodes::Variable *field = this->mAST.CreateNode<Nodes::Variable>(this->mNextToken.GetLocation());
-
-					if (!ExpectIdentifier(field->Name))
+					if (!Expect(Lexer::Token::Id::Identifier))
 					{
+						ConsumeUntil('}');
+
 						return false;
 					}
 
+					Nodes::Variable *const field = this->mAST.CreateNode<Nodes::Variable>(this->mToken.GetLocation());
+					field->Name = this->mToken.GetRawData();
 					field->Type = type;
 
 					ParseArray(field->Type.ArrayLength);
-					
+
 					if (Accept(':'))
 					{
-						if (!ExpectIdentifier(field->Semantic))
+						if (!Expect(Lexer::Token::Id::Identifier))
 						{
+							ConsumeUntil('}');
+
 							return false;
 						}
 
+						field->Semantic = this->mToken.GetRawData();
 						boost::to_upper(field->Semantic);
 					}
 
-					structure->Fields.push_back(field);
+					structure->Fields.push_back(std::move(field));
 				}
 				while (!Peek(';'));
 
 				if (!Expect(';'))
 				{
+					ConsumeUntil('}');
+
 					return false;
 				}
 			}
 
 			if (structure->Fields.empty())
 			{
-				this->mLexer.Warning(location, 5001, "struct has no members");
+				this->mLexer.Warning(structure->Location, 5001, "struct has no members");
 			}
 
 			this->mAST.Types.push_back(structure);
 
 			return Expect('}');
-		}
-		bool Parser::ParseDeclaration(Nodes::DeclaratorList *&declarators)
-		{
-			Nodes::Type type;
-			std::string name;
-
-			const Location location = this->mNextToken.GetLocation();
-
-			if (!ParseType(type))
-			{
-				return false;
-			}
-
-			declarators = this->mAST.CreateNode<Nodes::DeclaratorList>(location);
-
-			unsigned int count = 0;
-
-			do
-			{
-				if (count++ > 0 && !Expect(','))
-				{
-					return false;
-				}
-
-				if (!ExpectIdentifier(name))
-				{
-					return false;
-				}
-
-				Nodes::Variable *declarator = nullptr;
-
-				if (!ParseVariableResidue(type, name, declarator))
-				{
-					return false;
-				}
-
-				declarators->Declarators.push_back(declarator);
-			}
-			while (!Peek(';'));
-
-			return true;
 		}
 		bool Parser::ParseFunctionResidue(Nodes::Type &type, const std::string &name, Nodes::Function *&function)
 		{
@@ -2896,17 +3002,17 @@ namespace ReShade
 			if (type.Qualifiers != 0)
 			{
 				this->mLexer.Error(location, 3047, "function return type cannot have any qualifiers");
-			
+
 				return false;
 			}
 
 			function = this->mAST.CreateNode<Nodes::Function>(location);
-
 			function->ReturnType = type;
 			function->ReturnType.Qualifiers = Nodes::Type::Qualifier::Const;
 			function->Name = name;
+			function->Namespace = this->mCurrentNamespace;
 
-			InsertSymbol(function);
+			InsertSymbol(function, true);
 
 			EnterScope(function);
 
@@ -2929,46 +3035,46 @@ namespace ReShade
 
 					return false;
 				}
-				
-				if (!ExpectIdentifier(parameter->Name))
+
+				if (!Expect(Lexer::Token::Id::Identifier))
 				{
 					LeaveScope();
 
 					return false;
 				}
 
-				const Location parameterLocation = this->mToken.GetLocation();
-				parameter->Location = parameterLocation;
+				parameter->Name = this->mToken.GetRawData();
+				parameter->Location = this->mToken.GetLocation();
 
 				if (parameter->Type.IsVoid())
 				{
-					LeaveScope();
+					this->mLexer.Error(parameter->Location, 3038, "function parameters cannot be void");
 
-					this->mLexer.Error(parameterLocation, 3038, "function parameters cannot be void");
+					LeaveScope();
 
 					return false;
 				}
 				if (parameter->Type.HasQualifier(Nodes::Type::Qualifier::Extern))
 				{
-					LeaveScope();
+					this->mLexer.Error(parameter->Location, 3006, "function parameters cannot be declared 'extern'");
 
-					this->mLexer.Error(parameterLocation, 3006, "function parameters cannot be declared 'extern'");
+					LeaveScope();
 
 					return false;
 				}
 				if (parameter->Type.HasQualifier(Nodes::Type::Qualifier::Static))
 				{
-					LeaveScope();
+					this->mLexer.Error(parameter->Location, 3007, "function parameters cannot be declared 'static'");
 
-					this->mLexer.Error(parameterLocation, 3007, "function parameters cannot be declared 'static'");
+					LeaveScope();
 
 					return false;
 				}
 				if (parameter->Type.HasQualifier(Nodes::Type::Qualifier::Uniform))
 				{
-					LeaveScope();
+					this->mLexer.Error(parameter->Location, 3047, "function parameters cannot be declared 'uniform', consider placing in global scope instead");
 
-					this->mLexer.Error(parameterLocation, 3047, "function parameters cannot be declared 'uniform', consider placing in global scope instead");
+					LeaveScope();
 
 					return false;
 				}
@@ -2977,10 +3083,10 @@ namespace ReShade
 				{
 					if (parameter->Type.HasQualifier(Nodes::Type::Qualifier::Const))
 					{
+						this->mLexer.Error(parameter->Location, 3046, "output parameters cannot be declared 'const'");
+
 						LeaveScope();
 
-						this->mLexer.Error(parameterLocation, 3046, "output parameters cannot be declared 'const'");
-						
 						return false;
 					}
 				}
@@ -2993,25 +3099,26 @@ namespace ReShade
 
 				if (!InsertSymbol(parameter))
 				{
-					LeaveScope();
+					this->mLexer.Error(parameter->Location, 3003, "redefinition of '%s'", parameter->Name.c_str());
 
-					this->mLexer.Error(parameterLocation, 3003, "redefinition of '%s'", parameter->Name.c_str());
+					LeaveScope();
 
 					return false;
 				}
-							
+
 				if (Accept(':'))
 				{
-					if (!ExpectIdentifier(parameter->Semantic))
+					if (!Expect(Lexer::Token::Id::Identifier))
 					{
 						LeaveScope();
 
 						return false;
 					}
 
+					parameter->Semantic = this->mToken.GetRawData();
 					boost::to_upper(parameter->Semantic);
 				}
-					
+
 				function->Parameters.push_back(parameter);
 			}
 
@@ -3024,13 +3131,14 @@ namespace ReShade
 
 			if (Accept(':'))
 			{
-				if (!ExpectIdentifier(function->ReturnSemantic))
+				if (!Expect(Lexer::Token::Id::Identifier))
 				{
 					LeaveScope();
 
 					return false;
 				}
 
+				function->ReturnSemantic = this->mToken.GetRawData();
 				boost::to_upper(function->ReturnSemantic);
 
 				if (type.IsVoid())
@@ -3041,7 +3149,7 @@ namespace ReShade
 				}
 			}
 
-			if (!ParseStatementCompound(reinterpret_cast<Nodes::Statement *&>(function->Definition)))
+			if (!ParseStatementBlock(reinterpret_cast<Nodes::Statement *&>(function->Definition)))
 			{
 				LeaveScope();
 
@@ -3052,7 +3160,7 @@ namespace ReShade
 
 			return true;
 		}
-		bool Parser::ParseVariableResidue(Nodes::Type &type, const std::string &name, Nodes::Variable *&variable)
+		bool Parser::ParseVariableResidue(Nodes::Type &type, const std::string &name, Nodes::Variable *&variable, bool global)
 		{
 			const Location location = this->mToken.GetLocation();
 
@@ -3065,7 +3173,7 @@ namespace ReShade
 			else if (type.HasQualifier(Nodes::Type::Qualifier::In) || type.HasQualifier(Nodes::Type::Qualifier::Out))
 			{
 				this->mLexer.Error(location, 3055, "variables cannot be declared 'in' or 'out'");
-				
+
 				return false;
 			}
 
@@ -3088,13 +3196,13 @@ namespace ReShade
 				if (type.HasQualifier(Nodes::Type::Qualifier::Extern))
 				{
 					this->mLexer.Error(location, 3006, "local variables cannot be declared 'extern'");
-					
+
 					return false;
 				}
 				if (type.HasQualifier(Nodes::Type::Qualifier::Uniform))
 				{
 					this->mLexer.Error(location, 3047, "local variables cannot be declared 'uniform'");
-				
+
 					return false;
 				}
 
@@ -3109,11 +3217,15 @@ namespace ReShade
 			ParseArray(type.ArrayLength);
 
 			variable = this->mAST.CreateNode<Nodes::Variable>(location);
-
 			variable->Type = type;
 			variable->Name = name;
 
-			if (!InsertSymbol(variable))
+			if (global)
+			{
+				variable->Namespace = this->mCurrentNamespace;
+			}
+
+			if (!InsertSymbol(variable, global))
 			{
 				this->mLexer.Error(location, 3003, "redefinition of '%s'", name.c_str());
 
@@ -3122,11 +3234,12 @@ namespace ReShade
 
 			if (Accept(':'))
 			{
-				if (!ExpectIdentifier(variable->Semantic))
+				if (!Expect(Lexer::Token::Id::Identifier))
 				{
 					return false;
 				}
 
+				variable->Semantic = this->mToken.GetRawData();
 				boost::to_upper(variable->Semantic);
 			}
 
@@ -3144,11 +3257,11 @@ namespace ReShade
 				if (parent == nullptr && variable->Initializer->NodeId != Node::Id::Literal)
 				{
 					this->mLexer.Error(location, 3011, "initial value must be a literal expression");
-						
+
 					return false;
 				}
 
-				if (variable->Initializer->NodeId == Node::Id::InitializerList && (type.IsScalar() || type.IsVector() || type.IsMatrix()))
+				if (variable->Initializer->NodeId == Node::Id::InitializerList && type.IsNumeric())
 				{
 					Nodes::Literal *const nullval = this->mAST.CreateNode<Nodes::Literal>(location);
 					nullval->Type.BaseClass = type.BaseClass;
@@ -3173,7 +3286,7 @@ namespace ReShade
 				if ((variable->Initializer->Type.Rows < type.Rows || variable->Initializer->Type.Cols < type.Cols) && !variable->Initializer->Type.IsScalar())
 				{
 					this->mLexer.Error(location, 3017, "cannot implicitly convert these vector types");
-						
+
 					return false;
 				}
 
@@ -3221,10 +3334,7 @@ namespace ReShade
 
 					if (!ParseVariableAssignment(expression))
 					{
-						while (!Accept('}') && !Peek(Lexer::Token::Id::EndOfStream))
-						{
-							Consume();
-						}
+						ConsumeUntil('}');
 
 						return false;
 					}
@@ -3263,15 +3373,15 @@ namespace ReShade
 
 			while (!Peek('}'))
 			{
-				std::string name;
-
-				if (!ExpectIdentifier(name))
+				if (!Expect(Lexer::Token::Id::Identifier))
 				{
 					return false;
 				}
 
-				Nodes::Expression *value = nullptr;
+				const std::string name = this->mToken.GetRawData();
 				const Location location = this->mToken.GetLocation();
+
+				Nodes::Expression *value = nullptr;
 
 				if (!(Expect('=') && ParseVariablePropertiesExpression(value) && Expect(';')))
 				{
@@ -3382,11 +3492,13 @@ namespace ReShade
 		}
 		bool Parser::ParseVariablePropertiesExpression(Nodes::Expression *&expression)
 		{
-			std::string identifier;
-			const Location location = this->mNextToken.GetLocation();
+			Backup();
 
-			if (AcceptIdentifier(identifier))
+			if (Accept(Lexer::Token::Id::Identifier))
 			{
+				const Location location = this->mToken.GetLocation();
+				const std::string identifier = this->mToken.GetRawData();
+
 				static const std::unordered_map<std::string, unsigned int> sEnums = boost::assign::map_list_of
 					("NONE", Nodes::Variable::Properties::NONE)
 					("POINT", Nodes::Variable::Properties::POINT)
@@ -3436,22 +3548,7 @@ namespace ReShade
 					return true;
 				}
 
-				const Node *symbol = FindSymbol(identifier);
-					
-				if (symbol == nullptr)
-				{
-					this->mLexer.Error(location, 3004, "undeclared identifier '%s'", identifier.c_str());
-
-					return false;
-				}
-
-				Nodes::LValue *const newexpression = this->mAST.CreateNode<Nodes::LValue>(location);
-				newexpression->Reference = static_cast<const Nodes::Variable *>(symbol);
-				newexpression->Type = newexpression->Reference->Type;
-
-				expression = newexpression;
-
-				return true;
+				Restore();
 			}
 
 			return ParseExpressionMultary(expression);
@@ -3463,12 +3560,16 @@ namespace ReShade
 				return false;
 			}
 
-			technique = this->mAST.CreateNode<Nodes::Technique>(this->mToken.GetLocation());
+			const Location location = this->mToken.GetLocation();
 
-			if (!ExpectIdentifier(technique->Name))
+			if (!Expect(Lexer::Token::Id::Identifier))
 			{
 				return false;
 			}
+
+			technique = this->mAST.CreateNode<Nodes::Technique>(location);
+			technique->Name = this->mToken.GetRawData();
+			technique->Namespace = this->mCurrentNamespace;
 
 			ParseAnnotations(technique->Annotations);
 
@@ -3486,7 +3587,7 @@ namespace ReShade
 					return false;
 				}
 
-				technique->Passes.push_back(pass);
+				technique->Passes.push_back(std::move(pass));
 			}
 
 			return Expect('}');
@@ -3500,7 +3601,11 @@ namespace ReShade
 
 			pass = this->mAST.CreateNode<Nodes::Pass>(this->mToken.GetLocation());
 
-			AcceptIdentifier(pass->Name);
+			if (Accept(Lexer::Token::Id::Identifier))
+			{
+				pass->Name = this->mToken.GetRawData();
+			}
+
 			ParseAnnotations(pass->Annotations);
 
 			if (!Expect('{'))
@@ -3510,11 +3615,17 @@ namespace ReShade
 
 			while (!Peek('}'))
 			{
-				std::string passstate;
-				Nodes::Expression *value = nullptr;
-				const Location location = this->mNextToken.GetLocation();
+				if (!Expect(Lexer::Token::Id::Identifier))
+				{
+					return false;
+				}
 
-				if (!(ExpectIdentifier(passstate) && Expect('=') && ParseTechniquePassExpression(value) && Expect(';')))
+				const Location location = this->mToken.GetLocation();
+				const std::string passstate = this->mToken.GetRawData();
+
+				Nodes::Expression *value = nullptr;
+
+				if (!(Expect('=') && ParseTechniquePassExpression(value) && Expect(';')))
 				{
 					return false;
 				}
@@ -3653,11 +3764,25 @@ namespace ReShade
 		}
 		bool Parser::ParseTechniquePassExpression(Nodes::Expression *&expression)
 		{
-			std::string identifier;
-			const Location location = this->mNextToken.GetLocation();
+			Scope scope;
+			bool exclusive;
 
-			if (AcceptIdentifier(identifier))
+			if (Accept(Lexer::Token::Id::ColonColon))
 			{
+				scope.NamespaceLevel = scope.Level = 0;
+				exclusive = true;
+			}
+			else
+			{
+				scope = this->mCurrentScope;
+				exclusive = false;
+			}
+
+			if (exclusive ? Expect(Lexer::Token::Id::Identifier) : Accept(Lexer::Token::Id::Identifier))
+			{
+				std::string identifier = this->mToken.GetRawData();
+				const Location location = this->mToken.GetLocation();
+
 				static const std::unordered_map<std::string, unsigned int> sEnums = boost::assign::map_list_of
 					("NONE", Nodes::Pass::States::NONE)
 					("ZERO", Nodes::Pass::States::ZERO)
@@ -3708,8 +3833,13 @@ namespace ReShade
 					return true;
 				}
 
-				const Node *symbol = FindSymbol(identifier);
-					
+				while (Accept(Lexer::Token::Id::ColonColon) && Expect(Lexer::Token::Id::Identifier))
+				{
+					identifier += "::" + this->mToken.GetRawData();
+				}
+
+				const Node *symbol = FindSymbol(identifier, scope, exclusive);
+
 				if (symbol == nullptr)
 				{
 					this->mLexer.Error(location, 3004, "undeclared identifier '%s'", identifier.c_str());
@@ -3725,12 +3855,12 @@ namespace ReShade
 
 				return true;
 			}
-			
+
 			return ParseExpressionMultary(expression);
 		}
 
 		// Symbol Table
-		void Parser::EnterScope(Node *parent)
+		void Parser::EnterScope(Symbol *parent)
 		{
 			if (parent != nullptr || this->mParentStack.empty())
 			{
@@ -3741,10 +3871,18 @@ namespace ReShade
 				this->mParentStack.push(this->mParentStack.top());
 			}
 
-			this->mCurrentScope++;
+			this->mCurrentScope.Level++;
+		}
+		void Parser::EnterNamespace(const std::string &name)
+		{
+			this->mCurrentScope.Level++;
+			this->mCurrentScope.NamespaceLevel++;
+			this->mCurrentNamespace += name + "::";
 		}
 		void Parser::LeaveScope()
 		{
+			assert(this->mCurrentScope.Level > 0);
+
 			for (auto it = this->mSymbolStack.begin(), end = this->mSymbolStack.end(); it != end; ++it)
 			{
 				auto &scopes = it->second;
@@ -3753,10 +3891,10 @@ namespace ReShade
 				{
 					continue;
 				}
-		
+
 				for (auto it = scopes.begin(); it != scopes.end();)
 				{
-					if (it->first >= this->mCurrentScope)
+					if (it->first.Level > it->first.NamespaceLevel && it->first.Level >= this->mCurrentScope.Level)
 					{
 						it = scopes.erase(it);
 					}
@@ -3769,41 +3907,47 @@ namespace ReShade
 
 			this->mParentStack.pop();
 
-			this->mCurrentScope--;
+			this->mCurrentScope.Level--;
 		}
-		bool Parser::InsertSymbol(Node *symbol)
+		void Parser::LeaveNamespace()
 		{
-			std::string name;
+			assert(this->mCurrentScope.Level > 0);
+			assert(this->mCurrentScope.NamespaceLevel > 0);
 
-			switch (symbol->NodeId)
-			{
-				case Node::Id::Struct:
-					name = static_cast<Nodes::Struct *>(symbol)->Name;
-					break;
-				case Node::Id::Variable:
-					name = static_cast<Nodes::Variable *>(symbol)->Name;
-					break;
-				case Node::Id::Function:
-					name = static_cast<Nodes::Function *>(symbol)->Name;
-					break;
-				default:
-					return false;
-			}
-
-			if (symbol->NodeId != Node::Id::Function && FindSymbol(name, this->mCurrentScope, true) != nullptr)
+			this->mCurrentScope.Level--;
+			this->mCurrentScope.NamespaceLevel--;
+			this->mCurrentNamespace.erase(this->mCurrentNamespace.substr(0, this->mCurrentNamespace.size() - 2).rfind("::") + 2);
+		}
+		bool Parser::InsertSymbol(Symbol *symbol, bool global)
+		{
+			if (symbol->NodeId != Node::Id::Function && FindSymbol(symbol->Name, this->mCurrentScope, true) != nullptr)
 			{
 				return false;
 			}
-	
-			this->mSymbolStack[name].push_back(std::make_pair(this->mCurrentScope, symbol));
+
+			if (global)
+			{
+				Scope scope = { 0, 0 };
+
+				for (std::size_t pos = 0; pos != std::string::npos; pos = this->mCurrentNamespace.find("::", pos))
+				{
+					this->mSymbolStack[this->mCurrentNamespace.substr(pos += 2) + symbol->Name].push_back(std::make_pair(scope, symbol));
+
+					scope.Level = ++scope.NamespaceLevel;
+				}
+			}
+			else
+			{
+				this->mSymbolStack[symbol->Name].push_back(std::make_pair(this->mCurrentScope, symbol));
+			}
 
 			return true;
 		}
-		Node *Parser::FindSymbol(const std::string &name) const
+		Parser::Symbol *Parser::FindSymbol(const std::string &name) const
 		{
 			return FindSymbol(name, this->mCurrentScope, false);
 		}
-		Node *Parser::FindSymbol(const std::string &name, unsigned int scope, bool exclusive) const
+		Parser::Symbol *Parser::FindSymbol(const std::string &name, const Scope &scope, bool exclusive) const
 		{
 			const auto it = this->mSymbolStack.find(name);
 
@@ -3812,20 +3956,20 @@ namespace ReShade
 				return nullptr;
 			}
 
-			Node *result = nullptr;
+			Symbol *result = nullptr;
 			const auto &scopes = it->second;
-	
+
 			for (auto it = scopes.rbegin(), end = scopes.rend(); it != end; ++it)
 			{
-				if (it->first > scope)
+				if (it->first.Level > scope.Level || it->first.NamespaceLevel > scope.NamespaceLevel)
 				{
 					continue;
 				}
-				if (exclusive && it->first < scope)
+				if (exclusive && it->first.Level < scope.Level)
 				{
 					continue;
 				}
-		
+
 				if (it->second->NodeId == Node::Id::Variable || it->second->NodeId == Node::Id::Struct)
 				{
 					return it->second;
@@ -3835,15 +3979,15 @@ namespace ReShade
 					result = it->second;
 				}
 			}
-	
+
 			return result;
 		}
-		bool Parser::ResolveCall(Nodes::Call *call, bool &isIntrinsic, bool &isAmbiguous) const
+		bool Parser::ResolveCall(Nodes::Call *call, const Scope &scope, bool &isIntrinsic, bool &isAmbiguous) const
 		{
 			isIntrinsic = false;
 			isAmbiguous = false;
 
-			unsigned int overloadCount = 0;
+			unsigned int overloadCount = 0, overloadNamespace = scope.NamespaceLevel;
 			const Nodes::Function *overload = nullptr;
 			Nodes::Intrinsic::Op intrinsicOp = Nodes::Intrinsic::Op::None;
 
@@ -3855,7 +3999,7 @@ namespace ReShade
 
 				for (auto it = scopes.rbegin(), end = scopes.rend(); it != end; ++it)
 				{
-					if (it->first > this->mCurrentScope || it->second->NodeId != Node::Id::Function)
+					if (it->first.Level > scope.Level || it->first.NamespaceLevel > scope.NamespaceLevel || it->second->NodeId != Node::Id::Function)
 					{
 						continue;
 					}
@@ -3886,37 +4030,41 @@ namespace ReShade
 					{
 						overload = function;
 						overloadCount = 1;
+						overloadNamespace = it->first.NamespaceLevel;
 					}
-					else if (comparison == 0)
+					else if (comparison == 0 && overloadNamespace == it->first.NamespaceLevel)
 					{
 						++overloadCount;
 					}
 				}
 			}
 
-			for (auto &intrinsic : sIntrinsics)
+			if (overloadCount == 0)
 			{
-				if (intrinsic.Function.Name == call->CalleeName)
+				for (auto &intrinsic : sIntrinsics)
 				{
-					if (call->Arguments.size() != intrinsic.Function.Parameters.size())
+					if (intrinsic.Function.Name == call->CalleeName)
 					{
-						isIntrinsic = overloadCount == 0;
-						break;
-					}
+						if (call->Arguments.size() != intrinsic.Function.Parameters.size())
+						{
+							isIntrinsic = overloadCount == 0;
+							break;
+						}
 
-					const int comparison = CompareFunctions(call, &intrinsic.Function, overload);
+						const int comparison = CompareFunctions(call, &intrinsic.Function, overload);
 
-					if (comparison < 0)
-					{
-						overload = &intrinsic.Function;
-						overloadCount = 1;
+						if (comparison < 0)
+						{
+							overload = &intrinsic.Function;
+							overloadCount = 1;
 
-						isIntrinsic = true;
-						intrinsicOp = intrinsic.Op;
-					}
-					else if (comparison == 0)
-					{
-						++overloadCount;
+							isIntrinsic = true;
+							intrinsicOp = intrinsic.Op;
+						}
+						else if (comparison == 0 && overloadNamespace == 0)
+						{
+							++overloadCount;
+						}
 					}
 				}
 			}
@@ -3932,6 +4080,7 @@ namespace ReShade
 				else
 				{
 					call->Callee = overload;
+					call->CalleeName = overload->Name;
 				}
 
 				return true;

@@ -9,7 +9,7 @@ namespace ReShade
 	{
 		struct Location
 		{
-			Location(unsigned int line = 1, unsigned int column = 1) : Source(""), Line(line), Column(column)
+			Location(unsigned int line = 1, unsigned int column = 1) : Line(line), Column(column)
 			{
 			}
 			Location(const std::string &source, unsigned int line = 1, unsigned int column = 1) : Source(source), Line(line), Column(column)
@@ -173,15 +173,6 @@ namespace ReShade
 				struct Struct *Definition;
 			};
 	
-			struct Statement abstract : public Node
-			{
-				std::vector<std::string> Attributes;
-
-			protected:
-				Statement(Id id) : Node(id)
-				{
-				}
-			};
 			struct Expression abstract : public Node
 			{
 				Type Type;
@@ -191,108 +182,30 @@ namespace ReShade
 				{
 				}
 			};
-	
-			// Statements
-			struct Compound : public Statement
+			struct Statement abstract : public Node
 			{
-				std::vector<Statement *> Statements;
+				std::vector<std::string> Attributes;
 
-				Compound() : Statement(Id::Compound)
+			protected:
+				Statement(Id id) : Node(id)
 				{
 				}
 			};
-			struct DeclaratorList : public Statement
+			struct Declaration abstract : public Node
 			{
-				std::vector<struct Variable *> Declarators;
+				std::string Name, Namespace;
 
-				DeclaratorList() : Statement(Id::DeclaratorList)
+			protected:
+				Declaration(Id id) : Node(id)
 				{
 				}
 			};
-			struct ExpressionStatement : public Statement
-			{
-				Expression *Expression;
 
-				ExpressionStatement() : Statement(Id::ExpressionStatement)
-				{
-				}
-			};
-			struct If : public Statement
-			{
-				Expression *Condition;
-				Statement *StatementOnTrue, *StatementOnFalse;
-				
-				If() : Statement(Id::If)
-				{
-				}
-			};
-			struct Case : public Statement
-			{
-				std::vector<struct Literal *> Labels;
-				Statement *Statements;
-
-				Case() : Statement(Id::Case)
-				{
-				}
-			};
-			struct Switch : public Statement
-			{
-				Expression *Test;
-				std::vector<Case *> Cases;
-
-				Switch() : Statement(Id::Switch)
-				{
-				}
-			};
-			struct For : public Statement
-			{
-				Statement *Initialization;
-				Expression *Condition, *Increment;
-				Statement *Statements;
-				
-				For() : Statement(Id::For)
-				{
-				}
-			};
-			struct While : public Statement
-			{
-				bool DoWhile;
-				Expression *Condition;
-				Statement *Statements;
-				
-				While() : Statement(Id::While), DoWhile(false)
-				{
-				}
-			};
-			struct Return : public Statement
-			{
-				bool Discard;
-				Expression *Value;
-				
-				Return() : Statement(Id::Return), Discard(false), Value(nullptr)
-				{
-				}
-			};
-			struct Jump : public Statement
-			{
-				enum Mode
-				{
-					Break,
-					Continue
-				};
-
-				Mode Mode;
-				
-				Jump() : Statement(Id::Jump), Mode(Break)
-				{
-				}
-			};
-	
 			// Expressions
 			struct LValue : public Expression
 			{
 				const struct Variable *Reference;
-				
+
 				LValue() : Expression(Id::LValue), Reference(nullptr)
 				{
 				}
@@ -305,10 +218,10 @@ namespace ReShade
 					unsigned int Uint[16];
 					float Float[16];
 				};
-		
+
 				Value Value;
 				std::string StringValue;
-				
+
 				Literal() : Expression(Id::Literal)
 				{
 					memset(&this->Value, 0, sizeof(Value));
@@ -329,7 +242,7 @@ namespace ReShade
 					PostDecrease,
 					Cast,
 				};
-	
+
 				Op Operator;
 				Expression *Operand;
 
@@ -460,7 +373,7 @@ namespace ReShade
 			{
 				Expression *Condition;
 				Expression *ExpressionOnTrue, *ExpressionOnFalse;
-				
+
 				Conditional() : Expression(Id::Conditional), Condition(nullptr), ExpressionOnTrue(nullptr), ExpressionOnFalse(nullptr)
 				{
 				}
@@ -481,10 +394,10 @@ namespace ReShade
 					LeftShift,
 					RightShift
 				};
-		
+
 				Op Operator;
 				Expression *Left, *Right;
-				
+
 				Assignment() : Expression(Id::Assignment), Operator(Op::None)
 				{
 				}
@@ -492,7 +405,7 @@ namespace ReShade
 			struct Sequence : public Expression
 			{
 				std::vector<Expression *> Expressions;
-				
+
 				Sequence() : Expression(Id::Sequence)
 				{
 				}
@@ -502,7 +415,7 @@ namespace ReShade
 				std::string CalleeName;
 				const struct Function *Callee;
 				std::vector<Expression *> Arguments;
-				
+
 				Call() : Expression(Id::Call), Callee(nullptr)
 				{
 				}
@@ -510,7 +423,7 @@ namespace ReShade
 			struct Constructor : public Expression
 			{
 				std::vector<Expression *> Arguments;
-				
+
 				Constructor() : Expression(Id::Constructor)
 				{
 				}
@@ -520,7 +433,7 @@ namespace ReShade
 				Expression *Operand;
 				signed char Mask[4];
 
-				Swizzle() : Expression(Id::Swizzle),  Operand(nullptr)
+				Swizzle() : Expression(Id::Swizzle), Operand(nullptr)
 				{
 					this->Mask[0] = this->Mask[1] = this->Mask[2] = this->Mask[3] = -1;
 				}
@@ -530,7 +443,7 @@ namespace ReShade
 				Expression *Operand;
 				Variable *Field;
 
-				FieldSelection() : Expression(Id::FieldSelection),  Operand(nullptr), Field(nullptr)
+				FieldSelection() : Expression(Id::FieldSelection), Operand(nullptr), Field(nullptr)
 				{
 				}
 			};
@@ -539,6 +452,102 @@ namespace ReShade
 				std::vector<Expression *> Values;
 
 				InitializerList() : Expression(Id::InitializerList)
+				{
+				}
+			};
+
+			// Statements
+			struct Compound : public Statement
+			{
+				std::vector<Statement *> Statements;
+
+				Compound() : Statement(Id::Compound)
+				{
+				}
+			};
+			struct DeclaratorList : public Statement
+			{
+				std::vector<struct Variable *> Declarators;
+
+				DeclaratorList() : Statement(Id::DeclaratorList)
+				{
+				}
+			};
+			struct ExpressionStatement : public Statement
+			{
+				Expression *Expression;
+
+				ExpressionStatement() : Statement(Id::ExpressionStatement)
+				{
+				}
+			};
+			struct If : public Statement
+			{
+				Expression *Condition;
+				Statement *StatementOnTrue, *StatementOnFalse;
+				
+				If() : Statement(Id::If)
+				{
+				}
+			};
+			struct Case : public Statement
+			{
+				std::vector<struct Literal *> Labels;
+				Statement *Statements;
+
+				Case() : Statement(Id::Case)
+				{
+				}
+			};
+			struct Switch : public Statement
+			{
+				Expression *Test;
+				std::vector<Case *> Cases;
+
+				Switch() : Statement(Id::Switch)
+				{
+				}
+			};
+			struct For : public Statement
+			{
+				Statement *Initialization;
+				Expression *Condition, *Increment;
+				Statement *Statements;
+				
+				For() : Statement(Id::For)
+				{
+				}
+			};
+			struct While : public Statement
+			{
+				bool DoWhile;
+				Expression *Condition;
+				Statement *Statements;
+				
+				While() : Statement(Id::While), DoWhile(false)
+				{
+				}
+			};
+			struct Return : public Statement
+			{
+				bool Discard;
+				Expression *Value;
+				
+				Return() : Statement(Id::Return), Discard(false), Value(nullptr)
+				{
+				}
+			};
+			struct Jump : public Statement
+			{
+				enum Mode
+				{
+					Break,
+					Continue
+				};
+
+				Mode Mode;
+				
+				Jump() : Statement(Id::Jump), Mode(Break)
 				{
 				}
 			};
@@ -553,7 +562,7 @@ namespace ReShade
 				{
 				}
 			};
-			struct Variable : public Node
+			struct Variable : public Declaration
 			{
 				struct Properties
 				{
@@ -603,38 +612,35 @@ namespace ReShade
 				};
 
 				Type Type;
-				std::string Name;
 				std::vector<Annotation> Annotations;
 				std::string Semantic;
 				Properties Properties;
 				Expression *Initializer;
 				
-				Variable() : Node(Id::Variable), Initializer(nullptr)
+				Variable() : Declaration(Id::Variable), Initializer(nullptr)
 				{
 				}
 			};
-			struct Struct : public Node
+			struct Struct : public Declaration
 			{
-				std::string Name;
 				std::vector<Variable *> Fields;
 				
-				Struct() : Node(Id::Struct)
+				Struct() : Declaration(Id::Struct)
 				{
 				}
 			};
-			struct Function : public Node
+			struct Function : public Declaration
 			{
 				Type ReturnType;
-				std::string Name;
 				std::vector<Variable *> Parameters;
 				std::string ReturnSemantic;
 				Compound *Definition;
 				
-				Function() : Node(Id::Function), Definition(nullptr)
+				Function() : Declaration(Id::Function), Definition(nullptr)
 				{
 				}
 			};
-			struct Pass : public Node
+			struct Pass : public Declaration
 			{
 				struct States
 				{
@@ -688,21 +694,19 @@ namespace ReShade
 					unsigned int BlendOp, BlendOpAlpha, SrcBlend, DestBlend, DepthFunc, StencilFunc, StencilRef, StencilOpPass, StencilOpFail, StencilOpDepthFail;
 				};
 
-				std::string Name;
 				std::vector<Annotation> Annotations;
 				States States;
 				
-				Pass() : Node(Id::Pass)
+				Pass() : Declaration(Id::Pass)
 				{
 				}
 			};
-			struct Technique : public Node
+			struct Technique : public Declaration
 			{
-				std::string Name;
 				std::vector<Annotation> Annotations;
 				std::vector<Pass *> Passes;
 				
-				Technique() : Node(Id::Technique)
+				Technique() : Declaration(Id::Technique)
 				{
 				}
 			};

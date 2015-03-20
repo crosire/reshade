@@ -22,51 +22,33 @@ namespace ReShade
 			void Backup();
 			void Restore();
 
-			inline bool Peek(unsigned int token)
+			bool Peek(Lexer::Token::Id token);
+			inline bool Peek(char token)
 			{
 				return Peek(static_cast<Lexer::Token::Id>(token));
 			}
-			inline bool Peek(Lexer::Token::Id token)
+			void Consume();
+			void ConsumeUntil(Lexer::Token::Id token);
+			inline void ConsumeUntil(char token)
 			{
-				return this->mNextToken == token;
+				ConsumeUntil(static_cast<Lexer::Token::Id>(token));
 			}
-			inline void Consume()
-			{
-				this->mToken = this->mNextToken;
-				this->mNextToken = this->mLexer.Lex();
-			}
-			inline bool Accept(unsigned int token)
+			bool Accept(Lexer::Token::Id token);
+			inline bool Accept(char token)
 			{
 				return Accept(static_cast<Lexer::Token::Id>(token));
 			}
-			inline bool Accept(Lexer::Token::Id token)
-			{
-				if (Peek(token))
-				{
-					Consume();
-
-					return true;
-				}
-
-				return false;
-			}
-			bool AcceptIdentifier(std::string &identifier);
-			inline bool Expect(unsigned int token)
+			bool Expect(Lexer::Token::Id token);
+			inline bool Expect(char token)
 			{
 				return Expect(static_cast<Lexer::Token::Id>(token));
 			}
-			bool Expect(Lexer::Token::Id token);
-			bool ExpectIdentifier(std::string &identifier);
 
 		private:
 			// Types
 			bool AcceptTypeClass(Nodes::Type &type);
 			bool AcceptTypeQualifiers(Nodes::Type &type);
 			bool ParseType(Nodes::Type &type);
-
-			// Statements
-			bool ParseStatement(Nodes::Statement *&statement, bool scoped = true);
-			bool ParseStatementCompound(Nodes::Statement *&statement, bool scoped = true);
 
 			// Expressions
 			bool AcceptUnaryOp(Nodes::Unary::Op &op);
@@ -78,14 +60,19 @@ namespace ReShade
 			bool ParseExpressionMultary(Nodes::Expression *&expression, unsigned int precedence = 0);
 			bool ParseExpressionAssignment(Nodes::Expression *&expression);
 
+			// Statements
+			bool ParseStatement(Nodes::Statement *&statement, bool scoped = true);
+			bool ParseStatementBlock(Nodes::Statement *&statement, bool scoped = true);
+			bool ParseStatementDeclaratorList(Nodes::Statement *&statement);
+
 			// Declarations
 			bool ParseTopLevel();
+			bool ParseNamespace();
 			bool ParseArray(int &size);
 			bool ParseAnnotations(std::vector<Nodes::Annotation> &annotations);
 			bool ParseStruct(Nodes::Struct *&structure);
-			bool ParseDeclaration(Nodes::DeclaratorList *&declarators);
 			bool ParseFunctionResidue(Nodes::Type &type, const std::string &name, Nodes::Function *&function);
-			bool ParseVariableResidue(Nodes::Type &type, const std::string &name, Nodes::Variable *&variable);
+			bool ParseVariableResidue(Nodes::Type &type, const std::string &name, Nodes::Variable *&variable, bool global = false);
 			bool ParseVariableAssignment(Nodes::Expression *&expression);
 			bool ParseVariableProperties(Nodes::Variable *variable);
 			bool ParseVariablePropertiesExpression(Nodes::Expression *&expression);
@@ -94,20 +81,29 @@ namespace ReShade
 			bool ParseTechniquePassExpression(Nodes::Expression *&expression);
 
 			// Symbol Table
-			void EnterScope(Node *parent = nullptr);
+			struct Scope
+			{
+				unsigned int Level, NamespaceLevel;
+			};
+			typedef Nodes::Declaration Symbol;
+
+			void EnterScope(Symbol *parent = nullptr);
+			void EnterNamespace(const std::string &name);
 			void LeaveScope();
-			bool InsertSymbol(Node *symbol);
-			Node *FindSymbol(const std::string &name) const;
-			Node *FindSymbol(const std::string &name, unsigned int scope, bool exclusive = false) const;
-			bool ResolveCall(Nodes::Call *call, bool &intrinsic, bool &ambiguouss) const;
+			void LeaveNamespace();
+			bool InsertSymbol(Symbol *symbol, bool global = false);
+			Symbol *FindSymbol(const std::string &name) const;
+			Symbol *FindSymbol(const std::string &name, const Scope &scope, bool exclusive = false) const;
+			bool ResolveCall(Nodes::Call *call, const Scope &scope, bool &intrinsic, bool &ambiguouss) const;
 			Nodes::Expression *FoldConstantExpression(Nodes::Expression *expression);
 
 			Tree &mAST;
 			Lexer mLexer, mBackupLexer, &mOrigLexer;
 			Lexer::Token mToken, mNextToken, mBackupToken;
-			unsigned int mCurrentScope;
-			std::stack<Node *> mParentStack;
-			std::unordered_map<std::string, std::vector<std::pair<unsigned int, Node *>>> mSymbolStack;
+			Scope mCurrentScope;
+			std::string mCurrentNamespace;
+			std::stack<Symbol *> mParentStack;
+			std::unordered_map<std::string, std::vector<std::pair<Scope, Symbol *>>> mSymbolStack;
 		};
 	}
 }
