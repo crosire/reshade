@@ -2910,6 +2910,8 @@ namespace ReShade
 
 				if (!ParseType(type))
 				{
+					this->mLexer.Error(this->mNextToken.GetLocation(), 3000, "syntax error: unexpected '%s', expected struct member type", this->mNextToken.GetName().c_str());
+
 					ConsumeUntil('}');
 
 					return false;
