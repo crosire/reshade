@@ -3050,6 +3050,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateVertexShader(CONST DWORD *pDecl
 		source = std::regex_replace(source, std::regex("(oFog|oPts)\\.x"), "$1 /* removed swizzle */");
 		source = std::regex_replace(source, std::regex("(add|sub|mul|min|max) (oFog|oPts), ([cr][0-9]+), (.+)\\n"), "$1 $2, $3.x /* added swizzle */, $4\n");
 		source = std::regex_replace(source, std::regex("(add|sub|mul|min|max) (oFog|oPts), (.+), ([cr][0-9]+)\\n"), "$1 $2, $3, $4.x /* added swizzle */\n");
+		source = std::regex_replace(source, std::regex("mov (oFog|oPts)(.*), (-?)([crv][0-9]+)(?!\\.)"), "mov $1$2, $3$4.x /* select single component */");
 
 		LOG(TRACE) << "> Dumping translated shader assembly:\n\n" << source;
 
