@@ -2363,12 +2363,12 @@ namespace ReShade
 						{
 							for (auto field : parameter->Type.Definition->Fields)
 							{
-								VisitShaderVariable(parameter->Type.Qualifiers, field->Type, "_param_" + parameter->Name + "_" + field->Name, field->Semantic, source, shadertype);
+								VisitShaderParameter(source, field->Type, parameter->Type.Qualifiers, "_param_" + parameter->Name + "_" + field->Name, field->Semantic, shadertype);
 							}
 						}
 						else
 						{
-							VisitShaderVariable(parameter->Type.Qualifiers, parameter->Type, "_param_" + parameter->Name, parameter->Semantic, source, shadertype);
+							VisitShaderParameter(source, parameter->Type, parameter->Type.Qualifiers, "_param_" + parameter->Name, parameter->Semantic, shadertype);
 						}
 					}
 
@@ -2376,43 +2376,66 @@ namespace ReShade
 					{
 						for (auto field : node->ReturnType.Definition->Fields)
 						{
-							VisitShaderVariable(FX::Nodes::Type::Out, field->Type, "_return_" + field->Name, field->Semantic, source, shadertype);
+							VisitShaderParameter(source, field->Type, FX::Nodes::Type::Out, "_return_" + field->Name, field->Semantic, shadertype);
 						}
 					}
 					else if (!node->ReturnType.IsVoid())
 					{
-						VisitShaderVariable(FX::Nodes::Type::Out, node->ReturnType, "_return", node->ReturnSemantic, source, shadertype);
+						VisitShaderParameter(source, node->ReturnType, FX::Nodes::Type::Out, "_return", node->ReturnSemantic, shadertype);
 					}
 
 					source += "void main()\n{\n";
 
 					for (auto parameter : node->Parameters)
 					{
-						if (parameter->Type.IsStruct())
+						for (int i = 0, arraylength = std::max(1, parameter->Type.ArrayLength); i < arraylength; ++i)
 						{
-							VisitTypeClass(source, parameter->Type);
-
-							source += " _param_" + parameter->Name + " = ";
-
-							VisitTypeClass(source, parameter->Type);
-
-							source += "(";
-
-							if (!parameter->Type.Definition->Fields.empty())
+							if (parameter->Type.IsStruct())
 							{
-								for (auto field : parameter->Type.Definition->Fields)
+								VisitTypeClass(source, parameter->Type);
+
+								source += " _param_" + parameter->Name + (parameter->Type.IsArray() ? std::to_string(i) : "") + " = ";
+
+								VisitTypeClass(source, parameter->Type);
+
+								source += "(";
+
+								if (!parameter->Type.Definition->Fields.empty())
 								{
-									source += FixNameWithSemantic("_param_" + parameter->Name + "_" + field->Name, field->Semantic, shadertype) + ", ";
+									for (auto field : parameter->Type.Definition->Fields)
+									{
+										source += FixNameWithSemantic("_param_" + parameter->Name + "_" + field->Name + (parameter->Type.IsArray() ? std::to_string(i) : ""), field->Semantic, shadertype) + ", ";
+									}
+
+									source.erase(source.end() - 2, source.end());
 								}
 
-								source.erase(source.end() - 2, source.end());
+								source += ");\n";
+							}
+							else if (boost::starts_with(parameter->Semantic, "COLOR") || boost::starts_with(parameter->Semantic, "SV_TARGET"))
+							{
+								source += " _param_" + parameter->Name + (parameter->Type.IsArray() ? std::to_string(i) : "") + " = vec4(0, 0, 0, 1);\n";
+							}
+						}
+
+						if (parameter->Type.IsArray())
+						{
+							VisitTypeClass(source, parameter->Type);
+
+							source += " _param_" + parameter->Name + "[] = ";
+
+							VisitTypeClass(source, parameter->Type);
+
+							source += "[](";
+
+							for (int i = 0; i < parameter->Type.ArrayLength; ++i)
+							{
+								source += "_param_" + parameter->Name + std::to_string(i) + ", ";
 							}
 
+							source.erase(source.end() - 2, source.end());
+
 							source += ");\n";
-						}
-						else if (boost::starts_with(parameter->Semantic, "COLOR") || boost::starts_with(parameter->Semantic, "SV_TARGET"))
-						{
-							source += "_param_" + parameter->Name + " = vec4(0, 0, 0, 1);\n";
 						}
 					}
 
@@ -2460,11 +2483,27 @@ namespace ReShade
 
 					for (auto parameter : node->Parameters)
 					{
-						if (parameter->Type.IsStruct() && parameter->Type.HasQualifier(FX::Nodes::Type::Qualifier::Out))
+						if (!parameter->Type.HasQualifier(FX::Nodes::Type::Qualifier::Out))
 						{
-							for (auto field : parameter->Type.Definition->Fields)
+							continue;
+						}
+
+						if (parameter->Type.IsArray())
+						{
+							for (int i = 0; i < parameter->Type.ArrayLength; ++i)
 							{
-								source += "_param_" + parameter->Name + "_" + field->Name + " = " + "_param_" + parameter->Name + "." + field->Name + ";\n";
+								source += "_param_" + parameter->Name + std::to_string(i) + " = _param_" + parameter->Name + "[" + std::to_string(i) + "];\n";
+							}
+						}
+
+						for (int i = 0; i < std::max(1, parameter->Type.ArrayLength); ++i)
+						{
+							if (parameter->Type.IsStruct())
+							{
+								for (auto field : parameter->Type.Definition->Fields)
+								{
+									source += "_param_" + parameter->Name + "_" + field->Name + (parameter->Type.IsArray() ? std::to_string(i) : "") + " = " + "_param_" + parameter->Name + "." + field->Name + (parameter->Type.IsArray() ? "[" + std::to_string(i) + "]" : "") + ";\n";
+								}
 							}
 						}
 					}
@@ -2506,45 +2545,48 @@ namespace ReShade
 						this->mFatal = true;
 					}
 				}
-				void VisitShaderVariable(unsigned int qualifier, FX::Nodes::Type type, const std::string &name, const std::string &semantic, std::string &source, GLuint shadertype)
+				void VisitShaderParameter(std::string &source, FX::Nodes::Type type, unsigned int qualifier, const std::string &name, const std::string &semantic, GLuint shadertype)
 				{
-					unsigned int location = 0;
-
-					if (!FixNameWithSemantic(std::string(), semantic, shadertype).empty())
-					{
-						return;
-					}
-					else if (boost::starts_with(semantic, "COLOR"))
-					{
-						type.Rows = 4;
-
-						location = static_cast<unsigned int>(::strtol(semantic.c_str() + 5, nullptr, 10));
-					}
-					else if (boost::starts_with(semantic, "TEXCOORD"))
-					{
-						location = static_cast<unsigned int>(::strtol(semantic.c_str() + 8, nullptr, 10)) + 1;
-					}
-					else if (boost::starts_with(semantic, "SV_TARGET"))
-					{
-						type.Rows = 4;
-
-						location = static_cast<unsigned int>(::strtol(semantic.c_str() + 9, nullptr, 10));
-					}
-
-					source += "layout(location = " + std::to_string(location) + ") ";
-
 					type.Qualifiers = static_cast<unsigned int>(qualifier);
 
-					VisitType(source, type);
+					unsigned int location = 0;
 
-					source += ' ' + name;
-
-					if (type.IsArray())
+					for (int i = 0, arraylength = std::max(1, type.ArrayLength); i < arraylength; ++i)
 					{
-						source += "[" + (type.ArrayLength >= 1 ? std::to_string(type.ArrayLength) : "") + "]";
-					}
+						if (!FixNameWithSemantic(std::string(), semantic, shadertype).empty())
+						{
+							continue;
+						}
+						else if (boost::starts_with(semantic, "COLOR"))
+						{
+							type.Rows = 4;
 
-					source += ";\n";
+							location = static_cast<unsigned int>(::strtol(semantic.c_str() + 5, nullptr, 10));
+						}
+						else if (boost::starts_with(semantic, "TEXCOORD"))
+						{
+							location = static_cast<unsigned int>(::strtol(semantic.c_str() + 8, nullptr, 10)) + 1;
+						}
+						else if (boost::starts_with(semantic, "SV_TARGET"))
+						{
+							type.Rows = 4;
+
+							location = static_cast<unsigned int>(::strtol(semantic.c_str() + 9, nullptr, 10));
+						}
+
+						source += "layout(location = " + std::to_string(location + i) + ") ";
+
+						VisitType(source, type);
+
+						source += ' ' + name;
+
+						if (type.IsArray())
+						{
+							source += std::to_string(i);
+						}
+
+						source += ";\n";
+					}
 				}
 
 			private:
