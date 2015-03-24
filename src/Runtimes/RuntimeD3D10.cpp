@@ -1240,17 +1240,8 @@ namespace ReShade
 
 					Visit(node->Operand);
 
-					if (node->Field->Type.HasQualifier(FX::Nodes::Type::Uniform))
-					{
-						this->mCurrentSource += '_';
-					}
-					else
-					{
-						this->mCurrentSource += '.';
-					}
-
-					this->mCurrentSource += node->Field->Name;
-
+					this->mCurrentSource += '.';
+					this->mCurrentSource += PrintName(node->Field);
 					this->mCurrentSource += ')';
 				}
 				void Visit(const FX::Nodes::Assignment *node)
@@ -1429,14 +1420,7 @@ namespace ReShade
 
 					if (!node->Name.empty())
 					{
-						this->mCurrentSource += ' ';
-
-						if (!this->mCurrentBlockName.empty())
-						{
-							this->mCurrentSource += this->mCurrentBlockName + '_';
-						}
-				
-						this->mCurrentSource += PrintName(node);
+						this->mCurrentSource += ' ' + PrintName(node);
 					}
 
 					if (node->Type.IsArray())
@@ -1743,7 +1727,7 @@ namespace ReShade
 				{
 					this->mCurrentSource += PrintType(node->ReturnType);
 					this->mCurrentSource += ' ';
-					this->mCurrentSource += node->Name;
+					this->mCurrentSource += PrintName(node);
 					this->mCurrentSource += '(';
 
 					this->mCurrentInParameterBlock = true;
@@ -2024,7 +2008,7 @@ namespace ReShade
 						flags |= D3DCOMPILE_SKIP_OPTIMIZATION;
 					}
 
-					HRESULT hr = D3DCompile(source.c_str(), source.length(), nullptr, nullptr, nullptr, node->Name.c_str(), profile.c_str(), flags, 0, &compiled, &errors);
+					HRESULT hr = D3DCompile(source.c_str(), source.length(), nullptr, nullptr, nullptr, PrintName(node).c_str(), profile.c_str(), flags, 0, &compiled, &errors);
 
 					if (errors != nullptr)
 					{
@@ -2067,7 +2051,6 @@ namespace ReShade
 				std::unordered_map<std::size_t, std::size_t> mSamplerDescs;
 				std::string mCurrentGlobalConstants;
 				UINT mCurrentGlobalSize, mCurrentGlobalStorageSize, mCurrentInForInitialization;
-				std::string mCurrentBlockName;
 				bool mCurrentInParameterBlock, mCurrentInFunctionBlock;
 			};
 

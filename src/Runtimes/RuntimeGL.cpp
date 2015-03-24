@@ -1710,16 +1710,9 @@ namespace ReShade
 
 					Visit(output, node->Operand);
 
-					if (node->Field->Type.HasQualifier(FX::Nodes::Type::Uniform))
-					{
-						output += '_';
-					}
-					else
-					{
-						output += '.';
-					}
-
-					output += node->Field->Name + ')';
+					output += '.';
+					output += FixName(node->Field->Name, node->Field->Namespace);
+					output += ')';
 				}
 				void Visit(std::string &output, const FX::Nodes::Assignment *node)
 				{
