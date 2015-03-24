@@ -524,6 +524,7 @@ namespace ReShade
 			}
 			if (this->mShowStatistics)
 			{
+				stats << "Application: " << std::hash<std::string>()(sExecutablePath.stem().string()) << std::endl;
 				stats << "Date: " << static_cast<int>(this->mDate[0]) << '-' << static_cast<int>(this->mDate[1]) << '-' << static_cast<int>(this->mDate[2]) << ' ' << static_cast<int>(this->mDate[3]) << '\n';
 				stats << "Device: " << std::hex << std::uppercase << this->mVendorId << ' ' << this->mDeviceId << std::nouppercase << std::dec << std::endl;
 				stats << "FPS: " << this->mFramerate << std::endl;
@@ -599,6 +600,7 @@ namespace ReShade
 		preprocessor.AddDefine("__VENDOR__", std::to_string(this->mVendorId));
 		preprocessor.AddDefine("__DEVICE__", std::to_string(this->mDeviceId));
 		preprocessor.AddDefine("__RENDERER__", std::to_string(this->mRendererId));
+		preprocessor.AddDefine("__APPLICATION__", std::to_string(std::hash<std::string>()(sExecutablePath.stem().string())));
 		preprocessor.AddDefine("__DATE_YEAR__", std::to_string(tm.tm_year + 1900));
 		preprocessor.AddDefine("__DATE_MONTH__", std::to_string(tm.tm_mday));
 		preprocessor.AddDefine("__DATE_DAY__", std::to_string(tm.tm_mon + 1));
