@@ -188,7 +188,7 @@ namespace
 		virtual HRESULT STDMETHODCALLTYPE CreateDevice(UINT Adapter, D3DDEVTYPE DeviceType, HWND hFocusWindow, DWORD BehaviorFlags, D3D8::D3DPRESENT_PARAMETERS *pPresentationParameters, Direct3DDevice8 **ppReturnedDeviceInterface);
 
 		HMODULE mModule;
-		IDirect3D9 *mProxy;
+		IDirect3D9 *const mProxy;
 	};
 	struct Direct3DDevice8 : public IUnknown, private boost::noncopyable
 	{
@@ -207,6 +207,12 @@ namespace
 		{
 			assert(d3d != nullptr);
 			assert(proxyDevice != nullptr);
+
+			this->mD3D->AddRef();
+		}
+		~Direct3DDevice8()
+		{
+			this->mD3D->Release();
 		}
 
 		virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
@@ -309,8 +315,8 @@ namespace
 		virtual HRESULT STDMETHODCALLTYPE DeletePatch(UINT Handle);
 
 		ULONG mRef;
-		Direct3D8 *mD3D;
-		IDirect3DDevice9 *mProxy;
+		Direct3D8 *const mD3D;
+		IDirect3DDevice9 *const mProxy;
 		INT mBaseVertexIndex;
 		const BOOL mZBufferDiscarding;
 		DWORD mCurrentVertexShader, mCurrentPixelShader;
@@ -318,10 +324,16 @@ namespace
 	};
 	struct Direct3DSwapChain8 : public IUnknown, private boost::noncopyable
 	{
-		friend struct Direct3DDevice8;
-
 		Direct3DSwapChain8(Direct3DDevice8 *device, IDirect3DSwapChain9 *proxySwapChain) : mDevice(device), mProxy(proxySwapChain)
 		{
+			assert(device != nullptr);
+			assert(proxySwapChain != nullptr);
+
+			this->mDevice->AddRef();
+		}
+		~Direct3DSwapChain8()
+		{
+			this->mDevice->Release();
 		}
 
 		virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
@@ -331,8 +343,8 @@ namespace
 		virtual HRESULT STDMETHODCALLTYPE Present(CONST RECT *pSourceRect, CONST RECT *pDestRect, HWND hDestWindowOverride, CONST RGNDATA *pDirtyRegion);
 		virtual HRESULT STDMETHODCALLTYPE GetBackBuffer(UINT iBackBuffer, D3DBACKBUFFER_TYPE Type, Direct3DSurface8 **ppBackBuffer);
 
-		Direct3DDevice8 *mDevice;
-		IDirect3DSwapChain9 *mProxy;
+		Direct3DDevice8 *const mDevice;
+		IDirect3DSwapChain9 *const mProxy;
 	};
 	struct Direct3DResource8 : public IUnknown
 	{
@@ -358,11 +370,11 @@ namespace
 			assert(device != nullptr);
 			assert(proxyTexture != nullptr);
 
-			this->mDevice->mRef++;
+			this->mDevice->AddRef();
 		}
 		~Direct3DTexture8()
 		{
-			this->mDevice->mRef--;
+			this->mDevice->Release();
 		}
 
 		virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
@@ -389,8 +401,8 @@ namespace
 		virtual HRESULT STDMETHODCALLTYPE AddDirtyRect(CONST RECT *pDirtyRect);
 
 		ULONG mRef;
-		Direct3DDevice8 *mDevice;
-		IDirect3DTexture9 *mProxy;
+		Direct3DDevice8 *const mDevice;
+		IDirect3DTexture9 *const mProxy;
 	};
 	struct Direct3DVolumeTexture8 : public Direct3DBaseTexture8, private boost::noncopyable
 	{
@@ -399,11 +411,11 @@ namespace
 			assert(device != nullptr);
 			assert(proxyVolumeTexture != nullptr);
 
-			this->mDevice->mRef++;
+			this->mDevice->AddRef();
 		}
 		~Direct3DVolumeTexture8()
 		{
-			this->mDevice->mRef--;
+			this->mDevice->Release();
 		}
 
 		virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
@@ -430,8 +442,8 @@ namespace
 		virtual HRESULT STDMETHODCALLTYPE AddDirtyBox(CONST D3DBOX *pDirtyBox);
 
 		ULONG mRef;
-		Direct3DDevice8 *mDevice;
-		IDirect3DVolumeTexture9 *mProxy;
+		Direct3DDevice8 *const mDevice;
+		IDirect3DVolumeTexture9 *const mProxy;
 	};
 	struct Direct3DCubeTexture8 : public Direct3DBaseTexture8, private boost::noncopyable
 	{
@@ -440,11 +452,11 @@ namespace
 			assert(device != nullptr);
 			assert(proxyCubeTexture != nullptr);
 
-			this->mDevice->mRef++;
+			this->mDevice->AddRef();
 		}
 		~Direct3DCubeTexture8()
 		{
-			this->mDevice->mRef--;
+			this->mDevice->Release();
 		}
 
 		virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
@@ -471,8 +483,8 @@ namespace
 		virtual HRESULT STDMETHODCALLTYPE AddDirtyRect(D3DCUBEMAP_FACES FaceType, CONST RECT *pDirtyRect);
 
 		ULONG mRef;
-		Direct3DDevice8 *mDevice;
-		IDirect3DCubeTexture9 *mProxy;
+		Direct3DDevice8 *const mDevice;
+		IDirect3DCubeTexture9 *const mProxy;
 	};
 	struct Direct3DSurface8 : public IUnknown, private boost::noncopyable
 	{
@@ -481,11 +493,11 @@ namespace
 			assert(device != nullptr);
 			assert(proxySurface != nullptr);
 
-			this->mDevice->mRef++;
+			this->mDevice->AddRef();
 		}
 		~Direct3DSurface8()
 		{
-			this->mDevice->mRef--;
+			this->mDevice->Release();
 		}
 
 		virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
@@ -502,8 +514,8 @@ namespace
 		virtual HRESULT STDMETHODCALLTYPE UnlockRect();
 
 		ULONG mRef;
-		Direct3DDevice8 *mDevice;
-		IDirect3DSurface9 *mProxy;
+		Direct3DDevice8 *const mDevice;
+		IDirect3DSurface9 *const mProxy;
 	};
 	struct Direct3DVolume8 : public IUnknown, private boost::noncopyable
 	{
@@ -512,11 +524,11 @@ namespace
 			assert(device != nullptr);
 			assert(proxyVolume != nullptr);
 
-			this->mDevice->mRef++;
+			this->mDevice->AddRef();
 		}
 		~Direct3DVolume8()
 		{
-			this->mDevice->mRef--;
+			this->mDevice->Release();
 		}
 
 		virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
@@ -533,8 +545,8 @@ namespace
 		virtual HRESULT STDMETHODCALLTYPE UnlockBox();
 
 		ULONG mRef;
-		Direct3DDevice8 *mDevice;
-		IDirect3DVolume9 *mProxy;
+		Direct3DDevice8 *const mDevice;
+		IDirect3DVolume9 *const mProxy;
 	};
 	struct Direct3DVertexBuffer8 : public Direct3DResource8, private boost::noncopyable
 	{
@@ -543,11 +555,11 @@ namespace
 			assert(device != nullptr);
 			assert(proxyVertexBuffer != nullptr);
 
-			this->mDevice->mRef++;
+			this->mDevice->AddRef();
 		}
 		~Direct3DVertexBuffer8()
 		{
-			this->mDevice->mRef--;
+			this->mDevice->Release();
 		}
 
 		virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
@@ -568,8 +580,8 @@ namespace
 		virtual HRESULT STDMETHODCALLTYPE GetDesc(D3D8::D3DVERTEXBUFFER_DESC *pDesc);
 
 		ULONG mRef;
-		Direct3DDevice8 *mDevice;
-		IDirect3DVertexBuffer9 *mProxy;
+		Direct3DDevice8 *const mDevice;
+		IDirect3DVertexBuffer9 *const mProxy;
 	};
 	struct Direct3DIndexBuffer8 : public Direct3DResource8, private boost::noncopyable
 	{
@@ -578,11 +590,11 @@ namespace
 			assert(device != nullptr);
 			assert(proxyIndexBuffer != nullptr);
 
-			this->mDevice->mRef++;
+			this->mDevice->AddRef();
 		}
 		~Direct3DIndexBuffer8()
 		{
-			this->mDevice->mRef--;
+			this->mDevice->Release();
 		}
 
 		virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
@@ -603,8 +615,8 @@ namespace
 		virtual HRESULT STDMETHODCALLTYPE GetDesc(D3D8::D3DINDEXBUFFER_DESC *pDesc);
 
 		ULONG mRef;
-		Direct3DDevice8 *mDevice;
-		IDirect3DIndexBuffer9 *mProxy;
+		Direct3DDevice8 *const mDevice;
+		IDirect3DIndexBuffer9 *const mProxy;
 	};
 	struct Direct3DVertexShader8
 	{
@@ -777,7 +789,7 @@ namespace
 
 #define D3DSWAPEFFECT_COPY_VSYNC 4
 #define D3DPRESENT_RATE_UNLIMITED 0x7FFFFFFF
-	
+
 		if (output.SwapEffect == D3DSWAPEFFECT_COPY_VSYNC)
 		{
 			output.SwapEffect = D3DSWAPEFFECT_COPY;
@@ -908,7 +920,7 @@ HRESULT STDMETHODCALLTYPE Direct3DTexture8::GetLevelDesc(UINT Level, D3D8::D3DSU
 	{
 		return hr;
 	}
-	
+
 	ConvertSurfaceDesc(desc, *pDesc);
 
 	return D3D_OK;
@@ -1054,7 +1066,7 @@ HRESULT STDMETHODCALLTYPE Direct3DVolumeTexture8::GetLevelDesc(UINT Level, D3D8:
 	{
 		return hr;
 	}
-	
+
 	ConvertVolumeDesc(desc, *pDesc);
 
 	return D3D_OK;
@@ -1617,7 +1629,7 @@ HRESULT STDMETHODCALLTYPE Direct3DSwapChain8::QueryInterface(REFIID riid, void *
 	{
 		return E_POINTER;
 	}
-	
+
 	if (riid == IID_IUnknown || riid == IID_IDirect3DSwapChain8)
 	{
 		AddRef();
@@ -1671,7 +1683,7 @@ HRESULT STDMETHODCALLTYPE Direct3DSwapChain8::GetBackBuffer(UINT iBackBuffer, D3
 	}
 
 	*ppBackBuffer = new Direct3DSurface8(this->mDevice, surface);
-		
+
 	return D3D_OK;
 }
 
@@ -1682,7 +1694,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::QueryInterface(REFIID riid, void **pp
 	{
 		return E_POINTER;
 	}
-	
+
 	if (riid == IID_IUnknown || riid == IID_IDirect3DDevice8)
 	{
 		AddRef();
@@ -2843,7 +2855,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateVertexShader(CONST DWORD *pDecl
 			offset = 0;
 		}
 		else if (tokenType == D3DVSD_TOKEN_STREAMDATA && !(token & 0x10000000))
-		{		
+		{
 			elements[i].Stream = stream;
 			elements[i].Offset = offset;
 			const DWORD type = (token & D3DVSD_DATATYPEMASK) >> D3DVSD_DATATYPESHIFT;
@@ -2915,7 +2927,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateVertexShader(CONST DWORD *pDecl
 
 			return E_NOTIMPL;
 		}
-		
+
 		++pDeclaration;
 	}
 
@@ -3110,7 +3122,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateVertexShader(CONST DWORD *pDecl
 	{
 		LOG(ERROR) << "> 'IDirect3DDevice9::CreateVertexShader' failed with '" << GetErrorString(hr) << "'!";
 	}
-		
+
 	if (FAILED(hr))
 	{
 		delete shader;
@@ -3121,7 +3133,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateVertexShader(CONST DWORD *pDecl
 HRESULT STDMETHODCALLTYPE Direct3DDevice8::SetVertexShader(DWORD Handle)
 {
 	HRESULT hr;
-	
+
 	if ((Handle & 0x80000000) == 0)
 	{
 		this->mProxy->SetVertexShader(nullptr);
@@ -3135,7 +3147,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::SetVertexShader(DWORD Handle)
 
 		hr = this->mProxy->SetVertexShader(shader->mShader);
 		this->mProxy->SetVertexDeclaration(shader->mDeclaration);
-	
+
 		this->mCurrentVertexShader = Handle;
 	}
 
@@ -3461,7 +3473,7 @@ HRESULT STDMETHODCALLTYPE Direct3D8::QueryInterface(REFIID riid, void **ppvObj)
 	{
 		return E_POINTER;
 	}
-	
+
 	if (riid == IID_IUnknown || riid == IID_IDirect3D8)
 	{
 		AddRef();
@@ -3687,7 +3699,7 @@ EXPORT Direct3D8 *WINAPI Direct3DCreate8(UINT SDKVersion)
 
 		return nullptr;
 	}
-	
+
 	IDirect3D9 *const res = Direct3DCreate9(D3D_SDK_VERSION);
 
 	if (res == nullptr)

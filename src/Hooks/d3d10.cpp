@@ -197,14 +197,15 @@ public:
 	virtual ULONG STDMETHODCALLTYPE AddRef() override;
 	virtual ULONG STDMETHODCALLTYPE Release() override;
 
-	IDXGIDevice *CreateDXGIDevice(IDXGIDevice *originalDevice);
+	IDXGIDevice *GetDXGIDevice();
 	ID3D10Device *GetOriginalD3D10Device();
+
 	void AddRuntime(const std::shared_ptr<ReShade::Runtimes::D3D10Runtime> &runtime);
 	void RemoveRuntime(const std::shared_ptr<ReShade::Runtimes::D3D10Runtime> &runtime);
 
 private:
 	ULONG mRef;
-	D3D10Device *mD3D10Device;
+	D3D10Device *const mD3D10Device;
 };
 
 const IID DXGID3D10Bridge::sIID = { 0xff97cb62, 0x2b9e, 0x4792, { 0xb2, 0x87, 0x82, 0x3a, 0x71, 0x9, 0x57, 0x20 } };
@@ -242,6 +243,7 @@ ULONG STDMETHODCALLTYPE DXGID3D10Bridge::Release()
 
 	return ref;
 }
+
 ID3D10Device *DXGID3D10Bridge::GetOriginalD3D10Device()
 {
 	return this->mD3D10Device->mOrig;
@@ -349,6 +351,8 @@ HRESULT STDMETHODCALLTYPE D3D10Device::QueryInterface(REFIID riid, void **ppvObj
 
 	if (riid == DXGID3D10Bridge::sIID)
 	{
+		assert(this->mDXGIBridge != nullptr);
+
 		this->mDXGIBridge->AddRef();
 
 		*ppvObj = this->mDXGIBridge;
@@ -411,9 +415,9 @@ ULONG STDMETHODCALLTYPE D3D10Device::Release()
 	if (this->mRef == 0 && ref != 0)
 	{
 		LOG(WARNING) << "Reference count for 'ID3D10Device" << (this->mInterfaceVersion >= 1 ? std::to_string(this->mInterfaceVersion) : "") << "' object " << this << " (" << ref << ") is inconsistent.";
-	}
 
-	ref = this->mRef;
+		ref = 0;
+	}
 
 	if (ref == 0)
 	{
@@ -932,17 +936,11 @@ EXPORT HRESULT WINAPI D3D10CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, D3D1
 	{
 		assert(*ppDevice != nullptr);
 
-		ID3D10Device *const device = *ppDevice;
-		IDXGIDevice *dxgidevice = nullptr;
-		device->QueryInterface(&dxgidevice);
-
-		assert(dxgidevice != nullptr);
-
-		D3D10Device *const deviceProxy = new D3D10Device(device);
+		D3D10Device *const deviceProxy = new D3D10Device(*ppDevice);
 		DXGID3D10Bridge *const dxgibridge = new DXGID3D10Bridge(deviceProxy);
 
 		deviceProxy->mDXGIBridge = dxgibridge;
-		deviceProxy->mDXGIDevice = dxgibridge->CreateDXGIDevice(dxgidevice);
+		deviceProxy->mDXGIDevice = dxgibridge->GetDXGIDevice();
 
 		if (pSwapChainDesc != nullptr)
 		{
@@ -995,17 +993,11 @@ EXPORT HRESULT WINAPI D3D10CreateDeviceAndSwapChain1(IDXGIAdapter *pAdapter, D3D
 	{
 		assert(*ppDevice != nullptr);
 
-		ID3D10Device1 *const device = *ppDevice;
-		IDXGIDevice *dxgidevice = nullptr;
-		device->QueryInterface(&dxgidevice);
-
-		assert(dxgidevice != nullptr);
-
-		D3D10Device *const deviceProxy = new D3D10Device(device);
+		D3D10Device *const deviceProxy = new D3D10Device(*ppDevice);
 		DXGID3D10Bridge *const dxgibridge = new DXGID3D10Bridge(deviceProxy);
 
 		deviceProxy->mDXGIBridge = dxgibridge;
-		deviceProxy->mDXGIDevice = dxgibridge->CreateDXGIDevice(dxgidevice);
+		deviceProxy->mDXGIDevice = dxgibridge->GetDXGIDevice();
 
 		if (pSwapChainDesc != nullptr)
 		{

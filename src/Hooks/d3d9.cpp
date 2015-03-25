@@ -297,8 +297,8 @@ HRESULT STDMETHODCALLTYPE Direct3DSwapChain9::QueryInterface(REFIID riid, void *
 			}
 
 			this->mOrig->Release();
-			this->mOrig = swapchainex;
 
+			this->mOrig = swapchainex;
 			this->mInterfaceVersion = 1;
 
 			LOG(TRACE) << "Upgraded 'IDirect3DSwapChain9' object " << this << " to 'IDirect3DSwapChain9Ex'.";
@@ -327,6 +327,7 @@ ULONG STDMETHODCALLTYPE Direct3DSwapChain9::Release()
 		assert(this->mRuntime != nullptr);
 
 		this->mRuntime->OnDeleteInternal();
+
 		this->mRuntime.reset();
 
 		const auto it = std::find(this->mDevice->mAdditionalSwapChains.begin(), this->mDevice->mAdditionalSwapChains.end(), this);
@@ -343,10 +344,10 @@ ULONG STDMETHODCALLTYPE Direct3DSwapChain9::Release()
 
 	if (this->mRef == 0 && ref != 0)
 	{
-		LOG(WARNING) << "Reference count for 'IDirect3DSwapChain9" << (this->mInterfaceVersion >= 1 ? "Ex" : "") << "' object " << this << " (" << ref << ") is inconsistent.";
-	}
+		LOG(WARNING) << "Reference count for '" << (this->mInterfaceVersion >= 1 ? "IDirect3DSwapChain9Ex" : "IDirect3DSwapChain9") << "' object " << this << " (" << ref << ") is inconsistent.";
 
-	ref = this->mRef;
+		ref = 0;
+	}
 
 	if (ref == 0)
 	{
@@ -440,8 +441,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::QueryInterface(REFIID riid, void **pp
 			}
 
 			this->mOrig->Release();
-			this->mOrig = deviceex;
 
+			this->mOrig = deviceex;
 			this->mInterfaceVersion = 1;
 
 			LOG(TRACE) << "Upgraded 'IDirect3DDevice9' object " << this << " to 'IDirect3DDevice9Ex'.";
@@ -482,10 +483,10 @@ ULONG STDMETHODCALLTYPE Direct3DDevice9::Release()
 
 	if (this->mRef == 0 && ref != 0)
 	{
-		LOG(WARNING) << "Reference count for 'IDirect3DDevice9" << (this->mInterfaceVersion >= 1 ? "Ex" : "") << "' object " << this << " (" << ref << ") is inconsistent.";
-	}
+		LOG(WARNING) << "Reference count for '" << (this->mInterfaceVersion >= 1 ? "IDirect3DDevice9Ex" : "IDirect3DDevice9") << "' object " << this << " (" << ref << ") is inconsistent.";
 
-	ref = this->mRef;
+		ref = 0;
+	}
 
 	if (ref == 0)
 	{
@@ -564,7 +565,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateAdditionalSwapChain(D3DPRESENT_
 	}
 
 	IDirect3DDevice9 *const device = this->mOrig;
-	IDirect3DSwapChain9 *swapchain = *ppSwapChain;
+	IDirect3DSwapChain9 *const swapchain = *ppSwapChain;
 
 	assert(swapchain != nullptr);
 
@@ -1389,7 +1390,7 @@ HRESULT STDMETHODCALLTYPE IDirect3D9_CreateDevice(IDirect3D9 *pD3D, UINT Adapter
 		device->GetSwapChain(0, &swapchain);
 
 		assert(swapchain != nullptr);
-		
+
 		D3DPRESENT_PARAMETERS pp;
 		swapchain->GetPresentParameters(&pp);
 

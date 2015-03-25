@@ -296,7 +296,7 @@ class DXGID3D11Bridge : public IUnknown, private boost::noncopyable
 {
 public:
 	static const IID sIID;
-	
+
 public:
 	DXGID3D11Bridge(D3D11Device *device) : mRef(1), mD3D11Device(device)
 	{
@@ -307,8 +307,9 @@ public:
 	virtual ULONG STDMETHODCALLTYPE AddRef() override;
 	virtual ULONG STDMETHODCALLTYPE Release() override;
 
-	IDXGIDevice *CreateDXGIDevice(IDXGIDevice *originalDevice);
+	IDXGIDevice *GetDXGIDevice();
 	ID3D11Device *GetOriginalD3D11Device();
+
 	void AddRuntime(const std::shared_ptr<ReShade::Runtimes::D3D11Runtime> &runtime);
 	void RemoveRuntime(const std::shared_ptr<ReShade::Runtimes::D3D11Runtime> &runtime);
 
@@ -352,6 +353,7 @@ ULONG STDMETHODCALLTYPE DXGID3D11Bridge::Release()
 
 	return ref;
 }
+
 ID3D11Device *DXGID3D11Bridge::GetOriginalD3D11Device()
 {
 	return this->mD3D11Device->mOrig;
@@ -1173,6 +1175,8 @@ HRESULT STDMETHODCALLTYPE D3D11Device::QueryInterface(REFIID riid, void **ppvObj
 
 	if (riid == DXGID3D11Bridge::sIID)
 	{
+		assert(this->mDXGIBridge != nullptr);
+
 		this->mDXGIBridge->AddRef();
 
 		*ppvObj = this->mDXGIBridge;
@@ -1185,6 +1189,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::QueryInterface(REFIID riid, void **ppvObj
 		if (riid == __uuidof(ID3D11Device1) && this->mInterfaceVersion < 1)
 		{
 			ID3D11Device1 *device1 = nullptr;
+			ID3D11DeviceContext1 *devicecontext1 = nullptr;
 
 			const HRESULT hr = this->mOrig->QueryInterface(__uuidof(ID3D11Device1), reinterpret_cast<void **>(&device1));
 
@@ -1194,13 +1199,11 @@ HRESULT STDMETHODCALLTYPE D3D11Device::QueryInterface(REFIID riid, void **ppvObj
 			}
 
 			this->mOrig->Release();
-			this->mOrig = device1;
 
+			this->mOrig = device1;
 			this->mInterfaceVersion = 1;
 
 			LOG(TRACE) << "Upgraded 'ID3D11Device' object " << this << " to 'ID3D11Device1'.";
-
-			ID3D11DeviceContext1 *devicecontext1 = nullptr;
 
 			this->mImmediateContext->QueryInterface(__uuidof(ID3D11DeviceContext1), reinterpret_cast<void **>(&devicecontext1));
 
@@ -1245,9 +1248,9 @@ ULONG STDMETHODCALLTYPE D3D11Device::Release()
 	if (this->mRef == 0 && ref != 0)
 	{
 		LOG(WARNING) << "Reference count for 'ID3D11Device" << (this->mInterfaceVersion >= 1 ? std::to_string(this->mInterfaceVersion) : "") << "' object " << this << " (" << ref << ") is inconsistent.";
-	}
 
-	ref = this->mRef;
+		ref = 0;
+	}
 
 	if (ref == 0)
 	{
@@ -1564,12 +1567,9 @@ EXPORT HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, D3D_
 		assert(*ppDevice != nullptr);
 
 		ID3D11Device *const device = *ppDevice;
-		IDXGIDevice *dxgidevice = nullptr;
-		device->QueryInterface(&dxgidevice);
 		ID3D11DeviceContext *devicecontext = nullptr;
 		device->GetImmediateContext(&devicecontext);
 
-		assert(dxgidevice != nullptr);
 		assert(devicecontext != nullptr);
 
 		D3D11Device *const deviceProxy = new D3D11Device(device);
@@ -1577,7 +1577,7 @@ EXPORT HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, D3D_
 		DXGID3D11Bridge *const dxgibridge = new DXGID3D11Bridge(deviceProxy);
 
 		deviceProxy->mDXGIBridge = dxgibridge;
-		deviceProxy->mDXGIDevice = dxgibridge->CreateDXGIDevice(dxgidevice);
+		deviceProxy->mDXGIDevice = dxgibridge->GetDXGIDevice();
 		deviceProxy->mImmediateContext = devicecontextProxy;
 
 		if (pSwapChainDesc != nullptr)

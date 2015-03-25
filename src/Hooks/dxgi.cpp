@@ -192,8 +192,9 @@ public:
 	static const IID sIID;
 
 public:
-	IDXGIDevice *CreateDXGIDevice(IDXGIDevice *originalDevice);
+	IDXGIDevice *GetDXGIDevice();
 	ID3D10Device *GetOriginalD3D10Device();
+
 	void AddRuntime(const std::shared_ptr<ReShade::Runtimes::D3D10Runtime> &runtime);
 	void RemoveRuntime(const std::shared_ptr<ReShade::Runtimes::D3D10Runtime> &runtime);
 
@@ -207,8 +208,9 @@ public:
 	static const IID sIID;
 	
 public:
-	IDXGIDevice *CreateDXGIDevice(IDXGIDevice *originalDevice);
+	IDXGIDevice *GetDXGIDevice();
 	ID3D11Device *GetOriginalD3D11Device();
+
 	void AddRuntime(const std::shared_ptr<ReShade::Runtimes::D3D11Runtime> &runtime);
 	void RemoveRuntime(const std::shared_ptr<ReShade::Runtimes::D3D11Runtime> &runtime);
 
@@ -217,17 +219,31 @@ private:
 	ID3D11Device *mD3D11Device;
 };
 
-IDXGIDevice *DXGID3D10Bridge::CreateDXGIDevice(IDXGIDevice *originalDevice)
+IDXGIDevice *DXGID3D10Bridge::GetDXGIDevice()
 {
+	IDXGIDevice *device = nullptr;
+
+	if (FAILED(GetOriginalD3D10Device()->QueryInterface(&device)))
+	{
+		return nullptr;
+	}
+
 	AddRef();
 
-	return new DXGIDevice(originalDevice, this, this->mD3D10Device);
+	return new DXGIDevice(device, this, this->mD3D10Device);
 }
-IDXGIDevice *DXGID3D11Bridge::CreateDXGIDevice(IDXGIDevice *originalDevice)
+IDXGIDevice *DXGID3D11Bridge::GetDXGIDevice()
 {
+	IDXGIDevice *device = nullptr;
+
+	if (FAILED(GetOriginalD3D11Device()->QueryInterface(&device)))
+	{
+		return nullptr;
+	}
+
 	AddRef();
 
-	return new DXGIDevice(originalDevice, this, this->mD3D11Device);
+	return new DXGIDevice(device, this, this->mD3D11Device);
 }
 #pragma endregion
 
@@ -256,8 +272,8 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::QueryInterface(REFIID riid, void **ppvO
 			}
 
 			this->mOrig->Release();
-			this->mOrig = swapchain1;
 
+			this->mOrig = swapchain1;
 			this->mInterfaceVersion = 1;
 
 			LOG(TRACE) << "Upgraded 'IDXGISwapChain' object " << this << " to 'IDXGISwapChain1'.";
@@ -308,9 +324,9 @@ ULONG STDMETHODCALLTYPE DXGISwapChain::Release()
 	if (this->mRef == 0 && ref != 0)
 	{
 		LOG(WARNING) << "Reference count for 'IDXGISwapChain" << (this->mInterfaceVersion >= 1 ? std::to_string(this->mInterfaceVersion) : "") << "' object " << this << " (" << ref << ") is inconsistent.";
-	}
 
-	ref = this->mRef;
+		ref = 0;
+	}
 
 	if (ref == 0)
 	{
@@ -476,7 +492,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::GetFrameStatistics(DXGI_FRAME_STATISTIC
 {
 	return this->mOrig->GetFrameStatistics(pStats);
 }
-HRESULT STDMETHODCALLTYPE DXGISwapChain::GetLastPresentCount(UINT *pLastPresentCount)	
+HRESULT STDMETHODCALLTYPE DXGISwapChain::GetLastPresentCount(UINT *pLastPresentCount)
 {
 	return this->mOrig->GetLastPresentCount(pLastPresentCount);
 }
@@ -592,8 +608,8 @@ HRESULT STDMETHODCALLTYPE DXGIDevice::QueryInterface(REFIID riid, void **ppvObj)
 			}
 
 			this->mOrig->Release();
-			this->mOrig = device1;
 
+			this->mOrig = device1;
 			this->mInterfaceVersion = 1;
 
 			LOG(TRACE) << "Upgraded 'IDXGIDevice' object " << this << " to 'IDXGIDevice1'.";
@@ -612,8 +628,8 @@ HRESULT STDMETHODCALLTYPE DXGIDevice::QueryInterface(REFIID riid, void **ppvObj)
 			}
 
 			this->mOrig->Release();
-			this->mOrig = device2;
 
+			this->mOrig = device2;
 			this->mInterfaceVersion = 2;
 
 			LOG(TRACE) << "Upgraded 'IDXGIDevice' object " << this << " to 'IDXGIDevice2'.";
@@ -649,6 +665,8 @@ ULONG STDMETHODCALLTYPE DXGIDevice::AddRef()
 {
 	this->mRef++;
 
+	this->mDirect3DDevice->AddRef();
+
 	return this->mOrig->AddRef();
 }
 ULONG STDMETHODCALLTYPE DXGIDevice::Release()
@@ -657,17 +675,24 @@ ULONG STDMETHODCALLTYPE DXGIDevice::Release()
 	{
 		this->mDirect3DBridge->Release();
 	}
+	else
+	{
+		if (this->mDirect3DDevice->Release() == 0)
+		{
+			return 0;
+		}
+	}
 
 	ULONG ref = this->mOrig->Release();
 
 	if (this->mRef == 0 && ref != 1)
 	{
 		LOG(WARNING) << "Reference count for 'IDXGIDevice" << (this->mInterfaceVersion >= 1 ? std::to_string(this->mInterfaceVersion) : "") << "' object " << this << " (" << ref << ") is inconsistent.";
+
+		ref = 1;
 	}
 
-	ref = this->mRef;
-
-	if (ref == 0)
+	if (ref == 1)
 	{
 		delete this;
 	}
@@ -1115,7 +1140,7 @@ EXPORT HRESULT WINAPI CreateDXGIFactory(REFIID riid, void **ppFactory)
 	StringFromGUID2(riid, guid, ARRAYSIZE(guid));
 
 	LOG(INFO) << "Redirecting '" << "CreateDXGIFactory" << "(" << guid << ", " << ppFactory << ")' ...";
-	
+
 	const HRESULT hr = ReShade::Hooks::Call(&CreateDXGIFactory)(riid, ppFactory);
 
 	if (FAILED(hr))
