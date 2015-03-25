@@ -1125,16 +1125,39 @@ namespace ReShade
 							part3 = ")";
 							break;
 						case FX::Nodes::Intrinsic::Op::Tex2DGather:
-							part1 = "__tex2Dgather(";
-							part2 = ", ";
-							part3 = ")";
-							break;
+							if (node->Arguments[2]->NodeId == FX::Node::Id::Literal && node->Arguments[2]->Type.IsIntegral())
+							{
+								const int component = static_cast<const FX::Nodes::Literal *>(node->Arguments[2])->Value.Int[0];
+
+								this->mCurrentSource += "__tex2Dgather" + std::to_string(component) + "(";
+								Visit(node->Arguments[0]);
+								this->mCurrentSource += ", ";
+								Visit(node->Arguments[1]);
+								this->mCurrentSource += ")";
+							}
+							else
+							{
+								this->mErrors += PrintLocation(node->Location) + "error: texture gather component argument has to be constant.\n";
+							}
+							return;
 						case FX::Nodes::Intrinsic::Op::Tex2DGatherOffset:
-							part1 = "__tex2Dgatheroffset(";
-							part2 = ", ";
-							part3 = ", ";
-							part4 = ")";
-							break;
+							if (node->Arguments[3]->NodeId == FX::Node::Id::Literal && node->Arguments[3]->Type.IsIntegral())
+							{
+								const int component = static_cast<const FX::Nodes::Literal *>(node->Arguments[3])->Value.Int[0];
+
+								this->mCurrentSource += "__tex2Dgatheroffset" + std::to_string(component) + "(";
+								Visit(node->Arguments[0]);
+								this->mCurrentSource += ", ";
+								Visit(node->Arguments[1]);
+								this->mCurrentSource += ", ";
+								Visit(node->Arguments[2]);
+								this->mCurrentSource += ")";
+							}
+							else
+							{
+								this->mErrors += PrintLocation(node->Location) + "error: texture gather component argument has to be constant.\n";
+							}
+							return;
 						case FX::Nodes::Intrinsic::Op::Tex2DGrad:
 							part1 = "__tex2Dgrad(";
 							part2 = ", ";
@@ -1989,14 +2012,35 @@ namespace ReShade
 					if (featurelevel >= D3D_FEATURE_LEVEL_10_1)
 					{
 						source +=
-							"inline float4 __tex2Dgather(__sampler2D s, float2 c) { return s.t.Gather(s.s, c); }\n"
-							"inline float4 __tex2Dgatheroffset(__sampler2D s, float2 c, int2 offset) { return s.t.Gather(s.s, c, offset); }\n";
+							"inline float4 __tex2Dgather0(__sampler2D s, float2 c) { return s.t.Gather(s.s, c); }\n"
+							"inline float4 __tex2Dgather0offset(__sampler2D s, float2 c, int2 offset) { return s.t.Gather(s.s, c, offset); }\n";
 					}
 					else
 					{
 						source +=
-							"inline float4 __tex2Dgather(__sampler2D s, float2 c) { return float4( s.t.SampleLevel(s.s, c, 0, int2(0, 1)).r, s.t.SampleLevel(s.s, c, 0, int2(1, 1)).r, s.t.SampleLevel(s.s, c, 0, int2(1, 0)).r, s.t.SampleLevel(s.s, c, 0).r); }\n"
-							"inline float4 __tex2Dgatheroffset(__sampler2D s, float2 c, int2 offset) { return float4( s.t.SampleLevel(s.s, c, 0, offset + int2(0, 1)).r, s.t.SampleLevel(s.s, c, 0, offset + int2(1, 1)).r, s.t.SampleLevel(s.s, c, 0, offset + int2(1, 0)).r, s.t.SampleLevel(s.s, c, 0, offset).r); }\n";
+							"inline float4 __tex2Dgather0(__sampler2D s, float2 c) { return float4( s.t.SampleLevel(s.s, c, 0, int2(0, 1)).r, s.t.SampleLevel(s.s, c, 0, int2(1, 1)).r, s.t.SampleLevel(s.s, c, 0, int2(1, 0)).r, s.t.SampleLevel(s.s, c, 0).r); }\n"
+							"inline float4 __tex2Dgather0offset(__sampler2D s, float2 c, int2 offset) { return float4( s.t.SampleLevel(s.s, c, 0, offset + int2(0, 1)).r, s.t.SampleLevel(s.s, c, 0, offset + int2(1, 1)).r, s.t.SampleLevel(s.s, c, 0, offset + int2(1, 0)).r, s.t.SampleLevel(s.s, c, 0, offset).r); }\n";
+					}
+
+					if (featurelevel >= D3D_FEATURE_LEVEL_11_0)
+					{
+						source +=
+							"inline float4 __tex2Dgather1(__sampler2D s, float2 c) { return s.t.GatherGreen(s.s, c); }\n"
+							"inline float4 __tex2Dgather1offset(__sampler2D s, float2 c, int2 offset) { return s.t.GatherGreen(s.s, c, offset); }\n"
+							"inline float4 __tex2Dgather2(__sampler2D s, float2 c) { return s.t.GatherBlue(s.s, c); }\n"
+							"inline float4 __tex2Dgather2offset(__sampler2D s, float2 c, int2 offset) { return s.t.GatherBlue(s.s, c, offset); }\n"
+							"inline float4 __tex2Dgather3(__sampler2D s, float2 c) { return s.t.GatherAlpha(s.s, c); }\n"
+							"inline float4 __tex2Dgather3offset(__sampler2D s, float2 c, int2 offset) { return s.t.GatherAlpha(s.s, c, offset); }\n";
+					}
+					else
+					{
+						source +=
+							"inline float4 __tex2Dgather1(__sampler2D s, float2 c) { return float4( s.t.SampleLevel(s.s, c, 0, int2(0, 1)).g, s.t.SampleLevel(s.s, c, 0, int2(1, 1)).g, s.t.SampleLevel(s.s, c, 0, int2(1, 0)).g, s.t.SampleLevel(s.s, c, 0).g); }\n"
+							"inline float4 __tex2Dgather1offset(__sampler2D s, float2 c, int2 offset) { return float4( s.t.SampleLevel(s.s, c, 0, offset + int2(0, 1)).g, s.t.SampleLevel(s.s, c, 0, offset + int2(1, 1)).g, s.t.SampleLevel(s.s, c, 0, offset + int2(1, 0)).g, s.t.SampleLevel(s.s, c, 0, offset).g); }\n"
+							"inline float4 __tex2Dgather2(__sampler2D s, float2 c) { return float4( s.t.SampleLevel(s.s, c, 0, int2(0, 1)).b, s.t.SampleLevel(s.s, c, 0, int2(1, 1)).b, s.t.SampleLevel(s.s, c, 0, int2(1, 0)).b, s.t.SampleLevel(s.s, c, 0).b); }\n"
+							"inline float4 __tex2Dgather2offset(__sampler2D s, float2 c, int2 offset) { return float4( s.t.SampleLevel(s.s, c, 0, offset + int2(0, 1)).b, s.t.SampleLevel(s.s, c, 0, offset + int2(1, 1)).b, s.t.SampleLevel(s.s, c, 0, offset + int2(1, 0)).b, s.t.SampleLevel(s.s, c, 0, offset).b); }\n"
+							"inline float4 __tex2Dgather3(__sampler2D s, float2 c) { return float4( s.t.SampleLevel(s.s, c, 0, int2(0, 1)).a, s.t.SampleLevel(s.s, c, 0, int2(1, 1)).a, s.t.SampleLevel(s.s, c, 0, int2(1, 0)).a, s.t.SampleLevel(s.s, c, 0).a); }\n"
+							"inline float4 __tex2Dgather3offset(__sampler2D s, float2 c, int2 offset) { return float4( s.t.SampleLevel(s.s, c, 0, offset + int2(0, 1)).a, s.t.SampleLevel(s.s, c, 0, offset + int2(1, 1)).a, s.t.SampleLevel(s.s, c, 0, offset + int2(1, 0)).a, s.t.SampleLevel(s.s, c, 0, offset).a); }\n";
 					}
 
 					if (!this->mCurrentGlobalConstants.empty())

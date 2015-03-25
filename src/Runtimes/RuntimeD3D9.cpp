@@ -1100,16 +1100,39 @@ namespace ReShade
 							part3 = "))";
 							break;
 						case FX::Nodes::Intrinsic::Op::Tex2DGather:
-							part1 = "__tex2Dgather(";
-							part2 = ", ";
-							part3 = ")";
-							break;
+							if (node->Arguments[2]->NodeId == FX::Node::Id::Literal && node->Arguments[2]->Type.IsIntegral())
+							{
+								const int component = static_cast<const FX::Nodes::Literal *>(node->Arguments[2])->Value.Int[0];
+
+								output += "__tex2Dgather" + std::to_string(component) + "(";
+								Visit(output, node->Arguments[0]);
+								output += ", ";
+								Visit(output, node->Arguments[1]);
+								output += ")";
+							}
+							else
+							{
+								Error(node->Location, "texture gather component argument has to be constant");
+							}
+							return;
 						case FX::Nodes::Intrinsic::Op::Tex2DGatherOffset:
-							part1 = "__tex2Dgather(";
-							part2 = ", ";
-							part3 = " + (";
-							part4 = ") * _PIXEL_SIZE_.xy)";
-							break;
+							if (node->Arguments[3]->NodeId == FX::Node::Id::Literal && node->Arguments[3]->Type.IsIntegral())
+							{
+								const int component = static_cast<const FX::Nodes::Literal *>(node->Arguments[3])->Value.Int[0];
+
+								output += "__tex2Dgather" + std::to_string(component) + "(";
+								Visit(output, node->Arguments[0]);
+								output += ", ";
+								Visit(output, node->Arguments[1]);
+								output += " + (";
+								Visit(output, node->Arguments[2]);
+								output += ") * _PIXEL_SIZE_.xy)";
+							}
+							else
+							{
+								Error(node->Location, "texture gather component argument has to be constant");
+							}
+							return;
 						case FX::Nodes::Intrinsic::Op::Tex2DGrad:
 							part1 = "tex2Dgrad(";
 							part2 = ", ";
@@ -1805,7 +1828,10 @@ namespace ReShade
 				{
 					std::string source =
 						"uniform float4 _PIXEL_SIZE_ : register(c223);\n"
-						"float4 __tex2Dgather(sampler2D s, float2 c) { return float4(tex2Dlod(s, float4(c + float2(0, 1) * _PIXEL_SIZE_.xy, 0, 0)).r, tex2Dlod(s, float4(c + float2(1, 1) * _PIXEL_SIZE_.xy, 0, 0)).r, tex2Dlod(s, float4(c + float2(1, 0) * _PIXEL_SIZE_.xy, 0, 0)).r, tex2Dlod(s, float4(c, 0, 0)).r); }\n";
+						"float4 __tex2Dgather0(sampler2D s, float2 c) { return float4(tex2Dlod(s, float4(c + float2(0, 1) * _PIXEL_SIZE_.xy, 0, 0)).r, tex2Dlod(s, float4(c + float2(1, 1) * _PIXEL_SIZE_.xy, 0, 0)).r, tex2Dlod(s, float4(c + float2(1, 0) * _PIXEL_SIZE_.xy, 0, 0)).r, tex2Dlod(s, float4(c, 0, 0)).r); }\n"
+						"float4 __tex2Dgather1(sampler2D s, float2 c) { return float4(tex2Dlod(s, float4(c + float2(0, 1) * _PIXEL_SIZE_.xy, 0, 0)).g, tex2Dlod(s, float4(c + float2(1, 1) * _PIXEL_SIZE_.xy, 0, 0)).g, tex2Dlod(s, float4(c + float2(1, 0) * _PIXEL_SIZE_.xy, 0, 0)).g, tex2Dlod(s, float4(c, 0, 0)).g); }\n"
+						"float4 __tex2Dgather2(sampler2D s, float2 c) { return float4(tex2Dlod(s, float4(c + float2(0, 1) * _PIXEL_SIZE_.xy, 0, 0)).b, tex2Dlod(s, float4(c + float2(1, 1) * _PIXEL_SIZE_.xy, 0, 0)).b, tex2Dlod(s, float4(c + float2(1, 0) * _PIXEL_SIZE_.xy, 0, 0)).b, tex2Dlod(s, float4(c, 0, 0)).b); }\n"
+						"float4 __tex2Dgather3(sampler2D s, float2 c) { return float4(tex2Dlod(s, float4(c + float2(0, 1) * _PIXEL_SIZE_.xy, 0, 0)).a, tex2Dlod(s, float4(c + float2(1, 1) * _PIXEL_SIZE_.xy, 0, 0)).a, tex2Dlod(s, float4(c + float2(1, 0) * _PIXEL_SIZE_.xy, 0, 0)).a, tex2Dlod(s, float4(c, 0, 0)).a); }\n";
 
 					if (shadertype == "ps")
 					{

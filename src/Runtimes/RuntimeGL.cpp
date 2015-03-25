@@ -1514,7 +1514,8 @@ namespace ReShade
 
 							part1 = "textureGather(";
 							part2 = ", " + cast2.first;
-							part3 = cast2.second + " * vec2(1.0, -1.0) + vec2(0.0, 1.0))";
+							part3 = cast2.second + " * vec2(1.0, -1.0) + vec2(0.0, 1.0), int(";
+							part4 = "))";
 							break;
 						}
 						case FX::Nodes::Intrinsic::Op::Tex2DGatherOffset:
@@ -1527,7 +1528,8 @@ namespace ReShade
 							part1 = "textureGatherOffset(";
 							part2 = ", " + cast2.first;
 							part3 = cast2.second + " * vec2(1.0, -1.0) + vec2(0.0, 1.0), " + cast3.first;
-							part4 = cast3.second + " * ivec2(1, -1))";
+							part4 = cast3.second + " * ivec2(1, -1), int(";
+							part5 = "))";
 							break;
 						}
 						case FX::Nodes::Intrinsic::Op::Tex2DGrad:
