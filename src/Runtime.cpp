@@ -214,6 +214,10 @@ namespace ReShade
 
 		this->mEffect->Enter();
 
+		BYTE keys1[256], keys2[256];
+		GetKeyboardState(keys1);
+		std::copy_n(keys1, 256, keys2);
+
 		for (TechniqueInfo &info : this->mTechniques)
 		{
 			if (info.ToggleTime != 0 && info.ToggleTime == static_cast<int>(this->mDate[3]))
@@ -222,7 +226,7 @@ namespace ReShade
 				info.Timeleft = info.Timeout;
 				info.ToggleTime = 0;
 			}
-			else if ((info.Toggle > 0 && info.Toggle < 256) && ::GetKeyState(info.Toggle) & 0x8000)
+			else if ((info.Toggle > 0 && info.Toggle < 256) && keys1[info.Toggle] != FALSE)
 			{
 				info.Enabled = !info.Enabled;
 				info.Timeleft = info.Timeout;
@@ -233,10 +237,7 @@ namespace ReShade
 					this->mLastCreate = timePostProcessingStarted;
 				}
 
-				BYTE keys[256];
-				::GetKeyboardState(keys);
-				keys[info.Toggle] = FALSE;
-				::SetKeyboardState(keys);
+				keys2[info.Toggle] = FALSE;
 			}
 
 			if (info.Timeleft > 0)
@@ -399,6 +400,8 @@ namespace ReShade
 
 			info.Technique->Render();
 		}
+
+		SetKeyboardState(keys2);
 
 		this->mEffect->Leave();
 
