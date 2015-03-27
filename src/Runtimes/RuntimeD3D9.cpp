@@ -263,7 +263,7 @@ namespace ReShade
 							source += "float";
 							break;
 						case FX::Nodes::Type::Class::Sampler2D:
-							source += "sampler2D";
+							source += "__sampler2D";
 							break;
 						case FX::Nodes::Type::Class::Struct:
 							VisitName(source, type.Definition);
@@ -1090,13 +1090,13 @@ namespace ReShade
 							part2 = ")";
 							break;
 						case FX::Nodes::Intrinsic::Op::Tex2D:
-							part1 = "tex2D(";
-							part2 = ", ";
+							part1 = "tex2D((";
+							part2 = ").s, ";
 							part3 = ")";
 							break;
 						case FX::Nodes::Intrinsic::Op::Tex2DFetch:
-							part1 = "tex2D(";
-							part2 = ", float2(";
+							part1 = "tex2D((";
+							part2 = ").s, float2(";
 							part3 = "))";
 							break;
 						case FX::Nodes::Intrinsic::Op::Tex2DGather:
@@ -1120,13 +1120,13 @@ namespace ReShade
 							{
 								const int component = static_cast<const FX::Nodes::Literal *>(node->Arguments[3])->Value.Int[0];
 
-								output += "__tex2Dgather" + std::to_string(component) + "(";
+								output += "__tex2Dgather" + std::to_string(component) + "offset(";
 								Visit(output, node->Arguments[0]);
 								output += ", ";
 								Visit(output, node->Arguments[1]);
-								output += " + (";
+								output += ", ";
 								Visit(output, node->Arguments[2]);
-								output += ") * _PIXEL_SIZE_.xy)";
+								output += ")";
 							}
 							else
 							{
@@ -1134,37 +1134,39 @@ namespace ReShade
 							}
 							return;
 						case FX::Nodes::Intrinsic::Op::Tex2DGrad:
-							part1 = "tex2Dgrad(";
-							part2 = ", ";
+							part1 = "tex2Dgrad((";
+							part2 = ").s, ";
 							part3 = ", ";
 							part4 = ", ";
 							part5 = ")";
 							break;
 						case FX::Nodes::Intrinsic::Op::Tex2DLevel:
-							part1 = "tex2Dlod(";
-							part2 = ", ";
+							part1 = "tex2Dlod((";
+							part2 = ").s, ";
 							part3 = ")";
 							break;
 						case FX::Nodes::Intrinsic::Op::Tex2DLevelOffset:
-							part1 = "tex2Dlod(";
+							part1 = "__tex2Dlodoffset(";
 							part2 = ", ";
-							part3 = " + float4((";
-							part4 = ") * _PIXEL_SIZE_.xy, 0, 0))";
+							part3 = ", ";
+							part4 = ")";
 							break;
 						case FX::Nodes::Intrinsic::Op::Tex2DOffset:
-							part1 = "tex2D(";
+							part1 = "__tex2Doffset(";
 							part2 = ", ";
-							part3 = " + (";
-							part4 = ") * _PIXEL_SIZE_.xy)";
+							part3 = ", ";
+							part4 = ")";
 							break;
 						case FX::Nodes::Intrinsic::Op::Tex2DProj:
-							part1 = "tex2Dproj(";
-							part2 = ", ";
+							part1 = "tex2Dproj((";
+							part2 = ").s, ";
 							part3 = ")";
 							break;
 						case FX::Nodes::Intrinsic::Op::Tex2DSize:
-							Error(node->Location, "'tex2Dsize' is not supported in Direct3D9");
-							return;
+							part1 = "__tex2Dsize(";
+							part2 = ", ";
+							part3 = ")";
+							break;
 						case FX::Nodes::Intrinsic::Op::Transpose:
 							part1 = "transpose(";
 							part2 = ")";
@@ -1704,10 +1706,26 @@ namespace ReShade
 						for (auto sampler : this->mFunctions.at(shaderFunctions[i]).SamplerDependencies)
 						{
 							pass.Samplers[pass.SamplerCount] = this->mSamplers.at(sampler->Name);
+							const auto *const texture = sampler->Properties.Texture;
 
-							samplers += "sampler2D ";
+							samplers += "sampler2D __Sampler";
 							VisitName(samplers, sampler);
 							samplers += " : register(s" + std::to_string(pass.SamplerCount++) + ");\n";
+							samplers += "static const __sampler2D ";
+							VisitName(samplers, sampler);
+							samplers += " = { __Sampler";
+							VisitName(samplers, sampler);
+
+							if (texture->Semantic == "COLOR" || texture->Semantic == "SV_TARGET" || texture->Semantic == "DEPTH" || texture->Semantic == "SV_DEPTH")
+							{
+								samplers += ", float2(" + std::to_string(1.0f / this->mEffect->mRuntime->mPresentParams.BackBufferWidth) + ", " + std::to_string(1.0f / this->mEffect->mRuntime->mPresentParams.BackBufferHeight) + ")";
+							}
+							else
+							{
+								samplers += ", float2(" + std::to_string(1.0f / texture->Properties.Width) + ", " + std::to_string(1.0f / texture->Properties.Height) + ")";
+							}
+
+							samplers += " };\n";
 
 							if (pass.SamplerCount == 16)
 							{
@@ -1827,11 +1845,18 @@ namespace ReShade
 				void VisitTechniquePassShader(const FX::Nodes::Function *node, const std::string &shadertype, const std::string &samplers, D3D9Technique::Pass &pass)
 				{
 					std::string source =
-						"uniform float4 _PIXEL_SIZE_ : register(c223);\n"
-						"float4 __tex2Dgather0(sampler2D s, float2 c) { return float4(tex2Dlod(s, float4(c + float2(0, 1) * _PIXEL_SIZE_.xy, 0, 0)).r, tex2Dlod(s, float4(c + float2(1, 1) * _PIXEL_SIZE_.xy, 0, 0)).r, tex2Dlod(s, float4(c + float2(1, 0) * _PIXEL_SIZE_.xy, 0, 0)).r, tex2Dlod(s, float4(c, 0, 0)).r); }\n"
-						"float4 __tex2Dgather1(sampler2D s, float2 c) { return float4(tex2Dlod(s, float4(c + float2(0, 1) * _PIXEL_SIZE_.xy, 0, 0)).g, tex2Dlod(s, float4(c + float2(1, 1) * _PIXEL_SIZE_.xy, 0, 0)).g, tex2Dlod(s, float4(c + float2(1, 0) * _PIXEL_SIZE_.xy, 0, 0)).g, tex2Dlod(s, float4(c, 0, 0)).g); }\n"
-						"float4 __tex2Dgather2(sampler2D s, float2 c) { return float4(tex2Dlod(s, float4(c + float2(0, 1) * _PIXEL_SIZE_.xy, 0, 0)).b, tex2Dlod(s, float4(c + float2(1, 1) * _PIXEL_SIZE_.xy, 0, 0)).b, tex2Dlod(s, float4(c + float2(1, 0) * _PIXEL_SIZE_.xy, 0, 0)).b, tex2Dlod(s, float4(c, 0, 0)).b); }\n"
-						"float4 __tex2Dgather3(sampler2D s, float2 c) { return float4(tex2Dlod(s, float4(c + float2(0, 1) * _PIXEL_SIZE_.xy, 0, 0)).a, tex2Dlod(s, float4(c + float2(1, 1) * _PIXEL_SIZE_.xy, 0, 0)).a, tex2Dlod(s, float4(c + float2(1, 0) * _PIXEL_SIZE_.xy, 0, 0)).a, tex2Dlod(s, float4(c, 0, 0)).a); }\n";
+						"struct __sampler2D { sampler2D s; float2 pixelsize; };\n"
+						"float4 __tex2Dgather0(__sampler2D s, float2 c) { return float4(tex2Dlod(s.s, float4(c + float2(0, 1) * s.pixelsize, 0, 0)).r, tex2Dlod(s.s, float4(c + float2(1, 1) * s.pixelsize.xy, 0, 0)).r, tex2Dlod(s.s, float4(c + float2(1, 0) * s.pixelsize.xy, 0, 0)).r, tex2Dlod(s.s, float4(c, 0, 0)).r); }\n"
+						"float4 __tex2Dgather1(__sampler2D s, float2 c) { return float4(tex2Dlod(s.s, float4(c + float2(0, 1) * s.pixelsize, 0, 0)).g, tex2Dlod(s.s, float4(c + float2(1, 1) * s.pixelsize.xy, 0, 0)).g, tex2Dlod(s.s, float4(c + float2(1, 0) * s.pixelsize.xy, 0, 0)).g, tex2Dlod(s.s, float4(c, 0, 0)).g); }\n"
+						"float4 __tex2Dgather2(__sampler2D s, float2 c) { return float4(tex2Dlod(s.s, float4(c + float2(0, 1) * s.pixelsize, 0, 0)).b, tex2Dlod(s.s, float4(c + float2(1, 1) * s.pixelsize.xy, 0, 0)).b, tex2Dlod(s.s, float4(c + float2(1, 0) * s.pixelsize.xy, 0, 0)).b, tex2Dlod(s.s, float4(c, 0, 0)).b); }\n"
+						"float4 __tex2Dgather3(__sampler2D s, float2 c) { return float4(tex2Dlod(s.s, float4(c + float2(0, 1) * s.pixelsize, 0, 0)).a, tex2Dlod(s.s, float4(c + float2(1, 1) * s.pixelsize.xy, 0, 0)).a, tex2Dlod(s.s, float4(c + float2(1, 0) * s.pixelsize.xy, 0, 0)).a, tex2Dlod(s.s, float4(c, 0, 0)).a); }\n"
+						"float4 __tex2Dgather0offset(__sampler2D s, float2 c, int2 offset) { return __tex2Dgather0(s, c + offset * s.pixelsize); }\n"
+						"float4 __tex2Dgather1offset(__sampler2D s, float2 c, int2 offset) { return __tex2Dgather1(s, c + offset * s.pixelsize); }\n"
+						"float4 __tex2Dgather2offset(__sampler2D s, float2 c, int2 offset) { return __tex2Dgather2(s, c + offset * s.pixelsize); }\n"
+						"float4 __tex2Dgather3offset(__sampler2D s, float2 c, int2 offset) { return __tex2Dgather3(s, c + offset * s.pixelsize); }\n"
+						"float4 __tex2Dlodoffset(__sampler2D s, float4 c, int2 offset) { return tex2Dlod(s.s, c + float4(offset * s.pixelsize, 0, 0)); }\n"
+						"float4 __tex2Doffset(__sampler2D s, float2 c, int2 offset) { return tex2D(s.s, c + offset * s.pixelsize); }\n"
+						"int2 __tex2Dsize(__sampler2D s, int lod) { return int2(1 / s.pixelsize) / exp2(lod); }\n";
 
 					if (shadertype == "ps")
 					{
@@ -2008,7 +2033,7 @@ namespace ReShade
 				
 					if (shadertype == "vs")
 					{
-						source += positionVariable + ".xy += _PIXEL_SIZE_.zw * " + positionVariable + ".ww;\n";
+						source += positionVariable + ".xy += float2(" + std::to_string(-1.0f / this->mEffect->mRuntime->mPresentParams.BackBufferWidth) + ", " + std::to_string(1.0f / this->mEffect->mRuntime->mPresentParams.BackBufferHeight) + ") * " + positionVariable + ".ww;\n";
 					}
 
 					if (!node->ReturnType.IsVoid())
@@ -2065,7 +2090,7 @@ namespace ReShade
 				struct Function
 				{
 					std::string SourceCode;
-					std::unordered_set<const FX::Nodes::Declaration *> SamplerDependencies;
+					std::unordered_set<const FX::Nodes::Variable *> SamplerDependencies;
 					std::vector<const FX::Nodes::Function *> FunctionDependencies;
 				};
 
@@ -2935,13 +2960,9 @@ namespace ReShade
 
 			device->SetDepthStencilSurface((viewport.Width == runtime->mPresentParams.BackBufferWidth && viewport.Height == runtime->mPresentParams.BackBufferHeight) ? runtime->mDefaultDepthStencil : nullptr);
 
-			const float pixelsize[4] = { 1.0f / viewport.Width, 1.0f / viewport.Height, -1.0f / viewport.Width, 1.0f / viewport.Height };
-
 			// Setup shader constants
 			device->SetVertexShaderConstantF(0, this->mEffect->mConstantStorage, this->mEffect->mConstantRegisterCount);
-			device->SetVertexShaderConstantF(223, pixelsize, 1);
 			device->SetPixelShaderConstantF(0, this->mEffect->mConstantStorage, this->mEffect->mConstantRegisterCount);
-			device->SetPixelShaderConstantF(223, pixelsize, 1);
 
 			// Draw triangle
 			device->DrawPrimitive(D3DPT_TRIANGLELIST, 0, 1);
