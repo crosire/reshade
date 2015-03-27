@@ -51,7 +51,7 @@ namespace
 		virtual HRESULT STDMETHODCALLTYPE ReclaimResources(UINT NumResources, IDXGIResource *const *ppResources, BOOL *pDiscarded) override;
 		virtual HRESULT STDMETHODCALLTYPE EnqueueSetEvent(HANDLE hEvent) override;
 
-		ULONG mRef;
+		LONG mRef;
 		IDXGIDevice *mOrig;
 		unsigned int mInterfaceVersion;
 		IUnknown *const mDirect3DBridge, *const mDirect3DDevice;
@@ -104,7 +104,7 @@ namespace
 		virtual HRESULT STDMETHODCALLTYPE SetRotation(DXGI_MODE_ROTATION Rotation) override;
 		virtual HRESULT STDMETHODCALLTYPE GetRotation(DXGI_MODE_ROTATION *pRotation) override;
 
-		ULONG mRef;
+		LONG mRef;
 		IDXGISwapChain *mOrig;
 		unsigned int mInterfaceVersion;
 		DXGIDevice *const mDevice;
@@ -299,6 +299,7 @@ ULONG STDMETHODCALLTYPE DXGISwapChain::Release()
 {
 	if (--this->mRef == 0)
 	{
+		#pragma region Cleanup Resources
 		assert(this->mRuntime != nullptr);
 		assert(this->mDevice->mDirect3DBridge != nullptr);
 
@@ -317,19 +318,24 @@ ULONG STDMETHODCALLTYPE DXGISwapChain::Release()
 		this->mRuntime.reset();
 
 		this->mDevice->Release();
+		#pragma endregion
 	}
 
 	ULONG ref = this->mOrig->Release();
 
 	if (this->mRef == 0 && ref != 0)
 	{
-		LOG(WARNING) << "Reference count for 'IDXGISwapChain" << (this->mInterfaceVersion >= 1 ? std::to_string(this->mInterfaceVersion) : "") << "' object " << this << " (" << ref << ") is inconsistent.";
+		LOG(WARNING) << "Reference count for 'IDXGISwapChain" << (this->mInterfaceVersion >= 1 ? std::to_string(this->mInterfaceVersion) : "") << "' object " << this << " is inconsistent: " << ref << " vs " << this->mRef << ".";
 
 		ref = 0;
 	}
 
 	if (ref == 0)
 	{
+		assert(this->mRef <= 0);
+
+		LOG(TRACE) << "Destroyed 'IDXGISwapChain" << (this->mInterfaceVersion >= 1 ? std::to_string(this->mInterfaceVersion) : "") << "' object " << this << ".";
+
 		delete this;
 	}
 
@@ -675,25 +681,26 @@ ULONG STDMETHODCALLTYPE DXGIDevice::Release()
 	{
 		this->mDirect3DBridge->Release();
 	}
-	else
+	else if (this->mDirect3DDevice->Release() == 0)
 	{
-		if (this->mDirect3DDevice->Release() == 0)
-		{
-			return 0;
-		}
+		return 0;
 	}
 
 	ULONG ref = this->mOrig->Release();
 
 	if (this->mRef == 0 && ref != 1)
 	{
-		LOG(WARNING) << "Reference count for 'IDXGIDevice" << (this->mInterfaceVersion >= 1 ? std::to_string(this->mInterfaceVersion) : "") << "' object " << this << " (" << ref << ") is inconsistent.";
+		LOG(WARNING) << "Reference count for 'IDXGIDevice" << (this->mInterfaceVersion >= 1 ? std::to_string(this->mInterfaceVersion) : "") << "' object " << this << " is inconsistent: " << ref << " vs " << this->mRef << ".";
 
 		ref = 1;
 	}
 
 	if (ref == 1)
 	{
+		assert(this->mRef <= 0);
+
+		LOG(TRACE) << "Destroyed 'IDXGIDevice" << (this->mInterfaceVersion >= 1 ? std::to_string(this->mInterfaceVersion) : "") << "' object " << this << ".";
+
 		delete this;
 	}
 

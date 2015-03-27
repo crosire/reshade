@@ -161,7 +161,7 @@ namespace
 		virtual HRESULT STDMETHODCALLTYPE ResetEx(D3DPRESENT_PARAMETERS *pPresentationParameters, D3DDISPLAYMODEEX *pFullscreenDisplayMode) override;
 		virtual HRESULT STDMETHODCALLTYPE GetDisplayModeEx(UINT iSwapChain, D3DDISPLAYMODEEX *pMode, D3DDISPLAYROTATION *pRotation) override;
 
-		ULONG mRef;
+		LONG mRef;
 		IDirect3DDevice9 *mOrig;
 		unsigned int mInterfaceVersion;
 		Direct3DSwapChain9 *mImplicitSwapChain;
@@ -199,7 +199,7 @@ namespace
 		virtual HRESULT STDMETHODCALLTYPE GetPresentStats(D3DPRESENTSTATS *pPresentationStatistics) override;
 		virtual HRESULT STDMETHODCALLTYPE GetDisplayModeEx(D3DDISPLAYMODEEX *pMode, D3DDISPLAYROTATION *pRotation) override;
 
-		ULONG mRef;
+		LONG mRef;
 		IDirect3DSwapChain9 *mOrig;
 		unsigned int mInterfaceVersion;
 		Direct3DDevice9 *const mDevice;
@@ -324,6 +324,7 @@ ULONG STDMETHODCALLTYPE Direct3DSwapChain9::Release()
 {
 	if (--this->mRef == 0)
 	{
+		#pragma region Cleanup Resources
 		assert(this->mRuntime != nullptr);
 
 		this->mRuntime->OnDeleteInternal();
@@ -338,19 +339,24 @@ ULONG STDMETHODCALLTYPE Direct3DSwapChain9::Release()
 
 			this->mDevice->Release();
 		}
+		#pragma endregion
 	}
 
 	ULONG ref = this->mOrig->Release();
 
 	if (this->mRef == 0 && ref != 0)
 	{
-		LOG(WARNING) << "Reference count for '" << (this->mInterfaceVersion >= 1 ? "IDirect3DSwapChain9Ex" : "IDirect3DSwapChain9") << "' object " << this << " (" << ref << ") is inconsistent.";
+		LOG(WARNING) << "Reference count for 'IDirect3DSwapChain9" << (this->mInterfaceVersion >= 1 ? "Ex" : "") << "' object " << this << " is inconsistent: " << ref << " vs " << this->mRef << ".";
 
 		ref = 0;
 	}
 
 	if (ref == 0)
 	{
+		assert(this->mRef <= 0);
+
+		LOG(TRACE) << "Destroyed 'IDirect3DSwapChain9" << (this->mInterfaceVersion >= 1 ? "Ex" : "") << "' object " << this << ".";
+
 		delete this;
 	}
 
@@ -468,6 +474,7 @@ ULONG STDMETHODCALLTYPE Direct3DDevice9::Release()
 {
 	if (--this->mRef == 0)
 	{
+		#pragma region Cleanup Resources
 		if (this->mAutoDepthStencil != nullptr)
 		{
 			this->mAutoDepthStencil->Release();
@@ -477,19 +484,24 @@ ULONG STDMETHODCALLTYPE Direct3DDevice9::Release()
 		assert(this->mImplicitSwapChain != nullptr);
 
 		this->mImplicitSwapChain->Release();
+		#pragma endregion
 	}
 
 	ULONG ref = this->mOrig->Release();
 
 	if (this->mRef == 0 && ref != 0)
 	{
-		LOG(WARNING) << "Reference count for '" << (this->mInterfaceVersion >= 1 ? "IDirect3DDevice9Ex" : "IDirect3DDevice9") << "' object " << this << " (" << ref << ") is inconsistent.";
+		LOG(WARNING) << "Reference count for 'IDirect3DDevice9" << (this->mInterfaceVersion >= 1 ? "Ex" : "") << "' object " << this << " is inconsistent: " << ref << " vs " << this->mRef << ".";
 
 		ref = 0;
 	}
 
 	if (ref == 0)
 	{
+		assert(this->mRef <= 0);
+
+		LOG(TRACE) << "Destroyed 'IDirect3DDevice9" << (this->mInterfaceVersion >= 1 ? "Ex" : "") << "' object " << this << ".";
+
 		delete this;
 	}
 

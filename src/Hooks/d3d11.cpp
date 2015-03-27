@@ -74,7 +74,7 @@ namespace
 		virtual HRESULT STDMETHODCALLTYPE OpenSharedResource1(HANDLE hResource, REFIID returnedInterface, void **ppResource) override;
 		virtual HRESULT STDMETHODCALLTYPE OpenSharedResourceByName(LPCWSTR lpName, DWORD dwDesiredAccess, REFIID returnedInterface, void **ppResource) override;
 
-		ULONG mRef;
+		LONG mRef;
 		ID3D11Device *mOrig;
 		unsigned int mInterfaceVersion;
 		IUnknown *mDXGIBridge;
@@ -235,7 +235,7 @@ namespace
 		virtual void STDMETHODCALLTYPE ClearView(ID3D11View *pView, const FLOAT Color[4], const D3D11_RECT *pRect, UINT NumRects) override;
 		virtual void STDMETHODCALLTYPE DiscardView1(ID3D11View *pResourceView, const D3D11_RECT *pRects, UINT NumRects) override;
 
-		ULONG mRef;
+		LONG mRef;
 		D3D11Device *const mDevice;
 		ID3D11DeviceContext *mOrig;
 		unsigned int mInterfaceVersion;
@@ -435,13 +435,17 @@ ULONG STDMETHODCALLTYPE D3D11DeviceContext::Release()
 
 	if (this->mRef == 0 && ref != 0)
 	{
-		LOG(WARNING) << "Reference count for 'ID3D11DeviceContext" << (this->mInterfaceVersion >= 1 ? std::to_string(this->mInterfaceVersion) : "") << "' object " << this << " (" << ref << ") is inconsistent.";
-	}
+		LOG(WARNING) << "Reference count for 'ID3D11DeviceContext" << (this->mInterfaceVersion >= 1 ? std::to_string(this->mInterfaceVersion) : "") << "' object " << this << " is inconsistent: " << ref << " vs " << this->mRef << ".";
 
-	ref = this->mRef;
+		ref = 0;
+	}
 
 	if (ref == 0)
 	{
+		assert(this->mRef <= 0);
+
+		LOG(TRACE) << "Destroyed 'ID3D11DeviceContext" << (this->mInterfaceVersion >= 1 ? std::to_string(this->mInterfaceVersion) : "") << "' object " << this << ".";
+
 		delete this;
 	}
 
@@ -1148,6 +1152,7 @@ ULONG STDMETHODCALLTYPE D3D11Device::Release()
 {
 	if (--this->mRef == 0)
 	{
+		#pragma region Cleanup Resources
 		assert(this->mImmediateContext != nullptr);
 
 		this->mImmediateContext->Release();
@@ -1157,19 +1162,24 @@ ULONG STDMETHODCALLTYPE D3D11Device::Release()
 
 		this->mDXGIBridge->Release();
 		this->mDXGIDevice->Release();
+		#pragma endregion
 	}
 
 	ULONG ref = this->mOrig->Release();
 
 	if (this->mRef == 0 && ref != 0)
 	{
-		LOG(WARNING) << "Reference count for 'ID3D11Device" << (this->mInterfaceVersion >= 1 ? std::to_string(this->mInterfaceVersion) : "") << "' object " << this << " (" << ref << ") is inconsistent.";
+		LOG(WARNING) << "Reference count for 'ID3D11Device" << (this->mInterfaceVersion >= 1 ? std::to_string(this->mInterfaceVersion) : "") << "' object " << this << " is inconsistent: " << ref << " vs " << this->mRef << ".";
 
 		ref = 0;
 	}
 
 	if (ref == 0)
 	{
+		assert(this->mRef <= 0);
+
+		LOG(TRACE) << "Destroyed 'ID3D11Device" << (this->mInterfaceVersion >= 1 ? std::to_string(this->mInterfaceVersion) : "") << "' object " << this << ".";
+
 		delete this;
 	}
 

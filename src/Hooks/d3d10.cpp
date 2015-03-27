@@ -123,7 +123,7 @@ namespace
 		virtual HRESULT STDMETHODCALLTYPE CreateBlendState1(const D3D10_BLEND_DESC1 *pBlendStateDesc, ID3D10BlendState1 **ppBlendState) override;
 		virtual D3D10_FEATURE_LEVEL1 STDMETHODCALLTYPE GetFeatureLevel() override;
 
-		ULONG mRef;
+		LONG mRef;
 		ID3D10Device *mOrig;
 		unsigned int mInterfaceVersion;
 		IUnknown *mDXGIBridge;
@@ -333,11 +333,13 @@ ULONG STDMETHODCALLTYPE D3D10Device::Release()
 {
 	if (--this->mRef == 0)
 	{
+		#pragma region Cleanup Resources
 		assert(this->mDXGIBridge != nullptr);
 		assert(this->mDXGIDevice != nullptr);
 
 		this->mDXGIBridge->Release();
 		this->mDXGIDevice->Release();
+		#pragma endregion
 	}
 
 	ULONG ref = this->mOrig->Release();
@@ -351,6 +353,10 @@ ULONG STDMETHODCALLTYPE D3D10Device::Release()
 
 	if (ref == 0)
 	{
+		assert(this->mRef <= 0);
+
+		LOG(TRACE) << "Destroyed 'ID3D10Device" << (this->mInterfaceVersion >= 1 ? std::to_string(this->mInterfaceVersion) : "") << "' object " << this << ".";
+
 		delete this;
 	}
 
