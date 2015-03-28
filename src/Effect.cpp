@@ -1,6 +1,7 @@
 #include "Effect.hpp"
 
 #include <assert.h>
+#include <algorithm>
 
 namespace ReShade
 {
@@ -49,9 +50,9 @@ namespace ReShade
 		}
 		const Effect::Technique *Effect::GetTechnique(const std::string &name) const
 		{
-			const auto it = this->mTechniques.find(name);
+			const auto begin = this->mTechniques.begin(), end = this->mTechniques.end(), it = std::find_if(begin, end, [&name](const std::pair<std::string, std::unique_ptr<Technique>> &it) { return it.first == name; });
 
-			if (it != this->mTechniques.end())
+			if (it != end)
 			{
 				return it->second.get();
 			}

@@ -249,7 +249,7 @@ namespace ReShade
 		protected:
 			std::unordered_map<std::string, std::unique_ptr<Texture>> mTextures;
 			std::unordered_map<std::string, std::unique_ptr<Constant>> mConstants;
-			std::unordered_map<std::string, std::unique_ptr<Technique>> mTechniques;
+			std::vector<std::pair<std::string, std::unique_ptr<Technique>>> mTechniques;
 		};
 
 		// -----------------------------------------------------------------------------------------------------

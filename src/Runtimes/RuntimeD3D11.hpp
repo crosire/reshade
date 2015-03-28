@@ -74,9 +74,9 @@ namespace ReShade
 			{
 				return this->mConstants.emplace(name, std::unique_ptr<Constant>(constant)).second;
 			}
-			inline bool AddTechnique(const std::string &name, Technique *technique)
+			inline void AddTechnique(const std::string &name, Technique *technique)
 			{
-				return this->mTechniques.emplace(name, std::unique_ptr<Technique>(technique)).second;
+				this->mTechniques.push_back(std::make_pair(name, std::unique_ptr<Technique>(technique)));
 			}
 
 			virtual void Enter() const override;
