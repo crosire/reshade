@@ -138,7 +138,10 @@ namespace
 		switch (hr)
 		{
 			case E_FAIL:
-				res << "E_INVALIDARG";
+				res << "E_FAIL";
+				break;
+			case E_NOTIMPL:
+				res << "E_NOTIMPL";
 				break;
 			case E_INVALIDARG:
 				res << "E_INVALIDARG";
