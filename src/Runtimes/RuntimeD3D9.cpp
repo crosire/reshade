@@ -2254,6 +2254,8 @@ namespace ReShade
 
 			Runtime::OnCreate(this->mPresentParams.BackBufferWidth, this->mPresentParams.BackBufferHeight);
 
+			this->mVSync = static_cast<unsigned int>(std::log(this->mPresentParams.PresentationInterval & 0xF) / 0.30103f);
+
 			return true;
 		}
 		void D3D9Runtime::OnDeleteInternal()

@@ -155,7 +155,7 @@ namespace ReShade
 
 	// -----------------------------------------------------------------------------------------------------
 
-	Runtime::Runtime() : mWidth(0), mHeight(0), mVendorId(0), mDeviceId(0), mRendererId(0), mLastFrameCount(0), mLastDrawCalls(0), mLastDrawCallVertices(0), mDate(), mCompileStep(0), mNVG(nullptr), mScreenshotFormat("png"), mShowStatistics(false), mShowFPS(false), mShowClock(false), mShowToggleMessage(false), mSkipShaderOptimization(false)
+	Runtime::Runtime() : mVSync(0), mWidth(0), mHeight(0), mVendorId(0), mDeviceId(0), mRendererId(0), mLastFrameCount(0), mLastDrawCalls(0), mLastDrawCallVertices(0), mDate(), mCompileStep(0), mNVG(nullptr), mScreenshotFormat("png"), mShowStatistics(false), mShowFPS(false), mShowClock(false), mShowToggleMessage(false), mSkipShaderOptimization(false)
 	{
 		this->mStatus = "Initializing ...";
 		this->mStartTime = boost::chrono::high_resolution_clock::now();
@@ -253,6 +253,8 @@ namespace ReShade
 
 			if (!info.Enabled)
 			{
+				info.LastDuration = boost::chrono::high_resolution_clock::duration(0);
+
 				continue;
 			}
 
@@ -276,25 +278,25 @@ namespace ReShade
 				{
 					switch (constant->GetDescription().Type)
 					{
-					case FX::Effect::Constant::Type::Bool:
-					{
-						const bool even = (this->mLastFrameCount % 2) == 0;
-						constant->SetValue(&even, 1);
-						break;
-					}
-					case FX::Effect::Constant::Type::Int:
-					case FX::Effect::Constant::Type::Uint:
-					{
-						const unsigned int framecount = static_cast<unsigned int>(this->mLastFrameCount % UINT_MAX);
-						constant->SetValue(&framecount, 1);
-						break;
-					}
-					case FX::Effect::Constant::Type::Float:
-					{
-						const float framecount = static_cast<float>(this->mLastFrameCount % 16777216);
-						constant->SetValue(&framecount, 1);
-						break;
-					}
+						case FX::Effect::Constant::Type::Bool:
+						{
+							const bool even = (this->mLastFrameCount % 2) == 0;
+							constant->SetValue(&even, 1);
+							break;
+						}
+						case FX::Effect::Constant::Type::Int:
+						case FX::Effect::Constant::Type::Uint:
+						{
+							const unsigned int framecount = static_cast<unsigned int>(this->mLastFrameCount % UINT_MAX);
+							constant->SetValue(&framecount, 1);
+							break;
+						}
+						case FX::Effect::Constant::Type::Float:
+						{
+							const float framecount = static_cast<float>(this->mLastFrameCount % 16777216);
+							constant->SetValue(&framecount, 1);
+							break;
+						}
 					}
 				}
 				else if (source == "pingpong")
@@ -304,10 +306,14 @@ namespace ReShade
 
 					const float min = constant->GetAnnotation("min").As<float>(), max = constant->GetAnnotation("max").As<float>();
 					const float stepMin = constant->GetAnnotation("step").As<float>(0), stepMax = constant->GetAnnotation("step").As<float>(1);
-					const float increment = stepMax == 0 ? stepMin : (stepMin + std::fmodf(std::rand(), stepMax - stepMin + 1));
+					float increment = stepMax == 0 ? stepMin : (stepMin + std::fmodf(std::rand(), stepMax - stepMin + 1));
+					const float smoothing = constant->GetAnnotation("smoothing").As<float>();
 
 					if (value[1] >= 0)
 					{
+						increment = std::max(increment - std::max(0.0f, smoothing - (max - value[0])), 0.05f);
+						increment *= this->mLastFrameDuration.count() * 1e-9f;
+
 						if ((value[0] += increment) >= max)
 						{
 							value[0] = max;
@@ -316,6 +322,9 @@ namespace ReShade
 					}
 					else
 					{
+						increment = std::max(increment - std::max(0.0f, smoothing - (value[0] - min)), 0.05f);
+						increment *= this->mLastFrameDuration.count() * 1e-9f;
+
 						if ((value[0] -= increment) <= min)
 						{
 							value[0] = min;
@@ -335,25 +344,25 @@ namespace ReShade
 
 					switch (constant->GetDescription().Type)
 					{
-					case FX::Effect::Constant::Type::Bool:
-					{
-						const bool even = (timer % 2) == 0;
-						constant->SetValue(&even, 1);
-						break;
-					}
-					case FX::Effect::Constant::Type::Int:
-					case FX::Effect::Constant::Type::Uint:
-					{
-						const unsigned int timerInt = static_cast<unsigned int>(timer % UINT_MAX);
-						constant->SetValue(&timerInt, 1);
-						break;
-					}
-					case FX::Effect::Constant::Type::Float:
-					{
-						const float timerFloat = std::fmod(static_cast<float>(timer * 1e-6f), 16777216.0f);
-						constant->SetValue(&timerFloat, 1);
-						break;
-					}
+						case FX::Effect::Constant::Type::Bool:
+						{
+							const bool even = (timer % 2) == 0;
+							constant->SetValue(&even, 1);
+							break;
+						}
+						case FX::Effect::Constant::Type::Int:
+						case FX::Effect::Constant::Type::Uint:
+						{
+							const unsigned int timerInt = static_cast<unsigned int>(timer % UINT_MAX);
+							constant->SetValue(&timerInt, 1);
+							break;
+						}
+						case FX::Effect::Constant::Type::Float:
+						{
+							const float timerFloat = std::fmod(static_cast<float>(timer * 1e-6f), 16777216.0f);
+							constant->SetValue(&timerFloat, 1);
+							break;
+						}
 					}
 				}
 				else if (source == "timeleft")
@@ -398,7 +407,15 @@ namespace ReShade
 			}
 			#pragma endregion
 
+			const auto timeTechniqueStarted = boost::chrono::high_resolution_clock::now();
+
 			info.Technique->Render();
+
+			if (boost::chrono::duration_cast<boost::chrono::milliseconds>(timeTechniqueStarted - info.LastDurationUpdate).count() > 250)
+			{
+				info.LastDuration = boost::chrono::high_resolution_clock::now() - timeTechniqueStarted;
+				info.LastDurationUpdate = timeTechniqueStarted;
+			}
 		}
 
 		SetKeyboardState(keys2);
@@ -527,15 +544,36 @@ namespace ReShade
 			}
 			if (this->mShowStatistics)
 			{
+				stats << "General" << std::endl << "-------" << std::endl;
 				stats << "Application: " << std::hash<std::string>()(sExecutablePath.stem().string()) << std::endl;
 				stats << "Date: " << static_cast<int>(this->mDate[0]) << '-' << static_cast<int>(this->mDate[1]) << '-' << static_cast<int>(this->mDate[2]) << ' ' << static_cast<int>(this->mDate[3]) << '\n';
 				stats << "Device: " << std::hex << std::uppercase << this->mVendorId << ' ' << this->mDeviceId << std::nouppercase << std::dec << std::endl;
-				stats << "FPS: " << this->mFramerate << std::endl;
+				stats << "FPS: " << this->mFramerate << " (VSync " << this->mVSync << ")" << std::endl;
 				stats << "Draw Calls: " << this->mLastDrawCalls << " (" << this->mLastDrawCallVertices << " vertices)" << std::endl;
 				stats << "Frame " << (this->mLastFrameCount + 1) << ": " << (frametime.count() * 1e-6f) << "ms" << std::endl;
 				stats << "PostProcessing: " << (boost::chrono::duration_cast<boost::chrono::nanoseconds>(this->mLastPostProcessingDuration).count() * 1e-6f) << "ms" << std::endl;
 				stats << "Timer: " << std::fmod(boost::chrono::duration_cast<boost::chrono::nanoseconds>(this->mLastPresent - this->mStartTime).count() * 1e-6f, 16777216.0f) << "ms" << std::endl;
 				stats << "Network: " << sNetworkUpload << "B up / " << sNetworkDownload << "B down" << std::endl;
+
+				stats << std::endl;
+				stats << "Textures" << std::endl << "--------" << std::endl;
+
+				for (auto &it : this->mTextures)
+				{
+					const FX::Effect::Texture::Description desc = it.first->GetDescription();
+
+					stats << desc.Name << ": " << desc.Width << "x" << desc.Height << "+" << (desc.Levels - 1) << " (" << it.second << "B)" << std::endl;
+				}
+
+				stats << std::endl;
+				stats << "Techniques" << std::endl << "----------" << std::endl;
+
+				for (TechniqueInfo &info : this->mTechniques)
+				{
+					const FX::Effect::Technique::Description desc = info.Technique->GetDescription();
+
+					stats << desc.Name << " (" << desc.Passes << " passes): " << (boost::chrono::duration_cast<boost::chrono::nanoseconds>(info.LastDuration).count() * 1e-6f) << "ms" << std::endl;
+				}
 			}
 
 			nvgTextAlign(this->mNVG, NVG_ALIGN_RIGHT | NVG_ALIGN_TOP);
@@ -843,6 +881,8 @@ namespace ReShade
 					}
 
 					texture->Update(0, data, dataSize);
+
+					this->mTextures.push_back(std::make_pair(texture, dataSize));
 				}
 				else
 				{

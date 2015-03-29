@@ -3751,6 +3751,13 @@ BOOL WINAPI wglSwapIntervalEXT(int interval)
 {
 	static const auto trampoline = ReShade::Hooks::Call(&wglSwapIntervalEXT);
 
+	const auto it = sRuntimes.find(wglGetCurrentDC());
+
+	if (it != sRuntimes.end())
+	{
+		it->second->OnSwapInterval(interval);
+	}
+
 	return trampoline(interval);
 }
 EXPORT BOOL WINAPI wglUseFontBitmapsA(HDC hdc, DWORD dw1, DWORD dw2, DWORD dw3)

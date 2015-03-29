@@ -2290,8 +2290,10 @@ namespace ReShade
 				}
 			}
 		}
-		void D3D10Runtime::OnPresentInternal()
+		void D3D10Runtime::OnPresentInternal(UINT interval)
 		{
+			this->mVSync = interval;
+
 			if (this->mLost)
 			{
 				LOG(TRACE) << "Failed to present! Runtime is in a lost state.";

@@ -51,6 +51,8 @@ namespace ReShade
 			int Timeout, Timeleft;
 			int Toggle, ToggleTime;
 			const FX::Effect::Technique *Technique;
+			boost::chrono::high_resolution_clock::duration LastDuration;
+			boost::chrono::high_resolution_clock::time_point LastDurationUpdate;
 		};
 
 	public:
@@ -80,12 +82,14 @@ namespace ReShade
 		virtual void CreateScreenshot(unsigned char *buffer, std::size_t size) const = 0;
 
 	protected:
+		unsigned int mVSync;
 		unsigned int mWidth, mHeight;
 		unsigned int mVendorId, mDeviceId, mRendererId;
 		unsigned long mLastDrawCalls, mLastDrawCallVertices;
 		NVGcontext *mNVG;
 		std::unique_ptr<FX::Effect> mEffect;
 		std::vector<TechniqueInfo> mTechniques;
+		std::vector<std::pair<FX::Effect::Texture *, std::size_t>> mTextures;
 		std::vector<boost::filesystem::path> mIncludedFiles;
 		boost::chrono::high_resolution_clock::time_point mStartTime, mLastCreate, mLastPresent;
 		boost::chrono::high_resolution_clock::duration mLastFrameDuration, mLastPostProcessingDuration;

@@ -25,6 +25,7 @@ namespace ReShade
 			void OnDeleteInternal();
 			void OnDrawInternal(unsigned int vertices);
 			void OnPresentInternal();
+			void OnSwapInterval(int interval);
 			void OnFramebufferAttachment(GLenum target, GLenum attachment, GLenum objecttarget, GLuint object, GLint level);
 
 			void DetectDepthSource();

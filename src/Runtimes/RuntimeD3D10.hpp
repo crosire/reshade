@@ -24,7 +24,7 @@ namespace ReShade
 			bool OnCreateInternal(const DXGI_SWAP_CHAIN_DESC &desc);
 			void OnDeleteInternal();
 			void OnDrawInternal(unsigned int vertices);
-			void OnPresentInternal();
+			void OnPresentInternal(UINT interval);
 			void OnGetBackBuffer(ID3D10Texture2D *&buffer);
 			void OnCreateDepthStencilView(ID3D10Resource *resource, ID3D10DepthStencilView *depthstencil);
 			void OnDeleteDepthStencilView(ID3D10DepthStencilView *depthstencil);

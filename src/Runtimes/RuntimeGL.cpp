@@ -3209,6 +3209,10 @@ namespace ReShade
 			// Apply states
 			this->mStateBlock->Apply();
 		}
+		void GLRuntime::OnSwapInterval(int interval)
+		{
+			this->mVSync = static_cast<unsigned int>(interval);
+		}
 		void GLRuntime::OnFramebufferAttachment(GLenum target, GLenum attachment, GLenum objecttarget, GLuint object, GLint level)
 		{
 			if (object == 0 || (attachment != GL_DEPTH_ATTACHMENT && attachment != GL_DEPTH_STENCIL_ATTACHMENT))
