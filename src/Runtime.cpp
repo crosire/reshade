@@ -191,6 +191,7 @@ namespace ReShade
 			return;
 		}
 
+		this->mTextures.clear();
 		this->mTechniques.clear();
 
 		this->mEffect.reset();
@@ -731,6 +732,7 @@ namespace ReShade
 	}
 	bool Runtime::CompileEffect()
 	{
+		this->mTextures.clear();
 		this->mTechniques.clear();
 		this->mEffect.reset();
 
@@ -812,6 +814,8 @@ namespace ReShade
 		}
 
 		const auto textures = this->mEffect->GetTextures();
+
+		this->mTextures.reserve(textures.size());
 
 		for (const std::string &name : textures)
 		{
