@@ -43,7 +43,7 @@ namespace ReShade
 			ID3D10Device *mDevice;
 			IDXGISwapChain *mSwapChain;
 			DXGI_SWAP_CHAIN_DESC mSwapChainDesc;
-			ID3D10StateBlock *mStateBlock;
+			std::unique_ptr<class D3D10StateBlock> mStateBlock;
 			ID3D10Texture2D *mBackBuffer, *mBackBufferReplacement;
 			ID3D10Texture2D *mBackBufferTexture;
 			ID3D10ShaderResourceView *mBackBufferTextureSRV[2];

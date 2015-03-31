@@ -2101,9 +2101,171 @@ namespace ReShade
 			}
 		}
 
+		class D3D10StateBlock
+		{
+		public:
+			D3D10StateBlock(ID3D10Device *device)
+			{
+				ZeroMemory(this, sizeof(D3D10StateBlock));
+
+				this->mDevice = device;
+				this->mDevice->AddRef();
+			}
+			~D3D10StateBlock()
+			{
+				ReleaseAllDeviceObjects();
+
+				this->mDevice->Release();
+			}
+
+			void Capture()
+			{
+				ReleaseAllDeviceObjects();
+
+				this->mDevice->IAGetPrimitiveTopology(&this->mIAPrimitiveTopology);
+				this->mDevice->IAGetInputLayout(&this->mIAInputLayout);
+
+				this->mDevice->IAGetVertexBuffers(0, D3D10_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT, this->mIAVertexBuffers, this->mIAVertexStrides, this->mIAVertexOffsets);
+				this->mDevice->IAGetIndexBuffer(&this->mIAIndexBuffer, &this->mIAIndexFormat, &this->mIAIndexOffset);
+
+				this->mDevice->RSGetState(&this->mRSState);
+				this->mDevice->RSGetViewports(&this->mRSNumViewports, nullptr);
+				this->mDevice->RSGetViewports(&this->mRSNumViewports, this->mRSViewports);
+
+				this->mDevice->VSGetShader(&this->mVS);
+				this->mDevice->VSGetConstantBuffers(0, D3D10_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT, this->mVSConstantBuffers);
+				this->mDevice->VSGetSamplers(0, D3D10_COMMONSHADER_SAMPLER_SLOT_COUNT, this->mVSSamplerStates);
+				this->mDevice->VSGetShaderResources(0, D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, this->mVSShaderResources);
+
+				this->mDevice->GSGetShader(&this->mGS);
+
+				this->mDevice->PSGetShader(&this->mPS);
+				this->mDevice->PSGetConstantBuffers(0, D3D10_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT, this->mPSConstantBuffers);
+				this->mDevice->PSGetSamplers(0, D3D10_COMMONSHADER_SAMPLER_SLOT_COUNT, this->mPSSamplerStates);
+				this->mDevice->PSGetShaderResources(0, D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, this->mPSShaderResources);
+
+				this->mDevice->OMGetBlendState(&this->mOMBlendState, this->mOMBlendFactor, &this->mOMSampleMask);
+				this->mDevice->OMGetDepthStencilState(&this->mOMDepthStencilState, &this->mOMStencilRef);
+				this->mDevice->OMGetRenderTargets(D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, this->mOMRenderTargets, &this->mOMDepthStencil);
+			}
+			void Apply()
+			{
+				this->mDevice->IASetPrimitiveTopology(this->mIAPrimitiveTopology);
+				this->mDevice->IASetInputLayout(this->mIAInputLayout);
+
+				this->mDevice->IASetVertexBuffers(0, D3D10_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT, this->mIAVertexBuffers, this->mIAVertexStrides, this->mIAVertexOffsets);
+				this->mDevice->IASetIndexBuffer(this->mIAIndexBuffer, this->mIAIndexFormat, this->mIAIndexOffset);
+
+				this->mDevice->RSSetState(this->mRSState);
+				this->mDevice->RSSetViewports(this->mRSNumViewports, this->mRSViewports);
+
+				this->mDevice->VSSetShader(this->mVS);
+				this->mDevice->VSSetConstantBuffers(0, D3D10_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT, this->mVSConstantBuffers);
+				this->mDevice->VSSetSamplers(0, D3D10_COMMONSHADER_SAMPLER_SLOT_COUNT, this->mVSSamplerStates);
+				this->mDevice->VSSetShaderResources(0, D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, this->mVSShaderResources);
+
+				this->mDevice->GSSetShader(this->mGS);
+
+				this->mDevice->PSSetShader(this->mPS);
+				this->mDevice->PSSetConstantBuffers(0, D3D10_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT, this->mPSConstantBuffers);
+				this->mDevice->PSSetSamplers(0, D3D10_COMMONSHADER_SAMPLER_SLOT_COUNT, this->mPSSamplerStates);
+				this->mDevice->PSSetShaderResources(0, D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, this->mPSShaderResources);
+
+				this->mDevice->OMSetBlendState(this->mOMBlendState, this->mOMBlendFactor, this->mOMSampleMask);
+				this->mDevice->OMSetDepthStencilState(this->mOMDepthStencilState, this->mOMStencilRef);
+				this->mDevice->OMSetRenderTargets(D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, this->mOMRenderTargets, this->mOMDepthStencil);
+			}
+			void ReleaseAllDeviceObjects()
+			{
+				SAFE_RELEASE(this->mIAInputLayout);
+
+				for (UINT i = 0; i < D3D10_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT; ++i)
+				{
+					SAFE_RELEASE(this->mIAVertexBuffers[i]);
+				}
+
+				SAFE_RELEASE(this->mIAIndexBuffer);
+
+				SAFE_RELEASE(this->mVS);
+
+				for (UINT i = 0; i < D3D10_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT; ++i)
+				{
+					SAFE_RELEASE(this->mVSConstantBuffers[i]);
+				}
+				for (UINT i = 0; i < D3D10_COMMONSHADER_SAMPLER_SLOT_COUNT; ++i)
+				{
+					SAFE_RELEASE(this->mVSSamplerStates[i]);
+				}
+				for (UINT i = 0; i < D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT; ++i)
+				{
+					SAFE_RELEASE(this->mVSShaderResources[i]);
+				}
+
+				SAFE_RELEASE(this->mGS);
+
+				SAFE_RELEASE(this->mRSState);
+
+				SAFE_RELEASE(this->mPS);
+
+				for (UINT i = 0; i < D3D10_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT; ++i)
+				{
+					SAFE_RELEASE(this->mPSConstantBuffers[i]);
+				}
+				for (UINT i = 0; i < D3D10_COMMONSHADER_SAMPLER_SLOT_COUNT; ++i)
+				{
+					SAFE_RELEASE(this->mPSSamplerStates[i]);
+				}
+				for (UINT i = 0; i < D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT; ++i)
+				{
+					SAFE_RELEASE(this->mPSShaderResources[i]);
+				}
+
+				SAFE_RELEASE(this->mOMBlendState);
+				SAFE_RELEASE(this->mOMDepthStencilState);
+
+				for (UINT i = 0; i < D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT; ++i)
+				{
+					SAFE_RELEASE(this->mOMRenderTargets[i]);
+				}
+
+				SAFE_RELEASE(this->mOMDepthStencil);
+			}
+
+		private:
+			ID3D10Device *mDevice;
+
+			ID3D10InputLayout *mIAInputLayout;
+			D3D10_PRIMITIVE_TOPOLOGY mIAPrimitiveTopology;
+			ID3D10Buffer *mIAVertexBuffers[D3D10_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT];
+			UINT mIAVertexStrides[D3D10_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT];
+			UINT mIAVertexOffsets[D3D10_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT];
+			ID3D10Buffer *mIAIndexBuffer;
+			DXGI_FORMAT mIAIndexFormat;
+			UINT mIAIndexOffset;
+			ID3D10VertexShader *mVS;
+			ID3D10Buffer *mVSConstantBuffers[D3D10_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT];
+			ID3D10SamplerState *mVSSamplerStates[D3D10_COMMONSHADER_SAMPLER_SLOT_COUNT];
+			ID3D10ShaderResourceView *mVSShaderResources[D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT];
+			ID3D10GeometryShader *mGS;
+			ID3D10RasterizerState *mRSState;
+			UINT mRSNumViewports;
+			D3D10_VIEWPORT mRSViewports[D3D10_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE];
+			ID3D10PixelShader *mPS;
+			ID3D10Buffer *mPSConstantBuffers[D3D10_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT];
+			ID3D10SamplerState *mPSSamplerStates[D3D10_COMMONSHADER_SAMPLER_SLOT_COUNT];
+			ID3D10ShaderResourceView *mPSShaderResources[D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT];
+			ID3D10BlendState *mOMBlendState;
+			FLOAT mOMBlendFactor[4];
+			UINT mOMSampleMask;
+			ID3D10DepthStencilState *mOMDepthStencilState;
+			UINT mOMStencilRef;
+			ID3D10RenderTargetView *mOMRenderTargets[D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT];
+			ID3D10DepthStencilView *mOMDepthStencil;
+		};
+
 		// -----------------------------------------------------------------------------------------------------
 
-		D3D10Runtime::D3D10Runtime(ID3D10Device *device, IDXGISwapChain *swapchain) : mDevice(device), mSwapChain(swapchain), mStateBlock(nullptr), mBackBuffer(nullptr), mBackBufferReplacement(nullptr), mBackBufferTexture(nullptr), mBackBufferTextureSRV(), mBackBufferTargets(), mDepthStencil(nullptr), mDepthStencilReplacement(nullptr), mDepthStencilTexture(nullptr), mDepthStencilTextureSRV(nullptr), mLost(true)
+		D3D10Runtime::D3D10Runtime(ID3D10Device *device, IDXGISwapChain *swapchain) : mDevice(device), mSwapChain(swapchain), mStateBlock(new D3D10StateBlock(device)), mBackBuffer(nullptr), mBackBufferReplacement(nullptr), mBackBufferTexture(nullptr), mBackBufferTextureSRV(), mBackBufferTargets(), mDepthStencil(nullptr), mDepthStencilReplacement(nullptr), mDepthStencilTexture(nullptr), mDepthStencilTextureSRV(nullptr), mLost(true)
 		{
 			assert(this->mDevice != nullptr);
 			assert(this->mSwapChain != nullptr);
@@ -2150,22 +2312,10 @@ namespace ReShade
 			
 			this->mVendorId = desc.VendorId;
 			this->mDeviceId = desc.DeviceId;
-
-			D3D10_STATE_BLOCK_MASK mask;
-			D3D10StateBlockMaskEnableAll(&mask);
-
-			hr = D3D10CreateStateBlock(this->mDevice, &mask, &this->mStateBlock);
-
-			assert(SUCCEEDED(hr));
 		}
 		D3D10Runtime::~D3D10Runtime()
 		{
 			assert(this->mLost);
-
-			if (this->mStateBlock != nullptr)
-			{
-				this->mStateBlock->Release();
-			}
 
 			this->mDevice->Release();
 			this->mSwapChain->Release();

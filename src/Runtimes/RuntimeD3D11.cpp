@@ -2121,7 +2121,7 @@ namespace ReShade
 				return ref;
 			}
 		}
-	
+
 		class D3D11StateBlock
 		{
 		public:
