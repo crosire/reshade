@@ -58,12 +58,6 @@ namespace ReShade
 				CRITICAL_SECTION mCS;
 			} sCS;
 
-			boost::filesystem::path sExportHookPath;
-			std::vector<HMODULE> sDelayedHookModules;
-			std::vector<boost::filesystem::path> sDelayedHookPaths;
-			std::vector<std::pair<Hook, HookType>> sHooks;
-			std::unordered_map<Hook::Function, Hook::Function *> sVTableAddresses;
-
 			inline HMODULE GetCurrentModuleHandle()
 			{
 				HMODULE handle = nullptr;
@@ -115,6 +109,13 @@ namespace ReShade
 
 				return path;
 			}
+
+			boost::filesystem::path sExportHookPath;
+			std::vector<HMODULE> sDelayedHookModules;
+			std::vector<boost::filesystem::path> sDelayedHookPaths;
+			std::vector<std::pair<Hook, HookType>> sHooks;
+			std::unordered_map<Hook::Function, Hook::Function *> sVTableAddresses;
+			const HMODULE sCurrentModuleHandle = GetCurrentModuleHandle();
 
 			bool Install(Hook::Function target, const Hook::Function replacement, HookType method)
 			{
@@ -338,9 +339,9 @@ namespace ReShade
 
 				const HMODULE handle = trampoline(lpFileName);
 
-				if (handle == nullptr)
+				if (handle == nullptr || handle == sCurrentModuleHandle)
 				{
-					return nullptr;
+					return handle;
 				}
 
 				CriticalSection::Lock lock(sCS);
@@ -359,7 +360,7 @@ namespace ReShade
 
 					sDelayedHookModules.push_back(handle);
 
-					return Install(handle, GetCurrentModuleHandle(), HookType::FunctionHook);
+					return Install(handle, sCurrentModuleHandle, HookType::FunctionHook);
 				});
 
 				sDelayedHookPaths.erase(remove, sDelayedHookPaths.end());
@@ -372,9 +373,9 @@ namespace ReShade
 
 				const HMODULE handle = trampoline(lpFileName);
 
-				if (handle == nullptr)
+				if (handle == nullptr || handle == sCurrentModuleHandle)
 				{
-					return nullptr;
+					return handle;
 				}
 
 				CriticalSection::Lock lock(sCS);
@@ -393,7 +394,7 @@ namespace ReShade
 
 					sDelayedHookModules.push_back(handle);
 
-					return Install(handle, GetCurrentModuleHandle(), HookType::FunctionHook);
+					return Install(handle, sCurrentModuleHandle, HookType::FunctionHook);
 				});
 
 				sDelayedHookPaths.erase(remove, sDelayedHookPaths.end());
@@ -487,10 +488,7 @@ namespace ReShade
 
 			LOG(INFO) << "Registering hooks for " << targetPath << " ...";
 
-			const HMODULE replacementModule = GetCurrentModuleHandle();
-			const boost::filesystem::path replacementPath = GetModuleFileName(replacementModule);
-
-			if (boost::iequals(targetPath.stem().native(), replacementPath.stem().native()))
+			if (boost::iequals(targetPath.stem().native(), GetModuleFileName(sCurrentModuleHandle).stem().native()))
 			{
 				LOG(INFO) << "> Delayed.";
 
@@ -507,7 +505,7 @@ namespace ReShade
 
 					sDelayedHookModules.push_back(targetModule);
 
-					Install(targetModule, replacementModule, HookType::FunctionHook);
+					Install(targetModule, sCurrentModuleHandle, HookType::FunctionHook);
 				}
 				else
 				{
