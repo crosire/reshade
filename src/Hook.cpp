@@ -26,7 +26,10 @@ namespace ReShade
 
 		if (status == MH_OK)
 		{
-			hook.Enable();
+			if (MH_EnableHook(hook.Target) == MH_OK)
+			{
+				return Status::Success;
+			}
 		}
 		else if (status != MH_ERROR_ALREADY_CREATED)
 		{
@@ -34,11 +37,9 @@ namespace ReShade
 			{
 				MH_Uninitialize();
 			}
-
-			return static_cast<Status>(status);
 		}
 
-		return Status::Success;
+		return static_cast<Status>(status);
 	}
 	Hook::Status Hook::Uninstall(Hook &hook)
 	{
