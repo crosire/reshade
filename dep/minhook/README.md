@@ -4,7 +4,21 @@ The Minimalistic x86/x64 API Hooking Library for Windows
 
 http://www.codeproject.com/KB/winsdk/LibMinHook.aspx
 
+### Donation please
+
+Need some funds to continue developing this library. All contributions gratefully accepted.
+
+<a href='https://pledgie.com/campaigns/27314'><img alt='Click here to lend your support to: MinHook - Help me continue to develop this library and make a donation at pledgie.com !' src='https://pledgie.com/campaigns/27314.png?skin_name=chrome' border='0' ></a>
+
 ### Version history
+
+- ####v1.3.1 - 19 Mar 2015
+  * No major changes from v1.3.1-beta.
+
+- ####v1.3.1-beta - 11 Mar 2015
+  * Added the ```MH_CreateHookApi``` function.
+  * Fixed a false memory leak reported by some tools.
+  * Fixed a degradated compatibility issue. 
 
 - ####v1.3 - 13 Sep 2014
   * No major changes from v1.3-beta3.
