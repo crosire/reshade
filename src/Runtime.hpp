@@ -60,7 +60,7 @@ namespace ReShade
 		static void Shutdown();
 
 	public:
-		static unsigned int sNetworkUpload, sNetworkDownload;
+		static volatile long sNetworkUpload, sNetworkDownload;
 
 	public:
 		Runtime();

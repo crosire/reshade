@@ -54,9 +54,6 @@
     <ClCompile Include="src\FileWatcher.cpp">
       <Filter>Core\Effect Runtime</Filter>
     </ClCompile>
-    <ClCompile Include="src\Network.cpp">
-      <Filter>Core\Effect Runtime</Filter>
-    </ClCompile>
     <ClCompile Include="src\Runtime.cpp">
       <Filter>Core\Effect Runtime</Filter>
     </ClCompile>
@@ -126,9 +123,6 @@
       <Filter>Core\Effect Runtime</Filter>
     </ClInclude>
     <ClInclude Include="src\FileWatcher.hpp">
-      <Filter>Core\Effect Runtime</Filter>
-    </ClInclude>
-    <ClInclude Include="src\Network.hpp">
       <Filter>Core\Effect Runtime</Filter>
     </ClInclude>
     <ClInclude Include="src\Runtime.hpp">

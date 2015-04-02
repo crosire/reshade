@@ -238,7 +238,6 @@ tools\upx --backup "$(TargetPath)"</Command>
     <ClCompile Include="src\EffectLexer.cpp" />
     <ClCompile Include="src\EffectParser.cpp" />
     <ClCompile Include="src\EffectPreProcessor.cpp" />
-    <ClCompile Include="src\Network.cpp" />
     <ClCompile Include="src\Runtime.cpp" />
     <ClCompile Include="src\Runtimes\RuntimeD3D9.cpp" />
     <ClCompile Include="src\Runtimes\RuntimeD3D10.cpp" />
@@ -259,7 +258,6 @@ tools\upx --backup "$(TargetPath)"</Command>
     <ClInclude Include="src\EffectPreProcessor.hpp" />
     <ClInclude Include="src\EffectTree.hpp" />
     <ClInclude Include="src\EffectTreeNodes.hpp" />
-    <ClInclude Include="src\Network.hpp" />
     <ClInclude Include="src\Runtime.hpp" />
     <ClInclude Include="src\Runtimes\RuntimeD3D10.hpp" />
     <ClInclude Include="src\Runtimes\RuntimeD3D11.hpp" />

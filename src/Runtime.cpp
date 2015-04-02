@@ -150,7 +150,7 @@ namespace ReShade
 		LOG(INFO) << "Exited.";
 	}
 
-	unsigned int Runtime::sNetworkUpload = 0, Runtime::sNetworkDownload = 0;
+	volatile long Runtime::sNetworkUpload = 0, Runtime::sNetworkDownload = 0;
 	unsigned int Runtime::sCompileCounter = 0;
 
 	// -----------------------------------------------------------------------------------------------------

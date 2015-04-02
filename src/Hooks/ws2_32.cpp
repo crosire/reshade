@@ -1,46 +1,7 @@
-#include "Network.hpp"
+#include "Runtime.hpp"
 #include "HookManager.hpp"
 
 #include <Winsock2.h>
-
-// -----------------------------------------------------------------------------------------------------
-
-namespace
-{
-	class CriticalSection
-	{
-	public:
-		struct Lock
-		{
-			Lock(CriticalSection &cs) : CS(cs)
-			{
-				EnterCriticalSection(&this->CS.mCS);
-			}
-			~Lock()
-			{
-				LeaveCriticalSection(&this->CS.mCS);
-			}
-
-			CriticalSection &CS;
-
-		private:
-			void operator =(const Lock &);
-		};
-
-	public:
-		CriticalSection()
-		{
-			InitializeCriticalSection(&this->mCS);
-		}
-		~CriticalSection()
-		{
-			DeleteCriticalSection(&this->mCS);
-		}
-
-	private:
-		CRITICAL_SECTION mCS;
-	} sCS;
-}
 
 // -----------------------------------------------------------------------------------------------------
 
@@ -97,13 +58,9 @@ EXPORT int WSAAPI WSASend(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPD
 {
 	static const auto trampoline = ReShade::Hooks::Call(&WSASend);
 
+	for (DWORD i = 0; i < dwBufferCount; ++i)
 	{
-		CriticalSection::Lock lock(sCS);
-
-		for (DWORD i = 0; i < dwBufferCount; ++i)
-		{
-			ReShade::Network::OnSend(lpBuffers[i].buf, lpBuffers[i].len);
-		}
+		_InterlockedExchangeAdd(&ReShade::Runtime::sNetworkUpload, lpBuffers[i].len);
 	}
 
 	return trampoline(s, lpBuffers, dwBufferCount, lpNumberOfBytesSent, dwFlags, lpOverlapped, lpCompletionRoutine);
@@ -112,13 +69,9 @@ EXPORT int WSAAPI WSASendTo(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, L
 {
 	static const auto trampoline = ReShade::Hooks::Call(&WSASendTo);
 
+	for (DWORD i = 0; i < dwBufferCount; ++i)
 	{
-		CriticalSection::Lock lock(sCS);
-
-		for (DWORD i = 0; i < dwBufferCount; ++i)
-		{
-			ReShade::Network::OnSend(lpBuffers[i].buf, lpBuffers[i].len);
-		}
+		_InterlockedExchangeAdd(&ReShade::Runtime::sNetworkUpload, lpBuffers[i].len);
 	}
 
 	return trampoline(s, lpBuffers, dwBufferCount, lpNumberOfBytesSent, dwFlags, lpTo, iToLen, lpOverlapped, lpCompletionRoutine);
@@ -138,11 +91,9 @@ EXPORT int WSAAPI WSARecv(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPD
 
 	if (status == 0 && recieved > 0)
 	{
-		CriticalSection::Lock lock(sCS);
-
 		for (DWORD i = 0; i < dwBufferCount; recieved -= lpBuffers[i++].len)
 		{
-			ReShade::Network::OnRecieve(lpBuffers[i].buf, std::min(recieved, lpBuffers[i].len));
+			_InterlockedExchangeAdd(&ReShade::Runtime::sNetworkDownload, std::min(recieved, lpBuffers[i].len));
 		}
 	}
 
@@ -156,9 +107,7 @@ EXPORT int WSAAPI WSARecvEx(SOCKET s, char *buf, int len, int *flags)
 
 	if (recieved > 0)
 	{
-		CriticalSection::Lock lock(sCS);
-
-		ReShade::Network::OnRecieve(buf, recieved);
+		_InterlockedExchangeAdd(&ReShade::Runtime::sNetworkDownload, recieved);
 	}
 
 	return recieved;
@@ -178,11 +127,9 @@ EXPORT int WSAAPI WSARecvFrom(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount,
 
 	if (status == 0 && recieved > 0)
 	{
-		CriticalSection::Lock lock(sCS);
-
 		for (DWORD i = 0; i < dwBufferCount; recieved -= lpBuffers[i++].len)
 		{
-			ReShade::Network::OnRecieve(lpBuffers[i].buf, std::min(recieved, lpBuffers[i].len));
+			_InterlockedExchangeAdd(&ReShade::Runtime::sNetworkDownload, std::min(recieved, lpBuffers[i].len));
 		}
 	}
 
