@@ -10,48 +10,28 @@ EXPORT int WSAAPI send(SOCKET s, const char *buf, int len, int flags)
 	DWORD sent = 0;
 	WSABUF data = { len, const_cast<CHAR *>(buf) };
 
-	if (WSASend(s, &data, 1, &sent, flags, nullptr, nullptr) == SOCKET_ERROR)
-	{
-		return SOCKET_ERROR;
-	}
-
-	return static_cast<int>(sent);
+	return WSASend(s, &data, 1, &sent, flags, nullptr, nullptr) + static_cast<int>(sent);
 }
 EXPORT int WSAAPI sendto(SOCKET s, const char *buf, int len, int flags, const struct sockaddr *to, int tolen)
 {
 	DWORD sent = 0;
 	WSABUF data = { len, const_cast<CHAR *>(buf) };
 
-	if (WSASendTo(s, &data, 1, &sent, flags, to, tolen, nullptr, nullptr) == SOCKET_ERROR)
-	{
-		return SOCKET_ERROR;
-	}
-
-	return static_cast<int>(sent);
+	return WSASendTo(s, &data, 1, &sent, flags, to, tolen, nullptr, nullptr) + static_cast<int>(sent);
 }
 EXPORT int WSAAPI recv(SOCKET s, char *buf, int len, int flags)
 {
 	DWORD recieved = 0;
 	WSABUF data = { len, buf };
 
-	if (WSARecv(s, &data, 1, &recieved, reinterpret_cast<LPDWORD>(&flags), nullptr, nullptr) == SOCKET_ERROR)
-	{
-		return SOCKET_ERROR;
-	}
-
-	return static_cast<int>(recieved);
+	return WSARecv(s, &data, 1, &recieved, reinterpret_cast<LPDWORD>(&flags), nullptr, nullptr) + static_cast<int>(recieved);
 }
 EXPORT int WSAAPI recvfrom(SOCKET s, char *buf, int len, int flags, struct sockaddr *from, int *fromlen)
 {
 	DWORD recieved = 0;
 	WSABUF data = { len, buf };
 
-	if (WSARecvFrom(s, &data, 1, &recieved, reinterpret_cast<LPDWORD>(&flags), from, fromlen, nullptr, nullptr) == SOCKET_ERROR)
-	{
-		return SOCKET_ERROR;
-	}
-
-	return static_cast<int>(recieved);
+	return WSARecvFrom(s, &data, 1, &recieved, reinterpret_cast<LPDWORD>(&flags), from, fromlen, nullptr, nullptr) + static_cast<int>(recieved);
 }
 
 EXPORT int WSAAPI WSASend(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPDWORD lpNumberOfBytesSent, DWORD dwFlags, LPWSAOVERLAPPED lpOverlapped, LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine)
@@ -84,13 +64,13 @@ EXPORT int WSAAPI WSARecv(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPD
 
 	const int status = trampoline(s, lpBuffers, dwBufferCount, &recieved, lpFlags, lpOverlapped, lpCompletionRoutine);
 
-	if (lpNumberOfBytesRecvd != nullptr)
+	if (status == 0)
 	{
-		*lpNumberOfBytesRecvd = recieved;
-	}
+		if (lpNumberOfBytesRecvd != nullptr)
+		{
+			*lpNumberOfBytesRecvd = recieved;
+		}
 
-	if (status == 0 && recieved > 0)
-	{
 		for (DWORD i = 0; i < dwBufferCount; recieved -= lpBuffers[i++].len)
 		{
 			_InterlockedExchangeAdd(&ReShade::Runtime::sNetworkDownload, std::min(recieved, lpBuffers[i].len));
@@ -120,13 +100,13 @@ EXPORT int WSAAPI WSARecvFrom(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount,
 
 	const int status = trampoline(s, lpBuffers, dwBufferCount, &recieved, lpFlags, lpFrom, lpFromlen, lpOverlapped, lpCompletionRoutine);
 
-	if (lpNumberOfBytesRecvd != nullptr)
+	if (status == 0)
 	{
-		*lpNumberOfBytesRecvd = recieved;
-	}
+		if (lpNumberOfBytesRecvd != nullptr)
+		{
+			*lpNumberOfBytesRecvd = recieved;
+		}
 
-	if (status == 0 && recieved > 0)
-	{
 		for (DWORD i = 0; i < dwBufferCount; recieved -= lpBuffers[i++].len)
 		{
 			_InterlockedExchangeAdd(&ReShade::Runtime::sNetworkDownload, std::min(recieved, lpBuffers[i].len));
