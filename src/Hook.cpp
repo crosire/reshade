@@ -10,69 +10,10 @@ namespace ReShade
 		unsigned long sCounter = 0;
 	}
 
-	Hook::Status Hook::Install(Hook &hook)
-	{
-		if (!hook.IsValid())
-		{
-			return Status::UnsupportedFunction;
-		}
-
-		if (sCounter++ == 0)
-		{
-			MH_Initialize();
-		}
-		
-		const MH_STATUS status = MH_CreateHook(hook.Target, hook.Replacement, &hook.Trampoline);
-
-		if (status == MH_OK)
-		{
-			if (MH_EnableHook(hook.Target) == MH_OK)
-			{
-				return Status::Success;
-			}
-		}
-		else if (status != MH_ERROR_ALREADY_CREATED)
-		{
-			if (--sCounter == 0)
-			{
-				MH_Uninitialize();
-			}
-		}
-
-		return static_cast<Status>(status);
-	}
-	Hook::Status Hook::Uninstall(Hook &hook)
-	{
-		if (!hook.IsValid())
-		{
-			return Status::UnsupportedFunction;
-		}
-
-		const MH_STATUS status = MH_RemoveHook(hook.Target);
-
-		if (status == MH_ERROR_NOT_CREATED)
-		{
-			return Status::Success;
-		}
-		else if (status != MH_OK)
-		{
-			return static_cast<Status>(status);
-		}
-
-		hook.Trampoline = nullptr;
-
-		if (--sCounter == 0)
-		{
-			MH_Uninitialize();
-		}
-
-		return Status::Success;
-	}
-
 	Hook::Hook() : Target(nullptr), Replacement(nullptr), Trampoline(nullptr)
 	{
 	}
-	Hook::Hook(Function target, const Function replacement) : Target(target), Replacement(replacement), Trampoline(nullptr)
+	Hook::Hook(Function target, Function replacement) : Target(target), Replacement(replacement), Trampoline(nullptr)
 	{
 	}
 
@@ -105,13 +46,6 @@ namespace ReShade
 		return this->Trampoline != nullptr;
 	}
 
-	Hook::Function Hook::Call() const
-	{
-		assert(IsInstalled());
-
-		return this->Trampoline;
-	}
-
 	bool Hook::Enable(bool enable)
 	{
 		if (enable)
@@ -126,5 +60,70 @@ namespace ReShade
 
 			return (status == MH_OK || status == MH_ERROR_DISABLED);
 		}
+	}
+	Hook::Status Hook::Install()
+	{
+		if (!IsValid())
+		{
+			return Status::UnsupportedFunction;
+		}
+
+		if (sCounter++ == 0)
+		{
+			MH_Initialize();
+		}
+
+		const MH_STATUS status = MH_CreateHook(this->Target, this->Replacement, &this->Trampoline);
+
+		if (status == MH_OK)
+		{
+			if (MH_EnableHook(this->Target) == MH_OK)
+			{
+				return Status::Success;
+			}
+		}
+		else if (status != MH_ERROR_ALREADY_CREATED)
+		{
+			if (--sCounter == 0)
+			{
+				MH_Uninitialize();
+			}
+		}
+
+		return static_cast<Status>(status);
+	}
+	Hook::Status Hook::Uninstall()
+	{
+		if (!IsValid())
+		{
+			return Status::UnsupportedFunction;
+		}
+
+		const MH_STATUS status = MH_RemoveHook(this->Target);
+
+		if (status == MH_ERROR_NOT_CREATED)
+		{
+			return Status::Success;
+		}
+		else if (status != MH_OK)
+		{
+			return static_cast<Status>(status);
+		}
+
+		this->Trampoline = nullptr;
+
+		if (--sCounter == 0)
+		{
+			MH_Uninitialize();
+		}
+
+		return Status::Success;
+	}
+
+	Hook::Function Hook::Call() const
+	{
+		assert(IsInstalled());
+
+		return this->Trampoline;
 	}
 }

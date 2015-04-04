@@ -3,8 +3,9 @@
 
 #include <vector>
 #include <unordered_map>
-#include <boost\algorithm\string.hpp>
+#include <assert.h>
 #include <windows.h>
+#include <boost\algorithm\string.hpp>
 
 namespace ReShade
 {
@@ -68,36 +69,33 @@ namespace ReShade
 			std::vector<ModuleExport> GetModuleExports(HMODULE handle)
 			{
 				std::vector<ModuleExport> exports;
-				BYTE *imageBase = reinterpret_cast<BYTE *>(handle);
-				IMAGE_DOS_HEADER *imageHeader = reinterpret_cast<IMAGE_DOS_HEADER *>(imageBase);
-				IMAGE_NT_HEADERS *imageHeaderNT = reinterpret_cast<IMAGE_NT_HEADERS *>(imageBase + imageHeader->e_lfanew);
+				BYTE *const imagebase = reinterpret_cast<BYTE *>(handle);
+				IMAGE_NT_HEADERS *const imageheader = reinterpret_cast<IMAGE_NT_HEADERS *>(imagebase + reinterpret_cast<IMAGE_DOS_HEADER *>(imagebase)->e_lfanew);
 
-				if (imageHeader->e_magic != IMAGE_DOS_SIGNATURE || imageHeaderNT->Signature != IMAGE_NT_SIGNATURE || imageHeaderNT->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].Size == 0)
+				if (imageheader->Signature != IMAGE_NT_SIGNATURE || imageheader->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].Size == 0)
 				{
 					return exports;
 				}
 
-				IMAGE_EXPORT_DIRECTORY *imageExports = reinterpret_cast<IMAGE_EXPORT_DIRECTORY *>(imageBase + imageHeaderNT->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress);
+				IMAGE_EXPORT_DIRECTORY *const exportdir = reinterpret_cast<IMAGE_EXPORT_DIRECTORY *>(imagebase + imageheader->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress);
+				const WORD exportbase = static_cast<WORD>(exportdir->Base);
 
-				const std::size_t count = static_cast<std::size_t>(imageExports->NumberOfNames);
+				if (exportdir->NumberOfFunctions == 0)
+				{
+					return exports;
+				}
+
+				const std::size_t count = static_cast<std::size_t>(exportdir->NumberOfNames);
 				exports.reserve(count);
 
 				for (std::size_t i = 0; i < count; ++i)
 				{
 					ModuleExport symbol;
-					symbol.Ordinal = reinterpret_cast<WORD *>(imageBase + imageExports->AddressOfNameOrdinals)[i] + static_cast<WORD>(imageExports->Base);
-					symbol.Name = reinterpret_cast<const char *>(imageBase + (reinterpret_cast<DWORD *>(imageBase + imageExports->AddressOfNames)[i]));
+					symbol.Ordinal = reinterpret_cast<WORD *>(imagebase + exportdir->AddressOfNameOrdinals)[i] + exportbase;
+					symbol.Name = reinterpret_cast<const char *>(imagebase + reinterpret_cast<DWORD *>(imagebase + exportdir->AddressOfNames)[i]);
+					symbol.Address = reinterpret_cast<void *>(imagebase + reinterpret_cast<DWORD *>(imagebase + exportdir->AddressOfFunctions)[symbol.Ordinal - exportbase]);
 
-					if (imageExports->NumberOfFunctions > 0)
-					{
-						symbol.Address = reinterpret_cast<void *>(imageBase + (reinterpret_cast<DWORD *>(imageBase + imageExports->AddressOfFunctions)[symbol.Ordinal - static_cast<WORD>(imageExports->Base)]));
-					}
-					else
-					{
-						symbol.Address = nullptr;
-					}
-
-					exports.push_back(symbol);
+					exports.push_back(std::move(symbol));
 				}
 
 				return exports;
@@ -117,7 +115,7 @@ namespace ReShade
 			std::unordered_map<Hook::Function, Hook::Function *> sVTableAddresses;
 			const HMODULE sCurrentModuleHandle = GetCurrentModuleHandle();
 
-			bool Install(Hook::Function target, const Hook::Function replacement, HookType method)
+			bool Install(Hook::Function target, Hook::Function replacement, HookType method)
 			{
 				LOG(TRACE) << "Installing hook for '0x" << target << "' with '0x" << replacement << "' using method " << static_cast<int>(method) << " ...";
 
@@ -135,7 +133,7 @@ namespace ReShade
 					}
 					case HookType::FunctionHook:
 					{
-						status = Hook::Install(hook);
+						status = hook.Install();
 						break;
 					}
 					case HookType::VTableHook:
@@ -143,11 +141,11 @@ namespace ReShade
 						DWORD protection = 0;
 						Hook::Function *const targetAddress = sVTableAddresses.at(target);
 		
-						if (VirtualProtect(reinterpret_cast<LPVOID *>(targetAddress), sizeof(Hook::Function), PAGE_READWRITE, &protection) != FALSE)
+						if (VirtualProtect(targetAddress, sizeof(Hook::Function), PAGE_READWRITE, &protection) != FALSE)
 						{
 							*targetAddress = replacement;
 
-							VirtualProtect(reinterpret_cast<LPVOID *>(targetAddress), sizeof(Hook::Function), protection, &protection);
+							VirtualProtect(targetAddress, sizeof(Hook::Function), protection, &protection);
 
 							status = Hook::Status::Success;
 						}
@@ -314,7 +312,7 @@ namespace ReShade
 				}
 			}
 
-			Hook Find(const Hook::Function replacement)
+			Hook Find(Hook::Function replacement)
 			{
 				CriticalSection::Lock lock(sCS);
 
@@ -328,9 +326,9 @@ namespace ReShade
 				return it->first;
 			}
 			template <typename F>
-			inline F CallUnchecked(const F replacement)
+			inline F CallUnchecked(F replacement)
 			{
-				return reinterpret_cast<F>(Find(reinterpret_cast<const Hook::Function>(replacement)).Call());
+				return reinterpret_cast<F>(Find(reinterpret_cast<Hook::Function>(replacement)).Call());
 			}
 
 			HMODULE WINAPI HookLoadLibraryA(LPCSTR lpFileName)
@@ -405,7 +403,7 @@ namespace ReShade
 
 		// -----------------------------------------------------------------------------------------------------
 
-		bool Install(Hook::Function target, const Hook::Function replacement)
+		bool Install(Hook::Function target, Hook::Function replacement)
 		{
 			assert(target != nullptr);
 			assert(replacement != nullptr);
@@ -424,21 +422,21 @@ namespace ReShade
 
 			return Install(target, replacement, HookType::FunctionHook);
 		}
-		bool Install(Hook::Function vtable[], unsigned int offset, const Hook::Function replacement)
+		bool Install(Hook::Function vtable[], unsigned int offset, Hook::Function replacement)
 		{
 			assert(vtable != nullptr);
 			assert(replacement != nullptr);
 
 			DWORD protection = 0;
-		
-			if (VirtualProtect(reinterpret_cast<LPVOID>(vtable + offset), sizeof(Hook::Function), PAGE_READONLY, &protection) != FALSE)
+			Hook::Function &target = vtable[offset];
+
+			if (VirtualProtect(&target, sizeof(Hook::Function), PAGE_READONLY, &protection) != FALSE)
 			{
 				CriticalSection::Lock lock(sCS);
 
-				const Hook::Function target = vtable[offset];
-				const auto insert = sVTableAddresses.emplace(target, vtable + offset);
+				const auto insert = sVTableAddresses.emplace(target, &target);
 
-				VirtualProtect(reinterpret_cast<LPVOID>(vtable + offset), sizeof(Hook::Function), protection, &protection);
+				VirtualProtect(&target, sizeof(Hook::Function), protection, &protection);
 
 				if (insert.second)
 				{
@@ -483,12 +481,14 @@ namespace ReShade
 		}
 		void RegisterModule(const boost::filesystem::path &targetPath) // Unsafe
 		{
+			const boost::filesystem::path replacementPath = GetModuleFileName(sCurrentModuleHandle);
+
 			Install(reinterpret_cast<Hook::Function>(&LoadLibraryA), reinterpret_cast<Hook::Function>(&HookLoadLibraryA));
 			Install(reinterpret_cast<Hook::Function>(&LoadLibraryW), reinterpret_cast<Hook::Function>(&HookLoadLibraryW));
 
 			LOG(INFO) << "Registering hooks for " << targetPath << " ...";
 
-			if (boost::iequals(targetPath.stem().native(), GetModuleFileName(sCurrentModuleHandle).stem().native()))
+			if (boost::iequals(targetPath.stem().native(), replacementPath.stem().native()))
 			{
 				LOG(INFO) << "> Delayed.";
 
@@ -516,7 +516,7 @@ namespace ReShade
 			}
 		}
 
-		Hook::Function Call(const Hook::Function replacement)
+		Hook::Function Call(Hook::Function replacement)
 		{
 			CriticalSection::Lock lock(sCS);
 
@@ -531,7 +531,7 @@ namespace ReShade
 					sExportHookPath.clear();
 					sDelayedHookModules.push_back(handle);
 
-					Install(handle, GetCurrentModuleHandle(), HookType::Export);
+					Install(handle, sCurrentModuleHandle, HookType::Export);
 				}
 				else
 				{

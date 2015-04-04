@@ -15,27 +15,22 @@ namespace ReShade
 			MemoryProtectionFailure,
 		};
 
-		static Status Install(Hook &hook);
-		static Status Uninstall(Hook &hook);
-
 		Hook();
-		Hook(Function target, const Function replacement);
+		Hook(Function target, Function replacement);
 
 		bool IsValid() const;
 		bool IsEnabled() const;
 		bool IsInstalled() const;
+
+		bool Enable(bool enable = true);
+		Status Install();
+		Status Uninstall();
 
 		Function Call() const;
 		template <typename F>
 		inline F Call() const
 		{
 			return reinterpret_cast<F>(Call());
-		}
-
-		bool Enable(bool enable = true);
-		inline Status Uninstall()
-		{
-			return Uninstall(*this);
 		}
 
 		Function Target, Replacement, Trampoline;
