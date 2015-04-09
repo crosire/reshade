@@ -2369,6 +2369,7 @@ namespace ReShade
 			this->mNVG = nvgCreateD3D10(this->mDevice, 0);
 
 			this->mLost = false;
+			this->mWindow.reset(new WindowWatcher(desc.OutputWindow));
 
 			Runtime::OnCreate(desc.BufferDesc.Width, desc.BufferDesc.Height);
 

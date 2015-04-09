@@ -244,6 +244,7 @@ tools\upx --backup "$(TargetPath)"</Command>
     <ClCompile Include="src\Runtimes\RuntimeD3D11.cpp" />
     <ClCompile Include="src\Runtimes\RuntimeGL.cpp" />
     <ClCompile Include="src\FileWatcher.cpp" />
+    <ClCompile Include="src\WindowWatcher.cpp" />
     <ClCompile Include="src\Main.cpp" />
     <ClCompile Include="src\Log.cpp" />
   </ItemGroup>
@@ -264,6 +265,7 @@ tools\upx --backup "$(TargetPath)"</Command>
     <ClInclude Include="src\Runtimes\RuntimeD3D9.hpp" />
     <ClInclude Include="src\Runtimes\RuntimeGL.hpp" />
     <ClInclude Include="src\FileWatcher.hpp" />
+    <ClInclude Include="src\WindowWatcher.hpp" />
     <ClInclude Include="src\Log.hpp" />
   </ItemGroup>
   <ItemGroup>

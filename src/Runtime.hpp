@@ -2,6 +2,7 @@
 
 #include "Effect.hpp"
 #include "EffectTree.hpp"
+#include "WindowWatcher.hpp"
 
 #include <memory>
 #include <vector>
@@ -50,6 +51,7 @@ namespace ReShade
 			bool Enabled;
 			int Timeout, Timeleft;
 			int Toggle, ToggleTime;
+			bool ToggleCtrl, ToggleShift, ToggleAlt;
 			const FX::Effect::Technique *Technique;
 			boost::chrono::high_resolution_clock::duration LastDuration;
 			boost::chrono::high_resolution_clock::time_point LastDurationUpdate;
@@ -101,5 +103,6 @@ namespace ReShade
 		std::string mStatus, mErrors, mMessage, mEffectSource;
 		std::string mScreenshotFormat;
 		bool mShowStatistics, mShowFPS, mShowClock, mShowToggleMessage, mSkipShaderOptimization;
+		std::unique_ptr<WindowWatcher> mWindow;
 	};
 }

@@ -2251,6 +2251,7 @@ namespace ReShade
 			this->mNVG = nvgCreateD3D9(this->mDevice, 0);
 
 			this->mLost = false;
+			this->mWindow.reset(new WindowWatcher(params.hDeviceWindow));
 
 			Runtime::OnCreate(this->mPresentParams.BackBufferWidth, this->mPresentParams.BackBufferHeight);
 

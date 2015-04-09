@@ -215,10 +215,6 @@ namespace ReShade
 
 		this->mEffect->Enter();
 
-		BYTE keys1[256], keys2[256];
-		GetKeyboardState(keys1);
-		std::copy_n(keys1, 256, keys2);
-
 		for (TechniqueInfo &info : this->mTechniques)
 		{
 			if (info.ToggleTime != 0 && info.ToggleTime == static_cast<int>(this->mDate[3]))
@@ -227,7 +223,7 @@ namespace ReShade
 				info.Timeleft = info.Timeout;
 				info.ToggleTime = 0;
 			}
-			else if ((info.Toggle > 0 && info.Toggle < 256) && keys1[info.Toggle] != FALSE)
+			else if (this->mWindow->GetKeyDown(info.Toggle) && (!info.ToggleCtrl || this->mWindow->GetKeyState(VK_CONTROL)) && (!info.ToggleShift || this->mWindow->GetKeyState(VK_SHIFT)) && (!info.ToggleAlt || this->mWindow->GetKeyState(VK_MENU)))
 			{
 				info.Enabled = !info.Enabled;
 				info.Timeleft = info.Timeout;
@@ -237,8 +233,6 @@ namespace ReShade
 					this->mStatus = info.Technique->GetDescription().Name + (info.Enabled ? " enabled." : " disabled.");
 					this->mLastCreate = timePostProcessingStarted;
 				}
-
-				keys2[info.Toggle] = FALSE;
 			}
 
 			if (info.Timeleft > 0)
@@ -376,24 +370,22 @@ namespace ReShade
 
 					if (key > 0 && key < 256)
 					{
-						const bool state = (::GetAsyncKeyState(key) & 0x8000) != 0;
-
 						if (constant->GetAnnotation("toggle").As<bool>())
 						{
 							bool current = false;
 							constant->GetValue(&current, 1);
 
-							if (state)
+							if (this->mWindow->GetKeyDown(key))
 							{
 								current = !current;
 
 								constant->SetValue(&current, 1);
-
-								Sleep(100);
 							}
 						}
 						else
 						{
+							const bool state = this->mWindow->GetKeyState(key);
+
 							constant->SetValue(&state, 1);
 						}
 					}
@@ -419,7 +411,7 @@ namespace ReShade
 			}
 		}
 
-		SetKeyboardState(keys2);
+		this->mWindow->NextFrame();
 
 		this->mEffect->Leave();
 
@@ -808,6 +800,9 @@ namespace ReShade
 			info.Enabled = technique->GetAnnotation("enabled").As<bool>();
 			info.Timeleft = info.Timeout = technique->GetAnnotation("timeout").As<int>();
 			info.Toggle = technique->GetAnnotation("toggle").As<int>();
+			info.ToggleCtrl = technique->GetAnnotation("togglectrl").As<bool>();
+			info.ToggleShift = technique->GetAnnotation("toggleshift").As<bool>();
+			info.ToggleAlt = technique->GetAnnotation("togglealt").As<bool>();
 			info.ToggleTime = technique->GetAnnotation("toggletime").As<int>();
 
 			this->mTechniques.push_back(std::move(info));

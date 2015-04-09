@@ -3088,6 +3088,7 @@ namespace ReShade
 			this->mNVG = nvgCreateGL3(0);
 
 			this->mLost = false;
+			this->mWindow.reset(new WindowWatcher(WindowFromDC(this->mDeviceContext)));
 
 			Runtime::OnCreate(width, height);
 
