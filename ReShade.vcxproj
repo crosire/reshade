@@ -122,6 +122,7 @@
       <AdditionalIncludeDirectories>$(SolutionDir)\src;$(SolutionDir)\res;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;_DEBUG;WIN32_LEAN_AND_MEAN;NOMINMAX;_GDI32_;WINSOCK_API_LINKAGE=;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DisableSpecificWarnings>4351;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <ObjectFileName>$(IntDir)\%(RelativeDir)\</ObjectFileName>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -143,6 +144,7 @@
       <AdditionalIncludeDirectories>$(SolutionDir)\src;$(SolutionDir)\res;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN64;_DEBUG;WIN32_LEAN_AND_MEAN;NOMINMAX;_GDI32_;WINSOCK_API_LINKAGE=;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DisableSpecificWarnings>4351;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <ObjectFileName>$(IntDir)\%(RelativeDir)\</ObjectFileName>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -166,6 +168,7 @@
       <AdditionalIncludeDirectories>$(SolutionDir)\src;$(SolutionDir)\res;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;NDEBUG;WIN32_LEAN_AND_MEAN;NOMINMAX;_GDI32_;WINSOCK_API_LINKAGE=;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DisableSpecificWarnings>4351;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <ObjectFileName>$(IntDir)\%(RelativeDir)\</ObjectFileName>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -198,6 +201,7 @@ tools\upx --backup "$(TargetPath)"</Command>
       <AdditionalIncludeDirectories>$(SolutionDir)\src;$(SolutionDir)\res;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN64;NDEBUG;WIN32_LEAN_AND_MEAN;NOMINMAX;_GDI32_;WINSOCK_API_LINKAGE=;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DisableSpecificWarnings>4351;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <ObjectFileName>$(IntDir)\%(RelativeDir)\</ObjectFileName>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
