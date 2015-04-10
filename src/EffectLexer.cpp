@@ -1,6 +1,5 @@
 #include "EffectLexer.hpp"
 
-#include <cstdarg>
 #include <unordered_map>
 #include <boost\assign\list_of.hpp>
 
@@ -276,10 +275,10 @@ namespace ReShade
 			}
 		}
 
-		Lexer::Lexer(const Lexer &lexer) : mSource(lexer.mSource), mPos(&this->mSource.front() + (lexer.mPos - &lexer.mSource.front())), mEnd(&this->mSource.back() + 1), mCurrentAtLineStart(lexer.mCurrentAtLineStart)
+		Lexer::Lexer(const Lexer &lexer) : mSource(lexer.mSource), mPos(&this->mSource.front() + (lexer.mPos - &lexer.mSource.front())), mEnd(&this->mSource.back() + 1), mCurrentAtLineBegin(lexer.mCurrentAtLineBegin)
 		{
 		}
-		Lexer::Lexer(const std::string &source) : mSource(source), mPos(&this->mSource.front()), mEnd(&this->mSource.back() + 1), mCurrentAtLineStart(true)
+		Lexer::Lexer(const std::string &source) : mSource(source), mPos(&this->mSource.front()), mEnd(&this->mSource.back() + 1), mCurrentAtLineBegin(true)
 		{
 		}
 
@@ -307,7 +306,7 @@ NextToken:
 				case '\n':
 				{
 					this->mPos++;
-					this->mCurrentAtLineStart = true;
+					this->mCurrentAtLineBegin = true;
 					this->mCurrentLocation.Line++;
 					this->mCurrentLocation.Column = 1;
 
@@ -339,13 +338,14 @@ NextToken:
 				case '"':
 				{
 					LexStringLiteral(token);
-
-					return token;
+					break;
 				}
 				case '#':
 				{
-					if (this->mCurrentAtLineStart)
+					if (this->mCurrentAtLineBegin)
 					{
+						this->mPos++;
+
 						HandlePreProcessorDirective();
 
 						goto NextToken;
@@ -473,11 +473,9 @@ NextToken:
 				}
 				case '.':
 				{
-					if (this->mPos[1] >= '0' && this->mPos[1] <= '9')
+					if (isdigit(this->mPos[1]))
 					{
 						LexNumericLiteral(token);
-
-						return token;
 					}
 					else if (this->mPos[1] == '.' && this->mPos[2] == '.')
 					{
@@ -529,8 +527,7 @@ NextToken:
 				case '9':
 				{
 					LexNumericLiteral(token);
-
-					return token;
+					break;
 				}
 				case ':':
 				{
@@ -660,8 +657,7 @@ NextToken:
 				case 'Z':
 				{
 					LexIdentifier(token);
-
-					return token;
+					break;
 				}
 				case '[':
 				{
@@ -724,8 +720,7 @@ NextToken:
 				case 'z':
 				{
 					LexIdentifier(token);
-
-					return token;
+					break;
 				}
 				case '{':
 				{
@@ -773,24 +768,23 @@ NextToken:
 			}
 
 			this->mPos += token.mRawDataLength;
-			this->mCurrentAtLineStart = false;
+			this->mCurrentAtLineBegin = false;
 			this->mCurrentLocation.Column += token.mRawDataLength;
 
 			return token;
 		}
 		void Lexer::LexIdentifier(Token &token)
 		{
-			token.mId = Token::Id::Identifier;
-			token.mRawData = this->mPos;
+			const char *const begin = this->mPos, *end = begin;
 
-			while (isalnum(*++this->mPos))
+			while (isalnum(*++end))
 			{
 				continue;
 			}
 
-			token.mRawDataLength = this->mPos - token.mRawData;
-			this->mCurrentAtLineStart = false;
-			this->mCurrentLocation.Column += token.mRawDataLength;
+			token.mId = Token::Id::Identifier;
+			token.mRawData = begin;
+			token.mRawDataLength = end - begin;
 
 			static const std::unordered_map<std::string, Token::Id> sKeywords = boost::assign::map_list_of
 				("template", Token::Id::ReservedWord)
@@ -959,40 +953,46 @@ NextToken:
 
 			if (it != sKeywords.end())
 			{
-				if (it->second == Token::Id::ReservedWord)
-				{
-					Error(token.mLocation, 3000, "syntax error: unexpected reserved word '%s'", it->first.c_str());
-				}
-
 				token.mId = it->second;
 			}
 		}
 		void Lexer::LexStringLiteral(Token &token)
 		{
-			token.mId = Token::Id::StringLiteral;
-			token.mRawData = this->mPos;
-			
-			while (*++this->mPos != '"')
+			char c = 0;
+			const char *const begin = this->mPos, *end = begin;
+
+			while ((c = *++end) != '"')
 			{
-				char c = *this->mPos;
-
-				if (c == '\n' || c == '\r' || this->mPos >= this->mEnd)
+				if (c == '\n' || c == '\r' || end >= this->mEnd)
 				{
-					token.mRawDataLength = this->mPos - token.mRawData;
-					this->mCurrentLocation.Column += token.mRawDataLength;
-
-					Error(token.mLocation, 1005, "string continues past end of line");
+					token.mId = Token::Id::StringLiteral;
+					token.mRawData = begin;
+					token.mRawDataLength = end - begin;
 					return;
 				}
 				else if (c == '\\')
 				{
-					while (*++this->mPos == ' ')
-					{
-						continue;
-					}
+					unsigned int n = 0;
 
-					switch (c = *this->mPos)
+					switch (c = *++end)
 					{
+						case '0':
+						case '1':
+						case '2':
+						case '3':
+						case '4':
+						case '5':
+						case '6':
+						case '7':
+							for (unsigned int i = 0; i < 3 && isodigit(*end) && end < this->mEnd; ++i)
+							{
+								c = *end++;
+								n = (n << 3) | (c - '0');
+							}
+
+							c = static_cast<char>(n & 0xFF);
+							end--;
+							break;
 						case 'a':
 							c = '\a';
 							break;
@@ -1014,9 +1014,19 @@ NextToken:
 						case 'v':
 							c = '\v';
 							break;
-						case '0':
 						case 'x':
-							Warning(token.mLocation, 0, "numeric escape sequences are not supported");
+							if (isxdigit(*++end))
+							{
+								while (isxdigit(*end) && end < this->mEnd)
+								{
+									c = *end++;
+									n = (n << 4) | (isdigit(c) ? c - '0' : (c - 55 - 32 * (c & 0x20)));
+								}
+
+								c = static_cast<char>(n);
+							}
+
+							end--;
 							break;
 					}
 				}
@@ -1024,28 +1034,26 @@ NextToken:
 				token.mLiteralString += c;
 			}
 
-			this->mPos++;
-
-			token.mRawDataLength = this->mPos - token.mRawData;
-			this->mCurrentAtLineStart = false;
-			this->mCurrentLocation.Column += token.mRawDataLength;
+			token.mId = Token::Id::StringLiteral;
+			token.mRawData = begin;
+			token.mRawDataLength = end - begin + 1;
 		}
 		void Lexer::LexNumericLiteral(Token &token)
 		{
+			const char *begin = this->mPos, *end = begin;
+
 			token.mId = Token::Id::IntLiteral;
-			token.mRawData = this->mPos;
 
 			int radix = 0;
 
-			if (this->mPos[0] == '0')
+			if (begin[0] == '0')
 			{
-				if (this->mPos[1] == 'x' || this->mPos[1] == 'X')
+				if (begin[1] == 'x' || begin[1] == 'X')
 				{
 					radix = 16;
+					end = begin + 1;
 
-					this->mPos += 1;
-
-					while (isxdigit(*++this->mPos))
+					while (isxdigit(*++end))
 					{
 						continue;
 					}
@@ -1054,30 +1062,30 @@ NextToken:
 				{
 					radix = 8;
 
-					while (isodigit(*++this->mPos))
+					while (isodigit(*++end))
 					{
 						continue;
 					}
 
-					if (isdigit(*this->mPos))
+					if (isdigit(*end))
 					{
-						while (isdigit(*++this->mPos))
+						while (isdigit(*++end))
 						{
 							continue;
 						}
 
-						if (*this->mPos == '.' || *this->mPos == 'e' || *this->mPos == 'E' || *this->mPos == 'f' || *this->mPos == 'F')
+						if (*end == '.' || *end == 'e' || *end == 'E' || *end == 'f' || *end == 'F')
 						{
 							radix = 10;
 						}
 					}
 				}
 			}
-			else if (this->mPos[0] != '.')
+			else if (begin[0] != '.')
 			{
 				radix = 10;
 
-				while (isdigit(*++this->mPos))
+				while (isdigit(*++end))
 				{
 					continue;
 				}
@@ -1085,30 +1093,30 @@ NextToken:
 
 			if (radix != 16)
 			{
-				if (this->mPos[0] == '.')
+				if (*end == '.')
 				{
 					radix = 10;
 					token.mId = Token::Id::FloatLiteral;
 
-					while (isdigit(*++this->mPos))
+					while (isdigit(*++end))
 					{
 						continue;
 					}
 				}
 
-				if (this->mPos[0] == 'e' || this->mPos[0] == 'E')
+				if (end[0] == 'e' || end[0] == 'E')
 				{
-					if ((this->mPos[1] == '+' || this->mPos[1] == '-') && isdigit(this->mPos[2]))
+					if ((end[1] == '+' || end[1] == '-') && isdigit(end[2]))
 					{
-						this->mPos++;
+						end++;
 					}
 
-					if (isdigit(this->mPos[1]))
+					if (isdigit(end[1]))
 					{
 						radix = 10;
 						token.mId = Token::Id::FloatLiteral;
 
-						while (isdigit(*++this->mPos))
+						while (isdigit(*++end))
 						{
 							continue;
 						}
@@ -1116,30 +1124,29 @@ NextToken:
 				}
 			}
 
-			if (this->mPos[0] == 'f' || this->mPos[0] == 'F')
+			if (*end == 'f' || *end == 'F')
 			{
 				radix = 10;
 				token.mId = Token::Id::FloatLiteral;
 
-				this->mPos++;
+				end++;
 			}
-			else if (this->mPos[0] == 'l' || this->mPos[0] == 'L')
+			else if (*end == 'l' || *end == 'L')
 			{
 				radix = 10;
 				token.mId = Token::Id::DoubleLiteral;
 
-				this->mPos++;
+				end++;
 			}
-			else if (token.mId == Token::Id::IntLiteral && (this->mPos[0] == 'u' || this->mPos[0] == 'U'))
+			else if (token.mId == Token::Id::IntLiteral && (*end == 'u' || *end == 'U'))
 			{
 				token.mId = Token::Id::UintLiteral;
 
-				this->mPos++;
+				end++;
 			}
 
-			token.mRawDataLength = this->mPos - token.mRawData;
-			this->mCurrentLocation.Column += token.mRawDataLength;
-			this->mCurrentAtLineStart = false;
+			token.mRawData = begin;
+			token.mRawDataLength = end - begin;
 
 			switch (token.mId)
 			{
@@ -1164,7 +1171,6 @@ NextToken:
 			{
 				this->mPos++;
 				this->mCurrentLocation.Column++;
-				continue;
 			}
 		}
 		void Lexer::SkipLineComment()
@@ -1172,7 +1178,6 @@ NextToken:
 			while (*this->mPos != '\n' && this->mPos < this->mEnd)
 			{
 				this->mPos++;
-				continue;
 			}
 		}
 		void Lexer::SkipBlockComment()
@@ -1198,16 +1203,20 @@ NextToken:
 		}
 		void Lexer::HandlePreProcessorDirective()
 		{
-			this->mPos++;
+			SkipWhitespace();
+
+			const char *command = this->mPos;
+			std::size_t commandLength = 0;
+
+			while (isalnum(*this->mPos++))
+			{
+				++commandLength;
+			}
 
 			SkipWhitespace();
 
-			if (strncmp(this->mPos, "line", 4) == 0)
+			if (commandLength == 4 && strncmp(command, "line", 4) == 0)
 			{
-				this->mPos += 4;
-
-				SkipWhitespace();
-
 				char *sourceBegin = nullptr, *sourceEnd = nullptr;
 				
 				this->mCurrentLocation.Line = static_cast<int>(std::strtol(this->mPos, &sourceEnd, 10));
@@ -1231,145 +1240,20 @@ NextToken:
 					this->mCurrentLocation.Source = std::string(sourceBegin + 1, sourceLength - 1);
 				}
 
-				if (this->mCurrentLocation.Line == 0)
-				{
-					Warning(this->mCurrentLocation, 3000, "line numbers should be greater than zero");
-				}
-				else
+				if (this->mCurrentLocation.Line != 0)
 				{
 					this->mCurrentLocation.Line--;
 				}
 			}
-			else if (strncmp(this->mPos, "error", 5) == 0)
-			{
-				this->mPos += 5;
-
-				SkipWhitespace();
-
-				std::string message;
-
-				while (this->mPos < this->mEnd)
-				{
-					if (this->mPos[0] == '\n')
-					{
-						if (this->mPos[-1] == '\\')
-						{
-							message.pop_back();
-						}
-						else
-						{
-							break;
-						}
-					}
-					else
-					{
-						message += this->mPos[0];
-					}
-
-					this->mPos++;
-				}
-
-				Error(this->mCurrentLocation, 0, "%s", message.c_str());
-			}
-			else if (strncmp(this->mPos, "warning", 7) == 0)
-			{
-				this->mPos += 7;
-
-				SkipWhitespace();
-
-				std::string message;
-
-				while (this->mPos < this->mEnd)
-				{
-					if (this->mPos[0] == '\n')
-					{
-						if (this->mPos[-1] == '\\')
-						{
-							message.pop_back();
-						}
-						else
-						{
-							break;
-						}
-					}
-					else
-					{
-						message += this->mPos[0];
-					}
-
-					this->mPos++;
-				}
-
-				Warning(this->mCurrentLocation, 0, "%s", message.c_str());
-			}
 			else
 			{
-				std::string command;
-
-				while (isalnum(*this->mPos))
-				{
-					command += *this->mPos++;
-				}
-
 				while ((this->mPos[0] == '\n' || this->mPos[-1] == '\\') && this->mPos < this->mEnd)
 				{
 					continue;
 				}
-
-				if (command != "pragma")
-				{
-					Error(this->mCurrentLocation, 1504, "invalid preprocessor command '%s'", command.c_str());
-				}
 			}
 
 			SkipLineComment();
-		}
-
-		void Lexer::Error(const Location &location, unsigned int code, const char *message, ...)
-		{
-			this->mErrors += location.Source + '(' + std::to_string(location.Line) + ", " + std::to_string(location.Column) + ')' + ": ";
-
-			if (code == 0)
-			{
-				this->mErrors += "error: ";
-			}
-			else
-			{
-				this->mErrors += "error X" + std::to_string(code) + ": ";
-			}
-	
-			char formatted[512];
-
-			va_list args;
-			va_start(args, message);
-			vsprintf_s(formatted, message, args);
-			va_end(args);
-
-			this->mErrors += formatted;
-			this->mErrors += '\n';
-		}
-		void Lexer::Warning(const Location &location, unsigned int code, const char *message, ...)
-		{
-			this->mErrors += location.Source + '(' + std::to_string(location.Line) + ", " + std::to_string(location.Column) + ')' + ": ";
-
-			if (code == 0)
-			{
-				this->mErrors += "warning: ";
-			}
-			else
-			{
-				this->mErrors += "warning X" + std::to_string(code) + ": ";
-			}
-	
-			char formatted[512];
-
-			va_list args;
-			va_start(args, message);
-			vsprintf_s(formatted, message, args);
-			va_end(args);
-
-			this->mErrors += formatted;
-			this->mErrors += '\n';
 		}
 	}
 }

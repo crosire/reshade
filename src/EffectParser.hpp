@@ -16,7 +16,7 @@ namespace ReShade
 		public:
 			Parser(Lexer &lexer, Tree &ast);
 
-			bool Parse();
+			bool Parse(std::string &errors);
 
 		protected:
 			void Backup();
@@ -45,6 +45,9 @@ namespace ReShade
 			}
 
 		private:
+			void Error(const Location &location, unsigned int code, const char *message, ...);
+			void Warning(const Location &location, unsigned int code, const char *message, ...);
+
 			// Types
 			bool AcceptTypeClass(Nodes::Type &type);
 			bool AcceptTypeQualifiers(Nodes::Type &type);
@@ -98,6 +101,7 @@ namespace ReShade
 			Nodes::Expression *FoldConstantExpression(Nodes::Expression *expression);
 
 			Tree &mAST;
+			std::string mErrors;
 			Lexer mLexer, mBackupLexer, &mOrigLexer;
 			Lexer::Token mToken, mNextToken, mBackupToken;
 			Scope mCurrentScope;

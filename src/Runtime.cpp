@@ -734,9 +734,7 @@ namespace ReShade
 
 		LOG(TRACE) << "> Running parser ...";
 
-		const bool success = parser.Parse();
-
-		this->mErrors += lexer.GetErrors();
+		const bool success = parser.Parse(this->mErrors);
 
 		if (!success)
 		{

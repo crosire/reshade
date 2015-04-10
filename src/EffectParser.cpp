@@ -1,5 +1,6 @@
 #include "EffectParser.hpp"
 
+#include <cstdarg>
 #include <algorithm>
 #include <functional>
 #include <boost\assign\list_of.hpp>
@@ -574,12 +575,66 @@ namespace ReShade
 		{
 			if (!Accept(token))
 			{
-				this->mLexer.Error(this->mNextToken.GetLocation(), 3000, "syntax error: unexpected '%s', expected '%s'", this->mNextToken.GetName().c_str(), Lexer::Token::GetName(token).c_str());
+				if (this->mNextToken == Lexer::Token::Id::ReservedWord)
+				{
+					Error(this->mNextToken.GetLocation(), 3000, "syntax error: unexpected reserved word '%s'", this->mNextToken.GetName().c_str());
+				}
+				else
+				{
+					Error(this->mNextToken.GetLocation(), 3000, "syntax error: unexpected '%s', expected '%s'", this->mNextToken.GetName().c_str(), Lexer::Token::GetName(token).c_str());
+				}
 
 				return false;
 			}
 
 			return true;
+		}
+
+		void Parser::Error(const Location &location, unsigned int code, const char *message, ...)
+		{
+			this->mErrors += location.Source + '(' + std::to_string(location.Line) + ", " + std::to_string(location.Column) + ')' + ": ";
+
+			if (code == 0)
+			{
+				this->mErrors += "error: ";
+			}
+			else
+			{
+				this->mErrors += "error X" + std::to_string(code) + ": ";
+			}
+
+			char formatted[512];
+
+			va_list args;
+			va_start(args, message);
+			vsprintf_s(formatted, message, args);
+			va_end(args);
+
+			this->mErrors += formatted;
+			this->mErrors += '\n';
+		}
+		void Parser::Warning(const Location &location, unsigned int code, const char *message, ...)
+		{
+			this->mErrors += location.Source + '(' + std::to_string(location.Line) + ", " + std::to_string(location.Column) + ')' + ": ";
+
+			if (code == 0)
+			{
+				this->mErrors += "warning: ";
+			}
+			else
+			{
+				this->mErrors += "warning X" + std::to_string(code) + ": ";
+			}
+
+			char formatted[512];
+
+			va_list args;
+			va_start(args, message);
+			vsprintf_s(formatted, message, args);
+			va_end(args);
+
+			this->mErrors += formatted;
+			this->mErrors += '\n';
 		}
 
 		// Types
@@ -615,14 +670,14 @@ namespace ReShade
 				{
 					if (!AcceptTypeClass(type))
 					{
-						this->mLexer.Error(this->mNextToken.GetLocation(), 3000, "syntax error: unexpected '%s', expected vector element type", this->mNextToken.GetName().c_str());
+						Error(this->mNextToken.GetLocation(), 3000, "syntax error: unexpected '%s', expected vector element type", this->mNextToken.GetName().c_str());
 
 						return false;
 					}
 
 					if (!type.IsScalar())
 					{
-						this->mLexer.Error(this->mToken.GetLocation(), 3122, "vector element type must be a scalar type");
+						Error(this->mToken.GetLocation(), 3122, "vector element type must be a scalar type");
 
 						return false;
 					}
@@ -634,7 +689,7 @@ namespace ReShade
 
 					if (this->mToken.GetLiteral<int>() < 1 || this->mToken.GetLiteral<int>() > 4)
 					{
-						this->mLexer.Error(this->mToken.GetLocation(), 3052, "vector dimension must be between 1 and 4");
+						Error(this->mToken.GetLocation(), 3052, "vector dimension must be between 1 and 4");
 
 						return false;
 					}
@@ -656,14 +711,14 @@ namespace ReShade
 				{
 					if (!AcceptTypeClass(type))
 					{
-						this->mLexer.Error(this->mNextToken.GetLocation(), 3000, "syntax error: unexpected '%s', expected matrix element type", this->mNextToken.GetName().c_str());
+						Error(this->mNextToken.GetLocation(), 3000, "syntax error: unexpected '%s', expected matrix element type", this->mNextToken.GetName().c_str());
 
 						return false;
 					}
 
 					if (!type.IsScalar())
 					{
-						this->mLexer.Error(this->mToken.GetLocation(), 3123, "matrix element type must be a scalar type");
+						Error(this->mToken.GetLocation(), 3123, "matrix element type must be a scalar type");
 
 						return false;
 					}
@@ -675,7 +730,7 @@ namespace ReShade
 
 					if (this->mToken.GetLiteral<int>() < 1 || this->mToken.GetLiteral<int>() > 4)
 					{
-						this->mLexer.Error(this->mToken.GetLocation(), 3053, "matrix dimensions must be between 1 and 4");
+						Error(this->mToken.GetLocation(), 3053, "matrix dimensions must be between 1 and 4");
 
 						return false;
 					}
@@ -689,7 +744,7 @@ namespace ReShade
 
 					if (this->mToken.GetLiteral<int>() < 1 || this->mToken.GetLiteral<int>() > 4)
 					{
-						this->mLexer.Error(this->mToken.GetLocation(), 3053, "matrix dimensions must be between 1 and 4");
+						Error(this->mToken.GetLocation(), 3053, "matrix dimensions must be between 1 and 4");
 
 						return false;
 					}
@@ -922,7 +977,7 @@ namespace ReShade
 			}
 			else if ((type.Qualifiers & qualifiers) == qualifiers)
 			{
-				this->mLexer.Warning(this->mToken.GetLocation(), 3048, "duplicate usages specified");
+				Warning(this->mToken.GetLocation(), 3048, "duplicate usages specified");
 			}
 
 			type.Qualifiers |= qualifiers;
@@ -946,7 +1001,7 @@ namespace ReShade
 
 			if (type.IsIntegral() && (type.HasQualifier(Nodes::Type::Qualifier::Centroid) || type.HasQualifier(Nodes::Type::Qualifier::NoPerspective)))
 			{
-				this->mLexer.Error(location, 4576, "signature specifies invalid interpolation mode for integer component type");
+				Error(location, 4576, "signature specifies invalid interpolation mode for integer component type");
 
 				return false;
 			}
@@ -1184,7 +1239,7 @@ namespace ReShade
 
 				if (!node->Type.IsScalar() && !node->Type.IsVector() && !node->Type.IsMatrix())
 				{
-					this->mLexer.Error(node->Location, 3022, "scalar, vector, or matrix expected");
+					Error(node->Location, 3022, "scalar, vector, or matrix expected");
 
 					return false;
 				}
@@ -1193,13 +1248,13 @@ namespace ReShade
 				{
 					if (op == Nodes::Unary::Op::BitwiseNot && !node->Type.IsIntegral())
 					{
-						this->mLexer.Error(node->Location, 3082, "int or unsigned int type required");
+						Error(node->Location, 3082, "int or unsigned int type required");
 
 						return false;
 					}
 					else if ((op == Nodes::Unary::Op::Increase || op == Nodes::Unary::Op::Decrease) && (node->Type.HasQualifier(Nodes::Type::Qualifier::Const) || node->Type.HasQualifier(Nodes::Type::Qualifier::Uniform)))
 					{
-						this->mLexer.Error(node->Location, 3025, "l-value specifies const object");
+						Error(node->Location, 3025, "l-value specifies const object");
 
 						return false;
 					}
@@ -1239,14 +1294,14 @@ namespace ReShade
 						{
 							if ((node->Type.Rows < type.Rows || node->Type.Cols < type.Cols) && !node->Type.IsScalar())
 							{
-								this->mLexer.Error(location, 3017, "cannot convert these vector types");
+								Error(location, 3017, "cannot convert these vector types");
 
 								return false;
 							}
 
 							if (node->Type.Rows > type.Rows || node->Type.Cols > type.Cols)
 							{
-								this->mLexer.Warning(location, 3206, "implicit truncation of vector type");
+								Warning(location, 3206, "implicit truncation of vector type");
 							}
 
 							Nodes::Unary *const castexpression = this->mAST.CreateNode<Nodes::Unary>(location);
@@ -1261,7 +1316,7 @@ namespace ReShade
 						}
 						else
 						{
-							this->mLexer.Error(location, 3017, "cannot convert non-numeric types");
+							Error(location, 3017, "cannot convert non-numeric types");
 
 							return false;
 						}
@@ -1375,14 +1430,14 @@ namespace ReShade
 
 				if (!type.IsNumeric())
 				{
-					this->mLexer.Error(location, 3037, "constructors only defined for numeric base types");
+					Error(location, 3037, "constructors only defined for numeric base types");
 
 					return false;
 				}
 
 				if (Accept(')'))
 				{
-					this->mLexer.Error(location, 3014, "incorrect number of arguments to numeric-type constructor");
+					Error(location, 3014, "incorrect number of arguments to numeric-type constructor");
 
 					return false;
 				}
@@ -1409,7 +1464,7 @@ namespace ReShade
 
 					if (!argument->Type.IsNumeric())
 					{
-						this->mLexer.Error(argument->Location, 3017, "cannot convert non-numeric types");
+						Error(argument->Location, 3017, "cannot convert non-numeric types");
 
 						return false;
 					}
@@ -1426,7 +1481,7 @@ namespace ReShade
 
 				if (elements != type.Rows * type.Cols)
 				{
-					this->mLexer.Error(location, 3014, "incorrect number of arguments to numeric-type constructor");
+					Error(location, 3014, "incorrect number of arguments to numeric-type constructor");
 
 					return false;
 				}
@@ -1490,7 +1545,7 @@ namespace ReShade
 				{
 					if (symbol != nullptr && symbol->NodeId == Node::Id::Variable)
 					{
-						this->mLexer.Error(location, 3005, "identifier '%s' represents a variable, not a function", identifier.c_str());
+						Error(location, 3005, "identifier '%s' represents a variable, not a function", identifier.c_str());
 
 						return false;
 					}
@@ -1526,15 +1581,15 @@ namespace ReShade
 					{
 						if (undeclared && !intrinsic)
 						{
-							this->mLexer.Error(location, 3004, "undeclared identifier '%s'", identifier.c_str());
+							Error(location, 3004, "undeclared identifier '%s'", identifier.c_str());
 						}
 						else if (ambiguous)
 						{
-							this->mLexer.Error(location, 3067, "ambiguous function call to '%s'", identifier.c_str());
+							Error(location, 3067, "ambiguous function call to '%s'", identifier.c_str());
 						}
 						else
 						{
-							this->mLexer.Error(location, 3013, "no matching function overload for '%s'", identifier.c_str());
+							Error(location, 3013, "no matching function overload for '%s'", identifier.c_str());
 						}
 
 						return false;
@@ -1559,7 +1614,7 @@ namespace ReShade
 
 						if (parent == callexpression->Callee)
 						{
-							this->mLexer.Error(location, 3500, "recursive function calls are not allowed");
+							Error(location, 3500, "recursive function calls are not allowed");
 
 							return false;
 						}
@@ -1573,14 +1628,14 @@ namespace ReShade
 				{
 					if (symbol == nullptr)
 					{
-						this->mLexer.Error(location, 3004, "undeclared identifier '%s'", identifier.c_str());
+						Error(location, 3004, "undeclared identifier '%s'", identifier.c_str());
 
 						return false;
 					}
 
 					if (symbol->NodeId != Node::Id::Variable)
 					{
-						this->mLexer.Error(location, 3005, "identifier '%s' represents a function, not a variable", identifier.c_str());
+						Error(location, 3005, "identifier '%s' represents a function, not a variable", identifier.c_str());
 
 						return false;
 					}
@@ -1604,14 +1659,14 @@ namespace ReShade
 				{
 					if (!type.IsScalar() && !type.IsVector() && !type.IsMatrix())
 					{
-						this->mLexer.Error(node->Location, 3022, "scalar, vector, or matrix expected");
+						Error(node->Location, 3022, "scalar, vector, or matrix expected");
 
 						return false;
 					}
 
 					if (type.HasQualifier(Nodes::Type::Qualifier::Const) || type.HasQualifier(Nodes::Type::Qualifier::Uniform))
 					{
-						this->mLexer.Error(node->Location, 3025, "l-value specifies const object");
+						Error(node->Location, 3025, "l-value specifies const object");
 
 						return false;
 					}
@@ -1639,18 +1694,18 @@ namespace ReShade
 					{
 						if (!type.IsStruct() || type.IsArray())
 						{
-							this->mLexer.Error(location, 3087, "object does not have methods");
+							Error(location, 3087, "object does not have methods");
 						}
 						else
 						{
-							this->mLexer.Error(location, 3088, "structures do not have methods");
+							Error(location, 3088, "structures do not have methods");
 						}
 
 						return false;
 					}
 					else if (type.IsArray())
 					{
-						this->mLexer.Error(location, 3018, "invalid subscript on array");
+						Error(location, 3018, "invalid subscript on array");
 
 						return false;
 					}
@@ -1660,7 +1715,7 @@ namespace ReShade
 
 						if (length > 4)
 						{
-							this->mLexer.Error(location, 3018, "invalid subscript '%s'", subscript.c_str());
+							Error(location, 3018, "invalid subscript '%s'", subscript.c_str());
 
 							return false;
 						}
@@ -1686,19 +1741,19 @@ namespace ReShade
 								case 'p': offsets[i] = 2, set[i] = stpq; break;
 								case 'q': offsets[i] = 3, set[i] = stpq; break;
 								default:
-									this->mLexer.Error(location, 3018, "invalid subscript '%s'", subscript.c_str());
+									Error(location, 3018, "invalid subscript '%s'", subscript.c_str());
 									return false;
 							}
 
 							if (i > 0 && (set[i] != set[i - 1]))
 							{
-								this->mLexer.Error(location, 3018, "invalid subscript '%s', mixed swizzle sets", subscript.c_str());
+								Error(location, 3018, "invalid subscript '%s', mixed swizzle sets", subscript.c_str());
 
 								return false;
 							}
 							if (static_cast<unsigned int>(offsets[i]) >= type.Rows)
 							{
-								this->mLexer.Error(location, 3018, "invalid subscript '%s', swizzle out of range", subscript.c_str());
+								Error(location, 3018, "invalid subscript '%s', swizzle out of range", subscript.c_str());
 
 								return false;
 							}
@@ -1737,7 +1792,7 @@ namespace ReShade
 
 						if (length < 3)
 						{
-							this->mLexer.Error(location, 3018, "invalid subscript '%s'", subscript.c_str());
+							Error(location, 3018, "invalid subscript '%s'", subscript.c_str());
 
 							return false;
 						}
@@ -1751,13 +1806,13 @@ namespace ReShade
 						{
 							if (subscript[i] != '_' || subscript[i + set + 1] < '0' + coefficient || subscript[i + set + 1] > '3' + coefficient || subscript[i + set + 2] < '0' + coefficient || subscript[i + set + 2] > '3' + coefficient)
 							{
-								this->mLexer.Error(location, 3018, "invalid subscript '%s'", subscript.c_str());
+								Error(location, 3018, "invalid subscript '%s'", subscript.c_str());
 
 								return false;
 							}
 							if (set && subscript[i + 1] != 'm')
 							{
-								this->mLexer.Error(location, 3018, "invalid subscript '%s', mixed swizzle sets", subscript.c_str());
+								Error(location, 3018, "invalid subscript '%s', mixed swizzle sets", subscript.c_str());
 
 								return false;
 							}
@@ -1767,7 +1822,7 @@ namespace ReShade
 
 							if ((row >= type.Rows || col >= type.Cols) || j > 3)
 							{
-								this->mLexer.Error(location, 3018, "invalid subscript '%s', swizzle out of range", subscript.c_str());
+								Error(location, 3018, "invalid subscript '%s', swizzle out of range", subscript.c_str());
 
 								return false;
 							}
@@ -1818,7 +1873,7 @@ namespace ReShade
 
 						if (field == nullptr)
 						{
-							this->mLexer.Error(location, 3018, "invalid subscript '%s'", subscript.c_str());
+							Error(location, 3018, "invalid subscript '%s'", subscript.c_str());
 
 							return false;
 						}
@@ -1846,7 +1901,7 @@ namespace ReShade
 						{
 							if ((subscript[i] != 'x' && subscript[i] != 'r' && subscript[i] != 's') || i > 3)
 							{
-								this->mLexer.Error(location, 3018, "invalid subscript '%s'", subscript.c_str());
+								Error(location, 3018, "invalid subscript '%s'", subscript.c_str());
 
 								return false;
 							}
@@ -1869,7 +1924,7 @@ namespace ReShade
 					}
 					else
 					{
-						this->mLexer.Error(location, 3018, "invalid subscript '%s'", subscript.c_str());
+						Error(location, 3018, "invalid subscript '%s'", subscript.c_str());
 
 						return false;
 					}
@@ -1878,7 +1933,7 @@ namespace ReShade
 				{
 					if (!type.IsArray() && !type.IsVector() && !type.IsMatrix())
 					{
-						this->mLexer.Error(node->Location, 3121, "array, matrix, vector, or indexable object type expected in index expression");
+						Error(node->Location, 3121, "array, matrix, vector, or indexable object type expected in index expression");
 
 						return false;
 					}
@@ -1895,7 +1950,7 @@ namespace ReShade
 
 					if (!newexpression->Operands[1]->Type.IsScalar())
 					{
-						this->mLexer.Error(newexpression->Operands[1]->Location, 3120, "invalid type for index - index must be a scalar");
+						Error(newexpression->Operands[1]->Location, 3120, "invalid type for index - index must be a scalar");
 
 						return false;
 					}
@@ -1968,7 +2023,7 @@ namespace ReShade
 
 						if (left->Type.IsArray() || right1->Type.IsArray() || left->Type.Definition != right1->Type.Definition)
 						{
-							this->mLexer.Error(right1->Location, 3020, "type mismatch");
+							Error(right1->Location, 3020, "type mismatch");
 
 							return false;
 						}
@@ -1977,13 +2032,13 @@ namespace ReShade
 					{
 						if (!left->Type.IsIntegral())
 						{
-							this->mLexer.Error(left->Location, 3082, "int or unsigned int type required");
+							Error(left->Location, 3082, "int or unsigned int type required");
 
 							return false;
 						}
 						if (!right1->Type.IsIntegral())
 						{
-							this->mLexer.Error(right1->Location, 3082, "int or unsigned int type required");
+							Error(right1->Location, 3082, "int or unsigned int type required");
 
 							return false;
 						}
@@ -1994,13 +2049,13 @@ namespace ReShade
 
 						if (!left->Type.IsScalar() && !left->Type.IsVector() && !left->Type.IsMatrix())
 						{
-							this->mLexer.Error(left->Location, 3022, "scalar, vector, or matrix expected");
+							Error(left->Location, 3022, "scalar, vector, or matrix expected");
 
 							return false;
 						}
 						if (!right1->Type.IsScalar() && !right1->Type.IsVector() && !right1->Type.IsMatrix())
 						{
-							this->mLexer.Error(right1->Location, 3022, "scalar, vector, or matrix expected");
+							Error(right1->Location, 3022, "scalar, vector, or matrix expected");
 
 							return false;
 						}
@@ -2018,7 +2073,7 @@ namespace ReShade
 				{
 					if (!left->Type.IsScalar() && !left->Type.IsVector())
 					{
-						this->mLexer.Error(left->Location, 3022, "boolean or vector expression expected");
+						Error(left->Location, 3022, "boolean or vector expression expected");
 
 						return false;
 					}
@@ -2030,7 +2085,7 @@ namespace ReShade
 
 					if (right1->Type.IsArray() || right2->Type.IsArray() || right1->Type.Definition != right2->Type.Definition)
 					{
-						this->mLexer.Error(left->Location, 3020, "type mismatch between conditional values");
+						Error(left->Location, 3020, "type mismatch between conditional values");
 
 						return false;
 					}
@@ -2064,11 +2119,11 @@ namespace ReShade
 
 					if (right1->Type.Rows > right2->Type.Rows || right1->Type.Cols > right2->Type.Cols)
 					{
-						this->mLexer.Warning(right1->Location, 3206, "implicit truncation of vector type");
+						Warning(right1->Location, 3206, "implicit truncation of vector type");
 					}
 					if (right2->Type.Rows > right1->Type.Rows || right2->Type.Cols > right1->Type.Cols)
 					{
-						this->mLexer.Warning(right2->Location, 3206, "implicit truncation of vector type");
+						Warning(right2->Location, 3206, "implicit truncation of vector type");
 					}
 				}
 
@@ -2097,21 +2152,21 @@ namespace ReShade
 
 				if (left->Type.HasQualifier(Nodes::Type::Qualifier::Const) || left->Type.HasQualifier(Nodes::Type::Qualifier::Uniform))
 				{
-					this->mLexer.Error(left->Location, 3025, "l-value specifies const object");
+					Error(left->Location, 3025, "l-value specifies const object");
 
 					return false;
 				}
 
 				if (left->Type.IsArray() || right->Type.IsArray() || !GetTypeRank(left->Type, right->Type))
 				{
-					this->mLexer.Error(right->Location, 3020, "cannot convert these types");
+					Error(right->Location, 3020, "cannot convert these types");
 
 					return false;
 				}
 
 				if (right->Type.Rows > left->Type.Rows || right->Type.Cols > left->Type.Cols)
 				{
-					this->mLexer.Warning(right->Location, 3206, "implicit truncation of vector type");
+					Warning(right->Location, 3206, "implicit truncation of vector type");
 				}
 
 				Nodes::Assignment *const assignment = this->mAST.CreateNode<Nodes::Assignment>(left->Location);
@@ -2181,7 +2236,7 @@ namespace ReShade
 
 				if (!newstatement->Condition->Type.IsScalar())
 				{
-					this->mLexer.Error(newstatement->Condition->Location, 3019, "if statement conditional expressions must evaluate to a scalar");
+					Error(newstatement->Condition->Location, 3019, "if statement conditional expressions must evaluate to a scalar");
 
 					return false;
 				}
@@ -2215,7 +2270,7 @@ namespace ReShade
 
 				if (!newstatement->Test->Type.IsScalar())
 				{
-					this->mLexer.Error(newstatement->Test->Location, 3019, "switch statement expression must evaluate to a scalar");
+					Error(newstatement->Test->Location, 3019, "switch statement expression must evaluate to a scalar");
 
 					return false;
 				}
@@ -2242,7 +2297,7 @@ namespace ReShade
 
 							if (label->NodeId != Node::Id::Literal || !label->Type.IsNumeric())
 							{
-								this->mLexer.Error(label->Location, 3020, "non-numeric case expression");
+								Error(label->Location, 3020, "non-numeric case expression");
 
 								return false;
 							}
@@ -2273,7 +2328,7 @@ namespace ReShade
 
 				if (newstatement->Cases.empty())
 				{
-					this->mLexer.Warning(newstatement->Location, 5002, "switch statement contains no 'case' or 'default' labels");
+					Warning(newstatement->Location, 5002, "switch statement contains no 'case' or 'default' labels");
 
 					statement = nullptr;
 				}
@@ -2339,7 +2394,7 @@ namespace ReShade
 
 				if (!newstatement->Condition->Type.IsScalar())
 				{
-					this->mLexer.Error(newstatement->Condition->Location, 3019, "scalar value expected");
+					Error(newstatement->Condition->Location, 3019, "scalar value expected");
 
 					return false;
 				}
@@ -2377,7 +2432,7 @@ namespace ReShade
 
 				if (!newstatement->Condition->Type.IsScalar())
 				{
-					this->mLexer.Error(newstatement->Condition->Location, 3019, "scalar value expected");
+					Error(newstatement->Condition->Location, 3019, "scalar value expected");
 
 					LeaveScope();
 
@@ -2413,7 +2468,7 @@ namespace ReShade
 
 				if (!newstatement->Condition->Type.IsScalar())
 				{
-					this->mLexer.Error(newstatement->Condition->Location, 3019, "scalar value expected");
+					Error(newstatement->Condition->Location, 3019, "scalar value expected");
 
 					return false;
 				}
@@ -2468,7 +2523,7 @@ namespace ReShade
 
 					if (parent->ReturnType.IsVoid())
 					{
-						this->mLexer.Error(newstatement->Location, 3079, "void functions cannot return a value");
+						Error(newstatement->Location, 3079, "void functions cannot return a value");
 
 						Accept(';');
 
@@ -2477,19 +2532,19 @@ namespace ReShade
 
 					if (!GetTypeRank(newstatement->Value->Type, parent->ReturnType))
 					{
-						this->mLexer.Error(newstatement->Location, 3017, "expression does not match function return type");
+						Error(newstatement->Location, 3017, "expression does not match function return type");
 
 						return false;
 					}
 
 					if (newstatement->Value->Type.Rows > parent->ReturnType.Rows || newstatement->Value->Type.Cols > parent->ReturnType.Cols)
 					{
-						this->mLexer.Warning(newstatement->Location, 3206, "implicit truncation of vector type");
+						Warning(newstatement->Location, 3206, "implicit truncation of vector type");
 					}
 				}
 				else if (!parent->ReturnType.IsVoid())
 				{
-					this->mLexer.Error(newstatement->Location, 3080, "function must return a value");
+					Error(newstatement->Location, 3080, "function must return a value");
 
 					Accept(';');
 
@@ -2647,7 +2702,7 @@ namespace ReShade
 		}
 
 		// Declarations
-		bool Parser::Parse()
+		bool Parser::Parse(std::string &errors)
 		{
 			bool success = true;
 
@@ -2661,6 +2716,7 @@ namespace ReShade
 			}
 
 			this->mOrigLexer = this->mLexer;
+			errors += this->mErrors;
 
 			return success;
 		}
@@ -2748,7 +2804,7 @@ namespace ReShade
 			{
 				Consume();
 
-				this->mLexer.Error(this->mToken.GetLocation(), 3000, "syntax error: unexpected '%s'", this->mToken.GetName().c_str());
+				Error(this->mToken.GetLocation(), 3000, "syntax error: unexpected '%s'", this->mToken.GetName().c_str());
 
 				return false;
 			}
@@ -2809,7 +2865,7 @@ namespace ReShade
 				{
 					if (expression->NodeId != Node::Id::Literal || !(expression->Type.IsScalar() && expression->Type.IsIntegral()))
 					{
-						this->mLexer.Error(expression->Location, 3058, "array dimensions must be literal scalar expressions");
+						Error(expression->Location, 3058, "array dimensions must be literal scalar expressions");
 
 						return false;
 					}
@@ -2818,7 +2874,7 @@ namespace ReShade
 
 					if (size < 1 || size > 65536)
 					{
-						this->mLexer.Error(expression->Location, 3059, "array dimension must be between 1 and 65536");
+						Error(expression->Location, 3059, "array dimension must be between 1 and 65536");
 
 						return false;
 					}
@@ -2861,7 +2917,7 @@ namespace ReShade
 
 				if (expression->NodeId != Node::Id::Literal)
 				{
-					this->mLexer.Error(expression->Location, 3011, "value must be a literal expression");
+					Error(expression->Location, 3011, "value must be a literal expression");
 
 					continue;
 				}
@@ -2889,7 +2945,7 @@ namespace ReShade
 
 				if (!InsertSymbol(structure, true))
 				{
-					this->mLexer.Error(this->mToken.GetLocation(), 3003, "redefinition of '%s'", structure->Name.c_str());
+					Error(this->mToken.GetLocation(), 3003, "redefinition of '%s'", structure->Name.c_str());
 
 					return false;
 				}
@@ -2910,7 +2966,7 @@ namespace ReShade
 
 				if (!ParseType(type))
 				{
-					this->mLexer.Error(this->mNextToken.GetLocation(), 3000, "syntax error: unexpected '%s', expected struct member type", this->mNextToken.GetName().c_str());
+					Error(this->mNextToken.GetLocation(), 3000, "syntax error: unexpected '%s', expected struct member type", this->mNextToken.GetName().c_str());
 
 					ConsumeUntil('}');
 
@@ -2919,7 +2975,7 @@ namespace ReShade
 
 				if (type.IsVoid())
 				{
-					this->mLexer.Error(this->mNextToken.GetLocation(), 3038, "struct members cannot be void");
+					Error(this->mNextToken.GetLocation(), 3038, "struct members cannot be void");
 
 					ConsumeUntil('}');
 
@@ -2927,7 +2983,7 @@ namespace ReShade
 				}
 				if (type.HasQualifier(Nodes::Type::Qualifier::In) || type.HasQualifier(Nodes::Type::Qualifier::Out))
 				{
-					this->mLexer.Error(this->mNextToken.GetLocation(), 3055, "struct members cannot be declared 'in' or 'out'");
+					Error(this->mNextToken.GetLocation(), 3055, "struct members cannot be declared 'in' or 'out'");
 
 					ConsumeUntil('}');
 
@@ -2985,7 +3041,7 @@ namespace ReShade
 
 			if (structure->Fields.empty())
 			{
-				this->mLexer.Warning(structure->Location, 5001, "struct has no members");
+				Warning(structure->Location, 5001, "struct has no members");
 			}
 
 			this->mAST.Types.push_back(structure);
@@ -3003,7 +3059,7 @@ namespace ReShade
 
 			if (type.Qualifiers != 0)
 			{
-				this->mLexer.Error(location, 3047, "function return type cannot have any qualifiers");
+				Error(location, 3047, "function return type cannot have any qualifiers");
 
 				return false;
 			}
@@ -3033,7 +3089,7 @@ namespace ReShade
 				{
 					LeaveScope();
 
-					this->mLexer.Error(this->mNextToken.GetLocation(), 3000, "syntax error: unexpected '%s', expected parameter type", this->mNextToken.GetName().c_str());
+					Error(this->mNextToken.GetLocation(), 3000, "syntax error: unexpected '%s', expected parameter type", this->mNextToken.GetName().c_str());
 
 					return false;
 				}
@@ -3050,7 +3106,7 @@ namespace ReShade
 
 				if (parameter->Type.IsVoid())
 				{
-					this->mLexer.Error(parameter->Location, 3038, "function parameters cannot be void");
+					Error(parameter->Location, 3038, "function parameters cannot be void");
 
 					LeaveScope();
 
@@ -3058,7 +3114,7 @@ namespace ReShade
 				}
 				if (parameter->Type.HasQualifier(Nodes::Type::Qualifier::Extern))
 				{
-					this->mLexer.Error(parameter->Location, 3006, "function parameters cannot be declared 'extern'");
+					Error(parameter->Location, 3006, "function parameters cannot be declared 'extern'");
 
 					LeaveScope();
 
@@ -3066,7 +3122,7 @@ namespace ReShade
 				}
 				if (parameter->Type.HasQualifier(Nodes::Type::Qualifier::Static))
 				{
-					this->mLexer.Error(parameter->Location, 3007, "function parameters cannot be declared 'static'");
+					Error(parameter->Location, 3007, "function parameters cannot be declared 'static'");
 
 					LeaveScope();
 
@@ -3074,7 +3130,7 @@ namespace ReShade
 				}
 				if (parameter->Type.HasQualifier(Nodes::Type::Qualifier::Uniform))
 				{
-					this->mLexer.Error(parameter->Location, 3047, "function parameters cannot be declared 'uniform', consider placing in global scope instead");
+					Error(parameter->Location, 3047, "function parameters cannot be declared 'uniform', consider placing in global scope instead");
 
 					LeaveScope();
 
@@ -3085,7 +3141,7 @@ namespace ReShade
 				{
 					if (parameter->Type.HasQualifier(Nodes::Type::Qualifier::Const))
 					{
-						this->mLexer.Error(parameter->Location, 3046, "output parameters cannot be declared 'const'");
+						Error(parameter->Location, 3046, "output parameters cannot be declared 'const'");
 
 						LeaveScope();
 
@@ -3101,7 +3157,7 @@ namespace ReShade
 
 				if (!InsertSymbol(parameter))
 				{
-					this->mLexer.Error(parameter->Location, 3003, "redefinition of '%s'", parameter->Name.c_str());
+					Error(parameter->Location, 3003, "redefinition of '%s'", parameter->Name.c_str());
 
 					LeaveScope();
 
@@ -3145,7 +3201,7 @@ namespace ReShade
 
 				if (type.IsVoid())
 				{
-					this->mLexer.Error(this->mToken.GetLocation(), 3076, "void function cannot have a semantic");
+					Error(this->mToken.GetLocation(), 3076, "void function cannot have a semantic");
 
 					return false;
 				}
@@ -3168,13 +3224,13 @@ namespace ReShade
 
 			if (type.IsVoid())
 			{
-				this->mLexer.Error(location, 3038, "variables cannot be void");
+				Error(location, 3038, "variables cannot be void");
 
 				return false;
 			}
 			else if (type.HasQualifier(Nodes::Type::Qualifier::In) || type.HasQualifier(Nodes::Type::Qualifier::Out))
 			{
-				this->mLexer.Error(location, 3055, "variables cannot be declared 'in' or 'out'");
+				Error(location, 3055, "variables cannot be declared 'in' or 'out'");
 
 				return false;
 			}
@@ -3187,7 +3243,7 @@ namespace ReShade
 				{
 					if (!type.HasQualifier(Nodes::Type::Qualifier::Uniform) && !(type.IsTexture() || type.IsSampler()))
 					{
-						this->mLexer.Warning(location, 5000, "global variables are considered 'uniform' by default");
+						Warning(location, 5000, "global variables are considered 'uniform' by default");
 					}
 
 					type.Qualifiers |= Nodes::Type::Qualifier::Extern | Nodes::Type::Qualifier::Uniform;
@@ -3197,20 +3253,20 @@ namespace ReShade
 			{
 				if (type.HasQualifier(Nodes::Type::Qualifier::Extern))
 				{
-					this->mLexer.Error(location, 3006, "local variables cannot be declared 'extern'");
+					Error(location, 3006, "local variables cannot be declared 'extern'");
 
 					return false;
 				}
 				if (type.HasQualifier(Nodes::Type::Qualifier::Uniform))
 				{
-					this->mLexer.Error(location, 3047, "local variables cannot be declared 'uniform'");
+					Error(location, 3047, "local variables cannot be declared 'uniform'");
 
 					return false;
 				}
 
 				if (type.IsTexture() || type.IsSampler())
 				{
-					this->mLexer.Error(location, 3038, "local variables cannot be textures or samplers");
+					Error(location, 3038, "local variables cannot be textures or samplers");
 
 					return false;
 				}
@@ -3229,7 +3285,7 @@ namespace ReShade
 
 			if (!InsertSymbol(variable, global))
 			{
-				this->mLexer.Error(location, 3003, "redefinition of '%s'", name.c_str());
+				Error(location, 3003, "redefinition of '%s'", name.c_str());
 
 				return false;
 			}
@@ -3258,7 +3314,7 @@ namespace ReShade
 
 				if (parent == nullptr && variable->Initializer->NodeId != Node::Id::Literal)
 				{
-					this->mLexer.Error(location, 3011, "initial value must be a literal expression");
+					Error(location, 3011, "initial value must be a literal expression");
 
 					return false;
 				}
@@ -3281,27 +3337,27 @@ namespace ReShade
 
 				if (!GetTypeRank(variable->Initializer->Type, type))
 				{
-					this->mLexer.Error(location, 3017, "initial value does not match variable type");
+					Error(location, 3017, "initial value does not match variable type");
 
 					return false;
 				}
 				if ((variable->Initializer->Type.Rows < type.Rows || variable->Initializer->Type.Cols < type.Cols) && !variable->Initializer->Type.IsScalar())
 				{
-					this->mLexer.Error(location, 3017, "cannot implicitly convert these vector types");
+					Error(location, 3017, "cannot implicitly convert these vector types");
 
 					return false;
 				}
 
 				if (variable->Initializer->Type.Rows > type.Rows || variable->Initializer->Type.Cols > type.Cols)
 				{
-					this->mLexer.Warning(location, 3206, "implicit truncation of vector type");
+					Warning(location, 3206, "implicit truncation of vector type");
 				}
 			}
 			else if (type.IsNumeric())
 			{
 				if (type.HasQualifier(Nodes::Type::Qualifier::Const))
 				{
-					this->mLexer.Error(location, 3012, "missing initial value for '%s'", name.c_str());
+					Error(location, 3012, "missing initial value for '%s'", name.c_str());
 
 					return false;
 				}
@@ -3394,7 +3450,7 @@ namespace ReShade
 				{
 					if (value->NodeId != Node::Id::LValue || static_cast<Nodes::LValue *>(value)->Reference->NodeId != Node::Id::Variable || !static_cast<Nodes::LValue *>(value)->Reference->Type.IsTexture() || static_cast<Nodes::LValue *>(value)->Reference->Type.IsArray())
 					{
-						this->mLexer.Error(location, 3020, "type mismatch, expected texture name");
+						Error(location, 3020, "type mismatch, expected texture name");
 
 						return false;
 					}
@@ -3405,7 +3461,7 @@ namespace ReShade
 				{
 					if (value->NodeId != Node::Id::Literal)
 					{
-						this->mLexer.Error(location, 3011, "value must be a literal expression");
+						Error(location, 3011, "value must be a literal expression");
 
 						return false;
 					}
@@ -3478,7 +3534,7 @@ namespace ReShade
 					}
 					else
 					{
-						this->mLexer.Error(location, 3004, "unrecognized property '%s'", name.c_str());
+						Error(location, 3004, "unrecognized property '%s'", name.c_str());
 
 						return false;
 					}
@@ -3636,7 +3692,7 @@ namespace ReShade
 				{
 					if (value->NodeId != Node::Id::LValue || static_cast<Nodes::LValue *>(value)->Reference->NodeId != Node::Id::Function)
 					{
-						this->mLexer.Error(location, 3020, "type mismatch, expected function name");
+						Error(location, 3020, "type mismatch, expected function name");
 
 						return false;
 					}
@@ -3654,7 +3710,7 @@ namespace ReShade
 
 					if (value->NodeId != Node::Id::LValue || static_cast<Nodes::LValue *>(value)->Reference->NodeId != Node::Id::Variable || static_cast<Nodes::LValue *>(value)->Reference->Type.BaseClass != Nodes::Type::Class::Texture2D || static_cast<Nodes::LValue *>(value)->Reference->Type.IsArray())
 					{
-						this->mLexer.Error(location, 3020, "type mismatch, expected texture name");
+						Error(location, 3020, "type mismatch, expected texture name");
 
 						return false;
 					}
@@ -3665,7 +3721,7 @@ namespace ReShade
 				{
 					if (value->NodeId != Node::Id::Literal)
 					{
-						this->mLexer.Error(location, 3011, "pass state value must be a literal expression");
+						Error(location, 3011, "pass state value must be a literal expression");
 
 						return false;
 					}
@@ -3755,7 +3811,7 @@ namespace ReShade
 					}
 					else
 					{
-						this->mLexer.Error(location, 3004, "unrecognized pass state '%s'", passstate.c_str());
+						Error(location, 3004, "unrecognized pass state '%s'", passstate.c_str());
 
 						return false;
 					}
@@ -3844,7 +3900,7 @@ namespace ReShade
 
 				if (symbol == nullptr)
 				{
-					this->mLexer.Error(location, 3004, "undeclared identifier '%s'", identifier.c_str());
+					Error(location, 3004, "undeclared identifier '%s'", identifier.c_str());
 
 					return false;
 				}

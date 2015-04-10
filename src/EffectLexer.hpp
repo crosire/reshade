@@ -1,6 +1,6 @@
 #pragma once
 
-#include "EffectTree.hpp"
+#include "EffectTreeNodes.hpp"
 
 #include <assert.h>
 
@@ -242,19 +242,7 @@ namespace ReShade
 			Lexer(const Lexer &lexer);
 			Lexer(const std::string &source);
 
-			inline const std::string &GetSource() const
-			{
-				return this->mSource;
-			}
-			inline const std::string &GetErrors() const
-			{
-				return this->mErrors;
-			}
-
 			Token Lex();
-
-			void Error(const Location &location, unsigned int code, const char *message, ...);
-			void Warning(const Location &location, unsigned int code, const char *message, ...);
 
 		private:
 			void LexIdentifier(Token &token);
@@ -266,10 +254,9 @@ namespace ReShade
 			void SkipBlockComment();
 			void HandlePreProcessorDirective();
 
-		private:
-			std::string mSource, mErrors;
+			std::string mSource;
 			const char *mPos, *mEnd;
-			bool mCurrentAtLineStart;
+			bool mCurrentAtLineBegin;
 			Location mCurrentLocation;
 		};
 	}
