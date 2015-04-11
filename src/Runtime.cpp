@@ -609,14 +609,6 @@ namespace ReShade
 		}
 		if (!boost::filesystem::exists(path))
 		{
-			path = path.parent_path() / "Sweet.fx";
-		}
-		if (!boost::filesystem::exists(path))
-		{
-			path = path.parent_path() / "ReShade" / "Common" / "ReShade.fx";
-		}
-		if (!boost::filesystem::exists(path))
-		{
 			LOG(ERROR) << "Effect file " << sEffectPath << " does not exist.";
 
 			this->mStatus += " No effect found!";
