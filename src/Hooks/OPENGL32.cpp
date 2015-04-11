@@ -1,6 +1,6 @@
 #include "Log.hpp"
 #include "HookManager.hpp"
-#include "Runtimes\RuntimeGL.hpp"
+#include "Runtimes\GLRuntime.hpp"
 
 #include <unordered_map>
 #include <unordered_set>

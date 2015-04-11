@@ -1,6 +1,6 @@
 #include "Log.hpp"
 #include "HookManager.hpp"
-#include "Runtimes\RuntimeD3D11.hpp"
+#include "Runtimes\D3D11Runtime.hpp"
 
 #include <d3d11_1.h>
 

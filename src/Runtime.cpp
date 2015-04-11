@@ -5,6 +5,7 @@
 #include "EffectParser.hpp"
 #include "EffectPreProcessor.hpp"
 #include "FileWatcher.hpp"
+#include "WindowWatcher.hpp"
 
 #include <sstream>
 #include <stb_dxt.h>

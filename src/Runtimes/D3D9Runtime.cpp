@@ -1,6 +1,7 @@
 #include "Log.hpp"
-#include "RuntimeD3D9.hpp"
+#include "D3D9Runtime.hpp"
 #include "EffectTree.hpp"
+#include "WindowWatcher.hpp"
 
 #include <d3dx9math.h>
 #include <d3dcompiler.h>

@@ -227,26 +227,26 @@ tools\upx --backup "$(TargetPath)"</Command>
   <ItemGroup>
     <ClCompile Include="src\Hook.cpp" />
     <ClCompile Include="src\HookManager.cpp" />
-    <ClCompile Include="src\Hooks\d3d8.cpp">
+    <ClCompile Include="src\Hooks\D3D8.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </ClCompile>
-    <ClCompile Include="src\Hooks\d3d9.cpp" />
-    <ClCompile Include="src\Hooks\d3d10.cpp" />
-    <ClCompile Include="src\Hooks\d3d11.cpp" />
-    <ClCompile Include="src\Hooks\dxgi.cpp" />
-    <ClCompile Include="src\Hooks\opengl32.cpp" />
-    <ClCompile Include="src\Hooks\user32.cpp" />
-    <ClCompile Include="src\Hooks\ws2_32.cpp" />
+    <ClCompile Include="src\Hooks\D3D9.cpp" />
+    <ClCompile Include="src\Hooks\D3D10.cpp" />
+    <ClCompile Include="src\Hooks\D3D11.cpp" />
+    <ClCompile Include="src\Hooks\DXGI.cpp" />
+    <ClCompile Include="src\Hooks\OPENGL32.cpp" />
+    <ClCompile Include="src\Hooks\USER32.cpp" />
+    <ClCompile Include="src\Hooks\WS2_32.cpp" />
     <ClCompile Include="src\Effect.cpp" />
     <ClCompile Include="src\EffectLexer.cpp" />
     <ClCompile Include="src\EffectParser.cpp" />
     <ClCompile Include="src\EffectPreProcessor.cpp" />
     <ClCompile Include="src\Runtime.cpp" />
-    <ClCompile Include="src\Runtimes\RuntimeD3D9.cpp" />
-    <ClCompile Include="src\Runtimes\RuntimeD3D10.cpp" />
-    <ClCompile Include="src\Runtimes\RuntimeD3D11.cpp" />
-    <ClCompile Include="src\Runtimes\RuntimeGL.cpp" />
+    <ClCompile Include="src\Runtimes\D3D9Runtime.cpp" />
+    <ClCompile Include="src\Runtimes\D3D10Runtime.cpp" />
+    <ClCompile Include="src\Runtimes\D3D11Runtime.cpp" />
+    <ClCompile Include="src\Runtimes\GLRuntime.cpp" />
     <ClCompile Include="src\FileWatcher.cpp" />
     <ClCompile Include="src\WindowWatcher.cpp" />
     <ClCompile Include="src\Main.cpp" />
@@ -264,10 +264,10 @@ tools\upx --backup "$(TargetPath)"</Command>
     <ClInclude Include="src\EffectTree.hpp" />
     <ClInclude Include="src\EffectTreeNodes.hpp" />
     <ClInclude Include="src\Runtime.hpp" />
-    <ClInclude Include="src\Runtimes\RuntimeD3D10.hpp" />
-    <ClInclude Include="src\Runtimes\RuntimeD3D11.hpp" />
-    <ClInclude Include="src\Runtimes\RuntimeD3D9.hpp" />
-    <ClInclude Include="src\Runtimes\RuntimeGL.hpp" />
+    <ClInclude Include="src\Runtimes\D3D10Runtime.hpp" />
+    <ClInclude Include="src\Runtimes\D3D11Runtime.hpp" />
+    <ClInclude Include="src\Runtimes\D3D9Runtime.hpp" />
+    <ClInclude Include="src\Runtimes\GLRuntime.hpp" />
     <ClInclude Include="src\FileWatcher.hpp" />
     <ClInclude Include="src\WindowWatcher.hpp" />
     <ClInclude Include="src\Log.hpp" />

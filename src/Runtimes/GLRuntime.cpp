@@ -1,6 +1,7 @@
 #include "Log.hpp"
-#include "RuntimeGL.hpp"
+#include "GLRuntime.hpp"
 #include "EffectTree.hpp"
+#include "WindowWatcher.hpp"
 
 #include <nanovg_gl.h>
 #include <boost\algorithm\string.hpp>

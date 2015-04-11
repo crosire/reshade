@@ -60,40 +60,40 @@
     <ClCompile Include="src\Runtime.cpp">
       <Filter>Core\Effect Runtime</Filter>
     </ClCompile>
-    <ClCompile Include="src\Hooks\d3d8.cpp">
+    <ClCompile Include="src\Hooks\D3D8.cpp">
       <Filter>Implementation\Hooks</Filter>
     </ClCompile>
-    <ClCompile Include="src\Hooks\d3d9.cpp">
+    <ClCompile Include="src\Hooks\D3D9.cpp">
       <Filter>Implementation\Hooks</Filter>
     </ClCompile>
-    <ClCompile Include="src\Hooks\d3d10.cpp">
+    <ClCompile Include="src\Hooks\D3D10.cpp">
       <Filter>Implementation\Hooks</Filter>
     </ClCompile>
-    <ClCompile Include="src\Hooks\d3d11.cpp">
+    <ClCompile Include="src\Hooks\D3D11.cpp">
       <Filter>Implementation\Hooks</Filter>
     </ClCompile>
-    <ClCompile Include="src\Hooks\dxgi.cpp">
+    <ClCompile Include="src\Hooks\DXGI.cpp">
       <Filter>Implementation\Hooks</Filter>
     </ClCompile>
-    <ClCompile Include="src\Hooks\opengl32.cpp">
+    <ClCompile Include="src\Hooks\OPENGL32.cpp">
       <Filter>Implementation\Hooks</Filter>
     </ClCompile>
-    <ClCompile Include="src\Hooks\user32.cpp">
+    <ClCompile Include="src\Hooks\USER32.cpp">
       <Filter>Implementation\Hooks</Filter>
     </ClCompile>
-    <ClCompile Include="src\Hooks\ws2_32.cpp">
+    <ClCompile Include="src\Hooks\WS2_32.cpp">
       <Filter>Implementation\Hooks</Filter>
     </ClCompile>
-    <ClCompile Include="src\Runtimes\RuntimeD3D10.cpp">
+    <ClCompile Include="src\Runtimes\D3D10Runtime.cpp">
       <Filter>Implementation\Runtimes</Filter>
     </ClCompile>
-    <ClCompile Include="src\Runtimes\RuntimeD3D11.cpp">
+    <ClCompile Include="src\Runtimes\D3D11Runtime.cpp">
       <Filter>Implementation\Runtimes</Filter>
     </ClCompile>
-    <ClCompile Include="src\Runtimes\RuntimeD3D9.cpp">
+    <ClCompile Include="src\Runtimes\D3D9Runtime.cpp">
       <Filter>Implementation\Runtimes</Filter>
     </ClCompile>
-    <ClCompile Include="src\Runtimes\RuntimeGL.cpp">
+    <ClCompile Include="src\Runtimes\GLRuntime.cpp">
       <Filter>Implementation\Runtimes</Filter>
     </ClCompile>
   </ItemGroup>
@@ -134,16 +134,16 @@
     <ClInclude Include="src\Runtime.hpp">
       <Filter>Core\Effect Runtime</Filter>
     </ClInclude>
-    <ClInclude Include="src\Runtimes\RuntimeD3D10.hpp">
+    <ClInclude Include="src\Runtimes\D3D10Runtime.hpp">
       <Filter>Implementation\Runtimes</Filter>
     </ClInclude>
-    <ClInclude Include="src\Runtimes\RuntimeD3D11.hpp">
+    <ClInclude Include="src\Runtimes\D3D11Runtime.hpp">
       <Filter>Implementation\Runtimes</Filter>
     </ClInclude>
-    <ClInclude Include="src\Runtimes\RuntimeD3D9.hpp">
+    <ClInclude Include="src\Runtimes\D3D9Runtime.hpp">
       <Filter>Implementation\Runtimes</Filter>
     </ClInclude>
-    <ClInclude Include="src\Runtimes\RuntimeGL.hpp">
+    <ClInclude Include="src\Runtimes\GLRuntime.hpp">
       <Filter>Implementation\Runtimes</Filter>
     </ClInclude>
     <ClInclude Include="res\Resource.h">

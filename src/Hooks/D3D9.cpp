@@ -1,6 +1,6 @@
 #include "Log.hpp"
 #include "HookManager.hpp"
-#include "Runtimes\RuntimeD3D9.hpp"
+#include "Runtimes\D3D9Runtime.hpp"
 
 #pragma region Undefine Function Names
 #undef IDirect3D9_CreateDevice

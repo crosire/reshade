@@ -2,14 +2,12 @@
 
 #include "Effect.hpp"
 #include "EffectTree.hpp"
-#include "WindowWatcher.hpp"
 
-#include <memory>
-#include <vector>
 #include <boost\chrono.hpp>
 #include <boost\filesystem\path.hpp>
 
 struct NVGcontext;
+class WindowWatcher;
 
 namespace ReShade
 {
