@@ -3583,6 +3583,11 @@ namespace ReShade
 						dataFormat = GL_RED;
 						dataAlignment = 1;
 						break;
+					case Texture::Format::R16F:
+						dataType = GL_UNSIGNED_SHORT;
+						dataFormat = GL_RED;
+						dataAlignment = 2;
+						break;
 					case Texture::Format::R32F:
 						dataType = GL_FLOAT;
 						dataFormat = GL_RED;
@@ -3590,6 +3595,16 @@ namespace ReShade
 					case Texture::Format::RG8:
 						dataFormat = GL_RG;
 						dataAlignment = 2;
+						break;
+					case Texture::Format::RG16:
+					case Texture::Format::RG16F:
+						dataType = GL_UNSIGNED_SHORT;
+						dataFormat = GL_RG;
+						dataAlignment = 2;
+						break;
+					case Texture::Format::RG32F:
+						dataType = GL_FLOAT;
+						dataFormat = GL_RG;
 						break;
 					case Texture::Format::RGBA16:
 					case Texture::Format::RGBA16F:
