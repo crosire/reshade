@@ -642,6 +642,8 @@ namespace ReShade
 		std::string errors;
 		const std::string source = preprocessor.Run(path, errors);
 
+		this->mIncludedFiles = preprocessor.GetIncludes();
+
 		if (source.empty())
 		{
 			LOG(ERROR) << "Failed to preprocess effect on context " << this << ":\n\n" << errors << "\n";
@@ -665,8 +667,6 @@ namespace ReShade
 			this->mErrors = errors;
 			this->mEffectSource = source;
 		}
-
-		this->mIncludedFiles = preprocessor.GetIncludes();
 
 		for (const std::string &pragma : preprocessor.GetPragmas())
 		{
