@@ -1,11 +1,11 @@
 #include "Log.hpp"
 #include "WindowWatcher.hpp"
 
-std::unordered_map<HWND, WindowWatcher *> WindowWatcher::sWatchers;
+std::vector<std::pair<HWND, WindowWatcher *>> WindowWatcher::sWatchers;
 
 WindowWatcher::WindowWatcher(HWND hwnd) : mWnd(hwnd), mKeys(), mMousePos()
 {
-	sWatchers.emplace(hwnd, this);
+	sWatchers.push_back(std::make_pair(hwnd, this));
 
 	const DWORD threadid = GetWindowThreadProcessId(hwnd, nullptr);
 	this->mHookMouse = SetWindowsHookEx(WH_MOUSE, reinterpret_cast<HOOKPROC>(&HookMouse), nullptr, threadid);
@@ -13,7 +13,7 @@ WindowWatcher::WindowWatcher(HWND hwnd) : mWnd(hwnd), mKeys(), mMousePos()
 }
 WindowWatcher::~WindowWatcher()
 {
-	sWatchers.erase(this->mWnd);
+	sWatchers.erase(std::find_if(sWatchers.begin(), sWatchers.end(), [this](const std::pair<HWND, WindowWatcher *> &it) { return it.second == this; }));
 
 	UnhookWindowsHookEx(this->mHookMouse);
 	UnhookWindowsHookEx(this->mHookKeyboard);
@@ -27,7 +27,7 @@ LRESULT CALLBACK WindowWatcher::HookMouse(int nCode, WPARAM wParam, LPARAM lPara
 	}
 
 	MOUSEHOOKSTRUCT details = *reinterpret_cast<LPMOUSEHOOKSTRUCT>(lParam);
-	const auto it = sWatchers.find(details.hwnd);
+	const auto it = std::find_if(sWatchers.begin(), sWatchers.end(), [&details](const std::pair<HWND, WindowWatcher *> &it) { return it.first == details.hwnd; });
 
 	if (it == sWatchers.end())
 	{
@@ -49,7 +49,7 @@ LRESULT CALLBACK WindowWatcher::HookKeyboard(int nCode, WPARAM wParam, LPARAM lP
 	}
 
 	const HWND hwnd = GetActiveWindow();
-	const auto it = sWatchers.find(hwnd);
+	const auto it = std::find_if(sWatchers.begin(), sWatchers.end(), [hwnd](const std::pair<HWND, WindowWatcher *> &it) { return it.first == hwnd; });
 
 	if (it == sWatchers.end())
 	{

@@ -1,6 +1,6 @@
 #pragma once
 
-#include <unordered_map>
+#include <vector>
 #include <windows.h>
 
 class WindowWatcher
@@ -23,5 +23,5 @@ private:
 	HHOOK mHookMouse, mHookKeyboard;
 	POINT mMousePos;
 	unsigned char mKeys[256];
-	static std::unordered_map<HWND, WindowWatcher *> sWatchers;
+	static std::vector<std::pair<HWND, WindowWatcher *>> sWatchers;
 };
