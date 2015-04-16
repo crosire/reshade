@@ -1160,13 +1160,13 @@ EXPORT HRESULT WINAPI CreateDXGIFactory(REFIID riid, void **ppFactory)
 	IDXGIFactory *const factory = static_cast<IDXGIFactory *>(*ppFactory);
 	IDXGIFactory2 *factory2 = nullptr;
 
-	ReShade::Hooks::Install(VTABLE(factory)[10], reinterpret_cast<ReShade::Hook::Function>(&IDXGIFactory_CreateSwapChain));
+	ReShade::Hooks::Install(VTABLE(factory), 10, reinterpret_cast<ReShade::Hook::Function>(&IDXGIFactory_CreateSwapChain));
 
 	if (SUCCEEDED(factory->QueryInterface(&factory2)))
 	{
-		ReShade::Hooks::Install(VTABLE(factory2)[15], reinterpret_cast<ReShade::Hook::Function>(&IDXGIFactory2_CreateSwapChainForHwnd));
-		ReShade::Hooks::Install(VTABLE(factory2)[16], reinterpret_cast<ReShade::Hook::Function>(&IDXGIFactory2_CreateSwapChainForCoreWindow));
-		ReShade::Hooks::Install(VTABLE(factory2)[24], reinterpret_cast<ReShade::Hook::Function>(&IDXGIFactory2_CreateSwapChainForComposition));
+		ReShade::Hooks::Install(VTABLE(factory2), 15, reinterpret_cast<ReShade::Hook::Function>(&IDXGIFactory2_CreateSwapChainForHwnd));
+		ReShade::Hooks::Install(VTABLE(factory2), 16, reinterpret_cast<ReShade::Hook::Function>(&IDXGIFactory2_CreateSwapChainForCoreWindow));
+		ReShade::Hooks::Install(VTABLE(factory2), 24, reinterpret_cast<ReShade::Hook::Function>(&IDXGIFactory2_CreateSwapChainForComposition));
 
 		factory2->Release();
 	}
@@ -1194,13 +1194,13 @@ EXPORT HRESULT WINAPI CreateDXGIFactory1(REFIID riid, void **ppFactory)
 	IDXGIFactory *const factory = static_cast<IDXGIFactory *>(*ppFactory);
 	IDXGIFactory2 *factory2 = nullptr;
 
-	ReShade::Hooks::Install(VTABLE(factory)[10], reinterpret_cast<ReShade::Hook::Function>(&IDXGIFactory_CreateSwapChain));
+	ReShade::Hooks::Install(VTABLE(factory), 10, reinterpret_cast<ReShade::Hook::Function>(&IDXGIFactory_CreateSwapChain));
 
 	if (SUCCEEDED(factory->QueryInterface(&factory2)))
 	{
-		ReShade::Hooks::Install(VTABLE(factory2)[15], reinterpret_cast<ReShade::Hook::Function>(&IDXGIFactory2_CreateSwapChainForHwnd));
-		ReShade::Hooks::Install(VTABLE(factory2)[16], reinterpret_cast<ReShade::Hook::Function>(&IDXGIFactory2_CreateSwapChainForCoreWindow));
-		ReShade::Hooks::Install(VTABLE(factory2)[24], reinterpret_cast<ReShade::Hook::Function>(&IDXGIFactory2_CreateSwapChainForComposition));
+		ReShade::Hooks::Install(VTABLE(factory2), 15, reinterpret_cast<ReShade::Hook::Function>(&IDXGIFactory2_CreateSwapChainForHwnd));
+		ReShade::Hooks::Install(VTABLE(factory2), 16, reinterpret_cast<ReShade::Hook::Function>(&IDXGIFactory2_CreateSwapChainForCoreWindow));
+		ReShade::Hooks::Install(VTABLE(factory2), 24, reinterpret_cast<ReShade::Hook::Function>(&IDXGIFactory2_CreateSwapChainForComposition));
 
 		factory2->Release();
 	}
@@ -1228,13 +1228,13 @@ EXPORT HRESULT WINAPI CreateDXGIFactory2(UINT flags, REFIID riid, void **ppFacto
 	IDXGIFactory *const factory = static_cast<IDXGIFactory *>(*ppFactory);
 	IDXGIFactory2 *factory2 = nullptr;
 
-	ReShade::Hooks::Install(VTABLE(factory)[10], reinterpret_cast<ReShade::Hook::Function>(&IDXGIFactory_CreateSwapChain));
+	ReShade::Hooks::Install(VTABLE(factory), 10, reinterpret_cast<ReShade::Hook::Function>(&IDXGIFactory_CreateSwapChain));
 
 	if (SUCCEEDED(factory->QueryInterface(&factory2)))
 	{
-		ReShade::Hooks::Install(VTABLE(factory2)[15], reinterpret_cast<ReShade::Hook::Function>(&IDXGIFactory2_CreateSwapChainForHwnd));
-		ReShade::Hooks::Install(VTABLE(factory2)[16], reinterpret_cast<ReShade::Hook::Function>(&IDXGIFactory2_CreateSwapChainForCoreWindow));
-		ReShade::Hooks::Install(VTABLE(factory2)[24], reinterpret_cast<ReShade::Hook::Function>(&IDXGIFactory2_CreateSwapChainForComposition));
+		ReShade::Hooks::Install(VTABLE(factory2), 15, reinterpret_cast<ReShade::Hook::Function>(&IDXGIFactory2_CreateSwapChainForHwnd));
+		ReShade::Hooks::Install(VTABLE(factory2), 16, reinterpret_cast<ReShade::Hook::Function>(&IDXGIFactory2_CreateSwapChainForCoreWindow));
+		ReShade::Hooks::Install(VTABLE(factory2), 24, reinterpret_cast<ReShade::Hook::Function>(&IDXGIFactory2_CreateSwapChainForComposition));
 
 		factory2->Release();
 	}

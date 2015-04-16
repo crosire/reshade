@@ -1549,7 +1549,7 @@ EXPORT IDirect3D9 *WINAPI Direct3DCreate9(UINT SDKVersion)
 		return nullptr;
 	}
 
-	ReShade::Hooks::Install(VTABLE(res)[16], reinterpret_cast<ReShade::Hook::Function>(&IDirect3D9_CreateDevice));
+	ReShade::Hooks::Install(VTABLE(res), 16, reinterpret_cast<ReShade::Hook::Function>(&IDirect3D9_CreateDevice));
 
 	LOG(TRACE) << "> Returned factory object: " << res;
 
@@ -1568,8 +1568,8 @@ EXPORT HRESULT WINAPI Direct3DCreate9Ex(UINT SDKVersion, IDirect3D9Ex **ppD3D)
 		return hr;
 	}
 
-	ReShade::Hooks::Install(VTABLE(*ppD3D)[16], reinterpret_cast<ReShade::Hook::Function>(&IDirect3D9_CreateDevice));
-	ReShade::Hooks::Install(VTABLE(*ppD3D)[20], reinterpret_cast<ReShade::Hook::Function>(&IDirect3D9Ex_CreateDeviceEx));
+	ReShade::Hooks::Install(VTABLE(*ppD3D), 16, reinterpret_cast<ReShade::Hook::Function>(&IDirect3D9_CreateDevice));
+	ReShade::Hooks::Install(VTABLE(*ppD3D), 20, reinterpret_cast<ReShade::Hook::Function>(&IDirect3D9Ex_CreateDeviceEx));
 
 	LOG(TRACE) << "> Returned factory object: " << *ppD3D;
 
