@@ -94,6 +94,7 @@ namespace ReShade
 		}
 
 		FileWatcher *sEffectWatcher = nullptr;
+		unsigned int sCompileCounter = 0;
 		boost::filesystem::path sExecutablePath, sInjectorPath, sEffectPath;
 	}
 
@@ -152,7 +153,6 @@ namespace ReShade
 	}
 
 	volatile long Runtime::sNetworkUpload = 0, Runtime::sNetworkDownload = 0;
-	unsigned int Runtime::sCompileCounter = 0;
 
 	// -----------------------------------------------------------------------------------------------------
 
