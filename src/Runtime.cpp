@@ -496,7 +496,8 @@ namespace ReShade
 				nvgFontSize(this->mNVG, 20);
 				nvgText(this->mNVG, 0, 0, "ReShade " BOOST_STRINGIZE(VERSION_FULL) " by Crosire", nullptr);
 				nvgFontSize(this->mNVG, 16);
-				nvgText(this->mNVG, 0, 22, this->mStatus.c_str(), nullptr);
+				nvgText(this->mNVG, 0, 22, "Use at your own risk! Visit http://reshade.me for news, updates, shaders and discussion.", nullptr);
+				nvgText(this->mNVG, 0, 42, this->mStatus.c_str(), nullptr);
 
 				if (!this->mErrors.empty() && this->mCompileStep == 0)
 				{
@@ -509,7 +510,7 @@ namespace ReShade
 						nvgFillColor(this->mNVG, nvgRGB(255, 255, 0));
 					}
 
-					nvgTextBox(this->mNVG, 0, 46, static_cast<float>(this->mWidth), this->mErrors.c_str(), nullptr);
+					nvgTextBox(this->mNVG, 0, 60, static_cast<float>(this->mWidth), this->mErrors.c_str(), nullptr);
 				}
 			}
 
