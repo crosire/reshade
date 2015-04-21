@@ -120,7 +120,7 @@ ReturnCode openinclude(Global *global, const char *filename, int searchlocal /* 
 		
 	}
 
-	if (searchlocal)
+	if (searchlocal && global->infile != NULL)
 	{
 		/*
 		 * Look in local directory first. Try to open filename relative to the directory of the current
