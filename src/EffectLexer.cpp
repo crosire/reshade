@@ -284,7 +284,7 @@ namespace ReShade
 
 		Lexer::Token Lexer::Lex()
 		{
-NextToken:
+		NextToken:
 			Token token;
 			token.mLocation = this->mCurrentLocation;
 			token.mRawData = this->mPos;
@@ -1218,7 +1218,7 @@ NextToken:
 			if (commandLength == 4 && strncmp(command, "line", 4) == 0)
 			{
 				char *sourceBegin = nullptr, *sourceEnd = nullptr;
-				
+
 				this->mCurrentLocation.Line = static_cast<int>(std::strtol(this->mPos, &sourceEnd, 10));
 
 				while (*sourceEnd != '\n' && *sourceEnd != '\0' && *++sourceEnd != '"')
@@ -1227,7 +1227,7 @@ NextToken:
 				}
 
 				sourceBegin = sourceEnd;
-				
+
 				while (*sourceEnd != '\n' && *sourceEnd != '\0' && *++sourceEnd != '"')
 				{
 					continue;

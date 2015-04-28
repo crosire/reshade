@@ -206,7 +206,7 @@ class DXGID3D11Bridge : public IUnknown, private boost::noncopyable
 {
 public:
 	static const IID sIID;
-	
+
 public:
 	IDXGIDevice *GetDXGIDevice();
 	ID3D11Device *GetOriginalD3D11Device();

@@ -431,7 +431,7 @@ namespace ReShade
 		if (::GetAsyncKeyState(VK_SNAPSHOT) & 0x8000)
 		{
 			char timeString[128];
-			std::strftime(timeString, 128, "%Y-%m-%d %H-%M-%S", &tm); 
+			std::strftime(timeString, 128, "%Y-%m-%d %H-%M-%S", &tm);
 
 			CreateScreenshot(sExecutablePath.parent_path() / (sExecutablePath.stem().string() + ' ' + timeString + '.' + this->mScreenshotFormat));
 		}
@@ -766,7 +766,7 @@ namespace ReShade
 		}
 
 		sCompileCounter++;
-				
+
 		return true;
 	}
 	void Runtime::ProcessEffect()
@@ -785,7 +785,7 @@ namespace ReShade
 		for (const std::string &name : techniques)
 		{
 			const FX::Effect::Technique *technique = this->mEffect->GetTechnique(name);
-				
+
 			TechniqueInfo info;
 			info.Technique = technique;
 
@@ -843,7 +843,7 @@ namespace ReShade
 
 				std::size_t dataSize = desc.Width * desc.Height * channels;
 				unsigned char *dataFile = stbi_load(path.string().c_str(), &widthFile, &heightFile, &channelsFile, channels), *data = new unsigned char[dataSize];
-					
+
 				if (dataFile != nullptr)
 				{
 					if (desc.Width != static_cast<unsigned int>(widthFile) || desc.Height != static_cast<unsigned int>(heightFile))
