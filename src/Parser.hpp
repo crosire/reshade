@@ -1,7 +1,7 @@
 #pragma once
 
-#include "EffectTree.hpp"
-#include "EffectLexer.hpp"
+#include "Lexer.hpp"
+#include "ParseTree.hpp"
 
 #include <stack>
 #include <unordered_map>

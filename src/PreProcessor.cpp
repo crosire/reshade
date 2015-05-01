@@ -1,4 +1,4 @@
-#include "EffectPreProcessor.hpp"
+#include "PreProcessor.hpp"
 
 #include <fpp.h>
 #include <array>

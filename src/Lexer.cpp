@@ -1,4 +1,4 @@
-#include "EffectLexer.hpp"
+#include "Lexer.hpp"
 
 #include <unordered_map>
 #include <boost\assign\list_of.hpp>

@@ -1,4 +1,4 @@
-#include "EffectParser.hpp"
+#include "Parser.hpp"
 
 #include <cstdarg>
 #include <algorithm>

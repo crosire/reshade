@@ -1,6 +1,6 @@
 #include "Log.hpp"
 #include "GLRuntime.hpp"
-#include "EffectTree.hpp"
+#include "ParseTree.hpp"
 #include "WindowWatcher.hpp"
 
 #include <nanovg_gl.h>

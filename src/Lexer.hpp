@@ -1,8 +1,6 @@
 #pragma once
 
-#include "EffectTreeNodes.hpp"
-
-#include <assert.h>
+#include "ParseTreeNodes.hpp"
 
 namespace ReShade
 {
@@ -188,36 +186,26 @@ namespace ReShade
 				template <>
 				inline int GetLiteral() const
 				{
-					assert(this->mId == Id::IntLiteral);
-
 					return this->mLiteralNumeric.Int;
 				}
 				template <>
 				inline unsigned int GetLiteral() const
 				{
-					assert(this->mId == Id::UintLiteral);
-
 					return this->mLiteralNumeric.Uint;
 				}
 				template <>
 				inline float GetLiteral() const
 				{
-					assert(this->mId == Id::FloatLiteral);
-
 					return this->mLiteralNumeric.Float;
 				}
 				template <>
 				inline double GetLiteral() const
 				{
-					assert(this->mId == Id::DoubleLiteral);
-
 					return this->mLiteralNumeric.Double;
 				}
 				template <>
 				inline std::string GetLiteral() const
 				{
-					assert(this->mId == Id::StringLiteral);
-
 					return this->mLiteralString;
 				}
 

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Effect.hpp"
-#include "EffectTree.hpp"
+#include "ParseTree.hpp"
 
 #include <boost\chrono.hpp>
 #include <boost\filesystem\path.hpp>

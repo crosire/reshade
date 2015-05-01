@@ -39,13 +39,13 @@
     <ClCompile Include="src\HookManager.cpp">
       <Filter>Core\Hooking</Filter>
     </ClCompile>
-    <ClCompile Include="src\EffectLexer.cpp">
+    <ClCompile Include="src\Lexer.cpp">
       <Filter>Core\Effect Parsing</Filter>
     </ClCompile>
-    <ClCompile Include="src\EffectParser.cpp">
+    <ClCompile Include="src\Parser.cpp">
       <Filter>Core\Effect Parsing</Filter>
     </ClCompile>
-    <ClCompile Include="src\EffectPreProcessor.cpp">
+    <ClCompile Include="src\PreProcessor.cpp">
       <Filter>Core\Effect Parsing</Filter>
     </ClCompile>
     <ClCompile Include="src\Effect.cpp">
@@ -107,19 +107,19 @@
     <ClInclude Include="src\HookManager.hpp">
       <Filter>Core\Hooking</Filter>
     </ClInclude>
-    <ClInclude Include="src\EffectLexer.hpp">
+    <ClInclude Include="src\Lexer.hpp">
       <Filter>Core\Effect Parsing</Filter>
     </ClInclude>
-    <ClInclude Include="src\EffectParser.hpp">
+    <ClInclude Include="src\Parser.hpp">
       <Filter>Core\Effect Parsing</Filter>
     </ClInclude>
-    <ClInclude Include="src\EffectPreProcessor.hpp">
+    <ClInclude Include="src\PreProcessor.hpp">
       <Filter>Core\Effect Parsing</Filter>
     </ClInclude>
-    <ClInclude Include="src\EffectTree.hpp">
+    <ClInclude Include="src\ParseTree.hpp">
       <Filter>Core\Effect Parsing</Filter>
     </ClInclude>
-    <ClInclude Include="src\EffectTreeNodes.hpp">
+    <ClInclude Include="src\ParseTreeNodes.hpp">
       <Filter>Core\Effect Parsing</Filter>
     </ClInclude>
     <ClInclude Include="src\Effect.hpp">
