@@ -91,7 +91,7 @@ namespace ReShade
 				return this->mAnnotations.emplace(name, value).second;
 			}
 
-			virtual bool Update(unsigned int level, const unsigned char *data, std::size_t size) override;
+			virtual bool Update(const unsigned char *data, std::size_t size) override;
 			void ChangeSource(GLuint texture, GLuint textureSRGB);
 
 			GLEffect *mEffect;

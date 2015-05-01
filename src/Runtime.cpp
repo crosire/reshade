@@ -871,7 +871,7 @@ namespace ReShade
 							break;
 					}
 
-					texture->Update(0, data, dataSize);
+					texture->Update(data, dataSize);
 
 					this->mTextures.push_back(std::make_pair(texture, dataSize));
 				}

@@ -107,7 +107,7 @@ namespace ReShade
 				return this->mAnnotations.emplace(name, value).second;
 			}
 
-			virtual bool Update(unsigned int level, const unsigned char *data, std::size_t size) override;
+			virtual bool Update(const unsigned char *data, std::size_t size) override;
 			void ChangeSource(ID3D11ShaderResourceView *srv, ID3D11ShaderResourceView *srvSRGB);
 
 			D3D11Effect *mEffect;

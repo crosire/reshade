@@ -3187,9 +3187,9 @@ namespace ReShade
 			SAFE_RELEASE(this->mTexture);
 		}
 
-		bool D3D11Texture::Update(unsigned int level, const unsigned char *data, std::size_t size)
+		bool D3D11Texture::Update(const unsigned char *data, std::size_t size)
 		{
-			if (data == nullptr || size == 0 || level > this->mDesc.Levels || this->mSource != Source::Memory)
+			if (data == nullptr || size == 0 || this->mSource != Source::Memory)
 			{
 				return false;
 			}
@@ -3198,9 +3198,9 @@ namespace ReShade
 
 			ID3D11DeviceContext *context = this->mEffect->mRuntime->mImmediateContext;
 
-			context->UpdateSubresource(this->mTexture, level, nullptr, data, static_cast<UINT>(size / this->mDesc.Height), static_cast<UINT>(size));
+			context->UpdateSubresource(this->mTexture, 0, nullptr, data, static_cast<UINT>(size / this->mDesc.Height), static_cast<UINT>(size));
 
-			if (level == 0 && this->mDesc.Levels > 1)
+			if (this->mDesc.Levels > 1)
 			{
 				context->GenerateMips(this->mShaderResourceView[0]);
 			}

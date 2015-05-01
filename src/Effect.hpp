@@ -147,7 +147,7 @@ namespace ReShade
 				const Annotation GetAnnotation(const std::string &name) const;
 				const Description GetDescription() const;
 
-				virtual bool Update(unsigned int level, const unsigned char *data, std::size_t size) = 0;
+				virtual bool Update(const unsigned char *data, std::size_t size) = 0;
 
 			protected:
 				Description mDesc;

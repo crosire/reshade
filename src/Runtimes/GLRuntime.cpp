@@ -3545,9 +3545,9 @@ namespace ReShade
 			}
 		}
 
-		bool GLTexture::Update(unsigned int level, const unsigned char *data, std::size_t size)
+		bool GLTexture::Update(const unsigned char *data, std::size_t size)
 		{
-			if (data == nullptr || size == 0 || level > this->mDesc.Levels || this->mSource != Source::Memory)
+			if (data == nullptr || size == 0 || this->mSource != Source::Memory)
 			{
 				return false;
 			}
@@ -3570,7 +3570,7 @@ namespace ReShade
 
 			if (this->mDesc.Format >= Texture::Format::DXT1 && this->mDesc.Format <= Texture::Format::LATC2)
 			{
-				GLCHECK(glCompressedTexSubImage2D(GL_TEXTURE_2D, level, 0, 0, this->mDesc.Width, this->mDesc.Height, GL_UNSIGNED_BYTE, static_cast<GLsizei>(size), dataFlipped.get()));
+				GLCHECK(glCompressedTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, this->mDesc.Width, this->mDesc.Height, GL_UNSIGNED_BYTE, static_cast<GLsizei>(size), dataFlipped.get()));
 			}
 			else
 			{
@@ -3617,11 +3617,11 @@ namespace ReShade
 				}
 
 				GLCHECK(glPixelStorei(GL_UNPACK_ALIGNMENT, dataAlignment));
-				GLCHECK(glTexSubImage2D(GL_TEXTURE_2D, level, 0, 0, this->mDesc.Width, this->mDesc.Height, dataFormat, dataType, dataFlipped.get()));
+				GLCHECK(glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, this->mDesc.Width, this->mDesc.Height, dataFormat, dataType, dataFlipped.get()));
 				GLCHECK(glPixelStorei(GL_UNPACK_ALIGNMENT, 4));
 			}
 
-			if (level == 0 && this->mDesc.Levels > 1)
+			if (this->mDesc.Levels > 1)
 			{
 				GLCHECK(glGenerateMipmap(GL_TEXTURE_2D));
 			}

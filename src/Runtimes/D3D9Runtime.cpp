@@ -2749,50 +2749,34 @@ namespace ReShade
 			SAFE_RELEASE(this->mTextureSurface);
 		}
 
-		bool D3D9Texture::Update(unsigned int level, const unsigned char *data, std::size_t size)
+		bool D3D9Texture::Update(const unsigned char *data, std::size_t size)
 		{
-			if (data == nullptr || size == 0 || level > this->mDesc.Levels || this->mSource != Source::Memory)
-			{
-				return false;
-			}
-
-			IDirect3DSurface9 *textureSurface = nullptr;
-			HRESULT hr = this->mTexture->GetSurfaceLevel(level, &textureSurface);
-
-			if (FAILED(hr))
+			if (data == nullptr || size == 0 || this->mSource != Source::Memory)
 			{
 				return false;
 			}
 
 			D3DSURFACE_DESC desc;
-			textureSurface->GetDesc(&desc);
+			this->mTexture->GetLevelDesc(0, &desc);
 		
 			IDirect3DTexture9 *memTexture = nullptr;
-			hr = this->mEffect->mRuntime->mDevice->CreateTexture(desc.Width, desc.Height, 1, 0, desc.Format, D3DPOOL_SYSTEMMEM, &memTexture, nullptr);
+			HRESULT hr = this->mEffect->mRuntime->mDevice->CreateTexture(desc.Width, desc.Height, 1, 0, desc.Format, D3DPOOL_SYSTEMMEM, &memTexture, nullptr);
 
 			if (FAILED(hr))
 			{
 				LOG(TRACE) << "Failed to create memory texture for texture updating! HRESULT is '" << hr << "'.";
 
-				textureSurface->Release();
-
 				return false;
 			}
 
-			IDirect3DSurface9 *memSurface;
-			memTexture->GetSurfaceLevel(0, &memSurface);
-
-			memTexture->Release();
-
 			D3DLOCKED_RECT memLock;
-			hr = memSurface->LockRect(&memLock, nullptr, 0);
+			hr = memTexture->LockRect(0, &memLock, nullptr, 0);
 
 			if (FAILED(hr))
 			{
 				LOG(TRACE) << "Failed to lock memory texture for texture updating! HRESULT is '" << hr << "'.";
 
-				memSurface->Release();
-				textureSurface->Release();
+				memTexture->Release();
 
 				return false;
 			}
@@ -2825,12 +2809,11 @@ namespace ReShade
 					break;
 			}
 
-			memSurface->UnlockRect();
+			memTexture->UnlockRect(0);
 
-			hr = this->mEffect->mRuntime->mDevice->UpdateSurface(memSurface, nullptr, textureSurface, nullptr);
+			hr = this->mEffect->mRuntime->mDevice->UpdateTexture(memTexture, this->mTexture);
 
-			memSurface->Release();
-			textureSurface->Release();
+			memTexture->Release();
 
 			if (FAILED(hr))
 			{

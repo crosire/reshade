@@ -3081,9 +3081,9 @@ namespace ReShade
 			SAFE_RELEASE(this->mTexture);
 		}
 
-		bool D3D10Texture::Update(unsigned int level, const unsigned char *data, std::size_t size)
+		bool D3D10Texture::Update(const unsigned char *data, std::size_t size)
 		{
-			if (data == nullptr || size == 0 || level > this->mDesc.Levels || this->mSource != Source::Memory)
+			if (data == nullptr || size == 0 || this->mSource != Source::Memory)
 			{
 				return false;
 			}
@@ -3092,9 +3092,9 @@ namespace ReShade
 
 			ID3D10Device *device = this->mEffect->mRuntime->mDevice;
 
-			device->UpdateSubresource(this->mTexture, level, nullptr, data, static_cast<UINT>(size / this->mDesc.Height), static_cast<UINT>(size));
+			device->UpdateSubresource(this->mTexture, 0, nullptr, data, static_cast<UINT>(size / this->mDesc.Height), static_cast<UINT>(size));
 
-			if (level == 0 && this->mDesc.Levels > 1)
+			if (this->mDesc.Levels > 1)
 			{
 				device->GenerateMips(this->mShaderResourceView[0]);
 			}
