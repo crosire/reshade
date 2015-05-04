@@ -769,7 +769,7 @@ namespace ReShade
 
 			this->mPos += token.mRawDataLength;
 			this->mCurrentAtLineBegin = false;
-			this->mCurrentLocation.Column += token.mRawDataLength;
+			this->mCurrentLocation.Column += static_cast<unsigned int>(token.mRawDataLength);
 
 			return token;
 		}
@@ -1040,11 +1040,10 @@ namespace ReShade
 		}
 		void Lexer::LexNumericLiteral(Token &token)
 		{
+			int radix = 0;
 			const char *begin = this->mPos, *end = begin;
 
 			token.mId = Token::Id::IntLiteral;
-
-			int radix = 0;
 
 			if (begin[0] == '0')
 			{

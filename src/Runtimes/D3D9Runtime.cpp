@@ -1859,6 +1859,10 @@ namespace ReShade
 						"float4 __tex2Doffset(__sampler2D s, float2 c, int2 offset) { return tex2D(s.s, c + offset * s.pixelsize); }\n"
 						"int2 __tex2Dsize(__sampler2D s, int lod) { return int2(1 / s.pixelsize) / exp2(lod); }\n";
 
+					if (shadertype == "vs")
+					{
+						source += "uniform float2 __TEXEL_SIZE__ : register(c255);\n";
+					}
 					if (shadertype == "ps")
 					{
 						source += "#define POSITION VPOS\n";
@@ -2034,7 +2038,7 @@ namespace ReShade
 				
 					if (shadertype == "vs")
 					{
-						source += positionVariable + ".xy += float2(" + std::to_string(-1.0f / this->mEffect->mRuntime->mPresentParams.BackBufferWidth) + ", " + std::to_string(1.0f / this->mEffect->mRuntime->mPresentParams.BackBufferHeight) + ") * " + positionVariable + ".ww;\n";
+						source += positionVariable + ".xy += __TEXEL_SIZE__ * " + positionVariable + ".ww;\n";
 					}
 
 					if (!node->ReturnType.IsVoid())
@@ -2944,11 +2948,13 @@ namespace ReShade
 
 			D3DVIEWPORT9 viewport;
 			device->GetViewport(&viewport);
+			const float texelsize[4] = { -1.0f / viewport.Width, 1.0f / viewport.Height };
 
 			device->SetDepthStencilSurface((viewport.Width == runtime->mPresentParams.BackBufferWidth && viewport.Height == runtime->mPresentParams.BackBufferHeight) ? runtime->mDefaultDepthStencil : nullptr);
 
 			// Setup shader constants
 			device->SetVertexShaderConstantF(0, this->mEffect->mConstantStorage, this->mEffect->mConstantRegisterCount);
+			device->SetVertexShaderConstantF(255, texelsize, 1);
 			device->SetPixelShaderConstantF(0, this->mEffect->mConstantStorage, this->mEffect->mConstantRegisterCount);
 
 			// Draw triangle
