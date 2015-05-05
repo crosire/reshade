@@ -2368,7 +2368,7 @@ namespace ReShade
 
 		// -----------------------------------------------------------------------------------------------------
 
-		D3D11Runtime::D3D11Runtime(ID3D11Device *device, IDXGISwapChain *swapchain) : mDevice(device), mSwapChain(swapchain), mImmediateContext(nullptr), mStateBlock(new D3D11StateBlock(device)), mBackBuffer(nullptr), mBackBufferReplacement(nullptr), mBackBufferTexture(nullptr), mBackBufferTextureSRV(), mBackBufferTargets(), mDepthStencil(nullptr), mDepthStencilReplacement(nullptr), mDepthStencilTexture(nullptr), mDepthStencilTextureSRV(nullptr), mLost(true)
+		D3D11Runtime::D3D11Runtime(ID3D11Device *device, IDXGISwapChain *swapchain) : mDevice(device), mSwapChain(swapchain), mImmediateContext(nullptr), mStateBlock(new D3D11StateBlock(device)), mBackBuffer(nullptr), mBackBufferResolved(nullptr), mBackBufferTexture(nullptr), mBackBufferTextureSRV(), mBackBufferTargets(), mDepthStencil(nullptr), mDepthStencilReplacement(nullptr), mDepthStencilTexture(nullptr), mDepthStencilTextureSRV(nullptr), mCopyVS(nullptr), mCopyPS(nullptr), mCopySampler(nullptr), mLost(true)
 		{
 			InitializeCriticalSection(&this->mCS);
 
@@ -2427,11 +2427,137 @@ namespace ReShade
 
 			assert(SUCCEEDED(hr));
 
-			if (!CreateBackBufferReplacement(this->mBackBuffer, desc.SampleDesc))
-			{
-				LOG(TRACE) << "Failed to create backbuffer replacement!";
+			D3D11_TEXTURE2D_DESC texdesc;
+			texdesc.Width = this->mSwapChainDesc.BufferDesc.Width;
+			texdesc.Height = this->mSwapChainDesc.BufferDesc.Height;
+			texdesc.ArraySize = texdesc.MipLevels = 1;
+			texdesc.Format = D3D11EffectCompiler::MakeTypelessFormat(this->mSwapChainDesc.BufferDesc.Format);
+			texdesc.SampleDesc.Count = 1;
+			texdesc.SampleDesc.Quality = 0;
+			texdesc.Usage = D3D11_USAGE_DEFAULT;
+			texdesc.BindFlags = D3D11_BIND_RENDER_TARGET;
+			texdesc.MiscFlags = texdesc.CPUAccessFlags = 0;
 
+			if (this->mSwapChainDesc.SampleDesc.Count > 1)
+			{
+				hr = this->mDevice->CreateTexture2D(&texdesc, nullptr, &this->mBackBufferResolved);
+
+				if (FAILED(hr))
+				{
+					LOG(TRACE) << "Failed to create backbuffer resolve texture (Width = " << texdesc.Width << ", Height = " << texdesc.Height << ", Format = " << texdesc.Format << ", SampleCount = " << texdesc.SampleDesc.Count << ", SampleQuality = " << texdesc.SampleDesc.Quality << ")! HRESULT is '" << hr << "'.";
+
+					SAFE_RELEASE(this->mBackBuffer);
+
+					return false;
+				}
+
+				hr = this->mDevice->CreateRenderTargetView(this->mBackBuffer, nullptr, &this->mBackBufferTargets[2]);
+
+				assert(SUCCEEDED(hr));
+			}
+			else
+			{
+				this->mBackBufferResolved = this->mBackBuffer;
+				this->mBackBufferResolved->AddRef();
+			}
+
+			texdesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+
+			hr = this->mDevice->CreateTexture2D(&texdesc, nullptr, &this->mBackBufferTexture);
+
+			if (SUCCEEDED(hr))
+			{
+				D3D11_SHADER_RESOURCE_VIEW_DESC srvdesc;
+				ZeroMemory(&srvdesc, sizeof(D3D11_SHADER_RESOURCE_VIEW_DESC));
+				srvdesc.Format = D3D11EffectCompiler::MakeNonSRBFormat(texdesc.Format);
+				srvdesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+				srvdesc.Texture2D.MipLevels = texdesc.MipLevels;
+
+				if (SUCCEEDED(hr))
+				{
+					hr = this->mDevice->CreateShaderResourceView(this->mBackBufferTexture, &srvdesc, &this->mBackBufferTextureSRV[0]);
+				}
+				else
+				{
+					LOG(TRACE) << "Failed to create backbuffer texture resource view (Format = " << srvdesc.Format << ")! HRESULT is '" << hr << "'.";
+				}
+
+				srvdesc.Format = D3D11EffectCompiler::MakeSRGBFormat(texdesc.Format);
+
+				if (SUCCEEDED(hr))
+				{
+					hr = this->mDevice->CreateShaderResourceView(this->mBackBufferTexture, &srvdesc, &this->mBackBufferTextureSRV[1]);
+				}
+				else
+				{
+					LOG(TRACE) << "Failed to create backbuffer SRGB texture resource view (Format = " << srvdesc.Format << ")! HRESULT is '" << hr << "'.";
+				}
+			}
+			else
+			{
+				LOG(TRACE) << "Failed to create backbuffer texture (Width = " << texdesc.Width << ", Height = " << texdesc.Height << ", Format = " << texdesc.Format << ", SampleCount = " << texdesc.SampleDesc.Count << ", SampleQuality = " << texdesc.SampleDesc.Quality << ")! HRESULT is '" << hr << "'.";
+
+				texdesc.Format = D3D11EffectCompiler::MakeNonSRBFormat(texdesc.Format);
+
+				hr = this->mDevice->CreateTexture2D(&texdesc, nullptr, &this->mBackBufferTexture);
+
+				if (SUCCEEDED(hr))
+				{
+					hr = this->mDevice->CreateShaderResourceView(this->mBackBufferTexture, nullptr, &this->mBackBufferTextureSRV[0]);
+
+					if (SUCCEEDED(hr))
+					{
+						this->mBackBufferTextureSRV[1] = this->mBackBufferTextureSRV[0];
+						this->mBackBufferTextureSRV[1]->AddRef();
+					}
+				}
+			}
+
+			if (FAILED(hr))
+			{
 				SAFE_RELEASE(this->mBackBuffer);
+				SAFE_RELEASE(this->mBackBufferResolved);
+				SAFE_RELEASE(this->mBackBufferTexture);
+				SAFE_RELEASE(this->mBackBufferTextureSRV[0]);
+				SAFE_RELEASE(this->mBackBufferTextureSRV[1]);
+
+				return false;
+			}
+
+			D3D11_RENDER_TARGET_VIEW_DESC rtdesc;
+			ZeroMemory(&rtdesc, sizeof(D3D11_RENDER_TARGET_VIEW_DESC));
+			rtdesc.Format = D3D11EffectCompiler::MakeNonSRBFormat(texdesc.Format);
+			rtdesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
+
+			hr = this->mDevice->CreateRenderTargetView(this->mBackBufferResolved, &rtdesc, &this->mBackBufferTargets[0]);
+
+			if (FAILED(hr))
+			{
+				SAFE_RELEASE(this->mBackBuffer);
+				SAFE_RELEASE(this->mBackBufferResolved);
+				SAFE_RELEASE(this->mBackBufferTexture);
+				SAFE_RELEASE(this->mBackBufferTextureSRV[0]);
+				SAFE_RELEASE(this->mBackBufferTextureSRV[1]);
+
+				LOG(TRACE) << "Failed to create backbuffer rendertarget (Format = " << rtdesc.Format << ")! HRESULT is '" << hr << "'.";
+
+				return false;
+			}
+
+			rtdesc.Format = D3D11EffectCompiler::MakeSRGBFormat(texdesc.Format);
+
+			hr = this->mDevice->CreateRenderTargetView(this->mBackBufferResolved, &rtdesc, &this->mBackBufferTargets[1]);
+
+			if (FAILED(hr))
+			{
+				SAFE_RELEASE(this->mBackBuffer);
+				SAFE_RELEASE(this->mBackBufferResolved);
+				SAFE_RELEASE(this->mBackBufferTexture);
+				SAFE_RELEASE(this->mBackBufferTextureSRV[0]);
+				SAFE_RELEASE(this->mBackBufferTextureSRV[1]);
+				SAFE_RELEASE(this->mBackBufferTargets[0]);
+
+				LOG(TRACE) << "Failed to create backbuffer SRGB rendertarget (Format = " << rtdesc.Format << ")! HRESULT is '" << hr << "'.";
 
 				return false;
 			}
@@ -2462,7 +2588,7 @@ namespace ReShade
 				LOG(TRACE) << "Failed to create default depthstencil! HRESULT is '" << hr << "'.";
 
 				SAFE_RELEASE(this->mBackBuffer);
-				SAFE_RELEASE(this->mBackBufferReplacement);
+				SAFE_RELEASE(this->mBackBufferResolved);
 				SAFE_RELEASE(this->mBackBufferTexture);
 				SAFE_RELEASE(this->mBackBufferTextureSRV[0]);
 				SAFE_RELEASE(this->mBackBufferTextureSRV[1]);
@@ -2471,6 +2597,21 @@ namespace ReShade
 
 				return false;
 			}
+
+			const BYTE vs[] = { 68, 88, 66, 67, 224, 206, 72, 137, 142, 185, 68, 219, 247, 216, 225, 132, 111, 78, 106, 20, 1, 0, 0, 0, 156, 2, 0, 0, 5, 0, 0, 0, 52, 0, 0, 0, 140, 0, 0, 0, 192, 0, 0, 0, 24, 1, 0, 0, 32, 2, 0, 0, 82, 68, 69, 70, 80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 28, 0, 0, 0, 0, 4, 254, 255, 0, 1, 0, 0, 28, 0, 0, 0, 77, 105, 99, 114, 111, 115, 111, 102, 116, 32, 40, 82, 41, 32, 72, 76, 83, 76, 32, 83, 104, 97, 100, 101, 114, 32, 67, 111, 109, 112, 105, 108, 101, 114, 32, 54, 46, 51, 46, 57, 54, 48, 48, 46, 49, 54, 51, 56, 52, 0, 171, 171, 73, 83, 71, 78, 44, 0, 0, 0, 1, 0, 0, 0, 8, 0, 0, 0, 32, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 83, 86, 95, 86, 101, 114, 116, 101, 120, 73, 68, 0, 79, 83, 71, 78, 80, 0, 0, 0, 2, 0, 0, 0, 8, 0, 0, 0, 56, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 15, 0, 0, 0, 68, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 1, 0, 0, 0, 3, 12, 0, 0, 83, 86, 95, 80, 111, 115, 105, 116, 105, 111, 110, 0, 84, 69, 88, 67, 79, 79, 82, 68, 0, 171, 171, 171, 83, 72, 68, 82, 0, 1, 0, 0, 64, 0, 1, 0, 64, 0, 0, 0, 96, 0, 0, 4, 18, 16, 16, 0, 0, 0, 0, 0, 6, 0, 0, 0, 103, 0, 0, 4, 242, 32, 16, 0, 0, 0, 0, 0, 1, 0, 0, 0, 101, 0, 0, 3, 50, 32, 16, 0, 1, 0, 0, 0, 104, 0, 0, 2, 1, 0, 0, 0, 32, 0, 0, 10, 50, 0, 16, 0, 0, 0, 0, 0, 6, 16, 16, 0, 0, 0, 0, 0, 2, 64, 0, 0, 2, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 10, 50, 0, 16, 0, 0, 0, 0, 0, 70, 0, 16, 0, 0, 0, 0, 0, 2, 64, 0, 0, 0, 0, 0, 64, 0, 0, 0, 64, 0, 0, 0, 0, 0, 0, 0, 0, 50, 0, 0, 15, 50, 32, 16, 0, 0, 0, 0, 0, 70, 0, 16, 0, 0, 0, 0, 0, 2, 64, 0, 0, 0, 0, 0, 64, 0, 0, 0, 192, 0, 0, 0, 0, 0, 0, 0, 0, 2, 64, 0, 0, 0, 0, 128, 191, 0, 0, 128, 63, 0, 0, 0, 0, 0, 0, 0, 0, 54, 0, 0, 5, 50, 32, 16, 0, 1, 0, 0, 0, 70, 0, 16, 0, 0, 0, 0, 0, 54, 0, 0, 8, 194, 32, 16, 0, 0, 0, 0, 0, 2, 64, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 128, 63, 62, 0, 0, 1, 83, 84, 65, 84, 116, 0, 0, 0, 6, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+			hr = this->mDevice->CreateVertexShader(vs, ARRAYSIZE(vs), nullptr, &this->mCopyVS);
+
+			assert(SUCCEEDED(hr));
+
+			const BYTE ps[] = { 68, 88, 66, 67, 93, 102, 148, 45, 34, 106, 51, 79, 54, 23, 136, 21, 27, 217, 232, 71, 1, 0, 0, 0, 116, 2, 0, 0, 5, 0, 0, 0, 52, 0, 0, 0, 208, 0, 0, 0, 40, 1, 0, 0, 92, 1, 0, 0, 248, 1, 0, 0, 82, 68, 69, 70, 148, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 28, 0, 0, 0, 0, 4, 255, 255, 0, 1, 0, 0, 98, 0, 0, 0, 92, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 95, 0, 0, 0, 2, 0, 0, 0, 5, 0, 0, 0, 4, 0, 0, 0, 255, 255, 255, 255, 0, 0, 0, 0, 1, 0, 0, 0, 13, 0, 0, 0, 115, 48, 0, 116, 48, 0, 77, 105, 99, 114, 111, 115, 111, 102, 116, 32, 40, 82, 41, 32, 72, 76, 83, 76, 32, 83, 104, 97, 100, 101, 114, 32, 67, 111, 109, 112, 105, 108, 101, 114, 32, 54, 46, 51, 46, 57, 54, 48, 48, 46, 49, 54, 51, 56, 52, 0, 73, 83, 71, 78, 80, 0, 0, 0, 2, 0, 0, 0, 8, 0, 0, 0, 56, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 15, 0, 0, 0, 68, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 1, 0, 0, 0, 3, 3, 0, 0, 83, 86, 95, 80, 111, 115, 105, 116, 105, 111, 110, 0, 84, 69, 88, 67, 79, 79, 82, 68, 0, 171, 171, 171, 79, 83, 71, 78, 44, 0, 0, 0, 1, 0, 0, 0, 8, 0, 0, 0, 32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 15, 0, 0, 0, 83, 86, 95, 84, 97, 114, 103, 101, 116, 0, 171, 171, 83, 72, 68, 82, 148, 0, 0, 0, 64, 0, 0, 0, 37, 0, 0, 0, 90, 0, 0, 3, 0, 96, 16, 0, 0, 0, 0, 0, 88, 24, 0, 4, 0, 112, 16, 0, 0, 0, 0, 0, 85, 85, 0, 0, 98, 16, 0, 3, 50, 16, 16, 0, 1, 0, 0, 0, 101, 0, 0, 3, 242, 32, 16, 0, 0, 0, 0, 0, 104, 0, 0, 2, 1, 0, 0, 0, 69, 0, 0, 9, 242, 0, 16, 0, 0, 0, 0, 0, 70, 16, 16, 0, 1, 0, 0, 0, 70, 126, 16, 0, 0, 0, 0, 0, 0, 96, 16, 0, 0, 0, 0, 0, 54, 0, 0, 5, 114, 32, 16, 0, 0, 0, 0, 0, 70, 2, 16, 0, 0, 0, 0, 0, 54, 0, 0, 5, 130, 32, 16, 0, 0, 0, 0, 0, 1, 64, 0, 0, 0, 0, 128, 63, 62, 0, 0, 1, 83, 84, 65, 84, 116, 0, 0, 0, 4, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+			hr = this->mDevice->CreatePixelShader(ps, ARRAYSIZE(ps), nullptr, &this->mCopyPS);
+
+			assert(SUCCEEDED(hr));
+
+			const D3D11_SAMPLER_DESC copysampdesc = { D3D11_FILTER_MIN_MAG_MIP_POINT, D3D11_TEXTURE_ADDRESS_CLAMP, D3D11_TEXTURE_ADDRESS_CLAMP, D3D11_TEXTURE_ADDRESS_CLAMP };
+			hr = this->mDevice->CreateSamplerState(&copysampdesc, &this->mCopySampler);
+
+			assert(SUCCEEDED(hr));
 
 			this->mNVG = nvgCreateD3D11(this->mDevice, 0);
 
@@ -2504,7 +2645,7 @@ namespace ReShade
 			this->mBackBuffer->AddRef();
 			this->mBackBuffer = nullptr;
 
-			SAFE_RELEASE(this->mBackBufferReplacement);
+			SAFE_RELEASE(this->mBackBufferResolved);
 			SAFE_RELEASE(this->mBackBufferTexture);
 			SAFE_RELEASE(this->mBackBufferTextureSRV[0]);
 			SAFE_RELEASE(this->mBackBufferTextureSRV[1]);
@@ -2517,6 +2658,9 @@ namespace ReShade
 			SAFE_RELEASE(this->mDepthStencilTextureSRV);
 
 			SAFE_RELEASE(this->mDefaultDepthStencil);
+			SAFE_RELEASE(this->mCopyVS);
+			SAFE_RELEASE(this->mCopyPS);
+			SAFE_RELEASE(this->mCopySampler);
 
 			ZeroMemory(&this->mSwapChainDesc, sizeof(DXGI_SWAP_CHAIN_DESC));
 
@@ -2569,9 +2713,9 @@ namespace ReShade
 			this->mStateBlock->Capture();
 
 			// Resolve backbuffer
-			if (this->mBackBufferReplacement != this->mBackBuffer)
+			if (this->mBackBufferResolved != this->mBackBuffer)
 			{
-				this->mImmediateContext->ResolveSubresource(this->mBackBuffer, 0, this->mBackBufferReplacement, 0, this->mSwapChainDesc.BufferDesc.Format);
+				this->mImmediateContext->ResolveSubresource(this->mBackBufferResolved, 0, this->mBackBuffer, 0, this->mSwapChainDesc.BufferDesc.Format);
 			}
 
 			// Setup real backbuffer
@@ -2594,15 +2738,21 @@ namespace ReShade
 				return;
 			}
 
+			// Copy to backbuffer
+			if (this->mBackBufferResolved != this->mBackBuffer)
+			{
+				this->mImmediateContext->OMSetRenderTargets(1, &this->mBackBufferTargets[2], nullptr);
+				this->mImmediateContext->CopyResource(this->mBackBufferTexture, this->mBackBufferResolved);
+
+				this->mImmediateContext->VSSetShader(this->mCopyVS, nullptr, 0);
+				this->mImmediateContext->PSSetShader(this->mCopyPS, nullptr, 0);
+				this->mImmediateContext->PSSetSamplers(0, 1, &this->mCopySampler);
+				this->mImmediateContext->PSSetShaderResources(0, 1, &this->mBackBufferTextureSRV[0]);
+				this->mImmediateContext->Draw(3, 0);
+			}
+
 			// Apply previous device state
 			this->mStateBlock->Apply();
-		}
-		void D3D11Runtime::OnGetBackBuffer(ID3D11Texture2D *&buffer)
-		{
-			if (this->mBackBufferReplacement != nullptr)
-			{
-				buffer = this->mBackBufferReplacement;
-			}
 		}
 		void D3D11Runtime::OnCreateDepthStencilView(ID3D11Resource *resource, ID3D11DepthStencilView *depthstencil)
 		{
@@ -2770,103 +2920,6 @@ namespace ReShade
 
 				CreateDepthStencilReplacement(best);
 			}
-		}
-		bool D3D11Runtime::CreateBackBufferReplacement(ID3D11Texture2D *backbuffer, const DXGI_SAMPLE_DESC &samples)
-		{
-			D3D11_TEXTURE2D_DESC texdesc;
-			backbuffer->GetDesc(&texdesc);
-
-			HRESULT hr;
-
-			texdesc.SampleDesc = samples;
-			texdesc.BindFlags = D3D11_BIND_RENDER_TARGET;
-
-			if (samples.Count > 1)
-			{
-				hr = this->mDevice->CreateTexture2D(&texdesc, nullptr, &this->mBackBufferReplacement);
-
-				if (FAILED(hr))
-				{
-					return false;
-				}
-			}
-			else
-			{
-				this->mBackBufferReplacement = this->mBackBuffer;
-				this->mBackBufferReplacement->AddRef();
-			}
-
-			texdesc.Format = D3D11EffectCompiler::MakeTypelessFormat(texdesc.Format);
-			texdesc.SampleDesc.Count = 1;
-			texdesc.SampleDesc.Quality = 0;
-			texdesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-
-			hr = this->mDevice->CreateTexture2D(&texdesc, nullptr, &this->mBackBufferTexture);
-
-			if (SUCCEEDED(hr))
-			{
-				D3D11_SHADER_RESOURCE_VIEW_DESC srvdesc;
-				ZeroMemory(&srvdesc, sizeof(D3D11_SHADER_RESOURCE_VIEW_DESC));
-				srvdesc.Format = D3D11EffectCompiler::MakeNonSRBFormat(texdesc.Format);	
-				srvdesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-				srvdesc.Texture2D.MipLevels = texdesc.MipLevels;
-
-				if (SUCCEEDED(hr))
-				{
-					hr = this->mDevice->CreateShaderResourceView(this->mBackBufferTexture, &srvdesc, &this->mBackBufferTextureSRV[0]);
-				}
-
-				srvdesc.Format = D3D11EffectCompiler::MakeSRGBFormat(texdesc.Format);
-
-				if (SUCCEEDED(hr))
-				{
-					hr = this->mDevice->CreateShaderResourceView(this->mBackBufferTexture, &srvdesc, &this->mBackBufferTextureSRV[1]);
-				}
-			}
-
-			if (FAILED(hr))
-			{
-				SAFE_RELEASE(this->mBackBufferReplacement);
-				SAFE_RELEASE(this->mBackBufferTexture);
-				SAFE_RELEASE(this->mBackBufferTextureSRV[0]);
-				SAFE_RELEASE(this->mBackBufferTextureSRV[1]);
-
-				return false;
-			}
-
-			D3D11_RENDER_TARGET_VIEW_DESC rtdesc;
-			ZeroMemory(&rtdesc, sizeof(D3D11_RENDER_TARGET_VIEW_DESC));
-			rtdesc.Format = D3D11EffectCompiler::MakeNonSRBFormat(texdesc.Format);
-			rtdesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
-		
-			hr = this->mDevice->CreateRenderTargetView(this->mBackBuffer, &rtdesc, &this->mBackBufferTargets[0]);
-
-			if (FAILED(hr))
-			{
-				SAFE_RELEASE(this->mBackBufferReplacement);
-				SAFE_RELEASE(this->mBackBufferTexture);
-				SAFE_RELEASE(this->mBackBufferTextureSRV[0]);
-				SAFE_RELEASE(this->mBackBufferTextureSRV[1]);
-
-				return false;
-			}
-
-			rtdesc.Format = D3D11EffectCompiler::MakeSRGBFormat(texdesc.Format);
-		
-			hr = this->mDevice->CreateRenderTargetView(this->mBackBuffer, &rtdesc, &this->mBackBufferTargets[1]);
-
-			if (FAILED(hr))
-			{
-				SAFE_RELEASE(this->mBackBufferReplacement);
-				SAFE_RELEASE(this->mBackBufferTexture);
-				SAFE_RELEASE(this->mBackBufferTextureSRV[0]);
-				SAFE_RELEASE(this->mBackBufferTextureSRV[1]);
-				SAFE_RELEASE(this->mBackBufferTargets[0]);
-
-				return false;
-			}
-
-			return true;
 		}
 		bool D3D11Runtime::CreateDepthStencilReplacement(ID3D11DepthStencilView *depthstencil)
 		{
@@ -3361,7 +3414,7 @@ namespace ReShade
 			devicecontext->OMSetDepthStencilState(pass.DSS, pass.StencilRef);
 
 			// Save backbuffer of previous pass
-			devicecontext->CopyResource(runtime->mBackBufferTexture, runtime->mBackBuffer);
+			devicecontext->CopyResource(runtime->mBackBufferTexture, runtime->mBackBufferResolved);
 
 			// Setup shader resources
 			devicecontext->VSSetShaderResources(0, static_cast<UINT>(pass.SRV.size()), pass.SRV.data());

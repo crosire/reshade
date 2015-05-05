@@ -25,7 +25,6 @@ namespace ReShade
 			void OnDeleteInternal();
 			void OnDrawInternal(unsigned int vertices);
 			void OnPresentInternal(UINT interval);
-			void OnGetBackBuffer(ID3D10Texture2D *&buffer);
 			void OnCreateDepthStencilView(ID3D10Resource *resource, ID3D10DepthStencilView *depthstencil);
 			void OnDeleteDepthStencilView(ID3D10DepthStencilView *depthstencil);
 			void OnSetDepthStencilView(ID3D10DepthStencilView *&depthstencil);
@@ -34,7 +33,6 @@ namespace ReShade
 			void OnCopyResource(ID3D10Resource *&dest, ID3D10Resource *&source);
 
 			void DetectDepthSource();
-			bool CreateBackBufferReplacement(ID3D10Texture2D *backbuffer, const DXGI_SAMPLE_DESC &samples);
 			bool CreateDepthStencilReplacement(ID3D10DepthStencilView *depthstencil);
 
 			virtual std::unique_ptr<FX::Effect> CompileEffect(const FX::Tree &ast, std::string &errors) const override;
@@ -44,15 +42,18 @@ namespace ReShade
 			IDXGISwapChain *mSwapChain;
 			DXGI_SWAP_CHAIN_DESC mSwapChainDesc;
 			std::unique_ptr<class D3D10StateBlock> mStateBlock;
-			ID3D10Texture2D *mBackBuffer, *mBackBufferReplacement;
+			ID3D10Texture2D *mBackBuffer, *mBackBufferResolved;
 			ID3D10Texture2D *mBackBufferTexture;
 			ID3D10ShaderResourceView *mBackBufferTextureSRV[2];
-			ID3D10RenderTargetView *mBackBufferTargets[2];
+			ID3D10RenderTargetView *mBackBufferTargets[3];
 			ID3D10DepthStencilView *mDepthStencil, *mDepthStencilReplacement;
 			ID3D10Texture2D *mDepthStencilTexture;
 			ID3D10ShaderResourceView *mDepthStencilTextureSRV;
 			ID3D10DepthStencilView *mDefaultDepthStencil;
 			std::unordered_map<ID3D10DepthStencilView *, DepthSourceInfo> mDepthSourceTable;
+			ID3D10VertexShader *mCopyVS;
+			ID3D10PixelShader *mCopyPS;
+			ID3D10SamplerState *mCopySampler;
 			bool mLost;
 		};
 
