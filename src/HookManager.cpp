@@ -365,6 +365,17 @@ namespace ReShade
 
 				return handle;
 			}
+			HMODULE WINAPI HookLoadLibraryExA(LPCSTR lpFileName, HANDLE hFile, DWORD dwFlags)
+			{
+				if (dwFlags == 0)
+				{
+					return HookLoadLibraryA(lpFileName);
+				}
+
+				static const auto trampoline = CallUnchecked(&HookLoadLibraryExA);
+
+				return trampoline(lpFileName, hFile, dwFlags);
+			}
 			HMODULE WINAPI HookLoadLibraryW(LPCWSTR lpFileName)
 			{
 				static const auto trampoline = CallUnchecked(&HookLoadLibraryW);
@@ -398,6 +409,17 @@ namespace ReShade
 				sDelayedHookPaths.erase(remove, sDelayedHookPaths.end());
 
 				return handle;
+			}
+			HMODULE WINAPI HookLoadLibraryExW(LPCWSTR lpFileName, HANDLE hFile, DWORD dwFlags)
+			{
+				if (dwFlags == 0)
+				{
+					return HookLoadLibraryW(lpFileName);
+				}
+
+				static const auto trampoline = CallUnchecked(&HookLoadLibraryExW);
+
+				return trampoline(lpFileName, hFile, dwFlags);
 			}
 		}
 
@@ -484,7 +506,9 @@ namespace ReShade
 			const boost::filesystem::path replacementPath = GetModuleFileName(sCurrentModuleHandle);
 
 			Install(reinterpret_cast<Hook::Function>(&LoadLibraryA), reinterpret_cast<Hook::Function>(&HookLoadLibraryA));
+			Install(reinterpret_cast<Hook::Function>(&LoadLibraryExA), reinterpret_cast<Hook::Function>(&HookLoadLibraryExA));
 			Install(reinterpret_cast<Hook::Function>(&LoadLibraryW), reinterpret_cast<Hook::Function>(&HookLoadLibraryW));
+			Install(reinterpret_cast<Hook::Function>(&LoadLibraryExW), reinterpret_cast<Hook::Function>(&HookLoadLibraryExW));
 
 			LOG(INFO) << "Registering hooks for " << targetPath << " ...";
 
