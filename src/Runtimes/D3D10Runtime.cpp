@@ -2530,11 +2530,6 @@ namespace ReShade
 
 			this->mNVG = nullptr;
 
-			if (this->mStateBlock != nullptr)
-			{
-				this->mStateBlock->ReleaseAllDeviceObjects();
-			}
-
 			SAFE_RELEASE(this->mBackBuffer);
 			SAFE_RELEASE(this->mBackBufferResolved);
 			SAFE_RELEASE(this->mBackBufferTexture);
@@ -2656,6 +2651,8 @@ namespace ReShade
 			this->mStateBlock->Apply();
 
 			this->mDevice->OMSetRenderTargets(D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, stateblockTargets, stateblockDepthStencil);
+
+			this->mStateBlock->ReleaseAllDeviceObjects();
 
 			for (UINT i = 0; i < D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT; ++i)
 			{

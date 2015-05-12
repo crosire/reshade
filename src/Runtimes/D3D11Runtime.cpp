@@ -2142,8 +2142,6 @@ namespace ReShade
 
 			void Capture()
 			{
-				ReleaseAllDeviceObjects();
-
 				this->mDeviceContext->IAGetPrimitiveTopology(&this->mIAPrimitiveTopology);
 				this->mDeviceContext->IAGetInputLayout(&this->mIAInputLayout);
 
@@ -2193,7 +2191,7 @@ namespace ReShade
 				this->mDeviceContext->OMGetDepthStencilState(&this->mOMDepthStencilState, &this->mOMStencilRef);
 				this->mDeviceContext->OMGetRenderTargets(D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT, this->mOMRenderTargets, &this->mOMDepthStencil);
 			}
-			void Apply()
+			void ApplyAndRelease()
 			{
 				this->mDeviceContext->IASetPrimitiveTopology(this->mIAPrimitiveTopology);
 				this->mDeviceContext->IASetInputLayout(this->mIAInputLayout);
@@ -2237,7 +2235,11 @@ namespace ReShade
 				this->mDeviceContext->OMSetBlendState(this->mOMBlendState, this->mOMBlendFactor, this->mOMSampleMask);
 				this->mDeviceContext->OMSetDepthStencilState(this->mOMDepthStencilState, this->mOMStencilRef);
 				this->mDeviceContext->OMSetRenderTargets(D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT, this->mOMRenderTargets, this->mOMDepthStencil);
+
+				ReleaseAllDeviceObjects();
 			}
+
+		private:
 			void ReleaseAllDeviceObjects()
 			{
 				SAFE_RELEASE(this->mIAInputLayout);
@@ -2321,7 +2323,6 @@ namespace ReShade
 				SAFE_RELEASE(this->mOMDepthStencil);
 			}
 
-		private:
 			ID3D11DeviceContext *mDeviceContext;
 			D3D_FEATURE_LEVEL mFeatureLevel;
 
@@ -2639,8 +2640,6 @@ namespace ReShade
 
 			this->mNVG = nullptr;
 
-			this->mStateBlock->ReleaseAllDeviceObjects();
-
 			// Reset reference count to make UnrealEngine happy
 			this->mBackBuffer->AddRef();
 			this->mBackBuffer = nullptr;
@@ -2756,7 +2755,7 @@ namespace ReShade
 			}
 
 			// Apply previous device state
-			this->mStateBlock->Apply();
+			this->mStateBlock->ApplyAndRelease();
 		}
 		void D3D11Runtime::OnCreateDepthStencilView(ID3D11Resource *resource, ID3D11DepthStencilView *depthstencil)
 		{
