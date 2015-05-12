@@ -1485,7 +1485,9 @@ EXPORT HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, D3D_
 	Flags |= D3D11_CREATE_DEVICE_DEBUG;
 #endif
 
-	HRESULT hr = ReShade::Hooks::Call(&D3D11CreateDeviceAndSwapChain)(pAdapter, DriverType, Software, Flags, pFeatureLevels, FeatureLevels, SDKVersion, nullptr, nullptr, ppDevice, pFeatureLevel, nullptr);
+	D3D_FEATURE_LEVEL FeatureLevel = D3D_FEATURE_LEVEL_11_0;
+
+	HRESULT hr = ReShade::Hooks::Call(&D3D11CreateDeviceAndSwapChain)(pAdapter, DriverType, Software, Flags, pFeatureLevels, FeatureLevels, SDKVersion, nullptr, nullptr, ppDevice, &FeatureLevel, nullptr);
 
 	if (FAILED(hr))
 	{
@@ -1493,6 +1495,8 @@ EXPORT HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, D3D_
 
 		return hr;
 	}
+
+	LOG(TRACE) << "> Using feature level " << std::showbase << std::hex << FeatureLevel << std::dec << std::noshowbase << ".";
 
 	if (ppDevice != nullptr)
 	{
@@ -1545,6 +1549,11 @@ EXPORT HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, D3D_
 			devicecontextProxy->Release();
 			deviceProxy->Release();
 		}
+	}
+
+	if (pFeatureLevel != nullptr)
+	{
+		*pFeatureLevel = FeatureLevel;
 	}
 
 	return hr;
