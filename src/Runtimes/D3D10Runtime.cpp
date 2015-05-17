@@ -2341,7 +2341,10 @@ namespace ReShade
 			texdesc.BindFlags = D3D10_BIND_RENDER_TARGET;
 			texdesc.MiscFlags = texdesc.CPUAccessFlags = 0;
 
-			if (this->mSwapChainDesc.SampleDesc.Count > 1 || D3D10EffectCompiler::MakeNonSRGBFormat(this->mSwapChainDesc.BufferDesc.Format) != this->mSwapChainDesc.BufferDesc.Format)
+			OSVERSIONINFOEX verinfoWin7 = { sizeof(OSVERSIONINFOEX), 6, 1 };
+			const bool isWindows7 = VerifyVersionInfo(&verinfoWin7, VER_MAJORVERSION | VER_MINORVERSION, VerSetConditionMask(VerSetConditionMask(0, VER_MAJORVERSION, VER_EQUAL), VER_MINORVERSION, VER_EQUAL)) != FALSE;
+
+			if (this->mSwapChainDesc.SampleDesc.Count > 1 || D3D10EffectCompiler::MakeNonSRGBFormat(this->mSwapChainDesc.BufferDesc.Format) != this->mSwapChainDesc.BufferDesc.Format || !isWindows7)
 			{
 				hr = this->mDevice->CreateTexture2D(&texdesc, nullptr, &this->mBackBufferResolved);
 
