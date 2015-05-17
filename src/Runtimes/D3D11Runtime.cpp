@@ -201,7 +201,7 @@ namespace ReShade
 							return format;
 					}
 				}
-				static DXGI_FORMAT MakeNonSRBFormat(DXGI_FORMAT format)
+				static DXGI_FORMAT MakeNonSRGBFormat(DXGI_FORMAT format)
 				{
 					switch (format)
 					{
@@ -1555,7 +1555,7 @@ namespace ReShade
 						ZeroMemory(&srvdesc, sizeof(D3D11_SHADER_RESOURCE_VIEW_DESC));
 						srvdesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
 						srvdesc.Texture2D.MipLevels = texdesc.MipLevels;
-						srvdesc.Format = MakeNonSRBFormat(texdesc.Format);
+						srvdesc.Format = MakeNonSRGBFormat(texdesc.Format);
 
 						hr = this->mEffect->mRuntime->mDevice->CreateShaderResourceView(obj->mTexture, &srvdesc, &obj->mShaderResourceView[0]);
 
@@ -1882,7 +1882,7 @@ namespace ReShade
 
 						D3D11_RENDER_TARGET_VIEW_DESC rtvdesc;
 						ZeroMemory(&rtvdesc, sizeof(D3D11_RENDER_TARGET_VIEW_DESC));
-						rtvdesc.Format = node->States.SRGBWriteEnable ? MakeSRGBFormat(desc.Format) : MakeNonSRBFormat(desc.Format);
+						rtvdesc.Format = node->States.SRGBWriteEnable ? MakeSRGBFormat(desc.Format) : MakeNonSRGBFormat(desc.Format);
 						rtvdesc.ViewDimension = desc.SampleDesc.Count > 1 ? D3D11_RTV_DIMENSION_TEXTURE2DMS : D3D11_RTV_DIMENSION_TEXTURE2D;
 
 						if (texture->mRenderTargetView[targetIndex] == nullptr)
@@ -2439,7 +2439,7 @@ namespace ReShade
 			texdesc.BindFlags = D3D11_BIND_RENDER_TARGET;
 			texdesc.MiscFlags = texdesc.CPUAccessFlags = 0;
 
-			if (this->mSwapChainDesc.SampleDesc.Count > 1)
+			if (this->mSwapChainDesc.SampleDesc.Count > 1 || D3D11EffectCompiler::MakeNonSRGBFormat(this->mSwapChainDesc.BufferDesc.Format) != this->mSwapChainDesc.BufferDesc.Format)
 			{
 				hr = this->mDevice->CreateTexture2D(&texdesc, nullptr, &this->mBackBufferResolved);
 
@@ -2470,7 +2470,7 @@ namespace ReShade
 			{
 				D3D11_SHADER_RESOURCE_VIEW_DESC srvdesc;
 				ZeroMemory(&srvdesc, sizeof(D3D11_SHADER_RESOURCE_VIEW_DESC));
-				srvdesc.Format = D3D11EffectCompiler::MakeNonSRBFormat(texdesc.Format);
+				srvdesc.Format = D3D11EffectCompiler::MakeNonSRGBFormat(texdesc.Format);
 				srvdesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
 				srvdesc.Texture2D.MipLevels = texdesc.MipLevels;
 
@@ -2497,21 +2497,6 @@ namespace ReShade
 			else
 			{
 				LOG(TRACE) << "Failed to create backbuffer texture (Width = " << texdesc.Width << ", Height = " << texdesc.Height << ", Format = " << texdesc.Format << ", SampleCount = " << texdesc.SampleDesc.Count << ", SampleQuality = " << texdesc.SampleDesc.Quality << ")! HRESULT is '" << hr << "'.";
-
-				texdesc.Format = D3D11EffectCompiler::MakeNonSRBFormat(texdesc.Format);
-
-				hr = this->mDevice->CreateTexture2D(&texdesc, nullptr, &this->mBackBufferTexture);
-
-				if (SUCCEEDED(hr))
-				{
-					hr = this->mDevice->CreateShaderResourceView(this->mBackBufferTexture, nullptr, &this->mBackBufferTextureSRV[0]);
-
-					if (SUCCEEDED(hr))
-					{
-						this->mBackBufferTextureSRV[1] = this->mBackBufferTextureSRV[0];
-						this->mBackBufferTextureSRV[1]->AddRef();
-					}
-				}
 			}
 
 			if (FAILED(hr))
@@ -2527,7 +2512,7 @@ namespace ReShade
 
 			D3D11_RENDER_TARGET_VIEW_DESC rtdesc;
 			ZeroMemory(&rtdesc, sizeof(D3D11_RENDER_TARGET_VIEW_DESC));
-			rtdesc.Format = D3D11EffectCompiler::MakeNonSRBFormat(texdesc.Format);
+			rtdesc.Format = D3D11EffectCompiler::MakeNonSRGBFormat(texdesc.Format);
 			rtdesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
 
 			hr = this->mDevice->CreateRenderTargetView(this->mBackBufferResolved, &rtdesc, &this->mBackBufferTargets[0]);
@@ -2750,7 +2735,7 @@ namespace ReShade
 				this->mImmediateContext->VSSetShader(this->mCopyVS, nullptr, 0);
 				this->mImmediateContext->PSSetShader(this->mCopyPS, nullptr, 0);
 				this->mImmediateContext->PSSetSamplers(0, 1, &this->mCopySampler);
-				this->mImmediateContext->PSSetShaderResources(0, 1, &this->mBackBufferTextureSRV[0]);
+				this->mImmediateContext->PSSetShaderResources(0, 1, &this->mBackBufferTextureSRV[1]);
 				this->mImmediateContext->Draw(3, 0);
 			}
 
