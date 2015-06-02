@@ -2738,7 +2738,7 @@ namespace ReShade
 				this->mImmediateContext->VSSetShader(this->mCopyVS, nullptr, 0);
 				this->mImmediateContext->PSSetShader(this->mCopyPS, nullptr, 0);
 				this->mImmediateContext->PSSetSamplers(0, 1, &this->mCopySampler);
-				this->mImmediateContext->PSSetShaderResources(0, 1, &this->mBackBufferTextureSRV[1]);
+				this->mImmediateContext->PSSetShaderResources(0, 1, &this->mBackBufferTextureSRV[D3D11EffectCompiler::MakeSRGBFormat(this->mSwapChainDesc.BufferDesc.Format) == this->mSwapChainDesc.BufferDesc.Format]);
 				this->mImmediateContext->Draw(3, 0);
 			}
 
@@ -3133,7 +3133,7 @@ namespace ReShade
 				return;
 			}
 
-			this->mImmediateContext->CopyResource(textureStaging, this->mBackBuffer);
+			this->mImmediateContext->CopyResource(textureStaging, this->mBackBufferResolved);
 
 			D3D11_MAPPED_SUBRESOURCE mapped;
 			hr = this->mImmediateContext->Map(textureStaging, 0, D3D11_MAP_READ, 0, &mapped);

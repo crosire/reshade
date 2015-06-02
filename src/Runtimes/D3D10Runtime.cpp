@@ -2625,13 +2625,10 @@ namespace ReShade
 				this->mDevice->OMSetRenderTargets(1, &this->mBackBufferTargets[2], nullptr);
 				this->mDevice->CopyResource(this->mBackBufferTexture, this->mBackBufferResolved);
 
-				const FLOAT color[4] = { 1.0f, 0.0f, 0.0f, 0.0f };
-				this->mDevice->ClearRenderTargetView(this->mBackBufferTargets[2], color);
-
 				this->mDevice->VSSetShader(this->mCopyVS);
 				this->mDevice->PSSetShader(this->mCopyPS);
 				this->mDevice->PSSetSamplers(0, 1, &this->mCopySampler);
-				this->mDevice->PSSetShaderResources(0, 1, &this->mBackBufferTextureSRV[1]);
+				this->mDevice->PSSetShaderResources(0, 1, &this->mBackBufferTextureSRV[D3D10EffectCompiler::MakeSRGBFormat(this->mSwapChainDesc.BufferDesc.Format) == this->mSwapChainDesc.BufferDesc.Format]);
 				this->mDevice->Draw(3, 0);
 			}
 
@@ -3028,7 +3025,7 @@ namespace ReShade
 				return;
 			}
 
-			this->mDevice->CopyResource(textureStaging, this->mBackBuffer);
+			this->mDevice->CopyResource(textureStaging, this->mBackBufferResolved);
 				
 			D3D10_MAPPED_TEXTURE2D mapped;
 			hr = textureStaging->Map(0, D3D10_MAP_READ, 0, &mapped);
