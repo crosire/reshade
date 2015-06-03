@@ -403,6 +403,7 @@ EXPORTS
 	RegisterClassW
 	RegisterClassExA
 	RegisterClassExW
+	RegisterRawInputDevices
 
 	; ws2_32.dll
 	send

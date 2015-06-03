@@ -85,3 +85,41 @@ EXPORT ATOM WINAPI RegisterClassExW(CONST WNDCLASSEXW *lpWndClassEx)
 
 	return ReShade::Hooks::Call(&RegisterClassExW)(&wndclass);
 }
+
+EXPORT BOOL WINAPI RegisterRawInputDevices(PCRAWINPUTDEVICE pRawInputDevices, UINT uiNumDevices, UINT cbSize)
+{
+	LOG(INFO) << "Redirecting '" << "RegisterRawInputDevices" << "(" << pRawInputDevices << ", " << uiNumDevices << ", " << cbSize << ")' ...";
+
+	RAWINPUTDEVICE *const devices = new RAWINPUTDEVICE[uiNumDevices];
+
+	for (UINT i = 0; i < uiNumDevices; ++i)
+	{
+		devices[i] = pRawInputDevices[i];
+		
+		if (devices[i].usUsagePage != 1 || (devices[i].dwFlags & RIDEV_NOLEGACY) == 0)
+		{
+			continue;
+		}
+
+		switch (devices[i].usUsage)
+		{
+			case 0x02:
+				LOG(WARNING) << "> Removing 'RIDEV_NOLEGACY' flag from mouse device targeting window " << devices[i].hwndTarget << ".";
+				break;
+			case 0x06:
+				LOG(WARNING) << "> Removing 'RIDEV_NOLEGACY' flag from keyboard device targeting window " << devices[i].hwndTarget << ".";
+				break;
+			default:
+				LOG(WARNING) << "> Removing 'RIDEV_NOLEGACY' flag from unknown device targeting window " << devices[i].hwndTarget << ".";
+				break;
+		}
+
+		devices[i].dwFlags ^= RIDEV_NOLEGACY;
+	}
+
+	const BOOL res = ReShade::Hooks::Call(&RegisterRawInputDevices)(devices, uiNumDevices, cbSize);
+
+	delete[] devices;
+
+	return res;
+}
