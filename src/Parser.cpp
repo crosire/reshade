@@ -2775,7 +2775,7 @@ namespace ReShade
 				{
 					unsigned int count = 0;
 
-					while (!Peek(';'))
+					do
 					{
 						if (count++ > 0 && !(Expect(',') && Expect(Lexer::Token::Id::Identifier)))
 						{
@@ -2793,6 +2793,7 @@ namespace ReShade
 
 						this->mAST.Uniforms.push_back(std::move(variable));
 					}
+					while (!Peek(';'));
 
 					if (!Expect(';'))
 					{
