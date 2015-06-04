@@ -3035,7 +3035,7 @@ BOOL WINAPI wglChoosePixelFormatARB(HDC hdc, const int *piAttribIList, const FLO
 
 	bool layerplanes = false, doublebuffered = false;
 
-	LOG(TRACE) << "> Dumping Attributes:";
+	LOG(TRACE) << "> Dumping attributes:";
 	LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
 	LOG(TRACE) << "  | Attribute                               | Value                                   |";
 	LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+" << std::left;
@@ -3359,7 +3359,7 @@ HPBUFFERARB WINAPI wglCreatePbufferARB(HDC hdc, int iPixelFormat, int iWidth, in
 		};
 	};
 
-	LOG(TRACE) << "> Dumping Attributes:";
+	LOG(TRACE) << "> Dumping attributes:";
 	LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
 	LOG(TRACE) << "  | Attribute                               | Value                                   |";
 	LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+" << std::left;

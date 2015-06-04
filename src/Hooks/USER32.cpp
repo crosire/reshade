@@ -95,7 +95,17 @@ EXPORT BOOL WINAPI RegisterRawInputDevices(PCRAWINPUTDEVICE pRawInputDevices, UI
 	for (UINT i = 0; i < uiNumDevices; ++i)
 	{
 		devices[i] = pRawInputDevices[i];
-		
+
+		LOG(TRACE) << "> Dumping device registration at index " << i << ":";
+		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
+		LOG(TRACE) << "  | Parameter                               | Value                                   |";
+		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+" << std::left;
+		LOG(TRACE) << "  | UsagePage                               | " << std::setw(39) << std::showbase << std::hex << devices[i].usUsagePage << std::dec << std::noshowbase << " |";
+		LOG(TRACE) << "  | Usage                                   | " << std::setw(39) << std::showbase << std::hex << devices[i].usUsage << std::dec << std::noshowbase << " |";
+		LOG(TRACE) << "  | Flags                                   | " << std::setw(39) << std::showbase << std::hex << devices[i].dwFlags << std::dec << std::noshowbase << " |";
+		LOG(TRACE) << "  | TargetWindow                            | " << std::setw(39) << devices[i].hwndTarget << " |";
+		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+" << std::internal;
+
 		if (devices[i].usUsagePage != 1 || (devices[i].dwFlags & RIDEV_NOLEGACY) == 0)
 		{
 			continue;
@@ -110,16 +120,29 @@ EXPORT BOOL WINAPI RegisterRawInputDevices(PCRAWINPUTDEVICE pRawInputDevices, UI
 				LOG(WARNING) << "> Removing 'RIDEV_NOLEGACY' flag from keyboard device targeting window " << devices[i].hwndTarget << ".";
 				break;
 			default:
-				LOG(WARNING) << "> Removing 'RIDEV_NOLEGACY' flag from unknown device targeting window " << devices[i].hwndTarget << ".";
-				break;
+				continue;
 		}
 
-		devices[i].dwFlags ^= RIDEV_NOLEGACY;
+		if (devices[i].hwndTarget == nullptr)
+		{
+			devices[i].dwFlags &= ~(RIDEV_NOLEGACY | RIDEV_APPKEYS);
+		}
+		else
+		{
+			devices[i].dwFlags &= ~(RIDEV_NOLEGACY | RIDEV_NOHOTKEYS | RIDEV_APPKEYS);
+		}
 	}
 
 	const BOOL res = ReShade::Hooks::Call(&RegisterRawInputDevices)(devices, uiNumDevices, cbSize);
 
 	delete[] devices;
 
-	return res;
+	if (!res)
+	{
+		LOG(WARNING) << "> 'RegisterRawInputDevices' failed with '" << GetLastError() << "'!";
+
+		return FALSE;
+	}
+
+	return TRUE;
 }

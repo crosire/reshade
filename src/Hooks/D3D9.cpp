@@ -245,7 +245,7 @@ namespace
 	}
 	void DumpPresentParameters(const D3DPRESENT_PARAMETERS &pp)
 	{
-		LOG(TRACE) << "> Dumping Presentation Parameters:";
+		LOG(TRACE) << "> Dumping presentation parameters:";
 		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
 		LOG(TRACE) << "  | Parameter                               | Value                                   |";
 		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+" << std::left;
