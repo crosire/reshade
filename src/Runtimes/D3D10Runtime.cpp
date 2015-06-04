@@ -2525,6 +2525,7 @@ namespace ReShade
 			SAFE_RELEASE(this->mBackBufferTextureSRV[1]);
 			SAFE_RELEASE(this->mBackBufferTargets[0]);
 			SAFE_RELEASE(this->mBackBufferTargets[1]);
+			SAFE_RELEASE(this->mBackBufferTargets[2]);
 
 			SAFE_RELEASE(this->mDepthStencil);
 			SAFE_RELEASE(this->mDepthStencilReplacement);
