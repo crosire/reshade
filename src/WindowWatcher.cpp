@@ -1,93 +1,156 @@
 #include "Log.hpp"
 #include "WindowWatcher.hpp"
 
+#include <windowsx.h>
+
+std::unordered_map<HWND, HHOOK> WindowWatcher::sRawInputHooks;
 std::vector<std::pair<HWND, WindowWatcher *>> WindowWatcher::sWatchers;
 
-WindowWatcher::WindowWatcher(HWND hwnd) : mWnd(hwnd), mKeys(), mMousePos()
+WindowWatcher::WindowWatcher(HWND hwnd) : mWnd(hwnd), mKeys(), mMousePos(), mMouseButtons()
 {
 	sWatchers.push_back(std::make_pair(hwnd, this));
 
-	const DWORD threadid = GetWindowThreadProcessId(hwnd, nullptr);
-	this->mHookMouse = SetWindowsHookEx(WH_MOUSE, reinterpret_cast<HOOKPROC>(&HookMouse), nullptr, threadid);
-	this->mHookKeyboard = SetWindowsHookEx(WH_KEYBOARD, reinterpret_cast<HOOKPROC>(&HookKeyboard), nullptr, threadid);
+	this->mHookWindowProc = SetWindowsHookEx(WH_GETMESSAGE, &HookWindowProc, nullptr, GetWindowThreadProcessId(hwnd, nullptr));
 }
 WindowWatcher::~WindowWatcher()
 {
 	sWatchers.erase(std::find_if(sWatchers.begin(), sWatchers.end(), [this](const std::pair<HWND, WindowWatcher *> &it) { return it.second == this; }));
 
-	UnhookWindowsHookEx(this->mHookMouse);
-	UnhookWindowsHookEx(this->mHookKeyboard);
+	UnhookWindowsHookEx(this->mHookWindowProc);
 }
 
-LRESULT CALLBACK WindowWatcher::HookMouse(int nCode, WPARAM wParam, LPARAM lParam)
+LRESULT CALLBACK WindowWatcher::HookWindowProc(int nCode, WPARAM wParam, LPARAM lParam)
 {
-	if (nCode != HC_ACTION)
+	if (nCode < HC_ACTION || wParam != PM_REMOVE)
 	{
 		return CallNextHookEx(nullptr, nCode, wParam, lParam);
 	}
 
-	MOUSEHOOKSTRUCT details = *reinterpret_cast<LPMOUSEHOOKSTRUCT>(lParam);
-	const auto it = std::find_if(sWatchers.begin(), sWatchers.end(), [&details](const std::pair<HWND, WindowWatcher *> &it) { return it.first == details.hwnd; });
+	MSG details = *reinterpret_cast<LPMSG>(lParam);
+
+	if (details.hwnd == nullptr)
+	{
+		details.hwnd = GetActiveWindow();
+	}
+
+	auto it = std::find_if(sWatchers.begin(), sWatchers.end(), [&details](const std::pair<HWND, WindowWatcher *> &it) { return it.first == details.hwnd; });
 
 	if (it == sWatchers.end())
 	{
-		return CallNextHookEx(nullptr, nCode, wParam, lParam);
+		if (!sWatchers.empty() && sRawInputHooks.find(details.hwnd) != sRawInputHooks.end())
+		{
+			// Just pick the first window watcher since it is rare to have more than one active window at a time.
+			it = sWatchers.begin();
+		}
+		else
+		{
+			return CallNextHookEx(nullptr, nCode, wParam, lParam);
+		}
 	}
 
-	ScreenToClient(details.hwnd, &details.pt);
+	ScreenToClient(it->second->mWnd, &details.pt);
 
-	WindowWatcher *const watcher = it->second;
-	watcher->mMousePos = details.pt;
+	it->second->mMousePos.x = details.pt.x;
+	it->second->mMousePos.y = details.pt.y;
+
+	switch (details.message)
+	{
+		case WM_INPUT:
+			if (GET_RAWINPUT_CODE_WPARAM(details.wParam) == RIM_INPUT)
+			{
+				RAWINPUT data;
+				UINT dataSize = sizeof(RAWINPUT);
+
+				if (GetRawInputData(reinterpret_cast<HRAWINPUT>(details.lParam), RID_INPUT, &data, &dataSize, sizeof(RAWINPUTHEADER)) < 0)
+				{
+					break;
+				}
+
+				switch (data.header.dwType)
+				{
+					case RIM_TYPEMOUSE:
+						if (data.data.mouse.usButtonFlags & RI_MOUSE_LEFT_BUTTON_DOWN)
+						{
+							it->second->mMouseButtons[0] = 1;
+						}
+						else if (data.data.mouse.usButtonFlags & RI_MOUSE_LEFT_BUTTON_UP)
+						{
+							it->second->mMouseButtons[0] = 0;
+						}
+						if (data.data.mouse.usButtonFlags & RI_MOUSE_RIGHT_BUTTON_DOWN)
+						{
+							it->second->mMouseButtons[2] = 1;
+						}
+						else if (data.data.mouse.usButtonFlags & RI_MOUSE_RIGHT_BUTTON_UP)
+						{
+							it->second->mMouseButtons[2] = 0;
+						}
+						if (data.data.mouse.usButtonFlags & RI_MOUSE_MIDDLE_BUTTON_DOWN)
+						{
+							it->second->mMouseButtons[1] = 1;
+						}
+						else if (data.data.mouse.usButtonFlags & RI_MOUSE_MIDDLE_BUTTON_UP)
+						{
+							it->second->mMouseButtons[1] = 0;
+						}
+						break;
+					case RIM_TYPEKEYBOARD:
+						if (data.data.keyboard.VKey != 0xFF)
+						{
+							it->second->mKeys[data.data.keyboard.VKey] = (data.data.keyboard.Flags & RI_KEY_BREAK) == 0;
+						}
+						break;
+				}
+			}
+			break;
+		case WM_KEYDOWN:
+		case WM_SYSKEYDOWN:
+			it->second->mKeys[details.wParam] = 1;
+			break;
+		case WM_KEYUP:
+		case WM_SYSKEYUP:
+			it->second->mKeys[details.wParam] = 0;
+			break;
+		case WM_LBUTTONDOWN:
+			it->second->mMouseButtons[0] = 1;
+			break;
+		case WM_LBUTTONUP:
+			it->second->mMouseButtons[0] = 0;
+			break;
+		case WM_RBUTTONDOWN:
+			it->second->mMouseButtons[2] = 1;
+			break;
+		case WM_RBUTTONUP:
+			it->second->mMouseButtons[2] = 0;
+			break;
+		case WM_MBUTTONDOWN:
+			it->second->mMouseButtons[1] = 1;
+			break;
+		case WM_MBUTTONUP:
+			it->second->mMouseButtons[1] = 0;
+			break;
+	}
 
 	return CallNextHookEx(nullptr, nCode, wParam, lParam);
 }
-LRESULT CALLBACK WindowWatcher::HookKeyboard(int nCode, WPARAM wParam, LPARAM lParam)
+
+void WindowWatcher::RegisterRawInputDevice(const RAWINPUTDEVICE &device)
 {
-	if (nCode != HC_ACTION)
+	const auto insert = sRawInputHooks.insert(std::make_pair(device.hwndTarget, nullptr));
+
+	if (insert.second)
 	{
-		return CallNextHookEx(nullptr, nCode, wParam, lParam);
+		insert.first->second = SetWindowsHookEx(WH_GETMESSAGE, &HookWindowProc, nullptr, GetWindowThreadProcessId(device.hwndTarget, nullptr));
 	}
-
-	const HWND hwnd = GetActiveWindow();
-	const auto it = std::find_if(sWatchers.begin(), sWatchers.end(), [hwnd](const std::pair<HWND, WindowWatcher *> &it) { return it.first == hwnd; });
-
-	if (it == sWatchers.end())
-	{
-		return CallNextHookEx(nullptr, nCode, wParam, lParam);
-	}
-
-	const UINT keycode = static_cast<UINT>(wParam);
-	const bool keydown = (lParam & 0x80000000) == 0;
-
-	assert(keycode < 256);
-
-	WindowWatcher *const watcher = it->second;
-	watcher->mKeys[keycode] = keydown;
-
-	return CallNextHookEx(nullptr, nCode, wParam, lParam);
 }
-
-bool WindowWatcher::GetKeyDown(UINT keycode) const
+void WindowWatcher::UnRegisterRawInputDevices()
 {
-	if (keycode >= 256)
+	for (auto &it : sRawInputHooks)
 	{
-		return false;
+		UnhookWindowsHookEx(it.second);
 	}
 
-	return this->mKeys[keycode] == 1;
-}
-bool WindowWatcher::GetKeyState(UINT keycode) const
-{
-	if (keycode >= 256)
-	{
-		return false;
-	}
-
-	return this->mKeys[keycode] != 0;
-}
-POINT WindowWatcher::GetMousePosition() const
-{
-	return this->mMousePos;
+	sRawInputHooks.clear();
 }
 
 void WindowWatcher::NextFrame()

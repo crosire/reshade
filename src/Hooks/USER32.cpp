@@ -1,5 +1,6 @@
 #include "Log.hpp"
 #include "HookManager.hpp"
+#include "WindowWatcher.hpp"
 
 #include <Windows.h>
 
@@ -90,52 +91,29 @@ EXPORT BOOL WINAPI RegisterRawInputDevices(PCRAWINPUTDEVICE pRawInputDevices, UI
 {
 	LOG(INFO) << "Redirecting '" << "RegisterRawInputDevices" << "(" << pRawInputDevices << ", " << uiNumDevices << ", " << cbSize << ")' ...";
 
-	RAWINPUTDEVICE *const devices = new RAWINPUTDEVICE[uiNumDevices];
-
 	for (UINT i = 0; i < uiNumDevices; ++i)
 	{
-		devices[i] = pRawInputDevices[i];
+		const RAWINPUTDEVICE &device = pRawInputDevices[i];
 
 		LOG(TRACE) << "> Dumping device registration at index " << i << ":";
 		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
 		LOG(TRACE) << "  | Parameter                               | Value                                   |";
 		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+" << std::left;
-		LOG(TRACE) << "  | UsagePage                               | " << std::setw(39) << std::showbase << std::hex << devices[i].usUsagePage << std::dec << std::noshowbase << " |";
-		LOG(TRACE) << "  | Usage                                   | " << std::setw(39) << std::showbase << std::hex << devices[i].usUsage << std::dec << std::noshowbase << " |";
-		LOG(TRACE) << "  | Flags                                   | " << std::setw(39) << std::showbase << std::hex << devices[i].dwFlags << std::dec << std::noshowbase << " |";
-		LOG(TRACE) << "  | TargetWindow                            | " << std::setw(39) << devices[i].hwndTarget << " |";
+		LOG(TRACE) << "  | UsagePage                               | " << std::setw(39) << std::showbase << std::hex << device.usUsagePage << std::dec << std::noshowbase << " |";
+		LOG(TRACE) << "  | Usage                                   | " << std::setw(39) << std::showbase << std::hex << device.usUsage << std::dec << std::noshowbase << " |";
+		LOG(TRACE) << "  | Flags                                   | " << std::setw(39) << std::showbase << std::hex << device.dwFlags << std::dec << std::noshowbase << " |";
+		LOG(TRACE) << "  | TargetWindow                            | " << std::setw(39) << device.hwndTarget << " |";
 		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+" << std::internal;
 
-		if (devices[i].usUsagePage != 1 || (devices[i].dwFlags & RIDEV_NOLEGACY) == 0)
+		if (device.usUsagePage != 1 || (device.dwFlags & RIDEV_NOLEGACY) == 0 || device.hwndTarget == nullptr)
 		{
 			continue;
 		}
 
-		switch (devices[i].usUsage)
-		{
-			case 0x02:
-				LOG(WARNING) << "> Removing 'RIDEV_NOLEGACY' flag from mouse device targeting window " << devices[i].hwndTarget << ".";
-				break;
-			case 0x06:
-				LOG(WARNING) << "> Removing 'RIDEV_NOLEGACY' flag from keyboard device targeting window " << devices[i].hwndTarget << ".";
-				break;
-			default:
-				continue;
-		}
-
-		if (devices[i].hwndTarget == nullptr)
-		{
-			devices[i].dwFlags &= ~(RIDEV_NOLEGACY | RIDEV_APPKEYS);
-		}
-		else
-		{
-			devices[i].dwFlags &= ~(RIDEV_NOLEGACY | RIDEV_NOHOTKEYS | RIDEV_APPKEYS);
-		}
+		WindowWatcher::RegisterRawInputDevice(device);
 	}
 
-	const BOOL res = ReShade::Hooks::Call(&RegisterRawInputDevices)(devices, uiNumDevices, cbSize);
-
-	delete[] devices;
+	const BOOL res = ReShade::Hooks::Call(&RegisterRawInputDevices)(pRawInputDevices, uiNumDevices, cbSize);
 
 	if (!res)
 	{

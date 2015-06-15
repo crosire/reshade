@@ -145,6 +145,8 @@ namespace ReShade
 	{
 		LOG(INFO) << "Exiting ...";
 
+		WindowWatcher::UnRegisterRawInputDevices();
+
 		delete sEffectWatcher;
 
 		Hooks::Uninstall();
@@ -224,7 +226,7 @@ namespace ReShade
 				info.Timeleft = info.Timeout;
 				info.ToggleTime = 0;
 			}
-			else if (this->mWindow->GetKeyDown(info.Toggle) && (!info.ToggleCtrl || this->mWindow->GetKeyState(VK_CONTROL)) && (!info.ToggleShift || this->mWindow->GetKeyState(VK_SHIFT)) && (!info.ToggleAlt || this->mWindow->GetKeyState(VK_MENU)))
+			else if (this->mWindow->GetKeyJustPressed(info.Toggle) && (!info.ToggleCtrl || this->mWindow->GetKeyState(VK_CONTROL)) && (!info.ToggleShift || this->mWindow->GetKeyState(VK_SHIFT)) && (!info.ToggleAlt || this->mWindow->GetKeyState(VK_MENU)))
 			{
 				info.Enabled = !info.Enabled;
 				info.Timeleft = info.Timeout;
@@ -302,7 +304,7 @@ namespace ReShade
 
 					const float min = constant->GetAnnotation("min").As<float>(), max = constant->GetAnnotation("max").As<float>();
 					const float stepMin = constant->GetAnnotation("step").As<float>(0), stepMax = constant->GetAnnotation("step").As<float>(1);
-					float increment = stepMax == 0 ? stepMin : (stepMin + std::fmodf(std::rand(), stepMax - stepMin + 1));
+					float increment = stepMax == 0 ? stepMin : (stepMin + std::fmodf(static_cast<float>(std::rand()), stepMax - stepMin + 1));
 					const float smoothing = constant->GetAnnotation("smoothing").As<float>();
 
 					if (value[1] >= 0)
@@ -376,7 +378,7 @@ namespace ReShade
 							bool current = false;
 							constant->GetValue(&current, 1);
 
-							if (this->mWindow->GetKeyDown(key))
+							if (this->mWindow->GetKeyJustPressed(key))
 							{
 								current = !current;
 
