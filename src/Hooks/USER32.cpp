@@ -6,7 +6,7 @@
 
 // -----------------------------------------------------------------------------------------------------
 
-EXPORT ATOM WINAPI RegisterClassA(CONST WNDCLASSA *lpWndClass)
+EXPORT ATOM WINAPI HookRegisterClassA(CONST WNDCLASSA *lpWndClass)
 {
 	assert(lpWndClass != nullptr);
 
@@ -24,9 +24,9 @@ EXPORT ATOM WINAPI RegisterClassA(CONST WNDCLASSA *lpWndClass)
 		}
 	}
 
-	return ReShade::Hooks::Call(&RegisterClassA)(&wndclass);
+	return ReShade::Hooks::Call(&HookRegisterClassA)(&wndclass);
 }
-EXPORT ATOM WINAPI RegisterClassW(CONST WNDCLASSW *lpWndClass)
+EXPORT ATOM WINAPI HookRegisterClassW(CONST WNDCLASSW *lpWndClass)
 {
 	assert(lpWndClass != nullptr);
 
@@ -44,9 +44,9 @@ EXPORT ATOM WINAPI RegisterClassW(CONST WNDCLASSW *lpWndClass)
 		}
 	}
 
-	return ReShade::Hooks::Call(&RegisterClassW)(&wndclass);
+	return ReShade::Hooks::Call(&HookRegisterClassW)(&wndclass);
 }
-EXPORT ATOM WINAPI RegisterClassExA(CONST WNDCLASSEXA *lpWndClassEx)
+EXPORT ATOM WINAPI HookRegisterClassExA(CONST WNDCLASSEXA *lpWndClassEx)
 {
 	assert(lpWndClassEx != nullptr);
 
@@ -64,9 +64,9 @@ EXPORT ATOM WINAPI RegisterClassExA(CONST WNDCLASSEXA *lpWndClassEx)
 		}
 	}
 
-	return ReShade::Hooks::Call(&RegisterClassExA)(&wndclass);
+	return ReShade::Hooks::Call(&HookRegisterClassExA)(&wndclass);
 }
-EXPORT ATOM WINAPI RegisterClassExW(CONST WNDCLASSEXW *lpWndClassEx)
+EXPORT ATOM WINAPI HookRegisterClassExW(CONST WNDCLASSEXW *lpWndClassEx)
 {
 	assert(lpWndClassEx != nullptr);
 
@@ -84,10 +84,10 @@ EXPORT ATOM WINAPI RegisterClassExW(CONST WNDCLASSEXW *lpWndClassEx)
 		}
 	}
 
-	return ReShade::Hooks::Call(&RegisterClassExW)(&wndclass);
+	return ReShade::Hooks::Call(&HookRegisterClassExW)(&wndclass);
 }
 
-EXPORT BOOL WINAPI RegisterRawInputDevices(PCRAWINPUTDEVICE pRawInputDevices, UINT uiNumDevices, UINT cbSize)
+EXPORT BOOL WINAPI HookRegisterRawInputDevices(PCRAWINPUTDEVICE pRawInputDevices, UINT uiNumDevices, UINT cbSize)
 {
 	LOG(INFO) << "Redirecting '" << "RegisterRawInputDevices" << "(" << pRawInputDevices << ", " << uiNumDevices << ", " << cbSize << ")' ...";
 
@@ -113,7 +113,7 @@ EXPORT BOOL WINAPI RegisterRawInputDevices(PCRAWINPUTDEVICE pRawInputDevices, UI
 		WindowWatcher::RegisterRawInputDevice(device);
 	}
 
-	const BOOL res = ReShade::Hooks::Call(&RegisterRawInputDevices)(pRawInputDevices, uiNumDevices, cbSize);
+	const BOOL res = ReShade::Hooks::Call(&HookRegisterRawInputDevices)(pRawInputDevices, uiNumDevices, cbSize);
 
 	if (!res)
 	{

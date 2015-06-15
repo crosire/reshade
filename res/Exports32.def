@@ -402,20 +402,19 @@ EXPORTS
 	wglUseFontOutlinesW
 
 	; user32.dll
-	RegisterClassA
-	RegisterClassW
-	RegisterClassExA
-	RegisterClassExW
-	RegisterRawInputDevices
+	RegisterClassA = HookRegisterClassA
+	RegisterClassW = HookRegisterClassW
+	RegisterClassExA = HookRegisterClassExA
+	RegisterClassExW = HookRegisterClassExW
+	RegisterRawInputDevices = HookRegisterRawInputDevices
 
 	; ws2_32.dll
-	send
-	sendto
-	recv
-	recvfrom
-
-	WSASend
-	WSASendTo
-	WSARecv
-	WSARecvEx
-	WSARecvFrom
+	send = HookPOSIXSend
+	sendto = HookPOSIXSendTo
+	recv = HookPOSIXRecv
+	recvfrom = HookPOSIXRecvFrom
+	WSASend = HookWSASend
+	WSASendTo = HookWSASendTo
+	WSARecv = HookWSARecv
+	WSARecvEx = HookWSARecvEx
+	WSARecvFrom = HookWSARecvFrom
