@@ -118,11 +118,11 @@ namespace ReShade
 		{
 			DeleteFile(logTracePath.c_str());
 
-			Log::Global.Open(logTracePath, Log::Level::Trace);
+			Log::Open(logTracePath, Log::Level::Trace);
 		}
 		else
 		{
-			Log::Global.Open(logPath, Log::Level::Info);
+			Log::Open(logPath, Log::Level::Info);
 		}
 
 		LOG(INFO) << "Initializing Crosire's ReShade version '" BOOST_STRINGIZE(VERSION_FULL) "' built on '" VERSION_DATE " " VERSION_TIME "' loaded from " << ObfuscatePath(injectorPath) << " to " << ObfuscatePath(executablePath) << " ...";

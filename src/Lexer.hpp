@@ -226,7 +226,6 @@ namespace ReShade
 				NumericLiteral mLiteralNumeric;
 			};
 
-		public:
 			Lexer(const Lexer &lexer);
 			Lexer(const std::string &source);
 

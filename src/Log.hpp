@@ -1,30 +1,20 @@
 #pragma once
 
-#include <fstream>
 #include <sstream>
 #include <iomanip>
 #include <codecvt>
-#include <boost\noncopyable.hpp>
 #include <boost\filesystem\path.hpp>
 
-#pragma region Undefine Log Levels
-#undef FATAL
-#undef ERROR
-#undef WARNING
-#undef INFO
-#undef TRACE
-#pragma endregion
-
-#define LOG(LEVEL) _LOG_##LEVEL(ReShade::Log::Global)
-#define _LOG_FATAL(logger) ReShade::Log::Message(logger, ReShade::Log::Level::Fatal)
-#define _LOG_ERROR(logger) ReShade::Log::Message(logger, ReShade::Log::Level::Error)
-#define _LOG_WARNING(logger) ReShade::Log::Message(logger, ReShade::Log::Level::Warning)
-#define _LOG_INFO(logger) ReShade::Log::Message(logger, ReShade::Log::Level::Info)
-#define _LOG_TRACE(logger) ReShade::Log::Message(logger, ReShade::Log::Level::Trace)
+#define LOG(LEVEL) LOG_##LEVEL()
+#define LOG_FATAL() ReShade::Log::Message(ReShade::Log::Level::Fatal)
+#define LOG_ERROR() ReShade::Log::Message(ReShade::Log::Level::Error)
+#define LOG_WARNING() ReShade::Log::Message(ReShade::Log::Level::Warning)
+#define LOG_INFO() ReShade::Log::Message(ReShade::Log::Level::Info)
+#define LOG_TRACE() ReShade::Log::Message(ReShade::Log::Level::Trace)
 
 namespace ReShade
 {
-	class Log : boost::noncopyable
+	class Log abstract
 	{
 	public:
 		enum class Level
@@ -35,35 +25,35 @@ namespace ReShade
 			Info,
 			Trace
 		};
-		struct Message : boost::noncopyable
+		struct Message
 		{
-			Message(Log &log, Level level);
+			Message(Level level);
 			~Message();
 
 			template <typename T>
-			inline Message &operator <<(const T &value)
+			inline Message &operator<<(const T &value)
 			{
 				this->mStream << value;
 
 				return *this;
 			}
-			inline Message &operator <<(const char *message)
+			inline Message &operator<<(const char *message)
 			{
-				return operator <<<std::string>(message);
+				return operator<<<std::string>(message);
 			}
-			inline Message &operator <<(const wchar_t *message)
+			inline Message &operator<<(const wchar_t *message)
 			{
-				return operator <<<std::wstring>(message);
+				return operator<<<std::wstring>(message);
 			}
 			template <>
-			inline Message &operator <<(const std::string &message)
+			inline Message &operator<<(const std::string &message)
 			{
 				this->mStream << message;
 
 				return *this;
 			}
 			template <>
-			inline Message &operator <<(const std::wstring &message)
+			inline Message &operator<<(const std::wstring &message)
 			{
 				this->mStream << std::wstring_convert<std::codecvt_utf8<wchar_t>>().to_bytes(message);
 
@@ -71,22 +61,14 @@ namespace ReShade
 			}
 
 		private:
-			Log &mLog;
 			Level mLevel;
 			std::stringstream mStream;
 		};
 
-		static Log Global;
-
-	public:
-		bool Open(const boost::filesystem::path &path, Level level);
-		void Close();
-
-	protected:
-		void Dispatch(Level level, const std::string &message);
+		static bool Open(const boost::filesystem::path &path, Level maxlevel);
+		static void Close();
 
 	private:
-		Level mMaxLevel;
-		std::ofstream mFileStream;
+		static void Dispatch(Level level, const std::string &message);
 	};
 }
