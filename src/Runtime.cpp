@@ -620,6 +620,21 @@ namespace ReShade
 			return false;
 		}
 
+		if ((GetFileAttributes(path.c_str()) & FILE_ATTRIBUTE_REPARSE_POINT) != 0)
+		{
+			TCHAR path2[MAX_PATH] = { 0 };
+			const HANDLE handle = CreateFile(path.c_str(), 0, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_EXISTING, 0, nullptr);
+			assert(handle != INVALID_HANDLE_VALUE);
+			GetFinalPathNameByHandle(handle, path2, MAX_PATH, 0);
+			CloseHandle(handle);
+
+			// Uh oh, shouldn't do this. Get's rid of the //?/ prefix.
+			sEffectPath = path2 + 4;
+
+			delete sEffectWatcher;
+			sEffectWatcher = new FileWatcher(sEffectPath.parent_path());
+		}
+
 		tm tm;
 		std::time_t time = std::time(nullptr);
 		::localtime_s(&tm, &time);
