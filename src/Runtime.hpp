@@ -99,6 +99,7 @@ namespace ReShade
 		float mDate[4];
 		std::string mStatus, mErrors, mMessage, mEffectSource;
 		std::string mScreenshotFormat;
+		boost::filesystem::path mScreenshotPath;
 		bool mShowStatistics, mShowFPS, mShowClock, mShowToggleMessage, mSkipShaderOptimization;
 		std::unique_ptr<WindowWatcher> mWindow;
 	};

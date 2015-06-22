@@ -158,7 +158,7 @@ namespace ReShade
 
 	// -----------------------------------------------------------------------------------------------------
 
-	Runtime::Runtime() : mVSync(0), mWidth(0), mHeight(0), mVendorId(0), mDeviceId(0), mRendererId(0), mLastFrameCount(0), mLastDrawCalls(0), mLastDrawCallVertices(0), mDate(), mCompileStep(0), mNVG(nullptr), mScreenshotFormat("png"), mShowStatistics(false), mShowFPS(false), mShowClock(false), mShowToggleMessage(false), mSkipShaderOptimization(false)
+	Runtime::Runtime() : mVSync(0), mWidth(0), mHeight(0), mVendorId(0), mDeviceId(0), mRendererId(0), mLastFrameCount(0), mLastDrawCalls(0), mLastDrawCallVertices(0), mDate(), mCompileStep(0), mNVG(nullptr), mScreenshotFormat("png"), mScreenshotPath(sExecutablePath.parent_path()), mShowStatistics(false), mShowFPS(false), mShowClock(false), mShowToggleMessage(false), mSkipShaderOptimization(false)
 	{
 		this->mStatus = "Initializing ...";
 		this->mStartTime = boost::chrono::high_resolution_clock::now();
@@ -435,7 +435,7 @@ namespace ReShade
 			char timeString[128];
 			std::strftime(timeString, 128, "%Y-%m-%d %H-%M-%S", &tm);
 
-			CreateScreenshot(sExecutablePath.parent_path() / (sExecutablePath.stem().string() + ' ' + timeString + '.' + this->mScreenshotFormat));
+			CreateScreenshot(this->mScreenshotPath / (sExecutablePath.stem().string() + ' ' + timeString + '.' + this->mScreenshotFormat));
 		}
 
 		// Check for file modifications
@@ -711,6 +711,22 @@ namespace ReShade
 			else if (boost::istarts_with(command, "screenshot_format "))
 			{
 				this->mScreenshotFormat = command.substr(18);
+			}
+			else if (boost::istarts_with(command, "screenshot_location "))
+			{
+				std::string path = command.substr(20);
+				const std::size_t beg = path.find_first_of('"') + 1, end = path.find_last_of('"');
+				path = path.substr(beg, end - beg);
+				EscapeString(path);
+
+				if (boost::filesystem::exists(path))
+				{
+					this->mScreenshotPath = path;
+				}
+				else
+				{
+					LOG(ERROR) << "Failed to find screenshot location \"" << path << "\".";
+				}
 			}
 		}
 
