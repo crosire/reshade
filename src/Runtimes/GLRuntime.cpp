@@ -3190,6 +3190,8 @@ namespace ReShade
 			// Apply post processing
 			Runtime::OnPostProcess();
 
+			glDisable(GL_FRAMEBUFFER_SRGB);
+
 			// Reset rendertarget and copy to backbuffer
 			GLCHECK(glBindFramebuffer(GL_READ_FRAMEBUFFER, this->mDefaultBackBufferFBO));
 			GLCHECK(glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0));
