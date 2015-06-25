@@ -284,7 +284,7 @@ public:
 	virtual ULONG STDMETHODCALLTYPE AddRef() override;
 	virtual ULONG STDMETHODCALLTYPE Release() override;
 
-	IDXGIDevice *GetDXGIDevice();
+	IDXGIDevice *CreateDXGIDevice();
 	inline D3D11Device *GetD3D11Device()
 	{
 		return this->mD3D11Device;
@@ -1482,7 +1482,7 @@ EXPORT HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, D3D_
 	LOG(INFO) << "Redirecting '" << "D3D11CreateDeviceAndSwapChain" << "(" << pAdapter << ", " << DriverType << ", " << Software << ", " << std::showbase << std::hex << Flags << std::dec << std::noshowbase << ", " << pFeatureLevels << ", " << FeatureLevels << ", " << SDKVersion << ", " << pSwapChainDesc << ", " << ppSwapChain << ", " << ppDevice << ", " << pFeatureLevel << ", " << ppImmediateContext << ")' ...";
 
 #ifdef _DEBUG
-	//Flags |= D3D11_CREATE_DEVICE_DEBUG;
+	Flags |= D3D11_CREATE_DEVICE_DEBUG;
 #endif
 
 	D3D_FEATURE_LEVEL FeatureLevel = D3D_FEATURE_LEVEL_11_0;
@@ -1513,7 +1513,7 @@ EXPORT HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, D3D_
 		DXGID3D11Bridge *const dxgibridge = new DXGID3D11Bridge(deviceProxy);
 
 		deviceProxy->mDXGIBridge = dxgibridge;
-		deviceProxy->mDXGIDevice = dxgibridge->GetDXGIDevice();
+		deviceProxy->mDXGIDevice = dxgibridge->CreateDXGIDevice();
 		deviceProxy->mImmediateContext = devicecontextProxy;
 
 		assert(deviceProxy->mDXGIDevice != nullptr);

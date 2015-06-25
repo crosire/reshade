@@ -174,7 +174,7 @@ public:
 	virtual ULONG STDMETHODCALLTYPE AddRef() override;
 	virtual ULONG STDMETHODCALLTYPE Release() override;
 
-	IDXGIDevice *GetDXGIDevice();
+	IDXGIDevice *CreateDXGIDevice();
 	inline D3D10Device *GetD3D10Device()
 	{
 		return this->mD3D10Device;
@@ -874,7 +874,7 @@ EXPORT HRESULT WINAPI D3D10CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, D3D1
 		DXGID3D10Bridge *const dxgibridge = new DXGID3D10Bridge(deviceProxy);
 
 		deviceProxy->mDXGIBridge = dxgibridge;
-		deviceProxy->mDXGIDevice = dxgibridge->GetDXGIDevice();
+		deviceProxy->mDXGIDevice = dxgibridge->CreateDXGIDevice();
 
 		assert(deviceProxy->mDXGIDevice != nullptr);
 
@@ -944,7 +944,7 @@ EXPORT HRESULT WINAPI D3D10CreateDeviceAndSwapChain1(IDXGIAdapter *pAdapter, D3D
 		DXGID3D10Bridge *const dxgibridge = new DXGID3D10Bridge(deviceProxy);
 
 		deviceProxy->mDXGIBridge = dxgibridge;
-		deviceProxy->mDXGIDevice = dxgibridge->GetDXGIDevice();
+		deviceProxy->mDXGIDevice = dxgibridge->CreateDXGIDevice();
 
 		assert(deviceProxy->mDXGIDevice != nullptr);
 
