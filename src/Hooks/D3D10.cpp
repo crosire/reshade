@@ -349,7 +349,7 @@ ULONG STDMETHODCALLTYPE D3D10Device::Release()
 
 	if (this->mRef == 0 && ref != 0)
 	{
-		LOG(WARNING) << "Reference count for 'ID3D10Device" << (this->mInterfaceVersion >= 1 ? std::to_string(this->mInterfaceVersion) : "") << "' object " << this << " (" << ref << ") is inconsistent.";
+		LOG(WARNING) << "Reference count for 'ID3D10Device" << (this->mInterfaceVersion >= 1 ? std::to_string(this->mInterfaceVersion) : "") << "' object " << this << " is inconsistent: " << ref << " vs " << this->mRef << ".";
 
 		ref = 0;
 	}

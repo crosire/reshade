@@ -1177,48 +1177,22 @@ EXPORT HRESULT WINAPI DXGIReportAdapterConfiguration()
 
 	return E_NOTIMPL;
 }
+
 EXPORT HRESULT WINAPI DXGID3D10CreateDevice(HMODULE hModule, IDXGIFactory *pFactory, IDXGIAdapter *pAdapter, UINT Flags, void *pUnknown, void **ppDevice)
 {
-	UNREFERENCED_PARAMETER(hModule);
-	UNREFERENCED_PARAMETER(pFactory);
-	UNREFERENCED_PARAMETER(pAdapter);
-	UNREFERENCED_PARAMETER(Flags);
-	UNREFERENCED_PARAMETER(pUnknown);
-	UNREFERENCED_PARAMETER(ppDevice);
-
-	assert(false);
-
-	return E_NOTIMPL;
+	return ReShade::Hooks::Call(&DXGID3D10CreateDevice)(hModule, pFactory, pAdapter, Flags, pUnknown, ppDevice);
 }
 EXPORT HRESULT WINAPI DXGID3D10CreateLayeredDevice(void *pUnknown1, void *pUnknown2, void *pUnknown3, void *pUnknown4, void *pUnknown5)
 {
-	UNREFERENCED_PARAMETER(pUnknown1);
-	UNREFERENCED_PARAMETER(pUnknown2);
-	UNREFERENCED_PARAMETER(pUnknown3);
-	UNREFERENCED_PARAMETER(pUnknown4);
-	UNREFERENCED_PARAMETER(pUnknown5);
-
-	assert(false);
-
-	return E_NOTIMPL;
+	return ReShade::Hooks::Call(&DXGID3D10CreateLayeredDevice)(pUnknown1, pUnknown2, pUnknown3, pUnknown4, pUnknown5);
 }
 EXPORT SIZE_T WINAPI DXGID3D10GetLayeredDeviceSize(const void *pLayers, UINT NumLayers)
 {
-	UNREFERENCED_PARAMETER(pLayers);
-	UNREFERENCED_PARAMETER(NumLayers);
-
-	assert(false);
-
-	return 0;
+	return ReShade::Hooks::Call(&DXGID3D10GetLayeredDeviceSize)(pLayers, NumLayers);
 }
 EXPORT HRESULT WINAPI DXGID3D10RegisterLayers(const void *pLayers, UINT NumLayers)
 {
-	UNREFERENCED_PARAMETER(pLayers);
-	UNREFERENCED_PARAMETER(NumLayers);
-
-	assert(false);
-
-	return E_NOTIMPL;
+	return ReShade::Hooks::Call(&DXGID3D10RegisterLayers)(pLayers, NumLayers);
 }
 
 EXPORT HRESULT WINAPI CreateDXGIFactory(REFIID riid, void **ppFactory)

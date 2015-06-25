@@ -211,7 +211,7 @@ namespace ReShade
 					const auto it = std::find_if(replacementExports.cbegin(), replacementExports.cend(), [&symbol](const ModuleExport &it) { return boost::equals(it.Name, symbol.Name); });
 
 					// Filter uninteresting functions
-					if (it == replacementExports.cend() || (boost::equals(symbol.Name, "DXGIReportAdapterConfiguration") || boost::equals(symbol.Name, "DXGIDumpJournal") || boost::starts_with(symbol.Name, "DXGID3D10")))
+					if (it == replacementExports.cend() || (boost::equals(symbol.Name, "DXGIReportAdapterConfiguration") || boost::equals(symbol.Name, "DXGIDumpJournal")))
 					{
 						LOG(TRACE) << "  | 0x" << std::left << std::setw(16) << symbol.Address << " | " << std::setw(7) << symbol.Ordinal << " | " << std::setw(50) << symbol.Name << std::internal << " |";
 					}
