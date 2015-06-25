@@ -1482,7 +1482,7 @@ EXPORT HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, D3D_
 	LOG(INFO) << "Redirecting '" << "D3D11CreateDeviceAndSwapChain" << "(" << pAdapter << ", " << DriverType << ", " << Software << ", " << std::showbase << std::hex << Flags << std::dec << std::noshowbase << ", " << pFeatureLevels << ", " << FeatureLevels << ", " << SDKVersion << ", " << pSwapChainDesc << ", " << ppSwapChain << ", " << ppDevice << ", " << pFeatureLevel << ", " << ppImmediateContext << ")' ...";
 
 #ifdef _DEBUG
-	Flags |= D3D11_CREATE_DEVICE_DEBUG;
+	//Flags |= D3D11_CREATE_DEVICE_DEBUG;
 #endif
 
 	D3D_FEATURE_LEVEL FeatureLevel = D3D_FEATURE_LEVEL_11_0;
@@ -1516,20 +1516,33 @@ EXPORT HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, D3D_
 		deviceProxy->mDXGIDevice = dxgibridge->GetDXGIDevice();
 		deviceProxy->mImmediateContext = devicecontextProxy;
 
+		assert(deviceProxy->mDXGIDevice != nullptr);
+
 		if (pSwapChainDesc != nullptr)
 		{
 			assert(ppSwapChain != nullptr);
 
+			if (pAdapter != nullptr)
+			{
+				pAdapter->AddRef();
+			}
+			else
+			{
+				hr = deviceProxy->mDXGIDevice->GetAdapter(&pAdapter);
+
+				assert(SUCCEEDED(hr));
+			}
+
 			IDXGIFactory1 *factory = nullptr;
 
-			hr = CreateDXGIFactory1(__uuidof(IDXGIFactory1), reinterpret_cast<void **>(&factory));
+			hr = pAdapter->GetParent(__uuidof(IDXGIFactory1), reinterpret_cast<void **>(&factory));
 
-			if (SUCCEEDED(hr))
-			{
-				hr = factory->CreateSwapChain(deviceProxy, const_cast<DXGI_SWAP_CHAIN_DESC *>(pSwapChainDesc), ppSwapChain);
+			assert(SUCCEEDED(hr));
 
-				factory->Release();
-			}
+			hr = factory->CreateSwapChain(deviceProxy, const_cast<DXGI_SWAP_CHAIN_DESC *>(pSwapChainDesc), ppSwapChain);
+
+			factory->Release();
+			pAdapter->Release();
 		}
 
 		if (SUCCEEDED(hr))

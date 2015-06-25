@@ -876,20 +876,33 @@ EXPORT HRESULT WINAPI D3D10CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, D3D1
 		deviceProxy->mDXGIBridge = dxgibridge;
 		deviceProxy->mDXGIDevice = dxgibridge->GetDXGIDevice();
 
+		assert(deviceProxy->mDXGIDevice != nullptr);
+
 		if (pSwapChainDesc != nullptr)
 		{
 			assert(ppSwapChain != nullptr);
 
-			IDXGIFactory1 *factory = nullptr;
-				
-			hr = CreateDXGIFactory1(__uuidof(IDXGIFactory1), reinterpret_cast<void **>(&factory));
-
-			if (SUCCEEDED(hr))
+			if (pAdapter != nullptr)
 			{
-				hr = factory->CreateSwapChain(deviceProxy, pSwapChainDesc, ppSwapChain);
-
-				factory->Release();
+				pAdapter->AddRef();
 			}
+			else
+			{
+				hr = deviceProxy->mDXGIDevice->GetAdapter(&pAdapter);
+
+				assert(SUCCEEDED(hr));
+			}
+
+			IDXGIFactory1 *factory = nullptr;
+
+			hr = pAdapter->GetParent(__uuidof(IDXGIFactory1), reinterpret_cast<void **>(&factory));
+
+			assert(SUCCEEDED(hr));
+
+			hr = factory->CreateSwapChain(deviceProxy, pSwapChainDesc, ppSwapChain);
+
+			factory->Release();
+			pAdapter->Release();
 		}
 
 		if (SUCCEEDED(hr))
@@ -933,20 +946,33 @@ EXPORT HRESULT WINAPI D3D10CreateDeviceAndSwapChain1(IDXGIAdapter *pAdapter, D3D
 		deviceProxy->mDXGIBridge = dxgibridge;
 		deviceProxy->mDXGIDevice = dxgibridge->GetDXGIDevice();
 
+		assert(deviceProxy->mDXGIDevice != nullptr);
+
 		if (pSwapChainDesc != nullptr)
 		{
 			assert(ppSwapChain != nullptr);
 
+			if (pAdapter != nullptr)
+			{
+				pAdapter->AddRef();
+			}
+			else
+			{
+				hr = deviceProxy->mDXGIDevice->GetAdapter(&pAdapter);
+
+				assert(SUCCEEDED(hr));
+			}
+
 			IDXGIFactory1 *factory = nullptr;
 
-			hr = CreateDXGIFactory1(__uuidof(IDXGIFactory1), reinterpret_cast<void **>(&factory));
+			hr = pAdapter->GetParent(__uuidof(IDXGIFactory1), reinterpret_cast<void **>(&factory));
 
-			if (SUCCEEDED(hr))
-			{
-				hr = factory->CreateSwapChain(deviceProxy, pSwapChainDesc, ppSwapChain);
+			assert(SUCCEEDED(hr));
 
-				factory->Release();
-			}
+			hr = factory->CreateSwapChain(deviceProxy, pSwapChainDesc, ppSwapChain);
+
+			factory->Release();
+			pAdapter->Release();
 		}
 
 		if (SUCCEEDED(hr))
