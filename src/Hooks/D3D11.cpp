@@ -1533,9 +1533,9 @@ EXPORT HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, D3D_
 				assert(SUCCEEDED(hr));
 			}
 
-			IDXGIFactory1 *factory = nullptr;
+			IDXGIFactory *factory = nullptr;
 
-			hr = pAdapter->GetParent(__uuidof(IDXGIFactory1), reinterpret_cast<void **>(&factory));
+			hr = pAdapter->GetParent(__uuidof(IDXGIFactory), reinterpret_cast<void **>(&factory));
 
 			assert(SUCCEEDED(hr));
 
