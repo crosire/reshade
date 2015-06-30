@@ -1218,6 +1218,8 @@ namespace ReShade
 					sequence->Expressions.push_back(std::move(expression));
 				}
 
+				sequence->Type = sequence->Expressions.back()->Type;
+
 				node = sequence;
 			}
 
