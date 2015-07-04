@@ -226,6 +226,16 @@ namespace ReShade
 				info.Timeleft = info.Timeout;
 				info.ToggleTime = 0;
 			}
+			else if (info.Timeleft > 0)
+			{
+				info.Timeleft -= static_cast<unsigned int>(boost::chrono::duration_cast<boost::chrono::milliseconds>(this->mLastFrameDuration).count());
+
+				if (info.Timeleft <= 0)
+				{
+					info.Enabled = !info.Enabled;
+					info.Timeleft = 0;
+				}
+			}
 			else if (this->mWindow->GetKeyJustPressed(info.Toggle) && (!info.ToggleCtrl || this->mWindow->GetKeyState(VK_CONTROL)) && (!info.ToggleShift || this->mWindow->GetKeyState(VK_SHIFT)) && (!info.ToggleAlt || this->mWindow->GetKeyState(VK_MENU)))
 			{
 				info.Enabled = !info.Enabled;
@@ -235,17 +245,6 @@ namespace ReShade
 				{
 					this->mStatus = info.Technique->GetDescription().Name + (info.Enabled ? " enabled." : " disabled.");
 					this->mLastCreate = timePostProcessingStarted;
-				}
-			}
-
-			if (info.Timeleft > 0)
-			{
-				info.Timeleft -= static_cast<unsigned int>(boost::chrono::duration_cast<boost::chrono::milliseconds>(this->mLastFrameDuration).count());
-
-				if (info.Timeleft <= 0)
-				{
-					info.Enabled = !info.Enabled;
-					info.Timeleft = 0;
 				}
 			}
 
