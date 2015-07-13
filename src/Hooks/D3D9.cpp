@@ -1386,6 +1386,15 @@ HRESULT STDMETHODCALLTYPE IDirect3D9_CreateDevice(IDirect3D9 *pD3D, UINT Adapter
 
 	DumpPresentParameters(*pPresentationParameters);
 
+	const bool useSoftwareRendering = (BehaviorFlags & D3DCREATE_SOFTWARE_VERTEXPROCESSING) != 0;
+
+	if (useSoftwareRendering)
+	{
+		LOG(WARNING) << "> Replacing 'D3DCREATE_SOFTWARE_VERTEXPROCESSING' flag with 'D3DCREATE_MIXED_VERTEXPROCESSING' to allow for hardware rendering ...";
+
+		BehaviorFlags = (BehaviorFlags & ~D3DCREATE_SOFTWARE_VERTEXPROCESSING) | D3DCREATE_MIXED_VERTEXPROCESSING;
+	}
+
 	const HRESULT hr = ReShade::Hooks::Call(&IDirect3D9_CreateDevice)(pD3D, Adapter, DeviceType, hFocusWindow, BehaviorFlags, pPresentationParameters, ppReturnedDeviceInterface);
 
 	if (FAILED(hr))
@@ -1394,10 +1403,16 @@ HRESULT STDMETHODCALLTYPE IDirect3D9_CreateDevice(IDirect3D9 *pD3D, UINT Adapter
 
 		return hr;
 	}
+	
+	IDirect3DDevice9 *const device = *ppReturnedDeviceInterface;
+
+	if (useSoftwareRendering)
+	{
+		device->SetSoftwareVertexProcessing(TRUE);
+	}
 
 	if (DeviceType != D3DDEVTYPE_NULLREF)
 	{
-		IDirect3DDevice9 *const device = *ppReturnedDeviceInterface;
 		IDirect3DSwapChain9 *swapchain = nullptr;
 		device->GetSwapChain(0, &swapchain);
 
@@ -1447,6 +1462,15 @@ HRESULT STDMETHODCALLTYPE IDirect3D9Ex_CreateDeviceEx(IDirect3D9Ex *pD3D, UINT A
 
 	DumpPresentParameters(*pPresentationParameters);
 
+	const bool useSoftwareRendering = (BehaviorFlags & D3DCREATE_SOFTWARE_VERTEXPROCESSING) != 0;
+
+	if (useSoftwareRendering)
+	{
+		LOG(WARNING) << "> Replacing 'D3DCREATE_SOFTWARE_VERTEXPROCESSING' flag with 'D3DCREATE_MIXED_VERTEXPROCESSING' to allow for hardware rendering ...";
+
+		BehaviorFlags = (BehaviorFlags & ~D3DCREATE_SOFTWARE_VERTEXPROCESSING) | D3DCREATE_MIXED_VERTEXPROCESSING;
+	}
+
 	const HRESULT hr = ReShade::Hooks::Call(&IDirect3D9Ex_CreateDeviceEx)(pD3D, Adapter, DeviceType, hFocusWindow, BehaviorFlags, pPresentationParameters, pFullscreenDisplayMode, ppReturnedDeviceInterface);
 
 	if (FAILED(hr))
@@ -1456,9 +1480,15 @@ HRESULT STDMETHODCALLTYPE IDirect3D9Ex_CreateDeviceEx(IDirect3D9Ex *pD3D, UINT A
 		return hr;
 	}
 
+	IDirect3DDevice9Ex *const device = *ppReturnedDeviceInterface;
+
+	if (useSoftwareRendering)
+	{
+		device->SetSoftwareVertexProcessing(TRUE);
+	}
+
 	if (DeviceType != D3DDEVTYPE_NULLREF)
 	{
-		IDirect3DDevice9Ex *const device = *ppReturnedDeviceInterface;
 		IDirect3DSwapChain9 *swapchain = nullptr;
 		device->GetSwapChain(0, &swapchain);
 

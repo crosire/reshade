@@ -2136,7 +2136,7 @@ namespace ReShade
 
 		// -----------------------------------------------------------------------------------------------------
 
-		D3D9Runtime::D3D9Runtime(IDirect3DDevice9 *device, IDirect3DSwapChain9 *swapchain) : mDevice(device), mSwapChain(swapchain), mDirect3D(nullptr), mDeviceCaps(), mStateBlock(nullptr), mBackBuffer(nullptr), mBackBufferResolved(nullptr), mBackBufferTexture(nullptr), mBackBufferTextureSurface(nullptr), mDepthStencil(nullptr), mDepthStencilReplacement(nullptr), mDepthStencilTexture(nullptr), mDefaultDepthStencil(nullptr), mLost(true)
+		D3D9Runtime::D3D9Runtime(IDirect3DDevice9 *device, IDirect3DSwapChain9 *swapchain) : mDevice(device), mSwapChain(swapchain), mDirect3D(nullptr), mStateBlock(nullptr), mBackBuffer(nullptr), mBackBufferResolved(nullptr), mBackBufferTexture(nullptr), mBackBufferTextureSurface(nullptr), mDepthStencil(nullptr), mDepthStencilReplacement(nullptr), mDepthStencilTexture(nullptr), mDefaultDepthStencil(nullptr), mLost(true)
 		{
 			assert(this->mDevice != nullptr);
 			assert(this->mSwapChain != nullptr);
@@ -2147,8 +2147,8 @@ namespace ReShade
 
 			assert(this->mDirect3D != nullptr);
 
-			this->mDevice->GetDeviceCaps(&this->mDeviceCaps);
-			this->mDeviceCaps.NumSimultaneousRTs = std::min(this->mDeviceCaps.NumSimultaneousRTs, static_cast<DWORD>(8));
+			D3DCAPS9 caps;
+			this->mDevice->GetDeviceCaps(&caps);
 
 			ZeroMemory(&this->mPresentParams, sizeof(D3DPRESENT_PARAMETERS));
 
@@ -2161,6 +2161,8 @@ namespace ReShade
 			this->mVendorId = identifier.VendorId;
 			this->mDeviceId = identifier.DeviceId;
 			this->mRendererId = D3D_FEATURE_LEVEL_9_3;
+			this->mBehaviorFlags = params.BehaviorFlags;
+			this->mNumSimultaneousRTs = std::min(caps.NumSimultaneousRTs, static_cast<DWORD>(8));
 		}
 		D3D9Runtime::~D3D9Runtime()
 		{
@@ -2368,15 +2370,23 @@ namespace ReShade
 			// Capture device state
 			this->mStateBlock->Capture();
 
+			BOOL softwareRenderingEnabled;
 			IDirect3DSurface9 *stateblockTargets[8] = { nullptr };
 			IDirect3DSurface9 *stateblockDepthStencil = nullptr;
 
-			for (DWORD target = 0, targetCount = std::min(this->mDeviceCaps.NumSimultaneousRTs, static_cast<DWORD>(8)); target < targetCount; ++target)
+			for (DWORD target = 0; target < this->mNumSimultaneousRTs; ++target)
 			{
 				this->mDevice->GetRenderTarget(target, &stateblockTargets[target]);
 			}
 
 			this->mDevice->GetDepthStencilSurface(&stateblockDepthStencil);
+
+			if ((this->mBehaviorFlags & D3DCREATE_MIXED_VERTEXPROCESSING) != 0)
+			{
+				softwareRenderingEnabled = this->mDevice->GetSoftwareVertexProcessing();
+
+				this->mDevice->SetSoftwareVertexProcessing(FALSE);
+			}
 
 			// Resolve backbuffer
 			if (this->mBackBufferResolved != this->mBackBuffer)
@@ -2412,7 +2422,7 @@ namespace ReShade
 			// Apply previous device state
 			this->mStateBlock->Apply();
 
-			for (DWORD target = 0, targetCount = std::min(this->mDeviceCaps.NumSimultaneousRTs, static_cast<DWORD>(8)); target < targetCount; ++target)
+			for (DWORD target = 0; target < this->mNumSimultaneousRTs; ++target)
 			{
 				this->mDevice->SetRenderTarget(target, stateblockTargets[target]);
 
@@ -2422,6 +2432,11 @@ namespace ReShade
 			this->mDevice->SetDepthStencilSurface(stateblockDepthStencil);
 
 			SAFE_RELEASE(stateblockDepthStencil);
+
+			if ((this->mBehaviorFlags & D3DCREATE_MIXED_VERTEXPROCESSING) != 0)
+			{
+				this->mDevice->SetSoftwareVertexProcessing(softwareRenderingEnabled);
+			}
 
 			// End post processing
 			this->mDevice->EndScene();
@@ -2939,7 +2954,7 @@ namespace ReShade
 			}
 
 			// Setup rendertargets
-			for (DWORD target = 0, targetCount = std::min(runtime->mDeviceCaps.NumSimultaneousRTs, static_cast<DWORD>(8)); target < targetCount; ++target)
+			for (DWORD target = 0; target < runtime->mNumSimultaneousRTs; ++target)
 			{
 				device->SetRenderTarget(target, pass.RT[target]);
 			}
