@@ -158,7 +158,7 @@ namespace ReShade
 
 	// -----------------------------------------------------------------------------------------------------
 
-	Runtime::Runtime() : mVSync(0), mWidth(0), mHeight(0), mVendorId(0), mDeviceId(0), mRendererId(0), mLastFrameCount(0), mLastDrawCalls(0), mLastDrawCallVertices(0), mDate(), mCompileStep(0), mNVG(nullptr), mScreenshotFormat("png"), mScreenshotPath(sExecutablePath.parent_path()), mShowStatistics(false), mShowFPS(false), mShowClock(false), mShowToggleMessage(false), mSkipShaderOptimization(false)
+	Runtime::Runtime() : mVSync(0), mWidth(0), mHeight(0), mVendorId(0), mDeviceId(0), mRendererId(0), mLastFrameCount(0), mLastDrawCalls(0), mLastDrawCallVertices(0), mDate(), mCompileStep(0), mNVG(nullptr), mScreenshotFormat("png"), mScreenshotPath(sExecutablePath.parent_path()), mScreenshotKey(VK_SNAPSHOT), mShowStatistics(false), mShowFPS(false), mShowClock(false), mShowToggleMessage(false), mSkipShaderOptimization(false)
 	{
 		this->mStatus = "Initializing ...";
 		this->mStartTime = boost::chrono::high_resolution_clock::now();
@@ -426,10 +426,10 @@ namespace ReShade
 		const boost::chrono::nanoseconds frametime = boost::chrono::duration_cast<boost::chrono::nanoseconds>(timePresent - this->mLastPresent);
 
 		tm tm;
-		::localtime_s(&tm, &time);
+		localtime_s(&tm, &time);
 
 		// Create screenshot
-		if (::GetAsyncKeyState(VK_SNAPSHOT) & 0x8000)
+		if (GetAsyncKeyState(this->mScreenshotKey) & 0x8000)
 		{
 			char timeString[128];
 			std::strftime(timeString, 128, "%Y-%m-%d %H-%M-%S", &tm);
@@ -603,6 +603,9 @@ namespace ReShade
 	{
 		this->mMessage.clear();
 		this->mShowStatistics = this->mShowFPS = this->mShowClock = this->mShowToggleMessage = this->mSkipShaderOptimization = false;
+		this->mScreenshotKey = VK_SNAPSHOT;
+		this->mScreenshotPath = sExecutablePath.parent_path();
+		this->mScreenshotFormat = "png";
 
 		boost::filesystem::path path = sEffectPath;
 
@@ -721,6 +724,15 @@ namespace ReShade
 			else if (boost::iequals(command, "skipoptimization") || boost::iequals(command, "nooptimization"))
 			{
 				this->mSkipShaderOptimization = true;
+			}
+			else if (boost::istarts_with(command, "screenshot_key"))
+			{
+				this->mScreenshotKey = strtol(command.substr(15).c_str(), nullptr, 0);
+				
+				if (this->mScreenshotKey == 0)
+				{
+					this->mScreenshotKey = VK_SNAPSHOT;
+				}
 			}
 			else if (boost::istarts_with(command, "screenshot_format "))
 			{

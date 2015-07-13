@@ -100,6 +100,7 @@ namespace ReShade
 		std::string mStatus, mErrors, mMessage, mEffectSource;
 		std::string mScreenshotFormat;
 		boost::filesystem::path mScreenshotPath;
+		unsigned int mScreenshotKey;
 		bool mShowStatistics, mShowFPS, mShowClock, mShowToggleMessage, mSkipShaderOptimization;
 		std::unique_ptr<WindowWatcher> mWindow;
 	};
