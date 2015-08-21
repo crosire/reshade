@@ -3686,7 +3686,7 @@ HRESULT STDMETHODCALLTYPE Direct3D8::CreateDevice(UINT Adapter, D3DDEVTYPE Devic
 }
 
 // D3D8
-EXPORT Direct3D8 *WINAPI Direct3DCreate8(UINT SDKVersion)
+extern "C" Direct3D8 *WINAPI Direct3DCreate8(UINT SDKVersion)
 {
 	LOG(INFO) << "Redirecting '" << "Direct3DCreate8" << "(" << SDKVersion << ")' ...";
 	LOG(INFO) << "> Passing on to 'Direct3DCreate9':";

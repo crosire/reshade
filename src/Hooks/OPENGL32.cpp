@@ -5,8 +5,6 @@
 #include <unordered_map>
 #include <unordered_set>
 
-DECLARE_HANDLE(HPBUFFERARB);
-
 #pragma region Undefine Function Names
 #undef glBindFramebuffer
 #undef glBindTexture
@@ -98,6 +96,10 @@ DECLARE_HANDLE(HPBUFFERARB);
 #undef glTexSubImage3D
 #undef glViewport
 #pragma endregion
+
+#define EXPORT extern "C"
+
+DECLARE_HANDLE(HPBUFFERARB);
 
 // -----------------------------------------------------------------------------------------------------
 

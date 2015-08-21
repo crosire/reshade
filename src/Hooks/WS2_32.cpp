@@ -3,6 +3,8 @@
 
 #include <Winsock2.h>
 
+#define EXPORT extern "C"
+
 // -----------------------------------------------------------------------------------------------------
 
 EXPORT int WSAAPI HookWSASend(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPDWORD lpNumberOfBytesSent, DWORD dwFlags, LPWSAOVERLAPPED lpOverlapped, LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine)

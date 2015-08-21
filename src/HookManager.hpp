@@ -4,7 +4,6 @@
 
 #include <boost\filesystem\path.hpp>
 
-#define EXPORT extern "C"
 #define VTABLE(object) (*reinterpret_cast<ReShade::Hook::Function **>(object))
 
 namespace ReShade

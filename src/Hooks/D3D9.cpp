@@ -7,6 +7,8 @@
 #undef IDirect3D9Ex_CreateDeviceEx
 #pragma endregion
 
+#define EXPORT extern "C"
+
 // -----------------------------------------------------------------------------------------------------
 
 namespace
