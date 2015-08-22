@@ -119,7 +119,7 @@
       <WarningLevel>Level4</WarningLevel>
       <SDLCheck>true</SDLCheck>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>$(SolutionDir)\src;$(SolutionDir)\res;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)\src;$(SolutionDir)\src\Hook;$(SolutionDir)\src\Runtime;$(SolutionDir)\res;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;_DEBUG;WIN32_LEAN_AND_MEAN;NOMINMAX;_GDI32_;WINSOCK_API_LINKAGE=;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DisableSpecificWarnings>4351;%(DisableSpecificWarnings)</DisableSpecificWarnings>
       <ObjectFileName>$(IntDir)\%(RelativeDir)\</ObjectFileName>
@@ -142,7 +142,7 @@
       <WarningLevel>Level4</WarningLevel>
       <SDLCheck>true</SDLCheck>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>$(SolutionDir)\src;$(SolutionDir)\res;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)\src;$(SolutionDir)\src\Hook;$(SolutionDir)\src\Runtime;$(SolutionDir)\res;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN64;_DEBUG;WIN32_LEAN_AND_MEAN;NOMINMAX;_GDI32_;WINSOCK_API_LINKAGE=;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DisableSpecificWarnings>4351;%(DisableSpecificWarnings)</DisableSpecificWarnings>
       <ObjectFileName>$(IntDir)\%(RelativeDir)\</ObjectFileName>
@@ -167,7 +167,7 @@
       <Optimization>MaxSpeed</Optimization>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <FunctionLevelLinking>true</FunctionLevelLinking>
-      <AdditionalIncludeDirectories>$(SolutionDir)\src;$(SolutionDir)\res;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)\src;$(SolutionDir)\src\Hook;$(SolutionDir)\src\Runtime;$(SolutionDir)\res;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;NDEBUG;WIN32_LEAN_AND_MEAN;NOMINMAX;_GDI32_;WINSOCK_API_LINKAGE=;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DisableSpecificWarnings>4351;%(DisableSpecificWarnings)</DisableSpecificWarnings>
       <ObjectFileName>$(IntDir)\%(RelativeDir)\</ObjectFileName>
@@ -201,7 +201,7 @@ tools\upx --backup "$(TargetPath)"</Command>
       <Optimization>MaxSpeed</Optimization>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <FunctionLevelLinking>true</FunctionLevelLinking>
-      <AdditionalIncludeDirectories>$(SolutionDir)\src;$(SolutionDir)\res;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)\src;$(SolutionDir)\src\Hook;$(SolutionDir)\src\Runtime;$(SolutionDir)\res;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN64;NDEBUG;WIN32_LEAN_AND_MEAN;NOMINMAX;_GDI32_;WINSOCK_API_LINKAGE=;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DisableSpecificWarnings>4351;%(DisableSpecificWarnings)</DisableSpecificWarnings>
       <ObjectFileName>$(IntDir)\%(RelativeDir)\</ObjectFileName>
@@ -229,8 +229,13 @@ tools\upx --backup "$(TargetPath)"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="src\Hook.cpp" />
-    <ClCompile Include="src\HookManager.cpp" />
+    <ClCompile Include="src\Log.cpp" />
+    <ClCompile Include="src\Main.cpp" />
+    <ClCompile Include="src\FX\Lexer.cpp" />
+    <ClCompile Include="src\FX\Parser.cpp" />
+    <ClCompile Include="src\FX\PreProcessor.cpp" />
+    <ClCompile Include="src\Hook\Hook.cpp" />
+    <ClCompile Include="src\Hook\HookManager.cpp" />
     <ClCompile Include="src\Hooks\D3D8.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
@@ -242,39 +247,34 @@ tools\upx --backup "$(TargetPath)"</Command>
     <ClCompile Include="src\Hooks\OPENGL32.cpp" />
     <ClCompile Include="src\Hooks\USER32.cpp" />
     <ClCompile Include="src\Hooks\WS2_32.cpp" />
-    <ClCompile Include="src\Effect.cpp" />
-    <ClCompile Include="src\Lexer.cpp" />
-    <ClCompile Include="src\Parser.cpp" />
-    <ClCompile Include="src\PreProcessor.cpp" />
-    <ClCompile Include="src\Runtime.cpp" />
+    <ClCompile Include="src\Runtime\Effect.cpp" />
+    <ClCompile Include="src\Runtime\FileWatcher.cpp" />
+    <ClCompile Include="src\Runtime\Runtime.cpp" />
+    <ClCompile Include="src\Runtime\WindowWatcher.cpp" />
     <ClCompile Include="src\Runtimes\D3D9Runtime.cpp" />
     <ClCompile Include="src\Runtimes\D3D10Runtime.cpp" />
     <ClCompile Include="src\Runtimes\D3D11Runtime.cpp" />
     <ClCompile Include="src\Runtimes\GLRuntime.cpp" />
-    <ClCompile Include="src\FileWatcher.cpp" />
-    <ClCompile Include="src\WindowWatcher.cpp" />
-    <ClCompile Include="src\Main.cpp" />
-    <ClCompile Include="src\Log.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\Log.hpp" />
     <ClInclude Include="res\Resource.h" />
     <ClInclude Include="res\Version.h" />
-    <ClInclude Include="src\Hook.hpp" />
-    <ClInclude Include="src\HookManager.hpp" />
-    <ClInclude Include="src\Effect.hpp" />
-    <ClInclude Include="src\Lexer.hpp" />
-    <ClInclude Include="src\Parser.hpp" />
-    <ClInclude Include="src\PreProcessor.hpp" />
-    <ClInclude Include="src\ParseTree.hpp" />
-    <ClInclude Include="src\ParseTreeNodes.hpp" />
-    <ClInclude Include="src\Runtime.hpp" />
+    <ClInclude Include="src\FX\Lexer.hpp" />
+    <ClInclude Include="src\FX\Parser.hpp" />
+    <ClInclude Include="src\FX\ParseTree.hpp" />
+    <ClInclude Include="src\FX\ParseTreeNodes.hpp" />
+    <ClInclude Include="src\FX\PreProcessor.hpp" />
+    <ClInclude Include="src\Hook\Hook.hpp" />
+    <ClInclude Include="src\Hook\HookManager.hpp" />
+    <ClInclude Include="src\Runtime\Effect.hpp" />
+    <ClInclude Include="src\Runtime\FileWatcher.hpp" />
+    <ClInclude Include="src\Runtime\Runtime.hpp" />
+    <ClInclude Include="src\Runtime\WindowWatcher.hpp" />
     <ClInclude Include="src\Runtimes\D3D10Runtime.hpp" />
     <ClInclude Include="src\Runtimes\D3D11Runtime.hpp" />
     <ClInclude Include="src\Runtimes\D3D9Runtime.hpp" />
     <ClInclude Include="src\Runtimes\GLRuntime.hpp" />
-    <ClInclude Include="src\FileWatcher.hpp" />
-    <ClInclude Include="src\WindowWatcher.hpp" />
-    <ClInclude Include="src\Log.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="res\Resource.rc" />

@@ -7,15 +7,6 @@
     <Filter Include="Core">
       <UniqueIdentifier>{7dea67a5-a2de-4e39-94a8-e8f01b6f070f}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Core\Effect Parsing">
-      <UniqueIdentifier>{c7c87b42-c441-48dc-8d08-ce6e2a6ffa9d}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Core\Effect Runtime">
-      <UniqueIdentifier>{ecdb23a8-21dc-4334-b5cf-2ea57d27001d}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Core\Hooking">
-      <UniqueIdentifier>{ed3eb34b-86ef-4bb0-b071-44f1163953bf}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Implementation">
       <UniqueIdentifier>{46bec447-8902-4b8a-99fe-6bf6e239ea01}</UniqueIdentifier>
     </Filter>
@@ -25,6 +16,15 @@
     <Filter Include="Implementation\Runtimes">
       <UniqueIdentifier>{3d98f6bc-aafb-47f4-97de-20bb7012bc62}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Core\Runtime">
+      <UniqueIdentifier>{ecdb23a8-21dc-4334-b5cf-2ea57d27001d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Core\Hook">
+      <UniqueIdentifier>{ed3eb34b-86ef-4bb0-b071-44f1163953bf}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Core\FX">
+      <UniqueIdentifier>{c7c87b42-c441-48dc-8d08-ce6e2a6ffa9d}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Log.cpp">
@@ -33,32 +33,32 @@
     <ClCompile Include="src\Main.cpp">
       <Filter>Core</Filter>
     </ClCompile>
-    <ClCompile Include="src\Hook.cpp">
-      <Filter>Core\Hooking</Filter>
+    <ClCompile Include="src\FX\Lexer.cpp">
+      <Filter>Core\FX</Filter>
     </ClCompile>
-    <ClCompile Include="src\HookManager.cpp">
-      <Filter>Core\Hooking</Filter>
+    <ClCompile Include="src\FX\Parser.cpp">
+      <Filter>Core\FX</Filter>
     </ClCompile>
-    <ClCompile Include="src\Lexer.cpp">
-      <Filter>Core\Effect Parsing</Filter>
+    <ClCompile Include="src\FX\PreProcessor.cpp">
+      <Filter>Core\FX</Filter>
     </ClCompile>
-    <ClCompile Include="src\Parser.cpp">
-      <Filter>Core\Effect Parsing</Filter>
+    <ClCompile Include="src\Hook\Hook.cpp">
+      <Filter>Core\Hook</Filter>
     </ClCompile>
-    <ClCompile Include="src\PreProcessor.cpp">
-      <Filter>Core\Effect Parsing</Filter>
+    <ClCompile Include="src\Hook\HookManager.cpp">
+      <Filter>Core\Hook</Filter>
     </ClCompile>
-    <ClCompile Include="src\Effect.cpp">
-      <Filter>Core\Effect Runtime</Filter>
+    <ClCompile Include="src\Runtime\Effect.cpp">
+      <Filter>Core\Runtime</Filter>
     </ClCompile>
-    <ClCompile Include="src\FileWatcher.cpp">
-      <Filter>Core\Effect Runtime</Filter>
+    <ClCompile Include="src\Runtime\FileWatcher.cpp">
+      <Filter>Core\Runtime</Filter>
     </ClCompile>
-    <ClCompile Include="src\WindowWatcher.cpp">
-      <Filter>Core\Effect Runtime</Filter>
+    <ClCompile Include="src\Runtime\Runtime.cpp">
+      <Filter>Core\Runtime</Filter>
     </ClCompile>
-    <ClCompile Include="src\Runtime.cpp">
-      <Filter>Core\Effect Runtime</Filter>
+    <ClCompile Include="src\Runtime\WindowWatcher.cpp">
+      <Filter>Core\Runtime</Filter>
     </ClCompile>
     <ClCompile Include="src\Hooks\D3D8.cpp">
       <Filter>Implementation\Hooks</Filter>
@@ -101,38 +101,38 @@
     <ClInclude Include="src\Log.hpp">
       <Filter>Core</Filter>
     </ClInclude>
-    <ClInclude Include="src\Hook.hpp">
-      <Filter>Core\Hooking</Filter>
+    <ClInclude Include="src\FX\PreProcessor.hpp">
+      <Filter>Core\FX</Filter>
     </ClInclude>
-    <ClInclude Include="src\HookManager.hpp">
-      <Filter>Core\Hooking</Filter>
+    <ClInclude Include="src\FX\Lexer.hpp">
+      <Filter>Core\FX</Filter>
     </ClInclude>
-    <ClInclude Include="src\Lexer.hpp">
-      <Filter>Core\Effect Parsing</Filter>
+    <ClInclude Include="src\FX\Parser.hpp">
+      <Filter>Core\FX</Filter>
     </ClInclude>
-    <ClInclude Include="src\Parser.hpp">
-      <Filter>Core\Effect Parsing</Filter>
+    <ClInclude Include="src\FX\ParseTree.hpp">
+      <Filter>Core\FX</Filter>
     </ClInclude>
-    <ClInclude Include="src\PreProcessor.hpp">
-      <Filter>Core\Effect Parsing</Filter>
+    <ClInclude Include="src\FX\ParseTreeNodes.hpp">
+      <Filter>Core\FX</Filter>
     </ClInclude>
-    <ClInclude Include="src\ParseTree.hpp">
-      <Filter>Core\Effect Parsing</Filter>
+    <ClInclude Include="src\Hook\Hook.hpp">
+      <Filter>Core\Hook</Filter>
     </ClInclude>
-    <ClInclude Include="src\ParseTreeNodes.hpp">
-      <Filter>Core\Effect Parsing</Filter>
+    <ClInclude Include="src\Hook\HookManager.hpp">
+      <Filter>Core\Hook</Filter>
     </ClInclude>
-    <ClInclude Include="src\Effect.hpp">
-      <Filter>Core\Effect Runtime</Filter>
+    <ClInclude Include="src\Runtime\Effect.hpp">
+      <Filter>Core\Runtime</Filter>
     </ClInclude>
-    <ClInclude Include="src\FileWatcher.hpp">
-      <Filter>Core\Effect Runtime</Filter>
+    <ClInclude Include="src\Runtime\FileWatcher.hpp">
+      <Filter>Core\Runtime</Filter>
     </ClInclude>
-    <ClInclude Include="src\WindowWatcher.hpp">
-      <Filter>Core\Effect Runtime</Filter>
+    <ClInclude Include="src\Runtime\Runtime.hpp">
+      <Filter>Core\Runtime</Filter>
     </ClInclude>
-    <ClInclude Include="src\Runtime.hpp">
-      <Filter>Core\Effect Runtime</Filter>
+    <ClInclude Include="src\Runtime\WindowWatcher.hpp">
+      <Filter>Core\Runtime</Filter>
     </ClInclude>
     <ClInclude Include="src\Runtimes\D3D10Runtime.hpp">
       <Filter>Implementation\Runtimes</Filter>

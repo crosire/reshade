@@ -1,6 +1,6 @@
 #include "Log.hpp"
 #include "D3D10Runtime.hpp"
-#include "ParseTree.hpp"
+#include "FX\ParseTree.hpp"
 #include "WindowWatcher.hpp"
 
 #include <d3dcompiler.h>
@@ -2751,7 +2751,7 @@ namespace ReShade
 
 			if (cooldown-- > 0)
 			{
-				traffic += (sNetworkUpload + sNetworkDownload) > 0;
+				traffic += (NetworkUpload + NetworkDownload) > 0;
 				return;
 			}
 			else

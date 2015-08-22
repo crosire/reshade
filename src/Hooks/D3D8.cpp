@@ -2,6 +2,7 @@
 #include "HookManager.hpp"
 
 #include <regex>
+#include <sstream>
 #include <d3d9.h>
 #include <d3dx9shader.h>
 #include <initguid.h>

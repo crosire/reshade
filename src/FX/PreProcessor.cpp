@@ -20,7 +20,7 @@ namespace ReShade
 						std::string pragma = pp->mImpl->mOutput.substr(pp->mImpl->mLastPragma);
 						boost::algorithm::trim(pragma);
 
-						pp->mPragmas.push_back(pragma);
+						pp->mImpl->mPragmas.push_back(pragma);
 						pp->mImpl->mLastPragma = std::string::npos;
 					}
 				}
@@ -45,6 +45,7 @@ namespace ReShade
 			}
 
 			std::vector<fppTag> mTags;
+			std::vector<std::string> mPragmas;
 			std::string mOutput, mErrors;
 			std::size_t mScratchCursor, mLastPragma;
 			std::array<char, 16384> mScratch;
@@ -124,6 +125,24 @@ namespace ReShade
 			// Run preprocessor
 			const bool success = fppPreProcess(tags.data()) == 0;
 
+			// Return preprocessed source
+			if (!success)
+			{
+				errors += this->mImpl->mErrors;
+
+				this->mImpl->mOutput.clear();
+			}
+
+			return this->mImpl->mOutput;
+		}
+		std::string PreProcessor::Run(const boost::filesystem::path &path, std::string &errors, std::vector<std::string> &pragmas, std::vector<boost::filesystem::path> &includes)
+		{
+			// Run preprocessor
+			Run(path, errors);
+
+			// Add pragmas
+			pragmas.insert(pragmas.end(), this->mImpl->mPragmas.begin(), this->mImpl->mPragmas.end());
+
 			// Add included files
 			std::size_t pos = 0;
 
@@ -133,19 +152,11 @@ namespace ReShade
 				const boost::filesystem::path include = boost::filesystem::canonical(this->mImpl->mErrors.substr(begin, end - begin)).make_preferred();
 
 				this->mImpl->mErrors.erase(pos, 12 + end - begin);
-				this->mIncludes.push_back(include);
+				includes.push_back(include);
 			}
 
-			std::sort(this->mIncludes.begin(), this->mIncludes.end());
-			this->mIncludes.erase(std::unique(this->mIncludes.begin(), this->mIncludes.end()), this->mIncludes.end());
-
-			// Return preprocessed source
-			if (!success)
-			{
-				errors += this->mImpl->mErrors;
-
-				this->mImpl->mOutput.clear();
-			}
+			std::sort(includes.begin(), includes.end());
+			includes.erase(std::unique(includes.begin(), includes.end()), includes.end());
 
 			return this->mImpl->mOutput;
 		}

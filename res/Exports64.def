@@ -406,10 +406,10 @@ EXPORTS
 	RegisterRawInputDevices = HookRegisterRawInputDevices
 
 	; ws2_32.dll
-	send = HookPOSIXSend
-	sendto = HookPOSIXSendTo
-	recv = HookPOSIXRecv
-	recvfrom = HookPOSIXRecvFrom
+	send = HookXSASend
+	sendto = HookXSASendTo
+	recv = HookXSARecv
+	recvfrom = HookXSARecvFrom
 	WSASend = HookWSASend
 	WSASendTo = HookWSASendTo
 	WSARecv = HookWSARecv

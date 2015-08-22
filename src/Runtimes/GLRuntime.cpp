@@ -1,6 +1,6 @@
 #include "Log.hpp"
 #include "GLRuntime.hpp"
-#include "ParseTree.hpp"
+#include "FX\ParseTree.hpp"
 #include "WindowWatcher.hpp"
 
 #include <nanovg_gl.h>
@@ -3288,7 +3288,7 @@ namespace ReShade
 
 			if (cooldown-- > 0)
 			{
-				traffic += (sNetworkUpload + sNetworkDownload) > 0;
+				traffic += (NetworkUpload + NetworkDownload) > 0;
 				return;
 			}
 			else
@@ -3417,7 +3417,7 @@ namespace ReShade
 
 				if (status != GL_NO_ERROR)
 				{
-					LOG(ERROR) << "Failed to create depth texture with error code " << status;
+					LOG(ERROR) << "Failed to create depth texture for format " << format << " with error code " << status;
 
 					GLCHECK(glDeleteTextures(1, &this->mDepthTexture));
 

@@ -171,7 +171,6 @@ namespace
 			void operator =(const Lock &);
 		};
 
-	public:
 		CriticalSection()
 		{
 			InitializeCriticalSection(&this->mCS);

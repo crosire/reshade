@@ -13,10 +13,17 @@ EXPORT int WSAAPI HookWSASend(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount,
 
 	for (DWORD i = 0; i < dwBufferCount; ++i)
 	{
-		_InterlockedExchangeAdd(&ReShade::Runtime::sNetworkUpload, lpBuffers[i].len);
+		_InterlockedExchangeAdd(&ReShade::NetworkUpload, lpBuffers[i].len);
 	}
 
 	return trampoline(s, lpBuffers, dwBufferCount, lpNumberOfBytesSent, dwFlags, lpOverlapped, lpCompletionRoutine);
+}
+EXPORT int WSAAPI HookXSASend(SOCKET s, const char *buf, int len, int flags)
+{
+	DWORD result = 0;
+	WSABUF buffer = { len, const_cast<CHAR *>(buf) };
+
+	return HookWSASend(s, &buffer, 1, &result, flags, nullptr, nullptr) == 0 ? static_cast<int>(result) : SOCKET_ERROR;
 }
 EXPORT int WSAAPI HookWSASendTo(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPDWORD lpNumberOfBytesSent, DWORD dwFlags, const struct sockaddr *lpTo, int iToLen, LPWSAOVERLAPPED lpOverlapped, LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine)
 {
@@ -24,10 +31,17 @@ EXPORT int WSAAPI HookWSASendTo(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCoun
 
 	for (DWORD i = 0; i < dwBufferCount; ++i)
 	{
-		_InterlockedExchangeAdd(&ReShade::Runtime::sNetworkUpload, lpBuffers[i].len);
+		_InterlockedExchangeAdd(&ReShade::NetworkUpload, lpBuffers[i].len);
 	}
 
 	return trampoline(s, lpBuffers, dwBufferCount, lpNumberOfBytesSent, dwFlags, lpTo, iToLen, lpOverlapped, lpCompletionRoutine);
+}
+EXPORT int WSAAPI HookXSASendTo(SOCKET s, const char *buf, int len, int flags, const struct sockaddr *to, int tolen)
+{
+	DWORD result = 0;
+	WSABUF buffer = { len, const_cast<CHAR *>(buf) };
+
+	return HookWSASendTo(s, &buffer, 1, &result, flags, to, tolen, nullptr, nullptr) == 0 ? static_cast<int>(result) : SOCKET_ERROR;
 }
 EXPORT int WSAAPI HookWSARecv(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPDWORD lpNumberOfBytesRecvd, LPDWORD lpFlags, LPWSAOVERLAPPED lpOverlapped, LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine)
 {
@@ -46,11 +60,18 @@ EXPORT int WSAAPI HookWSARecv(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount,
 	{
 		for (DWORD i = 0; i < dwBufferCount; recieved -= lpBuffers[i++].len)
 		{
-			_InterlockedExchangeAdd(&ReShade::Runtime::sNetworkDownload, std::min(recieved, lpBuffers[i].len));
+			_InterlockedExchangeAdd(&ReShade::NetworkDownload, std::min(recieved, lpBuffers[i].len));
 		}
 	}
 
 	return status;
+}
+EXPORT int WSAAPI HookXSARecv(SOCKET s, char *buf, int len, int flags)
+{
+	DWORD result = 0, flags2 = flags;
+	WSABUF buffer = { len, buf };
+
+	return HookWSARecv(s, &buffer, 1, &result, &flags2, nullptr, nullptr) == 0 ? static_cast<int>(result) : SOCKET_ERROR;
 }
 EXPORT int WSAAPI HookWSARecvEx(SOCKET s, char *buf, int len, int *flags)
 {
@@ -60,7 +81,7 @@ EXPORT int WSAAPI HookWSARecvEx(SOCKET s, char *buf, int len, int *flags)
 
 	if (recieved > 0)
 	{
-		_InterlockedExchangeAdd(&ReShade::Runtime::sNetworkDownload, recieved);
+		_InterlockedExchangeAdd(&ReShade::NetworkDownload, recieved);
 	}
 
 	return recieved;
@@ -82,58 +103,16 @@ EXPORT int WSAAPI HookWSARecvFrom(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCo
 	{
 		for (DWORD i = 0; i < dwBufferCount; recieved -= lpBuffers[i++].len)
 		{
-			_InterlockedExchangeAdd(&ReShade::Runtime::sNetworkDownload, std::min(recieved, lpBuffers[i].len));
+			_InterlockedExchangeAdd(&ReShade::NetworkDownload, std::min(recieved, lpBuffers[i].len));
 		}
 	}
 
 	return status;
 }
-
-EXPORT int WSAAPI HookPOSIXSend(SOCKET s, const char *buf, int len, int flags)
-{
-	DWORD result = 0;
-	WSABUF buffer = { len, const_cast<CHAR *>(buf) };
-
-	if (HookWSASend(s, &buffer, 1, &result, flags, nullptr, nullptr) != 0)
-	{
-		return SOCKET_ERROR;
-	}
-
-	return static_cast<int>(result);
-}
-EXPORT int WSAAPI HookPOSIXSendTo(SOCKET s, const char *buf, int len, int flags, const struct sockaddr *to, int tolen)
-{
-	DWORD result = 0;
-	WSABUF buffer = { len, const_cast<CHAR *>(buf) };
-
-	if (HookWSASendTo(s, &buffer, 1, &result, flags, to, tolen, nullptr, nullptr) != 0)
-	{
-		return SOCKET_ERROR;
-	}
-
-	return static_cast<int>(result);
-}
-EXPORT int WSAAPI HookPOSIXRecv(SOCKET s, char *buf, int len, int flags)
+EXPORT int WSAAPI HookXSARecvFrom(SOCKET s, char *buf, int len, int flags, struct sockaddr *from, int *fromlen)
 {
 	DWORD result = 0, flags2 = flags;
 	WSABUF buffer = { len, buf };
 
-	if (HookWSARecv(s, &buffer, 1, &result, &flags2, nullptr, nullptr) != 0)
-	{
-		return SOCKET_ERROR;
-	}
-
-	return static_cast<int>(result);
-}
-EXPORT int WSAAPI HookPOSIXRecvFrom(SOCKET s, char *buf, int len, int flags, struct sockaddr *from, int *fromlen)
-{
-	DWORD result = 0, flags2 = flags;
-	WSABUF buffer = { len, buf };
-
-	if (HookWSARecvFrom(s, &buffer, 1, &result, &flags2, from, fromlen, nullptr, nullptr) != 0)
-	{
-		return SOCKET_ERROR;
-	}
-
-	return static_cast<int>(result);
+	return HookWSARecvFrom(s, &buffer, 1, &result, &flags2, from, fromlen, nullptr, nullptr) == 0 ? static_cast<int>(result) : SOCKET_ERROR;
 }

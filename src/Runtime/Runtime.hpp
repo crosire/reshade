@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Effect.hpp"
-#include "ParseTree.hpp"
+#include "FX\ParseTree.hpp"
 
 #include <boost\chrono.hpp>
 #include <boost\filesystem\path.hpp>
@@ -11,6 +11,8 @@ class WindowWatcher;
 
 namespace ReShade
 {
+	extern volatile long NetworkUpload, NetworkDownload;
+
 	class Runtime abstract
 	{
 	public:
@@ -55,16 +57,11 @@ namespace ReShade
 			boost::chrono::high_resolution_clock::time_point LastDurationUpdate;
 		};
 
-	public:
-		static void Startup(const boost::filesystem::path &executablePath, const boost::filesystem::path &injectorPath);
-		static void Shutdown();
-
-	public:
-		static volatile long sNetworkUpload, sNetworkDownload;
-
-	public:
 		Runtime();
 		virtual ~Runtime();
+
+		static void Startup(const boost::filesystem::path &executablePath, const boost::filesystem::path &injectorPath);
+		static void Shutdown();
 
 	protected:
 		void OnCreate(unsigned int width, unsigned int height);
@@ -81,7 +78,6 @@ namespace ReShade
 		void CreateScreenshot(const boost::filesystem::path &path);
 		virtual void CreateScreenshot(unsigned char *buffer, std::size_t size) const = 0;
 
-	protected:
 		unsigned int mVSync;
 		unsigned int mWidth, mHeight;
 		unsigned int mVendorId, mDeviceId, mRendererId;

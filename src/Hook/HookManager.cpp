@@ -3,9 +3,9 @@
 
 #include <vector>
 #include <unordered_map>
-#include <assert.h>
-#include <windows.h>
 #include <boost\algorithm\string.hpp>
+#include <assert.h>
+#include <Windows.h>
 
 namespace ReShade
 {
@@ -45,7 +45,6 @@ namespace ReShade
 					void operator =(const Lock &);
 				};
 
-			public:
 				CriticalSection()
 				{
 					InitializeCriticalSection(&this->mCS);
@@ -208,7 +207,11 @@ namespace ReShade
 					}
 
 					// Find appropriate replacement
-					const auto it = std::find_if(replacementExports.cbegin(), replacementExports.cend(), [&symbol](const ModuleExport &it) { return boost::equals(it.Name, symbol.Name); });
+					const auto it = std::find_if(replacementExports.cbegin(), replacementExports.cend(),
+						[&symbol](const ModuleExport &it)
+						{
+							return boost::equals(it.Name, symbol.Name);
+						});
 
 					// Filter uninteresting functions
 					if (it == replacementExports.cend() || (boost::equals(symbol.Name, "DXGIReportAdapterConfiguration") || boost::equals(symbol.Name, "DXGIDumpJournal")))
@@ -316,7 +319,11 @@ namespace ReShade
 			{
 				CriticalSection::Lock lock(sCS);
 
-				const auto it =	std::find_if(sHooks.cbegin(), sHooks.cend(), [replacement](const std::pair<Hook, HookType> &it) { return it.first.Replacement == replacement; });
+				const auto it =	std::find_if(sHooks.cbegin(), sHooks.cend(),
+					[replacement](const std::pair<Hook, HookType> &it)
+					{
+						return it.first.Replacement == replacement;
+					});
 
 				if (it == sHooks.cend())
 				{
@@ -344,22 +351,23 @@ namespace ReShade
 
 				CriticalSection::Lock lock(sCS);
 
-				const auto remove = std::remove_if(sDelayedHookPaths.begin(), sDelayedHookPaths.end(), [lpFileName](const boost::filesystem::path &it)
-				{
-					HMODULE handle = nullptr;
-					GetModuleHandleExW(0, it.c_str(), &handle);
-
-					if (handle == nullptr)
+				const auto remove = std::remove_if(sDelayedHookPaths.begin(), sDelayedHookPaths.end(),
+					[lpFileName](const boost::filesystem::path &it)
 					{
-						return false;
-					}
+						HMODULE handle = nullptr;
+						GetModuleHandleExW(0, it.c_str(), &handle);
 
-					LOG(INFO) << "Installing delayed hooks for " << it << " (Just loaded via 'LoadLibraryA(\"" << lpFileName << "\")') ...";
+						if (handle == nullptr)
+						{
+							return false;
+						}
 
-					sDelayedHookModules.push_back(handle);
+						LOG(INFO) << "Installing delayed hooks for " << it << " (Just loaded via 'LoadLibraryA(\"" << lpFileName << "\")') ...";
 
-					return Install(handle, sCurrentModuleHandle, HookType::FunctionHook);
-				});
+						sDelayedHookModules.push_back(handle);
+
+						return Install(handle, sCurrentModuleHandle, HookType::FunctionHook);
+					});
 
 				sDelayedHookPaths.erase(remove, sDelayedHookPaths.end());
 
@@ -389,22 +397,23 @@ namespace ReShade
 
 				CriticalSection::Lock lock(sCS);
 
-				const auto remove = std::remove_if(sDelayedHookPaths.begin(), sDelayedHookPaths.end(), [lpFileName](const boost::filesystem::path &it)
-				{
-					HMODULE handle = nullptr;
-					GetModuleHandleExW(0, it.c_str(), &handle);
-
-					if (handle == nullptr)
+				const auto remove = std::remove_if(sDelayedHookPaths.begin(), sDelayedHookPaths.end(),
+					[lpFileName](const boost::filesystem::path &it)
 					{
-						return false;
-					}
+						HMODULE handle = nullptr;
+						GetModuleHandleExW(0, it.c_str(), &handle);
 
-					LOG(INFO) << "Installing delayed hooks for " << it << " (Just loaded via 'LoadLibraryW(\"" << lpFileName << "\")') ...";
+						if (handle == nullptr)
+						{
+							return false;
+						}
 
-					sDelayedHookModules.push_back(handle);
+						LOG(INFO) << "Installing delayed hooks for " << it << " (Just loaded via 'LoadLibraryW(\"" << lpFileName << "\")') ...";
 
-					return Install(handle, sCurrentModuleHandle, HookType::FunctionHook);
-				});
+						sDelayedHookModules.push_back(handle);
+
+						return Install(handle, sCurrentModuleHandle, HookType::FunctionHook);
+					});
 
 				sDelayedHookPaths.erase(remove, sDelayedHookPaths.end());
 

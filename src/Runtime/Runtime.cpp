@@ -2,8 +2,8 @@
 #include "Version.h"
 #include "Runtime.hpp"
 #include "HookManager.hpp"
-#include "Parser.hpp"
-#include "PreProcessor.hpp"
+#include "FX\Parser.hpp"
+#include "FX\PreProcessor.hpp"
 #include "FileWatcher.hpp"
 #include "WindowWatcher.hpp"
 
@@ -154,7 +154,7 @@ namespace ReShade
 		LOG(INFO) << "Exited.";
 	}
 
-	volatile long Runtime::sNetworkUpload = 0, Runtime::sNetworkDownload = 0;
+	volatile long NetworkUpload = 0, NetworkDownload = 0;
 
 	// -----------------------------------------------------------------------------------------------------
 
@@ -549,7 +549,7 @@ namespace ReShade
 				stats << "Frame " << (this->mLastFrameCount + 1) << ": " << (frametime.count() * 1e-6f) << "ms" << std::endl;
 				stats << "PostProcessing: " << (boost::chrono::duration_cast<boost::chrono::nanoseconds>(this->mLastPostProcessingDuration).count() * 1e-6f) << "ms" << std::endl;
 				stats << "Timer: " << std::fmod(boost::chrono::duration_cast<boost::chrono::nanoseconds>(this->mLastPresent - this->mStartTime).count() * 1e-6f, 16777216.0f) << "ms" << std::endl;
-				stats << "Network: " << sNetworkUpload << "B up / " << sNetworkDownload << "B down" << std::endl;
+				stats << "Network: " << NetworkUpload << "B up / " << NetworkDownload << "B down" << std::endl;
 
 				stats << std::endl;
 				stats << "Textures" << std::endl << "--------" << std::endl;
@@ -591,7 +591,7 @@ namespace ReShade
 		this->mDate[2] = static_cast<float>(tm.tm_mday);
 		this->mDate[3] = static_cast<float>(tm.tm_hour * 3600 + tm.tm_min * 60 + tm.tm_sec);
 
-		sNetworkUpload = sNetworkDownload = 0;
+		NetworkUpload = NetworkDownload = 0;
 		this->mLastPresent = timePresent;
 		this->mLastFrameDuration = frametime;
 		this->mLastFrameCount++;
@@ -660,10 +660,11 @@ namespace ReShade
 		LOG(INFO) << "Loading effect from " << ObfuscatePath(path) << " ...";
 		LOG(TRACE) << "> Running preprocessor ...";
 
-		std::string errors;
-		const std::string source = preprocessor.Run(path, errors);
+		this->mIncludedFiles.clear();
 
-		this->mIncludedFiles = preprocessor.GetIncludes();
+		std::string errors;
+		std::vector<std::string> pragmas;
+		const std::string source = preprocessor.Run(path, errors, pragmas, this->mIncludedFiles);
 
 		if (source.empty())
 		{
@@ -689,7 +690,7 @@ namespace ReShade
 			this->mEffectSource = source;
 		}
 
-		for (const std::string &pragma : preprocessor.GetPragmas())
+		for (const std::string &pragma : pragmas)
 		{
 			if (boost::starts_with(pragma, "message "))
 			{
