@@ -49,6 +49,8 @@ namespace ReShade
 		boost::filesystem::path sExecutablePath, sInjectorPath, sEffectPath;
 	}
 
+	volatile long NetworkUpload = 0;
+
 	// -----------------------------------------------------------------------------------------------------
 
 	void Runtime::Startup(const boost::filesystem::path &executablePath, const boost::filesystem::path &injectorPath)
@@ -104,8 +106,6 @@ namespace ReShade
 
 		LOG(INFO) << "Exited.";
 	}
-
-	volatile long NetworkUpload = 0, NetworkDownload = 0;
 
 	// -----------------------------------------------------------------------------------------------------
 
@@ -500,7 +500,7 @@ namespace ReShade
 				stats << "Frame " << (this->mLastFrameCount + 1) << ": " << (frametime.count() * 1e-6f) << "ms" << std::endl;
 				stats << "PostProcessing: " << (boost::chrono::duration_cast<boost::chrono::nanoseconds>(this->mLastPostProcessingDuration).count() * 1e-6f) << "ms" << std::endl;
 				stats << "Timer: " << std::fmod(boost::chrono::duration_cast<boost::chrono::nanoseconds>(this->mLastPresent - this->mStartTime).count() * 1e-6f, 16777216.0f) << "ms" << std::endl;
-				stats << "Network: " << NetworkUpload << "B up / " << NetworkDownload << "B down" << std::endl;
+				stats << "Network: " << NetworkUpload << "B up" << std::endl;
 
 				stats << std::endl;
 				stats << "Textures" << std::endl << "--------" << std::endl;
@@ -542,7 +542,7 @@ namespace ReShade
 		this->mDate[2] = static_cast<float>(tm.tm_mday);
 		this->mDate[3] = static_cast<float>(tm.tm_hour * 3600 + tm.tm_min * 60 + tm.tm_sec);
 
-		NetworkUpload = NetworkDownload = 0;
+		NetworkUpload = 0;
 		this->mLastPresent = timePresent;
 		this->mLastFrameDuration = frametime;
 		this->mLastFrameCount++;

@@ -2485,7 +2485,7 @@ namespace ReShade
 
 			if (cooldown-- > 0)
 			{
-				traffic += (NetworkUpload + NetworkDownload) > 0;
+				traffic += NetworkUpload > 0;
 				return;
 			}
 			else

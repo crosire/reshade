@@ -13,7 +13,7 @@ EXPORT int WSAAPI HookWSASend(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount,
 
 	for (DWORD i = 0; i < dwBufferCount; ++i)
 	{
-		_InterlockedExchangeAdd(&ReShade::NetworkUpload, lpBuffers[i].len);
+		InterlockedExchangeAdd(&ReShade::NetworkUpload, lpBuffers[i].len);
 	}
 
 	return trampoline(s, lpBuffers, dwBufferCount, lpNumberOfBytesSent, dwFlags, lpOverlapped, lpCompletionRoutine);
@@ -31,7 +31,7 @@ EXPORT int WSAAPI HookWSASendTo(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCoun
 
 	for (DWORD i = 0; i < dwBufferCount; ++i)
 	{
-		_InterlockedExchangeAdd(&ReShade::NetworkUpload, lpBuffers[i].len);
+		InterlockedExchangeAdd(&ReShade::NetworkUpload, lpBuffers[i].len);
 	}
 
 	return trampoline(s, lpBuffers, dwBufferCount, lpNumberOfBytesSent, dwFlags, lpTo, iToLen, lpOverlapped, lpCompletionRoutine);
@@ -56,14 +56,6 @@ EXPORT int WSAAPI HookWSARecv(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount,
 		*lpNumberOfBytesRecvd = recieved;
 	}
 
-	if (status == 0)
-	{
-		for (DWORD i = 0; i < dwBufferCount; recieved -= lpBuffers[i++].len)
-		{
-			_InterlockedExchangeAdd(&ReShade::NetworkDownload, std::min(recieved, lpBuffers[i].len));
-		}
-	}
-
 	return status;
 }
 EXPORT int WSAAPI HookXSARecv(SOCKET s, char *buf, int len, int flags)
@@ -77,14 +69,7 @@ EXPORT int WSAAPI HookWSARecvEx(SOCKET s, char *buf, int len, int *flags)
 {
 	static const auto trampoline = ReShade::Hooks::Call(&HookWSARecvEx);
 
-	const int recieved = trampoline(s, buf, len, flags);
-
-	if (recieved > 0)
-	{
-		_InterlockedExchangeAdd(&ReShade::NetworkDownload, recieved);
-	}
-
-	return recieved;
+	return trampoline(s, buf, len, flags);
 }
 EXPORT int WSAAPI HookWSARecvFrom(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPDWORD lpNumberOfBytesRecvd, LPDWORD lpFlags, struct sockaddr *lpFrom, LPINT lpFromlen, LPWSAOVERLAPPED lpOverlapped, LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine)
 {
@@ -97,14 +82,6 @@ EXPORT int WSAAPI HookWSARecvFrom(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCo
 	if (lpNumberOfBytesRecvd != nullptr)
 	{
 		*lpNumberOfBytesRecvd = recieved;
-	}
-
-	if (status == 0)
-	{
-		for (DWORD i = 0; i < dwBufferCount; recieved -= lpBuffers[i++].len)
-		{
-			_InterlockedExchangeAdd(&ReShade::NetworkDownload, std::min(recieved, lpBuffers[i].len));
-		}
 	}
 
 	return status;

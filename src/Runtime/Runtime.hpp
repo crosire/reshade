@@ -12,7 +12,7 @@ class WindowWatcher;
 
 namespace ReShade
 {
-	extern volatile long NetworkUpload, NetworkDownload;
+	extern volatile long NetworkUpload;
 
 	class Runtime abstract
 	{
