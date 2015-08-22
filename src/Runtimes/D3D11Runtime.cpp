@@ -20,20 +20,6 @@ namespace ReShade
 	{
 		namespace
 		{
-			struct CSLock : boost::noncopyable
-			{
-				CSLock(CRITICAL_SECTION &cs) : mCS(cs)
-				{
-					EnterCriticalSection(&this->mCS);
-				}
-				~CSLock()
-				{
-					LeaveCriticalSection(&this->mCS);
-				}
-
-				CRITICAL_SECTION &mCS;
-			};
-
 			class D3D11EffectCompiler : private boost::noncopyable
 			{
 			public:
@@ -2371,8 +2357,6 @@ namespace ReShade
 
 		D3D11Runtime::D3D11Runtime(ID3D11Device *device, IDXGISwapChain *swapchain) : mDevice(device), mSwapChain(swapchain), mImmediateContext(nullptr), mStateBlock(new D3D11StateBlock(device)), mBackBuffer(nullptr), mBackBufferResolved(nullptr), mBackBufferTexture(nullptr), mBackBufferTextureSRV(), mBackBufferTargets(), mDepthStencil(nullptr), mDepthStencilReplacement(nullptr), mDepthStencilTexture(nullptr), mDepthStencilTextureSRV(nullptr), mCopyVS(nullptr), mCopyPS(nullptr), mCopySampler(nullptr), mLost(true)
 		{
-			InitializeCriticalSection(&this->mCS);
-
 			assert(this->mDevice != nullptr);
 			assert(this->mSwapChain != nullptr);
 			assert(this->mStateBlock != nullptr);
@@ -2411,8 +2395,6 @@ namespace ReShade
 		}
 		D3D11Runtime::~D3D11Runtime()
 		{
-			DeleteCriticalSection(&this->mCS);
-
 			assert(this->mLost);
 
 			this->mImmediateContext->Release();
@@ -2656,7 +2638,7 @@ namespace ReShade
 		}
 		void D3D11Runtime::OnDrawInternal(ID3D11DeviceContext *context, unsigned int vertices)
 		{
-			CSLock lock(this->mCS);
+			Utils::CriticalSection::Lock lock(this->mCS);
 
 			Runtime::OnDraw(vertices);
 
@@ -2751,7 +2733,7 @@ namespace ReShade
 			assert(resource != nullptr);
 			assert(depthstencil != nullptr);
 
-			CSLock lock(this->mCS);
+			Utils::CriticalSection::Lock lock(this->mCS);
 
 			// Do not track default depthstencil
 			if (this->mLost)
@@ -2788,7 +2770,7 @@ namespace ReShade
 		{
 			assert(depthstencil != nullptr);
 
-			CSLock lock(this->mCS);
+			Utils::CriticalSection::Lock lock(this->mCS);
 
 			const auto it = this->mDepthSourceTable.find(depthstencil);
 
@@ -2806,7 +2788,7 @@ namespace ReShade
 		}
 		void D3D11Runtime::OnSetDepthStencilView(ID3D11DepthStencilView *&depthstencil)
 		{
-			CSLock lock(this->mCS);
+			Utils::CriticalSection::Lock lock(this->mCS);
 
 			if (this->mDepthStencilReplacement != nullptr && depthstencil == this->mDepthStencil)
 			{
@@ -2815,7 +2797,7 @@ namespace ReShade
 		}
 		void D3D11Runtime::OnGetDepthStencilView(ID3D11DepthStencilView *&depthstencil)
 		{
-			CSLock lock(this->mCS);
+			Utils::CriticalSection::Lock lock(this->mCS);
 
 			if (this->mDepthStencilReplacement != nullptr && depthstencil == this->mDepthStencilReplacement)
 			{
@@ -2827,7 +2809,7 @@ namespace ReShade
 		}
 		void D3D11Runtime::OnClearDepthStencilView(ID3D11DepthStencilView *&depthstencil)
 		{
-			CSLock lock(this->mCS);
+			Utils::CriticalSection::Lock lock(this->mCS);
 
 			if (this->mDepthStencilReplacement != nullptr && depthstencil == this->mDepthStencil)
 			{
@@ -2836,7 +2818,7 @@ namespace ReShade
 		}
 		void D3D11Runtime::OnCopyResource(ID3D11Resource *&dest, ID3D11Resource *&source)
 		{
-			CSLock lock(this->mCS);
+			Utils::CriticalSection::Lock lock(this->mCS);
 
 			if (this->mDepthStencilReplacement != nullptr)
 			{
@@ -2881,7 +2863,7 @@ namespace ReShade
 				}
 			}
 
-			CSLock lock(this->mCS);
+			Utils::CriticalSection::Lock lock(this->mCS);
 
 			if (this->mSwapChainDesc.SampleDesc.Count > 1 || this->mDepthSourceTable.empty())
 			{

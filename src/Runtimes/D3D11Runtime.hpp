@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Runtime.hpp"
+#include "Utils\CriticalSection.hpp"
 
 #include <d3d11_1.h>
 
@@ -55,7 +56,7 @@ namespace ReShade
 			ID3D11VertexShader *mCopyVS;
 			ID3D11PixelShader *mCopyPS;
 			ID3D11SamplerState *mCopySampler;
-			CRITICAL_SECTION mCS;
+			Utils::CriticalSection mCS;
 			bool mLost;
 		};
 

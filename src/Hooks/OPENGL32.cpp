@@ -1,6 +1,7 @@
 #include "Log.hpp"
 #include "HookManager.hpp"
 #include "Runtimes\GLRuntime.hpp"
+#include "Utils\CriticalSection.hpp"
 
 #include <unordered_map>
 #include <unordered_set>
@@ -151,38 +152,7 @@ namespace
 		return res.str();
 	}
 
-	class CriticalSection
-	{
-	public:
-		struct Lock
-		{
-			Lock(CriticalSection &cs) : CS(cs)
-			{
-				EnterCriticalSection(&this->CS.mCS);
-			}
-			~Lock()
-			{
-				LeaveCriticalSection(&this->CS.mCS);
-			}
-
-			CriticalSection &CS;
-
-		private:
-			void operator =(const Lock &);
-		};
-
-		CriticalSection()
-		{
-			InitializeCriticalSection(&this->mCS);
-		}
-		~CriticalSection()
-		{
-			DeleteCriticalSection(&this->mCS);
-		}
-
-	private:
-		CRITICAL_SECTION mCS;
-	} sCS;
+	ReShade::Utils::CriticalSection sCS;
 	std::unordered_map<HWND, RECT> sWindowRects;
 	std::unordered_set<HDC> sPbufferDeviceContexts;
 	std::unordered_map<HGLRC, HGLRC> sSharedContexts;
@@ -3201,7 +3171,7 @@ EXPORT HGLRC WINAPI wglCreateContext(HDC hdc)
 		return nullptr;
 	}
 
-	CriticalSection::Lock lock(sCS);
+	ReShade::Utils::CriticalSection::Lock lock(sCS);
 
 	sSharedContexts.emplace(hglrc, nullptr);
 
@@ -3306,7 +3276,7 @@ HGLRC WINAPI wglCreateContextAttribsARB(HDC hdc, HGLRC hShareContext, const int 
 		return nullptr;
 	}
 
-	CriticalSection::Lock lock(sCS);
+	ReShade::Utils::CriticalSection::Lock lock(sCS);
 
 	sSharedContexts.emplace(hglrc, hShareContext);
 
@@ -3408,7 +3378,7 @@ EXPORT BOOL WINAPI wglDeleteContext(HGLRC hglrc)
 
 	LOG(INFO) << "Redirecting '" << "wglDeleteContext" << "(" << hglrc << ")' ...";
 
-	CriticalSection::Lock lock(sCS);
+	ReShade::Utils::CriticalSection::Lock lock(sCS);
 
 	for (auto it = sSharedContexts.begin(); it != sSharedContexts.end();)
 	{
@@ -3498,7 +3468,7 @@ HDC WINAPI wglGetPbufferDCARB(HPBUFFERARB hPbuffer)
 		return nullptr;
 	}
 
-	CriticalSection::Lock lock(sCS);
+	ReShade::Utils::CriticalSection::Lock lock(sCS);
 
 	sPbufferDeviceContexts.insert(hdc);
 
@@ -3552,7 +3522,7 @@ EXPORT BOOL WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 		return TRUE;
 	}
 	
-	CriticalSection::Lock lock(sCS);
+	ReShade::Utils::CriticalSection::Lock lock(sCS);
 
 	const bool isPbufferDeviceContext = sPbufferDeviceContexts.find(hdc) != sPbufferDeviceContexts.end();
 	
@@ -3656,7 +3626,7 @@ int WINAPI wglReleasePbufferDCARB(HPBUFFERARB hPbuffer, HDC hdc)
 		return FALSE;
 	}
 
-	CriticalSection::Lock lock(sCS);
+	ReShade::Utils::CriticalSection::Lock lock(sCS);
 
 	sPbufferDeviceContexts.erase(hdc);
 
@@ -3682,7 +3652,7 @@ EXPORT BOOL WINAPI wglShareLists(HGLRC hglrc1, HGLRC hglrc2)
 		return FALSE;
 	}
 
-	CriticalSection::Lock lock(sCS);
+	ReShade::Utils::CriticalSection::Lock lock(sCS);
 
 	sSharedContexts[hglrc2] = hglrc1;
 

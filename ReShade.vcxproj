@@ -275,6 +275,7 @@ tools\upx --backup "$(TargetPath)"</Command>
     <ClInclude Include="src\Runtimes\D3D11Runtime.hpp" />
     <ClInclude Include="src\Runtimes\D3D9Runtime.hpp" />
     <ClInclude Include="src\Runtimes\GLRuntime.hpp" />
+    <ClInclude Include="src\Utils\CriticalSection.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="res\Resource.rc" />
