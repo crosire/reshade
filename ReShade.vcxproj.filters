@@ -13,9 +13,6 @@
     <Filter Include="Core\Runtime">
       <UniqueIdentifier>{ecdb23a8-21dc-4334-b5cf-2ea57d27001d}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Core\Utils">
-      <UniqueIdentifier>{665e98df-788d-48ad-97ee-8f9622ebf7ca}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Implementation">
       <UniqueIdentifier>{46bec447-8902-4b8a-99fe-6bf6e239ea01}</UniqueIdentifier>
     </Filter>
@@ -27,6 +24,9 @@
     </Filter>
     <Filter Include="Resources">
       <UniqueIdentifier>{d408b60a-a09d-437b-9a0f-3ac6ea741b08}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Core\Utils">
+      <UniqueIdentifier>{665e98df-788d-48ad-97ee-8f9622ebf7ca}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -136,6 +136,9 @@
     </ClInclude>
     <ClInclude Include="src\Runtime\WindowWatcher.hpp">
       <Filter>Core\Runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Utils\Algorithm.hpp">
+      <Filter>Core\Utils</Filter>
     </ClInclude>
     <ClInclude Include="src\Utils\CriticalSection.hpp">
       <Filter>Core\Utils</Filter>

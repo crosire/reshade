@@ -6,15 +6,13 @@
 #include "FX\PreProcessor.hpp"
 #include "FileWatcher.hpp"
 #include "WindowWatcher.hpp"
+#include "Utils\Algorithm.hpp"
 
 #include <sstream>
 #include <stb_dxt.h>
 #include <stb_image.h>
 #include <stb_image_write.h>
 #include <stb_image_resize.h>
-#include <boost\algorithm\string\replace.hpp>
-#include <boost\algorithm\string\predicate.hpp>
-#include <boost\filesystem\path.hpp>
 #include <boost\filesystem\operations.hpp>
 #include <nanovg.h>
 
@@ -22,53 +20,6 @@ namespace ReShade
 {
 	namespace
 	{
-		void EscapeString(std::string &buffer)
-		{
-			for (auto it = buffer.begin(); it != buffer.end(); ++it)
-			{
-				if (it[0] == '\\')
-				{
-					switch (it[1])
-					{
-						case '"':
-							it[0] = '"';
-							break;
-						case '\'':
-							it[0] = '\'';
-							break;
-						case '\\':
-							it[0] = '\\';
-							break;
-						case 'a':
-							it[0] = '\a';
-							break;
-						case 'b':
-							it[0] = '\b';
-							break;
-						case 'f':
-							it[0] = '\f';
-							break;
-						case 'n':
-							it[0] = '\n';
-							break;
-						case 'r':
-							it[0] = '\r';
-							break;
-						case 't':
-							it[0] = '\t';
-							break;
-						case 'v':
-							it[0] = '\v';
-							break;
-						default:
-							it[0] = it[1];
-							break;
-					}
-
-					it = std::prev(buffer.erase(it + 1));
-				}
-			}
-		}
 		boost::filesystem::path ObfuscatePath(const boost::filesystem::path &path)
 		{
 			char username[257];
@@ -744,7 +695,7 @@ namespace ReShade
 				std::string path = command.substr(20);
 				const std::size_t beg = path.find_first_of('"') + 1, end = path.find_last_of('"');
 				path = path.substr(beg, end - beg);
-				EscapeString(path);
+				Utils::EscapeString(path);
 
 				if (boost::filesystem::exists(path))
 				{
@@ -757,7 +708,7 @@ namespace ReShade
 			}
 		}
 
-		EscapeString(this->mMessage);
+		Utils::EscapeString(this->mMessage);
 
 		return true;
 	}
