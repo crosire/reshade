@@ -2,6 +2,7 @@
 
 #include "Effect.hpp"
 #include "FX\ParseTree.hpp"
+#include "Utils\Time.hpp"
 
 #include <boost\chrono.hpp>
 #include <boost\filesystem\path.hpp>
@@ -16,36 +17,6 @@ namespace ReShade
 	class Runtime abstract
 	{
 	public:
-		class FPS
-		{
-		public:
-			FPS() : mIndex(0), mTickSum(0), mTickList()
-			{
-			}
-
-			inline operator float() const
-			{
-				return this->mFPS;
-			}
-
-			void Calculate(unsigned long long ns)
-			{
-				this->mTickSum -= this->mTickList[this->mIndex];
-				this->mTickSum += this->mTickList[this->mIndex++] = ns;
-
-				if (this->mIndex == Samples)
-				{
-					this->mIndex = 0;
-				}
-
-				this->mFPS = 1000000000.0f * Samples / this->mTickSum;
-			}
-
-		private:
-			static const unsigned int Samples = 100;
-			float mFPS;
-			unsigned long long mIndex, mTickSum, mTickList[Samples];
-		};
 		struct TechniqueInfo
 		{
 			bool Enabled;
@@ -91,7 +62,7 @@ namespace ReShade
 		boost::chrono::high_resolution_clock::duration mLastFrameDuration, mLastPostProcessingDuration;
 		unsigned long long mLastFrameCount;
 		unsigned int mCompileStep;
-		FPS mFramerate;
+		Utils::Framerate mFramerate;
 		float mDate[4];
 		std::string mStatus, mErrors, mMessage, mEffectSource;
 		std::string mScreenshotFormat;

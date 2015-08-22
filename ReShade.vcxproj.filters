@@ -143,6 +143,9 @@
     <ClInclude Include="src\Utils\CriticalSection.hpp">
       <Filter>Core\Utils</Filter>
     </ClInclude>
+    <ClInclude Include="src\Utils\Time.hpp">
+      <Filter>Core\Utils</Filter>
+    </ClInclude>
     <ClInclude Include="src\Runtimes\D3D10Runtime.hpp">
       <Filter>Implementation\Runtimes</Filter>
     </ClInclude>
