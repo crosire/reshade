@@ -20,16 +20,155 @@ namespace ReShade
 	{
 		namespace
 		{
+			template <typename T>
+			inline ULONG SAFE_RELEASE(T *&object)
+			{
+				if (object == nullptr)
+				{
+					return 0;
+				}
+
+				const ULONG ref = object->Release();
+
+				object = nullptr;
+
+				return ref;
+			}
+
+			struct D3D11Technique : public Technique
+			{
+				struct Pass
+				{
+					ID3D11VertexShader *VS;
+					ID3D11PixelShader *PS;
+					ID3D11BlendState *BS;
+					ID3D11DepthStencilState *DSS;
+					UINT StencilRef;
+					ID3D11RenderTargetView *RT[D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT];
+					ID3D11ShaderResourceView *RTSRV[D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT];
+					D3D11_VIEWPORT Viewport;
+					std::vector<ID3D11ShaderResourceView *> SRV;
+				};
+
+				~D3D11Technique()
+				{
+					for (auto &pass : this->Passes)
+					{
+						if (pass.VS != nullptr)
+						{
+							pass.VS->Release();
+						}
+						if (pass.PS != nullptr)
+						{
+							pass.PS->Release();
+						}
+						if (pass.BS != nullptr)
+						{
+							pass.BS->Release();
+						}
+						if (pass.DSS != nullptr)
+						{
+							pass.DSS->Release();
+						}
+					}
+				}
+
+				std::vector<Pass> Passes;
+			};
+			struct D3D11Texture : public Texture
+			{
+				enum class Source
+				{
+					Memory,
+					BackBuffer,
+					DepthStencil
+				};
+
+				D3D11Texture() : mSource(Source::Memory), mTexture(nullptr), mShaderResourceView(), mRenderTargetView(), mRegister(0)
+				{
+				}
+				~D3D11Texture()
+				{
+					SAFE_RELEASE(this->mRenderTargetView[0]);
+					SAFE_RELEASE(this->mRenderTargetView[1]);
+					SAFE_RELEASE(this->mShaderResourceView[0]);
+					SAFE_RELEASE(this->mShaderResourceView[1]);
+
+					SAFE_RELEASE(this->mTexture);
+				}
+
+				void ChangeSource(D3D11Runtime *runtime, ID3D11ShaderResourceView *srv, ID3D11ShaderResourceView *srvSRGB)
+				{
+					if (srvSRGB == nullptr)
+					{
+						srvSRGB = srv;
+					}
+
+					if (srv == this->mShaderResourceView[0] && srvSRGB == this->mShaderResourceView[1])
+					{
+						return;
+					}
+
+					SAFE_RELEASE(this->mRenderTargetView[0]);
+					SAFE_RELEASE(this->mRenderTargetView[1]);
+					SAFE_RELEASE(this->mShaderResourceView[0]);
+					SAFE_RELEASE(this->mShaderResourceView[1]);
+
+					SAFE_RELEASE(this->mTexture);
+
+					if (srv != nullptr)
+					{
+						this->mShaderResourceView[0] = srv;
+						this->mShaderResourceView[0]->AddRef();
+						this->mShaderResourceView[0]->GetResource(reinterpret_cast<ID3D11Resource **>(&this->mTexture));
+						this->mShaderResourceView[1] = srvSRGB;
+						this->mShaderResourceView[1]->AddRef();
+
+						D3D11_TEXTURE2D_DESC texdesc;
+						this->mTexture->GetDesc(&texdesc);
+
+						this->Width = texdesc.Width;
+						this->Height = texdesc.Height;
+						this->Format = Texture::PixelFormat::Unknown;
+						this->Levels = texdesc.MipLevels;
+					}
+					else
+					{
+						this->Width = this->Height = this->Levels = 0;
+						this->Format = Texture::PixelFormat::Unknown;
+					}
+
+					// Update techniques shader resourceviews
+					for (auto &technique : runtime->GetTechniques())
+					{
+						for (auto &pass : static_cast<D3D11Technique *>(technique.get())->Passes)
+						{
+							pass.SRV[this->mRegister] = this->mShaderResourceView[0];
+							pass.SRV[this->mRegister + 1] = this->mShaderResourceView[1];
+						}
+					}
+				}
+
+				Source mSource;
+				std::size_t mRegister;
+				ID3D11Texture2D *mTexture;
+				ID3D11ShaderResourceView *mShaderResourceView[2];
+				ID3D11RenderTargetView *mRenderTargetView[2];
+			};
+			struct D3D11Constant : public Constant
+			{
+			};
+
 			class D3D11EffectCompiler : private boost::noncopyable
 			{
 			public:
-				D3D11EffectCompiler(const FX::Tree &ast, bool skipoptimization = false) : mAST(ast), mEffect(nullptr), mFatal(false), mSkipShaderOptimization(skipoptimization), mCurrentInParameterBlock(false), mCurrentInFunctionBlock(false), mCurrentInForInitialization(0), mCurrentGlobalSize(0), mCurrentGlobalStorageSize(0)
+				D3D11EffectCompiler(const FX::Tree &ast, bool skipoptimization = false) : mAST(ast), mRuntime(nullptr), mFatal(false), mSkipShaderOptimization(skipoptimization), mCurrentInParameterBlock(false), mCurrentInFunctionBlock(false), mCurrentInForInitialization(0), mCurrentGlobalSize(0)
 				{
 				}
 
-				bool Traverse(D3D11Effect *effect, std::string &errors)
+				bool Traverse(D3D11Runtime *runtime, std::string &errors)
 				{
-					this->mEffect = effect;
+					this->mRuntime = runtime;
 					this->mErrors.clear();
 					this->mFatal = false;
 					this->mCurrentSource.clear();
@@ -55,9 +194,9 @@ namespace ReShade
 					{
 						CD3D11_BUFFER_DESC globalsDesc(RoundToMultipleOf16(this->mCurrentGlobalSize), D3D11_BIND_CONSTANT_BUFFER, D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE);
 						D3D11_SUBRESOURCE_DATA globalsInitial;
-						globalsInitial.pSysMem = this->mEffect->mConstantStorage;
+						globalsInitial.pSysMem = this->mRuntime->GetConstantStorage();
 						globalsInitial.SysMemPitch = globalsInitial.SysMemSlicePitch = this->mCurrentGlobalSize;
-						this->mEffect->mRuntime->mDevice->CreateBuffer(&globalsDesc, &globalsInitial, &this->mEffect->mConstantBuffer);
+						this->mRuntime->mDevice->CreateBuffer(&globalsDesc, &globalsInitial, &this->mRuntime->mConstantBuffer);
 					}
 
 					errors += this->mErrors;
@@ -90,60 +229,60 @@ namespace ReShade
 
 					return static_cast<D3D11_BLEND>(value);
 				}
-				static DXGI_FORMAT LiteralToFormat(unsigned int value, FX::Effect::Texture::Format &name)
+				static DXGI_FORMAT LiteralToFormat(unsigned int value, Texture::PixelFormat &name)
 				{
 					switch (value)
 					{
 						case FX::Nodes::Variable::Properties::R8:
-							name = FX::Effect::Texture::Format::R8;
+							name = Texture::PixelFormat::R8;
 							return DXGI_FORMAT_R8_UNORM;
 						case FX::Nodes::Variable::Properties::R16F:
-							name = FX::Effect::Texture::Format::R16F;
+							name = Texture::PixelFormat::R16F;
 							return DXGI_FORMAT_R16_FLOAT;
 						case FX::Nodes::Variable::Properties::R32F:
-							name = FX::Effect::Texture::Format::R32F;
+							name = Texture::PixelFormat::R32F;
 							return DXGI_FORMAT_R32_FLOAT;
 						case FX::Nodes::Variable::Properties::RG8:
-							name = FX::Effect::Texture::Format::RG8;
+							name = Texture::PixelFormat::RG8;
 							return DXGI_FORMAT_R8G8_UNORM;
 						case FX::Nodes::Variable::Properties::RG16:
-							name = FX::Effect::Texture::Format::RG16;
+							name = Texture::PixelFormat::RG16;
 							return DXGI_FORMAT_R16G16_UNORM;
 						case FX::Nodes::Variable::Properties::RG16F:
-							name = FX::Effect::Texture::Format::RG16F;
+							name = Texture::PixelFormat::RG16F;
 							return DXGI_FORMAT_R16G16_FLOAT;
 						case FX::Nodes::Variable::Properties::RG32F:
-							name = FX::Effect::Texture::Format::RG32F;
+							name = Texture::PixelFormat::RG32F;
 							return DXGI_FORMAT_R32G32_FLOAT;
 						case FX::Nodes::Variable::Properties::RGBA8:
-							name = FX::Effect::Texture::Format::RGBA8;
+							name = Texture::PixelFormat::RGBA8;
 							return DXGI_FORMAT_R8G8B8A8_TYPELESS;
 						case FX::Nodes::Variable::Properties::RGBA16:
-							name = FX::Effect::Texture::Format::RGBA16;
+							name = Texture::PixelFormat::RGBA16;
 							return DXGI_FORMAT_R16G16B16A16_UNORM;
 						case FX::Nodes::Variable::Properties::RGBA16F:
-							name = FX::Effect::Texture::Format::RGBA16F;
+							name = Texture::PixelFormat::RGBA16F;
 							return DXGI_FORMAT_R16G16B16A16_FLOAT;
 						case FX::Nodes::Variable::Properties::RGBA32F:
-							name = FX::Effect::Texture::Format::RGBA32F;
+							name = Texture::PixelFormat::RGBA32F;
 							return DXGI_FORMAT_R32G32B32A32_FLOAT;
 						case FX::Nodes::Variable::Properties::DXT1:
-							name = FX::Effect::Texture::Format::DXT1;
+							name = Texture::PixelFormat::DXT1;
 							return DXGI_FORMAT_BC1_TYPELESS;
 						case FX::Nodes::Variable::Properties::DXT3:
-							name = FX::Effect::Texture::Format::DXT3;
+							name = Texture::PixelFormat::DXT3;
 							return DXGI_FORMAT_BC2_TYPELESS;
 						case FX::Nodes::Variable::Properties::DXT5:
-							name = FX::Effect::Texture::Format::DXT5;
+							name = Texture::PixelFormat::DXT5;
 							return DXGI_FORMAT_BC3_TYPELESS;
 						case FX::Nodes::Variable::Properties::LATC1:
-							name = FX::Effect::Texture::Format::LATC1;
+							name = Texture::PixelFormat::LATC1;
 							return DXGI_FORMAT_BC4_UNORM;
 						case FX::Nodes::Variable::Properties::LATC2:
-							name = FX::Effect::Texture::Format::LATC2;
+							name = Texture::PixelFormat::LATC2;
 							return DXGI_FORMAT_BC5_UNORM;
 						default:
-							name = FX::Effect::Texture::Format::Unknown;
+							name = Texture::PixelFormat::Unknown;
 							return DXGI_FORMAT_UNKNOWN;
 					}
 				}
@@ -1379,26 +1518,22 @@ namespace ReShade
 				{
 					for (auto &annotation : annotations)
 					{
-						FX::Effect::Annotation data;
-
 						switch (annotation.Value->Type.BaseClass)
 						{
 							case FX::Nodes::Type::Class::Bool:
 							case FX::Nodes::Type::Class::Int:
-								data = annotation.Value->Value.Int;
+								object.Annotations[annotation.Name] = annotation.Value->Value.Int;
 								break;
 							case FX::Nodes::Type::Class::Uint:
-								data = annotation.Value->Value.Uint;
+								object.Annotations[annotation.Name] = annotation.Value->Value.Uint;
 								break;
 							case FX::Nodes::Type::Class::Float:
-								data = annotation.Value->Value.Float;
+								object.Annotations[annotation.Name] = annotation.Value->Value.Float;
 								break;
 							case FX::Nodes::Type::Class::String:
-								data = annotation.Value->StringValue;
+								object.Annotations[annotation.Name] = annotation.Value->StringValue;
 								break;
 						}
-
-						object.AddAnnotation(annotation.Name, data);
 					}
 				}
 				void Visit(const FX::Nodes::Struct *node)
@@ -1480,21 +1615,21 @@ namespace ReShade
 				{
 					D3D11_TEXTURE2D_DESC texdesc;
 					ZeroMemory(&texdesc, sizeof(D3D11_TEXTURE2D_DESC));
-					D3D11Texture::Description objdesc;
-					objdesc.Name = node->Name;
-					texdesc.Width = objdesc.Width = node->Properties.Width;
-					texdesc.Height = objdesc.Height = node->Properties.Height;
-					texdesc.MipLevels = objdesc.Levels = node->Properties.MipLevels;
+
+					D3D11Texture *obj = new D3D11Texture();
+					obj->Name = node->Name;
+					texdesc.Width = obj->Width = node->Properties.Width;
+					texdesc.Height = obj->Height = node->Properties.Height;
+					texdesc.MipLevels = obj->Levels = node->Properties.MipLevels;
 					texdesc.ArraySize = 1;
-					texdesc.Format = LiteralToFormat(node->Properties.Format, objdesc.Format);
+					texdesc.Format = LiteralToFormat(node->Properties.Format, obj->Format);
 					texdesc.SampleDesc.Count = 1;
 					texdesc.SampleDesc.Quality = 0;
 					texdesc.Usage = D3D11_USAGE_DEFAULT;
 					texdesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
 					texdesc.MiscFlags = D3D11_RESOURCE_MISC_GENERATE_MIPS;
 
-					D3D11Texture *obj = new D3D11Texture(this->mEffect, objdesc);
-					obj->mRegister = this->mEffect->mShaderResources.size();
+					obj->mRegister = this->mRuntime->mEffectShaderResources.size();
 					obj->mTexture = nullptr;
 					obj->mShaderResourceView[0] = nullptr;
 					obj->mShaderResourceView[1] = nullptr;
@@ -1504,12 +1639,12 @@ namespace ReShade
 					if (node->Semantic == "COLOR" || node->Semantic == "SV_TARGET")
 					{
 						obj->mSource = D3D11Texture::Source::BackBuffer;
-						obj->ChangeSource(this->mEffect->mRuntime->mBackBufferTextureSRV[0], this->mEffect->mRuntime->mBackBufferTextureSRV[1]);
+						obj->ChangeSource(this->mRuntime, this->mRuntime->mBackBufferTextureSRV[0], this->mRuntime->mBackBufferTextureSRV[1]);
 					}
 					else if (node->Semantic == "DEPTH" || node->Semantic == "SV_DEPTH")
 					{
 						obj->mSource = D3D11Texture::Source::DepthStencil;
-						obj->ChangeSource(this->mEffect->mRuntime->mDepthStencilTextureSRV, nullptr);
+						obj->ChangeSource(this->mRuntime, this->mRuntime->mDepthStencilTextureSRV, nullptr);
 					}
 
 					if (obj->mSource != D3D11Texture::Source::Memory)
@@ -1528,7 +1663,7 @@ namespace ReShade
 							texdesc.MipLevels = 1;
 						}
 
-						HRESULT hr = this->mEffect->mRuntime->mDevice->CreateTexture2D(&texdesc, nullptr, &obj->mTexture);
+						HRESULT hr = this->mRuntime->mDevice->CreateTexture2D(&texdesc, nullptr, &obj->mTexture);
 
 						if (FAILED(hr))
 						{
@@ -1543,7 +1678,7 @@ namespace ReShade
 						srvdesc.Texture2D.MipLevels = texdesc.MipLevels;
 						srvdesc.Format = MakeNonSRGBFormat(texdesc.Format);
 
-						hr = this->mEffect->mRuntime->mDevice->CreateShaderResourceView(obj->mTexture, &srvdesc, &obj->mShaderResourceView[0]);
+						hr = this->mRuntime->mDevice->CreateShaderResourceView(obj->mTexture, &srvdesc, &obj->mShaderResourceView[0]);
 
 						if (FAILED(hr))
 						{
@@ -1556,7 +1691,7 @@ namespace ReShade
 
 						if (srvdesc.Format != texdesc.Format)
 						{
-							hr = this->mEffect->mRuntime->mDevice->CreateShaderResourceView(obj->mTexture, &srvdesc, &obj->mShaderResourceView[1]);
+							hr = this->mRuntime->mDevice->CreateShaderResourceView(obj->mTexture, &srvdesc, &obj->mShaderResourceView[1]);
 
 							if (FAILED(hr))
 							{
@@ -1569,14 +1704,14 @@ namespace ReShade
 
 					this->mCurrentSource += "Texture2D ";
 					this->mCurrentSource += PrintName(node);
-					this->mCurrentSource += " : register(t" + std::to_string(this->mEffect->mShaderResources.size()) + "), __";
+					this->mCurrentSource += " : register(t" + std::to_string(this->mRuntime->mEffectShaderResources.size()) + "), __";
 					this->mCurrentSource += PrintName(node);
-					this->mCurrentSource += "SRGB : register(t" + std::to_string(this->mEffect->mShaderResources.size() + 1) + ");\n";
+					this->mCurrentSource += "SRGB : register(t" + std::to_string(this->mRuntime->mEffectShaderResources.size() + 1) + ");\n";
 
-					this->mEffect->mShaderResources.push_back(obj->mShaderResourceView[0]);
-					this->mEffect->mShaderResources.push_back(obj->mShaderResourceView[1]);
+					this->mRuntime->mEffectShaderResources.push_back(obj->mShaderResourceView[0]);
+					this->mRuntime->mEffectShaderResources.push_back(obj->mShaderResourceView[1]);
 
-					this->mEffect->AddTexture(node->Name, obj);
+					this->mRuntime->AddTexture(obj);
 				}
 				void VisitSampler(const FX::Nodes::Variable *node)
 				{
@@ -1638,7 +1773,7 @@ namespace ReShade
 						desc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
 					}
 
-					D3D11Texture *texture = static_cast<D3D11Texture *>(this->mEffect->GetTexture(node->Properties.Texture->Name));
+					D3D11Texture *texture = static_cast<D3D11Texture *>(this->mRuntime->GetTexture(node->Properties.Texture->Name));
 
 					if (texture == nullptr)
 					{
@@ -1654,7 +1789,7 @@ namespace ReShade
 					{
 						ID3D11SamplerState *sampler = nullptr;
 
-						HRESULT hr = this->mEffect->mRuntime->mDevice->CreateSamplerState(&desc, &sampler);
+						HRESULT hr = this->mRuntime->mDevice->CreateSamplerState(&desc, &sampler);
 
 						if (FAILED(hr))
 						{
@@ -1663,8 +1798,8 @@ namespace ReShade
 							return;
 						}
 
-						this->mEffect->mSamplerStates.push_back(sampler);
-						it = this->mSamplerDescs.emplace(descHash, this->mEffect->mSamplerStates.size() - 1).first;
+						this->mRuntime->mEffectSamplerStates.push_back(sampler);
+						it = this->mSamplerDescs.emplace(descHash, this->mRuntime->mEffectSamplerStates.size() - 1).first;
 
 						this->mCurrentSource += "SamplerState __SamplerState" + std::to_string(it->second) + " : register(s" + std::to_string(it->second) + ");\n";
 					}
@@ -1701,56 +1836,54 @@ namespace ReShade
 
 					this->mCurrentGlobalConstants += ";\n";
 
-					D3D11Constant::Description desc;
-					desc.Name = node->Name;
-					desc.Rows = node->Type.Rows;
-					desc.Columns = node->Type.Cols;
-					desc.Elements = node->Type.ArrayLength;
-					desc.StorageSize = node->Type.Rows * node->Type.Cols;
+					D3D11Constant *obj = new D3D11Constant();
+					obj->Name = node->Name;
+					obj->Rows = node->Type.Rows;
+					obj->Columns = node->Type.Cols;
+					obj->Elements = node->Type.ArrayLength;
+					obj->StorageSize = node->Type.Rows * node->Type.Cols;
 
 					switch (node->Type.BaseClass)
 					{
 						case FX::Nodes::Type::Class::Bool:
-							desc.Type = FX::Effect::Constant::Type::Bool;
-							desc.StorageSize *= sizeof(int);
+							obj->BaseType = Constant::Type::Bool;
+							obj->StorageSize *= sizeof(int);
 							break;
 						case FX::Nodes::Type::Class::Int:
-							desc.Type = FX::Effect::Constant::Type::Int;
-							desc.StorageSize *= sizeof(int);
+							obj->BaseType = Constant::Type::Int;
+							obj->StorageSize *= sizeof(int);
 							break;
 						case FX::Nodes::Type::Class::Uint:
-							desc.Type = FX::Effect::Constant::Type::Uint;
-							desc.StorageSize *= sizeof(unsigned int);
+							obj->BaseType = Constant::Type::Uint;
+							obj->StorageSize *= sizeof(unsigned int);
 							break;
 						case FX::Nodes::Type::Class::Float:
-							desc.Type = FX::Effect::Constant::Type::Float;
-							desc.StorageSize *= sizeof(float);
+							obj->BaseType = Constant::Type::Float;
+							obj->StorageSize *= sizeof(float);
 							break;
 					}
 
 					const UINT alignment = 16 - (this->mCurrentGlobalSize % 16);
-					this->mCurrentGlobalSize += static_cast<UINT>((desc.StorageSize > alignment && (alignment != 16 || desc.StorageSize <= 16)) ? desc.StorageSize + alignment : desc.StorageSize);
-					desc.StorageOffset = this->mCurrentGlobalSize - desc.StorageSize;
-
-					D3D11Constant *obj = new D3D11Constant(this->mEffect, desc);
+					this->mCurrentGlobalSize += static_cast<UINT>((obj->StorageSize > alignment && (alignment != 16 || obj->StorageSize <= 16)) ? obj->StorageSize + alignment : obj->StorageSize);
+					obj->StorageOffset = this->mCurrentGlobalSize - obj->StorageSize;
 
 					Visit(node->Annotations, *obj);
 
-					if (this->mCurrentGlobalSize >= this->mCurrentGlobalStorageSize)
+					if (this->mCurrentGlobalSize >= this->mRuntime->GetConstantStorageSize())
 					{
-						this->mEffect->mConstantStorage = static_cast<unsigned char *>(::realloc(this->mEffect->mConstantStorage, this->mCurrentGlobalStorageSize += 128));
+						this->mRuntime->EnlargeConstantStorage();
 					}
 
 					if (node->Initializer != nullptr && node->Initializer->NodeId == FX::Node::Id::Literal)
 					{
-						CopyMemory(this->mEffect->mConstantStorage + desc.StorageOffset, &static_cast<const FX::Nodes::Literal *>(node->Initializer)->Value, desc.StorageSize);
+						CopyMemory(this->mRuntime->GetConstantStorage() + obj->StorageOffset, &static_cast<const FX::Nodes::Literal *>(node->Initializer)->Value, obj->StorageSize);
 					}
 					else
 					{
-						ZeroMemory(this->mEffect->mConstantStorage + desc.StorageOffset, desc.StorageSize);
+						ZeroMemory(this->mRuntime->GetConstantStorage() + obj->StorageOffset, obj->StorageSize);
 					}
 
-					this->mEffect->AddConstant(node->Name, obj);
+					this->mRuntime->AddConstant(obj);
 				}
 				void Visit(const FX::Nodes::Function *node)
 				{
@@ -1793,20 +1926,18 @@ namespace ReShade
 				}
 				void Visit(const FX::Nodes::Technique *node)
 				{
-					D3D11Technique::Description desc;
-					desc.Name = node->Name;
-					desc.Passes = static_cast<unsigned int>(node->Passes.size());
-
-					D3D11Technique *obj = new D3D11Technique(this->mEffect, desc);
+					D3D11Technique *obj = new D3D11Technique();
+					obj->Name = node->Name;
+					obj->PassCount = static_cast<unsigned int>(node->Passes.size());
 
 					Visit(node->Annotations, *obj);
 
 					for (auto pass : node->Passes)
 					{
-						Visit(pass, obj->mPasses);
+						Visit(pass, obj->Passes);
 					}
 
-					this->mEffect->AddTechnique(node->Name, obj);
+					this->mRuntime->AddTechnique(obj);
 				}
 				void Visit(const FX::Nodes::Pass *node, std::vector<D3D11Technique::Pass> &passes)
 				{
@@ -1821,7 +1952,7 @@ namespace ReShade
 					pass.Viewport.MaxDepth = 1.0f;
 					ZeroMemory(pass.RT, sizeof(pass.RT));
 					ZeroMemory(pass.RTSRV, sizeof(pass.RTSRV));
-					pass.SRV = this->mEffect->mShaderResources;
+					pass.SRV = this->mRuntime->mEffectShaderResources;
 
 					if (node->States.VertexShader != nullptr)
 					{
@@ -1833,8 +1964,8 @@ namespace ReShade
 					}
 
 					const int targetIndex = node->States.SRGBWriteEnable ? 1 : 0;
-					pass.RT[0] = this->mEffect->mRuntime->mBackBufferTargets[targetIndex];
-					pass.RTSRV[0] = this->mEffect->mRuntime->mBackBufferTextureSRV[targetIndex];
+					pass.RT[0] = this->mRuntime->mBackBufferTargets[targetIndex];
+					pass.RTSRV[0] = this->mRuntime->mBackBufferTextureSRV[targetIndex];
 
 					for (unsigned int i = 0; i < 8; ++i)
 					{
@@ -1843,7 +1974,7 @@ namespace ReShade
 							continue;
 						}
 
-						D3D11Texture *texture = static_cast<D3D11Texture *>(this->mEffect->GetTexture(node->States.RenderTargets[i]->Name));
+						D3D11Texture *texture = static_cast<D3D11Texture *>(this->mRuntime->GetTexture(node->States.RenderTargets[i]->Name));
 
 						if (texture == nullptr)
 						{
@@ -1873,7 +2004,7 @@ namespace ReShade
 
 						if (texture->mRenderTargetView[targetIndex] == nullptr)
 						{
-							HRESULT hr = this->mEffect->mRuntime->mDevice->CreateRenderTargetView(texture->mTexture, &rtvdesc, &texture->mRenderTargetView[targetIndex]);
+							HRESULT hr = this->mRuntime->mDevice->CreateRenderTargetView(texture->mTexture, &rtvdesc, &texture->mRenderTargetView[targetIndex]);
 
 							if (FAILED(hr))
 							{
@@ -1887,8 +2018,8 @@ namespace ReShade
 
 					if (pass.Viewport.Width == 0 && pass.Viewport.Height == 0)
 					{
-						pass.Viewport.Width = static_cast<FLOAT>(this->mEffect->mRuntime->mSwapChainDesc.BufferDesc.Width);
-						pass.Viewport.Height = static_cast<FLOAT>(this->mEffect->mRuntime->mSwapChainDesc.BufferDesc.Height);
+						pass.Viewport.Width = static_cast<FLOAT>(this->mRuntime->mSwapChainDesc.BufferDesc.Width);
+						pass.Viewport.Height = static_cast<FLOAT>(this->mRuntime->mSwapChainDesc.BufferDesc.Height);
 					}
 
 					D3D11_DEPTH_STENCIL_DESC ddesc;
@@ -1904,7 +2035,7 @@ namespace ReShade
 					ddesc.FrontFace.StencilDepthFailOp = ddesc.BackFace.StencilDepthFailOp = LiteralToStencilOp(node->States.StencilOpDepthFail);
 					pass.StencilRef = node->States.StencilRef;
 
-					HRESULT hr = this->mEffect->mRuntime->mDevice->CreateDepthStencilState(&ddesc, &pass.DSS);
+					HRESULT hr = this->mRuntime->mDevice->CreateDepthStencilState(&ddesc, &pass.DSS);
 
 					if (FAILED(hr))
 					{
@@ -1921,7 +2052,7 @@ namespace ReShade
 					bdesc.RenderTarget[0].SrcBlend = LiteralToBlend(node->States.SrcBlend);
 					bdesc.RenderTarget[0].DestBlend = LiteralToBlend(node->States.DestBlend);
 
-					hr = this->mEffect->mRuntime->mDevice->CreateBlendState(&bdesc, &pass.BS);
+					hr = this->mRuntime->mDevice->CreateBlendState(&bdesc, &pass.BS);
 
 					if (FAILED(hr))
 					{
@@ -1962,7 +2093,7 @@ namespace ReShade
 				void VisitShader(const FX::Nodes::Function *node, const std::string &shadertype, D3D11Technique::Pass &pass)
 				{
 					std::string profile = shadertype;
-					const D3D_FEATURE_LEVEL featurelevel = this->mEffect->mRuntime->mDevice->GetFeatureLevel();
+					const D3D_FEATURE_LEVEL featurelevel = this->mRuntime->mDevice->GetFeatureLevel();
 
 					switch (featurelevel)
 					{
@@ -2064,11 +2195,11 @@ namespace ReShade
 
 					if (shadertype == "vs")
 					{
-						hr = this->mEffect->mRuntime->mDevice->CreateVertexShader(compiled->GetBufferPointer(), compiled->GetBufferSize(), nullptr, &pass.VS);
+						hr = this->mRuntime->mDevice->CreateVertexShader(compiled->GetBufferPointer(), compiled->GetBufferSize(), nullptr, &pass.VS);
 					}
 					else if (shadertype == "ps")
 					{
-						hr = this->mEffect->mRuntime->mDevice->CreatePixelShader(compiled->GetBufferPointer(), compiled->GetBufferSize(), nullptr, &pass.PS);
+						hr = this->mRuntime->mDevice->CreatePixelShader(compiled->GetBufferPointer(), compiled->GetBufferSize(), nullptr, &pass.PS);
 					}
 
 					compiled->Release();
@@ -2083,30 +2214,15 @@ namespace ReShade
 
 			private:
 				const FX::Tree &mAST;
-				D3D11Effect *mEffect;
+				D3D11Runtime *mRuntime;
 				std::string mCurrentSource;
 				std::string mErrors;
 				bool mFatal, mSkipShaderOptimization;
 				std::unordered_map<std::size_t, std::size_t> mSamplerDescs;
 				std::string mCurrentGlobalConstants;
-				UINT mCurrentGlobalSize, mCurrentGlobalStorageSize, mCurrentInForInitialization;
+				UINT mCurrentGlobalSize, mCurrentInForInitialization;
 				bool mCurrentInParameterBlock, mCurrentInFunctionBlock;
 			};
-
-			template <typename T>
-			inline ULONG SAFE_RELEASE(T *&object)
-			{
-				if (object == nullptr)
-				{
-					return 0;
-				}
-
-				const ULONG ref = object->Release();
-
-				object = nullptr;
-
-				return ref;
-			}
 		}
 
 		class D3D11StateBlock
@@ -2355,7 +2471,7 @@ namespace ReShade
 
 		// -----------------------------------------------------------------------------------------------------
 
-		D3D11Runtime::D3D11Runtime(ID3D11Device *device, IDXGISwapChain *swapchain) : mDevice(device), mSwapChain(swapchain), mImmediateContext(nullptr), mStateBlock(new D3D11StateBlock(device)), mBackBuffer(nullptr), mBackBufferResolved(nullptr), mBackBufferTexture(nullptr), mBackBufferTextureSRV(), mBackBufferTargets(), mDepthStencil(nullptr), mDepthStencilReplacement(nullptr), mDepthStencilTexture(nullptr), mDepthStencilTextureSRV(nullptr), mCopyVS(nullptr), mCopyPS(nullptr), mCopySampler(nullptr), mLost(true)
+		D3D11Runtime::D3D11Runtime(ID3D11Device *device, IDXGISwapChain *swapchain) : mDevice(device), mSwapChain(swapchain), mImmediateContext(nullptr), mStateBlock(new D3D11StateBlock(device)), mBackBuffer(nullptr), mBackBufferResolved(nullptr), mBackBufferTexture(nullptr), mBackBufferTextureSRV(), mBackBufferTargets(), mDepthStencil(nullptr), mDepthStencilReplacement(nullptr), mDepthStencilTexture(nullptr), mDepthStencilTextureSRV(nullptr), mCopyVS(nullptr), mCopyPS(nullptr), mCopySampler(nullptr), mEffectRasterizerState(nullptr), mConstantBuffer(nullptr)
 		{
 			assert(this->mDevice != nullptr);
 			assert(this->mSwapChain != nullptr);
@@ -2395,14 +2511,12 @@ namespace ReShade
 		}
 		D3D11Runtime::~D3D11Runtime()
 		{
-			assert(this->mLost);
-
 			this->mImmediateContext->Release();
 			this->mDevice->Release();
 			this->mSwapChain->Release();
 		}
 
-		bool D3D11Runtime::OnCreateInternal(const DXGI_SWAP_CHAIN_DESC &desc)
+		bool D3D11Runtime::OnInit(const DXGI_SWAP_CHAIN_DESC &desc)
 		{
 			this->mSwapChainDesc = desc;
 
@@ -2584,27 +2698,37 @@ namespace ReShade
 
 			assert(SUCCEEDED(hr));
 
+			D3D11_RASTERIZER_DESC rsdesc;
+			ZeroMemory(&rsdesc, sizeof(D3D11_RASTERIZER_DESC));
+			rsdesc.FillMode = D3D11_FILL_SOLID;
+			rsdesc.CullMode = D3D11_CULL_NONE;
+			rsdesc.DepthClipEnable = TRUE;
+
+			hr = this->mDevice->CreateRasterizerState(&rsdesc, &this->mEffectRasterizerState);
+
+			assert(SUCCEEDED(hr));
+
 			this->mNVG = nvgCreateD3D11(this->mDevice, 0);
 
-			this->mLost = false;
 			this->mWindow.reset(new WindowWatcher(desc.OutputWindow));
 
-			Runtime::OnCreate(desc.BufferDesc.Width, desc.BufferDesc.Height);
+			this->mWidth = desc.BufferDesc.Width;
+			this->mHeight = desc.BufferDesc.Height;
 
 			// Clear reference count to make UnrealEngine happy
 			this->mBackBuffer->Release();
 			this->mBackBuffer->Release();
 
-			return true;
+			return Runtime::OnInit();
 		}
-		void D3D11Runtime::OnDeleteInternal()
+		void D3D11Runtime::OnReset()
 		{
-			if (this->mLost)
+			if (!this->mIsInitialized)
 			{
 				return;
 			}
 
-			Runtime::OnDelete();
+			Runtime::OnReset();
 
 			nvgDeleteD3D11(this->mNVG);
 
@@ -2634,13 +2758,90 @@ namespace ReShade
 
 			ZeroMemory(&this->mSwapChainDesc, sizeof(DXGI_SWAP_CHAIN_DESC));
 
-			this->mLost = true;
+			SAFE_RELEASE(this->mEffectRasterizerState);
 		}
-		void D3D11Runtime::OnDrawInternal(ID3D11DeviceContext *context, unsigned int vertices)
+		void D3D11Runtime::OnResetEffect()
+		{
+			Runtime::OnResetEffect();
+
+			for (ID3D11SamplerState *it : this->mEffectSamplerStates)
+			{
+				it->Release();
+			}
+
+			this->mEffectSamplerStates.clear();
+			this->mEffectShaderResources.clear();
+
+			SAFE_RELEASE(this->mConstantBuffer);
+
+			free(this->mConstantStorage);
+			this->mConstantStorage = nullptr;
+			this->mConstantStorageSize = 0;
+		}
+		void D3D11Runtime::OnPresent()
+		{
+			if (!this->mIsInitialized)
+			{
+				LOG(TRACE) << "Failed to present! Runtime is in a lost state.";
+				return;
+			}
+			else if (this->mStats.DrawCalls == 0)
+			{
+				return;
+			}
+
+			DetectDepthSource();
+
+			// Capture device state
+			this->mStateBlock->Capture();
+
+			// Resolve backbuffer
+			if (this->mBackBufferResolved != this->mBackBuffer)
+			{
+				this->mImmediateContext->ResolveSubresource(this->mBackBufferResolved, 0, this->mBackBuffer, 0, this->mSwapChainDesc.BufferDesc.Format);
+			}
+
+			// Setup real backbuffer
+			this->mImmediateContext->OMSetRenderTargets(1, &this->mBackBufferTargets[0], nullptr);
+
+			// Apply post processing
+			OnApplyEffect();
+
+			// Reset rendertargets
+			this->mImmediateContext->OMSetRenderTargets(1, &this->mBackBufferTargets[0], this->mDefaultDepthStencil);
+		
+			const D3D11_VIEWPORT viewport = { 0, 0, static_cast<FLOAT>(this->mSwapChainDesc.BufferDesc.Width), static_cast<FLOAT>(this->mSwapChainDesc.BufferDesc.Height), 0.0f, 1.0f };
+			this->mImmediateContext->RSSetViewports(1, &viewport);
+
+			// Apply presenting
+			Runtime::OnPresent();
+
+			if (!this->mIsInitialized)
+			{
+				return;
+			}
+
+			// Copy to backbuffer
+			if (this->mBackBufferResolved != this->mBackBuffer)
+			{
+				this->mImmediateContext->OMSetRenderTargets(1, &this->mBackBufferTargets[2], nullptr);
+				this->mImmediateContext->CopyResource(this->mBackBufferTexture, this->mBackBufferResolved);
+
+				this->mImmediateContext->VSSetShader(this->mCopyVS, nullptr, 0);
+				this->mImmediateContext->PSSetShader(this->mCopyPS, nullptr, 0);
+				this->mImmediateContext->PSSetSamplers(0, 1, &this->mCopySampler);
+				this->mImmediateContext->PSSetShaderResources(0, 1, &this->mBackBufferTextureSRV[D3D11EffectCompiler::MakeSRGBFormat(this->mSwapChainDesc.BufferDesc.Format) == this->mSwapChainDesc.BufferDesc.Format]);
+				this->mImmediateContext->Draw(3, 0);
+			}
+
+			// Apply previous device state
+			this->mStateBlock->ApplyAndRelease();
+		}
+		void D3D11Runtime::OnDrawCall(ID3D11DeviceContext *context, unsigned int vertices)
 		{
 			Utils::CriticalSection::Lock lock(this->mCS);
 
-			Runtime::OnDraw(vertices);
+			Runtime::OnDrawCall(vertices);
 
 			ID3D11DepthStencilView *depthstencil = nullptr;
 			context->OMGetRenderTargets(0, nullptr, &depthstencil);
@@ -2662,72 +2863,128 @@ namespace ReShade
 
 				if (it != this->mDepthSourceTable.end())
 				{
-					it->second.DrawCallCount = static_cast<FLOAT>(this->mLastDrawCalls);
+					it->second.DrawCallCount = static_cast<FLOAT>(this->mStats.DrawCalls);
 					it->second.DrawVerticesCount += vertices;
 				}
 			}
 		}
-		void D3D11Runtime::OnPresentInternal(UINT interval)
+		void D3D11Runtime::OnApplyEffect()
 		{
-			this->mVSync = interval;
+			// Setup vertex input
+			const uintptr_t null = 0;
+			this->mImmediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+			this->mImmediateContext->IASetInputLayout(nullptr);
+			this->mImmediateContext->IASetVertexBuffers(0, 1, reinterpret_cast<ID3D11Buffer *const *>(&null), reinterpret_cast<const UINT *>(&null), reinterpret_cast<const UINT *>(&null));
 
-			if (this->mLost)
+			this->mImmediateContext->RSSetState(this->mEffectRasterizerState);
+
+			// Setup samplers
+			this->mImmediateContext->VSSetSamplers(0, static_cast<UINT>(this->mEffectSamplerStates.size()), this->mEffectSamplerStates.data());
+			this->mImmediateContext->PSSetSamplers(0, static_cast<UINT>(this->mEffectSamplerStates.size()), this->mEffectSamplerStates.data());
+
+			// Setup shader constants
+			this->mImmediateContext->VSSetConstantBuffers(0, 1, &this->mConstantBuffer);
+			this->mImmediateContext->PSSetConstantBuffers(0, 1, &this->mConstantBuffer);
+
+			Runtime::OnApplyEffect();
+		}
+		void D3D11Runtime::OnApplyEffectTechnique(const Technique *technique)
+		{
+			Runtime::OnApplyEffectTechnique(technique);
+
+			// Clear depthstencil
+			assert(this->mDefaultDepthStencil != nullptr);
+
+			this->mImmediateContext->ClearDepthStencilView(this->mDefaultDepthStencil, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+
+			for (const auto &pass : static_cast<const D3D11Technique *>(technique)->Passes)
 			{
-				LOG(TRACE) << "Failed to present! Runtime is in a lost state.";
-				return;
-			}
-			if (this->mLastDrawCalls == 0)
-			{
-				return;
-			}
+				// Update shader constants
+				if (this->mConstantsAreDirty && this->mConstantBuffer != nullptr)
+				{
+					D3D11_MAPPED_SUBRESOURCE mapped;
 
-			DetectDepthSource();
+					const HRESULT hr = this->mImmediateContext->Map(this->mConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
 
-			// Capture device state
-			this->mStateBlock->Capture();
+					if (SUCCEEDED(hr))
+					{
+						CopyMemory(mapped.pData, this->mConstantStorage, mapped.RowPitch);
 
-			// Resolve backbuffer
-			if (this->mBackBufferResolved != this->mBackBuffer)
-			{
-				this->mImmediateContext->ResolveSubresource(this->mBackBufferResolved, 0, this->mBackBuffer, 0, this->mSwapChainDesc.BufferDesc.Format);
-			}
+						this->mImmediateContext->Unmap(this->mConstantBuffer, 0);
 
-			// Setup real backbuffer
-			this->mImmediateContext->OMSetRenderTargets(1, &this->mBackBufferTargets[0], nullptr);
+						this->mConstantsAreDirty = false;
+					}
+					else
+					{
+						LOG(TRACE) << "Failed to map constant buffer! HRESULT is '" << hr << "'!";
+					}
+				}
 
-			// Apply post processing
-			Runtime::OnPostProcess();
+				// Setup states
+				this->mImmediateContext->VSSetShader(pass.VS, nullptr, 0);
+				this->mImmediateContext->HSSetShader(nullptr, nullptr, 0);
+				this->mImmediateContext->DSSetShader(nullptr, nullptr, 0);
+				this->mImmediateContext->GSSetShader(nullptr, nullptr, 0);
+				this->mImmediateContext->PSSetShader(pass.PS, nullptr, 0);
 
-			// Reset rendertargets
-			this->mImmediateContext->OMSetRenderTargets(1, &this->mBackBufferTargets[0], this->mDefaultDepthStencil);
-		
-			const D3D11_VIEWPORT viewport = { 0, 0, static_cast<FLOAT>(this->mSwapChainDesc.BufferDesc.Width), static_cast<FLOAT>(this->mSwapChainDesc.BufferDesc.Height), 0.0f, 1.0f };
-			this->mImmediateContext->RSSetViewports(1, &viewport);
+				const FLOAT blendfactor[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
+				this->mImmediateContext->OMSetBlendState(pass.BS, blendfactor, D3D11_DEFAULT_SAMPLE_MASK);
+				this->mImmediateContext->OMSetDepthStencilState(pass.DSS, pass.StencilRef);
 
-			// Apply presenting
-			Runtime::OnPresent();
-
-			if (this->mLost)
-			{
-				return;
-			}
-
-			// Copy to backbuffer
-			if (this->mBackBufferResolved != this->mBackBuffer)
-			{
-				this->mImmediateContext->OMSetRenderTargets(1, &this->mBackBufferTargets[2], nullptr);
+				// Save backbuffer of previous pass
 				this->mImmediateContext->CopyResource(this->mBackBufferTexture, this->mBackBufferResolved);
 
-				this->mImmediateContext->VSSetShader(this->mCopyVS, nullptr, 0);
-				this->mImmediateContext->PSSetShader(this->mCopyPS, nullptr, 0);
-				this->mImmediateContext->PSSetSamplers(0, 1, &this->mCopySampler);
-				this->mImmediateContext->PSSetShaderResources(0, 1, &this->mBackBufferTextureSRV[D3D11EffectCompiler::MakeSRGBFormat(this->mSwapChainDesc.BufferDesc.Format) == this->mSwapChainDesc.BufferDesc.Format]);
-				this->mImmediateContext->Draw(3, 0);
-			}
+				// Setup shader resources
+				this->mImmediateContext->VSSetShaderResources(0, static_cast<UINT>(pass.SRV.size()), pass.SRV.data());
+				this->mImmediateContext->PSSetShaderResources(0, static_cast<UINT>(pass.SRV.size()), pass.SRV.data());
 
-			// Apply previous device state
-			this->mStateBlock->ApplyAndRelease();
+				// Setup rendertargets
+				this->mImmediateContext->OMSetRenderTargets(D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, pass.RT, (static_cast<UINT>(pass.Viewport.Width) == this->mSwapChainDesc.BufferDesc.Width && static_cast<UINT>(pass.Viewport.Height) == this->mSwapChainDesc.BufferDesc.Height) ? this->mDefaultDepthStencil : nullptr);
+				this->mImmediateContext->RSSetViewports(1, &pass.Viewport);
+
+				for (ID3D11RenderTargetView *rtv : pass.RT)
+				{
+					if (rtv == nullptr)
+					{
+						continue;
+					}
+
+					const FLOAT color[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+					this->mImmediateContext->ClearRenderTargetView(rtv, color);
+				}
+
+				// Draw triangle
+				this->mImmediateContext->Draw(3, 0);
+
+				Runtime::OnDrawCall(3);
+
+				// Reset shader resources
+				ID3D11ShaderResourceView *null[D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT] = { nullptr };
+				this->mImmediateContext->VSSetShaderResources(0, static_cast<UINT>(pass.SRV.size()), null);
+				this->mImmediateContext->PSSetShaderResources(0, static_cast<UINT>(pass.SRV.size()), null);
+
+				// Reset rendertargets
+				this->mImmediateContext->OMSetRenderTargets(0, nullptr, nullptr);
+
+				// Update shader resources
+				for (ID3D11ShaderResourceView *srv : pass.RTSRV)
+				{
+					if (srv == nullptr)
+					{
+						continue;
+					}
+
+					D3D11_SHADER_RESOURCE_VIEW_DESC srvdesc;
+					srv->GetDesc(&srvdesc);
+
+					if (srvdesc.Texture2D.MipLevels > 1)
+					{
+						this->mImmediateContext->GenerateMips(srv);
+					}
+				}
+			}
 		}
+
 		void D3D11Runtime::OnCreateDepthStencilView(ID3D11Resource *resource, ID3D11DepthStencilView *depthstencil)
 		{
 			assert(resource != nullptr);
@@ -2736,7 +2993,7 @@ namespace ReShade
 			Utils::CriticalSection::Lock lock(this->mCS);
 
 			// Do not track default depthstencil
-			if (this->mLost)
+			if (!this->mIsInitialized)
 			{
 				return;
 			}
@@ -2838,6 +3095,121 @@ namespace ReShade
 			}
 		}
 
+		void D3D11Runtime::Screenshot(unsigned char *buffer) const
+		{
+			if (this->mSwapChainDesc.BufferDesc.Format != DXGI_FORMAT_R8G8B8A8_UNORM && this->mSwapChainDesc.BufferDesc.Format != DXGI_FORMAT_R8G8B8A8_UNORM_SRGB && this->mSwapChainDesc.BufferDesc.Format != DXGI_FORMAT_B8G8R8A8_UNORM && this->mSwapChainDesc.BufferDesc.Format != DXGI_FORMAT_B8G8R8A8_UNORM_SRGB)
+			{
+				LOG(WARNING) << "Screenshots are not supported for backbuffer format " << this->mSwapChainDesc.BufferDesc.Format << ".";
+				return;
+			}
+
+			D3D11_TEXTURE2D_DESC texdesc;
+			ZeroMemory(&texdesc, sizeof(D3D11_TEXTURE2D_DESC));
+			texdesc.Width = this->mSwapChainDesc.BufferDesc.Width;
+			texdesc.Height = this->mSwapChainDesc.BufferDesc.Height;
+			texdesc.ArraySize = 1;
+			texdesc.MipLevels = 1;
+			texdesc.Format = this->mSwapChainDesc.BufferDesc.Format;
+			texdesc.SampleDesc.Count = 1;
+			texdesc.SampleDesc.Quality = 0;
+			texdesc.Usage = D3D11_USAGE_STAGING;
+			texdesc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+
+			ID3D11Texture2D *textureStaging = nullptr;
+			HRESULT hr = this->mDevice->CreateTexture2D(&texdesc, nullptr, &textureStaging);
+
+			if (FAILED(hr))
+			{
+				LOG(TRACE) << "Failed to create staging resource for screenshot capture! HRESULT is '" << hr << "'.";
+				return;
+			}
+
+			this->mImmediateContext->CopyResource(textureStaging, this->mBackBufferResolved);
+
+			D3D11_MAPPED_SUBRESOURCE mapped;
+			hr = this->mImmediateContext->Map(textureStaging, 0, D3D11_MAP_READ, 0, &mapped);
+
+			if (FAILED(hr))
+			{
+				LOG(TRACE) << "Failed to map staging resource with screenshot capture! HRESULT is '" << hr << "'.";
+
+				textureStaging->Release();
+				return;
+			}
+
+			BYTE *pMem = buffer;
+			BYTE *pMapped = static_cast<BYTE *>(mapped.pData);
+
+			const UINT pitch = texdesc.Width * 4;
+
+			for (UINT y = 0; y < texdesc.Height; ++y)
+			{
+				CopyMemory(pMem, pMapped, std::min(pitch, static_cast<UINT>(mapped.RowPitch)));
+
+				for (UINT x = 0; x < pitch; x += 4)
+				{
+					pMem[x + 3] = 0xFF;
+
+					if (texdesc.Format == DXGI_FORMAT_B8G8R8A8_UNORM || texdesc.Format == DXGI_FORMAT_B8G8R8A8_UNORM_SRGB)
+					{
+						std::swap(pMem[x + 0], pMem[x + 2]);
+					}
+				}
+
+				pMem += pitch;
+				pMapped += mapped.RowPitch;
+			}
+
+			this->mImmediateContext->Unmap(textureStaging, 0);
+
+			textureStaging->Release();
+		}
+		bool D3D11Runtime::UpdateEffect(const FX::Tree &ast, const std::vector<std::string> &pragmas, std::string &errors)
+		{
+			bool skipOptimization = false;
+
+			for (const std::string &pragma : pragmas)
+			{
+				if (!boost::istarts_with(pragma, "reshade "))
+				{
+					continue;
+				}
+
+				const std::string command = pragma.substr(8);
+
+				if (boost::iequals(command, "skipoptimization") || boost::iequals(command, "nooptimization"))
+				{
+					skipOptimization = true;
+				}
+			}
+
+			D3D11EffectCompiler visitor(ast, skipOptimization);
+
+			return visitor.Traverse(this, errors);
+		}
+		bool D3D11Runtime::UpdateTexture(Texture *texture, const unsigned char *data, std::size_t size)
+		{
+			assert(data != nullptr && size != 0);
+
+			D3D11Texture *const textureImpl = static_cast<D3D11Texture *>(texture);
+
+			if (textureImpl->mSource != D3D11Texture::Source::Memory)
+			{
+				return false;
+			}
+
+			assert(texture->Height != 0);
+
+			this->mImmediateContext->UpdateSubresource(textureImpl->mTexture, 0, nullptr, data, static_cast<UINT>(size / texture->Height), static_cast<UINT>(size));
+
+			if (texture->Levels > 1)
+			{
+				this->mImmediateContext->GenerateMips(textureImpl->mShaderResourceView[0]);
+			}
+
+			return true;
+		}
+
 		void D3D11Runtime::DetectDepthSource()
 		{
 			static int cooldown = 0, traffic = 0;
@@ -2879,7 +3251,7 @@ namespace ReShade
 				{
 					continue;
 				}
-				else if ((it.second.DrawVerticesCount * (1.2f - it.second.DrawCallCount / this->mLastDrawCalls)) >= (bestInfo.DrawVerticesCount * (1.2f - bestInfo.DrawCallCount / this->mLastDrawCalls)))
+				else if ((it.second.DrawVerticesCount * (1.2f - it.second.DrawCallCount / this->mStats.DrawCalls)) >= (bestInfo.DrawVerticesCount * (1.2f - bestInfo.DrawCallCount / this->mStats.DrawCalls)))
 				{
 					best = it.first;
 					bestInfo = it.second;
@@ -3038,406 +3410,17 @@ namespace ReShade
 			}
 
 			// Update effect textures
-			D3D11Effect *effect = static_cast<D3D11Effect *>(this->mEffect.get());
-
-			if (effect != nullptr)
+			for (const auto &it : this->mTextures)
 			{
-				for (auto &it : effect->mTextures)
-				{
-					D3D11Texture *texture = static_cast<D3D11Texture *>(it.second.get());
+				D3D11Texture *texture = static_cast<D3D11Texture *>(it.get());
 
-					if (texture->mSource == D3D11Texture::Source::DepthStencil)
-					{
-						texture->ChangeSource(this->mDepthStencilTextureSRV, nullptr);
-					}
+				if (texture->mSource == D3D11Texture::Source::DepthStencil)
+				{
+					texture->ChangeSource(this, this->mDepthStencilTextureSRV, nullptr);
 				}
 			}
 
 			return true;
-		}
-
-		std::unique_ptr<FX::Effect> D3D11Runtime::CompileEffect(const FX::Tree &ast, std::string &errors) const
-		{
-			std::unique_ptr<D3D11Effect> effect(new D3D11Effect(shared_from_this()));
-
-			D3D11EffectCompiler visitor(ast, this->mSkipShaderOptimization);
-		
-			if (!visitor.Traverse(effect.get(), errors))
-			{
-				return nullptr;
-			}
-
-			D3D11_RASTERIZER_DESC rsdesc;
-			ZeroMemory(&rsdesc, sizeof(D3D11_RASTERIZER_DESC));
-			rsdesc.FillMode = D3D11_FILL_SOLID;
-			rsdesc.CullMode = D3D11_CULL_NONE;
-			rsdesc.DepthClipEnable = TRUE;
-
-			HRESULT hr = this->mDevice->CreateRasterizerState(&rsdesc, &effect->mRasterizerState);
-
-			if (FAILED(hr))
-			{
-				return nullptr;
-			}
-
-			return std::unique_ptr<FX::Effect>(effect.release());
-		}
-		void D3D11Runtime::CreateScreenshot(unsigned char *buffer, std::size_t size) const
-		{
-			if (this->mSwapChainDesc.BufferDesc.Format != DXGI_FORMAT_R8G8B8A8_UNORM && this->mSwapChainDesc.BufferDesc.Format != DXGI_FORMAT_R8G8B8A8_UNORM_SRGB && this->mSwapChainDesc.BufferDesc.Format != DXGI_FORMAT_B8G8R8A8_UNORM && this->mSwapChainDesc.BufferDesc.Format != DXGI_FORMAT_B8G8R8A8_UNORM_SRGB)
-			{
-				LOG(WARNING) << "Screenshots are not supported for backbuffer format " << this->mSwapChainDesc.BufferDesc.Format << ".";
-				return;
-			}
-
-			if (size < static_cast<std::size_t>(this->mSwapChainDesc.BufferDesc.Width * this->mSwapChainDesc.BufferDesc.Height * 4))
-			{
-				return;
-			}
-
-			D3D11_TEXTURE2D_DESC texdesc;
-			ZeroMemory(&texdesc, sizeof(D3D11_TEXTURE2D_DESC));
-			texdesc.Width = this->mSwapChainDesc.BufferDesc.Width;
-			texdesc.Height = this->mSwapChainDesc.BufferDesc.Height;
-			texdesc.ArraySize = 1;
-			texdesc.MipLevels = 1;
-			texdesc.Format = this->mSwapChainDesc.BufferDesc.Format;
-			texdesc.SampleDesc.Count = 1;
-			texdesc.SampleDesc.Quality = 0;
-			texdesc.Usage = D3D11_USAGE_STAGING;
-			texdesc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
-
-			ID3D11Texture2D *textureStaging = nullptr;
-			HRESULT hr = this->mDevice->CreateTexture2D(&texdesc, nullptr, &textureStaging);
-
-			if (FAILED(hr))
-			{
-				LOG(TRACE) << "Failed to create staging resource for screenshot capture! HRESULT is '" << hr << "'.";
-				return;
-			}
-
-			this->mImmediateContext->CopyResource(textureStaging, this->mBackBufferResolved);
-
-			D3D11_MAPPED_SUBRESOURCE mapped;
-			hr = this->mImmediateContext->Map(textureStaging, 0, D3D11_MAP_READ, 0, &mapped);
-
-			if (FAILED(hr))
-			{
-				LOG(TRACE) << "Failed to map staging resource with screenshot capture! HRESULT is '" << hr << "'.";
-
-				textureStaging->Release();
-				return;
-			}
-
-			BYTE *pMem = buffer;
-			BYTE *pMapped = static_cast<BYTE *>(mapped.pData);
-
-			const UINT pitch = texdesc.Width * 4;
-
-			for (UINT y = 0; y < texdesc.Height; ++y)
-			{
-				CopyMemory(pMem, pMapped, std::min(pitch, static_cast<UINT>(mapped.RowPitch)));
-
-				for (UINT x = 0; x < pitch; x += 4)
-				{
-					pMem[x + 3] = 0xFF;
-
-					if (texdesc.Format == DXGI_FORMAT_B8G8R8A8_UNORM || texdesc.Format == DXGI_FORMAT_B8G8R8A8_UNORM_SRGB)
-					{
-						std::swap(pMem[x + 0], pMem[x + 2]);
-					}
-				}
-								
-				pMem += pitch;
-				pMapped += mapped.RowPitch;
-			}
-
-			this->mImmediateContext->Unmap(textureStaging, 0);
-
-			textureStaging->Release();
-		}
-
-		D3D11Effect::D3D11Effect(std::shared_ptr<const D3D11Runtime> runtime) : mRuntime(runtime), mRasterizerState(nullptr), mConstantBuffer(nullptr), mConstantStorage(nullptr), mConstantsDirty(true)
-		{
-		}
-		D3D11Effect::~D3D11Effect()
-		{
-			SAFE_RELEASE(this->mRasterizerState);
-
-			for (ID3D11SamplerState *it : this->mSamplerStates)
-			{
-				it->Release();
-			}
-			
-			if (this->mConstantBuffer != nullptr)
-			{
-				this->mConstantBuffer->Release();
-			}
-
-			free(this->mConstantStorage);
-		}
-
-		void D3D11Effect::Enter() const
-		{
-			ID3D11DeviceContext *const devicecontext = this->mRuntime->mImmediateContext;
-
-			// Setup vertex input
-			const uintptr_t null = 0;
-			devicecontext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-			devicecontext->IASetInputLayout(nullptr);
-			devicecontext->IASetVertexBuffers(0, 1, reinterpret_cast<ID3D11Buffer *const *>(&null), reinterpret_cast<const UINT *>(&null), reinterpret_cast<const UINT *>(&null));
-
-			devicecontext->RSSetState(this->mRasterizerState);
-
-			// Setup samplers
-			devicecontext->VSSetSamplers(0, static_cast<UINT>(this->mSamplerStates.size()), this->mSamplerStates.data());
-			devicecontext->PSSetSamplers(0, static_cast<UINT>(this->mSamplerStates.size()), this->mSamplerStates.data());
-
-			// Setup shader constants
-			devicecontext->VSSetConstantBuffers(0, 1, &this->mConstantBuffer);
-			devicecontext->PSSetConstantBuffers(0, 1, &this->mConstantBuffer);
-		}
-		void D3D11Effect::Leave() const
-		{
-		}
-
-		D3D11Texture::D3D11Texture(D3D11Effect *effect, const Description &desc) : Texture(desc), mEffect(effect), mSource(Source::Memory), mTexture(nullptr), mShaderResourceView(), mRenderTargetView(), mRegister(0)
-		{
-		}
-		D3D11Texture::~D3D11Texture()
-		{
-			SAFE_RELEASE(this->mRenderTargetView[0]);
-			SAFE_RELEASE(this->mRenderTargetView[1]);
-			SAFE_RELEASE(this->mShaderResourceView[0]);
-			SAFE_RELEASE(this->mShaderResourceView[1]);
-
-			SAFE_RELEASE(this->mTexture);
-		}
-
-		bool D3D11Texture::Update(const unsigned char *data, std::size_t size)
-		{
-			if (data == nullptr || size == 0 || this->mSource != Source::Memory)
-			{
-				return false;
-			}
-
-			assert(this->mDesc.Height != 0);
-
-			ID3D11DeviceContext *context = this->mEffect->mRuntime->mImmediateContext;
-
-			context->UpdateSubresource(this->mTexture, 0, nullptr, data, static_cast<UINT>(size / this->mDesc.Height), static_cast<UINT>(size));
-
-			if (this->mDesc.Levels > 1)
-			{
-				context->GenerateMips(this->mShaderResourceView[0]);
-			}
-
-			return true;
-		}
-		void D3D11Texture::ChangeSource(ID3D11ShaderResourceView *srv, ID3D11ShaderResourceView *srvSRGB)
-		{
-			if (srvSRGB == nullptr)
-			{
-				srvSRGB = srv;
-			}
-
-			if (srv == this->mShaderResourceView[0] && srvSRGB == this->mShaderResourceView[1])
-			{
-				return;
-			}
-
-			SAFE_RELEASE(this->mRenderTargetView[0]);
-			SAFE_RELEASE(this->mRenderTargetView[1]);
-			SAFE_RELEASE(this->mShaderResourceView[0]);
-			SAFE_RELEASE(this->mShaderResourceView[1]);
-
-			SAFE_RELEASE(this->mTexture);
-
-			if (srv != nullptr)
-			{
-				this->mShaderResourceView[0] = srv;
-				this->mShaderResourceView[0]->AddRef();
-				this->mShaderResourceView[0]->GetResource(reinterpret_cast<ID3D11Resource **>(&this->mTexture));
-				this->mShaderResourceView[1] = srvSRGB;
-				this->mShaderResourceView[1]->AddRef();
-
-				D3D11_TEXTURE2D_DESC texdesc;
-				this->mTexture->GetDesc(&texdesc);
-
-				this->mDesc.Width = texdesc.Width;
-				this->mDesc.Height = texdesc.Height;
-				this->mDesc.Format = FX::Effect::Texture::Format::Unknown;
-				this->mDesc.Levels = texdesc.MipLevels;
-			}
-			else
-			{
-				this->mDesc.Width = this->mDesc.Height = this->mDesc.Levels = 0;
-				this->mDesc.Format = FX::Effect::Texture::Format::Unknown;
-			}
-
-			// Update techniques shader resourceviews
-			for (auto &technique : this->mEffect->mTechniques)
-			{
-				for (auto &pass : static_cast<D3D11Technique *>(technique.second.get())->mPasses)
-				{
-					pass.SRV[this->mRegister] = this->mShaderResourceView[0];
-					pass.SRV[this->mRegister + 1] = this->mShaderResourceView[1];
-				}
-			}
-		}
-
-		D3D11Constant::D3D11Constant(D3D11Effect *effect, const Description &desc) : Constant(desc), mEffect(effect)
-		{
-		}
-		D3D11Constant::~D3D11Constant()
-		{
-		}
-
-		void D3D11Constant::GetValue(unsigned char *data, std::size_t size) const
-		{
-			size = std::min(size, this->mDesc.StorageSize);
-
-			CopyMemory(data, this->mEffect->mConstantStorage + this->mDesc.StorageOffset, size);
-		}
-		void D3D11Constant::SetValue(const unsigned char *data, std::size_t size)
-		{
-			size = std::min(size, this->mDesc.StorageSize);
-
-			unsigned char *storage = this->mEffect->mConstantStorage + this->mDesc.StorageOffset;
-
-			if (std::memcmp(storage, data, size) == 0)
-			{
-				return;
-			}
-
-			CopyMemory(storage, data, size);
-
-			this->mEffect->mConstantsDirty = true;
-		}
-
-		D3D11Technique::D3D11Technique(D3D11Effect *effect, const Description &desc) : Technique(desc), mEffect(effect)
-		{
-		}
-		D3D11Technique::~D3D11Technique()
-		{
-			for (auto &pass : this->mPasses)
-			{
-				if (pass.VS != nullptr)
-				{
-					pass.VS->Release();
-				}
-				if (pass.PS != nullptr)
-				{
-					pass.PS->Release();
-				}
-				if (pass.BS != nullptr)
-				{
-					pass.BS->Release();
-				}
-				if (pass.DSS != nullptr)
-				{
-					pass.DSS->Release();
-				}
-			}
-		}
-
-		void D3D11Technique::RenderPass(unsigned int index) const
-		{
-			const std::shared_ptr<const D3D11Runtime> runtime = this->mEffect->mRuntime;
-			ID3D11DeviceContext *const devicecontext = runtime->mImmediateContext;
-			const D3D11Technique::Pass &pass = this->mPasses[index];
-
-			if (index == 0)
-			{
-				// Clear depthstencil
-				assert(runtime->mDefaultDepthStencil != nullptr);
-
-				devicecontext->ClearDepthStencilView(runtime->mDefaultDepthStencil, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
-			}
-
-			// Update shader constants
-			if (this->mEffect->mConstantsDirty && this->mEffect->mConstantBuffer != nullptr)
-			{
-				D3D11_MAPPED_SUBRESOURCE mapped;
-
-				const HRESULT hr = devicecontext->Map(this->mEffect->mConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
-
-				if (SUCCEEDED(hr))
-				{
-					CopyMemory(mapped.pData, this->mEffect->mConstantStorage, mapped.RowPitch);
-
-					devicecontext->Unmap(this->mEffect->mConstantBuffer, 0);
-
-					this->mEffect->mConstantsDirty = false;
-				}
-				else
-				{
-					LOG(TRACE) << "Failed to map constant buffer! HRESULT is '" << hr << "'!";
-				}
-			}
-
-			// Setup states
-			devicecontext->VSSetShader(pass.VS, nullptr, 0);
-			devicecontext->HSSetShader(nullptr, nullptr, 0);
-			devicecontext->DSSetShader(nullptr, nullptr, 0);
-			devicecontext->GSSetShader(nullptr, nullptr, 0);
-			devicecontext->PSSetShader(pass.PS, nullptr, 0);
-
-			const FLOAT blendfactor[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
-			devicecontext->OMSetBlendState(pass.BS, blendfactor, D3D11_DEFAULT_SAMPLE_MASK);
-			devicecontext->OMSetDepthStencilState(pass.DSS, pass.StencilRef);
-
-			// Save backbuffer of previous pass
-			devicecontext->CopyResource(runtime->mBackBufferTexture, runtime->mBackBufferResolved);
-
-			// Setup shader resources
-			devicecontext->VSSetShaderResources(0, static_cast<UINT>(pass.SRV.size()), pass.SRV.data());
-			devicecontext->PSSetShaderResources(0, static_cast<UINT>(pass.SRV.size()), pass.SRV.data());
-
-			// Setup rendertargets
-			devicecontext->OMSetRenderTargets(D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, pass.RT, (static_cast<UINT>(pass.Viewport.Width) == runtime->mSwapChainDesc.BufferDesc.Width && static_cast<UINT>(pass.Viewport.Height) == runtime->mSwapChainDesc.BufferDesc.Height) ? runtime->mDefaultDepthStencil : nullptr);
-			devicecontext->RSSetViewports(1, &pass.Viewport);
-
-			for (ID3D11RenderTargetView *rtv : pass.RT)
-			{
-				if (rtv == nullptr)
-				{
-					continue;
-				}
-
-				const FLOAT color[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
-				devicecontext->ClearRenderTargetView(rtv, color);
-			}
-	
-			// Draw triangle
-			devicecontext->Draw(3, 0);
-
-			const_cast<D3D11Runtime *>(runtime.get())->Runtime::OnDraw(3);
-
-			// Reset shader resources
-			ID3D11ShaderResourceView *null[D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT] = { nullptr };
-			devicecontext->VSSetShaderResources(0, static_cast<UINT>(pass.SRV.size()), null);
-			devicecontext->PSSetShaderResources(0, static_cast<UINT>(pass.SRV.size()), null);
-
-			// Reset rendertargets
-			devicecontext->OMSetRenderTargets(0, nullptr, nullptr);
-
-			// Update shader resources
-			for (ID3D11ShaderResourceView *srv : pass.RTSRV)
-			{
-				if (srv == nullptr)
-				{
-					continue;
-				}
-
-				D3D11_SHADER_RESOURCE_VIEW_DESC srvdesc;
-				srv->GetDesc(&srvdesc);
-
-				if (srvdesc.Texture2D.MipLevels > 1)
-				{
-					devicecontext->GenerateMips(srv);
-				}
-			}
 		}
 	}
 }

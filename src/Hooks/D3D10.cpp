@@ -391,7 +391,7 @@ void STDMETHODCALLTYPE D3D10Device::DrawIndexed(UINT IndexCount, UINT StartIndex
 {
 	for (auto runtime : this->mRuntimes)
 	{
-		runtime->OnDrawInternal(IndexCount);
+		runtime->OnDrawCall(IndexCount);
 	}
 
 	this->mOrig->DrawIndexed(IndexCount, StartIndexLocation, BaseVertexLocation);
@@ -400,7 +400,7 @@ void STDMETHODCALLTYPE D3D10Device::Draw(UINT VertexCount, UINT StartVertexLocat
 {
 	for (auto runtime : this->mRuntimes)
 	{
-		runtime->OnDrawInternal(VertexCount);
+		runtime->OnDrawCall(VertexCount);
 	}
 
 	this->mOrig->Draw(VertexCount, StartVertexLocation);
@@ -425,7 +425,7 @@ void STDMETHODCALLTYPE D3D10Device::DrawIndexedInstanced(UINT IndexCountPerInsta
 {
 	for (auto runtime : this->mRuntimes)
 	{
-		runtime->OnDrawInternal(IndexCountPerInstance * InstanceCount);
+		runtime->OnDrawCall(IndexCountPerInstance * InstanceCount);
 	}
 
 	this->mOrig->DrawIndexedInstanced(IndexCountPerInstance, InstanceCount, StartIndexLocation, BaseVertexLocation, StartInstanceLocation);
@@ -434,7 +434,7 @@ void STDMETHODCALLTYPE D3D10Device::DrawInstanced(UINT VertexCountPerInstance, U
 {
 	for (auto runtime : this->mRuntimes)
 	{
-		runtime->OnDrawInternal(VertexCountPerInstance * InstanceCount);
+		runtime->OnDrawCall(VertexCountPerInstance * InstanceCount);
 	}
 
 	this->mOrig->DrawInstanced(VertexCountPerInstance, InstanceCount, StartVertexLocation, StartInstanceLocation);

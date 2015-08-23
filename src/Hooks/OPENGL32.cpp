@@ -579,7 +579,7 @@ EXPORT void WINAPI glDrawArrays(GLenum mode, GLint first, GLsizei count)
 
 	if (it != sRuntimes.end())
 	{
-		it->second->OnDrawInternal(count);
+		it->second->OnDrawCall(count);
 	}
 
 	trampoline(mode, first, count);
@@ -598,7 +598,7 @@ void WINAPI glDrawArraysInstanced(GLenum mode, GLint first, GLsizei count, GLsiz
 
 	if (it != sRuntimes.end())
 	{
-		it->second->OnDrawInternal(primcount * count);
+		it->second->OnDrawCall(primcount * count);
 	}
 
 	trampoline(mode, first, count, primcount);
@@ -611,7 +611,7 @@ void WINAPI glDrawArraysInstancedARB(GLenum mode, GLint first, GLsizei count, GL
 
 	if (it != sRuntimes.end())
 	{
-		it->second->OnDrawInternal(primcount * count);
+		it->second->OnDrawCall(primcount * count);
 	}
 
 	trampoline(mode, first, count, primcount);
@@ -624,7 +624,7 @@ void WINAPI glDrawArraysInstancedEXT(GLenum mode, GLint first, GLsizei count, GL
 
 	if (it != sRuntimes.end())
 	{
-		it->second->OnDrawInternal(primcount * count);
+		it->second->OnDrawCall(primcount * count);
 	}
 
 	trampoline(mode, first, count, primcount);
@@ -637,7 +637,7 @@ void WINAPI glDrawArraysInstancedBaseInstance(GLenum mode, GLint first, GLsizei 
 
 	if (it != sRuntimes.end())
 	{
-		it->second->OnDrawInternal(primcount * count);
+		it->second->OnDrawCall(primcount * count);
 	}
 
 	trampoline(mode, first, count, primcount, baseinstance);
@@ -656,7 +656,7 @@ EXPORT void WINAPI glDrawElements(GLenum mode, GLsizei count, GLenum type, const
 
 	if (it != sRuntimes.end())
 	{
-		it->second->OnDrawInternal(count);
+		it->second->OnDrawCall(count);
 	}
 
 	trampoline(mode, count, type, indices);
@@ -669,7 +669,7 @@ void WINAPI glDrawElementsBaseVertex(GLenum mode, GLsizei count, GLenum type, co
 
 	if (it != sRuntimes.end())
 	{
-		it->second->OnDrawInternal(count);
+		it->second->OnDrawCall(count);
 	}
 
 	trampoline(mode, count, type, indices, basevertex);
@@ -688,7 +688,7 @@ void WINAPI glDrawElementsInstanced(GLenum mode, GLsizei count, GLenum type, con
 
 	if (it != sRuntimes.end())
 	{
-		it->second->OnDrawInternal(primcount * count);
+		it->second->OnDrawCall(primcount * count);
 	}
 
 	trampoline(mode, count, type, indices, primcount);
@@ -701,7 +701,7 @@ void WINAPI glDrawElementsInstancedARB(GLenum mode, GLsizei count, GLenum type, 
 
 	if (it != sRuntimes.end())
 	{
-		it->second->OnDrawInternal(primcount * count);
+		it->second->OnDrawCall(primcount * count);
 	}
 
 	trampoline(mode, count, type, indices, primcount);
@@ -714,7 +714,7 @@ void WINAPI glDrawElementsInstancedEXT(GLenum mode, GLsizei count, GLenum type, 
 
 	if (it != sRuntimes.end())
 	{
-		it->second->OnDrawInternal(primcount * count);
+		it->second->OnDrawCall(primcount * count);
 	}
 
 	trampoline(mode, count, type, indices, primcount);
@@ -727,7 +727,7 @@ void WINAPI glDrawElementsInstancedBaseVertex(GLenum mode, GLsizei count, GLenum
 
 	if (it != sRuntimes.end())
 	{
-		it->second->OnDrawInternal(primcount * count);
+		it->second->OnDrawCall(primcount * count);
 	}
 
 	trampoline(mode, count, type, indices, primcount, basevertex);
@@ -740,7 +740,7 @@ void WINAPI glDrawElementsInstancedBaseInstance(GLenum mode, GLsizei count, GLen
 
 	if (it != sRuntimes.end())
 	{
-		it->second->OnDrawInternal(primcount * count);
+		it->second->OnDrawCall(primcount * count);
 	}
 
 	trampoline(mode, count, type, indices, primcount, baseinstance);
@@ -753,7 +753,7 @@ void WINAPI glDrawElementsInstancedBaseVertexBaseInstance(GLenum mode, GLsizei c
 
 	if (it != sRuntimes.end())
 	{
-		it->second->OnDrawInternal(primcount * count);
+		it->second->OnDrawCall(primcount * count);
 	}
 
 	trampoline(mode, count, type, indices, primcount, basevertex, baseinstance);
@@ -772,7 +772,7 @@ void WINAPI glDrawRangeElements(GLenum mode, GLuint start, GLuint end, GLsizei c
 
 	if (it != sRuntimes.end())
 	{
-		it->second->OnDrawInternal(count);
+		it->second->OnDrawCall(count);
 	}
 
 	trampoline(mode, start, end, count, type, indices);
@@ -785,7 +785,7 @@ void WINAPI glDrawRangeElementsBaseVertex(GLenum mode, GLuint start, GLuint end,
 
 	if (it != sRuntimes.end())
 	{
-		it->second->OnDrawInternal(count);
+		it->second->OnDrawCall(count);
 	}
 
 	trampoline(mode, start, end, count, type, indices, basevertex);
@@ -830,7 +830,7 @@ EXPORT void WINAPI glEnd()
 
 	if (it != sRuntimes.end())
 	{
-		it->second->OnDrawInternal(it->second->mCurrentVertexCount);
+		it->second->OnDrawCall(it->second->mCurrentVertexCount);
 	}
 }
 EXPORT void WINAPI glEndList()
@@ -1642,7 +1642,7 @@ void WINAPI glMultiDrawArrays(GLenum mode, const GLint *first, const GLsizei *co
 			totalcount += count[i];
 		}
 
-		it->second->OnDrawInternal(totalcount);
+		it->second->OnDrawCall(totalcount);
 	}
 
 	trampoline(mode, first, count, drawcount);
@@ -1668,7 +1668,7 @@ void WINAPI glMultiDrawElements(GLenum mode, const GLsizei *count, GLenum type, 
 			totalcount += count[i];
 		}
 
-		it->second->OnDrawInternal(totalcount);
+		it->second->OnDrawCall(totalcount);
 	}
 
 	trampoline(mode, count, type, indices, drawcount);
@@ -1688,7 +1688,7 @@ void WINAPI glMultiDrawElementsBaseVertex(GLenum mode, const GLsizei *count, GLe
 			totalcount += count[i];
 		}
 
-		it->second->OnDrawInternal(totalcount);
+		it->second->OnDrawCall(totalcount);
 	}
 
 	trampoline(mode, count, type, indices, drawcount, basevertex);
@@ -3534,7 +3534,7 @@ EXPORT BOOL WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 		{
 			LOG(INFO) << "> Cleaning up runtime " << it->second << " ...";
 
-			it->second->OnDeleteInternal();
+			it->second->OnReset();
 
 			sRuntimes.erase(it);
 		}
@@ -3677,9 +3677,9 @@ EXPORT BOOL WINAPI wglSwapBuffers(HDC hdc)
 		{
 			LOG(INFO) << "Resizing runtime " << it->second << " on device context " << hdc << " to " << rect.right << "x" << rect.bottom << " ...";
 
-			it->second->OnDeleteInternal();
+			it->second->OnReset();
 
-			if (!(rect.right == 0 && rect.bottom == 0) && !it->second->OnCreateInternal(static_cast<unsigned int>(rect.right), static_cast<unsigned int>(rect.bottom)))
+			if (!(rect.right == 0 && rect.bottom == 0) && !it->second->OnInit(static_cast<unsigned int>(rect.right), static_cast<unsigned int>(rect.bottom)))
 			{
 				LOG(ERROR) << "Failed to reinitialize OpenGL renderer! Check tracelog for details.";
 			}
@@ -3687,7 +3687,7 @@ EXPORT BOOL WINAPI wglSwapBuffers(HDC hdc)
 			rectPrevious = rect;
 		}
 
-		it->second->OnPresentInternal();
+		it->second->OnPresent();
 	}
 
 	return trampoline(hdc);
@@ -3721,13 +3721,6 @@ EXPORT DWORD WINAPI wglSwapMultipleBuffers(UINT cNumBuffers, CONST WGLSWAP *pBuf
 BOOL WINAPI wglSwapIntervalEXT(int interval)
 {
 	static const auto trampoline = ReShade::Hooks::Call(&wglSwapIntervalEXT);
-
-	const auto it = sRuntimes.find(wglGetCurrentDC());
-
-	if (it != sRuntimes.end())
-	{
-		it->second->OnSwapInterval(interval);
-	}
 
 	return trampoline(interval);
 }

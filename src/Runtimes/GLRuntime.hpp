@@ -8,146 +8,77 @@ namespace ReShade
 {
 	namespace Runtimes
 	{
-		struct GLRuntime : public Runtime, public std::enable_shared_from_this<GLRuntime>
+		class GLRuntime : public Runtime
 		{
-			friend struct GLTechnique;
+		public:
+			GLRuntime(HDC device, HGLRC context);
+			~GLRuntime();
 
+			bool OnInit(unsigned int width, unsigned int height);
+			void OnReset() override;
+			void OnPresent() override;
+			void OnDrawCall(unsigned int vertices) override;
+			void OnApplyEffect() override;
+			void OnApplyEffectTechnique(const Technique *technique) override;
+			void OnFramebufferAttachment(GLenum target, GLenum attachment, GLenum objecttarget, GLuint object, GLint level);
+
+			void Screenshot(unsigned char *buffer) const override;
+			bool UpdateEffect(const FX::Tree &ast, const std::vector<std::string> &pragmas, std::string &errors) override;
+			bool UpdateTexture(Texture *texture, const unsigned char *data, std::size_t size) override;
+
+			void DetectDepthSource();
+			void CreateDepthTexture(GLuint width, GLuint height, GLenum format);
+
+			inline Texture *GetTexture(const std::string &name) const
+			{
+				const auto it = std::find_if(this->mTextures.cbegin(), this->mTextures.cend(), [name](const std::unique_ptr<Texture> &it) { return it->Name == name; });
+
+				return it != this->mTextures.cend() ? it->get() : nullptr;
+			}
+			inline void EnlargeConstantStorage()
+			{
+				this->mConstantStorage = static_cast<unsigned char *>(::realloc(this->mConstantStorage, this->mConstantStorageSize += 128));
+			}
+			inline unsigned char *GetConstantStorage() const
+			{
+				return this->mConstantStorage;
+			}
+			inline size_t GetConstantStorageSize() const
+			{
+				return this->mConstantStorageSize;
+			}
+			inline void AddTexture(Texture *texture)
+			{
+				this->mTextures.push_back(std::unique_ptr<Texture>(texture));
+			}
+			inline void AddConstant(Constant *constant)
+			{
+				this->mConstants.push_back(std::unique_ptr<Constant>(constant));
+			}
+			inline void AddTechnique(Technique *technique)
+			{
+				this->mTechniques.push_back(std::unique_ptr<Technique>(technique));
+			}
+
+			HDC mDeviceContext;
+			HGLRC mRenderContext;
+
+			GLuint mReferenceCount, mCurrentVertexCount;
+			GLuint mDefaultBackBufferFBO, mDefaultBackBufferRBO[2], mBackBufferTexture[2];
+			GLuint mDepthSourceFBO, mDepthSource, mDepthTexture, mBlitFBO;
+			std::vector<struct GLSampler> mEffectSamplers;
+			GLuint mDefaultVAO, mDefaultVBO, mEffectUBO;
+
+		private:
 			struct DepthSourceInfo
 			{
 				GLint Width, Height, Level, Format;
 				GLfloat DrawCallCount, DrawVerticesCount;
 			};
 
-			GLRuntime(HDC device, HGLRC context);
-			~GLRuntime();
-
-			bool OnCreateInternal(unsigned int width, unsigned int height);
-			void OnDeleteInternal();
-			void OnDrawInternal(unsigned int vertices);
-			void OnPresentInternal();
-			void OnSwapInterval(int interval);
-			void OnFramebufferAttachment(GLenum target, GLenum attachment, GLenum objecttarget, GLuint object, GLint level);
-
-			void DetectDepthSource();
-			void CreateDepthTexture(GLuint width, GLuint height, GLenum format);
-
-			virtual std::unique_ptr<FX::Effect> CompileEffect(const FX::Tree &ast, std::string &errors) const override;
-			virtual void CreateScreenshot(unsigned char *buffer, std::size_t size) const override;
-
-			HDC mDeviceContext;
-			HGLRC mRenderContext;
-			GLuint mReferenceCount, mCurrentVertexCount;
 			std::unique_ptr<class GLStateBlock> mStateBlock;
-			GLuint mDefaultBackBufferFBO, mDefaultBackBufferRBO[2], mBackBufferTexture[2];
-			GLuint mDepthSourceFBO, mDepthSource, mDepthTexture, mBlitFBO;
 			std::unordered_map<GLuint, DepthSourceInfo> mDepthSourceTable;
-			bool mLost, mPresenting;
-		};
-
-		struct GLEffect : public FX::Effect
-		{
-			friend struct GLRuntime;
-
-			GLEffect(std::shared_ptr<const GLRuntime> runtime);
-			~GLEffect();
-
-			inline bool AddTexture(const std::string &name, Texture *texture)
-			{
-				return this->mTextures.emplace(name, std::unique_ptr<Texture>(texture)).second;
-			}
-			inline bool AddConstant(const std::string &name, Constant *constant)
-			{
-				return this->mConstants.emplace(name, std::unique_ptr<Constant>(constant)).second;
-			}
-			inline void AddTechnique(const std::string &name, Technique *technique)
-			{
-				this->mTechniques.push_back(std::make_pair(name, std::unique_ptr<Technique>(technique)));
-			}
-
-			virtual void Enter() const override;
-			virtual void Leave() const override;
-
-			std::shared_ptr<const GLRuntime> mRuntime;
-			std::vector<struct GLSampler> mSamplers;
-			GLuint mDefaultVAO, mDefaultVBO, mUBO;
-			GLubyte *mUniformStorage;
-			std::size_t mUniformStorageSize;
-			mutable bool mUniformDirty;
-		};
-		struct GLTexture : public FX::Effect::Texture
-		{
-			enum class Source
-			{
-				Memory,
-				BackBuffer,
-				DepthStencil
-			};
-
-			GLTexture(GLEffect *effect, const Description &desc);
-			~GLTexture();
-
-			inline bool AddAnnotation(const std::string &name, const FX::Effect::Annotation &value)
-			{
-				return this->mAnnotations.emplace(name, value).second;
-			}
-
-			virtual bool Update(const unsigned char *data, std::size_t size) override;
-			void ChangeSource(GLuint texture, GLuint textureSRGB);
-
-			GLEffect *mEffect;
-			Source mSource;
-			GLuint mID[2];
-		};
-		struct GLSampler
-		{
-			GLuint mID;
-			GLTexture *mTexture;
-			bool mSRGB;
-		};
-		struct GLConstant : public FX::Effect::Constant
-		{
-			GLConstant(GLEffect *effect, const Description &desc);
-			~GLConstant();
-
-			inline bool AddAnnotation(const std::string &name, const FX::Effect::Annotation &value)
-			{
-				return this->mAnnotations.emplace(name, value).second;
-			}
-
-			virtual void GetValue(unsigned char *data, std::size_t size) const override;
-			virtual void SetValue(const unsigned char *data, std::size_t size) override;
-
-			GLEffect *mEffect;
-		};
-		struct GLTechnique : public FX::Effect::Technique
-		{
-			struct Pass
-			{
-				GLuint Program;
-				GLuint Framebuffer, DrawTextures[8];
-				GLint StencilRef;
-				GLuint StencilMask, StencilReadMask;
-				GLsizei ViewportWidth, ViewportHeight;
-				GLenum DrawBuffers[8], BlendEqColor, BlendEqAlpha, BlendFuncSrc, BlendFuncDest, DepthFunc, StencilFunc, StencilOpFail, StencilOpZFail, StencilOpZPass;
-				GLboolean FramebufferSRGB, Blend, DepthMask, DepthTest, StencilTest, ColorMaskR, ColorMaskG, ColorMaskB, ColorMaskA;
-			};
-
-			GLTechnique(GLEffect *effect, const Description &desc);
-			~GLTechnique();
-
-			inline bool AddAnnotation(const std::string &name, const FX::Effect::Annotation &value)
-			{
-				return this->mAnnotations.emplace(name, value).second;
-			}
-			inline void AddPass(const Pass &pass)
-			{
-				this->mPasses.push_back(pass);
-			}
-
-			virtual void RenderPass(unsigned int index) const override;
-
-			GLEffect *mEffect;
-			std::vector<Pass> mPasses;
+			bool mPresenting;
 		};
 	}
 }

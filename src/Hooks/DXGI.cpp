@@ -134,7 +134,7 @@ namespace
 	}
 	void DumpSwapChainDescription(const DXGI_SWAP_CHAIN_DESC &desc)
 	{
-		LOG(TRACE) << "> Dumping swapchain description:";
+		LOG(TRACE) << "> Dumping swap chain description:";
 		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
 		LOG(TRACE) << "  | Parameter                               | Value                                   |";
 		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+" << std::left;
@@ -156,12 +156,12 @@ namespace
 
 		if (desc.SampleDesc.Count > 1)
 		{
-			LOG(WARNING) << "> Multisampling is enabled. This is not compatible with depthbuffer access, which was therefore disabled.";
+			LOG(WARNING) << "> Multisampling is enabled. This is not compatible with depth buffer access, which was therefore disabled.";
 		}
 	}
 	void DumpSwapChainDescription(const DXGI_SWAP_CHAIN_DESC1 &desc)
 	{
-		LOG(TRACE) << "> Dumping swapchain description:";
+		LOG(TRACE) << "> Dumping swap chain description:";
 		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
 		LOG(TRACE) << "  | Parameter                               | Value                                   |";
 		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+" << std::left;
@@ -307,11 +307,11 @@ ULONG STDMETHODCALLTYPE DXGISwapChain::Release()
 		switch (this->mDevice->mDirect3DVersion)
 		{
 			case 10:
-				std::static_pointer_cast<ReShade::Runtimes::D3D10Runtime>(this->mRuntime)->OnDeleteInternal();
+				std::static_pointer_cast<ReShade::Runtimes::D3D10Runtime>(this->mRuntime)->OnReset();
 				static_cast<DXGID3D10Bridge *>(this->mDevice->mDirect3DBridge)->RemoveRuntime(std::static_pointer_cast<ReShade::Runtimes::D3D10Runtime>(this->mRuntime));
 				break;
 			case 11:
-				std::static_pointer_cast<ReShade::Runtimes::D3D11Runtime>(this->mRuntime)->OnDeleteInternal();
+				std::static_pointer_cast<ReShade::Runtimes::D3D11Runtime>(this->mRuntime)->OnReset();
 				static_cast<DXGID3D11Bridge *>(this->mDevice->mDirect3DBridge)->RemoveRuntime(std::static_pointer_cast<ReShade::Runtimes::D3D11Runtime>(this->mRuntime));
 				break;
 		}
@@ -374,10 +374,10 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::Present(UINT SyncInterval, UINT Flags)
 	switch (this->mDevice->mDirect3DVersion)
 	{
 		case 10:
-			std::static_pointer_cast<ReShade::Runtimes::D3D10Runtime>(this->mRuntime)->OnPresentInternal(SyncInterval);
+			std::static_pointer_cast<ReShade::Runtimes::D3D10Runtime>(this->mRuntime)->OnPresent();
 			break;
 		case 11:
-			std::static_pointer_cast<ReShade::Runtimes::D3D11Runtime>(this->mRuntime)->OnPresentInternal(SyncInterval);
+			std::static_pointer_cast<ReShade::Runtimes::D3D11Runtime>(this->mRuntime)->OnPresent();
 			break;
 	}
 
@@ -410,10 +410,10 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Wi
 	switch (this->mDevice->mDirect3DVersion)
 	{
 		case 10:
-			std::static_pointer_cast<ReShade::Runtimes::D3D10Runtime>(this->mRuntime)->OnDeleteInternal();
+			std::static_pointer_cast<ReShade::Runtimes::D3D10Runtime>(this->mRuntime)->OnReset();
 			break;
 		case 11:
-			std::static_pointer_cast<ReShade::Runtimes::D3D11Runtime>(this->mRuntime)->OnDeleteInternal();
+			std::static_pointer_cast<ReShade::Runtimes::D3D11Runtime>(this->mRuntime)->OnReset();
 			break;
 	}
 
@@ -438,10 +438,10 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Wi
 	switch (this->mDevice->mDirect3DVersion)
 	{
 		case 10:
-			created = std::static_pointer_cast<ReShade::Runtimes::D3D10Runtime>(this->mRuntime)->OnCreateInternal(desc);
+			created = std::static_pointer_cast<ReShade::Runtimes::D3D10Runtime>(this->mRuntime)->OnInit(desc);
 			break;
 		case 11:
-			created = std::static_pointer_cast<ReShade::Runtimes::D3D11Runtime>(this->mRuntime)->OnCreateInternal(desc);
+			created = std::static_pointer_cast<ReShade::Runtimes::D3D11Runtime>(this->mRuntime)->OnInit(desc);
 			break;
 	}
 
@@ -502,10 +502,10 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::Present1(UINT SyncInterval, UINT Presen
 	switch (this->mDevice->mDirect3DVersion)
 	{
 		case 10:
-			std::static_pointer_cast<ReShade::Runtimes::D3D10Runtime>(this->mRuntime)->OnPresentInternal(SyncInterval);
+			std::static_pointer_cast<ReShade::Runtimes::D3D10Runtime>(this->mRuntime)->OnPresent();
 			break;
 		case 11:
-			std::static_pointer_cast<ReShade::Runtimes::D3D11Runtime>(this->mRuntime)->OnPresentInternal(SyncInterval);
+			std::static_pointer_cast<ReShade::Runtimes::D3D11Runtime>(this->mRuntime)->OnPresent();
 			break;
 	}
 
@@ -788,13 +788,13 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, I
 
 	if ((desc.BufferUsage & DXGI_USAGE_RENDER_TARGET_OUTPUT) == 0)
 	{
-		LOG(WARNING) << "> Skipping swapchain due to missing 'DXGI_USAGE_RENDER_TARGET_OUTPUT' flag.";
+		LOG(WARNING) << "> Skipping swap chain due to missing 'DXGI_USAGE_RENDER_TARGET_OUTPUT' flag.";
 	}
 	else if (bridgeD3D10 != nullptr)
 	{
 		const std::shared_ptr<ReShade::Runtimes::D3D10Runtime> runtime = std::make_shared<ReShade::Runtimes::D3D10Runtime>(bridgeD3D10->GetOriginalD3D10Device(), swapchain);
 
-		if (!runtime->OnCreateInternal(desc))
+		if (!runtime->OnInit(desc))
 		{
 			LOG(ERROR) << "Failed to initialize Direct3D10 renderer! Check tracelog for details.";
 		}
@@ -809,7 +809,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, I
 	{
 		const std::shared_ptr<ReShade::Runtimes::D3D11Runtime> runtime = std::make_shared<ReShade::Runtimes::D3D11Runtime>(bridgeD3D11->GetOriginalD3D11Device(), swapchain);
 
-		if (!runtime->OnCreateInternal(desc))
+		if (!runtime->OnInit(desc))
 		{
 			LOG(ERROR) << "Failed to initialize Direct3D11 renderer! Check tracelog for details.";
 		}
@@ -822,10 +822,10 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, I
 	}
 	else
 	{
-		LOG(WARNING) << "> Skipping swapchain because it was created without a (hooked) Direct3D device.";
+		LOG(WARNING) << "> Skipping swap chain because it was created without a (hooked) Direct3D device.";
 	}
 
-	LOG(TRACE) << "> Returned swapchain object: " << *ppSwapChain;
+	LOG(TRACE) << "> Returned swap chain object: " << *ppSwapChain;
 
 	if (bridgeD3D10 != nullptr)
 	{
@@ -897,13 +897,13 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pF
 
 	if ((desc.BufferUsage & DXGI_USAGE_RENDER_TARGET_OUTPUT) == 0)
 	{
-		LOG(WARNING) << "> Skipping swapchain due to missing 'DXGI_USAGE_RENDER_TARGET_OUTPUT' flag.";
+		LOG(WARNING) << "> Skipping swap chain due to missing 'DXGI_USAGE_RENDER_TARGET_OUTPUT' flag.";
 	}
 	else if (bridgeD3D10 != nullptr)
 	{
 		const std::shared_ptr<ReShade::Runtimes::D3D10Runtime> runtime = std::make_shared<ReShade::Runtimes::D3D10Runtime>(bridgeD3D10->GetOriginalD3D10Device(), swapchain);
 
-		if (!runtime->OnCreateInternal(desc))
+		if (!runtime->OnInit(desc))
 		{
 			LOG(ERROR) << "Failed to initialize Direct3D10 renderer! Check tracelog for details.";
 		}
@@ -918,7 +918,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pF
 	{
 		const std::shared_ptr<ReShade::Runtimes::D3D11Runtime> runtime = std::make_shared<ReShade::Runtimes::D3D11Runtime>(bridgeD3D11->GetOriginalD3D11Device(), swapchain);
 
-		if (!runtime->OnCreateInternal(desc))
+		if (!runtime->OnInit(desc))
 		{
 			LOG(ERROR) << "Failed to initialize Direct3D11 renderer! Check tracelog for details.";
 		}
@@ -931,10 +931,10 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pF
 	}
 	else
 	{
-		LOG(WARNING) << "> Skipping swapchain because it was created without a (hooked) Direct3D device.";
+		LOG(WARNING) << "> Skipping swap chain because it was created without a (hooked) Direct3D device.";
 	}
 
-	LOG(TRACE) << "> Returned swapchain object: " << *ppSwapChain;
+	LOG(TRACE) << "> Returned swap chain object: " << *ppSwapChain;
 
 	if (bridgeD3D10 != nullptr)
 	{
@@ -1004,13 +1004,13 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactor
 
 	if ((desc.BufferUsage & DXGI_USAGE_RENDER_TARGET_OUTPUT) == 0)
 	{
-		LOG(WARNING) << "> Skipping swapchain due to missing 'DXGI_USAGE_RENDER_TARGET_OUTPUT' flag.";
+		LOG(WARNING) << "> Skipping swap chain due to missing 'DXGI_USAGE_RENDER_TARGET_OUTPUT' flag.";
 	}
 	else if (bridgeD3D10 != nullptr)
 	{
 		const std::shared_ptr<ReShade::Runtimes::D3D10Runtime> runtime = std::make_shared<ReShade::Runtimes::D3D10Runtime>(bridgeD3D10->GetOriginalD3D10Device(), swapchain);
 
-		if (!runtime->OnCreateInternal(desc))
+		if (!runtime->OnInit(desc))
 		{
 			LOG(ERROR) << "Failed to initialize Direct3D10 renderer! Check tracelog for details.";
 		}
@@ -1025,7 +1025,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactor
 	{
 		const std::shared_ptr<ReShade::Runtimes::D3D11Runtime> runtime = std::make_shared<ReShade::Runtimes::D3D11Runtime>(bridgeD3D11->GetOriginalD3D11Device(), swapchain);
 
-		if (!runtime->OnCreateInternal(desc))
+		if (!runtime->OnInit(desc))
 		{
 			LOG(ERROR) << "Failed to initialize Direct3D11 renderer! Check tracelog for details.";
 		}
@@ -1038,10 +1038,10 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactor
 	}
 	else
 	{
-		LOG(WARNING) << "> Skipping swapchain because it was created without a (hooked) Direct3D device.";
+		LOG(WARNING) << "> Skipping swap chain because it was created without a (hooked) Direct3D device.";
 	}
 
-	LOG(TRACE) << "> Returned swapchain object: " << *ppSwapChain;
+	LOG(TRACE) << "> Returned swap chain object: " << *ppSwapChain;
 
 	if (bridgeD3D10 != nullptr)
 	{
@@ -1111,13 +1111,13 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFacto
 
 	if ((desc.BufferUsage & DXGI_USAGE_RENDER_TARGET_OUTPUT) == 0)
 	{
-		LOG(WARNING) << "> Skipping swapchain due to missing 'DXGI_USAGE_RENDER_TARGET_OUTPUT' flag.";
+		LOG(WARNING) << "> Skipping swap chain due to missing 'DXGI_USAGE_RENDER_TARGET_OUTPUT' flag.";
 	}
 	else if (bridgeD3D10 != nullptr)
 	{
 		const std::shared_ptr<ReShade::Runtimes::D3D10Runtime> runtime = std::make_shared<ReShade::Runtimes::D3D10Runtime>(bridgeD3D10->GetOriginalD3D10Device(), swapchain);
 
-		if (!runtime->OnCreateInternal(desc))
+		if (!runtime->OnInit(desc))
 		{
 			LOG(ERROR) << "Failed to initialize Direct3D10 renderer! Check tracelog for details.";
 		}
@@ -1132,7 +1132,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFacto
 	{
 		const std::shared_ptr<ReShade::Runtimes::D3D11Runtime> runtime = std::make_shared<ReShade::Runtimes::D3D11Runtime>(bridgeD3D11->GetOriginalD3D11Device(), swapchain);
 
-		if (!runtime->OnCreateInternal(desc))
+		if (!runtime->OnInit(desc))
 		{
 			LOG(ERROR) << "Failed to initialize Direct3D11 renderer! Check tracelog for details.";
 		}
@@ -1145,10 +1145,10 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFacto
 	}
 	else
 	{
-		LOG(WARNING) << "> Skipping swapchain because it was created without a (hooked) Direct3D device.";
+		LOG(WARNING) << "> Skipping swap chain because it was created without a (hooked) Direct3D device.";
 	}
 
-	LOG(TRACE) << "> Returned swapchain object: " << *ppSwapChain;
+	LOG(TRACE) << "> Returned swap chain object: " << *ppSwapChain;
 
 	if (bridgeD3D10 != nullptr)
 	{

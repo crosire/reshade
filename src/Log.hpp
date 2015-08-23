@@ -1,6 +1,6 @@
 #pragma once
 
-#include <ostream>
+#include <fstream>
 #include <iomanip>
 #include <codecvt>
 #include <boost\noncopyable.hpp>
@@ -15,8 +15,9 @@
 
 namespace ReShade
 {
-	namespace Log
+	class Log abstract
 	{
+	public:
 		enum class Level
 		{
 			Fatal,
@@ -25,7 +26,7 @@ namespace ReShade
 			Info,
 			Trace
 		};
-		struct Message : boost::noncopyable
+		struct Message
 		{
 			Message(Level level);
 			~Message();
@@ -35,7 +36,7 @@ namespace ReShade
 			{
 				if (this->mDispatch)
 				{
-					this->mStream << value;
+					sFileStream << value;
 				}
 
 				return *this;
@@ -49,32 +50,19 @@ namespace ReShade
 				return operator<<<std::wstring>(message);
 			}
 			template <>
-			inline Message &operator<<(const std::string &message)
-			{
-				if (this->mDispatch)
-				{
-					this->mStream << message;
-				}
-
-				return *this;
-			}
-			template <>
 			inline Message &operator<<(const std::wstring &message)
 			{
-				if (this->mDispatch)
-				{
-					this->mStream << std::wstring_convert<std::codecvt_utf8<wchar_t>>().to_bytes(message);
-				}
-
-				return *this;
+				return operator<<<std::string>(std::wstring_convert<std::codecvt_utf8<wchar_t>>().to_bytes(message));
 			}
 
 		private:
 			bool mDispatch;
-			std::ostream &mStream;
 		};
 
-		bool Open(const boost::filesystem::path &path, Level maxlevel);
-		void Close();
-	}
+		static bool Open(const boost::filesystem::path &path, Level maxlevel);
+
+	private:
+		static Level sMaxLevel;
+		static std::ofstream sFileStream;
+	};
 }

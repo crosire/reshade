@@ -329,7 +329,7 @@ ULONG STDMETHODCALLTYPE Direct3DSwapChain9::Release()
 		#pragma region Cleanup Resources
 		assert(this->mRuntime != nullptr);
 
-		this->mRuntime->OnDeleteInternal();
+		this->mRuntime->OnReset();
 
 		this->mRuntime.reset();
 
@@ -368,7 +368,7 @@ HRESULT STDMETHODCALLTYPE Direct3DSwapChain9::Present(const RECT *pSourceRect, c
 {
 	assert(this->mRuntime != nullptr);
 
-	this->mRuntime->OnPresentInternal();
+	this->mRuntime->OnPresent();
 
 	return this->mOrig->Present(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion, dwFlags);
 }
@@ -533,7 +533,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetDisplayMode(UINT iSwapChain, D3DDI
 {
 	if (iSwapChain != 0)
 	{
-		LOG(WARNING) << "Access to multihead swapchain at index " << iSwapChain << " is unsupported.";
+		LOG(WARNING) << "Access to multi-head swap chain at index " << iSwapChain << " is unsupported.";
 
 		return D3DERR_INVALIDCALL;
 	}
@@ -588,7 +588,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateAdditionalSwapChain(D3DPRESENT_
 
 	const std::shared_ptr<ReShade::Runtimes::D3D9Runtime> runtime = std::make_shared<ReShade::Runtimes::D3D9Runtime>(device, swapchain);
 
-	if (!runtime->OnCreateInternal(pp))
+	if (!runtime->OnInit(pp))
 	{
 		LOG(ERROR) << "Failed to initialize Direct3D9 renderer! Check tracelog for details.";
 	}
@@ -600,7 +600,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateAdditionalSwapChain(D3DPRESENT_
 	this->mAdditionalSwapChains.push_back(swapchainProxy);
 	*ppSwapChain = swapchainProxy;
 
-	LOG(TRACE) << "> Returned swapchain object: " << *ppSwapChain;
+	LOG(TRACE) << "> Returned swap chain object: " << *ppSwapChain;
 
 	return D3D_OK;
 }
@@ -608,7 +608,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetSwapChain(UINT iSwapChain, IDirect
 {
 	if (iSwapChain != 0)
 	{
-		LOG(WARNING) << "Access to multihead swapchain at index " << iSwapChain << " is unsupported.";
+		LOG(WARNING) << "Access to multi-head swap chain at index " << iSwapChain << " is unsupported.";
 
 		return D3DERR_INVALIDCALL;
 	}
@@ -646,7 +646,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Reset(D3DPRESENT_PARAMETERS *pPresent
 
 	const std::shared_ptr<ReShade::Runtimes::D3D9Runtime> runtime = this->mImplicitSwapChain->mRuntime;
 
-	runtime->OnDeleteInternal();
+	runtime->OnReset();
 
 	if (this->mAutoDepthStencil != nullptr)
 	{
@@ -666,7 +666,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Reset(D3DPRESENT_PARAMETERS *pPresent
 	D3DPRESENT_PARAMETERS pp;
 	this->mImplicitSwapChain->GetPresentParameters(&pp);
 
-	if (!runtime->OnCreateInternal(pp))
+	if (!runtime->OnInit(pp))
 	{
 		LOG(ERROR) << "Failed to reset Direct3D9 renderer! Check tracelog for details.";
 	}
@@ -684,7 +684,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Present(const RECT *pSourceRect, cons
 	assert(this->mImplicitSwapChain != nullptr);
 	assert(this->mImplicitSwapChain->mRuntime != nullptr);
 
-	this->mImplicitSwapChain->mRuntime->OnPresentInternal();
+	this->mImplicitSwapChain->mRuntime->OnPresent();
 
 	return this->mOrig->Present(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
 }
@@ -692,7 +692,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetBackBuffer(UINT iSwapChain, UINT i
 {
 	if (iSwapChain != 0)
 	{
-		LOG(WARNING) << "Access to multihead swapchain at index " << iSwapChain << " is unsupported.";
+		LOG(WARNING) << "Access to multi-head swap chain at index " << iSwapChain << " is unsupported.";
 
 		return D3DERR_INVALIDCALL;
 	}
@@ -705,7 +705,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetRasterStatus(UINT iSwapChain, D3DR
 {
 	if (iSwapChain != 0)
 	{
-		LOG(WARNING) << "Access to multihead swapchain at index " << iSwapChain << " is unsupported.";
+		LOG(WARNING) << "Access to multi-head swap chain at index " << iSwapChain << " is unsupported.";
 
 		return D3DERR_INVALIDCALL;
 	}
@@ -722,7 +722,7 @@ void STDMETHODCALLTYPE Direct3DDevice9::SetGammaRamp(UINT iSwapChain, DWORD Flag
 {
 	if (iSwapChain != 0)
 	{
-		LOG(WARNING) << "Access to multihead swapchain at index " << iSwapChain << " is unsupported.";
+		LOG(WARNING) << "Access to multi-head swap chain at index " << iSwapChain << " is unsupported.";
 
 		return;
 	}
@@ -733,7 +733,7 @@ void STDMETHODCALLTYPE Direct3DDevice9::GetGammaRamp(UINT iSwapChain, D3DGAMMARA
 {
 	if (iSwapChain != 0)
 	{
-		LOG(WARNING) << "Access to multihead swapchain at index " << iSwapChain << " is unsupported.";
+		LOG(WARNING) << "Access to multi-head swap chain at index " << iSwapChain << " is unsupported.";
 
 		return;
 	}
@@ -784,7 +784,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetFrontBufferData(UINT iSwapChain, I
 {
 	if (iSwapChain != 0)
 	{
-		LOG(WARNING) << "Access to multihead swapchain at index " << iSwapChain << " is unsupported.";
+		LOG(WARNING) << "Access to multi-head swap chain at index " << iSwapChain << " is unsupported.";
 
 		return D3DERR_INVALIDCALL;
 	}
@@ -1022,13 +1022,13 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::DrawPrimitive(D3DPRIMITIVETYPE Primit
 	assert(this->mImplicitSwapChain != nullptr);
 	assert(this->mImplicitSwapChain->mRuntime != nullptr);
 
-	this->mImplicitSwapChain->mRuntime->OnDrawInternal(PrimitiveType, PrimitiveCount);
+	this->mImplicitSwapChain->mRuntime->OnDrawCall(PrimitiveType, PrimitiveCount);
 
 	for (Direct3DSwapChain9 *swapchain : this->mAdditionalSwapChains)
 	{
 		assert(swapchain->mRuntime != nullptr);
 
-		swapchain->mRuntime->OnDrawInternal(PrimitiveType, PrimitiveCount);
+		swapchain->mRuntime->OnDrawCall(PrimitiveType, PrimitiveCount);
 	}
 
 	return this->mOrig->DrawPrimitive(PrimitiveType, StartVertex, PrimitiveCount);
@@ -1038,13 +1038,13 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::DrawIndexedPrimitive(D3DPRIMITIVETYPE
 	assert(this->mImplicitSwapChain != nullptr);
 	assert(this->mImplicitSwapChain->mRuntime != nullptr);
 
-	this->mImplicitSwapChain->mRuntime->OnDrawInternal(PrimitiveType, PrimitiveCount);
+	this->mImplicitSwapChain->mRuntime->OnDrawCall(PrimitiveType, PrimitiveCount);
 
 	for (Direct3DSwapChain9 *swapchain : this->mAdditionalSwapChains)
 	{
 		assert(swapchain->mRuntime != nullptr);
 
-		swapchain->mRuntime->OnDrawInternal(PrimitiveType, PrimitiveCount);
+		swapchain->mRuntime->OnDrawCall(PrimitiveType, PrimitiveCount);
 	}
 
 	return this->mOrig->DrawIndexedPrimitive(PrimitiveType, BaseVertexIndex, MinVertexIndex, NumVertices, StartIndex, PrimitiveCount);
@@ -1054,13 +1054,13 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::DrawPrimitiveUP(D3DPRIMITIVETYPE Prim
 	assert(this->mImplicitSwapChain != nullptr);
 	assert(this->mImplicitSwapChain->mRuntime != nullptr);
 
-	this->mImplicitSwapChain->mRuntime->OnDrawInternal(PrimitiveType, PrimitiveCount);
+	this->mImplicitSwapChain->mRuntime->OnDrawCall(PrimitiveType, PrimitiveCount);
 
 	for (Direct3DSwapChain9 *swapchain : this->mAdditionalSwapChains)
 	{
 		assert(swapchain->mRuntime != nullptr);
 
-		swapchain->mRuntime->OnDrawInternal(PrimitiveType, PrimitiveCount);
+		swapchain->mRuntime->OnDrawCall(PrimitiveType, PrimitiveCount);
 	}
 
 	return this->mOrig->DrawPrimitiveUP(PrimitiveType, PrimitiveCount, pVertexStreamZeroData, VertexStreamZeroStride);
@@ -1070,13 +1070,13 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::DrawIndexedPrimitiveUP(D3DPRIMITIVETY
 	assert(this->mImplicitSwapChain != nullptr);
 	assert(this->mImplicitSwapChain->mRuntime != nullptr);
 
-	this->mImplicitSwapChain->mRuntime->OnDrawInternal(PrimitiveType, PrimitiveCount);
+	this->mImplicitSwapChain->mRuntime->OnDrawCall(PrimitiveType, PrimitiveCount);
 
 	for (Direct3DSwapChain9 *swapchain : this->mAdditionalSwapChains)
 	{
 		assert(swapchain->mRuntime != nullptr);
 
-		swapchain->mRuntime->OnDrawInternal(PrimitiveType, PrimitiveCount);
+		swapchain->mRuntime->OnDrawCall(PrimitiveType, PrimitiveCount);
 	}
 
 	return this->mOrig->DrawIndexedPrimitiveUP(PrimitiveType, MinVertexIndex, NumVertices, PrimitiveCount, pIndexData, IndexDataFormat, pVertexStreamZeroData, VertexStreamZeroStride);
@@ -1237,7 +1237,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::PresentEx(const RECT *pSourceRect, co
 	assert(this->mImplicitSwapChain != nullptr);
 	assert(this->mImplicitSwapChain->mRuntime != nullptr);
 
-	this->mImplicitSwapChain->mRuntime->OnPresentInternal();
+	this->mImplicitSwapChain->mRuntime->OnPresent();
 
 	return static_cast<IDirect3DDevice9Ex *>(this->mOrig)->PresentEx(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion, dwFlags);
 }
@@ -1259,7 +1259,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::WaitForVBlank(UINT iSwapChain)
 
 	if (iSwapChain != 0)
 	{
-		LOG(WARNING) << "Access to multihead swapchain at index " << iSwapChain << " is unsupported.";
+		LOG(WARNING) << "Access to multi-head swap chain at index " << iSwapChain << " is unsupported.";
 
 		return D3DERR_INVALIDCALL;
 	}
@@ -1326,7 +1326,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ResetEx(D3DPRESENT_PARAMETERS *pPrese
 
 	const std::shared_ptr<ReShade::Runtimes::D3D9Runtime> runtime = this->mImplicitSwapChain->mRuntime;
 
-	runtime->OnDeleteInternal();
+	runtime->OnReset();
 
 	if (this->mAutoDepthStencil != nullptr)
 	{
@@ -1346,7 +1346,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ResetEx(D3DPRESENT_PARAMETERS *pPrese
 	D3DPRESENT_PARAMETERS pp;
 	this->mImplicitSwapChain->GetPresentParameters(&pp);
 
-	if (!runtime->OnCreateInternal(pp))
+	if (!runtime->OnInit(pp))
 	{
 		LOG(ERROR) << "Failed to reset Direct3D9 renderer! Check tracelog for details.";
 	}
@@ -1365,7 +1365,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetDisplayModeEx(UINT iSwapChain, D3D
 
 	if (iSwapChain != 0)
 	{
-		LOG(WARNING) << "Access to multihead swapchain at index " << iSwapChain << " is unsupported.";
+		LOG(WARNING) << "Access to multi-head swap chain at index " << iSwapChain << " is unsupported.";
 
 		return D3DERR_INVALIDCALL;
 	}
@@ -1425,7 +1425,7 @@ HRESULT STDMETHODCALLTYPE IDirect3D9_CreateDevice(IDirect3D9 *pD3D, UINT Adapter
 
 		const std::shared_ptr<ReShade::Runtimes::D3D9Runtime> runtime = std::make_shared<ReShade::Runtimes::D3D9Runtime>(device, swapchain);
 
-		if (!runtime->OnCreateInternal(pp))
+		if (!runtime->OnInit(pp))
 		{
 			LOG(ERROR) << "Failed to initialize Direct3D9 renderer! Check tracelog for details.";
 		}
@@ -1501,7 +1501,7 @@ HRESULT STDMETHODCALLTYPE IDirect3D9Ex_CreateDeviceEx(IDirect3D9Ex *pD3D, UINT A
 
 		const std::shared_ptr<ReShade::Runtimes::D3D9Runtime> runtime = std::make_shared<ReShade::Runtimes::D3D9Runtime>(device, swapchain);
 
-		if (!runtime->OnCreateInternal(pp))
+		if (!runtime->OnInit(pp))
 		{
 			LOG(ERROR) << "Failed to initialize Direct3D9 renderer! Check tracelog for details.";
 		}

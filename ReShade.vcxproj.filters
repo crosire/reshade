@@ -51,9 +51,6 @@
     <ClCompile Include="src\Hook\HookManager.cpp">
       <Filter>Core\Hook</Filter>
     </ClCompile>
-    <ClCompile Include="src\Runtime\Effect.cpp">
-      <Filter>Core\Runtime</Filter>
-    </ClCompile>
     <ClCompile Include="src\Runtime\FileWatcher.cpp">
       <Filter>Core\Runtime</Filter>
     </ClCompile>
@@ -124,9 +121,6 @@
     </ClInclude>
     <ClInclude Include="src\Hook\HookManager.hpp">
       <Filter>Core\Hook</Filter>
-    </ClInclude>
-    <ClInclude Include="src\Runtime\Effect.hpp">
-      <Filter>Core\Runtime</Filter>
     </ClInclude>
     <ClInclude Include="src\Runtime\FileWatcher.hpp">
       <Filter>Core\Runtime</Filter>
