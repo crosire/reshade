@@ -32,28 +32,31 @@ namespace ReShade
 		{
 			enum class Source
 			{
+				None,
 				Memory,
 				BackBuffer,
 				DepthStencil
 			};
 
-			GLTexture() : mSource(Source::Memory), ID()
+			GLTexture() : ID(), DataSource(Source::None)
 			{
 			}
 			~GLTexture()
 			{
-				if (this->mSource == Source::Memory)
+				if (this->DataSource == Source::Memory)
 				{
 					GLCHECK(glDeleteTextures(2, this->ID));
 				}
 			}
 
-			void ChangeSource(GLuint texture, GLuint textureSRGB)
+			void ChangeDataSource(Source source, GLuint texture, GLuint textureSRGB)
 			{
-				if (this->mSource == Source::Memory)
+				if (this->DataSource == Source::Memory)
 				{
 					GLCHECK(glDeleteTextures(2, this->ID));
 				}
+
+				this->DataSource = source;
 
 				if (textureSRGB == 0)
 				{
@@ -69,8 +72,8 @@ namespace ReShade
 				this->ID[1] = textureSRGB;
 			}
 
-			Source mSource;
 			GLuint ID[2];
+			Source DataSource;
 		};
 		struct GLSampler
 		{
@@ -2071,24 +2074,26 @@ namespace ReShade
 
 					if (node->Semantic == "COLOR" || node->Semantic == "SV_TARGET")
 					{
-						obj->mSource = GLTexture::Source::BackBuffer;
-						obj->ChangeSource(this->mRuntime->mBackBufferTexture[0], this->mRuntime->mBackBufferTexture[1]);
-					}
-					else if (node->Semantic == "DEPTH" || node->Semantic == "SV_DEPTH")
-					{
-						obj->mSource = GLTexture::Source::DepthStencil;
-						obj->ChangeSource(this->mRuntime->mDepthTexture, 0);
-					}
-
-					if (obj->mSource != GLTexture::Source::Memory)
-					{
 						if (width != 1 || height != 1 || levels != 1 || internalformat != GL_RGBA8)
 						{
 							Warning(node->Location, "texture property on backbuffer textures are ignored");
 						}
+
+						obj->ChangeDataSource(GLTexture::Source::BackBuffer, this->mRuntime->mBackBufferTexture[0], this->mRuntime->mBackBufferTexture[1]);
+					}
+					else if (node->Semantic == "DEPTH" || node->Semantic == "SV_DEPTH")
+					{
+						if (width != 1 || height != 1 || levels != 1 || internalformat != GL_RGBA8)
+						{
+							Warning(node->Location, "texture property on depthbuffer textures are ignored");
+						}
+
+						obj->ChangeDataSource(GLTexture::Source::DepthStencil, this->mRuntime->mDepthTexture, 0);
 					}
 					else
 					{
+						obj->DataSource = GLTexture::Source::Memory;
+
 						GLCHECK(glGenTextures(2, obj->ID));
 
 						GLint previous = 0, previousFBO = 0;
@@ -2978,8 +2983,11 @@ namespace ReShade
 			GLCHECK(glGetIntegerv(GL_MAJOR_VERSION, &major));
 			GLCHECK(glGetIntegerv(GL_MAJOR_VERSION, &minor));
 
+			this->mVendorId = 0;
+			this->mDeviceId = 0;
 			this->mRendererId = 0x10000 | (major << 12) | (minor << 8);
 
+			// Get vendor and device information on NVIDIA Optimus devices
 			if (GetModuleHandleA("nvd3d9wrap.dll") == nullptr && GetModuleHandleA("nvd3d9wrapx.dll") == nullptr)
 			{
 				DISPLAY_DEVICEA dd;
@@ -3001,9 +3009,10 @@ namespace ReShade
 				}
 			}
 
+			// Get vendor and device information on general devices
 			if (this->mVendorId == 0)
 			{
-				const char *name = reinterpret_cast<const char *>(glGetString(GL_VENDOR));
+				const char *const name = reinterpret_cast<const char *>(glGetString(GL_VENDOR));
 
 				if (name != nullptr)
 				{
@@ -3022,20 +3031,21 @@ namespace ReShade
 				}
 			}
 		}
-		GLRuntime::~GLRuntime()
-		{
-		}
 
 		bool GLRuntime::OnInit(unsigned int width, unsigned int height)
 		{
 			assert(width != 0 && height != 0);
 
-			this->mStateBlock->Capture();
+			this->mWidth = width;
+			this->mHeight = height;
+			this->mWindow.reset(new WindowWatcher(WindowFromDC(this->mDeviceContext)));
 
 			// Clear errors
 			GLenum status = glGetError();
 
-			// Generate backbuffer targets
+			this->mStateBlock->Capture();
+
+			#pragma region Generate backbuffer targets
 			GLCHECK(glGenRenderbuffers(2, this->mDefaultBackBufferRBO));
 
 			GLCHECK(glBindRenderbuffer(GL_RENDERBUFFER, this->mDefaultBackBufferRBO[0]));
@@ -3096,8 +3106,9 @@ namespace ReShade
 
 				return false;
 			}
+			#pragma endregion
 
-			// Generate depth targets
+			#pragma region Generate depthbuffer targets
 			const DepthSourceInfo defaultdepth = { width, height, 0, GL_DEPTH24_STENCIL8 };
 
 			this->mDepthSourceTable[0] = defaultdepth;
@@ -3124,6 +3135,7 @@ namespace ReShade
 
 				return false;
 			}
+			#pragma endregion
 
 			GLCHECK(glGenFramebuffers(1, &this->mBlitFBO));
 
@@ -3161,11 +3173,6 @@ namespace ReShade
 
 			this->mNVG = nvgCreateGL3(0);
 
-			this->mWindow.reset(new WindowWatcher(WindowFromDC(this->mDeviceContext)));
-
-			this->mWidth = width;
-			this->mHeight = height;
-
 			return Runtime::OnInit();
 		}
 		void GLRuntime::OnReset()
@@ -3174,48 +3181,53 @@ namespace ReShade
 			{
 				return;
 			}
-			else if (!this->mPresenting)
+			else if (this->mPresenting)
 			{
-				this->mStateBlock->Capture();
-			}
+				this->mPresenting = false;
 
-			this->mPresenting = false;
+				this->mStateBlock->Apply();
+			}
 
 			Runtime::OnReset();
 
+			// Destroy NanoVG
 			nvgDeleteGL3(this->mNVG);
 
 			this->mNVG = nullptr;
 
-			GLCHECK(glDeleteFramebuffers(1, &this->mDefaultBackBufferFBO));			
+			// Destroy resources
+			GLCHECK(glDeleteBuffers(1, &this->mDefaultVBO));
+			GLCHECK(glDeleteBuffers(1, &this->mEffectUBO));
+			GLCHECK(glDeleteVertexArrays(1, &this->mDefaultVAO));
+			GLCHECK(glDeleteFramebuffers(1, &this->mDefaultBackBufferFBO));
+			GLCHECK(glDeleteFramebuffers(1, &this->mDepthSourceFBO));
+			GLCHECK(glDeleteFramebuffers(1, &this->mBlitFBO));
 			GLCHECK(glDeleteRenderbuffers(2, this->mDefaultBackBufferRBO));
 			GLCHECK(glDeleteTextures(2, this->mBackBufferTexture));
-			GLCHECK(glDeleteFramebuffers(1, &this->mDepthSourceFBO));			
 			GLCHECK(glDeleteTextures(1, &this->mDepthTexture));
-			GLCHECK(glDeleteFramebuffers(1, &this->mBlitFBO));			
 
-			this->mDefaultBackBufferFBO = this->mDefaultBackBufferRBO[0] = this->mDefaultBackBufferRBO[1] = 0;
-			this->mBackBufferTexture[0] = this->mBackBufferTexture[1] = 0;
-			this->mDepthSourceFBO = this->mDepthSource = 0;
-			this->mDepthTexture = 0;
+			this->mDefaultVBO = 0;
+			this->mEffectUBO = 0;
+			this->mDefaultVAO = 0;
+			this->mDefaultBackBufferFBO = 0;
+			this->mDepthSourceFBO = 0;
 			this->mBlitFBO = 0;
+			this->mDefaultBackBufferRBO[0] = 0;
+			this->mDefaultBackBufferRBO[1] = 0;
+			this->mBackBufferTexture[0] = 0;
+			this->mBackBufferTexture[1] = 0;
+			this->mDepthTexture = 0;
 
-			this->mStateBlock->Apply();
-
+			this->mDepthSource = 0;
+		}
+		void GLRuntime::OnResetEffect()
+		{
 			for (GLSampler &sampler : this->mEffectSamplers)
 			{
 				GLCHECK(glDeleteSamplers(1, &sampler.mID));
-
-				sampler.mID = 0;
 			}
 
-			GLCHECK(glDeleteVertexArrays(1, &this->mDefaultVAO));
-			GLCHECK(glDeleteBuffers(1, &this->mDefaultVBO));
-			GLCHECK(glDeleteBuffers(1, &this->mEffectUBO));
-
-			this->mDefaultVAO = 0;
-			this->mDefaultVBO = 0;
-			this->mEffectUBO = 0;
+			this->mEffectSamplers.clear();
 		}
 		void GLRuntime::OnPresent()
 		{
@@ -3229,18 +3241,6 @@ namespace ReShade
 
 			// Capture states
 			this->mStateBlock->Capture();
-
-			// Copy backbuffer
-			GLCHECK(glBindFramebuffer(GL_READ_FRAMEBUFFER, 0));
-			GLCHECK(glBindFramebuffer(GL_DRAW_FRAMEBUFFER, this->mDefaultBackBufferFBO));
-			GLCHECK(glReadBuffer(GL_BACK));
-			GLCHECK(glDrawBuffer(GL_COLOR_ATTACHMENT0));
-			GLCHECK(glBlitFramebuffer(0, 0, this->mWidth, this->mHeight, 0, 0, this->mWidth, this->mHeight, GL_COLOR_BUFFER_BIT, GL_NEAREST));
-
-			// Copy depthbuffer
-			GLCHECK(glBindFramebuffer(GL_READ_FRAMEBUFFER, this->mDepthSourceFBO));
-			GLCHECK(glBindFramebuffer(GL_DRAW_FRAMEBUFFER, this->mBlitFBO));
-			GLCHECK(glBlitFramebuffer(0, 0, this->mWidth, this->mHeight, 0, 0, this->mWidth, this->mHeight, GL_DEPTH_BUFFER_BIT, GL_NEAREST));
 
 			// Apply post processing
 			OnApplyEffect();
@@ -3299,6 +3299,18 @@ namespace ReShade
 		}
 		void GLRuntime::OnApplyEffect()
 		{
+			// Copy backbuffer
+			GLCHECK(glBindFramebuffer(GL_READ_FRAMEBUFFER, 0));
+			GLCHECK(glBindFramebuffer(GL_DRAW_FRAMEBUFFER, this->mDefaultBackBufferFBO));
+			GLCHECK(glReadBuffer(GL_BACK));
+			GLCHECK(glDrawBuffer(GL_COLOR_ATTACHMENT0));
+			GLCHECK(glBlitFramebuffer(0, 0, this->mWidth, this->mHeight, 0, 0, this->mWidth, this->mHeight, GL_COLOR_BUFFER_BIT, GL_NEAREST));
+
+			// Copy depthbuffer
+			GLCHECK(glBindFramebuffer(GL_READ_FRAMEBUFFER, this->mDepthSourceFBO));
+			GLCHECK(glBindFramebuffer(GL_DRAW_FRAMEBUFFER, this->mBlitFBO));
+			GLCHECK(glBlitFramebuffer(0, 0, this->mWidth, this->mHeight, 0, 0, this->mWidth, this->mHeight, GL_DEPTH_BUFFER_BIT, GL_NEAREST));
+
 			// Setup vertex input
 			GLCHECK(glBindVertexArray(this->mDefaultVAO));
 			GLCHECK(glBindVertexBuffer(0, this->mDefaultVBO, 0, sizeof(float)));
@@ -3314,6 +3326,7 @@ namespace ReShade
 			// Setup shader constants
 			GLCHECK(glBindBufferBase(GL_UNIFORM_BUFFER, 0, this->mEffectUBO));
 
+			// Apply post processing
 			Runtime::OnApplyEffect();
 
 			// Reset states
@@ -3468,6 +3481,7 @@ namespace ReShade
 			GLCHECK(glReadBuffer(GL_BACK));
 			GLCHECK(glReadPixels(0, 0, static_cast<GLsizei>(this->mWidth), static_cast<GLsizei>(this->mHeight), GL_RGBA, GL_UNSIGNED_BYTE, buffer));
 
+			// Flip image
 			const unsigned int pitch = this->mWidth * 4;
 
 			for (unsigned int y = 0; y * 2 < this->mHeight; ++y)
@@ -3494,9 +3508,12 @@ namespace ReShade
 		}
 		bool GLRuntime::UpdateTexture(Texture *texture, const unsigned char *data, std::size_t size)
 		{
+			GLTexture *const textureImpl = dynamic_cast<GLTexture *>(texture);
+
+			assert(textureImpl != nullptr);
 			assert(data != nullptr && size > 0);
 
-			if (static_cast<GLTexture *>(texture)->mSource != GLTexture::Source::Memory)
+			if (textureImpl->DataSource != GLTexture::Source::Memory)
 			{
 				return false;
 			}
@@ -3509,13 +3526,15 @@ namespace ReShade
 			GLint previous = 0;
 			GLCHECK(glGetIntegerv(GL_TEXTURE_BINDING_2D, &previous));
 
-			GLCHECK(glBindTexture(GL_TEXTURE_2D, static_cast<GLTexture *>(texture)->ID[0]));
-
+			// Copy image data
 			const std::unique_ptr<unsigned char[]> dataFlipped(new unsigned char[size]);
 			std::memcpy(dataFlipped.get(), data, size);
 
-			// Flip image vertically
+			// Flip image data vertically
 			FlipImageData(texture, dataFlipped.get());
+
+			// Bind and update texture
+			GLCHECK(glBindTexture(GL_TEXTURE_2D, textureImpl->ID[0]));
 
 			if (texture->Format >= Texture::PixelFormat::DXT1 && texture->Format <= Texture::PixelFormat::LATC2)
 			{
@@ -3734,9 +3753,9 @@ namespace ReShade
 			{
 				GLTexture *texture = static_cast<GLTexture *>(it.get());
 
-				if (texture->mSource == GLTexture::Source::DepthStencil)
+				if (texture->DataSource == GLTexture::Source::DepthStencil)
 				{
-					texture->ChangeSource(this->mDepthTexture, 0);
+					texture->ChangeDataSource(GLTexture::Source::DepthStencil, this->mDepthTexture, 0);
 				}
 			}
 		}

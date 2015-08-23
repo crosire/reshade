@@ -8,7 +8,6 @@
 #include "WindowWatcher.hpp"
 #include "Utils\Algorithm.hpp"
 
-#include <sstream>
 #include <stb_dxt.h>
 #include <stb_image.h>
 #include <stb_image_write.h>
@@ -133,15 +132,16 @@ namespace ReShade
 	}
 	void Runtime::OnReset()
 	{
+		OnResetEffect();
+
 		if (!this->mIsInitialized)
 		{
 			return;
 		}
 
-		OnResetEffect();
-
 		LOG(INFO) << "Destroyed runtime environment on runtime " << this << ".";
 
+		this->mWidth = this->mHeight = 0;
 		this->mIsInitialized = false;
 	}
 	void Runtime::OnResetEffect()

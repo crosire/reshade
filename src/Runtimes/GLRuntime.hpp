@@ -12,10 +12,10 @@ namespace ReShade
 		{
 		public:
 			GLRuntime(HDC device, HGLRC context);
-			~GLRuntime();
 
 			bool OnInit(unsigned int width, unsigned int height);
 			void OnReset() override;
+			void OnResetEffect() override;
 			void OnPresent() override;
 			void OnDrawCall(unsigned int vertices) override;
 			void OnApplyEffect() override;

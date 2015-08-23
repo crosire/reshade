@@ -74,53 +74,56 @@ namespace ReShade
 			{
 				enum class Source
 				{
+					None,
 					Memory,
 					BackBuffer,
 					DepthStencil
 				};
 
-				D3D10Texture() : mSource(Source::Memory), mTexture(nullptr), mShaderResourceView(), mRenderTargetView(), mRegister(0)
+				D3D10Texture() : DataSource(Source::None), ShaderRegister(0), TextureInterface(nullptr), ShaderResourceView(), RenderTargetView()
 				{
 				}
 				~D3D10Texture()
 				{
-					SAFE_RELEASE(this->mRenderTargetView[0]);
-					SAFE_RELEASE(this->mRenderTargetView[1]);
-					SAFE_RELEASE(this->mShaderResourceView[0]);
-					SAFE_RELEASE(this->mShaderResourceView[1]);
+					SAFE_RELEASE(this->RenderTargetView[0]);
+					SAFE_RELEASE(this->RenderTargetView[1]);
+					SAFE_RELEASE(this->ShaderResourceView[0]);
+					SAFE_RELEASE(this->ShaderResourceView[1]);
 
-					SAFE_RELEASE(this->mTexture);
+					SAFE_RELEASE(this->TextureInterface);
 				}
 
-				void ChangeSource(D3D10Runtime *runtime, ID3D10ShaderResourceView *srv, ID3D10ShaderResourceView *srvSRGB)
+				void ChangeDataSource(Source source, D3D10Runtime *runtime, ID3D10ShaderResourceView *srv, ID3D10ShaderResourceView *srvSRGB)
 				{
+					this->DataSource = source;
+
 					if (srvSRGB == nullptr)
 					{
 						srvSRGB = srv;
 					}
 
-					if (srv == this->mShaderResourceView[0] && srvSRGB == this->mShaderResourceView[1])
+					if (srv == this->ShaderResourceView[0] && srvSRGB == this->ShaderResourceView[1])
 					{
 						return;
 					}
 
-					SAFE_RELEASE(this->mRenderTargetView[0]);
-					SAFE_RELEASE(this->mRenderTargetView[1]);
-					SAFE_RELEASE(this->mShaderResourceView[0]);
-					SAFE_RELEASE(this->mShaderResourceView[1]);
+					SAFE_RELEASE(this->RenderTargetView[0]);
+					SAFE_RELEASE(this->RenderTargetView[1]);
+					SAFE_RELEASE(this->ShaderResourceView[0]);
+					SAFE_RELEASE(this->ShaderResourceView[1]);
 
-					SAFE_RELEASE(this->mTexture);
+					SAFE_RELEASE(this->TextureInterface);
 
 					if (srv != nullptr)
 					{
-						this->mShaderResourceView[0] = srv;
-						this->mShaderResourceView[0]->AddRef();
-						this->mShaderResourceView[0]->GetResource(reinterpret_cast<ID3D10Resource **>(&this->mTexture));
-						this->mShaderResourceView[1] = srvSRGB;
-						this->mShaderResourceView[1]->AddRef();
+						this->ShaderResourceView[0] = srv;
+						this->ShaderResourceView[0]->AddRef();
+						this->ShaderResourceView[0]->GetResource(reinterpret_cast<ID3D10Resource **>(&this->TextureInterface));
+						this->ShaderResourceView[1] = srvSRGB;
+						this->ShaderResourceView[1]->AddRef();
 
 						D3D10_TEXTURE2D_DESC texdesc;
-						this->mTexture->GetDesc(&texdesc);
+						this->TextureInterface->GetDesc(&texdesc);
 
 						this->Width = texdesc.Width;
 						this->Height = texdesc.Height;
@@ -138,17 +141,17 @@ namespace ReShade
 					{
 						for (auto &pass : static_cast<D3D10Technique *>(technique.get())->Passes)
 						{
-							pass.SRV[this->mRegister] = this->mShaderResourceView[0];
-							pass.SRV[this->mRegister + 1] = this->mShaderResourceView[1];
+							pass.SRV[this->ShaderRegister] = this->ShaderResourceView[0];
+							pass.SRV[this->ShaderRegister + 1] = this->ShaderResourceView[1];
 						}
 					}
 				}
 
-				Source mSource;
-				std::size_t mRegister;
-				ID3D10Texture2D *mTexture;
-				ID3D10ShaderResourceView *mShaderResourceView[2];
-				ID3D10RenderTargetView *mRenderTargetView[2];
+				Source DataSource;
+				std::size_t ShaderRegister;
+				ID3D10Texture2D *TextureInterface;
+				ID3D10ShaderResourceView *ShaderResourceView[2];
+				ID3D10RenderTargetView *RenderTargetView[2];
 			};
 
 			class D3D10EffectCompiler : private boost::noncopyable
@@ -1621,33 +1624,35 @@ namespace ReShade
 					texdesc.BindFlags = D3D10_BIND_SHADER_RESOURCE | D3D10_BIND_RENDER_TARGET;
 					texdesc.MiscFlags = D3D10_RESOURCE_MISC_GENERATE_MIPS;
 
-					obj->mRegister = this->mRuntime->mEffectShaderResources.size();
-					obj->mTexture = nullptr;
-					obj->mShaderResourceView[0] = nullptr;
-					obj->mShaderResourceView[1] = nullptr;
+					obj->ShaderRegister = this->mRuntime->mEffectShaderResources.size();
+					obj->TextureInterface = nullptr;
+					obj->ShaderResourceView[0] = nullptr;
+					obj->ShaderResourceView[1] = nullptr;
 
 					Visit(node->Annotations, *obj);
 
 					if (node->Semantic == "COLOR" || node->Semantic == "SV_TARGET")
 					{
-						obj->mSource = D3D10Texture::Source::BackBuffer;
-						obj->ChangeSource(this->mRuntime, this->mRuntime->mBackBufferTextureSRV[0], this->mRuntime->mBackBufferTextureSRV[1]);
-					}
-					else if (node->Semantic == "DEPTH" || node->Semantic == "SV_DEPTH")
-					{
-						obj->mSource = D3D10Texture::Source::DepthStencil;
-						obj->ChangeSource(this->mRuntime, this->mRuntime->mDepthStencilTextureSRV, nullptr);
-					}
-
-					if (obj->mSource != D3D10Texture::Source::Memory)
-					{
 						if (texdesc.Width != 1 || texdesc.Height != 1 || texdesc.MipLevels != 1 || texdesc.Format != DXGI_FORMAT_R8G8B8A8_TYPELESS)
 						{
 							this->mErrors += PrintLocation(node->Location) + "warning: texture property on backbuffer textures are ignored.\n";
 						}
+
+						obj->ChangeDataSource(D3D10Texture::Source::BackBuffer, this->mRuntime, this->mRuntime->mBackBufferTextureSRV[0], this->mRuntime->mBackBufferTextureSRV[1]);
+					}
+					else if (node->Semantic == "DEPTH" || node->Semantic == "SV_DEPTH")
+					{
+						if (texdesc.Width != 1 || texdesc.Height != 1 || texdesc.MipLevels != 1 || texdesc.Format != DXGI_FORMAT_R8G8B8A8_TYPELESS)
+						{
+							this->mErrors += PrintLocation(node->Location) + "warning: texture property on depthbuffer textures are ignored.\n";
+						}
+
+						obj->ChangeDataSource(D3D10Texture::Source::DepthStencil, this->mRuntime, this->mRuntime->mDepthStencilTextureSRV, nullptr);
 					}
 					else
 					{
+						obj->DataSource = D3D10Texture::Source::Memory;
+
 						if (texdesc.MipLevels == 0)
 						{
 							this->mErrors += PrintLocation(node->Location) + "warning: a texture cannot have 0 miplevels, changed it to 1.\n";
@@ -1655,7 +1660,7 @@ namespace ReShade
 							texdesc.MipLevels = 1;
 						}
 
-						HRESULT hr = this->mRuntime->mDevice->CreateTexture2D(&texdesc, nullptr, &obj->mTexture);
+						HRESULT hr = this->mRuntime->mDevice->CreateTexture2D(&texdesc, nullptr, &obj->TextureInterface);
 
 						if (FAILED(hr))
 						{
@@ -1670,7 +1675,7 @@ namespace ReShade
 						srvdesc.Texture2D.MipLevels = texdesc.MipLevels;
 						srvdesc.Format = MakeNonSRGBFormat(texdesc.Format);
 
-						hr = this->mRuntime->mDevice->CreateShaderResourceView(obj->mTexture, &srvdesc, &obj->mShaderResourceView[0]);
+						hr = this->mRuntime->mDevice->CreateShaderResourceView(obj->TextureInterface, &srvdesc, &obj->ShaderResourceView[0]);
 
 						if (FAILED(hr))
 						{
@@ -1683,7 +1688,7 @@ namespace ReShade
 
 						if (srvdesc.Format != texdesc.Format)
 						{
-							hr = this->mRuntime->mDevice->CreateShaderResourceView(obj->mTexture, &srvdesc, &obj->mShaderResourceView[1]);
+							hr = this->mRuntime->mDevice->CreateShaderResourceView(obj->TextureInterface, &srvdesc, &obj->ShaderResourceView[1]);
 
 							if (FAILED(hr))
 							{
@@ -1700,8 +1705,8 @@ namespace ReShade
 					this->mCurrentSource += PrintName(node);
 					this->mCurrentSource += "SRGB : register(t" + std::to_string(this->mRuntime->mEffectShaderResources.size() + 1) + ");\n";
 
-					this->mRuntime->mEffectShaderResources.push_back(obj->mShaderResourceView[0]);
-					this->mRuntime->mEffectShaderResources.push_back(obj->mShaderResourceView[1]);
+					this->mRuntime->mEffectShaderResources.push_back(obj->ShaderResourceView[0]);
+					this->mRuntime->mEffectShaderResources.push_back(obj->ShaderResourceView[1]);
 
 					this->mRuntime->AddTexture(obj);
 				}
@@ -1800,7 +1805,7 @@ namespace ReShade
 					this->mCurrentSource += PrintName(node);
 					this->mCurrentSource += " = { ";
 
-					if (node->Properties.SRGBTexture && texture->mShaderResourceView[1] != nullptr)
+					if (node->Properties.SRGBTexture && texture->ShaderResourceView[1] != nullptr)
 					{
 						this->mCurrentSource += "__";
 						this->mCurrentSource += PrintName(node->Properties.Texture);
@@ -1975,7 +1980,7 @@ namespace ReShade
 						}
 
 						D3D10_TEXTURE2D_DESC desc;
-						texture->mTexture->GetDesc(&desc);
+						texture->TextureInterface->GetDesc(&desc);
 
 						if (pass.Viewport.Width != 0 && pass.Viewport.Height != 0 && (desc.Width != static_cast<unsigned int>(pass.Viewport.Width) || desc.Height != static_cast<unsigned int>(pass.Viewport.Height)))
 						{
@@ -1994,9 +1999,9 @@ namespace ReShade
 						rtvdesc.Format = node->States.SRGBWriteEnable ? MakeSRGBFormat(desc.Format) : MakeNonSRGBFormat(desc.Format);
 						rtvdesc.ViewDimension = desc.SampleDesc.Count > 1 ? D3D10_RTV_DIMENSION_TEXTURE2DMS : D3D10_RTV_DIMENSION_TEXTURE2D;
 
-						if (texture->mRenderTargetView[targetIndex] == nullptr)
+						if (texture->RenderTargetView[targetIndex] == nullptr)
 						{
-							HRESULT hr = this->mRuntime->mDevice->CreateRenderTargetView(texture->mTexture, &rtvdesc, &texture->mRenderTargetView[targetIndex]);
+							HRESULT hr = this->mRuntime->mDevice->CreateRenderTargetView(texture->TextureInterface, &rtvdesc, &texture->RenderTargetView[targetIndex]);
 
 							if (FAILED(hr))
 							{
@@ -2004,14 +2009,14 @@ namespace ReShade
 							}
 						}
 
-						pass.RT[i] = texture->mRenderTargetView[targetIndex];
-						pass.RTSRV[i] = texture->mShaderResourceView[targetIndex];
+						pass.RT[i] = texture->RenderTargetView[targetIndex];
+						pass.RTSRV[i] = texture->ShaderResourceView[targetIndex];
 					}
 
 					if (pass.Viewport.Width == 0 && pass.Viewport.Height == 0)
 					{
-						pass.Viewport.Width = this->mRuntime->mSwapChainDesc.BufferDesc.Width;
-						pass.Viewport.Height = this->mRuntime->mSwapChainDesc.BufferDesc.Height;
+						pass.Viewport.Width = this->mRuntime->GetWidth();
+						pass.Viewport.Height = this->mRuntime->GetHeight();
 					}
 
 					D3D10_DEPTH_STENCIL_DESC ddesc;
@@ -2379,15 +2384,13 @@ namespace ReShade
 
 		// -----------------------------------------------------------------------------------------------------
 
-		D3D10Runtime::D3D10Runtime(ID3D10Device *device, IDXGISwapChain *swapchain) : mDevice(device), mSwapChain(swapchain), mStateBlock(new D3D10StateBlock(device)), mBackBuffer(nullptr), mBackBufferResolved(nullptr), mBackBufferTexture(nullptr), mBackBufferTextureSRV(), mBackBufferTargets(), mDepthStencil(nullptr), mDepthStencilReplacement(nullptr), mDepthStencilTexture(nullptr), mDepthStencilTextureSRV(nullptr), mCopyVS(nullptr), mCopyPS(nullptr), mCopySampler(nullptr), mEffectRasterizerState(nullptr), mConstantBuffer(nullptr)
+		D3D10Runtime::D3D10Runtime(ID3D10Device *device, IDXGISwapChain *swapchain) : mDevice(device), mSwapChain(swapchain), mBackBufferFormat(DXGI_FORMAT_UNKNOWN), mMultisamplingEnabled(false), mStateBlock(new D3D10StateBlock(device)), mBackBuffer(nullptr), mBackBufferResolved(nullptr), mBackBufferTexture(nullptr), mBackBufferTextureSRV(), mBackBufferTargets(), mDepthStencil(nullptr), mDepthStencilReplacement(nullptr), mDepthStencilTexture(nullptr), mDepthStencilTextureSRV(nullptr), mCopyVS(nullptr), mCopyPS(nullptr), mCopySampler(nullptr), mEffectRasterizerState(nullptr), mConstantBuffer(nullptr)
 		{
 			assert(this->mDevice != nullptr);
 			assert(this->mSwapChain != nullptr);
 
 			this->mDevice->AddRef();
 			this->mSwapChain->AddRef();
-
-			ZeroMemory(&this->mSwapChainDesc, sizeof(DXGI_SWAP_CHAIN_DESC));
 
 			IDXGIDevice *dxgidevice = nullptr;
 			IDXGIAdapter *adapter = nullptr;
@@ -2435,17 +2438,22 @@ namespace ReShade
 
 		bool D3D10Runtime::OnInit(const DXGI_SWAP_CHAIN_DESC &desc)
 		{
-			this->mSwapChainDesc = desc;
+			this->mWidth = desc.BufferDesc.Width;
+			this->mHeight = desc.BufferDesc.Height;
+			this->mBackBufferFormat = desc.BufferDesc.Format;
+			this->mMultisamplingEnabled = desc.SampleDesc.Count > 1;
+			this->mWindow.reset(new WindowWatcher(desc.OutputWindow));
 
+			#pragma region Get backbuffer rendertarget
 			HRESULT hr = this->mSwapChain->GetBuffer(0, __uuidof(ID3D10Texture2D), reinterpret_cast<void **>(&this->mBackBuffer));
 
 			assert(SUCCEEDED(hr));
 
 			D3D10_TEXTURE2D_DESC texdesc;
-			texdesc.Width = this->mSwapChainDesc.BufferDesc.Width;
-			texdesc.Height = this->mSwapChainDesc.BufferDesc.Height;
+			texdesc.Width = this->mWidth;
+			texdesc.Height = this->mHeight;
 			texdesc.ArraySize = texdesc.MipLevels = 1;
-			texdesc.Format = D3D10EffectCompiler::MakeTypelessFormat(this->mSwapChainDesc.BufferDesc.Format);
+			texdesc.Format = D3D10EffectCompiler::MakeTypelessFormat(this->mBackBufferFormat);
 			texdesc.SampleDesc.Count = 1;
 			texdesc.SampleDesc.Quality = 0;
 			texdesc.Usage = D3D10_USAGE_DEFAULT;
@@ -2455,7 +2463,7 @@ namespace ReShade
 			OSVERSIONINFOEX verinfoWin7 = { sizeof(OSVERSIONINFOEX), 6, 1 };
 			const bool isWindows7 = VerifyVersionInfo(&verinfoWin7, VER_MAJORVERSION | VER_MINORVERSION, VerSetConditionMask(VerSetConditionMask(0, VER_MAJORVERSION, VER_EQUAL), VER_MINORVERSION, VER_EQUAL)) != FALSE;
 
-			if (this->mSwapChainDesc.SampleDesc.Count > 1 || D3D10EffectCompiler::MakeNonSRGBFormat(this->mSwapChainDesc.BufferDesc.Format) != this->mSwapChainDesc.BufferDesc.Format || !isWindows7)
+			if (this->mMultisamplingEnabled || D3D10EffectCompiler::MakeNonSRGBFormat(this->mBackBufferFormat) != this->mBackBufferFormat || !isWindows7)
 			{
 				hr = this->mDevice->CreateTexture2D(&texdesc, nullptr, &this->mBackBufferResolved);
 
@@ -2477,7 +2485,9 @@ namespace ReShade
 				this->mBackBufferResolved = this->mBackBuffer;
 				this->mBackBufferResolved->AddRef();
 			}
+			#pragma endregion
 
+			#pragma region Create backbuffer shader texture
 			texdesc.BindFlags = D3D10_BIND_SHADER_RESOURCE;
 
 			hr = this->mDevice->CreateTexture2D(&texdesc, nullptr, &this->mBackBufferTexture);
@@ -2525,6 +2535,7 @@ namespace ReShade
 
 				return false;
 			}
+			#pragma endregion
 
 			D3D10_RENDER_TARGET_VIEW_DESC rtdesc;
 			ZeroMemory(&rtdesc, sizeof(D3D10_RENDER_TARGET_VIEW_DESC));
@@ -2564,6 +2575,7 @@ namespace ReShade
 				return false;
 			}
 
+			#pragma region Create default depthstencil surface
 			D3D10_TEXTURE2D_DESC dstdesc;
 			ZeroMemory(&dstdesc, sizeof(D3D10_TEXTURE2D_DESC));
 			dstdesc.Width = desc.BufferDesc.Width;
@@ -2591,6 +2603,7 @@ namespace ReShade
 
 				return false;
 			}
+			#pragma endregion
 
 			const BYTE vs[] = { 68, 88, 66, 67, 224, 206, 72, 137, 142, 185, 68, 219, 247, 216, 225, 132, 111, 78, 106, 20, 1, 0, 0, 0, 156, 2, 0, 0, 5, 0, 0, 0, 52, 0, 0, 0, 140, 0, 0, 0, 192, 0, 0, 0, 24, 1, 0, 0, 32, 2, 0, 0, 82, 68, 69, 70, 80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 28, 0, 0, 0, 0, 4, 254, 255, 0, 1, 0, 0, 28, 0, 0, 0, 77, 105, 99, 114, 111, 115, 111, 102, 116, 32, 40, 82, 41, 32, 72, 76, 83, 76, 32, 83, 104, 97, 100, 101, 114, 32, 67, 111, 109, 112, 105, 108, 101, 114, 32, 54, 46, 51, 46, 57, 54, 48, 48, 46, 49, 54, 51, 56, 52, 0, 171, 171, 73, 83, 71, 78, 44, 0, 0, 0, 1, 0, 0, 0, 8, 0, 0, 0, 32, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 83, 86, 95, 86, 101, 114, 116, 101, 120, 73, 68, 0, 79, 83, 71, 78, 80, 0, 0, 0, 2, 0, 0, 0, 8, 0, 0, 0, 56, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 15, 0, 0, 0, 68, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 1, 0, 0, 0, 3, 12, 0, 0, 83, 86, 95, 80, 111, 115, 105, 116, 105, 111, 110, 0, 84, 69, 88, 67, 79, 79, 82, 68, 0, 171, 171, 171, 83, 72, 68, 82, 0, 1, 0, 0, 64, 0, 1, 0, 64, 0, 0, 0, 96, 0, 0, 4, 18, 16, 16, 0, 0, 0, 0, 0, 6, 0, 0, 0, 103, 0, 0, 4, 242, 32, 16, 0, 0, 0, 0, 0, 1, 0, 0, 0, 101, 0, 0, 3, 50, 32, 16, 0, 1, 0, 0, 0, 104, 0, 0, 2, 1, 0, 0, 0, 32, 0, 0, 10, 50, 0, 16, 0, 0, 0, 0, 0, 6, 16, 16, 0, 0, 0, 0, 0, 2, 64, 0, 0, 2, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 10, 50, 0, 16, 0, 0, 0, 0, 0, 70, 0, 16, 0, 0, 0, 0, 0, 2, 64, 0, 0, 0, 0, 0, 64, 0, 0, 0, 64, 0, 0, 0, 0, 0, 0, 0, 0, 50, 0, 0, 15, 50, 32, 16, 0, 0, 0, 0, 0, 70, 0, 16, 0, 0, 0, 0, 0, 2, 64, 0, 0, 0, 0, 0, 64, 0, 0, 0, 192, 0, 0, 0, 0, 0, 0, 0, 0, 2, 64, 0, 0, 0, 0, 128, 191, 0, 0, 128, 63, 0, 0, 0, 0, 0, 0, 0, 0, 54, 0, 0, 5, 50, 32, 16, 0, 1, 0, 0, 0, 70, 0, 16, 0, 0, 0, 0, 0, 54, 0, 0, 8, 194, 32, 16, 0, 0, 0, 0, 0, 2, 64, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 128, 63, 62, 0, 0, 1, 83, 84, 65, 84, 116, 0, 0, 0, 6, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 			hr = this->mDevice->CreateVertexShader(vs, ARRAYSIZE(vs), &this->mCopyVS);
@@ -2607,6 +2620,7 @@ namespace ReShade
 
 			assert(SUCCEEDED(hr));
 
+			#pragma region Create effect objects
 			D3D10_RASTERIZER_DESC rsdesc;
 			ZeroMemory(&rsdesc, sizeof(D3D10_RASTERIZER_DESC));
 			rsdesc.FillMode = D3D10_FILL_SOLID;
@@ -2616,13 +2630,9 @@ namespace ReShade
 			hr = this->mDevice->CreateRasterizerState(&rsdesc, &this->mEffectRasterizerState);
 
 			assert(SUCCEEDED(hr));
+			#pragma endregion
 
 			this->mNVG = nvgCreateD3D10(this->mDevice, 0);
-
-			this->mWindow.reset(new WindowWatcher(desc.OutputWindow));
-
-			this->mWidth = desc.BufferDesc.Width;
-			this->mHeight = desc.BufferDesc.Height;
 
 			return Runtime::OnInit();
 		}
@@ -2635,10 +2645,12 @@ namespace ReShade
 
 			Runtime::OnReset();
 
+			// Destroy NanoVG
 			nvgDeleteD3D10(this->mNVG);
 
 			this->mNVG = nullptr;
 
+			// Destroy resources
 			SAFE_RELEASE(this->mBackBuffer);
 			SAFE_RELEASE(this->mBackBufferResolved);
 			SAFE_RELEASE(this->mBackBufferTexture);
@@ -2657,8 +2669,6 @@ namespace ReShade
 			SAFE_RELEASE(this->mCopyVS);
 			SAFE_RELEASE(this->mCopyPS);
 			SAFE_RELEASE(this->mCopySampler);
-
-			ZeroMemory(&this->mSwapChainDesc, sizeof(DXGI_SWAP_CHAIN_DESC));
 
 			SAFE_RELEASE(this->mEffectRasterizerState);
 		}
@@ -2698,22 +2708,13 @@ namespace ReShade
 
 			this->mDevice->OMGetRenderTargets(D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, stateblockTargets, &stateblockDepthStencil);
 
-			// Resolve backbuffer
-			if (this->mBackBufferResolved != this->mBackBuffer)
-			{
-				this->mDevice->ResolveSubresource(this->mBackBufferResolved, 0, this->mBackBuffer, 0, this->mSwapChainDesc.BufferDesc.Format);
-			}
-
-			// Setup real backbuffer
-			this->mDevice->OMSetRenderTargets(1, &this->mBackBufferTargets[0], nullptr);
-
 			// Apply post processing
 			OnApplyEffect();
 
 			// Reset rendertarget
 			this->mDevice->OMSetRenderTargets(1, &this->mBackBufferTargets[0], this->mDefaultDepthStencil);
 
-			const D3D10_VIEWPORT viewport = { 0, 0, this->mSwapChainDesc.BufferDesc.Width, this->mSwapChainDesc.BufferDesc.Height, 0.0f, 1.0f };
+			const D3D10_VIEWPORT viewport = { 0, 0, this->mWidth, this->mHeight, 0.0f, 1.0f };
 			this->mDevice->RSSetViewports(1, &viewport);
 
 			// Apply presenting
@@ -2733,7 +2734,7 @@ namespace ReShade
 				this->mDevice->VSSetShader(this->mCopyVS);
 				this->mDevice->PSSetShader(this->mCopyPS);
 				this->mDevice->PSSetSamplers(0, 1, &this->mCopySampler);
-				this->mDevice->PSSetShaderResources(0, 1, &this->mBackBufferTextureSRV[D3D10EffectCompiler::MakeSRGBFormat(this->mSwapChainDesc.BufferDesc.Format) == this->mSwapChainDesc.BufferDesc.Format]);
+				this->mDevice->PSSetShaderResources(0, 1, &this->mBackBufferTextureSRV[D3D10EffectCompiler::MakeSRGBFormat(this->mBackBufferFormat) == this->mBackBufferFormat]);
 				this->mDevice->Draw(3, 0);
 			}
 
@@ -2782,6 +2783,15 @@ namespace ReShade
 		}
 		void D3D10Runtime::OnApplyEffect()
 		{
+			// Resolve backbuffer
+			if (this->mBackBufferResolved != this->mBackBuffer)
+			{
+				this->mDevice->ResolveSubresource(this->mBackBufferResolved, 0, this->mBackBuffer, 0, this->mBackBufferFormat);
+			}
+
+			// Setup real backbuffer
+			this->mDevice->OMSetRenderTargets(1, &this->mBackBufferTargets[0], nullptr);
+
 			// Setup vertex input
 			const uintptr_t null = 0;
 			this->mDevice->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -2798,6 +2808,7 @@ namespace ReShade
 			this->mDevice->VSSetConstantBuffers(0, 1, &this->mConstantBuffer);
 			this->mDevice->PSSetConstantBuffers(0, 1, &this->mConstantBuffer);
 
+			// Apply post processing
 			Runtime::OnApplyEffect();
 		}
 		void D3D10Runtime::OnApplyEffectTechnique(const Technique *technique)
@@ -2850,7 +2861,7 @@ namespace ReShade
 				this->mDevice->PSSetShaderResources(0, static_cast<UINT>(pass.SRV.size()), pass.SRV.data());
 
 				// Setup rendertargets
-				this->mDevice->OMSetRenderTargets(D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, pass.RT, (pass.Viewport.Width == this->mSwapChainDesc.BufferDesc.Width && pass.Viewport.Height == this->mSwapChainDesc.BufferDesc.Height) ? this->mDefaultDepthStencil : nullptr);
+				this->mDevice->OMSetRenderTargets(D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, pass.RT, (pass.Viewport.Width == this->mWidth && pass.Viewport.Height == this->mHeight) ? this->mDefaultDepthStencil : nullptr);
 				this->mDevice->RSSetViewports(1, &pass.Viewport);
 
 				for (UINT target = 0; target < D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT; ++target)
@@ -2921,7 +2932,7 @@ namespace ReShade
 			SAFE_RELEASE(texture);
 
 			// Early depthstencil rejection
-			if (desc.Width != this->mSwapChainDesc.BufferDesc.Width || desc.Height != this->mSwapChainDesc.BufferDesc.Height || desc.SampleDesc.Count > 1)
+			if (desc.Width != this->mWidth || desc.Height != this->mHeight || desc.SampleDesc.Count > 1)
 			{
 				return;
 			}
@@ -2996,17 +3007,17 @@ namespace ReShade
 
 		void D3D10Runtime::Screenshot(unsigned char *buffer) const
 		{
-			if (this->mSwapChainDesc.BufferDesc.Format != DXGI_FORMAT_R8G8B8A8_UNORM && this->mSwapChainDesc.BufferDesc.Format != DXGI_FORMAT_R8G8B8A8_UNORM_SRGB && this->mSwapChainDesc.BufferDesc.Format != DXGI_FORMAT_B8G8R8A8_UNORM && this->mSwapChainDesc.BufferDesc.Format != DXGI_FORMAT_B8G8R8A8_UNORM_SRGB)
+			if (this->mBackBufferFormat != DXGI_FORMAT_R8G8B8A8_UNORM && this->mBackBufferFormat != DXGI_FORMAT_R8G8B8A8_UNORM_SRGB && this->mBackBufferFormat != DXGI_FORMAT_B8G8R8A8_UNORM && this->mBackBufferFormat != DXGI_FORMAT_B8G8R8A8_UNORM_SRGB)
 			{
-				LOG(WARNING) << "Screenshots are not supported for backbuffer format " << this->mSwapChainDesc.BufferDesc.Format << ".";
+				LOG(WARNING) << "Screenshots are not supported for backbuffer format " << this->mBackBufferFormat << ".";
 				return;
 			}
 
 			D3D10_TEXTURE2D_DESC texdesc;
 			ZeroMemory(&texdesc, sizeof(D3D10_TEXTURE2D_DESC));
-			texdesc.Width = this->mSwapChainDesc.BufferDesc.Width;
-			texdesc.Height = this->mSwapChainDesc.BufferDesc.Height;
-			texdesc.Format = this->mSwapChainDesc.BufferDesc.Format;
+			texdesc.Width = this->mWidth;
+			texdesc.Height = this->mHeight;
+			texdesc.Format = this->mBackBufferFormat;
 			texdesc.MipLevels = 1;
 			texdesc.ArraySize = 1;
 			texdesc.SampleDesc.Count = 1;
@@ -3049,7 +3060,7 @@ namespace ReShade
 				{
 					pMem[x + 3] = 0xFF;
 
-					if (this->mSwapChainDesc.BufferDesc.Format == DXGI_FORMAT_B8G8R8A8_UNORM || this->mSwapChainDesc.BufferDesc.Format == DXGI_FORMAT_B8G8R8A8_UNORM_SRGB)
+					if (this->mBackBufferFormat == DXGI_FORMAT_B8G8R8A8_UNORM || this->mBackBufferFormat == DXGI_FORMAT_B8G8R8A8_UNORM_SRGB)
 					{
 						std::swap(pMem[x + 0], pMem[x + 2]);
 					}
@@ -3088,22 +3099,23 @@ namespace ReShade
 		}
 		bool D3D10Runtime::UpdateTexture(Texture *texture, const unsigned char *data, std::size_t size)
 		{
+			D3D10Texture *textureImpl = dynamic_cast<D3D10Texture *>(texture);
+
+			assert(textureImpl != nullptr);
 			assert(data != nullptr && size != 0);
 
-			D3D10Texture *textureImpl = static_cast<D3D10Texture *>(texture);
-
-			if (textureImpl->mSource != D3D10Texture::Source::Memory)
+			if (textureImpl->DataSource != D3D10Texture::Source::Memory)
 			{
 				return false;
 			}
 
 			assert(texture->Height != 0);
 
-			this->mDevice->UpdateSubresource(textureImpl->mTexture, 0, nullptr, data, static_cast<UINT>(size / texture->Height), static_cast<UINT>(size));
+			this->mDevice->UpdateSubresource(textureImpl->TextureInterface, 0, nullptr, data, static_cast<UINT>(size / texture->Height), static_cast<UINT>(size));
 
 			if (texture->Levels > 1)
 			{
-				this->mDevice->GenerateMips(textureImpl->mShaderResourceView[0]);
+				this->mDevice->GenerateMips(textureImpl->ShaderResourceView[0]);
 			}
 
 			return true;
@@ -3134,7 +3146,7 @@ namespace ReShade
 				}
 			}
 
-			if (this->mSwapChainDesc.SampleDesc.Count > 1 || this->mDepthSourceTable.empty())
+			if (this->mMultisamplingEnabled || this->mDepthSourceTable.empty())
 			{
 				return;
 			}
@@ -3316,9 +3328,9 @@ namespace ReShade
 			{
 				D3D10Texture *texture = static_cast<D3D10Texture *>(it.get());
 
-				if (texture->mSource == D3D10Texture::Source::DepthStencil)
+				if (texture->DataSource == D3D10Texture::Source::DepthStencil)
 				{
-					texture->ChangeSource(this, this->mDepthStencilTextureSRV, nullptr);
+					texture->ChangeDataSource(D3D10Texture::Source::DepthStencil, this, this->mDepthStencilTextureSRV, nullptr);
 				}
 			}
 

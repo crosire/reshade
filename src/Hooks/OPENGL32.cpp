@@ -3681,7 +3681,7 @@ EXPORT BOOL WINAPI wglSwapBuffers(HDC hdc)
 
 			if (!(rect.right == 0 && rect.bottom == 0) && !it->second->OnInit(static_cast<unsigned int>(rect.right), static_cast<unsigned int>(rect.bottom)))
 			{
-				LOG(ERROR) << "Failed to reinitialize OpenGL renderer! Check tracelog for details.";
+				LOG(ERROR) << "Failed to recreate OpenGL runtime environment on runtime " << it->second.get() << ".";
 			}
 
 			rectPrevious = rect;

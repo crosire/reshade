@@ -447,7 +447,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Wi
 
 	if (!created)
 	{
-		LOG(ERROR) << "Failed to resize Direct3D" << this->mDevice->mDirect3DVersion << " renderer! Check tracelog for details.";
+		LOG(ERROR) << "Failed to recreate Direct3D" << this->mDevice->mDirect3DVersion << " runtime environment on runtime " << this->mRuntime.get() << ".";
 	}
 
 	return hr;
@@ -796,7 +796,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, I
 
 		if (!runtime->OnInit(desc))
 		{
-			LOG(ERROR) << "Failed to initialize Direct3D10 renderer! Check tracelog for details.";
+			LOG(ERROR) << "Failed to initialize Direct3D10 runtime environment on runtime " << runtime.get() << ".";
 		}
 
 		bridgeD3D10->AddRuntime(runtime);
@@ -811,7 +811,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, I
 
 		if (!runtime->OnInit(desc))
 		{
-			LOG(ERROR) << "Failed to initialize Direct3D11 renderer! Check tracelog for details.";
+			LOG(ERROR) << "Failed to initialize Direct3D11 runtime environment on runtime " << runtime.get() << ".";
 		}
 
 		bridgeD3D11->AddRuntime(runtime);
@@ -905,7 +905,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pF
 
 		if (!runtime->OnInit(desc))
 		{
-			LOG(ERROR) << "Failed to initialize Direct3D10 renderer! Check tracelog for details.";
+			LOG(ERROR) << "Failed to initialize Direct3D10 runtime environment on runtime " << runtime.get() << ".";
 		}
 
 		bridgeD3D10->AddRuntime(runtime);
@@ -920,7 +920,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pF
 
 		if (!runtime->OnInit(desc))
 		{
-			LOG(ERROR) << "Failed to initialize Direct3D11 renderer! Check tracelog for details.";
+			LOG(ERROR) << "Failed to initialize Direct3D11 runtime environment on runtime " << runtime.get() << ".";
 		}
 
 		bridgeD3D11->AddRuntime(runtime);
@@ -1012,7 +1012,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactor
 
 		if (!runtime->OnInit(desc))
 		{
-			LOG(ERROR) << "Failed to initialize Direct3D10 renderer! Check tracelog for details.";
+			LOG(ERROR) << "Failed to initialize Direct3D10 runtime environment on runtime " << runtime.get() << ".";
 		}
 
 		bridgeD3D10->AddRuntime(runtime);
@@ -1027,7 +1027,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactor
 
 		if (!runtime->OnInit(desc))
 		{
-			LOG(ERROR) << "Failed to initialize Direct3D11 renderer! Check tracelog for details.";
+			LOG(ERROR) << "Failed to initialize Direct3D11 runtime environment on runtime " << runtime.get() << ".";
 		}
 
 		bridgeD3D11->AddRuntime(runtime);
@@ -1119,7 +1119,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFacto
 
 		if (!runtime->OnInit(desc))
 		{
-			LOG(ERROR) << "Failed to initialize Direct3D10 renderer! Check tracelog for details.";
+			LOG(ERROR) << "Failed to initialize Direct3D10 runtime environment on runtime " << runtime.get() << ".";
 		}
 
 		bridgeD3D10->AddRuntime(runtime);
@@ -1134,7 +1134,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFacto
 
 		if (!runtime->OnInit(desc))
 		{
-			LOG(ERROR) << "Failed to initialize Direct3D11 renderer! Check tracelog for details.";
+			LOG(ERROR) << "Failed to initialize Direct3D11 runtime environment on runtime " << runtime.get() << ".";
 		}
 
 		bridgeD3D11->AddRuntime(runtime);

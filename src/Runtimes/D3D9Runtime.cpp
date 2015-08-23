@@ -46,43 +46,46 @@ namespace ReShade
 			{
 				enum class Source
 				{
+					None,
 					Memory,
 					BackBuffer,
 					DepthStencil
 				};
 
-				D3D9Texture() : mSource(Source::Memory), mTexture(nullptr), mTextureSurface(nullptr)
+				D3D9Texture() : DataSource(Source::None), TextureInterface(nullptr), SurfaceInterface(nullptr)
 				{
 				}
 				~D3D9Texture()
 				{
-					SAFE_RELEASE(this->mTexture);
-					SAFE_RELEASE(this->mTextureSurface);
+					SAFE_RELEASE(this->TextureInterface);
+					SAFE_RELEASE(this->SurfaceInterface);
 				}
 
-				void ChangeSource(IDirect3DTexture9 *texture)
+				void ChangeDataSource(Source source, IDirect3DTexture9 *texture)
 				{
-					if (this->mTexture == texture)
+					this->DataSource = source;
+
+					if (this->TextureInterface == texture)
 					{
 						return;
 					}
 
-					SAFE_RELEASE(this->mTexture);
-					SAFE_RELEASE(this->mTextureSurface);
+					SAFE_RELEASE(this->TextureInterface);
+					SAFE_RELEASE(this->SurfaceInterface);
 
 					if (texture != nullptr)
 					{
-						this->mTexture = texture;
-						this->mTexture->AddRef();
-						this->mTexture->GetSurfaceLevel(0, &this->mTextureSurface);
+						this->TextureInterface = texture;
+						this->TextureInterface->AddRef();
+						this->TextureInterface->GetSurfaceLevel(0, &this->SurfaceInterface);
 
 						D3DSURFACE_DESC texdesc;
-						this->mTextureSurface->GetDesc(&texdesc);
+						this->SurfaceInterface->GetDesc(&texdesc);
 
 						this->Width = texdesc.Width;
 						this->Height = texdesc.Height;
 						this->Format = Texture::PixelFormat::Unknown;
-						this->Levels = this->mTexture->GetLevelCount();
+						this->Levels = this->TextureInterface->GetLevelCount();
 					}
 					else
 					{
@@ -91,14 +94,14 @@ namespace ReShade
 					}
 				}
 
-				Source mSource;
-				IDirect3DTexture9 *mTexture;
-				IDirect3DSurface9 *mTextureSurface;
+				Source DataSource;
+				IDirect3DTexture9 *TextureInterface;
+				IDirect3DSurface9 *SurfaceInterface;
 			};
 			struct D3D9Sampler
 			{
-				DWORD mStates[12];
-				D3D9Texture *mTexture;
+				DWORD States[12];
+				D3D9Texture *Texture;
 			};
 			struct D3D9Technique : public Technique
 			{
@@ -1609,38 +1612,33 @@ namespace ReShade
 
 					if (node->Semantic == "COLOR" || node->Semantic == "SV_TARGET")
 					{
-						obj->mSource = D3D9Texture::Source::BackBuffer;
-						obj->ChangeSource(this->mRuntime->mBackBufferTexture);
-					}
-					else if (node->Semantic == "DEPTH" || node->Semantic == "SV_DEPTH")
-					{
-						obj->mSource = D3D9Texture::Source::DepthStencil;
-						obj->ChangeSource(this->mRuntime->mDepthStencilTexture);
-					}
-
-					if (obj->mSource != D3D9Texture::Source::Memory)
-					{
 						if (width != 1 || height != 1 || levels != 1 || format != D3DFMT_A8R8G8B8)
 						{
 							Warning(node->Location, "texture properties on backbuffer textures are ignored");
 						}
+
+						obj->ChangeDataSource(D3D9Texture::Source::BackBuffer, this->mRuntime->mBackBufferTexture);
+					}
+					else if (node->Semantic == "DEPTH" || node->Semantic == "SV_DEPTH")
+					{
+						if (width != 1 || height != 1 || levels != 1 || format != D3DFMT_A8R8G8B8)
+						{
+							Warning(node->Location, "texture properties on depthbuffer textures are ignored");
+						}
+
+						obj->ChangeDataSource(D3D9Texture::Source::DepthStencil, this->mRuntime->mDepthStencilTexture);
 					}
 					else
 					{
-						HRESULT hr;
+						obj->DataSource = D3D9Texture::Source::Memory;
+
 						DWORD usage = 0;
-
-						IDirect3D9 *const factory = this->mRuntime->mDirect3D;
-						IDirect3DDevice9 *const device = this->mRuntime->mDevice;
-
 						D3DDEVICE_CREATION_PARAMETERS cp;
-						device->GetCreationParameters(&cp);
+						this->mRuntime->mDevice->GetCreationParameters(&cp);
 
 						if (levels > 1)
 						{
-							hr = factory->CheckDeviceFormat(cp.AdapterOrdinal, cp.DeviceType, D3DFMT_X8R8G8B8, D3DUSAGE_AUTOGENMIPMAP, D3DRTYPE_TEXTURE, format);
-
-							if (hr == D3D_OK)
+							if (this->mRuntime->mDirect3D->CheckDeviceFormat(cp.AdapterOrdinal, cp.DeviceType, D3DFMT_X8R8G8B8, D3DUSAGE_AUTOGENMIPMAP, D3DRTYPE_TEXTURE, format) == D3D_OK)
 							{
 								usage |= D3DUSAGE_AUTOGENMIPMAP;
 								levels = 0;
@@ -1657,14 +1655,14 @@ namespace ReShade
 							levels = 1;
 						}
 					
-						hr = factory->CheckDeviceFormat(cp.AdapterOrdinal, cp.DeviceType, D3DFMT_X8R8G8B8, D3DUSAGE_RENDERTARGET, D3DRTYPE_TEXTURE, format);
+						HRESULT hr = this->mRuntime->mDirect3D->CheckDeviceFormat(cp.AdapterOrdinal, cp.DeviceType, D3DFMT_X8R8G8B8, D3DUSAGE_RENDERTARGET, D3DRTYPE_TEXTURE, format);
 
 						if (SUCCEEDED(hr))
 						{
 							usage |= D3DUSAGE_RENDERTARGET;
 						}
 
-						hr = device->CreateTexture(width, height, levels, usage, format, D3DPOOL_DEFAULT, &obj->mTexture, nullptr);
+						hr = this->mRuntime->mDevice->CreateTexture(width, height, levels, usage, format, D3DPOOL_DEFAULT, &obj->TextureInterface, nullptr);
 
 						if (FAILED(hr))
 						{
@@ -1672,7 +1670,7 @@ namespace ReShade
 							return;
 						}
 
-						hr = obj->mTexture->GetSurfaceLevel(0, &obj->mTextureSurface);
+						hr = obj->TextureInterface->GetSurfaceLevel(0, &obj->SurfaceInterface);
 
 						assert(SUCCEEDED(hr));
 					}
@@ -1696,18 +1694,18 @@ namespace ReShade
 					}
 
 					D3D9Sampler sampler;
-					sampler.mTexture = texture;
-					sampler.mStates[D3DSAMP_ADDRESSU] = static_cast<D3DTEXTUREADDRESS>(node->Properties.AddressU);
-					sampler.mStates[D3DSAMP_ADDRESSV] = static_cast<D3DTEXTUREADDRESS>(node->Properties.AddressV);
-					sampler.mStates[D3DSAMP_ADDRESSW] = static_cast<D3DTEXTUREADDRESS>(node->Properties.AddressW);
-					sampler.mStates[D3DSAMP_BORDERCOLOR] = 0;
-					sampler.mStates[D3DSAMP_MINFILTER] = static_cast<D3DTEXTUREFILTERTYPE>(node->Properties.MinFilter);
-					sampler.mStates[D3DSAMP_MAGFILTER] = static_cast<D3DTEXTUREFILTERTYPE>(node->Properties.MagFilter);
-					sampler.mStates[D3DSAMP_MIPFILTER] = static_cast<D3DTEXTUREFILTERTYPE>(node->Properties.MipFilter);
-					sampler.mStates[D3DSAMP_MIPMAPLODBIAS] = *reinterpret_cast<const DWORD *>(&node->Properties.MipLODBias);
-					sampler.mStates[D3DSAMP_MAXMIPLEVEL] = static_cast<DWORD>(std::max(0.0f, node->Properties.MinLOD));
-					sampler.mStates[D3DSAMP_MAXANISOTROPY] = node->Properties.MaxAnisotropy;
-					sampler.mStates[D3DSAMP_SRGBTEXTURE] = node->Properties.SRGBTexture;
+					sampler.Texture = texture;
+					sampler.States[D3DSAMP_ADDRESSU] = static_cast<D3DTEXTUREADDRESS>(node->Properties.AddressU);
+					sampler.States[D3DSAMP_ADDRESSV] = static_cast<D3DTEXTUREADDRESS>(node->Properties.AddressV);
+					sampler.States[D3DSAMP_ADDRESSW] = static_cast<D3DTEXTUREADDRESS>(node->Properties.AddressW);
+					sampler.States[D3DSAMP_BORDERCOLOR] = 0;
+					sampler.States[D3DSAMP_MINFILTER] = static_cast<D3DTEXTUREFILTERTYPE>(node->Properties.MinFilter);
+					sampler.States[D3DSAMP_MAGFILTER] = static_cast<D3DTEXTUREFILTERTYPE>(node->Properties.MagFilter);
+					sampler.States[D3DSAMP_MIPFILTER] = static_cast<D3DTEXTUREFILTERTYPE>(node->Properties.MipFilter);
+					sampler.States[D3DSAMP_MIPMAPLODBIAS] = *reinterpret_cast<const DWORD *>(&node->Properties.MipLODBias);
+					sampler.States[D3DSAMP_MAXMIPLEVEL] = static_cast<DWORD>(std::max(0.0f, node->Properties.MinLOD));
+					sampler.States[D3DSAMP_MAXANISOTROPY] = node->Properties.MaxAnisotropy;
+					sampler.States[D3DSAMP_SRGBTEXTURE] = node->Properties.SRGBTexture;
 
 					this->mSamplers[node->Name] = sampler;
 				}
@@ -1826,7 +1824,7 @@ namespace ReShade
 
 							if (texture->Semantic == "COLOR" || texture->Semantic == "SV_TARGET" || texture->Semantic == "DEPTH" || texture->Semantic == "SV_DEPTH")
 							{
-								samplers += ", float2(" + std::to_string(1.0f / this->mRuntime->mPresentParams.BackBufferWidth) + ", " + std::to_string(1.0f / this->mRuntime->mPresentParams.BackBufferHeight) + ")";
+								samplers += ", float2(" + std::to_string(1.0f / this->mRuntime->GetWidth()) + ", " + std::to_string(1.0f / this->mRuntime->GetHeight()) + ")";
 							}
 							else
 							{
@@ -1945,7 +1943,7 @@ namespace ReShade
 							return;
 						}
 
-						pass.RT[i] = texture->mTextureSurface;
+						pass.RT[i] = texture->SurfaceInterface;
 					}
 
 					passes.push_back(std::move(pass));
@@ -2220,7 +2218,7 @@ namespace ReShade
 
 		// -----------------------------------------------------------------------------------------------------
 
-		D3D9Runtime::D3D9Runtime(IDirect3DDevice9 *device, IDirect3DSwapChain9 *swapchain) : mDevice(device), mSwapChain(swapchain), mDirect3D(nullptr), mStateBlock(nullptr), mBackBuffer(nullptr), mBackBufferResolved(nullptr), mBackBufferTexture(nullptr), mBackBufferTextureSurface(nullptr), mDepthStencil(nullptr), mDepthStencilReplacement(nullptr), mDepthStencilTexture(nullptr), mDefaultDepthStencil(nullptr), mEffectVertexBuffer(nullptr), mEffectVertexDeclaration(nullptr), mConstantRegisterCount(0)
+		D3D9Runtime::D3D9Runtime(IDirect3DDevice9 *device, IDirect3DSwapChain9 *swapchain) : mDevice(device), mSwapChain(swapchain), mDirect3D(nullptr), mStateBlock(nullptr), mMultisamplingEnabled(false), mBackBufferFormat(D3DFMT_UNKNOWN), mBackBuffer(nullptr), mBackBufferResolved(nullptr), mBackBufferTexture(nullptr), mBackBufferTextureSurface(nullptr), mDepthStencil(nullptr), mDepthStencilReplacement(nullptr), mDepthStencilTexture(nullptr), mDefaultDepthStencil(nullptr), mEffectTriangleBuffer(nullptr), mEffectTriangleLayout(nullptr), mConstantRegisterCount(0)
 		{
 			assert(this->mDevice != nullptr);
 			assert(this->mSwapChain != nullptr);
@@ -2233,8 +2231,6 @@ namespace ReShade
 
 			D3DCAPS9 caps;
 			this->mDevice->GetDeviceCaps(&caps);
-
-			ZeroMemory(&this->mPresentParams, sizeof(D3DPRESENT_PARAMETERS));
 
 			D3DDEVICE_CREATION_PARAMETERS params;
 			this->mDevice->GetCreationParameters(&params);
@@ -2255,27 +2251,32 @@ namespace ReShade
 			this->mDirect3D->Release();
 		}
 
-		bool D3D9Runtime::OnInit(const D3DPRESENT_PARAMETERS &params)
+		bool D3D9Runtime::OnInit(const D3DPRESENT_PARAMETERS &pp)
 		{
-			this->mPresentParams = params;
+			this->mWidth = pp.BackBufferWidth;
+			this->mHeight = pp.BackBufferHeight;
+			this->mBackBufferFormat = pp.BackBufferFormat;
+			this->mMultisamplingEnabled = pp.MultiSampleType != D3DMULTISAMPLE_NONE;
+			this->mWindow.reset(new WindowWatcher(pp.hDeviceWindow));
 
+			#pragma region Get backbuffer surface
 			HRESULT hr = this->mSwapChain->GetBackBuffer(0, D3DBACKBUFFER_TYPE_MONO, &this->mBackBuffer);
 
 			assert(SUCCEEDED(hr));
 
-			if (this->mPresentParams.MultiSampleType != D3DMULTISAMPLE_NONE || (this->mPresentParams.BackBufferFormat == D3DFMT_X8R8G8B8 || this->mPresentParams.BackBufferFormat == D3DFMT_X8B8G8R8))
+			if (pp.MultiSampleType != D3DMULTISAMPLE_NONE || (pp.BackBufferFormat == D3DFMT_X8R8G8B8 || pp.BackBufferFormat == D3DFMT_X8B8G8R8))
 			{
-				switch (this->mPresentParams.BackBufferFormat)
+				switch (pp.BackBufferFormat)
 				{
 					case D3DFMT_X8R8G8B8:
-						this->mPresentParams.BackBufferFormat = D3DFMT_A8R8G8B8;
+						this->mBackBufferFormat = D3DFMT_A8R8G8B8;
 						break;
 					case D3DFMT_X8B8G8R8:
-						this->mPresentParams.BackBufferFormat = D3DFMT_A8B8G8R8;
+						this->mBackBufferFormat = D3DFMT_A8B8G8R8;
 						break;
 				}
 
-				hr = this->mDevice->CreateRenderTarget(this->mPresentParams.BackBufferWidth, this->mPresentParams.BackBufferHeight, this->mPresentParams.BackBufferFormat, D3DMULTISAMPLE_NONE, 0, FALSE, &this->mBackBufferResolved, nullptr);
+				hr = this->mDevice->CreateRenderTarget(this->mWidth, this->mHeight, this->mBackBufferFormat, D3DMULTISAMPLE_NONE, 0, FALSE, &this->mBackBufferResolved, nullptr);
 
 				if (FAILED(hr))
 				{
@@ -2291,8 +2292,10 @@ namespace ReShade
 				this->mBackBufferResolved = this->mBackBuffer;
 				this->mBackBufferResolved->AddRef();
 			}
+			#pragma endregion
 
-			hr = this->mDevice->CreateTexture(this->mPresentParams.BackBufferWidth, this->mPresentParams.BackBufferHeight, 1, D3DUSAGE_RENDERTARGET, this->mPresentParams.BackBufferFormat, D3DPOOL_DEFAULT, &this->mBackBufferTexture, nullptr);
+			#pragma region Create backbuffer shader texture
+			hr = this->mDevice->CreateTexture(this->mWidth, this->mHeight, 1, D3DUSAGE_RENDERTARGET, this->mBackBufferFormat, D3DPOOL_DEFAULT, &this->mBackBufferTexture, nullptr);
 
 			if (SUCCEEDED(hr))
 			{
@@ -2307,8 +2310,10 @@ namespace ReShade
 
 				return false;
 			}
+			#pragma endregion
 
-			hr = this->mDevice->CreateDepthStencilSurface(this->mPresentParams.BackBufferWidth, this->mPresentParams.BackBufferHeight, D3DFMT_D24S8, D3DMULTISAMPLE_NONE, 0, FALSE, &this->mDefaultDepthStencil, nullptr);
+			#pragma region Create default depthstencil surface
+			hr = this->mDevice->CreateDepthStencilSurface(this->mWidth, this->mHeight, D3DFMT_D24S8, D3DMULTISAMPLE_NONE, 0, FALSE, &this->mDefaultDepthStencil, nullptr);
 
 			if (FAILED(hr))
 			{
@@ -2321,7 +2326,9 @@ namespace ReShade
 
 				return nullptr;
 			}
+			#pragma endregion
 
+			#pragma region Create effect stateblock and objects
 			hr = this->mDevice->CreateStateBlock(D3DSBT_ALL, &this->mStateBlock);
 
 			if (FAILED(hr))
@@ -2337,9 +2344,24 @@ namespace ReShade
 				return false;
 			}
 
-			hr = this->mDevice->CreateVertexBuffer(3 * sizeof(float), D3DUSAGE_WRITEONLY, 0, D3DPOOL_DEFAULT, &this->mEffectVertexBuffer, nullptr);
+			hr = this->mDevice->CreateVertexBuffer(3 * sizeof(float), D3DUSAGE_WRITEONLY, 0, D3DPOOL_DEFAULT, &this->mEffectTriangleBuffer, nullptr);
 
-			if (FAILED(hr))
+			if (SUCCEEDED(hr))
+			{
+				float *data = nullptr;
+
+				hr = this->mEffectTriangleBuffer->Lock(0, 3 * sizeof(float), reinterpret_cast<void **>(&data), 0);
+
+				assert(SUCCEEDED(hr));
+
+				for (UINT i = 0; i < 3; ++i)
+				{
+					data[i] = static_cast<float>(i);
+				}
+
+				this->mEffectTriangleBuffer->Unlock();
+			}
+			else
 			{
 				LOG(TRACE) << "Failed to create effect vertexbuffer! HRESULT is '" << hr << "'.";
 
@@ -2359,7 +2381,7 @@ namespace ReShade
 				D3DDECL_END()
 			};
 
-			hr = this->mDevice->CreateVertexDeclaration(declaration, &this->mEffectVertexDeclaration);
+			hr = this->mDevice->CreateVertexDeclaration(declaration, &this->mEffectTriangleLayout);
 
 			if (FAILED(hr))
 			{
@@ -2371,30 +2393,13 @@ namespace ReShade
 				SAFE_RELEASE(this->mBackBufferTextureSurface);
 				SAFE_RELEASE(this->mDefaultDepthStencil);
 				SAFE_RELEASE(this->mStateBlock);
-				SAFE_RELEASE(this->mEffectVertexBuffer);
+				SAFE_RELEASE(this->mEffectTriangleBuffer);
 
 				return false;
 			}
-
-			float *data = nullptr;
-
-			hr = this->mEffectVertexBuffer->Lock(0, 3 * sizeof(float), reinterpret_cast<void **>(&data), 0);
-
-			assert(SUCCEEDED(hr));
-
-			for (UINT i = 0; i < 3; ++i)
-			{
-				data[i] = static_cast<float>(i);
-			}
-
-			this->mEffectVertexBuffer->Unlock();
+			#pragma endregion
 
 			this->mNVG = nvgCreateD3D9(this->mDevice, 0);
-
-			this->mWindow.reset(new WindowWatcher(params.hDeviceWindow));
-
-			this->mWidth = this->mPresentParams.BackBufferWidth;
-			this->mHeight = this->mPresentParams.BackBufferHeight;
 
 			return Runtime::OnInit();
 		}
@@ -2407,10 +2412,12 @@ namespace ReShade
 
 			Runtime::OnReset();
 
+			// Destroy NanoVG
 			nvgDeleteD3D9(this->mNVG);
 
 			this->mNVG = nullptr;
 
+			// Destroy resources
 			SAFE_RELEASE(this->mStateBlock);
 
 			SAFE_RELEASE(this->mBackBuffer);
@@ -2424,8 +2431,10 @@ namespace ReShade
 
 			SAFE_RELEASE(this->mDefaultDepthStencil);
 
-			ZeroMemory(&this->mPresentParams, sizeof(D3DPRESENT_PARAMETERS));
+			SAFE_RELEASE(this->mEffectTriangleBuffer);
+			SAFE_RELEASE(this->mEffectTriangleLayout);
 
+			// Clearing depth source table
 			for (auto &it : this->mDepthSourceTable)
 			{
 				LOG(TRACE) << "Removing depthstencil " << it.first << " from list of possible depth candidates ...";
@@ -2434,9 +2443,6 @@ namespace ReShade
 			}
 
 			this->mDepthSourceTable.clear();
-
-			SAFE_RELEASE(this->mEffectVertexBuffer);
-			SAFE_RELEASE(this->mEffectVertexDeclaration);
 		}
 		void D3D9Runtime::OnPresent()
 		{
@@ -2476,15 +2482,6 @@ namespace ReShade
 
 				this->mDevice->SetSoftwareVertexProcessing(FALSE);
 			}
-
-			// Resolve backbuffer
-			if (this->mBackBufferResolved != this->mBackBuffer)
-			{
-				this->mDevice->StretchRect(this->mBackBuffer, nullptr, this->mBackBufferResolved, nullptr, D3DTEXF_NONE);
-			}
-
-			this->mDevice->SetRenderTarget(0, this->mBackBufferResolved);
-			this->mDevice->SetDepthStencilSurface(nullptr);
 
 			// Apply post processing
 			OnApplyEffect();
@@ -2574,10 +2571,20 @@ namespace ReShade
 		}
 		void D3D9Runtime::OnApplyEffect()
 		{
-			// Setup vertex input
-			this->mDevice->SetStreamSource(0, this->mEffectVertexBuffer, 0, sizeof(float));
-			this->mDevice->SetVertexDeclaration(this->mEffectVertexDeclaration);
+			// Resolve backbuffer
+			if (this->mBackBufferResolved != this->mBackBuffer)
+			{
+				this->mDevice->StretchRect(this->mBackBuffer, nullptr, this->mBackBufferResolved, nullptr, D3DTEXF_NONE);
+			}
 
+			this->mDevice->SetRenderTarget(0, this->mBackBufferResolved);
+			this->mDevice->SetDepthStencilSurface(nullptr);
+
+			// Setup vertex input
+			this->mDevice->SetStreamSource(0, this->mEffectTriangleBuffer, 0, sizeof(float));
+			this->mDevice->SetVertexDeclaration(this->mEffectTriangleLayout);
+
+			// Apply post processing
 			Runtime::OnApplyEffect();
 		}
 		void D3D9Runtime::OnApplyEffectTechnique(const Technique *technique)
@@ -2601,11 +2608,11 @@ namespace ReShade
 				// Setup shader resources
 				for (DWORD sampler = 0; sampler < pass.SamplerCount; ++sampler)
 				{
-					this->mDevice->SetTexture(sampler, pass.Samplers[sampler].mTexture->mTexture);
+					this->mDevice->SetTexture(sampler, pass.Samplers[sampler].Texture->TextureInterface);
 
 					for (DWORD state = D3DSAMP_ADDRESSU; state <= D3DSAMP_SRGBTEXTURE; ++state)
 					{
-						this->mDevice->SetSamplerState(sampler, static_cast<D3DSAMPLERSTATETYPE>(state), pass.Samplers[sampler].mStates[state]);
+						this->mDevice->SetSamplerState(sampler, static_cast<D3DSAMPLERSTATETYPE>(state), pass.Samplers[sampler].States[state]);
 					}
 				}
 
@@ -2621,7 +2628,7 @@ namespace ReShade
 				this->mDevice->GetViewport(&viewport);
 				const float texelsize[4] = { -1.0f / viewport.Width, 1.0f / viewport.Height };
 
-				this->mDevice->SetDepthStencilSurface((viewport.Width == this->mPresentParams.BackBufferWidth && viewport.Height == this->mPresentParams.BackBufferHeight) ? this->mDefaultDepthStencil : nullptr);
+				this->mDevice->SetDepthStencilSurface((viewport.Width == this->mWidth && viewport.Height == this->mHeight) ? this->mDefaultDepthStencil : nullptr);
 
 				// Setup shader constants
 				this->mDevice->SetVertexShaderConstantF(0, reinterpret_cast<const float *>(this->mUniformDataStorage.data()), this->mConstantRegisterCount);
@@ -2665,7 +2672,7 @@ namespace ReShade
 				depthstencil->GetDesc(&desc);
 
 				// Early depthstencil rejection
-				if ((desc.Width < this->mPresentParams.BackBufferWidth * 0.95 || desc.Width > this->mPresentParams.BackBufferWidth * 1.05) || (desc.Height < this->mPresentParams.BackBufferHeight * 0.95 || desc.Height > this->mPresentParams.BackBufferHeight * 1.05) || desc.MultiSampleType != D3DMULTISAMPLE_NONE)
+				if ((desc.Width < this->mWidth * 0.95 || desc.Width > this->mWidth * 1.05) || (desc.Height < this->mHeight * 0.95 || desc.Height > this->mHeight * 1.05) || desc.MultiSampleType != D3DMULTISAMPLE_NONE)
 				{
 					return;
 				}
@@ -2697,14 +2704,15 @@ namespace ReShade
 
 		void D3D9Runtime::Screenshot(unsigned char *buffer) const
 		{
-			if (this->mPresentParams.BackBufferFormat != D3DFMT_X8R8G8B8 && this->mPresentParams.BackBufferFormat != D3DFMT_X8B8G8R8 && this->mPresentParams.BackBufferFormat != D3DFMT_A8R8G8B8 && this->mPresentParams.BackBufferFormat != D3DFMT_A8B8G8R8)
+			if (this->mBackBufferFormat != D3DFMT_X8R8G8B8 && this->mBackBufferFormat != D3DFMT_X8B8G8R8 && this->mBackBufferFormat != D3DFMT_A8R8G8B8 && this->mBackBufferFormat != D3DFMT_A8B8G8R8)
 			{
-				LOG(WARNING) << "Screenshots are not supported for backbuffer format " << this->mPresentParams.BackBufferFormat << ".";
+				LOG(WARNING) << "Screenshots are not supported for backbuffer format " << this->mBackBufferFormat << ".";
 				return;
 			}
 
 			IDirect3DSurface9 *screenshotSurface = nullptr;
-			HRESULT hr = this->mDevice->CreateOffscreenPlainSurface(this->mPresentParams.BackBufferWidth, this->mPresentParams.BackBufferHeight, this->mPresentParams.BackBufferFormat, D3DPOOL_SYSTEMMEM, &screenshotSurface, nullptr);
+
+			HRESULT hr = this->mDevice->CreateOffscreenPlainSurface(this->mWidth, this->mHeight, this->mBackBufferFormat, D3DPOOL_SYSTEMMEM, &screenshotSurface, nullptr);
 
 			if (FAILED(hr))
 			{
@@ -2732,10 +2740,10 @@ namespace ReShade
 			BYTE *pMem = buffer;
 			BYTE *pLocked = static_cast<BYTE *>(screenshotLock.pBits);
 
-			const UINT pitch = this->mPresentParams.BackBufferWidth * 4;
+			const UINT pitch = this->mWidth * 4;
 
 			// Copy screenshot data to memory
-			for (UINT y = 0; y < this->mPresentParams.BackBufferHeight; ++y)
+			for (UINT y = 0; y < this->mHeight; ++y)
 			{
 				CopyMemory(pMem, pLocked, std::min(pitch, static_cast<UINT>(screenshotLock.Pitch)));
 
@@ -2743,7 +2751,7 @@ namespace ReShade
 				{
 					pMem[x + 3] = 0xFF;
 
-					if (this->mPresentParams.BackBufferFormat == D3DFMT_A8R8G8B8 || this->mPresentParams.BackBufferFormat == D3DFMT_X8R8G8B8)
+					if (this->mBackBufferFormat == D3DFMT_A8R8G8B8 || this->mBackBufferFormat == D3DFMT_X8R8G8B8)
 					{
 						std::swap(pMem[x + 0], pMem[x + 2]);
 					}
@@ -2782,19 +2790,21 @@ namespace ReShade
 		}
 		bool D3D9Runtime::UpdateTexture(Texture *texture, const unsigned char *data, std::size_t size)
 		{
+			D3D9Texture *const textureImpl = dynamic_cast<D3D9Texture *>(texture);
+
+			assert(textureImpl != nullptr);
 			assert(data != nullptr && size != 0);
 
-			D3D9Texture *const textureImpl = static_cast<D3D9Texture *>(texture);
-
-			if (textureImpl->mSource != D3D9Texture::Source::Memory)
+			if (textureImpl->DataSource != D3D9Texture::Source::Memory)
 			{
 				return false;
 			}
 
 			D3DSURFACE_DESC desc;
-			textureImpl->mTexture->GetLevelDesc(0, &desc);
+			textureImpl->TextureInterface->GetLevelDesc(0, &desc);
 
 			IDirect3DTexture9 *memTexture = nullptr;
+
 			HRESULT hr = this->mDevice->CreateTexture(desc.Width, desc.Height, 1, 0, desc.Format, D3DPOOL_SYSTEMMEM, &memTexture, nullptr);
 
 			if (FAILED(hr))
@@ -2846,7 +2856,7 @@ namespace ReShade
 
 			memTexture->UnlockRect(0);
 
-			hr = this->mDevice->UpdateTexture(memTexture, textureImpl->mTexture);
+			hr = this->mDevice->UpdateTexture(memTexture, textureImpl->TextureInterface);
 
 			memTexture->Release();
 
@@ -2885,7 +2895,7 @@ namespace ReShade
 				}
 			}
 
-			if (this->mPresentParams.MultiSampleType != D3DMULTISAMPLE_NONE || this->mDepthSourceTable.empty())
+			if (this->mMultisamplingEnabled || this->mDepthSourceTable.empty())
 			{
 				return;
 			}
@@ -2982,9 +2992,9 @@ namespace ReShade
 			{
 				D3D9Texture *texture = static_cast<D3D9Texture *>(it.get());
 
-				if (texture->mSource == D3D9Texture::Source::DepthStencil)
+				if (texture->DataSource == D3D9Texture::Source::DepthStencil)
 				{
-					texture->ChangeSource(this->mDepthStencilTexture);
+					texture->ChangeDataSource(D3D9Texture::Source::DepthStencil, this->mDepthStencilTexture);
 				}
 			}
 

@@ -14,7 +14,7 @@ namespace ReShade
 			D3D9Runtime(IDirect3DDevice9 *device, IDirect3DSwapChain9 *swapchain);
 			~D3D9Runtime();
 
-			bool OnInit(const D3DPRESENT_PARAMETERS &params);
+			bool OnInit(const D3DPRESENT_PARAMETERS &pp);
 			void OnReset() override;
 			void OnPresent() override;
 			void OnDrawCall(D3DPRIMITIVETYPE type, UINT count);
@@ -30,6 +30,14 @@ namespace ReShade
 			void DetectDepthSource();
 			bool CreateDepthStencilReplacement(IDirect3DSurface9 *depthstencil);
 
+			inline unsigned int GetWidth() const
+			{
+				return this->mWidth;
+			}
+			inline unsigned int GetHeight() const
+			{
+				return this->mHeight;
+			}
 			inline Texture *GetTexture(const std::string &name) const
 			{
 				const auto it = std::find_if(this->mTextures.cbegin(), this->mTextures.cend(), [name](const std::unique_ptr<Texture> &it) { return it->Name == name; });
@@ -65,7 +73,6 @@ namespace ReShade
 			IDirect3DDevice9 *mDevice;
 			IDirect3DSwapChain9 *mSwapChain;
 
-			D3DPRESENT_PARAMETERS mPresentParams;
 			IDirect3DSurface9 *mBackBuffer, *mBackBufferResolved, *mBackBufferTextureSurface;
 			IDirect3DTexture9 *mBackBufferTexture;
 			IDirect3DTexture9 *mDepthStencilTexture;
@@ -79,14 +86,15 @@ namespace ReShade
 			};
 
 			UINT mBehaviorFlags, mNumSimultaneousRTs;
-
+			bool mMultisamplingEnabled;
+			D3DFORMAT mBackBufferFormat;
 			IDirect3DStateBlock9 *mStateBlock;
 			IDirect3DSurface9 *mDepthStencil, *mDepthStencilReplacement;
 			IDirect3DSurface9 *mDefaultDepthStencil;
 			std::unordered_map<IDirect3DSurface9 *, DepthSourceInfo> mDepthSourceTable;
 
-			IDirect3DVertexBuffer9 *mEffectVertexBuffer;
-			IDirect3DVertexDeclaration9 *mEffectVertexDeclaration;
+			IDirect3DVertexBuffer9 *mEffectTriangleBuffer;
+			IDirect3DVertexDeclaration9 *mEffectTriangleLayout;
 		};
 	}
 }

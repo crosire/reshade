@@ -36,6 +36,14 @@ namespace ReShade
 			void DetectDepthSource();
 			bool CreateDepthStencilReplacement(ID3D11DepthStencilView *depthstencil);
 
+			inline unsigned int GetWidth() const
+			{
+				return this->mWidth;
+			}
+			inline unsigned int GetHeight() const
+			{
+				return this->mHeight;
+			}
 			inline Texture *GetTexture(const std::string &name) const
 			{
 				const auto it = std::find_if(this->mTextures.cbegin(), this->mTextures.cend(), [name](const std::unique_ptr<Texture> &it) { return it->Name == name; });
@@ -75,7 +83,6 @@ namespace ReShade
 			ID3D11DeviceContext *mImmediateContext;
 			IDXGISwapChain *mSwapChain;
 
-			DXGI_SWAP_CHAIN_DESC mSwapChainDesc;
 			ID3D11Texture2D *mBackBufferTexture;
 			ID3D11ShaderResourceView *mBackBufferTextureSRV[2];
 			ID3D11RenderTargetView *mBackBufferTargets[3];
@@ -91,6 +98,8 @@ namespace ReShade
 				FLOAT DrawCallCount, DrawVerticesCount;
 			};
 
+			bool mMultisamplingEnabled;
+			DXGI_FORMAT mBackBufferFormat;
 			std::unique_ptr<class D3D11StateBlock> mStateBlock;
 			ID3D11Texture2D *mBackBuffer, *mBackBufferResolved;
 			ID3D11DepthStencilView *mDepthStencil, *mDepthStencilReplacement;
