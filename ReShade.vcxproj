@@ -248,6 +248,7 @@ tools\upx --backup "$(TargetPath)"</Command>
     <ClCompile Include="src\Hooks\USER32.cpp" />
     <ClCompile Include="src\Hooks\WS2_32.cpp" />
     <ClCompile Include="src\Runtime\FileWatcher.cpp" />
+    <ClCompile Include="src\Runtime\GUI.cpp" />
     <ClCompile Include="src\Runtime\Runtime.cpp" />
     <ClCompile Include="src\Runtime\WindowWatcher.cpp" />
     <ClCompile Include="src\Runtimes\D3D9Runtime.cpp" />
@@ -267,6 +268,7 @@ tools\upx --backup "$(TargetPath)"</Command>
     <ClInclude Include="src\Hook\Hook.hpp" />
     <ClInclude Include="src\Hook\HookManager.hpp" />
     <ClInclude Include="src\Runtime\FileWatcher.hpp" />
+    <ClInclude Include="src\Runtime\GUI.hpp" />
     <ClInclude Include="src\Runtime\Runtime.hpp" />
     <ClInclude Include="src\Runtime\WindowWatcher.hpp" />
     <ClInclude Include="src\Runtimes\D3D10Runtime.hpp" />

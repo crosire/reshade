@@ -1,6 +1,7 @@
 #include "Log.hpp"
 #include "D3D11Runtime.hpp"
 #include "FX\ParseTree.hpp"
+#include "GUI.hpp"
 #include "WindowWatcher.hpp"
 
 #include <d3dcompiler.h>
@@ -2720,7 +2721,7 @@ namespace ReShade
 			assert(SUCCEEDED(hr));
 			#pragma endregion
 
-			this->mNVG = nvgCreateD3D11(this->mDevice, 0);
+			this->mGUI.reset(new GUI(nvgCreateD3D11(this->mDevice, 0), this->mWidth, this->mHeight));
 
 			// Clear reference count to make UnrealEngine happy
 			this->mBackBuffer->Release();
@@ -2738,9 +2739,11 @@ namespace ReShade
 			Runtime::OnReset();
 
 			// Destroy NanoVG
-			nvgDeleteD3D11(this->mNVG);
+			NVGcontext *const nvg = this->mGUI->GetContext();
 
-			this->mNVG = nullptr;
+			this->mGUI.reset();
+
+			nvgDeleteD3D11(nvg);
 
 			// Reset reference count to make UnrealEngine happy
 			this->mBackBuffer->AddRef();

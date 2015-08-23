@@ -1,6 +1,7 @@
 #include "Log.hpp"
 #include "D3D10Runtime.hpp"
 #include "FX\ParseTree.hpp"
+#include "GUI.hpp"
 #include "WindowWatcher.hpp"
 
 #include <d3dcompiler.h>
@@ -2632,7 +2633,7 @@ namespace ReShade
 			assert(SUCCEEDED(hr));
 			#pragma endregion
 
-			this->mNVG = nvgCreateD3D10(this->mDevice, 0);
+			this->mGUI.reset(new GUI(nvgCreateD3D10(this->mDevice, 0), this->mWidth, this->mHeight));
 
 			return Runtime::OnInit();
 		}
@@ -2646,9 +2647,11 @@ namespace ReShade
 			Runtime::OnReset();
 
 			// Destroy NanoVG
-			nvgDeleteD3D10(this->mNVG);
+			NVGcontext *const nvg = this->mGUI->GetContext();
 
-			this->mNVG = nullptr;
+			this->mGUI.reset();
+
+			nvgDeleteD3D10(nvg);
 
 			// Destroy resources
 			SAFE_RELEASE(this->mBackBuffer);

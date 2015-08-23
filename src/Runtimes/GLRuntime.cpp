@@ -1,6 +1,7 @@
 #include "Log.hpp"
 #include "GLRuntime.hpp"
 #include "FX\ParseTree.hpp"
+#include "GUI.hpp"
 #include "WindowWatcher.hpp"
 
 #include <nanovg_gl.h>
@@ -3171,7 +3172,7 @@ namespace ReShade
 
 			this->mStateBlock->Apply();
 
-			this->mNVG = nvgCreateGL3(0);
+			this->mGUI.reset(new GUI(nvgCreateGL3(0), this->mWidth, this->mHeight));
 
 			return Runtime::OnInit();
 		}
@@ -3191,9 +3192,11 @@ namespace ReShade
 			Runtime::OnReset();
 
 			// Destroy NanoVG
-			nvgDeleteGL3(this->mNVG);
+			NVGcontext *const nvg = this->mGUI->GetContext();
 
-			this->mNVG = nullptr;
+			this->mGUI.reset();
+
+			nvgDeleteGL3(nvg);
 
 			// Destroy resources
 			GLCHECK(glDeleteBuffers(1, &this->mDefaultVBO));

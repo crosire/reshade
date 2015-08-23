@@ -4,6 +4,7 @@
 #include "HookManager.hpp"
 #include "FX\Parser.hpp"
 #include "FX\PreProcessor.hpp"
+#include "GUI.hpp"
 #include "FileWatcher.hpp"
 #include "WindowWatcher.hpp"
 #include "Utils\Algorithm.hpp"
@@ -13,7 +14,6 @@
 #include <stb_image_write.h>
 #include <stb_image_resize.h>
 #include <boost\filesystem\operations.hpp>
-#include <nanovg.h>
 
 namespace ReShade
 {
@@ -34,12 +34,6 @@ namespace ReShade
 		{
 			TCHAR path[MAX_PATH];
 			::GetSystemDirectory(path, MAX_PATH);
-			return path;
-		}
-		inline boost::filesystem::path GetWindowsDirectory()
-		{
-			TCHAR path[MAX_PATH];
-			::GetWindowsDirectory(path, MAX_PATH);
 			return path;
 		}
 
@@ -103,7 +97,7 @@ namespace ReShade
 
 	// -----------------------------------------------------------------------------------------------------
 
-	Runtime::Runtime() : mIsInitialized(false), mIsEffectCompiled(false), mWidth(0), mHeight(0), mVendorId(0), mDeviceId(0), mRendererId(0), mStats(), mNVG(nullptr), mWindow(nullptr), mScreenshotFormat("png"), mScreenshotPath(sExecutablePath.parent_path()), mScreenshotKey(VK_SNAPSHOT), mCompileStep(0), mShowStatistics(false), mShowFPS(false), mShowClock(false), mShowToggleMessage(false)
+	Runtime::Runtime() : mIsInitialized(false), mIsEffectCompiled(false), mWidth(0), mHeight(0), mVendorId(0), mDeviceId(0), mRendererId(0), mStats(), mScreenshotFormat("png"), mScreenshotPath(sExecutablePath.parent_path()), mScreenshotKey(VK_SNAPSHOT), mCompileStep(0), mShowStatistics(false), mShowFPS(false), mShowClock(false), mShowToggleMessage(false)
 	{
 		memset(&this->mStats, 0, sizeof(Statistics));
 
@@ -117,11 +111,6 @@ namespace ReShade
 
 	bool Runtime::OnInit()
 	{
-		if (this->mNVG != nullptr)
-		{
-			nvgCreateFont(this->mNVG, "Courier", (GetWindowsDirectory() / "Fonts" / "courbd.ttf").string().c_str());
-		}
-
 		this->mCompileStep = 1;
 
 		LOG(INFO) << "Recreated runtime environment on runtime " << this << ".";
@@ -242,51 +231,33 @@ namespace ReShade
 		#pragma endregion
 
 		#pragma region Draw overlay
-		if (this->mNVG != nullptr)
+		if (this->mGUI->BeginFrame())
 		{
-			nvgBeginFrame(this->mNVG, this->mWidth, this->mHeight, 1);
-
 			const boost::chrono::seconds timeSinceCreate = boost::chrono::duration_cast<boost::chrono::seconds>(timePresent - this->mLastCreate);
-
-			nvgFontFace(this->mNVG, "Courier");
 
 			if (!this->mStatus.empty())
 			{
-				nvgFillColor(this->mNVG, nvgRGB(188, 188, 188));
-				nvgTextAlign(this->mNVG, NVG_ALIGN_LEFT | NVG_ALIGN_TOP);
-
-				nvgFontSize(this->mNVG, 20);
-				nvgText(this->mNVG, 0, 0, "ReShade " BOOST_STRINGIZE(VERSION_FULL) " by Crosire", nullptr);
-				nvgFontSize(this->mNVG, 16);
-				nvgText(this->mNVG, 0, 22, "Visit http://reshade.me for news, updates, shaders and discussion.", nullptr);
-				nvgText(this->mNVG, 0, 42, this->mStatus.c_str(), nullptr);
+				this->mGUI->DrawSimpleText(0,  0, 20, 0xBCBCBC, "ReShade " BOOST_STRINGIZE(VERSION_FULL) " by Crosire");
+				this->mGUI->DrawSimpleText(0, 22, 16, 0xBCBCBC, "Visit http://reshade.me for news, updates, shaders and discussion.");
+				this->mGUI->DrawSimpleText(0, 42, 16, 0xBCBCBC, this->mStatus);
 
 				if (!this->mErrors.empty() && this->mCompileStep == 0)
 				{
 					if (!this->mIsEffectCompiled)
 					{
-						nvgFillColor(this->mNVG, nvgRGB(255, 0, 0));
+						this->mGUI->DrawSimpleTextMultiLine(0, 60, static_cast<float>(this->mWidth), 16, 0xFF0000, this->mErrors);
 					}
 					else
 					{
-						nvgFillColor(this->mNVG, nvgRGB(255, 255, 0));
+						this->mGUI->DrawSimpleTextMultiLine(0, 60, static_cast<float>(this->mWidth), 16, 0xFFFF00, this->mErrors);
 					}
-
-					nvgTextBox(this->mNVG, 0, 60, static_cast<float>(this->mWidth), this->mErrors.c_str(), nullptr);
 				}
 			}
 
-			nvgFontSize(this->mNVG, 16);
-			nvgFillColor(this->mNVG, nvgRGB(188, 188, 188));
-
 			if (!this->mMessage.empty())
 			{
-				nvgTextAlign(this->mNVG, NVG_ALIGN_CENTER | NVG_ALIGN_MIDDLE);
-
-				float bounds[4];
-				nvgTextBoxBounds(this->mNVG, 0, 0, static_cast<float>(this->mWidth), this->mMessage.c_str(), nullptr, bounds);
-
-				nvgTextBox(this->mNVG, 0, static_cast<float>(this->mHeight) / 2 - bounds[3] / 2, static_cast<float>(this->mWidth), this->mMessage.c_str(), nullptr);
+				this->mGUI->SetAlignment(0, 0);
+				this->mGUI->DrawSimpleTextMultiLine(0, 0, static_cast<float>(this->mWidth), 16, 0xBCBCBC, this->mMessage);
 			}
 
 			std::stringstream stats;
@@ -329,17 +300,16 @@ namespace ReShade
 				}
 			}
 
-			nvgTextAlign(this->mNVG, NVG_ALIGN_RIGHT | NVG_ALIGN_TOP);
-
-			nvgTextBox(this->mNVG, 0, 0, static_cast<float>(this->mWidth), stats.str().c_str(), nullptr);
-
-			nvgEndFrame(this->mNVG);
+			this->mGUI->SetAlignment(1, -1);
+			this->mGUI->DrawSimpleTextMultiLine(0, 0, static_cast<float>(this->mWidth), 16, 0xBCBCBC, stats.str());
 
 			if (timeSinceCreate.count() > (this->mErrors.empty() ? 4 : 8) && this->mIsEffectCompiled)
 			{
 				this->mStatus.clear();
 				this->mMessage.clear();
 			}
+
+			this->mGUI->FlushFrame();
 		}
 		#pragma endregion
 

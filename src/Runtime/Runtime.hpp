@@ -8,11 +8,12 @@
 #include <boost\chrono.hpp>
 #include <boost\filesystem\path.hpp>
 
-struct NVGcontext;
 class WindowWatcher;
 
 namespace ReShade
 {
+	class GUI;
+
 	namespace FX
 	{
 		class Tree;
@@ -291,7 +292,7 @@ namespace ReShade
 		unsigned int mWidth, mHeight;
 		unsigned int mVendorId, mDeviceId, mRendererId;
 		Statistics mStats;
-		NVGcontext *mNVG;
+		std::unique_ptr<GUI> mGUI;
 		std::unique_ptr<WindowWatcher> mWindow;
 		std::vector<std::unique_ptr<Texture>> mTextures;
 		std::vector<std::unique_ptr<Uniform>> mUniforms;
