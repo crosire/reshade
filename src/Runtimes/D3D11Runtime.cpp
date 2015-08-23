@@ -155,9 +155,6 @@ namespace ReShade
 				ID3D11ShaderResourceView *mShaderResourceView[2];
 				ID3D11RenderTargetView *mRenderTargetView[2];
 			};
-			struct D3D11Constant : public Constant
-			{
-			};
 
 			class D3D11EffectCompiler : private boost::noncopyable
 			{
@@ -1836,7 +1833,7 @@ namespace ReShade
 
 					this->mCurrentGlobalConstants += ";\n";
 
-					D3D11Constant *obj = new D3D11Constant();
+					Uniform *obj = new Uniform();
 					obj->Name = node->Name;
 					obj->Rows = node->Type.Rows;
 					obj->Columns = node->Type.Cols;
@@ -1846,19 +1843,19 @@ namespace ReShade
 					switch (node->Type.BaseClass)
 					{
 						case FX::Nodes::Type::Class::Bool:
-							obj->BaseType = Constant::Type::Bool;
+							obj->BaseType = Uniform::Type::Bool;
 							obj->StorageSize *= sizeof(int);
 							break;
 						case FX::Nodes::Type::Class::Int:
-							obj->BaseType = Constant::Type::Int;
+							obj->BaseType = Uniform::Type::Int;
 							obj->StorageSize *= sizeof(int);
 							break;
 						case FX::Nodes::Type::Class::Uint:
-							obj->BaseType = Constant::Type::Uint;
+							obj->BaseType = Uniform::Type::Uint;
 							obj->StorageSize *= sizeof(unsigned int);
 							break;
 						case FX::Nodes::Type::Class::Float:
-							obj->BaseType = Constant::Type::Float;
+							obj->BaseType = Uniform::Type::Float;
 							obj->StorageSize *= sizeof(float);
 							break;
 					}
@@ -2773,10 +2770,6 @@ namespace ReShade
 			this->mEffectShaderResources.clear();
 
 			SAFE_RELEASE(this->mConstantBuffer);
-
-			free(this->mConstantStorage);
-			this->mConstantStorage = nullptr;
-			this->mConstantStorageSize = 0;
 		}
 		void D3D11Runtime::OnPresent()
 		{
@@ -2897,29 +2890,27 @@ namespace ReShade
 
 			this->mImmediateContext->ClearDepthStencilView(this->mDefaultDepthStencil, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
 
+			// Update shader constants
+			if (this->mConstantBuffer != nullptr)
+			{
+				D3D11_MAPPED_SUBRESOURCE mapped;
+
+				const HRESULT hr = this->mImmediateContext->Map(this->mConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
+
+				if (SUCCEEDED(hr))
+				{
+					CopyMemory(mapped.pData, this->mUniformDataStorage.data(), mapped.RowPitch);
+
+					this->mImmediateContext->Unmap(this->mConstantBuffer, 0);
+				}
+				else
+				{
+					LOG(TRACE) << "Failed to map constant buffer! HRESULT is '" << hr << "'!";
+				}
+			}
+
 			for (const auto &pass : static_cast<const D3D11Technique *>(technique)->Passes)
 			{
-				// Update shader constants
-				if (this->mConstantsAreDirty && this->mConstantBuffer != nullptr)
-				{
-					D3D11_MAPPED_SUBRESOURCE mapped;
-
-					const HRESULT hr = this->mImmediateContext->Map(this->mConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
-
-					if (SUCCEEDED(hr))
-					{
-						CopyMemory(mapped.pData, this->mConstantStorage, mapped.RowPitch);
-
-						this->mImmediateContext->Unmap(this->mConstantBuffer, 0);
-
-						this->mConstantsAreDirty = false;
-					}
-					else
-					{
-						LOG(TRACE) << "Failed to map constant buffer! HRESULT is '" << hr << "'!";
-					}
-				}
-
 				// Setup states
 				this->mImmediateContext->VSSetShader(pass.VS, nullptr, 0);
 				this->mImmediateContext->HSSetShader(nullptr, nullptr, 0);

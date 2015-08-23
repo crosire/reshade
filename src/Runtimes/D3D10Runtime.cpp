@@ -150,9 +150,6 @@ namespace ReShade
 				ID3D10ShaderResourceView *mShaderResourceView[2];
 				ID3D10RenderTargetView *mRenderTargetView[2];
 			};
-			struct D3D10Constant : public Constant
-			{
-			};
 
 			class D3D10EffectCompiler : private boost::noncopyable
 			{
@@ -1831,7 +1828,7 @@ namespace ReShade
 
 					this->mCurrentGlobalConstants += ";\n";
 
-					D3D10Constant *obj = new D3D10Constant();
+					Uniform *obj = new Uniform();
 					obj->Name = node->Name;
 					obj->Rows = node->Type.Rows;
 					obj->Columns = node->Type.Cols;
@@ -1841,19 +1838,19 @@ namespace ReShade
 					switch (node->Type.BaseClass)
 					{
 						case FX::Nodes::Type::Class::Bool:
-							obj->BaseType = Constant::Type::Bool;
+							obj->BaseType = Uniform::Type::Bool;
 							obj->StorageSize *= sizeof(int);
 							break;
 						case FX::Nodes::Type::Class::Int:
-							obj->BaseType = Constant::Type::Int;
+							obj->BaseType = Uniform::Type::Int;
 							obj->StorageSize *= sizeof(int);
 							break;
 						case FX::Nodes::Type::Class::Uint:
-							obj->BaseType = Constant::Type::Uint;
+							obj->BaseType = Uniform::Type::Uint;
 							obj->StorageSize *= sizeof(unsigned int);
 							break;
 						case FX::Nodes::Type::Class::Float:
-							obj->BaseType = Constant::Type::Float;
+							obj->BaseType = Uniform::Type::Float;
 							obj->StorageSize *= sizeof(float);
 							break;
 					}
@@ -2678,10 +2675,6 @@ namespace ReShade
 			this->mEffectShaderResources.clear();
 
 			SAFE_RELEASE(this->mConstantBuffer);
-
-			free(this->mConstantStorage);
-			this->mConstantStorage = nullptr;
-			this->mConstantStorageSize = 0;
 		}
 		void D3D10Runtime::OnPresent()
 		{
@@ -2816,32 +2809,30 @@ namespace ReShade
 
 			this->mDevice->ClearDepthStencilView(this->mDefaultDepthStencil, D3D10_CLEAR_DEPTH | D3D10_CLEAR_STENCIL, 1.0f, 0);
 
+			// Update shader constants
+			if (this->mConstantBuffer != nullptr)
+			{
+				void *data = nullptr;
+
+				const HRESULT hr = this->mConstantBuffer->Map(D3D10_MAP_WRITE_DISCARD, 0, &data);
+
+				if (SUCCEEDED(hr))
+				{
+					D3D10_BUFFER_DESC desc;
+					this->mConstantBuffer->GetDesc(&desc);
+
+					CopyMemory(data, this->mUniformDataStorage.data(), desc.ByteWidth);
+
+					this->mConstantBuffer->Unmap();
+				}
+				else
+				{
+					LOG(TRACE) << "Failed to map constant buffer! HRESULT is '" << hr << "'!";
+				}
+			}
+
 			for (const auto &pass : static_cast<const D3D10Technique *>(technique)->Passes)
 			{
-				// Update shader constants
-				if (this->mConstantsAreDirty && this->mConstantBuffer != nullptr)
-				{
-					void *data = nullptr;
-
-					const HRESULT hr = this->mConstantBuffer->Map(D3D10_MAP_WRITE_DISCARD, 0, &data);
-
-					if (SUCCEEDED(hr))
-					{
-						D3D10_BUFFER_DESC desc;
-						this->mConstantBuffer->GetDesc(&desc);
-
-						CopyMemory(data, this->mConstantStorage, desc.ByteWidth);
-
-						this->mConstantBuffer->Unmap();
-
-						this->mConstantsAreDirty = false;
-					}
-					else
-					{
-						LOG(TRACE) << "Failed to map constant buffer! HRESULT is '" << hr << "'!";
-					}
-				}
-
 				// Setup states
 				this->mDevice->VSSetShader(pass.VS);
 				this->mDevice->GSSetShader(nullptr);

@@ -104,9 +104,7 @@ namespace ReShade
 
 	// -----------------------------------------------------------------------------------------------------
 
-	Runtime::Runtime() :
-		mIsInitialized(false), mIsEffectCompiled(false), mWidth(0), mHeight(0), mVendorId(0), mDeviceId(0), mRendererId(0), mStats(), mNVG(nullptr), mWindow(nullptr), mConstantStorage(nullptr), mConstantStorageSize(0),
-		mScreenshotFormat("png"), mScreenshotPath(sExecutablePath.parent_path()), mScreenshotKey(VK_SNAPSHOT), mCompileStep(0), mShowStatistics(false), mShowFPS(false), mShowClock(false), mShowToggleMessage(false)
+	Runtime::Runtime() : mIsInitialized(false), mIsEffectCompiled(false), mWidth(0), mHeight(0), mVendorId(0), mDeviceId(0), mRendererId(0), mStats(), mNVG(nullptr), mWindow(nullptr), mScreenshotFormat("png"), mScreenshotPath(sExecutablePath.parent_path()), mScreenshotKey(VK_SNAPSHOT), mCompileStep(0), mShowStatistics(false), mShowFPS(false), mShowClock(false), mShowToggleMessage(false)
 	{
 		memset(&this->mStats, 0, sizeof(Statistics));
 
@@ -115,7 +113,7 @@ namespace ReShade
 	}
 	Runtime::~Runtime()
 	{
-		assert(!this->mIsInitialized);
+		assert(!this->mIsInitialized && !this->mIsEffectCompiled);
 	}
 
 	bool Runtime::OnInit()
@@ -154,8 +152,9 @@ namespace ReShade
 		}
 
 		this->mTextures.clear();
-		this->mConstants.clear();
+		this->mUniforms.clear();
 		this->mTechniques.clear();
+		this->mUniformDataStorage.clear();
 
 		this->mIsEffectCompiled = false;
 	}
@@ -420,9 +419,9 @@ namespace ReShade
 	}
 	void Runtime::OnApplyEffectTechnique(const Technique *technique)
 	{
-		for (const auto &constant : this->mConstants)
+		for (const auto &variable : this->mUniforms)
 		{
-			const std::string source = constant->Annotations["source"].As<std::string>();
+			const std::string source = variable->Annotations["source"].As<std::string>();
 
 			if (source.empty())
 			{
@@ -431,29 +430,29 @@ namespace ReShade
 			else if (source == "frametime")
 			{
 				const float value = this->mLastFrameDuration.count() * 1e-6f;
-				SetEffectValue(constant.get(), &value, 1);
+				SetEffectValue(*variable, &value, 1);
 			}
 			else if (source == "framecount" || source == "framecounter")
 			{
-				switch (constant->BaseType)
+				switch (variable->BaseType)
 				{
-					case Constant::Type::Bool:
+					case Uniform::Type::Bool:
 					{
 						const bool even = (this->mStats.FrameCount % 2) == 0;
-						SetEffectValue(constant.get(), &even, 1);
+						SetEffectValue(*variable, &even, 1);
 						break;
 					}
-					case Constant::Type::Int:
-					case Constant::Type::Uint:
+					case Uniform::Type::Int:
+					case Uniform::Type::Uint:
 					{
 						const unsigned int framecount = static_cast<unsigned int>(this->mStats.FrameCount % UINT_MAX);
-						SetEffectValue(constant.get(), &framecount, 1);
+						SetEffectValue(*variable, &framecount, 1);
 						break;
 					}
-					case Constant::Type::Float:
+					case Uniform::Type::Float:
 					{
 						const float framecount = static_cast<float>(this->mStats.FrameCount % 16777216);
-						SetEffectValue(constant.get(), &framecount, 1);
+						SetEffectValue(*variable, &framecount, 1);
 						break;
 					}
 				}
@@ -461,12 +460,12 @@ namespace ReShade
 			else if (source == "pingpong")
 			{
 				float value[2] = { 0, 0 };
-				GetEffectValue(constant.get(), value, 2);
+				GetEffectValue(*variable, value, 2);
 
-				const float min = constant->Annotations["min"].As<float>(), max = constant->Annotations["max"].As<float>();
-				const float stepMin = constant->Annotations["step"].As<float>(0), stepMax = constant->Annotations["step"].As<float>(1);
+				const float min = variable->Annotations["min"].As<float>(), max = variable->Annotations["max"].As<float>();
+				const float stepMin = variable->Annotations["step"].As<float>(0), stepMax = variable->Annotations["step"].As<float>(1);
 				float increment = stepMax == 0 ? stepMin : (stepMin + std::fmodf(static_cast<float>(std::rand()), stepMax - stepMin + 1));
-				const float smoothing = constant->Annotations["smoothing"].As<float>();
+				const float smoothing = variable->Annotations["smoothing"].As<float>();
 
 				if (value[1] >= 0)
 				{
@@ -491,211 +490,206 @@ namespace ReShade
 					}
 				}
 
-				SetEffectValue(constant.get(), value, 2);
+				SetEffectValue(*variable, value, 2);
 			}
 			else if (source == "date")
 			{
-				SetEffectValue(constant.get(), this->mStats.Date, 4);
+				SetEffectValue(*variable, this->mStats.Date, 4);
 			}
 			else if (source == "timer")
 			{
 				const unsigned long long timer = boost::chrono::duration_cast<boost::chrono::nanoseconds>(this->mLastPresent - this->mStartTime).count();
 
-				switch (constant->BaseType)
+				switch (variable->BaseType)
 				{
-					case Constant::Type::Bool:
+					case Uniform::Type::Bool:
 					{
 						const bool even = (timer % 2) == 0;
-						SetEffectValue(constant.get(), &even, 1);
+						SetEffectValue(*variable, &even, 1);
 						break;
 					}
-					case Constant::Type::Int:
-					case Constant::Type::Uint:
+					case Uniform::Type::Int:
+					case Uniform::Type::Uint:
 					{
 						const unsigned int timerInt = static_cast<unsigned int>(timer % UINT_MAX);
-						SetEffectValue(constant.get(), &timerInt, 1);
+						SetEffectValue(*variable, &timerInt, 1);
 						break;
 					}
-					case Constant::Type::Float:
+					case Uniform::Type::Float:
 					{
 						const float timerFloat = std::fmod(static_cast<float>(timer * 1e-6f), 16777216.0f);
-						SetEffectValue(constant.get(), &timerFloat, 1);
+						SetEffectValue(*variable, &timerFloat, 1);
 						break;
 					}
 				}
 			}
 			else if (source == "timeleft")
 			{
-				SetEffectValue(constant.get(), &technique->Timeleft, 1);
+				SetEffectValue(*variable, &technique->Timeleft, 1);
 			}
 			else if (source == "key")
 			{
-				const int key = constant->Annotations["keycode"].As<int>();
+				const int key = variable->Annotations["keycode"].As<int>();
 
 				if (key > 0 && key < 256)
 				{
-					if (constant->Annotations["toggle"].As<bool>())
+					if (variable->Annotations["toggle"].As<bool>())
 					{
 						bool current = false;
-						GetEffectValue(constant.get(), &current, 1);
+						GetEffectValue(*variable, &current, 1);
 
 						if (this->mWindow->GetKeyJustPressed(key))
 						{
 							current = !current;
 
-							SetEffectValue(constant.get(), &current, 1);
+							SetEffectValue(*variable, &current, 1);
 						}
 					}
 					else
 					{
 						const bool state = this->mWindow->GetKeyState(key);
 
-						SetEffectValue(constant.get(), &state, 1);
+						SetEffectValue(*variable, &state, 1);
 					}
 				}
 			}
 			else if (source == "random")
 			{
-				const int min = constant->Annotations["min"].As<int>(), max = constant->Annotations["max"].As<int>();
+				const int min = variable->Annotations["min"].As<int>(), max = variable->Annotations["max"].As<int>();
 				const int value = min + (std::rand() % (max - min + 1));
 
-				SetEffectValue(constant.get(), &value, 1);
+				SetEffectValue(*variable, &value, 1);
 			}
 		}
 	}
 
-	void Runtime::GetEffectValue(const Constant *constant, unsigned char *data, std::size_t size) const
+	void Runtime::GetEffectValue(const Uniform &variable, unsigned char *data, std::size_t size) const
 	{
-		size = std::min(size, constant->StorageSize);
+		assert(data != nullptr);
+		assert(this->mIsEffectCompiled);
 
-		std::memcpy(data, this->mConstantStorage + constant->StorageOffset, size);
+		size = std::min(size, variable.StorageSize);
+
+		assert(variable.StorageOffset + size < this->mUniformDataStorage.size());
+
+		std::copy_n(this->mUniformDataStorage.begin() + variable.StorageOffset, size, data);
 	}
-	void Runtime::GetEffectValue(const Constant *constant, bool *values, std::size_t count) const
+	void Runtime::GetEffectValue(const Uniform &variable, bool *values, std::size_t count) const
 	{
-		assert(count == 0 || values != nullptr);
+		static_assert(sizeof(int) == 4 && sizeof(float) == 4, "expected int and float size to equal 4");
 
-		unsigned char *const data = static_cast<unsigned char *>(::alloca(constant->StorageSize));
-		GetEffectValue(constant, data, constant->StorageSize);
+		count = std::min(count, variable.StorageSize / 4);
 
-		for (std::size_t i = 0; i < count; ++i)
+		assert(values != nullptr);
+
+		unsigned char *const data = static_cast<unsigned char *>(alloca(variable.StorageSize));
+		GetEffectValue(variable, data, variable.StorageSize);
+
+		for (std::size_t i = 0; i < count; i++)
 		{
 			values[i] = reinterpret_cast<const unsigned int *>(data)[i] != 0;
 		}
 	}
-	void Runtime::GetEffectValue(const Constant *constant, int *values, std::size_t count) const
+	void Runtime::GetEffectValue(const Uniform &variable, int *values, std::size_t count) const
 	{
-		assert(count == 0 || values != nullptr);
-
-		if (constant->BaseType == Constant::Type::Bool || constant->BaseType == Constant::Type::Int || constant->BaseType == Constant::Type::Uint)
+		switch (variable.BaseType)
 		{
-			GetEffectValue(constant, reinterpret_cast<unsigned char *>(values), count * sizeof(int));
-		}
-		else
-		{
-			count = std::min(count, constant->StorageSize / sizeof(float));
-			unsigned char *const data = static_cast<unsigned char *>(::alloca(constant->StorageSize));
-			GetEffectValue(constant, data, constant->StorageSize);
-
-			for (std::size_t i = 0; i < count; ++i)
+			case Uniform::Type::Bool:
+			case Uniform::Type::Int:
+			case Uniform::Type::Uint:
 			{
-				values[i] = static_cast<int>(reinterpret_cast<const float *>(data)[i]);
+				GetEffectValue(variable, reinterpret_cast<unsigned char *>(values), count * sizeof(int));
+				break;
+			}
+			case Uniform::Type::Float:
+			{
+				count = std::min(count, variable.StorageSize / sizeof(float));
+
+				assert(values != nullptr);
+
+				unsigned char *const data = static_cast<unsigned char *>(alloca(variable.StorageSize));
+				GetEffectValue(variable, data, variable.StorageSize);
+
+				for (std::size_t i = 0; i < count; i++)
+				{
+					values[i] = static_cast<int>(reinterpret_cast<const float *>(data)[i]);
+				}
+				break;
 			}
 		}
 	}
-	void Runtime::GetEffectValue(const Constant *constant, unsigned int *values, std::size_t count) const
+	void Runtime::GetEffectValue(const Uniform &variable, unsigned int *values, std::size_t count) const
 	{
-		assert(count == 0 || values != nullptr);
-
-		if (constant->BaseType == Constant::Type::Bool || constant->BaseType == Constant::Type::Int || constant->BaseType == Constant::Type::Uint)
-		{
-			GetEffectValue(constant, reinterpret_cast<unsigned char *>(values), count * sizeof(int));
-		}
-		else
-		{
-			count = std::min(count, constant->StorageSize / sizeof(float));
-			unsigned char *data = static_cast<unsigned char *>(::alloca(constant->StorageSize));
-			GetEffectValue(constant, data, constant->StorageSize);
-
-			for (std::size_t i = 0; i < count; ++i)
-			{
-				values[i] = static_cast<unsigned int>(reinterpret_cast<const float *>(data)[i]);
-			}
-		}
+		GetEffectValue(variable, reinterpret_cast<int *>(values), count);
 	}
-	void Runtime::GetEffectValue(const Constant *constant, float *values, std::size_t count) const
+	void Runtime::GetEffectValue(const Uniform &variable, float *values, std::size_t count) const
 	{
-		assert(count == 0 || values != nullptr);
-
-		if (constant->BaseType == Constant::Type::Float)
+		switch (variable.BaseType)
 		{
-			GetEffectValue(constant, reinterpret_cast<unsigned char *>(values), count * sizeof(float));
-		}
-		else
-		{
-			unsigned char *const data = static_cast<unsigned char *>(::alloca(constant->StorageSize));
-			GetEffectValue(constant, data, constant->StorageSize);
-
-			switch (constant->BaseType)
+			case Uniform::Type::Bool:
+			case Uniform::Type::Int:
+			case Uniform::Type::Uint:
 			{
-				case Constant::Type::Int:
-					count = std::min(count, constant->StorageSize / sizeof(int));
-					for (std::size_t i = 0; i < count; ++i)
+				count = std::min(count, variable.StorageSize / sizeof(int));
+
+				assert(values != nullptr);
+
+				unsigned char *const data = static_cast<unsigned char *>(alloca(variable.StorageSize));
+				GetEffectValue(variable, data, variable.StorageSize);
+
+				for (std::size_t i = 0; i < count; ++i)
+				{
+					if (variable.BaseType != Uniform::Type::Uint)
 					{
 						values[i] = static_cast<float>(reinterpret_cast<const int *>(data)[i]);
 					}
-					break;
-				case Constant::Type::Bool:
-				case Constant::Type::Uint:
-					count = std::min(count, constant->StorageSize / sizeof(unsigned int));
-					for (std::size_t i = 0; i < count; ++i)
+					else
 					{
 						values[i] = static_cast<float>(reinterpret_cast<const unsigned int *>(data)[i]);
 					}
-					break;
+				}
+				break;
+			}
+			case Uniform::Type::Float:
+			{
+				GetEffectValue(variable, reinterpret_cast<unsigned char *>(values), count * sizeof(float));
+				break;
 			}
 		}
 	}
-	void Runtime::SetEffectValue(Constant *constant, const unsigned char *data, std::size_t size)
+	void Runtime::SetEffectValue(Uniform &variable, const unsigned char *data, std::size_t size)
 	{
-		size = std::min(size, constant->StorageSize);
+		assert(data != nullptr);
+		assert(this->mIsEffectCompiled);
 
-		unsigned char *const storage = this->mConstantStorage + constant->StorageOffset;
+		size = std::min(size, variable.StorageSize);
 
-		if (std::memcmp(storage, data, size) == 0)
-		{
-			return;
-		}
+		assert(variable.StorageOffset + size < this->mUniformDataStorage.size());
 
-		std::memcpy(storage, data, size);
-
-		this->mConstantsAreDirty = true;
+		std::copy_n(data, size, this->mUniformDataStorage.begin() + variable.StorageOffset);
 	}
-	void Runtime::SetEffectValue(Constant *constant, const bool *values, std::size_t count)
+	void Runtime::SetEffectValue(Uniform &variable, const bool *values, std::size_t count)
 	{
-		assert(count == 0 || values != nullptr);
+		static_assert(sizeof(int) == 4 && sizeof(float) == 4, "expected int and float size to equal 4");
 
-		std::size_t dataSize = 0;
-		unsigned char *data = nullptr;
+		unsigned char *const data = static_cast<unsigned char *>(alloca(count * 4));
 
-		switch (constant->BaseType)
+		switch (variable.BaseType)
 		{
-			case Constant::Type::Bool:
-				data = static_cast<unsigned char *>(::alloca(dataSize = count * sizeof(int)));
+			case Uniform::Type::Bool:
 				for (std::size_t i = 0; i < count; ++i)
 				{
 					reinterpret_cast<int *>(data)[i] = values[i] ? -1 : 0;
 				}
 				break;
-			case Constant::Type::Int:
-			case Constant::Type::Uint:
-				data = static_cast<unsigned char *>(::alloca(dataSize = count * sizeof(int)));
+			case Uniform::Type::Int:
+			case Uniform::Type::Uint:
 				for (std::size_t i = 0; i < count; ++i)
 				{
 					reinterpret_cast<int *>(data)[i] = values[i] ? 1 : 0;
 				}
 				break;
-			case Constant::Type::Float:
-				data = static_cast<unsigned char *>(::alloca(dataSize = count * sizeof(float)));
+			case Uniform::Type::Float:
 				for (std::size_t i = 0; i < count; ++i)
 				{
 					reinterpret_cast<float *>(data)[i] = values[i] ? 1.0f : 0.0f;
@@ -703,85 +697,82 @@ namespace ReShade
 				break;
 		}
 
-		SetEffectValue(constant, data, dataSize);
+		SetEffectValue(variable, data, count * 4);
 	}
-	void Runtime::SetEffectValue(Constant *constant, const int *values, std::size_t count)
+	void Runtime::SetEffectValue(Uniform &variable, const int *values, std::size_t count)
 	{
-		assert(count == 0 || values != nullptr);
-
-		std::size_t dataSize = 0;
-		unsigned char *data = nullptr;
-
-		switch (constant->BaseType)
+		switch (variable.BaseType)
 		{
-			case Constant::Type::Bool:
-			case Constant::Type::Int:
-			case Constant::Type::Uint:
-				dataSize = count * sizeof(int);
-				data = reinterpret_cast<unsigned char *>(const_cast<int *>(values));
+			case Uniform::Type::Bool:
+			case Uniform::Type::Int:
+			case Uniform::Type::Uint:
+			{
+				SetEffectValue(variable, reinterpret_cast<const unsigned char *>(values), count * sizeof(int));
 				break;
-			case Constant::Type::Float:
-				data = static_cast<unsigned char *>(::alloca(dataSize = count * sizeof(float)));
+			}
+			case Uniform::Type::Float:
+			{
+				float *const data = static_cast<float *>(alloca(count * sizeof(float)));
+
 				for (std::size_t i = 0; i < count; ++i)
 				{
-					reinterpret_cast<float *>(data)[i] = static_cast<float>(values[i]);
+					data[i] = static_cast<float>(values[i]);
 				}
+
+				SetEffectValue(variable, reinterpret_cast<const unsigned char *>(data), count * sizeof(float));
 				break;
+			}
 		}
-
-		SetEffectValue(constant, data, dataSize);
 	}
-	void Runtime::SetEffectValue(Constant *constant, const unsigned int *values, std::size_t count)
+	void Runtime::SetEffectValue(Uniform &variable, const unsigned int *values, std::size_t count)
 	{
-		assert(count == 0 || values != nullptr);
-
-		std::size_t dataSize = 0;
-		unsigned char *data = nullptr;
-
-		switch (constant->BaseType)
+		switch (variable.BaseType)
 		{
-			case Constant::Type::Bool:
-			case Constant::Type::Int:
-			case Constant::Type::Uint:
-				dataSize = count * sizeof(int);
-				data = reinterpret_cast<unsigned char *>(const_cast<unsigned int *>(values));
+			case Uniform::Type::Bool:
+			case Uniform::Type::Int:
+			case Uniform::Type::Uint:
+			{
+				SetEffectValue(variable, reinterpret_cast<const unsigned char *>(values), count * sizeof(int));
 				break;
-			case Constant::Type::Float:
-				data = static_cast<unsigned char *>(::alloca(dataSize = count * sizeof(float)));
+			}
+			case Uniform::Type::Float:
+			{
+				float *const data = static_cast<float *>(alloca(count * sizeof(float)));
+
 				for (std::size_t i = 0; i < count; ++i)
 				{
-					reinterpret_cast<float *>(data)[i] = static_cast<float>(values[i]);
+					data[i] = static_cast<float>(values[i]);
 				}
+
+				SetEffectValue(variable, reinterpret_cast<const unsigned char *>(data), count * sizeof(float));
 				break;
+			}
 		}
-
-		SetEffectValue(constant, data, dataSize);
 	}
-	void Runtime::SetEffectValue(Constant *constant, const float *values, std::size_t count)
+	void Runtime::SetEffectValue(Uniform &variable, const float *values, std::size_t count)
 	{
-		assert(count == 0 || values != nullptr);
-
-		std::size_t dataSize = 0;
-		unsigned char *data = nullptr;
-
-		switch (constant->BaseType)
+		switch (variable.BaseType)
 		{
-			case Constant::Type::Bool:
-			case Constant::Type::Int:
-			case Constant::Type::Uint:
-				data = static_cast<unsigned char *>(::alloca(dataSize = count * sizeof(int)));
+			case Uniform::Type::Bool:
+			case Uniform::Type::Int:
+			case Uniform::Type::Uint:
+			{
+				int *const data = static_cast<int *>(alloca(count * sizeof(int)));
+
 				for (std::size_t i = 0; i < count; ++i)
 				{
-					reinterpret_cast<int *>(data)[i] = static_cast<int>(values[i]);
+					data[i] = static_cast<int>(values[i]);
 				}
-				break;
-			case Constant::Type::Float:
-				dataSize = count * sizeof(float);
-				data = reinterpret_cast<unsigned char *>(const_cast<float *>(values));
-				break;
-		}
 
-		SetEffectValue(constant, data, dataSize);
+				SetEffectValue(variable, reinterpret_cast<const unsigned char *>(data), count * sizeof(int));
+				break;
+			}
+			case Uniform::Type::Float:
+			{
+				SetEffectValue(variable, reinterpret_cast<const unsigned char *>(values), count * sizeof(float));
+				break;
+			}
+		}
 	}
 
 	bool Runtime::LoadEffect()

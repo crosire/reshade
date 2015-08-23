@@ -100,9 +100,6 @@ namespace ReShade
 				DWORD mStates[12];
 				D3D9Texture *mTexture;
 			};
-			struct D3D9Constant : public Constant
-			{
-			};
 			struct D3D9Technique : public Technique
 			{
 				struct Pass
@@ -1729,7 +1726,7 @@ namespace ReShade
 
 					this->mGlobalCode += " : register(c" + std::to_string(this->mCurrentRegisterOffset / 4) + ");\n";
 
-					D3D9Constant *const obj = new D3D9Constant();
+					Uniform *const obj = new Uniform();
 					obj->Name = node->Name;
 					obj->Rows = node->Type.Rows;
 					obj->Columns = node->Type.Cols;
@@ -1739,19 +1736,19 @@ namespace ReShade
 					switch (node->Type.BaseClass)
 					{
 						case FX::Nodes::Type::Class::Bool:
-							obj->BaseType = Constant::Type::Bool;
+							obj->BaseType = Uniform::Type::Bool;
 							obj->StorageSize *= sizeof(int);
 							break;
 						case FX::Nodes::Type::Class::Int:
-							obj->BaseType = Constant::Type::Int;
+							obj->BaseType = Uniform::Type::Int;
 							obj->StorageSize *= sizeof(int);
 							break;
 						case FX::Nodes::Type::Class::Uint:
-							obj->BaseType = Constant::Type::Uint;
+							obj->BaseType = Uniform::Type::Uint;
 							obj->StorageSize *= sizeof(unsigned int);
 							break;
 						case FX::Nodes::Type::Class::Float:
-							obj->BaseType = Constant::Type::Float;
+							obj->BaseType = Uniform::Type::Float;
 							obj->StorageSize *= sizeof(float);
 							break;
 					}
@@ -2627,9 +2624,9 @@ namespace ReShade
 				this->mDevice->SetDepthStencilSurface((viewport.Width == this->mPresentParams.BackBufferWidth && viewport.Height == this->mPresentParams.BackBufferHeight) ? this->mDefaultDepthStencil : nullptr);
 
 				// Setup shader constants
-				this->mDevice->SetVertexShaderConstantF(0, reinterpret_cast<const float *>(this->mConstantStorage), this->mConstantRegisterCount);
+				this->mDevice->SetVertexShaderConstantF(0, reinterpret_cast<const float *>(this->mUniformDataStorage.data()), this->mConstantRegisterCount);
 				this->mDevice->SetVertexShaderConstantF(255, texelsize, 1);
-				this->mDevice->SetPixelShaderConstantF(0, reinterpret_cast<const float *>(this->mConstantStorage), this->mConstantRegisterCount);
+				this->mDevice->SetPixelShaderConstantF(0, reinterpret_cast<const float *>(this->mUniformDataStorage.data()), this->mConstantRegisterCount);
 
 				// Draw triangle
 				this->mDevice->DrawPrimitive(D3DPT_TRIANGLELIST, 0, 1);

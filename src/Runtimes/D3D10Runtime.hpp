@@ -47,23 +47,23 @@ namespace ReShade
 			}
 			inline void EnlargeConstantStorage()
 			{
-				this->mConstantStorage = static_cast<unsigned char *>(::realloc(this->mConstantStorage, this->mConstantStorageSize += 128));
+				this->mUniformDataStorage.resize(this->mUniformDataStorage.size() + 128);
 			}
-			inline unsigned char *GetConstantStorage() const
+			inline unsigned char *GetConstantStorage()
 			{
-				return this->mConstantStorage;
+				return this->mUniformDataStorage.data();
 			}
 			inline size_t GetConstantStorageSize() const
 			{
-				return this->mConstantStorageSize;
+				return this->mUniformDataStorage.size();
 			}
 			inline void AddTexture(Texture *texture)
 			{
 				this->mTextures.push_back(std::unique_ptr<Texture>(texture));
 			}
-			inline void AddConstant(Constant *constant)
+			inline void AddConstant(Uniform *constant)
 			{
-				this->mConstants.push_back(std::unique_ptr<Constant>(constant));
+				this->mUniforms.push_back(std::unique_ptr<Uniform>(constant));
 			}
 			inline void AddTechnique(Technique *technique)
 			{

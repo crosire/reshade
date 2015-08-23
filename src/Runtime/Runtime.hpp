@@ -151,7 +151,7 @@ namespace ReShade
 		std::size_t StorageSize;
 		std::unordered_map<std::string, Annotation> Annotations;
 	};
-	struct Constant abstract
+	struct Uniform
 	{
 		enum class Type
 		{
@@ -161,8 +161,8 @@ namespace ReShade
 			Float
 		};
 
-		Constant() : BaseType(Type::Float), Rows(0), Columns(0), Elements(0), StorageOffset(0), StorageSize(0) { }
-		virtual ~Constant() { }
+		Uniform() : BaseType(Type::Float), Rows(0), Columns(0), Elements(0), StorageOffset(0), StorageSize(0) { }
+		virtual ~Uniform() { }
 
 		std::string Name;
 		Type BaseType;
@@ -265,27 +265,27 @@ namespace ReShade
 		/// <param name="size">The size of the image in <paramref name="data"/>.</param>
 		virtual bool UpdateTexture(Texture *texture, const unsigned char *data, std::size_t size) = 0;
 		/// <summary>
-		/// Get the value of the specified <paramref name="constant"/>.
+		/// Get the value of the specified <paramref name="variable"/>.
 		/// </summary>
-		/// <param name="constant">The constant to retrieve the value from.</param>
-		/// <param name="data">The buffer to store the constant value in.</param>
+		/// <param name="variable">The variable to retrieve the value from.</param>
+		/// <param name="data">The buffer to store the value in.</param>
 		/// <param name="size">The size of the buffer in <paramref name="data"/>.</param>
-		void GetEffectValue(const Constant *constant, unsigned char *data, std::size_t size) const;
-		void GetEffectValue(const Constant *constant, bool *values, std::size_t count) const;
-		void GetEffectValue(const Constant *constant, int *values, std::size_t count) const;
-		void GetEffectValue(const Constant *constant, unsigned int *values, std::size_t count) const;
-		void GetEffectValue(const Constant *constant, float *values, std::size_t count) const;
+		void GetEffectValue(const Uniform &variable, unsigned char *data, std::size_t size) const;
+		void GetEffectValue(const Uniform &variable, bool *values, std::size_t count) const;
+		void GetEffectValue(const Uniform &variable, int *values, std::size_t count) const;
+		void GetEffectValue(const Uniform &variable, unsigned int *values, std::size_t count) const;
+		void GetEffectValue(const Uniform &variable, float *values, std::size_t count) const;
 		/// <summary>
-		/// Update the value of the specified <paramref name="constant"/>.
+		/// Update the value of the specified <paramref name="variable"/>.
 		/// </summary>
-		/// <param name="constant">The constant to update.</param>
-		/// <param name="data">The value data to update the constant to.</param>
+		/// <param name="variable">The variable to update.</param>
+		/// <param name="data">The value data to update the variable to.</param>
 		/// <param name="size">The size of the value in <paramref name="data"/>.</param>
-		virtual void SetEffectValue(Constant *constant, const unsigned char *data, std::size_t size);
-		void SetEffectValue(Constant *constant, const bool *values, std::size_t count);
-		void SetEffectValue(Constant *constant, const int *values, std::size_t count);
-		void SetEffectValue(Constant *constant, const unsigned int *values, std::size_t count);
-		void SetEffectValue(Constant *constant, const float *values, std::size_t count);
+		virtual void SetEffectValue(Uniform &variable, const unsigned char *data, std::size_t size);
+		void SetEffectValue(Uniform &variable, const bool *values, std::size_t count);
+		void SetEffectValue(Uniform &variable, const int *values, std::size_t count);
+		void SetEffectValue(Uniform &variable, const unsigned int *values, std::size_t count);
+		void SetEffectValue(Uniform &variable, const float *values, std::size_t count);
 
 		bool mIsInitialized, mIsEffectCompiled;
 		unsigned int mWidth, mHeight;
@@ -294,11 +294,9 @@ namespace ReShade
 		NVGcontext *mNVG;
 		std::unique_ptr<WindowWatcher> mWindow;
 		std::vector<std::unique_ptr<Texture>> mTextures;
-		std::vector<std::unique_ptr<Constant>> mConstants;
+		std::vector<std::unique_ptr<Uniform>> mUniforms;
 		std::vector<std::unique_ptr<Technique>> mTechniques;
-		unsigned char *mConstantStorage;
-		std::size_t mConstantStorageSize;
-		bool mConstantsAreDirty;
+		std::vector<unsigned char> mUniformDataStorage;
 
 	private:
 		bool LoadEffect();

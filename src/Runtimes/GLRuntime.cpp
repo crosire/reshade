@@ -78,9 +78,6 @@ namespace ReShade
 			GLTexture *mTexture;
 			bool mSRGB;
 		};
-		struct GLConstant : public Constant
-		{
-		};
 		struct GLTechnique : public Technique
 		{
 			struct Pass
@@ -2186,7 +2183,7 @@ namespace ReShade
 
 					this->mGlobalUniforms += ";\n";
 
-					GLConstant *const obj = new GLConstant();
+					Uniform *const obj = new Uniform();
 					obj->Name = node->Name;
 					obj->Rows = node->Type.Rows;
 					obj->Columns = node->Type.Cols;
@@ -2196,19 +2193,19 @@ namespace ReShade
 					switch (node->Type.BaseClass)
 					{
 						case FX::Nodes::Type::Class::Bool:
-							obj->BaseType = Constant::Type::Bool;
+							obj->BaseType = Uniform::Type::Bool;
 							obj->StorageSize *= sizeof(int);
 							break;
 						case FX::Nodes::Type::Class::Int:
-							obj->BaseType = Constant::Type::Int;
+							obj->BaseType = Uniform::Type::Int;
 							obj->StorageSize *= sizeof(int);
 							break;
 						case FX::Nodes::Type::Class::Uint:
-							obj->BaseType = Constant::Type::Uint;
+							obj->BaseType = Uniform::Type::Uint;
 							obj->StorageSize *= sizeof(unsigned int);
 							break;
 						case FX::Nodes::Type::Class::Float:
-							obj->BaseType = Constant::Type::Float;
+							obj->BaseType = Uniform::Type::Float;
 							obj->StorageSize *= sizeof(float);
 							break;
 					}
@@ -3330,20 +3327,15 @@ namespace ReShade
 			GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, this->mDefaultBackBufferFBO));
 			GLCHECK(glClearBufferfi(GL_DEPTH_STENCIL, 0, 1.0f, 0));
 
+			// Update shader constants
+			if (!this->mUniformDataStorage.empty() && this->mEffectUBO != 0)
+			{
+				GLCHECK(glBindBuffer(GL_UNIFORM_BUFFER, this->mEffectUBO));
+				GLCHECK(glBufferSubData(GL_UNIFORM_BUFFER, 0, this->mUniformDataStorage.size(), this->mUniformDataStorage.data()));
+			}
+
 			for (const auto &pass : static_cast<const GLTechnique *>(technique)->Passes)
 			{
-				// Update shader constants
-				if (this->mConstantsAreDirty)
-				{
-					if (this->mConstantStorageSize != 0 && this->mEffectUBO != 0)
-					{
-						GLCHECK(glBindBuffer(GL_UNIFORM_BUFFER, this->mEffectUBO));
-						GLCHECK(glBufferSubData(GL_UNIFORM_BUFFER, 0, this->mConstantStorageSize, this->mConstantStorage));
-					}
-
-					this->mConstantsAreDirty = false;
-				}
-
 				// Setup states
 				GLCHECK(glUseProgram(pass.Program));
 				GLCHECK(glEnableb(GL_FRAMEBUFFER_SRGB, pass.FramebufferSRGB));
