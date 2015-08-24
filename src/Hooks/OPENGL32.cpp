@@ -2910,12 +2910,12 @@ EXPORT int WINAPI wglChoosePixelFormat(HDC hdc, CONST PIXELFORMATDESCRIPTOR *ppf
 	LOG(TRACE) << "> Dumping pixel format descriptor:";
 	LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
 	LOG(TRACE) << "  | Name                                    | Value                                   |";
-	LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+" << std::left;
+	LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
 	LOG(TRACE) << "  | Flags                                   | " << std::setw(39) << std::showbase << std::hex << ppfd->dwFlags << std::dec << std::noshowbase << " |";
 	LOG(TRACE) << "  | ColorBits                               | " << std::setw(39) << static_cast<unsigned int>(ppfd->cColorBits) << " |";
 	LOG(TRACE) << "  | DepthBits                               | " << std::setw(39) << static_cast<unsigned int>(ppfd->cDepthBits) << " |";
 	LOG(TRACE) << "  | StencilBits                             | " << std::setw(39) << static_cast<unsigned int>(ppfd->cStencilBits) << " |";
-	LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+" << std::internal;
+	LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
 
 	if (ppfd->iLayerType != PFD_MAIN_PLANE || ppfd->bReserved != 0)
 	{
@@ -3009,7 +3009,7 @@ BOOL WINAPI wglChoosePixelFormatARB(HDC hdc, const int *piAttribIList, const FLO
 	LOG(TRACE) << "> Dumping attributes:";
 	LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
 	LOG(TRACE) << "  | Attribute                               | Value                                   |";
-	LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+" << std::left;
+	LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
 
 	for (const int *attrib = piAttribIList; attrib != nullptr && *attrib != 0; attrib += 2)
 	{
@@ -3093,7 +3093,7 @@ BOOL WINAPI wglChoosePixelFormatARB(HDC hdc, const int *piAttribIList, const FLO
 		LOG(TRACE) << "  | " << std::showbase << std::hex << std::setw(39) << static_cast<int>(attrib[0]) << " | " << std::setw(39) << attrib[1] << std::dec << std::noshowbase << " |";
 	}
 
-	LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+" << std::internal;
+	LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
 
 	if (layerplanes)
 	{
@@ -3333,7 +3333,7 @@ HPBUFFERARB WINAPI wglCreatePbufferARB(HDC hdc, int iPixelFormat, int iWidth, in
 	LOG(TRACE) << "> Dumping attributes:";
 	LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
 	LOG(TRACE) << "  | Attribute                               | Value                                   |";
-	LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+" << std::left;
+	LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
 
 	for (const int *attrib = piAttribList; attrib != nullptr && *attrib != 0; attrib += 2)
 	{
@@ -3354,7 +3354,7 @@ HPBUFFERARB WINAPI wglCreatePbufferARB(HDC hdc, int iPixelFormat, int iWidth, in
 		}
 	}
 
-	LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+" << std::internal;
+	LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
 
 	const HPBUFFERARB hpbuffer = ReShade::Hooks::Call(&wglCreatePbufferARB)(hdc, iPixelFormat, iWidth, iHeight, piAttribList);
 

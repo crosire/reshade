@@ -137,7 +137,7 @@ namespace
 		LOG(TRACE) << "> Dumping swap chain description:";
 		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
 		LOG(TRACE) << "  | Parameter                               | Value                                   |";
-		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+" << std::left;
+		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
 		LOG(TRACE) << "  | Width                                   | " << std::setw(39) << desc.BufferDesc.Width << " |";
 		LOG(TRACE) << "  | Height                                  | " << std::setw(39) << desc.BufferDesc.Height << " |";
 		LOG(TRACE) << "  | RefreshRate                             | " << std::setw(19) << desc.BufferDesc.RefreshRate.Numerator << ' ' << std::setw(19) << desc.BufferDesc.RefreshRate.Denominator << " |";
@@ -152,7 +152,7 @@ namespace
 		LOG(TRACE) << "  | Windowed                                | " << std::setw(39) << (desc.Windowed != FALSE ? "TRUE" : "FALSE") << " |";
 		LOG(TRACE) << "  | SwapEffect                              | " << std::setw(39) << desc.SwapEffect << " |";
 		LOG(TRACE) << "  | Flags                                   | " << std::setw(39) << std::showbase << std::hex << desc.Flags << std::dec << std::noshowbase << " |";
-		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+" << std::internal;
+		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
 
 		if (desc.SampleDesc.Count > 1)
 		{
@@ -164,7 +164,7 @@ namespace
 		LOG(TRACE) << "> Dumping swap chain description:";
 		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
 		LOG(TRACE) << "  | Parameter                               | Value                                   |";
-		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+" << std::left;
+		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
 		LOG(TRACE) << "  | Width                                   | " << std::setw(39) << desc.Width << " |";
 		LOG(TRACE) << "  | Height                                  | " << std::setw(39) << desc.Height << " |";
 		LOG(TRACE) << "  | Format                                  | " << std::setw(39) << desc.Format << " |";
@@ -177,7 +177,7 @@ namespace
 		LOG(TRACE) << "  | SwapEffect                              | " << std::setw(39) << desc.SwapEffect << " |";
 		LOG(TRACE) << "  | AlphaMode                               | " << std::setw(39) << desc.AlphaMode << " |";
 		LOG(TRACE) << "  | Flags                                   | " << std::setw(39) << std::showbase << std::hex << desc.Flags << std::dec << std::noshowbase << " |";
-		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+" << std::internal;
+		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
 
 		if (desc.SampleDesc.Count > 1)
 		{

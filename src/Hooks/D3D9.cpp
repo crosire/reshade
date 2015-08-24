@@ -250,7 +250,7 @@ namespace
 		LOG(TRACE) << "> Dumping presentation parameters:";
 		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
 		LOG(TRACE) << "  | Parameter                               | Value                                   |";
-		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+" << std::left;
+		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
 		LOG(TRACE) << "  | BackBufferWidth                         | " << std::setw(39) << pp.BackBufferWidth << " |";
 		LOG(TRACE) << "  | BackBufferHeight                        | " << std::setw(39) << pp.BackBufferHeight << " |";
 		LOG(TRACE) << "  | BackBufferFormat                        | " << std::setw(39) << pp.BackBufferFormat << " |";
@@ -265,7 +265,7 @@ namespace
 		LOG(TRACE) << "  | Flags                                   | " << std::setw(39) << std::showbase << std::hex << pp.Flags << std::dec << std::noshowbase << " |";
 		LOG(TRACE) << "  | FullScreen_RefreshRateInHz              | " << std::setw(39) << pp.FullScreen_RefreshRateInHz << " |";
 		LOG(TRACE) << "  | PresentationInterval                    | " << std::setw(39) << std::showbase << std::hex << pp.PresentationInterval << std::dec << std::noshowbase << " |";
-		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+" << std::internal;
+		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
 
 		if (pp.MultiSampleType != D3DMULTISAMPLE_NONE)
 		{

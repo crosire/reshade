@@ -100,12 +100,12 @@ EXPORT BOOL WINAPI HookRegisterRawInputDevices(PCRAWINPUTDEVICE pRawInputDevices
 		LOG(TRACE) << "> Dumping device registration at index " << i << ":";
 		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
 		LOG(TRACE) << "  | Parameter                               | Value                                   |";
-		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+" << std::left;
+		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
 		LOG(TRACE) << "  | UsagePage                               | " << std::setw(39) << std::showbase << std::hex << device.usUsagePage << std::dec << std::noshowbase << " |";
 		LOG(TRACE) << "  | Usage                                   | " << std::setw(39) << std::showbase << std::hex << device.usUsage << std::dec << std::noshowbase << " |";
 		LOG(TRACE) << "  | Flags                                   | " << std::setw(39) << std::showbase << std::hex << device.dwFlags << std::dec << std::noshowbase << " |";
 		LOG(TRACE) << "  | TargetWindow                            | " << std::setw(39) << device.hwndTarget << " |";
-		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+" << std::internal;
+		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
 
 		if (device.usUsagePage != 1 || (device.dwFlags & RIDEV_NOLEGACY) == 0 || device.hwndTarget == nullptr)
 		{

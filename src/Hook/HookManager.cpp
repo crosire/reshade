@@ -186,11 +186,11 @@ namespace ReShade
 					// Filter uninteresting functions
 					if (it == replacementExports.cend() || (boost::equals(symbol.Name, "DXGIReportAdapterConfiguration") || boost::equals(symbol.Name, "DXGIDumpJournal")))
 					{
-						LOG(TRACE) << "  | 0x" << std::left << std::setw(16) << symbol.Address << " | " << std::setw(7) << symbol.Ordinal << " | " << std::setw(50) << symbol.Name << std::internal << " |";
+						LOG(TRACE) << "  | 0x" << std::setw(16) << symbol.Address << " | " << std::setw(7) << symbol.Ordinal << " | " << std::setw(50) << symbol.Name << " |";
 					}
 					else
 					{
-						LOG(TRACE) << "  | 0x" << std::left << std::setw(16) << symbol.Address << " | " << std::setw(7) << symbol.Ordinal << " | " << std::setw(50) << symbol.Name << std::internal << " | <";
+						LOG(TRACE) << "  | 0x" << std::setw(16) << symbol.Address << " | " << std::setw(7) << symbol.Ordinal << " | " << std::setw(50) << symbol.Name << " | <";
 
 						matches.push_back(std::make_pair(reinterpret_cast<Hook::Function>(symbol.Address), reinterpret_cast<Hook::Function>(it->Address)));
 					}

@@ -2934,14 +2934,14 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateVertexShader(CONST DWORD *pDecl
 
 	LOG(TRACE) << "  +----------+---------+---------+--------------+--------------+--------------+-------+";
 	LOG(TRACE) << "  | Register | Stream  | Offset  | Type         | Method       | Usage        | Index |";
-	LOG(TRACE) << "  +----------+---------+---------+--------------+--------------+--------------+-------+" << std::left;
+	LOG(TRACE) << "  +----------+---------+---------+--------------+--------------+--------------+-------+";
 
 	for (UINT k = 0; k < i; ++k)
 	{
 		LOG(TRACE) << "  | v" << std::setw(7) << inputs[k] << " | " << std::setw(7) << elements[k].Stream << " | " << std::setw(7) << elements[k].Offset << " | " << std::showbase << std::hex << std::setw(12) << static_cast<UINT>(elements[k].Type) << " | " << std::setw(12) << static_cast<UINT>(elements[k].Method) << " | " << std::setw(12) << static_cast<UINT>(elements[k].Usage) << std::dec << std::noshowbase << " | " << std::setw(5) << static_cast<UINT>(elements[k].UsageIndex) << " |";
 	}
 
-	LOG(TRACE) << "  +----------+---------+---------+--------------+--------------+--------------+-------+" << std::internal;
+	LOG(TRACE) << "  +----------+---------+---------+--------------+--------------+--------------+-------+";
 
 	const D3DVERTEXELEMENT9 terminator = D3DDECL_END();
 	elements[i] = terminator;

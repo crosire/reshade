@@ -25,7 +25,7 @@ namespace ReShade
 				<< std::setw(2) << time.wSecond << ':'
 				<< std::setw(3) << time.wMilliseconds << ' '
 				<< '[' << std::setw(5) << GetCurrentThreadId() << ']' << std::setfill(' ')
-				<< " | " << levelNames[static_cast<unsigned int>(level)] << " | " << std::internal;
+				<< " | " << levelNames[static_cast<unsigned int>(level)] << " | " << std::left;
 		}
 	}
 	Log::Message::~Message()
