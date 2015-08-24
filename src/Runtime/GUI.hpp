@@ -2,19 +2,21 @@
 
 #include <string>
 
+#pragma region Forward Declarations
 struct NVGcontext;
+
+namespace ReShade
+{
+	class Runtime;
+}
+#pragma endregion
 
 namespace ReShade
 {
 	class GUI
 	{
 	public:
-		enum class Font
-		{
-			Default
-		};
-
-		GUI(NVGcontext *context, unsigned int width, unsigned int height);
+		GUI(const Runtime *runtime, NVGcontext *context);
 		~GUI();
 
 		inline NVGcontext *GetContext() const
@@ -23,17 +25,24 @@ namespace ReShade
 		}
 
 		bool BeginFrame();
-		void FlushFrame();
+		void EndFrame();
+		void BeginWindow(const std::string &title, float x, float y, float width, float height);
+		void EndWindow();
 
-		void SetFont(Font font);
-		void SetAlignment(int x, int y);
+		void DrawDebugText(float x, float y, int alignx, float linewidth, int fontsize, unsigned int color, const std::string &text);
 
-		void DrawSimpleText(float x, float y, int fontsize, unsigned int color, const std::string &text);
-		void DrawSimpleTextMultiLine(float x, float y, float linewidth, int fontsize, unsigned int color, const std::string &text);
+		void AddLabel(const std::string &label);
+		void AddLabel(float lineheight, unsigned int color, const std::string &label);
+		bool AddButton(const std::string &label);
+		bool AddButton(float height, unsigned int color, const std::string &label);
+		void AddCheckBox(const std::string &label, bool &value);
+		void AddSliderInt(int &value, int min, int max);
+		void AddSliderFloat(float &value, float min, float max);
+		void AddVerticalSpace(float height);
 
 	private:
+		const Runtime *mRuntime;
 		NVGcontext *mNVG;
-		unsigned int mWidth, mHeight;
-		char mCurrentAlignmentY;
+		float mWindowX, mWindowY, mWindowWidth, mWindowHeight;
 	};
 }

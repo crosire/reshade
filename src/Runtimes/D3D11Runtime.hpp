@@ -36,14 +36,6 @@ namespace ReShade
 			void DetectDepthSource();
 			bool CreateDepthStencilReplacement(ID3D11DepthStencilView *depthstencil);
 
-			inline unsigned int GetWidth() const
-			{
-				return this->mWidth;
-			}
-			inline unsigned int GetHeight() const
-			{
-				return this->mHeight;
-			}
 			inline Texture *GetTexture(const std::string &name) const
 			{
 				const auto it = std::find_if(this->mTextures.cbegin(), this->mTextures.cend(), [name](const std::unique_ptr<Texture> &it) { return it->Name == name; });

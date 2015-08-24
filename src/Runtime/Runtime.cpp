@@ -152,6 +152,7 @@ namespace ReShade
 		const std::time_t time = std::time(nullptr);
 		const auto timePresent = boost::chrono::high_resolution_clock::now();
 		const boost::chrono::nanoseconds frametime = boost::chrono::duration_cast<boost::chrono::nanoseconds>(timePresent - this->mLastPresent);
+		const boost::chrono::seconds timeSinceCreate = boost::chrono::duration_cast<boost::chrono::seconds>(timePresent - this->mLastCreate);
 
 		tm tm;
 		localtime_s(&tm, &time);
@@ -233,31 +234,28 @@ namespace ReShade
 		#pragma region Draw overlay
 		if (this->mGUI->BeginFrame())
 		{
-			const boost::chrono::seconds timeSinceCreate = boost::chrono::duration_cast<boost::chrono::seconds>(timePresent - this->mLastCreate);
-
 			if (!this->mStatus.empty())
 			{
-				this->mGUI->DrawSimpleText(0,  0, 20, 0xBCBCBC, "ReShade " BOOST_STRINGIZE(VERSION_FULL) " by Crosire");
-				this->mGUI->DrawSimpleText(0, 22, 16, 0xBCBCBC, "Visit http://reshade.me for news, updates, shaders and discussion.");
-				this->mGUI->DrawSimpleText(0, 42, 16, 0xBCBCBC, this->mStatus);
+				this->mGUI->AddLabel(24, 0xFFBCBCBC, "ReShade " BOOST_STRINGIZE(VERSION_FULL) " by Crosire");
+				this->mGUI->AddLabel(16, 0xFFBCBCBC, "Visit http://reshade.me for news, updates, shaders and discussion.");
+				this->mGUI->AddLabel(16, 0xFFBCBCBC, this->mStatus);
 
 				if (!this->mErrors.empty() && this->mCompileStep == 0)
 				{
 					if (!this->mIsEffectCompiled)
 					{
-						this->mGUI->DrawSimpleTextMultiLine(0, 60, static_cast<float>(this->mWidth), 16, 0xFF0000, this->mErrors);
+						this->mGUI->AddLabel(16, 0xFFFF0000, this->mErrors);
 					}
 					else
 					{
-						this->mGUI->DrawSimpleTextMultiLine(0, 60, static_cast<float>(this->mWidth), 16, 0xFFFF00, this->mErrors);
+						this->mGUI->AddLabel(16, 0xFFFFFF00, this->mErrors);
 					}
 				}
 			}
 
-			if (!this->mMessage.empty())
+			if (!this->mMessage.empty() && this->mIsEffectCompiled)
 			{
-				this->mGUI->SetAlignment(0, 0);
-				this->mGUI->DrawSimpleTextMultiLine(0, 0, static_cast<float>(this->mWidth), 16, 0xBCBCBC, this->mMessage);
+				this->mGUI->AddLabel(16, 0xFFBCBCBC, this->mMessage);
 			}
 
 			std::stringstream stats;
@@ -300,16 +298,15 @@ namespace ReShade
 				}
 			}
 
-			this->mGUI->SetAlignment(1, -1);
-			this->mGUI->DrawSimpleTextMultiLine(0, 0, static_cast<float>(this->mWidth), 16, 0xBCBCBC, stats.str());
+			this->mGUI->DrawDebugText(0, 0, 1, static_cast<float>(this->mWidth), 16, 0xFFBCBCBC, stats.str());
 
-			if (timeSinceCreate.count() > (this->mErrors.empty() ? 4 : 8) && this->mIsEffectCompiled)
-			{
-				this->mStatus.clear();
-				this->mMessage.clear();
-			}
+			this->mGUI->EndFrame();
+		}
 
-			this->mGUI->FlushFrame();
+		if (this->mIsEffectCompiled && timeSinceCreate.count() > (this->mErrors.empty() ? 4 : 8))
+		{
+			this->mStatus.clear();
+			this->mMessage.clear();
 		}
 		#pragma endregion
 

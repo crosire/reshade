@@ -2021,8 +2021,8 @@ namespace ReShade
 
 					if (pass.Viewport.Width == 0 && pass.Viewport.Height == 0)
 					{
-						pass.Viewport.Width = static_cast<FLOAT>(this->mRuntime->GetWidth());
-						pass.Viewport.Height = static_cast<FLOAT>(this->mRuntime->GetHeight());
+						pass.Viewport.Width = static_cast<FLOAT>(this->mRuntime->GetBufferWidth());
+						pass.Viewport.Height = static_cast<FLOAT>(this->mRuntime->GetBufferHeight());
 					}
 
 					D3D11_DEPTH_STENCIL_DESC ddesc;
@@ -2721,7 +2721,7 @@ namespace ReShade
 			assert(SUCCEEDED(hr));
 			#pragma endregion
 
-			this->mGUI.reset(new GUI(nvgCreateD3D11(this->mDevice, 0), this->mWidth, this->mHeight));
+			this->mGUI.reset(new GUI(this, nvgCreateD3D11(this->mDevice, 0)));
 
 			// Clear reference count to make UnrealEngine happy
 			this->mBackBuffer->Release();

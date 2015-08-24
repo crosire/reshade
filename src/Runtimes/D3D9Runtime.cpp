@@ -1825,7 +1825,7 @@ namespace ReShade
 
 							if (texture->Semantic == "COLOR" || texture->Semantic == "SV_TARGET" || texture->Semantic == "DEPTH" || texture->Semantic == "SV_DEPTH")
 							{
-								samplers += ", float2(" + std::to_string(1.0f / this->mRuntime->GetWidth()) + ", " + std::to_string(1.0f / this->mRuntime->GetHeight()) + ")";
+								samplers += ", float2(" + std::to_string(1.0f / this->mRuntime->GetBufferWidth()) + ", " + std::to_string(1.0f / this->mRuntime->GetBufferHeight()) + ")";
 							}
 							else
 							{
@@ -2400,7 +2400,7 @@ namespace ReShade
 			}
 			#pragma endregion
 
-			this->mGUI.reset(new GUI(nvgCreateD3D9(this->mDevice, 0), this->mWidth, this->mHeight));
+			this->mGUI.reset(new GUI(this, nvgCreateD3D9(this->mDevice, 0)));
 
 			return Runtime::OnInit();
 		}

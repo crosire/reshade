@@ -112,7 +112,7 @@ EXPORT BOOL WINAPI HookRegisterRawInputDevices(PCRAWINPUTDEVICE pRawInputDevices
 			continue;
 		}
 
-		WindowWatcher::RegisterRawInputDevice(device);
+		ReShade::WindowWatcher::RegisterRawInputDevice(device);
 	}
 
 	const BOOL res = ReShade::Hooks::Call(&HookRegisterRawInputDevices)(pRawInputDevices, uiNumDevices, cbSize);

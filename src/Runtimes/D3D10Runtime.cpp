@@ -2016,8 +2016,8 @@ namespace ReShade
 
 					if (pass.Viewport.Width == 0 && pass.Viewport.Height == 0)
 					{
-						pass.Viewport.Width = this->mRuntime->GetWidth();
-						pass.Viewport.Height = this->mRuntime->GetHeight();
+						pass.Viewport.Width = this->mRuntime->GetBufferWidth();
+						pass.Viewport.Height = this->mRuntime->GetBufferHeight();
 					}
 
 					D3D10_DEPTH_STENCIL_DESC ddesc;
@@ -2633,7 +2633,7 @@ namespace ReShade
 			assert(SUCCEEDED(hr));
 			#pragma endregion
 
-			this->mGUI.reset(new GUI(nvgCreateD3D10(this->mDevice, 0), this->mWidth, this->mHeight));
+			this->mGUI.reset(new GUI(this, nvgCreateD3D10(this->mDevice, 0)));
 
 			return Runtime::OnInit();
 		}

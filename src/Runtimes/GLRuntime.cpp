@@ -3172,7 +3172,7 @@ namespace ReShade
 
 			this->mStateBlock->Apply();
 
-			this->mGUI.reset(new GUI(nvgCreateGL3(0), this->mWidth, this->mHeight));
+			this->mGUI.reset(new GUI(this, nvgCreateGL3(0)));
 
 			return Runtime::OnInit();
 		}

@@ -8,17 +8,21 @@
 #include <boost\chrono.hpp>
 #include <boost\filesystem\path.hpp>
 
-class WindowWatcher;
-
+#pragma region Forward Declarations
 namespace ReShade
 {
 	class GUI;
+	class WindowWatcher;
 
 	namespace FX
 	{
 		class Tree;
 	}
+}
+#pragma endregion
 
+namespace ReShade
+{
 	extern volatile long NetworkUpload;
 
 	// -----------------------------------------------------------------------------------------------------
@@ -213,6 +217,19 @@ namespace ReShade
 
 		Runtime();
 		virtual ~Runtime();
+
+		inline unsigned int GetBufferWidth() const
+		{
+			return this->mWidth;
+		}
+		inline unsigned int GetBufferHeight() const
+		{
+			return this->mHeight;
+		}
+		inline const WindowWatcher *GetWindow() const
+		{
+			return this->mWindow.get();
+		}
 
 	protected:
 		/// <summary>
