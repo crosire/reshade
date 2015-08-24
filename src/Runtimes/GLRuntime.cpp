@@ -3223,6 +3223,8 @@ namespace ReShade
 		}
 		void GLRuntime::OnResetEffect()
 		{
+			Runtime::OnResetEffect();
+
 			for (GLSampler &sampler : this->mEffectSamplers)
 			{
 				GLCHECK(glDeleteSamplers(1, &sampler.mID));
