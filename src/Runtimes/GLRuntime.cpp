@@ -1181,7 +1181,7 @@ namespace ReShade
 				}
 				void Visit(std::string &output, const FX::Nodes::Intrinsic *node)
 				{
-					FX::Nodes::Type type1, type2, type3, type4, type12;
+					FX::Nodes::Type type1 = { FX::Nodes::Type::Class::Void }, type2, type3, type4, type12;
 					std::pair<std::string, std::string> cast1, cast2, cast3, cast4, cast121, cast122;
 
 					if (node->Arguments[0] != nullptr)
@@ -3507,7 +3507,7 @@ namespace ReShade
 				}
 			}
 		}
-		bool GLRuntime::UpdateEffect(const FX::NodeTree &ast, const std::vector<std::string> &pragmas, std::string &errors)
+		bool GLRuntime::UpdateEffect(const FX::NodeTree &ast, const std::vector<std::string> &/*pragmas*/, std::string &errors)
 		{
 			GLEffectCompiler visitor(ast);
 

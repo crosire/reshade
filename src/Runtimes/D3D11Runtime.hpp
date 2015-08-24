@@ -29,13 +29,6 @@ namespace ReShade
 			void OnClearDepthStencilView(ID3D11DepthStencilView *&depthstencil);
 			void OnCopyResource(ID3D11Resource *&dest, ID3D11Resource *&source);
 
-			void Screenshot(unsigned char *buffer) const override;
-			bool UpdateEffect(const FX::NodeTree &ast, const std::vector<std::string> &pragmas, std::string &errors) override;
-			bool UpdateTexture(Texture *texture, const unsigned char *data, std::size_t size) override;
-
-			void DetectDepthSource();
-			bool CreateDepthStencilReplacement(ID3D11DepthStencilView *depthstencil);
-
 			inline Texture *GetTexture(const std::string &name) const
 			{
 				const auto it = std::find_if(this->mTextures.cbegin(), this->mTextures.cend(), [name](const std::unique_ptr<Texture> &it) { return it->Name == name; });
@@ -89,6 +82,13 @@ namespace ReShade
 				UINT Width, Height;
 				FLOAT DrawCallCount, DrawVerticesCount;
 			};
+
+			void Screenshot(unsigned char *buffer) const override;
+			bool UpdateEffect(const FX::NodeTree &ast, const std::vector<std::string> &pragmas, std::string &errors) override;
+			bool UpdateTexture(Texture *texture, const unsigned char *data, std::size_t size) override;
+
+			void DetectDepthSource();
+			bool CreateDepthStencilReplacement(ID3D11DepthStencilView *depthstencil);
 
 			bool mMultisamplingEnabled;
 			DXGI_FORMAT mBackBufferFormat;
