@@ -275,11 +275,18 @@ namespace ReShade
 			}
 		}
 
-		Lexer::Lexer(const Lexer &lexer) : mSource(lexer.mSource), mPos(&this->mSource.front() + (lexer.mPos - &lexer.mSource.front())), mEnd(&this->mSource.back() + 1), mCurrentAtLineBegin(lexer.mCurrentAtLineBegin)
+		Lexer::Lexer(const std::string &source) : mSource(source), mPos(this->mSource.data()), mEnd(this->mSource.data() + this->mSource.size()), mCurrentAtLineBegin(true)
 		{
 		}
-		Lexer::Lexer(const std::string &source) : mSource(source), mPos(&this->mSource.front()), mEnd(&this->mSource.back() + 1), mCurrentAtLineBegin(true)
+
+		Lexer &Lexer::operator=(const Lexer &lexer)
 		{
+			this->mSource = lexer.mSource;
+			this->mPos = this->mSource.data() + (lexer.mPos - lexer.mSource.data());
+			this->mEnd = this->mSource.data() + this->mSource.size();
+			this->mCurrentAtLineBegin = lexer.mCurrentAtLineBegin;
+
+			return *this;
 		}
 
 		Lexer::Token Lexer::Lex()

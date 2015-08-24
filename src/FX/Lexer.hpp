@@ -226,8 +226,13 @@ namespace ReShade
 				NumericLiteral mLiteralNumeric;
 			};
 
-			Lexer(const Lexer &lexer);
 			Lexer(const std::string &source);
+			inline Lexer(const Lexer &lexer)
+			{
+				this->operator=(lexer);
+			}
+
+			Lexer &operator=(const Lexer &lexer);
 
 			Token Lex();
 

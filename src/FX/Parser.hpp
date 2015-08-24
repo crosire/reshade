@@ -14,9 +14,9 @@ namespace ReShade
 		class Parser : boost::noncopyable
 		{
 		public:
-			Parser(Lexer &lexer, Tree &ast);
+			Parser(Tree &ast);
 
-			bool Parse(std::string &errors);
+			bool Parse(const std::string &source, std::string &errors);
 
 		protected:
 			void Backup();
@@ -102,7 +102,7 @@ namespace ReShade
 
 			Tree &mAST;
 			std::string mErrors;
-			Lexer mLexer, mBackupLexer, &mOrigLexer;
+			Lexer mLexer, mBackupLexer;
 			Lexer::Token mToken, mNextToken, mBackupToken;
 			Scope mCurrentScope;
 			std::string mCurrentNamespace;

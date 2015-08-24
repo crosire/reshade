@@ -528,9 +528,8 @@ namespace ReShade
 			}
 		}
 
-		Parser::Parser(Lexer &lexer, Tree &ast) : mAST(ast), mLexer(lexer), mBackupLexer(lexer), mOrigLexer(lexer), mCurrentScope(), mCurrentNamespace("::")
+		Parser::Parser(Tree &ast) : mAST(ast), mLexer(""), mBackupLexer(""), mCurrentScope(), mCurrentNamespace("::")
 		{
-			Consume();
 		}
 
 		void Parser::Backup()
@@ -2704,9 +2703,14 @@ namespace ReShade
 		}
 
 		// Declarations
-		bool Parser::Parse(std::string &errors)
+		bool Parser::Parse(const std::string &source, std::string &errors)
 		{
 			bool success = true;
+
+			this->mErrors.clear();
+			this->mBackupLexer = this->mLexer = Lexer(source);
+
+			Consume();
 
 			while (!Peek(Lexer::Token::Id::EndOfStream))
 			{
@@ -2717,7 +2721,6 @@ namespace ReShade
 				}
 			}
 
-			this->mOrigLexer = this->mLexer;
 			errors += this->mErrors;
 
 			return success;

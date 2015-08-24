@@ -904,13 +904,11 @@ namespace ReShade
 	{
 		OnResetEffect();
 
-		FX::Tree ast;
-		FX::Lexer lexer(this->mEffectSource);
-		FX::Parser parser(lexer, ast);
-
 		LOG(TRACE) << "> Running parser ...";
 
-		const bool success = parser.Parse(this->mErrors);
+		FX::Tree ast;
+
+		const bool success = FX::Parser(ast).Parse(this->mEffectSource, this->mErrors);
 
 		if (!success)
 		{
