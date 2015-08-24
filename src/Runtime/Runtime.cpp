@@ -38,7 +38,6 @@ namespace ReShade
 		}
 
 		FileWatcher *sEffectWatcher = nullptr;
-		unsigned int sCompileCounter = 0;
 		boost::filesystem::path sExecutablePath, sInjectorPath, sEffectPath;
 	}
 
@@ -842,10 +841,7 @@ namespace ReShade
 		{
 			if (boost::starts_with(pragma, "message "))
 			{
-				if (sCompileCounter == 0)
-				{
-					this->mMessage += pragma.substr(9, pragma.length() - 10);
-				}
+				this->mMessage += pragma.substr(9, pragma.length() - 10);
 			}
 			else if (!boost::istarts_with(pragma, "reshade "))
 			{
@@ -951,8 +947,6 @@ namespace ReShade
 
 			this->mStatus += " Succeeded!";
 		}
-
-		sCompileCounter++;
 
 		return true;
 	}
