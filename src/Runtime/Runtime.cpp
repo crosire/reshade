@@ -37,7 +37,7 @@ namespace ReShade
 			return path;
 		}
 
-		FileWatcher *sEffectWatcher = nullptr;
+		std::unique_ptr<FileWatcher> sEffectWatcher;
 		boost::filesystem::path sExecutablePath, sInjectorPath, sEffectPath;
 	}
 
@@ -54,13 +54,13 @@ namespace ReShade
 		logPath.replace_extension("log");
 		logTracePath.replace_extension("tracelog");
 
-		if (GetFileAttributes(logTracePath.c_str()) == INVALID_FILE_ATTRIBUTES)
+		if (boost::filesystem::exists(logTracePath))
 		{
-			Log::Open(logPath, Log::Level::Info);
+			Log::Open(logTracePath, Log::Level::Trace);
 		}
 		else
 		{
-			Log::Open(logTracePath, Log::Level::Trace);
+			Log::Open(logPath, Log::Level::Info);
 		}
 
 		LOG(INFO) << "Initializing Crosire's ReShade version '" BOOST_STRINGIZE(VERSION_FULL) "' built on '" VERSION_DATE " " VERSION_TIME "' loaded from " << ObfuscatePath(injectorPath) << " to " << ObfuscatePath(executablePath) << " ...";
@@ -77,7 +77,7 @@ namespace ReShade
 		Hooks::RegisterModule(systemPath / "user32.dll");
 		Hooks::RegisterModule(systemPath / "ws2_32.dll");
 
-		sEffectWatcher = new FileWatcher(sInjectorPath.parent_path(), true);
+		sEffectWatcher.reset(new FileWatcher(sInjectorPath.parent_path(), true));
 
 		LOG(INFO) << "Initialized.";
 	}
@@ -87,7 +87,7 @@ namespace ReShade
 
 		WindowWatcher::UnRegisterRawInputDevices();
 
-		delete sEffectWatcher;
+		sEffectWatcher.reset();
 
 		Hooks::Uninstall();
 
@@ -777,8 +777,7 @@ namespace ReShade
 			// Uh oh, shouldn't do this. Get's rid of the //?/ prefix.
 			sEffectPath = path2 + 4;
 
-			delete sEffectWatcher;
-			sEffectWatcher = new FileWatcher(sEffectPath.parent_path());
+			sEffectWatcher.reset(new FileWatcher(sEffectPath.parent_path()));
 		}
 
 		tm tm;
