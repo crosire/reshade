@@ -78,9 +78,9 @@ namespace ReShade
 		};
 		struct GLSampler
 		{
-			GLuint mID;
-			GLTexture *mTexture;
-			bool mSRGB;
+			GLuint ID;
+			GLTexture *Texture;
+			bool SRGB;
 		};
 		struct GLTechnique : public Technique
 		{
@@ -2139,8 +2139,9 @@ namespace ReShade
 					}
 
 					GLSampler sampler;
-					sampler.mTexture = texture;
-					sampler.mSRGB = node->Properties.SRGBTexture;
+					sampler.ID = 0;
+					sampler.Texture = texture;
+					sampler.SRGB = node->Properties.SRGBTexture;
 
 					GLenum minfilter = LiteralToTextureFilter(node->Properties.MinFilter);
 					const GLenum mipfilter = LiteralToTextureFilter(node->Properties.MipFilter);
@@ -2162,16 +2163,16 @@ namespace ReShade
 						minfilter = GL_LINEAR_MIPMAP_LINEAR;
 					}
 
-					GLCHECK(glGenSamplers(1, &sampler.mID));
-					GLCHECK(glSamplerParameteri(sampler.mID, GL_TEXTURE_WRAP_S, LiteralToTextureWrap(node->Properties.AddressU)));
-					GLCHECK(glSamplerParameteri(sampler.mID, GL_TEXTURE_WRAP_T, LiteralToTextureWrap(node->Properties.AddressV)));
-					GLCHECK(glSamplerParameteri(sampler.mID, GL_TEXTURE_WRAP_R, LiteralToTextureWrap(node->Properties.AddressW)));
-					GLCHECK(glSamplerParameteri(sampler.mID, GL_TEXTURE_MIN_FILTER, minfilter));
-					GLCHECK(glSamplerParameteri(sampler.mID, GL_TEXTURE_MAG_FILTER, LiteralToTextureFilter(node->Properties.MagFilter)));
-					GLCHECK(glSamplerParameterf(sampler.mID, GL_TEXTURE_LOD_BIAS, node->Properties.MipLODBias));
-					GLCHECK(glSamplerParameterf(sampler.mID, GL_TEXTURE_MIN_LOD, node->Properties.MinLOD));
-					GLCHECK(glSamplerParameterf(sampler.mID, GL_TEXTURE_MAX_LOD, node->Properties.MaxLOD));
-					GLCHECK(glSamplerParameterf(sampler.mID, GL_TEXTURE_MAX_ANISOTROPY_EXT, static_cast<GLfloat>(node->Properties.MaxAnisotropy)));
+					GLCHECK(glGenSamplers(1, &sampler.ID));
+					GLCHECK(glSamplerParameteri(sampler.ID, GL_TEXTURE_WRAP_S, LiteralToTextureWrap(node->Properties.AddressU)));
+					GLCHECK(glSamplerParameteri(sampler.ID, GL_TEXTURE_WRAP_T, LiteralToTextureWrap(node->Properties.AddressV)));
+					GLCHECK(glSamplerParameteri(sampler.ID, GL_TEXTURE_WRAP_R, LiteralToTextureWrap(node->Properties.AddressW)));
+					GLCHECK(glSamplerParameteri(sampler.ID, GL_TEXTURE_MIN_FILTER, minfilter));
+					GLCHECK(glSamplerParameteri(sampler.ID, GL_TEXTURE_MAG_FILTER, LiteralToTextureFilter(node->Properties.MagFilter)));
+					GLCHECK(glSamplerParameterf(sampler.ID, GL_TEXTURE_LOD_BIAS, node->Properties.MipLODBias));
+					GLCHECK(glSamplerParameterf(sampler.ID, GL_TEXTURE_MIN_LOD, node->Properties.MinLOD));
+					GLCHECK(glSamplerParameterf(sampler.ID, GL_TEXTURE_MAX_LOD, node->Properties.MaxLOD));
+					GLCHECK(glSamplerParameterf(sampler.ID, GL_TEXTURE_MAX_ANISOTROPY_EXT, static_cast<GLfloat>(node->Properties.MaxAnisotropy)));
 
 					this->mGlobalCode += "layout(binding = " + std::to_string(this->mRuntime->mEffectSamplers.size()) + ") uniform sampler2D ";
 					this->mGlobalCode += FixName(node->Name, node->Namespace);
@@ -3227,7 +3228,7 @@ namespace ReShade
 
 			for (GLSampler &sampler : this->mEffectSamplers)
 			{
-				GLCHECK(glDeleteSamplers(1, &sampler.mID));
+				GLCHECK(glDeleteSamplers(1, &sampler.ID));
 			}
 
 			this->mEffectSamplers.clear();
@@ -3237,6 +3238,10 @@ namespace ReShade
 			if (!this->mIsInitialized)
 			{
 				LOG(TRACE) << "Failed to present! Runtime is in a lost state.";
+				return;
+			}
+			else if (this->mStats.DrawCalls == 0)
+			{
 				return;
 			}
 
@@ -3312,11 +3317,11 @@ namespace ReShade
 			GLCHECK(glBindVertexBuffer(0, this->mDefaultVBO, 0, sizeof(float)));
 
 			// Setup shader resources
-			for (GLsizei sampler = 0, samplerCount = static_cast<GLsizei>(this->mEffectSamplers.size()); sampler < samplerCount; ++sampler)
+			for (GLsizei sampler = 0, samplerCount = static_cast<GLsizei>(this->mEffectSamplers.size()); sampler < samplerCount; sampler++)
 			{
 				GLCHECK(glActiveTexture(GL_TEXTURE0 + sampler));
-				GLCHECK(glBindTexture(GL_TEXTURE_2D, this->mEffectSamplers[sampler].mTexture->ID[this->mEffectSamplers[sampler].mSRGB]));
-				GLCHECK(glBindSampler(sampler, this->mEffectSamplers[sampler].mID));
+				GLCHECK(glBindTexture(GL_TEXTURE_2D, this->mEffectSamplers[sampler].Texture->ID[this->mEffectSamplers[sampler].SRGB]));
+				GLCHECK(glBindSampler(sampler, this->mEffectSamplers[sampler].ID));
 			}
 
 			// Setup shader constants
@@ -3337,9 +3342,8 @@ namespace ReShade
 			GLCHECK(glClearBufferfi(GL_DEPTH_STENCIL, 0, 1.0f, 0));
 
 			// Update shader constants
-			if (!this->mUniformDataStorage.empty() && this->mEffectUBO != 0)
+			if (this->mEffectUBO != 0)
 			{
-				GLCHECK(glBindBuffer(GL_UNIFORM_BUFFER, this->mEffectUBO));
 				GLCHECK(glBufferSubData(GL_UNIFORM_BUFFER, 0, this->mUniformDataStorage.size(), this->mUniformDataStorage.data()));
 			}
 
@@ -3376,7 +3380,7 @@ namespace ReShade
 				GLCHECK(glDrawBuffers(8, pass.DrawBuffers));
 				GLCHECK(glViewport(0, 0, pass.ViewportWidth, pass.ViewportHeight));
 
-				for (GLuint k = 0; k < 8; ++k)
+				for (GLuint k = 0; k < 8; k++)
 				{
 					if (pass.DrawBuffers[k] == GL_NONE)
 					{
@@ -3393,11 +3397,11 @@ namespace ReShade
 				// Update shader resources
 				for (GLuint id : pass.DrawTextures)
 				{
-					for (GLsizei sampler = 0, samplerCount = static_cast<GLsizei>(this->mEffectSamplers.size()); sampler < samplerCount; ++sampler)
+					for (GLsizei sampler = 0, samplerCount = static_cast<GLsizei>(this->mEffectSamplers.size()); sampler < samplerCount; sampler++)
 					{
-						const GLTexture *texture = this->mEffectSamplers[sampler].mTexture;
+						const GLTexture *const texture = this->mEffectSamplers[sampler].Texture;
 
-						if ((texture->ID[0] == id || texture->ID[1] == id) && texture->Levels > 1)
+						if (texture->Levels > 1 && (texture->ID[0] == id || texture->ID[1] == id))
 						{
 							GLCHECK(glActiveTexture(GL_TEXTURE0 + sampler));
 							GLCHECK(glGenerateMipmap(GL_TEXTURE_2D));

@@ -2458,6 +2458,10 @@ namespace ReShade
 				LOG(TRACE) << "Failed to present! Runtime is in a lost state.";
 				return;
 			}
+			else if (this->mStats.DrawCalls == 0)
+			{
+				return;
+			}
 
 			DetectDepthSource();
 
@@ -2593,11 +2597,11 @@ namespace ReShade
 		{
 			Runtime::OnApplyEffectTechnique(technique);
 
-			// Clear depthstencil
-			assert(this->mDefaultDepthStencil != nullptr);
+			bool defaultDepthStencilCleared = false;
 
-			this->mDevice->SetDepthStencilSurface(this->mDefaultDepthStencil);
-			this->mDevice->Clear(0, nullptr, D3DCLEAR_ZBUFFER | D3DCLEAR_STENCIL, 0, 1.0f, 0);
+			// Setup shader constants
+			this->mDevice->SetVertexShaderConstantF(0, reinterpret_cast<const float *>(this->mUniformDataStorage.data()), this->mConstantRegisterCount);
+			this->mDevice->SetPixelShaderConstantF(0, reinterpret_cast<const float *>(this->mUniformDataStorage.data()), this->mConstantRegisterCount);
 
 			for (const auto &pass : static_cast<const D3D9Technique *>(technique)->Passes)
 			{
@@ -2608,34 +2612,50 @@ namespace ReShade
 				this->mDevice->StretchRect(this->mBackBufferResolved, nullptr, this->mBackBufferTextureSurface, nullptr, D3DTEXF_NONE);
 
 				// Setup shader resources
-				for (DWORD sampler = 0; sampler < pass.SamplerCount; ++sampler)
+				for (DWORD sampler = 0; sampler < pass.SamplerCount; sampler++)
 				{
 					this->mDevice->SetTexture(sampler, pass.Samplers[sampler].Texture->TextureInterface);
 
-					for (DWORD state = D3DSAMP_ADDRESSU; state <= D3DSAMP_SRGBTEXTURE; ++state)
+					for (DWORD state = D3DSAMP_ADDRESSU; state <= D3DSAMP_SRGBTEXTURE; state++)
 					{
 						this->mDevice->SetSamplerState(sampler, static_cast<D3DSAMPLERSTATETYPE>(state), pass.Samplers[sampler].States[state]);
 					}
 				}
 
 				// Setup rendertargets
-				for (DWORD target = 0; target < this->mNumSimultaneousRTs; ++target)
+				for (DWORD target = 0; target < this->mNumSimultaneousRTs; target++)
 				{
 					this->mDevice->SetRenderTarget(target, pass.RT[target]);
 				}
 
-				this->mDevice->Clear(0, nullptr, D3DCLEAR_TARGET, D3DCOLOR_ARGB(0, 0, 0, 0), 0.0f, 0);
-
 				D3DVIEWPORT9 viewport;
 				this->mDevice->GetViewport(&viewport);
+
 				const float texelsize[4] = { -1.0f / viewport.Width, 1.0f / viewport.Height };
-
-				this->mDevice->SetDepthStencilSurface((viewport.Width == this->mWidth && viewport.Height == this->mHeight) ? this->mDefaultDepthStencil : nullptr);
-
-				// Setup shader constants
-				this->mDevice->SetVertexShaderConstantF(0, reinterpret_cast<const float *>(this->mUniformDataStorage.data()), this->mConstantRegisterCount);
 				this->mDevice->SetVertexShaderConstantF(255, texelsize, 1);
-				this->mDevice->SetPixelShaderConstantF(0, reinterpret_cast<const float *>(this->mUniformDataStorage.data()), this->mConstantRegisterCount);
+
+				const bool backbufferSizedRendertarget = viewport.Width == this->mWidth && viewport.Height == this->mHeight;
+
+				if (backbufferSizedRendertarget)
+				{
+					this->mDevice->SetDepthStencilSurface(this->mDefaultDepthStencil);
+				}
+				else
+				{
+					this->mDevice->SetDepthStencilSurface(nullptr);
+				}
+
+				if (backbufferSizedRendertarget && !defaultDepthStencilCleared)
+				{
+					defaultDepthStencilCleared = true;
+
+					// Clear depthstencil
+					this->mDevice->Clear(0, nullptr, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER | D3DCLEAR_STENCIL, 0, 1.0f, 0);
+				}
+				else
+				{
+					this->mDevice->Clear(0, nullptr, D3DCLEAR_TARGET, 0, 0.0f, 0);
+				}
 
 				// Draw triangle
 				this->mDevice->DrawPrimitive(D3DPT_TRIANGLELIST, 0, 1);
@@ -2643,7 +2663,7 @@ namespace ReShade
 				Runtime::OnDrawCall(3);
 
 				// Update shader resources
-				for (IDirect3DSurface9 *target : pass.RT)
+				for (IDirect3DSurface9 *const target : pass.RT)
 				{
 					if (target == nullptr || target == this->mBackBufferResolved)
 					{

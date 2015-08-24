@@ -73,6 +73,7 @@ namespace ReShade
 			std::vector<ID3D10SamplerState *> mEffectSamplerStates;
 			std::vector<ID3D10ShaderResourceView *> mEffectShaderResources;
 			ID3D10Buffer *mConstantBuffer;
+			UINT mConstantBufferSize;
 
 		private:
 			struct DepthSourceInfo

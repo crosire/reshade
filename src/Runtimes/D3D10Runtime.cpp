@@ -191,7 +191,7 @@ namespace ReShade
 						CD3D10_BUFFER_DESC globalsDesc(RoundToMultipleOf16(this->mCurrentGlobalSize), D3D10_BIND_CONSTANT_BUFFER, D3D10_USAGE_DYNAMIC, D3D10_CPU_ACCESS_WRITE);
 						D3D10_SUBRESOURCE_DATA globalsInitial;
 						globalsInitial.pSysMem = this->mRuntime->GetConstantStorage();
-						globalsInitial.SysMemPitch = globalsInitial.SysMemSlicePitch = this->mCurrentGlobalSize;
+						globalsInitial.SysMemPitch = globalsInitial.SysMemSlicePitch = this->mRuntime->mConstantBufferSize = this->mCurrentGlobalSize;
 						this->mRuntime->mDevice->CreateBuffer(&globalsDesc, &globalsInitial, &this->mRuntime->mConstantBuffer);
 					}
 
@@ -2385,7 +2385,7 @@ namespace ReShade
 
 		// -----------------------------------------------------------------------------------------------------
 
-		D3D10Runtime::D3D10Runtime(ID3D10Device *device, IDXGISwapChain *swapchain) : mDevice(device), mSwapChain(swapchain), mBackBufferFormat(DXGI_FORMAT_UNKNOWN), mMultisamplingEnabled(false), mStateBlock(new D3D10StateBlock(device)), mBackBuffer(nullptr), mBackBufferResolved(nullptr), mBackBufferTexture(nullptr), mBackBufferTextureSRV(), mBackBufferTargets(), mDepthStencil(nullptr), mDepthStencilReplacement(nullptr), mDepthStencilTexture(nullptr), mDepthStencilTextureSRV(nullptr), mCopyVS(nullptr), mCopyPS(nullptr), mCopySampler(nullptr), mEffectRasterizerState(nullptr), mConstantBuffer(nullptr)
+		D3D10Runtime::D3D10Runtime(ID3D10Device *device, IDXGISwapChain *swapchain) : mDevice(device), mSwapChain(swapchain), mBackBufferFormat(DXGI_FORMAT_UNKNOWN), mMultisamplingEnabled(false), mStateBlock(new D3D10StateBlock(device)), mBackBuffer(nullptr), mBackBufferResolved(nullptr), mBackBufferTexture(nullptr), mBackBufferTextureSRV(), mBackBufferTargets(), mDepthStencil(nullptr), mDepthStencilReplacement(nullptr), mDepthStencilTexture(nullptr), mDepthStencilTextureSRV(nullptr), mCopyVS(nullptr), mCopyPS(nullptr), mCopySampler(nullptr), mEffectRasterizerState(nullptr), mConstantBuffer(nullptr), mConstantBufferSize(0)
 		{
 			assert(this->mDevice != nullptr);
 			assert(this->mSwapChain != nullptr);
@@ -2688,6 +2688,8 @@ namespace ReShade
 			this->mEffectShaderResources.clear();
 
 			SAFE_RELEASE(this->mConstantBuffer);
+
+			this->mConstantBufferSize = 0;
 		}
 		void D3D10Runtime::OnPresent()
 		{
@@ -2798,6 +2800,9 @@ namespace ReShade
 
 			this->mDevice->RSSetState(this->mEffectRasterizerState);
 
+			// Disable unused pipeline stages
+			this->mDevice->GSSetShader(nullptr);
+
 			// Setup samplers
 			this->mDevice->VSSetSamplers(0, static_cast<UINT>(this->mEffectSamplerStates.size()), this->mEffectSamplerStates.data());
 			this->mDevice->PSSetSamplers(0, static_cast<UINT>(this->mEffectSamplerStates.size()), this->mEffectSamplerStates.data());
@@ -2813,10 +2818,7 @@ namespace ReShade
 		{
 			Runtime::OnApplyEffectTechnique(technique);
 
-			// Clear depthstencil
-			assert(this->mDefaultDepthStencil != nullptr);
-
-			this->mDevice->ClearDepthStencilView(this->mDefaultDepthStencil, D3D10_CLEAR_DEPTH | D3D10_CLEAR_STENCIL, 1.0f, 0);
+			bool defaultDepthStencilCleared = false;
 
 			// Update shader constants
 			if (this->mConstantBuffer != nullptr)
@@ -2827,10 +2829,7 @@ namespace ReShade
 
 				if (SUCCEEDED(hr))
 				{
-					D3D10_BUFFER_DESC desc;
-					this->mConstantBuffer->GetDesc(&desc);
-
-					CopyMemory(data, this->mUniformDataStorage.data(), desc.ByteWidth);
+					CopyMemory(data, this->mUniformDataStorage.data(), this->mConstantBufferSize);
 
 					this->mConstantBuffer->Unmap();
 				}
@@ -2844,7 +2843,6 @@ namespace ReShade
 			{
 				// Setup states
 				this->mDevice->VSSetShader(pass.VS);
-				this->mDevice->GSSetShader(nullptr);
 				this->mDevice->PSSetShader(pass.PS);
 
 				const FLOAT blendfactor[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
@@ -2859,18 +2857,34 @@ namespace ReShade
 				this->mDevice->PSSetShaderResources(0, static_cast<UINT>(pass.SRV.size()), pass.SRV.data());
 
 				// Setup rendertargets
-				this->mDevice->OMSetRenderTargets(D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, pass.RT, (pass.Viewport.Width == this->mWidth && pass.Viewport.Height == this->mHeight) ? this->mDefaultDepthStencil : nullptr);
+				if (pass.Viewport.Width == this->mWidth && pass.Viewport.Height == this->mHeight)
+				{
+					this->mDevice->OMSetRenderTargets(D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, pass.RT, this->mDefaultDepthStencil);
+
+					if (!defaultDepthStencilCleared)
+					{
+						defaultDepthStencilCleared = true;
+
+						// Clear depthstencil
+						this->mDevice->ClearDepthStencilView(this->mDefaultDepthStencil, D3D10_CLEAR_DEPTH | D3D10_CLEAR_STENCIL, 1.0f, 0);
+					}
+				}
+				else
+				{
+					this->mDevice->OMSetRenderTargets(D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, pass.RT, nullptr);
+				}
+
 				this->mDevice->RSSetViewports(1, &pass.Viewport);
 
-				for (UINT target = 0; target < D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT; ++target)
+				for (ID3D10RenderTargetView *const target : pass.RT)
 				{
-					if (pass.RT[target] == nullptr)
+					if (target == nullptr)
 					{
 						continue;
 					}
 
 					const FLOAT color[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
-					this->mDevice->ClearRenderTargetView(pass.RT[target], color);
+					this->mDevice->ClearRenderTargetView(target, color);
 				}
 
 				// Draw triangle
@@ -2878,28 +2892,28 @@ namespace ReShade
 
 				Runtime::OnDrawCall(3);
 
+				// Reset rendertargets
+				this->mDevice->OMSetRenderTargets(0, nullptr, nullptr);
+
 				// Reset shader resources
 				ID3D10ShaderResourceView *null[D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT] = { nullptr };
 				this->mDevice->VSSetShaderResources(0, static_cast<UINT>(pass.SRV.size()), null);
 				this->mDevice->PSSetShaderResources(0, static_cast<UINT>(pass.SRV.size()), null);
 
-				// Reset rendertargets
-				this->mDevice->OMSetRenderTargets(0, nullptr, nullptr);
-
 				// Update shader resources
-				for (ID3D10ShaderResourceView *srv : pass.RTSRV)
+				for (ID3D10ShaderResourceView *const resource : pass.RTSRV)
 				{
-					if (srv == nullptr)
+					if (resource == nullptr)
 					{
 						continue;
 					}
 
 					D3D10_SHADER_RESOURCE_VIEW_DESC srvdesc;
-					srv->GetDesc(&srvdesc);
+					resource->GetDesc(&srvdesc);
 
 					if (srvdesc.Texture2D.MipLevels > 1)
 					{
-						this->mDevice->GenerateMips(srv);
+						this->mDevice->GenerateMips(resource);
 					}
 				}
 			}

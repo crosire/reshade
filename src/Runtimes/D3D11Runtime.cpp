@@ -2879,6 +2879,11 @@ namespace ReShade
 
 			this->mImmediateContext->RSSetState(this->mEffectRasterizerState);
 
+			// Disable unsued pipeline stages
+			this->mImmediateContext->HSSetShader(nullptr, nullptr, 0);
+			this->mImmediateContext->DSSetShader(nullptr, nullptr, 0);
+			this->mImmediateContext->GSSetShader(nullptr, nullptr, 0);
+
 			// Setup samplers
 			this->mImmediateContext->VSSetSamplers(0, static_cast<UINT>(this->mEffectSamplerStates.size()), this->mEffectSamplerStates.data());
 			this->mImmediateContext->PSSetSamplers(0, static_cast<UINT>(this->mEffectSamplerStates.size()), this->mEffectSamplerStates.data());
@@ -2894,10 +2899,7 @@ namespace ReShade
 		{
 			Runtime::OnApplyEffectTechnique(technique);
 
-			// Clear depthstencil
-			assert(this->mDefaultDepthStencil != nullptr);
-
-			this->mImmediateContext->ClearDepthStencilView(this->mDefaultDepthStencil, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+			bool defaultDepthStencilCleared = false;
 
 			// Update shader constants
 			if (this->mConstantBuffer != nullptr)
@@ -2922,9 +2924,6 @@ namespace ReShade
 			{
 				// Setup states
 				this->mImmediateContext->VSSetShader(pass.VS, nullptr, 0);
-				this->mImmediateContext->HSSetShader(nullptr, nullptr, 0);
-				this->mImmediateContext->DSSetShader(nullptr, nullptr, 0);
-				this->mImmediateContext->GSSetShader(nullptr, nullptr, 0);
 				this->mImmediateContext->PSSetShader(pass.PS, nullptr, 0);
 
 				const FLOAT blendfactor[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
@@ -2939,18 +2938,34 @@ namespace ReShade
 				this->mImmediateContext->PSSetShaderResources(0, static_cast<UINT>(pass.SRV.size()), pass.SRV.data());
 
 				// Setup rendertargets
-				this->mImmediateContext->OMSetRenderTargets(D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, pass.RT, (static_cast<UINT>(pass.Viewport.Width) == this->mWidth && static_cast<UINT>(pass.Viewport.Height) == this->mHeight) ? this->mDefaultDepthStencil : nullptr);
+				if (static_cast<UINT>(pass.Viewport.Width) == this->mWidth && static_cast<UINT>(pass.Viewport.Height) == this->mHeight)
+				{
+					this->mImmediateContext->OMSetRenderTargets(D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, pass.RT, this->mDefaultDepthStencil);
+
+					if (!defaultDepthStencilCleared)
+					{
+						defaultDepthStencilCleared = true;
+
+						// Clear depthstencil
+						this->mImmediateContext->ClearDepthStencilView(this->mDefaultDepthStencil, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+					}
+				}
+				else
+				{
+					this->mImmediateContext->OMSetRenderTargets(D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, pass.RT, nullptr);
+				}
+
 				this->mImmediateContext->RSSetViewports(1, &pass.Viewport);
 
-				for (ID3D11RenderTargetView *rtv : pass.RT)
+				for (ID3D11RenderTargetView *const target : pass.RT)
 				{
-					if (rtv == nullptr)
+					if (target == nullptr)
 					{
 						continue;
 					}
 
 					const FLOAT color[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
-					this->mImmediateContext->ClearRenderTargetView(rtv, color);
+					this->mImmediateContext->ClearRenderTargetView(target, color);
 				}
 
 				// Draw triangle
@@ -2958,28 +2973,28 @@ namespace ReShade
 
 				Runtime::OnDrawCall(3);
 
+				// Reset rendertargets
+				this->mImmediateContext->OMSetRenderTargets(0, nullptr, nullptr);
+
 				// Reset shader resources
 				ID3D11ShaderResourceView *null[D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT] = { nullptr };
 				this->mImmediateContext->VSSetShaderResources(0, static_cast<UINT>(pass.SRV.size()), null);
 				this->mImmediateContext->PSSetShaderResources(0, static_cast<UINT>(pass.SRV.size()), null);
 
-				// Reset rendertargets
-				this->mImmediateContext->OMSetRenderTargets(0, nullptr, nullptr);
-
 				// Update shader resources
-				for (ID3D11ShaderResourceView *srv : pass.RTSRV)
+				for (ID3D11ShaderResourceView *const resource : pass.RTSRV)
 				{
-					if (srv == nullptr)
+					if (resource == nullptr)
 					{
 						continue;
 					}
 
 					D3D11_SHADER_RESOURCE_VIEW_DESC srvdesc;
-					srv->GetDesc(&srvdesc);
+					resource->GetDesc(&srvdesc);
 
 					if (srvdesc.Texture2D.MipLevels > 1)
 					{
-						this->mImmediateContext->GenerateMips(srv);
+						this->mImmediateContext->GenerateMips(resource);
 					}
 				}
 			}
