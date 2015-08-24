@@ -2979,7 +2979,7 @@ namespace ReShade
 
 		// -----------------------------------------------------------------------------------------------------
 
-		GLRuntime::GLRuntime(HDC device, HGLRC context) : mDeviceContext(device), mRenderContext(context), mReferenceCount(1), mStateBlock(new GLStateBlock), mDefaultBackBufferFBO(0), mDefaultBackBufferRBO(), mBackBufferTexture(), mDepthSourceFBO(0), mDepthSource(0), mDepthTexture(0), mBlitFBO(0), mPresenting(false), mDefaultVAO(0), mDefaultVBO(0), mEffectUBO(0)
+		GLRuntime::GLRuntime(HDC device, HGLRC context) : mDeviceContext(device), mRenderContext(context), mReferenceCount(1), mStateBlock(new GLStateBlock), mDefaultBackBufferFBO(0), mDefaultBackBufferRBO(), mBackBufferTexture(), mDepthSourceFBO(0), mDepthSource(0), mDepthTexture(0), mBlitFBO(0), mDefaultVAO(0), mDefaultVBO(0), mEffectUBO(0)
 		{
 			assert(device != nullptr);
 			assert(context != nullptr);
@@ -3186,12 +3186,6 @@ namespace ReShade
 			{
 				return;
 			}
-			else if (this->mPresenting)
-			{
-				this->mPresenting = false;
-
-				this->mStateBlock->Apply();
-			}
 
 			Runtime::OnReset();
 
@@ -3263,14 +3257,7 @@ namespace ReShade
 			GLCHECK(glViewport(0, 0, this->mWidth, this->mHeight));
 
 			// Apply presenting
-			this->mPresenting = true;
 			Runtime::OnPresent();
-			this->mPresenting = false;
-
-			if (!this->mIsInitialized)
-			{
-				return;
-			}
 
 			// Apply states
 			this->mStateBlock->Apply();

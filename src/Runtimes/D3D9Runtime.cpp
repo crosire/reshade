@@ -2501,11 +2501,6 @@ namespace ReShade
 			// Apply presenting
 			Runtime::OnPresent();
 
-			if (!this->mIsInitialized)
-			{
-				return;
-			}
-
 			// Copy to backbuffer
 			if (this->mBackBufferResolved != this->mBackBuffer)
 			{

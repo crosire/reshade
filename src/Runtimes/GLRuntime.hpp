@@ -78,7 +78,6 @@ namespace ReShade
 
 			std::unique_ptr<class GLStateBlock> mStateBlock;
 			std::unordered_map<GLuint, DepthSourceInfo> mDepthSourceTable;
-			bool mPresenting;
 		};
 	}
 }
