@@ -305,8 +305,16 @@ namespace ReShade
 					return token;
 				}
 				case '\t':
+				case '\v':
+				case '\f':
+				case '\r':
+				case ' ':
 				{
-					SkipWhitespace();
+					while (isspace(*this->mPos) && this->mPos < this->mEnd)
+					{
+						this->mPos++;
+						this->mCurrentLocation.Column++;
+					}
 
 					goto NextToken;
 				}
@@ -316,15 +324,6 @@ namespace ReShade
 					this->mCurrentAtLineBegin = true;
 					this->mCurrentLocation.Line++;
 					this->mCurrentLocation.Column = 1;
-
-					goto NextToken;
-				}
-				case '\v':
-				case '\f':
-				case '\r':
-				case ' ':
-				{
-					SkipWhitespace();
 
 					goto NextToken;
 				}
@@ -344,7 +343,7 @@ namespace ReShade
 				}
 				case '"':
 				{
-					LexStringLiteral(token);
+					ParseStringLiteral(token);
 					break;
 				}
 				case '#':
@@ -353,7 +352,7 @@ namespace ReShade
 					{
 						this->mPos++;
 
-						HandlePreProcessorDirective();
+						ParsePreProcessorDirective();
 
 						goto NextToken;
 					}
@@ -482,7 +481,7 @@ namespace ReShade
 				{
 					if (isdigit(this->mPos[1]))
 					{
-						LexNumericLiteral(token);
+						ParseNumericLiteral(token);
 					}
 					else if (this->mPos[1] == '.' && this->mPos[2] == '.')
 					{
@@ -500,13 +499,33 @@ namespace ReShade
 				{
 					if (this->mPos[1] == '/')
 					{
-						SkipLineComment();
+						while (*this->mPos != '\n' && this->mPos < this->mEnd)
+						{
+							this->mPos++;
+						}
 
 						goto NextToken;
 					}
 					else if (this->mPos[1] == '*')
 					{
-						SkipBlockComment();
+						while (this->mPos < this->mEnd)
+						{
+							if (*++this->mPos == '\n')
+							{
+								this->mCurrentLocation.Line++;
+								this->mCurrentLocation.Column = 1;
+							}
+							else if (this->mPos[0] == '*' && this->mPos[1] == '/')
+							{
+								this->mPos += 2;
+								this->mCurrentLocation.Column += 2;
+								break;
+							}
+							else
+							{
+								this->mCurrentLocation.Column++;
+							}
+						}
 
 						goto NextToken;
 					}
@@ -533,7 +552,7 @@ namespace ReShade
 				case '8':
 				case '9':
 				{
-					LexNumericLiteral(token);
+					ParseNumericLiteral(token);
 					break;
 				}
 				case ':':
@@ -663,7 +682,7 @@ namespace ReShade
 				case 'Y':
 				case 'Z':
 				{
-					LexIdentifier(token);
+					ParseIdentifier(token);
 					break;
 				}
 				case '[':
@@ -726,7 +745,7 @@ namespace ReShade
 				case 'y':
 				case 'z':
 				{
-					LexIdentifier(token);
+					ParseIdentifier(token);
 					break;
 				}
 				case '{':
@@ -780,7 +799,7 @@ namespace ReShade
 
 			return token;
 		}
-		void Lexer::LexIdentifier(Token &token)
+		void Lexer::ParseIdentifier(Token &token)
 		{
 			const char *const begin = this->mPos, *end = begin;
 
@@ -963,7 +982,7 @@ namespace ReShade
 				token.mId = it->second;
 			}
 		}
-		void Lexer::LexStringLiteral(Token &token)
+		void Lexer::ParseStringLiteral(Token &token)
 		{
 			char c = 0;
 			const char *const begin = this->mPos, *end = begin;
@@ -1045,7 +1064,7 @@ namespace ReShade
 			token.mRawData = begin;
 			token.mRawDataLength = end - begin + 1;
 		}
-		void Lexer::LexNumericLiteral(Token &token)
+		void Lexer::ParseNumericLiteral(Token &token)
 		{
 			int radix = 0;
 			const char *begin = this->mPos, *end = begin;
@@ -1170,46 +1189,12 @@ namespace ReShade
 					break;
 			}
 		}
-
-		void Lexer::SkipWhitespace()
+		void Lexer::ParsePreProcessorDirective()
 		{
 			while (isspace(*this->mPos) && this->mPos < this->mEnd)
 			{
 				this->mPos++;
-				this->mCurrentLocation.Column++;
 			}
-		}
-		void Lexer::SkipLineComment()
-		{
-			while (*this->mPos != '\n' && this->mPos < this->mEnd)
-			{
-				this->mPos++;
-			}
-		}
-		void Lexer::SkipBlockComment()
-		{
-			while (this->mPos < this->mEnd)
-			{
-				if (*++this->mPos == '\n')
-				{
-					this->mCurrentLocation.Line++;
-					this->mCurrentLocation.Column = 1;
-				}
-				else if (this->mPos[0] == '*' && this->mPos[1] == '/')
-				{
-					this->mPos += 2;
-					this->mCurrentLocation.Column += 2;
-					break;
-				}
-				else
-				{
-					this->mCurrentLocation.Column++;
-				}
-			}
-		}
-		void Lexer::HandlePreProcessorDirective()
-		{
-			SkipWhitespace();
 
 			const char *command = this->mPos;
 			std::size_t commandLength = 0;
@@ -1219,7 +1204,10 @@ namespace ReShade
 				++commandLength;
 			}
 
-			SkipWhitespace();
+			while (isspace(*this->mPos) && this->mPos < this->mEnd)
+			{
+				this->mPos++;
+			}
 
 			if (commandLength == 4 && strncmp(command, "line", 4) == 0)
 			{
@@ -1259,7 +1247,10 @@ namespace ReShade
 				}
 			}
 
-			SkipLineComment();
+			while (*this->mPos != '\n' && this->mPos < this->mEnd)
+			{
+				this->mPos++;
+			}
 		}
 	}
 }

@@ -1,6 +1,6 @@
 #include "Log.hpp"
 #include "GLRuntime.hpp"
-#include "FX\ParseTree.hpp"
+#include "FX\ParserNodes.hpp"
 #include "GUI.hpp"
 #include "WindowWatcher.hpp"
 
@@ -112,7 +112,7 @@ namespace ReShade
 			class GLEffectCompiler : private boost::noncopyable
 			{
 			public:
-				GLEffectCompiler(const FX::Tree &ast) : mAST(ast), mRuntime(nullptr), mFatal(false), mCurrentFunction(nullptr), mCurrentGlobalSize(0)
+				GLEffectCompiler(const FX::NodeTree &ast) : mAST(ast), mRuntime(nullptr), mFatal(false), mCurrentFunction(nullptr), mCurrentGlobalSize(0)
 				{
 				}
 
@@ -125,13 +125,15 @@ namespace ReShade
 
 					this->mGlobalCode.clear();
 
-					for (auto type : this->mAST.Types)
+					for (auto type : this->mAST.Structs)
 					{
-						Visit(this->mGlobalCode, type);
+						Visit(this->mGlobalCode, static_cast<FX::Nodes::Struct *>(type));
 					}
 
-					for (auto uniform : this->mAST.Uniforms)
+					for (auto uniform1 : this->mAST.Uniforms)
 					{
+						FX::Nodes::Variable *uniform = static_cast<FX::Nodes::Variable *>(uniform1);
+
 						if (uniform->Type.IsTexture())
 						{
 							VisitTexture(uniform);
@@ -152,8 +154,10 @@ namespace ReShade
 						}
 					}
 
-					for (auto function : this->mAST.Functions)
+					for (auto function1 : this->mAST.Functions)
 					{
+						FX::Nodes::Function *function = static_cast<FX::Nodes::Function *>(function1);
+
 						this->mCurrentFunction = function;
 
 						Visit(this->mFunctions[function].SourceCode, function);
@@ -161,7 +165,7 @@ namespace ReShade
 
 					for (auto technique : this->mAST.Techniques)
 					{
-						VisitTechnique(technique);
+						VisitTechnique(static_cast<FX::Nodes::Technique *>(technique));
 					}
 
 					if (this->mCurrentGlobalSize != 0)
@@ -2662,7 +2666,7 @@ namespace ReShade
 				};
 
 				GLRuntime *mRuntime;
-				const FX::Tree &mAST;
+				const FX::NodeTree &mAST;
 				bool mFatal;
 				std::string mErrors;
 				std::string mGlobalCode, mGlobalUniforms;
@@ -3503,7 +3507,7 @@ namespace ReShade
 				}
 			}
 		}
-		bool GLRuntime::UpdateEffect(const FX::Tree &ast, const std::vector<std::string> &pragmas, std::string &errors)
+		bool GLRuntime::UpdateEffect(const FX::NodeTree &ast, const std::vector<std::string> &pragmas, std::string &errors)
 		{
 			GLEffectCompiler visitor(ast);
 

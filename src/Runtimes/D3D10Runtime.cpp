@@ -1,6 +1,6 @@
 #include "Log.hpp"
 #include "D3D10Runtime.hpp"
-#include "FX\ParseTree.hpp"
+#include "FX\ParserNodes.hpp"
 #include "GUI.hpp"
 #include "WindowWatcher.hpp"
 
@@ -158,7 +158,7 @@ namespace ReShade
 			class D3D10EffectCompiler : private boost::noncopyable
 			{
 			public:
-				D3D10EffectCompiler(const FX::Tree &ast, bool skipoptimization = false) : mAST(ast), mRuntime(nullptr), mFatal(false), mSkipShaderOptimization(skipoptimization), mCurrentInParameterBlock(false), mCurrentInFunctionBlock(false), mCurrentInForInitialization(0), mCurrentGlobalSize(0)
+				D3D10EffectCompiler(const FX::NodeTree &ast, bool skipoptimization = false) : mAST(ast), mRuntime(nullptr), mFatal(false), mSkipShaderOptimization(skipoptimization), mCurrentInParameterBlock(false), mCurrentInFunctionBlock(false), mCurrentInForInitialization(0), mCurrentGlobalSize(0)
 				{
 				}
 
@@ -169,21 +169,21 @@ namespace ReShade
 					this->mFatal = false;
 					this->mCurrentSource.clear();
 
-					for (auto type : this->mAST.Types)
+					for (auto type : this->mAST.Structs)
 					{
-						Visit(type);
+						Visit(static_cast<FX::Nodes::Struct *>(type));
 					}
 					for (auto uniform : this->mAST.Uniforms)
 					{
-						Visit(uniform);
+						Visit(static_cast<FX::Nodes::Variable *>(uniform));
 					}
 					for (auto function : this->mAST.Functions)
 					{
-						Visit(function);
+						Visit(static_cast<FX::Nodes::Function *>(function));
 					}
 					for (auto technique : this->mAST.Techniques)
 					{
-						Visit(technique);
+						Visit(static_cast<FX::Nodes::Technique *>(technique));
 					}
 
 					if (this->mCurrentGlobalSize != 0)
@@ -2209,7 +2209,7 @@ namespace ReShade
 				}
 
 			private:
-				const FX::Tree &mAST;
+				const FX::NodeTree &mAST;
 				D3D10Runtime *mRuntime;
 				std::string mCurrentSource;
 				std::string mErrors;
@@ -3077,7 +3077,7 @@ namespace ReShade
 
 			textureStaging->Release();
 		}
-		bool D3D10Runtime::UpdateEffect(const FX::Tree &ast, const std::vector<std::string> &pragmas, std::string &errors)
+		bool D3D10Runtime::UpdateEffect(const FX::NodeTree &ast, const std::vector<std::string> &pragmas, std::string &errors)
 		{
 			bool skipOptimization = false;
 

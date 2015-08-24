@@ -1,6 +1,6 @@
 #pragma once
 
-#include "ParseTreeNodes.hpp"
+#include "ParserNodes.hpp"
 
 namespace ReShade
 {
@@ -237,14 +237,10 @@ namespace ReShade
 			Token Lex();
 
 		private:
-			void LexIdentifier(Token &token);
-			void LexStringLiteral(Token &token);
-			void LexNumericLiteral(Token &token);
-
-			void SkipWhitespace();
-			void SkipLineComment();
-			void SkipBlockComment();
-			void HandlePreProcessorDirective();
+			void ParseIdentifier(Token &token);
+			void ParseStringLiteral(Token &token);
+			void ParseNumericLiteral(Token &token);
+			void ParsePreProcessorDirective();
 
 			std::string mSource;
 			const char *mPos, *mEnd;

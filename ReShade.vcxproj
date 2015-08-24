@@ -262,8 +262,7 @@ tools\upx --backup "$(TargetPath)"</Command>
     <ClInclude Include="res\Version.h" />
     <ClInclude Include="src\FX\Lexer.hpp" />
     <ClInclude Include="src\FX\Parser.hpp" />
-    <ClInclude Include="src\FX\ParseTree.hpp" />
-    <ClInclude Include="src\FX\ParseTreeNodes.hpp" />
+    <ClInclude Include="src\FX\ParserNodes.hpp" />
     <ClInclude Include="src\FX\PreProcessor.hpp" />
     <ClInclude Include="src\Hook\Hook.hpp" />
     <ClInclude Include="src\Hook\HookManager.hpp" />

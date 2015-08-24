@@ -906,7 +906,7 @@ namespace ReShade
 
 		LOG(TRACE) << "> Running parser ...";
 
-		FX::Tree ast;
+		FX::NodeTree ast;
 
 		const bool success = FX::Parser(ast).Parse(this->mEffectSource, this->mErrors);
 

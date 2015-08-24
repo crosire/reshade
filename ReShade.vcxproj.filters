@@ -104,19 +104,16 @@
     <ClInclude Include="src\Log.hpp">
       <Filter>Core</Filter>
     </ClInclude>
-    <ClInclude Include="src\FX\PreProcessor.hpp">
-      <Filter>Core\FX</Filter>
-    </ClInclude>
     <ClInclude Include="src\FX\Lexer.hpp">
       <Filter>Core\FX</Filter>
     </ClInclude>
     <ClInclude Include="src\FX\Parser.hpp">
       <Filter>Core\FX</Filter>
     </ClInclude>
-    <ClInclude Include="src\FX\ParseTree.hpp">
+    <ClInclude Include="src\FX\ParserNodes.hpp">
       <Filter>Core\FX</Filter>
     </ClInclude>
-    <ClInclude Include="src\FX\ParseTreeNodes.hpp">
+    <ClInclude Include="src\FX\PreProcessor.hpp">
       <Filter>Core\FX</Filter>
     </ClInclude>
     <ClInclude Include="src\Hook\Hook.hpp">

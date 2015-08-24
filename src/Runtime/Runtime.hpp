@@ -16,7 +16,7 @@ namespace ReShade
 
 	namespace FX
 	{
-		class Tree;
+		class NodeTree;
 	}
 }
 #pragma endregion
@@ -274,7 +274,7 @@ namespace ReShade
 		/// </summary>
 		/// <param name="ast">The abstract syntax tree representation of the effect to compile.</param>
 		/// <param name="errors">A string buffer to store any errors that occur during compilation.</param>
-		virtual bool UpdateEffect(const FX::Tree &ast, const std::vector<std::string> &pragmas, std::string &errors) = 0;
+		virtual bool UpdateEffect(const FX::NodeTree &ast, const std::vector<std::string> &pragmas, std::string &errors) = 0;
 		/// <summary>
 		/// Update the image data of the specified <paramref name="texture"/>.
 		/// </summary>

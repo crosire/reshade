@@ -1,6 +1,6 @@
 #include "Log.hpp"
 #include "D3D9Runtime.hpp"
-#include "FX\ParseTree.hpp"
+#include "FX\ParserNodes.hpp"
 #include "GUI.hpp"
 #include "WindowWatcher.hpp"
 
@@ -142,7 +142,7 @@ namespace ReShade
 			class D3D9EffectCompiler : private boost::noncopyable
 			{
 			public:
-				D3D9EffectCompiler(const FX::Tree &ast, bool skipoptimization = false) : mAST(ast), mRuntime(nullptr), mFatal(false), mSkipShaderOptimization(skipoptimization), mCurrentFunction(nullptr), mCurrentRegisterOffset(0)
+				D3D9EffectCompiler(const FX::NodeTree &ast, bool skipoptimization = false) : mAST(ast), mRuntime(nullptr), mFatal(false), mSkipShaderOptimization(skipoptimization), mCurrentFunction(nullptr), mCurrentRegisterOffset(0)
 				{
 				}
 
@@ -155,13 +155,15 @@ namespace ReShade
 
 					this->mGlobalCode.clear();
 
-					for (auto structure : this->mAST.Types)
+					for (auto structure : this->mAST.Structs)
 					{
-						Visit(this->mGlobalCode, structure);
+						Visit(this->mGlobalCode, static_cast<FX::Nodes::Struct *>(structure));
 					}
 
-					for (auto uniform : this->mAST.Uniforms)
+					for (auto uniform1 : this->mAST.Uniforms)
 					{
+						FX::Nodes::Variable *uniform = static_cast<FX::Nodes::Variable *>(uniform1);
+
 						if (uniform->Type.IsTexture())
 						{
 							VisitTexture(uniform);
@@ -182,8 +184,10 @@ namespace ReShade
 						}
 					}
 
-					for (auto function : this->mAST.Functions)
+					for (auto function1 : this->mAST.Functions)
 					{
+						FX::Nodes::Function *function = static_cast<FX::Nodes::Function *>(function1);
+
 						this->mCurrentFunction = function;
 
 						Visit(this->mFunctions[function].SourceCode, function);
@@ -191,7 +195,7 @@ namespace ReShade
 
 					for (auto technique : this->mAST.Techniques)
 					{
-						VisitTechnique(technique);
+						VisitTechnique(static_cast<FX::Nodes::Technique *>(technique));
 					}
 
 					errors += this->mErrors;
@@ -2206,7 +2210,7 @@ namespace ReShade
 				};
 
 				D3D9Runtime *mRuntime;
-				const FX::Tree &mAST;
+				const FX::NodeTree &mAST;
 				bool mFatal, mSkipShaderOptimization;
 				std::string mErrors;
 				std::string mGlobalCode;
@@ -2768,7 +2772,7 @@ namespace ReShade
 
 			screenshotSurface->Release();
 		}
-		bool D3D9Runtime::UpdateEffect(const FX::Tree &ast, const std::vector<std::string> &pragmas, std::string &errors)
+		bool D3D9Runtime::UpdateEffect(const FX::NodeTree &ast, const std::vector<std::string> &pragmas, std::string &errors)
 		{
 			bool skipOptimization = false;
 

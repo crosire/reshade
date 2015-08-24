@@ -24,7 +24,7 @@ namespace ReShade
 			void OnGetDepthStencilSurface(IDirect3DSurface9 *&depthstencil);
 
 			void Screenshot(unsigned char *buffer) const override;
-			bool UpdateEffect(const FX::Tree &ast, const std::vector<std::string> &pragmas, std::string &errors) override;
+			bool UpdateEffect(const FX::NodeTree &ast, const std::vector<std::string> &pragmas, std::string &errors) override;
 			bool UpdateTexture(Texture *texture, const unsigned char *data, std::size_t size) override;
 
 			void DetectDepthSource();

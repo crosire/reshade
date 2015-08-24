@@ -1,20 +1,19 @@
 #pragma once
 
 #include "Lexer.hpp"
-#include "ParseTree.hpp"
+#include "ParserNodes.hpp"
 
 #include <stack>
 #include <unordered_map>
-#include <boost\noncopyable.hpp>
 
 namespace ReShade
 {
 	namespace FX
 	{
-		class Parser : boost::noncopyable
+		class Parser
 		{
 		public:
-			Parser(Tree &ast);
+			Parser(NodeTree &ast);
 
 			bool Parse(const std::string &source, std::string &errors);
 
@@ -100,7 +99,7 @@ namespace ReShade
 			bool ResolveCall(Nodes::Call *call, const Scope &scope, bool &intrinsic, bool &ambiguouss) const;
 			Nodes::Expression *FoldConstantExpression(Nodes::Expression *expression);
 
-			Tree &mAST;
+			NodeTree &mAST;
 			std::string mErrors;
 			Lexer mLexer, mBackupLexer;
 			Lexer::Token mToken, mNextToken, mBackupToken;
@@ -108,6 +107,9 @@ namespace ReShade
 			std::string mCurrentNamespace;
 			std::stack<Symbol *> mParentStack;
 			std::unordered_map<std::string, std::vector<std::pair<Scope, Symbol *>>> mSymbolStack;
+
+			Parser(const Parser &);
+			void operator=(const Parser &);
 		};
 	}
 }

@@ -528,7 +528,7 @@ namespace ReShade
 			}
 		}
 
-		Parser::Parser(Tree &ast) : mAST(ast), mLexer(""), mBackupLexer(""), mCurrentScope(), mCurrentNamespace("::")
+		Parser::Parser(NodeTree &ast) : mAST(ast), mLexer(""), mBackupLexer(""), mCurrentScope(), mCurrentNamespace("::")
 		{
 		}
 
@@ -3050,7 +3050,7 @@ namespace ReShade
 				Warning(structure->Location, 5001, "struct has no members");
 			}
 
-			this->mAST.Types.push_back(structure);
+			this->mAST.Structs.push_back(structure);
 
 			return Expect('}');
 		}
