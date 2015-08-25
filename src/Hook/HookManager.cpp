@@ -402,8 +402,6 @@ namespace ReShade
 			}
 		}
 
-		// -----------------------------------------------------------------------------------------------------
-
 		bool Install(Hook::Function target, Hook::Function replacement)
 		{
 			assert(target != nullptr);

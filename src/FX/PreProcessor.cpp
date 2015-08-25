@@ -51,8 +51,6 @@ namespace ReShade
 			std::array<char, 16384> mScratch;
 		};
 
-		// -----------------------------------------------------------------------------------------------------
-
 		PreProcessor::PreProcessor() : mImpl(new Impl())
 		{
 			this->mImpl->mScratchCursor = 0;

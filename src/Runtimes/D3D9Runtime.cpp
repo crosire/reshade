@@ -6,13 +6,13 @@
 
 #include <d3dx9math.h>
 #include <d3dcompiler.h>
-#include <boost\algorithm\string.hpp>
 #include <nanovg_d3d9.h>
 #include <unordered_set>
+#include <boost\algorithm\string.hpp>
 
-#define D3DFMT_INTZ static_cast<D3DFORMAT>(MAKEFOURCC('I', 'N', 'T', 'Z'))
+const D3DFORMAT D3DFMT_INTZ = static_cast<D3DFORMAT>(MAKEFOURCC('I', 'N', 'T', 'Z'));
 
-// -----------------------------------------------------------------------------------------------------
+// ---------------------------------------------------------------------------------------------------
 
 namespace ReShade
 {
@@ -2221,7 +2221,7 @@ namespace ReShade
 			};
 		}
 
-		// -----------------------------------------------------------------------------------------------------
+		// ---------------------------------------------------------------------------------------------------
 
 		D3D9Runtime::D3D9Runtime(IDirect3DDevice9 *device, IDirect3DSwapChain9 *swapchain) : mDevice(device), mSwapChain(swapchain), mDirect3D(nullptr), mStateBlock(nullptr), mMultisamplingEnabled(false), mBackBufferFormat(D3DFMT_UNKNOWN), mBackBuffer(nullptr), mBackBufferResolved(nullptr), mBackBufferTexture(nullptr), mBackBufferTextureSurface(nullptr), mDepthStencil(nullptr), mDepthStencilReplacement(nullptr), mDepthStencilTexture(nullptr), mDefaultDepthStencil(nullptr), mEffectTriangleBuffer(nullptr), mEffectTriangleLayout(nullptr), mConstantRegisterCount(0)
 		{

@@ -8,7 +8,7 @@
 #include <nanovg_d3d10.h>
 #include <boost\algorithm\string.hpp>
 
-// -----------------------------------------------------------------------------------------------------
+// ---------------------------------------------------------------------------------------------------
 
 namespace ReShade
 {
@@ -2383,7 +2383,7 @@ namespace ReShade
 			ID3D10DepthStencilView *mOMDepthStencil;
 		};
 
-		// -----------------------------------------------------------------------------------------------------
+		// ---------------------------------------------------------------------------------------------------
 
 		D3D10Runtime::D3D10Runtime(ID3D10Device *device, IDXGISwapChain *swapchain) : mDevice(device), mSwapChain(swapchain), mBackBufferFormat(DXGI_FORMAT_UNKNOWN), mMultisamplingEnabled(false), mStateBlock(new D3D10StateBlock(device)), mBackBuffer(nullptr), mBackBufferResolved(nullptr), mBackBufferTexture(nullptr), mBackBufferTextureSRV(), mBackBufferTargets(), mDepthStencil(nullptr), mDepthStencilReplacement(nullptr), mDepthStencilTexture(nullptr), mDepthStencilTextureSRV(nullptr), mCopyVS(nullptr), mCopyPS(nullptr), mCopySampler(nullptr), mEffectRasterizerState(nullptr), mConstantBuffer(nullptr), mConstantBufferSize(0)
 		{

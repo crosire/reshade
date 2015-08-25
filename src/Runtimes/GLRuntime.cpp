@@ -23,7 +23,7 @@
 #define GL_COMPRESSED_LUMINANCE_LATC1_EXT 0x8C70
 #define GL_COMPRESSED_LUMINANCE_ALPHA_LATC2_EXT 0x8C72
 
-// -----------------------------------------------------------------------------------------------------
+// ---------------------------------------------------------------------------------------------------
 
 namespace ReShade
 {
@@ -2978,7 +2978,7 @@ namespace ReShade
 			GLboolean mScissorTest, mBlend, mDepthTest, mDepthMask, mStencilTest, mColorMask[4], mFramebufferSRGB;
 		};
 
-		// -----------------------------------------------------------------------------------------------------
+		// ---------------------------------------------------------------------------------------------------
 
 		GLRuntime::GLRuntime(HDC device, HGLRC context) : mDeviceContext(device), mRenderContext(context), mReferenceCount(1), mStateBlock(new GLStateBlock), mDefaultBackBufferFBO(0), mDefaultBackBufferRBO(), mBackBufferTexture(), mDepthSourceFBO(0), mDepthSource(0), mDepthTexture(0), mBlitFBO(0), mDefaultVAO(0), mDefaultVBO(0), mEffectUBO(0)
 		{

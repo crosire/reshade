@@ -6,7 +6,7 @@
 
 #define EXPORT extern "C"
 
-// -----------------------------------------------------------------------------------------------------
+// ---------------------------------------------------------------------------------------------------
 
 namespace
 {
@@ -356,7 +356,7 @@ void DXGID3D11Bridge::RemoveRuntime(const std::shared_ptr<ReShade::Runtimes::D3D
 }
 #pragma endregion
 
-// -----------------------------------------------------------------------------------------------------
+// ---------------------------------------------------------------------------------------------------
 
 // ID3D11DepthStencilView
 ULONG STDMETHODCALLTYPE ID3D11DepthStencilView_Release(ID3D11DepthStencilView *pDepthStencilView)

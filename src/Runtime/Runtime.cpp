@@ -43,7 +43,7 @@ namespace ReShade
 
 	volatile long NetworkUpload = 0;
 
-	// -----------------------------------------------------------------------------------------------------
+	// ---------------------------------------------------------------------------------------------------
 
 	void Runtime::Startup(const boost::filesystem::path &executablePath, const boost::filesystem::path &injectorPath)
 	{
@@ -94,7 +94,7 @@ namespace ReShade
 		LOG(INFO) << "Exited.";
 	}
 
-	// -----------------------------------------------------------------------------------------------------
+	// ---------------------------------------------------------------------------------------------------
 
 	Runtime::Runtime() : mIsInitialized(false), mIsEffectCompiled(false), mWidth(0), mHeight(0), mVendorId(0), mDeviceId(0), mRendererId(0), mStats(), mScreenshotFormat("png"), mScreenshotPath(sExecutablePath.parent_path()), mScreenshotKey(VK_SNAPSHOT), mCompileStep(0), mShowStatistics(false), mShowFPS(false), mShowClock(false), mShowToggleMessage(false)
 	{

@@ -226,6 +226,10 @@ namespace ReShade
 				NumericLiteral mLiteralNumeric;
 			};
 
+			/// <summary>
+			/// Construct new lexical analyzer for the given input string.
+			/// </summary>
+			/// <param name="source">The string to analyze.</param>
 			Lexer(const std::string &source);
 			inline Lexer(const Lexer &lexer)
 			{
@@ -234,6 +238,10 @@ namespace ReShade
 
 			Lexer &operator=(const Lexer &lexer);
 
+			/// <summary>
+			/// Perform lexical analysis on the input string and return the next token in sequence.
+			/// </summary>
+			/// <returns>The next token in sequence.</returns>
 			Token Lex();
 
 		private:

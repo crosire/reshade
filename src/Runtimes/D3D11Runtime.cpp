@@ -8,7 +8,7 @@
 #include <nanovg_d3d11.h>
 #include <boost\algorithm\string.hpp>
 
-// -----------------------------------------------------------------------------------------------------
+// ---------------------------------------------------------------------------------------------------
 
 inline bool operator ==(const D3D11_SAMPLER_DESC &left, const D3D11_SAMPLER_DESC &right)
 {
@@ -2472,7 +2472,7 @@ namespace ReShade
 			ID3D11DepthStencilView *mOMDepthStencil;
 		};
 
-		// -----------------------------------------------------------------------------------------------------
+		// ---------------------------------------------------------------------------------------------------
 
 		D3D11Runtime::D3D11Runtime(ID3D11Device *device, IDXGISwapChain *swapchain) : mDevice(device), mSwapChain(swapchain), mImmediateContext(nullptr), mBackBufferFormat(DXGI_FORMAT_UNKNOWN), mMultisamplingEnabled(false), mStateBlock(new D3D11StateBlock(device)), mBackBuffer(nullptr), mBackBufferResolved(nullptr), mBackBufferTexture(nullptr), mBackBufferTextureSRV(), mBackBufferTargets(), mDepthStencil(nullptr), mDepthStencilReplacement(nullptr), mDepthStencilTexture(nullptr), mDepthStencilTextureSRV(nullptr), mCopyVS(nullptr), mCopyPS(nullptr), mCopySampler(nullptr), mEffectRasterizerState(nullptr), mConstantBuffer(nullptr)
 		{
