@@ -1,8 +1,5 @@
 #include "Lexer.hpp"
 
-#include <unordered_map>
-#include <boost\assign\list_of.hpp>
-
 namespace
 {
 	inline bool isdigit(char c)
@@ -812,174 +809,187 @@ namespace ReShade
 			token.mRawData = begin;
 			token.mRawDataLength = end - begin;
 
-			static const std::unordered_map<std::string, Token::Id> sKeywords = boost::assign::map_list_of
-				("template", Token::Id::ReservedWord)
-				("new", Token::Id::ReservedWord)
-				("delete", Token::Id::ReservedWord)
-				("try", Token::Id::ReservedWord)
-				("catch", Token::Id::ReservedWord)
-				("operator", Token::Id::ReservedWord)
-				("cast", Token::Id::ReservedWord)
-				("static_cast", Token::Id::ReservedWord)
-				("dynamic_cast", Token::Id::ReservedWord)
-				("reinterpret_cast", Token::Id::ReservedWord)
-				("const_cast", Token::Id::ReservedWord)
-				("public", Token::Id::ReservedWord)
-				("protected", Token::Id::ReservedWord)
-				("private", Token::Id::ReservedWord)
-				("friend", Token::Id::ReservedWord)
-				("explicit", Token::Id::ReservedWord)
-				("virtual", Token::Id::ReservedWord)
-				("external", Token::Id::ReservedWord)
-				("namespace", Token::Id::Namespace)
-				("technique", Token::Id::Technique)
-				("pass", Token::Id::Pass)
-				("class", Token::Id::ReservedWord)
-				("struct", Token::Id::Struct)
-				("union", Token::Id::ReservedWord)
-				("enum", Token::Id::ReservedWord)
-				("interface", Token::Id::ReservedWord)
-				("this", Token::Id::ReservedWord)
-				("typedef", Token::Id::ReservedWord)
-				("sizeof", Token::Id::ReservedWord)
-				("compile", Token::Id::ReservedWord)
-				("asm", Token::Id::ReservedWord)
-				("asm_fragment", Token::Id::ReservedWord)
-				("register", Token::Id::ReservedWord)
-				("packoffset", Token::Id::ReservedWord)
-				("for", Token::Id::For)
-				("foreach", Token::Id::ReservedWord)
-				("while", Token::Id::While)
-				("do", Token::Id::Do)
-				("if", Token::Id::If)
-				("else", Token::Id::Else)
-				("switch", Token::Id::Switch)
-				("case", Token::Id::Case)
-				("default", Token::Id::Default)
-				("break", Token::Id::Break)
-				("continue", Token::Id::Continue)
-				("return", Token::Id::Return)
-				("discard", Token::Id::Discard)
-				("goto", Token::Id::ReservedWord)
-				("extern", Token::Id::Extern)
-				("static", Token::Id::Static)
-				("uniform", Token::Id::Uniform)
-				("shared", Token::Id::ReservedWord)
-				("groupshared", Token::Id::ReservedWord)
-				("globallycoherent", Token::Id::ReservedWord)
-				("packed", Token::Id::ReservedWord)
-				("volatile", Token::Id::Volatile)
-				("precise", Token::Id::Precise)
-				("in", Token::Id::In)
-				("out", Token::Id::Out)
-				("inout", Token::Id::InOut)
-				("inline", Token::Id::ReservedWord)
-				("noinline", Token::Id::ReservedWord)
-				("const", Token::Id::Const)
-				("mutable", Token::Id::ReservedWord)
-				("row_major", Token::Id::ReservedWord)
-				("column_major", Token::Id::ReservedWord)
-				("snorm", Token::Id::ReservedWord)
-				("unorm", Token::Id::ReservedWord)
-				("signed", Token::Id::ReservedWord)
-				("unsigned", Token::Id::ReservedWord)
-				("linear", Token::Id::Linear)
-				("noperspective", Token::Id::NoPerspective)
-				("centroid", Token::Id::Centroid)
-				("nointerpolation", Token::Id::NoInterpolation)
-				("sample", Token::Id::ReservedWord)
-				("auto", Token::Id::ReservedWord)
-				("void", Token::Id::Void)
-				("bool", Token::Id::Bool)
-				("bool2", Token::Id::Bool2)
-				("bool2x2", Token::Id::Bool2x2)
-				("bool3", Token::Id::Bool3)
-				("bool3x3", Token::Id::Bool3x3)
-				("bool4", Token::Id::Bool4)
-				("bool4x4", Token::Id::Bool4x4)
-				("char", Token::Id::ReservedWord)
-				("short", Token::Id::ReservedWord)
-				("int", Token::Id::Int)
-				("int2", Token::Id::Int2)
-				("int2x2", Token::Id::Int2x2)
-				("int3", Token::Id::Int3)
-				("int3x3", Token::Id::Int3x3)
-				("int4", Token::Id::Int4)
-				("int4x4", Token::Id::Int4x4)
-				("uint", Token::Id::Uint)
-				("uint2", Token::Id::Uint2)
-				("uint2x2", Token::Id::Uint2x2)
-				("uint3", Token::Id::Uint3)
-				("uint3x3", Token::Id::Uint3x3)
-				("uint4", Token::Id::Uint4)
-				("uint4x4", Token::Id::Uint4x4)
-				("long", Token::Id::ReservedWord)
-				("dword", Token::Id::Uint)
-				("dword2", Token::Id::Uint2)
-				("dword2x2", Token::Id::Uint2x2)
-				("dword3", Token::Id::Uint3)
-				("dword3x3", Token::Id::Uint3x3)
-				("dword4", Token::Id::Uint4)
-				("dword4x4", Token::Id::Uint4x4)
-				("half", Token::Id::ReservedWord)
-				("half2", Token::Id::ReservedWord)
-				("half2x2", Token::Id::ReservedWord)
-				("half3", Token::Id::ReservedWord)
-				("half3x3", Token::Id::ReservedWord)
-				("half4", Token::Id::ReservedWord)
-				("half4x4", Token::Id::ReservedWord)
-				("float", Token::Id::Float)
-				("float2", Token::Id::Float2)
-				("float2x2", Token::Id::Float2x2)
-				("float3", Token::Id::Float3)
-				("float3x3", Token::Id::Float3x3)
-				("float4", Token::Id::Float4)
-				("float4x4", Token::Id::Float4x4)
-				("double", Token::Id::ReservedWord)
-				("string", Token::Id::String)
-				("vector", Token::Id::Vector)
-				("matrix", Token::Id::Matrix)
-				("texture", Token::Id::Texture2D)
-				("texture1D", Token::Id::Texture1D)
-				("Texture1D", Token::Id::ReservedWord)
-				("Texture1DArray", Token::Id::ReservedWord)
-				("texture2D", Token::Id::Texture2D)
-				("Texture2D", Token::Id::ReservedWord)
-				("Texture2DArray", Token::Id::ReservedWord)
-				("Texture2DMS", Token::Id::ReservedWord)
-				("Texture2DMSArray", Token::Id::ReservedWord)
-				("texture3D", Token::Id::Texture3D)
-				("Texture3D", Token::Id::ReservedWord)
-				("textureRECT", Token::Id::ReservedWord)
-				("textureCUBE", Token::Id::ReservedWord)
-				("TextureCube", Token::Id::ReservedWord)
-				("TextureCubeArray", Token::Id::ReservedWord)
-				("sampler", Token::Id::Sampler2D)
-				("sampler1D", Token::Id::Sampler1D)
-				("sampler1DShadow", Token::Id::ReservedWord)
-				("sampler1DArray", Token::Id::ReservedWord)
-				("sampler1DArrayShadow", Token::Id::ReservedWord)
-				("sampler2D", Token::Id::Sampler2D)
-				("sampler2DShadow", Token::Id::ReservedWord)
-				("sampler2DArray", Token::Id::ReservedWord)
-				("sampler2DArrayShadow", Token::Id::ReservedWord)
-				("sampler2DMS", Token::Id::ReservedWord)
-				("sampler2DMSArray", Token::Id::ReservedWord)
-				("sampler3D", Token::Id::Sampler3D)
-				("samplerRECT", Token::Id::ReservedWord)
-				("samplerCUBE", Token::Id::ReservedWord)
-				("SamplerState", Token::Id::ReservedWord)
-				("sampler_state", Token::Id::ReservedWord)
-				("true", Token::Id::True)
-				("TRUE", Token::Id::True)
-				("false", Token::Id::False)
-				("FALSE", Token::Id::False);
-
-			const auto it = sKeywords.find(token.GetRawData());
-
-			if (it != sKeywords.end())
+			#pragma region Keywords
+			struct Keyword
 			{
-				token.mId = it->second;
+				const char *data;
+				unsigned char length;
+				Lexer::Token::Id id;
+			};
+
+			static const Keyword sKeywords[] =
+			{
+				{ "asm", 3, Lexer::Token::Id::ReservedWord },
+				{ "asm_fragment", 12, Lexer::Token::Id::ReservedWord },
+				{ "auto", 4, Lexer::Token::Id::ReservedWord },
+				{ "bool", 4, Lexer::Token::Id::Bool },
+				{ "bool2", 5, Lexer::Token::Id::Bool2 },
+				{ "bool2x2", 7, Lexer::Token::Id::Bool2x2 },
+				{ "bool3", 5, Lexer::Token::Id::Bool3 },
+				{ "bool3x3", 7, Lexer::Token::Id::Bool3x3 },
+				{ "bool4", 5, Lexer::Token::Id::Bool4 },
+				{ "bool4x4", 7, Lexer::Token::Id::Bool4x4 },
+				{ "break", 5, Lexer::Token::Id::Break },
+				{ "case", 4, Lexer::Token::Id::Case },
+				{ "cast", 4, Lexer::Token::Id::ReservedWord },
+				{ "catch", 5, Lexer::Token::Id::ReservedWord },
+				{ "centroid", 8, Lexer::Token::Id::ReservedWord },
+				{ "char", 4, Lexer::Token::Id::ReservedWord },
+				{ "class", 5, Lexer::Token::Id::ReservedWord },
+				{ "column_major", 12, Lexer::Token::Id::ReservedWord },
+				{ "compile", 7, Lexer::Token::Id::ReservedWord },
+				{ "const", 5, Lexer::Token::Id::Const },
+				{ "const_cast", 10, Lexer::Token::Id::ReservedWord },
+				{ "continue", 8, Lexer::Token::Id::Continue },
+				{ "default", 7, Lexer::Token::Id::Default },
+				{ "delete", 6, Lexer::Token::Id::ReservedWord },
+				{ "discard", 7, Lexer::Token::Id::Discard },
+				{ "do", 2, Lexer::Token::Id::Do },
+				{ "double", 6, Lexer::Token::Id::ReservedWord },
+				{ "dword", 5, Lexer::Token::Id::Uint },
+				{ "dword2", 6, Lexer::Token::Id::Uint2 },
+				{ "dword2x2", 8, Lexer::Token::Id::Uint2x2 },
+				{ "dword3", 6, Lexer::Token::Id::Uint3, },
+				{ "dword3x3", 8, Lexer::Token::Id::Uint3x3 },
+				{ "dword4", 6, Lexer::Token::Id::Uint4 },
+				{ "dword4x4", 8, Lexer::Token::Id::Uint4x4 },
+				{ "dynamic_cast", 12, Lexer::Token::Id::ReservedWord },
+				{ "else", 4, Lexer::Token::Id::Else },
+				{ "enum", 4, Lexer::Token::Id::ReservedWord },
+				{ "explicit", 8, Lexer::Token::Id::ReservedWord },
+				{ "extern", 6, Lexer::Token::Id::Extern },
+				{ "external", 8, Lexer::Token::Id::ReservedWord },
+				{ "false", 5, Lexer::Token::Id::False },
+				{ "FALSE", 5, Lexer::Token::Id::False },
+				{ "float", 5, Lexer::Token::Id::Float },
+				{ "float2", 6, Lexer::Token::Id::Float2 },
+				{ "float2x2", 8, Lexer::Token::Id::Float2x2 },
+				{ "float3", 6, Lexer::Token::Id::Float3 },
+				{ "float3x3", 8, Lexer::Token::Id::Float3x3 },
+				{ "float4", 6, Lexer::Token::Id::Float4 },
+				{ "float4x4", 8, Lexer::Token::Id::Float4x4 },
+				{ "for", 3, Lexer::Token::Id::For },
+				{ "foreach", 7, Lexer::Token::Id::ReservedWord },
+				{ "friend", 6, Lexer::Token::Id::ReservedWord },
+				{ "globallycoherent", 16, Lexer::Token::Id::ReservedWord },
+				{ "goto", 4, Lexer::Token::Id::ReservedWord },
+				{ "groupshared", 11, Lexer::Token::Id::ReservedWord },
+				{ "half", 4, Lexer::Token::Id::ReservedWord },
+				{ "half2", 5, Lexer::Token::Id::ReservedWord },
+				{ "half2x2", 7, Lexer::Token::Id::ReservedWord },
+				{ "half3", 5, Lexer::Token::Id::ReservedWord },
+				{ "half3x3", 7, Lexer::Token::Id::ReservedWord },
+				{ "half4", 5, Lexer::Token::Id::ReservedWord },
+				{ "half4x4", 7, Lexer::Token::Id::ReservedWord },
+				{ "if", 2, Lexer::Token::Id::If },
+				{ "in", 2, Lexer::Token::Id::In },
+				{ "inline", 6, Lexer::Token::Id::ReservedWord },
+				{ "inout", 5, Lexer::Token::Id::InOut },
+				{ "int", 3, Lexer::Token::Id::Int },
+				{ "int2", 4, Lexer::Token::Id::Int2 },
+				{ "int2x2", 6, Lexer::Token::Id::Int2x2 },
+				{ "int3", 4, Lexer::Token::Id::Int3 },
+				{ "int3x3", 6, Lexer::Token::Id::Int3x3 },
+				{ "int4", 4, Lexer::Token::Id::Int4 },
+				{ "int4x4", 6, Lexer::Token::Id::Int4x4 },
+				{ "interface", 9, Lexer::Token::Id::ReservedWord },
+				{ "linear", 6, Lexer::Token::Id::Linear },
+				{ "long", 4, Lexer::Token::Id::ReservedWord },
+				{ "matrix", 6, Lexer::Token::Id::Matrix },
+				{ "mutable", 7, Lexer::Token::Id::ReservedWord },
+				{ "namespace", 9, Lexer::Token::Id::Namespace },
+				{ "new", 3, Lexer::Token::Id::ReservedWord },
+				{ "noinline", 8, Lexer::Token::Id::ReservedWord },
+				{ "nointerpolation", 15, Lexer::Token::Id::NoInterpolation },
+				{ "noperspective", 13, Lexer::Token::Id::NoPerspective },
+				{ "operator", 8, Lexer::Token::Id::ReservedWord },
+				{ "out", 3, Lexer::Token::Id::Out },
+				{ "packed", 6, Lexer::Token::Id::ReservedWord },
+				{ "packoffset", 10, Lexer::Token::Id::ReservedWord },
+				{ "pass", 4, Lexer::Token::Id::Pass },
+				{ "precise", 7, Lexer::Token::Id::Precise },
+				{ "private", 7, Lexer::Token::Id::ReservedWord },
+				{ "protected", 9, Lexer::Token::Id::ReservedWord },
+				{ "public", 6, Lexer::Token::Id::ReservedWord },
+				{ "register", 8, Lexer::Token::Id::ReservedWord },
+				{ "reinterpret_cast", 16, Lexer::Token::Id::ReservedWord },
+				{ "return", 6, Lexer::Token::Id::Return },
+				{ "row_major", 9, Lexer::Token::Id::ReservedWord },
+				{ "sample", 6, Lexer::Token::Id::ReservedWord },
+				{ "sampler", 7, Lexer::Token::Id::Sampler2D },
+				{ "sampler1D", 9, Lexer::Token::Id::Sampler1D },
+				{ "sampler1DArray", 14, Lexer::Token::Id::ReservedWord },
+				{ "sampler1DArrayShadow", 20, Lexer::Token::Id::ReservedWord },
+				{ "sampler1DShadow", 15, Lexer::Token::Id::ReservedWord },
+				{ "sampler2D", 9, Lexer::Token::Id::Sampler2D },
+				{ "sampler2DArray", 14, Lexer::Token::Id::ReservedWord },
+				{ "sampler2DArrayShadow", 20, Lexer::Token::Id::ReservedWord },
+				{ "sampler2DMS", 11, Lexer::Token::Id::ReservedWord },
+				{ "sampler2DMSArray", 16, Lexer::Token::Id::ReservedWord },
+				{ "sampler2DShadow", 15, Lexer::Token::Id::ReservedWord },
+				{ "sampler3D", 9, Lexer::Token::Id::Sampler3D },
+				{ "sampler_state", 13, Lexer::Token::Id::ReservedWord },
+				{ "samplerCUBE", 11, Lexer::Token::Id::ReservedWord },
+				{ "samplerRECT", 11, Lexer::Token::Id::ReservedWord },
+				{ "SamplerState", 12, Lexer::Token::Id::ReservedWord },
+				{ "shared", 6, Lexer::Token::Id::ReservedWord },
+				{ "short", 5, Lexer::Token::Id::ReservedWord },
+				{ "signed", 6, Lexer::Token::Id::ReservedWord },
+				{ "sizeof", 6, Lexer::Token::Id::ReservedWord },
+				{ "snorm", 5, Lexer::Token::Id::ReservedWord },
+				{ "static", 6, Lexer::Token::Id::Static },
+				{ "static_cast", 11, Lexer::Token::Id::ReservedWord },
+				{ "string", 6, Lexer::Token::Id::String },
+				{ "struct", 6, Lexer::Token::Id::Struct },
+				{ "switch", 6, Lexer::Token::Id::Switch },
+				{ "technique", 9, Lexer::Token::Id::Technique },
+				{ "template", 8, Lexer::Token::Id::ReservedWord },
+				{ "texture", 7, Lexer::Token::Id::Texture2D },
+				{ "Texture1D", 9, Lexer::Token::Id::ReservedWord },
+				{ "texture1D", 9, Lexer::Token::Id::Texture1D },
+				{ "Texture1DArray", 14, Lexer::Token::Id::ReservedWord },
+				{ "Texture2D", 9, Lexer::Token::Id::ReservedWord },
+				{ "texture2D", 9, Lexer::Token::Id::Texture2D },
+				{ "Texture2DArray", 14, Lexer::Token::Id::ReservedWord },
+				{ "Texture2DMS", 11, Lexer::Token::Id::ReservedWord },
+				{ "Texture2DMSArray", 16, Lexer::Token::Id::ReservedWord },
+				{ "Texture3D", 9, Lexer::Token::Id::ReservedWord },
+				{ "texture3D", 9, Lexer::Token::Id::Texture3D },
+				{ "textureCUBE", 11, Lexer::Token::Id::ReservedWord },
+				{ "TextureCube", 11, Lexer::Token::Id::ReservedWord },
+				{ "TextureCubeArray", 16, Lexer::Token::Id::ReservedWord },
+				{ "textureRECT", 11, Lexer::Token::Id::ReservedWord },
+				{ "this", 4, Lexer::Token::Id::ReservedWord },
+				{ "true", 4, Lexer::Token::Id::True },
+				{ "TRUE", 4, Lexer::Token::Id::True },
+				{ "try", 3, Lexer::Token::Id::ReservedWord },
+				{ "typedef", 7, Lexer::Token::Id::ReservedWord },
+				{ "uint", 4, Lexer::Token::Id::Uint },
+				{ "uint2", 5, Lexer::Token::Id::Uint2 },
+				{ "uint2x2", 7, Lexer::Token::Id::Uint2x2 },
+				{ "uint3", 5, Lexer::Token::Id::Uint3 },
+				{ "uint3x3", 7, Lexer::Token::Id::Uint3x3 },
+				{ "uint4", 5, Lexer::Token::Id::Uint4 },
+				{ "uint4x4", 7, Lexer::Token::Id::Uint4x4 },
+				{ "uniform", 7, Lexer::Token::Id::Uniform },
+				{ "union", 5, Lexer::Token::Id::ReservedWord },
+				{ "unorm", 5, Lexer::Token::Id::ReservedWord },
+				{ "unsigned", 8, Lexer::Token::Id::ReservedWord },
+				{ "vector", 6, Lexer::Token::Id::Vector },
+				{ "virtual", 7, Lexer::Token::Id::ReservedWord },
+				{ "void", 4, Lexer::Token::Id::Void },
+				{ "volatile", 8, Lexer::Token::Id::Volatile },
+				{ "while", 5, Lexer::Token::Id::While }
+			};
+			#pragma endregion
+
+			for (unsigned int i = 0; i < sizeof(sKeywords) / sizeof(Keyword); i++)
+			{
+				if (sKeywords[i].length == token.mRawDataLength && strncmp(token.mRawData, sKeywords[i].data, token.mRawDataLength) == 0)
+				{
+					token.mId = sKeywords[i].id;
+					break;
+				}
 			}
 		}
 		void Lexer::ParseStringLiteral(Token &token)
