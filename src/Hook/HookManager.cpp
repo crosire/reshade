@@ -3,6 +3,7 @@
 #include "Utils\CriticalSection.hpp"
 
 #include <vector>
+#include <algorithm>
 #include <unordered_map>
 #include <boost\algorithm\string.hpp>
 #include <assert.h>
@@ -70,8 +71,8 @@ namespace ReShade
 			}
 			inline boost::filesystem::path GetModuleFileName(HMODULE handle)
 			{
-				TCHAR path[MAX_PATH];
-				GetModuleFileName(handle, path, MAX_PATH);
+				WCHAR path[MAX_PATH];
+				GetModuleFileNameW(handle, path, MAX_PATH);
 
 				return path;
 			}

@@ -1,6 +1,7 @@
 #include "Log.hpp"
 #include "WindowWatcher.hpp"
 
+#include <algorithm>
 #include <windowsx.h>
 
 namespace ReShade

@@ -2,6 +2,7 @@
 #include "HookManager.hpp"
 #include "WindowWatcher.hpp"
 
+#include <assert.h>
 #include <Windows.h>
 
 #define EXPORT extern "C"

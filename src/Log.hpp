@@ -1,9 +1,8 @@
 #pragma once
 
+#include <codecvt>
 #include <fstream>
 #include <iomanip>
-#include <codecvt>
-#include <boost\noncopyable.hpp>
 #include <boost\filesystem\path.hpp>
 
 #define LOG(LEVEL) LOG_##LEVEL()

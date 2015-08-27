@@ -30,7 +30,7 @@ namespace ReShade
 		/// <summary>
 		/// Register the matching exports in the specified module and install or delay their hooking.
 		/// </summary>
-		/// <param name="The file path to the target module."></param>
+		/// <param name="path">The file path to the target module.</param>
 		void RegisterModule(const boost::filesystem::path &path);
 
 		/// <summary>

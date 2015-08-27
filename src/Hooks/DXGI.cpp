@@ -3,6 +3,9 @@
 #include "Runtimes\D3D10Runtime.hpp"
 #include "Runtimes\D3D11Runtime.hpp"
 
+#include <memory>
+#include <sstream>
+#include <assert.h>
 #include <dxgi.h>
 #include <dxgi1_2.h>
 

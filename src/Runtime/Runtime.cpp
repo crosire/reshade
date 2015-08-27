@@ -9,6 +9,8 @@
 #include "WindowWatcher.hpp"
 #include "Utils\Algorithm.hpp"
 
+#include <iterator>
+#include <assert.h>
 #include <stb_dxt.h>
 #include <stb_image.h>
 #include <stb_image_write.h>
@@ -235,7 +237,7 @@ namespace ReShade
 		{
 			if (!this->mStatus.empty())
 			{
-				this->mGUI->AddLabel(24, 0xFFBCBCBC, "ReShade " BOOST_STRINGIZE(VERSION_FULL) " by Crosire");
+				this->mGUI->AddLabel(22, 0xFFBCBCBC, "ReShade " BOOST_STRINGIZE(VERSION_FULL) " by Crosire");
 				this->mGUI->AddLabel(16, 0xFFBCBCBC, "Visit http://reshade.me for news, updates, shaders and discussion.");
 				this->mGUI->AddLabel(16, 0xFFBCBCBC, this->mStatus);
 

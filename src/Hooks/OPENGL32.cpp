@@ -3,8 +3,11 @@
 #include "Runtimes\GLRuntime.hpp"
 #include "Utils\CriticalSection.hpp"
 
+#include <memory>
+#include <sstream>
 #include <unordered_map>
 #include <unordered_set>
+#include <assert.h>
 
 #pragma region Undefine Function Names
 #undef glBindFramebuffer
@@ -3117,9 +3120,14 @@ BOOL WINAPI wglChoosePixelFormatARB(HDC hdc, const int *piAttribIList, const FLO
 
 	assert(nNumFormats != nullptr);
 
+	if (*nNumFormats < nMaxFormats)
+	{
+		nMaxFormats = *nNumFormats;
+	}
+
 	std::string formats;
 
-	for (UINT i = 0; i < std::min(*nNumFormats, nMaxFormats); ++i)
+	for (UINT i = 0; i < nMaxFormats; ++i)
 	{
 		assert(piFormats[i] != 0);
 

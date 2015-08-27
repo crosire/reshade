@@ -4,6 +4,7 @@
 #include "GUI.hpp"
 #include "WindowWatcher.hpp"
 
+#include <assert.h>
 #include <d3dx9math.h>
 #include <d3dcompiler.h>
 #include <nanovg_d3d9.h>

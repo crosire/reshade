@@ -2,6 +2,10 @@
 #include "HookManager.hpp"
 #include "Runtimes\D3D9Runtime.hpp"
 
+#include <memory>
+#include <sstream>
+#include <assert.h>
+
 #pragma region Undefine Function Names
 #undef IDirect3D9_CreateDevice
 #undef IDirect3D9Ex_CreateDeviceEx

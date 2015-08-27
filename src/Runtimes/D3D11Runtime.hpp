@@ -3,6 +3,7 @@
 #include "Runtime.hpp"
 #include "Utils\CriticalSection.hpp"
 
+#include <algorithm>
 #include <d3d11_1.h>
 
 namespace ReShade

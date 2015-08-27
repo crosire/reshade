@@ -2,6 +2,7 @@
 
 #include "Runtime.hpp"
 
+#include <algorithm>
 #include <gl\gl3w.h>
 
 namespace ReShade

@@ -3,6 +3,7 @@
 
 #include <regex>
 #include <sstream>
+#include <assert.h>
 #include <d3d9.h>
 #include <d3dx9shader.h>
 #include <initguid.h>

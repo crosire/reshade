@@ -2,6 +2,9 @@
 #include "HookManager.hpp"
 #include "Runtimes\D3D10Runtime.hpp"
 
+#include <memory>
+#include <sstream>
+#include <assert.h>
 #include <d3d10_1.h>
 
 #define EXPORT extern "C"

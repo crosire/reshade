@@ -4,6 +4,7 @@
 #include "GUI.hpp"
 #include "WindowWatcher.hpp"
 
+#include <assert.h>
 #include <d3dcompiler.h>
 #include <nanovg_d3d11.h>
 #include <boost\algorithm\string.hpp>

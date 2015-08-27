@@ -2,6 +2,7 @@
 
 #include "Runtime.hpp"
 
+#include <algorithm>
 #include <d3d10_1.h>
 
 namespace ReShade

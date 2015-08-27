@@ -38,7 +38,7 @@ namespace ReShade
 
 	bool Log::Open(const boost::filesystem::path &path, Level maxlevel)
 	{
-		sFileStream.open(path.c_str(), std::ios::out | std::ios::trunc);
+		sFileStream.open(path.native(), std::ios::out | std::ios::trunc);
 
 		if (!sFileStream.is_open())
 		{
