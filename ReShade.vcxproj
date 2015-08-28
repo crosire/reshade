@@ -244,6 +244,7 @@ tools\upx --backup "$(TargetPath)"</Command>
     <ClCompile Include="src\Hooks\D3D9.cpp" />
     <ClCompile Include="src\Hooks\D3D10.cpp" />
     <ClCompile Include="src\Hooks\D3D11.cpp" />
+    <ClCompile Include="src\Hooks\D3D12.cpp" />
     <ClCompile Include="src\Hooks\DXGI.cpp" />
     <ClCompile Include="src\Hooks\OPENGL32.cpp" />
     <ClCompile Include="src\Hooks\USER32.cpp" />
@@ -255,6 +256,7 @@ tools\upx --backup "$(TargetPath)"</Command>
     <ClCompile Include="src\Runtimes\D3D9Runtime.cpp" />
     <ClCompile Include="src\Runtimes\D3D10Runtime.cpp" />
     <ClCompile Include="src\Runtimes\D3D11Runtime.cpp" />
+    <ClCompile Include="src\Runtimes\D3D12Runtime.cpp" />
     <ClCompile Include="src\Runtimes\GLRuntime.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -270,14 +272,16 @@ tools\upx --backup "$(TargetPath)"</Command>
     <ClInclude Include="src\Hooks\D3D9.hpp" />
     <ClInclude Include="src\Hooks\D3D10.hpp" />
     <ClInclude Include="src\Hooks\D3D11.hpp" />
+    <ClInclude Include="src\Hooks\D3D12.hpp" />
     <ClInclude Include="src\Hooks\DXGI.hpp" />
     <ClInclude Include="src\Runtime\FileWatcher.hpp" />
     <ClInclude Include="src\Runtime\GUI.hpp" />
     <ClInclude Include="src\Runtime\Runtime.hpp" />
     <ClInclude Include="src\Runtime\WindowWatcher.hpp" />
+    <ClInclude Include="src\Runtimes\D3D9Runtime.hpp" />
     <ClInclude Include="src\Runtimes\D3D10Runtime.hpp" />
     <ClInclude Include="src\Runtimes\D3D11Runtime.hpp" />
-    <ClInclude Include="src\Runtimes\D3D9Runtime.hpp" />
+    <ClInclude Include="src\Runtimes\D3D12Runtime.hpp" />
     <ClInclude Include="src\Runtimes\GLRuntime.hpp" />
     <ClInclude Include="src\Utils\Algorithm.hpp" />
     <ClInclude Include="src\Utils\CriticalSection.hpp" />

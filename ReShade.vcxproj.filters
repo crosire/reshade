@@ -75,6 +75,9 @@
     <ClCompile Include="src\Hooks\D3D11.cpp">
       <Filter>Implementation\Hooks</Filter>
     </ClCompile>
+    <ClCompile Include="src\Hooks\D3D12.cpp">
+      <Filter>Implementation\Hooks</Filter>
+    </ClCompile>
     <ClCompile Include="src\Hooks\DXGI.cpp">
       <Filter>Implementation\Hooks</Filter>
     </ClCompile>
@@ -94,6 +97,9 @@
       <Filter>Implementation\Runtimes</Filter>
     </ClCompile>
     <ClCompile Include="src\Runtimes\D3D11Runtime.cpp">
+      <Filter>Implementation\Runtimes</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Runtimes\D3D12Runtime.cpp">
       <Filter>Implementation\Runtimes</Filter>
     </ClCompile>
     <ClCompile Include="src\Runtimes\GLRuntime.cpp">
@@ -152,6 +158,9 @@
     <ClInclude Include="src\Hooks\D3D11.hpp">
       <Filter>Implementation\Hooks</Filter>
     </ClInclude>
+    <ClInclude Include="src\Hooks\D3D12.hpp">
+      <Filter>Implementation\Hooks</Filter>
+    </ClInclude>
     <ClInclude Include="src\Hooks\DXGI.hpp">
       <Filter>Implementation\Hooks</Filter>
     </ClInclude>
@@ -162,6 +171,9 @@
       <Filter>Implementation\Runtimes</Filter>
     </ClInclude>
     <ClInclude Include="src\Runtimes\D3D11Runtime.hpp">
+      <Filter>Implementation\Runtimes</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Runtimes\D3D12Runtime.hpp">
       <Filter>Implementation\Runtimes</Filter>
     </ClInclude>
     <ClInclude Include="src\Runtimes\GLRuntime.hpp">

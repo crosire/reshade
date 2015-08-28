@@ -74,6 +74,7 @@ namespace ReShade
 		Hooks::RegisterModule(systemPath / "d3d10.dll");
 		Hooks::RegisterModule(systemPath / "d3d10_1.dll");
 		Hooks::RegisterModule(systemPath / "d3d11.dll");
+		Hooks::RegisterModule(systemPath / "d3d12.dll");
 		Hooks::RegisterModule(systemPath / "dxgi.dll");
 		Hooks::RegisterModule(systemPath / "opengl32.dll");
 		Hooks::RegisterModule(systemPath / "user32.dll");

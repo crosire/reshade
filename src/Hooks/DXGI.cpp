@@ -176,14 +176,14 @@ ULONG STDMETHODCALLTYPE DXGISwapChain::Release()
 {
 	if (--this->mRef == 0)
 	{
-		switch (this->mDevice->mDirect3DVersion)
+		switch (this->mDirect3DVersion)
 		{
 			case 10:
 			{
 				assert(this->mRuntime != nullptr);
 
-				auto runtime = std::static_pointer_cast<ReShade::Runtimes::D3D10Runtime>(this->mRuntime);
-				std::vector<std::shared_ptr<ReShade::Runtimes::D3D10Runtime>> &runtimes = static_cast<D3D10Device *>(this->mDevice->mDirect3DDevice)->mRuntimes;
+				const auto runtime = std::static_pointer_cast<ReShade::Runtimes::D3D10Runtime>(this->mRuntime);
+				std::vector<std::shared_ptr<ReShade::Runtimes::D3D10Runtime>> &runtimes = static_cast<D3D10Device *>(this->mDirect3DDevice)->mRuntimes;
 
 				runtime->OnReset();
 
@@ -194,19 +194,28 @@ ULONG STDMETHODCALLTYPE DXGISwapChain::Release()
 			{
 				assert(this->mRuntime != nullptr);
 
-				auto runtime = std::static_pointer_cast<ReShade::Runtimes::D3D11Runtime>(this->mRuntime);
-				std::vector<std::shared_ptr<ReShade::Runtimes::D3D11Runtime>> &runtimes = static_cast<D3D11Device *>(this->mDevice->mDirect3DDevice)->mRuntimes;
+				const auto runtime = std::static_pointer_cast<ReShade::Runtimes::D3D11Runtime>(this->mRuntime);
+				std::vector<std::shared_ptr<ReShade::Runtimes::D3D11Runtime>> &runtimes = static_cast<D3D11Device *>(this->mDirect3DDevice)->mRuntimes;
 
 				runtime->OnReset();
 
 				runtimes.erase(std::remove(runtimes.begin(), runtimes.end(), runtime), runtimes.end());
 				break;
 			}
+			case 12:
+			{
+				assert(this->mRuntime != nullptr);
+
+				const auto runtime = std::static_pointer_cast<ReShade::Runtimes::D3D12Runtime>(this->mRuntime);
+
+				runtime->OnReset();
+				break;
+			}
 		}
 
 		this->mRuntime.reset();
 
-		this->mDevice->Release();
+		this->mDirect3DDevice->Release();
 	}
 
 	ULONG ref = this->mOrig->Release();
@@ -252,11 +261,11 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::GetDevice(REFIID riid, void **ppDevice)
 		return DXGI_ERROR_INVALID_CALL;
 	}
 
-	return this->mDevice->QueryInterface(riid, ppDevice);
+	return this->mDirect3DDevice->QueryInterface(riid, ppDevice);
 }
 HRESULT STDMETHODCALLTYPE DXGISwapChain::Present(UINT SyncInterval, UINT Flags)
 {
-	switch (this->mDevice->mDirect3DVersion)
+	switch (this->mDirect3DVersion)
 	{
 		case 10:
 			assert(this->mRuntime != nullptr);
@@ -265,6 +274,10 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::Present(UINT SyncInterval, UINT Flags)
 		case 11:
 			assert(this->mRuntime != nullptr);
 			std::static_pointer_cast<ReShade::Runtimes::D3D11Runtime>(this->mRuntime)->OnPresent();
+			break;
+		case 12:
+			assert(this->mRuntime != nullptr);
+			std::static_pointer_cast<ReShade::Runtimes::D3D12Runtime>(this->mRuntime)->OnPresent();
 			break;
 	}
 
@@ -292,7 +305,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Wi
 {
 	LOG(INFO) << "Redirecting '" << "IDXGISwapChain::ResizeBuffers" << "(" << this << ", " << BufferCount << ", " << Width << ", " << Height << ", " << NewFormat << ", " << std::showbase << std::hex << SwapChainFlags << std::dec << std::noshowbase << ")' ...";
 
-	switch (this->mDevice->mDirect3DVersion)
+	switch (this->mDirect3DVersion)
 	{
 		case 10:
 			assert(this->mRuntime != nullptr);
@@ -301,6 +314,10 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Wi
 		case 11:
 			assert(this->mRuntime != nullptr);
 			std::static_pointer_cast<ReShade::Runtimes::D3D11Runtime>(this->mRuntime)->OnReset();
+			break;
+		case 12:
+			assert(this->mRuntime != nullptr);
+			std::static_pointer_cast<ReShade::Runtimes::D3D12Runtime>(this->mRuntime)->OnReset();
 			break;
 	}
 
@@ -322,7 +339,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Wi
 
 	bool initialized = false;
 
-	switch (this->mDevice->mDirect3DVersion)
+	switch (this->mDirect3DVersion)
 	{
 		case 10:
 			assert(this->mRuntime != nullptr);
@@ -332,11 +349,15 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Wi
 			assert(this->mRuntime != nullptr);
 			initialized = std::static_pointer_cast<ReShade::Runtimes::D3D11Runtime>(this->mRuntime)->OnInit(desc);
 			break;
+		case 12:
+			assert(this->mRuntime != nullptr);
+			initialized = std::static_pointer_cast<ReShade::Runtimes::D3D12Runtime>(this->mRuntime)->OnInit(desc);
+			break;
 	}
 
 	if (!initialized)
 	{
-		LOG(ERROR) << "Failed to recreate Direct3D" << this->mDevice->mDirect3DVersion << " runtime environment on runtime " << this->mRuntime.get() << ".";
+		LOG(ERROR) << "Failed to recreate Direct3D" << this->mDirect3DVersion << " runtime environment on runtime " << this->mRuntime.get() << ".";
 	}
 
 	return hr;
@@ -387,7 +408,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::Present1(UINT SyncInterval, UINT Presen
 {
 	assert(this->mInterfaceVersion >= 1);
 
-	switch (this->mDevice->mDirect3DVersion)
+	switch (this->mDirect3DVersion)
 	{
 		case 10:
 			assert(this->mRuntime != nullptr);
@@ -396,6 +417,10 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::Present1(UINT SyncInterval, UINT Presen
 		case 11:
 			assert(this->mRuntime != nullptr);
 			std::static_pointer_cast<ReShade::Runtimes::D3D11Runtime>(this->mRuntime)->OnPresent();
+			break;
+		case 12:
+			assert(this->mRuntime != nullptr);
+			std::static_pointer_cast<ReShade::Runtimes::D3D12Runtime>(this->mRuntime)->OnPresent();
 			break;
 	}
 
@@ -507,7 +532,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers1(UINT BufferCount, UINT W
 
 	LOG(INFO) << "Redirecting '" << "IDXGISwapChain3::ResizeBuffers1" << "(" << this << ", " << BufferCount << ", " << Width << ", " << Height << ", " << Format << ", " << std::showbase << std::hex << SwapChainFlags << std::dec << std::noshowbase << ", " << pCreationNodeMask << ", " << ppPresentQueue << ")' ...";
 
-	switch (this->mDevice->mDirect3DVersion)
+	switch (this->mDirect3DVersion)
 	{
 		case 10:
 			assert(this->mRuntime != nullptr);
@@ -516,6 +541,10 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers1(UINT BufferCount, UINT W
 		case 11:
 			assert(this->mRuntime != nullptr);
 			std::static_pointer_cast<ReShade::Runtimes::D3D11Runtime>(this->mRuntime)->OnReset();
+			break;
+		case 12:
+			assert(this->mRuntime != nullptr);
+			std::static_pointer_cast<ReShade::Runtimes::D3D12Runtime>(this->mRuntime)->OnReset();
 			break;
 	}
 
@@ -537,7 +566,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers1(UINT BufferCount, UINT W
 
 	bool initialized = false;
 
-	switch (this->mDevice->mDirect3DVersion)
+	switch (this->mDirect3DVersion)
 	{
 		case 10:
 			assert(this->mRuntime != nullptr);
@@ -547,11 +576,15 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers1(UINT BufferCount, UINT W
 			assert(this->mRuntime != nullptr);
 			initialized = std::static_pointer_cast<ReShade::Runtimes::D3D11Runtime>(this->mRuntime)->OnInit(desc);
 			break;
+		case 12:
+			assert(this->mRuntime != nullptr);
+			initialized = std::static_pointer_cast<ReShade::Runtimes::D3D12Runtime>(this->mRuntime)->OnInit(desc);
+			break;
 	}
 
 	if (!initialized)
 	{
-		LOG(ERROR) << "Failed to recreate Direct3D" << this->mDevice->mDirect3DVersion << " runtime environment on runtime " << this->mRuntime.get() << ".";
+		LOG(ERROR) << "Failed to recreate Direct3D" << this->mDirect3DVersion << " runtime environment on runtime " << this->mRuntime.get() << ".";
 	}
 
 	return hr;
@@ -635,31 +668,7 @@ HRESULT STDMETHODCALLTYPE DXGIDevice::QueryInterface(REFIID riid, void **ppvObj)
 		return S_OK;
 	}
 
-	switch (this->mDirect3DVersion)
-	{
-		case 10:
-			if (
-				riid == __uuidof(D3D10Device) ||
-				riid == __uuidof(ID3D10Device) ||
-				riid == __uuidof(ID3D10Device1))
-			{
-				return this->mDirect3DDevice->QueryInterface(riid, ppvObj);
-			}
-			break;
-		case 11:
-			if (
-				riid == __uuidof(D3D11Device) ||
-				riid == __uuidof(ID3D11Device) ||
-				riid == __uuidof(ID3D11Device1) ||
-				riid == __uuidof(ID3D11Device2) ||
-				riid == __uuidof(ID3D11Device3))
-			{
-				return this->mDirect3DDevice->QueryInterface(riid, ppvObj);
-			}
-			break;
-	}
-
-	return this->mOrig->QueryInterface(riid, ppvObj);
+	return this->mDirect3DDevice->QueryInterface(riid, ppvObj);
 }
 ULONG DXGIDevice::InternalAddRef()
 {
@@ -784,6 +793,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, I
 	IUnknown *deviceOrig = pDevice;
 	D3D10Device *deviceD3D10 = nullptr;
 	D3D11Device *deviceD3D11 = nullptr;
+	D3D12CommandQueue *commandqueueD3D12 = nullptr;
 
 	if (pDevice == nullptr || pDesc == nullptr || ppSwapChain == nullptr)
 	{
@@ -800,6 +810,12 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, I
 		deviceOrig = deviceD3D11->mOrig;
 
 		deviceD3D11->Release();
+	}
+	else if (SUCCEEDED(pDevice->QueryInterface(&commandqueueD3D12)))
+	{
+		deviceOrig = commandqueueD3D12->mOrig;
+
+		commandqueueD3D12->Release();
 	}
 
 	DumpSwapChainDescription(*pDesc);
@@ -824,6 +840,8 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, I
 	}
 	else if (deviceD3D10 != nullptr)
 	{
+		deviceD3D10->AddRef();
+
 		const std::shared_ptr<ReShade::Runtimes::D3D10Runtime> runtime = std::make_shared<ReShade::Runtimes::D3D10Runtime>(deviceD3D10->mOrig, swapchain);
 
 		if (!runtime->OnInit(desc))
@@ -833,15 +851,12 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, I
 
 		deviceD3D10->mRuntimes.push_back(runtime);
 
-		DXGIDevice *dxgidevice = nullptr;
-		deviceD3D10->QueryInterface(IID_PPV_ARGS(&dxgidevice));
-
-		assert(dxgidevice != nullptr);
-
-		*ppSwapChain = new DXGISwapChain(dxgidevice, swapchain, runtime);
+		*ppSwapChain = new DXGISwapChain(deviceD3D10, swapchain, runtime);
 	}
 	else if (deviceD3D11 != nullptr)
 	{
+		deviceD3D11->AddRef();
+
 		const std::shared_ptr<ReShade::Runtimes::D3D11Runtime> runtime = std::make_shared<ReShade::Runtimes::D3D11Runtime>(deviceD3D11->mOrig, swapchain);
 
 		if (!runtime->OnInit(desc))
@@ -851,12 +866,20 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, I
 
 		deviceD3D11->mRuntimes.push_back(runtime);
 
-		DXGIDevice *dxgidevice = nullptr;
-		deviceD3D11->QueryInterface(IID_PPV_ARGS(&dxgidevice));
+		*ppSwapChain = new DXGISwapChain(deviceD3D11, swapchain, runtime);
+	}
+	else if (commandqueueD3D12 != nullptr)
+	{
+		commandqueueD3D12->AddRef();
 
-		assert(dxgidevice != nullptr);
+		const auto runtime = std::make_shared<ReShade::Runtimes::D3D12Runtime>(commandqueueD3D12->mDevice->mOrig, commandqueueD3D12->mOrig, swapchain);
 
-		*ppSwapChain = new DXGISwapChain(dxgidevice, swapchain, runtime);
+		if (!runtime->OnInit(desc))
+		{
+			LOG(ERROR) << "Failed to initialize Direct3D12 runtime environment on runtime " << runtime.get() << ".";
+		}
+
+		*ppSwapChain = new DXGISwapChain(commandqueueD3D12, swapchain, runtime);
 	}
 	else
 	{
@@ -876,6 +899,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pF
 	IUnknown *deviceOrig = pDevice;
 	D3D10Device *deviceD3D10 = nullptr;
 	D3D11Device *deviceD3D11 = nullptr;
+	D3D12CommandQueue *commandqueueD3D12 = nullptr;
 
 	if (pDevice == nullptr || pDesc == nullptr || ppSwapChain == nullptr)
 	{
@@ -892,6 +916,12 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pF
 		deviceOrig = deviceD3D11->mOrig;
 
 		deviceD3D11->Release();
+	}
+	else if (SUCCEEDED(pDevice->QueryInterface(&commandqueueD3D12)))
+	{
+		deviceOrig = commandqueueD3D12->mOrig;
+
+		commandqueueD3D12->Release();
 	}
 
 	DumpSwapChainDescription(*pDesc);
@@ -916,6 +946,8 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pF
 	}
 	else if (deviceD3D10 != nullptr)
 	{
+		deviceD3D10->AddRef();
+
 		const std::shared_ptr<ReShade::Runtimes::D3D10Runtime> runtime = std::make_shared<ReShade::Runtimes::D3D10Runtime>(deviceD3D10->mOrig, swapchain);
 
 		if (!runtime->OnInit(desc))
@@ -925,15 +957,12 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pF
 
 		deviceD3D10->mRuntimes.push_back(runtime);
 
-		DXGIDevice *dxgidevice = nullptr;
-		deviceD3D10->QueryInterface(IID_PPV_ARGS(&dxgidevice));
-
-		assert(dxgidevice != nullptr);
-
-		*ppSwapChain = new DXGISwapChain(dxgidevice, swapchain, runtime);
+		*ppSwapChain = new DXGISwapChain(deviceD3D10, swapchain, runtime);
 	}
 	else if (deviceD3D11 != nullptr)
 	{
+		deviceD3D11->AddRef();
+
 		const std::shared_ptr<ReShade::Runtimes::D3D11Runtime> runtime = std::make_shared<ReShade::Runtimes::D3D11Runtime>(deviceD3D11->mOrig, swapchain);
 
 		if (!runtime->OnInit(desc))
@@ -943,12 +972,20 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pF
 
 		deviceD3D11->mRuntimes.push_back(runtime);
 
-		DXGIDevice *dxgidevice = nullptr;
-		deviceD3D11->QueryInterface(IID_PPV_ARGS(&dxgidevice));
+		*ppSwapChain = new DXGISwapChain(deviceD3D11, swapchain, runtime);
+	}
+	else if (commandqueueD3D12 != nullptr)
+	{
+		commandqueueD3D12->AddRef();
 
-		assert(dxgidevice != nullptr);
+		const auto runtime = std::make_shared<ReShade::Runtimes::D3D12Runtime>(commandqueueD3D12->mDevice->mOrig, commandqueueD3D12->mOrig, swapchain);
 
-		*ppSwapChain = new DXGISwapChain(dxgidevice, swapchain, runtime);
+		if (!runtime->OnInit(desc))
+		{
+			LOG(ERROR) << "Failed to initialize Direct3D12 runtime environment on runtime " << runtime.get() << ".";
+		}
+
+		*ppSwapChain = new DXGISwapChain(commandqueueD3D12, swapchain, runtime);
 	}
 	else
 	{
@@ -966,6 +1003,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactor
 	IUnknown *deviceOrig = pDevice;
 	D3D10Device *deviceD3D10 = nullptr;
 	D3D11Device *deviceD3D11 = nullptr;
+	D3D12CommandQueue *commandqueueD3D12 = nullptr;
 
 	if (pDevice == nullptr || pDesc == nullptr || ppSwapChain == nullptr)
 	{
@@ -982,6 +1020,12 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactor
 		deviceOrig = deviceD3D11->mOrig;
 
 		deviceD3D11->Release();
+	}
+	else if (SUCCEEDED(pDevice->QueryInterface(&commandqueueD3D12)))
+	{
+		deviceOrig = commandqueueD3D12->mOrig;
+
+		commandqueueD3D12->Release();
 	}
 
 	DumpSwapChainDescription(*pDesc);
@@ -1006,7 +1050,9 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactor
 	}
 	else if (deviceD3D10 != nullptr)
 	{
-		const std::shared_ptr<ReShade::Runtimes::D3D10Runtime> runtime = std::make_shared<ReShade::Runtimes::D3D10Runtime>(deviceD3D10->mOrig, swapchain);
+		deviceD3D10->AddRef();
+
+		const auto runtime = std::make_shared<ReShade::Runtimes::D3D10Runtime>(deviceD3D10->mOrig, swapchain);
 
 		if (!runtime->OnInit(desc))
 		{
@@ -1015,16 +1061,13 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactor
 
 		deviceD3D10->mRuntimes.push_back(runtime);
 
-		DXGIDevice *dxgidevice = nullptr;
-		deviceD3D10->QueryInterface(IID_PPV_ARGS(&dxgidevice));
-
-		assert(dxgidevice != nullptr);
-
-		*ppSwapChain = new DXGISwapChain(dxgidevice, swapchain, runtime);
+		*ppSwapChain = new DXGISwapChain(deviceD3D10, swapchain, runtime);
 	}
 	else if (deviceD3D11 != nullptr)
 	{
-		const std::shared_ptr<ReShade::Runtimes::D3D11Runtime> runtime = std::make_shared<ReShade::Runtimes::D3D11Runtime>(deviceD3D11->mOrig, swapchain);
+		deviceD3D11->AddRef();
+
+		const auto runtime = std::make_shared<ReShade::Runtimes::D3D11Runtime>(deviceD3D11->mOrig, swapchain);
 
 		if (!runtime->OnInit(desc))
 		{
@@ -1033,12 +1076,20 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactor
 
 		deviceD3D11->mRuntimes.push_back(runtime);
 
-		DXGIDevice *dxgidevice = nullptr;
-		deviceD3D11->QueryInterface(IID_PPV_ARGS(&dxgidevice));
+		*ppSwapChain = new DXGISwapChain(deviceD3D11, swapchain, runtime);
+	}
+	else if (commandqueueD3D12 != nullptr)
+	{
+		commandqueueD3D12->AddRef();
 
-		assert(dxgidevice != nullptr);
+		const auto runtime = std::make_shared<ReShade::Runtimes::D3D12Runtime>(commandqueueD3D12->mDevice->mOrig, commandqueueD3D12->mOrig, swapchain);
 
-		*ppSwapChain = new DXGISwapChain(dxgidevice, swapchain, runtime);
+		if (!runtime->OnInit(desc))
+		{
+			LOG(ERROR) << "Failed to initialize Direct3D12 runtime environment on runtime " << runtime.get() << ".";
+		}
+
+		*ppSwapChain = new DXGISwapChain(commandqueueD3D12, swapchain, runtime);
 	}
 	else
 	{
@@ -1056,6 +1107,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFacto
 	IUnknown *deviceOrig = pDevice;
 	D3D10Device *deviceD3D10 = nullptr;
 	D3D11Device *deviceD3D11 = nullptr;
+	D3D12CommandQueue *commandqueueD3D12 = nullptr;
 
 	if (pDevice == nullptr || pDesc == nullptr || ppSwapChain == nullptr)
 	{
@@ -1072,6 +1124,12 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFacto
 		deviceOrig = deviceD3D11->mOrig;
 
 		deviceD3D11->Release();
+	}
+	else if (SUCCEEDED(pDevice->QueryInterface(&commandqueueD3D12)))
+	{
+		deviceOrig = commandqueueD3D12->mOrig;
+
+		commandqueueD3D12->Release();
 	}
 
 	DumpSwapChainDescription(*pDesc);
@@ -1096,7 +1154,9 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFacto
 	}
 	else if (deviceD3D10 != nullptr)
 	{
-		const std::shared_ptr<ReShade::Runtimes::D3D10Runtime> runtime = std::make_shared<ReShade::Runtimes::D3D10Runtime>(deviceD3D10->mOrig, swapchain);
+		deviceD3D10->AddRef();
+
+		const auto runtime = std::make_shared<ReShade::Runtimes::D3D10Runtime>(deviceD3D10->mOrig, swapchain);
 
 		if (!runtime->OnInit(desc))
 		{
@@ -1105,16 +1165,13 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFacto
 
 		deviceD3D10->mRuntimes.push_back(runtime);
 
-		DXGIDevice *dxgidevice = nullptr;
-		deviceD3D10->QueryInterface(IID_PPV_ARGS(&dxgidevice));
-
-		assert(dxgidevice != nullptr);
-
-		*ppSwapChain = new DXGISwapChain(dxgidevice, swapchain, runtime);
+		*ppSwapChain = new DXGISwapChain(deviceD3D10, swapchain, runtime);
 	}
 	else if (deviceD3D11 != nullptr)
 	{
-		const std::shared_ptr<ReShade::Runtimes::D3D11Runtime> runtime = std::make_shared<ReShade::Runtimes::D3D11Runtime>(deviceD3D11->mOrig, swapchain);
+		deviceD3D11->AddRef();
+
+		const auto runtime = std::make_shared<ReShade::Runtimes::D3D11Runtime>(deviceD3D11->mOrig, swapchain);
 
 		if (!runtime->OnInit(desc))
 		{
@@ -1123,12 +1180,20 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFacto
 
 		deviceD3D11->mRuntimes.push_back(runtime);
 
-		DXGIDevice *dxgidevice = nullptr;
-		deviceD3D11->QueryInterface(IID_PPV_ARGS(&dxgidevice));
+		*ppSwapChain = new DXGISwapChain(deviceD3D11, swapchain, runtime);
+	}
+	else if (commandqueueD3D12 != nullptr)
+	{
+		commandqueueD3D12->AddRef();
 
-		assert(dxgidevice != nullptr);
+		const auto runtime = std::make_shared<ReShade::Runtimes::D3D12Runtime>(commandqueueD3D12->mDevice->mOrig, commandqueueD3D12->mOrig, swapchain);
 
-		*ppSwapChain = new DXGISwapChain(dxgidevice, swapchain, runtime);
+		if (!runtime->OnInit(desc))
+		{
+			LOG(ERROR) << "Failed to initialize Direct3D12 runtime environment on runtime " << runtime.get() << ".";
+		}
+
+		*ppSwapChain = new DXGISwapChain(commandqueueD3D12, swapchain, runtime);
 	}
 	else
 	{

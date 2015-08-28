@@ -977,10 +977,19 @@ HRESULT STDMETHODCALLTYPE D3D11Device::QueryInterface(REFIID riid, void **ppvObj
 
 		return S_OK;
 	}
+	else if (
+		riid == __uuidof(IDXGIObject) ||
+		riid == __uuidof(IDXGIDevice) ||
+		riid == __uuidof(IDXGIDevice1) ||
+		riid == __uuidof(IDXGIDevice2) ||
+		riid == __uuidof(IDXGIDevice3))
+	{
+		assert(this->mDXGIDevice != nullptr);
 
-	assert(this->mDXGIDevice != nullptr);
+		return this->mDXGIDevice->QueryInterface(riid, ppvObj);
+	}
 
-	return this->mDXGIDevice->QueryInterface(riid, ppvObj);
+	return this->mOrig->QueryInterface(riid, ppvObj);
 }
 ULONG STDMETHODCALLTYPE D3D11Device::AddRef()
 {
