@@ -21,13 +21,14 @@
   <PropertyGroup Label="Globals">
     <ProjectGuid>{0401ADF5-D085-4A3D-95B2-D9B7896BB338}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
+    <WindowsTargetPlatformVersion>10.0.10240.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v140</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
+    <PlatformToolset>v140</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
@@ -266,6 +267,10 @@ tools\upx --backup "$(TargetPath)"</Command>
     <ClInclude Include="src\FX\PreProcessor.hpp" />
     <ClInclude Include="src\Hook\Hook.hpp" />
     <ClInclude Include="src\Hook\HookManager.hpp" />
+    <ClInclude Include="src\Hooks\D3D9.hpp" />
+    <ClInclude Include="src\Hooks\D3D10.hpp" />
+    <ClInclude Include="src\Hooks\D3D11.hpp" />
+    <ClInclude Include="src\Hooks\DXGI.hpp" />
     <ClInclude Include="src\Runtime\FileWatcher.hpp" />
     <ClInclude Include="src\Runtime\GUI.hpp" />
     <ClInclude Include="src\Runtime\Runtime.hpp" />

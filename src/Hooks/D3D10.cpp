@@ -1,11 +1,9 @@
 #include "Log.hpp"
-#include "HookManager.hpp"
+#include "Hooks\DXGI.hpp"
 #include "Runtimes\D3D10Runtime.hpp"
 
-#include <memory>
 #include <sstream>
 #include <assert.h>
-#include <d3d10_1.h>
 
 #define EXPORT extern "C"
 
@@ -13,129 +11,6 @@
 
 namespace
 {
-	struct D3D10Device : public ID3D10Device1, private boost::noncopyable
-	{
-		D3D10Device(ID3D10Device *originalDevice) : mRef(1), mOrig(originalDevice), mInterfaceVersion(0), mDXGIBridge(nullptr), mDXGIDevice(nullptr)
-		{
-			assert(originalDevice != nullptr);
-		}
-		D3D10Device(ID3D10Device1 *originalDevice) : mRef(1), mOrig(originalDevice), mInterfaceVersion(1), mDXGIBridge(nullptr), mDXGIDevice(nullptr)
-		{
-			assert(originalDevice != nullptr);
-		}
-
-		virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
-		virtual ULONG STDMETHODCALLTYPE AddRef() override;
-		virtual ULONG STDMETHODCALLTYPE Release() override;
-
-		virtual void STDMETHODCALLTYPE VSSetConstantBuffers(UINT StartSlot, UINT NumBuffers, ID3D10Buffer *const *ppConstantBuffers) override;
-		virtual void STDMETHODCALLTYPE PSSetShaderResources(UINT StartSlot, UINT NumViews, ID3D10ShaderResourceView *const *ppShaderResourceViews) override;
-		virtual void STDMETHODCALLTYPE PSSetShader(ID3D10PixelShader *pPixelShader) override;
-		virtual void STDMETHODCALLTYPE PSSetSamplers(UINT StartSlot, UINT NumSamplers, ID3D10SamplerState *const *ppSamplers) override;
-		virtual void STDMETHODCALLTYPE VSSetShader(ID3D10VertexShader *pVertexShader) override;
-		virtual void STDMETHODCALLTYPE DrawIndexed(UINT IndexCount, UINT StartIndexLocation, INT BaseVertexLocation) override;
-		virtual void STDMETHODCALLTYPE Draw(UINT VertexCount, UINT StartVertexLocation) override;
-		virtual void STDMETHODCALLTYPE PSSetConstantBuffers(UINT StartSlot, UINT NumBuffers, ID3D10Buffer *const *ppConstantBuffers) override;
-		virtual void STDMETHODCALLTYPE IASetInputLayout(ID3D10InputLayout *pInputLayout) override;
-		virtual void STDMETHODCALLTYPE IASetVertexBuffers(UINT StartSlot, UINT NumBuffers, ID3D10Buffer *const *ppVertexBuffers, const UINT *pStrides, const UINT *pOffsets) override;
-		virtual void STDMETHODCALLTYPE IASetIndexBuffer(ID3D10Buffer *pIndexBuffer, DXGI_FORMAT Format, UINT Offset) override;
-		virtual void STDMETHODCALLTYPE DrawIndexedInstanced(UINT IndexCountPerInstance, UINT InstanceCount, UINT StartIndexLocation, INT BaseVertexLocation, UINT StartInstanceLocation) override;
-		virtual void STDMETHODCALLTYPE DrawInstanced(UINT VertexCountPerInstance, UINT InstanceCount, UINT StartVertexLocation, UINT StartInstanceLocation) override;
-		virtual void STDMETHODCALLTYPE GSSetConstantBuffers(UINT StartSlot, UINT NumBuffers, ID3D10Buffer *const *ppConstantBuffers) override;
-		virtual void STDMETHODCALLTYPE GSSetShader(ID3D10GeometryShader *pShader) override;
-		virtual void STDMETHODCALLTYPE IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY Topology) override;
-		virtual void STDMETHODCALLTYPE VSSetShaderResources(UINT StartSlot, UINT NumViews, ID3D10ShaderResourceView *const *ppShaderResourceViews) override;
-		virtual void STDMETHODCALLTYPE VSSetSamplers(UINT StartSlot, UINT NumSamplers, ID3D10SamplerState *const *ppSamplers) override;
-		virtual void STDMETHODCALLTYPE SetPredication(ID3D10Predicate *pPredicate, BOOL PredicateValue) override;
-		virtual void STDMETHODCALLTYPE GSSetShaderResources(UINT StartSlot, UINT NumViews, ID3D10ShaderResourceView *const *ppShaderResourceViews) override;
-		virtual void STDMETHODCALLTYPE GSSetSamplers(UINT StartSlot, UINT NumSamplers, ID3D10SamplerState *const *ppSamplers) override;
-		virtual void STDMETHODCALLTYPE OMSetRenderTargets(UINT NumViews, ID3D10RenderTargetView *const *ppRenderTargetViews, ID3D10DepthStencilView *pDepthStencilView) override;
-		virtual void STDMETHODCALLTYPE OMSetBlendState(ID3D10BlendState *pBlendState, const FLOAT BlendFactor[4], UINT SampleMask) override;
-		virtual void STDMETHODCALLTYPE OMSetDepthStencilState(ID3D10DepthStencilState *pDepthStencilState, UINT StencilRef) override;
-		virtual void STDMETHODCALLTYPE SOSetTargets(UINT NumBuffers, ID3D10Buffer *const *ppSOTargets, const UINT *pOffsets) override;
-		virtual void STDMETHODCALLTYPE DrawAuto() override;
-		virtual void STDMETHODCALLTYPE RSSetState(ID3D10RasterizerState *pRasterizerState) override;
-		virtual void STDMETHODCALLTYPE RSSetViewports(UINT NumViewports, const D3D10_VIEWPORT *pViewports) override;
-		virtual void STDMETHODCALLTYPE RSSetScissorRects(UINT NumRects, const D3D10_RECT *pRects) override;
-		virtual void STDMETHODCALLTYPE CopySubresourceRegion(ID3D10Resource *pDstResource, UINT DstSubresource, UINT DstX, UINT DstY, UINT DstZ, ID3D10Resource *pSrcResource, UINT SrcSubresource, const D3D10_BOX *pSrcBox) override;
-		virtual void STDMETHODCALLTYPE CopyResource(ID3D10Resource *pDstResource, ID3D10Resource *pSrcResource) override;
-		virtual void STDMETHODCALLTYPE UpdateSubresource(ID3D10Resource *pDstResource, UINT DstSubresource, const D3D10_BOX *pDstBox, const void *pSrcData, UINT SrcRowPitch, UINT SrcDepthPitch) override;
-		virtual void STDMETHODCALLTYPE ClearRenderTargetView(ID3D10RenderTargetView *pRenderTargetView, const FLOAT ColorRGBA[4]) override;
-		virtual void STDMETHODCALLTYPE ClearDepthStencilView(ID3D10DepthStencilView *pDepthStencilView, UINT ClearFlags, FLOAT Depth, UINT8 Stencil) override;
-		virtual void STDMETHODCALLTYPE GenerateMips(ID3D10ShaderResourceView *pShaderResourceView) override;
-		virtual void STDMETHODCALLTYPE ResolveSubresource(ID3D10Resource *pDstResource, UINT DstSubresource, ID3D10Resource *pSrcResource, UINT SrcSubresource, DXGI_FORMAT Format) override;
-		virtual void STDMETHODCALLTYPE VSGetConstantBuffers(UINT StartSlot, UINT NumBuffers, ID3D10Buffer **ppConstantBuffers) override;
-		virtual void STDMETHODCALLTYPE PSGetShaderResources(UINT StartSlot, UINT NumViews, ID3D10ShaderResourceView **ppShaderResourceViews) override;
-		virtual void STDMETHODCALLTYPE PSGetShader(ID3D10PixelShader **ppPixelShader) override;
-		virtual void STDMETHODCALLTYPE PSGetSamplers(UINT StartSlot, UINT NumSamplers, ID3D10SamplerState **ppSamplers) override;
-		virtual void STDMETHODCALLTYPE VSGetShader(ID3D10VertexShader **ppVertexShader) override;
-		virtual void STDMETHODCALLTYPE PSGetConstantBuffers(UINT StartSlot, UINT NumBuffers, ID3D10Buffer **ppConstantBuffers) override;
-		virtual void STDMETHODCALLTYPE IAGetInputLayout(ID3D10InputLayout **ppInputLayout) override;
-		virtual void STDMETHODCALLTYPE IAGetVertexBuffers(UINT StartSlot, UINT NumBuffers, ID3D10Buffer **ppVertexBuffers, UINT *pStrides, UINT *pOffsets) override;
-		virtual void STDMETHODCALLTYPE IAGetIndexBuffer(ID3D10Buffer **pIndexBuffer, DXGI_FORMAT *Format, UINT *Offset) override;
-		virtual void STDMETHODCALLTYPE GSGetConstantBuffers(UINT StartSlot, UINT NumBuffers, ID3D10Buffer **ppConstantBuffers) override;
-		virtual void STDMETHODCALLTYPE GSGetShader(ID3D10GeometryShader **ppGeometryShader) override;
-		virtual void STDMETHODCALLTYPE IAGetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY *pTopology) override;
-		virtual void STDMETHODCALLTYPE VSGetShaderResources(UINT StartSlot, UINT NumViews, ID3D10ShaderResourceView **ppShaderResourceViews) override;
-		virtual void STDMETHODCALLTYPE VSGetSamplers(UINT StartSlot, UINT NumSamplers, ID3D10SamplerState **ppSamplers) override;
-		virtual void STDMETHODCALLTYPE GetPredication(ID3D10Predicate **ppPredicate, BOOL *pPredicateValue) override;
-		virtual void STDMETHODCALLTYPE GSGetShaderResources(UINT StartSlot, UINT NumViews, ID3D10ShaderResourceView **ppShaderResourceViews) override;
-		virtual void STDMETHODCALLTYPE GSGetSamplers(UINT StartSlot, UINT NumSamplers, ID3D10SamplerState **ppSamplers) override;
-		virtual void STDMETHODCALLTYPE OMGetRenderTargets(UINT NumViews, ID3D10RenderTargetView **ppRenderTargetViews, ID3D10DepthStencilView **ppDepthStencilView) override;
-		virtual void STDMETHODCALLTYPE OMGetBlendState(ID3D10BlendState **ppBlendState, FLOAT BlendFactor[4], UINT *pSampleMask) override;
-		virtual void STDMETHODCALLTYPE OMGetDepthStencilState(ID3D10DepthStencilState **ppDepthStencilState, UINT *pStencilRef) override;
-		virtual void STDMETHODCALLTYPE SOGetTargets(UINT NumBuffers, ID3D10Buffer **ppSOTargets, UINT *pOffsets) override;
-		virtual void STDMETHODCALLTYPE RSGetState(ID3D10RasterizerState **ppRasterizerState) override;
-		virtual void STDMETHODCALLTYPE RSGetViewports(UINT *NumViewports, D3D10_VIEWPORT *pViewports) override;
-		virtual void STDMETHODCALLTYPE RSGetScissorRects(UINT *NumRects, D3D10_RECT *pRects) override;
-		virtual HRESULT STDMETHODCALLTYPE GetDeviceRemovedReason() override;
-		virtual HRESULT STDMETHODCALLTYPE SetExceptionMode(UINT RaiseFlags) override;
-		virtual UINT STDMETHODCALLTYPE GetExceptionMode() override;
-		virtual HRESULT STDMETHODCALLTYPE GetPrivateData(REFGUID guid, UINT *pDataSize, void *pData) override;
-		virtual HRESULT STDMETHODCALLTYPE SetPrivateData(REFGUID guid, UINT DataSize, const void *pData) override;
-		virtual HRESULT STDMETHODCALLTYPE SetPrivateDataInterface(REFGUID guid, const IUnknown *pData) override;
-		virtual void STDMETHODCALLTYPE ClearState() override;
-		virtual void STDMETHODCALLTYPE Flush() override;
-		virtual HRESULT STDMETHODCALLTYPE CreateBuffer(const D3D10_BUFFER_DESC *pDesc, const D3D10_SUBRESOURCE_DATA *pInitialData, ID3D10Buffer **ppBuffer) override;
-		virtual HRESULT STDMETHODCALLTYPE CreateTexture1D(const D3D10_TEXTURE1D_DESC *pDesc, const D3D10_SUBRESOURCE_DATA *pInitialData, ID3D10Texture1D **ppTexture1D) override;
-		virtual HRESULT STDMETHODCALLTYPE CreateTexture2D(const D3D10_TEXTURE2D_DESC *pDesc, const D3D10_SUBRESOURCE_DATA *pInitialData, ID3D10Texture2D **ppTexture2D) override;
-		virtual HRESULT STDMETHODCALLTYPE CreateTexture3D(const D3D10_TEXTURE3D_DESC *pDesc, const D3D10_SUBRESOURCE_DATA *pInitialData, ID3D10Texture3D **ppTexture3D) override;
-		virtual HRESULT STDMETHODCALLTYPE CreateShaderResourceView(ID3D10Resource *pResource, const D3D10_SHADER_RESOURCE_VIEW_DESC *pDesc, ID3D10ShaderResourceView **ppSRView) override;
-		virtual HRESULT STDMETHODCALLTYPE CreateRenderTargetView(ID3D10Resource *pResource, const D3D10_RENDER_TARGET_VIEW_DESC *pDesc, ID3D10RenderTargetView **ppRTView) override;
-		virtual HRESULT STDMETHODCALLTYPE CreateDepthStencilView(ID3D10Resource *pResource, const D3D10_DEPTH_STENCIL_VIEW_DESC *pDesc, ID3D10DepthStencilView **ppDepthStencilView) override;
-		virtual HRESULT STDMETHODCALLTYPE CreateInputLayout(const D3D10_INPUT_ELEMENT_DESC *pInputElementDescs, UINT NumElements, const void *pShaderBytecodeWithInputSignature, SIZE_T BytecodeLength, ID3D10InputLayout **ppInputLayout) override;
-		virtual HRESULT STDMETHODCALLTYPE CreateVertexShader(const void *pShaderBytecode, SIZE_T BytecodeLength, ID3D10VertexShader **ppVertexShader) override;
-		virtual HRESULT STDMETHODCALLTYPE CreateGeometryShader(const void *pShaderBytecode, SIZE_T BytecodeLength, ID3D10GeometryShader **ppGeometryShader) override;
-		virtual HRESULT STDMETHODCALLTYPE CreateGeometryShaderWithStreamOutput(const void *pShaderBytecode, SIZE_T BytecodeLength, const D3D10_SO_DECLARATION_ENTRY *pSODeclaration, UINT NumEntries, UINT OutputStreamStride, ID3D10GeometryShader **ppGeometryShader) override;
-		virtual HRESULT STDMETHODCALLTYPE CreatePixelShader(const void *pShaderBytecode, SIZE_T BytecodeLength, ID3D10PixelShader **ppPixelShader) override;
-		virtual HRESULT STDMETHODCALLTYPE CreateBlendState(const D3D10_BLEND_DESC *pBlendStateDesc, ID3D10BlendState **ppBlendState) override;
-		virtual HRESULT STDMETHODCALLTYPE CreateDepthStencilState(const D3D10_DEPTH_STENCIL_DESC *pDepthStencilDesc, ID3D10DepthStencilState **ppDepthStencilState) override;
-		virtual HRESULT STDMETHODCALLTYPE CreateRasterizerState(const D3D10_RASTERIZER_DESC *pRasterizerDesc, ID3D10RasterizerState **ppRasterizerState) override;
-		virtual HRESULT STDMETHODCALLTYPE CreateSamplerState(const D3D10_SAMPLER_DESC *pSamplerDesc, ID3D10SamplerState **ppSamplerState) override;
-		virtual HRESULT STDMETHODCALLTYPE CreateQuery(const D3D10_QUERY_DESC *pQueryDesc, ID3D10Query **ppQuery) override;
-		virtual HRESULT STDMETHODCALLTYPE CreatePredicate(const D3D10_QUERY_DESC *pPredicateDesc, ID3D10Predicate **ppPredicate) override;
-		virtual HRESULT STDMETHODCALLTYPE CreateCounter(const D3D10_COUNTER_DESC *pCounterDesc, ID3D10Counter **ppCounter) override;
-		virtual HRESULT STDMETHODCALLTYPE CheckFormatSupport(DXGI_FORMAT Format, UINT *pFormatSupport) override;
-		virtual HRESULT STDMETHODCALLTYPE CheckMultisampleQualityLevels(DXGI_FORMAT Format, UINT SampleCount, UINT *pNumQualityLevels) override;
-		virtual void STDMETHODCALLTYPE CheckCounterInfo(D3D10_COUNTER_INFO *pCounterInfo) override;
-		virtual HRESULT STDMETHODCALLTYPE CheckCounter(const D3D10_COUNTER_DESC *pDesc, D3D10_COUNTER_TYPE *pType, UINT *pActiveCounters, LPSTR szName, UINT *pNameLength, LPSTR szUnits, UINT *pUnitsLength, LPSTR szDescription, UINT *pDescriptionLength) override;
-		virtual UINT STDMETHODCALLTYPE GetCreationFlags() override;
-		virtual HRESULT STDMETHODCALLTYPE OpenSharedResource(HANDLE hResource, REFIID ReturnedInterface, void **ppResource) override;
-		virtual void STDMETHODCALLTYPE SetTextFilterSize(UINT Width, UINT Height) override;
-		virtual void STDMETHODCALLTYPE GetTextFilterSize(UINT *pWidth, UINT *pHeight) override;
-
-		virtual HRESULT STDMETHODCALLTYPE CreateShaderResourceView1(ID3D10Resource *pResource, const D3D10_SHADER_RESOURCE_VIEW_DESC1 *pDesc, ID3D10ShaderResourceView1 **ppSRView) override;
-		virtual HRESULT STDMETHODCALLTYPE CreateBlendState1(const D3D10_BLEND_DESC1 *pBlendStateDesc, ID3D10BlendState1 **ppBlendState) override;
-		virtual D3D10_FEATURE_LEVEL1 STDMETHODCALLTYPE GetFeatureLevel() override;
-
-		LONG mRef;
-		ID3D10Device *mOrig;
-		unsigned int mInterfaceVersion;
-		IUnknown *mDXGIBridge;
-		IDXGIDevice *mDXGIDevice;
-		std::vector<std::shared_ptr<ReShade::Runtimes::D3D10Runtime>> mRuntimes;
-	};
-
 	std::string GetErrorString(HRESULT hr)
 	{
 		std::stringstream res;
@@ -163,117 +38,25 @@ namespace
 	}
 }
 
-#pragma region DXGI Bridge
-class DXGID3D10Bridge : public IUnknown, private boost::noncopyable
-{
-public:
-	static const IID sIID;
-	
-public:
-	DXGID3D10Bridge(D3D10Device *device) : mRef(1), mD3D10Device(device)
-	{
-		assert(device != nullptr);
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
-	virtual ULONG STDMETHODCALLTYPE AddRef() override;
-	virtual ULONG STDMETHODCALLTYPE Release() override;
-
-	IDXGIDevice *CreateDXGIDevice();
-	inline D3D10Device *GetD3D10Device()
-	{
-		return this->mD3D10Device;
-	}
-	ID3D10Device *GetOriginalD3D10Device();
-
-	void AddRuntime(const std::shared_ptr<ReShade::Runtimes::D3D10Runtime> &runtime);
-	void RemoveRuntime(const std::shared_ptr<ReShade::Runtimes::D3D10Runtime> &runtime);
-
-private:
-	ULONG mRef;
-	D3D10Device *const mD3D10Device;
-};
-
-const IID DXGID3D10Bridge::sIID = { 0xff97cb62, 0x2b9e, 0x4792, { 0xb2, 0x87, 0x82, 0x3a, 0x71, 0x9, 0x57, 0x20 } };
-
-HRESULT STDMETHODCALLTYPE DXGID3D10Bridge::QueryInterface(REFIID riid, void **ppvObj)
-{
-	if (ppvObj == nullptr)
-	{
-		return E_POINTER;
-	}
-
-	*ppvObj = nullptr;
-
-	if (riid == __uuidof(IUnknown) || riid == sIID)
-	{
-		*ppvObj = this;
-
-		return S_OK;
-	}
-
-	return E_NOINTERFACE;
-}
-ULONG STDMETHODCALLTYPE DXGID3D10Bridge::AddRef()
-{
-	return ++this->mRef;
-}
-ULONG STDMETHODCALLTYPE DXGID3D10Bridge::Release()
-{
-	const ULONG ref = --this->mRef;
-
-	if (ref == 0)
-	{
-		delete this;
-	}
-
-	return ref;
-}
-
-ID3D10Device *DXGID3D10Bridge::GetOriginalD3D10Device()
-{
-	return this->mD3D10Device->mOrig;
-}
-void DXGID3D10Bridge::AddRuntime(const std::shared_ptr<ReShade::Runtimes::D3D10Runtime> &runtime)
-{
-	this->mD3D10Device->mRuntimes.push_back(runtime);
-}
-void DXGID3D10Bridge::RemoveRuntime(const std::shared_ptr<ReShade::Runtimes::D3D10Runtime> &runtime)
-{
-	const auto it = std::find(this->mD3D10Device->mRuntimes.begin(), this->mD3D10Device->mRuntimes.end(), runtime);
-
-	if (it != this->mD3D10Device->mRuntimes.end())
-	{
-		this->mD3D10Device->mRuntimes.erase(it);
-	}
-}
-#pragma endregion
-
-// ---------------------------------------------------------------------------------------------------
-
 // ID3D10DepthStencilView
 ULONG STDMETHODCALLTYPE ID3D10DepthStencilView_Release(ID3D10DepthStencilView *pDepthStencilView)
 {
 	static const auto trampoline = ReShade::Hooks::Call(&ID3D10DepthStencilView_Release);
 
-	UINT size = sizeof(void *);
-	DXGID3D10Bridge *bridge = nullptr;
-
-	HRESULT hr = pDepthStencilView->GetPrivateData(DXGID3D10Bridge::sIID, &size, &bridge);
+	D3D10Device *device = nullptr;
+	UINT dataSize = sizeof(device);
+	const bool succeeded = SUCCEEDED(pDepthStencilView->GetPrivateData(__uuidof(device), &dataSize, &device));
 
 	const ULONG ref = trampoline(pDepthStencilView);
 
-	if (SUCCEEDED(hr))
+	if (succeeded && ref == 0)
 	{
-		if (ref == 0)
+		for (auto runtime : device->mRuntimes)
 		{
-			for (auto runtime : bridge->GetD3D10Device()->mRuntimes)
-			{
-				runtime->OnDeleteDepthStencilView(pDepthStencilView);
-			}
+			runtime->OnDeleteDepthStencilView(pDepthStencilView);
 		}
 
-		bridge->Release();
+		device->Release();
 	}
 
 	return ref;
@@ -286,37 +69,28 @@ HRESULT STDMETHODCALLTYPE D3D10Device::QueryInterface(REFIID riid, void **ppvObj
 	{
 		return E_POINTER;
 	}
-
-	if (riid == DXGID3D10Bridge::sIID)
-	{
-		assert(this->mDXGIBridge != nullptr);
-
-		this->mDXGIBridge->AddRef();
-
-		*ppvObj = this->mDXGIBridge;
-
-		return S_OK;
-	}
-	else if (riid == __uuidof(IUnknown) || riid == __uuidof(ID3D10Device) || riid == __uuidof(ID3D10Device1))
+	else if (
+		riid == __uuidof(this) ||
+		riid == __uuidof(IUnknown) ||
+		riid == __uuidof(ID3D10Device) ||
+		riid == __uuidof(ID3D10Device1))
 	{
 		#pragma region Update to ID3D10Device1 interface
 		if (riid == __uuidof(ID3D10Device1) && this->mInterfaceVersion < 1)
 		{
 			ID3D10Device1 *device1 = nullptr;
 
-			const HRESULT hr = this->mOrig->QueryInterface(__uuidof(ID3D10Device1), reinterpret_cast<void **>(&device1));
-
-			if (FAILED(hr))
+			if (FAILED(this->mOrig->QueryInterface(&device1)))
 			{
-				return hr;
+				return E_NOINTERFACE;
 			}
 
 			this->mOrig->Release();
-			this->mOrig = device1;
-
-			this->mInterfaceVersion = 1;
 
 			LOG(TRACE) << "Upgraded 'ID3D10Device' object " << this << " to 'ID3D10Device1'.";
+
+			this->mOrig = device1;
+			this->mInterfaceVersion = 1;
 		}
 		#pragma endregion
 	
@@ -335,26 +109,23 @@ ULONG STDMETHODCALLTYPE D3D10Device::AddRef()
 {
 	this->mRef++;
 
+	assert(this->mDXGIDevice != nullptr);
+
+	static_cast<DXGIDevice *>(this->mDXGIDevice)->InternalAddRef();
+
 	return this->mOrig->AddRef();
 }
 ULONG STDMETHODCALLTYPE D3D10Device::Release()
 {
-	if (--this->mRef == 0)
-	{
-		#pragma region Cleanup Resources
-		assert(this->mDXGIBridge != nullptr);
-		assert(this->mDXGIDevice != nullptr);
+	assert(this->mDXGIDevice != nullptr);
 
-		this->mDXGIBridge->Release();
-		this->mDXGIDevice->Release();
-		#pragma endregion
-	}
+	static_cast<DXGIDevice *>(this->mDXGIDevice)->InternalRelease();
 
 	ULONG ref = this->mOrig->Release();
 
-	if (this->mRef == 0 && ref != 0)
+	if (--this->mRef == 0 && ref != 0)
 	{
-		LOG(WARNING) << "Reference count for 'ID3D10Device" << (this->mInterfaceVersion >= 1 ? std::to_string(this->mInterfaceVersion) : "") << "' object " << this << " is inconsistent: " << ref << " vs " << this->mRef << ".";
+		LOG(WARNING) << "Reference count for 'ID3D10Device" << (this->mInterfaceVersion > 0 ? std::to_string(this->mInterfaceVersion) : "") << "' object " << this << " is inconsistent: " << ref << ", but expected 0.";
 
 		ref = 0;
 	}
@@ -363,7 +134,7 @@ ULONG STDMETHODCALLTYPE D3D10Device::Release()
 	{
 		assert(this->mRef <= 0);
 
-		LOG(TRACE) << "Destroyed 'ID3D10Device" << (this->mInterfaceVersion >= 1 ? std::to_string(this->mInterfaceVersion) : "") << "' object " << this << ".";
+		LOG(TRACE) << "Destroyed 'ID3D10Device" << (this->mInterfaceVersion > 0 ? std::to_string(this->mInterfaceVersion) : "") << "' object " << this << ".";
 
 		delete this;
 	}
@@ -731,8 +502,10 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateDepthStencilView(ID3D10Resource *pR
 		runtime->OnCreateDepthStencilView(pResource, *ppDepthStencilView);
 	}
 
+	D3D10Device *const device = this;
 	ID3D10DepthStencilView *const depthstencil = *ppDepthStencilView;
-	depthstencil->SetPrivateDataInterface(DXGID3D10Bridge::sIID, this->mDXGIBridge);
+	device->AddRef();
+	depthstencil->SetPrivateData(__uuidof(device), sizeof(device), &device);
 
 	ReShade::Hooks::Install(VTABLE(depthstencil), 2, reinterpret_cast<ReShade::Hook::Function>(&ID3D10DepthStencilView_Release));
 
@@ -873,15 +646,15 @@ EXPORT HRESULT WINAPI D3D10CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, D3D1
 
 	if (ppDevice != nullptr)
 	{
-		assert(*ppDevice != nullptr);
+		IDXGIDevice *dxgidevice = nullptr;
+		ID3D10Device *const device = *ppDevice;
+		device->QueryInterface(&dxgidevice);
 
-		D3D10Device *const deviceProxy = new D3D10Device(*ppDevice);
-		DXGID3D10Bridge *const dxgibridge = new DXGID3D10Bridge(deviceProxy);
+		assert(device != nullptr);
+		assert(dxgidevice != nullptr);
 
-		deviceProxy->mDXGIBridge = dxgibridge;
-		deviceProxy->mDXGIDevice = dxgibridge->CreateDXGIDevice();
-
-		assert(deviceProxy->mDXGIDevice != nullptr);
+		D3D10Device *const deviceProxy = new D3D10Device(device);
+		deviceProxy->mDXGIDevice = new DXGIDevice(dxgidevice, deviceProxy);
 
 		if (pSwapChainDesc != nullptr)
 		{
@@ -900,7 +673,7 @@ EXPORT HRESULT WINAPI D3D10CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, D3D1
 
 			IDXGIFactory *factory = nullptr;
 
-			hr = pAdapter->GetParent(__uuidof(IDXGIFactory), reinterpret_cast<void **>(&factory));
+			hr = pAdapter->GetParent(IID_PPV_ARGS(&factory));
 
 			assert(SUCCEEDED(hr));
 
@@ -943,15 +716,15 @@ EXPORT HRESULT WINAPI D3D10CreateDeviceAndSwapChain1(IDXGIAdapter *pAdapter, D3D
 
 	if (ppDevice != nullptr)
 	{
-		assert(*ppDevice != nullptr);
+		IDXGIDevice *dxgidevice = nullptr;
+		ID3D10Device1 *const device = *ppDevice;
+		device->QueryInterface(&dxgidevice);
 
-		D3D10Device *const deviceProxy = new D3D10Device(*ppDevice);
-		DXGID3D10Bridge *const dxgibridge = new DXGID3D10Bridge(deviceProxy);
+		assert(device != nullptr);
+		assert(dxgidevice != nullptr);
 
-		deviceProxy->mDXGIBridge = dxgibridge;
-		deviceProxy->mDXGIDevice = dxgibridge->CreateDXGIDevice();
-
-		assert(deviceProxy->mDXGIDevice != nullptr);
+		D3D10Device *const deviceProxy = new D3D10Device(device);
+		deviceProxy->mDXGIDevice = new DXGIDevice(dxgidevice, deviceProxy);
 
 		if (pSwapChainDesc != nullptr)
 		{
@@ -970,7 +743,7 @@ EXPORT HRESULT WINAPI D3D10CreateDeviceAndSwapChain1(IDXGIAdapter *pAdapter, D3D
 
 			IDXGIFactory *factory = nullptr;
 
-			hr = pAdapter->GetParent(__uuidof(IDXGIFactory), reinterpret_cast<void **>(&factory));
+			hr = pAdapter->GetParent(IID_PPV_ARGS(&factory));
 
 			assert(SUCCEEDED(hr));
 

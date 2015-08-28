@@ -21,7 +21,7 @@ EXPORT int WSAAPI HookWSASend(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount,
 EXPORT int WSAAPI HookXSASend(SOCKET s, const char *buf, int len, int flags)
 {
 	DWORD result = 0;
-	WSABUF buffer = { len, const_cast<CHAR *>(buf) };
+	WSABUF buffer = { static_cast<ULONG>(len), const_cast<CHAR *>(buf) };
 
 	return HookWSASend(s, &buffer, 1, &result, flags, nullptr, nullptr) == 0 ? static_cast<int>(result) : SOCKET_ERROR;
 }
@@ -39,7 +39,7 @@ EXPORT int WSAAPI HookWSASendTo(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCoun
 EXPORT int WSAAPI HookXSASendTo(SOCKET s, const char *buf, int len, int flags, const struct sockaddr *to, int tolen)
 {
 	DWORD result = 0;
-	WSABUF buffer = { len, const_cast<CHAR *>(buf) };
+	WSABUF buffer = { static_cast<ULONG>(len), const_cast<CHAR *>(buf) };
 
 	return HookWSASendTo(s, &buffer, 1, &result, flags, to, tolen, nullptr, nullptr) == 0 ? static_cast<int>(result) : SOCKET_ERROR;
 }
@@ -61,7 +61,7 @@ EXPORT int WSAAPI HookWSARecv(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount,
 EXPORT int WSAAPI HookXSARecv(SOCKET s, char *buf, int len, int flags)
 {
 	DWORD result = 0, flags2 = flags;
-	WSABUF buffer = { len, buf };
+	WSABUF buffer = { static_cast<ULONG>(len), buf };
 
 	return HookWSARecv(s, &buffer, 1, &result, &flags2, nullptr, nullptr) == 0 ? static_cast<int>(result) : SOCKET_ERROR;
 }
@@ -89,7 +89,7 @@ EXPORT int WSAAPI HookWSARecvFrom(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCo
 EXPORT int WSAAPI HookXSARecvFrom(SOCKET s, char *buf, int len, int flags, struct sockaddr *from, int *fromlen)
 {
 	DWORD result = 0, flags2 = flags;
-	WSABUF buffer = { len, buf };
+	WSABUF buffer = { static_cast<ULONG>(len), buf };
 
 	return HookWSARecvFrom(s, &buffer, 1, &result, &flags2, from, fromlen, nullptr, nullptr) == 0 ? static_cast<int>(result) : SOCKET_ERROR;
 }

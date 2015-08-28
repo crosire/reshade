@@ -1,11 +1,9 @@
 #include "Log.hpp"
-#include "HookManager.hpp"
+#include "Hooks\DXGI.hpp"
 #include "Runtimes\D3D11Runtime.hpp"
 
-#include <memory>
 #include <sstream>
 #include <assert.h>
-#include <d3d11_1.h>
 
 #define EXPORT extern "C"
 
@@ -13,239 +11,6 @@
 
 namespace
 {
-	struct D3D11Device : public ID3D11Device1, private boost::noncopyable
-	{
-		friend struct D3D11DeviceContext;
-
-		D3D11Device(ID3D11Device *originalDevice) : mRef(1), mOrig(originalDevice), mInterfaceVersion(0), mDXGIBridge(nullptr), mDXGIDevice(nullptr), mImmediateContext(nullptr)
-		{
-			assert(originalDevice != nullptr);
-		}
-		D3D11Device(ID3D11Device1 *originalDevice) : mRef(1), mOrig(originalDevice), mInterfaceVersion(1), mDXGIBridge(nullptr), mDXGIDevice(nullptr), mImmediateContext(nullptr)
-		{
-			assert(originalDevice != nullptr);
-		}
-
-		virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
-		virtual ULONG STDMETHODCALLTYPE AddRef() override;
-		virtual ULONG STDMETHODCALLTYPE Release() override;
-
-		virtual HRESULT STDMETHODCALLTYPE CreateBuffer(const D3D11_BUFFER_DESC *pDesc, const D3D11_SUBRESOURCE_DATA *pInitialData, ID3D11Buffer **ppBuffer) override;
-		virtual HRESULT STDMETHODCALLTYPE CreateTexture1D(const D3D11_TEXTURE1D_DESC *pDesc, const D3D11_SUBRESOURCE_DATA *pInitialData, ID3D11Texture1D **ppTexture1D) override;
-		virtual HRESULT STDMETHODCALLTYPE CreateTexture2D(const D3D11_TEXTURE2D_DESC *pDesc, const D3D11_SUBRESOURCE_DATA *pInitialData, ID3D11Texture2D **ppTexture2D) override;
-		virtual HRESULT STDMETHODCALLTYPE CreateTexture3D(const D3D11_TEXTURE3D_DESC *pDesc, const D3D11_SUBRESOURCE_DATA *pInitialData, ID3D11Texture3D **ppTexture3D) override;
-		virtual HRESULT STDMETHODCALLTYPE CreateShaderResourceView(ID3D11Resource *pResource, const D3D11_SHADER_RESOURCE_VIEW_DESC *pDesc, ID3D11ShaderResourceView **ppSRView) override;
-		virtual HRESULT STDMETHODCALLTYPE CreateUnorderedAccessView(ID3D11Resource *pResource, const D3D11_UNORDERED_ACCESS_VIEW_DESC *pDesc, ID3D11UnorderedAccessView **ppUAView) override;
-		virtual HRESULT STDMETHODCALLTYPE CreateRenderTargetView(ID3D11Resource *pResource, const D3D11_RENDER_TARGET_VIEW_DESC *pDesc, ID3D11RenderTargetView **ppRTView) override;
-		virtual HRESULT STDMETHODCALLTYPE CreateDepthStencilView(ID3D11Resource *pResource, const D3D11_DEPTH_STENCIL_VIEW_DESC *pDesc, ID3D11DepthStencilView **ppDepthStencilView) override;
-		virtual HRESULT STDMETHODCALLTYPE CreateInputLayout(const D3D11_INPUT_ELEMENT_DESC *pInputElementDescs, UINT NumElements, const void *pShaderBytecodeWithInputSignature, SIZE_T BytecodeLength, ID3D11InputLayout **ppInputLayout) override;
-		virtual HRESULT STDMETHODCALLTYPE CreateVertexShader(const void *pShaderBytecode, SIZE_T BytecodeLength, ID3D11ClassLinkage *pClassLinkage, ID3D11VertexShader **ppVertexShader) override;
-		virtual HRESULT STDMETHODCALLTYPE CreateGeometryShader(const void *pShaderBytecode, SIZE_T BytecodeLength, ID3D11ClassLinkage *pClassLinkage, ID3D11GeometryShader **ppGeometryShader) override;
-		virtual HRESULT STDMETHODCALLTYPE CreateGeometryShaderWithStreamOutput(const void *pShaderBytecode, SIZE_T BytecodeLength, const D3D11_SO_DECLARATION_ENTRY *pSODeclaration, UINT NumEntries, const UINT *pBufferStrides, UINT NumStrides, UINT RasterizedStream, ID3D11ClassLinkage *pClassLinkage, ID3D11GeometryShader **ppGeometryShader) override;
-		virtual HRESULT STDMETHODCALLTYPE CreatePixelShader(const void *pShaderBytecode, SIZE_T BytecodeLength, ID3D11ClassLinkage *pClassLinkage, ID3D11PixelShader **ppPixelShader) override;
-		virtual HRESULT STDMETHODCALLTYPE CreateHullShader(const void *pShaderBytecode, SIZE_T BytecodeLength, ID3D11ClassLinkage *pClassLinkage, ID3D11HullShader **ppHullShader) override;
-		virtual HRESULT STDMETHODCALLTYPE CreateDomainShader(const void *pShaderBytecode, SIZE_T BytecodeLength, ID3D11ClassLinkage *pClassLinkage, ID3D11DomainShader **ppDomainShader) override;
-		virtual HRESULT STDMETHODCALLTYPE CreateComputeShader(const void *pShaderBytecode, SIZE_T BytecodeLength, ID3D11ClassLinkage *pClassLinkage, ID3D11ComputeShader **ppComputeShader) override;
-		virtual HRESULT STDMETHODCALLTYPE CreateClassLinkage(ID3D11ClassLinkage **ppLinkage) override;
-		virtual HRESULT STDMETHODCALLTYPE CreateBlendState(const D3D11_BLEND_DESC *pBlendStateDesc, ID3D11BlendState **ppBlendState) override;
-		virtual HRESULT STDMETHODCALLTYPE CreateDepthStencilState(const D3D11_DEPTH_STENCIL_DESC *pDepthStencilDesc, ID3D11DepthStencilState **ppDepthStencilState) override;
-		virtual HRESULT STDMETHODCALLTYPE CreateRasterizerState(const D3D11_RASTERIZER_DESC *pRasterizerDesc, ID3D11RasterizerState **ppRasterizerState) override;
-		virtual HRESULT STDMETHODCALLTYPE CreateSamplerState(const D3D11_SAMPLER_DESC *pSamplerDesc, ID3D11SamplerState **ppSamplerState) override;
-		virtual HRESULT STDMETHODCALLTYPE CreateQuery(const D3D11_QUERY_DESC *pQueryDesc, ID3D11Query **ppQuery) override;
-		virtual HRESULT STDMETHODCALLTYPE CreatePredicate(const D3D11_QUERY_DESC *pPredicateDesc, ID3D11Predicate **ppPredicate) override;
-		virtual HRESULT STDMETHODCALLTYPE CreateCounter(const D3D11_COUNTER_DESC *pCounterDesc, ID3D11Counter **ppCounter) override;
-		virtual HRESULT STDMETHODCALLTYPE CreateDeferredContext(UINT ContextFlags, ID3D11DeviceContext **ppDeferredContext) override;
-		virtual HRESULT STDMETHODCALLTYPE OpenSharedResource(HANDLE hResource, REFIID ReturnedInterface, void **ppResource) override;
-		virtual HRESULT STDMETHODCALLTYPE CheckFormatSupport(DXGI_FORMAT Format, UINT *pFormatSupport) override;
-		virtual HRESULT STDMETHODCALLTYPE CheckMultisampleQualityLevels(DXGI_FORMAT Format, UINT SampleCount, UINT *pNumQualityLevels) override;
-		virtual void STDMETHODCALLTYPE CheckCounterInfo(D3D11_COUNTER_INFO *pCounterInfo) override;
-		virtual HRESULT STDMETHODCALLTYPE CheckCounter(const D3D11_COUNTER_DESC *pDesc, D3D11_COUNTER_TYPE *pType, UINT *pActiveCounters, LPSTR szName, UINT *pNameLength, LPSTR szUnits, UINT *pUnitsLength, LPSTR szDescription, UINT *pDescriptionLength) override;
-		virtual HRESULT STDMETHODCALLTYPE CheckFeatureSupport(D3D11_FEATURE Feature, void *pFeatureSupportData, UINT FeatureSupportDataSize) override;
-		virtual HRESULT STDMETHODCALLTYPE GetPrivateData(REFGUID guid, UINT *pDataSize, void *pData) override;
-		virtual HRESULT STDMETHODCALLTYPE SetPrivateData(REFGUID guid, UINT DataSize, const void *pData) override;
-		virtual HRESULT STDMETHODCALLTYPE SetPrivateDataInterface(REFGUID guid, const IUnknown *pData) override;
-		virtual UINT STDMETHODCALLTYPE GetCreationFlags() override;
-		virtual HRESULT STDMETHODCALLTYPE GetDeviceRemovedReason() override;
-		virtual void STDMETHODCALLTYPE GetImmediateContext(ID3D11DeviceContext **ppImmediateContext) override;
-		virtual HRESULT STDMETHODCALLTYPE SetExceptionMode(UINT RaiseFlags) override;
-		virtual UINT STDMETHODCALLTYPE GetExceptionMode() override;
-		virtual D3D_FEATURE_LEVEL STDMETHODCALLTYPE GetFeatureLevel() override;
-
-		virtual void STDMETHODCALLTYPE GetImmediateContext1(ID3D11DeviceContext1 **ppImmediateContext) override;
-		virtual HRESULT STDMETHODCALLTYPE CreateDeferredContext1(UINT ContextFlags, ID3D11DeviceContext1 **ppDeferredContext) override;
-		virtual HRESULT STDMETHODCALLTYPE CreateBlendState1(const D3D11_BLEND_DESC1 *pBlendStateDesc, ID3D11BlendState1 **ppBlendState);
-		virtual HRESULT STDMETHODCALLTYPE CreateRasterizerState1(const D3D11_RASTERIZER_DESC1 *pRasterizerDesc, ID3D11RasterizerState1 **ppRasterizerState) override;
-		virtual HRESULT STDMETHODCALLTYPE CreateDeviceContextState(UINT Flags, const D3D_FEATURE_LEVEL *pFeatureLevels, UINT FeatureLevels, UINT SDKVersion, REFIID EmulatedInterface, D3D_FEATURE_LEVEL *pChosenFeatureLevel, ID3DDeviceContextState **ppContextState) override;
-		virtual HRESULT STDMETHODCALLTYPE OpenSharedResource1(HANDLE hResource, REFIID returnedInterface, void **ppResource) override;
-		virtual HRESULT STDMETHODCALLTYPE OpenSharedResourceByName(LPCWSTR lpName, DWORD dwDesiredAccess, REFIID returnedInterface, void **ppResource) override;
-
-		LONG mRef;
-		ID3D11Device *mOrig;
-		unsigned int mInterfaceVersion;
-		IUnknown *mDXGIBridge;
-		IDXGIDevice *mDXGIDevice;
-		D3D11DeviceContext *mImmediateContext;
-		std::vector<std::shared_ptr<ReShade::Runtimes::D3D11Runtime>> mRuntimes;
-	};
-	struct D3D11DeviceContext : public ID3D11DeviceContext1, private boost::noncopyable
-	{
-		friend struct D3D11Device;
-
-		D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext *originalDeviceContext) : mRef(1), mDevice(device), mOrig(originalDeviceContext), mInterfaceVersion(0)
-		{
-			assert(device != nullptr);
-			assert(originalDeviceContext != nullptr);
-		}
-		D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext1 *originalDeviceContext) : mRef(1), mDevice(device), mOrig(originalDeviceContext), mInterfaceVersion(1)
-		{
-			assert(device != nullptr);
-			assert(originalDeviceContext != nullptr);
-		}
-
-		virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
-		virtual ULONG STDMETHODCALLTYPE AddRef() override;
-		virtual ULONG STDMETHODCALLTYPE Release() override;
-
-		virtual void STDMETHODCALLTYPE GetDevice(ID3D11Device **ppDevice) override;
-		virtual HRESULT STDMETHODCALLTYPE GetPrivateData(REFGUID guid, UINT *pDataSize, void *pData) override;
-		virtual HRESULT STDMETHODCALLTYPE SetPrivateData(REFGUID guid, UINT DataSize, const void *pData) override;
-		virtual HRESULT STDMETHODCALLTYPE SetPrivateDataInterface(REFGUID guid, const IUnknown *pData) override;
-
-		virtual void STDMETHODCALLTYPE VSSetConstantBuffers(UINT StartSlot, UINT NumBuffers, ID3D11Buffer *const *ppConstantBuffers) override;
-		virtual void STDMETHODCALLTYPE PSSetShaderResources(UINT StartSlot, UINT NumViews, ID3D11ShaderResourceView *const *ppShaderResourceViews) override;
-		virtual void STDMETHODCALLTYPE PSSetShader(ID3D11PixelShader *pPixelShader, ID3D11ClassInstance *const *ppClassInstances, UINT NumClassInstances) override;
-		virtual void STDMETHODCALLTYPE PSSetSamplers(UINT StartSlot, UINT NumSamplers, ID3D11SamplerState *const *ppSamplers) override;
-		virtual void STDMETHODCALLTYPE VSSetShader(ID3D11VertexShader *pVertexShader, ID3D11ClassInstance *const *ppClassInstances, UINT NumClassInstances) override;
-		virtual void STDMETHODCALLTYPE DrawIndexed(UINT IndexCount, UINT StartIndexLocation, INT BaseVertexLocation) override;
-		virtual void STDMETHODCALLTYPE Draw(UINT VertexCount, UINT StartVertexLocation) override;
-		virtual HRESULT STDMETHODCALLTYPE Map(ID3D11Resource *pResource, UINT Subresource, D3D11_MAP MapType, UINT MapFlags, D3D11_MAPPED_SUBRESOURCE *pMappedResource) override;
-		virtual void STDMETHODCALLTYPE Unmap(ID3D11Resource *pResource, UINT Subresource) override;
-		virtual void STDMETHODCALLTYPE PSSetConstantBuffers(UINT StartSlot, UINT NumBuffers, ID3D11Buffer *const *ppConstantBuffers) override;
-		virtual void STDMETHODCALLTYPE IASetInputLayout(ID3D11InputLayout *pInputLayout) override;
-		virtual void STDMETHODCALLTYPE IASetVertexBuffers(UINT StartSlot, UINT NumBuffers, ID3D11Buffer *const *ppVertexBuffers, const UINT *pStrides, const UINT *pOffsets) override;
-		virtual void STDMETHODCALLTYPE IASetIndexBuffer(ID3D11Buffer *pIndexBuffer, DXGI_FORMAT Format, UINT Offset) override;
-		virtual void STDMETHODCALLTYPE DrawIndexedInstanced(UINT IndexCountPerInstance, UINT InstanceCount, UINT StartIndexLocation, INT BaseVertexLocation, UINT StartInstanceLocation) override;
-		virtual void STDMETHODCALLTYPE DrawInstanced(UINT VertexCountPerInstance, UINT InstanceCount, UINT StartVertexLocation, UINT StartInstanceLocation) override;
-		virtual void STDMETHODCALLTYPE GSSetConstantBuffers(UINT StartSlot, UINT NumBuffers, ID3D11Buffer *const *ppConstantBuffers) override;
-		virtual void STDMETHODCALLTYPE GSSetShader(ID3D11GeometryShader *pShader, ID3D11ClassInstance *const *ppClassInstances, UINT NumClassInstances) override;
-		virtual void STDMETHODCALLTYPE IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY Topology) override;
-		virtual void STDMETHODCALLTYPE VSSetShaderResources(UINT StartSlot, UINT NumViews, ID3D11ShaderResourceView *const *ppShaderResourceViews) override;
-		virtual void STDMETHODCALLTYPE VSSetSamplers(UINT StartSlot, UINT NumSamplers, ID3D11SamplerState *const *ppSamplers) override;
-		virtual void STDMETHODCALLTYPE Begin(ID3D11Asynchronous *pAsync) override;
-		virtual void STDMETHODCALLTYPE End(ID3D11Asynchronous *pAsync) override;
-		virtual HRESULT STDMETHODCALLTYPE GetData(ID3D11Asynchronous *pAsync, void *pData, UINT DataSize, UINT GetDataFlags) override;
-		virtual void STDMETHODCALLTYPE SetPredication(ID3D11Predicate *pPredicate, BOOL PredicateValue) override;
-		virtual void STDMETHODCALLTYPE GSSetShaderResources(UINT StartSlot, UINT NumViews, ID3D11ShaderResourceView *const *ppShaderResourceViews) override;
-		virtual void STDMETHODCALLTYPE GSSetSamplers(UINT StartSlot, UINT NumSamplers, ID3D11SamplerState *const *ppSamplers) override;
-		virtual void STDMETHODCALLTYPE OMSetRenderTargets(UINT NumViews, ID3D11RenderTargetView *const *ppRenderTargetViews, ID3D11DepthStencilView *pDepthStencilView) override;
-		virtual void STDMETHODCALLTYPE OMSetRenderTargetsAndUnorderedAccessViews(UINT NumRTVs, ID3D11RenderTargetView *const *ppRenderTargetViews, ID3D11DepthStencilView *pDepthStencilView, UINT UAVStartSlot, UINT NumUAVs, ID3D11UnorderedAccessView *const *ppUnorderedAccessViews, const UINT *pUAVInitialCounts) override;
-		virtual void STDMETHODCALLTYPE OMSetBlendState(ID3D11BlendState *pBlendState, const FLOAT BlendFactor[4], UINT SampleMask) override;
-		virtual void STDMETHODCALLTYPE OMSetDepthStencilState(ID3D11DepthStencilState *pDepthStencilState, UINT StencilRef) override;
-		virtual void STDMETHODCALLTYPE SOSetTargets(UINT NumBuffers, ID3D11Buffer *const *ppSOTargets, const UINT *pOffsets) override;
-		virtual void STDMETHODCALLTYPE DrawAuto() override;
-		virtual void STDMETHODCALLTYPE DrawIndexedInstancedIndirect(ID3D11Buffer *pBufferForArgs, UINT AlignedByteOffsetForArgs) override;
-		virtual void STDMETHODCALLTYPE DrawInstancedIndirect(ID3D11Buffer *pBufferForArgs, UINT AlignedByteOffsetForArgs) override;
-		virtual void STDMETHODCALLTYPE Dispatch(UINT ThreadGroupCountX, UINT ThreadGroupCountY, UINT ThreadGroupCountZ) override;
-		virtual void STDMETHODCALLTYPE DispatchIndirect(ID3D11Buffer *pBufferForArgs, UINT AlignedByteOffsetForArgs) override;
-		virtual void STDMETHODCALLTYPE RSSetState(ID3D11RasterizerState *pRasterizerState) override;
-		virtual void STDMETHODCALLTYPE RSSetViewports(UINT NumViewports, const D3D11_VIEWPORT *pViewports) override;
-		virtual void STDMETHODCALLTYPE RSSetScissorRects(UINT NumRects, const D3D11_RECT *pRects) override;
-		virtual void STDMETHODCALLTYPE CopySubresourceRegion(ID3D11Resource *pDstResource, UINT DstSubresource, UINT DstX, UINT DstY, UINT DstZ, ID3D11Resource *pSrcResource, UINT SrcSubresource, const D3D11_BOX *pSrcBox) override;
-		virtual void STDMETHODCALLTYPE CopyResource(ID3D11Resource *pDstResource, ID3D11Resource *pSrcResource) override;
-		virtual void STDMETHODCALLTYPE UpdateSubresource(ID3D11Resource *pDstResource, UINT DstSubresource, const D3D11_BOX *pDstBox, const void *pSrcData, UINT SrcRowPitch, UINT SrcDepthPitch) override;
-		virtual void STDMETHODCALLTYPE CopyStructureCount(ID3D11Buffer *pDstBuffer, UINT DstAlignedByteOffset, ID3D11UnorderedAccessView *pSrcView) override;
-		virtual void STDMETHODCALLTYPE ClearRenderTargetView(ID3D11RenderTargetView *pRenderTargetView, const FLOAT ColorRGBA[4]) override;
-		virtual void STDMETHODCALLTYPE ClearUnorderedAccessViewUint(ID3D11UnorderedAccessView *pUnorderedAccessView, const UINT Values[4]) override;
-		virtual void STDMETHODCALLTYPE ClearUnorderedAccessViewFloat(ID3D11UnorderedAccessView *pUnorderedAccessView, const FLOAT Values[4]) override;
-		virtual void STDMETHODCALLTYPE ClearDepthStencilView(ID3D11DepthStencilView *pDepthStencilView, UINT ClearFlags, FLOAT Depth, UINT8 Stencil) override;
-		virtual void STDMETHODCALLTYPE GenerateMips(ID3D11ShaderResourceView *pShaderResourceView) override;
-		virtual void STDMETHODCALLTYPE SetResourceMinLOD(ID3D11Resource *pResource, FLOAT MinLOD) override;
-		virtual FLOAT STDMETHODCALLTYPE GetResourceMinLOD(ID3D11Resource *pResource) override;
-		virtual void STDMETHODCALLTYPE ResolveSubresource(ID3D11Resource *pDstResource, UINT DstSubresource, ID3D11Resource *pSrcResource, UINT SrcSubresource, DXGI_FORMAT Format) override;
-		virtual void STDMETHODCALLTYPE ExecuteCommandList(ID3D11CommandList *pCommandList, BOOL RestoreContextState) override;
-		virtual void STDMETHODCALLTYPE HSSetShaderResources(UINT StartSlot, UINT NumViews, ID3D11ShaderResourceView *const *ppShaderResourceViews) override;
-		virtual void STDMETHODCALLTYPE HSSetShader(ID3D11HullShader *pHullShader, ID3D11ClassInstance *const *ppClassInstances, UINT NumClassInstances) override;
-		virtual void STDMETHODCALLTYPE HSSetSamplers(UINT StartSlot, UINT NumSamplers, ID3D11SamplerState *const *ppSamplers) override;
-		virtual void STDMETHODCALLTYPE HSSetConstantBuffers(UINT StartSlot, UINT NumBuffers, ID3D11Buffer *const *ppConstantBuffers) override;
-		virtual void STDMETHODCALLTYPE DSSetShaderResources(UINT StartSlot, UINT NumViews, ID3D11ShaderResourceView *const *ppShaderResourceViews) override;
-		virtual void STDMETHODCALLTYPE DSSetShader(ID3D11DomainShader *pDomainShader, ID3D11ClassInstance *const *ppClassInstances, UINT NumClassInstances) override;
-		virtual void STDMETHODCALLTYPE DSSetSamplers(UINT StartSlot, UINT NumSamplers, ID3D11SamplerState *const *ppSamplers) override;
-		virtual void STDMETHODCALLTYPE DSSetConstantBuffers(UINT StartSlot, UINT NumBuffers, ID3D11Buffer *const *ppConstantBuffers) override;
-		virtual void STDMETHODCALLTYPE CSSetShaderResources(UINT StartSlot, UINT NumViews, ID3D11ShaderResourceView *const *ppShaderResourceViews) override;
-		virtual void STDMETHODCALLTYPE CSSetUnorderedAccessViews(UINT StartSlot, UINT NumUAVs, ID3D11UnorderedAccessView *const *ppUnorderedAccessViews, const UINT *pUAVInitialCounts) override;
-		virtual void STDMETHODCALLTYPE CSSetShader(ID3D11ComputeShader *pComputeShader, ID3D11ClassInstance *const *ppClassInstances, UINT NumClassInstances) override;
-		virtual void STDMETHODCALLTYPE CSSetSamplers(UINT StartSlot, UINT NumSamplers, ID3D11SamplerState *const *ppSamplers) override;
-		virtual void STDMETHODCALLTYPE CSSetConstantBuffers(UINT StartSlot, UINT NumBuffers, ID3D11Buffer *const *ppConstantBuffers) override;
-		virtual void STDMETHODCALLTYPE VSGetConstantBuffers(UINT StartSlot, UINT NumBuffers, ID3D11Buffer **ppConstantBuffers) override;
-		virtual void STDMETHODCALLTYPE PSGetShaderResources(UINT StartSlot, UINT NumViews, ID3D11ShaderResourceView **ppShaderResourceViews) override;
-		virtual void STDMETHODCALLTYPE PSGetShader(ID3D11PixelShader **ppPixelShader, ID3D11ClassInstance **ppClassInstances, UINT *pNumClassInstances) override;
-		virtual void STDMETHODCALLTYPE PSGetSamplers(UINT StartSlot, UINT NumSamplers, ID3D11SamplerState **ppSamplers) override;
-		virtual void STDMETHODCALLTYPE VSGetShader(ID3D11VertexShader **ppVertexShader, ID3D11ClassInstance **ppClassInstances, UINT *pNumClassInstances) override;
-		virtual void STDMETHODCALLTYPE PSGetConstantBuffers(UINT StartSlot, UINT NumBuffers, ID3D11Buffer **ppConstantBuffers) override;
-		virtual void STDMETHODCALLTYPE IAGetInputLayout(ID3D11InputLayout **ppInputLayout) override;
-		virtual void STDMETHODCALLTYPE IAGetVertexBuffers(UINT StartSlot, UINT NumBuffers, ID3D11Buffer **ppVertexBuffers, UINT *pStrides, UINT *pOffsets) override;
-		virtual void STDMETHODCALLTYPE IAGetIndexBuffer(ID3D11Buffer **pIndexBuffer, DXGI_FORMAT *Format, UINT *Offset) override;
-		virtual void STDMETHODCALLTYPE GSGetConstantBuffers(UINT StartSlot, UINT NumBuffers, ID3D11Buffer **ppConstantBuffers) override;
-		virtual void STDMETHODCALLTYPE GSGetShader(ID3D11GeometryShader **ppGeometryShader, ID3D11ClassInstance **ppClassInstances, UINT *pNumClassInstances) override;
-		virtual void STDMETHODCALLTYPE IAGetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY *pTopology) override;
-		virtual void STDMETHODCALLTYPE VSGetShaderResources(UINT StartSlot, UINT NumViews, ID3D11ShaderResourceView **ppShaderResourceViews) override;
-		virtual void STDMETHODCALLTYPE VSGetSamplers(UINT StartSlot, UINT NumSamplers, ID3D11SamplerState **ppSamplers) override;
-		virtual void STDMETHODCALLTYPE GetPredication(ID3D11Predicate **ppPredicate, BOOL *pPredicateValue) override;
-		virtual void STDMETHODCALLTYPE GSGetShaderResources(UINT StartSlot, UINT NumViews, ID3D11ShaderResourceView **ppShaderResourceViews) override;
-		virtual void STDMETHODCALLTYPE GSGetSamplers(UINT StartSlot, UINT NumSamplers, ID3D11SamplerState **ppSamplers) override;
-		virtual void STDMETHODCALLTYPE OMGetRenderTargets(UINT NumViews, ID3D11RenderTargetView **ppRenderTargetViews, ID3D11DepthStencilView **ppDepthStencilView) override;
-		virtual void STDMETHODCALLTYPE OMGetRenderTargetsAndUnorderedAccessViews(UINT NumRTVs, ID3D11RenderTargetView **ppRenderTargetViews, ID3D11DepthStencilView **ppDepthStencilView, UINT UAVStartSlot, UINT NumUAVs, ID3D11UnorderedAccessView **ppUnorderedAccessViews) override;
-		virtual void STDMETHODCALLTYPE OMGetBlendState(ID3D11BlendState **ppBlendState, FLOAT BlendFactor[4], UINT *pSampleMask) override;
-		virtual void STDMETHODCALLTYPE OMGetDepthStencilState(ID3D11DepthStencilState **ppDepthStencilState, UINT *pStencilRef) override;
-		virtual void STDMETHODCALLTYPE SOGetTargets(UINT NumBuffers, ID3D11Buffer **ppSOTargets) override;
-		virtual void STDMETHODCALLTYPE RSGetState(ID3D11RasterizerState **ppRasterizerState) override;
-		virtual void STDMETHODCALLTYPE RSGetViewports(UINT *pNumViewports, D3D11_VIEWPORT *pViewports) override;
-		virtual void STDMETHODCALLTYPE RSGetScissorRects(UINT *pNumRects, D3D11_RECT *pRects) override;
-		virtual void STDMETHODCALLTYPE HSGetShaderResources(UINT StartSlot, UINT NumViews, ID3D11ShaderResourceView **ppShaderResourceViews) override;
-		virtual void STDMETHODCALLTYPE HSGetShader(ID3D11HullShader **ppHullShader, ID3D11ClassInstance **ppClassInstances, UINT *pNumClassInstances) override;
-		virtual void STDMETHODCALLTYPE HSGetSamplers(UINT StartSlot, UINT NumSamplers, ID3D11SamplerState **ppSamplers) override;
-		virtual void STDMETHODCALLTYPE HSGetConstantBuffers(UINT StartSlot, UINT NumBuffers, ID3D11Buffer **ppConstantBuffers) override;
-		virtual void STDMETHODCALLTYPE DSGetShaderResources(UINT StartSlot, UINT NumViews, ID3D11ShaderResourceView **ppShaderResourceViews) override;
-		virtual void STDMETHODCALLTYPE DSGetShader(ID3D11DomainShader **ppDomainShader, ID3D11ClassInstance **ppClassInstances, UINT *pNumClassInstances) override;
-		virtual void STDMETHODCALLTYPE DSGetSamplers(UINT StartSlot, UINT NumSamplers, ID3D11SamplerState **ppSamplers) override;
-		virtual void STDMETHODCALLTYPE DSGetConstantBuffers(UINT StartSlot, UINT NumBuffers, ID3D11Buffer **ppConstantBuffers) override;
-		virtual void STDMETHODCALLTYPE CSGetShaderResources(UINT StartSlot, UINT NumViews, ID3D11ShaderResourceView **ppShaderResourceViews) override;
-		virtual void STDMETHODCALLTYPE CSGetUnorderedAccessViews(UINT StartSlot, UINT NumUAVs, ID3D11UnorderedAccessView **ppUnorderedAccessViews) override;
-		virtual void STDMETHODCALLTYPE CSGetShader(ID3D11ComputeShader **ppComputeShader, ID3D11ClassInstance **ppClassInstances, UINT *pNumClassInstances) override;
-		virtual void STDMETHODCALLTYPE CSGetSamplers(UINT StartSlot, UINT NumSamplers, ID3D11SamplerState **ppSamplers) override;
-		virtual void STDMETHODCALLTYPE CSGetConstantBuffers(UINT StartSlot, UINT NumBuffers, ID3D11Buffer **ppConstantBuffers) override;
-		virtual void STDMETHODCALLTYPE ClearState() override;
-		virtual void STDMETHODCALLTYPE Flush() override;
-		virtual UINT STDMETHODCALLTYPE GetContextFlags() override;
-		virtual HRESULT STDMETHODCALLTYPE FinishCommandList(BOOL RestoreDeferredContextState, ID3D11CommandList **ppCommandList) override;
-		virtual D3D11_DEVICE_CONTEXT_TYPE STDMETHODCALLTYPE GetType() override;
-
-		virtual void STDMETHODCALLTYPE CopySubresourceRegion1(ID3D11Resource *pDstResource, UINT DstSubresource, UINT DstX, UINT DstY, UINT DstZ, ID3D11Resource *pSrcResource, UINT SrcSubresource, const D3D11_BOX *pSrcBox, UINT CopyFlags) override;
-		virtual void STDMETHODCALLTYPE UpdateSubresource1(ID3D11Resource *pDstResource, UINT DstSubresource, const D3D11_BOX *pDstBox, const void *pSrcData, UINT SrcRowPitch, UINT SrcDepthPitch, UINT CopyFlags) override;
-		virtual void STDMETHODCALLTYPE DiscardResource(ID3D11Resource *pResource) override;
-		virtual void STDMETHODCALLTYPE DiscardView(ID3D11View *pResourceView) override;
-		virtual void STDMETHODCALLTYPE VSSetConstantBuffers1(UINT StartSlot, UINT NumBuffers, ID3D11Buffer *const *ppConstantBuffers, const UINT *pFirstConstant, const UINT *pNumConstants) override;
-		virtual void STDMETHODCALLTYPE HSSetConstantBuffers1(UINT StartSlot, UINT NumBuffers, ID3D11Buffer *const *ppConstantBuffers, const UINT *pFirstConstant, const UINT *pNumConstants) override;
-		virtual void STDMETHODCALLTYPE DSSetConstantBuffers1(UINT StartSlot, UINT NumBuffers, ID3D11Buffer *const *ppConstantBuffers, const UINT *pFirstConstant, const UINT *pNumConstants) override;
-		virtual void STDMETHODCALLTYPE GSSetConstantBuffers1(UINT StartSlot, UINT NumBuffers, ID3D11Buffer *const *ppConstantBuffers, const UINT *pFirstConstant, const UINT *pNumConstants) override;
-		virtual void STDMETHODCALLTYPE PSSetConstantBuffers1(UINT StartSlot, UINT NumBuffers, ID3D11Buffer *const *ppConstantBuffers, const UINT *pFirstConstant, const UINT *pNumConstants) override;
-		virtual void STDMETHODCALLTYPE CSSetConstantBuffers1(UINT StartSlot, UINT NumBuffers, ID3D11Buffer *const *ppConstantBuffers, const UINT *pFirstConstant, const UINT *pNumConstants) override;
-		virtual void STDMETHODCALLTYPE VSGetConstantBuffers1(UINT StartSlot, UINT NumBuffers, ID3D11Buffer **ppConstantBuffers, UINT *pFirstConstant, UINT *pNumConstants) override;
-		virtual void STDMETHODCALLTYPE HSGetConstantBuffers1(UINT StartSlot, UINT NumBuffers, ID3D11Buffer **ppConstantBuffers, UINT *pFirstConstant, UINT *pNumConstants) override;
-		virtual void STDMETHODCALLTYPE DSGetConstantBuffers1(UINT StartSlot, UINT NumBuffers, ID3D11Buffer **ppConstantBuffers, UINT *pFirstConstant, UINT *pNumConstants) override;
-		virtual void STDMETHODCALLTYPE GSGetConstantBuffers1(UINT StartSlot, UINT NumBuffers, ID3D11Buffer **ppConstantBuffers, UINT *pFirstConstant, UINT *pNumConstants) override;
-		virtual void STDMETHODCALLTYPE PSGetConstantBuffers1(UINT StartSlot, UINT NumBuffers, ID3D11Buffer **ppConstantBuffers, UINT *pFirstConstant, UINT *pNumConstants) override;
-		virtual void STDMETHODCALLTYPE CSGetConstantBuffers1(UINT StartSlot, UINT NumBuffers, ID3D11Buffer **ppConstantBuffers, UINT *pFirstConstant, UINT *pNumConstants) override;
-		virtual void STDMETHODCALLTYPE SwapDeviceContextState(ID3DDeviceContextState *pState, ID3DDeviceContextState **ppPreviousState) override;
-		virtual void STDMETHODCALLTYPE ClearView(ID3D11View *pView, const FLOAT Color[4], const D3D11_RECT *pRect, UINT NumRects) override;
-		virtual void STDMETHODCALLTYPE DiscardView1(ID3D11View *pResourceView, const D3D11_RECT *pRects, UINT NumRects) override;
-
-		LONG mRef;
-		D3D11Device *const mDevice;
-		ID3D11DeviceContext *mOrig;
-		unsigned int mInterfaceVersion;
-	};
-
 	std::string GetErrorString(HRESULT hr)
 	{
 		std::stringstream res;
@@ -273,117 +38,25 @@ namespace
 	}
 }
 
-#pragma region DXGI Bridge
-class DXGID3D11Bridge : public IUnknown, private boost::noncopyable
-{
-public:
-	static const IID sIID;
-
-public:
-	DXGID3D11Bridge(D3D11Device *device) : mRef(1), mD3D11Device(device)
-	{
-		assert(device != nullptr);
-	}
-
-	virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
-	virtual ULONG STDMETHODCALLTYPE AddRef() override;
-	virtual ULONG STDMETHODCALLTYPE Release() override;
-
-	IDXGIDevice *CreateDXGIDevice();
-	inline D3D11Device *GetD3D11Device()
-	{
-		return this->mD3D11Device;
-	}
-	ID3D11Device *GetOriginalD3D11Device();
-
-	void AddRuntime(const std::shared_ptr<ReShade::Runtimes::D3D11Runtime> &runtime);
-	void RemoveRuntime(const std::shared_ptr<ReShade::Runtimes::D3D11Runtime> &runtime);
-
-private:
-	ULONG mRef;
-	D3D11Device *const mD3D11Device;
-};
-
-const IID DXGID3D11Bridge::sIID = { 0xff97cb62, 0x2b9e, 0x4792, { 0xb2, 0x87, 0x82, 0x3a, 0x71, 0x9, 0x57, 0x21 } };
-
-HRESULT STDMETHODCALLTYPE DXGID3D11Bridge::QueryInterface(REFIID riid, void **ppvObj)
-{
-	if (ppvObj == nullptr)
-	{
-		return E_POINTER;
-	}
-
-	*ppvObj = nullptr;
-
-	if (riid == __uuidof(IUnknown) || riid == sIID)
-	{
-		*ppvObj = this;
-
-		return S_OK;
-	}
-
-	return E_NOINTERFACE;
-}
-ULONG STDMETHODCALLTYPE DXGID3D11Bridge::AddRef()
-{
-	return ++this->mRef;
-}
-ULONG STDMETHODCALLTYPE DXGID3D11Bridge::Release()
-{
-	const ULONG ref = --this->mRef;
-
-	if (ref == 0)
-	{
-		delete this;
-	}
-
-	return ref;
-}
-
-ID3D11Device *DXGID3D11Bridge::GetOriginalD3D11Device()
-{
-	return this->mD3D11Device->mOrig;
-}
-void DXGID3D11Bridge::AddRuntime(const std::shared_ptr<ReShade::Runtimes::D3D11Runtime> &runtime)
-{
-	this->mD3D11Device->mRuntimes.push_back(runtime);
-}
-void DXGID3D11Bridge::RemoveRuntime(const std::shared_ptr<ReShade::Runtimes::D3D11Runtime> &runtime)
-{
-	const auto it = std::find(this->mD3D11Device->mRuntimes.begin(), this->mD3D11Device->mRuntimes.end(), runtime);
-
-	if (it != this->mD3D11Device->mRuntimes.end())
-	{
-		this->mD3D11Device->mRuntimes.erase(it);
-	}
-}
-#pragma endregion
-
-// ---------------------------------------------------------------------------------------------------
-
 // ID3D11DepthStencilView
 ULONG STDMETHODCALLTYPE ID3D11DepthStencilView_Release(ID3D11DepthStencilView *pDepthStencilView)
 {
 	static const auto trampoline = ReShade::Hooks::Call(&ID3D11DepthStencilView_Release);
 
-	UINT size = sizeof(void *);
-	DXGID3D11Bridge *bridge = nullptr;
-	
-	HRESULT hr = pDepthStencilView->GetPrivateData(DXGID3D11Bridge::sIID, &size, &bridge);
+	D3D11Device *device = nullptr;
+	UINT dataSize = sizeof(device);
+	const bool succeeded = SUCCEEDED(pDepthStencilView->GetPrivateData(__uuidof(device), &dataSize, &device));
 
 	const ULONG ref = trampoline(pDepthStencilView);
 
-	if (SUCCEEDED(hr))
+	if (succeeded && ref == 0)
 	{
-		if (ref == 0)
+		for (auto runtime : device->mRuntimes)
 		{
-			for (auto runtime : bridge->GetD3D11Device()->mRuntimes)
-			{
-				runtime->OnDeleteDepthStencilView(pDepthStencilView);
-			}
+			runtime->OnDeleteDepthStencilView(pDepthStencilView);
 		}
 
-		bridge->Release();
+		device->Release();
 	}
 
 	return ref;
@@ -396,27 +69,67 @@ HRESULT STDMETHODCALLTYPE D3D11DeviceContext::QueryInterface(REFIID riid, void *
 	{
 		return E_POINTER;
 	}
-
-	if (riid == __uuidof(IUnknown) || riid == __uuidof(ID3D11DeviceChild) || riid == __uuidof(ID3D11DeviceContext) || riid == __uuidof(ID3D11DeviceContext1))
+	else if (
+		riid == __uuidof(this) ||
+		riid == __uuidof(IUnknown) ||
+		riid == __uuidof(ID3D11DeviceChild) ||
+		riid == __uuidof(ID3D11DeviceContext) ||
+		riid == __uuidof(ID3D11DeviceContext1) ||
+		riid == __uuidof(ID3D11DeviceContext2) ||
+		riid == __uuidof(ID3D11DeviceContext3))
 	{
 		#pragma region Update to ID3D11DeviceContext1 interface
 		if (riid == __uuidof(ID3D11DeviceContext1) && this->mInterfaceVersion < 1)
 		{
 			ID3D11DeviceContext1 *devicecontext1 = nullptr;
 
-			const HRESULT hr = this->mOrig->QueryInterface(__uuidof(ID3D11DeviceContext1), reinterpret_cast<void **>(&devicecontext1));
-
-			if (FAILED(hr))
+			if (FAILED(this->mOrig->QueryInterface(&devicecontext1)))
 			{
-				return hr;
+				return E_NOINTERFACE;
 			}
 
 			this->mOrig->Release();
-			this->mOrig = devicecontext1;
-
-			this->mInterfaceVersion = 1;
 
 			LOG(TRACE) << "Upgraded 'ID3D11DeviceContext' object " << this << " to 'ID3D11DeviceContext1'.";
+
+			this->mOrig = devicecontext1;
+			this->mInterfaceVersion = 1;
+		}
+		#pragma endregion
+		#pragma region Update to ID3D11DeviceContext2 interface
+		if (riid == __uuidof(ID3D11DeviceContext2) && this->mInterfaceVersion < 2)
+		{
+			ID3D11DeviceContext2 *devicecontext2 = nullptr;
+
+			if (FAILED(this->mOrig->QueryInterface(&devicecontext2)))
+			{
+				return E_NOINTERFACE;
+			}
+
+			this->mOrig->Release();
+
+			LOG(TRACE) << "Upgraded 'ID3D11DeviceContext" << (this->mInterfaceVersion > 0 ? std::to_string(this->mInterfaceVersion) : "") << "' object " << this << " to 'ID3D11DeviceContext2'.";
+
+			this->mOrig = devicecontext2;
+			this->mInterfaceVersion = 2;
+		}
+		#pragma endregion
+		#pragma region Update to ID3D11DeviceContext3 interface
+		if (riid == __uuidof(ID3D11DeviceContext3) && this->mInterfaceVersion < 3)
+		{
+			ID3D11DeviceContext3 *devicecontext3 = nullptr;
+
+			if (FAILED(this->mOrig->QueryInterface(&devicecontext3)))
+			{
+				return E_NOINTERFACE;
+			}
+
+			this->mOrig->Release();
+
+			LOG(TRACE) << "Upgraded 'ID3D11DeviceContext" << (this->mInterfaceVersion > 0 ? std::to_string(this->mInterfaceVersion) : "") << "' object " << this << " to 'ID3D11DeviceContext3'.";
+
+			this->mOrig = devicecontext3;
+			this->mInterfaceVersion = 3;
 		}
 		#pragma endregion
 
@@ -437,13 +150,11 @@ ULONG STDMETHODCALLTYPE D3D11DeviceContext::AddRef()
 }
 ULONG STDMETHODCALLTYPE D3D11DeviceContext::Release()
 {
-	this->mRef--;
-
 	ULONG ref = this->mOrig->Release();
 
-	if (this->mRef == 0 && ref != 0)
+	if (--this->mRef == 0 && ref != 0)
 	{
-		LOG(WARNING) << "Reference count for 'ID3D11DeviceContext" << (this->mInterfaceVersion >= 1 ? std::to_string(this->mInterfaceVersion) : "") << "' object " << this << " is inconsistent: " << ref << " vs " << this->mRef << ".";
+		LOG(WARNING) << "Reference count for 'ID3D11DeviceContext" << (this->mInterfaceVersion > 0 ? std::to_string(this->mInterfaceVersion) : "") << "' object " << this << " is inconsistent: " << ref << ", but expected 0.";
 
 		ref = 0;
 	}
@@ -452,7 +163,7 @@ ULONG STDMETHODCALLTYPE D3D11DeviceContext::Release()
 	{
 		assert(this->mRef <= 0);
 
-		LOG(TRACE) << "Destroyed 'ID3D11DeviceContext" << (this->mInterfaceVersion >= 1 ? std::to_string(this->mInterfaceVersion) : "") << "' object " << this << ".";
+		LOG(TRACE) << "Destroyed 'ID3D11DeviceContext" << (this->mInterfaceVersion > 0 ? std::to_string(this->mInterfaceVersion) : "") << "' object " << this << ".";
 
 		delete this;
 	}
@@ -1093,6 +804,88 @@ void STDMETHODCALLTYPE D3D11DeviceContext::DiscardView1(ID3D11View *pResourceVie
 	static_cast<ID3D11DeviceContext1 *>(this->mOrig)->DiscardView1(pResourceView, pRects, NumRects);
 }
 
+// ID3D11DeviceContext2
+HRESULT STDMETHODCALLTYPE D3D11DeviceContext::UpdateTileMappings(ID3D11Resource *pTiledResource, UINT NumTiledResourceRegions, const D3D11_TILED_RESOURCE_COORDINATE *pTiledResourceRegionStartCoordinates, const D3D11_TILE_REGION_SIZE *pTiledResourceRegionSizes, ID3D11Buffer *pTilePool, UINT NumRanges, const UINT *pRangeFlags, const UINT *pTilePoolStartOffsets, const UINT *pRangeTileCounts, UINT Flags)
+{
+	assert(this->mInterfaceVersion >= 2);
+
+	return static_cast<ID3D11DeviceContext2 *>(this->mOrig)->UpdateTileMappings(pTiledResource, NumTiledResourceRegions, pTiledResourceRegionStartCoordinates, pTiledResourceRegionSizes, pTilePool, NumRanges, pRangeFlags, pTilePoolStartOffsets, pRangeTileCounts, Flags);
+}
+HRESULT STDMETHODCALLTYPE D3D11DeviceContext::CopyTileMappings(ID3D11Resource *pDestTiledResource, const D3D11_TILED_RESOURCE_COORDINATE *pDestRegionStartCoordinate, ID3D11Resource *pSourceTiledResource, const D3D11_TILED_RESOURCE_COORDINATE *pSourceRegionStartCoordinate, const D3D11_TILE_REGION_SIZE *pTileRegionSize, UINT Flags)
+{
+	assert(this->mInterfaceVersion >= 2);
+
+	return static_cast<ID3D11DeviceContext2 *>(this->mOrig)->CopyTileMappings(pDestTiledResource, pDestRegionStartCoordinate, pSourceTiledResource, pSourceRegionStartCoordinate, pTileRegionSize, Flags);
+}
+void STDMETHODCALLTYPE D3D11DeviceContext::CopyTiles(ID3D11Resource *pTiledResource, const D3D11_TILED_RESOURCE_COORDINATE *pTileRegionStartCoordinate, const D3D11_TILE_REGION_SIZE *pTileRegionSize, ID3D11Buffer *pBuffer, UINT64 BufferStartOffsetInBytes, UINT Flags)
+{
+	assert(this->mInterfaceVersion >= 2);
+
+	static_cast<ID3D11DeviceContext2 *>(this->mOrig)->CopyTiles(pTiledResource, pTileRegionStartCoordinate, pTileRegionSize, pBuffer, BufferStartOffsetInBytes, Flags);
+}
+void STDMETHODCALLTYPE D3D11DeviceContext::UpdateTiles(ID3D11Resource *pDestTiledResource, const D3D11_TILED_RESOURCE_COORDINATE *pDestTileRegionStartCoordinate, const D3D11_TILE_REGION_SIZE *pDestTileRegionSize, const void *pSourceTileData, UINT Flags)
+{
+	assert(this->mInterfaceVersion >= 2);
+
+	static_cast<ID3D11DeviceContext2 *>(this->mOrig)->UpdateTiles(pDestTiledResource, pDestTileRegionStartCoordinate, pDestTileRegionSize, pSourceTileData, Flags);
+}
+HRESULT STDMETHODCALLTYPE D3D11DeviceContext::ResizeTilePool(ID3D11Buffer *pTilePool, UINT64 NewSizeInBytes)
+{
+	assert(this->mInterfaceVersion >= 2);
+
+	return static_cast<ID3D11DeviceContext2 *>(this->mOrig)->ResizeTilePool(pTilePool, NewSizeInBytes);
+}
+void STDMETHODCALLTYPE D3D11DeviceContext::TiledResourceBarrier(ID3D11DeviceChild *pTiledResourceOrViewAccessBeforeBarrier, ID3D11DeviceChild *pTiledResourceOrViewAccessAfterBarrier)
+{
+	assert(this->mInterfaceVersion >= 2);
+
+	static_cast<ID3D11DeviceContext2 *>(this->mOrig)->TiledResourceBarrier(pTiledResourceOrViewAccessBeforeBarrier, pTiledResourceOrViewAccessAfterBarrier);
+}
+BOOL STDMETHODCALLTYPE D3D11DeviceContext::IsAnnotationEnabled()
+{
+	assert(this->mInterfaceVersion >= 2);
+
+	return static_cast<ID3D11DeviceContext2 *>(this->mOrig)->IsAnnotationEnabled();
+}
+void STDMETHODCALLTYPE D3D11DeviceContext::SetMarkerInt(LPCWSTR pLabel, INT Data)
+{
+	assert(this->mInterfaceVersion >= 2);
+
+	static_cast<ID3D11DeviceContext2 *>(this->mOrig)->SetMarkerInt(pLabel, Data);
+}
+void STDMETHODCALLTYPE D3D11DeviceContext::BeginEventInt(LPCWSTR pLabel, INT Data)
+{
+	assert(this->mInterfaceVersion >= 2);
+
+	static_cast<ID3D11DeviceContext2 *>(this->mOrig)->BeginEventInt(pLabel, Data);
+}
+void STDMETHODCALLTYPE D3D11DeviceContext::EndEvent()
+{
+	assert(this->mInterfaceVersion >= 2);
+
+	static_cast<ID3D11DeviceContext2 *>(this->mOrig)->EndEvent();
+}
+
+// ID3D11DeviceContext3
+void STDMETHODCALLTYPE D3D11DeviceContext::Flush1(D3D11_CONTEXT_TYPE ContextType, HANDLE hEvent)
+{
+	assert(this->mInterfaceVersion >= 3);
+
+	static_cast<ID3D11DeviceContext3 *>(this->mOrig)->Flush1(ContextType, hEvent);
+}
+void STDMETHODCALLTYPE D3D11DeviceContext::SetHardwareProtectionState(BOOL HwProtectionEnable)
+{
+	assert(this->mInterfaceVersion >= 3);
+
+	static_cast<ID3D11DeviceContext3 *>(this->mOrig)->SetHardwareProtectionState(HwProtectionEnable);
+}
+void STDMETHODCALLTYPE D3D11DeviceContext::GetHardwareProtectionState(BOOL *pHwProtectionEnable)
+{
+	assert(this->mInterfaceVersion >= 3);
+
+	static_cast<ID3D11DeviceContext3 *>(this->mOrig)->GetHardwareProtectionState(pHwProtectionEnable);
+}
+
 // ID3D11Device
 HRESULT STDMETHODCALLTYPE D3D11Device::QueryInterface(REFIID riid, void **ppvObj)
 {
@@ -1100,18 +893,13 @@ HRESULT STDMETHODCALLTYPE D3D11Device::QueryInterface(REFIID riid, void **ppvObj
 	{
 		return E_POINTER;
 	}
-
-	if (riid == DXGID3D11Bridge::sIID)
-	{
-		assert(this->mDXGIBridge != nullptr);
-
-		this->mDXGIBridge->AddRef();
-
-		*ppvObj = this->mDXGIBridge;
-
-		return S_OK;
-	}
-	else if (riid == __uuidof(IUnknown) || riid == __uuidof(ID3D11Device) || riid == __uuidof(ID3D11Device1))
+	else if (
+		riid == __uuidof(this) ||
+		riid == __uuidof(IUnknown) ||
+		riid == __uuidof(ID3D11Device) ||
+		riid == __uuidof(ID3D11Device1) ||
+		riid == __uuidof(ID3D11Device2) ||
+		riid == __uuidof(ID3D11Device3))
 	{
 		#pragma region Update to ID3D11Device1 interface
 		if (riid == __uuidof(ID3D11Device1) && this->mInterfaceVersion < 1)
@@ -1119,23 +907,67 @@ HRESULT STDMETHODCALLTYPE D3D11Device::QueryInterface(REFIID riid, void **ppvObj
 			ID3D11Device1 *device1 = nullptr;
 			ID3D11DeviceContext1 *devicecontext1 = nullptr;
 
-			const HRESULT hr = this->mOrig->QueryInterface(__uuidof(ID3D11Device1), reinterpret_cast<void **>(&device1));
-
-			if (FAILED(hr))
+			if (FAILED(this->mOrig->QueryInterface(&device1)))
 			{
-				return hr;
+				return E_NOINTERFACE;
 			}
 
 			this->mOrig->Release();
 
+			LOG(TRACE) << "Upgraded 'ID3D11Device' object " << this << " to 'ID3D11Device1'.";
+
 			this->mOrig = device1;
 			this->mInterfaceVersion = 1;
 
-			LOG(TRACE) << "Upgraded 'ID3D11Device' object " << this << " to 'ID3D11Device1'.";
-
-			this->mImmediateContext->QueryInterface(__uuidof(ID3D11DeviceContext1), reinterpret_cast<void **>(&devicecontext1));
+			this->mImmediateContext->QueryInterface(IID_PPV_ARGS(&devicecontext1));
 
 			devicecontext1->Release();
+		}
+		#pragma endregion
+		#pragma region Update to ID3D11Device2 interface
+		if (riid == __uuidof(ID3D11Device2) && this->mInterfaceVersion < 2)
+		{
+			ID3D11Device2 *device2 = nullptr;
+			ID3D11DeviceContext2 *devicecontext2 = nullptr;
+
+			if (FAILED(this->mOrig->QueryInterface(&device2)))
+			{
+				return E_NOINTERFACE;
+			}
+
+			this->mOrig->Release();
+
+			LOG(TRACE) << "Upgraded 'ID3D11Device" << (this->mInterfaceVersion > 0 ? std::to_string(this->mInterfaceVersion) : "") << "' object " << this << " to 'ID3D11Device2'.";
+
+			this->mOrig = device2;
+			this->mInterfaceVersion = 2;
+
+			this->mImmediateContext->QueryInterface(IID_PPV_ARGS(&devicecontext2));
+
+			devicecontext2->Release();
+		}
+		#pragma endregion
+		#pragma region Update to ID3D11Device3 interface
+		if (riid == __uuidof(ID3D11Device3) && this->mInterfaceVersion < 3)
+		{
+			ID3D11Device3 *device3 = nullptr;
+			ID3D11DeviceContext3 *devicecontext3 = nullptr;
+
+			if (FAILED(this->mOrig->QueryInterface(&device3)))
+			{
+				return E_NOINTERFACE;
+			}
+
+			this->mOrig->Release();
+
+			LOG(TRACE) << "Upgraded 'ID3D11Device" << (this->mInterfaceVersion > 0 ? std::to_string(this->mInterfaceVersion) : "") << "' object " << this << " to 'ID3D11Device3'.";
+
+			this->mOrig = device3;
+			this->mInterfaceVersion = 3;
+
+			this->mImmediateContext->QueryInterface(IID_PPV_ARGS(&devicecontext3));
+
+			devicecontext3->Release();
 		}
 		#pragma endregion
 
@@ -1154,30 +986,27 @@ ULONG STDMETHODCALLTYPE D3D11Device::AddRef()
 {
 	this->mRef++;
 
+	assert(this->mDXGIDevice != nullptr);
+	assert(this->mImmediateContext != nullptr);
+
+	static_cast<DXGIDevice *>(this->mDXGIDevice)->InternalAddRef();
+	this->mImmediateContext->AddRef();
+
 	return this->mOrig->AddRef();
 }
 ULONG STDMETHODCALLTYPE D3D11Device::Release()
 {
-	if (--this->mRef == 0)
-	{
-		#pragma region Cleanup Resources
-		assert(this->mImmediateContext != nullptr);
+	assert(this->mDXGIDevice != nullptr);
+	assert(this->mImmediateContext != nullptr);
 
-		this->mImmediateContext->Release();
-
-		assert(this->mDXGIBridge != nullptr);
-		assert(this->mDXGIDevice != nullptr);
-
-		this->mDXGIBridge->Release();
-		this->mDXGIDevice->Release();
-		#pragma endregion
-	}
+	static_cast<DXGIDevice *>(this->mDXGIDevice)->InternalRelease();
+	this->mImmediateContext->Release();
 
 	ULONG ref = this->mOrig->Release();
 
-	if (this->mRef == 0 && ref != 0)
+	if (--this->mRef == 0 && ref != 0)
 	{
-		LOG(WARNING) << "Reference count for 'ID3D11Device" << (this->mInterfaceVersion >= 1 ? std::to_string(this->mInterfaceVersion) : "") << "' object " << this << " is inconsistent: " << ref << " vs " << this->mRef << ".";
+		LOG(WARNING) << "Reference count for 'ID3D11Device" << (this->mInterfaceVersion > 0 ? std::to_string(this->mInterfaceVersion) : "") << "' object " << this << " is inconsistent: " << ref << ", but expected 0.";
 
 		ref = 0;
 	}
@@ -1186,7 +1015,7 @@ ULONG STDMETHODCALLTYPE D3D11Device::Release()
 	{
 		assert(this->mRef <= 0);
 
-		LOG(TRACE) << "Destroyed 'ID3D11Device" << (this->mInterfaceVersion >= 1 ? std::to_string(this->mInterfaceVersion) : "") << "' object " << this << ".";
+		LOG(TRACE) << "Destroyed 'ID3D11Device" << (this->mInterfaceVersion > 0 ? std::to_string(this->mInterfaceVersion) : "") << "' object " << this << ".";
 
 		delete this;
 	}
@@ -1240,8 +1069,10 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDepthStencilView(ID3D11Resource *pR
 		runtime->OnCreateDepthStencilView(pResource, *ppDepthStencilView);
 	}
 
+	D3D11Device *const device = this;
 	ID3D11DepthStencilView *const depthstencil = *ppDepthStencilView;
-	depthstencil->SetPrivateDataInterface(DXGID3D11Bridge::sIID, this->mDXGIBridge);
+	device->AddRef();
+	depthstencil->SetPrivateData(__uuidof(device), sizeof(device), &device);
 
 	ReShade::Hooks::Install(VTABLE(depthstencil), 2, reinterpret_cast<ReShade::Hook::Function>(&ID3D11DepthStencilView_Release));
 
@@ -1474,6 +1305,100 @@ HRESULT STDMETHODCALLTYPE D3D11Device::OpenSharedResourceByName(LPCWSTR lpName, 
 	return static_cast<ID3D11Device1 *>(this->mOrig)->OpenSharedResourceByName(lpName, dwDesiredAccess, returnedInterface, ppResource);
 }
 
+// ID3D11Device2
+void STDMETHODCALLTYPE D3D11Device::GetImmediateContext2(ID3D11DeviceContext2 **ppImmediateContext)
+{
+	assert(this->mInterfaceVersion >= 2);
+
+	static_cast<ID3D11Device2 *>(this->mOrig)->GetImmediateContext2(ppImmediateContext);
+}
+HRESULT STDMETHODCALLTYPE D3D11Device::CreateDeferredContext2(UINT ContextFlags, ID3D11DeviceContext2 **ppDeferredContext)
+{
+	assert(this->mInterfaceVersion >= 2);
+
+	return static_cast<ID3D11Device2 *>(this->mOrig)->CreateDeferredContext2(ContextFlags, ppDeferredContext);
+}
+void STDMETHODCALLTYPE D3D11Device::GetResourceTiling(ID3D11Resource *pTiledResource, UINT *pNumTilesForEntireResource, D3D11_PACKED_MIP_DESC *pPackedMipDesc, D3D11_TILE_SHAPE *pStandardTileShapeForNonPackedMips, UINT *pNumSubresourceTilings, UINT FirstSubresourceTilingToGet, D3D11_SUBRESOURCE_TILING *pSubresourceTilingsForNonPackedMips)
+{
+	assert(this->mInterfaceVersion >= 2);
+
+	static_cast<ID3D11Device2 *>(this->mOrig)->GetResourceTiling(pTiledResource, pNumTilesForEntireResource, pPackedMipDesc, pStandardTileShapeForNonPackedMips, pNumSubresourceTilings, FirstSubresourceTilingToGet, pSubresourceTilingsForNonPackedMips);
+}
+HRESULT STDMETHODCALLTYPE D3D11Device::CheckMultisampleQualityLevels1(DXGI_FORMAT Format, UINT SampleCount, UINT Flags, UINT *pNumQualityLevels)
+{
+	assert(this->mInterfaceVersion >= 2);
+
+	return static_cast<ID3D11Device2 *>(this->mOrig)->CheckMultisampleQualityLevels1(Format, SampleCount, Flags, pNumQualityLevels);
+}
+
+// ID3D11Device3
+HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture2D1(const D3D11_TEXTURE2D_DESC1 *pDesc1, const D3D11_SUBRESOURCE_DATA *pInitialData, ID3D11Texture2D1 **ppTexture2D)
+{
+	assert(this->mInterfaceVersion >= 3);
+
+	return static_cast<ID3D11Device3 *>(this->mOrig)->CreateTexture2D1(pDesc1, pInitialData, ppTexture2D);
+}
+HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture3D1(const D3D11_TEXTURE3D_DESC1 *pDesc1, const D3D11_SUBRESOURCE_DATA *pInitialData, ID3D11Texture3D1 **ppTexture3D)
+{
+	assert(this->mInterfaceVersion >= 3);
+
+	return static_cast<ID3D11Device3 *>(this->mOrig)->CreateTexture3D1(pDesc1, pInitialData, ppTexture3D);
+}
+HRESULT STDMETHODCALLTYPE D3D11Device::CreateRasterizerState2(const D3D11_RASTERIZER_DESC2 *pRasterizerDesc, ID3D11RasterizerState2 **ppRasterizerState)
+{
+	assert(this->mInterfaceVersion >= 3);
+
+	return static_cast<ID3D11Device3 *>(this->mOrig)->CreateRasterizerState2(pRasterizerDesc, ppRasterizerState);
+}
+HRESULT STDMETHODCALLTYPE D3D11Device::CreateShaderResourceView1(ID3D11Resource *pResource, const D3D11_SHADER_RESOURCE_VIEW_DESC1 *pDesc1, ID3D11ShaderResourceView1 **ppSRView1)
+{
+	assert(this->mInterfaceVersion >= 3);
+
+	return static_cast<ID3D11Device3 *>(this->mOrig)->CreateShaderResourceView1(pResource, pDesc1, ppSRView1);
+}
+HRESULT STDMETHODCALLTYPE D3D11Device::CreateUnorderedAccessView1(ID3D11Resource *pResource, const D3D11_UNORDERED_ACCESS_VIEW_DESC1 *pDesc1, ID3D11UnorderedAccessView1 **ppUAView1)
+{
+	assert(this->mInterfaceVersion >= 3);
+
+	return static_cast<ID3D11Device3 *>(this->mOrig)->CreateUnorderedAccessView1(pResource, pDesc1, ppUAView1);
+}
+HRESULT STDMETHODCALLTYPE D3D11Device::CreateRenderTargetView1(ID3D11Resource *pResource, const D3D11_RENDER_TARGET_VIEW_DESC1 *pDesc1, ID3D11RenderTargetView1 **ppRTView1)
+{
+	assert(this->mInterfaceVersion >= 3);
+
+	return static_cast<ID3D11Device3 *>(this->mOrig)->CreateRenderTargetView1(pResource, pDesc1, ppRTView1);
+}
+HRESULT STDMETHODCALLTYPE D3D11Device::CreateQuery1(const D3D11_QUERY_DESC1 *pQueryDesc1, ID3D11Query1 **ppQuery1)
+{
+	assert(this->mInterfaceVersion >= 3);
+
+	return static_cast<ID3D11Device3 *>(this->mOrig)->CreateQuery1(pQueryDesc1, ppQuery1);
+}
+void STDMETHODCALLTYPE D3D11Device::GetImmediateContext3(ID3D11DeviceContext3 **ppImmediateContext)
+{
+	assert(this->mInterfaceVersion >= 3);
+
+	static_cast<ID3D11Device3 *>(this->mOrig)->GetImmediateContext3(ppImmediateContext);
+}
+HRESULT STDMETHODCALLTYPE D3D11Device::CreateDeferredContext3(UINT ContextFlags, ID3D11DeviceContext3 **ppDeferredContext)
+{
+	assert(this->mInterfaceVersion >= 3);
+
+	return static_cast<ID3D11Device3 *>(this->mOrig)->CreateDeferredContext3(ContextFlags, ppDeferredContext);
+}
+void STDMETHODCALLTYPE D3D11Device::WriteToSubresource(ID3D11Resource *pDstResource, UINT DstSubresource, const D3D11_BOX *pDstBox, const void *pSrcData, UINT SrcRowPitch, UINT SrcDepthPitch)
+{
+	assert(this->mInterfaceVersion >= 3);
+
+	static_cast<ID3D11Device3 *>(this->mOrig)->WriteToSubresource(pDstResource, DstSubresource, pDstBox, pSrcData, SrcRowPitch, SrcDepthPitch);
+}
+void STDMETHODCALLTYPE D3D11Device::ReadFromSubresource(void *pDstData, UINT DstRowPitch, UINT DstDepthPitch, ID3D11Resource *pSrcResource, UINT SrcSubresource, const D3D11_BOX *pSrcBox)
+{
+	assert(this->mInterfaceVersion >= 3);
+
+	static_cast<ID3D11Device3 *>(this->mOrig)->ReadFromSubresource(pDstData, DstRowPitch, DstDepthPitch, pSrcResource, SrcSubresource, pSrcBox);
+}
+
 // D3D11
 EXPORT HRESULT WINAPI D3D11CreateDevice(IDXGIAdapter *pAdapter, D3D_DRIVER_TYPE DriverType, HMODULE Software, UINT Flags, const D3D_FEATURE_LEVEL *pFeatureLevels, UINT FeatureLevels, UINT SDKVersion, ID3D11Device **ppDevice, D3D_FEATURE_LEVEL *pFeatureLevel, ID3D11DeviceContext **ppImmediateContext)
 {
@@ -1505,23 +1430,20 @@ EXPORT HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, D3D_
 
 	if (ppDevice != nullptr)
 	{
-		assert(*ppDevice != nullptr);
-
+		IDXGIDevice *dxgidevice = nullptr;
 		ID3D11Device *const device = *ppDevice;
 		ID3D11DeviceContext *devicecontext = nullptr;
+		device->QueryInterface(&dxgidevice);
 		device->GetImmediateContext(&devicecontext);
 
+		assert(device != nullptr);
+		assert(dxgidevice != nullptr);
 		assert(devicecontext != nullptr);
 
 		D3D11Device *const deviceProxy = new D3D11Device(device);
 		D3D11DeviceContext *const devicecontextProxy = new D3D11DeviceContext(deviceProxy, devicecontext);
-		DXGID3D11Bridge *const dxgibridge = new DXGID3D11Bridge(deviceProxy);
-
-		deviceProxy->mDXGIBridge = dxgibridge;
-		deviceProxy->mDXGIDevice = dxgibridge->CreateDXGIDevice();
+		deviceProxy->mDXGIDevice = new DXGIDevice(dxgidevice, deviceProxy);
 		deviceProxy->mImmediateContext = devicecontextProxy;
-
-		assert(deviceProxy->mDXGIDevice != nullptr);
 
 		if (pSwapChainDesc != nullptr)
 		{
@@ -1540,7 +1462,7 @@ EXPORT HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, D3D_
 
 			IDXGIFactory *factory = nullptr;
 
-			hr = pAdapter->GetParent(__uuidof(IDXGIFactory), reinterpret_cast<void **>(&factory));
+			hr = pAdapter->GetParent(IID_PPV_ARGS(&factory));
 
 			assert(SUCCEEDED(hr));
 
@@ -1564,7 +1486,6 @@ EXPORT HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, D3D_
 		}
 		else
 		{
-			devicecontextProxy->Release();
 			deviceProxy->Release();
 		}
 	}

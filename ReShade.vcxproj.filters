@@ -87,13 +87,13 @@
     <ClCompile Include="src\Hooks\WS2_32.cpp">
       <Filter>Implementation\Hooks</Filter>
     </ClCompile>
+    <ClCompile Include="src\Runtimes\D3D9Runtime.cpp">
+      <Filter>Implementation\Runtimes</Filter>
+    </ClCompile>
     <ClCompile Include="src\Runtimes\D3D10Runtime.cpp">
       <Filter>Implementation\Runtimes</Filter>
     </ClCompile>
     <ClCompile Include="src\Runtimes\D3D11Runtime.cpp">
-      <Filter>Implementation\Runtimes</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Runtimes\D3D9Runtime.cpp">
       <Filter>Implementation\Runtimes</Filter>
     </ClCompile>
     <ClCompile Include="src\Runtimes\GLRuntime.cpp">
@@ -143,13 +143,25 @@
     <ClInclude Include="src\Utils\Time.hpp">
       <Filter>Core\Utils</Filter>
     </ClInclude>
+    <ClInclude Include="src\Hooks\D3D9.hpp">
+      <Filter>Implementation\Hooks</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Hooks\D3D10.hpp">
+      <Filter>Implementation\Hooks</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Hooks\D3D11.hpp">
+      <Filter>Implementation\Hooks</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Hooks\DXGI.hpp">
+      <Filter>Implementation\Hooks</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Runtimes\D3D9Runtime.hpp">
+      <Filter>Implementation\Runtimes</Filter>
+    </ClInclude>
     <ClInclude Include="src\Runtimes\D3D10Runtime.hpp">
       <Filter>Implementation\Runtimes</Filter>
     </ClInclude>
     <ClInclude Include="src\Runtimes\D3D11Runtime.hpp">
-      <Filter>Implementation\Runtimes</Filter>
-    </ClInclude>
-    <ClInclude Include="src\Runtimes\D3D9Runtime.hpp">
       <Filter>Implementation\Runtimes</Filter>
     </ClInclude>
     <ClInclude Include="src\Runtimes\GLRuntime.hpp">
