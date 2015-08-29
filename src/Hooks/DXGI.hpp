@@ -51,9 +51,6 @@ DXGIDevice : public IDXGIDevice3
 	virtual void STDMETHODCALLTYPE Trim() override;
 	#pragma endregion
 
-	ULONG InternalAddRef();
-	ULONG InternalRelease();
-
 	LONG mRef;
 	IDXGIDevice *mOrig;
 	unsigned int mInterfaceVersion;

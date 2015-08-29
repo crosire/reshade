@@ -6,6 +6,7 @@
 struct __declspec(uuid("72299288-2C68-4AD8-945D-2BFB5AA9C609"))
 D3D11Device : public ID3D11Device3
 {
+	friend struct DXGIDevice;
 	friend struct D3D11DeviceContext;
 
 	D3D11Device(ID3D11Device  *original) : mRef(1), mOrig(original), mInterfaceVersion(0), mDXGIDevice(nullptr), mImmediateContext(nullptr)
@@ -104,7 +105,7 @@ D3D11Device : public ID3D11Device3
 	LONG mRef;
 	ID3D11Device *mOrig;
 	unsigned int mInterfaceVersion;
-	IDXGIDevice *mDXGIDevice;
+	DXGIDevice *mDXGIDevice;
 	D3D11DeviceContext *mImmediateContext;
 	std::vector<std::shared_ptr<ReShade::Runtimes::D3D11Runtime>> mRuntimes;
 

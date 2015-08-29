@@ -101,6 +101,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::QueryInterface(REFIID riid, void **ppvObj
 		return S_OK;
 	}
 	else if (
+		riid == __uuidof(DXGIDevice) ||
 		riid == __uuidof(IDXGIObject) ||
 		riid == __uuidof(IDXGIDevice) ||
 		riid == __uuidof(IDXGIDevice1) ||
@@ -120,7 +121,7 @@ ULONG STDMETHODCALLTYPE D3D10Device::AddRef()
 
 	assert(this->mDXGIDevice != nullptr);
 
-	static_cast<DXGIDevice *>(this->mDXGIDevice)->InternalAddRef();
+	this->mDXGIDevice->AddRef();
 
 	return this->mOrig->AddRef();
 }
@@ -128,7 +129,7 @@ ULONG STDMETHODCALLTYPE D3D10Device::Release()
 {
 	assert(this->mDXGIDevice != nullptr);
 
-	static_cast<DXGIDevice *>(this->mDXGIDevice)->InternalRelease();
+	this->mDXGIDevice->Release();
 
 	ULONG ref = this->mOrig->Release();
 

@@ -93,7 +93,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::QueryInterface(REFIID riid, void **ppvO
 		return E_POINTER;
 	}
 	else if (
-		riid == __uuidof(DXGISwapChain) ||
+		riid == __uuidof(this) ||
 		riid == __uuidof(IUnknown) ||
 		riid == __uuidof(IDXGIObject) ||
 		riid == __uuidof(IDXGIDeviceSubObject) ||
@@ -598,7 +598,7 @@ HRESULT STDMETHODCALLTYPE DXGIDevice::QueryInterface(REFIID riid, void **ppvObj)
 		return E_POINTER;
 	}
 	else if (
-		riid == __uuidof(DXGIDevice) ||
+		riid == __uuidof(this) ||
 		riid == __uuidof(IUnknown) ||
 		riid == __uuidof(IDXGIObject) ||
 		riid == __uuidof(IDXGIDevice) ||
@@ -670,17 +670,13 @@ HRESULT STDMETHODCALLTYPE DXGIDevice::QueryInterface(REFIID riid, void **ppvObj)
 
 	return this->mDirect3DDevice->QueryInterface(riid, ppvObj);
 }
-ULONG DXGIDevice::InternalAddRef()
+ULONG STDMETHODCALLTYPE DXGIDevice::AddRef()
 {
 	this->mRef++;
 
 	return this->mOrig->AddRef();
 }
-ULONG STDMETHODCALLTYPE DXGIDevice::AddRef()
-{
-	return this->mDirect3DDevice->AddRef();
-}
-ULONG DXGIDevice::InternalRelease()
+ULONG STDMETHODCALLTYPE DXGIDevice::Release()
 {
 	ULONG ref = this->mOrig->Release();
 
@@ -701,10 +697,6 @@ ULONG DXGIDevice::InternalRelease()
 	}
 
 	return ref;
-}
-ULONG STDMETHODCALLTYPE DXGIDevice::Release()
-{
-	return this->mDirect3DDevice->Release();
 }
 HRESULT STDMETHODCALLTYPE DXGIDevice::SetPrivateData(REFGUID Name, UINT DataSize, const void *pData)
 {
