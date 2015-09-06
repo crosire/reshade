@@ -75,14 +75,13 @@ namespace ReShade
 
 		const MH_STATUS status = MH_CreateHook(this->Target, this->Replacement, &this->Trampoline);
 
-		if (status == MH_OK)
+		if (status == MH_OK || status == MH_ERROR_ALREADY_CREATED)
 		{
-			if (MH_EnableHook(this->Target) == MH_OK)
-			{
-				return Status::Success;
-			}
+			Enable(true);
+
+			return Status::Success;
 		}
-		else if (status != MH_ERROR_ALREADY_CREATED)
+		else
 		{
 			if (--sCounter == 0)
 			{
