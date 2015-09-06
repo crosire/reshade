@@ -234,7 +234,7 @@ namespace ReShade
 		#pragma endregion
 
 		#pragma region Draw overlay
-		if (this->mGUI->BeginFrame())
+		if (this->mGUI != nullptr && this->mGUI->BeginFrame())
 		{
 			if (!this->mStatus.empty())
 			{
