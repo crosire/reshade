@@ -53,6 +53,7 @@
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="dep\DirectX.props" />
     <Import Project="dep\MinHook.props" />
     <Import Project="dep\FCPP.props" />
     <Import Project="dep\GL3W.props" />
@@ -61,6 +62,7 @@
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="dep\DirectX.props" />
     <Import Project="dep\MinHook.props" />
     <Import Project="dep\FCPP.props" />
     <Import Project="dep\GL3W.props" />
@@ -69,6 +71,7 @@
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="dep\DirectX.props" />
     <Import Project="dep\MinHook.props" />
     <Import Project="dep\FCPP.props" />
     <Import Project="dep\GL3W.props" />
@@ -77,6 +80,7 @@
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="dep\DirectX.props" />
     <Import Project="dep\MinHook.props" />
     <Import Project="dep\FCPP.props" />
     <Import Project="dep\GL3W.props" />
@@ -87,7 +91,6 @@
     <LinkIncremental>true</LinkIncremental>
     <OutDir>$(SolutionDir)\bin\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(SolutionDir)\obj\$(Platform)\$(Configuration)\</IntDir>
-    <IncludePath>$(IncludePath);$(DXSDK_DIR)\Include</IncludePath>
     <LibraryPath>$(DXSDK_DIR)\Lib\x86;$(LibraryPath)</LibraryPath>
     <TargetName>ReShade32</TargetName>
   </PropertyGroup>
@@ -95,7 +98,6 @@
     <LinkIncremental>true</LinkIncremental>
     <OutDir>$(SolutionDir)\bin\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(SolutionDir)\obj\$(Platform)\$(Configuration)\</IntDir>
-    <IncludePath>$(IncludePath);$(DXSDK_DIR)\Include</IncludePath>
     <LibraryPath>$(DXSDK_DIR)\Lib\x64;$(LibraryPath)</LibraryPath>
     <TargetName>ReShade64</TargetName>
   </PropertyGroup>
@@ -103,7 +105,6 @@
     <LinkIncremental>false</LinkIncremental>
     <OutDir>$(SolutionDir)\bin\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(SolutionDir)\obj\$(Platform)\$(Configuration)\</IntDir>
-    <IncludePath>$(IncludePath);$(DXSDK_DIR)\Include</IncludePath>
     <LibraryPath>$(DXSDK_DIR)\Lib\x86;$(LibraryPath)</LibraryPath>
     <TargetName>ReShade32</TargetName>
   </PropertyGroup>
@@ -111,7 +112,6 @@
     <LinkIncremental>false</LinkIncremental>
     <OutDir>$(SolutionDir)\bin\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(SolutionDir)\obj\$(Platform)\$(Configuration)\</IntDir>
-    <IncludePath>$(IncludePath);$(DXSDK_DIR)\Include</IncludePath>
     <LibraryPath>$(DXSDK_DIR)\Lib\x64;$(LibraryPath)</LibraryPath>
     <TargetName>ReShade64</TargetName>
   </PropertyGroup>
