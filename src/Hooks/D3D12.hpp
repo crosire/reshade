@@ -4,7 +4,7 @@
 #include "Runtimes\D3D12Runtime.hpp"
 
 struct __declspec(uuid("2523AFF4-978B-4939-BA16-8EE876A4CB2A"))
-D3D12Device : public ID3D12Device
+D3D12Device : ID3D12Device
 {
 	D3D12Device(ID3D12Device *original) : mRef(1), mOrig(original)
 	{
@@ -66,11 +66,11 @@ D3D12Device : public ID3D12Device
 	ID3D12Device *const mOrig;
 
 private:
-	D3D12Device(const D3D12Device &) = delete;
-	D3D12Device &operator=(const D3D12Device &) = delete;
+	D3D12Device(const D3D12Device &);
+	D3D12Device &operator=(const D3D12Device &);
 };
 struct __declspec(uuid("2C576D2A-0C1C-4D1D-AD7C-BC4FAEC15ABC"))
-D3D12CommandQueue : public ID3D12CommandQueue
+D3D12CommandQueue : ID3D12CommandQueue
 {
 	D3D12CommandQueue(D3D12Device *device, ID3D12CommandQueue *original) : mRef(1), mDevice(device), mOrig(original)
 	{
@@ -111,6 +111,6 @@ D3D12CommandQueue : public ID3D12CommandQueue
 	ID3D12CommandQueue *const mOrig;
 
 private:
-	D3D12CommandQueue(const D3D12CommandQueue &) = delete;
-	D3D12CommandQueue &operator=(const D3D12CommandQueue &) = delete;
+	D3D12CommandQueue(const D3D12CommandQueue &);
+	D3D12CommandQueue &operator=(const D3D12CommandQueue &);
 };
