@@ -13,7 +13,7 @@ EXPORT ATOM WINAPI HookRegisterClassA(CONST WNDCLASSA *lpWndClass)
 {
 	assert(lpWndClass != nullptr);
 
-	WNDCLASSA wndclass = *lpWndClass;
+	auto wndclass = *lpWndClass;
 
 	if (wndclass.hInstance == GetModuleHandle(nullptr))
 	{
@@ -33,7 +33,7 @@ EXPORT ATOM WINAPI HookRegisterClassW(CONST WNDCLASSW *lpWndClass)
 {
 	assert(lpWndClass != nullptr);
 
-	WNDCLASSW wndclass = *lpWndClass;
+	auto wndclass = *lpWndClass;
 
 	if (wndclass.hInstance == GetModuleHandle(nullptr))
 	{
@@ -53,7 +53,7 @@ EXPORT ATOM WINAPI HookRegisterClassExA(CONST WNDCLASSEXA *lpWndClassEx)
 {
 	assert(lpWndClassEx != nullptr);
 
-	WNDCLASSEXA wndclass = *lpWndClassEx;
+	auto wndclass = *lpWndClassEx;
 
 	if (wndclass.hInstance == GetModuleHandle(nullptr))
 	{
@@ -73,7 +73,7 @@ EXPORT ATOM WINAPI HookRegisterClassExW(CONST WNDCLASSEXW *lpWndClassEx)
 {
 	assert(lpWndClassEx != nullptr);
 
-	WNDCLASSEXW wndclass = *lpWndClassEx;
+	auto wndclass = *lpWndClassEx;
 
 	if (wndclass.hInstance == GetModuleHandle(nullptr))
 	{
@@ -96,7 +96,7 @@ EXPORT BOOL WINAPI HookRegisterRawInputDevices(PCRAWINPUTDEVICE pRawInputDevices
 
 	for (UINT i = 0; i < uiNumDevices; ++i)
 	{
-		const RAWINPUTDEVICE &device = pRawInputDevices[i];
+		const auto &device = pRawInputDevices[i];
 
 		LOG(TRACE) << "> Dumping device registration at index " << i << ":";
 		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
@@ -116,9 +116,7 @@ EXPORT BOOL WINAPI HookRegisterRawInputDevices(PCRAWINPUTDEVICE pRawInputDevices
 		ReShade::WindowWatcher::RegisterRawInputDevice(device);
 	}
 
-	const BOOL res = ReShade::Hooks::Call(&HookRegisterRawInputDevices)(pRawInputDevices, uiNumDevices, cbSize);
-
-	if (!res)
+	if (!ReShade::Hooks::Call(&HookRegisterRawInputDevices)(pRawInputDevices, uiNumDevices, cbSize))
 	{
 		LOG(WARNING) << "> 'RegisterRawInputDevices' failed with '" << GetLastError() << "'!";
 

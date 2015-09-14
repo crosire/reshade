@@ -1,6 +1,6 @@
 #include "Log.hpp"
+#include "HookManager.hpp"
 #include "Hooks\D3D9.hpp"
-#include "Runtimes\D3D9Runtime.hpp"
 
 #include <sstream>
 #include <assert.h>

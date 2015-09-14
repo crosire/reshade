@@ -1,4 +1,5 @@
 #include "Log.hpp"
+#include "HookManager.hpp"
 #include "Hooks\D3D12.hpp"
 
 #include <sstream>

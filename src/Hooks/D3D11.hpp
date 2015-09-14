@@ -1,6 +1,5 @@
 #pragma once
 
-#include "HookManager.hpp"
 #include "Runtimes\D3D11Runtime.hpp"
 
 struct __declspec(uuid("72299288-2C68-4AD8-945D-2BFB5AA9C609"))
@@ -9,19 +8,19 @@ D3D11Device : ID3D11Device3
 	friend struct DXGIDevice;
 	friend struct D3D11DeviceContext;
 
-	D3D11Device(ID3D11Device *original) : mRef(1), mOrig(original), mInterfaceVersion(0), mDXGIDevice(nullptr), mImmediateContext(nullptr)
+	explicit D3D11Device(ID3D11Device *original) : mRef(1), mOrig(original), mInterfaceVersion(0), mDXGIDevice(nullptr), mImmediateContext(nullptr)
 	{
 		assert(original != nullptr);
 	}
-	D3D11Device(ID3D11Device1 *original) : mRef(1), mOrig(original), mInterfaceVersion(1), mDXGIDevice(nullptr), mImmediateContext(nullptr)
+	explicit D3D11Device(ID3D11Device1 *original) : mRef(1), mOrig(original), mInterfaceVersion(1), mDXGIDevice(nullptr), mImmediateContext(nullptr)
 	{
 		assert(original != nullptr);
 	}
-	D3D11Device(ID3D11Device2 *original) : mRef(1), mOrig(original), mInterfaceVersion(2), mDXGIDevice(nullptr), mImmediateContext(nullptr)
+	explicit D3D11Device(ID3D11Device2 *original) : mRef(1), mOrig(original), mInterfaceVersion(2), mDXGIDevice(nullptr), mImmediateContext(nullptr)
 	{
 		assert(original != nullptr);
 	}
-	D3D11Device(ID3D11Device3 *original) : mRef(1), mOrig(original), mInterfaceVersion(3), mDXGIDevice(nullptr), mImmediateContext(nullptr)
+	explicit D3D11Device(ID3D11Device3 *original) : mRef(1), mOrig(original), mInterfaceVersion(3), mDXGIDevice(nullptr), mImmediateContext(nullptr)
 	{
 		assert(original != nullptr);
 	}
@@ -118,22 +117,22 @@ D3D11DeviceContext : ID3D11DeviceContext3
 {
 	friend struct D3D11Device;
 
-	D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext *original) : mRef(1), mDevice(device), mOrig(original), mInterfaceVersion(0)
+	explicit D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext *original) : mRef(1), mDevice(device), mOrig(original), mInterfaceVersion(0)
 	{
 		assert(device != nullptr);
 		assert(original != nullptr);
 	}
-	D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext1 *original) : mRef(1), mDevice(device), mOrig(original), mInterfaceVersion(1)
+	explicit D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext1 *original) : mRef(1), mDevice(device), mOrig(original), mInterfaceVersion(1)
 	{
 		assert(device != nullptr);
 		assert(original != nullptr);
 	}
-	D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext2 *original) : mRef(1), mDevice(device), mOrig(original), mInterfaceVersion(2)
+	explicit D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext2 *original) : mRef(1), mDevice(device), mOrig(original), mInterfaceVersion(2)
 	{
 		assert(device != nullptr);
 		assert(original != nullptr);
 	}
-	D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext3 *original) : mRef(1), mDevice(device), mOrig(original), mInterfaceVersion(3)
+	explicit D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext3 *original) : mRef(1), mDevice(device), mOrig(original), mInterfaceVersion(3)
 	{
 		assert(device != nullptr);
 		assert(original != nullptr);

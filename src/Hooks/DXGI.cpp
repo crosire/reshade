@@ -1,4 +1,5 @@
 #include "Log.hpp"
+#include "HookManager.hpp"
 #include "Hooks\DXGI.hpp"
 
 #include <sstream>

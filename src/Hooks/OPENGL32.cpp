@@ -162,8 +162,6 @@ namespace
 	std::unordered_map<HDC, std::shared_ptr<ReShade::Runtimes::GLRuntime>> sRuntimes;
 }
 
-// ---------------------------------------------------------------------------------------------------
-
 // GL
 EXPORT void WINAPI glAccum(GLenum op, GLfloat value)
 {

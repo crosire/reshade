@@ -1,6 +1,6 @@
 #include "Log.hpp"
+#include "HookManager.hpp"
 #include "Hooks\DXGI.hpp"
-#include "Runtimes\D3D10Runtime.hpp"
 
 #include <sstream>
 #include <assert.h>

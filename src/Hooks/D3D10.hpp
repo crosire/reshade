@@ -1,6 +1,5 @@
 #pragma once
 
-#include "HookManager.hpp"
 #include "Runtimes\D3D10Runtime.hpp"
 
 struct __declspec(uuid("88399375-734F-4892-A95F-70DD42CE7CDD"))
@@ -8,11 +7,11 @@ D3D10Device : ID3D10Device1
 {
 	friend struct DXGIDevice;
 
-	D3D10Device(ID3D10Device *original) : mRef(1), mOrig(original), mInterfaceVersion(0), mDXGIDevice(nullptr)
+	explicit D3D10Device(ID3D10Device *original) : mRef(1), mOrig(original), mInterfaceVersion(0), mDXGIDevice(nullptr)
 	{
 		assert(original != nullptr);
 	}
-	D3D10Device(ID3D10Device1 *original) : mRef(1), mOrig(original), mInterfaceVersion(1), mDXGIDevice(nullptr)
+	explicit D3D10Device(ID3D10Device1 *original) : mRef(1), mOrig(original), mInterfaceVersion(1), mDXGIDevice(nullptr)
 	{
 		assert(original != nullptr);
 	}

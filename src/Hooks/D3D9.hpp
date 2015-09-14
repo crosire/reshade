@@ -1,6 +1,5 @@
 #pragma once
 
-#include "HookManager.hpp"
 #include "Runtimes\D3D9Runtime.hpp"
 
 struct __declspec(uuid("F1006E9A-1C51-4AF4-ACEF-3605D2D4C8EE"))
@@ -8,11 +7,11 @@ Direct3DDevice9 : IDirect3DDevice9Ex
 {
 	friend struct Direct3DSwapChain9;
 
-	Direct3DDevice9(IDirect3DDevice9 *original) : mRef(1), mOrig(original), mInterfaceVersion(0), mImplicitSwapChain(nullptr), mAutoDepthStencil(nullptr)
+	explicit Direct3DDevice9(IDirect3DDevice9 *original) : mRef(1), mOrig(original), mInterfaceVersion(0), mImplicitSwapChain(nullptr), mAutoDepthStencil(nullptr)
 	{
 		assert(original != nullptr);
 	}
-	Direct3DDevice9(IDirect3DDevice9Ex *original) : mRef(1), mOrig(original), mInterfaceVersion(1), mImplicitSwapChain(nullptr), mAutoDepthStencil(nullptr)
+	explicit Direct3DDevice9(IDirect3DDevice9Ex *original) : mRef(1), mOrig(original), mInterfaceVersion(1), mImplicitSwapChain(nullptr), mAutoDepthStencil(nullptr)
 	{
 		assert(original != nullptr);
 	}
@@ -174,12 +173,12 @@ Direct3DSwapChain9 : IDirect3DSwapChain9Ex
 {
 	friend struct Direct3DDevice9;
 
-	Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapChain9 *original, const std::shared_ptr<ReShade::Runtimes::D3D9Runtime> &runtime) : mRef(1), mOrig(original), mInterfaceVersion(0), mDevice(device), mRuntime(runtime)
+	explicit Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapChain9 *original, const std::shared_ptr<ReShade::Runtimes::D3D9Runtime> &runtime) : mRef(1), mOrig(original), mInterfaceVersion(0), mDevice(device), mRuntime(runtime)
 	{
 		assert(device != nullptr);
 		assert(original != nullptr);
 	}
-	Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapChain9Ex *original, const std::shared_ptr<ReShade::Runtimes::D3D9Runtime> &runtime) : mRef(1), mOrig(original), mInterfaceVersion(1), mDevice(device), mRuntime(runtime)
+	explicit Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapChain9Ex *original, const std::shared_ptr<ReShade::Runtimes::D3D9Runtime> &runtime) : mRef(1), mOrig(original), mInterfaceVersion(1), mDevice(device), mRuntime(runtime)
 	{
 		assert(device != nullptr);
 		assert(original != nullptr);

@@ -1,5 +1,4 @@
 #include "Log.hpp"
-#include "HookManager.hpp"
 
 #include <regex>
 #include <sstream>
@@ -13,139 +12,104 @@
 namespace
 {
 	#pragma region Direct3D8 Types
-	namespace D3D8
-	{
-		typedef D3DCLIPSTATUS9 D3DCLIPSTATUS8;
-		typedef D3DCUBEMAP_FACES D3DCUBEMAP_FACES;
-		typedef D3DDEVICE_CREATION_PARAMETERS D3DDEVICE_CREATION_PARAMETERS;
-		typedef D3DDISPLAYMODE D3DDISPLAYMODE;
-		typedef D3DINDEXBUFFER_DESC D3DINDEXBUFFER_DESC;
-		typedef D3DLIGHT9 D3DLIGHT8;
-		typedef D3DLOCKED_BOX D3DLOCKED_BOX;
-		typedef D3DLOCKED_RECT D3DLOCKED_RECT;
-		typedef D3DMATERIAL9 D3DMATERIAL8;
-		typedef D3DRASTER_STATUS D3DRASTER_STATUS;
-		typedef D3DRECTPATCH_INFO D3DRECTPATCH_INFO;
-		typedef D3DTRIPATCH_INFO D3DTRIPATCH_INFO;
-		typedef D3DVERTEXBUFFER_DESC D3DVERTEXBUFFER_DESC;
-		typedef D3DVIEWPORT9 D3DVIEWPORT8;
+	typedef D3DCLIPSTATUS9 D3DCLIPSTATUS8;
+	typedef D3DLIGHT9 D3DLIGHT8;
+	typedef D3DMATERIAL9 D3DMATERIAL8;
+	typedef D3DVIEWPORT9 D3DVIEWPORT8;
 
-		struct D3DADAPTER_IDENTIFIER8
-		{
-			char Driver[MAX_DEVICE_IDENTIFIER_STRING];
-			char Description[MAX_DEVICE_IDENTIFIER_STRING];
-			LARGE_INTEGER DriverVersion;
-			DWORD VendorId, DeviceId, SubSysId;
-			DWORD Revision;
-			GUID DeviceIdentifier;
-			DWORD WHQLLevel;
-		};
-		struct D3DCAPS8
-		{
-			D3DDEVTYPE DeviceType;
-			UINT AdapterOrdinal;
-			DWORD Caps, Caps2, Caps3;
-			DWORD PresentationIntervals;
-			DWORD CursorCaps;
-			DWORD DevCaps;
-			DWORD PrimitiveMiscCaps;
-			DWORD RasterCaps;
-			DWORD ZCmpCaps;
-			DWORD SrcBlendCaps;
-			DWORD DestBlendCaps;
-			DWORD AlphaCmpCaps;
-			DWORD ShadeCaps;
-			DWORD TextureCaps;
-			DWORD TextureFilterCaps;
-			DWORD CubeTextureFilterCaps;
-			DWORD VolumeTextureFilterCaps;
-			DWORD TextureAddressCaps;
-			DWORD VolumeTextureAddressCaps;
-			DWORD LineCaps;
-			DWORD MaxTextureWidth, MaxTextureHeight;
-			DWORD MaxVolumeExtent;
-			DWORD MaxTextureRepeat;
-			DWORD MaxTextureAspectRatio;
-			DWORD MaxAnisotropy;
-			float MaxVertexW;
-			float GuardBandLeft, GuardBandTop, GuardBandRight, GuardBandBottom;
-			float ExtentsAdjust;
-			DWORD StencilCaps;
-			DWORD FVFCaps;
-			DWORD TextureOpCaps;
-			DWORD MaxTextureBlendStages;
-			DWORD MaxSimultaneousTextures;
-			DWORD VertexProcessingCaps;
-			DWORD MaxActiveLights;
-			DWORD MaxUserClipPlanes;
-			DWORD MaxVertexBlendMatrices;
-			DWORD MaxVertexBlendMatrixIndex;
-			float MaxPointSize;
-			DWORD MaxPrimitiveCount;
-			DWORD MaxVertexIndex;
-			DWORD MaxStreams;
-			DWORD MaxStreamStride;
-			DWORD VertexShaderVersion;
-			DWORD MaxVertexShaderConst;
-			DWORD PixelShaderVersion;
-			float MaxPixelShaderValue;
-		};
-		struct D3DPRESENT_PARAMETERS
-		{
-			UINT BackBufferWidth, BackBufferHeight;
-			D3DFORMAT BackBufferFormat;
-			UINT BackBufferCount;
-			D3DMULTISAMPLE_TYPE MultiSampleType;
-			D3DSWAPEFFECT SwapEffect;
-			HWND hDeviceWindow;
-			BOOL Windowed;
-			BOOL EnableAutoDepthStencil;
-			D3DFORMAT AutoDepthStencilFormat;
-			DWORD Flags;
-			UINT FullScreen_RefreshRateInHz, FullScreen_PresentationInterval;
-		};
-		struct D3DSURFACE_DESC
-		{
-			D3DFORMAT Format;
-			D3DRESOURCETYPE Type;
-			DWORD Usage;
-			D3DPOOL Pool;
-			UINT Size;
-			D3DMULTISAMPLE_TYPE MultiSampleType;
-			UINT Width, Height;
-		};
-		struct D3DVOLUME_DESC
-		{
-			D3DFORMAT Format;
-			D3DRESOURCETYPE Type;
-			DWORD Usage;
-			D3DPOOL Pool;
-			UINT Size;
-			UINT Width, Height, Depth;
-		};
-	}
-	namespace D3D9
+	struct D3DADAPTER_IDENTIFIER8
 	{
-		using ::D3DADAPTER_IDENTIFIER9;
-		using ::D3DCAPS9;
-		using ::D3DCLIPSTATUS9;
-		using ::D3DCUBEMAP_FACES;
-		using ::D3DDEVICE_CREATION_PARAMETERS;
-		using ::D3DDISPLAYMODE;
-		using ::D3DINDEXBUFFER_DESC;
-		using ::D3DLIGHT9;
-		using ::D3DLOCKED_BOX;
-		using ::D3DLOCKED_RECT;
-		using ::D3DMATERIAL9;
-		using ::D3DPRESENT_PARAMETERS;
-		using ::D3DRASTER_STATUS;
-		using ::D3DRECTPATCH_INFO;
-		using ::D3DSURFACE_DESC;
-		using ::D3DTRIPATCH_INFO;
-		using ::D3DVERTEXBUFFER_DESC;
-		using ::D3DVIEWPORT9;
-		using ::D3DVOLUME_DESC;
-	}
+		char Driver[MAX_DEVICE_IDENTIFIER_STRING];
+		char Description[MAX_DEVICE_IDENTIFIER_STRING];
+		LARGE_INTEGER DriverVersion;
+		DWORD VendorId, DeviceId, SubSysId;
+		DWORD Revision;
+		GUID DeviceIdentifier;
+		DWORD WHQLLevel;
+	};
+	struct D3DCAPS8
+	{
+		D3DDEVTYPE DeviceType;
+		UINT AdapterOrdinal;
+		DWORD Caps, Caps2, Caps3;
+		DWORD PresentationIntervals;
+		DWORD CursorCaps;
+		DWORD DevCaps;
+		DWORD PrimitiveMiscCaps;
+		DWORD RasterCaps;
+		DWORD ZCmpCaps;
+		DWORD SrcBlendCaps;
+		DWORD DestBlendCaps;
+		DWORD AlphaCmpCaps;
+		DWORD ShadeCaps;
+		DWORD TextureCaps;
+		DWORD TextureFilterCaps;
+		DWORD CubeTextureFilterCaps;
+		DWORD VolumeTextureFilterCaps;
+		DWORD TextureAddressCaps;
+		DWORD VolumeTextureAddressCaps;
+		DWORD LineCaps;
+		DWORD MaxTextureWidth, MaxTextureHeight;
+		DWORD MaxVolumeExtent;
+		DWORD MaxTextureRepeat;
+		DWORD MaxTextureAspectRatio;
+		DWORD MaxAnisotropy;
+		float MaxVertexW;
+		float GuardBandLeft, GuardBandTop, GuardBandRight, GuardBandBottom;
+		float ExtentsAdjust;
+		DWORD StencilCaps;
+		DWORD FVFCaps;
+		DWORD TextureOpCaps;
+		DWORD MaxTextureBlendStages;
+		DWORD MaxSimultaneousTextures;
+		DWORD VertexProcessingCaps;
+		DWORD MaxActiveLights;
+		DWORD MaxUserClipPlanes;
+		DWORD MaxVertexBlendMatrices;
+		DWORD MaxVertexBlendMatrixIndex;
+		float MaxPointSize;
+		DWORD MaxPrimitiveCount;
+		DWORD MaxVertexIndex;
+		DWORD MaxStreams;
+		DWORD MaxStreamStride;
+		DWORD VertexShaderVersion;
+		DWORD MaxVertexShaderConst;
+		DWORD PixelShaderVersion;
+		float MaxPixelShaderValue;
+	};
+	struct D3DPRESENT_PARAMETERS8
+	{
+		UINT BackBufferWidth, BackBufferHeight;
+		D3DFORMAT BackBufferFormat;
+		UINT BackBufferCount;
+		D3DMULTISAMPLE_TYPE MultiSampleType;
+		D3DSWAPEFFECT SwapEffect;
+		HWND hDeviceWindow;
+		BOOL Windowed;
+		BOOL EnableAutoDepthStencil;
+		D3DFORMAT AutoDepthStencilFormat;
+		DWORD Flags;
+		UINT FullScreen_RefreshRateInHz, FullScreen_PresentationInterval;
+	};
+	struct D3DSURFACE_DESC8
+	{
+		D3DFORMAT Format;
+		D3DRESOURCETYPE Type;
+		DWORD Usage;
+		D3DPOOL Pool;
+		UINT Size;
+		D3DMULTISAMPLE_TYPE MultiSampleType;
+		UINT Width, Height;
+	};
+	struct D3DVOLUME_DESC8
+	{
+		D3DFORMAT Format;
+		D3DRESOURCETYPE Type;
+		DWORD Usage;
+		D3DPOOL Pool;
+		UINT Size;
+		UINT Width, Height, Depth;
+	};
 
 	DEFINE_GUID(IID_IDirect3D8, 0x1DD9E8DA, 0x1C77, 0x4D40, 0xB0, 0xCF, 0x98, 0xFE, 0xFD, 0xFF, 0x95, 0x12);
 	DEFINE_GUID(IID_IDirect3DDevice8, 0x7385E5DF, 0x8FE8, 0x41D5, 0x86, 0xB6, 0xD7, 0xB4, 0x85, 0x47, 0xB6, 0xCF);
@@ -161,10 +125,11 @@ namespace
 	DEFINE_GUID(IID_IDirect3DIndexBuffer8, 0x0E689C9A, 0x053D, 0x44A0, 0x9D, 0x92, 0xDB, 0x0E, 0x3D, 0x75, 0x0F, 0x86);
 	#pragma endregion
 
-	struct Direct3D8 : public IUnknown, private boost::noncopyable
+	class Direct3D8 : IUnknown
 	{
-		friend struct Direct3DDevice8;
+		friend class Direct3DDevice8;
 
+	public:
 		Direct3D8(HMODULE hModule, IDirect3D9 *proxyD3D) : mModule(hModule), mProxy(proxyD3D)
 		{
 			assert(hModule != nullptr);
@@ -177,34 +142,35 @@ namespace
 
 		virtual HRESULT STDMETHODCALLTYPE RegisterSoftwareDevice(void *pInitializeFunction);
 		virtual UINT STDMETHODCALLTYPE GetAdapterCount();
-		virtual HRESULT STDMETHODCALLTYPE GetAdapterIdentifier(UINT Adapter, DWORD Flags, D3D8::D3DADAPTER_IDENTIFIER8 *pIdentifier);
+		virtual HRESULT STDMETHODCALLTYPE GetAdapterIdentifier(UINT Adapter, DWORD Flags, D3DADAPTER_IDENTIFIER8 *pIdentifier);
 		virtual UINT STDMETHODCALLTYPE GetAdapterModeCount(UINT Adapter);
-		virtual HRESULT STDMETHODCALLTYPE EnumAdapterModes(UINT Adapter, UINT Mode, D3D8::D3DDISPLAYMODE *pMode);
-		virtual HRESULT STDMETHODCALLTYPE GetAdapterDisplayMode(UINT Adapter, D3D8::D3DDISPLAYMODE *pMode);
+		virtual HRESULT STDMETHODCALLTYPE EnumAdapterModes(UINT Adapter, UINT Mode, D3DDISPLAYMODE *pMode);
+		virtual HRESULT STDMETHODCALLTYPE GetAdapterDisplayMode(UINT Adapter, D3DDISPLAYMODE *pMode);
 		virtual HRESULT STDMETHODCALLTYPE CheckDeviceType(UINT Adapter, D3DDEVTYPE CheckType, D3DFORMAT DisplayFormat, D3DFORMAT BackBufferFormat, BOOL bWindowed);
 		virtual HRESULT STDMETHODCALLTYPE CheckDeviceFormat(UINT Adapter, D3DDEVTYPE DeviceType, D3DFORMAT AdapterFormat, DWORD Usage, D3DRESOURCETYPE RType, D3DFORMAT CheckFormat);
 		virtual HRESULT STDMETHODCALLTYPE CheckDeviceMultiSampleType(UINT Adapter, D3DDEVTYPE DeviceType, D3DFORMAT SurfaceFormat, BOOL Windowed, D3DMULTISAMPLE_TYPE MultiSampleType);
 		virtual HRESULT STDMETHODCALLTYPE CheckDepthStencilMatch(UINT Adapter, D3DDEVTYPE DeviceType, D3DFORMAT AdapterFormat, D3DFORMAT RenderTargetFormat, D3DFORMAT DepthStencilFormat);
-		virtual HRESULT STDMETHODCALLTYPE GetDeviceCaps(UINT Adapter, D3DDEVTYPE DeviceType, D3D8::D3DCAPS8 *pCaps);
+		virtual HRESULT STDMETHODCALLTYPE GetDeviceCaps(UINT Adapter, D3DDEVTYPE DeviceType, D3DCAPS8 *pCaps);
 		virtual HMONITOR STDMETHODCALLTYPE GetAdapterMonitor(UINT Adapter);
-		virtual HRESULT STDMETHODCALLTYPE CreateDevice(UINT Adapter, D3DDEVTYPE DeviceType, HWND hFocusWindow, DWORD BehaviorFlags, D3D8::D3DPRESENT_PARAMETERS *pPresentationParameters, Direct3DDevice8 **ppReturnedDeviceInterface);
+		virtual HRESULT STDMETHODCALLTYPE CreateDevice(UINT Adapter, D3DDEVTYPE DeviceType, HWND hFocusWindow, DWORD BehaviorFlags, D3DPRESENT_PARAMETERS8 *pPresentationParameters, Direct3DDevice8 **ppReturnedDeviceInterface);
 
 		HMODULE mModule;
 		IDirect3D9 *const mProxy;
 	};
-	struct Direct3DDevice8 : public IUnknown, private boost::noncopyable
+	class Direct3DDevice8 : IUnknown
 	{
-		friend struct Direct3DSwapChain8;
-		friend struct Direct3DResource8;
-		friend struct Direct3DBaseTexture8;
-		friend struct Direct3DTexture8;
-		friend struct Direct3DVolumeTexture8;
-		friend struct Direct3DCubeTexture8;
-		friend struct Direct3DSurface8;
-		friend struct Direct3DVolume8;
-		friend struct Direct3DVertexBuffer8;
-		friend struct Direct3DIndexBuffer8;
+		friend class Direct3DSwapChain8;
+		friend class Direct3DResource8;
+		friend class Direct3DBaseTexture8;
+		friend class Direct3DTexture8;
+		friend class Direct3DVolumeTexture8;
+		friend class Direct3DCubeTexture8;
+		friend class Direct3DSurface8;
+		friend class Direct3DVolume8;
+		friend class Direct3DVertexBuffer8;
+		friend class Direct3DIndexBuffer8;
 
+	public:
 		Direct3DDevice8(Direct3D8 *d3d, IDirect3DDevice9 *proxyDevice, BOOL ZBufferDiscarding = FALSE) : mRef(1), mD3D(d3d), mProxy(proxyDevice), mBaseVertexIndex(0), mZBufferDiscarding(ZBufferDiscarding), mCurrentVertexShader(0), mCurrentPixelShader(0), mCurrentRenderTarget(nullptr), mCurrentDepthStencil(nullptr)
 		{
 			assert(d3d != nullptr);
@@ -225,17 +191,17 @@ namespace
 		virtual UINT STDMETHODCALLTYPE GetAvailableTextureMem();
 		virtual HRESULT STDMETHODCALLTYPE ResourceManagerDiscardBytes(DWORD Bytes);
 		virtual HRESULT STDMETHODCALLTYPE GetDirect3D(Direct3D8 **ppD3D8);
-		virtual HRESULT STDMETHODCALLTYPE GetDeviceCaps(D3D8::D3DCAPS8 *pCaps);
-		virtual HRESULT STDMETHODCALLTYPE GetDisplayMode(D3D8::D3DDISPLAYMODE *pMode);
-		virtual HRESULT STDMETHODCALLTYPE GetCreationParameters(D3D8::D3DDEVICE_CREATION_PARAMETERS *pParameters);
+		virtual HRESULT STDMETHODCALLTYPE GetDeviceCaps(D3DCAPS8 *pCaps);
+		virtual HRESULT STDMETHODCALLTYPE GetDisplayMode(D3DDISPLAYMODE *pMode);
+		virtual HRESULT STDMETHODCALLTYPE GetCreationParameters(D3DDEVICE_CREATION_PARAMETERS *pParameters);
 		virtual HRESULT STDMETHODCALLTYPE SetCursorProperties(UINT XHotSpot, UINT YHotSpot, Direct3DSurface8 *pCursorBitmap);
 		virtual void STDMETHODCALLTYPE SetCursorPosition(UINT XScreenSpace, UINT YScreenSpace, DWORD Flags);
 		virtual BOOL STDMETHODCALLTYPE ShowCursor(BOOL bShow);
-		virtual HRESULT STDMETHODCALLTYPE CreateAdditionalSwapChain(D3D8::D3DPRESENT_PARAMETERS *pPresentationParameters, Direct3DSwapChain8 **ppSwapChain);
-		virtual HRESULT STDMETHODCALLTYPE Reset(D3D8::D3DPRESENT_PARAMETERS *pPresentationParameters);
+		virtual HRESULT STDMETHODCALLTYPE CreateAdditionalSwapChain(D3DPRESENT_PARAMETERS8 *pPresentationParameters, Direct3DSwapChain8 **ppSwapChain);
+		virtual HRESULT STDMETHODCALLTYPE Reset(D3DPRESENT_PARAMETERS8 *pPresentationParameters);
 		virtual HRESULT STDMETHODCALLTYPE Present(CONST RECT *pSourceRect, CONST RECT *pDestRect, HWND hDestWindowOverride, CONST RGNDATA *pDirtyRegion);
 		virtual HRESULT STDMETHODCALLTYPE GetBackBuffer(UINT iBackBuffer, D3DBACKBUFFER_TYPE Type, Direct3DSurface8 **ppBackBuffer);
-		virtual HRESULT STDMETHODCALLTYPE GetRasterStatus(D3D8::D3DRASTER_STATUS *pRasterStatus);
+		virtual HRESULT STDMETHODCALLTYPE GetRasterStatus(D3DRASTER_STATUS *pRasterStatus);
 		virtual void STDMETHODCALLTYPE SetGammaRamp(DWORD Flags, CONST D3DGAMMARAMP *pRamp);
 		virtual void STDMETHODCALLTYPE GetGammaRamp(D3DGAMMARAMP *pRamp);
 		virtual HRESULT STDMETHODCALLTYPE CreateTexture(UINT Width, UINT Height, UINT Levels, DWORD Usage, D3DFORMAT Format, D3DPOOL Pool, Direct3DTexture8 **ppTexture);
@@ -258,12 +224,12 @@ namespace
 		virtual HRESULT STDMETHODCALLTYPE SetTransform(D3DTRANSFORMSTATETYPE State, CONST D3DMATRIX *pMatrix);
 		virtual HRESULT STDMETHODCALLTYPE GetTransform(D3DTRANSFORMSTATETYPE State, D3DMATRIX *pMatrix);
 		virtual HRESULT STDMETHODCALLTYPE MultiplyTransform(D3DTRANSFORMSTATETYPE State, CONST D3DMATRIX *pMatrix);
-		virtual HRESULT STDMETHODCALLTYPE SetViewport(CONST D3D8::D3DVIEWPORT8 *pViewport);
-		virtual HRESULT STDMETHODCALLTYPE GetViewport(D3D8::D3DVIEWPORT8 *pViewport);
-		virtual HRESULT STDMETHODCALLTYPE SetMaterial(CONST D3D8::D3DMATERIAL8 *pMaterial);
-		virtual HRESULT STDMETHODCALLTYPE GetMaterial(D3D8::D3DMATERIAL8 *pMaterial);
-		virtual HRESULT STDMETHODCALLTYPE SetLight(DWORD Index, CONST D3D8::D3DLIGHT8 *pLight);
-		virtual HRESULT STDMETHODCALLTYPE GetLight(DWORD Index, D3D8::D3DLIGHT8 *pLight);
+		virtual HRESULT STDMETHODCALLTYPE SetViewport(CONST D3DVIEWPORT8 *pViewport);
+		virtual HRESULT STDMETHODCALLTYPE GetViewport(D3DVIEWPORT8 *pViewport);
+		virtual HRESULT STDMETHODCALLTYPE SetMaterial(CONST D3DMATERIAL8 *pMaterial);
+		virtual HRESULT STDMETHODCALLTYPE GetMaterial(D3DMATERIAL8 *pMaterial);
+		virtual HRESULT STDMETHODCALLTYPE SetLight(DWORD Index, CONST D3DLIGHT8 *pLight);
+		virtual HRESULT STDMETHODCALLTYPE GetLight(DWORD Index, D3DLIGHT8 *pLight);
 		virtual HRESULT STDMETHODCALLTYPE LightEnable(DWORD Index, BOOL Enable);
 		virtual HRESULT STDMETHODCALLTYPE GetLightEnable(DWORD Index, BOOL *pEnable);
 		virtual HRESULT STDMETHODCALLTYPE SetClipPlane(DWORD Index, CONST float *pPlane);
@@ -276,8 +242,8 @@ namespace
 		virtual HRESULT STDMETHODCALLTYPE CaptureStateBlock(DWORD Token);
 		virtual HRESULT STDMETHODCALLTYPE DeleteStateBlock(DWORD Token);
 		virtual HRESULT STDMETHODCALLTYPE CreateStateBlock(D3DSTATEBLOCKTYPE Type, DWORD *pToken);
-		virtual HRESULT STDMETHODCALLTYPE SetClipStatus(CONST D3D8::D3DCLIPSTATUS8 *pClipStatus);
-		virtual HRESULT STDMETHODCALLTYPE GetClipStatus(D3D8::D3DCLIPSTATUS8 *pClipStatus);
+		virtual HRESULT STDMETHODCALLTYPE SetClipStatus(CONST D3DCLIPSTATUS8 *pClipStatus);
+		virtual HRESULT STDMETHODCALLTYPE GetClipStatus(D3DCLIPSTATUS8 *pClipStatus);
 		virtual HRESULT STDMETHODCALLTYPE GetTexture(DWORD Stage, Direct3DBaseTexture8 **ppTexture);
 		virtual HRESULT STDMETHODCALLTYPE SetTexture(DWORD Stage, Direct3DBaseTexture8 *pTexture);
 		virtual HRESULT STDMETHODCALLTYPE GetTextureStageState(DWORD Stage, D3DTEXTURESTAGESTATETYPE Type, DWORD *pValue);
@@ -312,8 +278,8 @@ namespace
 		virtual HRESULT STDMETHODCALLTYPE SetPixelShaderConstant(DWORD Register, CONST void *pConstantData, DWORD ConstantCount);
 		virtual HRESULT STDMETHODCALLTYPE GetPixelShaderConstant(DWORD Register, void *pConstantData, DWORD ConstantCount);
 		virtual HRESULT STDMETHODCALLTYPE GetPixelShaderFunction(DWORD Handle, void *pData, DWORD *pSizeOfData);
-		virtual HRESULT STDMETHODCALLTYPE DrawRectPatch(UINT Handle, CONST float *pNumSegs, CONST D3D8::D3DRECTPATCH_INFO *pRectPatchInfo);
-		virtual HRESULT STDMETHODCALLTYPE DrawTriPatch(UINT Handle, CONST float *pNumSegs, CONST D3D8::D3DTRIPATCH_INFO *pTriPatchInfo);
+		virtual HRESULT STDMETHODCALLTYPE DrawRectPatch(UINT Handle, CONST float *pNumSegs, CONST D3DRECTPATCH_INFO *pRectPatchInfo);
+		virtual HRESULT STDMETHODCALLTYPE DrawTriPatch(UINT Handle, CONST float *pNumSegs, CONST D3DTRIPATCH_INFO *pTriPatchInfo);
 		virtual HRESULT STDMETHODCALLTYPE DeletePatch(UINT Handle);
 
 		ULONG mRef;
@@ -324,8 +290,9 @@ namespace
 		DWORD mCurrentVertexShader, mCurrentPixelShader;
 		Direct3DSurface8 *mCurrentRenderTarget, *mCurrentDepthStencil;
 	};
-	struct Direct3DSwapChain8 : public IUnknown, private boost::noncopyable
+	class Direct3DSwapChain8 : IUnknown
 	{
+	public:
 		Direct3DSwapChain8(Direct3DDevice8 *device, IDirect3DSwapChain9 *proxySwapChain) : mDevice(device), mProxy(proxySwapChain)
 		{
 			assert(device != nullptr);
@@ -348,8 +315,9 @@ namespace
 		Direct3DDevice8 *const mDevice;
 		IDirect3DSwapChain9 *const mProxy;
 	};
-	struct Direct3DResource8 : public IUnknown
+	class Direct3DResource8 : IUnknown
 	{
+	public:
 		virtual HRESULT STDMETHODCALLTYPE GetDevice(Direct3DDevice8 **ppDevice) = 0;
 		virtual HRESULT STDMETHODCALLTYPE SetPrivateData(REFGUID refguid, CONST void *pData, DWORD SizeOfData, DWORD Flags) = 0;
 		virtual HRESULT STDMETHODCALLTYPE GetPrivateData(REFGUID refguid, void *pData, DWORD *pSizeOfData) = 0;
@@ -359,14 +327,16 @@ namespace
 		virtual void STDMETHODCALLTYPE PreLoad() = 0;
 		virtual D3DRESOURCETYPE STDMETHODCALLTYPE GetType() = 0;
 	};
-	struct Direct3DBaseTexture8 : public Direct3DResource8
+	class Direct3DBaseTexture8 : public Direct3DResource8
 	{
+	public:
 		virtual DWORD STDMETHODCALLTYPE SetLOD(DWORD LODNew) = 0;
 		virtual DWORD STDMETHODCALLTYPE GetLOD() = 0;
 		virtual DWORD STDMETHODCALLTYPE GetLevelCount() = 0;
 	};
-	struct Direct3DTexture8 : public Direct3DBaseTexture8, private boost::noncopyable
+	class Direct3DTexture8 : public Direct3DBaseTexture8
 	{
+	public:
 		Direct3DTexture8(Direct3DDevice8 *device, IDirect3DTexture9 *proxyTexture) : mRef(1), mDevice(device), mProxy(proxyTexture)
 		{
 			assert(device != nullptr);
@@ -396,9 +366,9 @@ namespace
 		virtual DWORD STDMETHODCALLTYPE GetLOD() override;
 		virtual DWORD STDMETHODCALLTYPE GetLevelCount() override;
 
-		virtual HRESULT STDMETHODCALLTYPE GetLevelDesc(UINT Level, D3D8::D3DSURFACE_DESC *pDesc);
+		virtual HRESULT STDMETHODCALLTYPE GetLevelDesc(UINT Level, D3DSURFACE_DESC8 *pDesc);
 		virtual HRESULT STDMETHODCALLTYPE GetSurfaceLevel(UINT Level, Direct3DSurface8 **ppSurfaceLevel);
-		virtual HRESULT STDMETHODCALLTYPE LockRect(UINT Level, D3D8::D3DLOCKED_RECT *pLockedRect, CONST RECT *pRect, DWORD Flags);
+		virtual HRESULT STDMETHODCALLTYPE LockRect(UINT Level, D3DLOCKED_RECT *pLockedRect, CONST RECT *pRect, DWORD Flags);
 		virtual HRESULT STDMETHODCALLTYPE UnlockRect(UINT Level);
 		virtual HRESULT STDMETHODCALLTYPE AddDirtyRect(CONST RECT *pDirtyRect);
 
@@ -406,8 +376,9 @@ namespace
 		Direct3DDevice8 *const mDevice;
 		IDirect3DTexture9 *const mProxy;
 	};
-	struct Direct3DVolumeTexture8 : public Direct3DBaseTexture8, private boost::noncopyable
+	class Direct3DVolumeTexture8 : public Direct3DBaseTexture8
 	{
+	public:
 		Direct3DVolumeTexture8(Direct3DDevice8 *device, IDirect3DVolumeTexture9 *proxyVolumeTexture) : mRef(1), mDevice(device), mProxy(proxyVolumeTexture)
 		{
 			assert(device != nullptr);
@@ -437,9 +408,9 @@ namespace
 		virtual DWORD STDMETHODCALLTYPE GetLOD() override;
 		virtual DWORD STDMETHODCALLTYPE GetLevelCount() override;
 
-		virtual HRESULT STDMETHODCALLTYPE GetLevelDesc(UINT Level, D3D8::D3DVOLUME_DESC *pDesc);
+		virtual HRESULT STDMETHODCALLTYPE GetLevelDesc(UINT Level, D3DVOLUME_DESC8 *pDesc);
 		virtual HRESULT STDMETHODCALLTYPE GetVolumeLevel(UINT Level, Direct3DVolume8 **ppVolumeLevel);
-		virtual HRESULT STDMETHODCALLTYPE LockBox(UINT Level, D3D8::D3DLOCKED_BOX *pLockedVolume, CONST D3DBOX *pBox, DWORD Flags);
+		virtual HRESULT STDMETHODCALLTYPE LockBox(UINT Level, D3DLOCKED_BOX *pLockedVolume, CONST D3DBOX *pBox, DWORD Flags);
 		virtual HRESULT STDMETHODCALLTYPE UnlockBox(UINT Level);
 		virtual HRESULT STDMETHODCALLTYPE AddDirtyBox(CONST D3DBOX *pDirtyBox);
 
@@ -447,8 +418,9 @@ namespace
 		Direct3DDevice8 *const mDevice;
 		IDirect3DVolumeTexture9 *const mProxy;
 	};
-	struct Direct3DCubeTexture8 : public Direct3DBaseTexture8, private boost::noncopyable
+	class Direct3DCubeTexture8 : public Direct3DBaseTexture8
 	{
+	public:
 		Direct3DCubeTexture8(Direct3DDevice8 *device, IDirect3DCubeTexture9 *proxyCubeTexture) : mRef(1), mDevice(device), mProxy(proxyCubeTexture)
 		{
 			assert(device != nullptr);
@@ -478,9 +450,9 @@ namespace
 		virtual DWORD STDMETHODCALLTYPE GetLOD() override;
 		virtual DWORD STDMETHODCALLTYPE GetLevelCount() override;
 
-		virtual HRESULT STDMETHODCALLTYPE GetLevelDesc(UINT Level, D3D8::D3DSURFACE_DESC *pDesc);
+		virtual HRESULT STDMETHODCALLTYPE GetLevelDesc(UINT Level, D3DSURFACE_DESC8 *pDesc);
 		virtual HRESULT STDMETHODCALLTYPE GetCubeMapSurface(D3DCUBEMAP_FACES FaceType, UINT Level, Direct3DSurface8 **ppCubeMapSurface);
-		virtual HRESULT STDMETHODCALLTYPE LockRect(D3DCUBEMAP_FACES FaceType, UINT Level, D3D8::D3DLOCKED_RECT *pLockedRect, CONST RECT *pRect, DWORD Flags);
+		virtual HRESULT STDMETHODCALLTYPE LockRect(D3DCUBEMAP_FACES FaceType, UINT Level, D3DLOCKED_RECT *pLockedRect, CONST RECT *pRect, DWORD Flags);
 		virtual HRESULT STDMETHODCALLTYPE UnlockRect(D3DCUBEMAP_FACES FaceType, UINT Level);
 		virtual HRESULT STDMETHODCALLTYPE AddDirtyRect(D3DCUBEMAP_FACES FaceType, CONST RECT *pDirtyRect);
 
@@ -488,8 +460,9 @@ namespace
 		Direct3DDevice8 *const mDevice;
 		IDirect3DCubeTexture9 *const mProxy;
 	};
-	struct Direct3DSurface8 : public IUnknown, private boost::noncopyable
+	class Direct3DSurface8 : IUnknown
 	{
+	public:
 		Direct3DSurface8(Direct3DDevice8 *device, IDirect3DSurface9 *proxySurface) : mRef(1), mDevice(device), mProxy(proxySurface)
 		{
 			assert(device != nullptr);
@@ -511,16 +484,17 @@ namespace
 		virtual HRESULT STDMETHODCALLTYPE GetPrivateData(REFGUID refguid, void *pData, DWORD *pSizeOfData);
 		virtual HRESULT STDMETHODCALLTYPE FreePrivateData(REFGUID refguid);
 		virtual HRESULT STDMETHODCALLTYPE GetContainer(REFIID riid, void **ppContainer);
-		virtual HRESULT STDMETHODCALLTYPE GetDesc(D3D8::D3DSURFACE_DESC *pDesc);
-		virtual HRESULT STDMETHODCALLTYPE LockRect(D3D8::D3DLOCKED_RECT *pLockedRect, CONST RECT *pRect, DWORD Flags);
+		virtual HRESULT STDMETHODCALLTYPE GetDesc(D3DSURFACE_DESC8 *pDesc);
+		virtual HRESULT STDMETHODCALLTYPE LockRect(D3DLOCKED_RECT *pLockedRect, CONST RECT *pRect, DWORD Flags);
 		virtual HRESULT STDMETHODCALLTYPE UnlockRect();
 
 		ULONG mRef;
 		Direct3DDevice8 *const mDevice;
 		IDirect3DSurface9 *const mProxy;
 	};
-	struct Direct3DVolume8 : public IUnknown, private boost::noncopyable
+	class Direct3DVolume8 : IUnknown
 	{
+	public:
 		Direct3DVolume8(Direct3DDevice8 *device, IDirect3DVolume9 *proxyVolume) : mRef(1), mDevice(device), mProxy(proxyVolume)
 		{
 			assert(device != nullptr);
@@ -542,16 +516,17 @@ namespace
 		virtual HRESULT STDMETHODCALLTYPE GetPrivateData(REFGUID refguid, void *pData, DWORD *pSizeOfData);
 		virtual HRESULT STDMETHODCALLTYPE FreePrivateData(REFGUID refguid);
 		virtual HRESULT STDMETHODCALLTYPE GetContainer(REFIID riid, void **ppContainer);
-		virtual HRESULT STDMETHODCALLTYPE GetDesc(D3D8::D3DVOLUME_DESC *pDesc);
-		virtual HRESULT STDMETHODCALLTYPE LockBox(D3D8::D3DLOCKED_BOX *pLockedVolume, CONST D3DBOX *pBox, DWORD Flags);
+		virtual HRESULT STDMETHODCALLTYPE GetDesc(D3DVOLUME_DESC8 *pDesc);
+		virtual HRESULT STDMETHODCALLTYPE LockBox(D3DLOCKED_BOX *pLockedVolume, CONST D3DBOX *pBox, DWORD Flags);
 		virtual HRESULT STDMETHODCALLTYPE UnlockBox();
 
 		ULONG mRef;
 		Direct3DDevice8 *const mDevice;
 		IDirect3DVolume9 *const mProxy;
 	};
-	struct Direct3DVertexBuffer8 : public Direct3DResource8, private boost::noncopyable
+	class Direct3DVertexBuffer8 : public Direct3DResource8
 	{
+	public:
 		Direct3DVertexBuffer8(Direct3DDevice8 *device, IDirect3DVertexBuffer9 *proxyVertexBuffer) : mRef(1), mDevice(device), mProxy(proxyVertexBuffer)
 		{
 			assert(device != nullptr);
@@ -568,25 +543,26 @@ namespace
 		virtual ULONG STDMETHODCALLTYPE AddRef() override;
 		virtual ULONG STDMETHODCALLTYPE Release() override;
 
-		virtual HRESULT STDMETHODCALLTYPE GetDevice(Direct3DDevice8 **ppDevice);
-		virtual HRESULT STDMETHODCALLTYPE SetPrivateData(REFGUID refguid, CONST void *pData, DWORD SizeOfData, DWORD Flags);
-		virtual HRESULT STDMETHODCALLTYPE GetPrivateData(REFGUID refguid, void *pData, DWORD *pSizeOfData);
-		virtual HRESULT STDMETHODCALLTYPE FreePrivateData(REFGUID refguid);
-		virtual DWORD STDMETHODCALLTYPE SetPriority(DWORD PriorityNew);
-		virtual DWORD STDMETHODCALLTYPE GetPriority();
-		virtual void STDMETHODCALLTYPE PreLoad();
-		virtual D3DRESOURCETYPE STDMETHODCALLTYPE GetType();
+		virtual HRESULT STDMETHODCALLTYPE GetDevice(Direct3DDevice8 **ppDevice) override;
+		virtual HRESULT STDMETHODCALLTYPE SetPrivateData(REFGUID refguid, CONST void *pData, DWORD SizeOfData, DWORD Flags) override;
+		virtual HRESULT STDMETHODCALLTYPE GetPrivateData(REFGUID refguid, void *pData, DWORD *pSizeOfData) override;
+		virtual HRESULT STDMETHODCALLTYPE FreePrivateData(REFGUID refguid) override;
+		virtual DWORD STDMETHODCALLTYPE SetPriority(DWORD PriorityNew) override;
+		virtual DWORD STDMETHODCALLTYPE GetPriority() override;
+		virtual void STDMETHODCALLTYPE PreLoad() override;
+		virtual D3DRESOURCETYPE STDMETHODCALLTYPE GetType() override;
 
 		virtual HRESULT STDMETHODCALLTYPE Lock(UINT OffsetToLock, UINT SizeToLock, BYTE **ppbData, DWORD Flags);
 		virtual HRESULT STDMETHODCALLTYPE Unlock();
-		virtual HRESULT STDMETHODCALLTYPE GetDesc(D3D8::D3DVERTEXBUFFER_DESC *pDesc);
+		virtual HRESULT STDMETHODCALLTYPE GetDesc(D3DVERTEXBUFFER_DESC *pDesc);
 
 		ULONG mRef;
 		Direct3DDevice8 *const mDevice;
 		IDirect3DVertexBuffer9 *const mProxy;
 	};
-	struct Direct3DIndexBuffer8 : public Direct3DResource8, private boost::noncopyable
+	class Direct3DIndexBuffer8 : public Direct3DResource8
 	{
+	public:
 		Direct3DIndexBuffer8(Direct3DDevice8 *device, IDirect3DIndexBuffer9 *proxyIndexBuffer) : mRef(1), mDevice(device), mProxy(proxyIndexBuffer)
 		{
 			assert(device != nullptr);
@@ -603,18 +579,18 @@ namespace
 		virtual ULONG STDMETHODCALLTYPE AddRef() override;
 		virtual ULONG STDMETHODCALLTYPE Release() override;
 
-		virtual HRESULT STDMETHODCALLTYPE GetDevice(Direct3DDevice8 **ppDevice);
-		virtual HRESULT STDMETHODCALLTYPE SetPrivateData(REFGUID refguid, CONST void *pData, DWORD SizeOfData, DWORD Flags);
-		virtual HRESULT STDMETHODCALLTYPE GetPrivateData(REFGUID refguid, void *pData, DWORD *pSizeOfData);
-		virtual HRESULT STDMETHODCALLTYPE FreePrivateData(REFGUID refguid);
-		virtual DWORD STDMETHODCALLTYPE SetPriority(DWORD PriorityNew);
-		virtual DWORD STDMETHODCALLTYPE GetPriority();
-		virtual void STDMETHODCALLTYPE PreLoad();
-		virtual D3DRESOURCETYPE STDMETHODCALLTYPE GetType();
+		virtual HRESULT STDMETHODCALLTYPE GetDevice(Direct3DDevice8 **ppDevice) override;
+		virtual HRESULT STDMETHODCALLTYPE SetPrivateData(REFGUID refguid, CONST void *pData, DWORD SizeOfData, DWORD Flags) override;
+		virtual HRESULT STDMETHODCALLTYPE GetPrivateData(REFGUID refguid, void *pData, DWORD *pSizeOfData) override;
+		virtual HRESULT STDMETHODCALLTYPE FreePrivateData(REFGUID refguid) override;
+		virtual DWORD STDMETHODCALLTYPE SetPriority(DWORD PriorityNew) override;
+		virtual DWORD STDMETHODCALLTYPE GetPriority() override;
+		virtual void STDMETHODCALLTYPE PreLoad() override;
+		virtual D3DRESOURCETYPE STDMETHODCALLTYPE GetType() override;
 
 		virtual HRESULT STDMETHODCALLTYPE Lock(UINT OffsetToLock, UINT SizeToLock, BYTE **ppbData, DWORD Flags);
 		virtual HRESULT STDMETHODCALLTYPE Unlock();
-		virtual HRESULT STDMETHODCALLTYPE GetDesc(D3D8::D3DINDEXBUFFER_DESC *pDesc);
+		virtual HRESULT STDMETHODCALLTYPE GetDesc(D3DINDEXBUFFER_DESC *pDesc);
 
 		ULONG mRef;
 		Direct3DDevice8 *const mDevice;
@@ -727,9 +703,9 @@ namespace
 		}
 	}
 
-	void ConvertCaps(D3D9::D3DCAPS9 &input, D3D8::D3DCAPS8 &output)
+	void ConvertCaps(D3DCAPS9 &input, D3DCAPS8 &output)
 	{
-		CopyMemory(&output, &input, sizeof(D3D8::D3DCAPS8));
+		CopyMemory(&output, &input, sizeof(D3DCAPS8));
 
 #define D3DCAPS2_CANRENDERWINDOWED 0x00080000L
 #define D3DPRASTERCAPS_ZBIAS 0x00004000L
@@ -745,7 +721,7 @@ namespace
 			output.MaxVertexShaderConst = 256;
 		}
 	}
-	void ConvertVolumeDesc(D3D9::D3DVOLUME_DESC &input, D3D8::D3DVOLUME_DESC &output)
+	void ConvertVolumeDesc(D3DVOLUME_DESC &input, D3DVOLUME_DESC8 &output)
 	{
 		output.Format = input.Format;
 		output.Type = input.Type;
@@ -756,7 +732,7 @@ namespace
 		output.Height = input.Height;
 		output.Depth = input.Depth;
 	}
-	void ConvertSurfaceDesc(D3D9::D3DSURFACE_DESC &input, D3D8::D3DSURFACE_DESC &output)
+	void ConvertSurfaceDesc(D3DSURFACE_DESC &input, D3DSURFACE_DESC8 &output)
 	{
 		output.Format = input.Format;
 		output.Type = input.Type;
@@ -772,7 +748,7 @@ namespace
 			output.MultiSampleType = D3DMULTISAMPLE_NONE;
 		}
 	}
-	void ConvertPresentParameters(D3D8::D3DPRESENT_PARAMETERS &input, D3D9::D3DPRESENT_PARAMETERS &output)
+	void ConvertPresentParameters(D3DPRESENT_PARAMETERS8 &input, D3DPRESENT_PARAMETERS &output)
 	{
 		output.BackBufferWidth = input.BackBufferWidth;
 		output.BackBufferHeight = input.BackBufferHeight;
@@ -802,7 +778,7 @@ namespace
 			output.PresentationInterval = D3DPRESENT_INTERVAL_IMMEDIATE;
 		}
 	}
-	void ConvertAdapterIdentifier(D3D9::D3DADAPTER_IDENTIFIER9 &input, D3D8::D3DADAPTER_IDENTIFIER8 &output)
+	void ConvertAdapterIdentifier(D3DADAPTER_IDENTIFIER9 &input, D3DADAPTER_IDENTIFIER8 &output)
 	{
 		CopyMemory(output.Driver, input.Driver, MAX_DEVICE_IDENTIFIER_STRING);
 		CopyMemory(output.Description, input.Description, MAX_DEVICE_IDENTIFIER_STRING);
@@ -907,14 +883,14 @@ DWORD STDMETHODCALLTYPE Direct3DTexture8::GetLevelCount()
 {
 	return this->mProxy->GetLevelCount();
 }
-HRESULT STDMETHODCALLTYPE Direct3DTexture8::GetLevelDesc(UINT Level, D3D8::D3DSURFACE_DESC *pDesc)
+HRESULT STDMETHODCALLTYPE Direct3DTexture8::GetLevelDesc(UINT Level, D3DSURFACE_DESC8 *pDesc)
 {
 	if (pDesc == nullptr)
 	{
 		return D3DERR_INVALIDCALL;
 	}
 
-	D3D9::D3DSURFACE_DESC desc;
+	D3DSURFACE_DESC desc;
 
 	const HRESULT hr = this->mProxy->GetLevelDesc(Level, &desc);
 
@@ -933,10 +909,8 @@ HRESULT STDMETHODCALLTYPE Direct3DTexture8::GetSurfaceLevel(UINT Level, Direct3D
 	{
 		return D3DERR_INVALIDCALL;
 	}
-	else
-	{
-		*ppSurfaceLevel = nullptr;
-	}
+
+	*ppSurfaceLevel = nullptr;
 
 	IDirect3DSurface9 *surface = nullptr;
 
@@ -951,7 +925,7 @@ HRESULT STDMETHODCALLTYPE Direct3DTexture8::GetSurfaceLevel(UINT Level, Direct3D
 
 	return D3D_OK;
 }
-HRESULT STDMETHODCALLTYPE Direct3DTexture8::LockRect(UINT Level, D3D8::D3DLOCKED_RECT *pLockedRect, CONST RECT *pRect, DWORD Flags)
+HRESULT STDMETHODCALLTYPE Direct3DTexture8::LockRect(UINT Level, D3DLOCKED_RECT *pLockedRect, CONST RECT *pRect, DWORD Flags)
 {
 	return this->mProxy->LockRect(Level, pLockedRect, pRect, Flags);
 }
@@ -1053,14 +1027,14 @@ DWORD STDMETHODCALLTYPE Direct3DVolumeTexture8::GetLevelCount()
 {
 	return this->mProxy->GetLevelCount();
 }
-HRESULT STDMETHODCALLTYPE Direct3DVolumeTexture8::GetLevelDesc(UINT Level, D3D8::D3DVOLUME_DESC *pDesc)
+HRESULT STDMETHODCALLTYPE Direct3DVolumeTexture8::GetLevelDesc(UINT Level, D3DVOLUME_DESC8 *pDesc)
 {
 	if (pDesc == nullptr)
 	{
 		return D3DERR_INVALIDCALL;
 	}
 
-	D3D9::D3DVOLUME_DESC desc;
+	D3DVOLUME_DESC desc;
 
 	const HRESULT hr = this->mProxy->GetLevelDesc(Level, &desc);
 
@@ -1079,10 +1053,8 @@ HRESULT STDMETHODCALLTYPE Direct3DVolumeTexture8::GetVolumeLevel(UINT Level, Dir
 	{
 		return D3DERR_INVALIDCALL;
 	}
-	else
-	{
-		*ppVolumeLevel = nullptr;
-	}
+
+	*ppVolumeLevel = nullptr;
 
 	IDirect3DVolume9 *volume = nullptr;
 
@@ -1097,7 +1069,7 @@ HRESULT STDMETHODCALLTYPE Direct3DVolumeTexture8::GetVolumeLevel(UINT Level, Dir
 
 	return D3D_OK;
 }
-HRESULT STDMETHODCALLTYPE Direct3DVolumeTexture8::LockBox(UINT Level, D3D8::D3DLOCKED_BOX *pLockedVolume, CONST D3DBOX *pBox, DWORD Flags)
+HRESULT STDMETHODCALLTYPE Direct3DVolumeTexture8::LockBox(UINT Level, D3DLOCKED_BOX *pLockedVolume, CONST D3DBOX *pBox, DWORD Flags)
 {
 	return this->mProxy->LockBox(Level, pLockedVolume, pBox, Flags);
 }
@@ -1199,14 +1171,14 @@ DWORD STDMETHODCALLTYPE Direct3DCubeTexture8::GetLevelCount()
 {
 	return this->mProxy->GetLevelCount();
 }
-HRESULT STDMETHODCALLTYPE Direct3DCubeTexture8::GetLevelDesc(UINT Level, D3D8::D3DSURFACE_DESC *pDesc)
+HRESULT STDMETHODCALLTYPE Direct3DCubeTexture8::GetLevelDesc(UINT Level, D3DSURFACE_DESC8 *pDesc)
 {
 	if (pDesc == nullptr)
 	{
 		return D3DERR_INVALIDCALL;
 	}
 
-	D3D9::D3DSURFACE_DESC desc;
+	D3DSURFACE_DESC desc;
 
 	const HRESULT hr = this->mProxy->GetLevelDesc(Level, &desc);
 
@@ -1225,10 +1197,8 @@ HRESULT STDMETHODCALLTYPE Direct3DCubeTexture8::GetCubeMapSurface(D3DCUBEMAP_FAC
 	{
 		return D3DERR_INVALIDCALL;
 	}
-	else
-	{
-		*ppCubeMapSurface = nullptr;
-	}
+
+	*ppCubeMapSurface = nullptr;
 
 	IDirect3DSurface9 *surface = nullptr;
 
@@ -1243,7 +1213,7 @@ HRESULT STDMETHODCALLTYPE Direct3DCubeTexture8::GetCubeMapSurface(D3DCUBEMAP_FAC
 
 	return D3D_OK;
 }
-HRESULT STDMETHODCALLTYPE Direct3DCubeTexture8::LockRect(D3DCUBEMAP_FACES FaceType, UINT Level, D3D8::D3DLOCKED_RECT *pLockedRect, CONST RECT *pRect, DWORD Flags)
+HRESULT STDMETHODCALLTYPE Direct3DCubeTexture8::LockRect(D3DCUBEMAP_FACES FaceType, UINT Level, D3DLOCKED_RECT *pLockedRect, CONST RECT *pRect, DWORD Flags)
 {
 	return this->mProxy->LockRect(FaceType, Level, pLockedRect, pRect, Flags);
 }
@@ -1321,14 +1291,14 @@ HRESULT STDMETHODCALLTYPE Direct3DSurface8::GetContainer(REFIID riid, void **ppC
 {
 	return this->mProxy->GetContainer(riid, ppContainer);
 }
-HRESULT STDMETHODCALLTYPE Direct3DSurface8::GetDesc(D3D8::D3DSURFACE_DESC *pDesc)
+HRESULT STDMETHODCALLTYPE Direct3DSurface8::GetDesc(D3DSURFACE_DESC8 *pDesc)
 {
 	if (pDesc == nullptr)
 	{
 		return D3DERR_INVALIDCALL;
 	}
 
-	D3D9::D3DSURFACE_DESC desc;
+	D3DSURFACE_DESC desc;
 
 	const HRESULT hr = this->mProxy->GetDesc(&desc);
 
@@ -1341,7 +1311,7 @@ HRESULT STDMETHODCALLTYPE Direct3DSurface8::GetDesc(D3D8::D3DSURFACE_DESC *pDesc
 
 	return D3D_OK;
 }
-HRESULT STDMETHODCALLTYPE Direct3DSurface8::LockRect(D3D8::D3DLOCKED_RECT *pLockedRect, CONST RECT *pRect, DWORD Flags)
+HRESULT STDMETHODCALLTYPE Direct3DSurface8::LockRect(D3DLOCKED_RECT *pLockedRect, CONST RECT *pRect, DWORD Flags)
 {
 	return this->mProxy->LockRect(pLockedRect, pRect, Flags);
 }
@@ -1415,14 +1385,14 @@ HRESULT STDMETHODCALLTYPE Direct3DVolume8::GetContainer(REFIID riid, void **ppCo
 {
 	return this->mProxy->GetContainer(riid, ppContainer);
 }
-HRESULT STDMETHODCALLTYPE Direct3DVolume8::GetDesc(D3D8::D3DVOLUME_DESC *pDesc)
+HRESULT STDMETHODCALLTYPE Direct3DVolume8::GetDesc(D3DVOLUME_DESC8 *pDesc)
 {
 	if (pDesc == nullptr)
 	{
 		return D3DERR_INVALIDCALL;
 	}
 
-	D3D9::D3DVOLUME_DESC desc;
+	D3DVOLUME_DESC desc;
 
 	const HRESULT hr = this->mProxy->GetDesc(&desc);
 
@@ -1435,7 +1405,7 @@ HRESULT STDMETHODCALLTYPE Direct3DVolume8::GetDesc(D3D8::D3DVOLUME_DESC *pDesc)
 
 	return D3D_OK;
 }
-HRESULT STDMETHODCALLTYPE Direct3DVolume8::LockBox(D3D8::D3DLOCKED_BOX *pLockedVolume, CONST D3DBOX *pBox, DWORD Flags)
+HRESULT STDMETHODCALLTYPE Direct3DVolume8::LockBox(D3DLOCKED_BOX *pLockedVolume, CONST D3DBOX *pBox, DWORD Flags)
 {
 	return this->mProxy->LockBox(pLockedVolume, pBox, Flags);
 }
@@ -1529,7 +1499,7 @@ HRESULT STDMETHODCALLTYPE Direct3DVertexBuffer8::Unlock()
 {
 	return this->mProxy->Unlock();
 }
-HRESULT STDMETHODCALLTYPE Direct3DVertexBuffer8::GetDesc(D3D8::D3DVERTEXBUFFER_DESC *pDesc)
+HRESULT STDMETHODCALLTYPE Direct3DVertexBuffer8::GetDesc(D3DVERTEXBUFFER_DESC *pDesc)
 {
 	return this->mProxy->GetDesc(pDesc);
 }
@@ -1619,7 +1589,7 @@ HRESULT STDMETHODCALLTYPE Direct3DIndexBuffer8::Unlock()
 {
 	return this->mProxy->Unlock();
 }
-HRESULT STDMETHODCALLTYPE Direct3DIndexBuffer8::GetDesc(D3D8::D3DINDEXBUFFER_DESC *pDesc)
+HRESULT STDMETHODCALLTYPE Direct3DIndexBuffer8::GetDesc(D3DINDEXBUFFER_DESC *pDesc)
 {
 	return this->mProxy->GetDesc(pDesc);
 }
@@ -1670,10 +1640,8 @@ HRESULT STDMETHODCALLTYPE Direct3DSwapChain8::GetBackBuffer(UINT iBackBuffer, D3
 	{
 		return D3DERR_INVALIDCALL;
 	}
-	else
-	{
-		*ppBackBuffer = nullptr;
-	}
+
+	*ppBackBuffer = nullptr;
 
 	IDirect3DSurface9 *surface = nullptr;
 
@@ -1771,14 +1739,14 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::GetDirect3D(Direct3D8 **ppD3D8)
 
 	return D3D_OK;
 }
-HRESULT STDMETHODCALLTYPE Direct3DDevice8::GetDeviceCaps(D3D8::D3DCAPS8 *pCaps)
+HRESULT STDMETHODCALLTYPE Direct3DDevice8::GetDeviceCaps(D3DCAPS8 *pCaps)
 {
 	if (pCaps == nullptr)
 	{
 		return D3DERR_INVALIDCALL;
 	}
 
-	D3D9::D3DCAPS9 caps;
+	D3DCAPS9 caps;
 
 	const HRESULT hr = this->mProxy->GetDeviceCaps(&caps);
 
@@ -1791,11 +1759,11 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::GetDeviceCaps(D3D8::D3DCAPS8 *pCaps)
 
 	return D3D_OK;
 }
-HRESULT STDMETHODCALLTYPE Direct3DDevice8::GetDisplayMode(D3D8::D3DDISPLAYMODE *pMode)
+HRESULT STDMETHODCALLTYPE Direct3DDevice8::GetDisplayMode(D3DDISPLAYMODE *pMode)
 {
 	return this->mProxy->GetDisplayMode(0, pMode);
 }
-HRESULT STDMETHODCALLTYPE Direct3DDevice8::GetCreationParameters(D3D8::D3DDEVICE_CREATION_PARAMETERS *pParameters)
+HRESULT STDMETHODCALLTYPE Direct3DDevice8::GetCreationParameters(D3DDEVICE_CREATION_PARAMETERS *pParameters)
 {
 	return this->mProxy->GetCreationParameters(pParameters);
 }
@@ -1816,7 +1784,7 @@ BOOL STDMETHODCALLTYPE Direct3DDevice8::ShowCursor(BOOL bShow)
 {
 	return this->mProxy->ShowCursor(bShow);
 }
-HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateAdditionalSwapChain(D3D8::D3DPRESENT_PARAMETERS *pPresentationParameters, Direct3DSwapChain8 **ppSwapChain)
+HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateAdditionalSwapChain(D3DPRESENT_PARAMETERS8 *pPresentationParameters, Direct3DSwapChain8 **ppSwapChain)
 {
 	LOG(INFO) << "Redirecting '" << "IDirect3DDevice8::CreateAdditionalSwapChain" << "(" << this << ", " << pPresentationParameters << ", " << ppSwapChain << ")' ...";
 
@@ -1824,12 +1792,10 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateAdditionalSwapChain(D3D8::D3DPR
 	{
 		return D3DERR_INVALIDCALL;
 	}
-	else
-	{
-		*ppSwapChain = nullptr;
-	}
 
-	D3D9::D3DPRESENT_PARAMETERS pp;
+	*ppSwapChain = nullptr;
+
+	D3DPRESENT_PARAMETERS pp;
 	IDirect3DSwapChain9 *swapchain = nullptr;
 
 	ConvertPresentParameters(*pPresentationParameters, pp);
@@ -1845,7 +1811,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateAdditionalSwapChain(D3D8::D3DPR
 
 	return D3D_OK;
 }
-HRESULT STDMETHODCALLTYPE Direct3DDevice8::Reset(D3D8::D3DPRESENT_PARAMETERS *pPresentationParameters)
+HRESULT STDMETHODCALLTYPE Direct3DDevice8::Reset(D3DPRESENT_PARAMETERS8 *pPresentationParameters)
 {
 	LOG(INFO) << "Redirecting '" << "IDirect3DDevice8::Reset" << "(" << this << ", " << pPresentationParameters << ")' ...";
 
@@ -1875,7 +1841,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::Reset(D3D8::D3DPRESENT_PARAMETERS *pP
 		return hr;
 	}
 
-	// Set default rendertarget
+	// Set default render target
 	IDirect3DSurface9 *rendertarget = nullptr, *depthstencil = nullptr;
 	Direct3DSurface8 *rendertargetProxy = nullptr, *depthstencilProxy = nullptr;
 
@@ -1911,10 +1877,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::GetBackBuffer(UINT iBackBuffer, D3DBA
 	{
 		return D3DERR_INVALIDCALL;
 	}
-	else
-	{
-		*ppBackBuffer = nullptr;
-	}
+
+	*ppBackBuffer = nullptr;
 
 	IDirect3DSurface9 *surface = nullptr;
 
@@ -1929,7 +1893,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::GetBackBuffer(UINT iBackBuffer, D3DBA
 
 	return D3D_OK;
 }
-HRESULT STDMETHODCALLTYPE Direct3DDevice8::GetRasterStatus(D3D8::D3DRASTER_STATUS *pRasterStatus)
+HRESULT STDMETHODCALLTYPE Direct3DDevice8::GetRasterStatus(D3DRASTER_STATUS *pRasterStatus)
 {
 	return this->mProxy->GetRasterStatus(0, pRasterStatus);
 }
@@ -1947,10 +1911,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateTexture(UINT Width, UINT Height
 	{
 		return D3DERR_INVALIDCALL;
 	}
-	else
-	{
-		*ppTexture = nullptr;
-	}
+
+	*ppTexture = nullptr;
 
 	if (Pool == D3DPOOL_DEFAULT)
 	{
@@ -1986,10 +1948,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateVolumeTexture(UINT Width, UINT 
 	{
 		return D3DERR_INVALIDCALL;
 	}
-	else
-	{
-		*ppVolumeTexture = nullptr;
-	}
+
+	*ppVolumeTexture = nullptr;
 
 	IDirect3DVolumeTexture9 *texture = nullptr;
 
@@ -2010,10 +1970,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateCubeTexture(UINT EdgeLength, UI
 	{
 		return D3DERR_INVALIDCALL;
 	}
-	else
-	{
-		*ppCubeTexture = nullptr;
-	}
+
+	*ppCubeTexture = nullptr;
 
 	IDirect3DCubeTexture9 *texture = nullptr;
 
@@ -2034,10 +1992,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateVertexBuffer(UINT Length, DWORD
 	{
 		return D3DERR_INVALIDCALL;
 	}
-	else
-	{
-		*ppVertexBuffer = nullptr;
-	}
+
+	*ppVertexBuffer = nullptr;
 
 	IDirect3DVertexBuffer9 *buffer = nullptr;
 
@@ -2058,10 +2014,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateIndexBuffer(UINT Length, DWORD 
 	{
 		return D3DERR_INVALIDCALL;
 	}
-	else
-	{
-		*ppIndexBuffer = nullptr;
-	}
+
+	*ppIndexBuffer = nullptr;
 
 	IDirect3DIndexBuffer9 *buffer = nullptr;
 
@@ -2082,10 +2036,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateRenderTarget(UINT Width, UINT H
 	{
 		return D3DERR_INVALIDCALL;
 	}
-	else
-	{
-		*ppSurface = nullptr;
-	}
+
+	*ppSurface = nullptr;
 
 	DWORD qualityLevels = 1;
 	D3DDEVICE_CREATION_PARAMETERS params;
@@ -2117,10 +2069,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateDepthStencilSurface(UINT Width,
 	{
 		return D3DERR_INVALIDCALL;
 	}
-	else
-	{
-		*ppSurface = nullptr;
-	}
+
+	*ppSurface = nullptr;
 
 	DWORD qualityLevels = 1;
 	D3DDEVICE_CREATION_PARAMETERS params;
@@ -2154,10 +2104,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateImageSurface(UINT Width, UINT H
 	{
 		return D3DERR_INVALIDCALL;
 	}
-	else
-	{
-		*ppSurface = nullptr;
-	}
+
+	*ppSurface = nullptr;
 
 	if (Format == D3DFMT_R8G8B8)
 	{
@@ -2188,7 +2136,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CopyRects(Direct3DSurface8 *pSourceSu
 		return D3DERR_INVALIDCALL;
 	}
 
-	D3D9::D3DSURFACE_DESC descSource, descDestination;
+	D3DSURFACE_DESC descSource, descDestination;
 	pSourceSurface->mProxy->GetDesc(&descSource);
 	pDestinationSurface->mProxy->GetDesc(&descDestination);
 
@@ -2333,7 +2281,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::SetRenderTarget(Direct3DSurface8 *pRe
 	}
 	else
 	{
-		hr = this->mProxy->SetDepthStencilSurface(nullptr);
+		this->mProxy->SetDepthStencilSurface(nullptr);
 
 		if (this->mCurrentDepthStencil != nullptr)
 		{
@@ -2401,27 +2349,27 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::MultiplyTransform(D3DTRANSFORMSTATETY
 {
 	return this->mProxy->MultiplyTransform(State, pMatrix);
 }
-HRESULT STDMETHODCALLTYPE Direct3DDevice8::SetViewport(CONST D3D8::D3DVIEWPORT8 *pViewport)
+HRESULT STDMETHODCALLTYPE Direct3DDevice8::SetViewport(CONST D3DVIEWPORT8 *pViewport)
 {
 	return this->mProxy->SetViewport(pViewport);
 }
-HRESULT STDMETHODCALLTYPE Direct3DDevice8::GetViewport(D3D8::D3DVIEWPORT8 *pViewport)
+HRESULT STDMETHODCALLTYPE Direct3DDevice8::GetViewport(D3DVIEWPORT8 *pViewport)
 {
 	return this->mProxy->GetViewport(pViewport);
 }
-HRESULT STDMETHODCALLTYPE Direct3DDevice8::SetMaterial(CONST D3D8::D3DMATERIAL8 *pMaterial)
+HRESULT STDMETHODCALLTYPE Direct3DDevice8::SetMaterial(CONST D3DMATERIAL8 *pMaterial)
 {
 	return this->mProxy->SetMaterial(pMaterial);
 }
-HRESULT STDMETHODCALLTYPE Direct3DDevice8::GetMaterial(D3D8::D3DMATERIAL8 *pMaterial)
+HRESULT STDMETHODCALLTYPE Direct3DDevice8::GetMaterial(D3DMATERIAL8 *pMaterial)
 {
 	return this->mProxy->GetMaterial(pMaterial);
 }
-HRESULT STDMETHODCALLTYPE Direct3DDevice8::SetLight(DWORD Index, CONST D3D8::D3DLIGHT8 *pLight)
+HRESULT STDMETHODCALLTYPE Direct3DDevice8::SetLight(DWORD Index, CONST D3DLIGHT8 *pLight)
 {
 	return this->mProxy->SetLight(Index, pLight);
 }
-HRESULT STDMETHODCALLTYPE Direct3DDevice8::GetLight(DWORD Index, D3D8::D3DLIGHT8 *pLight)
+HRESULT STDMETHODCALLTYPE Direct3DDevice8::GetLight(DWORD Index, D3DLIGHT8 *pLight)
 {
 	return this->mProxy->GetLight(Index, pLight);
 }
@@ -2551,11 +2499,11 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateStateBlock(D3DSTATEBLOCKTYPE Ty
 
 	return this->mProxy->CreateStateBlock(Type, reinterpret_cast<IDirect3DStateBlock9 **>(pToken));
 }
-HRESULT STDMETHODCALLTYPE Direct3DDevice8::SetClipStatus(CONST D3D8::D3DCLIPSTATUS8 *pClipStatus)
+HRESULT STDMETHODCALLTYPE Direct3DDevice8::SetClipStatus(CONST D3DCLIPSTATUS8 *pClipStatus)
 {
 	return this->mProxy->SetClipStatus(pClipStatus);
 }
-HRESULT STDMETHODCALLTYPE Direct3DDevice8::GetClipStatus(D3D8::D3DCLIPSTATUS8 *pClipStatus)
+HRESULT STDMETHODCALLTYPE Direct3DDevice8::GetClipStatus(D3DCLIPSTATUS8 *pClipStatus)
 {
 	return this->mProxy->GetClipStatus(pClipStatus);
 }
@@ -2565,10 +2513,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::GetTexture(DWORD Stage, Direct3DBaseT
 	{
 		return D3DERR_INVALIDCALL;
 	}
-	else
-	{
-		*ppTexture = nullptr;
-	}
+
+	*ppTexture = nullptr;
 
 	IDirect3DBaseTexture9 *basetexture = nullptr;
 
@@ -2588,15 +2534,15 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::GetTexture(DWORD Stage, Direct3DBaseT
 		switch (basetexture->GetType())
 		{
 			case D3DRTYPE_TEXTURE:
-				basetexture->QueryInterface(__uuidof(IDirect3DTexture9), reinterpret_cast<void **>(&texture));
+				basetexture->QueryInterface(IID_PPV_ARGS(&texture));
 				*ppTexture = new Direct3DTexture8(this, texture);
 				break;
 			case D3DRTYPE_VOLUMETEXTURE:
-				basetexture->QueryInterface(__uuidof(IDirect3DVolumeTexture9), reinterpret_cast<void **>(&volumetexture));
+				basetexture->QueryInterface(IID_PPV_ARGS(&volumetexture));
 				*ppTexture = new Direct3DVolumeTexture8(this, volumetexture);
 				break;
 			case D3DRTYPE_CUBETEXTURE:
-				basetexture->QueryInterface(__uuidof(IDirect3DCubeTexture9), reinterpret_cast<void **>(&cubetexture));
+				basetexture->QueryInterface(IID_PPV_ARGS(&cubetexture));
 				*ppTexture = new Direct3DCubeTexture8(this, cubetexture);
 				break;
 		}
@@ -2612,25 +2558,23 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::SetTexture(DWORD Stage, Direct3DBaseT
 	{
 		return this->mProxy->SetTexture(Stage, nullptr);
 	}
-	else
+
+	IDirect3DBaseTexture9 *basetexture = nullptr;
+
+	switch (pTexture->GetType())
 	{
-		IDirect3DBaseTexture9 *basetexture = nullptr;
-
-		switch (pTexture->GetType())
-		{
-			case D3DRTYPE_TEXTURE:
-				basetexture = static_cast<Direct3DTexture8 *>(pTexture)->mProxy;
-				break;
-			case D3DRTYPE_VOLUMETEXTURE:
-				basetexture = static_cast<Direct3DVolumeTexture8 *>(pTexture)->mProxy;
-				break;
-			case D3DRTYPE_CUBETEXTURE:
-				basetexture = static_cast<Direct3DCubeTexture8 *>(pTexture)->mProxy;
-				break;
-		}
-
-		return this->mProxy->SetTexture(Stage, basetexture);
+		case D3DRTYPE_TEXTURE:
+			basetexture = static_cast<Direct3DTexture8 *>(pTexture)->mProxy;
+			break;
+		case D3DRTYPE_VOLUMETEXTURE:
+			basetexture = static_cast<Direct3DVolumeTexture8 *>(pTexture)->mProxy;
+			break;
+		case D3DRTYPE_CUBETEXTURE:
+			basetexture = static_cast<Direct3DCubeTexture8 *>(pTexture)->mProxy;
+			break;
 	}
+
+	return this->mProxy->SetTexture(Stage, basetexture);
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice8::GetTextureStageState(DWORD Stage, D3DTEXTURESTAGESTATETYPE Type, DWORD *pValue)
 {
@@ -2764,10 +2708,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateVertexShader(CONST DWORD *pDecl
 	{
 		return D3DERR_INVALIDCALL;
 	}
-	else
-	{
-		*pHandle = 0;
-	}
+
+	*pHandle = 0;
 
 	UINT i = 0;
 	const UINT limit = 32;
@@ -3145,7 +3087,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::SetVertexShader(DWORD Handle)
 	}
 	else
 	{
-		Direct3DVertexShader8 *const shader = reinterpret_cast<Direct3DVertexShader8 *>(Handle ^ 0x80000000);
+		const auto shader = reinterpret_cast<Direct3DVertexShader8 *>(Handle ^ 0x80000000);
 
 		hr = this->mProxy->SetVertexShader(shader->mShader);
 		this->mProxy->SetVertexDeclaration(shader->mDeclaration);
@@ -3185,7 +3127,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::DeleteVertexShader(DWORD Handle)
 		SetVertexShader(0);
 	}
 
-	Direct3DVertexShader8 *const shader = reinterpret_cast<Direct3DVertexShader8 *>(Handle ^ 0x80000000);
+	const auto shader = reinterpret_cast<Direct3DVertexShader8 *>(Handle ^ 0x80000000);
 
 	if (shader->mShader != nullptr)
 	{
@@ -3228,14 +3170,14 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::GetVertexShaderFunction(DWORD Handle,
 		return D3DERR_INVALIDCALL;
 	}
 
-	IDirect3DVertexShader9 *const shader = reinterpret_cast<Direct3DVertexShader8 *>(Handle ^ 0x80000000)->mShader;
+	const auto shader = reinterpret_cast<Direct3DVertexShader8 *>(Handle ^ 0x80000000)->mShader;
 
 	if (shader == nullptr)
 	{
 		return D3DERR_INVALIDCALL;
 	}
 
-	LOG(WARNING) << "> Returning translated shader bytecode.";
+	LOG(WARNING) << "> Returning translated shader byte code.";
 
 	return shader->GetFunction(pData, reinterpret_cast<UINT *>(pSizeOfData));
 }
@@ -3293,10 +3235,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::GetIndices(Direct3DIndexBuffer8 **ppI
 	{
 		return D3DERR_INVALIDCALL;
 	}
-	else
-	{
-		*ppIndexData = nullptr;
-	}
+
+	*ppIndexData = nullptr;
 
 	if (pBaseVertexIndex != nullptr)
 	{
@@ -3327,10 +3267,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreatePixelShader(CONST DWORD *pFunct
 	{
 		return D3DERR_INVALIDCALL;
 	}
-	else
-	{
-		*pHandle = 0;
-	}
+
+	*pHandle = 0;
 
 	LOG(INFO) << "> Disassembling shader and translating assembly to Direct3D 9 compatible code ...";
 
@@ -3449,17 +3387,17 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::GetPixelShaderFunction(DWORD Handle, 
 		return D3DERR_INVALIDCALL;
 	}
 
-	IDirect3DPixelShader9 *const shader = reinterpret_cast<IDirect3DPixelShader9 *>(Handle);
+	const auto shader = reinterpret_cast<IDirect3DPixelShader9 *>(Handle);
 
-	LOG(WARNING) << "> Returning translated shader bytecode.";
+	LOG(WARNING) << "> Returning translated shader byte code.";
 
 	return shader->GetFunction(pData, reinterpret_cast<UINT *>(pSizeOfData));
 }
-HRESULT STDMETHODCALLTYPE Direct3DDevice8::DrawRectPatch(UINT Handle, CONST float *pNumSegs, CONST D3D8::D3DRECTPATCH_INFO *pRectPatchInfo)
+HRESULT STDMETHODCALLTYPE Direct3DDevice8::DrawRectPatch(UINT Handle, CONST float *pNumSegs, CONST D3DRECTPATCH_INFO *pRectPatchInfo)
 {
 	return this->mProxy->DrawRectPatch(Handle, pNumSegs, pRectPatchInfo);
 }
-HRESULT STDMETHODCALLTYPE Direct3DDevice8::DrawTriPatch(UINT Handle, CONST float *pNumSegs, CONST D3D8::D3DTRIPATCH_INFO *pTriPatchInfo)
+HRESULT STDMETHODCALLTYPE Direct3DDevice8::DrawTriPatch(UINT Handle, CONST float *pNumSegs, CONST D3DTRIPATCH_INFO *pTriPatchInfo)
 {
 	return this->mProxy->DrawTriPatch(Handle, pNumSegs, pTriPatchInfo);
 }
@@ -3512,14 +3450,14 @@ UINT STDMETHODCALLTYPE Direct3D8::GetAdapterCount()
 {
 	return this->mProxy->GetAdapterCount();
 }
-HRESULT STDMETHODCALLTYPE Direct3D8::GetAdapterIdentifier(UINT Adapter, DWORD Flags, D3D8::D3DADAPTER_IDENTIFIER8 *pIdentifier)
+HRESULT STDMETHODCALLTYPE Direct3D8::GetAdapterIdentifier(UINT Adapter, DWORD Flags, D3DADAPTER_IDENTIFIER8 *pIdentifier)
 {
 	if (pIdentifier == nullptr)
 	{
 		return D3DERR_INVALIDCALL;
 	}
 
-	D3D9::D3DADAPTER_IDENTIFIER9 identifier;
+	D3DADAPTER_IDENTIFIER9 identifier;
 
 #define D3DENUM_NO_WHQL_LEVEL 0x00000002L
 
@@ -3549,14 +3487,14 @@ UINT STDMETHODCALLTYPE Direct3D8::GetAdapterModeCount(UINT Adapter)
 
 	UINT count = 0;
 
-	for (const D3DFORMAT format : formats)
+	for (auto format : formats)
 	{
 		count += this->mProxy->GetAdapterModeCount(Adapter, format);
 	}
 
 	return count;
 }
-HRESULT STDMETHODCALLTYPE Direct3D8::EnumAdapterModes(UINT Adapter, UINT Mode, D3D8::D3DDISPLAYMODE *pMode)
+HRESULT STDMETHODCALLTYPE Direct3D8::EnumAdapterModes(UINT Adapter, UINT Mode, D3DDISPLAYMODE *pMode)
 {
 	if (pMode == nullptr)
 	{
@@ -3567,7 +3505,7 @@ HRESULT STDMETHODCALLTYPE Direct3D8::EnumAdapterModes(UINT Adapter, UINT Mode, D
 
 	UINT offset = 0;
 
-	for (const D3DFORMAT format : formats)
+	for (auto format : formats)
 	{
 		const UINT modes = this->mProxy->GetAdapterModeCount(Adapter, format);
 
@@ -3586,7 +3524,7 @@ HRESULT STDMETHODCALLTYPE Direct3D8::EnumAdapterModes(UINT Adapter, UINT Mode, D
 
 	return D3DERR_INVALIDCALL;
 }
-HRESULT STDMETHODCALLTYPE Direct3D8::GetAdapterDisplayMode(UINT Adapter, D3D8::D3DDISPLAYMODE *pMode)
+HRESULT STDMETHODCALLTYPE Direct3D8::GetAdapterDisplayMode(UINT Adapter, D3DDISPLAYMODE *pMode)
 {
 	return this->mProxy->GetAdapterDisplayMode(Adapter, pMode);
 }
@@ -3606,14 +3544,14 @@ HRESULT STDMETHODCALLTYPE Direct3D8::CheckDepthStencilMatch(UINT Adapter, D3DDEV
 {
 	return this->mProxy->CheckDepthStencilMatch(Adapter, DeviceType, AdapterFormat, RenderTargetFormat, DepthStencilFormat);
 }
-HRESULT STDMETHODCALLTYPE Direct3D8::GetDeviceCaps(UINT Adapter, D3DDEVTYPE DeviceType, D3D8::D3DCAPS8 *pCaps)
+HRESULT STDMETHODCALLTYPE Direct3D8::GetDeviceCaps(UINT Adapter, D3DDEVTYPE DeviceType, D3DCAPS8 *pCaps)
 {
 	if (pCaps == nullptr)
 	{
 		return D3DERR_INVALIDCALL;
 	}
 
-	D3D9::D3DCAPS9 caps;
+	D3DCAPS9 caps;
 
 	const HRESULT hr = this->mProxy->GetDeviceCaps(Adapter, DeviceType, &caps);
 
@@ -3630,7 +3568,7 @@ HMONITOR STDMETHODCALLTYPE Direct3D8::GetAdapterMonitor(UINT Adapter)
 {
 	return this->mProxy->GetAdapterMonitor(Adapter);
 }
-HRESULT STDMETHODCALLTYPE Direct3D8::CreateDevice(UINT Adapter, D3DDEVTYPE DeviceType, HWND hFocusWindow, DWORD BehaviorFlags, D3D8::D3DPRESENT_PARAMETERS *pPresentationParameters, Direct3DDevice8 **ppReturnedDeviceInterface)
+HRESULT STDMETHODCALLTYPE Direct3D8::CreateDevice(UINT Adapter, D3DDEVTYPE DeviceType, HWND hFocusWindow, DWORD BehaviorFlags, D3DPRESENT_PARAMETERS8 *pPresentationParameters, Direct3DDevice8 **ppReturnedDeviceInterface)
 {
 	LOG(INFO) << "Redirecting '" << "IDirect3D8::CreateDevice" << "(" << this << ", " << Adapter << ", " << DeviceType << ", " << hFocusWindow << ", " << BehaviorFlags << ", " << pPresentationParameters << ", " << ppReturnedDeviceInterface << ")' ...";
 
@@ -3638,12 +3576,10 @@ HRESULT STDMETHODCALLTYPE Direct3D8::CreateDevice(UINT Adapter, D3DDEVTYPE Devic
 	{
 		return D3DERR_INVALIDCALL;
 	}
-	else
-	{
-		*ppReturnedDeviceInterface = nullptr;
-	}
 
-	D3D9::D3DPRESENT_PARAMETERS pp;
+	*ppReturnedDeviceInterface = nullptr;
+
+	D3DPRESENT_PARAMETERS pp;
 	IDirect3DDevice9 *device = nullptr;
 
 	ConvertPresentParameters(*pPresentationParameters, pp);
@@ -3655,14 +3591,14 @@ HRESULT STDMETHODCALLTYPE Direct3D8::CreateDevice(UINT Adapter, D3DDEVTYPE Devic
 		return hr;
 	}
 
-	Direct3DDevice8 *const deviceProxy = new Direct3DDevice8(this, device, (pp.Flags & D3DPRESENTFLAG_DISCARD_DEPTHSTENCIL) != 0);
+	const auto deviceProxy = new Direct3DDevice8(this, device, (pp.Flags & D3DPRESENTFLAG_DISCARD_DEPTHSTENCIL) != 0);
 
 	// Set default vertex declaration
 	device->SetFVF(D3DFVF_XYZ);
 
-	// Set default rendertarget
+	// Set default render target
 	IDirect3DSurface9 *rendertarget = nullptr, *depthstencil = nullptr;
-	Direct3DSurface8 *rendertargetProxy = nullptr, *depthstencilProxy = nullptr;
+	 Direct3DSurface8 *rendertargetProxy = nullptr, *depthstencilProxy = nullptr;
 
 	device->GetRenderTarget(0, &rendertarget);
 	device->GetDepthStencilSurface(&depthstencil);
