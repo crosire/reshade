@@ -10,7 +10,7 @@ namespace ReShade
 {
 	namespace Runtimes
 	{
-		D3D12Runtime::D3D12Runtime(ID3D12Device *device, ID3D12CommandQueue *queue, IDXGISwapChain *swapchain) : mDevice(device), mCommandQueue(queue), mSwapChain(swapchain)
+		D3D12Runtime::D3D12Runtime(ID3D12Device *device, ID3D12CommandQueue *queue, IDXGISwapChain3 *swapchain) : mDevice(device), mCommandQueue(queue), mSwapChain(swapchain)
 		{
 			assert(queue != nullptr);
 			assert(device != nullptr);
@@ -61,10 +61,6 @@ namespace ReShade
 			}
 
 			Runtime::OnPresent();
-		}
-		void D3D12Runtime::OnDrawCall(ID3D12CommandList *list, UINT vertices)
-		{
-			Runtime::OnDrawCall(vertices);
 		}
 		void D3D12Runtime::OnApplyEffect()
 		{

@@ -179,9 +179,9 @@ namespace ReShade
 
 					// Find appropriate replacement
 					const auto it = std::find_if(replacementExports.cbegin(), replacementExports.cend(),
-						[&symbol](const ModuleExport &it)
+						[&symbol](const ModuleExport &moduleexport)
 						{
-							return boost::equals(it.Name, symbol.Name);
+							return boost::equals(moduleexport.Name, symbol.Name);
 						});
 
 					// Filter uninteresting functions
@@ -291,9 +291,9 @@ namespace ReShade
 				Utils::CriticalSection::Lock lock(sCS);
 
 				const auto it =	std::find_if(sHooks.cbegin(), sHooks.cend(),
-					[replacement](const std::pair<Hook, HookType> &it)
+					[replacement](const std::pair<Hook, HookType> &hook)
 					{
-						return it.first.Replacement == replacement;
+						return hook.first.Replacement == replacement;
 					});
 
 				if (it == sHooks.cend())
@@ -323,17 +323,17 @@ namespace ReShade
 				Utils::CriticalSection::Lock lock(sCS);
 
 				const auto remove = std::remove_if(sDelayedHookPaths.begin(), sDelayedHookPaths.end(),
-					[lpFileName](const boost::filesystem::path &it)
+					[lpFileName](const boost::filesystem::path &path)
 					{
 						HMODULE handle = nullptr;
-						GetModuleHandleExW(0, it.c_str(), &handle);
+						GetModuleHandleExW(0, path.c_str(), &handle);
 
 						if (handle == nullptr)
 						{
 							return false;
 						}
 
-						LOG(INFO) << "Installing delayed hooks for " << it << " (Just loaded via 'LoadLibraryA(\"" << lpFileName << "\")') ...";
+						LOG(INFO) << "Installing delayed hooks for " << path << " (Just loaded via 'LoadLibraryA(\"" << lpFileName << "\")') ...";
 
 						sDelayedHookModules.push_back(handle);
 
@@ -369,17 +369,17 @@ namespace ReShade
 				Utils::CriticalSection::Lock lock(sCS);
 
 				const auto remove = std::remove_if(sDelayedHookPaths.begin(), sDelayedHookPaths.end(),
-					[lpFileName](const boost::filesystem::path &it)
+					[lpFileName](const boost::filesystem::path &path)
 					{
 						HMODULE handle = nullptr;
-						GetModuleHandleExW(0, it.c_str(), &handle);
+						GetModuleHandleExW(0, path.c_str(), &handle);
 
 						if (handle == nullptr)
 						{
 							return false;
 						}
 
-						LOG(INFO) << "Installing delayed hooks for " << it << " (Just loaded via 'LoadLibraryW(\"" << lpFileName << "\")') ...";
+						LOG(INFO) << "Installing delayed hooks for " << path << " (Just loaded via 'LoadLibraryW(\"" << lpFileName << "\")') ...";
 
 						sDelayedHookModules.push_back(handle);
 

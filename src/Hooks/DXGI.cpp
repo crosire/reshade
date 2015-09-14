@@ -1,7 +1,5 @@
 #include "Log.hpp"
 #include "Hooks\DXGI.hpp"
-#include "Runtimes\D3D10Runtime.hpp"
-#include "Runtimes\D3D11Runtime.hpp"
 
 #include <sstream>
 #include <assert.h>
@@ -862,16 +860,27 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, I
 	}
 	else if (commandqueueD3D12 != nullptr)
 	{
-		commandqueueD3D12->AddRef();
-
-		const auto runtime = std::make_shared<ReShade::Runtimes::D3D12Runtime>(commandqueueD3D12->mDevice->mOrig, commandqueueD3D12->mOrig, swapchain);
-
-		if (!runtime->OnInit(desc))
+		IDXGISwapChain3 *swapchain3 = nullptr;
+		
+		if (SUCCEEDED(swapchain->QueryInterface(&swapchain3)))
 		{
-			LOG(ERROR) << "Failed to initialize Direct3D12 runtime environment on runtime " << runtime.get() << ".";
-		}
+			commandqueueD3D12->AddRef();
 
-		*ppSwapChain = new DXGISwapChain(commandqueueD3D12, swapchain, runtime);
+			const auto runtime = std::make_shared<ReShade::Runtimes::D3D12Runtime>(commandqueueD3D12->mDevice->mOrig, commandqueueD3D12->mOrig, swapchain3);
+
+			if (!runtime->OnInit(desc))
+			{
+				LOG(ERROR) << "Failed to initialize Direct3D12 runtime environment on runtime " << runtime.get() << ".";
+			}
+
+			*ppSwapChain = new DXGISwapChain(commandqueueD3D12, swapchain, runtime);
+
+			swapchain3->Release();
+		}
+		else
+		{
+			LOG(WARNING) << "> Skipping swap chain because it is missing support for the 'IDXGISwapChain3' interface.";
+		}
 	}
 	else
 	{
@@ -968,16 +977,27 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pF
 	}
 	else if (commandqueueD3D12 != nullptr)
 	{
-		commandqueueD3D12->AddRef();
+		IDXGISwapChain3 *swapchain3 = nullptr;
 
-		const auto runtime = std::make_shared<ReShade::Runtimes::D3D12Runtime>(commandqueueD3D12->mDevice->mOrig, commandqueueD3D12->mOrig, swapchain);
-
-		if (!runtime->OnInit(desc))
+		if (SUCCEEDED(swapchain->QueryInterface(&swapchain3)))
 		{
-			LOG(ERROR) << "Failed to initialize Direct3D12 runtime environment on runtime " << runtime.get() << ".";
-		}
+			commandqueueD3D12->AddRef();
 
-		*ppSwapChain = new DXGISwapChain(commandqueueD3D12, swapchain, runtime);
+			const auto runtime = std::make_shared<ReShade::Runtimes::D3D12Runtime>(commandqueueD3D12->mDevice->mOrig, commandqueueD3D12->mOrig, swapchain3);
+
+			if (!runtime->OnInit(desc))
+			{
+				LOG(ERROR) << "Failed to initialize Direct3D12 runtime environment on runtime " << runtime.get() << ".";
+			}
+
+			*ppSwapChain = new DXGISwapChain(commandqueueD3D12, swapchain, runtime);
+
+			swapchain3->Release();
+		}
+		else
+		{
+			LOG(WARNING) << "> Skipping swap chain because it is missing support for the 'IDXGISwapChain3' interface.";
+		}
 	}
 	else
 	{
@@ -1072,16 +1092,27 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactor
 	}
 	else if (commandqueueD3D12 != nullptr)
 	{
-		commandqueueD3D12->AddRef();
+		IDXGISwapChain3 *swapchain3 = nullptr;
 
-		const auto runtime = std::make_shared<ReShade::Runtimes::D3D12Runtime>(commandqueueD3D12->mDevice->mOrig, commandqueueD3D12->mOrig, swapchain);
-
-		if (!runtime->OnInit(desc))
+		if (SUCCEEDED(swapchain->QueryInterface(&swapchain3)))
 		{
-			LOG(ERROR) << "Failed to initialize Direct3D12 runtime environment on runtime " << runtime.get() << ".";
-		}
+			commandqueueD3D12->AddRef();
 
-		*ppSwapChain = new DXGISwapChain(commandqueueD3D12, swapchain, runtime);
+			const auto runtime = std::make_shared<ReShade::Runtimes::D3D12Runtime>(commandqueueD3D12->mDevice->mOrig, commandqueueD3D12->mOrig, swapchain3);
+
+			if (!runtime->OnInit(desc))
+			{
+				LOG(ERROR) << "Failed to initialize Direct3D12 runtime environment on runtime " << runtime.get() << ".";
+			}
+
+			*ppSwapChain = new DXGISwapChain(commandqueueD3D12, swapchain, runtime);
+
+			swapchain3->Release();
+		}
+		else
+		{
+			LOG(WARNING) << "> Skipping swap chain because it is missing support for the 'IDXGISwapChain3' interface.";
+		}
 	}
 	else
 	{
@@ -1176,16 +1207,27 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFacto
 	}
 	else if (commandqueueD3D12 != nullptr)
 	{
-		commandqueueD3D12->AddRef();
+		IDXGISwapChain3 *swapchain3 = nullptr;
 
-		const auto runtime = std::make_shared<ReShade::Runtimes::D3D12Runtime>(commandqueueD3D12->mDevice->mOrig, commandqueueD3D12->mOrig, swapchain);
-
-		if (!runtime->OnInit(desc))
+		if (SUCCEEDED(swapchain->QueryInterface(&swapchain3)))
 		{
-			LOG(ERROR) << "Failed to initialize Direct3D12 runtime environment on runtime " << runtime.get() << ".";
-		}
+			commandqueueD3D12->AddRef();
 
-		*ppSwapChain = new DXGISwapChain(commandqueueD3D12, swapchain, runtime);
+			const auto runtime = std::make_shared<ReShade::Runtimes::D3D12Runtime>(commandqueueD3D12->mDevice->mOrig, commandqueueD3D12->mOrig, swapchain3);
+
+			if (!runtime->OnInit(desc))
+			{
+				LOG(ERROR) << "Failed to initialize Direct3D12 runtime environment on runtime " << runtime.get() << ".";
+			}
+
+			*ppSwapChain = new DXGISwapChain(commandqueueD3D12, swapchain, runtime);
+
+			swapchain3->Release();
+		}
+		else
+		{
+			LOG(WARNING) << "> Skipping swap chain because it is missing support for the 'IDXGISwapChain3' interface.";
+		}
 	}
 	else
 	{
@@ -1302,6 +1344,10 @@ EXPORT HRESULT WINAPI CreateDXGIFactory2(UINT flags, REFIID riid, void **ppFacto
 	StringFromGUID2(riid, riidString, ARRAYSIZE(riidString));
 
 	LOG(INFO) << "Redirecting '" << "CreateDXGIFactory2" << "(" << flags << ", " << riidString << ", " << ppFactory << ")' ...";
+
+#ifdef _DEBUG
+	flags |= DXGI_CREATE_FACTORY_DEBUG;
+#endif
 
 	const HRESULT hr = ReShade::Hooks::Call(&CreateDXGIFactory2)(flags, riid, ppFactory);
 

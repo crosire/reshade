@@ -20,7 +20,7 @@ namespace ReShade
 			void OnReset() override;
 			void OnResetEffect() override;
 			void OnPresent() override;
-			void OnDrawCall(ID3D11DeviceContext *context, UINT vertices);
+			void OnDrawCall(ID3D11DeviceContext *context, unsigned int vertices);
 			void OnApplyEffect() override;
 			void OnApplyEffectTechnique(const Technique *technique) override;
 			void OnCreateDepthStencilView(ID3D11Resource *resource, ID3D11DepthStencilView *depthstencil);

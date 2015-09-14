@@ -3,6 +3,7 @@
 #include "Runtime.hpp"
 
 #include <d3d12.h>
+#include <dxgi1_4.h>
 
 namespace ReShade
 {
@@ -11,14 +12,13 @@ namespace ReShade
 		class D3D12Runtime : public Runtime
 		{
 		public:
-			D3D12Runtime(ID3D12Device *device, ID3D12CommandQueue *queue, IDXGISwapChain *swapchain);
+			D3D12Runtime(ID3D12Device *device, ID3D12CommandQueue *queue, IDXGISwapChain3 *swapchain);
 			~D3D12Runtime();
 
 			bool OnInit(const DXGI_SWAP_CHAIN_DESC &desc);
 			void OnReset() override;
 			void OnResetEffect() override;
 			void OnPresent() override;
-			void OnDrawCall(ID3D12CommandList *list, UINT vertices);
 			void OnApplyEffect() override;
 			void OnApplyEffectTechnique(const Technique *technique) override;
 
@@ -28,9 +28,7 @@ namespace ReShade
 
 			ID3D12Device *mDevice;
 			ID3D12CommandQueue *mCommandQueue;
-			IDXGISwapChain *mSwapChain;
-
-		private:
+			IDXGISwapChain3 *mSwapChain;
 		};
 	}
 }
