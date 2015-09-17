@@ -533,7 +533,11 @@ MH_STATUS WINAPI MH_CreateHook(LPVOID pTarget, LPVOID pDetour, LPVOID *ppOrigina
 
         pos = FindHookEntry(pTarget);
         if (pos != INVALID_HOOK_POS)
+        {
+            if (ppOriginal != NULL)
+                *ppOriginal = g_hooks.pItems[pos].pTrampoline;;
             return MH_ERROR_ALREADY_CREATED;
+        }
 
         pBuffer = AllocateBuffer(pTarget);
         if (pBuffer == NULL)
