@@ -83,39 +83,39 @@ namespace ReShade
 		}
 
 		template <typename T>
-		const T As(std::size_t index = 0) const;
+		const T As(size_t index = 0) const;
 		template <>
-		inline const bool As(std::size_t i) const
+		inline const bool As(size_t i) const
 		{
 			return As<int>(i) != 0 || (this->mValue[i] == "true" || this->mValue[i] == "True" || this->mValue[i] == "TRUE");
 		}
 		template <>
-		inline const int As(std::size_t i) const
+		inline const int As(size_t i) const
 		{
 			return static_cast<int>(std::strtol(this->mValue[i].c_str(), nullptr, 10));
 		}
 		template <>
-		inline const unsigned int As(std::size_t i) const
+		inline const unsigned int As(size_t i) const
 		{
 			return static_cast<unsigned int>(std::strtoul(this->mValue[i].c_str(), nullptr, 10));
 		}
 		template <>
-		inline const float As(std::size_t i) const
+		inline const float As(size_t i) const
 		{
 			return static_cast<float>(std::strtod(this->mValue[i].c_str(), nullptr));
 		}
 		template <>
-		inline const double As(std::size_t i) const
+		inline const double As(size_t i) const
 		{
 			return std::strtod(this->mValue[i].c_str(), nullptr);
 		}
 		template <>
-		inline const std::string As(std::size_t i) const
+		inline const std::string As(size_t i) const
 		{
 			return this->mValue[i];
 		}
 		template <>
-		inline const char *const As(std::size_t i) const
+		inline const char *const As(size_t i) const
 		{
 			return this->mValue[i].c_str();
 		}
@@ -154,7 +154,7 @@ namespace ReShade
 		std::string Name;
 		unsigned int Width, Height, Levels;
 		PixelFormat Format;
-		std::size_t StorageSize;
+		size_t StorageSize;
 		std::unordered_map<std::string, Annotation> Annotations;
 	};
 	struct Uniform
@@ -173,7 +173,7 @@ namespace ReShade
 		std::string Name;
 		Type BaseType;
 		unsigned int Rows, Columns, Elements;
-		std::size_t StorageOffset, StorageSize;
+		size_t StorageOffset, StorageSize;
 		std::unordered_map<std::string, Annotation> Annotations;
 	};
 	struct Technique abstract
@@ -282,29 +282,29 @@ namespace ReShade
 		/// <param name="texture">The texture to update.</param>
 		/// <param name="data">The image data to update the texture to.</param>
 		/// <param name="size">The size of the image in <paramref name="data"/>.</param>
-		virtual bool UpdateTexture(Texture *texture, const unsigned char *data, std::size_t size) = 0;
+		virtual bool UpdateTexture(Texture *texture, const unsigned char *data, size_t size) = 0;
 		/// <summary>
 		/// Get the value of the specified <paramref name="variable"/>.
 		/// </summary>
 		/// <param name="variable">The variable to retrieve the value from.</param>
 		/// <param name="data">The buffer to store the value in.</param>
 		/// <param name="size">The size of the buffer in <paramref name="data"/>.</param>
-		void GetEffectValue(const Uniform &variable, unsigned char *data, std::size_t size) const;
-		void GetEffectValue(const Uniform &variable, bool *values, std::size_t count) const;
-		void GetEffectValue(const Uniform &variable, int *values, std::size_t count) const;
-		void GetEffectValue(const Uniform &variable, unsigned int *values, std::size_t count) const;
-		void GetEffectValue(const Uniform &variable, float *values, std::size_t count) const;
+		void GetEffectValue(const Uniform &variable, unsigned char *data, size_t size) const;
+		void GetEffectValue(const Uniform &variable, bool *values, size_t count) const;
+		void GetEffectValue(const Uniform &variable, int *values, size_t count) const;
+		void GetEffectValue(const Uniform &variable, unsigned int *values, size_t count) const;
+		void GetEffectValue(const Uniform &variable, float *values, size_t count) const;
 		/// <summary>
 		/// Update the value of the specified <paramref name="variable"/>.
 		/// </summary>
 		/// <param name="variable">The variable to update.</param>
 		/// <param name="data">The value data to update the variable to.</param>
 		/// <param name="size">The size of the value in <paramref name="data"/>.</param>
-		virtual void SetEffectValue(Uniform &variable, const unsigned char *data, std::size_t size);
-		void SetEffectValue(Uniform &variable, const bool *values, std::size_t count);
-		void SetEffectValue(Uniform &variable, const int *values, std::size_t count);
-		void SetEffectValue(Uniform &variable, const unsigned int *values, std::size_t count);
-		void SetEffectValue(Uniform &variable, const float *values, std::size_t count);
+		virtual void SetEffectValue(Uniform &variable, const unsigned char *data, size_t size);
+		void SetEffectValue(Uniform &variable, const bool *values, size_t count);
+		void SetEffectValue(Uniform &variable, const int *values, size_t count);
+		void SetEffectValue(Uniform &variable, const unsigned int *values, size_t count);
+		void SetEffectValue(Uniform &variable, const float *values, size_t count);
 
 		bool mIsInitialized, mIsEffectCompiled;
 		unsigned int mWidth, mHeight;

@@ -12,8 +12,11 @@ namespace ReShade
 	{
 		class Parser
 		{
+			Parser(const Parser &);
+			Parser &operator=(const Parser &);
+
 		public:
-			Parser(NodeTree &ast);
+			explicit Parser(NodeTree &ast);
 
 			bool Parse(const std::string &source, std::string &errors);
 
@@ -21,8 +24,8 @@ namespace ReShade
 			void Backup();
 			void Restore();
 
-			bool Peek(Lexer::Token::Id token);
-			inline bool Peek(char token)
+			bool Peek(Lexer::Token::Id token) const;
+			inline bool Peek(char token) const
 			{
 				return Peek(static_cast<Lexer::Token::Id>(token));
 			}
@@ -55,7 +58,7 @@ namespace ReShade
 			// Expressions
 			bool AcceptUnaryOp(Nodes::Unary::Op &op);
 			bool AcceptPostfixOp(Nodes::Unary::Op &op);
-			bool PeekMultaryOp(Nodes::Binary::Op &op, unsigned int &precedence);
+			bool PeekMultaryOp(Nodes::Binary::Op &op, unsigned int &precedence) const;
 			bool AcceptAssignmentOp(Nodes::Assignment::Op &op);
 			bool ParseExpression(Nodes::Expression *&expression);
 			bool ParseExpressionUnary(Nodes::Expression *&expression);
@@ -107,9 +110,6 @@ namespace ReShade
 			std::string mCurrentNamespace;
 			std::stack<Symbol *> mParentStack;
 			std::unordered_map<std::string, std::vector<std::pair<Scope, Symbol *>>> mSymbolStack;
-
-			Parser(const Parser &);
-			void operator=(const Parser &);
 		};
 	}
 }

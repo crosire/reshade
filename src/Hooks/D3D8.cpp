@@ -2915,7 +2915,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateVertexShader(CONST DWORD *pDecl
 		}
 
 		std::string source(static_cast<const char *>(disassembly->GetBufferPointer()), disassembly->GetBufferSize() - 1);
-		const std::size_t verpos = source.find("vs_1_");
+		const size_t verpos = source.find("vs_1_");
 
 		assert(verpos != std::string::npos);
 
@@ -2926,7 +2926,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateVertexShader(CONST DWORD *pDecl
 			source.replace(verpos, 6, "vs_1_1");
 		}
 
-		std::size_t declpos = verpos + 7;
+		size_t declpos = verpos + 7;
 
 		for (UINT k = 0; k < i; ++k)
 		{
@@ -2973,7 +2973,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateVertexShader(CONST DWORD *pDecl
 
 		source.insert(declpos, constants);
 
-		for (std::size_t i = 0; i < 2; ++i)
+		for (size_t i = 0; i < 2; ++i)
 		{
 			const std::string reg = "oD" + std::to_string(i);
 
@@ -2982,7 +2982,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateVertexShader(CONST DWORD *pDecl
 				source.insert(declpos + constants.size(), "    mov " + reg + ", c95 /* initialize output register " + reg + " */\n");
 			}
 		}
-		for (std::size_t i = 0; i < 8; ++i)
+		for (size_t i = 0; i < 8; ++i)
 		{
 			const std::string reg = "oT" + std::to_string(i);
 
@@ -2991,7 +2991,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateVertexShader(CONST DWORD *pDecl
 				source.insert(declpos + constants.size(), "    mov " + reg + ", c95 /* initialize output register " + reg + " */\n");
 			}
 		}
-		for (std::size_t i = 0; i < 12; ++i)
+		for (size_t i = 0; i < 12; ++i)
 		{
 			const std::string reg = "r" + std::to_string(i);
 
@@ -3291,7 +3291,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreatePixelShader(CONST DWORD *pFunct
 	}
 
 	std::string source(static_cast<const char *>(disassembly->GetBufferPointer()), disassembly->GetBufferSize() - 1);
-	const std::size_t verpos = source.find("ps_1_");
+	const size_t verpos = source.find("ps_1_");
 
 	assert(verpos != std::string::npos);
 

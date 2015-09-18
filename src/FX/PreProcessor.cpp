@@ -26,7 +26,7 @@ namespace ReShade
 				}
 				else
 				{
-					const std::size_t length = pp->mImpl->mOutput.size();
+					const size_t length = pp->mImpl->mOutput.size();
 
 					if (length > 7 && pp->mImpl->mOutput.substr(length - 7) == "#pragma")
 					{
@@ -47,7 +47,7 @@ namespace ReShade
 			std::vector<fppTag> mTags;
 			std::vector<std::string> mPragmas;
 			std::string mOutput, mErrors;
-			std::size_t mScratchCursor, mLastPragma;
+			size_t mScratchCursor, mLastPragma;
 			std::array<char, 16384> mScratch;
 		};
 
@@ -79,7 +79,7 @@ namespace ReShade
 		void PreProcessor::AddDefine(const std::string &name, const std::string &value)
 		{
 			const std::string define = name + (value.empty() ? "" : "=" + value);
-			const std::size_t size = define.length() + 1;
+			const size_t size = define.length() + 1;
 
 			assert(this->mImpl->mScratchCursor + size < this->mImpl->mScratch.size());
 
@@ -92,7 +92,7 @@ namespace ReShade
 		void PreProcessor::AddIncludePath(const boost::filesystem::path &path)
 		{
 			const std::string directory = path.string() + '\\';
-			const std::size_t size = directory.length() + 1;
+			const size_t size = directory.length() + 1;
 
 			assert(this->mImpl->mScratchCursor + size < this->mImpl->mScratch.size());
 
@@ -142,11 +142,11 @@ namespace ReShade
 			pragmas.insert(pragmas.end(), this->mImpl->mPragmas.begin(), this->mImpl->mPragmas.end());
 
 			// Add included files
-			std::size_t pos = 0;
+			size_t pos = 0;
 
 			while ((pos = this->mImpl->mErrors.find("Included", pos)) != std::string::npos)
 			{
-				const std::size_t begin = this->mImpl->mErrors.find_first_of('"', pos) + 1, end = this->mImpl->mErrors.find_first_of('"', begin);
+				const size_t begin = this->mImpl->mErrors.find_first_of('"', pos) + 1, end = this->mImpl->mErrors.find_first_of('"', begin);
 				const boost::filesystem::path include = boost::filesystem::canonical(this->mImpl->mErrors.substr(begin, end - begin)).make_preferred();
 
 				this->mImpl->mErrors.erase(pos, 12 + end - begin);

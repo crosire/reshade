@@ -150,7 +150,7 @@ namespace ReShade
 				}
 
 				Source DataSource;
-				std::size_t ShaderRegister;
+				size_t ShaderRegister;
 				ID3D10Texture2D *TextureInterface;
 				ID3D10ShaderResourceView *ShaderResourceView[2];
 				ID3D10RenderTargetView *RenderTargetView[2];
@@ -343,12 +343,12 @@ namespace ReShade
 							return format;
 					}
 				}
-				static std::size_t D3D10_SAMPLER_DESC_HASH(const D3D10_SAMPLER_DESC &s) 
+				static size_t D3D10_SAMPLER_DESC_HASH(const D3D10_SAMPLER_DESC &s) 
 				{
 					const unsigned char *p = reinterpret_cast<const unsigned char *>(&s);
-					std::size_t h = 2166136261;
+					size_t h = 2166136261;
 
-					for (std::size_t i = 0; i < sizeof(D3D10_SAMPLER_DESC); ++i)
+					for (size_t i = 0; i < sizeof(D3D10_SAMPLER_DESC); ++i)
 					{
 						h = (h * 16777619) ^ p[i];
 					}
@@ -1781,7 +1781,7 @@ namespace ReShade
 						return;
 					}
 
-					const std::size_t descHash = D3D10_SAMPLER_DESC_HASH(desc);
+					const size_t descHash = D3D10_SAMPLER_DESC_HASH(desc);
 					auto it = this->mSamplerDescs.find(descHash);
 
 					if (it == this->mSamplerDescs.end())
@@ -2215,7 +2215,7 @@ namespace ReShade
 				std::string mCurrentSource;
 				std::string mErrors;
 				bool mFatal, mSkipShaderOptimization;
-				std::unordered_map<std::size_t, std::size_t> mSamplerDescs;
+				std::unordered_map<size_t, size_t> mSamplerDescs;
 				std::string mCurrentGlobalConstants;
 				UINT mCurrentGlobalSize, mCurrentInForInitialization;
 				bool mCurrentInParameterBlock, mCurrentInFunctionBlock;
@@ -3110,7 +3110,7 @@ namespace ReShade
 
 			return visitor.Traverse(this, errors);
 		}
-		bool D3D10Runtime::UpdateTexture(Texture *texture, const unsigned char *data, std::size_t size)
+		bool D3D10Runtime::UpdateTexture(Texture *texture, const unsigned char *data, size_t size)
 		{
 			D3D10Texture *textureImpl = dynamic_cast<D3D10Texture *>(texture);
 

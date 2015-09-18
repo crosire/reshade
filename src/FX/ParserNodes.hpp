@@ -100,12 +100,12 @@ namespace ReShade
 				template <typename T>
 				T *Add()
 				{
-					const std::size_t size = sizeof(Node) + sizeof(T);
+					const size_t size = sizeof(Node) + sizeof(T);
 					std::list<Page>::iterator page = std::find_if(this->mPages.begin(), this->mPages.end(), [size](const Page &page) { return page.Cursor + size < page.Nodes.size(); });
 
 					if (page == this->mPages.end())
 					{
-						this->mPages.push_back(Page(std::max(static_cast<std::size_t>(4096), size)));
+						this->mPages.push_back(Page(std::max(static_cast<size_t>(4096), size)));
 
 						page = std::prev(this->mPages.end());
 					}
@@ -137,11 +137,11 @@ namespace ReShade
 			private:
 				struct Page
 				{
-					Page(std::size_t size) : Cursor(0), Nodes(size, 0)
+					Page(size_t size) : Cursor(0), Nodes(size, 0)
 					{
 					}
 
-					std::size_t Cursor;
+					size_t Cursor;
 					std::vector<unsigned char> Nodes;
 				};
 				struct Node
@@ -152,7 +152,7 @@ namespace ReShade
 						reinterpret_cast<T *>(object)->~T();
 					}
 
-					std::size_t Size;
+					size_t Size;
 					void(*Destructor)(void *);
 					unsigned char Data[1];
 				};

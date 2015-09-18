@@ -86,7 +86,7 @@ namespace ReShade
 
 			void Screenshot(unsigned char *buffer) const override;
 			bool UpdateEffect(const FX::NodeTree &ast, const std::vector<std::string> &pragmas, std::string &errors) override;
-			bool UpdateTexture(Texture *texture, const unsigned char *data, std::size_t size) override;
+			bool UpdateTexture(Texture *texture, const unsigned char *data, size_t size) override;
 
 			void DetectDepthSource();
 			bool CreateDepthStencilReplacement(ID3D11DepthStencilView *depthstencil);

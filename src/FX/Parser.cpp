@@ -370,7 +370,7 @@ namespace ReShade
 			};
 			#pragma endregion
 
-			void ScalarLiteralCast(const Nodes::Literal *from, std::size_t i, int &to)
+			void ScalarLiteralCast(const Nodes::Literal *from, size_t i, int &to)
 			{
 				switch (from->Type.BaseClass)
 				{
@@ -382,9 +382,12 @@ namespace ReShade
 					case Nodes::Type::Class::Float:
 						to = static_cast<int>(from->Value.Float[i]);
 						break;
+					default:
+						to = 0;
+						break;
 				}
 			}
-			void ScalarLiteralCast(const Nodes::Literal *from, std::size_t i, unsigned int &to)
+			void ScalarLiteralCast(const Nodes::Literal *from, size_t i, unsigned int &to)
 			{
 				switch (from->Type.BaseClass)
 				{
@@ -396,9 +399,12 @@ namespace ReShade
 					case Nodes::Type::Class::Float:
 						to = static_cast<unsigned int>(from->Value.Float[i]);
 						break;
+					default:
+						to = 0;
+						break;
 				}
 			}
-			void ScalarLiteralCast(const Nodes::Literal *from, std::size_t i, float &to)
+			void ScalarLiteralCast(const Nodes::Literal *from, size_t i, float &to)
 			{
 				switch (from->Type.BaseClass)
 				{
@@ -412,9 +418,12 @@ namespace ReShade
 					case Nodes::Type::Class::Float:
 						to = from->Value.Float[i];
 						break;
+					default:
+						to = 0;
+						break;
 				}
 			}
-			void VectorLiteralCast(const Nodes::Literal *from, std::size_t k, Nodes::Literal *to, std::size_t j)
+			void VectorLiteralCast(const Nodes::Literal *from, size_t k, Nodes::Literal *to, size_t j)
 			{
 				switch (to->Type.BaseClass)
 				{
@@ -427,6 +436,9 @@ namespace ReShade
 						break;
 					case Nodes::Type::Class::Float:
 						ScalarLiteralCast(from, j, to->Value.Float[k]);
+						break;
+					default:
+						to->Value = from->Value;
 						break;
 				}
 			}
@@ -477,7 +489,7 @@ namespace ReShade
 			}
 			bool GetCallRanks(const Nodes::Call *call, const Nodes::Function *function, unsigned int ranks[])
 			{
-				for (std::size_t i = 0, count = call->Arguments.size(); i < count; ++i)
+				for (size_t i = 0, count = call->Arguments.size(); i < count; ++i)
 				{
 					ranks[i] = GetTypeRank(call->Arguments[i]->Type, function->Parameters[i]->Type);
 
@@ -497,7 +509,7 @@ namespace ReShade
 					return -1;
 				}
 
-				const std::size_t count = call->Arguments.size();
+				const size_t count = call->Arguments.size();
 
 				unsigned int *const function1Ranks = static_cast<unsigned int *>(alloca(count * sizeof(unsigned int)));
 				unsigned int *const function2Ranks = static_cast<unsigned int *>(alloca(count * sizeof(unsigned int)));
@@ -512,7 +524,7 @@ namespace ReShade
 				std::sort(function1Ranks, function1Ranks + count, std::greater<unsigned int>());
 				std::sort(function2Ranks, function2Ranks + count, std::greater<unsigned int>());
 
-				for (std::size_t i = 0; i < count; ++i)
+				for (size_t i = 0; i < count; ++i)
 				{
 					if (function1Ranks[i] < function2Ranks[i])
 					{
@@ -543,7 +555,7 @@ namespace ReShade
 			this->mNextToken = this->mBackupToken;
 		}
 
-		bool Parser::Peek(Lexer::Token::Id token)
+		bool Parser::Peek(Lexer::Token::Id token) const
 		{
 			return this->mNextToken == token;
 		}
@@ -974,7 +986,7 @@ namespace ReShade
 			{
 				return false;
 			}
-			else if ((type.Qualifiers & qualifiers) == qualifiers)
+			if ((type.Qualifiers & qualifiers) == qualifiers)
 			{
 				Warning(this->mToken.GetLocation(), 3048, "duplicate usages specified");
 			}
@@ -1062,7 +1074,7 @@ namespace ReShade
 
 			return true;
 		}
-		bool Parser::PeekMultaryOp(Nodes::Binary::Op &op, unsigned int &precedence)
+		bool Parser::PeekMultaryOp(Nodes::Binary::Op &op, unsigned int &precedence) const
 		{
 			switch (this->mNextToken)
 			{
@@ -1260,7 +1272,7 @@ namespace ReShade
 						return false;
 					}
 
-					Nodes::Unary *const newexpression = this->mAST.CreateNode<Nodes::Unary>(location);
+					const auto newexpression = this->mAST.CreateNode<Nodes::Unary>(location);
 					newexpression->Type = node->Type;
 					newexpression->Operator = op;
 					newexpression->Operand = node;
@@ -1305,7 +1317,7 @@ namespace ReShade
 								Warning(location, 3206, "implicit truncation of vector type");
 							}
 
-							Nodes::Unary *const castexpression = this->mAST.CreateNode<Nodes::Unary>(location);
+							const auto castexpression = this->mAST.CreateNode<Nodes::Unary>(location);
 							type.Qualifiers = Nodes::Type::Qualifier::Const;
 							castexpression->Type = type;
 							castexpression->Operator = Nodes::Unary::Op::Cast;
@@ -1342,7 +1354,7 @@ namespace ReShade
 			}
 			else if (Accept(Lexer::Token::Id::True))
 			{
-				Nodes::Literal *const literal = this->mAST.CreateNode<Nodes::Literal>(location);
+				const auto literal = this->mAST.CreateNode<Nodes::Literal>(location);
 				literal->Type.BaseClass = Nodes::Type::Class::Bool;
 				literal->Type.Qualifiers = Nodes::Type::Qualifier::Const;
 				literal->Type.Rows = literal->Type.Cols = 1, literal->Type.ArrayLength = 0;
@@ -1353,7 +1365,7 @@ namespace ReShade
 			}
 			else if (Accept(Lexer::Token::Id::False))
 			{
-				Nodes::Literal *const literal = this->mAST.CreateNode<Nodes::Literal>(location);
+				const auto literal = this->mAST.CreateNode<Nodes::Literal>(location);
 				literal->Type.BaseClass = Nodes::Type::Class::Bool;
 				literal->Type.Qualifiers = Nodes::Type::Qualifier::Const;
 				literal->Type.Rows = literal->Type.Cols = 1, literal->Type.ArrayLength = 0;
@@ -1375,7 +1387,7 @@ namespace ReShade
 			}
 			else if (Accept(Lexer::Token::Id::UintLiteral))
 			{
-				Nodes::Literal *const literal = this->mAST.CreateNode<Nodes::Literal>(location);
+				const auto literal = this->mAST.CreateNode<Nodes::Literal>(location);
 				literal->Type.BaseClass = Nodes::Type::Class::Uint;
 				literal->Type.Qualifiers = Nodes::Type::Qualifier::Const;
 				literal->Type.Rows = literal->Type.Cols = 1, literal->Type.ArrayLength = 0;
@@ -1386,7 +1398,7 @@ namespace ReShade
 			}
 			else if (Accept(Lexer::Token::Id::FloatLiteral))
 			{
-				Nodes::Literal *const literal = this->mAST.CreateNode<Nodes::Literal>(location);
+				const auto literal = this->mAST.CreateNode<Nodes::Literal>(location);
 				literal->Type.BaseClass = Nodes::Type::Class::Float;
 				literal->Type.Qualifiers = Nodes::Type::Qualifier::Const;
 				literal->Type.Rows = literal->Type.Cols = 1, literal->Type.ArrayLength = 0;
@@ -1397,7 +1409,7 @@ namespace ReShade
 			}
 			else if (Accept(Lexer::Token::Id::DoubleLiteral))
 			{
-				Nodes::Literal *const literal = this->mAST.CreateNode<Nodes::Literal>(location);
+				const auto literal = this->mAST.CreateNode<Nodes::Literal>(location);
 				literal->Type.BaseClass = Nodes::Type::Class::Float;
 				literal->Type.Qualifiers = Nodes::Type::Qualifier::Const;
 				literal->Type.Rows = literal->Type.Cols = 1, literal->Type.ArrayLength = 0;
@@ -1408,7 +1420,7 @@ namespace ReShade
 			}
 			else if (Accept(Lexer::Token::Id::StringLiteral))
 			{
-				Nodes::Literal *const literal = this->mAST.CreateNode<Nodes::Literal>(location);
+				const auto literal = this->mAST.CreateNode<Nodes::Literal>(location);
 				literal->Type.BaseClass = Nodes::Type::Class::String;
 				literal->Type.Qualifiers = Nodes::Type::Qualifier::Const;
 				literal->Type.Rows = literal->Type.Cols = 0, literal->Type.ArrayLength = 0;
@@ -1443,7 +1455,7 @@ namespace ReShade
 					return false;
 				}
 
-				Nodes::Constructor *const constructor = this->mAST.CreateNode<Nodes::Constructor>(location);
+				const auto constructor = this->mAST.CreateNode<Nodes::Constructor>(location);
 				constructor->Type = type;
 				constructor->Type.Qualifiers = Nodes::Type::Qualifier::Const;
 
@@ -1494,7 +1506,7 @@ namespace ReShade
 				}
 				else
 				{
-					Nodes::Unary *const castexpression = this->mAST.CreateNode<Nodes::Unary>(constructor->Location);
+					const auto castexpression = this->mAST.CreateNode<Nodes::Unary>(constructor->Location);
 					castexpression->Type = type;
 					castexpression->Operator = Nodes::Unary::Op::Cast;
 					castexpression->Operand = constructor->Arguments[0];
@@ -1551,7 +1563,7 @@ namespace ReShade
 						return false;
 					}
 
-					Nodes::Call *const callexpression = this->mAST.CreateNode<Nodes::Call>(location);
+					const auto callexpression = this->mAST.CreateNode<Nodes::Call>(location);
 					callexpression->CalleeName = identifier;
 
 					while (!Peek(')'))
@@ -1598,11 +1610,11 @@ namespace ReShade
 
 					if (intrinsic)
 					{
-						Nodes::Intrinsic *const newexpression = this->mAST.CreateNode<Nodes::Intrinsic>(callexpression->Location);
+						const auto newexpression = this->mAST.CreateNode<Nodes::Intrinsic>(callexpression->Location);
 						newexpression->Type = callexpression->Type;
 						newexpression->Operator = static_cast<Nodes::Intrinsic::Op>(reinterpret_cast<unsigned int>(callexpression->Callee));
 
-						for (std::size_t i = 0, count = std::min(callexpression->Arguments.size(), sizeof(newexpression->Arguments) / sizeof(*newexpression->Arguments)); i < count; ++i)
+						for (size_t i = 0, count = std::min(callexpression->Arguments.size(), sizeof(newexpression->Arguments) / sizeof(*newexpression->Arguments)); i < count; ++i)
 						{
 							newexpression->Arguments[i] = callexpression->Arguments[i];
 						}
@@ -1641,7 +1653,7 @@ namespace ReShade
 						return false;
 					}
 
-					Nodes::LValue *const newexpression = this->mAST.CreateNode<Nodes::LValue>(location);
+					const auto newexpression = this->mAST.CreateNode<Nodes::LValue>(location);
 					newexpression->Reference = static_cast<const Nodes::Variable *>(symbol);
 					newexpression->Type = newexpression->Reference->Type;
 
@@ -1672,7 +1684,7 @@ namespace ReShade
 						return false;
 					}
 
-					Nodes::Unary *const newexpression = this->mAST.CreateNode<Nodes::Unary>(location);
+					const auto newexpression = this->mAST.CreateNode<Nodes::Unary>(location);
 					newexpression->Type = type;
 					newexpression->Type.Qualifiers |= Nodes::Type::Qualifier::Const;
 					newexpression->Operator = op;
@@ -1689,7 +1701,7 @@ namespace ReShade
 					}
 
 					location = this->mToken.GetLocation();
-					const std::string subscript = this->mToken.GetRawData();
+					const auto subscript = this->mToken.GetRawData();
 
 					if (Accept('('))
 					{
@@ -1712,7 +1724,7 @@ namespace ReShade
 					}
 					else if (type.IsVector())
 					{
-						const std::size_t length = subscript.size();
+						const size_t length = subscript.size();
 
 						if (length > 4)
 						{
@@ -1725,7 +1737,7 @@ namespace ReShade
 						signed char offsets[4] = { -1, -1, -1, -1 };
 						enum { xyzw, rgba, stpq } set[4];
 
-						for (std::size_t i = 0; i < length; ++i)
+						for (size_t i = 0; i < length; ++i)
 						{
 							switch (subscript[i])
 							{
@@ -1759,7 +1771,7 @@ namespace ReShade
 								return false;
 							}
 
-							for (std::size_t k = 0; k < i; ++k)
+							for (size_t k = 0; k < i; ++k)
 							{
 								if (offsets[k] == offsets[i])
 								{
@@ -1769,7 +1781,7 @@ namespace ReShade
 							}
 						}
 
-						Nodes::Swizzle *const newexpression = this->mAST.CreateNode<Nodes::Swizzle>(location);
+						const auto newexpression = this->mAST.CreateNode<Nodes::Swizzle>(location);
 						newexpression->Type = type;
 						newexpression->Type.Rows = static_cast<unsigned int>(length);
 						newexpression->Operand = node;
@@ -1789,7 +1801,7 @@ namespace ReShade
 					}
 					else if (type.IsMatrix())
 					{
-						const std::size_t length = subscript.size();
+						const size_t length = subscript.size();
 
 						if (length < 3)
 						{
@@ -1803,7 +1815,7 @@ namespace ReShade
 						const unsigned int set = subscript[1] == 'm';
 						const char coefficient = static_cast<char>(!set);
 
-						for (std::size_t i = 0, j = 0; i < length; i += 3 + set, ++j)
+						for (size_t i = 0, j = 0; i < length; i += 3 + set, ++j)
 						{
 							if (subscript[i] != '_' || subscript[i + set + 1] < '0' + coefficient || subscript[i + set + 1] > '3' + coefficient || subscript[i + set + 2] < '0' + coefficient || subscript[i + set + 2] > '3' + coefficient)
 							{
@@ -1830,7 +1842,7 @@ namespace ReShade
 
 							offsets[j] = static_cast<unsigned char>(row * 4 + col);
 
-							for (std::size_t k = 0; k < j; ++k)
+							for (size_t k = 0; k < j; ++k)
 							{
 								if (offsets[k] == offsets[j])
 								{
@@ -1840,7 +1852,7 @@ namespace ReShade
 							}
 						}
 
-						Nodes::Swizzle *const newexpression = this->mAST.CreateNode<Nodes::Swizzle>(this->mToken.GetLocation());
+						const auto newexpression = this->mAST.CreateNode<Nodes::Swizzle>(this->mToken.GetLocation());
 						newexpression->Type = type;
 						newexpression->Type.Rows = static_cast<unsigned int>(length / (3 + set));
 						newexpression->Type.Cols = 1;
@@ -1863,7 +1875,7 @@ namespace ReShade
 					{
 						Nodes::Variable *field = nullptr;
 
-						for (Nodes::Variable *currfield : type.Definition->Fields)
+						for (auto currfield : type.Definition->Fields)
 						{
 							if (currfield->Name == subscript)
 							{
@@ -1879,7 +1891,7 @@ namespace ReShade
 							return false;
 						}
 
-						Nodes::FieldSelection *const newexpression = this->mAST.CreateNode<Nodes::FieldSelection>(location);
+						const auto newexpression = this->mAST.CreateNode<Nodes::FieldSelection>(location);
 						newexpression->Type = field->Type;
 						newexpression->Operand = node;
 						newexpression->Field = field;
@@ -1896,9 +1908,9 @@ namespace ReShade
 					else if (type.IsScalar())
 					{
 						signed char offsets[4] = { -1, -1, -1, -1 };
-						const std::size_t length = subscript.size();
+						const size_t length = subscript.size();
 
-						for (std::size_t i = 0; i < length; ++i)
+						for (size_t i = 0; i < length; ++i)
 						{
 							if ((subscript[i] != 'x' && subscript[i] != 'r' && subscript[i] != 's') || i > 3)
 							{
@@ -1910,7 +1922,7 @@ namespace ReShade
 							offsets[i] = 0;
 						}
 
-						Nodes::Swizzle *const newexpression = this->mAST.CreateNode<Nodes::Swizzle>(location);
+						const auto newexpression = this->mAST.CreateNode<Nodes::Swizzle>(location);
 						newexpression->Type = type;
 						newexpression->Type.Qualifiers |= Nodes::Type::Qualifier::Const;
 						newexpression->Type.Rows = static_cast<unsigned int>(length);
@@ -1939,7 +1951,7 @@ namespace ReShade
 						return false;
 					}
 
-					Nodes::Binary *const newexpression = this->mAST.CreateNode<Nodes::Binary>(location);
+					const auto newexpression = this->mAST.CreateNode<Nodes::Binary>(location);
 					newexpression->Type = type;
 					newexpression->Operator = Nodes::Binary::Op::ElementExtract;
 					newexpression->Operands[0] = node;
@@ -1999,17 +2011,15 @@ namespace ReShade
 
 			while (PeekMultaryOp(op, rightPrecedence))
 			{
-				bool boolean = false;
-				Nodes::Expression *right1 = nullptr, *right2 = nullptr;
-
 				if (rightPrecedence <= leftPrecedence)
 				{
 					break;
 				}
-				else
-				{
-					Consume();
-				}
+
+				Consume();
+
+				bool boolean = false;
+				Nodes::Expression *right1 = nullptr, *right2 = nullptr;
 
 				if (op != Nodes::Binary::Op::None)
 				{
@@ -2062,7 +2072,7 @@ namespace ReShade
 						}
 					}
 
-					Nodes::Binary *const newexpression = this->mAST.CreateNode<Nodes::Binary>(left->Location);
+					const auto newexpression = this->mAST.CreateNode<Nodes::Binary>(left->Location);
 					newexpression->Operator = op;
 					newexpression->Operands[0] = left;
 					newexpression->Operands[1] = right1;
@@ -2091,7 +2101,7 @@ namespace ReShade
 						return false;
 					}
 
-					Nodes::Conditional *const newexpression = this->mAST.CreateNode<Nodes::Conditional>(left->Location);
+					const auto newexpression = this->mAST.CreateNode<Nodes::Conditional>(left->Location);
 					newexpression->Condition = left;
 					newexpression->ExpressionOnTrue = right1;
 					newexpression->ExpressionOnFalse = right2;
@@ -2170,7 +2180,7 @@ namespace ReShade
 					Warning(right->Location, 3206, "implicit truncation of vector type");
 				}
 
-				Nodes::Assignment *const assignment = this->mAST.CreateNode<Nodes::Assignment>(left->Location);
+				const auto assignment = this->mAST.CreateNode<Nodes::Assignment>(left->Location);
 				assignment->Type = left->Type;
 				assignment->Operator = op;
 				assignment->Left = left;
@@ -2192,7 +2202,7 @@ namespace ReShade
 			{
 				if (Expect(Lexer::Token::Id::Identifier))
 				{
-					const std::string attribute = this->mToken.GetRawData();
+					const auto attribute = this->mToken.GetRawData();
 
 					if (Expect(']'))
 					{
@@ -2227,7 +2237,7 @@ namespace ReShade
 			#pragma region If
 			if (Accept(Lexer::Token::Id::If))
 			{
-				Nodes::If *const newstatement = this->mAST.CreateNode<Nodes::If>(this->mToken.GetLocation());
+				const auto newstatement = this->mAST.CreateNode<Nodes::If>(this->mToken.GetLocation());
 				newstatement->Attributes = attributes;
 
 				if (!(Expect('(') && ParseExpression(newstatement->Condition) && Expect(')')))
@@ -2261,7 +2271,7 @@ namespace ReShade
 			#pragma region Switch
 			if (Accept(Lexer::Token::Id::Switch))
 			{
-				Nodes::Switch *const newstatement = this->mAST.CreateNode<Nodes::Switch>(this->mToken.GetLocation());
+				const auto newstatement = this->mAST.CreateNode<Nodes::Switch>(this->mToken.GetLocation());
 				newstatement->Attributes = attributes;
 
 				if (!(Expect('(') && ParseExpression(newstatement->Test) && Expect(')')))
@@ -2283,7 +2293,7 @@ namespace ReShade
 
 				while (!Peek('}') && !Peek(Lexer::Token::Id::EndOfStream))
 				{
-					Nodes::Case *const casenode = this->mAST.CreateNode<Nodes::Case>(Location());
+					const auto casenode = this->mAST.CreateNode<Nodes::Case>(Location());
 
 					while (Accept(Lexer::Token::Id::Case) || Accept(Lexer::Token::Id::Default))
 					{
@@ -2345,7 +2355,7 @@ namespace ReShade
 			#pragma region For
 			if (Accept(Lexer::Token::Id::For))
 			{
-				Nodes::For *const newstatement = this->mAST.CreateNode<Nodes::For>(this->mToken.GetLocation());
+				const auto newstatement = this->mAST.CreateNode<Nodes::For>(this->mToken.GetLocation());
 				newstatement->Attributes = attributes;
 
 				if (!Expect('('))
@@ -2361,7 +2371,7 @@ namespace ReShade
 
 					if (ParseExpression(expression))
 					{
-						Nodes::ExpressionStatement *const initialization = this->mAST.CreateNode<Nodes::ExpressionStatement>(expression->Location);
+						const auto initialization = this->mAST.CreateNode<Nodes::ExpressionStatement>(expression->Location);
 						initialization->Expression = expression;
 
 						newstatement->Initialization = initialization;
@@ -2418,7 +2428,7 @@ namespace ReShade
 			#pragma region While
 			if (Accept(Lexer::Token::Id::While))
 			{
-				Nodes::While *const newstatement = this->mAST.CreateNode<Nodes::While>(this->mToken.GetLocation());
+				const auto newstatement = this->mAST.CreateNode<Nodes::While>(this->mToken.GetLocation());
 				newstatement->Attributes = attributes;
 				newstatement->DoWhile = false;
 
@@ -2458,7 +2468,7 @@ namespace ReShade
 			#pragma region DoWhile
 			if (Accept(Lexer::Token::Id::Do))
 			{
-				Nodes::While *const newstatement = this->mAST.CreateNode<Nodes::While>(this->mToken.GetLocation());
+				const auto newstatement = this->mAST.CreateNode<Nodes::While>(this->mToken.GetLocation());
 				newstatement->Attributes = attributes;
 				newstatement->DoWhile = true;
 
@@ -2483,7 +2493,7 @@ namespace ReShade
 			#pragma region Break
 			if (Accept(Lexer::Token::Id::Break))
 			{
-				Nodes::Jump *const newstatement = this->mAST.CreateNode<Nodes::Jump>(this->mToken.GetLocation());
+				const auto newstatement = this->mAST.CreateNode<Nodes::Jump>(this->mToken.GetLocation());
 				newstatement->Attributes = attributes;
 				newstatement->Mode = Nodes::Jump::Break;
 
@@ -2496,7 +2506,7 @@ namespace ReShade
 			#pragma region Continue
 			if (Accept(Lexer::Token::Id::Continue))
 			{
-				Nodes::Jump *const newstatement = this->mAST.CreateNode<Nodes::Jump>(this->mToken.GetLocation());
+				const auto newstatement = this->mAST.CreateNode<Nodes::Jump>(this->mToken.GetLocation());
 				newstatement->Attributes = attributes;
 				newstatement->Mode = Nodes::Jump::Continue;
 
@@ -2509,11 +2519,11 @@ namespace ReShade
 			#pragma region Return
 			if (Accept(Lexer::Token::Id::Return))
 			{
-				Nodes::Return *const newstatement = this->mAST.CreateNode<Nodes::Return>(this->mToken.GetLocation());
+				const auto newstatement = this->mAST.CreateNode<Nodes::Return>(this->mToken.GetLocation());
 				newstatement->Attributes = attributes;
 				newstatement->Discard = false;
 
-				const Nodes::Function *const parent = static_cast<const Nodes::Function *>(this->mParentStack.top());
+				const auto parent = static_cast<const Nodes::Function *>(this->mParentStack.top());
 
 				if (!Peek(';'))
 				{
@@ -2561,7 +2571,7 @@ namespace ReShade
 			#pragma region Discard
 			if (Accept(Lexer::Token::Id::Discard))
 			{
-				Nodes::Return *const newstatement = this->mAST.CreateNode<Nodes::Return>(this->mToken.GetLocation());
+				const auto newstatement = this->mAST.CreateNode<Nodes::Return>(this->mToken.GetLocation());
 				newstatement->Attributes = attributes;
 				newstatement->Discard = true;
 
@@ -2585,7 +2595,7 @@ namespace ReShade
 
 			if (ParseExpression(expression))
 			{
-				Nodes::ExpressionStatement *const newstatement = this->mAST.CreateNode<Nodes::ExpressionStatement>(expression->Location);
+				const auto newstatement = this->mAST.CreateNode<Nodes::ExpressionStatement>(expression->Location);
 				newstatement->Attributes = attributes;
 				newstatement->Expression = expression;
 
@@ -2606,7 +2616,7 @@ namespace ReShade
 				return false;
 			}
 
-			Nodes::Compound *const compound = this->mAST.CreateNode<Nodes::Compound>(this->mToken.GetLocation());
+			const auto compound = this->mAST.CreateNode<Nodes::Compound>(this->mToken.GetLocation());
 
 			if (scoped)
 			{
@@ -2615,9 +2625,9 @@ namespace ReShade
 
 			while (!Peek('}') && !Peek(Lexer::Token::Id::EndOfStream))
 			{
-				Nodes::Statement *statement = nullptr;
+				Nodes::Statement *compoundStatement = nullptr;
 
-				if (!ParseStatement(statement))
+				if (!ParseStatement(compoundStatement))
 				{
 					if (scoped)
 					{
@@ -2648,7 +2658,7 @@ namespace ReShade
 					return false;
 				}
 
-				compound->Statements.push_back(statement);
+				compound->Statements.push_back(compoundStatement);
 			}
 
 			if (scoped)
@@ -2672,7 +2682,7 @@ namespace ReShade
 			}
 
 			unsigned int count = 0;
-			Nodes::DeclaratorList *const declarators = this->mAST.CreateNode<Nodes::DeclaratorList>(location);
+			const auto declarators = this->mAST.CreateNode<Nodes::DeclaratorList>(location);
 
 			do
 			{
@@ -2829,7 +2839,7 @@ namespace ReShade
 				return false;
 			}
 
-			const std::string name = this->mToken.GetRawData();
+			const auto name = this->mToken.GetRawData();
 
 			if (!Expect('{'))
 			{
@@ -2867,7 +2877,7 @@ namespace ReShade
 
 					return true;
 				}
-				else if (ParseExpression(expression) && Expect(']'))
+				if (ParseExpression(expression) && Expect(']'))
 				{
 					if (expression->NodeId != Node::Id::Literal || !(expression->Type.IsScalar() && expression->Type.IsIntegral()))
 					{
@@ -3014,7 +3024,7 @@ namespace ReShade
 						return false;
 					}
 
-					Nodes::Variable *const field = this->mAST.CreateNode<Nodes::Variable>(this->mToken.GetLocation());
+					const auto field = this->mAST.CreateNode<Nodes::Variable>(this->mToken.GetLocation());
 					field->Name = this->mToken.GetRawData();
 					field->Type = type;
 
@@ -3089,7 +3099,7 @@ namespace ReShade
 					return false;
 				}
 
-				Nodes::Variable *const parameter = this->mAST.CreateNode<Nodes::Variable>(Location());
+				const auto parameter = this->mAST.CreateNode<Nodes::Variable>(Location());
 
 				if (!ParseType(parameter->Type))
 				{
@@ -3226,7 +3236,7 @@ namespace ReShade
 		}
 		bool Parser::ParseVariableResidue(Nodes::Type &type, const std::string &name, Nodes::Variable *&variable, bool global)
 		{
-			const Location location = this->mToken.GetLocation();
+			Location location = this->mToken.GetLocation();
 
 			if (type.IsVoid())
 			{
@@ -3234,7 +3244,7 @@ namespace ReShade
 
 				return false;
 			}
-			else if (type.HasQualifier(Nodes::Type::Qualifier::In) || type.HasQualifier(Nodes::Type::Qualifier::Out))
+			if (type.HasQualifier(Nodes::Type::Qualifier::In) || type.HasQualifier(Nodes::Type::Qualifier::Out))
 			{
 				Error(location, 3055, "variables cannot be declared 'in' or 'out'");
 
@@ -3311,7 +3321,7 @@ namespace ReShade
 
 			if (Accept('='))
 			{
-				const Location location = this->mToken.GetLocation();
+				location = this->mToken.GetLocation();
 
 				if (!ParseVariableAssignment(variable->Initializer))
 				{
@@ -3327,12 +3337,12 @@ namespace ReShade
 
 				if (variable->Initializer->NodeId == Node::Id::InitializerList && type.IsNumeric())
 				{
-					Nodes::Literal *const nullval = this->mAST.CreateNode<Nodes::Literal>(location);
+					const auto nullval = this->mAST.CreateNode<Nodes::Literal>(location);
 					nullval->Type.BaseClass = type.BaseClass;
 					nullval->Type.Qualifiers = Nodes::Type::Qualifier::Const;
 					nullval->Type.Rows = type.Rows, nullval->Type.Cols = type.Cols, nullval->Type.ArrayLength = 0;
 
-					Nodes::InitializerList *const initializerlist = static_cast<Nodes::InitializerList *>(variable->Initializer);
+					const auto initializerlist = static_cast<Nodes::InitializerList *>(variable->Initializer);
 
 					while (initializerlist->Type.ArrayLength < type.ArrayLength)
 					{
@@ -3382,7 +3392,7 @@ namespace ReShade
 		{
 			if (Accept('{'))
 			{
-				Nodes::InitializerList *const initializerlist = this->mAST.CreateNode<Nodes::InitializerList>(this->mToken.GetLocation());
+				const auto initializerlist = this->mAST.CreateNode<Nodes::InitializerList>(this->mToken.GetLocation());
 
 				while (!Peek('}'))
 				{
@@ -3442,7 +3452,7 @@ namespace ReShade
 					return false;
 				}
 
-				const std::string name = this->mToken.GetRawData();
+				const auto name = this->mToken.GetRawData();
 				const Location location = this->mToken.GetLocation();
 
 				Nodes::Expression *value = nullptr;
@@ -3472,7 +3482,7 @@ namespace ReShade
 						return false;
 					}
 
-					Nodes::Literal *const valueLiteral = static_cast<Nodes::Literal *>(value);
+					const auto valueLiteral = static_cast<Nodes::Literal *>(value);
 
 					if (name == "Width")
 					{
@@ -3560,8 +3570,8 @@ namespace ReShade
 
 			if (Accept(Lexer::Token::Id::Identifier))
 			{
+				const auto identifier = this->mToken.GetRawData();
 				const Location location = this->mToken.GetLocation();
-				const std::string identifier = this->mToken.GetRawData();
 
 				static const std::unordered_map<std::string, unsigned int> sEnums = boost::assign::map_list_of
 					("NONE", Nodes::Variable::Properties::NONE)
@@ -3602,7 +3612,7 @@ namespace ReShade
 
 				if (it != sEnums.end())
 				{
-					Nodes::Literal *const newexpression = this->mAST.CreateNode<Nodes::Literal>(location);
+					const auto newexpression = this->mAST.CreateNode<Nodes::Literal>(location);
 					newexpression->Type.BaseClass = Nodes::Type::Class::Uint;
 					newexpression->Type.Rows = newexpression->Type.Cols = 1, newexpression->Type.ArrayLength = 0;
 					newexpression->Value.Uint[0] = it->second;
@@ -3684,8 +3694,8 @@ namespace ReShade
 					return false;
 				}
 
+				const auto passstate = this->mToken.GetRawData();
 				const Location location = this->mToken.GetLocation();
-				const std::string passstate = this->mToken.GetRawData();
 
 				Nodes::Expression *value = nullptr;
 
@@ -3707,7 +3717,7 @@ namespace ReShade
 				}
 				else if (boost::starts_with(passstate, "RenderTarget") && (passstate == "RenderTarget" || (passstate[12] >= '0' && passstate[12] < '8')))
 				{
-					std::size_t index = 0;
+					size_t index = 0;
 
 					if (passstate.size() == 13)
 					{
@@ -3732,7 +3742,7 @@ namespace ReShade
 						return false;
 					}
 
-					Nodes::Literal *const valueLiteral = static_cast<Nodes::Literal *>(value);
+					const auto valueLiteral = static_cast<Nodes::Literal *>(value);
 
 					if (passstate == "SRGBWriteEnable")
 					{
@@ -3844,7 +3854,7 @@ namespace ReShade
 
 			if (exclusive ? Expect(Lexer::Token::Id::Identifier) : Accept(Lexer::Token::Id::Identifier))
 			{
-				std::string identifier = this->mToken.GetRawData();
+				auto identifier = this->mToken.GetRawData();
 				const Location location = this->mToken.GetLocation();
 
 				static const std::unordered_map<std::string, unsigned int> sEnums = boost::assign::map_list_of
@@ -3887,7 +3897,7 @@ namespace ReShade
 
 				if (it != sEnums.end())
 				{
-					Nodes::Literal *const newexpression = this->mAST.CreateNode<Nodes::Literal>(location);
+					const auto newexpression = this->mAST.CreateNode<Nodes::Literal>(location);
 					newexpression->Type.BaseClass = Nodes::Type::Class::Uint;
 					newexpression->Type.Rows = newexpression->Type.Cols = 1, newexpression->Type.ArrayLength = 0;
 					newexpression->Value.Uint[0] = it->second;
@@ -3911,7 +3921,7 @@ namespace ReShade
 					return false;
 				}
 
-				Nodes::LValue *const newexpression = this->mAST.CreateNode<Nodes::LValue>(location);
+				const auto newexpression = this->mAST.CreateNode<Nodes::LValue>(location);
 				newexpression->Reference = static_cast<const Nodes::Variable *>(symbol);
 				newexpression->Type = symbol->NodeId == Node::Id::Function ? static_cast<const Nodes::Function *>(symbol)->ReturnType : newexpression->Reference->Type;
 
@@ -3947,24 +3957,24 @@ namespace ReShade
 		{
 			assert(this->mCurrentScope.Level > 0);
 
-			for (auto it = this->mSymbolStack.begin(), end = this->mSymbolStack.end(); it != end; ++it)
+			for (auto it1 = this->mSymbolStack.begin(), end = this->mSymbolStack.end(); it1 != end; ++it1)
 			{
-				auto &scopes = it->second;
+				auto &scopes = it1->second;
 
 				if (scopes.empty())
 				{
 					continue;
 				}
 
-				for (auto it = scopes.begin(); it != scopes.end();)
+				for (auto it2 = scopes.begin(); it2 != scopes.end();)
 				{
-					if (it->first.Level > it->first.NamespaceLevel && it->first.Level >= this->mCurrentScope.Level)
+					if (it2->first.Level > it2->first.NamespaceLevel && it2->first.Level >= this->mCurrentScope.Level)
 					{
-						it = scopes.erase(it);
+						it2 = scopes.erase(it2);
 					}
 					else
 					{
-						++it;
+						++it2;
 					}
 				}
 			}
@@ -3993,7 +4003,7 @@ namespace ReShade
 			{
 				Scope scope = { 0, 0 };
 
-				for (std::size_t pos = 0; pos != std::string::npos; pos = this->mCurrentNamespace.find("::", pos))
+				for (size_t pos = 0; pos != std::string::npos; pos = this->mCurrentNamespace.find("::", pos))
 				{
 					this->mSymbolStack[this->mCurrentNamespace.substr(pos += 2) + symbol->Name].push_back(std::make_pair(scope, symbol));
 
@@ -4023,24 +4033,24 @@ namespace ReShade
 			Symbol *result = nullptr;
 			const auto &scopes = it->second;
 
-			for (auto it = scopes.rbegin(), end = scopes.rend(); it != end; ++it)
+			for (auto it2 = scopes.rbegin(), end = scopes.rend(); it2 != end; ++it2)
 			{
-				if (it->first.Level > scope.Level || it->first.NamespaceLevel > scope.NamespaceLevel)
+				if (it2->first.Level > scope.Level || it2->first.NamespaceLevel > scope.NamespaceLevel)
 				{
 					continue;
 				}
-				if (exclusive && it->first.Level < scope.Level)
+				if (exclusive && it2->first.Level < scope.Level)
 				{
 					continue;
 				}
 
-				if (it->second->NodeId == Node::Id::Variable || it->second->NodeId == Node::Id::Struct)
+				if (it2->second->NodeId == Node::Id::Variable || it2->second->NodeId == Node::Id::Struct)
 				{
-					return it->second;
+					return it2->second;
 				}
-				else if (result == nullptr)
+				if (result == nullptr)
 				{
-					result = it->second;
+					result = it2->second;
 				}
 			}
 
@@ -4061,14 +4071,14 @@ namespace ReShade
 			{
 				const auto &scopes = it->second;
 
-				for (auto it = scopes.rbegin(), end = scopes.rend(); it != end; ++it)
+				for (auto it2 = scopes.rbegin(), end = scopes.rend(); it2 != end; ++it2)
 				{
-					if (it->first.Level > scope.Level || it->first.NamespaceLevel > scope.NamespaceLevel || it->second->NodeId != Node::Id::Function)
+					if (it2->first.Level > scope.Level || it2->first.NamespaceLevel > scope.NamespaceLevel || it2->second->NodeId != Node::Id::Function)
 					{
 						continue;
 					}
 
-					const Nodes::Function *function = static_cast<Nodes::Function *>(it->second);
+					const Nodes::Function *function = static_cast<Nodes::Function *>(it2->second);
 
 					if (function->Parameters.empty())
 					{
@@ -4094,9 +4104,9 @@ namespace ReShade
 					{
 						overload = function;
 						overloadCount = 1;
-						overloadNamespace = it->first.NamespaceLevel;
+						overloadNamespace = it2->first.NamespaceLevel;
 					}
-					else if (comparison == 0 && overloadNamespace == it->first.NamespaceLevel)
+					else if (comparison == 0 && overloadNamespace == it2->first.NamespaceLevel)
 					{
 						++overloadCount;
 					}
@@ -4274,14 +4284,14 @@ namespace ReShade
 
 			if (expression->NodeId == Node::Id::Unary)
 			{
-				Nodes::Unary *const unaryexpression = static_cast<Nodes::Unary *>(expression);
+				const auto unaryexpression = static_cast<Nodes::Unary *>(expression);
 
 				if (unaryexpression->Operand->NodeId != Node::Id::Literal)
 				{
 					return expression;
 				}
 
-				Nodes::Literal *const operand = static_cast<Nodes::Literal *>(unaryexpression->Operand);
+				const auto operand = static_cast<Nodes::Literal *>(unaryexpression->Operand);
 
 				switch (unaryexpression->Operator)
 				{
@@ -4319,15 +4329,15 @@ namespace ReShade
 			}
 			else if (expression->NodeId == Node::Id::Binary)
 			{
-				Nodes::Binary *const binaryexpression = static_cast<Nodes::Binary *>(expression);
+				const auto binaryexpression = static_cast<Nodes::Binary *>(expression);
 
 				if (binaryexpression->Operands[0]->NodeId != Node::Id::Literal || binaryexpression->Operands[1]->NodeId != Node::Id::Literal)
 				{
 					return expression;
 				}
 
-				Nodes::Literal *const left = static_cast<Nodes::Literal *>(binaryexpression->Operands[0]);
-				Nodes::Literal *const right = static_cast<Nodes::Literal *>(binaryexpression->Operands[1]);
+				const auto left = static_cast<Nodes::Literal *>(binaryexpression->Operands[0]);
+				const auto right = static_cast<Nodes::Literal *>(binaryexpression->Operands[1]);
 				const bool leftScalar = left->Type.Rows * left->Type.Cols == 1;
 				const bool rightScalar = right->Type.Rows * right->Type.Cols == 1;
 
@@ -4391,16 +4401,16 @@ namespace ReShade
 			}
 			else if (expression->NodeId == Node::Id::Intrinsic)
 			{
-				Nodes::Intrinsic *const intrinsicexpression = static_cast<Nodes::Intrinsic *>(expression);
+				const auto intrinsicexpression = static_cast<Nodes::Intrinsic *>(expression);
 
 				if ((intrinsicexpression->Arguments[0] != nullptr && intrinsicexpression->Arguments[0]->NodeId != Node::Id::Literal) || (intrinsicexpression->Arguments[1] != nullptr && intrinsicexpression->Arguments[1]->NodeId != Node::Id::Literal) || (intrinsicexpression->Arguments[2] != nullptr && intrinsicexpression->Arguments[2]->NodeId != Node::Id::Literal))
 				{
 					return expression;
 				}
 
-				Nodes::Literal *const operand = static_cast<Nodes::Literal *>(intrinsicexpression->Arguments[0]);
-				Nodes::Literal *const left = operand;
-				Nodes::Literal *const right = static_cast<Nodes::Literal *>(intrinsicexpression->Arguments[1]);
+				const auto operand = static_cast<Nodes::Literal *>(intrinsicexpression->Arguments[0]);
+				const auto left = operand;
+				const auto right = static_cast<Nodes::Literal *>(intrinsicexpression->Arguments[1]);
 
 				switch (intrinsicexpression->Operator)
 				{
@@ -4468,7 +4478,7 @@ namespace ReShade
 			}
 			else if (expression->NodeId == Node::Id::Constructor)
 			{
-				Nodes::Constructor *const constructor = static_cast<Nodes::Constructor *>(expression);
+				const auto constructor = static_cast<Nodes::Constructor *>(expression);
 
 				for (auto argument : constructor->Arguments)
 				{
@@ -4479,7 +4489,7 @@ namespace ReShade
 				}
 
 				unsigned int k = 0;
-				Nodes::Literal *const literal = this->mAST.CreateNode<Nodes::Literal>(constructor->Location);
+				const auto literal = this->mAST.CreateNode<Nodes::Literal>(constructor->Location);
 				literal->Type = constructor->Type;
 
 				for (auto argument : constructor->Arguments)
@@ -4494,14 +4504,14 @@ namespace ReShade
 			}
 			else if (expression->NodeId == Node::Id::LValue)
 			{
-				const Nodes::Variable *variable = static_cast<Nodes::LValue *>(expression)->Reference;
+				const auto variable = static_cast<Nodes::LValue *>(expression)->Reference;
 
 				if (variable->Initializer == nullptr || !(variable->Initializer->NodeId == Node::Id::Literal && variable->Type.HasQualifier(Nodes::Type::Qualifier::Const)))
 				{
 					return expression;
 				}
 
-				Nodes::Literal *const literal = this->mAST.CreateNode<Nodes::Literal>(expression->Location);
+				const auto literal = this->mAST.CreateNode<Nodes::Literal>(expression->Location);
 				literal->Type = expression->Type;
 				literal->Value = static_cast<const Nodes::Literal *>(variable->Initializer)->Value;
 

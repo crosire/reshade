@@ -796,7 +796,7 @@ namespace ReShade
 
 			return token;
 		}
-		void Lexer::ParseIdentifier(Token &token)
+		void Lexer::ParseIdentifier(Token &token) const
 		{
 			const char *const begin = this->mPos, *end = begin;
 
@@ -992,7 +992,7 @@ namespace ReShade
 				}
 			}
 		}
-		void Lexer::ParseStringLiteral(Token &token)
+		void Lexer::ParseStringLiteral(Token &token) const
 		{
 			char c = 0;
 			const char *const begin = this->mPos, *end = begin;
@@ -1006,7 +1006,8 @@ namespace ReShade
 					token.mRawDataLength = end - begin;
 					return;
 				}
-				else if (c == '\\')
+
+				if (c == '\\')
 				{
 					unsigned int n = 0;
 
@@ -1074,7 +1075,7 @@ namespace ReShade
 			token.mRawData = begin;
 			token.mRawDataLength = end - begin + 1;
 		}
-		void Lexer::ParseNumericLiteral(Token &token)
+		void Lexer::ParseNumericLiteral(Token &token) const
 		{
 			int radix = 0;
 			const char *begin = this->mPos, *end = begin;
@@ -1186,16 +1187,16 @@ namespace ReShade
 			switch (token.mId)
 			{
 				case Token::Id::IntLiteral:
-					token.mLiteralNumeric.Int = std::strtol(token.mRawData, nullptr, radix) & UINT_MAX;
+					token.mLiteralNumeric.Int = strtol(token.mRawData, nullptr, radix) & UINT_MAX;
 					break;
 				case Token::Id::UintLiteral:
-					token.mLiteralNumeric.Uint = std::strtoul(token.mRawData, nullptr, radix) & UINT_MAX;
+					token.mLiteralNumeric.Uint = strtoul(token.mRawData, nullptr, radix) & UINT_MAX;
 					break;
 				case Token::Id::FloatLiteral:
-					token.mLiteralNumeric.Float = static_cast<float>(std::strtod(token.mRawData, nullptr));
+					token.mLiteralNumeric.Float = static_cast<float>(strtod(token.mRawData, nullptr));
 					break;
 				case Token::Id::DoubleLiteral:
-					token.mLiteralNumeric.Double = std::strtod(token.mRawData, nullptr);
+					token.mLiteralNumeric.Double = strtod(token.mRawData, nullptr);
 					break;
 			}
 		}
@@ -1206,8 +1207,8 @@ namespace ReShade
 				this->mPos++;
 			}
 
-			const char *command = this->mPos;
-			std::size_t commandLength = 0;
+			auto command = this->mPos;
+			size_t commandLength = 0;
 
 			while (isalnum(*this->mPos++))
 			{
@@ -1221,9 +1222,9 @@ namespace ReShade
 
 			if (commandLength == 4 && strncmp(command, "line", 4) == 0)
 			{
-				char *sourceBegin = nullptr, *sourceEnd = nullptr;
+				char *sourceBegin, *sourceEnd = nullptr;
 
-				this->mCurrentLocation.Line = static_cast<int>(std::strtol(this->mPos, &sourceEnd, 10));
+				this->mCurrentLocation.Line = static_cast<int>(strtol(this->mPos, &sourceEnd, 10));
 
 				while (*sourceEnd != '\n' && *sourceEnd != '\0' && *++sourceEnd != '"')
 				{
@@ -1237,7 +1238,7 @@ namespace ReShade
 					continue;
 				}
 
-				const std::size_t sourceLength = sourceEnd - sourceBegin;
+				const size_t sourceLength = sourceEnd - sourceBegin;
 
 				if (sourceLength != 0)
 				{

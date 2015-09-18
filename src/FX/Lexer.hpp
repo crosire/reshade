@@ -221,17 +221,17 @@ namespace ReShade
 				Id mId;
 				Location mLocation;
 				const char *mRawData;
-				std::size_t mRawDataLength;
+				size_t mRawDataLength;
 				std::string mLiteralString;
 				NumericLiteral mLiteralNumeric;
 			};
 
 			/// <summary>
-			/// Construct new lexical analyzer for the given input string.
+			/// Construct new lexical analyzer for the given input <paramref name="source" /> string.
 			/// </summary>
 			/// <param name="source">The string to analyze.</param>
-			Lexer(const std::string &source);
-			inline Lexer(const Lexer &lexer)
+			explicit Lexer(const std::string &source);
+			Lexer(const Lexer &lexer)
 			{
 				this->operator=(lexer);
 			}
@@ -245,9 +245,9 @@ namespace ReShade
 			Token Lex();
 
 		private:
-			void ParseIdentifier(Token &token);
-			void ParseStringLiteral(Token &token);
-			void ParseNumericLiteral(Token &token);
+			void ParseIdentifier(Token &token) const;
+			void ParseStringLiteral(Token &token) const;
+			void ParseNumericLiteral(Token &token) const;
 			void ParsePreProcessorDirective();
 
 			std::string mSource;

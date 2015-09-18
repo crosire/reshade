@@ -38,26 +38,26 @@ namespace ReShade
 			std::vector<ModuleExport> GetModuleExports(HMODULE handle)
 			{
 				std::vector<ModuleExport> exports;
-				BYTE *const imagebase = reinterpret_cast<BYTE *>(handle);
-				IMAGE_NT_HEADERS *const imageheader = reinterpret_cast<IMAGE_NT_HEADERS *>(imagebase + reinterpret_cast<IMAGE_DOS_HEADER *>(imagebase)->e_lfanew);
+				const auto imagebase = reinterpret_cast<BYTE *>(handle);
+				const auto imageheader = reinterpret_cast<IMAGE_NT_HEADERS *>(imagebase + reinterpret_cast<IMAGE_DOS_HEADER *>(imagebase)->e_lfanew);
 
 				if (imageheader->Signature != IMAGE_NT_SIGNATURE || imageheader->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].Size == 0)
 				{
 					return exports;
 				}
 
-				IMAGE_EXPORT_DIRECTORY *const exportdir = reinterpret_cast<IMAGE_EXPORT_DIRECTORY *>(imagebase + imageheader->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress);
-				const WORD exportbase = static_cast<WORD>(exportdir->Base);
+				const auto exportdir = reinterpret_cast<IMAGE_EXPORT_DIRECTORY *>(imagebase + imageheader->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress);
+				const auto exportbase = static_cast<WORD>(exportdir->Base);
 
 				if (exportdir->NumberOfFunctions == 0)
 				{
 					return exports;
 				}
 
-				const std::size_t count = static_cast<std::size_t>(exportdir->NumberOfNames);
+				const auto count = static_cast<size_t>(exportdir->NumberOfNames);
 				exports.reserve(count);
 
-				for (std::size_t i = 0; i < count; ++i)
+				for (size_t i = 0; i < count; ++i)
 				{
 					ModuleExport symbol;
 					symbol.Ordinal = reinterpret_cast<WORD *>(imagebase + exportdir->AddressOfNameOrdinals)[i] + exportbase;
@@ -109,13 +109,13 @@ namespace ReShade
 					case HookType::VTableHook:
 					{
 						DWORD protection = 0;
-						Hook::Function *const targetAddress = sVTableAddresses.at(target);
+						const auto targetAddress = sVTableAddresses.at(target);
 		
-						if (VirtualProtect(targetAddress, sizeof(Hook::Function), PAGE_READWRITE, &protection) != FALSE)
+						if (VirtualProtect(targetAddress, sizeof(*targetAddress), PAGE_READWRITE, &protection) != FALSE)
 						{
 							*targetAddress = replacement;
 
-							VirtualProtect(targetAddress, sizeof(Hook::Function), protection, &protection);
+							VirtualProtect(targetAddress, sizeof(*targetAddress), protection, &protection);
 
 							status = Hook::Status::Success;
 						}
@@ -127,22 +127,20 @@ namespace ReShade
 					}
 				}
 
-				if (status == Hook::Status::Success)
-				{
-					LOG(TRACE) << "> Succeeded.";
-
-					Utils::CriticalSection::Lock lock(sCS);
-
-					sHooks.emplace_back(std::move(hook), method);
-
-					return true;
-				}
-				else
+				if (status != Hook::Status::Success)
 				{
 					LOG(ERROR) << "Failed to install hook for '0x" << target << "' with status code " << static_cast<int>(status) << ".";
 
 					return false;
 				}
+
+				LOG(TRACE) << "> Succeeded.";
+
+				Utils::CriticalSection::Lock lock(sCS);
+
+				sHooks.emplace_back(std::move(hook), method);
+
+				return true;
 			}
 			bool Install(const HMODULE targetModule, const HMODULE replacementModule, HookType method)
 			{
@@ -150,8 +148,8 @@ namespace ReShade
 				assert(replacementModule != nullptr);
 
 				// Load export tables
-				const std::vector<ModuleExport> targetExports = GetModuleExports(targetModule);
-				const std::vector<ModuleExport> replacementExports = GetModuleExports(replacementModule);
+				const auto targetExports = GetModuleExports(targetModule);
+				const auto replacementExports = GetModuleExports(replacementModule);
 
 				if (targetExports.empty())
 				{
@@ -160,7 +158,7 @@ namespace ReShade
 					return false;
 				}
 
-				std::size_t counter = 0;
+				size_t counter = 0;
 				std::vector<std::pair<Hook::Function, Hook::Function>> matches;
 				matches.reserve(replacementExports.size());
 
@@ -232,17 +230,17 @@ namespace ReShade
 
 					return true;
 				}
-				else if (method == HookType::Export)
-				{
-					LOG(TRACE) << "> Skipped.";
-
-					return true;
-				}
 
 				Hook::Status status = Hook::Status::Unknown;
 
 				switch (method)
 				{
+					case HookType::Export:
+					{
+						LOG(TRACE) << "> Skipped.";
+
+						return true;
+					}
 					case HookType::FunctionHook:
 					{
 						status = hook.Uninstall();
@@ -251,14 +249,14 @@ namespace ReShade
 					case HookType::VTableHook:
 					{
 						DWORD protection = 0;
-						Hook::Function *const targetAddress = sVTableAddresses.at(hook.Target);
+						const auto targetAddress = sVTableAddresses.at(hook.Target);
 		
-						if (VirtualProtect(reinterpret_cast<LPVOID *>(targetAddress), sizeof(Hook::Function), PAGE_READWRITE, &protection) != FALSE)
+						if (VirtualProtect(targetAddress, sizeof(*targetAddress), PAGE_READWRITE, &protection) != FALSE)
 						{
 							*targetAddress = hook.Target;
 							sVTableAddresses.erase(hook.Target);
 
-							VirtualProtect(reinterpret_cast<LPVOID *>(targetAddress), sizeof(Hook::Function), protection, &protection);
+							VirtualProtect(targetAddress, sizeof(*targetAddress), protection, &protection);
 
 							status = Hook::Status::Success;
 						}
@@ -270,20 +268,18 @@ namespace ReShade
 					}
 				}
 
-				if (status == Hook::Status::Success)
-				{
-					LOG(TRACE) << "> Succeeded.";
-
-					hook.Trampoline = nullptr;
-
-					return true;
-				}
-				else
+				if (status != Hook::Status::Success)
 				{
 					LOG(WARNING) << "Failed to uninstall hook for '0x" << hook.Target << "' with status code " << static_cast<int>(status) << ".";
 
 					return false;
 				}
+
+				LOG(TRACE) << "> Succeeded.";
+
+				hook.Trampoline = nullptr;
+
+				return true;
 			}
 
 			Hook Find(Hook::Function replacement)

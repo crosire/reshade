@@ -1860,7 +1860,7 @@ namespace ReShade
 
 					if (!node->Arguments.empty())
 					{
-						for (std::size_t i = 0, count = node->Arguments.size(); i < count; ++i)
+						for (size_t i = 0, count = node->Arguments.size(); i < count; ++i)
 						{
 							const auto argument = node->Arguments[i];
 							const auto parameter = node->Callee->Parameters[i];
@@ -2222,7 +2222,7 @@ namespace ReShade
 							break;
 					}
 
-					const std::size_t alignment = 16 - (this->mCurrentGlobalSize % 16);
+					const size_t alignment = 16 - (this->mCurrentGlobalSize % 16);
 					this->mCurrentGlobalSize += (obj->StorageSize > alignment && (alignment != 16 || obj->StorageSize <= 16)) ? obj->StorageSize + alignment : obj->StorageSize;
 					obj->StorageOffset = this->mCurrentGlobalSize - obj->StorageSize;
 
@@ -2672,7 +2672,7 @@ namespace ReShade
 				bool mFatal;
 				std::string mErrors;
 				std::string mGlobalCode, mGlobalUniforms;
-				std::size_t mCurrentGlobalSize;
+				size_t mCurrentGlobalSize;
 				const FX::Nodes::Function *mCurrentFunction;
 				std::unordered_map<const FX::Nodes::Function *, Function> mFunctions;
 			};
@@ -2776,7 +2776,7 @@ namespace ReShade
 			{
 				typedef void (*FlipBlockFunc)(unsigned char *block);
 
-				std::size_t blocksize = 0;
+				size_t blocksize = 0;
 				bool compressed = false;
 				FlipBlockFunc compressedFunc = nullptr;
 
@@ -2830,15 +2830,15 @@ namespace ReShade
 
 				if (compressed)
 				{
-					const std::size_t w = (texture->Width + 3) / 4;
-					const std::size_t h = (texture->Height + 3) / 4;
-					const std::size_t stride = w * blocksize;
+					const size_t w = (texture->Width + 3) / 4;
+					const size_t h = (texture->Height + 3) / 4;
+					const size_t stride = w * blocksize;
 
-					for (std::size_t y = 0; y < h; ++y)
+					for (size_t y = 0; y < h; ++y)
 					{
 						unsigned char *dataLine = data + stride * (h - 1 - y);
 
-						for (std::size_t x = 0; x < stride; x += blocksize)
+						for (size_t x = 0; x < stride; x += blocksize)
 						{
 							compressedFunc(dataLine + x);
 						}
@@ -2846,12 +2846,12 @@ namespace ReShade
 				}
 				else
 				{
-					const std::size_t w = texture->Width;
-					const std::size_t h = texture->Height;
-					const std::size_t stride = w * blocksize;
+					const size_t w = texture->Width;
+					const size_t h = texture->Height;
+					const size_t stride = w * blocksize;
 					unsigned char *templine = static_cast<unsigned char *>(::alloca(stride));
 
-					for (std::size_t y = 0; 2 * y < h; ++y)
+					for (size_t y = 0; 2 * y < h; ++y)
 					{
 						unsigned char *line1 = data + stride * y;
 						unsigned char *line2 = data + stride * (h - 1 - y);
@@ -3507,7 +3507,7 @@ namespace ReShade
 
 			return visitor.Compile(this, errors);
 		}
-		bool GLRuntime::UpdateTexture(Texture *texture, const unsigned char *data, std::size_t size)
+		bool GLRuntime::UpdateTexture(Texture *texture, const unsigned char *data, size_t size)
 		{
 			GLTexture *const textureImpl = dynamic_cast<GLTexture *>(texture);
 

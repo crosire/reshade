@@ -532,7 +532,7 @@ namespace ReShade
 		}
 	}
 
-	void Runtime::GetEffectValue(const Uniform &variable, unsigned char *data, std::size_t size) const
+	void Runtime::GetEffectValue(const Uniform &variable, unsigned char *data, size_t size) const
 	{
 		assert(data != nullptr);
 		assert(this->mIsEffectCompiled);
@@ -543,7 +543,7 @@ namespace ReShade
 
 		std::copy_n(this->mUniformDataStorage.begin() + variable.StorageOffset, size, data);
 	}
-	void Runtime::GetEffectValue(const Uniform &variable, bool *values, std::size_t count) const
+	void Runtime::GetEffectValue(const Uniform &variable, bool *values, size_t count) const
 	{
 		static_assert(sizeof(int) == 4 && sizeof(float) == 4, "expected int and float size to equal 4");
 
@@ -554,12 +554,12 @@ namespace ReShade
 		unsigned char *const data = static_cast<unsigned char *>(alloca(variable.StorageSize));
 		GetEffectValue(variable, data, variable.StorageSize);
 
-		for (std::size_t i = 0; i < count; i++)
+		for (size_t i = 0; i < count; i++)
 		{
 			values[i] = reinterpret_cast<const unsigned int *>(data)[i] != 0;
 		}
 	}
-	void Runtime::GetEffectValue(const Uniform &variable, int *values, std::size_t count) const
+	void Runtime::GetEffectValue(const Uniform &variable, int *values, size_t count) const
 	{
 		switch (variable.BaseType)
 		{
@@ -579,7 +579,7 @@ namespace ReShade
 				unsigned char *const data = static_cast<unsigned char *>(alloca(variable.StorageSize));
 				GetEffectValue(variable, data, variable.StorageSize);
 
-				for (std::size_t i = 0; i < count; i++)
+				for (size_t i = 0; i < count; i++)
 				{
 					values[i] = static_cast<int>(reinterpret_cast<const float *>(data)[i]);
 				}
@@ -587,11 +587,11 @@ namespace ReShade
 			}
 		}
 	}
-	void Runtime::GetEffectValue(const Uniform &variable, unsigned int *values, std::size_t count) const
+	void Runtime::GetEffectValue(const Uniform &variable, unsigned int *values, size_t count) const
 	{
 		GetEffectValue(variable, reinterpret_cast<int *>(values), count);
 	}
-	void Runtime::GetEffectValue(const Uniform &variable, float *values, std::size_t count) const
+	void Runtime::GetEffectValue(const Uniform &variable, float *values, size_t count) const
 	{
 		switch (variable.BaseType)
 		{
@@ -606,7 +606,7 @@ namespace ReShade
 				unsigned char *const data = static_cast<unsigned char *>(alloca(variable.StorageSize));
 				GetEffectValue(variable, data, variable.StorageSize);
 
-				for (std::size_t i = 0; i < count; ++i)
+				for (size_t i = 0; i < count; ++i)
 				{
 					if (variable.BaseType != Uniform::Type::Uint)
 					{
@@ -626,7 +626,7 @@ namespace ReShade
 			}
 		}
 	}
-	void Runtime::SetEffectValue(Uniform &variable, const unsigned char *data, std::size_t size)
+	void Runtime::SetEffectValue(Uniform &variable, const unsigned char *data, size_t size)
 	{
 		assert(data != nullptr);
 		assert(this->mIsEffectCompiled);
@@ -637,7 +637,7 @@ namespace ReShade
 
 		std::copy_n(data, size, this->mUniformDataStorage.begin() + variable.StorageOffset);
 	}
-	void Runtime::SetEffectValue(Uniform &variable, const bool *values, std::size_t count)
+	void Runtime::SetEffectValue(Uniform &variable, const bool *values, size_t count)
 	{
 		static_assert(sizeof(int) == 4 && sizeof(float) == 4, "expected int and float size to equal 4");
 
@@ -646,20 +646,20 @@ namespace ReShade
 		switch (variable.BaseType)
 		{
 			case Uniform::Type::Bool:
-				for (std::size_t i = 0; i < count; ++i)
+				for (size_t i = 0; i < count; ++i)
 				{
 					reinterpret_cast<int *>(data)[i] = values[i] ? -1 : 0;
 				}
 				break;
 			case Uniform::Type::Int:
 			case Uniform::Type::Uint:
-				for (std::size_t i = 0; i < count; ++i)
+				for (size_t i = 0; i < count; ++i)
 				{
 					reinterpret_cast<int *>(data)[i] = values[i] ? 1 : 0;
 				}
 				break;
 			case Uniform::Type::Float:
-				for (std::size_t i = 0; i < count; ++i)
+				for (size_t i = 0; i < count; ++i)
 				{
 					reinterpret_cast<float *>(data)[i] = values[i] ? 1.0f : 0.0f;
 				}
@@ -668,7 +668,7 @@ namespace ReShade
 
 		SetEffectValue(variable, data, count * 4);
 	}
-	void Runtime::SetEffectValue(Uniform &variable, const int *values, std::size_t count)
+	void Runtime::SetEffectValue(Uniform &variable, const int *values, size_t count)
 	{
 		switch (variable.BaseType)
 		{
@@ -683,7 +683,7 @@ namespace ReShade
 			{
 				float *const data = static_cast<float *>(alloca(count * sizeof(float)));
 
-				for (std::size_t i = 0; i < count; ++i)
+				for (size_t i = 0; i < count; ++i)
 				{
 					data[i] = static_cast<float>(values[i]);
 				}
@@ -693,7 +693,7 @@ namespace ReShade
 			}
 		}
 	}
-	void Runtime::SetEffectValue(Uniform &variable, const unsigned int *values, std::size_t count)
+	void Runtime::SetEffectValue(Uniform &variable, const unsigned int *values, size_t count)
 	{
 		switch (variable.BaseType)
 		{
@@ -708,7 +708,7 @@ namespace ReShade
 			{
 				float *const data = static_cast<float *>(alloca(count * sizeof(float)));
 
-				for (std::size_t i = 0; i < count; ++i)
+				for (size_t i = 0; i < count; ++i)
 				{
 					data[i] = static_cast<float>(values[i]);
 				}
@@ -718,7 +718,7 @@ namespace ReShade
 			}
 		}
 	}
-	void Runtime::SetEffectValue(Uniform &variable, const float *values, std::size_t count)
+	void Runtime::SetEffectValue(Uniform &variable, const float *values, size_t count)
 	{
 		switch (variable.BaseType)
 		{
@@ -728,7 +728,7 @@ namespace ReShade
 			{
 				int *const data = static_cast<int *>(alloca(count * sizeof(int)));
 
-				for (std::size_t i = 0; i < count; ++i)
+				for (size_t i = 0; i < count; ++i)
 				{
 					data[i] = static_cast<int>(values[i]);
 				}
@@ -884,7 +884,7 @@ namespace ReShade
 			else if (boost::istarts_with(command, "screenshot_location "))
 			{
 				std::string path = command.substr(20);
-				const std::size_t beg = path.find_first_of('"') + 1, end = path.find_last_of('"');
+				const size_t beg = path.find_first_of('"') + 1, end = path.find_last_of('"');
 				path = path.substr(beg, end - beg);
 				Utils::EscapeString(path);
 
@@ -987,7 +987,7 @@ namespace ReShade
 						continue;
 				}
 
-				std::size_t dataSize = texture->Width * texture->Height * channels;
+				size_t dataSize = texture->Width * texture->Height * channels;
 				unsigned char *const dataFile = stbi_load(path.string().c_str(), &widthFile, &heightFile, &channelsFile, channels);
 				std::unique_ptr<unsigned char[]> data(new unsigned char[dataSize]);
 

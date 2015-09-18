@@ -78,7 +78,7 @@ namespace ReShade
 		{
 			return false;
 		}
-		bool D3D12Runtime::UpdateTexture(Texture *texture, const unsigned char *data, std::size_t size)
+		bool D3D12Runtime::UpdateTexture(Texture *texture, const unsigned char *data, size_t size)
 		{
 			return false;
 		}

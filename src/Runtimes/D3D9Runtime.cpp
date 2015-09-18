@@ -589,7 +589,7 @@ namespace ReShade
 
 					Visit(output, node->Cases[0]);
 
-					for (std::size_t i = 1, count = node->Cases.size(); i < count; ++i)
+					for (size_t i = 1, count = node->Cases.size(); i < count; ++i)
 					{
 						output += "else ";
 
@@ -2811,7 +2811,7 @@ namespace ReShade
 
 			return visitor.Compile(this, errors);
 		}
-		bool D3D9Runtime::UpdateTexture(Texture *texture, const unsigned char *data, std::size_t size)
+		bool D3D9Runtime::UpdateTexture(Texture *texture, const unsigned char *data, size_t size)
 		{
 			D3D9Texture *const textureImpl = dynamic_cast<D3D9Texture *>(texture);
 
@@ -2855,19 +2855,19 @@ namespace ReShade
 			switch (texture->Format)
 			{
 				case Texture::PixelFormat::R8:
-					for (std::size_t i = 0; i < size; i += 1, pLocked += 4)
+					for (size_t i = 0; i < size; i += 1, pLocked += 4)
 					{
 						pLocked[0] = 0, pLocked[1] = 0, pLocked[2] = data[i], pLocked[3] = 0;
 					}
 					break;
 				case Texture::PixelFormat::RG8:
-					for (std::size_t i = 0; i < size; i += 2, pLocked += 4)
+					for (size_t i = 0; i < size; i += 2, pLocked += 4)
 					{
 						pLocked[0] = 0, pLocked[1] = data[i + 1], pLocked[2] = data[i], pLocked[3] = 0;
 					}
 					break;
 				case Texture::PixelFormat::RGBA8:
-					for (std::size_t i = 0; i < size; i += 4, pLocked += 4)
+					for (size_t i = 0; i < size; i += 4, pLocked += 4)
 					{
 						pLocked[0] = data[i + 2], pLocked[1] = data[i + 1], pLocked[2] = data[i], pLocked[3] = data[i + 3];
 					}
