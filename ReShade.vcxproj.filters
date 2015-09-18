@@ -149,6 +149,9 @@
     <ClInclude Include="src\Utils\Time.hpp">
       <Filter>Core\Utils</Filter>
     </ClInclude>
+    <ClInclude Include="src\Hooks\D3D8.hpp">
+      <Filter>Implementation\Hooks</Filter>
+    </ClInclude>
     <ClInclude Include="src\Hooks\D3D9.hpp">
       <Filter>Implementation\Hooks</Filter>
     </ClInclude>

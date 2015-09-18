@@ -269,6 +269,10 @@ tools\upx --backup "$(TargetPath)"</Command>
     <ClInclude Include="src\FX\PreProcessor.hpp" />
     <ClInclude Include="src\Hook\Hook.hpp" />
     <ClInclude Include="src\Hook\HookManager.hpp" />
+    <ClInclude Include="src\Hooks\D3D8.hpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClInclude>
     <ClInclude Include="src\Hooks\D3D9.hpp" />
     <ClInclude Include="src\Hooks\D3D10.hpp" />
     <ClInclude Include="src\Hooks\D3D11.hpp" />
