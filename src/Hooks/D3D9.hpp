@@ -7,11 +7,11 @@ Direct3DDevice9 : IDirect3DDevice9Ex
 {
 	friend struct Direct3DSwapChain9;
 
-	explicit Direct3DDevice9(IDirect3DDevice9 *original) : mRef(1), mOrig(original), mInterfaceVersion(0), mImplicitSwapChain(nullptr), mAutoDepthStencil(nullptr)
+	explicit Direct3DDevice9(IDirect3DDevice9 *original) : mRef(1), mOrig(original), mInterfaceVersion(0), mImplicitSwapChain(nullptr), mAutoDepthStencil(nullptr), mUseSoftwareRendering(false)
 	{
 		assert(original != nullptr);
 	}
-	explicit Direct3DDevice9(IDirect3DDevice9Ex *original) : mRef(1), mOrig(original), mInterfaceVersion(1), mImplicitSwapChain(nullptr), mAutoDepthStencil(nullptr)
+	explicit Direct3DDevice9(IDirect3DDevice9Ex *original) : mRef(1), mOrig(original), mInterfaceVersion(1), mImplicitSwapChain(nullptr), mAutoDepthStencil(nullptr), mUseSoftwareRendering(false)
 	{
 		assert(original != nullptr);
 	}
@@ -163,6 +163,7 @@ Direct3DDevice9 : IDirect3DDevice9Ex
 	Direct3DSwapChain9 *mImplicitSwapChain;
 	std::vector<Direct3DSwapChain9 *> mAdditionalSwapChains;
 	IDirect3DSurface9 *mAutoDepthStencil;
+	bool mUseSoftwareRendering;
 
 private:
 	Direct3DDevice9(const Direct3DDevice9 &);

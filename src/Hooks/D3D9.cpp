@@ -558,10 +558,20 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateCubeTexture(UINT EdgeLength, UI
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateVertexBuffer(UINT Length, DWORD Usage, DWORD FVF, D3DPOOL Pool, IDirect3DVertexBuffer9 **ppVertexBuffer, HANDLE *pSharedHandle)
 {
+	if (this->mUseSoftwareRendering)
+	{
+		Usage |= D3DUSAGE_SOFTWAREPROCESSING;
+	}
+
 	return this->mOrig->CreateVertexBuffer(Length, Usage, FVF, Pool, ppVertexBuffer, pSharedHandle);
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateIndexBuffer(UINT Length, DWORD Usage, D3DFORMAT Format, D3DPOOL Pool, IDirect3DIndexBuffer9 **ppIndexBuffer, HANDLE *pSharedHandle)
 {
+	if (this->mUseSoftwareRendering)
+	{
+		Usage |= D3DUSAGE_SOFTWAREPROCESSING;
+	}
+
 	return this->mOrig->CreateIndexBuffer(Length, Usage, Format, Pool, ppIndexBuffer, pSharedHandle);
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateRenderTarget(UINT Width, UINT Height, D3DFORMAT Format, D3DMULTISAMPLE_TYPE MultiSample, DWORD MultisampleQuality, BOOL Lockable, IDirect3DSurface9 **ppSurface, HANDLE *pSharedHandle)
@@ -1238,6 +1248,7 @@ HRESULT STDMETHODCALLTYPE IDirect3D9_CreateDevice(IDirect3D9 *pD3D, UINT Adapter
 		Direct3DSwapChain9 *const swapchainProxy = new Direct3DSwapChain9(deviceProxy, swapchain, runtime);
 
 		deviceProxy->mImplicitSwapChain = swapchainProxy;
+		deviceProxy->mUseSoftwareRendering = useSoftwareRendering;
 		*ppReturnedDeviceInterface = deviceProxy;
 
 		if (pp.EnableAutoDepthStencil != FALSE)
@@ -1314,6 +1325,7 @@ HRESULT STDMETHODCALLTYPE IDirect3D9Ex_CreateDeviceEx(IDirect3D9Ex *pD3D, UINT A
 		Direct3DSwapChain9 *const swapchainProxy = new Direct3DSwapChain9(deviceProxy, swapchain, runtime);
 
 		deviceProxy->mImplicitSwapChain = swapchainProxy;
+		deviceProxy->mUseSoftwareRendering = useSoftwareRendering;
 		*ppReturnedDeviceInterface = deviceProxy;
 
 		if (pp.EnableAutoDepthStencil != FALSE)
