@@ -208,8 +208,7 @@ HRESULT STDMETHODCALLTYPE Direct3DTexture8::QueryInterface(REFIID riid, void **p
 		return E_POINTER;
 	}
 
-	if (
-		riid == __uuidof(this) ||
+	if (riid == __uuidof(this) ||
 		riid == __uuidof(IUnknown) ||
 		riid == __uuidof(Direct3DResource8) ||
 		riid == __uuidof(Direct3DBaseTexture8))
@@ -231,7 +230,7 @@ ULONG STDMETHODCALLTYPE Direct3DTexture8::AddRef()
 }
 ULONG STDMETHODCALLTYPE Direct3DTexture8::Release()
 {
-	const ULONG ref = this->mProxy->Release();
+	const auto ref = this->mProxy->Release();
 
 	if (--this->mRef == 0)
 	{
@@ -302,7 +301,7 @@ HRESULT STDMETHODCALLTYPE Direct3DTexture8::GetLevelDesc(UINT Level, D3DSURFACE_
 
 	D3DSURFACE_DESC desc;
 
-	const HRESULT hr = this->mProxy->GetLevelDesc(Level, &desc);
+	const auto hr = this->mProxy->GetLevelDesc(Level, &desc);
 
 	if (FAILED(hr))
 	{
@@ -324,7 +323,7 @@ HRESULT STDMETHODCALLTYPE Direct3DTexture8::GetSurfaceLevel(UINT Level, Direct3D
 
 	IDirect3DSurface9 *surface = nullptr;
 
-	const HRESULT hr = this->mProxy->GetSurfaceLevel(Level, &surface);
+	const auto hr = this->mProxy->GetSurfaceLevel(Level, &surface);
 
 	if (FAILED(hr))
 	{
@@ -356,8 +355,7 @@ HRESULT STDMETHODCALLTYPE Direct3DCubeTexture8::QueryInterface(REFIID riid, void
 		return E_POINTER;
 	}
 
-	if (
-		riid == __uuidof(this) ||
+	if (riid == __uuidof(this) ||
 		riid == __uuidof(IUnknown) ||
 		riid == __uuidof(Direct3DResource8) ||
 		riid == __uuidof(Direct3DBaseTexture8))
@@ -379,7 +377,7 @@ ULONG STDMETHODCALLTYPE Direct3DCubeTexture8::AddRef()
 }
 ULONG STDMETHODCALLTYPE Direct3DCubeTexture8::Release()
 {
-	const ULONG ref = this->mProxy->Release();
+	const auto ref = this->mProxy->Release();
 
 	if (--this->mRef == 0)
 	{
@@ -450,7 +448,7 @@ HRESULT STDMETHODCALLTYPE Direct3DCubeTexture8::GetLevelDesc(UINT Level, D3DSURF
 
 	D3DSURFACE_DESC desc;
 
-	const HRESULT hr = this->mProxy->GetLevelDesc(Level, &desc);
+	const auto hr = this->mProxy->GetLevelDesc(Level, &desc);
 
 	if (FAILED(hr))
 	{
@@ -472,7 +470,7 @@ HRESULT STDMETHODCALLTYPE Direct3DCubeTexture8::GetCubeMapSurface(D3DCUBEMAP_FAC
 
 	IDirect3DSurface9 *surface = nullptr;
 
-	const HRESULT hr = this->mProxy->GetCubeMapSurface(FaceType, Level, &surface);
+	const auto hr = this->mProxy->GetCubeMapSurface(FaceType, Level, &surface);
 
 	if (FAILED(hr))
 	{
@@ -504,8 +502,7 @@ HRESULT STDMETHODCALLTYPE Direct3DVolumeTexture8::QueryInterface(REFIID riid, vo
 		return E_POINTER;
 	}
 
-	if (
-		riid == __uuidof(this) ||
+	if (riid == __uuidof(this) ||
 		riid == __uuidof(IUnknown) ||
 		riid == __uuidof(Direct3DResource8) ||
 		riid == __uuidof(Direct3DBaseTexture8))
@@ -527,7 +524,7 @@ ULONG STDMETHODCALLTYPE Direct3DVolumeTexture8::AddRef()
 }
 ULONG STDMETHODCALLTYPE Direct3DVolumeTexture8::Release()
 {
-	const ULONG ref = this->mProxy->Release();
+	const auto ref = this->mProxy->Release();
 
 	if (--this->mRef == 0)
 	{
@@ -598,7 +595,7 @@ HRESULT STDMETHODCALLTYPE Direct3DVolumeTexture8::GetLevelDesc(UINT Level, D3DVO
 
 	D3DVOLUME_DESC desc;
 
-	const HRESULT hr = this->mProxy->GetLevelDesc(Level, &desc);
+	const auto hr = this->mProxy->GetLevelDesc(Level, &desc);
 
 	if (FAILED(hr))
 	{
@@ -620,7 +617,7 @@ HRESULT STDMETHODCALLTYPE Direct3DVolumeTexture8::GetVolumeLevel(UINT Level, Dir
 
 	IDirect3DVolume9 *volume = nullptr;
 
-	const HRESULT hr = this->mProxy->GetVolumeLevel(Level, &volume);
+	const auto hr = this->mProxy->GetVolumeLevel(Level, &volume);
 
 	if (FAILED(hr))
 	{
@@ -652,8 +649,7 @@ HRESULT STDMETHODCALLTYPE Direct3DSurface8::QueryInterface(REFIID riid, void **p
 		return E_POINTER;
 	}
 
-	if (
-		riid == __uuidof(this) ||
+	if (riid == __uuidof(this) ||
 		riid == __uuidof(IUnknown))
 	{
 		AddRef();
@@ -673,7 +669,7 @@ ULONG STDMETHODCALLTYPE Direct3DSurface8::AddRef()
 }
 ULONG STDMETHODCALLTYPE Direct3DSurface8::Release()
 {
-	const ULONG ref = this->mProxy->Release();
+	const auto ref = this->mProxy->Release();
 
 	if (--this->mRef == 0)
 	{
@@ -720,7 +716,7 @@ HRESULT STDMETHODCALLTYPE Direct3DSurface8::GetDesc(D3DSURFACE_DESC8 *pDesc)
 
 	D3DSURFACE_DESC desc;
 
-	const HRESULT hr = this->mProxy->GetDesc(&desc);
+	const auto hr = this->mProxy->GetDesc(&desc);
 
 	if (FAILED(hr))
 	{
@@ -748,8 +744,7 @@ HRESULT STDMETHODCALLTYPE Direct3DVolume8::QueryInterface(REFIID riid, void **pp
 		return E_POINTER;
 	}
 
-	if (
-		riid == __uuidof(this) ||
+	if (riid == __uuidof(this) ||
 		riid == __uuidof(IUnknown))
 	{
 		AddRef();
@@ -769,7 +764,7 @@ ULONG STDMETHODCALLTYPE Direct3DVolume8::AddRef()
 }
 ULONG STDMETHODCALLTYPE Direct3DVolume8::Release()
 {
-	const ULONG ref = this->mProxy->Release();
+	const auto ref = this->mProxy->Release();
 
 	if (--this->mRef == 0)
 	{
@@ -816,7 +811,7 @@ HRESULT STDMETHODCALLTYPE Direct3DVolume8::GetDesc(D3DVOLUME_DESC8 *pDesc)
 
 	D3DVOLUME_DESC desc;
 
-	const HRESULT hr = this->mProxy->GetDesc(&desc);
+	const auto hr = this->mProxy->GetDesc(&desc);
 
 	if (FAILED(hr))
 	{
@@ -844,8 +839,7 @@ HRESULT STDMETHODCALLTYPE Direct3DVertexBuffer8::QueryInterface(REFIID riid, voi
 		return E_POINTER;
 	}
 
-	if (
-		riid == __uuidof(this) ||
+	if (riid == __uuidof(this) ||
 		riid == __uuidof(IUnknown) ||
 		riid == __uuidof(Direct3DResource8))
 	{
@@ -866,7 +860,7 @@ ULONG STDMETHODCALLTYPE Direct3DVertexBuffer8::AddRef()
 }
 ULONG STDMETHODCALLTYPE Direct3DVertexBuffer8::Release()
 {
-	const ULONG ref = this->mProxy->Release();
+	const auto ref = this->mProxy->Release();
 
 	if (--this->mRef == 0)
 	{
@@ -937,8 +931,7 @@ HRESULT STDMETHODCALLTYPE Direct3DIndexBuffer8::QueryInterface(REFIID riid, void
 		return E_POINTER;
 	}
 
-	if (
-		riid == __uuidof(this) ||
+	if (riid == __uuidof(this) ||
 		riid == __uuidof(IUnknown) ||
 		riid == __uuidof(Direct3DResource8))
 	{
@@ -959,7 +952,7 @@ ULONG STDMETHODCALLTYPE Direct3DIndexBuffer8::AddRef()
 }
 ULONG STDMETHODCALLTYPE Direct3DIndexBuffer8::Release()
 {
-	const ULONG ref = this->mProxy->Release();
+	const auto ref = this->mProxy->Release();
 
 	if (--this->mRef == 0)
 	{
@@ -1030,8 +1023,7 @@ HRESULT STDMETHODCALLTYPE Direct3DSwapChain8::QueryInterface(REFIID riid, void *
 		return E_POINTER;
 	}
 
-	if (
-		riid == __uuidof(this) ||
+	if (riid == __uuidof(this) ||
 		riid == __uuidof(IUnknown))
 	{
 		AddRef();
@@ -1049,7 +1041,7 @@ ULONG STDMETHODCALLTYPE Direct3DSwapChain8::AddRef()
 }
 ULONG STDMETHODCALLTYPE Direct3DSwapChain8::Release()
 {
-	const ULONG ref = this->mProxy->Release();
+	const auto ref = this->mProxy->Release();
 
 	if (ref == 0)
 	{
@@ -1075,7 +1067,7 @@ HRESULT STDMETHODCALLTYPE Direct3DSwapChain8::GetBackBuffer(UINT iBackBuffer, D3
 
 	IDirect3DSurface9 *surface = nullptr;
 
-	const HRESULT hr = this->mProxy->GetBackBuffer(iBackBuffer, Type, &surface);
+	const auto hr = this->mProxy->GetBackBuffer(iBackBuffer, Type, &surface);
 
 	if (FAILED(hr))
 	{
@@ -1095,8 +1087,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::QueryInterface(REFIID riid, void **pp
 		return E_POINTER;
 	}
 
-	if (
-		riid == __uuidof(this) ||
+	if (riid == __uuidof(this) ||
 		riid == __uuidof(IUnknown))
 	{
 		AddRef();
@@ -1130,7 +1121,7 @@ ULONG STDMETHODCALLTYPE Direct3DDevice8::Release()
 		}
 	}
 
-	const ULONG ref = this->mProxy->Release();
+	const auto ref = this->mProxy->Release();
 
 	if (this->mRef == 0 && ref != 0)
 	{
@@ -1180,7 +1171,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::GetDeviceCaps(D3DCAPS8 *pCaps)
 
 	D3DCAPS9 caps;
 
-	const HRESULT hr = this->mProxy->GetDeviceCaps(&caps);
+	const auto hr = this->mProxy->GetDeviceCaps(&caps);
 
 	if (FAILED(hr))
 	{
@@ -1232,7 +1223,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateAdditionalSwapChain(D3DPRESENT_
 
 	ConvertPresentParameters(*pPresentationParameters, pp);
 
-	const HRESULT hr = this->mProxy->CreateAdditionalSwapChain(&pp, &swapchain);
+	const auto hr = this->mProxy->CreateAdditionalSwapChain(&pp, &swapchain);
 
 	if (FAILED(hr))
 	{
@@ -1266,7 +1257,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::Reset(D3DPRESENT_PARAMETERS8 *pPresen
 		this->mCurrentDepthStencil = nullptr;
 	}
 
-	const HRESULT hr = this->mProxy->Reset(&pp);
+	const auto hr = this->mProxy->Reset(&pp);
 
 	if (FAILED(hr))
 	{
@@ -1314,7 +1305,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::GetBackBuffer(UINT iBackBuffer, D3DBA
 
 	IDirect3DSurface9 *surface = nullptr;
 
-	const HRESULT hr = this->mProxy->GetBackBuffer(0, iBackBuffer, Type, &surface);
+	const auto hr = this->mProxy->GetBackBuffer(0, iBackBuffer, Type, &surface);
 
 	if (FAILED(hr))
 	{
@@ -1363,7 +1354,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateTexture(UINT Width, UINT Height
 
 	IDirect3DTexture9 *texture = nullptr;
 
-	const HRESULT hr = this->mProxy->CreateTexture(Width, Height, Levels, Usage, Format, Pool, &texture, nullptr);
+	const auto hr = this->mProxy->CreateTexture(Width, Height, Levels, Usage, Format, Pool, &texture, nullptr);
 
 	if (FAILED(hr))
 	{
@@ -1385,7 +1376,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateVolumeTexture(UINT Width, UINT 
 
 	IDirect3DVolumeTexture9 *texture = nullptr;
 
-	const HRESULT hr = this->mProxy->CreateVolumeTexture(Width, Height, Depth, Levels, Usage, Format, Pool, &texture, nullptr);
+	const auto hr = this->mProxy->CreateVolumeTexture(Width, Height, Depth, Levels, Usage, Format, Pool, &texture, nullptr);
 
 	if (FAILED(hr))
 	{
@@ -1407,7 +1398,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateCubeTexture(UINT EdgeLength, UI
 
 	IDirect3DCubeTexture9 *texture = nullptr;
 
-	const HRESULT hr = this->mProxy->CreateCubeTexture(EdgeLength, Levels, Usage, Format, Pool, &texture, nullptr);
+	const auto hr = this->mProxy->CreateCubeTexture(EdgeLength, Levels, Usage, Format, Pool, &texture, nullptr);
 
 	if (FAILED(hr))
 	{
@@ -1429,7 +1420,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateVertexBuffer(UINT Length, DWORD
 
 	IDirect3DVertexBuffer9 *buffer = nullptr;
 
-	const HRESULT hr = this->mProxy->CreateVertexBuffer(Length, Usage, FVF, Pool, &buffer, nullptr);
+	const auto hr = this->mProxy->CreateVertexBuffer(Length, Usage, FVF, Pool, &buffer, nullptr);
 
 	if (FAILED(hr))
 	{
@@ -1451,7 +1442,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateIndexBuffer(UINT Length, DWORD 
 
 	IDirect3DIndexBuffer9 *buffer = nullptr;
 
-	const HRESULT hr = this->mProxy->CreateIndexBuffer(Length, Usage, Format, Pool, &buffer, nullptr);
+	const auto hr = this->mProxy->CreateIndexBuffer(Length, Usage, Format, Pool, &buffer, nullptr);
 
 	if (FAILED(hr))
 	{
@@ -1548,7 +1539,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateImageSurface(UINT Width, UINT H
 
 	IDirect3DSurface9 *surface = nullptr;
 
-	const HRESULT hr = this->mProxy->CreateOffscreenPlainSurface(Width, Height, Format, D3DPOOL_SYSTEMMEM, &surface, nullptr);
+	const auto hr = this->mProxy->CreateOffscreenPlainSurface(Width, Height, Format, D3DPOOL_SYSTEMMEM, &surface, nullptr);
 
 	if (FAILED(hr))
 	{
@@ -1584,7 +1575,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CopyRects(Direct3DSurface8 *pSourceSu
 		cRects = 1;
 	}
 
-	for (UINT i = 0; i < cRects; ++i)
+	for (UINT i = 0; i < cRects; i++)
 	{
 		RECT rectSource, rectDestination;
 
@@ -1643,7 +1634,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::UpdateTexture(Direct3DBaseTexture8 *p
 		return D3DERR_INVALIDCALL;
 	}
 
-	IDirect3DBaseTexture9 *basetextureSource = nullptr, *basetextureDestination = nullptr;
+	IDirect3DBaseTexture9 *basetextureSource, *basetextureDestination;
 
 	switch (pSourceTexture->GetType())
 	{
@@ -1659,6 +1650,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::UpdateTexture(Direct3DBaseTexture8 *p
 			basetextureSource = static_cast<Direct3DCubeTexture8 *>(pSourceTexture)->mProxy;
 			basetextureDestination = static_cast<Direct3DCubeTexture8 *>(pDestinationTexture)->mProxy;
 			break;
+		default:
+			return D3DERR_INVALIDCALL;
 	}
 
 	return this->mProxy->UpdateTexture(basetextureSource, basetextureDestination);
@@ -1950,7 +1943,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::GetTexture(DWORD Stage, Direct3DBaseT
 
 	IDirect3DBaseTexture9 *basetexture = nullptr;
 
-	const HRESULT hr = this->mProxy->GetTexture(Stage, &basetexture);
+	const auto hr = this->mProxy->GetTexture(Stage, &basetexture);
 
 	if (FAILED(hr))
 	{
@@ -1991,7 +1984,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::SetTexture(DWORD Stage, Direct3DBaseT
 		return this->mProxy->SetTexture(Stage, nullptr);
 	}
 
-	IDirect3DBaseTexture9 *basetexture = nullptr;
+	IDirect3DBaseTexture9 *basetexture;
 
 	switch (pTexture->GetType())
 	{
@@ -2004,6 +1997,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::SetTexture(DWORD Stage, Direct3DBaseT
 		case D3DRTYPE_CUBETEXTURE:
 			basetexture = static_cast<Direct3DCubeTexture8 *>(pTexture)->mProxy;
 			break;
+		default:
+			return D3DERR_INVALIDCALL;
 	}
 
 	return this->mProxy->SetTexture(Stage, basetexture);
@@ -2311,7 +2306,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateVertexShader(CONST DWORD *pDecl
 	LOG(TRACE) << "  | Register | Stream  | Offset  | Type         | Method       | Usage        | Index |";
 	LOG(TRACE) << "  +----------+---------+---------+--------------+--------------+--------------+-------+";
 
-	for (UINT k = 0; k < i; ++k)
+	for (UINT k = 0; k < i; k++)
 	{
 		LOG(TRACE) << "  | v" << std::setw(7) << inputs[k] << " | " << std::setw(7) << elements[k].Stream << " | " << std::setw(7) << elements[k].Offset << " | " << std::showbase << std::hex << std::setw(12) << static_cast<UINT>(elements[k].Type) << " | " << std::setw(12) << static_cast<UINT>(elements[k].Method) << " | " << std::setw(12) << static_cast<UINT>(elements[k].Usage) << std::dec << std::noshowbase << " | " << std::setw(5) << static_cast<UINT>(elements[k].UsageIndex) << " |";
 	}
@@ -2360,7 +2355,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateVertexShader(CONST DWORD *pDecl
 
 		size_t declpos = verpos + 7;
 
-		for (UINT k = 0; k < i; ++k)
+		for (UINT k = 0; k < i; k++)
 		{
 			std::string decl = "    ";
 
@@ -2405,27 +2400,27 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateVertexShader(CONST DWORD *pDecl
 
 		source.insert(declpos, constants);
 
-		for (size_t i = 0; i < 2; ++i)
+		for (size_t j = 0; j < 2; j++)
 		{
-			const std::string reg = "oD" + std::to_string(i);
+			const std::string reg = "oD" + std::to_string(j);
 
 			if (source.find(reg) != std::string::npos)
 			{
 				source.insert(declpos + constants.size(), "    mov " + reg + ", c95 /* initialize output register " + reg + " */\n");
 			}
 		}
-		for (size_t i = 0; i < 8; ++i)
+		for (size_t j = 0; j < 8; j++)
 		{
-			const std::string reg = "oT" + std::to_string(i);
+			const std::string reg = "oT" + std::to_string(j);
 
 			if (source.find(reg) != std::string::npos)
 			{
 				source.insert(declpos + constants.size(), "    mov " + reg + ", c95 /* initialize output register " + reg + " */\n");
 			}
 		}
-		for (size_t i = 0; i < 12; ++i)
+		for (size_t j = 0; j < 12; j++)
 		{
-			const std::string reg = "r" + std::to_string(i);
+			const std::string reg = "r" + std::to_string(j);
 
 			if (source.find(reg) != std::string::npos)
 			{
@@ -2636,7 +2631,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::GetStreamSource(UINT StreamNumber, Di
 	UINT offset;
 	IDirect3DVertexBuffer9 *source = nullptr;
 
-	const HRESULT hr = this->mProxy->GetStreamSource(StreamNumber, &source, &offset, pStride);
+	const auto hr = this->mProxy->GetStreamSource(StreamNumber, &source, &offset, pStride);
 
 	if (FAILED(hr))
 	{
@@ -2677,7 +2672,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::GetIndices(Direct3DIndexBuffer8 **ppI
 
 	IDirect3DIndexBuffer9 *source = nullptr;
 
-	const HRESULT hr = this->mProxy->GetIndices(&source);
+	const auto hr = this->mProxy->GetIndices(&source);
 
 	if (FAILED(hr))
 	{
@@ -2846,8 +2841,7 @@ HRESULT STDMETHODCALLTYPE Direct3D8::QueryInterface(REFIID riid, void **ppvObj)
 		return E_POINTER;
 	}
 
-	if (
-		riid == __uuidof(this) ||
+	if (riid == __uuidof(this) ||
 		riid == __uuidof(IUnknown))
 	{
 		AddRef();
@@ -2865,7 +2859,7 @@ ULONG STDMETHODCALLTYPE Direct3D8::AddRef()
 }
 ULONG STDMETHODCALLTYPE Direct3D8::Release()
 {
-	const ULONG ref = this->mProxy->Release();
+	const auto ref = this->mProxy->Release();
 
 	if (ref == 0)
 	{
@@ -2904,7 +2898,7 @@ HRESULT STDMETHODCALLTYPE Direct3D8::GetAdapterIdentifier(UINT Adapter, DWORD Fl
 		Flags ^= D3DENUM_NO_WHQL_LEVEL;
 	}
 
-	const HRESULT hr = this->mProxy->GetAdapterIdentifier(Adapter, Flags, &identifier);
+	const auto hr = this->mProxy->GetAdapterIdentifier(Adapter, Flags, &identifier);
 
 	if (FAILED(hr))
 	{
@@ -2941,7 +2935,7 @@ HRESULT STDMETHODCALLTYPE Direct3D8::EnumAdapterModes(UINT Adapter, UINT Mode, D
 
 	for (auto format : formats)
 	{
-		const UINT modes = this->mProxy->GetAdapterModeCount(Adapter, format);
+		const auto modes = this->mProxy->GetAdapterModeCount(Adapter, format);
 
 		if (modes == 0)
 		{
@@ -2987,7 +2981,7 @@ HRESULT STDMETHODCALLTYPE Direct3D8::GetDeviceCaps(UINT Adapter, D3DDEVTYPE Devi
 
 	D3DCAPS9 caps;
 
-	const HRESULT hr = this->mProxy->GetDeviceCaps(Adapter, DeviceType, &caps);
+	const auto hr = this->mProxy->GetDeviceCaps(Adapter, DeviceType, &caps);
 
 	if (FAILED(hr))
 	{
@@ -3018,7 +3012,7 @@ HRESULT STDMETHODCALLTYPE Direct3D8::CreateDevice(UINT Adapter, D3DDEVTYPE Devic
 
 	ConvertPresentParameters(*pPresentationParameters, pp);
 
-	const HRESULT hr = this->mProxy->CreateDevice(Adapter, DeviceType, hFocusWindow, BehaviorFlags, &pp, &device);
+	const auto hr = this->mProxy->CreateDevice(Adapter, DeviceType, hFocusWindow, BehaviorFlags, &pp, &device);
 
 	if (FAILED(hr))
 	{
