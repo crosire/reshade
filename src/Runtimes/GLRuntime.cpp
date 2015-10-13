@@ -3176,9 +3176,9 @@ namespace ReShade
 			GLCHECK(glBindBuffer(GL_ARRAY_BUFFER, 0));
 
 
-			this->mStateBlock->Apply();
-
 			this->mGUI.reset(new GUI(this, nvgCreateGL3(0)));
+
+			this->mStateBlock->Apply();
 
 			return Runtime::OnInit();
 		}
