@@ -99,7 +99,7 @@ namespace ReShade
 
 	// ---------------------------------------------------------------------------------------------------
 
-	Runtime::Runtime() : mIsInitialized(false), mIsEffectCompiled(false), mWidth(0), mHeight(0), mVendorId(0), mDeviceId(0), mRendererId(0), mStats(), mScreenshotFormat("png"), mScreenshotPath(sExecutablePath.parent_path()), mScreenshotKey(VK_SNAPSHOT), mCompileStep(0), mShowStatistics(false), mShowFPS(false), mShowClock(false), mShowToggleMessage(false)
+	Runtime::Runtime() : mIsInitialized(false), mIsEffectCompiled(false), mWidth(0), mHeight(0), mVendorId(0), mDeviceId(0), mRendererId(0), mStats(), mCompileStep(0), mScreenshotFormat("png"), mScreenshotPath(sExecutablePath.parent_path()), mScreenshotKey(VK_SNAPSHOT), mShowStatistics(false), mShowFPS(false), mShowClock(false), mShowToggleMessage(false)
 	{
 		memset(&this->mStats, 0, sizeof(Statistics));
 
@@ -336,58 +336,6 @@ namespace ReShade
 	{
 		const auto timePostProcessingStarted = boost::chrono::high_resolution_clock::now();
 
-		for (const auto &technique : this->mTechniques)
-		{
-			if (technique->ToggleTime != 0 && technique->ToggleTime == static_cast<int>(this->mStats.Date[3]))
-			{
-				technique->Enabled = !technique->Enabled;
-				technique->Timeleft = technique->Timeout;
-				technique->ToggleTime = 0;
-			}
-			else if (technique->Timeleft > 0)
-			{
-				technique->Timeleft -= static_cast<unsigned int>(boost::chrono::duration_cast<boost::chrono::milliseconds>(this->mLastFrameDuration).count());
-
-				if (technique->Timeleft <= 0)
-				{
-					technique->Enabled = !technique->Enabled;
-					technique->Timeleft = 0;
-				}
-			}
-			else if (this->mWindow->GetKeyJustPressed(technique->Toggle) && (!technique->ToggleCtrl || this->mWindow->GetKeyState(VK_CONTROL)) && (!technique->ToggleShift || this->mWindow->GetKeyState(VK_SHIFT)) && (!technique->ToggleAlt || this->mWindow->GetKeyState(VK_MENU)))
-			{
-				technique->Enabled = !technique->Enabled;
-				technique->Timeleft = technique->Timeout;
-
-				if (this->mShowToggleMessage)
-				{
-					this->mStatus = technique->Name + (technique->Enabled ? " enabled." : " disabled.");
-					this->mLastCreate = timePostProcessingStarted;
-				}
-			}
-
-			if (!technique->Enabled)
-			{
-				technique->LastDuration = boost::chrono::high_resolution_clock::duration(0);
-
-				continue;
-			}
-
-			const auto timeTechniqueStarted = boost::chrono::high_resolution_clock::now();
-
-			OnApplyEffectTechnique(technique.get());
-
-			if (boost::chrono::duration_cast<boost::chrono::milliseconds>(timeTechniqueStarted - technique->LastDurationUpdate).count() > 250)
-			{
-				technique->LastDuration = boost::chrono::high_resolution_clock::now() - timeTechniqueStarted;
-				technique->LastDurationUpdate = timeTechniqueStarted;
-			}
-		}
-
-		this->mLastPostProcessingDuration = boost::chrono::high_resolution_clock::now() - timePostProcessingStarted;
-	}
-	void Runtime::OnApplyEffectTechnique(const Technique *technique)
-	{
 		for (const auto &variable : this->mUniforms)
 		{
 			const std::string source = variable->Annotations["source"].As<std::string>();
@@ -492,10 +440,6 @@ namespace ReShade
 					}
 				}
 			}
-			else if (source == "timeleft")
-			{
-				SetEffectValue(*variable, &technique->Timeleft, 1);
-			}
 			else if (source == "key")
 			{
 				const int key = variable->Annotations["keycode"].As<int>();
@@ -528,6 +472,66 @@ namespace ReShade
 				const int value = min + (std::rand() % (max - min + 1));
 
 				SetEffectValue(*variable, &value, 1);
+			}
+		}
+
+		for (const auto &technique : this->mTechniques)
+		{
+			if (technique->ToggleTime != 0 && technique->ToggleTime == static_cast<int>(this->mStats.Date[3]))
+			{
+				technique->Enabled = !technique->Enabled;
+				technique->Timeleft = technique->Timeout;
+				technique->ToggleTime = 0;
+			}
+			else if (technique->Timeleft > 0)
+			{
+				technique->Timeleft -= static_cast<unsigned int>(boost::chrono::duration_cast<boost::chrono::milliseconds>(this->mLastFrameDuration).count());
+
+				if (technique->Timeleft <= 0)
+				{
+					technique->Enabled = !technique->Enabled;
+					technique->Timeleft = 0;
+				}
+			}
+			else if (this->mWindow->GetKeyJustPressed(technique->Toggle) && (!technique->ToggleCtrl || this->mWindow->GetKeyState(VK_CONTROL)) && (!technique->ToggleShift || this->mWindow->GetKeyState(VK_SHIFT)) && (!technique->ToggleAlt || this->mWindow->GetKeyState(VK_MENU)))
+			{
+				technique->Enabled = !technique->Enabled;
+				technique->Timeleft = technique->Timeout;
+
+				if (this->mShowToggleMessage)
+				{
+					this->mStatus = technique->Name + (technique->Enabled ? " enabled." : " disabled.");
+					this->mLastCreate = timePostProcessingStarted;
+				}
+			}
+
+			if (!technique->Enabled)
+			{
+				technique->LastDuration = boost::chrono::high_resolution_clock::duration(0);
+
+				continue;
+			}
+
+			const auto timeTechniqueStarted = boost::chrono::high_resolution_clock::now();
+
+			OnApplyEffectTechnique(technique.get());
+
+			if (boost::chrono::duration_cast<boost::chrono::milliseconds>(timeTechniqueStarted - technique->LastDurationUpdate).count() > 250)
+			{
+				technique->LastDuration = boost::chrono::high_resolution_clock::now() - timeTechniqueStarted;
+				technique->LastDurationUpdate = timeTechniqueStarted;
+			}
+		}
+
+		this->mLastPostProcessingDuration = boost::chrono::high_resolution_clock::now() - timePostProcessingStarted;
+	}
+	void Runtime::OnApplyEffectTechnique(const Technique *technique)
+	{
+		for (const auto &variable : this->mUniforms)
+		{
+			if (variable->Annotations["source"].As<std::string>() == "timeleft")
+			{
+				SetEffectValue(*variable, &technique->Timeleft, 1);
 			}
 		}
 	}
