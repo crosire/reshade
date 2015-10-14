@@ -2459,10 +2459,6 @@ namespace ReShade
 				LOG(TRACE) << "Failed to present! Runtime is in a lost state.";
 				return;
 			}
-			else if (this->mStats.DrawCalls == 0)
-			{
-				return;
-			}
 
 			DetectDepthSource();
 
