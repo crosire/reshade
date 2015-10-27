@@ -53,39 +53,39 @@
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-    <Import Project="dep\DirectX.props" />
-    <Import Project="dep\MinHook.props" />
-    <Import Project="dep\FCPP.props" />
-    <Import Project="dep\GL3W.props" />
-    <Import Project="dep\STB.props" />
-    <Import Project="dep\NanoVG.props" />
+    <Import Project="deps\DirectX.props" />
+    <Import Project="deps\MinHook.props" />
+    <Import Project="deps\FCPP.props" />
+    <Import Project="deps\GL3W.props" />
+    <Import Project="deps\STB.props" />
+    <Import Project="deps\NanoVG.props" />
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-    <Import Project="dep\DirectX.props" />
-    <Import Project="dep\MinHook.props" />
-    <Import Project="dep\FCPP.props" />
-    <Import Project="dep\GL3W.props" />
-    <Import Project="dep\STB.props" />
-    <Import Project="dep\NanoVG.props" />
+    <Import Project="deps\DirectX.props" />
+    <Import Project="deps\MinHook.props" />
+    <Import Project="deps\FCPP.props" />
+    <Import Project="deps\GL3W.props" />
+    <Import Project="deps\STB.props" />
+    <Import Project="deps\NanoVG.props" />
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-    <Import Project="dep\DirectX.props" />
-    <Import Project="dep\MinHook.props" />
-    <Import Project="dep\FCPP.props" />
-    <Import Project="dep\GL3W.props" />
-    <Import Project="dep\STB.props" />
-    <Import Project="dep\NanoVG.props" />
+    <Import Project="deps\DirectX.props" />
+    <Import Project="deps\MinHook.props" />
+    <Import Project="deps\FCPP.props" />
+    <Import Project="deps\GL3W.props" />
+    <Import Project="deps\STB.props" />
+    <Import Project="deps\NanoVG.props" />
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-    <Import Project="dep\DirectX.props" />
-    <Import Project="dep\MinHook.props" />
-    <Import Project="dep\FCPP.props" />
-    <Import Project="dep\GL3W.props" />
-    <Import Project="dep\STB.props" />
-    <Import Project="dep\NanoVG.props" />
+    <Import Project="deps\DirectX.props" />
+    <Import Project="deps\MinHook.props" />
+    <Import Project="deps\FCPP.props" />
+    <Import Project="deps\GL3W.props" />
+    <Import Project="deps\STB.props" />
+    <Import Project="deps\NanoVG.props" />
   </ImportGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
@@ -120,7 +120,7 @@
       <WarningLevel>Level4</WarningLevel>
       <SDLCheck>true</SDLCheck>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>$(SolutionDir)\src;$(SolutionDir)\src\Hook;$(SolutionDir)\src\Runtime;$(SolutionDir)\res;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)\source;$(SolutionDir)\source\Hook;$(SolutionDir)\source\Runtime;$(SolutionDir)\res;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;_DEBUG;WIN32_LEAN_AND_MEAN;NOMINMAX;_GDI32_;WINSOCK_API_LINKAGE=;_SCL_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DisableSpecificWarnings>4351;%(DisableSpecificWarnings)</DisableSpecificWarnings>
       <ObjectFileName>$(IntDir)\%(RelativeDir)\</ObjectFileName>
@@ -143,7 +143,7 @@
       <WarningLevel>Level4</WarningLevel>
       <SDLCheck>true</SDLCheck>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>$(SolutionDir)\src;$(SolutionDir)\src\Hook;$(SolutionDir)\src\Runtime;$(SolutionDir)\res;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)\source;$(SolutionDir)\source\Hook;$(SolutionDir)\source\Runtime;$(SolutionDir)\res;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN64;_DEBUG;WIN32_LEAN_AND_MEAN;NOMINMAX;_GDI32_;WINSOCK_API_LINKAGE=;_SCL_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DisableSpecificWarnings>4351;%(DisableSpecificWarnings)</DisableSpecificWarnings>
       <ObjectFileName>$(IntDir)\%(RelativeDir)\</ObjectFileName>
@@ -168,7 +168,7 @@
       <Optimization>MaxSpeed</Optimization>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <FunctionLevelLinking>true</FunctionLevelLinking>
-      <AdditionalIncludeDirectories>$(SolutionDir)\src;$(SolutionDir)\src\Hook;$(SolutionDir)\src\Runtime;$(SolutionDir)\res;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)\source;$(SolutionDir)\source\Hook;$(SolutionDir)\source\Runtime;$(SolutionDir)\res;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;NDEBUG;WIN32_LEAN_AND_MEAN;NOMINMAX;_GDI32_;WINSOCK_API_LINKAGE=;_SCL_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DisableSpecificWarnings>4351;%(DisableSpecificWarnings)</DisableSpecificWarnings>
       <ObjectFileName>$(IntDir)\%(RelativeDir)\</ObjectFileName>
@@ -202,7 +202,7 @@ tools\upx --backup "$(TargetPath)"</Command>
       <Optimization>MaxSpeed</Optimization>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <FunctionLevelLinking>true</FunctionLevelLinking>
-      <AdditionalIncludeDirectories>$(SolutionDir)\src;$(SolutionDir)\src\Hook;$(SolutionDir)\src\Runtime;$(SolutionDir)\res;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)\source;$(SolutionDir)\source\Hook;$(SolutionDir)\source\Runtime;$(SolutionDir)\res;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN64;NDEBUG;WIN32_LEAN_AND_MEAN;NOMINMAX;_GDI32_;WINSOCK_API_LINKAGE=;_SCL_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DisableSpecificWarnings>4351;%(DisableSpecificWarnings)</DisableSpecificWarnings>
       <ObjectFileName>$(IntDir)\%(RelativeDir)\</ObjectFileName>
@@ -230,66 +230,66 @@ tools\upx --backup "$(TargetPath)"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="src\Log.cpp" />
-    <ClCompile Include="src\Main.cpp" />
-    <ClCompile Include="src\FX\Lexer.cpp" />
-    <ClCompile Include="src\FX\Parser.cpp" />
-    <ClCompile Include="src\FX\PreProcessor.cpp" />
-    <ClCompile Include="src\Hook\Hook.cpp" />
-    <ClCompile Include="src\Hook\HookManager.cpp" />
-    <ClCompile Include="src\Hooks\D3D8.cpp">
+    <ClCompile Include="source\Log.cpp" />
+    <ClCompile Include="source\Main.cpp" />
+    <ClCompile Include="source\FX\Lexer.cpp" />
+    <ClCompile Include="source\FX\Parser.cpp" />
+    <ClCompile Include="source\FX\PreProcessor.cpp" />
+    <ClCompile Include="source\Hook\Hook.cpp" />
+    <ClCompile Include="source\Hook\HookManager.cpp" />
+    <ClCompile Include="source\Hooks\D3D8.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </ClCompile>
-    <ClCompile Include="src\Hooks\D3D9.cpp" />
-    <ClCompile Include="src\Hooks\D3D10.cpp" />
-    <ClCompile Include="src\Hooks\D3D11.cpp" />
-    <ClCompile Include="src\Hooks\D3D12.cpp" />
-    <ClCompile Include="src\Hooks\DXGI.cpp" />
-    <ClCompile Include="src\Hooks\OPENGL32.cpp" />
-    <ClCompile Include="src\Hooks\USER32.cpp" />
-    <ClCompile Include="src\Hooks\WS2_32.cpp" />
-    <ClCompile Include="src\Runtime\FileWatcher.cpp" />
-    <ClCompile Include="src\Runtime\GUI.cpp" />
-    <ClCompile Include="src\Runtime\Runtime.cpp" />
-    <ClCompile Include="src\Runtime\WindowWatcher.cpp" />
-    <ClCompile Include="src\Runtimes\D3D9Runtime.cpp" />
-    <ClCompile Include="src\Runtimes\D3D10Runtime.cpp" />
-    <ClCompile Include="src\Runtimes\D3D11Runtime.cpp" />
-    <ClCompile Include="src\Runtimes\D3D12Runtime.cpp" />
-    <ClCompile Include="src\Runtimes\GLRuntime.cpp" />
+    <ClCompile Include="source\Hooks\D3D9.cpp" />
+    <ClCompile Include="source\Hooks\D3D10.cpp" />
+    <ClCompile Include="source\Hooks\D3D11.cpp" />
+    <ClCompile Include="source\Hooks\D3D12.cpp" />
+    <ClCompile Include="source\Hooks\DXGI.cpp" />
+    <ClCompile Include="source\Hooks\OPENGL32.cpp" />
+    <ClCompile Include="source\Hooks\USER32.cpp" />
+    <ClCompile Include="source\Hooks\WS2_32.cpp" />
+    <ClCompile Include="source\Runtime\FileWatcher.cpp" />
+    <ClCompile Include="source\Runtime\GUI.cpp" />
+    <ClCompile Include="source\Runtime\Runtime.cpp" />
+    <ClCompile Include="source\Runtime\WindowWatcher.cpp" />
+    <ClCompile Include="source\Runtimes\D3D9Runtime.cpp" />
+    <ClCompile Include="source\Runtimes\D3D10Runtime.cpp" />
+    <ClCompile Include="source\Runtimes\D3D11Runtime.cpp" />
+    <ClCompile Include="source\Runtimes\D3D12Runtime.cpp" />
+    <ClCompile Include="source\Runtimes\GLRuntime.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="src\Log.hpp" />
+    <ClInclude Include="source\Log.hpp" />
     <ClInclude Include="res\Resource.h" />
     <ClInclude Include="res\Version.h" />
-    <ClInclude Include="src\FX\Lexer.hpp" />
-    <ClInclude Include="src\FX\Parser.hpp" />
-    <ClInclude Include="src\FX\ParserNodes.hpp" />
-    <ClInclude Include="src\FX\PreProcessor.hpp" />
-    <ClInclude Include="src\Hook\Hook.hpp" />
-    <ClInclude Include="src\Hook\HookManager.hpp" />
-    <ClInclude Include="src\Hooks\D3D8.hpp">
+    <ClInclude Include="source\FX\Lexer.hpp" />
+    <ClInclude Include="source\FX\Parser.hpp" />
+    <ClInclude Include="source\FX\ParserNodes.hpp" />
+    <ClInclude Include="source\FX\PreProcessor.hpp" />
+    <ClInclude Include="source\Hook\Hook.hpp" />
+    <ClInclude Include="source\Hook\HookManager.hpp" />
+    <ClInclude Include="source\Hooks\D3D8.hpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </ClInclude>
-    <ClInclude Include="src\Hooks\D3D9.hpp" />
-    <ClInclude Include="src\Hooks\D3D10.hpp" />
-    <ClInclude Include="src\Hooks\D3D11.hpp" />
-    <ClInclude Include="src\Hooks\D3D12.hpp" />
-    <ClInclude Include="src\Hooks\DXGI.hpp" />
-    <ClInclude Include="src\Runtime\FileWatcher.hpp" />
-    <ClInclude Include="src\Runtime\GUI.hpp" />
-    <ClInclude Include="src\Runtime\Runtime.hpp" />
-    <ClInclude Include="src\Runtime\WindowWatcher.hpp" />
-    <ClInclude Include="src\Runtimes\D3D9Runtime.hpp" />
-    <ClInclude Include="src\Runtimes\D3D10Runtime.hpp" />
-    <ClInclude Include="src\Runtimes\D3D11Runtime.hpp" />
-    <ClInclude Include="src\Runtimes\D3D12Runtime.hpp" />
-    <ClInclude Include="src\Runtimes\GLRuntime.hpp" />
-    <ClInclude Include="src\Utils\Algorithm.hpp" />
-    <ClInclude Include="src\Utils\CriticalSection.hpp" />
-    <ClInclude Include="src\Utils\Time.hpp" />
+    <ClInclude Include="source\Hooks\D3D9.hpp" />
+    <ClInclude Include="source\Hooks\D3D10.hpp" />
+    <ClInclude Include="source\Hooks\D3D11.hpp" />
+    <ClInclude Include="source\Hooks\D3D12.hpp" />
+    <ClInclude Include="source\Hooks\DXGI.hpp" />
+    <ClInclude Include="source\Runtime\FileWatcher.hpp" />
+    <ClInclude Include="source\Runtime\GUI.hpp" />
+    <ClInclude Include="source\Runtime\Runtime.hpp" />
+    <ClInclude Include="source\Runtime\WindowWatcher.hpp" />
+    <ClInclude Include="source\Runtimes\D3D9Runtime.hpp" />
+    <ClInclude Include="source\Runtimes\D3D10Runtime.hpp" />
+    <ClInclude Include="source\Runtimes\D3D11Runtime.hpp" />
+    <ClInclude Include="source\Runtimes\D3D12Runtime.hpp" />
+    <ClInclude Include="source\Runtimes\GLRuntime.hpp" />
+    <ClInclude Include="source\Utils\Algorithm.hpp" />
+    <ClInclude Include="source\Utils\CriticalSection.hpp" />
+    <ClInclude Include="source\Utils\Time.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="res\Resource.rc" />

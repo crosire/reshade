@@ -1,5 +1,0 @@
-bin/*
-*.o
-logs/*
-*.exe
-Makefile.win

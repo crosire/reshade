@@ -1,8 +1,0 @@
-lib/libmyLib.so
-lib/mylib.o
-lib/myLib.a
-myLib.a
-libmyLib.so
-logs/*
-myapp
-
