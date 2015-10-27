@@ -404,19 +404,6 @@ EXPORT HRESULT WINAPI D3D12CreateDevice(IUnknown *pAdapter, D3D_FEATURE_LEVEL Mi
 
 	LOG(INFO) << "Redirecting '" << "D3D12CreateDevice" << "(" << pAdapter << ", " << std::showbase << std::hex << MinimumFeatureLevel << std::dec << std::noshowbase << ", " << riidString << ", " << ppDevice << ")' ...";
 
-#ifdef _DEBUG
-	/*ID3D12Debug *debug = nullptr;
-
-	#pragma comment(lib, "d3d12.lib")
-
-	if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debug))))
-	{
-		debug->EnableDebugLayer();
-
-		debug->Release();
-	}*/
-#endif
-
 	const HRESULT hr = ReShade::Hooks::Call(&D3D12CreateDevice)(pAdapter, MinimumFeatureLevel, riid, ppDevice);
 
 	if (FAILED(hr))
@@ -426,15 +413,26 @@ EXPORT HRESULT WINAPI D3D12CreateDevice(IUnknown *pAdapter, D3D_FEATURE_LEVEL Mi
 		return hr;
 	}
 
-	if (ppDevice != nullptr && riid == __uuidof(ID3D12Device))
+	if (ppDevice != nullptr)
 	{
 		assert(*ppDevice != nullptr);
 
-		D3D12Device *const deviceProxy = new D3D12Device(static_cast<ID3D12Device *>(*ppDevice));
+		ID3D12Device *device = nullptr;
 
-		*ppDevice = deviceProxy;
+		if (SUCCEEDED(static_cast<IUnknown *>(*ppDevice)->QueryInterface(&device)))
+		{
+			D3D12Device *const deviceProxy = new D3D12Device(device);
 
-		LOG(TRACE) << "> Returned device objects: " << deviceProxy;
+			device->Release();
+
+			*ppDevice = deviceProxy;
+
+			LOG(TRACE) << "> Returned device objects: " << deviceProxy;
+		}
+		else
+		{
+			LOG(WARNING) << "> Skipping device because it is missing support for the 'ID3D12Device' interface.";
+		}
 	}
 
 	return hr;

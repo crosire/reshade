@@ -862,7 +862,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, I
 	else if (commandqueueD3D12 != nullptr)
 	{
 		IDXGISwapChain3 *swapchain3 = nullptr;
-		
+
 		if (SUCCEEDED(swapchain->QueryInterface(&swapchain3)))
 		{
 			commandqueueD3D12->AddRef();
