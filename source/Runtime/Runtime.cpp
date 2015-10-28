@@ -65,7 +65,7 @@ namespace ReShade
 			Log::Open(logPath, Log::Level::Info);
 		}
 
-		LOG(INFO) << "Initializing Crosire's ReShade version '" BOOST_STRINGIZE(VERSION_FULL) "' built on '" VERSION_DATE " " VERSION_TIME "' loaded from " << ObfuscatePath(injectorPath) << " to " << ObfuscatePath(executablePath) << " ...";
+		LOG(INFO) << "Initializing crosire's ReShade version '" BOOST_STRINGIZE(VERSION_FULL) "' built on '" VERSION_DATE " " VERSION_TIME "' loaded from " << ObfuscatePath(injectorPath) << " to " << ObfuscatePath(executablePath) << " ...";
 
 		const boost::filesystem::path systemPath = GetSystemDirectory();
 
@@ -238,7 +238,7 @@ namespace ReShade
 		{
 			if (!this->mStatus.empty())
 			{
-				this->mGUI->AddLabel(22, 0xFFBCBCBC, "ReShade " BOOST_STRINGIZE(VERSION_FULL) " by Crosire");
+				this->mGUI->AddLabel(22, 0xFFBCBCBC, "ReShade " BOOST_STRINGIZE(VERSION_FULL) " by crosire");
 				this->mGUI->AddLabel(16, 0xFFBCBCBC, "Visit http://reshade.me for news, updates, shaders and discussion.");
 				this->mGUI->AddLabel(16, 0xFFBCBCBC, this->mStatus);
 
