@@ -72,7 +72,7 @@ namespace ReShade
 					UINT dataSize = sizeof(RAWINPUT);
 					RAWINPUT data = { 0 };
 
-					if (GetRawInputData(reinterpret_cast<HRAWINPUT>(details.lParam), RID_INPUT, &data, &dataSize, sizeof(RAWINPUTHEADER)) < 0)
+					if (GetRawInputData(reinterpret_cast<HRAWINPUT>(details.lParam), RID_INPUT, &data, &dataSize, sizeof(RAWINPUTHEADER)) == ~0u)
 					{
 						break;
 					}

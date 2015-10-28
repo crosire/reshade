@@ -2869,7 +2869,7 @@ namespace ReShade
 		public:
 			GLStateBlock()
 			{
-				ZeroMemory(this, sizeof(this));
+				ZeroMemory(this, sizeof(*this));
 			}
 
 			void Capture()

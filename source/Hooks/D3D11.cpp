@@ -1443,10 +1443,12 @@ EXPORT HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, D3D_
 		IDXGIDevice *dxgidevice = nullptr;
 		ID3D11Device *const device = *ppDevice;
 		ID3D11DeviceContext *devicecontext = nullptr;
+
+		assert(device != nullptr);
+
 		device->QueryInterface(&dxgidevice);
 		device->GetImmediateContext(&devicecontext);
 
-		assert(device != nullptr);
 		assert(dxgidevice != nullptr);
 		assert(devicecontext != nullptr);
 

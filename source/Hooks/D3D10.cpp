@@ -658,9 +658,11 @@ EXPORT HRESULT WINAPI D3D10CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, D3D1
 	{
 		IDXGIDevice *dxgidevice = nullptr;
 		ID3D10Device *const device = *ppDevice;
-		device->QueryInterface(&dxgidevice);
 
 		assert(device != nullptr);
+
+		device->QueryInterface(&dxgidevice);
+
 		assert(dxgidevice != nullptr);
 
 		D3D10Device *const deviceProxy = new D3D10Device(device);
@@ -728,9 +730,11 @@ EXPORT HRESULT WINAPI D3D10CreateDeviceAndSwapChain1(IDXGIAdapter *pAdapter, D3D
 	{
 		IDXGIDevice *dxgidevice = nullptr;
 		ID3D10Device1 *const device = *ppDevice;
-		device->QueryInterface(&dxgidevice);
 
 		assert(device != nullptr);
+
+		device->QueryInterface(&dxgidevice);
+
 		assert(dxgidevice != nullptr);
 
 		D3D10Device *const deviceProxy = new D3D10Device(device);
