@@ -249,7 +249,6 @@ tools\upx --backup "$(TargetPath)"</Command>
     <ClCompile Include="source\Hooks\OPENGL32.cpp" />
     <ClCompile Include="source\Hooks\USER32.cpp" />
     <ClCompile Include="source\Hooks\WS2_32.cpp" />
-    <ClCompile Include="source\Runtime\FileWatcher.cpp" />
     <ClCompile Include="source\Runtime\GUI.cpp" />
     <ClCompile Include="source\Runtime\Runtime.cpp" />
     <ClCompile Include="source\Runtime\WindowWatcher.cpp" />
@@ -258,6 +257,7 @@ tools\upx --backup "$(TargetPath)"</Command>
     <ClCompile Include="source\Runtimes\D3D11Runtime.cpp" />
     <ClCompile Include="source\Runtimes\D3D12Runtime.cpp" />
     <ClCompile Include="source\Runtimes\GLRuntime.cpp" />
+    <ClCompile Include="source\Utils\FileWatcher.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="source\Log.hpp" />
@@ -278,7 +278,6 @@ tools\upx --backup "$(TargetPath)"</Command>
     <ClInclude Include="source\Hooks\D3D11.hpp" />
     <ClInclude Include="source\Hooks\D3D12.hpp" />
     <ClInclude Include="source\Hooks\DXGI.hpp" />
-    <ClInclude Include="source\Runtime\FileWatcher.hpp" />
     <ClInclude Include="source\Runtime\GUI.hpp" />
     <ClInclude Include="source\Runtime\Runtime.hpp" />
     <ClInclude Include="source\Runtime\WindowWatcher.hpp" />
@@ -289,6 +288,7 @@ tools\upx --backup "$(TargetPath)"</Command>
     <ClInclude Include="source\Runtimes\GLRuntime.hpp" />
     <ClInclude Include="source\Utils\Algorithm.hpp" />
     <ClInclude Include="source\Utils\CriticalSection.hpp" />
+    <ClInclude Include="source\Utils\FileWatcher.hpp" />
     <ClInclude Include="source\Utils\Time.hpp" />
   </ItemGroup>
   <ItemGroup>

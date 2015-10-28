@@ -30,6 +30,12 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="source\Log.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="source\Main.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
     <ClCompile Include="source\FX\Lexer.cpp">
       <Filter>Core\FX</Filter>
     </ClCompile>
@@ -44,6 +50,15 @@
     </ClCompile>
     <ClCompile Include="source\Hook\HookManager.cpp">
       <Filter>Core\Hook</Filter>
+    </ClCompile>
+    <ClCompile Include="source\Runtime\Runtime.cpp">
+      <Filter>Core\Runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="source\Runtime\WindowWatcher.cpp">
+      <Filter>Core\Runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="source\Utils\FileWatcher.cpp">
+      <Filter>Core\Utils</Filter>
     </ClCompile>
     <ClCompile Include="source\Hooks\D3D8.cpp">
       <Filter>Implementation\Hooks</Filter>
@@ -72,16 +87,7 @@
     <ClCompile Include="source\Hooks\WS2_32.cpp">
       <Filter>Implementation\Hooks</Filter>
     </ClCompile>
-    <ClCompile Include="source\Runtime\FileWatcher.cpp">
-      <Filter>Core\Utils</Filter>
-    </ClCompile>
     <ClCompile Include="source\Runtime\GUI.cpp">
-      <Filter>Core\Runtime</Filter>
-    </ClCompile>
-    <ClCompile Include="source\Runtime\Runtime.cpp">
-      <Filter>Core\Runtime</Filter>
-    </ClCompile>
-    <ClCompile Include="source\Runtime\WindowWatcher.cpp">
       <Filter>Core\Runtime</Filter>
     </ClCompile>
     <ClCompile Include="source\Runtimes\D3D9Runtime.cpp">
@@ -99,12 +105,6 @@
     <ClCompile Include="source\Runtimes\GLRuntime.cpp">
       <Filter>Implementation\Runtimes</Filter>
     </ClCompile>
-    <ClCompile Include="source\Log.cpp">
-      <Filter>Core</Filter>
-    </ClCompile>
-    <ClCompile Include="source\Main.cpp">
-      <Filter>Core</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="res\Resource.h">
@@ -112,6 +112,9 @@
     </ClInclude>
     <ClInclude Include="res\Version.h">
       <Filter>Resources</Filter>
+    </ClInclude>
+    <ClInclude Include="source\Log.hpp">
+      <Filter>Core</Filter>
     </ClInclude>
     <ClInclude Include="source\FX\Lexer.hpp">
       <Filter>Core\FX</Filter>
@@ -131,6 +134,27 @@
     <ClInclude Include="source\Hook\HookManager.hpp">
       <Filter>Core\Hook</Filter>
     </ClInclude>
+    <ClInclude Include="source\Runtime\GUI.hpp">
+      <Filter>Core\Runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="source\Runtime\Runtime.hpp">
+      <Filter>Core\Runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="source\Runtime\WindowWatcher.hpp">
+      <Filter>Core\Runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="source\Utils\Algorithm.hpp">
+      <Filter>Core\Utils</Filter>
+    </ClInclude>
+    <ClInclude Include="source\Utils\CriticalSection.hpp">
+      <Filter>Core\Utils</Filter>
+    </ClInclude>
+    <ClInclude Include="source\Utils\FileWatcher.hpp">
+      <Filter>Core\Utils</Filter>
+    </ClInclude>
+    <ClInclude Include="source\Utils\Time.hpp">
+      <Filter>Core\Utils</Filter>
+    </ClInclude>
     <ClInclude Include="source\Hooks\D3D8.hpp">
       <Filter>Implementation\Hooks</Filter>
     </ClInclude>
@@ -149,18 +173,6 @@
     <ClInclude Include="source\Hooks\DXGI.hpp">
       <Filter>Implementation\Hooks</Filter>
     </ClInclude>
-    <ClInclude Include="source\Runtime\FileWatcher.hpp">
-      <Filter>Core\Utils</Filter>
-    </ClInclude>
-    <ClInclude Include="source\Runtime\GUI.hpp">
-      <Filter>Core\Runtime</Filter>
-    </ClInclude>
-    <ClInclude Include="source\Runtime\Runtime.hpp">
-      <Filter>Core\Runtime</Filter>
-    </ClInclude>
-    <ClInclude Include="source\Runtime\WindowWatcher.hpp">
-      <Filter>Core\Runtime</Filter>
-    </ClInclude>
     <ClInclude Include="source\Runtimes\D3D9Runtime.hpp">
       <Filter>Implementation\Runtimes</Filter>
     </ClInclude>
@@ -175,18 +187,6 @@
     </ClInclude>
     <ClInclude Include="source\Runtimes\GLRuntime.hpp">
       <Filter>Implementation\Runtimes</Filter>
-    </ClInclude>
-    <ClInclude Include="source\Utils\Algorithm.hpp">
-      <Filter>Core\Utils</Filter>
-    </ClInclude>
-    <ClInclude Include="source\Utils\CriticalSection.hpp">
-      <Filter>Core\Utils</Filter>
-    </ClInclude>
-    <ClInclude Include="source\Utils\Time.hpp">
-      <Filter>Core\Utils</Filter>
-    </ClInclude>
-    <ClInclude Include="source\Log.hpp">
-      <Filter>Core</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
