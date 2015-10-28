@@ -5,9 +5,9 @@
 #include "FX\Parser.hpp"
 #include "FX\PreProcessor.hpp"
 #include "GUI.hpp"
-#include "FileWatcher.hpp"
 #include "WindowWatcher.hpp"
 #include "Utils\Algorithm.hpp"
+#include "Utils\FileWatcher.hpp"
 
 #include <iterator>
 #include <assert.h>
