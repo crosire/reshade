@@ -822,6 +822,8 @@ namespace ReShade
 				}
 				void Visit(const FX::Nodes::Sequence *node)
 				{
+					this->mCurrentSource += '(';
+
 					for (auto expression : node->Expressions)
 					{
 						Visit(expression);
@@ -831,6 +833,8 @@ namespace ReShade
 					
 					this->mCurrentSource.pop_back();
 					this->mCurrentSource.pop_back();
+
+					this->mCurrentSource += ')';
 				}
 				void Visit(const FX::Nodes::Unary *node)
 				{

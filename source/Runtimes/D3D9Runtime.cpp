@@ -795,6 +795,8 @@ namespace ReShade
 				}
 				void Visit(std::string &output, const FX::Nodes::Sequence *node)
 				{
+					output += '(';
+
 					for (auto expression : node->Expressions)
 					{
 						Visit(output, expression);
@@ -803,6 +805,8 @@ namespace ReShade
 					}
 
 					output.erase(output.end() - 2, output.end());
+
+					output += ')';
 				}
 				void Visit(std::string &output, const FX::Nodes::Unary *node)
 				{
