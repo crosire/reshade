@@ -2806,6 +2806,12 @@ namespace ReShade
 			// Capture device state
 			this->mStateBlock->Capture();
 
+			// Resolve backbuffer
+			if (this->mBackBufferResolved != this->mBackBuffer)
+			{
+				this->mImmediateContext->ResolveSubresource(this->mBackBufferResolved, 0, this->mBackBuffer, 0, this->mBackBufferFormat);
+			}
+
 			// Apply post processing
 			OnApplyEffect();
 
@@ -2867,10 +2873,9 @@ namespace ReShade
 		}
 		void D3D11Runtime::OnApplyEffect()
 		{
-			// Resolve backbuffer
-			if (this->mBackBufferResolved != this->mBackBuffer)
+			if (!this->mIsEffectCompiled)
 			{
-				this->mImmediateContext->ResolveSubresource(this->mBackBufferResolved, 0, this->mBackBuffer, 0, this->mBackBufferFormat);
+				return;
 			}
 
 			// Setup real backbuffer

@@ -2718,6 +2718,12 @@ namespace ReShade
 
 			this->mDevice->OMGetRenderTargets(D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, stateblockTargets, &stateblockDepthStencil);
 
+			// Resolve backbuffer
+			if (this->mBackBufferResolved != this->mBackBuffer)
+			{
+				this->mDevice->ResolveSubresource(this->mBackBufferResolved, 0, this->mBackBuffer, 0, this->mBackBufferFormat);
+			}
+
 			// Apply post processing
 			OnApplyEffect();
 
@@ -2788,10 +2794,9 @@ namespace ReShade
 		}
 		void D3D10Runtime::OnApplyEffect()
 		{
-			// Resolve backbuffer
-			if (this->mBackBufferResolved != this->mBackBuffer)
+			if (!this->mIsEffectCompiled)
 			{
-				this->mDevice->ResolveSubresource(this->mBackBufferResolved, 0, this->mBackBuffer, 0, this->mBackBufferFormat);
+				return;
 			}
 
 			// Setup real backbuffer

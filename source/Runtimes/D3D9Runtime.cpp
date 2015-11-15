@@ -2495,6 +2495,12 @@ namespace ReShade
 				this->mDevice->SetSoftwareVertexProcessing(FALSE);
 			}
 
+			// Resolve backbuffer
+			if (this->mBackBufferResolved != this->mBackBuffer)
+			{
+				this->mDevice->StretchRect(this->mBackBuffer, nullptr, this->mBackBufferResolved, nullptr, D3DTEXF_NONE);
+			}
+
 			// Apply post processing
 			OnApplyEffect();
 
@@ -2578,10 +2584,9 @@ namespace ReShade
 		}
 		void D3D9Runtime::OnApplyEffect()
 		{
-			// Resolve backbuffer
-			if (this->mBackBufferResolved != this->mBackBuffer)
+			if (!this->mIsEffectCompiled)
 			{
-				this->mDevice->StretchRect(this->mBackBuffer, nullptr, this->mBackBufferResolved, nullptr, D3DTEXF_NONE);
+				return;
 			}
 
 			this->mDevice->SetRenderTarget(0, this->mBackBufferResolved);

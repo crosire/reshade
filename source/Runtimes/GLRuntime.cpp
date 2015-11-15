@@ -3255,6 +3255,18 @@ namespace ReShade
 			// Capture states
 			this->mStateBlock->Capture();
 
+			// Copy backbuffer
+			GLCHECK(glBindFramebuffer(GL_READ_FRAMEBUFFER, 0));
+			GLCHECK(glBindFramebuffer(GL_DRAW_FRAMEBUFFER, this->mDefaultBackBufferFBO));
+			GLCHECK(glReadBuffer(GL_BACK));
+			GLCHECK(glDrawBuffer(GL_COLOR_ATTACHMENT0));
+			GLCHECK(glBlitFramebuffer(0, 0, this->mWidth, this->mHeight, 0, 0, this->mWidth, this->mHeight, GL_COLOR_BUFFER_BIT, GL_NEAREST));
+
+			// Copy depthbuffer
+			GLCHECK(glBindFramebuffer(GL_READ_FRAMEBUFFER, this->mDepthSourceFBO));
+			GLCHECK(glBindFramebuffer(GL_DRAW_FRAMEBUFFER, this->mBlitFBO));
+			GLCHECK(glBlitFramebuffer(0, 0, this->mWidth, this->mHeight, 0, 0, this->mWidth, this->mHeight, GL_DEPTH_BUFFER_BIT, GL_NEAREST));
+
 			// Apply post processing
 			OnApplyEffect();
 
@@ -3305,17 +3317,10 @@ namespace ReShade
 		}
 		void GLRuntime::OnApplyEffect()
 		{
-			// Copy backbuffer
-			GLCHECK(glBindFramebuffer(GL_READ_FRAMEBUFFER, 0));
-			GLCHECK(glBindFramebuffer(GL_DRAW_FRAMEBUFFER, this->mDefaultBackBufferFBO));
-			GLCHECK(glReadBuffer(GL_BACK));
-			GLCHECK(glDrawBuffer(GL_COLOR_ATTACHMENT0));
-			GLCHECK(glBlitFramebuffer(0, 0, this->mWidth, this->mHeight, 0, 0, this->mWidth, this->mHeight, GL_COLOR_BUFFER_BIT, GL_NEAREST));
-
-			// Copy depthbuffer
-			GLCHECK(glBindFramebuffer(GL_READ_FRAMEBUFFER, this->mDepthSourceFBO));
-			GLCHECK(glBindFramebuffer(GL_DRAW_FRAMEBUFFER, this->mBlitFBO));
-			GLCHECK(glBlitFramebuffer(0, 0, this->mWidth, this->mHeight, 0, 0, this->mWidth, this->mHeight, GL_DEPTH_BUFFER_BIT, GL_NEAREST));
+			if (!this->mIsEffectCompiled)
+			{
+				return;
+			}
 
 			// Setup vertex input
 			GLCHECK(glBindVertexArray(this->mDefaultVAO));
