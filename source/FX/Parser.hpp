@@ -88,6 +88,7 @@ namespace ReShade
 			// Symbol Table
 			struct Scope
 			{
+				std::string Name;
 				unsigned int Level, NamespaceLevel;
 			};
 			typedef Nodes::Declaration Symbol;
@@ -107,7 +108,6 @@ namespace ReShade
 			Lexer mLexer, mBackupLexer;
 			Lexer::Token mToken, mNextToken, mBackupToken;
 			Scope mCurrentScope;
-			std::string mCurrentNamespace;
 			std::stack<Symbol *> mParentStack;
 			std::unordered_map<std::string, std::vector<std::pair<Scope, Symbol *>>> mSymbolStack;
 		};

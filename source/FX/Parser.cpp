@@ -540,8 +540,9 @@ namespace ReShade
 			}
 		}
 
-		Parser::Parser(NodeTree &ast) : mAST(ast), mLexer(""), mBackupLexer(""), mCurrentScope(), mCurrentNamespace("::")
+		Parser::Parser(NodeTree &ast) : mAST(ast), mLexer(""), mBackupLexer(""), mCurrentScope()
 		{
+			this->mCurrentScope.Name = "::";
 		}
 
 		void Parser::Backup()
@@ -2953,7 +2954,7 @@ namespace ReShade
 			}
 
 			structure = this->mAST.CreateNode<Nodes::Struct>(this->mToken.GetLocation());
-			structure->Namespace = this->mCurrentNamespace;
+			structure->Namespace = this->mCurrentScope.Name;
 
 			if (Accept(Lexer::Token::Id::Identifier))
 			{
@@ -3084,7 +3085,7 @@ namespace ReShade
 			function->ReturnType = type;
 			function->ReturnType.Qualifiers = Nodes::Type::Qualifier::Const;
 			function->Name = name;
-			function->Namespace = this->mCurrentNamespace;
+			function->Namespace = this->mCurrentScope.Name;
 
 			InsertSymbol(function, true);
 
@@ -3296,7 +3297,7 @@ namespace ReShade
 
 			if (global)
 			{
-				variable->Namespace = this->mCurrentNamespace;
+				variable->Namespace = this->mCurrentScope.Name;
 			}
 
 			if (!InsertSymbol(variable, global))
@@ -3643,7 +3644,7 @@ namespace ReShade
 
 			technique = this->mAST.CreateNode<Nodes::Technique>(location);
 			technique->Name = this->mToken.GetRawData();
-			technique->Namespace = this->mCurrentNamespace;
+			technique->Namespace = this->mCurrentScope.Name;
 
 			ParseAnnotations(technique->Annotations);
 
@@ -3949,9 +3950,9 @@ namespace ReShade
 		}
 		void Parser::EnterNamespace(const std::string &name)
 		{
+			this->mCurrentScope.Name += name + "::";
 			this->mCurrentScope.Level++;
 			this->mCurrentScope.NamespaceLevel++;
-			this->mCurrentNamespace += name + "::";
 		}
 		void Parser::LeaveScope()
 		{
@@ -3988,9 +3989,9 @@ namespace ReShade
 			assert(this->mCurrentScope.Level > 0);
 			assert(this->mCurrentScope.NamespaceLevel > 0);
 
+			this->mCurrentScope.Name.erase(this->mCurrentScope.Name.substr(0, this->mCurrentScope.Name.size() - 2).rfind("::") + 2);
 			this->mCurrentScope.Level--;
 			this->mCurrentScope.NamespaceLevel--;
-			this->mCurrentNamespace.erase(this->mCurrentNamespace.substr(0, this->mCurrentNamespace.size() - 2).rfind("::") + 2);
 		}
 		bool Parser::InsertSymbol(Symbol *symbol, bool global)
 		{
@@ -4001,11 +4002,15 @@ namespace ReShade
 
 			if (global)
 			{
-				Scope scope = { 0, 0 };
+				Scope scope = { "", 0, 0 };
 
-				for (size_t pos = 0; pos != std::string::npos; pos = this->mCurrentNamespace.find("::", pos))
+				for (size_t pos = 0; pos != std::string::npos; pos = this->mCurrentScope.Name.find("::", pos))
 				{
-					this->mSymbolStack[this->mCurrentNamespace.substr(pos += 2) + symbol->Name].push_back(std::make_pair(scope, symbol));
+					pos += 2;
+
+					scope.Name = this->mCurrentScope.Name.substr(0, pos);
+
+					this->mSymbolStack[this->mCurrentScope.Name.substr(pos) + symbol->Name].push_back(std::make_pair(scope, symbol));
 
 					scope.Level = ++scope.NamespaceLevel;
 				}
@@ -4035,7 +4040,7 @@ namespace ReShade
 
 			for (auto it2 = scopes.rbegin(), end = scopes.rend(); it2 != end; ++it2)
 			{
-				if (it2->first.Level > scope.Level || it2->first.NamespaceLevel > scope.NamespaceLevel)
+				if (it2->first.Level > scope.Level || it2->first.NamespaceLevel > scope.NamespaceLevel || (it2->first.NamespaceLevel == scope.NamespaceLevel && it2->first.Name != scope.Name))
 				{
 					continue;
 				}
