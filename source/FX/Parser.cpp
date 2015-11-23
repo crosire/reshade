@@ -540,9 +540,11 @@ namespace ReShade
 			}
 		}
 
-		Parser::Parser(NodeTree &ast) : mAST(ast), mLexer(""), mBackupLexer(""), mCurrentScope()
+		Parser::Parser(NodeTree &ast) : mAST(ast), mLexer(""), mBackupLexer("")
 		{
 			this->mCurrentScope.Name = "::";
+			this->mCurrentScope.Level = 0;
+			this->mCurrentScope.NamespaceLevel = 0;
 		}
 
 		void Parser::Backup()
