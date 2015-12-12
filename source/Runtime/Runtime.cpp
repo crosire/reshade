@@ -99,7 +99,7 @@ namespace ReShade
 
 	// ---------------------------------------------------------------------------------------------------
 
-	Runtime::Runtime() : mIsInitialized(false), mIsEffectCompiled(false), mWidth(0), mHeight(0), mVendorId(0), mDeviceId(0), mRendererId(0), mStats(), mCompileStep(0), mScreenshotFormat("png"), mScreenshotPath(sExecutablePath.parent_path()), mScreenshotKey(VK_SNAPSHOT), mShowStatistics(false), mShowFPS(false), mShowClock(false), mShowToggleMessage(false)
+	Runtime::Runtime() : mIsInitialized(false), mIsEffectCompiled(false), mWidth(0), mHeight(0), mVendorId(0), mDeviceId(0), mRendererId(0), mStats(), mCompileStep(0), mCompileCount(0), mScreenshotFormat("png"), mScreenshotPath(sExecutablePath.parent_path()), mScreenshotKey(VK_SNAPSHOT), mShowStatistics(false), mShowFPS(false), mShowClock(false), mShowToggleMessage(false), mShowInfoMessages(true)
 	{
 		memset(&this->mStats, 0, sizeof(Statistics));
 
@@ -214,6 +214,7 @@ namespace ReShade
 				case 1:
 					this->mStatus = "Loading effect ...";
 					this->mCompileStep++;
+					this->mCompileCount++;
 					break;
 				case 2:
 					this->mCompileStep = LoadEffect() ? 3 : 0;
@@ -236,28 +237,31 @@ namespace ReShade
 		#pragma region Draw overlay
 		if (this->mGUI != nullptr && this->mGUI->BeginFrame())
 		{
-			if (!this->mStatus.empty())
+			if (this->mShowInfoMessages || this->mCompileCount <= 1)
 			{
-				this->mGUI->AddLabel(22, 0xFFBCBCBC, "ReShade " BOOST_STRINGIZE(VERSION_FULL) " by crosire");
-				this->mGUI->AddLabel(16, 0xFFBCBCBC, "Visit http://reshade.me for news, updates, shaders and discussion.");
-				this->mGUI->AddLabel(16, 0xFFBCBCBC, this->mStatus);
-
-				if (!this->mErrors.empty() && this->mCompileStep == 0)
+				if (!this->mStatus.empty())
 				{
-					if (!this->mIsEffectCompiled)
+					this->mGUI->AddLabel(22, 0xFFBCBCBC, "ReShade " BOOST_STRINGIZE(VERSION_FULL) " by crosire");
+					this->mGUI->AddLabel(16, 0xFFBCBCBC, "Visit http://reshade.me for news, updates, shaders and discussion.");
+					this->mGUI->AddLabel(16, 0xFFBCBCBC, this->mStatus);
+
+					if (!this->mErrors.empty() && this->mCompileStep == 0)
 					{
-						this->mGUI->AddLabel(16, 0xFFFF0000, this->mErrors);
-					}
-					else
-					{
-						this->mGUI->AddLabel(16, 0xFFFFFF00, this->mErrors);
+						if (!this->mIsEffectCompiled)
+						{
+							this->mGUI->AddLabel(16, 0xFFFF0000, this->mErrors);
+						}
+						else
+						{
+							this->mGUI->AddLabel(16, 0xFFFFFF00, this->mErrors);
+						}
 					}
 				}
-			}
 
-			if (!this->mMessage.empty() && this->mIsEffectCompiled)
-			{
-				this->mGUI->AddLabel(16, 0xFFBCBCBC, this->mMessage);
+				if (!this->mMessage.empty() && this->mIsEffectCompiled)
+				{
+					this->mGUI->AddLabel(16, 0xFFBCBCBC, this->mMessage);
+				}
 			}
 
 			std::stringstream stats;
@@ -305,7 +309,7 @@ namespace ReShade
 			this->mGUI->EndFrame();
 		}
 
-		if (this->mIsEffectCompiled && timeSinceCreate.count() > (this->mErrors.empty() ? 4 : 8))
+		if (this->mIsEffectCompiled && timeSinceCreate.count() > (!this->mShowInfoMessages && this->mCompileCount <= 1 ? 12 : this->mErrors.empty() ? 4 : 8))
 		{
 			this->mStatus.clear();
 			this->mMessage.clear();
@@ -833,7 +837,7 @@ namespace ReShade
 		{
 			LOG(INFO) << "> Already compiled.";
 
-			this->mStatus += " Already compiled.";
+			this->mStatus += "Already compiled.";
 
 			return false;
 		}
@@ -842,6 +846,8 @@ namespace ReShade
 			this->mErrors = errors;
 			this->mEffectSource = source;
 		}
+
+		this->mShowInfoMessages = true;
 
 		for (const std::string &pragma : this->mPragmas)
 		{
@@ -871,6 +877,10 @@ namespace ReShade
 			else if (boost::iequals(command, "showtogglemessage"))
 			{
 				this->mShowToggleMessage = true;
+			}
+			else if (boost::iequals(command, "noinfomessages"))
+			{
+				this->mShowInfoMessages = false;
 			}
 			else if (boost::istarts_with(command, "screenshot_key"))
 			{

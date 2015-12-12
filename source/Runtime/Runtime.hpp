@@ -219,15 +219,15 @@ namespace ReShade
 		Runtime();
 		virtual ~Runtime();
 
-		inline unsigned int GetBufferWidth() const
+		unsigned int GetBufferWidth() const
 		{
 			return this->mWidth;
 		}
-		inline unsigned int GetBufferHeight() const
+		unsigned int GetBufferHeight() const
 		{
 			return this->mHeight;
 		}
-		inline const WindowWatcher *GetWindow() const
+		const WindowWatcher *GetWindow() const
 		{
 			return this->mWindow.get();
 		}
@@ -326,11 +326,11 @@ namespace ReShade
 		std::vector<boost::filesystem::path> mIncludedFiles;
 		boost::chrono::high_resolution_clock::time_point mStartTime, mLastCreate, mLastPresent;
 		boost::chrono::high_resolution_clock::duration mLastFrameDuration, mLastPostProcessingDuration;
-		unsigned int mCompileStep;
+		unsigned int mCompileStep, mCompileCount;
 		std::string mStatus, mErrors, mMessage, mEffectSource;
 		std::string mScreenshotFormat;
 		boost::filesystem::path mScreenshotPath;
 		unsigned int mScreenshotKey;
-		bool mShowStatistics, mShowFPS, mShowClock, mShowToggleMessage;
+		bool mShowStatistics, mShowFPS, mShowClock, mShowToggleMessage, mShowInfoMessages;
 	};
 }
