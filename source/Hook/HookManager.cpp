@@ -28,7 +28,7 @@ namespace ReShade
 				unsigned short Ordinal;
 			};
 
-			inline HMODULE GetCurrentModuleHandle()
+			HMODULE GetCurrentModuleHandle()
 			{
 				HMODULE handle = nullptr;
 				GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT, reinterpret_cast<LPCTSTR>(&GetCurrentModuleHandle), &handle);
@@ -38,15 +38,15 @@ namespace ReShade
 			std::vector<ModuleExport> GetModuleExports(HMODULE handle)
 			{
 				std::vector<ModuleExport> exports;
-				const auto imagebase = reinterpret_cast<BYTE *>(handle);
-				const auto imageheader = reinterpret_cast<IMAGE_NT_HEADERS *>(imagebase + reinterpret_cast<IMAGE_DOS_HEADER *>(imagebase)->e_lfanew);
+				const auto imagebase = reinterpret_cast<const BYTE *>(handle);
+				const auto imageheader = reinterpret_cast<const IMAGE_NT_HEADERS *>(imagebase + reinterpret_cast<const IMAGE_DOS_HEADER *>(imagebase)->e_lfanew);
 
 				if (imageheader->Signature != IMAGE_NT_SIGNATURE || imageheader->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].Size == 0)
 				{
 					return exports;
 				}
 
-				const auto exportdir = reinterpret_cast<IMAGE_EXPORT_DIRECTORY *>(imagebase + imageheader->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress);
+				const auto exportdir = reinterpret_cast<const IMAGE_EXPORT_DIRECTORY *>(imagebase + imageheader->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress);
 				const auto exportbase = static_cast<WORD>(exportdir->Base);
 
 				if (exportdir->NumberOfFunctions == 0)
@@ -60,16 +60,16 @@ namespace ReShade
 				for (size_t i = 0; i < count; ++i)
 				{
 					ModuleExport symbol;
-					symbol.Ordinal = reinterpret_cast<WORD *>(imagebase + exportdir->AddressOfNameOrdinals)[i] + exportbase;
-					symbol.Name = reinterpret_cast<const char *>(imagebase + reinterpret_cast<DWORD *>(imagebase + exportdir->AddressOfNames)[i]);
-					symbol.Address = reinterpret_cast<void *>(imagebase + reinterpret_cast<DWORD *>(imagebase + exportdir->AddressOfFunctions)[symbol.Ordinal - exportbase]);
+					symbol.Ordinal = reinterpret_cast<const WORD *>(imagebase + exportdir->AddressOfNameOrdinals)[i] + exportbase;
+					symbol.Name = reinterpret_cast<const char *>(imagebase + reinterpret_cast<const DWORD *>(imagebase + exportdir->AddressOfNames)[i]);
+					symbol.Address = const_cast<void *>(reinterpret_cast<const void *>(imagebase + reinterpret_cast<const DWORD *>(imagebase + exportdir->AddressOfFunctions)[symbol.Ordinal - exportbase]));
 
 					exports.push_back(std::move(symbol));
 				}
 
 				return exports;
 			}
-			inline boost::filesystem::path GetModuleFileName(HMODULE handle)
+			boost::filesystem::path GetModuleFileName(HMODULE handle)
 			{
 				WCHAR path[MAX_PATH];
 				GetModuleFileNameW(handle, path, MAX_PATH);
@@ -108,10 +108,10 @@ namespace ReShade
 					}
 					case HookType::VTableHook:
 					{
-						DWORD protection = 0;
+						DWORD protection = PAGE_READWRITE;
 						const auto targetAddress = sVTableAddresses.at(target);
 		
-						if (VirtualProtect(targetAddress, sizeof(*targetAddress), PAGE_READWRITE, &protection) != FALSE)
+						if (VirtualProtect(targetAddress, sizeof(*targetAddress), protection, &protection))
 						{
 							*targetAddress = replacement;
 
@@ -248,10 +248,10 @@ namespace ReShade
 					}
 					case HookType::VTableHook:
 					{
-						DWORD protection = 0;
+						DWORD protection = PAGE_READWRITE;
 						const auto targetAddress = sVTableAddresses.at(hook.Target);
 		
-						if (VirtualProtect(targetAddress, sizeof(*targetAddress), PAGE_READWRITE, &protection) != FALSE)
+						if (VirtualProtect(targetAddress, sizeof(*targetAddress), protection, &protection))
 						{
 							*targetAddress = hook.Target;
 							sVTableAddresses.erase(hook.Target);
@@ -440,10 +440,8 @@ namespace ReShade
 					{
 						return true;
 					}
-					else
-					{
-						sVTableAddresses.erase(insert.first);
-					}
+
+					sVTableAddresses.erase(insert.first);
 				}
 				else
 				{

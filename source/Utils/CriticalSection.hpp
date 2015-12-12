@@ -11,32 +11,33 @@ namespace ReShade
 		public:
 			struct Lock
 			{
-				Lock(CriticalSection &cs) : CS(cs)
+				Lock(CriticalSection &cs) : _cs(cs)
 				{
-					EnterCriticalSection(&this->CS.mCS);
+					EnterCriticalSection(&_cs._cs);
 				}
 				~Lock()
 				{
-					LeaveCriticalSection(&this->CS.mCS);
+					LeaveCriticalSection(&_cs._cs);
 				}
 
-				CriticalSection &CS;
+				CriticalSection &_cs;
 
 			private:
-				void operator =(const Lock &);
+				Lock(const Lock &);
+				void operator=(const Lock &);
 			};
 
 			CriticalSection()
 			{
-				InitializeCriticalSection(&this->mCS);
+				InitializeCriticalSection(&_cs);
 			}
 			~CriticalSection()
 			{
-				DeleteCriticalSection(&this->mCS);
+				DeleteCriticalSection(&_cs);
 			}
 
 		private:
-			CRITICAL_SECTION mCS;
+			CRITICAL_SECTION _cs;
 		};
 	}
 }

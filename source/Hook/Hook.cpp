@@ -19,7 +19,7 @@ namespace ReShade
 
 	bool Hook::IsValid() const
 	{
-		return (this->Target != nullptr && this->Replacement != nullptr) && (this->Target != this->Replacement);
+		return Target != nullptr && Replacement != nullptr && Target != Replacement;
 	}
 	bool Hook::IsEnabled() const
 	{
@@ -28,37 +28,35 @@ namespace ReShade
 			return false;
 		}
 
-		const MH_STATUS status = MH_EnableHook(this->Target);
+		const MH_STATUS status = MH_EnableHook(Target);
 
 		if (status == MH_ERROR_ENABLED)
 		{
 			return true;
 		}
-		else
-		{
-			MH_DisableHook(this->Target);
 
-			return false;
-		}
+		MH_DisableHook(Target);
+
+		return false;
 	}
 	bool Hook::IsInstalled() const
 	{
-		return this->Trampoline != nullptr;
+		return Trampoline != nullptr;
 	}
 
-	bool Hook::Enable(bool enable)
+	bool Hook::Enable(bool enable) const
 	{
 		if (enable)
 		{
-			const MH_STATUS status = MH_EnableHook(this->Target);
+			const MH_STATUS status = MH_EnableHook(Target);
 
-			return (status == MH_OK || status == MH_ERROR_ENABLED);
+			return status == MH_OK || status == MH_ERROR_ENABLED;
 		}
 		else
 		{
-			const MH_STATUS status = MH_DisableHook(this->Target);
+			const MH_STATUS status = MH_DisableHook(Target);
 
-			return (status == MH_OK || status == MH_ERROR_DISABLED);
+			return status == MH_OK || status == MH_ERROR_DISABLED;
 		}
 	}
 	Hook::Status Hook::Install()
@@ -73,20 +71,18 @@ namespace ReShade
 			MH_Initialize();
 		}
 
-		const MH_STATUS status = MH_CreateHook(this->Target, this->Replacement, &this->Trampoline);
+		const MH_STATUS status = MH_CreateHook(Target, Replacement, &Trampoline);
 
 		if (status == MH_OK || status == MH_ERROR_ALREADY_CREATED)
 		{
-			Enable(true);
+			Enable();
 
 			return Status::Success;
 		}
-		else
+
+		if (--sCounter == 0)
 		{
-			if (--sCounter == 0)
-			{
-				MH_Uninitialize();
-			}
+			MH_Uninitialize();
 		}
 
 		return static_cast<Status>(status);
@@ -98,7 +94,7 @@ namespace ReShade
 			return Status::UnsupportedFunction;
 		}
 
-		const MH_STATUS status = MH_RemoveHook(this->Target);
+		const MH_STATUS status = MH_RemoveHook(Target);
 
 		if (status == MH_ERROR_NOT_CREATED)
 		{
@@ -109,7 +105,7 @@ namespace ReShade
 			return static_cast<Status>(status);
 		}
 
-		this->Trampoline = nullptr;
+		Trampoline = nullptr;
 
 		if (--sCounter == 0)
 		{
@@ -123,6 +119,6 @@ namespace ReShade
 	{
 		assert(IsInstalled());
 
-		return this->Trampoline;
+		return Trampoline;
 	}
 }

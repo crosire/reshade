@@ -11,10 +11,10 @@ namespace ReShade
 	{
 		struct Location
 		{
-			Location(unsigned int line = 1, unsigned int column = 1) : Line(line), Column(column)
+			explicit Location(unsigned int line = 1, unsigned int column = 1) : Line(line), Column(column)
 			{
 			}
-			Location(const std::string &source, unsigned int line = 1, unsigned int column = 1) : Source(source), Line(line), Column(column)
+			explicit Location(const std::string &source, unsigned int line = 1, unsigned int column = 1) : Source(source), Line(line), Column(column)
 			{
 			}
 
@@ -65,12 +65,12 @@ namespace ReShade
 			Location Location;
 			
 		protected:
-			Node(Id id) : NodeId(id), Location()
+			explicit Node(Id id) : NodeId(id), Location()
 			{
 			}
 
 		private:
-			void operator =(const Node &);
+			void operator=(const Node &);
 		};
 		class NodeTree
 		{
@@ -78,7 +78,7 @@ namespace ReShade
 
 		public:
 			template <typename T>
-			inline T *CreateNode(const Location &location)
+			T *CreateNode(const Location &location)
 			{
 				T *const node = this->mMemoryPool.Add<T>();
 				node->Location = location;
@@ -137,7 +137,7 @@ namespace ReShade
 			private:
 				struct Page
 				{
-					Page(size_t size) : Cursor(0), Nodes(size, 0)
+					explicit Page(size_t size) : Cursor(0), Nodes(size, 0)
 					{
 					}
 

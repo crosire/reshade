@@ -22,7 +22,7 @@ namespace ReShade
 		bool IsEnabled() const;
 		bool IsInstalled() const;
 
-		bool Enable(bool enable = true);
+		bool Enable(bool enable = true) const;
 		Status Install();
 		Status Uninstall();
 

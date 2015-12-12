@@ -18,12 +18,6 @@ namespace ReShade
 			void AddDefine(const std::string &name, const std::string &value = "1");
 			void AddIncludePath(const boost::filesystem::path &path);
 
-			inline std::string Run(const boost::filesystem::path &path)
-			{
-				std::string errors;
-				return Run(path, errors);
-			}
-			std::string Run(const boost::filesystem::path &path, std::string &errors);
 			std::string Run(const boost::filesystem::path &path, std::string &errors, std::vector<std::string> &pragmas, std::vector<boost::filesystem::path> &includes);
 
 		private:

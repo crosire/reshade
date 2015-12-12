@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Lexer.hpp"
-#include "ParserNodes.hpp"
 
 #include <stack>
 #include <unordered_map>
@@ -12,9 +11,6 @@ namespace ReShade
 	{
 		class Parser
 		{
-			Parser(const Parser &);
-			Parser &operator=(const Parser &);
-
 		public:
 			explicit Parser(NodeTree &ast);
 
@@ -24,27 +20,27 @@ namespace ReShade
 			void Backup();
 			void Restore();
 
-			bool Peek(Lexer::Token::Id token) const;
-			inline bool Peek(char token) const
+			bool Peek(char token) const
 			{
-				return Peek(static_cast<Lexer::Token::Id>(token));
+				return Peek(static_cast<Lexer::TokenId>(token));
 			}
+			bool Peek(Lexer::TokenId token) const;
 			void Consume();
-			void ConsumeUntil(Lexer::Token::Id token);
-			inline void ConsumeUntil(char token)
+			void ConsumeUntil(char token)
 			{
-				ConsumeUntil(static_cast<Lexer::Token::Id>(token));
+				ConsumeUntil(static_cast<Lexer::TokenId>(token));
 			}
-			bool Accept(Lexer::Token::Id token);
-			inline bool Accept(char token)
+			void ConsumeUntil(Lexer::TokenId token);
+			bool Accept(char token)
 			{
-				return Accept(static_cast<Lexer::Token::Id>(token));
+				return Accept(static_cast<Lexer::TokenId>(token));
 			}
-			bool Expect(Lexer::Token::Id token);
-			inline bool Expect(char token)
+			bool Accept(Lexer::TokenId token);
+			bool Expect(char token)
 			{
-				return Expect(static_cast<Lexer::Token::Id>(token));
+				return Expect(static_cast<Lexer::TokenId>(token));
 			}
+			bool Expect(Lexer::TokenId token);
 
 		private:
 			void Error(const Location &location, unsigned int code, const char *message, ...);
@@ -76,8 +72,8 @@ namespace ReShade
 			bool ParseArray(int &size);
 			bool ParseAnnotations(std::vector<Nodes::Annotation> &annotations);
 			bool ParseStruct(Nodes::Struct *&structure);
-			bool ParseFunctionResidue(Nodes::Type &type, const std::string &name, Nodes::Function *&function);
-			bool ParseVariableResidue(Nodes::Type &type, const std::string &name, Nodes::Variable *&variable, bool global = false);
+			bool ParseFunctionResidue(Nodes::Type &type, std::string name, Nodes::Function *&function);
+			bool ParseVariableResidue(Nodes::Type &type, std::string name, Nodes::Variable *&variable, bool global = false);
 			bool ParseVariableAssignment(Nodes::Expression *&expression);
 			bool ParseVariableProperties(Nodes::Variable *variable);
 			bool ParseVariablePropertiesExpression(Nodes::Expression *&expression);
@@ -101,15 +97,15 @@ namespace ReShade
 			Symbol *FindSymbol(const std::string &name) const;
 			Symbol *FindSymbol(const std::string &name, const Scope &scope, bool exclusive = false) const;
 			bool ResolveCall(Nodes::Call *call, const Scope &scope, bool &intrinsic, bool &ambiguouss) const;
-			Nodes::Expression *FoldConstantExpression(Nodes::Expression *expression);
+			Nodes::Expression *FoldConstantExpression(Nodes::Expression *expression) const;
 
-			NodeTree &mAST;
-			std::string mErrors;
-			Lexer mLexer, mBackupLexer;
-			Lexer::Token mToken, mNextToken, mBackupToken;
-			Scope mCurrentScope;
-			std::stack<Symbol *> mParentStack;
-			std::unordered_map<std::string, std::vector<std::pair<Scope, Symbol *>>> mSymbolStack;
+			NodeTree *_ast;
+			std::string *_errors;
+			Lexer _lexer, _lexerBackup;
+			Lexer::Token _token, _tokenNext, _tokenBackup;
+			Scope _currentScope;
+			std::stack<Symbol *> _parentStack;
+			std::unordered_map<std::string, std::vector<std::pair<Scope, Symbol *>>> _symbolStack;
 		};
 	}
 }

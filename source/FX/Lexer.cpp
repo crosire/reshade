@@ -1,287 +1,51 @@
 #include "Lexer.hpp"
 
-namespace
-{
-	inline bool isdigit(char c)
-	{
-		return static_cast<unsigned>(c - '0') < 10;
-	}
-	inline bool isodigit(char c)
-	{
-		return static_cast<unsigned>(c - '0') < 8;
-	}
-	inline bool isxdigit(char c)
-	{
-		return isdigit(c) || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
-	}
-	inline bool isalpha(char c)
-	{
-		return static_cast<unsigned>((c | 32) - 'a') < 26;
-	}
-	inline bool isalnum(char c)
-	{
-		return isalpha(c) || isdigit(c) || c == '_';
-	}
-	inline bool isspace(char c)
-	{
-		return c == ' ' || ((c >= '\t' && c <= '\r') && c != '\n');
-	}
-}
-
 namespace ReShade
 {
 	namespace FX
 	{
-		std::string Lexer::Token::GetName(Id id)
+		namespace
 		{
-			switch (id)
+			bool isdigit(char c)
 			{
-				default:
-				case Id::Unknown:
-					return "unknown";
-				case Id::EndOfStream:
-					return "end of file";
-				case Id::Exclaim:
-					return "!";
-				case Id::Hash:
-					return "#";
-				case Id::Dollar:
-					return "$";
-				case Id::Percent:
-					return "%";
-				case Id::Ampersand:
-					return "&";
-				case Id::ParenthesisOpen:
-					return "(";
-				case Id::ParenthesisClose:
-					return ")";
-				case Id::Star:
-					return "*";
-				case Id::Plus:
-					return "+";
-				case Id::Comma:
-					return ",";
-				case Id::Minus:
-					return "-";
-				case Id::Dot:
-					return ".";
-				case Id::Slash:
-					return "/";
-				case Id::Colon:
-					return ":";
-				case Id::Semicolon:
-					return ";";
-				case Id::Less:
-					return "<";
-				case Id::Equal:
-					return "=";
-				case Id::Greater:
-					return ">";
-				case Id::Question:
-					return "?";
-				case Id::At:
-					return "@";
-				case Id::BracketOpen:
-					return "[";
-				case Id::BackSlash:
-					return "\\";
-				case Id::BracketClose:
-					return "]";
-				case Id::Caret:
-					return "^";
-				case Id::BraceOpen:
-					return "{";
-				case Id::Pipe:
-					return "|";
-				case Id::BraceClose:
-					return "}";
-				case Id::Tilde:
-					return "~";
-				case Id::ExclaimEqual:
-					return "!=";
-				case Id::PercentEqual:
-					return "%=";
-				case Id::AmpersandAmpersand:
-					return "&&";
-				case Id::AmpersandEqual:
-					return "&=";
-				case Id::StarEqual:
-					return "*=";
-				case Id::PlusPlus:
-					return "++";
-				case Id::PlusEqual:
-					return "+=";
-				case Id::MinusMinus:
-					return "--";
-				case Id::MinusEqual:
-					return "-=";
-				case Id::Arrow:
-					return "->";
-				case Id::Ellipsis:
-					return "...";
-				case Id::SlashEqual:
-					return "|=";
-				case Id::ColonColon:
-					return "::";
-				case Id::LessLessEqual:
-					return "<<=";
-				case Id::LessLess:
-					return "<<";
-				case Id::LessEqual:
-					return "<=";
-				case Id::EqualEqual:
-					return "==";
-				case Id::GreaterGreaterEqual:
-					return ">>=";
-				case Id::GreaterGreater:
-					return ">>";
-				case Id::GreaterEqual:
-					return ">=";
-				case Id::CaretEqual:
-					return "^=";
-				case Id::PipeEqual:
-					return "|=";
-				case Id::PipePipe:
-					return "||";
-				case Id::Identifier:
-					return "identifier";
-				case Id::ReservedWord:
-					return "reserved word";
-				case Id::True:
-					return "true";
-				case Id::False:
-					return "false";
-				case Id::IntLiteral:
-				case Id::UintLiteral:
-					return "integral literal";
-				case Id::FloatLiteral:
-				case Id::DoubleLiteral:
-					return "floating point literal";
-				case Id::StringLiteral:
-					return "string literal";
-				case Id::Namespace:
-					return "namespace";
-				case Id::Struct:
-					return "struct";
-				case Id::Technique:
-					return "technique";
-				case Id::Pass:
-					return "pass";
-				case Id::For:
-					return "for";
-				case Id::While:
-					return "while";
-				case Id::Do:
-					return "do";
-				case Id::If:
-					return "if";
-				case Id::Else:
-					return "else";
-				case Id::Switch:
-					return "switch";
-				case Id::Case:
-					return "case";
-				case Id::Default:
-					return "default";
-				case Id::Break:
-					return "break";
-				case Id::Continue:
-					return "continue";
-				case Id::Return:
-					return "return";
-				case Id::Discard:
-					return "discard";
-				case Id::Extern:
-					return "extern";
-				case Id::Static:
-					return "static";
-				case Id::Uniform:
-					return "uniform";
-				case Id::Volatile:
-					return "volatile";
-				case Id::Precise:
-					return "precise";
-				case Id::In:
-					return "in";
-				case Id::Out:
-					return "out";
-				case Id::InOut:
-					return "inout";
-				case Id::Const:
-					return "const";
-				case Id::Linear:
-					return "linear";
-				case Id::NoPerspective:
-					return "noperspective";
-				case Id::Centroid:
-					return "centroid";
-				case Id::NoInterpolation:
-					return "nointerpolation";
-				case Id::Void:
-					return "void";
-				case Id::Bool:
-				case Id::Bool2:
-				case Id::Bool3:
-				case Id::Bool4:
-				case Id::Bool2x2:
-				case Id::Bool3x3:
-				case Id::Bool4x4:
-					return "bool";
-				case Id::Int:
-				case Id::Int2:
-				case Id::Int3:
-				case Id::Int4:
-				case Id::Int2x2:
-				case Id::Int3x3:
-				case Id::Int4x4:
-					return "int";
-				case Id::Uint:
-				case Id::Uint2:
-				case Id::Uint3:
-				case Id::Uint4:
-				case Id::Uint2x2:
-				case Id::Uint3x3:
-				case Id::Uint4x4:
-					return "uint";
-				case Id::Float:
-				case Id::Float2:
-				case Id::Float3:
-				case Id::Float4:
-				case Id::Float2x2:
-				case Id::Float3x3:
-				case Id::Float4x4:
-					return "float";
-				case Id::Vector:
-					return "vector";
-				case Id::Matrix:
-					return "matrix";
-				case Id::String:
-					return "string";
-				case Id::Texture1D:
-					return "texture1D";
-				case Id::Texture2D:
-					return "texture2D";
-				case Id::Texture3D:
-					return "texture3D";
-				case Id::Sampler1D:
-					return "sampler1D";
-				case Id::Sampler2D:
-					return "sampler2D";
-				case Id::Sampler3D:
-					return "sampler3D";
+				return static_cast<unsigned>(c - '0') < 10;
+			}
+			bool isodigit(char c)
+			{
+				return static_cast<unsigned>(c - '0') < 8;
+			}
+			bool isxdigit(char c)
+			{
+				return isdigit(c) || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
+			}
+			bool isalpha(char c)
+			{
+				return static_cast<unsigned>((c | 32) - 'a') < 26;
+			}
+			bool isalnum(char c)
+			{
+				return isalpha(c) || isdigit(c) || c == '_';
+			}
+			bool isspace(char c)
+			{
+				return c == ' ' || ((c >= '\t' && c <= '\r') && c != '\n');
 			}
 		}
 
-		Lexer::Lexer(const std::string &source) : mSource(source), mPos(this->mSource.data()), mEnd(this->mSource.data() + this->mSource.size()), mCurrentAtLineBegin(true)
+		Lexer::Lexer(const Lexer &lexer)
+		{
+			operator=(lexer);
+		}
+		Lexer::Lexer(const std::string &source) : _source(source), _cur(_source.data()), _end(_cur + _source.size()), _atLineBegin(true)
 		{
 		}
 
 		Lexer &Lexer::operator=(const Lexer &lexer)
 		{
-			this->mSource = lexer.mSource;
-			this->mPos = this->mSource.data() + (lexer.mPos - lexer.mSource.data());
-			this->mEnd = this->mSource.data() + this->mSource.size();
-			this->mCurrentAtLineBegin = lexer.mCurrentAtLineBegin;
+			_source = lexer._source;
+			_cur = _source.data() + (lexer._cur - lexer._source.data());
+			_end = _source.data() + _source.size();
+			_atLineBegin = lexer._atLineBegin;
 
 			return *this;
 		}
@@ -290,254 +54,207 @@ namespace ReShade
 		{
 		NextToken:
 			Token token;
-			token.mLocation = this->mCurrentLocation;
-			token.mRawData = this->mPos;
+			token.Id = TokenId::Unknown;
+			token.Location = _location;
+			token.Length = 0;
+			token.LiteralAsDouble = 0;
 
-			switch (this->mPos[0])
+			switch (_cur[0])
 			{
 				case '\0':
-				{
-					token.mId = Token::Id::EndOfStream;
-
+					token.Id = TokenId::EndOfStream;
 					return token;
-				}
 				case '\t':
 				case '\v':
 				case '\f':
 				case '\r':
 				case ' ':
-				{
-					while (isspace(*this->mPos) && this->mPos < this->mEnd)
-					{
-						this->mPos++;
-						this->mCurrentLocation.Column++;
-					}
-
+					SkipSpace();
 					goto NextToken;
-				}
 				case '\n':
-				{
-					this->mPos++;
-					this->mCurrentAtLineBegin = true;
-					this->mCurrentLocation.Line++;
-					this->mCurrentLocation.Column = 1;
-
+					_cur++;
+					_atLineBegin = true;
+					_location.Line++;
+					_location.Column = 1;
 					goto NextToken;
-				}
 				case '!':
-				{
-					if (this->mPos[1] == '=')
+					if (_cur[1] == '=')
 					{
-						token.mId = Token::Id::ExclaimEqual;
-						token.mRawDataLength = 2;
+						token.Id = TokenId::ExclaimEqual;
+						token.Length = 2;
 					}
 					else
 					{
-						token.mId = Token::Id::Exclaim;
-						token.mRawDataLength = 1;
+						token.Id = TokenId::Exclaim;
+						token.Length = 1;
 					}
 					break;
-				}
 				case '"':
-				{
-					ParseStringLiteral(token);
+					ParseStringLiteral(token, true);
 					break;
-				}
 				case '#':
-				{
-					if (this->mCurrentAtLineBegin)
+					if (_atLineBegin)
 					{
-						this->mPos++;
-
+						_cur++;
 						ParsePreProcessorDirective();
-
 						goto NextToken;
 					}
-					else
-					{
-						token.mId = Token::Id::Hash;
-						token.mRawDataLength = 1;
-					}
+
+					token.Id = TokenId::Hash;
+					token.Length = 1;
 					break;
-				}
 				case '$':
-				{
-					token.mId = Token::Id::Dollar;
-					token.mRawDataLength = 1;
+					token.Id = TokenId::Dollar;
+					token.Length = 1;
 					break;
-				}
 				case '%':
-				{
-					if (this->mPos[1] == '=')
+					if (_cur[1] == '=')
 					{
-						token.mId = Token::Id::PercentEqual;
-						token.mRawDataLength = 2;
+						token.Id = TokenId::PercentEqual;
+						token.Length = 2;
 					}
 					else
 					{
-						token.mId = Token::Id::Percent;
-						token.mRawDataLength = 1;
+						token.Id = TokenId::Percent;
+						token.Length = 1;
 					}
 					break;
-				}
 				case '&':
-				{
-					if (this->mPos[1] == '&')
+					if (_cur[1] == '&')
 					{
-						token.mId = Token::Id::AmpersandAmpersand;
-						token.mRawDataLength = 2;
+						token.Id = TokenId::AmpersandAmpersand;
+						token.Length = 2;
 					}
-					else if (this->mPos[1] == '=')
+					else if (_cur[1] == '=')
 					{
-						token.mId = Token::Id::AmpersandEqual;
-						token.mRawDataLength = 2;
+						token.Id = TokenId::AmpersandEqual;
+						token.Length = 2;
 					}
 					else
 					{
-						token.mId = Token::Id::Ampersand;
-						token.mRawDataLength = 1;
+						token.Id = TokenId::Ampersand;
+						token.Length = 1;
 					}
 					break;
-				}
 				case '(':
-				{
-					token.mId = Token::Id::ParenthesisOpen;
-					token.mRawDataLength = 1;
+					token.Id = TokenId::ParenthesisOpen;
+					token.Length = 1;
 					break;
-				}
 				case ')':
-				{
-					token.mId = Token::Id::ParenthesisClose;
-					token.mRawDataLength = 1;
+					token.Id = TokenId::ParenthesisClose;
+					token.Length = 1;
 					break;
-				}
 				case '*':
-				{
-					if (this->mPos[1] == '=')
+					if (_cur[1] == '=')
 					{
-						token.mId = Token::Id::StarEqual;
-						token.mRawDataLength = 2;
+						token.Id = TokenId::StarEqual;
+						token.Length = 2;
 					}
 					else
 					{
-						token.mId = Token::Id::Star;
-						token.mRawDataLength = 1;
+						token.Id = TokenId::Star;
+						token.Length = 1;
 					}
 					break;
-				}
 				case '+':
-				{
-					if (this->mPos[1] == '+')
+					if (_cur[1] == '+')
 					{
-						token.mId = Token::Id::PlusPlus;
-						token.mRawDataLength = 2;
+						token.Id = TokenId::PlusPlus;
+						token.Length = 2;
 					}
-					else if (this->mPos[1] == '=')
+					else if (_cur[1] == '=')
 					{
-						token.mId = Token::Id::PlusEqual;
-						token.mRawDataLength = 2;
+						token.Id = TokenId::PlusEqual;
+						token.Length = 2;
 					}
 					else
 					{
-						token.mId = Token::Id::Plus;
-						token.mRawDataLength = 1;
+						token.Id = TokenId::Plus;
+						token.Length = 1;
 					}
 					break;
-				}
 				case ',':
-				{
-					token.mId = Token::Id::Comma;
-					token.mRawDataLength = 1;
+					token.Id = TokenId::Comma;
+					token.Length = 1;
 					break;
-				}
 				case '-':
-				{
-					if (this->mPos[1] == '-')
+					if (_cur[1] == '-')
 					{
-						token.mId = Token::Id::MinusMinus;
-						token.mRawDataLength = 2;
+						token.Id = TokenId::MinusMinus;
+						token.Length = 2;
 					}
-					else if (this->mPos[1] == '=')
+					else if (_cur[1] == '=')
 					{
-						token.mId = Token::Id::MinusEqual;
-						token.mRawDataLength = 2;
+						token.Id = TokenId::MinusEqual;
+						token.Length = 2;
 					}
-					else if (this->mPos[1] == '>')
+					else if (_cur[1] == '>')
 					{
-						token.mId = Token::Id::Arrow;
-						token.mRawDataLength = 2;
+						token.Id = TokenId::Arrow;
+						token.Length = 2;
 					}
 					else
 					{
-						token.mId = Token::Id::Minus;
-						token.mRawDataLength = 1;
+						token.Id = TokenId::Minus;
+						token.Length = 1;
 					}
 					break;
-				}
 				case '.':
-				{
-					if (isdigit(this->mPos[1]))
+					if (isdigit(_cur[1]))
 					{
 						ParseNumericLiteral(token);
 					}
-					else if (this->mPos[1] == '.' && this->mPos[2] == '.')
+					else if (_cur[1] == '.' && _cur[2] == '.')
 					{
-						token.mId = Token::Id::Ellipsis;
-						token.mRawDataLength = 3;
+						token.Id = TokenId::Ellipsis;
+						token.Length = 3;
 					}
 					else
 					{
-						token.mId = Token::Id::Dot;
-						token.mRawDataLength = 1;
+						token.Id = TokenId::Dot;
+						token.Length = 1;
 					}
 					break;
-				}
 				case '/':
-				{
-					if (this->mPos[1] == '/')
+					if (_cur[1] == '/')
 					{
-						while (*this->mPos != '\n' && this->mPos < this->mEnd)
-						{
-							this->mPos++;
-						}
-
+						SkipToNewLine();
 						goto NextToken;
 					}
-					else if (this->mPos[1] == '*')
+					else if (_cur[1] == '*')
 					{
-						while (this->mPos < this->mEnd)
+						while (_cur < _end)
 						{
-							if (*++this->mPos == '\n')
+							if (*++_cur == '\n')
 							{
-								this->mCurrentLocation.Line++;
-								this->mCurrentLocation.Column = 1;
+								_location.Line++;
+								_location.Column = 1;
 							}
-							else if (this->mPos[0] == '*' && this->mPos[1] == '/')
+							else if (_cur[0] == '*' && _cur[1] == '/')
 							{
-								this->mPos += 2;
-								this->mCurrentLocation.Column += 2;
+								_cur += 2;
+								_location.Column += 2;
 								break;
 							}
 							else
 							{
-								this->mCurrentLocation.Column++;
+								_location.Column++;
 							}
 						}
 
 						goto NextToken;
 					}
-					else if (this->mPos[1] == '=')
+					else if (_cur[1] == '=')
 					{
-						token.mId = Token::Id::SlashEqual;
-						token.mRawDataLength = 2;
+						token.Id = TokenId::SlashEqual;
+						token.Length = 2;
 					}
 					else
 					{
-						token.mId = Token::Id::Slash;
-						token.mRawDataLength = 1;
+						token.Id = TokenId::Slash;
+						token.Length = 1;
 					}
 					break;
-				}
 				case '0':
 				case '1':
 				case '2':
@@ -548,110 +265,94 @@ namespace ReShade
 				case '7':
 				case '8':
 				case '9':
-				{
 					ParseNumericLiteral(token);
 					break;
-				}
 				case ':':
-				{
-					if (this->mPos[1] == ':')
+					if (_cur[1] == ':')
 					{
-						token.mId = Token::Id::ColonColon;
-						token.mRawDataLength = 2;
+						token.Id = TokenId::ColonColon;
+						token.Length = 2;
 					}
 					else
 					{
-						token.mId = Token::Id::Colon;
-						token.mRawDataLength = 1;
+						token.Id = TokenId::Colon;
+						token.Length = 1;
 					}
 					break;
-				}
 				case ';':
-				{
-					token.mId = Token::Id::Semicolon;
-					token.mRawDataLength = 1;
+					token.Id = TokenId::Semicolon;
+					token.Length = 1;
 					break;
-				}
 				case '<':
-				{
-					if (this->mPos[1] == '<')
+					if (_cur[1] == '<')
 					{
-						if (this->mPos[2] == '=')
+						if (_cur[2] == '=')
 						{
-							token.mId = Token::Id::LessLessEqual;
-							token.mRawDataLength = 3;
+							token.Id = TokenId::LessLessEqual;
+							token.Length = 3;
 						}
 						else
 						{
-							token.mId = Token::Id::LessLess;
-							token.mRawDataLength = 2;
+							token.Id = TokenId::LessLess;
+							token.Length = 2;
 						}
 					}
-					else if (this->mPos[1] == '=')
+					else if (_cur[1] == '=')
 					{
-						token.mId = Token::Id::LessEqual;
-						token.mRawDataLength = 2;
+						token.Id = TokenId::LessEqual;
+						token.Length = 2;
 					}
 					else
 					{
-						token.mId = Token::Id::Less;
-						token.mRawDataLength = 1;
+						token.Id = TokenId::Less;
+						token.Length = 1;
 					}
 					break;
-				}
 				case '=':
-				{
-					if (this->mPos[1] == '=')
+					if (_cur[1] == '=')
 					{
-						token.mId = Token::Id::EqualEqual;
-						token.mRawDataLength = 2;
+						token.Id = TokenId::EqualEqual;
+						token.Length = 2;
 					}
 					else
 					{
-						token.mId = Token::Id::Equal;
-						token.mRawDataLength = 1;
+						token.Id = TokenId::Equal;
+						token.Length = 1;
 					}
 					break;
-				}
 				case '>':
-				{
-					if (this->mPos[1] == '>')
+					if (_cur[1] == '>')
 					{
-						if (this->mPos[2] == '=')
+						if (_cur[2] == '=')
 						{
-							token.mId = Token::Id::GreaterGreaterEqual;
-							token.mRawDataLength = 3;
+							token.Id = TokenId::GreaterGreaterEqual;
+							token.Length = 3;
 						}
 						else
 						{
-							token.mId = Token::Id::GreaterGreater;
-							token.mRawDataLength = 2;
+							token.Id = TokenId::GreaterGreater;
+							token.Length = 2;
 						}
 					}
-					else if (this->mPos[1] == '=')
+					else if (_cur[1] == '=')
 					{
-						token.mId = Token::Id::GreaterEqual;
-						token.mRawDataLength = 2;
+						token.Id = TokenId::GreaterEqual;
+						token.Length = 2;
 					}
 					else
 					{
-						token.mId = Token::Id::Greater;
-						token.mRawDataLength = 1;
+						token.Id = TokenId::Greater;
+						token.Length = 1;
 					}
 					break;
-				}
 				case '?':
-				{
-					token.mId = Token::Id::Question;
-					token.mRawDataLength = 1;
+					token.Id = TokenId::Question;
+					token.Length = 1;
 					break;
-				}
 				case '@':
-				{
-					token.mId = Token::Id::At;
-					token.mRawDataLength = 1;
+					token.Id = TokenId::At;
+					token.Length = 1;
 					break;
-				}
 				case 'A':
 				case 'B':
 				case 'C':
@@ -678,42 +379,32 @@ namespace ReShade
 				case 'X':
 				case 'Y':
 				case 'Z':
-				{
 					ParseIdentifier(token);
 					break;
-				}
 				case '[':
-				{
-					token.mId = Token::Id::BracketOpen;
-					token.mRawDataLength = 1;
+					token.Id = TokenId::BracketOpen;
+					token.Length = 1;
 					break;
-				}
 				case '\\':
-				{
-					token.mId = Token::Id::BackSlash;
-					token.mRawDataLength = 1;
+					token.Id = TokenId::BackSlash;
+					token.Length = 1;
 					break;
-				}
 				case ']':
-				{
-					token.mId = Token::Id::BracketClose;
-					token.mRawDataLength = 1;
+					token.Id = TokenId::BracketClose;
+					token.Length = 1;
 					break;
-				}
 				case '^':
-				{
-					if (this->mPos[1] == '=')
+					if (_cur[1] == '=')
 					{
-						token.mId = Token::Id::CaretEqual;
-						token.mRawDataLength = 2;
+						token.Id = TokenId::CaretEqual;
+						token.Length = 2;
 					}
 					else
 					{
-						token.mId = Token::Id::Caret;
-						token.mRawDataLength = 1;
+						token.Id = TokenId::Caret;
+						token.Length = 1;
 					}
 					break;
-				}
 				case '_':
 				case 'a':
 				case 'b':
@@ -741,273 +432,276 @@ namespace ReShade
 				case 'x':
 				case 'y':
 				case 'z':
-				{
 					ParseIdentifier(token);
 					break;
-				}
 				case '{':
-				{
-					token.mId = Token::Id::BraceOpen;
-					token.mRawDataLength = 1;
+					token.Id = TokenId::BraceOpen;
+					token.Length = 1;
 					break;
-				}
 				case '|':
-				{
-					if (this->mPos[1] == '=')
+					if (_cur[1] == '=')
 					{
-						token.mId = Token::Id::PipeEqual;
-						token.mRawDataLength = 2;
+						token.Id = TokenId::PipeEqual;
+						token.Length = 2;
 					}
-					else if (this->mPos[1] == '|')
+					else if (_cur[1] == '|')
 					{
-						token.mId = Token::Id::PipePipe;
-						token.mRawDataLength = 2;
+						token.Id = TokenId::PipePipe;
+						token.Length = 2;
 					}
 					else
 					{
-						token.mId = Token::Id::Pipe;
-						token.mRawDataLength = 1;
+						token.Id = TokenId::Pipe;
+						token.Length = 1;
 					}
 					break;
-				}
 				case '}':
-				{
-					token.mId = Token::Id::BraceClose;
-					token.mRawDataLength = 1;
+					token.Id = TokenId::BraceClose;
+					token.Length = 1;
 					break;
-				}
 				case '~':
-				{
-					token.mId = Token::Id::Tilde;
-					token.mRawDataLength = 1;
+					token.Id = TokenId::Tilde;
+					token.Length = 1;
 					break;
-				}
 				default:
-				{
-					token.mId = Token::Id::Unknown;
-					token.mRawDataLength = 1;
+					token.Id = TokenId::Unknown;
 					break;
-				}
 			}
 
-			this->mPos += token.mRawDataLength;
-			this->mCurrentAtLineBegin = false;
-			this->mCurrentLocation.Column += static_cast<unsigned int>(token.mRawDataLength);
+			_cur += token.Length;
+			_atLineBegin = false;
+			_location.Column += token.Length;
 
 			return token;
 		}
+
+		void Lexer::SkipSpace()
+		{
+			while (isspace(*_cur) && _cur < _end)
+			{
+				_cur++;
+				_location.Column++;
+			}
+		}
+		void Lexer::SkipToNewLine()
+		{
+			while (*_cur != '\n' && _cur < _end)
+			{
+				_cur++;
+			}
+		}
+
 		void Lexer::ParseIdentifier(Token &token) const
 		{
-			const char *const begin = this->mPos, *end = begin;
+			const char *const begin = _cur, *end = begin;
 
 			while (isalnum(*++end))
 			{
 				continue;
 			}
 
-			token.mId = Token::Id::Identifier;
-			token.mRawData = begin;
-			token.mRawDataLength = end - begin;
+			token.Id = TokenId::Identifier;
+			token.Length = static_cast<unsigned int>(end - begin);
+			token.LiteralAsString = std::string(begin, end);
 
 			#pragma region Keywords
 			struct Keyword
 			{
 				const char *data;
 				unsigned char length;
-				Lexer::Token::Id id;
+				TokenId id;
 			};
 
 			static const Keyword sKeywords[] =
 			{
-				{ "asm", 3, Lexer::Token::Id::ReservedWord },
-				{ "asm_fragment", 12, Lexer::Token::Id::ReservedWord },
-				{ "auto", 4, Lexer::Token::Id::ReservedWord },
-				{ "bool", 4, Lexer::Token::Id::Bool },
-				{ "bool2", 5, Lexer::Token::Id::Bool2 },
-				{ "bool2x2", 7, Lexer::Token::Id::Bool2x2 },
-				{ "bool3", 5, Lexer::Token::Id::Bool3 },
-				{ "bool3x3", 7, Lexer::Token::Id::Bool3x3 },
-				{ "bool4", 5, Lexer::Token::Id::Bool4 },
-				{ "bool4x4", 7, Lexer::Token::Id::Bool4x4 },
-				{ "break", 5, Lexer::Token::Id::Break },
-				{ "case", 4, Lexer::Token::Id::Case },
-				{ "cast", 4, Lexer::Token::Id::ReservedWord },
-				{ "catch", 5, Lexer::Token::Id::ReservedWord },
-				{ "centroid", 8, Lexer::Token::Id::ReservedWord },
-				{ "char", 4, Lexer::Token::Id::ReservedWord },
-				{ "class", 5, Lexer::Token::Id::ReservedWord },
-				{ "column_major", 12, Lexer::Token::Id::ReservedWord },
-				{ "compile", 7, Lexer::Token::Id::ReservedWord },
-				{ "const", 5, Lexer::Token::Id::Const },
-				{ "const_cast", 10, Lexer::Token::Id::ReservedWord },
-				{ "continue", 8, Lexer::Token::Id::Continue },
-				{ "default", 7, Lexer::Token::Id::Default },
-				{ "delete", 6, Lexer::Token::Id::ReservedWord },
-				{ "discard", 7, Lexer::Token::Id::Discard },
-				{ "do", 2, Lexer::Token::Id::Do },
-				{ "double", 6, Lexer::Token::Id::ReservedWord },
-				{ "dword", 5, Lexer::Token::Id::Uint },
-				{ "dword2", 6, Lexer::Token::Id::Uint2 },
-				{ "dword2x2", 8, Lexer::Token::Id::Uint2x2 },
-				{ "dword3", 6, Lexer::Token::Id::Uint3, },
-				{ "dword3x3", 8, Lexer::Token::Id::Uint3x3 },
-				{ "dword4", 6, Lexer::Token::Id::Uint4 },
-				{ "dword4x4", 8, Lexer::Token::Id::Uint4x4 },
-				{ "dynamic_cast", 12, Lexer::Token::Id::ReservedWord },
-				{ "else", 4, Lexer::Token::Id::Else },
-				{ "enum", 4, Lexer::Token::Id::ReservedWord },
-				{ "explicit", 8, Lexer::Token::Id::ReservedWord },
-				{ "extern", 6, Lexer::Token::Id::Extern },
-				{ "external", 8, Lexer::Token::Id::ReservedWord },
-				{ "false", 5, Lexer::Token::Id::False },
-				{ "FALSE", 5, Lexer::Token::Id::False },
-				{ "float", 5, Lexer::Token::Id::Float },
-				{ "float2", 6, Lexer::Token::Id::Float2 },
-				{ "float2x2", 8, Lexer::Token::Id::Float2x2 },
-				{ "float3", 6, Lexer::Token::Id::Float3 },
-				{ "float3x3", 8, Lexer::Token::Id::Float3x3 },
-				{ "float4", 6, Lexer::Token::Id::Float4 },
-				{ "float4x4", 8, Lexer::Token::Id::Float4x4 },
-				{ "for", 3, Lexer::Token::Id::For },
-				{ "foreach", 7, Lexer::Token::Id::ReservedWord },
-				{ "friend", 6, Lexer::Token::Id::ReservedWord },
-				{ "globallycoherent", 16, Lexer::Token::Id::ReservedWord },
-				{ "goto", 4, Lexer::Token::Id::ReservedWord },
-				{ "groupshared", 11, Lexer::Token::Id::ReservedWord },
-				{ "half", 4, Lexer::Token::Id::ReservedWord },
-				{ "half2", 5, Lexer::Token::Id::ReservedWord },
-				{ "half2x2", 7, Lexer::Token::Id::ReservedWord },
-				{ "half3", 5, Lexer::Token::Id::ReservedWord },
-				{ "half3x3", 7, Lexer::Token::Id::ReservedWord },
-				{ "half4", 5, Lexer::Token::Id::ReservedWord },
-				{ "half4x4", 7, Lexer::Token::Id::ReservedWord },
-				{ "if", 2, Lexer::Token::Id::If },
-				{ "in", 2, Lexer::Token::Id::In },
-				{ "inline", 6, Lexer::Token::Id::ReservedWord },
-				{ "inout", 5, Lexer::Token::Id::InOut },
-				{ "int", 3, Lexer::Token::Id::Int },
-				{ "int2", 4, Lexer::Token::Id::Int2 },
-				{ "int2x2", 6, Lexer::Token::Id::Int2x2 },
-				{ "int3", 4, Lexer::Token::Id::Int3 },
-				{ "int3x3", 6, Lexer::Token::Id::Int3x3 },
-				{ "int4", 4, Lexer::Token::Id::Int4 },
-				{ "int4x4", 6, Lexer::Token::Id::Int4x4 },
-				{ "interface", 9, Lexer::Token::Id::ReservedWord },
-				{ "linear", 6, Lexer::Token::Id::Linear },
-				{ "long", 4, Lexer::Token::Id::ReservedWord },
-				{ "matrix", 6, Lexer::Token::Id::Matrix },
-				{ "mutable", 7, Lexer::Token::Id::ReservedWord },
-				{ "namespace", 9, Lexer::Token::Id::Namespace },
-				{ "new", 3, Lexer::Token::Id::ReservedWord },
-				{ "noinline", 8, Lexer::Token::Id::ReservedWord },
-				{ "nointerpolation", 15, Lexer::Token::Id::NoInterpolation },
-				{ "noperspective", 13, Lexer::Token::Id::NoPerspective },
-				{ "operator", 8, Lexer::Token::Id::ReservedWord },
-				{ "out", 3, Lexer::Token::Id::Out },
-				{ "packed", 6, Lexer::Token::Id::ReservedWord },
-				{ "packoffset", 10, Lexer::Token::Id::ReservedWord },
-				{ "pass", 4, Lexer::Token::Id::Pass },
-				{ "precise", 7, Lexer::Token::Id::Precise },
-				{ "private", 7, Lexer::Token::Id::ReservedWord },
-				{ "protected", 9, Lexer::Token::Id::ReservedWord },
-				{ "public", 6, Lexer::Token::Id::ReservedWord },
-				{ "register", 8, Lexer::Token::Id::ReservedWord },
-				{ "reinterpret_cast", 16, Lexer::Token::Id::ReservedWord },
-				{ "return", 6, Lexer::Token::Id::Return },
-				{ "row_major", 9, Lexer::Token::Id::ReservedWord },
-				{ "sample", 6, Lexer::Token::Id::ReservedWord },
-				{ "sampler", 7, Lexer::Token::Id::Sampler2D },
-				{ "sampler1D", 9, Lexer::Token::Id::Sampler1D },
-				{ "sampler1DArray", 14, Lexer::Token::Id::ReservedWord },
-				{ "sampler1DArrayShadow", 20, Lexer::Token::Id::ReservedWord },
-				{ "sampler1DShadow", 15, Lexer::Token::Id::ReservedWord },
-				{ "sampler2D", 9, Lexer::Token::Id::Sampler2D },
-				{ "sampler2DArray", 14, Lexer::Token::Id::ReservedWord },
-				{ "sampler2DArrayShadow", 20, Lexer::Token::Id::ReservedWord },
-				{ "sampler2DMS", 11, Lexer::Token::Id::ReservedWord },
-				{ "sampler2DMSArray", 16, Lexer::Token::Id::ReservedWord },
-				{ "sampler2DShadow", 15, Lexer::Token::Id::ReservedWord },
-				{ "sampler3D", 9, Lexer::Token::Id::Sampler3D },
-				{ "sampler_state", 13, Lexer::Token::Id::ReservedWord },
-				{ "samplerCUBE", 11, Lexer::Token::Id::ReservedWord },
-				{ "samplerRECT", 11, Lexer::Token::Id::ReservedWord },
-				{ "SamplerState", 12, Lexer::Token::Id::ReservedWord },
-				{ "shared", 6, Lexer::Token::Id::ReservedWord },
-				{ "short", 5, Lexer::Token::Id::ReservedWord },
-				{ "signed", 6, Lexer::Token::Id::ReservedWord },
-				{ "sizeof", 6, Lexer::Token::Id::ReservedWord },
-				{ "snorm", 5, Lexer::Token::Id::ReservedWord },
-				{ "static", 6, Lexer::Token::Id::Static },
-				{ "static_cast", 11, Lexer::Token::Id::ReservedWord },
-				{ "string", 6, Lexer::Token::Id::String },
-				{ "struct", 6, Lexer::Token::Id::Struct },
-				{ "switch", 6, Lexer::Token::Id::Switch },
-				{ "technique", 9, Lexer::Token::Id::Technique },
-				{ "template", 8, Lexer::Token::Id::ReservedWord },
-				{ "texture", 7, Lexer::Token::Id::Texture2D },
-				{ "Texture1D", 9, Lexer::Token::Id::ReservedWord },
-				{ "texture1D", 9, Lexer::Token::Id::Texture1D },
-				{ "Texture1DArray", 14, Lexer::Token::Id::ReservedWord },
-				{ "Texture2D", 9, Lexer::Token::Id::ReservedWord },
-				{ "texture2D", 9, Lexer::Token::Id::Texture2D },
-				{ "Texture2DArray", 14, Lexer::Token::Id::ReservedWord },
-				{ "Texture2DMS", 11, Lexer::Token::Id::ReservedWord },
-				{ "Texture2DMSArray", 16, Lexer::Token::Id::ReservedWord },
-				{ "Texture3D", 9, Lexer::Token::Id::ReservedWord },
-				{ "texture3D", 9, Lexer::Token::Id::Texture3D },
-				{ "textureCUBE", 11, Lexer::Token::Id::ReservedWord },
-				{ "TextureCube", 11, Lexer::Token::Id::ReservedWord },
-				{ "TextureCubeArray", 16, Lexer::Token::Id::ReservedWord },
-				{ "textureRECT", 11, Lexer::Token::Id::ReservedWord },
-				{ "this", 4, Lexer::Token::Id::ReservedWord },
-				{ "true", 4, Lexer::Token::Id::True },
-				{ "TRUE", 4, Lexer::Token::Id::True },
-				{ "try", 3, Lexer::Token::Id::ReservedWord },
-				{ "typedef", 7, Lexer::Token::Id::ReservedWord },
-				{ "uint", 4, Lexer::Token::Id::Uint },
-				{ "uint2", 5, Lexer::Token::Id::Uint2 },
-				{ "uint2x2", 7, Lexer::Token::Id::Uint2x2 },
-				{ "uint3", 5, Lexer::Token::Id::Uint3 },
-				{ "uint3x3", 7, Lexer::Token::Id::Uint3x3 },
-				{ "uint4", 5, Lexer::Token::Id::Uint4 },
-				{ "uint4x4", 7, Lexer::Token::Id::Uint4x4 },
-				{ "uniform", 7, Lexer::Token::Id::Uniform },
-				{ "union", 5, Lexer::Token::Id::ReservedWord },
-				{ "unorm", 5, Lexer::Token::Id::ReservedWord },
-				{ "unsigned", 8, Lexer::Token::Id::ReservedWord },
-				{ "vector", 6, Lexer::Token::Id::Vector },
-				{ "virtual", 7, Lexer::Token::Id::ReservedWord },
-				{ "void", 4, Lexer::Token::Id::Void },
-				{ "volatile", 8, Lexer::Token::Id::Volatile },
-				{ "while", 5, Lexer::Token::Id::While }
+				{ "asm", 3, TokenId::ReservedWord },
+				{ "asm_fragment", 12, TokenId::ReservedWord },
+				{ "auto", 4, TokenId::ReservedWord },
+				{ "bool", 4, TokenId::Bool },
+				{ "bool2", 5, TokenId::Bool2 },
+				{ "bool2x2", 7, TokenId::Bool2x2 },
+				{ "bool3", 5, TokenId::Bool3 },
+				{ "bool3x3", 7, TokenId::Bool3x3 },
+				{ "bool4", 5, TokenId::Bool4 },
+				{ "bool4x4", 7, TokenId::Bool4x4 },
+				{ "break", 5, TokenId::Break },
+				{ "case", 4, TokenId::Case },
+				{ "cast", 4, TokenId::ReservedWord },
+				{ "catch", 5, TokenId::ReservedWord },
+				{ "centroid", 8, TokenId::ReservedWord },
+				{ "char", 4, TokenId::ReservedWord },
+				{ "class", 5, TokenId::ReservedWord },
+				{ "column_major", 12, TokenId::ReservedWord },
+				{ "compile", 7, TokenId::ReservedWord },
+				{ "const", 5, TokenId::Const },
+				{ "const_cast", 10, TokenId::ReservedWord },
+				{ "continue", 8, TokenId::Continue },
+				{ "default", 7, TokenId::Default },
+				{ "delete", 6, TokenId::ReservedWord },
+				{ "discard", 7, TokenId::Discard },
+				{ "do", 2, TokenId::Do },
+				{ "double", 6, TokenId::ReservedWord },
+				{ "dword", 5, TokenId::Uint },
+				{ "dword2", 6, TokenId::Uint2 },
+				{ "dword2x2", 8, TokenId::Uint2x2 },
+				{ "dword3", 6, TokenId::Uint3, },
+				{ "dword3x3", 8, TokenId::Uint3x3 },
+				{ "dword4", 6, TokenId::Uint4 },
+				{ "dword4x4", 8, TokenId::Uint4x4 },
+				{ "dynamic_cast", 12, TokenId::ReservedWord },
+				{ "else", 4, TokenId::Else },
+				{ "enum", 4, TokenId::ReservedWord },
+				{ "explicit", 8, TokenId::ReservedWord },
+				{ "extern", 6, TokenId::Extern },
+				{ "external", 8, TokenId::ReservedWord },
+				{ "false", 5, TokenId::False },
+				{ "FALSE", 5, TokenId::False },
+				{ "float", 5, TokenId::Float },
+				{ "float2", 6, TokenId::Float2 },
+				{ "float2x2", 8, TokenId::Float2x2 },
+				{ "float3", 6, TokenId::Float3 },
+				{ "float3x3", 8, TokenId::Float3x3 },
+				{ "float4", 6, TokenId::Float4 },
+				{ "float4x4", 8, TokenId::Float4x4 },
+				{ "for", 3, TokenId::For },
+				{ "foreach", 7, TokenId::ReservedWord },
+				{ "friend", 6, TokenId::ReservedWord },
+				{ "globallycoherent", 16, TokenId::ReservedWord },
+				{ "goto", 4, TokenId::ReservedWord },
+				{ "groupshared", 11, TokenId::ReservedWord },
+				{ "half", 4, TokenId::ReservedWord },
+				{ "half2", 5, TokenId::ReservedWord },
+				{ "half2x2", 7, TokenId::ReservedWord },
+				{ "half3", 5, TokenId::ReservedWord },
+				{ "half3x3", 7, TokenId::ReservedWord },
+				{ "half4", 5, TokenId::ReservedWord },
+				{ "half4x4", 7, TokenId::ReservedWord },
+				{ "if", 2, TokenId::If },
+				{ "in", 2, TokenId::In },
+				{ "inline", 6, TokenId::ReservedWord },
+				{ "inout", 5, TokenId::InOut },
+				{ "int", 3, TokenId::Int },
+				{ "int2", 4, TokenId::Int2 },
+				{ "int2x2", 6, TokenId::Int2x2 },
+				{ "int3", 4, TokenId::Int3 },
+				{ "int3x3", 6, TokenId::Int3x3 },
+				{ "int4", 4, TokenId::Int4 },
+				{ "int4x4", 6, TokenId::Int4x4 },
+				{ "interface", 9, TokenId::ReservedWord },
+				{ "linear", 6, TokenId::Linear },
+				{ "long", 4, TokenId::ReservedWord },
+				{ "matrix", 6, TokenId::Matrix },
+				{ "mutable", 7, TokenId::ReservedWord },
+				{ "namespace", 9, TokenId::Namespace },
+				{ "new", 3, TokenId::ReservedWord },
+				{ "noinline", 8, TokenId::ReservedWord },
+				{ "nointerpolation", 15, TokenId::NoInterpolation },
+				{ "noperspective", 13, TokenId::NoPerspective },
+				{ "operator", 8, TokenId::ReservedWord },
+				{ "out", 3, TokenId::Out },
+				{ "packed", 6, TokenId::ReservedWord },
+				{ "packoffset", 10, TokenId::ReservedWord },
+				{ "pass", 4, TokenId::Pass },
+				{ "precise", 7, TokenId::Precise },
+				{ "private", 7, TokenId::ReservedWord },
+				{ "protected", 9, TokenId::ReservedWord },
+				{ "public", 6, TokenId::ReservedWord },
+				{ "register", 8, TokenId::ReservedWord },
+				{ "reinterpret_cast", 16, TokenId::ReservedWord },
+				{ "return", 6, TokenId::Return },
+				{ "row_major", 9, TokenId::ReservedWord },
+				{ "sample", 6, TokenId::ReservedWord },
+				{ "sampler", 7, TokenId::Sampler2D },
+				{ "sampler1D", 9, TokenId::Sampler1D },
+				{ "sampler1DArray", 14, TokenId::ReservedWord },
+				{ "sampler1DArrayShadow", 20, TokenId::ReservedWord },
+				{ "sampler1DShadow", 15, TokenId::ReservedWord },
+				{ "sampler2D", 9, TokenId::Sampler2D },
+				{ "sampler2DArray", 14, TokenId::ReservedWord },
+				{ "sampler2DArrayShadow", 20, TokenId::ReservedWord },
+				{ "sampler2DMS", 11, TokenId::ReservedWord },
+				{ "sampler2DMSArray", 16, TokenId::ReservedWord },
+				{ "sampler2DShadow", 15, TokenId::ReservedWord },
+				{ "sampler3D", 9, TokenId::Sampler3D },
+				{ "sampler_state", 13, TokenId::ReservedWord },
+				{ "samplerCUBE", 11, TokenId::ReservedWord },
+				{ "samplerRECT", 11, TokenId::ReservedWord },
+				{ "SamplerState", 12, TokenId::ReservedWord },
+				{ "shared", 6, TokenId::ReservedWord },
+				{ "short", 5, TokenId::ReservedWord },
+				{ "signed", 6, TokenId::ReservedWord },
+				{ "sizeof", 6, TokenId::ReservedWord },
+				{ "snorm", 5, TokenId::ReservedWord },
+				{ "static", 6, TokenId::Static },
+				{ "static_cast", 11, TokenId::ReservedWord },
+				{ "string", 6, TokenId::String },
+				{ "struct", 6, TokenId::Struct },
+				{ "switch", 6, TokenId::Switch },
+				{ "technique", 9, TokenId::Technique },
+				{ "template", 8, TokenId::ReservedWord },
+				{ "texture", 7, TokenId::Texture2D },
+				{ "Texture1D", 9, TokenId::ReservedWord },
+				{ "texture1D", 9, TokenId::Texture1D },
+				{ "Texture1DArray", 14, TokenId::ReservedWord },
+				{ "Texture2D", 9, TokenId::ReservedWord },
+				{ "texture2D", 9, TokenId::Texture2D },
+				{ "Texture2DArray", 14, TokenId::ReservedWord },
+				{ "Texture2DMS", 11, TokenId::ReservedWord },
+				{ "Texture2DMSArray", 16, TokenId::ReservedWord },
+				{ "Texture3D", 9, TokenId::ReservedWord },
+				{ "texture3D", 9, TokenId::Texture3D },
+				{ "textureCUBE", 11, TokenId::ReservedWord },
+				{ "TextureCube", 11, TokenId::ReservedWord },
+				{ "TextureCubeArray", 16, TokenId::ReservedWord },
+				{ "textureRECT", 11, TokenId::ReservedWord },
+				{ "this", 4, TokenId::ReservedWord },
+				{ "true", 4, TokenId::True },
+				{ "TRUE", 4, TokenId::True },
+				{ "try", 3, TokenId::ReservedWord },
+				{ "typedef", 7, TokenId::ReservedWord },
+				{ "uint", 4, TokenId::Uint },
+				{ "uint2", 5, TokenId::Uint2 },
+				{ "uint2x2", 7, TokenId::Uint2x2 },
+				{ "uint3", 5, TokenId::Uint3 },
+				{ "uint3x3", 7, TokenId::Uint3x3 },
+				{ "uint4", 5, TokenId::Uint4 },
+				{ "uint4x4", 7, TokenId::Uint4x4 },
+				{ "uniform", 7, TokenId::Uniform },
+				{ "union", 5, TokenId::ReservedWord },
+				{ "unorm", 5, TokenId::ReservedWord },
+				{ "unsigned", 8, TokenId::ReservedWord },
+				{ "vector", 6, TokenId::Vector },
+				{ "virtual", 7, TokenId::ReservedWord },
+				{ "void", 4, TokenId::Void },
+				{ "volatile", 8, TokenId::Volatile },
+				{ "while", 5, TokenId::While }
 			};
 			#pragma endregion
 
 			for (unsigned int i = 0; i < sizeof(sKeywords) / sizeof(Keyword); i++)
 			{
-				if (sKeywords[i].length == token.mRawDataLength && strncmp(token.mRawData, sKeywords[i].data, token.mRawDataLength) == 0)
+				if (sKeywords[i].length == token.Length && strncmp(begin, sKeywords[i].data, token.Length) == 0)
 				{
-					token.mId = sKeywords[i].id;
+					token.Id = sKeywords[i].id;
 					break;
 				}
 			}
 		}
-		void Lexer::ParseStringLiteral(Token &token) const
+		void Lexer::ParseStringLiteral(Token &token, bool escape) const
 		{
-			char c = 0;
-			const char *const begin = this->mPos, *end = begin;
+			char c;
+			const char *const begin = _cur, *end = begin;
 
 			while ((c = *++end) != '"')
 			{
-				if (c == '\n' || c == '\r' || end >= this->mEnd)
+				if (c == '\n' || c == '\r' || end >= _end)
 				{
-					token.mId = Token::Id::StringLiteral;
-					token.mRawData = begin;
-					token.mRawDataLength = end - begin;
+					token.Id = TokenId::StringLiteral;
+					token.Length = static_cast<unsigned int>(end - begin);
 					return;
 				}
 
-				if (c == '\\')
+				if (c == '\\' && escape)
 				{
 					unsigned int n = 0;
 
@@ -1021,7 +715,7 @@ namespace ReShade
 						case '5':
 						case '6':
 						case '7':
-							for (unsigned int i = 0; i < 3 && isodigit(*end) && end < this->mEnd; ++i)
+							for (unsigned int i = 0; i < 3 && isodigit(*end) && end < _end; ++i)
 							{
 								c = *end++;
 								n = (n << 3) | (c - '0');
@@ -1054,7 +748,7 @@ namespace ReShade
 						case 'x':
 							if (isxdigit(*++end))
 							{
-								while (isxdigit(*end) && end < this->mEnd)
+								while (isxdigit(*end) && end < _end)
 								{
 									c = *end++;
 									n = (n << 4) | (isdigit(c) ? c - '0' : (c - 55 - 32 * (c & 0x20)));
@@ -1068,19 +762,18 @@ namespace ReShade
 					}
 				}
 
-				token.mLiteralString += c;
+				token.LiteralAsString += c;
 			}
 
-			token.mId = Token::Id::StringLiteral;
-			token.mRawData = begin;
-			token.mRawDataLength = end - begin + 1;
+			token.Id = TokenId::StringLiteral;
+			token.Length = static_cast<unsigned int>(end - begin + 1);
 		}
 		void Lexer::ParseNumericLiteral(Token &token) const
 		{
 			int radix = 0;
-			const char *begin = this->mPos, *end = begin;
+			const char *begin = _cur, *end = begin;
 
-			token.mId = Token::Id::IntLiteral;
+			token.Id = TokenId::IntLiteral;
 
 			if (begin[0] == '0')
 			{
@@ -1132,7 +825,7 @@ namespace ReShade
 				if (*end == '.')
 				{
 					radix = 10;
-					token.mId = Token::Id::FloatLiteral;
+					token.Id = TokenId::FloatLiteral;
 
 					while (isdigit(*++end))
 					{
@@ -1150,7 +843,7 @@ namespace ReShade
 					if (isdigit(end[1]))
 					{
 						radix = 10;
-						token.mId = Token::Id::FloatLiteral;
+						token.Id = TokenId::FloatLiteral;
 
 						while (isdigit(*++end))
 						{
@@ -1163,105 +856,83 @@ namespace ReShade
 			if (*end == 'f' || *end == 'F')
 			{
 				radix = 10;
-				token.mId = Token::Id::FloatLiteral;
+				token.Id = TokenId::FloatLiteral;
 
 				end++;
 			}
 			else if (*end == 'l' || *end == 'L')
 			{
 				radix = 10;
-				token.mId = Token::Id::DoubleLiteral;
+				token.Id = TokenId::DoubleLiteral;
 
 				end++;
 			}
-			else if (token.mId == Token::Id::IntLiteral && (*end == 'u' || *end == 'U'))
+			else if (token.Id == TokenId::IntLiteral && (*end == 'u' || *end == 'U'))
 			{
-				token.mId = Token::Id::UintLiteral;
+				token.Id = TokenId::UintLiteral;
 
 				end++;
 			}
 
-			token.mRawData = begin;
-			token.mRawDataLength = end - begin;
+			token.Length = static_cast<unsigned int>(end - begin);
 
-			switch (token.mId)
+			switch (token.Id)
 			{
-				case Token::Id::IntLiteral:
-					token.mLiteralNumeric.Int = strtol(token.mRawData, nullptr, radix) & UINT_MAX;
+				case TokenId::IntLiteral:
+					token.LiteralAsInt = strtol(begin, nullptr, radix) & UINT_MAX;
 					break;
-				case Token::Id::UintLiteral:
-					token.mLiteralNumeric.Uint = strtoul(token.mRawData, nullptr, radix) & UINT_MAX;
+				case TokenId::UintLiteral:
+					token.LiteralAsUint = strtoul(begin, nullptr, radix) & UINT_MAX;
 					break;
-				case Token::Id::FloatLiteral:
-					token.mLiteralNumeric.Float = static_cast<float>(strtod(token.mRawData, nullptr));
+				case TokenId::FloatLiteral:
+					token.LiteralAsFloat = static_cast<float>(strtod(begin, nullptr));
 					break;
-				case Token::Id::DoubleLiteral:
-					token.mLiteralNumeric.Double = strtod(token.mRawData, nullptr);
+				case TokenId::DoubleLiteral:
+					token.LiteralAsDouble = strtod(begin, nullptr);
 					break;
 			}
 		}
 		void Lexer::ParsePreProcessorDirective()
 		{
-			while (isspace(*this->mPos) && this->mPos < this->mEnd)
+			SkipSpace();
+
+			std::string command;
+
+			while (isalnum(*_cur))
 			{
-				this->mPos++;
+				command.push_back(*_cur++);
 			}
 
-			auto command = this->mPos;
-			size_t commandLength = 0;
+			SkipSpace();
 
-			while (isalnum(*this->mPos++))
+			if (command == "line")
 			{
-				++commandLength;
-			}
+				_location.Line = static_cast<int>(strtol(_cur, const_cast<char **>(&_cur), 10));
 
-			while (isspace(*this->mPos) && this->mPos < this->mEnd)
-			{
-				this->mPos++;
-			}
-
-			if (commandLength == 4 && strncmp(command, "line", 4) == 0)
-			{
-				char *sourceBegin, *sourceEnd = nullptr;
-
-				this->mCurrentLocation.Line = static_cast<int>(strtol(this->mPos, &sourceEnd, 10));
-
-				while (*sourceEnd != '\n' && *sourceEnd != '\0' && *++sourceEnd != '"')
+				if (_location.Line != 0)
 				{
-					continue;
+					_location.Line--;
 				}
 
-				sourceBegin = sourceEnd;
+				SkipSpace();
 
-				while (*sourceEnd != '\n' && *sourceEnd != '\0' && *++sourceEnd != '"')
+				if (_cur[0] == '"')
 				{
-					continue;
-				}
+					Token token;
+					ParseStringLiteral(token, false);
 
-				const size_t sourceLength = sourceEnd - sourceBegin;
-
-				if (sourceLength != 0)
-				{
-					this->mCurrentLocation.Source = std::string(sourceBegin + 1, sourceLength - 1);
-				}
-
-				if (this->mCurrentLocation.Line != 0)
-				{
-					this->mCurrentLocation.Line--;
+					_location.Source = token.LiteralAsString;
 				}
 			}
 			else
 			{
-				while ((this->mPos[0] == '\n' || this->mPos[-1] == '\\') && this->mPos < this->mEnd)
+				while ((_cur[0] == '\n' || _cur[-1] == '\\') && _cur < _end)
 				{
 					continue;
 				}
 			}
 
-			while (*this->mPos != '\n' && this->mPos < this->mEnd)
-			{
-				this->mPos++;
-			}
+			SkipToNewLine();
 		}
 	}
 }

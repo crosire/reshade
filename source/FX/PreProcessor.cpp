@@ -103,7 +103,7 @@ namespace ReShade
 			this->mImpl->mScratchCursor += size;
 		}
 
-		std::string PreProcessor::Run(const boost::filesystem::path &path, std::string &errors)
+		std::string PreProcessor::Run(const boost::filesystem::path &path, std::string &errors, std::vector<std::string> &pragmas, std::vector<boost::filesystem::path> &includes)
 		{
 			this->mImpl->mOutput.clear();
 			this->mImpl->mErrors.clear();
@@ -123,21 +123,6 @@ namespace ReShade
 			// Run preprocessor
 			const bool success = fppPreProcess(tags.data()) == 0;
 
-			// Return preprocessed source
-			if (!success)
-			{
-				errors += this->mImpl->mErrors;
-
-				this->mImpl->mOutput.clear();
-			}
-
-			return this->mImpl->mOutput;
-		}
-		std::string PreProcessor::Run(const boost::filesystem::path &path, std::string &errors, std::vector<std::string> &pragmas, std::vector<boost::filesystem::path> &includes)
-		{
-			// Run preprocessor
-			Run(path, errors);
-
 			// Add pragmas
 			pragmas.insert(pragmas.end(), this->mImpl->mPragmas.begin(), this->mImpl->mPragmas.end());
 
@@ -155,6 +140,14 @@ namespace ReShade
 
 			std::sort(includes.begin(), includes.end());
 			includes.erase(std::unique(includes.begin(), includes.end()), includes.end());
+
+			// Return preprocessed source
+			if (!success)
+			{
+				errors += this->mImpl->mErrors;
+
+				this->mImpl->mOutput.clear();
+			}
 
 			return this->mImpl->mOutput;
 		}
