@@ -2840,6 +2840,8 @@ namespace ReShade
 			}
 			#pragma endregion
 
+			Error(_tokenNext.Location, 3000, "syntax error: unexpected '%s'", GetTokenName(_tokenNext.Id));
+
 			ConsumeUntil(';');
 
 			return false;
