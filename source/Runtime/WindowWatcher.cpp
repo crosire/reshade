@@ -28,7 +28,7 @@ namespace ReShade
 
 	LRESULT CALLBACK WindowWatcher::HookWindowProc(int nCode, WPARAM wParam, LPARAM lParam)
 	{
-		if (nCode < HC_ACTION || wParam != PM_REMOVE)
+		if (nCode < HC_ACTION || (wParam & PM_REMOVE) == 0)
 		{
 			return CallNextHookEx(nullptr, nCode, wParam, lParam);
 		}
