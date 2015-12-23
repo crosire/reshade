@@ -1418,6 +1418,12 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateVertexBuffer(UINT Length, DWORD
 
 	*ppVertexBuffer = nullptr;
 
+	if (Pool == D3DPOOL_MANAGED)
+	{
+		Pool = D3DPOOL_DEFAULT;
+		Usage |= D3DUSAGE_DYNAMIC;
+	}
+
 	IDirect3DVertexBuffer9 *buffer = nullptr;
 
 	const auto hr = this->mProxy->CreateVertexBuffer(Length, Usage, FVF, Pool, &buffer, nullptr);
