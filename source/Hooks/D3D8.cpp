@@ -3026,7 +3026,7 @@ HRESULT STDMETHODCALLTYPE Direct3D8::CreateDevice(UINT Adapter, D3DDEVTYPE Devic
 
 	// Set default render target
 	IDirect3DSurface9 *rendertarget = nullptr, *depthstencil = nullptr;
-	 Direct3DSurface8 *rendertargetProxy = nullptr, *depthstencilProxy = nullptr;
+	Direct3DSurface8 *rendertargetProxy = nullptr, *depthstencilProxy = nullptr;
 
 	device->GetRenderTarget(0, &rendertarget);
 	device->GetDepthStencilSurface(&depthstencil);
@@ -3034,17 +3034,22 @@ HRESULT STDMETHODCALLTYPE Direct3D8::CreateDevice(UINT Adapter, D3DDEVTYPE Devic
 	if (rendertarget != nullptr)
 	{
 		rendertargetProxy = new Direct3DSurface8(deviceProxy, rendertarget);
-
-		rendertarget->Release();
 	}
 	if (depthstencil != nullptr)
 	{
 		depthstencilProxy = new Direct3DSurface8(deviceProxy, depthstencil);
-
-		depthstencil->Release();
 	}
 
 	deviceProxy->SetRenderTarget(rendertargetProxy, depthstencilProxy);
+
+	if (rendertargetProxy != nullptr)
+	{
+		rendertargetProxy->Release();
+	}
+	if (depthstencilProxy != nullptr)
+	{
+		depthstencilProxy->Release();
+	}
 
 	*ppReturnedDeviceInterface = deviceProxy;
 
