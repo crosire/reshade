@@ -4,8 +4,10 @@
 #include "Hooks\D3D11.hpp"
 #include "Hooks\D3D12.hpp"
 
-struct __declspec(uuid("CB285C3B-3677-4332-98C7-D6339B9782B1"))
-DXGIDevice : IDXGIDevice3
+struct __declspec(uuid("CB285C3B-3677-4332-98C7-D6339B9782B1")) DXGIDevice;
+struct __declspec(uuid("1F445F9F-9887-4C4C-9055-4E3BADAFCCA8")) DXGISwapChain;
+
+struct DXGIDevice : IDXGIDevice3
 {
 	explicit DXGIDevice(IDXGIDevice *original, D3D10Device *direct3DDevice) : mRef(1), mOrig(original), mInterfaceVersion(0), mDirect3DDevice(direct3DDevice)
 	{
@@ -58,8 +60,7 @@ private:
 	DXGIDevice(const DXGIDevice &);
 	DXGIDevice &operator=(const DXGIDevice &);
 };
-struct __declspec(uuid("1F445F9F-9887-4C4C-9055-4E3BADAFCCA8"))
-DXGISwapChain : IDXGISwapChain3
+struct DXGISwapChain : IDXGISwapChain3
 {
 	explicit DXGISwapChain(D3D10Device *device, IDXGISwapChain *original, const std::shared_ptr<ReShade::Runtime> &runtime) : mRef(1), mOrig(original), mInterfaceVersion(0), mDirect3DDevice(device), mDirect3DVersion(10), mRuntime(runtime)
 	{

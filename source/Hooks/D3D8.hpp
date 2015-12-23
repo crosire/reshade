@@ -103,11 +103,21 @@ struct D3DVOLUME_DESC8
 };
 #pragma endregion
 
-class __declspec(uuid("1DD9E8DA-1C77-4D40-B0CF-98FEFDFF9512"))
-Direct3D8 : IUnknown
-{
-	friend class Direct3DDevice8;
+class __declspec(uuid("1DD9E8DA-1C77-4D40-B0CF-98FEFDFF9512")) Direct3D8;
+class __declspec(uuid("7385E5DF-8FE8-41D5-86B6-D7B48547B6CF")) Direct3DDevice8;
+class __declspec(uuid("928C088B-76B9-4C6B-A536-A590853876CD")) Direct3DSwapChain8;
+class __declspec(uuid("1B36BB7B-09B7-410A-B445-7D1430D7B33F")) Direct3DResource8;
+class __declspec(uuid("B4211CFA-51B9-4A9F-AB78-DB99B2BB678E")) Direct3DBaseTexture8;
+class __declspec(uuid("E4CDD575-2866-4F01-B12E-7EECE1EC9358")) Direct3DTexture8;
+class __declspec(uuid("3EE5B968-2ACA-4C34-8BB5-7E0C3D19B750")) Direct3DCubeTexture8;
+class __declspec(uuid("4B8AAAFA-140F-42BA-9131-597EAFAA2EAD")) Direct3DVolumeTexture8;
+class __declspec(uuid("B96EEBCA-B326-4EA5-882F-2FF5BAE021DD")) Direct3DSurface8;
+class __declspec(uuid("BD7349F5-14F1-42E4-9C79-972380DB40C0")) Direct3DVolume8;
+class __declspec(uuid("8AEEEAC7-05F9-44D4-B591-000B0DF1CB95")) Direct3DVertexBuffer8;
+class __declspec(uuid("0E689C9A-053D-44A0-9D92-DB0E3D750F86")) Direct3DIndexBuffer8;
 
+class Direct3D8 : IUnknown
+{
 	Direct3D8(const Direct3D8 &);
 	Direct3D8 &operator=(const Direct3D8 &);
 
@@ -139,20 +149,8 @@ public:
 	HMODULE mModule;
 	IDirect3D9 *const mProxy;
 };
-class __declspec(uuid("7385E5DF-8FE8-41D5-86B6-D7B48547B6CF"))
-Direct3DDevice8 : IUnknown
+class Direct3DDevice8 : IUnknown
 {
-	friend class Direct3DSwapChain8;
-	friend class Direct3DResource8;
-	friend class Direct3DBaseTexture8;
-	friend class Direct3DTexture8;
-	friend class Direct3DVolumeTexture8;
-	friend class Direct3DCubeTexture8;
-	friend class Direct3DSurface8;
-	friend class Direct3DVolume8;
-	friend class Direct3DVertexBuffer8;
-	friend class Direct3DIndexBuffer8;
-
 	Direct3DDevice8(const Direct3DDevice8 &);
 	Direct3DDevice8 &operator=(const Direct3DDevice8 &);
 
@@ -276,8 +274,7 @@ public:
 	DWORD mCurrentVertexShader, mCurrentPixelShader;
 	Direct3DSurface8 *mCurrentRenderTarget, *mCurrentDepthStencil;
 };
-class __declspec(uuid("928C088B-76B9-4C6B-A536-A590853876CD"))
-Direct3DSwapChain8 : IUnknown
+class Direct3DSwapChain8 : IUnknown
 {
 	Direct3DSwapChain8(const Direct3DSwapChain8 &);
 	Direct3DSwapChain8 &operator=(const Direct3DSwapChain8 &);
@@ -305,8 +302,7 @@ public:
 	Direct3DDevice8 *const mDevice;
 	IDirect3DSwapChain9 *const mProxy;
 };
-class __declspec(uuid("1B36BB7B-09B7-410A-B445-7D1430D7B33F"))
-Direct3DResource8 : IUnknown
+class Direct3DResource8 : IUnknown
 {
 public:
 	virtual HRESULT STDMETHODCALLTYPE GetDevice(Direct3DDevice8 **ppDevice) = 0;
@@ -318,16 +314,14 @@ public:
 	virtual void STDMETHODCALLTYPE PreLoad() = 0;
 	virtual D3DRESOURCETYPE STDMETHODCALLTYPE GetType() = 0;
 };
-class __declspec(uuid("B4211CFA-51B9-4A9F-AB78-DB99B2BB678E"))
-Direct3DBaseTexture8 : public Direct3DResource8
+class Direct3DBaseTexture8 : public Direct3DResource8
 {
 public:
 	virtual DWORD STDMETHODCALLTYPE SetLOD(DWORD LODNew) = 0;
 	virtual DWORD STDMETHODCALLTYPE GetLOD() = 0;
 	virtual DWORD STDMETHODCALLTYPE GetLevelCount() = 0;
 };
-class __declspec(uuid("E4CDD575-2866-4F01-B12E-7EECE1EC9358"))
-Direct3DTexture8 : public Direct3DBaseTexture8
+class Direct3DTexture8 : public Direct3DBaseTexture8
 {
 	Direct3DTexture8(const Direct3DTexture8 &);
 	Direct3DTexture8 &operator=(const Direct3DTexture8 &);
@@ -372,8 +366,7 @@ public:
 	Direct3DDevice8 *const mDevice;
 	IDirect3DTexture9 *const mProxy;
 };
-class __declspec(uuid("3EE5B968-2ACA-4C34-8BB5-7E0C3D19B750"))
-Direct3DCubeTexture8 : public Direct3DBaseTexture8
+class Direct3DCubeTexture8 : public Direct3DBaseTexture8
 {
 	Direct3DCubeTexture8(const Direct3DCubeTexture8 &);
 	Direct3DCubeTexture8 &operator=(const Direct3DCubeTexture8 &);
@@ -418,8 +411,7 @@ public:
 	Direct3DDevice8 *const mDevice;
 	IDirect3DCubeTexture9 *const mProxy;
 };
-class __declspec(uuid("4B8AAAFA-140F-42BA-9131-597EAFAA2EAD"))
-Direct3DVolumeTexture8 : public Direct3DBaseTexture8
+class Direct3DVolumeTexture8 : public Direct3DBaseTexture8
 {
 	Direct3DVolumeTexture8(const Direct3DVolumeTexture8 &);
 	Direct3DVolumeTexture8 &operator=(const Direct3DVolumeTexture8 &);
@@ -464,8 +456,7 @@ public:
 	Direct3DDevice8 *const mDevice;
 	IDirect3DVolumeTexture9 *const mProxy;
 };
-class __declspec(uuid("B96EEBCA-B326-4EA5-882F-2FF5BAE021DD"))
-Direct3DSurface8 : IUnknown
+class Direct3DSurface8 : IUnknown
 {
 	Direct3DSurface8(const Direct3DSurface8 &);
 	Direct3DSurface8 &operator=(const Direct3DSurface8 &);
@@ -500,8 +491,7 @@ public:
 	Direct3DDevice8 *const mDevice;
 	IDirect3DSurface9 *const mProxy;
 };
-class __declspec(uuid("BD7349F5-14F1-42E4-9C79-972380DB40C0"))
-Direct3DVolume8 : IUnknown
+class Direct3DVolume8 : IUnknown
 {
 	Direct3DVolume8(const Direct3DVolume8 &);
 	Direct3DVolume8 &operator=(const Direct3DVolume8 &);
@@ -536,8 +526,7 @@ public:
 	Direct3DDevice8 *const mDevice;
 	IDirect3DVolume9 *const mProxy;
 };
-class __declspec(uuid("8AEEEAC7-05F9-44D4-B591-000B0DF1CB95"))
-Direct3DVertexBuffer8 : public Direct3DResource8
+class Direct3DVertexBuffer8 : public Direct3DResource8
 {
 	Direct3DVertexBuffer8(const Direct3DVertexBuffer8 &);
 	Direct3DVertexBuffer8 &operator=(const Direct3DVertexBuffer8 &);
@@ -576,8 +565,7 @@ public:
 	Direct3DDevice8 *const mDevice;
 	IDirect3DVertexBuffer9 *const mProxy;
 };
-class __declspec(uuid("0E689C9A-053D-44A0-9D92-DB0E3D750F86"))
-Direct3DIndexBuffer8 : public Direct3DResource8
+class Direct3DIndexBuffer8 : public Direct3DResource8
 {
 	Direct3DIndexBuffer8(const Direct3DIndexBuffer8 &);
 	Direct3DIndexBuffer8 &operator=(const Direct3DIndexBuffer8 &);

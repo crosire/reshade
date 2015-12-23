@@ -2,12 +2,11 @@
 
 #include "Runtimes\D3D11Runtime.hpp"
 
-struct __declspec(uuid("72299288-2C68-4AD8-945D-2BFB5AA9C609"))
-D3D11Device : ID3D11Device3
-{
-	friend struct DXGIDevice;
-	friend struct D3D11DeviceContext;
+struct __declspec(uuid("72299288-2C68-4AD8-945D-2BFB5AA9C609")) D3D11Device;
+struct __declspec(uuid("27B0246B-2152-4D42-AD11-32489472238F")) D3D11DeviceContext;
 
+struct D3D11Device : ID3D11Device3
+{
 	explicit D3D11Device(ID3D11Device *original) : mRef(1), mOrig(original), mInterfaceVersion(0), mDXGIDevice(nullptr), mImmediateContext(nullptr)
 	{
 		assert(original != nullptr);
@@ -104,7 +103,7 @@ D3D11Device : ID3D11Device3
 	LONG mRef;
 	ID3D11Device *mOrig;
 	unsigned int mInterfaceVersion;
-	DXGIDevice *mDXGIDevice;
+	struct DXGIDevice *mDXGIDevice;
 	D3D11DeviceContext *mImmediateContext;
 	std::vector<std::shared_ptr<ReShade::Runtimes::D3D11Runtime>> mRuntimes;
 
@@ -112,11 +111,8 @@ private:
 	D3D11Device(const D3D11Device &);
 	D3D11Device &operator=(const D3D11Device &);
 };
-struct __declspec(uuid("27B0246B-2152-4D42-AD11-32489472238F"))
-D3D11DeviceContext : ID3D11DeviceContext3
+struct D3D11DeviceContext : ID3D11DeviceContext3
 {
-	friend struct D3D11Device;
-
 	explicit D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext *original) : mRef(1), mDevice(device), mOrig(original), mInterfaceVersion(0)
 	{
 		assert(device != nullptr);

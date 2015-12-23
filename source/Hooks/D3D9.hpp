@@ -2,11 +2,11 @@
 
 #include "Runtimes\D3D9Runtime.hpp"
 
-struct __declspec(uuid("F1006E9A-1C51-4AF4-ACEF-3605D2D4C8EE"))
-Direct3DDevice9 : IDirect3DDevice9Ex
-{
-	friend struct Direct3DSwapChain9;
+struct __declspec(uuid("F1006E9A-1C51-4AF4-ACEF-3605D2D4C8EE")) Direct3DDevice9;
+struct __declspec(uuid("BC52FCE4-1EAC-40C8-84CF-863600BBAA01")) Direct3DSwapChain9;
 
+struct Direct3DDevice9 : IDirect3DDevice9Ex
+{
 	explicit Direct3DDevice9(IDirect3DDevice9 *original) : mRef(1), mOrig(original), mInterfaceVersion(0), mImplicitSwapChain(nullptr), mAutoDepthStencil(nullptr), mUseSoftwareRendering(false)
 	{
 		assert(original != nullptr);
@@ -169,11 +169,8 @@ private:
 	Direct3DDevice9(const Direct3DDevice9 &);
 	Direct3DDevice9 &operator=(const Direct3DDevice9 &);
 };
-struct __declspec(uuid("BC52FCE4-1EAC-40C8-84CF-863600BBAA01"))
-Direct3DSwapChain9 : IDirect3DSwapChain9Ex
+struct Direct3DSwapChain9 : IDirect3DSwapChain9Ex
 {
-	friend struct Direct3DDevice9;
-
 	explicit Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapChain9 *original, const std::shared_ptr<ReShade::Runtimes::D3D9Runtime> &runtime) : mRef(1), mOrig(original), mInterfaceVersion(0), mDevice(device), mRuntime(runtime)
 	{
 		assert(device != nullptr);

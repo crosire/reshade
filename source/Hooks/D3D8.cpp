@@ -1342,7 +1342,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateTexture(UINT Width, UINT Height
 		D3DDEVICE_CREATION_PARAMETERS cp;
 		this->mProxy->GetCreationParameters(&cp);
 
-		if (SUCCEEDED(this->mD3D->CheckDeviceFormat(cp.AdapterOrdinal, cp.DeviceType, D3DFMT_X8R8G8B8, D3DUSAGE_RENDERTARGET, D3DRTYPE_TEXTURE, Format)) && (Usage & D3DUSAGE_DYNAMIC) == 0)
+		if (SUCCEEDED(this->mD3D->mProxy->CheckDeviceFormat(cp.AdapterOrdinal, cp.DeviceType, D3DFMT_X8R8G8B8, D3DUSAGE_RENDERTARGET, D3DRTYPE_TEXTURE, Format)) && (Usage & D3DUSAGE_DYNAMIC) == 0)
 		{
 			Usage |= D3DUSAGE_RENDERTARGET;
 		}

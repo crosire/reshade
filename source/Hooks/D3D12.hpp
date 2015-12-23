@@ -2,8 +2,10 @@
 
 #include "Runtimes\D3D12Runtime.hpp"
 
-struct __declspec(uuid("2523AFF4-978B-4939-BA16-8EE876A4CB2A"))
-D3D12Device : ID3D12Device
+struct __declspec(uuid("2523AFF4-978B-4939-BA16-8EE876A4CB2A")) D3D12Device;
+struct __declspec(uuid("2C576D2A-0C1C-4D1D-AD7C-BC4FAEC15ABC")) D3D12CommandQueue;
+
+struct D3D12Device : ID3D12Device
 {
 	explicit D3D12Device(ID3D12Device *original) : mRef(1), mOrig(original)
 	{
@@ -68,8 +70,7 @@ private:
 	D3D12Device(const D3D12Device &);
 	D3D12Device &operator=(const D3D12Device &);
 };
-struct __declspec(uuid("2C576D2A-0C1C-4D1D-AD7C-BC4FAEC15ABC"))
-D3D12CommandQueue : ID3D12CommandQueue
+struct D3D12CommandQueue : ID3D12CommandQueue
 {
 	explicit D3D12CommandQueue(D3D12Device *device, ID3D12CommandQueue *original) : mRef(1), mDevice(device), mOrig(original)
 	{
