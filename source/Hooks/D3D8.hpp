@@ -607,6 +607,6 @@ public:
 
 struct Direct3DVertexShader8
 {
-	IDirect3DVertexShader9 *mShader;
-	IDirect3DVertexDeclaration9 *mDeclaration;
+	IDirect3DVertexShader9 *Shader;
+	IDirect3DVertexDeclaration9 *Declaration;
 };

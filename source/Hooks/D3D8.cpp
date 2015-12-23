@@ -2459,21 +2459,21 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateVertexShader(CONST DWORD *pDecl
 
 		shader = new Direct3DVertexShader8();
 
-		hr = this->mProxy->CreateVertexShader(static_cast<const DWORD *>(assembly->GetBufferPointer()), &shader->mShader);
+		hr = this->mProxy->CreateVertexShader(static_cast<const DWORD *>(assembly->GetBufferPointer()), &shader->Shader);
 
 		assembly->Release();
 	}
 	else
 	{
 		shader = new Direct3DVertexShader8();
-		shader->mShader = nullptr;
+		shader->Shader = nullptr;
 
 		hr = D3D_OK;
 	}
 
 	if (SUCCEEDED(hr))
 	{
-		hr = this->mProxy->CreateVertexDeclaration(elements, &shader->mDeclaration);
+		hr = this->mProxy->CreateVertexDeclaration(elements, &shader->Declaration);
 
 		if (SUCCEEDED(hr))
 		{
@@ -2483,9 +2483,9 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateVertexShader(CONST DWORD *pDecl
 		{
 			LOG(ERROR) << "> 'IDirect3DDevice9::CreateVertexDeclaration' failed with '" << GetErrorString(hr) << "'!";
 
-			if (shader->mShader != nullptr)
+			if (shader->Shader != nullptr)
 			{
-				shader->mShader->Release();
+				shader->Shader->Release();
 			}
 		}
 	}
@@ -2516,8 +2516,8 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::SetVertexShader(DWORD Handle)
 	{
 		const auto shader = reinterpret_cast<Direct3DVertexShader8 *>(Handle ^ 0x80000000);
 
-		hr = this->mProxy->SetVertexShader(shader->mShader);
-		this->mProxy->SetVertexDeclaration(shader->mDeclaration);
+		hr = this->mProxy->SetVertexShader(shader->Shader);
+		this->mProxy->SetVertexDeclaration(shader->Declaration);
 
 		this->mCurrentVertexShader = Handle;
 	}
@@ -2556,13 +2556,13 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::DeleteVertexShader(DWORD Handle)
 
 	const auto shader = reinterpret_cast<Direct3DVertexShader8 *>(Handle ^ 0x80000000);
 
-	if (shader->mShader != nullptr)
+	if (shader->Shader != nullptr)
 	{
-		shader->mShader->Release();
+		shader->Shader->Release();
 	}
-	if (shader->mDeclaration != nullptr)
+	if (shader->Declaration != nullptr)
 	{
-		shader->mDeclaration->Release();
+		shader->Declaration->Release();
 	}
 
 	delete shader;
@@ -2597,7 +2597,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::GetVertexShaderFunction(DWORD Handle,
 		return D3DERR_INVALIDCALL;
 	}
 
-	const auto shader = reinterpret_cast<Direct3DVertexShader8 *>(Handle ^ 0x80000000)->mShader;
+	const auto shader = reinterpret_cast<Direct3DVertexShader8 *>(Handle ^ 0x80000000)->Shader;
 
 	if (shader == nullptr)
 	{
