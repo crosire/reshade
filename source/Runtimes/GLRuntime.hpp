@@ -12,7 +12,7 @@ namespace ReShade
 		class GLRuntime : public Runtime
 		{
 		public:
-			GLRuntime(HDC device, HGLRC context);
+			GLRuntime(HDC device);
 
 			bool OnInit(unsigned int width, unsigned int height);
 			void OnReset() override;
@@ -55,7 +55,6 @@ namespace ReShade
 			}
 
 			HDC _hdc;
-			HGLRC _hglrc;
 
 			GLuint _referenceCount, _currentVertexCount;
 			GLuint _defaultBackBufferFBO, _defaultBackBufferRBO[2], _backbufferTexture[2];

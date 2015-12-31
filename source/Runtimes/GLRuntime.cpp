@@ -2985,10 +2985,9 @@ namespace ReShade
 
 		// ---------------------------------------------------------------------------------------------------
 
-		GLRuntime::GLRuntime(HDC device, HGLRC context) : _hdc(device), _hglrc(context), _referenceCount(1), _stateBlock(new GLStateBlock), _defaultBackBufferFBO(0), _defaultBackBufferRBO(), _backbufferTexture(), _depthSourceFBO(0), _depthSource(0), _depthTexture(0), _blitFBO(0), _defaultVAO(0), _defaultVBO(0), _effectUBO(0)
+		GLRuntime::GLRuntime(HDC device) : _hdc(device), _referenceCount(1), _stateBlock(new GLStateBlock), _defaultBackBufferFBO(0), _defaultBackBufferRBO(), _backbufferTexture(), _depthSourceFBO(0), _depthSource(0), _depthTexture(0), _blitFBO(0), _defaultVAO(0), _defaultVBO(0), _effectUBO(0)
 		{
 			assert(device != nullptr);
-			assert(context != nullptr);
 
 			GLint major = 0, minor = 0;
 			GLCHECK(glGetIntegerv(GL_MAJOR_VERSION, &major));

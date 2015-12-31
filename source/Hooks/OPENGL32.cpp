@@ -3592,7 +3592,7 @@ EXPORT BOOL WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 
 		if (gl3wIsSupported(4, 3))
 		{
-			const std::shared_ptr<ReShade::Runtimes::GLRuntime> runtime = std::make_shared<ReShade::Runtimes::GLRuntime>(hdc, hglrc);
+			const auto runtime = std::make_shared<ReShade::Runtimes::GLRuntime>(hdc);
 
 			sRuntimes[hdc] = runtime;
 
