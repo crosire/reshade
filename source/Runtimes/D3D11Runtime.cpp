@@ -2837,7 +2837,7 @@ namespace ReShade
 		}
 		void D3D11Runtime::OnDrawCall(ID3D11DeviceContext *context, unsigned int vertices)
 		{
-			Utils::CriticalSection::Lock lock(_cs);
+			const Utils::CriticalSection::Lock lock(_cs);
 
 			Runtime::OnDrawCall(vertices);
 
@@ -3010,7 +3010,7 @@ namespace ReShade
 			assert(resource != nullptr);
 			assert(depthstencil != nullptr);
 
-			Utils::CriticalSection::Lock lock(_cs);
+			const Utils::CriticalSection::Lock lock(_cs);
 
 			// Do not track default depthstencil
 			if (!_isInitialized)
@@ -3047,7 +3047,7 @@ namespace ReShade
 		{
 			assert(depthstencil != nullptr);
 
-			Utils::CriticalSection::Lock lock(_cs);
+			const Utils::CriticalSection::Lock lock(_cs);
 
 			const auto it = _depthSourceTable.find(depthstencil);
 
@@ -3065,7 +3065,7 @@ namespace ReShade
 		}
 		void D3D11Runtime::OnSetDepthStencilView(ID3D11DepthStencilView *&depthstencil)
 		{
-			Utils::CriticalSection::Lock lock(_cs);
+			const Utils::CriticalSection::Lock lock(_cs);
 
 			if (_depthStencilReplacement != nullptr && depthstencil == _depthStencil)
 			{
@@ -3074,7 +3074,7 @@ namespace ReShade
 		}
 		void D3D11Runtime::OnGetDepthStencilView(ID3D11DepthStencilView *&depthstencil)
 		{
-			Utils::CriticalSection::Lock lock(_cs);
+			const Utils::CriticalSection::Lock lock(_cs);
 
 			if (_depthStencilReplacement != nullptr && depthstencil == _depthStencilReplacement)
 			{
@@ -3086,7 +3086,7 @@ namespace ReShade
 		}
 		void D3D11Runtime::OnClearDepthStencilView(ID3D11DepthStencilView *&depthstencil)
 		{
-			Utils::CriticalSection::Lock lock(_cs);
+			const Utils::CriticalSection::Lock lock(_cs);
 
 			if (_depthStencilReplacement != nullptr && depthstencil == _depthStencil)
 			{
@@ -3095,7 +3095,7 @@ namespace ReShade
 		}
 		void D3D11Runtime::OnCopyResource(ID3D11Resource *&dest, ID3D11Resource *&source)
 		{
-			Utils::CriticalSection::Lock lock(_cs);
+			const Utils::CriticalSection::Lock lock(_cs);
 
 			if (_depthStencilReplacement != nullptr)
 			{
@@ -3256,7 +3256,7 @@ namespace ReShade
 				}
 			}
 
-			Utils::CriticalSection::Lock lock(_cs);
+			const Utils::CriticalSection::Lock lock(_cs);
 
 			if (_multisamplingEnabled || _depthSourceTable.empty())
 			{

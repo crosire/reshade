@@ -3177,7 +3177,7 @@ EXPORT HGLRC WINAPI wglCreateContext(HDC hdc)
 		return nullptr;
 	}
 
-	ReShade::Utils::CriticalSection::Lock lock(sCS);
+	const ReShade::Utils::CriticalSection::Lock lock(sCS);
 
 	sSharedContexts.emplace(hglrc, nullptr);
 
@@ -3282,7 +3282,7 @@ HGLRC WINAPI wglCreateContextAttribsARB(HDC hdc, HGLRC hShareContext, const int 
 		return nullptr;
 	}
 
-	ReShade::Utils::CriticalSection::Lock lock(sCS);
+	const ReShade::Utils::CriticalSection::Lock lock(sCS);
 
 	sSharedContexts.emplace(hglrc, hShareContext);
 
@@ -3384,7 +3384,7 @@ EXPORT BOOL WINAPI wglDeleteContext(HGLRC hglrc)
 
 	LOG(INFO) << "Redirecting '" << "wglDeleteContext" << "(" << hglrc << ")' ...";
 
-	ReShade::Utils::CriticalSection::Lock lock(sCS);
+	const ReShade::Utils::CriticalSection::Lock lock(sCS);
 
 	for (auto it = sSharedContexts.begin(); it != sSharedContexts.end();)
 	{
@@ -3474,11 +3474,11 @@ HDC WINAPI wglGetPbufferDCARB(HPBUFFERARB hPbuffer)
 		return nullptr;
 	}
 
-	ReShade::Utils::CriticalSection::Lock lock(sCS);
+	const ReShade::Utils::CriticalSection::Lock lock(sCS);
 
 	sPbufferDeviceContexts.insert(hdc);
 
-	LOG(TRACE) << "> Returned pbuffer device context: " << hdc;
+	LOG(TRACE) << "> Returned pixel buffer device context: " << hdc;
 
 	return hdc;
 }
@@ -3528,7 +3528,7 @@ EXPORT BOOL WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 		return TRUE;
 	}
 	
-	ReShade::Utils::CriticalSection::Lock lock(sCS);
+	const ReShade::Utils::CriticalSection::Lock lock(sCS);
 
 	const bool isPbufferDeviceContext = sPbufferDeviceContexts.find(hdc) != sPbufferDeviceContexts.end();
 	
@@ -3632,7 +3632,7 @@ int WINAPI wglReleasePbufferDCARB(HPBUFFERARB hPbuffer, HDC hdc)
 		return FALSE;
 	}
 
-	ReShade::Utils::CriticalSection::Lock lock(sCS);
+	const ReShade::Utils::CriticalSection::Lock lock(sCS);
 
 	sPbufferDeviceContexts.erase(hdc);
 
@@ -3658,7 +3658,7 @@ EXPORT BOOL WINAPI wglShareLists(HGLRC hglrc1, HGLRC hglrc2)
 		return FALSE;
 	}
 
-	ReShade::Utils::CriticalSection::Lock lock(sCS);
+	const ReShade::Utils::CriticalSection::Lock lock(sCS);
 
 	sSharedContexts[hglrc2] = hglrc1;
 

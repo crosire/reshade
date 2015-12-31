@@ -136,7 +136,7 @@ namespace ReShade
 
 				LOG(TRACE) << "> Succeeded.";
 
-				Utils::CriticalSection::Lock lock(sCS);
+				const Utils::CriticalSection::Lock lock(sCS);
 
 				sHooks.emplace_back(std::move(hook), method);
 
@@ -284,7 +284,7 @@ namespace ReShade
 
 			Hook Find(Hook::Function replacement)
 			{
-				Utils::CriticalSection::Lock lock(sCS);
+				const Utils::CriticalSection::Lock lock(sCS);
 
 				const auto it =	std::find_if(sHooks.cbegin(), sHooks.cend(),
 					[replacement](const std::pair<Hook, HookType> &hook)
@@ -316,7 +316,7 @@ namespace ReShade
 					return handle;
 				}
 
-				Utils::CriticalSection::Lock lock(sCS);
+				const Utils::CriticalSection::Lock lock(sCS);
 
 				const auto remove = std::remove_if(sDelayedHookPaths.begin(), sDelayedHookPaths.end(),
 					[lpFileName](const boost::filesystem::path &path)
@@ -362,7 +362,7 @@ namespace ReShade
 					return handle;
 				}
 
-				Utils::CriticalSection::Lock lock(sCS);
+				const Utils::CriticalSection::Lock lock(sCS);
 
 				const auto remove = std::remove_if(sDelayedHookPaths.begin(), sDelayedHookPaths.end(),
 					[lpFileName](const boost::filesystem::path &path)
@@ -428,7 +428,7 @@ namespace ReShade
 
 			if (VirtualProtect(&target, sizeof(Hook::Function), PAGE_READONLY, &protection) != FALSE)
 			{
-				Utils::CriticalSection::Lock lock(sCS);
+				const Utils::CriticalSection::Lock lock(sCS);
 
 				const auto insert = sVTableAddresses.emplace(target, &target);
 
@@ -453,7 +453,7 @@ namespace ReShade
 		}
 		void Uninstall()
 		{
-			Utils::CriticalSection::Lock lock(sCS);
+			const Utils::CriticalSection::Lock lock(sCS);
 
 			LOG(INFO) << "Uninstalling " << sHooks.size() << " hook(s) ...";
 
@@ -514,7 +514,7 @@ namespace ReShade
 
 		Hook::Function Call(Hook::Function replacement)
 		{
-			Utils::CriticalSection::Lock lock(sCS);
+			const Utils::CriticalSection::Lock lock(sCS);
 
 			if (!sExportHookPath.empty())
 			{
