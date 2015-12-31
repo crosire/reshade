@@ -23,6 +23,8 @@ namespace ReShade
 		};
 		class Node abstract
 		{
+			void operator=(const Node &);
+
 		public:
 			enum class Id
 			{
@@ -68,19 +70,14 @@ namespace ReShade
 			explicit Node(Id id) : NodeId(id), Location()
 			{
 			}
-
-		private:
-			void operator=(const Node &);
 		};
 		class NodeTree
 		{
-			friend class Parser;
-
 		public:
 			template <typename T>
 			T *CreateNode(const Location &location)
 			{
-				T *const node = _pool.Add<T>();
+				const auto node = _pool.Add<T>();
 				node->Location = location;
 
 				return node;
@@ -100,35 +97,39 @@ namespace ReShade
 				template <typename T>
 				T *Add()
 				{
-					const size_t size = sizeof(Node) + sizeof(T);
-					std::list<Page>::iterator page = std::find_if(_pages.begin(), _pages.end(), [size](const Page &page) { return page.Cursor + size < page.Nodes.size(); });
+					auto size = sizeof(NodeInfo) - sizeof(Node) + sizeof(T);
+					auto page = std::find_if(_pages.begin(), _pages.end(),
+						[size](const Page &page)
+						{
+							return page.Cursor + size < page.Nodes.size();
+						});
 
 					if (page == _pages.end())
 					{
-						_pages.push_back(Page(std::max(static_cast<size_t>(4096), size)));
+						_pages.emplace_back(std::max(size_t(4096), size));
 
 						page = std::prev(_pages.end());
 					}
 
-					Node *node = new (&page->Nodes.at(page->Cursor)) Node;
+					const auto node = new (&page->Nodes.at(page->Cursor)) NodeInfo;
+					const auto nodeData = new (&node->Data) T();
 					node->Size = size;
-					node->Destructor = &Node::DestructorDelegate<T>;
-					T *nodeData = new (&node->Data) T();
+					node->Destructor = [](void *object) { reinterpret_cast<T *>(object)->~T(); };
 
-					page->Cursor += size;
+					page->Cursor += node->Size;
 
 					return nodeData;
 				}
 				void Cleanup()
 				{
-					for (Page &page : _pages)
+					for (auto &page : _pages)
 					{
-						Node *node = reinterpret_cast<Node *>(&page.Nodes.front());
+						auto node = reinterpret_cast<NodeInfo *>(&page.Nodes.front());
 
 						do
 						{
 							node->Destructor(node->Data);
-							node = reinterpret_cast<Node *>(reinterpret_cast<unsigned char *>(node) + node->Size);
+							node = reinterpret_cast<NodeInfo *>(reinterpret_cast<unsigned char *>(node) + node->Size);
 						}
 						while (node->Size > 0 && (page.Cursor -= node->Size) > 0);
 					}
@@ -144,23 +145,15 @@ namespace ReShade
 					size_t Cursor;
 					std::vector<unsigned char> Nodes;
 				};
-				struct Node
+				struct NodeInfo
 				{
-					template <typename T>
-					static void DestructorDelegate(void *object)
-					{
-						reinterpret_cast<T *>(object)->~T();
-					}
-
 					size_t Size;
 					void(*Destructor)(void *);
-					unsigned char Data[1];
+					unsigned char Data[sizeof(Node)];
 				};
 
 				std::list<Page> _pages;
-			};
-
-			MemoryPool _pool;
+			} _pool;
 		};
 
 		namespace Nodes
