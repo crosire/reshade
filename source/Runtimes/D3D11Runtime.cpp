@@ -2479,12 +2479,8 @@ namespace ReShade
 
 		// ---------------------------------------------------------------------------------------------------
 
-		D3D11Runtime::D3D11Runtime(ID3D11Device *device, IDXGISwapChain *swapchain) : _device(device), _swapchain(swapchain), _immediateContext(nullptr), _backbufferFormat(DXGI_FORMAT_UNKNOWN), _multisamplingEnabled(false), _stateBlock(new D3D11StateBlock(device)), _backbuffer(nullptr), _backbufferResolved(nullptr), _backbufferTexture(nullptr), _backbufferTextureSRV(), _backbufferTargets(), _depthStencil(nullptr), _depthStencilReplacement(nullptr), _depthStencilTexture(nullptr), _depthStencilTextureSRV(nullptr), _copyVS(nullptr), _copyPS(nullptr), _copySampler(nullptr), _effectRasterizerState(nullptr), _constantBuffer(nullptr)
+		D3D11Runtime::D3D11Runtime(ID3D11Device *device, IDXGISwapChain *swapchain) : Runtime(device->GetFeatureLevel()), _device(device), _swapchain(swapchain), _immediateContext(nullptr), _backbufferFormat(DXGI_FORMAT_UNKNOWN), _multisamplingEnabled(false), _stateBlock(new D3D11StateBlock(device)), _backbuffer(nullptr), _backbufferResolved(nullptr), _backbufferTexture(nullptr), _backbufferTextureSRV(), _backbufferTargets(), _depthStencil(nullptr), _depthStencilReplacement(nullptr), _depthStencilTexture(nullptr), _depthStencilTextureSRV(nullptr), _copyVS(nullptr), _copyPS(nullptr), _copySampler(nullptr), _effectRasterizerState(nullptr), _constantBuffer(nullptr)
 		{
-			assert(_device != nullptr);
-			assert(_swapchain != nullptr);
-			assert(_stateBlock != nullptr);
-
 			_device->AddRef();
 			_device->GetImmediateContext(&_immediateContext);
 			_swapchain->AddRef();
@@ -2513,7 +2509,6 @@ namespace ReShade
 
 			_vendorId = desc.VendorId;
 			_deviceId = desc.DeviceId;
-			_rendererId = _device->GetFeatureLevel();
 		}
 		D3D11Runtime::~D3D11Runtime()
 		{

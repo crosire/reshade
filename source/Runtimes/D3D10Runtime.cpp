@@ -2224,6 +2224,22 @@ namespace ReShade
 				UINT _currentGlobalSize, _currentInForInitialization;
 				bool _currentInParameterBlock, _currentInFunctionBlock;
 			};
+
+			UINT GetRendererId(ID3D10Device *device)
+			{
+				ID3D10Device1 *device1 = nullptr;
+
+				if (SUCCEEDED(device->QueryInterface(&device1)))
+				{
+					device1->Release();
+
+					return device1->GetFeatureLevel();
+				}
+				else
+				{
+					return D3D10_FEATURE_LEVEL_10_0;
+				}
+			}
 		}
 
 		class D3D10StateBlock
@@ -2390,11 +2406,8 @@ namespace ReShade
 
 		// ---------------------------------------------------------------------------------------------------
 
-		D3D10Runtime::D3D10Runtime(ID3D10Device *device, IDXGISwapChain *swapchain) : _device(device), _swapchain(swapchain), _backbufferFormat(DXGI_FORMAT_UNKNOWN), _multisamplingEnabled(false), _stateBlock(new D3D10StateBlock(device)), _backbuffer(nullptr), _backbufferResolved(nullptr), _backbufferTexture(nullptr), _backbufferTextureSRV(), _backbufferTargets(), _depthStencil(nullptr), _depthStencilReplacement(nullptr), _depthStencilTexture(nullptr), _depthStencilTextureSRV(nullptr), _copyVS(nullptr), _copyPS(nullptr), _copySampler(nullptr), _effectRasterizerState(nullptr), _constantBuffer(nullptr), _constantBufferSize(0)
+		D3D10Runtime::D3D10Runtime(ID3D10Device *device, IDXGISwapChain *swapchain) : Runtime(GetRendererId(device)), _device(device), _swapchain(swapchain), _backbufferFormat(DXGI_FORMAT_UNKNOWN), _multisamplingEnabled(false), _stateBlock(new D3D10StateBlock(device)), _backbuffer(nullptr), _backbufferResolved(nullptr), _backbufferTexture(nullptr), _backbufferTextureSRV(), _backbufferTargets(), _depthStencil(nullptr), _depthStencilReplacement(nullptr), _depthStencilTexture(nullptr), _depthStencilTextureSRV(nullptr), _copyVS(nullptr), _copyPS(nullptr), _copySampler(nullptr), _effectRasterizerState(nullptr), _constantBuffer(nullptr), _constantBufferSize(0)
 		{
-			assert(_device != nullptr);
-			assert(_swapchain != nullptr);
-
 			_device->AddRef();
 			_swapchain->AddRef();
 
@@ -2417,21 +2430,6 @@ namespace ReShade
 			adapter->Release();
 
 			assert(SUCCEEDED(hr));
-
-			ID3D10Device1 *device1 = nullptr;
-
-			hr = _device->QueryInterface(&device1);
-
-			if (SUCCEEDED(hr))
-			{
-				_rendererId = device1->GetFeatureLevel();
-
-				device1->Release();
-			}
-			else
-			{
-				_rendererId = D3D10_FEATURE_LEVEL_10_0;
-			}
 			
 			_vendorId = desc.VendorId;
 			_deviceId = desc.DeviceId;

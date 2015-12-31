@@ -2228,11 +2228,8 @@ namespace ReShade
 
 		// ---------------------------------------------------------------------------------------------------
 
-		D3D9Runtime::D3D9Runtime(IDirect3DDevice9 *device, IDirect3DSwapChain9 *swapchain) : _device(device), _swapchain(swapchain), _d3d(nullptr), _stateBlock(nullptr), _multisamplingEnabled(false), _backbufferFormat(D3DFMT_UNKNOWN), _backbuffer(nullptr), _backbufferResolved(nullptr), _backbufferTexture(nullptr), _backbufferTextureSurface(nullptr), _depthStencil(nullptr), _depthStencilReplacement(nullptr), _depthStencilTexture(nullptr), _defaultDepthStencil(nullptr), _effectTriangleBuffer(nullptr), _effectTriangleLayout(nullptr), _constantRegisterCount(0)
+		D3D9Runtime::D3D9Runtime(IDirect3DDevice9 *device, IDirect3DSwapChain9 *swapchain) : Runtime(D3D_FEATURE_LEVEL_9_3), _device(device), _swapchain(swapchain), _d3d(nullptr), _stateBlock(nullptr), _multisamplingEnabled(false), _backbufferFormat(D3DFMT_UNKNOWN), _backbuffer(nullptr), _backbufferResolved(nullptr), _backbufferTexture(nullptr), _backbufferTextureSurface(nullptr), _depthStencil(nullptr), _depthStencilReplacement(nullptr), _depthStencilTexture(nullptr), _defaultDepthStencil(nullptr), _effectTriangleBuffer(nullptr), _effectTriangleLayout(nullptr), _constantRegisterCount(0)
 		{
-			assert(_device != nullptr);
-			assert(_swapchain != nullptr);
-
 			_device->AddRef();
 			_device->GetDirect3D(&_d3d);
 			_swapchain->AddRef();
@@ -2250,7 +2247,6 @@ namespace ReShade
 
 			_vendorId = identifier.VendorId;
 			_deviceId = identifier.DeviceId;
-			_rendererId = D3D_FEATURE_LEVEL_9_3;
 			_behaviorFlags = params.BehaviorFlags;
 			_numSimultaneousRTs = std::min(caps.NumSimultaneousRTs, static_cast<DWORD>(8));
 		}

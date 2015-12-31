@@ -2866,6 +2866,15 @@ namespace ReShade
 					}
 				}
 			}
+
+			unsigned int GetRendererId()
+			{
+				GLint major = 0, minor = 0;
+				GLCHECK(glGetIntegerv(GL_MAJOR_VERSION, &major));
+				GLCHECK(glGetIntegerv(GL_MAJOR_VERSION, &minor));
+
+				return 0x10000 | (major << 12) | (minor << 8);
+			}
 		}
 
 		class GLStateBlock
@@ -2985,17 +2994,10 @@ namespace ReShade
 
 		// ---------------------------------------------------------------------------------------------------
 
-		GLRuntime::GLRuntime(HDC device) : _hdc(device), _referenceCount(1), _stateBlock(new GLStateBlock), _defaultBackBufferFBO(0), _defaultBackBufferRBO(), _backbufferTexture(), _depthSourceFBO(0), _depthSource(0), _depthTexture(0), _blitFBO(0), _defaultVAO(0), _defaultVBO(0), _effectUBO(0)
+		GLRuntime::GLRuntime(HDC device) : Runtime(GetRendererId()), _hdc(device), _referenceCount(1), _stateBlock(new GLStateBlock), _defaultBackBufferFBO(0), _defaultBackBufferRBO(), _backbufferTexture(), _depthSourceFBO(0), _depthSource(0), _depthTexture(0), _blitFBO(0), _defaultVAO(0), _defaultVBO(0), _effectUBO(0)
 		{
-			assert(device != nullptr);
-
-			GLint major = 0, minor = 0;
-			GLCHECK(glGetIntegerv(GL_MAJOR_VERSION, &major));
-			GLCHECK(glGetIntegerv(GL_MAJOR_VERSION, &minor));
-
 			_vendorId = 0;
 			_deviceId = 0;
-			_rendererId = 0x10000 | (major << 12) | (minor << 8);
 
 			// Get vendor and device information on NVIDIA Optimus devices
 			if (GetModuleHandleA("nvd3d9wrap.dll") == nullptr && GetModuleHandleA("nvd3d9wrapx.dll") == nullptr)

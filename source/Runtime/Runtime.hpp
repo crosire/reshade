@@ -216,7 +216,7 @@ namespace ReShade
 		/// </summary>
 		static void Shutdown();
 
-		Runtime();
+		Runtime(unsigned int renderer);
 		virtual ~Runtime();
 
 		unsigned int GetBufferWidth() const
@@ -308,7 +308,7 @@ namespace ReShade
 
 		bool _isInitialized, _isEffectCompiled;
 		unsigned int _width, _height;
-		unsigned int _vendorId, _deviceId, _rendererId;
+		unsigned int _vendorId, _deviceId;
 		Statistics _stats;
 		std::unique_ptr<GUI> _gui;
 		std::unique_ptr<WindowWatcher> _window;
@@ -322,6 +322,7 @@ namespace ReShade
 		bool CompileEffect();
 		void ProcessEffect();
 
+		unsigned int _rendererId;
 		std::vector<std::string> _pragmas;
 		std::vector<boost::filesystem::path> _includedFiles;
 		boost::chrono::high_resolution_clock::time_point _startTime, _lastCreate, _lastPresent;

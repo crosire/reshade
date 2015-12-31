@@ -10,7 +10,7 @@ namespace ReShade
 {
 	namespace Runtimes
 	{
-		D3D12Runtime::D3D12Runtime(ID3D12Device *device, ID3D12CommandQueue *queue, IDXGISwapChain3 *swapchain) : _device(device), _commandQueue(queue), _swapchain(swapchain)
+		D3D12Runtime::D3D12Runtime(ID3D12Device *device, ID3D12CommandQueue *queue, IDXGISwapChain3 *swapchain) : Runtime(D3D_FEATURE_LEVEL_12_0), _device(device), _commandQueue(queue), _swapchain(swapchain)
 		{
 			assert(queue != nullptr);
 			assert(device != nullptr);

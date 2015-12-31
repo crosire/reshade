@@ -99,7 +99,7 @@ namespace ReShade
 
 	// ---------------------------------------------------------------------------------------------------
 
-	Runtime::Runtime() : _isInitialized(false), _isEffectCompiled(false), _width(0), _height(0), _vendorId(0), _deviceId(0), _rendererId(0), _stats(), _compileStep(0), _compileCount(0), _screenshotFormat("png"), _screenshotPath(sExecutablePath.parent_path()), _screenshotKey(VK_SNAPSHOT), _showStatistics(false), _showFPS(false), _showClock(false), _showToggleMessage(false), _showInfoMessages(true)
+	Runtime::Runtime(unsigned int renderer) : _isInitialized(false), _isEffectCompiled(false), _width(0), _height(0), _vendorId(0), _deviceId(0), _rendererId(renderer), _stats(), _compileStep(0), _compileCount(0), _screenshotFormat("png"), _screenshotPath(sExecutablePath.parent_path()), _screenshotKey(VK_SNAPSHOT), _showStatistics(false), _showFPS(false), _showClock(false), _showToggleMessage(false), _showInfoMessages(true)
 	{
 		memset(&_stats, 0, sizeof(Statistics));
 
