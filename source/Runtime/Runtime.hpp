@@ -35,51 +35,51 @@ namespace ReShade
 		}
 		Annotation(bool value)
 		{
-			this->mValue[0] = value ? "1" : "0";
+			_value[0] = value ? "1" : "0";
 		}
 		Annotation(const bool values[4])
 		{
-			this->mValue[0] = values[0] ? "1" : "0";
-			this->mValue[1] = values[1] ? "1" : "0";
-			this->mValue[2] = values[2] ? "1" : "0";
-			this->mValue[3] = values[3] ? "1" : "0";
+			_value[0] = values[0] ? "1" : "0";
+			_value[1] = values[1] ? "1" : "0";
+			_value[2] = values[2] ? "1" : "0";
+			_value[3] = values[3] ? "1" : "0";
 		}
 		Annotation(int value)
 		{
-			this->mValue[0] = std::to_string(value);
+			_value[0] = std::to_string(value);
 		}
 		Annotation(const int values[4])
 		{
-			this->mValue[0] = std::to_string(values[0]);
-			this->mValue[1] = std::to_string(values[1]);
-			this->mValue[2] = std::to_string(values[2]);
-			this->mValue[3] = std::to_string(values[3]);
+			_value[0] = std::to_string(values[0]);
+			_value[1] = std::to_string(values[1]);
+			_value[2] = std::to_string(values[2]);
+			_value[3] = std::to_string(values[3]);
 		}
 		Annotation(unsigned int value)
 		{
-			this->mValue[0] = std::to_string(value);
+			_value[0] = std::to_string(value);
 		}
 		Annotation(const unsigned int values[4])
 		{
-			this->mValue[0] = std::to_string(values[0]);
-			this->mValue[1] = std::to_string(values[1]);
-			this->mValue[2] = std::to_string(values[2]);
-			this->mValue[3] = std::to_string(values[3]);
+			_value[0] = std::to_string(values[0]);
+			_value[1] = std::to_string(values[1]);
+			_value[2] = std::to_string(values[2]);
+			_value[3] = std::to_string(values[3]);
 		}
 		Annotation(float value)
 		{
-			this->mValue[0] = std::to_string(value);
+			_value[0] = std::to_string(value);
 		}
 		Annotation(const float values[4])
 		{
-			this->mValue[0] = std::to_string(values[0]);
-			this->mValue[1] = std::to_string(values[1]);
-			this->mValue[2] = std::to_string(values[2]);
-			this->mValue[3] = std::to_string(values[3]);
+			_value[0] = std::to_string(values[0]);
+			_value[1] = std::to_string(values[1]);
+			_value[2] = std::to_string(values[2]);
+			_value[3] = std::to_string(values[3]);
 		}
 		Annotation(const std::string &value)
 		{
-			this->mValue[0] = value;
+			_value[0] = value;
 		}
 
 		template <typename T>
@@ -87,41 +87,41 @@ namespace ReShade
 		template <>
 		inline const bool As(size_t i) const
 		{
-			return As<int>(i) != 0 || (this->mValue[i] == "true" || this->mValue[i] == "True" || this->mValue[i] == "TRUE");
+			return As<int>(i) != 0 || (_value[i] == "true" || _value[i] == "True" || _value[i] == "TRUE");
 		}
 		template <>
 		inline const int As(size_t i) const
 		{
-			return static_cast<int>(std::strtol(this->mValue[i].c_str(), nullptr, 10));
+			return static_cast<int>(std::strtol(_value[i].c_str(), nullptr, 10));
 		}
 		template <>
 		inline const unsigned int As(size_t i) const
 		{
-			return static_cast<unsigned int>(std::strtoul(this->mValue[i].c_str(), nullptr, 10));
+			return static_cast<unsigned int>(std::strtoul(_value[i].c_str(), nullptr, 10));
 		}
 		template <>
 		inline const float As(size_t i) const
 		{
-			return static_cast<float>(std::strtod(this->mValue[i].c_str(), nullptr));
+			return static_cast<float>(std::strtod(_value[i].c_str(), nullptr));
 		}
 		template <>
 		inline const double As(size_t i) const
 		{
-			return std::strtod(this->mValue[i].c_str(), nullptr);
+			return std::strtod(_value[i].c_str(), nullptr);
 		}
 		template <>
 		inline const std::string As(size_t i) const
 		{
-			return this->mValue[i];
+			return _value[i];
 		}
 		template <>
 		inline const char *const As(size_t i) const
 		{
-			return this->mValue[i].c_str();
+			return _value[i].c_str();
 		}
 
 	private:
-		std::string mValue[4];
+		std::string _value[4];
 	};
 	struct Texture abstract
 	{
@@ -221,15 +221,15 @@ namespace ReShade
 
 		unsigned int GetBufferWidth() const
 		{
-			return this->mWidth;
+			return _width;
 		}
 		unsigned int GetBufferHeight() const
 		{
-			return this->mHeight;
+			return _height;
 		}
 		const WindowWatcher *GetWindow() const
 		{
-			return this->mWindow.get();
+			return  _window.get();
 		}
 
 	protected:
@@ -306,31 +306,31 @@ namespace ReShade
 		void SetEffectValue(Uniform &variable, const unsigned int *values, size_t count);
 		void SetEffectValue(Uniform &variable, const float *values, size_t count);
 
-		bool mIsInitialized, mIsEffectCompiled;
-		unsigned int mWidth, mHeight;
-		unsigned int mVendorId, mDeviceId, mRendererId;
-		Statistics mStats;
-		std::unique_ptr<GUI> mGUI;
-		std::unique_ptr<WindowWatcher> mWindow;
-		std::vector<std::unique_ptr<Texture>> mTextures;
-		std::vector<std::unique_ptr<Uniform>> mUniforms;
-		std::vector<std::unique_ptr<Technique>> mTechniques;
-		std::vector<unsigned char> mUniformDataStorage;
+		bool _isInitialized, _isEffectCompiled;
+		unsigned int _width, _height;
+		unsigned int _vendorId, _deviceId, _rendererId;
+		Statistics _stats;
+		std::unique_ptr<GUI> _gui;
+		std::unique_ptr<WindowWatcher> _window;
+		std::vector<std::unique_ptr<Texture>> _textures;
+		std::vector<std::unique_ptr<Uniform>> _uniforms;
+		std::vector<std::unique_ptr<Technique>> _techniques;
+		std::vector<unsigned char> _uniformDataStorage;
 
 	private:
 		bool LoadEffect();
 		bool CompileEffect();
 		void ProcessEffect();
 
-		std::vector<std::string> mPragmas;
-		std::vector<boost::filesystem::path> mIncludedFiles;
-		boost::chrono::high_resolution_clock::time_point mStartTime, mLastCreate, mLastPresent;
-		boost::chrono::high_resolution_clock::duration mLastFrameDuration, mLastPostProcessingDuration;
-		unsigned int mCompileStep, mCompileCount;
-		std::string mStatus, mErrors, mMessage, mEffectSource;
-		std::string mScreenshotFormat;
-		boost::filesystem::path mScreenshotPath;
-		unsigned int mScreenshotKey;
-		bool mShowStatistics, mShowFPS, mShowClock, mShowToggleMessage, mShowInfoMessages;
+		std::vector<std::string> _pragmas;
+		std::vector<boost::filesystem::path> _includedFiles;
+		boost::chrono::high_resolution_clock::time_point _startTime, _lastCreate, _lastPresent;
+		boost::chrono::high_resolution_clock::duration _lastFrameDuration, _lastPostProcessingDuration;
+		unsigned int _compileStep, _compileCount;
+		std::string _status, _errors, _message, _effectSource;
+		std::string _screenshotFormat;
+		boost::filesystem::path _screenshotPath;
+		unsigned int _screenshotKey;
+		bool _showStatistics, _showFPS, _showClock, _showToggleMessage, _showInfoMessages;
 	};
 }

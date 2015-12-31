@@ -99,25 +99,25 @@ namespace ReShade
 
 	// ---------------------------------------------------------------------------------------------------
 
-	Runtime::Runtime() : mIsInitialized(false), mIsEffectCompiled(false), mWidth(0), mHeight(0), mVendorId(0), mDeviceId(0), mRendererId(0), mStats(), mCompileStep(0), mCompileCount(0), mScreenshotFormat("png"), mScreenshotPath(sExecutablePath.parent_path()), mScreenshotKey(VK_SNAPSHOT), mShowStatistics(false), mShowFPS(false), mShowClock(false), mShowToggleMessage(false), mShowInfoMessages(true)
+	Runtime::Runtime() : _isInitialized(false), _isEffectCompiled(false), _width(0), _height(0), _vendorId(0), _deviceId(0), _rendererId(0), _stats(), _compileStep(0), _compileCount(0), _screenshotFormat("png"), _screenshotPath(sExecutablePath.parent_path()), _screenshotKey(VK_SNAPSHOT), _showStatistics(false), _showFPS(false), _showClock(false), _showToggleMessage(false), _showInfoMessages(true)
 	{
-		memset(&this->mStats, 0, sizeof(Statistics));
+		memset(&_stats, 0, sizeof(Statistics));
 
-		this->mStatus = "Initializing ...";
-		this->mStartTime = boost::chrono::high_resolution_clock::now();
+		_status = "Initializing ...";
+		_startTime = boost::chrono::high_resolution_clock::now();
 	}
 	Runtime::~Runtime()
 	{
-		assert(!this->mIsInitialized && !this->mIsEffectCompiled);
+		assert(!_isInitialized && !_isEffectCompiled);
 	}
 
 	bool Runtime::OnInit()
 	{
-		this->mCompileStep = 1;
+		_compileStep = 1;
 
 		LOG(INFO) << "Recreated runtime environment on runtime " << this << ".";
 
-		this->mIsInitialized = true;
+		_isInitialized = true;
 
 		return true;
 	}
@@ -125,47 +125,47 @@ namespace ReShade
 	{
 		OnResetEffect();
 
-		if (!this->mIsInitialized)
+		if (!_isInitialized)
 		{
 			return;
 		}
 
 		LOG(INFO) << "Destroyed runtime environment on runtime " << this << ".";
 
-		this->mWidth = this->mHeight = 0;
-		this->mIsInitialized = false;
+		_width = _height = 0;
+		_isInitialized = false;
 	}
 	void Runtime::OnResetEffect()
 	{
-		if (!this->mIsEffectCompiled)
+		if (!_isEffectCompiled)
 		{
 			return;
 		}
 
-		this->mTextures.clear();
-		this->mUniforms.clear();
-		this->mTechniques.clear();
-		this->mUniformDataStorage.clear();
+		_textures.clear();
+		_uniforms.clear();
+		_techniques.clear();
+		_uniformDataStorage.clear();
 
-		this->mIsEffectCompiled = false;
+		_isEffectCompiled = false;
 	}
 	void Runtime::OnPresent()
 	{
 		const std::time_t time = std::time(nullptr);
 		const auto timePresent = boost::chrono::high_resolution_clock::now();
-		const boost::chrono::nanoseconds frametime = boost::chrono::duration_cast<boost::chrono::nanoseconds>(timePresent - this->mLastPresent);
-		const boost::chrono::seconds timeSinceCreate = boost::chrono::duration_cast<boost::chrono::seconds>(timePresent - this->mLastCreate);
+		const auto frametime = boost::chrono::duration_cast<boost::chrono::nanoseconds>(timePresent - _lastPresent);
+		const auto timeSinceCreate = boost::chrono::duration_cast<boost::chrono::seconds>(timePresent - _lastCreate);
 
 		tm tm;
 		localtime_s(&tm, &time);
 
 		#pragma region Screenshot
-		if (GetAsyncKeyState(this->mScreenshotKey) & 0x8000)
+		if (GetAsyncKeyState(_screenshotKey) & 0x8000)
 		{
 			char timeString[128];
 			std::strftime(timeString, 128, "%Y-%m-%d %H-%M-%S", &tm);
-			const boost::filesystem::path path = this->mScreenshotPath / (sExecutablePath.stem().string() + ' ' + timeString + '.' + this->mScreenshotFormat);
-			std::unique_ptr<unsigned char[]> data(new unsigned char[this->mWidth * this->mHeight * 4]());
+			const boost::filesystem::path path = _screenshotPath / (sExecutablePath.stem().string() + ' ' + timeString + '.' + _screenshotFormat);
+			std::unique_ptr<unsigned char[]> data(new unsigned char[_width * _height * 4]());
 
 			Screenshot(data.get());
 
@@ -175,11 +175,11 @@ namespace ReShade
 
 			if (path.extension() == ".bmp")
 			{
-				success = stbi_write_bmp(path.string().c_str(), this->mWidth, this->mHeight, 4, data.get()) != 0;
+				success = stbi_write_bmp(path.string().c_str(), _width, _height, 4, data.get()) != 0;
 			}
 			else if (path.extension() == ".png")
 			{
-				success = stbi_write_png(path.string().c_str(), this->mWidth, this->mHeight, 4, data.get(), 0) != 0;
+				success = stbi_write_png(path.string().c_str(), _width, _height, 4, data.get(), 0) != 0;
 			}
 
 			if (!success)
@@ -195,102 +195,102 @@ namespace ReShade
 		if (sEffectWatcher->GetModifications(modifications))
 		{
 			std::sort(modifications.begin(), modifications.end());
-			std::set_intersection(modifications.begin(), modifications.end(), this->mIncludedFiles.begin(), this->mIncludedFiles.end(), std::back_inserter(matchedmodifications));
+			std::set_intersection(modifications.begin(), modifications.end(), _includedFiles.begin(), _includedFiles.end(), std::back_inserter(matchedmodifications));
 
 			if (!matchedmodifications.empty())
 			{
 				LOG(INFO) << "Detected modification to " << ObfuscatePath(matchedmodifications.front()) << ". Reloading ...";
 
-				this->mCompileStep = 1;
+				_compileStep = 1;
 			}
 		}
 
-		if (this->mCompileStep != 0)
+		if (_compileStep != 0)
 		{
-			this->mLastCreate = timePresent;
+			_lastCreate = timePresent;
 
-			switch (this->mCompileStep)
+			switch (_compileStep)
 			{
 				case 1:
-					this->mStatus = "Loading effect ...";
-					this->mCompileStep++;
-					this->mCompileCount++;
+					_status = "Loading effect ...";
+					_compileStep++;
+					_compileCount++;
 					break;
 				case 2:
-					this->mCompileStep = LoadEffect() ? 3 : 0;
+					_compileStep = LoadEffect() ? 3 : 0;
 					break;
 				case 3:
-					this->mStatus = "Compiling effect ...";
-					this->mCompileStep++;
+					_status = "Compiling effect ...";
+					_compileStep++;
 					break;
 				case 4:
-					this->mCompileStep = CompileEffect() ? 5 : 0;
+					_compileStep = CompileEffect() ? 5 : 0;
 					break;
 				case 5:
 					ProcessEffect();
-					this->mCompileStep = 0;
+					_compileStep = 0;
 					break;
 			}
 		}
 		#pragma endregion
 
 		#pragma region Draw overlay
-		if (this->mGUI != nullptr && this->mGUI->BeginFrame())
+		if (_gui != nullptr && _gui->BeginFrame())
 		{
-			if (this->mShowInfoMessages || this->mCompileCount <= 1)
+			if (_showInfoMessages || _compileCount <= 1)
 			{
-				if (!this->mStatus.empty())
+				if (!_status.empty())
 				{
-					this->mGUI->AddLabel(22, 0xFFBCBCBC, "ReShade " BOOST_STRINGIZE(VERSION_FULL) " by crosire");
-					this->mGUI->AddLabel(16, 0xFFBCBCBC, "Visit http://reshade.me for news, updates, shaders and discussion.");
-					this->mGUI->AddLabel(16, 0xFFBCBCBC, this->mStatus);
+					_gui->AddLabel(22, 0xFFBCBCBC, "ReShade " BOOST_STRINGIZE(VERSION_FULL) " by crosire");
+					_gui->AddLabel(16, 0xFFBCBCBC, "Visit http://reshade.me for news, updates, shaders and discussion.");
+					_gui->AddLabel(16, 0xFFBCBCBC, _status);
 
-					if (!this->mErrors.empty() && this->mCompileStep == 0)
+					if (!_errors.empty() && _compileStep == 0)
 					{
-						if (!this->mIsEffectCompiled)
+						if (!_isEffectCompiled)
 						{
-							this->mGUI->AddLabel(16, 0xFFFF0000, this->mErrors);
+							_gui->AddLabel(16, 0xFFFF0000, _errors);
 						}
 						else
 						{
-							this->mGUI->AddLabel(16, 0xFFFFFF00, this->mErrors);
+							_gui->AddLabel(16, 0xFFFFFF00, _errors);
 						}
 					}
 				}
 
-				if (!this->mMessage.empty() && this->mIsEffectCompiled)
+				if (!_message.empty() && _isEffectCompiled)
 				{
-					this->mGUI->AddLabel(16, 0xFFBCBCBC, this->mMessage);
+					_gui->AddLabel(16, 0xFFBCBCBC, _message);
 				}
 			}
 
 			std::stringstream stats;
 
-			if (this->mShowClock)
+			if (_showClock)
 			{
 				stats << std::setfill('0') << std::setw(2) << tm.tm_hour << ':' << std::setw(2) << tm.tm_min << std::endl;
 			}
-			if (this->mShowFPS)
+			if (_showFPS)
 			{
-				stats << this->mStats.FrameRate << std::endl;
+				stats << _stats.FrameRate << std::endl;
 			}
-			if (this->mShowStatistics)
+			if (_showStatistics)
 			{
 				stats << "General" << std::endl << "-------" << std::endl;
 				stats << "Application: " << std::hash<std::string>()(sExecutablePath.stem().string()) << std::endl;
-				stats << "Date: " << static_cast<int>(this->mStats.Date[0]) << '-' << static_cast<int>(this->mStats.Date[1]) << '-' << static_cast<int>(this->mStats.Date[2]) << ' ' << static_cast<int>(this->mStats.Date[3]) << '\n';
-				stats << "Device: " << std::hex << std::uppercase << this->mVendorId << ' ' << this->mDeviceId << std::nouppercase << std::dec << std::endl;
-				stats << "FPS: " << this->mStats.FrameRate << std::endl;
-				stats << "Draw Calls: " << this->mStats.DrawCalls << " (" << this->mStats.Vertices << " vertices)" << std::endl;
-				stats << "Frame " << (this->mStats.FrameCount + 1) << ": " << (frametime.count() * 1e-6f) << "ms" << std::endl;
-				stats << "PostProcessing: " << (boost::chrono::duration_cast<boost::chrono::nanoseconds>(this->mLastPostProcessingDuration).count() * 1e-6f) << "ms" << std::endl;
-				stats << "Timer: " << std::fmod(boost::chrono::duration_cast<boost::chrono::nanoseconds>(this->mLastPresent - this->mStartTime).count() * 1e-6f, 16777216.0f) << "ms" << std::endl;
+				stats << "Date: " << static_cast<int>(_stats.Date[0]) << '-' << static_cast<int>(_stats.Date[1]) << '-' << static_cast<int>(_stats.Date[2]) << ' ' << static_cast<int>(_stats.Date[3]) << '\n';
+				stats << "Device: " << std::hex << std::uppercase << _vendorId << ' ' << _deviceId << std::nouppercase << std::dec << std::endl;
+				stats << "FPS: " << _stats.FrameRate << std::endl;
+				stats << "Draw Calls: " << _stats.DrawCalls << " (" << _stats.Vertices << " vertices)" << std::endl;
+				stats << "Frame " << (_stats.FrameCount + 1) << ": " << (frametime.count() * 1e-6f) << "ms" << std::endl;
+				stats << "PostProcessing: " << (boost::chrono::duration_cast<boost::chrono::nanoseconds>(_lastPostProcessingDuration).count() * 1e-6f) << "ms" << std::endl;
+				stats << "Timer: " << std::fmod(boost::chrono::duration_cast<boost::chrono::nanoseconds>(_lastPresent - _startTime).count() * 1e-6f, 16777216.0f) << "ms" << std::endl;
 				stats << "Network: " << NetworkUpload << "B up" << std::endl;
 
 				stats << std::endl;
 				stats << "Textures" << std::endl << "--------" << std::endl;
 
-				for (const auto &texture : this->mTextures)
+				for (const auto &texture : _textures)
 				{
 					stats << texture->Name << ": " << texture->Width << "x" << texture->Height << "+" << (texture->Levels - 1) << " (" << texture->StorageSize << "B)" << std::endl;
 				}
@@ -298,49 +298,49 @@ namespace ReShade
 				stats << std::endl;
 				stats << "Techniques" << std::endl << "----------" << std::endl;
 
-				for (const auto &technique : this->mTechniques)
+				for (const auto &technique : _techniques)
 				{
 					stats << technique->Name << " (" << technique->PassCount << " passes): " << (boost::chrono::duration_cast<boost::chrono::nanoseconds>(technique->LastDuration).count() * 1e-6f) << "ms" << std::endl;
 				}
 			}
 
-			this->mGUI->DrawDebugText(0, 0, 1, static_cast<float>(this->mWidth), 16, 0xFFBCBCBC, stats.str());
+			_gui->DrawDebugText(0, 0, 1, static_cast<float>(_width), 16, 0xFFBCBCBC, stats.str());
 
-			this->mGUI->EndFrame();
+			_gui->EndFrame();
 		}
 
-		if (this->mIsEffectCompiled && timeSinceCreate.count() > (!this->mShowInfoMessages && this->mCompileCount <= 1 ? 12 : this->mErrors.empty() ? 4 : 8))
+		if (_isEffectCompiled && timeSinceCreate.count() > (!_showInfoMessages && _compileCount <= 1 ? 12 : _errors.empty() ? 4 : 8))
 		{
-			this->mStatus.clear();
-			this->mMessage.clear();
+			_status.clear();
+			_message.clear();
 		}
 		#pragma endregion
 
 		#pragma region Update statistics
 		NetworkUpload = 0;
-		this->mLastPresent = timePresent;
-		this->mLastFrameDuration = frametime;
-		this->mStats.FrameCount++;
-		this->mStats.DrawCalls = this->mStats.Vertices = 0;
-		this->mStats.FrameRate.Calculate(frametime.count());
-		this->mStats.Date[0] = static_cast<float>(tm.tm_year + 1900);
-		this->mStats.Date[1] = static_cast<float>(tm.tm_mon + 1);
-		this->mStats.Date[2] = static_cast<float>(tm.tm_mday);
-		this->mStats.Date[3] = static_cast<float>(tm.tm_hour * 3600 + tm.tm_min * 60 + tm.tm_sec);
+		_lastPresent = timePresent;
+		_lastFrameDuration = frametime;
+		_stats.FrameCount++;
+		_stats.DrawCalls = _stats.Vertices = 0;
+		_stats.FrameRate.Calculate(frametime.count());
+		_stats.Date[0] = static_cast<float>(tm.tm_year + 1900);
+		_stats.Date[1] = static_cast<float>(tm.tm_mon + 1);
+		_stats.Date[2] = static_cast<float>(tm.tm_mday);
+		_stats.Date[3] = static_cast<float>(tm.tm_hour * 3600 + tm.tm_min * 60 + tm.tm_sec);
 		#pragma endregion
 
-		this->mWindow->NextFrame();
+		_window->NextFrame();
 	}
 	void Runtime::OnDrawCall(unsigned int vertices)
 	{
-		this->mStats.Vertices += vertices;
-		this->mStats.DrawCalls += 1;
+		_stats.Vertices += vertices;
+		_stats.DrawCalls += 1;
 	}
 	void Runtime::OnApplyEffect()
 	{
 		const auto timePostProcessingStarted = boost::chrono::high_resolution_clock::now();
 
-		for (const auto &variable : this->mUniforms)
+		for (const auto &variable : _uniforms)
 		{
 			const std::string source = variable->Annotations["source"].As<std::string>();
 
@@ -350,7 +350,7 @@ namespace ReShade
 			}
 			else if (source == "frametime")
 			{
-				const float value = this->mLastFrameDuration.count() * 1e-6f;
+				const float value = _lastFrameDuration.count() * 1e-6f;
 				SetEffectValue(*variable, &value, 1);
 			}
 			else if (source == "framecount" || source == "framecounter")
@@ -359,20 +359,20 @@ namespace ReShade
 				{
 					case Uniform::Type::Bool:
 					{
-						const bool even = (this->mStats.FrameCount % 2) == 0;
+						const bool even = (_stats.FrameCount % 2) == 0;
 						SetEffectValue(*variable, &even, 1);
 						break;
 					}
 					case Uniform::Type::Int:
 					case Uniform::Type::Uint:
 					{
-						const unsigned int framecount = static_cast<unsigned int>(this->mStats.FrameCount % UINT_MAX);
+						const unsigned int framecount = static_cast<unsigned int>(_stats.FrameCount % UINT_MAX);
 						SetEffectValue(*variable, &framecount, 1);
 						break;
 					}
 					case Uniform::Type::Float:
 					{
-						const float framecount = static_cast<float>(this->mStats.FrameCount % 16777216);
+						const float framecount = static_cast<float>(_stats.FrameCount % 16777216);
 						SetEffectValue(*variable, &framecount, 1);
 						break;
 					}
@@ -391,7 +391,7 @@ namespace ReShade
 				if (value[1] >= 0)
 				{
 					increment = std::max(increment - std::max(0.0f, smoothing - (max - value[0])), 0.05f);
-					increment *= this->mLastFrameDuration.count() * 1e-9f;
+					increment *= _lastFrameDuration.count() * 1e-9f;
 
 					if ((value[0] += increment) >= max)
 					{
@@ -402,7 +402,7 @@ namespace ReShade
 				else
 				{
 					increment = std::max(increment - std::max(0.0f, smoothing - (value[0] - min)), 0.05f);
-					increment *= this->mLastFrameDuration.count() * 1e-9f;
+					increment *= _lastFrameDuration.count() * 1e-9f;
 
 					if ((value[0] -= increment) <= min)
 					{
@@ -415,11 +415,11 @@ namespace ReShade
 			}
 			else if (source == "date")
 			{
-				SetEffectValue(*variable, this->mStats.Date, 4);
+				SetEffectValue(*variable, _stats.Date, 4);
 			}
 			else if (source == "timer")
 			{
-				const unsigned long long timer = boost::chrono::duration_cast<boost::chrono::nanoseconds>(this->mLastPresent - this->mStartTime).count();
+				const unsigned long long timer = boost::chrono::duration_cast<boost::chrono::nanoseconds>(_lastPresent - _startTime).count();
 
 				switch (variable->BaseType)
 				{
@@ -455,7 +455,7 @@ namespace ReShade
 						bool current = false;
 						GetEffectValue(*variable, &current, 1);
 
-						if (this->mWindow->GetKeyJustPressed(key))
+						if (_window->GetKeyJustPressed(key))
 						{
 							current = !current;
 
@@ -464,7 +464,7 @@ namespace ReShade
 					}
 					else
 					{
-						const bool state = this->mWindow->GetKeyState(key);
+						const bool state = _window->GetKeyState(key);
 
 						SetEffectValue(*variable, &state, 1);
 					}
@@ -479,9 +479,9 @@ namespace ReShade
 			}
 		}
 
-		for (const auto &technique : this->mTechniques)
+		for (const auto &technique : _techniques)
 		{
-			if (technique->ToggleTime != 0 && technique->ToggleTime == static_cast<int>(this->mStats.Date[3]))
+			if (technique->ToggleTime != 0 && technique->ToggleTime == static_cast<int>(_stats.Date[3]))
 			{
 				technique->Enabled = !technique->Enabled;
 				technique->Timeleft = technique->Timeout;
@@ -489,7 +489,7 @@ namespace ReShade
 			}
 			else if (technique->Timeleft > 0)
 			{
-				technique->Timeleft -= static_cast<unsigned int>(boost::chrono::duration_cast<boost::chrono::milliseconds>(this->mLastFrameDuration).count());
+				technique->Timeleft -= static_cast<unsigned int>(boost::chrono::duration_cast<boost::chrono::milliseconds>(_lastFrameDuration).count());
 
 				if (technique->Timeleft <= 0)
 				{
@@ -497,15 +497,15 @@ namespace ReShade
 					technique->Timeleft = 0;
 				}
 			}
-			else if (this->mWindow->GetKeyJustPressed(technique->Toggle) && (!technique->ToggleCtrl || this->mWindow->GetKeyState(VK_CONTROL)) && (!technique->ToggleShift || this->mWindow->GetKeyState(VK_SHIFT)) && (!technique->ToggleAlt || this->mWindow->GetKeyState(VK_MENU)))
+			else if (_window->GetKeyJustPressed(technique->Toggle) && (!technique->ToggleCtrl || _window->GetKeyState(VK_CONTROL)) && (!technique->ToggleShift || _window->GetKeyState(VK_SHIFT)) && (!technique->ToggleAlt || _window->GetKeyState(VK_MENU)))
 			{
 				technique->Enabled = !technique->Enabled;
 				technique->Timeleft = technique->Timeout;
 
-				if (this->mShowToggleMessage)
+				if (_showToggleMessage)
 				{
-					this->mStatus = technique->Name + (technique->Enabled ? " enabled." : " disabled.");
-					this->mLastCreate = timePostProcessingStarted;
+					_status = technique->Name + (technique->Enabled ? " enabled." : " disabled.");
+					_lastCreate = timePostProcessingStarted;
 				}
 			}
 
@@ -527,11 +527,11 @@ namespace ReShade
 			}
 		}
 
-		this->mLastPostProcessingDuration = boost::chrono::high_resolution_clock::now() - timePostProcessingStarted;
+		_lastPostProcessingDuration = boost::chrono::high_resolution_clock::now() - timePostProcessingStarted;
 	}
 	void Runtime::OnApplyEffectTechnique(const Technique *technique)
 	{
-		for (const auto &variable : this->mUniforms)
+		for (const auto &variable : _uniforms)
 		{
 			if (variable->Annotations["source"].As<std::string>() == "timeleft")
 			{
@@ -543,13 +543,13 @@ namespace ReShade
 	void Runtime::GetEffectValue(const Uniform &variable, unsigned char *data, size_t size) const
 	{
 		assert(data != nullptr);
-		assert(this->mIsEffectCompiled);
+		assert(_isEffectCompiled);
 
 		size = std::min(size, variable.StorageSize);
 
-		assert(variable.StorageOffset + size < this->mUniformDataStorage.size());
+		assert(variable.StorageOffset + size < _uniformDataStorage.size());
 
-		std::copy_n(this->mUniformDataStorage.begin() + variable.StorageOffset, size, data);
+		std::copy_n(_uniformDataStorage.begin() + variable.StorageOffset, size, data);
 	}
 	void Runtime::GetEffectValue(const Uniform &variable, bool *values, size_t count) const
 	{
@@ -637,13 +637,13 @@ namespace ReShade
 	void Runtime::SetEffectValue(Uniform &variable, const unsigned char *data, size_t size)
 	{
 		assert(data != nullptr);
-		assert(this->mIsEffectCompiled);
+		assert(_isEffectCompiled);
 
 		size = std::min(size, variable.StorageSize);
 
-		assert(variable.StorageOffset + size < this->mUniformDataStorage.size());
+		assert(variable.StorageOffset + size < _uniformDataStorage.size());
 
-		std::copy_n(data, size, this->mUniformDataStorage.begin() + variable.StorageOffset);
+		std::copy_n(data, size, _uniformDataStorage.begin() + variable.StorageOffset);
 	}
 	void Runtime::SetEffectValue(Uniform &variable, const bool *values, size_t count)
 	{
@@ -754,11 +754,11 @@ namespace ReShade
 
 	bool Runtime::LoadEffect()
 	{
-		this->mMessage.clear();
-		this->mShowStatistics = this->mShowFPS = this->mShowClock = this->mShowToggleMessage = false;
-		this->mScreenshotKey = VK_SNAPSHOT;
-		this->mScreenshotPath = sExecutablePath.parent_path();
-		this->mScreenshotFormat = "png";
+		_message.clear();
+		_showStatistics = _showFPS = _showClock = _showToggleMessage = false;
+		_screenshotKey = VK_SNAPSHOT;
+		_screenshotPath = sExecutablePath.parent_path();
+		_screenshotFormat = "png";
 
 		sEffectPath = sInjectorPath;
 		sEffectPath.replace_extension("fx");
@@ -771,7 +771,7 @@ namespace ReShade
 			{
 				LOG(ERROR) << "Effect file " << sEffectPath << " does not exist.";
 
-				this->mStatus += " No effect found!";
+				_status += " No effect found!";
 
 				return false;
 			}
@@ -798,62 +798,62 @@ namespace ReShade
 		// Preprocess
 		FX::PreProcessor preprocessor;
 		preprocessor.AddDefine("__RESHADE__", std::to_string(VERSION_MAJOR * 10000 + VERSION_MINOR * 100 + VERSION_REVISION));
-		preprocessor.AddDefine("__VENDOR__", std::to_string(this->mVendorId));
-		preprocessor.AddDefine("__DEVICE__", std::to_string(this->mDeviceId));
-		preprocessor.AddDefine("__RENDERER__", std::to_string(this->mRendererId));
+		preprocessor.AddDefine("__VENDOR__", std::to_string(_vendorId));
+		preprocessor.AddDefine("__DEVICE__", std::to_string(_deviceId));
+		preprocessor.AddDefine("__RENDERER__", std::to_string(_rendererId));
 		preprocessor.AddDefine("__APPLICATION__", std::to_string(std::hash<std::string>()(sExecutablePath.stem().string())));
 		preprocessor.AddDefine("__DATE_YEAR__", std::to_string(tm.tm_year + 1900));
 		preprocessor.AddDefine("__DATE_MONTH__", std::to_string(tm.tm_mday));
 		preprocessor.AddDefine("__DATE_DAY__", std::to_string(tm.tm_mon + 1));
-		preprocessor.AddDefine("BUFFER_WIDTH", std::to_string(this->mWidth));
-		preprocessor.AddDefine("BUFFER_HEIGHT", std::to_string(this->mHeight));
-		preprocessor.AddDefine("BUFFER_RCP_WIDTH", std::to_string(1.0f / static_cast<float>(this->mWidth)));
-		preprocessor.AddDefine("BUFFER_RCP_HEIGHT", std::to_string(1.0f / static_cast<float>(this->mHeight)));
+		preprocessor.AddDefine("BUFFER_WIDTH", std::to_string(_width));
+		preprocessor.AddDefine("BUFFER_HEIGHT", std::to_string(_height));
+		preprocessor.AddDefine("BUFFER_RCP_WIDTH", std::to_string(1.0f / static_cast<float>(_width)));
+		preprocessor.AddDefine("BUFFER_RCP_HEIGHT", std::to_string(1.0f / static_cast<float>(_height)));
 		preprocessor.AddIncludePath(sEffectPath.parent_path());
 
 		LOG(INFO) << "Loading effect from " << ObfuscatePath(sEffectPath) << " ...";
 		LOG(TRACE) << "> Running preprocessor ...";
 
-		this->mPragmas.clear();
-		this->mIncludedFiles.clear();
+		_pragmas.clear();
+		_includedFiles.clear();
 
 		std::string errors;
 
-		const std::string source = preprocessor.Run(sEffectPath, errors, this->mPragmas, this->mIncludedFiles);
+		const std::string source = preprocessor.Run(sEffectPath, errors, _pragmas, _includedFiles);
 
 		if (source.empty())
 		{
 			LOG(ERROR) << "Failed to preprocess effect on context " << this << ":\n\n" << errors << "\n";
 
-			this->mStatus += " Failed!";
-			this->mErrors = errors;
-			this->mEffectSource.clear();
+			_status += " Failed!";
+			_errors = errors;
+			_effectSource.clear();
 
 			OnResetEffect();
 
 			return false;
 		}
-		else if (source == this->mEffectSource && this->mIsEffectCompiled)
+		else if (source == _effectSource && _isEffectCompiled)
 		{
 			LOG(INFO) << "> Already compiled.";
 
-			this->mStatus += "Already compiled.";
+			_status += "Already compiled.";
 
 			return false;
 		}
 		else
 		{
-			this->mErrors = errors;
-			this->mEffectSource = source;
+			_errors = errors;
+			_effectSource = source;
 		}
 
-		this->mShowInfoMessages = true;
+		_showInfoMessages = true;
 
-		for (const std::string &pragma : this->mPragmas)
+		for (const auto &pragma : _pragmas)
 		{
 			if (boost::starts_with(pragma, "message "))
 			{
-				this->mMessage += pragma.substr(9, pragma.length() - 10);
+				_message += pragma.substr(9, pragma.length() - 10);
 			}
 			else if (!boost::istarts_with(pragma, "reshade "))
 			{
@@ -864,36 +864,36 @@ namespace ReShade
 
 			if (boost::iequals(command, "showstatistics"))
 			{
-				this->mShowStatistics = true;
+				_showStatistics = true;
 			}
 			else if (boost::iequals(command, "showfps"))
 			{
-				this->mShowFPS = true;
+				_showFPS = true;
 			}
 			else if (boost::iequals(command, "showclock"))
 			{
-				this->mShowClock = true;
+				_showClock = true;
 			}
 			else if (boost::iequals(command, "showtogglemessage"))
 			{
-				this->mShowToggleMessage = true;
+				_showToggleMessage = true;
 			}
 			else if (boost::iequals(command, "noinfomessages"))
 			{
-				this->mShowInfoMessages = false;
+				_showInfoMessages = false;
 			}
 			else if (boost::istarts_with(command, "screenshot_key"))
 			{
-				this->mScreenshotKey = strtol(command.substr(15).c_str(), nullptr, 0);
+				_screenshotKey = strtol(command.substr(15).c_str(), nullptr, 0);
 				
-				if (this->mScreenshotKey == 0)
+				if (_screenshotKey == 0)
 				{
-					this->mScreenshotKey = VK_SNAPSHOT;
+					_screenshotKey = VK_SNAPSHOT;
 				}
 			}
 			else if (boost::istarts_with(command, "screenshot_format "))
 			{
-				this->mScreenshotFormat = command.substr(18);
+				_screenshotFormat = command.substr(18);
 			}
 			else if (boost::istarts_with(command, "screenshot_location "))
 			{
@@ -904,7 +904,7 @@ namespace ReShade
 
 				if (boost::filesystem::exists(path))
 				{
-					this->mScreenshotPath = path;
+					_screenshotPath = path;
 				}
 				else
 				{
@@ -913,7 +913,7 @@ namespace ReShade
 			}
 		}
 
-		Utils::EscapeString(this->mMessage);
+		Utils::EscapeString(_message);
 
 		return true;
 	}
@@ -925,13 +925,13 @@ namespace ReShade
 
 		FX::NodeTree ast;
 
-		const bool success = FX::Parser(ast).Parse(this->mEffectSource, this->mErrors);
+		const bool success = FX::Parser(ast).Parse(_effectSource, _errors);
 
 		if (!success)
 		{
-			LOG(ERROR) << "Failed to compile effect on context " << this << ":\n\n" << this->mErrors << "\n";
+			LOG(ERROR) << "Failed to compile effect on context " << this << ":\n\n" << _errors << "\n";
 
-			this->mStatus += " Failed!";
+			_status += " Failed!";
 
 			return false;
 		}
@@ -939,40 +939,40 @@ namespace ReShade
 		// Compile
 		LOG(TRACE) << "> Running compiler ...";
 
-		this->mIsEffectCompiled = UpdateEffect(ast, this->mPragmas, this->mErrors);
+		_isEffectCompiled = UpdateEffect(ast, _pragmas, _errors);
 
-		if (!this->mIsEffectCompiled)
+		if (!_isEffectCompiled)
 		{
-			LOG(ERROR) << "Failed to compile effect on context " << this << ":\n\n" << this->mErrors << "\n";
+			LOG(ERROR) << "Failed to compile effect on context " << this << ":\n\n" << _errors << "\n";
 
-			this->mStatus += " Failed!";
+			_status += " Failed!";
 
 			return false;
 		}
-		else if (!this->mErrors.empty())
+		else if (!_errors.empty())
 		{
-			LOG(WARNING) << "> Successfully compiled effect with warnings:" << "\n\n" << this->mErrors << "\n";
+			LOG(WARNING) << "> Successfully compiled effect with warnings:" << "\n\n" << _errors << "\n";
 
-			this->mStatus += " Succeeded!";
+			_status += " Succeeded!";
 		}
 		else
 		{
 			LOG(INFO) << "> Successfully compiled effect.";
 
-			this->mStatus += " Succeeded!";
+			_status += " Succeeded!";
 		}
 
 		return true;
 	}
 	void Runtime::ProcessEffect()
 	{
-		if (this->mTechniques.empty())
+		if (_techniques.empty())
 		{
 			LOG(WARNING) << "> Effect doesn't contain any techniques.";
 			return;
 		}
 
-		for (const auto &texture : this->mTextures)
+		for (const auto &texture : _textures)
 		{
 			const std::string source = texture->Annotations["source"].As<std::string>();
 
@@ -1036,7 +1036,7 @@ namespace ReShade
 				}
 				else
 				{
-					this->mErrors += "Unable to load source for texture '" + texture->Name + "'!";
+					_errors += "Unable to load source for texture '" + texture->Name + "'!";
 
 					LOG(ERROR) << "> Source " << ObfuscatePath(path) << " for texture '" << texture->Name << "' could not be loaded! Make sure it exists and of a compatible format.";
 				}
@@ -1044,7 +1044,7 @@ namespace ReShade
 				texture->StorageSize = dataSize;
 			}
 		}
-		for (const auto &technique : this->mTechniques)
+		for (const auto &technique : _techniques)
 		{
 			technique->Enabled = technique->Annotations["enabled"].As<bool>();
 			technique->Timeleft = technique->Timeout = technique->Annotations["timeout"].As<int>();

@@ -7,21 +7,17 @@ struct __declspec(uuid("27B0246B-2152-4D42-AD11-32489472238F")) D3D11DeviceConte
 
 struct D3D11Device : ID3D11Device3
 {
-	explicit D3D11Device(ID3D11Device *original) : mRef(1), mOrig(original), mInterfaceVersion(0), mDXGIDevice(nullptr), mImmediateContext(nullptr)
+	explicit D3D11Device(ID3D11Device *original) : _ref(1), _orig(original), _interfaceVersion(0), _dxgiDevice(nullptr), _immediateContext(nullptr)
 	{
-		assert(original != nullptr);
 	}
-	explicit D3D11Device(ID3D11Device1 *original) : mRef(1), mOrig(original), mInterfaceVersion(1), mDXGIDevice(nullptr), mImmediateContext(nullptr)
+	explicit D3D11Device(ID3D11Device1 *original) : _ref(1), _orig(original), _interfaceVersion(1), _dxgiDevice(nullptr), _immediateContext(nullptr)
 	{
-		assert(original != nullptr);
 	}
-	explicit D3D11Device(ID3D11Device2 *original) : mRef(1), mOrig(original), mInterfaceVersion(2), mDXGIDevice(nullptr), mImmediateContext(nullptr)
+	explicit D3D11Device(ID3D11Device2 *original) : _ref(1), _orig(original), _interfaceVersion(2), _dxgiDevice(nullptr), _immediateContext(nullptr)
 	{
-		assert(original != nullptr);
 	}
-	explicit D3D11Device(ID3D11Device3 *original) : mRef(1), mOrig(original), mInterfaceVersion(3), mDXGIDevice(nullptr), mImmediateContext(nullptr)
+	explicit D3D11Device(ID3D11Device3 *original) : _ref(1), _orig(original), _interfaceVersion(3), _dxgiDevice(nullptr), _immediateContext(nullptr)
 	{
-		assert(original != nullptr);
 	}
 
 	#pragma region IUnknown
@@ -100,12 +96,12 @@ struct D3D11Device : ID3D11Device3
 	virtual void STDMETHODCALLTYPE ReadFromSubresource(void *pDstData, UINT DstRowPitch, UINT DstDepthPitch, ID3D11Resource *pSrcResource, UINT SrcSubresource, const D3D11_BOX *pSrcBox) override;
 	#pragma endregion
 
-	LONG mRef;
-	ID3D11Device *mOrig;
-	unsigned int mInterfaceVersion;
-	struct DXGIDevice *mDXGIDevice;
-	D3D11DeviceContext *mImmediateContext;
-	std::vector<std::shared_ptr<ReShade::Runtimes::D3D11Runtime>> mRuntimes;
+	LONG _ref;
+	ID3D11Device *_orig;
+	unsigned int _interfaceVersion;
+	struct DXGIDevice *_dxgiDevice;
+	D3D11DeviceContext *_immediateContext;
+	std::vector<std::shared_ptr<ReShade::Runtimes::D3D11Runtime>> _runtimes;
 
 private:
 	D3D11Device(const D3D11Device &);
@@ -113,25 +109,17 @@ private:
 };
 struct D3D11DeviceContext : ID3D11DeviceContext3
 {
-	explicit D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext *original) : mRef(1), mDevice(device), mOrig(original), mInterfaceVersion(0)
+	D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext *original) : _ref(1), _device(device), _orig(original), _interfaceVersion(0)
 	{
-		assert(device != nullptr);
-		assert(original != nullptr);
 	}
-	explicit D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext1 *original) : mRef(1), mDevice(device), mOrig(original), mInterfaceVersion(1)
+	D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext1 *original) : _ref(1), _device(device), _orig(original), _interfaceVersion(1)
 	{
-		assert(device != nullptr);
-		assert(original != nullptr);
 	}
-	explicit D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext2 *original) : mRef(1), mDevice(device), mOrig(original), mInterfaceVersion(2)
+	D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext2 *original) : _ref(1), _device(device), _orig(original), _interfaceVersion(2)
 	{
-		assert(device != nullptr);
-		assert(original != nullptr);
 	}
-	explicit D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext3 *original) : mRef(1), mDevice(device), mOrig(original), mInterfaceVersion(3)
+	D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext3 *original) : _ref(1), _device(device), _orig(original), _interfaceVersion(3)
 	{
-		assert(device != nullptr);
-		assert(original != nullptr);
 	}
 
 	#pragma region IUnknown
@@ -294,10 +282,10 @@ struct D3D11DeviceContext : ID3D11DeviceContext3
 	virtual void STDMETHODCALLTYPE GetHardwareProtectionState(BOOL *pHwProtectionEnable) override;
 	#pragma endregion
 
-	LONG mRef;
-	D3D11Device *const mDevice;
-	ID3D11DeviceContext *mOrig;
-	unsigned int mInterfaceVersion;
+	LONG _ref;
+	D3D11Device *const _device;
+	ID3D11DeviceContext *_orig;
+	unsigned int _interfaceVersion;
 
 private:
 	D3D11DeviceContext(const D3D11DeviceContext &);

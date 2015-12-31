@@ -10,34 +10,34 @@ namespace ReShade
 {
 	namespace Runtimes
 	{
-		D3D12Runtime::D3D12Runtime(ID3D12Device *device, ID3D12CommandQueue *queue, IDXGISwapChain3 *swapchain) : mDevice(device), mCommandQueue(queue), mSwapChain(swapchain)
+		D3D12Runtime::D3D12Runtime(ID3D12Device *device, ID3D12CommandQueue *queue, IDXGISwapChain3 *swapchain) : _device(device), _commandQueue(queue), _swapchain(swapchain)
 		{
 			assert(queue != nullptr);
 			assert(device != nullptr);
 			assert(swapchain != nullptr);
 
-			this->mDevice->AddRef();
-			this->mCommandQueue->AddRef();
-			this->mSwapChain->AddRef();
+			_device->AddRef();
+			_commandQueue->AddRef();
+			_swapchain->AddRef();
 		}
 		D3D12Runtime::~D3D12Runtime()
 		{
-			this->mDevice->Release();
-			this->mCommandQueue->Release();
-			this->mSwapChain->Release();
+			_device->Release();
+			_commandQueue->Release();
+			_swapchain->Release();
 		}
 
 		bool D3D12Runtime::OnInit(const DXGI_SWAP_CHAIN_DESC &desc)
 		{
-			this->mWidth = desc.BufferDesc.Width;
-			this->mHeight = desc.BufferDesc.Height;
-			this->mWindow.reset(new WindowWatcher(desc.OutputWindow));
+			_width = desc.BufferDesc.Width;
+			_height = desc.BufferDesc.Height;
+			_window.reset(new WindowWatcher(desc.OutputWindow));
 
 			return Runtime::OnInit();
 		}
 		void D3D12Runtime::OnReset()
 		{
-			if (!this->mIsInitialized)
+			if (!_isInitialized)
 			{
 				return;
 			}
@@ -50,12 +50,12 @@ namespace ReShade
 		}
 		void D3D12Runtime::OnPresent()
 		{
-			if (!this->mIsInitialized)
+			if (!_isInitialized)
 			{
 				LOG(TRACE) << "Failed to present! Runtime is in a lost state.";
 				return;
 			}
-			else if (this->mStats.DrawCalls == 0)
+			else if (_stats.DrawCalls == 0)
 			{
 				return;
 			}

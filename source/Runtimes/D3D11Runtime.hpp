@@ -30,52 +30,52 @@ namespace ReShade
 			void OnClearDepthStencilView(ID3D11DepthStencilView *&depthstencil);
 			void OnCopyResource(ID3D11Resource *&dest, ID3D11Resource *&source);
 
-			inline Texture *GetTexture(const std::string &name) const
+			Texture *GetTexture(const std::string &name) const
 			{
-				const auto it = std::find_if(this->mTextures.cbegin(), this->mTextures.cend(), [name](const std::unique_ptr<Texture> &it) { return it->Name == name; });
+				const auto it = std::find_if(_textures.cbegin(), _textures.cend(), [name](const std::unique_ptr<Texture> &it) { return it->Name == name; });
 
-				return it != this->mTextures.cend() ? it->get() : nullptr;
+				return it != _textures.cend() ? it->get() : nullptr;
 			}
-			inline const std::vector<std::unique_ptr<Technique>> &GetTechniques() const
+			const std::vector<std::unique_ptr<Technique>> &GetTechniques() const
 			{
-				return this->mTechniques;
+				return _techniques;
 			}
-			inline void EnlargeConstantStorage()
+			void EnlargeConstantStorage()
 			{
-				this->mUniformDataStorage.resize(this->mUniformDataStorage.size() + 128);
+				_uniformDataStorage.resize(_uniformDataStorage.size() + 128);
 			}
-			inline unsigned char *GetConstantStorage()
+			unsigned char *GetConstantStorage()
 			{
-				return this->mUniformDataStorage.data();
+				return _uniformDataStorage.data();
 			}
-			inline size_t GetConstantStorageSize() const
+			size_t GetConstantStorageSize() const
 			{
-				return this->mUniformDataStorage.size();
+				return _uniformDataStorage.size();
 			}
-			inline void AddTexture(Texture *texture)
+			void AddTexture(Texture *texture)
 			{
-				this->mTextures.push_back(std::unique_ptr<Texture>(texture));
+				_textures.push_back(std::unique_ptr<Texture>(texture));
 			}
-			inline void AddConstant(Uniform *constant)
+			void AddConstant(Uniform *constant)
 			{
-				this->mUniforms.push_back(std::unique_ptr<Uniform>(constant));
+				_uniforms.push_back(std::unique_ptr<Uniform>(constant));
 			}
-			inline void AddTechnique(Technique *technique)
+			void AddTechnique(Technique *technique)
 			{
-				this->mTechniques.push_back(std::unique_ptr<Technique>(technique));
+				_techniques.push_back(std::unique_ptr<Technique>(technique));
 			}
 
-			ID3D11Device *mDevice;
-			ID3D11DeviceContext *mImmediateContext;
-			IDXGISwapChain *mSwapChain;
+			ID3D11Device *_device;
+			ID3D11DeviceContext *_immediateContext;
+			IDXGISwapChain *_swapchain;
 
-			ID3D11Texture2D *mBackBufferTexture;
-			ID3D11ShaderResourceView *mBackBufferTextureSRV[2];
-			ID3D11RenderTargetView *mBackBufferTargets[3];
-			ID3D11ShaderResourceView *mDepthStencilTextureSRV;
-			std::vector<ID3D11SamplerState *> mEffectSamplerStates;
-			std::vector<ID3D11ShaderResourceView *> mEffectShaderResources;
-			ID3D11Buffer *mConstantBuffer;
+			ID3D11Texture2D *_backbufferTexture;
+			ID3D11ShaderResourceView *_backbufferTextureSRV[2];
+			ID3D11RenderTargetView *_backbufferTargets[3];
+			ID3D11ShaderResourceView *_depthStencilTextureSRV;
+			std::vector<ID3D11SamplerState *> _effectSamplerStates;
+			std::vector<ID3D11ShaderResourceView *> _effectShaderResources;
+			ID3D11Buffer *_constantBuffer;
 
 		private:
 			struct DepthSourceInfo
@@ -91,19 +91,19 @@ namespace ReShade
 			void DetectDepthSource();
 			bool CreateDepthStencilReplacement(ID3D11DepthStencilView *depthstencil);
 
-			bool mMultisamplingEnabled;
-			DXGI_FORMAT mBackBufferFormat;
-			std::unique_ptr<class D3D11StateBlock> mStateBlock;
-			ID3D11Texture2D *mBackBuffer, *mBackBufferResolved;
-			ID3D11DepthStencilView *mDepthStencil, *mDepthStencilReplacement;
-			ID3D11Texture2D *mDepthStencilTexture;
-			ID3D11DepthStencilView *mDefaultDepthStencil;
-			std::unordered_map<ID3D11DepthStencilView *, DepthSourceInfo> mDepthSourceTable;
-			ID3D11VertexShader *mCopyVS;
-			ID3D11PixelShader *mCopyPS;
-			ID3D11SamplerState *mCopySampler;
-			Utils::CriticalSection mCS;
-			ID3D11RasterizerState *mEffectRasterizerState;
+			bool _multisamplingEnabled;
+			DXGI_FORMAT _backbufferFormat;
+			std::unique_ptr<class D3D11StateBlock> _stateBlock;
+			ID3D11Texture2D *_backbuffer, *_backbufferResolved;
+			ID3D11DepthStencilView *_depthStencil, *_depthStencilReplacement;
+			ID3D11Texture2D *_depthStencilTexture;
+			ID3D11DepthStencilView *_defaultDepthStencil;
+			std::unordered_map<ID3D11DepthStencilView *, DepthSourceInfo> _depthSourceTable;
+			ID3D11VertexShader *_copyVS;
+			ID3D11PixelShader *_copyPS;
+			ID3D11SamplerState *_copySampler;
+			Utils::CriticalSection _cs;
+			ID3D11RasterizerState *_effectRasterizerState;
 		};
 	}
 }

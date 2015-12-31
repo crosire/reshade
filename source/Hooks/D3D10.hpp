@@ -6,13 +6,11 @@ struct __declspec(uuid("88399375-734F-4892-A95F-70DD42CE7CDD")) D3D10Device;
 
 struct D3D10Device : ID3D10Device1
 {
-	explicit D3D10Device(ID3D10Device *original) : mRef(1), mOrig(original), mInterfaceVersion(0), mDXGIDevice(nullptr)
+	explicit D3D10Device(ID3D10Device *original) : _ref(1), _orig(original), _interfaceVersion(0), _dxgiDevice(nullptr)
 	{
-		assert(original != nullptr);
 	}
-	explicit D3D10Device(ID3D10Device1 *original) : mRef(1), mOrig(original), mInterfaceVersion(1), mDXGIDevice(nullptr)
+	explicit D3D10Device(ID3D10Device1 *original) : _ref(1), _orig(original), _interfaceVersion(1), _dxgiDevice(nullptr)
 	{
-		assert(original != nullptr);
 	}
 
 	#pragma region IUnknown
@@ -123,11 +121,11 @@ struct D3D10Device : ID3D10Device1
 	virtual D3D10_FEATURE_LEVEL1 STDMETHODCALLTYPE GetFeatureLevel() override;
 	#pragma endregion
 
-	LONG mRef;
-	ID3D10Device *mOrig;
-	unsigned int mInterfaceVersion;
-	struct DXGIDevice *mDXGIDevice;
-	std::vector<std::shared_ptr<ReShade::Runtimes::D3D10Runtime>> mRuntimes;
+	LONG _ref;
+	ID3D10Device *_orig;
+	unsigned int _interfaceVersion;
+	struct DXGIDevice *_dxgiDevice;
+	std::vector<std::shared_ptr<ReShade::Runtimes::D3D10Runtime>> _runtimes;
 
 private:
 	D3D10Device(const D3D10Device &);

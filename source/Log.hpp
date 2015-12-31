@@ -33,7 +33,7 @@ namespace ReShade
 			template <typename T>
 			inline Message &operator<<(const T &value)
 			{
-				if (this->mDispatch)
+				if (_dispatch)
 				{
 					sFileStream << value;
 				}
@@ -55,7 +55,7 @@ namespace ReShade
 			}
 
 		private:
-			bool mDispatch;
+			bool _dispatch;
 		};
 
 		static bool Open(const boost::filesystem::path &path, Level maxlevel);

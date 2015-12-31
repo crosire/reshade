@@ -24,45 +24,45 @@ namespace ReShade
 			void OnSetDepthStencilSurface(IDirect3DSurface9 *&depthstencil);
 			void OnGetDepthStencilSurface(IDirect3DSurface9 *&depthstencil);
 
-			inline Texture *GetTexture(const std::string &name) const
+			Texture *GetTexture(const std::string &name) const
 			{
-				const auto it = std::find_if(this->mTextures.cbegin(), this->mTextures.cend(), [name](const std::unique_ptr<Texture> &it) { return it->Name == name; });
+				const auto it = std::find_if(_textures.cbegin(), _textures.cend(), [name](const std::unique_ptr<Texture> &it) { return it->Name == name; });
 
-				return it != this->mTextures.cend() ? it->get() : nullptr;
+				return it != _textures.cend() ? it->get() : nullptr;
 			}
-			inline void EnlargeConstantStorage()
+			void EnlargeConstantStorage()
 			{
-				this->mUniformDataStorage.resize(this->mUniformDataStorage.size() + 64 * sizeof(float));
+				_uniformDataStorage.resize(_uniformDataStorage.size() + 64 * sizeof(float));
 			}
-			inline unsigned char *GetConstantStorage()
+			unsigned char *GetConstantStorage()
 			{
-				return this->mUniformDataStorage.data();
+				return _uniformDataStorage.data();
 			}
-			inline size_t GetConstantStorageSize() const
+			size_t GetConstantStorageSize() const
 			{
-				return this->mUniformDataStorage.size();
+				return _uniformDataStorage.size();
 			}
-			inline void AddTexture(Texture *texture)
+			void AddTexture(Texture *texture)
 			{
-				this->mTextures.push_back(std::unique_ptr<Texture>(texture));
+				_textures.push_back(std::unique_ptr<Texture>(texture));
 			}
-			inline void AddConstant(Uniform *constant)
+			void AddConstant(Uniform *constant)
 			{
-				this->mUniforms.push_back(std::unique_ptr<Uniform>(constant));
+				_uniforms.push_back(std::unique_ptr<Uniform>(constant));
 			}
-			inline void AddTechnique(Technique *technique)
+			void AddTechnique(Technique *technique)
 			{
-				this->mTechniques.push_back(std::unique_ptr<Technique>(technique));
+				_techniques.push_back(std::unique_ptr<Technique>(technique));
 			}
 
-			IDirect3D9 *mDirect3D;
-			IDirect3DDevice9 *mDevice;
-			IDirect3DSwapChain9 *mSwapChain;
+			IDirect3D9 *_d3d;
+			IDirect3DDevice9 *_device;
+			IDirect3DSwapChain9 *_swapchain;
 
-			IDirect3DSurface9 *mBackBuffer, *mBackBufferResolved, *mBackBufferTextureSurface;
-			IDirect3DTexture9 *mBackBufferTexture;
-			IDirect3DTexture9 *mDepthStencilTexture;
-			UINT mConstantRegisterCount;
+			IDirect3DSurface9 *_backbuffer, *_backbufferResolved, *_backbufferTextureSurface;
+			IDirect3DTexture9 *_backbufferTexture;
+			IDirect3DTexture9 *_depthStencilTexture;
+			UINT _constantRegisterCount;
 
 		private:
 			struct DepthSourceInfo
@@ -78,16 +78,16 @@ namespace ReShade
 			void DetectDepthSource();
 			bool CreateDepthStencilReplacement(IDirect3DSurface9 *depthstencil);
 
-			UINT mBehaviorFlags, mNumSimultaneousRTs;
-			bool mMultisamplingEnabled;
-			D3DFORMAT mBackBufferFormat;
-			IDirect3DStateBlock9 *mStateBlock;
-			IDirect3DSurface9 *mDepthStencil, *mDepthStencilReplacement;
-			IDirect3DSurface9 *mDefaultDepthStencil;
-			std::unordered_map<IDirect3DSurface9 *, DepthSourceInfo> mDepthSourceTable;
+			UINT _behaviorFlags, _numSimultaneousRTs;
+			bool _multisamplingEnabled;
+			D3DFORMAT _backbufferFormat;
+			IDirect3DStateBlock9 *_stateBlock;
+			IDirect3DSurface9 *_depthStencil, *_depthStencilReplacement;
+			IDirect3DSurface9 *_defaultDepthStencil;
+			std::unordered_map<IDirect3DSurface9 *, DepthSourceInfo> _depthSourceTable;
 
-			IDirect3DVertexBuffer9 *mEffectTriangleBuffer;
-			IDirect3DVertexDeclaration9 *mEffectTriangleLayout;
+			IDirect3DVertexBuffer9 *_effectTriangleBuffer;
+			IDirect3DVertexDeclaration9 *_effectTriangleLayout;
 		};
 	}
 }

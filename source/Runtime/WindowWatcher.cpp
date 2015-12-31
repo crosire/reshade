@@ -9,11 +9,11 @@ namespace ReShade
 	std::unordered_map<HWND, HHOOK> WindowWatcher::sRawInputHooks;
 	std::vector<std::pair<HWND, WindowWatcher *>> WindowWatcher::sWatchers;
 
-	WindowWatcher::WindowWatcher(HWND hwnd) : mWnd(hwnd), mKeys(), mMousePosition(), mMouseButtons()
+	WindowWatcher::WindowWatcher(HWND hwnd) : _hwnd(hwnd), _keys(), _mousePosition(), _mouseButtons()
 	{
 		sWatchers.push_back(std::make_pair(hwnd, this));
 
-		this->mHookWindowProc = SetWindowsHookEx(WH_GETMESSAGE, &HookWindowProc, nullptr, GetWindowThreadProcessId(hwnd, nullptr));
+		_hookWindowProc = SetWindowsHookEx(WH_GETMESSAGE, &HookWindowProc, nullptr, GetWindowThreadProcessId(hwnd, nullptr));
 	}
 	WindowWatcher::~WindowWatcher()
 	{
@@ -23,7 +23,7 @@ namespace ReShade
 				return it.second == this;
 			}));
 
-		UnhookWindowsHookEx(this->mHookWindowProc);
+		UnhookWindowsHookEx(_hookWindowProc);
 	}
 
 	LRESULT CALLBACK WindowWatcher::HookWindowProc(int nCode, WPARAM wParam, LPARAM lParam)
@@ -59,10 +59,10 @@ namespace ReShade
 			}
 		}
 
-		ScreenToClient(it->second->mWnd, &details.pt);
+		ScreenToClient(it->second->_hwnd, &details.pt);
 
-		it->second->mMousePosition.x = details.pt.x;
-		it->second->mMousePosition.y = details.pt.y;
+		it->second->_mousePosition.x = details.pt.x;
+		it->second->_mousePosition.y = details.pt.y;
 
 		switch (details.message)
 		{
@@ -82,33 +82,33 @@ namespace ReShade
 						case RIM_TYPEMOUSE:
 							if (data.data.mouse.usButtonFlags & RI_MOUSE_LEFT_BUTTON_DOWN)
 							{
-								it->second->mMouseButtons[0] = 1;
+								it->second->_mouseButtons[0] = 1;
 							}
 							else if (data.data.mouse.usButtonFlags & RI_MOUSE_LEFT_BUTTON_UP)
 							{
-								it->second->mMouseButtons[0] = -1;
+								it->second->_mouseButtons[0] = -1;
 							}
 							if (data.data.mouse.usButtonFlags & RI_MOUSE_RIGHT_BUTTON_DOWN)
 							{
-								it->second->mMouseButtons[2] = 1;
+								it->second->_mouseButtons[2] = 1;
 							}
 							else if (data.data.mouse.usButtonFlags & RI_MOUSE_RIGHT_BUTTON_UP)
 							{
-								it->second->mMouseButtons[2] = -1;
+								it->second->_mouseButtons[2] = -1;
 							}
 							if (data.data.mouse.usButtonFlags & RI_MOUSE_MIDDLE_BUTTON_DOWN)
 							{
-								it->second->mMouseButtons[1] = 1;
+								it->second->_mouseButtons[1] = 1;
 							}
 							else if (data.data.mouse.usButtonFlags & RI_MOUSE_MIDDLE_BUTTON_UP)
 							{
-								it->second->mMouseButtons[1] = -1;
+								it->second->_mouseButtons[1] = -1;
 							}
 							break;
 						case RIM_TYPEKEYBOARD:
 							if (data.data.keyboard.VKey != 0xFF)
 							{
-								it->second->mKeys[data.data.keyboard.VKey] = (data.data.keyboard.Flags & RI_KEY_BREAK) == 0 ? 1 : -1;
+								it->second->_keys[data.data.keyboard.VKey] = (data.data.keyboard.Flags & RI_KEY_BREAK) == 0 ? 1 : -1;
 							}
 							break;
 					}
@@ -116,29 +116,29 @@ namespace ReShade
 				break;
 			case WM_KEYDOWN:
 			case WM_SYSKEYDOWN:
-				it->second->mKeys[details.wParam] = 1;
+				it->second->_keys[details.wParam] = 1;
 				break;
 			case WM_KEYUP:
 			case WM_SYSKEYUP:
-				it->second->mKeys[details.wParam] = -1;
+				it->second->_keys[details.wParam] = -1;
 				break;
 			case WM_LBUTTONDOWN:
-				it->second->mMouseButtons[0] = 1;
+				it->second->_mouseButtons[0] = 1;
 				break;
 			case WM_LBUTTONUP:
-				it->second->mMouseButtons[0] = -1;
+				it->second->_mouseButtons[0] = -1;
 				break;
 			case WM_RBUTTONDOWN:
-				it->second->mMouseButtons[2] = 1;
+				it->second->_mouseButtons[2] = 1;
 				break;
 			case WM_RBUTTONUP:
-				it->second->mMouseButtons[2] = -1;
+				it->second->_mouseButtons[2] = -1;
 				break;
 			case WM_MBUTTONDOWN:
-				it->second->mMouseButtons[1] = 1;
+				it->second->_mouseButtons[1] = 1;
 				break;
 			case WM_MBUTTONUP:
-				it->second->mMouseButtons[1] = -1;
+				it->second->_mouseButtons[1] = -1;
 				break;
 		}
 
@@ -168,25 +168,25 @@ namespace ReShade
 	{
 		for (unsigned int i = 0; i < 256; i++)
 		{
-			if (this->mKeys[i] == 1)
+			if (_keys[i] == 1)
 			{
-				this->mKeys[i] = 2;
+				_keys[i] = 2;
 			}
-			else if (this->mKeys[i] == -1)
+			else if (_keys[i] == -1)
 			{
-				this->mKeys[i] = 0;
+				_keys[i] = 0;
 			}
 		}
 
 		for (unsigned int i = 0; i < 3; i++)
 		{
-			if (this->mMouseButtons[i] == 1)
+			if (_mouseButtons[i] == 1)
 			{
-				this->mMouseButtons[i] = 2;
+				_mouseButtons[i] = 2;
 			}
-			else if (this->mMouseButtons[i] == -1)
+			else if (_mouseButtons[i] == -1)
 			{
-				this->mMouseButtons[i] = 0;
+				_mouseButtons[i] = 0;
 			}
 		}
 	}

@@ -60,19 +60,19 @@ HRESULT STDMETHODCALLTYPE D3D12CommandQueue::QueryInterface(REFIID riid, void **
 		return S_OK;
 	}
 
-	return this->mOrig->QueryInterface(riid, ppvObj);
+	return _orig->QueryInterface(riid, ppvObj);
 }
 ULONG STDMETHODCALLTYPE D3D12CommandQueue::AddRef()
 {
-	this->mRef++;
+	_ref++;
 
-	return this->mOrig->AddRef();
+	return _orig->AddRef();
 }
 ULONG STDMETHODCALLTYPE D3D12CommandQueue::Release()
 {
-	ULONG ref = this->mOrig->Release();
+	ULONG ref = _orig->Release();
 
-	if (--this->mRef == 0 && ref != 0)
+	if (--_ref == 0 && ref != 0)
 	{
 		LOG(WARNING) << "Reference count for 'ID3D12CommandQueue' object " << this << " is inconsistent: " << ref << ", but expected 0.";
 
@@ -81,7 +81,7 @@ ULONG STDMETHODCALLTYPE D3D12CommandQueue::Release()
 
 	if (ref == 0)
 	{
-		assert(this->mRef <= 0);
+		assert(_ref <= 0);
 
 		LOG(TRACE) << "Destroyed 'ID3D12CommandQueue' object " << this << ".";
 
@@ -92,19 +92,19 @@ ULONG STDMETHODCALLTYPE D3D12CommandQueue::Release()
 }
 HRESULT STDMETHODCALLTYPE D3D12CommandQueue::GetPrivateData(REFGUID guid, UINT *pDataSize, void *pData)
 {
-	return this->mOrig->GetPrivateData(guid, pDataSize, pData);
+	return _orig->GetPrivateData(guid, pDataSize, pData);
 }
 HRESULT STDMETHODCALLTYPE D3D12CommandQueue::SetPrivateData(REFGUID guid, UINT DataSize, const void *pData)
 {
-	return this->mOrig->SetPrivateData(guid, DataSize, pData);
+	return _orig->SetPrivateData(guid, DataSize, pData);
 }
 HRESULT STDMETHODCALLTYPE D3D12CommandQueue::SetPrivateDataInterface(REFGUID guid, const IUnknown *pData)
 {
-	return this->mOrig->SetPrivateDataInterface(guid, pData);
+	return _orig->SetPrivateDataInterface(guid, pData);
 }
 HRESULT STDMETHODCALLTYPE D3D12CommandQueue::SetName(LPCWSTR Name)
 {
-	return this->mOrig->SetName(Name);
+	return _orig->SetName(Name);
 }
 HRESULT STDMETHODCALLTYPE D3D12CommandQueue::GetDevice(REFIID riid, void **ppvDevice)
 {
@@ -113,51 +113,51 @@ HRESULT STDMETHODCALLTYPE D3D12CommandQueue::GetDevice(REFIID riid, void **ppvDe
 		return DXGI_ERROR_INVALID_CALL;
 	}
 
-	return this->mDevice->QueryInterface(riid, ppvDevice);
+	return _device->QueryInterface(riid, ppvDevice);
 }
 void STDMETHODCALLTYPE D3D12CommandQueue::UpdateTileMappings(ID3D12Resource *pResource, UINT NumResourceRegions, const D3D12_TILED_RESOURCE_COORDINATE *pResourceRegionStartCoordinates, const D3D12_TILE_REGION_SIZE *pResourceRegionSizes, ID3D12Heap *pHeap, UINT NumRanges, const D3D12_TILE_RANGE_FLAGS *pRangeFlags, const UINT *pHeapRangeStartOffsets, const UINT *pRangeTileCounts, D3D12_TILE_MAPPING_FLAGS Flags)
 {
-	this->mOrig->UpdateTileMappings(pResource, NumResourceRegions, pResourceRegionStartCoordinates, pResourceRegionSizes, pHeap, NumRanges, pRangeFlags, pHeapRangeStartOffsets, pRangeTileCounts, Flags);
+	_orig->UpdateTileMappings(pResource, NumResourceRegions, pResourceRegionStartCoordinates, pResourceRegionSizes, pHeap, NumRanges, pRangeFlags, pHeapRangeStartOffsets, pRangeTileCounts, Flags);
 }
 void STDMETHODCALLTYPE D3D12CommandQueue::CopyTileMappings(ID3D12Resource *pDstResource, const D3D12_TILED_RESOURCE_COORDINATE *pDstRegionStartCoordinate, ID3D12Resource *pSrcResource, const D3D12_TILED_RESOURCE_COORDINATE *pSrcRegionStartCoordinate, const D3D12_TILE_REGION_SIZE *pRegionSize, D3D12_TILE_MAPPING_FLAGS Flags)
 {
-	this->mOrig->CopyTileMappings(pDstResource, pDstRegionStartCoordinate, pSrcResource, pSrcRegionStartCoordinate, pRegionSize, Flags);
+	_orig->CopyTileMappings(pDstResource, pDstRegionStartCoordinate, pSrcResource, pSrcRegionStartCoordinate, pRegionSize, Flags);
 }
 void STDMETHODCALLTYPE D3D12CommandQueue::ExecuteCommandLists(UINT NumCommandLists, ID3D12CommandList *const *ppCommandLists)
 {
-	this->mOrig->ExecuteCommandLists(NumCommandLists, ppCommandLists);
+	_orig->ExecuteCommandLists(NumCommandLists, ppCommandLists);
 }
 void STDMETHODCALLTYPE D3D12CommandQueue::SetMarker(UINT Metadata, const void *pData, UINT Size)
 {
-	this->mOrig->SetMarker(Metadata, pData, Size);
+	_orig->SetMarker(Metadata, pData, Size);
 }
 void STDMETHODCALLTYPE D3D12CommandQueue::BeginEvent(UINT Metadata, const void *pData, UINT Size)
 {
-	this->mOrig->BeginEvent(Metadata, pData, Size);
+	_orig->BeginEvent(Metadata, pData, Size);
 }
 void STDMETHODCALLTYPE D3D12CommandQueue::EndEvent()
 {
-	this->mOrig->EndEvent();
+	_orig->EndEvent();
 }
 HRESULT STDMETHODCALLTYPE D3D12CommandQueue::Signal(ID3D12Fence *pFence, UINT64 Value)
 {
-	return this->mOrig->Signal(pFence, Value);
+	return _orig->Signal(pFence, Value);
 }
 HRESULT STDMETHODCALLTYPE D3D12CommandQueue::Wait(ID3D12Fence *pFence, UINT64 Value)
 {
-	return this->mOrig->Wait(pFence, Value);
+	return _orig->Wait(pFence, Value);
 }
 HRESULT STDMETHODCALLTYPE D3D12CommandQueue::GetTimestampFrequency(UINT64 *pFrequency)
 {
-	return this->mOrig->GetTimestampFrequency(pFrequency);
+	return _orig->GetTimestampFrequency(pFrequency);
 }
 HRESULT STDMETHODCALLTYPE D3D12CommandQueue::GetClockCalibration(UINT64 *pGpuTimestamp, UINT64 *pCpuTimestamp)
 {
-	return this->mOrig->GetClockCalibration(pGpuTimestamp, pCpuTimestamp);
+	return _orig->GetClockCalibration(pGpuTimestamp, pCpuTimestamp);
 }
 D3D12_COMMAND_QUEUE_DESC STDMETHODCALLTYPE D3D12CommandQueue::GetDesc()
 {
-	return this->mOrig->GetDesc();
+	return _orig->GetDesc();
 }
 
 // ID3D12Device
@@ -180,19 +180,19 @@ HRESULT STDMETHODCALLTYPE D3D12Device::QueryInterface(REFIID riid, void **ppvObj
 		return S_OK;
 	}
 
-	return this->mOrig->QueryInterface(riid, ppvObj);
+	return _orig->QueryInterface(riid, ppvObj);
 }
 ULONG STDMETHODCALLTYPE D3D12Device::AddRef()
 {
-	this->mRef++;
+	_ref++;
 
-	return this->mOrig->AddRef();
+	return _orig->AddRef();
 }
 ULONG STDMETHODCALLTYPE D3D12Device::Release()
 {
-	ULONG ref = this->mOrig->Release();
+	ULONG ref = _orig->Release();
 
-	if (--this->mRef == 0 && ref != 0)
+	if (--_ref == 0 && ref != 0)
 	{
 		LOG(WARNING) << "Reference count for 'ID3D12Device' object " << this << " is inconsistent: " << ref << ", but expected 0.";
 
@@ -201,7 +201,7 @@ ULONG STDMETHODCALLTYPE D3D12Device::Release()
 
 	if (ref == 0)
 	{
-		assert(this->mRef <= 0);
+		assert(_ref <= 0);
 
 		LOG(TRACE) << "Destroyed 'ID3D12Device' object " << this << ".";
 
@@ -212,23 +212,23 @@ ULONG STDMETHODCALLTYPE D3D12Device::Release()
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::GetPrivateData(REFGUID guid, UINT *pDataSize, void *pData)
 {
-	return this->mOrig->GetPrivateData(guid, pDataSize, pData);
+	return _orig->GetPrivateData(guid, pDataSize, pData);
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::SetPrivateData(REFGUID guid, UINT DataSize, const void *pData)
 {
-	return this->mOrig->SetPrivateData(guid, DataSize, pData);
+	return _orig->SetPrivateData(guid, DataSize, pData);
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::SetPrivateDataInterface(REFGUID guid, const IUnknown *pData)
 {
-	return this->mOrig->SetPrivateDataInterface(guid, pData);
+	return _orig->SetPrivateDataInterface(guid, pData);
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::SetName(LPCWSTR Name)
 {
-	return this->mOrig->SetName(Name);
+	return _orig->SetName(Name);
 }
 UINT STDMETHODCALLTYPE D3D12Device::GetNodeCount()
 {
-	return this->mOrig->GetNodeCount();
+	return _orig->GetNodeCount();
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommandQueue(const D3D12_COMMAND_QUEUE_DESC *pDesc, REFIID riid, void **ppCommandQueue)
 {
@@ -242,7 +242,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommandQueue(const D3D12_COMMAND_QU
 		return E_INVALIDARG;
 	}
 
-	const HRESULT hr = this->mOrig->CreateCommandQueue(pDesc, riid, ppCommandQueue);
+	const HRESULT hr = _orig->CreateCommandQueue(pDesc, riid, ppCommandQueue);
 
 	if (FAILED(hr))
 	{
@@ -257,143 +257,143 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommandQueue(const D3D12_COMMAND_QU
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE type, REFIID riid, void **ppCommandAllocator)
 {
-	return this->mOrig->CreateCommandAllocator(type, riid, ppCommandAllocator);
+	return _orig->CreateCommandAllocator(type, riid, ppCommandAllocator);
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateGraphicsPipelineState(const D3D12_GRAPHICS_PIPELINE_STATE_DESC *pDesc, REFIID riid, void **ppPipelineState)
 {
-	return this->mOrig->CreateGraphicsPipelineState(pDesc, riid, ppPipelineState);
+	return _orig->CreateGraphicsPipelineState(pDesc, riid, ppPipelineState);
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateComputePipelineState(const D3D12_COMPUTE_PIPELINE_STATE_DESC *pDesc, REFIID riid, void **ppPipelineState)
 {
-	return this->mOrig->CreateComputePipelineState(pDesc, riid, ppPipelineState);
+	return _orig->CreateComputePipelineState(pDesc, riid, ppPipelineState);
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommandList(UINT nodeMask, D3D12_COMMAND_LIST_TYPE type, ID3D12CommandAllocator *pCommandAllocator, ID3D12PipelineState *pInitialState, REFIID riid, void **ppCommandList)
 {
-	return this->mOrig->CreateCommandList(nodeMask, type, pCommandAllocator, pInitialState, riid, ppCommandList);
+	return _orig->CreateCommandList(nodeMask, type, pCommandAllocator, pInitialState, riid, ppCommandList);
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CheckFeatureSupport(D3D12_FEATURE Feature, void *pFeatureSupportData, UINT FeatureSupportDataSize)
 {
-	return this->mOrig->CheckFeatureSupport(Feature, pFeatureSupportData, FeatureSupportDataSize);
+	return _orig->CheckFeatureSupport(Feature, pFeatureSupportData, FeatureSupportDataSize);
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateDescriptorHeap(const D3D12_DESCRIPTOR_HEAP_DESC *pDescriptorHeapDesc, REFIID riid, void **ppvHeap)
 {
-	return this->mOrig->CreateDescriptorHeap(pDescriptorHeapDesc, riid, ppvHeap);
+	return _orig->CreateDescriptorHeap(pDescriptorHeapDesc, riid, ppvHeap);
 }
 UINT STDMETHODCALLTYPE D3D12Device::GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE DescriptorHeapType)
 {
-	return this->mOrig->GetDescriptorHandleIncrementSize(DescriptorHeapType);
+	return _orig->GetDescriptorHandleIncrementSize(DescriptorHeapType);
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateRootSignature(UINT nodeMask, const void *pBlobWithRootSignature, SIZE_T blobLengthInBytes, REFIID riid, void **ppvRootSignature)
 {
-	return this->mOrig->CreateRootSignature(nodeMask, pBlobWithRootSignature, blobLengthInBytes, riid, ppvRootSignature);
+	return _orig->CreateRootSignature(nodeMask, pBlobWithRootSignature, blobLengthInBytes, riid, ppvRootSignature);
 }
 void STDMETHODCALLTYPE D3D12Device::CreateConstantBufferView(const D3D12_CONSTANT_BUFFER_VIEW_DESC *pDesc, D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor)
 {
-	this->mOrig->CreateConstantBufferView(pDesc, DestDescriptor);
+	_orig->CreateConstantBufferView(pDesc, DestDescriptor);
 }
 void STDMETHODCALLTYPE D3D12Device::CreateShaderResourceView(ID3D12Resource *pResource, const D3D12_SHADER_RESOURCE_VIEW_DESC *pDesc, D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor)
 {
-	this->mOrig->CreateShaderResourceView(pResource, pDesc, DestDescriptor);
+	_orig->CreateShaderResourceView(pResource, pDesc, DestDescriptor);
 }
 void STDMETHODCALLTYPE D3D12Device::CreateUnorderedAccessView(ID3D12Resource *pResource, ID3D12Resource *pCounterResource, const D3D12_UNORDERED_ACCESS_VIEW_DESC *pDesc, D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor)
 {
-	this->mOrig->CreateUnorderedAccessView(pResource, pCounterResource, pDesc, DestDescriptor);
+	_orig->CreateUnorderedAccessView(pResource, pCounterResource, pDesc, DestDescriptor);
 }
 void STDMETHODCALLTYPE D3D12Device::CreateRenderTargetView(ID3D12Resource *pResource, const D3D12_RENDER_TARGET_VIEW_DESC *pDesc, D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor)
 {
-	this->mOrig->CreateRenderTargetView(pResource, pDesc, DestDescriptor);
+	_orig->CreateRenderTargetView(pResource, pDesc, DestDescriptor);
 }
 void STDMETHODCALLTYPE D3D12Device::CreateDepthStencilView(ID3D12Resource *pResource, const D3D12_DEPTH_STENCIL_VIEW_DESC *pDesc, D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor)
 {
-	this->mOrig->CreateDepthStencilView(pResource, pDesc, DestDescriptor);
+	_orig->CreateDepthStencilView(pResource, pDesc, DestDescriptor);
 }
 void STDMETHODCALLTYPE D3D12Device::CreateSampler(const D3D12_SAMPLER_DESC *pDesc, D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptor)
 {
-	this->mOrig->CreateSampler(pDesc, DestDescriptor);
+	_orig->CreateSampler(pDesc, DestDescriptor);
 }
 void STDMETHODCALLTYPE D3D12Device::CopyDescriptors(UINT NumDestDescriptorRanges, const D3D12_CPU_DESCRIPTOR_HANDLE *pDestDescriptorRangeStarts, const UINT *pDestDescriptorRangeSizes, UINT NumSrcDescriptorRanges, const D3D12_CPU_DESCRIPTOR_HANDLE *pSrcDescriptorRangeStarts, const UINT *pSrcDescriptorRangeSizes, D3D12_DESCRIPTOR_HEAP_TYPE DescriptorHeapsType)
 {
-	this->mOrig->CopyDescriptors(NumDestDescriptorRanges, pDestDescriptorRangeStarts, pDestDescriptorRangeSizes, NumSrcDescriptorRanges, pSrcDescriptorRangeStarts, pSrcDescriptorRangeSizes, DescriptorHeapsType);
+	_orig->CopyDescriptors(NumDestDescriptorRanges, pDestDescriptorRangeStarts, pDestDescriptorRangeSizes, NumSrcDescriptorRanges, pSrcDescriptorRangeStarts, pSrcDescriptorRangeSizes, DescriptorHeapsType);
 }
 void STDMETHODCALLTYPE D3D12Device::CopyDescriptorsSimple(UINT NumDescriptors, D3D12_CPU_DESCRIPTOR_HANDLE DestDescriptorRangeStart, D3D12_CPU_DESCRIPTOR_HANDLE SrcDescriptorRangeStart, D3D12_DESCRIPTOR_HEAP_TYPE DescriptorHeapsType)
 {
-	this->mOrig->CopyDescriptorsSimple(NumDescriptors, DestDescriptorRangeStart, SrcDescriptorRangeStart, DescriptorHeapsType);
+	_orig->CopyDescriptorsSimple(NumDescriptors, DestDescriptorRangeStart, SrcDescriptorRangeStart, DescriptorHeapsType);
 }
 D3D12_RESOURCE_ALLOCATION_INFO STDMETHODCALLTYPE D3D12Device::GetResourceAllocationInfo(UINT visibleMask, UINT numResourceDescs, const D3D12_RESOURCE_DESC *pResourceDescs)
 {
-	return this->mOrig->GetResourceAllocationInfo(visibleMask, numResourceDescs, pResourceDescs);
+	return _orig->GetResourceAllocationInfo(visibleMask, numResourceDescs, pResourceDescs);
 }
 D3D12_HEAP_PROPERTIES STDMETHODCALLTYPE D3D12Device::GetCustomHeapProperties(UINT nodeMask, D3D12_HEAP_TYPE heapType)
 {
-	return this->mOrig->GetCustomHeapProperties(nodeMask, heapType);
+	return _orig->GetCustomHeapProperties(nodeMask, heapType);
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommittedResource(const D3D12_HEAP_PROPERTIES *pHeapProperties, D3D12_HEAP_FLAGS HeapFlags, const D3D12_RESOURCE_DESC *pResourceDesc, D3D12_RESOURCE_STATES InitialResourceState, const D3D12_CLEAR_VALUE *pOptimizedClearValue, REFIID riidResource, void **ppvResource)
 {
-	return this->mOrig->CreateCommittedResource(pHeapProperties, HeapFlags, pResourceDesc, InitialResourceState, pOptimizedClearValue, riidResource, ppvResource);
+	return _orig->CreateCommittedResource(pHeapProperties, HeapFlags, pResourceDesc, InitialResourceState, pOptimizedClearValue, riidResource, ppvResource);
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateHeap(const D3D12_HEAP_DESC *pDesc, REFIID riid, void **ppvHeap)
 {
-	return this->mOrig->CreateHeap(pDesc, riid, ppvHeap);
+	return _orig->CreateHeap(pDesc, riid, ppvHeap);
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreatePlacedResource(ID3D12Heap *pHeap, UINT64 HeapOffset, const D3D12_RESOURCE_DESC *pDesc, D3D12_RESOURCE_STATES InitialState, const D3D12_CLEAR_VALUE *pOptimizedClearValue, REFIID riid, void **ppvResource)
 {
-	return this->mOrig->CreatePlacedResource(pHeap, HeapOffset, pDesc, InitialState, pOptimizedClearValue, riid, ppvResource);
+	return _orig->CreatePlacedResource(pHeap, HeapOffset, pDesc, InitialState, pOptimizedClearValue, riid, ppvResource);
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateReservedResource(const D3D12_RESOURCE_DESC *pDesc, D3D12_RESOURCE_STATES InitialState, const D3D12_CLEAR_VALUE *pOptimizedClearValue, REFIID riid, void **ppvResource)
 {
-	return this->mOrig->CreateReservedResource(pDesc, InitialState, pOptimizedClearValue, riid, ppvResource);
+	return _orig->CreateReservedResource(pDesc, InitialState, pOptimizedClearValue, riid, ppvResource);
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateSharedHandle(ID3D12DeviceChild *pObject, const SECURITY_ATTRIBUTES *pAttributes, DWORD Access, LPCWSTR Name, HANDLE *pHandle)
 {
-	return this->mOrig->CreateSharedHandle(pObject, pAttributes, Access, Name, pHandle);
+	return _orig->CreateSharedHandle(pObject, pAttributes, Access, Name, pHandle);
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::OpenSharedHandle(HANDLE NTHandle, REFIID riid, void **ppvObj)
 {
-	return this->mOrig->OpenSharedHandle(NTHandle, riid, ppvObj);
+	return _orig->OpenSharedHandle(NTHandle, riid, ppvObj);
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::OpenSharedHandleByName(LPCWSTR Name, DWORD Access, HANDLE *pNTHandle)
 {
-	return this->mOrig->OpenSharedHandleByName(Name, Access, pNTHandle);
+	return _orig->OpenSharedHandleByName(Name, Access, pNTHandle);
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::MakeResident(UINT NumObjects, ID3D12Pageable *const *ppObjects)
 {
-	return this->mOrig->MakeResident(NumObjects, ppObjects);
+	return _orig->MakeResident(NumObjects, ppObjects);
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::Evict(UINT NumObjects, ID3D12Pageable *const *ppObjects)
 {
-	return this->mOrig->Evict(NumObjects, ppObjects);
+	return _orig->Evict(NumObjects, ppObjects);
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateFence(UINT64 InitialValue, D3D12_FENCE_FLAGS Flags, REFIID riid, void **ppFence)
 {
-	return this->mOrig->CreateFence(InitialValue, Flags, riid, ppFence);
+	return _orig->CreateFence(InitialValue, Flags, riid, ppFence);
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::GetDeviceRemovedReason()
 {
-	return this->mOrig->GetDeviceRemovedReason();
+	return _orig->GetDeviceRemovedReason();
 }
 void STDMETHODCALLTYPE D3D12Device::GetCopyableFootprints(const D3D12_RESOURCE_DESC *pResourceDesc, UINT FirstSubresource, UINT NumSubresources, UINT64 BaseOffset, D3D12_PLACED_SUBRESOURCE_FOOTPRINT *pLayouts, UINT *pNumRows, UINT64 *pRowSizeInBytes, UINT64 *pTotalBytes)
 {
-	this->mOrig->GetCopyableFootprints(pResourceDesc, FirstSubresource, NumSubresources, BaseOffset, pLayouts, pNumRows, pRowSizeInBytes, pTotalBytes);
+	_orig->GetCopyableFootprints(pResourceDesc, FirstSubresource, NumSubresources, BaseOffset, pLayouts, pNumRows, pRowSizeInBytes, pTotalBytes);
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateQueryHeap(const D3D12_QUERY_HEAP_DESC *pDesc, REFIID riid, void **ppvHeap)
 {
-	return this->mOrig->CreateQueryHeap(pDesc, riid, ppvHeap);
+	return _orig->CreateQueryHeap(pDesc, riid, ppvHeap);
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::SetStablePowerState(BOOL Enable)
 {
-	return this->mOrig->SetStablePowerState(Enable);
+	return _orig->SetStablePowerState(Enable);
 }
 HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommandSignature(const D3D12_COMMAND_SIGNATURE_DESC *pDesc, ID3D12RootSignature *pRootSignature, REFIID riid, void **ppvCommandSignature)
 {
-	return this->mOrig->CreateCommandSignature(pDesc, pRootSignature, riid, ppvCommandSignature);
+	return _orig->CreateCommandSignature(pDesc, pRootSignature, riid, ppvCommandSignature);
 }
 void STDMETHODCALLTYPE D3D12Device::GetResourceTiling(ID3D12Resource *pTiledResource, UINT *pNumTilesForEntireResource, D3D12_PACKED_MIP_INFO *pPackedMipDesc, D3D12_TILE_SHAPE *pStandardTileShapeForNonPackedMips, UINT *pNumSubresourceTilings, UINT FirstSubresourceTilingToGet, D3D12_SUBRESOURCE_TILING *pSubresourceTilingsForNonPackedMips)
 {
-	this->mOrig->GetResourceTiling(pTiledResource, pNumTilesForEntireResource, pPackedMipDesc, pStandardTileShapeForNonPackedMips, pNumSubresourceTilings, FirstSubresourceTilingToGet, pSubresourceTilingsForNonPackedMips);
+	_orig->GetResourceTiling(pTiledResource, pNumTilesForEntireResource, pPackedMipDesc, pStandardTileShapeForNonPackedMips, pNumSubresourceTilings, FirstSubresourceTilingToGet, pSubresourceTilingsForNonPackedMips);
 }
 LUID STDMETHODCALLTYPE D3D12Device::GetAdapterLuid()
 {
-	return this->mOrig->GetAdapterLuid();
+	return _orig->GetAdapterLuid();
 }
 
 // D3D12
@@ -421,7 +421,7 @@ EXPORT HRESULT WINAPI D3D12CreateDevice(IUnknown *pAdapter, D3D_FEATURE_LEVEL Mi
 
 		if (SUCCEEDED(static_cast<IUnknown *>(*ppDevice)->QueryInterface(&device)))
 		{
-			D3D12Device *const deviceProxy = new D3D12Device(device);
+			const auto deviceProxy = new D3D12Device(device);
 
 			device->Release();
 

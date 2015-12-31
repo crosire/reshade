@@ -9,15 +9,11 @@ struct __declspec(uuid("1F445F9F-9887-4C4C-9055-4E3BADAFCCA8")) DXGISwapChain;
 
 struct DXGIDevice : IDXGIDevice3
 {
-	explicit DXGIDevice(IDXGIDevice *original, D3D10Device *direct3DDevice) : mRef(1), mOrig(original), mInterfaceVersion(0), mDirect3DDevice(direct3DDevice)
+	DXGIDevice(IDXGIDevice *original, D3D10Device *direct3DDevice) : _ref(1), _orig(original), _interfaceVersion(0), _direct3dDevice(direct3DDevice)
 	{
-		assert(original != nullptr);
-		assert(direct3DDevice != nullptr);
 	}
-	explicit DXGIDevice(IDXGIDevice *original, D3D11Device *direct3DDevice) : mRef(1), mOrig(original), mInterfaceVersion(0), mDirect3DDevice(direct3DDevice)
+	DXGIDevice(IDXGIDevice *original, D3D11Device *direct3DDevice) : _ref(1), _orig(original), _interfaceVersion(0), _direct3dDevice(direct3DDevice)
 	{
-		assert(original != nullptr);
-		assert(direct3DDevice != nullptr);
 	}
 
 	#pragma region IUnknown
@@ -51,10 +47,10 @@ struct DXGIDevice : IDXGIDevice3
 	virtual void STDMETHODCALLTYPE Trim() override;
 	#pragma endregion
 
-	LONG mRef;
-	IDXGIDevice *mOrig;
-	unsigned int mInterfaceVersion;
-	IUnknown *const mDirect3DDevice;
+	LONG _ref;
+	IDXGIDevice *_orig;
+	unsigned int _interfaceVersion;
+	IUnknown *const _direct3dDevice;
 
 private:
 	DXGIDevice(const DXGIDevice &);
@@ -62,35 +58,23 @@ private:
 };
 struct DXGISwapChain : IDXGISwapChain3
 {
-	explicit DXGISwapChain(D3D10Device *device, IDXGISwapChain *original, const std::shared_ptr<ReShade::Runtime> &runtime) : mRef(1), mOrig(original), mInterfaceVersion(0), mDirect3DDevice(device), mDirect3DVersion(10), mRuntime(runtime)
+	DXGISwapChain(D3D10Device *device, IDXGISwapChain *original, const std::shared_ptr<ReShade::Runtime> &runtime) : _ref(1), _orig(original), _interfaceVersion(0), _direct3dDevice(device), _direct3dVersion(10), _runtime(runtime)
 	{
-		assert(device != nullptr);
-		assert(original != nullptr);
 	}
-	explicit DXGISwapChain(D3D11Device *device, IDXGISwapChain *original, const std::shared_ptr<ReShade::Runtime> &runtime) : mRef(1), mOrig(original), mInterfaceVersion(0), mDirect3DDevice(device), mDirect3DVersion(11), mRuntime(runtime)
+	DXGISwapChain(D3D11Device *device, IDXGISwapChain *original, const std::shared_ptr<ReShade::Runtime> &runtime) : _ref(1), _orig(original), _interfaceVersion(0), _direct3dDevice(device), _direct3dVersion(11), _runtime(runtime)
 	{
-		assert(device != nullptr);
-		assert(original != nullptr);
 	}
-	explicit DXGISwapChain(D3D12CommandQueue *device, IDXGISwapChain *original, const std::shared_ptr<ReShade::Runtime> &runtime) : mRef(1), mOrig(original), mInterfaceVersion(0), mDirect3DDevice(device), mDirect3DVersion(12), mRuntime(runtime)
+	DXGISwapChain(D3D12CommandQueue *device, IDXGISwapChain *original, const std::shared_ptr<ReShade::Runtime> &runtime) : _ref(1), _orig(original), _interfaceVersion(0), _direct3dDevice(device), _direct3dVersion(12), _runtime(runtime)
 	{
-		assert(device != nullptr);
-		assert(original != nullptr);
 	}
-	explicit DXGISwapChain(D3D10Device *device, IDXGISwapChain1 *original, const std::shared_ptr<ReShade::Runtime> &runtime) : mRef(1), mOrig(original), mInterfaceVersion(1), mDirect3DDevice(device), mDirect3DVersion(10), mRuntime(runtime)
+	DXGISwapChain(D3D10Device *device, IDXGISwapChain1 *original, const std::shared_ptr<ReShade::Runtime> &runtime) : _ref(1), _orig(original), _interfaceVersion(1), _direct3dDevice(device), _direct3dVersion(10), _runtime(runtime)
 	{
-		assert(device != nullptr);
-		assert(original != nullptr);
 	}
-	explicit DXGISwapChain(D3D11Device *device, IDXGISwapChain1 *original, const std::shared_ptr<ReShade::Runtime> &runtime) : mRef(1), mOrig(original), mInterfaceVersion(1), mDirect3DDevice(device), mDirect3DVersion(11), mRuntime(runtime)
+	DXGISwapChain(D3D11Device *device, IDXGISwapChain1 *original, const std::shared_ptr<ReShade::Runtime> &runtime) : _ref(1), _orig(original), _interfaceVersion(1), _direct3dDevice(device), _direct3dVersion(11), _runtime(runtime)
 	{
-		assert(device != nullptr);
-		assert(original != nullptr);
 	}
-	explicit DXGISwapChain(D3D12CommandQueue *device, IDXGISwapChain1 *original, const std::shared_ptr<ReShade::Runtime> &runtime) : mRef(1), mOrig(original), mInterfaceVersion(1), mDirect3DDevice(device), mDirect3DVersion(12), mRuntime(runtime)
+	DXGISwapChain(D3D12CommandQueue *device, IDXGISwapChain1 *original, const std::shared_ptr<ReShade::Runtime> &runtime) : _ref(1), _orig(original), _interfaceVersion(1), _direct3dDevice(device), _direct3dVersion(12), _runtime(runtime)
 	{
-		assert(device != nullptr);
-		assert(original != nullptr);
 	}
 
 	#pragma region IUnknown
@@ -148,12 +132,12 @@ struct DXGISwapChain : IDXGISwapChain3
 	virtual HRESULT STDMETHODCALLTYPE ResizeBuffers1(UINT BufferCount, UINT Width, UINT Height, DXGI_FORMAT Format, UINT SwapChainFlags, const UINT *pCreationNodeMask, IUnknown *const *ppPresentQueue) override;
 	#pragma endregion
 
-	LONG mRef;
-	IDXGISwapChain *mOrig;
-	unsigned int mInterfaceVersion;
-	IUnknown *const mDirect3DDevice;
-	const unsigned int mDirect3DVersion;
-	std::shared_ptr<ReShade::Runtime> mRuntime;
+	LONG _ref;
+	IDXGISwapChain *_orig;
+	unsigned int _interfaceVersion;
+	IUnknown *const _direct3dDevice;
+	const unsigned int _direct3dVersion;
+	std::shared_ptr<ReShade::Runtime> _runtime;
 
 private:
 	DXGISwapChain(const DXGISwapChain &);

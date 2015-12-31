@@ -16,39 +16,39 @@ namespace ReShade
 		WindowWatcher(HWND hwnd);
 		~WindowWatcher();
 
-		inline bool GetKeyState(UINT keycode) const
+		bool GetKeyState(UINT keycode) const
 		{
 			assert(keycode < 255);
 
-			return this->mKeys[keycode] > 0;
+			return _keys[keycode] > 0;
 		}
-		inline bool GetKeyJustPressed(UINT keycode) const
+		bool GetKeyJustPressed(UINT keycode) const
 		{
 			assert(keycode < 255);
 
-			return this->mKeys[keycode] == 1;
+			return _keys[keycode] == 1;
 		}
-		inline bool GetMouseButtonState(UINT button) const
+		bool GetMouseButtonState(UINT button) const
 		{
 			assert(button < 3);
 
-			return this->mMouseButtons[button] > 0;
+			return _mouseButtons[button] > 0;
 		}
-		inline bool GetMouseButtonJustPressed(UINT button) const
+		bool GetMouseButtonJustPressed(UINT button) const
 		{
 			assert(button < 3);
 
-			return this->mMouseButtons[button] == 1;
+			return _mouseButtons[button] == 1;
 		}
-		inline bool GetMouseButtonJustReleased(UINT button) const
+		bool GetMouseButtonJustReleased(UINT button) const
 		{
 			assert(button < 3);
 
-			return this->mMouseButtons[button] == -1;
+			return _mouseButtons[button] == -1;
 		}
-		inline const POINT &GetMousePosition() const
+		const POINT &GetMousePosition() const
 		{
-			return this->mMousePosition;
+			return _mousePosition;
 		}
 
 		void NextFrame();
@@ -56,11 +56,11 @@ namespace ReShade
 	private:
 		static LRESULT CALLBACK HookWindowProc(int nCode, WPARAM wParam, LPARAM lParam);
 
-		HWND mWnd;
-		HHOOK mHookWindowProc;
-		signed char mKeys[256];
-		POINT mMousePosition;
-		signed char mMouseButtons[3];
+		HWND _hwnd;
+		HHOOK _hookWindowProc;
+		signed char _keys[256];
+		POINT _mousePosition;
+		signed char _mouseButtons[3];
 		static std::unordered_map<HWND, HHOOK> sRawInputHooks;
 		static std::vector<std::pair<HWND, WindowWatcher *>> sWatchers;
 	};

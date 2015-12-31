@@ -7,13 +7,13 @@ namespace ReShade
 		class Framerate
 		{
 		public:
-			Framerate() : mIndex(0), mTickSum(0), mTickList()
+			Framerate() : _index(0), _tickSum(0), _tickList()
 			{
 			}
 
-			inline operator float() const
+			operator float() const
 			{
-				return this->mFramerate;
+				return _framerate;
 			}
 
 			/// <summary>
@@ -22,21 +22,21 @@ namespace ReShade
 			/// <param name="frametime">Time of last frame in nanoseconds.</param>
 			void Calculate(unsigned long long frametime)
 			{
-				this->mTickSum -= this->mTickList[this->mIndex];
-				this->mTickSum += this->mTickList[this->mIndex++] = frametime;
+				_tickSum -= _tickList[_index];
+				_tickSum += _tickList[_index++] = frametime;
 
-				if (this->mIndex == SAMPLES)
+				if (_index >= SAMPLES)
 				{
-					this->mIndex = 0;
+					_index = 0;
 				}
 
-				this->mFramerate = 1000000000.0f * SAMPLES / this->mTickSum;
+				_framerate = 1000000000.0f * SAMPLES / _tickSum;
 			}
 
 		private:
 			static const unsigned int SAMPLES = 100;
-			float mFramerate;
-			unsigned long long mIndex, mTickSum, mTickList[SAMPLES];
+			float _framerate;
+			unsigned long long _index, _tickSum, _tickList[SAMPLES];
 		};
 	}
 }

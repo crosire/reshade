@@ -195,7 +195,7 @@ EXPORT void WINAPI glBegin(GLenum mode)
 
 	if (it != sRuntimes.end())
 	{
-		it->second->mCurrentVertexCount = 0;
+		it->second->_currentVertexCount = 0;
 	}
 
 	trampoline(mode);
@@ -831,7 +831,7 @@ EXPORT void WINAPI glEnd()
 
 	if (it != sRuntimes.end())
 	{
-		it->second->OnDrawCall(it->second->mCurrentVertexCount);
+		it->second->OnDrawCall(it->second->_currentVertexCount);
 	}
 }
 EXPORT void WINAPI glEndList()
@@ -2584,7 +2584,7 @@ EXPORT void WINAPI glVertex2d(GLdouble x, GLdouble y)
 
 	if (it != sRuntimes.end())
 	{
-		it->second->mCurrentVertexCount += 2;
+		it->second->_currentVertexCount += 2;
 	}
 
 	trampoline(x, y);
@@ -2597,7 +2597,7 @@ EXPORT void WINAPI glVertex2dv(const GLdouble *v)
 
 	if (it != sRuntimes.end())
 	{
-		it->second->mCurrentVertexCount += 2;
+		it->second->_currentVertexCount += 2;
 	}
 
 	trampoline(v);
@@ -2610,7 +2610,7 @@ EXPORT void WINAPI glVertex2f(GLfloat x, GLfloat y)
 
 	if (it != sRuntimes.end())
 	{
-		it->second->mCurrentVertexCount += 2;
+		it->second->_currentVertexCount += 2;
 	}
 
 	trampoline(x, y);
@@ -2623,7 +2623,7 @@ EXPORT void WINAPI glVertex2fv(const GLfloat *v)
 
 	if (it != sRuntimes.end())
 	{
-		it->second->mCurrentVertexCount += 2;
+		it->second->_currentVertexCount += 2;
 	}
 
 	trampoline(v);
@@ -2636,7 +2636,7 @@ EXPORT void WINAPI glVertex2i(GLint x, GLint y)
 
 	if (it != sRuntimes.end())
 	{
-		it->second->mCurrentVertexCount += 2;
+		it->second->_currentVertexCount += 2;
 	}
 
 	trampoline(x, y);
@@ -2649,7 +2649,7 @@ EXPORT void WINAPI glVertex2iv(const GLint *v)
 
 	if (it != sRuntimes.end())
 	{
-		it->second->mCurrentVertexCount += 2;
+		it->second->_currentVertexCount += 2;
 	}
 
 	trampoline(v);
@@ -2662,7 +2662,7 @@ EXPORT void WINAPI glVertex2s(GLshort x, GLshort y)
 
 	if (it != sRuntimes.end())
 	{
-		it->second->mCurrentVertexCount += 2;
+		it->second->_currentVertexCount += 2;
 	}
 
 	trampoline(x, y);
@@ -2675,7 +2675,7 @@ EXPORT void WINAPI glVertex2sv(const GLshort *v)
 
 	if (it != sRuntimes.end())
 	{
-		it->second->mCurrentVertexCount += 2;
+		it->second->_currentVertexCount += 2;
 	}
 
 	trampoline(v);
@@ -2688,7 +2688,7 @@ EXPORT void WINAPI glVertex3d(GLdouble x, GLdouble y, GLdouble z)
 
 	if (it != sRuntimes.end())
 	{
-		it->second->mCurrentVertexCount += 3;
+		it->second->_currentVertexCount += 3;
 	}
 
 	trampoline(x, y, z);
@@ -2701,7 +2701,7 @@ EXPORT void WINAPI glVertex3dv(const GLdouble *v)
 
 	if (it != sRuntimes.end())
 	{
-		it->second->mCurrentVertexCount += 3;
+		it->second->_currentVertexCount += 3;
 	}
 
 	trampoline(v);
@@ -2714,7 +2714,7 @@ EXPORT void WINAPI glVertex3f(GLfloat x, GLfloat y, GLfloat z)
 
 	if (it != sRuntimes.end())
 	{
-		it->second->mCurrentVertexCount += 3;
+		it->second->_currentVertexCount += 3;
 	}
 
 	trampoline(x, y, z);
@@ -2727,7 +2727,7 @@ EXPORT void WINAPI glVertex3fv(const GLfloat *v)
 
 	if (it != sRuntimes.end())
 	{
-		it->second->mCurrentVertexCount += 3;
+		it->second->_currentVertexCount += 3;
 	}
 
 	trampoline(v);
@@ -2740,7 +2740,7 @@ EXPORT void WINAPI glVertex3i(GLint x, GLint y, GLint z)
 
 	if (it != sRuntimes.end())
 	{
-		it->second->mCurrentVertexCount += 3;
+		it->second->_currentVertexCount += 3;
 	}
 
 	trampoline(x, y, z);
@@ -2753,7 +2753,7 @@ EXPORT void WINAPI glVertex3iv(const GLint *v)
 
 	if (it != sRuntimes.end())
 	{
-		it->second->mCurrentVertexCount += 3;
+		it->second->_currentVertexCount += 3;
 	}
 
 	trampoline(v);
@@ -2766,7 +2766,7 @@ EXPORT void WINAPI glVertex3s(GLshort x, GLshort y, GLshort z)
 
 	if (it != sRuntimes.end())
 	{
-		it->second->mCurrentVertexCount += 3;
+		it->second->_currentVertexCount += 3;
 	}
 
 	trampoline(x, y, z);
@@ -2779,7 +2779,7 @@ EXPORT void WINAPI glVertex3sv(const GLshort *v)
 
 	if (it != sRuntimes.end())
 	{
-		it->second->mCurrentVertexCount += 3;
+		it->second->_currentVertexCount += 3;
 	}
 
 	trampoline(v);
@@ -2792,7 +2792,7 @@ EXPORT void WINAPI glVertex4d(GLdouble x, GLdouble y, GLdouble z, GLdouble w)
 
 	if (it != sRuntimes.end())
 	{
-		it->second->mCurrentVertexCount += 4;
+		it->second->_currentVertexCount += 4;
 	}
 
 	trampoline(x, y, z, w);
@@ -2805,7 +2805,7 @@ EXPORT void WINAPI glVertex4dv(const GLdouble *v)
 
 	if (it != sRuntimes.end())
 	{
-		it->second->mCurrentVertexCount += 4;
+		it->second->_currentVertexCount += 4;
 	}
 
 	trampoline(v);
@@ -2818,7 +2818,7 @@ EXPORT void WINAPI glVertex4f(GLfloat x, GLfloat y, GLfloat z, GLfloat w)
 
 	if (it != sRuntimes.end())
 	{
-		it->second->mCurrentVertexCount += 4;
+		it->second->_currentVertexCount += 4;
 	}
 
 	trampoline(x, y, z, w);
@@ -2831,7 +2831,7 @@ EXPORT void WINAPI glVertex4fv(const GLfloat *v)
 
 	if (it != sRuntimes.end())
 	{
-		it->second->mCurrentVertexCount += 4;
+		it->second->_currentVertexCount += 4;
 	}
 
 	trampoline(v);
@@ -2844,7 +2844,7 @@ EXPORT void WINAPI glVertex4i(GLint x, GLint y, GLint z, GLint w)
 
 	if (it != sRuntimes.end())
 	{
-		it->second->mCurrentVertexCount += 4;
+		it->second->_currentVertexCount += 4;
 	}
 
 	trampoline(x, y, z, w);
@@ -2857,7 +2857,7 @@ EXPORT void WINAPI glVertex4iv(const GLint *v)
 
 	if (it != sRuntimes.end())
 	{
-		it->second->mCurrentVertexCount += 4;
+		it->second->_currentVertexCount += 4;
 	}
 
 	trampoline(v);
@@ -2870,7 +2870,7 @@ EXPORT void WINAPI glVertex4s(GLshort x, GLshort y, GLshort z, GLshort w)
 
 	if (it != sRuntimes.end())
 	{
-		it->second->mCurrentVertexCount += 4;
+		it->second->_currentVertexCount += 4;
 	}
 
 	trampoline(x, y, z, w);
@@ -2883,7 +2883,7 @@ EXPORT void WINAPI glVertex4sv(const GLshort *v)
 
 	if (it != sRuntimes.end())
 	{
-		it->second->mCurrentVertexCount += 4;
+		it->second->_currentVertexCount += 4;
 	}
 
 	trampoline(v);
@@ -3536,7 +3536,7 @@ EXPORT BOOL WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 	{
 		const auto it = sRuntimes.find(hdcPrevious);
 
-		if (it != sRuntimes.end() && --it->second->mReferenceCount == 0 && !isPbufferDeviceContext)
+		if (it != sRuntimes.end() && --it->second->_referenceCount == 0 && !isPbufferDeviceContext)
 		{
 			LOG(INFO) << "> Cleaning up runtime " << it->second << " ...";
 
@@ -3562,7 +3562,7 @@ EXPORT BOOL WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 
 	if (it != sRuntimes.end())
 	{
-		it->second->mReferenceCount++;
+		it->second->_referenceCount++;
 
 		LOG(INFO) << "> Switched to existing runtime " << it->second << ".";
 	}

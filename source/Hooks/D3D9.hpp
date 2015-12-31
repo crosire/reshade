@@ -7,13 +7,11 @@ struct __declspec(uuid("BC52FCE4-1EAC-40C8-84CF-863600BBAA01")) Direct3DSwapChai
 
 struct Direct3DDevice9 : IDirect3DDevice9Ex
 {
-	explicit Direct3DDevice9(IDirect3DDevice9 *original) : mRef(1), mOrig(original), mInterfaceVersion(0), mImplicitSwapChain(nullptr), mAutoDepthStencil(nullptr), mUseSoftwareRendering(false)
+	explicit Direct3DDevice9(IDirect3DDevice9 *original) : _ref(1), _orig(original), _interfaceVersion(0), _implicitSwapChain(nullptr), _autoDepthStencil(nullptr), _useSoftwareRendering(false)
 	{
-		assert(original != nullptr);
 	}
-	explicit Direct3DDevice9(IDirect3DDevice9Ex *original) : mRef(1), mOrig(original), mInterfaceVersion(1), mImplicitSwapChain(nullptr), mAutoDepthStencil(nullptr), mUseSoftwareRendering(false)
+	explicit Direct3DDevice9(IDirect3DDevice9Ex *original) : _ref(1), _orig(original), _interfaceVersion(1), _implicitSwapChain(nullptr), _autoDepthStencil(nullptr), _useSoftwareRendering(false)
 	{
-		assert(original != nullptr);
 	}
 
 	#pragma region IUnknown
@@ -157,13 +155,13 @@ struct Direct3DDevice9 : IDirect3DDevice9Ex
 	virtual HRESULT STDMETHODCALLTYPE GetDisplayModeEx(UINT iSwapChain, D3DDISPLAYMODEEX *pMode, D3DDISPLAYROTATION *pRotation) override;
 	#pragma endregion
 
-	LONG mRef;
-	IDirect3DDevice9 *mOrig;
-	unsigned int mInterfaceVersion;
-	Direct3DSwapChain9 *mImplicitSwapChain;
-	std::vector<Direct3DSwapChain9 *> mAdditionalSwapChains;
-	IDirect3DSurface9 *mAutoDepthStencil;
-	bool mUseSoftwareRendering;
+	LONG _ref;
+	IDirect3DDevice9 *_orig;
+	unsigned int _interfaceVersion;
+	Direct3DSwapChain9 *_implicitSwapChain;
+	std::vector<Direct3DSwapChain9 *> _additionalSwapChains;
+	IDirect3DSurface9 *_autoDepthStencil;
+	bool _useSoftwareRendering;
 
 private:
 	Direct3DDevice9(const Direct3DDevice9 &);
@@ -171,15 +169,11 @@ private:
 };
 struct Direct3DSwapChain9 : IDirect3DSwapChain9Ex
 {
-	explicit Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapChain9 *original, const std::shared_ptr<ReShade::Runtimes::D3D9Runtime> &runtime) : mRef(1), mOrig(original), mInterfaceVersion(0), mDevice(device), mRuntime(runtime)
+	Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapChain9 *original, const std::shared_ptr<ReShade::Runtimes::D3D9Runtime> &runtime) : _ref(1), _orig(original), _interfaceVersion(0), _device(device), _runtime(runtime)
 	{
-		assert(device != nullptr);
-		assert(original != nullptr);
 	}
-	explicit Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapChain9Ex *original, const std::shared_ptr<ReShade::Runtimes::D3D9Runtime> &runtime) : mRef(1), mOrig(original), mInterfaceVersion(1), mDevice(device), mRuntime(runtime)
+	Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapChain9Ex *original, const std::shared_ptr<ReShade::Runtimes::D3D9Runtime> &runtime) : _ref(1), _orig(original), _interfaceVersion(1), _device(device), _runtime(runtime)
 	{
-		assert(device != nullptr);
-		assert(original != nullptr);
 	}
 
 	#pragma region IUnknown
@@ -202,11 +196,11 @@ struct Direct3DSwapChain9 : IDirect3DSwapChain9Ex
 	virtual HRESULT STDMETHODCALLTYPE GetDisplayModeEx(D3DDISPLAYMODEEX *pMode, D3DDISPLAYROTATION *pRotation) override;
 	#pragma endregion
 
-	LONG mRef;
-	IDirect3DSwapChain9 *mOrig;
-	unsigned int mInterfaceVersion;
-	Direct3DDevice9 *const mDevice;
-	std::shared_ptr<ReShade::Runtimes::D3D9Runtime> mRuntime;
+	LONG _ref;
+	IDirect3DSwapChain9 *_orig;
+	unsigned int _interfaceVersion;
+	Direct3DDevice9 *const _device;
+	std::shared_ptr<ReShade::Runtimes::D3D9Runtime> _runtime;
 
 private:
 	Direct3DSwapChain9(const Direct3DSwapChain9 &);

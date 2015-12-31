@@ -7,9 +7,8 @@ struct __declspec(uuid("2C576D2A-0C1C-4D1D-AD7C-BC4FAEC15ABC")) D3D12CommandQueu
 
 struct D3D12Device : ID3D12Device
 {
-	explicit D3D12Device(ID3D12Device *original) : mRef(1), mOrig(original)
+	explicit D3D12Device(ID3D12Device *original) : _ref(1), _orig(original)
 	{
-		assert(original != nullptr);
 	}
 
 	#pragma region IUnknown
@@ -63,8 +62,8 @@ struct D3D12Device : ID3D12Device
 	virtual LUID STDMETHODCALLTYPE GetAdapterLuid() override;
 	#pragma endregion
 
-	LONG mRef;
-	ID3D12Device *const mOrig;
+	LONG _ref;
+	ID3D12Device *const _orig;
 
 private:
 	D3D12Device(const D3D12Device &);
@@ -72,10 +71,8 @@ private:
 };
 struct D3D12CommandQueue : ID3D12CommandQueue
 {
-	explicit D3D12CommandQueue(D3D12Device *device, ID3D12CommandQueue *original) : mRef(1), mDevice(device), mOrig(original)
+	D3D12CommandQueue(D3D12Device *device, ID3D12CommandQueue *original) : _ref(1), _device(device), _orig(original)
 	{
-		assert(device != nullptr);
-		assert(original != nullptr);
 	}
 
 	#pragma region IUnknown
@@ -106,9 +103,9 @@ struct D3D12CommandQueue : ID3D12CommandQueue
 	virtual D3D12_COMMAND_QUEUE_DESC STDMETHODCALLTYPE GetDesc() override;
 	#pragma endregion
 
-	ULONG mRef;
-	D3D12Device *const mDevice;
-	ID3D12CommandQueue *const mOrig;
+	ULONG _ref;
+	D3D12Device *const _device;
+	ID3D12CommandQueue *const _orig;
 
 private:
 	D3D12CommandQueue(const D3D12CommandQueue &);

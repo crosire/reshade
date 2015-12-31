@@ -26,9 +26,9 @@ namespace ReShade
 			bool UpdateEffect(const FX::NodeTree &ast, const std::vector<std::string> &pragmas, std::string &errors) override;
 			bool UpdateTexture(Texture *texture, const unsigned char *data, size_t size) override;
 
-			ID3D12Device *mDevice;
-			ID3D12CommandQueue *mCommandQueue;
-			IDXGISwapChain3 *mSwapChain;
+			ID3D12Device *_device;
+			ID3D12CommandQueue *_commandQueue;
+			IDXGISwapChain3 *_swapchain;
 		};
 	}
 }

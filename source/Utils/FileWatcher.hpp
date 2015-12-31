@@ -18,11 +18,11 @@ public:
 	bool GetModifications(std::vector<boost::filesystem::path> &modifications, DWORD timeout = 0);
 
 private:
-	boost::filesystem::path mPath;
-	bool mSubTree;
-	DWORD mBufferSize;
-	std::unique_ptr<unsigned char[]> mBuffer;
-	HANDLE mFileHandle;
-	HANDLE mFileCompletionPortHandle;
-	OVERLAPPED mOverlapped;
+	boost::filesystem::path _path;
+	bool _subTree;
+	DWORD _bufferSize;
+	std::unique_ptr<unsigned char[]> _buffer;
+	HANDLE _fileHandle;
+	HANDLE _fileCompletionPortHandle;
+	OVERLAPPED _overlapped;
 };

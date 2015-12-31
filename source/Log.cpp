@@ -7,33 +7,37 @@ namespace ReShade
 	Log::Level Log::sMaxLevel = Level::Info;
 	std::ofstream Log::sFileStream;
 
-	Log::Message::Message(Level level) : mDispatch(level <= sMaxLevel && sFileStream.is_open())
+	Log::Message::Message(Level level) : _dispatch(level <= sMaxLevel && sFileStream.is_open())
 	{
-		if (this->mDispatch)
+		if (!_dispatch)
 		{
-			SYSTEMTIME time;
-			GetLocalTime(&time);
-
-			const char levelNames[][6] = { "FATAL", "ERROR", "WARN ", "INFO ", "TRACE" };
-
-			sFileStream << std::right << std::setfill('0')
-				<< std::setw(2) << time.wDay << '/'
-				<< std::setw(2) << time.wMonth << '/'
-				<< std::setw(4) << time.wYear << ' '
-				<< std::setw(2) << time.wHour << ':'
-				<< std::setw(2) << time.wMinute << ':'
-				<< std::setw(2) << time.wSecond << ':'
-				<< std::setw(3) << time.wMilliseconds << ' '
-				<< '[' << std::setw(5) << GetCurrentThreadId() << ']' << std::setfill(' ')
-				<< " | " << levelNames[static_cast<unsigned int>(level)] << " | " << std::left;
+			return;
 		}
+
+		SYSTEMTIME time;
+		GetLocalTime(&time);
+
+		const char levelNames[][6] = { "FATAL", "ERROR", "WARN ", "INFO ", "TRACE" };
+
+		sFileStream << std::right << std::setfill('0')
+			<< std::setw(2) << time.wDay << '/'
+			<< std::setw(2) << time.wMonth << '/'
+			<< std::setw(4) << time.wYear << ' '
+			<< std::setw(2) << time.wHour << ':'
+			<< std::setw(2) << time.wMinute << ':'
+			<< std::setw(2) << time.wSecond << ':'
+			<< std::setw(3) << time.wMilliseconds << ' '
+			<< '[' << std::setw(5) << GetCurrentThreadId() << ']' << std::setfill(' ')
+			<< " | " << levelNames[static_cast<unsigned int>(level)] << " | " << std::left;
 	}
 	Log::Message::~Message()
 	{
-		if (this->mDispatch)
+		if (!_dispatch)
 		{
-			sFileStream << std::endl;
+			return;
 		}
+
+		sFileStream << std::endl;
 	}
 
 	bool Log::Open(const boost::filesystem::path &path, Level maxlevel)

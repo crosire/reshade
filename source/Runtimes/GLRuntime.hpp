@@ -23,45 +23,45 @@ namespace ReShade
 			void OnApplyEffectTechnique(const Technique *technique) override;
 			void OnFramebufferAttachment(GLenum target, GLenum attachment, GLenum objecttarget, GLuint object, GLint level);
 
-			inline Texture *GetTexture(const std::string &name) const
+			Texture *GetTexture(const std::string &name) const
 			{
-				const auto it = std::find_if(this->mTextures.cbegin(), this->mTextures.cend(), [name](const std::unique_ptr<Texture> &it) { return it->Name == name; });
+				const auto it = std::find_if(_textures.cbegin(), _textures.cend(), [name](const std::unique_ptr<Texture> &it) { return it->Name == name; });
 
-				return it != this->mTextures.cend() ? it->get() : nullptr;
+				return it != _textures.cend() ? it->get() : nullptr;
 			}
-			inline void EnlargeConstantStorage()
+			void EnlargeConstantStorage()
 			{
-				this->mUniformDataStorage.resize(this->mUniformDataStorage.size() + 128);
+				_uniformDataStorage.resize(_uniformDataStorage.size() + 128);
 			}
-			inline unsigned char *GetConstantStorage()
+			unsigned char *GetConstantStorage()
 			{
-				return this->mUniformDataStorage.data();
+				return _uniformDataStorage.data();
 			}
-			inline size_t GetConstantStorageSize() const
+			size_t GetConstantStorageSize() const
 			{
-				return this->mUniformDataStorage.size();
+				return _uniformDataStorage.size();
 			}
-			inline void AddTexture(Texture *texture)
+			void AddTexture(Texture *texture)
 			{
-				this->mTextures.push_back(std::unique_ptr<Texture>(texture));
+				_textures.push_back(std::unique_ptr<Texture>(texture));
 			}
-			inline void AddConstant(Uniform *constant)
+			void AddConstant(Uniform *constant)
 			{
-				this->mUniforms.push_back(std::unique_ptr<Uniform>(constant));
+				_uniforms.push_back(std::unique_ptr<Uniform>(constant));
 			}
-			inline void AddTechnique(Technique *technique)
+			void AddTechnique(Technique *technique)
 			{
-				this->mTechniques.push_back(std::unique_ptr<Technique>(technique));
+				_techniques.push_back(std::unique_ptr<Technique>(technique));
 			}
 
-			HDC mDeviceContext;
-			HGLRC mRenderContext;
+			HDC _hdc;
+			HGLRC _hglrc;
 
-			GLuint mReferenceCount, mCurrentVertexCount;
-			GLuint mDefaultBackBufferFBO, mDefaultBackBufferRBO[2], mBackBufferTexture[2];
-			GLuint mDepthSourceFBO, mDepthSource, mDepthTexture, mBlitFBO;
-			std::vector<struct GLSampler> mEffectSamplers;
-			GLuint mDefaultVAO, mDefaultVBO, mEffectUBO;
+			GLuint _referenceCount, _currentVertexCount;
+			GLuint _defaultBackBufferFBO, _defaultBackBufferRBO[2], _backbufferTexture[2];
+			GLuint _depthSourceFBO, _depthSource, _depthTexture, _blitFBO;
+			std::vector<struct GLSampler> _effectSamplers;
+			GLuint _defaultVAO, _defaultVBO, _effectUBO;
 
 		private:
 			struct DepthSourceInfo
@@ -77,8 +77,8 @@ namespace ReShade
 			void DetectDepthSource();
 			void CreateDepthTexture(GLuint width, GLuint height, GLenum format);
 
-			std::unique_ptr<class GLStateBlock> mStateBlock;
-			std::unordered_map<GLuint, DepthSourceInfo> mDepthSourceTable;
+			std::unique_ptr<class GLStateBlock> _stateBlock;
+			std::unordered_map<GLuint, DepthSourceInfo> _depthSourceTable;
 		};
 	}
 }

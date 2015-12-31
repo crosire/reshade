@@ -80,7 +80,7 @@ namespace ReShade
 			template <typename T>
 			T *CreateNode(const Location &location)
 			{
-				T *const node = this->mMemoryPool.Add<T>();
+				T *const node = _pool.Add<T>();
 				node->Location = location;
 
 				return node;
@@ -101,13 +101,13 @@ namespace ReShade
 				T *Add()
 				{
 					const size_t size = sizeof(Node) + sizeof(T);
-					std::list<Page>::iterator page = std::find_if(this->mPages.begin(), this->mPages.end(), [size](const Page &page) { return page.Cursor + size < page.Nodes.size(); });
+					std::list<Page>::iterator page = std::find_if(_pages.begin(), _pages.end(), [size](const Page &page) { return page.Cursor + size < page.Nodes.size(); });
 
-					if (page == this->mPages.end())
+					if (page == _pages.end())
 					{
-						this->mPages.push_back(Page(std::max(static_cast<size_t>(4096), size)));
+						_pages.push_back(Page(std::max(static_cast<size_t>(4096), size)));
 
-						page = std::prev(this->mPages.end());
+						page = std::prev(_pages.end());
 					}
 
 					Node *node = new (&page->Nodes.at(page->Cursor)) Node;
@@ -121,14 +121,14 @@ namespace ReShade
 				}
 				void Cleanup()
 				{
-					for (Page &page : this->mPages)
+					for (Page &page : _pages)
 					{
 						Node *node = reinterpret_cast<Node *>(&page.Nodes.front());
 
 						do
 						{
 							node->Destructor(node->Data);
-							node = reinterpret_cast<Node *>(reinterpret_cast<unsigned char *>(node)+node->Size);
+							node = reinterpret_cast<Node *>(reinterpret_cast<unsigned char *>(node) + node->Size);
 						}
 						while (node->Size > 0 && (page.Cursor -= node->Size) > 0);
 					}
@@ -157,10 +157,10 @@ namespace ReShade
 					unsigned char Data[1];
 				};
 
-				std::list<Page> mPages;
+				std::list<Page> _pages;
 			};
 
-			MemoryPool mMemoryPool;
+			MemoryPool _pool;
 		};
 
 		namespace Nodes
@@ -207,15 +207,15 @@ namespace ReShade
 
 				inline bool IsArray() const
 				{
-					return this->ArrayLength != 0;
+					return ArrayLength != 0;
 				}
 				inline bool IsMatrix() const
 				{
-					return this->Rows >= 1 && this->Cols > 1;
+					return Rows >= 1 && Cols > 1;
 				}
 				inline bool IsVector() const
 				{
-					return this->Rows > 1 && !IsMatrix();
+					return Rows > 1 && !IsMatrix();
 				}
 				inline bool IsScalar() const
 				{
@@ -227,35 +227,35 @@ namespace ReShade
 				}
 				inline bool IsVoid() const
 				{
-					return this->BaseClass == Class::Void;
+					return BaseClass == Class::Void;
 				}
 				inline bool IsBoolean() const
 				{
-					return this->BaseClass == Class::Bool;
+					return BaseClass == Class::Bool;
 				}
 				inline bool IsIntegral() const
 				{
-					return this->BaseClass == Class::Int || this->BaseClass == Class::Uint;
+					return BaseClass == Class::Int || BaseClass == Class::Uint;
 				}
 				inline bool IsFloatingPoint() const
 				{
-					return this->BaseClass == Class::Float;
+					return BaseClass == Class::Float;
 				}
 				inline bool IsTexture() const
 				{
-					return this->BaseClass >= Class::Texture1D && this->BaseClass <= Class::Texture2D;
+					return BaseClass >= Class::Texture1D && BaseClass <= Class::Texture2D;
 				}
 				inline bool IsSampler() const
 				{
-					return this->BaseClass >= Class::Sampler1D && this->BaseClass <= Class::Sampler3D;
+					return BaseClass >= Class::Sampler1D && BaseClass <= Class::Sampler3D;
 				}
 				inline bool IsStruct() const
 				{
-					return this->BaseClass == Class::Struct;
+					return BaseClass == Class::Struct;
 				}
 				inline bool HasQualifier(Qualifier qualifier) const
 				{
-					return (this->Qualifiers & static_cast<unsigned int>(qualifier)) == static_cast<unsigned int>(qualifier);
+					return (Qualifiers & static_cast<unsigned int>(qualifier)) == static_cast<unsigned int>(qualifier);
 				}
 
 				Class BaseClass;
@@ -316,7 +316,7 @@ namespace ReShade
 
 				Literal() : Expression(Id::Literal)
 				{
-					memset(&this->Value, 0, sizeof(Value));
+					memset(&Value, 0, sizeof(Value));
 				}
 			};
 			struct Unary : public Expression
@@ -527,7 +527,7 @@ namespace ReShade
 
 				Swizzle() : Expression(Id::Swizzle), Operand(nullptr)
 				{
-					this->Mask[0] = this->Mask[1] = this->Mask[2] = this->Mask[3] = -1;
+					Mask[0] = Mask[1] = Mask[2] = Mask[3] = -1;
 				}
 			};
 			struct FieldSelection : public Expression

@@ -19,9 +19,9 @@ namespace ReShade
 		GUI(const Runtime *runtime, NVGcontext *context);
 		~GUI();
 
-		inline NVGcontext *GetContext() const
+		NVGcontext *GetContext() const
 		{
-			return this->mNVG;
+			return _nvg;
 		}
 
 		bool BeginFrame();
@@ -41,8 +41,8 @@ namespace ReShade
 		void AddVerticalSpace(float height);
 
 	private:
-		const Runtime *mRuntime;
-		NVGcontext *mNVG;
-		float mWindowX, mWindowY, mWindowWidth, mWindowHeight;
+		const Runtime *_runtime;
+		NVGcontext *_nvg;
+		float _windowX, _windowY, _windowWidth, _windowHeight;
 	};
 }
