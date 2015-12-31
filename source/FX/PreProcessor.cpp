@@ -11,37 +11,37 @@ namespace ReShade
 	{
 		struct PreProcessor::Impl
 		{
-			static void OnOutput(PreProcessor *pp, char ch)
+			static void OnOutput(Impl *impl, char ch)
 			{
-				if (pp->_impl->_lastPragma != std::string::npos)
+				if (impl->_lastPragma != std::string::npos)
 				{
 					if (ch == '\n')
 					{
-						std::string pragma = pp->_impl->_output.substr(pp->_impl->_lastPragma);
+						std::string pragma = impl->_output.substr(impl->_lastPragma);
 						boost::algorithm::trim(pragma);
 
-						pp->_impl->_pragmas.push_back(pragma);
-						pp->_impl->_lastPragma = std::string::npos;
+						impl->_pragmas.push_back(pragma);
+						impl->_lastPragma = std::string::npos;
 					}
 				}
 				else
 				{
-					const size_t length = pp->_impl->_output.size();
+					const size_t length = impl->_output.size();
 
-					if (length > 7 && pp->_impl->_output.substr(length - 7) == "#pragma")
+					if (length > 7 && impl->_output.substr(length - 7) == "#pragma")
 					{
-						pp->_impl->_lastPragma = length;
+						impl->_lastPragma = length;
 					}
 				}
 
-				pp->_impl->_output += ch;
+				impl->_output += ch;
 			}
-			static void OnPrintError(PreProcessor *pp, const char *format, va_list args)
+			static void OnPrintError(Impl *impl, const char *format, va_list args)
 			{
 				char buffer[1024];
 				vsprintf_s(buffer, format, args);
 
-				pp->_impl->_errors += buffer;
+				impl->_errors += buffer;
 			}
 
 			std::vector<fppTag> _tags;
@@ -58,7 +58,7 @@ namespace ReShade
 
 			_impl->_tags.resize(7);
 			_impl->_tags[0].tag = FPPTAG_USERDATA;
-			_impl->_tags[0].data = static_cast<void *>(this);
+			_impl->_tags[0].data = static_cast<void *>(_impl.get());
 			_impl->_tags[1].tag = FPPTAG_OUTPUT;
 			_impl->_tags[1].data = reinterpret_cast<void *>(&Impl::OnOutput);
 			_impl->_tags[2].tag = FPPTAG_ERROR;
