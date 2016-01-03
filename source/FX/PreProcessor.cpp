@@ -2,6 +2,7 @@
 
 #include <fpp.h>
 #include <array>
+#include <memory>
 #include <boost\algorithm\string\trim.hpp>
 #include <boost\filesystem\operations.hpp>
 
@@ -9,9 +10,9 @@ namespace ReShade
 {
 	namespace FX
 	{
-		struct PreProcessor::Impl
+		struct preprocess_data
 		{
-			static void OnOutput(Impl *impl, char ch)
+			static void OnOutput(preprocess_data *impl, char ch)
 			{
 				if (impl->_lastPragma != std::string::npos)
 				{
@@ -36,7 +37,7 @@ namespace ReShade
 
 				impl->_output += ch;
 			}
-			static void OnPrintError(Impl *impl, const char *format, va_list args)
+			static void OnPrintError(preprocess_data *impl, const char *format, va_list args)
 			{
 				char buffer[1024];
 				vsprintf_s(buffer, format, args);
@@ -51,105 +52,97 @@ namespace ReShade
 			std::array<char, 16384> _scratch;
 		};
 
-		PreProcessor::PreProcessor() : _impl(new Impl())
+		bool preprocess(const boost::filesystem::path &path, const std::vector<std::pair<std::string, std::string>> &macros, std::vector<boost::filesystem::path> &include_paths, std::vector<std::string> &pragmas, std::string &output, std::string &errors)
 		{
-			_impl->_scratchCursor = 0;
-			_impl->_lastPragma = std::string::npos;
+			const std::string path_string = path.string();
+			std::unique_ptr<preprocess_data> data(new preprocess_data());
 
-			_impl->_tags.resize(7);
-			_impl->_tags[0].tag = FPPTAG_USERDATA;
-			_impl->_tags[0].data = static_cast<void *>(_impl.get());
-			_impl->_tags[1].tag = FPPTAG_OUTPUT;
-			_impl->_tags[1].data = reinterpret_cast<void *>(&Impl::OnOutput);
-			_impl->_tags[2].tag = FPPTAG_ERROR;
-			_impl->_tags[2].data = reinterpret_cast<void *>(&Impl::OnPrintError);
-			_impl->_tags[3].tag = FPPTAG_IGNOREVERSION;
-			_impl->_tags[3].data = reinterpret_cast<void *>(true);
-			_impl->_tags[4].tag = FPPTAG_OUTPUTLINE;
-			_impl->_tags[4].data = reinterpret_cast<void *>(true);
-			_impl->_tags[5].tag = FPPTAG_OUTPUTSPACE;
-			_impl->_tags[5].data = reinterpret_cast<void *>(true);
-			_impl->_tags[6].tag = FPPTAG_OUTPUTINCLUDES;
-			_impl->_tags[6].data = reinterpret_cast<void *>(true);
-		}
-		PreProcessor::~PreProcessor()
-		{
-		}
+			data->_scratchCursor = 0;
+			data->_lastPragma = std::string::npos;
 
-		void PreProcessor::AddDefine(const std::string &name, const std::string &value)
-		{
-			const std::string define = name + (value.empty() ? "" : "=" + value);
-			const size_t size = define.length() + 1;
-
-			assert(_impl->_scratchCursor + size < _impl->_scratch.size());
+			data->_tags.resize(8);
+			data->_tags[0].tag = FPPTAG_USERDATA;
+			data->_tags[0].data = static_cast<void *>(data.get());
+			data->_tags[1].tag = FPPTAG_OUTPUT;
+			data->_tags[1].data = reinterpret_cast<void *>(&preprocess_data::OnOutput);
+			data->_tags[2].tag = FPPTAG_ERROR;
+			data->_tags[2].data = reinterpret_cast<void *>(&preprocess_data::OnPrintError);
+			data->_tags[3].tag = FPPTAG_IGNOREVERSION;
+			data->_tags[3].data = reinterpret_cast<void *>(true);
+			data->_tags[4].tag = FPPTAG_OUTPUTLINE;
+			data->_tags[4].data = reinterpret_cast<void *>(true);
+			data->_tags[5].tag = FPPTAG_OUTPUTSPACE;
+			data->_tags[5].data = reinterpret_cast<void *>(true);
+			data->_tags[6].tag = FPPTAG_OUTPUTINCLUDES;
+			data->_tags[6].data = reinterpret_cast<void *>(true);
+			data->_tags[7].tag = FPPTAG_INPUT_NAME;
+			data->_tags[7].data = const_cast<void *>(static_cast<const void *>(path_string.c_str()));
 
 			fppTag tag;
-			tag.tag = FPPTAG_DEFINE;
-			tag.data = std::memcpy(_impl->_scratch.data() + _impl->_scratchCursor, define.c_str(), size);
-			_impl->_tags.push_back(tag);
-			_impl->_scratchCursor += size;
-		}
-		void PreProcessor::AddIncludePath(const boost::filesystem::path &path)
-		{
-			const std::string directory = path.string() + '\\';
-			const size_t size = directory.length() + 1;
 
-			assert(_impl->_scratchCursor + size < _impl->_scratch.size());
+			for (const auto &macro : macros)
+			{
+				const auto define = macro.first + (macro.second.empty() ? "" : "=" + macro.second);
+				const size_t size = define.size() + 1;
 
-			fppTag tag;
-			tag.tag = FPPTAG_INCLUDE_DIR;
-			tag.data = std::memcpy(_impl->_scratch.data() + _impl->_scratchCursor, directory.c_str(), size);
-			_impl->_tags.push_back(tag);
-			_impl->_scratchCursor += size;
-		}
+				assert(data->_scratchCursor + size < data->_scratch.size());
 
-		std::string PreProcessor::Run(const boost::filesystem::path &path, std::string &errors, std::vector<std::string> &pragmas, std::vector<boost::filesystem::path> &includes)
-		{
-			_impl->_output.clear();
-			_impl->_errors.clear();
+				tag.tag = FPPTAG_DEFINE;
+				tag.data = std::memcpy(data->_scratch.data() + data->_scratchCursor, define.c_str(), size);
+				data->_tags.push_back(tag);
+				data->_scratchCursor += size;
+			}
+			for (const auto &include_path : include_paths)
+			{
+				const auto directory = include_path.string() + '\\';
+				const size_t size = directory.size() + 1;
 
-			fppTag tag;
-			std::vector<fppTag> tags = _impl->_tags;
-			const std::string name = path.string();
+				assert(data->_scratchCursor + size < data->_scratch.size());
 
-			tag.tag = FPPTAG_INPUT_NAME;
-			tag.data = const_cast<void *>(static_cast<const void *>(name.c_str()));
-			tags.push_back(tag);
+				tag.tag = FPPTAG_INCLUDE_DIR;
+				tag.data = std::memcpy(data->_scratch.data() + data->_scratchCursor, directory.c_str(), size);
+				data->_tags.push_back(tag);
+				data->_scratchCursor += size;
+			}
 
 			tag.tag = FPPTAG_END;
 			tag.data = nullptr;
-			tags.push_back(tag);
+			data->_tags.push_back(tag);
 
 			// Run preprocessor
-			const bool success = fppPreProcess(tags.data()) == 0;
+			const bool success = fppPreProcess(data->_tags.data()) == 0;
 
 			// Add pragmas
-			pragmas.insert(pragmas.end(), _impl->_pragmas.begin(), _impl->_pragmas.end());
+			pragmas = data->_pragmas;
 
 			// Add included files
+			include_paths.clear();
+
 			size_t pos = 0;
 
-			while ((pos = _impl->_errors.find("Included", pos)) != std::string::npos)
+			while ((pos = data->_errors.find("Included", pos)) != std::string::npos)
 			{
-				const size_t begin = _impl->_errors.find_first_of('"', pos) + 1, end = _impl->_errors.find_first_of('"', begin);
-				const boost::filesystem::path include = boost::filesystem::canonical(_impl->_errors.substr(begin, end - begin)).make_preferred();
+				const size_t begin = data->_errors.find_first_of('"', pos) + 1, end = data->_errors.find_first_of('"', begin);
+				const auto include_path = boost::filesystem::canonical(data->_errors.substr(begin, end - begin)).make_preferred();
 
-				_impl->_errors.erase(pos, 12 + end - begin);
-				includes.push_back(include);
+				data->_errors.erase(pos, 12 + end - begin);
+				include_paths.push_back(include_path);
 			}
 
-			std::sort(includes.begin(), includes.end());
-			includes.erase(std::unique(includes.begin(), includes.end()), includes.end());
+			std::sort(include_paths.begin(), include_paths.end());
+			include_paths.erase(std::unique(include_paths.begin(), include_paths.end()), include_paths.end());
 
 			// Return preprocessed source
 			if (!success)
 			{
-				errors += _impl->_errors;
+				errors += data->_errors;
 
-				_impl->_output.clear();
+				data->_output.clear();
 			}
 
-			return _impl->_output;
+			output = data->_output;
+
+			return success;
 		}
 	}
 }

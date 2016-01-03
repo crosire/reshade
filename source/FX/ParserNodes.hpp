@@ -1,6 +1,6 @@
 #pragma once
 
-#include <string>
+#include "Lexer.hpp"
 #include <vector>
 #include <list>
 #include <algorithm>
@@ -9,99 +9,86 @@ namespace ReShade
 {
 	namespace FX
 	{
-		struct Location
+		enum class nodeid
 		{
-			explicit Location(unsigned int line = 1, unsigned int column = 1) : Line(line), Column(column)
-			{
-			}
-			explicit Location(const std::string &source, unsigned int line = 1, unsigned int column = 1) : Source(source), Line(line), Column(column)
-			{
-			}
+			unknown,
 
-			std::string Source;
-			unsigned int Line, Column;
+			LValue,
+			Literal,
+			Unary,
+			Binary,
+			Intrinsic,
+			Conditional,
+			Assignment,
+			Sequence,
+			Call,
+			Constructor,
+			Swizzle,
+			FieldSelection,
+			InitializerList,
+
+			Compound,
+			DeclaratorList,
+			ExpressionStatement,
+			If,
+			Switch,
+			Case,
+			For,
+			While,
+			Return,
+			Jump,
+
+			Annotation,
+			Variable,
+			Struct,
+			Function,
+			Pass,
+			Technique
 		};
-		class Node abstract
+		class node abstract
 		{
-			void operator=(const Node &);
+			void operator=(const node &);
 
 		public:
-			enum class Id
-			{
-				Unknown,
-
-				LValue,
-				Literal,
-				Unary,
-				Binary,
-				Intrinsic,
-				Conditional,
-				Assignment,
-				Sequence,
-				Call,
-				Constructor,
-				Swizzle,
-				FieldSelection,
-				InitializerList,
-
-				Compound,
-				DeclaratorList,
-				ExpressionStatement,
-				If,
-				Switch,
-				Case,
-				For,
-				While,
-				Return,
-				Jump,
-
-				Annotation,
-				Variable,
-				Struct,
-				Function,
-				Pass,
-				Technique
-			};
-			
-			const Id NodeId;
-			Location Location;
+			const nodeid id;
+			location location;
 			
 		protected:
-			explicit Node(Id id) : NodeId(id), Location()
+			explicit node(nodeid id) : id(id), location()
 			{
 			}
 		};
-		class NodeTree
+		class nodetree
 		{
 		public:
 			template <typename T>
-			T *CreateNode(const Location &location)
+			T *make_node(const location &location)
 			{
-				const auto node = _pool.Add<T>();
-				node->Location = location;
+				const auto node = _pool.add<T>();
+				node->location = location;
 
 				return node;
 			}
 
-			std::vector<Node *> Structs, Uniforms, Functions, Techniques;
+			std::vector<node *> structs, uniforms, functions, techniques;
 
 		private:
-			class MemoryPool
+			class memory_pool
 			{
 			public:
-				~MemoryPool()
+				~memory_pool()
 				{
-					Cleanup();
+					clear();
 				}
 
 				template <typename T>
-				T *Add()
+				T *add()
 				{
-					auto size = sizeof(NodeInfo) - sizeof(Node) + sizeof(T);
+					auto size = sizeof(nodeinfo) - sizeof(node) + sizeof(T);
 					auto page = std::find_if(_pages.begin(), _pages.end(),
-						[size](const Page &page)
+						[size](const struct page &page)
 						{
-							return page.Cursor + size < page.Nodes.size();
+							return page.cursor + size < page.memory.size();
 						});
 
 					if (page == _pages.end())
@@ -111,48 +98,48 @@ namespace ReShade
 						page = std::prev(_pages.end());
 					}
 
-					const auto node = new (&page->Nodes.at(page->Cursor)) NodeInfo;
-					const auto nodeData = new (&node->Data) T();
-					node->Size = size;
-					node->Destructor = [](void *object) { reinterpret_cast<T *>(object)->~T(); };
+					const auto node = new (&page->memory.at(page->cursor)) nodeinfo;
+					const auto node_data = new (&node->data) T();
+					node->size = size;
+					node->dtor = [](void *object) { reinterpret_cast<T *>(object)->~T(); };
 
-					page->Cursor += node->Size;
+					page->cursor += node->size;
 
-					return nodeData;
+					return node_data;
 				}
-				void Cleanup()
+				void clear()
 				{
 					for (auto &page : _pages)
 					{
-						auto node = reinterpret_cast<NodeInfo *>(&page.Nodes.front());
+						auto node = reinterpret_cast<nodeinfo *>(&page.memory.front());
 
 						do
 						{
-							node->Destructor(node->Data);
-							node = reinterpret_cast<NodeInfo *>(reinterpret_cast<unsigned char *>(node) + node->Size);
+							node->dtor(node->data);
+							node = reinterpret_cast<nodeinfo *>(reinterpret_cast<unsigned char *>(node) + node->size);
 						}
-						while (node->Size > 0 && (page.Cursor -= node->Size) > 0);
+						while (node->size > 0 && (page.cursor -= node->size) > 0);
 					}
 				}
 
 			private:
-				struct Page
+				struct page
 				{
-					explicit Page(size_t size) : Cursor(0), Nodes(size, 0)
+					explicit page(size_t size) : cursor(0), memory(size, 0)
 					{
 					}
 
-					size_t Cursor;
-					std::vector<unsigned char> Nodes;
+					size_t cursor;
+					std::vector<unsigned char> memory;
 				};
-				struct NodeInfo
+				struct nodeinfo
 				{
-					size_t Size;
-					void(*Destructor)(void *);
-					unsigned char Data[sizeof(Node)];
+					size_t size;
+					void(*dtor)(void *);
+					unsigned char data[sizeof(node)];
 				};
 
-				std::list<Page> _pages;
+				std::list<page> _pages;
 			} _pool;
 		};
 
@@ -258,30 +245,30 @@ namespace ReShade
 				struct Struct *Definition;
 			};
 	
-			struct Expression abstract : public Node
+			struct Expression abstract : public node
 			{
 				Type Type;
 
 			protected:
-				Expression(Id id) : Node(id)
+				Expression(nodeid id) : node(id)
 				{
 				}
 			};
-			struct Statement abstract : public Node
+			struct Statement abstract : public node
 			{
 				std::vector<std::string> Attributes;
 
 			protected:
-				Statement(Id id) : Node(id)
+				Statement(nodeid id) : node(id)
 				{
 				}
 			};
-			struct Declaration abstract : public Node
+			struct Declaration abstract : public node
 			{
 				std::string Name, Namespace;
 
 			protected:
-				Declaration(Id id) : Node(id)
+				Declaration(nodeid id) : node(id)
 				{
 				}
 			};
@@ -291,7 +278,7 @@ namespace ReShade
 			{
 				const struct Variable *Reference;
 
-				LValue() : Expression(Id::LValue), Reference(nullptr)
+				LValue() : Expression(nodeid::LValue), Reference(nullptr)
 				{
 				}
 			};
@@ -307,7 +294,7 @@ namespace ReShade
 				Value Value;
 				std::string StringValue;
 
-				Literal() : Expression(Id::Literal)
+				Literal() : Expression(nodeid::Literal)
 				{
 					memset(&Value, 0, sizeof(Value));
 				}
@@ -331,7 +318,7 @@ namespace ReShade
 				Op Operator;
 				Expression *Operand;
 
-				Unary() : Expression(Id::Unary), Operator(Op::None), Operand(nullptr)
+				Unary() : Expression(nodeid::Unary), Operator(Op::None), Operand(nullptr)
 				{
 				}
 			};
@@ -365,7 +352,7 @@ namespace ReShade
 				Op Operator;
 				Expression *Operands[2];
 
-				Binary() : Expression(Id::Binary), Operator(Op::None), Operands()
+				Binary() : Expression(nodeid::Binary), Operator(Op::None), Operands()
 				{
 				}
 			};
@@ -450,7 +437,7 @@ namespace ReShade
 				Op Operator;
 				Expression *Arguments[4];
 
-				Intrinsic() : Expression(Id::Intrinsic), Operator(Op::None), Arguments()
+				Intrinsic() : Expression(nodeid::Intrinsic), Operator(Op::None), Arguments()
 				{
 				}
 			};
@@ -459,7 +446,7 @@ namespace ReShade
 				Expression *Condition;
 				Expression *ExpressionOnTrue, *ExpressionOnFalse;
 
-				Conditional() : Expression(Id::Conditional), Condition(nullptr), ExpressionOnTrue(nullptr), ExpressionOnFalse(nullptr)
+				Conditional() : Expression(nodeid::Conditional), Condition(nullptr), ExpressionOnTrue(nullptr), ExpressionOnFalse(nullptr)
 				{
 				}
 			};
@@ -483,7 +470,7 @@ namespace ReShade
 				Op Operator;
 				Expression *Left, *Right;
 
-				Assignment() : Expression(Id::Assignment), Operator(Op::None)
+				Assignment() : Expression(nodeid::Assignment), Operator(Op::None)
 				{
 				}
 			};
@@ -491,7 +478,7 @@ namespace ReShade
 			{
 				std::vector<Expression *> Expressions;
 
-				Sequence() : Expression(Id::Sequence)
+				Sequence() : Expression(nodeid::Sequence)
 				{
 				}
 			};
@@ -501,7 +488,7 @@ namespace ReShade
 				const struct Function *Callee;
 				std::vector<Expression *> Arguments;
 
-				Call() : Expression(Id::Call), Callee(nullptr)
+				Call() : Expression(nodeid::Call), Callee(nullptr)
 				{
 				}
 			};
@@ -509,7 +496,7 @@ namespace ReShade
 			{
 				std::vector<Expression *> Arguments;
 
-				Constructor() : Expression(Id::Constructor)
+				Constructor() : Expression(nodeid::Constructor)
 				{
 				}
 			};
@@ -518,7 +505,7 @@ namespace ReShade
 				Expression *Operand;
 				signed char Mask[4];
 
-				Swizzle() : Expression(Id::Swizzle), Operand(nullptr)
+				Swizzle() : Expression(nodeid::Swizzle), Operand(nullptr)
 				{
 					Mask[0] = Mask[1] = Mask[2] = Mask[3] = -1;
 				}
@@ -528,7 +515,7 @@ namespace ReShade
 				Expression *Operand;
 				Variable *Field;
 
-				FieldSelection() : Expression(Id::FieldSelection), Operand(nullptr), Field(nullptr)
+				FieldSelection() : Expression(nodeid::FieldSelection), Operand(nullptr), Field(nullptr)
 				{
 				}
 			};
@@ -536,7 +523,7 @@ namespace ReShade
 			{
 				std::vector<Expression *> Values;
 
-				InitializerList() : Expression(Id::InitializerList)
+				InitializerList() : Expression(nodeid::InitializerList)
 				{
 				}
 			};
@@ -546,7 +533,7 @@ namespace ReShade
 			{
 				std::vector<Statement *> Statements;
 
-				Compound() : Statement(Id::Compound)
+				Compound() : Statement(nodeid::Compound)
 				{
 				}
 			};
@@ -554,7 +541,7 @@ namespace ReShade
 			{
 				std::vector<struct Variable *> Declarators;
 
-				DeclaratorList() : Statement(Id::DeclaratorList)
+				DeclaratorList() : Statement(nodeid::DeclaratorList)
 				{
 				}
 			};
@@ -562,7 +549,7 @@ namespace ReShade
 			{
 				Expression *Expression;
 
-				ExpressionStatement() : Statement(Id::ExpressionStatement)
+				ExpressionStatement() : Statement(nodeid::ExpressionStatement)
 				{
 				}
 			};
@@ -571,7 +558,7 @@ namespace ReShade
 				Expression *Condition;
 				Statement *StatementOnTrue, *StatementOnFalse;
 				
-				If() : Statement(Id::If)
+				If() : Statement(nodeid::If)
 				{
 				}
 			};
@@ -580,7 +567,7 @@ namespace ReShade
 				std::vector<struct Literal *> Labels;
 				Statement *Statements;
 
-				Case() : Statement(Id::Case)
+				Case() : Statement(nodeid::Case)
 				{
 				}
 			};
@@ -589,7 +576,7 @@ namespace ReShade
 				Expression *Test;
 				std::vector<Case *> Cases;
 
-				Switch() : Statement(Id::Switch)
+				Switch() : Statement(nodeid::Switch)
 				{
 				}
 			};
@@ -599,7 +586,7 @@ namespace ReShade
 				Expression *Condition, *Increment;
 				Statement *Statements;
 				
-				For() : Statement(Id::For)
+				For() : Statement(nodeid::For)
 				{
 				}
 			};
@@ -609,7 +596,7 @@ namespace ReShade
 				Expression *Condition;
 				Statement *Statements;
 				
-				While() : Statement(Id::While), DoWhile(false)
+				While() : Statement(nodeid::While), DoWhile(false)
 				{
 				}
 			};
@@ -618,7 +605,7 @@ namespace ReShade
 				bool Discard;
 				Expression *Value;
 				
-				Return() : Statement(Id::Return), Discard(false), Value(nullptr)
+				Return() : Statement(nodeid::Return), Discard(false), Value(nullptr)
 				{
 				}
 			};
@@ -632,18 +619,18 @@ namespace ReShade
 
 				Mode Mode;
 				
-				Jump() : Statement(Id::Jump), Mode(Break)
+				Jump() : Statement(nodeid::Jump), Mode(Break)
 				{
 				}
 			};
 
 			// Declarations
-			struct Annotation : public Node
+			struct Annotation : public node
 			{
 				std::string Name;
 				Literal *Value;
 				
-				Annotation() : Node(Id::Annotation)
+				Annotation() : node(nodeid::Annotation)
 				{
 				}
 			};
@@ -702,7 +689,7 @@ namespace ReShade
 				Properties Properties;
 				Expression *Initializer;
 				
-				Variable() : Declaration(Id::Variable), Initializer(nullptr)
+				Variable() : Declaration(nodeid::Variable), Initializer(nullptr)
 				{
 				}
 			};
@@ -710,7 +697,7 @@ namespace ReShade
 			{
 				std::vector<Variable *> Fields;
 				
-				Struct() : Declaration(Id::Struct)
+				Struct() : Declaration(nodeid::Struct)
 				{
 				}
 			};
@@ -721,7 +708,7 @@ namespace ReShade
 				std::string ReturnSemantic;
 				Compound *Definition;
 				
-				Function() : Declaration(Id::Function), Definition(nullptr)
+				Function() : Declaration(nodeid::Function), Definition(nullptr)
 				{
 				}
 			};
@@ -782,7 +769,7 @@ namespace ReShade
 				std::vector<Annotation> Annotations;
 				States States;
 				
-				Pass() : Declaration(Id::Pass)
+				Pass() : Declaration(nodeid::Pass)
 				{
 				}
 			};
@@ -791,7 +778,7 @@ namespace ReShade
 				std::vector<Annotation> Annotations;
 				std::vector<Pass *> Passes;
 				
-				Technique() : Declaration(Id::Technique)
+				Technique() : Declaration(nodeid::Technique)
 				{
 				}
 			};

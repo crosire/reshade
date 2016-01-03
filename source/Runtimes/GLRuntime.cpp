@@ -113,7 +113,7 @@ namespace ReShade
 			class GLEffectCompiler : private boost::noncopyable
 			{
 			public:
-				GLEffectCompiler(const FX::NodeTree &ast) : _ast(ast), _runtime(nullptr), _isFatal(false), _currentFunction(nullptr), _currentGlobalSize(0)
+				GLEffectCompiler(const FX::nodetree &ast) : _ast(ast), _runtime(nullptr), _isFatal(false), _currentFunction(nullptr), _currentGlobalSize(0)
 				{
 				}
 
@@ -126,12 +126,12 @@ namespace ReShade
 
 					_globalCode.clear();
 
-					for (auto type : _ast.Structs)
+					for (auto type : _ast.structs)
 					{
 						Visit(_globalCode, static_cast<FX::Nodes::Struct *>(type));
 					}
 
-					for (auto uniform1 : _ast.Uniforms)
+					for (auto uniform1 : _ast.uniforms)
 					{
 						const auto uniform = static_cast<FX::Nodes::Variable *>(uniform1);
 
@@ -155,7 +155,7 @@ namespace ReShade
 						}
 					}
 
-					for (auto function1 : _ast.Functions)
+					for (auto function1 : _ast.functions)
 					{
 						const auto function = static_cast<FX::Nodes::Function *>(function1);
 
@@ -164,7 +164,7 @@ namespace ReShade
 						Visit(_functions[function].SourceCode, function);
 					}
 
-					for (auto technique : _ast.Techniques)
+					for (auto technique : _ast.techniques)
 					{
 						VisitTechnique(static_cast<FX::Nodes::Technique *>(technique));
 					}
@@ -430,7 +430,7 @@ namespace ReShade
 				}
 
 			private:
-				void Error(const FX::Location &location, const char *message, ...)
+				void Error(const FX::location &location, const char *message, ...)
 				{
 					char formatted[512];
 
@@ -439,10 +439,10 @@ namespace ReShade
 					vsprintf_s(formatted, message, args);
 					va_end(args);
 
-					_errors += location.Source + "(" + std::to_string(location.Line) + ", " + std::to_string(location.Column) + "): error: " + formatted + '\n';
+					_errors += location.source + "(" + std::to_string(location.line) + ", " + std::to_string(location.column) + "): error: " + formatted + '\n';
 					_isFatal = true;
 				}
-				void Warning(const FX::Location &location, const char *message, ...)
+				void Warning(const FX::location &location, const char *message, ...)
 				{
 					char formatted[512];
 
@@ -451,7 +451,7 @@ namespace ReShade
 					vsprintf_s(formatted, message, args);
 					va_end(args);
 
-					_errors += location.Source + "(" + std::to_string(location.Line) + ", " + std::to_string(location.Column) + "): warning: " + formatted + '\n';
+					_errors += location.source + "(" + std::to_string(location.line) + ", " + std::to_string(location.column) + "): warning: " + formatted + '\n';
 				}
 
 				void VisitType(std::string &output, const FX::Nodes::Type &type)
@@ -574,33 +574,33 @@ namespace ReShade
 						return;
 					}
 
-					switch (node->NodeId)
+					switch (node->id)
 					{
-						case FX::Node::Id::Compound:
+						case FX::nodeid::Compound:
 							Visit(output, static_cast<const FX::Nodes::Compound *>(node));
 							break;
-						case FX::Node::Id::DeclaratorList:
+						case FX::nodeid::DeclaratorList:
 							Visit(output, static_cast<const FX::Nodes::DeclaratorList *>(node));
 							break;
-						case FX::Node::Id::ExpressionStatement:
+						case FX::nodeid::ExpressionStatement:
 							Visit(output, static_cast<const FX::Nodes::ExpressionStatement *>(node));
 							break;
-						case FX::Node::Id::If:
+						case FX::nodeid::If:
 							Visit(output, static_cast<const FX::Nodes::If *>(node));
 							break;
-						case FX::Node::Id::Switch:
+						case FX::nodeid::Switch:
 							Visit(output, static_cast<const FX::Nodes::Switch *>(node));
 							break;
-						case FX::Node::Id::For:
+						case FX::nodeid::For:
 							Visit(output, static_cast<const FX::Nodes::For *>(node));
 							break;
-						case FX::Node::Id::While:
+						case FX::nodeid::While:
 							Visit(output, static_cast<const FX::Nodes::While *>(node));
 							break;
-						case FX::Node::Id::Return:
+						case FX::nodeid::Return:
 							Visit(output, static_cast<const FX::Nodes::Return *>(node));
 							break;
-						case FX::Node::Id::Jump:
+						case FX::nodeid::Jump:
 							Visit(output, static_cast<const FX::Nodes::Jump *>(node));
 							break;
 						default:
@@ -610,45 +610,45 @@ namespace ReShade
 				}
 				void Visit(std::string &output, const FX::Nodes::Expression *node)
 				{
-					switch (node->NodeId)
+					switch (node->id)
 					{
-						case FX::Node::Id::LValue:
+						case FX::nodeid::LValue:
 							Visit(output, static_cast<const FX::Nodes::LValue *>(node));
 							break;
-						case FX::Node::Id::Literal:
+						case FX::nodeid::Literal:
 							Visit(output, static_cast<const FX::Nodes::Literal *>(node));
 							break;
-						case FX::Node::Id::Sequence:
+						case FX::nodeid::Sequence:
 							Visit(output, static_cast<const FX::Nodes::Sequence *>(node));
 							break;
-						case FX::Node::Id::Unary:
+						case FX::nodeid::Unary:
 							Visit(output, static_cast<const FX::Nodes::Unary *>(node));
 							break;
-						case FX::Node::Id::Binary:
+						case FX::nodeid::Binary:
 							Visit(output, static_cast<const FX::Nodes::Binary *>(node));
 							break;
-						case FX::Node::Id::Intrinsic:
+						case FX::nodeid::Intrinsic:
 							Visit(output, static_cast<const FX::Nodes::Intrinsic *>(node));
 							break;
-						case FX::Node::Id::Conditional:
+						case FX::nodeid::Conditional:
 							Visit(output, static_cast<const FX::Nodes::Conditional *>(node));
 							break;
-						case FX::Node::Id::Swizzle:
+						case FX::nodeid::Swizzle:
 							Visit(output, static_cast<const FX::Nodes::Swizzle *>(node));
 							break;
-						case FX::Node::Id::FieldSelection:
+						case FX::nodeid::FieldSelection:
 							Visit(output, static_cast<const FX::Nodes::FieldSelection *>(node));
 							break;
-						case FX::Node::Id::Assignment:
+						case FX::nodeid::Assignment:
 							Visit(output, static_cast<const FX::Nodes::Assignment *>(node));
 							break;
-						case FX::Node::Id::Call:
+						case FX::nodeid::Call:
 							Visit(output, static_cast<const FX::Nodes::Call *>(node));
 							break;
-						case FX::Node::Id::Constructor:
+						case FX::nodeid::Constructor:
 							Visit(output, static_cast<const FX::Nodes::Constructor *>(node));
 							break;
-						case FX::Node::Id::InitializerList:
+						case FX::nodeid::InitializerList:
 							Visit(output, static_cast<const FX::Nodes::InitializerList *>(node));
 							break;
 						default:
@@ -769,7 +769,7 @@ namespace ReShade
 
 					if (node->Initialization != nullptr)
 					{
-						if (node->Initialization->NodeId == FX::Node::Id::DeclaratorList)
+						if (node->Initialization->id == FX::nodeid::DeclaratorList)
 						{
 							Visit(output, static_cast<FX::Nodes::DeclaratorList *>(node->Initialization), true);
 
@@ -1774,7 +1774,7 @@ namespace ReShade
 					{
 						if (node->Mask[1] >= 0)
 						{
-							Error(node->Location, "multiple component matrix swizzeling is not supported in OpenGL");
+							Error(node->location, "multiple component matrix swizzeling is not supported in OpenGL");
 							return;
 						}
 
@@ -1938,7 +1938,7 @@ namespace ReShade
 					{
 						for (auto expression : node->Values)
 						{
-							if (expression->NodeId == FX::Node::Id::InitializerList)
+							if (expression->id == FX::nodeid::InitializerList)
 							{
 								Visit(output, static_cast<FX::Nodes::InitializerList *>(expression), node->Type);
 							}
@@ -2000,7 +2000,7 @@ namespace ReShade
 					{
 						output += " = ";
 
-						if (node->Initializer->NodeId == FX::Node::Id::InitializerList)
+						if (node->Initializer->id == FX::nodeid::InitializerList)
 						{
 							Visit(output, static_cast<FX::Nodes::InitializerList *>(node->Initializer), node->Type);
 						}
@@ -2075,7 +2075,7 @@ namespace ReShade
 
 					if (levels == 0)
 					{
-						Warning(node->Location, "a texture cannot have 0 miplevels, changed it to 1");
+						Warning(node->location, "a texture cannot have 0 miplevels, changed it to 1");
 
 						levels = 1;
 					}
@@ -2086,7 +2086,7 @@ namespace ReShade
 					{
 						if (width != 1 || height != 1 || levels != 1 || internalformat != GL_RGBA8)
 						{
-							Warning(node->Location, "texture property on backbuffer textures are ignored");
+							Warning(node->location, "texture property on backbuffer textures are ignored");
 						}
 
 						obj->ChangeDataSource(GLTexture::Source::BackBuffer, _runtime->_backbufferTexture[0], _runtime->_backbufferTexture[1]);
@@ -2095,7 +2095,7 @@ namespace ReShade
 					{
 						if (width != 1 || height != 1 || levels != 1 || internalformat != GL_RGBA8)
 						{
-							Warning(node->Location, "texture property on depthbuffer textures are ignored");
+							Warning(node->location, "texture property on depthbuffer textures are ignored");
 						}
 
 						obj->ChangeDataSource(GLTexture::Source::DepthStencil, _runtime->_depthTexture, 0);
@@ -2131,7 +2131,7 @@ namespace ReShade
 				{
 					if (node->Properties.Texture == nullptr)
 					{
-						Error(node->Location, "sampler '%s' is missing required 'Texture' property", node->Name.c_str());
+						Error(node->location, "sampler '%s' is missing required 'Texture' property", node->Name.c_str());
 						return;
 					}
 
@@ -2237,7 +2237,7 @@ namespace ReShade
 						_runtime->EnlargeConstantStorage();
 					}
 
-					if (node->Initializer != nullptr && node->Initializer->NodeId == FX::Node::Id::Literal)
+					if (node->Initializer != nullptr && node->Initializer->id == FX::nodeid::Literal)
 					{
 						std::memcpy(_runtime->GetConstantStorage() + obj->StorageOffset, &static_cast<const FX::Nodes::Literal *>(node->Initializer)->Value, obj->StorageSize);
 					}
@@ -2311,7 +2311,7 @@ namespace ReShade
 
 						if (pass.ViewportWidth != 0 && pass.ViewportHeight != 0 && (texture->Width != static_cast<unsigned int>(pass.ViewportWidth) || texture->Height != static_cast<unsigned int>(pass.ViewportHeight)))
 						{
-							Error(node->Location, "cannot use multiple rendertargets with different sized textures");
+							Error(node->location, "cannot use multiple rendertargets with different sized textures");
 							return;
 						}
 						else
@@ -2672,7 +2672,7 @@ namespace ReShade
 				};
 
 				GLRuntime *_runtime;
-				const FX::NodeTree &_ast;
+				const FX::nodetree &_ast;
 				bool _isFatal;
 				std::string _errors;
 				std::string _globalCode, _globalUniforms;
@@ -3511,7 +3511,7 @@ namespace ReShade
 				}
 			}
 		}
-		bool GLRuntime::UpdateEffect(const FX::NodeTree &ast, const std::vector<std::string> &/*pragmas*/, std::string &errors)
+		bool GLRuntime::UpdateEffect(const FX::nodetree &ast, const std::vector<std::string> &/*pragmas*/, std::string &errors)
 		{
 			GLEffectCompiler visitor(ast);
 

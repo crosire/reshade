@@ -3,6 +3,8 @@
 #include <cstdarg>
 #include <algorithm>
 #include <functional>
+#include <stack>
+#include <unordered_map>
 #include <boost\assign\list_of.hpp>
 #include <boost\algorithm\string.hpp>
 
@@ -538,248 +540,352 @@ namespace ReShade
 				return 0;
 			}
 
-			const char *GetTokenName(Lexer::TokenId id)
+			const char *GetTokenName(lexer::tokenid tokid)
 			{
-				switch (id)
+				switch (tokid)
 				{
 					default:
-					case Lexer::TokenId::Unknown:
+					case lexer::tokenid::unknown:
 						return "unknown";
-					case Lexer::TokenId::EndOfStream:
+					case lexer::tokenid::end_of_stream:
 						return "end of file";
-					case Lexer::TokenId::Exclaim:
+					case lexer::tokenid::exclaim:
 						return "!";
-					case Lexer::TokenId::Hash:
+					case lexer::tokenid::hash:
 						return "#";
-					case Lexer::TokenId::Dollar:
+					case lexer::tokenid::dollar:
 						return "$";
-					case Lexer::TokenId::Percent:
+					case lexer::tokenid::percent:
 						return "%";
-					case Lexer::TokenId::Ampersand:
+					case lexer::tokenid::ampersand:
 						return "&";
-					case Lexer::TokenId::ParenthesisOpen:
+					case lexer::tokenid::parenthesis_open:
 						return "(";
-					case Lexer::TokenId::ParenthesisClose:
+					case lexer::tokenid::parenthesis_close:
 						return ")";
-					case Lexer::TokenId::Star:
+					case lexer::tokenid::star:
 						return "*";
-					case Lexer::TokenId::Plus:
+					case lexer::tokenid::plus:
 						return "+";
-					case Lexer::TokenId::Comma:
+					case lexer::tokenid::comma:
 						return ",";
-					case Lexer::TokenId::Minus:
+					case lexer::tokenid::minus:
 						return "-";
-					case Lexer::TokenId::Dot:
+					case lexer::tokenid::dot:
 						return ".";
-					case Lexer::TokenId::Slash:
+					case lexer::tokenid::slash:
 						return "/";
-					case Lexer::TokenId::Colon:
+					case lexer::tokenid::colon:
 						return ":";
-					case Lexer::TokenId::Semicolon:
+					case lexer::tokenid::semicolon:
 						return ";";
-					case Lexer::TokenId::Less:
+					case lexer::tokenid::less:
 						return "<";
-					case Lexer::TokenId::Equal:
+					case lexer::tokenid::equal:
 						return "=";
-					case Lexer::TokenId::Greater:
+					case lexer::tokenid::greater:
 						return ">";
-					case Lexer::TokenId::Question:
+					case lexer::tokenid::question:
 						return "?";
-					case Lexer::TokenId::At:
+					case lexer::tokenid::at:
 						return "@";
-					case Lexer::TokenId::BracketOpen:
+					case lexer::tokenid::bracket_open:
 						return "[";
-					case Lexer::TokenId::BackSlash:
+					case lexer::tokenid::backslash:
 						return "\\";
-					case Lexer::TokenId::BracketClose:
+					case lexer::tokenid::bracket_close:
 						return "]";
-					case Lexer::TokenId::Caret:
+					case lexer::tokenid::caret:
 						return "^";
-					case Lexer::TokenId::BraceOpen:
+					case lexer::tokenid::brace_open:
 						return "{";
-					case Lexer::TokenId::Pipe:
+					case lexer::tokenid::pipe:
 						return "|";
-					case Lexer::TokenId::BraceClose:
+					case lexer::tokenid::brace_close:
 						return "}";
-					case Lexer::TokenId::Tilde:
+					case lexer::tokenid::tilde:
 						return "~";
-					case Lexer::TokenId::ExclaimEqual:
+					case lexer::tokenid::exclaim_equal:
 						return "!=";
-					case Lexer::TokenId::PercentEqual:
+					case lexer::tokenid::percent_equal:
 						return "%=";
-					case Lexer::TokenId::AmpersandAmpersand:
+					case lexer::tokenid::ampersand_ampersand:
 						return "&&";
-					case Lexer::TokenId::AmpersandEqual:
+					case lexer::tokenid::ampersand_equal:
 						return "&=";
-					case Lexer::TokenId::StarEqual:
+					case lexer::tokenid::star_equal:
 						return "*=";
-					case Lexer::TokenId::PlusPlus:
+					case lexer::tokenid::plus_plus:
 						return "++";
-					case Lexer::TokenId::PlusEqual:
+					case lexer::tokenid::plus_equal:
 						return "+=";
-					case Lexer::TokenId::MinusMinus:
+					case lexer::tokenid::minus_minus:
 						return "--";
-					case Lexer::TokenId::MinusEqual:
+					case lexer::tokenid::minus_equal:
 						return "-=";
-					case Lexer::TokenId::Arrow:
+					case lexer::tokenid::arrow:
 						return "->";
-					case Lexer::TokenId::Ellipsis:
+					case lexer::tokenid::ellipsis:
 						return "...";
-					case Lexer::TokenId::SlashEqual:
+					case lexer::tokenid::slash_equal:
 						return "|=";
-					case Lexer::TokenId::ColonColon:
+					case lexer::tokenid::colon_colon:
 						return "::";
-					case Lexer::TokenId::LessLessEqual:
+					case lexer::tokenid::less_less_equal:
 						return "<<=";
-					case Lexer::TokenId::LessLess:
+					case lexer::tokenid::less_less:
 						return "<<";
-					case Lexer::TokenId::LessEqual:
+					case lexer::tokenid::less_equal:
 						return "<=";
-					case Lexer::TokenId::EqualEqual:
+					case lexer::tokenid::equal_equal:
 						return "==";
-					case Lexer::TokenId::GreaterGreaterEqual:
+					case lexer::tokenid::greater_greater_equal:
 						return ">>=";
-					case Lexer::TokenId::GreaterGreater:
+					case lexer::tokenid::greater_greater:
 						return ">>";
-					case Lexer::TokenId::GreaterEqual:
+					case lexer::tokenid::greater_equal:
 						return ">=";
-					case Lexer::TokenId::CaretEqual:
+					case lexer::tokenid::caret_equal:
 						return "^=";
-					case Lexer::TokenId::PipeEqual:
+					case lexer::tokenid::pipe_equal:
 						return "|=";
-					case Lexer::TokenId::PipePipe:
+					case lexer::tokenid::pipe_pipe:
 						return "||";
-					case Lexer::TokenId::Identifier:
+					case lexer::tokenid::identifier:
 						return "identifier";
-					case Lexer::TokenId::ReservedWord:
+					case lexer::tokenid::reserved:
 						return "reserved word";
-					case Lexer::TokenId::True:
+					case lexer::tokenid::true_literal:
 						return "true";
-					case Lexer::TokenId::False:
+					case lexer::tokenid::false_literal:
 						return "false";
-					case Lexer::TokenId::IntLiteral:
-					case Lexer::TokenId::UintLiteral:
+					case lexer::tokenid::int_literal:
+					case lexer::tokenid::uint_literal:
 						return "integral literal";
-					case Lexer::TokenId::FloatLiteral:
-					case Lexer::TokenId::DoubleLiteral:
+					case lexer::tokenid::float_literal:
+					case lexer::tokenid::double_literal:
 						return "floating point literal";
-					case Lexer::TokenId::StringLiteral:
+					case lexer::tokenid::string_literal:
 						return "string literal";
-					case Lexer::TokenId::Namespace:
+					case lexer::tokenid::namespace_:
 						return "namespace";
-					case Lexer::TokenId::Struct:
+					case lexer::tokenid::struct_:
 						return "struct";
-					case Lexer::TokenId::Technique:
+					case lexer::tokenid::technique:
 						return "technique";
-					case Lexer::TokenId::Pass:
+					case lexer::tokenid::pass:
 						return "pass";
-					case Lexer::TokenId::For:
+					case lexer::tokenid::for_:
 						return "for";
-					case Lexer::TokenId::While:
+					case lexer::tokenid::while_:
 						return "while";
-					case Lexer::TokenId::Do:
+					case lexer::tokenid::do_:
 						return "do";
-					case Lexer::TokenId::If:
+					case lexer::tokenid::if_:
 						return "if";
-					case Lexer::TokenId::Else:
+					case lexer::tokenid::else_:
 						return "else";
-					case Lexer::TokenId::Switch:
+					case lexer::tokenid::switch_:
 						return "switch";
-					case Lexer::TokenId::Case:
+					case lexer::tokenid::case_:
 						return "case";
-					case Lexer::TokenId::Default:
+					case lexer::tokenid::default_:
 						return "default";
-					case Lexer::TokenId::Break:
+					case lexer::tokenid::break_:
 						return "break";
-					case Lexer::TokenId::Continue:
+					case lexer::tokenid::continue_:
 						return "continue";
-					case Lexer::TokenId::Return:
+					case lexer::tokenid::return_:
 						return "return";
-					case Lexer::TokenId::Discard:
+					case lexer::tokenid::discard_:
 						return "discard";
-					case Lexer::TokenId::Extern:
+					case lexer::tokenid::extern_:
 						return "extern";
-					case Lexer::TokenId::Static:
+					case lexer::tokenid::static_:
 						return "static";
-					case Lexer::TokenId::Uniform:
+					case lexer::tokenid::uniform_:
 						return "uniform";
-					case Lexer::TokenId::Volatile:
+					case lexer::tokenid::volatile_:
 						return "volatile";
-					case Lexer::TokenId::Precise:
+					case lexer::tokenid::precise:
 						return "precise";
-					case Lexer::TokenId::In:
+					case lexer::tokenid::in:
 						return "in";
-					case Lexer::TokenId::Out:
+					case lexer::tokenid::out:
 						return "out";
-					case Lexer::TokenId::InOut:
+					case lexer::tokenid::inout:
 						return "inout";
-					case Lexer::TokenId::Const:
+					case lexer::tokenid::const_:
 						return "const";
-					case Lexer::TokenId::Linear:
+					case lexer::tokenid::linear:
 						return "linear";
-					case Lexer::TokenId::NoPerspective:
+					case lexer::tokenid::noperspective:
 						return "noperspective";
-					case Lexer::TokenId::Centroid:
+					case lexer::tokenid::centroid:
 						return "centroid";
-					case Lexer::TokenId::NoInterpolation:
+					case lexer::tokenid::nointerpolation:
 						return "nointerpolation";
-					case Lexer::TokenId::Void:
+					case lexer::tokenid::void_:
 						return "void";
-					case Lexer::TokenId::Bool:
-					case Lexer::TokenId::Bool2:
-					case Lexer::TokenId::Bool3:
-					case Lexer::TokenId::Bool4:
-					case Lexer::TokenId::Bool2x2:
-					case Lexer::TokenId::Bool3x3:
-					case Lexer::TokenId::Bool4x4:
+					case lexer::tokenid::bool_:
+					case lexer::tokenid::bool2:
+					case lexer::tokenid::bool3:
+					case lexer::tokenid::bool4:
+					case lexer::tokenid::bool2x2:
+					case lexer::tokenid::bool3x3:
+					case lexer::tokenid::bool4x4:
 						return "bool";
-					case Lexer::TokenId::Int:
-					case Lexer::TokenId::Int2:
-					case Lexer::TokenId::Int3:
-					case Lexer::TokenId::Int4:
-					case Lexer::TokenId::Int2x2:
-					case Lexer::TokenId::Int3x3:
-					case Lexer::TokenId::Int4x4:
+					case lexer::tokenid::int_:
+					case lexer::tokenid::int2:
+					case lexer::tokenid::int3:
+					case lexer::tokenid::int4:
+					case lexer::tokenid::int2x2:
+					case lexer::tokenid::int3x3:
+					case lexer::tokenid::int4x4:
 						return "int";
-					case Lexer::TokenId::Uint:
-					case Lexer::TokenId::Uint2:
-					case Lexer::TokenId::Uint3:
-					case Lexer::TokenId::Uint4:
-					case Lexer::TokenId::Uint2x2:
-					case Lexer::TokenId::Uint3x3:
-					case Lexer::TokenId::Uint4x4:
+					case lexer::tokenid::uint_:
+					case lexer::tokenid::uint2:
+					case lexer::tokenid::uint3:
+					case lexer::tokenid::uint4:
+					case lexer::tokenid::uint2x2:
+					case lexer::tokenid::uint3x3:
+					case lexer::tokenid::uint4x4:
 						return "uint";
-					case Lexer::TokenId::Float:
-					case Lexer::TokenId::Float2:
-					case Lexer::TokenId::Float3:
-					case Lexer::TokenId::Float4:
-					case Lexer::TokenId::Float2x2:
-					case Lexer::TokenId::Float3x3:
-					case Lexer::TokenId::Float4x4:
+					case lexer::tokenid::float_:
+					case lexer::tokenid::float2:
+					case lexer::tokenid::float3:
+					case lexer::tokenid::float4:
+					case lexer::tokenid::float2x2:
+					case lexer::tokenid::float3x3:
+					case lexer::tokenid::float4x4:
 						return "float";
-					case Lexer::TokenId::Vector:
+					case lexer::tokenid::vector:
 						return "vector";
-					case Lexer::TokenId::Matrix:
+					case lexer::tokenid::matrix:
 						return "matrix";
-					case Lexer::TokenId::String:
+					case lexer::tokenid::string_:
 						return "string";
-					case Lexer::TokenId::Texture1D:
+					case lexer::tokenid::texture1d:
 						return "texture1D";
-					case Lexer::TokenId::Texture2D:
+					case lexer::tokenid::texture2d:
 						return "texture2D";
-					case Lexer::TokenId::Texture3D:
+					case lexer::tokenid::texture3d:
 						return "texture3D";
-					case Lexer::TokenId::Sampler1D:
+					case lexer::tokenid::sampler1d:
 						return "sampler1D";
-					case Lexer::TokenId::Sampler2D:
+					case lexer::tokenid::sampler2d:
 						return "sampler2D";
-					case Lexer::TokenId::Sampler3D:
+					case lexer::tokenid::sampler3d:
 						return "sampler3D";
 				}
 			}
 		}
 
-		Parser::Parser(NodeTree &ast) : _ast(&ast), _errors(nullptr), _lexer(""), _lexerBackup("")
+		class Parser
+		{
+		public:
+			explicit Parser(const std::string &input, nodetree &ast, std::string &errors);
+
+			bool Parse();
+
+		protected:
+			void Backup();
+			void Restore();
+
+			bool Peek(char tok) const
+			{
+				return Peek(static_cast<lexer::tokenid>(tok));
+			}
+			bool Peek(lexer::tokenid tokid) const;
+			void Consume();
+			void ConsumeUntil(char token)
+			{
+				ConsumeUntil(static_cast<lexer::tokenid>(token));
+			}
+			void ConsumeUntil(lexer::tokenid tokid);
+			bool Accept(char tok)
+			{
+				return Accept(static_cast<lexer::tokenid>(tok));
+			}
+			bool Accept(lexer::tokenid tokid);
+			bool Expect(char tok)
+			{
+				return Expect(static_cast<lexer::tokenid>(tok));
+			}
+			bool Expect(lexer::tokenid tokid);
+
+		private:
+			void Error(const location &location, unsigned int code, const char *message, ...);
+			void Warning(const location &location, unsigned int code, const char *message, ...);
+
+			// Types
+			bool AcceptTypeClass(Nodes::Type &type);
+			bool AcceptTypeQualifiers(Nodes::Type &type);
+			bool ParseType(Nodes::Type &type);
+
+			// Expressions
+			bool AcceptUnaryOp(Nodes::Unary::Op &op);
+			bool AcceptPostfixOp(Nodes::Unary::Op &op);
+			bool PeekMultaryOp(Nodes::Binary::Op &op, unsigned int &precedence) const;
+			bool AcceptAssignmentOp(Nodes::Assignment::Op &op);
+			bool ParseExpression(Nodes::Expression *&expression);
+			bool ParseExpressionUnary(Nodes::Expression *&expression);
+			bool ParseExpressionMultary(Nodes::Expression *&expression, unsigned int precedence = 0);
+			bool ParseExpressionAssignment(Nodes::Expression *&expression);
+
+			// Statements
+			bool ParseStatement(Nodes::Statement *&statement, bool scoped = true);
+			bool ParseStatementBlock(Nodes::Statement *&statement, bool scoped = true);
+			bool ParseStatementDeclaratorList(Nodes::Statement *&statement);
+
+			// Declarations
+			bool ParseTopLevel();
+			bool ParseNamespace();
+			bool ParseArray(int &size);
+			bool ParseAnnotations(std::vector<Nodes::Annotation> &annotations);
+			bool ParseStruct(Nodes::Struct *&structure);
+			bool ParseFunctionResidue(Nodes::Type &type, std::string name, Nodes::Function *&function);
+			bool ParseVariableResidue(Nodes::Type &type, std::string name, Nodes::Variable *&variable, bool global = false);
+			bool ParseVariableAssignment(Nodes::Expression *&expression);
+			bool ParseVariableProperties(Nodes::Variable *variable);
+			bool ParseVariablePropertiesExpression(Nodes::Expression *&expression);
+			bool ParseTechnique(Nodes::Technique *&technique);
+			bool ParseTechniquePass(Nodes::Pass *&pass);
+			bool ParseTechniquePassExpression(Nodes::Expression *&expression);
+
+			// Symbol Table
+			struct Scope
+			{
+				std::string Name;
+				unsigned int Level, NamespaceLevel;
+			};
+			typedef Nodes::Declaration Symbol;
+
+			void EnterScope(Symbol *parent = nullptr);
+			void EnterNamespace(const std::string &name);
+			void LeaveScope();
+			void LeaveNamespace();
+			bool InsertSymbol(Symbol *symbol, bool global = false);
+			Symbol *FindSymbol(const std::string &name) const;
+			Symbol *FindSymbol(const std::string &name, const Scope &scope, bool exclusive = false) const;
+			bool ResolveCall(Nodes::Call *call, const Scope &scope, bool &intrinsic, bool &ambiguouss) const;
+			Nodes::Expression *FoldConstantExpression(Nodes::Expression *expression) const;
+
+			nodetree *_ast;
+			std::string *_errors;
+			std::unique_ptr<lexer> _lexer, _lexerBackup;
+			lexer::token _token, _tokenNext, _tokenBackup;
+			Scope _currentScope;
+			std::stack<Symbol *> _parentStack;
+			std::unordered_map<std::string, std::vector<std::pair<Scope, Symbol *>>> _symbolStack;
+		};
+
+		bool parse(const std::string &source, nodetree &ast, std::string &errors)
+		{
+			return Parser(source, ast, errors).Parse();
+		}
+
+		Parser::Parser(const std::string &input, nodetree &ast, std::string &errors) : _ast(&ast), _errors(&errors), _lexer(new lexer(input))
 		{
 			_currentScope.Name = "::";
 			_currentScope.Level = 0;
@@ -788,34 +894,35 @@ namespace ReShade
 
 		void Parser::Backup()
 		{
-			_lexerBackup = _lexer;
+			_lexer.swap(_lexerBackup);
+			_lexer.reset(new lexer(*_lexerBackup));
 			_tokenBackup = _tokenNext;
 		}
 		void Parser::Restore()
 		{
-			_lexer = _lexerBackup;
+			_lexer.swap(_lexerBackup);
 			_tokenNext = _tokenBackup;
 		}
 
-		bool Parser::Peek(Lexer::TokenId token) const
+		bool Parser::Peek(lexer::tokenid tokid) const
 		{
-			return _tokenNext.Id == token;
+			return _tokenNext.id == tokid;
 		}
 		void Parser::Consume()
 		{
 			_token = _tokenNext;
-			_tokenNext = _lexer.Lex();
+			_tokenNext = _lexer->lex();
 		}
-		void Parser::ConsumeUntil(Lexer::TokenId token)
+		void Parser::ConsumeUntil(lexer::tokenid tokid)
 		{
-			while (!Accept(token) && !Peek(Lexer::TokenId::EndOfStream))
+			while (!Accept(tokid) && !Peek(lexer::tokenid::end_of_stream))
 			{
 				Consume();
 			}
 		}
-		bool Parser::Accept(Lexer::TokenId token)
+		bool Parser::Accept(lexer::tokenid tokid)
 		{
-			if (Peek(token))
+			if (Peek(tokid))
 			{
 				Consume();
 
@@ -824,11 +931,11 @@ namespace ReShade
 
 			return false;
 		}
-		bool Parser::Expect(Lexer::TokenId token)
+		bool Parser::Expect(lexer::tokenid tokid)
 		{
-			if (!Accept(token))
+			if (!Accept(tokid))
 			{
-				Error(_tokenNext.Location, 3000, "syntax error: unexpected '%s', expected '%s'", GetTokenName(_tokenNext.Id), GetTokenName(token));
+				Error(_tokenNext.location, 3000, "syntax error: unexpected '%s', expected '%s'", GetTokenName(_tokenNext.id), GetTokenName(tokid));
 
 				return false;
 			}
@@ -836,9 +943,9 @@ namespace ReShade
 			return true;
 		}
 
-		void Parser::Error(const Location &location, unsigned int code, const char *message, ...)
+		void Parser::Error(const location &location, unsigned int code, const char *message, ...)
 		{
-			*_errors += location.Source + '(' + std::to_string(location.Line) + ", " + std::to_string(location.Column) + ')' + ": ";
+			*_errors += location.source + '(' + std::to_string(location.line) + ", " + std::to_string(location.column) + ')' + ": ";
 
 			if (code == 0)
 			{
@@ -859,9 +966,9 @@ namespace ReShade
 			*_errors += formatted;
 			*_errors += '\n';
 		}
-		void Parser::Warning(const Location &location, unsigned int code, const char *message, ...)
+		void Parser::Warning(const location &location, unsigned int code, const char *message, ...)
 		{
-			*_errors += location.Source + '(' + std::to_string(location.Line) + ", " + std::to_string(location.Column) + ')' + ": ";
+			*_errors += location.source + '(' + std::to_string(location.line) + ", " + std::to_string(location.column) + ')' + ": ";
 
 			if (code == 0)
 			{
@@ -889,14 +996,14 @@ namespace ReShade
 			type.Definition = nullptr;
 			type.ArrayLength = 0;
 
-			if (Peek(Lexer::TokenId::Identifier))
+			if (Peek(lexer::tokenid::identifier))
 			{
 				type.Rows = type.Cols = 0;
 				type.BaseClass = Nodes::Type::Class::Struct;
 
-				Node *const symbol = FindSymbol(_tokenNext.LiteralAsString);
+				const auto symbol = FindSymbol(_tokenNext.literal_as_string);
 
-				if (symbol != nullptr && symbol->NodeId == Node::Id::Struct)
+				if (symbol != nullptr && symbol->id == nodeid::Struct)
 				{
 					type.Definition = static_cast<Nodes::Struct *>(symbol);
 
@@ -907,7 +1014,7 @@ namespace ReShade
 					return false;
 				}
 			}
-			else if (Accept(Lexer::TokenId::Vector))
+			else if (Accept(lexer::tokenid::vector))
 			{
 				type.Rows = 4, type.Cols = 1;
 				type.BaseClass = Nodes::Type::Class::Float;
@@ -916,31 +1023,31 @@ namespace ReShade
 				{
 					if (!AcceptTypeClass(type))
 					{
-						Error(_tokenNext.Location, 3000, "syntax error: unexpected '%s', expected vector element type", GetTokenName(_tokenNext.Id));
+						Error(_tokenNext.location, 3000, "syntax error: unexpected '%s', expected vector element type", GetTokenName(_tokenNext.id));
 
 						return false;
 					}
 
 					if (!type.IsScalar())
 					{
-						Error(_token.Location, 3122, "vector element type must be a scalar type");
+						Error(_token.location, 3122, "vector element type must be a scalar type");
 
 						return false;
 					}
 
-					if (!(Expect(',') && Expect(Lexer::TokenId::IntLiteral)))
+					if (!(Expect(',') && Expect(lexer::tokenid::int_literal)))
 					{
 						return false;
 					}
 
-					if (_token.LiteralAsInt < 1 || _token.LiteralAsInt > 4)
+					if (_token.literal_as_int < 1 || _token.literal_as_int > 4)
 					{
-						Error(_token.Location, 3052, "vector dimension must be between 1 and 4");
+						Error(_token.location, 3052, "vector dimension must be between 1 and 4");
 
 						return false;
 					}
 
-					type.Rows = _token.LiteralAsInt;
+					type.Rows = _token.literal_as_int;
 
 					if (!Expect('>'))
 					{
@@ -948,7 +1055,7 @@ namespace ReShade
 					}
 				}
 			}
-			else if (Accept(Lexer::TokenId::Matrix))
+			else if (Accept(lexer::tokenid::matrix))
 			{
 				type.Rows = 4, type.Cols = 4;
 				type.BaseClass = Nodes::Type::Class::Float;
@@ -957,45 +1064,45 @@ namespace ReShade
 				{
 					if (!AcceptTypeClass(type))
 					{
-						Error(_tokenNext.Location, 3000, "syntax error: unexpected '%s', expected matrix element type", GetTokenName(_tokenNext.Id));
+						Error(_tokenNext.location, 3000, "syntax error: unexpected '%s', expected matrix element type", GetTokenName(_tokenNext.id));
 
 						return false;
 					}
 
 					if (!type.IsScalar())
 					{
-						Error(_token.Location, 3123, "matrix element type must be a scalar type");
+						Error(_token.location, 3123, "matrix element type must be a scalar type");
 
 						return false;
 					}
 
-					if (!(Expect(',') && Expect(Lexer::TokenId::IntLiteral)))
+					if (!(Expect(',') && Expect(lexer::tokenid::int_literal)))
 					{
 						return false;
 					}
 
-					if (_token.LiteralAsInt < 1 || _token.LiteralAsInt > 4)
+					if (_token.literal_as_int < 1 || _token.literal_as_int > 4)
 					{
-						Error(_token.Location, 3053, "matrix dimensions must be between 1 and 4");
+						Error(_token.location, 3053, "matrix dimensions must be between 1 and 4");
 
 						return false;
 					}
 
-					type.Rows = _token.LiteralAsInt;
+					type.Rows = _token.literal_as_int;
 
-					if (!(Expect(',') && Expect(Lexer::TokenId::IntLiteral)))
+					if (!(Expect(',') && Expect(lexer::tokenid::int_literal)))
 					{
 						return false;
 					}
 
-					if (_token.LiteralAsInt < 1 || _token.LiteralAsInt > 4)
+					if (_token.literal_as_int < 1 || _token.literal_as_int > 4)
 					{
-						Error(_token.Location, 3053, "matrix dimensions must be between 1 and 4");
+						Error(_token.location, 3053, "matrix dimensions must be between 1 and 4");
 
 						return false;
 					}
 
-					type.Cols = _token.LiteralAsInt;
+					type.Cols = _token.literal_as_int;
 
 					if (!Expect('>'))
 					{
@@ -1007,142 +1114,142 @@ namespace ReShade
 			{
 				type.Rows = type.Cols = 0;
 
-				switch (_tokenNext.Id)
+				switch (_tokenNext.id)
 				{
-					case Lexer::TokenId::Void:
+					case lexer::tokenid::void_:
 						type.BaseClass = Nodes::Type::Class::Void;
 						break;
-					case Lexer::TokenId::Bool:
+					case lexer::tokenid::bool_:
 						type.Rows = 1, type.Cols = 1;
 						type.BaseClass = Nodes::Type::Class::Bool;
 						break;
-					case Lexer::TokenId::Bool2:
+					case lexer::tokenid::bool2:
 						type.Rows = 2, type.Cols = 1;
 						type.BaseClass = Nodes::Type::Class::Bool;
 						break;
-					case Lexer::TokenId::Bool2x2:
+					case lexer::tokenid::bool2x2:
 						type.Rows = 2, type.Cols = 2;
 						type.BaseClass = Nodes::Type::Class::Bool;
 						break;
-					case Lexer::TokenId::Bool3:
+					case lexer::tokenid::bool3:
 						type.Rows = 3, type.Cols = 1;
 						type.BaseClass = Nodes::Type::Class::Bool;
 						break;
-					case Lexer::TokenId::Bool3x3:
+					case lexer::tokenid::bool3x3:
 						type.Rows = 3, type.Cols = 3;
 						type.BaseClass = Nodes::Type::Class::Bool;
 						break;
-					case Lexer::TokenId::Bool4:
+					case lexer::tokenid::bool4:
 						type.Rows = 4, type.Cols = 1;
 						type.BaseClass = Nodes::Type::Class::Bool;
 						break;
-					case Lexer::TokenId::Bool4x4:
+					case lexer::tokenid::bool4x4:
 						type.Rows = 4, type.Cols = 4;
 						type.BaseClass = Nodes::Type::Class::Bool;
 						break;
-					case Lexer::TokenId::Int:
+					case lexer::tokenid::int_:
 						type.Rows = 1, type.Cols = 1;
 						type.BaseClass = Nodes::Type::Class::Int;
 						break;
-					case Lexer::TokenId::Int2:
+					case lexer::tokenid::int2:
 						type.Rows = 2, type.Cols = 1;
 						type.BaseClass = Nodes::Type::Class::Int;
 						break;
-					case Lexer::TokenId::Int2x2:
+					case lexer::tokenid::int2x2:
 						type.Rows = 2, type.Cols = 2;
 						type.BaseClass = Nodes::Type::Class::Int;
 						break;
-					case Lexer::TokenId::Int3:
+					case lexer::tokenid::int3:
 						type.Rows = 3, type.Cols = 1;
 						type.BaseClass = Nodes::Type::Class::Int;
 						break;
-					case Lexer::TokenId::Int3x3:
+					case lexer::tokenid::int3x3:
 						type.Rows = 3, type.Cols = 3;
 						type.BaseClass = Nodes::Type::Class::Int;
 						break;
-					case Lexer::TokenId::Int4:
+					case lexer::tokenid::int4:
 						type.Rows = 4, type.Cols = 1;
 						type.BaseClass = Nodes::Type::Class::Int;
 						break;
-					case Lexer::TokenId::Int4x4:
+					case lexer::tokenid::int4x4:
 						type.Rows = 4, type.Cols = 4;
 						type.BaseClass = Nodes::Type::Class::Int;
 						break;
-					case Lexer::TokenId::Uint:
+					case lexer::tokenid::uint_:
 						type.Rows = 1, type.Cols = 1;
 						type.BaseClass = Nodes::Type::Class::Uint;
 						break;
-					case Lexer::TokenId::Uint2:
+					case lexer::tokenid::uint2:
 						type.Rows = 2, type.Cols = 1;
 						type.BaseClass = Nodes::Type::Class::Uint;
 						break;
-					case Lexer::TokenId::Uint2x2:
+					case lexer::tokenid::uint2x2:
 						type.Rows = 2, type.Cols = 2;
 						type.BaseClass = Nodes::Type::Class::Uint;
 						break;
-					case Lexer::TokenId::Uint3:
+					case lexer::tokenid::uint3:
 						type.Rows = 3, type.Cols = 1;
 						type.BaseClass = Nodes::Type::Class::Uint;
 						break;
-					case Lexer::TokenId::Uint3x3:
+					case lexer::tokenid::uint3x3:
 						type.Rows = 3, type.Cols = 3;
 						type.BaseClass = Nodes::Type::Class::Uint;
 						break;
-					case Lexer::TokenId::Uint4:
+					case lexer::tokenid::uint4:
 						type.Rows = 4, type.Cols = 1;
 						type.BaseClass = Nodes::Type::Class::Uint;
 						break;
-					case Lexer::TokenId::Uint4x4:
+					case lexer::tokenid::uint4x4:
 						type.Rows = 4, type.Cols = 4;
 						type.BaseClass = Nodes::Type::Class::Uint;
 						break;
-					case Lexer::TokenId::Float:
+					case lexer::tokenid::float_:
 						type.Rows = 1, type.Cols = 1;
 						type.BaseClass = Nodes::Type::Class::Float;
 						break;
-					case Lexer::TokenId::Float2:
+					case lexer::tokenid::float2:
 						type.Rows = 2, type.Cols = 1;
 						type.BaseClass = Nodes::Type::Class::Float;
 						break;
-					case Lexer::TokenId::Float2x2:
+					case lexer::tokenid::float2x2:
 						type.Rows = 2, type.Cols = 2;
 						type.BaseClass = Nodes::Type::Class::Float;
 						break;
-					case Lexer::TokenId::Float3:
+					case lexer::tokenid::float3:
 						type.Rows = 3, type.Cols = 1;
 						type.BaseClass = Nodes::Type::Class::Float;
 						break;
-					case Lexer::TokenId::Float3x3:
+					case lexer::tokenid::float3x3:
 						type.Rows = 3, type.Cols = 3;
 						type.BaseClass = Nodes::Type::Class::Float;
 						break;
-					case Lexer::TokenId::Float4:
+					case lexer::tokenid::float4:
 						type.Rows = 4, type.Cols = 1;
 						type.BaseClass = Nodes::Type::Class::Float;
 						break;
-					case Lexer::TokenId::Float4x4:
+					case lexer::tokenid::float4x4:
 						type.Rows = 4, type.Cols = 4;
 						type.BaseClass = Nodes::Type::Class::Float;
 						break;
-					case Lexer::TokenId::String:
+					case lexer::tokenid::string_:
 						type.BaseClass = Nodes::Type::Class::String;
 						break;
-					case Lexer::TokenId::Texture1D:
+					case lexer::tokenid::texture1d:
 						type.BaseClass = Nodes::Type::Class::Texture1D;
 						break;
-					case Lexer::TokenId::Texture2D:
+					case lexer::tokenid::texture2d:
 						type.BaseClass = Nodes::Type::Class::Texture2D;
 						break;
-					case Lexer::TokenId::Texture3D:
+					case lexer::tokenid::texture3d:
 						type.BaseClass = Nodes::Type::Class::Texture3D;
 						break;
-					case Lexer::TokenId::Sampler1D:
+					case lexer::tokenid::sampler1d:
 						type.BaseClass = Nodes::Type::Class::Sampler1D;
 						break;
-					case Lexer::TokenId::Sampler2D:
+					case lexer::tokenid::sampler2d:
 						type.BaseClass = Nodes::Type::Class::Sampler2D;
 						break;
-					case Lexer::TokenId::Sampler3D:
+					case lexer::tokenid::sampler3d:
 						type.BaseClass = Nodes::Type::Class::Sampler3D;
 						break;
 					default:
@@ -1159,60 +1266,60 @@ namespace ReShade
 			unsigned int qualifiers = 0;
 
 			// Storage
-			if (Accept(Lexer::TokenId::Extern))
+			if (Accept(lexer::tokenid::extern_))
 			{
 				qualifiers |= Nodes::Type::Qualifier::Extern;
 			}
-			if (Accept(Lexer::TokenId::Static))
+			if (Accept(lexer::tokenid::static_))
 			{
 				qualifiers |= Nodes::Type::Qualifier::Static;
 			}
-			if (Accept(Lexer::TokenId::Uniform))
+			if (Accept(lexer::tokenid::uniform_))
 			{
 				qualifiers |= Nodes::Type::Qualifier::Uniform;
 			}
-			if (Accept(Lexer::TokenId::Volatile))
+			if (Accept(lexer::tokenid::volatile_))
 			{
 				qualifiers |= Nodes::Type::Qualifier::Volatile;
 			}
-			if (Accept(Lexer::TokenId::Precise))
+			if (Accept(lexer::tokenid::precise))
 			{
 				qualifiers |= Nodes::Type::Qualifier::Precise;
 			}
 
-			if (Accept(Lexer::TokenId::In))
+			if (Accept(lexer::tokenid::in))
 			{
 				qualifiers |= Nodes::Type::Qualifier::In;
 			}
-			if (Accept(Lexer::TokenId::Out))
+			if (Accept(lexer::tokenid::out))
 			{
 				qualifiers |= Nodes::Type::Qualifier::Out;
 			}
-			if (Accept(Lexer::TokenId::InOut))
+			if (Accept(lexer::tokenid::inout))
 			{
 				qualifiers |= Nodes::Type::Qualifier::InOut;
 			}
 
 			// Modifiers
-			if (Accept(Lexer::TokenId::Const))
+			if (Accept(lexer::tokenid::const_))
 			{
 				qualifiers |= Nodes::Type::Qualifier::Const;
 			}
 
 			// Interpolation
-			if (Accept(Lexer::TokenId::Linear))
+			if (Accept(lexer::tokenid::linear))
 			{
 				qualifiers |= Nodes::Type::Qualifier::Linear;
 			}
-			if (Accept(Lexer::TokenId::NoPerspective))
+			if (Accept(lexer::tokenid::noperspective))
 			{
 				qualifiers |= Nodes::Type::Qualifier::NoPerspective;
 			}
-			if (Accept(Lexer::TokenId::Centroid))
+			if (Accept(lexer::tokenid::centroid))
 			{
 				qualifiers |= Nodes::Type::Qualifier::Centroid;
 			}
-			if (Accept(Lexer::TokenId::NoInterpolation))
+			if (Accept(lexer::tokenid::nointerpolation))
 			{
 				qualifiers |= Nodes::Type::Qualifier::NoInterpolation;
 			}
@@ -1223,7 +1330,7 @@ namespace ReShade
 			}
 			if ((type.Qualifiers & qualifiers) == qualifiers)
 			{
-				Warning(_token.Location, 3048, "duplicate usages specified");
+				Warning(_token.location, 3048, "duplicate usages specified");
 			}
 
 			type.Qualifiers |= qualifiers;
@@ -1238,7 +1345,7 @@ namespace ReShade
 
 			AcceptTypeQualifiers(type);
 
-			const Location location = _tokenNext.Location;
+			const auto location = _tokenNext.location;
 
 			if (!AcceptTypeClass(type))
 			{
@@ -1263,24 +1370,24 @@ namespace ReShade
 		// Expressions
 		bool Parser::AcceptUnaryOp(Nodes::Unary::Op &op)
 		{
-			switch (_tokenNext.Id)
+			switch (_tokenNext.id)
 			{
-				case Lexer::TokenId::Exclaim:
+				case lexer::tokenid::exclaim:
 					op = Nodes::Unary::Op::LogicalNot;
 					break;
-				case Lexer::TokenId::Plus:
+				case lexer::tokenid::plus:
 					op = Nodes::Unary::Op::None;
 					break;
-				case Lexer::TokenId::Minus:
+				case lexer::tokenid::minus:
 					op = Nodes::Unary::Op::Negate;
 					break;
-				case Lexer::TokenId::Tilde:
+				case lexer::tokenid::tilde:
 					op = Nodes::Unary::Op::BitwiseNot;
 					break;
-				case Lexer::TokenId::PlusPlus:
+				case lexer::tokenid::plus_plus:
 					op = Nodes::Unary::Op::Increase;
 					break;
-				case Lexer::TokenId::MinusMinus:
+				case lexer::tokenid::minus_minus:
 					op = Nodes::Unary::Op::Decrease;
 					break;
 				default:
@@ -1293,12 +1400,12 @@ namespace ReShade
 		}
 		bool Parser::AcceptPostfixOp(Nodes::Unary::Op &op)
 		{
-			switch (_tokenNext.Id)
+			switch (_tokenNext.id)
 			{
-				case Lexer::TokenId::PlusPlus:
+				case lexer::tokenid::plus_plus:
 					op = Nodes::Unary::Op::PostIncrease;
 					break;
-				case Lexer::TokenId::MinusMinus:
+				case lexer::tokenid::minus_minus:
 					op = Nodes::Unary::Op::PostDecrease;
 					break;
 				default:
@@ -1311,81 +1418,81 @@ namespace ReShade
 		}
 		bool Parser::PeekMultaryOp(Nodes::Binary::Op &op, unsigned int &precedence) const
 		{
-			switch (_tokenNext.Id)
+			switch (_tokenNext.id)
 			{
-				case Lexer::TokenId::Percent:
+				case lexer::tokenid::percent:
 					op = Nodes::Binary::Op::Modulo;
 					precedence = 11;
 					break;
-				case Lexer::TokenId::Ampersand:
+				case lexer::tokenid::ampersand:
 					op = Nodes::Binary::Op::BitwiseAnd;
 					precedence = 6;
 					break;
-				case Lexer::TokenId::Star:
+				case lexer::tokenid::star:
 					op = Nodes::Binary::Op::Multiply;
 					precedence = 11;
 					break;
-				case Lexer::TokenId::Plus:
+				case lexer::tokenid::plus:
 					op = Nodes::Binary::Op::Add;
 					precedence = 10;
 					break;
-				case Lexer::TokenId::Minus:
+				case lexer::tokenid::minus:
 					op = Nodes::Binary::Op::Subtract;
 					precedence = 10;
 					break;
-				case Lexer::TokenId::Slash:
+				case lexer::tokenid::slash:
 					op = Nodes::Binary::Op::Divide;
 					precedence = 11;
 					break;
-				case Lexer::TokenId::Less:
+				case lexer::tokenid::less:
 					op = Nodes::Binary::Op::Less;
 					precedence = 8;
 					break;
-				case Lexer::TokenId::Greater:
+				case lexer::tokenid::greater:
 					op = Nodes::Binary::Op::Greater;
 					precedence = 8;
 					break;
-				case Lexer::TokenId::Question:
+				case lexer::tokenid::question:
 					op = Nodes::Binary::Op::None;
 					precedence = 1;
 					break;
-				case Lexer::TokenId::Caret:
+				case lexer::tokenid::caret:
 					op = Nodes::Binary::Op::BitwiseXor;
 					precedence = 5;
 					break;
-				case Lexer::TokenId::Pipe:
+				case lexer::tokenid::pipe:
 					op = Nodes::Binary::Op::BitwiseOr;
 					precedence = 4;
 					break;
-				case Lexer::TokenId::ExclaimEqual:
+				case lexer::tokenid::exclaim_equal:
 					op = Nodes::Binary::Op::NotEqual;
 					precedence = 7;
 					break;
-				case Lexer::TokenId::AmpersandAmpersand:
+				case lexer::tokenid::ampersand_ampersand:
 					op = Nodes::Binary::Op::LogicalAnd;
 					precedence = 3;
 					break;
-				case Lexer::TokenId::LessLess:
+				case lexer::tokenid::less_less:
 					op = Nodes::Binary::Op::LeftShift;
 					precedence = 9;
 					break;
-				case Lexer::TokenId::LessEqual:
+				case lexer::tokenid::less_equal:
 					op = Nodes::Binary::Op::LessOrEqual;
 					precedence = 8;
 					break;
-				case Lexer::TokenId::EqualEqual:
+				case lexer::tokenid::equal_equal:
 					op = Nodes::Binary::Op::Equal;
 					precedence = 7;
 					break;
-				case Lexer::TokenId::GreaterGreater:
+				case lexer::tokenid::greater_greater:
 					op = Nodes::Binary::Op::RightShift;
 					precedence = 9;
 					break;
-				case Lexer::TokenId::GreaterEqual:
+				case lexer::tokenid::greater_equal:
 					op = Nodes::Binary::Op::GreaterOrEqual;
 					precedence = 8;
 					break;
-				case Lexer::TokenId::PipePipe:
+				case lexer::tokenid::pipe_pipe:
 					op = Nodes::Binary::Op::LogicalOr;
 					precedence = 2;
 					break;
@@ -1397,39 +1504,39 @@ namespace ReShade
 		}
 		bool Parser::AcceptAssignmentOp(Nodes::Assignment::Op &op)
 		{
-			switch (_tokenNext.Id)
+			switch (_tokenNext.id)
 			{
-				case Lexer::TokenId::Equal:
+				case lexer::tokenid::equal:
 					op = Nodes::Assignment::Op::None;
 					break;
-				case Lexer::TokenId::PercentEqual:
+				case lexer::tokenid::percent_equal:
 					op = Nodes::Assignment::Op::Modulo;
 					break;
-				case Lexer::TokenId::AmpersandEqual:
+				case lexer::tokenid::ampersand_equal:
 					op = Nodes::Assignment::Op::BitwiseAnd;
 					break;
-				case Lexer::TokenId::StarEqual:
+				case lexer::tokenid::star_equal:
 					op = Nodes::Assignment::Op::Multiply;
 					break;
-				case Lexer::TokenId::PlusEqual:
+				case lexer::tokenid::plus_equal:
 					op = Nodes::Assignment::Op::Add;
 					break;
-				case Lexer::TokenId::MinusEqual:
+				case lexer::tokenid::minus_equal:
 					op = Nodes::Assignment::Op::Subtract;
 					break;
-				case Lexer::TokenId::SlashEqual:
+				case lexer::tokenid::slash_equal:
 					op = Nodes::Assignment::Op::Divide;
 					break;
-				case Lexer::TokenId::LessLessEqual:
+				case lexer::tokenid::less_less_equal:
 					op = Nodes::Assignment::Op::LeftShift;
 					break;
-				case Lexer::TokenId::GreaterGreaterEqual:
+				case lexer::tokenid::greater_greater_equal:
 					op = Nodes::Assignment::Op::RightShift;
 					break;
-				case Lexer::TokenId::CaretEqual:
+				case lexer::tokenid::caret_equal:
 					op = Nodes::Assignment::Op::BitwiseXor;
 					break;
-				case Lexer::TokenId::PipeEqual:
+				case lexer::tokenid::pipe_equal:
 					op = Nodes::Assignment::Op::BitwiseOr;
 					break;
 				default:
@@ -1449,7 +1556,7 @@ namespace ReShade
 
 			if (Peek(','))
 			{
-				const auto sequence = _ast->CreateNode<Nodes::Sequence>(node->Location);
+				const auto sequence = _ast->make_node<Nodes::Sequence>(node->location);
 				sequence->Expressions.push_back(node);
 
 				while (Accept(','))
@@ -1475,7 +1582,7 @@ namespace ReShade
 		{
 			Nodes::Type type;
 			Nodes::Unary::Op op;
-			Location location = _tokenNext.Location;
+			auto location = _tokenNext.location;
 
 			#pragma region Prefix
 			if (AcceptUnaryOp(op))
@@ -1487,7 +1594,7 @@ namespace ReShade
 
 				if (!node->Type.IsScalar() && !node->Type.IsVector() && !node->Type.IsMatrix())
 				{
-					Error(node->Location, 3022, "scalar, vector, or matrix expected");
+					Error(node->location, 3022, "scalar, vector, or matrix expected");
 
 					return false;
 				}
@@ -1496,18 +1603,18 @@ namespace ReShade
 				{
 					if (op == Nodes::Unary::Op::BitwiseNot && !node->Type.IsIntegral())
 					{
-						Error(node->Location, 3082, "int or unsigned int type required");
+						Error(node->location, 3082, "int or unsigned int type required");
 
 						return false;
 					}
 					else if ((op == Nodes::Unary::Op::Increase || op == Nodes::Unary::Op::Decrease) && (node->Type.HasQualifier(Nodes::Type::Qualifier::Const) || node->Type.HasQualifier(Nodes::Type::Qualifier::Uniform)))
 					{
-						Error(node->Location, 3025, "l-value specifies const object");
+						Error(node->location, 3025, "l-value specifies const object");
 
 						return false;
 					}
 
-					const auto newexpression = _ast->CreateNode<Nodes::Unary>(location);
+					const auto newexpression = _ast->make_node<Nodes::Unary>(location);
 					newexpression->Type = node->Type;
 					newexpression->Operator = op;
 					newexpression->Operand = node;
@@ -1552,7 +1659,7 @@ namespace ReShade
 								Warning(location, 3206, "implicit truncation of vector type");
 							}
 
-							const auto castexpression = _ast->CreateNode<Nodes::Unary>(location);
+							const auto castexpression = _ast->make_node<Nodes::Unary>(location);
 							type.Qualifiers = Nodes::Type::Qualifier::Const;
 							castexpression->Type = type;
 							castexpression->Operator = Nodes::Unary::Op::Cast;
@@ -1587,9 +1694,9 @@ namespace ReShade
 
 				type = node->Type;
 			}
-			else if (Accept(Lexer::TokenId::True))
+			else if (Accept(lexer::tokenid::true_literal))
 			{
-				const auto literal = _ast->CreateNode<Nodes::Literal>(location);
+				const auto literal = _ast->make_node<Nodes::Literal>(location);
 				literal->Type.BaseClass = Nodes::Type::Class::Bool;
 				literal->Type.Qualifiers = Nodes::Type::Qualifier::Const;
 				literal->Type.Rows = literal->Type.Cols = 1, literal->Type.ArrayLength = 0;
@@ -1598,9 +1705,9 @@ namespace ReShade
 				node = literal;
 				type = literal->Type;
 			}
-			else if (Accept(Lexer::TokenId::False))
+			else if (Accept(lexer::tokenid::false_literal))
 			{
-				const auto literal = _ast->CreateNode<Nodes::Literal>(location);
+				const auto literal = _ast->make_node<Nodes::Literal>(location);
 				literal->Type.BaseClass = Nodes::Type::Class::Bool;
 				literal->Type.Qualifiers = Nodes::Type::Qualifier::Const;
 				literal->Type.Rows = literal->Type.Cols = 1, literal->Type.ArrayLength = 0;
@@ -1609,61 +1716,61 @@ namespace ReShade
 				node = literal;
 				type = literal->Type;
 			}
-			else if (Accept(Lexer::TokenId::IntLiteral))
+			else if (Accept(lexer::tokenid::int_literal))
 			{
-				Nodes::Literal *const literal = _ast->CreateNode<Nodes::Literal>(location);
+				Nodes::Literal *const literal = _ast->make_node<Nodes::Literal>(location);
 				literal->Type.BaseClass = Nodes::Type::Class::Int;
 				literal->Type.Qualifiers = Nodes::Type::Qualifier::Const;
 				literal->Type.Rows = literal->Type.Cols = 1, literal->Type.ArrayLength = 0;
-				literal->Value.Int[0] = _token.LiteralAsInt;
+				literal->Value.Int[0] = _token.literal_as_int;
 
 				node = literal;
 				type = literal->Type;
 			}
-			else if (Accept(Lexer::TokenId::UintLiteral))
+			else if (Accept(lexer::tokenid::uint_literal))
 			{
-				const auto literal = _ast->CreateNode<Nodes::Literal>(location);
+				const auto literal = _ast->make_node<Nodes::Literal>(location);
 				literal->Type.BaseClass = Nodes::Type::Class::Uint;
 				literal->Type.Qualifiers = Nodes::Type::Qualifier::Const;
 				literal->Type.Rows = literal->Type.Cols = 1, literal->Type.ArrayLength = 0;
-				literal->Value.Uint[0] = _token.LiteralAsUint;
+				literal->Value.Uint[0] = _token.literal_as_uint;
 
 				node = literal;
 				type = literal->Type;
 			}
-			else if (Accept(Lexer::TokenId::FloatLiteral))
+			else if (Accept(lexer::tokenid::float_literal))
 			{
-				const auto literal = _ast->CreateNode<Nodes::Literal>(location);
+				const auto literal = _ast->make_node<Nodes::Literal>(location);
 				literal->Type.BaseClass = Nodes::Type::Class::Float;
 				literal->Type.Qualifiers = Nodes::Type::Qualifier::Const;
 				literal->Type.Rows = literal->Type.Cols = 1, literal->Type.ArrayLength = 0;
-				literal->Value.Float[0] = _token.LiteralAsFloat;
+				literal->Value.Float[0] = _token.literal_as_float;
 
 				node = literal;
 				type = literal->Type;
 			}
-			else if (Accept(Lexer::TokenId::DoubleLiteral))
+			else if (Accept(lexer::tokenid::double_literal))
 			{
-				const auto literal = _ast->CreateNode<Nodes::Literal>(location);
+				const auto literal = _ast->make_node<Nodes::Literal>(location);
 				literal->Type.BaseClass = Nodes::Type::Class::Float;
 				literal->Type.Qualifiers = Nodes::Type::Qualifier::Const;
 				literal->Type.Rows = literal->Type.Cols = 1, literal->Type.ArrayLength = 0;
-				literal->Value.Float[0] = static_cast<float>(_token.LiteralAsDouble);
+				literal->Value.Float[0] = static_cast<float>(_token.literal_as_double);
 
 				node = literal;
 				type = literal->Type;
 			}
-			else if (Accept(Lexer::TokenId::StringLiteral))
+			else if (Accept(lexer::tokenid::string_literal))
 			{
-				const auto literal = _ast->CreateNode<Nodes::Literal>(location);
+				const auto literal = _ast->make_node<Nodes::Literal>(location);
 				literal->Type.BaseClass = Nodes::Type::Class::String;
 				literal->Type.Qualifiers = Nodes::Type::Qualifier::Const;
 				literal->Type.Rows = literal->Type.Cols = 0, literal->Type.ArrayLength = 0;
-				literal->StringValue = _token.LiteralAsString;
+				literal->StringValue = _token.literal_as_string;
 
-				while (Accept(Lexer::TokenId::StringLiteral))
+				while (Accept(lexer::tokenid::string_literal))
 				{
-					literal->StringValue += _token.LiteralAsString;
+					literal->StringValue += _token.literal_as_string;
 				}
 
 				node = literal;
@@ -1690,7 +1797,7 @@ namespace ReShade
 					return false;
 				}
 
-				const auto constructor = _ast->CreateNode<Nodes::Constructor>(location);
+				const auto constructor = _ast->make_node<Nodes::Constructor>(location);
 				constructor->Type = type;
 				constructor->Type.Qualifiers = Nodes::Type::Qualifier::Const;
 
@@ -1712,7 +1819,7 @@ namespace ReShade
 
 					if (!argument->Type.IsNumeric())
 					{
-						Error(argument->Location, 3017, "cannot convert non-numeric types");
+						Error(argument->location, 3017, "cannot convert non-numeric types");
 
 						return false;
 					}
@@ -1741,7 +1848,7 @@ namespace ReShade
 				}
 				else
 				{
-					const auto castexpression = _ast->CreateNode<Nodes::Unary>(constructor->Location);
+					const auto castexpression = _ast->make_node<Nodes::Unary>(constructor->location);
 					castexpression->Type = type;
 					castexpression->Operator = Nodes::Unary::Op::Cast;
 					castexpression->Operand = constructor->Arguments[0];
@@ -1757,7 +1864,7 @@ namespace ReShade
 				bool exclusive;
 				std::string identifier;
 
-				if (Accept(Lexer::TokenId::ColonColon))
+				if (Accept(lexer::tokenid::colon_colon))
 				{
 					scope.NamespaceLevel = scope.Level = 0;
 					exclusive = true;
@@ -1768,37 +1875,37 @@ namespace ReShade
 					exclusive = false;
 				}
 
-				if (exclusive ? Expect(Lexer::TokenId::Identifier) : Accept(Lexer::TokenId::Identifier))
+				if (exclusive ? Expect(lexer::tokenid::identifier) : Accept(lexer::tokenid::identifier))
 				{
-					identifier = _token.LiteralAsString;
+					identifier = _token.literal_as_string;
 				}
 				else
 				{
 					return false;
 				}
 
-				while (Accept(Lexer::TokenId::ColonColon))
+				while (Accept(lexer::tokenid::colon_colon))
 				{
-					if (!Expect(Lexer::TokenId::Identifier))
+					if (!Expect(lexer::tokenid::identifier))
 					{
 						return false;
 					}
 
-					identifier += "::" + _token.LiteralAsString;
+					identifier += "::" + _token.literal_as_string;
 				}
 
-				const Node *symbol = FindSymbol(identifier, scope, exclusive);
+				const auto symbol = FindSymbol(identifier, scope, exclusive);
 
 				if (Accept('('))
 				{
-					if (symbol != nullptr && symbol->NodeId == Node::Id::Variable)
+					if (symbol != nullptr && symbol->id == nodeid::Variable)
 					{
 						Error(location, 3005, "identifier '%s' represents a variable, not a function", identifier.c_str());
 
 						return false;
 					}
 
-					const auto callexpression = _ast->CreateNode<Nodes::Call>(location);
+					const auto callexpression = _ast->make_node<Nodes::Call>(location);
 					callexpression->CalleeName = identifier;
 
 					while (!Peek(')'))
@@ -1845,7 +1952,7 @@ namespace ReShade
 
 					if (intrinsic)
 					{
-						const auto newexpression = _ast->CreateNode<Nodes::Intrinsic>(callexpression->Location);
+						const auto newexpression = _ast->make_node<Nodes::Intrinsic>(callexpression->location);
 						newexpression->Type = callexpression->Type;
 						newexpression->Operator = static_cast<Nodes::Intrinsic::Op>(reinterpret_cast<unsigned int>(callexpression->Callee));
 
@@ -1858,7 +1965,7 @@ namespace ReShade
 					}
 					else
 					{
-						const Node *const parent = _parentStack.empty() ? nullptr : _parentStack.top();
+						const auto parent = _parentStack.empty() ? nullptr : _parentStack.top();
 
 						if (parent == callexpression->Callee)
 						{
@@ -1881,14 +1988,14 @@ namespace ReShade
 						return false;
 					}
 
-					if (symbol->NodeId != Node::Id::Variable)
+					if (symbol->id != nodeid::Variable)
 					{
 						Error(location, 3005, "identifier '%s' represents a function, not a variable", identifier.c_str());
 
 						return false;
 					}
 
-					const auto newexpression = _ast->CreateNode<Nodes::LValue>(location);
+					const auto newexpression = _ast->make_node<Nodes::LValue>(location);
 					newexpression->Reference = static_cast<const Nodes::Variable *>(symbol);
 					newexpression->Type = newexpression->Reference->Type;
 
@@ -1899,27 +2006,27 @@ namespace ReShade
 			#pragma endregion
 
 			#pragma region Postfix
-			while (!Peek(Lexer::TokenId::EndOfStream))
+			while (!Peek(lexer::tokenid::end_of_stream))
 			{
-				location = _tokenNext.Location;
+				location = _tokenNext.location;
 
 				if (AcceptPostfixOp(op))
 				{
 					if (!type.IsScalar() && !type.IsVector() && !type.IsMatrix())
 					{
-						Error(node->Location, 3022, "scalar, vector, or matrix expected");
+						Error(node->location, 3022, "scalar, vector, or matrix expected");
 
 						return false;
 					}
 
 					if (type.HasQualifier(Nodes::Type::Qualifier::Const) || type.HasQualifier(Nodes::Type::Qualifier::Uniform))
 					{
-						Error(node->Location, 3025, "l-value specifies const object");
+						Error(node->location, 3025, "l-value specifies const object");
 
 						return false;
 					}
 
-					const auto newexpression = _ast->CreateNode<Nodes::Unary>(location);
+					const auto newexpression = _ast->make_node<Nodes::Unary>(location);
 					newexpression->Type = type;
 					newexpression->Type.Qualifiers |= Nodes::Type::Qualifier::Const;
 					newexpression->Operator = op;
@@ -1930,13 +2037,13 @@ namespace ReShade
 				}
 				else if (Accept('.'))
 				{
-					if (!Expect(Lexer::TokenId::Identifier))
+					if (!Expect(lexer::tokenid::identifier))
 					{
 						return false;
 					}
 
-					location = _token.Location;
-					const auto subscript = _token.LiteralAsString;
+					location = _token.location;
+					const auto subscript = _token.literal_as_string;
 
 					if (Accept('('))
 					{
@@ -2016,7 +2123,7 @@ namespace ReShade
 							}
 						}
 
-						const auto newexpression = _ast->CreateNode<Nodes::Swizzle>(location);
+						const auto newexpression = _ast->make_node<Nodes::Swizzle>(location);
 						newexpression->Type = type;
 						newexpression->Type.Rows = static_cast<unsigned int>(length);
 						newexpression->Operand = node;
@@ -2087,7 +2194,7 @@ namespace ReShade
 							}
 						}
 
-						const auto newexpression = _ast->CreateNode<Nodes::Swizzle>(_token.Location);
+						const auto newexpression = _ast->make_node<Nodes::Swizzle>(_token.location);
 						newexpression->Type = type;
 						newexpression->Type.Rows = static_cast<unsigned int>(length / (3 + set));
 						newexpression->Type.Cols = 1;
@@ -2126,7 +2233,7 @@ namespace ReShade
 							return false;
 						}
 
-						const auto newexpression = _ast->CreateNode<Nodes::FieldSelection>(location);
+						const auto newexpression = _ast->make_node<Nodes::FieldSelection>(location);
 						newexpression->Type = field->Type;
 						newexpression->Operand = node;
 						newexpression->Field = field;
@@ -2157,7 +2264,7 @@ namespace ReShade
 							offsets[i] = 0;
 						}
 
-						const auto newexpression = _ast->CreateNode<Nodes::Swizzle>(location);
+						const auto newexpression = _ast->make_node<Nodes::Swizzle>(location);
 						newexpression->Type = type;
 						newexpression->Type.Qualifiers |= Nodes::Type::Qualifier::Const;
 						newexpression->Type.Rows = static_cast<unsigned int>(length);
@@ -2181,12 +2288,12 @@ namespace ReShade
 				{
 					if (!type.IsArray() && !type.IsVector() && !type.IsMatrix())
 					{
-						Error(node->Location, 3121, "array, matrix, vector, or indexable object type expected in index expression");
+						Error(node->location, 3121, "array, matrix, vector, or indexable object type expected in index expression");
 
 						return false;
 					}
 
-					const auto newexpression = _ast->CreateNode<Nodes::Binary>(location);
+					const auto newexpression = _ast->make_node<Nodes::Binary>(location);
 					newexpression->Type = type;
 					newexpression->Operator = Nodes::Binary::Op::ElementExtract;
 					newexpression->Operands[0] = node;
@@ -2198,7 +2305,7 @@ namespace ReShade
 
 					if (!newexpression->Operands[1]->Type.IsScalar())
 					{
-						Error(newexpression->Operands[1]->Location, 3120, "invalid type for index - index must be a scalar");
+						Error(newexpression->Operands[1]->location, 3120, "invalid type for index - index must be a scalar");
 
 						return false;
 					}
@@ -2269,7 +2376,7 @@ namespace ReShade
 
 						if (left->Type.IsArray() || right1->Type.IsArray() || left->Type.Definition != right1->Type.Definition)
 						{
-							Error(right1->Location, 3020, "type mismatch");
+							Error(right1->location, 3020, "type mismatch");
 
 							return false;
 						}
@@ -2278,13 +2385,13 @@ namespace ReShade
 					{
 						if (!left->Type.IsIntegral())
 						{
-							Error(left->Location, 3082, "int or unsigned int type required");
+							Error(left->location, 3082, "int or unsigned int type required");
 
 							return false;
 						}
 						if (!right1->Type.IsIntegral())
 						{
-							Error(right1->Location, 3082, "int or unsigned int type required");
+							Error(right1->location, 3082, "int or unsigned int type required");
 
 							return false;
 						}
@@ -2295,19 +2402,19 @@ namespace ReShade
 
 						if (!left->Type.IsScalar() && !left->Type.IsVector() && !left->Type.IsMatrix())
 						{
-							Error(left->Location, 3022, "scalar, vector, or matrix expected");
+							Error(left->location, 3022, "scalar, vector, or matrix expected");
 
 							return false;
 						}
 						if (!right1->Type.IsScalar() && !right1->Type.IsVector() && !right1->Type.IsMatrix())
 						{
-							Error(right1->Location, 3022, "scalar, vector, or matrix expected");
+							Error(right1->location, 3022, "scalar, vector, or matrix expected");
 
 							return false;
 						}
 					}
 
-					const auto newexpression = _ast->CreateNode<Nodes::Binary>(left->Location);
+					const auto newexpression = _ast->make_node<Nodes::Binary>(left->location);
 					newexpression->Operator = op;
 					newexpression->Operands[0] = left;
 					newexpression->Operands[1] = right1;
@@ -2319,7 +2426,7 @@ namespace ReShade
 				{
 					if (!left->Type.IsScalar() && !left->Type.IsVector())
 					{
-						Error(left->Location, 3022, "boolean or vector expression expected");
+						Error(left->location, 3022, "boolean or vector expression expected");
 
 						return false;
 					}
@@ -2331,12 +2438,12 @@ namespace ReShade
 
 					if (right1->Type.IsArray() || right2->Type.IsArray() || right1->Type.Definition != right2->Type.Definition)
 					{
-						Error(left->Location, 3020, "type mismatch between conditional values");
+						Error(left->location, 3020, "type mismatch between conditional values");
 
 						return false;
 					}
 
-					const auto newexpression = _ast->CreateNode<Nodes::Conditional>(left->Location);
+					const auto newexpression = _ast->make_node<Nodes::Conditional>(left->location);
 					newexpression->Condition = left;
 					newexpression->ExpressionOnTrue = right1;
 					newexpression->ExpressionOnFalse = right2;
@@ -2365,11 +2472,11 @@ namespace ReShade
 
 					if (right1->Type.Rows > right2->Type.Rows || right1->Type.Cols > right2->Type.Cols)
 					{
-						Warning(right1->Location, 3206, "implicit truncation of vector type");
+						Warning(right1->location, 3206, "implicit truncation of vector type");
 					}
 					if (right2->Type.Rows > right1->Type.Rows || right2->Type.Cols > right1->Type.Cols)
 					{
-						Warning(right2->Location, 3206, "implicit truncation of vector type");
+						Warning(right2->location, 3206, "implicit truncation of vector type");
 					}
 				}
 
@@ -2398,24 +2505,24 @@ namespace ReShade
 
 				if (left->Type.HasQualifier(Nodes::Type::Qualifier::Const) || left->Type.HasQualifier(Nodes::Type::Qualifier::Uniform))
 				{
-					Error(left->Location, 3025, "l-value specifies const object");
+					Error(left->location, 3025, "l-value specifies const object");
 
 					return false;
 				}
 
 				if (left->Type.IsArray() || right->Type.IsArray() || !GetTypeRank(left->Type, right->Type))
 				{
-					Error(right->Location, 3020, "cannot convert these types");
+					Error(right->location, 3020, "cannot convert these types");
 
 					return false;
 				}
 
 				if (right->Type.Rows > left->Type.Rows || right->Type.Cols > left->Type.Cols)
 				{
-					Warning(right->Location, 3206, "implicit truncation of vector type");
+					Warning(right->location, 3206, "implicit truncation of vector type");
 				}
 
-				const auto assignment = _ast->CreateNode<Nodes::Assignment>(left->Location);
+				const auto assignment = _ast->make_node<Nodes::Assignment>(left->location);
 				assignment->Type = left->Type;
 				assignment->Operator = op;
 				assignment->Left = left;
@@ -2435,9 +2542,9 @@ namespace ReShade
 			// Attributes
 			while (Accept('['))
 			{
-				if (Expect(Lexer::TokenId::Identifier))
+				if (Expect(lexer::tokenid::identifier))
 				{
-					const auto attribute = _token.LiteralAsString;
+					const auto attribute = _token.literal_as_string;
 
 					if (Expect(']'))
 					{
@@ -2470,9 +2577,9 @@ namespace ReShade
 			}
 
 			#pragma region If
-			if (Accept(Lexer::TokenId::If))
+			if (Accept(lexer::tokenid::if_))
 			{
-				const auto newstatement = _ast->CreateNode<Nodes::If>(_token.Location);
+				const auto newstatement = _ast->make_node<Nodes::If>(_token.location);
 				newstatement->Attributes = attributes;
 
 				if (!(Expect('(') && ParseExpression(newstatement->Condition) && Expect(')')))
@@ -2482,7 +2589,7 @@ namespace ReShade
 
 				if (!newstatement->Condition->Type.IsScalar())
 				{
-					Error(newstatement->Condition->Location, 3019, "if statement conditional expressions must evaluate to a scalar");
+					Error(newstatement->Condition->location, 3019, "if statement conditional expressions must evaluate to a scalar");
 
 					return false;
 				}
@@ -2494,7 +2601,7 @@ namespace ReShade
 
 				statement = newstatement;
 
-				if (Accept(Lexer::TokenId::Else))
+				if (Accept(lexer::tokenid::else_))
 				{
 					return ParseStatement(newstatement->StatementOnFalse);
 				}
@@ -2504,9 +2611,9 @@ namespace ReShade
 			#pragma endregion
 
 			#pragma region Switch
-			if (Accept(Lexer::TokenId::Switch))
+			if (Accept(lexer::tokenid::switch_))
 			{
-				const auto newstatement = _ast->CreateNode<Nodes::Switch>(_token.Location);
+				const auto newstatement = _ast->make_node<Nodes::Switch>(_token.location);
 				newstatement->Attributes = attributes;
 
 				if (!(Expect('(') && ParseExpression(newstatement->Test) && Expect(')')))
@@ -2516,7 +2623,7 @@ namespace ReShade
 
 				if (!newstatement->Test->Type.IsScalar())
 				{
-					Error(newstatement->Test->Location, 3019, "switch statement expression must evaluate to a scalar");
+					Error(newstatement->Test->location, 3019, "switch statement expression must evaluate to a scalar");
 
 					return false;
 				}
@@ -2526,24 +2633,24 @@ namespace ReShade
 					return false;
 				}
 
-				while (!Peek('}') && !Peek(Lexer::TokenId::EndOfStream))
+				while (!Peek('}') && !Peek(lexer::tokenid::end_of_stream))
 				{
-					const auto casenode = _ast->CreateNode<Nodes::Case>(Location());
+					const auto casenode = _ast->make_node<Nodes::Case>(struct location());
 
-					while (Accept(Lexer::TokenId::Case) || Accept(Lexer::TokenId::Default))
+					while (Accept(lexer::tokenid::case_) || Accept(lexer::tokenid::default_))
 					{
 						Nodes::Expression *label = nullptr;
 
-						if (_token.Id == Lexer::TokenId::Case)
+						if (_token.id == lexer::tokenid::case_)
 						{
 							if (!ParseExpression(label))
 							{
 								return false;
 							}
 
-							if (label->NodeId != Node::Id::Literal || !label->Type.IsNumeric())
+							if (label->id != nodeid::Literal || !label->Type.IsNumeric())
 							{
-								Error(label->Location, 3020, "non-numeric case expression");
+								Error(label->location, 3020, "non-numeric case expression");
 
 								return false;
 							}
@@ -2562,7 +2669,7 @@ namespace ReShade
 						return false;
 					}
 
-					casenode->Location = casenode->Labels[0]->Location;
+					casenode->location = casenode->Labels[0]->location;
 
 					if (!ParseStatement(casenode->Statements))
 					{
@@ -2574,7 +2681,7 @@ namespace ReShade
 
 				if (newstatement->Cases.empty())
 				{
-					Warning(newstatement->Location, 5002, "switch statement contains no 'case' or 'default' labels");
+					Warning(newstatement->location, 5002, "switch statement contains no 'case' or 'default' labels");
 
 					statement = nullptr;
 				}
@@ -2588,9 +2695,9 @@ namespace ReShade
 			#pragma endregion
 
 			#pragma region For
-			if (Accept(Lexer::TokenId::For))
+			if (Accept(lexer::tokenid::for_))
 			{
-				const auto newstatement = _ast->CreateNode<Nodes::For>(_token.Location);
+				const auto newstatement = _ast->make_node<Nodes::For>(_token.location);
 				newstatement->Attributes = attributes;
 
 				if (!Expect('('))
@@ -2606,7 +2713,7 @@ namespace ReShade
 
 					if (ParseExpression(expression))
 					{
-						const auto initialization = _ast->CreateNode<Nodes::ExpressionStatement>(expression->Location);
+						const auto initialization = _ast->make_node<Nodes::ExpressionStatement>(expression->location);
 						initialization->Expression = expression;
 
 						newstatement->Initialization = initialization;
@@ -2640,7 +2747,7 @@ namespace ReShade
 
 				if (!newstatement->Condition->Type.IsScalar())
 				{
-					Error(newstatement->Condition->Location, 3019, "scalar value expected");
+					Error(newstatement->Condition->location, 3019, "scalar value expected");
 
 					return false;
 				}
@@ -2661,9 +2768,9 @@ namespace ReShade
 			#pragma endregion
 
 			#pragma region While
-			if (Accept(Lexer::TokenId::While))
+			if (Accept(lexer::tokenid::while_))
 			{
-				const auto newstatement = _ast->CreateNode<Nodes::While>(_token.Location);
+				const auto newstatement = _ast->make_node<Nodes::While>(_token.location);
 				newstatement->Attributes = attributes;
 				newstatement->DoWhile = false;
 
@@ -2678,7 +2785,7 @@ namespace ReShade
 
 				if (!newstatement->Condition->Type.IsScalar())
 				{
-					Error(newstatement->Condition->Location, 3019, "scalar value expected");
+					Error(newstatement->Condition->location, 3019, "scalar value expected");
 
 					LeaveScope();
 
@@ -2701,20 +2808,20 @@ namespace ReShade
 			#pragma endregion
 
 			#pragma region DoWhile
-			if (Accept(Lexer::TokenId::Do))
+			if (Accept(lexer::tokenid::do_))
 			{
-				const auto newstatement = _ast->CreateNode<Nodes::While>(_token.Location);
+				const auto newstatement = _ast->make_node<Nodes::While>(_token.location);
 				newstatement->Attributes = attributes;
 				newstatement->DoWhile = true;
 
-				if (!(ParseStatement(newstatement->Statements) && Expect(Lexer::TokenId::While) && Expect('(') && ParseExpression(newstatement->Condition) && Expect(')') && Expect(';')))
+				if (!(ParseStatement(newstatement->Statements) && Expect(lexer::tokenid::while_) && Expect('(') && ParseExpression(newstatement->Condition) && Expect(')') && Expect(';')))
 				{
 					return false;
 				}
 
 				if (!newstatement->Condition->Type.IsScalar())
 				{
-					Error(newstatement->Condition->Location, 3019, "scalar value expected");
+					Error(newstatement->Condition->location, 3019, "scalar value expected");
 
 					return false;
 				}
@@ -2726,9 +2833,9 @@ namespace ReShade
 			#pragma endregion
 
 			#pragma region Break
-			if (Accept(Lexer::TokenId::Break))
+			if (Accept(lexer::tokenid::break_))
 			{
-				const auto newstatement = _ast->CreateNode<Nodes::Jump>(_token.Location);
+				const auto newstatement = _ast->make_node<Nodes::Jump>(_token.location);
 				newstatement->Attributes = attributes;
 				newstatement->Mode = Nodes::Jump::Break;
 
@@ -2739,9 +2846,9 @@ namespace ReShade
 			#pragma endregion
 
 			#pragma region Continue
-			if (Accept(Lexer::TokenId::Continue))
+			if (Accept(lexer::tokenid::continue_))
 			{
-				const auto newstatement = _ast->CreateNode<Nodes::Jump>(_token.Location);
+				const auto newstatement = _ast->make_node<Nodes::Jump>(_token.location);
 				newstatement->Attributes = attributes;
 				newstatement->Mode = Nodes::Jump::Continue;
 
@@ -2752,9 +2859,9 @@ namespace ReShade
 			#pragma endregion
 
 			#pragma region Return
-			if (Accept(Lexer::TokenId::Return))
+			if (Accept(lexer::tokenid::return_))
 			{
-				const auto newstatement = _ast->CreateNode<Nodes::Return>(_token.Location);
+				const auto newstatement = _ast->make_node<Nodes::Return>(_token.location);
 				newstatement->Attributes = attributes;
 				newstatement->Discard = false;
 
@@ -2769,7 +2876,7 @@ namespace ReShade
 
 					if (parent->ReturnType.IsVoid())
 					{
-						Error(newstatement->Location, 3079, "void functions cannot return a value");
+						Error(newstatement->location, 3079, "void functions cannot return a value");
 
 						Accept(';');
 
@@ -2778,19 +2885,19 @@ namespace ReShade
 
 					if (!GetTypeRank(newstatement->Value->Type, parent->ReturnType))
 					{
-						Error(newstatement->Location, 3017, "expression does not match function return type");
+						Error(newstatement->location, 3017, "expression does not match function return type");
 
 						return false;
 					}
 
 					if (newstatement->Value->Type.Rows > parent->ReturnType.Rows || newstatement->Value->Type.Cols > parent->ReturnType.Cols)
 					{
-						Warning(newstatement->Location, 3206, "implicit truncation of vector type");
+						Warning(newstatement->location, 3206, "implicit truncation of vector type");
 					}
 				}
 				else if (!parent->ReturnType.IsVoid())
 				{
-					Error(newstatement->Location, 3080, "function must return a value");
+					Error(newstatement->location, 3080, "function must return a value");
 
 					Accept(';');
 
@@ -2804,9 +2911,9 @@ namespace ReShade
 			#pragma endregion
 
 			#pragma region Discard
-			if (Accept(Lexer::TokenId::Discard))
+			if (Accept(lexer::tokenid::discard_))
 			{
-				const auto newstatement = _ast->CreateNode<Nodes::Return>(_token.Location);
+				const auto newstatement = _ast->make_node<Nodes::Return>(_token.location);
 				newstatement->Attributes = attributes;
 				newstatement->Discard = true;
 
@@ -2830,7 +2937,7 @@ namespace ReShade
 
 			if (ParseExpression(expression))
 			{
-				const auto newstatement = _ast->CreateNode<Nodes::ExpressionStatement>(expression->Location);
+				const auto newstatement = _ast->make_node<Nodes::ExpressionStatement>(expression->location);
 				newstatement->Attributes = attributes;
 				newstatement->Expression = expression;
 
@@ -2840,7 +2947,7 @@ namespace ReShade
 			}
 			#pragma endregion
 
-			Error(_tokenNext.Location, 3000, "syntax error: unexpected '%s'", GetTokenName(_tokenNext.Id));
+			Error(_tokenNext.location, 3000, "syntax error: unexpected '%s'", GetTokenName(_tokenNext.id));
 
 			ConsumeUntil(';');
 
@@ -2853,14 +2960,14 @@ namespace ReShade
 				return false;
 			}
 
-			const auto compound = _ast->CreateNode<Nodes::Compound>(_token.Location);
+			const auto compound = _ast->make_node<Nodes::Compound>(_token.location);
 
 			if (scoped)
 			{
 				EnterScope();
 			}
 
-			while (!Peek('}') && !Peek(Lexer::TokenId::EndOfStream))
+			while (!Peek('}') && !Peek(lexer::tokenid::end_of_stream))
 			{
 				Nodes::Statement *compoundStatement = nullptr;
 
@@ -2873,7 +2980,7 @@ namespace ReShade
 
 					unsigned level = 0;
 
-					while (!Peek(Lexer::TokenId::EndOfStream))
+					while (!Peek(lexer::tokenid::end_of_stream))
 					{
 						if (Accept('{'))
 						{
@@ -2911,7 +3018,7 @@ namespace ReShade
 		{
 			Nodes::Type type;
 
-			const Location location = _tokenNext.Location;
+			const auto location = _tokenNext.location;
 
 			if (!ParseType(type))
 			{
@@ -2919,7 +3026,7 @@ namespace ReShade
 			}
 
 			unsigned int count = 0;
-			const auto declarators = _ast->CreateNode<Nodes::DeclaratorList>(location);
+			const auto declarators = _ast->make_node<Nodes::DeclaratorList>(location);
 
 			do
 			{
@@ -2928,14 +3035,14 @@ namespace ReShade
 					return false;
 				}
 
-				if (!Expect(Lexer::TokenId::Identifier))
+				if (!Expect(lexer::tokenid::identifier))
 				{
 					return false;
 				}
 
 				Nodes::Variable *declarator = nullptr;
 
-				if (!ParseVariableResidue(type, _token.LiteralAsString, declarator))
+				if (!ParseVariableResidue(type, _token.literal_as_string, declarator))
 				{
 					return false;
 				}
@@ -2950,14 +3057,11 @@ namespace ReShade
 		}
 
 		// Declarations
-		bool Parser::Parse(const std::string &source, std::string &errors)
+		bool Parser::Parse()
 		{
-			_lexer = Lexer(source);
-			_errors = &errors;
-
 			Consume();
 
-			while (!Peek(Lexer::TokenId::EndOfStream))
+			while (!Peek(lexer::tokenid::end_of_stream))
 			{
 				if (!ParseTopLevel())
 				{
@@ -2971,11 +3075,11 @@ namespace ReShade
 		{
 			Nodes::Type type = { Nodes::Type::Class::Void };
 
-			if (Peek(Lexer::TokenId::Namespace))
+			if (Peek(lexer::tokenid::namespace_))
 			{
 				return ParseNamespace();
 			}
-			else if (Peek(Lexer::TokenId::Struct))
+			else if (Peek(lexer::tokenid::struct_))
 			{
 				Nodes::Struct *structure = nullptr;
 
@@ -2989,7 +3093,7 @@ namespace ReShade
 					return false;
 				}
 			}
-			else if (Peek(Lexer::TokenId::Technique))
+			else if (Peek(lexer::tokenid::technique))
 			{
 				Nodes::Technique *technique = nullptr;
 
@@ -2998,11 +3102,11 @@ namespace ReShade
 					return false;
 				}
 
-				_ast->Techniques.push_back(std::move(technique));
+				_ast->techniques.push_back(std::move(technique));
 			}
 			else if (ParseType(type))
 			{
-				if (!Expect(Lexer::TokenId::Identifier))
+				if (!Expect(lexer::tokenid::identifier))
 				{
 					return false;
 				}
@@ -3011,12 +3115,12 @@ namespace ReShade
 				{
 					Nodes::Function *function = nullptr;
 
-					if (!ParseFunctionResidue(type, _token.LiteralAsString, function))
+					if (!ParseFunctionResidue(type, _token.literal_as_string, function))
 					{
 						return false;
 					}
 
-					_ast->Functions.push_back(std::move(function));
+					_ast->functions.push_back(std::move(function));
 				}
 				else
 				{
@@ -3024,21 +3128,21 @@ namespace ReShade
 
 					do
 					{
-						if (count++ > 0 && !(Expect(',') && Expect(Lexer::TokenId::Identifier)))
+						if (count++ > 0 && !(Expect(',') && Expect(lexer::tokenid::identifier)))
 						{
 							return false;
 						}
 
 						Nodes::Variable *variable = nullptr;
 
-						if (!ParseVariableResidue(type, _token.LiteralAsString, variable, true))
+						if (!ParseVariableResidue(type, _token.literal_as_string, variable, true))
 						{
 							ConsumeUntil(';');
 
 							return false;
 						}
 
-						_ast->Uniforms.push_back(std::move(variable));
+						_ast->uniforms.push_back(std::move(variable));
 					}
 					while (!Peek(';'));
 
@@ -3052,7 +3156,7 @@ namespace ReShade
 			{
 				Consume();
 
-				Error(_token.Location, 3000, "syntax error: unexpected '%s'", GetTokenName(_token.Id));
+				Error(_token.location, 3000, "syntax error: unexpected '%s'", GetTokenName(_token.id));
 
 				return false;
 			}
@@ -3061,17 +3165,17 @@ namespace ReShade
 		}
 		bool Parser::ParseNamespace()
 		{
-			if (!Accept(Lexer::TokenId::Namespace))
+			if (!Accept(lexer::tokenid::namespace_))
 			{
 				return false;
 			}
 
-			if (!Expect(Lexer::TokenId::Identifier))
+			if (!Expect(lexer::tokenid::identifier))
 			{
 				return false;
 			}
 
-			const auto name = _token.LiteralAsString;
+			const auto name = _token.literal_as_string;
 
 			if (!Expect('{'))
 			{
@@ -3111,9 +3215,9 @@ namespace ReShade
 				}
 				if (ParseExpression(expression) && Expect(']'))
 				{
-					if (expression->NodeId != Node::Id::Literal || !(expression->Type.IsScalar() && expression->Type.IsIntegral()))
+					if (expression->id != nodeid::Literal || !(expression->Type.IsScalar() && expression->Type.IsIntegral()))
 					{
-						Error(expression->Location, 3058, "array dimensions must be literal scalar expressions");
+						Error(expression->location, 3058, "array dimensions must be literal scalar expressions");
 
 						return false;
 					}
@@ -3122,7 +3226,7 @@ namespace ReShade
 
 					if (size < 1 || size > 65536)
 					{
-						Error(expression->Location, 3059, "array dimension must be between 1 and 65536");
+						Error(expression->location, 3059, "array dimension must be between 1 and 65536");
 
 						return false;
 					}
@@ -3148,13 +3252,13 @@ namespace ReShade
 
 				Nodes::Annotation annotation;
 
-				if (!Expect(Lexer::TokenId::Identifier))
+				if (!Expect(lexer::tokenid::identifier))
 				{
 					return false;
 				}
 
-				annotation.Name = _token.LiteralAsString;
-				annotation.Location = _token.Location;
+				annotation.Name = _token.literal_as_string;
+				annotation.location = _token.location;
 
 				Nodes::Expression *expression = nullptr;
 
@@ -3163,9 +3267,9 @@ namespace ReShade
 					return false;
 				}
 
-				if (expression->NodeId != Node::Id::Literal)
+				if (expression->id != nodeid::Literal)
 				{
-					Error(expression->Location, 3011, "value must be a literal expression");
+					Error(expression->location, 3011, "value must be a literal expression");
 
 					continue;
 				}
@@ -3179,28 +3283,28 @@ namespace ReShade
 		}
 		bool Parser::ParseStruct(Nodes::Struct *&structure)
 		{
-			if (!Accept(Lexer::TokenId::Struct))
+			if (!Accept(lexer::tokenid::struct_))
 			{
 				return false;
 			}
 
-			structure = _ast->CreateNode<Nodes::Struct>(_token.Location);
+			structure = _ast->make_node<Nodes::Struct>(_token.location);
 			structure->Namespace = _currentScope.Name;
 
-			if (Accept(Lexer::TokenId::Identifier))
+			if (Accept(lexer::tokenid::identifier))
 			{
-				structure->Name = _token.LiteralAsString;
+				structure->Name = _token.literal_as_string;
 
 				if (!InsertSymbol(structure, true))
 				{
-					Error(_token.Location, 3003, "redefinition of '%s'", structure->Name.c_str());
+					Error(_token.location, 3003, "redefinition of '%s'", structure->Name.c_str());
 
 					return false;
 				}
 			}
 			else
 			{
-				structure->Name = "__anonymous_struct_" + std::to_string(structure->Location.Line) + '_' + std::to_string(structure->Location.Column);
+				structure->Name = "__anonymous_struct_" + std::to_string(structure->location.line) + '_' + std::to_string(structure->location.column);
 			}
 
 			if (!Expect('{'))
@@ -3214,7 +3318,7 @@ namespace ReShade
 
 				if (!ParseType(type))
 				{
-					Error(_tokenNext.Location, 3000, "syntax error: unexpected '%s', expected struct member type", GetTokenName(_tokenNext.Id));
+					Error(_tokenNext.location, 3000, "syntax error: unexpected '%s', expected struct member type", GetTokenName(_tokenNext.id));
 
 					ConsumeUntil('}');
 
@@ -3223,7 +3327,7 @@ namespace ReShade
 
 				if (type.IsVoid())
 				{
-					Error(_tokenNext.Location, 3038, "struct members cannot be void");
+					Error(_tokenNext.location, 3038, "struct members cannot be void");
 
 					ConsumeUntil('}');
 
@@ -3231,7 +3335,7 @@ namespace ReShade
 				}
 				if (type.HasQualifier(Nodes::Type::Qualifier::In) || type.HasQualifier(Nodes::Type::Qualifier::Out))
 				{
-					Error(_tokenNext.Location, 3055, "struct members cannot be declared 'in' or 'out'");
+					Error(_tokenNext.location, 3055, "struct members cannot be declared 'in' or 'out'");
 
 					ConsumeUntil('}');
 
@@ -3249,29 +3353,29 @@ namespace ReShade
 						return false;
 					}
 
-					if (!Expect(Lexer::TokenId::Identifier))
+					if (!Expect(lexer::tokenid::identifier))
 					{
 						ConsumeUntil('}');
 
 						return false;
 					}
 
-					const auto field = _ast->CreateNode<Nodes::Variable>(_token.Location);
-					field->Name = _token.LiteralAsString;
+					const auto field = _ast->make_node<Nodes::Variable>(_token.location);
+					field->Name = _token.literal_as_string;
 					field->Type = type;
 
 					ParseArray(field->Type.ArrayLength);
 
 					if (Accept(':'))
 					{
-						if (!Expect(Lexer::TokenId::Identifier))
+						if (!Expect(lexer::tokenid::identifier))
 						{
 							ConsumeUntil('}');
 
 							return false;
 						}
 
-						field->Semantic = _token.LiteralAsString;
+						field->Semantic = _token.literal_as_string;
 						boost::to_upper(field->Semantic);
 					}
 
@@ -3289,16 +3393,16 @@ namespace ReShade
 
 			if (structure->Fields.empty())
 			{
-				Warning(structure->Location, 5001, "struct has no members");
+				Warning(structure->location, 5001, "struct has no members");
 			}
 
-			_ast->Structs.push_back(structure);
+			_ast->structs.push_back(structure);
 
 			return Expect('}');
 		}
 		bool Parser::ParseFunctionResidue(Nodes::Type &type, std::string name, Nodes::Function *&function)
 		{
-			const Location location = _token.Location;
+			const auto location = _token.location;
 
 			if (!Expect('('))
 			{
@@ -3312,7 +3416,7 @@ namespace ReShade
 				return false;
 			}
 
-			function = _ast->CreateNode<Nodes::Function>(location);
+			function = _ast->make_node<Nodes::Function>(location);
 			function->ReturnType = type;
 			function->ReturnType.Qualifiers = Nodes::Type::Qualifier::Const;
 			function->Name = name;
@@ -3331,30 +3435,30 @@ namespace ReShade
 					return false;
 				}
 
-				const auto parameter = _ast->CreateNode<Nodes::Variable>(Location());
+				const auto parameter = _ast->make_node<Nodes::Variable>(struct location());
 
 				if (!ParseType(parameter->Type))
 				{
 					LeaveScope();
 
-					Error(_tokenNext.Location, 3000, "syntax error: unexpected '%s', expected parameter type", GetTokenName(_tokenNext.Id));
+					Error(_tokenNext.location, 3000, "syntax error: unexpected '%s', expected parameter type", GetTokenName(_tokenNext.id));
 
 					return false;
 				}
 
-				if (!Expect(Lexer::TokenId::Identifier))
+				if (!Expect(lexer::tokenid::identifier))
 				{
 					LeaveScope();
 
 					return false;
 				}
 
-				parameter->Name = _token.LiteralAsString;
-				parameter->Location = _token.Location;
+				parameter->Name = _token.literal_as_string;
+				parameter->location = _token.location;
 
 				if (parameter->Type.IsVoid())
 				{
-					Error(parameter->Location, 3038, "function parameters cannot be void");
+					Error(parameter->location, 3038, "function parameters cannot be void");
 
 					LeaveScope();
 
@@ -3362,7 +3466,7 @@ namespace ReShade
 				}
 				if (parameter->Type.HasQualifier(Nodes::Type::Qualifier::Extern))
 				{
-					Error(parameter->Location, 3006, "function parameters cannot be declared 'extern'");
+					Error(parameter->location, 3006, "function parameters cannot be declared 'extern'");
 
 					LeaveScope();
 
@@ -3370,7 +3474,7 @@ namespace ReShade
 				}
 				if (parameter->Type.HasQualifier(Nodes::Type::Qualifier::Static))
 				{
-					Error(parameter->Location, 3007, "function parameters cannot be declared 'static'");
+					Error(parameter->location, 3007, "function parameters cannot be declared 'static'");
 
 					LeaveScope();
 
@@ -3378,7 +3482,7 @@ namespace ReShade
 				}
 				if (parameter->Type.HasQualifier(Nodes::Type::Qualifier::Uniform))
 				{
-					Error(parameter->Location, 3047, "function parameters cannot be declared 'uniform', consider placing in global scope instead");
+					Error(parameter->location, 3047, "function parameters cannot be declared 'uniform', consider placing in global scope instead");
 
 					LeaveScope();
 
@@ -3389,7 +3493,7 @@ namespace ReShade
 				{
 					if (parameter->Type.HasQualifier(Nodes::Type::Qualifier::Const))
 					{
-						Error(parameter->Location, 3046, "output parameters cannot be declared 'const'");
+						Error(parameter->location, 3046, "output parameters cannot be declared 'const'");
 
 						LeaveScope();
 
@@ -3405,7 +3509,7 @@ namespace ReShade
 
 				if (!InsertSymbol(parameter))
 				{
-					Error(parameter->Location, 3003, "redefinition of '%s'", parameter->Name.c_str());
+					Error(parameter->location, 3003, "redefinition of '%s'", parameter->Name.c_str());
 
 					LeaveScope();
 
@@ -3414,14 +3518,14 @@ namespace ReShade
 
 				if (Accept(':'))
 				{
-					if (!Expect(Lexer::TokenId::Identifier))
+					if (!Expect(lexer::tokenid::identifier))
 					{
 						LeaveScope();
 
 						return false;
 					}
 
-					parameter->Semantic = _token.LiteralAsString;
+					parameter->Semantic = _token.literal_as_string;
 					boost::to_upper(parameter->Semantic);
 				}
 
@@ -3437,19 +3541,19 @@ namespace ReShade
 
 			if (Accept(':'))
 			{
-				if (!Expect(Lexer::TokenId::Identifier))
+				if (!Expect(lexer::tokenid::identifier))
 				{
 					LeaveScope();
 
 					return false;
 				}
 
-				function->ReturnSemantic = _token.LiteralAsString;
+				function->ReturnSemantic = _token.literal_as_string;
 				boost::to_upper(function->ReturnSemantic);
 
 				if (type.IsVoid())
 				{
-					Error(_token.Location, 3076, "void function cannot have a semantic");
+					Error(_token.location, 3076, "void function cannot have a semantic");
 
 					return false;
 				}
@@ -3468,7 +3572,7 @@ namespace ReShade
 		}
 		bool Parser::ParseVariableResidue(Nodes::Type &type, std::string name, Nodes::Variable *&variable, bool global)
 		{
-			Location location = _token.Location;
+			auto location = _token.location;
 
 			if (type.IsVoid())
 			{
@@ -3483,7 +3587,7 @@ namespace ReShade
 				return false;
 			}
 
-			const Node *const parent = _parentStack.empty() ? nullptr : _parentStack.top();
+			const auto parent = _parentStack.empty() ? nullptr : _parentStack.top();
 
 			if (parent == nullptr)
 			{
@@ -3522,7 +3626,7 @@ namespace ReShade
 
 			ParseArray(type.ArrayLength);
 
-			variable = _ast->CreateNode<Nodes::Variable>(location);
+			variable = _ast->make_node<Nodes::Variable>(location);
 			variable->Type = type;
 			variable->Name = name;
 
@@ -3540,12 +3644,12 @@ namespace ReShade
 
 			if (Accept(':'))
 			{
-				if (!Expect(Lexer::TokenId::Identifier))
+				if (!Expect(lexer::tokenid::identifier))
 				{
 					return false;
 				}
 
-				variable->Semantic = _token.LiteralAsString;
+				variable->Semantic = _token.literal_as_string;
 				boost::to_upper(variable->Semantic);
 			}
 
@@ -3553,23 +3657,23 @@ namespace ReShade
 
 			if (Accept('='))
 			{
-				location = _token.Location;
+				location = _token.location;
 
 				if (!ParseVariableAssignment(variable->Initializer))
 				{
 					return false;
 				}
 
-				if (parent == nullptr && variable->Initializer->NodeId != Node::Id::Literal)
+				if (parent == nullptr && variable->Initializer->id != nodeid::Literal)
 				{
 					Error(location, 3011, "initial value must be a literal expression");
 
 					return false;
 				}
 
-				if (variable->Initializer->NodeId == Node::Id::InitializerList && type.IsNumeric())
+				if (variable->Initializer->id == nodeid::InitializerList && type.IsNumeric())
 				{
-					const auto nullval = _ast->CreateNode<Nodes::Literal>(location);
+					const auto nullval = _ast->make_node<Nodes::Literal>(location);
 					nullval->Type.BaseClass = type.BaseClass;
 					nullval->Type.Qualifiers = Nodes::Type::Qualifier::Const;
 					nullval->Type.Rows = type.Rows, nullval->Type.Cols = type.Cols, nullval->Type.ArrayLength = 0;
@@ -3624,7 +3728,7 @@ namespace ReShade
 		{
 			if (Accept('{'))
 			{
-				const auto initializerlist = _ast->CreateNode<Nodes::InitializerList>(_token.Location);
+				const auto initializerlist = _ast->make_node<Nodes::InitializerList>(_token.location);
 
 				while (!Peek('}'))
 				{
@@ -3645,7 +3749,7 @@ namespace ReShade
 						return false;
 					}
 
-					if (expression->NodeId == Node::Id::InitializerList && static_cast<Nodes::InitializerList *>(expression)->Values.empty())
+					if (expression->id == nodeid::InitializerList && static_cast<Nodes::InitializerList *>(expression)->Values.empty())
 					{
 						continue;
 					}
@@ -3679,13 +3783,13 @@ namespace ReShade
 
 			while (!Peek('}'))
 			{
-				if (!Expect(Lexer::TokenId::Identifier))
+				if (!Expect(lexer::tokenid::identifier))
 				{
 					return false;
 				}
 
-				const auto name = _token.LiteralAsString;
-				const Location location = _token.Location;
+				const auto name = _token.literal_as_string;
+				const auto location = _token.location;
 
 				Nodes::Expression *value = nullptr;
 
@@ -3696,7 +3800,7 @@ namespace ReShade
 
 				if (name == "Texture")
 				{
-					if (value->NodeId != Node::Id::LValue || static_cast<Nodes::LValue *>(value)->Reference->NodeId != Node::Id::Variable || !static_cast<Nodes::LValue *>(value)->Reference->Type.IsTexture() || static_cast<Nodes::LValue *>(value)->Reference->Type.IsArray())
+					if (value->id != nodeid::LValue || static_cast<Nodes::LValue *>(value)->Reference->id != nodeid::Variable || !static_cast<Nodes::LValue *>(value)->Reference->Type.IsTexture() || static_cast<Nodes::LValue *>(value)->Reference->Type.IsArray())
 					{
 						Error(location, 3020, "type mismatch, expected texture name");
 
@@ -3707,7 +3811,7 @@ namespace ReShade
 				}
 				else
 				{
-					if (value->NodeId != Node::Id::Literal)
+					if (value->id != nodeid::Literal)
 					{
 						Error(location, 3011, "value must be a literal expression");
 
@@ -3800,10 +3904,10 @@ namespace ReShade
 		{
 			Backup();
 
-			if (Accept(Lexer::TokenId::Identifier))
+			if (Accept(lexer::tokenid::identifier))
 			{
-				const auto identifier = _token.LiteralAsString;
-				const Location location = _token.Location;
+				const auto identifier = _token.literal_as_string;
+				const auto location = _token.location;
 
 				static const std::unordered_map<std::string, unsigned int> sEnums = boost::assign::map_list_of
 					("NONE", Nodes::Variable::Properties::NONE)
@@ -3844,7 +3948,7 @@ namespace ReShade
 
 				if (it != sEnums.end())
 				{
-					const auto newexpression = _ast->CreateNode<Nodes::Literal>(location);
+					const auto newexpression = _ast->make_node<Nodes::Literal>(location);
 					newexpression->Type.BaseClass = Nodes::Type::Class::Uint;
 					newexpression->Type.Rows = newexpression->Type.Cols = 1, newexpression->Type.ArrayLength = 0;
 					newexpression->Value.Uint[0] = it->second;
@@ -3861,20 +3965,20 @@ namespace ReShade
 		}
 		bool Parser::ParseTechnique(Nodes::Technique *&technique)
 		{
-			if (!Accept(Lexer::TokenId::Technique))
+			if (!Accept(lexer::tokenid::technique))
 			{
 				return false;
 			}
 
-			const Location location = _token.Location;
+			const auto location = _token.location;
 
-			if (!Expect(Lexer::TokenId::Identifier))
+			if (!Expect(lexer::tokenid::identifier))
 			{
 				return false;
 			}
 
-			technique = _ast->CreateNode<Nodes::Technique>(location);
-			technique->Name = _token.LiteralAsString;
+			technique = _ast->make_node<Nodes::Technique>(location);
+			technique->Name = _token.literal_as_string;
 			technique->Namespace = _currentScope.Name;
 
 			ParseAnnotations(technique->Annotations);
@@ -3900,16 +4004,16 @@ namespace ReShade
 		}
 		bool Parser::ParseTechniquePass(Nodes::Pass *&pass)
 		{
-			if (!Accept(Lexer::TokenId::Pass))
+			if (!Accept(lexer::tokenid::pass))
 			{
 				return false;
 			}
 
-			pass = _ast->CreateNode<Nodes::Pass>(_token.Location);
+			pass = _ast->make_node<Nodes::Pass>(_token.location);
 
-			if (Accept(Lexer::TokenId::Identifier))
+			if (Accept(lexer::tokenid::identifier))
 			{
-				pass->Name = _token.LiteralAsString;
+				pass->Name = _token.literal_as_string;
 			}
 
 			ParseAnnotations(pass->Annotations);
@@ -3921,13 +4025,13 @@ namespace ReShade
 
 			while (!Peek('}'))
 			{
-				if (!Expect(Lexer::TokenId::Identifier))
+				if (!Expect(lexer::tokenid::identifier))
 				{
 					return false;
 				}
 
-				const auto passstate = _token.LiteralAsString;
-				const Location location = _token.Location;
+				const auto passstate = _token.literal_as_string;
+				const auto location = _token.location;
 
 				Nodes::Expression *value = nullptr;
 
@@ -3938,7 +4042,7 @@ namespace ReShade
 
 				if (passstate == "VertexShader" || passstate == "PixelShader")
 				{
-					if (value->NodeId != Node::Id::LValue || static_cast<Nodes::LValue *>(value)->Reference->NodeId != Node::Id::Function)
+					if (value->id != nodeid::LValue || static_cast<Nodes::LValue *>(value)->Reference->id != nodeid::Function)
 					{
 						Error(location, 3020, "type mismatch, expected function name");
 
@@ -3956,7 +4060,7 @@ namespace ReShade
 						index = passstate[12] - '0';
 					}
 
-					if (value->NodeId != Node::Id::LValue || static_cast<Nodes::LValue *>(value)->Reference->NodeId != Node::Id::Variable || static_cast<Nodes::LValue *>(value)->Reference->Type.BaseClass != Nodes::Type::Class::Texture2D || static_cast<Nodes::LValue *>(value)->Reference->Type.IsArray())
+					if (value->id != nodeid::LValue || static_cast<Nodes::LValue *>(value)->Reference->id != nodeid::Variable || static_cast<Nodes::LValue *>(value)->Reference->Type.BaseClass != Nodes::Type::Class::Texture2D || static_cast<Nodes::LValue *>(value)->Reference->Type.IsArray())
 					{
 						Error(location, 3020, "type mismatch, expected texture name");
 
@@ -3967,7 +4071,7 @@ namespace ReShade
 				}
 				else
 				{
-					if (value->NodeId != Node::Id::Literal)
+					if (value->id != nodeid::Literal)
 					{
 						Error(location, 3011, "pass state value must be a literal expression");
 
@@ -4073,7 +4177,7 @@ namespace ReShade
 			Scope scope;
 			bool exclusive;
 
-			if (Accept(Lexer::TokenId::ColonColon))
+			if (Accept(lexer::tokenid::colon_colon))
 			{
 				scope.NamespaceLevel = scope.Level = 0;
 				exclusive = true;
@@ -4084,10 +4188,10 @@ namespace ReShade
 				exclusive = false;
 			}
 
-			if (exclusive ? Expect(Lexer::TokenId::Identifier) : Accept(Lexer::TokenId::Identifier))
+			if (exclusive ? Expect(lexer::tokenid::identifier) : Accept(lexer::tokenid::identifier))
 			{
-				auto identifier = _token.LiteralAsString;
-				const Location location = _token.Location;
+				auto identifier = _token.literal_as_string;
+				const auto location = _token.location;
 
 				static const std::unordered_map<std::string, unsigned int> sEnums = boost::assign::map_list_of
 					("NONE", Nodes::Pass::States::NONE)
@@ -4129,7 +4233,7 @@ namespace ReShade
 
 				if (it != sEnums.end())
 				{
-					const auto newexpression = _ast->CreateNode<Nodes::Literal>(location);
+					const auto newexpression = _ast->make_node<Nodes::Literal>(location);
 					newexpression->Type.BaseClass = Nodes::Type::Class::Uint;
 					newexpression->Type.Rows = newexpression->Type.Cols = 1, newexpression->Type.ArrayLength = 0;
 					newexpression->Value.Uint[0] = it->second;
@@ -4139,12 +4243,12 @@ namespace ReShade
 					return true;
 				}
 
-				while (Accept(Lexer::TokenId::ColonColon) && Expect(Lexer::TokenId::Identifier))
+				while (Accept(lexer::tokenid::colon_colon) && Expect(lexer::tokenid::identifier))
 				{
-					identifier += "::" + _token.LiteralAsString;
+					identifier += "::" + _token.literal_as_string;
 				}
 
-				const Node *symbol = FindSymbol(identifier, scope, exclusive);
+				const auto symbol = FindSymbol(identifier, scope, exclusive);
 
 				if (symbol == nullptr)
 				{
@@ -4153,9 +4257,9 @@ namespace ReShade
 					return false;
 				}
 
-				const auto newexpression = _ast->CreateNode<Nodes::LValue>(location);
+				const auto newexpression = _ast->make_node<Nodes::LValue>(location);
 				newexpression->Reference = static_cast<const Nodes::Variable *>(symbol);
-				newexpression->Type = symbol->NodeId == Node::Id::Function ? static_cast<const Nodes::Function *>(symbol)->ReturnType : newexpression->Reference->Type;
+				newexpression->Type = symbol->id == nodeid::Function ? static_cast<const Nodes::Function *>(symbol)->ReturnType : newexpression->Reference->Type;
 
 				expression = newexpression;
 
@@ -4226,7 +4330,7 @@ namespace ReShade
 		}
 		bool Parser::InsertSymbol(Symbol *symbol, bool global)
 		{
-			if (symbol->NodeId != Node::Id::Function && FindSymbol(symbol->Name, _currentScope, true))
+			if (symbol->id != nodeid::Function && FindSymbol(symbol->Name, _currentScope, true))
 			{
 				return false;
 			}
@@ -4280,7 +4384,7 @@ namespace ReShade
 					continue;
 				}
 
-				if (it2->second->NodeId == Node::Id::Variable || it2->second->NodeId == Node::Id::Struct)
+				if (it2->second->id == nodeid::Variable || it2->second->id == nodeid::Struct)
 				{
 					return it2->second;
 				}
@@ -4309,7 +4413,7 @@ namespace ReShade
 
 				for (auto it2 = scopes.rbegin(), end = scopes.rend(); it2 != end; ++it2)
 				{
-					if (it2->first.Level > scope.Level || it2->first.NamespaceLevel > scope.NamespaceLevel || it2->second->NodeId != Node::Id::Function)
+					if (it2->first.Level > scope.Level || it2->first.NamespaceLevel > scope.NamespaceLevel || it2->second->id != nodeid::Function)
 					{
 						continue;
 					}
@@ -4518,11 +4622,11 @@ namespace ReShade
 			expression = left;
 			#pragma endregion
 
-			if (expression->NodeId == Node::Id::Unary)
+			if (expression->id == nodeid::Unary)
 			{
 				const auto unaryexpression = static_cast<Nodes::Unary *>(expression);
 
-				if (unaryexpression->Operand->NodeId != Node::Id::Literal)
+				if (unaryexpression->Operand->id != nodeid::Literal)
 				{
 					return expression;
 				}
@@ -4563,11 +4667,11 @@ namespace ReShade
 					}
 				}
 			}
-			else if (expression->NodeId == Node::Id::Binary)
+			else if (expression->id == nodeid::Binary)
 			{
 				const auto binaryexpression = static_cast<Nodes::Binary *>(expression);
 
-				if (binaryexpression->Operands[0]->NodeId != Node::Id::Literal || binaryexpression->Operands[1]->NodeId != Node::Id::Literal)
+				if (binaryexpression->Operands[0]->id != nodeid::Literal || binaryexpression->Operands[1]->id != nodeid::Literal)
 				{
 					return expression;
 				}
@@ -4635,11 +4739,11 @@ namespace ReShade
 						break;
 				}
 			}
-			else if (expression->NodeId == Node::Id::Intrinsic)
+			else if (expression->id == nodeid::Intrinsic)
 			{
 				const auto intrinsicexpression = static_cast<Nodes::Intrinsic *>(expression);
 
-				if ((intrinsicexpression->Arguments[0] != nullptr && intrinsicexpression->Arguments[0]->NodeId != Node::Id::Literal) || (intrinsicexpression->Arguments[1] != nullptr && intrinsicexpression->Arguments[1]->NodeId != Node::Id::Literal) || (intrinsicexpression->Arguments[2] != nullptr && intrinsicexpression->Arguments[2]->NodeId != Node::Id::Literal))
+				if ((intrinsicexpression->Arguments[0] != nullptr && intrinsicexpression->Arguments[0]->id != nodeid::Literal) || (intrinsicexpression->Arguments[1] != nullptr && intrinsicexpression->Arguments[1]->id != nodeid::Literal) || (intrinsicexpression->Arguments[2] != nullptr && intrinsicexpression->Arguments[2]->id != nodeid::Literal))
 				{
 					return expression;
 				}
@@ -4712,20 +4816,20 @@ namespace ReShade
 						break;
 				}
 			}
-			else if (expression->NodeId == Node::Id::Constructor)
+			else if (expression->id == nodeid::Constructor)
 			{
 				const auto constructor = static_cast<Nodes::Constructor *>(expression);
 
 				for (auto argument : constructor->Arguments)
 				{
-					if (argument->NodeId != Node::Id::Literal)
+					if (argument->id != nodeid::Literal)
 					{
 						return expression;
 					}
 				}
 
 				unsigned int k = 0;
-				const auto literal = _ast->CreateNode<Nodes::Literal>(constructor->Location);
+				const auto literal = _ast->make_node<Nodes::Literal>(constructor->location);
 				literal->Type = constructor->Type;
 
 				for (auto argument : constructor->Arguments)
@@ -4738,16 +4842,16 @@ namespace ReShade
 
 				expression = literal;
 			}
-			else if (expression->NodeId == Node::Id::LValue)
+			else if (expression->id == nodeid::LValue)
 			{
 				const auto variable = static_cast<Nodes::LValue *>(expression)->Reference;
 
-				if (variable->Initializer == nullptr || !(variable->Initializer->NodeId == Node::Id::Literal && variable->Type.HasQualifier(Nodes::Type::Qualifier::Const)))
+				if (variable->Initializer == nullptr || !(variable->Initializer->id == nodeid::Literal && variable->Type.HasQualifier(Nodes::Type::Qualifier::Const)))
 				{
 					return expression;
 				}
 
-				const auto literal = _ast->CreateNode<Nodes::Literal>(expression->Location);
+				const auto literal = _ast->make_node<Nodes::Literal>(expression->location);
 				literal->Type = expression->Type;
 				literal->Value = static_cast<const Nodes::Literal *>(variable->Initializer)->Value;
 

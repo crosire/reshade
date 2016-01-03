@@ -143,7 +143,7 @@ namespace ReShade
 			class D3D9EffectCompiler : private boost::noncopyable
 			{
 			public:
-				D3D9EffectCompiler(const FX::NodeTree &ast, bool skipoptimization = false) : _ast(ast), _runtime(nullptr), _isFatal(false), _skipShaderOptimization(skipoptimization), _currentFunction(nullptr), _currentRegisterOffset(0)
+				D3D9EffectCompiler(const FX::nodetree &ast, bool skipoptimization = false) : _ast(ast), _runtime(nullptr), _isFatal(false), _skipShaderOptimization(skipoptimization), _currentFunction(nullptr), _currentRegisterOffset(0)
 				{
 				}
 
@@ -156,12 +156,12 @@ namespace ReShade
 
 					_globalCode.clear();
 
-					for (auto structure : _ast.Structs)
+					for (auto structure : _ast.structs)
 					{
 						Visit(_globalCode, static_cast<FX::Nodes::Struct *>(structure));
 					}
 
-					for (auto uniform1 : _ast.Uniforms)
+					for (auto uniform1 : _ast.uniforms)
 					{
 						const auto uniform = static_cast<FX::Nodes::Variable *>(uniform1);
 
@@ -185,7 +185,7 @@ namespace ReShade
 						}
 					}
 
-					for (auto function1 : _ast.Functions)
+					for (auto function1 : _ast.functions)
 					{
 						const auto function = static_cast<FX::Nodes::Function *>(function1);
 
@@ -194,7 +194,7 @@ namespace ReShade
 						Visit(_functions[function].SourceCode, function);
 					}
 
-					for (auto technique : _ast.Techniques)
+					for (auto technique : _ast.techniques)
 					{
 						VisitTechnique(static_cast<FX::Nodes::Technique *>(technique));
 					}
@@ -316,7 +316,7 @@ namespace ReShade
 				}
 
 			private:
-				void Error(const FX::Location &location, const char *message, ...)
+				void Error(const FX::location &location, const char *message, ...)
 				{
 					char formatted[512];
 
@@ -325,10 +325,10 @@ namespace ReShade
 					vsprintf_s(formatted, message, args);
 					va_end(args);
 
-					_errors += location.Source + "(" + std::to_string(location.Line) + ", " + std::to_string(location.Column) + "): error: " + formatted + '\n';
+					_errors += location.source + "(" + std::to_string(location.line) + ", " + std::to_string(location.column) + "): error: " + formatted + '\n';
 					_isFatal = true;
 				}
-				void Warning(const FX::Location &location, const char *message, ...)
+				void Warning(const FX::location &location, const char *message, ...)
 				{
 					char formatted[512];
 
@@ -337,7 +337,7 @@ namespace ReShade
 					vsprintf_s(formatted, message, args);
 					va_end(args);
 
-					_errors += location.Source + "(" + std::to_string(location.Line) + ", " + std::to_string(location.Column) + "): warning: " + formatted + '\n';
+					_errors += location.source + "(" + std::to_string(location.line) + ", " + std::to_string(location.column) + "): warning: " + formatted + '\n';
 				}
 
 				void VisitType(std::string &source, const FX::Nodes::Type &type)
@@ -417,33 +417,33 @@ namespace ReShade
 						return;
 					}
 
-					switch (node->NodeId)
+					switch (node->id)
 					{
-						case FX::Node::Id::Compound:
+						case FX::nodeid::Compound:
 							Visit(output, static_cast<const FX::Nodes::Compound *>(node));
 							break;
-						case FX::Node::Id::DeclaratorList:
+						case FX::nodeid::DeclaratorList:
 							Visit(output, static_cast<const FX::Nodes::DeclaratorList *>(node));
 							break;
-						case FX::Node::Id::ExpressionStatement:
+						case FX::nodeid::ExpressionStatement:
 							Visit(output, static_cast<const FX::Nodes::ExpressionStatement *>(node));
 							break;
-						case FX::Node::Id::If:
+						case FX::nodeid::If:
 							Visit(output, static_cast<const FX::Nodes::If *>(node));
 							break;
-						case FX::Node::Id::Switch:
+						case FX::nodeid::Switch:
 							Visit(output, static_cast<const FX::Nodes::Switch *>(node));
 							break;
-						case FX::Node::Id::For:
+						case FX::nodeid::For:
 							Visit(output, static_cast<const FX::Nodes::For *>(node));
 							break;
-						case FX::Node::Id::While:
+						case FX::nodeid::While:
 							Visit(output, static_cast<const FX::Nodes::While *>(node));
 							break;
-						case FX::Node::Id::Return:
+						case FX::nodeid::Return:
 							Visit(output, static_cast<const FX::Nodes::Return *>(node));
 							break;
-						case FX::Node::Id::Jump:
+						case FX::nodeid::Jump:
 							Visit(output, static_cast<const FX::Nodes::Jump *>(node));
 							break;
 						default:
@@ -453,45 +453,45 @@ namespace ReShade
 				}
 				void Visit(std::string &output, const FX::Nodes::Expression *node)
 				{
-					switch (node->NodeId)
+					switch (node->id)
 					{
-						case FX::Node::Id::LValue:
+						case FX::nodeid::LValue:
 							Visit(output, static_cast<const FX::Nodes::LValue *>(node));
 							break;
-						case FX::Node::Id::Literal:
+						case FX::nodeid::Literal:
 							Visit(output, static_cast<const FX::Nodes::Literal *>(node));
 							break;
-						case FX::Node::Id::Sequence:
+						case FX::nodeid::Sequence:
 							Visit(output, static_cast<const FX::Nodes::Sequence *>(node));
 							break;
-						case FX::Node::Id::Unary:
+						case FX::nodeid::Unary:
 							Visit(output, static_cast<const FX::Nodes::Unary *>(node));
 							break;
-						case FX::Node::Id::Binary:
+						case FX::nodeid::Binary:
 							Visit(output, static_cast<const FX::Nodes::Binary *>(node));
 							break;
-						case FX::Node::Id::Intrinsic:
+						case FX::nodeid::Intrinsic:
 							Visit(output, static_cast<const FX::Nodes::Intrinsic *>(node));
 							break;
-						case FX::Node::Id::Conditional:
+						case FX::nodeid::Conditional:
 							Visit(output, static_cast<const FX::Nodes::Conditional *>(node));
 							break;
-						case FX::Node::Id::Swizzle:
+						case FX::nodeid::Swizzle:
 							Visit(output, static_cast<const FX::Nodes::Swizzle *>(node));
 							break;
-						case FX::Node::Id::FieldSelection:
+						case FX::nodeid::FieldSelection:
 							Visit(output, static_cast<const FX::Nodes::FieldSelection *>(node));
 							break;
-						case FX::Node::Id::Assignment:
+						case FX::nodeid::Assignment:
 							Visit(output, static_cast<const FX::Nodes::Assignment *>(node));
 							break;
-						case FX::Node::Id::Call:
+						case FX::nodeid::Call:
 							Visit(output, static_cast<const FX::Nodes::Call *>(node));
 							break;
-						case FX::Node::Id::Constructor:
+						case FX::nodeid::Constructor:
 							Visit(output, static_cast<const FX::Nodes::Constructor *>(node));
 							break;
-						case FX::Node::Id::InitializerList:
+						case FX::nodeid::InitializerList:
 							Visit(output, static_cast<const FX::Nodes::InitializerList *>(node));
 							break;
 						default:
@@ -575,7 +575,7 @@ namespace ReShade
 				}
 				void Visit(std::string &output, const FX::Nodes::Switch *node)
 				{
-					Warning(node->Location, "switch statements do not currently support fallthrough in Direct3D9!");
+					Warning(node->location, "switch statements do not currently support fallthrough in Direct3D9!");
 
 					output += "[unroll] do { ";
 					
@@ -635,7 +635,7 @@ namespace ReShade
 
 					if (node->Initialization != nullptr)
 					{
-						if (node->Initialization->NodeId == FX::Node::Id::DeclaratorList)
+						if (node->Initialization->id == FX::nodeid::DeclaratorList)
 						{
 							Visit(output, static_cast<FX::Nodes::DeclaratorList *>(node->Initialization), true);
 
@@ -919,7 +919,7 @@ namespace ReShade
 							part3 = "))";
 							break;
 						case FX::Nodes::Binary::Op::BitwiseAnd:
-							if (node->Operands[1]->NodeId == FX::Node::Id::Literal && node->Operands[1]->Type.IsIntegral())
+							if (node->Operands[1]->id == FX::nodeid::Literal && node->Operands[1]->Type.IsIntegral())
 							{
 								const unsigned int value = static_cast<const FX::Nodes::Literal *>(node->Operands[1])->Value.Uint[0];
 
@@ -940,7 +940,7 @@ namespace ReShade
 							}
 						case FX::Nodes::Binary::Op::BitwiseOr:
 						case FX::Nodes::Binary::Op::BitwiseXor:
-							Error(node->Location, "bitwise operations are not supported in Direct3D9");
+							Error(node->location, "bitwise operations are not supported in Direct3D9");
 							return;
 						case FX::Nodes::Binary::Op::LogicalAnd:
 							part1 = '(';
@@ -990,7 +990,7 @@ namespace ReShade
 						case FX::Nodes::Intrinsic::Op::BitCastUint2Float:
 						case FX::Nodes::Intrinsic::Op::BitCastFloat2Int:
 						case FX::Nodes::Intrinsic::Op::BitCastFloat2Uint:
-							Error(node->Location, "'asint', 'asuint' and 'asfloat' are not supported in Direct3D9");
+							Error(node->location, "'asint', 'asuint' and 'asfloat' are not supported in Direct3D9");
 							return;
 						case FX::Nodes::Intrinsic::Op::Asin:
 							part1 = "asin(";
@@ -1230,7 +1230,7 @@ namespace ReShade
 							part3 = "))";
 							break;
 						case FX::Nodes::Intrinsic::Op::Tex2DGather:
-							if (node->Arguments[2]->NodeId == FX::Node::Id::Literal && node->Arguments[2]->Type.IsIntegral())
+							if (node->Arguments[2]->id == FX::nodeid::Literal && node->Arguments[2]->Type.IsIntegral())
 							{
 								const int component = static_cast<const FX::Nodes::Literal *>(node->Arguments[2])->Value.Int[0];
 
@@ -1242,11 +1242,11 @@ namespace ReShade
 							}
 							else
 							{
-								Error(node->Location, "texture gather component argument has to be constant");
+								Error(node->location, "texture gather component argument has to be constant");
 							}
 							return;
 						case FX::Nodes::Intrinsic::Op::Tex2DGatherOffset:
-							if (node->Arguments[3]->NodeId == FX::Node::Id::Literal && node->Arguments[3]->Type.IsIntegral())
+							if (node->Arguments[3]->id == FX::nodeid::Literal && node->Arguments[3]->Type.IsIntegral())
 							{
 								const int component = static_cast<const FX::Nodes::Literal *>(node->Arguments[3])->Value.Int[0];
 
@@ -1260,7 +1260,7 @@ namespace ReShade
 							}
 							else
 							{
-								Error(node->Location, "texture gather component argument has to be constant");
+								Error(node->location, "texture gather component argument has to be constant");
 							}
 							return;
 						case FX::Nodes::Intrinsic::Op::Tex2DGrad:
@@ -1421,7 +1421,7 @@ namespace ReShade
 						case FX::Nodes::Assignment::Op::BitwiseAnd:
 						case FX::Nodes::Assignment::Op::BitwiseOr:
 						case FX::Nodes::Assignment::Op::BitwiseXor:
-							Error(node->Location, "bitwise operations are not supported in Direct3D9");
+							Error(node->location, "bitwise operations are not supported in Direct3D9");
 							return;
 					}
 
@@ -1624,7 +1624,7 @@ namespace ReShade
 					{
 						if (width != 1 || height != 1 || levels != 1 || format != D3DFMT_A8R8G8B8)
 						{
-							Warning(node->Location, "texture properties on backbuffer textures are ignored");
+							Warning(node->location, "texture properties on backbuffer textures are ignored");
 						}
 
 						obj->ChangeDataSource(D3D9Texture::Source::BackBuffer, _runtime->_backbufferTexture);
@@ -1633,7 +1633,7 @@ namespace ReShade
 					{
 						if (width != 1 || height != 1 || levels != 1 || format != D3DFMT_A8R8G8B8)
 						{
-							Warning(node->Location, "texture properties on depthbuffer textures are ignored");
+							Warning(node->location, "texture properties on depthbuffer textures are ignored");
 						}
 
 						obj->ChangeDataSource(D3D9Texture::Source::DepthStencil, _runtime->_depthStencilTexture);
@@ -1655,12 +1655,12 @@ namespace ReShade
 							}
 							else
 							{
-								Warning(node->Location, "autogenerated miplevels are not supported for this format");
+								Warning(node->location, "autogenerated miplevels are not supported for this format");
 							}
 						}
 						else if (levels == 0)
 						{
-							Warning(node->Location, "a texture cannot have 0 miplevels, changed it to 1");
+							Warning(node->location, "a texture cannot have 0 miplevels, changed it to 1");
 
 							levels = 1;
 						}
@@ -1676,7 +1676,7 @@ namespace ReShade
 
 						if (FAILED(hr))
 						{
-							Error(node->Location, "internal texture creation failed with '%u'!", hr);
+							Error(node->location, "internal texture creation failed with '%u'!", hr);
 							return;
 						}
 
@@ -1691,7 +1691,7 @@ namespace ReShade
 				{
 					if (node->Properties.Texture == nullptr)
 					{
-						Error(node->Location, "sampler '%s' is missing required 'Texture' property", node->Name);
+						Error(node->location, "sampler '%s' is missing required 'Texture' property", node->Name);
 						return;
 					}
 
@@ -1776,7 +1776,7 @@ namespace ReShade
 
 					_runtime->_constantRegisterCount = _currentRegisterOffset / 4;
 
-					if (node->Initializer != nullptr && node->Initializer->NodeId == FX::Node::Id::Literal)
+					if (node->Initializer != nullptr && node->Initializer->id == FX::nodeid::Literal)
 					{
 						CopyMemory(_runtime->GetConstantStorage() + obj->StorageOffset, &static_cast<const FX::Nodes::Literal *>(node->Initializer)->Value, obj->StorageSize);
 					}
@@ -1845,7 +1845,7 @@ namespace ReShade
 
 							if (pass.SamplerCount == 16)
 							{
-								Error(node->Location, "maximum sampler count of 16 reached in pass '%s'", node->Name.c_str());
+								Error(node->location, "maximum sampler count of 16 reached in pass '%s'", node->Name.c_str());
 								return;
 							}
 						}
@@ -1865,7 +1865,7 @@ namespace ReShade
 
 					if (FAILED(hr))
 					{
-						Error(node->Location, "internal pass stateblock creation failed with '%u'!", hr);
+						Error(node->location, "internal pass stateblock creation failed with '%u'!", hr);
 						return;
 					}
 
@@ -1941,7 +1941,7 @@ namespace ReShade
 
 						if (i > caps.NumSimultaneousRTs)
 						{
-							Warning(node->Location, "device only supports %u simultaneous render targets, but pass '%s' uses more, which are ignored", caps.NumSimultaneousRTs, node->Name.c_str());
+							Warning(node->location, "device only supports %u simultaneous render targets, but pass '%s' uses more, which are ignored", caps.NumSimultaneousRTs, node->Name.c_str());
 							break;
 						}
 
@@ -2007,7 +2007,7 @@ namespace ReShade
 							}
 							else if ((boost::starts_with(field->Semantic, "SV_TARGET") || boost::starts_with(field->Semantic, "COLOR")) && field->Type.Rows != 4)
 							{
-								Error(node->Location, "'SV_Target' must be a four-component vector when used inside structs in Direct3D9");
+								Error(node->location, "'SV_Target' must be a four-component vector when used inside structs in Direct3D9");
 								return;
 							}
 						}
@@ -2047,7 +2047,7 @@ namespace ReShade
 										}
 										else if ((boost::starts_with(field->Semantic, "SV_TARGET") || boost::starts_with(field->Semantic, "COLOR")) && field->Type.Rows != 4)
 										{
-											Error(node->Location, "'SV_Target' must be a four-component vector when used inside structs in Direct3D9");
+											Error(node->location, "'SV_Target' must be a four-component vector when used inside structs in Direct3D9");
 											return;
 										}
 									}
@@ -2201,7 +2201,7 @@ namespace ReShade
 
 					if (FAILED(hr))
 					{
-						Error(node->Location, "internal shader creation failed with '%u'!", hr);
+						Error(node->location, "internal shader creation failed with '%u'!", hr);
 						return;
 					}
 				}
@@ -2215,7 +2215,7 @@ namespace ReShade
 				};
 
 				D3D9Runtime *_runtime;
-				const FX::NodeTree &_ast;
+				const FX::nodetree &_ast;
 				bool _isFatal, _skipShaderOptimization;
 				std::string _errors;
 				std::string _globalCode;
@@ -2789,7 +2789,7 @@ namespace ReShade
 
 			screenshotSurface->Release();
 		}
-		bool D3D9Runtime::UpdateEffect(const FX::NodeTree &ast, const std::vector<std::string> &pragmas, std::string &errors)
+		bool D3D9Runtime::UpdateEffect(const FX::nodetree &ast, const std::vector<std::string> &pragmas, std::string &errors)
 		{
 			bool skipOptimization = false;
 

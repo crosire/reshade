@@ -795,33 +795,30 @@ namespace ReShade
 		std::time_t time = std::time(nullptr);
 		::localtime_s(&tm, &time);
 
-		// Preprocess
-		FX::PreProcessor preprocessor;
-		preprocessor.AddDefine("__RESHADE__", std::to_string(VERSION_MAJOR * 10000 + VERSION_MINOR * 100 + VERSION_REVISION));
-		preprocessor.AddDefine("__VENDOR__", std::to_string(_vendorId));
-		preprocessor.AddDefine("__DEVICE__", std::to_string(_deviceId));
-		preprocessor.AddDefine("__RENDERER__", std::to_string(_rendererId));
-		preprocessor.AddDefine("__APPLICATION__", std::to_string(std::hash<std::string>()(sExecutablePath.stem().string())));
-		preprocessor.AddDefine("__DATE_YEAR__", std::to_string(tm.tm_year + 1900));
-		preprocessor.AddDefine("__DATE_MONTH__", std::to_string(tm.tm_mday));
-		preprocessor.AddDefine("__DATE_DAY__", std::to_string(tm.tm_mon + 1));
-		preprocessor.AddDefine("BUFFER_WIDTH", std::to_string(_width));
-		preprocessor.AddDefine("BUFFER_HEIGHT", std::to_string(_height));
-		preprocessor.AddDefine("BUFFER_RCP_WIDTH", std::to_string(1.0f / static_cast<float>(_width)));
-		preprocessor.AddDefine("BUFFER_RCP_HEIGHT", std::to_string(1.0f / static_cast<float>(_height)));
-		preprocessor.AddIncludePath(sEffectPath.parent_path());
+		// Pre-process
+		std::vector<std::pair<std::string, std::string>> defines;
+		defines.emplace_back("__RESHADE__", std::to_string(VERSION_MAJOR * 10000 + VERSION_MINOR * 100 + VERSION_REVISION));
+		defines.emplace_back("__VENDOR__", std::to_string(_vendorId));
+		defines.emplace_back("__DEVICE__", std::to_string(_deviceId));
+		defines.emplace_back("__RENDERER__", std::to_string(_rendererId));
+		defines.emplace_back("__APPLICATION__", std::to_string(std::hash<std::string>()(sExecutablePath.stem().string())));
+		defines.emplace_back("__DATE_YEAR__", std::to_string(tm.tm_year + 1900));
+		defines.emplace_back("__DATE_MONTH__", std::to_string(tm.tm_mday));
+		defines.emplace_back("__DATE_DAY__", std::to_string(tm.tm_mon + 1));
+		defines.emplace_back("BUFFER_WIDTH", std::to_string(_width));
+		defines.emplace_back("BUFFER_HEIGHT", std::to_string(_height));
+		defines.emplace_back("BUFFER_RCP_WIDTH", std::to_string(1.0f / static_cast<float>(_width)));
+		defines.emplace_back("BUFFER_RCP_HEIGHT", std::to_string(1.0f / static_cast<float>(_height)));
+
+		_includedFiles.clear();
+		_includedFiles.push_back(sEffectPath.parent_path());
 
 		LOG(INFO) << "Loading effect from " << ObfuscatePath(sEffectPath) << " ...";
 		LOG(TRACE) << "> Running preprocessor ...";
 
-		_pragmas.clear();
-		_includedFiles.clear();
+		std::string source, errors;
 
-		std::string errors;
-
-		const std::string source = preprocessor.Run(sEffectPath, errors, _pragmas, _includedFiles);
-
-		if (source.empty())
+		if (!FX::preprocess(sEffectPath, defines, _includedFiles, _pragmas, source, errors))
 		{
 			LOG(ERROR) << "Failed to preprocess effect on context " << this << ":\n\n" << errors << "\n";
 
@@ -923,9 +920,9 @@ namespace ReShade
 
 		LOG(TRACE) << "> Running parser ...";
 
-		FX::NodeTree ast;
+		FX::nodetree ast;
 
-		const bool success = FX::Parser(ast).Parse(_effectSource, _errors);
+		const bool success = FX::parse(_effectSource, ast, _errors);
 
 		if (!success)
 		{

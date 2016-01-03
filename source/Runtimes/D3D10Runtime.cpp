@@ -159,7 +159,7 @@ namespace ReShade
 			class D3D10EffectCompiler : private boost::noncopyable
 			{
 			public:
-				D3D10EffectCompiler(const FX::NodeTree &ast, bool skipoptimization = false) : _ast(ast), _runtime(nullptr), _isFatal(false), _skipShaderOptimization(skipoptimization), _currentInParameterBlock(false), _currentInFunctionBlock(false), _currentInForInitialization(0), _currentGlobalSize(0)
+				D3D10EffectCompiler(const FX::nodetree &ast, bool skipoptimization = false) : _ast(ast), _runtime(nullptr), _isFatal(false), _skipShaderOptimization(skipoptimization), _currentInParameterBlock(false), _currentInFunctionBlock(false), _currentInForInitialization(0), _currentGlobalSize(0)
 				{
 				}
 
@@ -170,19 +170,19 @@ namespace ReShade
 					_isFatal = false;
 					_currentSource.clear();
 
-					for (auto type : _ast.Structs)
+					for (auto type : _ast.structs)
 					{
 						Visit(static_cast<FX::Nodes::Struct *>(type));
 					}
-					for (auto uniform : _ast.Uniforms)
+					for (auto uniform : _ast.uniforms)
 					{
 						Visit(static_cast<FX::Nodes::Variable *>(uniform));
 					}
-					for (auto function : _ast.Functions)
+					for (auto function : _ast.functions)
 					{
 						Visit(static_cast<FX::Nodes::Function *>(function));
 					}
-					for (auto technique : _ast.Techniques)
+					for (auto technique : _ast.techniques)
 					{
 						Visit(static_cast<FX::Nodes::Technique *>(technique));
 					}
@@ -377,9 +377,9 @@ namespace ReShade
 
 					return semantic;
 				}
-				static inline std::string PrintLocation(const FX::Location &location)
+				static inline std::string PrintLocation(const FX::location &location)
 				{
-					return location.Source + "(" + std::to_string(location.Line) + ", " + std::to_string(location.Column) + "): ";
+					return location.source + "(" + std::to_string(location.line) + ", " + std::to_string(location.column) + "): ";
 				}
 				std::string PrintType(const FX::Nodes::Type &type)
 				{
@@ -466,33 +466,33 @@ namespace ReShade
 						return;
 					}
 
-					switch (node->NodeId)
+					switch (node->id)
 					{
-						case FX::Node::Id::Compound:
+						case FX::nodeid::Compound:
 							Visit(static_cast<const FX::Nodes::Compound *>(node));
 							break;
-						case FX::Node::Id::DeclaratorList:
+						case FX::nodeid::DeclaratorList:
 							Visit(static_cast<const FX::Nodes::DeclaratorList *>(node));
 							break;
-						case FX::Node::Id::ExpressionStatement:
+						case FX::nodeid::ExpressionStatement:
 							Visit(static_cast<const FX::Nodes::ExpressionStatement *>(node));
 							break;
-						case FX::Node::Id::If:
+						case FX::nodeid::If:
 							Visit(static_cast<const FX::Nodes::If *>(node));
 							break;
-						case FX::Node::Id::Switch:
+						case FX::nodeid::Switch:
 							Visit(static_cast<const FX::Nodes::Switch *>(node));
 							break;
-						case FX::Node::Id::For:
+						case FX::nodeid::For:
 							Visit(static_cast<const FX::Nodes::For *>(node));
 							break;
-						case FX::Node::Id::While:
+						case FX::nodeid::While:
 							Visit(static_cast<const FX::Nodes::While *>(node));
 							break;
-						case FX::Node::Id::Return:
+						case FX::nodeid::Return:
 							Visit(static_cast<const FX::Nodes::Return *>(node));
 							break;
-						case FX::Node::Id::Jump:
+						case FX::nodeid::Jump:
 							Visit(static_cast<const FX::Nodes::Jump *>(node));
 							break;
 						default:
@@ -502,45 +502,45 @@ namespace ReShade
 				}
 				void Visit(const FX::Nodes::Expression *node)
 				{
-					switch (node->NodeId)
+					switch (node->id)
 					{
-						case FX::Node::Id::LValue:
+						case FX::nodeid::LValue:
 							Visit(static_cast<const FX::Nodes::LValue *>(node));
 							break;
-						case FX::Node::Id::Literal:
+						case FX::nodeid::Literal:
 							Visit(static_cast<const FX::Nodes::Literal *>(node));
 							break;
-						case FX::Node::Id::Sequence:
+						case FX::nodeid::Sequence:
 							Visit(static_cast<const FX::Nodes::Sequence *>(node));
 							break;
-						case FX::Node::Id::Unary:
+						case FX::nodeid::Unary:
 							Visit(static_cast<const FX::Nodes::Unary *>(node));
 							break;
-						case FX::Node::Id::Binary:
+						case FX::nodeid::Binary:
 							Visit(static_cast<const FX::Nodes::Binary *>(node));
 							break;
-						case FX::Node::Id::Intrinsic:
+						case FX::nodeid::Intrinsic:
 							Visit(static_cast<const FX::Nodes::Intrinsic *>(node));
 							break;
-						case FX::Node::Id::Conditional:
+						case FX::nodeid::Conditional:
 							Visit(static_cast<const FX::Nodes::Conditional *>(node));
 							break;
-						case FX::Node::Id::Swizzle:
+						case FX::nodeid::Swizzle:
 							Visit(static_cast<const FX::Nodes::Swizzle *>(node));
 							break;
-						case FX::Node::Id::FieldSelection:
+						case FX::nodeid::FieldSelection:
 							Visit(static_cast<const FX::Nodes::FieldSelection *>(node));
 							break;
-						case FX::Node::Id::Assignment:
+						case FX::nodeid::Assignment:
 							Visit(static_cast<const FX::Nodes::Assignment *>(node));
 							break;
-						case FX::Node::Id::Call:
+						case FX::nodeid::Call:
 							Visit(static_cast<const FX::Nodes::Call *>(node));
 							break;
-						case FX::Node::Id::Constructor:
+						case FX::nodeid::Constructor:
 							Visit(static_cast<const FX::Nodes::Constructor *>(node));
 							break;
-						case FX::Node::Id::InitializerList:
+						case FX::nodeid::InitializerList:
 							Visit(static_cast<const FX::Nodes::InitializerList *>(node));
 							break;
 						default:
@@ -1252,7 +1252,7 @@ namespace ReShade
 							part3 = ")";
 							break;
 						case FX::Nodes::Intrinsic::Op::Tex2DGather:
-							if (node->Arguments[2]->NodeId == FX::Node::Id::Literal && node->Arguments[2]->Type.IsIntegral())
+							if (node->Arguments[2]->id == FX::nodeid::Literal && node->Arguments[2]->Type.IsIntegral())
 							{
 								const int component = static_cast<const FX::Nodes::Literal *>(node->Arguments[2])->Value.Int[0];
 
@@ -1264,11 +1264,11 @@ namespace ReShade
 							}
 							else
 							{
-								_errors += PrintLocation(node->Location) + "error: texture gather component argument has to be constant.\n";
+								_errors += PrintLocation(node->location) + "error: texture gather component argument has to be constant.\n";
 							}
 							return;
 						case FX::Nodes::Intrinsic::Op::Tex2DGatherOffset:
-							if (node->Arguments[3]->NodeId == FX::Node::Id::Literal && node->Arguments[3]->Type.IsIntegral())
+							if (node->Arguments[3]->id == FX::nodeid::Literal && node->Arguments[3]->Type.IsIntegral())
 							{
 								const int component = static_cast<const FX::Nodes::Literal *>(node->Arguments[3])->Value.Int[0];
 
@@ -1282,7 +1282,7 @@ namespace ReShade
 							}
 							else
 							{
-								_errors += PrintLocation(node->Location) + "error: texture gather component argument has to be constant.\n";
+								_errors += PrintLocation(node->location) + "error: texture gather component argument has to be constant.\n";
 							}
 							return;
 						case FX::Nodes::Intrinsic::Op::Tex2DGrad:
@@ -1641,7 +1641,7 @@ namespace ReShade
 					{
 						if (texdesc.Width != 1 || texdesc.Height != 1 || texdesc.MipLevels != 1 || texdesc.Format != DXGI_FORMAT_R8G8B8A8_TYPELESS)
 						{
-							_errors += PrintLocation(node->Location) + "warning: texture property on backbuffer textures are ignored.\n";
+							_errors += PrintLocation(node->location) + "warning: texture property on backbuffer textures are ignored.\n";
 						}
 
 						obj->ChangeDataSource(D3D10Texture::Source::BackBuffer, _runtime, _runtime->_backbufferTextureSRV[0], _runtime->_backbufferTextureSRV[1]);
@@ -1650,7 +1650,7 @@ namespace ReShade
 					{
 						if (texdesc.Width != 1 || texdesc.Height != 1 || texdesc.MipLevels != 1 || texdesc.Format != DXGI_FORMAT_R8G8B8A8_TYPELESS)
 						{
-							_errors += PrintLocation(node->Location) + "warning: texture property on depthbuffer textures are ignored.\n";
+							_errors += PrintLocation(node->location) + "warning: texture property on depthbuffer textures are ignored.\n";
 						}
 
 						obj->ChangeDataSource(D3D10Texture::Source::DepthStencil, _runtime, _runtime->_depthStencilTextureSRV, nullptr);
@@ -1661,7 +1661,7 @@ namespace ReShade
 
 						if (texdesc.MipLevels == 0)
 						{
-							_errors += PrintLocation(node->Location) + "warning: a texture cannot have 0 miplevels, changed it to 1.\n";
+							_errors += PrintLocation(node->location) + "warning: a texture cannot have 0 miplevels, changed it to 1.\n";
 
 							texdesc.MipLevels = 1;
 						}
@@ -1670,7 +1670,7 @@ namespace ReShade
 
 						if (FAILED(hr))
 						{
-							_errors += PrintLocation(node->Location) + "error: 'ID3D10Device::CreateTexture2D' failed with " + std::to_string(hr) + "!\n";
+							_errors += PrintLocation(node->location) + "error: 'ID3D10Device::CreateTexture2D' failed with " + std::to_string(hr) + "!\n";
 							_isFatal = true;
 							return;
 						}
@@ -1685,7 +1685,7 @@ namespace ReShade
 
 						if (FAILED(hr))
 						{
-							_errors += PrintLocation(node->Location) + "error: 'ID3D10Device::CreateShaderResourceView' failed with " + std::to_string(hr) + "!\n";
+							_errors += PrintLocation(node->location) + "error: 'ID3D10Device::CreateShaderResourceView' failed with " + std::to_string(hr) + "!\n";
 							_isFatal = true;
 							return;
 						}
@@ -1698,7 +1698,7 @@ namespace ReShade
 
 							if (FAILED(hr))
 							{
-								_errors += PrintLocation(node->Location) + "error: 'ID3D10Device::CreateShaderResourceView' failed with " + std::to_string(hr) + "!\n";
+								_errors += PrintLocation(node->location) + "error: 'ID3D10Device::CreateShaderResourceView' failed with " + std::to_string(hr) + "!\n";
 								_isFatal = true;
 								return;
 							}
@@ -1720,7 +1720,7 @@ namespace ReShade
 				{
 					if (node->Properties.Texture == nullptr)
 					{
-						_errors += PrintLocation(node->Location) + "error: sampler '" + node->Name + "' is missing required 'Texture' required.\n";
+						_errors += PrintLocation(node->location) + "error: sampler '" + node->Name + "' is missing required 'Texture' required.\n";
 						_isFatal = true;
 						return;
 					}
@@ -1780,7 +1780,7 @@ namespace ReShade
 
 					if (texture == nullptr)
 					{
-						_errors += PrintLocation(node->Location) + "error: texture '" + node->Properties.Texture->Name + "' for sampler '" + std::string(node->Name) + "' is missing due to previous error.\n";
+						_errors += PrintLocation(node->location) + "error: texture '" + node->Properties.Texture->Name + "' for sampler '" + std::string(node->Name) + "' is missing due to previous error.\n";
 						_isFatal = true;
 						return;
 					}
@@ -1796,7 +1796,7 @@ namespace ReShade
 
 						if (FAILED(hr))
 						{
-							_errors += PrintLocation(node->Location) + "error: 'ID3D10Device::CreateSamplerState' failed with " + std::to_string(hr) + "!\n";
+							_errors += PrintLocation(node->location) + "error: 'ID3D10Device::CreateSamplerState' failed with " + std::to_string(hr) + "!\n";
 							_isFatal = true;
 							return;
 						}
@@ -1877,7 +1877,7 @@ namespace ReShade
 						_runtime->EnlargeConstantStorage();
 					}
 
-					if (node->Initializer != nullptr && node->Initializer->NodeId == FX::Node::Id::Literal)
+					if (node->Initializer != nullptr && node->Initializer->id == FX::nodeid::Literal)
 					{
 						CopyMemory(_runtime->GetConstantStorage() + obj->StorageOffset, &static_cast<const FX::Nodes::Literal *>(node->Initializer)->Value, obj->StorageSize);
 					}
@@ -1990,7 +1990,7 @@ namespace ReShade
 
 						if (pass.Viewport.Width != 0 && pass.Viewport.Height != 0 && (desc.Width != static_cast<unsigned int>(pass.Viewport.Width) || desc.Height != static_cast<unsigned int>(pass.Viewport.Height)))
 						{
-							_errors += PrintLocation(node->Location) + "error: cannot use multiple rendertargets with different sized textures.\n";
+							_errors += PrintLocation(node->location) + "error: cannot use multiple rendertargets with different sized textures.\n";
 							_isFatal = true;
 							return;
 						}
@@ -2011,7 +2011,7 @@ namespace ReShade
 
 							if (FAILED(hr))
 							{
-								_errors += PrintLocation(node->Location) + "warning: 'CreateRenderTargetView' failed!\n";
+								_errors += PrintLocation(node->location) + "warning: 'CreateRenderTargetView' failed!\n";
 							}
 						}
 
@@ -2042,7 +2042,7 @@ namespace ReShade
 
 					if (FAILED(hr))
 					{
-						_errors += PrintLocation(node->Location) + "warning: 'ID3D10Device::CreateDepthStencilState' failed!\n";
+						_errors += PrintLocation(node->location) + "warning: 'ID3D10Device::CreateDepthStencilState' failed!\n";
 					}
 
 					D3D10_BLEND_DESC bdesc;
@@ -2064,7 +2064,7 @@ namespace ReShade
 
 					if (FAILED(hr))
 					{
-						_errors += PrintLocation(node->Location) + "warning: 'ID3D10Device::CreateBlendState' failed!\n";
+						_errors += PrintLocation(node->location) + "warning: 'ID3D10Device::CreateBlendState' failed!\n";
 					}
 
 					for (ID3D10ShaderResourceView *&srv : pass.SRV)
@@ -2207,14 +2207,14 @@ namespace ReShade
 
 					if (FAILED(hr))
 					{
-						_errors += PrintLocation(node->Location) + "error: 'CreateShader' failed!\n";
+						_errors += PrintLocation(node->location) + "error: 'CreateShader' failed!\n";
 						_isFatal = true;
 						return;
 					}
 				}
 
 			private:
-				const FX::NodeTree &_ast;
+				const FX::nodetree &_ast;
 				D3D10Runtime *_runtime;
 				std::string _currentSource;
 				std::string _errors;
@@ -3094,7 +3094,7 @@ namespace ReShade
 
 			textureStaging->Release();
 		}
-		bool D3D10Runtime::UpdateEffect(const FX::NodeTree &ast, const std::vector<std::string> &pragmas, std::string &errors)
+		bool D3D10Runtime::UpdateEffect(const FX::nodetree &ast, const std::vector<std::string> &pragmas, std::string &errors)
 		{
 			bool skipOptimization = false;
 

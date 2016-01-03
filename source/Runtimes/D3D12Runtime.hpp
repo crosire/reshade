@@ -23,7 +23,7 @@ namespace ReShade
 			void OnApplyEffectTechnique(const Technique *technique) override;
 
 			void Screenshot(unsigned char *buffer) const override;
-			bool UpdateEffect(const FX::NodeTree &ast, const std::vector<std::string> &pragmas, std::string &errors) override;
+			bool UpdateEffect(const FX::nodetree &ast, const std::vector<std::string> &pragmas, std::string &errors) override;
 			bool UpdateTexture(Texture *texture, const unsigned char *data, size_t size) override;
 
 			ID3D12Device *_device;

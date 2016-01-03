@@ -74,7 +74,7 @@ namespace ReShade
 		void D3D12Runtime::Screenshot(unsigned char *buffer) const
 		{
 		}
-		bool D3D12Runtime::UpdateEffect(const FX::NodeTree &ast, const std::vector<std::string> &pragmas, std::string &errors)
+		bool D3D12Runtime::UpdateEffect(const FX::nodetree &ast, const std::vector<std::string> &pragmas, std::string &errors)
 		{
 			return false;
 		}
