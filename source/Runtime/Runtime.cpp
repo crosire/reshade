@@ -549,7 +549,7 @@ namespace ReShade
 
 		assert(variable.StorageOffset + size < _uniformDataStorage.size());
 
-		std::copy_n(_uniformDataStorage.begin() + variable.StorageOffset, size, data);
+		std::memcpy(data, &_uniformDataStorage[variable.StorageOffset], size);
 	}
 	void Runtime::GetEffectValue(const Uniform &variable, bool *values, size_t count) const
 	{
@@ -643,7 +643,7 @@ namespace ReShade
 
 		assert(variable.StorageOffset + size < _uniformDataStorage.size());
 
-		std::copy_n(data, size, _uniformDataStorage.begin() + variable.StorageOffset);
+		std::memcpy(&_uniformDataStorage[variable.StorageOffset], data, size);
 	}
 	void Runtime::SetEffectValue(Uniform &variable, const bool *values, size_t count)
 	{
