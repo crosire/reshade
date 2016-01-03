@@ -26,7 +26,7 @@ BEGIN
             VALUE "FileVersion", VERSION_STRING_FILE
             VALUE "ProductName", "ReShade"
             VALUE "ProductVersion", VERSION_STRING_PRODUCT
-            VALUE "LegalCopyright", "Copyright © 2014-2015. All rights reserved."
+            VALUE "LegalCopyright", "Copyright © 2014-2016. All rights reserved."
 #ifdef WIN32
             VALUE "FileDescription", "crosire's ReShade post-processing injector for 32-bit"
             VALUE "OriginalFilename", "ReShade32.dll"
