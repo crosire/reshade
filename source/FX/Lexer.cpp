@@ -36,7 +36,7 @@ namespace ReShade
 		{
 			operator=(lexer);
 		}
-		Lexer::Lexer(const std::string &source) : _source(source), _cur(_source.data()), _end(_cur + _source.size()), _atLineBegin(true)
+		Lexer::Lexer(const std::string &source) : _source(source), _cur(_source.data()), _end(_cur + _source.size())
 		{
 		}
 
@@ -45,7 +45,6 @@ namespace ReShade
 			_source = lexer._source;
 			_cur = _source.data() + (lexer._cur - lexer._source.data());
 			_end = _source.data() + _source.size();
-			_atLineBegin = lexer._atLineBegin;
 
 			return *this;
 		}
@@ -73,7 +72,6 @@ namespace ReShade
 					goto NextToken;
 				case '\n':
 					_cur++;
-					_atLineBegin = true;
 					_location.Line++;
 					_location.Column = 1;
 					goto NextToken;
@@ -93,7 +91,7 @@ namespace ReShade
 					ParseStringLiteral(token, true);
 					break;
 				case '#':
-					if (_atLineBegin)
+					if (_location.Column <= 1)
 					{
 						_cur++;
 						ParsePreProcessorDirective();
@@ -469,7 +467,6 @@ namespace ReShade
 			}
 
 			_cur += token.Length;
-			_atLineBegin = false;
 			_location.Column += token.Length;
 
 			return token;

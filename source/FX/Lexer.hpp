@@ -198,7 +198,6 @@ namespace ReShade
 
 			std::string _source;
 			const std::string::value_type *_cur, *_end;
-			bool _atLineBegin;
 			Location _location;
 		};
 	}
