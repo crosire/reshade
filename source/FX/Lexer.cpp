@@ -38,9 +38,9 @@ namespace ReShade
 			{
 				return static_cast<unsigned>(c - '0') < 10 || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
 			}
-			int octal_to_decimal(int n)
+			long long octal_to_decimal(long long n)
 			{
-				int m = 0;
+				long long m = 0;
 
 				while (n != 0)
 				{
@@ -709,8 +709,8 @@ namespace ReShade
 		void lexer::parse_numeric_literal(token &tok) const
 		{
 			const char *const begin = _cur, *end = _cur;
-			int fraction1 = 0, fraction2 = 0, exponent = 0;
 			int mantissa_size = 0, decimal_location = -1, radix = 10;
+			long long fraction = 0, exponent = 0;
 
 			if (begin[0] == '0')
 			{
@@ -758,27 +758,15 @@ namespace ReShade
 					if (radix == 8)
 					{
 						radix = 10;
-						fraction1 = octal_to_decimal(fraction1);
+						fraction = octal_to_decimal(fraction);
 					}
 
 					decimal_location = mantissa_size;
 					continue;
 				}
 
-				if (mantissa_size <= 9) // avoid overflow
-				{
-					fraction1 *= radix;
-					fraction1 += c;
-				}
-				else if (mantissa_size <= 18)
-				{
-					fraction2 *= radix;
-					fraction2 += c;
-				}
-				else
-				{
-					mantissa_size--;
-				}
+				fraction *= radix;
+				fraction += c;
 			}
 
 			if (decimal_location < 0)
@@ -845,9 +833,6 @@ namespace ReShade
 
 			if (tok.id == tokenid::float_literal || tok.id == tokenid::double_literal)
 			{
-				double e = 1.0;
-				const double fraction = fraction1 + 1.0e9 * fraction2;
-
 				exponent += decimal_location - mantissa_size;
 
 				const bool exponent_negative = exponent < 0;
@@ -862,6 +847,7 @@ namespace ReShade
 					exponent = 511;
 				}
 
+				double e = 1.0;
 				const double powers_of_10[] = { 10., 100., 1.0e4, 1.0e8, 1.0e16, 1.0e32, 1.0e64, 1.0e128, 1.0e256 };
 
 				for (auto d = powers_of_10; exponent != 0; exponent >>= 1, d++)
@@ -872,16 +858,18 @@ namespace ReShade
 					}
 				}
 
-				tok.literal_as_double = exponent_negative ? fraction / e : fraction * e;
-
 				if (tok.id == tokenid::float_literal)
 				{
-					tok.literal_as_float = static_cast<float>(tok.literal_as_double);
+					tok.literal_as_float = exponent_negative ? fraction / static_cast<float>(e) : fraction * static_cast<float>(e);
+				}
+				else
+				{
+					tok.literal_as_double = exponent_negative ? fraction / e : fraction * e;
 				}
 			}
 			else
 			{
-				tok.literal_as_int = fraction1;
+				tok.literal_as_uint = static_cast<unsigned int>(fraction & 0xFFFFFFFF);
 			}
 
 			tok.length = end - begin;
