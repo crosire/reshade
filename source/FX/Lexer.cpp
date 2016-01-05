@@ -74,9 +74,8 @@ namespace ReShade
 		lexer::token lexer::lex()
 		{
 			bool is_at_line_begin = _location.column <= 1;
-		next_token:
 			token tok;
-			tok.id = tokenid::unknown;
+		next_token:
 			tok.location = _location;
 			tok.offset = _cur - _input.data();
 			tok.length = 1;
