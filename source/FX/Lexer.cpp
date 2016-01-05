@@ -6,6 +6,30 @@ namespace ReShade
 	{
 		namespace
 		{
+			enum token_type
+			{
+				DIGIT = '0',
+				IDENT = 'A',
+				SPACE = ' ',
+			};
+
+			const unsigned char type_lookup[256] =
+			{
+				 0xFF,  0x00,  0x00,  0x00,  0x00,  0x00,  0x00,  0x00,  0x00, SPACE,
+				 '\n', SPACE, SPACE, SPACE,  0x00,  0x00,  0x00,  0x00,  0x00,  0x00,
+				 0x00,  0x00,  0x00,  0x00,  0x00,  0x00,  0x00,  0x00,  0x00,  0x00,
+				 0x00,  0x00, SPACE,   '!',   '"',   '#',   '$',   '%',   '&',  '\'',
+				  '(',   ')',   '*',   '+',   ',',   '-',   '.',   '/', DIGIT, DIGIT,
+				DIGIT, DIGIT, DIGIT, DIGIT, DIGIT, DIGIT, DIGIT, DIGIT,   ':',   ';',
+				 '<',    '=',   '>',   '?',   '@', IDENT, IDENT, IDENT, IDENT, IDENT,
+				IDENT, IDENT, IDENT, IDENT, IDENT, IDENT, IDENT, IDENT, IDENT, IDENT,
+				IDENT, IDENT, IDENT, IDENT, IDENT, IDENT, IDENT, IDENT, IDENT, IDENT,
+				IDENT,   '[',  '\\',   ']',   '^', IDENT,  0x00, IDENT, IDENT, IDENT,
+				IDENT, IDENT, IDENT, IDENT, IDENT, IDENT, IDENT, IDENT, IDENT, IDENT,
+				IDENT, IDENT, IDENT, IDENT, IDENT, IDENT, IDENT, IDENT, IDENT, IDENT,
+				IDENT, IDENT, IDENT,   '{',   '|',   '}',   '~',  0x00,  0x00,  0x00,
+			};
+
 			bool is_octal_digit(char c)
 			{
 				return static_cast<unsigned>(c - '0') < 8;
@@ -58,18 +82,14 @@ namespace ReShade
 			tok.length = 1;
 			tok.literal_as_double = 0;
 
-			switch (_cur[0])
+			switch (type_lookup[*_cur])
 			{
-				case '\0':
+				case 0xFF:
 					tok.id = tokenid::end_of_file;
 					return tok;
-				case '\t':
-				case '\v':
-				case '\f':
-				case '\r':
-				case ' ':
+				case SPACE:
 					skip_space();
-					if (_ignore_whitespace || is_at_line_begin || _cur[0] == '\n')
+					if (_ignore_whitespace || is_at_line_begin || *_cur == '\n')
 						goto next_token;
 					tok.id = tokenid::space;
 					return tok;
@@ -82,6 +102,12 @@ namespace ReShade
 						goto next_token;
 					tok.id = tokenid::end_of_line;
 					return tok;
+				case DIGIT:
+					parse_numeric_literal(tok);
+					break;
+				case IDENT:
+					parse_identifier(tok);
+					break;
 				case '!':
 					if (_cur[1] == '=')
 						tok.id = tokenid::exclaim_equal,
@@ -164,7 +190,7 @@ namespace ReShade
 						tok.id = tokenid::minus;
 					break;
 				case '.':
-					if (isdigit(_cur[1]))
+					if (type_lookup[_cur[1]] == DIGIT)
 						parse_numeric_literal(tok);
 					else if (_cur[1] == '.' && _cur[2] == '.')
 						tok.id = tokenid::ellipsis,
@@ -201,18 +227,6 @@ namespace ReShade
 						tok.length = 2;
 					else
 						tok.id = tokenid::slash;
-					break;
-				case '0':
-				case '1':
-				case '2':
-				case '3':
-				case '4':
-				case '5':
-				case '6':
-				case '7':
-				case '8':
-				case '9':
-					parse_numeric_literal(tok);
 					break;
 				case ':':
 					if (_cur[1] == ':')
@@ -265,34 +279,6 @@ namespace ReShade
 				case '@':
 					tok.id = tokenid::at;
 					break;
-				case 'A':
-				case 'B':
-				case 'C':
-				case 'D':
-				case 'E':
-				case 'F':
-				case 'G':
-				case 'H':
-				case 'I':
-				case 'J':
-				case 'K':
-				case 'L':
-				case 'M':
-				case 'N':
-				case 'O':
-				case 'P':
-				case 'Q':
-				case 'R':
-				case 'S':
-				case 'T':
-				case 'U':
-				case 'V':
-				case 'W':
-				case 'X':
-				case 'Y':
-				case 'Z':
-					parse_identifier(tok);
-					break;
 				case '[':
 					tok.id = tokenid::bracket_open;
 					break;
@@ -308,35 +294,6 @@ namespace ReShade
 						tok.length = 2;
 					else
 						tok.id = tokenid::caret;
-					break;
-				case '_':
-				case 'a':
-				case 'b':
-				case 'c':
-				case 'd':
-				case 'e':
-				case 'f':
-				case 'g':
-				case 'h':
-				case 'i':
-				case 'j':
-				case 'k':
-				case 'l':
-				case 'm':
-				case 'n':
-				case 'o':
-				case 'p':
-				case 'q':
-				case 'r':
-				case 's':
-				case 't':
-				case 'u':
-				case 'v':
-				case 'w':
-				case 'x':
-				case 'y':
-				case 'z':
-					parse_identifier(tok);
 					break;
 				case '{':
 					tok.id = tokenid::brace_open;
@@ -374,14 +331,14 @@ namespace ReShade
 		}
 		void lexer::skip_space()
 		{
-			while ((*_cur == ' ' || ((*_cur >= '\t' && *_cur <= '\r') && *_cur != '\n')) && _cur < _end)
+			while (type_lookup[*_cur] == SPACE && _cur < _end)
 			{
 				skip(1);
 			}
 		}
 		void lexer::skip_to_next_line()
 		{
-			while ((*_cur != '\n') && _cur < _end)
+			while (*_cur != '\n' && _cur < _end)
 			{
 				skip(1);
 			}
@@ -391,11 +348,11 @@ namespace ReShade
 		{
 			const char *const begin = _cur, *end = begin;
 
-			do end++; while (static_cast<unsigned>((*end | 32) - 'a') < 26 || static_cast<unsigned>(*end - '0') < 10 || *end == '_');
+			do end++; while (type_lookup[*end] == IDENT || type_lookup[*end] == DIGIT);
 
 			tok.id = tokenid::identifier;
 			tok.length = end - begin;
-			tok.literal_as_string = std::string(begin, end);
+			tok.literal_as_string.assign(begin, end);
 
 			if (_ignore_keywords)
 			{
