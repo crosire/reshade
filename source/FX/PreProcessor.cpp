@@ -582,16 +582,19 @@ namespace ReShade
 					return;
 				}
 
-				boost::filesystem::path path = current_token().literal_as_string;
-				const boost::filesystem::path filename = path;
+				const boost::filesystem::path filename = current_token().literal_as_string;
+				auto path = boost::filesystem::path(_output_location.source).parent_path() / filename;
 
-				for (const auto &include_path : _include_paths)
+				if (!boost::filesystem::exists(path))
 				{
-					path = boost::filesystem::absolute(filename, include_path);
-
-					if (boost::filesystem::exists(path))
+					for (const auto &include_path : _include_paths)
 					{
-						break;
+						path = boost::filesystem::absolute(filename, include_path);
+
+						if (boost::filesystem::exists(path))
+						{
+							break;
+						}
 					}
 				}
 
