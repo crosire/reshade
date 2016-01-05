@@ -6,25 +6,33 @@ namespace ReShade
 	{
 		namespace
 		{
-			bool isdigit(char c)
-			{
-				return static_cast<unsigned>(c - '0') < 10;
-			}
-			bool isodigit(char c)
+			bool is_octal_digit(char c)
 			{
 				return static_cast<unsigned>(c - '0') < 8;
 			}
-			bool isxdigit(char c)
+			bool is_hexadecimal_digit(char c)
 			{
-				return isdigit(c) || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
+				return static_cast<unsigned>(c - '0') < 10 || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
 			}
-			bool isalpha(char c)
+			int octal_to_decimal(int n)
 			{
-				return static_cast<unsigned>((c | 32) - 'a') < 26;
-			}
-			bool isalnum(char c)
-			{
-				return isalpha(c) || isdigit(c) || c == '_';
+				int m = 0;
+
+				while (n != 0)
+				{
+					m *= 8;
+					m += n & 7;
+					n >>= 3;
+				}
+
+				while (m != 0)
+				{
+					n *= 10;
+					n += m & 7;
+					m >>= 3;
+				}
+
+				return n;
 			}
 		}
 
@@ -383,10 +391,7 @@ namespace ReShade
 		{
 			const char *const begin = _cur, *end = begin;
 
-			while (isalnum(*++end))
-			{
-				continue;
-			}
+			do end++; while (static_cast<unsigned>((*end | 32) - 'a') < 26 || static_cast<unsigned>(*end - '0') < 10 || *end == '_');
 
 			tok.id = tokenid::identifier;
 			tok.length = end - begin;
@@ -669,10 +674,9 @@ namespace ReShade
 		}
 		void lexer::parse_string_literal(token &tok, bool escape) const
 		{
-			char c;
-			const char *const begin = _cur, *end = begin;
+			const char *const begin = _cur, *end = begin + 1;
 
-			while ((c = *++end) != '"')
+			for (char c = *end; c != '"'; c = *++end)
 			{
 				if (c == '\n' || c == '\r' || end >= _end)
 				{
@@ -694,7 +698,7 @@ namespace ReShade
 						case '5':
 						case '6':
 						case '7':
-							for (unsigned int i = 0; i < 3 && isodigit(*end) && end < _end; i++)
+							for (unsigned int i = 0; i < 3 && is_octal_digit(*end) && end < _end; i++)
 							{
 								c = *end++;
 								n = (n << 3) | (c - '0');
@@ -724,12 +728,12 @@ namespace ReShade
 							c = '\v';
 							break;
 						case 'x':
-							if (isxdigit(*++end))
+							if (is_hexadecimal_digit(*++end))
 							{
-								while (isxdigit(*end) && end < _end)
+								while (is_hexadecimal_digit(*end) && end < _end)
 								{
 									c = *end++;
-									n = (n << 4) | (isdigit(c) ? c - '0' : (c - 55 - 32 * (c & 0x20)));
+									n = (n << 4) | (static_cast<unsigned>(c -= '0') < 10 ? c : (c + '0' - 55 - 32 * (c & 0x20)));
 								}
 
 								c = static_cast<char>(n);
@@ -747,127 +751,183 @@ namespace ReShade
 		}
 		void lexer::parse_numeric_literal(token &tok) const
 		{
-			int radix = 0;
-			const char *begin = _cur, *end = begin;
-
-			tok.id = tokenid::int_literal;
+			const char *const begin = _cur, *end = _cur;
+			int fraction1 = 0, fraction2 = 0, exponent = 0;
+			int mantissa_size = 0, decimal_location = -1, radix = 10;
 
 			if (begin[0] == '0')
 			{
 				if (begin[1] == 'x' || begin[1] == 'X')
 				{
+					end = begin + 2;
 					radix = 16;
-					end = begin + 1;
-
-					while (isxdigit(*++end))
-					{
-						continue;
-					}
 				}
 				else
 				{
 					radix = 8;
-
-					while (isodigit(*++end))
-					{
-						continue;
-					}
-
-					if (isdigit(*end))
-					{
-						while (isdigit(*++end))
-						{
-							continue;
-						}
-
-						if (*end == '.' || *end == 'e' || *end == 'E' || *end == 'f' || *end == 'F')
-						{
-							radix = 10;
-						}
-					}
-				}
-			}
-			else if (begin[0] != '.')
-			{
-				radix = 10;
-
-				while (isdigit(*++end))
-				{
-					continue;
 				}
 			}
 
-			if (radix != 16)
+			for (;; mantissa_size++, end++)
 			{
-				if (*end == '.')
-				{
-					radix = 10;
-					tok.id = tokenid::float_literal;
+				int c = *end;
 
-					while (isdigit(*++end))
+				if (c >= '0' && c <= '9')
+				{
+					c -= '0';
+				}
+				else if (radix == 16)
+				{
+					if (c >= 'A' && c <= 'F')
 					{
-						continue;
+						c -= 'A' - 10;
+					}
+					else if (c >= 'a' && c <= 'f')
+					{
+						c -= 'a' - 10;
+					}
+					else
+					{
+						break;
 					}
 				}
-
-				if (end[0] == 'e' || end[0] == 'E')
+				else
 				{
-					if ((end[1] == '+' || end[1] == '-') && isdigit(end[2]))
+					if (c != '.' || decimal_location >= 0)
 					{
-						end++;
+						break;
 					}
 
-					if (isdigit(end[1]))
+					if (radix == 8)
 					{
 						radix = 10;
-						tok.id = tokenid::float_literal;
+						fraction1 = octal_to_decimal(fraction1);
+					}
 
-						while (isdigit(*++end))
-						{
-							continue;
-						}
+					decimal_location = mantissa_size;
+					continue;
+				}
+
+				if (mantissa_size <= 9) // avoid overflow
+				{
+					fraction1 *= radix;
+					fraction1 += c;
+				}
+				else if (mantissa_size <= 18)
+				{
+					fraction2 *= radix;
+					fraction2 += c;
+				}
+				else
+				{
+					mantissa_size--;
+				}
+			}
+
+			if (decimal_location < 0)
+			{
+				tok.id = tokenid::int_literal;
+
+				decimal_location = mantissa_size;
+			}
+			else
+			{
+				tok.id = tokenid::float_literal;
+
+				mantissa_size -= 1;
+			}
+
+			if (*end == 'E' || *end == 'e')
+			{
+				auto tmp = end + 1;
+				const bool negative = *tmp == '-';
+
+				if (negative || *tmp == '+')
+				{
+					tmp++;
+				}
+
+				if (*tmp >= '0' && *tmp <= '9')
+				{
+					end = tmp;
+
+					tok.id = tokenid::float_literal;
+
+					do
+					{
+						exponent *= 10;
+						exponent += *end++ - '0';
+					}
+					while (*end >= '0' && *end <= '9');
+
+					if (negative)
+					{
+						exponent = -exponent;
 					}
 				}
 			}
 
-			if (*end == 'f' || *end == 'F')
+			if (*end == 'F' || *end == 'f')
 			{
-				radix = 10;
+				end++;
+
 				tok.id = tokenid::float_literal;
-
-				end++;
 			}
-			else if (*end == 'l' || *end == 'L')
+			else if (*end == 'L' || *end == 'l')
 			{
-				radix = 10;
+				end++;
+
 				tok.id = tokenid::double_literal;
-
-				end++;
 			}
-			else if (tok.id == tokenid::int_literal && (*end == 'u' || *end == 'U'))
+			else if (tok.id == tokenid::int_literal && (*end == 'U' || *end == 'u'))
 			{
-				tok.id = tokenid::uint_literal;
-
 				end++;
+
+				tok.id = tokenid::uint_literal;
+			}
+
+			if (tok.id == tokenid::float_literal || tok.id == tokenid::double_literal)
+			{
+				double e = 1.0;
+				const double fraction = fraction1 + 1.0e9 * fraction2;
+
+				exponent += decimal_location - mantissa_size;
+
+				const bool exponent_negative = exponent < 0;
+
+				if (exponent_negative)
+				{
+					exponent = -exponent;
+				}
+
+				if (exponent > 511)
+				{
+					exponent = 511;
+				}
+
+				const double powers_of_10[] = { 10., 100., 1.0e4, 1.0e8, 1.0e16, 1.0e32, 1.0e64, 1.0e128, 1.0e256 };
+
+				for (auto d = powers_of_10; exponent != 0; exponent >>= 1, d++)
+				{
+					if (exponent & 1)
+					{
+						e *= *d;
+					}
+				}
+
+				tok.literal_as_double = exponent_negative ? fraction / e : fraction * e;
+
+				if (tok.id == tokenid::float_literal)
+				{
+					tok.literal_as_float = static_cast<float>(tok.literal_as_double);
+				}
+			}
+			else
+			{
+				tok.literal_as_int = fraction1;
 			}
 
 			tok.length = end - begin;
-
-			switch (tok.id)
-			{
-				case tokenid::int_literal:
-					tok.literal_as_int = strtol(begin, nullptr, radix) & UINT_MAX;
-					break;
-				case tokenid::uint_literal:
-					tok.literal_as_uint = strtoul(begin, nullptr, radix) & UINT_MAX;
-					break;
-				case tokenid::float_literal:
-					tok.literal_as_float = static_cast<float>(strtod(begin, nullptr));
-					break;
-				case tokenid::double_literal:
-					tok.literal_as_double = strtod(begin, nullptr);
-					break;
-			}
 		}
 	}
 }
