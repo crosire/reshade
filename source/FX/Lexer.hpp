@@ -8,12 +8,9 @@ namespace ReShade
 	{
 		struct location
 		{
-			explicit location(unsigned int line = 1, unsigned int column = 1) : line(line), column(column)
-			{
-			}
-			explicit location(const std::string &source, unsigned int line = 1, unsigned int column = 1) : source(source), line(line), column(column)
-			{
-			}
+			location() : line(1), column(1) { }
+			explicit location(unsigned int line, unsigned int column = 1) : line(line), column(column) { }
+			explicit location(const std::string &source, unsigned int line, unsigned int column = 1) : source(source), line(line), column(column) { }
 
 			std::string source;
 			unsigned int line, column;
@@ -27,9 +24,11 @@ namespace ReShade
 			enum class tokenid
 			{
 				unknown = -1,
-				end_of_stream = 0,
+				end_of_file = 0,
+				end_of_line = '\n',
 
 				// operators
+				space = ' ',
 				exclaim = '!',
 				hash = '#',
 				dollar = '$',
@@ -126,7 +125,6 @@ namespace ReShade
 				centroid,
 				nointerpolation,
 
-				// types
 				void_,
 				bool_,
 				bool2,
@@ -167,26 +165,30 @@ namespace ReShade
 				sampler3d,
 
 				// preprocessor directives
-				pp_include,
-				pp_line,
-				pp_define,
-				pp_undef,
-				pp_if,
-				pp_ifdef,
-				pp_ifndef,
-				pp_else,
-				pp_elif,
-				pp_endif,
-				pp_error,
-				pp_warning,
-				pp_pragma,
-				pp_unknown,
+				hash_def,
+				hash_undef,
+				hash_if,
+				hash_ifdef,
+				hash_ifndef,
+				hash_else,
+				hash_elif,
+				hash_endif,
+				hash_error,
+				hash_warning,
+				hash_pragma,
+				hash_include,
+				hash_unknown,
 			};
 			struct token
 			{
+				inline operator tokenid() const
+				{
+					return id;
+				}
+
 				tokenid id;
 				location location;
-				size_t length;
+				size_t offset, length;
 				union
 				{
 					int literal_as_int;
@@ -203,17 +205,30 @@ namespace ReShade
 			/// <param name="lexer">The instance to copy.</param>
 			lexer(const lexer &lexer);
 			/// <summary>
-			/// Construct a new lexical analyzer for an input <paramref name="source"/> string.
+			/// Construct a new lexical analyzer for an input string.
 			/// </summary>
 			/// <param name="source">The string to analyze.</param>
-			explicit lexer(const std::string &source);
+			explicit lexer(const std::string &input, bool ignore_whitespace = true, bool ignore_pp_directives = true, bool ignore_keywords = false, bool escape_string_literals = true);
+
+			/// <summary>
+			/// Get the input string this lexical analyzer works on.
+			/// </summary>
+			/// <returns>A constant reference to the input string.</returns>
+			const std::string &input_string() const
+			{
+				return _input;
+			}
 
 			/// <summary>
 			/// Perform lexical analysis on the input string and return the next token in sequence.
 			/// </summary>
-			/// <returns>The next token in sequence.</returns>
-			token lex(bool skip_pp_directives = true);
+			/// <returns>The next token from the input string.</returns>
+			token lex();
 
+			/// <summary>
+			/// Advances to the next token that is not whitespace.
+			/// </summary>
+			void skip_space();
 			/// <summary>
 			/// Advances to the next new line, ignoring all tokens.
 			/// </summary>
@@ -221,16 +236,16 @@ namespace ReShade
 
 		private:
 			void skip(size_t length);
-			void skip_space();
 
 			void parse_identifier(token &tok) const;
-			void parse_pp_directive(token &tok);
+			bool parse_pp_directive(token &tok);
 			void parse_string_literal(token &tok, bool escape) const;
 			void parse_numeric_literal(token &tok) const;
 
 			location _location;
-			std::string _source;
+			std::string _input;
 			const std::string::value_type *_cur, *_end;
+			bool _ignore_whitespace, _ignore_pp_directives, _ignore_keywords, _escape_string_literals;
 		};
 	}
 }

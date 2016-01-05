@@ -55,7 +55,6 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
     <Import Project="deps\DirectX.props" />
     <Import Project="deps\MinHook.props" />
-    <Import Project="deps\FCPP.props" />
     <Import Project="deps\GL3W.props" />
     <Import Project="deps\STB.props" />
     <Import Project="deps\NanoVG.props" />
@@ -64,7 +63,6 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
     <Import Project="deps\DirectX.props" />
     <Import Project="deps\MinHook.props" />
-    <Import Project="deps\FCPP.props" />
     <Import Project="deps\GL3W.props" />
     <Import Project="deps\STB.props" />
     <Import Project="deps\NanoVG.props" />
@@ -73,7 +71,6 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
     <Import Project="deps\DirectX.props" />
     <Import Project="deps\MinHook.props" />
-    <Import Project="deps\FCPP.props" />
     <Import Project="deps\GL3W.props" />
     <Import Project="deps\STB.props" />
     <Import Project="deps\NanoVG.props" />
@@ -82,7 +79,6 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
     <Import Project="deps\DirectX.props" />
     <Import Project="deps\MinHook.props" />
-    <Import Project="deps\FCPP.props" />
     <Import Project="deps\GL3W.props" />
     <Import Project="deps\STB.props" />
     <Import Project="deps\NanoVG.props" />

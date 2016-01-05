@@ -28,30 +28,32 @@ namespace ReShade
 			}
 		}
 
-		lexer::lexer(const lexer &lexer) : _source(lexer._source)
+		lexer::lexer(const lexer &lexer) : _input(lexer._input), _location(lexer._location), _ignore_whitespace(lexer._ignore_whitespace), _ignore_pp_directives(lexer._ignore_pp_directives), _ignore_keywords(lexer._ignore_keywords), _escape_string_literals(lexer._escape_string_literals)
 		{
-			_cur = _source.data() + (lexer._cur - lexer._source.data());
-			_end = _source.data() + _source.size();
+			_cur = _input.data() + (lexer._cur - lexer._input.data());
+			_end = _input.data() + _input.size();
 		}
-		lexer::lexer(const std::string &source) : _source(source)
+		lexer::lexer(const std::string &source, bool ignore_whitespace, bool ignore_pp_directives, bool ignore_keywords, bool escape_string_literals) : _input(source), _ignore_whitespace(ignore_whitespace), _ignore_pp_directives(ignore_pp_directives), _ignore_keywords(ignore_keywords), _escape_string_literals(escape_string_literals)
 		{
-			_cur = _source.data();
-			_end = _cur + _source.size();
+			_cur = _input.data();
+			_end = _cur + _input.size();
 		}
 
-		lexer::token lexer::lex(bool skip_pp_directives)
+		lexer::token lexer::lex()
 		{
+			bool is_at_line_begin = _location.column <= 1;
 		next_token:
 			token tok;
 			tok.id = tokenid::unknown;
 			tok.location = _location;
+			tok.offset = _cur - _input.data();
 			tok.length = 1;
 			tok.literal_as_double = 0;
 
 			switch (_cur[0])
 			{
 				case '\0':
-					tok.id = tokenid::end_of_stream;
+					tok.id = tokenid::end_of_file;
 					return tok;
 				case '\t':
 				case '\v':
@@ -59,12 +61,19 @@ namespace ReShade
 				case '\r':
 				case ' ':
 					skip_space();
-					goto next_token;
+					if (_ignore_whitespace || is_at_line_begin || _cur[0] == '\n')
+						goto next_token;
+					tok.id = tokenid::space;
+					return tok;
 				case '\n':
 					_cur++;
 					_location.line++;
 					_location.column = 1;
-					goto next_token;
+					is_at_line_begin = true;
+					if (_ignore_whitespace)
+						goto next_token;
+					tok.id = tokenid::end_of_line;
+					return tok;
 				case '!':
 					if (_cur[1] == '=')
 						tok.id = tokenid::exclaim_equal,
@@ -73,14 +82,12 @@ namespace ReShade
 						tok.id = tokenid::exclaim;
 					break;
 				case '"':
-					parse_string_literal(tok, true);
+					parse_string_literal(tok, _escape_string_literals);
 					break;
 				case '#':
-					if (_location.column <= 1)
+					if (is_at_line_begin)
 					{
-						parse_pp_directive(tok);
-
-						if (skip_pp_directives)
+						if (!parse_pp_directive(tok) || _ignore_pp_directives)
 						{
 							skip_to_next_line();
 							goto next_token;
@@ -279,7 +286,7 @@ namespace ReShade
 					parse_identifier(tok);
 					break;
 				case '[':
-					tok.id = tokenid::brace_open;
+					tok.id = tokenid::bracket_open;
 					break;
 				case '\\':
 					tok.id = tokenid::backslash;
@@ -384,6 +391,11 @@ namespace ReShade
 			tok.id = tokenid::identifier;
 			tok.length = end - begin;
 			tok.literal_as_string = std::string(begin, end);
+
+			if (_ignore_keywords)
+			{
+				return;
+			}
 
 			#pragma region Keywords
 			struct keyword
@@ -568,19 +580,18 @@ namespace ReShade
 				}
 			}
 		}
-		void lexer::parse_pp_directive(token &tok)
+		bool lexer::parse_pp_directive(token &tok)
 		{
 			skip(1);
 			skip_space();
 			parse_identifier(tok);
-			skip(tok.length);
 
 			if (tok.literal_as_string == "line")
 			{
+				skip(tok.length);
+				skip_space();
 				parse_numeric_literal(tok);
 				skip(tok.length);
-
-				tok.id = tokenid::pp_line;
 
 				_location.line = tok.literal_as_int;
 
@@ -598,59 +609,63 @@ namespace ReShade
 
 					_location.source = temptok.literal_as_string;
 				}
-			}
-			else if (tok.literal_as_string == "include")
-			{
-				tok.id = tokenid::pp_include;
+
+				return false;
 			}
 			else if (tok.literal_as_string == "define")
 			{
-				tok.id = tokenid::pp_define;
+				tok.id = tokenid::hash_def;
 			}
 			else if (tok.literal_as_string == "undef")
 			{
-				tok.id = tokenid::pp_undef;
+				tok.id = tokenid::hash_undef;
 			}
 			else if (tok.literal_as_string == "if")
 			{
-				tok.id = tokenid::pp_if;
+				tok.id = tokenid::hash_if;
 			}
 			else if (tok.literal_as_string == "ifdef")
 			{
-				tok.id = tokenid::pp_ifdef;
+				tok.id = tokenid::hash_ifdef;
 			}
 			else if (tok.literal_as_string == "ifndef")
 			{
-				tok.id = tokenid::pp_ifndef;
+				tok.id = tokenid::hash_ifndef;
 			}
 			else if (tok.literal_as_string == "else")
 			{
-				tok.id = tokenid::pp_else;
+				tok.id = tokenid::hash_else;
 			}
 			else if (tok.literal_as_string == "elif")
 			{
-				tok.id = tokenid::pp_elif;
+				tok.id = tokenid::hash_elif;
 			}
 			else if (tok.literal_as_string == "endif")
 			{
-				tok.id = tokenid::pp_endif;
+				tok.id = tokenid::hash_endif;
 			}
 			else if (tok.literal_as_string == "error")
 			{
-				tok.id = tokenid::pp_error;
+				tok.id = tokenid::hash_error;
 			}
 			else if (tok.literal_as_string == "warning")
 			{
-				tok.id = tokenid::pp_warning;
+				tok.id = tokenid::hash_warning;
 			}
 			else if (tok.literal_as_string == "pragma")
 			{
-				tok.id = tokenid::pp_pragma;
+				tok.id = tokenid::hash_pragma;
+			}
+			else if (tok.literal_as_string == "include")
+			{
+				tok.id = tokenid::hash_include;
 			}
 			else
 			{
-				tok.id = tokenid::pp_unknown;
+				tok.id = tokenid::hash_unknown;
 			}
+
+			return true;
 		}
 		void lexer::parse_string_literal(token &tok, bool escape) const
 		{
@@ -836,7 +851,7 @@ namespace ReShade
 				end++;
 			}
 
-			tok.length = static_cast<unsigned int>(end - begin);
+			tok.length = end - begin;
 
 			switch (tok.id)
 			{

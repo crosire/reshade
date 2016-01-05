@@ -547,7 +547,7 @@ namespace ReShade
 					default:
 					case lexer::tokenid::unknown:
 						return "unknown";
-					case lexer::tokenid::end_of_stream:
+					case lexer::tokenid::end_of_file:
 						return "end of file";
 					case lexer::tokenid::exclaim:
 						return "!";
@@ -915,7 +915,7 @@ namespace ReShade
 		}
 		void Parser::ConsumeUntil(lexer::tokenid tokid)
 		{
-			while (!Accept(tokid) && !Peek(lexer::tokenid::end_of_stream))
+			while (!Accept(tokid) && !Peek(lexer::tokenid::end_of_file))
 			{
 				Consume();
 			}
@@ -2006,7 +2006,7 @@ namespace ReShade
 			#pragma endregion
 
 			#pragma region Postfix
-			while (!Peek(lexer::tokenid::end_of_stream))
+			while (!Peek(lexer::tokenid::end_of_file))
 			{
 				location = _tokenNext.location;
 
@@ -2633,7 +2633,7 @@ namespace ReShade
 					return false;
 				}
 
-				while (!Peek('}') && !Peek(lexer::tokenid::end_of_stream))
+				while (!Peek('}') && !Peek(lexer::tokenid::end_of_file))
 				{
 					const auto casenode = _ast->make_node<Nodes::Case>(struct location());
 
@@ -2967,7 +2967,7 @@ namespace ReShade
 				EnterScope();
 			}
 
-			while (!Peek('}') && !Peek(lexer::tokenid::end_of_stream))
+			while (!Peek('}') && !Peek(lexer::tokenid::end_of_file))
 			{
 				Nodes::Statement *compoundStatement = nullptr;
 
@@ -2980,7 +2980,7 @@ namespace ReShade
 
 					unsigned level = 0;
 
-					while (!Peek(lexer::tokenid::end_of_stream))
+					while (!Peek(lexer::tokenid::end_of_file))
 					{
 						if (Accept('{'))
 						{
@@ -3061,7 +3061,7 @@ namespace ReShade
 		{
 			Consume();
 
-			while (!Peek(lexer::tokenid::end_of_stream))
+			while (!Peek(lexer::tokenid::end_of_file))
 			{
 				if (!ParseTopLevel())
 				{
