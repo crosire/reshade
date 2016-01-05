@@ -6,7 +6,6 @@
 #include <fstream>
 #include <unordered_map>
 #include <boost\filesystem\operations.hpp>
-#include <boost\algorithm\string\trim.hpp>
 
 namespace ReShade
 {
@@ -972,7 +971,14 @@ namespace ReShade
 							argument += _current_token_raw_data;
 						}
 
-						boost::algorithm::trim(argument);
+						if (!argument.empty() && argument.back() == ' ')
+						{
+							argument.pop_back();
+						}
+						if (!argument.empty() && argument.front() == ' ')
+						{
+							argument.erase(0, 1);
+						}
 
 						arguments.push_back(argument);
 
@@ -1097,8 +1103,6 @@ namespace ReShade
 							break;
 					}
 				}
-
-				boost::algorithm::trim(macro.replacement_list);
 			}
 		};
 
