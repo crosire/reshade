@@ -582,7 +582,8 @@ namespace ReShade
 					return;
 				}
 
-				const boost::filesystem::path filename = current_token().literal_as_string;
+				boost::filesystem::path filename = current_token().literal_as_string;
+				filename.make_preferred();
 				auto path = boost::filesystem::path(_output_location.source).parent_path() / filename;
 
 				if (!boost::filesystem::exists(path))
@@ -1135,7 +1136,21 @@ namespace ReShade
 			output = pp._output;
 			errors += pp._errors;
 
-			return !pp._fatal_error;
+			if (!pp._fatal_error)
+			{
+				include_paths.clear();
+
+				for (const auto &element : pp._filecache)
+				{
+					include_paths.push_back(element.first);
+				}
+
+				return true;
+			}
+			else
+			{
+				return false;
+			}
 		}
 	}
 }

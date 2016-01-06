@@ -844,6 +844,8 @@ namespace ReShade
 			_effectSource = source;
 		}
 
+		std::sort(_includedFiles.begin(), _includedFiles.end());
+
 		_showInfoMessages = true;
 
 		for (const auto &pragma : _pragmas)
