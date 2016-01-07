@@ -195,6 +195,7 @@ namespace ReShade
 		if (sEffectWatcher->GetModifications(modifications))
 		{
 			std::sort(modifications.begin(), modifications.end());
+			std::sort(_includedFiles.begin(), _includedFiles.end());
 			std::set_intersection(modifications.begin(), modifications.end(), _includedFiles.begin(), _includedFiles.end(), std::back_inserter(matchedmodifications));
 
 			if (!matchedmodifications.empty())
@@ -844,7 +845,7 @@ namespace ReShade
 			_effectSource = source;
 		}
 
-		std::sort(_includedFiles.begin(), _includedFiles.end());
+		_includedFiles.push_back(sEffectPath);
 
 		_showInfoMessages = true;
 
