@@ -537,16 +537,16 @@ namespace ReShade
 			}
 			void parse_pragma()
 			{
-				std::string pragma;
+				if (!expect(lexer::tokenid::identifier))
+				{
+					return;
+				}
 
-				while (!peek(lexer::tokenid::end_of_line))
+				std::string pragma = current_token().literal_as_string;
+
+				while (!peek(lexer::tokenid::end_of_line) && !peek(lexer::tokenid::end_of_file))
 				{
 					consume();
-
-					if (current_token() == lexer::tokenid::end_of_file)
-					{
-						return;
-					}
 
 					switch (current_token())
 					{
@@ -554,8 +554,8 @@ namespace ReShade
 						case lexer::tokenid::uint_literal:
 							pragma += std::to_string(current_token().literal_as_int);
 							break;
-						case lexer::tokenid::identifier:
-							pragma += current_token().literal_as_string;
+						default:
+							pragma += _current_token_raw_data;
 							break;
 					}
 				}
@@ -1138,6 +1138,7 @@ namespace ReShade
 
 			if (!pp._fatal_error)
 			{
+				pragmas.assign(pp._pragmas.begin(), pp._pragmas.end());
 				include_paths.clear();
 
 				for (const auto &element : pp._filecache)
