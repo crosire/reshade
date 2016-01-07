@@ -6,7 +6,6 @@
 #include "FX\PreProcessor.hpp"
 #include "GUI.hpp"
 #include "WindowWatcher.hpp"
-#include "Utils\Algorithm.hpp"
 #include "Utils\FileWatcher.hpp"
 
 #include <iterator>
@@ -23,12 +22,21 @@ namespace ReShade
 	{
 		boost::filesystem::path ObfuscatePath(const boost::filesystem::path &path)
 		{
-			char username[257];
-			DWORD usernameSize = ARRAYSIZE(username);
-			::GetUserNameA(username, &usernameSize);
+			WCHAR username_data[257];
+			DWORD username_size = 257;
+			GetUserNameW(username_data, &username_size);
 
-			std::string result = path.string();
-			boost::algorithm::replace_all(result, username, std::string(usernameSize - 1, '*'));
+			std::wstring result = path.wstring();
+			const std::wstring username(username_data, username_size - 1);
+			const std::wstring username_replacement(username_size - 1, L'*');
+
+			size_t start_pos = 0;
+
+			while ((start_pos = result.find(username, start_pos)) != std::string::npos)
+			{
+				result.replace(start_pos, username.length(), username_replacement);
+				start_pos += username.length();
+			}
 
 			return result;
 		}
@@ -851,69 +859,82 @@ namespace ReShade
 
 		for (const auto &pragma : _pragmas)
 		{
-			if (boost::starts_with(pragma, "message "))
+			FX::lexer lexer(pragma);
+
+			const auto prefix_token = lexer.lex();
+
+			if (prefix_token.literal_as_string == "message")
 			{
-				_message += pragma.substr(9, pragma.length() - 10);
+				const auto message_token = lexer.lex();
+
+				if (message_token == FX::lexer::tokenid::string_literal)
+				{
+					_message += message_token.literal_as_string;
+				}
+				continue;
 			}
-			else if (!boost::istarts_with(pragma, "reshade "))
+			else if (prefix_token.literal_as_string != "reshade")
 			{
 				continue;
 			}
 
-			const std::string command = pragma.substr(8);
+			const auto command_token = lexer.lex();
 
-			if (boost::iequals(command, "showstatistics"))
+			if (command_token.literal_as_string == "showstatistics")
 			{
 				_showStatistics = true;
 			}
-			else if (boost::iequals(command, "showfps"))
+			else if (command_token.literal_as_string == "showfps")
 			{
 				_showFPS = true;
 			}
-			else if (boost::iequals(command, "showclock"))
+			else if (command_token.literal_as_string == "showclock")
 			{
 				_showClock = true;
 			}
-			else if (boost::iequals(command, "showtogglemessage"))
+			else if (command_token.literal_as_string == "showtogglemessage")
 			{
 				_showToggleMessage = true;
 			}
-			else if (boost::iequals(command, "noinfomessages"))
+			else if (command_token.literal_as_string == "noinfomessages")
 			{
 				_showInfoMessages = false;
 			}
-			else if (boost::istarts_with(command, "screenshot_key"))
+			else if (command_token.literal_as_string == "screenshot_key")
 			{
-				_screenshotKey = strtol(command.substr(15).c_str(), nullptr, 0);
-				
-				if (_screenshotKey == 0)
-				{
-					_screenshotKey = VK_SNAPSHOT;
-				}
-			}
-			else if (boost::istarts_with(command, "screenshot_format "))
-			{
-				_screenshotFormat = command.substr(18);
-			}
-			else if (boost::istarts_with(command, "screenshot_location "))
-			{
-				std::string path = command.substr(20);
-				const size_t beg = path.find_first_of('"') + 1, end = path.find_last_of('"');
-				path = path.substr(beg, end - beg);
-				Utils::EscapeString(path);
+				const auto screenshot_key_token = lexer.lex();
 
-				if (boost::filesystem::exists(path))
+				if (screenshot_key_token == FX::lexer::tokenid::int_literal || screenshot_key_token == FX::lexer::tokenid::uint_literal)
 				{
-					_screenshotPath = path;
+					_screenshotKey = screenshot_key_token.literal_as_uint;
 				}
-				else
+			}
+			else if (command_token.literal_as_string == "screenshot_format")
+			{
+				const auto screenshot_format_token = lexer.lex();
+
+				if (screenshot_format_token == FX::lexer::tokenid::identifier || screenshot_format_token == FX::lexer::tokenid::string_literal)
 				{
-					LOG(ERROR) << "Failed to find screenshot location \"" << path << "\".";
+					_screenshotFormat = screenshot_format_token.literal_as_string;
+				}
+			}
+			else if (command_token.literal_as_string == "screenshot_location")
+			{
+				const auto screenshot_location_token = lexer.lex();
+
+				if (screenshot_location_token == FX::lexer::tokenid::string_literal)
+				{
+					if (boost::filesystem::exists(screenshot_location_token.literal_as_string))
+					{
+						_screenshotPath = screenshot_location_token.literal_as_string;
+					}
+					else
+					{
+						LOG(ERROR) << "Failed to find screenshot location \"" << screenshot_location_token.literal_as_string << "\".";
+					}
 				}
 			}
 		}
-
-		Utils::EscapeString(_message);
 
 		return true;
 	}

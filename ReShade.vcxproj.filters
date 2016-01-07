@@ -143,9 +143,6 @@
     <ClInclude Include="source\Runtime\WindowWatcher.hpp">
       <Filter>Core\Runtime</Filter>
     </ClInclude>
-    <ClInclude Include="source\Utils\Algorithm.hpp">
-      <Filter>Core\Utils</Filter>
-    </ClInclude>
     <ClInclude Include="source\Utils\CriticalSection.hpp">
       <Filter>Core\Utils</Filter>
     </ClInclude>
