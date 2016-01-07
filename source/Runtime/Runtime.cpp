@@ -763,7 +763,10 @@ namespace ReShade
 
 	bool Runtime::LoadEffect()
 	{
+		_errors.clear();
 		_message.clear();
+		_effectSource.clear();
+		_includedFiles.clear();
 		_showStatistics = _showFPS = _showClock = _showToggleMessage = false;
 		_screenshotKey = VK_SNAPSHOT;
 		_screenshotPath = sExecutablePath.parent_path();
@@ -819,38 +822,20 @@ namespace ReShade
 		defines.emplace_back("BUFFER_RCP_WIDTH", std::to_string(1.0f / static_cast<float>(_width)));
 		defines.emplace_back("BUFFER_RCP_HEIGHT", std::to_string(1.0f / static_cast<float>(_height)));
 
-		_includedFiles.clear();
 		_includedFiles.push_back(sEffectPath.parent_path());
 
 		LOG(INFO) << "Loading effect from " << ObfuscatePath(sEffectPath) << " ...";
 		LOG(TRACE) << "> Running preprocessor ...";
 
-		std::string source, errors;
-
-		if (!FX::preprocess(sEffectPath, defines, _includedFiles, _pragmas, source, errors))
+		if (!FX::preprocess(sEffectPath, defines, _includedFiles, _pragmas, _effectSource, _errors))
 		{
-			LOG(ERROR) << "Failed to preprocess effect on context " << this << ":\n\n" << errors << "\n";
+			LOG(ERROR) << "Failed to preprocess effect on context " << this << ":\n\n" << _errors << "\n";
 
 			_status += " Failed!";
-			_errors = errors;
-			_effectSource.clear();
 
 			OnResetEffect();
 
 			return false;
-		}
-		else if (source == _effectSource && _isEffectCompiled)
-		{
-			LOG(INFO) << "> Already compiled.";
-
-			_status += "Already compiled.";
-
-			return false;
-		}
-		else
-		{
-			_errors = errors;
-			_effectSource = source;
 		}
 
 		_includedFiles.push_back(sEffectPath);
