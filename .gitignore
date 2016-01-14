@@ -1,77 +1,23 @@
-# User-specific files
-*.suo
-*.user
-*.sln.docstates
-
 # Build results
-[Dd]ebug/
-[Rr]elease/
-build/
 [Bb]in/
 [Oo]bj/
+[Bb]uild/
+[Dd]ebug/
+[Rr]elease/
 
-# MSTest test Results
-[Tt]est[Rr]esult*/
-[Bb]uild[Ll]og.*
-
-*_i.c
-*_p.c
-*.ilk
-*.meta
-*.obj
-*.pch
-*.pdb
-*.pgc
-*.pgd
-*.rsp
-*.sbr
-*.tlb
-*.tli
-*.tlh
-*.tmp
-*.tmp_proj
-*.log
-*.vspscc
-*.vssscc
-.builds
-*.pidb
-*.log
-*.scc
-
-# Visual C++ cache files
+# Visual Studio cache files
 ipch/
 *.aps
-*.ncb
-*.opensdf
-*.sdf
 *.cachefile
+*.opendb
+*.opensdf
+*.user
+*.sdf
+*.suo
 
-# Visual Studio profiler
-*.psess
-*.vsp
-*.vspx
-
-# Guidance Automation Toolkit
-*.gpState
-
-# Others
-*.Cache
-~$*
-*~
-*.pfx
-
-# Windows image file caches
-Thumbs.db
-ehthumbs.db
-
-# Folder config file
-Desktop.ini
-
-# Recycle Bin used on file shares
-$RECYCLE.BIN/
-
-# Mac desktop service store files
+# Temporary OS files
 .DS_Store
+Thumbs.db
 
 # Versioning
 /res/Version.h
