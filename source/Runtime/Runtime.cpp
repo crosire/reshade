@@ -315,8 +315,6 @@ namespace ReShade
 
 			_gui->DrawDebugText(0, 0, 1, static_cast<float>(_width), 16, 0xFFBCBCBC, stats.str());
 
-			_gui->DrawDebugText(_window->GetEyePosition().x, _window->GetEyePosition().y, 0, 50, 16, 0xFF00FF00, "X");
-
 			_gui->EndFrame();
 		}
 
@@ -481,13 +479,11 @@ namespace ReShade
 					}
 				}
 			}
-			else if (source == "eye")
+			else if (source == "gaze")
 			{
-				float eyePosition[2];
-				eyePosition[0] = _window->GetEyePosition().x;
-				eyePosition[1] = _window->GetEyePosition().y;
+				const float values[2] = { _window->GetGazePosition().x, _window->GetGazePosition().y };
 
-				SetEffectValue(*variable, eyePosition, 2);
+				SetEffectValue(*variable, values, 2);
 			}
 			else if (source == "random")
 			{

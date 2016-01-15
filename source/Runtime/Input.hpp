@@ -51,15 +51,15 @@ namespace ReShade
 		{
 			return _mousePosition;
 		}
-		const POINT &GetEyePosition() const
+		const POINT &GetGazePosition() const
 		{
-			return _eyePosition;
+			return _gazePosition;
 		}
 
 		void NextFrame();
 
 	private:
-		static LRESULT CALLBACK HookWindowProc(int nCode, WPARAM wParam, LPARAM lParam);
+		static LRESULT CALLBACK HandleWindowMessage(int nCode, WPARAM wParam, LPARAM lParam);
 		static void TX_CALLCONVENTION HandleEyeXEvent(TX_CONSTHANDLE hAsyncData, TX_USERPARAM userParam);
 		static void TX_CALLCONVENTION HandleEyeXConnectionState(TX_CONNECTIONSTATE connectionState, TX_USERPARAM userParam);
 
@@ -68,9 +68,9 @@ namespace ReShade
 		signed char _keys[256];
 		POINT _mousePosition;
 		signed char _mouseButtons[3];
-		POINT _eyePosition;
+		POINT _gazePosition;
 		TX_CONTEXTHANDLE _eyeX;
-		TX_HANDLE _eyeXInteractorSnapshot;
+		TX_HANDLE _eyeXInteractor, _eyeXInteractorSnapshot;
 		static std::unordered_map<HWND, HHOOK> sRawInputHooks;
 		static std::vector<std::pair<HWND, Input *>> sWatchers;
 	};

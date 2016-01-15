@@ -9,46 +9,32 @@ namespace ReShade
 	std::unordered_map<HWND, HHOOK> Input::sRawInputHooks;
 	std::vector<std::pair<HWND, Input *>> Input::sWatchers;
 
-	Input::Input(HWND hwnd) : _hwnd(hwnd), _keys(), _mousePosition(), _mouseButtons(), _eyePosition(), _eyeX(TX_EMPTY_HANDLE), _eyeXInteractorSnapshot(TX_EMPTY_HANDLE)
+	Input::Input(HWND hwnd) : _hwnd(hwnd), _keys(), _mousePosition(), _mouseButtons(), _gazePosition(), _eyeX(TX_EMPTY_HANDLE), _eyeXInteractor(TX_EMPTY_HANDLE), _eyeXInteractorSnapshot(TX_EMPTY_HANDLE)
 	{
 		sWatchers.push_back(std::make_pair(hwnd, this));
 
-		_hookWindowProc = SetWindowsHookEx(WH_GETMESSAGE, &HookWindowProc, nullptr, GetWindowThreadProcessId(hwnd, nullptr));
+		_hookWindowProc = SetWindowsHookEx(WH_GETMESSAGE, &HandleWindowMessage, nullptr, GetWindowThreadProcessId(hwnd, nullptr));
 
-		if (txInitializeEyeX(TX_EYEXCOMPONENTOVERRIDEFLAG_NONE, NULL, NULL, NULL, NULL) != TX_RESULT_OK || txCreateContext(&_eyeX, TX_FALSE) != TX_RESULT_OK)
+		if (txInitializeEyeX(TX_EYEXCOMPONENTOVERRIDEFLAG_NONE, nullptr, nullptr, nullptr, nullptr) == TX_RESULT_OK && txCreateContext(&_eyeX, TX_FALSE) == TX_RESULT_OK)
 		{
-			return;
+			if (txCreateGlobalInteractorSnapshot(_eyeX, "ReShade", &_eyeXInteractorSnapshot, &_eyeXInteractor) != TX_RESULT_OK)
+			{
+				return;
+			}
+
+			TX_GAZEPOINTDATAPARAMS params = { TX_GAZEPOINTDATAMODE_LIGHTLYFILTERED };
+
+			if (txCreateGazePointDataBehavior(_eyeXInteractor, &params) != TX_RESULT_OK)
+			{
+				return;
+			}
+
+			TX_TICKET ticket1 = TX_INVALID_TICKET, ticket2 = TX_INVALID_TICKET;
+			txRegisterEventHandler(_eyeX, &ticket1, &HandleEyeXEvent, this);
+			txRegisterConnectionStateChangedHandler(_eyeX, &ticket2, &HandleEyeXConnectionState, this);
+
+			txEnableConnection(_eyeX);
 		}
-
-		TX_HANDLE interactor = TX_EMPTY_HANDLE;
-		
-		if (txCreateGlobalInteractorSnapshot(_eyeX, "ReShade", &_eyeXInteractorSnapshot, &interactor) != TX_RESULT_OK)
-		{
-			return;
-		}
-
-		TX_GAZEPOINTDATAPARAMS params = { TX_GAZEPOINTDATAMODE_LIGHTLYFILTERED };
-
-		if (txCreateGazePointDataBehavior(interactor, &params) != TX_RESULT_OK)
-		{
-			txReleaseObject(&interactor);
-			return;
-		}
-
-		txReleaseObject(&interactor);
-
-		TX_TICKET hConnectionStateChangedTicket = TX_INVALID_TICKET, hEventHandlerTicket = TX_INVALID_TICKET;
-
-		if (txRegisterConnectionStateChangedHandler(_eyeX, &hConnectionStateChangedTicket, &HandleEyeXConnectionState, this) != TX_RESULT_OK)
-		{
-			return;
-		}
-		if (txRegisterEventHandler(_eyeX, &hEventHandlerTicket, &HandleEyeXEvent, this) != TX_RESULT_OK)
-		{
-			return;
-		}
-		
-		txEnableConnection(_eyeX);
 	}
 	Input::~Input()
 	{
@@ -64,25 +50,24 @@ namespace ReShade
 		{
 			txDisableConnection(_eyeX);
 
-			if (_eyeXInteractorSnapshot != TX_EMPTY_HANDLE)
-			{
-				txReleaseObject(&_eyeXInteractorSnapshot);
-			}
+			txReleaseObject(&_eyeXInteractor);
+			txReleaseObject(&_eyeXInteractorSnapshot);
 
 			txShutdownContext(_eyeX, TX_CLEANUPTIMEOUT_DEFAULT, TX_FALSE);
 			txReleaseContext(&_eyeX);
+
 			txUninitializeEyeX();
 		}
 	}
 
-	LRESULT CALLBACK Input::HookWindowProc(int nCode, WPARAM wParam, LPARAM lParam)
+	LRESULT CALLBACK Input::HandleWindowMessage(int nCode, WPARAM wParam, LPARAM lParam)
 	{
 		if (nCode < HC_ACTION || (wParam & PM_REMOVE) == 0)
 		{
 			return CallNextHookEx(nullptr, nCode, wParam, lParam);
 		}
 
-		MSG details = *reinterpret_cast<LPMSG>(lParam);
+		auto details = *reinterpret_cast<MSG *>(lParam);
 
 		if (details.hwnd == nullptr)
 		{
@@ -108,10 +93,12 @@ namespace ReShade
 			}
 		}
 
-		ScreenToClient(it->second->_hwnd, &details.pt);
+		auto &input = *it->second;
 
-		it->second->_mousePosition.x = details.pt.x;
-		it->second->_mousePosition.y = details.pt.y;
+		ScreenToClient(input._hwnd, &details.pt);
+
+		input._mousePosition.x = details.pt.x;
+		input._mousePosition.y = details.pt.y;
 
 		switch (details.message)
 		{
@@ -131,33 +118,33 @@ namespace ReShade
 						case RIM_TYPEMOUSE:
 							if (data.data.mouse.usButtonFlags & RI_MOUSE_LEFT_BUTTON_DOWN)
 							{
-								it->second->_mouseButtons[0] = 1;
+								input._mouseButtons[0] = 1;
 							}
 							else if (data.data.mouse.usButtonFlags & RI_MOUSE_LEFT_BUTTON_UP)
 							{
-								it->second->_mouseButtons[0] = -1;
+								input._mouseButtons[0] = -1;
 							}
 							if (data.data.mouse.usButtonFlags & RI_MOUSE_RIGHT_BUTTON_DOWN)
 							{
-								it->second->_mouseButtons[2] = 1;
+								input._mouseButtons[2] = 1;
 							}
 							else if (data.data.mouse.usButtonFlags & RI_MOUSE_RIGHT_BUTTON_UP)
 							{
-								it->second->_mouseButtons[2] = -1;
+								input._mouseButtons[2] = -1;
 							}
 							if (data.data.mouse.usButtonFlags & RI_MOUSE_MIDDLE_BUTTON_DOWN)
 							{
-								it->second->_mouseButtons[1] = 1;
+								input._mouseButtons[1] = 1;
 							}
 							else if (data.data.mouse.usButtonFlags & RI_MOUSE_MIDDLE_BUTTON_UP)
 							{
-								it->second->_mouseButtons[1] = -1;
+								input._mouseButtons[1] = -1;
 							}
 							break;
 						case RIM_TYPEKEYBOARD:
 							if (data.data.keyboard.VKey != 0xFF)
 							{
-								it->second->_keys[data.data.keyboard.VKey] = (data.data.keyboard.Flags & RI_KEY_BREAK) == 0 ? 1 : -1;
+								input._keys[data.data.keyboard.VKey] = (data.data.keyboard.Flags & RI_KEY_BREAK) == 0 ? 1 : -1;
 							}
 							break;
 					}
@@ -165,29 +152,29 @@ namespace ReShade
 				break;
 			case WM_KEYDOWN:
 			case WM_SYSKEYDOWN:
-				it->second->_keys[details.wParam] = 1;
+				input._keys[details.wParam] = 1;
 				break;
 			case WM_KEYUP:
 			case WM_SYSKEYUP:
-				it->second->_keys[details.wParam] = -1;
+				input._keys[details.wParam] = -1;
 				break;
 			case WM_LBUTTONDOWN:
-				it->second->_mouseButtons[0] = 1;
+				input._mouseButtons[0] = 1;
 				break;
 			case WM_LBUTTONUP:
-				it->second->_mouseButtons[0] = -1;
+				input._mouseButtons[0] = -1;
 				break;
 			case WM_RBUTTONDOWN:
-				it->second->_mouseButtons[2] = 1;
+				input._mouseButtons[2] = 1;
 				break;
 			case WM_RBUTTONUP:
-				it->second->_mouseButtons[2] = -1;
+				input._mouseButtons[2] = -1;
 				break;
 			case WM_MBUTTONDOWN:
-				it->second->_mouseButtons[1] = 1;
+				input._mouseButtons[1] = 1;
 				break;
 			case WM_MBUTTONUP:
-				it->second->_mouseButtons[1] = -1;
+				input._mouseButtons[1] = -1;
 				break;
 		}
 
@@ -195,51 +182,41 @@ namespace ReShade
 	}
 	void TX_CALLCONVENTION Input::HandleEyeXEvent(TX_CONSTHANDLE hAsyncData, TX_USERPARAM userParam)
 	{
-		const auto watcher = static_cast<Input *>(userParam);
-
+		auto &input = *static_cast<Input *>(userParam);
 		TX_HANDLE event = TX_EMPTY_HANDLE, behavior = TX_EMPTY_HANDLE;
 
-		txGetAsyncDataContent(hAsyncData, &event);
-
-		if (txGetEventBehavior(event, &behavior, TX_BEHAVIORTYPE_GAZEPOINTDATA) != TX_RESULT_OK)
+		if (txGetAsyncDataContent(hAsyncData, &event) != TX_RESULT_OK)
 		{
-			txReleaseObject(&event);
 			return;
 		}
 
-		TX_GAZEPOINTDATAEVENTPARAMS eventParams;
-
-		if (txGetGazePointDataEventParams(behavior, &eventParams) == TX_RESULT_OK)
+		if (txGetEventBehavior(event, &behavior, TX_BEHAVIORTYPE_GAZEPOINTDATA) == TX_RESULT_OK)
 		{
-			POINT position;
-			position.x = static_cast<LONG>(eventParams.X);
-			position.y = static_cast<LONG>(eventParams.Y);
+			TX_GAZEPOINTDATAEVENTPARAMS data;
 
-			ScreenToClient(watcher->_hwnd, &position);
+			if (txGetGazePointDataEventParams(behavior, &data) == TX_RESULT_OK)
+			{
+				input._gazePosition.x = static_cast<LONG>(data.X);
+				input._gazePosition.y = static_cast<LONG>(data.Y);
 
-			watcher->_eyePosition = position;
+				ScreenToClient(input._hwnd, &input._gazePosition);
+			}
 
-			OutputDebugStringA(std::string("EyeX: " + std::to_string(position.x) + ", EyeY: " + std::to_string(position.y) + "\n").c_str());
+			txReleaseObject(&behavior);
 		}
 
-		txReleaseObject(&behavior);
 		txReleaseObject(&event);
 	}
 	void TX_CALLCONVENTION Input::HandleEyeXConnectionState(TX_CONNECTIONSTATE connectionState, TX_USERPARAM userParam)
 	{
-		const auto watcher = static_cast<Input *>(userParam);
+		auto &input = *static_cast<Input *>(userParam);
 
 		switch (connectionState)
 		{
 			case TX_CONNECTIONSTATE_CONNECTED:
-				txCommitSnapshotAsync(watcher->_eyeXInteractorSnapshot, nullptr, nullptr);
+				txCommitSnapshotAsync(input._eyeXInteractorSnapshot, nullptr, nullptr);
 				break;
 			case TX_CONNECTIONSTATE_DISCONNECTED:
-				break;
-			case TX_CONNECTIONSTATE_TRYINGTOCONNECT:
-				break;
-			case TX_CONNECTIONSTATE_SERVERVERSIONTOOLOW:
-			case TX_CONNECTIONSTATE_SERVERVERSIONTOOHIGH:
 				break;
 		}
 	}
@@ -250,7 +227,7 @@ namespace ReShade
 
 		if (insert.second)
 		{
-			insert.first->second = SetWindowsHookEx(WH_GETMESSAGE, &HookWindowProc, nullptr, GetWindowThreadProcessId(device.hwndTarget, nullptr));
+			insert.first->second = SetWindowsHookEx(WH_GETMESSAGE, &HandleWindowMessage, nullptr, GetWindowThreadProcessId(device.hwndTarget, nullptr));
 		}
 	}
 	void Input::UnRegisterRawInputDevices()
