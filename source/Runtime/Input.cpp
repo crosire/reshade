@@ -2,7 +2,7 @@
 #include "Input.hpp"
 
 #include <algorithm>
-#include <windowsx.h>
+#include <WindowsX.h>
 
 namespace ReShade
 {
@@ -14,6 +14,17 @@ namespace ReShade
 		sWatchers.push_back(std::make_pair(hwnd, this));
 
 		_hookWindowProc = SetWindowsHookEx(WH_GETMESSAGE, &HandleWindowMessage, nullptr, GetWindowThreadProcessId(hwnd, nullptr));
+
+		const auto eyeXModule = LoadLibraryA("Tobii.EyeX.Client.dll");
+
+		if (eyeXModule == nullptr)
+		{
+			return;
+		}
+		else
+		{
+			FreeLibrary(eyeXModule);
+		}
 
 		if (txInitializeEyeX(TX_EYEXCOMPONENTOVERRIDEFLAG_NONE, nullptr, nullptr, nullptr, nullptr) == TX_RESULT_OK && txCreateContext(&_eyeX, TX_FALSE) == TX_RESULT_OK)
 		{
