@@ -222,7 +222,7 @@ namespace ReShade
 
 	void Input::LoadEyeX()
 	{
-		if (sEyeXInitialized++ != 0)
+		if (sEyeXInitialized != 0)
 		{
 			return;
 		}
@@ -240,16 +240,18 @@ namespace ReShade
 
 		const TX_RESULT initresult = txInitializeEyeX(TX_EYEXCOMPONENTOVERRIDEFLAG_NONE, nullptr, nullptr, nullptr, nullptr);
 
-		if (initresult != TX_RESULT_OK)
+		if (initresult == TX_RESULT_OK)
+		{
+			sEyeXInitialized++;
+		}
+		else
 		{
 			LOG(ERROR) << "EyeX initialization failed with error code " << initresult << ".";
-
-			sEyeXInitialized = 0;
 		}
 	}
 	void Input::UnLoadEyeX()
 	{
-		if (--sEyeXInitialized != 0)
+		if (sEyeXInitialized == 0 || --sEyeXInitialized != 0)
 		{
 			return;
 		}
