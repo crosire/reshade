@@ -1,6 +1,6 @@
 #include "GUI.hpp"
+#include "Input.hpp"
 #include "Runtime.hpp"
-#include "WindowWatcher.hpp"
 
 #include <nanovg.h>
 #include <boost\filesystem\path.hpp>
@@ -161,10 +161,10 @@ namespace ReShade
 		const float x = _windowX, y = _windowY, w = _windowWidth;
 		const float cornerRadius = 4.0f;
 
-		const POINT mouse = _runtime->GetWindow()->GetMousePosition();
+		const POINT mouse = _runtime->GetInput()->GetMousePosition();
 		const bool hovered = (mouse.x >= x && mouse.x <= (x + w)) && (mouse.y >= y && mouse.y <= (y + h));
-		const bool clicked1 = hovered && _runtime->GetWindow()->GetMouseButtonState(0);
-		const bool clicked2 = hovered && _runtime->GetWindow()->GetMouseButtonJustReleased(0);
+		const bool clicked1 = hovered && _runtime->GetInput()->GetMouseButtonState(0);
+		const bool clicked2 = hovered && _runtime->GetInput()->GetMouseButtonJustReleased(0);
 
 		if (clicked1)
 		{
@@ -215,9 +215,9 @@ namespace ReShade
 		const float x = _windowX, y = _windowY;
 		const float w = _windowWidth, h = 28.0f;
 
-		const POINT mouse = _runtime->GetWindow()->GetMousePosition();
+		const POINT mouse = _runtime->GetInput()->GetMousePosition();
 		const bool hovered = (mouse.x >= x && mouse.x <= (x + w)) && (mouse.y >= y && mouse.y <= (y + h));
-		const bool clicked = hovered && _runtime->GetWindow()->GetMouseButtonJustReleased(0);
+		const bool clicked = hovered && _runtime->GetInput()->GetMouseButtonJustReleased(0);
 
 		if (clicked)
 		{
@@ -255,9 +255,9 @@ namespace ReShade
 		const float w = _windowWidth, h = 28.0f;
 		const float cy = y + static_cast<float>(static_cast<int>(h * 0.5f)), kr = static_cast<float>(static_cast<int>(h * 0.25f));
 
-		const POINT mouse = _runtime->GetWindow()->GetMousePosition();
+		const POINT mouse = _runtime->GetInput()->GetMousePosition();
 		const bool hovered = (mouse.x >= x && mouse.x <= (x + w)) && (mouse.y >= y && mouse.y <= (y + h));
-		const bool clicked = hovered && _runtime->GetWindow()->GetMouseButtonState(0);
+		const bool clicked = hovered && _runtime->GetInput()->GetMouseButtonState(0);
 
 		if (clicked)
 		{
@@ -316,9 +316,9 @@ namespace ReShade
 		const float w = _windowWidth, h = 28.0f;
 		const float cy = y + static_cast<float>(static_cast<int>(h * 0.5f)), kr = static_cast<float>(static_cast<int>(h * 0.25f));
 
-		const POINT mouse = _runtime->GetWindow()->GetMousePosition();
+		const POINT mouse = _runtime->GetInput()->GetMousePosition();
 		const bool hovered = (mouse.x >= x && mouse.x <= (x + w)) && (mouse.y >= y && mouse.y <= (y + h));
-		const bool clicked = hovered && _runtime->GetWindow()->GetMouseButtonState(0);
+		const bool clicked = hovered && _runtime->GetInput()->GetMouseButtonState(0);
 
 		if (clicked)
 		{

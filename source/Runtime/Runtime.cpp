@@ -5,7 +5,7 @@
 #include "FX\Parser.hpp"
 #include "FX\PreProcessor.hpp"
 #include "GUI.hpp"
-#include "WindowWatcher.hpp"
+#include "Input.hpp"
 #include "Utils\FileWatcher.hpp"
 
 #include <iterator>
@@ -96,7 +96,7 @@ namespace ReShade
 	{
 		LOG(INFO) << "Exiting ...";
 
-		WindowWatcher::UnRegisterRawInputDevices();
+		Input::UnRegisterRawInputDevices();
 
 		sEffectWatcher.reset();
 
@@ -338,7 +338,7 @@ namespace ReShade
 		_stats.Date[3] = static_cast<float>(tm.tm_hour * 3600 + tm.tm_min * 60 + tm.tm_sec);
 		#pragma endregion
 
-		_window->NextFrame();
+		_input->NextFrame();
 	}
 	void Runtime::OnDrawCall(unsigned int vertices)
 	{
@@ -464,7 +464,7 @@ namespace ReShade
 						bool current = false;
 						GetEffectValue(*variable, &current, 1);
 
-						if (_window->GetKeyJustPressed(key))
+						if (_input->GetKeyJustPressed(key))
 						{
 							current = !current;
 
@@ -473,7 +473,7 @@ namespace ReShade
 					}
 					else
 					{
-						const bool state = _window->GetKeyState(key);
+						const bool state = _input->GetKeyState(key);
 
 						SetEffectValue(*variable, &state, 1);
 					}
@@ -506,7 +506,7 @@ namespace ReShade
 					technique->Timeleft = 0;
 				}
 			}
-			else if (_window->GetKeyJustPressed(technique->Toggle) && (!technique->ToggleCtrl || _window->GetKeyState(VK_CONTROL)) && (!technique->ToggleShift || _window->GetKeyState(VK_SHIFT)) && (!technique->ToggleAlt || _window->GetKeyState(VK_MENU)))
+			else if (_input->GetKeyJustPressed(technique->Toggle) && (!technique->ToggleCtrl || _input->GetKeyState(VK_CONTROL)) && (!technique->ToggleShift || _input->GetKeyState(VK_SHIFT)) && (!technique->ToggleAlt || _input->GetKeyState(VK_MENU)))
 			{
 				technique->Enabled = !technique->Enabled;
 				technique->Timeleft = technique->Timeout;

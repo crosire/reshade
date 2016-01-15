@@ -1,6 +1,6 @@
 #include "Log.hpp"
 #include "D3D12Runtime.hpp"
-#include "WindowWatcher.hpp"
+#include "Input.hpp"
 
 #include <assert.h>
 
@@ -31,7 +31,7 @@ namespace ReShade
 		{
 			_width = desc.BufferDesc.Width;
 			_height = desc.BufferDesc.Height;
-			_window.reset(new WindowWatcher(desc.OutputWindow));
+			_input.reset(new Input(desc.OutputWindow));
 
 			return Runtime::OnInit();
 		}

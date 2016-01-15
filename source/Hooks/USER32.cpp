@@ -1,6 +1,6 @@
 #include "Log.hpp"
 #include "HookManager.hpp"
-#include "WindowWatcher.hpp"
+#include "Input.hpp"
 
 #include <assert.h>
 #include <Windows.h>
@@ -113,7 +113,7 @@ EXPORT BOOL WINAPI HookRegisterRawInputDevices(PCRAWINPUTDEVICE pRawInputDevices
 			continue;
 		}
 
-		ReShade::WindowWatcher::RegisterRawInputDevice(device);
+		ReShade::Input::RegisterRawInputDevice(device);
 	}
 
 	if (!ReShade::Hooks::Call(&HookRegisterRawInputDevices)(pRawInputDevices, uiNumDevices, cbSize))

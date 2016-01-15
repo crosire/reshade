@@ -247,7 +247,7 @@ tools\upx --backup "$(TargetPath)"</Command>
     <ClCompile Include="source\Hooks\WS2_32.cpp" />
     <ClCompile Include="source\Runtime\GUI.cpp" />
     <ClCompile Include="source\Runtime\Runtime.cpp" />
-    <ClCompile Include="source\Runtime\WindowWatcher.cpp" />
+    <ClCompile Include="source\Runtime\Input.cpp" />
     <ClCompile Include="source\Runtimes\D3D9Runtime.cpp" />
     <ClCompile Include="source\Runtimes\D3D10Runtime.cpp" />
     <ClCompile Include="source\Runtimes\D3D11Runtime.cpp" />
@@ -276,7 +276,7 @@ tools\upx --backup "$(TargetPath)"</Command>
     <ClInclude Include="source\Hooks\DXGI.hpp" />
     <ClInclude Include="source\Runtime\GUI.hpp" />
     <ClInclude Include="source\Runtime\Runtime.hpp" />
-    <ClInclude Include="source\Runtime\WindowWatcher.hpp" />
+    <ClInclude Include="source\Runtime\Input.hpp" />
     <ClInclude Include="source\Runtimes\D3D9Runtime.hpp" />
     <ClInclude Include="source\Runtimes\D3D10Runtime.hpp" />
     <ClInclude Include="source\Runtimes\D3D11Runtime.hpp" />

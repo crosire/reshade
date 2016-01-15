@@ -2,7 +2,7 @@
 #include "D3D9Runtime.hpp"
 #include "FX\ParserNodes.hpp"
 #include "GUI.hpp"
-#include "WindowWatcher.hpp"
+#include "Input.hpp"
 
 #include <assert.h>
 #include <d3dx9math.h>
@@ -2263,7 +2263,7 @@ namespace ReShade
 			_height = pp.BackBufferHeight;
 			_backbufferFormat = pp.BackBufferFormat;
 			_multisamplingEnabled = pp.MultiSampleType != D3DMULTISAMPLE_NONE;
-			_window.reset(new WindowWatcher(pp.hDeviceWindow));
+			_input.reset(new Input(pp.hDeviceWindow));
 
 			#pragma region Get backbuffer surface
 			HRESULT hr = _swapchain->GetBackBuffer(0, D3DBACKBUFFER_TYPE_MONO, &_backbuffer);

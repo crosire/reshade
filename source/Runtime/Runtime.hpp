@@ -13,7 +13,7 @@
 namespace ReShade
 {
 	class GUI;
-	class WindowWatcher;
+	class Input;
 
 	namespace FX
 	{
@@ -227,9 +227,9 @@ namespace ReShade
 		{
 			return _height;
 		}
-		const WindowWatcher *GetWindow() const
+		const Input *GetInput() const
 		{
-			return  _window.get();
+			return  _input.get();
 		}
 
 	protected:
@@ -311,7 +311,7 @@ namespace ReShade
 		unsigned int _vendorId, _deviceId;
 		Statistics _stats;
 		std::unique_ptr<GUI> _gui;
-		std::unique_ptr<WindowWatcher> _window;
+		std::unique_ptr<Input> _input;
 		std::vector<std::unique_ptr<Texture>> _textures;
 		std::vector<std::unique_ptr<Uniform>> _uniforms;
 		std::vector<std::unique_ptr<Technique>> _techniques;

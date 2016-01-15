@@ -51,10 +51,13 @@
     <ClCompile Include="source\Hook\HookManager.cpp">
       <Filter>Core\Hook</Filter>
     </ClCompile>
-    <ClCompile Include="source\Runtime\Runtime.cpp">
+    <ClCompile Include="source\Runtime\GUI.cpp">
       <Filter>Core\Runtime</Filter>
     </ClCompile>
-    <ClCompile Include="source\Runtime\WindowWatcher.cpp">
+    <ClCompile Include="source\Runtime\Input.cpp">
+      <Filter>Core\Runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="source\Runtime\Runtime.cpp">
       <Filter>Core\Runtime</Filter>
     </ClCompile>
     <ClCompile Include="source\Utils\FileWatcher.cpp">
@@ -86,9 +89,6 @@
     </ClCompile>
     <ClCompile Include="source\Hooks\WS2_32.cpp">
       <Filter>Implementation\Hooks</Filter>
-    </ClCompile>
-    <ClCompile Include="source\Runtime\GUI.cpp">
-      <Filter>Core\Runtime</Filter>
     </ClCompile>
     <ClCompile Include="source\Runtimes\D3D9Runtime.cpp">
       <Filter>Implementation\Runtimes</Filter>
@@ -137,10 +137,10 @@
     <ClInclude Include="source\Runtime\GUI.hpp">
       <Filter>Core\Runtime</Filter>
     </ClInclude>
-    <ClInclude Include="source\Runtime\Runtime.hpp">
+    <ClInclude Include="source\Runtime\Input.hpp">
       <Filter>Core\Runtime</Filter>
     </ClInclude>
-    <ClInclude Include="source\Runtime\WindowWatcher.hpp">
+    <ClInclude Include="source\Runtime\Runtime.hpp">
       <Filter>Core\Runtime</Filter>
     </ClInclude>
     <ClInclude Include="source\Utils\CriticalSection.hpp">

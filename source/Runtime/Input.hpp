@@ -7,14 +7,14 @@
 
 namespace ReShade
 {
-	class WindowWatcher
+	class Input
 	{
 	public:
 		static void RegisterRawInputDevice(const RAWINPUTDEVICE &device);
 		static void UnRegisterRawInputDevices();
 
-		WindowWatcher(HWND hwnd);
-		~WindowWatcher();
+		Input(HWND hwnd);
+		~Input();
 
 		bool GetKeyState(UINT keycode) const
 		{
@@ -62,6 +62,6 @@ namespace ReShade
 		POINT _mousePosition;
 		signed char _mouseButtons[3];
 		static std::unordered_map<HWND, HHOOK> sRawInputHooks;
-		static std::vector<std::pair<HWND, WindowWatcher *>> sWatchers;
+		static std::vector<std::pair<HWND, Input *>> sWatchers;
 	};
 }

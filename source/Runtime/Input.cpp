@@ -1,24 +1,24 @@
 #include "Log.hpp"
-#include "WindowWatcher.hpp"
+#include "Input.hpp"
 
 #include <algorithm>
 #include <windowsx.h>
 
 namespace ReShade
 {
-	std::unordered_map<HWND, HHOOK> WindowWatcher::sRawInputHooks;
-	std::vector<std::pair<HWND, WindowWatcher *>> WindowWatcher::sWatchers;
+	std::unordered_map<HWND, HHOOK> Input::sRawInputHooks;
+	std::vector<std::pair<HWND, Input *>> Input::sWatchers;
 
-	WindowWatcher::WindowWatcher(HWND hwnd) : _hwnd(hwnd), _keys(), _mousePosition(), _mouseButtons()
+	Input::Input(HWND hwnd) : _hwnd(hwnd), _keys(), _mousePosition(), _mouseButtons()
 	{
 		sWatchers.push_back(std::make_pair(hwnd, this));
 
 		_hookWindowProc = SetWindowsHookEx(WH_GETMESSAGE, &HookWindowProc, nullptr, GetWindowThreadProcessId(hwnd, nullptr));
 	}
-	WindowWatcher::~WindowWatcher()
+	Input::~Input()
 	{
 		sWatchers.erase(std::find_if(sWatchers.begin(), sWatchers.end(),
-			[this](const std::pair<HWND, WindowWatcher *> &it)
+			[this](const std::pair<HWND, Input *> &it)
 			{
 				return it.second == this;
 			}));
@@ -26,7 +26,7 @@ namespace ReShade
 		UnhookWindowsHookEx(_hookWindowProc);
 	}
 
-	LRESULT CALLBACK WindowWatcher::HookWindowProc(int nCode, WPARAM wParam, LPARAM lParam)
+	LRESULT CALLBACK Input::HookWindowProc(int nCode, WPARAM wParam, LPARAM lParam)
 	{
 		if (nCode < HC_ACTION || (wParam & PM_REMOVE) == 0)
 		{
@@ -41,7 +41,7 @@ namespace ReShade
 		}
 
 		auto it = std::find_if(sWatchers.begin(), sWatchers.end(),
-			[&details](const std::pair<HWND, WindowWatcher *> &it)
+			[&details](const std::pair<HWND, Input *> &it)
 			{
 				return it.first == details.hwnd;
 			});
@@ -145,7 +145,7 @@ namespace ReShade
 		return CallNextHookEx(nullptr, nCode, wParam, lParam);
 	}
 
-	void WindowWatcher::RegisterRawInputDevice(const RAWINPUTDEVICE &device)
+	void Input::RegisterRawInputDevice(const RAWINPUTDEVICE &device)
 	{
 		const auto insert = sRawInputHooks.insert(std::make_pair(device.hwndTarget, nullptr));
 
@@ -154,7 +154,7 @@ namespace ReShade
 			insert.first->second = SetWindowsHookEx(WH_GETMESSAGE, &HookWindowProc, nullptr, GetWindowThreadProcessId(device.hwndTarget, nullptr));
 		}
 	}
-	void WindowWatcher::UnRegisterRawInputDevices()
+	void Input::UnRegisterRawInputDevices()
 	{
 		for (auto &it : sRawInputHooks)
 		{
@@ -164,7 +164,7 @@ namespace ReShade
 		sRawInputHooks.clear();
 	}
 
-	void WindowWatcher::NextFrame()
+	void Input::NextFrame()
 	{
 		for (unsigned int i = 0; i < 256; i++)
 		{

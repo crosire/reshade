@@ -2,7 +2,7 @@
 #include "GLRuntime.hpp"
 #include "FX\ParserNodes.hpp"
 #include "GUI.hpp"
-#include "WindowWatcher.hpp"
+#include "Input.hpp"
 
 #include <assert.h>
 #include <nanovg_gl.h>
@@ -3050,7 +3050,7 @@ namespace ReShade
 
 			_width = width;
 			_height = height;
-			_window.reset(new WindowWatcher(WindowFromDC(_hdc)));
+			_input.reset(new Input(WindowFromDC(_hdc)));
 
 			// Clear errors
 			GLenum status = glGetError();
