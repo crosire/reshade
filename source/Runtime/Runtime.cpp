@@ -479,7 +479,7 @@ namespace ReShade
 					}
 				}
 			}
-			else if (source == "gaze")
+			else if (source == "gazepoint")
 			{
 				const float values[2] = { _window->GetGazePosition().x, _window->GetGazePosition().y };
 
