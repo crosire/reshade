@@ -88,7 +88,7 @@ namespace ReShade
 		Hooks::RegisterModule(systemPath / "user32.dll");
 		Hooks::RegisterModule(systemPath / "ws2_32.dll");
 
-		sEffectWatcher.reset(new FileWatcher(sInjectorPath.parent_path(), true));
+		sEffectWatcher.reset(new FileWatcher(sInjectorPath.parent_path()));
 
 		LOG(INFO) << "Initialized.";
 	}
@@ -200,7 +200,7 @@ namespace ReShade
 		#pragma region Compile effect
 		std::vector<boost::filesystem::path> modifications, matchedmodifications;
 
-		if (sEffectWatcher->GetModifications(modifications))
+		if (sEffectWatcher->Check(modifications))
 		{
 			std::sort(modifications.begin(), modifications.end());
 			std::sort(_includedFiles.begin(), _includedFiles.end());

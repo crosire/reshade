@@ -1,46 +1,51 @@
 #include "FileWatcher.hpp"
 
-FileWatcher::FileWatcher(const boost::filesystem::path &path, bool subtree) : _path(path), _subTree(subtree), _bufferSize(sizeof(FILE_NOTIFY_INFORMATION) + MAX_PATH * sizeof(WCHAR)), _buffer(new unsigned char[_bufferSize])
+#include <Windows.h>
+
+const DWORD bufferSize = sizeof(FILE_NOTIFY_INFORMATION) + MAX_PATH * sizeof(WCHAR);
+
+FileWatcher::FileWatcher(const boost::filesystem::path &path) : _path(path), _buffer(new unsigned char[bufferSize])
 {
-	ZeroMemory(&_overlapped, sizeof(OVERLAPPED));
+	_fileHandle = CreateFileW(path.c_str(), FILE_LIST_DIRECTORY, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED, nullptr);
+	_completionHandle = CreateIoCompletionPort(_fileHandle, nullptr, reinterpret_cast<ULONG_PTR>(_fileHandle), 1);
 
-	_fileHandle = CreateFile(path.c_str(), FILE_LIST_DIRECTORY, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED, nullptr);
-	_fileCompletionPortHandle = CreateIoCompletionPort(INVALID_HANDLE_VALUE, nullptr, 0, 2);
-
-	CreateIoCompletionPort(_fileHandle, _fileCompletionPortHandle, reinterpret_cast<ULONG_PTR>(_fileHandle), 0);
-	ReadDirectoryChangesW(_fileHandle, _buffer.get(), _bufferSize, _subTree, FILE_NOTIFY_CHANGE_LAST_WRITE, nullptr, &_overlapped, nullptr);
+	OVERLAPPED overlapped = { };
+	ReadDirectoryChangesW(_fileHandle, _buffer.get(), bufferSize, TRUE, FILE_NOTIFY_CHANGE_LAST_WRITE, nullptr, &overlapped, nullptr);
 }
 FileWatcher::~FileWatcher()
 {
 	CancelIo(_fileHandle);
 
 	CloseHandle(_fileHandle);
-	CloseHandle(_fileCompletionPortHandle);
+	CloseHandle(_completionHandle);
 }
 
-bool FileWatcher::GetModifications(std::vector<boost::filesystem::path> &modifications, DWORD timeout)
+bool FileWatcher::Check(std::vector<boost::filesystem::path> &modifications)
 {
-	DWORD transferred = 0;
-	ULONG_PTR key = 0;
-	LPOVERLAPPED overlapped;
+	DWORD transferred;
+	ULONG_PTR key;
+	OVERLAPPED *overlapped;
 
-	if (!GetQueuedCompletionStatus(_fileCompletionPortHandle, &transferred, &key, &overlapped, timeout))
+	if (!GetQueuedCompletionStatus(_completionHandle, &transferred, &key, &overlapped, 0))
 	{
 		return false;
 	}
 
-	auto record = reinterpret_cast<const FILE_NOTIFY_INFORMATION *>(_buffer.get());
-	static boost::filesystem::path sLastFilename;
 	static std::time_t sLastTime = 0;
+	static boost::filesystem::path sLastFilename;
 
-	while (record != nullptr)
+	auto record = reinterpret_cast<FILE_NOTIFY_INFORMATION *>(_buffer.get());
+
+	while (true)
 	{
-		const boost::filesystem::path filename = _path / std::wstring(record->FileName, record->FileNameLength / sizeof(WCHAR));
+		record->FileNameLength /= sizeof(WCHAR);
+
+		const boost::filesystem::path filename = _path / std::wstring(record->FileName, record->FileNameLength);
 
 		if (filename != sLastFilename || sLastTime + 2 < std::time(nullptr))
 		{
-			sLastFilename = filename;
 			sLastTime = std::time(nullptr);
+			sLastFilename = filename;
 		
 			modifications.push_back(std::move(filename));
 		}
@@ -50,10 +55,12 @@ bool FileWatcher::GetModifications(std::vector<boost::filesystem::path> &modific
 			break;
 		}
 
-		record = reinterpret_cast<const FILE_NOTIFY_INFORMATION *>(reinterpret_cast<const unsigned char *>(record) + record->NextEntryOffset);
+		record = reinterpret_cast<FILE_NOTIFY_INFORMATION *>(reinterpret_cast<BYTE *>(record) + record->NextEntryOffset);
 	}
 
-	ReadDirectoryChangesW(_fileHandle, _buffer.get(), _bufferSize, _subTree, FILE_NOTIFY_CHANGE_LAST_WRITE, nullptr, &_overlapped, nullptr);
+	overlapped->hEvent = nullptr;
+
+	ReadDirectoryChangesW(_fileHandle, _buffer.get(), bufferSize, TRUE, FILE_NOTIFY_CHANGE_LAST_WRITE, nullptr, overlapped, nullptr);
 
 	return true;
 }
