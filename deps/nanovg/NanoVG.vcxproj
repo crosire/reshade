@@ -20,6 +20,7 @@
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{9B325F7F-A665-654A-9C8F-09206024ADE7}</ProjectGuid>
+    <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -120,11 +121,11 @@
     </FxCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="src\nanovg.c" />
-    <ClCompile Include="src\nanovg_d3d10.c" />
-    <ClCompile Include="src\nanovg_d3d11.c" />
-    <ClCompile Include="src\nanovg_d3d9.c" />
-    <ClCompile Include="src\nanovg_gl.c" />
+    <ClCompile Include="source\nanovg.c" />
+    <ClCompile Include="source\nanovg_d3d10.c" />
+    <ClCompile Include="source\nanovg_d3d11.c" />
+    <ClCompile Include="source\nanovg_d3d9.c" />
+    <ClCompile Include="source\nanovg_gl.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\nanovg.h" />

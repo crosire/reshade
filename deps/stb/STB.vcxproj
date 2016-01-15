@@ -20,6 +20,7 @@
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{9175EE2B-44B4-47AF-88EB-9B92CD53E52C}</ProjectGuid>
+    <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -96,11 +97,11 @@
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="src\stb_dxt.c" />
-    <ClCompile Include="src\stb_image.c" />
-    <ClCompile Include="src\stb_image_resize.c" />
-    <ClCompile Include="src\stb_image_write.c" />
-    <ClCompile Include="src\stb_truetype.c" />
+    <ClCompile Include="source\stb_dxt.c" />
+    <ClCompile Include="source\stb_image.c" />
+    <ClCompile Include="source\stb_image_resize.c" />
+    <ClCompile Include="source\stb_image_write.c" />
+    <ClCompile Include="source\stb_truetype.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\stb_dxt.h" />

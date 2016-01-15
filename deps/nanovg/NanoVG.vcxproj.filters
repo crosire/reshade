@@ -6,11 +6,11 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="src\nanovg.c" />
-    <ClCompile Include="src\nanovg_gl.c" />
-    <ClCompile Include="src\nanovg_d3d11.c" />
-    <ClCompile Include="src\nanovg_d3d10.c" />
-    <ClCompile Include="src\nanovg_d3d9.c" />
+    <ClCompile Include="source\nanovg.c" />
+    <ClCompile Include="source\nanovg_gl.c" />
+    <ClCompile Include="source\nanovg_d3d11.c" />
+    <ClCompile Include="source\nanovg_d3d10.c" />
+    <ClCompile Include="source\nanovg_d3d9.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\nanovg.h" />

@@ -4,6 +4,6 @@
     <ClInclude Include="include\GL\gl3w.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="src\gl3w.c" />
+    <ClCompile Include="source\gl3w.c" />
   </ItemGroup>
 </Project>

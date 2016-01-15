@@ -20,6 +20,7 @@
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{F142A341-5EE0-442D-A15F-98AE9B48DBAE}</ProjectGuid>
+    <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -96,27 +97,27 @@
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="src\buffer.c" />
-    <ClCompile Include="src\HDE\hde32.c">
+    <ClCompile Include="source\buffer.c" />
+    <ClCompile Include="source\HDE\hde32.c">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </ClCompile>
-    <ClCompile Include="src\HDE\hde64.c">
+    <ClCompile Include="source\HDE\hde64.c">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
     </ClCompile>
-    <ClCompile Include="src\hook.c" />
-    <ClCompile Include="src\trampoline.c" />
+    <ClCompile Include="source\hook.c" />
+    <ClCompile Include="source\trampoline.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\MinHook.h" />
-    <ClInclude Include="src\buffer.h" />
-    <ClInclude Include="src\HDE\hde32.h" />
-    <ClInclude Include="src\HDE\hde64.h" />
-    <ClInclude Include="src\HDE\pstdint.h" />
-    <ClInclude Include="src\HDE\table32.h" />
-    <ClInclude Include="src\HDE\table64.h" />
-    <ClInclude Include="src\trampoline.h" />
+    <ClInclude Include="source\buffer.h" />
+    <ClInclude Include="source\HDE\hde32.h" />
+    <ClInclude Include="source\HDE\hde64.h" />
+    <ClInclude Include="source\HDE\pstdint.h" />
+    <ClInclude Include="source\HDE\table32.h" />
+    <ClInclude Include="source\HDE\table64.h" />
+    <ClInclude Include="source\trampoline.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>
