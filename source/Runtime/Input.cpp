@@ -18,42 +18,19 @@ namespace ReShade
 
 		if (sEyeXInitialized && txCreateContext(&_eyeX, TX_FALSE) == TX_RESULT_OK)
 		{
-			LOG(INFO) << "Establishing connection with EyeX client ...";
+			LOG(INFO) << "Enabling connection with EyeX client ...";
 
-			TX_RESULT txresult = txCreateGlobalInteractorSnapshot(_eyeX, "ReShade", &_eyeXInteractorSnapshot, &_eyeXInteractor);
+			TX_GAZEPOINTDATAPARAMS params = { TX_GAZEPOINTDATAMODE_LIGHTLYFILTERED };
 
-			if (txresult == TX_RESULT_OK)
-			{
-				TX_GAZEPOINTDATAPARAMS params = { TX_GAZEPOINTDATAMODE_LIGHTLYFILTERED };
+			txCreateGlobalInteractorSnapshot(_eyeX, "ReShade", &_eyeXInteractorSnapshot, &_eyeXInteractor);
+			txCreateGazePointDataBehavior(_eyeXInteractor, &params);
 
-				txresult = txCreateGazePointDataBehavior(_eyeXInteractor, &params);
+			TX_TICKET ticket1 = TX_INVALID_TICKET, ticket2 = TX_INVALID_TICKET;
 
-				if (txresult == TX_RESULT_OK)
-				{
-					TX_TICKET ticket1 = TX_INVALID_TICKET, ticket2 = TX_INVALID_TICKET;
-					txRegisterEventHandler(_eyeX, &ticket1, &HandleEyeXEvent, this);
-					txRegisterConnectionStateChangedHandler(_eyeX, &ticket2, &HandleEyeXConnectionState, this);
+			txRegisterEventHandler(_eyeX, &ticket1, &HandleEyeXEvent, this);
+			txRegisterConnectionStateChangedHandler(_eyeX, &ticket2, &HandleEyeXConnectionState, this);
 
-					txresult = txEnableConnection(_eyeX);
-
-					if (txresult == TX_RESULT_OK)
-					{
-						LOG(INFO) << "> Succeeded.";
-					}
-					else
-					{
-						LOG(ERROR) << "> Connection failed with error code " << txresult << ".";
-					}
-				}
-				else
-				{
-					LOG(ERROR) << "> Data behavior creation failed with error code " << txresult << ".";
-				}
-			}
-			else
-			{
-				LOG(ERROR) << "> Interactor snapshot creation failed with error code " << txresult << ".";
-			}
+			txEnableConnection(_eyeX);
 		}
 	}
 	Input::~Input()
@@ -68,7 +45,7 @@ namespace ReShade
 
 		if (_eyeX != TX_EMPTY_HANDLE)
 		{
-			LOG(INFO) << "Closing connection with EyeX client ...";
+			LOG(INFO) << "Disabling connection with EyeX client ...";
 
 			txDisableConnection(_eyeX);
 
@@ -265,7 +242,7 @@ namespace ReShade
 
 		if (initresult != TX_RESULT_OK)
 		{
-			LOG(ERROR) << "> Initialization failed with error code " << initresult << ".";
+			LOG(ERROR) << "EyeX initialization failed with error code " << initresult << ".";
 
 			sEyeXInitialized = 0;
 		}
