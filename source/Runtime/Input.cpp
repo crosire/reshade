@@ -6,6 +6,7 @@
 
 namespace ReShade
 {
+	unsigned long Input::sEyeXInitialized = 0;
 	std::unordered_map<HWND, HHOOK> Input::sRawInputHooks;
 	std::vector<std::pair<HWND, Input *>> Input::sWatchers;
 
@@ -15,36 +16,44 @@ namespace ReShade
 
 		_hookWindowProc = SetWindowsHookEx(WH_GETMESSAGE, &HandleWindowMessage, nullptr, GetWindowThreadProcessId(hwnd, nullptr));
 
-		const auto eyeXModule = LoadLibraryA("Tobii.EyeX.Client.dll");
+		if (sEyeXInitialized && txCreateContext(&_eyeX, TX_FALSE) == TX_RESULT_OK)
+		{
+			LOG(INFO) << "Establishing connection with EyeX client ...";
 
-		if (eyeXModule == nullptr)
-		{
-			return;
-		}
-		else
-		{
-			FreeLibrary(eyeXModule);
-		}
+			TX_RESULT txresult = txCreateGlobalInteractorSnapshot(_eyeX, "ReShade", &_eyeXInteractorSnapshot, &_eyeXInteractor);
 
-		if (txInitializeEyeX(TX_EYEXCOMPONENTOVERRIDEFLAG_NONE, nullptr, nullptr, nullptr, nullptr) == TX_RESULT_OK && txCreateContext(&_eyeX, TX_FALSE) == TX_RESULT_OK)
-		{
-			if (txCreateGlobalInteractorSnapshot(_eyeX, "ReShade", &_eyeXInteractorSnapshot, &_eyeXInteractor) != TX_RESULT_OK)
+			if (txresult == TX_RESULT_OK)
 			{
-				return;
+				TX_GAZEPOINTDATAPARAMS params = { TX_GAZEPOINTDATAMODE_LIGHTLYFILTERED };
+
+				txresult = txCreateGazePointDataBehavior(_eyeXInteractor, &params);
+
+				if (txresult == TX_RESULT_OK)
+				{
+					TX_TICKET ticket1 = TX_INVALID_TICKET, ticket2 = TX_INVALID_TICKET;
+					txRegisterEventHandler(_eyeX, &ticket1, &HandleEyeXEvent, this);
+					txRegisterConnectionStateChangedHandler(_eyeX, &ticket2, &HandleEyeXConnectionState, this);
+
+					txresult = txEnableConnection(_eyeX);
+
+					if (txresult == TX_RESULT_OK)
+					{
+						LOG(INFO) << "> Succeeded.";
+					}
+					else
+					{
+						LOG(ERROR) << "> Connection failed with error code " << txresult << ".";
+					}
+				}
+				else
+				{
+					LOG(ERROR) << "> Data behavior creation failed with error code " << txresult << ".";
+				}
 			}
-
-			TX_GAZEPOINTDATAPARAMS params = { TX_GAZEPOINTDATAMODE_LIGHTLYFILTERED };
-
-			if (txCreateGazePointDataBehavior(_eyeXInteractor, &params) != TX_RESULT_OK)
+			else
 			{
-				return;
+				LOG(ERROR) << "> Interactor snapshot creation failed with error code " << txresult << ".";
 			}
-
-			TX_TICKET ticket1 = TX_INVALID_TICKET, ticket2 = TX_INVALID_TICKET;
-			txRegisterEventHandler(_eyeX, &ticket1, &HandleEyeXEvent, this);
-			txRegisterConnectionStateChangedHandler(_eyeX, &ticket2, &HandleEyeXConnectionState, this);
-
-			txEnableConnection(_eyeX);
 		}
 	}
 	Input::~Input()
@@ -59,6 +68,8 @@ namespace ReShade
 
 		if (_eyeX != TX_EMPTY_HANDLE)
 		{
+			LOG(INFO) << "Closing connection with EyeX client ...";
+
 			txDisableConnection(_eyeX);
 
 			txReleaseObject(&_eyeXInteractor);
@@ -66,8 +77,6 @@ namespace ReShade
 
 			txShutdownContext(_eyeX, TX_CLEANUPTIMEOUT_DEFAULT, TX_FALSE);
 			txReleaseContext(&_eyeX);
-
-			txUninitializeEyeX();
 		}
 	}
 
@@ -225,13 +234,53 @@ namespace ReShade
 		switch (connectionState)
 		{
 			case TX_CONNECTIONSTATE_CONNECTED:
+				LOG(TRACE) << "EyeX client connected.";
 				txCommitSnapshotAsync(input._eyeXInteractorSnapshot, nullptr, nullptr);
 				break;
 			case TX_CONNECTIONSTATE_DISCONNECTED:
+				LOG(TRACE) << "EyeX client disconnected.";
 				break;
 		}
 	}
 
+	void Input::LoadEyeX()
+	{
+		if (sEyeXInitialized++ != 0)
+		{
+			return;
+		}
+
+		const auto eyeXModule = LoadLibraryA("Tobii.EyeX.Client.dll");
+
+		if (eyeXModule == nullptr)
+		{
+			return;
+		}
+
+		FreeLibrary(eyeXModule);
+
+		LOG(INFO) << "Found Tobii EyeX Client library. Initializing ...";
+
+		const TX_RESULT initresult = txInitializeEyeX(TX_EYEXCOMPONENTOVERRIDEFLAG_NONE, nullptr, nullptr, nullptr, nullptr);
+
+		if (initresult != TX_RESULT_OK)
+		{
+			LOG(ERROR) << "> Initialization failed with error code " << initresult << ".";
+
+			sEyeXInitialized = 0;
+		}
+	}
+	void Input::UnLoadEyeX()
+	{
+		if (--sEyeXInitialized != 0)
+		{
+			return;
+		}
+
+		LOG(INFO) << "Shutting down Tobii EyeX Client library ...";
+
+		txUninitializeEyeX();
+	}
 	void Input::RegisterRawInputDevice(const RAWINPUTDEVICE &device)
 	{
 		const auto insert = sRawInputHooks.insert(std::make_pair(device.hwndTarget, nullptr));

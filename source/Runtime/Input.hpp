@@ -3,14 +3,16 @@
 #include <vector>
 #include <unordered_map>
 #include <assert.h>
-#include <Windows.h>
 #include <EyeX.h>
+#include <Windows.h>
 
 namespace ReShade
 {
 	class Input
 	{
 	public:
+		static void LoadEyeX();
+		static void UnLoadEyeX();
 		static void RegisterRawInputDevice(const RAWINPUTDEVICE &device);
 		static void UnRegisterRawInputDevices();
 
@@ -71,6 +73,7 @@ namespace ReShade
 		POINT _gazePosition;
 		TX_CONTEXTHANDLE _eyeX;
 		TX_HANDLE _eyeXInteractor, _eyeXInteractorSnapshot;
+		static unsigned long sEyeXInitialized;
 		static std::unordered_map<HWND, HHOOK> sRawInputHooks;
 		static std::vector<std::pair<HWND, Input *>> sWatchers;
 	};

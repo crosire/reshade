@@ -96,9 +96,9 @@ namespace ReShade
 	{
 		LOG(INFO) << "Exiting ...";
 
-		Input::UnRegisterRawInputDevices();
-
 		sEffectWatcher.reset();
+
+		Input::UnRegisterRawInputDevices();
 
 		Hooks::Uninstall();
 
@@ -113,10 +113,14 @@ namespace ReShade
 
 		_status = "Initializing ...";
 		_startTime = boost::chrono::high_resolution_clock::now();
+
+		Input::LoadEyeX();
 	}
 	Runtime::~Runtime()
 	{
 		assert(!_isInitialized && !_isEffectCompiled);
+
+		Input::UnLoadEyeX();
 	}
 
 	bool Runtime::OnInit()
