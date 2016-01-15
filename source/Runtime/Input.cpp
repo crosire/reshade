@@ -9,11 +9,46 @@ namespace ReShade
 	std::unordered_map<HWND, HHOOK> Input::sRawInputHooks;
 	std::vector<std::pair<HWND, Input *>> Input::sWatchers;
 
-	Input::Input(HWND hwnd) : _hwnd(hwnd), _keys(), _mousePosition(), _mouseButtons()
+	Input::Input(HWND hwnd) : _hwnd(hwnd), _keys(), _mousePosition(), _mouseButtons(), _eyePosition(), _eyeX(TX_EMPTY_HANDLE), _eyeXInteractorSnapshot(TX_EMPTY_HANDLE)
 	{
 		sWatchers.push_back(std::make_pair(hwnd, this));
 
 		_hookWindowProc = SetWindowsHookEx(WH_GETMESSAGE, &HookWindowProc, nullptr, GetWindowThreadProcessId(hwnd, nullptr));
+
+		if (txInitializeEyeX(TX_EYEXCOMPONENTOVERRIDEFLAG_NONE, NULL, NULL, NULL, NULL) != TX_RESULT_OK || txCreateContext(&_eyeX, TX_FALSE) != TX_RESULT_OK)
+		{
+			return;
+		}
+
+		TX_HANDLE interactor = TX_EMPTY_HANDLE;
+		
+		if (txCreateGlobalInteractorSnapshot(_eyeX, "ReShade", &_eyeXInteractorSnapshot, &interactor) != TX_RESULT_OK)
+		{
+			return;
+		}
+
+		TX_GAZEPOINTDATAPARAMS params = { TX_GAZEPOINTDATAMODE_LIGHTLYFILTERED };
+
+		if (txCreateGazePointDataBehavior(interactor, &params) != TX_RESULT_OK)
+		{
+			txReleaseObject(&interactor);
+			return;
+		}
+
+		txReleaseObject(&interactor);
+
+		TX_TICKET hConnectionStateChangedTicket = TX_INVALID_TICKET, hEventHandlerTicket = TX_INVALID_TICKET;
+
+		if (txRegisterConnectionStateChangedHandler(_eyeX, &hConnectionStateChangedTicket, &HandleEyeXConnectionState, this) != TX_RESULT_OK)
+		{
+			return;
+		}
+		if (txRegisterEventHandler(_eyeX, &hEventHandlerTicket, &HandleEyeXEvent, this) != TX_RESULT_OK)
+		{
+			return;
+		}
+		
+		txEnableConnection(_eyeX);
 	}
 	Input::~Input()
 	{
@@ -24,6 +59,20 @@ namespace ReShade
 			}));
 
 		UnhookWindowsHookEx(_hookWindowProc);
+
+		if (_eyeX != TX_EMPTY_HANDLE)
+		{
+			txDisableConnection(_eyeX);
+
+			if (_eyeXInteractorSnapshot != TX_EMPTY_HANDLE)
+			{
+				txReleaseObject(&_eyeXInteractorSnapshot);
+			}
+
+			txShutdownContext(_eyeX, TX_CLEANUPTIMEOUT_DEFAULT, TX_FALSE);
+			txReleaseContext(&_eyeX);
+			txUninitializeEyeX();
+		}
 	}
 
 	LRESULT CALLBACK Input::HookWindowProc(int nCode, WPARAM wParam, LPARAM lParam)
@@ -143,6 +192,56 @@ namespace ReShade
 		}
 
 		return CallNextHookEx(nullptr, nCode, wParam, lParam);
+	}
+	void TX_CALLCONVENTION Input::HandleEyeXEvent(TX_CONSTHANDLE hAsyncData, TX_USERPARAM userParam)
+	{
+		const auto watcher = static_cast<Input *>(userParam);
+
+		TX_HANDLE event = TX_EMPTY_HANDLE, behavior = TX_EMPTY_HANDLE;
+
+		txGetAsyncDataContent(hAsyncData, &event);
+
+		if (txGetEventBehavior(event, &behavior, TX_BEHAVIORTYPE_GAZEPOINTDATA) != TX_RESULT_OK)
+		{
+			txReleaseObject(&event);
+			return;
+		}
+
+		TX_GAZEPOINTDATAEVENTPARAMS eventParams;
+
+		if (txGetGazePointDataEventParams(behavior, &eventParams) == TX_RESULT_OK)
+		{
+			POINT position;
+			position.x = static_cast<LONG>(eventParams.X);
+			position.y = static_cast<LONG>(eventParams.Y);
+
+			ScreenToClient(watcher->_hwnd, &position);
+
+			watcher->_eyePosition = position;
+
+			OutputDebugStringA(std::string("EyeX: " + std::to_string(position.x) + ", EyeY: " + std::to_string(position.y) + "\n").c_str());
+		}
+
+		txReleaseObject(&behavior);
+		txReleaseObject(&event);
+	}
+	void TX_CALLCONVENTION Input::HandleEyeXConnectionState(TX_CONNECTIONSTATE connectionState, TX_USERPARAM userParam)
+	{
+		const auto watcher = static_cast<Input *>(userParam);
+
+		switch (connectionState)
+		{
+			case TX_CONNECTIONSTATE_CONNECTED:
+				txCommitSnapshotAsync(watcher->_eyeXInteractorSnapshot, nullptr, nullptr);
+				break;
+			case TX_CONNECTIONSTATE_DISCONNECTED:
+				break;
+			case TX_CONNECTIONSTATE_TRYINGTOCONNECT:
+				break;
+			case TX_CONNECTIONSTATE_SERVERVERSIONTOOLOW:
+			case TX_CONNECTIONSTATE_SERVERVERSIONTOOHIGH:
+				break;
+		}
 	}
 
 	void Input::RegisterRawInputDevice(const RAWINPUTDEVICE &device)

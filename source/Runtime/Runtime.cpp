@@ -315,6 +315,8 @@ namespace ReShade
 
 			_gui->DrawDebugText(0, 0, 1, static_cast<float>(_width), 16, 0xFFBCBCBC, stats.str());
 
+			_gui->DrawDebugText(_window->GetEyePosition().x, _window->GetEyePosition().y, 0, 50, 16, 0xFF00FF00, "X");
+
 			_gui->EndFrame();
 		}
 
@@ -478,6 +480,14 @@ namespace ReShade
 						SetEffectValue(*variable, &state, 1);
 					}
 				}
+			}
+			else if (source == "eye")
+			{
+				float eyePosition[2];
+				eyePosition[0] = _window->GetEyePosition().x;
+				eyePosition[1] = _window->GetEyePosition().y;
+
+				SetEffectValue(*variable, eyePosition, 2);
 			}
 			else if (source == "random")
 			{

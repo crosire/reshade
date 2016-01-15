@@ -4,6 +4,7 @@
 #include <unordered_map>
 #include <assert.h>
 #include <Windows.h>
+#include <EyeX.h>
 
 namespace ReShade
 {
@@ -50,17 +51,26 @@ namespace ReShade
 		{
 			return _mousePosition;
 		}
+		const POINT &GetEyePosition() const
+		{
+			return _eyePosition;
+		}
 
 		void NextFrame();
 
 	private:
 		static LRESULT CALLBACK HookWindowProc(int nCode, WPARAM wParam, LPARAM lParam);
+		static void TX_CALLCONVENTION HandleEyeXEvent(TX_CONSTHANDLE hAsyncData, TX_USERPARAM userParam);
+		static void TX_CALLCONVENTION HandleEyeXConnectionState(TX_CONNECTIONSTATE connectionState, TX_USERPARAM userParam);
 
 		HWND _hwnd;
 		HHOOK _hookWindowProc;
 		signed char _keys[256];
 		POINT _mousePosition;
 		signed char _mouseButtons[3];
+		POINT _eyePosition;
+		TX_CONTEXTHANDLE _eyeX;
+		TX_HANDLE _eyeXInteractorSnapshot;
 		static std::unordered_map<HWND, HHOOK> sRawInputHooks;
 		static std::vector<std::pair<HWND, Input *>> sWatchers;
 	};
