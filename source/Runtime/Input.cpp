@@ -8,12 +8,10 @@ namespace ReShade
 {
 	unsigned long Input::sEyeXInitialized = 0;
 	std::unordered_map<HWND, HHOOK> Input::sRawInputHooks;
-	std::vector<std::pair<HWND, Input *>> Input::sWatchers;
+	std::unordered_map<HWND, std::unique_ptr<Input>> Input::sWindows;
 
 	Input::Input(HWND hwnd) : _hwnd(hwnd), _keys(), _mousePosition(), _mouseButtons(), _gazePosition(), _eyeX(TX_EMPTY_HANDLE), _eyeXInteractor(TX_EMPTY_HANDLE), _eyeXInteractorSnapshot(TX_EMPTY_HANDLE)
 	{
-		sWatchers.push_back(std::make_pair(hwnd, this));
-
 		_hookWindowProc = SetWindowsHookEx(WH_GETMESSAGE, &HandleWindowMessage, nullptr, GetWindowThreadProcessId(hwnd, nullptr));
 
 		if (sEyeXInitialized && txCreateContext(&_eyeX, TX_FALSE) == TX_RESULT_OK)
@@ -35,12 +33,6 @@ namespace ReShade
 	}
 	Input::~Input()
 	{
-		sWatchers.erase(std::find_if(sWatchers.begin(), sWatchers.end(),
-			[this](const std::pair<HWND, Input *> &it)
-			{
-				return it.second == this;
-			}));
-
 		UnhookWindowsHookEx(_hookWindowProc);
 
 		if (_eyeX != TX_EMPTY_HANDLE)
@@ -57,6 +49,82 @@ namespace ReShade
 		}
 	}
 
+	void Input::LoadEyeX()
+	{
+		if (sEyeXInitialized != 0)
+		{
+			return;
+		}
+
+		const auto eyeXModule = LoadLibraryA("Tobii.EyeX.Client.dll");
+
+		if (eyeXModule == nullptr)
+		{
+			return;
+		}
+
+		FreeLibrary(eyeXModule);
+
+		LOG(INFO) << "Found Tobii EyeX library. Initializing ...";
+
+		const TX_RESULT initresult = txInitializeEyeX(TX_EYEXCOMPONENTOVERRIDEFLAG_NONE, nullptr, nullptr, nullptr, nullptr);
+
+		if (initresult == TX_RESULT_OK)
+		{
+			sEyeXInitialized++;
+		}
+		else
+		{
+			LOG(ERROR) << "EyeX initialization failed with error code " << initresult << ".";
+		}
+	}
+	void Input::UnLoadEyeX()
+	{
+		if (sEyeXInitialized == 0 || --sEyeXInitialized != 0)
+		{
+			return;
+		}
+
+		LOG(INFO) << "Shutting down Tobii EyeX library ...";
+
+		txUninitializeEyeX();
+	}
+
+	void Input::RegisterRawInputDevice(const RAWINPUTDEVICE &device)
+	{
+		const auto insert = sRawInputHooks.emplace(device.hwndTarget, nullptr);
+
+		if (insert.second)
+		{
+			LOG(INFO) << "Starting raw input capture for window " << device.hwndTarget << " ...";
+
+			insert.first->second = SetWindowsHookEx(WH_GETMESSAGE, &HandleWindowMessage, nullptr, GetWindowThreadProcessId(device.hwndTarget, nullptr));
+		}
+	}
+	Input *Input::RegisterWindow(HWND hwnd)
+	{
+		const auto insert = sWindows.emplace(hwnd, nullptr);
+
+		if (insert.second)
+		{
+			LOG(INFO) << "Starting legacy input capture for window " << hwnd << " ...";
+
+			insert.first->second.reset(new Input(hwnd));
+		}
+
+		return insert.first->second.get();
+	}
+	void Input::Uninstall()
+	{
+		for (auto &it : sRawInputHooks)
+		{
+			UnhookWindowsHookEx(it.second);
+		}
+
+		sRawInputHooks.clear();
+		sWindows.clear();
+	}
+
 	LRESULT CALLBACK Input::HandleWindowMessage(int nCode, WPARAM wParam, LPARAM lParam)
 	{
 		if (nCode < HC_ACTION || (wParam & PM_REMOVE) == 0)
@@ -71,18 +139,14 @@ namespace ReShade
 			details.hwnd = GetActiveWindow();
 		}
 
-		auto it = std::find_if(sWatchers.begin(), sWatchers.end(),
-			[&details](const std::pair<HWND, Input *> &it)
-			{
-				return it.first == details.hwnd;
-			});
+		auto it = sWindows.find(details.hwnd);
 
-		if (it == sWatchers.end())
+		if (it == sWindows.end())
 		{
-			if (!sWatchers.empty() && sRawInputHooks.find(details.hwnd) != sRawInputHooks.end())
+			if (sRawInputHooks.find(details.hwnd) != sRawInputHooks.end() && !sWindows.empty())
 			{
-				// Just pick the first window watcher since it is rare to have more than one active window at a time.
-				it = sWatchers.begin();
+				// This is a raw input message. Just reroute it to the first window for now, since it is rare to have more than one active at a time.
+				it = sWindows.begin();
 			}
 			else
 			{
@@ -90,7 +154,7 @@ namespace ReShade
 			}
 		}
 
-		auto &input = *it->second;
+		Input &input = *it->second;
 
 		ScreenToClient(input._hwnd, &details.pt);
 
@@ -105,7 +169,7 @@ namespace ReShade
 					UINT dataSize = sizeof(RAWINPUT);
 					RAWINPUT data = { 0 };
 
-					if (GetRawInputData(reinterpret_cast<HRAWINPUT>(details.lParam), RID_INPUT, &data, &dataSize, sizeof(RAWINPUTHEADER)) == ~0u)
+					if (GetRawInputData(reinterpret_cast<HRAWINPUT>(details.lParam), RID_INPUT, &data, &dataSize, sizeof(RAWINPUTHEADER)) == UINT(-1))
 					{
 						break;
 					}
@@ -218,65 +282,6 @@ namespace ReShade
 				LOG(TRACE) << "EyeX client disconnected.";
 				break;
 		}
-	}
-
-	void Input::LoadEyeX()
-	{
-		if (sEyeXInitialized != 0)
-		{
-			return;
-		}
-
-		const auto eyeXModule = LoadLibraryA("Tobii.EyeX.Client.dll");
-
-		if (eyeXModule == nullptr)
-		{
-			return;
-		}
-
-		FreeLibrary(eyeXModule);
-
-		LOG(INFO) << "Found Tobii EyeX Client library. Initializing ...";
-
-		const TX_RESULT initresult = txInitializeEyeX(TX_EYEXCOMPONENTOVERRIDEFLAG_NONE, nullptr, nullptr, nullptr, nullptr);
-
-		if (initresult == TX_RESULT_OK)
-		{
-			sEyeXInitialized++;
-		}
-		else
-		{
-			LOG(ERROR) << "EyeX initialization failed with error code " << initresult << ".";
-		}
-	}
-	void Input::UnLoadEyeX()
-	{
-		if (sEyeXInitialized == 0 || --sEyeXInitialized != 0)
-		{
-			return;
-		}
-
-		LOG(INFO) << "Shutting down Tobii EyeX Client library ...";
-
-		txUninitializeEyeX();
-	}
-	void Input::RegisterRawInputDevice(const RAWINPUTDEVICE &device)
-	{
-		const auto insert = sRawInputHooks.insert(std::make_pair(device.hwndTarget, nullptr));
-
-		if (insert.second)
-		{
-			insert.first->second = SetWindowsHookEx(WH_GETMESSAGE, &HandleWindowMessage, nullptr, GetWindowThreadProcessId(device.hwndTarget, nullptr));
-		}
-	}
-	void Input::UnRegisterRawInputDevices()
-	{
-		for (auto &it : sRawInputHooks)
-		{
-			UnhookWindowsHookEx(it.second);
-		}
-
-		sRawInputHooks.clear();
 	}
 
 	void Input::NextFrame()

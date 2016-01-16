@@ -98,8 +98,7 @@ namespace ReShade
 
 		sEffectWatcher.reset();
 
-		Input::UnRegisterRawInputDevices();
-
+		Input::Uninstall();
 		Hooks::Uninstall();
 
 		LOG(INFO) << "Exited.";
@@ -107,10 +106,8 @@ namespace ReShade
 
 	// ---------------------------------------------------------------------------------------------------
 
-	Runtime::Runtime(unsigned int renderer) : _isInitialized(false), _isEffectCompiled(false), _width(0), _height(0), _vendorId(0), _deviceId(0), _rendererId(renderer), _stats(), _compileStep(0), _compileCount(0), _screenshotFormat("png"), _screenshotPath(sExecutablePath.parent_path()), _screenshotKey(VK_SNAPSHOT), _showStatistics(false), _showFPS(false), _showClock(false), _showToggleMessage(false), _showInfoMessages(true)
+	Runtime::Runtime(unsigned int renderer) : _isInitialized(false), _isEffectCompiled(false), _width(0), _height(0), _vendorId(0), _deviceId(0), _rendererId(renderer), _stats(), _input(nullptr), _compileStep(0), _compileCount(0), _screenshotFormat("png"), _screenshotPath(sExecutablePath.parent_path()), _screenshotKey(VK_SNAPSHOT), _showStatistics(false), _showFPS(false), _showClock(false), _showToggleMessage(false), _showInfoMessages(true)
 	{
-		memset(&_stats, 0, sizeof(Statistics));
-
 		_status = "Initializing ...";
 		_startTime = boost::chrono::high_resolution_clock::now();
 

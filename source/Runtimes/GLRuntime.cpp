@@ -2998,6 +2998,7 @@ namespace ReShade
 		{
 			_vendorId = 0;
 			_deviceId = 0;
+			_input = Input::RegisterWindow(WindowFromDC(_hdc));
 
 			// Get vendor and device information on NVIDIA Optimus devices
 			if (GetModuleHandleA("nvd3d9wrap.dll") == nullptr && GetModuleHandleA("nvd3d9wrapx.dll") == nullptr)
@@ -3050,7 +3051,6 @@ namespace ReShade
 
 			_width = width;
 			_height = height;
-			_input.reset(new Input(WindowFromDC(_hdc)));
 
 			// Clear errors
 			GLenum status = glGetError();

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <memory>
 #include <vector>
 #include <unordered_map>
 #include <assert.h>
@@ -14,9 +15,9 @@ namespace ReShade
 		static void LoadEyeX();
 		static void UnLoadEyeX();
 		static void RegisterRawInputDevice(const RAWINPUTDEVICE &device);
-		static void UnRegisterRawInputDevices();
+		static Input *RegisterWindow(HWND hwnd);
+		static void Uninstall();
 
-		Input(HWND hwnd);
 		~Input();
 
 		bool GetKeyState(UINT keycode) const
@@ -61,6 +62,8 @@ namespace ReShade
 		void NextFrame();
 
 	private:
+		Input(HWND hwnd);
+
 		static LRESULT CALLBACK HandleWindowMessage(int nCode, WPARAM wParam, LPARAM lParam);
 		static void TX_CALLCONVENTION HandleEyeXEvent(TX_CONSTHANDLE hAsyncData, TX_USERPARAM userParam);
 		static void TX_CALLCONVENTION HandleEyeXConnectionState(TX_CONNECTIONSTATE connectionState, TX_USERPARAM userParam);
@@ -75,6 +78,6 @@ namespace ReShade
 		TX_HANDLE _eyeXInteractor, _eyeXInteractorSnapshot;
 		static unsigned long sEyeXInitialized;
 		static std::unordered_map<HWND, HHOOK> sRawInputHooks;
-		static std::vector<std::pair<HWND, Input *>> sWatchers;
+		static std::unordered_map<HWND, std::unique_ptr<Input>> sWindows;
 	};
 }

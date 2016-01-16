@@ -229,7 +229,7 @@ namespace ReShade
 		}
 		const Input *GetInput() const
 		{
-			return  _input.get();
+			return _input;
 		}
 
 	protected:
@@ -311,7 +311,7 @@ namespace ReShade
 		unsigned int _vendorId, _deviceId;
 		Statistics _stats;
 		std::unique_ptr<GUI> _gui;
-		std::unique_ptr<Input> _input;
+		Input *_input;
 		std::vector<std::unique_ptr<Texture>> _textures;
 		std::vector<std::unique_ptr<Uniform>> _uniforms;
 		std::vector<std::unique_ptr<Technique>> _techniques;
