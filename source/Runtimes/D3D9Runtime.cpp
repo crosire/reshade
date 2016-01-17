@@ -2474,8 +2474,11 @@ namespace ReShade
 			_stateBlock->Capture();
 
 			BOOL softwareRenderingEnabled;
+			D3DVIEWPORT9 viewport;
 			IDirect3DSurface9 *stateblockTargets[8] = { nullptr };
 			IDirect3DSurface9 *stateblockDepthStencil = nullptr;
+
+			_device->GetViewport(&viewport);
 
 			for (DWORD target = 0; target < _numSimultaneousRTs; ++target)
 			{
@@ -2527,6 +2530,8 @@ namespace ReShade
 			_device->SetDepthStencilSurface(stateblockDepthStencil);
 
 			SAFE_RELEASE(stateblockDepthStencil);
+
+			_device->SetViewport(&viewport);
 
 			if ((_behaviorFlags & D3DCREATE_MIXED_VERTEXPROCESSING) != 0)
 			{
