@@ -166,7 +166,7 @@ namespace reshade
 						{
 							visit_sampler(uniform);
 						}
-						else if (uniform->type.has_qualifier(fx::nodes::type_node::uniform_))
+						else if (uniform->type.has_qualifier(fx::nodes::type_node::qualifier_uniform))
 						{
 							visit_uniform(uniform);
 						}
@@ -335,29 +335,29 @@ namespace reshade
 
 				void visit_type(std::string &source, const fx::nodes::type_node &type)
 				{
-					if (type.has_qualifier(fx::nodes::type_node::static_))
+					if (type.has_qualifier(fx::nodes::type_node::qualifier_static))
 						source += "static ";
-					if (type.has_qualifier(fx::nodes::type_node::const_))
+					if (type.has_qualifier(fx::nodes::type_node::qualifier_const))
 						source += "const ";
-					if (type.has_qualifier(fx::nodes::type_node::volatile_))
+					if (type.has_qualifier(fx::nodes::type_node::qualifier_volatile))
 						source += "volatile ";
-					if (type.has_qualifier(fx::nodes::type_node::precise))
+					if (type.has_qualifier(fx::nodes::type_node::qualifier_precise))
 						source += "precise ";
-					if (type.has_qualifier(fx::nodes::type_node::linear))
+					if (type.has_qualifier(fx::nodes::type_node::qualifier_linear))
 						source += "linear ";
-					if (type.has_qualifier(fx::nodes::type_node::noperspective))
+					if (type.has_qualifier(fx::nodes::type_node::qualifier_noperspective))
 						source += "noperspective ";
-					if (type.has_qualifier(fx::nodes::type_node::centroid))
+					if (type.has_qualifier(fx::nodes::type_node::qualifier_centroid))
 						source += "centroid ";
-					if (type.has_qualifier(fx::nodes::type_node::nointerpolation))
+					if (type.has_qualifier(fx::nodes::type_node::qualifier_nointerpolation))
 						source += "nointerpolation ";
-					if (type.has_qualifier(fx::nodes::type_node::inout))
+					if (type.has_qualifier(fx::nodes::type_node::qualifier_inout))
 						source += "inout ";
-					else if (type.has_qualifier(fx::nodes::type_node::in))
+					else if (type.has_qualifier(fx::nodes::type_node::qualifier_in))
 						source += "in ";
-					else if (type.has_qualifier(fx::nodes::type_node::out))
+					else if (type.has_qualifier(fx::nodes::type_node::qualifier_out))
 						source += "out ";
-					else if (type.has_qualifier(fx::nodes::type_node::uniform_))
+					else if (type.has_qualifier(fx::nodes::type_node::qualifier_uniform))
 						source += "uniform ";
 
 					visit_type_class(source, type);
@@ -366,25 +366,25 @@ namespace reshade
 				{
 					switch (type.basetype)
 					{
-						case fx::nodes::type_node::void_:
+						case fx::nodes::type_node::datatype_void:
 							source += "void";
 							break;
-						case fx::nodes::type_node::bool_:
+						case fx::nodes::type_node::datatype_bool:
 							source += "bool";
 							break;
-						case fx::nodes::type_node::int_:
+						case fx::nodes::type_node::datatype_int:
 							source += "int";
 							break;
-						case fx::nodes::type_node::uint_:
+						case fx::nodes::type_node::datatype_uint:
 							source += "uint";
 							break;
-						case fx::nodes::type_node::float_:
+						case fx::nodes::type_node::datatype_float:
 							source += "float";
 							break;
-						case fx::nodes::type_node::sampler2d:
+						case fx::nodes::type_node::datatype_sampler:
 							source += "__sampler2D";
 							break;
-						case fx::nodes::type_node::struct_:
+						case fx::nodes::type_node::datatype_struct:
 							visit_name(source, type.definition);
 							break;
 					}
@@ -759,16 +759,16 @@ namespace reshade
 					{
 						switch (node->type.basetype)
 						{
-							case fx::nodes::type_node::bool_:
+							case fx::nodes::type_node::datatype_bool:
 								output += node->value_int[i] ? "true" : "false";
 								break;
-							case fx::nodes::type_node::int_:
+							case fx::nodes::type_node::datatype_int:
 								output += std::to_string(node->value_int[i]);
 								break;
-							case fx::nodes::type_node::uint_:
+							case fx::nodes::type_node::datatype_uint:
 								output += std::to_string(node->value_uint[i]);
 								break;
-							case fx::nodes::type_node::float_:
+							case fx::nodes::type_node::datatype_float:
 								output += std::to_string(node->value_float[i]) + "f";
 								break;
 						}
@@ -1583,17 +1583,17 @@ namespace reshade
 					{
 						switch (annotation.value->type.basetype)
 						{
-							case fx::nodes::type_node::bool_:
-							case fx::nodes::type_node::int_:
+							case fx::nodes::type_node::datatype_bool:
+							case fx::nodes::type_node::datatype_int:
 								object.annotations[annotation.name] = annotation.value->value_int;
 								break;
-							case fx::nodes::type_node::uint_:
+							case fx::nodes::type_node::datatype_uint:
 								object.annotations[annotation.name] = annotation.value->value_uint;
 								break;
-							case fx::nodes::type_node::float_:
+							case fx::nodes::type_node::datatype_float:
 								object.annotations[annotation.name] = annotation.value->value_float;
 								break;
-							case fx::nodes::type_node::string_:
+							case fx::nodes::type_node::datatype_string:
 								object.annotations[annotation.name] = annotation.value->value_string;
 								break;
 						}
@@ -1731,19 +1731,19 @@ namespace reshade
 
 					switch (node->type.basetype)
 					{
-						case fx::nodes::type_node::bool_:
+						case fx::nodes::type_node::datatype_bool:
 							obj->basetype = uniform::datatype::bool_;
 							obj->storage_size *= sizeof(int);
 							break;
-						case fx::nodes::type_node::int_:
+						case fx::nodes::type_node::datatype_int:
 							obj->basetype = uniform::datatype::int_;
 							obj->storage_size *= sizeof(int);
 							break;
-						case fx::nodes::type_node::uint_:
+						case fx::nodes::type_node::datatype_uint:
 							obj->basetype = uniform::datatype::uint_;
 							obj->storage_size *= sizeof(unsigned int);
 							break;
-						case fx::nodes::type_node::float_:
+						case fx::nodes::type_node::datatype_float:
 							obj->basetype = uniform::datatype::float_;
 							obj->storage_size *= sizeof(float);
 							break;
@@ -2022,7 +2022,7 @@ namespace reshade
 						{
 							fx::nodes::type_node parameterType = parameter->type;
 
-							if (parameter->type.has_qualifier(fx::nodes::type_node::out))
+							if (parameter->type.has_qualifier(fx::nodes::type_node::qualifier_out))
 							{
 								if (parameterType.is_struct())
 								{

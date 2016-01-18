@@ -406,25 +406,25 @@ namespace reshade
 
 					switch (type.basetype)
 					{
-						case fx::nodes::type_node::void_:
+						case fx::nodes::type_node::datatype_void:
 							res += "void";
 							break;
-						case fx::nodes::type_node::bool_:
+						case fx::nodes::type_node::datatype_bool:
 							res += "bool";
 							break;
-						case fx::nodes::type_node::int_:
+						case fx::nodes::type_node::datatype_int:
 							res += "int";
 							break;
-						case fx::nodes::type_node::uint_:
+						case fx::nodes::type_node::datatype_uint:
 							res += "uint";
 							break;
-						case fx::nodes::type_node::float_:
+						case fx::nodes::type_node::datatype_float:
 							res += "float";
 							break;
-						case fx::nodes::type_node::sampler2d:
+						case fx::nodes::type_node::datatype_sampler:
 							res += "__sampler2D";
 							break;
-						case fx::nodes::type_node::struct_:
+						case fx::nodes::type_node::datatype_struct:
 							res += print_name(type.definition);
 							break;
 					}
@@ -444,31 +444,31 @@ namespace reshade
 				{
 					std::string qualifiers;
 
-					if (type.has_qualifier(fx::nodes::type_node::extern_))
+					if (type.has_qualifier(fx::nodes::type_node::qualifier_extern))
 						qualifiers += "extern ";
-					if (type.has_qualifier(fx::nodes::type_node::static_))
+					if (type.has_qualifier(fx::nodes::type_node::qualifier_static))
 						qualifiers += "static ";
-					if (type.has_qualifier(fx::nodes::type_node::const_))
+					if (type.has_qualifier(fx::nodes::type_node::qualifier_const))
 						qualifiers += "const ";
-					if (type.has_qualifier(fx::nodes::type_node::volatile_))
+					if (type.has_qualifier(fx::nodes::type_node::qualifier_volatile))
 						qualifiers += "volatile ";
-					if (type.has_qualifier(fx::nodes::type_node::precise))
+					if (type.has_qualifier(fx::nodes::type_node::qualifier_precise))
 						qualifiers += "precise ";
-					if (type.has_qualifier(fx::nodes::type_node::linear))
+					if (type.has_qualifier(fx::nodes::type_node::qualifier_linear))
 						qualifiers += "linear ";
-					if (type.has_qualifier(fx::nodes::type_node::noperspective))
+					if (type.has_qualifier(fx::nodes::type_node::qualifier_noperspective))
 						qualifiers += "noperspective ";
-					if (type.has_qualifier(fx::nodes::type_node::centroid))
+					if (type.has_qualifier(fx::nodes::type_node::qualifier_centroid))
 						qualifiers += "centroid ";
-					if (type.has_qualifier(fx::nodes::type_node::nointerpolation))
+					if (type.has_qualifier(fx::nodes::type_node::qualifier_nointerpolation))
 						qualifiers += "nointerpolation ";
-					if (type.has_qualifier(fx::nodes::type_node::inout))
+					if (type.has_qualifier(fx::nodes::type_node::qualifier_inout))
 						qualifiers += "inout ";
-					else if (type.has_qualifier(fx::nodes::type_node::in))
+					else if (type.has_qualifier(fx::nodes::type_node::qualifier_in))
 						qualifiers += "in ";
-					else if (type.has_qualifier(fx::nodes::type_node::out))
+					else if (type.has_qualifier(fx::nodes::type_node::qualifier_out))
 						qualifiers += "out ";
-					else if (type.has_qualifier(fx::nodes::type_node::uniform_))
+					else if (type.has_qualifier(fx::nodes::type_node::qualifier_uniform))
 						qualifiers += "uniform ";
 
 					return qualifiers + print_type(type);
@@ -807,16 +807,16 @@ namespace reshade
 					{
 						switch (node->type.basetype)
 						{
-							case fx::nodes::type_node::bool_:
+							case fx::nodes::type_node::datatype_bool:
 								_current_source += node->value_int[i] ? "true" : "false";
 								break;
-							case fx::nodes::type_node::int_:
+							case fx::nodes::type_node::datatype_int:
 								_current_source += std::to_string(node->value_int[i]);
 								break;
-							case fx::nodes::type_node::uint_:
+							case fx::nodes::type_node::datatype_uint:
 								_current_source += std::to_string(node->value_uint[i]);
 								break;
-							case fx::nodes::type_node::float_:
+							case fx::nodes::type_node::datatype_float:
 								_current_source += std::to_string(node->value_float[i]) + "f";
 								break;
 						}
@@ -1538,17 +1538,17 @@ namespace reshade
 					{
 						switch (annotation.value->type.basetype)
 						{
-							case fx::nodes::type_node::bool_:
-							case fx::nodes::type_node::int_:
+							case fx::nodes::type_node::datatype_bool:
+							case fx::nodes::type_node::datatype_int:
 								object.annotations[annotation.name] = annotation.value->value_int;
 								break;
-							case fx::nodes::type_node::uint_:
+							case fx::nodes::type_node::datatype_uint:
 								object.annotations[annotation.name] = annotation.value->value_uint;
 								break;
-							case fx::nodes::type_node::float_:
+							case fx::nodes::type_node::datatype_float:
 								object.annotations[annotation.name] = annotation.value->value_float;
 								break;
-							case fx::nodes::type_node::string_:
+							case fx::nodes::type_node::datatype_string:
 								object.annotations[annotation.name] = annotation.value->value_string;
 								break;
 						}
@@ -1588,7 +1588,7 @@ namespace reshade
 							visit_sampler(node);
 							return;
 						}
-						else if (node->type.has_qualifier(fx::nodes::type_node::uniform_))
+						else if (node->type.has_qualifier(fx::nodes::type_node::qualifier_uniform))
 						{
 							visit_uniform(node);
 							return;
@@ -1857,19 +1857,19 @@ namespace reshade
 
 					switch (node->type.basetype)
 					{
-						case fx::nodes::type_node::bool_:
+						case fx::nodes::type_node::datatype_bool:
 							obj->basetype = uniform::datatype::bool_;
 							obj->storage_size *= sizeof(int);
 							break;
-						case fx::nodes::type_node::int_:
+						case fx::nodes::type_node::datatype_int:
 							obj->basetype = uniform::datatype::int_;
 							obj->storage_size *= sizeof(int);
 							break;
-						case fx::nodes::type_node::uint_:
+						case fx::nodes::type_node::datatype_uint:
 							obj->basetype = uniform::datatype::uint_;
 							obj->storage_size *= sizeof(unsigned int);
 							break;
-						case fx::nodes::type_node::float_:
+						case fx::nodes::type_node::datatype_float:
 							obj->basetype = uniform::datatype::float_;
 							obj->storage_size *= sizeof(float);
 							break;

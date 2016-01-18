@@ -149,40 +149,36 @@ namespace reshade
 			{
 				enum datatype
 				{
-					void_,
-					bool_,
-					int_,
-					uint_,
-					float_,
-					sampler1d,
-					sampler2d,
-					sampler3d,
-					texture1d,
-					texture2d,
-					texture3d,
-					struct_,
-					string_,
+					datatype_void,
+					datatype_bool,
+					datatype_int,
+					datatype_uint,
+					datatype_float,
+					datatype_string,
+					datatype_sampler,
+					datatype_texture,
+					datatype_struct,
 				};
-				enum qualifier
+				enum qualifier : unsigned int
 				{
 					// Storage
-					extern_ = 1 << 0,
-					static_ = 1 << 1,
-					uniform_ = 1 << 2,
-					volatile_ = 1 << 3,
-					precise = 1 << 4,
-					in = 1 << 5,
-					out = 1 << 6,
-					inout = in | out,
+					qualifier_extern = 1 << 0,
+					qualifier_static = 1 << 1,
+					qualifier_uniform = 1 << 2,
+					qualifier_volatile = 1 << 3,
+					qualifier_precise = 1 << 4,
+					qualifier_in = 1 << 5,
+					qualifier_out = 1 << 6,
+					qualifier_inout = qualifier_in | qualifier_out,
 
 					// Modifier
-					const_ = 1 << 8,
+					qualifier_const = 1 << 8,
 
 					// Interpolation
-					linear = 1 << 10,
-					noperspective = 1 << 11,
-					centroid = 1 << 12,
-					nointerpolation = 1 << 13,
+					qualifier_linear = 1 << 10,
+					qualifier_noperspective = 1 << 11,
+					qualifier_centroid = 1 << 12,
+					qualifier_nointerpolation = 1 << 13,
 				};
 
 				inline bool is_array() const { return array_length != 0; }
@@ -190,14 +186,14 @@ namespace reshade
 				inline bool is_vector() const { return rows > 1 && !is_matrix(); }
 				inline bool is_scalar() const { return !is_array() && !is_matrix() && !is_vector() && is_numeric(); }
 				inline bool is_numeric() const { return is_boolean() || is_integral() || is_floating_point(); }
-				inline bool is_void() const { return basetype == void_; }
-				inline bool is_boolean() const { return basetype == bool_; }
-				inline bool is_integral() const { return basetype == int_ || basetype == uint_; }
-				inline bool is_floating_point() const { return basetype == float_; }
-				inline bool is_texture() const { return basetype >= texture1d && basetype <= texture3d; }
-				inline bool is_sampler() const { return basetype >= sampler1d && basetype <= sampler3d; }
-				inline bool is_struct() const { return basetype == struct_; }
-				inline bool has_qualifier(qualifier qualifier) const { return (qualifiers & static_cast<unsigned>(qualifier)) == static_cast<unsigned>(qualifier); }
+				inline bool is_void() const { return basetype == datatype_void; }
+				inline bool is_boolean() const { return basetype == datatype_bool; }
+				inline bool is_integral() const { return basetype == datatype_int || basetype == datatype_uint; }
+				inline bool is_floating_point() const { return basetype == datatype_float; }
+				inline bool is_texture() const { return basetype == datatype_texture; }
+				inline bool is_sampler() const { return basetype == datatype_sampler; }
+				inline bool is_struct() const { return basetype == datatype_struct; }
+				inline bool has_qualifier(qualifier qualifier) const { return (qualifiers & qualifier) == qualifier; }
 
 				datatype basetype;
 				unsigned int qualifiers;

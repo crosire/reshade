@@ -137,7 +137,7 @@ namespace reshade
 						{
 							visit_sampler(uniform);
 						}
-						else if (uniform->type.has_qualifier(fx::nodes::type_node::uniform_))
+						else if (uniform->type.has_qualifier(fx::nodes::type_node::qualifier_uniform))
 						{
 							visit_uniform(uniform);
 						}
@@ -450,23 +450,23 @@ namespace reshade
 
 				void visit_type(std::string &output, const fx::nodes::type_node &type)
 				{
-					if (type.has_qualifier(fx::nodes::type_node::linear))
+					if (type.has_qualifier(fx::nodes::type_node::qualifier_linear))
 						output += "smooth ";
-					if (type.has_qualifier(fx::nodes::type_node::noperspective))
+					if (type.has_qualifier(fx::nodes::type_node::qualifier_noperspective))
 						output += "noperspective ";
-					if (type.has_qualifier(fx::nodes::type_node::centroid))
+					if (type.has_qualifier(fx::nodes::type_node::qualifier_centroid))
 						output += "centroid ";
-					if (type.has_qualifier(fx::nodes::type_node::nointerpolation))
+					if (type.has_qualifier(fx::nodes::type_node::qualifier_nointerpolation))
 						output += "flat ";
-					if (type.has_qualifier(fx::nodes::type_node::inout))
+					if (type.has_qualifier(fx::nodes::type_node::qualifier_inout))
 						output += "inout ";
-					else if (type.has_qualifier(fx::nodes::type_node::in))
+					else if (type.has_qualifier(fx::nodes::type_node::qualifier_in))
 						output += "in ";
-					else if (type.has_qualifier(fx::nodes::type_node::out))
+					else if (type.has_qualifier(fx::nodes::type_node::qualifier_out))
 						output += "out ";
-					else if (type.has_qualifier(fx::nodes::type_node::uniform_))
+					else if (type.has_qualifier(fx::nodes::type_node::qualifier_uniform))
 						output += "uniform ";
-					if (type.has_qualifier(fx::nodes::type_node::const_))
+					if (type.has_qualifier(fx::nodes::type_node::qualifier_const))
 						output += "const ";
 
 					visit_type_class(output, type);
@@ -475,10 +475,10 @@ namespace reshade
 				{
 					switch (type.basetype)
 					{
-						case fx::nodes::type_node::void_:
+						case fx::nodes::type_node::datatype_void:
 							output += "void";
 							break;
-						case fx::nodes::type_node::bool_:
+						case fx::nodes::type_node::datatype_bool:
 							if (type.is_matrix())
 								output += "mat" + std::to_string(type.rows) + "x" + std::to_string(type.cols);
 							else if (type.is_vector())
@@ -486,7 +486,7 @@ namespace reshade
 							else
 								output += "bool";
 							break;
-						case fx::nodes::type_node::int_:
+						case fx::nodes::type_node::datatype_int:
 							if (type.is_matrix())
 								output += "mat" + std::to_string(type.rows) + "x" + std::to_string(type.cols);
 							else if (type.is_vector())
@@ -494,7 +494,7 @@ namespace reshade
 							else
 								output += "int";
 							break;
-						case fx::nodes::type_node::uint_:
+						case fx::nodes::type_node::datatype_uint:
 							if (type.is_matrix())
 								output += "mat" + std::to_string(type.rows) + "x" + std::to_string(type.cols);
 							else if (type.is_vector())
@@ -502,7 +502,7 @@ namespace reshade
 							else
 								output += "uint";
 							break;
-						case fx::nodes::type_node::float_:
+						case fx::nodes::type_node::datatype_float:
 							if (type.is_matrix())
 								output += "mat" + std::to_string(type.rows) + "x" + std::to_string(type.cols);
 							else if (type.is_vector())
@@ -510,10 +510,10 @@ namespace reshade
 							else
 								output += "float";
 							break;
-						case fx::nodes::type_node::sampler2d:
+						case fx::nodes::type_node::datatype_sampler:
 							output += "sampler2D";
 							break;
-						case fx::nodes::type_node::struct_:
+						case fx::nodes::type_node::datatype_struct:
 							output += FixName(type.definition->name, type.definition->Namespace);
 							break;
 					}
@@ -697,7 +697,7 @@ namespace reshade
 				}
 				void visit(std::string &output, const fx::nodes::if_statement_node *node)
 				{
-					const fx::nodes::type_node typeto = { fx::nodes::type_node::bool_, 0, 1, 1 };
+					const fx::nodes::type_node typeto = { fx::nodes::type_node::datatype_bool, 0, 1, 1 };
 					const auto cast = print_cast(node->condition->type, typeto);
 
 					output += "if (" + cast.first;
@@ -890,16 +890,16 @@ namespace reshade
 					{
 						switch (node->type.basetype)
 						{
-							case fx::nodes::type_node::bool_:
+							case fx::nodes::type_node::datatype_bool:
 								output += node->value_int[i] ? "true" : "false";
 								break;
-							case fx::nodes::type_node::int_:
+							case fx::nodes::type_node::datatype_int:
 								output += std::to_string(node->value_int[i]);
 								break;
-							case fx::nodes::type_node::uint_:
+							case fx::nodes::type_node::datatype_uint:
 								output += std::to_string(node->value_uint[i]) + "u";
 								break;
-							case fx::nodes::type_node::float_:
+							case fx::nodes::type_node::datatype_float:
 								output += std::to_string(node->value_float[i]);
 								break;
 						}
@@ -1156,7 +1156,7 @@ namespace reshade
 							part3 = cast122.second + ')';
 							break;
 						case fx::nodes::binary_expression_node::element_extract:
-							if (type2.basetype != fx::nodes::type_node::uint_)
+							if (type2.basetype != fx::nodes::type_node::datatype_uint)
 							{
 								part2 = "[uint(";
 								part3 = ")]";
@@ -1177,7 +1177,7 @@ namespace reshade
 				}
 				void visit(std::string &output, const fx::nodes::intrinsic_expression_node *node)
 				{
-					fx::nodes::type_node type1 = { fx::nodes::type_node::void_ }, type2, type3, type4, type12;
+					fx::nodes::type_node type1 = { fx::nodes::type_node::datatype_void }, type2, type3, type4, type12;
 					std::pair<std::string, std::string> cast1, cast2, cast3, cast4, cast121, cast122;
 
 					if (node->arguments[0] != nullptr)
@@ -1243,9 +1243,9 @@ namespace reshade
 						case fx::nodes::intrinsic_expression_node::bitcast_int2float:
 							part1 = "intBitsToFloat(";
 
-							if (type1.basetype != fx::nodes::type_node::int_)
+							if (type1.basetype != fx::nodes::type_node::datatype_int)
 							{
-								type1.basetype = fx::nodes::type_node::int_;
+								type1.basetype = fx::nodes::type_node::datatype_int;
 
 								visit_type_class(part1, type1);
 								part1 += '(';
@@ -1257,9 +1257,9 @@ namespace reshade
 						case fx::nodes::intrinsic_expression_node::bitcast_uint2float:
 							part1 = "uintBitsToFloat(";
 
-							if (type1.basetype != fx::nodes::type_node::uint_)
+							if (type1.basetype != fx::nodes::type_node::datatype_uint)
 							{
-								type1.basetype = fx::nodes::type_node::uint_;
+								type1.basetype = fx::nodes::type_node::datatype_uint;
 								
 								visit_type_class(part1, type1);
 								part1 += '(';
@@ -1275,9 +1275,9 @@ namespace reshade
 						case fx::nodes::intrinsic_expression_node::bitcast_float2int:
 							part1 = "floatBitsToInt(";
 
-							if (type1.basetype != fx::nodes::type_node::float_)
+							if (type1.basetype != fx::nodes::type_node::datatype_float)
 							{
-								type1.basetype = fx::nodes::type_node::float_;
+								type1.basetype = fx::nodes::type_node::datatype_float;
 								
 								visit_type_class(part1, type1);
 								part1 += '(';
@@ -1289,9 +1289,9 @@ namespace reshade
 						case fx::nodes::intrinsic_expression_node::bitcast_float2uint:
 							part1 = "floatBitsToUint(";
 
-							if (type1.basetype != fx::nodes::type_node::float_)
+							if (type1.basetype != fx::nodes::type_node::datatype_float)
 							{
-								type1.basetype = fx::nodes::type_node::float_;
+								type1.basetype = fx::nodes::type_node::datatype_float;
 								
 								visit_type_class(part1, type1);
 								part1 += '(';
@@ -1349,7 +1349,7 @@ namespace reshade
 
 							if (!type1.is_floating_point())
 							{
-								type1.basetype = fx::nodes::type_node::float_;
+								type1.basetype = fx::nodes::type_node::datatype_float;
 								
 								visit_type_class(part1, type1);
 								part1 += '(';
@@ -1409,7 +1409,7 @@ namespace reshade
 
 							if (!type1.is_floating_point())
 							{
-								type1.basetype = fx::nodes::type_node::float_;
+								type1.basetype = fx::nodes::type_node::datatype_float;
 								
 								visit_type_class(part1, type1);
 								part1 += '(';
@@ -1469,7 +1469,7 @@ namespace reshade
 
 							if (!type1.is_floating_point())
 							{
-								type1.basetype = fx::nodes::type_node::float_;
+								type1.basetype = fx::nodes::type_node::datatype_float;
 								
 								visit_type_class(part1, type1);
 								part1 += '(';
@@ -1527,9 +1527,9 @@ namespace reshade
 						case fx::nodes::intrinsic_expression_node::sincos:
 							part1 = "_sincos(";
 
-							if (type1.basetype != fx::nodes::type_node::float_)
+							if (type1.basetype != fx::nodes::type_node::datatype_float)
 							{
-								type1.basetype = fx::nodes::type_node::float_;
+								type1.basetype = fx::nodes::type_node::datatype_float;
 								
 								visit_type_class(part1, type1);
 								part1 += '(';
@@ -1569,7 +1569,7 @@ namespace reshade
 							break;
 						case fx::nodes::intrinsic_expression_node::tex2d:
 						{
-							const fx::nodes::type_node type2to = { fx::nodes::type_node::float_, 0, 2, 1 };
+							const fx::nodes::type_node type2to = { fx::nodes::type_node::datatype_float, 0, 2, 1 };
 							cast2 = print_cast(type2, type2to);
 
 							part1 = "texture(";
@@ -1579,7 +1579,7 @@ namespace reshade
 						}
 						case fx::nodes::intrinsic_expression_node::tex2dfetch:
 						{
-							const fx::nodes::type_node type2to = { fx::nodes::type_node::int_, 0, 2, 1 };
+							const fx::nodes::type_node type2to = { fx::nodes::type_node::datatype_int, 0, 2, 1 };
 							cast2 = print_cast(type2, type2to);
 
 							part1 = "texelFetch(";
@@ -1589,7 +1589,7 @@ namespace reshade
 						}
 						case fx::nodes::intrinsic_expression_node::tex2dgather:
 						{
-							const fx::nodes::type_node type2to = { fx::nodes::type_node::float_, 0, 2, 1 };
+							const fx::nodes::type_node type2to = { fx::nodes::type_node::datatype_float, 0, 2, 1 };
 							cast2 = print_cast(type2, type2to);
 
 							part1 = "textureGather(";
@@ -1600,8 +1600,8 @@ namespace reshade
 						}
 						case fx::nodes::intrinsic_expression_node::tex2dgatheroffset:
 						{
-							const fx::nodes::type_node type2to = { fx::nodes::type_node::float_, 0, 2, 1 };
-							const fx::nodes::type_node type3to = { fx::nodes::type_node::int_, 0, 2, 1 };
+							const fx::nodes::type_node type2to = { fx::nodes::type_node::datatype_float, 0, 2, 1 };
+							const fx::nodes::type_node type3to = { fx::nodes::type_node::datatype_int, 0, 2, 1 };
 							cast2 = print_cast(type2, type2to);
 							cast3 = print_cast(type3, type3to);
 
@@ -1614,7 +1614,7 @@ namespace reshade
 						}
 						case fx::nodes::intrinsic_expression_node::tex2dgrad:
 						{
-							const fx::nodes::type_node type2to = { fx::nodes::type_node::float_, 0, 2, 1 };
+							const fx::nodes::type_node type2to = { fx::nodes::type_node::datatype_float, 0, 2, 1 };
 							cast2 = print_cast(type2, type2to);
 							cast3 = print_cast(type3, type2to);
 							cast4 = print_cast(type4, type2to);
@@ -1628,7 +1628,7 @@ namespace reshade
 						}
 						case fx::nodes::intrinsic_expression_node::tex2dlevel:
 						{
-							const fx::nodes::type_node type2to = { fx::nodes::type_node::float_, 0, 4, 1 };
+							const fx::nodes::type_node type2to = { fx::nodes::type_node::datatype_float, 0, 4, 1 };
 							cast2 = print_cast(type2, type2to);
 
 							part1 = "_textureLod(";
@@ -1638,8 +1638,8 @@ namespace reshade
 						}
 						case fx::nodes::intrinsic_expression_node::tex2dleveloffset:
 						{	
-							const fx::nodes::type_node type2to = { fx::nodes::type_node::float_, 0, 4, 1 };
-							const fx::nodes::type_node type3to = { fx::nodes::type_node::int_, 0, 2, 1 };
+							const fx::nodes::type_node type2to = { fx::nodes::type_node::datatype_float, 0, 4, 1 };
+							const fx::nodes::type_node type3to = { fx::nodes::type_node::datatype_int, 0, 2, 1 };
 							cast2 = print_cast(type2, type2to);
 							cast3 = print_cast(type3, type3to);
 
@@ -1651,8 +1651,8 @@ namespace reshade
 						}
 						case fx::nodes::intrinsic_expression_node::tex2doffset:
 						{
-							const fx::nodes::type_node type2to = { fx::nodes::type_node::float_, 0, 2, 1 };
-							const fx::nodes::type_node type3to = { fx::nodes::type_node::int_, 0, 2, 1 };
+							const fx::nodes::type_node type2to = { fx::nodes::type_node::datatype_float, 0, 2, 1 };
+							const fx::nodes::type_node type3to = { fx::nodes::type_node::datatype_int, 0, 2, 1 };
 							cast2 = print_cast(type2, type2to);
 							cast3 = print_cast(type3, type3to);
 
@@ -1664,7 +1664,7 @@ namespace reshade
 						}
 						case fx::nodes::intrinsic_expression_node::tex2dproj:
 						{
-							const fx::nodes::type_node type2to = { fx::nodes::type_node::float_, 0, 4, 1 };
+							const fx::nodes::type_node type2to = { fx::nodes::type_node::datatype_float, 0, 4, 1 };
 							cast2 = print_cast(type2, type2to);
 
 							part1 = "textureProj(";
@@ -1682,7 +1682,7 @@ namespace reshade
 
 							if (!type1.is_floating_point())
 							{
-								type1.basetype = fx::nodes::type_node::float_;
+								type1.basetype = fx::nodes::type_node::datatype_float;
 								
 								visit_type_class(part1, type1);
 								part1 += '(';
@@ -2037,17 +2037,17 @@ namespace reshade
 					{
 						switch (annotation.value->type.basetype)
 						{
-							case fx::nodes::type_node::bool_:
-							case fx::nodes::type_node::int_:
+							case fx::nodes::type_node::datatype_bool:
+							case fx::nodes::type_node::datatype_int:
 								object.annotations[annotation.name] = annotation.value->value_int;
 								break;
-							case fx::nodes::type_node::uint_:
+							case fx::nodes::type_node::datatype_uint:
 								object.annotations[annotation.name] = annotation.value->value_uint;
 								break;
-							case fx::nodes::type_node::float_:
+							case fx::nodes::type_node::datatype_float:
 								object.annotations[annotation.name] = annotation.value->value_float;
 								break;
-							case fx::nodes::type_node::string_:
+							case fx::nodes::type_node::datatype_string:
 								object.annotations[annotation.name] = annotation.value->value_string;
 								break;
 						}
@@ -2197,19 +2197,19 @@ namespace reshade
 
 					switch (node->type.basetype)
 					{
-						case fx::nodes::type_node::bool_:
+						case fx::nodes::type_node::datatype_bool:
 							obj->basetype = uniform::datatype::bool_;
 							obj->storage_size *= sizeof(int);
 							break;
-						case fx::nodes::type_node::int_:
+						case fx::nodes::type_node::datatype_int:
 							obj->basetype = uniform::datatype::int_;
 							obj->storage_size *= sizeof(int);
 							break;
-						case fx::nodes::type_node::uint_:
+						case fx::nodes::type_node::datatype_uint:
 							obj->basetype = uniform::datatype::uint_;
 							obj->storage_size *= sizeof(unsigned int);
 							break;
-						case fx::nodes::type_node::float_:
+						case fx::nodes::type_node::datatype_float:
 							obj->basetype = uniform::datatype::float_;
 							obj->storage_size *= sizeof(float);
 							break;
@@ -2440,12 +2440,12 @@ namespace reshade
 					{
 						for (auto field : node->return_type.definition->field_list)
 						{
-							visitShaderParameter(source, field->type, fx::nodes::type_node::out, "_return_" + field->name, field->semantic, shadertype);
+							visitShaderParameter(source, field->type, fx::nodes::type_node::qualifier_out, "_return_" + field->name, field->semantic, shadertype);
 						}
 					}
 					else if (!node->return_type.is_void())
 					{
-						visitShaderParameter(source, node->return_type, fx::nodes::type_node::out, "_return", node->return_semantic, shadertype);
+						visitShaderParameter(source, node->return_type, fx::nodes::type_node::qualifier_out, "_return", node->return_semantic, shadertype);
 					}
 
 					source += "void main()\n{\n";
@@ -2547,7 +2547,7 @@ namespace reshade
 
 					for (auto parameter : node->parameter_list)
 					{
-						if (!parameter->type.has_qualifier(fx::nodes::type_node::out))
+						if (!parameter->type.has_qualifier(fx::nodes::type_node::qualifier_out))
 						{
 							continue;
 						}

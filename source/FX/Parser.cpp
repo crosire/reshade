@@ -104,266 +104,266 @@ namespace reshade
 
 			const intrinsic _intrinsics[] =
 			{
-				intrinsic("abs", 				nodes::intrinsic_expression_node::abs, 					nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
-				intrinsic("abs", 				nodes::intrinsic_expression_node::abs, 					nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
-				intrinsic("abs", 				nodes::intrinsic_expression_node::abs, 					nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
-				intrinsic("abs", 				nodes::intrinsic_expression_node::abs, 					nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
-				intrinsic("acos", 				nodes::intrinsic_expression_node::acos, 				nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
-				intrinsic("acos", 				nodes::intrinsic_expression_node::acos, 				nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
-				intrinsic("acos", 				nodes::intrinsic_expression_node::acos, 				nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
-				intrinsic("acos", 				nodes::intrinsic_expression_node::acos, 				nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
-				intrinsic("all", 				nodes::intrinsic_expression_node::all, 					nodes::type_node::bool_,  1, 1, nodes::type_node::bool_,  1, 1),
-				intrinsic("all", 				nodes::intrinsic_expression_node::all, 					nodes::type_node::bool_,  2, 1, nodes::type_node::bool_,  2, 1),
-				intrinsic("all", 				nodes::intrinsic_expression_node::all, 					nodes::type_node::bool_,  3, 1, nodes::type_node::bool_,  3, 1),
-				intrinsic("all", 				nodes::intrinsic_expression_node::all, 					nodes::type_node::bool_,  4, 1, nodes::type_node::bool_,  4, 1),
-				intrinsic("any", 				nodes::intrinsic_expression_node::any, 					nodes::type_node::bool_,  1, 1, nodes::type_node::bool_,  1, 1),
-				intrinsic("any", 				nodes::intrinsic_expression_node::any, 					nodes::type_node::bool_,  2, 1, nodes::type_node::bool_,  2, 1),
-				intrinsic("any", 				nodes::intrinsic_expression_node::any, 					nodes::type_node::bool_,  3, 1, nodes::type_node::bool_,  3, 1),
-				intrinsic("any", 				nodes::intrinsic_expression_node::any, 					nodes::type_node::bool_,  4, 1, nodes::type_node::bool_,  4, 1),
-				intrinsic("asfloat", 			nodes::intrinsic_expression_node::bitcast_int2float,	nodes::type_node::float_, 1, 1, nodes::type_node::int_,   1, 1),
-				intrinsic("asfloat", 			nodes::intrinsic_expression_node::bitcast_int2float,	nodes::type_node::float_, 2, 1, nodes::type_node::int_,   2, 1),
-				intrinsic("asfloat", 			nodes::intrinsic_expression_node::bitcast_int2float,	nodes::type_node::float_, 3, 1, nodes::type_node::int_,   3, 1),
-				intrinsic("asfloat", 			nodes::intrinsic_expression_node::bitcast_int2float,	nodes::type_node::float_, 4, 1, nodes::type_node::int_,   4, 1),
-				intrinsic("asfloat", 			nodes::intrinsic_expression_node::bitcast_uint2float,	nodes::type_node::float_, 1, 1, nodes::type_node::uint_,  1, 1),
-				intrinsic("asfloat", 			nodes::intrinsic_expression_node::bitcast_uint2float,	nodes::type_node::float_, 2, 1, nodes::type_node::uint_,  2, 1),
-				intrinsic("asfloat", 			nodes::intrinsic_expression_node::bitcast_uint2float,	nodes::type_node::float_, 3, 1, nodes::type_node::uint_,  3, 1),
-				intrinsic("asfloat", 			nodes::intrinsic_expression_node::bitcast_uint2float,	nodes::type_node::float_, 4, 1, nodes::type_node::uint_,  4, 1),
-				intrinsic("asin", 				nodes::intrinsic_expression_node::asin, 				nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
-				intrinsic("asin", 				nodes::intrinsic_expression_node::asin, 				nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
-				intrinsic("asin", 				nodes::intrinsic_expression_node::asin, 				nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
-				intrinsic("asin", 				nodes::intrinsic_expression_node::asin, 				nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
-				intrinsic("asint", 				nodes::intrinsic_expression_node::bitcast_float2int,	nodes::type_node::int_,   1, 1, nodes::type_node::float_, 1, 1),
-				intrinsic("asint", 				nodes::intrinsic_expression_node::bitcast_float2int,	nodes::type_node::int_,   2, 1, nodes::type_node::float_, 2, 1),
-				intrinsic("asint", 				nodes::intrinsic_expression_node::bitcast_float2int,	nodes::type_node::int_,   3, 1, nodes::type_node::float_, 3, 1),
-				intrinsic("asint", 				nodes::intrinsic_expression_node::bitcast_float2int,	nodes::type_node::int_,   4, 1, nodes::type_node::float_, 4, 1),
-				intrinsic("asuint", 			nodes::intrinsic_expression_node::bitcast_float2uint,	nodes::type_node::uint_,  1, 1, nodes::type_node::float_, 1, 1),
-				intrinsic("asuint", 			nodes::intrinsic_expression_node::bitcast_float2uint,	nodes::type_node::uint_,  2, 1, nodes::type_node::float_, 2, 1),
-				intrinsic("asuint", 			nodes::intrinsic_expression_node::bitcast_float2uint,	nodes::type_node::uint_,  3, 1, nodes::type_node::float_, 3, 1),
-				intrinsic("asuint", 			nodes::intrinsic_expression_node::bitcast_float2uint,	nodes::type_node::uint_,  4, 1, nodes::type_node::float_, 4, 1),
-				intrinsic("atan", 				nodes::intrinsic_expression_node::atan, 				nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
-				intrinsic("atan", 				nodes::intrinsic_expression_node::atan, 				nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
-				intrinsic("atan", 				nodes::intrinsic_expression_node::atan, 				nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
-				intrinsic("atan", 				nodes::intrinsic_expression_node::atan, 				nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
-				intrinsic("atan2", 				nodes::intrinsic_expression_node::atan2, 				nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
-				intrinsic("atan2", 				nodes::intrinsic_expression_node::atan2, 				nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
-				intrinsic("atan2", 				nodes::intrinsic_expression_node::atan2, 				nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
-				intrinsic("atan2", 				nodes::intrinsic_expression_node::atan2, 				nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
-				intrinsic("ceil", 				nodes::intrinsic_expression_node::ceil, 				nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
-				intrinsic("ceil", 				nodes::intrinsic_expression_node::ceil, 				nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
-				intrinsic("ceil", 				nodes::intrinsic_expression_node::ceil, 				nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
-				intrinsic("ceil", 				nodes::intrinsic_expression_node::ceil, 				nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
-				intrinsic("clamp", 				nodes::intrinsic_expression_node::clamp, 				nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
-				intrinsic("clamp", 				nodes::intrinsic_expression_node::clamp, 				nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
-				intrinsic("clamp", 				nodes::intrinsic_expression_node::clamp, 				nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
-				intrinsic("clamp", 				nodes::intrinsic_expression_node::clamp, 				nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
-				intrinsic("cos", 				nodes::intrinsic_expression_node::cos, 					nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
-				intrinsic("cos", 				nodes::intrinsic_expression_node::cos, 					nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
-				intrinsic("cos", 				nodes::intrinsic_expression_node::cos, 					nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
-				intrinsic("cos", 				nodes::intrinsic_expression_node::cos, 					nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
-				intrinsic("cosh", 				nodes::intrinsic_expression_node::cosh, 				nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
-				intrinsic("cosh", 				nodes::intrinsic_expression_node::cosh, 				nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
-				intrinsic("cosh", 				nodes::intrinsic_expression_node::cosh, 				nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
-				intrinsic("cosh", 				nodes::intrinsic_expression_node::cosh, 				nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
-				intrinsic("cross", 				nodes::intrinsic_expression_node::cross, 				nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
-				intrinsic("ddx", 				nodes::intrinsic_expression_node::ddx,					nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
-				intrinsic("ddx", 				nodes::intrinsic_expression_node::ddx,					nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
-				intrinsic("ddx", 				nodes::intrinsic_expression_node::ddx,					nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
-				intrinsic("ddx", 				nodes::intrinsic_expression_node::ddx,					nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
-				intrinsic("ddy", 				nodes::intrinsic_expression_node::ddy,					nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
-				intrinsic("ddy", 				nodes::intrinsic_expression_node::ddy,					nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
-				intrinsic("ddy", 				nodes::intrinsic_expression_node::ddy,					nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
-				intrinsic("ddy", 				nodes::intrinsic_expression_node::ddy,					nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
-				intrinsic("degrees", 			nodes::intrinsic_expression_node::degrees, 				nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
-				intrinsic("degrees", 			nodes::intrinsic_expression_node::degrees, 				nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
-				intrinsic("degrees", 			nodes::intrinsic_expression_node::degrees, 				nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
-				intrinsic("degrees", 			nodes::intrinsic_expression_node::degrees, 				nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
-				intrinsic("determinant",		nodes::intrinsic_expression_node::determinant,			nodes::type_node::float_, 1, 1, nodes::type_node::float_, 2, 2),
-				intrinsic("determinant",		nodes::intrinsic_expression_node::determinant,			nodes::type_node::float_, 1, 1, nodes::type_node::float_, 3, 3),
-				intrinsic("determinant", 		nodes::intrinsic_expression_node::determinant,			nodes::type_node::float_, 1, 1, nodes::type_node::float_, 4, 4),
-				intrinsic("distance", 			nodes::intrinsic_expression_node::distance,				nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
-				intrinsic("distance", 			nodes::intrinsic_expression_node::distance,				nodes::type_node::float_, 1, 1, nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
-				intrinsic("distance", 			nodes::intrinsic_expression_node::distance, 			nodes::type_node::float_, 1, 1, nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
-				intrinsic("distance", 			nodes::intrinsic_expression_node::distance, 			nodes::type_node::float_, 1, 1, nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
-				intrinsic("dot", 				nodes::intrinsic_expression_node::dot, 					nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
-				intrinsic("dot", 				nodes::intrinsic_expression_node::dot, 					nodes::type_node::float_, 1, 1, nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
-				intrinsic("dot", 				nodes::intrinsic_expression_node::dot, 					nodes::type_node::float_, 1, 1, nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
-				intrinsic("dot", 				nodes::intrinsic_expression_node::dot, 					nodes::type_node::float_, 1, 1, nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
-				intrinsic("exp", 				nodes::intrinsic_expression_node::exp, 					nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
-				intrinsic("exp", 				nodes::intrinsic_expression_node::exp, 					nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
-				intrinsic("exp", 				nodes::intrinsic_expression_node::exp, 					nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
-				intrinsic("exp", 				nodes::intrinsic_expression_node::exp, 					nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
-				intrinsic("exp2", 				nodes::intrinsic_expression_node::exp2, 				nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
-				intrinsic("exp2", 				nodes::intrinsic_expression_node::exp2, 				nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
-				intrinsic("exp2", 				nodes::intrinsic_expression_node::exp2, 				nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
-				intrinsic("exp2", 				nodes::intrinsic_expression_node::exp2, 				nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
-				intrinsic("faceforward",		nodes::intrinsic_expression_node::faceforward,			nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
-				intrinsic("faceforward",		nodes::intrinsic_expression_node::faceforward,			nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
-				intrinsic("faceforward",		nodes::intrinsic_expression_node::faceforward,			nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
-				intrinsic("faceforward",		nodes::intrinsic_expression_node::faceforward, 			nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
-				intrinsic("floor", 				nodes::intrinsic_expression_node::floor, 				nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
-				intrinsic("floor", 				nodes::intrinsic_expression_node::floor, 				nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
-				intrinsic("floor", 				nodes::intrinsic_expression_node::floor, 				nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
-				intrinsic("floor", 				nodes::intrinsic_expression_node::floor, 				nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
-				intrinsic("frac", 				nodes::intrinsic_expression_node::frac, 				nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
-				intrinsic("frac", 				nodes::intrinsic_expression_node::frac, 				nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
-				intrinsic("frac", 				nodes::intrinsic_expression_node::frac, 				nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
-				intrinsic("frac", 				nodes::intrinsic_expression_node::frac, 				nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
-				intrinsic("frexp", 				nodes::intrinsic_expression_node::frexp, 				nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
-				intrinsic("frexp", 				nodes::intrinsic_expression_node::frexp, 				nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
-				intrinsic("frexp", 				nodes::intrinsic_expression_node::frexp, 				nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
-				intrinsic("frexp", 				nodes::intrinsic_expression_node::frexp, 				nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
-				intrinsic("fwidth", 			nodes::intrinsic_expression_node::fwidth, 				nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
-				intrinsic("fwidth", 			nodes::intrinsic_expression_node::fwidth, 				nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
-				intrinsic("fwidth", 			nodes::intrinsic_expression_node::fwidth, 				nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
-				intrinsic("fwidth", 			nodes::intrinsic_expression_node::fwidth, 				nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
-				intrinsic("ldexp", 				nodes::intrinsic_expression_node::ldexp, 				nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
-				intrinsic("ldexp", 				nodes::intrinsic_expression_node::ldexp, 				nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
-				intrinsic("ldexp", 				nodes::intrinsic_expression_node::ldexp, 				nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
-				intrinsic("ldexp", 				nodes::intrinsic_expression_node::ldexp, 				nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
-				intrinsic("length", 			nodes::intrinsic_expression_node::length, 				nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
-				intrinsic("length", 			nodes::intrinsic_expression_node::length, 				nodes::type_node::float_, 1, 1, nodes::type_node::float_, 2, 1),
-				intrinsic("length", 			nodes::intrinsic_expression_node::length, 				nodes::type_node::float_, 1, 1, nodes::type_node::float_, 3, 1),
-				intrinsic("length", 			nodes::intrinsic_expression_node::length, 				nodes::type_node::float_, 1, 1, nodes::type_node::float_, 4, 1),
-				intrinsic("lerp",				nodes::intrinsic_expression_node::lerp, 				nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
-				intrinsic("lerp",				nodes::intrinsic_expression_node::lerp, 				nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
-				intrinsic("lerp",				nodes::intrinsic_expression_node::lerp, 				nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
-				intrinsic("lerp",				nodes::intrinsic_expression_node::lerp, 				nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
-				intrinsic("log", 				nodes::intrinsic_expression_node::log, 					nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
-				intrinsic("log", 				nodes::intrinsic_expression_node::log, 					nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
-				intrinsic("log", 				nodes::intrinsic_expression_node::log, 					nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
-				intrinsic("log", 				nodes::intrinsic_expression_node::log, 					nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
-				intrinsic("log10", 				nodes::intrinsic_expression_node::log10, 				nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
-				intrinsic("log10", 				nodes::intrinsic_expression_node::log10, 				nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
-				intrinsic("log10", 				nodes::intrinsic_expression_node::log10, 				nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
-				intrinsic("log10", 				nodes::intrinsic_expression_node::log10, 				nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
-				intrinsic("log2", 				nodes::intrinsic_expression_node::log2, 				nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
-				intrinsic("log2", 				nodes::intrinsic_expression_node::log2, 				nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
-				intrinsic("log2", 				nodes::intrinsic_expression_node::log2, 				nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
-				intrinsic("log2", 				nodes::intrinsic_expression_node::log2, 				nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
-				intrinsic("mad", 				nodes::intrinsic_expression_node::mad, 					nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
-				intrinsic("mad", 				nodes::intrinsic_expression_node::mad, 					nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
-				intrinsic("mad", 				nodes::intrinsic_expression_node::mad, 					nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
-				intrinsic("mad", 				nodes::intrinsic_expression_node::mad, 					nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
-				intrinsic("max", 				nodes::intrinsic_expression_node::max, 					nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
-				intrinsic("max", 				nodes::intrinsic_expression_node::max, 					nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
-				intrinsic("max",				nodes::intrinsic_expression_node::max, 					nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
-				intrinsic("max", 				nodes::intrinsic_expression_node::max, 					nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
-				intrinsic("min", 				nodes::intrinsic_expression_node::min, 					nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
-				intrinsic("min", 				nodes::intrinsic_expression_node::min, 					nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
-				intrinsic("min", 				nodes::intrinsic_expression_node::min, 					nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
-				intrinsic("min", 				nodes::intrinsic_expression_node::min, 					nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
-				intrinsic("modf", 				nodes::intrinsic_expression_node::modf, 				nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
-				intrinsic("modf", 				nodes::intrinsic_expression_node::modf, 				nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
-				intrinsic("modf", 				nodes::intrinsic_expression_node::modf, 				nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
-				intrinsic("modf", 				nodes::intrinsic_expression_node::modf, 				nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
-				intrinsic("mul", 				nodes::intrinsic_expression_node::mul, 					nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
-				intrinsic("mul", 				nodes::intrinsic_expression_node::mul, 					nodes::type_node::float_, 2, 1, nodes::type_node::float_, 1, 1, nodes::type_node::float_, 2, 1),
-				intrinsic("mul", 				nodes::intrinsic_expression_node::mul, 					nodes::type_node::float_, 3, 1, nodes::type_node::float_, 1, 1, nodes::type_node::float_, 3, 1),
-				intrinsic("mul", 				nodes::intrinsic_expression_node::mul, 					nodes::type_node::float_, 4, 1, nodes::type_node::float_, 1, 1, nodes::type_node::float_, 4, 1),
-				intrinsic("mul", 				nodes::intrinsic_expression_node::mul, 					nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1, nodes::type_node::float_, 1, 1),
-				intrinsic("mul", 				nodes::intrinsic_expression_node::mul, 					nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1, nodes::type_node::float_, 1, 1),
-				intrinsic("mul", 				nodes::intrinsic_expression_node::mul, 					nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1, nodes::type_node::float_, 1, 1),
-				intrinsic("mul", 				nodes::intrinsic_expression_node::mul, 					nodes::type_node::float_, 2, 2, nodes::type_node::float_, 1, 1, nodes::type_node::float_, 2, 2),
-				intrinsic("mul", 				nodes::intrinsic_expression_node::mul, 					nodes::type_node::float_, 3, 3, nodes::type_node::float_, 1, 1, nodes::type_node::float_, 3, 3),
-				intrinsic("mul", 				nodes::intrinsic_expression_node::mul, 					nodes::type_node::float_, 4, 4, nodes::type_node::float_, 1, 1, nodes::type_node::float_, 4, 4),
-				intrinsic("mul", 				nodes::intrinsic_expression_node::mul, 					nodes::type_node::float_, 2, 2, nodes::type_node::float_, 2, 2, nodes::type_node::float_, 1, 1),
-				intrinsic("mul", 				nodes::intrinsic_expression_node::mul, 					nodes::type_node::float_, 3, 3, nodes::type_node::float_, 3, 3, nodes::type_node::float_, 1, 1),
-				intrinsic("mul", 				nodes::intrinsic_expression_node::mul, 					nodes::type_node::float_, 4, 4, nodes::type_node::float_, 4, 4, nodes::type_node::float_, 1, 1),
-				intrinsic("mul", 				nodes::intrinsic_expression_node::mul, 					nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 2),
-				intrinsic("mul", 				nodes::intrinsic_expression_node::mul, 					nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 3),
-				intrinsic("mul", 				nodes::intrinsic_expression_node::mul, 					nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 4),
-				intrinsic("mul", 				nodes::intrinsic_expression_node::mul, 					nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 2, nodes::type_node::float_, 2, 1),
-				intrinsic("mul", 				nodes::intrinsic_expression_node::mul, 					nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 3, nodes::type_node::float_, 3, 1),
-				intrinsic("mul", 				nodes::intrinsic_expression_node::mul, 					nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 4, nodes::type_node::float_, 4, 1),
-				intrinsic("normalize", 			nodes::intrinsic_expression_node::normalize, 			nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
-				intrinsic("normalize", 			nodes::intrinsic_expression_node::normalize, 			nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
-				intrinsic("normalize", 			nodes::intrinsic_expression_node::normalize, 			nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
-				intrinsic("normalize", 			nodes::intrinsic_expression_node::normalize, 			nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
-				intrinsic("pow", 				nodes::intrinsic_expression_node::pow, 					nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
-				intrinsic("pow", 				nodes::intrinsic_expression_node::pow, 					nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
-				intrinsic("pow", 				nodes::intrinsic_expression_node::pow, 					nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
-				intrinsic("pow", 				nodes::intrinsic_expression_node::pow, 					nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
-				intrinsic("radians", 			nodes::intrinsic_expression_node::radians, 				nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
-				intrinsic("radians", 			nodes::intrinsic_expression_node::radians, 				nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
-				intrinsic("radians", 			nodes::intrinsic_expression_node::radians, 				nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
-				intrinsic("radians", 			nodes::intrinsic_expression_node::radians, 				nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
-				intrinsic("rcp", 				nodes::intrinsic_expression_node::sign, 				nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
-				intrinsic("rcp", 				nodes::intrinsic_expression_node::sign, 				nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
-				intrinsic("rcp", 				nodes::intrinsic_expression_node::sign, 				nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
-				intrinsic("rcp", 				nodes::intrinsic_expression_node::sign, 				nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
-				intrinsic("reflect",			nodes::intrinsic_expression_node::reflect, 				nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
-				intrinsic("reflect",			nodes::intrinsic_expression_node::reflect, 				nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
-				intrinsic("reflect",			nodes::intrinsic_expression_node::reflect, 				nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
-				intrinsic("reflect",			nodes::intrinsic_expression_node::reflect, 				nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
-				intrinsic("refract",			nodes::intrinsic_expression_node::refract, 				nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
-				intrinsic("refract",			nodes::intrinsic_expression_node::refract, 				nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
-				intrinsic("refract",			nodes::intrinsic_expression_node::refract, 				nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
-				intrinsic("refract",			nodes::intrinsic_expression_node::refract, 				nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
-				intrinsic("round", 				nodes::intrinsic_expression_node::round, 				nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
-				intrinsic("round", 				nodes::intrinsic_expression_node::round, 				nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
-				intrinsic("round", 				nodes::intrinsic_expression_node::round, 				nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
-				intrinsic("round", 				nodes::intrinsic_expression_node::round, 				nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
-				intrinsic("rsqrt", 				nodes::intrinsic_expression_node::rsqrt, 				nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
-				intrinsic("rsqrt", 				nodes::intrinsic_expression_node::rsqrt, 				nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
-				intrinsic("rsqrt", 				nodes::intrinsic_expression_node::rsqrt, 				nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
-				intrinsic("rsqrt", 				nodes::intrinsic_expression_node::rsqrt, 				nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
-				intrinsic("saturate", 			nodes::intrinsic_expression_node::saturate,				nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
-				intrinsic("saturate", 			nodes::intrinsic_expression_node::saturate,				nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
-				intrinsic("saturate", 			nodes::intrinsic_expression_node::saturate,				nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
-				intrinsic("saturate", 			nodes::intrinsic_expression_node::saturate, 			nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
-				intrinsic("sign", 				nodes::intrinsic_expression_node::sign, 				nodes::type_node::int_,   1, 1, nodes::type_node::float_, 1, 1),
-				intrinsic("sign", 				nodes::intrinsic_expression_node::sign, 				nodes::type_node::int_,   2, 1, nodes::type_node::float_, 2, 1),
-				intrinsic("sign", 				nodes::intrinsic_expression_node::sign, 				nodes::type_node::int_,   3, 1, nodes::type_node::float_, 3, 1),
-				intrinsic("sign", 				nodes::intrinsic_expression_node::sign, 				nodes::type_node::int_,   4, 1, nodes::type_node::float_, 4, 1),
-				intrinsic("sin", 				nodes::intrinsic_expression_node::sin, 					nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
-				intrinsic("sin", 				nodes::intrinsic_expression_node::sin, 					nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
-				intrinsic("sin", 				nodes::intrinsic_expression_node::sin, 					nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
-				intrinsic("sin", 				nodes::intrinsic_expression_node::sin, 					nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
-				intrinsic("sincos",				nodes::intrinsic_expression_node::sincos, 				nodes::type_node::void_,  0, 0, nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
-				intrinsic("sincos",				nodes::intrinsic_expression_node::sincos, 				nodes::type_node::void_,  0, 0, nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
-				intrinsic("sincos",				nodes::intrinsic_expression_node::sincos, 				nodes::type_node::void_,  0, 0, nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
-				intrinsic("sincos",				nodes::intrinsic_expression_node::sincos, 				nodes::type_node::void_,  0, 0, nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
-				intrinsic("sinh", 				nodes::intrinsic_expression_node::sinh, 				nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
-				intrinsic("sinh", 				nodes::intrinsic_expression_node::sinh, 				nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
-				intrinsic("sinh", 				nodes::intrinsic_expression_node::sinh, 				nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
-				intrinsic("sinh", 				nodes::intrinsic_expression_node::sinh, 				nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
-				intrinsic("smoothstep",			nodes::intrinsic_expression_node::smoothstep, 			nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
-				intrinsic("smoothstep",			nodes::intrinsic_expression_node::smoothstep, 			nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
-				intrinsic("smoothstep",			nodes::intrinsic_expression_node::smoothstep, 			nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
-				intrinsic("smoothstep",			nodes::intrinsic_expression_node::smoothstep, 			nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
-				intrinsic("sqrt", 				nodes::intrinsic_expression_node::sqrt, 				nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
-				intrinsic("sqrt", 				nodes::intrinsic_expression_node::sqrt, 				nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
-				intrinsic("sqrt", 				nodes::intrinsic_expression_node::sqrt, 				nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
-				intrinsic("sqrt", 				nodes::intrinsic_expression_node::sqrt, 				nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
-				intrinsic("step", 				nodes::intrinsic_expression_node::step, 				nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
-				intrinsic("step", 				nodes::intrinsic_expression_node::step, 				nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
-				intrinsic("step",				nodes::intrinsic_expression_node::step, 				nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
-				intrinsic("step",				nodes::intrinsic_expression_node::step, 				nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
-				intrinsic("tan", 				nodes::intrinsic_expression_node::tan, 					nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
-				intrinsic("tan", 				nodes::intrinsic_expression_node::tan, 					nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
-				intrinsic("tan", 				nodes::intrinsic_expression_node::tan, 					nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
-				intrinsic("tan", 				nodes::intrinsic_expression_node::tan, 					nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
-				intrinsic("tanh", 				nodes::intrinsic_expression_node::tanh, 				nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
-				intrinsic("tanh", 				nodes::intrinsic_expression_node::tanh, 				nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
-				intrinsic("tanh", 				nodes::intrinsic_expression_node::tanh, 				nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
-				intrinsic("tanh", 				nodes::intrinsic_expression_node::tanh, 				nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
-				intrinsic("tex2D",				nodes::intrinsic_expression_node::tex2d,				nodes::type_node::float_, 4, 1, nodes::type_node::sampler2d, 0, 0, nodes::type_node::float_, 2, 1),
-				intrinsic("tex2Dfetch",			nodes::intrinsic_expression_node::tex2dfetch,			nodes::type_node::float_, 4, 1, nodes::type_node::sampler2d, 0, 0, nodes::type_node::int_,   2, 1),
-				intrinsic("tex2Dgather",		nodes::intrinsic_expression_node::tex2dgather,			nodes::type_node::float_, 4, 1, nodes::type_node::sampler2d, 0, 0, nodes::type_node::float_, 2, 1, nodes::type_node::int_,   1, 1),
-				intrinsic("tex2Dgatheroffset",	nodes::intrinsic_expression_node::tex2dgatheroffset,	nodes::type_node::float_, 4, 1, nodes::type_node::sampler2d, 0, 0, nodes::type_node::float_, 2, 1, nodes::type_node::int_,   2, 1, nodes::type_node::int_,   1, 1),
-				intrinsic("tex2Dgrad",			nodes::intrinsic_expression_node::tex2dgrad,			nodes::type_node::float_, 4, 1, nodes::type_node::sampler2d, 0, 0, nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
-				intrinsic("tex2Dlod",			nodes::intrinsic_expression_node::tex2dlevel,			nodes::type_node::float_, 4, 1, nodes::type_node::sampler2d, 0, 0, nodes::type_node::float_, 4, 1),
-				intrinsic("tex2Dlodoffset",		nodes::intrinsic_expression_node::tex2dleveloffset,		nodes::type_node::float_, 4, 1, nodes::type_node::sampler2d, 0, 0, nodes::type_node::float_, 4, 1, nodes::type_node::int_,   2, 1),
-				intrinsic("tex2Doffset",		nodes::intrinsic_expression_node::tex2doffset,			nodes::type_node::float_, 4, 1, nodes::type_node::sampler2d, 0, 0, nodes::type_node::float_, 2, 1, nodes::type_node::int_,   2, 1),
-				intrinsic("tex2Dproj",			nodes::intrinsic_expression_node::tex2dproj,			nodes::type_node::float_, 4, 1, nodes::type_node::sampler2d, 0, 0, nodes::type_node::float_, 4, 1),
-				intrinsic("tex2Dsize",			nodes::intrinsic_expression_node::tex2dsize,			nodes::type_node::int_,   2, 1, nodes::type_node::sampler2d, 0, 0, nodes::type_node::int_,   1, 1),
-				intrinsic("transpose", 			nodes::intrinsic_expression_node::transpose, 			nodes::type_node::float_, 2, 2, nodes::type_node::float_, 2, 2),
-				intrinsic("transpose", 			nodes::intrinsic_expression_node::transpose, 			nodes::type_node::float_, 3, 3, nodes::type_node::float_, 3, 3),
-				intrinsic("transpose",			nodes::intrinsic_expression_node::transpose, 			nodes::type_node::float_, 4, 4, nodes::type_node::float_, 4, 4),
-				intrinsic("trunc", 				nodes::intrinsic_expression_node::trunc, 				nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
-				intrinsic("trunc", 				nodes::intrinsic_expression_node::trunc, 				nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
-				intrinsic("trunc", 				nodes::intrinsic_expression_node::trunc, 				nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
-				intrinsic("trunc",				nodes::intrinsic_expression_node::trunc, 				nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
+				intrinsic("abs", 				nodes::intrinsic_expression_node::abs, 					nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 1, 1),
+				intrinsic("abs", 				nodes::intrinsic_expression_node::abs, 					nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_float, 2, 1),
+				intrinsic("abs", 				nodes::intrinsic_expression_node::abs, 					nodes::type_node::datatype_float, 3, 1, nodes::type_node::datatype_float, 3, 1),
+				intrinsic("abs", 				nodes::intrinsic_expression_node::abs, 					nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_float, 4, 1),
+				intrinsic("acos", 				nodes::intrinsic_expression_node::acos, 				nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 1, 1),
+				intrinsic("acos", 				nodes::intrinsic_expression_node::acos, 				nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_float, 2, 1),
+				intrinsic("acos", 				nodes::intrinsic_expression_node::acos, 				nodes::type_node::datatype_float, 3, 1, nodes::type_node::datatype_float, 3, 1),
+				intrinsic("acos", 				nodes::intrinsic_expression_node::acos, 				nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_float, 4, 1),
+				intrinsic("all", 				nodes::intrinsic_expression_node::all, 					nodes::type_node::datatype_bool,  1, 1, nodes::type_node::datatype_bool,  1, 1),
+				intrinsic("all", 				nodes::intrinsic_expression_node::all, 					nodes::type_node::datatype_bool,  2, 1, nodes::type_node::datatype_bool,  2, 1),
+				intrinsic("all", 				nodes::intrinsic_expression_node::all, 					nodes::type_node::datatype_bool,  3, 1, nodes::type_node::datatype_bool,  3, 1),
+				intrinsic("all", 				nodes::intrinsic_expression_node::all, 					nodes::type_node::datatype_bool,  4, 1, nodes::type_node::datatype_bool,  4, 1),
+				intrinsic("any", 				nodes::intrinsic_expression_node::any, 					nodes::type_node::datatype_bool,  1, 1, nodes::type_node::datatype_bool,  1, 1),
+				intrinsic("any", 				nodes::intrinsic_expression_node::any, 					nodes::type_node::datatype_bool,  2, 1, nodes::type_node::datatype_bool,  2, 1),
+				intrinsic("any", 				nodes::intrinsic_expression_node::any, 					nodes::type_node::datatype_bool,  3, 1, nodes::type_node::datatype_bool,  3, 1),
+				intrinsic("any", 				nodes::intrinsic_expression_node::any, 					nodes::type_node::datatype_bool,  4, 1, nodes::type_node::datatype_bool,  4, 1),
+				intrinsic("asfloat", 			nodes::intrinsic_expression_node::bitcast_int2float,	nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_int,   1, 1),
+				intrinsic("asfloat", 			nodes::intrinsic_expression_node::bitcast_int2float,	nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_int,   2, 1),
+				intrinsic("asfloat", 			nodes::intrinsic_expression_node::bitcast_int2float,	nodes::type_node::datatype_float, 3, 1, nodes::type_node::datatype_int,   3, 1),
+				intrinsic("asfloat", 			nodes::intrinsic_expression_node::bitcast_int2float,	nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_int,   4, 1),
+				intrinsic("asfloat", 			nodes::intrinsic_expression_node::bitcast_uint2float,	nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_uint,  1, 1),
+				intrinsic("asfloat", 			nodes::intrinsic_expression_node::bitcast_uint2float,	nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_uint,  2, 1),
+				intrinsic("asfloat", 			nodes::intrinsic_expression_node::bitcast_uint2float,	nodes::type_node::datatype_float, 3, 1, nodes::type_node::datatype_uint,  3, 1),
+				intrinsic("asfloat", 			nodes::intrinsic_expression_node::bitcast_uint2float,	nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_uint,  4, 1),
+				intrinsic("asin", 				nodes::intrinsic_expression_node::asin, 				nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 1, 1),
+				intrinsic("asin", 				nodes::intrinsic_expression_node::asin, 				nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_float, 2, 1),
+				intrinsic("asin", 				nodes::intrinsic_expression_node::asin, 				nodes::type_node::datatype_float, 3, 1, nodes::type_node::datatype_float, 3, 1),
+				intrinsic("asin", 				nodes::intrinsic_expression_node::asin, 				nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_float, 4, 1),
+				intrinsic("asint", 				nodes::intrinsic_expression_node::bitcast_float2int,	nodes::type_node::datatype_int,   1, 1, nodes::type_node::datatype_float, 1, 1),
+				intrinsic("asint", 				nodes::intrinsic_expression_node::bitcast_float2int,	nodes::type_node::datatype_int,   2, 1, nodes::type_node::datatype_float, 2, 1),
+				intrinsic("asint", 				nodes::intrinsic_expression_node::bitcast_float2int,	nodes::type_node::datatype_int,   3, 1, nodes::type_node::datatype_float, 3, 1),
+				intrinsic("asint", 				nodes::intrinsic_expression_node::bitcast_float2int,	nodes::type_node::datatype_int,   4, 1, nodes::type_node::datatype_float, 4, 1),
+				intrinsic("asuint", 			nodes::intrinsic_expression_node::bitcast_float2uint,	nodes::type_node::datatype_uint,  1, 1, nodes::type_node::datatype_float, 1, 1),
+				intrinsic("asuint", 			nodes::intrinsic_expression_node::bitcast_float2uint,	nodes::type_node::datatype_uint,  2, 1, nodes::type_node::datatype_float, 2, 1),
+				intrinsic("asuint", 			nodes::intrinsic_expression_node::bitcast_float2uint,	nodes::type_node::datatype_uint,  3, 1, nodes::type_node::datatype_float, 3, 1),
+				intrinsic("asuint", 			nodes::intrinsic_expression_node::bitcast_float2uint,	nodes::type_node::datatype_uint,  4, 1, nodes::type_node::datatype_float, 4, 1),
+				intrinsic("atan", 				nodes::intrinsic_expression_node::atan, 				nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 1, 1),
+				intrinsic("atan", 				nodes::intrinsic_expression_node::atan, 				nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_float, 2, 1),
+				intrinsic("atan", 				nodes::intrinsic_expression_node::atan, 				nodes::type_node::datatype_float, 3, 1, nodes::type_node::datatype_float, 3, 1),
+				intrinsic("atan", 				nodes::intrinsic_expression_node::atan, 				nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_float, 4, 1),
+				intrinsic("atan2", 				nodes::intrinsic_expression_node::atan2, 				nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 1, 1),
+				intrinsic("atan2", 				nodes::intrinsic_expression_node::atan2, 				nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_float, 2, 1),
+				intrinsic("atan2", 				nodes::intrinsic_expression_node::atan2, 				nodes::type_node::datatype_float, 3, 1, nodes::type_node::datatype_float, 3, 1, nodes::type_node::datatype_float, 3, 1),
+				intrinsic("atan2", 				nodes::intrinsic_expression_node::atan2, 				nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_float, 4, 1),
+				intrinsic("ceil", 				nodes::intrinsic_expression_node::ceil, 				nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 1, 1),
+				intrinsic("ceil", 				nodes::intrinsic_expression_node::ceil, 				nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_float, 2, 1),
+				intrinsic("ceil", 				nodes::intrinsic_expression_node::ceil, 				nodes::type_node::datatype_float, 3, 1, nodes::type_node::datatype_float, 3, 1),
+				intrinsic("ceil", 				nodes::intrinsic_expression_node::ceil, 				nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_float, 4, 1),
+				intrinsic("clamp", 				nodes::intrinsic_expression_node::clamp, 				nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 1, 1),
+				intrinsic("clamp", 				nodes::intrinsic_expression_node::clamp, 				nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_float, 2, 1),
+				intrinsic("clamp", 				nodes::intrinsic_expression_node::clamp, 				nodes::type_node::datatype_float, 3, 1, nodes::type_node::datatype_float, 3, 1, nodes::type_node::datatype_float, 3, 1, nodes::type_node::datatype_float, 3, 1),
+				intrinsic("clamp", 				nodes::intrinsic_expression_node::clamp, 				nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_float, 4, 1),
+				intrinsic("cos", 				nodes::intrinsic_expression_node::cos, 					nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 1, 1),
+				intrinsic("cos", 				nodes::intrinsic_expression_node::cos, 					nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_float, 2, 1),
+				intrinsic("cos", 				nodes::intrinsic_expression_node::cos, 					nodes::type_node::datatype_float, 3, 1, nodes::type_node::datatype_float, 3, 1),
+				intrinsic("cos", 				nodes::intrinsic_expression_node::cos, 					nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_float, 4, 1),
+				intrinsic("cosh", 				nodes::intrinsic_expression_node::cosh, 				nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 1, 1),
+				intrinsic("cosh", 				nodes::intrinsic_expression_node::cosh, 				nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_float, 2, 1),
+				intrinsic("cosh", 				nodes::intrinsic_expression_node::cosh, 				nodes::type_node::datatype_float, 3, 1, nodes::type_node::datatype_float, 3, 1),
+				intrinsic("cosh", 				nodes::intrinsic_expression_node::cosh, 				nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_float, 4, 1),
+				intrinsic("cross", 				nodes::intrinsic_expression_node::cross, 				nodes::type_node::datatype_float, 3, 1, nodes::type_node::datatype_float, 3, 1, nodes::type_node::datatype_float, 3, 1),
+				intrinsic("ddx", 				nodes::intrinsic_expression_node::ddx,					nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 1, 1),
+				intrinsic("ddx", 				nodes::intrinsic_expression_node::ddx,					nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_float, 2, 1),
+				intrinsic("ddx", 				nodes::intrinsic_expression_node::ddx,					nodes::type_node::datatype_float, 3, 1, nodes::type_node::datatype_float, 3, 1),
+				intrinsic("ddx", 				nodes::intrinsic_expression_node::ddx,					nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_float, 4, 1),
+				intrinsic("ddy", 				nodes::intrinsic_expression_node::ddy,					nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 1, 1),
+				intrinsic("ddy", 				nodes::intrinsic_expression_node::ddy,					nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_float, 2, 1),
+				intrinsic("ddy", 				nodes::intrinsic_expression_node::ddy,					nodes::type_node::datatype_float, 3, 1, nodes::type_node::datatype_float, 3, 1),
+				intrinsic("ddy", 				nodes::intrinsic_expression_node::ddy,					nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_float, 4, 1),
+				intrinsic("degrees", 			nodes::intrinsic_expression_node::degrees, 				nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 1, 1),
+				intrinsic("degrees", 			nodes::intrinsic_expression_node::degrees, 				nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_float, 2, 1),
+				intrinsic("degrees", 			nodes::intrinsic_expression_node::degrees, 				nodes::type_node::datatype_float, 3, 1, nodes::type_node::datatype_float, 3, 1),
+				intrinsic("degrees", 			nodes::intrinsic_expression_node::degrees, 				nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_float, 4, 1),
+				intrinsic("determinant",		nodes::intrinsic_expression_node::determinant,			nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 2, 2),
+				intrinsic("determinant",		nodes::intrinsic_expression_node::determinant,			nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 3, 3),
+				intrinsic("determinant", 		nodes::intrinsic_expression_node::determinant,			nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 4, 4),
+				intrinsic("distance", 			nodes::intrinsic_expression_node::distance,				nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 1, 1),
+				intrinsic("distance", 			nodes::intrinsic_expression_node::distance,				nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_float, 2, 1),
+				intrinsic("distance", 			nodes::intrinsic_expression_node::distance, 			nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 3, 1, nodes::type_node::datatype_float, 3, 1),
+				intrinsic("distance", 			nodes::intrinsic_expression_node::distance, 			nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_float, 4, 1),
+				intrinsic("dot", 				nodes::intrinsic_expression_node::dot, 					nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 1, 1),
+				intrinsic("dot", 				nodes::intrinsic_expression_node::dot, 					nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_float, 2, 1),
+				intrinsic("dot", 				nodes::intrinsic_expression_node::dot, 					nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 3, 1, nodes::type_node::datatype_float, 3, 1),
+				intrinsic("dot", 				nodes::intrinsic_expression_node::dot, 					nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_float, 4, 1),
+				intrinsic("exp", 				nodes::intrinsic_expression_node::exp, 					nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 1, 1),
+				intrinsic("exp", 				nodes::intrinsic_expression_node::exp, 					nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_float, 2, 1),
+				intrinsic("exp", 				nodes::intrinsic_expression_node::exp, 					nodes::type_node::datatype_float, 3, 1, nodes::type_node::datatype_float, 3, 1),
+				intrinsic("exp", 				nodes::intrinsic_expression_node::exp, 					nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_float, 4, 1),
+				intrinsic("exp2", 				nodes::intrinsic_expression_node::exp2, 				nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 1, 1),
+				intrinsic("exp2", 				nodes::intrinsic_expression_node::exp2, 				nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_float, 2, 1),
+				intrinsic("exp2", 				nodes::intrinsic_expression_node::exp2, 				nodes::type_node::datatype_float, 3, 1, nodes::type_node::datatype_float, 3, 1),
+				intrinsic("exp2", 				nodes::intrinsic_expression_node::exp2, 				nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_float, 4, 1),
+				intrinsic("faceforward",		nodes::intrinsic_expression_node::faceforward,			nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 1, 1),
+				intrinsic("faceforward",		nodes::intrinsic_expression_node::faceforward,			nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_float, 2, 1),
+				intrinsic("faceforward",		nodes::intrinsic_expression_node::faceforward,			nodes::type_node::datatype_float, 3, 1, nodes::type_node::datatype_float, 3, 1, nodes::type_node::datatype_float, 3, 1, nodes::type_node::datatype_float, 3, 1),
+				intrinsic("faceforward",		nodes::intrinsic_expression_node::faceforward, 			nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_float, 4, 1),
+				intrinsic("floor", 				nodes::intrinsic_expression_node::floor, 				nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 1, 1),
+				intrinsic("floor", 				nodes::intrinsic_expression_node::floor, 				nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_float, 2, 1),
+				intrinsic("floor", 				nodes::intrinsic_expression_node::floor, 				nodes::type_node::datatype_float, 3, 1, nodes::type_node::datatype_float, 3, 1),
+				intrinsic("floor", 				nodes::intrinsic_expression_node::floor, 				nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_float, 4, 1),
+				intrinsic("frac", 				nodes::intrinsic_expression_node::frac, 				nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 1, 1),
+				intrinsic("frac", 				nodes::intrinsic_expression_node::frac, 				nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_float, 2, 1),
+				intrinsic("frac", 				nodes::intrinsic_expression_node::frac, 				nodes::type_node::datatype_float, 3, 1, nodes::type_node::datatype_float, 3, 1),
+				intrinsic("frac", 				nodes::intrinsic_expression_node::frac, 				nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_float, 4, 1),
+				intrinsic("frexp", 				nodes::intrinsic_expression_node::frexp, 				nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 1, 1),
+				intrinsic("frexp", 				nodes::intrinsic_expression_node::frexp, 				nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_float, 2, 1),
+				intrinsic("frexp", 				nodes::intrinsic_expression_node::frexp, 				nodes::type_node::datatype_float, 3, 1, nodes::type_node::datatype_float, 3, 1, nodes::type_node::datatype_float, 3, 1),
+				intrinsic("frexp", 				nodes::intrinsic_expression_node::frexp, 				nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_float, 4, 1),
+				intrinsic("fwidth", 			nodes::intrinsic_expression_node::fwidth, 				nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 1, 1),
+				intrinsic("fwidth", 			nodes::intrinsic_expression_node::fwidth, 				nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_float, 2, 1),
+				intrinsic("fwidth", 			nodes::intrinsic_expression_node::fwidth, 				nodes::type_node::datatype_float, 3, 1, nodes::type_node::datatype_float, 3, 1),
+				intrinsic("fwidth", 			nodes::intrinsic_expression_node::fwidth, 				nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_float, 4, 1),
+				intrinsic("ldexp", 				nodes::intrinsic_expression_node::ldexp, 				nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 1, 1),
+				intrinsic("ldexp", 				nodes::intrinsic_expression_node::ldexp, 				nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_float, 2, 1),
+				intrinsic("ldexp", 				nodes::intrinsic_expression_node::ldexp, 				nodes::type_node::datatype_float, 3, 1, nodes::type_node::datatype_float, 3, 1, nodes::type_node::datatype_float, 3, 1),
+				intrinsic("ldexp", 				nodes::intrinsic_expression_node::ldexp, 				nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_float, 4, 1),
+				intrinsic("length", 			nodes::intrinsic_expression_node::length, 				nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 1, 1),
+				intrinsic("length", 			nodes::intrinsic_expression_node::length, 				nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 2, 1),
+				intrinsic("length", 			nodes::intrinsic_expression_node::length, 				nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 3, 1),
+				intrinsic("length", 			nodes::intrinsic_expression_node::length, 				nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 4, 1),
+				intrinsic("lerp",				nodes::intrinsic_expression_node::lerp, 				nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 1, 1),
+				intrinsic("lerp",				nodes::intrinsic_expression_node::lerp, 				nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_float, 2, 1),
+				intrinsic("lerp",				nodes::intrinsic_expression_node::lerp, 				nodes::type_node::datatype_float, 3, 1, nodes::type_node::datatype_float, 3, 1, nodes::type_node::datatype_float, 3, 1, nodes::type_node::datatype_float, 3, 1),
+				intrinsic("lerp",				nodes::intrinsic_expression_node::lerp, 				nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_float, 4, 1),
+				intrinsic("log", 				nodes::intrinsic_expression_node::log, 					nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 1, 1),
+				intrinsic("log", 				nodes::intrinsic_expression_node::log, 					nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_float, 2, 1),
+				intrinsic("log", 				nodes::intrinsic_expression_node::log, 					nodes::type_node::datatype_float, 3, 1, nodes::type_node::datatype_float, 3, 1),
+				intrinsic("log", 				nodes::intrinsic_expression_node::log, 					nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_float, 4, 1),
+				intrinsic("log10", 				nodes::intrinsic_expression_node::log10, 				nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 1, 1),
+				intrinsic("log10", 				nodes::intrinsic_expression_node::log10, 				nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_float, 2, 1),
+				intrinsic("log10", 				nodes::intrinsic_expression_node::log10, 				nodes::type_node::datatype_float, 3, 1, nodes::type_node::datatype_float, 3, 1),
+				intrinsic("log10", 				nodes::intrinsic_expression_node::log10, 				nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_float, 4, 1),
+				intrinsic("log2", 				nodes::intrinsic_expression_node::log2, 				nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 1, 1),
+				intrinsic("log2", 				nodes::intrinsic_expression_node::log2, 				nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_float, 2, 1),
+				intrinsic("log2", 				nodes::intrinsic_expression_node::log2, 				nodes::type_node::datatype_float, 3, 1, nodes::type_node::datatype_float, 3, 1),
+				intrinsic("log2", 				nodes::intrinsic_expression_node::log2, 				nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_float, 4, 1),
+				intrinsic("mad", 				nodes::intrinsic_expression_node::mad, 					nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 1, 1),
+				intrinsic("mad", 				nodes::intrinsic_expression_node::mad, 					nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_float, 2, 1),
+				intrinsic("mad", 				nodes::intrinsic_expression_node::mad, 					nodes::type_node::datatype_float, 3, 1, nodes::type_node::datatype_float, 3, 1, nodes::type_node::datatype_float, 3, 1, nodes::type_node::datatype_float, 3, 1),
+				intrinsic("mad", 				nodes::intrinsic_expression_node::mad, 					nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_float, 4, 1),
+				intrinsic("max", 				nodes::intrinsic_expression_node::max, 					nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 1, 1),
+				intrinsic("max", 				nodes::intrinsic_expression_node::max, 					nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_float, 2, 1),
+				intrinsic("max",				nodes::intrinsic_expression_node::max, 					nodes::type_node::datatype_float, 3, 1, nodes::type_node::datatype_float, 3, 1, nodes::type_node::datatype_float, 3, 1),
+				intrinsic("max", 				nodes::intrinsic_expression_node::max, 					nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_float, 4, 1),
+				intrinsic("min", 				nodes::intrinsic_expression_node::min, 					nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 1, 1),
+				intrinsic("min", 				nodes::intrinsic_expression_node::min, 					nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_float, 2, 1),
+				intrinsic("min", 				nodes::intrinsic_expression_node::min, 					nodes::type_node::datatype_float, 3, 1, nodes::type_node::datatype_float, 3, 1, nodes::type_node::datatype_float, 3, 1),
+				intrinsic("min", 				nodes::intrinsic_expression_node::min, 					nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_float, 4, 1),
+				intrinsic("modf", 				nodes::intrinsic_expression_node::modf, 				nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 1, 1),
+				intrinsic("modf", 				nodes::intrinsic_expression_node::modf, 				nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_float, 2, 1),
+				intrinsic("modf", 				nodes::intrinsic_expression_node::modf, 				nodes::type_node::datatype_float, 3, 1, nodes::type_node::datatype_float, 3, 1, nodes::type_node::datatype_float, 3, 1),
+				intrinsic("modf", 				nodes::intrinsic_expression_node::modf, 				nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_float, 4, 1),
+				intrinsic("mul", 				nodes::intrinsic_expression_node::mul, 					nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 1, 1),
+				intrinsic("mul", 				nodes::intrinsic_expression_node::mul, 					nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 2, 1),
+				intrinsic("mul", 				nodes::intrinsic_expression_node::mul, 					nodes::type_node::datatype_float, 3, 1, nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 3, 1),
+				intrinsic("mul", 				nodes::intrinsic_expression_node::mul, 					nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 4, 1),
+				intrinsic("mul", 				nodes::intrinsic_expression_node::mul, 					nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_float, 1, 1),
+				intrinsic("mul", 				nodes::intrinsic_expression_node::mul, 					nodes::type_node::datatype_float, 3, 1, nodes::type_node::datatype_float, 3, 1, nodes::type_node::datatype_float, 1, 1),
+				intrinsic("mul", 				nodes::intrinsic_expression_node::mul, 					nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_float, 1, 1),
+				intrinsic("mul", 				nodes::intrinsic_expression_node::mul, 					nodes::type_node::datatype_float, 2, 2, nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 2, 2),
+				intrinsic("mul", 				nodes::intrinsic_expression_node::mul, 					nodes::type_node::datatype_float, 3, 3, nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 3, 3),
+				intrinsic("mul", 				nodes::intrinsic_expression_node::mul, 					nodes::type_node::datatype_float, 4, 4, nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 4, 4),
+				intrinsic("mul", 				nodes::intrinsic_expression_node::mul, 					nodes::type_node::datatype_float, 2, 2, nodes::type_node::datatype_float, 2, 2, nodes::type_node::datatype_float, 1, 1),
+				intrinsic("mul", 				nodes::intrinsic_expression_node::mul, 					nodes::type_node::datatype_float, 3, 3, nodes::type_node::datatype_float, 3, 3, nodes::type_node::datatype_float, 1, 1),
+				intrinsic("mul", 				nodes::intrinsic_expression_node::mul, 					nodes::type_node::datatype_float, 4, 4, nodes::type_node::datatype_float, 4, 4, nodes::type_node::datatype_float, 1, 1),
+				intrinsic("mul", 				nodes::intrinsic_expression_node::mul, 					nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_float, 2, 2),
+				intrinsic("mul", 				nodes::intrinsic_expression_node::mul, 					nodes::type_node::datatype_float, 3, 1, nodes::type_node::datatype_float, 3, 1, nodes::type_node::datatype_float, 3, 3),
+				intrinsic("mul", 				nodes::intrinsic_expression_node::mul, 					nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_float, 4, 4),
+				intrinsic("mul", 				nodes::intrinsic_expression_node::mul, 					nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_float, 2, 2, nodes::type_node::datatype_float, 2, 1),
+				intrinsic("mul", 				nodes::intrinsic_expression_node::mul, 					nodes::type_node::datatype_float, 3, 1, nodes::type_node::datatype_float, 3, 3, nodes::type_node::datatype_float, 3, 1),
+				intrinsic("mul", 				nodes::intrinsic_expression_node::mul, 					nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_float, 4, 4, nodes::type_node::datatype_float, 4, 1),
+				intrinsic("normalize", 			nodes::intrinsic_expression_node::normalize, 			nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 1, 1),
+				intrinsic("normalize", 			nodes::intrinsic_expression_node::normalize, 			nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_float, 2, 1),
+				intrinsic("normalize", 			nodes::intrinsic_expression_node::normalize, 			nodes::type_node::datatype_float, 3, 1, nodes::type_node::datatype_float, 3, 1),
+				intrinsic("normalize", 			nodes::intrinsic_expression_node::normalize, 			nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_float, 4, 1),
+				intrinsic("pow", 				nodes::intrinsic_expression_node::pow, 					nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 1, 1),
+				intrinsic("pow", 				nodes::intrinsic_expression_node::pow, 					nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_float, 2, 1),
+				intrinsic("pow", 				nodes::intrinsic_expression_node::pow, 					nodes::type_node::datatype_float, 3, 1, nodes::type_node::datatype_float, 3, 1, nodes::type_node::datatype_float, 3, 1),
+				intrinsic("pow", 				nodes::intrinsic_expression_node::pow, 					nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_float, 4, 1),
+				intrinsic("radians", 			nodes::intrinsic_expression_node::radians, 				nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 1, 1),
+				intrinsic("radians", 			nodes::intrinsic_expression_node::radians, 				nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_float, 2, 1),
+				intrinsic("radians", 			nodes::intrinsic_expression_node::radians, 				nodes::type_node::datatype_float, 3, 1, nodes::type_node::datatype_float, 3, 1),
+				intrinsic("radians", 			nodes::intrinsic_expression_node::radians, 				nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_float, 4, 1),
+				intrinsic("rcp", 				nodes::intrinsic_expression_node::sign, 				nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 1, 1),
+				intrinsic("rcp", 				nodes::intrinsic_expression_node::sign, 				nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_float, 2, 1),
+				intrinsic("rcp", 				nodes::intrinsic_expression_node::sign, 				nodes::type_node::datatype_float, 3, 1, nodes::type_node::datatype_float, 3, 1),
+				intrinsic("rcp", 				nodes::intrinsic_expression_node::sign, 				nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_float, 4, 1),
+				intrinsic("reflect",			nodes::intrinsic_expression_node::reflect, 				nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 1, 1),
+				intrinsic("reflect",			nodes::intrinsic_expression_node::reflect, 				nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_float, 2, 1),
+				intrinsic("reflect",			nodes::intrinsic_expression_node::reflect, 				nodes::type_node::datatype_float, 3, 1, nodes::type_node::datatype_float, 3, 1, nodes::type_node::datatype_float, 3, 1),
+				intrinsic("reflect",			nodes::intrinsic_expression_node::reflect, 				nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_float, 4, 1),
+				intrinsic("refract",			nodes::intrinsic_expression_node::refract, 				nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 1, 1),
+				intrinsic("refract",			nodes::intrinsic_expression_node::refract, 				nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_float, 2, 1),
+				intrinsic("refract",			nodes::intrinsic_expression_node::refract, 				nodes::type_node::datatype_float, 3, 1, nodes::type_node::datatype_float, 3, 1, nodes::type_node::datatype_float, 3, 1, nodes::type_node::datatype_float, 3, 1),
+				intrinsic("refract",			nodes::intrinsic_expression_node::refract, 				nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_float, 4, 1),
+				intrinsic("round", 				nodes::intrinsic_expression_node::round, 				nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 1, 1),
+				intrinsic("round", 				nodes::intrinsic_expression_node::round, 				nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_float, 2, 1),
+				intrinsic("round", 				nodes::intrinsic_expression_node::round, 				nodes::type_node::datatype_float, 3, 1, nodes::type_node::datatype_float, 3, 1),
+				intrinsic("round", 				nodes::intrinsic_expression_node::round, 				nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_float, 4, 1),
+				intrinsic("rsqrt", 				nodes::intrinsic_expression_node::rsqrt, 				nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 1, 1),
+				intrinsic("rsqrt", 				nodes::intrinsic_expression_node::rsqrt, 				nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_float, 2, 1),
+				intrinsic("rsqrt", 				nodes::intrinsic_expression_node::rsqrt, 				nodes::type_node::datatype_float, 3, 1, nodes::type_node::datatype_float, 3, 1),
+				intrinsic("rsqrt", 				nodes::intrinsic_expression_node::rsqrt, 				nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_float, 4, 1),
+				intrinsic("saturate", 			nodes::intrinsic_expression_node::saturate,				nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 1, 1),
+				intrinsic("saturate", 			nodes::intrinsic_expression_node::saturate,				nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_float, 2, 1),
+				intrinsic("saturate", 			nodes::intrinsic_expression_node::saturate,				nodes::type_node::datatype_float, 3, 1, nodes::type_node::datatype_float, 3, 1),
+				intrinsic("saturate", 			nodes::intrinsic_expression_node::saturate, 			nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_float, 4, 1),
+				intrinsic("sign", 				nodes::intrinsic_expression_node::sign, 				nodes::type_node::datatype_int,   1, 1, nodes::type_node::datatype_float, 1, 1),
+				intrinsic("sign", 				nodes::intrinsic_expression_node::sign, 				nodes::type_node::datatype_int,   2, 1, nodes::type_node::datatype_float, 2, 1),
+				intrinsic("sign", 				nodes::intrinsic_expression_node::sign, 				nodes::type_node::datatype_int,   3, 1, nodes::type_node::datatype_float, 3, 1),
+				intrinsic("sign", 				nodes::intrinsic_expression_node::sign, 				nodes::type_node::datatype_int,   4, 1, nodes::type_node::datatype_float, 4, 1),
+				intrinsic("sin", 				nodes::intrinsic_expression_node::sin, 					nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 1, 1),
+				intrinsic("sin", 				nodes::intrinsic_expression_node::sin, 					nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_float, 2, 1),
+				intrinsic("sin", 				nodes::intrinsic_expression_node::sin, 					nodes::type_node::datatype_float, 3, 1, nodes::type_node::datatype_float, 3, 1),
+				intrinsic("sin", 				nodes::intrinsic_expression_node::sin, 					nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_float, 4, 1),
+				intrinsic("sincos",				nodes::intrinsic_expression_node::sincos, 				nodes::type_node::datatype_void,  0, 0, nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 1, 1),
+				intrinsic("sincos",				nodes::intrinsic_expression_node::sincos, 				nodes::type_node::datatype_void,  0, 0, nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_float, 2, 1),
+				intrinsic("sincos",				nodes::intrinsic_expression_node::sincos, 				nodes::type_node::datatype_void,  0, 0, nodes::type_node::datatype_float, 3, 1, nodes::type_node::datatype_float, 3, 1, nodes::type_node::datatype_float, 3, 1),
+				intrinsic("sincos",				nodes::intrinsic_expression_node::sincos, 				nodes::type_node::datatype_void,  0, 0, nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_float, 4, 1),
+				intrinsic("sinh", 				nodes::intrinsic_expression_node::sinh, 				nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 1, 1),
+				intrinsic("sinh", 				nodes::intrinsic_expression_node::sinh, 				nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_float, 2, 1),
+				intrinsic("sinh", 				nodes::intrinsic_expression_node::sinh, 				nodes::type_node::datatype_float, 3, 1, nodes::type_node::datatype_float, 3, 1),
+				intrinsic("sinh", 				nodes::intrinsic_expression_node::sinh, 				nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_float, 4, 1),
+				intrinsic("smoothstep",			nodes::intrinsic_expression_node::smoothstep, 			nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 1, 1),
+				intrinsic("smoothstep",			nodes::intrinsic_expression_node::smoothstep, 			nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_float, 2, 1),
+				intrinsic("smoothstep",			nodes::intrinsic_expression_node::smoothstep, 			nodes::type_node::datatype_float, 3, 1, nodes::type_node::datatype_float, 3, 1, nodes::type_node::datatype_float, 3, 1, nodes::type_node::datatype_float, 3, 1),
+				intrinsic("smoothstep",			nodes::intrinsic_expression_node::smoothstep, 			nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_float, 4, 1),
+				intrinsic("sqrt", 				nodes::intrinsic_expression_node::sqrt, 				nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 1, 1),
+				intrinsic("sqrt", 				nodes::intrinsic_expression_node::sqrt, 				nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_float, 2, 1),
+				intrinsic("sqrt", 				nodes::intrinsic_expression_node::sqrt, 				nodes::type_node::datatype_float, 3, 1, nodes::type_node::datatype_float, 3, 1),
+				intrinsic("sqrt", 				nodes::intrinsic_expression_node::sqrt, 				nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_float, 4, 1),
+				intrinsic("step", 				nodes::intrinsic_expression_node::step, 				nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 1, 1),
+				intrinsic("step", 				nodes::intrinsic_expression_node::step, 				nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_float, 2, 1),
+				intrinsic("step",				nodes::intrinsic_expression_node::step, 				nodes::type_node::datatype_float, 3, 1, nodes::type_node::datatype_float, 3, 1, nodes::type_node::datatype_float, 3, 1),
+				intrinsic("step",				nodes::intrinsic_expression_node::step, 				nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_float, 4, 1),
+				intrinsic("tan", 				nodes::intrinsic_expression_node::tan, 					nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 1, 1),
+				intrinsic("tan", 				nodes::intrinsic_expression_node::tan, 					nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_float, 2, 1),
+				intrinsic("tan", 				nodes::intrinsic_expression_node::tan, 					nodes::type_node::datatype_float, 3, 1, nodes::type_node::datatype_float, 3, 1),
+				intrinsic("tan", 				nodes::intrinsic_expression_node::tan, 					nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_float, 4, 1),
+				intrinsic("tanh", 				nodes::intrinsic_expression_node::tanh, 				nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 1, 1),
+				intrinsic("tanh", 				nodes::intrinsic_expression_node::tanh, 				nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_float, 2, 1),
+				intrinsic("tanh", 				nodes::intrinsic_expression_node::tanh, 				nodes::type_node::datatype_float, 3, 1, nodes::type_node::datatype_float, 3, 1),
+				intrinsic("tanh", 				nodes::intrinsic_expression_node::tanh, 				nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_float, 4, 1),
+				intrinsic("tex2D",				nodes::intrinsic_expression_node::tex2d,				nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_sampler, 0, 0, nodes::type_node::datatype_float, 2, 1),
+				intrinsic("tex2Dfetch",			nodes::intrinsic_expression_node::tex2dfetch,			nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_sampler, 0, 0, nodes::type_node::datatype_int,   2, 1),
+				intrinsic("tex2Dgather",		nodes::intrinsic_expression_node::tex2dgather,			nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_sampler, 0, 0, nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_int,   1, 1),
+				intrinsic("tex2Dgatheroffset",	nodes::intrinsic_expression_node::tex2dgatheroffset,	nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_sampler, 0, 0, nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_int,   2, 1, nodes::type_node::datatype_int,   1, 1),
+				intrinsic("tex2Dgrad",			nodes::intrinsic_expression_node::tex2dgrad,			nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_sampler, 0, 0, nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_float, 2, 1),
+				intrinsic("tex2Dlod",			nodes::intrinsic_expression_node::tex2dlevel,			nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_sampler, 0, 0, nodes::type_node::datatype_float, 4, 1),
+				intrinsic("tex2Dlodoffset",		nodes::intrinsic_expression_node::tex2dleveloffset,		nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_sampler, 0, 0, nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_int,   2, 1),
+				intrinsic("tex2Doffset",		nodes::intrinsic_expression_node::tex2doffset,			nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_sampler, 0, 0, nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_int,   2, 1),
+				intrinsic("tex2Dproj",			nodes::intrinsic_expression_node::tex2dproj,			nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_sampler, 0, 0, nodes::type_node::datatype_float, 4, 1),
+				intrinsic("tex2Dsize",			nodes::intrinsic_expression_node::tex2dsize,			nodes::type_node::datatype_int,   2, 1, nodes::type_node::datatype_sampler, 0, 0, nodes::type_node::datatype_int,   1, 1),
+				intrinsic("transpose", 			nodes::intrinsic_expression_node::transpose, 			nodes::type_node::datatype_float, 2, 2, nodes::type_node::datatype_float, 2, 2),
+				intrinsic("transpose", 			nodes::intrinsic_expression_node::transpose, 			nodes::type_node::datatype_float, 3, 3, nodes::type_node::datatype_float, 3, 3),
+				intrinsic("transpose",			nodes::intrinsic_expression_node::transpose, 			nodes::type_node::datatype_float, 4, 4, nodes::type_node::datatype_float, 4, 4),
+				intrinsic("trunc", 				nodes::intrinsic_expression_node::trunc, 				nodes::type_node::datatype_float, 1, 1, nodes::type_node::datatype_float, 1, 1),
+				intrinsic("trunc", 				nodes::intrinsic_expression_node::trunc, 				nodes::type_node::datatype_float, 2, 1, nodes::type_node::datatype_float, 2, 1),
+				intrinsic("trunc", 				nodes::intrinsic_expression_node::trunc, 				nodes::type_node::datatype_float, 3, 1, nodes::type_node::datatype_float, 3, 1),
+				intrinsic("trunc",				nodes::intrinsic_expression_node::trunc, 				nodes::type_node::datatype_float, 4, 1, nodes::type_node::datatype_float, 4, 1),
 			};
 			#pragma endregion
 
@@ -371,12 +371,12 @@ namespace reshade
 			{
 				switch (from->type.basetype)
 				{
-					case nodes::type_node::bool_:
-					case nodes::type_node::int_:
-					case nodes::type_node::uint_:
+					case nodes::type_node::datatype_bool:
+					case nodes::type_node::datatype_int:
+					case nodes::type_node::datatype_uint:
 						to = from->value_int[i];
 						break;
-					case nodes::type_node::float_:
+					case nodes::type_node::datatype_float:
 						to = static_cast<int>(from->value_float[i]);
 						break;
 					default:
@@ -388,12 +388,12 @@ namespace reshade
 			{
 				switch (from->type.basetype)
 				{
-					case nodes::type_node::bool_:
-					case nodes::type_node::int_:
-					case nodes::type_node::uint_:
+					case nodes::type_node::datatype_bool:
+					case nodes::type_node::datatype_int:
+					case nodes::type_node::datatype_uint:
 						to = from->value_uint[i];
 						break;
-					case nodes::type_node::float_:
+					case nodes::type_node::datatype_float:
 						to = static_cast<unsigned int>(from->value_float[i]);
 						break;
 					default:
@@ -405,14 +405,14 @@ namespace reshade
 			{
 				switch (from->type.basetype)
 				{
-					case nodes::type_node::bool_:
-					case nodes::type_node::int_:
+					case nodes::type_node::datatype_bool:
+					case nodes::type_node::datatype_int:
 						to = static_cast<float>(from->value_int[i]);
 						break;
-					case nodes::type_node::uint_:
+					case nodes::type_node::datatype_uint:
 						to = static_cast<float>(from->value_uint[i]);
 						break;
-					case nodes::type_node::float_:
+					case nodes::type_node::datatype_float:
 						to = from->value_float[i];
 						break;
 					default:
@@ -424,14 +424,14 @@ namespace reshade
 			{
 				switch (to->type.basetype)
 				{
-					case nodes::type_node::bool_:
-					case nodes::type_node::int_:
+					case nodes::type_node::datatype_bool:
+					case nodes::type_node::datatype_int:
 						scalar_literal_cast(from, j, to->value_int[k]);
 						break;
-					case nodes::type_node::uint_:
+					case nodes::type_node::datatype_uint:
 						scalar_literal_cast(from, j, to->value_uint[k]);
 						break;
-					case nodes::type_node::float_:
+					case nodes::type_node::datatype_float:
 						scalar_literal_cast(from, j, to->value_float[k]);
 						break;
 					default:
@@ -994,7 +994,7 @@ namespace reshade
 			if (peek(lexer::tokenid::identifier))
 			{
 				type.rows = type.cols = 0;
-				type.basetype = nodes::type_node::struct_;
+				type.basetype = nodes::type_node::datatype_struct;
 
 				const auto symbol = find_symbol(_token_next.literal_as_string);
 
@@ -1012,7 +1012,7 @@ namespace reshade
 			else if (accept(lexer::tokenid::vector))
 			{
 				type.rows = 4, type.cols = 1;
-				type.basetype = nodes::type_node::float_;
+				type.basetype = nodes::type_node::datatype_float;
 
 				if (accept('<'))
 				{
@@ -1053,7 +1053,7 @@ namespace reshade
 			else if (accept(lexer::tokenid::matrix))
 			{
 				type.rows = 4, type.cols = 4;
-				type.basetype = nodes::type_node::float_;
+				type.basetype = nodes::type_node::datatype_float;
 
 				if (accept('<'))
 				{
@@ -1112,140 +1112,132 @@ namespace reshade
 				switch (_token_next.id)
 				{
 					case lexer::tokenid::void_:
-						type.basetype = nodes::type_node::void_;
+						type.basetype = nodes::type_node::datatype_void;
 						break;
 					case lexer::tokenid::bool_:
 						type.rows = 1, type.cols = 1;
-						type.basetype = nodes::type_node::bool_;
+						type.basetype = nodes::type_node::datatype_bool;
 						break;
 					case lexer::tokenid::bool2:
 						type.rows = 2, type.cols = 1;
-						type.basetype = nodes::type_node::bool_;
+						type.basetype = nodes::type_node::datatype_bool;
 						break;
 					case lexer::tokenid::bool2x2:
 						type.rows = 2, type.cols = 2;
-						type.basetype = nodes::type_node::bool_;
+						type.basetype = nodes::type_node::datatype_bool;
 						break;
 					case lexer::tokenid::bool3:
 						type.rows = 3, type.cols = 1;
-						type.basetype = nodes::type_node::bool_;
+						type.basetype = nodes::type_node::datatype_bool;
 						break;
 					case lexer::tokenid::bool3x3:
 						type.rows = 3, type.cols = 3;
-						type.basetype = nodes::type_node::bool_;
+						type.basetype = nodes::type_node::datatype_bool;
 						break;
 					case lexer::tokenid::bool4:
 						type.rows = 4, type.cols = 1;
-						type.basetype = nodes::type_node::bool_;
+						type.basetype = nodes::type_node::datatype_bool;
 						break;
 					case lexer::tokenid::bool4x4:
 						type.rows = 4, type.cols = 4;
-						type.basetype = nodes::type_node::bool_;
+						type.basetype = nodes::type_node::datatype_bool;
 						break;
 					case lexer::tokenid::int_:
 						type.rows = 1, type.cols = 1;
-						type.basetype = nodes::type_node::int_;
+						type.basetype = nodes::type_node::datatype_int;
 						break;
 					case lexer::tokenid::int2:
 						type.rows = 2, type.cols = 1;
-						type.basetype = nodes::type_node::int_;
+						type.basetype = nodes::type_node::datatype_int;
 						break;
 					case lexer::tokenid::int2x2:
 						type.rows = 2, type.cols = 2;
-						type.basetype = nodes::type_node::int_;
+						type.basetype = nodes::type_node::datatype_int;
 						break;
 					case lexer::tokenid::int3:
 						type.rows = 3, type.cols = 1;
-						type.basetype = nodes::type_node::int_;
+						type.basetype = nodes::type_node::datatype_int;
 						break;
 					case lexer::tokenid::int3x3:
 						type.rows = 3, type.cols = 3;
-						type.basetype = nodes::type_node::int_;
+						type.basetype = nodes::type_node::datatype_int;
 						break;
 					case lexer::tokenid::int4:
 						type.rows = 4, type.cols = 1;
-						type.basetype = nodes::type_node::int_;
+						type.basetype = nodes::type_node::datatype_int;
 						break;
 					case lexer::tokenid::int4x4:
 						type.rows = 4, type.cols = 4;
-						type.basetype = nodes::type_node::int_;
+						type.basetype = nodes::type_node::datatype_int;
 						break;
 					case lexer::tokenid::uint_:
 						type.rows = 1, type.cols = 1;
-						type.basetype = nodes::type_node::uint_;
+						type.basetype = nodes::type_node::datatype_uint;
 						break;
 					case lexer::tokenid::uint2:
 						type.rows = 2, type.cols = 1;
-						type.basetype = nodes::type_node::uint_;
+						type.basetype = nodes::type_node::datatype_uint;
 						break;
 					case lexer::tokenid::uint2x2:
 						type.rows = 2, type.cols = 2;
-						type.basetype = nodes::type_node::uint_;
+						type.basetype = nodes::type_node::datatype_uint;
 						break;
 					case lexer::tokenid::uint3:
 						type.rows = 3, type.cols = 1;
-						type.basetype = nodes::type_node::uint_;
+						type.basetype = nodes::type_node::datatype_uint;
 						break;
 					case lexer::tokenid::uint3x3:
 						type.rows = 3, type.cols = 3;
-						type.basetype = nodes::type_node::uint_;
+						type.basetype = nodes::type_node::datatype_uint;
 						break;
 					case lexer::tokenid::uint4:
 						type.rows = 4, type.cols = 1;
-						type.basetype = nodes::type_node::uint_;
+						type.basetype = nodes::type_node::datatype_uint;
 						break;
 					case lexer::tokenid::uint4x4:
 						type.rows = 4, type.cols = 4;
-						type.basetype = nodes::type_node::uint_;
+						type.basetype = nodes::type_node::datatype_uint;
 						break;
 					case lexer::tokenid::float_:
 						type.rows = 1, type.cols = 1;
-						type.basetype = nodes::type_node::float_;
+						type.basetype = nodes::type_node::datatype_float;
 						break;
 					case lexer::tokenid::float2:
 						type.rows = 2, type.cols = 1;
-						type.basetype = nodes::type_node::float_;
+						type.basetype = nodes::type_node::datatype_float;
 						break;
 					case lexer::tokenid::float2x2:
 						type.rows = 2, type.cols = 2;
-						type.basetype = nodes::type_node::float_;
+						type.basetype = nodes::type_node::datatype_float;
 						break;
 					case lexer::tokenid::float3:
 						type.rows = 3, type.cols = 1;
-						type.basetype = nodes::type_node::float_;
+						type.basetype = nodes::type_node::datatype_float;
 						break;
 					case lexer::tokenid::float3x3:
 						type.rows = 3, type.cols = 3;
-						type.basetype = nodes::type_node::float_;
+						type.basetype = nodes::type_node::datatype_float;
 						break;
 					case lexer::tokenid::float4:
 						type.rows = 4, type.cols = 1;
-						type.basetype = nodes::type_node::float_;
+						type.basetype = nodes::type_node::datatype_float;
 						break;
 					case lexer::tokenid::float4x4:
 						type.rows = 4, type.cols = 4;
-						type.basetype = nodes::type_node::float_;
+						type.basetype = nodes::type_node::datatype_float;
 						break;
 					case lexer::tokenid::string_:
-						type.basetype = nodes::type_node::string_;
+						type.basetype = nodes::type_node::datatype_string;
 						break;
 					case lexer::tokenid::texture1d:
-						type.basetype = nodes::type_node::texture1d;
-						break;
 					case lexer::tokenid::texture2d:
-						type.basetype = nodes::type_node::texture2d;
-						break;
 					case lexer::tokenid::texture3d:
-						type.basetype = nodes::type_node::texture3d;
+						type.basetype = nodes::type_node::datatype_texture;
 						break;
 					case lexer::tokenid::sampler1d:
-						type.basetype = nodes::type_node::sampler1d;
-						break;
 					case lexer::tokenid::sampler2d:
-						type.basetype = nodes::type_node::sampler2d;
-						break;
 					case lexer::tokenid::sampler3d:
-						type.basetype = nodes::type_node::sampler3d;
+						type.basetype = nodes::type_node::datatype_sampler;
 						break;
 					default:
 						return false;
@@ -1263,60 +1255,60 @@ namespace reshade
 			// Storage
 			if (accept(lexer::tokenid::extern_))
 			{
-				qualifiers |= nodes::type_node::extern_;
+				qualifiers |= nodes::type_node::qualifier_extern;
 			}
 			if (accept(lexer::tokenid::static_))
 			{
-				qualifiers |= nodes::type_node::static_;
+				qualifiers |= nodes::type_node::qualifier_static;
 			}
 			if (accept(lexer::tokenid::uniform_))
 			{
-				qualifiers |= nodes::type_node::uniform_;
+				qualifiers |= nodes::type_node::qualifier_uniform;
 			}
 			if (accept(lexer::tokenid::volatile_))
 			{
-				qualifiers |= nodes::type_node::volatile_;
+				qualifiers |= nodes::type_node::qualifier_volatile;
 			}
 			if (accept(lexer::tokenid::precise))
 			{
-				qualifiers |= nodes::type_node::precise;
+				qualifiers |= nodes::type_node::qualifier_precise;
 			}
 
 			if (accept(lexer::tokenid::in))
 			{
-				qualifiers |= nodes::type_node::in;
+				qualifiers |= nodes::type_node::qualifier_in;
 			}
 			if (accept(lexer::tokenid::out))
 			{
-				qualifiers |= nodes::type_node::out;
+				qualifiers |= nodes::type_node::qualifier_out;
 			}
 			if (accept(lexer::tokenid::inout))
 			{
-				qualifiers |= nodes::type_node::inout;
+				qualifiers |= nodes::type_node::qualifier_inout;
 			}
 
 			// Modifiers
 			if (accept(lexer::tokenid::const_))
 			{
-				qualifiers |= nodes::type_node::const_;
+				qualifiers |= nodes::type_node::qualifier_const;
 			}
 
 			// Interpolation
 			if (accept(lexer::tokenid::linear))
 			{
-				qualifiers |= nodes::type_node::linear;
+				qualifiers |= nodes::type_node::qualifier_linear;
 			}
 			if (accept(lexer::tokenid::noperspective))
 			{
-				qualifiers |= nodes::type_node::noperspective;
+				qualifiers |= nodes::type_node::qualifier_noperspective;
 			}
 			if (accept(lexer::tokenid::centroid))
 			{
-				qualifiers |= nodes::type_node::centroid;
+				qualifiers |= nodes::type_node::qualifier_centroid;
 			}
 			if (accept(lexer::tokenid::nointerpolation))
 			{
-				qualifiers |= nodes::type_node::nointerpolation;
+				qualifiers |= nodes::type_node::qualifier_nointerpolation;
 			}
 
 			if (qualifiers == 0)
@@ -1347,16 +1339,16 @@ namespace reshade
 				return false;
 			}
 
-			if (type.is_integral() && (type.has_qualifier(nodes::type_node::centroid) || type.has_qualifier(nodes::type_node::noperspective)))
+			if (type.is_integral() && (type.has_qualifier(nodes::type_node::qualifier_centroid) || type.has_qualifier(nodes::type_node::qualifier_noperspective)))
 			{
 				error(location, 4576, "signature specifies invalid interpolation mode for integer component type");
 
 				return false;
 			}
 
-			if (type.has_qualifier(nodes::type_node::centroid) && !type.has_qualifier(nodes::type_node::noperspective))
+			if (type.has_qualifier(nodes::type_node::qualifier_centroid) && !type.has_qualifier(nodes::type_node::qualifier_noperspective))
 			{
-				type.qualifiers |= nodes::type_node::linear;
+				type.qualifiers |= nodes::type_node::qualifier_linear;
 			}
 
 			return true;
@@ -1602,7 +1594,7 @@ namespace reshade
 
 						return false;
 					}
-					else if ((op == nodes::unary_expression_node::pre_increase || op == nodes::unary_expression_node::pre_decrease) && (node->type.has_qualifier(nodes::type_node::const_) || node->type.has_qualifier(nodes::type_node::uniform_)))
+					else if ((op == nodes::unary_expression_node::pre_increase || op == nodes::unary_expression_node::pre_decrease) && (node->type.has_qualifier(nodes::type_node::qualifier_const) || node->type.has_qualifier(nodes::type_node::qualifier_uniform)))
 					{
 						error(node->location, 3025, "l-value specifies const object");
 
@@ -1655,7 +1647,7 @@ namespace reshade
 							}
 
 							const auto castexpression = _ast->make_node<nodes::unary_expression_node>(location);
-							type.qualifiers = nodes::type_node::const_;
+							type.qualifiers = nodes::type_node::qualifier_const;
 							castexpression->type = type;
 							castexpression->op = nodes::unary_expression_node::cast;
 							castexpression->operand = node;
@@ -1692,8 +1684,8 @@ namespace reshade
 			else if (accept(lexer::tokenid::true_literal))
 			{
 				const auto literal = _ast->make_node<nodes::literal_expression_node>(location);
-				literal->type.basetype = nodes::type_node::bool_;
-				literal->type.qualifiers = nodes::type_node::const_;
+				literal->type.basetype = nodes::type_node::datatype_bool;
+				literal->type.qualifiers = nodes::type_node::qualifier_const;
 				literal->type.rows = literal->type.cols = 1, literal->type.array_length = 0;
 				literal->value_int[0] = 1;
 
@@ -1703,8 +1695,8 @@ namespace reshade
 			else if (accept(lexer::tokenid::false_literal))
 			{
 				const auto literal = _ast->make_node<nodes::literal_expression_node>(location);
-				literal->type.basetype = nodes::type_node::bool_;
-				literal->type.qualifiers = nodes::type_node::const_;
+				literal->type.basetype = nodes::type_node::datatype_bool;
+				literal->type.qualifiers = nodes::type_node::qualifier_const;
 				literal->type.rows = literal->type.cols = 1, literal->type.array_length = 0;
 				literal->value_int[0] = 0;
 
@@ -1714,8 +1706,8 @@ namespace reshade
 			else if (accept(lexer::tokenid::int_literal))
 			{
 				nodes::literal_expression_node *const literal = _ast->make_node<nodes::literal_expression_node>(location);
-				literal->type.basetype = nodes::type_node::int_;
-				literal->type.qualifiers = nodes::type_node::const_;
+				literal->type.basetype = nodes::type_node::datatype_int;
+				literal->type.qualifiers = nodes::type_node::qualifier_const;
 				literal->type.rows = literal->type.cols = 1, literal->type.array_length = 0;
 				literal->value_int[0] = _token.literal_as_int;
 
@@ -1725,8 +1717,8 @@ namespace reshade
 			else if (accept(lexer::tokenid::uint_literal))
 			{
 				const auto literal = _ast->make_node<nodes::literal_expression_node>(location);
-				literal->type.basetype = nodes::type_node::uint_;
-				literal->type.qualifiers = nodes::type_node::const_;
+				literal->type.basetype = nodes::type_node::datatype_uint;
+				literal->type.qualifiers = nodes::type_node::qualifier_const;
 				literal->type.rows = literal->type.cols = 1, literal->type.array_length = 0;
 				literal->value_uint[0] = _token.literal_as_uint;
 
@@ -1736,8 +1728,8 @@ namespace reshade
 			else if (accept(lexer::tokenid::float_literal))
 			{
 				const auto literal = _ast->make_node<nodes::literal_expression_node>(location);
-				literal->type.basetype = nodes::type_node::float_;
-				literal->type.qualifiers = nodes::type_node::const_;
+				literal->type.basetype = nodes::type_node::datatype_float;
+				literal->type.qualifiers = nodes::type_node::qualifier_const;
 				literal->type.rows = literal->type.cols = 1, literal->type.array_length = 0;
 				literal->value_float[0] = _token.literal_as_float;
 
@@ -1747,8 +1739,8 @@ namespace reshade
 			else if (accept(lexer::tokenid::double_literal))
 			{
 				const auto literal = _ast->make_node<nodes::literal_expression_node>(location);
-				literal->type.basetype = nodes::type_node::float_;
-				literal->type.qualifiers = nodes::type_node::const_;
+				literal->type.basetype = nodes::type_node::datatype_float;
+				literal->type.qualifiers = nodes::type_node::qualifier_const;
 				literal->type.rows = literal->type.cols = 1, literal->type.array_length = 0;
 				literal->value_float[0] = static_cast<float>(_token.literal_as_double);
 
@@ -1758,8 +1750,8 @@ namespace reshade
 			else if (accept(lexer::tokenid::string_literal))
 			{
 				const auto literal = _ast->make_node<nodes::literal_expression_node>(location);
-				literal->type.basetype = nodes::type_node::string_;
-				literal->type.qualifiers = nodes::type_node::const_;
+				literal->type.basetype = nodes::type_node::datatype_string;
+				literal->type.qualifiers = nodes::type_node::qualifier_const;
 				literal->type.rows = literal->type.cols = 0, literal->type.array_length = 0;
 				literal->value_string = _token.literal_as_string;
 
@@ -1794,7 +1786,7 @@ namespace reshade
 
 				const auto constructor = _ast->make_node<nodes::constructor_expression_node>(location);
 				constructor->type = type;
-				constructor->type.qualifiers = nodes::type_node::const_;
+				constructor->type.qualifiers = nodes::type_node::qualifier_const;
 
 				unsigned int elements = 0;
 
@@ -2014,7 +2006,7 @@ namespace reshade
 						return false;
 					}
 
-					if (type.has_qualifier(nodes::type_node::const_) || type.has_qualifier(nodes::type_node::uniform_))
+					if (type.has_qualifier(nodes::type_node::qualifier_const) || type.has_qualifier(nodes::type_node::qualifier_uniform))
 					{
 						error(node->location, 3025, "l-value specifies const object");
 
@@ -2023,7 +2015,7 @@ namespace reshade
 
 					const auto newexpression = _ast->make_node<nodes::unary_expression_node>(location);
 					newexpression->type = type;
-					newexpression->type.qualifiers |= nodes::type_node::const_;
+					newexpression->type.qualifiers |= nodes::type_node::qualifier_const;
 					newexpression->op = op;
 					newexpression->operand = node;
 
@@ -2127,10 +2119,10 @@ namespace reshade
 						newexpression->mask[2] = offsets[2];
 						newexpression->mask[3] = offsets[3];
 
-						if (constant || type.has_qualifier(nodes::type_node::uniform_))
+						if (constant || type.has_qualifier(nodes::type_node::qualifier_uniform))
 						{
-							newexpression->type.qualifiers |= nodes::type_node::const_;
-							newexpression->type.qualifiers &= ~nodes::type_node::uniform_;
+							newexpression->type.qualifiers |= nodes::type_node::qualifier_const;
+							newexpression->type.qualifiers &= ~nodes::type_node::qualifier_uniform;
 						}
 
 						node = fold_constant_expression(newexpression);
@@ -2199,10 +2191,10 @@ namespace reshade
 						newexpression->mask[2] = offsets[2];
 						newexpression->mask[3] = offsets[3];
 
-						if (constant || type.has_qualifier(nodes::type_node::uniform_))
+						if (constant || type.has_qualifier(nodes::type_node::qualifier_uniform))
 						{
-							newexpression->type.qualifiers |= nodes::type_node::const_;
-							newexpression->type.qualifiers &= ~nodes::type_node::uniform_;
+							newexpression->type.qualifiers |= nodes::type_node::qualifier_const;
+							newexpression->type.qualifiers &= ~nodes::type_node::qualifier_uniform;
 						}
 
 						node = fold_constant_expression(newexpression);
@@ -2233,10 +2225,10 @@ namespace reshade
 						newexpression->operand = node;
 						newexpression->field_reference = field;
 
-						if (type.has_qualifier(nodes::type_node::uniform_))
+						if (type.has_qualifier(nodes::type_node::qualifier_uniform))
 						{
-							newexpression->type.qualifiers |= nodes::type_node::const_;
-							newexpression->type.qualifiers &= ~nodes::type_node::uniform_;
+							newexpression->type.qualifiers |= nodes::type_node::qualifier_const;
+							newexpression->type.qualifiers &= ~nodes::type_node::qualifier_uniform;
 						}
 
 						node = newexpression;
@@ -2261,7 +2253,7 @@ namespace reshade
 
 						const auto newexpression = _ast->make_node<nodes::swizzle_expression_node>(location);
 						newexpression->type = type;
-						newexpression->type.qualifiers |= nodes::type_node::const_;
+						newexpression->type.qualifiers |= nodes::type_node::qualifier_const;
 						newexpression->type.rows = static_cast<unsigned int>(length);
 						newexpression->operand = node;
 						newexpression->mask[0] = offsets[0];
@@ -2448,7 +2440,7 @@ namespace reshade
 
 				if (boolean)
 				{
-					left->type.basetype = nodes::type_node::bool_;
+					left->type.basetype = nodes::type_node::datatype_bool;
 				}
 				else
 				{
@@ -2498,7 +2490,7 @@ namespace reshade
 					return false;
 				}
 
-				if (left->type.has_qualifier(nodes::type_node::const_) || left->type.has_qualifier(nodes::type_node::uniform_))
+				if (left->type.has_qualifier(nodes::type_node::qualifier_const) || left->type.has_qualifier(nodes::type_node::qualifier_uniform))
 				{
 					error(left->location, 3025, "l-value specifies const object");
 
@@ -3068,7 +3060,7 @@ namespace reshade
 		}
 		bool parser::parse_top_level()
 		{
-			nodes::type_node type = { nodes::type_node::void_ };
+			nodes::type_node type = { nodes::type_node::datatype_void };
 
 			if (peek(lexer::tokenid::namespace_))
 			{
@@ -3328,7 +3320,7 @@ namespace reshade
 
 					return false;
 				}
-				if (type.has_qualifier(nodes::type_node::in) || type.has_qualifier(nodes::type_node::out))
+				if (type.has_qualifier(nodes::type_node::qualifier_in) || type.has_qualifier(nodes::type_node::qualifier_out))
 				{
 					error(_token_next.location, 3055, "struct members cannot be declared 'in' or 'out'");
 
@@ -3413,7 +3405,7 @@ namespace reshade
 
 			function = _ast->make_node<nodes::function_declaration_node>(location);
 			function->return_type = type;
-			function->return_type.qualifiers = nodes::type_node::const_;
+			function->return_type.qualifiers = nodes::type_node::qualifier_const;
 			function->name = name;
 			function->Namespace = _current_scope.name;
 
@@ -3459,7 +3451,7 @@ namespace reshade
 
 					return false;
 				}
-				if (parameter->type.has_qualifier(nodes::type_node::extern_))
+				if (parameter->type.has_qualifier(nodes::type_node::qualifier_extern))
 				{
 					error(parameter->location, 3006, "function parameters cannot be declared 'extern'");
 
@@ -3467,7 +3459,7 @@ namespace reshade
 
 					return false;
 				}
-				if (parameter->type.has_qualifier(nodes::type_node::static_))
+				if (parameter->type.has_qualifier(nodes::type_node::qualifier_static))
 				{
 					error(parameter->location, 3007, "function parameters cannot be declared 'static'");
 
@@ -3475,7 +3467,7 @@ namespace reshade
 
 					return false;
 				}
-				if (parameter->type.has_qualifier(nodes::type_node::uniform_))
+				if (parameter->type.has_qualifier(nodes::type_node::qualifier_uniform))
 				{
 					error(parameter->location, 3047, "function parameters cannot be declared 'uniform', consider placing in global scope instead");
 
@@ -3484,9 +3476,9 @@ namespace reshade
 					return false;
 				}
 
-				if (parameter->type.has_qualifier(nodes::type_node::out))
+				if (parameter->type.has_qualifier(nodes::type_node::qualifier_out))
 				{
-					if (parameter->type.has_qualifier(nodes::type_node::const_))
+					if (parameter->type.has_qualifier(nodes::type_node::qualifier_const))
 					{
 						error(parameter->location, 3046, "output parameters cannot be declared 'const'");
 
@@ -3497,7 +3489,7 @@ namespace reshade
 				}
 				else
 				{
-					parameter->type.qualifiers |= nodes::type_node::in;
+					parameter->type.qualifiers |= nodes::type_node::qualifier_in;
 				}
 
 				parse_array(parameter->type.array_length);
@@ -3575,7 +3567,7 @@ namespace reshade
 
 				return false;
 			}
-			if (type.has_qualifier(nodes::type_node::in) || type.has_qualifier(nodes::type_node::out))
+			if (type.has_qualifier(nodes::type_node::qualifier_in) || type.has_qualifier(nodes::type_node::qualifier_out))
 			{
 				error(location, 3055, "variables cannot be declared 'in' or 'out'");
 
@@ -3586,25 +3578,25 @@ namespace reshade
 
 			if (parent == nullptr)
 			{
-				if (!type.has_qualifier(nodes::type_node::static_))
+				if (!type.has_qualifier(nodes::type_node::qualifier_static))
 				{
-					if (!type.has_qualifier(nodes::type_node::uniform_) && !(type.is_texture() || type.is_sampler()))
+					if (!type.has_qualifier(nodes::type_node::qualifier_uniform) && !(type.is_texture() || type.is_sampler()))
 					{
 						warning(location, 5000, "global variables are considered 'uniform' by default");
 					}
 
-					type.qualifiers |= nodes::type_node::extern_ | nodes::type_node::uniform_;
+					type.qualifiers |= nodes::type_node::qualifier_extern | nodes::type_node::qualifier_uniform;
 				}
 			}
 			else
 			{
-				if (type.has_qualifier(nodes::type_node::extern_))
+				if (type.has_qualifier(nodes::type_node::qualifier_extern))
 				{
 					error(location, 3006, "local variables cannot be declared 'extern'");
 
 					return false;
 				}
-				if (type.has_qualifier(nodes::type_node::uniform_))
+				if (type.has_qualifier(nodes::type_node::qualifier_uniform))
 				{
 					error(location, 3047, "local variables cannot be declared 'uniform'");
 
@@ -3670,7 +3662,7 @@ namespace reshade
 				{
 					const auto nullval = _ast->make_node<nodes::literal_expression_node>(location);
 					nullval->type.basetype = type.basetype;
-					nullval->type.qualifiers = nodes::type_node::const_;
+					nullval->type.qualifiers = nodes::type_node::qualifier_const;
 					nullval->type.rows = type.rows, nullval->type.cols = type.cols, nullval->type.array_length = 0;
 
 					const auto initializerlist = static_cast<nodes::initializer_list_node *>(variable->initializer_expression);
@@ -3702,7 +3694,7 @@ namespace reshade
 			}
 			else if (type.is_numeric())
 			{
-				if (type.has_qualifier(nodes::type_node::const_))
+				if (type.has_qualifier(nodes::type_node::qualifier_const))
 				{
 					error(location, 3012, "missing initial value for '%s'", name.c_str());
 
@@ -3944,7 +3936,7 @@ namespace reshade
 				if (it != sEnums.end())
 				{
 					const auto newexpression = _ast->make_node<nodes::literal_expression_node>(location);
-					newexpression->type.basetype = nodes::type_node::uint_;
+					newexpression->type.basetype = nodes::type_node::datatype_uint;
 					newexpression->type.rows = newexpression->type.cols = 1, newexpression->type.array_length = 0;
 					newexpression->value_uint[0] = it->second;
 
@@ -4055,7 +4047,7 @@ namespace reshade
 						index = passstate[12] - '0';
 					}
 
-					if (value->id != nodeid::lvalue_expression || static_cast<nodes::lvalue_expression_node *>(value)->reference->id != nodeid::variable_declaration || static_cast<nodes::lvalue_expression_node *>(value)->reference->type.basetype != nodes::type_node::texture2d || static_cast<nodes::lvalue_expression_node *>(value)->reference->type.is_array())
+					if (value->id != nodeid::lvalue_expression || static_cast<nodes::lvalue_expression_node *>(value)->reference->id != nodeid::variable_declaration || static_cast<nodes::lvalue_expression_node *>(value)->reference->type.basetype != nodes::type_node::datatype_texture || static_cast<nodes::lvalue_expression_node *>(value)->reference->type.is_array())
 					{
 						error(location, 3020, "type mismatch, expected texture name");
 
@@ -4229,7 +4221,7 @@ namespace reshade
 				if (it != sEnums.end())
 				{
 					const auto newexpression = _ast->make_node<nodes::literal_expression_node>(location);
-					newexpression->type.basetype = nodes::type_node::uint_;
+					newexpression->type.basetype = nodes::type_node::datatype_uint;
 					newexpression->type.rows = newexpression->type.cols = 1, newexpression->type.array_length = 0;
 					newexpression->value_uint[0] = it->second;
 
@@ -4508,21 +4500,21 @@ namespace reshade
 			for (unsigned int i = 0; i < operand->type.rows * operand->type.cols; ++i) \
 				switch (operand->type.basetype) \
 				{ \
-					case nodes::type_node::bool_: case nodes::type_node::int_: case nodes::type_node::uint_: \
+					case nodes::type_node::datatype_bool: case nodes::type_node::datatype_int: case nodes::type_node::datatype_uint: \
 						switch (expression->type.basetype) \
 						{ \
-							case nodes::type_node::bool_: case nodes::type_node::int_: case nodes::type_node::uint_: \
+							case nodes::type_node::datatype_bool: case nodes::type_node::datatype_int: case nodes::type_node::datatype_uint: \
 								operand->value_int[i] = static_cast<int>(op(operand->value_int[i])); break; \
-							case nodes::type_node::float_: \
+							case nodes::type_node::datatype_float: \
 								operand->value_float[i] = static_cast<float>(op(operand->value_int[i])); break; \
 						} \
 						break; \
-					case nodes::type_node::float_: \
+					case nodes::type_node::datatype_float: \
 						switch (expression->type.basetype) \
 						{ \
-							case nodes::type_node::bool_: case nodes::type_node::int_: case nodes::type_node::uint_: \
+							case nodes::type_node::datatype_bool: case nodes::type_node::datatype_int: case nodes::type_node::datatype_uint: \
 								operand->value_int[i] = static_cast<int>(op(operand->value_float[i])); break; \
-							case nodes::type_node::float_: \
+							case nodes::type_node::datatype_float: \
 								operand->value_float[i] = static_cast<float>(op(operand->value_float[i])); break; \
 						} \
 						break; \
@@ -4534,19 +4526,19 @@ namespace reshade
 			for (unsigned int i = 0; i < expression->type.rows * expression->type.cols; ++i) \
 				switch (left->type.basetype) \
 				{ \
-					case nodes::type_node::bool_:  case nodes::type_node::int_: case nodes::type_node::uint_: \
+					case nodes::type_node::datatype_bool:  case nodes::type_node::datatype_int: case nodes::type_node::datatype_uint: \
 						switch (right->type.basetype) \
 						{ \
-							case nodes::type_node::bool_: case nodes::type_node::int_: case nodes::type_node::uint_: \
+							case nodes::type_node::datatype_bool: case nodes::type_node::datatype_int: case nodes::type_node::datatype_uint: \
 								result.value_int[i] = left->value_int[leftScalar ? 0 : i] op right->value_int[rightScalar ? 0 : i]; \
 								break; \
-							case nodes::type_node::float_: \
+							case nodes::type_node::datatype_float: \
 								result.value_float[i] = static_cast<float>(left->value_int[!leftScalar * i]) op right->value_float[!rightScalar * i]; \
 								break; \
 						} \
 						break; \
-					case nodes::type_node::float_: \
-						result.value_float[i] = (right->type.basetype == nodes::type_node::float_) ? (left->value_float[!leftScalar * i] op right->value_float[!rightScalar * i]) : (left->value_float[!leftScalar * i] op static_cast<float>(right->value_int[!rightScalar * i])); \
+					case nodes::type_node::datatype_float: \
+						result.value_float[i] = (right->type.basetype == nodes::type_node::datatype_float) ? (left->value_float[!leftScalar * i] op right->value_float[!rightScalar * i]) : (left->value_float[!leftScalar * i] op static_cast<float>(right->value_int[!rightScalar * i])); \
 						break; \
 				} \
 			left->type = expression->type; \
@@ -4566,15 +4558,15 @@ namespace reshade
 			for (unsigned int i = 0; i < expression->type.rows * expression->type.cols; ++i) \
 				switch (left->type.basetype) \
 				{ \
-					case nodes::type_node::bool_: case nodes::type_node::int_: case nodes::type_node::uint_: \
-						result.value_int[i] = (right->type.basetype == nodes::type_node::float_) ? (static_cast<float>(left->value_int[!leftScalar * i]) op right->value_float[!rightScalar * i]) : (left->value_int[!leftScalar * i] op right->value_int[!rightScalar * i]); \
+					case nodes::type_node::datatype_bool: case nodes::type_node::datatype_int: case nodes::type_node::datatype_uint: \
+						result.value_int[i] = (right->type.basetype == nodes::type_node::datatype_float) ? (static_cast<float>(left->value_int[!leftScalar * i]) op right->value_float[!rightScalar * i]) : (left->value_int[!leftScalar * i] op right->value_int[!rightScalar * i]); \
 						break; \
-					case nodes::type_node::float_: \
-						result.value_int[i] = (right->type.basetype == nodes::type_node::float_) ? (left->value_float[!leftScalar * i] op static_cast<float>(right->value_int[!rightScalar * i])) : (left->value_float[!leftScalar * i] op right->value_float[!rightScalar * i]); \
+					case nodes::type_node::datatype_float: \
+						result.value_int[i] = (right->type.basetype == nodes::type_node::datatype_float) ? (left->value_float[!leftScalar * i] op static_cast<float>(right->value_int[!rightScalar * i])) : (left->value_float[!leftScalar * i] op right->value_float[!rightScalar * i]); \
 						break; \
 				} \
 			left->type = expression->type; \
-			left->type.basetype = nodes::type_node::bool_; \
+			left->type.basetype = nodes::type_node::datatype_bool; \
 			memcpy(left->value_uint, result.value_uint, sizeof(result.value_uint)); \
 			expression = left; }
 	#define DOFOLDING2_FLOAT(op) { \
@@ -4582,15 +4574,15 @@ namespace reshade
 			for (unsigned int i = 0; i < expression->type.rows * expression->type.cols; ++i) \
 				switch (left->type.basetype) \
 				{ \
-					case nodes::type_node::bool_:  case nodes::type_node::int_: case nodes::type_node::uint_: \
-						result.value_float[i] = (right->type.basetype == nodes::type_node::float_) ? (static_cast<float>(left->value_int[!leftScalar * i]) op right->value_float[!rightScalar * i]) : (left->value_int[leftScalar ? 0 : i] op right->value_int[rightScalar ? 0 : i]); \
+					case nodes::type_node::datatype_bool:  case nodes::type_node::datatype_int: case nodes::type_node::datatype_uint: \
+						result.value_float[i] = (right->type.basetype == nodes::type_node::datatype_float) ? (static_cast<float>(left->value_int[!leftScalar * i]) op right->value_float[!rightScalar * i]) : (left->value_int[leftScalar ? 0 : i] op right->value_int[rightScalar ? 0 : i]); \
 						break; \
-					case nodes::type_node::float_: \
-						result.value_float[i] = (right->type.basetype == nodes::type_node::float_) ? (left->value_float[!leftScalar * i] op right->value_float[!rightScalar * i]) : (left->value_float[!leftScalar * i] op static_cast<float>(right->value_int[!rightScalar * i])); \
+					case nodes::type_node::datatype_float: \
+						result.value_float[i] = (right->type.basetype == nodes::type_node::datatype_float) ? (left->value_float[!leftScalar * i] op right->value_float[!rightScalar * i]) : (left->value_float[!leftScalar * i] op static_cast<float>(right->value_int[!rightScalar * i])); \
 						break; \
 				} \
 			left->type = expression->type; \
-			left->type.basetype = nodes::type_node::float_; \
+			left->type.basetype = nodes::type_node::datatype_float; \
 			memcpy(left->value_uint, result.value_uint, sizeof(result.value_uint)); \
 			expression = left; }
 
@@ -4598,19 +4590,19 @@ namespace reshade
 			for (unsigned int i = 0; i < expression->type.rows * expression->type.cols; ++i) \
 				switch (left->type.basetype) \
 				{ \
-					case nodes::type_node::bool_: case nodes::type_node::int_: case nodes::type_node::uint_: \
+					case nodes::type_node::datatype_bool: case nodes::type_node::datatype_int: case nodes::type_node::datatype_uint: \
 						switch (right->type.basetype) \
 						{ \
-							case nodes::type_node::bool_: case nodes::type_node::int_: case nodes::type_node::uint_: \
+							case nodes::type_node::datatype_bool: case nodes::type_node::datatype_int: case nodes::type_node::datatype_uint: \
 								left->value_int[i] = static_cast<int>(op(left->value_int[i], right->value_int[i])); \
 								break; \
-							case nodes::type_node::float_: \
+							case nodes::type_node::datatype_float: \
 								left->value_float[i] = static_cast<float>(op(static_cast<float>(left->value_int[i]), right->value_float[i])); \
 								break; \
 						} \
 						break; \
-					case nodes::type_node::float_: \
-						left->value_float[i] = (right->type.basetype == nodes::type_node::float_) ? (static_cast<float>(op(left->value_float[i], right->value_float[i]))) : (static_cast<float>(op(left->value_float[i], static_cast<float>(right->value_int[i])))); \
+					case nodes::type_node::datatype_float: \
+						left->value_float[i] = (right->type.basetype == nodes::type_node::datatype_float) ? (static_cast<float>(op(left->value_float[i], right->value_float[i]))) : (static_cast<float>(op(left->value_float[i], static_cast<float>(right->value_int[i])))); \
 						break; \
 				} \
 			left->type = expression->type; \
@@ -4643,9 +4635,9 @@ namespace reshade
 					case nodes::unary_expression_node::logical_not:
 						for (unsigned int i = 0; i < operand->type.rows * operand->type.cols; ++i)
 						{
-							operand->value_int[i] = (operand->type.basetype == nodes::type_node::float_) ? !operand->value_float[i] : !operand->value_int[i];
+							operand->value_int[i] = (operand->type.basetype == nodes::type_node::datatype_float) ? !operand->value_float[i] : !operand->value_int[i];
 						}
-						operand->type.basetype = nodes::type_node::bool_;
+						operand->type.basetype = nodes::type_node::datatype_bool;
 						expression = operand;
 						break;
 					case nodes::unary_expression_node::cast:
@@ -4841,7 +4833,7 @@ namespace reshade
 			{
 				const auto variable = static_cast<nodes::lvalue_expression_node *>(expression)->reference;
 
-				if (variable->initializer_expression == nullptr || !(variable->initializer_expression->id == nodeid::literal_expression && variable->type.has_qualifier(nodes::type_node::const_)))
+				if (variable->initializer_expression == nullptr || !(variable->initializer_expression->id == nodeid::literal_expression && variable->type.has_qualifier(nodes::type_node::qualifier_const)))
 				{
 					return expression;
 				}
