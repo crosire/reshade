@@ -768,16 +768,16 @@ namespace reshade
 
 							while (stack_count > 0)
 							{
-								const int op = stack[--stack_count];
+								const int op2 = stack[--stack_count];
 
-								if (op == op_parentheses)
+								if (op2 == op_parentheses)
 								{
 									matched = true;
 									break;
 								}
 
 								rpn[rpn_count].is_op = true;
-								rpn[rpn_count++].value = op;
+								rpn[rpn_count++].value = op2;
 							}
 
 							if (!matched)
@@ -838,20 +838,20 @@ namespace reshade
 
 							while (stack_count > 0)
 							{
-								const int op = stack[stack_count - 1];
+								const int op2 = stack[stack_count - 1];
 
-								if (op == op_parentheses)
+								if (op2 == op_parentheses)
 								{
 									break;
 								}
 
-								const int precedence2 = precedence[op];
+								const int precedence2 = precedence[op2];
 
 								if ((is_left_associative && (precedence1 <= precedence2)) || (!is_left_associative && (precedence1 < precedence2)))
 								{
 									stack_count--;
 									rpn[rpn_count].is_op = true;
-									rpn[rpn_count++].value = op;
+									rpn[rpn_count++].value = op2;
 								}
 								else
 								{

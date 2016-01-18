@@ -3110,7 +3110,7 @@ namespace reshade
 			#pragma endregion
 
 			#pragma region Generate depthbuffer targets
-			const depth_source_info defaultdepth = { width, height, 0, GL_DEPTH24_STENCIL8 };
+			const depth_source_info defaultdepth = { static_cast<GLint>(width), static_cast<GLint>(height), 0, GL_DEPTH24_STENCIL8 };
 
 			_depth_source_table[0] = defaultdepth;
 

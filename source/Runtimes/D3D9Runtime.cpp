@@ -2975,7 +2975,7 @@ namespace reshade
 						_depthstencil_texture->GetSurfaceLevel(0, &_depthstencil_replacement);
 
 						// Update auto depthstencil
-						IDirect3DSurface9 *depthstencil = nullptr;
+						depthstencil = nullptr;
 						_device->GetDepthStencilSurface(&depthstencil);
 
 						if (depthstencil != nullptr)

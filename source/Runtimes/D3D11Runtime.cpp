@@ -3410,8 +3410,8 @@ namespace reshade
 				if (_depthstencil != _depthstencil_replacement)
 				{
 					// Update auto depthstencil
+					depthstencil = nullptr;
 					ID3D11RenderTargetView *targets[D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT] = { nullptr };
-					ID3D11DepthStencilView *depthstencil = nullptr;
 
 					_immediate_context->OMGetRenderTargets(D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT, targets, &depthstencil);
 
