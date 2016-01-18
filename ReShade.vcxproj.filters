@@ -1,205 +1,195 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <Filter Include="Core">
+    <Filter Include="core">
       <UniqueIdentifier>{7dea67a5-a2de-4e39-94a8-e8f01b6f070f}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Core\FX">
+    <Filter Include="core\fx">
       <UniqueIdentifier>{c7c87b42-c441-48dc-8d08-ce6e2a6ffa9d}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Core\Hook">
+    <Filter Include="core\hook">
       <UniqueIdentifier>{ed3eb34b-86ef-4bb0-b071-44f1163953bf}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Core\Runtime">
+    <Filter Include="core\runtime">
       <UniqueIdentifier>{ecdb23a8-21dc-4334-b5cf-2ea57d27001d}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Implementation">
-      <UniqueIdentifier>{46bec447-8902-4b8a-99fe-6bf6e239ea01}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Implementation\Hooks">
-      <UniqueIdentifier>{3c3eb495-1eeb-4c7c-b58f-3bbcf24758f6}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Implementation\Runtimes">
-      <UniqueIdentifier>{3d98f6bc-aafb-47f4-97de-20bb7012bc62}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Resources">
-      <UniqueIdentifier>{d408b60a-a09d-437b-9a0f-3ac6ea741b08}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Core\Utils">
+    <Filter Include="core\utils">
       <UniqueIdentifier>{665e98df-788d-48ad-97ee-8f9622ebf7ca}</UniqueIdentifier>
     </Filter>
+    <Filter Include="hooks">
+      <UniqueIdentifier>{3c3eb495-1eeb-4c7c-b58f-3bbcf24758f6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="hooks\exports">
+      <UniqueIdentifier>{ac939230-1e5f-480c-a0c4-9868a5d493ad}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="runtimes">
+      <UniqueIdentifier>{3d98f6bc-aafb-47f4-97de-20bb7012bc62}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="source\Log.cpp">
-      <Filter>Core</Filter>
+    <ClCompile Include="source\log.cpp">
+      <Filter>core</Filter>
     </ClCompile>
-    <ClCompile Include="source\Main.cpp">
-      <Filter>Core</Filter>
+    <ClCompile Include="source\main.cpp">
+      <Filter>core</Filter>
     </ClCompile>
-    <ClCompile Include="source\FX\Lexer.cpp">
-      <Filter>Core\FX</Filter>
+    <ClCompile Include="source\fx\lexer.cpp">
+      <Filter>core\fx</Filter>
     </ClCompile>
-    <ClCompile Include="source\FX\Parser.cpp">
-      <Filter>Core\FX</Filter>
+    <ClCompile Include="source\fx\parser.cpp">
+      <Filter>core\fx</Filter>
     </ClCompile>
-    <ClCompile Include="source\FX\PreProcessor.cpp">
-      <Filter>Core\FX</Filter>
+    <ClCompile Include="source\fx\preprocessor.cpp">
+      <Filter>core\fx</Filter>
     </ClCompile>
-    <ClCompile Include="source\Hook\Hook.cpp">
-      <Filter>Core\Hook</Filter>
+    <ClCompile Include="source\hook\hook.cpp">
+      <Filter>core\hook</Filter>
     </ClCompile>
-    <ClCompile Include="source\Hook\HookManager.cpp">
-      <Filter>Core\Hook</Filter>
+    <ClCompile Include="source\hook\hook_manager.cpp">
+      <Filter>core\hook</Filter>
     </ClCompile>
-    <ClCompile Include="source\Runtime\GUI.cpp">
-      <Filter>Core\Runtime</Filter>
+    <ClCompile Include="source\runtime\gui.cpp">
+      <Filter>core\runtime</Filter>
     </ClCompile>
-    <ClCompile Include="source\Runtime\Input.cpp">
-      <Filter>Core\Runtime</Filter>
+    <ClCompile Include="source\runtime\input.cpp">
+      <Filter>core\runtime</Filter>
     </ClCompile>
-    <ClCompile Include="source\Runtime\Runtime.cpp">
-      <Filter>Core\Runtime</Filter>
+    <ClCompile Include="source\runtime\runtime.cpp">
+      <Filter>core\runtime</Filter>
     </ClCompile>
-    <ClCompile Include="source\Utils\FileWatcher.cpp">
-      <Filter>Core\Utils</Filter>
+    <ClCompile Include="source\utils\file_watcher.cpp">
+      <Filter>core\utils</Filter>
     </ClCompile>
-    <ClCompile Include="source\Hooks\D3D8.cpp">
-      <Filter>Implementation\Hooks</Filter>
+    <ClCompile Include="source\hooks\D3D8.cpp">
+      <Filter>hooks</Filter>
     </ClCompile>
-    <ClCompile Include="source\Hooks\D3D9.cpp">
-      <Filter>Implementation\Hooks</Filter>
+    <ClCompile Include="source\hooks\D3D9.cpp">
+      <Filter>hooks</Filter>
     </ClCompile>
-    <ClCompile Include="source\Hooks\D3D10.cpp">
-      <Filter>Implementation\Hooks</Filter>
+    <ClCompile Include="source\hooks\D3D10.cpp">
+      <Filter>hooks</Filter>
     </ClCompile>
-    <ClCompile Include="source\Hooks\D3D11.cpp">
-      <Filter>Implementation\Hooks</Filter>
+    <ClCompile Include="source\hooks\D3D11.cpp">
+      <Filter>hooks</Filter>
     </ClCompile>
-    <ClCompile Include="source\Hooks\D3D12.cpp">
-      <Filter>Implementation\Hooks</Filter>
+    <ClCompile Include="source\hooks\D3D12.cpp">
+      <Filter>hooks</Filter>
     </ClCompile>
-    <ClCompile Include="source\Hooks\DXGI.cpp">
-      <Filter>Implementation\Hooks</Filter>
+    <ClCompile Include="source\hooks\DXGI.cpp">
+      <Filter>hooks</Filter>
     </ClCompile>
-    <ClCompile Include="source\Hooks\OPENGL32.cpp">
-      <Filter>Implementation\Hooks</Filter>
+    <ClCompile Include="source\hooks\OPENGL32.cpp">
+      <Filter>hooks</Filter>
     </ClCompile>
-    <ClCompile Include="source\Hooks\USER32.cpp">
-      <Filter>Implementation\Hooks</Filter>
+    <ClCompile Include="source\hooks\USER32.cpp">
+      <Filter>hooks</Filter>
     </ClCompile>
-    <ClCompile Include="source\Hooks\WS2_32.cpp">
-      <Filter>Implementation\Hooks</Filter>
+    <ClCompile Include="source\hooks\WS2_32.cpp">
+      <Filter>hooks</Filter>
     </ClCompile>
-    <ClCompile Include="source\Runtimes\D3D9Runtime.cpp">
-      <Filter>Implementation\Runtimes</Filter>
+    <ClCompile Include="source\runtimes\d3d9_runtime.cpp">
+      <Filter>runtimes</Filter>
     </ClCompile>
-    <ClCompile Include="source\Runtimes\D3D10Runtime.cpp">
-      <Filter>Implementation\Runtimes</Filter>
+    <ClCompile Include="source\runtimes\d3d10_runtime.cpp">
+      <Filter>runtimes</Filter>
     </ClCompile>
-    <ClCompile Include="source\Runtimes\D3D11Runtime.cpp">
-      <Filter>Implementation\Runtimes</Filter>
+    <ClCompile Include="source\runtimes\d3d11_runtime.cpp">
+      <Filter>runtimes</Filter>
     </ClCompile>
-    <ClCompile Include="source\Runtimes\D3D12Runtime.cpp">
-      <Filter>Implementation\Runtimes</Filter>
+    <ClCompile Include="source\runtimes\d3d12_runtime.cpp">
+      <Filter>runtimes</Filter>
     </ClCompile>
-    <ClCompile Include="source\Runtimes\GLRuntime.cpp">
-      <Filter>Implementation\Runtimes</Filter>
+    <ClCompile Include="source\runtimes\gl_runtime.cpp">
+      <Filter>runtimes</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="res\Resource.h">
-      <Filter>Resources</Filter>
+    <ClInclude Include="source\log.hpp">
+      <Filter>core</Filter>
     </ClInclude>
-    <ClInclude Include="res\Version.h">
-      <Filter>Resources</Filter>
+    <ClInclude Include="res\version.h">
+      <Filter>core</Filter>
     </ClInclude>
-    <ClInclude Include="source\Log.hpp">
-      <Filter>Core</Filter>
+    <ClInclude Include="source\fx\ast.hpp">
+      <Filter>core\fx</Filter>
     </ClInclude>
-    <ClInclude Include="source\FX\Lexer.hpp">
-      <Filter>Core\FX</Filter>
+    <ClInclude Include="source\fx\lexer.hpp">
+      <Filter>core\fx</Filter>
     </ClInclude>
-    <ClInclude Include="source\FX\Parser.hpp">
-      <Filter>Core\FX</Filter>
+    <ClInclude Include="source\fx\parser.hpp">
+      <Filter>core\fx</Filter>
     </ClInclude>
-    <ClInclude Include="source\FX\ParserNodes.hpp">
-      <Filter>Core\FX</Filter>
+    <ClInclude Include="source\fx\preprocessor.hpp">
+      <Filter>core\fx</Filter>
     </ClInclude>
-    <ClInclude Include="source\FX\PreProcessor.hpp">
-      <Filter>Core\FX</Filter>
+    <ClInclude Include="source\hook\hook.hpp">
+      <Filter>core\hook</Filter>
     </ClInclude>
-    <ClInclude Include="source\Hook\Hook.hpp">
-      <Filter>Core\Hook</Filter>
+    <ClInclude Include="source\hook\hook_manager.hpp">
+      <Filter>core\hook</Filter>
     </ClInclude>
-    <ClInclude Include="source\Hook\HookManager.hpp">
-      <Filter>Core\Hook</Filter>
+    <ClInclude Include="source\runtime\gui.hpp">
+      <Filter>core\runtime</Filter>
     </ClInclude>
-    <ClInclude Include="source\Runtime\GUI.hpp">
-      <Filter>Core\Runtime</Filter>
+    <ClInclude Include="source\runtime\input.hpp">
+      <Filter>core\runtime</Filter>
     </ClInclude>
-    <ClInclude Include="source\Runtime\Input.hpp">
-      <Filter>Core\Runtime</Filter>
+    <ClInclude Include="source\runtime\runtime.hpp">
+      <Filter>core\runtime</Filter>
     </ClInclude>
-    <ClInclude Include="source\Runtime\Runtime.hpp">
-      <Filter>Core\Runtime</Filter>
+    <ClInclude Include="source\utils\critical_section.hpp">
+      <Filter>core\utils</Filter>
     </ClInclude>
-    <ClInclude Include="source\Utils\CriticalSection.hpp">
-      <Filter>Core\Utils</Filter>
+    <ClInclude Include="source\utils\file_watcher.hpp">
+      <Filter>core\utils</Filter>
     </ClInclude>
-    <ClInclude Include="source\Utils\FileWatcher.hpp">
-      <Filter>Core\Utils</Filter>
+    <ClInclude Include="source\utils\time.hpp">
+      <Filter>core\utils</Filter>
     </ClInclude>
-    <ClInclude Include="source\Utils\Time.hpp">
-      <Filter>Core\Utils</Filter>
+    <ClInclude Include="source\hooks\D3D8.hpp">
+      <Filter>hooks</Filter>
     </ClInclude>
-    <ClInclude Include="source\Hooks\D3D8.hpp">
-      <Filter>Implementation\Hooks</Filter>
+    <ClInclude Include="source\hooks\D3D9.hpp">
+      <Filter>hooks</Filter>
     </ClInclude>
-    <ClInclude Include="source\Hooks\D3D9.hpp">
-      <Filter>Implementation\Hooks</Filter>
+    <ClInclude Include="source\hooks\D3D10.hpp">
+      <Filter>hooks</Filter>
     </ClInclude>
-    <ClInclude Include="source\Hooks\D3D10.hpp">
-      <Filter>Implementation\Hooks</Filter>
+    <ClInclude Include="source\hooks\D3D11.hpp">
+      <Filter>hooks</Filter>
     </ClInclude>
-    <ClInclude Include="source\Hooks\D3D11.hpp">
-      <Filter>Implementation\Hooks</Filter>
+    <ClInclude Include="source\hooks\D3D12.hpp">
+      <Filter>hooks</Filter>
     </ClInclude>
-    <ClInclude Include="source\Hooks\D3D12.hpp">
-      <Filter>Implementation\Hooks</Filter>
+    <ClInclude Include="source\hooks\DXGI.hpp">
+      <Filter>hooks</Filter>
     </ClInclude>
-    <ClInclude Include="source\Hooks\DXGI.hpp">
-      <Filter>Implementation\Hooks</Filter>
+    <ClInclude Include="source\runtimes\d3d9_runtime.hpp">
+      <Filter>runtimes</Filter>
     </ClInclude>
-    <ClInclude Include="source\Runtimes\D3D9Runtime.hpp">
-      <Filter>Implementation\Runtimes</Filter>
+    <ClInclude Include="source\runtimes\d3d10_runtime.hpp">
+      <Filter>runtimes</Filter>
     </ClInclude>
-    <ClInclude Include="source\Runtimes\D3D10Runtime.hpp">
-      <Filter>Implementation\Runtimes</Filter>
+    <ClInclude Include="source\runtimes\d3d11_runtime.hpp">
+      <Filter>runtimes</Filter>
     </ClInclude>
-    <ClInclude Include="source\Runtimes\D3D11Runtime.hpp">
-      <Filter>Implementation\Runtimes</Filter>
+    <ClInclude Include="source\runtimes\d3d12_runtime.hpp">
+      <Filter>runtimes</Filter>
     </ClInclude>
-    <ClInclude Include="source\Runtimes\D3D12Runtime.hpp">
-      <Filter>Implementation\Runtimes</Filter>
-    </ClInclude>
-    <ClInclude Include="source\Runtimes\GLRuntime.hpp">
-      <Filter>Implementation\Runtimes</Filter>
+    <ClInclude Include="source\runtimes\gl_runtime.hpp">
+      <Filter>runtimes</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="res\Resource.rc">
-      <Filter>Resources</Filter>
-    </ResourceCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="res\Exports64.def">
-      <Filter>Implementation</Filter>
+    <None Include="res\exports32.def">
+      <Filter>hooks\exports</Filter>
     </None>
-    <None Include="res\Exports32.def">
-      <Filter>Implementation</Filter>
+    <None Include="res\exports64.def">
+      <Filter>hooks\exports</Filter>
     </None>
-    <None Include="res\Resource.rc2">
-      <Filter>Resources</Filter>
-    </None>
+    <None Include="res\resource.rc2" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="res\resource.rc" />
   </ItemGroup>
 </Project>

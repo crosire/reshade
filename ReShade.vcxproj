@@ -126,7 +126,7 @@
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>$(SolutionDir)\bin\$(Platform)\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <ModuleDefinitionFile>res\Exports32.def</ModuleDefinitionFile>
+      <ModuleDefinitionFile>res\exports32.def</ModuleDefinitionFile>
       <AdditionalDependencies>d3dcompiler.lib;d3dx9.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <DelayLoadDLLs>Tobii.EyeX.Client.dll;d3dcompiler_43.dll;d3dx9_43.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
     </Link>
@@ -149,7 +149,7 @@
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>$(SolutionDir)\bin\$(Platform)\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <ModuleDefinitionFile>res\Exports64.def</ModuleDefinitionFile>
+      <ModuleDefinitionFile>res\exports64.def</ModuleDefinitionFile>
       <AdditionalDependencies>d3dcompiler.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <DelayLoadDLLs>Tobii.EyeX.Client.dll;d3dcompiler_43.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
     </Link>
@@ -176,7 +176,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <AdditionalLibraryDirectories>$(SolutionDir)\bin\$(Platform)\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <ModuleDefinitionFile>res\Exports32.def</ModuleDefinitionFile>
+      <ModuleDefinitionFile>res\exports32.def</ModuleDefinitionFile>
       <AdditionalDependencies>d3dcompiler.lib;d3dx9.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <DelayLoadDLLs>Tobii.EyeX.Client.dll;d3dcompiler_43.dll;d3dx9_43.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
     </Link>
@@ -184,7 +184,7 @@
       <PreprocessorDefinitions>WIN32;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ResourceCompile>
     <PreBuildEvent>
-      <Command>tools\verbuild res\Version.h *.*.*.+ -xFP -b0.0.0.0 -s</Command>
+      <Command>tools\verbuild res\version.h *.*.*.+ -xFP -b0.0.0.0 -s</Command>
     </PreBuildEvent>
     <PostBuildEvent>
       <Command>del "$(TargetDir)$(TargetName).dl~"
@@ -210,7 +210,7 @@ tools\upx --backup "$(TargetPath)"</Command>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <AdditionalLibraryDirectories>$(SolutionDir)\bin\$(Platform)\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <ModuleDefinitionFile>res\Exports64.def</ModuleDefinitionFile>
+      <ModuleDefinitionFile>res\exports64.def</ModuleDefinitionFile>
       <AdditionalDependencies>d3dcompiler.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <DelayLoadDLLs>Tobii.EyeX.Client.dll;d3dcompiler_43.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
     </Link>
@@ -218,7 +218,7 @@ tools\upx --backup "$(TargetPath)"</Command>
       <PreprocessorDefinitions>WIN64;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ResourceCompile>
     <PreBuildEvent>
-      <Command>tools\verbuild res\Version.h *.*.*.+ -xFP -b0.0.0.0 -s</Command>
+      <Command>tools\verbuild res\version.h *.*.*.+ -xFP -b0.0.0.0 -s</Command>
     </PreBuildEvent>
     <PostBuildEvent>
       <Command>del "$(TargetDir)$(TargetName).dl~"
@@ -226,73 +226,72 @@ tools\upx --backup "$(TargetPath)"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="source\Log.cpp" />
-    <ClCompile Include="source\Main.cpp" />
-    <ClCompile Include="source\FX\Lexer.cpp" />
-    <ClCompile Include="source\FX\Parser.cpp" />
-    <ClCompile Include="source\FX\PreProcessor.cpp" />
-    <ClCompile Include="source\Hook\Hook.cpp" />
-    <ClCompile Include="source\Hook\HookManager.cpp" />
-    <ClCompile Include="source\Hooks\D3D8.cpp">
+    <ClCompile Include="source\log.cpp" />
+    <ClCompile Include="source\main.cpp" />
+    <ClCompile Include="source\fx\lexer.cpp" />
+    <ClCompile Include="source\FX\parser.cpp" />
+    <ClCompile Include="source\FX\preprocessor.cpp" />
+    <ClCompile Include="source\hook\hook.cpp" />
+    <ClCompile Include="source\hook\hook_manager.cpp" />
+    <ClCompile Include="source\hooks\D3D8.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </ClCompile>
-    <ClCompile Include="source\Hooks\D3D9.cpp" />
-    <ClCompile Include="source\Hooks\D3D10.cpp" />
-    <ClCompile Include="source\Hooks\D3D11.cpp" />
-    <ClCompile Include="source\Hooks\D3D12.cpp" />
-    <ClCompile Include="source\Hooks\DXGI.cpp" />
-    <ClCompile Include="source\Hooks\OPENGL32.cpp" />
-    <ClCompile Include="source\Hooks\USER32.cpp" />
-    <ClCompile Include="source\Hooks\WS2_32.cpp" />
-    <ClCompile Include="source\Runtime\GUI.cpp" />
-    <ClCompile Include="source\Runtime\Runtime.cpp" />
-    <ClCompile Include="source\Runtime\Input.cpp" />
-    <ClCompile Include="source\Runtimes\D3D9Runtime.cpp" />
-    <ClCompile Include="source\Runtimes\D3D10Runtime.cpp" />
-    <ClCompile Include="source\Runtimes\D3D11Runtime.cpp" />
-    <ClCompile Include="source\Runtimes\D3D12Runtime.cpp" />
-    <ClCompile Include="source\Runtimes\GLRuntime.cpp" />
-    <ClCompile Include="source\Utils\FileWatcher.cpp" />
+    <ClCompile Include="source\hooks\D3D9.cpp" />
+    <ClCompile Include="source\hooks\D3D10.cpp" />
+    <ClCompile Include="source\hooks\D3D11.cpp" />
+    <ClCompile Include="source\hooks\D3D12.cpp" />
+    <ClCompile Include="source\hooks\DXGI.cpp" />
+    <ClCompile Include="source\hooks\OPENGL32.cpp" />
+    <ClCompile Include="source\hooks\USER32.cpp" />
+    <ClCompile Include="source\hooks\WS2_32.cpp" />
+    <ClCompile Include="source\runtime\gui.cpp" />
+    <ClCompile Include="source\runtime\runtime.cpp" />
+    <ClCompile Include="source\runtime\input.cpp" />
+    <ClCompile Include="source\runtimes\d3d9_runtime.cpp" />
+    <ClCompile Include="source\runtimes\d3d10_runtime.cpp" />
+    <ClCompile Include="source\runtimes\d3d11_runtime.cpp" />
+    <ClCompile Include="source\runtimes\d3d12_runtime.cpp" />
+    <ClCompile Include="source\runtimes\gl_runtime.cpp" />
+    <ClCompile Include="source\utils\file_watcher.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="source\Log.hpp" />
-    <ClInclude Include="res\Resource.h" />
-    <ClInclude Include="res\Version.h" />
-    <ClInclude Include="source\FX\Lexer.hpp" />
-    <ClInclude Include="source\FX\Parser.hpp" />
-    <ClInclude Include="source\FX\ParserNodes.hpp" />
-    <ClInclude Include="source\FX\PreProcessor.hpp" />
-    <ClInclude Include="source\Hook\Hook.hpp" />
-    <ClInclude Include="source\Hook\HookManager.hpp" />
-    <ClInclude Include="source\Hooks\D3D8.hpp">
+    <ClInclude Include="res\version.h" />
+    <ClInclude Include="source\log.hpp" />
+    <ClInclude Include="source\fx\ast.hpp" />
+    <ClInclude Include="source\fx\lexer.hpp" />
+    <ClInclude Include="source\fx\parser.hpp" />
+    <ClInclude Include="source\fx\preprocessor.hpp" />
+    <ClInclude Include="source\hook\hook.hpp" />
+    <ClInclude Include="source\hook\hook_manager.hpp" />
+    <ClInclude Include="source\hooks\D3D8.hpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </ClInclude>
-    <ClInclude Include="source\Hooks\D3D9.hpp" />
-    <ClInclude Include="source\Hooks\D3D10.hpp" />
-    <ClInclude Include="source\Hooks\D3D11.hpp" />
-    <ClInclude Include="source\Hooks\D3D12.hpp" />
-    <ClInclude Include="source\Hooks\DXGI.hpp" />
-    <ClInclude Include="source\Runtime\GUI.hpp" />
-    <ClInclude Include="source\Runtime\Runtime.hpp" />
-    <ClInclude Include="source\Runtime\Input.hpp" />
-    <ClInclude Include="source\Runtimes\D3D9Runtime.hpp" />
-    <ClInclude Include="source\Runtimes\D3D10Runtime.hpp" />
-    <ClInclude Include="source\Runtimes\D3D11Runtime.hpp" />
-    <ClInclude Include="source\Runtimes\D3D12Runtime.hpp" />
-    <ClInclude Include="source\Runtimes\GLRuntime.hpp" />
-    <ClInclude Include="source\Utils\CriticalSection.hpp" />
-    <ClInclude Include="source\Utils\FileWatcher.hpp" />
-    <ClInclude Include="source\Utils\Time.hpp" />
+    <ClInclude Include="source\hooks\D3D9.hpp" />
+    <ClInclude Include="source\hooks\D3D10.hpp" />
+    <ClInclude Include="source\hooks\D3D11.hpp" />
+    <ClInclude Include="source\hooks\D3D12.hpp" />
+    <ClInclude Include="source\hooks\DXGI.hpp" />
+    <ClInclude Include="source\runtime\gui.hpp" />
+    <ClInclude Include="source\runtime\runtime.hpp" />
+    <ClInclude Include="source\runtime\input.hpp" />
+    <ClInclude Include="source\runtimes\d3d9_runtime.hpp" />
+    <ClInclude Include="source\runtimes\d3d10_runtime.hpp" />
+    <ClInclude Include="source\runtimes\d3d11_runtime.hpp" />
+    <ClInclude Include="source\runtimes\d3d12_runtime.hpp" />
+    <ClInclude Include="source\runtimes\gl_runtime.hpp" />
+    <ClInclude Include="source\utils\critical_section.hpp" />
+    <ClInclude Include="source\utils\file_watcher.hpp" />
+    <ClInclude Include="source\utils\time.hpp" />
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="res\Resource.rc" />
+    <ResourceCompile Include="res\resource.rc" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="res\Resource.rc2" />
-    <None Include="res\Exports32.def" />
-    <None Include="res\Exports64.def" />
+    <None Include="res\exports32.def" />
+    <None Include="res\exports64.def" />
+    <None Include="res\resource.rc2" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>
