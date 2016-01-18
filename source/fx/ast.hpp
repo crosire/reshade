@@ -1,6 +1,7 @@
 #pragma once
 
 #include "lexer.hpp"
+
 #include <vector>
 #include <list>
 #include <algorithm>
@@ -54,9 +55,7 @@ namespace reshade
 			location location;
 			
 		protected:
-			explicit node(nodeid id) : id(id), location()
-			{
-			}
+			explicit node(nodeid id) : id(id), location() { }
 		};
 		class nodetree
 		{
@@ -125,9 +124,7 @@ namespace reshade
 			private:
 				struct page
 				{
-					explicit page(size_t size) : cursor(0), memory(size, 0)
-					{
-					}
+					explicit page(size_t size) : cursor(0), memory(size, '\0') { }
 
 					size_t cursor;
 					std::vector<unsigned char> memory;
@@ -229,7 +226,7 @@ namespace reshade
 			{
 				const struct variable_declaration_node *reference;
 
-				lvalue_expression_node() : expression_node(nodeid::lvalue_expression), reference(nullptr) { }
+				lvalue_expression_node() : expression_node(nodeid::lvalue_expression) { }
 			};
 			struct literal_expression_node : public expression_node
 			{
@@ -242,7 +239,7 @@ namespace reshade
 
 				std::string value_string;
 
-				literal_expression_node() : expression_node(nodeid::literal_expression), value_float() { }
+				literal_expression_node() : expression_node(nodeid::literal_expression) { }
 			};
 			struct unary_expression_node : public expression_node
 			{
@@ -262,7 +259,7 @@ namespace reshade
 				op op;
 				expression_node *operand;
 
-				unary_expression_node() : expression_node(nodeid::unary_expression), op(none), operand(nullptr) { }
+				unary_expression_node() : expression_node(nodeid::unary_expression) { }
 			};
 			struct binary_expression_node : public expression_node
 			{
@@ -293,7 +290,7 @@ namespace reshade
 				op op;
 				expression_node *operands[2];
 
-				binary_expression_node() : expression_node(nodeid::binary_expression), op(none), operands() { }
+				binary_expression_node() : expression_node(nodeid::binary_expression) { }
 			};
 			struct intrinsic_expression_node : public expression_node
 			{
@@ -375,14 +372,14 @@ namespace reshade
 				op op;
 				expression_node *arguments[4];
 
-				intrinsic_expression_node() : expression_node(nodeid::intrinsic_expression), op(none), arguments() { }
+				intrinsic_expression_node() : expression_node(nodeid::intrinsic_expression) { }
 			};
 			struct conditional_expression_node : public expression_node
 			{
 				expression_node *condition;
 				expression_node *expression_when_true, *expression_when_false;
 
-				conditional_expression_node() : expression_node(nodeid::conditional_expression), condition(nullptr), expression_when_true(nullptr), expression_when_false(nullptr) { }
+				conditional_expression_node() : expression_node(nodeid::conditional_expression) { }
 			};
 			struct assignment_expression_node : public expression_node
 			{
@@ -404,7 +401,7 @@ namespace reshade
 				op op;
 				expression_node *left, *right;
 
-				assignment_expression_node() : expression_node(nodeid::assignment_expression), op(none), left(nullptr), right(nullptr) { }
+				assignment_expression_node() : expression_node(nodeid::assignment_expression) { }
 			};
 			struct expression_sequence_node : public expression_node
 			{
@@ -418,7 +415,7 @@ namespace reshade
 				const struct function_declaration_node *callee;
 				std::vector<expression_node *> arguments;
 
-				call_expression_node() : expression_node(nodeid::call_expression), callee(nullptr) { }
+				call_expression_node() : expression_node(nodeid::call_expression) { }
 			};
 			struct constructor_expression_node : public expression_node
 			{
@@ -431,17 +428,14 @@ namespace reshade
 				expression_node *operand;
 				signed char mask[4];
 
-				swizzle_expression_node() : expression_node(nodeid::swizzle_expression), operand(nullptr)
-				{
-					mask[0] = mask[1] = mask[2] = mask[3] = -1;
-				}
+				swizzle_expression_node() : expression_node(nodeid::swizzle_expression) { }
 			};
 			struct field_expression_node : public expression_node
 			{
 				expression_node *operand;
 				variable_declaration_node *field_reference;
 
-				field_expression_node() : expression_node(nodeid::field_expression), operand(nullptr), field_reference(nullptr) { }
+				field_expression_node() : expression_node(nodeid::field_expression) { }
 			};
 			struct initializer_list_node : public expression_node
 			{
@@ -498,20 +492,20 @@ namespace reshade
 				expression_node *condition;
 				statement_node *statement_list;
 
-				while_statement_node() : statement_node(nodeid::while_statement), is_do_while(false) { }
+				while_statement_node() : statement_node(nodeid::while_statement) { }
 			};
 			struct return_statement_node : public statement_node
 			{
 				bool is_discard;
 				expression_node *return_value;
 
-				return_statement_node() : statement_node(nodeid::return_statement), is_discard(false), return_value(nullptr) { }
+				return_statement_node() : statement_node(nodeid::return_statement) { }
 			};
 			struct jump_statement_node : public statement_node
 			{
 				bool is_break, is_continue;
 
-				jump_statement_node() : statement_node(nodeid::jump_statement), is_break(false), is_continue(false) { }
+				jump_statement_node() : statement_node(nodeid::jump_statement) { }
 			};
 
 			// Declarations
@@ -520,7 +514,7 @@ namespace reshade
 				std::string name;
 				literal_expression_node *value;
 
-				annotation_node() : node(nodeid::annotation), value(nullptr) { }
+				annotation_node() : node(nodeid::annotation) { }
 			};
 			struct declarator_list_node : public statement_node
 			{
@@ -583,7 +577,7 @@ namespace reshade
 				properties properties;
 				expression_node *initializer_expression;
 
-				variable_declaration_node() : declaration_node(nodeid::variable_declaration), initializer_expression(nullptr) { }
+				variable_declaration_node() : declaration_node(nodeid::variable_declaration) { }
 			};
 			struct struct_declaration_node : public declaration_node
 			{
@@ -598,7 +592,7 @@ namespace reshade
 				std::string return_semantic;
 				compound_statement_node *definition;
 
-				function_declaration_node() : declaration_node(nodeid::function_declaration), definition(nullptr) { }
+				function_declaration_node() : declaration_node(nodeid::function_declaration) { }
 			};
 			struct pass_declaration_node : public declaration_node
 			{
