@@ -229,8 +229,9 @@ tools\upx --backup "$(TargetPath)"</Command>
     <ClCompile Include="source\log.cpp" />
     <ClCompile Include="source\main.cpp" />
     <ClCompile Include="source\fx\lexer.cpp" />
-    <ClCompile Include="source\FX\parser.cpp" />
-    <ClCompile Include="source\FX\preprocessor.cpp" />
+    <ClCompile Include="source\fX\parser.cpp" />
+    <ClCompile Include="source\fX\preprocessor.cpp" />
+    <ClCompile Include="source\fx\symbol_table.cpp" />
     <ClCompile Include="source\hook\hook.cpp" />
     <ClCompile Include="source\hook\hook_manager.cpp" />
     <ClCompile Include="source\hooks\D3D8.cpp">
@@ -262,6 +263,7 @@ tools\upx --backup "$(TargetPath)"</Command>
     <ClInclude Include="source\fx\lexer.hpp" />
     <ClInclude Include="source\fx\parser.hpp" />
     <ClInclude Include="source\fx\preprocessor.hpp" />
+    <ClInclude Include="source\fx\symbol_table.hpp" />
     <ClInclude Include="source\hook\hook.hpp" />
     <ClInclude Include="source\hook\hook_manager.hpp" />
     <ClInclude Include="source\hooks\D3D8.hpp">

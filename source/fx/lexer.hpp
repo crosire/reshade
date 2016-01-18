@@ -157,12 +157,8 @@ namespace reshade
 				vector,
 				matrix,
 				string_,
-				texture1d,
-				texture2d,
-				texture3d,
-				sampler1d,
-				sampler2d,
-				sampler3d,
+				texture,
+				sampler,
 
 				// preprocessor directives
 				hash_def,

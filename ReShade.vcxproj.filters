@@ -42,6 +42,9 @@
     <ClCompile Include="source\fx\preprocessor.cpp">
       <Filter>core\fx</Filter>
     </ClCompile>
+    <ClCompile Include="source\fx\symbol_table.cpp">
+      <Filter>core\fx</Filter>
+    </ClCompile>
     <ClCompile Include="source\hook\hook.cpp">
       <Filter>core\hook</Filter>
     </ClCompile>
@@ -120,6 +123,9 @@
       <Filter>core\fx</Filter>
     </ClInclude>
     <ClInclude Include="source\fx\preprocessor.hpp">
+      <Filter>core\fx</Filter>
+    </ClInclude>
+    <ClInclude Include="source\fx\symbol_table.hpp">
       <Filter>core\fx</Filter>
     </ClInclude>
     <ClInclude Include="source\hook\hook.hpp">

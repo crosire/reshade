@@ -224,12 +224,14 @@ namespace reshade
 			// Expressions
 			struct lvalue_expression_node : public expression_node
 			{
-				const struct variable_declaration_node *reference;
-
 				lvalue_expression_node() : expression_node(nodeid::lvalue_expression) { }
+
+				const struct variable_declaration_node *reference;
 			};
 			struct literal_expression_node : public expression_node
 			{
+				literal_expression_node() : expression_node(nodeid::literal_expression) { }
+
 				union
 				{
 					int value_int[16];
@@ -238,8 +240,6 @@ namespace reshade
 				};
 
 				std::string value_string;
-
-				literal_expression_node() : expression_node(nodeid::literal_expression) { }
 			};
 			struct unary_expression_node : public expression_node
 			{
@@ -256,10 +256,10 @@ namespace reshade
 					cast,
 				};
 
+				unary_expression_node() : expression_node(nodeid::unary_expression) { }
+
 				op op;
 				expression_node *operand;
-
-				unary_expression_node() : expression_node(nodeid::unary_expression) { }
 			};
 			struct binary_expression_node : public expression_node
 			{
@@ -287,10 +287,10 @@ namespace reshade
 					element_extract
 				};
 
+				binary_expression_node() : expression_node(nodeid::binary_expression) { }
+
 				op op;
 				expression_node *operands[2];
-
-				binary_expression_node() : expression_node(nodeid::binary_expression) { }
 			};
 			struct intrinsic_expression_node : public expression_node
 			{
@@ -369,17 +369,17 @@ namespace reshade
 					trunc,
 				};
 
+				intrinsic_expression_node() : expression_node(nodeid::intrinsic_expression) { }
+
 				op op;
 				expression_node *arguments[4];
-
-				intrinsic_expression_node() : expression_node(nodeid::intrinsic_expression) { }
 			};
 			struct conditional_expression_node : public expression_node
 			{
+				conditional_expression_node() : expression_node(nodeid::conditional_expression) { }
+
 				expression_node *condition;
 				expression_node *expression_when_true, *expression_when_false;
-
-				conditional_expression_node() : expression_node(nodeid::conditional_expression) { }
 			};
 			struct assignment_expression_node : public expression_node
 			{
@@ -398,129 +398,129 @@ namespace reshade
 					right_shift
 				};
 
+				assignment_expression_node() : expression_node(nodeid::assignment_expression) { }
+
 				op op;
 				expression_node *left, *right;
-
-				assignment_expression_node() : expression_node(nodeid::assignment_expression) { }
 			};
 			struct expression_sequence_node : public expression_node
 			{
-				std::vector<expression_node *> expression_list;
-
 				expression_sequence_node() : expression_node(nodeid::expression_sequence) { }
+
+				std::vector<expression_node *> expression_list;
 			};
 			struct call_expression_node : public expression_node
 			{
+				call_expression_node() : expression_node(nodeid::call_expression) { }
+
 				std::string callee_name;
 				const struct function_declaration_node *callee;
 				std::vector<expression_node *> arguments;
-
-				call_expression_node() : expression_node(nodeid::call_expression) { }
 			};
 			struct constructor_expression_node : public expression_node
 			{
-				std::vector<expression_node *> arguments;
-
 				constructor_expression_node() : expression_node(nodeid::constructor_expression) { }
+
+				std::vector<expression_node *> arguments;
 			};
 			struct swizzle_expression_node : public expression_node
 			{
+				swizzle_expression_node() : expression_node(nodeid::swizzle_expression) { }
+
 				expression_node *operand;
 				signed char mask[4];
-
-				swizzle_expression_node() : expression_node(nodeid::swizzle_expression) { }
 			};
 			struct field_expression_node : public expression_node
 			{
+				field_expression_node() : expression_node(nodeid::field_expression) { }
+
 				expression_node *operand;
 				variable_declaration_node *field_reference;
-
-				field_expression_node() : expression_node(nodeid::field_expression) { }
 			};
 			struct initializer_list_node : public expression_node
 			{
-				std::vector<expression_node *> values;
-
 				initializer_list_node() : expression_node(nodeid::initializer_list) { }
+
+				std::vector<expression_node *> values;
 			};
 
 			// Statements
 			struct compound_statement_node : public statement_node
 			{
-				std::vector<statement_node *> statement_list;
-
 				compound_statement_node() : statement_node(nodeid::compound_statement) { }
+
+				std::vector<statement_node *> statement_list;
 			};
 			struct expression_statement_node : public statement_node
 			{
-				expression_node *expression;
-
 				expression_statement_node() : statement_node(nodeid::expression_statement) { }
+
+				expression_node *expression;
 			};
 			struct if_statement_node : public statement_node
 			{
+				if_statement_node() : statement_node(nodeid::if_statement) { }
+
 				expression_node *condition;
 				statement_node *statement_when_true, *statement_when_false;
-
-				if_statement_node() : statement_node(nodeid::if_statement) { }
 			};
 			struct case_statement_node : public statement_node
 			{
-				std::vector<struct literal_expression_node *> labels;
-				statement_node *statement_list;
-
 				case_statement_node() : statement_node(nodeid::case_statement) { }
+
+				statement_node *statement_list;
+				std::vector<struct literal_expression_node *> labels;
 			};
 			struct switch_statement_node : public statement_node
 			{
+				switch_statement_node() : statement_node(nodeid::switch_statement) { }
+
 				expression_node *test_expression;
 				std::vector<case_statement_node *> case_list;
-
-				switch_statement_node() : statement_node(nodeid::switch_statement) { }
 			};
 			struct for_statement_node : public statement_node
 			{
+				for_statement_node() : statement_node(nodeid::for_statement) { }
+
 				statement_node *init_statement;
 				expression_node *condition, *increment_expression;
 				statement_node *statement_list;
-
-				for_statement_node() : statement_node(nodeid::for_statement) { }
 			};
 			struct while_statement_node : public statement_node
 			{
+				while_statement_node() : statement_node(nodeid::while_statement) { }
+
 				bool is_do_while;
 				expression_node *condition;
 				statement_node *statement_list;
-
-				while_statement_node() : statement_node(nodeid::while_statement) { }
 			};
 			struct return_statement_node : public statement_node
 			{
+				return_statement_node() : statement_node(nodeid::return_statement) { }
+
 				bool is_discard;
 				expression_node *return_value;
-
-				return_statement_node() : statement_node(nodeid::return_statement) { }
 			};
 			struct jump_statement_node : public statement_node
 			{
-				bool is_break, is_continue;
-
 				jump_statement_node() : statement_node(nodeid::jump_statement) { }
+
+				bool is_break, is_continue;
 			};
 
 			// Declarations
 			struct annotation_node : public node
 			{
+				annotation_node() : node(nodeid::annotation) { }
+
 				std::string name;
 				literal_expression_node *value;
-
-				annotation_node() : node(nodeid::annotation) { }
 			};
 			struct declarator_list_node : public statement_node
 			{
-				std::vector<struct variable_declaration_node *> declarator_list;
-
 				declarator_list_node() : statement_node(nodeid::declarator_list) { }
+
+				std::vector<struct variable_declaration_node *> declarator_list;
 			};
 			struct variable_declaration_node : public declaration_node
 			{
@@ -571,28 +571,28 @@ namespace reshade
 					float MinLOD, MaxLOD, MipLODBias;
 				};
 
+				variable_declaration_node() : declaration_node(nodeid::variable_declaration) { }
+
 				type_node type;
 				std::vector<annotation_node> annotations;
 				std::string semantic;
 				properties properties;
 				expression_node *initializer_expression;
-
-				variable_declaration_node() : declaration_node(nodeid::variable_declaration) { }
 			};
 			struct struct_declaration_node : public declaration_node
 			{
-				std::vector<variable_declaration_node *> field_list;
-
 				struct_declaration_node() : declaration_node(nodeid::struct_declaration) { }
+
+				std::vector<variable_declaration_node *> field_list;
 			};
 			struct function_declaration_node : public declaration_node
 			{
+				function_declaration_node() : declaration_node(nodeid::function_declaration) { }
+
 				type_node return_type;
 				std::vector<variable_declaration_node *> parameter_list;
 				std::string return_semantic;
 				compound_statement_node *definition;
-
-				function_declaration_node() : declaration_node(nodeid::function_declaration) { }
 			};
 			struct pass_declaration_node : public declaration_node
 			{
@@ -648,17 +648,17 @@ namespace reshade
 					unsigned int BlendOp, BlendOpAlpha, SrcBlend, DestBlend, DepthFunc, StencilFunc, StencilRef, StencilOpPass, StencilOpFail, StencilOpDepthFail;
 				};
 
+				pass_declaration_node() : declaration_node(nodeid::pass_declaration) { }
+
 				std::vector<annotation_node> annotation_list;
 				states states;
-
-				pass_declaration_node() : declaration_node(nodeid::pass_declaration) { }
 			};
 			struct technique_declaration_node : public declaration_node
 			{
+				technique_declaration_node() : declaration_node(nodeid::technique_declaration) { }
+
 				std::vector<annotation_node> annotation_list;
 				std::vector<pass_declaration_node *> pass_list;
-
-				technique_declaration_node() : declaration_node(nodeid::technique_declaration) { }
 			};
 		}
 	}

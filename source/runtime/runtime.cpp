@@ -2,6 +2,7 @@
 #include "version.h"
 #include "runtime.hpp"
 #include "hook_manager.hpp"
+#include "fx\ast.hpp"
 #include "fx\parser.hpp"
 #include "fx\preprocessor.hpp"
 #include "gui.hpp"
