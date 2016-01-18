@@ -9,13 +9,13 @@ namespace reshade
 		class critical_section
 		{
 		public:
-			struct Lock
+			struct lock
 			{
-				Lock(critical_section &cs) : _cs(cs)
+				lock(critical_section &cs) : _cs(cs)
 				{
 					EnterCriticalSection(&_cs._cs);
 				}
-				~Lock()
+				~lock()
 				{
 					LeaveCriticalSection(&_cs._cs);
 				}
@@ -23,8 +23,8 @@ namespace reshade
 				critical_section &_cs;
 
 			private:
-				Lock(const Lock &);
-				void operator=(const Lock &);
+				lock(const lock &);
+				void operator=(const lock &);
 			};
 
 			critical_section()

@@ -3175,7 +3175,7 @@ EXPORT HGLRC WINAPI wglCreateContext(HDC hdc)
 		return nullptr;
 	}
 
-	const reshade::utils::critical_section::Lock lock(_cs);
+	const reshade::utils::critical_section::lock lock(_cs);
 
 	_shared_contexts.emplace(hglrc, nullptr);
 
@@ -3278,7 +3278,7 @@ HGLRC WINAPI wglCreateContextAttribsARB(HDC hdc, HGLRC hShareContext, const int 
 		return nullptr;
 	}
 
-	const reshade::utils::critical_section::Lock lock(_cs);
+	const reshade::utils::critical_section::lock lock(_cs);
 
 	_shared_contexts.emplace(hglrc, hShareContext);
 
@@ -3378,7 +3378,7 @@ EXPORT BOOL WINAPI wglDeleteContext(HGLRC hglrc)
 
 	LOG(INFO) << "Redirecting '" << "wglDeleteContext" << "(" << hglrc << ")' ...";
 
-	const reshade::utils::critical_section::Lock lock(_cs);
+	const reshade::utils::critical_section::lock lock(_cs);
 
 	for (auto it = _shared_contexts.begin(); it != _shared_contexts.end();)
 	{
@@ -3468,7 +3468,7 @@ HDC WINAPI wglGetPbufferDCARB(HPBUFFERARB hPbuffer)
 		return nullptr;
 	}
 
-	const reshade::utils::critical_section::Lock lock(_cs);
+	const reshade::utils::critical_section::lock lock(_cs);
 
 	_pbuffer_device_contexts.insert(hdc);
 
@@ -3522,7 +3522,7 @@ EXPORT BOOL WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 		return TRUE;
 	}
 	
-	const reshade::utils::critical_section::Lock lock(_cs);
+	const reshade::utils::critical_section::lock lock(_cs);
 
 	const bool isPbufferDeviceContext = _pbuffer_device_contexts.find(hdc) != _pbuffer_device_contexts.end();
 	
@@ -3626,7 +3626,7 @@ int WINAPI wglReleasePbufferDCARB(HPBUFFERARB hPbuffer, HDC hdc)
 		return FALSE;
 	}
 
-	const reshade::utils::critical_section::Lock lock(_cs);
+	const reshade::utils::critical_section::lock lock(_cs);
 
 	_pbuffer_device_contexts.erase(hdc);
 
@@ -3652,7 +3652,7 @@ EXPORT BOOL WINAPI wglShareLists(HGLRC hglrc1, HGLRC hglrc2)
 		return FALSE;
 	}
 
-	const reshade::utils::critical_section::Lock lock(_cs);
+	const reshade::utils::critical_section::lock lock(_cs);
 
 	_shared_contexts[hglrc2] = hglrc1;
 
