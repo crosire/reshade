@@ -1,8 +1,8 @@
 #include "Lexer.hpp"
 
-namespace ReShade
+namespace reshade
 {
-	namespace FX
+	namespace fx
 	{
 		namespace
 		{

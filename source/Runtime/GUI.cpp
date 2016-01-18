@@ -6,56 +6,50 @@
 #include <boost\filesystem\path.hpp>
 #include <Windows.h>
 
-namespace ReShade
+namespace reshade
 {
-	namespace
+	gui::gui(const runtime *runtime, NVGcontext *context) : _runtime(runtime), _nvg(context)
 	{
-		inline boost::filesystem::path GetWindowsDirectory()
-		{
-			TCHAR path[MAX_PATH];
-			::GetWindowsDirectory(path, MAX_PATH);
-			return path;
-		}
+		TCHAR windows_directory_buffer[MAX_PATH];
+		GetWindowsDirectory(windows_directory_buffer, MAX_PATH);
+		const boost::filesystem::path windows_directory = windows_directory_buffer;
+
+		nvgCreateFont(_nvg, "DefaultFont", (windows_directory / "Fonts" / "courbd.ttf").string().c_str());
 	}
-	
-	GUI::GUI(const Runtime *runtime, NVGcontext *context) : _runtime(runtime), _nvg(context)
-	{
-		nvgCreateFont(_nvg, "DefaultFont", (GetWindowsDirectory() / "Fonts" / "courbd.ttf").string().c_str());
-	}
-	GUI::~GUI()
+	gui::~gui()
 	{
 	}
 
-	bool GUI::BeginFrame()
+	bool gui::begin_frame()
 	{
 		if (_nvg == nullptr)
 		{
 			return false;
 		}
 
-		_windowX = 0;
-		_windowY = 0;
-		_windowWidth = static_cast<float>(_runtime->GetBufferWidth());
-		_windowHeight = static_cast<float>(_runtime->GetBufferHeight());
+		_window_x = 0;
+		_window_y = 0;
+		_window_w = static_cast<float>(_runtime->buffer_width());
+		_window_h = static_cast<float>(_runtime->buffer_height());
 
-		nvgBeginFrame(_nvg, static_cast<int>(_windowWidth), static_cast<int>(_windowHeight), 1.0f);
+		nvgBeginFrame(_nvg, static_cast<int>(_window_w), static_cast<int>(_window_h), 1.0f);
 
 		nvgFontFace(_nvg, "DefaultFont");
 
 		return true;
 	}
-	void GUI::EndFrame()
+	void gui::end_frame()
 	{
 		nvgEndFrame(_nvg);
 	}
-	void GUI::BeginWindow(const std::string &title, float x, float y, float w, float h)
+	void gui::begin_window(const std::string &title, float x, float y, float w, float h)
 	{
 		const float cornerRadius = 3.0f;
 
-		_windowX = x + 10;
-		_windowY = y + 35;
-		_windowWidth = w - 20;
-		_windowHeight = h;
+		_window_x = x + 10;
+		_window_y = y + 35;
+		_window_w = w - 20;
+		_window_h = h;
 
 		nvgSave(_nvg);
 
@@ -100,17 +94,17 @@ namespace ReShade
 
 		nvgSave(_nvg);
 	}
-	void GUI::EndWindow()
+	void gui::end_window()
 	{
 		nvgRestore(_nvg);
 
-		_windowX = 0;
-		_windowY = 0;
-		_windowWidth = static_cast<float>(_runtime->GetBufferWidth());
-		_windowHeight = static_cast<float>(_runtime->GetBufferHeight());
+		_window_x = 0;
+		_window_y = 0;
+		_window_w = static_cast<float>(_runtime->buffer_width());
+		_window_h = static_cast<float>(_runtime->buffer_height());
 	}
 
-	void GUI::DrawDebugText(float x, float y, int alignx, float linewidth, int fontsize, unsigned int color, const std::string &text)
+	void gui::draw_debug_text(float x, float y, int alignx, float linewidth, int fontsize, unsigned int color, const std::string &text)
 	{		
 		if (alignx < 0)
 			alignx = NVG_ALIGN_LEFT;
@@ -130,13 +124,13 @@ namespace ReShade
 		nvgRestore(_nvg);
 	}
 
-	void GUI::AddLabel(const std::string &label)
+	void gui::add_label(const std::string &label)
 	{
-		AddLabel(20.0f, 0x80FFFFFF, label);
+		add_label(20.0f, 0x80FFFFFF, label);
 	}
-	void GUI::AddLabel(float h, unsigned int col, const std::string &label)
+	void gui::add_label(float h, unsigned int col, const std::string &label)
 	{
-		const float x = _windowX, y = _windowY, w = _windowWidth;
+		const float x = _window_x, y = _window_y, w = _window_w;
 
 		// Label
 		nvgFontSize(_nvg, h);
@@ -150,21 +144,21 @@ namespace ReShade
 		nvgTextBoxBounds(_nvg, 0, 0, w, label.c_str(), nullptr, bounds);
 
 		// Advance
-		AddVerticalSpace(bounds[3] + 5.0f);
+		add_vertical_space(bounds[3] + 5.0f);
 	}
-	bool GUI::AddButton(const std::string &label)
+	bool gui::add_button(const std::string &label)
 	{
-		return AddButton(28.0f, 0xFF000000, label);
+		return add_button(28.0f, 0xFF000000, label);
 	}
-	bool GUI::AddButton(float h, unsigned int col, const std::string &label)
+	bool gui::add_button(float h, unsigned int col, const std::string &label)
 	{
-		const float x = _windowX, y = _windowY, w = _windowWidth;
+		const float x = _window_x, y = _window_y, w = _window_w;
 		const float cornerRadius = 4.0f;
 
-		const POINT mouse = _runtime->GetInput()->GetMousePosition();
+		const POINT mouse = _runtime->input()->mouse_position();
 		const bool hovered = (mouse.x >= x && mouse.x <= (x + w)) && (mouse.y >= y && mouse.y <= (y + h));
-		const bool clicked1 = hovered && _runtime->GetInput()->GetMouseButtonState(0);
-		const bool clicked2 = hovered && _runtime->GetInput()->GetMouseButtonJustReleased(0);
+		const bool clicked1 = hovered && _runtime->input()->is_mouse_button_down(0);
+		const bool clicked2 = hovered && _runtime->input()->is_mouse_button_released(0);
 
 		if (clicked1)
 		{
@@ -206,18 +200,18 @@ namespace ReShade
 		nvgText(_nvg, x + w * 0.5f - tw * 0.5f, y + h * 0.5f, label.c_str(), nullptr);
 
 		// Advance
-		AddVerticalSpace(h + 5.0f);
+		add_vertical_space(h + 5.0f);
 
 		return clicked2;
 	}
-	void GUI::AddCheckBox(const std::string &label, bool &value)
+	void gui::add_checkbox(const std::string &label, bool &value)
 	{
-		const float x = _windowX, y = _windowY;
-		const float w = _windowWidth, h = 28.0f;
+		const float x = _window_x, y = _window_y;
+		const float w = _window_w, h = 28.0f;
 
-		const POINT mouse = _runtime->GetInput()->GetMousePosition();
+		const POINT mouse = _runtime->input()->mouse_position();
 		const bool hovered = (mouse.x >= x && mouse.x <= (x + w)) && (mouse.y >= y && mouse.y <= (y + h));
-		const bool clicked = hovered && _runtime->GetInput()->GetMouseButtonJustReleased(0);
+		const bool clicked = hovered && _runtime->input()->is_mouse_button_released(0);
 
 		if (clicked)
 		{
@@ -247,17 +241,17 @@ namespace ReShade
 		}
 
 		// Advance
-		AddVerticalSpace(h + 5.0f);
+		add_vertical_space(h + 5.0f);
 	}
-	void GUI::AddSliderInt(int &value, int min, int max)
+	void gui::add_slider_int(int &value, int min, int max)
 	{
-		const float x = _windowX, y = _windowY;
-		const float w = _windowWidth, h = 28.0f;
+		const float x = _window_x, y = _window_y;
+		const float w = _window_w, h = 28.0f;
 		const float cy = y + static_cast<float>(static_cast<int>(h * 0.5f)), kr = static_cast<float>(static_cast<int>(h * 0.25f));
 
-		const POINT mouse = _runtime->GetInput()->GetMousePosition();
+		const POINT mouse = _runtime->input()->mouse_position();
 		const bool hovered = (mouse.x >= x && mouse.x <= (x + w)) && (mouse.y >= y && mouse.y <= (y + h));
-		const bool clicked = hovered && _runtime->GetInput()->GetMouseButtonState(0);
+		const bool clicked = hovered && _runtime->input()->is_mouse_button_down(0);
 
 		if (clicked)
 		{
@@ -308,17 +302,17 @@ namespace ReShade
 		nvgRestore(_nvg);
 
 		// Advance
-		AddVerticalSpace(h + 5.0f);
+		add_vertical_space(h + 5.0f);
 	}
-	void GUI::AddSliderFloat(float &value, float min, float max)
+	void gui::add_slider_float(float &value, float min, float max)
 	{
-		const float x = _windowX, y = _windowY;
-		const float w = _windowWidth, h = 28.0f;
+		const float x = _window_x, y = _window_y;
+		const float w = _window_w, h = 28.0f;
 		const float cy = y + static_cast<float>(static_cast<int>(h * 0.5f)), kr = static_cast<float>(static_cast<int>(h * 0.25f));
 
-		const POINT mouse = _runtime->GetInput()->GetMousePosition();
+		const POINT mouse = _runtime->input()->mouse_position();
 		const bool hovered = (mouse.x >= x && mouse.x <= (x + w)) && (mouse.y >= y && mouse.y <= (y + h));
-		const bool clicked = hovered && _runtime->GetInput()->GetMouseButtonState(0);
+		const bool clicked = hovered && _runtime->input()->is_mouse_button_down(0);
 
 		if (clicked)
 		{
@@ -368,10 +362,10 @@ namespace ReShade
 		nvgRestore(_nvg);
 
 		// Advance
-		AddVerticalSpace(h + 5.0f);
+		add_vertical_space(h + 5.0f);
 	}
-	void GUI::AddVerticalSpace(float height)
+	void gui::add_vertical_space(float height)
 	{
-		_windowY += height;
+		_window_y += height;
 	}
 }

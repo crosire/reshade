@@ -9,22 +9,22 @@
 
 EXPORT int WSAAPI HookWSASend(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPDWORD lpNumberOfBytesSent, DWORD dwFlags, LPWSAOVERLAPPED lpOverlapped, LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine)
 {
-	static const auto trampoline = ReShade::Hooks::Call(&HookWSASend);
+	static const auto trampoline = reshade::hooks::call(&HookWSASend);
 
 	for (DWORD i = 0; i < dwBufferCount; ++i)
 	{
-		InterlockedExchangeAdd(&ReShade::NetworkUpload, lpBuffers[i].len);
+		InterlockedExchangeAdd(&reshade::s_network_upload, lpBuffers[i].len);
 	}
 
 	return trampoline(s, lpBuffers, dwBufferCount, lpNumberOfBytesSent, dwFlags, lpOverlapped, lpCompletionRoutine);
 }
 EXPORT int WSAAPI HookWSASendTo(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPDWORD lpNumberOfBytesSent, DWORD dwFlags, const struct sockaddr *lpTo, int iToLen, LPWSAOVERLAPPED lpOverlapped, LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine)
 {
-	static const auto trampoline = ReShade::Hooks::Call(&HookWSASendTo);
+	static const auto trampoline = reshade::hooks::call(&HookWSASendTo);
 
 	for (DWORD i = 0; i < dwBufferCount; ++i)
 	{
-		InterlockedExchangeAdd(&ReShade::NetworkUpload, lpBuffers[i].len);
+		InterlockedExchangeAdd(&reshade::s_network_upload, lpBuffers[i].len);
 	}
 
 	return trampoline(s, lpBuffers, dwBufferCount, lpNumberOfBytesSent, dwFlags, lpTo, iToLen, lpOverlapped, lpCompletionRoutine);

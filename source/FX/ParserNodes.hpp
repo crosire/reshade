@@ -5,45 +5,45 @@
 #include <list>
 #include <algorithm>
 
-namespace ReShade
+namespace reshade
 {
-	namespace FX
+	namespace fx
 	{
 		enum class nodeid
 		{
 			unknown,
 
-			LValue,
-			Literal,
-			Unary,
-			Binary,
-			Intrinsic,
-			Conditional,
-			Assignment,
-			Sequence,
-			Call,
-			Constructor,
-			Swizzle,
-			FieldSelection,
-			InitializerList,
+			lvalue_expression,
+			literal_expression,
+			unary_expression,
+			binary_expression,
+			intrinsic_expression,
+			conditional_expression,
+			assignment_expression,
+			expression_sequence,
+			call_expression,
+			constructor_expression,
+			swizzle_expression,
+			field_expression,
+			initializer_list,
 
-			Compound,
-			DeclaratorList,
-			ExpressionStatement,
-			If,
-			Switch,
-			Case,
-			For,
-			While,
-			Return,
-			Jump,
+			compound_statement,
+			expression_statement,
+			if_statement,
+			switch_statement,
+			case_statement,
+			for_statement,
+			while_statement,
+			return_statement,
+			jump_statement,
 
-			Annotation,
-			Variable,
-			Struct,
-			Function,
-			Pass,
-			Technique
+			annotation,
+			declarator_list,
+			variable_declaration,
+			struct_declaration,
+			function_declaration,
+			pass_declaration,
+			technique_declaration,
 		};
 		class node abstract
 		{
@@ -143,500 +143,398 @@ namespace ReShade
 			} _pool;
 		};
 
-		namespace Nodes
+		namespace nodes
 		{
-			struct Type
+			struct type_node
 			{
-				enum class Class
+				enum datatype
 				{
-					Void,
-					Bool,
-					Int,
-					Uint,
-					Float,
-					Sampler1D,
-					Sampler2D,
-					Sampler3D,
-					Texture1D,
-					Texture2D,
-					Texture3D,
-					Struct,
-					String
+					void_,
+					bool_,
+					int_,
+					uint_,
+					float_,
+					sampler1d,
+					sampler2d,
+					sampler3d,
+					texture1d,
+					texture2d,
+					texture3d,
+					struct_,
+					string_,
 				};
-				enum Qualifier
+				enum qualifier
 				{
 					// Storage
-					Extern = 1 << 0,
-					Static = 1 << 1,
-					Uniform = 1 << 2,
-					Volatile = 1 << 3,
-					Precise = 1 << 4,
-					In = 1 << 5,
-					Out = 1 << 6,
-					InOut = In | Out,
+					extern_ = 1 << 0,
+					static_ = 1 << 1,
+					uniform_ = 1 << 2,
+					volatile_ = 1 << 3,
+					precise = 1 << 4,
+					in = 1 << 5,
+					out = 1 << 6,
+					inout = in | out,
 
 					// Modifier
-					Const = 1 << 8,
+					const_ = 1 << 8,
 
 					// Interpolation
-					Linear = 1 << 10,
-					NoPerspective = 1 << 11,
-					Centroid = 1 << 12,
-					NoInterpolation = 1 << 13,
+					linear = 1 << 10,
+					noperspective = 1 << 11,
+					centroid = 1 << 12,
+					nointerpolation = 1 << 13,
 				};
 
-				inline bool IsArray() const
-				{
-					return ArrayLength != 0;
-				}
-				inline bool IsMatrix() const
-				{
-					return Rows >= 1 && Cols > 1;
-				}
-				inline bool IsVector() const
-				{
-					return Rows > 1 && !IsMatrix();
-				}
-				inline bool IsScalar() const
-				{
-					return !IsArray() && !IsMatrix() && !IsVector() && IsNumeric();
-				}
-				inline bool IsNumeric() const
-				{
-					return IsBoolean() || IsIntegral() || IsFloatingPoint();
-				}
-				inline bool IsVoid() const
-				{
-					return BaseClass == Class::Void;
-				}
-				inline bool IsBoolean() const
-				{
-					return BaseClass == Class::Bool;
-				}
-				inline bool IsIntegral() const
-				{
-					return BaseClass == Class::Int || BaseClass == Class::Uint;
-				}
-				inline bool IsFloatingPoint() const
-				{
-					return BaseClass == Class::Float;
-				}
-				inline bool IsTexture() const
-				{
-					return BaseClass >= Class::Texture1D && BaseClass <= Class::Texture2D;
-				}
-				inline bool IsSampler() const
-				{
-					return BaseClass >= Class::Sampler1D && BaseClass <= Class::Sampler3D;
-				}
-				inline bool IsStruct() const
-				{
-					return BaseClass == Class::Struct;
-				}
-				inline bool HasQualifier(Qualifier qualifier) const
-				{
-					return (Qualifiers & static_cast<unsigned int>(qualifier)) == static_cast<unsigned int>(qualifier);
-				}
+				inline bool is_array() const { return array_length != 0; }
+				inline bool is_matrix() const { return rows >= 1 && cols > 1; }
+				inline bool is_vector() const { return rows > 1 && !is_matrix(); }
+				inline bool is_scalar() const { return !is_array() && !is_matrix() && !is_vector() && is_numeric(); }
+				inline bool is_numeric() const { return is_boolean() || is_integral() || is_floating_point(); }
+				inline bool is_void() const { return basetype == void_; }
+				inline bool is_boolean() const { return basetype == bool_; }
+				inline bool is_integral() const { return basetype == int_ || basetype == uint_; }
+				inline bool is_floating_point() const { return basetype == float_; }
+				inline bool is_texture() const { return basetype >= texture1d && basetype <= texture3d; }
+				inline bool is_sampler() const { return basetype >= sampler1d && basetype <= sampler3d; }
+				inline bool is_struct() const { return basetype == struct_; }
+				inline bool has_qualifier(qualifier qualifier) const { return (qualifiers & static_cast<unsigned>(qualifier)) == static_cast<unsigned>(qualifier); }
 
-				Class BaseClass;
-				unsigned int Qualifiers;
-				unsigned int Rows : 4, Cols : 4;
-				int ArrayLength;
-				struct Struct *Definition;
+				datatype basetype;
+				unsigned int qualifiers;
+				unsigned int rows : 4, cols : 4;
+				int array_length;
+				struct struct_declaration_node *definition;
 			};
 	
-			struct Expression abstract : public node
+			struct expression_node abstract : public node
 			{
-				Type Type;
+				type_node type;
 
 			protected:
-				Expression(nodeid id) : node(id)
-				{
-				}
+				expression_node(nodeid id) : node(id) { }
 			};
-			struct Statement abstract : public node
+			struct statement_node abstract : public node
 			{
-				std::vector<std::string> Attributes;
+				std::vector<std::string> attributes;
 
 			protected:
-				Statement(nodeid id) : node(id)
-				{
-				}
+				statement_node(nodeid id) : node(id) { }
 			};
-			struct Declaration abstract : public node
+			struct declaration_node abstract : public node
 			{
-				std::string Name, Namespace;
+				std::string name, Namespace;
 
 			protected:
-				Declaration(nodeid id) : node(id)
-				{
-				}
+				declaration_node(nodeid id) : node(id) { }
 			};
 
 			// Expressions
-			struct LValue : public Expression
+			struct lvalue_expression_node : public expression_node
 			{
-				const struct Variable *Reference;
+				const struct variable_declaration_node *reference;
 
-				LValue() : Expression(nodeid::LValue), Reference(nullptr)
-				{
-				}
+				lvalue_expression_node() : expression_node(nodeid::lvalue_expression), reference(nullptr) { }
 			};
-			struct Literal : public Expression
+			struct literal_expression_node : public expression_node
 			{
-				union Value
+				union
 				{
-					int Int[16];
-					unsigned int Uint[16];
-					float Float[16];
+					int value_int[16];
+					unsigned int value_uint[16];
+					float value_float[16];
 				};
 
-				Value Value;
-				std::string StringValue;
+				std::string value_string;
 
-				Literal() : Expression(nodeid::Literal)
-				{
-					memset(&Value, 0, sizeof(Value));
-				}
+				literal_expression_node() : expression_node(nodeid::literal_expression), value_float() { }
 			};
-			struct Unary : public Expression
+			struct unary_expression_node : public expression_node
 			{
-				enum class Op
+				enum op
 				{
-					None,
-
-					Negate,
-					BitwiseNot,
-					LogicalNot,
-					Increase,
-					Decrease,
-					PostIncrease,
-					PostDecrease,
-					Cast,
+					none,
+					negate,
+					bitwise_not,
+					logical_not,
+					pre_increase,
+					pre_decrease,
+					post_increase,
+					post_decrease,
+					cast,
 				};
 
-				Op Operator;
-				Expression *Operand;
+				op op;
+				expression_node *operand;
 
-				Unary() : Expression(nodeid::Unary), Operator(Op::None), Operand(nullptr)
-				{
-				}
+				unary_expression_node() : expression_node(nodeid::unary_expression), op(none), operand(nullptr) { }
 			};
-			struct Binary : public Expression
+			struct binary_expression_node : public expression_node
 			{
-				enum class Op
+				enum op
 				{
-					None,
-
-					Add,
-					Subtract,
-					Multiply,
-					Divide,
-					Modulo,
-					Less,
-					Greater,
-					LessOrEqual,
-					GreaterOrEqual,
-					Equal,
-					NotEqual,
-					LeftShift,
-					RightShift,
-					BitwiseOr,
-					BitwiseXor,
-					BitwiseAnd,
-					LogicalOr,
-					LogicalAnd,
-					ElementExtract
+					none,
+					add,
+					subtract,
+					multiply,
+					divide,
+					modulo,
+					less,
+					greater,
+					less_equal,
+					greater_equal,
+					equal,
+					not_equal,
+					left_shift,
+					right_shift,
+					bitwise_or,
+					bitwise_xor,
+					bitwise_and,
+					logical_or,
+					logical_and,
+					element_extract
 				};
 
-				Op Operator;
-				Expression *Operands[2];
+				op op;
+				expression_node *operands[2];
 
-				Binary() : Expression(nodeid::Binary), Operator(Op::None), Operands()
-				{
-				}
+				binary_expression_node() : expression_node(nodeid::binary_expression), op(none), operands() { }
 			};
-			struct Intrinsic : public Expression
+			struct intrinsic_expression_node : public expression_node
 			{
-				enum class Op
+				enum op
 				{
-					None,
-
-					Abs,
-					Acos,
-					All,
-					Any,
-					BitCastInt2Float,
-					BitCastUint2Float,
-					Asin,
-					BitCastFloat2Int,
-					BitCastFloat2Uint,
-					Atan,
-					Atan2,
-					Ceil,
-					Clamp,
-					Cos,
-					Cosh,
-					Cross,
-					PartialDerivativeX,
-					PartialDerivativeY,
-					Degrees,
-					Determinant,
-					Distance,
-					Dot,
-					Exp,
-					Exp2,
-					FaceForward,
-					Floor,
-					Frac,
-					Frexp,
-					Fwidth,
-					Ldexp,
-					Length,
-					Lerp,
-					Log,
-					Log10,
-					Log2,
-					Mad,
-					Max,
-					Min,
-					Modf,
-					Mul,
-					Normalize,
-					Pow,
-					Radians,
-					Rcp,
-					Reflect,
-					Refract,
-					Round,
-					Rsqrt,
-					Saturate,
-					Sign,
-					Sin,
-					SinCos,
-					Sinh,
-					SmoothStep,
-					Sqrt,
-					Step,
-					Tan,
-					Tanh,
-					Tex2D,
-					Tex2DFetch,
-					Tex2DGather,
-					Tex2DGatherOffset,
-					Tex2DGrad,
-					Tex2DLevel,
-					Tex2DLevelOffset,
-					Tex2DOffset,
-					Tex2DProj,
-					Tex2DSize,
-					Transpose,
-					Trunc,
+					none,
+					abs,
+					acos,
+					all,
+					any,
+					bitcast_int2float,
+					bitcast_uint2float,
+					asin,
+					bitcast_float2int,
+					bitcast_float2uint,
+					atan,
+					atan2,
+					ceil,
+					clamp,
+					cos,
+					cosh,
+					cross,
+					ddx,
+					ddy,
+					degrees,
+					determinant,
+					distance,
+					dot,
+					exp,
+					exp2,
+					faceforward,
+					floor,
+					frac,
+					frexp,
+					fwidth,
+					ldexp,
+					length,
+					lerp,
+					log,
+					log10,
+					log2,
+					mad,
+					max,
+					min,
+					modf,
+					mul,
+					normalize,
+					pow,
+					radians,
+					rcp,
+					reflect,
+					refract,
+					round,
+					rsqrt,
+					saturate,
+					sign,
+					sin,
+					sincos,
+					sinh,
+					smoothstep,
+					sqrt,
+					step,
+					tan,
+					tanh,
+					tex2d,
+					tex2dfetch,
+					tex2dgather,
+					tex2dgatheroffset,
+					tex2dgrad,
+					tex2dlevel,
+					tex2dleveloffset,
+					tex2doffset,
+					tex2dproj,
+					tex2dsize,
+					transpose,
+					trunc,
 				};
 
-				Op Operator;
-				Expression *Arguments[4];
+				op op;
+				expression_node *arguments[4];
 
-				Intrinsic() : Expression(nodeid::Intrinsic), Operator(Op::None), Arguments()
-				{
-				}
+				intrinsic_expression_node() : expression_node(nodeid::intrinsic_expression), op(none), arguments() { }
 			};
-			struct Conditional : public Expression
+			struct conditional_expression_node : public expression_node
 			{
-				Expression *Condition;
-				Expression *ExpressionOnTrue, *ExpressionOnFalse;
+				expression_node *condition;
+				expression_node *expression_when_true, *expression_when_false;
 
-				Conditional() : Expression(nodeid::Conditional), Condition(nullptr), ExpressionOnTrue(nullptr), ExpressionOnFalse(nullptr)
-				{
-				}
+				conditional_expression_node() : expression_node(nodeid::conditional_expression), condition(nullptr), expression_when_true(nullptr), expression_when_false(nullptr) { }
 			};
-			struct Assignment : public Expression
+			struct assignment_expression_node : public expression_node
 			{
-				enum class Op
+				enum op
 				{
-					None,
-					Add,
-					Subtract,
-					Multiply,
-					Divide,
-					Modulo,
-					BitwiseAnd,
-					BitwiseOr,
-					BitwiseXor,
-					LeftShift,
-					RightShift
+					none,
+					add,
+					subtract,
+					multiply,
+					divide,
+					modulo,
+					bitwise_and,
+					bitwise_or,
+					bitwise_xor,
+					left_shift,
+					right_shift
 				};
 
-				Op Operator;
-				Expression *Left, *Right;
+				op op;
+				expression_node *left, *right;
 
-				Assignment() : Expression(nodeid::Assignment), Operator(Op::None)
+				assignment_expression_node() : expression_node(nodeid::assignment_expression), op(none), left(nullptr), right(nullptr) { }
+			};
+			struct expression_sequence_node : public expression_node
+			{
+				std::vector<expression_node *> expression_list;
+
+				expression_sequence_node() : expression_node(nodeid::expression_sequence) { }
+			};
+			struct call_expression_node : public expression_node
+			{
+				std::string callee_name;
+				const struct function_declaration_node *callee;
+				std::vector<expression_node *> arguments;
+
+				call_expression_node() : expression_node(nodeid::call_expression), callee(nullptr) { }
+			};
+			struct constructor_expression_node : public expression_node
+			{
+				std::vector<expression_node *> arguments;
+
+				constructor_expression_node() : expression_node(nodeid::constructor_expression) { }
+			};
+			struct swizzle_expression_node : public expression_node
+			{
+				expression_node *operand;
+				signed char mask[4];
+
+				swizzle_expression_node() : expression_node(nodeid::swizzle_expression), operand(nullptr)
 				{
+					mask[0] = mask[1] = mask[2] = mask[3] = -1;
 				}
 			};
-			struct Sequence : public Expression
+			struct field_expression_node : public expression_node
 			{
-				std::vector<Expression *> Expressions;
+				expression_node *operand;
+				variable_declaration_node *field_reference;
 
-				Sequence() : Expression(nodeid::Sequence)
-				{
-				}
+				field_expression_node() : expression_node(nodeid::field_expression), operand(nullptr), field_reference(nullptr) { }
 			};
-			struct Call : public Expression
+			struct initializer_list_node : public expression_node
 			{
-				std::string CalleeName;
-				const struct Function *Callee;
-				std::vector<Expression *> Arguments;
+				std::vector<expression_node *> values;
 
-				Call() : Expression(nodeid::Call), Callee(nullptr)
-				{
-				}
-			};
-			struct Constructor : public Expression
-			{
-				std::vector<Expression *> Arguments;
-
-				Constructor() : Expression(nodeid::Constructor)
-				{
-				}
-			};
-			struct Swizzle : public Expression
-			{
-				Expression *Operand;
-				signed char Mask[4];
-
-				Swizzle() : Expression(nodeid::Swizzle), Operand(nullptr)
-				{
-					Mask[0] = Mask[1] = Mask[2] = Mask[3] = -1;
-				}
-			};
-			struct FieldSelection : public Expression
-			{
-				Expression *Operand;
-				Variable *Field;
-
-				FieldSelection() : Expression(nodeid::FieldSelection), Operand(nullptr), Field(nullptr)
-				{
-				}
-			};
-			struct InitializerList : public Expression
-			{
-				std::vector<Expression *> Values;
-
-				InitializerList() : Expression(nodeid::InitializerList)
-				{
-				}
+				initializer_list_node() : expression_node(nodeid::initializer_list) { }
 			};
 
 			// Statements
-			struct Compound : public Statement
+			struct compound_statement_node : public statement_node
 			{
-				std::vector<Statement *> Statements;
+				std::vector<statement_node *> statement_list;
 
-				Compound() : Statement(nodeid::Compound)
-				{
-				}
+				compound_statement_node() : statement_node(nodeid::compound_statement) { }
 			};
-			struct DeclaratorList : public Statement
+			struct expression_statement_node : public statement_node
 			{
-				std::vector<struct Variable *> Declarators;
+				expression_node *expression;
 
-				DeclaratorList() : Statement(nodeid::DeclaratorList)
-				{
-				}
+				expression_statement_node() : statement_node(nodeid::expression_statement) { }
 			};
-			struct ExpressionStatement : public Statement
+			struct if_statement_node : public statement_node
 			{
-				Expression *Expression;
+				expression_node *condition;
+				statement_node *statement_when_true, *statement_when_false;
 
-				ExpressionStatement() : Statement(nodeid::ExpressionStatement)
-				{
-				}
+				if_statement_node() : statement_node(nodeid::if_statement) { }
 			};
-			struct If : public Statement
+			struct case_statement_node : public statement_node
 			{
-				Expression *Condition;
-				Statement *StatementOnTrue, *StatementOnFalse;
-				
-				If() : Statement(nodeid::If)
-				{
-				}
-			};
-			struct Case : public Statement
-			{
-				std::vector<struct Literal *> Labels;
-				Statement *Statements;
+				std::vector<struct literal_expression_node *> labels;
+				statement_node *statement_list;
 
-				Case() : Statement(nodeid::Case)
-				{
-				}
+				case_statement_node() : statement_node(nodeid::case_statement) { }
 			};
-			struct Switch : public Statement
+			struct switch_statement_node : public statement_node
 			{
-				Expression *Test;
-				std::vector<Case *> Cases;
+				expression_node *test_expression;
+				std::vector<case_statement_node *> case_list;
 
-				Switch() : Statement(nodeid::Switch)
-				{
-				}
+				switch_statement_node() : statement_node(nodeid::switch_statement) { }
 			};
-			struct For : public Statement
+			struct for_statement_node : public statement_node
 			{
-				Statement *Initialization;
-				Expression *Condition, *Increment;
-				Statement *Statements;
-				
-				For() : Statement(nodeid::For)
-				{
-				}
-			};
-			struct While : public Statement
-			{
-				bool DoWhile;
-				Expression *Condition;
-				Statement *Statements;
-				
-				While() : Statement(nodeid::While), DoWhile(false)
-				{
-				}
-			};
-			struct Return : public Statement
-			{
-				bool Discard;
-				Expression *Value;
-				
-				Return() : Statement(nodeid::Return), Discard(false), Value(nullptr)
-				{
-				}
-			};
-			struct Jump : public Statement
-			{
-				enum Mode
-				{
-					Break,
-					Continue
-				};
+				statement_node *init_statement;
+				expression_node *condition, *increment_expression;
+				statement_node *statement_list;
 
-				Mode Mode;
-				
-				Jump() : Statement(nodeid::Jump), Mode(Break)
-				{
-				}
+				for_statement_node() : statement_node(nodeid::for_statement) { }
+			};
+			struct while_statement_node : public statement_node
+			{
+				bool is_do_while;
+				expression_node *condition;
+				statement_node *statement_list;
+
+				while_statement_node() : statement_node(nodeid::while_statement), is_do_while(false) { }
+			};
+			struct return_statement_node : public statement_node
+			{
+				bool is_discard;
+				expression_node *return_value;
+
+				return_statement_node() : statement_node(nodeid::return_statement), is_discard(false), return_value(nullptr) { }
+			};
+			struct jump_statement_node : public statement_node
+			{
+				bool is_break, is_continue;
+
+				jump_statement_node() : statement_node(nodeid::jump_statement), is_break(false), is_continue(false) { }
 			};
 
 			// Declarations
-			struct Annotation : public node
+			struct annotation_node : public node
 			{
-				std::string Name;
-				Literal *Value;
-				
-				Annotation() : node(nodeid::Annotation)
-				{
-				}
+				std::string name;
+				literal_expression_node *value;
+
+				annotation_node() : node(nodeid::annotation), value(nullptr) { }
 			};
-			struct Variable : public Declaration
+			struct declarator_list_node : public statement_node
 			{
-				struct Properties
+				std::vector<struct variable_declaration_node *> declarator_list;
+
+				declarator_list_node() : statement_node(nodeid::declarator_list) { }
+			};
+			struct variable_declaration_node : public declaration_node
+			{
+				struct properties
 				{
 					enum : unsigned int
 					{
@@ -670,11 +568,11 @@ namespace ReShade
 						BORDER,
 					};
 
-					Properties() : Texture(nullptr), Width(1), Height(1), Depth(1), MipLevels(1), Format(RGBA8), SRGBTexture(false), AddressU(CLAMP), AddressV(CLAMP), AddressW(CLAMP), MinFilter(LINEAR), MagFilter(LINEAR), MipFilter(LINEAR), MaxAnisotropy(1), MinLOD(0), MaxLOD(FLT_MAX), MipLODBias(0.0f)
+					properties() : Texture(nullptr), Width(1), Height(1), Depth(1), MipLevels(1), Format(RGBA8), SRGBTexture(false), AddressU(CLAMP), AddressV(CLAMP), AddressW(CLAMP), MinFilter(LINEAR), MagFilter(LINEAR), MipFilter(LINEAR), MaxAnisotropy(1), MinLOD(0), MaxLOD(FLT_MAX), MipLODBias(0.0f)
 					{
 					}
 
-					const Variable *Texture;
+					const variable_declaration_node *Texture;
 					unsigned int Width, Height, Depth, MipLevels;
 					unsigned int Format;
 					bool SRGBTexture;
@@ -683,38 +581,32 @@ namespace ReShade
 					float MinLOD, MaxLOD, MipLODBias;
 				};
 
-				Type Type;
-				std::vector<Annotation> Annotations;
-				std::string Semantic;
-				Properties Properties;
-				Expression *Initializer;
-				
-				Variable() : Declaration(nodeid::Variable), Initializer(nullptr)
-				{
-				}
+				type_node type;
+				std::vector<annotation_node> annotations;
+				std::string semantic;
+				properties properties;
+				expression_node *initializer_expression;
+
+				variable_declaration_node() : declaration_node(nodeid::variable_declaration), initializer_expression(nullptr) { }
 			};
-			struct Struct : public Declaration
+			struct struct_declaration_node : public declaration_node
 			{
-				std::vector<Variable *> Fields;
-				
-				Struct() : Declaration(nodeid::Struct)
-				{
-				}
+				std::vector<variable_declaration_node *> field_list;
+
+				struct_declaration_node() : declaration_node(nodeid::struct_declaration) { }
 			};
-			struct Function : public Declaration
+			struct function_declaration_node : public declaration_node
 			{
-				Type ReturnType;
-				std::vector<Variable *> Parameters;
-				std::string ReturnSemantic;
-				Compound *Definition;
-				
-				Function() : Declaration(nodeid::Function), Definition(nullptr)
-				{
-				}
+				type_node return_type;
+				std::vector<variable_declaration_node *> parameter_list;
+				std::string return_semantic;
+				compound_statement_node *definition;
+
+				function_declaration_node() : declaration_node(nodeid::function_declaration), definition(nullptr) { }
 			};
-			struct Pass : public Declaration
+			struct pass_declaration_node : public declaration_node
 			{
-				struct States
+				struct states
 				{
 					enum : unsigned int
 					{
@@ -755,32 +647,28 @@ namespace ReShade
 						ALWAYS
 					};
 
-					States() : RenderTargets(), VertexShader(nullptr), PixelShader(nullptr), SRGBWriteEnable(false), BlendEnable(false), DepthEnable(false), StencilEnable(false), RenderTargetWriteMask(0xF), DepthWriteMask(1), StencilReadMask(0xFF), StencilWriteMask(0xFF), BlendOp(ADD), BlendOpAlpha(ADD), SrcBlend(ONE), DestBlend(ZERO), DepthFunc(LESS), StencilFunc(ALWAYS), StencilRef(0), StencilOpPass(KEEP), StencilOpFail(KEEP), StencilOpDepthFail(KEEP)
+					states() : RenderTargets(), VertexShader(nullptr), PixelShader(nullptr), SRGBWriteEnable(false), BlendEnable(false), DepthEnable(false), StencilEnable(false), RenderTargetWriteMask(0xF), DepthWriteMask(1), StencilReadMask(0xFF), StencilWriteMask(0xFF), BlendOp(ADD), BlendOpAlpha(ADD), SrcBlend(ONE), DestBlend(ZERO), DepthFunc(LESS), StencilFunc(ALWAYS), StencilRef(0), StencilOpPass(KEEP), StencilOpFail(KEEP), StencilOpDepthFail(KEEP)
 					{
 					}
 
-					const Variable *RenderTargets[8];
-					const Function *VertexShader, *PixelShader;
+					const variable_declaration_node *RenderTargets[8];
+					const function_declaration_node *VertexShader, *PixelShader;
 					bool SRGBWriteEnable, BlendEnable, DepthEnable, StencilEnable;
 					unsigned char RenderTargetWriteMask, DepthWriteMask, StencilReadMask, StencilWriteMask;
 					unsigned int BlendOp, BlendOpAlpha, SrcBlend, DestBlend, DepthFunc, StencilFunc, StencilRef, StencilOpPass, StencilOpFail, StencilOpDepthFail;
 				};
 
-				std::vector<Annotation> Annotations;
-				States States;
-				
-				Pass() : Declaration(nodeid::Pass)
-				{
-				}
+				std::vector<annotation_node> annotation_list;
+				states states;
+
+				pass_declaration_node() : declaration_node(nodeid::pass_declaration) { }
 			};
-			struct Technique : public Declaration
+			struct technique_declaration_node : public declaration_node
 			{
-				std::vector<Annotation> Annotations;
-				std::vector<Pass *> Passes;
-				
-				Technique() : Declaration(nodeid::Technique)
-				{
-				}
+				std::vector<annotation_node> annotation_list;
+				std::vector<pass_declaration_node *> pass_list;
+
+				technique_declaration_node() : declaration_node(nodeid::technique_declaration) { }
 			};
 		}
 	}

@@ -8,458 +8,453 @@
 #include <boost\assign\list_of.hpp>
 #include <boost\algorithm\string.hpp>
 
-namespace ReShade
+namespace reshade
 {
-	namespace FX
+	namespace fx
 	{
 		namespace
 		{
 			#pragma region Intrinsics
-			struct Intrinsic
+			struct intrinsic
 			{
-				explicit Intrinsic(const std::string &name, Nodes::Intrinsic::Op op, Nodes::Type::Class returntype, unsigned int returnrows, unsigned int returncols)
+				explicit intrinsic(const std::string &name, enum nodes::intrinsic_expression_node::op op, nodes::type_node::datatype returntype, unsigned int returnrows, unsigned int returncols) : op(op)
 				{
-					Op = op;
-					Function.Name = name;
-					Function.ReturnType.BaseClass = returntype;
-					Function.ReturnType.Rows = returnrows;
-					Function.ReturnType.Cols = returncols;
+					function.name = name;
+					function.return_type.basetype = returntype;
+					function.return_type.rows = returnrows;
+					function.return_type.cols = returncols;
 				}
-				explicit Intrinsic(const std::string &name, Nodes::Intrinsic::Op op, Nodes::Type::Class returntype, unsigned int returnrows, unsigned int returncols, Nodes::Type::Class arg0type, unsigned int arg0rows, unsigned int arg0cols)
+				explicit intrinsic(const std::string &name, enum nodes::intrinsic_expression_node::op op, nodes::type_node::datatype returntype, unsigned int returnrows, unsigned int returncols, nodes::type_node::datatype arg0type, unsigned int arg0rows, unsigned int arg0cols) : op(op)
 				{
-					Op = op;
-					Function.Name = name;
-					Function.ReturnType.BaseClass = returntype;
-					Function.ReturnType.Rows = returnrows;
-					Function.ReturnType.Cols = returncols;
-					Arguments[0].Type.BaseClass = arg0type;
-					Arguments[0].Type.Rows = arg0rows;
-					Arguments[0].Type.Cols = arg0cols;
+					function.name = name;
+					function.return_type.basetype = returntype;
+					function.return_type.rows = returnrows;
+					function.return_type.cols = returncols;
+					arguments[0].type.basetype = arg0type;
+					arguments[0].type.rows = arg0rows;
+					arguments[0].type.cols = arg0cols;
 
-					Function.Parameters.push_back(&Arguments[0]);
+					function.parameter_list.push_back(&arguments[0]);
 				}
-				explicit Intrinsic(const std::string &name, Nodes::Intrinsic::Op op, Nodes::Type::Class returntype, unsigned int returnrows, unsigned int returncols, Nodes::Type::Class arg0type, unsigned int arg0rows, unsigned int arg0cols, Nodes::Type::Class arg1type, unsigned int arg1rows, unsigned int arg1cols)
+				explicit intrinsic(const std::string &name, enum nodes::intrinsic_expression_node::op op, nodes::type_node::datatype returntype, unsigned int returnrows, unsigned int returncols, nodes::type_node::datatype arg0type, unsigned int arg0rows, unsigned int arg0cols, nodes::type_node::datatype arg1type, unsigned int arg1rows, unsigned int arg1cols) : op(op)
 				{
-					Op = op;
-					Function.Name = name;
-					Function.ReturnType.BaseClass = returntype;
-					Function.ReturnType.Rows = returnrows;
-					Function.ReturnType.Cols = returncols;
-					Arguments[0].Type.BaseClass = arg0type;
-					Arguments[0].Type.Rows = arg0rows;
-					Arguments[0].Type.Cols = arg0cols;
-					Arguments[1].Type.BaseClass = arg1type;
-					Arguments[1].Type.Rows = arg1rows;
-					Arguments[1].Type.Cols = arg1cols;
+					function.name = name;
+					function.return_type.basetype = returntype;
+					function.return_type.rows = returnrows;
+					function.return_type.cols = returncols;
+					arguments[0].type.basetype = arg0type;
+					arguments[0].type.rows = arg0rows;
+					arguments[0].type.cols = arg0cols;
+					arguments[1].type.basetype = arg1type;
+					arguments[1].type.rows = arg1rows;
+					arguments[1].type.cols = arg1cols;
 
-					Function.Parameters.push_back(&Arguments[0]);
-					Function.Parameters.push_back(&Arguments[1]);
+					function.parameter_list.push_back(&arguments[0]);
+					function.parameter_list.push_back(&arguments[1]);
 				}
-				explicit Intrinsic(const std::string &name, Nodes::Intrinsic::Op op, Nodes::Type::Class returntype, unsigned int returnrows, unsigned int returncols, Nodes::Type::Class arg0type, unsigned int arg0rows, unsigned int arg0cols, Nodes::Type::Class arg1type, unsigned int arg1rows, unsigned int arg1cols, Nodes::Type::Class arg2type, unsigned int arg2rows, unsigned int arg2cols)
+				explicit intrinsic(const std::string &name, enum nodes::intrinsic_expression_node::op op, nodes::type_node::datatype returntype, unsigned int returnrows, unsigned int returncols, nodes::type_node::datatype arg0type, unsigned int arg0rows, unsigned int arg0cols, nodes::type_node::datatype arg1type, unsigned int arg1rows, unsigned int arg1cols, nodes::type_node::datatype arg2type, unsigned int arg2rows, unsigned int arg2cols) : op(op)
 				{
-					Op = op;
-					Function.Name = name;
-					Function.ReturnType.BaseClass = returntype;
-					Function.ReturnType.Rows = returnrows;
-					Function.ReturnType.Cols = returncols;
-					Arguments[0].Type.BaseClass = arg0type;
-					Arguments[0].Type.Rows = arg0rows;
-					Arguments[0].Type.Cols = arg0cols;
-					Arguments[1].Type.BaseClass = arg1type;
-					Arguments[1].Type.Rows = arg1rows;
-					Arguments[1].Type.Cols = arg1cols;
-					Arguments[2].Type.BaseClass = arg2type;
-					Arguments[2].Type.Rows = arg2rows;
-					Arguments[2].Type.Cols = arg2cols;
+					function.name = name;
+					function.return_type.basetype = returntype;
+					function.return_type.rows = returnrows;
+					function.return_type.cols = returncols;
+					arguments[0].type.basetype = arg0type;
+					arguments[0].type.rows = arg0rows;
+					arguments[0].type.cols = arg0cols;
+					arguments[1].type.basetype = arg1type;
+					arguments[1].type.rows = arg1rows;
+					arguments[1].type.cols = arg1cols;
+					arguments[2].type.basetype = arg2type;
+					arguments[2].type.rows = arg2rows;
+					arguments[2].type.cols = arg2cols;
 
-					Function.Parameters.push_back(&Arguments[0]);
-					Function.Parameters.push_back(&Arguments[1]);
-					Function.Parameters.push_back(&Arguments[2]);
+					function.parameter_list.push_back(&arguments[0]);
+					function.parameter_list.push_back(&arguments[1]);
+					function.parameter_list.push_back(&arguments[2]);
 				}
-				explicit Intrinsic(const std::string &name, Nodes::Intrinsic::Op op, Nodes::Type::Class returntype, unsigned int returnrows, unsigned int returncols, Nodes::Type::Class arg0type, unsigned int arg0rows, unsigned int arg0cols, Nodes::Type::Class arg1type, unsigned int arg1rows, unsigned int arg1cols, Nodes::Type::Class arg2type, unsigned int arg2rows, unsigned int arg2cols, Nodes::Type::Class arg3type, unsigned int arg3rows, unsigned int arg3cols)
+				explicit intrinsic(const std::string &name, enum nodes::intrinsic_expression_node::op op, nodes::type_node::datatype returntype, unsigned int returnrows, unsigned int returncols, nodes::type_node::datatype arg0type, unsigned int arg0rows, unsigned int arg0cols, nodes::type_node::datatype arg1type, unsigned int arg1rows, unsigned int arg1cols, nodes::type_node::datatype arg2type, unsigned int arg2rows, unsigned int arg2cols, nodes::type_node::datatype arg3type, unsigned int arg3rows, unsigned int arg3cols) : op(op)
 				{
-					Op = op;
-					Function.Name = name;
-					Function.ReturnType.BaseClass = returntype;
-					Function.ReturnType.Rows = returnrows;
-					Function.ReturnType.Cols = returncols;
-					Arguments[0].Type.BaseClass = arg0type;
-					Arguments[0].Type.Rows = arg0rows;
-					Arguments[0].Type.Cols = arg0cols;
-					Arguments[1].Type.BaseClass = arg1type;
-					Arguments[1].Type.Rows = arg1rows;
-					Arguments[1].Type.Cols = arg1cols;
-					Arguments[2].Type.BaseClass = arg2type;
-					Arguments[2].Type.Rows = arg2rows;
-					Arguments[2].Type.Cols = arg2cols;
-					Arguments[3].Type.BaseClass = arg3type;
-					Arguments[3].Type.Rows = arg3rows;
-					Arguments[3].Type.Cols = arg3cols;
+					function.name = name;
+					function.return_type.basetype = returntype;
+					function.return_type.rows = returnrows;
+					function.return_type.cols = returncols;
+					arguments[0].type.basetype = arg0type;
+					arguments[0].type.rows = arg0rows;
+					arguments[0].type.cols = arg0cols;
+					arguments[1].type.basetype = arg1type;
+					arguments[1].type.rows = arg1rows;
+					arguments[1].type.cols = arg1cols;
+					arguments[2].type.basetype = arg2type;
+					arguments[2].type.rows = arg2rows;
+					arguments[2].type.cols = arg2cols;
+					arguments[3].type.basetype = arg3type;
+					arguments[3].type.rows = arg3rows;
+					arguments[3].type.cols = arg3cols;
 
-					Function.Parameters.push_back(&Arguments[0]);
-					Function.Parameters.push_back(&Arguments[1]);
-					Function.Parameters.push_back(&Arguments[2]);
-					Function.Parameters.push_back(&Arguments[3]);
+					function.parameter_list.push_back(&arguments[0]);
+					function.parameter_list.push_back(&arguments[1]);
+					function.parameter_list.push_back(&arguments[2]);
+					function.parameter_list.push_back(&arguments[3]);
 				}
 
-				Nodes::Intrinsic::Op Op;
-				Nodes::Function Function;
-				Nodes::Variable Arguments[4];
+				enum nodes::intrinsic_expression_node::op op;
+				nodes::function_declaration_node function;
+				nodes::variable_declaration_node arguments[4];
 			};
 
-			const Intrinsic sIntrinsics[] =
+			const intrinsic _intrinsics[] =
 			{
-				Intrinsic("abs", 				Nodes::Intrinsic::Op::Abs, 					Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 1, 1),
-				Intrinsic("abs", 				Nodes::Intrinsic::Op::Abs, 					Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Float, 2, 1),
-				Intrinsic("abs", 				Nodes::Intrinsic::Op::Abs, 					Nodes::Type::Class::Float, 3, 1, Nodes::Type::Class::Float, 3, 1),
-				Intrinsic("abs", 				Nodes::Intrinsic::Op::Abs, 					Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Float, 4, 1),
-				Intrinsic("acos", 				Nodes::Intrinsic::Op::Acos, 				Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 1, 1),
-				Intrinsic("acos", 				Nodes::Intrinsic::Op::Acos, 				Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Float, 2, 1),
-				Intrinsic("acos", 				Nodes::Intrinsic::Op::Acos, 				Nodes::Type::Class::Float, 3, 1, Nodes::Type::Class::Float, 3, 1),
-				Intrinsic("acos", 				Nodes::Intrinsic::Op::Acos, 				Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Float, 4, 1),
-				Intrinsic("all", 				Nodes::Intrinsic::Op::All, 					Nodes::Type::Class::Bool,  1, 1, Nodes::Type::Class::Bool,  1, 1),
-				Intrinsic("all", 				Nodes::Intrinsic::Op::All, 					Nodes::Type::Class::Bool,  2, 1, Nodes::Type::Class::Bool,  2, 1),
-				Intrinsic("all", 				Nodes::Intrinsic::Op::All, 					Nodes::Type::Class::Bool,  3, 1, Nodes::Type::Class::Bool,  3, 1),
-				Intrinsic("all", 				Nodes::Intrinsic::Op::All, 					Nodes::Type::Class::Bool,  4, 1, Nodes::Type::Class::Bool,  4, 1),
-				Intrinsic("any", 				Nodes::Intrinsic::Op::Any, 					Nodes::Type::Class::Bool,  1, 1, Nodes::Type::Class::Bool,  1, 1),
-				Intrinsic("any", 				Nodes::Intrinsic::Op::Any, 					Nodes::Type::Class::Bool,  2, 1, Nodes::Type::Class::Bool,  2, 1),
-				Intrinsic("any", 				Nodes::Intrinsic::Op::Any, 					Nodes::Type::Class::Bool,  3, 1, Nodes::Type::Class::Bool,  3, 1),
-				Intrinsic("any", 				Nodes::Intrinsic::Op::Any, 					Nodes::Type::Class::Bool,  4, 1, Nodes::Type::Class::Bool,  4, 1),
-				Intrinsic("asfloat", 			Nodes::Intrinsic::Op::BitCastInt2Float,		Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Int,   1, 1),
-				Intrinsic("asfloat", 			Nodes::Intrinsic::Op::BitCastInt2Float,		Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Int,   2, 1),
-				Intrinsic("asfloat", 			Nodes::Intrinsic::Op::BitCastInt2Float,		Nodes::Type::Class::Float, 3, 1, Nodes::Type::Class::Int,   3, 1),
-				Intrinsic("asfloat", 			Nodes::Intrinsic::Op::BitCastInt2Float,		Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Int,   4, 1),
-				Intrinsic("asfloat", 			Nodes::Intrinsic::Op::BitCastUint2Float,	Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Uint,  1, 1),
-				Intrinsic("asfloat", 			Nodes::Intrinsic::Op::BitCastUint2Float,	Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Uint,  2, 1),
-				Intrinsic("asfloat", 			Nodes::Intrinsic::Op::BitCastUint2Float,	Nodes::Type::Class::Float, 3, 1, Nodes::Type::Class::Uint,  3, 1),
-				Intrinsic("asfloat", 			Nodes::Intrinsic::Op::BitCastUint2Float,	Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Uint,  4, 1),
-				Intrinsic("asin", 				Nodes::Intrinsic::Op::Asin, 				Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 1, 1),
-				Intrinsic("asin", 				Nodes::Intrinsic::Op::Asin, 				Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Float, 2, 1),
-				Intrinsic("asin", 				Nodes::Intrinsic::Op::Asin, 				Nodes::Type::Class::Float, 3, 1, Nodes::Type::Class::Float, 3, 1),
-				Intrinsic("asin", 				Nodes::Intrinsic::Op::Asin, 				Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Float, 4, 1),
-				Intrinsic("asint", 				Nodes::Intrinsic::Op::BitCastFloat2Int,		Nodes::Type::Class::Int,   1, 1, Nodes::Type::Class::Float, 1, 1),
-				Intrinsic("asint", 				Nodes::Intrinsic::Op::BitCastFloat2Int,		Nodes::Type::Class::Int,   2, 1, Nodes::Type::Class::Float, 2, 1),
-				Intrinsic("asint", 				Nodes::Intrinsic::Op::BitCastFloat2Int,		Nodes::Type::Class::Int,   3, 1, Nodes::Type::Class::Float, 3, 1),
-				Intrinsic("asint", 				Nodes::Intrinsic::Op::BitCastFloat2Int,		Nodes::Type::Class::Int,   4, 1, Nodes::Type::Class::Float, 4, 1),
-				Intrinsic("asuint", 			Nodes::Intrinsic::Op::BitCastFloat2Uint,	Nodes::Type::Class::Uint,  1, 1, Nodes::Type::Class::Float, 1, 1),
-				Intrinsic("asuint", 			Nodes::Intrinsic::Op::BitCastFloat2Uint,	Nodes::Type::Class::Uint,  2, 1, Nodes::Type::Class::Float, 2, 1),
-				Intrinsic("asuint", 			Nodes::Intrinsic::Op::BitCastFloat2Uint,	Nodes::Type::Class::Uint,  3, 1, Nodes::Type::Class::Float, 3, 1),
-				Intrinsic("asuint", 			Nodes::Intrinsic::Op::BitCastFloat2Uint,	Nodes::Type::Class::Uint,  4, 1, Nodes::Type::Class::Float, 4, 1),
-				Intrinsic("atan", 				Nodes::Intrinsic::Op::Atan, 				Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 1, 1),
-				Intrinsic("atan", 				Nodes::Intrinsic::Op::Atan, 				Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Float, 2, 1),
-				Intrinsic("atan", 				Nodes::Intrinsic::Op::Atan, 				Nodes::Type::Class::Float, 3, 1, Nodes::Type::Class::Float, 3, 1),
-				Intrinsic("atan", 				Nodes::Intrinsic::Op::Atan, 				Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Float, 4, 1),
-				Intrinsic("atan2", 				Nodes::Intrinsic::Op::Atan2, 				Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 1, 1),
-				Intrinsic("atan2", 				Nodes::Intrinsic::Op::Atan2, 				Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Float, 2, 1),
-				Intrinsic("atan2", 				Nodes::Intrinsic::Op::Atan2, 				Nodes::Type::Class::Float, 3, 1, Nodes::Type::Class::Float, 3, 1, Nodes::Type::Class::Float, 3, 1),
-				Intrinsic("atan2", 				Nodes::Intrinsic::Op::Atan2, 				Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Float, 4, 1),
-				Intrinsic("ceil", 				Nodes::Intrinsic::Op::Ceil, 				Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 1, 1),
-				Intrinsic("ceil", 				Nodes::Intrinsic::Op::Ceil, 				Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Float, 2, 1),
-				Intrinsic("ceil", 				Nodes::Intrinsic::Op::Ceil, 				Nodes::Type::Class::Float, 3, 1, Nodes::Type::Class::Float, 3, 1),
-				Intrinsic("ceil", 				Nodes::Intrinsic::Op::Ceil, 				Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Float, 4, 1),
-				Intrinsic("clamp", 				Nodes::Intrinsic::Op::Clamp, 				Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 1, 1),
-				Intrinsic("clamp", 				Nodes::Intrinsic::Op::Clamp, 				Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Float, 2, 1),
-				Intrinsic("clamp", 				Nodes::Intrinsic::Op::Clamp, 				Nodes::Type::Class::Float, 3, 1, Nodes::Type::Class::Float, 3, 1, Nodes::Type::Class::Float, 3, 1, Nodes::Type::Class::Float, 3, 1),
-				Intrinsic("clamp", 				Nodes::Intrinsic::Op::Clamp, 				Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Float, 4, 1),
-				Intrinsic("cos", 				Nodes::Intrinsic::Op::Cos, 					Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 1, 1),
-				Intrinsic("cos", 				Nodes::Intrinsic::Op::Cos, 					Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Float, 2, 1),
-				Intrinsic("cos", 				Nodes::Intrinsic::Op::Cos, 					Nodes::Type::Class::Float, 3, 1, Nodes::Type::Class::Float, 3, 1),
-				Intrinsic("cos", 				Nodes::Intrinsic::Op::Cos, 					Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Float, 4, 1),
-				Intrinsic("cosh", 				Nodes::Intrinsic::Op::Cosh, 				Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 1, 1),
-				Intrinsic("cosh", 				Nodes::Intrinsic::Op::Cosh, 				Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Float, 2, 1),
-				Intrinsic("cosh", 				Nodes::Intrinsic::Op::Cosh, 				Nodes::Type::Class::Float, 3, 1, Nodes::Type::Class::Float, 3, 1),
-				Intrinsic("cosh", 				Nodes::Intrinsic::Op::Cosh, 				Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Float, 4, 1),
-				Intrinsic("cross", 				Nodes::Intrinsic::Op::Cross, 				Nodes::Type::Class::Float, 3, 1, Nodes::Type::Class::Float, 3, 1, Nodes::Type::Class::Float, 3, 1),
-				Intrinsic("ddx", 				Nodes::Intrinsic::Op::PartialDerivativeX,	Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 1, 1),
-				Intrinsic("ddx", 				Nodes::Intrinsic::Op::PartialDerivativeX,	Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Float, 2, 1),
-				Intrinsic("ddx", 				Nodes::Intrinsic::Op::PartialDerivativeX,	Nodes::Type::Class::Float, 3, 1, Nodes::Type::Class::Float, 3, 1),
-				Intrinsic("ddx", 				Nodes::Intrinsic::Op::PartialDerivativeX,	Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Float, 4, 1),
-				Intrinsic("ddy", 				Nodes::Intrinsic::Op::PartialDerivativeY,	Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 1, 1),
-				Intrinsic("ddy", 				Nodes::Intrinsic::Op::PartialDerivativeY,	Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Float, 2, 1),
-				Intrinsic("ddy", 				Nodes::Intrinsic::Op::PartialDerivativeY,	Nodes::Type::Class::Float, 3, 1, Nodes::Type::Class::Float, 3, 1),
-				Intrinsic("ddy", 				Nodes::Intrinsic::Op::PartialDerivativeY,	Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Float, 4, 1),
-				Intrinsic("degrees", 			Nodes::Intrinsic::Op::Degrees, 				Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 1, 1),
-				Intrinsic("degrees", 			Nodes::Intrinsic::Op::Degrees, 				Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Float, 2, 1),
-				Intrinsic("degrees", 			Nodes::Intrinsic::Op::Degrees, 				Nodes::Type::Class::Float, 3, 1, Nodes::Type::Class::Float, 3, 1),
-				Intrinsic("degrees", 			Nodes::Intrinsic::Op::Degrees, 				Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Float, 4, 1),
-				Intrinsic("determinant",		Nodes::Intrinsic::Op::Determinant,			Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 2, 2),
-				Intrinsic("determinant",		Nodes::Intrinsic::Op::Determinant,			Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 3, 3),
-				Intrinsic("determinant", 		Nodes::Intrinsic::Op::Determinant,			Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 4, 4),
-				Intrinsic("distance", 			Nodes::Intrinsic::Op::Distance,				Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 1, 1),
-				Intrinsic("distance", 			Nodes::Intrinsic::Op::Distance,				Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Float, 2, 1),
-				Intrinsic("distance", 			Nodes::Intrinsic::Op::Distance, 			Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 3, 1, Nodes::Type::Class::Float, 3, 1),
-				Intrinsic("distance", 			Nodes::Intrinsic::Op::Distance, 			Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Float, 4, 1),
-				Intrinsic("dot", 				Nodes::Intrinsic::Op::Dot, 					Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 1, 1),
-				Intrinsic("dot", 				Nodes::Intrinsic::Op::Dot, 					Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Float, 2, 1),
-				Intrinsic("dot", 				Nodes::Intrinsic::Op::Dot, 					Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 3, 1, Nodes::Type::Class::Float, 3, 1),
-				Intrinsic("dot", 				Nodes::Intrinsic::Op::Dot, 					Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Float, 4, 1),
-				Intrinsic("exp", 				Nodes::Intrinsic::Op::Exp, 					Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 1, 1),
-				Intrinsic("exp", 				Nodes::Intrinsic::Op::Exp, 					Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Float, 2, 1),
-				Intrinsic("exp", 				Nodes::Intrinsic::Op::Exp, 					Nodes::Type::Class::Float, 3, 1, Nodes::Type::Class::Float, 3, 1),
-				Intrinsic("exp", 				Nodes::Intrinsic::Op::Exp, 					Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Float, 4, 1),
-				Intrinsic("exp2", 				Nodes::Intrinsic::Op::Exp2, 				Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 1, 1),
-				Intrinsic("exp2", 				Nodes::Intrinsic::Op::Exp2, 				Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Float, 2, 1),
-				Intrinsic("exp2", 				Nodes::Intrinsic::Op::Exp2, 				Nodes::Type::Class::Float, 3, 1, Nodes::Type::Class::Float, 3, 1),
-				Intrinsic("exp2", 				Nodes::Intrinsic::Op::Exp2, 				Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Float, 4, 1),
-				Intrinsic("faceforward",		Nodes::Intrinsic::Op::FaceForward,			Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 1, 1),
-				Intrinsic("faceforward",		Nodes::Intrinsic::Op::FaceForward,			Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Float, 2, 1),
-				Intrinsic("faceforward",		Nodes::Intrinsic::Op::FaceForward,			Nodes::Type::Class::Float, 3, 1, Nodes::Type::Class::Float, 3, 1, Nodes::Type::Class::Float, 3, 1, Nodes::Type::Class::Float, 3, 1),
-				Intrinsic("faceforward",		Nodes::Intrinsic::Op::FaceForward, 			Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Float, 4, 1),
-				Intrinsic("floor", 				Nodes::Intrinsic::Op::Floor, 				Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 1, 1),
-				Intrinsic("floor", 				Nodes::Intrinsic::Op::Floor, 				Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Float, 2, 1),
-				Intrinsic("floor", 				Nodes::Intrinsic::Op::Floor, 				Nodes::Type::Class::Float, 3, 1, Nodes::Type::Class::Float, 3, 1),
-				Intrinsic("floor", 				Nodes::Intrinsic::Op::Floor, 				Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Float, 4, 1),
-				Intrinsic("frac", 				Nodes::Intrinsic::Op::Frac, 				Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 1, 1),
-				Intrinsic("frac", 				Nodes::Intrinsic::Op::Frac, 				Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Float, 2, 1),
-				Intrinsic("frac", 				Nodes::Intrinsic::Op::Frac, 				Nodes::Type::Class::Float, 3, 1, Nodes::Type::Class::Float, 3, 1),
-				Intrinsic("frac", 				Nodes::Intrinsic::Op::Frac, 				Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Float, 4, 1),
-				Intrinsic("frexp", 				Nodes::Intrinsic::Op::Frexp, 				Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 1, 1),
-				Intrinsic("frexp", 				Nodes::Intrinsic::Op::Frexp, 				Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Float, 2, 1),
-				Intrinsic("frexp", 				Nodes::Intrinsic::Op::Frexp, 				Nodes::Type::Class::Float, 3, 1, Nodes::Type::Class::Float, 3, 1, Nodes::Type::Class::Float, 3, 1),
-				Intrinsic("frexp", 				Nodes::Intrinsic::Op::Frexp, 				Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Float, 4, 1),
-				Intrinsic("fwidth", 			Nodes::Intrinsic::Op::Fwidth, 				Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 1, 1),
-				Intrinsic("fwidth", 			Nodes::Intrinsic::Op::Fwidth, 				Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Float, 2, 1),
-				Intrinsic("fwidth", 			Nodes::Intrinsic::Op::Fwidth, 				Nodes::Type::Class::Float, 3, 1, Nodes::Type::Class::Float, 3, 1),
-				Intrinsic("fwidth", 			Nodes::Intrinsic::Op::Fwidth, 				Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Float, 4, 1),
-				Intrinsic("ldexp", 				Nodes::Intrinsic::Op::Ldexp, 				Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 1, 1),
-				Intrinsic("ldexp", 				Nodes::Intrinsic::Op::Ldexp, 				Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Float, 2, 1),
-				Intrinsic("ldexp", 				Nodes::Intrinsic::Op::Ldexp, 				Nodes::Type::Class::Float, 3, 1, Nodes::Type::Class::Float, 3, 1, Nodes::Type::Class::Float, 3, 1),
-				Intrinsic("ldexp", 				Nodes::Intrinsic::Op::Ldexp, 				Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Float, 4, 1),
-				Intrinsic("length", 			Nodes::Intrinsic::Op::Length, 				Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 1, 1),
-				Intrinsic("length", 			Nodes::Intrinsic::Op::Length, 				Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 2, 1),
-				Intrinsic("length", 			Nodes::Intrinsic::Op::Length, 				Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 3, 1),
-				Intrinsic("length", 			Nodes::Intrinsic::Op::Length, 				Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 4, 1),
-				Intrinsic("lerp",				Nodes::Intrinsic::Op::Lerp, 				Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 1, 1),
-				Intrinsic("lerp",				Nodes::Intrinsic::Op::Lerp, 				Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Float, 2, 1),
-				Intrinsic("lerp",				Nodes::Intrinsic::Op::Lerp, 				Nodes::Type::Class::Float, 3, 1, Nodes::Type::Class::Float, 3, 1, Nodes::Type::Class::Float, 3, 1, Nodes::Type::Class::Float, 3, 1),
-				Intrinsic("lerp",				Nodes::Intrinsic::Op::Lerp, 				Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Float, 4, 1),
-				Intrinsic("log", 				Nodes::Intrinsic::Op::Log, 					Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 1, 1),
-				Intrinsic("log", 				Nodes::Intrinsic::Op::Log, 					Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Float, 2, 1),
-				Intrinsic("log", 				Nodes::Intrinsic::Op::Log, 					Nodes::Type::Class::Float, 3, 1, Nodes::Type::Class::Float, 3, 1),
-				Intrinsic("log", 				Nodes::Intrinsic::Op::Log, 					Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Float, 4, 1),
-				Intrinsic("log10", 				Nodes::Intrinsic::Op::Log10, 				Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 1, 1),
-				Intrinsic("log10", 				Nodes::Intrinsic::Op::Log10, 				Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Float, 2, 1),
-				Intrinsic("log10", 				Nodes::Intrinsic::Op::Log10, 				Nodes::Type::Class::Float, 3, 1, Nodes::Type::Class::Float, 3, 1),
-				Intrinsic("log10", 				Nodes::Intrinsic::Op::Log10, 				Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Float, 4, 1),
-				Intrinsic("log2", 				Nodes::Intrinsic::Op::Log2, 				Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 1, 1),
-				Intrinsic("log2", 				Nodes::Intrinsic::Op::Log2, 				Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Float, 2, 1),
-				Intrinsic("log2", 				Nodes::Intrinsic::Op::Log2, 				Nodes::Type::Class::Float, 3, 1, Nodes::Type::Class::Float, 3, 1),
-				Intrinsic("log2", 				Nodes::Intrinsic::Op::Log2, 				Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Float, 4, 1),
-				Intrinsic("mad", 				Nodes::Intrinsic::Op::Mad, 					Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 1, 1),
-				Intrinsic("mad", 				Nodes::Intrinsic::Op::Mad, 					Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Float, 2, 1),
-				Intrinsic("mad", 				Nodes::Intrinsic::Op::Mad, 					Nodes::Type::Class::Float, 3, 1, Nodes::Type::Class::Float, 3, 1, Nodes::Type::Class::Float, 3, 1, Nodes::Type::Class::Float, 3, 1),
-				Intrinsic("mad", 				Nodes::Intrinsic::Op::Mad, 					Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Float, 4, 1),
-				Intrinsic("max", 				Nodes::Intrinsic::Op::Max, 					Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 1, 1),
-				Intrinsic("max", 				Nodes::Intrinsic::Op::Max, 					Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Float, 2, 1),
-				Intrinsic("max",				Nodes::Intrinsic::Op::Max, 					Nodes::Type::Class::Float, 3, 1, Nodes::Type::Class::Float, 3, 1, Nodes::Type::Class::Float, 3, 1),
-				Intrinsic("max", 				Nodes::Intrinsic::Op::Max, 					Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Float, 4, 1),
-				Intrinsic("min", 				Nodes::Intrinsic::Op::Min, 					Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 1, 1),
-				Intrinsic("min", 				Nodes::Intrinsic::Op::Min, 					Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Float, 2, 1),
-				Intrinsic("min", 				Nodes::Intrinsic::Op::Min, 					Nodes::Type::Class::Float, 3, 1, Nodes::Type::Class::Float, 3, 1, Nodes::Type::Class::Float, 3, 1),
-				Intrinsic("min", 				Nodes::Intrinsic::Op::Min, 					Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Float, 4, 1),
-				Intrinsic("modf", 				Nodes::Intrinsic::Op::Modf, 				Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 1, 1),
-				Intrinsic("modf", 				Nodes::Intrinsic::Op::Modf, 				Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Float, 2, 1),
-				Intrinsic("modf", 				Nodes::Intrinsic::Op::Modf, 				Nodes::Type::Class::Float, 3, 1, Nodes::Type::Class::Float, 3, 1, Nodes::Type::Class::Float, 3, 1),
-				Intrinsic("modf", 				Nodes::Intrinsic::Op::Modf, 				Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Float, 4, 1),
-				Intrinsic("mul", 				Nodes::Intrinsic::Op::Mul, 					Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 1, 1),
-				Intrinsic("mul", 				Nodes::Intrinsic::Op::Mul, 					Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 2, 1),
-				Intrinsic("mul", 				Nodes::Intrinsic::Op::Mul, 					Nodes::Type::Class::Float, 3, 1, Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 3, 1),
-				Intrinsic("mul", 				Nodes::Intrinsic::Op::Mul, 					Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 4, 1),
-				Intrinsic("mul", 				Nodes::Intrinsic::Op::Mul, 					Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Float, 1, 1),
-				Intrinsic("mul", 				Nodes::Intrinsic::Op::Mul, 					Nodes::Type::Class::Float, 3, 1, Nodes::Type::Class::Float, 3, 1, Nodes::Type::Class::Float, 1, 1),
-				Intrinsic("mul", 				Nodes::Intrinsic::Op::Mul, 					Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Float, 1, 1),
-				Intrinsic("mul", 				Nodes::Intrinsic::Op::Mul, 					Nodes::Type::Class::Float, 2, 2, Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 2, 2),
-				Intrinsic("mul", 				Nodes::Intrinsic::Op::Mul, 					Nodes::Type::Class::Float, 3, 3, Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 3, 3),
-				Intrinsic("mul", 				Nodes::Intrinsic::Op::Mul, 					Nodes::Type::Class::Float, 4, 4, Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 4, 4),
-				Intrinsic("mul", 				Nodes::Intrinsic::Op::Mul, 					Nodes::Type::Class::Float, 2, 2, Nodes::Type::Class::Float, 2, 2, Nodes::Type::Class::Float, 1, 1),
-				Intrinsic("mul", 				Nodes::Intrinsic::Op::Mul, 					Nodes::Type::Class::Float, 3, 3, Nodes::Type::Class::Float, 3, 3, Nodes::Type::Class::Float, 1, 1),
-				Intrinsic("mul", 				Nodes::Intrinsic::Op::Mul, 					Nodes::Type::Class::Float, 4, 4, Nodes::Type::Class::Float, 4, 4, Nodes::Type::Class::Float, 1, 1),
-				Intrinsic("mul", 				Nodes::Intrinsic::Op::Mul, 					Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Float, 2, 2),
-				Intrinsic("mul", 				Nodes::Intrinsic::Op::Mul, 					Nodes::Type::Class::Float, 3, 1, Nodes::Type::Class::Float, 3, 1, Nodes::Type::Class::Float, 3, 3),
-				Intrinsic("mul", 				Nodes::Intrinsic::Op::Mul, 					Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Float, 4, 4),
-				Intrinsic("mul", 				Nodes::Intrinsic::Op::Mul, 					Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Float, 2, 2, Nodes::Type::Class::Float, 2, 1),
-				Intrinsic("mul", 				Nodes::Intrinsic::Op::Mul, 					Nodes::Type::Class::Float, 3, 1, Nodes::Type::Class::Float, 3, 3, Nodes::Type::Class::Float, 3, 1),
-				Intrinsic("mul", 				Nodes::Intrinsic::Op::Mul, 					Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Float, 4, 4, Nodes::Type::Class::Float, 4, 1),
-				Intrinsic("normalize", 			Nodes::Intrinsic::Op::Normalize, 			Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 1, 1),
-				Intrinsic("normalize", 			Nodes::Intrinsic::Op::Normalize, 			Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Float, 2, 1),
-				Intrinsic("normalize", 			Nodes::Intrinsic::Op::Normalize, 			Nodes::Type::Class::Float, 3, 1, Nodes::Type::Class::Float, 3, 1),
-				Intrinsic("normalize", 			Nodes::Intrinsic::Op::Normalize, 			Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Float, 4, 1),
-				Intrinsic("pow", 				Nodes::Intrinsic::Op::Pow, 					Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 1, 1),
-				Intrinsic("pow", 				Nodes::Intrinsic::Op::Pow, 					Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Float, 2, 1),
-				Intrinsic("pow", 				Nodes::Intrinsic::Op::Pow, 					Nodes::Type::Class::Float, 3, 1, Nodes::Type::Class::Float, 3, 1, Nodes::Type::Class::Float, 3, 1),
-				Intrinsic("pow", 				Nodes::Intrinsic::Op::Pow, 					Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Float, 4, 1),
-				Intrinsic("radians", 			Nodes::Intrinsic::Op::Radians, 				Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 1, 1),
-				Intrinsic("radians", 			Nodes::Intrinsic::Op::Radians, 				Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Float, 2, 1),
-				Intrinsic("radians", 			Nodes::Intrinsic::Op::Radians, 				Nodes::Type::Class::Float, 3, 1, Nodes::Type::Class::Float, 3, 1),
-				Intrinsic("radians", 			Nodes::Intrinsic::Op::Radians, 				Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Float, 4, 1),
-				Intrinsic("rcp", 				Nodes::Intrinsic::Op::Sign, 				Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 1, 1),
-				Intrinsic("rcp", 				Nodes::Intrinsic::Op::Sign, 				Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Float, 2, 1),
-				Intrinsic("rcp", 				Nodes::Intrinsic::Op::Sign, 				Nodes::Type::Class::Float, 3, 1, Nodes::Type::Class::Float, 3, 1),
-				Intrinsic("rcp", 				Nodes::Intrinsic::Op::Sign, 				Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Float, 4, 1),
-				Intrinsic("reflect",			Nodes::Intrinsic::Op::Reflect, 				Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 1, 1),
-				Intrinsic("reflect",			Nodes::Intrinsic::Op::Reflect, 				Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Float, 2, 1),
-				Intrinsic("reflect",			Nodes::Intrinsic::Op::Reflect, 				Nodes::Type::Class::Float, 3, 1, Nodes::Type::Class::Float, 3, 1, Nodes::Type::Class::Float, 3, 1),
-				Intrinsic("reflect",			Nodes::Intrinsic::Op::Reflect, 				Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Float, 4, 1),
-				Intrinsic("refract",			Nodes::Intrinsic::Op::Refract, 				Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 1, 1),
-				Intrinsic("refract",			Nodes::Intrinsic::Op::Refract, 				Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Float, 2, 1),
-				Intrinsic("refract",			Nodes::Intrinsic::Op::Refract, 				Nodes::Type::Class::Float, 3, 1, Nodes::Type::Class::Float, 3, 1, Nodes::Type::Class::Float, 3, 1, Nodes::Type::Class::Float, 3, 1),
-				Intrinsic("refract",			Nodes::Intrinsic::Op::Refract, 				Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Float, 4, 1),
-				Intrinsic("round", 				Nodes::Intrinsic::Op::Round, 				Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 1, 1),
-				Intrinsic("round", 				Nodes::Intrinsic::Op::Round, 				Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Float, 2, 1),
-				Intrinsic("round", 				Nodes::Intrinsic::Op::Round, 				Nodes::Type::Class::Float, 3, 1, Nodes::Type::Class::Float, 3, 1),
-				Intrinsic("round", 				Nodes::Intrinsic::Op::Round, 				Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Float, 4, 1),
-				Intrinsic("rsqrt", 				Nodes::Intrinsic::Op::Rsqrt, 				Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 1, 1),
-				Intrinsic("rsqrt", 				Nodes::Intrinsic::Op::Rsqrt, 				Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Float, 2, 1),
-				Intrinsic("rsqrt", 				Nodes::Intrinsic::Op::Rsqrt, 				Nodes::Type::Class::Float, 3, 1, Nodes::Type::Class::Float, 3, 1),
-				Intrinsic("rsqrt", 				Nodes::Intrinsic::Op::Rsqrt, 				Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Float, 4, 1),
-				Intrinsic("saturate", 			Nodes::Intrinsic::Op::Saturate,				Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 1, 1),
-				Intrinsic("saturate", 			Nodes::Intrinsic::Op::Saturate,				Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Float, 2, 1),
-				Intrinsic("saturate", 			Nodes::Intrinsic::Op::Saturate,				Nodes::Type::Class::Float, 3, 1, Nodes::Type::Class::Float, 3, 1),
-				Intrinsic("saturate", 			Nodes::Intrinsic::Op::Saturate, 			Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Float, 4, 1),
-				Intrinsic("sign", 				Nodes::Intrinsic::Op::Sign, 				Nodes::Type::Class::Int,   1, 1, Nodes::Type::Class::Float, 1, 1),
-				Intrinsic("sign", 				Nodes::Intrinsic::Op::Sign, 				Nodes::Type::Class::Int,   2, 1, Nodes::Type::Class::Float, 2, 1),
-				Intrinsic("sign", 				Nodes::Intrinsic::Op::Sign, 				Nodes::Type::Class::Int,   3, 1, Nodes::Type::Class::Float, 3, 1),
-				Intrinsic("sign", 				Nodes::Intrinsic::Op::Sign, 				Nodes::Type::Class::Int,   4, 1, Nodes::Type::Class::Float, 4, 1),
-				Intrinsic("sin", 				Nodes::Intrinsic::Op::Sin, 					Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 1, 1),
-				Intrinsic("sin", 				Nodes::Intrinsic::Op::Sin, 					Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Float, 2, 1),
-				Intrinsic("sin", 				Nodes::Intrinsic::Op::Sin, 					Nodes::Type::Class::Float, 3, 1, Nodes::Type::Class::Float, 3, 1),
-				Intrinsic("sin", 				Nodes::Intrinsic::Op::Sin, 					Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Float, 4, 1),
-				Intrinsic("sincos",				Nodes::Intrinsic::Op::SinCos, 				Nodes::Type::Class::Void,  0, 0, Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 1, 1),
-				Intrinsic("sincos",				Nodes::Intrinsic::Op::SinCos, 				Nodes::Type::Class::Void,  0, 0, Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Float, 2, 1),
-				Intrinsic("sincos",				Nodes::Intrinsic::Op::SinCos, 				Nodes::Type::Class::Void,  0, 0, Nodes::Type::Class::Float, 3, 1, Nodes::Type::Class::Float, 3, 1, Nodes::Type::Class::Float, 3, 1),
-				Intrinsic("sincos",				Nodes::Intrinsic::Op::SinCos, 				Nodes::Type::Class::Void,  0, 0, Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Float, 4, 1),
-				Intrinsic("sinh", 				Nodes::Intrinsic::Op::Sinh, 				Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 1, 1),
-				Intrinsic("sinh", 				Nodes::Intrinsic::Op::Sinh, 				Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Float, 2, 1),
-				Intrinsic("sinh", 				Nodes::Intrinsic::Op::Sinh, 				Nodes::Type::Class::Float, 3, 1, Nodes::Type::Class::Float, 3, 1),
-				Intrinsic("sinh", 				Nodes::Intrinsic::Op::Sinh, 				Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Float, 4, 1),
-				Intrinsic("smoothstep",			Nodes::Intrinsic::Op::SmoothStep, 			Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 1, 1),
-				Intrinsic("smoothstep",			Nodes::Intrinsic::Op::SmoothStep, 			Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Float, 2, 1),
-				Intrinsic("smoothstep",			Nodes::Intrinsic::Op::SmoothStep, 			Nodes::Type::Class::Float, 3, 1, Nodes::Type::Class::Float, 3, 1, Nodes::Type::Class::Float, 3, 1, Nodes::Type::Class::Float, 3, 1),
-				Intrinsic("smoothstep",			Nodes::Intrinsic::Op::SmoothStep, 			Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Float, 4, 1),
-				Intrinsic("sqrt", 				Nodes::Intrinsic::Op::Sqrt, 				Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 1, 1),
-				Intrinsic("sqrt", 				Nodes::Intrinsic::Op::Sqrt, 				Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Float, 2, 1),
-				Intrinsic("sqrt", 				Nodes::Intrinsic::Op::Sqrt, 				Nodes::Type::Class::Float, 3, 1, Nodes::Type::Class::Float, 3, 1),
-				Intrinsic("sqrt", 				Nodes::Intrinsic::Op::Sqrt, 				Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Float, 4, 1),
-				Intrinsic("step", 				Nodes::Intrinsic::Op::Step, 				Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 1, 1),
-				Intrinsic("step", 				Nodes::Intrinsic::Op::Step, 				Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Float, 2, 1),
-				Intrinsic("step",				Nodes::Intrinsic::Op::Step, 				Nodes::Type::Class::Float, 3, 1, Nodes::Type::Class::Float, 3, 1, Nodes::Type::Class::Float, 3, 1),
-				Intrinsic("step",				Nodes::Intrinsic::Op::Step, 				Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Float, 4, 1),
-				Intrinsic("tan", 				Nodes::Intrinsic::Op::Tan, 					Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 1, 1),
-				Intrinsic("tan", 				Nodes::Intrinsic::Op::Tan, 					Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Float, 2, 1),
-				Intrinsic("tan", 				Nodes::Intrinsic::Op::Tan, 					Nodes::Type::Class::Float, 3, 1, Nodes::Type::Class::Float, 3, 1),
-				Intrinsic("tan", 				Nodes::Intrinsic::Op::Tan, 					Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Float, 4, 1),
-				Intrinsic("tanh", 				Nodes::Intrinsic::Op::Tanh, 				Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 1, 1),
-				Intrinsic("tanh", 				Nodes::Intrinsic::Op::Tanh, 				Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Float, 2, 1),
-				Intrinsic("tanh", 				Nodes::Intrinsic::Op::Tanh, 				Nodes::Type::Class::Float, 3, 1, Nodes::Type::Class::Float, 3, 1),
-				Intrinsic("tanh", 				Nodes::Intrinsic::Op::Tanh, 				Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Float, 4, 1),
-				Intrinsic("tex2D",				Nodes::Intrinsic::Op::Tex2D,				Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Sampler2D, 0, 0, Nodes::Type::Class::Float, 2, 1),
-				Intrinsic("tex2Dfetch",			Nodes::Intrinsic::Op::Tex2DFetch,			Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Sampler2D, 0, 0, Nodes::Type::Class::Int,   2, 1),
-				Intrinsic("tex2Dgather",		Nodes::Intrinsic::Op::Tex2DGather,			Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Sampler2D, 0, 0, Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Int,   1, 1),
-				Intrinsic("tex2Dgatheroffset",	Nodes::Intrinsic::Op::Tex2DGatherOffset,	Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Sampler2D, 0, 0, Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Int,   2, 1, Nodes::Type::Class::Int,   1, 1),
-				Intrinsic("tex2Dgrad",			Nodes::Intrinsic::Op::Tex2DGrad,			Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Sampler2D, 0, 0, Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Float, 2, 1),
-				Intrinsic("tex2Dlod",			Nodes::Intrinsic::Op::Tex2DLevel,			Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Sampler2D, 0, 0, Nodes::Type::Class::Float, 4, 1),
-				Intrinsic("tex2Dlodoffset",		Nodes::Intrinsic::Op::Tex2DLevelOffset,		Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Sampler2D, 0, 0, Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Int,   2, 1),
-				Intrinsic("tex2Doffset",		Nodes::Intrinsic::Op::Tex2DOffset,			Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Sampler2D, 0, 0, Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Int,   2, 1),
-				Intrinsic("tex2Dproj",			Nodes::Intrinsic::Op::Tex2D,				Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Sampler2D, 0, 0, Nodes::Type::Class::Float, 4, 1),
-				Intrinsic("tex2Dsize",			Nodes::Intrinsic::Op::Tex2DSize,			Nodes::Type::Class::Int,   2, 1, Nodes::Type::Class::Sampler2D, 0, 0, Nodes::Type::Class::Int,   1, 1),
-				Intrinsic("transpose", 			Nodes::Intrinsic::Op::Transpose, 			Nodes::Type::Class::Float, 2, 2, Nodes::Type::Class::Float, 2, 2),
-				Intrinsic("transpose", 			Nodes::Intrinsic::Op::Transpose, 			Nodes::Type::Class::Float, 3, 3, Nodes::Type::Class::Float, 3, 3),
-				Intrinsic("transpose",			Nodes::Intrinsic::Op::Transpose, 			Nodes::Type::Class::Float, 4, 4, Nodes::Type::Class::Float, 4, 4),
-				Intrinsic("trunc", 				Nodes::Intrinsic::Op::Trunc, 				Nodes::Type::Class::Float, 1, 1, Nodes::Type::Class::Float, 1, 1),
-				Intrinsic("trunc", 				Nodes::Intrinsic::Op::Trunc, 				Nodes::Type::Class::Float, 2, 1, Nodes::Type::Class::Float, 2, 1),
-				Intrinsic("trunc", 				Nodes::Intrinsic::Op::Trunc, 				Nodes::Type::Class::Float, 3, 1, Nodes::Type::Class::Float, 3, 1),
-				Intrinsic("trunc", 				Nodes::Intrinsic::Op::Trunc, 				Nodes::Type::Class::Float, 4, 1, Nodes::Type::Class::Float, 4, 1),
+				intrinsic("abs", 				nodes::intrinsic_expression_node::abs, 					nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
+				intrinsic("abs", 				nodes::intrinsic_expression_node::abs, 					nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
+				intrinsic("abs", 				nodes::intrinsic_expression_node::abs, 					nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
+				intrinsic("abs", 				nodes::intrinsic_expression_node::abs, 					nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
+				intrinsic("acos", 				nodes::intrinsic_expression_node::acos, 				nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
+				intrinsic("acos", 				nodes::intrinsic_expression_node::acos, 				nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
+				intrinsic("acos", 				nodes::intrinsic_expression_node::acos, 				nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
+				intrinsic("acos", 				nodes::intrinsic_expression_node::acos, 				nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
+				intrinsic("all", 				nodes::intrinsic_expression_node::all, 					nodes::type_node::bool_,  1, 1, nodes::type_node::bool_,  1, 1),
+				intrinsic("all", 				nodes::intrinsic_expression_node::all, 					nodes::type_node::bool_,  2, 1, nodes::type_node::bool_,  2, 1),
+				intrinsic("all", 				nodes::intrinsic_expression_node::all, 					nodes::type_node::bool_,  3, 1, nodes::type_node::bool_,  3, 1),
+				intrinsic("all", 				nodes::intrinsic_expression_node::all, 					nodes::type_node::bool_,  4, 1, nodes::type_node::bool_,  4, 1),
+				intrinsic("any", 				nodes::intrinsic_expression_node::any, 					nodes::type_node::bool_,  1, 1, nodes::type_node::bool_,  1, 1),
+				intrinsic("any", 				nodes::intrinsic_expression_node::any, 					nodes::type_node::bool_,  2, 1, nodes::type_node::bool_,  2, 1),
+				intrinsic("any", 				nodes::intrinsic_expression_node::any, 					nodes::type_node::bool_,  3, 1, nodes::type_node::bool_,  3, 1),
+				intrinsic("any", 				nodes::intrinsic_expression_node::any, 					nodes::type_node::bool_,  4, 1, nodes::type_node::bool_,  4, 1),
+				intrinsic("asfloat", 			nodes::intrinsic_expression_node::bitcast_int2float,	nodes::type_node::float_, 1, 1, nodes::type_node::int_,   1, 1),
+				intrinsic("asfloat", 			nodes::intrinsic_expression_node::bitcast_int2float,	nodes::type_node::float_, 2, 1, nodes::type_node::int_,   2, 1),
+				intrinsic("asfloat", 			nodes::intrinsic_expression_node::bitcast_int2float,	nodes::type_node::float_, 3, 1, nodes::type_node::int_,   3, 1),
+				intrinsic("asfloat", 			nodes::intrinsic_expression_node::bitcast_int2float,	nodes::type_node::float_, 4, 1, nodes::type_node::int_,   4, 1),
+				intrinsic("asfloat", 			nodes::intrinsic_expression_node::bitcast_uint2float,	nodes::type_node::float_, 1, 1, nodes::type_node::uint_,  1, 1),
+				intrinsic("asfloat", 			nodes::intrinsic_expression_node::bitcast_uint2float,	nodes::type_node::float_, 2, 1, nodes::type_node::uint_,  2, 1),
+				intrinsic("asfloat", 			nodes::intrinsic_expression_node::bitcast_uint2float,	nodes::type_node::float_, 3, 1, nodes::type_node::uint_,  3, 1),
+				intrinsic("asfloat", 			nodes::intrinsic_expression_node::bitcast_uint2float,	nodes::type_node::float_, 4, 1, nodes::type_node::uint_,  4, 1),
+				intrinsic("asin", 				nodes::intrinsic_expression_node::asin, 				nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
+				intrinsic("asin", 				nodes::intrinsic_expression_node::asin, 				nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
+				intrinsic("asin", 				nodes::intrinsic_expression_node::asin, 				nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
+				intrinsic("asin", 				nodes::intrinsic_expression_node::asin, 				nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
+				intrinsic("asint", 				nodes::intrinsic_expression_node::bitcast_float2int,	nodes::type_node::int_,   1, 1, nodes::type_node::float_, 1, 1),
+				intrinsic("asint", 				nodes::intrinsic_expression_node::bitcast_float2int,	nodes::type_node::int_,   2, 1, nodes::type_node::float_, 2, 1),
+				intrinsic("asint", 				nodes::intrinsic_expression_node::bitcast_float2int,	nodes::type_node::int_,   3, 1, nodes::type_node::float_, 3, 1),
+				intrinsic("asint", 				nodes::intrinsic_expression_node::bitcast_float2int,	nodes::type_node::int_,   4, 1, nodes::type_node::float_, 4, 1),
+				intrinsic("asuint", 			nodes::intrinsic_expression_node::bitcast_float2uint,	nodes::type_node::uint_,  1, 1, nodes::type_node::float_, 1, 1),
+				intrinsic("asuint", 			nodes::intrinsic_expression_node::bitcast_float2uint,	nodes::type_node::uint_,  2, 1, nodes::type_node::float_, 2, 1),
+				intrinsic("asuint", 			nodes::intrinsic_expression_node::bitcast_float2uint,	nodes::type_node::uint_,  3, 1, nodes::type_node::float_, 3, 1),
+				intrinsic("asuint", 			nodes::intrinsic_expression_node::bitcast_float2uint,	nodes::type_node::uint_,  4, 1, nodes::type_node::float_, 4, 1),
+				intrinsic("atan", 				nodes::intrinsic_expression_node::atan, 				nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
+				intrinsic("atan", 				nodes::intrinsic_expression_node::atan, 				nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
+				intrinsic("atan", 				nodes::intrinsic_expression_node::atan, 				nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
+				intrinsic("atan", 				nodes::intrinsic_expression_node::atan, 				nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
+				intrinsic("atan2", 				nodes::intrinsic_expression_node::atan2, 				nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
+				intrinsic("atan2", 				nodes::intrinsic_expression_node::atan2, 				nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
+				intrinsic("atan2", 				nodes::intrinsic_expression_node::atan2, 				nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
+				intrinsic("atan2", 				nodes::intrinsic_expression_node::atan2, 				nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
+				intrinsic("ceil", 				nodes::intrinsic_expression_node::ceil, 				nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
+				intrinsic("ceil", 				nodes::intrinsic_expression_node::ceil, 				nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
+				intrinsic("ceil", 				nodes::intrinsic_expression_node::ceil, 				nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
+				intrinsic("ceil", 				nodes::intrinsic_expression_node::ceil, 				nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
+				intrinsic("clamp", 				nodes::intrinsic_expression_node::clamp, 				nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
+				intrinsic("clamp", 				nodes::intrinsic_expression_node::clamp, 				nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
+				intrinsic("clamp", 				nodes::intrinsic_expression_node::clamp, 				nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
+				intrinsic("clamp", 				nodes::intrinsic_expression_node::clamp, 				nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
+				intrinsic("cos", 				nodes::intrinsic_expression_node::cos, 					nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
+				intrinsic("cos", 				nodes::intrinsic_expression_node::cos, 					nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
+				intrinsic("cos", 				nodes::intrinsic_expression_node::cos, 					nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
+				intrinsic("cos", 				nodes::intrinsic_expression_node::cos, 					nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
+				intrinsic("cosh", 				nodes::intrinsic_expression_node::cosh, 				nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
+				intrinsic("cosh", 				nodes::intrinsic_expression_node::cosh, 				nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
+				intrinsic("cosh", 				nodes::intrinsic_expression_node::cosh, 				nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
+				intrinsic("cosh", 				nodes::intrinsic_expression_node::cosh, 				nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
+				intrinsic("cross", 				nodes::intrinsic_expression_node::cross, 				nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
+				intrinsic("ddx", 				nodes::intrinsic_expression_node::ddx,					nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
+				intrinsic("ddx", 				nodes::intrinsic_expression_node::ddx,					nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
+				intrinsic("ddx", 				nodes::intrinsic_expression_node::ddx,					nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
+				intrinsic("ddx", 				nodes::intrinsic_expression_node::ddx,					nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
+				intrinsic("ddy", 				nodes::intrinsic_expression_node::ddy,					nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
+				intrinsic("ddy", 				nodes::intrinsic_expression_node::ddy,					nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
+				intrinsic("ddy", 				nodes::intrinsic_expression_node::ddy,					nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
+				intrinsic("ddy", 				nodes::intrinsic_expression_node::ddy,					nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
+				intrinsic("degrees", 			nodes::intrinsic_expression_node::degrees, 				nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
+				intrinsic("degrees", 			nodes::intrinsic_expression_node::degrees, 				nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
+				intrinsic("degrees", 			nodes::intrinsic_expression_node::degrees, 				nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
+				intrinsic("degrees", 			nodes::intrinsic_expression_node::degrees, 				nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
+				intrinsic("determinant",		nodes::intrinsic_expression_node::determinant,			nodes::type_node::float_, 1, 1, nodes::type_node::float_, 2, 2),
+				intrinsic("determinant",		nodes::intrinsic_expression_node::determinant,			nodes::type_node::float_, 1, 1, nodes::type_node::float_, 3, 3),
+				intrinsic("determinant", 		nodes::intrinsic_expression_node::determinant,			nodes::type_node::float_, 1, 1, nodes::type_node::float_, 4, 4),
+				intrinsic("distance", 			nodes::intrinsic_expression_node::distance,				nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
+				intrinsic("distance", 			nodes::intrinsic_expression_node::distance,				nodes::type_node::float_, 1, 1, nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
+				intrinsic("distance", 			nodes::intrinsic_expression_node::distance, 			nodes::type_node::float_, 1, 1, nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
+				intrinsic("distance", 			nodes::intrinsic_expression_node::distance, 			nodes::type_node::float_, 1, 1, nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
+				intrinsic("dot", 				nodes::intrinsic_expression_node::dot, 					nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
+				intrinsic("dot", 				nodes::intrinsic_expression_node::dot, 					nodes::type_node::float_, 1, 1, nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
+				intrinsic("dot", 				nodes::intrinsic_expression_node::dot, 					nodes::type_node::float_, 1, 1, nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
+				intrinsic("dot", 				nodes::intrinsic_expression_node::dot, 					nodes::type_node::float_, 1, 1, nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
+				intrinsic("exp", 				nodes::intrinsic_expression_node::exp, 					nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
+				intrinsic("exp", 				nodes::intrinsic_expression_node::exp, 					nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
+				intrinsic("exp", 				nodes::intrinsic_expression_node::exp, 					nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
+				intrinsic("exp", 				nodes::intrinsic_expression_node::exp, 					nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
+				intrinsic("exp2", 				nodes::intrinsic_expression_node::exp2, 				nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
+				intrinsic("exp2", 				nodes::intrinsic_expression_node::exp2, 				nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
+				intrinsic("exp2", 				nodes::intrinsic_expression_node::exp2, 				nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
+				intrinsic("exp2", 				nodes::intrinsic_expression_node::exp2, 				nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
+				intrinsic("faceforward",		nodes::intrinsic_expression_node::faceforward,			nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
+				intrinsic("faceforward",		nodes::intrinsic_expression_node::faceforward,			nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
+				intrinsic("faceforward",		nodes::intrinsic_expression_node::faceforward,			nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
+				intrinsic("faceforward",		nodes::intrinsic_expression_node::faceforward, 			nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
+				intrinsic("floor", 				nodes::intrinsic_expression_node::floor, 				nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
+				intrinsic("floor", 				nodes::intrinsic_expression_node::floor, 				nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
+				intrinsic("floor", 				nodes::intrinsic_expression_node::floor, 				nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
+				intrinsic("floor", 				nodes::intrinsic_expression_node::floor, 				nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
+				intrinsic("frac", 				nodes::intrinsic_expression_node::frac, 				nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
+				intrinsic("frac", 				nodes::intrinsic_expression_node::frac, 				nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
+				intrinsic("frac", 				nodes::intrinsic_expression_node::frac, 				nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
+				intrinsic("frac", 				nodes::intrinsic_expression_node::frac, 				nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
+				intrinsic("frexp", 				nodes::intrinsic_expression_node::frexp, 				nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
+				intrinsic("frexp", 				nodes::intrinsic_expression_node::frexp, 				nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
+				intrinsic("frexp", 				nodes::intrinsic_expression_node::frexp, 				nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
+				intrinsic("frexp", 				nodes::intrinsic_expression_node::frexp, 				nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
+				intrinsic("fwidth", 			nodes::intrinsic_expression_node::fwidth, 				nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
+				intrinsic("fwidth", 			nodes::intrinsic_expression_node::fwidth, 				nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
+				intrinsic("fwidth", 			nodes::intrinsic_expression_node::fwidth, 				nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
+				intrinsic("fwidth", 			nodes::intrinsic_expression_node::fwidth, 				nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
+				intrinsic("ldexp", 				nodes::intrinsic_expression_node::ldexp, 				nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
+				intrinsic("ldexp", 				nodes::intrinsic_expression_node::ldexp, 				nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
+				intrinsic("ldexp", 				nodes::intrinsic_expression_node::ldexp, 				nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
+				intrinsic("ldexp", 				nodes::intrinsic_expression_node::ldexp, 				nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
+				intrinsic("length", 			nodes::intrinsic_expression_node::length, 				nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
+				intrinsic("length", 			nodes::intrinsic_expression_node::length, 				nodes::type_node::float_, 1, 1, nodes::type_node::float_, 2, 1),
+				intrinsic("length", 			nodes::intrinsic_expression_node::length, 				nodes::type_node::float_, 1, 1, nodes::type_node::float_, 3, 1),
+				intrinsic("length", 			nodes::intrinsic_expression_node::length, 				nodes::type_node::float_, 1, 1, nodes::type_node::float_, 4, 1),
+				intrinsic("lerp",				nodes::intrinsic_expression_node::lerp, 				nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
+				intrinsic("lerp",				nodes::intrinsic_expression_node::lerp, 				nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
+				intrinsic("lerp",				nodes::intrinsic_expression_node::lerp, 				nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
+				intrinsic("lerp",				nodes::intrinsic_expression_node::lerp, 				nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
+				intrinsic("log", 				nodes::intrinsic_expression_node::log, 					nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
+				intrinsic("log", 				nodes::intrinsic_expression_node::log, 					nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
+				intrinsic("log", 				nodes::intrinsic_expression_node::log, 					nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
+				intrinsic("log", 				nodes::intrinsic_expression_node::log, 					nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
+				intrinsic("log10", 				nodes::intrinsic_expression_node::log10, 				nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
+				intrinsic("log10", 				nodes::intrinsic_expression_node::log10, 				nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
+				intrinsic("log10", 				nodes::intrinsic_expression_node::log10, 				nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
+				intrinsic("log10", 				nodes::intrinsic_expression_node::log10, 				nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
+				intrinsic("log2", 				nodes::intrinsic_expression_node::log2, 				nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
+				intrinsic("log2", 				nodes::intrinsic_expression_node::log2, 				nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
+				intrinsic("log2", 				nodes::intrinsic_expression_node::log2, 				nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
+				intrinsic("log2", 				nodes::intrinsic_expression_node::log2, 				nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
+				intrinsic("mad", 				nodes::intrinsic_expression_node::mad, 					nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
+				intrinsic("mad", 				nodes::intrinsic_expression_node::mad, 					nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
+				intrinsic("mad", 				nodes::intrinsic_expression_node::mad, 					nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
+				intrinsic("mad", 				nodes::intrinsic_expression_node::mad, 					nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
+				intrinsic("max", 				nodes::intrinsic_expression_node::max, 					nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
+				intrinsic("max", 				nodes::intrinsic_expression_node::max, 					nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
+				intrinsic("max",				nodes::intrinsic_expression_node::max, 					nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
+				intrinsic("max", 				nodes::intrinsic_expression_node::max, 					nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
+				intrinsic("min", 				nodes::intrinsic_expression_node::min, 					nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
+				intrinsic("min", 				nodes::intrinsic_expression_node::min, 					nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
+				intrinsic("min", 				nodes::intrinsic_expression_node::min, 					nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
+				intrinsic("min", 				nodes::intrinsic_expression_node::min, 					nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
+				intrinsic("modf", 				nodes::intrinsic_expression_node::modf, 				nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
+				intrinsic("modf", 				nodes::intrinsic_expression_node::modf, 				nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
+				intrinsic("modf", 				nodes::intrinsic_expression_node::modf, 				nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
+				intrinsic("modf", 				nodes::intrinsic_expression_node::modf, 				nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
+				intrinsic("mul", 				nodes::intrinsic_expression_node::mul, 					nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
+				intrinsic("mul", 				nodes::intrinsic_expression_node::mul, 					nodes::type_node::float_, 2, 1, nodes::type_node::float_, 1, 1, nodes::type_node::float_, 2, 1),
+				intrinsic("mul", 				nodes::intrinsic_expression_node::mul, 					nodes::type_node::float_, 3, 1, nodes::type_node::float_, 1, 1, nodes::type_node::float_, 3, 1),
+				intrinsic("mul", 				nodes::intrinsic_expression_node::mul, 					nodes::type_node::float_, 4, 1, nodes::type_node::float_, 1, 1, nodes::type_node::float_, 4, 1),
+				intrinsic("mul", 				nodes::intrinsic_expression_node::mul, 					nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1, nodes::type_node::float_, 1, 1),
+				intrinsic("mul", 				nodes::intrinsic_expression_node::mul, 					nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1, nodes::type_node::float_, 1, 1),
+				intrinsic("mul", 				nodes::intrinsic_expression_node::mul, 					nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1, nodes::type_node::float_, 1, 1),
+				intrinsic("mul", 				nodes::intrinsic_expression_node::mul, 					nodes::type_node::float_, 2, 2, nodes::type_node::float_, 1, 1, nodes::type_node::float_, 2, 2),
+				intrinsic("mul", 				nodes::intrinsic_expression_node::mul, 					nodes::type_node::float_, 3, 3, nodes::type_node::float_, 1, 1, nodes::type_node::float_, 3, 3),
+				intrinsic("mul", 				nodes::intrinsic_expression_node::mul, 					nodes::type_node::float_, 4, 4, nodes::type_node::float_, 1, 1, nodes::type_node::float_, 4, 4),
+				intrinsic("mul", 				nodes::intrinsic_expression_node::mul, 					nodes::type_node::float_, 2, 2, nodes::type_node::float_, 2, 2, nodes::type_node::float_, 1, 1),
+				intrinsic("mul", 				nodes::intrinsic_expression_node::mul, 					nodes::type_node::float_, 3, 3, nodes::type_node::float_, 3, 3, nodes::type_node::float_, 1, 1),
+				intrinsic("mul", 				nodes::intrinsic_expression_node::mul, 					nodes::type_node::float_, 4, 4, nodes::type_node::float_, 4, 4, nodes::type_node::float_, 1, 1),
+				intrinsic("mul", 				nodes::intrinsic_expression_node::mul, 					nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 2),
+				intrinsic("mul", 				nodes::intrinsic_expression_node::mul, 					nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 3),
+				intrinsic("mul", 				nodes::intrinsic_expression_node::mul, 					nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 4),
+				intrinsic("mul", 				nodes::intrinsic_expression_node::mul, 					nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 2, nodes::type_node::float_, 2, 1),
+				intrinsic("mul", 				nodes::intrinsic_expression_node::mul, 					nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 3, nodes::type_node::float_, 3, 1),
+				intrinsic("mul", 				nodes::intrinsic_expression_node::mul, 					nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 4, nodes::type_node::float_, 4, 1),
+				intrinsic("normalize", 			nodes::intrinsic_expression_node::normalize, 			nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
+				intrinsic("normalize", 			nodes::intrinsic_expression_node::normalize, 			nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
+				intrinsic("normalize", 			nodes::intrinsic_expression_node::normalize, 			nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
+				intrinsic("normalize", 			nodes::intrinsic_expression_node::normalize, 			nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
+				intrinsic("pow", 				nodes::intrinsic_expression_node::pow, 					nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
+				intrinsic("pow", 				nodes::intrinsic_expression_node::pow, 					nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
+				intrinsic("pow", 				nodes::intrinsic_expression_node::pow, 					nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
+				intrinsic("pow", 				nodes::intrinsic_expression_node::pow, 					nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
+				intrinsic("radians", 			nodes::intrinsic_expression_node::radians, 				nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
+				intrinsic("radians", 			nodes::intrinsic_expression_node::radians, 				nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
+				intrinsic("radians", 			nodes::intrinsic_expression_node::radians, 				nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
+				intrinsic("radians", 			nodes::intrinsic_expression_node::radians, 				nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
+				intrinsic("rcp", 				nodes::intrinsic_expression_node::sign, 				nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
+				intrinsic("rcp", 				nodes::intrinsic_expression_node::sign, 				nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
+				intrinsic("rcp", 				nodes::intrinsic_expression_node::sign, 				nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
+				intrinsic("rcp", 				nodes::intrinsic_expression_node::sign, 				nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
+				intrinsic("reflect",			nodes::intrinsic_expression_node::reflect, 				nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
+				intrinsic("reflect",			nodes::intrinsic_expression_node::reflect, 				nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
+				intrinsic("reflect",			nodes::intrinsic_expression_node::reflect, 				nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
+				intrinsic("reflect",			nodes::intrinsic_expression_node::reflect, 				nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
+				intrinsic("refract",			nodes::intrinsic_expression_node::refract, 				nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
+				intrinsic("refract",			nodes::intrinsic_expression_node::refract, 				nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
+				intrinsic("refract",			nodes::intrinsic_expression_node::refract, 				nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
+				intrinsic("refract",			nodes::intrinsic_expression_node::refract, 				nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
+				intrinsic("round", 				nodes::intrinsic_expression_node::round, 				nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
+				intrinsic("round", 				nodes::intrinsic_expression_node::round, 				nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
+				intrinsic("round", 				nodes::intrinsic_expression_node::round, 				nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
+				intrinsic("round", 				nodes::intrinsic_expression_node::round, 				nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
+				intrinsic("rsqrt", 				nodes::intrinsic_expression_node::rsqrt, 				nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
+				intrinsic("rsqrt", 				nodes::intrinsic_expression_node::rsqrt, 				nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
+				intrinsic("rsqrt", 				nodes::intrinsic_expression_node::rsqrt, 				nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
+				intrinsic("rsqrt", 				nodes::intrinsic_expression_node::rsqrt, 				nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
+				intrinsic("saturate", 			nodes::intrinsic_expression_node::saturate,				nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
+				intrinsic("saturate", 			nodes::intrinsic_expression_node::saturate,				nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
+				intrinsic("saturate", 			nodes::intrinsic_expression_node::saturate,				nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
+				intrinsic("saturate", 			nodes::intrinsic_expression_node::saturate, 			nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
+				intrinsic("sign", 				nodes::intrinsic_expression_node::sign, 				nodes::type_node::int_,   1, 1, nodes::type_node::float_, 1, 1),
+				intrinsic("sign", 				nodes::intrinsic_expression_node::sign, 				nodes::type_node::int_,   2, 1, nodes::type_node::float_, 2, 1),
+				intrinsic("sign", 				nodes::intrinsic_expression_node::sign, 				nodes::type_node::int_,   3, 1, nodes::type_node::float_, 3, 1),
+				intrinsic("sign", 				nodes::intrinsic_expression_node::sign, 				nodes::type_node::int_,   4, 1, nodes::type_node::float_, 4, 1),
+				intrinsic("sin", 				nodes::intrinsic_expression_node::sin, 					nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
+				intrinsic("sin", 				nodes::intrinsic_expression_node::sin, 					nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
+				intrinsic("sin", 				nodes::intrinsic_expression_node::sin, 					nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
+				intrinsic("sin", 				nodes::intrinsic_expression_node::sin, 					nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
+				intrinsic("sincos",				nodes::intrinsic_expression_node::sincos, 				nodes::type_node::void_,  0, 0, nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
+				intrinsic("sincos",				nodes::intrinsic_expression_node::sincos, 				nodes::type_node::void_,  0, 0, nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
+				intrinsic("sincos",				nodes::intrinsic_expression_node::sincos, 				nodes::type_node::void_,  0, 0, nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
+				intrinsic("sincos",				nodes::intrinsic_expression_node::sincos, 				nodes::type_node::void_,  0, 0, nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
+				intrinsic("sinh", 				nodes::intrinsic_expression_node::sinh, 				nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
+				intrinsic("sinh", 				nodes::intrinsic_expression_node::sinh, 				nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
+				intrinsic("sinh", 				nodes::intrinsic_expression_node::sinh, 				nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
+				intrinsic("sinh", 				nodes::intrinsic_expression_node::sinh, 				nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
+				intrinsic("smoothstep",			nodes::intrinsic_expression_node::smoothstep, 			nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
+				intrinsic("smoothstep",			nodes::intrinsic_expression_node::smoothstep, 			nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
+				intrinsic("smoothstep",			nodes::intrinsic_expression_node::smoothstep, 			nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
+				intrinsic("smoothstep",			nodes::intrinsic_expression_node::smoothstep, 			nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
+				intrinsic("sqrt", 				nodes::intrinsic_expression_node::sqrt, 				nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
+				intrinsic("sqrt", 				nodes::intrinsic_expression_node::sqrt, 				nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
+				intrinsic("sqrt", 				nodes::intrinsic_expression_node::sqrt, 				nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
+				intrinsic("sqrt", 				nodes::intrinsic_expression_node::sqrt, 				nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
+				intrinsic("step", 				nodes::intrinsic_expression_node::step, 				nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
+				intrinsic("step", 				nodes::intrinsic_expression_node::step, 				nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
+				intrinsic("step",				nodes::intrinsic_expression_node::step, 				nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
+				intrinsic("step",				nodes::intrinsic_expression_node::step, 				nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
+				intrinsic("tan", 				nodes::intrinsic_expression_node::tan, 					nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
+				intrinsic("tan", 				nodes::intrinsic_expression_node::tan, 					nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
+				intrinsic("tan", 				nodes::intrinsic_expression_node::tan, 					nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
+				intrinsic("tan", 				nodes::intrinsic_expression_node::tan, 					nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
+				intrinsic("tanh", 				nodes::intrinsic_expression_node::tanh, 				nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
+				intrinsic("tanh", 				nodes::intrinsic_expression_node::tanh, 				nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
+				intrinsic("tanh", 				nodes::intrinsic_expression_node::tanh, 				nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
+				intrinsic("tanh", 				nodes::intrinsic_expression_node::tanh, 				nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
+				intrinsic("tex2D",				nodes::intrinsic_expression_node::tex2d,				nodes::type_node::float_, 4, 1, nodes::type_node::sampler2d, 0, 0, nodes::type_node::float_, 2, 1),
+				intrinsic("tex2Dfetch",			nodes::intrinsic_expression_node::tex2dfetch,			nodes::type_node::float_, 4, 1, nodes::type_node::sampler2d, 0, 0, nodes::type_node::int_,   2, 1),
+				intrinsic("tex2Dgather",		nodes::intrinsic_expression_node::tex2dgather,			nodes::type_node::float_, 4, 1, nodes::type_node::sampler2d, 0, 0, nodes::type_node::float_, 2, 1, nodes::type_node::int_,   1, 1),
+				intrinsic("tex2Dgatheroffset",	nodes::intrinsic_expression_node::tex2dgatheroffset,	nodes::type_node::float_, 4, 1, nodes::type_node::sampler2d, 0, 0, nodes::type_node::float_, 2, 1, nodes::type_node::int_,   2, 1, nodes::type_node::int_,   1, 1),
+				intrinsic("tex2Dgrad",			nodes::intrinsic_expression_node::tex2dgrad,			nodes::type_node::float_, 4, 1, nodes::type_node::sampler2d, 0, 0, nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
+				intrinsic("tex2Dlod",			nodes::intrinsic_expression_node::tex2dlevel,			nodes::type_node::float_, 4, 1, nodes::type_node::sampler2d, 0, 0, nodes::type_node::float_, 4, 1),
+				intrinsic("tex2Dlodoffset",		nodes::intrinsic_expression_node::tex2dleveloffset,		nodes::type_node::float_, 4, 1, nodes::type_node::sampler2d, 0, 0, nodes::type_node::float_, 4, 1, nodes::type_node::int_,   2, 1),
+				intrinsic("tex2Doffset",		nodes::intrinsic_expression_node::tex2doffset,			nodes::type_node::float_, 4, 1, nodes::type_node::sampler2d, 0, 0, nodes::type_node::float_, 2, 1, nodes::type_node::int_,   2, 1),
+				intrinsic("tex2Dproj",			nodes::intrinsic_expression_node::tex2dproj,			nodes::type_node::float_, 4, 1, nodes::type_node::sampler2d, 0, 0, nodes::type_node::float_, 4, 1),
+				intrinsic("tex2Dsize",			nodes::intrinsic_expression_node::tex2dsize,			nodes::type_node::int_,   2, 1, nodes::type_node::sampler2d, 0, 0, nodes::type_node::int_,   1, 1),
+				intrinsic("transpose", 			nodes::intrinsic_expression_node::transpose, 			nodes::type_node::float_, 2, 2, nodes::type_node::float_, 2, 2),
+				intrinsic("transpose", 			nodes::intrinsic_expression_node::transpose, 			nodes::type_node::float_, 3, 3, nodes::type_node::float_, 3, 3),
+				intrinsic("transpose",			nodes::intrinsic_expression_node::transpose, 			nodes::type_node::float_, 4, 4, nodes::type_node::float_, 4, 4),
+				intrinsic("trunc", 				nodes::intrinsic_expression_node::trunc, 				nodes::type_node::float_, 1, 1, nodes::type_node::float_, 1, 1),
+				intrinsic("trunc", 				nodes::intrinsic_expression_node::trunc, 				nodes::type_node::float_, 2, 1, nodes::type_node::float_, 2, 1),
+				intrinsic("trunc", 				nodes::intrinsic_expression_node::trunc, 				nodes::type_node::float_, 3, 1, nodes::type_node::float_, 3, 1),
+				intrinsic("trunc",				nodes::intrinsic_expression_node::trunc, 				nodes::type_node::float_, 4, 1, nodes::type_node::float_, 4, 1),
 			};
 			#pragma endregion
 
-			void ScalarLiteralCast(const Nodes::Literal *from, size_t i, int &to)
+			void scalar_literal_cast(const nodes::literal_expression_node *from, size_t i, int &to)
 			{
-				switch (from->Type.BaseClass)
+				switch (from->type.basetype)
 				{
-					case Nodes::Type::Class::Bool:
-					case Nodes::Type::Class::Int:
-					case Nodes::Type::Class::Uint:
-						to = from->Value.Int[i];
+					case nodes::type_node::bool_:
+					case nodes::type_node::int_:
+					case nodes::type_node::uint_:
+						to = from->value_int[i];
 						break;
-					case Nodes::Type::Class::Float:
-						to = static_cast<int>(from->Value.Float[i]);
+					case nodes::type_node::float_:
+						to = static_cast<int>(from->value_float[i]);
 						break;
 					default:
 						to = 0;
 						break;
 				}
 			}
-			void ScalarLiteralCast(const Nodes::Literal *from, size_t i, unsigned int &to)
+			void scalar_literal_cast(const nodes::literal_expression_node *from, size_t i, unsigned int &to)
 			{
-				switch (from->Type.BaseClass)
+				switch (from->type.basetype)
 				{
-					case Nodes::Type::Class::Bool:
-					case Nodes::Type::Class::Int:
-					case Nodes::Type::Class::Uint:
-						to = from->Value.Uint[i];
+					case nodes::type_node::bool_:
+					case nodes::type_node::int_:
+					case nodes::type_node::uint_:
+						to = from->value_uint[i];
 						break;
-					case Nodes::Type::Class::Float:
-						to = static_cast<unsigned int>(from->Value.Float[i]);
+					case nodes::type_node::float_:
+						to = static_cast<unsigned int>(from->value_float[i]);
 						break;
 					default:
 						to = 0;
 						break;
 				}
 			}
-			void ScalarLiteralCast(const Nodes::Literal *from, size_t i, float &to)
+			void scalar_literal_cast(const nodes::literal_expression_node *from, size_t i, float &to)
 			{
-				switch (from->Type.BaseClass)
+				switch (from->type.basetype)
 				{
-					case Nodes::Type::Class::Bool:
-					case Nodes::Type::Class::Int:
-						to = static_cast<float>(from->Value.Int[i]);
+					case nodes::type_node::bool_:
+					case nodes::type_node::int_:
+						to = static_cast<float>(from->value_int[i]);
 						break;
-					case Nodes::Type::Class::Uint:
-						to = static_cast<float>(from->Value.Uint[i]);
+					case nodes::type_node::uint_:
+						to = static_cast<float>(from->value_uint[i]);
 						break;
-					case Nodes::Type::Class::Float:
-						to = from->Value.Float[i];
+					case nodes::type_node::float_:
+						to = from->value_float[i];
 						break;
 					default:
 						to = 0;
 						break;
 				}
 			}
-			void VectorLiteralCast(const Nodes::Literal *from, size_t k, Nodes::Literal *to, size_t j)
+			void vector_literal_cast(const nodes::literal_expression_node *from, size_t k, nodes::literal_expression_node *to, size_t j)
 			{
-				switch (to->Type.BaseClass)
+				switch (to->type.basetype)
 				{
-					case Nodes::Type::Class::Bool:
-					case Nodes::Type::Class::Int:
-						ScalarLiteralCast(from, j, to->Value.Int[k]);
+					case nodes::type_node::bool_:
+					case nodes::type_node::int_:
+						scalar_literal_cast(from, j, to->value_int[k]);
 						break;
-					case Nodes::Type::Class::Uint:
-						ScalarLiteralCast(from, j, to->Value.Uint[k]);
+					case nodes::type_node::uint_:
+						scalar_literal_cast(from, j, to->value_uint[k]);
 						break;
-					case Nodes::Type::Class::Float:
-						ScalarLiteralCast(from, j, to->Value.Float[k]);
+					case nodes::type_node::float_:
+						scalar_literal_cast(from, j, to->value_float[k]);
 						break;
 					default:
-						to->Value = from->Value;
+						memcpy(to->value_uint, from->value_uint, sizeof(from->value_uint));
 						break;
 				}
 			}
 
-			unsigned int GetTypeRank(const Nodes::Type &src, const Nodes::Type &dst)
+			unsigned int get_type_rank(const nodes::type_node &src, const nodes::type_node &dst)
 			{
-				if (src.IsArray() != dst.IsArray() || (src.ArrayLength != dst.ArrayLength && src.ArrayLength > 0 && dst.ArrayLength > 0))
+				if (src.is_array() != dst.is_array() || (src.array_length != dst.array_length && src.array_length > 0 && dst.array_length > 0))
 				{
 					return 0;
 				}
-				if (src.IsStruct() || dst.IsStruct())
+				if (src.is_struct() || dst.is_struct())
 				{
-					return src.Definition == dst.Definition;
+					return src.definition == dst.definition;
 				}
-				if (src.BaseClass == dst.BaseClass && src.Rows == dst.Rows && src.Cols == dst.Cols)
+				if (src.basetype == dst.basetype && src.rows == dst.rows && src.cols == dst.cols)
 				{
 					return 1;
 				}
-				if (!src.IsNumeric() || !dst.IsNumeric())
+				if (!src.is_numeric() || !dst.is_numeric())
 				{
 					return 0;
 				}
@@ -472,28 +467,28 @@ namespace ReShade
 					{ 4, 4, 4, 0 }
 				};
 
-				const int rank = ranks[static_cast<unsigned int>(src.BaseClass) - 1][static_cast<unsigned int>(dst.BaseClass) - 1] << 2;
+				const int rank = ranks[static_cast<unsigned int>(src.basetype) - 1][static_cast<unsigned int>(dst.basetype) - 1] << 2;
 
-				if (src.IsScalar() && dst.IsVector())
+				if (src.is_scalar() && dst.is_vector())
 				{
 					return rank | 2;
 				}
-				if (src.IsVector() && dst.IsScalar() || (src.IsVector() == dst.IsVector() && src.Rows > dst.Rows && src.Cols >= dst.Cols))
+				if (src.is_vector() && dst.is_scalar() || (src.is_vector() == dst.is_vector() && src.rows > dst.rows && src.cols >= dst.cols))
 				{
 					return rank | 32;
 				}
-				if (src.IsVector() != dst.IsVector() || src.IsMatrix() != dst.IsMatrix() || src.Rows * src.Cols != dst.Rows * dst.Cols)
+				if (src.is_vector() != dst.is_vector() || src.is_matrix() != dst.is_matrix() || src.rows * src.cols != dst.rows * dst.cols)
 				{
 					return 0;
 				}
 
 				return rank;
 			}
-			bool GetCallRanks(const Nodes::Call *call, const Nodes::Function *function, unsigned int ranks[])
+			bool get_call_ranks(const nodes::call_expression_node *call, const nodes::function_declaration_node *function, unsigned int ranks[])
 			{
-				for (size_t i = 0, count = call->Arguments.size(); i < count; ++i)
+				for (size_t i = 0, count = call->arguments.size(); i < count; ++i)
 				{
-					ranks[i] = GetTypeRank(call->Arguments[i]->Type, function->Parameters[i]->Type);
+					ranks[i] = get_type_rank(call->arguments[i]->type, function->parameter_list[i]->type);
 
 					if (ranks[i] == 0)
 					{
@@ -503,35 +498,35 @@ namespace ReShade
 
 				return true;
 			}
-			int CompareFunctions(const Nodes::Call *call, const Nodes::Function *function1, const Nodes::Function *function2)
+			int compare_functions(const nodes::call_expression_node *call, const nodes::function_declaration_node *function1, const nodes::function_declaration_node *function2)
 			{
 				if (function2 == nullptr)
 				{
 					return -1;
 				}
 
-				const size_t count = call->Arguments.size();
+				const size_t count = call->arguments.size();
 
-				unsigned int *const function1Ranks = static_cast<unsigned int *>(alloca(count * sizeof(unsigned int)));
-				unsigned int *const function2Ranks = static_cast<unsigned int *>(alloca(count * sizeof(unsigned int)));
-				const bool function1Viable = GetCallRanks(call, function1, function1Ranks);
-				const bool function2Viable = GetCallRanks(call, function2, function2Ranks);
+				unsigned int *const function1_ranks = static_cast<unsigned int *>(alloca(count * sizeof(unsigned int)));
+				unsigned int *const function2_ranks = static_cast<unsigned int *>(alloca(count * sizeof(unsigned int)));
+				const bool function1Viable = get_call_ranks(call, function1, function1_ranks);
+				const bool function2Viable = get_call_ranks(call, function2, function2_ranks);
 
 				if (!(function1Viable && function2Viable))
 				{
 					return function2Viable - function1Viable;
 				}
 
-				std::sort(function1Ranks, function1Ranks + count, std::greater<unsigned int>());
-				std::sort(function2Ranks, function2Ranks + count, std::greater<unsigned int>());
+				std::sort(function1_ranks, function1_ranks + count, std::greater<unsigned int>());
+				std::sort(function2_ranks, function2_ranks + count, std::greater<unsigned int>());
 
 				for (size_t i = 0; i < count; ++i)
 				{
-					if (function1Ranks[i] < function2Ranks[i])
+					if (function1_ranks[i] < function2_ranks[i])
 					{
 						return -1;
 					}
-					else if (function2Ranks[i] < function1Ranks[i])
+					else if (function2_ranks[i] < function1_ranks[i])
 					{
 						return +1;
 					}
@@ -540,7 +535,7 @@ namespace ReShade
 				return 0;
 			}
 
-			const char *GetTokenName(lexer::tokenid tokid)
+			const char *get_token_name(lexer::tokenid tokid)
 			{
 				switch (tokid)
 				{
@@ -781,161 +776,161 @@ namespace ReShade
 			}
 		}
 
-		class Parser
+		class parser
 		{
 		public:
-			explicit Parser(const std::string &input, nodetree &ast, std::string &errors);
+			explicit parser(const std::string &input, nodetree &ast, std::string &errors);
 
-			bool Parse();
+			bool parse();
 
 		protected:
-			void Backup();
-			void Restore();
+			void backup();
+			void restore();
 
-			bool Peek(char tok) const
+			bool peek(char tok) const
 			{
-				return Peek(static_cast<lexer::tokenid>(tok));
+				return peek(static_cast<lexer::tokenid>(tok));
 			}
-			bool Peek(lexer::tokenid tokid) const;
-			void Consume();
-			void ConsumeUntil(char token)
+			bool peek(lexer::tokenid tokid) const;
+			void consume();
+			void consume_until(char token)
 			{
-				ConsumeUntil(static_cast<lexer::tokenid>(token));
+				consume_until(static_cast<lexer::tokenid>(token));
 			}
-			void ConsumeUntil(lexer::tokenid tokid);
-			bool Accept(char tok)
+			void consume_until(lexer::tokenid tokid);
+			bool accept(char tok)
 			{
-				return Accept(static_cast<lexer::tokenid>(tok));
+				return accept(static_cast<lexer::tokenid>(tok));
 			}
-			bool Accept(lexer::tokenid tokid);
-			bool Expect(char tok)
+			bool accept(lexer::tokenid tokid);
+			bool expect(char tok)
 			{
-				return Expect(static_cast<lexer::tokenid>(tok));
+				return expect(static_cast<lexer::tokenid>(tok));
 			}
-			bool Expect(lexer::tokenid tokid);
+			bool expect(lexer::tokenid tokid);
 
 		private:
-			void Error(const location &location, unsigned int code, const char *message, ...);
-			void Warning(const location &location, unsigned int code, const char *message, ...);
+			void error(const location &location, unsigned int code, const char *message, ...);
+			void warning(const location &location, unsigned int code, const char *message, ...);
 
 			// Types
-			bool AcceptTypeClass(Nodes::Type &type);
-			bool AcceptTypeQualifiers(Nodes::Type &type);
-			bool ParseType(Nodes::Type &type);
+			bool accept_type_class(nodes::type_node &type);
+			bool accept_type_qualifiers(nodes::type_node &type);
+			bool parse_type(nodes::type_node &type);
 
 			// Expressions
-			bool AcceptUnaryOp(Nodes::Unary::Op &op);
-			bool AcceptPostfixOp(Nodes::Unary::Op &op);
-			bool PeekMultaryOp(Nodes::Binary::Op &op, unsigned int &precedence) const;
-			bool AcceptAssignmentOp(Nodes::Assignment::Op &op);
-			bool ParseExpression(Nodes::Expression *&expression);
-			bool ParseExpressionUnary(Nodes::Expression *&expression);
-			bool ParseExpressionMultary(Nodes::Expression *&expression, unsigned int precedence = 0);
-			bool ParseExpressionAssignment(Nodes::Expression *&expression);
+			bool accept_unary_op(enum nodes::unary_expression_node::op &op);
+			bool accept_postfix_op(enum nodes::unary_expression_node::op &op);
+			bool peek_multary_op(enum nodes::binary_expression_node::op &op, unsigned int &precedence) const;
+			bool accept_assignment_op(enum nodes::assignment_expression_node::op &op);
+			bool parse_expression(nodes::expression_node *&expression);
+			bool parse_expression_unary(nodes::expression_node *&expression);
+			bool parse_expression_multary(nodes::expression_node *&expression, unsigned int precedence = 0);
+			bool parse_expression_assignment(nodes::expression_node *&expression);
 
 			// Statements
-			bool ParseStatement(Nodes::Statement *&statement, bool scoped = true);
-			bool ParseStatementBlock(Nodes::Statement *&statement, bool scoped = true);
-			bool ParseStatementDeclaratorList(Nodes::Statement *&statement);
+			bool parse_statement(nodes::statement_node *&statement, bool scoped = true);
+			bool parse_statement_block(nodes::statement_node *&statement, bool scoped = true);
+			bool parse_statement_declarator_list(nodes::statement_node *&statement);
 
 			// Declarations
-			bool ParseTopLevel();
-			bool ParseNamespace();
-			bool ParseArray(int &size);
-			bool ParseAnnotations(std::vector<Nodes::Annotation> &annotations);
-			bool ParseStruct(Nodes::Struct *&structure);
-			bool ParseFunctionResidue(Nodes::Type &type, std::string name, Nodes::Function *&function);
-			bool ParseVariableResidue(Nodes::Type &type, std::string name, Nodes::Variable *&variable, bool global = false);
-			bool ParseVariableAssignment(Nodes::Expression *&expression);
-			bool ParseVariableProperties(Nodes::Variable *variable);
-			bool ParseVariablePropertiesExpression(Nodes::Expression *&expression);
-			bool ParseTechnique(Nodes::Technique *&technique);
-			bool ParseTechniquePass(Nodes::Pass *&pass);
-			bool ParseTechniquePassExpression(Nodes::Expression *&expression);
+			bool parse_top_level();
+			bool parse_namespace();
+			bool parse_array(int &size);
+			bool parse_annotations(std::vector<nodes::annotation_node> &annotations);
+			bool parse_struct(nodes::struct_declaration_node *&structure);
+			bool parse_function_residue(nodes::type_node &type, std::string name, nodes::function_declaration_node *&function);
+			bool parse_variable_residue(nodes::type_node &type, std::string name, nodes::variable_declaration_node *&variable, bool global = false);
+			bool parse_variable_assignment(nodes::expression_node *&expression);
+			bool parse_variable_properties(nodes::variable_declaration_node *variable);
+			bool parse_variable_properties_expression(nodes::expression_node *&expression);
+			bool parse_technique(nodes::technique_declaration_node *&technique);
+			bool parse_technique_pass(nodes::pass_declaration_node *&pass);
+			bool parse_technique_pass_expression(nodes::expression_node *&expression);
 
 			// Symbol Table
-			struct Scope
+			struct scope
 			{
-				std::string Name;
-				unsigned int Level, NamespaceLevel;
+				std::string name;
+				unsigned int level, namespace_level;
 			};
-			typedef Nodes::Declaration Symbol;
+			typedef nodes::declaration_node symbol;
 
-			void EnterScope(Symbol *parent = nullptr);
-			void EnterNamespace(const std::string &name);
-			void LeaveScope();
-			void LeaveNamespace();
-			bool InsertSymbol(Symbol *symbol, bool global = false);
-			Symbol *FindSymbol(const std::string &name) const;
-			Symbol *FindSymbol(const std::string &name, const Scope &scope, bool exclusive = false) const;
-			bool ResolveCall(Nodes::Call *call, const Scope &scope, bool &intrinsic, bool &ambiguouss) const;
-			Nodes::Expression *FoldConstantExpression(Nodes::Expression *expression) const;
+			void enter_scope(symbol *parent = nullptr);
+			void enter_namespace(const std::string &name);
+			void leave_scope();
+			void leave_namespace();
+			bool insert_symbol(symbol *symbol, bool global = false);
+			symbol *find_symbol(const std::string &name) const;
+			symbol *find_symbol(const std::string &name, const scope &scope, bool exclusive = false) const;
+			bool resolve_call(nodes::call_expression_node *call, const scope &scope, bool &intrinsic, bool &ambiguous) const;
+			nodes::expression_node *fold_constant_expression(nodes::expression_node *expression) const;
 
 			nodetree *_ast;
 			std::string *_errors;
-			std::unique_ptr<lexer> _lexer, _lexerBackup;
-			lexer::token _token, _tokenNext, _tokenBackup;
-			Scope _currentScope;
-			std::stack<Symbol *> _parentStack;
-			std::unordered_map<std::string, std::vector<std::pair<Scope, Symbol *>>> _symbolStack;
+			std::unique_ptr<lexer> _lexer, _lexer_backup;
+			lexer::token _token, _token_next, _token_backup;
+			scope _current_scope;
+			std::stack<symbol *> _parent_stack;
+			std::unordered_map<std::string, std::vector<std::pair<scope, symbol *>>> _symbol_stack;
 		};
 
 		bool parse(const std::string &source, nodetree &ast, std::string &errors)
 		{
-			return Parser(source, ast, errors).Parse();
+			return parser(source, ast, errors).parse();
 		}
 
-		Parser::Parser(const std::string &input, nodetree &ast, std::string &errors) : _ast(&ast), _errors(&errors), _lexer(new lexer(input))
+		parser::parser(const std::string &input, nodetree &ast, std::string &errors) : _ast(&ast), _errors(&errors), _lexer(new lexer(input))
 		{
-			_currentScope.Name = "::";
-			_currentScope.Level = 0;
-			_currentScope.NamespaceLevel = 0;
+			_current_scope.name = "::";
+			_current_scope.level = 0;
+			_current_scope.namespace_level = 0;
 		}
 
-		void Parser::Backup()
+		void parser::backup()
 		{
-			_lexer.swap(_lexerBackup);
-			_lexer.reset(new lexer(*_lexerBackup));
-			_tokenBackup = _tokenNext;
+			_lexer.swap(_lexer_backup);
+			_lexer.reset(new lexer(*_lexer_backup));
+			_token_backup = _token_next;
 		}
-		void Parser::Restore()
+		void parser::restore()
 		{
-			_lexer.swap(_lexerBackup);
-			_tokenNext = _tokenBackup;
+			_lexer.swap(_lexer_backup);
+			_token_next = _token_backup;
 		}
 
-		bool Parser::Peek(lexer::tokenid tokid) const
+		bool parser::peek(lexer::tokenid tokid) const
 		{
-			return _tokenNext.id == tokid;
+			return _token_next.id == tokid;
 		}
-		void Parser::Consume()
+		void parser::consume()
 		{
-			_token = _tokenNext;
-			_tokenNext = _lexer->lex();
+			_token = _token_next;
+			_token_next = _lexer->lex();
 		}
-		void Parser::ConsumeUntil(lexer::tokenid tokid)
+		void parser::consume_until(lexer::tokenid tokid)
 		{
-			while (!Accept(tokid) && !Peek(lexer::tokenid::end_of_file))
+			while (!accept(tokid) && !peek(lexer::tokenid::end_of_file))
 			{
-				Consume();
+				consume();
 			}
 		}
-		bool Parser::Accept(lexer::tokenid tokid)
+		bool parser::accept(lexer::tokenid tokid)
 		{
-			if (Peek(tokid))
+			if (peek(tokid))
 			{
-				Consume();
+				consume();
 
 				return true;
 			}
 
 			return false;
 		}
-		bool Parser::Expect(lexer::tokenid tokid)
+		bool parser::expect(lexer::tokenid tokid)
 		{
-			if (!Accept(tokid))
+			if (!accept(tokid))
 			{
-				Error(_tokenNext.location, 3000, "syntax error: unexpected '%s', expected '%s'", GetTokenName(_tokenNext.id), GetTokenName(tokid));
+				error(_token_next.location, 3000, "syntax error: unexpected '%s', expected '%s'", get_token_name(_token_next.id), get_token_name(tokid));
 
 				return false;
 			}
@@ -943,7 +938,7 @@ namespace ReShade
 			return true;
 		}
 
-		void Parser::Error(const location &location, unsigned int code, const char *message, ...)
+		void parser::error(const location &location, unsigned int code, const char *message, ...)
 		{
 			*_errors += location.source + '(' + std::to_string(location.line) + ", " + std::to_string(location.column) + ')' + ": ";
 
@@ -966,7 +961,7 @@ namespace ReShade
 			*_errors += formatted;
 			*_errors += '\n';
 		}
-		void Parser::Warning(const location &location, unsigned int code, const char *message, ...)
+		void parser::warning(const location &location, unsigned int code, const char *message, ...)
 		{
 			*_errors += location.source + '(' + std::to_string(location.line) + ", " + std::to_string(location.column) + ')' + ": ";
 
@@ -991,120 +986,120 @@ namespace ReShade
 		}
 
 		// Types
-		bool Parser::AcceptTypeClass(Nodes::Type &type)
+		bool parser::accept_type_class(nodes::type_node &type)
 		{
-			type.Definition = nullptr;
-			type.ArrayLength = 0;
+			type.definition = nullptr;
+			type.array_length = 0;
 
-			if (Peek(lexer::tokenid::identifier))
+			if (peek(lexer::tokenid::identifier))
 			{
-				type.Rows = type.Cols = 0;
-				type.BaseClass = Nodes::Type::Class::Struct;
+				type.rows = type.cols = 0;
+				type.basetype = nodes::type_node::struct_;
 
-				const auto symbol = FindSymbol(_tokenNext.literal_as_string);
+				const auto symbol = find_symbol(_token_next.literal_as_string);
 
-				if (symbol != nullptr && symbol->id == nodeid::Struct)
+				if (symbol != nullptr && symbol->id == nodeid::struct_declaration)
 				{
-					type.Definition = static_cast<Nodes::Struct *>(symbol);
+					type.definition = static_cast<nodes::struct_declaration_node *>(symbol);
 
-					Consume();
+					consume();
 				}
 				else
 				{
 					return false;
 				}
 			}
-			else if (Accept(lexer::tokenid::vector))
+			else if (accept(lexer::tokenid::vector))
 			{
-				type.Rows = 4, type.Cols = 1;
-				type.BaseClass = Nodes::Type::Class::Float;
+				type.rows = 4, type.cols = 1;
+				type.basetype = nodes::type_node::float_;
 
-				if (Accept('<'))
+				if (accept('<'))
 				{
-					if (!AcceptTypeClass(type))
+					if (!accept_type_class(type))
 					{
-						Error(_tokenNext.location, 3000, "syntax error: unexpected '%s', expected vector element type", GetTokenName(_tokenNext.id));
+						error(_token_next.location, 3000, "syntax error: unexpected '%s', expected vector element type", get_token_name(_token_next.id));
 
 						return false;
 					}
 
-					if (!type.IsScalar())
+					if (!type.is_scalar())
 					{
-						Error(_token.location, 3122, "vector element type must be a scalar type");
+						error(_token.location, 3122, "vector element type must be a scalar type");
 
 						return false;
 					}
 
-					if (!(Expect(',') && Expect(lexer::tokenid::int_literal)))
+					if (!(expect(',') && expect(lexer::tokenid::int_literal)))
 					{
 						return false;
 					}
 
 					if (_token.literal_as_int < 1 || _token.literal_as_int > 4)
 					{
-						Error(_token.location, 3052, "vector dimension must be between 1 and 4");
+						error(_token.location, 3052, "vector dimension must be between 1 and 4");
 
 						return false;
 					}
 
-					type.Rows = _token.literal_as_int;
+					type.rows = _token.literal_as_int;
 
-					if (!Expect('>'))
+					if (!expect('>'))
 					{
 						return false;
 					}
 				}
 			}
-			else if (Accept(lexer::tokenid::matrix))
+			else if (accept(lexer::tokenid::matrix))
 			{
-				type.Rows = 4, type.Cols = 4;
-				type.BaseClass = Nodes::Type::Class::Float;
+				type.rows = 4, type.cols = 4;
+				type.basetype = nodes::type_node::float_;
 
-				if (Accept('<'))
+				if (accept('<'))
 				{
-					if (!AcceptTypeClass(type))
+					if (!accept_type_class(type))
 					{
-						Error(_tokenNext.location, 3000, "syntax error: unexpected '%s', expected matrix element type", GetTokenName(_tokenNext.id));
+						error(_token_next.location, 3000, "syntax error: unexpected '%s', expected matrix element type", get_token_name(_token_next.id));
 
 						return false;
 					}
 
-					if (!type.IsScalar())
+					if (!type.is_scalar())
 					{
-						Error(_token.location, 3123, "matrix element type must be a scalar type");
+						error(_token.location, 3123, "matrix element type must be a scalar type");
 
 						return false;
 					}
 
-					if (!(Expect(',') && Expect(lexer::tokenid::int_literal)))
-					{
-						return false;
-					}
-
-					if (_token.literal_as_int < 1 || _token.literal_as_int > 4)
-					{
-						Error(_token.location, 3053, "matrix dimensions must be between 1 and 4");
-
-						return false;
-					}
-
-					type.Rows = _token.literal_as_int;
-
-					if (!(Expect(',') && Expect(lexer::tokenid::int_literal)))
+					if (!(expect(',') && expect(lexer::tokenid::int_literal)))
 					{
 						return false;
 					}
 
 					if (_token.literal_as_int < 1 || _token.literal_as_int > 4)
 					{
-						Error(_token.location, 3053, "matrix dimensions must be between 1 and 4");
+						error(_token.location, 3053, "matrix dimensions must be between 1 and 4");
 
 						return false;
 					}
 
-					type.Cols = _token.literal_as_int;
+					type.rows = _token.literal_as_int;
 
-					if (!Expect('>'))
+					if (!(expect(',') && expect(lexer::tokenid::int_literal)))
+					{
+						return false;
+					}
+
+					if (_token.literal_as_int < 1 || _token.literal_as_int > 4)
+					{
+						error(_token.location, 3053, "matrix dimensions must be between 1 and 4");
+
+						return false;
+					}
+
+					type.cols = _token.literal_as_int;
+
+					if (!expect('>'))
 					{
 						return false;
 					}
@@ -1112,388 +1107,388 @@ namespace ReShade
 			}
 			else
 			{
-				type.Rows = type.Cols = 0;
+				type.rows = type.cols = 0;
 
-				switch (_tokenNext.id)
+				switch (_token_next.id)
 				{
 					case lexer::tokenid::void_:
-						type.BaseClass = Nodes::Type::Class::Void;
+						type.basetype = nodes::type_node::void_;
 						break;
 					case lexer::tokenid::bool_:
-						type.Rows = 1, type.Cols = 1;
-						type.BaseClass = Nodes::Type::Class::Bool;
+						type.rows = 1, type.cols = 1;
+						type.basetype = nodes::type_node::bool_;
 						break;
 					case lexer::tokenid::bool2:
-						type.Rows = 2, type.Cols = 1;
-						type.BaseClass = Nodes::Type::Class::Bool;
+						type.rows = 2, type.cols = 1;
+						type.basetype = nodes::type_node::bool_;
 						break;
 					case lexer::tokenid::bool2x2:
-						type.Rows = 2, type.Cols = 2;
-						type.BaseClass = Nodes::Type::Class::Bool;
+						type.rows = 2, type.cols = 2;
+						type.basetype = nodes::type_node::bool_;
 						break;
 					case lexer::tokenid::bool3:
-						type.Rows = 3, type.Cols = 1;
-						type.BaseClass = Nodes::Type::Class::Bool;
+						type.rows = 3, type.cols = 1;
+						type.basetype = nodes::type_node::bool_;
 						break;
 					case lexer::tokenid::bool3x3:
-						type.Rows = 3, type.Cols = 3;
-						type.BaseClass = Nodes::Type::Class::Bool;
+						type.rows = 3, type.cols = 3;
+						type.basetype = nodes::type_node::bool_;
 						break;
 					case lexer::tokenid::bool4:
-						type.Rows = 4, type.Cols = 1;
-						type.BaseClass = Nodes::Type::Class::Bool;
+						type.rows = 4, type.cols = 1;
+						type.basetype = nodes::type_node::bool_;
 						break;
 					case lexer::tokenid::bool4x4:
-						type.Rows = 4, type.Cols = 4;
-						type.BaseClass = Nodes::Type::Class::Bool;
+						type.rows = 4, type.cols = 4;
+						type.basetype = nodes::type_node::bool_;
 						break;
 					case lexer::tokenid::int_:
-						type.Rows = 1, type.Cols = 1;
-						type.BaseClass = Nodes::Type::Class::Int;
+						type.rows = 1, type.cols = 1;
+						type.basetype = nodes::type_node::int_;
 						break;
 					case lexer::tokenid::int2:
-						type.Rows = 2, type.Cols = 1;
-						type.BaseClass = Nodes::Type::Class::Int;
+						type.rows = 2, type.cols = 1;
+						type.basetype = nodes::type_node::int_;
 						break;
 					case lexer::tokenid::int2x2:
-						type.Rows = 2, type.Cols = 2;
-						type.BaseClass = Nodes::Type::Class::Int;
+						type.rows = 2, type.cols = 2;
+						type.basetype = nodes::type_node::int_;
 						break;
 					case lexer::tokenid::int3:
-						type.Rows = 3, type.Cols = 1;
-						type.BaseClass = Nodes::Type::Class::Int;
+						type.rows = 3, type.cols = 1;
+						type.basetype = nodes::type_node::int_;
 						break;
 					case lexer::tokenid::int3x3:
-						type.Rows = 3, type.Cols = 3;
-						type.BaseClass = Nodes::Type::Class::Int;
+						type.rows = 3, type.cols = 3;
+						type.basetype = nodes::type_node::int_;
 						break;
 					case lexer::tokenid::int4:
-						type.Rows = 4, type.Cols = 1;
-						type.BaseClass = Nodes::Type::Class::Int;
+						type.rows = 4, type.cols = 1;
+						type.basetype = nodes::type_node::int_;
 						break;
 					case lexer::tokenid::int4x4:
-						type.Rows = 4, type.Cols = 4;
-						type.BaseClass = Nodes::Type::Class::Int;
+						type.rows = 4, type.cols = 4;
+						type.basetype = nodes::type_node::int_;
 						break;
 					case lexer::tokenid::uint_:
-						type.Rows = 1, type.Cols = 1;
-						type.BaseClass = Nodes::Type::Class::Uint;
+						type.rows = 1, type.cols = 1;
+						type.basetype = nodes::type_node::uint_;
 						break;
 					case lexer::tokenid::uint2:
-						type.Rows = 2, type.Cols = 1;
-						type.BaseClass = Nodes::Type::Class::Uint;
+						type.rows = 2, type.cols = 1;
+						type.basetype = nodes::type_node::uint_;
 						break;
 					case lexer::tokenid::uint2x2:
-						type.Rows = 2, type.Cols = 2;
-						type.BaseClass = Nodes::Type::Class::Uint;
+						type.rows = 2, type.cols = 2;
+						type.basetype = nodes::type_node::uint_;
 						break;
 					case lexer::tokenid::uint3:
-						type.Rows = 3, type.Cols = 1;
-						type.BaseClass = Nodes::Type::Class::Uint;
+						type.rows = 3, type.cols = 1;
+						type.basetype = nodes::type_node::uint_;
 						break;
 					case lexer::tokenid::uint3x3:
-						type.Rows = 3, type.Cols = 3;
-						type.BaseClass = Nodes::Type::Class::Uint;
+						type.rows = 3, type.cols = 3;
+						type.basetype = nodes::type_node::uint_;
 						break;
 					case lexer::tokenid::uint4:
-						type.Rows = 4, type.Cols = 1;
-						type.BaseClass = Nodes::Type::Class::Uint;
+						type.rows = 4, type.cols = 1;
+						type.basetype = nodes::type_node::uint_;
 						break;
 					case lexer::tokenid::uint4x4:
-						type.Rows = 4, type.Cols = 4;
-						type.BaseClass = Nodes::Type::Class::Uint;
+						type.rows = 4, type.cols = 4;
+						type.basetype = nodes::type_node::uint_;
 						break;
 					case lexer::tokenid::float_:
-						type.Rows = 1, type.Cols = 1;
-						type.BaseClass = Nodes::Type::Class::Float;
+						type.rows = 1, type.cols = 1;
+						type.basetype = nodes::type_node::float_;
 						break;
 					case lexer::tokenid::float2:
-						type.Rows = 2, type.Cols = 1;
-						type.BaseClass = Nodes::Type::Class::Float;
+						type.rows = 2, type.cols = 1;
+						type.basetype = nodes::type_node::float_;
 						break;
 					case lexer::tokenid::float2x2:
-						type.Rows = 2, type.Cols = 2;
-						type.BaseClass = Nodes::Type::Class::Float;
+						type.rows = 2, type.cols = 2;
+						type.basetype = nodes::type_node::float_;
 						break;
 					case lexer::tokenid::float3:
-						type.Rows = 3, type.Cols = 1;
-						type.BaseClass = Nodes::Type::Class::Float;
+						type.rows = 3, type.cols = 1;
+						type.basetype = nodes::type_node::float_;
 						break;
 					case lexer::tokenid::float3x3:
-						type.Rows = 3, type.Cols = 3;
-						type.BaseClass = Nodes::Type::Class::Float;
+						type.rows = 3, type.cols = 3;
+						type.basetype = nodes::type_node::float_;
 						break;
 					case lexer::tokenid::float4:
-						type.Rows = 4, type.Cols = 1;
-						type.BaseClass = Nodes::Type::Class::Float;
+						type.rows = 4, type.cols = 1;
+						type.basetype = nodes::type_node::float_;
 						break;
 					case lexer::tokenid::float4x4:
-						type.Rows = 4, type.Cols = 4;
-						type.BaseClass = Nodes::Type::Class::Float;
+						type.rows = 4, type.cols = 4;
+						type.basetype = nodes::type_node::float_;
 						break;
 					case lexer::tokenid::string_:
-						type.BaseClass = Nodes::Type::Class::String;
+						type.basetype = nodes::type_node::string_;
 						break;
 					case lexer::tokenid::texture1d:
-						type.BaseClass = Nodes::Type::Class::Texture1D;
+						type.basetype = nodes::type_node::texture1d;
 						break;
 					case lexer::tokenid::texture2d:
-						type.BaseClass = Nodes::Type::Class::Texture2D;
+						type.basetype = nodes::type_node::texture2d;
 						break;
 					case lexer::tokenid::texture3d:
-						type.BaseClass = Nodes::Type::Class::Texture3D;
+						type.basetype = nodes::type_node::texture3d;
 						break;
 					case lexer::tokenid::sampler1d:
-						type.BaseClass = Nodes::Type::Class::Sampler1D;
+						type.basetype = nodes::type_node::sampler1d;
 						break;
 					case lexer::tokenid::sampler2d:
-						type.BaseClass = Nodes::Type::Class::Sampler2D;
+						type.basetype = nodes::type_node::sampler2d;
 						break;
 					case lexer::tokenid::sampler3d:
-						type.BaseClass = Nodes::Type::Class::Sampler3D;
+						type.basetype = nodes::type_node::sampler3d;
 						break;
 					default:
 						return false;
 				}
 
-				Consume();
+				consume();
 			}
 
 			return true;
 		}
-		bool Parser::AcceptTypeQualifiers(Nodes::Type &type)
+		bool parser::accept_type_qualifiers(nodes::type_node &type)
 		{
 			unsigned int qualifiers = 0;
 
 			// Storage
-			if (Accept(lexer::tokenid::extern_))
+			if (accept(lexer::tokenid::extern_))
 			{
-				qualifiers |= Nodes::Type::Qualifier::Extern;
+				qualifiers |= nodes::type_node::extern_;
 			}
-			if (Accept(lexer::tokenid::static_))
+			if (accept(lexer::tokenid::static_))
 			{
-				qualifiers |= Nodes::Type::Qualifier::Static;
+				qualifiers |= nodes::type_node::static_;
 			}
-			if (Accept(lexer::tokenid::uniform_))
+			if (accept(lexer::tokenid::uniform_))
 			{
-				qualifiers |= Nodes::Type::Qualifier::Uniform;
+				qualifiers |= nodes::type_node::uniform_;
 			}
-			if (Accept(lexer::tokenid::volatile_))
+			if (accept(lexer::tokenid::volatile_))
 			{
-				qualifiers |= Nodes::Type::Qualifier::Volatile;
+				qualifiers |= nodes::type_node::volatile_;
 			}
-			if (Accept(lexer::tokenid::precise))
+			if (accept(lexer::tokenid::precise))
 			{
-				qualifiers |= Nodes::Type::Qualifier::Precise;
+				qualifiers |= nodes::type_node::precise;
 			}
 
-			if (Accept(lexer::tokenid::in))
+			if (accept(lexer::tokenid::in))
 			{
-				qualifiers |= Nodes::Type::Qualifier::In;
+				qualifiers |= nodes::type_node::in;
 			}
-			if (Accept(lexer::tokenid::out))
+			if (accept(lexer::tokenid::out))
 			{
-				qualifiers |= Nodes::Type::Qualifier::Out;
+				qualifiers |= nodes::type_node::out;
 			}
-			if (Accept(lexer::tokenid::inout))
+			if (accept(lexer::tokenid::inout))
 			{
-				qualifiers |= Nodes::Type::Qualifier::InOut;
+				qualifiers |= nodes::type_node::inout;
 			}
 
 			// Modifiers
-			if (Accept(lexer::tokenid::const_))
+			if (accept(lexer::tokenid::const_))
 			{
-				qualifiers |= Nodes::Type::Qualifier::Const;
+				qualifiers |= nodes::type_node::const_;
 			}
 
 			// Interpolation
-			if (Accept(lexer::tokenid::linear))
+			if (accept(lexer::tokenid::linear))
 			{
-				qualifiers |= Nodes::Type::Qualifier::Linear;
+				qualifiers |= nodes::type_node::linear;
 			}
-			if (Accept(lexer::tokenid::noperspective))
+			if (accept(lexer::tokenid::noperspective))
 			{
-				qualifiers |= Nodes::Type::Qualifier::NoPerspective;
+				qualifiers |= nodes::type_node::noperspective;
 			}
-			if (Accept(lexer::tokenid::centroid))
+			if (accept(lexer::tokenid::centroid))
 			{
-				qualifiers |= Nodes::Type::Qualifier::Centroid;
+				qualifiers |= nodes::type_node::centroid;
 			}
-			if (Accept(lexer::tokenid::nointerpolation))
+			if (accept(lexer::tokenid::nointerpolation))
 			{
-				qualifiers |= Nodes::Type::Qualifier::NoInterpolation;
+				qualifiers |= nodes::type_node::nointerpolation;
 			}
 
 			if (qualifiers == 0)
 			{
 				return false;
 			}
-			if ((type.Qualifiers & qualifiers) == qualifiers)
+			if ((type.qualifiers & qualifiers) == qualifiers)
 			{
-				Warning(_token.location, 3048, "duplicate usages specified");
+				warning(_token.location, 3048, "duplicate usages specified");
 			}
 
-			type.Qualifiers |= qualifiers;
+			type.qualifiers |= qualifiers;
 
-			AcceptTypeQualifiers(type);
+			accept_type_qualifiers(type);
 
 			return true;
 		}
-		bool Parser::ParseType(Nodes::Type &type)
+		bool parser::parse_type(nodes::type_node &type)
 		{
-			type.Qualifiers = 0;
+			type.qualifiers = 0;
 
-			AcceptTypeQualifiers(type);
+			accept_type_qualifiers(type);
 
-			const auto location = _tokenNext.location;
+			const auto location = _token_next.location;
 
-			if (!AcceptTypeClass(type))
+			if (!accept_type_class(type))
 			{
 				return false;
 			}
 
-			if (type.IsIntegral() && (type.HasQualifier(Nodes::Type::Qualifier::Centroid) || type.HasQualifier(Nodes::Type::Qualifier::NoPerspective)))
+			if (type.is_integral() && (type.has_qualifier(nodes::type_node::centroid) || type.has_qualifier(nodes::type_node::noperspective)))
 			{
-				Error(location, 4576, "signature specifies invalid interpolation mode for integer component type");
+				error(location, 4576, "signature specifies invalid interpolation mode for integer component type");
 
 				return false;
 			}
 
-			if (type.HasQualifier(Nodes::Type::Qualifier::Centroid) && !type.HasQualifier(Nodes::Type::Qualifier::NoPerspective))
+			if (type.has_qualifier(nodes::type_node::centroid) && !type.has_qualifier(nodes::type_node::noperspective))
 			{
-				type.Qualifiers |= Nodes::Type::Qualifier::Linear;
+				type.qualifiers |= nodes::type_node::linear;
 			}
 
 			return true;
 		}
 
 		// Expressions
-		bool Parser::AcceptUnaryOp(Nodes::Unary::Op &op)
+		bool parser::accept_unary_op(enum nodes::unary_expression_node::op &op)
 		{
-			switch (_tokenNext.id)
+			switch (_token_next.id)
 			{
 				case lexer::tokenid::exclaim:
-					op = Nodes::Unary::Op::LogicalNot;
+					op = nodes::unary_expression_node::logical_not;
 					break;
 				case lexer::tokenid::plus:
-					op = Nodes::Unary::Op::None;
+					op = nodes::unary_expression_node::none;
 					break;
 				case lexer::tokenid::minus:
-					op = Nodes::Unary::Op::Negate;
+					op = nodes::unary_expression_node::negate;
 					break;
 				case lexer::tokenid::tilde:
-					op = Nodes::Unary::Op::BitwiseNot;
+					op = nodes::unary_expression_node::bitwise_not;
 					break;
 				case lexer::tokenid::plus_plus:
-					op = Nodes::Unary::Op::Increase;
+					op = nodes::unary_expression_node::pre_increase;
 					break;
 				case lexer::tokenid::minus_minus:
-					op = Nodes::Unary::Op::Decrease;
+					op = nodes::unary_expression_node::pre_decrease;
 					break;
 				default:
 					return false;
 			}
 
-			Consume();
+			consume();
 
 			return true;
 		}
-		bool Parser::AcceptPostfixOp(Nodes::Unary::Op &op)
+		bool parser::accept_postfix_op(enum nodes::unary_expression_node::op &op)
 		{
-			switch (_tokenNext.id)
+			switch (_token_next.id)
 			{
 				case lexer::tokenid::plus_plus:
-					op = Nodes::Unary::Op::PostIncrease;
+					op = nodes::unary_expression_node::post_increase;
 					break;
 				case lexer::tokenid::minus_minus:
-					op = Nodes::Unary::Op::PostDecrease;
+					op = nodes::unary_expression_node::post_decrease;
 					break;
 				default:
 					return false;
 			}
 
-			Consume();
+			consume();
 
 			return true;
 		}
-		bool Parser::PeekMultaryOp(Nodes::Binary::Op &op, unsigned int &precedence) const
+		bool parser::peek_multary_op(enum nodes::binary_expression_node::op &op, unsigned int &precedence) const
 		{
-			switch (_tokenNext.id)
+			switch (_token_next.id)
 			{
 				case lexer::tokenid::percent:
-					op = Nodes::Binary::Op::Modulo;
+					op = nodes::binary_expression_node::modulo;
 					precedence = 11;
 					break;
 				case lexer::tokenid::ampersand:
-					op = Nodes::Binary::Op::BitwiseAnd;
+					op = nodes::binary_expression_node::bitwise_and;
 					precedence = 6;
 					break;
 				case lexer::tokenid::star:
-					op = Nodes::Binary::Op::Multiply;
+					op = nodes::binary_expression_node::multiply;
 					precedence = 11;
 					break;
 				case lexer::tokenid::plus:
-					op = Nodes::Binary::Op::Add;
+					op = nodes::binary_expression_node::add;
 					precedence = 10;
 					break;
 				case lexer::tokenid::minus:
-					op = Nodes::Binary::Op::Subtract;
+					op = nodes::binary_expression_node::subtract;
 					precedence = 10;
 					break;
 				case lexer::tokenid::slash:
-					op = Nodes::Binary::Op::Divide;
+					op = nodes::binary_expression_node::divide;
 					precedence = 11;
 					break;
 				case lexer::tokenid::less:
-					op = Nodes::Binary::Op::Less;
+					op = nodes::binary_expression_node::less;
 					precedence = 8;
 					break;
 				case lexer::tokenid::greater:
-					op = Nodes::Binary::Op::Greater;
+					op = nodes::binary_expression_node::greater;
 					precedence = 8;
 					break;
 				case lexer::tokenid::question:
-					op = Nodes::Binary::Op::None;
+					op = nodes::binary_expression_node::none;
 					precedence = 1;
 					break;
 				case lexer::tokenid::caret:
-					op = Nodes::Binary::Op::BitwiseXor;
+					op = nodes::binary_expression_node::bitwise_xor;
 					precedence = 5;
 					break;
 				case lexer::tokenid::pipe:
-					op = Nodes::Binary::Op::BitwiseOr;
+					op = nodes::binary_expression_node::bitwise_or;
 					precedence = 4;
 					break;
 				case lexer::tokenid::exclaim_equal:
-					op = Nodes::Binary::Op::NotEqual;
+					op = nodes::binary_expression_node::not_equal;
 					precedence = 7;
 					break;
 				case lexer::tokenid::ampersand_ampersand:
-					op = Nodes::Binary::Op::LogicalAnd;
+					op = nodes::binary_expression_node::logical_and;
 					precedence = 3;
 					break;
 				case lexer::tokenid::less_less:
-					op = Nodes::Binary::Op::LeftShift;
+					op = nodes::binary_expression_node::left_shift;
 					precedence = 9;
 					break;
 				case lexer::tokenid::less_equal:
-					op = Nodes::Binary::Op::LessOrEqual;
+					op = nodes::binary_expression_node::less_equal;
 					precedence = 8;
 					break;
 				case lexer::tokenid::equal_equal:
-					op = Nodes::Binary::Op::Equal;
+					op = nodes::binary_expression_node::equal;
 					precedence = 7;
 					break;
 				case lexer::tokenid::greater_greater:
-					op = Nodes::Binary::Op::RightShift;
+					op = nodes::binary_expression_node::right_shift;
 					precedence = 9;
 					break;
 				case lexer::tokenid::greater_equal:
-					op = Nodes::Binary::Op::GreaterOrEqual;
+					op = nodes::binary_expression_node::greater_equal;
 					precedence = 8;
 					break;
 				case lexer::tokenid::pipe_pipe:
-					op = Nodes::Binary::Op::LogicalOr;
+					op = nodes::binary_expression_node::logical_or;
 					precedence = 2;
 					break;
 				default:
@@ -1502,176 +1497,176 @@ namespace ReShade
 
 			return true;
 		}
-		bool Parser::AcceptAssignmentOp(Nodes::Assignment::Op &op)
+		bool parser::accept_assignment_op(enum nodes::assignment_expression_node::op &op)
 		{
-			switch (_tokenNext.id)
+			switch (_token_next.id)
 			{
 				case lexer::tokenid::equal:
-					op = Nodes::Assignment::Op::None;
+					op = nodes::assignment_expression_node::none;
 					break;
 				case lexer::tokenid::percent_equal:
-					op = Nodes::Assignment::Op::Modulo;
+					op = nodes::assignment_expression_node::modulo;
 					break;
 				case lexer::tokenid::ampersand_equal:
-					op = Nodes::Assignment::Op::BitwiseAnd;
+					op = nodes::assignment_expression_node::bitwise_and;
 					break;
 				case lexer::tokenid::star_equal:
-					op = Nodes::Assignment::Op::Multiply;
+					op = nodes::assignment_expression_node::multiply;
 					break;
 				case lexer::tokenid::plus_equal:
-					op = Nodes::Assignment::Op::Add;
+					op = nodes::assignment_expression_node::add;
 					break;
 				case lexer::tokenid::minus_equal:
-					op = Nodes::Assignment::Op::Subtract;
+					op = nodes::assignment_expression_node::subtract;
 					break;
 				case lexer::tokenid::slash_equal:
-					op = Nodes::Assignment::Op::Divide;
+					op = nodes::assignment_expression_node::divide;
 					break;
 				case lexer::tokenid::less_less_equal:
-					op = Nodes::Assignment::Op::LeftShift;
+					op = nodes::assignment_expression_node::left_shift;
 					break;
 				case lexer::tokenid::greater_greater_equal:
-					op = Nodes::Assignment::Op::RightShift;
+					op = nodes::assignment_expression_node::right_shift;
 					break;
 				case lexer::tokenid::caret_equal:
-					op = Nodes::Assignment::Op::BitwiseXor;
+					op = nodes::assignment_expression_node::bitwise_xor;
 					break;
 				case lexer::tokenid::pipe_equal:
-					op = Nodes::Assignment::Op::BitwiseOr;
+					op = nodes::assignment_expression_node::bitwise_or;
 					break;
 				default:
 					return false;
 			}
 
-			Consume();
+			consume();
 
 			return true;
 		}
-		bool Parser::ParseExpression(Nodes::Expression *&node)
+		bool parser::parse_expression(nodes::expression_node *&node)
 		{
-			if (!ParseExpressionAssignment(node))
+			if (!parse_expression_assignment(node))
 			{
 				return false;
 			}
 
-			if (Peek(','))
+			if (peek(','))
 			{
-				const auto sequence = _ast->make_node<Nodes::Sequence>(node->location);
-				sequence->Expressions.push_back(node);
+				const auto sequence = _ast->make_node<nodes::expression_sequence_node>(node->location);
+				sequence->expression_list.push_back(node);
 
-				while (Accept(','))
+				while (accept(','))
 				{
-					Nodes::Expression *expression = nullptr;
+					nodes::expression_node *expression = nullptr;
 
-					if (!ParseExpressionAssignment(expression))
+					if (!parse_expression_assignment(expression))
 					{
 						return false;
 					}
 
-					sequence->Expressions.push_back(std::move(expression));
+					sequence->expression_list.push_back(std::move(expression));
 				}
 
-				sequence->Type = sequence->Expressions.back()->Type;
+				sequence->type = sequence->expression_list.back()->type;
 
 				node = sequence;
 			}
 
 			return true;
 		}
-		bool Parser::ParseExpressionUnary(Nodes::Expression *&node)
+		bool parser::parse_expression_unary(nodes::expression_node *&node)
 		{
-			Nodes::Type type;
-			Nodes::Unary::Op op;
-			auto location = _tokenNext.location;
+			nodes::type_node type;
+			enum nodes::unary_expression_node::op op;
+			auto location = _token_next.location;
 
 			#pragma region Prefix
-			if (AcceptUnaryOp(op))
+			if (accept_unary_op(op))
 			{
-				if (!ParseExpressionUnary(node))
+				if (!parse_expression_unary(node))
 				{
 					return false;
 				}
 
-				if (!node->Type.IsScalar() && !node->Type.IsVector() && !node->Type.IsMatrix())
+				if (!node->type.is_scalar() && !node->type.is_vector() && !node->type.is_matrix())
 				{
-					Error(node->location, 3022, "scalar, vector, or matrix expected");
+					error(node->location, 3022, "scalar, vector, or matrix expected");
 
 					return false;
 				}
 
-				if (op != Nodes::Unary::Op::None)
+				if (op != nodes::unary_expression_node::none)
 				{
-					if (op == Nodes::Unary::Op::BitwiseNot && !node->Type.IsIntegral())
+					if (op == nodes::unary_expression_node::bitwise_not && !node->type.is_integral())
 					{
-						Error(node->location, 3082, "int or unsigned int type required");
+						error(node->location, 3082, "int or unsigned int type required");
 
 						return false;
 					}
-					else if ((op == Nodes::Unary::Op::Increase || op == Nodes::Unary::Op::Decrease) && (node->Type.HasQualifier(Nodes::Type::Qualifier::Const) || node->Type.HasQualifier(Nodes::Type::Qualifier::Uniform)))
+					else if ((op == nodes::unary_expression_node::pre_increase || op == nodes::unary_expression_node::pre_decrease) && (node->type.has_qualifier(nodes::type_node::const_) || node->type.has_qualifier(nodes::type_node::uniform_)))
 					{
-						Error(node->location, 3025, "l-value specifies const object");
+						error(node->location, 3025, "l-value specifies const object");
 
 						return false;
 					}
 
-					const auto newexpression = _ast->make_node<Nodes::Unary>(location);
-					newexpression->Type = node->Type;
-					newexpression->Operator = op;
-					newexpression->Operand = node;
+					const auto newexpression = _ast->make_node<nodes::unary_expression_node>(location);
+					newexpression->type = node->type;
+					newexpression->op = op;
+					newexpression->operand = node;
 
-					node = FoldConstantExpression(newexpression);
+					node = fold_constant_expression(newexpression);
 				}
 
-				type = node->Type;
+				type = node->type;
 			}
-			else if (Accept('('))
+			else if (accept('('))
 			{
-				Backup();
+				backup();
 
-				if (AcceptTypeClass(type))
+				if (accept_type_class(type))
 				{
-					if (Peek('('))
+					if (peek('('))
 					{
-						Restore();
+						restore();
 					}
-					else if (Expect(')'))
+					else if (expect(')'))
 					{
-						if (!ParseExpressionUnary(node))
+						if (!parse_expression_unary(node))
 						{
 							return false;
 						}
 
-						if (node->Type.BaseClass == type.BaseClass && (node->Type.Rows == type.Rows && node->Type.Cols == type.Cols) && !(node->Type.IsArray() || type.IsArray()))
+						if (node->type.basetype == type.basetype && (node->type.rows == type.rows && node->type.cols == type.cols) && !(node->type.is_array() || type.is_array()))
 						{
 							return true;
 						}
-						else if (node->Type.IsNumeric() && type.IsNumeric())
+						else if (node->type.is_numeric() && type.is_numeric())
 						{
-							if ((node->Type.Rows < type.Rows || node->Type.Cols < type.Cols) && !node->Type.IsScalar())
+							if ((node->type.rows < type.rows || node->type.cols < type.cols) && !node->type.is_scalar())
 							{
-								Error(location, 3017, "cannot convert these vector types");
+								error(location, 3017, "cannot convert these vector types");
 
 								return false;
 							}
 
-							if (node->Type.Rows > type.Rows || node->Type.Cols > type.Cols)
+							if (node->type.rows > type.rows || node->type.cols > type.cols)
 							{
-								Warning(location, 3206, "implicit truncation of vector type");
+								warning(location, 3206, "implicit truncation of vector type");
 							}
 
-							const auto castexpression = _ast->make_node<Nodes::Unary>(location);
-							type.Qualifiers = Nodes::Type::Qualifier::Const;
-							castexpression->Type = type;
-							castexpression->Operator = Nodes::Unary::Op::Cast;
-							castexpression->Operand = node;
+							const auto castexpression = _ast->make_node<nodes::unary_expression_node>(location);
+							type.qualifiers = nodes::type_node::const_;
+							castexpression->type = type;
+							castexpression->op = nodes::unary_expression_node::cast;
+							castexpression->operand = node;
 
-							node = FoldConstantExpression(castexpression);
+							node = fold_constant_expression(castexpression);
 
 							return true;
 						}
 						else
 						{
-							Error(location, 3017, "cannot convert non-numeric types");
+							error(location, 3017, "cannot convert non-numeric types");
 
 							return false;
 						}
@@ -1682,200 +1677,200 @@ namespace ReShade
 					}
 				}
 
-				if (!ParseExpression(node))
+				if (!parse_expression(node))
 				{
 					return false;
 				}
 
-				if (!Expect(')'))
+				if (!expect(')'))
 				{
 					return false;
 				}
 
-				type = node->Type;
+				type = node->type;
 			}
-			else if (Accept(lexer::tokenid::true_literal))
+			else if (accept(lexer::tokenid::true_literal))
 			{
-				const auto literal = _ast->make_node<Nodes::Literal>(location);
-				literal->Type.BaseClass = Nodes::Type::Class::Bool;
-				literal->Type.Qualifiers = Nodes::Type::Qualifier::Const;
-				literal->Type.Rows = literal->Type.Cols = 1, literal->Type.ArrayLength = 0;
-				literal->Value.Int[0] = 1;
+				const auto literal = _ast->make_node<nodes::literal_expression_node>(location);
+				literal->type.basetype = nodes::type_node::bool_;
+				literal->type.qualifiers = nodes::type_node::const_;
+				literal->type.rows = literal->type.cols = 1, literal->type.array_length = 0;
+				literal->value_int[0] = 1;
 
 				node = literal;
-				type = literal->Type;
+				type = literal->type;
 			}
-			else if (Accept(lexer::tokenid::false_literal))
+			else if (accept(lexer::tokenid::false_literal))
 			{
-				const auto literal = _ast->make_node<Nodes::Literal>(location);
-				literal->Type.BaseClass = Nodes::Type::Class::Bool;
-				literal->Type.Qualifiers = Nodes::Type::Qualifier::Const;
-				literal->Type.Rows = literal->Type.Cols = 1, literal->Type.ArrayLength = 0;
-				literal->Value.Int[0] = 0;
+				const auto literal = _ast->make_node<nodes::literal_expression_node>(location);
+				literal->type.basetype = nodes::type_node::bool_;
+				literal->type.qualifiers = nodes::type_node::const_;
+				literal->type.rows = literal->type.cols = 1, literal->type.array_length = 0;
+				literal->value_int[0] = 0;
 
 				node = literal;
-				type = literal->Type;
+				type = literal->type;
 			}
-			else if (Accept(lexer::tokenid::int_literal))
+			else if (accept(lexer::tokenid::int_literal))
 			{
-				Nodes::Literal *const literal = _ast->make_node<Nodes::Literal>(location);
-				literal->Type.BaseClass = Nodes::Type::Class::Int;
-				literal->Type.Qualifiers = Nodes::Type::Qualifier::Const;
-				literal->Type.Rows = literal->Type.Cols = 1, literal->Type.ArrayLength = 0;
-				literal->Value.Int[0] = _token.literal_as_int;
+				nodes::literal_expression_node *const literal = _ast->make_node<nodes::literal_expression_node>(location);
+				literal->type.basetype = nodes::type_node::int_;
+				literal->type.qualifiers = nodes::type_node::const_;
+				literal->type.rows = literal->type.cols = 1, literal->type.array_length = 0;
+				literal->value_int[0] = _token.literal_as_int;
 
 				node = literal;
-				type = literal->Type;
+				type = literal->type;
 			}
-			else if (Accept(lexer::tokenid::uint_literal))
+			else if (accept(lexer::tokenid::uint_literal))
 			{
-				const auto literal = _ast->make_node<Nodes::Literal>(location);
-				literal->Type.BaseClass = Nodes::Type::Class::Uint;
-				literal->Type.Qualifiers = Nodes::Type::Qualifier::Const;
-				literal->Type.Rows = literal->Type.Cols = 1, literal->Type.ArrayLength = 0;
-				literal->Value.Uint[0] = _token.literal_as_uint;
+				const auto literal = _ast->make_node<nodes::literal_expression_node>(location);
+				literal->type.basetype = nodes::type_node::uint_;
+				literal->type.qualifiers = nodes::type_node::const_;
+				literal->type.rows = literal->type.cols = 1, literal->type.array_length = 0;
+				literal->value_uint[0] = _token.literal_as_uint;
 
 				node = literal;
-				type = literal->Type;
+				type = literal->type;
 			}
-			else if (Accept(lexer::tokenid::float_literal))
+			else if (accept(lexer::tokenid::float_literal))
 			{
-				const auto literal = _ast->make_node<Nodes::Literal>(location);
-				literal->Type.BaseClass = Nodes::Type::Class::Float;
-				literal->Type.Qualifiers = Nodes::Type::Qualifier::Const;
-				literal->Type.Rows = literal->Type.Cols = 1, literal->Type.ArrayLength = 0;
-				literal->Value.Float[0] = _token.literal_as_float;
+				const auto literal = _ast->make_node<nodes::literal_expression_node>(location);
+				literal->type.basetype = nodes::type_node::float_;
+				literal->type.qualifiers = nodes::type_node::const_;
+				literal->type.rows = literal->type.cols = 1, literal->type.array_length = 0;
+				literal->value_float[0] = _token.literal_as_float;
 
 				node = literal;
-				type = literal->Type;
+				type = literal->type;
 			}
-			else if (Accept(lexer::tokenid::double_literal))
+			else if (accept(lexer::tokenid::double_literal))
 			{
-				const auto literal = _ast->make_node<Nodes::Literal>(location);
-				literal->Type.BaseClass = Nodes::Type::Class::Float;
-				literal->Type.Qualifiers = Nodes::Type::Qualifier::Const;
-				literal->Type.Rows = literal->Type.Cols = 1, literal->Type.ArrayLength = 0;
-				literal->Value.Float[0] = static_cast<float>(_token.literal_as_double);
+				const auto literal = _ast->make_node<nodes::literal_expression_node>(location);
+				literal->type.basetype = nodes::type_node::float_;
+				literal->type.qualifiers = nodes::type_node::const_;
+				literal->type.rows = literal->type.cols = 1, literal->type.array_length = 0;
+				literal->value_float[0] = static_cast<float>(_token.literal_as_double);
 
 				node = literal;
-				type = literal->Type;
+				type = literal->type;
 			}
-			else if (Accept(lexer::tokenid::string_literal))
+			else if (accept(lexer::tokenid::string_literal))
 			{
-				const auto literal = _ast->make_node<Nodes::Literal>(location);
-				literal->Type.BaseClass = Nodes::Type::Class::String;
-				literal->Type.Qualifiers = Nodes::Type::Qualifier::Const;
-				literal->Type.Rows = literal->Type.Cols = 0, literal->Type.ArrayLength = 0;
-				literal->StringValue = _token.literal_as_string;
+				const auto literal = _ast->make_node<nodes::literal_expression_node>(location);
+				literal->type.basetype = nodes::type_node::string_;
+				literal->type.qualifiers = nodes::type_node::const_;
+				literal->type.rows = literal->type.cols = 0, literal->type.array_length = 0;
+				literal->value_string = _token.literal_as_string;
 
-				while (Accept(lexer::tokenid::string_literal))
+				while (accept(lexer::tokenid::string_literal))
 				{
-					literal->StringValue += _token.literal_as_string;
+					literal->value_string += _token.literal_as_string;
 				}
 
 				node = literal;
-				type = literal->Type;
+				type = literal->type;
 			}
-			else if (AcceptTypeClass(type))
+			else if (accept_type_class(type))
 			{
-				if (!Expect('('))
+				if (!expect('('))
 				{
 					return false;
 				}
 
-				if (!type.IsNumeric())
+				if (!type.is_numeric())
 				{
-					Error(location, 3037, "constructors only defined for numeric base types");
+					error(location, 3037, "constructors only defined for numeric base types");
 
 					return false;
 				}
 
-				if (Accept(')'))
+				if (accept(')'))
 				{
-					Error(location, 3014, "incorrect number of arguments to numeric-type constructor");
+					error(location, 3014, "incorrect number of arguments to numeric-type constructor");
 
 					return false;
 				}
 
-				const auto constructor = _ast->make_node<Nodes::Constructor>(location);
-				constructor->Type = type;
-				constructor->Type.Qualifiers = Nodes::Type::Qualifier::Const;
+				const auto constructor = _ast->make_node<nodes::constructor_expression_node>(location);
+				constructor->type = type;
+				constructor->type.qualifiers = nodes::type_node::const_;
 
 				unsigned int elements = 0;
 
-				while (!Peek(')'))
+				while (!peek(')'))
 				{
-					if (!constructor->Arguments.empty() && !Expect(','))
+					if (!constructor->arguments.empty() && !expect(','))
 					{
 						return false;
 					}
 
-					Nodes::Expression *argument = nullptr;
+					nodes::expression_node *argument = nullptr;
 
-					if (!ParseExpressionAssignment(argument))
+					if (!parse_expression_assignment(argument))
 					{
 						return false;
 					}
 
-					if (!argument->Type.IsNumeric())
+					if (!argument->type.is_numeric())
 					{
-						Error(argument->location, 3017, "cannot convert non-numeric types");
+						error(argument->location, 3017, "cannot convert non-numeric types");
 
 						return false;
 					}
 
-					elements += argument->Type.Rows * argument->Type.Cols;
+					elements += argument->type.rows * argument->type.cols;
 
-					constructor->Arguments.push_back(std::move(argument));
+					constructor->arguments.push_back(std::move(argument));
 				}
 
-				if (!Expect(')'))
+				if (!expect(')'))
 				{
 					return false;
 				}
 
-				if (elements != type.Rows * type.Cols)
+				if (elements != type.rows * type.cols)
 				{
-					Error(location, 3014, "incorrect number of arguments to numeric-type constructor");
+					error(location, 3014, "incorrect number of arguments to numeric-type constructor");
 
 					return false;
 				}
 
-				if (constructor->Arguments.size() > 1)
+				if (constructor->arguments.size() > 1)
 				{
 					node = constructor;
-					type = constructor->Type;
+					type = constructor->type;
 				}
 				else
 				{
-					const auto castexpression = _ast->make_node<Nodes::Unary>(constructor->location);
-					castexpression->Type = type;
-					castexpression->Operator = Nodes::Unary::Op::Cast;
-					castexpression->Operand = constructor->Arguments[0];
+					const auto castexpression = _ast->make_node<nodes::unary_expression_node>(constructor->location);
+					castexpression->type = type;
+					castexpression->op = nodes::unary_expression_node::cast;
+					castexpression->operand = constructor->arguments[0];
 
 					node = castexpression;
 				}
 
-				node = FoldConstantExpression(node);
+				node = fold_constant_expression(node);
 			}
 			else
 			{
-				Scope scope;
+				scope scope;
 				bool exclusive;
 				std::string identifier;
 
-				if (Accept(lexer::tokenid::colon_colon))
+				if (accept(lexer::tokenid::colon_colon))
 				{
-					scope.NamespaceLevel = scope.Level = 0;
+					scope.namespace_level = scope.level = 0;
 					exclusive = true;
 				}
 				else
 				{
-					scope = _currentScope;
+					scope = _current_scope;
 					exclusive = false;
 				}
 
-				if (exclusive ? Expect(lexer::tokenid::identifier) : Accept(lexer::tokenid::identifier))
+				if (exclusive ? expect(lexer::tokenid::identifier) : accept(lexer::tokenid::identifier))
 				{
 					identifier = _token.literal_as_string;
 				}
@@ -1884,9 +1879,9 @@ namespace ReShade
 					return false;
 				}
 
-				while (Accept(lexer::tokenid::colon_colon))
+				while (accept(lexer::tokenid::colon_colon))
 				{
-					if (!Expect(lexer::tokenid::identifier))
+					if (!expect(lexer::tokenid::identifier))
 					{
 						return false;
 					}
@@ -1894,57 +1889,57 @@ namespace ReShade
 					identifier += "::" + _token.literal_as_string;
 				}
 
-				const auto symbol = FindSymbol(identifier, scope, exclusive);
+				const auto symbol = find_symbol(identifier, scope, exclusive);
 
-				if (Accept('('))
+				if (accept('('))
 				{
-					if (symbol != nullptr && symbol->id == nodeid::Variable)
+					if (symbol != nullptr && symbol->id == nodeid::variable_declaration)
 					{
-						Error(location, 3005, "identifier '%s' represents a variable, not a function", identifier.c_str());
+						error(location, 3005, "identifier '%s' represents a variable, not a function", identifier.c_str());
 
 						return false;
 					}
 
-					const auto callexpression = _ast->make_node<Nodes::Call>(location);
-					callexpression->CalleeName = identifier;
+					const auto callexpression = _ast->make_node<nodes::call_expression_node>(location);
+					callexpression->callee_name = identifier;
 
-					while (!Peek(')'))
+					while (!peek(')'))
 					{
-						if (!callexpression->Arguments.empty() && !Expect(','))
+						if (!callexpression->arguments.empty() && !expect(','))
 						{
 							return false;
 						}
 
-						Nodes::Expression *argument = nullptr;
+						nodes::expression_node *argument = nullptr;
 
-						if (!ParseExpressionAssignment(argument))
+						if (!parse_expression_assignment(argument))
 						{
 							return false;
 						}
 
-						callexpression->Arguments.push_back(std::move(argument));
+						callexpression->arguments.push_back(std::move(argument));
 					}
 
-					if (!Expect(')'))
+					if (!expect(')'))
 					{
 						return false;
 					}
 
 					bool undeclared = symbol == nullptr, intrinsic = false, ambiguous = false;
 
-					if (!ResolveCall(callexpression, scope, intrinsic, ambiguous))
+					if (!resolve_call(callexpression, scope, intrinsic, ambiguous))
 					{
 						if (undeclared && !intrinsic)
 						{
-							Error(location, 3004, "undeclared identifier '%s'", identifier.c_str());
+							error(location, 3004, "undeclared identifier '%s'", identifier.c_str());
 						}
 						else if (ambiguous)
 						{
-							Error(location, 3067, "ambiguous function call to '%s'", identifier.c_str());
+							error(location, 3067, "ambiguous function call to '%s'", identifier.c_str());
 						}
 						else
 						{
-							Error(location, 3013, "no matching function overload for '%s'", identifier.c_str());
+							error(location, 3013, "no matching function overload for '%s'", identifier.c_str());
 						}
 
 						return false;
@@ -1952,24 +1947,24 @@ namespace ReShade
 
 					if (intrinsic)
 					{
-						const auto newexpression = _ast->make_node<Nodes::Intrinsic>(callexpression->location);
-						newexpression->Type = callexpression->Type;
-						newexpression->Operator = static_cast<Nodes::Intrinsic::Op>(reinterpret_cast<unsigned int>(callexpression->Callee));
+						const auto newexpression = _ast->make_node<nodes::intrinsic_expression_node>(callexpression->location);
+						newexpression->type = callexpression->type;
+						newexpression->op = static_cast<enum nodes::intrinsic_expression_node::op>(reinterpret_cast<unsigned int>(callexpression->callee));
 
-						for (size_t i = 0, count = std::min(callexpression->Arguments.size(), sizeof(newexpression->Arguments) / sizeof(*newexpression->Arguments)); i < count; ++i)
+						for (size_t i = 0, count = std::min(callexpression->arguments.size(), sizeof(newexpression->arguments) / sizeof(*newexpression->arguments)); i < count; ++i)
 						{
-							newexpression->Arguments[i] = callexpression->Arguments[i];
+							newexpression->arguments[i] = callexpression->arguments[i];
 						}
 
-						node = FoldConstantExpression(newexpression);
+						node = fold_constant_expression(newexpression);
 					}
 					else
 					{
-						const auto parent = _parentStack.empty() ? nullptr : _parentStack.top();
+						const auto parent = _parent_stack.empty() ? nullptr : _parent_stack.top();
 
-						if (parent == callexpression->Callee)
+						if (parent == callexpression->callee)
 						{
-							Error(location, 3500, "recursive function calls are not allowed");
+							error(location, 3500, "recursive function calls are not allowed");
 
 							return false;
 						}
@@ -1977,67 +1972,67 @@ namespace ReShade
 						node = callexpression;
 					}
 
-					type = node->Type;
+					type = node->type;
 				}
 				else
 				{
 					if (symbol == nullptr)
 					{
-						Error(location, 3004, "undeclared identifier '%s'", identifier.c_str());
+						error(location, 3004, "undeclared identifier '%s'", identifier.c_str());
 
 						return false;
 					}
 
-					if (symbol->id != nodeid::Variable)
+					if (symbol->id != nodeid::variable_declaration)
 					{
-						Error(location, 3005, "identifier '%s' represents a function, not a variable", identifier.c_str());
+						error(location, 3005, "identifier '%s' represents a function, not a variable", identifier.c_str());
 
 						return false;
 					}
 
-					const auto newexpression = _ast->make_node<Nodes::LValue>(location);
-					newexpression->Reference = static_cast<const Nodes::Variable *>(symbol);
-					newexpression->Type = newexpression->Reference->Type;
+					const auto newexpression = _ast->make_node<nodes::lvalue_expression_node>(location);
+					newexpression->reference = static_cast<const nodes::variable_declaration_node *>(symbol);
+					newexpression->type = newexpression->reference->type;
 
-					node = FoldConstantExpression(newexpression);
-					type = node->Type;
+					node = fold_constant_expression(newexpression);
+					type = node->type;
 				}
 			}
 			#pragma endregion
 
 			#pragma region Postfix
-			while (!Peek(lexer::tokenid::end_of_file))
+			while (!peek(lexer::tokenid::end_of_file))
 			{
-				location = _tokenNext.location;
+				location = _token_next.location;
 
-				if (AcceptPostfixOp(op))
+				if (accept_postfix_op(op))
 				{
-					if (!type.IsScalar() && !type.IsVector() && !type.IsMatrix())
+					if (!type.is_scalar() && !type.is_vector() && !type.is_matrix())
 					{
-						Error(node->location, 3022, "scalar, vector, or matrix expected");
+						error(node->location, 3022, "scalar, vector, or matrix expected");
 
 						return false;
 					}
 
-					if (type.HasQualifier(Nodes::Type::Qualifier::Const) || type.HasQualifier(Nodes::Type::Qualifier::Uniform))
+					if (type.has_qualifier(nodes::type_node::const_) || type.has_qualifier(nodes::type_node::uniform_))
 					{
-						Error(node->location, 3025, "l-value specifies const object");
+						error(node->location, 3025, "l-value specifies const object");
 
 						return false;
 					}
 
-					const auto newexpression = _ast->make_node<Nodes::Unary>(location);
-					newexpression->Type = type;
-					newexpression->Type.Qualifiers |= Nodes::Type::Qualifier::Const;
-					newexpression->Operator = op;
-					newexpression->Operand = node;
+					const auto newexpression = _ast->make_node<nodes::unary_expression_node>(location);
+					newexpression->type = type;
+					newexpression->type.qualifiers |= nodes::type_node::const_;
+					newexpression->op = op;
+					newexpression->operand = node;
 
 					node = newexpression;
-					type = node->Type;
+					type = node->type;
 				}
-				else if (Accept('.'))
+				else if (accept('.'))
 				{
-					if (!Expect(lexer::tokenid::identifier))
+					if (!expect(lexer::tokenid::identifier))
 					{
 						return false;
 					}
@@ -2045,32 +2040,32 @@ namespace ReShade
 					location = _token.location;
 					const auto subscript = _token.literal_as_string;
 
-					if (Accept('('))
+					if (accept('('))
 					{
-						if (!type.IsStruct() || type.IsArray())
+						if (!type.is_struct() || type.is_array())
 						{
-							Error(location, 3087, "object does not have methods");
+							error(location, 3087, "object does not have methods");
 						}
 						else
 						{
-							Error(location, 3088, "structures do not have methods");
+							error(location, 3088, "structures do not have methods");
 						}
 
 						return false;
 					}
-					else if (type.IsArray())
+					else if (type.is_array())
 					{
-						Error(location, 3018, "invalid subscript on array");
+						error(location, 3018, "invalid subscript on array");
 
 						return false;
 					}
-					else if (type.IsVector())
+					else if (type.is_vector())
 					{
 						const size_t length = subscript.size();
 
 						if (length > 4)
 						{
-							Error(location, 3018, "invalid subscript '%s'", subscript.c_str());
+							error(location, 3018, "invalid subscript '%s'", subscript.c_str());
 
 							return false;
 						}
@@ -2096,19 +2091,19 @@ namespace ReShade
 								case 'p': offsets[i] = 2, set[i] = stpq; break;
 								case 'q': offsets[i] = 3, set[i] = stpq; break;
 								default:
-									Error(location, 3018, "invalid subscript '%s'", subscript.c_str());
+									error(location, 3018, "invalid subscript '%s'", subscript.c_str());
 									return false;
 							}
 
 							if (i > 0 && (set[i] != set[i - 1]))
 							{
-								Error(location, 3018, "invalid subscript '%s', mixed swizzle sets", subscript.c_str());
+								error(location, 3018, "invalid subscript '%s', mixed swizzle sets", subscript.c_str());
 
 								return false;
 							}
-							if (static_cast<unsigned int>(offsets[i]) >= type.Rows)
+							if (static_cast<unsigned int>(offsets[i]) >= type.rows)
 							{
-								Error(location, 3018, "invalid subscript '%s', swizzle out of range", subscript.c_str());
+								error(location, 3018, "invalid subscript '%s', swizzle out of range", subscript.c_str());
 
 								return false;
 							}
@@ -2123,31 +2118,31 @@ namespace ReShade
 							}
 						}
 
-						const auto newexpression = _ast->make_node<Nodes::Swizzle>(location);
-						newexpression->Type = type;
-						newexpression->Type.Rows = static_cast<unsigned int>(length);
-						newexpression->Operand = node;
-						newexpression->Mask[0] = offsets[0];
-						newexpression->Mask[1] = offsets[1];
-						newexpression->Mask[2] = offsets[2];
-						newexpression->Mask[3] = offsets[3];
+						const auto newexpression = _ast->make_node<nodes::swizzle_expression_node>(location);
+						newexpression->type = type;
+						newexpression->type.rows = static_cast<unsigned int>(length);
+						newexpression->operand = node;
+						newexpression->mask[0] = offsets[0];
+						newexpression->mask[1] = offsets[1];
+						newexpression->mask[2] = offsets[2];
+						newexpression->mask[3] = offsets[3];
 
-						if (constant || type.HasQualifier(Nodes::Type::Qualifier::Uniform))
+						if (constant || type.has_qualifier(nodes::type_node::uniform_))
 						{
-							newexpression->Type.Qualifiers |= Nodes::Type::Qualifier::Const;
-							newexpression->Type.Qualifiers &= ~Nodes::Type::Qualifier::Uniform;
+							newexpression->type.qualifiers |= nodes::type_node::const_;
+							newexpression->type.qualifiers &= ~nodes::type_node::uniform_;
 						}
 
-						node = FoldConstantExpression(newexpression);
-						type = node->Type;
+						node = fold_constant_expression(newexpression);
+						type = node->type;
 					}
-					else if (type.IsMatrix())
+					else if (type.is_matrix())
 					{
 						const size_t length = subscript.size();
 
 						if (length < 3)
 						{
-							Error(location, 3018, "invalid subscript '%s'", subscript.c_str());
+							error(location, 3018, "invalid subscript '%s'", subscript.c_str());
 
 							return false;
 						}
@@ -2161,13 +2156,13 @@ namespace ReShade
 						{
 							if (subscript[i] != '_' || subscript[i + set + 1] < '0' + coefficient || subscript[i + set + 1] > '3' + coefficient || subscript[i + set + 2] < '0' + coefficient || subscript[i + set + 2] > '3' + coefficient)
 							{
-								Error(location, 3018, "invalid subscript '%s'", subscript.c_str());
+								error(location, 3018, "invalid subscript '%s'", subscript.c_str());
 
 								return false;
 							}
 							if (set && subscript[i + 1] != 'm')
 							{
-								Error(location, 3018, "invalid subscript '%s', mixed swizzle sets", subscript.c_str());
+								error(location, 3018, "invalid subscript '%s', mixed swizzle sets", subscript.c_str());
 
 								return false;
 							}
@@ -2175,9 +2170,9 @@ namespace ReShade
 							const unsigned int row = subscript[i + set + 1] - '0' - coefficient;
 							const unsigned int col = subscript[i + set + 2] - '0' - coefficient;
 
-							if ((row >= type.Rows || col >= type.Cols) || j > 3)
+							if ((row >= type.rows || col >= type.cols) || j > 3)
 							{
-								Error(location, 3018, "invalid subscript '%s', swizzle out of range", subscript.c_str());
+								error(location, 3018, "invalid subscript '%s', swizzle out of range", subscript.c_str());
 
 								return false;
 							}
@@ -2194,32 +2189,32 @@ namespace ReShade
 							}
 						}
 
-						const auto newexpression = _ast->make_node<Nodes::Swizzle>(_token.location);
-						newexpression->Type = type;
-						newexpression->Type.Rows = static_cast<unsigned int>(length / (3 + set));
-						newexpression->Type.Cols = 1;
-						newexpression->Operand = node;
-						newexpression->Mask[0] = offsets[0];
-						newexpression->Mask[1] = offsets[1];
-						newexpression->Mask[2] = offsets[2];
-						newexpression->Mask[3] = offsets[3];
+						const auto newexpression = _ast->make_node<nodes::swizzle_expression_node>(_token.location);
+						newexpression->type = type;
+						newexpression->type.rows = static_cast<unsigned int>(length / (3 + set));
+						newexpression->type.cols = 1;
+						newexpression->operand = node;
+						newexpression->mask[0] = offsets[0];
+						newexpression->mask[1] = offsets[1];
+						newexpression->mask[2] = offsets[2];
+						newexpression->mask[3] = offsets[3];
 
-						if (constant || type.HasQualifier(Nodes::Type::Qualifier::Uniform))
+						if (constant || type.has_qualifier(nodes::type_node::uniform_))
 						{
-							newexpression->Type.Qualifiers |= Nodes::Type::Qualifier::Const;
-							newexpression->Type.Qualifiers &= ~Nodes::Type::Qualifier::Uniform;
+							newexpression->type.qualifiers |= nodes::type_node::const_;
+							newexpression->type.qualifiers &= ~nodes::type_node::uniform_;
 						}
 
-						node = FoldConstantExpression(newexpression);
-						type = node->Type;
+						node = fold_constant_expression(newexpression);
+						type = node->type;
 					}
-					else if (type.IsStruct())
+					else if (type.is_struct())
 					{
-						Nodes::Variable *field = nullptr;
+						nodes::variable_declaration_node *field = nullptr;
 
-						for (auto currfield : type.Definition->Fields)
+						for (auto currfield : type.definition->field_list)
 						{
-							if (currfield->Name == subscript)
+							if (currfield->name == subscript)
 							{
 								field = currfield;
 								break;
@@ -2228,26 +2223,26 @@ namespace ReShade
 
 						if (field == nullptr)
 						{
-							Error(location, 3018, "invalid subscript '%s'", subscript.c_str());
+							error(location, 3018, "invalid subscript '%s'", subscript.c_str());
 
 							return false;
 						}
 
-						const auto newexpression = _ast->make_node<Nodes::FieldSelection>(location);
-						newexpression->Type = field->Type;
-						newexpression->Operand = node;
-						newexpression->Field = field;
+						const auto newexpression = _ast->make_node<nodes::field_expression_node>(location);
+						newexpression->type = field->type;
+						newexpression->operand = node;
+						newexpression->field_reference = field;
 
-						if (type.HasQualifier(Nodes::Type::Qualifier::Uniform))
+						if (type.has_qualifier(nodes::type_node::uniform_))
 						{
-							newexpression->Type.Qualifiers |= Nodes::Type::Qualifier::Const;
-							newexpression->Type.Qualifiers &= ~Nodes::Type::Qualifier::Uniform;
+							newexpression->type.qualifiers |= nodes::type_node::const_;
+							newexpression->type.qualifiers &= ~nodes::type_node::uniform_;
 						}
 
 						node = newexpression;
-						type = node->Type;
+						type = node->type;
 					}
-					else if (type.IsScalar())
+					else if (type.is_scalar())
 					{
 						signed char offsets[4] = { -1, -1, -1, -1 };
 						const size_t length = subscript.size();
@@ -2256,7 +2251,7 @@ namespace ReShade
 						{
 							if ((subscript[i] != 'x' && subscript[i] != 'r' && subscript[i] != 's') || i > 3)
 							{
-								Error(location, 3018, "invalid subscript '%s'", subscript.c_str());
+								error(location, 3018, "invalid subscript '%s'", subscript.c_str());
 
 								return false;
 							}
@@ -2264,70 +2259,70 @@ namespace ReShade
 							offsets[i] = 0;
 						}
 
-						const auto newexpression = _ast->make_node<Nodes::Swizzle>(location);
-						newexpression->Type = type;
-						newexpression->Type.Qualifiers |= Nodes::Type::Qualifier::Const;
-						newexpression->Type.Rows = static_cast<unsigned int>(length);
-						newexpression->Operand = node;
-						newexpression->Mask[0] = offsets[0];
-						newexpression->Mask[1] = offsets[1];
-						newexpression->Mask[2] = offsets[2];
-						newexpression->Mask[3] = offsets[3];
+						const auto newexpression = _ast->make_node<nodes::swizzle_expression_node>(location);
+						newexpression->type = type;
+						newexpression->type.qualifiers |= nodes::type_node::const_;
+						newexpression->type.rows = static_cast<unsigned int>(length);
+						newexpression->operand = node;
+						newexpression->mask[0] = offsets[0];
+						newexpression->mask[1] = offsets[1];
+						newexpression->mask[2] = offsets[2];
+						newexpression->mask[3] = offsets[3];
 
 						node = newexpression;
-						type = node->Type;
+						type = node->type;
 					}
 					else
 					{
-						Error(location, 3018, "invalid subscript '%s'", subscript.c_str());
+						error(location, 3018, "invalid subscript '%s'", subscript.c_str());
 
 						return false;
 					}
 				}
-				else if (Accept('['))
+				else if (accept('['))
 				{
-					if (!type.IsArray() && !type.IsVector() && !type.IsMatrix())
+					if (!type.is_array() && !type.is_vector() && !type.is_matrix())
 					{
-						Error(node->location, 3121, "array, matrix, vector, or indexable object type expected in index expression");
+						error(node->location, 3121, "array, matrix, vector, or indexable object type expected in index expression");
 
 						return false;
 					}
 
-					const auto newexpression = _ast->make_node<Nodes::Binary>(location);
-					newexpression->Type = type;
-					newexpression->Operator = Nodes::Binary::Op::ElementExtract;
-					newexpression->Operands[0] = node;
+					const auto newexpression = _ast->make_node<nodes::binary_expression_node>(location);
+					newexpression->type = type;
+					newexpression->op = nodes::binary_expression_node::element_extract;
+					newexpression->operands[0] = node;
 
-					if (!ParseExpression(newexpression->Operands[1]))
+					if (!parse_expression(newexpression->operands[1]))
 					{
 						return false;
 					}
 
-					if (!newexpression->Operands[1]->Type.IsScalar())
+					if (!newexpression->operands[1]->type.is_scalar())
 					{
-						Error(newexpression->Operands[1]->location, 3120, "invalid type for index - index must be a scalar");
+						error(newexpression->operands[1]->location, 3120, "invalid type for index - index must be a scalar");
 
 						return false;
 					}
 
-					if (type.IsArray())
+					if (type.is_array())
 					{
-						newexpression->Type.ArrayLength = 0;
+						newexpression->type.array_length = 0;
 					}
-					else if (type.IsMatrix())
+					else if (type.is_matrix())
 					{
-						newexpression->Type.Rows = newexpression->Type.Cols;
-						newexpression->Type.Cols = 1;
+						newexpression->type.rows = newexpression->type.cols;
+						newexpression->type.cols = 1;
 					}
-					else if (type.IsVector())
+					else if (type.is_vector())
 					{
-						newexpression->Type.Rows = 1;
+						newexpression->type.rows = 1;
 					}
 
-					node = FoldConstantExpression(newexpression);
-					type = node->Type;
+					node = fold_constant_expression(newexpression);
+					type = node->type;
 
-					if (!Expect(']'))
+					if (!expect(']'))
 					{
 						return false;
 					}
@@ -2341,192 +2336,192 @@ namespace ReShade
 
 			return true;
 		}
-		bool Parser::ParseExpressionMultary(Nodes::Expression *&left, unsigned int leftPrecedence)
+		bool parser::parse_expression_multary(nodes::expression_node *&left, unsigned int left_precedence)
 		{
-			if (!ParseExpressionUnary(left))
+			if (!parse_expression_unary(left))
 			{
 				return false;
 			}
 
-			Nodes::Binary::Op op;
-			unsigned int rightPrecedence;
+			enum nodes::binary_expression_node::op op;
+			unsigned int right_precedence;
 
-			while (PeekMultaryOp(op, rightPrecedence))
+			while (peek_multary_op(op, right_precedence))
 			{
-				if (rightPrecedence <= leftPrecedence)
+				if (right_precedence <= left_precedence)
 				{
 					break;
 				}
 
-				Consume();
+				consume();
 
 				bool boolean = false;
-				Nodes::Expression *right1 = nullptr, *right2 = nullptr;
+				nodes::expression_node *right1 = nullptr, *right2 = nullptr;
 
-				if (op != Nodes::Binary::Op::None)
+				if (op != nodes::binary_expression_node::none)
 				{
-					if (!ParseExpressionMultary(right1, rightPrecedence))
+					if (!parse_expression_multary(right1, right_precedence))
 					{
 						return false;
 					}
 
-					if (op == Nodes::Binary::Op::Equal || op == Nodes::Binary::Op::NotEqual)
+					if (op == nodes::binary_expression_node::equal || op == nodes::binary_expression_node::not_equal)
 					{
 						boolean = true;
 
-						if (left->Type.IsArray() || right1->Type.IsArray() || left->Type.Definition != right1->Type.Definition)
+						if (left->type.is_array() || right1->type.is_array() || left->type.definition != right1->type.definition)
 						{
-							Error(right1->location, 3020, "type mismatch");
+							error(right1->location, 3020, "type mismatch");
 
 							return false;
 						}
 					}
-					else if (op == Nodes::Binary::Op::BitwiseAnd || op == Nodes::Binary::Op::BitwiseOr || op == Nodes::Binary::Op::BitwiseXor)
+					else if (op == nodes::binary_expression_node::bitwise_and || op == nodes::binary_expression_node::bitwise_or || op == nodes::binary_expression_node::bitwise_xor)
 					{
-						if (!left->Type.IsIntegral())
+						if (!left->type.is_integral())
 						{
-							Error(left->location, 3082, "int or unsigned int type required");
+							error(left->location, 3082, "int or unsigned int type required");
 
 							return false;
 						}
-						if (!right1->Type.IsIntegral())
+						if (!right1->type.is_integral())
 						{
-							Error(right1->location, 3082, "int or unsigned int type required");
+							error(right1->location, 3082, "int or unsigned int type required");
 
 							return false;
 						}
 					}
 					else
 					{
-						boolean = op == Nodes::Binary::Op::LogicalAnd || op == Nodes::Binary::Op::LogicalOr || op == Nodes::Binary::Op::Less || op == Nodes::Binary::Op::Greater || op == Nodes::Binary::Op::LessOrEqual || op == Nodes::Binary::Op::GreaterOrEqual;
+						boolean = op == nodes::binary_expression_node::logical_and || op == nodes::binary_expression_node::logical_or || op == nodes::binary_expression_node::less || op == nodes::binary_expression_node::greater || op == nodes::binary_expression_node::less_equal || op == nodes::binary_expression_node::greater_equal;
 
-						if (!left->Type.IsScalar() && !left->Type.IsVector() && !left->Type.IsMatrix())
+						if (!left->type.is_scalar() && !left->type.is_vector() && !left->type.is_matrix())
 						{
-							Error(left->location, 3022, "scalar, vector, or matrix expected");
+							error(left->location, 3022, "scalar, vector, or matrix expected");
 
 							return false;
 						}
-						if (!right1->Type.IsScalar() && !right1->Type.IsVector() && !right1->Type.IsMatrix())
+						if (!right1->type.is_scalar() && !right1->type.is_vector() && !right1->type.is_matrix())
 						{
-							Error(right1->location, 3022, "scalar, vector, or matrix expected");
+							error(right1->location, 3022, "scalar, vector, or matrix expected");
 
 							return false;
 						}
 					}
 
-					const auto newexpression = _ast->make_node<Nodes::Binary>(left->location);
-					newexpression->Operator = op;
-					newexpression->Operands[0] = left;
-					newexpression->Operands[1] = right1;
+					const auto newexpression = _ast->make_node<nodes::binary_expression_node>(left->location);
+					newexpression->op = op;
+					newexpression->operands[0] = left;
+					newexpression->operands[1] = right1;
 
 					right2 = right1, right1 = left;
 					left = newexpression;
 				}
 				else
 				{
-					if (!left->Type.IsScalar() && !left->Type.IsVector())
+					if (!left->type.is_scalar() && !left->type.is_vector())
 					{
-						Error(left->location, 3022, "boolean or vector expression expected");
+						error(left->location, 3022, "boolean or vector expression expected");
 
 						return false;
 					}
 
-					if (!(ParseExpression(right1) && Expect(':') && ParseExpressionAssignment(right2)))
+					if (!(parse_expression(right1) && expect(':') && parse_expression_assignment(right2)))
 					{
 						return false;
 					}
 
-					if (right1->Type.IsArray() || right2->Type.IsArray() || right1->Type.Definition != right2->Type.Definition)
+					if (right1->type.is_array() || right2->type.is_array() || right1->type.definition != right2->type.definition)
 					{
-						Error(left->location, 3020, "type mismatch between conditional values");
+						error(left->location, 3020, "type mismatch between conditional values");
 
 						return false;
 					}
 
-					const auto newexpression = _ast->make_node<Nodes::Conditional>(left->location);
-					newexpression->Condition = left;
-					newexpression->ExpressionOnTrue = right1;
-					newexpression->ExpressionOnFalse = right2;
+					const auto newexpression = _ast->make_node<nodes::conditional_expression_node>(left->location);
+					newexpression->condition = left;
+					newexpression->expression_when_true = right1;
+					newexpression->expression_when_false = right2;
 
 					left = newexpression;
 				}
 
 				if (boolean)
 				{
-					left->Type.BaseClass = Nodes::Type::Class::Bool;
+					left->type.basetype = nodes::type_node::bool_;
 				}
 				else
 				{
-					left->Type.BaseClass = std::max(right1->Type.BaseClass, right2->Type.BaseClass);
+					left->type.basetype = std::max(right1->type.basetype, right2->type.basetype);
 				}
 
-				if ((right1->Type.Rows == 1 && right2->Type.Cols == 1) || (right2->Type.Rows == 1 && right2->Type.Cols == 1))
+				if ((right1->type.rows == 1 && right2->type.cols == 1) || (right2->type.rows == 1 && right2->type.cols == 1))
 				{
-					left->Type.Rows = std::max(right1->Type.Rows, right2->Type.Rows);
-					left->Type.Cols = std::max(right1->Type.Cols, right2->Type.Cols);
+					left->type.rows = std::max(right1->type.rows, right2->type.rows);
+					left->type.cols = std::max(right1->type.cols, right2->type.cols);
 				}
 				else
 				{
-					left->Type.Rows = std::min(right1->Type.Rows, right2->Type.Rows);
-					left->Type.Cols = std::min(right1->Type.Cols, right2->Type.Cols);
+					left->type.rows = std::min(right1->type.rows, right2->type.rows);
+					left->type.cols = std::min(right1->type.cols, right2->type.cols);
 
-					if (right1->Type.Rows > right2->Type.Rows || right1->Type.Cols > right2->Type.Cols)
+					if (right1->type.rows > right2->type.rows || right1->type.cols > right2->type.cols)
 					{
-						Warning(right1->location, 3206, "implicit truncation of vector type");
+						warning(right1->location, 3206, "implicit truncation of vector type");
 					}
-					if (right2->Type.Rows > right1->Type.Rows || right2->Type.Cols > right1->Type.Cols)
+					if (right2->type.rows > right1->type.rows || right2->type.cols > right1->type.cols)
 					{
-						Warning(right2->location, 3206, "implicit truncation of vector type");
+						warning(right2->location, 3206, "implicit truncation of vector type");
 					}
 				}
 
-				left = FoldConstantExpression(left);
+				left = fold_constant_expression(left);
 			}
 
 			return true;
 		}
-		bool Parser::ParseExpressionAssignment(Nodes::Expression *&left)
+		bool parser::parse_expression_assignment(nodes::expression_node *&left)
 		{
-			if (!ParseExpressionMultary(left))
+			if (!parse_expression_multary(left))
 			{
 				return false;
 			}
 
-			Nodes::Assignment::Op op;
+			enum nodes::assignment_expression_node::op op;
 
-			if (AcceptAssignmentOp(op))
+			if (accept_assignment_op(op))
 			{
-				Nodes::Expression *right = nullptr;
+				nodes::expression_node *right = nullptr;
 
-				if (!ParseExpressionMultary(right))
+				if (!parse_expression_multary(right))
 				{
 					return false;
 				}
 
-				if (left->Type.HasQualifier(Nodes::Type::Qualifier::Const) || left->Type.HasQualifier(Nodes::Type::Qualifier::Uniform))
+				if (left->type.has_qualifier(nodes::type_node::const_) || left->type.has_qualifier(nodes::type_node::uniform_))
 				{
-					Error(left->location, 3025, "l-value specifies const object");
+					error(left->location, 3025, "l-value specifies const object");
 
 					return false;
 				}
 
-				if (left->Type.IsArray() || right->Type.IsArray() || !GetTypeRank(left->Type, right->Type))
+				if (left->type.is_array() || right->type.is_array() || !get_type_rank(left->type, right->type))
 				{
-					Error(right->location, 3020, "cannot convert these types");
+					error(right->location, 3020, "cannot convert these types");
 
 					return false;
 				}
 
-				if (right->Type.Rows > left->Type.Rows || right->Type.Cols > left->Type.Cols)
+				if (right->type.rows > left->type.rows || right->type.cols > left->type.cols)
 				{
-					Warning(right->location, 3206, "implicit truncation of vector type");
+					warning(right->location, 3206, "implicit truncation of vector type");
 				}
 
-				const auto assignment = _ast->make_node<Nodes::Assignment>(left->location);
-				assignment->Type = left->Type;
-				assignment->Operator = op;
-				assignment->Left = left;
-				assignment->Right = right;
+				const auto assignment = _ast->make_node<nodes::assignment_expression_node>(left->location);
+				assignment->type = left->type;
+				assignment->op = op;
+				assignment->left = left;
+				assignment->right = right;
 
 				left = assignment;
 			}
@@ -2535,41 +2530,41 @@ namespace ReShade
 		}
 
 		// Statements
-		bool Parser::ParseStatement(Nodes::Statement *&statement, bool scoped)
+		bool parser::parse_statement(nodes::statement_node *&statement, bool scoped)
 		{
 			std::vector<std::string> attributes;
 
 			// Attributes
-			while (Accept('['))
+			while (accept('['))
 			{
-				if (Expect(lexer::tokenid::identifier))
+				if (expect(lexer::tokenid::identifier))
 				{
 					const auto attribute = _token.literal_as_string;
 
-					if (Expect(']'))
+					if (expect(']'))
 					{
 						attributes.push_back(attribute);
 					}
 				}
 				else
 				{
-					Accept(']');
+					accept(']');
 				}
 			}
 
-			if (Peek('{'))
+			if (peek('{'))
 			{
-				if (!ParseStatementBlock(statement, scoped))
+				if (!parse_statement_block(statement, scoped))
 				{
 					return false;
 				}
 
-				statement->Attributes = attributes;
+				statement->attributes = attributes;
 
 				return true;
 			}
 
-			if (Accept(';'))
+			if (accept(';'))
 			{
 				statement = nullptr;
 
@@ -2577,33 +2572,33 @@ namespace ReShade
 			}
 
 			#pragma region If
-			if (Accept(lexer::tokenid::if_))
+			if (accept(lexer::tokenid::if_))
 			{
-				const auto newstatement = _ast->make_node<Nodes::If>(_token.location);
-				newstatement->Attributes = attributes;
+				const auto newstatement = _ast->make_node<nodes::if_statement_node>(_token.location);
+				newstatement->attributes = attributes;
 
-				if (!(Expect('(') && ParseExpression(newstatement->Condition) && Expect(')')))
+				if (!(expect('(') && parse_expression(newstatement->condition) && expect(')')))
 				{
 					return false;
 				}
 
-				if (!newstatement->Condition->Type.IsScalar())
+				if (!newstatement->condition->type.is_scalar())
 				{
-					Error(newstatement->Condition->location, 3019, "if statement conditional expressions must evaluate to a scalar");
+					error(newstatement->condition->location, 3019, "if statement conditional expressions must evaluate to a scalar");
 
 					return false;
 				}
 
-				if (!ParseStatement(newstatement->StatementOnTrue))
+				if (!parse_statement(newstatement->statement_when_true))
 				{
 					return false;
 				}
 
 				statement = newstatement;
 
-				if (Accept(lexer::tokenid::else_))
+				if (accept(lexer::tokenid::else_))
 				{
-					return ParseStatement(newstatement->StatementOnFalse);
+					return parse_statement(newstatement->statement_when_false);
 				}
 
 				return true;
@@ -2611,77 +2606,77 @@ namespace ReShade
 			#pragma endregion
 
 			#pragma region Switch
-			if (Accept(lexer::tokenid::switch_))
+			if (accept(lexer::tokenid::switch_))
 			{
-				const auto newstatement = _ast->make_node<Nodes::Switch>(_token.location);
-				newstatement->Attributes = attributes;
+				const auto newstatement = _ast->make_node<nodes::switch_statement_node>(_token.location);
+				newstatement->attributes = attributes;
 
-				if (!(Expect('(') && ParseExpression(newstatement->Test) && Expect(')')))
+				if (!(expect('(') && parse_expression(newstatement->test_expression) && expect(')')))
 				{
 					return false;
 				}
 
-				if (!newstatement->Test->Type.IsScalar())
+				if (!newstatement->test_expression->type.is_scalar())
 				{
-					Error(newstatement->Test->location, 3019, "switch statement expression must evaluate to a scalar");
+					error(newstatement->test_expression->location, 3019, "switch statement expression must evaluate to a scalar");
 
 					return false;
 				}
 
-				if (!Expect('{'))
+				if (!expect('{'))
 				{
 					return false;
 				}
 
-				while (!Peek('}') && !Peek(lexer::tokenid::end_of_file))
+				while (!peek('}') && !peek(lexer::tokenid::end_of_file))
 				{
-					const auto casenode = _ast->make_node<Nodes::Case>(struct location());
+					const auto casenode = _ast->make_node<nodes::case_statement_node>(struct location());
 
-					while (Accept(lexer::tokenid::case_) || Accept(lexer::tokenid::default_))
+					while (accept(lexer::tokenid::case_) || accept(lexer::tokenid::default_))
 					{
-						Nodes::Expression *label = nullptr;
+						nodes::expression_node *label = nullptr;
 
 						if (_token.id == lexer::tokenid::case_)
 						{
-							if (!ParseExpression(label))
+							if (!parse_expression(label))
 							{
 								return false;
 							}
 
-							if (label->id != nodeid::Literal || !label->Type.IsNumeric())
+							if (label->id != nodeid::literal_expression || !label->type.is_numeric())
 							{
-								Error(label->location, 3020, "non-numeric case expression");
+								error(label->location, 3020, "non-numeric case expression");
 
 								return false;
 							}
 						}
 
-						if (!Expect(':'))
+						if (!expect(':'))
 						{
 							return false;
 						}
 
-						casenode->Labels.push_back(static_cast<Nodes::Literal *>(label));
+						casenode->labels.push_back(static_cast<nodes::literal_expression_node *>(label));
 					}
 
-					if (casenode->Labels.empty())
+					if (casenode->labels.empty())
 					{
 						return false;
 					}
 
-					casenode->location = casenode->Labels[0]->location;
+					casenode->location = casenode->labels[0]->location;
 
-					if (!ParseStatement(casenode->Statements))
+					if (!parse_statement(casenode->statement_list))
 					{
 						return false;
 					}
 
-					newstatement->Cases.push_back(casenode);
+					newstatement->case_list.push_back(casenode);
 				}
 
-				if (newstatement->Cases.empty())
+				if (newstatement->case_list.empty())
 				{
-					Warning(newstatement->location, 5002, "switch statement contains no 'case' or 'default' labels");
+					warning(newstatement->location, 5002, "switch statement contains no 'case' or 'default' labels");
 
 					statement = nullptr;
 				}
@@ -2690,76 +2685,76 @@ namespace ReShade
 					statement = newstatement;
 				}
 
-				return Expect('}');
+				return expect('}');
 			}
 			#pragma endregion
 
 			#pragma region For
-			if (Accept(lexer::tokenid::for_))
+			if (accept(lexer::tokenid::for_))
 			{
-				const auto newstatement = _ast->make_node<Nodes::For>(_token.location);
-				newstatement->Attributes = attributes;
+				const auto newstatement = _ast->make_node<nodes::for_statement_node>(_token.location);
+				newstatement->attributes = attributes;
 
-				if (!Expect('('))
+				if (!expect('('))
 				{
 					return false;
 				}
 
-				EnterScope();
+				enter_scope();
 
-				if (!ParseStatementDeclaratorList(newstatement->Initialization))
+				if (!parse_statement_declarator_list(newstatement->init_statement))
 				{
-					Nodes::Expression *expression = nullptr;
+					nodes::expression_node *expression = nullptr;
 
-					if (ParseExpression(expression))
+					if (parse_expression(expression))
 					{
-						const auto initialization = _ast->make_node<Nodes::ExpressionStatement>(expression->location);
-						initialization->Expression = expression;
+						const auto initialization = _ast->make_node<nodes::expression_statement_node>(expression->location);
+						initialization->expression = expression;
 
-						newstatement->Initialization = initialization;
+						newstatement->init_statement = initialization;
 					}
 				}
 
-				if (!Expect(';'))
+				if (!expect(';'))
 				{
-					LeaveScope();
+					leave_scope();
 
 					return false;
 				}
 
-				ParseExpression(newstatement->Condition);
+				parse_expression(newstatement->condition);
 
-				if (!Expect(';'))
+				if (!expect(';'))
 				{
-					LeaveScope();
+					leave_scope();
 
 					return false;
 				}
 
-				ParseExpression(newstatement->Increment);
+				parse_expression(newstatement->increment_expression);
 
-				if (!Expect(')'))
+				if (!expect(')'))
 				{
-					LeaveScope();
+					leave_scope();
 
 					return false;
 				}
 
-				if (!newstatement->Condition->Type.IsScalar())
+				if (!newstatement->condition->type.is_scalar())
 				{
-					Error(newstatement->Condition->location, 3019, "scalar value expected");
+					error(newstatement->condition->location, 3019, "scalar value expected");
 
 					return false;
 				}
 
-				if (!ParseStatement(newstatement->Statements, false))
+				if (!parse_statement(newstatement->statement_list, false))
 				{
-					LeaveScope();
+					leave_scope();
 
 					return false;
 				}
 
-				LeaveScope();
+				leave_scope();
 
 				statement = newstatement;
 
@@ -2768,38 +2763,38 @@ namespace ReShade
 			#pragma endregion
 
 			#pragma region While
-			if (Accept(lexer::tokenid::while_))
+			if (accept(lexer::tokenid::while_))
 			{
-				const auto newstatement = _ast->make_node<Nodes::While>(_token.location);
-				newstatement->Attributes = attributes;
-				newstatement->DoWhile = false;
+				const auto newstatement = _ast->make_node<nodes::while_statement_node>(_token.location);
+				newstatement->attributes = attributes;
+				newstatement->is_do_while = false;
 
-				EnterScope();
+				enter_scope();
 
-				if (!(Expect('(') && ParseExpression(newstatement->Condition) && Expect(')')))
+				if (!(expect('(') && parse_expression(newstatement->condition) && expect(')')))
 				{
-					LeaveScope();
+					leave_scope();
 
 					return false;
 				}
 
-				if (!newstatement->Condition->Type.IsScalar())
+				if (!newstatement->condition->type.is_scalar())
 				{
-					Error(newstatement->Condition->location, 3019, "scalar value expected");
+					error(newstatement->condition->location, 3019, "scalar value expected");
 
-					LeaveScope();
+					leave_scope();
 
 					return false;
 				}
 
-				if (!ParseStatement(newstatement->Statements, false))
+				if (!parse_statement(newstatement->statement_list, false))
 				{
-					LeaveScope();
+					leave_scope();
 
 					return false;
 				}
 
-				LeaveScope();
+				leave_scope();
 
 				statement = newstatement;
 
@@ -2808,20 +2803,20 @@ namespace ReShade
 			#pragma endregion
 
 			#pragma region DoWhile
-			if (Accept(lexer::tokenid::do_))
+			if (accept(lexer::tokenid::do_))
 			{
-				const auto newstatement = _ast->make_node<Nodes::While>(_token.location);
-				newstatement->Attributes = attributes;
-				newstatement->DoWhile = true;
+				const auto newstatement = _ast->make_node<nodes::while_statement_node>(_token.location);
+				newstatement->attributes = attributes;
+				newstatement->is_do_while = true;
 
-				if (!(ParseStatement(newstatement->Statements) && Expect(lexer::tokenid::while_) && Expect('(') && ParseExpression(newstatement->Condition) && Expect(')') && Expect(';')))
+				if (!(parse_statement(newstatement->statement_list) && expect(lexer::tokenid::while_) && expect('(') && parse_expression(newstatement->condition) && expect(')') && expect(';')))
 				{
 					return false;
 				}
 
-				if (!newstatement->Condition->Type.IsScalar())
+				if (!newstatement->condition->type.is_scalar())
 				{
-					Error(newstatement->Condition->location, 3019, "scalar value expected");
+					error(newstatement->condition->location, 3019, "scalar value expected");
 
 					return false;
 				}
@@ -2833,160 +2828,160 @@ namespace ReShade
 			#pragma endregion
 
 			#pragma region Break
-			if (Accept(lexer::tokenid::break_))
+			if (accept(lexer::tokenid::break_))
 			{
-				const auto newstatement = _ast->make_node<Nodes::Jump>(_token.location);
-				newstatement->Attributes = attributes;
-				newstatement->Mode = Nodes::Jump::Break;
+				const auto newstatement = _ast->make_node<nodes::jump_statement_node>(_token.location);
+				newstatement->attributes = attributes;
+				newstatement->is_break = true;
 
 				statement = newstatement;
 
-				return Expect(';');
+				return expect(';');
 			}
 			#pragma endregion
 
 			#pragma region Continue
-			if (Accept(lexer::tokenid::continue_))
+			if (accept(lexer::tokenid::continue_))
 			{
-				const auto newstatement = _ast->make_node<Nodes::Jump>(_token.location);
-				newstatement->Attributes = attributes;
-				newstatement->Mode = Nodes::Jump::Continue;
+				const auto newstatement = _ast->make_node<nodes::jump_statement_node>(_token.location);
+				newstatement->attributes = attributes;
+				newstatement->is_continue = true;
 
 				statement = newstatement;
 
-				return Expect(';');
+				return expect(';');
 			}
 			#pragma endregion
 
 			#pragma region Return
-			if (Accept(lexer::tokenid::return_))
+			if (accept(lexer::tokenid::return_))
 			{
-				const auto newstatement = _ast->make_node<Nodes::Return>(_token.location);
-				newstatement->Attributes = attributes;
-				newstatement->Discard = false;
+				const auto newstatement = _ast->make_node<nodes::return_statement_node>(_token.location);
+				newstatement->attributes = attributes;
+				newstatement->is_discard = false;
 
-				const auto parent = static_cast<const Nodes::Function *>(_parentStack.top());
+				const auto parent = static_cast<const nodes::function_declaration_node *>(_parent_stack.top());
 
-				if (!Peek(';'))
+				if (!peek(';'))
 				{
-					if (!ParseExpression(newstatement->Value))
+					if (!parse_expression(newstatement->return_value))
 					{
 						return false;
 					}
 
-					if (parent->ReturnType.IsVoid())
+					if (parent->return_type.is_void())
 					{
-						Error(newstatement->location, 3079, "void functions cannot return a value");
+						error(newstatement->location, 3079, "void functions cannot return a value");
 
-						Accept(';');
+						accept(';');
 
 						return false;
 					}
 
-					if (!GetTypeRank(newstatement->Value->Type, parent->ReturnType))
+					if (!get_type_rank(newstatement->return_value->type, parent->return_type))
 					{
-						Error(newstatement->location, 3017, "expression does not match function return type");
+						error(newstatement->location, 3017, "expression does not match function return type");
 
 						return false;
 					}
 
-					if (newstatement->Value->Type.Rows > parent->ReturnType.Rows || newstatement->Value->Type.Cols > parent->ReturnType.Cols)
+					if (newstatement->return_value->type.rows > parent->return_type.rows || newstatement->return_value->type.cols > parent->return_type.cols)
 					{
-						Warning(newstatement->location, 3206, "implicit truncation of vector type");
+						warning(newstatement->location, 3206, "implicit truncation of vector type");
 					}
 				}
-				else if (!parent->ReturnType.IsVoid())
+				else if (!parent->return_type.is_void())
 				{
-					Error(newstatement->location, 3080, "function must return a value");
+					error(newstatement->location, 3080, "function must return a value");
 
-					Accept(';');
+					accept(';');
 
 					return false;
 				}
 
 				statement = newstatement;
 
-				return Expect(';');
+				return expect(';');
 			}
 			#pragma endregion
 
 			#pragma region Discard
-			if (Accept(lexer::tokenid::discard_))
+			if (accept(lexer::tokenid::discard_))
 			{
-				const auto newstatement = _ast->make_node<Nodes::Return>(_token.location);
-				newstatement->Attributes = attributes;
-				newstatement->Discard = true;
+				const auto newstatement = _ast->make_node<nodes::return_statement_node>(_token.location);
+				newstatement->attributes = attributes;
+				newstatement->is_discard = true;
 
 				statement = newstatement;
 
-				return Expect(';');
+				return expect(';');
 			}
 			#pragma endregion
 
 			#pragma region Declaration
-			if (ParseStatementDeclaratorList(statement))
+			if (parse_statement_declarator_list(statement))
 			{
-				statement->Attributes = attributes;
+				statement->attributes = attributes;
 
-				return Expect(';');
+				return expect(';');
 			}
 			#pragma endregion
 
-			#pragma region Expression
-			Nodes::Expression *expression = nullptr;
+			#pragma region expression_node
+			nodes::expression_node *expression = nullptr;
 
-			if (ParseExpression(expression))
+			if (parse_expression(expression))
 			{
-				const auto newstatement = _ast->make_node<Nodes::ExpressionStatement>(expression->location);
-				newstatement->Attributes = attributes;
-				newstatement->Expression = expression;
+				const auto newstatement = _ast->make_node<nodes::expression_statement_node>(expression->location);
+				newstatement->attributes = attributes;
+				newstatement->expression = expression;
 
 				statement = newstatement;
 
-				return Expect(';');
+				return expect(';');
 			}
 			#pragma endregion
 
-			Error(_tokenNext.location, 3000, "syntax error: unexpected '%s'", GetTokenName(_tokenNext.id));
+			error(_token_next.location, 3000, "syntax error: unexpected '%s'", get_token_name(_token_next.id));
 
-			ConsumeUntil(';');
+			consume_until(';');
 
 			return false;
 		}
-		bool Parser::ParseStatementBlock(Nodes::Statement *&statement, bool scoped)
+		bool parser::parse_statement_block(nodes::statement_node *&statement, bool scoped)
 		{
-			if (!Expect('{'))
+			if (!expect('{'))
 			{
 				return false;
 			}
 
-			const auto compound = _ast->make_node<Nodes::Compound>(_token.location);
+			const auto compound = _ast->make_node<nodes::compound_statement_node>(_token.location);
 
 			if (scoped)
 			{
-				EnterScope();
+				enter_scope();
 			}
 
-			while (!Peek('}') && !Peek(lexer::tokenid::end_of_file))
+			while (!peek('}') && !peek(lexer::tokenid::end_of_file))
 			{
-				Nodes::Statement *compoundStatement = nullptr;
+				nodes::statement_node *compound_statement = nullptr;
 
-				if (!ParseStatement(compoundStatement))
+				if (!parse_statement(compound_statement))
 				{
 					if (scoped)
 					{
-						LeaveScope();
+						leave_scope();
 					}
 
 					unsigned level = 0;
 
-					while (!Peek(lexer::tokenid::end_of_file))
+					while (!peek(lexer::tokenid::end_of_file))
 					{
-						if (Accept('{'))
+						if (accept('{'))
 						{
 							++level;
 						}
-						else if (Accept('}'))
+						else if (accept('}'))
 						{
 							if (level-- == 0)
 							{
@@ -2995,61 +2990,61 @@ namespace ReShade
 						}
 						else
 						{
-							Consume();
+							consume();
 						}
 					}
 
 					return false;
 				}
 
-				compound->Statements.push_back(compoundStatement);
+				compound->statement_list.push_back(compound_statement);
 			}
 
 			if (scoped)
 			{
-				LeaveScope();
+				leave_scope();
 			}
 
 			statement = compound;
 
-			return Expect('}');
+			return expect('}');
 		}
-		bool Parser::ParseStatementDeclaratorList(Nodes::Statement *&statement)
+		bool parser::parse_statement_declarator_list(nodes::statement_node *&statement)
 		{
-			Nodes::Type type;
+			nodes::type_node type;
 
-			const auto location = _tokenNext.location;
+			const auto location = _token_next.location;
 
-			if (!ParseType(type))
+			if (!parse_type(type))
 			{
 				return false;
 			}
 
 			unsigned int count = 0;
-			const auto declarators = _ast->make_node<Nodes::DeclaratorList>(location);
+			const auto declarators = _ast->make_node<nodes::declarator_list_node>(location);
 
 			do
 			{
-				if (count++ > 0 && !Expect(','))
+				if (count++ > 0 && !expect(','))
 				{
 					return false;
 				}
 
-				if (!Expect(lexer::tokenid::identifier))
+				if (!expect(lexer::tokenid::identifier))
 				{
 					return false;
 				}
 
-				Nodes::Variable *declarator = nullptr;
+				nodes::variable_declaration_node *declarator = nullptr;
 
-				if (!ParseVariableResidue(type, _token.literal_as_string, declarator))
+				if (!parse_variable_residue(type, _token.literal_as_string, declarator))
 				{
 					return false;
 				}
 
-				declarators->Declarators.push_back(std::move(declarator));
+				declarators->declarator_list.push_back(std::move(declarator));
 			}
-			while (!Peek(';'));
+			while (!peek(';'));
 
 			statement = declarators;
 
@@ -3057,13 +3052,13 @@ namespace ReShade
 		}
 
 		// Declarations
-		bool Parser::Parse()
+		bool parser::parse()
 		{
-			Consume();
+			consume();
 
-			while (!Peek(lexer::tokenid::end_of_file))
+			while (!peek(lexer::tokenid::end_of_file))
 			{
-				if (!ParseTopLevel())
+				if (!parse_top_level())
 				{
 					return false;
 				}
@@ -3071,51 +3066,51 @@ namespace ReShade
 
 			return true;
 		}
-		bool Parser::ParseTopLevel()
+		bool parser::parse_top_level()
 		{
-			Nodes::Type type = { Nodes::Type::Class::Void };
+			nodes::type_node type = { nodes::type_node::void_ };
 
-			if (Peek(lexer::tokenid::namespace_))
+			if (peek(lexer::tokenid::namespace_))
 			{
-				return ParseNamespace();
+				return parse_namespace();
 			}
-			else if (Peek(lexer::tokenid::struct_))
+			else if (peek(lexer::tokenid::struct_))
 			{
-				Nodes::Struct *structure = nullptr;
+				nodes::struct_declaration_node *structure = nullptr;
 
-				if (!ParseStruct(structure))
+				if (!parse_struct(structure))
 				{
 					return false;
 				}
 
-				if (!Expect(';'))
+				if (!expect(';'))
 				{
 					return false;
 				}
 			}
-			else if (Peek(lexer::tokenid::technique))
+			else if (peek(lexer::tokenid::technique))
 			{
-				Nodes::Technique *technique = nullptr;
+				nodes::technique_declaration_node *technique = nullptr;
 
-				if (!ParseTechnique(technique))
+				if (!parse_technique(technique))
 				{
 					return false;
 				}
 
 				_ast->techniques.push_back(std::move(technique));
 			}
-			else if (ParseType(type))
+			else if (parse_type(type))
 			{
-				if (!Expect(lexer::tokenid::identifier))
+				if (!expect(lexer::tokenid::identifier))
 				{
 					return false;
 				}
 
-				if (Peek('('))
+				if (peek('('))
 				{
-					Nodes::Function *function = nullptr;
+					nodes::function_declaration_node *function = nullptr;
 
-					if (!ParseFunctionResidue(type, _token.literal_as_string, function))
+					if (!parse_function_residue(type, _token.literal_as_string, function))
 					{
 						return false;
 					}
@@ -3128,105 +3123,105 @@ namespace ReShade
 
 					do
 					{
-						if (count++ > 0 && !(Expect(',') && Expect(lexer::tokenid::identifier)))
+						if (count++ > 0 && !(expect(',') && expect(lexer::tokenid::identifier)))
 						{
 							return false;
 						}
 
-						Nodes::Variable *variable = nullptr;
+						nodes::variable_declaration_node *variable = nullptr;
 
-						if (!ParseVariableResidue(type, _token.literal_as_string, variable, true))
+						if (!parse_variable_residue(type, _token.literal_as_string, variable, true))
 						{
-							ConsumeUntil(';');
+							consume_until(';');
 
 							return false;
 						}
 
 						_ast->uniforms.push_back(std::move(variable));
 					}
-					while (!Peek(';'));
+					while (!peek(';'));
 
-					if (!Expect(';'))
+					if (!expect(';'))
 					{
 						return false;
 					}
 				}
 			}
-			else if (!Accept(';'))
+			else if (!accept(';'))
 			{
-				Consume();
+				consume();
 
-				Error(_token.location, 3000, "syntax error: unexpected '%s'", GetTokenName(_token.id));
+				error(_token.location, 3000, "syntax error: unexpected '%s'", get_token_name(_token.id));
 
 				return false;
 			}
 
 			return true;
 		}
-		bool Parser::ParseNamespace()
+		bool parser::parse_namespace()
 		{
-			if (!Accept(lexer::tokenid::namespace_))
+			if (!accept(lexer::tokenid::namespace_))
 			{
 				return false;
 			}
 
-			if (!Expect(lexer::tokenid::identifier))
+			if (!expect(lexer::tokenid::identifier))
 			{
 				return false;
 			}
 
 			const auto name = _token.literal_as_string;
 
-			if (!Expect('{'))
+			if (!expect('{'))
 			{
 				return false;
 			}
 
-			EnterNamespace(name);
+			enter_namespace(name);
 
 			bool success = true;
 
-			while (!Peek('}'))
+			while (!peek('}'))
 			{
-				if (!ParseTopLevel())
+				if (!parse_top_level())
 				{
 					success = false;
 					break;
 				}
 			}
 
-			LeaveNamespace();
+			leave_namespace();
 
-			return success && Expect('}');
+			return success && expect('}');
 		}
-		bool Parser::ParseArray(int &size)
+		bool parser::parse_array(int &size)
 		{
 			size = 0;
 
-			if (Accept('['))
+			if (accept('['))
 			{
-				Nodes::Expression *expression;
+				nodes::expression_node *expression;
 
-				if (Accept(']'))
+				if (accept(']'))
 				{
 					size = -1;
 
 					return true;
 				}
-				if (ParseExpression(expression) && Expect(']'))
+				if (parse_expression(expression) && expect(']'))
 				{
-					if (expression->id != nodeid::Literal || !(expression->Type.IsScalar() && expression->Type.IsIntegral()))
+					if (expression->id != nodeid::literal_expression || !(expression->type.is_scalar() && expression->type.is_integral()))
 					{
-						Error(expression->location, 3058, "array dimensions must be literal scalar expressions");
+						error(expression->location, 3058, "array dimensions must be literal scalar expressions");
 
 						return false;
 					}
 
-					size = static_cast<Nodes::Literal *>(expression)->Value.Int[0];
+					size = static_cast<nodes::literal_expression_node *>(expression)->value_int[0];
 
 					if (size < 1 || size > 65536)
 					{
-						Error(expression->location, 3059, "array dimension must be between 1 and 65536");
+						error(expression->location, 3059, "array dimension must be between 1 and 65536");
 
 						return false;
 					}
@@ -3237,107 +3232,107 @@ namespace ReShade
 
 			return false;
 		}
-		bool Parser::ParseAnnotations(std::vector<Nodes::Annotation> &annotations)
+		bool parser::parse_annotations(std::vector<nodes::annotation_node> &annotations)
 		{
-			if (!Accept('<'))
+			if (!accept('<'))
 			{
 				return false;
 			}
 
-			while (!Peek('>'))
+			while (!peek('>'))
 			{
-				Nodes::Type type;
+				nodes::type_node type;
 
-				AcceptTypeClass(type);
+				accept_type_class(type);
 
-				Nodes::Annotation annotation;
+				nodes::annotation_node annotation;
 
-				if (!Expect(lexer::tokenid::identifier))
+				if (!expect(lexer::tokenid::identifier))
 				{
 					return false;
 				}
 
-				annotation.Name = _token.literal_as_string;
+				annotation.name = _token.literal_as_string;
 				annotation.location = _token.location;
 
-				Nodes::Expression *expression = nullptr;
+				nodes::expression_node *expression = nullptr;
 
-				if (!(Expect('=') && ParseExpressionAssignment(expression) && Expect(';')))
+				if (!(expect('=') && parse_expression_assignment(expression) && expect(';')))
 				{
 					return false;
 				}
 
-				if (expression->id != nodeid::Literal)
+				if (expression->id != nodeid::literal_expression)
 				{
-					Error(expression->location, 3011, "value must be a literal expression");
+					error(expression->location, 3011, "value must be a literal expression");
 
 					continue;
 				}
 
-				annotation.Value = static_cast<Nodes::Literal *>(expression);
+				annotation.value = static_cast<nodes::literal_expression_node *>(expression);
 
 				annotations.push_back(std::move(annotation));
 			}
 
-			return Expect('>');
+			return expect('>');
 		}
-		bool Parser::ParseStruct(Nodes::Struct *&structure)
+		bool parser::parse_struct(nodes::struct_declaration_node *&structure)
 		{
-			if (!Accept(lexer::tokenid::struct_))
+			if (!accept(lexer::tokenid::struct_))
 			{
 				return false;
 			}
 
-			structure = _ast->make_node<Nodes::Struct>(_token.location);
-			structure->Namespace = _currentScope.Name;
+			structure = _ast->make_node<nodes::struct_declaration_node>(_token.location);
+			structure->Namespace = _current_scope.name;
 
-			if (Accept(lexer::tokenid::identifier))
+			if (accept(lexer::tokenid::identifier))
 			{
-				structure->Name = _token.literal_as_string;
+				structure->name = _token.literal_as_string;
 
-				if (!InsertSymbol(structure, true))
+				if (!insert_symbol(structure, true))
 				{
-					Error(_token.location, 3003, "redefinition of '%s'", structure->Name.c_str());
+					error(_token.location, 3003, "redefinition of '%s'", structure->name.c_str());
 
 					return false;
 				}
 			}
 			else
 			{
-				structure->Name = "__anonymous_struct_" + std::to_string(structure->location.line) + '_' + std::to_string(structure->location.column);
+				structure->name = "__anonymous_struct_" + std::to_string(structure->location.line) + '_' + std::to_string(structure->location.column);
 			}
 
-			if (!Expect('{'))
+			if (!expect('{'))
 			{
 				return false;
 			}
 
-			while (!Peek('}'))
+			while (!peek('}'))
 			{
-				Nodes::Type type;
+				nodes::type_node type;
 
-				if (!ParseType(type))
+				if (!parse_type(type))
 				{
-					Error(_tokenNext.location, 3000, "syntax error: unexpected '%s', expected struct member type", GetTokenName(_tokenNext.id));
+					error(_token_next.location, 3000, "syntax error: unexpected '%s', expected struct member type", get_token_name(_token_next.id));
 
-					ConsumeUntil('}');
+					consume_until('}');
 
 					return false;
 				}
 
-				if (type.IsVoid())
+				if (type.is_void())
 				{
-					Error(_tokenNext.location, 3038, "struct members cannot be void");
+					error(_token_next.location, 3038, "struct members cannot be void");
 
-					ConsumeUntil('}');
+					consume_until('}');
 
 					return false;
 				}
-				if (type.HasQualifier(Nodes::Type::Qualifier::In) || type.HasQualifier(Nodes::Type::Qualifier::Out))
+				if (type.has_qualifier(nodes::type_node::in) || type.has_qualifier(nodes::type_node::out))
 				{
-					Error(_tokenNext.location, 3055, "struct members cannot be declared 'in' or 'out'");
+					error(_token_next.location, 3055, "struct members cannot be declared 'in' or 'out'");
 
-					ConsumeUntil('}');
+					consume_until('}');
 
 					return false;
 				}
@@ -3346,377 +3341,377 @@ namespace ReShade
 
 				do
 				{
-					if (count++ > 0 && !Expect(','))
+					if (count++ > 0 && !expect(','))
 					{
-						ConsumeUntil('}');
+						consume_until('}');
 
 						return false;
 					}
 
-					if (!Expect(lexer::tokenid::identifier))
+					if (!expect(lexer::tokenid::identifier))
 					{
-						ConsumeUntil('}');
+						consume_until('}');
 
 						return false;
 					}
 
-					const auto field = _ast->make_node<Nodes::Variable>(_token.location);
-					field->Name = _token.literal_as_string;
-					field->Type = type;
+					const auto field = _ast->make_node<nodes::variable_declaration_node>(_token.location);
+					field->name = _token.literal_as_string;
+					field->type = type;
 
-					ParseArray(field->Type.ArrayLength);
+					parse_array(field->type.array_length);
 
-					if (Accept(':'))
+					if (accept(':'))
 					{
-						if (!Expect(lexer::tokenid::identifier))
+						if (!expect(lexer::tokenid::identifier))
 						{
-							ConsumeUntil('}');
+							consume_until('}');
 
 							return false;
 						}
 
-						field->Semantic = _token.literal_as_string;
-						boost::to_upper(field->Semantic);
+						field->semantic = _token.literal_as_string;
+						boost::to_upper(field->semantic);
 					}
 
-					structure->Fields.push_back(std::move(field));
+					structure->field_list.push_back(std::move(field));
 				}
-				while (!Peek(';'));
+				while (!peek(';'));
 
-				if (!Expect(';'))
+				if (!expect(';'))
 				{
-					ConsumeUntil('}');
+					consume_until('}');
 
 					return false;
 				}
 			}
 
-			if (structure->Fields.empty())
+			if (structure->field_list.empty())
 			{
-				Warning(structure->location, 5001, "struct has no members");
+				warning(structure->location, 5001, "struct has no members");
 			}
 
 			_ast->structs.push_back(structure);
 
-			return Expect('}');
+			return expect('}');
 		}
-		bool Parser::ParseFunctionResidue(Nodes::Type &type, std::string name, Nodes::Function *&function)
+		bool parser::parse_function_residue(nodes::type_node &type, std::string name, nodes::function_declaration_node *&function)
 		{
 			const auto location = _token.location;
 
-			if (!Expect('('))
+			if (!expect('('))
 			{
 				return false;
 			}
 
-			if (type.Qualifiers != 0)
+			if (type.qualifiers != 0)
 			{
-				Error(location, 3047, "function return type cannot have any qualifiers");
+				error(location, 3047, "function return type cannot have any qualifiers");
 
 				return false;
 			}
 
-			function = _ast->make_node<Nodes::Function>(location);
-			function->ReturnType = type;
-			function->ReturnType.Qualifiers = Nodes::Type::Qualifier::Const;
-			function->Name = name;
-			function->Namespace = _currentScope.Name;
+			function = _ast->make_node<nodes::function_declaration_node>(location);
+			function->return_type = type;
+			function->return_type.qualifiers = nodes::type_node::const_;
+			function->name = name;
+			function->Namespace = _current_scope.name;
 
-			InsertSymbol(function, true);
+			insert_symbol(function, true);
 
-			EnterScope(function);
+			enter_scope(function);
 
-			while (!Peek(')'))
+			while (!peek(')'))
 			{
-				if (!function->Parameters.empty() && !Expect(','))
+				if (!function->parameter_list.empty() && !expect(','))
 				{
-					LeaveScope();
+					leave_scope();
 
 					return false;
 				}
 
-				const auto parameter = _ast->make_node<Nodes::Variable>(struct location());
+				const auto parameter = _ast->make_node<nodes::variable_declaration_node>(struct location());
 
-				if (!ParseType(parameter->Type))
+				if (!parse_type(parameter->type))
 				{
-					LeaveScope();
+					leave_scope();
 
-					Error(_tokenNext.location, 3000, "syntax error: unexpected '%s', expected parameter type", GetTokenName(_tokenNext.id));
+					error(_token_next.location, 3000, "syntax error: unexpected '%s', expected parameter type", get_token_name(_token_next.id));
 
 					return false;
 				}
 
-				if (!Expect(lexer::tokenid::identifier))
+				if (!expect(lexer::tokenid::identifier))
 				{
-					LeaveScope();
+					leave_scope();
 
 					return false;
 				}
 
-				parameter->Name = _token.literal_as_string;
+				parameter->name = _token.literal_as_string;
 				parameter->location = _token.location;
 
-				if (parameter->Type.IsVoid())
+				if (parameter->type.is_void())
 				{
-					Error(parameter->location, 3038, "function parameters cannot be void");
+					error(parameter->location, 3038, "function parameters cannot be void");
 
-					LeaveScope();
+					leave_scope();
 
 					return false;
 				}
-				if (parameter->Type.HasQualifier(Nodes::Type::Qualifier::Extern))
+				if (parameter->type.has_qualifier(nodes::type_node::extern_))
 				{
-					Error(parameter->location, 3006, "function parameters cannot be declared 'extern'");
+					error(parameter->location, 3006, "function parameters cannot be declared 'extern'");
 
-					LeaveScope();
+					leave_scope();
 
 					return false;
 				}
-				if (parameter->Type.HasQualifier(Nodes::Type::Qualifier::Static))
+				if (parameter->type.has_qualifier(nodes::type_node::static_))
 				{
-					Error(parameter->location, 3007, "function parameters cannot be declared 'static'");
+					error(parameter->location, 3007, "function parameters cannot be declared 'static'");
 
-					LeaveScope();
+					leave_scope();
 
 					return false;
 				}
-				if (parameter->Type.HasQualifier(Nodes::Type::Qualifier::Uniform))
+				if (parameter->type.has_qualifier(nodes::type_node::uniform_))
 				{
-					Error(parameter->location, 3047, "function parameters cannot be declared 'uniform', consider placing in global scope instead");
+					error(parameter->location, 3047, "function parameters cannot be declared 'uniform', consider placing in global scope instead");
 
-					LeaveScope();
+					leave_scope();
 
 					return false;
 				}
 
-				if (parameter->Type.HasQualifier(Nodes::Type::Qualifier::Out))
+				if (parameter->type.has_qualifier(nodes::type_node::out))
 				{
-					if (parameter->Type.HasQualifier(Nodes::Type::Qualifier::Const))
+					if (parameter->type.has_qualifier(nodes::type_node::const_))
 					{
-						Error(parameter->location, 3046, "output parameters cannot be declared 'const'");
+						error(parameter->location, 3046, "output parameters cannot be declared 'const'");
 
-						LeaveScope();
+						leave_scope();
 
 						return false;
 					}
 				}
 				else
 				{
-					parameter->Type.Qualifiers |= Nodes::Type::Qualifier::In;
+					parameter->type.qualifiers |= nodes::type_node::in;
 				}
 
-				ParseArray(parameter->Type.ArrayLength);
+				parse_array(parameter->type.array_length);
 
-				if (!InsertSymbol(parameter))
+				if (!insert_symbol(parameter))
 				{
-					Error(parameter->location, 3003, "redefinition of '%s'", parameter->Name.c_str());
+					error(parameter->location, 3003, "redefinition of '%s'", parameter->name.c_str());
 
-					LeaveScope();
+					leave_scope();
 
 					return false;
 				}
 
-				if (Accept(':'))
+				if (accept(':'))
 				{
-					if (!Expect(lexer::tokenid::identifier))
+					if (!expect(lexer::tokenid::identifier))
 					{
-						LeaveScope();
+						leave_scope();
 
 						return false;
 					}
 
-					parameter->Semantic = _token.literal_as_string;
-					boost::to_upper(parameter->Semantic);
+					parameter->semantic = _token.literal_as_string;
+					boost::to_upper(parameter->semantic);
 				}
 
-				function->Parameters.push_back(parameter);
+				function->parameter_list.push_back(parameter);
 			}
 
-			if (!Expect(')'))
+			if (!expect(')'))
 			{
-				LeaveScope();
+				leave_scope();
 
 				return false;
 			}
 
-			if (Accept(':'))
+			if (accept(':'))
 			{
-				if (!Expect(lexer::tokenid::identifier))
+				if (!expect(lexer::tokenid::identifier))
 				{
-					LeaveScope();
+					leave_scope();
 
 					return false;
 				}
 
-				function->ReturnSemantic = _token.literal_as_string;
-				boost::to_upper(function->ReturnSemantic);
+				function->return_semantic = _token.literal_as_string;
+				boost::to_upper(function->return_semantic);
 
-				if (type.IsVoid())
+				if (type.is_void())
 				{
-					Error(_token.location, 3076, "void function cannot have a semantic");
+					error(_token.location, 3076, "void function cannot have a semantic");
 
 					return false;
 				}
 			}
 
-			if (!ParseStatementBlock(reinterpret_cast<Nodes::Statement *&>(function->Definition)))
+			if (!parse_statement_block(reinterpret_cast<nodes::statement_node *&>(function->definition)))
 			{
-				LeaveScope();
+				leave_scope();
 
 				return false;
 			}
 
-			LeaveScope();
+			leave_scope();
 
 			return true;
 		}
-		bool Parser::ParseVariableResidue(Nodes::Type &type, std::string name, Nodes::Variable *&variable, bool global)
+		bool parser::parse_variable_residue(nodes::type_node &type, std::string name, nodes::variable_declaration_node *&variable, bool global)
 		{
 			auto location = _token.location;
 
-			if (type.IsVoid())
+			if (type.is_void())
 			{
-				Error(location, 3038, "variables cannot be void");
+				error(location, 3038, "variables cannot be void");
 
 				return false;
 			}
-			if (type.HasQualifier(Nodes::Type::Qualifier::In) || type.HasQualifier(Nodes::Type::Qualifier::Out))
+			if (type.has_qualifier(nodes::type_node::in) || type.has_qualifier(nodes::type_node::out))
 			{
-				Error(location, 3055, "variables cannot be declared 'in' or 'out'");
+				error(location, 3055, "variables cannot be declared 'in' or 'out'");
 
 				return false;
 			}
 
-			const auto parent = _parentStack.empty() ? nullptr : _parentStack.top();
+			const auto parent = _parent_stack.empty() ? nullptr : _parent_stack.top();
 
 			if (parent == nullptr)
 			{
-				if (!type.HasQualifier(Nodes::Type::Qualifier::Static))
+				if (!type.has_qualifier(nodes::type_node::static_))
 				{
-					if (!type.HasQualifier(Nodes::Type::Qualifier::Uniform) && !(type.IsTexture() || type.IsSampler()))
+					if (!type.has_qualifier(nodes::type_node::uniform_) && !(type.is_texture() || type.is_sampler()))
 					{
-						Warning(location, 5000, "global variables are considered 'uniform' by default");
+						warning(location, 5000, "global variables are considered 'uniform' by default");
 					}
 
-					type.Qualifiers |= Nodes::Type::Qualifier::Extern | Nodes::Type::Qualifier::Uniform;
+					type.qualifiers |= nodes::type_node::extern_ | nodes::type_node::uniform_;
 				}
 			}
 			else
 			{
-				if (type.HasQualifier(Nodes::Type::Qualifier::Extern))
+				if (type.has_qualifier(nodes::type_node::extern_))
 				{
-					Error(location, 3006, "local variables cannot be declared 'extern'");
+					error(location, 3006, "local variables cannot be declared 'extern'");
 
 					return false;
 				}
-				if (type.HasQualifier(Nodes::Type::Qualifier::Uniform))
+				if (type.has_qualifier(nodes::type_node::uniform_))
 				{
-					Error(location, 3047, "local variables cannot be declared 'uniform'");
+					error(location, 3047, "local variables cannot be declared 'uniform'");
 
 					return false;
 				}
 
-				if (type.IsTexture() || type.IsSampler())
+				if (type.is_texture() || type.is_sampler())
 				{
-					Error(location, 3038, "local variables cannot be textures or samplers");
+					error(location, 3038, "local variables cannot be textures or samplers");
 
 					return false;
 				}
 			}
 
-			ParseArray(type.ArrayLength);
+			parse_array(type.array_length);
 
-			variable = _ast->make_node<Nodes::Variable>(location);
-			variable->Type = type;
-			variable->Name = name;
+			variable = _ast->make_node<nodes::variable_declaration_node>(location);
+			variable->type = type;
+			variable->name = name;
 
 			if (global)
 			{
-				variable->Namespace = _currentScope.Name;
+				variable->Namespace = _current_scope.name;
 			}
 
-			if (!InsertSymbol(variable, global))
+			if (!insert_symbol(variable, global))
 			{
-				Error(location, 3003, "redefinition of '%s'", name.c_str());
+				error(location, 3003, "redefinition of '%s'", name.c_str());
 
 				return false;
 			}
 
-			if (Accept(':'))
+			if (accept(':'))
 			{
-				if (!Expect(lexer::tokenid::identifier))
+				if (!expect(lexer::tokenid::identifier))
 				{
 					return false;
 				}
 
-				variable->Semantic = _token.literal_as_string;
-				boost::to_upper(variable->Semantic);
+				variable->semantic = _token.literal_as_string;
+				boost::to_upper(variable->semantic);
 			}
 
-			ParseAnnotations(variable->Annotations);
+			parse_annotations(variable->annotations);
 
-			if (Accept('='))
+			if (accept('='))
 			{
 				location = _token.location;
 
-				if (!ParseVariableAssignment(variable->Initializer))
+				if (!parse_variable_assignment(variable->initializer_expression))
 				{
 					return false;
 				}
 
-				if (parent == nullptr && variable->Initializer->id != nodeid::Literal)
+				if (parent == nullptr && variable->initializer_expression->id != nodeid::literal_expression)
 				{
-					Error(location, 3011, "initial value must be a literal expression");
+					error(location, 3011, "initial value must be a literal expression");
 
 					return false;
 				}
 
-				if (variable->Initializer->id == nodeid::InitializerList && type.IsNumeric())
+				if (variable->initializer_expression->id == nodeid::initializer_list && type.is_numeric())
 				{
-					const auto nullval = _ast->make_node<Nodes::Literal>(location);
-					nullval->Type.BaseClass = type.BaseClass;
-					nullval->Type.Qualifiers = Nodes::Type::Qualifier::Const;
-					nullval->Type.Rows = type.Rows, nullval->Type.Cols = type.Cols, nullval->Type.ArrayLength = 0;
+					const auto nullval = _ast->make_node<nodes::literal_expression_node>(location);
+					nullval->type.basetype = type.basetype;
+					nullval->type.qualifiers = nodes::type_node::const_;
+					nullval->type.rows = type.rows, nullval->type.cols = type.cols, nullval->type.array_length = 0;
 
-					const auto initializerlist = static_cast<Nodes::InitializerList *>(variable->Initializer);
+					const auto initializerlist = static_cast<nodes::initializer_list_node *>(variable->initializer_expression);
 
-					while (initializerlist->Type.ArrayLength < type.ArrayLength)
+					while (initializerlist->type.array_length < type.array_length)
 					{
-						initializerlist->Type.ArrayLength++;
-						initializerlist->Values.push_back(nullval);
+						initializerlist->type.array_length++;
+						initializerlist->values.push_back(nullval);
 					}
 				}
 
-				if (!GetTypeRank(variable->Initializer->Type, type))
+				if (!get_type_rank(variable->initializer_expression->type, type))
 				{
-					Error(location, 3017, "initial value does not match variable type");
+					error(location, 3017, "initial value does not match variable type");
 
 					return false;
 				}
-				if ((variable->Initializer->Type.Rows < type.Rows || variable->Initializer->Type.Cols < type.Cols) && !variable->Initializer->Type.IsScalar())
+				if ((variable->initializer_expression->type.rows < type.rows || variable->initializer_expression->type.cols < type.cols) && !variable->initializer_expression->type.is_scalar())
 				{
-					Error(location, 3017, "cannot implicitly convert these vector types");
+					error(location, 3017, "cannot implicitly convert these vector types");
 
 					return false;
 				}
 
-				if (variable->Initializer->Type.Rows > type.Rows || variable->Initializer->Type.Cols > type.Cols)
+				if (variable->initializer_expression->type.rows > type.rows || variable->initializer_expression->type.cols > type.cols)
 				{
-					Warning(location, 3206, "implicit truncation of vector type");
+					warning(location, 3206, "implicit truncation of vector type");
 				}
 			}
-			else if (type.IsNumeric())
+			else if (type.is_numeric())
 			{
-				if (type.HasQualifier(Nodes::Type::Qualifier::Const))
+				if (type.has_qualifier(nodes::type_node::const_))
 				{
-					Error(location, 3012, "missing initial value for '%s'", name.c_str());
+					error(location, 3012, "missing initial value for '%s'", name.c_str());
 
 					return false;
 				}
 			}
-			else if (Peek('{'))
+			else if (peek('{'))
 			{
-				if (!ParseVariableProperties(variable))
+				if (!parse_variable_properties(variable))
 				{
 					return false;
 				}
@@ -3724,66 +3719,66 @@ namespace ReShade
 
 			return true;
 		}
-		bool Parser::ParseVariableAssignment(Nodes::Expression *&expression)
+		bool parser::parse_variable_assignment(nodes::expression_node *&expression)
 		{
-			if (Accept('{'))
+			if (accept('{'))
 			{
-				const auto initializerlist = _ast->make_node<Nodes::InitializerList>(_token.location);
+				const auto initializerlist = _ast->make_node<nodes::initializer_list_node>(_token.location);
 
-				while (!Peek('}'))
+				while (!peek('}'))
 				{
-					if (!initializerlist->Values.empty() && !Expect(','))
+					if (!initializerlist->values.empty() && !expect(','))
 					{
 						return false;
 					}
 
-					if (Peek('}'))
+					if (peek('}'))
 					{
 						break;
 					}
 
-					if (!ParseVariableAssignment(expression))
+					if (!parse_variable_assignment(expression))
 					{
-						ConsumeUntil('}');
+						consume_until('}');
 
 						return false;
 					}
 
-					if (expression->id == nodeid::InitializerList && static_cast<Nodes::InitializerList *>(expression)->Values.empty())
+					if (expression->id == nodeid::initializer_list && static_cast<nodes::initializer_list_node *>(expression)->values.empty())
 					{
 						continue;
 					}
 
-					initializerlist->Values.push_back(expression);
+					initializerlist->values.push_back(expression);
 				}
 
-				if (!initializerlist->Values.empty())
+				if (!initializerlist->values.empty())
 				{
-					initializerlist->Type = initializerlist->Values[0]->Type;
-					initializerlist->Type.ArrayLength = static_cast<int>(initializerlist->Values.size());
+					initializerlist->type = initializerlist->values[0]->type;
+					initializerlist->type.array_length = static_cast<int>(initializerlist->values.size());
 				}
 
 				expression = initializerlist;
 
-				return Expect('}');
+				return expect('}');
 			}
-			else if (ParseExpressionAssignment(expression))
+			else if (parse_expression_assignment(expression))
 			{
 				return true;
 			}
 
 			return false;
 		}
-		bool Parser::ParseVariableProperties(Nodes::Variable *variable)
+		bool parser::parse_variable_properties(nodes::variable_declaration_node *variable)
 		{
-			if (!Expect('{'))
+			if (!expect('{'))
 			{
 				return false;
 			}
 
-			while (!Peek('}'))
+			while (!peek('}'))
 			{
-				if (!Expect(lexer::tokenid::identifier))
+				if (!expect(lexer::tokenid::identifier))
 				{
 					return false;
 				}
@@ -3791,241 +3786,241 @@ namespace ReShade
 				const auto name = _token.literal_as_string;
 				const auto location = _token.location;
 
-				Nodes::Expression *value = nullptr;
+				nodes::expression_node *value = nullptr;
 
-				if (!(Expect('=') && ParseVariablePropertiesExpression(value) && Expect(';')))
+				if (!(expect('=') && parse_variable_properties_expression(value) && expect(';')))
 				{
 					return false;
 				}
 
 				if (name == "Texture")
 				{
-					if (value->id != nodeid::LValue || static_cast<Nodes::LValue *>(value)->Reference->id != nodeid::Variable || !static_cast<Nodes::LValue *>(value)->Reference->Type.IsTexture() || static_cast<Nodes::LValue *>(value)->Reference->Type.IsArray())
+					if (value->id != nodeid::lvalue_expression || static_cast<nodes::lvalue_expression_node *>(value)->reference->id != nodeid::variable_declaration || !static_cast<nodes::lvalue_expression_node *>(value)->reference->type.is_texture() || static_cast<nodes::lvalue_expression_node *>(value)->reference->type.is_array())
 					{
-						Error(location, 3020, "type mismatch, expected texture name");
+						error(location, 3020, "type mismatch, expected texture name");
 
 						return false;
 					}
 
-					variable->Properties.Texture = static_cast<Nodes::LValue *>(value)->Reference;
+					variable->properties.Texture = static_cast<nodes::lvalue_expression_node *>(value)->reference;
 				}
 				else
 				{
-					if (value->id != nodeid::Literal)
+					if (value->id != nodeid::literal_expression)
 					{
-						Error(location, 3011, "value must be a literal expression");
+						error(location, 3011, "value must be a literal expression");
 
 						return false;
 					}
 
-					const auto valueLiteral = static_cast<Nodes::Literal *>(value);
+					const auto valueLiteral = static_cast<nodes::literal_expression_node *>(value);
 
 					if (name == "Width")
 					{
-						ScalarLiteralCast(valueLiteral, 0, variable->Properties.Width);
+						scalar_literal_cast(valueLiteral, 0, variable->properties.Width);
 					}
 					else if (name == "Height")
 					{
-						ScalarLiteralCast(valueLiteral, 0, variable->Properties.Height);
+						scalar_literal_cast(valueLiteral, 0, variable->properties.Height);
 					}
 					else if (name == "Depth")
 					{
-						ScalarLiteralCast(valueLiteral, 0, variable->Properties.Depth);
+						scalar_literal_cast(valueLiteral, 0, variable->properties.Depth);
 					}
 					else if (name == "MipLevels")
 					{
-						ScalarLiteralCast(valueLiteral, 0, variable->Properties.MipLevels);
+						scalar_literal_cast(valueLiteral, 0, variable->properties.MipLevels);
 					}
 					else if (name == "Format")
 					{
-						ScalarLiteralCast(valueLiteral, 0, variable->Properties.Format);
+						scalar_literal_cast(valueLiteral, 0, variable->properties.Format);
 					}
 					else if (name == "SRGBTexture" || name == "SRGBReadEnable")
 					{
-						variable->Properties.SRGBTexture = valueLiteral->Value.Int[0] != 0;
+						variable->properties.SRGBTexture = valueLiteral->value_int[0] != 0;
 					}
 					else if (name == "AddressU")
 					{
-						ScalarLiteralCast(valueLiteral, 0, variable->Properties.AddressU);
+						scalar_literal_cast(valueLiteral, 0, variable->properties.AddressU);
 					}
 					else if (name == "AddressV")
 					{
-						ScalarLiteralCast(valueLiteral, 0, variable->Properties.AddressV);
+						scalar_literal_cast(valueLiteral, 0, variable->properties.AddressV);
 					}
 					else if (name == "AddressW")
 					{
-						ScalarLiteralCast(valueLiteral, 0, variable->Properties.AddressW);
+						scalar_literal_cast(valueLiteral, 0, variable->properties.AddressW);
 					}
 					else if (name == "MinFilter")
 					{
-						ScalarLiteralCast(valueLiteral, 0, variable->Properties.MinFilter);
+						scalar_literal_cast(valueLiteral, 0, variable->properties.MinFilter);
 					}
 					else if (name == "MagFilter")
 					{
-						ScalarLiteralCast(valueLiteral, 0, variable->Properties.MagFilter);
+						scalar_literal_cast(valueLiteral, 0, variable->properties.MagFilter);
 					}
 					else if (name == "MipFilter")
 					{
-						ScalarLiteralCast(valueLiteral, 0, variable->Properties.MipFilter);
+						scalar_literal_cast(valueLiteral, 0, variable->properties.MipFilter);
 					}
 					else if (name == "MaxAnisotropy")
 					{
-						ScalarLiteralCast(valueLiteral, 0, variable->Properties.MaxAnisotropy);
+						scalar_literal_cast(valueLiteral, 0, variable->properties.MaxAnisotropy);
 					}
 					else if (name == "MinLOD" || name == "MaxMipLevel")
 					{
-						ScalarLiteralCast(valueLiteral, 0, variable->Properties.MinLOD);
+						scalar_literal_cast(valueLiteral, 0, variable->properties.MinLOD);
 					}
 					else if (name == "MaxLOD")
 					{
-						ScalarLiteralCast(valueLiteral, 0, variable->Properties.MaxLOD);
+						scalar_literal_cast(valueLiteral, 0, variable->properties.MaxLOD);
 					}
 					else if (name == "MipLODBias" || name == "MipMapLodBias")
 					{
-						ScalarLiteralCast(valueLiteral, 0, variable->Properties.MipLODBias);
+						scalar_literal_cast(valueLiteral, 0, variable->properties.MipLODBias);
 					}
 					else
 					{
-						Error(location, 3004, "unrecognized property '%s'", name.c_str());
+						error(location, 3004, "unrecognized property '%s'", name.c_str());
 
 						return false;
 					}
 				}
 			}
 
-			if (!Expect('}'))
+			if (!expect('}'))
 			{
 				return false;
 			}
 
 			return true;
 		}
-		bool Parser::ParseVariablePropertiesExpression(Nodes::Expression *&expression)
+		bool parser::parse_variable_properties_expression(nodes::expression_node *&expression)
 		{
-			Backup();
+			backup();
 
-			if (Accept(lexer::tokenid::identifier))
+			if (accept(lexer::tokenid::identifier))
 			{
 				const auto identifier = _token.literal_as_string;
 				const auto location = _token.location;
 
 				static const std::unordered_map<std::string, unsigned int> sEnums = boost::assign::map_list_of
-					("NONE", Nodes::Variable::Properties::NONE)
-					("POINT", Nodes::Variable::Properties::POINT)
-					("LINEAR", Nodes::Variable::Properties::LINEAR)
-					("ANISOTROPIC", Nodes::Variable::Properties::ANISOTROPIC)
-					("CLAMP", Nodes::Variable::Properties::CLAMP)
-					("WRAP", Nodes::Variable::Properties::REPEAT)
-					("REPEAT", Nodes::Variable::Properties::REPEAT)
-					("MIRROR", Nodes::Variable::Properties::MIRROR)
-					("BORDER", Nodes::Variable::Properties::BORDER)
-					("R8", Nodes::Variable::Properties::R8)
-					("R16F", Nodes::Variable::Properties::R16F)
-					("R32F", Nodes::Variable::Properties::R32F)
-					("RG8", Nodes::Variable::Properties::RG8)
-					("R8G8", Nodes::Variable::Properties::RG8)
-					("RG16", Nodes::Variable::Properties::RG16)
-					("R16G16", Nodes::Variable::Properties::RG16)
-					("RG16F", Nodes::Variable::Properties::RG16F)
-					("R16G16F", Nodes::Variable::Properties::RG16F)
-					("RG32F", Nodes::Variable::Properties::RG32F)
-					("R32G32F", Nodes::Variable::Properties::RG32F)
-					("RGBA8", Nodes::Variable::Properties::RGBA8)
-					("R8G8B8A8", Nodes::Variable::Properties::RGBA8)
-					("RGBA16", Nodes::Variable::Properties::RGBA16)
-					("R16G16B16A16", Nodes::Variable::Properties::RGBA16)
-					("RGBA16F", Nodes::Variable::Properties::RGBA16F)
-					("R16G16B16A16F", Nodes::Variable::Properties::RGBA16F)
-					("RGBA32F", Nodes::Variable::Properties::RGBA32F)
-					("R32G32B32A32F", Nodes::Variable::Properties::RGBA32F)
-					("DXT1", Nodes::Variable::Properties::DXT1)
-					("DXT3", Nodes::Variable::Properties::DXT3)
-					("DXT4", Nodes::Variable::Properties::DXT5)
-					("LATC1", Nodes::Variable::Properties::LATC1)
-					("LATC2", Nodes::Variable::Properties::LATC2);
+					("NONE", nodes::variable_declaration_node::properties::NONE)
+					("POINT", nodes::variable_declaration_node::properties::POINT)
+					("LINEAR", nodes::variable_declaration_node::properties::LINEAR)
+					("ANISOTROPIC", nodes::variable_declaration_node::properties::ANISOTROPIC)
+					("CLAMP", nodes::variable_declaration_node::properties::CLAMP)
+					("WRAP", nodes::variable_declaration_node::properties::REPEAT)
+					("REPEAT", nodes::variable_declaration_node::properties::REPEAT)
+					("MIRROR", nodes::variable_declaration_node::properties::MIRROR)
+					("BORDER", nodes::variable_declaration_node::properties::BORDER)
+					("R8", nodes::variable_declaration_node::properties::R8)
+					("R16F", nodes::variable_declaration_node::properties::R16F)
+					("R32F", nodes::variable_declaration_node::properties::R32F)
+					("RG8", nodes::variable_declaration_node::properties::RG8)
+					("R8G8", nodes::variable_declaration_node::properties::RG8)
+					("RG16", nodes::variable_declaration_node::properties::RG16)
+					("R16G16", nodes::variable_declaration_node::properties::RG16)
+					("RG16F", nodes::variable_declaration_node::properties::RG16F)
+					("R16G16F", nodes::variable_declaration_node::properties::RG16F)
+					("RG32F", nodes::variable_declaration_node::properties::RG32F)
+					("R32G32F", nodes::variable_declaration_node::properties::RG32F)
+					("RGBA8", nodes::variable_declaration_node::properties::RGBA8)
+					("R8G8B8A8", nodes::variable_declaration_node::properties::RGBA8)
+					("RGBA16", nodes::variable_declaration_node::properties::RGBA16)
+					("R16G16B16A16", nodes::variable_declaration_node::properties::RGBA16)
+					("RGBA16F", nodes::variable_declaration_node::properties::RGBA16F)
+					("R16G16B16A16F", nodes::variable_declaration_node::properties::RGBA16F)
+					("RGBA32F", nodes::variable_declaration_node::properties::RGBA32F)
+					("R32G32B32A32F", nodes::variable_declaration_node::properties::RGBA32F)
+					("DXT1", nodes::variable_declaration_node::properties::DXT1)
+					("DXT3", nodes::variable_declaration_node::properties::DXT3)
+					("DXT4", nodes::variable_declaration_node::properties::DXT5)
+					("LATC1", nodes::variable_declaration_node::properties::LATC1)
+					("LATC2", nodes::variable_declaration_node::properties::LATC2);
 
 				const auto it = sEnums.find(boost::to_upper_copy(identifier));
 
 				if (it != sEnums.end())
 				{
-					const auto newexpression = _ast->make_node<Nodes::Literal>(location);
-					newexpression->Type.BaseClass = Nodes::Type::Class::Uint;
-					newexpression->Type.Rows = newexpression->Type.Cols = 1, newexpression->Type.ArrayLength = 0;
-					newexpression->Value.Uint[0] = it->second;
+					const auto newexpression = _ast->make_node<nodes::literal_expression_node>(location);
+					newexpression->type.basetype = nodes::type_node::uint_;
+					newexpression->type.rows = newexpression->type.cols = 1, newexpression->type.array_length = 0;
+					newexpression->value_uint[0] = it->second;
 
 					expression = newexpression;
 
 					return true;
 				}
 
-				Restore();
+				restore();
 			}
 
-			return ParseExpressionMultary(expression);
+			return parse_expression_multary(expression);
 		}
-		bool Parser::ParseTechnique(Nodes::Technique *&technique)
+		bool parser::parse_technique(nodes::technique_declaration_node *&technique)
 		{
-			if (!Accept(lexer::tokenid::technique))
+			if (!accept(lexer::tokenid::technique))
 			{
 				return false;
 			}
 
 			const auto location = _token.location;
 
-			if (!Expect(lexer::tokenid::identifier))
+			if (!expect(lexer::tokenid::identifier))
 			{
 				return false;
 			}
 
-			technique = _ast->make_node<Nodes::Technique>(location);
-			technique->Name = _token.literal_as_string;
-			technique->Namespace = _currentScope.Name;
+			technique = _ast->make_node<nodes::technique_declaration_node>(location);
+			technique->name = _token.literal_as_string;
+			technique->Namespace = _current_scope.name;
 
-			ParseAnnotations(technique->Annotations);
+			parse_annotations(technique->annotation_list);
 
-			if (!Expect('{'))
+			if (!expect('{'))
 			{
 				return false;
 			}
 
-			while (!Peek('}'))
+			while (!peek('}'))
 			{
-				Nodes::Pass *pass = nullptr;
+				nodes::pass_declaration_node *pass = nullptr;
 
-				if (!ParseTechniquePass(pass))
+				if (!parse_technique_pass(pass))
 				{
 					return false;
 				}
 
-				technique->Passes.push_back(std::move(pass));
+				technique->pass_list.push_back(std::move(pass));
 			}
 
-			return Expect('}');
+			return expect('}');
 		}
-		bool Parser::ParseTechniquePass(Nodes::Pass *&pass)
+		bool parser::parse_technique_pass(nodes::pass_declaration_node *&pass)
 		{
-			if (!Accept(lexer::tokenid::pass))
+			if (!accept(lexer::tokenid::pass))
 			{
 				return false;
 			}
 
-			pass = _ast->make_node<Nodes::Pass>(_token.location);
+			pass = _ast->make_node<nodes::pass_declaration_node>(_token.location);
 
-			if (Accept(lexer::tokenid::identifier))
+			if (accept(lexer::tokenid::identifier))
 			{
-				pass->Name = _token.literal_as_string;
+				pass->name = _token.literal_as_string;
 			}
 
-			ParseAnnotations(pass->Annotations);
+			parse_annotations(pass->annotation_list);
 
-			if (!Expect('{'))
+			if (!expect('{'))
 			{
 				return false;
 			}
 
-			while (!Peek('}'))
+			while (!peek('}'))
 			{
-				if (!Expect(lexer::tokenid::identifier))
+				if (!expect(lexer::tokenid::identifier))
 				{
 					return false;
 				}
@@ -4033,23 +4028,23 @@ namespace ReShade
 				const auto passstate = _token.literal_as_string;
 				const auto location = _token.location;
 
-				Nodes::Expression *value = nullptr;
+				nodes::expression_node *value = nullptr;
 
-				if (!(Expect('=') && ParseTechniquePassExpression(value) && Expect(';')))
+				if (!(expect('=') && parse_technique_pass_expression(value) && expect(';')))
 				{
 					return false;
 				}
 
 				if (passstate == "VertexShader" || passstate == "PixelShader")
 				{
-					if (value->id != nodeid::LValue || static_cast<Nodes::LValue *>(value)->Reference->id != nodeid::Function)
+					if (value->id != nodeid::lvalue_expression || static_cast<nodes::lvalue_expression_node *>(value)->reference->id != nodeid::function_declaration)
 					{
-						Error(location, 3020, "type mismatch, expected function name");
+						error(location, 3020, "type mismatch, expected function name");
 
 						return false;
 					}
 
-					(passstate[0] == 'V' ? pass->States.VertexShader : pass->States.PixelShader) = reinterpret_cast<const Nodes::Function *>(static_cast<Nodes::LValue *>(value)->Reference);
+					(passstate[0] == 'V' ? pass->states.VertexShader : pass->states.PixelShader) = reinterpret_cast<const nodes::function_declaration_node *>(static_cast<nodes::lvalue_expression_node *>(value)->reference);
 				}
 				else if (boost::starts_with(passstate, "RenderTarget") && (passstate == "RenderTarget" || (passstate[12] >= '0' && passstate[12] < '8')))
 				{
@@ -4060,240 +4055,240 @@ namespace ReShade
 						index = passstate[12] - '0';
 					}
 
-					if (value->id != nodeid::LValue || static_cast<Nodes::LValue *>(value)->Reference->id != nodeid::Variable || static_cast<Nodes::LValue *>(value)->Reference->Type.BaseClass != Nodes::Type::Class::Texture2D || static_cast<Nodes::LValue *>(value)->Reference->Type.IsArray())
+					if (value->id != nodeid::lvalue_expression || static_cast<nodes::lvalue_expression_node *>(value)->reference->id != nodeid::variable_declaration || static_cast<nodes::lvalue_expression_node *>(value)->reference->type.basetype != nodes::type_node::texture2d || static_cast<nodes::lvalue_expression_node *>(value)->reference->type.is_array())
 					{
-						Error(location, 3020, "type mismatch, expected texture name");
+						error(location, 3020, "type mismatch, expected texture name");
 
 						return false;
 					}
 
-					pass->States.RenderTargets[index] = static_cast<Nodes::LValue *>(value)->Reference;
+					pass->states.RenderTargets[index] = static_cast<nodes::lvalue_expression_node *>(value)->reference;
 				}
 				else
 				{
-					if (value->id != nodeid::Literal)
+					if (value->id != nodeid::literal_expression)
 					{
-						Error(location, 3011, "pass state value must be a literal expression");
+						error(location, 3011, "pass state value must be a literal expression");
 
 						return false;
 					}
 
-					const auto valueLiteral = static_cast<Nodes::Literal *>(value);
+					const auto valueLiteral = static_cast<nodes::literal_expression_node *>(value);
 
 					if (passstate == "SRGBWriteEnable")
 					{
-						pass->States.SRGBWriteEnable = valueLiteral->Value.Int[0] != 0;
+						pass->states.SRGBWriteEnable = valueLiteral->value_int[0] != 0;
 					}
 					else if (passstate == "BlendEnable" || passstate == "AlphaBlendEnable")
 					{
-						pass->States.BlendEnable = valueLiteral->Value.Int[0] != 0;
+						pass->states.BlendEnable = valueLiteral->value_int[0] != 0;
 					}
 					else if (passstate == "DepthEnable" || passstate == "ZEnable")
 					{
-						pass->States.DepthEnable = valueLiteral->Value.Int[0] != 0;
+						pass->states.DepthEnable = valueLiteral->value_int[0] != 0;
 					}
 					else if (passstate == "StencilEnable")
 					{
-						pass->States.StencilEnable = valueLiteral->Value.Int[0] != 0;
+						pass->states.StencilEnable = valueLiteral->value_int[0] != 0;
 					}
 					else if (passstate == "RenderTargetWriteMask" || passstate == "ColorWriteMask")
 					{
 						unsigned int mask = 0;
-						ScalarLiteralCast(valueLiteral, 0, mask);
+						scalar_literal_cast(valueLiteral, 0, mask);
 
-						pass->States.RenderTargetWriteMask = mask & 0xFF;
+						pass->states.RenderTargetWriteMask = mask & 0xFF;
 					}
 					else if (passstate == "DepthWriteMask" || passstate == "ZWriteEnable")
 					{
-						pass->States.DepthWriteMask = valueLiteral->Value.Int[0] != 0;
+						pass->states.DepthWriteMask = valueLiteral->value_int[0] != 0;
 					}
 					else if (passstate == "StencilReadMask" || passstate == "StencilMask")
 					{
 						unsigned int mask = 0;
-						ScalarLiteralCast(valueLiteral, 0, mask);
+						scalar_literal_cast(valueLiteral, 0, mask);
 
-						pass->States.StencilReadMask = mask & 0xFF;
+						pass->states.StencilReadMask = mask & 0xFF;
 					}
 					else if (passstate == "StencilWriteMask")
 					{
 						unsigned int mask = 0;
-						ScalarLiteralCast(valueLiteral, 0, mask);
+						scalar_literal_cast(valueLiteral, 0, mask);
 
-						pass->States.StencilWriteMask = mask & 0xFF;
+						pass->states.StencilWriteMask = mask & 0xFF;
 					}
 					else if (passstate == "BlendOp")
 					{
-						ScalarLiteralCast(valueLiteral, 0, pass->States.BlendOp);
+						scalar_literal_cast(valueLiteral, 0, pass->states.BlendOp);
 					}
 					else if (passstate == "BlendOpAlpha")
 					{
-						ScalarLiteralCast(valueLiteral, 0, pass->States.BlendOpAlpha);
+						scalar_literal_cast(valueLiteral, 0, pass->states.BlendOpAlpha);
 					}
 					else if (passstate == "SrcBlend")
 					{
-						ScalarLiteralCast(valueLiteral, 0, pass->States.SrcBlend);
+						scalar_literal_cast(valueLiteral, 0, pass->states.SrcBlend);
 					}
 					else if (passstate == "DestBlend")
 					{
-						ScalarLiteralCast(valueLiteral, 0, pass->States.DestBlend);
+						scalar_literal_cast(valueLiteral, 0, pass->states.DestBlend);
 					}
 					else if (passstate == "DepthFunc" || passstate == "ZFunc")
 					{
-						ScalarLiteralCast(valueLiteral, 0, pass->States.DepthFunc);
+						scalar_literal_cast(valueLiteral, 0, pass->states.DepthFunc);
 					}
 					else if (passstate == "StencilFunc")
 					{
-						ScalarLiteralCast(valueLiteral, 0, pass->States.StencilFunc);
+						scalar_literal_cast(valueLiteral, 0, pass->states.StencilFunc);
 					}
 					else if (passstate == "StencilRef")
 					{
-						ScalarLiteralCast(valueLiteral, 0, pass->States.StencilRef);
+						scalar_literal_cast(valueLiteral, 0, pass->states.StencilRef);
 					}
 					else if (passstate == "StencilPass" || passstate == "StencilPassOp")
 					{
-						ScalarLiteralCast(valueLiteral, 0, pass->States.StencilOpPass);
+						scalar_literal_cast(valueLiteral, 0, pass->states.StencilOpPass);
 					}
 					else if (passstate == "StencilFail" || passstate == "StencilFailOp")
 					{
-						ScalarLiteralCast(valueLiteral, 0, pass->States.StencilOpFail);
+						scalar_literal_cast(valueLiteral, 0, pass->states.StencilOpFail);
 					}
 					else if (passstate == "StencilZFail" || passstate == "StencilDepthFail" || passstate == "StencilDepthFailOp")
 					{
-						ScalarLiteralCast(valueLiteral, 0, pass->States.StencilOpDepthFail);
+						scalar_literal_cast(valueLiteral, 0, pass->states.StencilOpDepthFail);
 					}
 					else
 					{
-						Error(location, 3004, "unrecognized pass state '%s'", passstate.c_str());
+						error(location, 3004, "unrecognized pass state '%s'", passstate.c_str());
 
 						return false;
 					}
 				}
 			}
 
-			return Expect('}');
+			return expect('}');
 		}
-		bool Parser::ParseTechniquePassExpression(Nodes::Expression *&expression)
+		bool parser::parse_technique_pass_expression(nodes::expression_node *&expression)
 		{
-			Scope scope;
+			scope scope;
 			bool exclusive;
 
-			if (Accept(lexer::tokenid::colon_colon))
+			if (accept(lexer::tokenid::colon_colon))
 			{
-				scope.NamespaceLevel = scope.Level = 0;
+				scope.namespace_level = scope.level = 0;
 				exclusive = true;
 			}
 			else
 			{
-				scope = _currentScope;
+				scope = _current_scope;
 				exclusive = false;
 			}
 
-			if (exclusive ? Expect(lexer::tokenid::identifier) : Accept(lexer::tokenid::identifier))
+			if (exclusive ? expect(lexer::tokenid::identifier) : accept(lexer::tokenid::identifier))
 			{
 				auto identifier = _token.literal_as_string;
 				const auto location = _token.location;
 
 				static const std::unordered_map<std::string, unsigned int> sEnums = boost::assign::map_list_of
-					("NONE", Nodes::Pass::States::NONE)
-					("ZERO", Nodes::Pass::States::ZERO)
-					("ONE", Nodes::Pass::States::ONE)
-					("SRCCOLOR", Nodes::Pass::States::SRCCOLOR)
-					("SRCALPHA", Nodes::Pass::States::SRCALPHA)
-					("INVSRCCOLOR", Nodes::Pass::States::INVSRCCOLOR)
-					("INVSRCALPHA", Nodes::Pass::States::INVSRCALPHA)
-					("DESTCOLOR", Nodes::Pass::States::DESTCOLOR)
-					("DESTALPHA", Nodes::Pass::States::DESTALPHA)
-					("INVDESTCOLOR", Nodes::Pass::States::INVDESTCOLOR)
-					("INVDESTALPHA", Nodes::Pass::States::INVDESTALPHA)
-					("ADD", Nodes::Pass::States::ADD)
-					("SUBTRACT", Nodes::Pass::States::SUBTRACT)
-					("REVSUBTRACT", Nodes::Pass::States::REVSUBTRACT)
-					("MIN", Nodes::Pass::States::MIN)
-					("MAX", Nodes::Pass::States::MAX)
-					("KEEP", Nodes::Pass::States::KEEP)
-					("REPLACE", Nodes::Pass::States::REPLACE)
-					("INVERT", Nodes::Pass::States::INVERT)
-					("INCR", Nodes::Pass::States::INCR)
-					("INCRSAT", Nodes::Pass::States::INCRSAT)
-					("DECR", Nodes::Pass::States::DECR)
-					("DECRSAT", Nodes::Pass::States::DECRSAT)
-					("NEVER", Nodes::Pass::States::NEVER)
-					("ALWAYS", Nodes::Pass::States::ALWAYS)
-					("LESS", Nodes::Pass::States::LESS)
-					("GREATER", Nodes::Pass::States::GREATER)
-					("LEQUAL", Nodes::Pass::States::LESSEQUAL)
-					("LESSEQUAL", Nodes::Pass::States::LESSEQUAL)
-					("GEQUAL", Nodes::Pass::States::GREATEREQUAL)
-					("GREATEREQUAL", Nodes::Pass::States::GREATEREQUAL)
-					("EQUAL", Nodes::Pass::States::EQUAL)
-					("NEQUAL", Nodes::Pass::States::NOTEQUAL)
-					("NOTEQUAL", Nodes::Pass::States::NOTEQUAL);
+					("NONE", nodes::pass_declaration_node::states::NONE)
+					("ZERO", nodes::pass_declaration_node::states::ZERO)
+					("ONE", nodes::pass_declaration_node::states::ONE)
+					("SRCCOLOR", nodes::pass_declaration_node::states::SRCCOLOR)
+					("SRCALPHA", nodes::pass_declaration_node::states::SRCALPHA)
+					("INVSRCCOLOR", nodes::pass_declaration_node::states::INVSRCCOLOR)
+					("INVSRCALPHA", nodes::pass_declaration_node::states::INVSRCALPHA)
+					("DESTCOLOR", nodes::pass_declaration_node::states::DESTCOLOR)
+					("DESTALPHA", nodes::pass_declaration_node::states::DESTALPHA)
+					("INVDESTCOLOR", nodes::pass_declaration_node::states::INVDESTCOLOR)
+					("INVDESTALPHA", nodes::pass_declaration_node::states::INVDESTALPHA)
+					("ADD", nodes::pass_declaration_node::states::ADD)
+					("SUBTRACT", nodes::pass_declaration_node::states::SUBTRACT)
+					("REVSUBTRACT", nodes::pass_declaration_node::states::REVSUBTRACT)
+					("MIN", nodes::pass_declaration_node::states::MIN)
+					("MAX", nodes::pass_declaration_node::states::MAX)
+					("KEEP", nodes::pass_declaration_node::states::KEEP)
+					("REPLACE", nodes::pass_declaration_node::states::REPLACE)
+					("INVERT", nodes::pass_declaration_node::states::INVERT)
+					("INCR", nodes::pass_declaration_node::states::INCR)
+					("INCRSAT", nodes::pass_declaration_node::states::INCRSAT)
+					("DECR", nodes::pass_declaration_node::states::DECR)
+					("DECRSAT", nodes::pass_declaration_node::states::DECRSAT)
+					("NEVER", nodes::pass_declaration_node::states::NEVER)
+					("ALWAYS", nodes::pass_declaration_node::states::ALWAYS)
+					("LESS", nodes::pass_declaration_node::states::LESS)
+					("GREATER", nodes::pass_declaration_node::states::GREATER)
+					("LEQUAL", nodes::pass_declaration_node::states::LESSEQUAL)
+					("LESSEQUAL", nodes::pass_declaration_node::states::LESSEQUAL)
+					("GEQUAL", nodes::pass_declaration_node::states::GREATEREQUAL)
+					("GREATEREQUAL", nodes::pass_declaration_node::states::GREATEREQUAL)
+					("EQUAL", nodes::pass_declaration_node::states::EQUAL)
+					("NEQUAL", nodes::pass_declaration_node::states::NOTEQUAL)
+					("NOTEQUAL", nodes::pass_declaration_node::states::NOTEQUAL);
 
 				const auto it = sEnums.find(boost::to_upper_copy(identifier));
 
 				if (it != sEnums.end())
 				{
-					const auto newexpression = _ast->make_node<Nodes::Literal>(location);
-					newexpression->Type.BaseClass = Nodes::Type::Class::Uint;
-					newexpression->Type.Rows = newexpression->Type.Cols = 1, newexpression->Type.ArrayLength = 0;
-					newexpression->Value.Uint[0] = it->second;
+					const auto newexpression = _ast->make_node<nodes::literal_expression_node>(location);
+					newexpression->type.basetype = nodes::type_node::uint_;
+					newexpression->type.rows = newexpression->type.cols = 1, newexpression->type.array_length = 0;
+					newexpression->value_uint[0] = it->second;
 
 					expression = newexpression;
 
 					return true;
 				}
 
-				while (Accept(lexer::tokenid::colon_colon) && Expect(lexer::tokenid::identifier))
+				while (accept(lexer::tokenid::colon_colon) && expect(lexer::tokenid::identifier))
 				{
 					identifier += "::" + _token.literal_as_string;
 				}
 
-				const auto symbol = FindSymbol(identifier, scope, exclusive);
+				const auto symbol = find_symbol(identifier, scope, exclusive);
 
 				if (symbol == nullptr)
 				{
-					Error(location, 3004, "undeclared identifier '%s'", identifier.c_str());
+					error(location, 3004, "undeclared identifier '%s'", identifier.c_str());
 
 					return false;
 				}
 
-				const auto newexpression = _ast->make_node<Nodes::LValue>(location);
-				newexpression->Reference = static_cast<const Nodes::Variable *>(symbol);
-				newexpression->Type = symbol->id == nodeid::Function ? static_cast<const Nodes::Function *>(symbol)->ReturnType : newexpression->Reference->Type;
+				const auto newexpression = _ast->make_node<nodes::lvalue_expression_node>(location);
+				newexpression->reference = static_cast<const nodes::variable_declaration_node *>(symbol);
+				newexpression->type = symbol->id == nodeid::function_declaration ? static_cast<const nodes::function_declaration_node *>(symbol)->return_type : newexpression->reference->type;
 
 				expression = newexpression;
 
 				return true;
 			}
 
-			return ParseExpressionMultary(expression);
+			return parse_expression_multary(expression);
 		}
 
 		// Symbol Table
-		void Parser::EnterScope(Symbol *parent)
+		void parser::enter_scope(symbol *parent)
 		{
-			if (parent != nullptr || _parentStack.empty())
+			if (parent != nullptr || _parent_stack.empty())
 			{
-				_parentStack.push(parent);
+				_parent_stack.push(parent);
 			}
 			else
 			{
-				_parentStack.push(_parentStack.top());
+				_parent_stack.push(_parent_stack.top());
 			}
 
-			_currentScope.Level++;
+			_current_scope.level++;
 		}
-		void Parser::EnterNamespace(const std::string &name)
+		void parser::enter_namespace(const std::string &name)
 		{
-			_currentScope.Name += name + "::";
-			_currentScope.Level++;
-			_currentScope.NamespaceLevel++;
+			_current_scope.name += name + "::";
+			_current_scope.level++;
+			_current_scope.namespace_level++;
 		}
-		void Parser::LeaveScope()
+		void parser::leave_scope()
 		{
-			assert(_currentScope.Level > 0);
+			assert(_current_scope.level > 0);
 
-			for (auto it1 = _symbolStack.begin(), end = _symbolStack.end(); it1 != end; ++it1)
+			for (auto it1 = _symbol_stack.begin(), end = _symbol_stack.end(); it1 != end; ++it1)
 			{
 				auto &scopes = it1->second;
 
@@ -4304,7 +4299,7 @@ namespace ReShade
 
 				for (auto it2 = scopes.begin(); it2 != scopes.end();)
 				{
-					if (it2->first.Level > it2->first.NamespaceLevel && it2->first.Level >= _currentScope.Level)
+					if (it2->first.level > it2->first.namespace_level && it2->first.level >= _current_scope.level)
 					{
 						it2 = scopes.erase(it2);
 					}
@@ -4315,76 +4310,76 @@ namespace ReShade
 				}
 			}
 
-			_parentStack.pop();
+			_parent_stack.pop();
 
-			_currentScope.Level--;
+			_current_scope.level--;
 		}
-		void Parser::LeaveNamespace()
+		void parser::leave_namespace()
 		{
-			assert(_currentScope.Level > 0);
-			assert(_currentScope.NamespaceLevel > 0);
+			assert(_current_scope.level > 0);
+			assert(_current_scope.namespace_level > 0);
 
-			_currentScope.Name.erase(_currentScope.Name.substr(0, _currentScope.Name.size() - 2).rfind("::") + 2);
-			_currentScope.Level--;
-			_currentScope.NamespaceLevel--;
+			_current_scope.name.erase(_current_scope.name.substr(0, _current_scope.name.size() - 2).rfind("::") + 2);
+			_current_scope.level--;
+			_current_scope.namespace_level--;
 		}
-		bool Parser::InsertSymbol(Symbol *symbol, bool global)
+		bool parser::insert_symbol(symbol *symbol, bool global)
 		{
-			if (symbol->id != nodeid::Function && FindSymbol(symbol->Name, _currentScope, true))
+			if (symbol->id != nodeid::function_declaration && find_symbol(symbol->name, _current_scope, true))
 			{
 				return false;
 			}
 
 			if (global)
 			{
-				Scope scope = { "", 0, 0 };
+				scope scope = { "", 0, 0 };
 
-				for (size_t pos = 0; pos != std::string::npos; pos = _currentScope.Name.find("::", pos))
+				for (size_t pos = 0; pos != std::string::npos; pos = _current_scope.name.find("::", pos))
 				{
 					pos += 2;
 
-					scope.Name = _currentScope.Name.substr(0, pos);
+					scope.name = _current_scope.name.substr(0, pos);
 
-					_symbolStack[_currentScope.Name.substr(pos) + symbol->Name].emplace_back(scope, symbol);
+					_symbol_stack[_current_scope.name.substr(pos) + symbol->name].emplace_back(scope, symbol);
 
-					scope.Level = ++scope.NamespaceLevel;
+					scope.level = ++scope.namespace_level;
 				}
 			}
 			else
 			{
-				_symbolStack[symbol->Name].emplace_back(_currentScope, symbol);
+				_symbol_stack[symbol->name].emplace_back(_current_scope, symbol);
 			}
 
 			return true;
 		}
-		Parser::Symbol *Parser::FindSymbol(const std::string &name) const
+		parser::symbol *parser::find_symbol(const std::string &name) const
 		{
-			return FindSymbol(name, _currentScope, false);
+			return find_symbol(name, _current_scope, false);
 		}
-		Parser::Symbol *Parser::FindSymbol(const std::string &name, const Scope &scope, bool exclusive) const
+		parser::symbol *parser::find_symbol(const std::string &name, const scope &scope, bool exclusive) const
 		{
-			const auto it = _symbolStack.find(name);
+			const auto it = _symbol_stack.find(name);
 
-			if (it == _symbolStack.end() || it->second.empty())
+			if (it == _symbol_stack.end() || it->second.empty())
 			{
 				return nullptr;
 			}
 
-			Symbol *result = nullptr;
+			symbol *result = nullptr;
 			const auto &scopes = it->second;
 
 			for (auto it2 = scopes.rbegin(), end = scopes.rend(); it2 != end; ++it2)
 			{
-				if (it2->first.Level > scope.Level || it2->first.NamespaceLevel > scope.NamespaceLevel || (it2->first.NamespaceLevel == scope.NamespaceLevel && it2->first.Name != scope.Name))
+				if (it2->first.level > scope.level || it2->first.namespace_level > scope.namespace_level || (it2->first.namespace_level == scope.namespace_level && it2->first.name != scope.name))
 				{
 					continue;
 				}
-				if (exclusive && it2->first.Level < scope.Level)
+				if (exclusive && it2->first.level < scope.level)
 				{
 					continue;
 				}
 
-				if (it2->second->id == nodeid::Variable || it2->second->id == nodeid::Struct)
+				if (it2->second->id == nodeid::variable_declaration || it2->second->id == nodeid::struct_declaration)
 				{
 					return it2->second;
 				}
@@ -4396,36 +4391,36 @@ namespace ReShade
 
 			return result;
 		}
-		bool Parser::ResolveCall(Nodes::Call *call, const Scope &scope, bool &is_intrinsic, bool &is_ambiguous) const
+		bool parser::resolve_call(nodes::call_expression_node *call, const scope &scope, bool &is_intrinsic, bool &is_ambiguous) const
 		{
 			is_intrinsic = false;
 			is_ambiguous = false;
 
-			unsigned int overloadCount = 0, overloadNamespace = scope.NamespaceLevel;
-			const Nodes::Function *overload = nullptr;
-			Nodes::Intrinsic::Op intrinsicOp = Nodes::Intrinsic::Op::None;
+			unsigned int overload_count = 0, overload_namespace = scope.namespace_level;
+			const nodes::function_declaration_node *overload = nullptr;
+			auto intrinsic_op = nodes::intrinsic_expression_node::none;
 
-			const auto it = _symbolStack.find(call->CalleeName);
+			const auto it = _symbol_stack.find(call->callee_name);
 
-			if (it != _symbolStack.end() && !it->second.empty())
+			if (it != _symbol_stack.end() && !it->second.empty())
 			{
 				const auto &scopes = it->second;
 
 				for (auto it2 = scopes.rbegin(), end = scopes.rend(); it2 != end; ++it2)
 				{
-					if (it2->first.Level > scope.Level || it2->first.NamespaceLevel > scope.NamespaceLevel || it2->second->id != nodeid::Function)
+					if (it2->first.level > scope.level || it2->first.namespace_level > scope.namespace_level || it2->second->id != nodeid::function_declaration)
 					{
 						continue;
 					}
 
-					const Nodes::Function *function = static_cast<Nodes::Function *>(it2->second);
+					const auto function = static_cast<nodes::function_declaration_node *>(it2->second);
 
-					if (function->Parameters.empty())
+					if (function->parameter_list.empty())
 					{
-						if (call->Arguments.empty())
+						if (call->arguments.empty())
 						{
 							overload = function;
-							overloadCount = 1;
+							overload_count = 1;
 							break;
 						}
 						else
@@ -4433,427 +4428,427 @@ namespace ReShade
 							continue;
 						}
 					}
-					else if (call->Arguments.size() != function->Parameters.size())
+					else if (call->arguments.size() != function->parameter_list.size())
 					{
 						continue;
 					}
 
-					const int comparison = CompareFunctions(call, function, overload);
+					const int comparison = compare_functions(call, function, overload);
 
 					if (comparison < 0)
 					{
 						overload = function;
-						overloadCount = 1;
-						overloadNamespace = it2->first.NamespaceLevel;
+						overload_count = 1;
+						overload_namespace = it2->first.namespace_level;
 					}
-					else if (comparison == 0 && overloadNamespace == it2->first.NamespaceLevel)
+					else if (comparison == 0 && overload_namespace == it2->first.namespace_level)
 					{
-						++overloadCount;
+						++overload_count;
 					}
 				}
 			}
 
-			if (overloadCount == 0)
+			if (overload_count == 0)
 			{
-				for (auto &intrinsic : sIntrinsics)
+				for (auto &intrinsic : _intrinsics)
 				{
-					if (intrinsic.Function.Name == call->CalleeName)
+					if (intrinsic.function.name == call->callee_name)
 					{
-						if (call->Arguments.size() != intrinsic.Function.Parameters.size())
+						if (call->arguments.size() != intrinsic.function.parameter_list.size())
 						{
-							is_intrinsic = overloadCount == 0;
+							is_intrinsic = overload_count == 0;
 							break;
 						}
 
-						const int comparison = CompareFunctions(call, &intrinsic.Function, overload);
+						const int comparison = compare_functions(call, &intrinsic.function, overload);
 
 						if (comparison < 0)
 						{
-							overload = &intrinsic.Function;
-							overloadCount = 1;
+							overload = &intrinsic.function;
+							overload_count = 1;
 
 							is_intrinsic = true;
-							intrinsicOp = intrinsic.Op;
+							intrinsic_op = intrinsic.op;
 						}
-						else if (comparison == 0 && overloadNamespace == 0)
+						else if (comparison == 0 && overload_namespace == 0)
 						{
-							++overloadCount;
+							++overload_count;
 						}
 					}
 				}
 			}
 
-			if (overloadCount == 1)
+			if (overload_count == 1)
 			{
-				call->Type = overload->ReturnType;
+				call->type = overload->return_type;
 
 				if (is_intrinsic)
 				{
-					call->Callee = reinterpret_cast<Nodes::Function *>(static_cast<unsigned int>(intrinsicOp));
+					call->callee = reinterpret_cast<nodes::function_declaration_node *>(static_cast<unsigned int>(intrinsic_op));
 				}
 				else
 				{
-					call->Callee = overload;
-					call->CalleeName = overload->Name;
+					call->callee = overload;
+					call->callee_name = overload->name;
 				}
 
 				return true;
 			}
 			else
 			{
-				is_ambiguous = overloadCount > 1;
+				is_ambiguous = overload_count > 1;
 
 				return false;
 			}
 		}
-		Nodes::Expression *Parser::FoldConstantExpression(Nodes::Expression *expression) const
+		nodes::expression_node *parser::fold_constant_expression(nodes::expression_node *expression) const
 		{
 			#pragma region Helpers
 	#define DOFOLDING1(op) \
-			for (unsigned int i = 0; i < operand->Type.Rows * operand->Type.Cols; ++i) \
-				switch (operand->Type.BaseClass) \
+			for (unsigned int i = 0; i < operand->type.rows * operand->type.cols; ++i) \
+				switch (operand->type.basetype) \
 				{ \
-					case Nodes::Type::Class::Bool: case Nodes::Type::Class::Int: case Nodes::Type::Class::Uint: \
-						switch (expression->Type.BaseClass) \
+					case nodes::type_node::bool_: case nodes::type_node::int_: case nodes::type_node::uint_: \
+						switch (expression->type.basetype) \
 						{ \
-							case Nodes::Type::Class::Bool: case Nodes::Type::Class::Int: case Nodes::Type::Class::Uint: \
-								operand->Value.Int[i] = static_cast<int>(op(operand->Value.Int[i])); break; \
-							case Nodes::Type::Class::Float: \
-								operand->Value.Float[i] = static_cast<float>(op(operand->Value.Int[i])); break; \
+							case nodes::type_node::bool_: case nodes::type_node::int_: case nodes::type_node::uint_: \
+								operand->value_int[i] = static_cast<int>(op(operand->value_int[i])); break; \
+							case nodes::type_node::float_: \
+								operand->value_float[i] = static_cast<float>(op(operand->value_int[i])); break; \
 						} \
 						break; \
-					case Nodes::Type::Class::Float: \
-						switch (expression->Type.BaseClass) \
+					case nodes::type_node::float_: \
+						switch (expression->type.basetype) \
 						{ \
-							case Nodes::Type::Class::Bool: case Nodes::Type::Class::Int: case Nodes::Type::Class::Uint: \
-								operand->Value.Int[i] = static_cast<int>(op(operand->Value.Float[i])); break; \
-							case Nodes::Type::Class::Float: \
-								operand->Value.Float[i] = static_cast<float>(op(operand->Value.Float[i])); break; \
+							case nodes::type_node::bool_: case nodes::type_node::int_: case nodes::type_node::uint_: \
+								operand->value_int[i] = static_cast<int>(op(operand->value_float[i])); break; \
+							case nodes::type_node::float_: \
+								operand->value_float[i] = static_cast<float>(op(operand->value_float[i])); break; \
 						} \
 						break; \
 				} \
 			expression = operand;
 
 	#define DOFOLDING2(op) { \
-			union Nodes::Literal::Value result = { 0 }; \
-			for (unsigned int i = 0; i < expression->Type.Rows * expression->Type.Cols; ++i) \
-				switch (left->Type.BaseClass) \
+			nodes::literal_expression_node result; \
+			for (unsigned int i = 0; i < expression->type.rows * expression->type.cols; ++i) \
+				switch (left->type.basetype) \
 				{ \
-					case Nodes::Type::Class::Bool:  case Nodes::Type::Class::Int: case Nodes::Type::Class::Uint: \
-						switch (right->Type.BaseClass) \
+					case nodes::type_node::bool_:  case nodes::type_node::int_: case nodes::type_node::uint_: \
+						switch (right->type.basetype) \
 						{ \
-							case Nodes::Type::Class::Bool: case Nodes::Type::Class::Int: case Nodes::Type::Class::Uint: \
-								result.Int[i] = left->Value.Int[leftScalar ? 0 : i] op right->Value.Int[rightScalar ? 0 : i]; \
+							case nodes::type_node::bool_: case nodes::type_node::int_: case nodes::type_node::uint_: \
+								result.value_int[i] = left->value_int[leftScalar ? 0 : i] op right->value_int[rightScalar ? 0 : i]; \
 								break; \
-							case Nodes::Type::Class::Float: \
-								result.Float[i] = static_cast<float>(left->Value.Int[!leftScalar * i]) op right->Value.Float[!rightScalar * i]; \
+							case nodes::type_node::float_: \
+								result.value_float[i] = static_cast<float>(left->value_int[!leftScalar * i]) op right->value_float[!rightScalar * i]; \
 								break; \
 						} \
 						break; \
-					case Nodes::Type::Class::Float: \
-						result.Float[i] = (right->Type.BaseClass == Nodes::Type::Class::Float) ? (left->Value.Float[!leftScalar * i] op right->Value.Float[!rightScalar * i]) : (left->Value.Float[!leftScalar * i] op static_cast<float>(right->Value.Int[!rightScalar * i])); \
+					case nodes::type_node::float_: \
+						result.value_float[i] = (right->type.basetype == nodes::type_node::float_) ? (left->value_float[!leftScalar * i] op right->value_float[!rightScalar * i]) : (left->value_float[!leftScalar * i] op static_cast<float>(right->value_int[!rightScalar * i])); \
 						break; \
 				} \
-			left->Type = expression->Type; \
-			left->Value = result; \
+			left->type = expression->type; \
+			memcpy(left->value_uint, result.value_uint, sizeof(result.value_uint)); \
 			expression = left; }
 	#define DOFOLDING2_INT(op) { \
-			union Nodes::Literal::Value result = { 0 }; \
-			for (unsigned int i = 0; i < expression->Type.Rows * expression->Type.Cols; ++i) \
+			nodes::literal_expression_node result; \
+			for (unsigned int i = 0; i < expression->type.rows * expression->type.cols; ++i) \
 			{ \
-				result.Int[i] = left->Value.Int[!leftScalar * i] op right->Value.Int[!rightScalar * i]; \
+				result.value_int[i] = left->value_int[!leftScalar * i] op right->value_int[!rightScalar * i]; \
 			} \
-			left->Type = expression->Type; \
-			left->Value = result; \
+			left->type = expression->type; \
+			memcpy(left->value_uint, result.value_uint, sizeof(result.value_uint)); \
 			expression = left; }
 	#define DOFOLDING2_BOOL(op) { \
-			union Nodes::Literal::Value result = { 0 }; \
-			for (unsigned int i = 0; i < expression->Type.Rows * expression->Type.Cols; ++i) \
-				switch (left->Type.BaseClass) \
+			nodes::literal_expression_node result; \
+			for (unsigned int i = 0; i < expression->type.rows * expression->type.cols; ++i) \
+				switch (left->type.basetype) \
 				{ \
-					case Nodes::Type::Class::Bool: case Nodes::Type::Class::Int: case Nodes::Type::Class::Uint: \
-						result.Int[i] = (right->Type.BaseClass == Nodes::Type::Class::Float) ? (static_cast<float>(left->Value.Int[!leftScalar * i]) op right->Value.Float[!rightScalar * i]) : (left->Value.Int[!leftScalar * i] op right->Value.Int[!rightScalar * i]); \
+					case nodes::type_node::bool_: case nodes::type_node::int_: case nodes::type_node::uint_: \
+						result.value_int[i] = (right->type.basetype == nodes::type_node::float_) ? (static_cast<float>(left->value_int[!leftScalar * i]) op right->value_float[!rightScalar * i]) : (left->value_int[!leftScalar * i] op right->value_int[!rightScalar * i]); \
 						break; \
-					case Nodes::Type::Class::Float: \
-						result.Int[i] = (right->Type.BaseClass == Nodes::Type::Class::Float) ? (left->Value.Float[!leftScalar * i] op static_cast<float>(right->Value.Int[!rightScalar * i])) : (left->Value.Float[!leftScalar * i] op right->Value.Float[!rightScalar * i]); \
+					case nodes::type_node::float_: \
+						result.value_int[i] = (right->type.basetype == nodes::type_node::float_) ? (left->value_float[!leftScalar * i] op static_cast<float>(right->value_int[!rightScalar * i])) : (left->value_float[!leftScalar * i] op right->value_float[!rightScalar * i]); \
 						break; \
 				} \
-			left->Type = expression->Type; \
-			left->Type.BaseClass = Nodes::Type::Class::Bool; \
-			left->Value = result; \
+			left->type = expression->type; \
+			left->type.basetype = nodes::type_node::bool_; \
+			memcpy(left->value_uint, result.value_uint, sizeof(result.value_uint)); \
 			expression = left; }
 	#define DOFOLDING2_FLOAT(op) { \
-			union Nodes::Literal::Value result = { 0 }; \
-			for (unsigned int i = 0; i < expression->Type.Rows * expression->Type.Cols; ++i) \
-				switch (left->Type.BaseClass) \
+			nodes::literal_expression_node result; \
+			for (unsigned int i = 0; i < expression->type.rows * expression->type.cols; ++i) \
+				switch (left->type.basetype) \
 				{ \
-					case Nodes::Type::Class::Bool:  case Nodes::Type::Class::Int: case Nodes::Type::Class::Uint: \
-						result.Float[i] = (right->Type.BaseClass == Nodes::Type::Class::Float) ? (static_cast<float>(left->Value.Int[!leftScalar * i]) op right->Value.Float[!rightScalar * i]) : (left->Value.Int[leftScalar ? 0 : i] op right->Value.Int[rightScalar ? 0 : i]); \
+					case nodes::type_node::bool_:  case nodes::type_node::int_: case nodes::type_node::uint_: \
+						result.value_float[i] = (right->type.basetype == nodes::type_node::float_) ? (static_cast<float>(left->value_int[!leftScalar * i]) op right->value_float[!rightScalar * i]) : (left->value_int[leftScalar ? 0 : i] op right->value_int[rightScalar ? 0 : i]); \
 						break; \
-					case Nodes::Type::Class::Float: \
-						result.Float[i] = (right->Type.BaseClass == Nodes::Type::Class::Float) ? (left->Value.Float[!leftScalar * i] op right->Value.Float[!rightScalar * i]) : (left->Value.Float[!leftScalar * i] op static_cast<float>(right->Value.Int[!rightScalar * i])); \
+					case nodes::type_node::float_: \
+						result.value_float[i] = (right->type.basetype == nodes::type_node::float_) ? (left->value_float[!leftScalar * i] op right->value_float[!rightScalar * i]) : (left->value_float[!leftScalar * i] op static_cast<float>(right->value_int[!rightScalar * i])); \
 						break; \
 				} \
-			left->Type = expression->Type; \
-			left->Type.BaseClass = Nodes::Type::Class::Float; \
-			left->Value = result; \
+			left->type = expression->type; \
+			left->type.basetype = nodes::type_node::float_; \
+			memcpy(left->value_uint, result.value_uint, sizeof(result.value_uint)); \
 			expression = left; }
 
 	#define DOFOLDING2_FUNCTION(op) \
-			for (unsigned int i = 0; i < expression->Type.Rows * expression->Type.Cols; ++i) \
-				switch (left->Type.BaseClass) \
+			for (unsigned int i = 0; i < expression->type.rows * expression->type.cols; ++i) \
+				switch (left->type.basetype) \
 				{ \
-					case Nodes::Type::Class::Bool: case Nodes::Type::Class::Int: case Nodes::Type::Class::Uint: \
-						switch (right->Type.BaseClass) \
+					case nodes::type_node::bool_: case nodes::type_node::int_: case nodes::type_node::uint_: \
+						switch (right->type.basetype) \
 						{ \
-							case Nodes::Type::Class::Bool: case Nodes::Type::Class::Int: case Nodes::Type::Class::Uint: \
-								left->Value.Int[i] = static_cast<int>(op(left->Value.Int[i], right->Value.Int[i])); \
+							case nodes::type_node::bool_: case nodes::type_node::int_: case nodes::type_node::uint_: \
+								left->value_int[i] = static_cast<int>(op(left->value_int[i], right->value_int[i])); \
 								break; \
-							case Nodes::Type::Class::Float: \
-								left->Value.Float[i] = static_cast<float>(op(static_cast<float>(left->Value.Int[i]), right->Value.Float[i])); \
+							case nodes::type_node::float_: \
+								left->value_float[i] = static_cast<float>(op(static_cast<float>(left->value_int[i]), right->value_float[i])); \
 								break; \
 						} \
 						break; \
-					case Nodes::Type::Class::Float: \
-						left->Value.Float[i] = (right->Type.BaseClass == Nodes::Type::Class::Float) ? (static_cast<float>(op(left->Value.Float[i], right->Value.Float[i]))) : (static_cast<float>(op(left->Value.Float[i], static_cast<float>(right->Value.Int[i])))); \
+					case nodes::type_node::float_: \
+						left->value_float[i] = (right->type.basetype == nodes::type_node::float_) ? (static_cast<float>(op(left->value_float[i], right->value_float[i]))) : (static_cast<float>(op(left->value_float[i], static_cast<float>(right->value_int[i])))); \
 						break; \
 				} \
-			left->Type = expression->Type; \
+			left->type = expression->type; \
 			expression = left;
 			#pragma endregion
 
-			if (expression->id == nodeid::Unary)
+			if (expression->id == nodeid::unary_expression)
 			{
-				const auto unaryexpression = static_cast<Nodes::Unary *>(expression);
+				const auto unaryexpression = static_cast<nodes::unary_expression_node *>(expression);
 
-				if (unaryexpression->Operand->id != nodeid::Literal)
+				if (unaryexpression->operand->id != nodeid::literal_expression)
 				{
 					return expression;
 				}
 
-				const auto operand = static_cast<Nodes::Literal *>(unaryexpression->Operand);
+				const auto operand = static_cast<nodes::literal_expression_node *>(unaryexpression->operand);
 
-				switch (unaryexpression->Operator)
+				switch (unaryexpression->op)
 				{
-					case Nodes::Unary::Op::Negate:
+					case nodes::unary_expression_node::negate:
 						DOFOLDING1(-);
 						break;
-					case Nodes::Unary::Op::BitwiseNot:
-						for (unsigned int i = 0; i < operand->Type.Rows * operand->Type.Cols; ++i)
+					case nodes::unary_expression_node::bitwise_not:
+						for (unsigned int i = 0; i < operand->type.rows * operand->type.cols; ++i)
 						{
-							operand->Value.Int[i] = ~operand->Value.Int[i];
+							operand->value_int[i] = ~operand->value_int[i];
 						}
 						expression = operand;
 						break;
-					case Nodes::Unary::Op::LogicalNot:
-						for (unsigned int i = 0; i < operand->Type.Rows * operand->Type.Cols; ++i)
+					case nodes::unary_expression_node::logical_not:
+						for (unsigned int i = 0; i < operand->type.rows * operand->type.cols; ++i)
 						{
-							operand->Value.Int[i] = (operand->Type.BaseClass == Nodes::Type::Class::Float) ? !operand->Value.Float[i] : !operand->Value.Int[i];
+							operand->value_int[i] = (operand->type.basetype == nodes::type_node::float_) ? !operand->value_float[i] : !operand->value_int[i];
 						}
-						operand->Type.BaseClass = Nodes::Type::Class::Bool;
+						operand->type.basetype = nodes::type_node::bool_;
 						expression = operand;
 						break;
-					case Nodes::Unary::Op::Cast:
+					case nodes::unary_expression_node::cast:
 					{
-						Nodes::Literal old = *operand;
-						operand->Type = expression->Type;
+						nodes::literal_expression_node old = *operand;
+						operand->type = expression->type;
 						expression = operand;
 
-						for (unsigned int i = 0, size = std::min(old.Type.Rows * old.Type.Cols, operand->Type.Rows * operand->Type.Cols); i < size; ++i)
+						for (unsigned int i = 0, size = std::min(old.type.rows * old.type.cols, operand->type.rows * operand->type.cols); i < size; ++i)
 						{
-							VectorLiteralCast(&old, i, operand, i);
+							vector_literal_cast(&old, i, operand, i);
 						}
 						break;
 					}
 				}
 			}
-			else if (expression->id == nodeid::Binary)
+			else if (expression->id == nodeid::binary_expression)
 			{
-				const auto binaryexpression = static_cast<Nodes::Binary *>(expression);
+				const auto binaryexpression = static_cast<nodes::binary_expression_node *>(expression);
 
-				if (binaryexpression->Operands[0]->id != nodeid::Literal || binaryexpression->Operands[1]->id != nodeid::Literal)
+				if (binaryexpression->operands[0]->id != nodeid::literal_expression || binaryexpression->operands[1]->id != nodeid::literal_expression)
 				{
 					return expression;
 				}
 
-				const auto left = static_cast<Nodes::Literal *>(binaryexpression->Operands[0]);
-				const auto right = static_cast<Nodes::Literal *>(binaryexpression->Operands[1]);
-				const bool leftScalar = left->Type.Rows * left->Type.Cols == 1;
-				const bool rightScalar = right->Type.Rows * right->Type.Cols == 1;
+				const auto left = static_cast<nodes::literal_expression_node *>(binaryexpression->operands[0]);
+				const auto right = static_cast<nodes::literal_expression_node *>(binaryexpression->operands[1]);
+				const bool leftScalar = left->type.rows * left->type.cols == 1;
+				const bool rightScalar = right->type.rows * right->type.cols == 1;
 
-				switch (binaryexpression->Operator)
+				switch (binaryexpression->op)
 				{
-					case Nodes::Binary::Op::Add:
+					case nodes::binary_expression_node::add:
 						DOFOLDING2(+);
 						break;
-					case Nodes::Binary::Op::Subtract:
+					case nodes::binary_expression_node::subtract:
 						DOFOLDING2(-);
 						break;
-					case Nodes::Binary::Op::Multiply:
+					case nodes::binary_expression_node::multiply:
 						DOFOLDING2(*);
 						break;
-					case Nodes::Binary::Op::Divide:
+					case nodes::binary_expression_node::divide:
 						DOFOLDING2_FLOAT(/);
 						break;
-					case Nodes::Binary::Op::Modulo:
+					case nodes::binary_expression_node::modulo:
 						DOFOLDING2_FUNCTION(std::fmod);
 						break;
-					case Nodes::Binary::Op::Less:
+					case nodes::binary_expression_node::less:
 						DOFOLDING2_BOOL(<);
 						break;
-					case Nodes::Binary::Op::Greater:
+					case nodes::binary_expression_node::greater:
 						DOFOLDING2_BOOL(>);
 						break;
-					case Nodes::Binary::Op::LessOrEqual:
+					case nodes::binary_expression_node::less_equal:
 						DOFOLDING2_BOOL(<=);
 						break;
-					case Nodes::Binary::Op::GreaterOrEqual:
+					case nodes::binary_expression_node::greater_equal:
 						DOFOLDING2_BOOL(>=);
 						break;
-					case Nodes::Binary::Op::Equal:
+					case nodes::binary_expression_node::equal:
 						DOFOLDING2_BOOL(==);
 						break;
-					case Nodes::Binary::Op::NotEqual:
+					case nodes::binary_expression_node::not_equal:
 						DOFOLDING2_BOOL(!=);
 						break;
-					case Nodes::Binary::Op::LeftShift:
+					case nodes::binary_expression_node::left_shift:
 						DOFOLDING2_INT(<<);
 						break;
-					case Nodes::Binary::Op::RightShift:
+					case nodes::binary_expression_node::right_shift:
 						DOFOLDING2_INT(>>);
 						break;
-					case Nodes::Binary::Op::BitwiseAnd:
+					case nodes::binary_expression_node::bitwise_and:
 						DOFOLDING2_INT(&);
 						break;
-					case Nodes::Binary::Op::BitwiseOr:
+					case nodes::binary_expression_node::bitwise_or:
 						DOFOLDING2_INT(|);
 						break;
-					case Nodes::Binary::Op::BitwiseXor:
+					case nodes::binary_expression_node::bitwise_xor:
 						DOFOLDING2_INT(^);
 						break;
-					case Nodes::Binary::Op::LogicalAnd:
+					case nodes::binary_expression_node::logical_and:
 						DOFOLDING2_BOOL(&&);
 						break;
-					case Nodes::Binary::Op::LogicalOr:
+					case nodes::binary_expression_node::logical_or:
 						DOFOLDING2_BOOL(||);
 						break;
 				}
 			}
-			else if (expression->id == nodeid::Intrinsic)
+			else if (expression->id == nodeid::intrinsic_expression)
 			{
-				const auto intrinsicexpression = static_cast<Nodes::Intrinsic *>(expression);
+				const auto intrinsicexpression = static_cast<nodes::intrinsic_expression_node *>(expression);
 
-				if ((intrinsicexpression->Arguments[0] != nullptr && intrinsicexpression->Arguments[0]->id != nodeid::Literal) || (intrinsicexpression->Arguments[1] != nullptr && intrinsicexpression->Arguments[1]->id != nodeid::Literal) || (intrinsicexpression->Arguments[2] != nullptr && intrinsicexpression->Arguments[2]->id != nodeid::Literal))
+				if ((intrinsicexpression->arguments[0] != nullptr && intrinsicexpression->arguments[0]->id != nodeid::literal_expression) || (intrinsicexpression->arguments[1] != nullptr && intrinsicexpression->arguments[1]->id != nodeid::literal_expression) || (intrinsicexpression->arguments[2] != nullptr && intrinsicexpression->arguments[2]->id != nodeid::literal_expression))
 				{
 					return expression;
 				}
 
-				const auto operand = static_cast<Nodes::Literal *>(intrinsicexpression->Arguments[0]);
+				const auto operand = static_cast<nodes::literal_expression_node *>(intrinsicexpression->arguments[0]);
 				const auto left = operand;
-				const auto right = static_cast<Nodes::Literal *>(intrinsicexpression->Arguments[1]);
+				const auto right = static_cast<nodes::literal_expression_node *>(intrinsicexpression->arguments[1]);
 
-				switch (intrinsicexpression->Operator)
+				switch (intrinsicexpression->op)
 				{
-					case Nodes::Intrinsic::Op::Abs:
+					case nodes::intrinsic_expression_node::abs:
 						DOFOLDING1(std::abs);
 						break;
-					case Nodes::Intrinsic::Op::Sin:
+					case nodes::intrinsic_expression_node::sin:
 						DOFOLDING1(std::sin);
 						break;
-					case Nodes::Intrinsic::Op::Sinh:
+					case nodes::intrinsic_expression_node::sinh:
 						DOFOLDING1(std::sinh);
 						break;
-					case Nodes::Intrinsic::Op::Cos:
+					case nodes::intrinsic_expression_node::cos:
 						DOFOLDING1(std::cos);
 						break;
-					case Nodes::Intrinsic::Op::Cosh:
+					case nodes::intrinsic_expression_node::cosh:
 						DOFOLDING1(std::cosh);
 						break;
-					case Nodes::Intrinsic::Op::Tan:
+					case nodes::intrinsic_expression_node::tan:
 						DOFOLDING1(std::tan);
 						break;
-					case Nodes::Intrinsic::Op::Tanh:
+					case nodes::intrinsic_expression_node::tanh:
 						DOFOLDING1(std::tanh);
 						break;
-					case Nodes::Intrinsic::Op::Asin:
+					case nodes::intrinsic_expression_node::asin:
 						DOFOLDING1(std::asin);
 						break;
-					case Nodes::Intrinsic::Op::Acos:
+					case nodes::intrinsic_expression_node::acos:
 						DOFOLDING1(std::acos);
 						break;
-					case Nodes::Intrinsic::Op::Atan:
+					case nodes::intrinsic_expression_node::atan:
 						DOFOLDING1(std::atan);
 						break;
-					case Nodes::Intrinsic::Op::Exp:
+					case nodes::intrinsic_expression_node::exp:
 						DOFOLDING1(std::exp);
 						break;
-					case Nodes::Intrinsic::Op::Log:
+					case nodes::intrinsic_expression_node::log:
 						DOFOLDING1(std::log);
 						break;
-					case Nodes::Intrinsic::Op::Log10:
+					case nodes::intrinsic_expression_node::log10:
 						DOFOLDING1(std::log10);
 						break;
-					case Nodes::Intrinsic::Op::Sqrt:
+					case nodes::intrinsic_expression_node::sqrt:
 						DOFOLDING1(std::sqrt);
 						break;
-					case Nodes::Intrinsic::Op::Ceil:
+					case nodes::intrinsic_expression_node::ceil:
 						DOFOLDING1(std::ceil);
 						break;
-					case Nodes::Intrinsic::Op::Floor:
+					case nodes::intrinsic_expression_node::floor:
 						DOFOLDING1(std::floor);
 						break;
-					case Nodes::Intrinsic::Op::Atan2:
+					case nodes::intrinsic_expression_node::atan2:
 						DOFOLDING2_FUNCTION(std::atan2);
 						break;
-					case Nodes::Intrinsic::Op::Pow:
+					case nodes::intrinsic_expression_node::pow:
 						DOFOLDING2_FUNCTION(std::pow);
 						break;
-					case Nodes::Intrinsic::Op::Min:
+					case nodes::intrinsic_expression_node::min:
 						DOFOLDING2_FUNCTION(std::min);
 						break;
-					case Nodes::Intrinsic::Op::Max:
+					case nodes::intrinsic_expression_node::max:
 						DOFOLDING2_FUNCTION(std::max);
 						break;
 				}
 			}
-			else if (expression->id == nodeid::Constructor)
+			else if (expression->id == nodeid::constructor_expression)
 			{
-				const auto constructor = static_cast<Nodes::Constructor *>(expression);
+				const auto constructor = static_cast<nodes::constructor_expression_node *>(expression);
 
-				for (auto argument : constructor->Arguments)
+				for (auto argument : constructor->arguments)
 				{
-					if (argument->id != nodeid::Literal)
+					if (argument->id != nodeid::literal_expression)
 					{
 						return expression;
 					}
 				}
 
 				unsigned int k = 0;
-				const auto literal = _ast->make_node<Nodes::Literal>(constructor->location);
-				literal->Type = constructor->Type;
+				const auto literal = _ast->make_node<nodes::literal_expression_node>(constructor->location);
+				literal->type = constructor->type;
 
-				for (auto argument : constructor->Arguments)
+				for (auto argument : constructor->arguments)
 				{
-					for (unsigned int j = 0; j < argument->Type.Rows * argument->Type.Cols; ++k, ++j)
+					for (unsigned int j = 0; j < argument->type.rows * argument->type.cols; ++k, ++j)
 					{
-						VectorLiteralCast(static_cast<Nodes::Literal *>(argument), k, literal, j);
+						vector_literal_cast(static_cast<nodes::literal_expression_node *>(argument), k, literal, j);
 					}
 				}
 
 				expression = literal;
 			}
-			else if (expression->id == nodeid::LValue)
+			else if (expression->id == nodeid::lvalue_expression)
 			{
-				const auto variable = static_cast<Nodes::LValue *>(expression)->Reference;
+				const auto variable = static_cast<nodes::lvalue_expression_node *>(expression)->reference;
 
-				if (variable->Initializer == nullptr || !(variable->Initializer->id == nodeid::Literal && variable->Type.HasQualifier(Nodes::Type::Qualifier::Const)))
+				if (variable->initializer_expression == nullptr || !(variable->initializer_expression->id == nodeid::literal_expression && variable->type.has_qualifier(nodes::type_node::const_)))
 				{
 					return expression;
 				}
 
-				const auto literal = _ast->make_node<Nodes::Literal>(expression->location);
-				literal->Type = expression->Type;
-				literal->Value = static_cast<const Nodes::Literal *>(variable->Initializer)->Value;
+				const auto literal = _ast->make_node<nodes::literal_expression_node>(expression->location);
+				literal->type = expression->type;
+				memcpy(literal->value_uint, static_cast<const nodes::literal_expression_node *>(variable->initializer_expression)->value_uint, sizeof(literal->value_uint));
 
 				expression = literal;
 			}

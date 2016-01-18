@@ -5,89 +5,89 @@
 #include <algorithm>
 #include <d3d9.h>
 
-namespace ReShade
+namespace reshade
 {
-	namespace Runtimes
+	namespace runtimes
 	{
-		class D3D9Runtime : public Runtime
+		class d3d9_runtime : public runtime
 		{
 		public:
-			D3D9Runtime(IDirect3DDevice9 *device, IDirect3DSwapChain9 *swapchain);
-			~D3D9Runtime();
+			d3d9_runtime(IDirect3DDevice9 *device, IDirect3DSwapChain9 *swapchain);
+			~d3d9_runtime();
 
-			bool OnInit(const D3DPRESENT_PARAMETERS &pp);
-			void OnReset() override;
-			void OnPresent() override;
-			void OnDrawCall(D3DPRIMITIVETYPE type, UINT count);
-			void OnApplyEffect() override;
-			void OnApplyEffectTechnique(const Technique *technique) override;
-			void OnSetDepthStencilSurface(IDirect3DSurface9 *&depthstencil);
-			void OnGetDepthStencilSurface(IDirect3DSurface9 *&depthstencil);
+			bool on_init(const D3DPRESENT_PARAMETERS &pp);
+			void on_reset() override;
+			void on_present() override;
+			void on_draw_call(D3DPRIMITIVETYPE type, UINT count);
+			void on_apply_effect() override;
+			void on_apply_effect_technique(const technique *technique) override;
+			void on_set_depthstencil_surface(IDirect3DSurface9 *&depthstencil);
+			void on_get_depthstencil_surface(IDirect3DSurface9 *&depthstencil);
 
-			Texture *GetTexture(const std::string &name) const
+			texture *get_texture(const std::string &name) const
 			{
-				const auto it = std::find_if(_textures.cbegin(), _textures.cend(), [name](const std::unique_ptr<Texture> &it) { return it->Name == name; });
+				const auto it = std::find_if(_textures.cbegin(), _textures.cend(), [name](const std::unique_ptr<texture> &it) { return it->name == name; });
 
 				return it != _textures.cend() ? it->get() : nullptr;
 			}
-			void EnlargeConstantStorage()
+			void enlarge_uniform_data_storage()
 			{
-				_uniformDataStorage.resize(_uniformDataStorage.size() + 64 * sizeof(float));
+				_uniform_data_storage.resize(_uniform_data_storage.size() + 64 * sizeof(float));
 			}
-			unsigned char *GetConstantStorage()
+			unsigned char *get_uniform_data_storage()
 			{
-				return _uniformDataStorage.data();
+				return _uniform_data_storage.data();
 			}
-			size_t GetConstantStorageSize() const
+			size_t get_uniform_data_storage_size() const
 			{
-				return _uniformDataStorage.size();
+				return _uniform_data_storage.size();
 			}
-			void AddTexture(Texture *texture)
+			void add_texture(texture *x)
 			{
-				_textures.push_back(std::unique_ptr<Texture>(texture));
+				_textures.push_back(std::unique_ptr<texture>(x));
 			}
-			void AddConstant(Uniform *constant)
+			void add_uniform(uniform *x)
 			{
-				_uniforms.push_back(std::unique_ptr<Uniform>(constant));
+				_uniforms.push_back(std::unique_ptr<uniform>(x));
 			}
-			void AddTechnique(Technique *technique)
+			void add_technique(technique *x)
 			{
-				_techniques.push_back(std::unique_ptr<Technique>(technique));
+				_techniques.push_back(std::unique_ptr<technique>(x));
 			}
 
 			IDirect3D9 *_d3d;
 			IDirect3DDevice9 *_device;
 			IDirect3DSwapChain9 *_swapchain;
 
-			IDirect3DSurface9 *_backbuffer, *_backbufferResolved, *_backbufferTextureSurface;
-			IDirect3DTexture9 *_backbufferTexture;
-			IDirect3DTexture9 *_depthStencilTexture;
-			UINT _constantRegisterCount;
+			IDirect3DSurface9 *_backbuffer, *_backbuffer_resolved, *_backbuffer_texture_surface;
+			IDirect3DTexture9 *_backbuffer_texture;
+			IDirect3DTexture9 *_depthstencil_texture;
+			UINT _constant_register_count;
 
 		private:
-			struct DepthSourceInfo
+			struct depth_source_info
 			{
-				UINT Width, Height;
-				FLOAT DrawCallCount, DrawVerticesCount;
+				UINT width, height;
+				FLOAT drawcall_count, vertices_count;
 			};
 
-			void Screenshot(unsigned char *buffer) const override;
-			bool UpdateEffect(const FX::nodetree &ast, const std::vector<std::string> &pragmas, std::string &errors) override;
-			bool UpdateTexture(Texture *texture, const unsigned char *data, size_t size) override;
+			void screenshot(unsigned char *buffer) const override;
+			bool update_effect(const fx::nodetree &ast, const std::vector<std::string> &pragmas, std::string &errors) override;
+			bool update_texture(texture *texture, const unsigned char *data, size_t size) override;
 
-			void DetectDepthSource();
-			bool CreateDepthStencilReplacement(IDirect3DSurface9 *depthstencil);
+			void detect_depth_source();
+			bool create_depthstencil_replacement(IDirect3DSurface9 *depthstencil);
 
-			UINT _behaviorFlags, _numSimultaneousRTs;
-			bool _multisamplingEnabled;
-			D3DFORMAT _backbufferFormat;
-			IDirect3DStateBlock9 *_stateBlock;
-			IDirect3DSurface9 *_depthStencil, *_depthStencilReplacement;
-			IDirect3DSurface9 *_defaultDepthStencil;
-			std::unordered_map<IDirect3DSurface9 *, DepthSourceInfo> _depthSourceTable;
+			UINT _behavior_flags, _num_simultaneous_rendertargets;
+			bool _is_multisampling_enabled;
+			D3DFORMAT _backbuffer_format;
+			IDirect3DStateBlock9 *_stateblock;
+			IDirect3DSurface9 *_depthstencil, *_depthstencil_replacement;
+			IDirect3DSurface9 *_default_depthstencil;
+			std::unordered_map<IDirect3DSurface9 *, depth_source_info> _depth_source_table;
 
-			IDirect3DVertexBuffer9 *_effectTriangleBuffer;
-			IDirect3DVertexDeclaration9 *_effectTriangleLayout;
+			IDirect3DVertexBuffer9 *_effect_triangle_buffer;
+			IDirect3DVertexDeclaration9 *_effect_triangle_layout;
 		};
 	}
 }

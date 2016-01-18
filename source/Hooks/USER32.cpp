@@ -27,7 +27,7 @@ EXPORT ATOM WINAPI HookRegisterClassA(CONST WNDCLASSA *lpWndClass)
 		}
 	}
 
-	return ReShade::Hooks::Call(&HookRegisterClassA)(&wndclass);
+	return reshade::hooks::call(&HookRegisterClassA)(&wndclass);
 }
 EXPORT ATOM WINAPI HookRegisterClassW(CONST WNDCLASSW *lpWndClass)
 {
@@ -47,7 +47,7 @@ EXPORT ATOM WINAPI HookRegisterClassW(CONST WNDCLASSW *lpWndClass)
 		}
 	}
 
-	return ReShade::Hooks::Call(&HookRegisterClassW)(&wndclass);
+	return reshade::hooks::call(&HookRegisterClassW)(&wndclass);
 }
 EXPORT ATOM WINAPI HookRegisterClassExA(CONST WNDCLASSEXA *lpWndClassEx)
 {
@@ -67,7 +67,7 @@ EXPORT ATOM WINAPI HookRegisterClassExA(CONST WNDCLASSEXA *lpWndClassEx)
 		}
 	}
 
-	return ReShade::Hooks::Call(&HookRegisterClassExA)(&wndclass);
+	return reshade::hooks::call(&HookRegisterClassExA)(&wndclass);
 }
 EXPORT ATOM WINAPI HookRegisterClassExW(CONST WNDCLASSEXW *lpWndClassEx)
 {
@@ -87,7 +87,7 @@ EXPORT ATOM WINAPI HookRegisterClassExW(CONST WNDCLASSEXW *lpWndClassEx)
 		}
 	}
 
-	return ReShade::Hooks::Call(&HookRegisterClassExW)(&wndclass);
+	return reshade::hooks::call(&HookRegisterClassExW)(&wndclass);
 }
 
 EXPORT BOOL WINAPI HookRegisterRawInputDevices(PCRAWINPUTDEVICE pRawInputDevices, UINT uiNumDevices, UINT cbSize)
@@ -113,10 +113,10 @@ EXPORT BOOL WINAPI HookRegisterRawInputDevices(PCRAWINPUTDEVICE pRawInputDevices
 			continue;
 		}
 
-		ReShade::Input::RegisterRawInputDevice(device);
+		reshade::input::register_raw_input_device(device);
 	}
 
-	if (!ReShade::Hooks::Call(&HookRegisterRawInputDevices)(pRawInputDevices, uiNumDevices, cbSize))
+	if (!reshade::hooks::call(&HookRegisterRawInputDevices)(pRawInputDevices, uiNumDevices, cbSize))
 	{
 		LOG(WARNING) << "> 'RegisterRawInputDevices' failed with '" << GetLastError() << "'!";
 

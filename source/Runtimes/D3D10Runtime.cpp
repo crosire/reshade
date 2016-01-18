@@ -11,9 +11,9 @@
 
 // ---------------------------------------------------------------------------------------------------
 
-namespace ReShade
+namespace reshade
 {
-	namespace Runtimes
+	namespace runtimes
 	{
 		namespace
 		{
@@ -32,24 +32,23 @@ namespace ReShade
 				return ref;
 			}
 
-			struct D3D10Technique : public Technique
+			struct d3d10_pass
 			{
-				struct Pass
+				ID3D10VertexShader *VS;
+				ID3D10PixelShader *PS;
+				ID3D10BlendState *BS;
+				ID3D10DepthStencilState *DSS;
+				UINT StencilRef;
+				ID3D10RenderTargetView *RT[D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT];
+				ID3D10ShaderResourceView *RTSRV[D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT];
+				D3D10_VIEWPORT Viewport;
+				std::vector<ID3D10ShaderResourceView *> SRV;
+			};
+			struct d3d10_technique : public technique
+			{
+				~d3d10_technique()
 				{
-					ID3D10VertexShader *VS;
-					ID3D10PixelShader *PS;
-					ID3D10BlendState *BS;
-					ID3D10DepthStencilState *DSS;
-					UINT StencilRef;
-					ID3D10RenderTargetView *RT[D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT];
-					ID3D10ShaderResourceView *RTSRV[D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT];
-					D3D10_VIEWPORT Viewport;
-					std::vector<ID3D10ShaderResourceView *> SRV;
-				};
-
-				~D3D10Technique()
-				{
-					for (auto &pass : Passes)
+					for (auto &pass : passes)
 					{
 						if (pass.VS != nullptr)
 						{
@@ -70,22 +69,14 @@ namespace ReShade
 					}
 				}
 
-				std::vector<Pass> Passes;
+				std::vector<d3d10_pass> passes;
 			};
-			struct D3D10Texture : public Texture
+			struct d3d10_texture : public texture
 			{
-				enum class Source
-				{
-					None,
-					Memory,
-					BackBuffer,
-					DepthStencil
-				};
-
-				D3D10Texture() : DataSource(Source::None), ShaderRegister(0), TextureInterface(nullptr), ShaderResourceView(), RenderTargetView()
+				d3d10_texture() : ShaderRegister(0), TextureInterface(nullptr), ShaderResourceView(), RenderTargetView()
 				{
 				}
-				~D3D10Texture()
+				~d3d10_texture()
 				{
 					SAFE_RELEASE(RenderTargetView[0]);
 					SAFE_RELEASE(RenderTargetView[1]);
@@ -95,9 +86,9 @@ namespace ReShade
 					SAFE_RELEASE(TextureInterface);
 				}
 
-				void ChangeDataSource(Source source, D3D10Runtime *runtime, ID3D10ShaderResourceView *srv, ID3D10ShaderResourceView *srvSRGB)
+				void change_data_source(datatype source, d3d10_runtime *runtime, ID3D10ShaderResourceView *srv, ID3D10ShaderResourceView *srvSRGB)
 				{
-					DataSource = source;
+					basetype = source;
 
 					if (srvSRGB == nullptr)
 					{
@@ -127,21 +118,21 @@ namespace ReShade
 						D3D10_TEXTURE2D_DESC texdesc;
 						TextureInterface->GetDesc(&texdesc);
 
-						Width = texdesc.Width;
-						Height = texdesc.Height;
-						Format = Texture::PixelFormat::Unknown;
-						Levels = texdesc.MipLevels;
+						width = texdesc.Width;
+						height = texdesc.Height;
+						format = texture::pixelformat::unknown;
+						levels = texdesc.MipLevels;
 					}
 					else
 					{
-						Width = Height = Levels = 0;
-						Format = Texture::PixelFormat::Unknown;
+						width = height = levels = 0;
+						format = texture::pixelformat::unknown;
 					}
 
 					// Update techniques shader resourceviews
 					for (auto &technique : runtime->GetTechniques())
 					{
-						for (auto &pass : static_cast<D3D10Technique *>(technique.get())->Passes)
+						for (auto &pass : static_cast<d3d10_technique *>(technique.get())->passes)
 						{
 							pass.SRV[ShaderRegister] = ShaderResourceView[0];
 							pass.SRV[ShaderRegister + 1] = ShaderResourceView[1];
@@ -149,56 +140,58 @@ namespace ReShade
 					}
 				}
 
-				Source DataSource;
 				size_t ShaderRegister;
 				ID3D10Texture2D *TextureInterface;
 				ID3D10ShaderResourceView *ShaderResourceView[2];
 				ID3D10RenderTargetView *RenderTargetView[2];
 			};
 
-			class D3D10EffectCompiler : private boost::noncopyable
+			class d3d10_fx_compiler
 			{
+				d3d10_fx_compiler(const d3d10_fx_compiler &);
+				d3d10_fx_compiler &operator=(const d3d10_fx_compiler &);
+
 			public:
-				D3D10EffectCompiler(const FX::nodetree &ast, bool skipoptimization = false) : _ast(ast), _runtime(nullptr), _isFatal(false), _skipShaderOptimization(skipoptimization), _currentInParameterBlock(false), _currentInFunctionBlock(false), _currentInForInitialization(0), _currentGlobalSize(0)
+				d3d10_fx_compiler(const fx::nodetree &ast, bool skipoptimization = false) : _ast(ast), _runtime(nullptr), _is_fatal(false), _skip_shader_optimization(skipoptimization), _is_in_parameter_block(false), _is_in_function_block(false), _is_in_for_initialization(0), _current_global_size(0)
 				{
 				}
 
-				bool Traverse(D3D10Runtime *runtime, std::string &errors)
+				bool compile(d3d10_runtime *runtime, std::string &errors)
 				{
 					_runtime = runtime;
 					_errors.clear();
-					_isFatal = false;
-					_currentSource.clear();
+					_is_fatal = false;
+					_current_source.clear();
 
 					for (auto type : _ast.structs)
 					{
-						Visit(static_cast<FX::Nodes::Struct *>(type));
+						visit(static_cast<fx::nodes::struct_declaration_node *>(type));
 					}
 					for (auto uniform : _ast.uniforms)
 					{
-						Visit(static_cast<FX::Nodes::Variable *>(uniform));
+						visit(static_cast<fx::nodes::variable_declaration_node *>(uniform));
 					}
 					for (auto function : _ast.functions)
 					{
-						Visit(static_cast<FX::Nodes::Function *>(function));
+						visit(static_cast<fx::nodes::function_declaration_node *>(function));
 					}
 					for (auto technique : _ast.techniques)
 					{
-						Visit(static_cast<FX::Nodes::Technique *>(technique));
+						visit(static_cast<fx::nodes::technique_declaration_node *>(technique));
 					}
 
-					if (_currentGlobalSize != 0)
+					if (_current_global_size != 0)
 					{
-						CD3D10_BUFFER_DESC globalsDesc(RoundToMultipleOf16(_currentGlobalSize), D3D10_BIND_CONSTANT_BUFFER, D3D10_USAGE_DYNAMIC, D3D10_CPU_ACCESS_WRITE);
+						CD3D10_BUFFER_DESC globalsDesc(RoundToMultipleOf16(_current_global_size), D3D10_BIND_CONSTANT_BUFFER, D3D10_USAGE_DYNAMIC, D3D10_CPU_ACCESS_WRITE);
 						D3D10_SUBRESOURCE_DATA globalsInitial;
-						globalsInitial.pSysMem = _runtime->GetConstantStorage();
-						globalsInitial.SysMemPitch = globalsInitial.SysMemSlicePitch = _runtime->_constantBufferSize = _currentGlobalSize;
-						_runtime->_device->CreateBuffer(&globalsDesc, &globalsInitial, &_runtime->_constantBuffer);
+						globalsInitial.pSysMem = _runtime->get_uniform_data_storage();
+						globalsInitial.SysMemPitch = globalsInitial.SysMemSlicePitch = _runtime->_constant_buffer_size = _current_global_size;
+						_runtime->_device->CreateBuffer(&globalsDesc, &globalsInitial, &_runtime->_constant_buffer);
 					}
 
 					errors += _errors;
 
-					return !_isFatal;
+					return !_is_fatal;
 				}
 
 				static inline UINT RoundToMultipleOf16(UINT size)
@@ -207,7 +200,7 @@ namespace ReShade
 				}
 				static D3D10_STENCIL_OP LiteralToStencilOp(unsigned int value)
 				{
-					if (value == FX::Nodes::Pass::States::ZERO)
+					if (value == fx::nodes::pass_declaration_node::states::ZERO)
 					{
 						return D3D10_STENCIL_OP_ZERO;
 					}
@@ -218,68 +211,68 @@ namespace ReShade
 				{
 					switch (value)
 					{
-						case FX::Nodes::Pass::States::ZERO:
+						case fx::nodes::pass_declaration_node::states::ZERO:
 							return D3D10_BLEND_ZERO;
-						case FX::Nodes::Pass::States::ONE:
+						case fx::nodes::pass_declaration_node::states::ONE:
 							return D3D10_BLEND_ONE;
 					}
 
 					return static_cast<D3D10_BLEND>(value);
 				}
-				static DXGI_FORMAT LiteralToFormat(unsigned int value, Texture::PixelFormat &name)
+				static DXGI_FORMAT LiteralToFormat(unsigned int value, texture::pixelformat &name)
 				{
 					switch (value)
 					{
-						case FX::Nodes::Variable::Properties::R8:
-							name = Texture::PixelFormat::R8;
+						case fx::nodes::variable_declaration_node::properties::R8:
+							name = texture::pixelformat::r8;
 							return DXGI_FORMAT_R8_UNORM;
-						case FX::Nodes::Variable::Properties::R16F:
-							name = Texture::PixelFormat::R16F;
+						case fx::nodes::variable_declaration_node::properties::R16F:
+							name = texture::pixelformat::r16f;
 							return DXGI_FORMAT_R16_FLOAT;
-						case FX::Nodes::Variable::Properties::R32F:
-							name = Texture::PixelFormat::R32F;
+						case fx::nodes::variable_declaration_node::properties::R32F:
+							name = texture::pixelformat::r32f;
 							return DXGI_FORMAT_R32_FLOAT;
-						case FX::Nodes::Variable::Properties::RG8:
-							name = Texture::PixelFormat::RG8;
+						case fx::nodes::variable_declaration_node::properties::RG8:
+							name = texture::pixelformat::rg8;
 							return DXGI_FORMAT_R8G8_UNORM;
-						case FX::Nodes::Variable::Properties::RG16:
-							name = Texture::PixelFormat::RG16;
+						case fx::nodes::variable_declaration_node::properties::RG16:
+							name = texture::pixelformat::rg16;
 							return DXGI_FORMAT_R16G16_UNORM;
-						case FX::Nodes::Variable::Properties::RG16F:
-							name = Texture::PixelFormat::RG16F;
+						case fx::nodes::variable_declaration_node::properties::RG16F:
+							name = texture::pixelformat::rg16f;
 							return DXGI_FORMAT_R16G16_FLOAT;
-						case FX::Nodes::Variable::Properties::RG32F:
-							name = Texture::PixelFormat::RG32F;
+						case fx::nodes::variable_declaration_node::properties::RG32F:
+							name = texture::pixelformat::rg32f;
 							return DXGI_FORMAT_R32G32_FLOAT;
-						case FX::Nodes::Variable::Properties::RGBA8:
-							name = Texture::PixelFormat::RGBA8;
+						case fx::nodes::variable_declaration_node::properties::RGBA8:
+							name = texture::pixelformat::rgba8;
 							return DXGI_FORMAT_R8G8B8A8_TYPELESS;
-						case FX::Nodes::Variable::Properties::RGBA16:
-							name = Texture::PixelFormat::RGBA16;
+						case fx::nodes::variable_declaration_node::properties::RGBA16:
+							name = texture::pixelformat::rgba16;
 							return DXGI_FORMAT_R16G16B16A16_UNORM;
-						case FX::Nodes::Variable::Properties::RGBA16F:
-							name = Texture::PixelFormat::RGBA16F;
+						case fx::nodes::variable_declaration_node::properties::RGBA16F:
+							name = texture::pixelformat::rgba16f;
 							return DXGI_FORMAT_R16G16B16A16_FLOAT;
-						case FX::Nodes::Variable::Properties::RGBA32F:
-							name = Texture::PixelFormat::RGBA32F;
+						case fx::nodes::variable_declaration_node::properties::RGBA32F:
+							name = texture::pixelformat::rgba32f;
 							return DXGI_FORMAT_R32G32B32A32_FLOAT;
-						case FX::Nodes::Variable::Properties::DXT1:
-							name = Texture::PixelFormat::DXT1;
+						case fx::nodes::variable_declaration_node::properties::DXT1:
+							name = texture::pixelformat::dxt1;
 							return DXGI_FORMAT_BC1_TYPELESS;
-						case FX::Nodes::Variable::Properties::DXT3:
-							name = Texture::PixelFormat::DXT3;
+						case fx::nodes::variable_declaration_node::properties::DXT3:
+							name = texture::pixelformat::dxt3;
 							return DXGI_FORMAT_BC2_TYPELESS;
-						case FX::Nodes::Variable::Properties::DXT5:
-							name = Texture::PixelFormat::DXT5;
+						case fx::nodes::variable_declaration_node::properties::DXT5:
+							name = texture::pixelformat::dxt5;
 							return DXGI_FORMAT_BC3_TYPELESS;
-						case FX::Nodes::Variable::Properties::LATC1:
-							name = Texture::PixelFormat::LATC1;
+						case fx::nodes::variable_declaration_node::properties::LATC1:
+							name = texture::pixelformat::latc1;
 							return DXGI_FORMAT_BC4_UNORM;
-						case FX::Nodes::Variable::Properties::LATC2:
-							name = Texture::PixelFormat::LATC2;
+						case fx::nodes::variable_declaration_node::properties::LATC2:
+							name = texture::pixelformat::latc2;
 							return DXGI_FORMAT_BC5_UNORM;
 						default:
-							name = Texture::PixelFormat::Unknown;
+							name = texture::pixelformat::unknown;
 							return DXGI_FORMAT_UNKNOWN;
 					}
 				}
@@ -356,7 +349,32 @@ namespace ReShade
 					return h;
 				}
 
-				static std::string ConvertSemantic(const std::string &semantic)
+			private:
+				void error(const fx::location &location, const char *message, ...)
+				{
+					char formatted[512];
+
+					va_list args;
+					va_start(args, message);
+					vsprintf_s(formatted, message, args);
+					va_end(args);
+
+					_errors += location.source + "(" + std::to_string(location.line) + ", " + std::to_string(location.column) + "): error: " + formatted + '\n';
+					_is_fatal = true;
+				}
+				void warning(const fx::location &location, const char *message, ...)
+				{
+					char formatted[512];
+
+					va_list args;
+					va_start(args, message);
+					vsprintf_s(formatted, message, args);
+					va_end(args);
+
+					_errors += location.source + "(" + std::to_string(location.line) + ", " + std::to_string(location.column) + "): warning: " + formatted + '\n';
+				}
+
+				static std::string convert_semantic(const std::string &semantic)
 				{
 					if (semantic == "VERTEXID")
 					{
@@ -377,89 +395,85 @@ namespace ReShade
 
 					return semantic;
 				}
-				static inline std::string PrintLocation(const FX::location &location)
-				{
-					return location.source + "(" + std::to_string(location.line) + ", " + std::to_string(location.column) + "): ";
-				}
-				std::string PrintType(const FX::Nodes::Type &type)
+				std::string print_type(const fx::nodes::type_node &type)
 				{
 					std::string res;
 
-					switch (type.BaseClass)
+					switch (type.basetype)
 					{
-						case FX::Nodes::Type::Class::Void:
+						case fx::nodes::type_node::datatype::void_:
 							res += "void";
 							break;
-						case FX::Nodes::Type::Class::Bool:
+						case fx::nodes::type_node::datatype::bool_:
 							res += "bool";
 							break;
-						case FX::Nodes::Type::Class::Int:
+						case fx::nodes::type_node::datatype::int_:
 							res += "int";
 							break;
-						case FX::Nodes::Type::Class::Uint:
+						case fx::nodes::type_node::datatype::uint_:
 							res += "uint";
 							break;
-						case FX::Nodes::Type::Class::Float:
+						case fx::nodes::type_node::datatype::float_:
 							res += "float";
 							break;
-						case FX::Nodes::Type::Class::Sampler2D:
+						case fx::nodes::type_node::sampler2d:
 							res += "__sampler2D";
 							break;
-						case FX::Nodes::Type::Class::Struct:
-							res += PrintName(type.Definition);
+						case fx::nodes::type_node::datatype::struct_:
+							res += print_name(type.definition);
 							break;
 					}
 
-					if (type.IsMatrix())
+					if (type.is_matrix())
 					{
-						res += std::to_string(type.Rows) + "x" + std::to_string(type.Cols);
+						res += std::to_string(type.rows) + "x" + std::to_string(type.cols);
 					}
-					else if (type.IsVector())
+					else if (type.is_vector())
 					{
-						res += std::to_string(type.Rows);
+						res += std::to_string(type.rows);
 					}
 
 					return res;
 				}
-				std::string PrintTypeWithQualifiers(const FX::Nodes::Type &type)
+				std::string print_type_with_qualifiers(const fx::nodes::type_node &type)
 				{
 					std::string qualifiers;
 
-					if (type.HasQualifier(FX::Nodes::Type::Qualifier::Extern))
+					if (type.has_qualifier(fx::nodes::type_node::extern_))
 						qualifiers += "extern ";
-					if (type.HasQualifier(FX::Nodes::Type::Qualifier::Static))
+					if (type.has_qualifier(fx::nodes::type_node::static_))
 						qualifiers += "static ";
-					if (type.HasQualifier(FX::Nodes::Type::Qualifier::Const))
+					if (type.has_qualifier(fx::nodes::type_node::const_))
 						qualifiers += "const ";
-					if (type.HasQualifier(FX::Nodes::Type::Qualifier::Volatile))
+					if (type.has_qualifier(fx::nodes::type_node::volatile_))
 						qualifiers += "volatile ";
-					if (type.HasQualifier(FX::Nodes::Type::Qualifier::Precise))
+					if (type.has_qualifier(fx::nodes::type_node::precise))
 						qualifiers += "precise ";
-					if (type.HasQualifier(FX::Nodes::Type::Qualifier::Linear))
+					if (type.has_qualifier(fx::nodes::type_node::linear))
 						qualifiers += "linear ";
-					if (type.HasQualifier(FX::Nodes::Type::Qualifier::NoPerspective))
+					if (type.has_qualifier(fx::nodes::type_node::noperspective))
 						qualifiers += "noperspective ";
-					if (type.HasQualifier(FX::Nodes::Type::Qualifier::Centroid))
+					if (type.has_qualifier(fx::nodes::type_node::centroid))
 						qualifiers += "centroid ";
-					if (type.HasQualifier(FX::Nodes::Type::Qualifier::NoInterpolation))
+					if (type.has_qualifier(fx::nodes::type_node::nointerpolation))
 						qualifiers += "nointerpolation ";
-					if (type.HasQualifier(FX::Nodes::Type::Qualifier::InOut))
+					if (type.has_qualifier(fx::nodes::type_node::inout))
 						qualifiers += "inout ";
-					else if (type.HasQualifier(FX::Nodes::Type::Qualifier::In))
+					else if (type.has_qualifier(fx::nodes::type_node::in))
 						qualifiers += "in ";
-					else if (type.HasQualifier(FX::Nodes::Type::Qualifier::Out))
+					else if (type.has_qualifier(fx::nodes::type_node::out))
 						qualifiers += "out ";
-					else if (type.HasQualifier(FX::Nodes::Type::Qualifier::Uniform))
+					else if (type.has_qualifier(fx::nodes::type_node::uniform_))
 						qualifiers += "uniform ";
 
-					return qualifiers + PrintType(type);
+					return qualifiers + print_type(type);
 				}
-				inline std::string PrintName(const FX::Nodes::Declaration *declaration)
+				inline std::string print_name(const fx::nodes::declaration_node *declaration)
 				{
-					return boost::replace_all_copy(declaration->Namespace, "::", "_NS") + declaration->Name;
+					return boost::replace_all_copy(declaration->Namespace, "::", "_NS") + declaration->name;
 				}
 
-				void Visit(const FX::Nodes::Statement *node)
+				void visit(const fx::nodes::statement_node *node)
 				{
 					if (node == nullptr)
 					{
@@ -468,80 +482,80 @@ namespace ReShade
 
 					switch (node->id)
 					{
-						case FX::nodeid::Compound:
-							Visit(static_cast<const FX::Nodes::Compound *>(node));
+						case fx::nodeid::compound_statement:
+							visit(static_cast<const fx::nodes::compound_statement_node *>(node));
 							break;
-						case FX::nodeid::DeclaratorList:
-							Visit(static_cast<const FX::Nodes::DeclaratorList *>(node));
+						case fx::nodeid::declarator_list:
+							visit(static_cast<const fx::nodes::declarator_list_node *>(node));
 							break;
-						case FX::nodeid::ExpressionStatement:
-							Visit(static_cast<const FX::Nodes::ExpressionStatement *>(node));
+						case fx::nodeid::expression_statement:
+							visit(static_cast<const fx::nodes::expression_statement_node *>(node));
 							break;
-						case FX::nodeid::If:
-							Visit(static_cast<const FX::Nodes::If *>(node));
+						case fx::nodeid::if_statement:
+							visit(static_cast<const fx::nodes::if_statement_node *>(node));
 							break;
-						case FX::nodeid::Switch:
-							Visit(static_cast<const FX::Nodes::Switch *>(node));
+						case fx::nodeid::switch_statement:
+							visit(static_cast<const fx::nodes::switch_statement_node *>(node));
 							break;
-						case FX::nodeid::For:
-							Visit(static_cast<const FX::Nodes::For *>(node));
+						case fx::nodeid::for_statement:
+							visit(static_cast<const fx::nodes::for_statement_node *>(node));
 							break;
-						case FX::nodeid::While:
-							Visit(static_cast<const FX::Nodes::While *>(node));
+						case fx::nodeid::while_statement:
+							visit(static_cast<const fx::nodes::while_statement_node *>(node));
 							break;
-						case FX::nodeid::Return:
-							Visit(static_cast<const FX::Nodes::Return *>(node));
+						case fx::nodeid::return_statement:
+							visit(static_cast<const fx::nodes::return_statement_node *>(node));
 							break;
-						case FX::nodeid::Jump:
-							Visit(static_cast<const FX::Nodes::Jump *>(node));
+						case fx::nodeid::jump_statement:
+							visit(static_cast<const fx::nodes::jump_statement_node *>(node));
 							break;
 						default:
 							assert(false);
 							break;
 					}
 				}
-				void Visit(const FX::Nodes::Expression *node)
+				void visit(const fx::nodes::expression_node *node)
 				{
 					switch (node->id)
 					{
-						case FX::nodeid::LValue:
-							Visit(static_cast<const FX::Nodes::LValue *>(node));
+						case fx::nodeid::lvalue_expression:
+							visit(static_cast<const fx::nodes::lvalue_expression_node *>(node));
 							break;
-						case FX::nodeid::Literal:
-							Visit(static_cast<const FX::Nodes::Literal *>(node));
+						case fx::nodeid::literal_expression:
+							visit(static_cast<const fx::nodes::literal_expression_node *>(node));
 							break;
-						case FX::nodeid::Sequence:
-							Visit(static_cast<const FX::Nodes::Sequence *>(node));
+						case fx::nodeid::expression_sequence:
+							visit(static_cast<const fx::nodes::expression_sequence_node *>(node));
 							break;
-						case FX::nodeid::Unary:
-							Visit(static_cast<const FX::Nodes::Unary *>(node));
+						case fx::nodeid::unary_expression:
+							visit(static_cast<const fx::nodes::unary_expression_node *>(node));
 							break;
-						case FX::nodeid::Binary:
-							Visit(static_cast<const FX::Nodes::Binary *>(node));
+						case fx::nodeid::binary_expression:
+							visit(static_cast<const fx::nodes::binary_expression_node *>(node));
 							break;
-						case FX::nodeid::Intrinsic:
-							Visit(static_cast<const FX::Nodes::Intrinsic *>(node));
+						case fx::nodeid::intrinsic_expression:
+							visit(static_cast<const fx::nodes::intrinsic_expression_node *>(node));
 							break;
-						case FX::nodeid::Conditional:
-							Visit(static_cast<const FX::Nodes::Conditional *>(node));
+						case fx::nodeid::conditional_expression:
+							visit(static_cast<const fx::nodes::conditional_expression_node *>(node));
 							break;
-						case FX::nodeid::Swizzle:
-							Visit(static_cast<const FX::Nodes::Swizzle *>(node));
+						case fx::nodeid::swizzle_expression:
+							visit(static_cast<const fx::nodes::swizzle_expression_node *>(node));
 							break;
-						case FX::nodeid::FieldSelection:
-							Visit(static_cast<const FX::Nodes::FieldSelection *>(node));
+						case fx::nodeid::field_expression:
+							visit(static_cast<const fx::nodes::field_expression_node *>(node));
 							break;
-						case FX::nodeid::Assignment:
-							Visit(static_cast<const FX::Nodes::Assignment *>(node));
+						case fx::nodeid::assignment_expression:
+							visit(static_cast<const fx::nodes::assignment_expression_node *>(node));
 							break;
-						case FX::nodeid::Call:
-							Visit(static_cast<const FX::Nodes::Call *>(node));
+						case fx::nodeid::call_expression:
+							visit(static_cast<const fx::nodes::call_expression_node *>(node));
 							break;
-						case FX::nodeid::Constructor:
-							Visit(static_cast<const FX::Nodes::Constructor *>(node));
+						case fx::nodeid::constructor_expression:
+							visit(static_cast<const fx::nodes::constructor_expression_node *>(node));
 							break;
-						case FX::nodeid::InitializerList:
-							Visit(static_cast<const FX::Nodes::InitializerList *>(node));
+						case fx::nodeid::initializer_list:
+							visit(static_cast<const fx::nodes::initializer_list_node *>(node));
 							break;
 						default:
 							assert(false);
@@ -549,833 +563,830 @@ namespace ReShade
 					}
 				}
 
-				void Visit(const FX::Nodes::Compound *node)
+				void visit(const fx::nodes::compound_statement_node *node)
 				{
-					_currentSource += "{\n";
+					_current_source += "{\n";
 
-					for (auto statement : node->Statements)
+					for (auto statement : node->statement_list)
 					{
-						Visit(statement);
+						visit(statement);
 					}
 
-					_currentSource += "}\n";
+					_current_source += "}\n";
 				}
-				void Visit(const FX::Nodes::DeclaratorList *node)
+				void visit(const fx::nodes::declarator_list_node *node)
 				{
-					for (auto declarator : node->Declarators)
+					for (auto declarator : node->declarator_list)
 					{
-						Visit(declarator);
+						visit(declarator);
 
-						if (_currentInForInitialization)
+						if (_is_in_for_initialization)
 						{
-							_currentSource += ", ";
-							_currentInForInitialization++;
+							_current_source += ", ";
+							_is_in_for_initialization++;
 						}
 						else
 						{
-							_currentSource += ";\n";
+							_current_source += ";\n";
 						}
 					}
 				}
-				void Visit(const FX::Nodes::ExpressionStatement *node)
+				void visit(const fx::nodes::expression_statement_node *node)
 				{
-					Visit(node->Expression);
+					visit(node->expression);
 
-					_currentSource += ";\n";
+					_current_source += ";\n";
 				}
-				void Visit(const FX::Nodes::If *node)
+				void visit(const fx::nodes::if_statement_node *node)
 				{
-					for (auto &attribute : node->Attributes)
+					for (auto &attribute : node->attributes)
 					{
-						_currentSource += '[';
-						_currentSource += attribute;
-						_currentSource += ']';
+						_current_source += '[';
+						_current_source += attribute;
+						_current_source += ']';
 					}
 
-					_currentSource += "if (";
-					Visit(node->Condition);
-					_currentSource += ")\n";
+					_current_source += "if (";
+					visit(node->condition);
+					_current_source += ")\n";
 
-					if (node->StatementOnTrue != nullptr)
+					if (node->statement_when_true != nullptr)
 					{
-						Visit(node->StatementOnTrue);
+						visit(node->statement_when_true);
 					}
 					else
 					{
-						_currentSource += "\t;";
+						_current_source += "\t;";
 					}
 					
-					if (node->StatementOnFalse != nullptr)
+					if (node->statement_when_false != nullptr)
 					{
-						_currentSource += "else\n";
+						_current_source += "else\n";
 						
-						Visit(node->StatementOnFalse);
+						visit(node->statement_when_false);
 					}
 				}
-				void Visit(const FX::Nodes::Switch *node)
+				void visit(const fx::nodes::switch_statement_node *node)
 				{
-					for (auto &attribute : node->Attributes)
+					for (auto &attribute : node->attributes)
 					{
-						_currentSource += '[';
-						_currentSource += attribute;
-						_currentSource += ']';
+						_current_source += '[';
+						_current_source += attribute;
+						_current_source += ']';
 					}
 
-					_currentSource += "switch (";
-					Visit(node->Test);
-					_currentSource += ")\n{\n";
+					_current_source += "switch (";
+					visit(node->test_expression);
+					_current_source += ")\n{\n";
 
-					for (auto cases : node->Cases)
+					for (auto cases : node->case_list)
 					{
-						Visit(cases);
+						visit(cases);
 					}
 
-					_currentSource += "}\n";
+					_current_source += "}\n";
 				}
-				void Visit(const FX::Nodes::Case *node)
+				void visit(const fx::nodes::case_statement_node *node)
 				{
-					for (auto label : node->Labels)
+					for (auto label : node->labels)
 					{
 						if (label == nullptr)
 						{
-							_currentSource += "default";
+							_current_source += "default";
 						}
 						else
 						{
-							_currentSource += "case ";
+							_current_source += "case ";
 
-							Visit(label);
+							visit(label);
 						}
 
-						_currentSource += ":\n";
+						_current_source += ":\n";
 					}
 
-					Visit(node->Statements);
+					visit(node->statement_list);
 				}
-				void Visit(const FX::Nodes::For *node)
+				void visit(const fx::nodes::for_statement_node *node)
 				{
-					for (auto &attribute : node->Attributes)
+					for (auto &attribute : node->attributes)
 					{
-						_currentSource += '[';
-						_currentSource += attribute;
-						_currentSource += ']';
+						_current_source += '[';
+						_current_source += attribute;
+						_current_source += ']';
 					}
 
-					_currentSource += "for (";
+					_current_source += "for (";
 
-					if (node->Initialization != nullptr)
+					if (node->init_statement != nullptr)
 					{
-						_currentInForInitialization = 1;
+						_is_in_for_initialization = 1;
 
-						Visit(node->Initialization);
+						visit(node->init_statement);
 
-						_currentInForInitialization = 0;
+						_is_in_for_initialization = 0;
 
-						_currentSource.pop_back();
-						_currentSource.pop_back();
+						_current_source.pop_back();
+						_current_source.pop_back();
 					}
 
-					_currentSource += "; ";
+					_current_source += "; ";
 										
-					if (node->Condition != nullptr)
+					if (node->condition != nullptr)
 					{
-						Visit(node->Condition);
+						visit(node->condition);
 					}
 
-					_currentSource += "; ";
+					_current_source += "; ";
 
-					if (node->Increment != nullptr)
+					if (node->increment_expression != nullptr)
 					{
-						Visit(node->Increment);
+						visit(node->increment_expression);
 					}
 
-					_currentSource += ")\n";
+					_current_source += ")\n";
 
-					if (node->Statements != nullptr)
+					if (node->statement_list != nullptr)
 					{
-						Visit(node->Statements);
+						visit(node->statement_list);
 					}
 					else
 					{
-						_currentSource += "\t;";
+						_current_source += "\t;";
 					}
 				}
-				void Visit(const FX::Nodes::While *node)
+				void visit(const fx::nodes::while_statement_node *node)
 				{
-					for (auto &attribute : node->Attributes)
+					for (auto &attribute : node->attributes)
 					{
-						_currentSource += '[';
-						_currentSource += attribute;
-						_currentSource += ']';
+						_current_source += '[';
+						_current_source += attribute;
+						_current_source += ']';
 					}
 
-					if (node->DoWhile)
+					if (node->is_do_while)
 					{
-						_currentSource += "do\n{\n";
+						_current_source += "do\n{\n";
 
-						if (node->Statements != nullptr)
+						if (node->statement_list != nullptr)
 						{
-							Visit(node->Statements);
+							visit(node->statement_list);
 						}
 
-						_currentSource += "}\n";
-						_currentSource += "while (";
-						Visit(node->Condition);
-						_currentSource += ");\n";
+						_current_source += "}\n";
+						_current_source += "while (";
+						visit(node->condition);
+						_current_source += ");\n";
 					}
 					else
 					{
-						_currentSource += "while (";
-						Visit(node->Condition);
-						_currentSource += ")\n";
+						_current_source += "while (";
+						visit(node->condition);
+						_current_source += ")\n";
 
-						if (node->Statements != nullptr)
+						if (node->statement_list != nullptr)
 						{
-							Visit(node->Statements);
+							visit(node->statement_list);
 						}
 						else
 						{
-							_currentSource += "\t;";
+							_current_source += "\t;";
 						}
 					}
 				}
-				void Visit(const FX::Nodes::Return *node)
+				void visit(const fx::nodes::return_statement_node *node)
 				{
-					if (node->Discard)
+					if (node->is_discard)
 					{
-						_currentSource += "discard";
+						_current_source += "discard";
 					}
 					else
 					{
-						_currentSource += "return";
+						_current_source += "return";
 
-						if (node->Value != nullptr)
+						if (node->return_value != nullptr)
 						{
-							_currentSource += ' ';
+							_current_source += ' ';
 
-							Visit(node->Value);
+							visit(node->return_value);
 						}
 					}
 
-					_currentSource += ";\n";
+					_current_source += ";\n";
 				}
-				void Visit(const FX::Nodes::Jump *node)
+				void visit(const fx::nodes::jump_statement_node *node)
 				{
-					switch (node->Mode)
+					if (node->is_break)
 					{
-						case FX::Nodes::Jump::Break:
-							_currentSource += "break";
-							break;
-						case FX::Nodes::Jump::Continue:
-							_currentSource += "continue";
-							break;
+						_current_source += "break;\n";
+					}
+					else if (node->is_continue)
+					{
+						_current_source += "continue;\n";
+					}
+				}
+
+				void visit(const fx::nodes::lvalue_expression_node *node)
+				{
+					_current_source += print_name(node->reference);
+				}
+				void visit(const fx::nodes::literal_expression_node *node)
+				{
+					if (!node->type.is_scalar())
+					{
+						_current_source += print_type(node->type);
+						_current_source += '(';
 					}
 
-					_currentSource += ";\n";
-				}
-
-				void Visit(const FX::Nodes::LValue *node)
-				{
-					_currentSource += PrintName(node->Reference);
-				}
-				void Visit(const FX::Nodes::Literal *node)
-				{
-					if (!node->Type.IsScalar())
+					for (unsigned int i = 0; i < node->type.rows * node->type.cols; ++i)
 					{
-						_currentSource += PrintType(node->Type);
-						_currentSource += '(';
-					}
-
-					for (unsigned int i = 0; i < node->Type.Rows * node->Type.Cols; ++i)
-					{
-						switch (node->Type.BaseClass)
+						switch (node->type.basetype)
 						{
-							case FX::Nodes::Type::Class::Bool:
-								_currentSource += node->Value.Int[i] ? "true" : "false";
+							case fx::nodes::type_node::bool_:
+								_current_source += node->value_int[i] ? "true" : "false";
 								break;
-							case FX::Nodes::Type::Class::Int:
-								_currentSource += std::to_string(node->Value.Int[i]);
+							case fx::nodes::type_node::int_:
+								_current_source += std::to_string(node->value_int[i]);
 								break;
-							case FX::Nodes::Type::Class::Uint:
-								_currentSource += std::to_string(node->Value.Uint[i]);
+							case fx::nodes::type_node::uint_:
+								_current_source += std::to_string(node->value_uint[i]);
 								break;
-							case FX::Nodes::Type::Class::Float:
-								_currentSource += std::to_string(node->Value.Float[i]) + "f";
+							case fx::nodes::type_node::float_:
+								_current_source += std::to_string(node->value_float[i]) + "f";
 								break;
 						}
 
-						_currentSource += ", ";
+						_current_source += ", ";
 					}
 
-					_currentSource.pop_back();
-					_currentSource.pop_back();
+					_current_source.pop_back();
+					_current_source.pop_back();
 
-					if (!node->Type.IsScalar())
+					if (!node->type.is_scalar())
 					{
-						_currentSource += ')';
+						_current_source += ')';
 					}
 				}
-				void Visit(const FX::Nodes::Sequence *node)
+				void visit(const fx::nodes::expression_sequence_node *node)
 				{
-					_currentSource += '(';
+					_current_source += '(';
 
-					for (auto expression : node->Expressions)
+					for (auto expression : node->expression_list)
 					{
-						Visit(expression);
+						visit(expression);
 
-						_currentSource += ", ";
+						_current_source += ", ";
 					}
 					
-					_currentSource.pop_back();
-					_currentSource.pop_back();
+					_current_source.pop_back();
+					_current_source.pop_back();
 
-					_currentSource += ')';
+					_current_source += ')';
 				}
-				void Visit(const FX::Nodes::Unary *node)
+				void visit(const fx::nodes::unary_expression_node *node)
 				{
 					std::string part1, part2;
 
-					switch (node->Operator)
+					switch (node->op)
 					{
-						case FX::Nodes::Unary::Op::Negate:
+						case fx::nodes::unary_expression_node::negate:
 							part1 = '-';
 							break;
-						case FX::Nodes::Unary::Op::BitwiseNot:
+						case fx::nodes::unary_expression_node::bitwise_not:
 							part1 = "~";
 							break;
-						case FX::Nodes::Unary::Op::LogicalNot:
+						case fx::nodes::unary_expression_node::logical_not:
 							part1 = '!';
 							break;
-						case FX::Nodes::Unary::Op::Increase:
+						case fx::nodes::unary_expression_node::pre_increase:
 							part1 = "++";
 							break;
-						case FX::Nodes::Unary::Op::Decrease:
+						case fx::nodes::unary_expression_node::pre_decrease:
 							part1 = "--";
 							break;
-						case FX::Nodes::Unary::Op::PostIncrease:
+						case fx::nodes::unary_expression_node::post_increase:
 							part2 = "++";
 							break;
-						case FX::Nodes::Unary::Op::PostDecrease:
+						case fx::nodes::unary_expression_node::post_decrease:
 							part2 = "--";
 							break;
-						case FX::Nodes::Unary::Op::Cast:
-							part1 = PrintType(node->Type) + '(';
+						case fx::nodes::unary_expression_node::cast:
+							part1 = print_type(node->type) + '(';
 							part2 = ')';
 							break;
 					}
 
-					_currentSource += part1;
-					Visit(node->Operand);
-					_currentSource += part2;
+					_current_source += part1;
+					visit(node->operand);
+					_current_source += part2;
 				}
-				void Visit(const FX::Nodes::Binary *node)
+				void visit(const fx::nodes::binary_expression_node *node)
 				{
 					std::string part1, part2, part3;
 
-					switch (node->Operator)
+					switch (node->op)
 					{
-						case FX::Nodes::Binary::Op::Add:
+						case fx::nodes::binary_expression_node::add:
 							part1 = '(';
 							part2 = " + ";
 							part3 = ')';
 							break;
-						case FX::Nodes::Binary::Op::Subtract:
+						case fx::nodes::binary_expression_node::subtract:
 							part1 = '(';
 							part2 = " - ";
 							part3 = ')';
 							break;
-						case FX::Nodes::Binary::Op::Multiply:
+						case fx::nodes::binary_expression_node::multiply:
 							part1 = '(';
 							part2 = " * ";
 							part3 = ')';
 							break;
-						case FX::Nodes::Binary::Op::Divide:
+						case fx::nodes::binary_expression_node::divide:
 							part1 = '(';
 							part2 = " / ";
 							part3 = ')';
 							break;
-						case FX::Nodes::Binary::Op::Modulo:
+						case fx::nodes::binary_expression_node::modulo:
 							part1 = '(';
 							part2 = " % ";
 							part3 = ')';
 							break;
-						case FX::Nodes::Binary::Op::Less:
+						case fx::nodes::binary_expression_node::less:
 							part1 = '(';
 							part2 = " < ";
 							part3 = ')';
 							break;
-						case FX::Nodes::Binary::Op::Greater:
+						case fx::nodes::binary_expression_node::greater:
 							part1 = '(';
 							part2 = " > ";
 							part3 = ')';
 							break;
-						case FX::Nodes::Binary::Op::LessOrEqual:
+						case fx::nodes::binary_expression_node::less_equal:
 							part1 = '(';
 							part2 = " <= ";
 							part3 = ')';
 							break;
-						case FX::Nodes::Binary::Op::GreaterOrEqual:
+						case fx::nodes::binary_expression_node::greater_equal:
 							part1 = '(';
 							part2 = " >= ";
 							part3 = ')';
 							break;
-						case FX::Nodes::Binary::Op::Equal:
+						case fx::nodes::binary_expression_node::equal:
 							part1 = '(';
 							part2 = " == ";
 							part3 = ')';
 							break;
-						case FX::Nodes::Binary::Op::NotEqual:
+						case fx::nodes::binary_expression_node::not_equal:
 							part1 = '(';
 							part2 = " != ";
 							part3 = ')';
 							break;
-						case FX::Nodes::Binary::Op::LeftShift:
+						case fx::nodes::binary_expression_node::left_shift:
 							part1 = "(";
 							part2 = " << ";
 							part3 = ")";
 							break;
-						case FX::Nodes::Binary::Op::RightShift:
+						case fx::nodes::binary_expression_node::right_shift:
 							part1 = "(";
 							part2 = " >> ";
 							part3 = ")";
 							break;
-						case FX::Nodes::Binary::Op::BitwiseAnd:
+						case fx::nodes::binary_expression_node::bitwise_and:
 							part1 = "(";
 							part2 = " & ";
 							part3 = ")";
 							break;
-						case FX::Nodes::Binary::Op::BitwiseOr:
+						case fx::nodes::binary_expression_node::bitwise_or:
 							part1 = "(";
 							part2 = " | ";
 							part3 = ")";
 							break;
-						case FX::Nodes::Binary::Op::BitwiseXor:
+						case fx::nodes::binary_expression_node::bitwise_xor:
 							part1 = "(";
 							part2 = " ^ ";
 							part3 = ")";
 							break;
-						case FX::Nodes::Binary::Op::LogicalAnd:
+						case fx::nodes::binary_expression_node::logical_and:
 							part1 = '(';
 							part2 = " && ";
 							part3 = ')';
 							break;
-						case FX::Nodes::Binary::Op::LogicalOr:
+						case fx::nodes::binary_expression_node::logical_or:
 							part1 = '(';
 							part2 = " || ";
 							part3 = ')';
 							break;
-						case FX::Nodes::Binary::Op::ElementExtract:
+						case fx::nodes::binary_expression_node::element_extract:
 							part2 = '[';
 							part3 = ']';
 							break;
 					}
 
-					_currentSource += part1;
-					Visit(node->Operands[0]);
-					_currentSource += part2;
-					Visit(node->Operands[1]);
-					_currentSource += part3;
+					_current_source += part1;
+					visit(node->operands[0]);
+					_current_source += part2;
+					visit(node->operands[1]);
+					_current_source += part3;
 				}
-				void Visit(const FX::Nodes::Intrinsic *node)
+				void visit(const fx::nodes::intrinsic_expression_node *node)
 				{
 					std::string part1, part2, part3, part4, part5;
 
-					switch (node->Operator)
+					switch (node->op)
 					{
-						case FX::Nodes::Intrinsic::Op::Abs:
+						case fx::nodes::intrinsic_expression_node::abs:
 							part1 = "abs(";
 							part2 = ")";
 							break;
-						case FX::Nodes::Intrinsic::Op::Acos:
+						case fx::nodes::intrinsic_expression_node::acos:
 							part1 = "acos(";
 							part2 = ")";
 							break;
-						case FX::Nodes::Intrinsic::Op::All:
+						case fx::nodes::intrinsic_expression_node::all:
 							part1 = "all(";
 							part2 = ")";
 							break;
-						case FX::Nodes::Intrinsic::Op::Any:
+						case fx::nodes::intrinsic_expression_node::any:
 							part1 = "any(";
 							part2 = ")";
 							break;
-						case FX::Nodes::Intrinsic::Op::BitCastInt2Float:
+						case fx::nodes::intrinsic_expression_node::bitcast_int2float:
 							part1 = "asfloat(";
 							part2 = ")";
 							break;
-						case FX::Nodes::Intrinsic::Op::BitCastUint2Float:
+						case fx::nodes::intrinsic_expression_node::bitcast_uint2float:
 							part1 = "asfloat(";
 							part2 = ")";
 							break;
-						case FX::Nodes::Intrinsic::Op::Asin:
+						case fx::nodes::intrinsic_expression_node::asin:
 							part1 = "asin(";
 							part2 = ")";
 							break;
-						case FX::Nodes::Intrinsic::Op::BitCastFloat2Int:
+						case fx::nodes::intrinsic_expression_node::bitcast_float2int:
 							part1 = "asint(";
 							part2 = ")";
 							break;
-						case FX::Nodes::Intrinsic::Op::BitCastFloat2Uint:
+						case fx::nodes::intrinsic_expression_node::bitcast_float2uint:
 							part1 = "asuint(";
 							part2 = ")";
 							break;
-						case FX::Nodes::Intrinsic::Op::Atan:
+						case fx::nodes::intrinsic_expression_node::atan:
 							part1 = "atan(";
 							part2 = ")";
 							break;
-						case FX::Nodes::Intrinsic::Op::Atan2:
+						case fx::nodes::intrinsic_expression_node::atan2:
 							part1 = "atan2(";
 							part2 = ", ";
 							part3 = ")";
 							break;
-						case FX::Nodes::Intrinsic::Op::Ceil:
+						case fx::nodes::intrinsic_expression_node::ceil:
 							part1 = "ceil(";
 							part2 = ")";
 							break;
-						case FX::Nodes::Intrinsic::Op::Clamp:
+						case fx::nodes::intrinsic_expression_node::clamp:
 							part1 = "clamp(";
 							part2 = ", ";
 							part3 = ", ";
 							part4 = ")";
 							break;
-						case FX::Nodes::Intrinsic::Op::Cos:
+						case fx::nodes::intrinsic_expression_node::cos:
 							part1 = "cos(";
 							part2 = ")";
 							break;
-						case FX::Nodes::Intrinsic::Op::Cosh:
+						case fx::nodes::intrinsic_expression_node::cosh:
 							part1 = "cosh(";
 							part2 = ")";
 							break;
-						case FX::Nodes::Intrinsic::Op::Cross:
+						case fx::nodes::intrinsic_expression_node::cross:
 							part1 = "cross(";
 							part2 = ", ";
 							part3 = ")";
 							break;
-						case FX::Nodes::Intrinsic::Op::PartialDerivativeX:
+						case fx::nodes::intrinsic_expression_node::ddx:
 							part1 = "ddx(";
 							part2 = ")";
 							break;
-						case FX::Nodes::Intrinsic::Op::PartialDerivativeY:
+						case fx::nodes::intrinsic_expression_node::ddy:
 							part1 = "ddy(";
 							part2 = ")";
 							break;
-						case FX::Nodes::Intrinsic::Op::Degrees:
+						case fx::nodes::intrinsic_expression_node::degrees:
 							part1 = "degrees(";
 							part2 = ")";
 							break;
-						case FX::Nodes::Intrinsic::Op::Determinant:
+						case fx::nodes::intrinsic_expression_node::determinant:
 							part1 = "determinant(";
 							part2 = ")";
 							break;
-						case FX::Nodes::Intrinsic::Op::Distance:
+						case fx::nodes::intrinsic_expression_node::distance:
 							part1 = "distance(";
 							part2 = ", ";
 							part3 = ")";
 							break;
-						case FX::Nodes::Intrinsic::Op::Dot:
+						case fx::nodes::intrinsic_expression_node::dot:
 							part1 = "dot(";
 							part2 = ", ";
 							part3 = ")";
 							break;
-						case FX::Nodes::Intrinsic::Op::Exp:
+						case fx::nodes::intrinsic_expression_node::exp:
 							part1 = "exp(";
 							part2 = ")";
 							break;
-						case FX::Nodes::Intrinsic::Op::Exp2:
+						case fx::nodes::intrinsic_expression_node::exp2:
 							part1 = "exp2(";
 							part2 = ")";
 							break;
-						case FX::Nodes::Intrinsic::Op::FaceForward:
+						case fx::nodes::intrinsic_expression_node::faceforward:
 							part1 = "faceforward(";
 							part2 = ", ";
 							part3 = ", ";
 							part4 = ")";
 							break;
-						case FX::Nodes::Intrinsic::Op::Floor:
+						case fx::nodes::intrinsic_expression_node::floor:
 							part1 = "floor(";
 							part2 = ")";
 							break;
-						case FX::Nodes::Intrinsic::Op::Frac:
+						case fx::nodes::intrinsic_expression_node::frac:
 							part1 = "frac(";
 							part2 = ")";
 							break;
-						case FX::Nodes::Intrinsic::Op::Frexp:
+						case fx::nodes::intrinsic_expression_node::frexp:
 							part1 = "frexp(";
 							part2 = ", ";
 							part3 = ")";
 							break;
-						case FX::Nodes::Intrinsic::Op::Fwidth:
+						case fx::nodes::intrinsic_expression_node::fwidth:
 							part1 = "fwidth(";
 							part2 = ")";
 							break;
-						case FX::Nodes::Intrinsic::Op::Ldexp:
+						case fx::nodes::intrinsic_expression_node::ldexp:
 							part1 = "ldexp(";
 							part2 = ", ";
 							part3 = ")";
 							break;
-						case FX::Nodes::Intrinsic::Op::Length:
+						case fx::nodes::intrinsic_expression_node::length:
 							part1 = "length(";
 							part2 = ")";
 							break;
-						case FX::Nodes::Intrinsic::Op::Lerp:
+						case fx::nodes::intrinsic_expression_node::lerp:
 							part1 = "lerp(";
 							part2 = ", ";
 							part3 = ", ";
 							part4 = ")";
 							break;
-						case FX::Nodes::Intrinsic::Op::Log:
+						case fx::nodes::intrinsic_expression_node::log:
 							part1 = "log(";
 							part2 = ")";
 							break;
-						case FX::Nodes::Intrinsic::Op::Log10:
+						case fx::nodes::intrinsic_expression_node::log10:
 							part1 = "log10(";
 							part2 = ")";
 							break;
-						case FX::Nodes::Intrinsic::Op::Log2:
+						case fx::nodes::intrinsic_expression_node::log2:
 							part1 = "log2(";
 							part2 = ")";
 							break;
-						case FX::Nodes::Intrinsic::Op::Mad:
+						case fx::nodes::intrinsic_expression_node::mad:
 							part1 = "((";
 							part2 = ") * (";
 							part3 = ") + (";
 							part4 = "))";
 							break;
-						case FX::Nodes::Intrinsic::Op::Max:
+						case fx::nodes::intrinsic_expression_node::max:
 							part1 = "max(";
 							part2 = ", ";
 							part3 = ")";
 							break;
-						case FX::Nodes::Intrinsic::Op::Min:
+						case fx::nodes::intrinsic_expression_node::min:
 							part1 = "min(";
 							part2 = ", ";
 							part3 = ")";
 							break;
-						case FX::Nodes::Intrinsic::Op::Modf:
+						case fx::nodes::intrinsic_expression_node::modf:
 							part1 = "modf(";
 							part2 = ", ";
 							part3 = ")";
 							break;
-						case FX::Nodes::Intrinsic::Op::Mul:
+						case fx::nodes::intrinsic_expression_node::mul:
 							part1 = "mul(";
 							part2 = ", ";
 							part3 = ")";
 							break;
-						case FX::Nodes::Intrinsic::Op::Normalize:
+						case fx::nodes::intrinsic_expression_node::normalize:
 							part1 = "normalize(";
 							part2 = ")";
 							break;
-						case FX::Nodes::Intrinsic::Op::Pow:
+						case fx::nodes::intrinsic_expression_node::pow:
 							part1 = "pow(";
 							part2 = ", ";
 							part3 = ")";
 							break;
-						case FX::Nodes::Intrinsic::Op::Radians:
+						case fx::nodes::intrinsic_expression_node::radians:
 							part1 = "radians(";
 							part2 = ")";
 							break;
-						case FX::Nodes::Intrinsic::Op::Rcp:
+						case fx::nodes::intrinsic_expression_node::rcp:
 							part1 = "(1.0f / ";
 							part2 = ")";
 							break;
-						case FX::Nodes::Intrinsic::Op::Reflect:
+						case fx::nodes::intrinsic_expression_node::reflect:
 							part1 = "reflect(";
 							part2 = ", ";
 							part3 = ")";
 							break;
-						case FX::Nodes::Intrinsic::Op::Refract:
+						case fx::nodes::intrinsic_expression_node::refract:
 							part1 = "refract(";
 							part2 = ", ";
 							part3 = ", ";
 							part4 = ")";
 							break;
-						case FX::Nodes::Intrinsic::Op::Round:
+						case fx::nodes::intrinsic_expression_node::round:
 							part1 = "round(";
 							part2 = ")";
 							break;
-						case FX::Nodes::Intrinsic::Op::Rsqrt:
+						case fx::nodes::intrinsic_expression_node::rsqrt:
 							part1 = "rsqrt(";
 							part2 = ")";
 							break;
-						case FX::Nodes::Intrinsic::Op::Saturate:
+						case fx::nodes::intrinsic_expression_node::saturate:
 							part1 = "saturate(";
 							part2 = ")";
 							break;
-						case FX::Nodes::Intrinsic::Op::Sign:
+						case fx::nodes::intrinsic_expression_node::sign:
 							part1 = "sign(";
 							part2 = ")";
 							break;
-						case FX::Nodes::Intrinsic::Op::Sin:
+						case fx::nodes::intrinsic_expression_node::sin:
 							part1 = "sin(";
 							part2 = ")";
 							break;
-						case FX::Nodes::Intrinsic::Op::SinCos:
+						case fx::nodes::intrinsic_expression_node::sincos:
 							part1 = "sincos(";
 							part2 = ", ";
 							part3 = ", ";
 							part4 = ")";
 							break;
-						case FX::Nodes::Intrinsic::Op::Sinh:
+						case fx::nodes::intrinsic_expression_node::sinh:
 							part1 = "sinh(";
 							part2 = ")";
 							break;
-						case FX::Nodes::Intrinsic::Op::SmoothStep:
+						case fx::nodes::intrinsic_expression_node::smoothstep:
 							part1 = "smoothstep(";
 							part2 = ", ";
 							part3 = ", ";
 							part4 = ")";
 							break;
-						case FX::Nodes::Intrinsic::Op::Sqrt:
+						case fx::nodes::intrinsic_expression_node::sqrt:
 							part1 = "sqrt(";
 							part2 = ")";
 							break;
-						case FX::Nodes::Intrinsic::Op::Step:
+						case fx::nodes::intrinsic_expression_node::step:
 							part1 = "step(";
 							part2 = ", ";
 							part3 = ")";
 							break;
-						case FX::Nodes::Intrinsic::Op::Tan:
+						case fx::nodes::intrinsic_expression_node::tan:
 							part1 = "tan(";
 							part2 = ")";
 							break;
-						case FX::Nodes::Intrinsic::Op::Tanh:
+						case fx::nodes::intrinsic_expression_node::tanh:
 							part1 = "tanh(";
 							part2 = ")";
 							break;
-						case FX::Nodes::Intrinsic::Op::Tex2D:
+						case fx::nodes::intrinsic_expression_node::tex2d:
 							part1 = "__tex2D(";
 							part2 = ", ";
 							part3 = ")";
 							break;
-						case FX::Nodes::Intrinsic::Op::Tex2DFetch:
+						case fx::nodes::intrinsic_expression_node::tex2dfetch:
 							part1 = "__tex2Dfetch(";
 							part2 = ", ";
 							part3 = ")";
 							break;
-						case FX::Nodes::Intrinsic::Op::Tex2DGather:
-							if (node->Arguments[2]->id == FX::nodeid::Literal && node->Arguments[2]->Type.IsIntegral())
+						case fx::nodes::intrinsic_expression_node::tex2dgather:
+							if (node->arguments[2]->id == fx::nodeid::literal_expression && node->arguments[2]->type.is_integral())
 							{
-								const int component = static_cast<const FX::Nodes::Literal *>(node->Arguments[2])->Value.Int[0];
+								const int component = static_cast<const fx::nodes::literal_expression_node *>(node->arguments[2])->value_int[0];
 
-								_currentSource += "__tex2Dgather" + std::to_string(component) + "(";
-								Visit(node->Arguments[0]);
-								_currentSource += ", ";
-								Visit(node->Arguments[1]);
-								_currentSource += ")";
+								_current_source += "__tex2Dgather" + std::to_string(component) + "(";
+								visit(node->arguments[0]);
+								_current_source += ", ";
+								visit(node->arguments[1]);
+								_current_source += ")";
 							}
 							else
 							{
-								_errors += PrintLocation(node->location) + "error: texture gather component argument has to be constant.\n";
+								error(node->location, "texture gather component argument has to be constant");
 							}
 							return;
-						case FX::Nodes::Intrinsic::Op::Tex2DGatherOffset:
-							if (node->Arguments[3]->id == FX::nodeid::Literal && node->Arguments[3]->Type.IsIntegral())
+						case fx::nodes::intrinsic_expression_node::tex2dgatheroffset:
+							if (node->arguments[3]->id == fx::nodeid::literal_expression && node->arguments[3]->type.is_integral())
 							{
-								const int component = static_cast<const FX::Nodes::Literal *>(node->Arguments[3])->Value.Int[0];
+								const int component = static_cast<const fx::nodes::literal_expression_node *>(node->arguments[3])->value_int[0];
 
-								_currentSource += "__tex2Dgatheroffset" + std::to_string(component) + "(";
-								Visit(node->Arguments[0]);
-								_currentSource += ", ";
-								Visit(node->Arguments[1]);
-								_currentSource += ", ";
-								Visit(node->Arguments[2]);
-								_currentSource += ")";
+								_current_source += "__tex2Dgatheroffset" + std::to_string(component) + "(";
+								visit(node->arguments[0]);
+								_current_source += ", ";
+								visit(node->arguments[1]);
+								_current_source += ", ";
+								visit(node->arguments[2]);
+								_current_source += ")";
 							}
 							else
 							{
-								_errors += PrintLocation(node->location) + "error: texture gather component argument has to be constant.\n";
+								error(node->location, "texture gather component argument has to be constant");
 							}
 							return;
-						case FX::Nodes::Intrinsic::Op::Tex2DGrad:
+						case fx::nodes::intrinsic_expression_node::tex2dgrad:
 							part1 = "__tex2Dgrad(";
 							part2 = ", ";
 							part3 = ", ";
 							part4 = ", ";
 							part5 = ")";
 							break;
-						case FX::Nodes::Intrinsic::Op::Tex2DLevel:
+						case fx::nodes::intrinsic_expression_node::tex2dlevel:
 							part1 = "__tex2Dlod(";
 							part2 = ", ";
 							part3 = ")";
 							break;
-						case FX::Nodes::Intrinsic::Op::Tex2DLevelOffset:
+						case fx::nodes::intrinsic_expression_node::tex2dleveloffset:
 							part1 = "__tex2Dlodoffset(";
 							part2 = ", ";
 							part3 = ", ";
 							part4 = ")";
 							break;
-						case FX::Nodes::Intrinsic::Op::Tex2DOffset:
+						case fx::nodes::intrinsic_expression_node::tex2doffset:
 							part1 = "__tex2Doffset(";
 							part2 = ", ";
 							part3 = ", ";
 							part4 = ")";
 							break;
-						case FX::Nodes::Intrinsic::Op::Tex2DProj:
+						case fx::nodes::intrinsic_expression_node::tex2dproj:
 							part1 = "__tex2Dproj(";
 							part2 = ", ";
 							part3 = ")";
 							break;
-						case FX::Nodes::Intrinsic::Op::Tex2DSize:
+						case fx::nodes::intrinsic_expression_node::tex2dsize:
 							part1 = "__tex2Dsize(";
 							part2 = ", ";
 							part3 = ")";
 							break;
-						case FX::Nodes::Intrinsic::Op::Transpose:
+						case fx::nodes::intrinsic_expression_node::transpose:
 							part1 = "transpose(";
 							part2 = ")";
 							break;
-						case FX::Nodes::Intrinsic::Op::Trunc:
+						case fx::nodes::intrinsic_expression_node::trunc:
 							part1 = "trunc(";
 							part2 = ")";
 							break;
 					}
 
-					_currentSource += part1;
+					_current_source += part1;
 
-					if (node->Arguments[0] != nullptr)
+					if (node->arguments[0] != nullptr)
 					{
-						Visit(node->Arguments[0]);
+						visit(node->arguments[0]);
 					}
 
-					_currentSource += part2;
+					_current_source += part2;
 
-					if (node->Arguments[1] != nullptr)
+					if (node->arguments[1] != nullptr)
 					{
-						Visit(node->Arguments[1]);
+						visit(node->arguments[1]);
 					}
 
-					_currentSource += part3;
+					_current_source += part3;
 
-					if (node->Arguments[2] != nullptr)
+					if (node->arguments[2] != nullptr)
 					{
-						Visit(node->Arguments[2]);
+						visit(node->arguments[2]);
 					}
 
-					_currentSource += part4;
+					_current_source += part4;
 
-					if (node->Arguments[3] != nullptr)
+					if (node->arguments[3] != nullptr)
 					{
-						Visit(node->Arguments[3]);
+						visit(node->arguments[3]);
 					}
 
-					_currentSource += part5;
+					_current_source += part5;
 				}
-				void Visit(const FX::Nodes::Conditional *node)
+				void visit(const fx::nodes::conditional_expression_node *node)
 				{
-					_currentSource += '(';
-					Visit(node->Condition);
-					_currentSource += " ? ";
-					Visit(node->ExpressionOnTrue);
-					_currentSource += " : ";
-					Visit(node->ExpressionOnFalse);
-					_currentSource += ')';
+					_current_source += '(';
+					visit(node->condition);
+					_current_source += " ? ";
+					visit(node->expression_when_true);
+					_current_source += " : ";
+					visit(node->expression_when_false);
+					_current_source += ')';
 				}
-				void Visit(const FX::Nodes::Swizzle *node)
+				void visit(const fx::nodes::swizzle_expression_node *node)
 				{
-					Visit(node->Operand);
+					visit(node->operand);
 
-					_currentSource += '.';
+					_current_source += '.';
 
-					if (node->Operand->Type.IsMatrix())
+					if (node->operand->type.is_matrix())
 					{
 						const char swizzle[16][5] =
 						{
@@ -1385,9 +1396,9 @@ namespace ReShade
 							"_m30", "_m31", "_m32", "_m33"
 						};
 
-						for (int i = 0; i < 4 && node->Mask[i] >= 0; ++i)
+						for (int i = 0; i < 4 && node->mask[i] >= 0; ++i)
 						{
-							_currentSource += swizzle[node->Mask[i]];
+							_current_source += swizzle[node->mask[i]];
 						}
 					}
 					else
@@ -1397,271 +1408,269 @@ namespace ReShade
 							'x', 'y', 'z', 'w'
 						};
 
-						for (int i = 0; i < 4 && node->Mask[i] >= 0; ++i)
+						for (int i = 0; i < 4 && node->mask[i] >= 0; ++i)
 						{
-							_currentSource += swizzle[node->Mask[i]];
+							_current_source += swizzle[node->mask[i]];
 						}
 					}
 				}
-				void Visit(const FX::Nodes::FieldSelection *node)
+				void visit(const fx::nodes::field_expression_node *node)
 				{
-					_currentSource += '(';
+					_current_source += '(';
 
-					Visit(node->Operand);
+					visit(node->operand);
 
-					_currentSource += '.';
-					_currentSource += PrintName(node->Field);
-					_currentSource += ')';
+					_current_source += '.';
+					_current_source += print_name(node->field_reference);
+					_current_source += ')';
 				}
-				void Visit(const FX::Nodes::Assignment *node)
+				void visit(const fx::nodes::assignment_expression_node *node)
 				{
-					_currentSource += '(';
-					Visit(node->Left);
-					_currentSource += ' ';
+					_current_source += '(';
+					visit(node->left);
+					_current_source += ' ';
 
-					switch (node->Operator)
+					switch (node->op)
 					{
-						case FX::Nodes::Assignment::Op::None:
-							_currentSource += '=';
+						case fx::nodes::assignment_expression_node::none:
+							_current_source += '=';
 							break;
-						case FX::Nodes::Assignment::Op::Add:
-							_currentSource += "+=";
+						case fx::nodes::assignment_expression_node::add:
+							_current_source += "+=";
 							break;
-						case FX::Nodes::Assignment::Op::Subtract:
-							_currentSource += "-=";
+						case fx::nodes::assignment_expression_node::subtract:
+							_current_source += "-=";
 							break;
-						case FX::Nodes::Assignment::Op::Multiply:
-							_currentSource += "*=";
+						case fx::nodes::assignment_expression_node::multiply:
+							_current_source += "*=";
 							break;
-						case FX::Nodes::Assignment::Op::Divide:
-							_currentSource += "/=";
+						case fx::nodes::assignment_expression_node::divide:
+							_current_source += "/=";
 							break;
-						case FX::Nodes::Assignment::Op::Modulo:
-							_currentSource += "%=";
+						case fx::nodes::assignment_expression_node::modulo:
+							_current_source += "%=";
 							break;
-						case FX::Nodes::Assignment::Op::LeftShift:
-							_currentSource += "<<=";
+						case fx::nodes::assignment_expression_node::left_shift:
+							_current_source += "<<=";
 							break;
-						case FX::Nodes::Assignment::Op::RightShift:
-							_currentSource += ">>=";
+						case fx::nodes::assignment_expression_node::right_shift:
+							_current_source += ">>=";
 							break;
-						case FX::Nodes::Assignment::Op::BitwiseAnd:
-							_currentSource += "&=";
+						case fx::nodes::assignment_expression_node::bitwise_and:
+							_current_source += "&=";
 							break;
-						case FX::Nodes::Assignment::Op::BitwiseOr:
-							_currentSource += "|=";
+						case fx::nodes::assignment_expression_node::bitwise_or:
+							_current_source += "|=";
 							break;
-						case FX::Nodes::Assignment::Op::BitwiseXor:
-							_currentSource += "^=";
+						case fx::nodes::assignment_expression_node::bitwise_xor:
+							_current_source += "^=";
 							break;
 					}
 
-					_currentSource += ' ';
-					Visit(node->Right);
-					_currentSource += ')';
+					_current_source += ' ';
+					visit(node->right);
+					_current_source += ')';
 				}
-				void Visit(const FX::Nodes::Call *node)
+				void visit(const fx::nodes::call_expression_node *node)
 				{
-					_currentSource += PrintName(node->Callee);
-					_currentSource += '(';
+					_current_source += print_name(node->callee);
+					_current_source += '(';
 
-					for (auto argument : node->Arguments)
+					for (auto argument : node->arguments)
 					{
-						Visit(argument);
+						visit(argument);
 
-						_currentSource += ", ";
+						_current_source += ", ";
 					}
 
-					if (!node->Arguments.empty())
+					if (!node->arguments.empty())
 					{
-						_currentSource.pop_back();
-						_currentSource.pop_back();
+						_current_source.pop_back();
+						_current_source.pop_back();
 					}
 
-					_currentSource += ')';
+					_current_source += ')';
 				}
-				void Visit(const FX::Nodes::Constructor *node)
+				void visit(const fx::nodes::constructor_expression_node *node)
 				{
-					_currentSource += PrintType(node->Type);
-					_currentSource += '(';
+					_current_source += print_type(node->type);
+					_current_source += '(';
 
-					for (auto argument : node->Arguments)
+					for (auto argument : node->arguments)
 					{
-						Visit(argument);
+						visit(argument);
 
-						_currentSource += ", ";
+						_current_source += ", ";
 					}
 
-					if (!node->Arguments.empty())
+					if (!node->arguments.empty())
 					{
-						_currentSource.pop_back();
-						_currentSource.pop_back();
+						_current_source.pop_back();
+						_current_source.pop_back();
 					}
 
-					_currentSource += ')';
+					_current_source += ')';
 				}
-				void Visit(const FX::Nodes::InitializerList *node)
+				void visit(const fx::nodes::initializer_list_node *node)
 				{
-					_currentSource += "{ ";
+					_current_source += "{ ";
 
-					for (auto expression : node->Values)
+					for (auto expression : node->values)
 					{
-						Visit(expression);
+						visit(expression);
 
-						_currentSource += ", ";
+						_current_source += ", ";
 					}
 
-					_currentSource += " }";
+					_current_source += " }";
 				}
 
 				template <typename T>
-				void Visit(const std::vector<FX::Nodes::Annotation> &annotations, T &object)
+				void visit_annotation(const std::vector<fx::nodes::annotation_node> &annotations, T &object)
 				{
 					for (auto &annotation : annotations)
 					{
-						switch (annotation.Value->Type.BaseClass)
+						switch (annotation.value->type.basetype)
 						{
-							case FX::Nodes::Type::Class::Bool:
-							case FX::Nodes::Type::Class::Int:
-								object.Annotations[annotation.Name] = annotation.Value->Value.Int;
+							case fx::nodes::type_node::bool_:
+							case fx::nodes::type_node::int_:
+								object.annotations[annotation.name] = annotation.value->value_int;
 								break;
-							case FX::Nodes::Type::Class::Uint:
-								object.Annotations[annotation.Name] = annotation.Value->Value.Uint;
+							case fx::nodes::type_node::uint_:
+								object.annotations[annotation.name] = annotation.value->value_uint;
 								break;
-							case FX::Nodes::Type::Class::Float:
-								object.Annotations[annotation.Name] = annotation.Value->Value.Float;
+							case fx::nodes::type_node::float_:
+								object.annotations[annotation.name] = annotation.value->value_float;
 								break;
-							case FX::Nodes::Type::Class::String:
-								object.Annotations[annotation.Name] = annotation.Value->StringValue;
+							case fx::nodes::type_node::string_:
+								object.annotations[annotation.name] = annotation.value->value_string;
 								break;
 						}
 					}
 				}
-				void Visit(const FX::Nodes::Struct *node)
+				void visit(const fx::nodes::struct_declaration_node *node)
 				{
-					_currentSource += "struct ";
-					_currentSource += PrintName(node);
-					_currentSource += "\n{\n";
+					_current_source += "struct ";
+					_current_source += print_name(node);
+					_current_source += "\n{\n";
 
-					if (!node->Fields.empty())
+					if (!node->field_list.empty())
 					{
-						for (auto field : node->Fields)
+						for (auto field : node->field_list)
 						{
-							Visit(field);
+							visit(field);
 						}
 					}
 					else
 					{
-						_currentSource += "float _dummy;\n";
+						_current_source += "float _dummy;\n";
 					}
 
-					_currentSource += "};\n";
+					_current_source += "};\n";
 				}
-				void Visit(const FX::Nodes::Variable *node)
+				void visit(const fx::nodes::variable_declaration_node *node)
 				{
-					if (!(_currentInParameterBlock || _currentInFunctionBlock))
+					if (!(_is_in_parameter_block || _is_in_function_block))
 					{
-						if (node->Type.IsTexture())
+						if (node->type.is_texture())
 						{
-							VisitTexture(node);
+							visit_texture(node);
 							return;
 						}
-						else if (node->Type.IsSampler())
+						else if (node->type.is_sampler())
 						{
-							VisitSampler(node);
+							visit_sampler(node);
 							return;
 						}
-						else if (node->Type.HasQualifier(FX::Nodes::Type::Qualifier::Uniform))
+						else if (node->type.has_qualifier(fx::nodes::type_node::uniform_))
 						{
-							VisitUniform(node);
+							visit_uniform(node);
 							return;
 						}
 					}
 
-					if (_currentInForInitialization <= 1)
+					if (_is_in_for_initialization <= 1)
 					{
-						_currentSource += PrintTypeWithQualifiers(node->Type);
+						_current_source += print_type_with_qualifiers(node->type);
 					}
 
-					if (!node->Name.empty())
+					if (!node->name.empty())
 					{
-						_currentSource += ' ' + PrintName(node);
+						_current_source += ' ' + print_name(node);
 					}
 
-					if (node->Type.IsArray())
+					if (node->type.is_array())
 					{
-						_currentSource += '[';
-						_currentSource += (node->Type.ArrayLength >= 1) ? std::to_string(node->Type.ArrayLength) : "";
-						_currentSource += ']';
+						_current_source += '[';
+						_current_source += (node->type.array_length >= 1) ? std::to_string(node->type.array_length) : "";
+						_current_source += ']';
 					}
 
-					if (!node->Semantic.empty())
+					if (!node->semantic.empty())
 					{
-						_currentSource += " : " + ConvertSemantic(node->Semantic);
+						_current_source += " : " + convert_semantic(node->semantic);
 					}
 
-					if (node->Initializer != nullptr)
+					if (node->initializer_expression != nullptr)
 					{
-						_currentSource += " = ";
+						_current_source += " = ";
 
-						Visit(node->Initializer);
+						visit(node->initializer_expression);
 					}
 
-					if (!(_currentInParameterBlock || _currentInFunctionBlock))
+					if (!(_is_in_parameter_block || _is_in_function_block))
 					{
-						_currentSource += ";\n";
+						_current_source += ";\n";
 					}
 				}
-				void VisitTexture(const FX::Nodes::Variable *node)
+				void visit_texture(const fx::nodes::variable_declaration_node *node)
 				{
 					D3D10_TEXTURE2D_DESC texdesc;
 					ZeroMemory(&texdesc, sizeof(D3D10_TEXTURE2D_DESC));
 
-					D3D10Texture *obj = new D3D10Texture();
-					obj->Name = node->Name;
-					texdesc.Width = obj->Width = node->Properties.Width;
-					texdesc.Height = obj->Height = node->Properties.Height;
-					texdesc.MipLevels = obj->Levels = node->Properties.MipLevels;
+					d3d10_texture *obj = new d3d10_texture();
+					obj->name = node->name;
+					texdesc.Width = obj->width = node->properties.Width;
+					texdesc.Height = obj->height = node->properties.Height;
+					texdesc.MipLevels = obj->levels = node->properties.MipLevels;
 					texdesc.ArraySize = 1;
-					texdesc.Format = LiteralToFormat(node->Properties.Format, obj->Format);
+					texdesc.Format = LiteralToFormat(node->properties.Format, obj->format);
 					texdesc.SampleDesc.Count = 1;
 					texdesc.SampleDesc.Quality = 0;
 					texdesc.Usage = D3D10_USAGE_DEFAULT;
 					texdesc.BindFlags = D3D10_BIND_SHADER_RESOURCE | D3D10_BIND_RENDER_TARGET;
 					texdesc.MiscFlags = D3D10_RESOURCE_MISC_GENERATE_MIPS;
 
-					obj->ShaderRegister = _runtime->_effectShaderResources.size();
+					obj->ShaderRegister = _runtime->_effect_shader_resources.size();
 					obj->TextureInterface = nullptr;
 					obj->ShaderResourceView[0] = nullptr;
 					obj->ShaderResourceView[1] = nullptr;
 
-					Visit(node->Annotations, *obj);
+					visit_annotation(node->annotations, *obj);
 
-					if (node->Semantic == "COLOR" || node->Semantic == "SV_TARGET")
+					if (node->semantic == "COLOR" || node->semantic == "SV_TARGET")
 					{
 						if (texdesc.Width != 1 || texdesc.Height != 1 || texdesc.MipLevels != 1 || texdesc.Format != DXGI_FORMAT_R8G8B8A8_TYPELESS)
 						{
-							_errors += PrintLocation(node->location) + "warning: texture property on backbuffer textures are ignored.\n";
+							warning(node->location, "texture properties on backbuffer textures are ignored");
 						}
 
-						obj->ChangeDataSource(D3D10Texture::Source::BackBuffer, _runtime, _runtime->_backbufferTextureSRV[0], _runtime->_backbufferTextureSRV[1]);
+						obj->change_data_source(texture::datatype::backbuffer, _runtime, _runtime->_backbuffer_texture_srv[0], _runtime->_backbuffer_texture_srv[1]);
 					}
-					else if (node->Semantic == "DEPTH" || node->Semantic == "SV_DEPTH")
+					else if (node->semantic == "DEPTH" || node->semantic == "SV_DEPTH")
 					{
 						if (texdesc.Width != 1 || texdesc.Height != 1 || texdesc.MipLevels != 1 || texdesc.Format != DXGI_FORMAT_R8G8B8A8_TYPELESS)
 						{
-							_errors += PrintLocation(node->location) + "warning: texture property on depthbuffer textures are ignored.\n";
+							warning(node->location, "texture properties on depthbuffer textures are ignored");
 						}
 
-						obj->ChangeDataSource(D3D10Texture::Source::DepthStencil, _runtime, _runtime->_depthStencilTextureSRV, nullptr);
+						obj->change_data_source(texture::datatype::depthbuffer, _runtime, _runtime->_depthstencil_texture_srv, nullptr);
 					}
 					else
 					{
-						obj->DataSource = D3D10Texture::Source::Memory;
-
 						if (texdesc.MipLevels == 0)
 						{
-							_errors += PrintLocation(node->location) + "warning: a texture cannot have 0 miplevels, changed it to 1.\n";
+							warning(node->location, "a texture cannot have 0 miplevels, changed it to 1");
 
 							texdesc.MipLevels = 1;
 						}
@@ -1670,8 +1679,7 @@ namespace ReShade
 
 						if (FAILED(hr))
 						{
-							_errors += PrintLocation(node->location) + "error: 'ID3D10Device::CreateTexture2D' failed with " + std::to_string(hr) + "!\n";
-							_isFatal = true;
+							error(node->location, "'ID3D10Device::CreateTexture2D' failed with %u!", hr);
 							return;
 						}
 
@@ -1685,8 +1693,7 @@ namespace ReShade
 
 						if (FAILED(hr))
 						{
-							_errors += PrintLocation(node->location) + "error: 'ID3D10Device::CreateShaderResourceView' failed with " + std::to_string(hr) + "!\n";
-							_isFatal = true;
+							error(node->location, "'ID3D10Device::CreateShaderResourceView' failed with %u!", hr);
 							return;
 						}
 
@@ -1698,76 +1705,74 @@ namespace ReShade
 
 							if (FAILED(hr))
 							{
-								_errors += PrintLocation(node->location) + "error: 'ID3D10Device::CreateShaderResourceView' failed with " + std::to_string(hr) + "!\n";
-								_isFatal = true;
+								error(node->location, "'ID3D10Device::CreateShaderResourceView' failed with %u!", hr);
 								return;
 							}
 						}
 					}
 
-					_currentSource += "Texture2D ";
-					_currentSource += PrintName(node);
-					_currentSource += " : register(t" + std::to_string(_runtime->_effectShaderResources.size()) + "), __";
-					_currentSource += PrintName(node);
-					_currentSource += "SRGB : register(t" + std::to_string(_runtime->_effectShaderResources.size() + 1) + ");\n";
+					_current_source += "Texture2D ";
+					_current_source += print_name(node);
+					_current_source += " : register(t" + std::to_string(_runtime->_effect_shader_resources.size()) + "), __";
+					_current_source += print_name(node);
+					_current_source += "SRGB : register(t" + std::to_string(_runtime->_effect_shader_resources.size() + 1) + ");\n";
 
-					_runtime->_effectShaderResources.push_back(obj->ShaderResourceView[0]);
-					_runtime->_effectShaderResources.push_back(obj->ShaderResourceView[1]);
+					_runtime->_effect_shader_resources.push_back(obj->ShaderResourceView[0]);
+					_runtime->_effect_shader_resources.push_back(obj->ShaderResourceView[1]);
 
-					_runtime->AddTexture(obj);
+					_runtime->add_texture(obj);
 				}
-				void VisitSampler(const FX::Nodes::Variable *node)
+				void visit_sampler(const fx::nodes::variable_declaration_node *node)
 				{
-					if (node->Properties.Texture == nullptr)
+					if (node->properties.Texture == nullptr)
 					{
-						_errors += PrintLocation(node->location) + "error: sampler '" + node->Name + "' is missing required 'Texture' required.\n";
-						_isFatal = true;
+						error(node->location, "sampler '%s' is missing required 'Texture' property.", node->name.c_str());
 						return;
 					}
 
 					D3D10_SAMPLER_DESC desc;
-					desc.AddressU = static_cast<D3D10_TEXTURE_ADDRESS_MODE>(node->Properties.AddressU);
-					desc.AddressV = static_cast<D3D10_TEXTURE_ADDRESS_MODE>(node->Properties.AddressV);
-					desc.AddressW = static_cast<D3D10_TEXTURE_ADDRESS_MODE>(node->Properties.AddressW);
-					desc.MipLODBias = node->Properties.MipLODBias;
-					desc.MinLOD = node->Properties.MinLOD;
-					desc.MaxLOD = node->Properties.MaxLOD;
-					desc.MaxAnisotropy = node->Properties.MaxAnisotropy;
+					desc.AddressU = static_cast<D3D10_TEXTURE_ADDRESS_MODE>(node->properties.AddressU);
+					desc.AddressV = static_cast<D3D10_TEXTURE_ADDRESS_MODE>(node->properties.AddressV);
+					desc.AddressW = static_cast<D3D10_TEXTURE_ADDRESS_MODE>(node->properties.AddressW);
+					desc.MipLODBias = node->properties.MipLODBias;
+					desc.MinLOD = node->properties.MinLOD;
+					desc.MaxLOD = node->properties.MaxLOD;
+					desc.MaxAnisotropy = node->properties.MaxAnisotropy;
 					desc.ComparisonFunc = D3D10_COMPARISON_NEVER;
 
-					const UINT minfilter = node->Properties.MinFilter;
-					const UINT magfilter = node->Properties.MagFilter;
-					const UINT mipfilter = node->Properties.MipFilter;
+					const UINT minfilter = node->properties.MinFilter;
+					const UINT magfilter = node->properties.MagFilter;
+					const UINT mipfilter = node->properties.MipFilter;
 
-					if (minfilter == FX::Nodes::Variable::Properties::ANISOTROPIC || magfilter == FX::Nodes::Variable::Properties::ANISOTROPIC || mipfilter == FX::Nodes::Variable::Properties::ANISOTROPIC)
+					if (minfilter == fx::nodes::variable_declaration_node::properties::ANISOTROPIC || magfilter == fx::nodes::variable_declaration_node::properties::ANISOTROPIC || mipfilter == fx::nodes::variable_declaration_node::properties::ANISOTROPIC)
 					{
 						desc.Filter = D3D10_FILTER_ANISOTROPIC;
 					}
-					else if (minfilter == FX::Nodes::Variable::Properties::POINT && magfilter == FX::Nodes::Variable::Properties::POINT && mipfilter == FX::Nodes::Variable::Properties::LINEAR)
+					else if (minfilter == fx::nodes::variable_declaration_node::properties::POINT && magfilter == fx::nodes::variable_declaration_node::properties::POINT && mipfilter == fx::nodes::variable_declaration_node::properties::LINEAR)
 					{
 						desc.Filter = D3D10_FILTER_MIN_MAG_POINT_MIP_LINEAR;
 					}
-					else if (minfilter == FX::Nodes::Variable::Properties::POINT && magfilter == FX::Nodes::Variable::Properties::LINEAR && mipfilter == FX::Nodes::Variable::Properties::POINT)
+					else if (minfilter == fx::nodes::variable_declaration_node::properties::POINT && magfilter == fx::nodes::variable_declaration_node::properties::LINEAR && mipfilter == fx::nodes::variable_declaration_node::properties::POINT)
 					{
 						desc.Filter = D3D10_FILTER_MIN_POINT_MAG_LINEAR_MIP_POINT;
 					}
-					else if (minfilter == FX::Nodes::Variable::Properties::POINT && magfilter == FX::Nodes::Variable::Properties::LINEAR && mipfilter == FX::Nodes::Variable::Properties::LINEAR)
+					else if (minfilter == fx::nodes::variable_declaration_node::properties::POINT && magfilter == fx::nodes::variable_declaration_node::properties::LINEAR && mipfilter == fx::nodes::variable_declaration_node::properties::LINEAR)
 					{
 						desc.Filter = D3D10_FILTER_MIN_POINT_MAG_MIP_LINEAR;
 					}
-					else if (minfilter == FX::Nodes::Variable::Properties::LINEAR && magfilter == FX::Nodes::Variable::Properties::POINT && mipfilter == FX::Nodes::Variable::Properties::POINT)
+					else if (minfilter == fx::nodes::variable_declaration_node::properties::LINEAR && magfilter == fx::nodes::variable_declaration_node::properties::POINT && mipfilter == fx::nodes::variable_declaration_node::properties::POINT)
 					{
 						desc.Filter = D3D10_FILTER_MIN_LINEAR_MAG_MIP_POINT;
 					}
-					else if (minfilter == FX::Nodes::Variable::Properties::LINEAR && magfilter == FX::Nodes::Variable::Properties::POINT && mipfilter == FX::Nodes::Variable::Properties::LINEAR)
+					else if (minfilter == fx::nodes::variable_declaration_node::properties::LINEAR && magfilter == fx::nodes::variable_declaration_node::properties::POINT && mipfilter == fx::nodes::variable_declaration_node::properties::LINEAR)
 					{
 						desc.Filter = D3D10_FILTER_MIN_LINEAR_MAG_POINT_MIP_LINEAR;
 					}
-					else if (minfilter == FX::Nodes::Variable::Properties::LINEAR && magfilter == FX::Nodes::Variable::Properties::LINEAR && mipfilter == FX::Nodes::Variable::Properties::POINT)
+					else if (minfilter == fx::nodes::variable_declaration_node::properties::LINEAR && magfilter == fx::nodes::variable_declaration_node::properties::LINEAR && mipfilter == fx::nodes::variable_declaration_node::properties::POINT)
 					{
 						desc.Filter = D3D10_FILTER_MIN_MAG_LINEAR_MIP_POINT;
 					}
-					else if (minfilter == FX::Nodes::Variable::Properties::LINEAR && magfilter == FX::Nodes::Variable::Properties::LINEAR && mipfilter == FX::Nodes::Variable::Properties::LINEAR)
+					else if (minfilter == fx::nodes::variable_declaration_node::properties::LINEAR && magfilter == fx::nodes::variable_declaration_node::properties::LINEAR && mipfilter == fx::nodes::variable_declaration_node::properties::LINEAR)
 					{
 						desc.Filter = D3D10_FILTER_MIN_MAG_MIP_LINEAR;
 					}
@@ -1776,19 +1781,18 @@ namespace ReShade
 						desc.Filter = D3D10_FILTER_MIN_MAG_MIP_POINT;
 					}
 
-					D3D10Texture *texture = static_cast<D3D10Texture *>(_runtime->GetTexture(node->Properties.Texture->Name));
+					d3d10_texture *texture = static_cast<d3d10_texture *>(_runtime->get_texture(node->properties.Texture->name));
 
 					if (texture == nullptr)
 					{
-						_errors += PrintLocation(node->location) + "error: texture '" + node->Properties.Texture->Name + "' for sampler '" + std::string(node->Name) + "' is missing due to previous error.\n";
-						_isFatal = true;
+						error(node->location, "texture '%s' for sampler '%s' is missing due to previous error.", node->properties.Texture->name.c_str(), node->name.c_str());
 						return;
 					}
 
 					const size_t descHash = D3D10_SAMPLER_DESC_HASH(desc);
-					auto it = _samplerDescs.find(descHash);
+					auto it = _sampler_descs.find(descHash);
 
-					if (it == _samplerDescs.end())
+					if (it == _sampler_descs.end())
 					{
 						ID3D10SamplerState *sampler = nullptr;
 
@@ -1796,155 +1800,154 @@ namespace ReShade
 
 						if (FAILED(hr))
 						{
-							_errors += PrintLocation(node->location) + "error: 'ID3D10Device::CreateSamplerState' failed with " + std::to_string(hr) + "!\n";
-							_isFatal = true;
+							error(node->location, "'ID3D10Device::CreateSamplerState' failed with %u!", hr);
 							return;
 						}
 
-						_runtime->_effectSamplerStates.push_back(sampler);
-						it = _samplerDescs.emplace(descHash, _runtime->_effectSamplerStates.size() - 1).first;
+						_runtime->_effect_sampler_states.push_back(sampler);
+						it = _sampler_descs.emplace(descHash, _runtime->_effect_sampler_states.size() - 1).first;
 
-						_currentSource += "SamplerState __SamplerState" + std::to_string(it->second) + " : register(s" + std::to_string(it->second) + ");\n";
+						_current_source += "SamplerState __SamplerState" + std::to_string(it->second) + " : register(s" + std::to_string(it->second) + ");\n";
 					}
 
-					_currentSource += "static const __sampler2D ";
-					_currentSource += PrintName(node);
-					_currentSource += " = { ";
+					_current_source += "static const __sampler2D ";
+					_current_source += print_name(node);
+					_current_source += " = { ";
 
-					if (node->Properties.SRGBTexture && texture->ShaderResourceView[1] != nullptr)
+					if (node->properties.SRGBTexture && texture->ShaderResourceView[1] != nullptr)
 					{
-						_currentSource += "__";
-						_currentSource += PrintName(node->Properties.Texture);
-						_currentSource += "SRGB";
+						_current_source += "__";
+						_current_source += print_name(node->properties.Texture);
+						_current_source += "SRGB";
 					}
 					else
 					{
-						_currentSource += PrintName(node->Properties.Texture);
+						_current_source += print_name(node->properties.Texture);
 					}
 
-					_currentSource += ", __SamplerState" + std::to_string(it->second) + " };\n";
+					_current_source += ", __SamplerState" + std::to_string(it->second) + " };\n";
 				}
-				void VisitUniform(const FX::Nodes::Variable *node)
+				void visit_uniform(const fx::nodes::variable_declaration_node *node)
 				{
-					_currentGlobalConstants += PrintTypeWithQualifiers(node->Type);
-					_currentGlobalConstants += ' ';
-					_currentGlobalConstants += PrintName(node);
+					_global_uniforms += print_type_with_qualifiers(node->type);
+					_global_uniforms += ' ';
+					_global_uniforms += print_name(node);
 
-					if (node->Type.IsArray())
+					if (node->type.is_array())
 					{
-						_currentGlobalConstants += '[';
-						_currentGlobalConstants += (node->Type.ArrayLength >= 1) ? std::to_string(node->Type.ArrayLength) : "";
-						_currentGlobalConstants += ']';
+						_global_uniforms += '[';
+						_global_uniforms += (node->type.array_length >= 1) ? std::to_string(node->type.array_length) : "";
+						_global_uniforms += ']';
 					}
 
-					_currentGlobalConstants += ";\n";
+					_global_uniforms += ";\n";
 
-					Uniform *obj = new Uniform();
-					obj->Name = node->Name;
-					obj->Rows = node->Type.Rows;
-					obj->Columns = node->Type.Cols;
-					obj->Elements = node->Type.ArrayLength;
-					obj->StorageSize = node->Type.Rows * node->Type.Cols;
+					uniform *obj = new uniform();
+					obj->name = node->name;
+					obj->rows = node->type.rows;
+					obj->columns = node->type.cols;
+					obj->elements = node->type.array_length;
+					obj->storage_size = node->type.rows * node->type.cols;
 
-					switch (node->Type.BaseClass)
+					switch (node->type.basetype)
 					{
-						case FX::Nodes::Type::Class::Bool:
-							obj->BaseType = Uniform::Type::Bool;
-							obj->StorageSize *= sizeof(int);
+						case fx::nodes::type_node::bool_:
+							obj->basetype = uniform::datatype::bool_;
+							obj->storage_size *= sizeof(int);
 							break;
-						case FX::Nodes::Type::Class::Int:
-							obj->BaseType = Uniform::Type::Int;
-							obj->StorageSize *= sizeof(int);
+						case fx::nodes::type_node::int_:
+							obj->basetype = uniform::datatype::int_;
+							obj->storage_size *= sizeof(int);
 							break;
-						case FX::Nodes::Type::Class::Uint:
-							obj->BaseType = Uniform::Type::Uint;
-							obj->StorageSize *= sizeof(unsigned int);
+						case fx::nodes::type_node::uint_:
+							obj->basetype = uniform::datatype::uint_;
+							obj->storage_size *= sizeof(unsigned int);
 							break;
-						case FX::Nodes::Type::Class::Float:
-							obj->BaseType = Uniform::Type::Float;
-							obj->StorageSize *= sizeof(float);
+						case fx::nodes::type_node::float_:
+							obj->basetype = uniform::datatype::float_;
+							obj->storage_size *= sizeof(float);
 							break;
 					}
 
-					const UINT alignment = 16 - (_currentGlobalSize % 16);
-					_currentGlobalSize += static_cast<UINT>((obj->StorageSize > alignment && (alignment != 16 || obj->StorageSize <= 16)) ? obj->StorageSize + alignment : obj->StorageSize);
-					obj->StorageOffset = _currentGlobalSize - obj->StorageSize;
+					const UINT alignment = 16 - (_current_global_size % 16);
+					_current_global_size += static_cast<UINT>((obj->storage_size > alignment && (alignment != 16 || obj->storage_size <= 16)) ? obj->storage_size + alignment : obj->storage_size);
+					obj->storage_offset = _current_global_size - obj->storage_size;
 
-					Visit(node->Annotations, *obj);
+					visit_annotation(node->annotations, *obj);
 
-					if (_currentGlobalSize >= _runtime->GetConstantStorageSize())
+					if (_current_global_size >= _runtime->get_uniform_data_storage_size())
 					{
-						_runtime->EnlargeConstantStorage();
+						_runtime->enlarge_uniform_data_storage();
 					}
 
-					if (node->Initializer != nullptr && node->Initializer->id == FX::nodeid::Literal)
+					if (node->initializer_expression != nullptr && node->initializer_expression->id == fx::nodeid::literal_expression)
 					{
-						CopyMemory(_runtime->GetConstantStorage() + obj->StorageOffset, &static_cast<const FX::Nodes::Literal *>(node->Initializer)->Value, obj->StorageSize);
+						CopyMemory(_runtime->get_uniform_data_storage() + obj->storage_offset, &static_cast<const fx::nodes::literal_expression_node *>(node->initializer_expression)->value_float, obj->storage_size);
 					}
 					else
 					{
-						ZeroMemory(_runtime->GetConstantStorage() + obj->StorageOffset, obj->StorageSize);
+						ZeroMemory(_runtime->get_uniform_data_storage() + obj->storage_offset, obj->storage_size);
 					}
 
-					_runtime->AddConstant(obj);
+					_runtime->add_uniform(obj);
 				}
-				void Visit(const FX::Nodes::Function *node)
+				void visit(const fx::nodes::function_declaration_node *node)
 				{
-					_currentSource += PrintType(node->ReturnType);
-					_currentSource += ' ';
-					_currentSource += PrintName(node);
-					_currentSource += '(';
+					_current_source += print_type(node->return_type);
+					_current_source += ' ';
+					_current_source += print_name(node);
+					_current_source += '(';
 
-					_currentInParameterBlock = true;
+					_is_in_parameter_block = true;
 
-					for (auto parameter : node->Parameters)
+					for (auto parameter : node->parameter_list)
 					{
-						Visit(parameter);
+						visit(parameter);
 
-						_currentSource += ", ";
+						_current_source += ", ";
 					}
 
-					_currentInParameterBlock = false;
+					_is_in_parameter_block = false;
 
-					if (!node->Parameters.empty())
+					if (!node->parameter_list.empty())
 					{
-						_currentSource.pop_back();
-						_currentSource.pop_back();
+						_current_source.pop_back();
+						_current_source.pop_back();
 					}
 
-					_currentSource += ')';
+					_current_source += ')';
 								
-					if (!node->ReturnSemantic.empty())
+					if (!node->return_semantic.empty())
 					{
-						_currentSource += " : " + ConvertSemantic(node->ReturnSemantic);
+						_current_source += " : " + convert_semantic(node->return_semantic);
 					}
 
-					_currentSource += '\n';
+					_current_source += '\n';
 
-					_currentInFunctionBlock = true;
+					_is_in_function_block = true;
 
-					Visit(node->Definition);
+					visit(node->definition);
 
-					_currentInFunctionBlock = false;
+					_is_in_function_block = false;
 				}
-				void Visit(const FX::Nodes::Technique *node)
+				void visit(const fx::nodes::technique_declaration_node *node)
 				{
-					D3D10Technique *obj = new D3D10Technique();
-					obj->Name = node->Name;
-					obj->PassCount = static_cast<unsigned int>(node->Passes.size());
+					d3d10_technique *obj = new d3d10_technique();
+					obj->name = node->name;
+					obj->pass_count = static_cast<unsigned int>(node->pass_list.size());
 
-					Visit(node->Annotations, *obj);
+					visit_annotation(node->annotation_list, *obj);
 
-					for (auto pass : node->Passes)
+					for (auto pass : node->pass_list)
 					{
-						Visit(pass, obj->Passes);
+						visit_pass(pass, obj->passes);
 					}
 
-					_runtime->AddTechnique(obj);
+					_runtime->add_technique(obj);
 				}
-				void Visit(const FX::Nodes::Pass *node, std::vector<D3D10Technique::Pass> &passes)
+				void visit_pass(const fx::nodes::pass_declaration_node *node, std::vector<d3d10_pass> &passes)
 				{
-					D3D10Technique::Pass pass;
+					d3d10_pass pass;
 					pass.VS = nullptr;
 					pass.PS = nullptr;
 					pass.BS = nullptr;
@@ -1955,33 +1958,33 @@ namespace ReShade
 					pass.Viewport.MaxDepth = 1.0f;
 					ZeroMemory(pass.RT, sizeof(pass.RT));
 					ZeroMemory(pass.RTSRV, sizeof(pass.RTSRV));
-					pass.SRV = _runtime->_effectShaderResources;
+					pass.SRV = _runtime->_effect_shader_resources;
 
-					if (node->States.VertexShader != nullptr)
+					if (node->states.VertexShader != nullptr)
 					{
-						VisitShader(node->States.VertexShader, "vs", pass);
+						visit_pass_shader(node->states.VertexShader, "vs", pass);
 					}
-					if (node->States.PixelShader != nullptr)
+					if (node->states.PixelShader != nullptr)
 					{
-						VisitShader(node->States.PixelShader, "ps", pass);
+						visit_pass_shader(node->states.PixelShader, "ps", pass);
 					}
 
-					const int targetIndex = node->States.SRGBWriteEnable ? 1 : 0;
-					pass.RT[0] = _runtime->_backbufferTargets[targetIndex];
-					pass.RTSRV[0] = _runtime->_backbufferTextureSRV[targetIndex];
+					const int targetIndex = node->states.SRGBWriteEnable ? 1 : 0;
+					pass.RT[0] = _runtime->_backbuffer_rtv[targetIndex];
+					pass.RTSRV[0] = _runtime->_backbuffer_texture_srv[targetIndex];
 
 					for (unsigned int i = 0; i < 8; ++i)
 					{
-						if (node->States.RenderTargets[i] == nullptr)
+						if (node->states.RenderTargets[i] == nullptr)
 						{
 							continue;
 						}
 
-						D3D10Texture *texture = static_cast<D3D10Texture *>(_runtime->GetTexture(node->States.RenderTargets[i]->Name));
+						d3d10_texture *texture = static_cast<d3d10_texture *>(_runtime->get_texture(node->states.RenderTargets[i]->name));
 
 						if (texture == nullptr)
 						{
-							_isFatal = true;
+							_is_fatal = true;
 							return;
 						}
 
@@ -1990,8 +1993,7 @@ namespace ReShade
 
 						if (pass.Viewport.Width != 0 && pass.Viewport.Height != 0 && (desc.Width != static_cast<unsigned int>(pass.Viewport.Width) || desc.Height != static_cast<unsigned int>(pass.Viewport.Height)))
 						{
-							_errors += PrintLocation(node->location) + "error: cannot use multiple rendertargets with different sized textures.\n";
-							_isFatal = true;
+							error(node->location, "cannot use multiple rendertargets with different sized textures");
 							return;
 						}
 						else
@@ -2002,7 +2004,7 @@ namespace ReShade
 
 						D3D10_RENDER_TARGET_VIEW_DESC rtvdesc;
 						ZeroMemory(&rtvdesc, sizeof(D3D10_RENDER_TARGET_VIEW_DESC));
-						rtvdesc.Format = node->States.SRGBWriteEnable ? MakeSRGBFormat(desc.Format) : MakeNonSRGBFormat(desc.Format);
+						rtvdesc.Format = node->states.SRGBWriteEnable ? MakeSRGBFormat(desc.Format) : MakeNonSRGBFormat(desc.Format);
 						rtvdesc.ViewDimension = desc.SampleDesc.Count > 1 ? D3D10_RTV_DIMENSION_TEXTURE2DMS : D3D10_RTV_DIMENSION_TEXTURE2D;
 
 						if (texture->RenderTargetView[targetIndex] == nullptr)
@@ -2011,7 +2013,7 @@ namespace ReShade
 
 							if (FAILED(hr))
 							{
-								_errors += PrintLocation(node->location) + "warning: 'CreateRenderTargetView' failed!\n";
+								warning(node->location, "'CreateRenderTargetView' failed with %u!", hr);
 							}
 						}
 
@@ -2021,38 +2023,38 @@ namespace ReShade
 
 					if (pass.Viewport.Width == 0 && pass.Viewport.Height == 0)
 					{
-						pass.Viewport.Width = _runtime->GetBufferWidth();
-						pass.Viewport.Height = _runtime->GetBufferHeight();
+						pass.Viewport.Width = _runtime->buffer_width();
+						pass.Viewport.Height = _runtime->buffer_height();
 					}
 
 					D3D10_DEPTH_STENCIL_DESC ddesc;
-					ddesc.DepthEnable = node->States.DepthEnable;
-					ddesc.DepthWriteMask = node->States.DepthWriteMask ? D3D10_DEPTH_WRITE_MASK_ALL : D3D10_DEPTH_WRITE_MASK_ZERO;
-					ddesc.DepthFunc = static_cast<D3D10_COMPARISON_FUNC>(node->States.DepthFunc);
-					ddesc.StencilEnable = node->States.StencilEnable;
-					ddesc.StencilReadMask = node->States.StencilReadMask;
-					ddesc.StencilWriteMask = node->States.StencilWriteMask;
-					ddesc.FrontFace.StencilFunc = ddesc.BackFace.StencilFunc = static_cast<D3D10_COMPARISON_FUNC>(node->States.StencilFunc);
-					ddesc.FrontFace.StencilPassOp = ddesc.BackFace.StencilPassOp = LiteralToStencilOp(node->States.StencilOpPass);
-					ddesc.FrontFace.StencilFailOp = ddesc.BackFace.StencilFailOp = LiteralToStencilOp(node->States.StencilOpFail);
-					ddesc.FrontFace.StencilDepthFailOp = ddesc.BackFace.StencilDepthFailOp = LiteralToStencilOp(node->States.StencilOpDepthFail);
-					pass.StencilRef = node->States.StencilRef;
+					ddesc.DepthEnable = node->states.DepthEnable;
+					ddesc.DepthWriteMask = node->states.DepthWriteMask ? D3D10_DEPTH_WRITE_MASK_ALL : D3D10_DEPTH_WRITE_MASK_ZERO;
+					ddesc.DepthFunc = static_cast<D3D10_COMPARISON_FUNC>(node->states.DepthFunc);
+					ddesc.StencilEnable = node->states.StencilEnable;
+					ddesc.StencilReadMask = node->states.StencilReadMask;
+					ddesc.StencilWriteMask = node->states.StencilWriteMask;
+					ddesc.FrontFace.StencilFunc = ddesc.BackFace.StencilFunc = static_cast<D3D10_COMPARISON_FUNC>(node->states.StencilFunc);
+					ddesc.FrontFace.StencilPassOp = ddesc.BackFace.StencilPassOp = LiteralToStencilOp(node->states.StencilOpPass);
+					ddesc.FrontFace.StencilFailOp = ddesc.BackFace.StencilFailOp = LiteralToStencilOp(node->states.StencilOpFail);
+					ddesc.FrontFace.StencilDepthFailOp = ddesc.BackFace.StencilDepthFailOp = LiteralToStencilOp(node->states.StencilOpDepthFail);
+					pass.StencilRef = node->states.StencilRef;
 
 					HRESULT hr = _runtime->_device->CreateDepthStencilState(&ddesc, &pass.DSS);
 
 					if (FAILED(hr))
 					{
-						_errors += PrintLocation(node->location) + "warning: 'ID3D10Device::CreateDepthStencilState' failed!\n";
+						warning(node->location, "'ID3D10Device::CreateDepthStencilState' failed with %u!", hr);
 					}
 
 					D3D10_BLEND_DESC bdesc;
 					bdesc.AlphaToCoverageEnable = FALSE;
-					bdesc.RenderTargetWriteMask[0] = node->States.RenderTargetWriteMask;
-					bdesc.BlendEnable[0] = node->States.BlendEnable;
-					bdesc.BlendOp = static_cast<D3D10_BLEND_OP>(node->States.BlendOp);
-					bdesc.BlendOpAlpha = static_cast<D3D10_BLEND_OP>(node->States.BlendOpAlpha);
-					bdesc.SrcBlend = LiteralToBlend(node->States.SrcBlend);
-					bdesc.DestBlend = LiteralToBlend(node->States.DestBlend);
+					bdesc.RenderTargetWriteMask[0] = node->states.RenderTargetWriteMask;
+					bdesc.BlendEnable[0] = node->states.BlendEnable;
+					bdesc.BlendOp = static_cast<D3D10_BLEND_OP>(node->states.BlendOp);
+					bdesc.BlendOpAlpha = static_cast<D3D10_BLEND_OP>(node->states.BlendOpAlpha);
+					bdesc.SrcBlend = LiteralToBlend(node->states.SrcBlend);
+					bdesc.DestBlend = LiteralToBlend(node->states.DestBlend);
 
 					for (UINT i = 1; i < 8; ++i)
 					{
@@ -2064,7 +2066,7 @@ namespace ReShade
 
 					if (FAILED(hr))
 					{
-						_errors += PrintLocation(node->location) + "warning: 'ID3D10Device::CreateBlendState' failed!\n";
+						warning(node->location, "'ID3D10Device::CreateBlendState' failed with %u!", hr);
 					}
 
 					for (ID3D10ShaderResourceView *&srv : pass.SRV)
@@ -2098,7 +2100,7 @@ namespace ReShade
 
 					passes.push_back(std::move(pass));
 				}
-				void VisitShader(const FX::Nodes::Function *node, const std::string &shadertype, D3D10Technique::Pass &pass)
+				void visit_pass_shader(const fx::nodes::function_declaration_node *node, const std::string &shadertype, d3d10_pass &pass)
 				{
 					ID3D10Device1 *device1 = nullptr;
 					D3D10_FEATURE_LEVEL1 featurelevel = D3D10_FEATURE_LEVEL_10_0;
@@ -2162,24 +2164,24 @@ namespace ReShade
 						"inline float4 __tex2Dgather3(__sampler2D s, float2 c) { return float4( s.t.SampleLevel(s.s, c, 0, int2(0, 1)).a, s.t.SampleLevel(s.s, c, 0, int2(1, 1)).a, s.t.SampleLevel(s.s, c, 0, int2(1, 0)).a, s.t.SampleLevel(s.s, c, 0).a); }\n"
 						"inline float4 __tex2Dgather3offset(__sampler2D s, float2 c, int2 offset) { return float4( s.t.SampleLevel(s.s, c, 0, offset + int2(0, 1)).a, s.t.SampleLevel(s.s, c, 0, offset + int2(1, 1)).a, s.t.SampleLevel(s.s, c, 0, offset + int2(1, 0)).a, s.t.SampleLevel(s.s, c, 0, offset).a); }\n";
 
-					if (!_currentGlobalConstants.empty())
+					if (!_global_uniforms.empty())
 					{
-						source += "cbuffer __GLOBAL__ : register(b0)\n{\n" + _currentGlobalConstants + "};\n";
+						source += "cbuffer __GLOBAL__ : register(b0)\n{\n" + _global_uniforms + "};\n";
 					}
 
-					source += _currentSource;
+					source += _current_source;
 
-					LOG(TRACE) << "> Compiling shader '" << node->Name << "':\n\n" << source.c_str() << "\n";
+					LOG(TRACE) << "> Compiling shader '" << node->name << "':\n\n" << source.c_str() << "\n";
 
 					UINT flags = D3DCOMPILE_ENABLE_STRICTNESS;
 					ID3DBlob *compiled = nullptr, *errors = nullptr;
 
-					if (_skipShaderOptimization)
+					if (_skip_shader_optimization)
 					{
 						flags |= D3DCOMPILE_SKIP_OPTIMIZATION;
 					}
 
-					HRESULT hr = D3DCompile(source.c_str(), source.length(), nullptr, nullptr, nullptr, PrintName(node).c_str(), profile.c_str(), flags, 0, &compiled, &errors);
+					HRESULT hr = D3DCompile(source.c_str(), source.length(), nullptr, nullptr, nullptr, print_name(node).c_str(), profile.c_str(), flags, 0, &compiled, &errors);
 
 					if (errors != nullptr)
 					{
@@ -2190,7 +2192,7 @@ namespace ReShade
 
 					if (FAILED(hr))
 					{
-						_isFatal = true;
+						_is_fatal = true;
 						return;
 					}
 
@@ -2207,25 +2209,24 @@ namespace ReShade
 
 					if (FAILED(hr))
 					{
-						_errors += PrintLocation(node->location) + "error: 'CreateShader' failed!\n";
-						_isFatal = true;
+						error(node->location, "'CreateShader' failed with %u!", hr);
 						return;
 					}
 				}
 
 			private:
-				const FX::nodetree &_ast;
-				D3D10Runtime *_runtime;
-				std::string _currentSource;
+				const fx::nodetree &_ast;
+				d3d10_runtime *_runtime;
+				std::string _current_source;
 				std::string _errors;
-				bool _isFatal, _skipShaderOptimization;
-				std::unordered_map<size_t, size_t> _samplerDescs;
-				std::string _currentGlobalConstants;
-				UINT _currentGlobalSize, _currentInForInitialization;
-				bool _currentInParameterBlock, _currentInFunctionBlock;
+				bool _is_fatal, _skip_shader_optimization;
+				std::unordered_map<size_t, size_t> _sampler_descs;
+				std::string _global_uniforms;
+				UINT _current_global_size, _is_in_for_initialization;
+				bool _is_in_parameter_block, _is_in_function_block;
 			};
 
-			UINT GetRendererId(ID3D10Device *device)
+			UINT get_renderer_id(ID3D10Device *device)
 			{
 				ID3D10Device1 *device1 = nullptr;
 
@@ -2242,26 +2243,26 @@ namespace ReShade
 			}
 		}
 
-		class D3D10StateBlock
+		class d3d10_stateblock
 		{
 		public:
-			D3D10StateBlock(ID3D10Device *device)
+			d3d10_stateblock(ID3D10Device *device)
 			{
-				ZeroMemory(this, sizeof(D3D10StateBlock));
+				ZeroMemory(this, sizeof(d3d10_stateblock));
 
 				_device = device;
 				_device->AddRef();
 			}
-			~D3D10StateBlock()
+			~d3d10_stateblock()
 			{
-				ReleaseAllDeviceObjects();
+				release_all_device_objects();
 
 				_device->Release();
 			}
 
-			void Capture()
+			void capture()
 			{
-				ReleaseAllDeviceObjects();
+				release_all_device_objects();
 
 				_device->IAGetPrimitiveTopology(&_IAPrimitiveTopology);
 				_device->IAGetInputLayout(&_IAInputLayout);
@@ -2289,7 +2290,7 @@ namespace ReShade
 				_device->OMGetDepthStencilState(&_OMDepthStencilState, &_OMStencilRef);
 				_device->OMGetRenderTargets(D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, _OMRenderTargets, &_OMDepthStencil);
 			}
-			void Apply()
+			void apply()
 			{
 				_device->IASetPrimitiveTopology(_IAPrimitiveTopology);
 				_device->IASetInputLayout(_IAInputLayout);
@@ -2316,7 +2317,7 @@ namespace ReShade
 				_device->OMSetDepthStencilState(_OMDepthStencilState, _OMStencilRef);
 				_device->OMSetRenderTargets(D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, _OMRenderTargets, _OMDepthStencil);
 			}
-			void ReleaseAllDeviceObjects()
+			void release_all_device_objects()
 			{
 				SAFE_RELEASE(_IAInputLayout);
 
@@ -2406,7 +2407,7 @@ namespace ReShade
 
 		// ---------------------------------------------------------------------------------------------------
 
-		D3D10Runtime::D3D10Runtime(ID3D10Device *device, IDXGISwapChain *swapchain) : Runtime(GetRendererId(device)), _device(device), _swapchain(swapchain), _backbufferFormat(DXGI_FORMAT_UNKNOWN), _multisamplingEnabled(false), _stateBlock(new D3D10StateBlock(device)), _backbuffer(nullptr), _backbufferResolved(nullptr), _backbufferTexture(nullptr), _backbufferTextureSRV(), _backbufferTargets(), _depthStencil(nullptr), _depthStencilReplacement(nullptr), _depthStencilTexture(nullptr), _depthStencilTextureSRV(nullptr), _copyVS(nullptr), _copyPS(nullptr), _copySampler(nullptr), _effectRasterizerState(nullptr), _constantBuffer(nullptr), _constantBufferSize(0)
+		d3d10_runtime::d3d10_runtime(ID3D10Device *device, IDXGISwapChain *swapchain) : runtime(get_renderer_id(device)), _device(device), _swapchain(swapchain), _backbuffer_format(DXGI_FORMAT_UNKNOWN), _is_multisampling_enabled(false), _stateblock(new d3d10_stateblock(device)), _backbuffer(nullptr), _backbuffer_resolved(nullptr), _backbuffer_texture(nullptr), _backbuffer_texture_srv(), _backbuffer_rtv(), _depthstencil(nullptr), _depthstencil_replacement(nullptr), _depthstencil_texture(nullptr), _depthstencil_texture_srv(nullptr), _copy_vertex_shader(nullptr), _copy_pixel_shader(nullptr), _copy_sampler(nullptr), _effect_rasterizer_state(nullptr), _constant_buffer(nullptr), _constant_buffer_size(0)
 		{
 			_device->AddRef();
 			_swapchain->AddRef();
@@ -2431,22 +2432,22 @@ namespace ReShade
 
 			assert(SUCCEEDED(hr));
 			
-			_vendorId = desc.VendorId;
-			_deviceId = desc.DeviceId;
+			_vendor_id = desc.VendorId;
+			_device_id = desc.DeviceId;
 		}
-		D3D10Runtime::~D3D10Runtime()
+		d3d10_runtime::~d3d10_runtime()
 		{
 			_device->Release();
 			_swapchain->Release();
 		}
 
-		bool D3D10Runtime::OnInit(const DXGI_SWAP_CHAIN_DESC &desc)
+		bool d3d10_runtime::on_init(const DXGI_SWAP_CHAIN_DESC &desc)
 		{
 			_width = desc.BufferDesc.Width;
 			_height = desc.BufferDesc.Height;
-			_backbufferFormat = desc.BufferDesc.Format;
-			_multisamplingEnabled = desc.SampleDesc.Count > 1;
-			_input = Input::RegisterWindow(desc.OutputWindow);
+			_backbuffer_format = desc.BufferDesc.Format;
+			_is_multisampling_enabled = desc.SampleDesc.Count > 1;
+			_input = input::register_window(desc.OutputWindow);
 
 			#pragma region Get backbuffer rendertarget
 			HRESULT hr = _swapchain->GetBuffer(0, __uuidof(ID3D10Texture2D), reinterpret_cast<void **>(&_backbuffer));
@@ -2457,7 +2458,7 @@ namespace ReShade
 			texdesc.Width = _width;
 			texdesc.Height = _height;
 			texdesc.ArraySize = texdesc.MipLevels = 1;
-			texdesc.Format = D3D10EffectCompiler::MakeTypelessFormat(_backbufferFormat);
+			texdesc.Format = d3d10_fx_compiler::MakeTypelessFormat(_backbuffer_format);
 			texdesc.SampleDesc.Count = 1;
 			texdesc.SampleDesc.Quality = 0;
 			texdesc.Usage = D3D10_USAGE_DEFAULT;
@@ -2467,9 +2468,9 @@ namespace ReShade
 			OSVERSIONINFOEX verinfoWin7 = { sizeof(OSVERSIONINFOEX), 6, 1 };
 			const bool isWindows7 = VerifyVersionInfo(&verinfoWin7, VER_MAJORVERSION | VER_MINORVERSION, VerSetConditionMask(VerSetConditionMask(0, VER_MAJORVERSION, VER_EQUAL), VER_MINORVERSION, VER_EQUAL)) != FALSE;
 
-			if (_multisamplingEnabled || D3D10EffectCompiler::MakeNonSRGBFormat(_backbufferFormat) != _backbufferFormat || !isWindows7)
+			if (_is_multisampling_enabled || d3d10_fx_compiler::MakeNonSRGBFormat(_backbuffer_format) != _backbuffer_format || !isWindows7)
 			{
-				hr = _device->CreateTexture2D(&texdesc, nullptr, &_backbufferResolved);
+				hr = _device->CreateTexture2D(&texdesc, nullptr, &_backbuffer_resolved);
 
 				if (FAILED(hr))
 				{
@@ -2480,44 +2481,44 @@ namespace ReShade
 					return false;
 				}
 
-				hr = _device->CreateRenderTargetView(_backbuffer, nullptr, &_backbufferTargets[2]);
+				hr = _device->CreateRenderTargetView(_backbuffer, nullptr, &_backbuffer_rtv[2]);
 
 				assert(SUCCEEDED(hr));
 			}
 			else
 			{
-				_backbufferResolved = _backbuffer;
-				_backbufferResolved->AddRef();
+				_backbuffer_resolved = _backbuffer;
+				_backbuffer_resolved->AddRef();
 			}
 			#pragma endregion
 
 			#pragma region Create backbuffer shader texture
 			texdesc.BindFlags = D3D10_BIND_SHADER_RESOURCE;
 
-			hr = _device->CreateTexture2D(&texdesc, nullptr, &_backbufferTexture);
+			hr = _device->CreateTexture2D(&texdesc, nullptr, &_backbuffer_texture);
 
 			if (SUCCEEDED(hr))
 			{
 				D3D10_SHADER_RESOURCE_VIEW_DESC srvdesc;
 				ZeroMemory(&srvdesc, sizeof(D3D10_SHADER_RESOURCE_VIEW_DESC));
-				srvdesc.Format = D3D10EffectCompiler::MakeNonSRGBFormat(texdesc.Format);
+				srvdesc.Format = d3d10_fx_compiler::MakeNonSRGBFormat(texdesc.Format);
 				srvdesc.ViewDimension = D3D10_SRV_DIMENSION_TEXTURE2D;
 				srvdesc.Texture2D.MipLevels = texdesc.MipLevels;
 
 				if (SUCCEEDED(hr))
 				{
-					hr = _device->CreateShaderResourceView(_backbufferTexture, &srvdesc, &_backbufferTextureSRV[0]);
+					hr = _device->CreateShaderResourceView(_backbuffer_texture, &srvdesc, &_backbuffer_texture_srv[0]);
 				}
 				else
 				{
 					LOG(TRACE) << "Failed to create backbuffer texture resource view (Format = " << srvdesc.Format << ")! HRESULT is '" << hr << "'.";
 				}
 
-				srvdesc.Format = D3D10EffectCompiler::MakeSRGBFormat(texdesc.Format);
+				srvdesc.Format = d3d10_fx_compiler::MakeSRGBFormat(texdesc.Format);
 
 				if (SUCCEEDED(hr))
 				{
-					hr = _device->CreateShaderResourceView(_backbufferTexture, &srvdesc, &_backbufferTextureSRV[1]);
+					hr = _device->CreateShaderResourceView(_backbuffer_texture, &srvdesc, &_backbuffer_texture_srv[1]);
 				}
 				else
 				{
@@ -2532,10 +2533,10 @@ namespace ReShade
 			if (FAILED(hr))
 			{
 				SAFE_RELEASE(_backbuffer);
-				SAFE_RELEASE(_backbufferResolved);
-				SAFE_RELEASE(_backbufferTexture);
-				SAFE_RELEASE(_backbufferTextureSRV[0]);
-				SAFE_RELEASE(_backbufferTextureSRV[1]);
+				SAFE_RELEASE(_backbuffer_resolved);
+				SAFE_RELEASE(_backbuffer_texture);
+				SAFE_RELEASE(_backbuffer_texture_srv[0]);
+				SAFE_RELEASE(_backbuffer_texture_srv[1]);
 
 				return false;
 			}
@@ -2543,36 +2544,36 @@ namespace ReShade
 
 			D3D10_RENDER_TARGET_VIEW_DESC rtdesc;
 			ZeroMemory(&rtdesc, sizeof(D3D10_RENDER_TARGET_VIEW_DESC));
-			rtdesc.Format = D3D10EffectCompiler::MakeNonSRGBFormat(texdesc.Format);
+			rtdesc.Format = d3d10_fx_compiler::MakeNonSRGBFormat(texdesc.Format);
 			rtdesc.ViewDimension = D3D10_RTV_DIMENSION_TEXTURE2D;
 
-			hr = _device->CreateRenderTargetView(_backbufferResolved, &rtdesc, &_backbufferTargets[0]);
+			hr = _device->CreateRenderTargetView(_backbuffer_resolved, &rtdesc, &_backbuffer_rtv[0]);
 
 			if (FAILED(hr))
 			{
 				SAFE_RELEASE(_backbuffer);
-				SAFE_RELEASE(_backbufferResolved);
-				SAFE_RELEASE(_backbufferTexture);
-				SAFE_RELEASE(_backbufferTextureSRV[0]);
-				SAFE_RELEASE(_backbufferTextureSRV[1]);
+				SAFE_RELEASE(_backbuffer_resolved);
+				SAFE_RELEASE(_backbuffer_texture);
+				SAFE_RELEASE(_backbuffer_texture_srv[0]);
+				SAFE_RELEASE(_backbuffer_texture_srv[1]);
 
 				LOG(TRACE) << "Failed to create backbuffer rendertarget (Format = " << rtdesc.Format << ")! HRESULT is '" << hr << "'.";
 
 				return false;
 			}
 
-			rtdesc.Format = D3D10EffectCompiler::MakeSRGBFormat(texdesc.Format);
+			rtdesc.Format = d3d10_fx_compiler::MakeSRGBFormat(texdesc.Format);
 
-			hr = _device->CreateRenderTargetView(_backbufferResolved, &rtdesc, &_backbufferTargets[1]);
+			hr = _device->CreateRenderTargetView(_backbuffer_resolved, &rtdesc, &_backbuffer_rtv[1]);
 
 			if (FAILED(hr))
 			{
 				SAFE_RELEASE(_backbuffer);
-				SAFE_RELEASE(_backbufferResolved);
-				SAFE_RELEASE(_backbufferTexture);
-				SAFE_RELEASE(_backbufferTextureSRV[0]);
-				SAFE_RELEASE(_backbufferTextureSRV[1]);
-				SAFE_RELEASE(_backbufferTargets[0]);
+				SAFE_RELEASE(_backbuffer_resolved);
+				SAFE_RELEASE(_backbuffer_texture);
+				SAFE_RELEASE(_backbuffer_texture_srv[0]);
+				SAFE_RELEASE(_backbuffer_texture_srv[1]);
+				SAFE_RELEASE(_backbuffer_rtv[0]);
 
 				LOG(TRACE) << "Failed to create backbuffer SRGB rendertarget (Format = " << rtdesc.Format << ")! HRESULT is '" << hr << "'.";
 
@@ -2597,7 +2598,7 @@ namespace ReShade
 
 			if (SUCCEEDED(hr))
 			{
-				hr = _device->CreateDepthStencilView(dstexture, nullptr, &_defaultDepthStencil);
+				hr = _device->CreateDepthStencilView(dstexture, nullptr, &_default_depthstencil);
 
 				SAFE_RELEASE(dstexture);
 			}
@@ -2610,17 +2611,17 @@ namespace ReShade
 			#pragma endregion
 
 			const BYTE vs[] = { 68, 88, 66, 67, 224, 206, 72, 137, 142, 185, 68, 219, 247, 216, 225, 132, 111, 78, 106, 20, 1, 0, 0, 0, 156, 2, 0, 0, 5, 0, 0, 0, 52, 0, 0, 0, 140, 0, 0, 0, 192, 0, 0, 0, 24, 1, 0, 0, 32, 2, 0, 0, 82, 68, 69, 70, 80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 28, 0, 0, 0, 0, 4, 254, 255, 0, 1, 0, 0, 28, 0, 0, 0, 77, 105, 99, 114, 111, 115, 111, 102, 116, 32, 40, 82, 41, 32, 72, 76, 83, 76, 32, 83, 104, 97, 100, 101, 114, 32, 67, 111, 109, 112, 105, 108, 101, 114, 32, 54, 46, 51, 46, 57, 54, 48, 48, 46, 49, 54, 51, 56, 52, 0, 171, 171, 73, 83, 71, 78, 44, 0, 0, 0, 1, 0, 0, 0, 8, 0, 0, 0, 32, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 83, 86, 95, 86, 101, 114, 116, 101, 120, 73, 68, 0, 79, 83, 71, 78, 80, 0, 0, 0, 2, 0, 0, 0, 8, 0, 0, 0, 56, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 15, 0, 0, 0, 68, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 1, 0, 0, 0, 3, 12, 0, 0, 83, 86, 95, 80, 111, 115, 105, 116, 105, 111, 110, 0, 84, 69, 88, 67, 79, 79, 82, 68, 0, 171, 171, 171, 83, 72, 68, 82, 0, 1, 0, 0, 64, 0, 1, 0, 64, 0, 0, 0, 96, 0, 0, 4, 18, 16, 16, 0, 0, 0, 0, 0, 6, 0, 0, 0, 103, 0, 0, 4, 242, 32, 16, 0, 0, 0, 0, 0, 1, 0, 0, 0, 101, 0, 0, 3, 50, 32, 16, 0, 1, 0, 0, 0, 104, 0, 0, 2, 1, 0, 0, 0, 32, 0, 0, 10, 50, 0, 16, 0, 0, 0, 0, 0, 6, 16, 16, 0, 0, 0, 0, 0, 2, 64, 0, 0, 2, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 10, 50, 0, 16, 0, 0, 0, 0, 0, 70, 0, 16, 0, 0, 0, 0, 0, 2, 64, 0, 0, 0, 0, 0, 64, 0, 0, 0, 64, 0, 0, 0, 0, 0, 0, 0, 0, 50, 0, 0, 15, 50, 32, 16, 0, 0, 0, 0, 0, 70, 0, 16, 0, 0, 0, 0, 0, 2, 64, 0, 0, 0, 0, 0, 64, 0, 0, 0, 192, 0, 0, 0, 0, 0, 0, 0, 0, 2, 64, 0, 0, 0, 0, 128, 191, 0, 0, 128, 63, 0, 0, 0, 0, 0, 0, 0, 0, 54, 0, 0, 5, 50, 32, 16, 0, 1, 0, 0, 0, 70, 0, 16, 0, 0, 0, 0, 0, 54, 0, 0, 8, 194, 32, 16, 0, 0, 0, 0, 0, 2, 64, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 128, 63, 62, 0, 0, 1, 83, 84, 65, 84, 116, 0, 0, 0, 6, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-			hr = _device->CreateVertexShader(vs, ARRAYSIZE(vs), &_copyVS);
+			hr = _device->CreateVertexShader(vs, ARRAYSIZE(vs), &_copy_vertex_shader);
 
 			assert(SUCCEEDED(hr));
 
 			const BYTE ps[] = { 68, 88, 66, 67, 93, 102, 148, 45, 34, 106, 51, 79, 54, 23, 136, 21, 27, 217, 232, 71, 1, 0, 0, 0, 116, 2, 0, 0, 5, 0, 0, 0, 52, 0, 0, 0, 208, 0, 0, 0, 40, 1, 0, 0, 92, 1, 0, 0, 248, 1, 0, 0, 82, 68, 69, 70, 148, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 28, 0, 0, 0, 0, 4, 255, 255, 0, 1, 0, 0, 98, 0, 0, 0, 92, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 95, 0, 0, 0, 2, 0, 0, 0, 5, 0, 0, 0, 4, 0, 0, 0, 255, 255, 255, 255, 0, 0, 0, 0, 1, 0, 0, 0, 13, 0, 0, 0, 115, 48, 0, 116, 48, 0, 77, 105, 99, 114, 111, 115, 111, 102, 116, 32, 40, 82, 41, 32, 72, 76, 83, 76, 32, 83, 104, 97, 100, 101, 114, 32, 67, 111, 109, 112, 105, 108, 101, 114, 32, 54, 46, 51, 46, 57, 54, 48, 48, 46, 49, 54, 51, 56, 52, 0, 73, 83, 71, 78, 80, 0, 0, 0, 2, 0, 0, 0, 8, 0, 0, 0, 56, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 15, 0, 0, 0, 68, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 1, 0, 0, 0, 3, 3, 0, 0, 83, 86, 95, 80, 111, 115, 105, 116, 105, 111, 110, 0, 84, 69, 88, 67, 79, 79, 82, 68, 0, 171, 171, 171, 79, 83, 71, 78, 44, 0, 0, 0, 1, 0, 0, 0, 8, 0, 0, 0, 32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 15, 0, 0, 0, 83, 86, 95, 84, 97, 114, 103, 101, 116, 0, 171, 171, 83, 72, 68, 82, 148, 0, 0, 0, 64, 0, 0, 0, 37, 0, 0, 0, 90, 0, 0, 3, 0, 96, 16, 0, 0, 0, 0, 0, 88, 24, 0, 4, 0, 112, 16, 0, 0, 0, 0, 0, 85, 85, 0, 0, 98, 16, 0, 3, 50, 16, 16, 0, 1, 0, 0, 0, 101, 0, 0, 3, 242, 32, 16, 0, 0, 0, 0, 0, 104, 0, 0, 2, 1, 0, 0, 0, 69, 0, 0, 9, 242, 0, 16, 0, 0, 0, 0, 0, 70, 16, 16, 0, 1, 0, 0, 0, 70, 126, 16, 0, 0, 0, 0, 0, 0, 96, 16, 0, 0, 0, 0, 0, 54, 0, 0, 5, 114, 32, 16, 0, 0, 0, 0, 0, 70, 2, 16, 0, 0, 0, 0, 0, 54, 0, 0, 5, 130, 32, 16, 0, 0, 0, 0, 0, 1, 64, 0, 0, 0, 0, 128, 63, 62, 0, 0, 1, 83, 84, 65, 84, 116, 0, 0, 0, 4, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-			hr = _device->CreatePixelShader(ps, ARRAYSIZE(ps), &_copyPS);
+			hr = _device->CreatePixelShader(ps, ARRAYSIZE(ps), &_copy_pixel_shader);
 
 			assert(SUCCEEDED(hr));
 
 			const D3D10_SAMPLER_DESC copysampdesc = { D3D10_FILTER_MIN_MAG_MIP_POINT, D3D10_TEXTURE_ADDRESS_CLAMP, D3D10_TEXTURE_ADDRESS_CLAMP, D3D10_TEXTURE_ADDRESS_CLAMP };
-			hr = _device->CreateSamplerState(&copysampdesc, &_copySampler);
+			hr = _device->CreateSamplerState(&copysampdesc, &_copy_sampler);
 
 			assert(SUCCEEDED(hr));
 
@@ -2631,26 +2632,26 @@ namespace ReShade
 			rsdesc.CullMode = D3D10_CULL_NONE;
 			rsdesc.DepthClipEnable = TRUE;
 
-			hr = _device->CreateRasterizerState(&rsdesc, &_effectRasterizerState);
+			hr = _device->CreateRasterizerState(&rsdesc, &_effect_rasterizer_state);
 
 			assert(SUCCEEDED(hr));
 			#pragma endregion
 
-			_gui.reset(new GUI(this, nvgCreateD3D10(_device, 0)));
+			_gui.reset(new gui(this, nvgCreateD3D10(_device, 0)));
 
-			return Runtime::OnInit();
+			return runtime::on_init();
 		}
-		void D3D10Runtime::OnReset()
+		void d3d10_runtime::on_reset()
 		{
-			if (!_isInitialized)
+			if (!_is_initialized)
 			{
 				return;
 			}
 
-			Runtime::OnReset();
+			runtime::on_reset();
 
 			// Destroy NanoVG
-			NVGcontext *const nvg = _gui->GetContext();
+			NVGcontext *const nvg = _gui->context();
 
 			_gui.reset();
 
@@ -2658,112 +2659,112 @@ namespace ReShade
 
 			// Destroy resources
 			SAFE_RELEASE(_backbuffer);
-			SAFE_RELEASE(_backbufferResolved);
-			SAFE_RELEASE(_backbufferTexture);
-			SAFE_RELEASE(_backbufferTextureSRV[0]);
-			SAFE_RELEASE(_backbufferTextureSRV[1]);
-			SAFE_RELEASE(_backbufferTargets[0]);
-			SAFE_RELEASE(_backbufferTargets[1]);
-			SAFE_RELEASE(_backbufferTargets[2]);
+			SAFE_RELEASE(_backbuffer_resolved);
+			SAFE_RELEASE(_backbuffer_texture);
+			SAFE_RELEASE(_backbuffer_texture_srv[0]);
+			SAFE_RELEASE(_backbuffer_texture_srv[1]);
+			SAFE_RELEASE(_backbuffer_rtv[0]);
+			SAFE_RELEASE(_backbuffer_rtv[1]);
+			SAFE_RELEASE(_backbuffer_rtv[2]);
 
-			SAFE_RELEASE(_depthStencil);
-			SAFE_RELEASE(_depthStencilReplacement);
-			SAFE_RELEASE(_depthStencilTexture);
-			SAFE_RELEASE(_depthStencilTextureSRV);
+			SAFE_RELEASE(_depthstencil);
+			SAFE_RELEASE(_depthstencil_replacement);
+			SAFE_RELEASE(_depthstencil_texture);
+			SAFE_RELEASE(_depthstencil_texture_srv);
 
-			SAFE_RELEASE(_defaultDepthStencil);
-			SAFE_RELEASE(_copyVS);
-			SAFE_RELEASE(_copyPS);
-			SAFE_RELEASE(_copySampler);
+			SAFE_RELEASE(_default_depthstencil);
+			SAFE_RELEASE(_copy_vertex_shader);
+			SAFE_RELEASE(_copy_pixel_shader);
+			SAFE_RELEASE(_copy_sampler);
 
-			SAFE_RELEASE(_effectRasterizerState);
+			SAFE_RELEASE(_effect_rasterizer_state);
 		}
-		void D3D10Runtime::OnResetEffect()
+		void d3d10_runtime::on_reset_effect()
 		{
-			Runtime::OnResetEffect();
+			runtime::on_reset_effect();
 
-			for (auto it : _effectSamplerStates)
+			for (auto it : _effect_sampler_states)
 			{
 				it->Release();
 			}
 
-			_effectSamplerStates.clear();
-			_effectShaderResources.clear();
+			_effect_sampler_states.clear();
+			_effect_shader_resources.clear();
 
-			SAFE_RELEASE(_constantBuffer);
+			SAFE_RELEASE(_constant_buffer);
 
-			_constantBufferSize = 0;
+			_constant_buffer_size = 0;
 		}
-		void D3D10Runtime::OnPresent()
+		void d3d10_runtime::on_present()
 		{
-			if (!_isInitialized)
+			if (!_is_initialized)
 			{
 				LOG(TRACE) << "Failed to present! Runtime is in a lost state.";
 				return;
 			}
-			else if (_stats.DrawCalls == 0)
+			else if (_stats.drawcalls == 0)
 			{
 				return;
 			}
 
-			DetectDepthSource();
+			detect_depth_source();
 
 			// Capture device state
-			_stateBlock->Capture();
+			_stateblock->capture();
 
-			ID3D10RenderTargetView *stateblockTargets[D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT] = { nullptr };
-			ID3D10DepthStencilView *stateblockDepthStencil = nullptr;
+			ID3D10RenderTargetView *stateblock_rendertargets[D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT] = { nullptr };
+			ID3D10DepthStencilView *stateblock_depthstencil = nullptr;
 
-			_device->OMGetRenderTargets(D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, stateblockTargets, &stateblockDepthStencil);
+			_device->OMGetRenderTargets(D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, stateblock_rendertargets, &stateblock_depthstencil);
 
 			// Resolve backbuffer
-			if (_backbufferResolved != _backbuffer)
+			if (_backbuffer_resolved != _backbuffer)
 			{
-				_device->ResolveSubresource(_backbufferResolved, 0, _backbuffer, 0, _backbufferFormat);
+				_device->ResolveSubresource(_backbuffer_resolved, 0, _backbuffer, 0, _backbuffer_format);
 			}
 
 			// Apply post processing
-			OnApplyEffect();
+			on_apply_effect();
 
 			// Reset rendertarget
-			_device->OMSetRenderTargets(1, &_backbufferTargets[0], _defaultDepthStencil);
+			_device->OMSetRenderTargets(1, &_backbuffer_rtv[0], _default_depthstencil);
 
 			const D3D10_VIEWPORT viewport = { 0, 0, _width, _height, 0.0f, 1.0f };
 			_device->RSSetViewports(1, &viewport);
 
 			// Apply presenting
-			Runtime::OnPresent();
+			runtime::on_present();
 
 			// Copy to backbuffer
-			if (_backbufferResolved != _backbuffer)
+			if (_backbuffer_resolved != _backbuffer)
 			{
-				_device->OMSetRenderTargets(1, &_backbufferTargets[2], nullptr);
-				_device->CopyResource(_backbufferTexture, _backbufferResolved);
+				_device->OMSetRenderTargets(1, &_backbuffer_rtv[2], nullptr);
+				_device->CopyResource(_backbuffer_texture, _backbuffer_resolved);
 
-				_device->VSSetShader(_copyVS);
-				_device->PSSetShader(_copyPS);
-				_device->PSSetSamplers(0, 1, &_copySampler);
-				_device->PSSetShaderResources(0, 1, &_backbufferTextureSRV[D3D10EffectCompiler::MakeSRGBFormat(_backbufferFormat) == _backbufferFormat]);
+				_device->VSSetShader(_copy_vertex_shader);
+				_device->PSSetShader(_copy_pixel_shader);
+				_device->PSSetSamplers(0, 1, &_copy_sampler);
+				_device->PSSetShaderResources(0, 1, &_backbuffer_texture_srv[d3d10_fx_compiler::MakeSRGBFormat(_backbuffer_format) == _backbuffer_format]);
 				_device->Draw(3, 0);
 			}
 
 			// Apply previous device state
-			_stateBlock->Apply();
+			_stateblock->apply();
 
-			_device->OMSetRenderTargets(D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, stateblockTargets, stateblockDepthStencil);
+			_device->OMSetRenderTargets(D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, stateblock_rendertargets, stateblock_depthstencil);
 
-			_stateBlock->ReleaseAllDeviceObjects();
+			_stateblock->release_all_device_objects();
 
 			for (UINT i = 0; i < D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT; ++i)
 			{
-				SAFE_RELEASE(stateblockTargets[i]);
+				SAFE_RELEASE(stateblock_rendertargets[i]);
 			}
 
-			SAFE_RELEASE(stateblockDepthStencil);
+			SAFE_RELEASE(stateblock_depthstencil);
 		}
-		void D3D10Runtime::OnDrawCall(UINT vertices)
+		void d3d10_runtime::on_draw_call(UINT vertices)
 		{
-			Runtime::OnDrawCall(vertices);
+			runtime::on_draw_call(vertices);
 
 			ID3D10DepthStencilView *depthstencil = nullptr;
 			_device->OMGetRenderTargets(0, nullptr, &depthstencil);
@@ -2772,33 +2773,33 @@ namespace ReShade
 			{
 				depthstencil->Release();
 
-				if (depthstencil == _defaultDepthStencil)
+				if (depthstencil == _default_depthstencil)
 				{
 					return;
 				}
-				else if (depthstencil == _depthStencilReplacement)
+				else if (depthstencil == _depthstencil_replacement)
 				{
-					depthstencil = _depthStencil;
+					depthstencil = _depthstencil;
 				}
 
-				const auto it = _depthSourceTable.find(depthstencil);
+				const auto it = _depth_source_table.find(depthstencil);
 
-				if (it != _depthSourceTable.end())
+				if (it != _depth_source_table.end())
 				{
-					it->second.DrawCallCount = static_cast<FLOAT>(_stats.DrawCalls);
-					it->second.DrawVerticesCount += vertices;
+					it->second.drawcall_count = static_cast<FLOAT>(_stats.drawcalls);
+					it->second.vertices_count += vertices;
 				}
 			}
 		}
-		void D3D10Runtime::OnApplyEffect()
+		void d3d10_runtime::on_apply_effect()
 		{
-			if (!_isEffectCompiled)
+			if (!_is_effect_compiled)
 			{
 				return;
 			}
 
 			// Setup real backbuffer
-			_device->OMSetRenderTargets(1, &_backbufferTargets[0], nullptr);
+			_device->OMSetRenderTargets(1, &_backbuffer_rtv[0], nullptr);
 
 			// Setup vertex input
 			const uintptr_t null = 0;
@@ -2806,40 +2807,40 @@ namespace ReShade
 			_device->IASetInputLayout(nullptr);
 			_device->IASetVertexBuffers(0, 1, reinterpret_cast<ID3D10Buffer *const *>(&null), reinterpret_cast<const UINT *>(&null), reinterpret_cast<const UINT *>(&null));
 
-			_device->RSSetState(_effectRasterizerState);
+			_device->RSSetState(_effect_rasterizer_state);
 
 			// Disable unused pipeline stages
 			_device->GSSetShader(nullptr);
 
 			// Setup samplers
-			_device->VSSetSamplers(0, static_cast<UINT>(_effectSamplerStates.size()), _effectSamplerStates.data());
-			_device->PSSetSamplers(0, static_cast<UINT>(_effectSamplerStates.size()), _effectSamplerStates.data());
+			_device->VSSetSamplers(0, static_cast<UINT>(_effect_sampler_states.size()), _effect_sampler_states.data());
+			_device->PSSetSamplers(0, static_cast<UINT>(_effect_sampler_states.size()), _effect_sampler_states.data());
 
 			// Setup shader constants
-			_device->VSSetConstantBuffers(0, 1, &_constantBuffer);
-			_device->PSSetConstantBuffers(0, 1, &_constantBuffer);
+			_device->VSSetConstantBuffers(0, 1, &_constant_buffer);
+			_device->PSSetConstantBuffers(0, 1, &_constant_buffer);
 
 			// Apply post processing
-			Runtime::OnApplyEffect();
+			runtime::on_apply_effect();
 		}
-		void D3D10Runtime::OnApplyEffectTechnique(const Technique *technique)
+		void d3d10_runtime::on_apply_effect_technique(const technique *technique)
 		{
-			Runtime::OnApplyEffectTechnique(technique);
+			runtime::on_apply_effect_technique(technique);
 
 			bool defaultDepthStencilCleared = false;
 
 			// Update shader constants
-			if (_constantBuffer != nullptr)
+			if (_constant_buffer != nullptr)
 			{
 				void *data = nullptr;
 
-				const HRESULT hr = _constantBuffer->Map(D3D10_MAP_WRITE_DISCARD, 0, &data);
+				const HRESULT hr = _constant_buffer->Map(D3D10_MAP_WRITE_DISCARD, 0, &data);
 
 				if (SUCCEEDED(hr))
 				{
-					CopyMemory(data, _uniformDataStorage.data(), _constantBufferSize);
+					CopyMemory(data, _uniform_data_storage.data(), _constant_buffer_size);
 
-					_constantBuffer->Unmap();
+					_constant_buffer->Unmap();
 				}
 				else
 				{
@@ -2847,7 +2848,7 @@ namespace ReShade
 				}
 			}
 
-			for (const auto &pass : static_cast<const D3D10Technique *>(technique)->Passes)
+			for (const auto &pass : static_cast<const d3d10_technique *>(technique)->passes)
 			{
 				// Setup states
 				_device->VSSetShader(pass.VS);
@@ -2858,7 +2859,7 @@ namespace ReShade
 				_device->OMSetDepthStencilState(pass.DSS, pass.StencilRef);
 
 				// Save backbuffer of previous pass
-				_device->CopyResource(_backbufferTexture, _backbufferResolved);
+				_device->CopyResource(_backbuffer_texture, _backbuffer_resolved);
 
 				// Setup shader resources
 				_device->VSSetShaderResources(0, static_cast<UINT>(pass.SRV.size()), pass.SRV.data());
@@ -2867,14 +2868,14 @@ namespace ReShade
 				// Setup rendertargets
 				if (pass.Viewport.Width == _width && pass.Viewport.Height == _height)
 				{
-					_device->OMSetRenderTargets(D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, pass.RT, _defaultDepthStencil);
+					_device->OMSetRenderTargets(D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, pass.RT, _default_depthstencil);
 
 					if (!defaultDepthStencilCleared)
 					{
 						defaultDepthStencilCleared = true;
 
 						// Clear depthstencil
-						_device->ClearDepthStencilView(_defaultDepthStencil, D3D10_CLEAR_DEPTH | D3D10_CLEAR_STENCIL, 1.0f, 0);
+						_device->ClearDepthStencilView(_default_depthstencil, D3D10_CLEAR_DEPTH | D3D10_CLEAR_STENCIL, 1.0f, 0);
 					}
 				}
 				else
@@ -2898,7 +2899,7 @@ namespace ReShade
 				// Draw triangle
 				_device->Draw(3, 0);
 
-				Runtime::OnDrawCall(3);
+				runtime::on_draw_call(3);
 
 				// Reset rendertargets
 				_device->OMSetRenderTargets(0, nullptr, nullptr);
@@ -2927,13 +2928,13 @@ namespace ReShade
 			}
 		}
 
-		void D3D10Runtime::OnCreateDepthStencilView(ID3D10Resource *resource, ID3D10DepthStencilView *depthstencil)
+		void d3d10_runtime::on_create_depthstencil_view(ID3D10Resource *resource, ID3D10DepthStencilView *depthstencil)
 		{
 			assert(resource != nullptr);
 			assert(depthstencil != nullptr);
 
 			// Do not track default depthstencil
-			if (!_isInitialized)
+			if (!_is_initialized)
 			{
 				return;
 			}
@@ -2960,76 +2961,76 @@ namespace ReShade
 			LOG(TRACE) << "Adding depthstencil " << depthstencil << " (Width: " << desc.Width << ", Height: " << desc.Height << ", Format: " << desc.Format << ") to list of possible depth candidates ...";
 
 			// Begin tracking new depthstencil
-			const DepthSourceInfo info = { desc.Width, desc.Height };
-			_depthSourceTable.emplace(depthstencil, info);
+			const depth_source_info info = { desc.Width, desc.Height };
+			_depth_source_table.emplace(depthstencil, info);
 		}
-		void D3D10Runtime::OnDeleteDepthStencilView(ID3D10DepthStencilView *depthstencil)
+		void d3d10_runtime::on_delete_depthstencil_view(ID3D10DepthStencilView *depthstencil)
 		{
 			assert(depthstencil != nullptr);
 
-			const auto it = _depthSourceTable.find(depthstencil);
+			const auto it = _depth_source_table.find(depthstencil);
 		
-			if (it != _depthSourceTable.end())
+			if (it != _depth_source_table.end())
 			{
 				LOG(TRACE) << "Removing depthstencil " << depthstencil << " from list of possible depth candidates ...";
 
-				_depthSourceTable.erase(it);
+				_depth_source_table.erase(it);
 
-				if (depthstencil == _depthStencil)
+				if (depthstencil == _depthstencil)
 				{
-					CreateDepthStencilReplacement(nullptr);
+					create_depthstencil_replacement(nullptr);
 				}
 			}
 		}
-		void D3D10Runtime::OnSetDepthStencilView(ID3D10DepthStencilView *&depthstencil)
+		void d3d10_runtime::on_set_depthstencil_view(ID3D10DepthStencilView *&depthstencil)
 		{
-			if (_depthStencilReplacement != nullptr && depthstencil == _depthStencil)
+			if (_depthstencil_replacement != nullptr && depthstencil == _depthstencil)
 			{
-				depthstencil = _depthStencilReplacement;
+				depthstencil = _depthstencil_replacement;
 			}
 		}
-		void D3D10Runtime::OnGetDepthStencilView(ID3D10DepthStencilView *&depthstencil)
+		void d3d10_runtime::on_get_depthstencil_view(ID3D10DepthStencilView *&depthstencil)
 		{
-			if (_depthStencilReplacement != nullptr && depthstencil == _depthStencilReplacement)
+			if (_depthstencil_replacement != nullptr && depthstencil == _depthstencil_replacement)
 			{
 				depthstencil->Release();
 
-				depthstencil = _depthStencil;
+				depthstencil = _depthstencil;
 				depthstencil->AddRef();
 			}
 		}
-		void D3D10Runtime::OnClearDepthStencilView(ID3D10DepthStencilView *&depthstencil)
+		void d3d10_runtime::on_clear_depthstencil_view(ID3D10DepthStencilView *&depthstencil)
 		{
-			if (_depthStencilReplacement != nullptr && depthstencil == _depthStencil)
+			if (_depthstencil_replacement != nullptr && depthstencil == _depthstencil)
 			{
-				depthstencil = _depthStencilReplacement;
+				depthstencil = _depthstencil_replacement;
 			}
 		}
-		void D3D10Runtime::OnCopyResource(ID3D10Resource *&dest, ID3D10Resource *&source)
+		void d3d10_runtime::on_copy_resource(ID3D10Resource *&dest, ID3D10Resource *&source)
 		{
-			if (_depthStencilReplacement != nullptr)
+			if (_depthstencil_replacement != nullptr)
 			{
 				ID3D10Resource *resource = nullptr;
-				_depthStencil->GetResource(&resource);
+				_depthstencil->GetResource(&resource);
 
 				if (dest == resource)
 				{
-					dest = _depthStencilTexture;
+					dest = _depthstencil_texture;
 				}
 				if (source == resource)
 				{
-					source = _depthStencilTexture;
+					source = _depthstencil_texture;
 				}
 
 				resource->Release();
 			}
 		}
 
-		void D3D10Runtime::Screenshot(unsigned char *buffer) const
+		void d3d10_runtime::screenshot(unsigned char *buffer) const
 		{
-			if (_backbufferFormat != DXGI_FORMAT_R8G8B8A8_UNORM && _backbufferFormat != DXGI_FORMAT_R8G8B8A8_UNORM_SRGB && _backbufferFormat != DXGI_FORMAT_B8G8R8A8_UNORM && _backbufferFormat != DXGI_FORMAT_B8G8R8A8_UNORM_SRGB)
+			if (_backbuffer_format != DXGI_FORMAT_R8G8B8A8_UNORM && _backbuffer_format != DXGI_FORMAT_R8G8B8A8_UNORM_SRGB && _backbuffer_format != DXGI_FORMAT_B8G8R8A8_UNORM && _backbuffer_format != DXGI_FORMAT_B8G8R8A8_UNORM_SRGB)
 			{
-				LOG(WARNING) << "Screenshots are not supported for backbuffer format " << _backbufferFormat << ".";
+				LOG(WARNING) << "Screenshots are not supported for backbuffer format " << _backbuffer_format << ".";
 				return;
 			}
 
@@ -3037,7 +3038,7 @@ namespace ReShade
 			ZeroMemory(&texdesc, sizeof(D3D10_TEXTURE2D_DESC));
 			texdesc.Width = _width;
 			texdesc.Height = _height;
-			texdesc.Format = _backbufferFormat;
+			texdesc.Format = _backbuffer_format;
 			texdesc.MipLevels = 1;
 			texdesc.ArraySize = 1;
 			texdesc.SampleDesc.Count = 1;
@@ -3054,7 +3055,7 @@ namespace ReShade
 				return;
 			}
 
-			_device->CopyResource(textureStaging, _backbufferResolved);
+			_device->CopyResource(textureStaging, _backbuffer_resolved);
 				
 			D3D10_MAPPED_TEXTURE2D mapped;
 			hr = textureStaging->Map(0, D3D10_MAP_READ, 0, &mapped);
@@ -3080,7 +3081,7 @@ namespace ReShade
 				{
 					pMem[x + 3] = 0xFF;
 
-					if (_backbufferFormat == DXGI_FORMAT_B8G8R8A8_UNORM || _backbufferFormat == DXGI_FORMAT_B8G8R8A8_UNORM_SRGB)
+					if (_backbuffer_format == DXGI_FORMAT_B8G8R8A8_UNORM || _backbuffer_format == DXGI_FORMAT_B8G8R8A8_UNORM_SRGB)
 					{
 						std::swap(pMem[x + 0], pMem[x + 2]);
 					}
@@ -3094,7 +3095,7 @@ namespace ReShade
 
 			textureStaging->Release();
 		}
-		bool D3D10Runtime::UpdateEffect(const FX::nodetree &ast, const std::vector<std::string> &pragmas, std::string &errors)
+		bool d3d10_runtime::update_effect(const fx::nodetree &ast, const std::vector<std::string> &pragmas, std::string &errors)
 		{
 			bool skipOptimization = false;
 
@@ -3113,41 +3114,41 @@ namespace ReShade
 				}
 			}
 
-			D3D10EffectCompiler visitor(ast, skipOptimization);
+			d3d10_fx_compiler visitor(ast, skipOptimization);
 
-			return visitor.Traverse(this, errors);
+			return visitor.compile(this, errors);
 		}
-		bool D3D10Runtime::UpdateTexture(Texture *texture, const unsigned char *data, size_t size)
+		bool d3d10_runtime::update_texture(texture *texture, const unsigned char *data, size_t size)
 		{
-			D3D10Texture *textureImpl = dynamic_cast<D3D10Texture *>(texture);
+			d3d10_texture *texture_impl = dynamic_cast<d3d10_texture *>(texture);
 
-			assert(textureImpl != nullptr);
+			assert(texture_impl != nullptr);
 			assert(data != nullptr && size != 0);
 
-			if (textureImpl->DataSource != D3D10Texture::Source::Memory)
+			if (texture->basetype != texture::datatype::image)
 			{
 				return false;
 			}
 
-			assert(texture->Height != 0);
+			assert(texture->height != 0);
 
-			_device->UpdateSubresource(textureImpl->TextureInterface, 0, nullptr, data, static_cast<UINT>(size / texture->Height), static_cast<UINT>(size));
+			_device->UpdateSubresource(texture_impl->TextureInterface, 0, nullptr, data, static_cast<UINT>(size / texture->height), static_cast<UINT>(size));
 
-			if (texture->Levels > 1)
+			if (texture->levels > 1)
 			{
-				_device->GenerateMips(textureImpl->ShaderResourceView[0]);
+				_device->GenerateMips(texture_impl->ShaderResourceView[0]);
 			}
 
 			return true;
 		}
 
-		void D3D10Runtime::DetectDepthSource()
+		void d3d10_runtime::detect_depth_source()
 		{
 			static int cooldown = 0, traffic = 0;
 
 			if (cooldown-- > 0)
 			{
-				traffic += NetworkUpload > 0;
+				traffic += s_network_upload > 0;
 				return;
 			}
 			else
@@ -3157,7 +3158,7 @@ namespace ReShade
 				if (traffic > 10)
 				{
 					traffic = 0;
-					CreateDepthStencilReplacement(nullptr);
+					create_depthstencil_replacement(nullptr);
 					return;
 				}
 				else
@@ -3166,57 +3167,57 @@ namespace ReShade
 				}
 			}
 
-			if (_multisamplingEnabled || _depthSourceTable.empty())
+			if (_is_multisampling_enabled || _depth_source_table.empty())
 			{
 				return;
 			}
 
-			DepthSourceInfo bestInfo = { 0 };
+			depth_source_info bestInfo = { 0 };
 			ID3D10DepthStencilView *best = nullptr;
 
-			for (auto &it : _depthSourceTable)
+			for (auto &it : _depth_source_table)
 			{
-				if (it.second.DrawCallCount == 0)
+				if (it.second.drawcall_count == 0)
 				{
 					continue;
 				}
-				else if ((it.second.DrawVerticesCount * (1.2f - it.second.DrawCallCount / _stats.DrawCalls)) >= (bestInfo.DrawVerticesCount * (1.2f - bestInfo.DrawCallCount / _stats.DrawCalls)))
+				else if ((it.second.vertices_count * (1.2f - it.second.drawcall_count / _stats.drawcalls)) >= (bestInfo.vertices_count * (1.2f - bestInfo.drawcall_count / _stats.drawcalls)))
 				{
 					best = it.first;
 					bestInfo = it.second;
 				}
 
-				it.second.DrawCallCount = it.second.DrawVerticesCount = 0;
+				it.second.drawcall_count = it.second.vertices_count = 0;
 			}
 
-			if (best != nullptr && _depthStencil != best)
+			if (best != nullptr && _depthstencil != best)
 			{
 				LOG(TRACE) << "Switched depth source to depthstencil " << best << ".";
 
-				CreateDepthStencilReplacement(best);
+				create_depthstencil_replacement(best);
 			}
 		}
-		bool D3D10Runtime::CreateDepthStencilReplacement(ID3D10DepthStencilView *depthstencil)
+		bool d3d10_runtime::create_depthstencil_replacement(ID3D10DepthStencilView *depthstencil)
 		{
-			SAFE_RELEASE(_depthStencil);
-			SAFE_RELEASE(_depthStencilReplacement);
-			SAFE_RELEASE(_depthStencilTexture);
-			SAFE_RELEASE(_depthStencilTextureSRV);
+			SAFE_RELEASE(_depthstencil);
+			SAFE_RELEASE(_depthstencil_replacement);
+			SAFE_RELEASE(_depthstencil_texture);
+			SAFE_RELEASE(_depthstencil_texture_srv);
 
 			if (depthstencil != nullptr)
 			{
-				_depthStencil = depthstencil;
-				_depthStencil->AddRef();
-				_depthStencil->GetResource(reinterpret_cast<ID3D10Resource **>(&_depthStencilTexture));
+				_depthstencil = depthstencil;
+				_depthstencil->AddRef();
+				_depthstencil->GetResource(reinterpret_cast<ID3D10Resource **>(&_depthstencil_texture));
 
 				D3D10_TEXTURE2D_DESC texdesc;
-				_depthStencilTexture->GetDesc(&texdesc);
+				_depthstencil_texture->GetDesc(&texdesc);
 
 				HRESULT hr = S_OK;
 
 				if ((texdesc.BindFlags & D3D10_BIND_SHADER_RESOURCE) == 0)
 				{
-					SAFE_RELEASE(_depthStencilTexture);
+					SAFE_RELEASE(_depthstencil_texture);
 
 					switch (texdesc.Format)
 					{
@@ -3241,7 +3242,7 @@ namespace ReShade
 
 					texdesc.BindFlags = D3D10_BIND_DEPTH_STENCIL | D3D10_BIND_SHADER_RESOURCE;
 
-					hr = _device->CreateTexture2D(&texdesc, nullptr, &_depthStencilTexture);
+					hr = _device->CreateTexture2D(&texdesc, nullptr, &_depthstencil_texture);
 
 					if (SUCCEEDED(hr))
 					{
@@ -3265,21 +3266,21 @@ namespace ReShade
 								break;
 						}
 
-						hr = _device->CreateDepthStencilView(_depthStencilTexture, &dsvdesc, &_depthStencilReplacement);
+						hr = _device->CreateDepthStencilView(_depthstencil_texture, &dsvdesc, &_depthstencil_replacement);
 					}
 				}
 				else
 				{
-					_depthStencilReplacement = _depthStencil;
-					_depthStencilReplacement->AddRef();
+					_depthstencil_replacement = _depthstencil;
+					_depthstencil_replacement->AddRef();
 				}
 
 				if (FAILED(hr))
 				{
 					LOG(TRACE) << "Failed to create depthstencil replacement texture! HRESULT is '" << hr << "'.";
 
-					SAFE_RELEASE(_depthStencil);
-					SAFE_RELEASE(_depthStencilTexture);
+					SAFE_RELEASE(_depthstencil);
+					SAFE_RELEASE(_depthstencil_texture);
 
 					return false;
 				}
@@ -3305,20 +3306,20 @@ namespace ReShade
 						break;
 				}
 
-				hr = _device->CreateShaderResourceView(_depthStencilTexture, &srvdesc, &_depthStencilTextureSRV);
+				hr = _device->CreateShaderResourceView(_depthstencil_texture, &srvdesc, &_depthstencil_texture_srv);
 
 				if (FAILED(hr))
 				{
 					LOG(TRACE) << "Failed to create depthstencil replacement resource view! HRESULT is '" << hr << "'.";
 
-					SAFE_RELEASE(_depthStencil);
-					SAFE_RELEASE(_depthStencilReplacement);
-					SAFE_RELEASE(_depthStencilTexture);
+					SAFE_RELEASE(_depthstencil);
+					SAFE_RELEASE(_depthstencil_replacement);
+					SAFE_RELEASE(_depthstencil_texture);
 
 					return false;
 				}
 
-				if (_depthStencil != _depthStencilReplacement)
+				if (_depthstencil != _depthstencil_replacement)
 				{
 					// Update auto depthstencil
 					ID3D10RenderTargetView *targets[D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT] = { nullptr };
@@ -3328,9 +3329,9 @@ namespace ReShade
 
 					if (depthstencil != nullptr)
 					{
-						if (depthstencil == _depthStencil)
+						if (depthstencil == _depthstencil)
 						{
-							_device->OMSetRenderTargets(D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, targets, _depthStencilReplacement);
+							_device->OMSetRenderTargets(D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, targets, _depthstencil_replacement);
 						}
 
 						depthstencil->Release();
@@ -3346,11 +3347,11 @@ namespace ReShade
 			// Update effect textures
 			for (const auto &it : _textures)
 			{
-				D3D10Texture *texture = static_cast<D3D10Texture *>(it.get());
+				d3d10_texture *texture = static_cast<d3d10_texture *>(it.get());
 
-				if (texture->DataSource == D3D10Texture::Source::DepthStencil)
+				if (texture->basetype == texture::datatype::depthbuffer)
 				{
-					texture->ChangeDataSource(D3D10Texture::Source::DepthStencil, this, _depthStencilTextureSRV, nullptr);
+					texture->change_data_source(texture::datatype::depthbuffer, this, _depthstencil_texture_srv, nullptr);
 				}
 			}
 

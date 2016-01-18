@@ -7,9 +7,9 @@
 #include <unordered_map>
 #include <boost\filesystem\operations.hpp>
 
-namespace ReShade
+namespace reshade
 {
-	namespace FX
+	namespace fx
 	{
 		struct preprocessor
 		{

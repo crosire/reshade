@@ -12,16 +12,16 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID lpvReserved)
 		{
 			DisableThreadLibraryCalls(hModule);
 
-			TCHAR modulePath[MAX_PATH], executablePath[MAX_PATH];
-			GetModuleFileName(hModule, modulePath, MAX_PATH);
-			GetModuleFileName(nullptr, executablePath, MAX_PATH);
+			TCHAR executable_path[MAX_PATH], module_path[MAX_PATH];
+			GetModuleFileName(hModule, module_path, MAX_PATH);
+			GetModuleFileName(nullptr, executable_path, MAX_PATH);
 
-			ReShade::Runtime::Startup(executablePath, modulePath);
+			reshade::runtime::startup(executable_path, module_path);
 			break;
 		}
 		case DLL_PROCESS_DETACH:
 		{
-			ReShade::Runtime::Shutdown();
+			reshade::runtime::shutdown();
 			break;
 		}
 	}

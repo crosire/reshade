@@ -7,10 +7,10 @@ struct __declspec(uuid("BC52FCE4-1EAC-40C8-84CF-863600BBAA01")) Direct3DSwapChai
 
 struct Direct3DDevice9 : IDirect3DDevice9Ex
 {
-	explicit Direct3DDevice9(IDirect3DDevice9 *original) : _ref(1), _orig(original), _interfaceVersion(0), _implicitSwapChain(nullptr), _autoDepthStencil(nullptr), _useSoftwareRendering(false)
+	explicit Direct3DDevice9(IDirect3DDevice9 *original) : _ref(1), _orig(original), _interface_version(0), _implicit_swapchain(nullptr), _auto_depthstencil(nullptr), _use_software_rendering(false)
 	{
 	}
-	explicit Direct3DDevice9(IDirect3DDevice9Ex *original) : _ref(1), _orig(original), _interfaceVersion(1), _implicitSwapChain(nullptr), _autoDepthStencil(nullptr), _useSoftwareRendering(false)
+	explicit Direct3DDevice9(IDirect3DDevice9Ex *original) : _ref(1), _orig(original), _interface_version(1), _implicit_swapchain(nullptr), _auto_depthstencil(nullptr), _use_software_rendering(false)
 	{
 	}
 
@@ -157,11 +157,11 @@ struct Direct3DDevice9 : IDirect3DDevice9Ex
 
 	LONG _ref;
 	IDirect3DDevice9 *_orig;
-	unsigned int _interfaceVersion;
-	Direct3DSwapChain9 *_implicitSwapChain;
-	std::vector<Direct3DSwapChain9 *> _additionalSwapChains;
-	IDirect3DSurface9 *_autoDepthStencil;
-	bool _useSoftwareRendering;
+	unsigned int _interface_version;
+	Direct3DSwapChain9 *_implicit_swapchain;
+	std::vector<Direct3DSwapChain9 *> _additional_swapchains;
+	IDirect3DSurface9 *_auto_depthstencil;
+	bool _use_software_rendering;
 
 private:
 	Direct3DDevice9(const Direct3DDevice9 &);
@@ -169,10 +169,10 @@ private:
 };
 struct Direct3DSwapChain9 : IDirect3DSwapChain9Ex
 {
-	Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapChain9 *original, const std::shared_ptr<ReShade::Runtimes::D3D9Runtime> &runtime) : _ref(1), _orig(original), _interfaceVersion(0), _device(device), _runtime(runtime)
+	Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapChain9 *original, const std::shared_ptr<reshade::runtimes::d3d9_runtime> &runtime) : _ref(1), _orig(original), _interface_version(0), _device(device), _runtime(runtime)
 	{
 	}
-	Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapChain9Ex *original, const std::shared_ptr<ReShade::Runtimes::D3D9Runtime> &runtime) : _ref(1), _orig(original), _interfaceVersion(1), _device(device), _runtime(runtime)
+	Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapChain9Ex *original, const std::shared_ptr<reshade::runtimes::d3d9_runtime> &runtime) : _ref(1), _orig(original), _interface_version(1), _device(device), _runtime(runtime)
 	{
 	}
 
@@ -198,9 +198,9 @@ struct Direct3DSwapChain9 : IDirect3DSwapChain9Ex
 
 	LONG _ref;
 	IDirect3DSwapChain9 *_orig;
-	unsigned int _interfaceVersion;
+	unsigned int _interface_version;
 	Direct3DDevice9 *const _device;
-	std::shared_ptr<ReShade::Runtimes::D3D9Runtime> _runtime;
+	std::shared_ptr<reshade::runtimes::d3d9_runtime> _runtime;
 
 private:
 	Direct3DSwapChain9(const Direct3DSwapChain9 &);

@@ -96,7 +96,7 @@ HRESULT STDMETHODCALLTYPE Direct3DSwapChain9::QueryInterface(REFIID riid, void *
 		riid == __uuidof(IDirect3DSwapChain9Ex))
 	{
 		#pragma region Update to IDirect3DSwapChain9Ex interface
-		if (riid == __uuidof(IDirect3DSwapChain9Ex) && _interfaceVersion < 1)
+		if (riid == __uuidof(IDirect3DSwapChain9Ex) && _interface_version < 1)
 		{
 			IDirect3DSwapChain9Ex *swapchainex = nullptr;
 
@@ -110,7 +110,7 @@ HRESULT STDMETHODCALLTYPE Direct3DSwapChain9::QueryInterface(REFIID riid, void *
 			LOG(TRACE) << "Upgraded 'IDirect3DSwapChain9' object " << this << " to 'IDirect3DSwapChain9Ex'.";
 
 			_orig = swapchainex;
-			_interfaceVersion = 1;
+			_interface_version = 1;
 		}
 		#pragma endregion
 
@@ -135,15 +135,15 @@ ULONG STDMETHODCALLTYPE Direct3DSwapChain9::Release()
 	{
 		assert(_runtime != nullptr);
 
-		_runtime->OnReset();
+		_runtime->on_reset();
 
 		_runtime.reset();
 
-		const auto it = std::find(_device->_additionalSwapChains.begin(), _device->_additionalSwapChains.end(), this);
+		const auto it = std::find(_device->_additional_swapchains.begin(), _device->_additional_swapchains.end(), this);
 
-		if (it != _device->_additionalSwapChains.end())
+		if (it != _device->_additional_swapchains.end())
 		{
-			_device->_additionalSwapChains.erase(it);
+			_device->_additional_swapchains.erase(it);
 
 			_device->Release();
 		}
@@ -153,7 +153,7 @@ ULONG STDMETHODCALLTYPE Direct3DSwapChain9::Release()
 
 	if (_ref == 0 && ref != 0)
 	{
-		LOG(WARNING) << "Reference count for 'IDirect3DSwapChain9" << (_interfaceVersion > 0 ? "Ex" : "") << "' object " << this << " is inconsistent: " << ref << ", but expected 0.";
+		LOG(WARNING) << "Reference count for 'IDirect3DSwapChain9" << (_interface_version > 0 ? "Ex" : "") << "' object " << this << " is inconsistent: " << ref << ", but expected 0.";
 
 		ref = 0;
 	}
@@ -162,7 +162,7 @@ ULONG STDMETHODCALLTYPE Direct3DSwapChain9::Release()
 	{
 		assert(_ref <= 0);
 
-		LOG(TRACE) << "Destroyed 'IDirect3DSwapChain9" << (_interfaceVersion > 0 ? "Ex" : "") << "' object " << this << ".";
+		LOG(TRACE) << "Destroyed 'IDirect3DSwapChain9" << (_interface_version > 0 ? "Ex" : "") << "' object " << this << ".";
 
 		delete this;
 	}
@@ -173,7 +173,7 @@ HRESULT STDMETHODCALLTYPE Direct3DSwapChain9::Present(const RECT *pSourceRect, c
 {
 	assert(_runtime != nullptr);
 
-	_runtime->OnPresent();
+	_runtime->on_present();
 
 	return _orig->Present(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion, dwFlags);
 }
@@ -214,19 +214,19 @@ HRESULT STDMETHODCALLTYPE Direct3DSwapChain9::GetPresentParameters(D3DPRESENT_PA
 // IDirect3DSwapChain9Ex
 HRESULT STDMETHODCALLTYPE Direct3DSwapChain9::GetLastPresentCount(UINT *pLastPresentCount)
 {
-	assert(_interfaceVersion >= 1);
+	assert(_interface_version >= 1);
 
 	return static_cast<IDirect3DSwapChain9Ex *>(_orig)->GetLastPresentCount(pLastPresentCount);
 }
 HRESULT STDMETHODCALLTYPE Direct3DSwapChain9::GetPresentStats(D3DPRESENTSTATS *pPresentationStatistics)
 {
-	assert(_interfaceVersion >= 1);
+	assert(_interface_version >= 1);
 
 	return static_cast<IDirect3DSwapChain9Ex *>(_orig)->GetPresentStats(pPresentationStatistics);
 }
 HRESULT STDMETHODCALLTYPE Direct3DSwapChain9::GetDisplayModeEx(D3DDISPLAYMODEEX *pMode, D3DDISPLAYROTATION *pRotation)
 {
-	assert(_interfaceVersion >= 1);
+	assert(_interface_version >= 1);
 
 	return static_cast<IDirect3DSwapChain9Ex *>(_orig)->GetDisplayModeEx(pMode, pRotation);
 }
@@ -245,7 +245,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::QueryInterface(REFIID riid, void **pp
 		riid == __uuidof(IDirect3DDevice9Ex))
 	{
 		#pragma region Update to IDirect3DDevice9Ex interface
-		if (riid == __uuidof(IDirect3DDevice9Ex) && _interfaceVersion < 1)
+		if (riid == __uuidof(IDirect3DDevice9Ex) && _interface_version < 1)
 		{
 			IDirect3DDevice9Ex *deviceex = nullptr;
 
@@ -259,7 +259,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::QueryInterface(REFIID riid, void **pp
 			LOG(TRACE) << "Upgraded 'IDirect3DDevice9' object " << this << " to 'IDirect3DDevice9Ex'.";
 
 			_orig = deviceex;
-			_interfaceVersion = 1;
+			_interface_version = 1;
 		}
 		#pragma endregion
 
@@ -282,22 +282,22 @@ ULONG STDMETHODCALLTYPE Direct3DDevice9::Release()
 {
 	if (--_ref == 0)
 	{
-		if (_autoDepthStencil != nullptr)
+		if (_auto_depthstencil != nullptr)
 		{
-			_autoDepthStencil->Release();
-			_autoDepthStencil = nullptr;
+			_auto_depthstencil->Release();
+			_auto_depthstencil = nullptr;
 		}
 
-		assert(_implicitSwapChain != nullptr);
+		assert(_implicit_swapchain != nullptr);
 
-		_implicitSwapChain->Release();
+		_implicit_swapchain->Release();
 	}
 
 	ULONG ref = _orig->Release();
 
 	if (_ref == 0 && ref != 0)
 	{
-		LOG(WARNING) << "Reference count for 'IDirect3DDevice9" << (_interfaceVersion > 0 ? "Ex" : "") << "' object " << this << " is inconsistent: " << ref << ", but expected 0.";
+		LOG(WARNING) << "Reference count for 'IDirect3DDevice9" << (_interface_version > 0 ? "Ex" : "") << "' object " << this << " is inconsistent: " << ref << ", but expected 0.";
 
 		ref = 0;
 	}
@@ -306,7 +306,7 @@ ULONG STDMETHODCALLTYPE Direct3DDevice9::Release()
 	{
 		assert(_ref <= 0);
 
-		LOG(TRACE) << "Destroyed 'IDirect3DDevice9" << (_interfaceVersion > 0 ? "Ex" : "") << "' object " << this << ".";
+		LOG(TRACE) << "Destroyed 'IDirect3DDevice9" << (_interface_version > 0 ? "Ex" : "") << "' object " << this << ".";
 
 		delete this;
 	}
@@ -342,9 +342,9 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetDisplayMode(UINT iSwapChain, D3DDI
 		return D3DERR_INVALIDCALL;
 	}
 
-	assert(_implicitSwapChain != nullptr);
+	assert(_implicit_swapchain != nullptr);
 
-	return _implicitSwapChain->GetDisplayMode(pMode);
+	return _implicit_swapchain->GetDisplayMode(pMode);
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetCreationParameters(D3DDEVICE_CREATION_PARAMETERS *pParameters)
 {
@@ -390,19 +390,19 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateAdditionalSwapChain(D3DPRESENT_
 	D3DPRESENT_PARAMETERS pp;
 	swapchain->GetPresentParameters(&pp);
 
-	const auto runtime = std::make_shared<ReShade::Runtimes::D3D9Runtime>(device, swapchain);
+	const auto runtime = std::make_shared<reshade::runtimes::d3d9_runtime>(device, swapchain);
 
-	if (!runtime->OnInit(pp))
+	if (!runtime->on_init(pp))
 	{
 		LOG(ERROR) << "Failed to initialize Direct3D9 runtime environment on runtime " << runtime.get() << ".";
 	}
 
 	AddRef();
 
-	const auto swapchainProxy = new Direct3DSwapChain9(this, swapchain, runtime);
+	const auto swapchain_proxy = new Direct3DSwapChain9(this, swapchain, runtime);
 
-	_additionalSwapChains.push_back(swapchainProxy);
-	*ppSwapChain = swapchainProxy;
+	_additional_swapchains.push_back(swapchain_proxy);
+	*ppSwapChain = swapchain_proxy;
 
 	LOG(TRACE) << "> Returned swap chain object: " << *ppSwapChain;
 
@@ -422,11 +422,11 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetSwapChain(UINT iSwapChain, IDirect
 		return D3DERR_INVALIDCALL;
 	}
 
-	assert(_implicitSwapChain != nullptr);
+	assert(_implicit_swapchain != nullptr);
 
-	_implicitSwapChain->AddRef();
+	_implicit_swapchain->AddRef();
 
-	*ppSwapChain = _implicitSwapChain;
+	*ppSwapChain = _implicit_swapchain;
 
 	return D3D_OK;
 }
@@ -445,17 +445,17 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Reset(D3DPRESENT_PARAMETERS *pPresent
 
 	DumpPresentParameters(*pPresentationParameters);
 
-	assert(_implicitSwapChain != nullptr);
-	assert(_implicitSwapChain->_runtime != nullptr);
+	assert(_implicit_swapchain != nullptr);
+	assert(_implicit_swapchain->_runtime != nullptr);
 
-	const auto runtime = _implicitSwapChain->_runtime;
+	const auto runtime = _implicit_swapchain->_runtime;
 
-	runtime->OnReset();
+	runtime->on_reset();
 
-	if (_autoDepthStencil != nullptr)
+	if (_auto_depthstencil != nullptr)
 	{
-		_autoDepthStencil->Release();
-		_autoDepthStencil = nullptr;
+		_auto_depthstencil->Release();
+		_auto_depthstencil = nullptr;
 	}
 
 	const HRESULT hr = _orig->Reset(pPresentationParameters);
@@ -468,27 +468,27 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Reset(D3DPRESENT_PARAMETERS *pPresent
 	}
 
 	D3DPRESENT_PARAMETERS pp;
-	_implicitSwapChain->GetPresentParameters(&pp);
+	_implicit_swapchain->GetPresentParameters(&pp);
 
-	if (!runtime->OnInit(pp))
+	if (!runtime->on_init(pp))
 	{
 		LOG(ERROR) << "Failed to recreate Direct3D9 runtime environment on runtime " << runtime.get() << ".";
 	}
 
 	if (pp.EnableAutoDepthStencil)
 	{
-		_orig->GetDepthStencilSurface(&_autoDepthStencil);
-		SetDepthStencilSurface(_autoDepthStencil);
+		_orig->GetDepthStencilSurface(&_auto_depthstencil);
+		SetDepthStencilSurface(_auto_depthstencil);
 	}
 
 	return hr;
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::Present(const RECT *pSourceRect, const RECT *pDestRect, HWND hDestWindowOverride, const RGNDATA *pDirtyRegion)
 {
-	assert(_implicitSwapChain != nullptr);
-	assert(_implicitSwapChain->_runtime != nullptr);
+	assert(_implicit_swapchain != nullptr);
+	assert(_implicit_swapchain->_runtime != nullptr);
 
-	_implicitSwapChain->_runtime->OnPresent();
+	_implicit_swapchain->_runtime->on_present();
 
 	return _orig->Present(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
 }
@@ -501,9 +501,9 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetBackBuffer(UINT iSwapChain, UINT i
 		return D3DERR_INVALIDCALL;
 	}
 
-	assert(_implicitSwapChain != nullptr);
+	assert(_implicit_swapchain != nullptr);
 
-	return _implicitSwapChain->GetBackBuffer(iBackBuffer, Type, ppBackBuffer);
+	return _implicit_swapchain->GetBackBuffer(iBackBuffer, Type, ppBackBuffer);
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetRasterStatus(UINT iSwapChain, D3DRASTER_STATUS *pRasterStatus)
 {
@@ -514,9 +514,9 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetRasterStatus(UINT iSwapChain, D3DR
 		return D3DERR_INVALIDCALL;
 	}
 
-	assert(_implicitSwapChain != nullptr);
+	assert(_implicit_swapchain != nullptr);
 
-	return _implicitSwapChain->GetRasterStatus(pRasterStatus);
+	return _implicit_swapchain->GetRasterStatus(pRasterStatus);
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetDialogBoxMode(BOOL bEnableDialogs)
 {
@@ -558,7 +558,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateCubeTexture(UINT EdgeLength, UI
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateVertexBuffer(UINT Length, DWORD Usage, DWORD FVF, D3DPOOL Pool, IDirect3DVertexBuffer9 **ppVertexBuffer, HANDLE *pSharedHandle)
 {
-	if (_useSoftwareRendering)
+	if (_use_software_rendering)
 	{
 		Usage |= D3DUSAGE_SOFTWAREPROCESSING;
 	}
@@ -567,7 +567,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateVertexBuffer(UINT Length, DWORD
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateIndexBuffer(UINT Length, DWORD Usage, D3DFORMAT Format, D3DPOOL Pool, IDirect3DIndexBuffer9 **ppIndexBuffer, HANDLE *pSharedHandle)
 {
-	if (_useSoftwareRendering)
+	if (_use_software_rendering)
 	{
 		Usage |= D3DUSAGE_SOFTWAREPROCESSING;
 	}
@@ -603,9 +603,9 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetFrontBufferData(UINT iSwapChain, I
 		return D3DERR_INVALIDCALL;
 	}
 
-	assert(_implicitSwapChain != nullptr);
+	assert(_implicit_swapchain != nullptr);
 
-	return _implicitSwapChain->GetFrontBufferData(pDestSurface);
+	return _implicit_swapchain->GetFrontBufferData(pDestSurface);
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::StretchRect(IDirect3DSurface9 *pSourceSurface, const RECT *pSourceRect, IDirect3DSurface9 *pDestSurface, const RECT *pDestRect, D3DTEXTUREFILTERTYPE Filter)
 {
@@ -631,16 +631,16 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetDepthStencilSurface(IDirect3DSurfa
 {
 	if (pNewZStencil != nullptr)
 	{
-		assert(_implicitSwapChain != nullptr);
-		assert(_implicitSwapChain->_runtime != nullptr);
+		assert(_implicit_swapchain != nullptr);
+		assert(_implicit_swapchain->_runtime != nullptr);
 
-		_implicitSwapChain->_runtime->OnSetDepthStencilSurface(pNewZStencil);
+		_implicit_swapchain->_runtime->on_set_depthstencil_surface(pNewZStencil);
 
-		for (auto swapchain : _additionalSwapChains)
+		for (auto swapchain : _additional_swapchains)
 		{
 			assert(swapchain->_runtime != nullptr);
 
-			swapchain->_runtime->OnSetDepthStencilSurface(pNewZStencil);
+			swapchain->_runtime->on_set_depthstencil_surface(pNewZStencil);
 		}
 	}
 
@@ -656,16 +656,16 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetDepthStencilSurface(IDirect3DSurfa
 	}
 	else if (*ppZStencilSurface != nullptr)
 	{
-		assert(_implicitSwapChain != nullptr);
-		assert(_implicitSwapChain->_runtime != nullptr);
+		assert(_implicit_swapchain != nullptr);
+		assert(_implicit_swapchain->_runtime != nullptr);
 
-		_implicitSwapChain->_runtime->OnGetDepthStencilSurface(*ppZStencilSurface);
+		_implicit_swapchain->_runtime->on_get_depthstencil_surface(*ppZStencilSurface);
 
-		for (auto swapchain : _additionalSwapChains)
+		for (auto swapchain : _additional_swapchains)
 		{
 			assert(swapchain->_runtime);
 
-			swapchain->_runtime->OnGetDepthStencilSurface(*ppZStencilSurface);
+			swapchain->_runtime->on_get_depthstencil_surface(*ppZStencilSurface);
 		}
 	}
 
@@ -833,64 +833,64 @@ float STDMETHODCALLTYPE Direct3DDevice9::GetNPatchMode()
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::DrawPrimitive(D3DPRIMITIVETYPE PrimitiveType, UINT StartVertex, UINT PrimitiveCount)
 {
-	assert(_implicitSwapChain != nullptr);
-	assert(_implicitSwapChain->_runtime != nullptr);
+	assert(_implicit_swapchain != nullptr);
+	assert(_implicit_swapchain->_runtime != nullptr);
 
-	_implicitSwapChain->_runtime->OnDrawCall(PrimitiveType, PrimitiveCount);
+	_implicit_swapchain->_runtime->on_draw_call(PrimitiveType, PrimitiveCount);
 
-	for (auto swapchain : _additionalSwapChains)
+	for (auto swapchain : _additional_swapchains)
 	{
 		assert(swapchain->_runtime != nullptr);
 
-		swapchain->_runtime->OnDrawCall(PrimitiveType, PrimitiveCount);
+		swapchain->_runtime->on_draw_call(PrimitiveType, PrimitiveCount);
 	}
 
 	return _orig->DrawPrimitive(PrimitiveType, StartVertex, PrimitiveCount);
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::DrawIndexedPrimitive(D3DPRIMITIVETYPE PrimitiveType, INT BaseVertexIndex, UINT MinVertexIndex, UINT NumVertices, UINT StartIndex, UINT PrimitiveCount)
 {
-	assert(_implicitSwapChain != nullptr);
-	assert(_implicitSwapChain->_runtime != nullptr);
+	assert(_implicit_swapchain != nullptr);
+	assert(_implicit_swapchain->_runtime != nullptr);
 
-	_implicitSwapChain->_runtime->OnDrawCall(PrimitiveType, PrimitiveCount);
+	_implicit_swapchain->_runtime->on_draw_call(PrimitiveType, PrimitiveCount);
 
-	for (auto swapchain : _additionalSwapChains)
+	for (auto swapchain : _additional_swapchains)
 	{
 		assert(swapchain->_runtime != nullptr);
 
-		swapchain->_runtime->OnDrawCall(PrimitiveType, PrimitiveCount);
+		swapchain->_runtime->on_draw_call(PrimitiveType, PrimitiveCount);
 	}
 
 	return _orig->DrawIndexedPrimitive(PrimitiveType, BaseVertexIndex, MinVertexIndex, NumVertices, StartIndex, PrimitiveCount);
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::DrawPrimitiveUP(D3DPRIMITIVETYPE PrimitiveType, UINT PrimitiveCount, const void *pVertexStreamZeroData, UINT VertexStreamZeroStride)
 {
-	assert(_implicitSwapChain != nullptr);
-	assert(_implicitSwapChain->_runtime != nullptr);
+	assert(_implicit_swapchain != nullptr);
+	assert(_implicit_swapchain->_runtime != nullptr);
 
-	_implicitSwapChain->_runtime->OnDrawCall(PrimitiveType, PrimitiveCount);
+	_implicit_swapchain->_runtime->on_draw_call(PrimitiveType, PrimitiveCount);
 
-	for (auto swapchain : _additionalSwapChains)
+	for (auto swapchain : _additional_swapchains)
 	{
 		assert(swapchain->_runtime != nullptr);
 
-		swapchain->_runtime->OnDrawCall(PrimitiveType, PrimitiveCount);
+		swapchain->_runtime->on_draw_call(PrimitiveType, PrimitiveCount);
 	}
 
 	return _orig->DrawPrimitiveUP(PrimitiveType, PrimitiveCount, pVertexStreamZeroData, VertexStreamZeroStride);
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::DrawIndexedPrimitiveUP(D3DPRIMITIVETYPE PrimitiveType, UINT MinVertexIndex, UINT NumVertices, UINT PrimitiveCount, const void *pIndexData, D3DFORMAT IndexDataFormat, const void *pVertexStreamZeroData, UINT VertexStreamZeroStride)
 {
-	assert(_implicitSwapChain != nullptr);
-	assert(_implicitSwapChain->_runtime != nullptr);
+	assert(_implicit_swapchain != nullptr);
+	assert(_implicit_swapchain->_runtime != nullptr);
 
-	_implicitSwapChain->_runtime->OnDrawCall(PrimitiveType, PrimitiveCount);
+	_implicit_swapchain->_runtime->on_draw_call(PrimitiveType, PrimitiveCount);
 
-	for (auto swapchain : _additionalSwapChains)
+	for (auto swapchain : _additional_swapchains)
 	{
 		assert(swapchain->_runtime != nullptr);
 
-		swapchain->_runtime->OnDrawCall(PrimitiveType, PrimitiveCount);
+		swapchain->_runtime->on_draw_call(PrimitiveType, PrimitiveCount);
 	}
 
 	return _orig->DrawIndexedPrimitiveUP(PrimitiveType, MinVertexIndex, NumVertices, PrimitiveCount, pIndexData, IndexDataFormat, pVertexStreamZeroData, VertexStreamZeroStride);
@@ -1035,41 +1035,41 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateQuery(D3DQUERYTYPE Type, IDirec
 // IDirect3DDevice9Ex
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetConvolutionMonoKernel(UINT width, UINT height, float *rows, float *columns)
 {
-	assert(_interfaceVersion >= 1);
+	assert(_interface_version >= 1);
 
 	return static_cast<IDirect3DDevice9Ex *>(_orig)->SetConvolutionMonoKernel(width, height, rows, columns);
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::ComposeRects(IDirect3DSurface9 *pSrc, IDirect3DSurface9 *pDst, IDirect3DVertexBuffer9 *pSrcRectDescs, UINT NumRects, IDirect3DVertexBuffer9 *pDstRectDescs, D3DCOMPOSERECTSOP Operation, int Xoffset, int Yoffset)
 {
-	assert(_interfaceVersion >= 1);
+	assert(_interface_version >= 1);
 
 	return static_cast<IDirect3DDevice9Ex *>(_orig)->ComposeRects(pSrc, pDst, pSrcRectDescs, NumRects, pDstRectDescs, Operation, Xoffset, Yoffset);
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::PresentEx(const RECT *pSourceRect, const RECT *pDestRect, HWND hDestWindowOverride, const RGNDATA *pDirtyRegion, DWORD dwFlags)
 {
-	assert(_interfaceVersion >= 1);
-	assert(_implicitSwapChain != nullptr);
-	assert(_implicitSwapChain->_runtime != nullptr);
+	assert(_interface_version >= 1);
+	assert(_implicit_swapchain != nullptr);
+	assert(_implicit_swapchain->_runtime != nullptr);
 
-	_implicitSwapChain->_runtime->OnPresent();
+	_implicit_swapchain->_runtime->on_present();
 
 	return static_cast<IDirect3DDevice9Ex *>(_orig)->PresentEx(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion, dwFlags);
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetGPUThreadPriority(INT *pPriority)
 {
-	assert(_interfaceVersion >= 1);
+	assert(_interface_version >= 1);
 
 	return static_cast<IDirect3DDevice9Ex *>(_orig)->GetGPUThreadPriority(pPriority);
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetGPUThreadPriority(INT Priority)
 {
-	assert(_interfaceVersion >= 1);
+	assert(_interface_version >= 1);
 
 	return static_cast<IDirect3DDevice9Ex *>(_orig)->SetGPUThreadPriority(Priority);
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::WaitForVBlank(UINT iSwapChain)
 {
-	assert(_interfaceVersion >= 1);
+	assert(_interface_version >= 1);
 
 	if (iSwapChain != 0)
 	{
@@ -1082,49 +1082,49 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::WaitForVBlank(UINT iSwapChain)
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::CheckResourceResidency(IDirect3DResource9 **pResourceArray, UINT32 NumResources)
 {
-	assert(_interfaceVersion >= 1);
+	assert(_interface_version >= 1);
 
 	return static_cast<IDirect3DDevice9Ex *>(_orig)->CheckResourceResidency(pResourceArray, NumResources);
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::SetMaximumFrameLatency(UINT MaxLatency)
 {
-	assert(_interfaceVersion >= 1);
+	assert(_interface_version >= 1);
 
 	return static_cast<IDirect3DDevice9Ex *>(_orig)->SetMaximumFrameLatency(MaxLatency);
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetMaximumFrameLatency(UINT *pMaxLatency)
 {
-	assert(_interfaceVersion >= 1);
+	assert(_interface_version >= 1);
 
 	return static_cast<IDirect3DDevice9Ex *>(_orig)->GetMaximumFrameLatency(pMaxLatency);
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::CheckDeviceState(HWND hDestinationWindow)
 {
-	assert(_interfaceVersion >= 1);
+	assert(_interface_version >= 1);
 
 	return static_cast<IDirect3DDevice9Ex *>(_orig)->CheckDeviceState(hDestinationWindow);
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateRenderTargetEx(UINT Width, UINT Height, D3DFORMAT Format, D3DMULTISAMPLE_TYPE MultiSample, DWORD MultisampleQuality, BOOL Lockable, IDirect3DSurface9 **ppSurface, HANDLE *pSharedHandle, DWORD Usage)
 {
-	assert(_interfaceVersion >= 1);
+	assert(_interface_version >= 1);
 
 	return static_cast<IDirect3DDevice9Ex *>(_orig)->CreateRenderTargetEx(Width, Height, Format, MultiSample, MultisampleQuality, Lockable, ppSurface, pSharedHandle, Usage);
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateOffscreenPlainSurfaceEx(UINT Width, UINT Height, D3DFORMAT Format, D3DPOOL Pool, IDirect3DSurface9 **ppSurface, HANDLE *pSharedHandle, DWORD Usage)
 {
-	assert(_interfaceVersion >= 1);
+	assert(_interface_version >= 1);
 
 	return static_cast<IDirect3DDevice9Ex *>(_orig)->CreateOffscreenPlainSurfaceEx(Width, Height, Format, Pool, ppSurface, pSharedHandle, Usage);
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateDepthStencilSurfaceEx(UINT Width, UINT Height, D3DFORMAT Format, D3DMULTISAMPLE_TYPE MultiSample, DWORD MultisampleQuality, BOOL Discard, IDirect3DSurface9 **ppSurface, HANDLE *pSharedHandle, DWORD Usage)
 {
-	assert(_interfaceVersion >= 1);
+	assert(_interface_version >= 1);
 
 	return static_cast<IDirect3DDevice9Ex *>(_orig)->CreateDepthStencilSurfaceEx(Width, Height, Format, MultiSample, MultisampleQuality, Discard, ppSurface, pSharedHandle, Usage);
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::ResetEx(D3DPRESENT_PARAMETERS *pPresentationParameters, D3DDISPLAYMODEEX *pFullscreenDisplayMode)
 {
-	assert(_interfaceVersion >= 1);
+	assert(_interface_version >= 1);
 
 	LOG(INFO) << "Redirecting '" << "IDirect3DDevice9Ex::ResetEx" << "(" << this << ", " << pPresentationParameters << ", " << pFullscreenDisplayMode << ")' ...";
 
@@ -1135,17 +1135,17 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ResetEx(D3DPRESENT_PARAMETERS *pPrese
 
 	DumpPresentParameters(*pPresentationParameters);
 
-	assert(_implicitSwapChain != nullptr);
-	assert(_implicitSwapChain->_runtime != nullptr);
+	assert(_implicit_swapchain != nullptr);
+	assert(_implicit_swapchain->_runtime != nullptr);
 
-	const auto runtime = _implicitSwapChain->_runtime;
+	const auto runtime = _implicit_swapchain->_runtime;
 
-	runtime->OnReset();
+	runtime->on_reset();
 
-	if (_autoDepthStencil != nullptr)
+	if (_auto_depthstencil != nullptr)
 	{
-		_autoDepthStencil->Release();
-		_autoDepthStencil = nullptr;
+		_auto_depthstencil->Release();
+		_auto_depthstencil = nullptr;
 	}
 
 	const HRESULT hr = static_cast<IDirect3DDevice9Ex *>(_orig)->ResetEx(pPresentationParameters, pFullscreenDisplayMode);
@@ -1158,24 +1158,24 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ResetEx(D3DPRESENT_PARAMETERS *pPrese
 	}
 
 	D3DPRESENT_PARAMETERS pp;
-	_implicitSwapChain->GetPresentParameters(&pp);
+	_implicit_swapchain->GetPresentParameters(&pp);
 
-	if (!runtime->OnInit(pp))
+	if (!runtime->on_init(pp))
 	{
 		LOG(ERROR) << "Failed to recreate Direct3D9 runtime environment on runtime " << runtime.get() << ".";
 	}
 
 	if (pp.EnableAutoDepthStencil)
 	{
-		_orig->GetDepthStencilSurface(&_autoDepthStencil);
-		SetDepthStencilSurface(_autoDepthStencil);
+		_orig->GetDepthStencilSurface(&_auto_depthstencil);
+		SetDepthStencilSurface(_auto_depthstencil);
 	}
 
 	return hr;
 }
 HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetDisplayModeEx(UINT iSwapChain, D3DDISPLAYMODEEX *pMode, D3DDISPLAYROTATION *pRotation)
 {
-	assert(_interfaceVersion >= 1);
+	assert(_interface_version >= 1);
 
 	if (iSwapChain != 0)
 	{
@@ -1184,10 +1184,10 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetDisplayModeEx(UINT iSwapChain, D3D
 		return D3DERR_INVALIDCALL;
 	}
 
-	assert(_implicitSwapChain != nullptr);
-	assert(_implicitSwapChain->_interfaceVersion >= 1);
+	assert(_implicit_swapchain != nullptr);
+	assert(_implicit_swapchain->_interface_version >= 1);
 
-	return static_cast<IDirect3DSwapChain9Ex *>(_implicitSwapChain)->GetDisplayModeEx(pMode, pRotation);
+	return static_cast<IDirect3DSwapChain9Ex *>(_implicit_swapchain)->GetDisplayModeEx(pMode, pRotation);
 }
 
 // IDirect3D9
@@ -1202,16 +1202,16 @@ HRESULT STDMETHODCALLTYPE IDirect3D9_CreateDevice(IDirect3D9 *pD3D, UINT Adapter
 
 	DumpPresentParameters(*pPresentationParameters);
 
-	const bool useSoftwareRendering = (BehaviorFlags & D3DCREATE_SOFTWARE_VERTEXPROCESSING) != 0;
+	const bool use_software_rendering = (BehaviorFlags & D3DCREATE_SOFTWARE_VERTEXPROCESSING) != 0;
 
-	if (useSoftwareRendering)
+	if (use_software_rendering)
 	{
 		LOG(WARNING) << "> Replacing 'D3DCREATE_SOFTWARE_VERTEXPROCESSING' flag with 'D3DCREATE_MIXED_VERTEXPROCESSING' to allow for hardware rendering ...";
 
 		BehaviorFlags = (BehaviorFlags & ~D3DCREATE_SOFTWARE_VERTEXPROCESSING) | D3DCREATE_MIXED_VERTEXPROCESSING;
 	}
 
-	const HRESULT hr = ReShade::Hooks::Call(&IDirect3D9_CreateDevice)(pD3D, Adapter, DeviceType, hFocusWindow, BehaviorFlags, pPresentationParameters, ppReturnedDeviceInterface);
+	const HRESULT hr = reshade::hooks::call(&IDirect3D9_CreateDevice)(pD3D, Adapter, DeviceType, hFocusWindow, BehaviorFlags, pPresentationParameters, ppReturnedDeviceInterface);
 
 	if (FAILED(hr))
 	{
@@ -1222,7 +1222,7 @@ HRESULT STDMETHODCALLTYPE IDirect3D9_CreateDevice(IDirect3D9 *pD3D, UINT Adapter
 	
 	IDirect3DDevice9 *const device = *ppReturnedDeviceInterface;
 
-	if (useSoftwareRendering)
+	if (use_software_rendering)
 	{
 		device->SetSoftwareVertexProcessing(TRUE);
 	}
@@ -1237,24 +1237,24 @@ HRESULT STDMETHODCALLTYPE IDirect3D9_CreateDevice(IDirect3D9 *pD3D, UINT Adapter
 		D3DPRESENT_PARAMETERS pp;
 		swapchain->GetPresentParameters(&pp);
 
-		const auto runtime = std::make_shared<ReShade::Runtimes::D3D9Runtime>(device, swapchain);
+		const auto runtime = std::make_shared<reshade::runtimes::d3d9_runtime>(device, swapchain);
 
-		if (!runtime->OnInit(pp))
+		if (!runtime->on_init(pp))
 		{
 			LOG(ERROR) << "Failed to initialize Direct3D9 runtime environment on runtime " << runtime.get() << ".";
 		}
 
-		const auto deviceProxy = new Direct3DDevice9(device);
-		const auto swapchainProxy = new Direct3DSwapChain9(deviceProxy, swapchain, runtime);
+		const auto device_proxy = new Direct3DDevice9(device);
+		const auto swapchain_proxy = new Direct3DSwapChain9(device_proxy, swapchain, runtime);
 
-		deviceProxy->_implicitSwapChain = swapchainProxy;
-		deviceProxy->_useSoftwareRendering = useSoftwareRendering;
-		*ppReturnedDeviceInterface = deviceProxy;
+		device_proxy->_implicit_swapchain = swapchain_proxy;
+		device_proxy->_use_software_rendering = use_software_rendering;
+		*ppReturnedDeviceInterface = device_proxy;
 
 		if (pp.EnableAutoDepthStencil)
 		{
-			device->GetDepthStencilSurface(&deviceProxy->_autoDepthStencil);
-			deviceProxy->SetDepthStencilSurface(deviceProxy->_autoDepthStencil);
+			device->GetDepthStencilSurface(&device_proxy->_auto_depthstencil);
+			device_proxy->SetDepthStencilSurface(device_proxy->_auto_depthstencil);
 		}
 	}
 	else
@@ -1279,16 +1279,16 @@ HRESULT STDMETHODCALLTYPE IDirect3D9Ex_CreateDeviceEx(IDirect3D9Ex *pD3D, UINT A
 
 	DumpPresentParameters(*pPresentationParameters);
 
-	const bool useSoftwareRendering = (BehaviorFlags & D3DCREATE_SOFTWARE_VERTEXPROCESSING) != 0;
+	const bool use_software_rendering = (BehaviorFlags & D3DCREATE_SOFTWARE_VERTEXPROCESSING) != 0;
 
-	if (useSoftwareRendering)
+	if (use_software_rendering)
 	{
 		LOG(WARNING) << "> Replacing 'D3DCREATE_SOFTWARE_VERTEXPROCESSING' flag with 'D3DCREATE_MIXED_VERTEXPROCESSING' to allow for hardware rendering ...";
 
 		BehaviorFlags = (BehaviorFlags & ~D3DCREATE_SOFTWARE_VERTEXPROCESSING) | D3DCREATE_MIXED_VERTEXPROCESSING;
 	}
 
-	const HRESULT hr = ReShade::Hooks::Call(&IDirect3D9Ex_CreateDeviceEx)(pD3D, Adapter, DeviceType, hFocusWindow, BehaviorFlags, pPresentationParameters, pFullscreenDisplayMode, ppReturnedDeviceInterface);
+	const HRESULT hr = reshade::hooks::call(&IDirect3D9Ex_CreateDeviceEx)(pD3D, Adapter, DeviceType, hFocusWindow, BehaviorFlags, pPresentationParameters, pFullscreenDisplayMode, ppReturnedDeviceInterface);
 
 	if (FAILED(hr))
 	{
@@ -1299,7 +1299,7 @@ HRESULT STDMETHODCALLTYPE IDirect3D9Ex_CreateDeviceEx(IDirect3D9Ex *pD3D, UINT A
 
 	IDirect3DDevice9Ex *const device = *ppReturnedDeviceInterface;
 
-	if (useSoftwareRendering)
+	if (use_software_rendering)
 	{
 		device->SetSoftwareVertexProcessing(TRUE);
 	}
@@ -1314,24 +1314,24 @@ HRESULT STDMETHODCALLTYPE IDirect3D9Ex_CreateDeviceEx(IDirect3D9Ex *pD3D, UINT A
 		D3DPRESENT_PARAMETERS pp;
 		swapchain->GetPresentParameters(&pp);
 
-		const auto runtime = std::make_shared<ReShade::Runtimes::D3D9Runtime>(device, swapchain);
+		const auto runtime = std::make_shared<reshade::runtimes::d3d9_runtime>(device, swapchain);
 
-		if (!runtime->OnInit(pp))
+		if (!runtime->on_init(pp))
 		{
 			LOG(ERROR) << "Failed to initialize Direct3D9 runtime environment on runtime " << runtime.get() << ".";
 		}
 
-		const auto deviceProxy = new Direct3DDevice9(device);
-		const auto swapchainProxy = new Direct3DSwapChain9(deviceProxy, swapchain, runtime);
+		const auto device_proxy = new Direct3DDevice9(device);
+		const auto swapchain_proxy = new Direct3DSwapChain9(device_proxy, swapchain, runtime);
 
-		deviceProxy->_implicitSwapChain = swapchainProxy;
-		deviceProxy->_useSoftwareRendering = useSoftwareRendering;
-		*ppReturnedDeviceInterface = deviceProxy;
+		device_proxy->_implicit_swapchain = swapchain_proxy;
+		device_proxy->_use_software_rendering = use_software_rendering;
+		*ppReturnedDeviceInterface = device_proxy;
 
 		if (pp.EnableAutoDepthStencil)
 		{
-			device->GetDepthStencilSurface(&deviceProxy->_autoDepthStencil);
-			deviceProxy->SetDepthStencilSurface(deviceProxy->_autoDepthStencil);
+			device->GetDepthStencilSurface(&device_proxy->_auto_depthstencil);
+			device_proxy->SetDepthStencilSurface(device_proxy->_auto_depthstencil);
 		}
 	}
 	else
@@ -1375,7 +1375,7 @@ EXPORT void WINAPI D3DPERF_SetOptions(DWORD dwOptions)
 	UNREFERENCED_PARAMETER(dwOptions);
 
 #ifdef _DEBUG
-	ReShade::Hooks::Call(&D3DPERF_SetOptions)(0);
+	reshade::hooks::call(&D3DPERF_SetOptions)(0);
 #endif
 }
 EXPORT DWORD WINAPI D3DPERF_GetStatus()
@@ -1388,7 +1388,7 @@ EXPORT IDirect3D9 *WINAPI Direct3DCreate9(UINT SDKVersion)
 {
 	LOG(INFO) << "Redirecting '" << "Direct3DCreate9" << "(" << SDKVersion << ")' ...";
 
-	IDirect3D9 *const res = ReShade::Hooks::Call(&Direct3DCreate9)(SDKVersion);
+	IDirect3D9 *const res = reshade::hooks::call(&Direct3DCreate9)(SDKVersion);
 
 	if (res == nullptr)
 	{
@@ -1397,7 +1397,7 @@ EXPORT IDirect3D9 *WINAPI Direct3DCreate9(UINT SDKVersion)
 		return nullptr;
 	}
 
-	ReShade::Hooks::Install(VTABLE(res), 16, reinterpret_cast<ReShade::Hook::Function>(&IDirect3D9_CreateDevice));
+	reshade::hooks::install(VTABLE(res), 16, reinterpret_cast<reshade::hook::address>(&IDirect3D9_CreateDevice));
 
 	LOG(TRACE) << "> Returned factory object: " << res;
 
@@ -1407,7 +1407,7 @@ EXPORT HRESULT WINAPI Direct3DCreate9Ex(UINT SDKVersion, IDirect3D9Ex **ppD3D)
 {
 	LOG(INFO) << "Redirecting '" << "Direct3DCreate9Ex" << "(" << SDKVersion << ", " << ppD3D << ")' ...";
 
-	const HRESULT hr = ReShade::Hooks::Call(&Direct3DCreate9Ex)(SDKVersion, ppD3D);
+	const HRESULT hr = reshade::hooks::call(&Direct3DCreate9Ex)(SDKVersion, ppD3D);
 
 	if (FAILED(hr))
 	{
@@ -1416,8 +1416,8 @@ EXPORT HRESULT WINAPI Direct3DCreate9Ex(UINT SDKVersion, IDirect3D9Ex **ppD3D)
 		return hr;
 	}
 
-	ReShade::Hooks::Install(VTABLE(*ppD3D), 16, reinterpret_cast<ReShade::Hook::Function>(&IDirect3D9_CreateDevice));
-	ReShade::Hooks::Install(VTABLE(*ppD3D), 20, reinterpret_cast<ReShade::Hook::Function>(&IDirect3D9Ex_CreateDeviceEx));
+	reshade::hooks::install(VTABLE(*ppD3D), 16, reinterpret_cast<reshade::hook::address>(&IDirect3D9_CreateDevice));
+	reshade::hooks::install(VTABLE(*ppD3D), 20, reinterpret_cast<reshade::hook::address>(&IDirect3D9Ex_CreateDeviceEx));
 
 	LOG(TRACE) << "> Returned factory object: " << *ppD3D;
 

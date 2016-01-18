@@ -3,122 +3,122 @@
 #include <assert.h>
 #include <MinHook.h>
 
-namespace ReShade
+namespace reshade
 {
 	namespace
 	{
-		unsigned long sCounter = 0;
+		unsigned long s_reference_count = 0;
 	}
 
-	Hook::Hook() : Target(nullptr), Replacement(nullptr), Trampoline(nullptr)
+	hook::hook() : target(nullptr), replacement(nullptr), trampoline(nullptr)
 	{
 	}
-	Hook::Hook(Function target, Function replacement) : Target(target), Replacement(replacement), Trampoline(nullptr)
+	hook::hook(address target, address replacement) : target(target), replacement(replacement), trampoline(nullptr)
 	{
 	}
 
-	bool Hook::IsValid() const
+	bool hook::valid() const
 	{
-		return Target != nullptr && Replacement != nullptr && Target != Replacement;
+		return target != nullptr && replacement != nullptr && target != replacement;
 	}
-	bool Hook::IsEnabled() const
+	bool hook::enabled() const
 	{
-		if (!IsValid())
+		if (!valid())
 		{
 			return false;
 		}
 
-		const MH_STATUS status = MH_EnableHook(Target);
+		const MH_STATUS statuscode = MH_EnableHook(target);
 
-		if (status == MH_ERROR_ENABLED)
+		if (statuscode == MH_ERROR_ENABLED)
 		{
 			return true;
 		}
 
-		MH_DisableHook(Target);
+		MH_DisableHook(target);
 
 		return false;
 	}
-	bool Hook::IsInstalled() const
+	bool hook::installed() const
 	{
-		return Trampoline != nullptr;
+		return trampoline != nullptr;
 	}
 
-	bool Hook::Enable(bool enable) const
+	bool hook::enable(bool enable) const
 	{
 		if (enable)
 		{
-			const MH_STATUS status = MH_EnableHook(Target);
+			const MH_STATUS statuscode = MH_EnableHook(target);
 
-			return status == MH_OK || status == MH_ERROR_ENABLED;
+			return statuscode == MH_OK || statuscode == MH_ERROR_ENABLED;
 		}
 		else
 		{
-			const MH_STATUS status = MH_DisableHook(Target);
+			const MH_STATUS statuscode = MH_DisableHook(target);
 
-			return status == MH_OK || status == MH_ERROR_DISABLED;
+			return statuscode == MH_OK || statuscode == MH_ERROR_DISABLED;
 		}
 	}
-	Hook::Status Hook::Install()
+	hook::status hook::install()
 	{
-		if (!IsValid())
+		if (!valid())
 		{
-			return Status::UnsupportedFunction;
+			return status::unsupported_function;
 		}
 
-		if (sCounter++ == 0)
+		if (s_reference_count++ == 0)
 		{
 			MH_Initialize();
 		}
 
-		const MH_STATUS status = MH_CreateHook(Target, Replacement, &Trampoline);
+		const MH_STATUS statuscode = MH_CreateHook(target, replacement, &trampoline);
 
-		if (status == MH_OK || status == MH_ERROR_ALREADY_CREATED)
+		if (statuscode == MH_OK || statuscode == MH_ERROR_ALREADY_CREATED)
 		{
-			Enable();
+			enable();
 
-			return Status::Success;
+			return status::success;
 		}
 
-		if (--sCounter == 0)
-		{
-			MH_Uninitialize();
-		}
-
-		return static_cast<Status>(status);
-	}
-	Hook::Status Hook::Uninstall()
-	{
-		if (!IsValid())
-		{
-			return Status::UnsupportedFunction;
-		}
-
-		const MH_STATUS status = MH_RemoveHook(Target);
-
-		if (status == MH_ERROR_NOT_CREATED)
-		{
-			return Status::Success;
-		}
-		else if (status != MH_OK)
-		{
-			return static_cast<Status>(status);
-		}
-
-		Trampoline = nullptr;
-
-		if (--sCounter == 0)
+		if (--s_reference_count == 0)
 		{
 			MH_Uninitialize();
 		}
 
-		return Status::Success;
+		return static_cast<status>(statuscode);
+	}
+	hook::status hook::uninstall()
+	{
+		if (!valid())
+		{
+			return status::unsupported_function;
+		}
+
+		const MH_STATUS statuscode = MH_RemoveHook(target);
+
+		if (statuscode == MH_ERROR_NOT_CREATED)
+		{
+			return status::success;
+		}
+		else if (statuscode != MH_OK)
+		{
+			return static_cast<status>(statuscode);
+		}
+
+		trampoline = nullptr;
+
+		if (--s_reference_count == 0)
+		{
+			MH_Uninitialize();
+		}
+
+		return status::success;
 	}
 
-	Hook::Function Hook::Call() const
+	hook::address hook::call() const
 	{
-		assert(IsInstalled());
+		assert(installed());
 
-		return Trampoline;
+		return trampoline;
 	}
 }

@@ -2,16 +2,16 @@
 
 #include <Windows.h>
 
-namespace ReShade
+namespace reshade
 {
-	namespace Utils
+	namespace utils
 	{
-		class CriticalSection
+		class critical_section
 		{
 		public:
 			struct Lock
 			{
-				Lock(CriticalSection &cs) : _cs(cs)
+				Lock(critical_section &cs) : _cs(cs)
 				{
 					EnterCriticalSection(&_cs._cs);
 				}
@@ -20,18 +20,18 @@ namespace ReShade
 					LeaveCriticalSection(&_cs._cs);
 				}
 
-				CriticalSection &_cs;
+				critical_section &_cs;
 
 			private:
 				Lock(const Lock &);
 				void operator=(const Lock &);
 			};
 
-			CriticalSection()
+			critical_section()
 			{
 				InitializeCriticalSection(&_cs);
 			}
-			~CriticalSection()
+			~critical_section()
 			{
 				DeleteCriticalSection(&_cs);
 			}

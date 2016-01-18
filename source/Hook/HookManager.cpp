@@ -5,39 +5,38 @@
 #include <vector>
 #include <algorithm>
 #include <unordered_map>
-#include <boost\algorithm\string.hpp>
 #include <assert.h>
 #include <Windows.h>
 
-namespace ReShade
+namespace reshade
 {
-	namespace Hooks
+	namespace hooks
 	{
 		namespace
 		{
-			enum class HookType
+			enum class hook_method
 			{
-				Export,
-				FunctionHook,
-				VTableHook
+				export_hook,
+				function_hook,
+				vtable_hook
 			};
-			struct ModuleExport
+			struct module_export
 			{
-				void *Address;
-				const char *Name;
-				unsigned short Ordinal;
+				hook::address address;
+				const char *name;
+				unsigned short ordinal;
 			};
 
-			HMODULE GetCurrentModuleHandle()
+			HMODULE get_current_module()
 			{
 				HMODULE handle = nullptr;
-				GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT, reinterpret_cast<LPCTSTR>(&GetCurrentModuleHandle), &handle);
+				GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT, reinterpret_cast<LPCWSTR>(&get_current_module), &handle);
 
 				return handle;
 			}
-			std::vector<ModuleExport> GetModuleExports(HMODULE handle)
+			std::vector<module_export> get_module_exports(HMODULE handle)
 			{
-				std::vector<ModuleExport> exports;
+				std::vector<module_export> exports;
 				const auto imagebase = reinterpret_cast<const BYTE *>(handle);
 				const auto imageheader = reinterpret_cast<const IMAGE_NT_HEADERS *>(imagebase + reinterpret_cast<const IMAGE_DOS_HEADER *>(imagebase)->e_lfanew);
 
@@ -59,75 +58,67 @@ namespace ReShade
 
 				for (size_t i = 0; i < count; ++i)
 				{
-					ModuleExport symbol;
-					symbol.Ordinal = reinterpret_cast<const WORD *>(imagebase + exportdir->AddressOfNameOrdinals)[i] + exportbase;
-					symbol.Name = reinterpret_cast<const char *>(imagebase + reinterpret_cast<const DWORD *>(imagebase + exportdir->AddressOfNames)[i]);
-					symbol.Address = const_cast<void *>(reinterpret_cast<const void *>(imagebase + reinterpret_cast<const DWORD *>(imagebase + exportdir->AddressOfFunctions)[symbol.Ordinal - exportbase]));
+					module_export symbol;
+					symbol.ordinal = reinterpret_cast<const WORD *>(imagebase + exportdir->AddressOfNameOrdinals)[i] + exportbase;
+					symbol.name = reinterpret_cast<const char *>(imagebase + reinterpret_cast<const DWORD *>(imagebase + exportdir->AddressOfNames)[i]);
+					symbol.address = const_cast<void *>(reinterpret_cast<const void *>(imagebase + reinterpret_cast<const DWORD *>(imagebase + exportdir->AddressOfFunctions)[symbol.ordinal - exportbase]));
 
 					exports.push_back(std::move(symbol));
 				}
 
 				return exports;
 			}
-			boost::filesystem::path GetModuleFileName(HMODULE handle)
-			{
-				WCHAR path[MAX_PATH];
-				GetModuleFileNameW(handle, path, MAX_PATH);
 
-				return path;
-			}
+			utils::critical_section s_cs;
+			boost::filesystem::path s_export_hook_path;
+			std::vector<HMODULE> s_delayed_hook_modules;
+			std::vector<boost::filesystem::path> s_delayed_hook_paths;
+			std::vector<std::pair<hook, hook_method>> s_hooks;
+			std::unordered_map<hook::address, hook::address *> s_vtable_addresses;
 
-			Utils::CriticalSection sCS;
-			boost::filesystem::path sExportHookPath;
-			std::vector<HMODULE> sDelayedHookModules;
-			std::vector<boost::filesystem::path> sDelayedHookPaths;
-			std::vector<std::pair<Hook, HookType>> sHooks;
-			std::unordered_map<Hook::Function, Hook::Function *> sVTableAddresses;
-			const HMODULE sCurrentModuleHandle = GetCurrentModuleHandle();
-
-			bool Install(Hook::Function target, Hook::Function replacement, HookType method)
+			bool install(hook::address target, hook::address replacement, hook_method method)
 			{
 				LOG(TRACE) << "Installing hook for '0x" << target << "' with '0x" << replacement << "' using method " << static_cast<int>(method) << " ...";
 
-				Hook hook(target, replacement);
-				hook.Trampoline = target;
+				hook hook(target, replacement);
+				hook.trampoline = target;
 
-				Hook::Status status = Hook::Status::Unknown;
+				hook::status status = hook::status::unknown;
 
 				switch (method)
 				{
-					case HookType::Export:
+					case hook_method::export_hook:
 					{
-						status = Hook::Status::Success;
+						status = hook::status::success;
 						break;
 					}
-					case HookType::FunctionHook:
+					case hook_method::function_hook:
 					{
-						status = hook.Install();
+						status = hook.install();
 						break;
 					}
-					case HookType::VTableHook:
+					case hook_method::vtable_hook:
 					{
 						DWORD protection = PAGE_READWRITE;
-						const auto targetAddress = sVTableAddresses.at(target);
+						const auto target_address = s_vtable_addresses.at(target);
 		
-						if (VirtualProtect(targetAddress, sizeof(*targetAddress), protection, &protection))
+						if (VirtualProtect(target_address, sizeof(*target_address), protection, &protection))
 						{
-							*targetAddress = replacement;
+							*target_address = replacement;
 
-							VirtualProtect(targetAddress, sizeof(*targetAddress), protection, &protection);
+							VirtualProtect(target_address, sizeof(*target_address), protection, &protection);
 
-							status = Hook::Status::Success;
+							status = hook::status::success;
 						}
 						else
 						{
-							status = Hook::Status::MemoryProtectionFailure;
+							status = hook::status::memory_protection_failure;
 						}
 						break;
 					}
 				}
 
-				if (status != Hook::Status::Success)
+				if (status != hook::status::success)
 				{
 					LOG(ERROR) << "Failed to install hook for '0x" << target << "' with status code " << static_cast<int>(status) << ".";
 
@@ -136,31 +127,31 @@ namespace ReShade
 
 				LOG(TRACE) << "> Succeeded.";
 
-				const Utils::CriticalSection::Lock lock(sCS);
+				const utils::critical_section::Lock lock(s_cs);
 
-				sHooks.emplace_back(std::move(hook), method);
+				s_hooks.emplace_back(std::move(hook), method);
 
 				return true;
 			}
-			bool Install(const HMODULE targetModule, const HMODULE replacementModule, HookType method)
+			bool install(const HMODULE target_module, const HMODULE replacement_module, hook_method method)
 			{
-				assert(targetModule != nullptr);
-				assert(replacementModule != nullptr);
+				assert(target_module != nullptr);
+				assert(replacement_module != nullptr);
 
 				// Load export tables
-				const auto targetExports = GetModuleExports(targetModule);
-				const auto replacementExports = GetModuleExports(replacementModule);
+				const auto target_exports = get_module_exports(target_module);
+				const auto replacement_exports = get_module_exports(replacement_module);
 
-				if (targetExports.empty())
+				if (target_exports.empty())
 				{
 					LOG(INFO) << "> Empty export table! Skipped.";
 
 					return false;
 				}
 
-				size_t counter = 0;
-				std::vector<std::pair<Hook::Function, Hook::Function>> matches;
-				matches.reserve(replacementExports.size());
+				size_t install_count = 0;
+				std::vector<std::pair<hook::address, hook::address>> matches;
+				matches.reserve(replacement_exports.size());
 
 				LOG(TRACE) << "> Analyzing export table:";
 				LOG(TRACE) << "  +--------------------+---------+----------------------------------------------------+";
@@ -168,30 +159,30 @@ namespace ReShade
 				LOG(TRACE) << "  +--------------------+---------+----------------------------------------------------+";
 
 				// Analyze export table
-				for (const auto &symbol : targetExports)
+				for (const auto &symbol : target_exports)
 				{
-					if (symbol.Name == nullptr || symbol.Address == nullptr)
+					if (symbol.name == nullptr || symbol.address == nullptr)
 					{
 						continue;
 					}
 
 					// Find appropriate replacement
-					const auto it = std::find_if(replacementExports.cbegin(), replacementExports.cend(),
-						[&symbol](const ModuleExport &moduleexport)
+					const auto it = std::find_if(replacement_exports.cbegin(), replacement_exports.cend(),
+						[&symbol](const module_export &moduleexport)
 						{
-							return boost::equals(moduleexport.Name, symbol.Name);
+							return std::strcmp(moduleexport.name, symbol.name) == 0;
 						});
 
 					// Filter uninteresting functions
-					if (it == replacementExports.cend() || (boost::equals(symbol.Name, "DXGIReportAdapterConfiguration") || boost::equals(symbol.Name, "DXGIDumpJournal")))
+					if (it == replacement_exports.cend() || (std::strcmp(symbol.name, "DXGIReportAdapterConfiguration") == 0 || std::strcmp(symbol.name, "DXGIDumpJournal") == 0))
 					{
-						LOG(TRACE) << "  | 0x" << std::setw(16) << symbol.Address << " | " << std::setw(7) << symbol.Ordinal << " | " << std::setw(50) << symbol.Name << " |";
+						LOG(TRACE) << "  | 0x" << std::setw(16) << symbol.address << " | " << std::setw(7) << symbol.ordinal << " | " << std::setw(50) << symbol.name << " |";
 					}
 					else
 					{
-						LOG(TRACE) << "  | 0x" << std::setw(16) << symbol.Address << " | " << std::setw(7) << symbol.Ordinal << " | " << std::setw(50) << symbol.Name << " | <";
+						LOG(TRACE) << "  | 0x" << std::setw(16) << symbol.address << " | " << std::setw(7) << symbol.ordinal << " | " << std::setw(50) << symbol.name << " | <";
 
-						matches.push_back(std::make_pair(reinterpret_cast<Hook::Function>(symbol.Address), reinterpret_cast<Hook::Function>(it->Address)));
+						matches.push_back(std::make_pair(reinterpret_cast<hook::address>(symbol.address), reinterpret_cast<hook::address>(it->address)));
 					}
 				}
 
@@ -201,15 +192,15 @@ namespace ReShade
 				// Hook matching exports
 				for (const auto &match : matches)
 				{
-					if (Install(match.first, match.second, method))
+					if (install(match.first, match.second, method))
 					{
-						counter++;
+						install_count++;
 					}
 				}
 
-				if (counter != 0)
+				if (install_count != 0)
 				{
-					LOG(INFO) << "> Installed " << counter << " hook(s).";
+					LOG(INFO) << "> Installed " << install_count << " hook(s).";
 
 					return true;
 				}
@@ -220,105 +211,105 @@ namespace ReShade
 					return false;
 				}
 			}
-			bool Uninstall(Hook &hook, HookType method)
+			bool uninstall(hook &hook, hook_method method)
 			{
-				LOG(TRACE) << "Uninstalling hook for '0x" << hook.Target << "' ...";
+				LOG(TRACE) << "Uninstalling hook for '0x" << hook.target << "' ...";
 
-				if (!hook.IsInstalled())
+				if (hook.uninstalled())
 				{
 					LOG(TRACE) << "> Already uninstalled.";
 
 					return true;
 				}
 
-				Hook::Status status = Hook::Status::Unknown;
+				hook::status status = hook::status::unknown;
 
 				switch (method)
 				{
-					case HookType::Export:
+					case hook_method::export_hook:
 					{
 						LOG(TRACE) << "> Skipped.";
 
 						return true;
 					}
-					case HookType::FunctionHook:
+					case hook_method::function_hook:
 					{
-						status = hook.Uninstall();
+						status = hook.uninstall();
 						break;
 					}
-					case HookType::VTableHook:
+					case hook_method::vtable_hook:
 					{
 						DWORD protection = PAGE_READWRITE;
-						const auto targetAddress = sVTableAddresses.at(hook.Target);
+						const auto target_address = s_vtable_addresses.at(hook.target);
 		
-						if (VirtualProtect(targetAddress, sizeof(*targetAddress), protection, &protection))
+						if (VirtualProtect(target_address, sizeof(*target_address), protection, &protection))
 						{
-							*targetAddress = hook.Target;
-							sVTableAddresses.erase(hook.Target);
+							*target_address = hook.target;
+							s_vtable_addresses.erase(hook.target);
 
-							VirtualProtect(targetAddress, sizeof(*targetAddress), protection, &protection);
+							VirtualProtect(target_address, sizeof(*target_address), protection, &protection);
 
-							status = Hook::Status::Success;
+							status = hook::status::success;
 						}
 						else
 						{
-							status = Hook::Status::MemoryProtectionFailure;
+							status = hook::status::memory_protection_failure;
 						}
 						break;
 					}
 				}
 
-				if (status != Hook::Status::Success)
+				if (status != hook::status::success)
 				{
-					LOG(WARNING) << "Failed to uninstall hook for '0x" << hook.Target << "' with status code " << static_cast<int>(status) << ".";
+					LOG(WARNING) << "Failed to uninstall hook for '0x" << hook.target << "' with status code " << static_cast<int>(status) << ".";
 
 					return false;
 				}
 
 				LOG(TRACE) << "> Succeeded.";
 
-				hook.Trampoline = nullptr;
+				hook.trampoline = nullptr;
 
 				return true;
 			}
 
-			Hook Find(Hook::Function replacement)
+			hook find(hook::address replacement)
 			{
-				const Utils::CriticalSection::Lock lock(sCS);
+				const utils::critical_section::Lock lock(s_cs);
 
-				const auto it =	std::find_if(sHooks.cbegin(), sHooks.cend(),
-					[replacement](const std::pair<Hook, HookType> &hook)
+				const auto it =	std::find_if(s_hooks.cbegin(), s_hooks.cend(),
+					[replacement](const std::pair<hook, hook_method> &hook)
 					{
-						return hook.first.Replacement == replacement;
+						return hook.first.replacement == replacement;
 					});
 
-				if (it == sHooks.cend())
+				if (it == s_hooks.cend())
 				{
-					return Hook();
+					return hook();
 				}
 
 				return it->first;
 			}
-			template <typename F>
-			inline F CallUnchecked(F replacement)
+			template <typename T>
+			inline T call_unchecked(T replacement)
 			{
-				return reinterpret_cast<F>(Find(reinterpret_cast<Hook::Function>(replacement)).Call());
+				return reinterpret_cast<T>(find(reinterpret_cast<hook::address>(replacement)).call());
 			}
 
 			HMODULE WINAPI HookLoadLibraryA(LPCSTR lpFileName)
 			{
-				static const auto trampoline = CallUnchecked(&HookLoadLibraryA);
+				static const auto trampoline = call_unchecked(&HookLoadLibraryA);
 
 				const HMODULE handle = trampoline(lpFileName);
 
-				if (handle == nullptr || handle == sCurrentModuleHandle)
+				if (handle == nullptr || handle == get_current_module())
 				{
 					return handle;
 				}
 
-				const Utils::CriticalSection::Lock lock(sCS);
+				const utils::critical_section::Lock lock(s_cs);
 
-				const auto remove = std::remove_if(sDelayedHookPaths.begin(), sDelayedHookPaths.end(),
+				const auto remove = std::remove_if(s_delayed_hook_paths.begin(), s_delayed_hook_paths.end(),
 					[lpFileName](const boost::filesystem::path &path)
 					{
 						HMODULE handle = nullptr;
@@ -331,12 +322,12 @@ namespace ReShade
 
 						LOG(INFO) << "Installing delayed hooks for " << path << " (Just loaded via 'LoadLibraryA(\"" << lpFileName << "\")') ...";
 
-						sDelayedHookModules.push_back(handle);
+						s_delayed_hook_modules.push_back(handle);
 
-						return Install(handle, sCurrentModuleHandle, HookType::FunctionHook);
+						return install(handle, get_current_module(), hook_method::function_hook);
 					});
 
-				sDelayedHookPaths.erase(remove, sDelayedHookPaths.end());
+				s_delayed_hook_paths.erase(remove, s_delayed_hook_paths.end());
 
 				return handle;
 			}
@@ -347,24 +338,24 @@ namespace ReShade
 					return HookLoadLibraryA(lpFileName);
 				}
 
-				static const auto trampoline = CallUnchecked(&HookLoadLibraryExA);
+				static const auto trampoline = call_unchecked(&HookLoadLibraryExA);
 
 				return trampoline(lpFileName, hFile, dwFlags);
 			}
 			HMODULE WINAPI HookLoadLibraryW(LPCWSTR lpFileName)
 			{
-				static const auto trampoline = CallUnchecked(&HookLoadLibraryW);
+				static const auto trampoline = call_unchecked(&HookLoadLibraryW);
 
 				const HMODULE handle = trampoline(lpFileName);
 
-				if (handle == nullptr || handle == sCurrentModuleHandle)
+				if (handle == nullptr || handle == get_current_module())
 				{
 					return handle;
 				}
 
-				const Utils::CriticalSection::Lock lock(sCS);
+				const utils::critical_section::Lock lock(s_cs);
 
-				const auto remove = std::remove_if(sDelayedHookPaths.begin(), sDelayedHookPaths.end(),
+				const auto remove = std::remove_if(s_delayed_hook_paths.begin(), s_delayed_hook_paths.end(),
 					[lpFileName](const boost::filesystem::path &path)
 					{
 						HMODULE handle = nullptr;
@@ -377,12 +368,12 @@ namespace ReShade
 
 						LOG(INFO) << "Installing delayed hooks for " << path << " (Just loaded via 'LoadLibraryW(\"" << lpFileName << "\")') ...";
 
-						sDelayedHookModules.push_back(handle);
+						s_delayed_hook_modules.push_back(handle);
 
-						return Install(handle, sCurrentModuleHandle, HookType::FunctionHook);
+						return install(handle, get_current_module(), hook_method::function_hook);
 					});
 
-				sDelayedHookPaths.erase(remove, sDelayedHookPaths.end());
+				s_delayed_hook_paths.erase(remove, s_delayed_hook_paths.end());
 
 				return handle;
 			}
@@ -393,13 +384,13 @@ namespace ReShade
 					return HookLoadLibraryW(lpFileName);
 				}
 
-				static const auto trampoline = CallUnchecked(&HookLoadLibraryExW);
+				static const auto trampoline = call_unchecked(&HookLoadLibraryExW);
 
 				return trampoline(lpFileName, hFile, dwFlags);
 			}
 		}
 
-		bool Install(Hook::Function target, Hook::Function replacement)
+		bool install(hook::address target, hook::address replacement)
 		{
 			assert(target != nullptr);
 			assert(replacement != nullptr);
@@ -409,39 +400,39 @@ namespace ReShade
 				return false;
 			}
 
-			const Hook hook = Find(replacement);
+			const hook hook = find(replacement);
 
-			if (hook.IsInstalled())
+			if (hook.installed())
 			{
-				return target == hook.Target;
+				return target == hook.target;
 			}
 
-			return Install(target, replacement, HookType::FunctionHook);
+			return install(target, replacement, hook_method::function_hook);
 		}
-		bool Install(Hook::Function vtable[], unsigned int offset, Hook::Function replacement)
+		bool install(hook::address vtable[], unsigned int offset, hook::address replacement)
 		{
 			assert(vtable != nullptr);
 			assert(replacement != nullptr);
 
 			DWORD protection = 0;
-			Hook::Function &target = vtable[offset];
+			hook::address &target = vtable[offset];
 
-			if (VirtualProtect(&target, sizeof(Hook::Function), PAGE_READONLY, &protection) != FALSE)
+			if (VirtualProtect(&target, sizeof(hook::address), PAGE_READONLY, &protection) != FALSE)
 			{
-				const Utils::CriticalSection::Lock lock(sCS);
+				const utils::critical_section::Lock lock(s_cs);
 
-				const auto insert = sVTableAddresses.emplace(target, &target);
+				const auto insert = s_vtable_addresses.emplace(target, &target);
 
-				VirtualProtect(&target, sizeof(Hook::Function), protection, &protection);
+				VirtualProtect(&target, sizeof(hook::address), protection, &protection);
 
 				if (insert.second)
 				{
-					if (target != replacement && Install(target, replacement, HookType::VTableHook))
+					if (target != replacement && install(target, replacement, hook_method::vtable_hook))
 					{
 						return true;
 					}
 
-					sVTableAddresses.erase(insert.first);
+					s_vtable_addresses.erase(insert.first);
 				}
 				else
 				{
@@ -451,100 +442,102 @@ namespace ReShade
 
 			return false;
 		}
-		void Uninstall()
+		void uninstall()
 		{
-			const Utils::CriticalSection::Lock lock(sCS);
+			const utils::critical_section::Lock lock(s_cs);
 
-			LOG(INFO) << "Uninstalling " << sHooks.size() << " hook(s) ...";
+			LOG(INFO) << "Uninstalling " << s_hooks.size() << " hook(s) ...";
 
 			// Uninstall hooks
-			for (auto &it : sHooks)
+			for (auto &hook : s_hooks)
 			{
-				Uninstall(it.first, it.second);
+				uninstall(hook.first, hook.second);
 			}
 
-			sHooks.clear();
+			s_hooks.clear();
 
 			// Free loaded modules
-			for (HMODULE module : sDelayedHookModules)
+			for (HMODULE module : s_delayed_hook_modules)
 			{
 				FreeLibrary(module);
 			}
 
-			sDelayedHookModules.clear();
+			s_delayed_hook_modules.clear();
 		}
-		void RegisterModule(const boost::filesystem::path &targetPath) // Unsafe
+		void register_module(const boost::filesystem::path &target_path) // Unsafe
 		{
-			const boost::filesystem::path replacementPath = GetModuleFileName(sCurrentModuleHandle);
+			install(reinterpret_cast<hook::address>(&LoadLibraryA), reinterpret_cast<hook::address>(&HookLoadLibraryA));
+			install(reinterpret_cast<hook::address>(&LoadLibraryExA), reinterpret_cast<hook::address>(&HookLoadLibraryExA));
+			install(reinterpret_cast<hook::address>(&LoadLibraryW), reinterpret_cast<hook::address>(&HookLoadLibraryW));
+			install(reinterpret_cast<hook::address>(&LoadLibraryExW), reinterpret_cast<hook::address>(&HookLoadLibraryExW));
 
-			Install(reinterpret_cast<Hook::Function>(&LoadLibraryA), reinterpret_cast<Hook::Function>(&HookLoadLibraryA));
-			Install(reinterpret_cast<Hook::Function>(&LoadLibraryExA), reinterpret_cast<Hook::Function>(&HookLoadLibraryExA));
-			Install(reinterpret_cast<Hook::Function>(&LoadLibraryW), reinterpret_cast<Hook::Function>(&HookLoadLibraryW));
-			Install(reinterpret_cast<Hook::Function>(&LoadLibraryExW), reinterpret_cast<Hook::Function>(&HookLoadLibraryExW));
+			LOG(INFO) << "Registering hooks for " << target_path << " ...";
 
-			LOG(INFO) << "Registering hooks for " << targetPath << " ...";
+			wchar_t replacement_filename[MAX_PATH];
+			GetModuleFileNameW(get_current_module(), replacement_filename, MAX_PATH);
+			const boost::filesystem::path replacement_path = replacement_filename;
 
-			if (boost::iequals(targetPath.stem().native(), replacementPath.stem().native()))
+			if (_wcsicmp(target_path.stem().c_str(), replacement_path.stem().c_str()) == 0)
 			{
 				LOG(INFO) << "> Delayed.";
 
-				sExportHookPath = targetPath;
+				s_export_hook_path = target_path;
 			}
 			else
 			{
-				HMODULE targetModule = nullptr;
-				GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_PIN, targetPath.c_str(), &targetModule);
+				HMODULE handle = nullptr;
+				GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_PIN, target_path.c_str(), &handle);
 
-				if (targetModule != nullptr)
+				if (handle != nullptr)
 				{
 					LOG(INFO) << "> Libraries loaded.";
 
-					sDelayedHookModules.push_back(targetModule);
+					s_delayed_hook_modules.push_back(handle);
 
-					Install(targetModule, sCurrentModuleHandle, HookType::FunctionHook);
+					install(handle, get_current_module(), hook_method::function_hook);
 				}
 				else
 				{
 					LOG(INFO) << "> Delayed.";
 
-					sDelayedHookPaths.push_back(targetPath);
+					s_delayed_hook_paths.push_back(target_path);
 				}
 			}
 		}
 
-		Hook::Function Call(Hook::Function replacement)
+		hook::address call(hook::address replacement)
 		{
-			const Utils::CriticalSection::Lock lock(sCS);
+			const utils::critical_section::Lock lock(s_cs);
 
-			if (!sExportHookPath.empty())
+			if (!s_export_hook_path.empty())
 			{
-				const HMODULE handle = HookLoadLibraryW(sExportHookPath.c_str());
+				const HMODULE handle = HookLoadLibraryW(s_export_hook_path.c_str());
 
-				LOG(INFO) << "Installing delayed hooks for " << sExportHookPath << " ...";
+				LOG(INFO) << "Installing delayed hooks for " << s_export_hook_path << " ...";
 
 				if (handle != nullptr)
 				{
-					sExportHookPath.clear();
-					sDelayedHookModules.push_back(handle);
+					s_export_hook_path.clear();
+					s_delayed_hook_modules.push_back(handle);
 
-					Install(handle, sCurrentModuleHandle, HookType::Export);
+					install(handle, get_current_module(), hook_method::export_hook);
 				}
 				else
 				{
-					LOG(ERROR) << "Failed to load " << sExportHookPath << "!";
+					LOG(ERROR) << "Failed to load " << s_export_hook_path << "!";
 				}
 			}
 
-			const Hook hook = Find(replacement);
+			const hook hook = find(replacement);
 
-			if (!hook.IsValid())
+			if (!hook.valid())
 			{
 				LOG(ERROR) << "Unable to resolve hook for '0x" << replacement << "'!";
 
 				return nullptr;
 			}
 
-			return hook.Call();
+			return hook.call();
 		}
 	}
 }

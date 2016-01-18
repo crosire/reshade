@@ -41,11 +41,11 @@ namespace
 // ID3D10DepthStencilView
 ULONG STDMETHODCALLTYPE ID3D10DepthStencilView_Release(ID3D10DepthStencilView *pDepthStencilView)
 {
-	static const auto trampoline = ReShade::Hooks::Call(&ID3D10DepthStencilView_Release);
+	static const auto trampoline = reshade::hooks::call(&ID3D10DepthStencilView_Release);
 
 	D3D10Device *device = nullptr;
-	UINT dataSize = sizeof(device);
-	const bool succeeded = SUCCEEDED(pDepthStencilView->GetPrivateData(__uuidof(device), &dataSize, &device));
+	UINT data_size = sizeof(device);
+	const bool succeeded = SUCCEEDED(pDepthStencilView->GetPrivateData(__uuidof(device), &data_size, &device));
 
 	const ULONG ref = trampoline(pDepthStencilView);
 
@@ -53,7 +53,7 @@ ULONG STDMETHODCALLTYPE ID3D10DepthStencilView_Release(ID3D10DepthStencilView *p
 	{
 		for (auto runtime : device->_runtimes)
 		{
-			runtime->OnDeleteDepthStencilView(pDepthStencilView);
+			runtime->on_delete_depthstencil_view(pDepthStencilView);
 		}
 
 		device->Release();
@@ -76,7 +76,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::QueryInterface(REFIID riid, void **ppvObj
 		riid == __uuidof(ID3D10Device1))
 	{
 		#pragma region Update to ID3D10Device1 interface
-		if (riid == __uuidof(ID3D10Device1) && _interfaceVersion < 1)
+		if (riid == __uuidof(ID3D10Device1) && _interface_version < 1)
 		{
 			ID3D10Device1 *device1 = nullptr;
 
@@ -90,7 +90,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::QueryInterface(REFIID riid, void **ppvObj
 			LOG(TRACE) << "Upgraded 'ID3D10Device' object " << this << " to 'ID3D10Device1'.";
 
 			_orig = device1;
-			_interfaceVersion = 1;
+			_interface_version = 1;
 		}
 		#pragma endregion
 	
@@ -108,9 +108,9 @@ HRESULT STDMETHODCALLTYPE D3D10Device::QueryInterface(REFIID riid, void **ppvObj
 		riid == __uuidof(IDXGIDevice2) ||
 		riid == __uuidof(IDXGIDevice3))
 	{
-		assert(_dxgiDevice != nullptr);
+		assert(_dxgi_device != nullptr);
 
-		return _dxgiDevice->QueryInterface(riid, ppvObj);
+		return _dxgi_device->QueryInterface(riid, ppvObj);
 	}
 
 	return _orig->QueryInterface(riid, ppvObj);
@@ -119,23 +119,23 @@ ULONG STDMETHODCALLTYPE D3D10Device::AddRef()
 {
 	_ref++;
 
-	assert(_dxgiDevice != nullptr);
+	assert(_dxgi_device != nullptr);
 
-	_dxgiDevice->AddRef();
+	_dxgi_device->AddRef();
 
 	return _orig->AddRef();
 }
 ULONG STDMETHODCALLTYPE D3D10Device::Release()
 {
-	assert(_dxgiDevice != nullptr);
+	assert(_dxgi_device != nullptr);
 
-	_dxgiDevice->Release();
+	_dxgi_device->Release();
 
 	ULONG ref = _orig->Release();
 
 	if (--_ref == 0 && ref != 0)
 	{
-		LOG(WARNING) << "Reference count for 'ID3D10Device" << (_interfaceVersion > 0 ? std::to_string(_interfaceVersion) : "") << "' object " << this << " is inconsistent: " << ref << ", but expected 0.";
+		LOG(WARNING) << "Reference count for 'ID3D10Device" << (_interface_version > 0 ? std::to_string(_interface_version) : "") << "' object " << this << " is inconsistent: " << ref << ", but expected 0.";
 
 		ref = 0;
 	}
@@ -144,7 +144,7 @@ ULONG STDMETHODCALLTYPE D3D10Device::Release()
 	{
 		assert(_ref <= 0);
 
-		LOG(TRACE) << "Destroyed 'ID3D10Device" << (_interfaceVersion > 0 ? std::to_string(_interfaceVersion) : "") << "' object " << this << ".";
+		LOG(TRACE) << "Destroyed 'ID3D10Device" << (_interface_version > 0 ? std::to_string(_interface_version) : "") << "' object " << this << ".";
 
 		delete this;
 	}
@@ -175,7 +175,7 @@ void STDMETHODCALLTYPE D3D10Device::DrawIndexed(UINT IndexCount, UINT StartIndex
 {
 	for (auto runtime : _runtimes)
 	{
-		runtime->OnDrawCall(IndexCount);
+		runtime->on_draw_call(IndexCount);
 	}
 
 	_orig->DrawIndexed(IndexCount, StartIndexLocation, BaseVertexLocation);
@@ -184,7 +184,7 @@ void STDMETHODCALLTYPE D3D10Device::Draw(UINT VertexCount, UINT StartVertexLocat
 {
 	for (auto runtime : _runtimes)
 	{
-		runtime->OnDrawCall(VertexCount);
+		runtime->on_draw_call(VertexCount);
 	}
 
 	_orig->Draw(VertexCount, StartVertexLocation);
@@ -209,7 +209,7 @@ void STDMETHODCALLTYPE D3D10Device::DrawIndexedInstanced(UINT IndexCountPerInsta
 {
 	for (auto runtime : _runtimes)
 	{
-		runtime->OnDrawCall(IndexCountPerInstance * InstanceCount);
+		runtime->on_draw_call(IndexCountPerInstance * InstanceCount);
 	}
 
 	_orig->DrawIndexedInstanced(IndexCountPerInstance, InstanceCount, StartIndexLocation, BaseVertexLocation, StartInstanceLocation);
@@ -218,7 +218,7 @@ void STDMETHODCALLTYPE D3D10Device::DrawInstanced(UINT VertexCountPerInstance, U
 {
 	for (auto runtime : _runtimes)
 	{
-		runtime->OnDrawCall(VertexCountPerInstance * InstanceCount);
+		runtime->on_draw_call(VertexCountPerInstance * InstanceCount);
 	}
 
 	_orig->DrawInstanced(VertexCountPerInstance, InstanceCount, StartVertexLocation, StartInstanceLocation);
@@ -261,7 +261,7 @@ void STDMETHODCALLTYPE D3D10Device::OMSetRenderTargets(UINT NumViews, ID3D10Rend
 	{
 		for (auto runtime : _runtimes)
 		{
-			runtime->OnSetDepthStencilView(pDepthStencilView);
+			runtime->on_set_depthstencil_view(pDepthStencilView);
 		}
 	}
 
@@ -303,7 +303,7 @@ void STDMETHODCALLTYPE D3D10Device::CopyResource(ID3D10Resource *pDstResource, I
 {
 	for (auto runtime : _runtimes)
 	{
-		runtime->OnCopyResource(pDstResource, pSrcResource);
+		runtime->on_copy_resource(pDstResource, pSrcResource);
 	}
 
 	_orig->CopyResource(pDstResource, pSrcResource);
@@ -320,7 +320,7 @@ void STDMETHODCALLTYPE D3D10Device::ClearDepthStencilView(ID3D10DepthStencilView
 {
 	for (auto runtime : _runtimes)
 	{
-		runtime->OnClearDepthStencilView(pDepthStencilView);
+		runtime->on_clear_depthstencil_view(pDepthStencilView);
 	}
 
 	_orig->ClearDepthStencilView(pDepthStencilView, ClearFlags, Depth, Stencil);
@@ -409,7 +409,7 @@ void STDMETHODCALLTYPE D3D10Device::OMGetRenderTargets(UINT NumViews, ID3D10Rend
 	{
 		for (auto runtime : _runtimes)
 		{
-			runtime->OnGetDepthStencilView(*ppDepthStencilView);
+			runtime->on_get_depthstencil_view(*ppDepthStencilView);
 		}
 	}
 }
@@ -509,7 +509,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateDepthStencilView(ID3D10Resource *pR
 
 	for (auto runtime : _runtimes)
 	{
-		runtime->OnCreateDepthStencilView(pResource, *ppDepthStencilView);
+		runtime->on_create_depthstencil_view(pResource, *ppDepthStencilView);
 	}
 
 	D3D10Device *const device = this;
@@ -517,7 +517,7 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateDepthStencilView(ID3D10Resource *pR
 	device->AddRef();
 	depthstencil->SetPrivateData(__uuidof(device), sizeof(device), &device);
 
-	ReShade::Hooks::Install(VTABLE(depthstencil), 2, reinterpret_cast<ReShade::Hook::Function>(&ID3D10DepthStencilView_Release));
+	reshade::hooks::install(VTABLE(depthstencil), 2, reinterpret_cast<reshade::hook::address>(&ID3D10DepthStencilView_Release));
 
 	return S_OK;
 }
@@ -605,19 +605,19 @@ void STDMETHODCALLTYPE D3D10Device::GetTextFilterSize(UINT *pWidth, UINT *pHeigh
 // ID3D10Device1
 HRESULT STDMETHODCALLTYPE D3D10Device::CreateShaderResourceView1(ID3D10Resource *pResource, const D3D10_SHADER_RESOURCE_VIEW_DESC1 *pDesc, ID3D10ShaderResourceView1 **ppSRView)
 {
-	assert(_interfaceVersion >= 1);
+	assert(_interface_version >= 1);
 
 	return static_cast<ID3D10Device1 *>(_orig)->CreateShaderResourceView1(pResource, pDesc, ppSRView);
 }
 HRESULT STDMETHODCALLTYPE D3D10Device::CreateBlendState1(const D3D10_BLEND_DESC1 *pBlendStateDesc, ID3D10BlendState1 **ppBlendState)
 {
-	assert(_interfaceVersion >= 1);
+	assert(_interface_version >= 1);
 
 	return static_cast<ID3D10Device1 *>(_orig)->CreateBlendState1(pBlendStateDesc, ppBlendState);
 }
 D3D10_FEATURE_LEVEL1 STDMETHODCALLTYPE D3D10Device::GetFeatureLevel()
 {
-	assert(_interfaceVersion >= 1);
+	assert(_interface_version >= 1);
 
 	return static_cast<ID3D10Device1 *>(_orig)->GetFeatureLevel();
 }
@@ -645,7 +645,7 @@ EXPORT HRESULT WINAPI D3D10CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, D3D1
 	Flags |= D3D10_CREATE_DEVICE_DEBUG;
 #endif
 
-	HRESULT hr = ReShade::Hooks::Call(&D3D10CreateDeviceAndSwapChain)(pAdapter, DriverType, Software, Flags, SDKVersion, nullptr, nullptr, ppDevice);
+	HRESULT hr = reshade::hooks::call(&D3D10CreateDeviceAndSwapChain)(pAdapter, DriverType, Software, Flags, SDKVersion, nullptr, nullptr, ppDevice);
 
 	if (FAILED(hr))
 	{
@@ -665,8 +665,8 @@ EXPORT HRESULT WINAPI D3D10CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, D3D1
 
 		assert(dxgidevice != nullptr);
 
-		const auto deviceProxy = new D3D10Device(device);
-		deviceProxy->_dxgiDevice = new DXGIDevice(dxgidevice, deviceProxy);
+		const auto device_proxy = new D3D10Device(device);
+		device_proxy->_dxgi_device = new DXGIDevice(dxgidevice, device_proxy);
 
 		if (pSwapChainDesc != nullptr)
 		{
@@ -678,7 +678,7 @@ EXPORT HRESULT WINAPI D3D10CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, D3D1
 			}
 			else
 			{
-				hr = deviceProxy->_dxgiDevice->GetAdapter(&pAdapter);
+				hr = device_proxy->_dxgi_device->GetAdapter(&pAdapter);
 
 				assert(SUCCEEDED(hr));
 			}
@@ -689,7 +689,7 @@ EXPORT HRESULT WINAPI D3D10CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, D3D1
 
 			assert(SUCCEEDED(hr));
 
-			hr = factory->CreateSwapChain(deviceProxy, pSwapChainDesc, ppSwapChain);
+			hr = factory->CreateSwapChain(device_proxy, pSwapChainDesc, ppSwapChain);
 
 			factory->Release();
 			pAdapter->Release();
@@ -697,13 +697,13 @@ EXPORT HRESULT WINAPI D3D10CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, D3D1
 
 		if (SUCCEEDED(hr))
 		{
-			*ppDevice = deviceProxy;
+			*ppDevice = device_proxy;
 
-			LOG(TRACE) << "> Returned device objects: " << deviceProxy << ", " << deviceProxy->_dxgiDevice;
+			LOG(TRACE) << "> Returned device objects: " << device_proxy << ", " << device_proxy->_dxgi_device;
 		}
 		else
 		{
-			deviceProxy->Release();
+			device_proxy->Release();
 		}
 	}
 
@@ -717,7 +717,7 @@ EXPORT HRESULT WINAPI D3D10CreateDeviceAndSwapChain1(IDXGIAdapter *pAdapter, D3D
 	Flags |= D3D10_CREATE_DEVICE_DEBUG;
 #endif
 
-	HRESULT hr = ReShade::Hooks::Call(&D3D10CreateDeviceAndSwapChain1)(pAdapter, DriverType, Software, Flags, HardwareLevel, SDKVersion, nullptr, nullptr, ppDevice);
+	HRESULT hr = reshade::hooks::call(&D3D10CreateDeviceAndSwapChain1)(pAdapter, DriverType, Software, Flags, HardwareLevel, SDKVersion, nullptr, nullptr, ppDevice);
 
 	if (FAILED(hr))
 	{
@@ -737,8 +737,8 @@ EXPORT HRESULT WINAPI D3D10CreateDeviceAndSwapChain1(IDXGIAdapter *pAdapter, D3D
 
 		assert(dxgidevice != nullptr);
 
-		const auto deviceProxy = new D3D10Device(device);
-		deviceProxy->_dxgiDevice = new DXGIDevice(dxgidevice, deviceProxy);
+		const auto device_proxy = new D3D10Device(device);
+		device_proxy->_dxgi_device = new DXGIDevice(dxgidevice, device_proxy);
 
 		if (pSwapChainDesc != nullptr)
 		{
@@ -750,7 +750,7 @@ EXPORT HRESULT WINAPI D3D10CreateDeviceAndSwapChain1(IDXGIAdapter *pAdapter, D3D
 			}
 			else
 			{
-				hr = deviceProxy->_dxgiDevice->GetAdapter(&pAdapter);
+				hr = device_proxy->_dxgi_device->GetAdapter(&pAdapter);
 
 				assert(SUCCEEDED(hr));
 			}
@@ -761,7 +761,7 @@ EXPORT HRESULT WINAPI D3D10CreateDeviceAndSwapChain1(IDXGIAdapter *pAdapter, D3D
 
 			assert(SUCCEEDED(hr));
 
-			hr = factory->CreateSwapChain(deviceProxy, pSwapChainDesc, ppSwapChain);
+			hr = factory->CreateSwapChain(device_proxy, pSwapChainDesc, ppSwapChain);
 
 			factory->Release();
 			pAdapter->Release();
@@ -769,13 +769,13 @@ EXPORT HRESULT WINAPI D3D10CreateDeviceAndSwapChain1(IDXGIAdapter *pAdapter, D3D
 
 		if (SUCCEEDED(hr))
 		{
-			*ppDevice = deviceProxy;
+			*ppDevice = device_proxy;
 
-			LOG(TRACE) << "> Returned device objects: " << deviceProxy << ", " << deviceProxy->_dxgiDevice;
+			LOG(TRACE) << "> Returned device objects: " << device_proxy << ", " << device_proxy->_dxgi_device;
 		}
 		else
 		{
-			deviceProxy->Release();
+			device_proxy->Release();
 		}
 	}
 

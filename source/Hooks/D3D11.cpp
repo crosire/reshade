@@ -41,11 +41,11 @@ namespace
 // ID3D11DepthStencilView
 ULONG STDMETHODCALLTYPE ID3D11DepthStencilView_Release(ID3D11DepthStencilView *pDepthStencilView)
 {
-	static const auto trampoline = ReShade::Hooks::Call(&ID3D11DepthStencilView_Release);
+	static const auto trampoline = reshade::hooks::call(&ID3D11DepthStencilView_Release);
 
 	D3D11Device *device = nullptr;
-	UINT dataSize = sizeof(device);
-	const bool succeeded = SUCCEEDED(pDepthStencilView->GetPrivateData(__uuidof(device), &dataSize, &device));
+	UINT data_size = sizeof(device);
+	const bool succeeded = SUCCEEDED(pDepthStencilView->GetPrivateData(__uuidof(device), &data_size, &device));
 
 	const ULONG ref = trampoline(pDepthStencilView);
 
@@ -53,7 +53,7 @@ ULONG STDMETHODCALLTYPE ID3D11DepthStencilView_Release(ID3D11DepthStencilView *p
 	{
 		for (auto runtime : device->_runtimes)
 		{
-			runtime->OnDeleteDepthStencilView(pDepthStencilView);
+			runtime->on_delete_depthstencil_view(pDepthStencilView);
 		}
 
 		device->Release();
@@ -79,7 +79,7 @@ HRESULT STDMETHODCALLTYPE D3D11DeviceContext::QueryInterface(REFIID riid, void *
 		riid == __uuidof(ID3D11DeviceContext3))
 	{
 		#pragma region Update to ID3D11DeviceContext1 interface
-		if (riid == __uuidof(ID3D11DeviceContext1) && _interfaceVersion < 1)
+		if (riid == __uuidof(ID3D11DeviceContext1) && _interface_version < 1)
 		{
 			ID3D11DeviceContext1 *devicecontext1 = nullptr;
 
@@ -93,11 +93,11 @@ HRESULT STDMETHODCALLTYPE D3D11DeviceContext::QueryInterface(REFIID riid, void *
 			LOG(TRACE) << "Upgraded 'ID3D11DeviceContext' object " << this << " to 'ID3D11DeviceContext1'.";
 
 			_orig = devicecontext1;
-			_interfaceVersion = 1;
+			_interface_version = 1;
 		}
 		#pragma endregion
 		#pragma region Update to ID3D11DeviceContext2 interface
-		if (riid == __uuidof(ID3D11DeviceContext2) && _interfaceVersion < 2)
+		if (riid == __uuidof(ID3D11DeviceContext2) && _interface_version < 2)
 		{
 			ID3D11DeviceContext2 *devicecontext2 = nullptr;
 
@@ -108,14 +108,14 @@ HRESULT STDMETHODCALLTYPE D3D11DeviceContext::QueryInterface(REFIID riid, void *
 
 			_orig->Release();
 
-			LOG(TRACE) << "Upgraded 'ID3D11DeviceContext" << (_interfaceVersion > 0 ? std::to_string(_interfaceVersion) : "") << "' object " << this << " to 'ID3D11DeviceContext2'.";
+			LOG(TRACE) << "Upgraded 'ID3D11DeviceContext" << (_interface_version > 0 ? std::to_string(_interface_version) : "") << "' object " << this << " to 'ID3D11DeviceContext2'.";
 
 			_orig = devicecontext2;
-			_interfaceVersion = 2;
+			_interface_version = 2;
 		}
 		#pragma endregion
 		#pragma region Update to ID3D11DeviceContext3 interface
-		if (riid == __uuidof(ID3D11DeviceContext3) && _interfaceVersion < 3)
+		if (riid == __uuidof(ID3D11DeviceContext3) && _interface_version < 3)
 		{
 			ID3D11DeviceContext3 *devicecontext3 = nullptr;
 
@@ -126,10 +126,10 @@ HRESULT STDMETHODCALLTYPE D3D11DeviceContext::QueryInterface(REFIID riid, void *
 
 			_orig->Release();
 
-			LOG(TRACE) << "Upgraded 'ID3D11DeviceContext" << (_interfaceVersion > 0 ? std::to_string(_interfaceVersion) : "") << "' object " << this << " to 'ID3D11DeviceContext3'.";
+			LOG(TRACE) << "Upgraded 'ID3D11DeviceContext" << (_interface_version > 0 ? std::to_string(_interface_version) : "") << "' object " << this << " to 'ID3D11DeviceContext3'.";
 
 			_orig = devicecontext3;
-			_interfaceVersion = 3;
+			_interface_version = 3;
 		}
 		#pragma endregion
 
@@ -154,7 +154,7 @@ ULONG STDMETHODCALLTYPE D3D11DeviceContext::Release()
 
 	if (--_ref == 0 && ref != 0)
 	{
-		LOG(WARNING) << "Reference count for 'ID3D11DeviceContext" << (_interfaceVersion > 0 ? std::to_string(_interfaceVersion) : "") << "' object " << this << " is inconsistent: " << ref << ", but expected 0.";
+		LOG(WARNING) << "Reference count for 'ID3D11DeviceContext" << (_interface_version > 0 ? std::to_string(_interface_version) : "") << "' object " << this << " is inconsistent: " << ref << ", but expected 0.";
 
 		ref = 0;
 	}
@@ -163,7 +163,7 @@ ULONG STDMETHODCALLTYPE D3D11DeviceContext::Release()
 	{
 		assert(_ref <= 0);
 
-		LOG(TRACE) << "Destroyed 'ID3D11DeviceContext" << (_interfaceVersion > 0 ? std::to_string(_interfaceVersion) : "") << "' object " << this << ".";
+		LOG(TRACE) << "Destroyed 'ID3D11DeviceContext" << (_interface_version > 0 ? std::to_string(_interface_version) : "") << "' object " << this << ".";
 
 		delete this;
 	}
@@ -217,7 +217,7 @@ void STDMETHODCALLTYPE D3D11DeviceContext::DrawIndexed(UINT IndexCount, UINT Sta
 {
 	for (auto runtime : _device->_runtimes)
 	{
-		runtime->OnDrawCall(_orig, IndexCount);
+		runtime->on_draw_call(_orig, IndexCount);
 	}
 
 	_orig->DrawIndexed(IndexCount, StartIndexLocation, BaseVertexLocation);
@@ -226,7 +226,7 @@ void STDMETHODCALLTYPE D3D11DeviceContext::Draw(UINT VertexCount, UINT StartVert
 {
 	for (auto runtime : _device->_runtimes)
 	{
-		runtime->OnDrawCall(_orig, VertexCount);
+		runtime->on_draw_call(_orig, VertexCount);
 	}
 
 	_orig->Draw(VertexCount, StartVertexLocation);
@@ -259,7 +259,7 @@ void STDMETHODCALLTYPE D3D11DeviceContext::DrawIndexedInstanced(UINT IndexCountP
 {
 	for (auto runtime : _device->_runtimes)
 	{
-		runtime->OnDrawCall(_orig, IndexCountPerInstance * InstanceCount);
+		runtime->on_draw_call(_orig, IndexCountPerInstance * InstanceCount);
 	}
 
 	_orig->DrawIndexedInstanced(IndexCountPerInstance, InstanceCount, StartIndexLocation, BaseVertexLocation, StartInstanceLocation);
@@ -268,7 +268,7 @@ void STDMETHODCALLTYPE D3D11DeviceContext::DrawInstanced(UINT VertexCountPerInst
 {
 	for (auto runtime : _device->_runtimes)
 	{
-		runtime->OnDrawCall(_orig, VertexCountPerInstance * InstanceCount);
+		runtime->on_draw_call(_orig, VertexCountPerInstance * InstanceCount);
 	}
 
 	_orig->DrawInstanced(VertexCountPerInstance, InstanceCount, StartVertexLocation, StartInstanceLocation);
@@ -323,7 +323,7 @@ void STDMETHODCALLTYPE D3D11DeviceContext::OMSetRenderTargets(UINT NumViews, ID3
 	{
 		for (auto runtime : _device->_runtimes)
 		{
-			runtime->OnSetDepthStencilView(pDepthStencilView);
+			runtime->on_set_depthstencil_view(pDepthStencilView);
 		}
 	}
 
@@ -335,7 +335,7 @@ void STDMETHODCALLTYPE D3D11DeviceContext::OMSetRenderTargetsAndUnorderedAccessV
 	{
 		for (auto runtime : _device->_runtimes)
 		{
-			runtime->OnSetDepthStencilView(pDepthStencilView);
+			runtime->on_set_depthstencil_view(pDepthStencilView);
 		}
 	}
 
@@ -393,7 +393,7 @@ void STDMETHODCALLTYPE D3D11DeviceContext::CopyResource(ID3D11Resource *pDstReso
 {
 	for (auto runtime : _device->_runtimes)
 	{
-		runtime->OnCopyResource(pDstResource, pSrcResource);
+		runtime->on_copy_resource(pDstResource, pSrcResource);
 	}
 
 	_orig->CopyResource(pDstResource, pSrcResource);
@@ -422,7 +422,7 @@ void STDMETHODCALLTYPE D3D11DeviceContext::ClearDepthStencilView(ID3D11DepthSten
 {
 	for (auto runtime : _device->_runtimes)
 	{
-		runtime->OnClearDepthStencilView(pDepthStencilView);
+		runtime->on_clear_depthstencil_view(pDepthStencilView);
 	}
 
 	_orig->ClearDepthStencilView(pDepthStencilView, ClearFlags, Depth, Stencil);
@@ -575,7 +575,7 @@ void STDMETHODCALLTYPE D3D11DeviceContext::OMGetRenderTargets(UINT NumViews, ID3
 	{
 		for (auto runtime : _device->_runtimes)
 		{
-			runtime->OnGetDepthStencilView(*ppDepthStencilView);
+			runtime->on_get_depthstencil_view(*ppDepthStencilView);
 		}
 	}
 }
@@ -587,7 +587,7 @@ void STDMETHODCALLTYPE D3D11DeviceContext::OMGetRenderTargetsAndUnorderedAccessV
 	{
 		for (auto runtime : _device->_runtimes)
 		{
-			runtime->OnGetDepthStencilView(*ppDepthStencilView);
+			runtime->on_get_depthstencil_view(*ppDepthStencilView);
 		}
 	}
 }
@@ -691,115 +691,115 @@ D3D11_DEVICE_CONTEXT_TYPE STDMETHODCALLTYPE D3D11DeviceContext::GetType()
 // ID3D11DeviceContext1
 void STDMETHODCALLTYPE D3D11DeviceContext::CopySubresourceRegion1(ID3D11Resource *pDstResource, UINT DstSubresource, UINT DstX, UINT DstY, UINT DstZ, ID3D11Resource *pSrcResource, UINT SrcSubresource, const D3D11_BOX *pSrcBox, UINT CopyFlags)
 {
-	assert(_interfaceVersion >= 1);
+	assert(_interface_version >= 1);
 
 	static_cast<ID3D11DeviceContext1 *>(_orig)->CopySubresourceRegion1(pDstResource, DstSubresource, DstX, DstY, DstZ, pSrcResource, SrcSubresource, pSrcBox, CopyFlags);
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::UpdateSubresource1(ID3D11Resource *pDstResource, UINT DstSubresource, const D3D11_BOX *pDstBox, const void *pSrcData, UINT SrcRowPitch, UINT SrcDepthPitch, UINT CopyFlags)
 {
-	assert(_interfaceVersion >= 1);
+	assert(_interface_version >= 1);
 
 	static_cast<ID3D11DeviceContext1 *>(_orig)->UpdateSubresource1(pDstResource, DstSubresource, pDstBox, pSrcData, SrcRowPitch, SrcDepthPitch, CopyFlags);
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::DiscardResource(ID3D11Resource *pResource)
 {
-	assert(_interfaceVersion >= 1);
+	assert(_interface_version >= 1);
 
 	static_cast<ID3D11DeviceContext1 *>(_orig)->DiscardResource(pResource);
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::DiscardView(ID3D11View *pResourceView)
 {
-	assert(_interfaceVersion >= 1);
+	assert(_interface_version >= 1);
 
 	static_cast<ID3D11DeviceContext1 *>(_orig)->DiscardView(pResourceView);
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::VSSetConstantBuffers1(UINT StartSlot, UINT NumBuffers, ID3D11Buffer *const *ppConstantBuffers, const UINT *pFirstConstant, const UINT *pNumConstants)
 {
-	assert(_interfaceVersion >= 1);
+	assert(_interface_version >= 1);
 
 	static_cast<ID3D11DeviceContext1 *>(_orig)->VSSetConstantBuffers1(StartSlot, NumBuffers, ppConstantBuffers, pFirstConstant, pNumConstants);
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::HSSetConstantBuffers1(UINT StartSlot, UINT NumBuffers, ID3D11Buffer *const *ppConstantBuffers, const UINT *pFirstConstant, const UINT *pNumConstants)
 {
-	assert(_interfaceVersion >= 1);
+	assert(_interface_version >= 1);
 
 	static_cast<ID3D11DeviceContext1 *>(_orig)->HSSetConstantBuffers1(StartSlot, NumBuffers, ppConstantBuffers, pFirstConstant, pNumConstants);
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::DSSetConstantBuffers1(UINT StartSlot, UINT NumBuffers, ID3D11Buffer *const *ppConstantBuffers, const UINT *pFirstConstant, const UINT *pNumConstants)
 {
-	assert(_interfaceVersion >= 1);
+	assert(_interface_version >= 1);
 
 	static_cast<ID3D11DeviceContext1 *>(_orig)->DSSetConstantBuffers1(StartSlot, NumBuffers, ppConstantBuffers, pFirstConstant, pNumConstants);
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::GSSetConstantBuffers1(UINT StartSlot, UINT NumBuffers, ID3D11Buffer *const *ppConstantBuffers, const UINT *pFirstConstant, const UINT *pNumConstants)
 {
-	assert(_interfaceVersion >= 1);
+	assert(_interface_version >= 1);
 
 	static_cast<ID3D11DeviceContext1 *>(_orig)->GSSetConstantBuffers1(StartSlot, NumBuffers, ppConstantBuffers, pFirstConstant, pNumConstants);
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::PSSetConstantBuffers1(UINT StartSlot, UINT NumBuffers, ID3D11Buffer *const *ppConstantBuffers, const UINT *pFirstConstant, const UINT *pNumConstants)
 {
-	assert(_interfaceVersion >= 1);
+	assert(_interface_version >= 1);
 
 	static_cast<ID3D11DeviceContext1 *>(_orig)->PSSetConstantBuffers1(StartSlot, NumBuffers, ppConstantBuffers, pFirstConstant, pNumConstants);
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::CSSetConstantBuffers1(UINT StartSlot, UINT NumBuffers, ID3D11Buffer *const *ppConstantBuffers, const UINT *pFirstConstant, const UINT *pNumConstants)
 {
-	assert(_interfaceVersion >= 1);
+	assert(_interface_version >= 1);
 
 	static_cast<ID3D11DeviceContext1 *>(_orig)->CSSetConstantBuffers1(StartSlot, NumBuffers, ppConstantBuffers, pFirstConstant, pNumConstants);
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::VSGetConstantBuffers1(UINT StartSlot, UINT NumBuffers, ID3D11Buffer **ppConstantBuffers, UINT *pFirstConstant, UINT *pNumConstants)
 {
-	assert(_interfaceVersion >= 1);
+	assert(_interface_version >= 1);
 
 	static_cast<ID3D11DeviceContext1 *>(_orig)->VSGetConstantBuffers1(StartSlot, NumBuffers, ppConstantBuffers, pFirstConstant, pNumConstants);
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::HSGetConstantBuffers1(UINT StartSlot, UINT NumBuffers, ID3D11Buffer **ppConstantBuffers, UINT *pFirstConstant, UINT *pNumConstants)
 {
-	assert(_interfaceVersion >= 1);
+	assert(_interface_version >= 1);
 
 	static_cast<ID3D11DeviceContext1 *>(_orig)->HSGetConstantBuffers1(StartSlot, NumBuffers, ppConstantBuffers, pFirstConstant, pNumConstants);
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::DSGetConstantBuffers1(UINT StartSlot, UINT NumBuffers, ID3D11Buffer **ppConstantBuffers, UINT *pFirstConstant, UINT *pNumConstants)
 {
-	assert(_interfaceVersion >= 1);
+	assert(_interface_version >= 1);
 
 	static_cast<ID3D11DeviceContext1 *>(_orig)->DSGetConstantBuffers1(StartSlot, NumBuffers, ppConstantBuffers, pFirstConstant, pNumConstants);
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::GSGetConstantBuffers1(UINT StartSlot, UINT NumBuffers, ID3D11Buffer **ppConstantBuffers, UINT *pFirstConstant, UINT *pNumConstants)
 {
-	assert(_interfaceVersion >= 1);
+	assert(_interface_version >= 1);
 
 	static_cast<ID3D11DeviceContext1 *>(_orig)->GSGetConstantBuffers1(StartSlot, NumBuffers, ppConstantBuffers, pFirstConstant, pNumConstants);
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::PSGetConstantBuffers1(UINT StartSlot, UINT NumBuffers, ID3D11Buffer **ppConstantBuffers, UINT *pFirstConstant, UINT *pNumConstants)
 {
-	assert(_interfaceVersion >= 1);
+	assert(_interface_version >= 1);
 
 	static_cast<ID3D11DeviceContext1 *>(_orig)->PSGetConstantBuffers1(StartSlot, NumBuffers, ppConstantBuffers, pFirstConstant, pNumConstants);
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::CSGetConstantBuffers1(UINT StartSlot, UINT NumBuffers, ID3D11Buffer **ppConstantBuffers, UINT *pFirstConstant, UINT *pNumConstants)
 {
-	assert(_interfaceVersion >= 1);
+	assert(_interface_version >= 1);
 
 	static_cast<ID3D11DeviceContext1 *>(_orig)->CSGetConstantBuffers1(StartSlot, NumBuffers, ppConstantBuffers, pFirstConstant, pNumConstants);
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::SwapDeviceContextState(ID3DDeviceContextState *pState, ID3DDeviceContextState **ppPreviousState)
 {
-	assert(_interfaceVersion >= 1);
+	assert(_interface_version >= 1);
 
 	static_cast<ID3D11DeviceContext1 *>(_orig)->SwapDeviceContextState(pState, ppPreviousState);
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::ClearView(ID3D11View *pView, const FLOAT Color[4], const D3D11_RECT *pRect, UINT NumRects)
 {
-	assert(_interfaceVersion >= 1);
+	assert(_interface_version >= 1);
 
 	static_cast<ID3D11DeviceContext1 *>(_orig)->ClearView(pView, Color, pRect, NumRects);
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::DiscardView1(ID3D11View *pResourceView, const D3D11_RECT *pRects, UINT NumRects)
 {
-	assert(_interfaceVersion >= 1);
+	assert(_interface_version >= 1);
 
 	static_cast<ID3D11DeviceContext1 *>(_orig)->DiscardView1(pResourceView, pRects, NumRects);
 }
@@ -807,61 +807,61 @@ void STDMETHODCALLTYPE D3D11DeviceContext::DiscardView1(ID3D11View *pResourceVie
 // ID3D11DeviceContext2
 HRESULT STDMETHODCALLTYPE D3D11DeviceContext::UpdateTileMappings(ID3D11Resource *pTiledResource, UINT NumTiledResourceRegions, const D3D11_TILED_RESOURCE_COORDINATE *pTiledResourceRegionStartCoordinates, const D3D11_TILE_REGION_SIZE *pTiledResourceRegionSizes, ID3D11Buffer *pTilePool, UINT NumRanges, const UINT *pRangeFlags, const UINT *pTilePoolStartOffsets, const UINT *pRangeTileCounts, UINT Flags)
 {
-	assert(_interfaceVersion >= 2);
+	assert(_interface_version >= 2);
 
 	return static_cast<ID3D11DeviceContext2 *>(_orig)->UpdateTileMappings(pTiledResource, NumTiledResourceRegions, pTiledResourceRegionStartCoordinates, pTiledResourceRegionSizes, pTilePool, NumRanges, pRangeFlags, pTilePoolStartOffsets, pRangeTileCounts, Flags);
 }
 HRESULT STDMETHODCALLTYPE D3D11DeviceContext::CopyTileMappings(ID3D11Resource *pDestTiledResource, const D3D11_TILED_RESOURCE_COORDINATE *pDestRegionStartCoordinate, ID3D11Resource *pSourceTiledResource, const D3D11_TILED_RESOURCE_COORDINATE *pSourceRegionStartCoordinate, const D3D11_TILE_REGION_SIZE *pTileRegionSize, UINT Flags)
 {
-	assert(_interfaceVersion >= 2);
+	assert(_interface_version >= 2);
 
 	return static_cast<ID3D11DeviceContext2 *>(_orig)->CopyTileMappings(pDestTiledResource, pDestRegionStartCoordinate, pSourceTiledResource, pSourceRegionStartCoordinate, pTileRegionSize, Flags);
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::CopyTiles(ID3D11Resource *pTiledResource, const D3D11_TILED_RESOURCE_COORDINATE *pTileRegionStartCoordinate, const D3D11_TILE_REGION_SIZE *pTileRegionSize, ID3D11Buffer *pBuffer, UINT64 BufferStartOffsetInBytes, UINT Flags)
 {
-	assert(_interfaceVersion >= 2);
+	assert(_interface_version >= 2);
 
 	static_cast<ID3D11DeviceContext2 *>(_orig)->CopyTiles(pTiledResource, pTileRegionStartCoordinate, pTileRegionSize, pBuffer, BufferStartOffsetInBytes, Flags);
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::UpdateTiles(ID3D11Resource *pDestTiledResource, const D3D11_TILED_RESOURCE_COORDINATE *pDestTileRegionStartCoordinate, const D3D11_TILE_REGION_SIZE *pDestTileRegionSize, const void *pSourceTileData, UINT Flags)
 {
-	assert(_interfaceVersion >= 2);
+	assert(_interface_version >= 2);
 
 	static_cast<ID3D11DeviceContext2 *>(_orig)->UpdateTiles(pDestTiledResource, pDestTileRegionStartCoordinate, pDestTileRegionSize, pSourceTileData, Flags);
 }
 HRESULT STDMETHODCALLTYPE D3D11DeviceContext::ResizeTilePool(ID3D11Buffer *pTilePool, UINT64 NewSizeInBytes)
 {
-	assert(_interfaceVersion >= 2);
+	assert(_interface_version >= 2);
 
 	return static_cast<ID3D11DeviceContext2 *>(_orig)->ResizeTilePool(pTilePool, NewSizeInBytes);
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::TiledResourceBarrier(ID3D11DeviceChild *pTiledResourceOrViewAccessBeforeBarrier, ID3D11DeviceChild *pTiledResourceOrViewAccessAfterBarrier)
 {
-	assert(_interfaceVersion >= 2);
+	assert(_interface_version >= 2);
 
 	static_cast<ID3D11DeviceContext2 *>(_orig)->TiledResourceBarrier(pTiledResourceOrViewAccessBeforeBarrier, pTiledResourceOrViewAccessAfterBarrier);
 }
 BOOL STDMETHODCALLTYPE D3D11DeviceContext::IsAnnotationEnabled()
 {
-	assert(_interfaceVersion >= 2);
+	assert(_interface_version >= 2);
 
 	return static_cast<ID3D11DeviceContext2 *>(_orig)->IsAnnotationEnabled();
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::SetMarkerInt(LPCWSTR pLabel, INT Data)
 {
-	assert(_interfaceVersion >= 2);
+	assert(_interface_version >= 2);
 
 	static_cast<ID3D11DeviceContext2 *>(_orig)->SetMarkerInt(pLabel, Data);
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::BeginEventInt(LPCWSTR pLabel, INT Data)
 {
-	assert(_interfaceVersion >= 2);
+	assert(_interface_version >= 2);
 
 	static_cast<ID3D11DeviceContext2 *>(_orig)->BeginEventInt(pLabel, Data);
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::EndEvent()
 {
-	assert(_interfaceVersion >= 2);
+	assert(_interface_version >= 2);
 
 	static_cast<ID3D11DeviceContext2 *>(_orig)->EndEvent();
 }
@@ -869,19 +869,19 @@ void STDMETHODCALLTYPE D3D11DeviceContext::EndEvent()
 // ID3D11DeviceContext3
 void STDMETHODCALLTYPE D3D11DeviceContext::Flush1(D3D11_CONTEXT_TYPE ContextType, HANDLE hEvent)
 {
-	assert(_interfaceVersion >= 3);
+	assert(_interface_version >= 3);
 
 	static_cast<ID3D11DeviceContext3 *>(_orig)->Flush1(ContextType, hEvent);
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::SetHardwareProtectionState(BOOL HwProtectionEnable)
 {
-	assert(_interfaceVersion >= 3);
+	assert(_interface_version >= 3);
 
 	static_cast<ID3D11DeviceContext3 *>(_orig)->SetHardwareProtectionState(HwProtectionEnable);
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::GetHardwareProtectionState(BOOL *pHwProtectionEnable)
 {
-	assert(_interfaceVersion >= 3);
+	assert(_interface_version >= 3);
 
 	static_cast<ID3D11DeviceContext3 *>(_orig)->GetHardwareProtectionState(pHwProtectionEnable);
 }
@@ -902,7 +902,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::QueryInterface(REFIID riid, void **ppvObj
 		riid == __uuidof(ID3D11Device3))
 	{
 		#pragma region Update to ID3D11Device1 interface
-		if (riid == __uuidof(ID3D11Device1) && _interfaceVersion < 1)
+		if (riid == __uuidof(ID3D11Device1) && _interface_version < 1)
 		{
 			ID3D11Device1 *device1 = nullptr;
 			ID3D11DeviceContext1 *devicecontext1 = nullptr;
@@ -917,15 +917,15 @@ HRESULT STDMETHODCALLTYPE D3D11Device::QueryInterface(REFIID riid, void **ppvObj
 			LOG(TRACE) << "Upgraded 'ID3D11Device' object " << this << " to 'ID3D11Device1'.";
 
 			_orig = device1;
-			_interfaceVersion = 1;
+			_interface_version = 1;
 
-			_immediateContext->QueryInterface(IID_PPV_ARGS(&devicecontext1));
+			_immediate_context->QueryInterface(IID_PPV_ARGS(&devicecontext1));
 
 			devicecontext1->Release();
 		}
 		#pragma endregion
 		#pragma region Update to ID3D11Device2 interface
-		if (riid == __uuidof(ID3D11Device2) && _interfaceVersion < 2)
+		if (riid == __uuidof(ID3D11Device2) && _interface_version < 2)
 		{
 			ID3D11Device2 *device2 = nullptr;
 			ID3D11DeviceContext2 *devicecontext2 = nullptr;
@@ -937,18 +937,18 @@ HRESULT STDMETHODCALLTYPE D3D11Device::QueryInterface(REFIID riid, void **ppvObj
 
 			_orig->Release();
 
-			LOG(TRACE) << "Upgraded 'ID3D11Device" << (_interfaceVersion > 0 ? std::to_string(_interfaceVersion) : "") << "' object " << this << " to 'ID3D11Device2'.";
+			LOG(TRACE) << "Upgraded 'ID3D11Device" << (_interface_version > 0 ? std::to_string(_interface_version) : "") << "' object " << this << " to 'ID3D11Device2'.";
 
 			_orig = device2;
-			_interfaceVersion = 2;
+			_interface_version = 2;
 
-			_immediateContext->QueryInterface(IID_PPV_ARGS(&devicecontext2));
+			_immediate_context->QueryInterface(IID_PPV_ARGS(&devicecontext2));
 
 			devicecontext2->Release();
 		}
 		#pragma endregion
 		#pragma region Update to ID3D11Device3 interface
-		if (riid == __uuidof(ID3D11Device3) && _interfaceVersion < 3)
+		if (riid == __uuidof(ID3D11Device3) && _interface_version < 3)
 		{
 			ID3D11Device3 *device3 = nullptr;
 			ID3D11DeviceContext3 *devicecontext3 = nullptr;
@@ -960,12 +960,12 @@ HRESULT STDMETHODCALLTYPE D3D11Device::QueryInterface(REFIID riid, void **ppvObj
 
 			_orig->Release();
 
-			LOG(TRACE) << "Upgraded 'ID3D11Device" << (_interfaceVersion > 0 ? std::to_string(_interfaceVersion) : "") << "' object " << this << " to 'ID3D11Device3'.";
+			LOG(TRACE) << "Upgraded 'ID3D11Device" << (_interface_version > 0 ? std::to_string(_interface_version) : "") << "' object " << this << " to 'ID3D11Device3'.";
 
 			_orig = device3;
-			_interfaceVersion = 3;
+			_interface_version = 3;
 
-			_immediateContext->QueryInterface(IID_PPV_ARGS(&devicecontext3));
+			_immediate_context->QueryInterface(IID_PPV_ARGS(&devicecontext3));
 
 			devicecontext3->Release();
 		}
@@ -985,9 +985,9 @@ HRESULT STDMETHODCALLTYPE D3D11Device::QueryInterface(REFIID riid, void **ppvObj
 		riid == __uuidof(IDXGIDevice2) ||
 		riid == __uuidof(IDXGIDevice3))
 	{
-		assert(_dxgiDevice != nullptr);
+		assert(_dxgi_device != nullptr);
 
-		return _dxgiDevice->QueryInterface(riid, ppvObj);
+		return _dxgi_device->QueryInterface(riid, ppvObj);
 	}
 
 	return _orig->QueryInterface(riid, ppvObj);
@@ -996,27 +996,27 @@ ULONG STDMETHODCALLTYPE D3D11Device::AddRef()
 {
 	_ref++;
 
-	assert(_dxgiDevice != nullptr);
-	assert(_immediateContext != nullptr);
+	assert(_dxgi_device != nullptr);
+	assert(_immediate_context != nullptr);
 
-	_dxgiDevice->AddRef();
-	_immediateContext->AddRef();
+	_dxgi_device->AddRef();
+	_immediate_context->AddRef();
 
 	return _orig->AddRef();
 }
 ULONG STDMETHODCALLTYPE D3D11Device::Release()
 {
-	assert(_dxgiDevice != nullptr);
-	assert(_immediateContext != nullptr);
+	assert(_dxgi_device != nullptr);
+	assert(_immediate_context != nullptr);
 
-	_dxgiDevice->Release();
-	_immediateContext->Release();
+	_dxgi_device->Release();
+	_immediate_context->Release();
 
 	ULONG ref = _orig->Release();
 
 	if (--_ref == 0 && ref != 0)
 	{
-		LOG(WARNING) << "Reference count for 'ID3D11Device" << (_interfaceVersion > 0 ? std::to_string(_interfaceVersion) : "") << "' object " << this << " is inconsistent: " << ref << ", but expected 0.";
+		LOG(WARNING) << "Reference count for 'ID3D11Device" << (_interface_version > 0 ? std::to_string(_interface_version) : "") << "' object " << this << " is inconsistent: " << ref << ", but expected 0.";
 
 		ref = 0;
 	}
@@ -1025,7 +1025,7 @@ ULONG STDMETHODCALLTYPE D3D11Device::Release()
 	{
 		assert(_ref <= 0);
 
-		LOG(TRACE) << "Destroyed 'ID3D11Device" << (_interfaceVersion > 0 ? std::to_string(_interfaceVersion) : "") << "' object " << this << ".";
+		LOG(TRACE) << "Destroyed 'ID3D11Device" << (_interface_version > 0 ? std::to_string(_interface_version) : "") << "' object " << this << ".";
 
 		delete this;
 	}
@@ -1076,7 +1076,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDepthStencilView(ID3D11Resource *pR
 
 	for (auto runtime : _runtimes)
 	{
-		runtime->OnCreateDepthStencilView(pResource, *ppDepthStencilView);
+		runtime->on_create_depthstencil_view(pResource, *ppDepthStencilView);
 	}
 
 	D3D11Device *const device = this;
@@ -1084,7 +1084,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDepthStencilView(ID3D11Resource *pR
 	device->AddRef();
 	depthstencil->SetPrivateData(__uuidof(device), sizeof(device), &device);
 
-	ReShade::Hooks::Install(VTABLE(depthstencil), 2, reinterpret_cast<ReShade::Hook::Function>(&ID3D11DepthStencilView_Release));
+	reshade::hooks::install(VTABLE(depthstencil), 2, reinterpret_cast<reshade::hook::address>(&ID3D11DepthStencilView_Release));
 
 	return S_OK;
 }
@@ -1225,11 +1225,11 @@ void STDMETHODCALLTYPE D3D11Device::GetImmediateContext(ID3D11DeviceContext **pp
 		return;
 	}
 
-	assert(_immediateContext != nullptr);
+	assert(_immediate_context != nullptr);
 
-	_immediateContext->AddRef();
+	_immediate_context->AddRef();
 
-	*ppImmediateContext = _immediateContext;
+	*ppImmediateContext = _immediate_context;
 }
 HRESULT STDMETHODCALLTYPE D3D11Device::SetExceptionMode(UINT RaiseFlags)
 {
@@ -1252,13 +1252,13 @@ void STDMETHODCALLTYPE D3D11Device::GetImmediateContext1(ID3D11DeviceContext1 **
 		return;
 	}
 
-	assert(_interfaceVersion >= 1);
-	assert(_immediateContext != nullptr);
-	assert(_immediateContext->_interfaceVersion >= 1);
+	assert(_interface_version >= 1);
+	assert(_immediate_context != nullptr);
+	assert(_immediate_context->_interface_version >= 1);
 
-	_immediateContext->AddRef();
+	_immediate_context->AddRef();
 
-	*ppImmediateContext = _immediateContext;
+	*ppImmediateContext = _immediate_context;
 }
 HRESULT STDMETHODCALLTYPE D3D11Device::CreateDeferredContext1(UINT ContextFlags, ID3D11DeviceContext1 **ppDeferredContext)
 {
@@ -1269,7 +1269,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDeferredContext1(UINT ContextFlags,
 		return E_INVALIDARG;
 	}
 
-	assert(_interfaceVersion >= 1);
+	assert(_interface_version >= 1);
 
 	const HRESULT hr = static_cast<ID3D11Device1 *>(_orig)->CreateDeferredContext1(ContextFlags, ppDeferredContext);
 
@@ -1286,31 +1286,31 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDeferredContext1(UINT ContextFlags,
 }
 HRESULT STDMETHODCALLTYPE D3D11Device::CreateBlendState1(const D3D11_BLEND_DESC1 *pBlendStateDesc, ID3D11BlendState1 **ppBlendState)
 {
-	assert(_interfaceVersion >= 1);
+	assert(_interface_version >= 1);
 
 	return static_cast<ID3D11Device1 *>(_orig)->CreateBlendState1(pBlendStateDesc, ppBlendState);
 }
 HRESULT STDMETHODCALLTYPE D3D11Device::CreateRasterizerState1(const D3D11_RASTERIZER_DESC1 *pRasterizerDesc, ID3D11RasterizerState1 **ppRasterizerState)
 {
-	assert(_interfaceVersion >= 1);
+	assert(_interface_version >= 1);
 
 	return static_cast<ID3D11Device1 *>(_orig)->CreateRasterizerState1(pRasterizerDesc, ppRasterizerState);
 }
 HRESULT STDMETHODCALLTYPE D3D11Device::CreateDeviceContextState(UINT Flags, const D3D_FEATURE_LEVEL *pFeatureLevels, UINT FeatureLevels, UINT SDKVersion, REFIID EmulatedInterface, D3D_FEATURE_LEVEL *pChosenFeatureLevel, ID3DDeviceContextState **ppContextState)
 {
-	assert(_interfaceVersion >= 1);
+	assert(_interface_version >= 1);
 
 	return static_cast<ID3D11Device1 *>(_orig)->CreateDeviceContextState(Flags, pFeatureLevels, FeatureLevels, SDKVersion, EmulatedInterface, pChosenFeatureLevel, ppContextState);
 }
 HRESULT STDMETHODCALLTYPE D3D11Device::OpenSharedResource1(HANDLE hResource, REFIID returnedInterface, void **ppResource)
 {
-	assert(_interfaceVersion >= 1);
+	assert(_interface_version >= 1);
 
 	return static_cast<ID3D11Device1 *>(_orig)->OpenSharedResource1(hResource, returnedInterface, ppResource);
 }
 HRESULT STDMETHODCALLTYPE D3D11Device::OpenSharedResourceByName(LPCWSTR lpName, DWORD dwDesiredAccess, REFIID returnedInterface, void **ppResource)
 {
-	assert(_interfaceVersion >= 1);
+	assert(_interface_version >= 1);
 
 	return static_cast<ID3D11Device1 *>(_orig)->OpenSharedResourceByName(lpName, dwDesiredAccess, returnedInterface, ppResource);
 }
@@ -1318,25 +1318,25 @@ HRESULT STDMETHODCALLTYPE D3D11Device::OpenSharedResourceByName(LPCWSTR lpName, 
 // ID3D11Device2
 void STDMETHODCALLTYPE D3D11Device::GetImmediateContext2(ID3D11DeviceContext2 **ppImmediateContext)
 {
-	assert(_interfaceVersion >= 2);
+	assert(_interface_version >= 2);
 
 	static_cast<ID3D11Device2 *>(_orig)->GetImmediateContext2(ppImmediateContext);
 }
 HRESULT STDMETHODCALLTYPE D3D11Device::CreateDeferredContext2(UINT ContextFlags, ID3D11DeviceContext2 **ppDeferredContext)
 {
-	assert(_interfaceVersion >= 2);
+	assert(_interface_version >= 2);
 
 	return static_cast<ID3D11Device2 *>(_orig)->CreateDeferredContext2(ContextFlags, ppDeferredContext);
 }
 void STDMETHODCALLTYPE D3D11Device::GetResourceTiling(ID3D11Resource *pTiledResource, UINT *pNumTilesForEntireResource, D3D11_PACKED_MIP_DESC *pPackedMipDesc, D3D11_TILE_SHAPE *pStandardTileShapeForNonPackedMips, UINT *pNumSubresourceTilings, UINT FirstSubresourceTilingToGet, D3D11_SUBRESOURCE_TILING *pSubresourceTilingsForNonPackedMips)
 {
-	assert(_interfaceVersion >= 2);
+	assert(_interface_version >= 2);
 
 	static_cast<ID3D11Device2 *>(_orig)->GetResourceTiling(pTiledResource, pNumTilesForEntireResource, pPackedMipDesc, pStandardTileShapeForNonPackedMips, pNumSubresourceTilings, FirstSubresourceTilingToGet, pSubresourceTilingsForNonPackedMips);
 }
 HRESULT STDMETHODCALLTYPE D3D11Device::CheckMultisampleQualityLevels1(DXGI_FORMAT Format, UINT SampleCount, UINT Flags, UINT *pNumQualityLevels)
 {
-	assert(_interfaceVersion >= 2);
+	assert(_interface_version >= 2);
 
 	return static_cast<ID3D11Device2 *>(_orig)->CheckMultisampleQualityLevels1(Format, SampleCount, Flags, pNumQualityLevels);
 }
@@ -1344,67 +1344,67 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CheckMultisampleQualityLevels1(DXGI_FORMA
 // ID3D11Device3
 HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture2D1(const D3D11_TEXTURE2D_DESC1 *pDesc1, const D3D11_SUBRESOURCE_DATA *pInitialData, ID3D11Texture2D1 **ppTexture2D)
 {
-	assert(_interfaceVersion >= 3);
+	assert(_interface_version >= 3);
 
 	return static_cast<ID3D11Device3 *>(_orig)->CreateTexture2D1(pDesc1, pInitialData, ppTexture2D);
 }
 HRESULT STDMETHODCALLTYPE D3D11Device::CreateTexture3D1(const D3D11_TEXTURE3D_DESC1 *pDesc1, const D3D11_SUBRESOURCE_DATA *pInitialData, ID3D11Texture3D1 **ppTexture3D)
 {
-	assert(_interfaceVersion >= 3);
+	assert(_interface_version >= 3);
 
 	return static_cast<ID3D11Device3 *>(_orig)->CreateTexture3D1(pDesc1, pInitialData, ppTexture3D);
 }
 HRESULT STDMETHODCALLTYPE D3D11Device::CreateRasterizerState2(const D3D11_RASTERIZER_DESC2 *pRasterizerDesc, ID3D11RasterizerState2 **ppRasterizerState)
 {
-	assert(_interfaceVersion >= 3);
+	assert(_interface_version >= 3);
 
 	return static_cast<ID3D11Device3 *>(_orig)->CreateRasterizerState2(pRasterizerDesc, ppRasterizerState);
 }
 HRESULT STDMETHODCALLTYPE D3D11Device::CreateShaderResourceView1(ID3D11Resource *pResource, const D3D11_SHADER_RESOURCE_VIEW_DESC1 *pDesc1, ID3D11ShaderResourceView1 **ppSRView1)
 {
-	assert(_interfaceVersion >= 3);
+	assert(_interface_version >= 3);
 
 	return static_cast<ID3D11Device3 *>(_orig)->CreateShaderResourceView1(pResource, pDesc1, ppSRView1);
 }
 HRESULT STDMETHODCALLTYPE D3D11Device::CreateUnorderedAccessView1(ID3D11Resource *pResource, const D3D11_UNORDERED_ACCESS_VIEW_DESC1 *pDesc1, ID3D11UnorderedAccessView1 **ppUAView1)
 {
-	assert(_interfaceVersion >= 3);
+	assert(_interface_version >= 3);
 
 	return static_cast<ID3D11Device3 *>(_orig)->CreateUnorderedAccessView1(pResource, pDesc1, ppUAView1);
 }
 HRESULT STDMETHODCALLTYPE D3D11Device::CreateRenderTargetView1(ID3D11Resource *pResource, const D3D11_RENDER_TARGET_VIEW_DESC1 *pDesc1, ID3D11RenderTargetView1 **ppRTView1)
 {
-	assert(_interfaceVersion >= 3);
+	assert(_interface_version >= 3);
 
 	return static_cast<ID3D11Device3 *>(_orig)->CreateRenderTargetView1(pResource, pDesc1, ppRTView1);
 }
 HRESULT STDMETHODCALLTYPE D3D11Device::CreateQuery1(const D3D11_QUERY_DESC1 *pQueryDesc1, ID3D11Query1 **ppQuery1)
 {
-	assert(_interfaceVersion >= 3);
+	assert(_interface_version >= 3);
 
 	return static_cast<ID3D11Device3 *>(_orig)->CreateQuery1(pQueryDesc1, ppQuery1);
 }
 void STDMETHODCALLTYPE D3D11Device::GetImmediateContext3(ID3D11DeviceContext3 **ppImmediateContext)
 {
-	assert(_interfaceVersion >= 3);
+	assert(_interface_version >= 3);
 
 	static_cast<ID3D11Device3 *>(_orig)->GetImmediateContext3(ppImmediateContext);
 }
 HRESULT STDMETHODCALLTYPE D3D11Device::CreateDeferredContext3(UINT ContextFlags, ID3D11DeviceContext3 **ppDeferredContext)
 {
-	assert(_interfaceVersion >= 3);
+	assert(_interface_version >= 3);
 
 	return static_cast<ID3D11Device3 *>(_orig)->CreateDeferredContext3(ContextFlags, ppDeferredContext);
 }
 void STDMETHODCALLTYPE D3D11Device::WriteToSubresource(ID3D11Resource *pDstResource, UINT DstSubresource, const D3D11_BOX *pDstBox, const void *pSrcData, UINT SrcRowPitch, UINT SrcDepthPitch)
 {
-	assert(_interfaceVersion >= 3);
+	assert(_interface_version >= 3);
 
 	static_cast<ID3D11Device3 *>(_orig)->WriteToSubresource(pDstResource, DstSubresource, pDstBox, pSrcData, SrcRowPitch, SrcDepthPitch);
 }
 void STDMETHODCALLTYPE D3D11Device::ReadFromSubresource(void *pDstData, UINT DstRowPitch, UINT DstDepthPitch, ID3D11Resource *pSrcResource, UINT SrcSubresource, const D3D11_BOX *pSrcBox)
 {
-	assert(_interfaceVersion >= 3);
+	assert(_interface_version >= 3);
 
 	static_cast<ID3D11Device3 *>(_orig)->ReadFromSubresource(pDstData, DstRowPitch, DstDepthPitch, pSrcResource, SrcSubresource, pSrcBox);
 }
@@ -1427,7 +1427,7 @@ EXPORT HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, D3D_
 
 	D3D_FEATURE_LEVEL FeatureLevel = D3D_FEATURE_LEVEL_11_0;
 
-	HRESULT hr = ReShade::Hooks::Call(&D3D11CreateDeviceAndSwapChain)(pAdapter, DriverType, Software, Flags, pFeatureLevels, FeatureLevels, SDKVersion, nullptr, nullptr, ppDevice, &FeatureLevel, nullptr);
+	HRESULT hr = reshade::hooks::call(&D3D11CreateDeviceAndSwapChain)(pAdapter, DriverType, Software, Flags, pFeatureLevels, FeatureLevels, SDKVersion, nullptr, nullptr, ppDevice, &FeatureLevel, nullptr);
 
 	if (FAILED(hr))
 	{
@@ -1452,10 +1452,10 @@ EXPORT HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, D3D_
 		assert(dxgidevice != nullptr);
 		assert(devicecontext != nullptr);
 
-		const auto deviceProxy = new D3D11Device(device);
-		const auto devicecontextProxy = new D3D11DeviceContext(deviceProxy, devicecontext);
-		deviceProxy->_dxgiDevice = new DXGIDevice(dxgidevice, deviceProxy);
-		deviceProxy->_immediateContext = devicecontextProxy;
+		const auto device_proxy = new D3D11Device(device);
+		const auto devicecontext_proxy = new D3D11DeviceContext(device_proxy, devicecontext);
+		device_proxy->_dxgi_device = new DXGIDevice(dxgidevice, device_proxy);
+		device_proxy->_immediate_context = devicecontext_proxy;
 
 		if (pSwapChainDesc != nullptr)
 		{
@@ -1467,7 +1467,7 @@ EXPORT HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, D3D_
 			}
 			else
 			{
-				hr = deviceProxy->_dxgiDevice->GetAdapter(&pAdapter);
+				hr = device_proxy->_dxgi_device->GetAdapter(&pAdapter);
 
 				assert(SUCCEEDED(hr));
 			}
@@ -1478,7 +1478,7 @@ EXPORT HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, D3D_
 
 			assert(SUCCEEDED(hr));
 
-			hr = factory->CreateSwapChain(deviceProxy, const_cast<DXGI_SWAP_CHAIN_DESC *>(pSwapChainDesc), ppSwapChain);
+			hr = factory->CreateSwapChain(device_proxy, const_cast<DXGI_SWAP_CHAIN_DESC *>(pSwapChainDesc), ppSwapChain);
 
 			factory->Release();
 			pAdapter->Release();
@@ -1486,19 +1486,19 @@ EXPORT HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, D3D_
 
 		if (SUCCEEDED(hr))
 		{
-			*ppDevice = deviceProxy;
+			*ppDevice = device_proxy;
 
 			if (ppImmediateContext != nullptr)
 			{
-				devicecontextProxy->AddRef();
-				*ppImmediateContext = devicecontextProxy;
+				devicecontext_proxy->AddRef();
+				*ppImmediateContext = devicecontext_proxy;
 			}
 
-			LOG(TRACE) << "> Returned device objects: " << deviceProxy << ", " << deviceProxy->_dxgiDevice;
+			LOG(TRACE) << "> Returned device objects: " << device_proxy << ", " << device_proxy->_dxgi_device;
 		}
 		else
 		{
-			deviceProxy->Release();
+			device_proxy->Release();
 		}
 	}
 

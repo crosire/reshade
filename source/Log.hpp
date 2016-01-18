@@ -6,50 +6,50 @@
 #include <boost\filesystem\path.hpp>
 
 #define LOG(LEVEL) LOG_##LEVEL()
-#define LOG_FATAL() ReShade::Log::Message(ReShade::Log::Level::Fatal)
-#define LOG_ERROR() ReShade::Log::Message(ReShade::Log::Level::Error)
-#define LOG_WARNING() ReShade::Log::Message(ReShade::Log::Level::Warning)
-#define LOG_INFO() ReShade::Log::Message(ReShade::Log::Level::Info)
-#define LOG_TRACE() ReShade::Log::Message(ReShade::Log::Level::Trace)
+#define LOG_FATAL() reshade::log::message(reshade::log::level::fatal)
+#define LOG_ERROR() reshade::log::message(reshade::log::level::error)
+#define LOG_WARNING() reshade::log::message(reshade::log::level::warning)
+#define LOG_INFO() reshade::log::message(reshade::log::level::info)
+#define LOG_TRACE() reshade::log::message(reshade::log::level::trace)
 
-namespace ReShade
+namespace reshade
 {
-	class Log abstract
+	class log abstract
 	{
 	public:
-		enum class Level
+		enum class level
 		{
-			Fatal,
-			Error,
-			Warning,
-			Info,
-			Trace
+			fatal,
+			error,
+			warning,
+			info,
+			trace
 		};
-		struct Message
+		struct message
 		{
-			Message(Level level);
-			~Message();
+			message(level level);
+			~message();
 
 			template <typename T>
-			inline Message &operator<<(const T &value)
+			inline message &operator<<(const T &value)
 			{
 				if (_dispatch)
 				{
-					sFileStream << value;
+					s_filestream << value;
 				}
 
 				return *this;
 			}
-			inline Message &operator<<(const char *message)
+			inline message &operator<<(const char *message)
 			{
 				return operator<<<std::string>(message);
 			}
-			inline Message &operator<<(const wchar_t *message)
+			inline message &operator<<(const wchar_t *message)
 			{
 				return operator<<<std::wstring>(message);
 			}
 			template <>
-			inline Message &operator<<(const std::wstring &message)
+			inline message &operator<<(const std::wstring &message)
 			{
 				return operator<<<std::string>(std::wstring_convert<std::codecvt_utf8<wchar_t>>().to_bytes(message));
 			}
@@ -58,10 +58,10 @@ namespace ReShade
 			bool _dispatch;
 		};
 
-		static bool Open(const boost::filesystem::path &path, Level maxlevel);
+		static bool open(const boost::filesystem::path &path, level maxlevel);
 
 	private:
-		static Level sMaxLevel;
-		static std::ofstream sFileStream;
+		static level s_max_level;
+		static std::ofstream s_filestream;
 	};
 }

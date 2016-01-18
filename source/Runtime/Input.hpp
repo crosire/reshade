@@ -7,77 +7,84 @@
 #include <EyeX.h>
 #include <Windows.h>
 
-namespace ReShade
+namespace reshade
 {
-	class Input
+	class input
 	{
 	public:
-		static void LoadEyeX();
-		static void UnLoadEyeX();
-		static void RegisterRawInputDevice(const RAWINPUTDEVICE &device);
-		static Input *RegisterWindow(HWND hwnd);
-		static void Uninstall();
+		static void load_eyex();
+		static void unload_eyex();
 
-		~Input();
+		static void register_raw_input_device(const RAWINPUTDEVICE &device);
+		static input *register_window(HWND hwnd);
+		static void uninstall();
 
-		bool GetKeyState(UINT keycode) const
+		~input();
+
+		bool is_key_down(UINT keycode) const
 		{
 			assert(keycode < 255);
 
 			return _keys[keycode] > 0;
 		}
-		bool GetKeyJustPressed(UINT keycode) const
+		bool is_key_pressed(UINT keycode) const
 		{
 			assert(keycode < 255);
 
 			return _keys[keycode] == 1;
 		}
-		bool GetMouseButtonState(UINT button) const
+		bool is_key_released(UINT keycode) const
+		{
+			assert(keycode < 255);
+
+			return _keys[keycode] == -1;
+		}
+		bool is_mouse_button_down(UINT button) const
 		{
 			assert(button < 3);
 
-			return _mouseButtons[button] > 0;
+			return _mouse_buttons[button] > 0;
 		}
-		bool GetMouseButtonJustPressed(UINT button) const
+		bool is_mouse_button_pressed(UINT button) const
 		{
 			assert(button < 3);
 
-			return _mouseButtons[button] == 1;
+			return _mouse_buttons[button] == 1;
 		}
-		bool GetMouseButtonJustReleased(UINT button) const
+		bool is_mouse_button_released(UINT button) const
 		{
 			assert(button < 3);
 
-			return _mouseButtons[button] == -1;
+			return _mouse_buttons[button] == -1;
 		}
-		const POINT &GetMousePosition() const
+		const POINT &mouse_position() const
 		{
-			return _mousePosition;
+			return _mouse_position;
 		}
-		const POINT &GetGazePosition() const
+		const POINT &gaze_position() const
 		{
-			return _gazePosition;
+			return _gaze_position;
 		}
 
-		void NextFrame();
+		void next_frame();
 
 	private:
-		Input(HWND hwnd);
+		input(HWND hwnd);
 
-		static LRESULT CALLBACK HandleWindowMessage(int nCode, WPARAM wParam, LPARAM lParam);
-		static void TX_CALLCONVENTION HandleEyeXEvent(TX_CONSTHANDLE hAsyncData, TX_USERPARAM userParam);
-		static void TX_CALLCONVENTION HandleEyeXConnectionState(TX_CONNECTIONSTATE connectionState, TX_USERPARAM userParam);
+		static LRESULT CALLBACK handle_window_message(int nCode, WPARAM wParam, LPARAM lParam);
+		static void TX_CALLCONVENTION handle_eyex_event(TX_CONSTHANDLE hAsyncData, TX_USERPARAM userParam);
+		static void TX_CALLCONVENTION handle_eyex_connection_state(TX_CONNECTIONSTATE connectionState, TX_USERPARAM userParam);
 
 		HWND _hwnd;
-		HHOOK _hookWindowProc;
+		HHOOK _hook_wndproc;
 		signed char _keys[256];
-		POINT _mousePosition;
-		signed char _mouseButtons[3];
-		POINT _gazePosition;
-		TX_CONTEXTHANDLE _eyeX;
-		TX_HANDLE _eyeXInteractor, _eyeXInteractorSnapshot;
-		static unsigned long sEyeXInitialized;
-		static std::unordered_map<HWND, HHOOK> sRawInputHooks;
-		static std::unordered_map<HWND, std::unique_ptr<Input>> sWindows;
+		POINT _mouse_position;
+		signed char _mouse_buttons[3];
+		POINT _gaze_position;
+		TX_CONTEXTHANDLE _eyex;
+		TX_HANDLE _eyex_interactor, _eyex_interactor_snapshot;
+		static unsigned long s_eyex_initialized;
+		static std::unordered_map<HWND, HHOOK> s_raw_input_hooks;
+		static std::unordered_map<HWND, std::unique_ptr<input>> s_windows;
 	};
 }

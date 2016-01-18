@@ -6,10 +6,10 @@ struct __declspec(uuid("88399375-734F-4892-A95F-70DD42CE7CDD")) D3D10Device;
 
 struct D3D10Device : ID3D10Device1
 {
-	explicit D3D10Device(ID3D10Device *original) : _ref(1), _orig(original), _interfaceVersion(0), _dxgiDevice(nullptr)
+	explicit D3D10Device(ID3D10Device *original) : _ref(1), _orig(original), _interface_version(0), _dxgi_device(nullptr)
 	{
 	}
-	explicit D3D10Device(ID3D10Device1 *original) : _ref(1), _orig(original), _interfaceVersion(1), _dxgiDevice(nullptr)
+	explicit D3D10Device(ID3D10Device1 *original) : _ref(1), _orig(original), _interface_version(1), _dxgi_device(nullptr)
 	{
 	}
 
@@ -123,9 +123,9 @@ struct D3D10Device : ID3D10Device1
 
 	LONG _ref;
 	ID3D10Device *_orig;
-	unsigned int _interfaceVersion;
-	struct DXGIDevice *_dxgiDevice;
-	std::vector<std::shared_ptr<ReShade::Runtimes::D3D10Runtime>> _runtimes;
+	unsigned int _interface_version;
+	struct DXGIDevice *_dxgi_device;
+	std::vector<std::shared_ptr<reshade::runtimes::d3d10_runtime>> _runtimes;
 
 private:
 	D3D10Device(const D3D10Device &);

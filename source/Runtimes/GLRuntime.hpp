@@ -5,79 +5,79 @@
 #include <algorithm>
 #include <gl\gl3w.h>
 
-namespace ReShade
+namespace reshade
 {
-	namespace Runtimes
+	namespace runtimes
 	{
-		class GLRuntime : public Runtime
+		class gl_runtime : public runtime
 		{
 		public:
-			GLRuntime(HDC device);
+			gl_runtime(HDC device);
 
-			bool OnInit(unsigned int width, unsigned int height);
-			void OnReset() override;
-			void OnResetEffect() override;
-			void OnPresent() override;
-			void OnDrawCall(unsigned int vertices) override;
-			void OnApplyEffect() override;
-			void OnApplyEffectTechnique(const Technique *technique) override;
-			void OnFramebufferAttachment(GLenum target, GLenum attachment, GLenum objecttarget, GLuint object, GLint level);
+			bool on_init(unsigned int width, unsigned int height);
+			void on_reset() override;
+			void on_reset_effect() override;
+			void on_present() override;
+			void on_draw_call(unsigned int vertices) override;
+			void on_apply_effect() override;
+			void on_apply_effect_technique(const technique *technique) override;
+			void on_fbo_attachment(GLenum target, GLenum attachment, GLenum objecttarget, GLuint object, GLint level);
 
-			Texture *GetTexture(const std::string &name) const
+			texture *get_texture(const std::string &name) const
 			{
-				const auto it = std::find_if(_textures.cbegin(), _textures.cend(), [name](const std::unique_ptr<Texture> &it) { return it->Name == name; });
+				const auto it = std::find_if(_textures.cbegin(), _textures.cend(), [name](const std::unique_ptr<texture> &it) { return it->name == name; });
 
 				return it != _textures.cend() ? it->get() : nullptr;
 			}
-			void EnlargeConstantStorage()
+			void enlarge_uniform_data_storage()
 			{
-				_uniformDataStorage.resize(_uniformDataStorage.size() + 128);
+				_uniform_data_storage.resize(_uniform_data_storage.size() + 128);
 			}
-			unsigned char *GetConstantStorage()
+			unsigned char *get_uniform_data_storage()
 			{
-				return _uniformDataStorage.data();
+				return _uniform_data_storage.data();
 			}
-			size_t GetConstantStorageSize() const
+			size_t get_uniform_data_storage_size() const
 			{
-				return _uniformDataStorage.size();
+				return _uniform_data_storage.size();
 			}
-			void AddTexture(Texture *texture)
+			void add_texture(texture *x)
 			{
-				_textures.push_back(std::unique_ptr<Texture>(texture));
+				_textures.push_back(std::unique_ptr<texture>(x));
 			}
-			void AddConstant(Uniform *constant)
+			void add_uniform(uniform *x)
 			{
-				_uniforms.push_back(std::unique_ptr<Uniform>(constant));
+				_uniforms.push_back(std::unique_ptr<uniform>(x));
 			}
-			void AddTechnique(Technique *technique)
+			void add_technique(technique *x)
 			{
-				_techniques.push_back(std::unique_ptr<Technique>(technique));
+				_techniques.push_back(std::unique_ptr<technique>(x));
 			}
 
 			HDC _hdc;
 
-			GLuint _referenceCount, _currentVertexCount;
-			GLuint _defaultBackBufferFBO, _defaultBackBufferRBO[2], _backbufferTexture[2];
-			GLuint _depthSourceFBO, _depthSource, _depthTexture, _blitFBO;
-			std::vector<struct GLSampler> _effectSamplers;
-			GLuint _defaultVAO, _defaultVBO, _effectUBO;
+			GLuint _reference_count, _current_vertex_count;
+			GLuint _default_backbuffer_fbo, _default_backbuffer_rbo[2], _backbuffer_texture[2];
+			GLuint _depth_source_fbo, _depth_source, _depth_texture, _blit_fbo;
+			std::vector<struct gl_sampler> _effect_samplers;
+			GLuint _default_vao, _default_vbo, _effect_ubo;
 
 		private:
-			struct DepthSourceInfo
+			struct depth_source_info
 			{
-				GLint Width, Height, Level, Format;
-				GLfloat DrawCallCount, DrawVerticesCount;
+				GLint width, height, level, format;
+				GLfloat drawcall_count, vertices_count;
 			};
 
-			void Screenshot(unsigned char *buffer) const override;
-			bool UpdateEffect(const FX::nodetree &ast, const std::vector<std::string> &pragmas, std::string &errors) override;
-			bool UpdateTexture(Texture *texture, const unsigned char *data, size_t size) override;
+			void screenshot(unsigned char *buffer) const override;
+			bool update_effect(const fx::nodetree &ast, const std::vector<std::string> &pragmas, std::string &errors) override;
+			bool update_texture(texture *texture, const unsigned char *data, size_t size) override;
 
-			void DetectDepthSource();
-			void CreateDepthTexture(GLuint width, GLuint height, GLenum format);
+			void detect_depth_source();
+			void create_depth_texture(GLuint width, GLuint height, GLenum format);
 
-			std::unique_ptr<class GLStateBlock> _stateBlock;
-			std::unordered_map<GLuint, DepthSourceInfo> _depthSourceTable;
+			std::unique_ptr<class gl_stateblock> _stateblock;
+			std::unordered_map<GLuint, depth_source_info> _depth_source_table;
 		};
 	}
 }

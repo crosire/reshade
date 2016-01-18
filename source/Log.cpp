@@ -2,12 +2,12 @@
 
 #include <Windows.h>
 
-namespace ReShade
+namespace reshade
 {
-	Log::Level Log::sMaxLevel = Level::Info;
-	std::ofstream Log::sFileStream;
+	log::level log::s_max_level = log::level::info;
+	std::ofstream log::s_filestream;
 
-	Log::Message::Message(Level level) : _dispatch(level <= sMaxLevel && sFileStream.is_open())
+	log::message::message(level level) : _dispatch(level <= s_max_level && s_filestream.is_open())
 	{
 		if (!_dispatch)
 		{
@@ -19,7 +19,7 @@ namespace ReShade
 
 		const char levelNames[][6] = { "FATAL", "ERROR", "WARN ", "INFO ", "TRACE" };
 
-		sFileStream << std::right << std::setfill('0')
+		s_filestream << std::right << std::setfill('0')
 			<< std::setw(2) << time.wDay << '/'
 			<< std::setw(2) << time.wMonth << '/'
 			<< std::setw(4) << time.wYear << ' '
@@ -30,28 +30,28 @@ namespace ReShade
 			<< '[' << std::setw(5) << GetCurrentThreadId() << ']' << std::setfill(' ')
 			<< " | " << levelNames[static_cast<unsigned int>(level)] << " | " << std::left;
 	}
-	Log::Message::~Message()
+	log::message::~message()
 	{
 		if (!_dispatch)
 		{
 			return;
 		}
 
-		sFileStream << std::endl;
+		s_filestream << std::endl;
 	}
 
-	bool Log::Open(const boost::filesystem::path &path, Level maxlevel)
+	bool log::open(const boost::filesystem::path &path, level maxlevel)
 	{
-		sFileStream.open(path.native(), std::ios::out | std::ios::trunc);
+		s_filestream.open(path.native(), std::ios::out | std::ios::trunc);
 
-		if (!sFileStream.is_open())
+		if (!s_filestream.is_open())
 		{
 			return false;
 		}
 
-		sFileStream.flush();
+		s_filestream.flush();
 
-		sMaxLevel = maxlevel;
+		s_max_level = maxlevel;
 
 		return true;
 	}

@@ -4,16 +4,22 @@
 #include <vector>
 #include <boost\filesystem\path.hpp>
 
-class FileWatcher
+namespace reshade
 {
-public:
-	explicit FileWatcher(const boost::filesystem::path &path);
-	~FileWatcher();
+	namespace utils
+	{
+		class file_watcher
+		{
+		public:
+			explicit file_watcher(const boost::filesystem::path &path);
+			~file_watcher();
 
-	bool Check(std::vector<boost::filesystem::path> &modifications);
+			bool check(std::vector<boost::filesystem::path> &modifications);
 
-private:
-	boost::filesystem::path _path;
-	std::unique_ptr<unsigned char[]> _buffer;
-	void *_fileHandle, *_completionHandle;
-};
+		private:
+			boost::filesystem::path _path;
+			std::unique_ptr<unsigned char[]> _buffer;
+			void *_file_handle, *_completion_handle;
+		};
+	}
+}

@@ -5,29 +5,29 @@
 #include <d3d12.h>
 #include <dxgi1_4.h>
 
-namespace ReShade
+namespace reshade
 {
-	namespace Runtimes
+	namespace runtimes
 	{
-		class D3D12Runtime : public Runtime
+		class d3d12_runtime : public runtime
 		{
 		public:
-			D3D12Runtime(ID3D12Device *device, ID3D12CommandQueue *queue, IDXGISwapChain3 *swapchain);
-			~D3D12Runtime();
+			d3d12_runtime(ID3D12Device *device, ID3D12CommandQueue *queue, IDXGISwapChain3 *swapchain);
+			~d3d12_runtime();
 
-			bool OnInit(const DXGI_SWAP_CHAIN_DESC &desc);
-			void OnReset() override;
-			void OnResetEffect() override;
-			void OnPresent() override;
-			void OnApplyEffect() override;
-			void OnApplyEffectTechnique(const Technique *technique) override;
+			bool on_init(const DXGI_SWAP_CHAIN_DESC &desc);
+			void on_reset() override;
+			void on_reset_effect() override;
+			void on_present() override;
+			void on_apply_effect() override;
+			void on_apply_effect_technique(const technique *technique) override;
 
-			void Screenshot(unsigned char *buffer) const override;
-			bool UpdateEffect(const FX::nodetree &ast, const std::vector<std::string> &pragmas, std::string &errors) override;
-			bool UpdateTexture(Texture *texture, const unsigned char *data, size_t size) override;
+			void screenshot(unsigned char *buffer) const override;
+			bool update_effect(const fx::nodetree &ast, const std::vector<std::string> &pragmas, std::string &errors) override;
+			bool update_texture(texture *texture, const unsigned char *data, size_t size) override;
 
 			ID3D12Device *_device;
-			ID3D12CommandQueue *_commandQueue;
+			ID3D12CommandQueue *_commandqueue;
 			IDXGISwapChain3 *_swapchain;
 		};
 	}

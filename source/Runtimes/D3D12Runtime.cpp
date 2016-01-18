@@ -6,79 +6,79 @@
 
 // ---------------------------------------------------------------------------------------------------
 
-namespace ReShade
+namespace reshade
 {
-	namespace Runtimes
+	namespace runtimes
 	{
-		D3D12Runtime::D3D12Runtime(ID3D12Device *device, ID3D12CommandQueue *queue, IDXGISwapChain3 *swapchain) : Runtime(D3D_FEATURE_LEVEL_12_0), _device(device), _commandQueue(queue), _swapchain(swapchain)
+		d3d12_runtime::d3d12_runtime(ID3D12Device *device, ID3D12CommandQueue *queue, IDXGISwapChain3 *swapchain) : runtime(D3D_FEATURE_LEVEL_12_0), _device(device), _commandqueue(queue), _swapchain(swapchain)
 		{
 			assert(queue != nullptr);
 			assert(device != nullptr);
 			assert(swapchain != nullptr);
 
 			_device->AddRef();
-			_commandQueue->AddRef();
+			_commandqueue->AddRef();
 			_swapchain->AddRef();
 		}
-		D3D12Runtime::~D3D12Runtime()
+		d3d12_runtime::~d3d12_runtime()
 		{
 			_device->Release();
-			_commandQueue->Release();
+			_commandqueue->Release();
 			_swapchain->Release();
 		}
 
-		bool D3D12Runtime::OnInit(const DXGI_SWAP_CHAIN_DESC &desc)
+		bool d3d12_runtime::on_init(const DXGI_SWAP_CHAIN_DESC &desc)
 		{
 			_width = desc.BufferDesc.Width;
 			_height = desc.BufferDesc.Height;
-			_input = Input::RegisterWindow(desc.OutputWindow);
+			_input = input::register_window(desc.OutputWindow);
 
-			return Runtime::OnInit();
+			return runtime::on_init();
 		}
-		void D3D12Runtime::OnReset()
+		void d3d12_runtime::on_reset()
 		{
-			if (!_isInitialized)
+			if (!_is_initialized)
 			{
 				return;
 			}
 
-			Runtime::OnReset();
+			runtime::on_reset();
 		}
-		void D3D12Runtime::OnResetEffect()
+		void d3d12_runtime::on_reset_effect()
 		{
-			Runtime::OnResetEffect();
+			runtime::on_reset_effect();
 		}
-		void D3D12Runtime::OnPresent()
+		void d3d12_runtime::on_present()
 		{
-			if (!_isInitialized)
+			if (!_is_initialized)
 			{
 				LOG(TRACE) << "Failed to present! Runtime is in a lost state.";
 				return;
 			}
-			else if (_stats.DrawCalls == 0)
+			else if (_stats.drawcalls == 0)
 			{
 				return;
 			}
 
-			Runtime::OnPresent();
+			runtime::on_present();
 		}
-		void D3D12Runtime::OnApplyEffect()
+		void d3d12_runtime::on_apply_effect()
 		{
-			Runtime::OnApplyEffect();
+			runtime::on_apply_effect();
 		}
-		void D3D12Runtime::OnApplyEffectTechnique(const Technique *technique)
+		void d3d12_runtime::on_apply_effect_technique(const technique *technique)
 		{
-			Runtime::OnApplyEffectTechnique(technique);
+			runtime::on_apply_effect_technique(technique);
 		}
 
-		void D3D12Runtime::Screenshot(unsigned char *buffer) const
+		void d3d12_runtime::screenshot(unsigned char *buffer) const
 		{
 		}
-		bool D3D12Runtime::UpdateEffect(const FX::nodetree &ast, const std::vector<std::string> &pragmas, std::string &errors)
+		bool d3d12_runtime::update_effect(const fx::nodetree &ast, const std::vector<std::string> &pragmas, std::string &errors)
 		{
 			return false;
 		}
-		bool D3D12Runtime::UpdateTexture(Texture *texture, const unsigned char *data, size_t size)
+		bool d3d12_runtime::update_texture(texture *texture, const unsigned char *data, size_t size)
 		{
 			return false;
 		}

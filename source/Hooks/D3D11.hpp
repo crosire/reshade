@@ -7,16 +7,16 @@ struct __declspec(uuid("27B0246B-2152-4D42-AD11-32489472238F")) D3D11DeviceConte
 
 struct D3D11Device : ID3D11Device3
 {
-	explicit D3D11Device(ID3D11Device *original) : _ref(1), _orig(original), _interfaceVersion(0), _dxgiDevice(nullptr), _immediateContext(nullptr)
+	explicit D3D11Device(ID3D11Device *original) : _ref(1), _orig(original), _interface_version(0), _dxgi_device(nullptr), _immediate_context(nullptr)
 	{
 	}
-	explicit D3D11Device(ID3D11Device1 *original) : _ref(1), _orig(original), _interfaceVersion(1), _dxgiDevice(nullptr), _immediateContext(nullptr)
+	explicit D3D11Device(ID3D11Device1 *original) : _ref(1), _orig(original), _interface_version(1), _dxgi_device(nullptr), _immediate_context(nullptr)
 	{
 	}
-	explicit D3D11Device(ID3D11Device2 *original) : _ref(1), _orig(original), _interfaceVersion(2), _dxgiDevice(nullptr), _immediateContext(nullptr)
+	explicit D3D11Device(ID3D11Device2 *original) : _ref(1), _orig(original), _interface_version(2), _dxgi_device(nullptr), _immediate_context(nullptr)
 	{
 	}
-	explicit D3D11Device(ID3D11Device3 *original) : _ref(1), _orig(original), _interfaceVersion(3), _dxgiDevice(nullptr), _immediateContext(nullptr)
+	explicit D3D11Device(ID3D11Device3 *original) : _ref(1), _orig(original), _interface_version(3), _dxgi_device(nullptr), _immediate_context(nullptr)
 	{
 	}
 
@@ -98,10 +98,10 @@ struct D3D11Device : ID3D11Device3
 
 	LONG _ref;
 	ID3D11Device *_orig;
-	unsigned int _interfaceVersion;
-	struct DXGIDevice *_dxgiDevice;
-	D3D11DeviceContext *_immediateContext;
-	std::vector<std::shared_ptr<ReShade::Runtimes::D3D11Runtime>> _runtimes;
+	unsigned int _interface_version;
+	struct DXGIDevice *_dxgi_device;
+	D3D11DeviceContext *_immediate_context;
+	std::vector<std::shared_ptr<reshade::runtimes::d3d11_runtime>> _runtimes;
 
 private:
 	D3D11Device(const D3D11Device &);
@@ -109,16 +109,16 @@ private:
 };
 struct D3D11DeviceContext : ID3D11DeviceContext3
 {
-	D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext *original) : _ref(1), _device(device), _orig(original), _interfaceVersion(0)
+	D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext *original) : _ref(1), _device(device), _orig(original), _interface_version(0)
 	{
 	}
-	D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext1 *original) : _ref(1), _device(device), _orig(original), _interfaceVersion(1)
+	D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext1 *original) : _ref(1), _device(device), _orig(original), _interface_version(1)
 	{
 	}
-	D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext2 *original) : _ref(1), _device(device), _orig(original), _interfaceVersion(2)
+	D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext2 *original) : _ref(1), _device(device), _orig(original), _interface_version(2)
 	{
 	}
-	D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext3 *original) : _ref(1), _device(device), _orig(original), _interfaceVersion(3)
+	D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext3 *original) : _ref(1), _device(device), _orig(original), _interface_version(3)
 	{
 	}
 
@@ -285,7 +285,7 @@ struct D3D11DeviceContext : ID3D11DeviceContext3
 	LONG _ref;
 	D3D11Device *const _device;
 	ID3D11DeviceContext *_orig;
-	unsigned int _interfaceVersion;
+	unsigned int _interface_version;
 
 private:
 	D3D11DeviceContext(const D3D11DeviceContext &);

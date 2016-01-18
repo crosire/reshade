@@ -2,9 +2,9 @@
 
 #include <string>
 
-namespace ReShade
+namespace reshade
 {
-	namespace FX
+	namespace fx
 	{
 		struct location
 		{

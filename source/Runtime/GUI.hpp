@@ -5,44 +5,44 @@
 #pragma region Forward Declarations
 struct NVGcontext;
 
-namespace ReShade
+namespace reshade
 {
-	class Runtime;
+	class runtime;
 }
 #pragma endregion
 
-namespace ReShade
+namespace reshade
 {
-	class GUI
+	class gui
 	{
 	public:
-		GUI(const Runtime *runtime, NVGcontext *context);
-		~GUI();
+		gui(const runtime *runtime, NVGcontext *context);
+		~gui();
 
-		NVGcontext *GetContext() const
+		NVGcontext *context() const
 		{
 			return _nvg;
 		}
 
-		bool BeginFrame();
-		void EndFrame();
-		void BeginWindow(const std::string &title, float x, float y, float width, float height);
-		void EndWindow();
+		bool begin_frame();
+		void end_frame();
+		void begin_window(const std::string &title, float x, float y, float width, float height);
+		void end_window();
 
-		void DrawDebugText(float x, float y, int alignx, float linewidth, int fontsize, unsigned int color, const std::string &text);
+		void draw_debug_text(float x, float y, int alignx, float linewidth, int fontsize, unsigned int color, const std::string &text);
 
-		void AddLabel(const std::string &label);
-		void AddLabel(float lineheight, unsigned int color, const std::string &label);
-		bool AddButton(const std::string &label);
-		bool AddButton(float height, unsigned int color, const std::string &label);
-		void AddCheckBox(const std::string &label, bool &value);
-		void AddSliderInt(int &value, int min, int max);
-		void AddSliderFloat(float &value, float min, float max);
-		void AddVerticalSpace(float height);
+		void add_label(const std::string &label);
+		void add_label(float lineheight, unsigned int color, const std::string &label);
+		bool add_button(const std::string &label);
+		bool add_button(float height, unsigned int color, const std::string &label);
+		void add_checkbox(const std::string &label, bool &value);
+		void add_slider_int(int &value, int min, int max);
+		void add_slider_float(float &value, float min, float max);
+		void add_vertical_space(float height);
 
 	private:
-		const Runtime *_runtime;
+		const runtime *_runtime;
 		NVGcontext *_nvg;
-		float _windowX, _windowY, _windowWidth, _windowHeight;
+		float _window_x, _window_y, _window_w, _window_h;
 	};
 }

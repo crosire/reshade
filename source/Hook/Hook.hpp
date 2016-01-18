@@ -1,38 +1,42 @@
 #pragma once
 
-namespace ReShade
+namespace reshade
 {
-	struct Hook
+	struct hook
 	{
-		typedef void *Function;
-		enum class Status
+		typedef void *address;
+		enum class status
 		{
-			Unknown = -1,
-			Success,
-			NotExecutable = 7,
-			UnsupportedFunction,
-			AllocationFailure,
-			MemoryProtectionFailure,
+			unknown = -1,
+			success,
+			not_executable = 7,
+			unsupported_function,
+			allocation_failure,
+			memory_protection_failure,
 		};
 
-		Hook();
-		Hook(Function target, Function replacement);
+		hook();
+		hook(address target, address replacement);
 
-		bool IsValid() const;
-		bool IsEnabled() const;
-		bool IsInstalled() const;
-
-		bool Enable(bool enable = true) const;
-		Status Install();
-		Status Uninstall();
-
-		Function Call() const;
-		template <typename F>
-		inline F Call() const
+		bool valid() const;
+		bool enabled() const;
+		bool installed() const;
+		bool uninstalled() const
 		{
-			return reinterpret_cast<F>(Call());
+			return !installed();
 		}
 
-		Function Target, Replacement, Trampoline;
+		bool enable(bool enable = true) const;
+		status install();
+		status uninstall();
+
+		address call() const;
+		template <typename T>
+		inline T call() const
+		{
+			return reinterpret_cast<T>(call());
+		}
+
+		address target, replacement, trampoline;
 	};
 }

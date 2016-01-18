@@ -172,7 +172,7 @@ class Direct3D8 : IUnknown
 	Direct3D8 &operator=(const Direct3D8 &);
 
 public:
-	Direct3D8(HMODULE module, IDirect3D9 *proxyInterface) : _module(module), _proxy(proxyInterface)
+	Direct3D8(HMODULE module, IDirect3D9 *proxy_interface) : _module(module), _proxy(proxy_interface)
 	{
 	}
 
@@ -209,7 +209,7 @@ class Direct3DDevice8 : IUnknown
 	Direct3DDevice8 &operator=(const Direct3DDevice8 &);
 
 public:
-	Direct3DDevice8(Direct3D8 *d3d, IDirect3DDevice9 *proxyInterface, BOOL ZBufferDiscarding = FALSE) : _ref(1), _d3d(d3d), _proxy(proxyInterface), _baseVertexIndex(0), _zBufferDiscarding(ZBufferDiscarding), _currentVertexShader(0), _currentPixelShader(0), _currentRenderTarget(nullptr), _currentDepthStencil(nullptr)
+	Direct3DDevice8(Direct3D8 *d3d, IDirect3DDevice9 *proxy_interface, BOOL zbuffer_discarding = FALSE) : _ref(1), _d3d(d3d), _proxy(proxy_interface), _base_vertex_index(0), _zbuffer_discarding(zbuffer_discarding), _current_vertex_shader(0), _current_pixel_shader(0), _current_rendertarget(nullptr), _current_depthstencil(nullptr)
 	{
 		_d3d->AddRef();
 	}
@@ -326,10 +326,10 @@ private:
 	ULONG _ref;
 	Direct3D8 *const _d3d;
 	IDirect3DDevice9 *const _proxy;
-	INT _baseVertexIndex;
-	const BOOL _zBufferDiscarding;
-	DWORD _currentVertexShader, _currentPixelShader;
-	Direct3DSurface8 *_currentRenderTarget, *_currentDepthStencil;
+	INT _base_vertex_index;
+	const BOOL _zbuffer_discarding;
+	DWORD _current_vertex_shader, _current_pixel_shader;
+	Direct3DSurface8 *_current_rendertarget, *_current_depthstencil;
 };
 class Direct3DSwapChain8 : IUnknown
 {
@@ -337,7 +337,7 @@ class Direct3DSwapChain8 : IUnknown
 	Direct3DSwapChain8 &operator=(const Direct3DSwapChain8 &);
 
 public:
-	Direct3DSwapChain8(Direct3DDevice8 *device, IDirect3DSwapChain9 *proxyInterface) : _device(device), _proxy(proxyInterface)
+	Direct3DSwapChain8(Direct3DDevice8 *device, IDirect3DSwapChain9 *proxy_interface) : _device(device), _proxy(proxy_interface)
 	{
 		_device->AddRef();
 	}
@@ -387,7 +387,7 @@ class Direct3DTexture8 : public Direct3DBaseTexture8
 	Direct3DTexture8 &operator=(const Direct3DTexture8 &);
 
 public:
-	Direct3DTexture8(Direct3DDevice8 *device, IDirect3DTexture9 *proxyInterface) : _ref(1), _device(device), _proxy(proxyInterface)
+	Direct3DTexture8(Direct3DDevice8 *device, IDirect3DTexture9 *proxy_interface) : _ref(1), _device(device), _proxy(proxy_interface)
 	{
 		_device->AddRef();
 	}
@@ -435,7 +435,7 @@ class Direct3DCubeTexture8 : public Direct3DBaseTexture8
 	Direct3DCubeTexture8 &operator=(const Direct3DCubeTexture8 &);
 
 public:
-	Direct3DCubeTexture8(Direct3DDevice8 *device, IDirect3DCubeTexture9 *proxyInterface) : _ref(1), _device(device), _proxy(proxyInterface)
+	Direct3DCubeTexture8(Direct3DDevice8 *device, IDirect3DCubeTexture9 *proxy_interface) : _ref(1), _device(device), _proxy(proxy_interface)
 	{
 		_device->AddRef();
 	}
@@ -483,7 +483,7 @@ class Direct3DVolumeTexture8 : public Direct3DBaseTexture8
 	Direct3DVolumeTexture8 &operator=(const Direct3DVolumeTexture8 &);
 
 public:
-	Direct3DVolumeTexture8(Direct3DDevice8 *device, IDirect3DVolumeTexture9 *proxyInterface) : _ref(1), _device(device), _proxy(proxyInterface)
+	Direct3DVolumeTexture8(Direct3DDevice8 *device, IDirect3DVolumeTexture9 *proxy_interface) : _ref(1), _device(device), _proxy(proxy_interface)
 	{
 		_device->AddRef();
 	}
@@ -531,7 +531,7 @@ class Direct3DSurface8 : IUnknown
 	Direct3DSurface8 &operator=(const Direct3DSurface8 &);
 
 public:
-	Direct3DSurface8(Direct3DDevice8 *device, IDirect3DSurface9 *proxyInterface) : _ref(1), _device(device), _proxy(proxyInterface)
+	Direct3DSurface8(Direct3DDevice8 *device, IDirect3DSurface9 *proxy_interface) : _ref(1), _device(device), _proxy(proxy_interface)
 	{
 		_device->AddRef();
 	}
@@ -569,7 +569,7 @@ class Direct3DVolume8 : IUnknown
 	Direct3DVolume8 &operator=(const Direct3DVolume8 &);
 
 public:
-	Direct3DVolume8(Direct3DDevice8 *device, IDirect3DVolume9 *proxyInterface) : _ref(1), _device(device), _proxy(proxyInterface)
+	Direct3DVolume8(Direct3DDevice8 *device, IDirect3DVolume9 *proxy_interface) : _ref(1), _device(device), _proxy(proxy_interface)
 	{
 		_device->AddRef();
 	}
@@ -607,7 +607,7 @@ class Direct3DVertexBuffer8 : public Direct3DResource8
 	Direct3DVertexBuffer8 &operator=(const Direct3DVertexBuffer8 &);
 
 public:
-	Direct3DVertexBuffer8(Direct3DDevice8 *device, IDirect3DVertexBuffer9 *proxyInterface) : _ref(1), _device(device), _proxy(proxyInterface)
+	Direct3DVertexBuffer8(Direct3DDevice8 *device, IDirect3DVertexBuffer9 *proxy_interface) : _ref(1), _device(device), _proxy(proxy_interface)
 	{
 		_device->AddRef();
 	}
@@ -649,7 +649,7 @@ class Direct3DIndexBuffer8 : public Direct3DResource8
 	Direct3DIndexBuffer8 &operator=(const Direct3DIndexBuffer8 &);
 
 public:
-	Direct3DIndexBuffer8(Direct3DDevice8 *device, IDirect3DIndexBuffer9 *proxyInterface) : _ref(1), _device(device), _proxy(proxyInterface)
+	Direct3DIndexBuffer8(Direct3DDevice8 *device, IDirect3DIndexBuffer9 *proxy_interface) : _ref(1), _device(device), _proxy(proxy_interface)
 	{
 		_device->AddRef();
 	}
@@ -688,6 +688,6 @@ private:
 
 struct Direct3DVertexShader8
 {
-	IDirect3DVertexShader9 *Shader;
-	IDirect3DVertexDeclaration9 *Declaration;
+	IDirect3DVertexShader9 *shader;
+	IDirect3DVertexDeclaration9 *declaration;
 };

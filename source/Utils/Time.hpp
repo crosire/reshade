@@ -1,13 +1,13 @@
 #pragma once
 
-namespace ReShade
+namespace reshade
 {
-	namespace Utils
+	namespace utils
 	{
-		class Framerate
+		class framerate
 		{
 		public:
-			Framerate() : _index(0), _tickSum(0), _tickList()
+			framerate() : _index(0), _tick_sum(0), _tick_list()
 			{
 			}
 
@@ -20,23 +20,23 @@ namespace ReShade
 			/// Recalculate current frame-rate based on the last frame-time.
 			/// </summary>
 			/// <param name="frametime">Time of last frame in nanoseconds.</param>
-			void Calculate(unsigned long long frametime)
+			void calculate(unsigned long long frametime)
 			{
-				_tickSum -= _tickList[_index];
-				_tickSum += _tickList[_index++] = frametime;
+				_tick_sum -= _tick_list[_index];
+				_tick_sum += _tick_list[_index++] = frametime;
 
 				if (_index >= SAMPLES)
 				{
 					_index = 0;
 				}
 
-				_framerate = 1000000000.0f * SAMPLES / _tickSum;
+				_framerate = 1000000000.0f * SAMPLES / _tick_sum;
 			}
 
 		private:
 			static const unsigned int SAMPLES = 100;
 			float _framerate;
-			unsigned long long _index, _tickSum, _tickList[SAMPLES];
+			unsigned long long _index, _tick_sum, _tick_list[SAMPLES];
 		};
 	}
 }

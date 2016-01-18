@@ -26,39 +26,31 @@
 
 // ---------------------------------------------------------------------------------------------------
 
-namespace ReShade
+namespace reshade
 {
-	namespace Runtimes
+	namespace runtimes
 	{
-		struct GLTexture : public Texture
+		struct gl_texture : public texture
 		{
-			enum class Source
-			{
-				None,
-				Memory,
-				BackBuffer,
-				DepthStencil
-			};
-
-			GLTexture() : ID(), DataSource(Source::None)
+			gl_texture() : ID()
 			{
 			}
-			~GLTexture()
+			~gl_texture()
 			{
-				if (DataSource == Source::Memory)
+				if (basetype == datatype::image)
 				{
 					GLCHECK(glDeleteTextures(2, ID));
 				}
 			}
 
-			void ChangeDataSource(Source source, GLuint texture, GLuint textureSRGB)
+			void change_data_source(datatype source, GLuint texture, GLuint textureSRGB)
 			{
-				if (DataSource == Source::Memory)
+				if (basetype == datatype::image)
 				{
 					GLCHECK(glDeleteTextures(2, ID));
 				}
 
-				DataSource = source;
+				basetype = source;
 
 				if (textureSRGB == 0)
 				{
@@ -75,15 +67,14 @@ namespace ReShade
 			}
 
 			GLuint ID[2];
-			Source DataSource;
 		};
-		struct GLSampler
+		struct gl_sampler
 		{
 			GLuint ID;
-			GLTexture *Texture;
+			gl_texture *Texture;
 			bool SRGB;
 		};
-		struct GLTechnique : public Technique
+		struct gl_technique : public technique
 		{
 			struct Pass
 			{
@@ -96,95 +87,98 @@ namespace ReShade
 				GLboolean FramebufferSRGB, Blend, DepthMask, DepthTest, StencilTest, ColorMaskR, ColorMaskG, ColorMaskB, ColorMaskA;
 			};
 
-			~GLTechnique()
+			~gl_technique()
 			{
-				for (auto &pass : Passes)
+				for (auto &pass : passes)
 				{
 					GLCHECK(glDeleteProgram(pass.Program));
 					GLCHECK(glDeleteFramebuffers(1, &pass.Framebuffer));
 				}
 			}
 
-			std::vector<Pass> Passes;
+			std::vector<Pass> passes;
 		};
 
 		namespace
 		{
-			class GLEffectCompiler : private boost::noncopyable
+			class gl_fx_compiler
 			{
+				gl_fx_compiler(const gl_fx_compiler &);
+				gl_fx_compiler &operator=(const gl_fx_compiler &);
+
 			public:
-				GLEffectCompiler(const FX::nodetree &ast) : _ast(ast), _runtime(nullptr), _isFatal(false), _currentFunction(nullptr), _currentGlobalSize(0)
+				gl_fx_compiler(const fx::nodetree &ast) : _ast(ast), _runtime(nullptr), _is_fatal(false), _current_function(nullptr), _current_global_size(0)
 				{
 				}
 
-				bool Compile(GLRuntime *runtime, std::string &errors)
+				bool compile(gl_runtime *runtime, std::string &errors)
 				{
 					_runtime = runtime;
 
-					_isFatal = false;
+					_is_fatal = false;
 					_errors.clear();
 
-					_globalCode.clear();
+					_global_code.clear();
 
 					for (auto type : _ast.structs)
 					{
-						Visit(_globalCode, static_cast<FX::Nodes::Struct *>(type));
+						visit(_global_code, static_cast<fx::nodes::struct_declaration_node *>(type));
 					}
 
 					for (auto uniform1 : _ast.uniforms)
 					{
-						const auto uniform = static_cast<FX::Nodes::Variable *>(uniform1);
+						const auto uniform = static_cast<fx::nodes::variable_declaration_node *>(uniform1);
 
-						if (uniform->Type.IsTexture())
+						if (uniform->type.is_texture())
 						{
-							VisitTexture(uniform);
+							visit_texture(uniform);
 						}
-						else if (uniform->Type.IsSampler())
+						else if (uniform->type.is_sampler())
 						{
-							VisitSampler(uniform);
+							visit_sampler(uniform);
 						}
-						else if (uniform->Type.HasQualifier(FX::Nodes::Type::Qualifier::Uniform))
+						else if (uniform->type.has_qualifier(fx::nodes::type_node::uniform_))
 						{
-							VisitUniform(uniform);
+							visit_uniform(uniform);
 						}
 						else
 						{
-							Visit(_globalCode, uniform);
+							visit(_global_code, uniform);
 
-							_globalCode += ";\n";
+							_global_code += ";\n";
 						}
 					}
 
 					for (auto function1 : _ast.functions)
 					{
-						const auto function = static_cast<FX::Nodes::Function *>(function1);
+						const auto function = static_cast<fx::nodes::function_declaration_node *>(function1);
 
-						_currentFunction = function;
+						_current_function = function;
 
-						Visit(_functions[function].SourceCode, function);
+						visit(_functions[function].SourceCode, function);
 					}
 
 					for (auto technique : _ast.techniques)
 					{
-						VisitTechnique(static_cast<FX::Nodes::Technique *>(technique));
+						visit_technique(static_cast<fx::nodes::technique_declaration_node *>(technique));
 					}
 
-					if (_currentGlobalSize != 0)
+					if (_current_global_size != 0)
 					{
-						glGenBuffers(1, &_runtime->_effectUBO);
+						glGenBuffers(1, &_runtime->_effect_ubo);
 
 						GLint previous = 0;
 						glGetIntegerv(GL_UNIFORM_BUFFER_BINDING, &previous);
 
-						glBindBuffer(GL_UNIFORM_BUFFER, _runtime->_effectUBO);
-						glBufferData(GL_UNIFORM_BUFFER, _runtime->GetConstantStorageSize(), _runtime->GetConstantStorage(), GL_DYNAMIC_DRAW);
+						glBindBuffer(GL_UNIFORM_BUFFER, _runtime->_effect_ubo);
+						glBufferData(GL_UNIFORM_BUFFER, _runtime->get_uniform_data_storage_size(), _runtime->get_uniform_data_storage(), GL_DYNAMIC_DRAW);
 					
 						glBindBuffer(GL_UNIFORM_BUFFER, previous);
 					}
 
 					errors += _errors;
 
-					return !_isFatal;
+					return !_is_fatal;
 				}
 
 				static GLenum LiteralToCompFunc(unsigned int value)
@@ -192,21 +186,21 @@ namespace ReShade
 					switch (value)
 					{
 						default:
-						case FX::Nodes::Pass::States::ALWAYS:
+						case fx::nodes::pass_declaration_node::states::ALWAYS:
 							return GL_ALWAYS;
-						case FX::Nodes::Pass::States::NEVER:
+						case fx::nodes::pass_declaration_node::states::NEVER:
 							return GL_NEVER;
-						case FX::Nodes::Pass::States::EQUAL:
+						case fx::nodes::pass_declaration_node::states::EQUAL:
 							return GL_EQUAL;
-						case FX::Nodes::Pass::States::NOTEQUAL:
+						case fx::nodes::pass_declaration_node::states::NOTEQUAL:
 							return GL_NOTEQUAL;
-						case FX::Nodes::Pass::States::LESS:
+						case fx::nodes::pass_declaration_node::states::LESS:
 							return GL_LESS;
-						case FX::Nodes::Pass::States::LESSEQUAL:
+						case fx::nodes::pass_declaration_node::states::LESSEQUAL:
 							return GL_LEQUAL;
-						case FX::Nodes::Pass::States::GREATER:
+						case fx::nodes::pass_declaration_node::states::GREATER:
 							return GL_GREATER;
-						case FX::Nodes::Pass::States::GREATEREQUAL:
+						case fx::nodes::pass_declaration_node::states::GREATEREQUAL:
 							return GL_GEQUAL;
 					}
 				}
@@ -214,15 +208,15 @@ namespace ReShade
 				{
 					switch (value)
 					{
-						case FX::Nodes::Pass::States::ADD:
+						case fx::nodes::pass_declaration_node::states::ADD:
 							return GL_FUNC_ADD;
-						case FX::Nodes::Pass::States::SUBTRACT:
+						case fx::nodes::pass_declaration_node::states::SUBTRACT:
 							return GL_FUNC_SUBTRACT;
-						case FX::Nodes::Pass::States::REVSUBTRACT:
+						case fx::nodes::pass_declaration_node::states::REVSUBTRACT:
 							return GL_FUNC_REVERSE_SUBTRACT;
-						case FX::Nodes::Pass::States::MIN:
+						case fx::nodes::pass_declaration_node::states::MIN:
 							return GL_MIN;
-						case FX::Nodes::Pass::States::MAX:
+						case fx::nodes::pass_declaration_node::states::MAX:
 							return GL_MAX;
 					}
 
@@ -232,25 +226,25 @@ namespace ReShade
 				{
 					switch (value)
 					{
-						case FX::Nodes::Pass::States::ZERO:
+						case fx::nodes::pass_declaration_node::states::ZERO:
 							return GL_ZERO;
-						case FX::Nodes::Pass::States::ONE:
+						case fx::nodes::pass_declaration_node::states::ONE:
 							return GL_ONE;
-						case FX::Nodes::Pass::States::SRCCOLOR:
+						case fx::nodes::pass_declaration_node::states::SRCCOLOR:
 							return GL_SRC_COLOR;
-						case FX::Nodes::Pass::States::SRCALPHA:
+						case fx::nodes::pass_declaration_node::states::SRCALPHA:
 							return GL_SRC_ALPHA;
-						case FX::Nodes::Pass::States::INVSRCCOLOR:
+						case fx::nodes::pass_declaration_node::states::INVSRCCOLOR:
 							return GL_ONE_MINUS_SRC_COLOR;
-						case FX::Nodes::Pass::States::INVSRCALPHA:
+						case fx::nodes::pass_declaration_node::states::INVSRCALPHA:
 							return GL_ONE_MINUS_SRC_ALPHA;
-						case FX::Nodes::Pass::States::DESTCOLOR:
+						case fx::nodes::pass_declaration_node::states::DESTCOLOR:
 							return GL_DST_COLOR;
-						case FX::Nodes::Pass::States::DESTALPHA:
+						case fx::nodes::pass_declaration_node::states::DESTALPHA:
 							return GL_DST_ALPHA;
-						case FX::Nodes::Pass::States::INVDESTCOLOR:
+						case fx::nodes::pass_declaration_node::states::INVDESTCOLOR:
 							return GL_ONE_MINUS_DST_COLOR;
-						case FX::Nodes::Pass::States::INVDESTALPHA:
+						case fx::nodes::pass_declaration_node::states::INVDESTALPHA:
 							return GL_ONE_MINUS_DST_ALPHA;
 					}
 
@@ -261,21 +255,21 @@ namespace ReShade
 					switch (value)
 					{
 						default:
-						case FX::Nodes::Pass::States::KEEP:
+						case fx::nodes::pass_declaration_node::states::KEEP:
 							return GL_KEEP;
-						case FX::Nodes::Pass::States::ZERO:
+						case fx::nodes::pass_declaration_node::states::ZERO:
 							return GL_ZERO;
-						case FX::Nodes::Pass::States::REPLACE:
+						case fx::nodes::pass_declaration_node::states::REPLACE:
 							return GL_REPLACE;
-						case FX::Nodes::Pass::States::INCR:
+						case fx::nodes::pass_declaration_node::states::INCR:
 							return GL_INCR_WRAP;
-						case FX::Nodes::Pass::States::INCRSAT:
+						case fx::nodes::pass_declaration_node::states::INCRSAT:
 							return GL_INCR;
-						case FX::Nodes::Pass::States::DECR:
+						case fx::nodes::pass_declaration_node::states::DECR:
 							return GL_DECR_WRAP;
-						case FX::Nodes::Pass::States::DECRSAT:
+						case fx::nodes::pass_declaration_node::states::DECRSAT:
 							return GL_DECR;
-						case FX::Nodes::Pass::States::INVERT:
+						case fx::nodes::pass_declaration_node::states::INVERT:
 							return GL_INVERT;
 					}
 				}
@@ -283,13 +277,13 @@ namespace ReShade
 				{
 					switch (value)
 					{
-						case FX::Nodes::Variable::Properties::REPEAT:
+						case fx::nodes::variable_declaration_node::properties::REPEAT:
 							return GL_REPEAT;
-						case FX::Nodes::Variable::Properties::MIRROR:
+						case fx::nodes::variable_declaration_node::properties::MIRROR:
 							return GL_MIRRORED_REPEAT;
-						case FX::Nodes::Variable::Properties::CLAMP:
+						case fx::nodes::variable_declaration_node::properties::CLAMP:
 							return GL_CLAMP_TO_EDGE;
-						case FX::Nodes::Variable::Properties::BORDER:
+						case fx::nodes::variable_declaration_node::properties::BORDER:
 							return GL_CLAMP_TO_BORDER;
 					}
 
@@ -299,90 +293,90 @@ namespace ReShade
 				{
 					switch (value)
 					{
-						case FX::Nodes::Variable::Properties::POINT:
+						case fx::nodes::variable_declaration_node::properties::POINT:
 							return GL_NEAREST;
-						case FX::Nodes::Variable::Properties::LINEAR:
+						case fx::nodes::variable_declaration_node::properties::LINEAR:
 							return GL_LINEAR;
-						case FX::Nodes::Variable::Properties::ANISOTROPIC:
+						case fx::nodes::variable_declaration_node::properties::ANISOTROPIC:
 							return GL_LINEAR_MIPMAP_LINEAR;
 					}
 
 					return GL_NONE;
 				}
-				static void LiteralToFormat(unsigned int value, GLenum &internalformat, GLenum &internalformatsrgb, Texture::PixelFormat &name)
+				static void LiteralToFormat(unsigned int value, GLenum &internalformat, GLenum &internalformatsrgb, texture::pixelformat &name)
 				{
 					switch (value)
 					{
-						case FX::Nodes::Variable::Properties::R8:
-							name = Texture::PixelFormat::R8;
+						case fx::nodes::variable_declaration_node::properties::R8:
+							name = texture::pixelformat::r8;
 							internalformat = internalformatsrgb = GL_R8;
 							break;
-						case FX::Nodes::Variable::Properties::R16F:
-							name = Texture::PixelFormat::R16F;
+						case fx::nodes::variable_declaration_node::properties::R16F:
+							name = texture::pixelformat::r16f;
 							internalformat = internalformatsrgb = GL_R16F;
 							break;
-						case FX::Nodes::Variable::Properties::R32F:
-							name = Texture::PixelFormat::R32F;
+						case fx::nodes::variable_declaration_node::properties::R32F:
+							name = texture::pixelformat::r32f;
 							internalformat = internalformatsrgb = GL_R32F;
 							break;
-						case FX::Nodes::Variable::Properties::RG8:
-							name = Texture::PixelFormat::RG8;
+						case fx::nodes::variable_declaration_node::properties::RG8:
+							name = texture::pixelformat::rg8;
 							internalformat = internalformatsrgb = GL_RG8;
 							break;
-						case FX::Nodes::Variable::Properties::RG16:
-							name = Texture::PixelFormat::RG16;
+						case fx::nodes::variable_declaration_node::properties::RG16:
+							name = texture::pixelformat::rg16;
 							internalformat = internalformatsrgb = GL_RG16;
 							break;
-						case FX::Nodes::Variable::Properties::RG16F:
-							name = Texture::PixelFormat::RG16F;
+						case fx::nodes::variable_declaration_node::properties::RG16F:
+							name = texture::pixelformat::rg16f;
 							internalformat = internalformatsrgb = GL_RG16F;
 							break;
-						case FX::Nodes::Variable::Properties::RG32F:
-							name = Texture::PixelFormat::RG32F;
+						case fx::nodes::variable_declaration_node::properties::RG32F:
+							name = texture::pixelformat::rg32f;
 							internalformat = internalformatsrgb = GL_RG32F;
 							break;
-						case FX::Nodes::Variable::Properties::RGBA8:
-							name = Texture::PixelFormat::RGBA8;
+						case fx::nodes::variable_declaration_node::properties::RGBA8:
+							name = texture::pixelformat::rgba8;
 							internalformat = GL_RGBA8;
 							internalformatsrgb = GL_SRGB8_ALPHA8;
 							break;
-						case FX::Nodes::Variable::Properties::RGBA16:
-							name = Texture::PixelFormat::RGBA16;
+						case fx::nodes::variable_declaration_node::properties::RGBA16:
+							name = texture::pixelformat::rgba16;
 							internalformat = internalformatsrgb = GL_RGBA16;
 							break;
-						case FX::Nodes::Variable::Properties::RGBA16F:
-							name = Texture::PixelFormat::RGBA16F;
+						case fx::nodes::variable_declaration_node::properties::RGBA16F:
+							name = texture::pixelformat::rgba16f;
 							internalformat = internalformatsrgb = GL_RGBA16F;
 							break;
-						case FX::Nodes::Variable::Properties::RGBA32F:
-							name = Texture::PixelFormat::RGBA32F;
+						case fx::nodes::variable_declaration_node::properties::RGBA32F:
+							name = texture::pixelformat::rgba32f;
 							internalformat = internalformatsrgb = GL_RGBA32F;
 							break;
-						case FX::Nodes::Variable::Properties::DXT1:
-							name = Texture::PixelFormat::DXT1;
+						case fx::nodes::variable_declaration_node::properties::DXT1:
+							name = texture::pixelformat::dxt1;
 							internalformat = GL_COMPRESSED_RGBA_S3TC_DXT1_EXT;
 							internalformatsrgb = GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT1_EXT;
 							break;
-						case FX::Nodes::Variable::Properties::DXT3:
-							name = Texture::PixelFormat::DXT3;
+						case fx::nodes::variable_declaration_node::properties::DXT3:
+							name = texture::pixelformat::dxt3;
 							internalformat = GL_COMPRESSED_RGBA_S3TC_DXT3_EXT;
 							internalformatsrgb = GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT3_EXT;
 							break;
-						case FX::Nodes::Variable::Properties::DXT5:
-							name = Texture::PixelFormat::DXT5;
+						case fx::nodes::variable_declaration_node::properties::DXT5:
+							name = texture::pixelformat::dxt5;
 							internalformat = GL_COMPRESSED_RGBA_S3TC_DXT5_EXT;
 							internalformatsrgb = GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT5_EXT;
 							break;
-						case FX::Nodes::Variable::Properties::LATC1:
-							name = Texture::PixelFormat::LATC1;
+						case fx::nodes::variable_declaration_node::properties::LATC1:
+							name = texture::pixelformat::latc1;
 							internalformat = internalformatsrgb = GL_COMPRESSED_LUMINANCE_LATC1_EXT;
 							break;
-						case FX::Nodes::Variable::Properties::LATC2:
-							name = Texture::PixelFormat::LATC2;
+						case fx::nodes::variable_declaration_node::properties::LATC2:
+							name = texture::pixelformat::latc2;
 							internalformat = internalformatsrgb = GL_COMPRESSED_LUMINANCE_ALPHA_LATC2_EXT;
 							break;
 						default:
-							name = Texture::PixelFormat::Unknown;
+							name = texture::pixelformat::unknown;
 							internalformat = internalformatsrgb = GL_NONE;
 							break;
 					}
@@ -430,7 +424,7 @@ namespace ReShade
 				}
 
 			private:
-				void Error(const FX::location &location, const char *message, ...)
+				void error(const fx::location &location, const char *message, ...)
 				{
 					char formatted[512];
 
@@ -440,9 +434,9 @@ namespace ReShade
 					va_end(args);
 
 					_errors += location.source + "(" + std::to_string(location.line) + ", " + std::to_string(location.column) + "): error: " + formatted + '\n';
-					_isFatal = true;
+					_is_fatal = true;
 				}
-				void Warning(const FX::location &location, const char *message, ...)
+				void warning(const fx::location &location, const char *message, ...)
 				{
 					char formatted[512];
 
@@ -454,111 +448,111 @@ namespace ReShade
 					_errors += location.source + "(" + std::to_string(location.line) + ", " + std::to_string(location.column) + "): warning: " + formatted + '\n';
 				}
 
-				void VisitType(std::string &output, const FX::Nodes::Type &type)
+				void visit_type(std::string &output, const fx::nodes::type_node &type)
 				{
-					if (type.HasQualifier(FX::Nodes::Type::Qualifier::Linear))
+					if (type.has_qualifier(fx::nodes::type_node::linear))
 						output += "smooth ";
-					if (type.HasQualifier(FX::Nodes::Type::Qualifier::NoPerspective))
+					if (type.has_qualifier(fx::nodes::type_node::noperspective))
 						output += "noperspective ";
-					if (type.HasQualifier(FX::Nodes::Type::Qualifier::Centroid))
+					if (type.has_qualifier(fx::nodes::type_node::centroid))
 						output += "centroid ";
-					if (type.HasQualifier(FX::Nodes::Type::Qualifier::NoInterpolation))
+					if (type.has_qualifier(fx::nodes::type_node::nointerpolation))
 						output += "flat ";
-					if (type.HasQualifier(FX::Nodes::Type::Qualifier::InOut))
+					if (type.has_qualifier(fx::nodes::type_node::inout))
 						output += "inout ";
-					else if (type.HasQualifier(FX::Nodes::Type::Qualifier::In))
+					else if (type.has_qualifier(fx::nodes::type_node::in))
 						output += "in ";
-					else if (type.HasQualifier(FX::Nodes::Type::Qualifier::Out))
+					else if (type.has_qualifier(fx::nodes::type_node::out))
 						output += "out ";
-					else if (type.HasQualifier(FX::Nodes::Type::Qualifier::Uniform))
+					else if (type.has_qualifier(fx::nodes::type_node::uniform_))
 						output += "uniform ";
-					if (type.HasQualifier(FX::Nodes::Type::Qualifier::Const))
+					if (type.has_qualifier(fx::nodes::type_node::const_))
 						output += "const ";
 
-					VisitTypeClass(output, type);
+					visit_type_class(output, type);
 				}
-				void VisitTypeClass(std::string &output, const FX::Nodes::Type &type)
+				void visit_type_class(std::string &output, const fx::nodes::type_node &type)
 				{
-					switch (type.BaseClass)
+					switch (type.basetype)
 					{
-						case FX::Nodes::Type::Class::Void:
+						case fx::nodes::type_node::void_:
 							output += "void";
 							break;
-						case FX::Nodes::Type::Class::Bool:
-							if (type.IsMatrix())
-								output += "mat" + std::to_string(type.Rows) + "x" + std::to_string(type.Cols);
-							else if (type.IsVector())
-								output += "bvec" + std::to_string(type.Rows);
+						case fx::nodes::type_node::bool_:
+							if (type.is_matrix())
+								output += "mat" + std::to_string(type.rows) + "x" + std::to_string(type.cols);
+							else if (type.is_vector())
+								output += "bvec" + std::to_string(type.rows);
 							else
 								output += "bool";
 							break;
-						case FX::Nodes::Type::Class::Int:
-							if (type.IsMatrix())
-								output += "mat" + std::to_string(type.Rows) + "x" + std::to_string(type.Cols);
-							else if (type.IsVector())
-								output += "ivec" + std::to_string(type.Rows);
+						case fx::nodes::type_node::int_:
+							if (type.is_matrix())
+								output += "mat" + std::to_string(type.rows) + "x" + std::to_string(type.cols);
+							else if (type.is_vector())
+								output += "ivec" + std::to_string(type.rows);
 							else
 								output += "int";
 							break;
-						case FX::Nodes::Type::Class::Uint:
-							if (type.IsMatrix())
-								output += "mat" + std::to_string(type.Rows) + "x" + std::to_string(type.Cols);
-							else if (type.IsVector())
-								output += "uvec" + std::to_string(type.Rows);
+						case fx::nodes::type_node::uint_:
+							if (type.is_matrix())
+								output += "mat" + std::to_string(type.rows) + "x" + std::to_string(type.cols);
+							else if (type.is_vector())
+								output += "uvec" + std::to_string(type.rows);
 							else
 								output += "uint";
 							break;
-						case FX::Nodes::Type::Class::Float:
-							if (type.IsMatrix())
-								output += "mat" + std::to_string(type.Rows) + "x" + std::to_string(type.Cols);
-							else if (type.IsVector())
-								output += "vec" + std::to_string(type.Rows);
+						case fx::nodes::type_node::float_:
+							if (type.is_matrix())
+								output += "mat" + std::to_string(type.rows) + "x" + std::to_string(type.cols);
+							else if (type.is_vector())
+								output += "vec" + std::to_string(type.rows);
 							else
 								output += "float";
 							break;
-						case FX::Nodes::Type::Class::Sampler2D:
+						case fx::nodes::type_node::sampler2d:
 							output += "sampler2D";
 							break;
-						case FX::Nodes::Type::Class::Struct:
-							output += FixName(type.Definition->Name, type.Definition->Namespace);
+						case fx::nodes::type_node::struct_:
+							output += FixName(type.definition->name, type.definition->Namespace);
 							break;
 					}
 				}
-				std::pair<std::string, std::string> PrintCast(const FX::Nodes::Type &from, const FX::Nodes::Type &to)
+				std::pair<std::string, std::string> print_cast(const fx::nodes::type_node &from, const fx::nodes::type_node &to)
 				{
 					std::pair<std::string, std::string> code;
 
-					if (from.BaseClass != to.BaseClass && !(from.IsMatrix() && to.IsMatrix()))
+					if (from.basetype != to.basetype && !(from.is_matrix() && to.is_matrix()))
 					{
-						const FX::Nodes::Type type = { to.BaseClass, 0, from.Rows, from.Cols, 0, to.Definition };
+						const fx::nodes::type_node type = { to.basetype, 0, from.rows, from.cols, 0, to.definition };
 
-						VisitType(code.first, type);
+						visit_type(code.first, type);
 						code.first += '(';
 						code.second += ')';
 					}
 
-					if (from.Rows > 0 && from.Rows < to.Rows)
+					if (from.rows > 0 && from.rows < to.rows)
 					{
 						const char subscript[4] = { 'x', 'y', 'z', 'w' };
 
 						code.second += '.';
 
-						for (unsigned int i = 0; i < from.Rows; ++i)
+						for (unsigned int i = 0; i < from.rows; ++i)
 						{
 							code.second += subscript[i];
 						}
-						for (unsigned int i = from.Rows; i < to.Rows; ++i)
+						for (unsigned int i = from.rows; i < to.rows; ++i)
 						{
-							code.second += subscript[from.Rows - 1];
+							code.second += subscript[from.rows - 1];
 						}
 					}
-					else if (from.Rows > to.Rows)
+					else if (from.rows > to.rows)
 					{
 						const char subscript[4] = { 'x', 'y', 'z', 'w' };
 
 						code.second += '.';
 
-						for (unsigned int i = 0; i < to.Rows; ++i)
+						for (unsigned int i = 0; i < to.rows; ++i)
 						{
 							code.second += subscript[i];
 						}
@@ -567,7 +561,7 @@ namespace ReShade
 					return code;
 				}
 
-				void Visit(std::string &output, const FX::Nodes::Statement *node)
+				void visit(std::string &output, const fx::nodes::statement_node *node)
 				{
 					if (node == nullptr)
 					{
@@ -576,80 +570,80 @@ namespace ReShade
 
 					switch (node->id)
 					{
-						case FX::nodeid::Compound:
-							Visit(output, static_cast<const FX::Nodes::Compound *>(node));
+						case fx::nodeid::compound_statement:
+							visit(output, static_cast<const fx::nodes::compound_statement_node *>(node));
 							break;
-						case FX::nodeid::DeclaratorList:
-							Visit(output, static_cast<const FX::Nodes::DeclaratorList *>(node));
+						case fx::nodeid::declarator_list:
+							visit(output, static_cast<const fx::nodes::declarator_list_node *>(node));
 							break;
-						case FX::nodeid::ExpressionStatement:
-							Visit(output, static_cast<const FX::Nodes::ExpressionStatement *>(node));
+						case fx::nodeid::expression_statement:
+							visit(output, static_cast<const fx::nodes::expression_statement_node *>(node));
 							break;
-						case FX::nodeid::If:
-							Visit(output, static_cast<const FX::Nodes::If *>(node));
+						case fx::nodeid::if_statement:
+							visit(output, static_cast<const fx::nodes::if_statement_node *>(node));
 							break;
-						case FX::nodeid::Switch:
-							Visit(output, static_cast<const FX::Nodes::Switch *>(node));
+						case fx::nodeid::switch_statement:
+							visit(output, static_cast<const fx::nodes::switch_statement_node *>(node));
 							break;
-						case FX::nodeid::For:
-							Visit(output, static_cast<const FX::Nodes::For *>(node));
+						case fx::nodeid::for_statement:
+							visit(output, static_cast<const fx::nodes::for_statement_node *>(node));
 							break;
-						case FX::nodeid::While:
-							Visit(output, static_cast<const FX::Nodes::While *>(node));
+						case fx::nodeid::while_statement:
+							visit(output, static_cast<const fx::nodes::while_statement_node *>(node));
 							break;
-						case FX::nodeid::Return:
-							Visit(output, static_cast<const FX::Nodes::Return *>(node));
+						case fx::nodeid::return_statement:
+							visit(output, static_cast<const fx::nodes::return_statement_node *>(node));
 							break;
-						case FX::nodeid::Jump:
-							Visit(output, static_cast<const FX::Nodes::Jump *>(node));
+						case fx::nodeid::jump_statement:
+							visit(output, static_cast<const fx::nodes::jump_statement_node *>(node));
 							break;
 						default:
 							assert(false);
 							break;
 					}
 				}
-				void Visit(std::string &output, const FX::Nodes::Expression *node)
+				void visit(std::string &output, const fx::nodes::expression_node *node)
 				{
 					switch (node->id)
 					{
-						case FX::nodeid::LValue:
-							Visit(output, static_cast<const FX::Nodes::LValue *>(node));
+						case fx::nodeid::lvalue_expression:
+							visit(output, static_cast<const fx::nodes::lvalue_expression_node *>(node));
 							break;
-						case FX::nodeid::Literal:
-							Visit(output, static_cast<const FX::Nodes::Literal *>(node));
+						case fx::nodeid::literal_expression:
+							visit(output, static_cast<const fx::nodes::literal_expression_node *>(node));
 							break;
-						case FX::nodeid::Sequence:
-							Visit(output, static_cast<const FX::Nodes::Sequence *>(node));
+						case fx::nodeid::expression_sequence:
+							visit(output, static_cast<const fx::nodes::expression_sequence_node *>(node));
 							break;
-						case FX::nodeid::Unary:
-							Visit(output, static_cast<const FX::Nodes::Unary *>(node));
+						case fx::nodeid::unary_expression:
+							visit(output, static_cast<const fx::nodes::unary_expression_node *>(node));
 							break;
-						case FX::nodeid::Binary:
-							Visit(output, static_cast<const FX::Nodes::Binary *>(node));
+						case fx::nodeid::binary_expression:
+							visit(output, static_cast<const fx::nodes::binary_expression_node *>(node));
 							break;
-						case FX::nodeid::Intrinsic:
-							Visit(output, static_cast<const FX::Nodes::Intrinsic *>(node));
+						case fx::nodeid::intrinsic_expression:
+							visit(output, static_cast<const fx::nodes::intrinsic_expression_node *>(node));
 							break;
-						case FX::nodeid::Conditional:
-							Visit(output, static_cast<const FX::Nodes::Conditional *>(node));
+						case fx::nodeid::conditional_expression:
+							visit(output, static_cast<const fx::nodes::conditional_expression_node *>(node));
 							break;
-						case FX::nodeid::Swizzle:
-							Visit(output, static_cast<const FX::Nodes::Swizzle *>(node));
+						case fx::nodeid::swizzle_expression:
+							visit(output, static_cast<const fx::nodes::swizzle_expression_node *>(node));
 							break;
-						case FX::nodeid::FieldSelection:
-							Visit(output, static_cast<const FX::Nodes::FieldSelection *>(node));
+						case fx::nodeid::field_expression:
+							visit(output, static_cast<const fx::nodes::field_expression_node *>(node));
 							break;
-						case FX::nodeid::Assignment:
-							Visit(output, static_cast<const FX::Nodes::Assignment *>(node));
+						case fx::nodeid::assignment_expression:
+							visit(output, static_cast<const fx::nodes::assignment_expression_node *>(node));
 							break;
-						case FX::nodeid::Call:
-							Visit(output, static_cast<const FX::Nodes::Call *>(node));
+						case fx::nodeid::call_expression:
+							visit(output, static_cast<const fx::nodes::call_expression_node *>(node));
 							break;
-						case FX::nodeid::Constructor:
-							Visit(output, static_cast<const FX::Nodes::Constructor *>(node));
+						case fx::nodeid::constructor_expression:
+							visit(output, static_cast<const fx::nodes::constructor_expression_node *>(node));
 							break;
-						case FX::nodeid::InitializerList:
-							Visit(output, static_cast<const FX::Nodes::InitializerList *>(node));
+						case fx::nodeid::initializer_list:
+							visit(output, static_cast<const fx::nodes::initializer_list_node *>(node));
 							break;
 						default:
 							assert(false);
@@ -657,24 +651,24 @@ namespace ReShade
 					}
 				}
 
-				void Visit(std::string &output, const FX::Nodes::Compound *node)
+				void visit(std::string &output, const fx::nodes::compound_statement_node *node)
 				{
 					output += "{\n";
 
-					for (auto statement : node->Statements)
+					for (auto statement : node->statement_list)
 					{
-						Visit(output, statement);
+						visit(output, statement);
 					}
 
 					output += "}\n";
 				}
-				void Visit(std::string &output, const FX::Nodes::DeclaratorList *node, bool singlestatement = false)
+				void visit(std::string &output, const fx::nodes::declarator_list_node *node, bool singlestatement = false)
 				{
 					bool includetype = true;
 
-					for (auto declarator : node->Declarators)
+					for (auto declarator : node->declarator_list)
 					{
-						Visit(output, declarator, includetype);
+						visit(output, declarator, includetype);
 
 						if (singlestatement)
 						{
@@ -695,57 +689,57 @@ namespace ReShade
 						output += ";\n";
 					}
 				}
-				void Visit(std::string &output, const FX::Nodes::ExpressionStatement *node)
+				void visit(std::string &output, const fx::nodes::expression_statement_node *node)
 				{
-					Visit(output, node->Expression);
+					visit(output, node->expression);
 
 					output += ";\n";
 				}
-				void Visit(std::string &output, const FX::Nodes::If *node)
+				void visit(std::string &output, const fx::nodes::if_statement_node *node)
 				{
-					const FX::Nodes::Type typeto = { FX::Nodes::Type::Class::Bool, 0, 1, 1 };
-					const auto cast = PrintCast(node->Condition->Type, typeto);
+					const fx::nodes::type_node typeto = { fx::nodes::type_node::bool_, 0, 1, 1 };
+					const auto cast = print_cast(node->condition->type, typeto);
 
 					output += "if (" + cast.first;
 
-					Visit(output, node->Condition);
+					visit(output, node->condition);
 
 					output += cast.second + ")\n";
 
-					if (node->StatementOnTrue != nullptr)
+					if (node->statement_when_true != nullptr)
 					{
-						Visit(output, node->StatementOnTrue);
+						visit(output, node->statement_when_true);
 					}
 					else
 					{
 						output += "\t;";
 					}
 
-					if (node->StatementOnFalse != nullptr)
+					if (node->statement_when_false != nullptr)
 					{
 						output += "else\n";
 
-						Visit(output, node->StatementOnFalse);
+						visit(output, node->statement_when_false);
 					}
 				}
-				void Visit(std::string &output, const FX::Nodes::Switch *node)
+				void visit(std::string &output, const fx::nodes::switch_statement_node *node)
 				{
 					output += "switch (";
 
-					Visit(output, node->Test);
+					visit(output, node->test_expression);
 
 					output += ")\n{\n";
 
-					for (auto currcase : node->Cases)
+					for (auto currcase : node->case_list)
 					{
-						Visit(output, currcase);
+						visit(output, currcase);
 					}
 
 					output += "}\n";
 				}
-				void Visit(std::string &output, const FX::Nodes::Case *node)
+				void visit(std::string &output, const fx::nodes::case_statement_node *node)
 				{
-					for (auto label : node->Labels)
+					for (auto label : node->labels)
 					{
 						if (label == nullptr)
 						{
@@ -755,71 +749,71 @@ namespace ReShade
 						{
 							output += "case ";
 
-							Visit(output, label);
+							visit(output, label);
 						}
 
 						output += ":\n";
 					}
 
-					Visit(output, node->Statements);
+					visit(output, node->statement_list);
 				}
-				void Visit(std::string &output, const FX::Nodes::For *node)
+				void visit(std::string &output, const fx::nodes::for_statement_node *node)
 				{
 					output += "for (";
 
-					if (node->Initialization != nullptr)
+					if (node->init_statement != nullptr)
 					{
-						if (node->Initialization->id == FX::nodeid::DeclaratorList)
+						if (node->init_statement->id == fx::nodeid::declarator_list)
 						{
-							Visit(output, static_cast<FX::Nodes::DeclaratorList *>(node->Initialization), true);
+							visit(output, static_cast<fx::nodes::declarator_list_node *>(node->init_statement), true);
 
 							output.erase(output.end() - 2, output.end());
 						}
 						else
 						{
-							Visit(output, static_cast<FX::Nodes::ExpressionStatement *>(node->Initialization)->Expression);
+							visit(output, static_cast<fx::nodes::expression_statement_node *>(node->init_statement)->expression);
 						}
 					}
 
 					output += "; ";
 
-					if (node->Condition != nullptr)
+					if (node->condition != nullptr)
 					{
-						Visit(output, node->Condition);
+						visit(output, node->condition);
 					}
 
 					output += "; ";
 
-					if (node->Increment != nullptr)
+					if (node->increment_expression != nullptr)
 					{
-						Visit(output, node->Increment);
+						visit(output, node->increment_expression);
 					}
 
 					output += ")\n";
 
-					if (node->Statements != nullptr)
+					if (node->statement_list != nullptr)
 					{
-						Visit(output, node->Statements);
+						visit(output, node->statement_list);
 					}
 					else
 					{
 						output += "\t;";
 					}
 				}
-				void Visit(std::string &output, const FX::Nodes::While *node)
+				void visit(std::string &output, const fx::nodes::while_statement_node *node)
 				{
-					if (node->DoWhile)
+					if (node->is_do_while)
 					{
 						output += "do\n{\n";
 
-						if (node->Statements != nullptr)
+						if (node->statement_list != nullptr)
 						{
-							Visit(output, node->Statements);
+							visit(output, node->statement_list);
 						}
 
 						output += "}\nwhile (";
 
-						Visit(output, node->Condition);
+						visit(output, node->condition);
 
 						output += ");\n";
 					}
@@ -827,13 +821,13 @@ namespace ReShade
 					{
 						output += "while (";
 
-						Visit(output, node->Condition);
+						visit(output, node->condition);
 
 						output += ")\n";
 
-						if (node->Statements != nullptr)
+						if (node->statement_list != nullptr)
 						{
-							Visit(output, node->Statements);
+							visit(output, node->statement_list);
 						}
 						else
 						{
@@ -841,9 +835,9 @@ namespace ReShade
 						}
 					}
 				}
-				void Visit(std::string &output, const FX::Nodes::Return *node)
+				void visit(std::string &output, const fx::nodes::return_statement_node *node)
 				{
-					if (node->Discard)
+					if (node->is_discard)
 					{
 						output += "discard";
 					}
@@ -851,15 +845,15 @@ namespace ReShade
 					{
 						output += "return";
 
-						if (node->Value != nullptr)
+						if (node->return_value != nullptr)
 						{
-							assert(_currentFunction != nullptr);
+							assert(_current_function != nullptr);
 
-							const auto cast = PrintCast(node->Value->Type, _currentFunction->ReturnType);
+							const auto cast = print_cast(node->return_value->type, _current_function->return_type);
 
 							output += ' ' + cast.first;
 							
-							Visit(output, node->Value);
+							visit(output, node->return_value);
 							
 							output += cast.second;
 						}
@@ -867,49 +861,46 @@ namespace ReShade
 
 					output += ";\n";
 				}
-				void Visit(std::string &output, const FX::Nodes::Jump *node)
+				void visit(std::string &output, const fx::nodes::jump_statement_node *node)
 				{
-					switch (node->Mode)
+					if (node->is_break)
 					{
-						case FX::Nodes::Jump::Break:
-							output += "break";
-							break;
-						case FX::Nodes::Jump::Continue:
-							output += "continue";
-							break;
+						output += "break;\n";
 					}
-
-					output += ";\n";
-				}
-
-				void Visit(std::string &output, const FX::Nodes::LValue *node)
-				{
-					output += FixName(node->Reference->Name, node->Reference->Namespace);
-				}
-				void Visit(std::string &output, const FX::Nodes::Literal *node)
-				{
-					if (!node->Type.IsScalar())
+					else if (node->is_continue)
 					{
-						VisitTypeClass(output, node->Type);
+						output += "continue;\n";
+					}
+				}
+
+				void visit(std::string &output, const fx::nodes::lvalue_expression_node *node)
+				{
+					output += FixName(node->reference->name, node->reference->Namespace);
+				}
+				void visit(std::string &output, const fx::nodes::literal_expression_node *node)
+				{
+					if (!node->type.is_scalar())
+					{
+						visit_type_class(output, node->type);
 
 						output += '(';
 					}
 
-					for (unsigned int i = 0; i < node->Type.Rows * node->Type.Cols; ++i)
+					for (unsigned int i = 0; i < node->type.rows * node->type.cols; ++i)
 					{
-						switch (node->Type.BaseClass)
+						switch (node->type.basetype)
 						{
-							case FX::Nodes::Type::Class::Bool:
-								output += node->Value.Int[i] ? "true" : "false";
+							case fx::nodes::type_node::bool_:
+								output += node->value_int[i] ? "true" : "false";
 								break;
-							case FX::Nodes::Type::Class::Int:
-								output += std::to_string(node->Value.Int[i]);
+							case fx::nodes::type_node::int_:
+								output += std::to_string(node->value_int[i]);
 								break;
-							case FX::Nodes::Type::Class::Uint:
-								output += std::to_string(node->Value.Uint[i]) + "u";
+							case fx::nodes::type_node::uint_:
+								output += std::to_string(node->value_uint[i]) + "u";
 								break;
-							case FX::Nodes::Type::Class::Float:
-								output += std::to_string(node->Value.Float[i]);
+							case fx::nodes::type_node::float_:
+								output += std::to_string(node->value_float[i]);
 								break;
 						}
 
@@ -918,18 +909,18 @@ namespace ReShade
 
 					output.erase(output.end() - 2, output.end());
 
-					if (!node->Type.IsScalar())
+					if (!node->type.is_scalar())
 					{
 						output += ')';
 					}
 				}
-				void Visit(std::string &output, const FX::Nodes::Sequence *node)
+				void visit(std::string &output, const fx::nodes::expression_sequence_node *node)
 				{
 					output += '(';
 
-					for (auto expression : node->Expressions)
+					for (auto expression : node->expression_list)
 					{
-						Visit(output, expression);
+						visit(output, expression);
 
 						output += ", ";
 					}
@@ -938,22 +929,22 @@ namespace ReShade
 
 					output += ')';
 				}
-				void Visit(std::string &output, const FX::Nodes::Unary *node)
+				void visit(std::string &output, const fx::nodes::unary_expression_node *node)
 				{
 					std::string part1, part2;
 
-					switch (node->Operator)
+					switch (node->op)
 					{
-						case FX::Nodes::Unary::Op::Negate:
+						case fx::nodes::unary_expression_node::negate:
 							part1 = '-';
 							break;
-						case FX::Nodes::Unary::Op::BitwiseNot:
+						case fx::nodes::unary_expression_node::bitwise_not:
 							part1 = "~";
 							break;
-						case FX::Nodes::Unary::Op::LogicalNot:
-							if (node->Type.IsVector())
+						case fx::nodes::unary_expression_node::logical_not:
+							if (node->type.is_vector())
 							{
-								const auto cast = PrintCast(node->Operand->Type, node->Type);
+								const auto cast = print_cast(node->operand->type, node->type);
 
 								part1 = "not(" + cast.first;
 								part2 = cast.second + ')';
@@ -964,56 +955,56 @@ namespace ReShade
 								part2 = ')';
 							}
 							break;
-						case FX::Nodes::Unary::Op::Increase:
+						case fx::nodes::unary_expression_node::pre_increase:
 							part1 = "++";
 							break;
-						case FX::Nodes::Unary::Op::Decrease:
+						case fx::nodes::unary_expression_node::pre_decrease:
 							part1 = "--";
 							break;
-						case FX::Nodes::Unary::Op::PostIncrease:
+						case fx::nodes::unary_expression_node::post_increase:
 							part2 = "++";
 							break;
-						case FX::Nodes::Unary::Op::PostDecrease:
+						case fx::nodes::unary_expression_node::post_decrease:
 							part2 = "--";
 							break;
-						case FX::Nodes::Unary::Op::Cast:
-							VisitTypeClass(part1, node->Type);
+						case fx::nodes::unary_expression_node::cast:
+							visit_type_class(part1, node->type);
 							part1 += '(';
 							part2 = ')';
 							break;
 					}
 
 					output += part1;
-					Visit(output, node->Operand);
+					visit(output, node->operand);
 					output += part2;
 				}
-				void Visit(std::string &output, const FX::Nodes::Binary *node)
+				void visit(std::string &output, const fx::nodes::binary_expression_node *node)
 				{
-					const auto type1 = node->Operands[0]->Type;
-					const auto type2 = node->Operands[1]->Type;				
-					auto type12 = type2.IsFloatingPoint() ? type2 : type1;
-					type12.Rows = std::max(type1.Rows, type2.Rows);
-					type12.Cols = std::max(type1.Cols, type2.Cols);
+					const auto type1 = node->operands[0]->type;
+					const auto type2 = node->operands[1]->type;				
+					auto type12 = type2.is_floating_point() ? type2 : type1;
+					type12.rows = std::max(type1.rows, type2.rows);
+					type12.cols = std::max(type1.cols, type2.cols);
 
-					const auto cast1 = PrintCast(type1, node->Type), cast2 = PrintCast(type2, node->Type);
-					const auto cast121 = PrintCast(type1, type12), cast122 = PrintCast(type2, type12);
+					const auto cast1 = print_cast(type1, node->type), cast2 = print_cast(type2, node->type);
+					const auto cast121 = print_cast(type1, type12), cast122 = print_cast(type2, type12);
 
 					std::string part1, part2, part3;
 
-					switch (node->Operator)
+					switch (node->op)
 					{
-						case FX::Nodes::Binary::Op::Add:
+						case fx::nodes::binary_expression_node::add:
 							part1 = '(' + cast1.first;
 							part2 = cast1.second + " + " + cast2.first;
 							part3 = cast2.second + ')';
 							break;
-						case FX::Nodes::Binary::Op::Subtract:
+						case fx::nodes::binary_expression_node::subtract:
 							part1 = '(' + cast1.first;
 							part2 = cast1.second + " - " + cast2.first;
 							part3 = cast2.second + ')';
 							break;
-						case FX::Nodes::Binary::Op::Multiply:
-							if (node->Type.IsMatrix())
+						case fx::nodes::binary_expression_node::multiply:
+							if (node->type.is_matrix())
 							{
 								part1 = "matrixCompMult(" + cast1.first;
 								part2 = cast1.second + ", " + cast2.first;
@@ -1026,13 +1017,13 @@ namespace ReShade
 								part3 = cast2.second + ')';
 							}
 							break;
-						case FX::Nodes::Binary::Op::Divide:
+						case fx::nodes::binary_expression_node::divide:
 							part1 = '(' + cast1.first;
 							part2 = cast1.second + " / " + cast2.first;
 							part3 = cast2.second + ')';
 							break;
-						case FX::Nodes::Binary::Op::Modulo:
-							if (node->Type.IsFloatingPoint())
+						case fx::nodes::binary_expression_node::modulo:
+							if (node->type.is_floating_point())
 							{
 								part1 = "_fmod(" + cast1.first;
 								part2 = cast1.second + ", " + cast2.first;
@@ -1045,8 +1036,8 @@ namespace ReShade
 								part3 = cast2.second + ')';
 							}
 							break;
-						case FX::Nodes::Binary::Op::Less:
-							if (node->Type.IsVector())
+						case fx::nodes::binary_expression_node::less:
+							if (node->type.is_vector())
 							{
 								part1 = "lessThan(" + cast121.first;
 								part2 = cast121.second + ", " + cast122.first;
@@ -1059,8 +1050,8 @@ namespace ReShade
 								part3 = cast122.second + ')';
 							}
 							break;
-						case FX::Nodes::Binary::Op::Greater:
-							if (node->Type.IsVector())
+						case fx::nodes::binary_expression_node::greater:
+							if (node->type.is_vector())
 							{
 								part1 = "greaterThan(" + cast121.first;
 								part2 = cast121.second + ", " + cast122.first;
@@ -1073,8 +1064,8 @@ namespace ReShade
 								part3 = cast122.second + ')';
 							}
 							break;
-						case FX::Nodes::Binary::Op::LessOrEqual:
-							if (node->Type.IsVector())
+						case fx::nodes::binary_expression_node::less_equal:
+							if (node->type.is_vector())
 							{
 								part1 = "lessThanEqual(" + cast121.first;
 								part2 = cast121.second + ", " + cast122.first;
@@ -1087,8 +1078,8 @@ namespace ReShade
 								part3 = cast122.second + ')';
 							}
 							break;
-						case FX::Nodes::Binary::Op::GreaterOrEqual:
-							if (node->Type.IsVector())
+						case fx::nodes::binary_expression_node::greater_equal:
+							if (node->type.is_vector())
 							{
 								part1 = "greaterThanEqual(" + cast121.first;
 								part2 = cast121.second + ", " + cast122.first;
@@ -1101,8 +1092,8 @@ namespace ReShade
 								part3 = cast122.second + ')';
 							}
 							break;
-						case FX::Nodes::Binary::Op::Equal:
-							if (node->Type.IsVector())
+						case fx::nodes::binary_expression_node::equal:
+							if (node->type.is_vector())
 							{
 								part1 = "equal(" + cast121.first;
 								part2 = cast121.second + ", " + cast122.first;
@@ -1115,8 +1106,8 @@ namespace ReShade
 								part3 = cast122.second + ')';
 							}
 							break;
-						case FX::Nodes::Binary::Op::NotEqual:
-							if (node->Type.IsVector())
+						case fx::nodes::binary_expression_node::not_equal:
+							if (node->type.is_vector())
 							{
 								part1 = "notEqual(" + cast121.first;
 								part2 = cast121.second + ", " + cast122.first;
@@ -1129,43 +1120,43 @@ namespace ReShade
 								part3 = cast122.second + ')';
 							}
 							break;
-						case FX::Nodes::Binary::Op::LeftShift:
+						case fx::nodes::binary_expression_node::left_shift:
 							part1 = '(';
 							part2 = " << ";
 							part3 = ')';
 							break;
-						case FX::Nodes::Binary::Op::RightShift:
+						case fx::nodes::binary_expression_node::right_shift:
 							part1 = '(';
 							part2 = " >> ";
 							part3 = ')';
 							break;
-						case FX::Nodes::Binary::Op::BitwiseAnd:
+						case fx::nodes::binary_expression_node::bitwise_and:
 							part1 = '(' + cast1.first;
 							part2 = cast1.second + " & " + cast2.first;
 							part3 = cast2.second + ')';
 							break;
-						case FX::Nodes::Binary::Op::BitwiseOr:
+						case fx::nodes::binary_expression_node::bitwise_or:
 							part1 = '(' + cast1.first;
 							part2 = cast1.second + " | " + cast2.first;
 							part3 = cast2.second + ')';
 							break;
-						case FX::Nodes::Binary::Op::BitwiseXor:
+						case fx::nodes::binary_expression_node::bitwise_xor:
 							part1 = '(' + cast1.first;
 							part2 = cast1.second + " ^ " + cast2.first;
 							part3 = cast2.second + ')';
 							break;
-						case FX::Nodes::Binary::Op::LogicalAnd:
+						case fx::nodes::binary_expression_node::logical_and:
 							part1 = '(' + cast121.first;
 							part2 = cast121.second + " && " + cast122.first;
 							part3 = cast122.second + ')';
 							break;
-						case FX::Nodes::Binary::Op::LogicalOr:
+						case fx::nodes::binary_expression_node::logical_or:
 							part1 = '(' + cast121.first;
 							part2 = cast121.second + " || " + cast122.first;
 							part3 = cast122.second + ')';
 							break;
-						case FX::Nodes::Binary::Op::ElementExtract:
-							if (type2.BaseClass != FX::Nodes::Type::Class::Uint)
+						case fx::nodes::binary_expression_node::element_extract:
+							if (type2.basetype != fx::nodes::type_node::uint_)
 							{
 								part2 = "[uint(";
 								part3 = ")]";
@@ -1179,56 +1170,56 @@ namespace ReShade
 					}
 
 					output += part1;
-					Visit(output, node->Operands[0]);
+					visit(output, node->operands[0]);
 					output += part2;
-					Visit(output, node->Operands[1]);
+					visit(output, node->operands[1]);
 					output += part3;
 				}
-				void Visit(std::string &output, const FX::Nodes::Intrinsic *node)
+				void visit(std::string &output, const fx::nodes::intrinsic_expression_node *node)
 				{
-					FX::Nodes::Type type1 = { FX::Nodes::Type::Class::Void }, type2, type3, type4, type12;
+					fx::nodes::type_node type1 = { fx::nodes::type_node::void_ }, type2, type3, type4, type12;
 					std::pair<std::string, std::string> cast1, cast2, cast3, cast4, cast121, cast122;
 
-					if (node->Arguments[0] != nullptr)
+					if (node->arguments[0] != nullptr)
 					{
-						cast1 = PrintCast(type1 = node->Arguments[0]->Type, node->Type);
+						cast1 = print_cast(type1 = node->arguments[0]->type, node->type);
 					}
-					if (node->Arguments[1] != nullptr)
+					if (node->arguments[1] != nullptr)
 					{
-						cast2 = PrintCast(type2 = node->Arguments[1]->Type, node->Type);
+						cast2 = print_cast(type2 = node->arguments[1]->type, node->type);
 
-						type12 = type2.IsFloatingPoint() ? type2 : type1;
-						type12.Rows = std::max(type1.Rows, type2.Rows);
-						type12.Cols = std::max(type1.Cols, type2.Cols);
+						type12 = type2.is_floating_point() ? type2 : type1;
+						type12.rows = std::max(type1.rows, type2.rows);
+						type12.cols = std::max(type1.cols, type2.cols);
 
-						cast121 = PrintCast(type1, type12);
-						cast122 = PrintCast(type2, type12);
+						cast121 = print_cast(type1, type12);
+						cast122 = print_cast(type2, type12);
 					}
-					if (node->Arguments[2] != nullptr)
+					if (node->arguments[2] != nullptr)
 					{
-						cast3 = PrintCast(type3 = node->Arguments[2]->Type, node->Type);
+						cast3 = print_cast(type3 = node->arguments[2]->type, node->type);
 					}
-					if (node->Arguments[3] != nullptr)
+					if (node->arguments[3] != nullptr)
 					{
-						cast4 = PrintCast(type4 = node->Arguments[2]->Type, node->Type);
+						cast4 = print_cast(type4 = node->arguments[2]->type, node->type);
 					}
 
 					std::string part1, part2, part3, part4, part5;
 
-					switch (node->Operator)
+					switch (node->op)
 					{
-						case FX::Nodes::Intrinsic::Op::Abs:
+						case fx::nodes::intrinsic_expression_node::abs:
 							part1 = "abs(" + cast1.first;
 							part2 = cast1.second + ')';
 							break;
-						case FX::Nodes::Intrinsic::Op::Acos:
+						case fx::nodes::intrinsic_expression_node::acos:
 							part1 = "acos(" + cast1.first;
 							part2 = cast1.second + ')';
 							break;
-						case FX::Nodes::Intrinsic::Op::All:
-							if (type1.IsVector())
+						case fx::nodes::intrinsic_expression_node::all:
+							if (type1.is_vector())
 							{
-								part1 = "all(bvec" + std::to_string(type1.Rows) + '(';
+								part1 = "all(bvec" + std::to_string(type1.rows) + '(';
 								part2 = "))";
 							}
 							else
@@ -1237,10 +1228,10 @@ namespace ReShade
 								part2 = ')';
 							}
 							break;
-						case FX::Nodes::Intrinsic::Op::Any:
-							if (type1.IsVector())
+						case fx::nodes::intrinsic_expression_node::any:
+							if (type1.is_vector())
 							{
-								part1 = "any(bvec" + std::to_string(type1.Rows) + '(';
+								part1 = "any(bvec" + std::to_string(type1.rows) + '(';
 								part2 = "))";
 							}
 							else
@@ -1249,298 +1240,298 @@ namespace ReShade
 								part2 = ')';
 							}
 							break;
-						case FX::Nodes::Intrinsic::Op::BitCastInt2Float:
+						case fx::nodes::intrinsic_expression_node::bitcast_int2float:
 							part1 = "intBitsToFloat(";
 
-							if (type1.BaseClass != FX::Nodes::Type::Class::Int)
+							if (type1.basetype != fx::nodes::type_node::int_)
 							{
-								type1.BaseClass = FX::Nodes::Type::Class::Int;
+								type1.basetype = fx::nodes::type_node::int_;
 
-								VisitTypeClass(part1, type1);
+								visit_type_class(part1, type1);
 								part1 += '(';
 								part2 = ')';
 							}
 
 							part2 += ')';
 							break;
-						case FX::Nodes::Intrinsic::Op::BitCastUint2Float:
+						case fx::nodes::intrinsic_expression_node::bitcast_uint2float:
 							part1 = "uintBitsToFloat(";
 
-							if (type1.BaseClass != FX::Nodes::Type::Class::Uint)
+							if (type1.basetype != fx::nodes::type_node::uint_)
 							{
-								type1.BaseClass = FX::Nodes::Type::Class::Uint;
+								type1.basetype = fx::nodes::type_node::uint_;
 								
-								VisitTypeClass(part1, type1);
+								visit_type_class(part1, type1);
 								part1 += '(';
 								part2 = ')';
 							}
 
 							part2 += ')';
 							break;
-						case FX::Nodes::Intrinsic::Op::Asin:
+						case fx::nodes::intrinsic_expression_node::asin:
 							part1 = "asin(" + cast1.first;
 							part2 = cast1.second + ')';
 							break;
-						case FX::Nodes::Intrinsic::Op::BitCastFloat2Int:
+						case fx::nodes::intrinsic_expression_node::bitcast_float2int:
 							part1 = "floatBitsToInt(";
 
-							if (type1.BaseClass != FX::Nodes::Type::Class::Float)
+							if (type1.basetype != fx::nodes::type_node::float_)
 							{
-								type1.BaseClass = FX::Nodes::Type::Class::Float;
+								type1.basetype = fx::nodes::type_node::float_;
 								
-								VisitTypeClass(part1, type1);
+								visit_type_class(part1, type1);
 								part1 += '(';
 								part2 = ')';
 							}
 
 							part2 += ')';
 							break;
-						case FX::Nodes::Intrinsic::Op::BitCastFloat2Uint:
+						case fx::nodes::intrinsic_expression_node::bitcast_float2uint:
 							part1 = "floatBitsToUint(";
 
-							if (type1.BaseClass != FX::Nodes::Type::Class::Float)
+							if (type1.basetype != fx::nodes::type_node::float_)
 							{
-								type1.BaseClass = FX::Nodes::Type::Class::Float;
+								type1.basetype = fx::nodes::type_node::float_;
 								
-								VisitTypeClass(part1, type1);
+								visit_type_class(part1, type1);
 								part1 += '(';
 								part2 = ')';
 							}
 
 							part2 += ')';
 							break;
-						case FX::Nodes::Intrinsic::Op::Atan:
+						case fx::nodes::intrinsic_expression_node::atan:
 							part1 = "atan(" + cast1.first;
 							part2 = cast1.second + ')';
 							break;
-						case FX::Nodes::Intrinsic::Op::Atan2:
+						case fx::nodes::intrinsic_expression_node::atan2:
 							part1 = "atan(" + cast1.first;
 							part2 = cast1.second + ", " + cast2.first;
 							part3 = cast2.second + ')';
 							break;
-						case FX::Nodes::Intrinsic::Op::Ceil:
+						case fx::nodes::intrinsic_expression_node::ceil:
 							part1 = "ceil(" + cast1.first;
 							part2 = cast1.second + ')';
 							break;
-						case FX::Nodes::Intrinsic::Op::Clamp:
+						case fx::nodes::intrinsic_expression_node::clamp:
 							part1 = "clamp(" + cast1.first;
 							part2 = cast1.second + ", " + cast2.first;
 							part3 = cast2.second + ", " + cast3.first;
 							part4 = cast3.second + ')';
 							break;
-						case FX::Nodes::Intrinsic::Op::Cos:
+						case fx::nodes::intrinsic_expression_node::cos:
 							part1 = "cos(" + cast1.first;
 							part2 = cast1.second + ')';
 							break;
-						case FX::Nodes::Intrinsic::Op::Cosh:
+						case fx::nodes::intrinsic_expression_node::cosh:
 							part1 = "cosh(" + cast1.first;
 							part2 = cast1.second + ')';
 							break;
-						case FX::Nodes::Intrinsic::Op::Cross:
+						case fx::nodes::intrinsic_expression_node::cross:
 							part1 = "cross(" + cast1.first;
 							part2 = cast1.second + ", " + cast2.first;
 							part3 = cast2.second + ')';
 							break;
-						case FX::Nodes::Intrinsic::Op::PartialDerivativeX:
+						case fx::nodes::intrinsic_expression_node::ddx:
 							part1 = "dFdx(" + cast1.first;
 							part2 = cast1.second + ')';
 							break;
-						case FX::Nodes::Intrinsic::Op::PartialDerivativeY:
+						case fx::nodes::intrinsic_expression_node::ddy:
 							part1 = "dFdy(" + cast1.first;
 							part2 = cast1.second + ')';
 							break;
-						case FX::Nodes::Intrinsic::Op::Degrees:
+						case fx::nodes::intrinsic_expression_node::degrees:
 							part1 = "degrees(" + cast1.first;
 							part2 = cast1.second + ')';
 							break;
-						case FX::Nodes::Intrinsic::Op::Determinant:
+						case fx::nodes::intrinsic_expression_node::determinant:
 							part1 = "determinant(";
 
-							if (!type1.IsFloatingPoint())
+							if (!type1.is_floating_point())
 							{
-								type1.BaseClass = FX::Nodes::Type::Class::Float;
+								type1.basetype = fx::nodes::type_node::float_;
 								
-								VisitTypeClass(part1, type1);
+								visit_type_class(part1, type1);
 								part1 += '(';
 								part2 = ')';
 							}
 
 							part2 += ')';
 							break;
-						case FX::Nodes::Intrinsic::Op::Distance:
+						case fx::nodes::intrinsic_expression_node::distance:
 							part1 = "distance(" + cast121.first;
 							part2 = cast121.second + ", " + cast122.first;
 							part3 = cast122.second + ')';
 							break;
-						case FX::Nodes::Intrinsic::Op::Dot:
+						case fx::nodes::intrinsic_expression_node::dot:
 							part1 = "dot(" + cast121.first;
 							part2 = cast121.second + ", " + cast122.first;
 							part3 = cast122.second + ')';
 							break;
-						case FX::Nodes::Intrinsic::Op::Exp:
+						case fx::nodes::intrinsic_expression_node::exp:
 							part1 = "exp(" + cast1.first;
 							part2 = cast1.second + ')';
 							break;
-						case FX::Nodes::Intrinsic::Op::Exp2:
+						case fx::nodes::intrinsic_expression_node::exp2:
 							part1 = "exp2(" + cast1.first;
 							part2 = cast1.second + ')';
 							break;
-						case FX::Nodes::Intrinsic::Op::FaceForward:
+						case fx::nodes::intrinsic_expression_node::faceforward:
 							part1 = "faceforward(" + cast1.first;
 							part2 = cast1.second + ", " + cast2.first;
 							part3 = cast2.second + ", " + cast3.first;
 							part4 = cast3.second + ')';
 							break;
-						case FX::Nodes::Intrinsic::Op::Floor:
+						case fx::nodes::intrinsic_expression_node::floor:
 							part1 = "floor(" + cast1.first;
 							part2 = cast1.second + ')';
 							break;
-						case FX::Nodes::Intrinsic::Op::Frac:
+						case fx::nodes::intrinsic_expression_node::frac:
 							part1 = "fract(" + cast1.first;
 							part2 = cast1.second + ')';
 							break;
-						case FX::Nodes::Intrinsic::Op::Frexp:
+						case fx::nodes::intrinsic_expression_node::frexp:
 							part1 = "frexp(" + cast1.first;
 							part2 = cast1.second + ", " + cast2.first;
 							part3 = cast2.second + ')';
 							break;
-						case FX::Nodes::Intrinsic::Op::Fwidth:
+						case fx::nodes::intrinsic_expression_node::fwidth:
 							part1 = "fwidth(" + cast1.first;
 							part2 = cast1.second + ')';
 							break;
-						case FX::Nodes::Intrinsic::Op::Ldexp:
+						case fx::nodes::intrinsic_expression_node::ldexp:
 							part1 = "ldexp(" + cast1.first;
 							part2 = cast1.second + ", " + cast2.first;
 							part3 = cast2.second + ')';
 							break;
-						case FX::Nodes::Intrinsic::Op::Length:
+						case fx::nodes::intrinsic_expression_node::length:
 							part1 = "length(";
 
-							if (!type1.IsFloatingPoint())
+							if (!type1.is_floating_point())
 							{
-								type1.BaseClass = FX::Nodes::Type::Class::Float;
+								type1.basetype = fx::nodes::type_node::float_;
 								
-								VisitTypeClass(part1, type1);
+								visit_type_class(part1, type1);
 								part1 += '(';
 								part2 = ')';
 							}
 
 							part2 += ')';
 							break;
-						case FX::Nodes::Intrinsic::Op::Lerp:
+						case fx::nodes::intrinsic_expression_node::lerp:
 							part1 = "mix(" + cast1.first;
 							part2 = cast1.second + ", " + cast2.first;
 							part3 = cast2.second + ", " + cast3.first;
 							part4 = cast3.second + ')';
 							break;
-						case FX::Nodes::Intrinsic::Op::Log:
+						case fx::nodes::intrinsic_expression_node::log:
 							part1 = "log(" + cast1.first;
 							part2 = cast1.second + ')';
 							break;
-						case FX::Nodes::Intrinsic::Op::Log10:
+						case fx::nodes::intrinsic_expression_node::log10:
 							part1 = "(log2(" + cast1.first;
 							part2 = cast1.second + ") / ";
-							VisitTypeClass(part2, node->Type);
+							visit_type_class(part2, node->type);
 							part2 += "(2.302585093))";
 							break;
-						case FX::Nodes::Intrinsic::Op::Log2:
+						case fx::nodes::intrinsic_expression_node::log2:
 							part1 = "log2(" + cast1.first;
 							part2 = cast1.second + ')';
 							break;
-						case FX::Nodes::Intrinsic::Op::Mad:
+						case fx::nodes::intrinsic_expression_node::mad:
 							part1 = "(" + cast1.first;
 							part2 = cast1.second + " * " + cast2.first;
 							part3 = cast2.second + " + " + cast3.first;
 							part4 = cast3.second + ')';
 							break;
-						case FX::Nodes::Intrinsic::Op::Max:
+						case fx::nodes::intrinsic_expression_node::max:
 							part1 = "max(" + cast1.first;
 							part2 = cast1.second + ", " + cast2.first;
 							part3 = cast2.second + ')';
 							break;
-						case FX::Nodes::Intrinsic::Op::Min:
+						case fx::nodes::intrinsic_expression_node::min:
 							part1 = "min(" + cast1.first;
 							part2 = cast1.second + ", " + cast2.first;
 							part3 = cast2.second + ')';
 							break;
-						case FX::Nodes::Intrinsic::Op::Modf:
+						case fx::nodes::intrinsic_expression_node::modf:
 							part1 = "modf(" + cast1.first;
 							part2 = cast1.second + ", " + cast2.first;
 							part3 = cast2.second + ')';
 							break;
-						case FX::Nodes::Intrinsic::Op::Mul:
+						case fx::nodes::intrinsic_expression_node::mul:
 							part1 = '(';
 							part2 = " * ";
 							part3 = ')';
 							break;
-						case FX::Nodes::Intrinsic::Op::Normalize:
+						case fx::nodes::intrinsic_expression_node::normalize:
 							part1 = "normalize(";
 
-							if (!type1.IsFloatingPoint())
+							if (!type1.is_floating_point())
 							{
-								type1.BaseClass = FX::Nodes::Type::Class::Float;
+								type1.basetype = fx::nodes::type_node::float_;
 								
-								VisitTypeClass(part1, type1);
+								visit_type_class(part1, type1);
 								part1 += '(';
 								part2 = ')';
 							}
 
 							part2 += ')';
 							break;
-						case FX::Nodes::Intrinsic::Op::Pow:
+						case fx::nodes::intrinsic_expression_node::pow:
 							part1 = "pow(" + cast1.first;
 							part2 = cast1.second + ", " + cast2.first;
 							part3 = cast2.second + ')';
 							break;
-						case FX::Nodes::Intrinsic::Op::Radians:
+						case fx::nodes::intrinsic_expression_node::radians:
 							part1 = "radians(" + cast1.first;
 							part2 = cast1.second + ')';
 							break;
-						case FX::Nodes::Intrinsic::Op::Rcp:
+						case fx::nodes::intrinsic_expression_node::rcp:
 							part1 = '(';
-							VisitTypeClass(part1, node->Type);
+							visit_type_class(part1, node->type);
 							part1 += "(1.0) / ";
 							part2 = ')';
 							break;
-						case FX::Nodes::Intrinsic::Op::Reflect:
+						case fx::nodes::intrinsic_expression_node::reflect:
 							part1 = "reflect(" + cast1.first;
 							part2 = cast1.second + ", " + cast2.first;
 							part3 = cast2.second + ')';
 							break;
-						case FX::Nodes::Intrinsic::Op::Refract:
+						case fx::nodes::intrinsic_expression_node::refract:
 							part1 = "refract(" + cast1.first;
 							part2 = cast1.second + ", " + cast2.first;
 							part3 = cast2.second + ", float";
 							part4 = "))";
 							break;
-						case FX::Nodes::Intrinsic::Op::Round:
+						case fx::nodes::intrinsic_expression_node::round:
 							part1 = "round(" + cast1.first;
 							part2 = cast1.second + ')';
 							break;
-						case FX::Nodes::Intrinsic::Op::Rsqrt:
+						case fx::nodes::intrinsic_expression_node::rsqrt:
 							part1 = "inversesqrt(" + cast1.first;
 							part2 = cast1.second + ')';
 							break;
-						case FX::Nodes::Intrinsic::Op::Saturate:
+						case fx::nodes::intrinsic_expression_node::saturate:
 							part1 = "clamp(" + cast1.first;
 							part2 = cast1.second + ", 0.0, 1.0)";
 							break;
-						case FX::Nodes::Intrinsic::Op::Sign:
+						case fx::nodes::intrinsic_expression_node::sign:
 							part1 = cast1.first + "sign(";
 							part2 = ')' + cast1.second;
 							break;
-						case FX::Nodes::Intrinsic::Op::Sin:
+						case fx::nodes::intrinsic_expression_node::sin:
 							part1 = "sin(" + cast1.first;
 							part2 = cast1.second + ')';
 							break;
-						case FX::Nodes::Intrinsic::Op::SinCos:
+						case fx::nodes::intrinsic_expression_node::sincos:
 							part1 = "_sincos(";
 
-							if (type1.BaseClass != FX::Nodes::Type::Class::Float)
+							if (type1.basetype != fx::nodes::type_node::float_)
 							{
-								type1.BaseClass = FX::Nodes::Type::Class::Float;
+								type1.basetype = fx::nodes::type_node::float_;
 								
-								VisitTypeClass(part1, type1);
+								visit_type_class(part1, type1);
 								part1 += '(';
 								part2 = ')';
 							}
@@ -1549,57 +1540,57 @@ namespace ReShade
 							part3 = ", ";
 							part4 = ')';
 							break;
-						case FX::Nodes::Intrinsic::Op::Sinh:
+						case fx::nodes::intrinsic_expression_node::sinh:
 							part1 = "sinh(" + cast1.first;
 							part2 = cast1.second + ')';
 							break;
-						case FX::Nodes::Intrinsic::Op::SmoothStep:
+						case fx::nodes::intrinsic_expression_node::smoothstep:
 							part1 = "smoothstep(" + cast1.first;
 							part2 = cast1.second + ", " + cast2.first;
 							part3 = cast2.second + ", " + cast3.first;
 							part4 = cast3.second + ')';
 							break;
-						case FX::Nodes::Intrinsic::Op::Sqrt:
+						case fx::nodes::intrinsic_expression_node::sqrt:
 							part1 = "sqrt(" + cast1.first;
 							part2 = cast1.second + ')';
 							break;
-						case FX::Nodes::Intrinsic::Op::Step:
+						case fx::nodes::intrinsic_expression_node::step:
 							part1 = "step(" + cast1.first;
 							part2 = cast1.second + ", " + cast2.first;
 							part3 = cast2.second + ')';
 							break;
-						case FX::Nodes::Intrinsic::Op::Tan:
+						case fx::nodes::intrinsic_expression_node::tan:
 							part1 = "tan(" + cast1.first;
 							part2 = cast1.second + ')';
 							break;
-						case FX::Nodes::Intrinsic::Op::Tanh:
+						case fx::nodes::intrinsic_expression_node::tanh:
 							part1 = "tanh(" + cast1.first;
 							part2 = cast1.second + ')';
 							break;
-						case FX::Nodes::Intrinsic::Op::Tex2D:
+						case fx::nodes::intrinsic_expression_node::tex2d:
 						{
-							const FX::Nodes::Type type2to = { FX::Nodes::Type::Class::Float, 0, 2, 1 };
-							cast2 = PrintCast(type2, type2to);
+							const fx::nodes::type_node type2to = { fx::nodes::type_node::float_, 0, 2, 1 };
+							cast2 = print_cast(type2, type2to);
 
 							part1 = "texture(";
 							part2 = ", " + cast2.first;
 							part3 = cast2.second + " * vec2(1.0, -1.0) + vec2(0.0, 1.0))";
 							break;
 						}
-						case FX::Nodes::Intrinsic::Op::Tex2DFetch:
+						case fx::nodes::intrinsic_expression_node::tex2dfetch:
 						{
-							const FX::Nodes::Type type2to = { FX::Nodes::Type::Class::Int, 0, 2, 1 };
-							cast2 = PrintCast(type2, type2to);
+							const fx::nodes::type_node type2to = { fx::nodes::type_node::int_, 0, 2, 1 };
+							cast2 = print_cast(type2, type2to);
 
 							part1 = "texelFetch(";
 							part2 = ", " + cast2.first;
 							part3 = cast2.second + " * ivec2(1, -1) + ivec2(0, 1))";
 							break;
 						}
-						case FX::Nodes::Intrinsic::Op::Tex2DGather:
+						case fx::nodes::intrinsic_expression_node::tex2dgather:
 						{
-							const FX::Nodes::Type type2to = { FX::Nodes::Type::Class::Float, 0, 2, 1 };
-							cast2 = PrintCast(type2, type2to);
+							const fx::nodes::type_node type2to = { fx::nodes::type_node::float_, 0, 2, 1 };
+							cast2 = print_cast(type2, type2to);
 
 							part1 = "textureGather(";
 							part2 = ", " + cast2.first;
@@ -1607,12 +1598,12 @@ namespace ReShade
 							part4 = "))";
 							break;
 						}
-						case FX::Nodes::Intrinsic::Op::Tex2DGatherOffset:
+						case fx::nodes::intrinsic_expression_node::tex2dgatheroffset:
 						{
-							const FX::Nodes::Type type2to = { FX::Nodes::Type::Class::Float, 0, 2, 1 };
-							const FX::Nodes::Type type3to = { FX::Nodes::Type::Class::Int, 0, 2, 1 };
-							cast2 = PrintCast(type2, type2to);
-							cast3 = PrintCast(type3, type3to);
+							const fx::nodes::type_node type2to = { fx::nodes::type_node::float_, 0, 2, 1 };
+							const fx::nodes::type_node type3to = { fx::nodes::type_node::int_, 0, 2, 1 };
+							cast2 = print_cast(type2, type2to);
+							cast3 = print_cast(type3, type3to);
 
 							part1 = "textureGatherOffset(";
 							part2 = ", " + cast2.first;
@@ -1621,12 +1612,12 @@ namespace ReShade
 							part5 = "))";
 							break;
 						}
-						case FX::Nodes::Intrinsic::Op::Tex2DGrad:
+						case fx::nodes::intrinsic_expression_node::tex2dgrad:
 						{
-							const FX::Nodes::Type type2to = { FX::Nodes::Type::Class::Float, 0, 2, 1 };
-							cast2 = PrintCast(type2, type2to);
-							cast3 = PrintCast(type3, type2to);
-							cast4 = PrintCast(type4, type2to);
+							const fx::nodes::type_node type2to = { fx::nodes::type_node::float_, 0, 2, 1 };
+							cast2 = print_cast(type2, type2to);
+							cast3 = print_cast(type3, type2to);
+							cast4 = print_cast(type4, type2to);
 
 							part1 = "textureGrad(";
 							part2 = ", " + cast2.first;
@@ -1635,22 +1626,22 @@ namespace ReShade
 							part5 = cast4.second + ")";
 							break;
 						}
-						case FX::Nodes::Intrinsic::Op::Tex2DLevel:
+						case fx::nodes::intrinsic_expression_node::tex2dlevel:
 						{
-							const FX::Nodes::Type type2to = { FX::Nodes::Type::Class::Float, 0, 4, 1 };
-							cast2 = PrintCast(type2, type2to);
+							const fx::nodes::type_node type2to = { fx::nodes::type_node::float_, 0, 4, 1 };
+							cast2 = print_cast(type2, type2to);
 
 							part1 = "_textureLod(";
 							part2 = ", " + cast2.first;
 							part3 = cast2.second + " * vec4(1.0, -1.0, 1.0, 1.0) + vec4(0.0, 1.0, 0.0, 0.0))";
 							break;
 						}
-						case FX::Nodes::Intrinsic::Op::Tex2DLevelOffset:
+						case fx::nodes::intrinsic_expression_node::tex2dleveloffset:
 						{	
-							const FX::Nodes::Type type2to = { FX::Nodes::Type::Class::Float, 0, 4, 1 };
-							const FX::Nodes::Type type3to = { FX::Nodes::Type::Class::Int, 0, 2, 1 };
-							cast2 = PrintCast(type2, type2to);
-							cast3 = PrintCast(type3, type3to);
+							const fx::nodes::type_node type2to = { fx::nodes::type_node::float_, 0, 4, 1 };
+							const fx::nodes::type_node type3to = { fx::nodes::type_node::int_, 0, 2, 1 };
+							cast2 = print_cast(type2, type2to);
+							cast3 = print_cast(type3, type3to);
 
 							part1 = "_textureLodOffset(";
 							part2 = ", " + cast2.first;
@@ -1658,12 +1649,12 @@ namespace ReShade
 							part4 = cast3.second + " * ivec2(1, -1))";
 							break;
 						}
-						case FX::Nodes::Intrinsic::Op::Tex2DOffset:
+						case fx::nodes::intrinsic_expression_node::tex2doffset:
 						{
-							const FX::Nodes::Type type2to = { FX::Nodes::Type::Class::Float, 0, 2, 1 };
-							const FX::Nodes::Type type3to = { FX::Nodes::Type::Class::Int, 0, 2, 1 };
-							cast2 = PrintCast(type2, type2to);
-							cast3 = PrintCast(type3, type3to);
+							const fx::nodes::type_node type2to = { fx::nodes::type_node::float_, 0, 2, 1 };
+							const fx::nodes::type_node type3to = { fx::nodes::type_node::int_, 0, 2, 1 };
+							cast2 = print_cast(type2, type2to);
+							cast3 = print_cast(type3, type3to);
 
 							part1 = "textureOffset(";
 							part2 = ", " + cast2.first;
@@ -1671,36 +1662,36 @@ namespace ReShade
 							part4 = cast3.second + " * ivec2(1, -1))";
 							break;
 						}
-						case FX::Nodes::Intrinsic::Op::Tex2DProj:
+						case fx::nodes::intrinsic_expression_node::tex2dproj:
 						{
-							const FX::Nodes::Type type2to = { FX::Nodes::Type::Class::Float, 0, 4, 1 };
-							cast2 = PrintCast(type2, type2to);
+							const fx::nodes::type_node type2to = { fx::nodes::type_node::float_, 0, 4, 1 };
+							cast2 = print_cast(type2, type2to);
 
 							part1 = "textureProj(";
 							part2 = ", " + cast2.first;
 							part3 = cast2.second + " * vec4(1.0, -1.0, 1.0, 1.0) + vec4(0.0, 1.0, 0.0, 0.0))";
 							break;
 						}
-						case FX::Nodes::Intrinsic::Op::Tex2DSize:
+						case fx::nodes::intrinsic_expression_node::tex2dsize:
 							part1 = "textureSize(";
 							part2 = ", int(";
 							part3 = "))";
 							break;
-						case FX::Nodes::Intrinsic::Op::Transpose:
+						case fx::nodes::intrinsic_expression_node::transpose:
 							part1 = "transpose(";
 
-							if (!type1.IsFloatingPoint())
+							if (!type1.is_floating_point())
 							{
-								type1.BaseClass = FX::Nodes::Type::Class::Float;
+								type1.basetype = fx::nodes::type_node::float_;
 								
-								VisitTypeClass(part1, type1);
+								visit_type_class(part1, type1);
 								part1 += '(';
 								part2 = ')';
 							}
 
 							part2 += ')';
 							break;
-						case FX::Nodes::Intrinsic::Op::Trunc:
+						case fx::nodes::intrinsic_expression_node::trunc:
 							part1 = "trunc(" + cast1.first;
 							part2 = cast1.second + ')';
 							break;
@@ -1708,43 +1699,43 @@ namespace ReShade
 
 					output += part1;
 
-					if (node->Arguments[0] != nullptr)
+					if (node->arguments[0] != nullptr)
 					{
-						Visit(output, node->Arguments[0]);
+						visit(output, node->arguments[0]);
 					}
 
 					output += part2;
 
-					if (node->Arguments[1] != nullptr)
+					if (node->arguments[1] != nullptr)
 					{
-						Visit(output, node->Arguments[1]);
+						visit(output, node->arguments[1]);
 					}
 
 					output += part3;
 
-					if (node->Arguments[2] != nullptr)
+					if (node->arguments[2] != nullptr)
 					{
-						Visit(output, node->Arguments[2]);
+						visit(output, node->arguments[2]);
 					}
 
 					output += part4;
 
-					if (node->Arguments[3] != nullptr)
+					if (node->arguments[3] != nullptr)
 					{
-						Visit(output, node->Arguments[3]);
+						visit(output, node->arguments[3]);
 					}
 
 					output += part5;
 				}
-				void Visit(std::string &output, const FX::Nodes::Conditional *node)
+				void visit(std::string &output, const fx::nodes::conditional_expression_node *node)
 				{
 					output += '(';
 
-					if (node->Condition->Type.IsVector())
+					if (node->condition->type.is_vector())
 					{
-						output += "all(bvec" + std::to_string(node->Condition->Type.Rows) + '(';
+						output += "all(bvec" + std::to_string(node->condition->type.rows) + '(';
 						
-						Visit(output, node->Condition);
+						visit(output, node->condition);
 						
 						output += "))";
 					}
@@ -1752,34 +1743,34 @@ namespace ReShade
 					{
 						output += "bool(";
 						
-						Visit(output, node->Condition);
+						visit(output, node->condition);
 						
 						output += ')';
 					}
 
-					const std::pair<std::string, std::string> cast1 = PrintCast(node->ExpressionOnTrue->Type, node->Type);
-					const std::pair<std::string, std::string> cast2 = PrintCast(node->ExpressionOnFalse->Type, node->Type);
+					const std::pair<std::string, std::string> cast1 = print_cast(node->expression_when_true->type, node->type);
+					const std::pair<std::string, std::string> cast2 = print_cast(node->expression_when_false->type, node->type);
 
 					output += " ? " + cast1.first;
-					Visit(output, node->ExpressionOnTrue);
+					visit(output, node->expression_when_true);
 					output += cast1.second + " : " + cast2.first;
-					Visit(output, node->ExpressionOnFalse);
+					visit(output, node->expression_when_false);
 					output += cast2.second + ')';
 				}
-				void Visit(std::string &output, const FX::Nodes::Swizzle *node)
+				void visit(std::string &output, const fx::nodes::swizzle_expression_node *node)
 				{
-					Visit(output, node->Operand);
+					visit(output, node->operand);
 
-					if (node->Operand->Type.IsMatrix())
+					if (node->operand->type.is_matrix())
 					{
-						if (node->Mask[1] >= 0)
+						if (node->mask[1] >= 0)
 						{
-							Error(node->location, "multiple component matrix swizzeling is not supported in OpenGL");
+							error(node->location, "multiple component matrix swizzeling is not supported in OpenGL");
 							return;
 						}
 
-						const unsigned int row = node->Mask[0] % 4;
-						const unsigned int col = (node->Mask[0] - row) / 4;
+						const unsigned int row = node->mask[0] % 4;
+						const unsigned int col = (node->mask[0] - row) / 4;
 
 						output += '[' + std::to_string(row) + "][" + std::to_string(col) + ']';
 					}
@@ -1789,91 +1780,91 @@ namespace ReShade
 
 						output += '.';
 
-						for (int i = 0; i < 4 && node->Mask[i] >= 0; ++i)
+						for (int i = 0; i < 4 && node->mask[i] >= 0; ++i)
 						{
-							output += swizzle[node->Mask[i]];
+							output += swizzle[node->mask[i]];
 						}
 					}
 				}
-				void Visit(std::string &output, const FX::Nodes::FieldSelection *node)
+				void visit(std::string &output, const fx::nodes::field_expression_node *node)
 				{
 					output += '(';
 
-					Visit(output, node->Operand);
+					visit(output, node->operand);
 
 					output += '.';
-					output += FixName(node->Field->Name, node->Field->Namespace);
+					output += FixName(node->field_reference->name, node->field_reference->Namespace);
 					output += ')';
 				}
-				void Visit(std::string &output, const FX::Nodes::Assignment *node)
+				void visit(std::string &output, const fx::nodes::assignment_expression_node *node)
 				{
 					output += '(';
 					
-					Visit(output, node->Left);
+					visit(output, node->left);
 					
 					output += ' ';
 
-					switch (node->Operator)
+					switch (node->op)
 					{
-						case FX::Nodes::Assignment::Op::None:
+						case fx::nodes::assignment_expression_node::none:
 							output += '=';
 							break;
-						case FX::Nodes::Assignment::Op::Add:
+						case fx::nodes::assignment_expression_node::add:
 							output += "+=";
 							break;
-						case FX::Nodes::Assignment::Op::Subtract:
+						case fx::nodes::assignment_expression_node::subtract:
 							output += "-=";
 							break;
-						case FX::Nodes::Assignment::Op::Multiply:
+						case fx::nodes::assignment_expression_node::multiply:
 							output += "*=";
 							break;
-						case FX::Nodes::Assignment::Op::Divide:
+						case fx::nodes::assignment_expression_node::divide:
 							output += "/=";
 							break;
-						case FX::Nodes::Assignment::Op::Modulo:
+						case fx::nodes::assignment_expression_node::modulo:
 							output += "%=";
 							break;
-						case FX::Nodes::Assignment::Op::LeftShift:
+						case fx::nodes::assignment_expression_node::left_shift:
 							output += "<<=";
 							break;
-						case FX::Nodes::Assignment::Op::RightShift:
+						case fx::nodes::assignment_expression_node::right_shift:
 							output += ">>=";
 							break;
-						case FX::Nodes::Assignment::Op::BitwiseAnd:
+						case fx::nodes::assignment_expression_node::bitwise_and:
 							output += "&=";
 							break;
-						case FX::Nodes::Assignment::Op::BitwiseOr:
+						case fx::nodes::assignment_expression_node::bitwise_or:
 							output += "|=";
 							break;
-						case FX::Nodes::Assignment::Op::BitwiseXor:
+						case fx::nodes::assignment_expression_node::bitwise_xor:
 							output += "^=";
 							break;
 					}
 
-					const std::pair<std::string, std::string> cast = PrintCast(node->Right->Type, node->Left->Type);
+					const std::pair<std::string, std::string> cast = print_cast(node->right->type, node->left->type);
 
 					output += ' ' + cast.first;
 					
-					Visit(output, node->Right);
+					visit(output, node->right);
 					
 					output += cast.second + ')';
 				}
-				void Visit(std::string &output, const FX::Nodes::Call *node)
+				void visit(std::string &output, const fx::nodes::call_expression_node *node)
 				{
-					output += FixName(node->Callee->Name, node->Callee->Namespace) + '(';
+					output += FixName(node->callee->name, node->callee->Namespace) + '(';
 
-					if (!node->Arguments.empty())
+					if (!node->arguments.empty())
 					{
-						for (size_t i = 0, count = node->Arguments.size(); i < count; ++i)
+						for (size_t i = 0, count = node->arguments.size(); i < count; ++i)
 						{
-							const auto argument = node->Arguments[i];
-							const auto parameter = node->Callee->Parameters[i];
+							const auto argument = node->arguments[i];
+							const auto parameter = node->callee->parameter_list[i];
 
-							const std::pair<std::string , std::string> cast = PrintCast(argument->Type, parameter->Type);
+							const std::pair<std::string , std::string> cast = print_cast(argument->type, parameter->type);
 
 							output += cast.first;
 
-							Visit(output, argument);
+							visit(output, argument);
 
 							output += cast.second + ", ";
 						}
@@ -1883,8 +1874,8 @@ namespace ReShade
 
 					output += ')';
 
-					auto &info = _functions.at(_currentFunction);
-					auto &infoCallee = _functions.at(node->Callee);
+					auto &info = _functions.at(_current_function);
+					auto &infoCallee = _functions.at(node->callee);
 					
 					for (auto dependency : infoCallee.FunctionDependencies)
 					{
@@ -1894,26 +1885,26 @@ namespace ReShade
 						}
 					}
 
-					if (std::find(info.FunctionDependencies.begin(), info.FunctionDependencies.end(), node->Callee) == info.FunctionDependencies.end())
+					if (std::find(info.FunctionDependencies.begin(), info.FunctionDependencies.end(), node->callee) == info.FunctionDependencies.end())
 					{
-						info.FunctionDependencies.push_back(node->Callee);
+						info.FunctionDependencies.push_back(node->callee);
 					}
 				}
-				void Visit(std::string &output, const FX::Nodes::Constructor *node)
+				void visit(std::string &output, const fx::nodes::constructor_expression_node *node)
 				{
-					if (node->Type.IsMatrix())
+					if (node->type.is_matrix())
 					{
 						output += "transpose(";
 					}
 
-					VisitTypeClass(output, node->Type);
+					visit_type_class(output, node->type);
 					output += '(';
 
-					if (!node->Arguments.empty())
+					if (!node->arguments.empty())
 					{
-						for (auto argument : node->Arguments)
+						for (auto argument : node->arguments)
 						{
-							Visit(output, argument);
+							visit(output, argument);
 
 							output += ", ";
 						}
@@ -1923,32 +1914,32 @@ namespace ReShade
 
 					output += ')';
 
-					if (node->Type.IsMatrix())
+					if (node->type.is_matrix())
 					{
 						output += ')';
 					}
 				}
-				void Visit(std::string &output, const FX::Nodes::InitializerList *node, const FX::Nodes::Type &type)
+				void visit(std::string &output, const fx::nodes::initializer_list_node *node, const fx::nodes::type_node &type)
 				{
-					VisitTypeClass(output, type);
+					visit_type_class(output, type);
 					
 					output += "[](";
 
-					if (!node->Values.empty())
+					if (!node->values.empty())
 					{
-						for (auto expression : node->Values)
+						for (auto expression : node->values)
 						{
-							if (expression->id == FX::nodeid::InitializerList)
+							if (expression->id == fx::nodeid::initializer_list)
 							{
-								Visit(output, static_cast<FX::Nodes::InitializerList *>(expression), node->Type);
+								visit(output, static_cast<fx::nodes::initializer_list_node *>(expression), node->type);
 							}
 							else
 							{
-								const auto cast = PrintCast(expression->Type, type);
+								const auto cast = print_cast(expression->type, type);
 
 								output += cast.first;
 							
-								Visit(output, expression);
+								visit(output, expression);
 							
 								output += cast.second;
 							}
@@ -1962,15 +1953,15 @@ namespace ReShade
 					output += ')';
 				}
 
-				void Visit(std::string &output, const FX::Nodes::Struct *node)
+				void visit(std::string &output, const fx::nodes::struct_declaration_node *node)
 				{
-					output += "struct " + FixName(node->Name, node->Namespace) + "\n{\n";
+					output += "struct " + FixName(node->name, node->Namespace) + "\n{\n";
 
-					if (!node->Fields.empty())
+					if (!node->field_list.empty())
 					{
-						for (auto field : node->Fields)
+						for (auto field : node->field_list)
 						{
-							Visit(output, field);
+							visit(output, field);
 
 							output += ";\n";
 						}
@@ -1982,51 +1973,51 @@ namespace ReShade
 
 					output += "};\n";
 				}
-				void Visit(std::string &output, const FX::Nodes::Variable *node, bool includetype = true)
+				void visit(std::string &output, const fx::nodes::variable_declaration_node *node, bool includetype = true)
 				{
 					if (includetype)
 					{
-						VisitType(output, node->Type);
+						visit_type(output, node->type);
 					}
 
-					output += ' ' + FixName(node->Name, node->Namespace);
+					output += ' ' + FixName(node->name, node->Namespace);
 
-					if (node->Type.IsArray())
+					if (node->type.is_array())
 					{
-						output += '[' + ((node->Type.ArrayLength >= 1) ? std::to_string(node->Type.ArrayLength) : "") + ']';
+						output += '[' + ((node->type.array_length >= 1) ? std::to_string(node->type.array_length) : "") + ']';
 					}
 
-					if (node->Initializer != nullptr)
+					if (node->initializer_expression != nullptr)
 					{
 						output += " = ";
 
-						if (node->Initializer->id == FX::nodeid::InitializerList)
+						if (node->initializer_expression->id == fx::nodeid::initializer_list)
 						{
-							Visit(output, static_cast<FX::Nodes::InitializerList *>(node->Initializer), node->Type);
+							visit(output, static_cast<fx::nodes::initializer_list_node *>(node->initializer_expression), node->type);
 						}
 						else
 						{
-							const auto cast = PrintCast(node->Initializer->Type, node->Type);
+							const auto cast = print_cast(node->initializer_expression->type, node->type);
 
 							output += cast.first;
 							
-							Visit(output, node->Initializer);
+							visit(output, node->initializer_expression);
 							
 							output += cast.second;
 						}
 					}
 				}
-				void Visit(std::string &output, const FX::Nodes::Function *node)
+				void visit(std::string &output, const fx::nodes::function_declaration_node *node)
 				{
-					VisitTypeClass(output, node->ReturnType);
+					visit_type_class(output, node->return_type);
 
-					output += ' ' + FixName(node->Name, node->Namespace) + '(';
+					output += ' ' + FixName(node->name, node->Namespace) + '(';
 
-					if (!node->Parameters.empty())
+					if (!node->parameter_list.empty())
 					{
-						for (auto parameter : node->Parameters)
+						for (auto parameter : node->parameter_list)
 						{
-							Visit(output, parameter);
+							visit(output, parameter);
 
 							output += ", ";
 						}
@@ -2036,74 +2027,72 @@ namespace ReShade
 
 					output += ")\n";
 
-					Visit(output, node->Definition);
+					visit(output, node->definition);
 				}
 
 				template <typename T>
-				void VisitAnnotation(const std::vector<FX::Nodes::Annotation> &annotations, T &object)
+				void visit_annotation(const std::vector<fx::nodes::annotation_node> &annotations, T &object)
 				{
 					for (auto &annotation : annotations)
 					{
-						switch (annotation.Value->Type.BaseClass)
+						switch (annotation.value->type.basetype)
 						{
-							case FX::Nodes::Type::Class::Bool:
-							case FX::Nodes::Type::Class::Int:
-								object.Annotations[annotation.Name] = annotation.Value->Value.Int;
+							case fx::nodes::type_node::bool_:
+							case fx::nodes::type_node::int_:
+								object.annotations[annotation.name] = annotation.value->value_int;
 								break;
-							case FX::Nodes::Type::Class::Uint:
-								object.Annotations[annotation.Name] = annotation.Value->Value.Uint;
+							case fx::nodes::type_node::uint_:
+								object.annotations[annotation.name] = annotation.value->value_uint;
 								break;
-							case FX::Nodes::Type::Class::Float:
-								object.Annotations[annotation.Name] = annotation.Value->Value.Float;
+							case fx::nodes::type_node::float_:
+								object.annotations[annotation.name] = annotation.value->value_float;
 								break;
-							case FX::Nodes::Type::Class::String:
-								object.Annotations[annotation.Name] = annotation.Value->StringValue;
+							case fx::nodes::type_node::string_:
+								object.annotations[annotation.name] = annotation.value->value_string;
 								break;
 						}
 					}
 				}
-				void VisitTexture(const FX::Nodes::Variable *node)
+				void visit_texture(const fx::nodes::variable_declaration_node *node)
 				{
-					GLTexture *const obj = new GLTexture();
-					obj->Name = node->Name;
-					GLuint width = obj->Width = node->Properties.Width;
-					GLuint height = obj->Height = node->Properties.Height;
-					GLuint levels = obj->Levels = node->Properties.MipLevels;
+					gl_texture *const obj = new gl_texture();
+					obj->name = node->name;
+					GLuint width = obj->width = node->properties.Width;
+					GLuint height = obj->height = node->properties.Height;
+					GLuint levels = obj->levels = node->properties.MipLevels;
 
 					GLenum internalformat = GL_RGBA8, internalformatSRGB = GL_SRGB8_ALPHA8;
-					LiteralToFormat(node->Properties.Format, internalformat, internalformatSRGB, obj->Format);
+					LiteralToFormat(node->properties.Format, internalformat, internalformatSRGB, obj->format);
 
 					if (levels == 0)
 					{
-						Warning(node->location, "a texture cannot have 0 miplevels, changed it to 1");
+						warning(node->location, "a texture cannot have 0 miplevels, changed it to 1");
 
 						levels = 1;
 					}
 
-					VisitAnnotation(node->Annotations, *obj);
+					visit_annotation(node->annotations, *obj);
 
-					if (node->Semantic == "COLOR" || node->Semantic == "SV_TARGET")
+					if (node->semantic == "COLOR" || node->semantic == "SV_TARGET")
 					{
 						if (width != 1 || height != 1 || levels != 1 || internalformat != GL_RGBA8)
 						{
-							Warning(node->location, "texture property on backbuffer textures are ignored");
+							warning(node->location, "texture property on backbuffer textures are ignored");
 						}
 
-						obj->ChangeDataSource(GLTexture::Source::BackBuffer, _runtime->_backbufferTexture[0], _runtime->_backbufferTexture[1]);
+						obj->change_data_source(texture::datatype::backbuffer, _runtime->_backbuffer_texture[0], _runtime->_backbuffer_texture[1]);
 					}
-					else if (node->Semantic == "DEPTH" || node->Semantic == "SV_DEPTH")
+					else if (node->semantic == "DEPTH" || node->semantic == "SV_DEPTH")
 					{
 						if (width != 1 || height != 1 || levels != 1 || internalformat != GL_RGBA8)
 						{
-							Warning(node->location, "texture property on depthbuffer textures are ignored");
+							warning(node->location, "texture property on depthbuffer textures are ignored");
 						}
 
-						obj->ChangeDataSource(GLTexture::Source::DepthStencil, _runtime->_depthTexture, 0);
+						obj->change_data_source(texture::datatype::depthbuffer, _runtime->_depth_texture, 0);
 					}
 					else
 					{
-						obj->DataSource = GLTexture::Source::Memory;
-
 						GLCHECK(glGenTextures(2, obj->ID));
 
 						GLint previous = 0, previousFBO = 0;
@@ -2116,7 +2105,7 @@ namespace ReShade
 						GLCHECK(glBindTexture(GL_TEXTURE_2D, previous));
 
 						// Clear texture to black
-						GLCHECK(glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _runtime->_blitFBO));
+						GLCHECK(glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _runtime->_blit_fbo));
 						GLCHECK(glFramebufferTexture(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, obj->ID[0], 0));
 						GLCHECK(glDrawBuffer(GL_COLOR_ATTACHMENT1));
 						const GLuint clearColor[4] = { 0, 0, 0, 0 };
@@ -2125,31 +2114,31 @@ namespace ReShade
 						GLCHECK(glBindFramebuffer(GL_DRAW_FRAMEBUFFER, previousFBO));
 					}
 
-					_runtime->AddTexture(obj);
+					_runtime->add_texture(obj);
 				}
-				void VisitSampler(const FX::Nodes::Variable *node)
+				void visit_sampler(const fx::nodes::variable_declaration_node *node)
 				{
-					if (node->Properties.Texture == nullptr)
+					if (node->properties.Texture == nullptr)
 					{
-						Error(node->location, "sampler '%s' is missing required 'Texture' property", node->Name.c_str());
+						error(node->location, "sampler '%s' is missing required 'Texture' property", node->name.c_str());
 						return;
 					}
 
-					GLTexture *const texture = static_cast<GLTexture *>(_runtime->GetTexture(node->Properties.Texture->Name));
+					gl_texture *const texture = static_cast<gl_texture *>(_runtime->get_texture(node->properties.Texture->name));
 
 					if (texture == nullptr)
 					{
-						_isFatal = true;
+						_is_fatal = true;
 						return;
 					}
 
-					GLSampler sampler;
+					gl_sampler sampler;
 					sampler.ID = 0;
 					sampler.Texture = texture;
-					sampler.SRGB = node->Properties.SRGBTexture;
+					sampler.SRGB = node->properties.SRGBTexture;
 
-					GLenum minfilter = LiteralToTextureFilter(node->Properties.MinFilter);
-					const GLenum mipfilter = LiteralToTextureFilter(node->Properties.MipFilter);
+					GLenum minfilter = LiteralToTextureFilter(node->properties.MinFilter);
+					const GLenum mipfilter = LiteralToTextureFilter(node->properties.MipFilter);
 				
 					if (minfilter == GL_NEAREST && mipfilter == GL_NEAREST)
 					{
@@ -2169,125 +2158,125 @@ namespace ReShade
 					}
 
 					GLCHECK(glGenSamplers(1, &sampler.ID));
-					GLCHECK(glSamplerParameteri(sampler.ID, GL_TEXTURE_WRAP_S, LiteralToTextureWrap(node->Properties.AddressU)));
-					GLCHECK(glSamplerParameteri(sampler.ID, GL_TEXTURE_WRAP_T, LiteralToTextureWrap(node->Properties.AddressV)));
-					GLCHECK(glSamplerParameteri(sampler.ID, GL_TEXTURE_WRAP_R, LiteralToTextureWrap(node->Properties.AddressW)));
+					GLCHECK(glSamplerParameteri(sampler.ID, GL_TEXTURE_WRAP_S, LiteralToTextureWrap(node->properties.AddressU)));
+					GLCHECK(glSamplerParameteri(sampler.ID, GL_TEXTURE_WRAP_T, LiteralToTextureWrap(node->properties.AddressV)));
+					GLCHECK(glSamplerParameteri(sampler.ID, GL_TEXTURE_WRAP_R, LiteralToTextureWrap(node->properties.AddressW)));
 					GLCHECK(glSamplerParameteri(sampler.ID, GL_TEXTURE_MIN_FILTER, minfilter));
-					GLCHECK(glSamplerParameteri(sampler.ID, GL_TEXTURE_MAG_FILTER, LiteralToTextureFilter(node->Properties.MagFilter)));
-					GLCHECK(glSamplerParameterf(sampler.ID, GL_TEXTURE_LOD_BIAS, node->Properties.MipLODBias));
-					GLCHECK(glSamplerParameterf(sampler.ID, GL_TEXTURE_MIN_LOD, node->Properties.MinLOD));
-					GLCHECK(glSamplerParameterf(sampler.ID, GL_TEXTURE_MAX_LOD, node->Properties.MaxLOD));
-					GLCHECK(glSamplerParameterf(sampler.ID, GL_TEXTURE_MAX_ANISOTROPY_EXT, static_cast<GLfloat>(node->Properties.MaxAnisotropy)));
+					GLCHECK(glSamplerParameteri(sampler.ID, GL_TEXTURE_MAG_FILTER, LiteralToTextureFilter(node->properties.MagFilter)));
+					GLCHECK(glSamplerParameterf(sampler.ID, GL_TEXTURE_LOD_BIAS, node->properties.MipLODBias));
+					GLCHECK(glSamplerParameterf(sampler.ID, GL_TEXTURE_MIN_LOD, node->properties.MinLOD));
+					GLCHECK(glSamplerParameterf(sampler.ID, GL_TEXTURE_MAX_LOD, node->properties.MaxLOD));
+					GLCHECK(glSamplerParameterf(sampler.ID, GL_TEXTURE_MAX_ANISOTROPY_EXT, static_cast<GLfloat>(node->properties.MaxAnisotropy)));
 
-					_globalCode += "layout(binding = " + std::to_string(_runtime->_effectSamplers.size()) + ") uniform sampler2D ";
-					_globalCode += FixName(node->Name, node->Namespace);
-					_globalCode += ";\n";
+					_global_code += "layout(binding = " + std::to_string(_runtime->_effect_samplers.size()) + ") uniform sampler2D ";
+					_global_code += FixName(node->name, node->Namespace);
+					_global_code += ";\n";
 
-					_runtime->_effectSamplers.push_back(std::move(sampler));
+					_runtime->_effect_samplers.push_back(std::move(sampler));
 				}
-				void VisitUniform(const FX::Nodes::Variable *node)
+				void visit_uniform(const fx::nodes::variable_declaration_node *node)
 				{
-					VisitType(_globalUniforms, node->Type);
+					visit_type(_global_uniforms, node->type);
 
-					_globalUniforms += ' ';			
-					_globalUniforms += FixName(node->Name, node->Namespace);
+					_global_uniforms += ' ';			
+					_global_uniforms += FixName(node->name, node->Namespace);
 
-					if (node->Type.IsArray())
+					if (node->type.is_array())
 					{
-						_globalUniforms += '[' + ((node->Type.ArrayLength >= 1) ? std::to_string(node->Type.ArrayLength) : "") + ']';
+						_global_uniforms += '[' + ((node->type.array_length >= 1) ? std::to_string(node->type.array_length) : "") + ']';
 					}
 
-					_globalUniforms += ";\n";
+					_global_uniforms += ";\n";
 
-					Uniform *const obj = new Uniform();
-					obj->Name = node->Name;
-					obj->Rows = node->Type.Rows;
-					obj->Columns = node->Type.Cols;
-					obj->Elements = node->Type.ArrayLength;
-					obj->StorageSize = obj->Rows * obj->Columns * std::max(1u, obj->Elements);
+					uniform *const obj = new uniform();
+					obj->name = node->name;
+					obj->rows = node->type.rows;
+					obj->columns = node->type.cols;
+					obj->elements = node->type.array_length;
+					obj->storage_size = obj->rows * obj->columns * std::max(1u, obj->elements);
 
-					switch (node->Type.BaseClass)
+					switch (node->type.basetype)
 					{
-						case FX::Nodes::Type::Class::Bool:
-							obj->BaseType = Uniform::Type::Bool;
-							obj->StorageSize *= sizeof(int);
+						case fx::nodes::type_node::bool_:
+							obj->basetype = uniform::datatype::bool_;
+							obj->storage_size *= sizeof(int);
 							break;
-						case FX::Nodes::Type::Class::Int:
-							obj->BaseType = Uniform::Type::Int;
-							obj->StorageSize *= sizeof(int);
+						case fx::nodes::type_node::int_:
+							obj->basetype = uniform::datatype::int_;
+							obj->storage_size *= sizeof(int);
 							break;
-						case FX::Nodes::Type::Class::Uint:
-							obj->BaseType = Uniform::Type::Uint;
-							obj->StorageSize *= sizeof(unsigned int);
+						case fx::nodes::type_node::uint_:
+							obj->basetype = uniform::datatype::uint_;
+							obj->storage_size *= sizeof(unsigned int);
 							break;
-						case FX::Nodes::Type::Class::Float:
-							obj->BaseType = Uniform::Type::Float;
-							obj->StorageSize *= sizeof(float);
+						case fx::nodes::type_node::float_:
+							obj->basetype = uniform::datatype::float_;
+							obj->storage_size *= sizeof(float);
 							break;
 					}
 
-					const size_t alignment = 16 - (_currentGlobalSize % 16);
-					_currentGlobalSize += (obj->StorageSize > alignment && (alignment != 16 || obj->StorageSize <= 16)) ? obj->StorageSize + alignment : obj->StorageSize;
-					obj->StorageOffset = _currentGlobalSize - obj->StorageSize;
+					const size_t alignment = 16 - (_current_global_size % 16);
+					_current_global_size += (obj->storage_size > alignment && (alignment != 16 || obj->storage_size <= 16)) ? obj->storage_size + alignment : obj->storage_size;
+					obj->storage_offset = _current_global_size - obj->storage_size;
 
-					VisitAnnotation(node->Annotations, *obj);
+					visit_annotation(node->annotations, *obj);
 
-					if (_currentGlobalSize >= _runtime->GetConstantStorageSize())
+					if (_current_global_size >= _runtime->get_uniform_data_storage_size())
 					{
-						_runtime->EnlargeConstantStorage();
+						_runtime->enlarge_uniform_data_storage();
 					}
 
-					if (node->Initializer != nullptr && node->Initializer->id == FX::nodeid::Literal)
+					if (node->initializer_expression != nullptr && node->initializer_expression->id == fx::nodeid::literal_expression)
 					{
-						std::memcpy(_runtime->GetConstantStorage() + obj->StorageOffset, &static_cast<const FX::Nodes::Literal *>(node->Initializer)->Value, obj->StorageSize);
+						std::memcpy(_runtime->get_uniform_data_storage() + obj->storage_offset, &static_cast<const fx::nodes::literal_expression_node *>(node->initializer_expression)->value_float, obj->storage_size);
 					}
 					else
 					{
-						std::memset(_runtime->GetConstantStorage() + obj->StorageOffset, 0, obj->StorageSize);
+						std::memset(_runtime->get_uniform_data_storage() + obj->storage_offset, 0, obj->storage_size);
 					}
 
-					_runtime->AddConstant(obj);
+					_runtime->add_uniform(obj);
 				}
-				void VisitTechnique(const FX::Nodes::Technique *node)
+				void visit_technique(const fx::nodes::technique_declaration_node *node)
 				{
-					GLTechnique *const obj = new GLTechnique();
-					obj->Name = node->Name;
-					obj->PassCount = static_cast<unsigned int>(node->Passes.size());
+					gl_technique *const obj = new gl_technique();
+					obj->name = node->name;
+					obj->pass_count = static_cast<unsigned int>(node->pass_list.size());
 
-					VisitAnnotation(node->Annotations, *obj);
+					visit_annotation(node->annotation_list, *obj);
 
-					for (auto pass : node->Passes)
+					for (auto pass : node->pass_list)
 					{
-						VisitTechniquePass(pass, obj->Passes);
+						visit_pass(pass, obj->passes);
 					}
 
-					_runtime->AddTechnique(obj);
+					_runtime->add_technique(obj);
 				}
-				void VisitTechniquePass(const FX::Nodes::Pass *node, std::vector<GLTechnique::Pass> &passes)
+				void visit_pass(const fx::nodes::pass_declaration_node *node, std::vector<gl_technique::Pass> &passes)
 				{
-					GLTechnique::Pass pass;
-					ZeroMemory(&pass, sizeof(GLTechnique::Pass));
-					pass.ColorMaskR = (node->States.RenderTargetWriteMask & (1 << 0)) != 0;
-					pass.ColorMaskG = (node->States.RenderTargetWriteMask & (1 << 1)) != 0;
-					pass.ColorMaskB = (node->States.RenderTargetWriteMask & (1 << 2)) != 0;
-					pass.ColorMaskA = (node->States.RenderTargetWriteMask & (1 << 3)) != 0;
-					pass.DepthTest = node->States.DepthEnable;
-					pass.DepthMask = node->States.DepthWriteMask;
-					pass.DepthFunc = LiteralToCompFunc(node->States.DepthFunc);
-					pass.StencilTest = node->States.StencilEnable;
-					pass.StencilReadMask = node->States.StencilReadMask;
-					pass.StencilMask = node->States.StencilWriteMask;
-					pass.StencilFunc = LiteralToCompFunc(node->States.StencilFunc);
-					pass.StencilOpZPass = LiteralToStencilOp(node->States.StencilOpPass);
-					pass.StencilOpFail = LiteralToStencilOp(node->States.StencilOpFail);
-					pass.StencilOpZFail = LiteralToStencilOp(node->States.StencilOpDepthFail);
-					pass.Blend = node->States.BlendEnable;
-					pass.BlendEqColor = LiteralToBlendEq(node->States.BlendOp);
-					pass.BlendEqAlpha = LiteralToBlendEq(node->States.BlendOpAlpha);
-					pass.BlendFuncSrc = LiteralToBlendFunc(node->States.SrcBlend);
-					pass.BlendFuncDest = LiteralToBlendFunc(node->States.DestBlend);
-					pass.StencilRef = node->States.StencilRef;
-					pass.FramebufferSRGB = node->States.SRGBWriteEnable;
+					gl_technique::Pass pass;
+					ZeroMemory(&pass, sizeof(gl_technique::Pass));
+					pass.ColorMaskR = (node->states.RenderTargetWriteMask & (1 << 0)) != 0;
+					pass.ColorMaskG = (node->states.RenderTargetWriteMask & (1 << 1)) != 0;
+					pass.ColorMaskB = (node->states.RenderTargetWriteMask & (1 << 2)) != 0;
+					pass.ColorMaskA = (node->states.RenderTargetWriteMask & (1 << 3)) != 0;
+					pass.DepthTest = node->states.DepthEnable;
+					pass.DepthMask = node->states.DepthWriteMask;
+					pass.DepthFunc = LiteralToCompFunc(node->states.DepthFunc);
+					pass.StencilTest = node->states.StencilEnable;
+					pass.StencilReadMask = node->states.StencilReadMask;
+					pass.StencilMask = node->states.StencilWriteMask;
+					pass.StencilFunc = LiteralToCompFunc(node->states.StencilFunc);
+					pass.StencilOpZPass = LiteralToStencilOp(node->states.StencilOpPass);
+					pass.StencilOpFail = LiteralToStencilOp(node->states.StencilOpFail);
+					pass.StencilOpZFail = LiteralToStencilOp(node->states.StencilOpDepthFail);
+					pass.Blend = node->states.BlendEnable;
+					pass.BlendEqColor = LiteralToBlendEq(node->states.BlendOp);
+					pass.BlendEqAlpha = LiteralToBlendEq(node->states.BlendOpAlpha);
+					pass.BlendFuncSrc = LiteralToBlendFunc(node->states.SrcBlend);
+					pass.BlendFuncDest = LiteralToBlendFunc(node->states.DestBlend);
+					pass.StencilRef = node->states.StencilRef;
+					pass.FramebufferSRGB = node->states.SRGBWriteEnable;
 
 					GLCHECK(glGenFramebuffers(1, &pass.Framebuffer));
 					GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, pass.Framebuffer));
@@ -2296,28 +2285,28 @@ namespace ReShade
 
 					for (unsigned int i = 0; i < 8; ++i)
 					{
-						if (node->States.RenderTargets[i] == nullptr)
+						if (node->states.RenderTargets[i] == nullptr)
 						{
 							continue;
 						}
 
-						const GLTexture *const texture = static_cast<GLTexture *>(_runtime->GetTexture(node->States.RenderTargets[i]->Name));
+						const gl_texture *const texture = static_cast<gl_texture *>(_runtime->get_texture(node->states.RenderTargets[i]->name));
 
 						if (texture == nullptr)
 						{
-							_isFatal = true;
+							_is_fatal = true;
 							return;
 						}
 
-						if (pass.ViewportWidth != 0 && pass.ViewportHeight != 0 && (texture->Width != static_cast<unsigned int>(pass.ViewportWidth) || texture->Height != static_cast<unsigned int>(pass.ViewportHeight)))
+						if (pass.ViewportWidth != 0 && pass.ViewportHeight != 0 && (texture->width != static_cast<unsigned int>(pass.ViewportWidth) || texture->height != static_cast<unsigned int>(pass.ViewportHeight)))
 						{
-							Error(node->location, "cannot use multiple rendertargets with different sized textures");
+							error(node->location, "cannot use multiple rendertargets with different sized textures");
 							return;
 						}
 						else
 						{
-							pass.ViewportWidth = texture->Width;
-							pass.ViewportHeight = texture->Height;
+							pass.ViewportWidth = texture->width;
+							pass.ViewportHeight = texture->height;
 						}
 
 						backbufferFramebuffer = false;
@@ -2330,10 +2319,10 @@ namespace ReShade
 
 					if (backbufferFramebuffer)
 					{
-						GLCHECK(glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, _runtime->_defaultBackBufferRBO[0]));
+						GLCHECK(glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, _runtime->_default_backbuffer_rbo[0]));
 
 						pass.DrawBuffers[0] = GL_COLOR_ATTACHMENT0;
-						pass.DrawTextures[0] = _runtime->_backbufferTexture[1];
+						pass.DrawTextures[0] = _runtime->_backbuffer_texture[1];
 
 						RECT rect;
 						GetClientRect(WindowFromDC(_runtime->_hdc), &rect);
@@ -2342,7 +2331,7 @@ namespace ReShade
 						pass.ViewportHeight = static_cast<GLsizei>(rect.bottom - rect.top);
 					}
 
-					GLCHECK(glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, _runtime->_defaultBackBufferRBO[1]));
+					GLCHECK(glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, _runtime->_default_backbuffer_rbo[1]));
 
 					assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
 
@@ -2350,7 +2339,7 @@ namespace ReShade
 
 					GLuint shaders[2] = { 0, 0 };
 					GLenum shaderTypes[2] = { GL_VERTEX_SHADER, GL_FRAGMENT_SHADER };
-					const FX::Nodes::Function *shaderFunctions[2] = { node->States.VertexShader, node->States.PixelShader };
+					const fx::nodes::function_declaration_node *shaderFunctions[2] = { node->states.VertexShader, node->states.PixelShader };
 
 					pass.Program = glCreateProgram();
 
@@ -2360,7 +2349,7 @@ namespace ReShade
 						{
 							shaders[i] = glCreateShader(shaderTypes[i]);
 
-							VisitTechniquePassShader(shaderFunctions[i], shaderTypes[i], shaders[i]);
+							visit_pass_shader(shaderFunctions[i], shaderTypes[i], shaders[i]);
 
 							GLCHECK(glAttachShader(pass.Program, shaders[i]));
 						}
@@ -2389,13 +2378,13 @@ namespace ReShade
 						GLCHECK(glDeleteProgram(pass.Program));
 
 						_errors += log;
-						_isFatal = true;
+						_is_fatal = true;
 						return;
 					}
 
 					passes.push_back(std::move(pass));
 				}
-				void VisitTechniquePassShader(const FX::Nodes::Function *node, GLuint shadertype, GLuint &shader)
+				void visit_pass_shader(const fx::nodes::function_declaration_node *node, GLuint shadertype, GLuint &shader)
 				{
 					std::string source =
 						"#version 430\n"
@@ -2413,9 +2402,9 @@ namespace ReShade
 						"vec4 _textureLod(sampler2D s, vec4 c) { return textureLod(s, c.xy, c.w); }\n"
 						"#define _textureLodOffset(s, c, offset) textureLodOffset(s, (c).xy, (c).w, offset)\n";
 
-					if (!_globalUniforms.empty())
+					if (!_global_uniforms.empty())
 					{
-						source += "layout(std140, binding = 0) uniform _GLOBAL_\n{\n" + _globalUniforms + "};\n";
+						source += "layout(std140, binding = 0) uniform _GLOBAL_\n{\n" + _global_uniforms + "};\n";
 					}
 
 					if (shadertype != GL_FRAGMENT_SHADER)
@@ -2423,7 +2412,7 @@ namespace ReShade
 						source += "#define discard\n";
 					}
 
-					source += _globalCode;
+					source += _global_code;
 
 					for (auto dependency : _functions.at(node).FunctionDependencies)
 					{
@@ -2432,54 +2421,54 @@ namespace ReShade
 
 					source += _functions.at(node).SourceCode;
 
-					for (auto parameter : node->Parameters)
+					for (auto parameter : node->parameter_list)
 					{
-						if (parameter->Type.IsStruct())
+						if (parameter->type.is_struct())
 						{
-							for (auto field : parameter->Type.Definition->Fields)
+							for (auto field : parameter->type.definition->field_list)
 							{
-								VisitShaderParameter(source, field->Type, parameter->Type.Qualifiers, "_param_" + parameter->Name + "_" + field->Name, field->Semantic, shadertype);
+								visitShaderParameter(source, field->type, parameter->type.qualifiers, "_param_" + parameter->name + "_" + field->name, field->semantic, shadertype);
 							}
 						}
 						else
 						{
-							VisitShaderParameter(source, parameter->Type, parameter->Type.Qualifiers, "_param_" + parameter->Name, parameter->Semantic, shadertype);
+							visitShaderParameter(source, parameter->type, parameter->type.qualifiers, "_param_" + parameter->name, parameter->semantic, shadertype);
 						}
 					}
 
-					if (node->ReturnType.IsStruct())
+					if (node->return_type.is_struct())
 					{
-						for (auto field : node->ReturnType.Definition->Fields)
+						for (auto field : node->return_type.definition->field_list)
 						{
-							VisitShaderParameter(source, field->Type, FX::Nodes::Type::Out, "_return_" + field->Name, field->Semantic, shadertype);
+							visitShaderParameter(source, field->type, fx::nodes::type_node::out, "_return_" + field->name, field->semantic, shadertype);
 						}
 					}
-					else if (!node->ReturnType.IsVoid())
+					else if (!node->return_type.is_void())
 					{
-						VisitShaderParameter(source, node->ReturnType, FX::Nodes::Type::Out, "_return", node->ReturnSemantic, shadertype);
+						visitShaderParameter(source, node->return_type, fx::nodes::type_node::out, "_return", node->return_semantic, shadertype);
 					}
 
 					source += "void main()\n{\n";
 
-					for (auto parameter : node->Parameters)
+					for (auto parameter : node->parameter_list)
 					{
-						for (int i = 0, arraylength = std::max(1, parameter->Type.ArrayLength); i < arraylength; ++i)
+						for (int i = 0, arraylength = std::max(1, parameter->type.array_length); i < arraylength; ++i)
 						{
-							if (parameter->Type.IsStruct())
+							if (parameter->type.is_struct())
 							{
-								VisitTypeClass(source, parameter->Type);
+								visit_type_class(source, parameter->type);
 
-								source += " _param_" + parameter->Name + (parameter->Type.IsArray() ? std::to_string(i) : "") + " = ";
+								source += " _param_" + parameter->name + (parameter->type.is_array() ? std::to_string(i) : "") + " = ";
 
-								VisitTypeClass(source, parameter->Type);
+								visit_type_class(source, parameter->type);
 
 								source += "(";
 
-								if (!parameter->Type.Definition->Fields.empty())
+								if (!parameter->type.definition->field_list.empty())
 								{
-									for (auto field : parameter->Type.Definition->Fields)
+									for (auto field : parameter->type.definition->field_list)
 									{
-										source += FixNameWithSemantic("_param_" + parameter->Name + "_" + field->Name + (parameter->Type.IsArray() ? std::to_string(i) : ""), field->Semantic, shadertype) + ", ";
+										source += FixNameWithSemantic("_param_" + parameter->name + "_" + field->name + (parameter->type.is_array() ? std::to_string(i) : ""), field->semantic, shadertype) + ", ";
 									}
 
 									source.erase(source.end() - 2, source.end());
@@ -2487,25 +2476,25 @@ namespace ReShade
 
 								source += ");\n";
 							}
-							else if (boost::starts_with(parameter->Semantic, "COLOR") || boost::starts_with(parameter->Semantic, "SV_TARGET"))
+							else if (boost::starts_with(parameter->semantic, "COLOR") || boost::starts_with(parameter->semantic, "SV_TARGET"))
 							{
-								source += " _param_" + parameter->Name + (parameter->Type.IsArray() ? std::to_string(i) : "") + " = vec4(0, 0, 0, 1);\n";
+								source += " _param_" + parameter->name + (parameter->type.is_array() ? std::to_string(i) : "") + " = vec4(0, 0, 0, 1);\n";
 							}
 						}
 
-						if (parameter->Type.IsArray())
+						if (parameter->type.is_array())
 						{
-							VisitTypeClass(source, parameter->Type);
+							visit_type_class(source, parameter->type);
 
-							source += " _param_" + parameter->Name + "[] = ";
+							source += " _param_" + parameter->name + "[] = ";
 
-							VisitTypeClass(source, parameter->Type);
+							visit_type_class(source, parameter->type);
 
 							source += "[](";
 
-							for (int i = 0; i < parameter->Type.ArrayLength; ++i)
+							for (int i = 0; i < parameter->type.array_length; ++i)
 							{
-								source += "_param_" + parameter->Name + std::to_string(i) + ", ";
+								source += "_param_" + parameter->name + std::to_string(i) + ", ";
 							}
 
 							source.erase(source.end() - 2, source.end());
@@ -2514,38 +2503,38 @@ namespace ReShade
 						}
 					}
 
-					if (node->ReturnType.IsStruct())
+					if (node->return_type.is_struct())
 					{
-						VisitTypeClass(source, node->ReturnType);
+						visit_type_class(source, node->return_type);
 
 						source += ' ';
 					}
 
-					if (!node->ReturnType.IsVoid())
+					if (!node->return_type.is_void())
 					{
 						source += "_return = ";
 
-						if ((boost::starts_with(node->ReturnSemantic, "COLOR") || boost::starts_with(node->ReturnSemantic, "SV_TARGET")) && node->ReturnType.Rows < 4)
+						if ((boost::starts_with(node->return_semantic, "COLOR") || boost::starts_with(node->return_semantic, "SV_TARGET")) && node->return_type.rows < 4)
 						{
 							const std::string swizzle[3] = { "x", "xy", "xyz" };
 
-							source += "vec4(0, 0, 0, 1);\n_return." + swizzle[node->ReturnType.Rows - 1] + " = ";
+							source += "vec4(0, 0, 0, 1);\n_return." + swizzle[node->return_type.rows - 1] + " = ";
 						}
 					}
 
-					source += FixName(node->Name, node->Namespace) + '(';
+					source += FixName(node->name, node->Namespace) + '(';
 
-					if (!node->Parameters.empty())
+					if (!node->parameter_list.empty())
 					{
-						for (auto parameter : node->Parameters)
+						for (auto parameter : node->parameter_list)
 						{
-							source += FixNameWithSemantic("_param_" + parameter->Name, parameter->Semantic, shadertype);
+							source += FixNameWithSemantic("_param_" + parameter->name, parameter->semantic, shadertype);
 
-							if ((boost::starts_with(parameter->Semantic, "COLOR") || boost::starts_with(parameter->Semantic, "SV_TARGET")) && parameter->Type.Rows < 4)
+							if ((boost::starts_with(parameter->semantic, "COLOR") || boost::starts_with(parameter->semantic, "SV_TARGET")) && parameter->type.rows < 4)
 							{
 								const std::string swizzle[3] = { "x", "xy", "xyz" };
 
-								source += "." + swizzle[parameter->Type.Rows - 1];
+								source += "." + swizzle[parameter->type.rows - 1];
 							}
 
 							source += ", ";
@@ -2556,38 +2545,38 @@ namespace ReShade
 
 					source += ");\n";
 
-					for (auto parameter : node->Parameters)
+					for (auto parameter : node->parameter_list)
 					{
-						if (!parameter->Type.HasQualifier(FX::Nodes::Type::Qualifier::Out))
+						if (!parameter->type.has_qualifier(fx::nodes::type_node::out))
 						{
 							continue;
 						}
 
-						if (parameter->Type.IsArray())
+						if (parameter->type.is_array())
 						{
-							for (int i = 0; i < parameter->Type.ArrayLength; ++i)
+							for (int i = 0; i < parameter->type.array_length; ++i)
 							{
-								source += "_param_" + parameter->Name + std::to_string(i) + " = _param_" + parameter->Name + "[" + std::to_string(i) + "];\n";
+								source += "_param_" + parameter->name + std::to_string(i) + " = _param_" + parameter->name + "[" + std::to_string(i) + "];\n";
 							}
 						}
 
-						for (int i = 0; i < std::max(1, parameter->Type.ArrayLength); ++i)
+						for (int i = 0; i < std::max(1, parameter->type.array_length); ++i)
 						{
-							if (parameter->Type.IsStruct())
+							if (parameter->type.is_struct())
 							{
-								for (auto field : parameter->Type.Definition->Fields)
+								for (auto field : parameter->type.definition->field_list)
 								{
-									source += "_param_" + parameter->Name + "_" + field->Name + (parameter->Type.IsArray() ? std::to_string(i) : "") + " = " + "_param_" + parameter->Name + "." + field->Name + (parameter->Type.IsArray() ? "[" + std::to_string(i) + "]" : "") + ";\n";
+									source += "_param_" + parameter->name + "_" + field->name + (parameter->type.is_array() ? std::to_string(i) : "") + " = " + "_param_" + parameter->name + "." + field->name + (parameter->type.is_array() ? "[" + std::to_string(i) + "]" : "") + ";\n";
 								}
 							}
 						}
 					}
 
-					if (node->ReturnType.IsStruct())
+					if (node->return_type.is_struct())
 					{
-						for (auto field : node->ReturnType.Definition->Fields)
+						for (auto field : node->return_type.definition->field_list)
 						{
-							source += FixNameWithSemantic("_return_" + field->Name, field->Semantic, shadertype) + " = _return." + field->Name + ";\n";
+							source += FixNameWithSemantic("_return_" + field->name, field->semantic, shadertype) + " = _return." + field->name + ";\n";
 						}
 					}
 			
@@ -2598,7 +2587,7 @@ namespace ReShade
 
 					source += "}\n";
 
-					LOG(TRACE) << "> Compiling shader '" << node->Name << "':\n\n" << source.c_str() << "\n";
+					LOG(TRACE) << "> Compiling shader '" << node->name << "':\n\n" << source.c_str() << "\n";
 
 					GLint status = GL_FALSE;
 					const GLchar *src = source.c_str();
@@ -2617,16 +2606,16 @@ namespace ReShade
 						GLCHECK(glGetShaderInfoLog(shader, logsize, nullptr, &log.front()));
 
 						_errors += log;
-						_isFatal = true;
+						_is_fatal = true;
 					}
 				}
-				void VisitShaderParameter(std::string &source, FX::Nodes::Type type, unsigned int qualifier, const std::string &name, const std::string &semantic, GLuint shadertype)
+				void visitShaderParameter(std::string &source, fx::nodes::type_node type, unsigned int qualifier, const std::string &name, const std::string &semantic, GLuint shadertype)
 				{
-					type.Qualifiers = static_cast<unsigned int>(qualifier);
+					type.qualifiers = static_cast<unsigned int>(qualifier);
 
 					unsigned int location = 0;
 
-					for (int i = 0, arraylength = std::max(1, type.ArrayLength); i < arraylength; ++i)
+					for (int i = 0, arraylength = std::max(1, type.array_length); i < arraylength; ++i)
 					{
 						if (!FixNameWithSemantic(std::string(), semantic, shadertype).empty())
 						{
@@ -2634,7 +2623,7 @@ namespace ReShade
 						}
 						else if (boost::starts_with(semantic, "COLOR"))
 						{
-							type.Rows = 4;
+							type.rows = 4;
 
 							location = static_cast<unsigned int>(::strtol(semantic.c_str() + 5, nullptr, 10));
 						}
@@ -2644,18 +2633,18 @@ namespace ReShade
 						}
 						else if (boost::starts_with(semantic, "SV_TARGET"))
 						{
-							type.Rows = 4;
+							type.rows = 4;
 
 							location = static_cast<unsigned int>(::strtol(semantic.c_str() + 9, nullptr, 10));
 						}
 
 						source += "layout(location = " + std::to_string(location + i) + ") ";
 
-						VisitType(source, type);
+						visit_type(source, type);
 
 						source += ' ' + name;
 
-						if (type.IsArray())
+						if (type.is_array())
 						{
 							source += std::to_string(i);
 						}
@@ -2668,17 +2657,17 @@ namespace ReShade
 				struct Function
 				{
 					std::string SourceCode;
-					std::vector<const FX::Nodes::Function *> FunctionDependencies;
+					std::vector<const fx::nodes::function_declaration_node *> FunctionDependencies;
 				};
 
-				GLRuntime *_runtime;
-				const FX::nodetree &_ast;
-				bool _isFatal;
+				gl_runtime *_runtime;
+				const fx::nodetree &_ast;
+				bool _is_fatal;
 				std::string _errors;
-				std::string _globalCode, _globalUniforms;
-				size_t _currentGlobalSize;
-				const FX::Nodes::Function *_currentFunction;
-				std::unordered_map<const FX::Nodes::Function *, Function> _functions;
+				std::string _global_code, _global_uniforms;
+				size_t _current_global_size;
+				const fx::nodes::function_declaration_node *_current_function;
+				std::unordered_map<const fx::nodes::function_declaration_node *, Function> _functions;
 			};
 
 			GLenum TargetToBinding(GLenum target)
@@ -2776,7 +2765,7 @@ namespace ReShade
 				FlipBC4Block(block);
 				FlipBC4Block(block + 8);
 			}
-			void FlipImageData(const Texture *texture, unsigned char *data)
+			void FlipImageData(const texture *texture, unsigned char *data)
 			{
 				typedef void (*FlipBlockFunc)(unsigned char *block);
 
@@ -2784,46 +2773,46 @@ namespace ReShade
 				bool compressed = false;
 				FlipBlockFunc compressedFunc = nullptr;
 
-				switch (texture->Format)
+				switch (texture->format)
 				{
-					case Texture::PixelFormat::R8:
+					case texture::pixelformat::r8:
 						blocksize = 1;
 						break;
-					case Texture::PixelFormat::RG8:
+					case texture::pixelformat::rg8:
 						blocksize = 2;
 						break;
-					case Texture::PixelFormat::R32F:
-					case Texture::PixelFormat::RGBA8:
+					case texture::pixelformat::r32f:
+					case texture::pixelformat::rgba8:
 						blocksize = 4;
 						break;
-					case Texture::PixelFormat::RGBA16:
-					case Texture::PixelFormat::RGBA16F:
+					case texture::pixelformat::rgba16:
+					case texture::pixelformat::rgba16f:
 						blocksize = 8;
 						break;
-					case Texture::PixelFormat::RGBA32F:
+					case texture::pixelformat::rgba32f:
 						blocksize = 16;
 						break;
-					case Texture::PixelFormat::DXT1:
+					case texture::pixelformat::dxt1:
 						blocksize = 8;
 						compressed = true;
 						compressedFunc = &FlipBC1Block;
 						break;
-					case Texture::PixelFormat::DXT3:
+					case texture::pixelformat::dxt3:
 						blocksize = 16;
 						compressed = true;
 						compressedFunc = &FlipBC2Block;
 						break;
-					case Texture::PixelFormat::DXT5:
+					case texture::pixelformat::dxt5:
 						blocksize = 16;
 						compressed = true;
 						compressedFunc = &FlipBC3Block;
 						break;
-					case Texture::PixelFormat::LATC1:
+					case texture::pixelformat::latc1:
 						blocksize = 8;
 						compressed = true;
 						compressedFunc = &FlipBC4Block;
 						break;
-					case Texture::PixelFormat::LATC2:
+					case texture::pixelformat::latc2:
 						blocksize = 16;
 						compressed = true;
 						compressedFunc = &FlipBC5Block;
@@ -2834,8 +2823,8 @@ namespace ReShade
 
 				if (compressed)
 				{
-					const size_t w = (texture->Width + 3) / 4;
-					const size_t h = (texture->Height + 3) / 4;
+					const size_t w = (texture->width + 3) / 4;
+					const size_t h = (texture->height + 3) / 4;
 					const size_t stride = w * blocksize;
 
 					for (size_t y = 0; y < h; ++y)
@@ -2850,8 +2839,8 @@ namespace ReShade
 				}
 				else
 				{
-					const size_t w = texture->Width;
-					const size_t h = texture->Height;
+					const size_t w = texture->width;
+					const size_t h = texture->height;
 					const size_t stride = w * blocksize;
 					unsigned char *templine = static_cast<unsigned char *>(::alloca(stride));
 
@@ -2867,7 +2856,7 @@ namespace ReShade
 				}
 			}
 
-			unsigned int GetRendererId()
+			unsigned int get_renderer_id()
 			{
 				GLint major = 0, minor = 0;
 				GLCHECK(glGetIntegerv(GL_MAJOR_VERSION, &major));
@@ -2877,45 +2866,45 @@ namespace ReShade
 			}
 		}
 
-		class GLStateBlock
+		class gl_stateblock
 		{
 		public:
-			GLStateBlock()
+			gl_stateblock()
 			{
 				ZeroMemory(this, sizeof(*this));
 			}
 
-			void Capture()
+			void capture()
 			{
 				GLCHECK(glGetIntegerv(GL_VIEWPORT, _viewport));
-				GLCHECK(_stencilTest = glIsEnabled(GL_STENCIL_TEST));
-				GLCHECK(_scissorTest = glIsEnabled(GL_SCISSOR_TEST));
-				GLCHECK(glGetIntegerv(GL_FRONT_FACE, reinterpret_cast<GLint *>(&_frontFace)));
-				GLCHECK(glGetIntegerv(GL_POLYGON_MODE, reinterpret_cast<GLint *>(&_polygonMode)));
-				GLCHECK(_cullFace = glIsEnabled(GL_CULL_FACE));
-				GLCHECK(glGetIntegerv(GL_CULL_FACE_MODE, reinterpret_cast<GLint *>(&_cullFaceMode)));
-				GLCHECK(glGetBooleanv(GL_COLOR_WRITEMASK, _colorMask));
-				GLCHECK(_framebufferSRGB = glIsEnabled(GL_FRAMEBUFFER_SRGB));
+				GLCHECK(_stencil_test = glIsEnabled(GL_STENCIL_TEST));
+				GLCHECK(_scissor_test = glIsEnabled(GL_SCISSOR_TEST));
+				GLCHECK(glGetIntegerv(GL_FRONT_FACE, reinterpret_cast<GLint *>(&_frontface)));
+				GLCHECK(glGetIntegerv(GL_POLYGON_MODE, reinterpret_cast<GLint *>(&_polygon_mode)));
+				GLCHECK(_cullface = glIsEnabled(GL_CULL_FACE));
+				GLCHECK(glGetIntegerv(GL_CULL_FACE_MODE, reinterpret_cast<GLint *>(&_cullface_mode)));
+				GLCHECK(glGetBooleanv(GL_COLOR_WRITEMASK, _color_mask));
+				GLCHECK(_srgb = glIsEnabled(GL_FRAMEBUFFER_SRGB));
 				GLCHECK(_blend = glIsEnabled(GL_BLEND));
-				GLCHECK(glGetIntegerv(GL_BLEND_SRC, reinterpret_cast<GLint *>(&_blendFuncSrc)));
-				GLCHECK(glGetIntegerv(GL_BLEND_DST, reinterpret_cast<GLint *>(&_blendFuncDest)));
-				GLCHECK(glGetIntegerv(GL_BLEND_EQUATION_RGB, reinterpret_cast<GLint *>(&_blendEqColor)));
-				GLCHECK(glGetIntegerv(GL_BLEND_EQUATION_ALPHA, reinterpret_cast<GLint *>(&_blendEqAlpha)));
-				GLCHECK(_depthTest = glIsEnabled(GL_DEPTH_TEST));
-				GLCHECK(glGetBooleanv(GL_DEPTH_WRITEMASK, &_depthMask));
-				GLCHECK(glGetIntegerv(GL_DEPTH_FUNC, reinterpret_cast<GLint *>(&_depthFunc)));
-				GLCHECK(glGetIntegerv(GL_STENCIL_VALUE_MASK, reinterpret_cast<GLint *>(&_stencilReadMask)));
-				GLCHECK(glGetIntegerv(GL_STENCIL_WRITEMASK, reinterpret_cast<GLint *>(&_stencilMask)));
-				GLCHECK(glGetIntegerv(GL_STENCIL_FUNC, reinterpret_cast<GLint *>(&_stencilFunc)));
-				GLCHECK(glGetIntegerv(GL_STENCIL_FAIL, reinterpret_cast<GLint *>(&_stencilOpFail)));
-				GLCHECK(glGetIntegerv(GL_STENCIL_PASS_DEPTH_FAIL, reinterpret_cast<GLint *>(&_stencilOpZFail)));
-				GLCHECK(glGetIntegerv(GL_STENCIL_PASS_DEPTH_PASS, reinterpret_cast<GLint *>(&_stencilOpZPass)));
-				GLCHECK(glGetIntegerv(GL_STENCIL_REF, &_stencilRef));
-				GLCHECK(glGetIntegerv(GL_ACTIVE_TEXTURE, reinterpret_cast<GLint *>(&_activeTexture)));
+				GLCHECK(glGetIntegerv(GL_BLEND_SRC, reinterpret_cast<GLint *>(&_blend_func_src)));
+				GLCHECK(glGetIntegerv(GL_BLEND_DST, reinterpret_cast<GLint *>(&_blend_func_dest)));
+				GLCHECK(glGetIntegerv(GL_BLEND_EQUATION_RGB, reinterpret_cast<GLint *>(&_blend_eq_color)));
+				GLCHECK(glGetIntegerv(GL_BLEND_EQUATION_ALPHA, reinterpret_cast<GLint *>(&_blend_eq_alpha)));
+				GLCHECK(_depth_test = glIsEnabled(GL_DEPTH_TEST));
+				GLCHECK(glGetBooleanv(GL_DEPTH_WRITEMASK, &_depth_mask));
+				GLCHECK(glGetIntegerv(GL_DEPTH_FUNC, reinterpret_cast<GLint *>(&_depth_func)));
+				GLCHECK(glGetIntegerv(GL_STENCIL_VALUE_MASK, reinterpret_cast<GLint *>(&_stencil_read_mask)));
+				GLCHECK(glGetIntegerv(GL_STENCIL_WRITEMASK, reinterpret_cast<GLint *>(&_stencil_mask)));
+				GLCHECK(glGetIntegerv(GL_STENCIL_FUNC, reinterpret_cast<GLint *>(&_stencil_func)));
+				GLCHECK(glGetIntegerv(GL_STENCIL_FAIL, reinterpret_cast<GLint *>(&_stencil_op_fail)));
+				GLCHECK(glGetIntegerv(GL_STENCIL_PASS_DEPTH_FAIL, reinterpret_cast<GLint *>(&_stencil_op_zfail)));
+				GLCHECK(glGetIntegerv(GL_STENCIL_PASS_DEPTH_PASS, reinterpret_cast<GLint *>(&_stencil_op_zpass)));
+				GLCHECK(glGetIntegerv(GL_STENCIL_REF, &_stencil_ref));
+				GLCHECK(glGetIntegerv(GL_ACTIVE_TEXTURE, reinterpret_cast<GLint *>(&_active_texture)));
 
 				for (GLuint i = 0; i < 8; ++i)
 				{
-					glGetIntegerv(GL_DRAW_BUFFER0 + i, reinterpret_cast<GLint *>(&_drawBuffers[i]));
+					glGetIntegerv(GL_DRAW_BUFFER0 + i, reinterpret_cast<GLint *>(&_drawbuffers[i]));
 				}
 
 				GLCHECK(glGetIntegerv(GL_CURRENT_PROGRAM, reinterpret_cast<GLint *>(&_program)));
@@ -2924,14 +2913,14 @@ namespace ReShade
 				GLCHECK(glGetIntegerv(GL_ARRAY_BUFFER_BINDING, reinterpret_cast<GLint *>(&_vbo)));
 				GLCHECK(glGetIntegerv(GL_UNIFORM_BUFFER_BINDING, reinterpret_cast<GLint *>(&_ubo)));
 				
-				for (GLuint i = 0; i < ARRAYSIZE(_textures2D); ++i)
+				for (GLuint i = 0; i < ARRAYSIZE(_textures2d); ++i)
 				{
 					glActiveTexture(GL_TEXTURE0 + i);
-					glGetIntegerv(GL_TEXTURE_BINDING_2D, reinterpret_cast<GLint *>(&_textures2D[i]));
+					glGetIntegerv(GL_TEXTURE_BINDING_2D, reinterpret_cast<GLint *>(&_textures2d[i]));
 					glGetIntegerv(GL_SAMPLER_BINDING, reinterpret_cast<GLint *>(&_samplers[i]));
 				}
 			}
-			void Apply() const
+			void apply() const
 			{
 				GLCHECK(glUseProgram(glIsProgram(_program) ? _program : 0));
 				GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, glIsFramebuffer(_fbo) ? _fbo : 0));
@@ -2939,66 +2928,66 @@ namespace ReShade
 				GLCHECK(glBindBuffer(GL_ARRAY_BUFFER, glIsBuffer(_vbo) ? _vbo : 0));
 				GLCHECK(glBindBuffer(GL_UNIFORM_BUFFER, glIsBuffer(_ubo) ? _ubo : 0));
 
-				for (GLuint i = 0; i < ARRAYSIZE(_textures2D); ++i)
+				for (GLuint i = 0; i < ARRAYSIZE(_textures2d); ++i)
 				{
 					GLCHECK(glActiveTexture(GL_TEXTURE0 + i));
-					GLCHECK(glBindTexture(GL_TEXTURE_2D, glIsTexture(_textures2D[i]) ? _textures2D[i] : 0));
+					GLCHECK(glBindTexture(GL_TEXTURE_2D, glIsTexture(_textures2d[i]) ? _textures2d[i] : 0));
 					GLCHECK(glBindSampler(i, glIsSampler(_samplers[i]) ? _samplers[i] : 0));
 				}
 
 	#define glEnableb(cap, value) if ((value)) glEnable(cap); else glDisable(cap);
 
 				GLCHECK(glViewport(_viewport[0], _viewport[1], _viewport[2], _viewport[3]));
-				GLCHECK(glEnableb(GL_STENCIL_TEST, _stencilTest));
-				GLCHECK(glEnableb(GL_SCISSOR_TEST, _scissorTest));
-				GLCHECK(glFrontFace(_frontFace));
-				GLCHECK(glPolygonMode(GL_FRONT_AND_BACK, _polygonMode));
-				GLCHECK(glEnableb(GL_CULL_FACE, _cullFace));
-				GLCHECK(glCullFace(_cullFaceMode));
-				GLCHECK(glColorMask(_colorMask[0], _colorMask[1], _colorMask[2], _colorMask[3]));
-				GLCHECK(glEnableb(GL_FRAMEBUFFER_SRGB, _framebufferSRGB));
+				GLCHECK(glEnableb(GL_STENCIL_TEST, _stencil_test));
+				GLCHECK(glEnableb(GL_SCISSOR_TEST, _scissor_test));
+				GLCHECK(glFrontFace(_frontface));
+				GLCHECK(glPolygonMode(GL_FRONT_AND_BACK, _polygon_mode));
+				GLCHECK(glEnableb(GL_CULL_FACE, _cullface));
+				GLCHECK(glCullFace(_cullface_mode));
+				GLCHECK(glColorMask(_color_mask[0], _color_mask[1], _color_mask[2], _color_mask[3]));
+				GLCHECK(glEnableb(GL_FRAMEBUFFER_SRGB, _srgb));
 				GLCHECK(glEnableb(GL_BLEND, _blend));
-				GLCHECK(glBlendFunc(_blendFuncSrc, _blendFuncDest));
-				GLCHECK(glBlendEquationSeparate(_blendEqColor, _blendEqAlpha));
-				GLCHECK(glEnableb(GL_DEPTH_TEST, _depthTest));
-				GLCHECK(glDepthMask(_depthMask));
-				GLCHECK(glDepthFunc(_depthFunc));
-				GLCHECK(glStencilMask(_stencilMask));
-				GLCHECK(glStencilFunc(_stencilFunc, _stencilRef, _stencilReadMask));
-				GLCHECK(glStencilOp(_stencilOpFail, _stencilOpZFail, _stencilOpZPass));
-				GLCHECK(glActiveTexture(_activeTexture));
+				GLCHECK(glBlendFunc(_blend_func_src, _blend_func_dest));
+				GLCHECK(glBlendEquationSeparate(_blend_eq_color, _blend_eq_alpha));
+				GLCHECK(glEnableb(GL_DEPTH_TEST, _depth_test));
+				GLCHECK(glDepthMask(_depth_mask));
+				GLCHECK(glDepthFunc(_depth_func));
+				GLCHECK(glStencilMask(_stencil_mask));
+				GLCHECK(glStencilFunc(_stencil_func, _stencil_ref, _stencil_read_mask));
+				GLCHECK(glStencilOp(_stencil_op_fail, _stencil_op_zfail, _stencil_op_zpass));
+				GLCHECK(glActiveTexture(_active_texture));
 
-				if (_drawBuffers[1] == GL_NONE &&
-					_drawBuffers[2] == GL_NONE &&
-					_drawBuffers[3] == GL_NONE &&
-					_drawBuffers[4] == GL_NONE &&
-					_drawBuffers[5] == GL_NONE &&
-					_drawBuffers[6] == GL_NONE &&
-					_drawBuffers[7] == GL_NONE)
+				if (_drawbuffers[1] == GL_NONE &&
+					_drawbuffers[2] == GL_NONE &&
+					_drawbuffers[3] == GL_NONE &&
+					_drawbuffers[4] == GL_NONE &&
+					_drawbuffers[5] == GL_NONE &&
+					_drawbuffers[6] == GL_NONE &&
+					_drawbuffers[7] == GL_NONE)
 				{
-					glDrawBuffer(_drawBuffers[0]);
+					glDrawBuffer(_drawbuffers[0]);
 				}
 				else
 				{
-					glDrawBuffers(8, _drawBuffers);
+					glDrawBuffers(8, _drawbuffers);
 				}
 			}
 
 		private:
-			GLint _stencilRef, _viewport[4];
-			GLuint _stencilMask, _stencilReadMask;
-			GLuint _program, _fbo, _vao, _vbo, _ubo, _textures2D[8], _samplers[8];
-			GLenum _drawBuffers[8], _cullFace, _cullFaceMode, _polygonMode, _blendEqColor, _blendEqAlpha, _blendFuncSrc, _blendFuncDest, _depthFunc, _stencilFunc, _stencilOpFail, _stencilOpZFail, _stencilOpZPass, _frontFace, _activeTexture;
-			GLboolean _scissorTest, _blend, _depthTest, _depthMask, _stencilTest, _colorMask[4], _framebufferSRGB;
+			GLint _stencil_ref, _viewport[4];
+			GLuint _stencil_mask, _stencil_read_mask;
+			GLuint _program, _fbo, _vao, _vbo, _ubo, _textures2d[8], _samplers[8];
+			GLenum _drawbuffers[8], _cullface, _cullface_mode, _polygon_mode, _blend_eq_color, _blend_eq_alpha, _blend_func_src, _blend_func_dest, _depth_func, _stencil_func, _stencil_op_fail, _stencil_op_zfail, _stencil_op_zpass, _frontface, _active_texture;
+			GLboolean _scissor_test, _blend, _depth_test, _depth_mask, _stencil_test, _color_mask[4], _srgb;
 		};
 
 		// ---------------------------------------------------------------------------------------------------
 
-		GLRuntime::GLRuntime(HDC device) : Runtime(GetRendererId()), _hdc(device), _referenceCount(1), _stateBlock(new GLStateBlock), _defaultBackBufferFBO(0), _defaultBackBufferRBO(), _backbufferTexture(), _depthSourceFBO(0), _depthSource(0), _depthTexture(0), _blitFBO(0), _defaultVAO(0), _defaultVBO(0), _effectUBO(0)
+		gl_runtime::gl_runtime(HDC device) : runtime(get_renderer_id()), _hdc(device), _reference_count(1), _stateblock(new gl_stateblock), _default_backbuffer_fbo(0), _default_backbuffer_rbo(), _backbuffer_texture(), _depth_source_fbo(0), _depth_source(0), _depth_texture(0), _blit_fbo(0), _default_vao(0), _default_vbo(0), _effect_ubo(0)
 		{
-			_vendorId = 0;
-			_deviceId = 0;
-			_input = Input::RegisterWindow(WindowFromDC(_hdc));
+			_vendor_id = 0;
+			_device_id = 0;
+			_input = input::register_window(WindowFromDC(_hdc));
 
 			// Get vendor and device information on NVIDIA Optimus devices
 			if (GetModuleHandleA("nvd3d9wrap.dll") == nullptr && GetModuleHandleA("nvd3d9wrapx.dll") == nullptr)
@@ -3014,8 +3003,8 @@ namespace ReShade
 
 						if (id.length() > 20)
 						{
-							_vendorId = std::stoi(id.substr(8, 4), nullptr, 16);
-							_deviceId = std::stoi(id.substr(17, 4), nullptr, 16);
+							_vendor_id = std::stoi(id.substr(8, 4), nullptr, 16);
+							_device_id = std::stoi(id.substr(17, 4), nullptr, 16);
 						}
 						break;
 					}
@@ -3023,7 +3012,7 @@ namespace ReShade
 			}
 
 			// Get vendor and device information on general devices
-			if (_vendorId == 0)
+			if (_vendor_id == 0)
 			{
 				const char *const name = reinterpret_cast<const char *>(glGetString(GL_VENDOR));
 
@@ -3031,21 +3020,21 @@ namespace ReShade
 				{
 					if (boost::contains(name, "NVIDIA"))
 					{
-						_vendorId = 0x10DE;
+						_vendor_id = 0x10DE;
 					}
 					else if (boost::contains(name, "AMD") || boost::contains(name, "ATI"))
 					{
-						_vendorId = 0x1002;
+						_vendor_id = 0x1002;
 					}
 					else if (boost::contains(name, "Intel"))
 					{
-						_vendorId = 0x8086;
+						_vendor_id = 0x8086;
 					}
 				}
 			}
 		}
 
-		bool GLRuntime::OnInit(unsigned int width, unsigned int height)
+		bool gl_runtime::on_init(unsigned int width, unsigned int height)
 		{
 			assert(width != 0 && height != 0);
 
@@ -3055,14 +3044,14 @@ namespace ReShade
 			// Clear errors
 			GLenum status = glGetError();
 
-			_stateBlock->Capture();
+			_stateblock->capture();
 
 			#pragma region Generate backbuffer targets
-			GLCHECK(glGenRenderbuffers(2, _defaultBackBufferRBO));
+			GLCHECK(glGenRenderbuffers(2, _default_backbuffer_rbo));
 
-			GLCHECK(glBindRenderbuffer(GL_RENDERBUFFER, _defaultBackBufferRBO[0]));
+			GLCHECK(glBindRenderbuffer(GL_RENDERBUFFER, _default_backbuffer_rbo[0]));
 			glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA8, width, height);
-			GLCHECK(glBindRenderbuffer(GL_RENDERBUFFER, _defaultBackBufferRBO[1]));
+			GLCHECK(glBindRenderbuffer(GL_RENDERBUFFER, _default_backbuffer_rbo[1]));
 			glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, width, height);
 
 			status = glGetError();
@@ -3073,16 +3062,16 @@ namespace ReShade
 			{
 				LOG(TRACE) << "Failed to create backbuffer renderbuffer with error code " << status;
 
-				GLCHECK(glDeleteRenderbuffers(2, _defaultBackBufferRBO));
+				GLCHECK(glDeleteRenderbuffers(2, _default_backbuffer_rbo));
 
 				return false;
 			}
 
-			GLCHECK(glGenFramebuffers(1, &_defaultBackBufferFBO));
+			GLCHECK(glGenFramebuffers(1, &_default_backbuffer_fbo));
 
-			GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, _defaultBackBufferFBO));
-			GLCHECK(glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, _defaultBackBufferRBO[0]));
-			GLCHECK(glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, _defaultBackBufferRBO[1]));
+			GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, _default_backbuffer_fbo));
+			GLCHECK(glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, _default_backbuffer_rbo[0]));
+			GLCHECK(glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, _default_backbuffer_rbo[1]));
 
 			status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
 
@@ -3092,17 +3081,17 @@ namespace ReShade
 			{
 				LOG(TRACE) << "Failed to create backbuffer framebuffer object with status code " << status;
 
-				GLCHECK(glDeleteFramebuffers(1, &_defaultBackBufferFBO));
-				GLCHECK(glDeleteRenderbuffers(2, _defaultBackBufferRBO));
+				GLCHECK(glDeleteFramebuffers(1, &_default_backbuffer_fbo));
+				GLCHECK(glDeleteRenderbuffers(2, _default_backbuffer_rbo));
 
 				return false;
 			}
 
-			GLCHECK(glGenTextures(2, _backbufferTexture));
+			GLCHECK(glGenTextures(2, _backbuffer_texture));
 
-			GLCHECK(glBindTexture(GL_TEXTURE_2D, _backbufferTexture[0]));
+			GLCHECK(glBindTexture(GL_TEXTURE_2D, _backbuffer_texture[0]));
 			glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA8, width, height);
-			glTextureView(_backbufferTexture[1], GL_TEXTURE_2D, _backbufferTexture[0], GL_SRGB8_ALPHA8, 0, 1, 0, 1);
+			glTextureView(_backbuffer_texture[1], GL_TEXTURE_2D, _backbuffer_texture[0], GL_SRGB8_ALPHA8, 0, 1, 0, 1);
 		
 			status = glGetError();
 
@@ -3112,25 +3101,25 @@ namespace ReShade
 			{
 				LOG(TRACE) << "Failed to create backbuffer texture with error code " << status;
 
-				GLCHECK(glDeleteTextures(2, _backbufferTexture));
-				GLCHECK(glDeleteFramebuffers(1, &_defaultBackBufferFBO));
-				GLCHECK(glDeleteRenderbuffers(2, _defaultBackBufferRBO));
+				GLCHECK(glDeleteTextures(2, _backbuffer_texture));
+				GLCHECK(glDeleteFramebuffers(1, &_default_backbuffer_fbo));
+				GLCHECK(glDeleteRenderbuffers(2, _default_backbuffer_rbo));
 
 				return false;
 			}
 			#pragma endregion
 
 			#pragma region Generate depthbuffer targets
-			const DepthSourceInfo defaultdepth = { width, height, 0, GL_DEPTH24_STENCIL8 };
+			const depth_source_info defaultdepth = { width, height, 0, GL_DEPTH24_STENCIL8 };
 
-			_depthSourceTable[0] = defaultdepth;
+			_depth_source_table[0] = defaultdepth;
 
 			LOG(TRACE) << "Switched depth source to default depthstencil.";
 
-			GLCHECK(glGenTextures(1, &_depthTexture));
+			GLCHECK(glGenTextures(1, &_depth_texture));
 
-			GLCHECK(glBindTexture(GL_TEXTURE_2D, _depthTexture));
-			glTexStorage2D(GL_TEXTURE_2D, 1, defaultdepth.Format, defaultdepth.Width, defaultdepth.Height);
+			GLCHECK(glBindTexture(GL_TEXTURE_2D, _depth_texture));
+			glTexStorage2D(GL_TEXTURE_2D, 1, defaultdepth.format, defaultdepth.width, defaultdepth.height);
 
 			status = glGetError();
 
@@ -3140,20 +3129,20 @@ namespace ReShade
 			{
 				LOG(TRACE) << "Failed to create depth texture with error code " << status;
 
-				GLCHECK(glDeleteTextures(1, &_depthTexture));
-				GLCHECK(glDeleteTextures(2, _backbufferTexture));
-				GLCHECK(glDeleteFramebuffers(1, &_defaultBackBufferFBO));
-				GLCHECK(glDeleteRenderbuffers(2, _defaultBackBufferRBO));
+				GLCHECK(glDeleteTextures(1, &_depth_texture));
+				GLCHECK(glDeleteTextures(2, _backbuffer_texture));
+				GLCHECK(glDeleteFramebuffers(1, &_default_backbuffer_fbo));
+				GLCHECK(glDeleteRenderbuffers(2, _default_backbuffer_rbo));
 
 				return false;
 			}
 			#pragma endregion
 
-			GLCHECK(glGenFramebuffers(1, &_blitFBO));
+			GLCHECK(glGenFramebuffers(1, &_blit_fbo));
 
-			GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, _blitFBO));
-			GLCHECK(glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, _depthTexture, 0));
-			GLCHECK(glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, _backbufferTexture[1], 0));
+			GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, _blit_fbo));
+			GLCHECK(glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, _depth_texture, 0));
+			GLCHECK(glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, _backbuffer_texture[1], 0));
 
 			status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
 
@@ -3163,118 +3152,118 @@ namespace ReShade
 			{
 				LOG(TRACE) << "Failed to create blit framebuffer object with status code " << status;
 
-				GLCHECK(glDeleteFramebuffers(1, &_blitFBO));
-				GLCHECK(glDeleteTextures(1, &_depthTexture));
-				GLCHECK(glDeleteTextures(2, _backbufferTexture));
-				GLCHECK(glDeleteFramebuffers(1, &_defaultBackBufferFBO));
-				GLCHECK(glDeleteRenderbuffers(2, _defaultBackBufferRBO));
+				GLCHECK(glDeleteFramebuffers(1, &_blit_fbo));
+				GLCHECK(glDeleteTextures(1, &_depth_texture));
+				GLCHECK(glDeleteTextures(2, _backbuffer_texture));
+				GLCHECK(glDeleteFramebuffers(1, &_default_backbuffer_fbo));
+				GLCHECK(glDeleteRenderbuffers(2, _default_backbuffer_rbo));
 
 				return false;
 			}
 
 
-			GLCHECK(glGenVertexArrays(1, &_defaultVAO));
-			GLCHECK(glGenBuffers(1, &_defaultVBO));
+			GLCHECK(glGenVertexArrays(1, &_default_vao));
+			GLCHECK(glGenBuffers(1, &_default_vbo));
 
-			GLCHECK(glBindBuffer(GL_ARRAY_BUFFER, _defaultVBO));
+			GLCHECK(glBindBuffer(GL_ARRAY_BUFFER, _default_vbo));
 			GLCHECK(glBufferData(GL_ARRAY_BUFFER, 0, nullptr, GL_STATIC_DRAW));
 			GLCHECK(glBindBuffer(GL_ARRAY_BUFFER, 0));
 
 
-			_gui.reset(new GUI(this, nvgCreateGL3(0)));
+			_gui.reset(new gui(this, nvgCreateGL3(0)));
 
-			_stateBlock->Apply();
+			_stateblock->apply();
 
-			return Runtime::OnInit();
+			return runtime::on_init();
 		}
-		void GLRuntime::OnReset()
+		void gl_runtime::on_reset()
 		{
-			if (!_isInitialized)
+			if (!_is_initialized)
 			{
 				return;
 			}
 
-			Runtime::OnReset();
+			runtime::on_reset();
 
 			// Destroy NanoVG
-			NVGcontext *const nvg = _gui->GetContext();
+			NVGcontext *const nvg = _gui->context();
 
 			_gui.reset();
 
 			nvgDeleteGL3(nvg);
 
 			// Destroy resources
-			GLCHECK(glDeleteBuffers(1, &_defaultVBO));
-			GLCHECK(glDeleteBuffers(1, &_effectUBO));
-			GLCHECK(glDeleteVertexArrays(1, &_defaultVAO));
-			GLCHECK(glDeleteFramebuffers(1, &_defaultBackBufferFBO));
-			GLCHECK(glDeleteFramebuffers(1, &_depthSourceFBO));
-			GLCHECK(glDeleteFramebuffers(1, &_blitFBO));
-			GLCHECK(glDeleteRenderbuffers(2, _defaultBackBufferRBO));
-			GLCHECK(glDeleteTextures(2, _backbufferTexture));
-			GLCHECK(glDeleteTextures(1, &_depthTexture));
+			GLCHECK(glDeleteBuffers(1, &_default_vbo));
+			GLCHECK(glDeleteBuffers(1, &_effect_ubo));
+			GLCHECK(glDeleteVertexArrays(1, &_default_vao));
+			GLCHECK(glDeleteFramebuffers(1, &_default_backbuffer_fbo));
+			GLCHECK(glDeleteFramebuffers(1, &_depth_source_fbo));
+			GLCHECK(glDeleteFramebuffers(1, &_blit_fbo));
+			GLCHECK(glDeleteRenderbuffers(2, _default_backbuffer_rbo));
+			GLCHECK(glDeleteTextures(2, _backbuffer_texture));
+			GLCHECK(glDeleteTextures(1, &_depth_texture));
 
-			_defaultVBO = 0;
-			_effectUBO = 0;
-			_defaultVAO = 0;
-			_defaultBackBufferFBO = 0;
-			_depthSourceFBO = 0;
-			_blitFBO = 0;
-			_defaultBackBufferRBO[0] = 0;
-			_defaultBackBufferRBO[1] = 0;
-			_backbufferTexture[0] = 0;
-			_backbufferTexture[1] = 0;
-			_depthTexture = 0;
+			_default_vbo = 0;
+			_effect_ubo = 0;
+			_default_vao = 0;
+			_default_backbuffer_fbo = 0;
+			_depth_source_fbo = 0;
+			_blit_fbo = 0;
+			_default_backbuffer_rbo[0] = 0;
+			_default_backbuffer_rbo[1] = 0;
+			_backbuffer_texture[0] = 0;
+			_backbuffer_texture[1] = 0;
+			_depth_texture = 0;
 
-			_depthSource = 0;
+			_depth_source = 0;
 		}
-		void GLRuntime::OnResetEffect()
+		void gl_runtime::on_reset_effect()
 		{
-			Runtime::OnResetEffect();
+			runtime::on_reset_effect();
 
-			for (auto &sampler : _effectSamplers)
+			for (auto &sampler : _effect_samplers)
 			{
 				GLCHECK(glDeleteSamplers(1, &sampler.ID));
 			}
 
-			_effectSamplers.clear();
+			_effect_samplers.clear();
 		}
-		void GLRuntime::OnPresent()
+		void gl_runtime::on_present()
 		{
-			if (!_isInitialized)
+			if (!_is_initialized)
 			{
 				LOG(TRACE) << "Failed to present! Runtime is in a lost state.";
 				return;
 			}
-			else if (_stats.DrawCalls == 0)
+			else if (_stats.drawcalls == 0)
 			{
 				return;
 			}
 
-			DetectDepthSource();
+			detect_depth_source();
 
 			// Capture states
-			_stateBlock->Capture();
+			_stateblock->capture();
 
 			// Copy backbuffer
 			GLCHECK(glBindFramebuffer(GL_READ_FRAMEBUFFER, 0));
-			GLCHECK(glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _defaultBackBufferFBO));
+			GLCHECK(glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _default_backbuffer_fbo));
 			GLCHECK(glReadBuffer(GL_BACK));
 			GLCHECK(glDrawBuffer(GL_COLOR_ATTACHMENT0));
 			GLCHECK(glBlitFramebuffer(0, 0, _width, _height, 0, 0, _width, _height, GL_COLOR_BUFFER_BIT, GL_NEAREST));
 
 			// Copy depthbuffer
-			GLCHECK(glBindFramebuffer(GL_READ_FRAMEBUFFER, _depthSourceFBO));
-			GLCHECK(glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _blitFBO));
+			GLCHECK(glBindFramebuffer(GL_READ_FRAMEBUFFER, _depth_source_fbo));
+			GLCHECK(glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _blit_fbo));
 			GLCHECK(glBlitFramebuffer(0, 0, _width, _height, 0, 0, _width, _height, GL_DEPTH_BUFFER_BIT, GL_NEAREST));
 
 			// Apply post processing
-			OnApplyEffect();
+			on_apply_effect();
 
 			glDisable(GL_FRAMEBUFFER_SRGB);
 
 			// Reset rendertarget and copy to backbuffer
-			GLCHECK(glBindFramebuffer(GL_READ_FRAMEBUFFER, _defaultBackBufferFBO));
+			GLCHECK(glBindFramebuffer(GL_READ_FRAMEBUFFER, _default_backbuffer_fbo));
 			GLCHECK(glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0));
 			GLCHECK(glReadBuffer(GL_COLOR_ATTACHMENT0));
 			GLCHECK(glDrawBuffer(GL_BACK));
@@ -3282,14 +3271,14 @@ namespace ReShade
 			GLCHECK(glViewport(0, 0, _width, _height));
 
 			// Apply presenting
-			Runtime::OnPresent();
+			runtime::on_present();
 
 			// Apply states
-			_stateBlock->Apply();
+			_stateblock->apply();
 		}
-		void GLRuntime::OnDrawCall(unsigned int vertices)
+		void gl_runtime::on_draw_call(unsigned int vertices)
 		{
-			Runtime::OnDrawCall(vertices);
+			runtime::on_draw_call(vertices);
 
 			GLint fbo = 0, object = 0, objecttarget = GL_NONE;
 			GLCHECK(glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &fbo));
@@ -3308,57 +3297,57 @@ namespace ReShade
 				}
 			}
 
-			const auto it = _depthSourceTable.find(object | (objecttarget == GL_RENDERBUFFER ? 0x80000000 : 0));
+			const auto it = _depth_source_table.find(object | (objecttarget == GL_RENDERBUFFER ? 0x80000000 : 0));
 
-			if (it != _depthSourceTable.end())
+			if (it != _depth_source_table.end())
 			{
-				it->second.DrawCallCount = static_cast<GLfloat>(_stats.DrawCalls);
-				it->second.DrawVerticesCount += vertices;
+				it->second.drawcall_count = static_cast<GLfloat>(_stats.drawcalls);
+				it->second.vertices_count += vertices;
 			}
 		}
-		void GLRuntime::OnApplyEffect()
+		void gl_runtime::on_apply_effect()
 		{
-			if (!_isEffectCompiled)
+			if (!_is_effect_compiled)
 			{
 				return;
 			}
 
 			// Setup vertex input
-			GLCHECK(glBindVertexArray(_defaultVAO));
-			GLCHECK(glBindVertexBuffer(0, _defaultVBO, 0, sizeof(float)));
+			GLCHECK(glBindVertexArray(_default_vao));
+			GLCHECK(glBindVertexBuffer(0, _default_vbo, 0, sizeof(float)));
 
 			// Setup shader resources
-			for (GLsizei sampler = 0, samplerCount = static_cast<GLsizei>(_effectSamplers.size()); sampler < samplerCount; sampler++)
+			for (GLsizei sampler = 0, samplerCount = static_cast<GLsizei>(_effect_samplers.size()); sampler < samplerCount; sampler++)
 			{
 				GLCHECK(glActiveTexture(GL_TEXTURE0 + sampler));
-				GLCHECK(glBindTexture(GL_TEXTURE_2D, _effectSamplers[sampler].Texture->ID[_effectSamplers[sampler].SRGB]));
-				GLCHECK(glBindSampler(sampler, _effectSamplers[sampler].ID));
+				GLCHECK(glBindTexture(GL_TEXTURE_2D, _effect_samplers[sampler].Texture->ID[_effect_samplers[sampler].SRGB]));
+				GLCHECK(glBindSampler(sampler, _effect_samplers[sampler].ID));
 			}
 
 			// Setup shader constants
-			GLCHECK(glBindBufferBase(GL_UNIFORM_BUFFER, 0, _effectUBO));
+			GLCHECK(glBindBufferBase(GL_UNIFORM_BUFFER, 0, _effect_ubo));
 
 			// Apply post processing
-			Runtime::OnApplyEffect();
+			runtime::on_apply_effect();
 
 			// Reset states
 			GLCHECK(glBindSampler(0, 0));
 		}
-		void GLRuntime::OnApplyEffectTechnique(const Technique *technique)
+		void gl_runtime::on_apply_effect_technique(const technique *technique)
 		{
-			Runtime::OnApplyEffectTechnique(technique);
+			runtime::on_apply_effect_technique(technique);
 
 			// Clear depthstencil
-			GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, _defaultBackBufferFBO));
+			GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, _default_backbuffer_fbo));
 			GLCHECK(glClearBufferfi(GL_DEPTH_STENCIL, 0, 1.0f, 0));
 
 			// Update shader constants
-			if (_effectUBO != 0)
+			if (_effect_ubo != 0)
 			{
-				GLCHECK(glBufferSubData(GL_UNIFORM_BUFFER, 0, _uniformDataStorage.size(), _uniformDataStorage.data()));
+				GLCHECK(glBufferSubData(GL_UNIFORM_BUFFER, 0, _uniform_data_storage.size(), _uniform_data_storage.data()));
 			}
 
-			for (const auto &pass : static_cast<const GLTechnique *>(technique)->Passes)
+			for (const auto &pass : static_cast<const gl_technique *>(technique)->passes)
 			{
 				// Setup states
 				GLCHECK(glUseProgram(pass.Program));
@@ -3380,8 +3369,8 @@ namespace ReShade
 				GLCHECK(glStencilMask(pass.StencilMask));
 
 				// Save backbuffer of previous pass
-				GLCHECK(glBindFramebuffer(GL_READ_FRAMEBUFFER, _defaultBackBufferFBO));
-				GLCHECK(glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _blitFBO));
+				GLCHECK(glBindFramebuffer(GL_READ_FRAMEBUFFER, _default_backbuffer_fbo));
+				GLCHECK(glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _blit_fbo));
 				GLCHECK(glReadBuffer(GL_COLOR_ATTACHMENT0));
 				GLCHECK(glDrawBuffer(GL_COLOR_ATTACHMENT0));
 				GLCHECK(glBlitFramebuffer(0, 0, _width, _height, 0, 0, _width, _height, GL_COLOR_BUFFER_BIT, GL_NEAREST));
@@ -3408,11 +3397,11 @@ namespace ReShade
 				// Update shader resources
 				for (GLuint id : pass.DrawTextures)
 				{
-					for (GLsizei sampler = 0, samplerCount = static_cast<GLsizei>(_effectSamplers.size()); sampler < samplerCount; sampler++)
+					for (GLsizei sampler = 0, samplerCount = static_cast<GLsizei>(_effect_samplers.size()); sampler < samplerCount; sampler++)
 					{
-						const GLTexture *const texture = _effectSamplers[sampler].Texture;
+						const gl_texture *const texture = _effect_samplers[sampler].Texture;
 
-						if (texture->Levels > 1 && (texture->ID[0] == id || texture->ID[1] == id))
+						if (texture->levels > 1 && (texture->ID[0] == id || texture->ID[1] == id))
 						{
 							GLCHECK(glActiveTexture(GL_TEXTURE0 + sampler));
 							GLCHECK(glGenerateMipmap(GL_TEXTURE_2D));
@@ -3422,7 +3411,7 @@ namespace ReShade
 			}
 		}
 
-		void GLRuntime::OnFramebufferAttachment(GLenum target, GLenum attachment, GLenum objecttarget, GLuint object, GLint level)
+		void gl_runtime::on_fbo_attachment(GLenum target, GLenum attachment, GLenum objecttarget, GLuint object, GLint level)
 		{
 			if (object == 0 || (attachment != GL_DEPTH_ATTACHMENT && attachment != GL_DEPTH_STENCIL_ATTACHMENT))
 			{
@@ -3435,19 +3424,19 @@ namespace ReShade
 
 			assert(fbo != 0);
 
-			if (static_cast<GLuint>(fbo) == _defaultBackBufferFBO || static_cast<GLuint>(fbo) == _depthSourceFBO || static_cast<GLuint>(fbo) == _blitFBO)
+			if (static_cast<GLuint>(fbo) == _default_backbuffer_fbo || static_cast<GLuint>(fbo) == _depth_source_fbo || static_cast<GLuint>(fbo) == _blit_fbo)
 			{
 				return;
 			}
 
 			const GLuint id = object | (objecttarget == GL_RENDERBUFFER ? 0x80000000 : 0);
 		
-			if (_depthSourceTable.find(id) != _depthSourceTable.end())
+			if (_depth_source_table.find(id) != _depth_source_table.end())
 			{
 				return;
 			}
 
-			DepthSourceInfo info = { 0, 0, 0, GL_NONE };
+			depth_source_info info = { 0, 0, 0, GL_NONE };
 
 			if (objecttarget == GL_RENDERBUFFER)
 			{
@@ -3456,9 +3445,9 @@ namespace ReShade
 
 				// Get depthstencil parameters from renderbuffer
 				GLCHECK(glBindRenderbuffer(GL_RENDERBUFFER, object));
-				GLCHECK(glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_WIDTH, &info.Width));
-				GLCHECK(glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_HEIGHT, &info.Height));
-				GLCHECK(glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_INTERNAL_FORMAT, &info.Format));
+				GLCHECK(glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_WIDTH, &info.width));
+				GLCHECK(glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_HEIGHT, &info.height));
+				GLCHECK(glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_INTERNAL_FORMAT, &info.format));
 
 				GLCHECK(glBindRenderbuffer(GL_RENDERBUFFER, previous));
 			}
@@ -3474,20 +3463,20 @@ namespace ReShade
 
 				// Get depthstencil parameters from texture
 				GLCHECK(glBindTexture(objecttarget, object));
-				info.Level = level;
-				GLCHECK(glGetTexLevelParameteriv(objecttarget, level, GL_TEXTURE_WIDTH, &info.Width));
-				GLCHECK(glGetTexLevelParameteriv(objecttarget, level, GL_TEXTURE_HEIGHT, &info.Height));
-				GLCHECK(glGetTexLevelParameteriv(objecttarget, level, GL_TEXTURE_INTERNAL_FORMAT, &info.Format));
+				info.level = level;
+				GLCHECK(glGetTexLevelParameteriv(objecttarget, level, GL_TEXTURE_WIDTH, &info.width));
+				GLCHECK(glGetTexLevelParameteriv(objecttarget, level, GL_TEXTURE_HEIGHT, &info.height));
+				GLCHECK(glGetTexLevelParameteriv(objecttarget, level, GL_TEXTURE_INTERNAL_FORMAT, &info.format));
 			
 				GLCHECK(glBindTexture(objecttarget, previous));
 			}
 
-			LOG(TRACE) << "Adding framebuffer " << fbo << " attachment " << object << " (Attachment Type: " << attachment << ", Object Type: " << objecttarget << ", Width: " << info.Width << ", Height: " << info.Height << ", Format: " << info.Format << ") to list of possible depth candidates ...";
+			LOG(TRACE) << "Adding framebuffer " << fbo << " attachment " << object << " (Attachment Type: " << attachment << ", Object Type: " << objecttarget << ", Width: " << info.width << ", Height: " << info.height << ", Format: " << info.format << ") to list of possible depth candidates ...";
 
-			_depthSourceTable.emplace(id, info);
+			_depth_source_table.emplace(id, info);
 		}
 
-		void GLRuntime::Screenshot(unsigned char *buffer) const
+		void gl_runtime::screenshot(unsigned char *buffer) const
 		{
 			GLCHECK(glReadBuffer(GL_BACK));
 			GLCHECK(glReadPixels(0, 0, static_cast<GLsizei>(_width), static_cast<GLsizei>(_height), GL_RGBA, GL_UNSIGNED_BYTE, buffer));
@@ -3511,20 +3500,20 @@ namespace ReShade
 				}
 			}
 		}
-		bool GLRuntime::UpdateEffect(const FX::nodetree &ast, const std::vector<std::string> &/*pragmas*/, std::string &errors)
+		bool gl_runtime::update_effect(const fx::nodetree &ast, const std::vector<std::string> &/*pragmas*/, std::string &errors)
 		{
-			GLEffectCompiler visitor(ast);
+			gl_fx_compiler visitor(ast);
 
-			return visitor.Compile(this, errors);
+			return visitor.compile(this, errors);
 		}
-		bool GLRuntime::UpdateTexture(Texture *texture, const unsigned char *data, size_t size)
+		bool gl_runtime::update_texture(texture *texture, const unsigned char *data, size_t size)
 		{
-			GLTexture *const textureImpl = dynamic_cast<GLTexture *>(texture);
+			gl_texture *const textureImpl = dynamic_cast<gl_texture *>(texture);
 
 			assert(textureImpl != nullptr);
 			assert(data != nullptr && size > 0);
 
-			if (textureImpl->DataSource != GLTexture::Source::Memory)
+			if (textureImpl->basetype != texture::datatype::image)
 			{
 				return false;
 			}
@@ -3547,60 +3536,60 @@ namespace ReShade
 			// Bind and update texture
 			GLCHECK(glBindTexture(GL_TEXTURE_2D, textureImpl->ID[0]));
 
-			if (texture->Format >= Texture::PixelFormat::DXT1 && texture->Format <= Texture::PixelFormat::LATC2)
+			if (texture->format >= texture::pixelformat::dxt1 && texture->format <= texture::pixelformat::latc2)
 			{
-				GLCHECK(glCompressedTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, texture->Width, texture->Height, GL_UNSIGNED_BYTE, static_cast<GLsizei>(size), dataFlipped.get()));
+				GLCHECK(glCompressedTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, texture->width, texture->height, GL_UNSIGNED_BYTE, static_cast<GLsizei>(size), dataFlipped.get()));
 			}
 			else
 			{
 				GLint dataAlignment = 4;
 				GLenum dataFormat = GL_RGBA, dataType = GL_UNSIGNED_BYTE;
 
-				switch (texture->Format)
+				switch (texture->format)
 				{
-					case Texture::PixelFormat::R8:
+					case texture::pixelformat::r8:
 						dataFormat = GL_RED;
 						dataAlignment = 1;
 						break;
-					case Texture::PixelFormat::R16F:
+					case texture::pixelformat::r16f:
 						dataType = GL_UNSIGNED_SHORT;
 						dataFormat = GL_RED;
 						dataAlignment = 2;
 						break;
-					case Texture::PixelFormat::R32F:
+					case texture::pixelformat::r32f:
 						dataType = GL_FLOAT;
 						dataFormat = GL_RED;
 						break;
-					case Texture::PixelFormat::RG8:
+					case texture::pixelformat::rg8:
 						dataFormat = GL_RG;
 						dataAlignment = 2;
 						break;
-					case Texture::PixelFormat::RG16:
-					case Texture::PixelFormat::RG16F:
+					case texture::pixelformat::rg16:
+					case texture::pixelformat::rg16f:
 						dataType = GL_UNSIGNED_SHORT;
 						dataFormat = GL_RG;
 						dataAlignment = 2;
 						break;
-					case Texture::PixelFormat::RG32F:
+					case texture::pixelformat::rg32f:
 						dataType = GL_FLOAT;
 						dataFormat = GL_RG;
 						break;
-					case Texture::PixelFormat::RGBA16:
-					case Texture::PixelFormat::RGBA16F:
+					case texture::pixelformat::rgba16:
+					case texture::pixelformat::rgba16f:
 						dataType = GL_UNSIGNED_SHORT;
 						dataAlignment = 2;
 						break;
-					case Texture::PixelFormat::RGBA32F:
+					case texture::pixelformat::rgba32f:
 						dataType = GL_FLOAT;
 						break;
 				}
 
 				GLCHECK(glPixelStorei(GL_UNPACK_ALIGNMENT, dataAlignment));
-				GLCHECK(glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, texture->Width, texture->Height, dataFormat, dataType, dataFlipped.get()));
+				GLCHECK(glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, texture->width, texture->height, dataFormat, dataType, dataFlipped.get()));
 				GLCHECK(glPixelStorei(GL_UNPACK_ALIGNMENT, 4));
 			}
 
-			if (texture->Levels > 1)
+			if (texture->levels > 1)
 			{
 				GLCHECK(glGenerateMipmap(GL_TEXTURE_2D));
 			}
@@ -3610,13 +3599,13 @@ namespace ReShade
 			return true;
 		}
 
-		void GLRuntime::DetectDepthSource()
+		void gl_runtime::detect_depth_source()
 		{
 			static int cooldown = 0, traffic = 0;
 
 			if (cooldown-- > 0)
 			{
-				traffic += NetworkUpload > 0;
+				traffic += s_network_upload > 0;
 				return;
 			}
 			else
@@ -3626,8 +3615,8 @@ namespace ReShade
 				if (traffic > 10)
 				{
 					traffic = 0;
-					_depthSource = 0;
-					CreateDepthTexture(0, 0, GL_NONE);
+					_depth_source = 0;
+					create_depth_texture(0, 0, GL_NONE);
 					return;
 				}
 				else
@@ -3637,56 +3626,56 @@ namespace ReShade
 			}
 
 			GLuint best = 0;
-			DepthSourceInfo bestInfo = { 0, 0, 0, GL_NONE };
+			depth_source_info bestInfo = { 0, 0, 0, GL_NONE };
 
-			for (auto &it : _depthSourceTable)
+			for (auto &it : _depth_source_table)
 			{
-				if (it.second.DrawCallCount == 0)
+				if (it.second.drawcall_count == 0)
 				{
 					continue;
 				}
-				else if (((it.second.DrawVerticesCount * (1.2f - it.second.DrawCallCount / _stats.DrawCalls)) >= (bestInfo.DrawVerticesCount * (1.2f - bestInfo.DrawCallCount / _stats.DrawCalls))) && ((it.second.Width > _width * 0.95 && it.second.Width < _width * 1.05) && (it.second.Height > _height * 0.95 && it.second.Height < _height * 1.05)))
+				else if (((it.second.vertices_count * (1.2f - it.second.drawcall_count / _stats.drawcalls)) >= (bestInfo.vertices_count * (1.2f - bestInfo.drawcall_count / _stats.drawcalls))) && ((it.second.width > _width * 0.95 && it.second.width < _width * 1.05) && (it.second.height > _height * 0.95 && it.second.height < _height * 1.05)))
 				{
 					best = it.first;
 					bestInfo = it.second;
 				}
 
-				it.second.DrawCallCount = it.second.DrawVerticesCount = 0;
+				it.second.drawcall_count = it.second.vertices_count = 0;
 			}
 
 			if (best == 0)
 			{
-				bestInfo = _depthSourceTable.at(0);
+				bestInfo = _depth_source_table.at(0);
 			}
 
-			if (_depthSource != best || _depthTexture == 0)
+			if (_depth_source != best || _depth_texture == 0)
 			{
-				const DepthSourceInfo &previousInfo = _depthSourceTable.at(_depthSource);
+				const depth_source_info &previousInfo = _depth_source_table.at(_depth_source);
 
-				if ((bestInfo.Width != previousInfo.Width || bestInfo.Height != previousInfo.Height || bestInfo.Format != previousInfo.Format) || _depthTexture == 0)
+				if ((bestInfo.width != previousInfo.width || bestInfo.height != previousInfo.height || bestInfo.format != previousInfo.format) || _depth_texture == 0)
 				{
 					// Resize depth texture
-					CreateDepthTexture(bestInfo.Width, bestInfo.Height, bestInfo.Format);
+					create_depth_texture(bestInfo.width, bestInfo.height, bestInfo.format);
 				}
 
 				GLint previousFBO = 0;
 				GLCHECK(glGetIntegerv(GL_FRAMEBUFFER_BINDING, &previousFBO));
 
-				GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, _blitFBO));
-				GLCHECK(glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, _depthTexture, 0));
+				GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, _blit_fbo));
+				GLCHECK(glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, _depth_texture, 0));
 
 				assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
 
-				_depthSource = best;
+				_depth_source = best;
 
 				if (best != 0)
 				{
-					if (_depthSourceFBO == 0)
+					if (_depth_source_fbo == 0)
 					{
-						GLCHECK(glGenFramebuffers(1, &_depthSourceFBO));
+						GLCHECK(glGenFramebuffers(1, &_depth_source_fbo));
 					}
 
-					GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, _depthSourceFBO));
+					GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, _depth_source_fbo));
 
 					if ((best & 0x80000000) != 0)
 					{
@@ -3700,7 +3689,7 @@ namespace ReShade
 					{
 						LOG(TRACE) << "Switched depth source to texture " << best << ".";
 
-						GLCHECK(glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, best, bestInfo.Level));
+						GLCHECK(glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, best, bestInfo.level));
 					}
 
 					const GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
@@ -3709,24 +3698,24 @@ namespace ReShade
 					{
 						LOG(TRACE) << "Failed to create depth source framebuffer with status code " << status << ".";
 
-						GLCHECK(glDeleteFramebuffers(1, &_depthSourceFBO));
-						_depthSourceFBO = 0;
+						GLCHECK(glDeleteFramebuffers(1, &_depth_source_fbo));
+						_depth_source_fbo = 0;
 					}
 				}
 				else
 				{
 					LOG(TRACE) << "Switched depth source to default framebuffer.";
 
-					GLCHECK(glDeleteFramebuffers(1, &_depthSourceFBO));
-					_depthSourceFBO = 0;
+					GLCHECK(glDeleteFramebuffers(1, &_depth_source_fbo));
+					_depth_source_fbo = 0;
 				}
 
 				GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, previousFBO));
 			}
 		}
-		void GLRuntime::CreateDepthTexture(GLuint width, GLuint height, GLenum format)
+		void gl_runtime::create_depth_texture(GLuint width, GLuint height, GLenum format)
 		{
-			GLCHECK(glDeleteTextures(1, &_depthTexture));
+			GLCHECK(glDeleteTextures(1, &_depth_texture));
 
 			if (format != GL_NONE)
 			{
@@ -3736,9 +3725,9 @@ namespace ReShade
 				// Clear errors
 				GLenum status = glGetError();
 
-				GLCHECK(glGenTextures(1, &_depthTexture));
+				GLCHECK(glGenTextures(1, &_depth_texture));
 
-				GLCHECK(glBindTexture(GL_TEXTURE_2D, _depthTexture));
+				GLCHECK(glBindTexture(GL_TEXTURE_2D, _depth_texture));
 				glTexStorage2D(GL_TEXTURE_2D, 1, format, width, height);
 
 				status = glGetError();
@@ -3747,26 +3736,26 @@ namespace ReShade
 				{
 					LOG(ERROR) << "Failed to create depth texture for format " << format << " with error code " << status;
 
-					GLCHECK(glDeleteTextures(1, &_depthTexture));
+					GLCHECK(glDeleteTextures(1, &_depth_texture));
 
-					_depthTexture = 0;
+					_depth_texture = 0;
 				}
 
 				GLCHECK(glBindTexture(GL_TEXTURE_2D, previousTex));
 			}
 			else
 			{
-				_depthTexture = 0;
+				_depth_texture = 0;
 			}
 
 			// Update effect textures
 			for (const auto &it : _textures)
 			{
-				GLTexture *texture = static_cast<GLTexture *>(it.get());
+				gl_texture *texture = static_cast<gl_texture *>(it.get());
 
-				if (texture->DataSource == GLTexture::Source::DepthStencil)
+				if (texture->basetype == texture::datatype::depthbuffer)
 				{
-					texture->ChangeDataSource(GLTexture::Source::DepthStencil, _depthTexture, 0);
+					texture->change_data_source(texture::datatype::depthbuffer, _depth_texture, 0);
 				}
 			}
 		}

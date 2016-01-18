@@ -404,7 +404,7 @@ EXPORT HRESULT WINAPI D3D12CreateDevice(IUnknown *pAdapter, D3D_FEATURE_LEVEL Mi
 
 	LOG(INFO) << "Redirecting '" << "D3D12CreateDevice" << "(" << pAdapter << ", " << std::showbase << std::hex << MinimumFeatureLevel << std::dec << std::noshowbase << ", " << riidString << ", " << ppDevice << ")' ...";
 
-	const HRESULT hr = ReShade::Hooks::Call(&D3D12CreateDevice)(pAdapter, MinimumFeatureLevel, riid, ppDevice);
+	const HRESULT hr = reshade::hooks::call(&D3D12CreateDevice)(pAdapter, MinimumFeatureLevel, riid, ppDevice);
 
 	if (FAILED(hr))
 	{
@@ -421,13 +421,13 @@ EXPORT HRESULT WINAPI D3D12CreateDevice(IUnknown *pAdapter, D3D_FEATURE_LEVEL Mi
 
 		if (SUCCEEDED(static_cast<IUnknown *>(*ppDevice)->QueryInterface(&device)))
 		{
-			const auto deviceProxy = new D3D12Device(device);
+			const auto device_proxy = new D3D12Device(device);
 
 			device->Release();
 
-			*ppDevice = deviceProxy;
+			*ppDevice = device_proxy;
 
-			LOG(TRACE) << "> Returned device objects: " << deviceProxy;
+			LOG(TRACE) << "> Returned device objects: " << device_proxy;
 		}
 		else
 		{
