@@ -10,32 +10,40 @@
 #define LOG_ERROR() reshade::log::message(reshade::log::level::error)
 #define LOG_WARNING() reshade::log::message(reshade::log::level::warning)
 #define LOG_INFO() reshade::log::message(reshade::log::level::info)
-#define LOG_TRACE() reshade::log::message(reshade::log::level::trace)
+#define LOG_TRACE() reshade::log::message(reshade::log::level::debug)
 
 namespace reshade
 {
-	class log abstract
+	namespace log
 	{
-	public:
+		extern bool debug;
+		extern std::ofstream stream;
+
 		enum class level
 		{
 			fatal,
 			error,
 			warning,
 			info,
-			trace
+			debug,
 		};
 		struct message
 		{
 			message(level level);
-			~message();
+			inline ~message()
+			{
+				if (_dispatch)
+				{
+					stream << std::endl;
+				}
+			}
 
 			template <typename T>
 			inline message &operator<<(const T &value)
 			{
 				if (_dispatch)
 				{
-					s_filestream << value;
+					stream << value;
 				}
 
 				return *this;
@@ -58,10 +66,10 @@ namespace reshade
 			bool _dispatch;
 		};
 
-		static bool open(const boost::filesystem::path &path, level maxlevel);
-
-	private:
-		static level s_max_level;
-		static std::ofstream s_filestream;
+		/// <summary>
+		/// Open a log file for writing.
+		/// </summary>
+		/// <param name="path">The path to the log file.</param>
+		bool open(const boost::filesystem::path &path);
 	};
 }

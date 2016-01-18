@@ -4,55 +4,47 @@
 
 namespace reshade
 {
-	log::level log::s_max_level = log::level::info;
-	std::ofstream log::s_filestream;
-
-	log::message::message(level level) : _dispatch(level <= s_max_level && s_filestream.is_open())
+	namespace log
 	{
-		if (!_dispatch)
+		bool debug = false;
+		std::ofstream stream;
+
+		message::message(level level) : _dispatch(level <= (debug ? level::debug : level::info) && stream.is_open())
 		{
-			return;
+			if (!_dispatch)
+			{
+				return;
+			}
+
+			SYSTEMTIME time;
+			GetLocalTime(&time);
+
+			const char level_names[][6] = { "FATAL", "ERROR", "WARN ", "INFO ", "TRACE" };
+
+			stream << std::right << std::setfill('0')
+				<< std::setw(2) << time.wDay << '/'
+				<< std::setw(2) << time.wMonth << '/'
+				<< std::setw(4) << time.wYear << ' '
+				<< std::setw(2) << time.wHour << ':'
+				<< std::setw(2) << time.wMinute << ':'
+				<< std::setw(2) << time.wSecond << ':'
+				<< std::setw(3) << time.wMilliseconds << ' '
+				<< '[' << std::setw(5) << GetCurrentThreadId() << ']' << std::setfill(' ')
+				<< " | " << level_names[static_cast<unsigned int>(level)] << " | " << std::left;
 		}
 
-		SYSTEMTIME time;
-		GetLocalTime(&time);
-
-		const char levelNames[][6] = { "FATAL", "ERROR", "WARN ", "INFO ", "TRACE" };
-
-		s_filestream << std::right << std::setfill('0')
-			<< std::setw(2) << time.wDay << '/'
-			<< std::setw(2) << time.wMonth << '/'
-			<< std::setw(4) << time.wYear << ' '
-			<< std::setw(2) << time.wHour << ':'
-			<< std::setw(2) << time.wMinute << ':'
-			<< std::setw(2) << time.wSecond << ':'
-			<< std::setw(3) << time.wMilliseconds << ' '
-			<< '[' << std::setw(5) << GetCurrentThreadId() << ']' << std::setfill(' ')
-			<< " | " << levelNames[static_cast<unsigned int>(level)] << " | " << std::left;
-	}
-	log::message::~message()
-	{
-		if (!_dispatch)
+		bool open(const boost::filesystem::path &path)
 		{
-			return;
+			stream.open(path.native(), std::ios::out | std::ios::trunc);
+
+			if (!stream.is_open())
+			{
+				return false;
+			}
+
+			stream.flush();
+
+			return true;
 		}
-
-		s_filestream << std::endl;
-	}
-
-	bool log::open(const boost::filesystem::path &path, level maxlevel)
-	{
-		s_filestream.open(path.native(), std::ios::out | std::ios::trunc);
-
-		if (!s_filestream.is_open())
-		{
-			return false;
-		}
-
-		s_filestream.flush();
-
-		s_max_level = maxlevel;
-
-		return true;
 	}
 }

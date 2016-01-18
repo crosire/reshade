@@ -60,11 +60,13 @@ namespace reshade
 
 		if (boost::filesystem::exists(tracelog_path))
 		{
-			log::open(tracelog_path, log::level::trace);
+			log::debug = true;
+
+			log::open(tracelog_path);
 		}
 		else
 		{
-			log::open(log_path, log::level::info);
+			log::open(log_path);
 		}
 
 		LOG(INFO) << "Initializing crosire's ReShade version '" BOOST_STRINGIZE(VERSION_FULL) "' built on '" VERSION_DATE " " VERSION_TIME "' loaded from " << obfuscate_path(injector_path) << " to " << obfuscate_path(executable_path) << " ...";
