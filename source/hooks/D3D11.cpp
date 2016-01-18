@@ -11,7 +11,7 @@
 
 namespace
 {
-	std::string GetErrorString(HRESULT hr)
+	std::string write_error_string(HRESULT hr)
 	{
 		std::stringstream res;
 
@@ -1165,7 +1165,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDeferredContext(UINT ContextFlags, 
 
 	if (FAILED(hr))
 	{
-		LOG(WARNING) << "> 'ID3D11Device::CreateDeferredContext' failed with '" << GetErrorString(hr) << "'!";
+		LOG(WARNING) << "> 'ID3D11Device::CreateDeferredContext' failed with '" << write_error_string(hr) << "'!";
 
 		return hr;
 	}
@@ -1275,7 +1275,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDeferredContext1(UINT ContextFlags,
 
 	if (FAILED(hr))
 	{
-		LOG(WARNING) << "> 'ID3D11Device1::CreateDeferredContext1' failed with '" << GetErrorString(hr) << "'!";
+		LOG(WARNING) << "> 'ID3D11Device1::CreateDeferredContext1' failed with '" << write_error_string(hr) << "'!";
 
 		return hr;
 	}
@@ -1431,7 +1431,7 @@ EXPORT HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, D3D_
 
 	if (FAILED(hr))
 	{
-		LOG(WARNING) << "> 'D3D11CreateDeviceAndSwapChain' failed with '" << GetErrorString(hr) << "'!";
+		LOG(WARNING) << "> 'D3D11CreateDeviceAndSwapChain' failed with '" << write_error_string(hr) << "'!";
 
 		return hr;
 	}

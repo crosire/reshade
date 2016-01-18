@@ -11,7 +11,7 @@
 
 namespace
 {
-	std::string GetErrorString(HRESULT hr)
+	std::string write_error_string(HRESULT hr)
 	{
 		std::stringstream res;
 
@@ -30,7 +30,7 @@ namespace
 
 		return res.str();
 	}
-	void DumpSwapChainDescription(const DXGI_SWAP_CHAIN_DESC &desc)
+	void dump_swapchain_desc(const DXGI_SWAP_CHAIN_DESC &desc)
 	{
 		LOG(TRACE) << "> Dumping swap chain description:";
 		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
@@ -57,7 +57,7 @@ namespace
 			LOG(WARNING) << "> Multisampling is enabled. This is not compatible with depth buffer access, which was therefore disabled.";
 		}
 	}
-	void DumpSwapChainDescription(const DXGI_SWAP_CHAIN_DESC1 &desc)
+	void dump_swapchain_desc(const DXGI_SWAP_CHAIN_DESC1 &desc)
 	{
 		LOG(TRACE) << "> Dumping swap chain description:";
 		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
@@ -328,7 +328,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Wi
 	}
 	else if (FAILED(hr))
 	{
-		LOG(ERROR) << "> 'IDXGISwapChain::ResizeBuffers' failed with '" << GetErrorString(hr) << "'!";
+		LOG(ERROR) << "> 'IDXGISwapChain::ResizeBuffers' failed with '" << write_error_string(hr) << "'!";
 
 		return hr;
 	}
@@ -555,7 +555,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers1(UINT BufferCount, UINT W
 	}
 	else if (FAILED(hr))
 	{
-		LOG(ERROR) << "> 'IDXGISwapChain3::ResizeBuffers1' failed with '" << GetErrorString(hr) << "'!";
+		LOG(ERROR) << "> 'IDXGISwapChain3::ResizeBuffers1' failed with '" << write_error_string(hr) << "'!";
 
 		return hr;
 	}
@@ -809,13 +809,13 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, I
 		commandqueue_d3d12->Release();
 	}
 
-	DumpSwapChainDescription(*pDesc);
+	dump_swapchain_desc(*pDesc);
 
 	const HRESULT hr = reshade::hooks::call(&IDXGIFactory_CreateSwapChain)(pFactory, device_orig, pDesc, ppSwapChain);
 
 	if (FAILED(hr))
 	{
-		LOG(WARNING) << "> 'IDXGIFactory::CreateSwapChain' failed with '" << GetErrorString(hr) << "'!";
+		LOG(WARNING) << "> 'IDXGIFactory::CreateSwapChain' failed with '" << write_error_string(hr) << "'!";
 
 		return hr;
 	}
@@ -926,13 +926,13 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pF
 		commandqueue_d3d12->Release();
 	}
 
-	DumpSwapChainDescription(*pDesc);
+	dump_swapchain_desc(*pDesc);
 
 	const HRESULT hr = reshade::hooks::call(&IDXGIFactory2_CreateSwapChainForHwnd)(pFactory, device_orig, hWnd, pDesc, pFullscreenDesc, pRestrictToOutput, ppSwapChain);
 
 	if (FAILED(hr))
 	{
-		LOG(WARNING) << "> 'IDXGIFactory2::CreateSwapChainForHwnd' failed with '" << GetErrorString(hr) << "'!";
+		LOG(WARNING) << "> 'IDXGIFactory2::CreateSwapChainForHwnd' failed with '" << write_error_string(hr) << "'!";
 
 		return hr;
 	}
@@ -1041,13 +1041,13 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactor
 		commandqueue_d3d12->Release();
 	}
 
-	DumpSwapChainDescription(*pDesc);
+	dump_swapchain_desc(*pDesc);
 
 	const HRESULT hr = reshade::hooks::call(&IDXGIFactory2_CreateSwapChainForCoreWindow)(pFactory, device_orig, pWindow, pDesc, pRestrictToOutput, ppSwapChain);
 
 	if (FAILED(hr))
 	{
-		LOG(WARNING) << "> 'IDXGIFactory2::CreateSwapChainForCoreWindow' failed with '" << GetErrorString(hr) << "'!";
+		LOG(WARNING) << "> 'IDXGIFactory2::CreateSwapChainForCoreWindow' failed with '" << write_error_string(hr) << "'!";
 
 		return hr;
 	}
@@ -1156,13 +1156,13 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFacto
 		commandqueue_d3d12->Release();
 	}
 
-	DumpSwapChainDescription(*pDesc);
+	dump_swapchain_desc(*pDesc);
 
 	const HRESULT hr = reshade::hooks::call(&IDXGIFactory2_CreateSwapChainForComposition)(pFactory, device_orig, pDesc, pRestrictToOutput, ppSwapChain);
 
 	if (FAILED(hr))
 	{
-		LOG(WARNING) << "> 'IDXGIFactory2::CreateSwapChainForComposition' failed with '" << GetErrorString(hr) << "'!";
+		LOG(WARNING) << "> 'IDXGIFactory2::CreateSwapChainForComposition' failed with '" << write_error_string(hr) << "'!";
 
 		return hr;
 	}
@@ -1282,7 +1282,7 @@ EXPORT HRESULT WINAPI CreateDXGIFactory(REFIID riid, void **ppFactory)
 
 	if (FAILED(hr))
 	{
-		LOG(WARNING) << "> 'CreateDXGIFactory' failed with '" << GetErrorString(hr) << "'!";
+		LOG(WARNING) << "> 'CreateDXGIFactory' failed with '" << write_error_string(hr) << "'!";
 
 		return hr;
 	}
@@ -1316,7 +1316,7 @@ EXPORT HRESULT WINAPI CreateDXGIFactory1(REFIID riid, void **ppFactory)
 
 	if (FAILED(hr))
 	{
-		LOG(WARNING) << "> 'CreateDXGIFactory1' failed with '" << GetErrorString(hr) << "'!";
+		LOG(WARNING) << "> 'CreateDXGIFactory1' failed with '" << write_error_string(hr) << "'!";
 
 		return hr;
 	}
@@ -1354,7 +1354,7 @@ EXPORT HRESULT WINAPI CreateDXGIFactory2(UINT flags, REFIID riid, void **ppFacto
 
 	if (FAILED(hr))
 	{
-		LOG(WARNING) << "> 'CreateDXGIFactory2' failed with '" << GetErrorString(hr) << "'!";
+		LOG(WARNING) << "> 'CreateDXGIFactory2' failed with '" << write_error_string(hr) << "'!";
 
 		return hr;
 	}

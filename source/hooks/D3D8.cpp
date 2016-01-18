@@ -10,7 +10,7 @@
 
 namespace
 {
-	std::string GetErrorString(HRESULT hr)
+	std::string write_error_string(HRESULT hr)
 	{
 		std::stringstream res;
 
@@ -50,7 +50,7 @@ namespace
 
 		return res.str();
 	}
-	UINT CalculateTextureSize(UINT width, UINT height, UINT depth, D3DFORMAT format)
+	UINT calc_texture_size(UINT width, UINT height, UINT depth, D3DFORMAT format)
 	{
 		switch (static_cast<DWORD>(format))
 		{
@@ -109,7 +109,7 @@ namespace
 		}
 	}
 
-	void ConvertCaps(D3DCAPS9 &input, D3DCAPS8 &output)
+	void convert_caps(D3DCAPS9 &input, D3DCAPS8 &output)
 	{
 		CopyMemory(&output, &input, sizeof(D3DCAPS8));
 
@@ -124,24 +124,24 @@ namespace
 			output.MaxVertexShaderConst = 256;
 		}
 	}
-	void ConvertVolumeDesc(D3DVOLUME_DESC &input, D3DVOLUME_DESC8 &output)
+	void convert_volume_desc(D3DVOLUME_DESC &input, D3DVOLUME_DESC8 &output)
 	{
 		output.Format = input.Format;
 		output.Type = input.Type;
 		output.Usage = input.Usage;
 		output.Pool = input.Pool;
-		output.Size = CalculateTextureSize(input.Width, input.Height, input.Depth, input.Format);
+		output.Size = calc_texture_size(input.Width, input.Height, input.Depth, input.Format);
 		output.Width = input.Width;
 		output.Height = input.Height;
 		output.Depth = input.Depth;
 	}
-	void ConvertSurfaceDesc(D3DSURFACE_DESC &input, D3DSURFACE_DESC8 &output)
+	void convert_surface_desc(D3DSURFACE_DESC &input, D3DSURFACE_DESC8 &output)
 	{
 		output.Format = input.Format;
 		output.Type = input.Type;
 		output.Usage = input.Usage;
 		output.Pool = input.Pool;
-		output.Size = CalculateTextureSize(input.Width, input.Height, 1, input.Format);
+		output.Size = calc_texture_size(input.Width, input.Height, 1, input.Format);
 		output.MultiSampleType = input.MultiSampleType;
 		output.Width = input.Width;
 		output.Height = input.Height;
@@ -151,7 +151,7 @@ namespace
 			output.MultiSampleType = D3DMULTISAMPLE_NONE;
 		}
 	}
-	void ConvertPresentParameters(D3DPRESENT_PARAMETERS8 &input, D3DPRESENT_PARAMETERS &output)
+	void convert_present_parameters(D3DPRESENT_PARAMETERS8 &input, D3DPRESENT_PARAMETERS &output)
 	{
 		output.BackBufferWidth = input.BackBufferWidth;
 		output.BackBufferHeight = input.BackBufferHeight;
@@ -178,7 +178,7 @@ namespace
 			output.PresentationInterval = D3DPRESENT_INTERVAL_IMMEDIATE;
 		}
 	}
-	void ConvertAdapterIdentifier(D3DADAPTER_IDENTIFIER9 &input, D3DADAPTER_IDENTIFIER8 &output)
+	void convert_adapter_identifier(D3DADAPTER_IDENTIFIER9 &input, D3DADAPTER_IDENTIFIER8 &output)
 	{
 		CopyMemory(output.Driver, input.Driver, MAX_DEVICE_IDENTIFIER_STRING);
 		CopyMemory(output.Description, input.Description, MAX_DEVICE_IDENTIFIER_STRING);
@@ -300,7 +300,7 @@ HRESULT STDMETHODCALLTYPE Direct3DTexture8::GetLevelDesc(UINT Level, D3DSURFACE_
 		return hr;
 	}
 
-	ConvertSurfaceDesc(desc, *pDesc);
+	convert_surface_desc(desc, *pDesc);
 
 	return D3D_OK;
 }
@@ -447,7 +447,7 @@ HRESULT STDMETHODCALLTYPE Direct3DCubeTexture8::GetLevelDesc(UINT Level, D3DSURF
 		return hr;
 	}
 
-	ConvertSurfaceDesc(desc, *pDesc);
+	convert_surface_desc(desc, *pDesc);
 
 	return D3D_OK;
 }
@@ -594,7 +594,7 @@ HRESULT STDMETHODCALLTYPE Direct3DVolumeTexture8::GetLevelDesc(UINT Level, D3DVO
 		return hr;
 	}
 
-	ConvertVolumeDesc(desc, *pDesc);
+	convert_volume_desc(desc, *pDesc);
 
 	return D3D_OK;
 }
@@ -715,7 +715,7 @@ HRESULT STDMETHODCALLTYPE Direct3DSurface8::GetDesc(D3DSURFACE_DESC8 *pDesc)
 		return hr;
 	}
 
-	ConvertSurfaceDesc(desc, *pDesc);
+	convert_surface_desc(desc, *pDesc);
 
 	return D3D_OK;
 }
@@ -810,7 +810,7 @@ HRESULT STDMETHODCALLTYPE Direct3DVolume8::GetDesc(D3DVOLUME_DESC8 *pDesc)
 		return hr;
 	}
 
-	ConvertVolumeDesc(desc, *pDesc);
+	convert_volume_desc(desc, *pDesc);
 
 	return D3D_OK;
 }
@@ -1170,7 +1170,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::GetDeviceCaps(D3DCAPS8 *pCaps)
 		return hr;
 	}
 
-	ConvertCaps(caps, *pCaps);
+	convert_caps(caps, *pCaps);
 
 	return D3D_OK;
 }
@@ -1213,7 +1213,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateAdditionalSwapChain(D3DPRESENT_
 	D3DPRESENT_PARAMETERS pp;
 	IDirect3DSwapChain9 *swapchain = nullptr;
 
-	ConvertPresentParameters(*pPresentationParameters, pp);
+	convert_present_parameters(*pPresentationParameters, pp);
 
 	const auto hr = _proxy->CreateAdditionalSwapChain(&pp, &swapchain);
 
@@ -1236,7 +1236,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::Reset(D3DPRESENT_PARAMETERS8 *pPresen
 	}
 
 	D3DPRESENT_PARAMETERS pp;
-	ConvertPresentParameters(*pPresentationParameters, pp);
+	convert_present_parameters(*pPresentationParameters, pp);
 
 	if (_current_rendertarget != nullptr)
 	{
@@ -1541,7 +1541,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateImageSurface(UINT Width, UINT H
 
 	if (FAILED(hr))
 	{
-		LOG(WARNING) << "> 'IDirect3DDevice8::CreateImageSurface' failed with '" << GetErrorString(hr) << "'!";
+		LOG(WARNING) << "> 'IDirect3DDevice8::CreateImageSurface' failed with '" << write_error_string(hr) << "'!";
 
 		return hr;
 	}
@@ -2293,7 +2293,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateVertexShader(CONST DWORD *pDecl
 
 		if (FAILED(hr))
 		{
-			LOG(ERROR) << "> Failed to disassemble shader with '" << GetErrorString(hr) << "'!";
+			LOG(ERROR) << "> Failed to disassemble shader with '" << write_error_string(hr) << "'!";
 
 			return hr;
 		}
@@ -2408,7 +2408,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateVertexShader(CONST DWORD *pDecl
 			}
 			else
 			{
-				LOG(ERROR) << "> Failed to reassemble shader with '" << GetErrorString(hr) << "'!";
+				LOG(ERROR) << "> Failed to reassemble shader with '" << write_error_string(hr) << "'!";
 			}
 
 			return hr;
@@ -2438,7 +2438,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateVertexShader(CONST DWORD *pDecl
 		}
 		else
 		{
-			LOG(ERROR) << "> 'IDirect3DDevice9::CreateVertexDeclaration' failed with '" << GetErrorString(hr) << "'!";
+			LOG(ERROR) << "> 'IDirect3DDevice9::CreateVertexDeclaration' failed with '" << write_error_string(hr) << "'!";
 
 			if (shader->shader != nullptr)
 			{
@@ -2448,7 +2448,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateVertexShader(CONST DWORD *pDecl
 	}
 	else
 	{
-		LOG(ERROR) << "> 'IDirect3DDevice9::CreateVertexShader' failed with '" << GetErrorString(hr) << "'!";
+		LOG(ERROR) << "> 'IDirect3DDevice9::CreateVertexShader' failed with '" << write_error_string(hr) << "'!";
 	}
 
 	if (FAILED(hr))
@@ -2669,7 +2669,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreatePixelShader(CONST DWORD *pFunct
 
 	if (FAILED(hr))
 	{
-		LOG(ERROR) << "> Failed to disassemble shader with '" << GetErrorString(hr) << "'!";
+		LOG(ERROR) << "> Failed to disassemble shader with '" << write_error_string(hr) << "'!";
 
 		return hr;
 	}
@@ -2706,7 +2706,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreatePixelShader(CONST DWORD *pFunct
 		}
 		else
 		{
-			LOG(ERROR) << "> Failed to reassemble shader with '" << GetErrorString(hr) << "'!";
+			LOG(ERROR) << "> Failed to reassemble shader with '" << write_error_string(hr) << "'!";
 		}
 
 		return hr;
@@ -2716,7 +2716,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreatePixelShader(CONST DWORD *pFunct
 
 	if (FAILED(hr))
 	{
-		LOG(ERROR) << "> 'IDirect3DDevice9::CreatePixelShader' failed with '" << GetErrorString(hr) << "'!";
+		LOG(ERROR) << "> 'IDirect3DDevice9::CreatePixelShader' failed with '" << write_error_string(hr) << "'!";
 	}
 
 	return hr;
@@ -2860,7 +2860,7 @@ HRESULT STDMETHODCALLTYPE Direct3D8::GetAdapterIdentifier(UINT Adapter, DWORD Fl
 		return hr;
 	}
 
-	ConvertAdapterIdentifier(identifier, *pIdentifier);
+	convert_adapter_identifier(identifier, *pIdentifier);
 
 	return D3D_OK;
 }
@@ -2943,7 +2943,7 @@ HRESULT STDMETHODCALLTYPE Direct3D8::GetDeviceCaps(UINT Adapter, D3DDEVTYPE Devi
 		return hr;
 	}
 
-	ConvertCaps(caps, *pCaps);
+	convert_caps(caps, *pCaps);
 
 	return D3D_OK;
 }
@@ -2965,7 +2965,7 @@ HRESULT STDMETHODCALLTYPE Direct3D8::CreateDevice(UINT Adapter, D3DDEVTYPE Devic
 	D3DPRESENT_PARAMETERS pp;
 	IDirect3DDevice9 *device = nullptr;
 
-	ConvertPresentParameters(*pPresentationParameters, pp);
+	convert_present_parameters(*pPresentationParameters, pp);
 
 	const auto hr = _proxy->CreateDevice(Adapter, DeviceType, hFocusWindow, BehaviorFlags, &pp, &device);
 

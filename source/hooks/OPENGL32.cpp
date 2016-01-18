@@ -109,10 +109,9 @@ DECLARE_HANDLE(HPBUFFERARB);
 
 namespace
 {
-	std::string GetErrorString(DWORD code)
+	std::string write_error_string(DWORD code)
 	{
 		code &= 0xFFFF;
-
 		std::stringstream res;
 
 		switch (code)
@@ -155,11 +154,11 @@ namespace
 		return res.str();
 	}
 
-	reshade::utils::critical_section _cs;
-	std::unordered_map<HWND, RECT> _window_rects;
-	std::unordered_set<HDC> _pbuffer_device_contexts;
-	std::unordered_map<HGLRC, HGLRC> _shared_contexts;
-	std::unordered_map<HDC, std::shared_ptr<reshade::runtimes::gl_runtime>> _runtimes;
+	reshade::utils::critical_section s_cs;
+	std::unordered_map<HWND, RECT> s_window_rects;
+	std::unordered_set<HDC> s_pbuffer_device_contexts;
+	std::unordered_map<HGLRC, HGLRC> s_shared_contexts;
+	std::unordered_map<HDC, std::shared_ptr<reshade::runtimes::gl_runtime>> s_runtimes;
 }
 
 // GL
@@ -191,9 +190,9 @@ EXPORT void WINAPI glBegin(GLenum mode)
 {
 	static const auto trampoline = reshade::hooks::call(&glBegin);
 
-	const auto it = _runtimes.find(wglGetCurrentDC());
+	const auto it = s_runtimes.find(wglGetCurrentDC());
 
-	if (it != _runtimes.end())
+	if (it != s_runtimes.end())
 	{
 		it->second->_current_vertex_count = 0;
 	}
@@ -576,9 +575,9 @@ EXPORT void WINAPI glDrawArrays(GLenum mode, GLint first, GLsizei count)
 {
 	static const auto trampoline = reshade::hooks::call(&glDrawArrays);
 
-	const auto it = _runtimes.find(wglGetCurrentDC());
+	const auto it = s_runtimes.find(wglGetCurrentDC());
 
-	if (it != _runtimes.end())
+	if (it != s_runtimes.end())
 	{
 		it->second->on_draw_call(count);
 	}
@@ -595,9 +594,9 @@ void WINAPI glDrawArraysInstanced(GLenum mode, GLint first, GLsizei count, GLsiz
 {
 	static const auto trampoline = reshade::hooks::call(&glDrawArraysInstanced);
 
-	const auto it = _runtimes.find(wglGetCurrentDC());
+	const auto it = s_runtimes.find(wglGetCurrentDC());
 
-	if (it != _runtimes.end())
+	if (it != s_runtimes.end())
 	{
 		it->second->on_draw_call(primcount * count);
 	}
@@ -608,9 +607,9 @@ void WINAPI glDrawArraysInstancedARB(GLenum mode, GLint first, GLsizei count, GL
 {
 	static const auto trampoline = reshade::hooks::call(&glDrawArraysInstancedARB);
 
-	const auto it = _runtimes.find(wglGetCurrentDC());
+	const auto it = s_runtimes.find(wglGetCurrentDC());
 
-	if (it != _runtimes.end())
+	if (it != s_runtimes.end())
 	{
 		it->second->on_draw_call(primcount * count);
 	}
@@ -621,9 +620,9 @@ void WINAPI glDrawArraysInstancedEXT(GLenum mode, GLint first, GLsizei count, GL
 {
 	static const auto trampoline = reshade::hooks::call(&glDrawArraysInstancedEXT);
 
-	const auto it = _runtimes.find(wglGetCurrentDC());
+	const auto it = s_runtimes.find(wglGetCurrentDC());
 
-	if (it != _runtimes.end())
+	if (it != s_runtimes.end())
 	{
 		it->second->on_draw_call(primcount * count);
 	}
@@ -634,9 +633,9 @@ void WINAPI glDrawArraysInstancedBaseInstance(GLenum mode, GLint first, GLsizei 
 {
 	static const auto trampoline = reshade::hooks::call(&glDrawArraysInstancedBaseInstance);
 
-	const auto it = _runtimes.find(wglGetCurrentDC());
+	const auto it = s_runtimes.find(wglGetCurrentDC());
 
-	if (it != _runtimes.end())
+	if (it != s_runtimes.end())
 	{
 		it->second->on_draw_call(primcount * count);
 	}
@@ -653,9 +652,9 @@ EXPORT void WINAPI glDrawElements(GLenum mode, GLsizei count, GLenum type, const
 {
 	static const auto trampoline = reshade::hooks::call(&glDrawElements);
 
-	const auto it = _runtimes.find(wglGetCurrentDC());
+	const auto it = s_runtimes.find(wglGetCurrentDC());
 
-	if (it != _runtimes.end())
+	if (it != s_runtimes.end())
 	{
 		it->second->on_draw_call(count);
 	}
@@ -666,9 +665,9 @@ void WINAPI glDrawElementsBaseVertex(GLenum mode, GLsizei count, GLenum type, co
 {
 	static const auto trampoline = reshade::hooks::call(&glDrawElementsBaseVertex);
 
-	const auto it = _runtimes.find(wglGetCurrentDC());
+	const auto it = s_runtimes.find(wglGetCurrentDC());
 
-	if (it != _runtimes.end())
+	if (it != s_runtimes.end())
 	{
 		it->second->on_draw_call(count);
 	}
@@ -685,9 +684,9 @@ void WINAPI glDrawElementsInstanced(GLenum mode, GLsizei count, GLenum type, con
 {
 	static const auto trampoline = reshade::hooks::call(&glDrawElementsInstanced);
 
-	const auto it = _runtimes.find(wglGetCurrentDC());
+	const auto it = s_runtimes.find(wglGetCurrentDC());
 
-	if (it != _runtimes.end())
+	if (it != s_runtimes.end())
 	{
 		it->second->on_draw_call(primcount * count);
 	}
@@ -698,9 +697,9 @@ void WINAPI glDrawElementsInstancedARB(GLenum mode, GLsizei count, GLenum type, 
 {
 	static const auto trampoline = reshade::hooks::call(&glDrawElementsInstancedARB);
 
-	const auto it = _runtimes.find(wglGetCurrentDC());
+	const auto it = s_runtimes.find(wglGetCurrentDC());
 
-	if (it != _runtimes.end())
+	if (it != s_runtimes.end())
 	{
 		it->second->on_draw_call(primcount * count);
 	}
@@ -711,9 +710,9 @@ void WINAPI glDrawElementsInstancedEXT(GLenum mode, GLsizei count, GLenum type, 
 {
 	static const auto trampoline = reshade::hooks::call(&glDrawElementsInstancedEXT);
 
-	const auto it = _runtimes.find(wglGetCurrentDC());
+	const auto it = s_runtimes.find(wglGetCurrentDC());
 
-	if (it != _runtimes.end())
+	if (it != s_runtimes.end())
 	{
 		it->second->on_draw_call(primcount * count);
 	}
@@ -724,9 +723,9 @@ void WINAPI glDrawElementsInstancedBaseVertex(GLenum mode, GLsizei count, GLenum
 {
 	static const auto trampoline = reshade::hooks::call(&glDrawElementsInstancedBaseVertex);
 
-	const auto it = _runtimes.find(wglGetCurrentDC());
+	const auto it = s_runtimes.find(wglGetCurrentDC());
 
-	if (it != _runtimes.end())
+	if (it != s_runtimes.end())
 	{
 		it->second->on_draw_call(primcount * count);
 	}
@@ -737,9 +736,9 @@ void WINAPI glDrawElementsInstancedBaseInstance(GLenum mode, GLsizei count, GLen
 {
 	static const auto trampoline = reshade::hooks::call(&glDrawElementsInstancedBaseInstance);
 
-	const auto it = _runtimes.find(wglGetCurrentDC());
+	const auto it = s_runtimes.find(wglGetCurrentDC());
 
-	if (it != _runtimes.end())
+	if (it != s_runtimes.end())
 	{
 		it->second->on_draw_call(primcount * count);
 	}
@@ -750,9 +749,9 @@ void WINAPI glDrawElementsInstancedBaseVertexBaseInstance(GLenum mode, GLsizei c
 {
 	static const auto trampoline = reshade::hooks::call(&glDrawElementsInstancedBaseVertexBaseInstance);
 
-	const auto it = _runtimes.find(wglGetCurrentDC());
+	const auto it = s_runtimes.find(wglGetCurrentDC());
 
-	if (it != _runtimes.end())
+	if (it != s_runtimes.end())
 	{
 		it->second->on_draw_call(primcount * count);
 	}
@@ -769,9 +768,9 @@ void WINAPI glDrawRangeElements(GLenum mode, GLuint start, GLuint end, GLsizei c
 {
 	static const auto trampoline = reshade::hooks::call(&glDrawRangeElements);
 
-	const auto it = _runtimes.find(wglGetCurrentDC());
+	const auto it = s_runtimes.find(wglGetCurrentDC());
 
-	if (it != _runtimes.end())
+	if (it != s_runtimes.end())
 	{
 		it->second->on_draw_call(count);
 	}
@@ -782,9 +781,9 @@ void WINAPI glDrawRangeElementsBaseVertex(GLenum mode, GLuint start, GLuint end,
 {
 	static const auto trampoline = reshade::hooks::call(&glDrawRangeElementsBaseVertex);
 
-	const auto it = _runtimes.find(wglGetCurrentDC());
+	const auto it = s_runtimes.find(wglGetCurrentDC());
 
-	if (it != _runtimes.end())
+	if (it != s_runtimes.end())
 	{
 		it->second->on_draw_call(count);
 	}
@@ -827,9 +826,9 @@ EXPORT void WINAPI glEnd()
 
 	trampoline();
 
-	const auto it = _runtimes.find(wglGetCurrentDC());
+	const auto it = s_runtimes.find(wglGetCurrentDC());
 
-	if (it != _runtimes.end())
+	if (it != s_runtimes.end())
 	{
 		it->second->on_draw_call(it->second->_current_vertex_count);
 	}
@@ -960,9 +959,9 @@ void WINAPI glFramebufferRenderbuffer(GLenum target, GLenum attachment, GLenum r
 
 	trampoline(target, attachment, renderbuffertarget, renderbuffer);
 
-	const auto it = _runtimes.find(wglGetCurrentDC());
+	const auto it = s_runtimes.find(wglGetCurrentDC());
 
-	if (it != _runtimes.end())
+	if (it != s_runtimes.end())
 	{
 		it->second->on_fbo_attachment(target, attachment, renderbuffertarget, renderbuffer, 0);
 	}
@@ -973,9 +972,9 @@ void WINAPI glFramebufferRenderbufferEXT(GLenum target, GLenum attachment, GLenu
 
 	trampoline(target, attachment, renderbuffertarget, renderbuffer);
 
-	const auto it = _runtimes.find(wglGetCurrentDC());
+	const auto it = s_runtimes.find(wglGetCurrentDC());
 
-	if (it != _runtimes.end())
+	if (it != s_runtimes.end())
 	{
 		it->second->on_fbo_attachment(target, attachment, renderbuffertarget, renderbuffer, 0);
 	}
@@ -986,9 +985,9 @@ void WINAPI glFramebufferTexture(GLenum target, GLenum attachment, GLuint textur
 
 	trampoline(target, attachment, texture, level);
 
-	const auto it = _runtimes.find(wglGetCurrentDC());
+	const auto it = s_runtimes.find(wglGetCurrentDC());
 
-	if (it != _runtimes.end())
+	if (it != s_runtimes.end())
 	{
 		it->second->on_fbo_attachment(target, attachment, GL_TEXTURE, texture, level);
 	}
@@ -999,9 +998,9 @@ void WINAPI glFramebufferTextureARB(GLenum target, GLenum attachment, GLuint tex
 
 	trampoline(target, attachment, texture, level);
 
-	const auto it = _runtimes.find(wglGetCurrentDC());
+	const auto it = s_runtimes.find(wglGetCurrentDC());
 
-	if (it != _runtimes.end())
+	if (it != s_runtimes.end())
 	{
 		it->second->on_fbo_attachment(target, attachment, GL_TEXTURE, texture, level);
 	}
@@ -1012,9 +1011,9 @@ void WINAPI glFramebufferTextureEXT(GLenum target, GLenum attachment, GLuint tex
 
 	trampoline(target, attachment, texture, level);
 
-	const auto it = _runtimes.find(wglGetCurrentDC());
+	const auto it = s_runtimes.find(wglGetCurrentDC());
 
-	if (it != _runtimes.end())
+	if (it != s_runtimes.end())
 	{
 		it->second->on_fbo_attachment(target, attachment, GL_TEXTURE, texture, level);
 	}
@@ -1025,9 +1024,9 @@ void WINAPI glFramebufferTexture1D(GLenum target, GLenum attachment, GLenum text
 
 	trampoline(target, attachment, textarget, texture, level);
 
-	const auto it = _runtimes.find(wglGetCurrentDC());
+	const auto it = s_runtimes.find(wglGetCurrentDC());
 
-	if (it != _runtimes.end())
+	if (it != s_runtimes.end())
 	{
 		it->second->on_fbo_attachment(target, attachment, textarget, texture, level);
 	}
@@ -1038,9 +1037,9 @@ void WINAPI glFramebufferTexture1DEXT(GLenum target, GLenum attachment, GLenum t
 
 	trampoline(target, attachment, textarget, texture, level);
 
-	const auto it = _runtimes.find(wglGetCurrentDC());
+	const auto it = s_runtimes.find(wglGetCurrentDC());
 
-	if (it != _runtimes.end())
+	if (it != s_runtimes.end())
 	{
 		it->second->on_fbo_attachment(target, attachment, textarget, texture, level);
 	}
@@ -1051,9 +1050,9 @@ void WINAPI glFramebufferTexture2D(GLenum target, GLenum attachment, GLenum text
 
 	trampoline(target, attachment, textarget, texture, level);
 
-	const auto it = _runtimes.find(wglGetCurrentDC());
+	const auto it = s_runtimes.find(wglGetCurrentDC());
 
-	if (it != _runtimes.end())
+	if (it != s_runtimes.end())
 	{
 		it->second->on_fbo_attachment(target, attachment, textarget, texture, level);
 	}
@@ -1064,9 +1063,9 @@ void WINAPI glFramebufferTexture2DEXT(GLenum target, GLenum attachment, GLenum t
 
 	trampoline(target, attachment, textarget, texture, level);
 
-	const auto it = _runtimes.find(wglGetCurrentDC());
+	const auto it = s_runtimes.find(wglGetCurrentDC());
 
-	if (it != _runtimes.end())
+	if (it != s_runtimes.end())
 	{
 		it->second->on_fbo_attachment(target, attachment, textarget, texture, level);
 	}
@@ -1077,9 +1076,9 @@ void WINAPI glFramebufferTexture3D(GLenum target, GLenum attachment, GLenum text
 
 	trampoline(target, attachment, textarget, texture, level, zoffset);
 
-	const auto it = _runtimes.find(wglGetCurrentDC());
+	const auto it = s_runtimes.find(wglGetCurrentDC());
 
-	if (it != _runtimes.end())
+	if (it != s_runtimes.end())
 	{
 		it->second->on_fbo_attachment(target, attachment, textarget, texture, level);
 	}
@@ -1090,9 +1089,9 @@ void WINAPI glFramebufferTexture3DEXT(GLenum target, GLenum attachment, GLenum t
 
 	trampoline(target, attachment, textarget, texture, level, zoffset);
 
-	const auto it = _runtimes.find(wglGetCurrentDC());
+	const auto it = s_runtimes.find(wglGetCurrentDC());
 
-	if (it != _runtimes.end())
+	if (it != s_runtimes.end())
 	{
 		it->second->on_fbo_attachment(target, attachment, textarget, texture, level);
 	}
@@ -1103,9 +1102,9 @@ void WINAPI glFramebufferTextureLayer(GLenum target, GLenum attachment, GLuint t
 
 	trampoline(target, attachment, texture, level, layer);
 
-	const auto it = _runtimes.find(wglGetCurrentDC());
+	const auto it = s_runtimes.find(wglGetCurrentDC());
 
-	if (it != _runtimes.end())
+	if (it != s_runtimes.end())
 	{
 		it->second->on_fbo_attachment(target, attachment, GL_TEXTURE, texture, level);
 	}
@@ -1116,9 +1115,9 @@ void WINAPI glFramebufferTextureLayerARB(GLenum target, GLenum attachment, GLuin
 
 	trampoline(target, attachment, texture, level, layer);
 
-	const auto it = _runtimes.find(wglGetCurrentDC());
+	const auto it = s_runtimes.find(wglGetCurrentDC());
 
-	if (it != _runtimes.end())
+	if (it != s_runtimes.end())
 	{
 		it->second->on_fbo_attachment(target, attachment, GL_TEXTURE, texture, level);
 	}
@@ -1129,9 +1128,9 @@ void WINAPI glFramebufferTextureLayerEXT(GLenum target, GLenum attachment, GLuin
 
 	trampoline(target, attachment, texture, level, layer);
 
-	const auto it = _runtimes.find(wglGetCurrentDC());
+	const auto it = s_runtimes.find(wglGetCurrentDC());
 
-	if (it != _runtimes.end())
+	if (it != s_runtimes.end())
 	{
 		it->second->on_fbo_attachment(target, attachment, GL_TEXTURE, texture, level);
 	}
@@ -1632,9 +1631,9 @@ void WINAPI glMultiDrawArrays(GLenum mode, const GLint *first, const GLsizei *co
 {
 	static const auto trampoline = reshade::hooks::call(&glMultiDrawArrays);
 
-	const auto it = _runtimes.find(wglGetCurrentDC());
+	const auto it = s_runtimes.find(wglGetCurrentDC());
 
-	if (it != _runtimes.end())
+	if (it != s_runtimes.end())
 	{
 		GLsizei totalcount = 0;
 
@@ -1658,9 +1657,9 @@ void WINAPI glMultiDrawElements(GLenum mode, const GLsizei *count, GLenum type, 
 {
 	static const auto trampoline = reshade::hooks::call(&glMultiDrawElements);
 
-	const auto it = _runtimes.find(wglGetCurrentDC());
+	const auto it = s_runtimes.find(wglGetCurrentDC());
 
-	if (it != _runtimes.end())
+	if (it != s_runtimes.end())
 	{
 		GLsizei totalcount = 0;
 
@@ -1678,9 +1677,9 @@ void WINAPI glMultiDrawElementsBaseVertex(GLenum mode, const GLsizei *count, GLe
 {
 	static const auto trampoline = reshade::hooks::call(&glMultiDrawElementsBaseVertex);
 
-	const auto it = _runtimes.find(wglGetCurrentDC());
+	const auto it = s_runtimes.find(wglGetCurrentDC());
 
-	if (it != _runtimes.end())
+	if (it != s_runtimes.end())
 	{
 		GLsizei totalcount = 0;
 
@@ -2580,9 +2579,9 @@ EXPORT void WINAPI glVertex2d(GLdouble x, GLdouble y)
 {
 	static const auto trampoline = reshade::hooks::call(&glVertex2d);
 
-	const auto it = _runtimes.find(wglGetCurrentDC());
+	const auto it = s_runtimes.find(wglGetCurrentDC());
 
-	if (it != _runtimes.end())
+	if (it != s_runtimes.end())
 	{
 		it->second->_current_vertex_count += 2;
 	}
@@ -2593,9 +2592,9 @@ EXPORT void WINAPI glVertex2dv(const GLdouble *v)
 {
 	static const auto trampoline = reshade::hooks::call(&glVertex2dv);
 
-	const auto it = _runtimes.find(wglGetCurrentDC());
+	const auto it = s_runtimes.find(wglGetCurrentDC());
 
-	if (it != _runtimes.end())
+	if (it != s_runtimes.end())
 	{
 		it->second->_current_vertex_count += 2;
 	}
@@ -2606,9 +2605,9 @@ EXPORT void WINAPI glVertex2f(GLfloat x, GLfloat y)
 {
 	static const auto trampoline = reshade::hooks::call(&glVertex2f);
 
-	const auto it = _runtimes.find(wglGetCurrentDC());
+	const auto it = s_runtimes.find(wglGetCurrentDC());
 
-	if (it != _runtimes.end())
+	if (it != s_runtimes.end())
 	{
 		it->second->_current_vertex_count += 2;
 	}
@@ -2619,9 +2618,9 @@ EXPORT void WINAPI glVertex2fv(const GLfloat *v)
 {
 	static const auto trampoline = reshade::hooks::call(&glVertex2fv);
 
-	const auto it = _runtimes.find(wglGetCurrentDC());
+	const auto it = s_runtimes.find(wglGetCurrentDC());
 
-	if (it != _runtimes.end())
+	if (it != s_runtimes.end())
 	{
 		it->second->_current_vertex_count += 2;
 	}
@@ -2632,9 +2631,9 @@ EXPORT void WINAPI glVertex2i(GLint x, GLint y)
 {
 	static const auto trampoline = reshade::hooks::call(&glVertex2i);
 
-	const auto it = _runtimes.find(wglGetCurrentDC());
+	const auto it = s_runtimes.find(wglGetCurrentDC());
 
-	if (it != _runtimes.end())
+	if (it != s_runtimes.end())
 	{
 		it->second->_current_vertex_count += 2;
 	}
@@ -2645,9 +2644,9 @@ EXPORT void WINAPI glVertex2iv(const GLint *v)
 {
 	static const auto trampoline = reshade::hooks::call(&glVertex2iv);
 
-	const auto it = _runtimes.find(wglGetCurrentDC());
+	const auto it = s_runtimes.find(wglGetCurrentDC());
 
-	if (it != _runtimes.end())
+	if (it != s_runtimes.end())
 	{
 		it->second->_current_vertex_count += 2;
 	}
@@ -2658,9 +2657,9 @@ EXPORT void WINAPI glVertex2s(GLshort x, GLshort y)
 {
 	static const auto trampoline = reshade::hooks::call(&glVertex2s);
 
-	const auto it = _runtimes.find(wglGetCurrentDC());
+	const auto it = s_runtimes.find(wglGetCurrentDC());
 
-	if (it != _runtimes.end())
+	if (it != s_runtimes.end())
 	{
 		it->second->_current_vertex_count += 2;
 	}
@@ -2671,9 +2670,9 @@ EXPORT void WINAPI glVertex2sv(const GLshort *v)
 {
 	static const auto trampoline = reshade::hooks::call(&glVertex2sv);
 
-	const auto it = _runtimes.find(wglGetCurrentDC());
+	const auto it = s_runtimes.find(wglGetCurrentDC());
 
-	if (it != _runtimes.end())
+	if (it != s_runtimes.end())
 	{
 		it->second->_current_vertex_count += 2;
 	}
@@ -2684,9 +2683,9 @@ EXPORT void WINAPI glVertex3d(GLdouble x, GLdouble y, GLdouble z)
 {
 	static const auto trampoline = reshade::hooks::call(&glVertex3d);
 
-	const auto it = _runtimes.find(wglGetCurrentDC());
+	const auto it = s_runtimes.find(wglGetCurrentDC());
 
-	if (it != _runtimes.end())
+	if (it != s_runtimes.end())
 	{
 		it->second->_current_vertex_count += 3;
 	}
@@ -2697,9 +2696,9 @@ EXPORT void WINAPI glVertex3dv(const GLdouble *v)
 {
 	static const auto trampoline = reshade::hooks::call(&glVertex3dv);
 
-	const auto it = _runtimes.find(wglGetCurrentDC());
+	const auto it = s_runtimes.find(wglGetCurrentDC());
 
-	if (it != _runtimes.end())
+	if (it != s_runtimes.end())
 	{
 		it->second->_current_vertex_count += 3;
 	}
@@ -2710,9 +2709,9 @@ EXPORT void WINAPI glVertex3f(GLfloat x, GLfloat y, GLfloat z)
 {
 	static const auto trampoline = reshade::hooks::call(&glVertex3f);
 
-	const auto it = _runtimes.find(wglGetCurrentDC());
+	const auto it = s_runtimes.find(wglGetCurrentDC());
 
-	if (it != _runtimes.end())
+	if (it != s_runtimes.end())
 	{
 		it->second->_current_vertex_count += 3;
 	}
@@ -2723,9 +2722,9 @@ EXPORT void WINAPI glVertex3fv(const GLfloat *v)
 {
 	static const auto trampoline = reshade::hooks::call(&glVertex3fv);
 
-	const auto it = _runtimes.find(wglGetCurrentDC());
+	const auto it = s_runtimes.find(wglGetCurrentDC());
 
-	if (it != _runtimes.end())
+	if (it != s_runtimes.end())
 	{
 		it->second->_current_vertex_count += 3;
 	}
@@ -2736,9 +2735,9 @@ EXPORT void WINAPI glVertex3i(GLint x, GLint y, GLint z)
 {
 	static const auto trampoline = reshade::hooks::call(&glVertex3i);
 
-	const auto it = _runtimes.find(wglGetCurrentDC());
+	const auto it = s_runtimes.find(wglGetCurrentDC());
 
-	if (it != _runtimes.end())
+	if (it != s_runtimes.end())
 	{
 		it->second->_current_vertex_count += 3;
 	}
@@ -2749,9 +2748,9 @@ EXPORT void WINAPI glVertex3iv(const GLint *v)
 {
 	static const auto trampoline = reshade::hooks::call(&glVertex3iv);
 
-	const auto it = _runtimes.find(wglGetCurrentDC());
+	const auto it = s_runtimes.find(wglGetCurrentDC());
 
-	if (it != _runtimes.end())
+	if (it != s_runtimes.end())
 	{
 		it->second->_current_vertex_count += 3;
 	}
@@ -2762,9 +2761,9 @@ EXPORT void WINAPI glVertex3s(GLshort x, GLshort y, GLshort z)
 {
 	static const auto trampoline = reshade::hooks::call(&glVertex3s);
 
-	const auto it = _runtimes.find(wglGetCurrentDC());
+	const auto it = s_runtimes.find(wglGetCurrentDC());
 
-	if (it != _runtimes.end())
+	if (it != s_runtimes.end())
 	{
 		it->second->_current_vertex_count += 3;
 	}
@@ -2775,9 +2774,9 @@ EXPORT void WINAPI glVertex3sv(const GLshort *v)
 {
 	static const auto trampoline = reshade::hooks::call(&glVertex3sv);
 
-	const auto it = _runtimes.find(wglGetCurrentDC());
+	const auto it = s_runtimes.find(wglGetCurrentDC());
 
-	if (it != _runtimes.end())
+	if (it != s_runtimes.end())
 	{
 		it->second->_current_vertex_count += 3;
 	}
@@ -2788,9 +2787,9 @@ EXPORT void WINAPI glVertex4d(GLdouble x, GLdouble y, GLdouble z, GLdouble w)
 {
 	static const auto trampoline = reshade::hooks::call(&glVertex4d);
 
-	const auto it = _runtimes.find(wglGetCurrentDC());
+	const auto it = s_runtimes.find(wglGetCurrentDC());
 
-	if (it != _runtimes.end())
+	if (it != s_runtimes.end())
 	{
 		it->second->_current_vertex_count += 4;
 	}
@@ -2801,9 +2800,9 @@ EXPORT void WINAPI glVertex4dv(const GLdouble *v)
 {
 	static const auto trampoline = reshade::hooks::call(&glVertex4dv);
 
-	const auto it = _runtimes.find(wglGetCurrentDC());
+	const auto it = s_runtimes.find(wglGetCurrentDC());
 
-	if (it != _runtimes.end())
+	if (it != s_runtimes.end())
 	{
 		it->second->_current_vertex_count += 4;
 	}
@@ -2814,9 +2813,9 @@ EXPORT void WINAPI glVertex4f(GLfloat x, GLfloat y, GLfloat z, GLfloat w)
 {
 	static const auto trampoline = reshade::hooks::call(&glVertex4f);
 
-	const auto it = _runtimes.find(wglGetCurrentDC());
+	const auto it = s_runtimes.find(wglGetCurrentDC());
 
-	if (it != _runtimes.end())
+	if (it != s_runtimes.end())
 	{
 		it->second->_current_vertex_count += 4;
 	}
@@ -2827,9 +2826,9 @@ EXPORT void WINAPI glVertex4fv(const GLfloat *v)
 {
 	static const auto trampoline = reshade::hooks::call(&glVertex4fv);
 
-	const auto it = _runtimes.find(wglGetCurrentDC());
+	const auto it = s_runtimes.find(wglGetCurrentDC());
 
-	if (it != _runtimes.end())
+	if (it != s_runtimes.end())
 	{
 		it->second->_current_vertex_count += 4;
 	}
@@ -2840,9 +2839,9 @@ EXPORT void WINAPI glVertex4i(GLint x, GLint y, GLint z, GLint w)
 {
 	static const auto trampoline = reshade::hooks::call(&glVertex4i);
 
-	const auto it = _runtimes.find(wglGetCurrentDC());
+	const auto it = s_runtimes.find(wglGetCurrentDC());
 
-	if (it != _runtimes.end())
+	if (it != s_runtimes.end())
 	{
 		it->second->_current_vertex_count += 4;
 	}
@@ -2853,9 +2852,9 @@ EXPORT void WINAPI glVertex4iv(const GLint *v)
 {
 	static const auto trampoline = reshade::hooks::call(&glVertex4iv);
 
-	const auto it = _runtimes.find(wglGetCurrentDC());
+	const auto it = s_runtimes.find(wglGetCurrentDC());
 
-	if (it != _runtimes.end())
+	if (it != s_runtimes.end())
 	{
 		it->second->_current_vertex_count += 4;
 	}
@@ -2866,9 +2865,9 @@ EXPORT void WINAPI glVertex4s(GLshort x, GLshort y, GLshort z, GLshort w)
 {
 	static const auto trampoline = reshade::hooks::call(&glVertex4s);
 
-	const auto it = _runtimes.find(wglGetCurrentDC());
+	const auto it = s_runtimes.find(wglGetCurrentDC());
 
-	if (it != _runtimes.end())
+	if (it != s_runtimes.end())
 	{
 		it->second->_current_vertex_count += 4;
 	}
@@ -2879,9 +2878,9 @@ EXPORT void WINAPI glVertex4sv(const GLshort *v)
 {
 	static const auto trampoline = reshade::hooks::call(&glVertex4sv);
 
-	const auto it = _runtimes.find(wglGetCurrentDC());
+	const auto it = s_runtimes.find(wglGetCurrentDC());
 
-	if (it != _runtimes.end())
+	if (it != s_runtimes.end())
 	{
 		it->second->_current_vertex_count += 4;
 	}
@@ -3109,7 +3108,7 @@ BOOL WINAPI wglChoosePixelFormatARB(HDC hdc, const int *piAttribIList, const FLO
 
 	if (!reshade::hooks::call(&wglChoosePixelFormatARB)(hdc, piAttribIList, pfAttribFList, nMaxFormats, piFormats, nNumFormats))
 	{
-		LOG(WARNING) << "> 'wglChoosePixelFormatARB' failed with '" << GetErrorString(GetLastError()) << "'!";
+		LOG(WARNING) << "> 'wglChoosePixelFormatARB' failed with '" << write_error_string(GetLastError()) << "'!";
 
 		return FALSE;
 	}
@@ -3144,7 +3143,7 @@ EXPORT BOOL WINAPI wglSetPixelFormat(HDC hdc, int iPixelFormat, const PIXELFORMA
 
 	if (!reshade::hooks::call(&wglSetPixelFormat)(hdc, iPixelFormat, ppfd))
 	{
-		LOG(WARNING) << "> 'wglSetPixelFormat' failed with '" << GetErrorString(GetLastError()) << "'!";
+		LOG(WARNING) << "> 'wglSetPixelFormat' failed with '" << write_error_string(GetLastError()) << "'!";
 
 		return FALSE;
 	}
@@ -3170,14 +3169,14 @@ EXPORT HGLRC WINAPI wglCreateContext(HDC hdc)
 
 	if (hglrc == nullptr)
 	{
-		LOG(WARNING) << "> 'wglCreateContext' failed with '" << GetErrorString(GetLastError()) << "'!";
+		LOG(WARNING) << "> 'wglCreateContext' failed with '" << write_error_string(GetLastError()) << "'!";
 
 		return nullptr;
 	}
 
-	const reshade::utils::critical_section::lock lock(_cs);
+	const reshade::utils::critical_section::lock lock(s_cs);
 
-	_shared_contexts.emplace(hglrc, nullptr);
+	s_shared_contexts.emplace(hglrc, nullptr);
 
 	LOG(TRACE) << "> Returned OpenGL context: " << hglrc;
 
@@ -3273,22 +3272,22 @@ HGLRC WINAPI wglCreateContextAttribsARB(HDC hdc, HGLRC hShareContext, const int 
 
 	if (hglrc == nullptr)
 	{
-		LOG(WARNING) << "> 'wglCreateContextAttribsARB' failed with '" << GetErrorString(GetLastError()) << "'!";
+		LOG(WARNING) << "> 'wglCreateContextAttribsARB' failed with '" << write_error_string(GetLastError()) << "'!";
 
 		return nullptr;
 	}
 
-	const reshade::utils::critical_section::lock lock(_cs);
+	const reshade::utils::critical_section::lock lock(s_cs);
 
-	_shared_contexts.emplace(hglrc, hShareContext);
+	s_shared_contexts.emplace(hglrc, hShareContext);
 
 	if (hShareContext != nullptr)
 	{
-		auto it = _shared_contexts.find(hShareContext);
+		auto it = s_shared_contexts.find(hShareContext);
 
-		while (it != _shared_contexts.end() && it->second != nullptr)
+		while (it != s_shared_contexts.end() && it->second != nullptr)
 		{
-			it = _shared_contexts.find(_shared_contexts.at(hglrc) = it->second);
+			it = s_shared_contexts.find(s_shared_contexts.at(hglrc) = it->second);
 		}
 	}
 
@@ -3360,7 +3359,7 @@ HPBUFFERARB WINAPI wglCreatePbufferARB(HDC hdc, int iPixelFormat, int iWidth, in
 
 	if (hpbuffer == nullptr)
 	{
-		LOG(WARNING) << "> 'wglCreatePbufferARB' failed with '" << GetErrorString(GetLastError()) << "'!";
+		LOG(WARNING) << "> 'wglCreatePbufferARB' failed with '" << write_error_string(GetLastError()) << "'!";
 
 		return nullptr;
 	}
@@ -3378,13 +3377,13 @@ EXPORT BOOL WINAPI wglDeleteContext(HGLRC hglrc)
 
 	LOG(INFO) << "Redirecting '" << "wglDeleteContext" << "(" << hglrc << ")' ...";
 
-	const reshade::utils::critical_section::lock lock(_cs);
+	const reshade::utils::critical_section::lock lock(s_cs);
 
-	for (auto it = _shared_contexts.begin(); it != _shared_contexts.end();)
+	for (auto it = s_shared_contexts.begin(); it != s_shared_contexts.end();)
 	{
 		if (it->first == hglrc)
 		{
-			it = _shared_contexts.erase(it);
+			it = s_shared_contexts.erase(it);
 			continue;
 		}
 		else if (it->second == hglrc)
@@ -3397,7 +3396,7 @@ EXPORT BOOL WINAPI wglDeleteContext(HGLRC hglrc)
 
 	if (!reshade::hooks::call(&wglDeleteContext)(hglrc))
 	{
-		LOG(WARNING) << "> 'wglDeleteContext' failed with '" << GetErrorString(GetLastError()) << "'!";
+		LOG(WARNING) << "> 'wglDeleteContext' failed with '" << write_error_string(GetLastError()) << "'!";
 
 		return FALSE;
 	}
@@ -3423,7 +3422,7 @@ BOOL WINAPI wglDestroyPbufferARB(HPBUFFERARB hPbuffer)
 
 	if (!reshade::hooks::call(&wglDestroyPbufferARB)(hPbuffer))
 	{
-		LOG(WARNING) << "> 'wglDestroyPbufferARB' failed with '" << GetErrorString(GetLastError()) << "'!";
+		LOG(WARNING) << "> 'wglDestroyPbufferARB' failed with '" << write_error_string(GetLastError()) << "'!";
 
 		return FALSE;
 	}
@@ -3463,14 +3462,14 @@ HDC WINAPI wglGetPbufferDCARB(HPBUFFERARB hPbuffer)
 
 	if (hdc == nullptr)
 	{
-		LOG(WARNING) << "> 'wglGetPbufferDCARB' failed with '" << GetErrorString(GetLastError()) << "'!";
+		LOG(WARNING) << "> 'wglGetPbufferDCARB' failed with '" << write_error_string(GetLastError()) << "'!";
 
 		return nullptr;
 	}
 
-	const reshade::utils::critical_section::lock lock(_cs);
+	const reshade::utils::critical_section::lock lock(s_cs);
 
-	_pbuffer_device_contexts.insert(hdc);
+	s_pbuffer_device_contexts.insert(hdc);
 
 	LOG(TRACE) << "> Returned pixel buffer device context: " << hdc;
 
@@ -3522,27 +3521,27 @@ EXPORT BOOL WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 		return TRUE;
 	}
 	
-	const reshade::utils::critical_section::lock lock(_cs);
+	const reshade::utils::critical_section::lock lock(s_cs);
 
-	const bool isPbufferDeviceContext = _pbuffer_device_contexts.find(hdc) != _pbuffer_device_contexts.end();
+	const bool isPbufferDeviceContext = s_pbuffer_device_contexts.find(hdc) != s_pbuffer_device_contexts.end();
 	
 	if (hdcPrevious != nullptr)
 	{
-		const auto it = _runtimes.find(hdcPrevious);
+		const auto it = s_runtimes.find(hdcPrevious);
 
-		if (it != _runtimes.end() && --it->second->_reference_count == 0 && !isPbufferDeviceContext)
+		if (it != s_runtimes.end() && --it->second->_reference_count == 0 && !isPbufferDeviceContext)
 		{
 			LOG(INFO) << "> Cleaning up runtime " << it->second << " ...";
 
 			it->second->on_reset();
 
-			_runtimes.erase(it);
+			s_runtimes.erase(it);
 		}
 	}
 
 	if (!trampoline(hdc, hglrc))
 	{
-		LOG(WARNING) << "> 'wglMakeCurrent' failed with '" << GetErrorString(GetLastError()) << "'!";
+		LOG(WARNING) << "> 'wglMakeCurrent' failed with '" << write_error_string(GetLastError()) << "'!";
 
 		return FALSE;
 	}
@@ -3552,9 +3551,9 @@ EXPORT BOOL WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 		return TRUE;
 	}
 
-	const auto it = _runtimes.find(hdc);
+	const auto it = s_runtimes.find(hdc);
 
-	if (it != _runtimes.end())
+	if (it != s_runtimes.end())
 	{
 		it->second->_reference_count++;
 
@@ -3575,9 +3574,9 @@ EXPORT BOOL WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 			LOG(WARNING) << "> Window class style of window " << hwnd << " is missing 'CS_OWNDC' flag.";
 		}
 
-		if (_shared_contexts.at(hglrc) != nullptr)
+		if (s_shared_contexts.at(hglrc) != nullptr)
 		{
-			hglrc = _shared_contexts.at(hglrc);
+			hglrc = s_shared_contexts.at(hglrc);
 
 			LOG(INFO) << "> Using shared OpenGL context " << hglrc << ".";
 		}
@@ -3588,7 +3587,7 @@ EXPORT BOOL WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 		{
 			const auto runtime = std::make_shared<reshade::runtimes::gl_runtime>(hdc);
 
-			_runtimes[hdc] = runtime;
+			s_runtimes[hdc] = runtime;
 
 			LOG(INFO) << "> Switched to new runtime " << runtime << ".";
 		}
@@ -3597,7 +3596,7 @@ EXPORT BOOL WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 			LOG(ERROR) << "Your graphics card does not seem to support OpenGL 4.3. Initialization failed.";
 		}
 
-		_window_rects[hwnd].left = _window_rects[hwnd].top = _window_rects[hwnd].right = _window_rects[hwnd].bottom = 0;
+		s_window_rects[hwnd].left = s_window_rects[hwnd].top = s_window_rects[hwnd].right = s_window_rects[hwnd].bottom = 0;
 	}
 
 	return TRUE;
@@ -3621,14 +3620,14 @@ int WINAPI wglReleasePbufferDCARB(HPBUFFERARB hPbuffer, HDC hdc)
 
 	if (!reshade::hooks::call(&wglReleasePbufferDCARB)(hPbuffer, hdc))
 	{
-		LOG(WARNING) << "> 'wglReleasePbufferDCARB' failed with '" << GetErrorString(GetLastError()) << "'!";
+		LOG(WARNING) << "> 'wglReleasePbufferDCARB' failed with '" << write_error_string(GetLastError()) << "'!";
 
 		return FALSE;
 	}
 
-	const reshade::utils::critical_section::lock lock(_cs);
+	const reshade::utils::critical_section::lock lock(s_cs);
 
-	_pbuffer_device_contexts.erase(hdc);
+	s_pbuffer_device_contexts.erase(hdc);
 
 	return TRUE;
 }
@@ -3647,14 +3646,14 @@ EXPORT BOOL WINAPI wglShareLists(HGLRC hglrc1, HGLRC hglrc2)
 
 	if (!reshade::hooks::call(&wglShareLists)(hglrc1, hglrc2))
 	{
-		LOG(WARNING) << "> 'wglShareLists' failed with '" << GetErrorString(GetLastError()) << "'!";
+		LOG(WARNING) << "> 'wglShareLists' failed with '" << write_error_string(GetLastError()) << "'!";
 
 		return FALSE;
 	}
 
-	const reshade::utils::critical_section::lock lock(_cs);
+	const reshade::utils::critical_section::lock lock(s_cs);
 
-	_shared_contexts[hglrc2] = hglrc1;
+	s_shared_contexts[hglrc2] = hglrc1;
 
 	return TRUE;
 }
@@ -3662,15 +3661,15 @@ EXPORT BOOL WINAPI wglSwapBuffers(HDC hdc)
 {
 	static const auto trampoline = reshade::hooks::call(&wglSwapBuffers);
 
-	const auto it = _runtimes.find(hdc);
+	const auto it = s_runtimes.find(hdc);
 	const HWND hwnd = WindowFromDC(hdc);
 
-	if (hwnd != nullptr && it != _runtimes.end())
+	if (hwnd != nullptr && it != s_runtimes.end())
 	{
 		assert(it->second != nullptr);
 		assert(hdc == wglGetCurrentDC());
 
-		RECT rect, &rectPrevious = _window_rects.at(hwnd);
+		RECT rect, &rectPrevious = s_window_rects.at(hwnd);
 		GetClientRect(hwnd, &rect);
 
 		if (rect.right != rectPrevious.right || rect.bottom != rectPrevious.bottom)

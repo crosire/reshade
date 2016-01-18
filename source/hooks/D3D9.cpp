@@ -16,7 +16,7 @@
 
 namespace
 {
-	std::string GetErrorString(HRESULT hr)
+	std::string write_error_string(HRESULT hr)
 	{
 		std::stringstream res;
 
@@ -53,7 +53,7 @@ namespace
 
 		return res.str();
 	}
-	void DumpPresentParameters(const D3DPRESENT_PARAMETERS &pp)
+	void dump_present_parameters(const D3DPRESENT_PARAMETERS &pp)
 	{
 		LOG(TRACE) << "> Dumping presentation parameters:";
 		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
@@ -371,13 +371,13 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateAdditionalSwapChain(D3DPRESENT_
 		return D3DERR_INVALIDCALL;
 	}
 
-	DumpPresentParameters(*pPresentationParameters);
+	dump_present_parameters(*pPresentationParameters);
 
 	const HRESULT hr = _orig->CreateAdditionalSwapChain(pPresentationParameters, ppSwapChain);
 
 	if (FAILED(hr))
 	{
-		LOG(WARNING) << "> 'IDirect3DDevice9::CreateAdditionalSwapChain' failed with '" << GetErrorString(hr) << "'!";
+		LOG(WARNING) << "> 'IDirect3DDevice9::CreateAdditionalSwapChain' failed with '" << write_error_string(hr) << "'!";
 
 		return hr;
 	}
@@ -443,7 +443,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Reset(D3DPRESENT_PARAMETERS *pPresent
 		return D3DERR_INVALIDCALL;
 	}
 
-	DumpPresentParameters(*pPresentationParameters);
+	dump_present_parameters(*pPresentationParameters);
 
 	assert(_implicit_swapchain != nullptr);
 	assert(_implicit_swapchain->_runtime != nullptr);
@@ -462,7 +462,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Reset(D3DPRESENT_PARAMETERS *pPresent
 
 	if (FAILED(hr))
 	{
-		LOG(ERROR) << "> 'IDirect3DDevice9::Reset' failed with '" << GetErrorString(hr) << "'!";
+		LOG(ERROR) << "> 'IDirect3DDevice9::Reset' failed with '" << write_error_string(hr) << "'!";
 
 		return hr;
 	}
@@ -1133,7 +1133,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ResetEx(D3DPRESENT_PARAMETERS *pPrese
 		return D3DERR_INVALIDCALL;
 	}
 
-	DumpPresentParameters(*pPresentationParameters);
+	dump_present_parameters(*pPresentationParameters);
 
 	assert(_implicit_swapchain != nullptr);
 	assert(_implicit_swapchain->_runtime != nullptr);
@@ -1152,7 +1152,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ResetEx(D3DPRESENT_PARAMETERS *pPrese
 
 	if (FAILED(hr))
 	{
-		LOG(ERROR) << "> 'IDirect3DDevice9Ex::ResetEx' failed with '" << GetErrorString(hr) << "'!";
+		LOG(ERROR) << "> 'IDirect3DDevice9Ex::ResetEx' failed with '" << write_error_string(hr) << "'!";
 
 		return hr;
 	}
@@ -1200,7 +1200,7 @@ HRESULT STDMETHODCALLTYPE IDirect3D9_CreateDevice(IDirect3D9 *pD3D, UINT Adapter
 		return D3DERR_INVALIDCALL;
 	}
 
-	DumpPresentParameters(*pPresentationParameters);
+	dump_present_parameters(*pPresentationParameters);
 
 	const bool use_software_rendering = (BehaviorFlags & D3DCREATE_SOFTWARE_VERTEXPROCESSING) != 0;
 
@@ -1215,7 +1215,7 @@ HRESULT STDMETHODCALLTYPE IDirect3D9_CreateDevice(IDirect3D9 *pD3D, UINT Adapter
 
 	if (FAILED(hr))
 	{
-		LOG(WARNING) << "> 'IDirect3D9::CreateDevice' failed with '" << GetErrorString(hr) << "'!";
+		LOG(WARNING) << "> 'IDirect3D9::CreateDevice' failed with '" << write_error_string(hr) << "'!";
 
 		return hr;
 	}
@@ -1277,7 +1277,7 @@ HRESULT STDMETHODCALLTYPE IDirect3D9Ex_CreateDeviceEx(IDirect3D9Ex *pD3D, UINT A
 		return D3DERR_INVALIDCALL;
 	}
 
-	DumpPresentParameters(*pPresentationParameters);
+	dump_present_parameters(*pPresentationParameters);
 
 	const bool use_software_rendering = (BehaviorFlags & D3DCREATE_SOFTWARE_VERTEXPROCESSING) != 0;
 
@@ -1292,7 +1292,7 @@ HRESULT STDMETHODCALLTYPE IDirect3D9Ex_CreateDeviceEx(IDirect3D9Ex *pD3D, UINT A
 
 	if (FAILED(hr))
 	{
-		LOG(WARNING) << "> 'IDirect3D9Ex::CreateDeviceEx' failed with '" << GetErrorString(hr) << "'!";
+		LOG(WARNING) << "> 'IDirect3D9Ex::CreateDeviceEx' failed with '" << write_error_string(hr) << "'!";
 
 		return hr;
 	}
@@ -1411,7 +1411,7 @@ EXPORT HRESULT WINAPI Direct3DCreate9Ex(UINT SDKVersion, IDirect3D9Ex **ppD3D)
 
 	if (FAILED(hr))
 	{
-		LOG(WARNING) << "> 'Direct3DCreate9Ex' failed with '" << GetErrorString(hr) << "'!";
+		LOG(WARNING) << "> 'Direct3DCreate9Ex' failed with '" << write_error_string(hr) << "'!";
 
 		return hr;
 	}

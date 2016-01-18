@@ -11,7 +11,7 @@
 
 namespace
 {
-	std::string GetErrorString(HRESULT hr)
+	std::string write_error_string(HRESULT hr)
 	{
 		std::stringstream res;
 
@@ -649,7 +649,7 @@ EXPORT HRESULT WINAPI D3D10CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, D3D1
 
 	if (FAILED(hr))
 	{
-		LOG(WARNING) << "> 'D3D10CreateDeviceAndSwapChain' failed with '" << GetErrorString(hr) << "'!";
+		LOG(WARNING) << "> 'D3D10CreateDeviceAndSwapChain' failed with '" << write_error_string(hr) << "'!";
 
 		return hr;
 	}
@@ -721,7 +721,7 @@ EXPORT HRESULT WINAPI D3D10CreateDeviceAndSwapChain1(IDXGIAdapter *pAdapter, D3D
 
 	if (FAILED(hr))
 	{
-		LOG(WARNING) << "> 'D3D10CreateDeviceAndSwapChain1' failed with '" << GetErrorString(hr) << "'!";
+		LOG(WARNING) << "> 'D3D10CreateDeviceAndSwapChain1' failed with '" << write_error_string(hr) << "'!";
 
 		return hr;
 	}

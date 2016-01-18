@@ -11,7 +11,7 @@
 
 namespace
 {
-	std::string GetErrorString(HRESULT hr)
+	std::string write_error_string(HRESULT hr)
 	{
 		std::stringstream res;
 
@@ -246,7 +246,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommandQueue(const D3D12_COMMAND_QU
 
 	if (FAILED(hr))
 	{
-		LOG(WARNING) << "> 'ID3D12Device::CreateCommandQueue' failed with '" << GetErrorString(hr) << "'!";
+		LOG(WARNING) << "> 'ID3D12Device::CreateCommandQueue' failed with '" << write_error_string(hr) << "'!";
 	}
 	else if (riid == __uuidof(ID3D12CommandQueue))
 	{
@@ -408,7 +408,7 @@ EXPORT HRESULT WINAPI D3D12CreateDevice(IUnknown *pAdapter, D3D_FEATURE_LEVEL Mi
 
 	if (FAILED(hr))
 	{
-		LOG(WARNING) << "> 'D3D12CreateDevice' failed with '" << GetErrorString(hr) << "'!";
+		LOG(WARNING) << "> 'D3D12CreateDevice' failed with '" << write_error_string(hr) << "'!";
 
 		return hr;
 	}
