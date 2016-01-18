@@ -1044,7 +1044,7 @@ namespace reshade
 					return;
 				}
 
-				while (!peek(lexer::tokenid::end_of_file) && (!peek(lexer::tokenid::end_of_line) || current_token() == lexer::tokenid::backslash))
+				while (!peek(lexer::tokenid::end_of_file) && !peek(lexer::tokenid::end_of_line))
 				{
 					consume();
 
@@ -1085,6 +1085,15 @@ namespace reshade
 								macro.replacement_list += macro_replacement_stringize;
 								macro.replacement_list += static_cast<char>(index);
 								break;
+							}
+							goto default_case;
+						}
+						case lexer::tokenid::backslash:
+						{
+							if (peek(lexer::tokenid::end_of_line))
+							{
+								consume();
+								continue;
 							}
 							goto default_case;
 						}
