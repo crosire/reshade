@@ -5,10 +5,6 @@
 #include <assert.h>
 #include <Windows.h>
 
-#define EXPORT extern "C"
-
-// ---------------------------------------------------------------------------------------------------
-
 EXPORT ATOM WINAPI HookRegisterClassA(CONST WNDCLASSA *lpWndClass)
 {
 	assert(lpWndClass != nullptr);

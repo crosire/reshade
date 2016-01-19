@@ -6,8 +6,6 @@
 #include <assert.h>
 #include <d3dx9shader.h>
 
-// ---------------------------------------------------------------------------------------------------
-
 namespace
 {
 	std::string write_error_string(HRESULT hr)

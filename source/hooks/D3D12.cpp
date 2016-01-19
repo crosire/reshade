@@ -5,10 +5,6 @@
 #include <sstream>
 #include <assert.h>
 
-#define EXPORT extern "C"
-
-// ---------------------------------------------------------------------------------------------------
-
 namespace
 {
 	std::string write_error_string(HRESULT hr)

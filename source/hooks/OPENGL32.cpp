@@ -101,11 +101,7 @@
 #undef glViewport
 #pragma endregion
 
-#define EXPORT extern "C"
-
 DECLARE_HANDLE(HPBUFFERARB);
-
-// ---------------------------------------------------------------------------------------------------
 
 namespace
 {
