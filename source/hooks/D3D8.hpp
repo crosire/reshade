@@ -176,10 +176,7 @@ public:
 	{
 	}
 
-	IDirect3D9 *GetProxyInterface() const
-	{
-		return _proxy;
-	}
+	inline IDirect3D9 *GetProxyInterface() const { return _proxy; }
 
 	virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
 	virtual ULONG STDMETHODCALLTYPE AddRef() override;
@@ -218,10 +215,7 @@ public:
 		_d3d->Release();
 	}
 
-	IDirect3DDevice9 *GetProxyInterface() const
-	{
-		return _proxy;
-	}
+	inline IDirect3DDevice9 *GetProxyInterface() const { return _proxy; }
 
 	virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
 	virtual ULONG STDMETHODCALLTYPE AddRef() override;
@@ -346,10 +340,7 @@ public:
 		_device->Release();
 	}
 
-	IDirect3DSwapChain9 *GetProxyInterface() const
-	{
-		return _proxy;
-	}
+	inline IDirect3DSwapChain9 *GetProxyInterface() const { return _proxy; }
 
 	virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
 	virtual ULONG STDMETHODCALLTYPE AddRef() override;
@@ -396,10 +387,7 @@ public:
 		_device->Release();
 	}
 
-	IDirect3DTexture9 *GetProxyInterface() const
-	{
-		return _proxy;
-	}
+	inline IDirect3DTexture9 *GetProxyInterface() const { return _proxy; }
 
 	virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
 	virtual ULONG STDMETHODCALLTYPE AddRef() override;
@@ -444,10 +432,7 @@ public:
 		_device->Release();
 	}
 
-	IDirect3DCubeTexture9 *GetProxyInterface() const
-	{
-		return _proxy;
-	}
+	inline IDirect3DCubeTexture9 *GetProxyInterface() const { return _proxy; }
 
 	virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
 	virtual ULONG STDMETHODCALLTYPE AddRef() override;
@@ -492,10 +477,7 @@ public:
 		_device->Release();
 	}
 
-	IDirect3DVolumeTexture9 *GetProxyInterface() const
-	{
-		return _proxy;
-	}
+	inline IDirect3DVolumeTexture9 *GetProxyInterface() const { return _proxy; }
 
 	virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
 	virtual ULONG STDMETHODCALLTYPE AddRef() override;
@@ -540,10 +522,7 @@ public:
 		_device->Release();
 	}
 
-	IDirect3DSurface9 *GetProxyInterface() const
-	{
-		return _proxy;
-	}
+	inline IDirect3DSurface9 *GetProxyInterface() const { return _proxy; }
 
 	virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
 	virtual ULONG STDMETHODCALLTYPE AddRef() override;
@@ -578,10 +557,7 @@ public:
 		_device->Release();
 	}
 
-	IDirect3DVolume9 *GetProxyInterface() const
-	{
-		return _proxy;
-	}
+	inline IDirect3DVolume9 *GetProxyInterface() const { return _proxy; }
 
 	virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
 	virtual ULONG STDMETHODCALLTYPE AddRef() override;
@@ -616,10 +592,7 @@ public:
 		_device->Release();
 	}
 
-	IDirect3DVertexBuffer9 *GetProxyInterface() const
-	{
-		return _proxy;
-	}
+	inline IDirect3DVertexBuffer9 *GetProxyInterface() const { return _proxy; }
 
 	virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
 	virtual ULONG STDMETHODCALLTYPE AddRef() override;
@@ -658,10 +631,7 @@ public:
 		_device->Release();
 	}
 
-	IDirect3DIndexBuffer9 *GetProxyInterface() const
-	{
-		return _proxy;
-	}
+	inline IDirect3DIndexBuffer9 *GetProxyInterface() const { return _proxy; }
 
 	virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
 	virtual ULONG STDMETHODCALLTYPE AddRef() override;
