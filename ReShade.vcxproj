@@ -287,7 +287,7 @@ tools\upx --backup "$(TargetPath)"</Command>
     <ClInclude Include="source\runtimes\gl_runtime.hpp" />
     <ClInclude Include="source\utils\critical_section.hpp" />
     <ClInclude Include="source\utils\file_watcher.hpp" />
-    <ClInclude Include="source\utils\time.hpp" />
+    <ClInclude Include="source\utils\moving_average.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="res\resource.rc" />

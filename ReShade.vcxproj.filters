@@ -155,7 +155,7 @@
     <ClInclude Include="source\utils\file_watcher.hpp">
       <Filter>core\utils</Filter>
     </ClInclude>
-    <ClInclude Include="source\utils\time.hpp">
+    <ClInclude Include="source\utils\moving_average.hpp">
       <Filter>core\utils</Filter>
     </ClInclude>
     <ClInclude Include="source\hooks\D3D8.hpp">

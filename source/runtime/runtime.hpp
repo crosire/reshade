@@ -1,6 +1,6 @@
 #pragma once
 
-#include "utils\time.hpp"
+#include "utils\moving_average.hpp"
 
 #include <memory>
 #include <string>
@@ -190,8 +190,7 @@ namespace reshade
 		int timeout, timeleft;
 		int toggle_key, toggle_time;
 		bool toggle_key_ctrl, toggle_key_shift, toggle_key_alt;
-		boost::chrono::high_resolution_clock::duration last_duration;
-		boost::chrono::high_resolution_clock::time_point last_duration_update;
+		utils::moving_average<unsigned long long, 500> average_duration;
 	};
 
 	// ---------------------------------------------------------------------------------------------------
@@ -201,7 +200,7 @@ namespace reshade
 	public:
 		struct statistics
 		{
-			utils::framerate framerate;
+			utils::moving_average<unsigned long long, 100> frametime;
 			unsigned long long framecount;
 			unsigned int drawcalls, vertices;
 			float date[4];

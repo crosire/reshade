@@ -282,7 +282,7 @@ namespace reshade
 			}
 			if (_show_fps)
 			{
-				stats << _stats.framerate << std::endl;
+				stats << (1e9f / _stats.frametime) << std::endl;
 			}
 			if (_show_statistics)
 			{
@@ -290,7 +290,7 @@ namespace reshade
 				stats << "Application: " << std::hash<std::string>()(s_executable_path.stem().string()) << std::endl;
 				stats << "Date: " << static_cast<int>(_stats.date[0]) << '-' << static_cast<int>(_stats.date[1]) << '-' << static_cast<int>(_stats.date[2]) << ' ' << static_cast<int>(_stats.date[3]) << '\n';
 				stats << "Device: " << std::hex << std::uppercase << _vendor_id << ' ' << _device_id << std::nouppercase << std::dec << std::endl;
-				stats << "FPS: " << _stats.framerate << std::endl;
+				stats << "FPS: " << (1e9f / _stats.frametime) << std::endl;
 				stats << "Draw Calls: " << _stats.drawcalls << " (" << _stats.vertices << " vertices)" << std::endl;
 				stats << "Frame " << (_stats.framecount + 1) << ": " << (frametime.count() * 1e-6f) << "ms" << std::endl;
 				stats << "PostProcessing: " << (boost::chrono::duration_cast<boost::chrono::nanoseconds>(_last_postprocessing_duration).count() * 1e-6f) << "ms" << std::endl;
@@ -310,7 +310,7 @@ namespace reshade
 
 				for (const auto &technique : _techniques)
 				{
-					stats << technique->name << " (" << technique->pass_count << " passes): " << (boost::chrono::duration_cast<boost::chrono::nanoseconds>(technique->last_duration).count() * 1e-6f) << "ms" << std::endl;
+					stats << technique->name << " (" << technique->pass_count << " passes): " << (technique->average_duration * 1e-6f) << "ms" << std::endl;
 				}
 			}
 
@@ -332,7 +332,7 @@ namespace reshade
 		_last_frame_duration = frametime;
 		_stats.framecount++;
 		_stats.drawcalls = _stats.vertices = 0;
-		_stats.framerate.calculate(frametime.count());
+		_stats.frametime.append(frametime.count());
 		_stats.date[0] = static_cast<float>(tm.tm_year + 1900);
 		_stats.date[1] = static_cast<float>(tm.tm_mon + 1);
 		_stats.date[2] = static_cast<float>(tm.tm_mday);
@@ -527,20 +527,16 @@ namespace reshade
 
 			if (!technique->enabled)
 			{
-				technique->last_duration = boost::chrono::high_resolution_clock::duration(0);
+				technique->average_duration.clear();
 
 				continue;
 			}
 
-			const auto timeTechniqueStarted = boost::chrono::high_resolution_clock::now();
+			const auto time_technique_started = boost::chrono::high_resolution_clock::now();
 
 			on_apply_effect_technique(technique.get());
 
-			if (boost::chrono::duration_cast<boost::chrono::milliseconds>(timeTechniqueStarted - technique->last_duration_update).count() > 250)
-			{
-				technique->last_duration = boost::chrono::high_resolution_clock::now() - timeTechniqueStarted;
-				technique->last_duration_update = timeTechniqueStarted;
-			}
+			technique->average_duration.append(boost::chrono::duration_cast<boost::chrono::nanoseconds>(boost::chrono::high_resolution_clock::now() - time_technique_started).count());
 		}
 
 		_last_postprocessing_duration = boost::chrono::high_resolution_clock::now() - time_postprocessing_started;
