@@ -815,26 +815,25 @@ namespace reshade
 		::localtime_s(&tm, &time);
 
 		// Pre-process
-		std::vector<std::pair<std::string, std::string>> defines;
-		defines.emplace_back("__RESHADE__", std::to_string(VERSION_MAJOR * 10000 + VERSION_MINOR * 100 + VERSION_REVISION));
-		defines.emplace_back("__VENDOR__", std::to_string(_vendor_id));
-		defines.emplace_back("__DEVICE__", std::to_string(_device_id));
-		defines.emplace_back("__RENDERER__", std::to_string(_renderer_id));
-		defines.emplace_back("__APPLICATION__", std::to_string(std::hash<std::string>()(s_executable_path.stem().string())));
-		defines.emplace_back("__DATE_YEAR__", std::to_string(tm.tm_year + 1900));
-		defines.emplace_back("__DATE_MONTH__", std::to_string(tm.tm_mday));
-		defines.emplace_back("__DATE_DAY__", std::to_string(tm.tm_mon + 1));
-		defines.emplace_back("BUFFER_WIDTH", std::to_string(_width));
-		defines.emplace_back("BUFFER_HEIGHT", std::to_string(_height));
-		defines.emplace_back("BUFFER_RCP_WIDTH", std::to_string(1.0f / static_cast<float>(_width)));
-		defines.emplace_back("BUFFER_RCP_HEIGHT", std::to_string(1.0f / static_cast<float>(_height)));
-
-		_included_files.push_back(s_effect_path.parent_path());
+		fx::preprocessor preprocessor(_pragmas, _effect_source, _errors);
+		preprocessor.add_include_path(s_effect_path.parent_path());
+		preprocessor.add_macro_definition("__RESHADE__", std::to_string(VERSION_MAJOR * 10000 + VERSION_MINOR * 100 + VERSION_REVISION));
+		preprocessor.add_macro_definition("__VENDOR__", std::to_string(_vendor_id));
+		preprocessor.add_macro_definition("__DEVICE__", std::to_string(_device_id));
+		preprocessor.add_macro_definition("__RENDERER__", std::to_string(_renderer_id));
+		preprocessor.add_macro_definition("__APPLICATION__", std::to_string(std::hash<std::string>()(s_executable_path.stem().string())));
+		preprocessor.add_macro_definition("__DATE_YEAR__", std::to_string(tm.tm_year + 1900));
+		preprocessor.add_macro_definition("__DATE_MONTH__", std::to_string(tm.tm_mday));
+		preprocessor.add_macro_definition("__DATE_DAY__", std::to_string(tm.tm_mon + 1));
+		preprocessor.add_macro_definition("BUFFER_WIDTH", std::to_string(_width));
+		preprocessor.add_macro_definition("BUFFER_HEIGHT", std::to_string(_height));
+		preprocessor.add_macro_definition("BUFFER_RCP_WIDTH", std::to_string(1.0f / static_cast<float>(_width)));
+		preprocessor.add_macro_definition("BUFFER_RCP_HEIGHT", std::to_string(1.0f / static_cast<float>(_height)));
 
 		LOG(INFO) << "Loading effect from " << obfuscate_path(s_effect_path) << " ...";
 		LOG(TRACE) << "> Running preprocessor ...";
 
-		if (!fx::preprocess(s_effect_path, defines, _included_files, _pragmas, _effect_source, _errors))
+		if (!preprocessor.run(s_effect_path, _included_files))
 		{
 			LOG(ERROR) << "Failed to preprocess effect on context " << this << ":\n\n" << _errors << "\n";
 
@@ -938,7 +937,7 @@ namespace reshade
 
 		fx::nodetree ast;
 
-		const bool success = fx::parse(_effect_source, ast, _errors);
+		const bool success = fx::parser(_effect_source, ast, _errors).run();
 
 		if (!success)
 		{
