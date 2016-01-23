@@ -18,7 +18,7 @@ namespace reshade
 			macro_replacement_expand = '\xFB',
 		};
 
-		preprocessor::preprocessor(std::vector<std::string> &pragmas, std::string &output, std::string &errors) : _is_fatal(false), _output(output), _errors(errors), _pragmas(pragmas), _recursion_count(0)
+		preprocessor::preprocessor(std::vector<std::string> &pragmas, std::string &output, std::string &errors) : _success(true), _output(output), _errors(errors), _pragmas(pragmas), _recursion_count(0)
 		{
 		}
 
@@ -41,9 +41,8 @@ namespace reshade
 		// Error handling
 		void preprocessor::error(const location &location, const std::string &message)
 		{
-			_is_fatal = true;
-
 			_errors += location.source + '(' + std::to_string(location.line) + ", " + std::to_string(location.column) + ')' + ": preprocessor error: " + message + '\n';
+			_success = false;
 		}
 		void preprocessor::warning(const location &location, const std::string &message)
 		{
@@ -56,10 +55,6 @@ namespace reshade
 			assert(!_input_stack.empty());
 
 			return *_input_stack.top()._lexer;
-		}
-		lexer::token preprocessor::current_token() const
-		{
-			return _token;
 		}
 		std::stack<preprocessor::if_level> &preprocessor::current_if_stack()
 		{
@@ -189,7 +184,7 @@ namespace reshade
 			push(filedata + '\n', file_path.string());
 			parse();
 
-			if (!_is_fatal)
+			if (_success)
 			{
 				for (const auto &element : _filecache)
 				{
@@ -314,308 +309,6 @@ namespace reshade
 			}
 
 			_output += line;
-		}
-		void preprocessor::parse_def()
-		{
-			if (!expect(lexer::tokenid::identifier))
-			{
-				return;
-			}
-
-			macro m;
-			const auto location = current_token().location;
-			const auto macro_name = current_token().literal_as_string;
-			const auto macro_name_end_offset = current_token().offset + current_token().length;
-
-			if (macro_name == "defined")
-			{
-				warning(location, "macro name 'defined' is reserved");
-				return;
-			}
-
-			if (current_lexer().input_string()[macro_name_end_offset] == '(')
-			{
-				accept(lexer::tokenid::parenthesis_open);
-
-				m.is_function_like = true;
-
-				while (true)
-				{
-					if (!accept(lexer::tokenid::identifier))
-					{
-						break;
-					}
-
-					m.parameters.push_back(current_token().literal_as_string);
-
-					if (!accept(lexer::tokenid::comma))
-					{
-						break;
-					}
-				}
-
-				if (accept(lexer::tokenid::ellipsis))
-				{
-					m.is_variadic = true;
-					m.parameters.push_back("__VA_ARGS__");
-
-					// TODO: Implement variadic macros
-					error(current_token().location, "variadic macros are not currently supported");
-					return;
-				}
-
-				if (!expect(lexer::tokenid::parenthesis_close))
-				{
-					return;
-				}
-			}
-
-			create_macro_replacement_list(m);
-
-			if (!add_macro_definition(macro_name, m))
-			{
-				error(location, "redefinition of '" + macro_name + "'");
-				return;
-			}
-		}
-		void preprocessor::parse_undef()
-		{
-			if (!expect(lexer::tokenid::identifier))
-			{
-				return;
-			}
-
-			const auto location = current_token().location;
-			const auto &macro_name = current_token().literal_as_string;
-
-			if (macro_name == "defined")
-			{
-				warning(location, "macro name 'defined' is reserved");
-				return;
-			}
-
-			_macros.erase(macro_name);
-		}
-		void preprocessor::parse_if()
-		{
-			const auto parent = current_if_stack().empty() ? nullptr : &current_if_level();
-			const bool condition_result = parse_expression() != 0;
-
-			if_level level;
-			level.token = current_token();
-			level.value = condition_result;
-			level.skipping = (parent != nullptr && parent->skipping) || !level.value;
-			level.parent = parent;
-
-			current_if_stack().push(level);
-		}
-		void preprocessor::parse_ifdef()
-		{
-			const auto parent = current_if_stack().empty() ? nullptr : &current_if_level();
-
-			if_level level;
-			level.token = current_token();
-
-			if (!expect(lexer::tokenid::identifier))
-			{
-				return;
-			}
-
-			const auto &macro_name = current_token().literal_as_string;
-
-			level.value = _macros.find(macro_name) != _macros.end();
-			level.skipping = (parent != nullptr && parent->skipping) || !level.value;
-			level.parent = parent;
-
-			current_if_stack().push(level);
-		}
-		void preprocessor::parse_ifndef()
-		{
-			const auto parent = current_if_stack().empty() ? nullptr : &current_if_level();
-
-			if_level level;
-			level.token = current_token();
-
-			if (!expect(lexer::tokenid::identifier))
-			{
-				return;
-			}
-
-			const auto &macro_name = current_token().literal_as_string;
-
-			level.value = _macros.find(macro_name) == _macros.end();
-			level.skipping = (parent != nullptr && parent->skipping) || !level.value;
-			level.parent = parent;
-
-			current_if_stack().push(level);
-		}
-		void preprocessor::parse_elif()
-		{
-			const auto keyword_location = current_token().location;
-
-			if (current_if_stack().empty())
-			{
-				error(keyword_location, "missing #if for #elif");
-				return;
-			}
-			if (current_if_level().token == lexer::tokenid::hash_else)
-			{
-				error(keyword_location, "#elif is not allowed after #else");
-				return;
-			}
-
-			const bool condition_result = parse_expression() != 0;
-
-			if_level &level = current_if_level();
-			level.token = current_token();
-			level.skipping = (level.parent != nullptr && level.parent->skipping) || level.value || !condition_result;
-
-			if (!level.value)
-			{
-				level.value = condition_result;
-			}
-		}
-		void preprocessor::parse_else()
-		{
-			const auto keyword_location = current_token().location;
-
-			if (current_if_stack().empty())
-			{
-				error(keyword_location, "missing #if for #else");
-				return;
-			}
-			if (current_if_level().token == lexer::tokenid::hash_else)
-			{
-				error(keyword_location, "#else is not allowed after #else");
-				return;
-			}
-
-			if_level &level = current_if_level();
-			level.token = current_token();
-			level.skipping = (level.parent != nullptr && level.parent->skipping) || level.value;
-
-			if (!level.value)
-			{
-				level.value = true;
-			}
-		}
-		void preprocessor::parse_endif()
-		{
-			const auto keyword_location = current_token().location;
-
-			if (current_if_stack().empty())
-			{
-				error(keyword_location, "missing #if for #endif");
-				return;
-			}
-
-			current_if_stack().pop();
-		}
-		void preprocessor::parse_error()
-		{
-			const auto keyword_location = current_token().location;
-				
-			if (!expect(lexer::tokenid::string_literal))
-			{
-				return;
-			}
-
-			error(keyword_location, current_token().literal_as_string);
-		}
-		void preprocessor::parse_warning()
-		{
-			const auto keyword_location = current_token().location;
-
-			if (!expect(lexer::tokenid::string_literal))
-			{
-				return;
-			}
-
-			warning(keyword_location, current_token().literal_as_string);
-		}
-		void preprocessor::parse_pragma()
-		{
-			if (!expect(lexer::tokenid::identifier))
-			{
-				return;
-			}
-
-			std::string pragma = current_token().literal_as_string;
-
-			while (!peek(lexer::tokenid::end_of_line) && !peek(lexer::tokenid::end_of_file))
-			{
-				consume();
-
-				switch (current_token())
-				{
-					case lexer::tokenid::int_literal:
-					case lexer::tokenid::uint_literal:
-						pragma += std::to_string(current_token().literal_as_int);
-						break;
-					default:
-						pragma += _current_token_raw_data;
-						break;
-				}
-			}
-
-			_pragmas.push_back(pragma);
-		}
-		void preprocessor::parse_include()
-		{
-			const auto keyword_location = current_token().location;
-
-			while (accept(lexer::tokenid::identifier))
-			{
-				if (!evaluate_identifier_as_macro())
-				{
-					error(current_token().location, "syntax error: unexpected identifier in #include");
-					consume_until(lexer::tokenid::end_of_line);
-					return;
-				}
-			}
-
-			if (!expect(lexer::tokenid::string_literal))
-			{
-				consume_until(lexer::tokenid::end_of_line);
-				return;
-			}
-
-			boost::filesystem::path filename = current_token().literal_as_string;
-			filename.make_preferred();
-			auto path = boost::filesystem::path(_output_location.source).parent_path() / filename;
-
-			if (!boost::filesystem::exists(path))
-			{
-				for (const auto &include_path : _include_paths)
-				{
-					path = boost::filesystem::absolute(filename, include_path);
-
-					if (boost::filesystem::exists(path))
-					{
-						break;
-					}
-				}
-			}
-
-			auto it = _filecache.find(path.string());
-
-			if (it == _filecache.end())
-			{
-				std::ifstream file(path.string());
-
-				if (!file.is_open())
-				{
-					error(keyword_location, "could not open included file '" + filename.string() + "'");
-					consume_until(lexer::tokenid::end_of_line);
-					return;
-				}
-
-				const std::string filedata(std::istreambuf_iterator<char>(file.rdbuf()), std::istreambuf_iterator<char>());
-
-				it = _filecache.emplace(path.string(), filedata + '\n').first;
-			}
-
-			push(it->second, path.string());
 		}
 		int preprocessor::parse_expression()
 		{
@@ -924,6 +617,308 @@ namespace reshade
 			}
 
 			return stack[0];
+		}
+		void preprocessor::parse_def()
+		{
+			if (!expect(lexer::tokenid::identifier))
+			{
+				return;
+			}
+
+			macro m;
+			const auto location = current_token().location;
+			const auto macro_name = current_token().literal_as_string;
+			const auto macro_name_end_offset = current_token().offset + current_token().length;
+
+			if (macro_name == "defined")
+			{
+				warning(location, "macro name 'defined' is reserved");
+				return;
+			}
+
+			if (current_lexer().input_string()[macro_name_end_offset] == '(')
+			{
+				accept(lexer::tokenid::parenthesis_open);
+
+				m.is_function_like = true;
+
+				while (true)
+				{
+					if (!accept(lexer::tokenid::identifier))
+					{
+						break;
+					}
+
+					m.parameters.push_back(current_token().literal_as_string);
+
+					if (!accept(lexer::tokenid::comma))
+					{
+						break;
+					}
+				}
+
+				if (accept(lexer::tokenid::ellipsis))
+				{
+					m.is_variadic = true;
+					m.parameters.push_back("__VA_ARGS__");
+
+					// TODO: Implement variadic macros
+					error(current_token().location, "variadic macros are not currently supported");
+					return;
+				}
+
+				if (!expect(lexer::tokenid::parenthesis_close))
+				{
+					return;
+				}
+			}
+
+			create_macro_replacement_list(m);
+
+			if (!add_macro_definition(macro_name, m))
+			{
+				error(location, "redefinition of '" + macro_name + "'");
+				return;
+			}
+		}
+		void preprocessor::parse_undef()
+		{
+			if (!expect(lexer::tokenid::identifier))
+			{
+				return;
+			}
+
+			const auto location = current_token().location;
+			const auto &macro_name = current_token().literal_as_string;
+
+			if (macro_name == "defined")
+			{
+				warning(location, "macro name 'defined' is reserved");
+				return;
+			}
+
+			_macros.erase(macro_name);
+		}
+		void preprocessor::parse_if()
+		{
+			const auto parent = current_if_stack().empty() ? nullptr : &current_if_level();
+			const bool condition_result = parse_expression() != 0;
+
+			if_level level;
+			level.token = current_token();
+			level.value = condition_result;
+			level.skipping = (parent != nullptr && parent->skipping) || !level.value;
+			level.parent = parent;
+
+			current_if_stack().push(level);
+		}
+		void preprocessor::parse_ifdef()
+		{
+			const auto parent = current_if_stack().empty() ? nullptr : &current_if_level();
+
+			if_level level;
+			level.token = current_token();
+
+			if (!expect(lexer::tokenid::identifier))
+			{
+				return;
+			}
+
+			const auto &macro_name = current_token().literal_as_string;
+
+			level.value = _macros.find(macro_name) != _macros.end();
+			level.skipping = (parent != nullptr && parent->skipping) || !level.value;
+			level.parent = parent;
+
+			current_if_stack().push(level);
+		}
+		void preprocessor::parse_ifndef()
+		{
+			const auto parent = current_if_stack().empty() ? nullptr : &current_if_level();
+
+			if_level level;
+			level.token = current_token();
+
+			if (!expect(lexer::tokenid::identifier))
+			{
+				return;
+			}
+
+			const auto &macro_name = current_token().literal_as_string;
+
+			level.value = _macros.find(macro_name) == _macros.end();
+			level.skipping = (parent != nullptr && parent->skipping) || !level.value;
+			level.parent = parent;
+
+			current_if_stack().push(level);
+		}
+		void preprocessor::parse_elif()
+		{
+			const auto keyword_location = current_token().location;
+
+			if (current_if_stack().empty())
+			{
+				error(keyword_location, "missing #if for #elif");
+				return;
+			}
+			if (current_if_level().token == lexer::tokenid::hash_else)
+			{
+				error(keyword_location, "#elif is not allowed after #else");
+				return;
+			}
+
+			const bool condition_result = parse_expression() != 0;
+
+			if_level &level = current_if_level();
+			level.token = current_token();
+			level.skipping = (level.parent != nullptr && level.parent->skipping) || level.value || !condition_result;
+
+			if (!level.value)
+			{
+				level.value = condition_result;
+			}
+		}
+		void preprocessor::parse_else()
+		{
+			const auto keyword_location = current_token().location;
+
+			if (current_if_stack().empty())
+			{
+				error(keyword_location, "missing #if for #else");
+				return;
+			}
+			if (current_if_level().token == lexer::tokenid::hash_else)
+			{
+				error(keyword_location, "#else is not allowed after #else");
+				return;
+			}
+
+			if_level &level = current_if_level();
+			level.token = current_token();
+			level.skipping = (level.parent != nullptr && level.parent->skipping) || level.value;
+
+			if (!level.value)
+			{
+				level.value = true;
+			}
+		}
+		void preprocessor::parse_endif()
+		{
+			const auto keyword_location = current_token().location;
+
+			if (current_if_stack().empty())
+			{
+				error(keyword_location, "missing #if for #endif");
+				return;
+			}
+
+			current_if_stack().pop();
+		}
+		void preprocessor::parse_error()
+		{
+			const auto keyword_location = current_token().location;
+				
+			if (!expect(lexer::tokenid::string_literal))
+			{
+				return;
+			}
+
+			error(keyword_location, current_token().literal_as_string);
+		}
+		void preprocessor::parse_warning()
+		{
+			const auto keyword_location = current_token().location;
+
+			if (!expect(lexer::tokenid::string_literal))
+			{
+				return;
+			}
+
+			warning(keyword_location, current_token().literal_as_string);
+		}
+		void preprocessor::parse_pragma()
+		{
+			if (!expect(lexer::tokenid::identifier))
+			{
+				return;
+			}
+
+			std::string pragma = current_token().literal_as_string;
+
+			while (!peek(lexer::tokenid::end_of_line) && !peek(lexer::tokenid::end_of_file))
+			{
+				consume();
+
+				switch (current_token())
+				{
+					case lexer::tokenid::int_literal:
+					case lexer::tokenid::uint_literal:
+						pragma += std::to_string(current_token().literal_as_int);
+						break;
+					default:
+						pragma += _current_token_raw_data;
+						break;
+				}
+			}
+
+			_pragmas.push_back(pragma);
+		}
+		void preprocessor::parse_include()
+		{
+			const auto keyword_location = current_token().location;
+
+			while (accept(lexer::tokenid::identifier))
+			{
+				if (!evaluate_identifier_as_macro())
+				{
+					error(current_token().location, "syntax error: unexpected identifier in #include");
+					consume_until(lexer::tokenid::end_of_line);
+					return;
+				}
+			}
+
+			if (!expect(lexer::tokenid::string_literal))
+			{
+				consume_until(lexer::tokenid::end_of_line);
+				return;
+			}
+
+			boost::filesystem::path filename = current_token().literal_as_string;
+			filename.make_preferred();
+			auto path = boost::filesystem::path(_output_location.source).parent_path() / filename;
+
+			if (!boost::filesystem::exists(path))
+			{
+				for (const auto &include_path : _include_paths)
+				{
+					path = boost::filesystem::absolute(filename, include_path);
+
+					if (boost::filesystem::exists(path))
+					{
+						break;
+					}
+				}
+			}
+
+			auto it = _filecache.find(path.string());
+
+			if (it == _filecache.end())
+			{
+				std::ifstream file(path.string());
+
+				if (!file.is_open())
+				{
+					error(keyword_location, "could not open included file '" + filename.string() + "'");
+					consume_until(lexer::tokenid::end_of_line);
+					return;
+				}
+
+				const std::string filedata(std::istreambuf_iterator<char>(file.rdbuf()), std::istreambuf_iterator<char>());
+
+				it = _filecache.emplace(path.string(), filedata + '\n').first;
+			}
+
+			push(it->second, path.string());
 		}
 
 		// Macro management routines

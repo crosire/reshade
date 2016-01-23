@@ -210,10 +210,7 @@ namespace reshade
 			/// Get the input string this lexical analyzer works on.
 			/// </summary>
 			/// <returns>A constant reference to the input string.</returns>
-			const std::string &input_string() const
-			{
-				return _input;
-			}
+			inline const std::string &input_string() const { return _input; }
 
 			/// <summary>
 			/// Perform lexical analysis on the input string and return the next token in sequence.

@@ -1,6 +1,5 @@
 #include "parser.hpp"
 
-#include <cstdarg>
 #include <algorithm>
 #include <functional>
 #include <boost\assign\list_of.hpp>
@@ -87,7 +86,7 @@ namespace reshade
 				}
 			}
 
-			const char *get_token_name(lexer::tokenid tokid)
+			const std::string get_token_name(lexer::tokenid tokid)
 			{
 				switch (tokid)
 				{
@@ -281,7 +280,7 @@ namespace reshade
 					case lexer::tokenid::bool2x2:
 					case lexer::tokenid::bool3x3:
 					case lexer::tokenid::bool4x4:
-						return "bool";
+						return "bool type";
 					case lexer::tokenid::int_:
 					case lexer::tokenid::int2:
 					case lexer::tokenid::int3:
@@ -289,7 +288,7 @@ namespace reshade
 					case lexer::tokenid::int2x2:
 					case lexer::tokenid::int3x3:
 					case lexer::tokenid::int4x4:
-						return "int";
+						return "int type";
 					case lexer::tokenid::uint_:
 					case lexer::tokenid::uint2:
 					case lexer::tokenid::uint3:
@@ -297,7 +296,7 @@ namespace reshade
 					case lexer::tokenid::uint2x2:
 					case lexer::tokenid::uint3x3:
 					case lexer::tokenid::uint4x4:
-						return "uint";
+						return "uint type";
 					case lexer::tokenid::float_:
 					case lexer::tokenid::float2:
 					case lexer::tokenid::float3:
@@ -305,7 +304,7 @@ namespace reshade
 					case lexer::tokenid::float2x2:
 					case lexer::tokenid::float3x3:
 					case lexer::tokenid::float4x4:
-						return "float";
+						return "float type";
 					case lexer::tokenid::vector:
 						return "vector";
 					case lexer::tokenid::matrix:
@@ -327,7 +326,7 @@ namespace reshade
 		}
 
 		// Error handling
-		void parser::error(const location &location, unsigned int code, const char *message, ...)
+		void parser::error(const location &location, unsigned int code, const std::string &message)
 		{
 			_errors += location.source + '(' + std::to_string(location.line) + ", " + std::to_string(location.column) + ')' + ": ";
 
@@ -340,17 +339,9 @@ namespace reshade
 				_errors += "error X" + std::to_string(code) + ": ";
 			}
 
-			char formatted[512];
-
-			va_list args;
-			va_start(args, message);
-			vsprintf_s(formatted, message, args);
-			va_end(args);
-
-			_errors += formatted;
-			_errors += '\n';
+			_errors += message + '\n';
 		}
-		void parser::warning(const location &location, unsigned int code, const char *message, ...)
+		void parser::warning(const location &location, unsigned int code, const std::string &message)
 		{
 			_errors += location.source + '(' + std::to_string(location.line) + ", " + std::to_string(location.column) + ')' + ": ";
 
@@ -363,15 +354,7 @@ namespace reshade
 				_errors += "warning X" + std::to_string(code) + ": ";
 			}
 
-			char formatted[512];
-
-			va_list args;
-			va_start(args, message);
-			vsprintf_s(formatted, message, args);
-			va_end(args);
-
-			_errors += formatted;
-			_errors += '\n';
+			_errors += message + '\n';
 		}
 
 		// Input management
@@ -434,7 +417,7 @@ namespace reshade
 		{
 			if (!accept(tokid))
 			{
-				error(_token_next.location, 3000, "syntax error: unexpected '%s', expected '%s'", get_token_name(_token_next.id), get_token_name(tokid));
+				error(_token_next.location, 3000, "syntax error: unexpected '" + get_token_name(_token_next.id) + "', expected '" + get_token_name(tokid) + "'");
 
 				return false;
 			}
@@ -475,7 +458,7 @@ namespace reshade
 				{
 					if (!accept_type_class(type))
 					{
-						error(_token_next.location, 3000, "syntax error: unexpected '%s', expected vector element type", get_token_name(_token_next.id));
+						error(_token_next.location, 3000, "syntax error: unexpected '" + get_token_name(_token_next.id) + "', expected vector element type");
 
 						return false;
 					}
@@ -516,7 +499,7 @@ namespace reshade
 				{
 					if (!accept_type_class(type))
 					{
-						error(_token_next.location, 3000, "syntax error: unexpected '%s', expected matrix element type", get_token_name(_token_next.id));
+						error(_token_next.location, 3000, "syntax error: unexpected '" + get_token_name(_token_next.id) + "', expected matrix element type");
 
 						return false;
 					}
@@ -1340,7 +1323,7 @@ namespace reshade
 				{
 					if (symbol != nullptr && symbol->id == nodeid::variable_declaration)
 					{
-						error(location, 3005, "identifier '%s' represents a variable, not a function", identifier.c_str());
+						error(location, 3005, "identifier '" + identifier + "' represents a variable, not a function");
 
 						return false;
 					}
@@ -1376,15 +1359,15 @@ namespace reshade
 					{
 						if (undeclared && !intrinsic)
 						{
-							error(location, 3004, "undeclared identifier '%s'", identifier.c_str());
+							error(location, 3004, "undeclared identifier '" + identifier + "'");
 						}
 						else if (ambiguous)
 						{
-							error(location, 3067, "ambiguous function call to '%s'", identifier.c_str());
+							error(location, 3067, "ambiguous function call to '" + identifier + "'");
 						}
 						else
 						{
-							error(location, 3013, "no matching function overload for '%s'", identifier.c_str());
+							error(location, 3013, "no matching function overload for '" + identifier + "'");
 						}
 
 						return false;
@@ -1423,14 +1406,14 @@ namespace reshade
 				{
 					if (symbol == nullptr)
 					{
-						error(location, 3004, "undeclared identifier '%s'", identifier.c_str());
+						error(location, 3004, "undeclared identifier '" + identifier + "'");
 
 						return false;
 					}
 
 					if (symbol->id != nodeid::variable_declaration)
 					{
-						error(location, 3005, "identifier '%s' represents a function, not a variable", identifier.c_str());
+						error(location, 3005, "identifier '" + identifier + "' represents a function, not a variable");
 
 						return false;
 					}
@@ -1510,7 +1493,7 @@ namespace reshade
 
 						if (length > 4)
 						{
-							error(location, 3018, "invalid subscript '%s'", subscript.c_str());
+							error(location, 3018, "invalid subscript '" + subscript + "', swizzle too long");
 
 							return false;
 						}
@@ -1536,19 +1519,19 @@ namespace reshade
 								case 'p': offsets[i] = 2, set[i] = stpq; break;
 								case 'q': offsets[i] = 3, set[i] = stpq; break;
 								default:
-									error(location, 3018, "invalid subscript '%s'", subscript.c_str());
+									error(location, 3018, "invalid subscript '" + subscript + "'");
 									return false;
 							}
 
 							if (i > 0 && (set[i] != set[i - 1]))
 							{
-								error(location, 3018, "invalid subscript '%s', mixed swizzle sets", subscript.c_str());
+								error(location, 3018, "invalid subscript '" + subscript + "', mixed swizzle sets");
 
 								return false;
 							}
 							if (static_cast<unsigned int>(offsets[i]) >= type.rows)
 							{
-								error(location, 3018, "invalid subscript '%s', swizzle out of range", subscript.c_str());
+								error(location, 3018, "invalid subscript '" + subscript + "', swizzle out of range");
 
 								return false;
 							}
@@ -1587,7 +1570,7 @@ namespace reshade
 
 						if (length < 3)
 						{
-							error(location, 3018, "invalid subscript '%s'", subscript.c_str());
+							error(location, 3018, "invalid subscript '" + subscript + "'");
 
 							return false;
 						}
@@ -1601,13 +1584,13 @@ namespace reshade
 						{
 							if (subscript[i] != '_' || subscript[i + set + 1] < '0' + coefficient || subscript[i + set + 1] > '3' + coefficient || subscript[i + set + 2] < '0' + coefficient || subscript[i + set + 2] > '3' + coefficient)
 							{
-								error(location, 3018, "invalid subscript '%s'", subscript.c_str());
+								error(location, 3018, "invalid subscript '" + subscript + "'");
 
 								return false;
 							}
 							if (set && subscript[i + 1] != 'm')
 							{
-								error(location, 3018, "invalid subscript '%s', mixed swizzle sets", subscript.c_str());
+								error(location, 3018, "invalid subscript '" + subscript + "', mixed swizzle sets");
 
 								return false;
 							}
@@ -1617,7 +1600,7 @@ namespace reshade
 
 							if ((row >= type.rows || col >= type.cols) || j > 3)
 							{
-								error(location, 3018, "invalid subscript '%s', swizzle out of range", subscript.c_str());
+								error(location, 3018, "invalid subscript '" + subscript + "', swizzle out of range");
 
 								return false;
 							}
@@ -1668,7 +1651,7 @@ namespace reshade
 
 						if (field == nullptr)
 						{
-							error(location, 3018, "invalid subscript '%s'", subscript.c_str());
+							error(location, 3018, "invalid subscript '" + subscript + "'");
 
 							return false;
 						}
@@ -1696,7 +1679,7 @@ namespace reshade
 						{
 							if ((subscript[i] != 'x' && subscript[i] != 'r' && subscript[i] != 's') || i > 3)
 							{
-								error(location, 3018, "invalid subscript '%s'", subscript.c_str());
+								error(location, 3018, "invalid subscript '" + subscript + "'");
 
 								return false;
 							}
@@ -1719,7 +1702,7 @@ namespace reshade
 					}
 					else
 					{
-						error(location, 3018, "invalid subscript '%s'", subscript.c_str());
+						error(location, 3018, "invalid subscript '" + subscript + "'");
 
 						return false;
 					}
@@ -2016,7 +1999,7 @@ namespace reshade
 				return true;
 			}
 
-#pragma region If
+			#pragma region If
 			if (accept(lexer::tokenid::if_))
 			{
 				const auto newstatement = _ast.make_node<if_statement_node>(_token.location);
@@ -2048,9 +2031,9 @@ namespace reshade
 
 				return true;
 			}
-#pragma endregion
+			#pragma endregion
 
-#pragma region Switch
+			#pragma region Switch
 			if (accept(lexer::tokenid::switch_))
 			{
 				const auto newstatement = _ast.make_node<switch_statement_node>(_token.location);
@@ -2132,9 +2115,9 @@ namespace reshade
 
 				return expect('}');
 			}
-#pragma endregion
+			#pragma endregion
 
-#pragma region For
+			#pragma region For
 			if (accept(lexer::tokenid::for_))
 			{
 				const auto newstatement = _ast.make_node<for_statement_node>(_token.location);
@@ -2205,9 +2188,9 @@ namespace reshade
 
 				return true;
 			}
-#pragma endregion
+			#pragma endregion
 
-#pragma region While
+			#pragma region While
 			if (accept(lexer::tokenid::while_))
 			{
 				const auto newstatement = _ast.make_node<while_statement_node>(_token.location);
@@ -2245,9 +2228,9 @@ namespace reshade
 
 				return true;
 			}
-#pragma endregion
+			#pragma endregion
 
-#pragma region DoWhile
+			#pragma region DoWhile
 			if (accept(lexer::tokenid::do_))
 			{
 				const auto newstatement = _ast.make_node<while_statement_node>(_token.location);
@@ -2270,9 +2253,9 @@ namespace reshade
 
 				return true;
 			}
-#pragma endregion
+			#pragma endregion
 
-#pragma region Break
+			#pragma region Break
 			if (accept(lexer::tokenid::break_))
 			{
 				const auto newstatement = _ast.make_node<jump_statement_node>(_token.location);
@@ -2283,9 +2266,9 @@ namespace reshade
 
 				return expect(';');
 			}
-#pragma endregion
+			#pragma endregion
 
-#pragma region Continue
+			#pragma region Continue
 			if (accept(lexer::tokenid::continue_))
 			{
 				const auto newstatement = _ast.make_node<jump_statement_node>(_token.location);
@@ -2296,9 +2279,9 @@ namespace reshade
 
 				return expect(';');
 			}
-#pragma endregion
+			#pragma endregion
 
-#pragma region Return
+			#pragma region Return
 			if (accept(lexer::tokenid::return_))
 			{
 				const auto newstatement = _ast.make_node<return_statement_node>(_token.location);
@@ -2348,9 +2331,9 @@ namespace reshade
 
 				return expect(';');
 			}
-#pragma endregion
+			#pragma endregion
 
-#pragma region Discard
+			#pragma region Discard
 			if (accept(lexer::tokenid::discard_))
 			{
 				const auto newstatement = _ast.make_node<return_statement_node>(_token.location);
@@ -2361,18 +2344,18 @@ namespace reshade
 
 				return expect(';');
 			}
-#pragma endregion
+			#pragma endregion
 
-#pragma region Declaration
+			#pragma region Declaration
 			if (parse_statement_declarator_list(statement))
 			{
 				statement->attributes = attributes;
 
 				return expect(';');
 			}
-#pragma endregion
+			#pragma endregion
 
-#pragma region expression_node
+			#pragma region Expression
 			expression_node *expression = nullptr;
 
 			if (parse_expression(expression))
@@ -2385,9 +2368,9 @@ namespace reshade
 
 				return expect(';');
 			}
-#pragma endregion
+			#pragma endregion
 
-			error(_token_next.location, 3000, "syntax error: unexpected '%s'", get_token_name(_token_next.id));
+			error(_token_next.location, 3000, "syntax error: unexpected '" + get_token_name(_token_next.id) + "'");
 
 			consume_until(';');
 
@@ -2596,7 +2579,7 @@ namespace reshade
 			{
 				consume();
 
-				error(_token.location, 3000, "syntax error: unexpected '%s'", get_token_name(_token.id));
+				error(_token.location, 3000, "syntax error: unexpected '" + get_token_name(_token.id) + "'");
 
 				return false;
 			}
@@ -2736,7 +2719,7 @@ namespace reshade
 
 				if (!_symbol_table.insert(structure, true))
 				{
-					error(_token.location, 3003, "redefinition of '%s'", structure->name.c_str());
+					error(_token.location, 3003, "redefinition of '" + structure->name + "'");
 
 					return false;
 				}
@@ -2759,7 +2742,7 @@ namespace reshade
 
 				if (!parse_type(type))
 				{
-					error(_token_next.location, 3000, "syntax error: unexpected '%s', expected struct member type", get_token_name(_token_next.id));
+					error(_token_next.location, 3000, "syntax error: unexpected '" + get_token_name(_token_next.id) + "', expected struct member type");
 
 					consume_until('}');
 
@@ -2882,7 +2865,7 @@ namespace reshade
 				{
 					_symbol_table.leave_scope();
 
-					error(_token_next.location, 3000, "syntax error: unexpected '%s', expected parameter type", get_token_name(_token_next.id));
+					error(_token_next.location, 3000, "syntax error: unexpected '" + get_token_name(_token_next.id) + "', expected parameter type");
 
 					return false;
 				}
@@ -2950,7 +2933,7 @@ namespace reshade
 
 				if (!_symbol_table.insert(parameter))
 				{
-					error(parameter->location, 3003, "redefinition of '%s'", parameter->name.c_str());
+					error(parameter->location, 3003, "redefinition of '" + parameter->name + "'");
 
 					_symbol_table.leave_scope();
 
@@ -3082,7 +3065,7 @@ namespace reshade
 
 			if (!_symbol_table.insert(variable, global))
 			{
-				error(location, 3003, "redefinition of '%s'", name.c_str());
+				error(location, 3003, "redefinition of '" + name + "'");
 
 				return false;
 			}
@@ -3154,7 +3137,7 @@ namespace reshade
 			{
 				if (type.has_qualifier(type_node::qualifier_const))
 				{
-					error(location, 3012, "missing initial value for '%s'", name.c_str());
+					error(location, 3012, "missing initial value for '" + name + "'");
 
 					return false;
 				}
@@ -3331,7 +3314,7 @@ namespace reshade
 					}
 					else
 					{
-						error(location, 3004, "unrecognized property '%s'", name.c_str());
+						error(location, 3004, "unrecognized property '" + name + "'");
 
 						return false;
 					}
@@ -3608,7 +3591,7 @@ namespace reshade
 					}
 					else
 					{
-						error(location, 3004, "unrecognized pass state '%s'", passstate.c_str());
+						error(location, 3004, "unrecognized pass state '" + passstate + "'");
 
 						return false;
 					}
@@ -3697,7 +3680,7 @@ namespace reshade
 
 				if (symbol == nullptr)
 				{
-					error(location, 3004, "undeclared identifier '%s'", identifier.c_str());
+					error(location, 3004, "undeclared identifier '" + identifier + "'");
 
 					return false;
 				}

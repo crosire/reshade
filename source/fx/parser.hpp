@@ -20,8 +20,8 @@ namespace reshade
 			bool run();
 
 		private:
-			void error(const location &location, unsigned int code, const char *message, ...);
-			void warning(const location &location, unsigned int code, const char *message, ...);
+			void error(const location &location, unsigned int code, const std::string &message);
+			void warning(const location &location, unsigned int code, const std::string &message);
 
 			void backup();
 			void restore();

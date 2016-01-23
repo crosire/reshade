@@ -28,7 +28,7 @@ namespace reshade
 			void leave_namespace();
 
 			symbol *current_parent() const { return _parent_stack.empty() ? nullptr : _parent_stack.top(); }
-			const scope &current_scope() const { return _current_scope; }
+			inline const scope &current_scope() const { return _current_scope; }
 
 			bool insert(symbol *symbol, bool global = false);
 			symbol *find(const std::string &name) const;

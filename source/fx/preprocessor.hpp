@@ -60,7 +60,7 @@ namespace reshade
 			void warning(const location &location, const std::string &message);
 
 			lexer &current_lexer();
-			lexer::token current_token() const;
+			inline lexer::token current_token() const { return _token; }
 			std::stack<if_level> &current_if_stack();
 			if_level &current_if_level();
 			void push(const std::string &input, const std::string &name = std::string());
@@ -71,6 +71,7 @@ namespace reshade
 			bool expect(lexer::tokenid token);
 
 			void parse();
+			int parse_expression();
 			void parse_def();
 			void parse_undef();
 			void parse_if();
@@ -83,23 +84,22 @@ namespace reshade
 			void parse_warning();
 			void parse_pragma();
 			void parse_include();
-			int parse_expression();
 
 			bool evaluate_identifier_as_macro();
 			void expand_macro(const macro &macro, const std::vector<std::string> &arguments, std::string &out);
 			void create_macro_replacement_list(macro &macro);
 
-			bool _is_fatal;
+			bool _success;
 			lexer::token _token;
 			std::stack<input_level> _input_stack;
 			location _output_location;
 			std::string &_output, &_errors;
 			std::string _current_token_raw_data;
+			int _recursion_count;
 			std::unordered_map<std::string, macro> _macros;
 			std::vector<std::string> &_pragmas;
 			std::vector<boost::filesystem::path> _include_paths;
 			std::unordered_map<std::string, std::string> _filecache;
-			int _recursion_count;
 		};
 	}
 }
