@@ -228,6 +228,7 @@ tools\upx --backup "$(TargetPath)"</Command>
   <ItemGroup>
     <ClCompile Include="source\log.cpp" />
     <ClCompile Include="source\main.cpp" />
+    <ClCompile Include="source\fx\compiler.cpp" />
     <ClCompile Include="source\fx\lexer.cpp" />
     <ClCompile Include="source\fX\parser.cpp" />
     <ClCompile Include="source\fX\preprocessor.cpp" />
@@ -260,6 +261,7 @@ tools\upx --backup "$(TargetPath)"</Command>
     <ClInclude Include="res\version.h" />
     <ClInclude Include="source\log.hpp" />
     <ClInclude Include="source\fx\ast.hpp" />
+    <ClInclude Include="source\fx\compiler.hpp" />
     <ClInclude Include="source\fx\lexer.hpp" />
     <ClInclude Include="source\fx\parser.hpp" />
     <ClInclude Include="source\fx\preprocessor.hpp" />

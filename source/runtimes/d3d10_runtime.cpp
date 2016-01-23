@@ -1,6 +1,7 @@
 #include "log.hpp"
 #include "d3d10_runtime.hpp"
 #include "fx\ast.hpp"
+#include "fx\compiler.hpp"
 #include "gui.hpp"
 #include "input.hpp"
 
@@ -146,38 +147,51 @@ namespace reshade
 				ID3D10RenderTargetView *RenderTargetView[2];
 			};
 
-			class d3d10_fx_compiler
+			class d3d10_fx_compiler : fx::compiler
 			{
-				d3d10_fx_compiler(const d3d10_fx_compiler &);
-				d3d10_fx_compiler &operator=(const d3d10_fx_compiler &);
-
 			public:
-				d3d10_fx_compiler(const fx::nodetree &ast, bool skipoptimization = false) : _ast(ast), _runtime(nullptr), _is_fatal(false), _skip_shader_optimization(skipoptimization), _is_in_parameter_block(false), _is_in_function_block(false), _is_in_for_initialization(0), _current_global_size(0)
+				d3d10_fx_compiler(d3d10_runtime *runtime, const fx::nodetree &ast, std::string &errors, bool skipoptimization = false) : compiler(ast, errors), _runtime(runtime), _skip_shader_optimization(skipoptimization), _is_in_parameter_block(false), _is_in_function_block(false), _current_global_size(0)
 				{
 				}
 
-				bool compile(d3d10_runtime *runtime, std::string &errors)
+				bool run() override
 				{
-					_runtime = runtime;
-					_errors.clear();
-					_is_fatal = false;
-					_current_source.clear();
+					for (auto node : _ast.structs)
+					{
+						visit(_global_code, static_cast<fx::nodes::struct_declaration_node *>(node));
+					}
+					for (auto node : _ast.uniforms)
+					{
+						const auto uniform = static_cast<fx::nodes::variable_declaration_node *>(node);
 
-					for (auto type : _ast.structs)
-					{
-						visit(static_cast<fx::nodes::struct_declaration_node *>(type));
+						if (uniform->type.is_texture())
+						{
+							visit_texture(uniform);
+						}
+						else if (uniform->type.is_sampler())
+						{
+							visit_sampler(uniform);
+						}
+						else if (uniform->type.has_qualifier(fx::nodes::type_node::qualifier_uniform))
+						{
+							visit_uniform(uniform);
+						}
+						else
+						{
+							visit(_global_code, uniform);
+
+							_global_code += ";\n";
+						}
 					}
-					for (auto uniform : _ast.uniforms)
+					for (auto node : _ast.functions)
 					{
-						visit(static_cast<fx::nodes::variable_declaration_node *>(uniform));
+						const auto function = static_cast<fx::nodes::function_declaration_node *>(node);
+
+						visit(_global_code, function);
 					}
-					for (auto function : _ast.functions)
+					for (auto node : _ast.techniques)
 					{
-						visit(static_cast<fx::nodes::function_declaration_node *>(function));
-					}
-					for (auto technique : _ast.techniques)
-					{
-						visit(static_cast<fx::nodes::technique_declaration_node *>(technique));
+						visit_technique(static_cast<fx::nodes::technique_declaration_node *>(node));
 					}
 
 					if (_current_global_size != 0)
@@ -189,9 +203,7 @@ namespace reshade
 						_runtime->_device->CreateBuffer(&globalsDesc, &globalsInitial, &_runtime->_constant_buffer);
 					}
 
-					errors += _errors;
-
-					return !_is_fatal;
+					return _success;
 				}
 
 				static inline UINT RoundToMultipleOf16(UINT size)
@@ -350,30 +362,6 @@ namespace reshade
 				}
 
 			private:
-				void error(const fx::location &location, const char *message, ...)
-				{
-					char formatted[512];
-
-					va_list args;
-					va_start(args, message);
-					vsprintf_s(formatted, message, args);
-					va_end(args);
-
-					_errors += location.source + "(" + std::to_string(location.line) + ", " + std::to_string(location.column) + "): error: " + formatted + '\n';
-					_is_fatal = true;
-				}
-				void warning(const fx::location &location, const char *message, ...)
-				{
-					char formatted[512];
-
-					va_list args;
-					va_start(args, message);
-					vsprintf_s(formatted, message, args);
-					va_end(args);
-
-					_errors += location.source + "(" + std::to_string(location.line) + ", " + std::to_string(location.column) + "): warning: " + formatted + '\n';
-				}
-
 				static std::string convert_semantic(const std::string &semantic)
 				{
 					if (semantic == "VERTEXID")
@@ -395,406 +383,89 @@ namespace reshade
 
 					return semantic;
 				}
-				std::string print_type(const fx::nodes::type_node &type)
-				{
-					std::string res;
-
-					switch (type.basetype)
-					{
-						case fx::nodes::type_node::datatype_void:
-							res += "void";
-							break;
-						case fx::nodes::type_node::datatype_bool:
-							res += "bool";
-							break;
-						case fx::nodes::type_node::datatype_int:
-							res += "int";
-							break;
-						case fx::nodes::type_node::datatype_uint:
-							res += "uint";
-							break;
-						case fx::nodes::type_node::datatype_float:
-							res += "float";
-							break;
-						case fx::nodes::type_node::datatype_sampler:
-							res += "__sampler2D";
-							break;
-						case fx::nodes::type_node::datatype_struct:
-							res += print_name(type.definition);
-							break;
-					}
-
-					if (type.is_matrix())
-					{
-						res += std::to_string(type.rows) + "x" + std::to_string(type.cols);
-					}
-					else if (type.is_vector())
-					{
-						res += std::to_string(type.rows);
-					}
-
-					return res;
-				}
-				std::string print_type_with_qualifiers(const fx::nodes::type_node &type)
-				{
-					std::string qualifiers;
-
-					if (type.has_qualifier(fx::nodes::type_node::qualifier_extern))
-						qualifiers += "extern ";
-					if (type.has_qualifier(fx::nodes::type_node::qualifier_static))
-						qualifiers += "static ";
-					if (type.has_qualifier(fx::nodes::type_node::qualifier_const))
-						qualifiers += "const ";
-					if (type.has_qualifier(fx::nodes::type_node::qualifier_volatile))
-						qualifiers += "volatile ";
-					if (type.has_qualifier(fx::nodes::type_node::qualifier_precise))
-						qualifiers += "precise ";
-					if (type.has_qualifier(fx::nodes::type_node::qualifier_linear))
-						qualifiers += "linear ";
-					if (type.has_qualifier(fx::nodes::type_node::qualifier_noperspective))
-						qualifiers += "noperspective ";
-					if (type.has_qualifier(fx::nodes::type_node::qualifier_centroid))
-						qualifiers += "centroid ";
-					if (type.has_qualifier(fx::nodes::type_node::qualifier_nointerpolation))
-						qualifiers += "nointerpolation ";
-					if (type.has_qualifier(fx::nodes::type_node::qualifier_inout))
-						qualifiers += "inout ";
-					else if (type.has_qualifier(fx::nodes::type_node::qualifier_in))
-						qualifiers += "in ";
-					else if (type.has_qualifier(fx::nodes::type_node::qualifier_out))
-						qualifiers += "out ";
-					else if (type.has_qualifier(fx::nodes::type_node::qualifier_uniform))
-						qualifiers += "uniform ";
-
-					return qualifiers + print_type(type);
-				}
 				inline std::string print_name(const fx::nodes::declaration_node *declaration)
 				{
 					return boost::replace_all_copy(declaration->Namespace, "::", "_NS") + declaration->name;
 				}
 
-				void visit(const fx::nodes::statement_node *node)
+				using compiler::visit;
+				void visit(std::string &output, const fx::nodes::type_node &type, bool with_qualifiers = true) override
 				{
-					if (node == nullptr)
+					if (with_qualifiers)
 					{
-						return;
+						if (type.has_qualifier(fx::nodes::type_node::qualifier_extern))
+							output += "extern ";
+						if (type.has_qualifier(fx::nodes::type_node::qualifier_static))
+							output += "static ";
+						if (type.has_qualifier(fx::nodes::type_node::qualifier_const))
+							output += "const ";
+						if (type.has_qualifier(fx::nodes::type_node::qualifier_volatile))
+							output += "volatile ";
+						if (type.has_qualifier(fx::nodes::type_node::qualifier_precise))
+							output += "precise ";
+						if (type.has_qualifier(fx::nodes::type_node::qualifier_linear))
+							output += "linear ";
+						if (type.has_qualifier(fx::nodes::type_node::qualifier_noperspective))
+							output += "noperspective ";
+						if (type.has_qualifier(fx::nodes::type_node::qualifier_centroid))
+							output += "centroid ";
+						if (type.has_qualifier(fx::nodes::type_node::qualifier_nointerpolation))
+							output += "nointerpolation ";
+						if (type.has_qualifier(fx::nodes::type_node::qualifier_inout))
+							output += "inout ";
+						else if (type.has_qualifier(fx::nodes::type_node::qualifier_in))
+							output += "in ";
+						else if (type.has_qualifier(fx::nodes::type_node::qualifier_out))
+							output += "out ";
+						else if (type.has_qualifier(fx::nodes::type_node::qualifier_uniform))
+							output += "uniform ";
 					}
 
-					switch (node->id)
+					switch (type.basetype)
 					{
-						case fx::nodeid::compound_statement:
-							visit(static_cast<const fx::nodes::compound_statement_node *>(node));
+						case fx::nodes::type_node::datatype_void:
+							output += "void";
 							break;
-						case fx::nodeid::declarator_list:
-							visit(static_cast<const fx::nodes::declarator_list_node *>(node));
+						case fx::nodes::type_node::datatype_bool:
+							output += "bool";
 							break;
-						case fx::nodeid::expression_statement:
-							visit(static_cast<const fx::nodes::expression_statement_node *>(node));
+						case fx::nodes::type_node::datatype_int:
+							output += "int";
 							break;
-						case fx::nodeid::if_statement:
-							visit(static_cast<const fx::nodes::if_statement_node *>(node));
+						case fx::nodes::type_node::datatype_uint:
+							output += "uint";
 							break;
-						case fx::nodeid::switch_statement:
-							visit(static_cast<const fx::nodes::switch_statement_node *>(node));
+						case fx::nodes::type_node::datatype_float:
+							output += "float";
 							break;
-						case fx::nodeid::for_statement:
-							visit(static_cast<const fx::nodes::for_statement_node *>(node));
+						case fx::nodes::type_node::datatype_sampler:
+							output += "__sampler2D";
 							break;
-						case fx::nodeid::while_statement:
-							visit(static_cast<const fx::nodes::while_statement_node *>(node));
+						case fx::nodes::type_node::datatype_struct:
+							output += print_name(type.definition);
 							break;
-						case fx::nodeid::return_statement:
-							visit(static_cast<const fx::nodes::return_statement_node *>(node));
-							break;
-						case fx::nodeid::jump_statement:
-							visit(static_cast<const fx::nodes::jump_statement_node *>(node));
-							break;
-						default:
-							assert(false);
-							break;
+					}
+
+					if (type.is_matrix())
+					{
+						output += std::to_string(type.rows) + "x" + std::to_string(type.cols);
+					}
+					else if (type.is_vector())
+					{
+						output += std::to_string(type.rows);
 					}
 				}
-				void visit(const fx::nodes::expression_node *node)
+				void visit(std::string &output, const fx::nodes::lvalue_expression_node *node) override
 				{
-					switch (node->id)
-					{
-						case fx::nodeid::lvalue_expression:
-							visit(static_cast<const fx::nodes::lvalue_expression_node *>(node));
-							break;
-						case fx::nodeid::literal_expression:
-							visit(static_cast<const fx::nodes::literal_expression_node *>(node));
-							break;
-						case fx::nodeid::expression_sequence:
-							visit(static_cast<const fx::nodes::expression_sequence_node *>(node));
-							break;
-						case fx::nodeid::unary_expression:
-							visit(static_cast<const fx::nodes::unary_expression_node *>(node));
-							break;
-						case fx::nodeid::binary_expression:
-							visit(static_cast<const fx::nodes::binary_expression_node *>(node));
-							break;
-						case fx::nodeid::intrinsic_expression:
-							visit(static_cast<const fx::nodes::intrinsic_expression_node *>(node));
-							break;
-						case fx::nodeid::conditional_expression:
-							visit(static_cast<const fx::nodes::conditional_expression_node *>(node));
-							break;
-						case fx::nodeid::swizzle_expression:
-							visit(static_cast<const fx::nodes::swizzle_expression_node *>(node));
-							break;
-						case fx::nodeid::field_expression:
-							visit(static_cast<const fx::nodes::field_expression_node *>(node));
-							break;
-						case fx::nodeid::assignment_expression:
-							visit(static_cast<const fx::nodes::assignment_expression_node *>(node));
-							break;
-						case fx::nodeid::call_expression:
-							visit(static_cast<const fx::nodes::call_expression_node *>(node));
-							break;
-						case fx::nodeid::constructor_expression:
-							visit(static_cast<const fx::nodes::constructor_expression_node *>(node));
-							break;
-						case fx::nodeid::initializer_list:
-							visit(static_cast<const fx::nodes::initializer_list_node *>(node));
-							break;
-						default:
-							assert(false);
-							break;
-					}
+					output += print_name(node->reference);
 				}
-
-				void visit(const fx::nodes::compound_statement_node *node)
-				{
-					_current_source += "{\n";
-
-					for (auto statement : node->statement_list)
-					{
-						visit(statement);
-					}
-
-					_current_source += "}\n";
-				}
-				void visit(const fx::nodes::declarator_list_node *node)
-				{
-					for (auto declarator : node->declarator_list)
-					{
-						visit(declarator);
-
-						if (_is_in_for_initialization)
-						{
-							_current_source += ", ";
-							_is_in_for_initialization++;
-						}
-						else
-						{
-							_current_source += ";\n";
-						}
-					}
-				}
-				void visit(const fx::nodes::expression_statement_node *node)
-				{
-					visit(node->expression);
-
-					_current_source += ";\n";
-				}
-				void visit(const fx::nodes::if_statement_node *node)
-				{
-					for (auto &attribute : node->attributes)
-					{
-						_current_source += '[';
-						_current_source += attribute;
-						_current_source += ']';
-					}
-
-					_current_source += "if (";
-					visit(node->condition);
-					_current_source += ")\n";
-
-					if (node->statement_when_true != nullptr)
-					{
-						visit(node->statement_when_true);
-					}
-					else
-					{
-						_current_source += "\t;";
-					}
-					
-					if (node->statement_when_false != nullptr)
-					{
-						_current_source += "else\n";
-						
-						visit(node->statement_when_false);
-					}
-				}
-				void visit(const fx::nodes::switch_statement_node *node)
-				{
-					for (auto &attribute : node->attributes)
-					{
-						_current_source += '[';
-						_current_source += attribute;
-						_current_source += ']';
-					}
-
-					_current_source += "switch (";
-					visit(node->test_expression);
-					_current_source += ")\n{\n";
-
-					for (auto cases : node->case_list)
-					{
-						visit(cases);
-					}
-
-					_current_source += "}\n";
-				}
-				void visit(const fx::nodes::case_statement_node *node)
-				{
-					for (auto label : node->labels)
-					{
-						if (label == nullptr)
-						{
-							_current_source += "default";
-						}
-						else
-						{
-							_current_source += "case ";
-
-							visit(label);
-						}
-
-						_current_source += ":\n";
-					}
-
-					visit(node->statement_list);
-				}
-				void visit(const fx::nodes::for_statement_node *node)
-				{
-					for (auto &attribute : node->attributes)
-					{
-						_current_source += '[';
-						_current_source += attribute;
-						_current_source += ']';
-					}
-
-					_current_source += "for (";
-
-					if (node->init_statement != nullptr)
-					{
-						_is_in_for_initialization = 1;
-
-						visit(node->init_statement);
-
-						_is_in_for_initialization = 0;
-
-						_current_source.pop_back();
-						_current_source.pop_back();
-					}
-
-					_current_source += "; ";
-										
-					if (node->condition != nullptr)
-					{
-						visit(node->condition);
-					}
-
-					_current_source += "; ";
-
-					if (node->increment_expression != nullptr)
-					{
-						visit(node->increment_expression);
-					}
-
-					_current_source += ")\n";
-
-					if (node->statement_list != nullptr)
-					{
-						visit(node->statement_list);
-					}
-					else
-					{
-						_current_source += "\t;";
-					}
-				}
-				void visit(const fx::nodes::while_statement_node *node)
-				{
-					for (auto &attribute : node->attributes)
-					{
-						_current_source += '[';
-						_current_source += attribute;
-						_current_source += ']';
-					}
-
-					if (node->is_do_while)
-					{
-						_current_source += "do\n{\n";
-
-						if (node->statement_list != nullptr)
-						{
-							visit(node->statement_list);
-						}
-
-						_current_source += "}\n";
-						_current_source += "while (";
-						visit(node->condition);
-						_current_source += ");\n";
-					}
-					else
-					{
-						_current_source += "while (";
-						visit(node->condition);
-						_current_source += ")\n";
-
-						if (node->statement_list != nullptr)
-						{
-							visit(node->statement_list);
-						}
-						else
-						{
-							_current_source += "\t;";
-						}
-					}
-				}
-				void visit(const fx::nodes::return_statement_node *node)
-				{
-					if (node->is_discard)
-					{
-						_current_source += "discard";
-					}
-					else
-					{
-						_current_source += "return";
-
-						if (node->return_value != nullptr)
-						{
-							_current_source += ' ';
-
-							visit(node->return_value);
-						}
-					}
-
-					_current_source += ";\n";
-				}
-				void visit(const fx::nodes::jump_statement_node *node)
-				{
-					if (node->is_break)
-					{
-						_current_source += "break;\n";
-					}
-					else if (node->is_continue)
-					{
-						_current_source += "continue;\n";
-					}
-				}
-
-				void visit(const fx::nodes::lvalue_expression_node *node)
-				{
-					_current_source += print_name(node->reference);
-				}
-				void visit(const fx::nodes::literal_expression_node *node)
+				void visit(std::string &output, const fx::nodes::literal_expression_node *node) override
 				{
 					if (!node->type.is_scalar())
 					{
-						_current_source += print_type(node->type);
-						_current_source += '(';
+						visit(output, node->type, false);
+
+						output += '(';
 					}
 
 					for (unsigned int i = 0; i < node->type.rows * node->type.cols; ++i)
@@ -802,66 +473,66 @@ namespace reshade
 						switch (node->type.basetype)
 						{
 							case fx::nodes::type_node::datatype_bool:
-								_current_source += node->value_int[i] ? "true" : "false";
+								output += node->value_int[i] ? "true" : "false";
 								break;
 							case fx::nodes::type_node::datatype_int:
-								_current_source += std::to_string(node->value_int[i]);
+								output += std::to_string(node->value_int[i]);
 								break;
 							case fx::nodes::type_node::datatype_uint:
-								_current_source += std::to_string(node->value_uint[i]);
+								output += std::to_string(node->value_uint[i]);
 								break;
 							case fx::nodes::type_node::datatype_float:
-								_current_source += std::to_string(node->value_float[i]) + "f";
+								output += std::to_string(node->value_float[i]) + "f";
 								break;
 						}
 
-						_current_source += ", ";
+						output += ", ";
 					}
 
-					_current_source.pop_back();
-					_current_source.pop_back();
+					output.pop_back();
+					output.pop_back();
 
 					if (!node->type.is_scalar())
 					{
-						_current_source += ')';
+						output += ')';
 					}
 				}
-				void visit(const fx::nodes::expression_sequence_node *node)
+				void visit(std::string &output, const fx::nodes::expression_sequence_node *node) override
 				{
-					_current_source += '(';
+					output += '(';
 
 					for (auto expression : node->expression_list)
 					{
-						visit(expression);
+						visit(output, expression);
 
-						_current_source += ", ";
+						output += ", ";
 					}
 					
-					_current_source.pop_back();
-					_current_source.pop_back();
+					output.pop_back();
+					output.pop_back();
 
-					_current_source += ')';
+					output += ')';
 				}
-				void visit(const fx::nodes::unary_expression_node *node)
+				void visit(std::string &output, const fx::nodes::unary_expression_node *node) override
 				{
-					std::string part1, part2;
+					std::string part2;
 
 					switch (node->op)
 					{
 						case fx::nodes::unary_expression_node::negate:
-							part1 = '-';
+							output += '-';
 							break;
 						case fx::nodes::unary_expression_node::bitwise_not:
-							part1 = "~";
+							output += "~";
 							break;
 						case fx::nodes::unary_expression_node::logical_not:
-							part1 = '!';
+							output += '!';
 							break;
 						case fx::nodes::unary_expression_node::pre_increase:
-							part1 = "++";
+							output += "++";
 							break;
 						case fx::nodes::unary_expression_node::pre_decrease:
-							part1 = "--";
+							output += "--";
 							break;
 						case fx::nodes::unary_expression_node::post_increase:
 							part2 = "++";
@@ -870,16 +541,16 @@ namespace reshade
 							part2 = "--";
 							break;
 						case fx::nodes::unary_expression_node::cast:
-							part1 = print_type(node->type) + '(';
+							visit(output, node->type, false);
+							output += '(';
 							part2 = ')';
 							break;
 					}
 
-					_current_source += part1;
-					visit(node->operand);
-					_current_source += part2;
+					visit(output, node->operand);
+					output += part2;
 				}
-				void visit(const fx::nodes::binary_expression_node *node)
+				void visit(std::string &output, const fx::nodes::binary_expression_node *node) override
 				{
 					std::string part1, part2, part3;
 
@@ -981,13 +652,13 @@ namespace reshade
 							break;
 					}
 
-					_current_source += part1;
-					visit(node->operands[0]);
-					_current_source += part2;
-					visit(node->operands[1]);
-					_current_source += part3;
+					output += part1;
+					visit(output, node->operands[0]);
+					output += part2;
+					visit(output, node->operands[1]);
+					output += part3;
 				}
-				void visit(const fx::nodes::intrinsic_expression_node *node)
+				void visit(std::string &output, const fx::nodes::intrinsic_expression_node *node) override
 				{
 					std::string part1, part2, part3, part4, part5;
 
@@ -1267,11 +938,11 @@ namespace reshade
 							{
 								const int component = static_cast<const fx::nodes::literal_expression_node *>(node->arguments[2])->value_int[0];
 
-								_current_source += "__tex2Dgather" + std::to_string(component) + "(";
-								visit(node->arguments[0]);
-								_current_source += ", ";
-								visit(node->arguments[1]);
-								_current_source += ")";
+								output += "__tex2Dgather" + std::to_string(component) + "(";
+								visit(output, node->arguments[0]);
+								output += ", ";
+								visit(output, node->arguments[1]);
+								output += ")";
 							}
 							else
 							{
@@ -1283,13 +954,13 @@ namespace reshade
 							{
 								const int component = static_cast<const fx::nodes::literal_expression_node *>(node->arguments[3])->value_int[0];
 
-								_current_source += "__tex2Dgatheroffset" + std::to_string(component) + "(";
-								visit(node->arguments[0]);
-								_current_source += ", ";
-								visit(node->arguments[1]);
-								_current_source += ", ";
-								visit(node->arguments[2]);
-								_current_source += ")";
+								output += "__tex2Dgatheroffset" + std::to_string(component) + "(";
+								visit(output, node->arguments[0]);
+								output += ", ";
+								visit(output, node->arguments[1]);
+								output += ", ";
+								visit(output, node->arguments[2]);
+								output += ")";
 							}
 							else
 							{
@@ -1340,51 +1011,51 @@ namespace reshade
 							break;
 					}
 
-					_current_source += part1;
+					output += part1;
 
 					if (node->arguments[0] != nullptr)
 					{
-						visit(node->arguments[0]);
+						visit(output, node->arguments[0]);
 					}
 
-					_current_source += part2;
+					output += part2;
 
 					if (node->arguments[1] != nullptr)
 					{
-						visit(node->arguments[1]);
+						visit(output, node->arguments[1]);
 					}
 
-					_current_source += part3;
+					output += part3;
 
 					if (node->arguments[2] != nullptr)
 					{
-						visit(node->arguments[2]);
+						visit(output, node->arguments[2]);
 					}
 
-					_current_source += part4;
+					output += part4;
 
 					if (node->arguments[3] != nullptr)
 					{
-						visit(node->arguments[3]);
+						visit(output, node->arguments[3]);
 					}
 
-					_current_source += part5;
+					output += part5;
 				}
-				void visit(const fx::nodes::conditional_expression_node *node)
+				void visit(std::string &output, const fx::nodes::conditional_expression_node *node) override
 				{
-					_current_source += '(';
-					visit(node->condition);
-					_current_source += " ? ";
-					visit(node->expression_when_true);
-					_current_source += " : ";
-					visit(node->expression_when_false);
-					_current_source += ')';
+					output += '(';
+					visit(output, node->condition);
+					output += " ? ";
+					visit(output, node->expression_when_true);
+					output += " : ";
+					visit(output, node->expression_when_false);
+					output += ')';
 				}
-				void visit(const fx::nodes::swizzle_expression_node *node)
+				void visit(std::string &output, const fx::nodes::swizzle_expression_node *node) override
 				{
-					visit(node->operand);
+					visit(output, node->operand);
 
-					_current_source += '.';
+					output += '.';
 
 					if (node->operand->type.is_matrix())
 					{
@@ -1398,7 +1069,7 @@ namespace reshade
 
 						for (int i = 0; i < 4 && node->mask[i] >= 0; ++i)
 						{
-							_current_source += swizzle[node->mask[i]];
+							output += swizzle[node->mask[i]];
 						}
 					}
 					else
@@ -1410,119 +1081,451 @@ namespace reshade
 
 						for (int i = 0; i < 4 && node->mask[i] >= 0; ++i)
 						{
-							_current_source += swizzle[node->mask[i]];
+							output += swizzle[node->mask[i]];
 						}
 					}
 				}
-				void visit(const fx::nodes::field_expression_node *node)
+				void visit(std::string &output, const fx::nodes::field_expression_node *node) override
 				{
-					_current_source += '(';
+					output += '(';
 
-					visit(node->operand);
+					visit(output, node->operand);
 
-					_current_source += '.';
-					_current_source += print_name(node->field_reference);
-					_current_source += ')';
+					output += '.';
+					output += print_name(node->field_reference);
+					output += ')';
 				}
-				void visit(const fx::nodes::assignment_expression_node *node)
+				void visit(std::string &output, const fx::nodes::assignment_expression_node *node) override
 				{
-					_current_source += '(';
-					visit(node->left);
-					_current_source += ' ';
+					output += '(';
+					visit(output, node->left);
+					output += ' ';
 
 					switch (node->op)
 					{
 						case fx::nodes::assignment_expression_node::none:
-							_current_source += '=';
+							output += '=';
 							break;
 						case fx::nodes::assignment_expression_node::add:
-							_current_source += "+=";
+							output += "+=";
 							break;
 						case fx::nodes::assignment_expression_node::subtract:
-							_current_source += "-=";
+							output += "-=";
 							break;
 						case fx::nodes::assignment_expression_node::multiply:
-							_current_source += "*=";
+							output += "*=";
 							break;
 						case fx::nodes::assignment_expression_node::divide:
-							_current_source += "/=";
+							output += "/=";
 							break;
 						case fx::nodes::assignment_expression_node::modulo:
-							_current_source += "%=";
+							output += "%=";
 							break;
 						case fx::nodes::assignment_expression_node::left_shift:
-							_current_source += "<<=";
+							output += "<<=";
 							break;
 						case fx::nodes::assignment_expression_node::right_shift:
-							_current_source += ">>=";
+							output += ">>=";
 							break;
 						case fx::nodes::assignment_expression_node::bitwise_and:
-							_current_source += "&=";
+							output += "&=";
 							break;
 						case fx::nodes::assignment_expression_node::bitwise_or:
-							_current_source += "|=";
+							output += "|=";
 							break;
 						case fx::nodes::assignment_expression_node::bitwise_xor:
-							_current_source += "^=";
+							output += "^=";
 							break;
 					}
 
-					_current_source += ' ';
-					visit(node->right);
-					_current_source += ')';
+					output += ' ';
+					visit(output, node->right);
+					output += ')';
 				}
-				void visit(const fx::nodes::call_expression_node *node)
+				void visit(std::string &output, const fx::nodes::call_expression_node *node) override
 				{
-					_current_source += print_name(node->callee);
-					_current_source += '(';
+					output += print_name(node->callee);
+					output += '(';
 
 					for (auto argument : node->arguments)
 					{
-						visit(argument);
+						visit(output, argument);
 
-						_current_source += ", ";
+						output += ", ";
 					}
 
 					if (!node->arguments.empty())
 					{
-						_current_source.pop_back();
-						_current_source.pop_back();
+						output.pop_back();
+						output.pop_back();
 					}
 
-					_current_source += ')';
+					output += ')';
 				}
-				void visit(const fx::nodes::constructor_expression_node *node)
+				void visit(std::string &output, const fx::nodes::constructor_expression_node *node) override
 				{
-					_current_source += print_type(node->type);
-					_current_source += '(';
+					visit(output, node->type, false);
+
+					output += '(';
 
 					for (auto argument : node->arguments)
 					{
-						visit(argument);
+						visit(output, argument);
 
-						_current_source += ", ";
+						output += ", ";
 					}
 
 					if (!node->arguments.empty())
 					{
-						_current_source.pop_back();
-						_current_source.pop_back();
+						output.pop_back();
+						output.pop_back();
 					}
 
-					_current_source += ')';
+					output += ')';
 				}
-				void visit(const fx::nodes::initializer_list_node *node)
+				void visit(std::string &output, const fx::nodes::initializer_list_node *node)
 				{
-					_current_source += "{ ";
+					output += "{ ";
 
 					for (auto expression : node->values)
 					{
-						visit(expression);
+						visit(output, expression);
 
-						_current_source += ", ";
+						output += ", ";
 					}
 
-					_current_source += " }";
+					output += " }";
+				}
+				void visit(std::string &output, const fx::nodes::compound_statement_node *node) override
+				{
+					output += "{\n";
+
+					for (auto statement : node->statement_list)
+					{
+						visit(output, statement);
+					}
+
+					output += "}\n";
+				}
+				void visit(std::string &output, const fx::nodes::declarator_list_node *node, bool single_statement) override
+				{
+					bool with_type = true;
+
+					for (auto declarator : node->declarator_list)
+					{
+						visit(output, declarator, with_type);
+
+						if (single_statement)
+						{
+							output += ", ";
+
+							with_type = false;
+						}
+						else
+						{
+							output += ";\n";
+						}
+					}
+
+					if (single_statement)
+					{
+						output.erase(output.end() - 2, output.end());
+
+						output += ";\n";
+					}
+				}
+				void visit(std::string &output, const fx::nodes::expression_statement_node *node) override
+				{
+					visit(output, node->expression);
+
+					output += ";\n";
+				}
+				void visit(std::string &output, const fx::nodes::if_statement_node *node) override
+				{
+					for (auto &attribute : node->attributes)
+					{
+						output += '[';
+						output += attribute;
+						output += ']';
+					}
+
+					output += "if (";
+					visit(output, node->condition);
+					output += ")\n";
+
+					if (node->statement_when_true != nullptr)
+					{
+						visit(output, node->statement_when_true);
+					}
+					else
+					{
+						output += "\t;";
+					}
+
+					if (node->statement_when_false != nullptr)
+					{
+						output += "else\n";
+
+						visit(output, node->statement_when_false);
+					}
+				}
+				void visit(std::string &output, const fx::nodes::switch_statement_node *node) override
+				{
+					for (auto &attribute : node->attributes)
+					{
+						output += '[';
+						output += attribute;
+						output += ']';
+					}
+
+					output += "switch (";
+					visit(output, node->test_expression);
+					output += ")\n{\n";
+
+					for (auto cases : node->case_list)
+					{
+						visit(output, cases);
+					}
+
+					output += "}\n";
+				}
+				void visit(std::string &output, const fx::nodes::case_statement_node *node) override
+				{
+					for (auto label : node->labels)
+					{
+						if (label == nullptr)
+						{
+							output += "default";
+						}
+						else
+						{
+							output += "case ";
+
+							visit(output, label);
+						}
+
+						output += ":\n";
+					}
+
+					visit(output, node->statement_list);
+				}
+				void visit(std::string &output, const fx::nodes::for_statement_node *node) override
+				{
+					for (auto &attribute : node->attributes)
+					{
+						output += '[';
+						output += attribute;
+						output += ']';
+					}
+
+					output += "for (";
+
+					if (node->init_statement != nullptr)
+					{
+						if (node->init_statement->id == fx::nodeid::declarator_list)
+						{
+							visit(output, static_cast<fx::nodes::declarator_list_node *>(node->init_statement), true);
+
+							output.erase(output.end() - 2, output.end());
+						}
+						else
+						{
+							visit(output, static_cast<fx::nodes::expression_statement_node *>(node->init_statement)->expression);
+						}
+					}
+
+					output += "; ";
+
+					if (node->condition != nullptr)
+					{
+						visit(output, node->condition);
+					}
+
+					output += "; ";
+
+					if (node->increment_expression != nullptr)
+					{
+						visit(output, node->increment_expression);
+					}
+
+					output += ")\n";
+
+					if (node->statement_list != nullptr)
+					{
+						visit(output, node->statement_list);
+					}
+					else
+					{
+						output += "\t;";
+					}
+				}
+				void visit(std::string &output, const fx::nodes::while_statement_node *node) override
+				{
+					for (auto &attribute : node->attributes)
+					{
+						output += '[';
+						output += attribute;
+						output += ']';
+					}
+
+					if (node->is_do_while)
+					{
+						output += "do\n{\n";
+
+						if (node->statement_list != nullptr)
+						{
+							visit(output, node->statement_list);
+						}
+
+						output += "}\n";
+						output += "while (";
+						visit(output, node->condition);
+						output += ");\n";
+					}
+					else
+					{
+						output += "while (";
+						visit(output, node->condition);
+						output += ")\n";
+
+						if (node->statement_list != nullptr)
+						{
+							visit(output, node->statement_list);
+						}
+						else
+						{
+							output += "\t;";
+						}
+					}
+				}
+				void visit(std::string &output, const fx::nodes::return_statement_node *node) override
+				{
+					if (node->is_discard)
+					{
+						output += "discard";
+					}
+					else
+					{
+						output += "return";
+
+						if (node->return_value != nullptr)
+						{
+							output += ' ';
+
+							visit(output, node->return_value);
+						}
+					}
+
+					output += ";\n";
+				}
+				void visit(std::string &output, const fx::nodes::jump_statement_node *node) override
+				{
+					if (node->is_break)
+					{
+						output += "break;\n";
+					}
+					else if (node->is_continue)
+					{
+						output += "continue;\n";
+					}
+				}
+				void visit(std::string &output, const fx::nodes::struct_declaration_node *node)
+				{
+					output += "struct ";
+					output += print_name(node);
+					output += "\n{\n";
+
+					if (!node->field_list.empty())
+					{
+						for (auto field : node->field_list)
+						{
+							visit(output, field);
+						}
+					}
+					else
+					{
+						output += "float _dummy;\n";
+					}
+
+					output += "};\n";
+				}
+				void visit(std::string &output, const fx::nodes::variable_declaration_node *node, bool with_type = true)
+				{
+					if (with_type)
+					{
+						visit(output, node->type);
+
+						output += ' ';
+					}
+
+					if (!node->name.empty())
+					{
+						output += print_name(node);
+					}
+
+					if (node->type.is_array())
+					{
+						output += '[';
+						output += (node->type.array_length >= 1) ? std::to_string(node->type.array_length) : "";
+						output += ']';
+					}
+
+					if (!node->semantic.empty())
+					{
+						output += " : " + convert_semantic(node->semantic);
+					}
+
+					if (node->initializer_expression != nullptr)
+					{
+						output += " = ";
+
+						visit(output, node->initializer_expression);
+					}
+
+					if (!(_is_in_parameter_block || _is_in_function_block))
+					{
+						output += ";\n";
+					}
+				}
+				void visit(std::string &output, const fx::nodes::function_declaration_node *node)
+				{
+					visit(output, node->return_type, false);
+
+					output += ' ';
+					output += print_name(node);
+					output += '(';
+
+					_is_in_parameter_block = true;
+
+					for (auto parameter : node->parameter_list)
+					{
+						visit(output, parameter);
+
+						output += ", ";
+					}
+
+					_is_in_parameter_block = false;
+
+					if (!node->parameter_list.empty())
+					{
+						output.pop_back();
+						output.pop_back();
+					}
+
+					output += ')';
+
+					if (!node->return_semantic.empty())
+					{
+						output += " : " + convert_semantic(node->return_semantic);
+					}
+
+					output += '\n';
+
+					_is_in_function_block = true;
+
+					visit(output, node->definition);
+
+					_is_in_function_block = false;
 				}
 
 				template <typename T>
@@ -1546,81 +1549,6 @@ namespace reshade
 								object.annotations[annotation.name] = annotation.value->value_string;
 								break;
 						}
-					}
-				}
-				void visit(const fx::nodes::struct_declaration_node *node)
-				{
-					_current_source += "struct ";
-					_current_source += print_name(node);
-					_current_source += "\n{\n";
-
-					if (!node->field_list.empty())
-					{
-						for (auto field : node->field_list)
-						{
-							visit(field);
-						}
-					}
-					else
-					{
-						_current_source += "float _dummy;\n";
-					}
-
-					_current_source += "};\n";
-				}
-				void visit(const fx::nodes::variable_declaration_node *node)
-				{
-					if (!(_is_in_parameter_block || _is_in_function_block))
-					{
-						if (node->type.is_texture())
-						{
-							visit_texture(node);
-							return;
-						}
-						else if (node->type.is_sampler())
-						{
-							visit_sampler(node);
-							return;
-						}
-						else if (node->type.has_qualifier(fx::nodes::type_node::qualifier_uniform))
-						{
-							visit_uniform(node);
-							return;
-						}
-					}
-
-					if (_is_in_for_initialization <= 1)
-					{
-						_current_source += print_type_with_qualifiers(node->type);
-					}
-
-					if (!node->name.empty())
-					{
-						_current_source += ' ' + print_name(node);
-					}
-
-					if (node->type.is_array())
-					{
-						_current_source += '[';
-						_current_source += (node->type.array_length >= 1) ? std::to_string(node->type.array_length) : "";
-						_current_source += ']';
-					}
-
-					if (!node->semantic.empty())
-					{
-						_current_source += " : " + convert_semantic(node->semantic);
-					}
-
-					if (node->initializer_expression != nullptr)
-					{
-						_current_source += " = ";
-
-						visit(node->initializer_expression);
-					}
-
-					if (!(_is_in_parameter_block || _is_in_function_block))
-					{
-						_current_source += ";\n";
 					}
 				}
 				void visit_texture(const fx::nodes::variable_declaration_node *node)
@@ -1679,7 +1607,7 @@ namespace reshade
 
 						if (FAILED(hr))
 						{
-							error(node->location, "'ID3D10Device::CreateTexture2D' failed with %u!", hr);
+							error(node->location, "'ID3D10Device::CreateTexture2D' failed with error code " + std::to_string(static_cast<unsigned long>(hr)) + "!");
 							return;
 						}
 
@@ -1693,7 +1621,7 @@ namespace reshade
 
 						if (FAILED(hr))
 						{
-							error(node->location, "'ID3D10Device::CreateShaderResourceView' failed with %u!", hr);
+							error(node->location, "'ID3D10Device::CreateShaderResourceView' failed with error code " + std::to_string(static_cast<unsigned long>(hr)) + "!");
 							return;
 						}
 
@@ -1705,17 +1633,17 @@ namespace reshade
 
 							if (FAILED(hr))
 							{
-								error(node->location, "'ID3D10Device::CreateShaderResourceView' failed with %u!", hr);
+								error(node->location, "'ID3D10Device::CreateShaderResourceView' failed with error code " + std::to_string(static_cast<unsigned long>(hr)) + "!");
 								return;
 							}
 						}
 					}
 
-					_current_source += "Texture2D ";
-					_current_source += print_name(node);
-					_current_source += " : register(t" + std::to_string(_runtime->_effect_shader_resources.size()) + "), __";
-					_current_source += print_name(node);
-					_current_source += "SRGB : register(t" + std::to_string(_runtime->_effect_shader_resources.size() + 1) + ");\n";
+					_global_code += "Texture2D ";
+					_global_code += print_name(node);
+					_global_code += " : register(t" + std::to_string(_runtime->_effect_shader_resources.size()) + "), __";
+					_global_code += print_name(node);
+					_global_code += "SRGB : register(t" + std::to_string(_runtime->_effect_shader_resources.size() + 1) + ");\n";
 
 					_runtime->_effect_shader_resources.push_back(obj->ShaderResourceView[0]);
 					_runtime->_effect_shader_resources.push_back(obj->ShaderResourceView[1]);
@@ -1726,7 +1654,7 @@ namespace reshade
 				{
 					if (node->properties.Texture == nullptr)
 					{
-						error(node->location, "sampler '%s' is missing required 'Texture' property.", node->name.c_str());
+						error(node->location, "sampler '" + node->name + "' is missing required 'Texture' property");
 						return;
 					}
 
@@ -1781,11 +1709,11 @@ namespace reshade
 						desc.Filter = D3D10_FILTER_MIN_MAG_MIP_POINT;
 					}
 
-					d3d10_texture *texture = static_cast<d3d10_texture *>(_runtime->get_texture(node->properties.Texture->name));
+					d3d10_texture *texture = static_cast<d3d10_texture *>(_runtime->find_texture(node->properties.Texture->name));
 
 					if (texture == nullptr)
 					{
-						error(node->location, "texture '%s' for sampler '%s' is missing due to previous error.", node->properties.Texture->name.c_str(), node->name.c_str());
+						error(node->location, "texture '" + node->properties.Texture->name + "' for sampler '" + node->name + "' is missing due to previous error");
 						return;
 					}
 
@@ -1800,36 +1728,37 @@ namespace reshade
 
 						if (FAILED(hr))
 						{
-							error(node->location, "'ID3D10Device::CreateSamplerState' failed with %u!", hr);
+							error(node->location, "'ID3D10Device::CreateSamplerState' failed with error code " + std::to_string(static_cast<unsigned long>(hr)) + "!");
 							return;
 						}
 
 						_runtime->_effect_sampler_states.push_back(sampler);
 						it = _sampler_descs.emplace(descHash, _runtime->_effect_sampler_states.size() - 1).first;
 
-						_current_source += "SamplerState __SamplerState" + std::to_string(it->second) + " : register(s" + std::to_string(it->second) + ");\n";
+						_global_code += "SamplerState __SamplerState" + std::to_string(it->second) + " : register(s" + std::to_string(it->second) + ");\n";
 					}
 
-					_current_source += "static const __sampler2D ";
-					_current_source += print_name(node);
-					_current_source += " = { ";
+					_global_code += "static const __sampler2D ";
+					_global_code += print_name(node);
+					_global_code += " = { ";
 
 					if (node->properties.SRGBTexture && texture->ShaderResourceView[1] != nullptr)
 					{
-						_current_source += "__";
-						_current_source += print_name(node->properties.Texture);
-						_current_source += "SRGB";
+						_global_code += "__";
+						_global_code += print_name(node->properties.Texture);
+						_global_code += "SRGB";
 					}
 					else
 					{
-						_current_source += print_name(node->properties.Texture);
+						_global_code += print_name(node->properties.Texture);
 					}
 
-					_current_source += ", __SamplerState" + std::to_string(it->second) + " };\n";
+					_global_code += ", __SamplerState" + std::to_string(it->second) + " };\n";
 				}
 				void visit_uniform(const fx::nodes::variable_declaration_node *node)
 				{
-					_global_uniforms += print_type_with_qualifiers(node->type);
+					visit(_global_uniforms, node->type);
+
 					_global_uniforms += ' ';
 					_global_uniforms += print_name(node);
 
@@ -1891,46 +1820,7 @@ namespace reshade
 
 					_runtime->add_uniform(obj);
 				}
-				void visit(const fx::nodes::function_declaration_node *node)
-				{
-					_current_source += print_type(node->return_type);
-					_current_source += ' ';
-					_current_source += print_name(node);
-					_current_source += '(';
-
-					_is_in_parameter_block = true;
-
-					for (auto parameter : node->parameter_list)
-					{
-						visit(parameter);
-
-						_current_source += ", ";
-					}
-
-					_is_in_parameter_block = false;
-
-					if (!node->parameter_list.empty())
-					{
-						_current_source.pop_back();
-						_current_source.pop_back();
-					}
-
-					_current_source += ')';
-								
-					if (!node->return_semantic.empty())
-					{
-						_current_source += " : " + convert_semantic(node->return_semantic);
-					}
-
-					_current_source += '\n';
-
-					_is_in_function_block = true;
-
-					visit(node->definition);
-
-					_is_in_function_block = false;
-				}
-				void visit(const fx::nodes::technique_declaration_node *node)
+				void visit_technique(const fx::nodes::technique_declaration_node *node)
 				{
 					d3d10_technique *obj = new d3d10_technique();
 					obj->name = node->name;
@@ -1980,11 +1870,11 @@ namespace reshade
 							continue;
 						}
 
-						d3d10_texture *texture = static_cast<d3d10_texture *>(_runtime->get_texture(node->states.RenderTargets[i]->name));
+						d3d10_texture *texture = static_cast<d3d10_texture *>(_runtime->find_texture(node->states.RenderTargets[i]->name));
 
 						if (texture == nullptr)
 						{
-							_is_fatal = true;
+							error(node->location, "texture not found");
 							return;
 						}
 
@@ -2013,7 +1903,7 @@ namespace reshade
 
 							if (FAILED(hr))
 							{
-								warning(node->location, "'CreateRenderTargetView' failed with %u!", hr);
+								warning(node->location, "'CreateRenderTargetView' failed with error code " + std::to_string(static_cast<unsigned long>(hr)) + "!");
 							}
 						}
 
@@ -2044,7 +1934,7 @@ namespace reshade
 
 					if (FAILED(hr))
 					{
-						warning(node->location, "'ID3D10Device::CreateDepthStencilState' failed with %u!", hr);
+						warning(node->location, "'ID3D10Device::CreateDepthStencilState' failed with error code " + std::to_string(static_cast<unsigned long>(hr)) + "!");
 					}
 
 					D3D10_BLEND_DESC bdesc;
@@ -2066,7 +1956,7 @@ namespace reshade
 
 					if (FAILED(hr))
 					{
-						warning(node->location, "'ID3D10Device::CreateBlendState' failed with %u!", hr);
+						warning(node->location, "'ID3D10Device::CreateBlendState' failed with error code " + std::to_string(static_cast<unsigned long>(hr)) + "!");
 					}
 
 					for (ID3D10ShaderResourceView *&srv : pass.SRV)
@@ -2169,7 +2059,7 @@ namespace reshade
 						source += "cbuffer __GLOBAL__ : register(b0)\n{\n" + _global_uniforms + "};\n";
 					}
 
-					source += _current_source;
+					source += _global_code;
 
 					LOG(TRACE) << "> Compiling shader '" << node->name << "':\n\n" << source.c_str() << "\n";
 
@@ -2192,7 +2082,7 @@ namespace reshade
 
 					if (FAILED(hr))
 					{
-						_is_fatal = true;
+						error(node->location, "internal shader compilation failed");
 						return;
 					}
 
@@ -2209,20 +2099,17 @@ namespace reshade
 
 					if (FAILED(hr))
 					{
-						error(node->location, "'CreateShader' failed with %u!", hr);
+						error(node->location, "'CreateShader' failed with error code " + std::to_string(static_cast<unsigned long>(hr)) + "!");
 						return;
 					}
 				}
 
 			private:
-				const fx::nodetree &_ast;
 				d3d10_runtime *_runtime;
-				std::string _current_source;
-				std::string _errors;
-				bool _is_fatal, _skip_shader_optimization;
+				std::string _global_code, _global_uniforms;
+				bool _skip_shader_optimization;
 				std::unordered_map<size_t, size_t> _sampler_descs;
-				std::string _global_uniforms;
-				UINT _current_global_size, _is_in_for_initialization;
+				UINT _current_global_size;
 				bool _is_in_parameter_block, _is_in_function_block;
 			};
 
@@ -3097,7 +2984,7 @@ namespace reshade
 		}
 		bool d3d10_runtime::update_effect(const fx::nodetree &ast, const std::vector<std::string> &pragmas, std::string &errors)
 		{
-			bool skipOptimization = false;
+			bool skip_optimization = false;
 
 			for (const std::string &pragma : pragmas)
 			{
@@ -3110,13 +2997,11 @@ namespace reshade
 
 				if (boost::iequals(command, "skipoptimization") || boost::iequals(command, "nooptimization"))
 				{
-					skipOptimization = true;
+					skip_optimization = true;
 				}
 			}
 
-			d3d10_fx_compiler visitor(ast, skipOptimization);
-
-			return visitor.compile(this, errors);
+			return d3d10_fx_compiler(this, ast, errors, skip_optimization).run();
 		}
 		bool d3d10_runtime::update_texture(texture *texture, const unsigned char *data, size_t size)
 		{

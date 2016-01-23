@@ -361,7 +361,7 @@ namespace reshade
 			else if (source == "frametime")
 			{
 				const float value = _last_frame_duration.count() * 1e-6f;
-				set_effect_value(*variable, &value, 1);
+				set_uniform_value(*variable, &value, 1);
 			}
 			else if (source == "framecount" || source == "framecounter")
 			{
@@ -370,20 +370,20 @@ namespace reshade
 					case uniform::datatype::bool_:
 					{
 						const bool even = (_stats.framecount % 2) == 0;
-						set_effect_value(*variable, &even, 1);
+						set_uniform_value(*variable, &even, 1);
 						break;
 					}
 					case uniform::datatype::int_:
 					case uniform::datatype::uint_:
 					{
 						const unsigned int framecount = static_cast<unsigned int>(_stats.framecount % UINT_MAX);
-						set_effect_value(*variable, &framecount, 1);
+						set_uniform_value(*variable, &framecount, 1);
 						break;
 					}
 					case uniform::datatype::float_:
 					{
 						const float framecount = static_cast<float>(_stats.framecount % 16777216);
-						set_effect_value(*variable, &framecount, 1);
+						set_uniform_value(*variable, &framecount, 1);
 						break;
 					}
 				}
@@ -391,7 +391,7 @@ namespace reshade
 			else if (source == "pingpong")
 			{
 				float value[2] = { 0, 0 };
-				get_effect_value(*variable, value, 2);
+				get_uniform_value(*variable, value, 2);
 
 				const float min = variable->annotations["min"].as<float>(), max = variable->annotations["max"].as<float>();
 				const float stepMin = variable->annotations["step"].as<float>(0), stepMax = variable->annotations["step"].as<float>(1);
@@ -421,11 +421,11 @@ namespace reshade
 					}
 				}
 
-				set_effect_value(*variable, value, 2);
+				set_uniform_value(*variable, value, 2);
 			}
 			else if (source == "date")
 			{
-				set_effect_value(*variable, _stats.date, 4);
+				set_uniform_value(*variable, _stats.date, 4);
 			}
 			else if (source == "timer")
 			{
@@ -436,20 +436,20 @@ namespace reshade
 					case uniform::datatype::bool_:
 					{
 						const bool even = (timer % 2) == 0;
-						set_effect_value(*variable, &even, 1);
+						set_uniform_value(*variable, &even, 1);
 						break;
 					}
 					case uniform::datatype::int_:
 					case uniform::datatype::uint_:
 					{
 						const unsigned int timerInt = static_cast<unsigned int>(timer % UINT_MAX);
-						set_effect_value(*variable, &timerInt, 1);
+						set_uniform_value(*variable, &timerInt, 1);
 						break;
 					}
 					case uniform::datatype::float_:
 					{
 						const float timerFloat = std::fmod(static_cast<float>(timer * 1e-6f), 16777216.0f);
-						set_effect_value(*variable, &timerFloat, 1);
+						set_uniform_value(*variable, &timerFloat, 1);
 						break;
 					}
 				}
@@ -463,20 +463,20 @@ namespace reshade
 					if (variable->annotations["toggle"].as<bool>())
 					{
 						bool current = false;
-						get_effect_value(*variable, &current, 1);
+						get_uniform_value(*variable, &current, 1);
 
 						if (_input->is_key_pressed(key))
 						{
 							current = !current;
 
-							set_effect_value(*variable, &current, 1);
+							set_uniform_value(*variable, &current, 1);
 						}
 					}
 					else
 					{
 						const bool state = _input->is_key_down(key);
 
-						set_effect_value(*variable, &state, 1);
+						set_uniform_value(*variable, &state, 1);
 					}
 				}
 			}
@@ -484,14 +484,14 @@ namespace reshade
 			{
 				const float values[2] = { static_cast<float>(_input->gaze_position().x), static_cast<float>(_input->gaze_position().y) };
 
-				set_effect_value(*variable, values, 2);
+				set_uniform_value(*variable, values, 2);
 			}
 			else if (source == "random")
 			{
 				const int min = variable->annotations["min"].as<int>(), max = variable->annotations["max"].as<int>();
 				const int value = min + (std::rand() % (max - min + 1));
 
-				set_effect_value(*variable, &value, 1);
+				set_uniform_value(*variable, &value, 1);
 			}
 		}
 
@@ -551,12 +551,22 @@ namespace reshade
 		{
 			if (variable->annotations["source"].as<std::string>() == "timeleft")
 			{
-				set_effect_value(*variable, &technique->timeleft, 1);
+				set_uniform_value(*variable, &technique->timeleft, 1);
 			}
 		}
 	}
 
-	void runtime::get_effect_value(const uniform &variable, unsigned char *data, size_t size) const
+	texture *runtime::find_texture(const std::string &name)
+	{
+		const auto it = std::find_if(_textures.begin(), _textures.end(),
+			[name](const std::unique_ptr<texture> &it)
+			{
+				return it->name == name;
+			});
+
+		return it != _textures.end() ? it->get() : nullptr;
+	}
+	void runtime::get_uniform_value(const uniform &variable, unsigned char *data, size_t size) const
 	{
 		assert(data != nullptr);
 		assert(_is_effect_compiled);
@@ -567,7 +577,7 @@ namespace reshade
 
 		std::memcpy(data, &_uniform_data_storage[variable.storage_offset], size);
 	}
-	void runtime::get_effect_value(const uniform &variable, bool *values, size_t count) const
+	void runtime::get_uniform_value(const uniform &variable, bool *values, size_t count) const
 	{
 		static_assert(sizeof(int) == 4 && sizeof(float) == 4, "expected int and float size to equal 4");
 
@@ -576,14 +586,14 @@ namespace reshade
 		assert(values != nullptr);
 
 		unsigned char *const data = static_cast<unsigned char *>(alloca(variable.storage_size));
-		get_effect_value(variable, data, variable.storage_size);
+		get_uniform_value(variable, data, variable.storage_size);
 
 		for (size_t i = 0; i < count; i++)
 		{
 			values[i] = reinterpret_cast<const unsigned int *>(data)[i] != 0;
 		}
 	}
-	void runtime::get_effect_value(const uniform &variable, int *values, size_t count) const
+	void runtime::get_uniform_value(const uniform &variable, int *values, size_t count) const
 	{
 		switch (variable.basetype)
 		{
@@ -591,7 +601,7 @@ namespace reshade
 			case uniform::datatype::int_:
 			case uniform::datatype::uint_:
 			{
-				get_effect_value(variable, reinterpret_cast<unsigned char *>(values), count * sizeof(int));
+				get_uniform_value(variable, reinterpret_cast<unsigned char *>(values), count * sizeof(int));
 				break;
 			}
 			case uniform::datatype::float_:
@@ -601,7 +611,7 @@ namespace reshade
 				assert(values != nullptr);
 
 				unsigned char *const data = static_cast<unsigned char *>(alloca(variable.storage_size));
-				get_effect_value(variable, data, variable.storage_size);
+				get_uniform_value(variable, data, variable.storage_size);
 
 				for (size_t i = 0; i < count; i++)
 				{
@@ -611,11 +621,11 @@ namespace reshade
 			}
 		}
 	}
-	void runtime::get_effect_value(const uniform &variable, unsigned int *values, size_t count) const
+	void runtime::get_uniform_value(const uniform &variable, unsigned int *values, size_t count) const
 	{
-		get_effect_value(variable, reinterpret_cast<int *>(values), count);
+		get_uniform_value(variable, reinterpret_cast<int *>(values), count);
 	}
-	void runtime::get_effect_value(const uniform &variable, float *values, size_t count) const
+	void runtime::get_uniform_value(const uniform &variable, float *values, size_t count) const
 	{
 		switch (variable.basetype)
 		{
@@ -628,7 +638,7 @@ namespace reshade
 				assert(values != nullptr);
 
 				unsigned char *const data = static_cast<unsigned char *>(alloca(variable.storage_size));
-				get_effect_value(variable, data, variable.storage_size);
+				get_uniform_value(variable, data, variable.storage_size);
 
 				for (size_t i = 0; i < count; ++i)
 				{
@@ -645,12 +655,12 @@ namespace reshade
 			}
 			case uniform::datatype::float_:
 			{
-				get_effect_value(variable, reinterpret_cast<unsigned char *>(values), count * sizeof(float));
+				get_uniform_value(variable, reinterpret_cast<unsigned char *>(values), count * sizeof(float));
 				break;
 			}
 		}
 	}
-	void runtime::set_effect_value(uniform &variable, const unsigned char *data, size_t size)
+	void runtime::set_uniform_value(uniform &variable, const unsigned char *data, size_t size)
 	{
 		assert(data != nullptr);
 		assert(_is_effect_compiled);
@@ -661,7 +671,7 @@ namespace reshade
 
 		std::memcpy(&_uniform_data_storage[variable.storage_offset], data, size);
 	}
-	void runtime::set_effect_value(uniform &variable, const bool *values, size_t count)
+	void runtime::set_uniform_value(uniform &variable, const bool *values, size_t count)
 	{
 		static_assert(sizeof(int) == 4 && sizeof(float) == 4, "expected int and float size to equal 4");
 
@@ -690,9 +700,9 @@ namespace reshade
 				break;
 		}
 
-		set_effect_value(variable, data, count * 4);
+		set_uniform_value(variable, data, count * 4);
 	}
-	void runtime::set_effect_value(uniform &variable, const int *values, size_t count)
+	void runtime::set_uniform_value(uniform &variable, const int *values, size_t count)
 	{
 		switch (variable.basetype)
 		{
@@ -700,7 +710,7 @@ namespace reshade
 			case uniform::datatype::int_:
 			case uniform::datatype::uint_:
 			{
-				set_effect_value(variable, reinterpret_cast<const unsigned char *>(values), count * sizeof(int));
+				set_uniform_value(variable, reinterpret_cast<const unsigned char *>(values), count * sizeof(int));
 				break;
 			}
 			case uniform::datatype::float_:
@@ -712,12 +722,12 @@ namespace reshade
 					data[i] = static_cast<float>(values[i]);
 				}
 
-				set_effect_value(variable, reinterpret_cast<const unsigned char *>(data), count * sizeof(float));
+				set_uniform_value(variable, reinterpret_cast<const unsigned char *>(data), count * sizeof(float));
 				break;
 			}
 		}
 	}
-	void runtime::set_effect_value(uniform &variable, const unsigned int *values, size_t count)
+	void runtime::set_uniform_value(uniform &variable, const unsigned int *values, size_t count)
 	{
 		switch (variable.basetype)
 		{
@@ -725,7 +735,7 @@ namespace reshade
 			case uniform::datatype::int_:
 			case uniform::datatype::uint_:
 			{
-				set_effect_value(variable, reinterpret_cast<const unsigned char *>(values), count * sizeof(int));
+				set_uniform_value(variable, reinterpret_cast<const unsigned char *>(values), count * sizeof(int));
 				break;
 			}
 			case uniform::datatype::float_:
@@ -737,12 +747,12 @@ namespace reshade
 					data[i] = static_cast<float>(values[i]);
 				}
 
-				set_effect_value(variable, reinterpret_cast<const unsigned char *>(data), count * sizeof(float));
+				set_uniform_value(variable, reinterpret_cast<const unsigned char *>(data), count * sizeof(float));
 				break;
 			}
 		}
 	}
-	void runtime::set_effect_value(uniform &variable, const float *values, size_t count)
+	void runtime::set_uniform_value(uniform &variable, const float *values, size_t count)
 	{
 		switch (variable.basetype)
 		{
@@ -757,12 +767,12 @@ namespace reshade
 					data[i] = static_cast<int>(values[i]);
 				}
 
-				set_effect_value(variable, reinterpret_cast<const unsigned char *>(data), count * sizeof(int));
+				set_uniform_value(variable, reinterpret_cast<const unsigned char *>(data), count * sizeof(int));
 				break;
 			}
 			case uniform::datatype::float_:
 			{
-				set_effect_value(variable, reinterpret_cast<const unsigned char *>(values), count * sizeof(float));
+				set_uniform_value(variable, reinterpret_cast<const unsigned char *>(values), count * sizeof(float));
 				break;
 			}
 		}

@@ -212,7 +212,7 @@ namespace reshade
 		/// </summary>
 		/// <param name="executablePath">Path to the executable ReShade was injected into.</param>
 		/// <param name="injectorPath">Path to the ReShade module itself.</param>
-		static void startup(const boost::filesystem::path &executablePath, const boost::filesystem::path &injectorPath);
+		static void startup(const boost::filesystem::path &exe_path, const boost::filesystem::path &injector_path);
 		/// <summary>
 		/// Shut down ReShade. Removes all installed hooks and cleans up.
 		/// </summary>
@@ -221,18 +221,64 @@ namespace reshade
 		runtime(unsigned int renderer);
 		virtual ~runtime();
 
-		unsigned int buffer_width() const
-		{
-			return _width;
-		}
-		unsigned int buffer_height() const
-		{
-			return _height;
-		}
-		const input *input() const
-		{
-			return _input;
-		}
+		/// <summary>
+		/// Return the current input manager.
+		/// </summary>
+		const input *input() const { return _input; }
+		/// <summary>
+		/// Return the back buffer width.
+		/// </summary>
+		unsigned int buffer_width() const { return _width; }
+		/// <summary>
+		/// Return the back buffer height.
+		/// </summary>
+		unsigned int buffer_height() const { return _height; }
+
+		/// <summary>
+		/// Create a copy of the current image on the screen.
+		/// </summary>
+		/// <param name="buffer">The buffer to save the copy to. It has to be the size of at least "WIDTH * HEIGHT * 4".</param>
+		virtual void screenshot(unsigned char *buffer) const = 0;
+		/// <summary>
+		/// Compile effect from the specified abstract syntax tree and initialize textures, constants and techniques.
+		/// </summary>
+		/// <param name="ast">The abstract syntax tree representation of the effect to compile.</param>
+		/// <param name="errors">A string buffer to store any errors that occur during compilation.</param>
+		virtual bool update_effect(const fx::nodetree &ast, const std::vector<std::string> &pragmas, std::string &errors) = 0;
+		/// <summary>
+		/// Update the image data of a texture.
+		/// </summary>
+		/// <param name="texture">The texture to update.</param>
+		/// <param name="data">The image data to update the texture to.</param>
+		/// <param name="size">The size of the image in <paramref name="data"/>.</param>
+		virtual bool update_texture(texture *texture, const unsigned char *data, size_t size) = 0;
+		/// <summary>
+		/// Find the texture with the specified name.
+		/// </summary>
+		/// <param name="name">The name of the texture.</param>
+		texture *find_texture(const std::string &name);
+		/// <summary>
+		/// Get the value of a uniform variable.
+		/// </summary>
+		/// <param name="variable">The variable to retrieve the value from.</param>
+		/// <param name="data">The buffer to store the value in.</param>
+		/// <param name="size">The size of the buffer in <paramref name="data"/>.</param>
+		void get_uniform_value(const uniform &variable, unsigned char *data, size_t size) const;
+		void get_uniform_value(const uniform &variable, bool *values, size_t count) const;
+		void get_uniform_value(const uniform &variable, int *values, size_t count) const;
+		void get_uniform_value(const uniform &variable, unsigned int *values, size_t count) const;
+		void get_uniform_value(const uniform &variable, float *values, size_t count) const;
+		/// <summary>
+		/// Update the value of a uniform variable.
+		/// </summary>
+		/// <param name="variable">The variable to update.</param>
+		/// <param name="data">The value data to update the variable to.</param>
+		/// <param name="size">The size of the value in <paramref name="data"/>.</param>
+		virtual void set_uniform_value(uniform &variable, const unsigned char *data, size_t size);
+		void set_uniform_value(uniform &variable, const bool *values, size_t count);
+		void set_uniform_value(uniform &variable, const int *values, size_t count);
+		void set_uniform_value(uniform &variable, const unsigned int *values, size_t count);
+		void set_uniform_value(uniform &variable, const float *values, size_t count);
 
 	protected:
 		/// <summary>
@@ -266,47 +312,6 @@ namespace reshade
 		/// </summary>
 		/// <param name="technique">The technique to render.</param>
 		virtual void on_apply_effect_technique(const technique *technique);
-
-		/// <summary>
-		/// Create a copy of the current image on the screen.
-		/// </summary>
-		/// <param name="buffer">The buffer to save the copy to. It has to be the size of at least "WIDTH * HEIGHT * 4".</param>
-		virtual void screenshot(unsigned char *buffer) const = 0;
-		/// <summary>
-		/// Compile effect from the specified abstract syntax tree and initialize textures, constants and techniques.
-		/// </summary>
-		/// <param name="ast">The abstract syntax tree representation of the effect to compile.</param>
-		/// <param name="errors">A string buffer to store any errors that occur during compilation.</param>
-		virtual bool update_effect(const fx::nodetree &ast, const std::vector<std::string> &pragmas, std::string &errors) = 0;
-		/// <summary>
-		/// Update the image data of the specified <paramref name="texture"/>.
-		/// </summary>
-		/// <param name="texture">The texture to update.</param>
-		/// <param name="data">The image data to update the texture to.</param>
-		/// <param name="size">The size of the image in <paramref name="data"/>.</param>
-		virtual bool update_texture(texture *texture, const unsigned char *data, size_t size) = 0;
-		/// <summary>
-		/// Get the value of the specified <paramref name="variable"/>.
-		/// </summary>
-		/// <param name="variable">The variable to retrieve the value from.</param>
-		/// <param name="data">The buffer to store the value in.</param>
-		/// <param name="size">The size of the buffer in <paramref name="data"/>.</param>
-		void get_effect_value(const uniform &variable, unsigned char *data, size_t size) const;
-		void get_effect_value(const uniform &variable, bool *values, size_t count) const;
-		void get_effect_value(const uniform &variable, int *values, size_t count) const;
-		void get_effect_value(const uniform &variable, unsigned int *values, size_t count) const;
-		void get_effect_value(const uniform &variable, float *values, size_t count) const;
-		/// <summary>
-		/// Update the value of the specified <paramref name="variable"/>.
-		/// </summary>
-		/// <param name="variable">The variable to update.</param>
-		/// <param name="data">The value data to update the variable to.</param>
-		/// <param name="size">The size of the value in <paramref name="data"/>.</param>
-		virtual void set_effect_value(uniform &variable, const unsigned char *data, size_t size);
-		void set_effect_value(uniform &variable, const bool *values, size_t count);
-		void set_effect_value(uniform &variable, const int *values, size_t count);
-		void set_effect_value(uniform &variable, const unsigned int *values, size_t count);
-		void set_effect_value(uniform &variable, const float *values, size_t count);
 
 		bool _is_initialized, _is_effect_compiled;
 		unsigned int _width, _height;

@@ -30,12 +30,6 @@ namespace reshade
 			void on_clear_depthstencil_view(ID3D11DepthStencilView *&depthstencil);
 			void on_copy_resource(ID3D11Resource *&dest, ID3D11Resource *&source);
 
-			texture *get_texture(const std::string &name) const
-			{
-				const auto it = std::find_if(_textures.cbegin(), _textures.cend(), [name](const std::unique_ptr<texture> &it) { return it->name == name; });
-
-				return it != _textures.cend() ? it->get() : nullptr;
-			}
 			const std::vector<std::unique_ptr<technique>> &GetTechniques() const
 			{
 				return _techniques;

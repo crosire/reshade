@@ -24,12 +24,6 @@ namespace reshade
 			void on_set_depthstencil_surface(IDirect3DSurface9 *&depthstencil);
 			void on_get_depthstencil_surface(IDirect3DSurface9 *&depthstencil);
 
-			texture *get_texture(const std::string &name) const
-			{
-				const auto it = std::find_if(_textures.cbegin(), _textures.cend(), [name](const std::unique_ptr<texture> &it) { return it->name == name; });
-
-				return it != _textures.cend() ? it->get() : nullptr;
-			}
 			void enlarge_uniform_data_storage()
 			{
 				_uniform_data_storage.resize(_uniform_data_storage.size() + 64 * sizeof(float));
