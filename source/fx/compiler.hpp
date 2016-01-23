@@ -32,6 +32,7 @@ namespace reshade
 			virtual void visit(std::string &output, const nodes::conditional_expression_node *node) = 0;
 			virtual void visit(std::string &output, const nodes::swizzle_expression_node *node) = 0;
 			virtual void visit(std::string &output, const nodes::field_expression_node *node) = 0;
+			virtual void visit(std::string &output, const nodes::initializer_list_node *node) = 0;
 			virtual void visit(std::string &output, const nodes::assignment_expression_node *node) = 0;
 			virtual void visit(std::string &output, const nodes::call_expression_node *node) = 0;
 			virtual void visit(std::string &output, const nodes::constructor_expression_node *node) = 0;

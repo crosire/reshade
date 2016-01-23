@@ -94,6 +94,9 @@ namespace reshade
 				case nodeid::field_expression:
 					visit(output, static_cast<const field_expression_node *>(node));
 					break;
+				case nodeid::initializer_list:
+					visit(output, static_cast<const initializer_list_node *>(node));
+					break;
 				case nodeid::assignment_expression:
 					visit(output, static_cast<const assignment_expression_node *>(node));
 					break;

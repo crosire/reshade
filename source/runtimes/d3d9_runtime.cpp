@@ -1104,7 +1104,7 @@ namespace reshade
 
 					output += ')';
 				}
-				void visit(std::string &output, const fx::nodes::initializer_list_node *node)
+				void visit(std::string &output, const fx::nodes::initializer_list_node *node) override
 				{
 					output += "{ ";
 

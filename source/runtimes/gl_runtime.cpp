@@ -1572,6 +1572,10 @@ namespace reshade
 						output += ')';
 					}
 				}
+				void visit(std::string &output, const fx::nodes::initializer_list_node *node) override
+				{
+					assert(false);
+				}
 				void visit(std::string &output, const fx::nodes::initializer_list_node *node, const fx::nodes::type_node &type)
 				{
 					visit(output, type, false);
