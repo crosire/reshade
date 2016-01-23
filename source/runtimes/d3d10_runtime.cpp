@@ -383,10 +383,6 @@ namespace reshade
 
 					return semantic;
 				}
-				inline std::string print_name(const fx::nodes::declaration_node *declaration)
-				{
-					return boost::replace_all_copy(declaration->Namespace, "::", "_NS") + declaration->name;
-				}
 
 				using compiler::visit;
 				void visit(std::string &output, const fx::nodes::type_node &type, bool with_qualifiers = true) override
@@ -442,7 +438,7 @@ namespace reshade
 							output += "__sampler2D";
 							break;
 						case fx::nodes::type_node::datatype_struct:
-							output += print_name(type.definition);
+							output += type.definition->unique_name;
 							break;
 					}
 
@@ -457,7 +453,7 @@ namespace reshade
 				}
 				void visit(std::string &output, const fx::nodes::lvalue_expression_node *node) override
 				{
-					output += print_name(node->reference);
+					output += node->reference->unique_name;
 				}
 				void visit(std::string &output, const fx::nodes::literal_expression_node *node) override
 				{
@@ -1092,7 +1088,7 @@ namespace reshade
 					visit(output, node->operand);
 
 					output += '.';
-					output += print_name(node->field_reference);
+					output += node->field_reference->unique_name;
 					output += ')';
 				}
 				void visit(std::string &output, const fx::nodes::assignment_expression_node *node) override
@@ -1144,7 +1140,7 @@ namespace reshade
 				}
 				void visit(std::string &output, const fx::nodes::call_expression_node *node) override
 				{
-					output += print_name(node->callee);
+					output += node->callee->unique_name;
 					output += '(';
 
 					for (auto argument : node->arguments)
@@ -1432,7 +1428,7 @@ namespace reshade
 				void visit(std::string &output, const fx::nodes::struct_declaration_node *node)
 				{
 					output += "struct ";
-					output += print_name(node);
+					output += node->unique_name;
 					output += "\n{\n";
 
 					if (!node->field_list.empty())
@@ -1460,7 +1456,7 @@ namespace reshade
 
 					if (!node->name.empty())
 					{
-						output += print_name(node);
+						output += node->unique_name;
 					}
 
 					if (node->type.is_array())
@@ -1492,7 +1488,7 @@ namespace reshade
 					visit(output, node->return_type, false);
 
 					output += ' ';
-					output += print_name(node);
+					output += node->unique_name;
 					output += '(';
 
 					_is_in_parameter_block = true;
@@ -1640,9 +1636,9 @@ namespace reshade
 					}
 
 					_global_code += "Texture2D ";
-					_global_code += print_name(node);
+					_global_code += node->unique_name;
 					_global_code += " : register(t" + std::to_string(_runtime->_effect_shader_resources.size()) + "), __";
-					_global_code += print_name(node);
+					_global_code += node->unique_name;
 					_global_code += "SRGB : register(t" + std::to_string(_runtime->_effect_shader_resources.size() + 1) + ");\n";
 
 					_runtime->_effect_shader_resources.push_back(obj->ShaderResourceView[0]);
@@ -1739,18 +1735,18 @@ namespace reshade
 					}
 
 					_global_code += "static const __sampler2D ";
-					_global_code += print_name(node);
+					_global_code += node->unique_name;
 					_global_code += " = { ";
 
 					if (node->properties.SRGBTexture && texture->ShaderResourceView[1] != nullptr)
 					{
 						_global_code += "__";
-						_global_code += print_name(node->properties.Texture);
+						_global_code += node->properties.Texture->unique_name;
 						_global_code += "SRGB";
 					}
 					else
 					{
-						_global_code += print_name(node->properties.Texture);
+						_global_code += node->properties.Texture->unique_name;
 					}
 
 					_global_code += ", __SamplerState" + std::to_string(it->second) + " };\n";
@@ -1760,7 +1756,7 @@ namespace reshade
 					visit(_global_uniforms, node->type);
 
 					_global_uniforms += ' ';
-					_global_uniforms += print_name(node);
+					_global_uniforms += node->unique_name;
 
 					if (node->type.is_array())
 					{
@@ -2071,7 +2067,7 @@ namespace reshade
 						flags |= D3DCOMPILE_SKIP_OPTIMIZATION;
 					}
 
-					HRESULT hr = D3DCompile(source.c_str(), source.length(), nullptr, nullptr, nullptr, print_name(node).c_str(), profile.c_str(), flags, 0, &compiled, &errors);
+					HRESULT hr = D3DCompile(source.c_str(), source.length(), nullptr, nullptr, nullptr, node->unique_name.c_str(), profile.c_str(), flags, 0, &compiled, &errors);
 
 					if (errors != nullptr)
 					{

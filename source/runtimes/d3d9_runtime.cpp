@@ -298,11 +298,6 @@ namespace reshade
 				}
 
 			private:
-				inline void visit_name(std::string &source, const fx::nodes::declaration_node *declaration)
-				{
-					source += boost::replace_all_copy(declaration->Namespace, "::", "_NS") + declaration->name;
-				}
-
 				using compiler::visit;
 				void visit(std::string &output, const fx::nodes::type_node &type, bool with_qualifiers = true) override
 				{
@@ -355,7 +350,7 @@ namespace reshade
 							output += "__sampler2D";
 							break;
 						case fx::nodes::type_node::datatype_struct:
-							visit_name(output, type.definition);
+							output += type.definition->unique_name;
 							break;
 					}
 
@@ -370,7 +365,7 @@ namespace reshade
 				}
 				void visit(std::string &output, const fx::nodes::lvalue_expression_node *node) override
 				{
-					visit_name(output, node->reference);
+					output += node->reference->unique_name;
 
 					if (node->reference->type.is_sampler() && (_samplers.find(node->reference->name) != _samplers.end()))
 					{
@@ -996,13 +991,9 @@ namespace reshade
 				void visit(std::string &output, const fx::nodes::field_expression_node *node) override
 				{
 					output += '(';
-
 					visit(output, node->operand);
-
 					output += '.';
-
-					visit_name(output, node->field_reference);
-
+					output += node->field_reference->unique_name;
 					output += ')';
 				}
 				void visit(std::string &output, const fx::nodes::assignment_expression_node *node) override
@@ -1058,8 +1049,7 @@ namespace reshade
 				}
 				void visit(std::string &output, const fx::nodes::call_expression_node *node) override
 				{
-					visit_name(output, node->callee);
-
+					output += node->callee->unique_name;
 					output += '(';
 
 					if (!node->arguments.empty())
@@ -1373,9 +1363,7 @@ namespace reshade
 				void visit(std::string &output, const fx::nodes::struct_declaration_node *node)
 				{
 					output += "struct ";
-					
-					visit_name(output, node);
-
+					output += node->unique_name;
 					output += "\n{\n";
 
 					if (!node->field_list.empty())
@@ -1403,7 +1391,7 @@ namespace reshade
 						output += ' ';
 					}
 
-					visit_name(output, node);
+					output += node->unique_name;
 
 					if (node->type.is_array())
 					{
@@ -1427,9 +1415,7 @@ namespace reshade
 					visit(output, node->return_type, false);
 					
 					output += ' ';
-
-					visit_name(output, node);
-
+					output += node->unique_name;
 					output += '(';
 
 					if (!node->parameter_list.empty())
@@ -1585,8 +1571,7 @@ namespace reshade
 					visit(_global_code, node->type);
 					
 					_global_code += ' ';
-
-					visit_name(_global_code, node);
+					_global_code += node->unique_name;
 
 					if (node->type.is_array())
 					{
@@ -1686,12 +1671,12 @@ namespace reshade
 							const auto *const texture = sampler->properties.Texture;
 
 							samplers += "sampler2D __Sampler";
-							visit_name(samplers, sampler);
+							samplers += sampler->unique_name;
 							samplers += " : register(s" + std::to_string(pass.SamplerCount++) + ");\n";
 							samplers += "static const __sampler2D ";
-							visit_name(samplers, sampler);
+							samplers += sampler->unique_name;
 							samplers += " = { __Sampler";
-							visit_name(samplers, sampler);
+							samplers += sampler->unique_name;
 
 							if (texture->semantic == "COLOR" || texture->semantic == "SV_TARGET" || texture->semantic == "DEPTH" || texture->semantic == "SV_DEPTH")
 							{
@@ -1970,8 +1955,7 @@ namespace reshade
 						source += "float4(";
 					}
 
-					visit_name(source, node);
-
+					source += node->unique_name;
 					source += '(';
 
 					if (!node->parameter_list.empty())

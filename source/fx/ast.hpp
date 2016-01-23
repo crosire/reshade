@@ -215,7 +215,7 @@ namespace reshade
 			};
 			struct declaration_node abstract : public node
 			{
-				std::string name, Namespace;
+				std::string name, unique_name;
 
 			protected:
 				declaration_node(nodeid id) : node(id) { }

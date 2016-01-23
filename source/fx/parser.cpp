@@ -2729,7 +2729,6 @@ namespace reshade
 			}
 
 			structure = _ast.make_node<struct_declaration_node>(_token.location);
-			structure->Namespace = _symbol_table.current_scope().name;
 
 			if (accept(lexer::tokenid::identifier))
 			{
@@ -2746,6 +2745,8 @@ namespace reshade
 			{
 				structure->name = "__anonymous_struct_" + std::to_string(structure->location.line) + '_' + std::to_string(structure->location.column);
 			}
+
+			structure->unique_name = boost::replace_all_copy(_symbol_table.current_scope().name, "::", "_NS_") + structure->name;
 
 			if (!expect('{'))
 			{
@@ -2801,7 +2802,7 @@ namespace reshade
 					}
 
 					const auto field = _ast.make_node<variable_declaration_node>(_token.location);
-					field->name = _token.literal_as_string;
+					field->unique_name = field->name = _token.literal_as_string;
 					field->type = type;
 
 					parse_array(field->type.array_length);
@@ -2860,7 +2861,7 @@ namespace reshade
 			function->return_type = type;
 			function->return_type.qualifiers = type_node::qualifier_const;
 			function->name = name;
-			function->Namespace = _symbol_table.current_scope().name;
+			function->unique_name = boost::replace_all_copy(_symbol_table.current_scope().name, "::", "_NS_") + function->name;
 
 			_symbol_table.insert(function, true);
 
@@ -2893,7 +2894,7 @@ namespace reshade
 					return false;
 				}
 
-				parameter->name = _token.literal_as_string;
+				parameter->unique_name = parameter->name = _token.literal_as_string;
 				parameter->location = _token.location;
 
 				if (parameter->type.is_void())
@@ -3072,7 +3073,11 @@ namespace reshade
 
 			if (global)
 			{
-				variable->Namespace = _symbol_table.current_scope().name;
+				variable->unique_name = boost::replace_all_copy(_symbol_table.current_scope().name, "::", "_NS_") + variable->name;
+			}
+			else
+			{
+				variable->unique_name = variable->name;
 			}
 
 			if (!_symbol_table.insert(variable, global))
@@ -3419,7 +3424,7 @@ namespace reshade
 
 			technique = _ast.make_node<technique_declaration_node>(location);
 			technique->name = _token.literal_as_string;
-			technique->Namespace = _symbol_table.current_scope().name;
+			technique->unique_name = boost::replace_all_copy(_symbol_table.current_scope().name, "::", "_NS_") + technique->name;
 
 			parse_annotations(technique->annotation_list);
 
@@ -3453,7 +3458,7 @@ namespace reshade
 
 			if (accept(lexer::tokenid::identifier))
 			{
-				pass->name = _token.literal_as_string;
+				pass->unique_name = pass->name = _token.literal_as_string;
 			}
 
 			parse_annotations(pass->annotation_list);
