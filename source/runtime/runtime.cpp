@@ -782,6 +782,7 @@ namespace reshade
 	{
 		_errors.clear();
 		_message.clear();
+		_pragmas.clear();
 		_effect_source.clear();
 		_included_files.clear();
 		_show_statistics = _show_fps = _show_clock = _show_toggle_message = false;
