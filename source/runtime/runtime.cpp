@@ -566,6 +566,7 @@ namespace reshade
 
 		return it != _textures.end() ? it->get() : nullptr;
 	}
+
 	void runtime::get_uniform_value(const uniform &variable, unsigned char *data, size_t size) const
 	{
 		assert(data != nullptr);

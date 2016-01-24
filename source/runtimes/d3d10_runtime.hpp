@@ -45,18 +45,6 @@ namespace reshade
 			{
 				return _uniform_data_storage.size();
 			}
-			void add_texture(texture *x)
-			{
-				_textures.push_back(std::unique_ptr<texture>(x));
-			}
-			void add_uniform(uniform *x)
-			{
-				_uniforms.push_back(std::unique_ptr<uniform>(x));
-			}
-			void add_technique(technique *x)
-			{
-				_techniques.push_back(std::unique_ptr<technique>(x));
-			}
 
 			ID3D10Device *_device;
 			IDXGISwapChain *_swapchain;

@@ -239,6 +239,28 @@ namespace reshade
 		/// </summary>
 		/// <param name="buffer">The buffer to save the copy to. It has to be the size of at least "WIDTH * HEIGHT * 4".</param>
 		virtual void screenshot(unsigned char *buffer) const = 0;
+
+		/// <summary>
+		/// Add a new texture. This transfers ownership of the pointer to this class.
+		/// </summary>
+		/// <param name="texture">The texture to add.</param>
+		void add_texture(texture *texture) { _textures.emplace_back(texture); }
+		/// <summary>
+		/// Add a new uniform. This transfers ownership of the pointer to this class.
+		/// </summary>
+		/// <param name="uniform">The uniform to add.</param>
+		void add_uniform(uniform *uniform) { _uniforms.emplace_back(uniform); }
+		/// <summary>
+		/// Add a new technique. This transfers ownership of the pointer to this class.
+		/// </summary>
+		/// <param name="technique">The technique to add.</param>
+		void add_technique(technique *technique) { _techniques.emplace_back(technique); }
+		/// <summary>
+		/// Find the texture with the specified name.
+		/// </summary>
+		/// <param name="name">The name of the texture.</param>
+		texture *find_texture(const std::string &name);
+
 		/// <summary>
 		/// Compile effect from the specified abstract syntax tree and initialize textures, constants and techniques.
 		/// </summary>
@@ -252,11 +274,6 @@ namespace reshade
 		/// <param name="data">The image data to update the texture to.</param>
 		/// <param name="size">The size of the image in <paramref name="data"/>.</param>
 		virtual bool update_texture(texture *texture, const unsigned char *data, size_t size) = 0;
-		/// <summary>
-		/// Find the texture with the specified name.
-		/// </summary>
-		/// <param name="name">The name of the texture.</param>
-		texture *find_texture(const std::string &name);
 		/// <summary>
 		/// Get the value of a uniform variable.
 		/// </summary>
