@@ -2864,7 +2864,7 @@ namespace reshade
 		{
 			_vendor_id = 0;
 			_device_id = 0;
-			_input = input::register_window(WindowFromDC(_hdc));
+			input::register_window(WindowFromDC(_hdc), _input);
 
 			// Get vendor and device information on NVIDIA Optimus devices
 			if (GetModuleHandleA("nvd3d9wrap.dll") == nullptr && GetModuleHandleA("nvd3d9wrapx.dll") == nullptr)

@@ -31,7 +31,7 @@ namespace reshade
 		{
 			_width = desc.BufferDesc.Width;
 			_height = desc.BufferDesc.Height;
-			_input = input::register_window(desc.OutputWindow);
+			input::register_window(desc.OutputWindow, _input);
 
 			return runtime::on_init();
 		}

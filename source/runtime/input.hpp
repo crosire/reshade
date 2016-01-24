@@ -12,14 +12,15 @@ namespace reshade
 	class input
 	{
 	public:
+		input(HWND hwnd);
+		~input();
+
 		static void load_eyex();
 		static void unload_eyex();
 
+		static void register_window(HWND hwnd, std::shared_ptr<input> &instance);
 		static void register_raw_input_device(const RAWINPUTDEVICE &device);
-		static input *register_window(HWND hwnd);
 		static void uninstall();
-
-		~input();
 
 		bool is_key_down(UINT keycode) const
 		{
@@ -69,8 +70,6 @@ namespace reshade
 		void next_frame();
 
 	private:
-		input(HWND hwnd);
-
 		static LRESULT CALLBACK handle_window_message(int nCode, WPARAM wParam, LPARAM lParam);
 		static void TX_CALLCONVENTION handle_eyex_event(TX_CONSTHANDLE hAsyncData, TX_USERPARAM userParam);
 		static void TX_CALLCONVENTION handle_eyex_connection_state(TX_CONNECTIONSTATE connectionState, TX_USERPARAM userParam);
@@ -85,6 +84,6 @@ namespace reshade
 		TX_HANDLE _eyex_interactor, _eyex_interactor_snapshot;
 		static unsigned long s_eyex_initialized;
 		static std::unordered_map<HWND, HHOOK> s_raw_input_hooks;
-		static std::unordered_map<HWND, std::unique_ptr<input>> s_windows;
+		static std::unordered_map<HWND, std::weak_ptr<input>> s_windows;
 	};
 }

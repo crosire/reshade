@@ -8,7 +8,7 @@ namespace reshade
 {
 	unsigned long input::s_eyex_initialized = 0;
 	std::unordered_map<HWND, HHOOK> input::s_raw_input_hooks;
-	std::unordered_map<HWND, std::unique_ptr<input>> input::s_windows;
+	std::unordered_map<HWND, std::weak_ptr<input>> input::s_windows;
 
 	input::input(HWND hwnd) : _hwnd(hwnd), _keys(), _mouse_position(), _mouse_buttons(), _gaze_position(), _eyex(TX_EMPTY_HANDLE), _eyex_interactor(TX_EMPTY_HANDLE), _eyex_interactor_snapshot(TX_EMPTY_HANDLE)
 	{
@@ -56,14 +56,14 @@ namespace reshade
 			return;
 		}
 
-		const auto eyeXModule = LoadLibraryA("Tobii.EyeX.Client.dll");
+		const auto eyex_module = LoadLibraryA("Tobii.EyeX.Client.dll");
 
-		if (eyeXModule == nullptr)
+		if (eyex_module == nullptr)
 		{
 			return;
 		}
 
-		FreeLibrary(eyeXModule);
+		FreeLibrary(eyex_module);
 
 		LOG(INFO) << "Found Tobii EyeX library. Initializing ...";
 
@@ -90,6 +90,23 @@ namespace reshade
 		txUninitializeEyeX();
 	}
 
+	void input::register_window(HWND hwnd, std::shared_ptr<input> &instance)
+	{
+		const auto insert = s_windows.emplace(hwnd, std::weak_ptr<input>());
+
+		if (insert.second)
+		{
+			LOG(INFO) << "Starting input capture for window " << hwnd << " ...";
+
+			instance = std::make_shared<input>(hwnd);
+
+			insert.first->second = instance;
+		}
+		else
+		{
+			instance = insert.first->second.lock();
+		}
+	}
 	void input::register_raw_input_device(const RAWINPUTDEVICE &device)
 	{
 		const auto insert = s_raw_input_hooks.emplace(device.hwndTarget, nullptr);
@@ -101,19 +118,6 @@ namespace reshade
 			insert.first->second = SetWindowsHookEx(WH_GETMESSAGE, &handle_window_message, nullptr, GetWindowThreadProcessId(device.hwndTarget, nullptr));
 		}
 	}
-	input *input::register_window(HWND hwnd)
-	{
-		const auto insert = s_windows.emplace(hwnd, nullptr);
-
-		if (insert.second)
-		{
-			LOG(INFO) << "Starting legacy input capture for window " << hwnd << " ...";
-
-			insert.first->second.reset(new input(hwnd));
-		}
-
-		return insert.first->second.get();
-	}
 	void input::uninstall()
 	{
 		for (auto &it : s_raw_input_hooks)
@@ -121,8 +125,8 @@ namespace reshade
 			UnhookWindowsHookEx(it.second);
 		}
 
-		s_raw_input_hooks.clear();
 		s_windows.clear();
+		s_raw_input_hooks.clear();
 	}
 
 	LRESULT CALLBACK input::handle_window_message(int nCode, WPARAM wParam, LPARAM lParam)
@@ -141,20 +145,18 @@ namespace reshade
 
 		auto it = s_windows.find(details.hwnd);
 
-		if (it == s_windows.end())
+		if (it == s_windows.end() && s_raw_input_hooks.find(details.hwnd) != s_raw_input_hooks.end())
 		{
-			if (s_raw_input_hooks.find(details.hwnd) != s_raw_input_hooks.end() && !s_windows.empty())
-			{
-				// This is a raw input message. Just reroute it to the first window for now, since it is rare to have more than one active at a time.
-				it = s_windows.begin();
-			}
-			else
-			{
-				return CallNextHookEx(nullptr, nCode, wParam, lParam);
-			}
+			// This is a raw input message. Just reroute it to the first window for now, since it is rare to have more than one active at a time.
+			it = s_windows.begin();
+		}
+		if (it == s_windows.end() || it->second.expired())
+		{
+			return CallNextHookEx(nullptr, nCode, wParam, lParam);
 		}
 
-		input &input = *it->second;
+		const auto input_lock = it->second.lock();
+		input &input = *input_lock;
 
 		ScreenToClient(input._hwnd, &details.pt);
 
@@ -166,10 +168,10 @@ namespace reshade
 			case WM_INPUT:
 				if (GET_RAWINPUT_CODE_WPARAM(details.wParam) == RIM_INPUT)
 				{
-					UINT dataSize = sizeof(RAWINPUT);
 					RAWINPUT data = { 0 };
+					UINT data_size = sizeof(data);
 
-					if (GetRawInputData(reinterpret_cast<HRAWINPUT>(details.lParam), RID_INPUT, &data, &dataSize, sizeof(RAWINPUTHEADER)) == UINT(-1))
+					if (GetRawInputData(reinterpret_cast<HRAWINPUT>(details.lParam), RID_INPUT, &data, &data_size, sizeof(RAWINPUTHEADER)) == UINT(-1))
 					{
 						break;
 					}

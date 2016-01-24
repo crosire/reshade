@@ -2330,7 +2330,7 @@ namespace reshade
 			_height = desc.BufferDesc.Height;
 			_backbuffer_format = desc.BufferDesc.Format;
 			_is_multisampling_enabled = desc.SampleDesc.Count > 1;
-			_input = input::register_window(desc.OutputWindow);
+			input::register_window(desc.OutputWindow, _input);
 
 			#pragma region Get backbuffer rendertarget
 			HRESULT hr = _swapchain->GetBuffer(0, __uuidof(ID3D10Texture2D), reinterpret_cast<void **>(&_backbuffer));

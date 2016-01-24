@@ -224,7 +224,7 @@ namespace reshade
 		/// <summary>
 		/// Return the current input manager.
 		/// </summary>
-		const input *input() const { return _input; }
+		const input *input() const { return _input.get(); }
 		/// <summary>
 		/// Return the back buffer width.
 		/// </summary>
@@ -335,7 +335,7 @@ namespace reshade
 		unsigned int _vendor_id, _device_id;
 		statistics _stats;
 		std::unique_ptr<gui> _gui;
-		class input *_input;
+		std::shared_ptr<class input> _input;
 		std::vector<std::unique_ptr<texture>> _textures;
 		std::vector<std::unique_ptr<uniform>> _uniforms;
 		std::vector<std::unique_ptr<technique>> _techniques;
