@@ -1377,7 +1377,7 @@ namespace reshade
 					{
 						const auto newexpression = _ast.make_node<intrinsic_expression_node>(callexpression->location);
 						newexpression->type = callexpression->type;
-						newexpression->op = static_cast<enum intrinsic_expression_node::op>(reinterpret_cast<unsigned int>(callexpression->callee));
+						newexpression->op = static_cast<enum intrinsic_expression_node::op>(callexpression->callee_name[0]);
 
 						for (size_t i = 0, count = std::min(callexpression->arguments.size(), sizeof(newexpression->arguments) / sizeof(*newexpression->arguments)); i < count; ++i)
 						{

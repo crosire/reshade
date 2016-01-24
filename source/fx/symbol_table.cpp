@@ -390,6 +390,8 @@ namespace reshade
 				{ 4, 4, 4, 0 }
 			};
 
+			assert(src.basetype <= 4 && dst.basetype <= 4);
+
 			const int rank = ranks[static_cast<unsigned int>(src.basetype) - 1][static_cast<unsigned int>(dst.basetype) - 1] << 2;
 
 			if (src.is_scalar() && dst.is_vector())
@@ -653,28 +655,29 @@ namespace reshade
 			{
 				for (auto &intrinsic : s_intrinsics)
 				{
-					if (intrinsic.function.name == call->callee_name)
+					if (intrinsic.function.name != call->callee_name)
 					{
-						if (call->arguments.size() != intrinsic.function.parameter_list.size())
-						{
-							is_intrinsic = overload_count == 0;
-							break;
-						}
+						continue;
+					}
+					if (intrinsic.function.parameter_list.size() != call->arguments.size())
+					{
+						is_intrinsic = overload_count == 0;
+						break;
+					}
 
-						const int comparison = compare_functions(call, &intrinsic.function, overload);
+					const int comparison = compare_functions(call, &intrinsic.function, overload);
 
-						if (comparison < 0)
-						{
-							overload = &intrinsic.function;
-							overload_count = 1;
+					if (comparison < 0)
+					{
+						overload = &intrinsic.function;
+						overload_count = 1;
 
-							is_intrinsic = true;
-							intrinsic_op = intrinsic.op;
-						}
-						else if (comparison == 0 && overload_namespace == 0)
-						{
-							++overload_count;
-						}
+						is_intrinsic = true;
+						intrinsic_op = intrinsic.op;
+					}
+					else if (comparison == 0 && overload_namespace == 0)
+					{
+						++overload_count;
 					}
 				}
 			}
@@ -685,7 +688,10 @@ namespace reshade
 
 				if (is_intrinsic)
 				{
-					call->callee = reinterpret_cast<function_declaration_node *>(static_cast<unsigned int>(intrinsic_op));
+					assert(intrinsic_op < 0xFF);
+
+					call->callee = nullptr;
+					call->callee_name = static_cast<char>(intrinsic_op);
 				}
 				else
 				{
