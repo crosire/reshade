@@ -34,30 +34,6 @@ namespace
 	}
 }
 
-// ID3D10DepthStencilView
-ULONG STDMETHODCALLTYPE ID3D10DepthStencilView_Release(ID3D10DepthStencilView *pDepthStencilView)
-{
-	static const auto trampoline = reshade::hooks::call(&ID3D10DepthStencilView_Release);
-
-	D3D10Device *device = nullptr;
-	UINT data_size = sizeof(device);
-	const bool succeeded = SUCCEEDED(pDepthStencilView->GetPrivateData(__uuidof(device), &data_size, &device));
-
-	const ULONG ref = trampoline(pDepthStencilView);
-
-	if (succeeded && ref == 0)
-	{
-		for (auto runtime : device->_runtimes)
-		{
-			runtime->on_delete_depthstencil_view(pDepthStencilView);
-		}
-
-		device->Release();
-	}
-
-	return ref;
-}
-
 // ID3D10Device
 HRESULT STDMETHODCALLTYPE D3D10Device::QueryInterface(REFIID riid, void **ppvObj)
 {
@@ -498,24 +474,15 @@ HRESULT STDMETHODCALLTYPE D3D10Device::CreateDepthStencilView(ID3D10Resource *pR
 
 	const HRESULT hr = _orig->CreateDepthStencilView(pResource, pDesc, ppDepthStencilView);
 
-	if (FAILED(hr))
+	if (SUCCEEDED(hr))
 	{
-		return hr;
+		for (auto runtime : _runtimes)
+		{
+			runtime->on_create_depthstencil_view(pResource, *ppDepthStencilView);
+		}
 	}
 
-	for (auto runtime : _runtimes)
-	{
-		runtime->on_create_depthstencil_view(pResource, *ppDepthStencilView);
-	}
-
-	D3D10Device *const device = this;
-	ID3D10DepthStencilView *const depthstencil = *ppDepthStencilView;
-	device->AddRef();
-	depthstencil->SetPrivateData(__uuidof(device), sizeof(device), &device);
-
-	reshade::hooks::install(VTABLE(depthstencil), 2, reinterpret_cast<reshade::hook::address>(&ID3D10DepthStencilView_Release));
-
-	return S_OK;
+	return hr;
 }
 HRESULT STDMETHODCALLTYPE D3D10Device::CreateInputLayout(const D3D10_INPUT_ELEMENT_DESC *pInputElementDescs, UINT NumElements, const void *pShaderBytecodeWithInputSignature, SIZE_T BytecodeLength, ID3D10InputLayout **ppInputLayout)
 {

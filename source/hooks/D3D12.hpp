@@ -7,9 +7,7 @@ struct __declspec(uuid("2C576D2A-0C1C-4D1D-AD7C-BC4FAEC15ABC")) D3D12CommandQueu
 
 struct D3D12Device : ID3D12Device
 {
-	explicit D3D12Device(ID3D12Device *original) : _ref(1), _orig(original)
-	{
-	}
+	explicit D3D12Device(ID3D12Device *original) : _ref(1), _orig(original) { }
 
 	#pragma region IUnknown
 	virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
@@ -71,9 +69,7 @@ private:
 };
 struct D3D12CommandQueue : ID3D12CommandQueue
 {
-	D3D12CommandQueue(D3D12Device *device, ID3D12CommandQueue *original) : _ref(1), _device(device), _orig(original)
-	{
-	}
+	D3D12CommandQueue(D3D12Device *device, ID3D12CommandQueue *original) : _ref(1), _orig(original), _device(device) { }
 
 	#pragma region IUnknown
 	virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
@@ -104,8 +100,8 @@ struct D3D12CommandQueue : ID3D12CommandQueue
 	#pragma endregion
 
 	ULONG _ref;
-	D3D12Device *const _device;
 	ID3D12CommandQueue *const _orig;
+	D3D12Device *const _device;
 
 private:
 	D3D12CommandQueue(const D3D12CommandQueue &);

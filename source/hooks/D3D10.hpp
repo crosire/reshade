@@ -6,12 +6,8 @@ struct __declspec(uuid("88399375-734F-4892-A95F-70DD42CE7CDD")) D3D10Device;
 
 struct D3D10Device : ID3D10Device1
 {
-	explicit D3D10Device(ID3D10Device *original) : _ref(1), _orig(original), _interface_version(0), _dxgi_device(nullptr)
-	{
-	}
-	explicit D3D10Device(ID3D10Device1 *original) : _ref(1), _orig(original), _interface_version(1), _dxgi_device(nullptr)
-	{
-	}
+	explicit D3D10Device(ID3D10Device  *original) : _ref(1), _orig(original), _interface_version(0), _dxgi_device(nullptr) { }
+	explicit D3D10Device(ID3D10Device1 *original) : _ref(1), _orig(original), _interface_version(1), _dxgi_device(nullptr) { }
 
 	#pragma region IUnknown
 	virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;

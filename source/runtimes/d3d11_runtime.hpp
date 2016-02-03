@@ -24,7 +24,6 @@ namespace reshade
 			void on_apply_effect() override;
 			void on_apply_effect_technique(const technique *technique) override;
 			void on_create_depthstencil_view(ID3D11Resource *resource, ID3D11DepthStencilView *depthstencil);
-			void on_delete_depthstencil_view(ID3D11DepthStencilView *depthstencil);
 			void on_set_depthstencil_view(ID3D11DepthStencilView *&depthstencil);
 			void on_get_depthstencil_view(ID3D11DepthStencilView *&depthstencil);
 			void on_clear_depthstencil_view(ID3D11DepthStencilView *&depthstencil);

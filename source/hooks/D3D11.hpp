@@ -7,18 +7,10 @@ struct __declspec(uuid("27B0246B-2152-4D42-AD11-32489472238F")) D3D11DeviceConte
 
 struct D3D11Device : ID3D11Device3
 {
-	explicit D3D11Device(ID3D11Device *original) : _ref(1), _orig(original), _interface_version(0), _dxgi_device(nullptr), _immediate_context(nullptr)
-	{
-	}
-	explicit D3D11Device(ID3D11Device1 *original) : _ref(1), _orig(original), _interface_version(1), _dxgi_device(nullptr), _immediate_context(nullptr)
-	{
-	}
-	explicit D3D11Device(ID3D11Device2 *original) : _ref(1), _orig(original), _interface_version(2), _dxgi_device(nullptr), _immediate_context(nullptr)
-	{
-	}
-	explicit D3D11Device(ID3D11Device3 *original) : _ref(1), _orig(original), _interface_version(3), _dxgi_device(nullptr), _immediate_context(nullptr)
-	{
-	}
+	explicit D3D11Device(ID3D11Device  *original) : _ref(1), _orig(original), _interface_version(0), _dxgi_device(nullptr), _immediate_context(nullptr) { }
+	explicit D3D11Device(ID3D11Device1 *original) : _ref(1), _orig(original), _interface_version(1), _dxgi_device(nullptr), _immediate_context(nullptr) { }
+	explicit D3D11Device(ID3D11Device2 *original) : _ref(1), _orig(original), _interface_version(2), _dxgi_device(nullptr), _immediate_context(nullptr) { }
+	explicit D3D11Device(ID3D11Device3 *original) : _ref(1), _orig(original), _interface_version(3), _dxgi_device(nullptr), _immediate_context(nullptr) { }
 
 	#pragma region IUnknown
 	virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
@@ -109,18 +101,10 @@ private:
 };
 struct D3D11DeviceContext : ID3D11DeviceContext3
 {
-	D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext *original) : _ref(1), _device(device), _orig(original), _interface_version(0)
-	{
-	}
-	D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext1 *original) : _ref(1), _device(device), _orig(original), _interface_version(1)
-	{
-	}
-	D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext2 *original) : _ref(1), _device(device), _orig(original), _interface_version(2)
-	{
-	}
-	D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext3 *original) : _ref(1), _device(device), _orig(original), _interface_version(3)
-	{
-	}
+	D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext  *original) : _ref(1), _orig(original), _interface_version(0), _device(device) { }
+	D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext1 *original) : _ref(1), _orig(original), _interface_version(1), _device(device) { }
+	D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext2 *original) : _ref(1), _orig(original), _interface_version(2), _device(device) { }
+	D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext3 *original) : _ref(1), _orig(original), _interface_version(3), _device(device) { }
 
 	#pragma region IUnknown
 	virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
@@ -283,9 +267,9 @@ struct D3D11DeviceContext : ID3D11DeviceContext3
 	#pragma endregion
 
 	LONG _ref;
-	D3D11Device *const _device;
 	ID3D11DeviceContext *_orig;
 	unsigned int _interface_version;
+	D3D11Device *const _device;
 
 private:
 	D3D11DeviceContext(const D3D11DeviceContext &);

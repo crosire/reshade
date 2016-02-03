@@ -7,12 +7,8 @@ struct __declspec(uuid("BC52FCE4-1EAC-40C8-84CF-863600BBAA01")) Direct3DSwapChai
 
 struct Direct3DDevice9 : IDirect3DDevice9Ex
 {
-	explicit Direct3DDevice9(IDirect3DDevice9 *original) : _ref(1), _orig(original), _interface_version(0), _implicit_swapchain(nullptr), _auto_depthstencil(nullptr), _use_software_rendering(false)
-	{
-	}
-	explicit Direct3DDevice9(IDirect3DDevice9Ex *original) : _ref(1), _orig(original), _interface_version(1), _implicit_swapchain(nullptr), _auto_depthstencil(nullptr), _use_software_rendering(false)
-	{
-	}
+	explicit Direct3DDevice9(IDirect3DDevice9   *original) : _ref(1), _orig(original), _interface_version(0), _implicit_swapchain(nullptr), _auto_depthstencil(nullptr), _use_software_rendering(false) { }
+	explicit Direct3DDevice9(IDirect3DDevice9Ex *original) : _ref(1), _orig(original), _interface_version(1), _implicit_swapchain(nullptr), _auto_depthstencil(nullptr), _use_software_rendering(false) { }
 
 	#pragma region IUnknown
 	virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
@@ -169,12 +165,8 @@ private:
 };
 struct Direct3DSwapChain9 : IDirect3DSwapChain9Ex
 {
-	Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapChain9 *original, const std::shared_ptr<reshade::runtimes::d3d9_runtime> &runtime) : _ref(1), _orig(original), _interface_version(0), _device(device), _runtime(runtime)
-	{
-	}
-	Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapChain9Ex *original, const std::shared_ptr<reshade::runtimes::d3d9_runtime> &runtime) : _ref(1), _orig(original), _interface_version(1), _device(device), _runtime(runtime)
-	{
-	}
+	Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapChain9   *original, const std::shared_ptr<reshade::runtimes::d3d9_runtime> &runtime) : _ref(1), _orig(original), _interface_version(0), _device(device), _runtime(runtime) { }
+	Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapChain9Ex *original, const std::shared_ptr<reshade::runtimes::d3d9_runtime> &runtime) : _ref(1), _orig(original), _interface_version(1), _device(device), _runtime(runtime) { }
 
 	#pragma region IUnknown
 	virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;

@@ -2923,29 +2923,11 @@ namespace reshade
 
 			LOG(TRACE) << "Adding depthstencil " << depthstencil << " (Width: " << desc.Width << ", Height: " << desc.Height << ", Format: " << desc.Format << ") to list of possible depth candidates ...";
 
+			depthstencil->AddRef();
+
 			// Begin tracking new depthstencil
 			const depth_source_info info = { desc.Width, desc.Height };
 			_depth_source_table.emplace(depthstencil, info);
-		}
-		void d3d11_runtime::on_delete_depthstencil_view(ID3D11DepthStencilView *depthstencil)
-		{
-			assert(depthstencil != nullptr);
-
-			const utils::critical_section::lock lock(_cs);
-
-			const auto it = _depth_source_table.find(depthstencil);
-
-			if (it != _depth_source_table.end())
-			{
-				LOG(TRACE) << "Removing depthstencil " << depthstencil << " from list of possible depth candidates ...";
-
-				_depth_source_table.erase(it);
-
-				if (depthstencil == _depthstencil)
-				{
-					create_depthstencil_replacement(nullptr);
-				}
-			}
 		}
 		void d3d11_runtime::on_set_depthstencil_view(ID3D11DepthStencilView *&depthstencil)
 		{
@@ -3115,6 +3097,31 @@ namespace reshade
 
 		void d3d11_runtime::detect_depth_source()
 		{
+			for (auto it = _depth_source_table.begin(); it != _depth_source_table.end();)
+			{
+				const auto depthstencil = it->first;
+				depthstencil->AddRef();
+				const auto ref = depthstencil->Release();
+
+				if (ref == 1)
+				{
+					LOG(TRACE) << "Removing depthstencil " << depthstencil << " from list of possible depth candidates ...";
+
+					if (depthstencil == _depthstencil)
+					{
+						create_depthstencil_replacement(nullptr);
+					}
+
+					depthstencil->Release();
+
+					it = _depth_source_table.erase(it);
+				}
+				else
+				{
+					++it;
+				}
+			}
+
 			static int cooldown = 0, traffic = 0;
 
 			if (cooldown-- > 0)
