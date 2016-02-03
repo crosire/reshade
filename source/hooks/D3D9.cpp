@@ -2,9 +2,6 @@
 #include "hook_manager.hpp"
 #include "hooks\D3D9.hpp"
 
-#include <sstream>
-#include <assert.h>
-
 #pragma region Undefine Function Names
 #undef IDirect3D9_CreateDevice
 #undef IDirect3D9Ex_CreateDeviceEx
@@ -12,43 +9,6 @@
 
 namespace
 {
-	std::string write_error_string(HRESULT hr)
-	{
-		std::stringstream res;
-
-		switch (hr)
-		{
-			case E_INVALIDARG:
-				res << "E_INVALIDARG";
-				break;
-			case D3DERR_NOTAVAILABLE:
-				res << "D3DERR_NOTAVAILABLE";
-				break;
-			case D3DERR_INVALIDCALL:
-				res << "D3DERR_INVALIDCALL";
-				break;
-			case D3DERR_INVALIDDEVICE:
-				res << "D3DERR_INVALIDDEVICE";
-				break;
-			case D3DERR_DEVICEHUNG:
-				res << "D3DERR_DEVICEHUNG";
-				break;
-			case D3DERR_DEVICELOST:
-				res << "D3DERR_DEVICELOST";
-				break;
-			case D3DERR_DEVICENOTRESET:
-				res << "D3DERR_DEVICENOTRESET";
-				break;
-			case D3DERR_WASSTILLDRAWING:
-				res << "D3DERR_WASSTILLDRAWING";
-				break;
-			default:
-				res << std::showbase << std::hex << hr;
-				break;
-		}
-
-		return res.str();
-	}
 	void dump_present_parameters(const D3DPRESENT_PARAMETERS &pp)
 	{
 		LOG(TRACE) << "> Dumping presentation parameters:";
@@ -373,7 +333,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateAdditionalSwapChain(D3DPRESENT_
 
 	if (FAILED(hr))
 	{
-		LOG(WARNING) << "> 'IDirect3DDevice9::CreateAdditionalSwapChain' failed with '" << write_error_string(hr) << "'!";
+		LOG(WARNING) << "> 'IDirect3DDevice9::CreateAdditionalSwapChain' failed with error code " << std::showbase << std::hex << hr << std::dec << std::noshowbase << "!";
 
 		return hr;
 	}
@@ -458,7 +418,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Reset(D3DPRESENT_PARAMETERS *pPresent
 
 	if (FAILED(hr))
 	{
-		LOG(ERROR) << "> 'IDirect3DDevice9::Reset' failed with '" << write_error_string(hr) << "'!";
+		LOG(ERROR) << "> 'IDirect3DDevice9::Reset' failed with error code " << std::showbase << std::hex << hr << std::dec << std::noshowbase << "!";
 
 		return hr;
 	}
@@ -1148,7 +1108,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ResetEx(D3DPRESENT_PARAMETERS *pPrese
 
 	if (FAILED(hr))
 	{
-		LOG(ERROR) << "> 'IDirect3DDevice9Ex::ResetEx' failed with '" << write_error_string(hr) << "'!";
+		LOG(ERROR) << "> 'IDirect3DDevice9Ex::ResetEx' failed with error code " << std::showbase << std::hex << hr << std::dec << std::noshowbase << "!";
 
 		return hr;
 	}
@@ -1211,7 +1171,7 @@ HRESULT STDMETHODCALLTYPE IDirect3D9_CreateDevice(IDirect3D9 *pD3D, UINT Adapter
 
 	if (FAILED(hr))
 	{
-		LOG(WARNING) << "> 'IDirect3D9::CreateDevice' failed with '" << write_error_string(hr) << "'!";
+		LOG(WARNING) << "> 'IDirect3D9::CreateDevice' failed with error code " << std::showbase << std::hex << hr << std::dec << std::noshowbase << "!";
 
 		return hr;
 	}
@@ -1288,7 +1248,7 @@ HRESULT STDMETHODCALLTYPE IDirect3D9Ex_CreateDeviceEx(IDirect3D9Ex *pD3D, UINT A
 
 	if (FAILED(hr))
 	{
-		LOG(WARNING) << "> 'IDirect3D9Ex::CreateDeviceEx' failed with '" << write_error_string(hr) << "'!";
+		LOG(WARNING) << "> 'IDirect3D9Ex::CreateDeviceEx' failed with error code " << std::showbase << std::hex << hr << std::dec << std::noshowbase << "!";
 
 		return hr;
 	}
@@ -1407,7 +1367,7 @@ EXPORT HRESULT WINAPI Direct3DCreate9Ex(UINT SDKVersion, IDirect3D9Ex **ppD3D)
 
 	if (FAILED(hr))
 	{
-		LOG(WARNING) << "> 'Direct3DCreate9Ex' failed with '" << write_error_string(hr) << "'!";
+		LOG(WARNING) << "> 'Direct3DCreate9Ex' failed with error code " << std::showbase << std::hex << hr << std::dec << std::noshowbase << "!";
 
 		return hr;
 	}

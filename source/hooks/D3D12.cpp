@@ -2,38 +2,6 @@
 #include "hook_manager.hpp"
 #include "hooks\D3D12.hpp"
 
-#include <sstream>
-#include <assert.h>
-
-namespace
-{
-	std::string write_error_string(HRESULT hr)
-	{
-		std::stringstream res;
-
-		switch (hr)
-		{
-			case E_FAIL:
-				res << "E_FAIL";
-				break;
-			case E_NOTIMPL:
-				res << "E_NOTIMPL";
-				break;
-			case E_INVALIDARG:
-				res << "E_INVALIDARG";
-				break;
-			case DXGI_ERROR_UNSUPPORTED:
-				res << "DXGI_ERROR_UNSUPPORTED";
-				break;
-			default:
-				res << std::showbase << std::hex << hr;
-				break;
-		}
-
-		return res.str();
-	}
-}
-
 // ID3D12CommandQueue
 HRESULT STDMETHODCALLTYPE D3D12CommandQueue::QueryInterface(REFIID riid, void **ppvObj)
 {
@@ -242,7 +210,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommandQueue(const D3D12_COMMAND_QU
 
 	if (FAILED(hr))
 	{
-		LOG(WARNING) << "> 'ID3D12Device::CreateCommandQueue' failed with '" << write_error_string(hr) << "'!";
+		LOG(WARNING) << "> 'ID3D12Device::CreateCommandQueue' failed with error code " << std::showbase << std::hex << hr << std::dec << std::noshowbase << "!";
 	}
 	else if (riid == __uuidof(ID3D12CommandQueue))
 	{
@@ -404,7 +372,7 @@ EXPORT HRESULT WINAPI D3D12CreateDevice(IUnknown *pAdapter, D3D_FEATURE_LEVEL Mi
 
 	if (FAILED(hr))
 	{
-		LOG(WARNING) << "> 'D3D12CreateDevice' failed with '" << write_error_string(hr) << "'!";
+		LOG(WARNING) << "> 'D3D12CreateDevice' failed with error code " << std::showbase << std::hex << hr << std::dec << std::noshowbase << "!";
 
 		return hr;
 	}

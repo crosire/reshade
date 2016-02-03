@@ -2,30 +2,8 @@
 #include "hook_manager.hpp"
 #include "hooks\DXGI.hpp"
 
-#include <sstream>
-#include <assert.h>
-
 namespace
 {
-	std::string write_error_string(HRESULT hr)
-	{
-		std::stringstream res;
-
-		switch (hr)
-		{
-			case DXGI_ERROR_INVALID_CALL:
-				res << "DXGI_ERROR_INVALID_CALL";
-				break;
-			case DXGI_ERROR_UNSUPPORTED:
-				res << "DXGI_ERROR_UNSUPPORTED";
-				break;
-			default:
-				res << std::showbase << std::hex << hr;
-				break;
-		}
-
-		return res.str();
-	}
 	void dump_swapchain_desc(const DXGI_SWAP_CHAIN_DESC &desc)
 	{
 		LOG(TRACE) << "> Dumping swap chain description:";
@@ -324,7 +302,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Wi
 	}
 	else if (FAILED(hr))
 	{
-		LOG(ERROR) << "> 'IDXGISwapChain::ResizeBuffers' failed with '" << write_error_string(hr) << "'!";
+		LOG(ERROR) << "> 'IDXGISwapChain::ResizeBuffers' failed with error code " << std::showbase << std::hex << hr << std::dec << std::noshowbase << "!";
 
 		return hr;
 	}
@@ -551,7 +529,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers1(UINT BufferCount, UINT W
 	}
 	else if (FAILED(hr))
 	{
-		LOG(ERROR) << "> 'IDXGISwapChain3::ResizeBuffers1' failed with '" << write_error_string(hr) << "'!";
+		LOG(ERROR) << "> 'IDXGISwapChain3::ResizeBuffers1' failed with error code " << std::showbase << std::hex << hr << std::dec << std::noshowbase << "!";
 
 		return hr;
 	}
@@ -811,7 +789,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, I
 
 	if (FAILED(hr))
 	{
-		LOG(WARNING) << "> 'IDXGIFactory::CreateSwapChain' failed with '" << write_error_string(hr) << "'!";
+		LOG(WARNING) << "> 'IDXGIFactory::CreateSwapChain' failed with error code " << std::showbase << std::hex << hr << std::dec << std::noshowbase << "!";
 
 		return hr;
 	}
@@ -928,7 +906,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pF
 
 	if (FAILED(hr))
 	{
-		LOG(WARNING) << "> 'IDXGIFactory2::CreateSwapChainForHwnd' failed with '" << write_error_string(hr) << "'!";
+		LOG(WARNING) << "> 'IDXGIFactory2::CreateSwapChainForHwnd' failed with error code " << std::showbase << std::hex << hr << std::dec << std::noshowbase << "!";
 
 		return hr;
 	}
@@ -1043,7 +1021,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactor
 
 	if (FAILED(hr))
 	{
-		LOG(WARNING) << "> 'IDXGIFactory2::CreateSwapChainForCoreWindow' failed with '" << write_error_string(hr) << "'!";
+		LOG(WARNING) << "> 'IDXGIFactory2::CreateSwapChainForCoreWindow' failed with error code " << std::showbase << std::hex << hr << std::dec << std::noshowbase << "!";
 
 		return hr;
 	}
@@ -1158,7 +1136,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFacto
 
 	if (FAILED(hr))
 	{
-		LOG(WARNING) << "> 'IDXGIFactory2::CreateSwapChainForComposition' failed with '" << write_error_string(hr) << "'!";
+		LOG(WARNING) << "> 'IDXGIFactory2::CreateSwapChainForComposition' failed with error code " << std::showbase << std::hex << hr << std::dec << std::noshowbase << "!";
 
 		return hr;
 	}
@@ -1278,7 +1256,7 @@ EXPORT HRESULT WINAPI CreateDXGIFactory(REFIID riid, void **ppFactory)
 
 	if (FAILED(hr))
 	{
-		LOG(WARNING) << "> 'CreateDXGIFactory' failed with '" << write_error_string(hr) << "'!";
+		LOG(WARNING) << "> 'CreateDXGIFactory' failed with error code " << std::showbase << std::hex << hr << std::dec << std::noshowbase << "!";
 
 		return hr;
 	}
@@ -1312,7 +1290,7 @@ EXPORT HRESULT WINAPI CreateDXGIFactory1(REFIID riid, void **ppFactory)
 
 	if (FAILED(hr))
 	{
-		LOG(WARNING) << "> 'CreateDXGIFactory1' failed with '" << write_error_string(hr) << "'!";
+		LOG(WARNING) << "> 'CreateDXGIFactory1' failed with error code " << std::showbase << std::hex << hr << std::dec << std::noshowbase << "!";
 
 		return hr;
 	}
@@ -1350,7 +1328,7 @@ EXPORT HRESULT WINAPI CreateDXGIFactory2(UINT flags, REFIID riid, void **ppFacto
 
 	if (FAILED(hr))
 	{
-		LOG(WARNING) << "> 'CreateDXGIFactory2' failed with '" << write_error_string(hr) << "'!";
+		LOG(WARNING) << "> 'CreateDXGIFactory2' failed with error code " << std::showbase << std::hex << hr << std::dec << std::noshowbase << "!";
 
 		return hr;
 	}

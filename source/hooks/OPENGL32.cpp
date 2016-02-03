@@ -4,10 +4,8 @@
 #include "utils\critical_section.hpp"
 
 #include <memory>
-#include <sstream>
 #include <unordered_map>
 #include <unordered_set>
-#include <assert.h>
 
 #pragma region Undefine Function Names
 #undef glBindFramebuffer
@@ -105,51 +103,6 @@ DECLARE_HANDLE(HPBUFFERARB);
 
 namespace
 {
-	std::string write_error_string(DWORD code)
-	{
-		code &= 0xFFFF;
-		std::stringstream res;
-
-		switch (code)
-		{
-			case ERROR_INVALID_HANDLE:
-				res << "ERROR_INVALID_HANDLE (" << ERROR_INVALID_HANDLE << ")";
-				break;
-			case ERROR_INVALID_DATA:
-				res << "ERROR_INVALID_DATA (" << ERROR_INVALID_DATA << ")";
-				break;
-			case ERROR_GEN_FAILURE:
-				res << "ERROR_GEN_FAILURE (" << ERROR_GEN_FAILURE << ")";
-				break;
-			case ERROR_INVALID_PARAMETER:
-				res << "ERROR_INVALID_PARAMETER (" << ERROR_INVALID_PARAMETER << ")";
-				break;
-			case ERROR_BUSY:
-				res << "ERROR_BUSY (" << ERROR_BUSY << ")";
-				break;
-			case ERROR_DC_NOT_FOUND:
-				res << "ERROR_DC_NOT_FOUND (" << ERROR_DC_NOT_FOUND << ")";
-				break;
-			case ERROR_NO_SYSTEM_RESOURCES:
-				res << "ERROR_NO_SYSTEM_RESOURCES (" << ERROR_NO_SYSTEM_RESOURCES << ")";
-				break;
-			case ERROR_INVALID_PIXEL_FORMAT:
-				res << "ERROR_INVALID_PIXEL_FORMAT (" << ERROR_INVALID_PIXEL_FORMAT << ")";
-				break;
-			case 0x2095:
-				res << "ERROR_INVALID_VERSION_ARB (0x2095)";
-				break;
-			case 0x2096:
-				res << "ERROR_INVALID_PROFILE_ARB (0x2096)";
-				break;
-			default:
-				res << code;
-				break;
-		}
-
-		return res.str();
-	}
-
 	reshade::utils::critical_section s_cs;
 	std::unordered_map<HWND, RECT> s_window_rects;
 	std::unordered_set<HDC> s_pbuffer_device_contexts;
@@ -3104,7 +3057,7 @@ BOOL WINAPI wglChoosePixelFormatARB(HDC hdc, const int *piAttribIList, const FLO
 
 	if (!reshade::hooks::call(&wglChoosePixelFormatARB)(hdc, piAttribIList, pfAttribFList, nMaxFormats, piFormats, nNumFormats))
 	{
-		LOG(WARNING) << "> 'wglChoosePixelFormatARB' failed with '" << write_error_string(GetLastError()) << "'!";
+		LOG(WARNING) << "> 'wglChoosePixelFormatARB' failed with error code " << (GetLastError() & 0xFFFF) << "!";
 
 		return FALSE;
 	}
@@ -3139,7 +3092,7 @@ EXPORT BOOL WINAPI wglSetPixelFormat(HDC hdc, int iPixelFormat, const PIXELFORMA
 
 	if (!reshade::hooks::call(&wglSetPixelFormat)(hdc, iPixelFormat, ppfd))
 	{
-		LOG(WARNING) << "> 'wglSetPixelFormat' failed with '" << write_error_string(GetLastError()) << "'!";
+		LOG(WARNING) << "> 'wglSetPixelFormat' failed with error code " << (GetLastError() & 0xFFFF) << "!";
 
 		return FALSE;
 	}
@@ -3165,7 +3118,7 @@ EXPORT HGLRC WINAPI wglCreateContext(HDC hdc)
 
 	if (hglrc == nullptr)
 	{
-		LOG(WARNING) << "> 'wglCreateContext' failed with '" << write_error_string(GetLastError()) << "'!";
+		LOG(WARNING) << "> 'wglCreateContext' failed with error code " << (GetLastError() & 0xFFFF) << "!";
 
 		return nullptr;
 	}
@@ -3268,7 +3221,7 @@ HGLRC WINAPI wglCreateContextAttribsARB(HDC hdc, HGLRC hShareContext, const int 
 
 	if (hglrc == nullptr)
 	{
-		LOG(WARNING) << "> 'wglCreateContextAttribsARB' failed with '" << write_error_string(GetLastError()) << "'!";
+		LOG(WARNING) << "> 'wglCreateContextAttribsARB' failed with error code " << (GetLastError() & 0xFFFF) << "!";
 
 		return nullptr;
 	}
@@ -3355,7 +3308,7 @@ HPBUFFERARB WINAPI wglCreatePbufferARB(HDC hdc, int iPixelFormat, int iWidth, in
 
 	if (hpbuffer == nullptr)
 	{
-		LOG(WARNING) << "> 'wglCreatePbufferARB' failed with '" << write_error_string(GetLastError()) << "'!";
+		LOG(WARNING) << "> 'wglCreatePbufferARB' failed with error code " << (GetLastError() & 0xFFFF) << "!";
 
 		return nullptr;
 	}
@@ -3392,7 +3345,7 @@ EXPORT BOOL WINAPI wglDeleteContext(HGLRC hglrc)
 
 	if (!reshade::hooks::call(&wglDeleteContext)(hglrc))
 	{
-		LOG(WARNING) << "> 'wglDeleteContext' failed with '" << write_error_string(GetLastError()) << "'!";
+		LOG(WARNING) << "> 'wglDeleteContext' failed with error code " << (GetLastError() & 0xFFFF) << "!";
 
 		return FALSE;
 	}
@@ -3418,7 +3371,7 @@ BOOL WINAPI wglDestroyPbufferARB(HPBUFFERARB hPbuffer)
 
 	if (!reshade::hooks::call(&wglDestroyPbufferARB)(hPbuffer))
 	{
-		LOG(WARNING) << "> 'wglDestroyPbufferARB' failed with '" << write_error_string(GetLastError()) << "'!";
+		LOG(WARNING) << "> 'wglDestroyPbufferARB' failed with error code " << (GetLastError() & 0xFFFF) << "!";
 
 		return FALSE;
 	}
@@ -3458,7 +3411,7 @@ HDC WINAPI wglGetPbufferDCARB(HPBUFFERARB hPbuffer)
 
 	if (hdc == nullptr)
 	{
-		LOG(WARNING) << "> 'wglGetPbufferDCARB' failed with '" << write_error_string(GetLastError()) << "'!";
+		LOG(WARNING) << "> 'wglGetPbufferDCARB' failed with error code " << (GetLastError() & 0xFFFF) << "!";
 
 		return nullptr;
 	}
@@ -3537,7 +3490,7 @@ EXPORT BOOL WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 
 	if (!trampoline(hdc, hglrc))
 	{
-		LOG(WARNING) << "> 'wglMakeCurrent' failed with '" << write_error_string(GetLastError()) << "'!";
+		LOG(WARNING) << "> 'wglMakeCurrent' failed with error code " << (GetLastError() & 0xFFFF) << "!";
 
 		return FALSE;
 	}
@@ -3616,7 +3569,7 @@ int WINAPI wglReleasePbufferDCARB(HPBUFFERARB hPbuffer, HDC hdc)
 
 	if (!reshade::hooks::call(&wglReleasePbufferDCARB)(hPbuffer, hdc))
 	{
-		LOG(WARNING) << "> 'wglReleasePbufferDCARB' failed with '" << write_error_string(GetLastError()) << "'!";
+		LOG(WARNING) << "> 'wglReleasePbufferDCARB' failed with error code " << (GetLastError() & 0xFFFF) << "!";
 
 		return FALSE;
 	}
@@ -3642,7 +3595,7 @@ EXPORT BOOL WINAPI wglShareLists(HGLRC hglrc1, HGLRC hglrc2)
 
 	if (!reshade::hooks::call(&wglShareLists)(hglrc1, hglrc2))
 	{
-		LOG(WARNING) << "> 'wglShareLists' failed with '" << write_error_string(GetLastError()) << "'!";
+		LOG(WARNING) << "> 'wglShareLists' failed with error code " << (GetLastError() & 0xFFFF) << "!";
 
 		return FALSE;
 	}

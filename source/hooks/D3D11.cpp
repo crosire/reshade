@@ -2,38 +2,6 @@
 #include "hook_manager.hpp"
 #include "hooks\DXGI.hpp"
 
-#include <sstream>
-#include <assert.h>
-
-namespace
-{
-	std::string write_error_string(HRESULT hr)
-	{
-		std::stringstream res;
-
-		switch (hr)
-		{
-			case E_FAIL:
-				res << "E_FAIL";
-				break;
-			case E_NOTIMPL:
-				res << "E_NOTIMPL";
-				break;
-			case E_INVALIDARG:
-				res << "E_INVALIDARG";
-				break;
-			case DXGI_ERROR_UNSUPPORTED:
-				res << "DXGI_ERROR_UNSUPPORTED";
-				break;
-			default:
-				res << std::showbase << std::hex << hr;
-				break;
-		}
-
-		return res.str();
-	}
-}
-
 // ID3D11DeviceContext
 HRESULT STDMETHODCALLTYPE D3D11DeviceContext::QueryInterface(REFIID riid, void **ppvObj)
 {
@@ -1128,7 +1096,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDeferredContext(UINT ContextFlags, 
 
 	if (FAILED(hr))
 	{
-		LOG(WARNING) << "> 'ID3D11Device::CreateDeferredContext' failed with '" << write_error_string(hr) << "'!";
+		LOG(WARNING) << "> 'ID3D11Device::CreateDeferredContext' failed with error code " << std::showbase << std::hex << hr << std::dec << std::noshowbase << "!";
 
 		return hr;
 	}
@@ -1238,7 +1206,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDeferredContext1(UINT ContextFlags,
 
 	if (FAILED(hr))
 	{
-		LOG(WARNING) << "> 'ID3D11Device1::CreateDeferredContext1' failed with '" << write_error_string(hr) << "'!";
+		LOG(WARNING) << "> 'ID3D11Device1::CreateDeferredContext1' failed with error code " << std::showbase << std::hex << hr << std::dec << std::noshowbase << "!";
 
 		return hr;
 	}
@@ -1394,7 +1362,7 @@ EXPORT HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, D3D_
 
 	if (FAILED(hr))
 	{
-		LOG(WARNING) << "> 'D3D11CreateDeviceAndSwapChain' failed with '" << write_error_string(hr) << "'!";
+		LOG(WARNING) << "> 'D3D11CreateDeviceAndSwapChain' failed with error code " << std::showbase << std::hex << hr << std::dec << std::noshowbase << "!";
 
 		return hr;
 	}

@@ -2,52 +2,11 @@
 #include "hooks\D3D8.hpp"
 
 #include <regex>
-#include <sstream>
 #include <assert.h>
 #include <d3dx9shader.h>
 
 namespace
 {
-	std::string write_error_string(HRESULT hr)
-	{
-		std::stringstream res;
-
-		switch (hr)
-		{
-			case E_INVALIDARG:
-				res << "E_INVALIDARG";
-				break;
-			case D3DERR_NOTAVAILABLE:
-				res << "D3DERR_NOTAVAILABLE";
-				break;
-			case D3DERR_INVALIDCALL:
-				res << "D3DERR_INVALIDCALL";
-				break;
-			case D3DERR_INVALIDDEVICE:
-				res << "D3DERR_INVALIDDEVICE";
-				break;
-			case D3DERR_DEVICEHUNG:
-				res << "D3DERR_DEVICEHUNG";
-				break;
-			case D3DERR_DEVICELOST:
-				res << "D3DERR_DEVICELOST";
-				break;
-			case D3DERR_DEVICENOTRESET:
-				res << "D3DERR_DEVICENOTRESET";
-				break;
-			case D3DERR_WASSTILLDRAWING:
-				res << "D3DERR_WASSTILLDRAWING";
-				break;
-			case D3DXERR_INVALIDDATA:
-				res << "D3DXERR_INVALIDDATA";
-				break;
-			default:
-				res << std::showbase << std::hex << hr;
-				break;
-		}
-
-		return res.str();
-	}
 	UINT calc_texture_size(UINT width, UINT height, UINT depth, D3DFORMAT format)
 	{
 		switch (static_cast<DWORD>(format))
@@ -106,7 +65,6 @@ namespace
 				return ((width + 3) >> 2) * ((height + 3) >> 2) * 16;
 		}
 	}
-
 	void convert_caps(D3DCAPS9 &input, D3DCAPS8 &output)
 	{
 		CopyMemory(&output, &input, sizeof(D3DCAPS8));
@@ -1539,7 +1497,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateImageSurface(UINT Width, UINT H
 
 	if (FAILED(hr))
 	{
-		LOG(WARNING) << "> 'IDirect3DDevice8::CreateImageSurface' failed with '" << write_error_string(hr) << "'!";
+		LOG(WARNING) << "> 'IDirect3DDevice8::CreateImageSurface' failed with error code " << std::showbase << std::hex << hr << std::dec << std::noshowbase << "!";
 
 		return hr;
 	}
@@ -2291,7 +2249,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateVertexShader(CONST DWORD *pDecl
 
 		if (FAILED(hr))
 		{
-			LOG(ERROR) << "> Failed to disassemble shader with '" << write_error_string(hr) << "'!";
+			LOG(ERROR) << "> Failed to disassemble shader with error code " << std::showbase << std::hex << hr << std::dec << std::noshowbase << "!";
 
 			return hr;
 		}
@@ -2406,7 +2364,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateVertexShader(CONST DWORD *pDecl
 			}
 			else
 			{
-				LOG(ERROR) << "> Failed to reassemble shader with '" << write_error_string(hr) << "'!";
+				LOG(ERROR) << "> Failed to reassemble shader with error code " << std::showbase << std::hex << hr << std::dec << std::noshowbase << "!";
 			}
 
 			return hr;
@@ -2436,7 +2394,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateVertexShader(CONST DWORD *pDecl
 		}
 		else
 		{
-			LOG(ERROR) << "> 'IDirect3DDevice9::CreateVertexDeclaration' failed with '" << write_error_string(hr) << "'!";
+			LOG(ERROR) << "> 'IDirect3DDevice9::CreateVertexDeclaration' failed with error code " << std::showbase << std::hex << hr << std::dec << std::noshowbase << "!";
 
 			if (shader->shader != nullptr)
 			{
@@ -2446,7 +2404,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateVertexShader(CONST DWORD *pDecl
 	}
 	else
 	{
-		LOG(ERROR) << "> 'IDirect3DDevice9::CreateVertexShader' failed with '" << write_error_string(hr) << "'!";
+		LOG(ERROR) << "> 'IDirect3DDevice9::CreateVertexShader' failed with error code " << std::showbase << std::hex << hr << std::dec << std::noshowbase << "!";
 	}
 
 	if (FAILED(hr))
@@ -2667,7 +2625,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreatePixelShader(CONST DWORD *pFunct
 
 	if (FAILED(hr))
 	{
-		LOG(ERROR) << "> Failed to disassemble shader with '" << write_error_string(hr) << "'!";
+		LOG(ERROR) << "> Failed to disassemble shader with error code " << std::showbase << std::hex << hr << std::dec << std::noshowbase << "!";
 
 		return hr;
 	}
@@ -2704,7 +2662,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreatePixelShader(CONST DWORD *pFunct
 		}
 		else
 		{
-			LOG(ERROR) << "> Failed to reassemble shader with '" << write_error_string(hr) << "'!";
+			LOG(ERROR) << "> Failed to reassemble shader with error code " << std::showbase << std::hex << hr << std::dec << std::noshowbase << "!";
 		}
 
 		return hr;
@@ -2714,7 +2672,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreatePixelShader(CONST DWORD *pFunct
 
 	if (FAILED(hr))
 	{
-		LOG(ERROR) << "> 'IDirect3DDevice9::CreatePixelShader' failed with '" << write_error_string(hr) << "'!";
+		LOG(ERROR) << "> 'IDirect3DDevice9::CreatePixelShader' failed with error code " << std::showbase << std::hex << hr << std::dec << std::noshowbase << "!";
 	}
 
 	return hr;
