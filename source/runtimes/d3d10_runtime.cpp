@@ -2811,46 +2811,41 @@ namespace reshade
 			}
 		}
 
-		void d3d10_runtime::on_create_depthstencil_view(ID3D10Resource *resource, ID3D10DepthStencilView *depthstencil)
-		{
-			assert(resource != nullptr);
-			assert(depthstencil != nullptr);
-
-			// Do not track default depthstencil
-			if (!_is_initialized)
-			{
-				return;
-			}
-
-			ID3D10Texture2D *texture = nullptr;
-			const HRESULT hr = resource->QueryInterface(__uuidof(ID3D10Texture2D), reinterpret_cast<void **>(&texture));
-
-			if (FAILED(hr))
-			{
-				return;
-			}
-
-			D3D10_TEXTURE2D_DESC desc;
-			texture->GetDesc(&desc);
-
-			SAFE_RELEASE(texture);
-
-			// Early depthstencil rejection
-			if (desc.Width != _width || desc.Height != _height || desc.SampleDesc.Count > 1)
-			{
-				return;
-			}
-
-			LOG(TRACE) << "Adding depthstencil " << depthstencil << " (Width: " << desc.Width << ", Height: " << desc.Height << ", Format: " << desc.Format << ") to list of possible depth candidates ...";
-
-			depthstencil->AddRef();
-
-			// Begin tracking new depthstencil
-			const depth_source_info info = { desc.Width, desc.Height };
-			_depth_source_table.emplace(depthstencil, info);
-		}
 		void d3d10_runtime::on_set_depthstencil_view(ID3D10DepthStencilView *&depthstencil)
 		{
+			if (_depth_source_table.find(depthstencil) == _depth_source_table.end())
+			{
+				ID3D10Resource *resource;
+				ID3D10Texture2D *texture;
+				D3D10_TEXTURE2D_DESC texture_desc;
+
+				depthstencil->GetResource(&resource);
+
+				if (FAILED(resource->QueryInterface(&texture)))
+				{
+					resource->Release();
+					return;
+				}
+
+				texture->GetDesc(&texture_desc);
+				texture->Release();
+				resource->Release();
+
+				// Early depth-stencil rejection
+				if (texture_desc.Width != _width || texture_desc.Height != _height || texture_desc.SampleDesc.Count > 1)
+				{
+					return;
+				}
+
+				LOG(TRACE) << "Adding depth-stencil " << depthstencil << " (Width: " << texture_desc.Width << ", Height: " << texture_desc.Height << ", Format: " << texture_desc.Format << ") to list of possible depth candidates ...";
+
+				depthstencil->AddRef();
+
+				// Begin tracking new depth-stencil
+				const depth_source_info info = { texture_desc.Width, texture_desc.Height };
+				_depth_source_table.emplace(depthstencil, info);
+			}
+
 			if (_depthstencil_replacement != nullptr && depthstencil == _depthstencil)
 			{
 				depthstencil = _depthstencil_replacement;

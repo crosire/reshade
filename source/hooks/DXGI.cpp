@@ -330,7 +330,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Wi
 
 	if (!initialized)
 	{
-		LOG(ERROR) << "Failed to recreate Direct3D" << _direct3d_version << " runtime environment on runtime " << _runtime.get() << ".";
+		LOG(ERROR) << "Failed to recreate Direct3D " << _direct3d_version << " runtime environment on runtime " << _runtime.get() << ".";
 	}
 
 	return hr;
@@ -557,7 +557,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers1(UINT BufferCount, UINT W
 
 	if (!initialized)
 	{
-		LOG(ERROR) << "Failed to recreate Direct3D" << _direct3d_version << " runtime environment on runtime " << _runtime.get() << ".";
+		LOG(ERROR) << "Failed to recreate Direct3D " << _direct3d_version << " runtime environment on runtime " << _runtime.get() << ".";
 	}
 
 	return hr;
@@ -811,7 +811,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, I
 
 		if (!runtime->on_init(desc))
 		{
-			LOG(ERROR) << "Failed to initialize Direct3D10 runtime environment on runtime " << runtime.get() << ".";
+			LOG(ERROR) << "Failed to initialize Direct3D 10 runtime environment on runtime " << runtime.get() << ".";
 		}
 
 		device_d3d10->_runtimes.push_back(runtime);
@@ -826,7 +826,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, I
 
 		if (!runtime->on_init(desc))
 		{
-			LOG(ERROR) << "Failed to initialize Direct3D11 runtime environment on runtime " << runtime.get() << ".";
+			LOG(ERROR) << "Failed to initialize Direct3D 11 runtime environment on runtime " << runtime.get() << ".";
 		}
 
 		device_d3d11->_runtimes.push_back(runtime);
@@ -845,7 +845,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, I
 
 			if (!runtime->on_init(desc))
 			{
-				LOG(ERROR) << "Failed to initialize Direct3D12 runtime environment on runtime " << runtime.get() << ".";
+				LOG(ERROR) << "Failed to initialize Direct3D 12 runtime environment on runtime " << runtime.get() << ".";
 			}
 
 			*ppSwapChain = new DXGISwapChain(commandqueue_d3d12, swapchain, runtime);
@@ -928,7 +928,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pF
 
 		if (!runtime->on_init(desc))
 		{
-			LOG(ERROR) << "Failed to initialize Direct3D10 runtime environment on runtime " << runtime.get() << ".";
+			LOG(ERROR) << "Failed to initialize Direct3D 10 runtime environment on runtime " << runtime.get() << ".";
 		}
 
 		device_d3d10->_runtimes.push_back(runtime);
@@ -943,7 +943,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pF
 
 		if (!runtime->on_init(desc))
 		{
-			LOG(ERROR) << "Failed to initialize Direct3D11 runtime environment on runtime " << runtime.get() << ".";
+			LOG(ERROR) << "Failed to initialize Direct3D 11 runtime environment on runtime " << runtime.get() << ".";
 		}
 
 		device_d3d11->_runtimes.push_back(runtime);
@@ -962,7 +962,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pF
 
 			if (!runtime->on_init(desc))
 			{
-				LOG(ERROR) << "Failed to initialize Direct3D12 runtime environment on runtime " << runtime.get() << ".";
+				LOG(ERROR) << "Failed to initialize Direct3D 12 runtime environment on runtime " << runtime.get() << ".";
 			}
 
 			*ppSwapChain = new DXGISwapChain(commandqueue_d3d12, swapchain, runtime);
@@ -1043,7 +1043,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactor
 
 		if (!runtime->on_init(desc))
 		{
-			LOG(ERROR) << "Failed to initialize Direct3D10 runtime environment on runtime " << runtime.get() << ".";
+			LOG(ERROR) << "Failed to initialize Direct3D 10 runtime environment on runtime " << runtime.get() << ".";
 		}
 
 		device_d3d10->_runtimes.push_back(runtime);
@@ -1058,7 +1058,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactor
 
 		if (!runtime->on_init(desc))
 		{
-			LOG(ERROR) << "Failed to initialize Direct3D11 runtime environment on runtime " << runtime.get() << ".";
+			LOG(ERROR) << "Failed to initialize Direct3D 11 runtime environment on runtime " << runtime.get() << ".";
 		}
 
 		device_d3d11->_runtimes.push_back(runtime);
@@ -1077,7 +1077,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactor
 
 			if (!runtime->on_init(desc))
 			{
-				LOG(ERROR) << "Failed to initialize Direct3D12 runtime environment on runtime " << runtime.get() << ".";
+				LOG(ERROR) << "Failed to initialize Direct3D 12 runtime environment on runtime " << runtime.get() << ".";
 			}
 
 			*ppSwapChain = new DXGISwapChain(commandqueue_d3d12, swapchain, runtime);
@@ -1158,7 +1158,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFacto
 
 		if (!runtime->on_init(desc))
 		{
-			LOG(ERROR) << "Failed to initialize Direct3D10 runtime environment on runtime " << runtime.get() << ".";
+			LOG(ERROR) << "Failed to initialize Direct3D 10 runtime environment on runtime " << runtime.get() << ".";
 		}
 
 		device_d3d10->_runtimes.push_back(runtime);
@@ -1173,7 +1173,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFacto
 
 		if (!runtime->on_init(desc))
 		{
-			LOG(ERROR) << "Failed to initialize Direct3D11 runtime environment on runtime " << runtime.get() << ".";
+			LOG(ERROR) << "Failed to initialize Direct3D 11 runtime environment on runtime " << runtime.get() << ".";
 		}
 
 		device_d3d11->_runtimes.push_back(runtime);
@@ -1192,7 +1192,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFacto
 
 			if (!runtime->on_init(desc))
 			{
-				LOG(ERROR) << "Failed to initialize Direct3D12 runtime environment on runtime " << runtime.get() << ".";
+				LOG(ERROR) << "Failed to initialize Direct3D 12 runtime environment on runtime " << runtime.get() << ".";
 			}
 
 			*ppSwapChain = new DXGISwapChain(commandqueue_d3d12, swapchain, runtime);

@@ -1002,22 +1002,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateRenderTargetView(ID3D11Resource *pR
 }
 HRESULT STDMETHODCALLTYPE D3D11Device::CreateDepthStencilView(ID3D11Resource *pResource, const D3D11_DEPTH_STENCIL_VIEW_DESC *pDesc, ID3D11DepthStencilView **ppDepthStencilView)
 {
-	if (ppDepthStencilView == nullptr)
-	{
-		return E_INVALIDARG;
-	}
-
-	const HRESULT hr = _orig->CreateDepthStencilView(pResource, pDesc, ppDepthStencilView);
-
-	if (SUCCEEDED(hr))
-	{
-		for (auto runtime : _runtimes)
-		{
-			runtime->on_create_depthstencil_view(pResource, *ppDepthStencilView);
-		}
-	}
-
-	return hr;
+	return _orig->CreateDepthStencilView(pResource, pDesc, ppDepthStencilView);
 }
 HRESULT STDMETHODCALLTYPE D3D11Device::CreateInputLayout(const D3D11_INPUT_ELEMENT_DESC *pInputElementDescs, UINT NumElements, const void *pShaderBytecodeWithInputSignature, SIZE_T BytecodeLength, ID3D11InputLayout **ppInputLayout)
 {

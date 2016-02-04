@@ -350,7 +350,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateAdditionalSwapChain(D3DPRESENT_
 
 	if (!runtime->on_init(pp))
 	{
-		LOG(ERROR) << "Failed to initialize Direct3D9 runtime environment on runtime " << runtime.get() << ".";
+		LOG(ERROR) << "Failed to initialize Direct3D 9 runtime environment on runtime " << runtime.get() << ".";
 	}
 
 	AddRef();
@@ -428,7 +428,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Reset(D3DPRESENT_PARAMETERS *pPresent
 
 	if (!runtime->on_init(pp))
 	{
-		LOG(ERROR) << "Failed to recreate Direct3D9 runtime environment on runtime " << runtime.get() << ".";
+		LOG(ERROR) << "Failed to recreate Direct3D 9 runtime environment on runtime " << runtime.get() << ".";
 	}
 
 	if (pp.EnableAutoDepthStencil)
@@ -1118,7 +1118,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ResetEx(D3DPRESENT_PARAMETERS *pPrese
 
 	if (!runtime->on_init(pp))
 	{
-		LOG(ERROR) << "Failed to recreate Direct3D9 runtime environment on runtime " << runtime.get() << ".";
+		LOG(ERROR) << "Failed to recreate Direct3D 9 runtime environment on runtime " << runtime.get() << ".";
 	}
 
 	if (pp.EnableAutoDepthStencil)
@@ -1197,7 +1197,7 @@ HRESULT STDMETHODCALLTYPE IDirect3D9_CreateDevice(IDirect3D9 *pD3D, UINT Adapter
 
 		if (!runtime->on_init(pp))
 		{
-			LOG(ERROR) << "Failed to initialize Direct3D9 runtime environment on runtime " << runtime.get() << ".";
+			LOG(ERROR) << "Failed to initialize Direct3D 9 runtime environment on runtime " << runtime.get() << ".";
 		}
 
 		const auto device_proxy = new Direct3DDevice9(device);
@@ -1274,7 +1274,7 @@ HRESULT STDMETHODCALLTYPE IDirect3D9Ex_CreateDeviceEx(IDirect3D9Ex *pD3D, UINT A
 
 		if (!runtime->on_init(pp))
 		{
-			LOG(ERROR) << "Failed to initialize Direct3D9 runtime environment on runtime " << runtime.get() << ".";
+			LOG(ERROR) << "Failed to initialize Direct3D 9 runtime environment on runtime " << runtime.get() << ".";
 		}
 
 		const auto device_proxy = new Direct3DDevice9(device);
