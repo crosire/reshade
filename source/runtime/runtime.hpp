@@ -190,7 +190,7 @@ namespace reshade
 		int timeout, timeleft;
 		int toggle_key, toggle_time;
 		bool toggle_key_ctrl, toggle_key_shift, toggle_key_alt;
-		utils::moving_average<unsigned long long, 500> average_duration;
+		utils::moving_average<uint64_t, 512> average_duration;
 	};
 
 	// ---------------------------------------------------------------------------------------------------
@@ -198,14 +198,6 @@ namespace reshade
 	class runtime abstract
 	{
 	public:
-		struct statistics
-		{
-			utils::moving_average<unsigned long long, 100> frametime;
-			unsigned long long framecount;
-			unsigned int drawcalls, vertices;
-			float date[4];
-		};
-
 		/// <summary>
 		/// Initialize ReShade. Registers hooks and starts logging.
 		/// </summary>
@@ -332,7 +324,8 @@ namespace reshade
 		bool _is_initialized, _is_effect_compiled;
 		unsigned int _width, _height;
 		unsigned int _vendor_id, _device_id;
-		statistics _stats;
+		uint64_t _framecount;
+		unsigned int _drawcalls, _vertices;
 		std::unique_ptr<gui> _gui;
 		std::shared_ptr<class input> _input;
 		std::vector<std::unique_ptr<texture>> _textures;
@@ -350,6 +343,8 @@ namespace reshade
 		std::vector<boost::filesystem::path> _included_files;
 		boost::chrono::high_resolution_clock::time_point _start_time, _last_create, _last_present;
 		boost::chrono::high_resolution_clock::duration _last_frame_duration, _last_postprocessing_duration;
+		utils::moving_average<uint64_t, 128> _average_frametime;
+		float _date[4];
 		unsigned int _compile_step, _compile_count;
 		std::string _status, _errors, _message, _effect_source;
 		std::string _screenshot_format;

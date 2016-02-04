@@ -2585,7 +2585,7 @@ namespace reshade
 				LOG(TRACE) << "Failed to present! Runtime is in a lost state.";
 				return;
 			}
-			else if (_stats.drawcalls == 0)
+			else if (_drawcalls == 0)
 			{
 				return;
 			}
@@ -2669,7 +2669,7 @@ namespace reshade
 
 				if (it != _depth_source_table.end())
 				{
-					it->second.drawcall_count = static_cast<FLOAT>(_stats.drawcalls);
+					it->second.drawcall_count = static_cast<FLOAT>(_drawcalls);
 					it->second.vertices_count += vertices;
 				}
 			}
@@ -3066,7 +3066,7 @@ namespace reshade
 				{
 					continue;
 				}
-				else if ((it.second.vertices_count * (1.2f - it.second.drawcall_count / _stats.drawcalls)) >= (bestInfo.vertices_count * (1.2f - bestInfo.drawcall_count / _stats.drawcalls)))
+				else if ((it.second.vertices_count * (1.2f - it.second.drawcall_count / _drawcalls)) >= (bestInfo.vertices_count * (1.2f - bestInfo.drawcall_count / _drawcalls)))
 				{
 					best = it.first;
 					bestInfo = it.second;

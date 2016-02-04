@@ -25,13 +25,8 @@ namespace reshade
 			void append(T value)
 			{
 				_tick_sum -= _tick_list[_index];
-				_tick_sum += _tick_list[_index++] = value;
-
-				if (_index >= SAMPLES)
-				{
-					_index = 0;
-				}
-
+				_tick_sum += _tick_list[_index] = value;
+				_index = ++_index % SAMPLES;
 				_average = _tick_sum / SAMPLES;
 			}
 

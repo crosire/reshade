@@ -2420,7 +2420,7 @@ namespace reshade
 
 				if (it != _depth_source_table.end())
 				{
-					it->second.drawcall_count = static_cast<FLOAT>(_stats.drawcalls);
+					it->second.drawcall_count = static_cast<FLOAT>(_drawcalls);
 					it->second.vertices_count += vertices;
 				}
 			}
@@ -2789,7 +2789,7 @@ namespace reshade
 				{
 					continue;
 				}
-				else if ((it->second.vertices_count * (1.2f - it->second.drawcall_count / _stats.drawcalls)) >= (best_info.vertices_count * (1.2f - best_info.drawcall_count / _stats.drawcalls)))
+				else if ((it->second.vertices_count * (1.2f - it->second.drawcall_count / _drawcalls)) >= (best_info.vertices_count * (1.2f - best_info.drawcall_count / _drawcalls)))
 				{
 					best_match = it->first;
 					best_info = it->second;

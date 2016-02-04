@@ -106,7 +106,7 @@ namespace reshade
 
 	// ---------------------------------------------------------------------------------------------------
 
-	runtime::runtime(unsigned int renderer) : _is_initialized(false), _is_effect_compiled(false), _width(0), _height(0), _vendor_id(0), _device_id(0), _renderer_id(renderer), _stats(), _input(nullptr), _compile_step(0), _compile_count(0), _screenshot_format("png"), _screenshot_path(s_executable_path.parent_path()), _screenshot_key(VK_SNAPSHOT), _show_statistics(false), _show_fps(false), _show_clock(false), _show_toggle_message(false), _show_info_messages(true)
+	runtime::runtime(unsigned int renderer) : _is_initialized(false), _is_effect_compiled(false), _width(0), _height(0), _vendor_id(0), _device_id(0), _renderer_id(renderer), _framecount(0), _drawcalls(0), _vertices(0), _input(nullptr), _date(), _compile_step(0), _compile_count(0), _screenshot_format("png"), _screenshot_path(s_executable_path.parent_path()), _screenshot_key(VK_SNAPSHOT), _show_statistics(false), _show_fps(false), _show_clock(false), _show_toggle_message(false), _show_info_messages(true)
 	{
 		_status = "Initializing ...";
 		_start_time = boost::chrono::high_resolution_clock::now();
@@ -282,17 +282,17 @@ namespace reshade
 			}
 			if (_show_fps)
 			{
-				stats << (1e9f / _stats.frametime) << std::endl;
+				stats << (1e9f / _average_frametime) << std::endl;
 			}
 			if (_show_statistics)
 			{
 				stats << "General" << std::endl << "-------" << std::endl;
 				stats << "Application: " << std::hash<std::string>()(s_executable_path.stem().string()) << std::endl;
-				stats << "Date: " << static_cast<int>(_stats.date[0]) << '-' << static_cast<int>(_stats.date[1]) << '-' << static_cast<int>(_stats.date[2]) << ' ' << static_cast<int>(_stats.date[3]) << '\n';
+				stats << "Date: " << static_cast<int>(_date[0]) << '-' << static_cast<int>(_date[1]) << '-' << static_cast<int>(_date[2]) << ' ' << static_cast<int>(_date[3]) << '\n';
 				stats << "Device: " << std::hex << std::uppercase << _vendor_id << ' ' << _device_id << std::nouppercase << std::dec << std::endl;
-				stats << "FPS: " << (1e9f / _stats.frametime) << std::endl;
-				stats << "Draw Calls: " << _stats.drawcalls << " (" << _stats.vertices << " vertices)" << std::endl;
-				stats << "Frame " << (_stats.framecount + 1) << ": " << (frametime.count() * 1e-6f) << "ms" << std::endl;
+				stats << "FPS: " << (1e9f / _average_frametime) << std::endl;
+				stats << "Draw Calls: " << _drawcalls << " (" << _vertices << " vertices)" << std::endl;
+				stats << "Frame " << (_framecount + 1) << ": " << (frametime.count() * 1e-6f) << "ms" << std::endl;
 				stats << "PostProcessing: " << (boost::chrono::duration_cast<boost::chrono::nanoseconds>(_last_postprocessing_duration).count() * 1e-6f) << "ms" << std::endl;
 				stats << "Timer: " << std::fmod(boost::chrono::duration_cast<boost::chrono::nanoseconds>(_last_present - _start_time).count() * 1e-6f, 16777216.0f) << "ms" << std::endl;
 				stats << "Network: " << s_network_upload << "B up" << std::endl;
@@ -330,21 +330,21 @@ namespace reshade
 		s_network_upload = 0;
 		_last_present = time_present;
 		_last_frame_duration = frametime;
-		_stats.framecount++;
-		_stats.drawcalls = _stats.vertices = 0;
-		_stats.frametime.append(frametime.count());
-		_stats.date[0] = static_cast<float>(tm.tm_year + 1900);
-		_stats.date[1] = static_cast<float>(tm.tm_mon + 1);
-		_stats.date[2] = static_cast<float>(tm.tm_mday);
-		_stats.date[3] = static_cast<float>(tm.tm_hour * 3600 + tm.tm_min * 60 + tm.tm_sec);
+		_framecount++;
+		_drawcalls = _vertices = 0;
+		_average_frametime.append(frametime.count());
+		_date[0] = static_cast<float>(tm.tm_year + 1900);
+		_date[1] = static_cast<float>(tm.tm_mon + 1);
+		_date[2] = static_cast<float>(tm.tm_mday);
+		_date[3] = static_cast<float>(tm.tm_hour * 3600 + tm.tm_min * 60 + tm.tm_sec);
 		#pragma endregion
 
 		_input->next_frame();
 	}
 	void runtime::on_draw_call(unsigned int vertices)
 	{
-		_stats.vertices += vertices;
-		_stats.drawcalls += 1;
+		_vertices += vertices;
+		_drawcalls += 1;
 	}
 	void runtime::on_apply_effect()
 	{
@@ -369,20 +369,20 @@ namespace reshade
 				{
 					case uniform::datatype::bool_:
 					{
-						const bool even = (_stats.framecount % 2) == 0;
+						const bool even = (_framecount % 2) == 0;
 						set_uniform_value(*variable, &even, 1);
 						break;
 					}
 					case uniform::datatype::int_:
 					case uniform::datatype::uint_:
 					{
-						const unsigned int framecount = static_cast<unsigned int>(_stats.framecount % UINT_MAX);
+						const unsigned int framecount = static_cast<unsigned int>(_framecount % UINT_MAX);
 						set_uniform_value(*variable, &framecount, 1);
 						break;
 					}
 					case uniform::datatype::float_:
 					{
-						const float framecount = static_cast<float>(_stats.framecount % 16777216);
+						const float framecount = static_cast<float>(_framecount % 16777216);
 						set_uniform_value(*variable, &framecount, 1);
 						break;
 					}
@@ -425,7 +425,7 @@ namespace reshade
 			}
 			else if (source == "date")
 			{
-				set_uniform_value(*variable, _stats.date, 4);
+				set_uniform_value(*variable, _date, 4);
 			}
 			else if (source == "timer")
 			{
@@ -497,7 +497,7 @@ namespace reshade
 
 		for (const auto &technique : _techniques)
 		{
-			if (technique->toggle_time != 0 && technique->toggle_time == static_cast<int>(_stats.date[3]))
+			if (technique->toggle_time != 0 && technique->toggle_time == static_cast<int>(_date[3]))
 			{
 				technique->enabled = !technique->enabled;
 				technique->timeleft = technique->timeout;

@@ -3112,7 +3112,7 @@ namespace reshade
 				LOG(TRACE) << "Failed to present! Runtime is in a lost state.";
 				return;
 			}
-			else if (_stats.drawcalls == 0)
+			else if (_drawcalls == 0)
 			{
 				return;
 			}
@@ -3178,7 +3178,7 @@ namespace reshade
 
 			if (it != _depth_source_table.end())
 			{
-				it->second.drawcall_count = static_cast<GLfloat>(_stats.drawcalls);
+				it->second.drawcall_count = static_cast<GLfloat>(_drawcalls);
 				it->second.vertices_count += vertices;
 			}
 		}
@@ -3509,7 +3509,7 @@ namespace reshade
 				{
 					continue;
 				}
-				else if (((it.second.vertices_count * (1.2f - it.second.drawcall_count / _stats.drawcalls)) >= (bestInfo.vertices_count * (1.2f - bestInfo.drawcall_count / _stats.drawcalls))) && ((it.second.width > _width * 0.95 && it.second.width < _width * 1.05) && (it.second.height > _height * 0.95 && it.second.height < _height * 1.05)))
+				else if (((it.second.vertices_count * (1.2f - it.second.drawcall_count / _drawcalls)) >= (bestInfo.vertices_count * (1.2f - bestInfo.drawcall_count / _drawcalls))) && ((it.second.width > _width * 0.95 && it.second.width < _width * 1.05) && (it.second.height > _height * 0.95 && it.second.height < _height * 1.05)))
 				{
 					best = it.first;
 					bestInfo = it.second;

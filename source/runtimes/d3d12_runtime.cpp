@@ -55,7 +55,7 @@ namespace reshade
 				LOG(TRACE) << "Failed to present! Runtime is in a lost state.";
 				return;
 			}
-			else if (_stats.drawcalls == 0)
+			else if (_drawcalls == 0)
 			{
 				return;
 			}
