@@ -3602,6 +3602,11 @@ namespace reshade
 
 				GLCHECK(glGenTextures(1, &_depth_texture));
 
+				if (format == GL_DEPTH_STENCIL)
+				{
+					format = GL_UNSIGNED_INT_24_8;
+				}
+
 				GLCHECK(glBindTexture(GL_TEXTURE_2D, _depth_texture));
 				glTexStorage2D(GL_TEXTURE_2D, 1, format, width, height);
 
