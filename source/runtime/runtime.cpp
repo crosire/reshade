@@ -352,7 +352,7 @@ namespace reshade
 
 		for (const auto &variable : _uniforms)
 		{
-			const std::string source = variable->annotations["source"].as<std::string>();
+			const auto source = variable->annotations["source"].as<std::string>();
 
 			if (source.empty())
 			{

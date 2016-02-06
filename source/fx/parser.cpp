@@ -3432,7 +3432,7 @@ namespace reshade
 		}
 		bool parser::parse_technique_pass(pass_declaration_node *&pass)
 		{
-			if (!accept(lexer::tokenid::pass))
+			if (!expect(lexer::tokenid::pass))
 			{
 				return false;
 			}
