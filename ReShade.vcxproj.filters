@@ -117,6 +117,9 @@
     <ClCompile Include="source\utils\d3d11_stateblock.cpp">
       <Filter>runtimes\utils</Filter>
     </ClCompile>
+    <ClCompile Include="source\utils\gl_stateblock.cpp">
+      <Filter>runtimes\utils</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="source\log.hpp">
@@ -204,6 +207,9 @@
       <Filter>runtimes\utils</Filter>
     </ClInclude>
     <ClInclude Include="source\utils\d3d11_stateblock.hpp">
+      <Filter>runtimes\utils</Filter>
+    </ClInclude>
+    <ClInclude Include="source\utils\gl_stateblock.hpp">
       <Filter>runtimes\utils</Filter>
     </ClInclude>
   </ItemGroup>

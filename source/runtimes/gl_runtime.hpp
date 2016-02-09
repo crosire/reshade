@@ -1,6 +1,7 @@
 #pragma once
 
 #include "runtime.hpp"
+#include "utils\gl_stateblock.hpp"
 
 #include <algorithm>
 #include <gl\gl3w.h>
@@ -45,7 +46,7 @@ namespace reshade
 			void detect_depth_source();
 			void create_depth_texture(GLuint width, GLuint height, GLenum format);
 
-			std::unique_ptr<class gl_stateblock> _stateblock;
+			utils::gl_stateblock _stateblock;
 			std::unordered_map<GLuint, depth_source_info> _depth_source_table;
 		};
 	}

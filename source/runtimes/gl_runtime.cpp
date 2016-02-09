@@ -2745,124 +2745,9 @@ namespace reshade
 			}
 		}
 
-		class gl_stateblock
-		{
-		public:
-			gl_stateblock()
-			{
-				ZeroMemory(this, sizeof(*this));
-			}
-
-			void capture()
-			{
-				GLCHECK(glGetIntegerv(GL_VIEWPORT, _viewport));
-				GLCHECK(_stencil_test = glIsEnabled(GL_STENCIL_TEST));
-				GLCHECK(_scissor_test = glIsEnabled(GL_SCISSOR_TEST));
-				GLCHECK(glGetIntegerv(GL_FRONT_FACE, reinterpret_cast<GLint *>(&_frontface)));
-				GLCHECK(glGetIntegerv(GL_POLYGON_MODE, reinterpret_cast<GLint *>(&_polygon_mode)));
-				GLCHECK(_cullface = glIsEnabled(GL_CULL_FACE));
-				GLCHECK(glGetIntegerv(GL_CULL_FACE_MODE, reinterpret_cast<GLint *>(&_cullface_mode)));
-				GLCHECK(glGetBooleanv(GL_COLOR_WRITEMASK, _color_mask));
-				GLCHECK(_srgb = glIsEnabled(GL_FRAMEBUFFER_SRGB));
-				GLCHECK(_blend = glIsEnabled(GL_BLEND));
-				GLCHECK(glGetIntegerv(GL_BLEND_SRC, reinterpret_cast<GLint *>(&_blend_func_src)));
-				GLCHECK(glGetIntegerv(GL_BLEND_DST, reinterpret_cast<GLint *>(&_blend_func_dest)));
-				GLCHECK(glGetIntegerv(GL_BLEND_EQUATION_RGB, reinterpret_cast<GLint *>(&_blend_eq_color)));
-				GLCHECK(glGetIntegerv(GL_BLEND_EQUATION_ALPHA, reinterpret_cast<GLint *>(&_blend_eq_alpha)));
-				GLCHECK(_depth_test = glIsEnabled(GL_DEPTH_TEST));
-				GLCHECK(glGetBooleanv(GL_DEPTH_WRITEMASK, &_depth_mask));
-				GLCHECK(glGetIntegerv(GL_DEPTH_FUNC, reinterpret_cast<GLint *>(&_depth_func)));
-				GLCHECK(glGetIntegerv(GL_STENCIL_VALUE_MASK, reinterpret_cast<GLint *>(&_stencil_read_mask)));
-				GLCHECK(glGetIntegerv(GL_STENCIL_WRITEMASK, reinterpret_cast<GLint *>(&_stencil_mask)));
-				GLCHECK(glGetIntegerv(GL_STENCIL_FUNC, reinterpret_cast<GLint *>(&_stencil_func)));
-				GLCHECK(glGetIntegerv(GL_STENCIL_FAIL, reinterpret_cast<GLint *>(&_stencil_op_fail)));
-				GLCHECK(glGetIntegerv(GL_STENCIL_PASS_DEPTH_FAIL, reinterpret_cast<GLint *>(&_stencil_op_zfail)));
-				GLCHECK(glGetIntegerv(GL_STENCIL_PASS_DEPTH_PASS, reinterpret_cast<GLint *>(&_stencil_op_zpass)));
-				GLCHECK(glGetIntegerv(GL_STENCIL_REF, &_stencil_ref));
-				GLCHECK(glGetIntegerv(GL_ACTIVE_TEXTURE, reinterpret_cast<GLint *>(&_active_texture)));
-
-				for (GLuint i = 0; i < 8; ++i)
-				{
-					glGetIntegerv(GL_DRAW_BUFFER0 + i, reinterpret_cast<GLint *>(&_drawbuffers[i]));
-				}
-
-				GLCHECK(glGetIntegerv(GL_CURRENT_PROGRAM, reinterpret_cast<GLint *>(&_program)));
-				GLCHECK(glGetIntegerv(GL_FRAMEBUFFER_BINDING, reinterpret_cast<GLint *>(&_fbo)));
-				GLCHECK(glGetIntegerv(GL_VERTEX_ARRAY_BINDING, reinterpret_cast<GLint *>(&_vao)));
-				GLCHECK(glGetIntegerv(GL_ARRAY_BUFFER_BINDING, reinterpret_cast<GLint *>(&_vbo)));
-				GLCHECK(glGetIntegerv(GL_UNIFORM_BUFFER_BINDING, reinterpret_cast<GLint *>(&_ubo)));
-				
-				for (GLuint i = 0; i < ARRAYSIZE(_textures2d); ++i)
-				{
-					glActiveTexture(GL_TEXTURE0 + i);
-					glGetIntegerv(GL_TEXTURE_BINDING_2D, reinterpret_cast<GLint *>(&_textures2d[i]));
-					glGetIntegerv(GL_SAMPLER_BINDING, reinterpret_cast<GLint *>(&_samplers[i]));
-				}
-			}
-			void apply() const
-			{
-				GLCHECK(glUseProgram(glIsProgram(_program) ? _program : 0));
-				GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, glIsFramebuffer(_fbo) ? _fbo : 0));
-				GLCHECK(glBindVertexArray(glIsVertexArray(_vao) ? _vao : 0));
-				GLCHECK(glBindBuffer(GL_ARRAY_BUFFER, glIsBuffer(_vbo) ? _vbo : 0));
-				GLCHECK(glBindBuffer(GL_UNIFORM_BUFFER, glIsBuffer(_ubo) ? _ubo : 0));
-
-				for (GLuint i = 0; i < ARRAYSIZE(_textures2d); ++i)
-				{
-					GLCHECK(glActiveTexture(GL_TEXTURE0 + i));
-					GLCHECK(glBindTexture(GL_TEXTURE_2D, glIsTexture(_textures2d[i]) ? _textures2d[i] : 0));
-					GLCHECK(glBindSampler(i, glIsSampler(_samplers[i]) ? _samplers[i] : 0));
-				}
-
-	#define glEnableb(cap, value) if ((value)) glEnable(cap); else glDisable(cap);
-
-				GLCHECK(glViewport(_viewport[0], _viewport[1], _viewport[2], _viewport[3]));
-				GLCHECK(glEnableb(GL_STENCIL_TEST, _stencil_test));
-				GLCHECK(glEnableb(GL_SCISSOR_TEST, _scissor_test));
-				GLCHECK(glFrontFace(_frontface));
-				GLCHECK(glPolygonMode(GL_FRONT_AND_BACK, _polygon_mode));
-				GLCHECK(glEnableb(GL_CULL_FACE, _cullface));
-				GLCHECK(glCullFace(_cullface_mode));
-				GLCHECK(glColorMask(_color_mask[0], _color_mask[1], _color_mask[2], _color_mask[3]));
-				GLCHECK(glEnableb(GL_FRAMEBUFFER_SRGB, _srgb));
-				GLCHECK(glEnableb(GL_BLEND, _blend));
-				GLCHECK(glBlendFunc(_blend_func_src, _blend_func_dest));
-				GLCHECK(glBlendEquationSeparate(_blend_eq_color, _blend_eq_alpha));
-				GLCHECK(glEnableb(GL_DEPTH_TEST, _depth_test));
-				GLCHECK(glDepthMask(_depth_mask));
-				GLCHECK(glDepthFunc(_depth_func));
-				GLCHECK(glStencilMask(_stencil_mask));
-				GLCHECK(glStencilFunc(_stencil_func, _stencil_ref, _stencil_read_mask));
-				GLCHECK(glStencilOp(_stencil_op_fail, _stencil_op_zfail, _stencil_op_zpass));
-				GLCHECK(glActiveTexture(_active_texture));
-
-				if (_drawbuffers[1] == GL_NONE &&
-					_drawbuffers[2] == GL_NONE &&
-					_drawbuffers[3] == GL_NONE &&
-					_drawbuffers[4] == GL_NONE &&
-					_drawbuffers[5] == GL_NONE &&
-					_drawbuffers[6] == GL_NONE &&
-					_drawbuffers[7] == GL_NONE)
-				{
-					glDrawBuffer(_drawbuffers[0]);
-				}
-				else
-				{
-					glDrawBuffers(8, _drawbuffers);
-				}
-			}
-
-		private:
-			GLint _stencil_ref, _viewport[4];
-			GLuint _stencil_mask, _stencil_read_mask;
-			GLuint _program, _fbo, _vao, _vbo, _ubo, _textures2d[8], _samplers[8];
-			GLenum _drawbuffers[8], _cullface, _cullface_mode, _polygon_mode, _blend_eq_color, _blend_eq_alpha, _blend_func_src, _blend_func_dest, _depth_func, _stencil_func, _stencil_op_fail, _stencil_op_zfail, _stencil_op_zpass, _frontface, _active_texture;
-			GLboolean _scissor_test, _blend, _depth_test, _depth_mask, _stencil_test, _color_mask[4], _srgb;
-		};
-
 		// ---------------------------------------------------------------------------------------------------
 
-		gl_runtime::gl_runtime(HDC device) : runtime(get_renderer_id()), _hdc(device), _reference_count(1), _stateblock(new gl_stateblock), _default_backbuffer_fbo(0), _default_backbuffer_rbo(), _backbuffer_texture(), _depth_source_fbo(0), _depth_source(0), _depth_texture(0), _blit_fbo(0), _default_vao(0), _default_vbo(0), _effect_ubo(0)
+		gl_runtime::gl_runtime(HDC device) : runtime(get_renderer_id()), _hdc(device), _reference_count(1), _default_backbuffer_fbo(0), _default_backbuffer_rbo(), _backbuffer_texture(), _depth_source_fbo(0), _depth_source(0), _depth_texture(0), _blit_fbo(0), _default_vao(0), _default_vbo(0), _effect_ubo(0)
 		{
 			_vendor_id = 0;
 			_device_id = 0;
@@ -2923,7 +2808,7 @@ namespace reshade
 			// Clear errors
 			GLenum status = glGetError();
 
-			_stateblock->capture();
+			_stateblock.capture();
 
 			#pragma region Generate backbuffer targets
 			GLCHECK(glGenRenderbuffers(2, _default_backbuffer_rbo));
@@ -3051,7 +2936,7 @@ namespace reshade
 
 			_gui.reset(new gui(this, nvgCreateGL3(0)));
 
-			_stateblock->apply();
+			_stateblock.apply();
 
 			return runtime::on_init();
 		}
@@ -3122,7 +3007,7 @@ namespace reshade
 			detect_depth_source();
 
 			// Capture states
-			_stateblock->capture();
+			_stateblock.capture();
 
 			// Copy backbuffer
 			GLCHECK(glBindFramebuffer(GL_READ_FRAMEBUFFER, 0));
@@ -3153,7 +3038,7 @@ namespace reshade
 			runtime::on_present();
 
 			// Apply states
-			_stateblock->apply();
+			_stateblock.apply();
 		}
 		void gl_runtime::on_draw_call(unsigned int vertices)
 		{
@@ -3231,19 +3116,19 @@ namespace reshade
 			{
 				// Setup states
 				GLCHECK(glUseProgram(pass.Program));
-				GLCHECK(glEnableb(GL_FRAMEBUFFER_SRGB, pass.FramebufferSRGB));
+				GLCHECK(pass.FramebufferSRGB ? glEnable(GL_FRAMEBUFFER_SRGB) : glDisable(GL_FRAMEBUFFER_SRGB));
 				GLCHECK(glDisable(GL_SCISSOR_TEST));
 				GLCHECK(glFrontFace(GL_CCW));
 				GLCHECK(glPolygonMode(GL_FRONT_AND_BACK, GL_FILL));
 				GLCHECK(glDisable(GL_CULL_FACE));
 				GLCHECK(glColorMask(pass.ColorMaskR, pass.ColorMaskG, pass.ColorMaskB, pass.ColorMaskA));
-				GLCHECK(glEnableb(GL_BLEND, pass.Blend));
+				GLCHECK(pass.Blend ? glEnable(GL_BLEND) : glDisable(GL_BLEND));
 				GLCHECK(glBlendFunc(pass.BlendFuncSrc, pass.BlendFuncDest));
 				GLCHECK(glBlendEquationSeparate(pass.BlendEqColor, pass.BlendEqAlpha));
-				GLCHECK(glEnableb(GL_DEPTH_TEST, pass.DepthTest));
+				GLCHECK(pass.DepthTest ? glEnable(GL_DEPTH_TEST) : glDisable(GL_DEPTH_TEST));
 				GLCHECK(glDepthMask(pass.DepthMask));
 				GLCHECK(glDepthFunc(pass.DepthFunc));
-				GLCHECK(glEnableb(GL_STENCIL_TEST, pass.StencilTest));
+				GLCHECK(pass.StencilTest ? glEnable(GL_STENCIL_TEST) : glDisable(GL_STENCIL_TEST));
 				GLCHECK(glStencilFunc(pass.StencilFunc, pass.StencilRef, pass.StencilReadMask));
 				GLCHECK(glStencilOp(pass.StencilOpFail, pass.StencilOpZFail, pass.StencilOpZPass));
 				GLCHECK(glStencilMask(pass.StencilMask));
