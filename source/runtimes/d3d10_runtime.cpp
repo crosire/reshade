@@ -2074,171 +2074,9 @@ namespace reshade
 			}
 		}
 
-		class d3d10_stateblock
-		{
-		public:
-			d3d10_stateblock(ID3D10Device *device)
-			{
-				ZeroMemory(this, sizeof(d3d10_stateblock));
-
-				_device = device;
-				_device->AddRef();
-			}
-			~d3d10_stateblock()
-			{
-				release_all_device_objects();
-
-				_device->Release();
-			}
-
-			void capture()
-			{
-				release_all_device_objects();
-
-				_device->IAGetPrimitiveTopology(&_IAPrimitiveTopology);
-				_device->IAGetInputLayout(&_IAInputLayout);
-
-				_device->IAGetVertexBuffers(0, D3D10_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT, _IAVertexBuffers, _IAVertexStrides, _IAVertexOffsets);
-				_device->IAGetIndexBuffer(&_IAIndexBuffer, &_IAIndexFormat, &_IAIndexOffset);
-
-				_device->RSGetState(&_RSState);
-				_device->RSGetViewports(&_RSNumViewports, nullptr);
-				_device->RSGetViewports(&_RSNumViewports, _RSViewports);
-
-				_device->VSGetShader(&_VS);
-				_device->VSGetConstantBuffers(0, D3D10_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT, _VSConstantBuffers);
-				_device->VSGetSamplers(0, D3D10_COMMONSHADER_SAMPLER_SLOT_COUNT, _VSSamplerStates);
-				_device->VSGetShaderResources(0, D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, _VSShaderResources);
-
-				_device->GSGetShader(&_GS);
-
-				_device->PSGetShader(&_PS);
-				_device->PSGetConstantBuffers(0, D3D10_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT, _PSConstantBuffers);
-				_device->PSGetSamplers(0, D3D10_COMMONSHADER_SAMPLER_SLOT_COUNT, _PSSamplerStates);
-				_device->PSGetShaderResources(0, D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, _PSShaderResources);
-
-				_device->OMGetBlendState(&_OMBlendState, _OMBlendFactor, &_OMSampleMask);
-				_device->OMGetDepthStencilState(&_OMDepthStencilState, &_OMStencilRef);
-				_device->OMGetRenderTargets(D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, _OMRenderTargets, &_OMDepthStencil);
-			}
-			void apply()
-			{
-				_device->IASetPrimitiveTopology(_IAPrimitiveTopology);
-				_device->IASetInputLayout(_IAInputLayout);
-
-				_device->IASetVertexBuffers(0, D3D10_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT, _IAVertexBuffers, _IAVertexStrides, _IAVertexOffsets);
-				_device->IASetIndexBuffer(_IAIndexBuffer, _IAIndexFormat, _IAIndexOffset);
-
-				_device->RSSetState(_RSState);
-				_device->RSSetViewports(_RSNumViewports, _RSViewports);
-
-				_device->VSSetShader(_VS);
-				_device->VSSetConstantBuffers(0, D3D10_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT, _VSConstantBuffers);
-				_device->VSSetSamplers(0, D3D10_COMMONSHADER_SAMPLER_SLOT_COUNT, _VSSamplerStates);
-				_device->VSSetShaderResources(0, D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, _VSShaderResources);
-
-				_device->GSSetShader(_GS);
-
-				_device->PSSetShader(_PS);
-				_device->PSSetConstantBuffers(0, D3D10_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT, _PSConstantBuffers);
-				_device->PSSetSamplers(0, D3D10_COMMONSHADER_SAMPLER_SLOT_COUNT, _PSSamplerStates);
-				_device->PSSetShaderResources(0, D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, _PSShaderResources);
-
-				_device->OMSetBlendState(_OMBlendState, _OMBlendFactor, _OMSampleMask);
-				_device->OMSetDepthStencilState(_OMDepthStencilState, _OMStencilRef);
-				_device->OMSetRenderTargets(D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, _OMRenderTargets, _OMDepthStencil);
-			}
-			void release_all_device_objects()
-			{
-				SAFE_RELEASE(_IAInputLayout);
-
-				for (UINT i = 0; i < D3D10_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT; ++i)
-				{
-					SAFE_RELEASE(_IAVertexBuffers[i]);
-				}
-
-				SAFE_RELEASE(_IAIndexBuffer);
-
-				SAFE_RELEASE(_VS);
-
-				for (UINT i = 0; i < D3D10_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT; ++i)
-				{
-					SAFE_RELEASE(_VSConstantBuffers[i]);
-				}
-				for (UINT i = 0; i < D3D10_COMMONSHADER_SAMPLER_SLOT_COUNT; ++i)
-				{
-					SAFE_RELEASE(_VSSamplerStates[i]);
-				}
-				for (UINT i = 0; i < D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT; ++i)
-				{
-					SAFE_RELEASE(_VSShaderResources[i]);
-				}
-
-				SAFE_RELEASE(_GS);
-
-				SAFE_RELEASE(_RSState);
-
-				SAFE_RELEASE(_PS);
-
-				for (UINT i = 0; i < D3D10_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT; ++i)
-				{
-					SAFE_RELEASE(_PSConstantBuffers[i]);
-				}
-				for (UINT i = 0; i < D3D10_COMMONSHADER_SAMPLER_SLOT_COUNT; ++i)
-				{
-					SAFE_RELEASE(_PSSamplerStates[i]);
-				}
-				for (UINT i = 0; i < D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT; ++i)
-				{
-					SAFE_RELEASE(_PSShaderResources[i]);
-				}
-
-				SAFE_RELEASE(_OMBlendState);
-				SAFE_RELEASE(_OMDepthStencilState);
-
-				for (UINT i = 0; i < D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT; ++i)
-				{
-					SAFE_RELEASE(_OMRenderTargets[i]);
-				}
-
-				SAFE_RELEASE(_OMDepthStencil);
-			}
-
-		private:
-			ID3D10Device *_device;
-
-			ID3D10InputLayout *_IAInputLayout;
-			D3D10_PRIMITIVE_TOPOLOGY _IAPrimitiveTopology;
-			ID3D10Buffer *_IAVertexBuffers[D3D10_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT];
-			UINT _IAVertexStrides[D3D10_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT];
-			UINT _IAVertexOffsets[D3D10_IA_VERTEX_INPUT_RESOURCE_SLOT_COUNT];
-			ID3D10Buffer *_IAIndexBuffer;
-			DXGI_FORMAT _IAIndexFormat;
-			UINT _IAIndexOffset;
-			ID3D10VertexShader *_VS;
-			ID3D10Buffer *_VSConstantBuffers[D3D10_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT];
-			ID3D10SamplerState *_VSSamplerStates[D3D10_COMMONSHADER_SAMPLER_SLOT_COUNT];
-			ID3D10ShaderResourceView *_VSShaderResources[D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT];
-			ID3D10GeometryShader *_GS;
-			ID3D10RasterizerState *_RSState;
-			UINT _RSNumViewports;
-			D3D10_VIEWPORT _RSViewports[D3D10_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE];
-			ID3D10PixelShader *_PS;
-			ID3D10Buffer *_PSConstantBuffers[D3D10_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT];
-			ID3D10SamplerState *_PSSamplerStates[D3D10_COMMONSHADER_SAMPLER_SLOT_COUNT];
-			ID3D10ShaderResourceView *_PSShaderResources[D3D10_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT];
-			ID3D10BlendState *_OMBlendState;
-			FLOAT _OMBlendFactor[4];
-			UINT _OMSampleMask;
-			ID3D10DepthStencilState *_OMDepthStencilState;
-			UINT _OMStencilRef;
-			ID3D10RenderTargetView *_OMRenderTargets[D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT];
-			ID3D10DepthStencilView *_OMDepthStencil;
-		};
-
 		// ---------------------------------------------------------------------------------------------------
 
-		d3d10_runtime::d3d10_runtime(ID3D10Device *device, IDXGISwapChain *swapchain) : runtime(get_renderer_id(device)), _device(device), _swapchain(swapchain), _backbuffer_format(DXGI_FORMAT_UNKNOWN), _is_multisampling_enabled(false), _stateblock(new d3d10_stateblock(device)), _backbuffer(nullptr), _backbuffer_resolved(nullptr), _backbuffer_texture(nullptr), _backbuffer_texture_srv(), _backbuffer_rtv(), _depthstencil(nullptr), _depthstencil_replacement(nullptr), _depthstencil_texture(nullptr), _depthstencil_texture_srv(nullptr), _copy_vertex_shader(nullptr), _copy_pixel_shader(nullptr), _copy_sampler(nullptr), _effect_rasterizer_state(nullptr), _constant_buffer(nullptr), _constant_buffer_size(0)
+		d3d10_runtime::d3d10_runtime(ID3D10Device *device, IDXGISwapChain *swapchain) : runtime(get_renderer_id(device)), _device(device), _swapchain(swapchain), _backbuffer_format(DXGI_FORMAT_UNKNOWN), _is_multisampling_enabled(false), _stateblock(device), _backbuffer(nullptr), _backbuffer_resolved(nullptr), _backbuffer_texture(nullptr), _backbuffer_texture_srv(), _backbuffer_rtv(), _depthstencil(nullptr), _depthstencil_replacement(nullptr), _depthstencil_texture(nullptr), _depthstencil_texture_srv(nullptr), _copy_vertex_shader(nullptr), _copy_pixel_shader(nullptr), _copy_sampler(nullptr), _effect_rasterizer_state(nullptr), _constant_buffer(nullptr), _constant_buffer_size(0)
 		{
 			_device->AddRef();
 			_swapchain->AddRef();
@@ -2541,7 +2379,7 @@ namespace reshade
 			detect_depth_source();
 
 			// Capture device state
-			_stateblock->capture();
+			_stateblock.capture();
 
 			ID3D10RenderTargetView *stateblock_rendertargets[D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT] = { nullptr };
 			ID3D10DepthStencilView *stateblock_depthstencil = nullptr;
@@ -2580,11 +2418,9 @@ namespace reshade
 			}
 
 			// Apply previous device state
-			_stateblock->apply();
+			_stateblock.apply_and_release();
 
 			_device->OMSetRenderTargets(D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, stateblock_rendertargets, stateblock_depthstencil);
-
-			_stateblock->release_all_device_objects();
 
 			for (UINT i = 0; i < D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT; ++i)
 			{

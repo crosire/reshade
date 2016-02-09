@@ -1,6 +1,7 @@
 #pragma once
 
 #include "runtime.hpp"
+#include "utils\d3d10_stateblock.hpp"
 
 #include <algorithm>
 #include <d3d10_1.h>
@@ -56,7 +57,7 @@ namespace reshade
 
 			bool _is_multisampling_enabled;
 			DXGI_FORMAT _backbuffer_format;
-			std::unique_ptr<class d3d10_stateblock> _stateblock;
+			utils::d3d10_stateblock _stateblock;
 			ID3D10Texture2D *_backbuffer, *_backbuffer_resolved;
 			ID3D10DepthStencilView *_depthstencil, *_depthstencil_replacement;
 			ID3D10Texture2D *_depthstencil_texture;

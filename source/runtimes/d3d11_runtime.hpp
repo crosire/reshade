@@ -2,6 +2,7 @@
 
 #include "runtime.hpp"
 #include "utils\critical_section.hpp"
+#include "utils\d3d11_stateblock.hpp"
 
 #include <algorithm>
 #include <d3d11_3.h>
@@ -58,7 +59,7 @@ namespace reshade
 
 			bool _is_multisampling_enabled;
 			DXGI_FORMAT _backbuffer_format;
-			std::unique_ptr<class d3d11_stateblock> _stateblock;
+			utils::d3d11_stateblock _stateblock;
 			ID3D11Texture2D *_backbuffer, *_backbuffer_resolved;
 			ID3D11DepthStencilView *_depthstencil, *_depthstencil_replacement;
 			ID3D11Texture2D *_depthstencil_texture;

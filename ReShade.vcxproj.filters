@@ -25,6 +25,9 @@
     <Filter Include="runtimes">
       <UniqueIdentifier>{3d98f6bc-aafb-47f4-97de-20bb7012bc62}</UniqueIdentifier>
     </Filter>
+    <Filter Include="runtimes\utils">
+      <UniqueIdentifier>{0547a8b3-8f9c-44aa-b8de-f39e98d3bc64}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="source\log.cpp">
@@ -108,6 +111,12 @@
     <ClCompile Include="source\runtimes\gl_runtime.cpp">
       <Filter>runtimes</Filter>
     </ClCompile>
+    <ClCompile Include="source\utils\d3d10_stateblock.cpp">
+      <Filter>runtimes\utils</Filter>
+    </ClCompile>
+    <ClCompile Include="source\utils\d3d11_stateblock.cpp">
+      <Filter>runtimes\utils</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="source\log.hpp">
@@ -190,6 +199,12 @@
     </ClInclude>
     <ClInclude Include="source\runtimes\gl_runtime.hpp">
       <Filter>runtimes</Filter>
+    </ClInclude>
+    <ClInclude Include="source\utils\d3d10_stateblock.hpp">
+      <Filter>runtimes\utils</Filter>
+    </ClInclude>
+    <ClInclude Include="source\utils\d3d11_stateblock.hpp">
+      <Filter>runtimes\utils</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

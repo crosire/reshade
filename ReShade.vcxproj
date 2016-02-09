@@ -255,6 +255,8 @@ tools\upx --backup "$(TargetPath)"</Command>
     <ClCompile Include="source\runtimes\d3d11_runtime.cpp" />
     <ClCompile Include="source\runtimes\d3d12_runtime.cpp" />
     <ClCompile Include="source\runtimes\gl_runtime.cpp" />
+    <ClCompile Include="source\utils\d3d10_stateblock.cpp" />
+    <ClCompile Include="source\utils\d3d11_stateblock.cpp" />
     <ClCompile Include="source\utils\file_watcher.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -286,6 +288,8 @@ tools\upx --backup "$(TargetPath)"</Command>
     <ClInclude Include="source\runtimes\d3d12_runtime.hpp" />
     <ClInclude Include="source\runtimes\gl_runtime.hpp" />
     <ClInclude Include="source\utils\critical_section.hpp" />
+    <ClInclude Include="source\utils\d3d10_stateblock.hpp" />
+    <ClInclude Include="source\utils\d3d11_stateblock.hpp" />
     <ClInclude Include="source\utils\file_watcher.hpp" />
     <ClInclude Include="source\utils\moving_average.hpp" />
   </ItemGroup>
