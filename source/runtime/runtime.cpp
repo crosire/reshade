@@ -486,6 +486,12 @@ namespace reshade
 
 				set_uniform_value(*variable, values, 2);
 			}
+			else if (source == "mousepoint")
+			{
+				const float values[2] = { static_cast<float>(_input->mouse_position().x), static_cast<float>(_input->mouse_position().y) };
+
+				set_uniform_value(*variable, values, 2);
+			}
 			else if (source == "random")
 			{
 				const int min = variable->annotations["min"].as<int>(), max = variable->annotations["max"].as<int>();
