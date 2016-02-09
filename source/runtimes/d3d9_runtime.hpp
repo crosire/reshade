@@ -24,19 +24,6 @@ namespace reshade
 			void on_set_depthstencil_surface(IDirect3DSurface9 *&depthstencil);
 			void on_get_depthstencil_surface(IDirect3DSurface9 *&depthstencil);
 
-			void enlarge_uniform_data_storage()
-			{
-				_uniform_data_storage.resize(_uniform_data_storage.size() + 64 * sizeof(float));
-			}
-			unsigned char *get_uniform_data_storage()
-			{
-				return _uniform_data_storage.data();
-			}
-			size_t get_uniform_data_storage_size() const
-			{
-				return _uniform_data_storage.size();
-			}
-
 			IDirect3D9 *_d3d;
 			IDirect3DDevice9 *_device;
 			IDirect3DSwapChain9 *_swapchain;

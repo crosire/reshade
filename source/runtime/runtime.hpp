@@ -266,6 +266,10 @@ namespace reshade
 		/// <param name="size">The size of the image in <paramref name="data"/>.</param>
 		virtual bool update_texture(texture *texture, const unsigned char *data, size_t size) = 0;
 		/// <summary>
+		/// Return a reference to the uniform storage buffer.
+		/// </summary>
+		inline std::vector<unsigned char> &get_uniform_value_storage() { return _uniform_data_storage; }
+		/// <summary>
 		/// Get the value of a uniform variable.
 		/// </summary>
 		/// <param name="variable">The variable to retrieve the value from.</param>
@@ -331,7 +335,6 @@ namespace reshade
 		std::vector<std::unique_ptr<texture>> _textures;
 		std::vector<std::unique_ptr<uniform>> _uniforms;
 		std::vector<std::unique_ptr<technique>> _techniques;
-		std::vector<unsigned char> _uniform_data_storage;
 
 	private:
 		bool load_effect();
@@ -344,6 +347,7 @@ namespace reshade
 		boost::chrono::high_resolution_clock::time_point _start_time, _last_create, _last_present;
 		boost::chrono::high_resolution_clock::duration _last_frame_duration, _last_postprocessing_duration;
 		utils::moving_average<uint64_t, 128> _average_frametime;
+		std::vector<unsigned char> _uniform_data_storage;
 		float _date[4];
 		unsigned int _compile_step, _compile_count;
 		std::string _status, _errors, _message, _effect_source;

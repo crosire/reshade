@@ -23,19 +23,6 @@ namespace reshade
 			void on_apply_effect_technique(const technique *technique) override;
 			void on_fbo_attachment(GLenum target, GLenum attachment, GLenum objecttarget, GLuint object, GLint level);
 
-			void enlarge_uniform_data_storage()
-			{
-				_uniform_data_storage.resize(_uniform_data_storage.size() + 128);
-			}
-			unsigned char *get_uniform_data_storage()
-			{
-				return _uniform_data_storage.data();
-			}
-			size_t get_uniform_data_storage_size() const
-			{
-				return _uniform_data_storage.size();
-			}
-
 			HDC _hdc;
 
 			GLuint _reference_count, _current_vertex_count;

@@ -27,22 +27,7 @@ namespace reshade
 			void on_clear_depthstencil_view(ID3D10DepthStencilView *&depthstencil);
 			void on_copy_resource(ID3D10Resource *&dest, ID3D10Resource *&source);
 
-			const std::vector<std::unique_ptr<technique>> &GetTechniques() const
-			{
-				return _techniques;
-			}
-			void enlarge_uniform_data_storage()
-			{
-				_uniform_data_storage.resize(_uniform_data_storage.size() + 128);
-			}
-			unsigned char *get_uniform_data_storage()
-			{
-				return _uniform_data_storage.data();
-			}
-			size_t get_uniform_data_storage_size() const
-			{
-				return _uniform_data_storage.size();
-			}
+			void update_texture_datatype(texture *texture, texture::datatype source, ID3D10ShaderResourceView *srv, ID3D10ShaderResourceView *srvSRGB);
 
 			ID3D10Device *_device;
 			IDXGISwapChain *_swapchain;

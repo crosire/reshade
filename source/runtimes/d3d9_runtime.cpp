@@ -56,7 +56,7 @@ namespace reshade
 					SAFE_RELEASE(SurfaceInterface);
 				}
 
-				void change_data_source(datatype source, IDirect3DTexture9 *texture)
+				void change_datatype(datatype source, IDirect3DTexture9 *texture)
 				{
 					basetype = source;
 
@@ -1476,7 +1476,7 @@ namespace reshade
 							warning(node->location, "texture properties on backbuffer textures are ignored");
 						}
 
-						obj->change_data_source(texture::datatype::backbuffer, _runtime->_backbuffer_texture);
+						obj->change_datatype(texture::datatype::backbuffer, _runtime->_backbuffer_texture);
 					}
 					else if (node->semantic == "DEPTH" || node->semantic == "SV_DEPTH")
 					{
@@ -1485,7 +1485,7 @@ namespace reshade
 							warning(node->location, "texture properties on depthbuffer textures are ignored");
 						}
 
-						obj->change_data_source(texture::datatype::depthbuffer, _runtime->_depthstencil_texture);
+						obj->change_datatype(texture::datatype::depthbuffer, _runtime->_depthstencil_texture);
 					}
 					else
 					{
@@ -1615,20 +1615,22 @@ namespace reshade
 
 					visit_annotation(node->annotations, *obj);
 
-					if (_current_register_offset * sizeof(float) >= _runtime->get_uniform_data_storage_size())
+					auto &uniform_storage = _runtime->get_uniform_value_storage();
+
+					if (_current_register_offset * sizeof(float) >= uniform_storage.size())
 					{
-						_runtime->enlarge_uniform_data_storage();
+						uniform_storage.resize(uniform_storage.size() + 64 * sizeof(float));
 					}
 
 					_runtime->_constant_register_count = _current_register_offset / 4;
 
 					if (node->initializer_expression != nullptr && node->initializer_expression->id == fx::nodeid::literal_expression)
 					{
-						CopyMemory(_runtime->get_uniform_data_storage() + obj->storage_offset, &static_cast<const fx::nodes::literal_expression_node *>(node->initializer_expression)->value_float, obj->storage_size);
+						CopyMemory(uniform_storage.data() + obj->storage_offset, &static_cast<const fx::nodes::literal_expression_node *>(node->initializer_expression)->value_float, obj->storage_size);
 					}
 					else
 					{
-						ZeroMemory(_runtime->get_uniform_data_storage() + obj->storage_offset, obj->storage_size);
+						ZeroMemory(uniform_storage.data() + obj->storage_offset, obj->storage_size);
 					}
 
 					_runtime->add_uniform(obj);
@@ -2449,8 +2451,9 @@ namespace reshade
 			bool is_default_depthstencil_cleared = false;
 
 			// Setup shader constants
-			_device->SetVertexShaderConstantF(0, reinterpret_cast<const float *>(_uniform_data_storage.data()), _constant_register_count);
-			_device->SetPixelShaderConstantF(0, reinterpret_cast<const float *>(_uniform_data_storage.data()), _constant_register_count);
+			auto &uniform_storage = get_uniform_value_storage();
+			_device->SetVertexShaderConstantF(0, reinterpret_cast<const float *>(uniform_storage.data()), _constant_register_count);
+			_device->SetPixelShaderConstantF(0, reinterpret_cast<const float *>(uniform_storage.data()), _constant_register_count);
 
 			for (const auto &pass : static_cast<const d3d9_technique *>(technique)->passes)
 			{
@@ -2863,7 +2866,7 @@ namespace reshade
 
 				if (texture->basetype == texture::datatype::depthbuffer)
 				{
-					texture->change_data_source(texture::datatype::depthbuffer, _depthstencil_texture);
+					texture->change_datatype(texture::datatype::depthbuffer, _depthstencil_texture);
 				}
 			}
 

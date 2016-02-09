@@ -44,7 +44,7 @@ namespace reshade
 				}
 			}
 
-			void change_data_source(datatype source, GLuint texture, GLuint textureSRGB)
+			void change_datatype(datatype source, GLuint texture, GLuint textureSRGB)
 			{
 				if (basetype == datatype::image)
 				{
@@ -162,7 +162,7 @@ namespace reshade
 						glGetIntegerv(GL_UNIFORM_BUFFER_BINDING, &previous);
 
 						glBindBuffer(GL_UNIFORM_BUFFER, _runtime->_effect_ubo);
-						glBufferData(GL_UNIFORM_BUFFER, _runtime->get_uniform_data_storage_size(), _runtime->get_uniform_data_storage(), GL_DYNAMIC_DRAW);
+						glBufferData(GL_UNIFORM_BUFFER, _runtime->get_uniform_value_storage().size(), _runtime->get_uniform_value_storage().data(), GL_DYNAMIC_DRAW);
 					
 						glBindBuffer(GL_UNIFORM_BUFFER, previous);
 					}
@@ -1961,7 +1961,7 @@ namespace reshade
 							warning(node->location, "texture property on backbuffer textures are ignored");
 						}
 
-						obj->change_data_source(texture::datatype::backbuffer, _runtime->_backbuffer_texture[0], _runtime->_backbuffer_texture[1]);
+						obj->change_datatype(texture::datatype::backbuffer, _runtime->_backbuffer_texture[0], _runtime->_backbuffer_texture[1]);
 					}
 					else if (node->semantic == "DEPTH" || node->semantic == "SV_DEPTH")
 					{
@@ -1970,7 +1970,7 @@ namespace reshade
 							warning(node->location, "texture property on depthbuffer textures are ignored");
 						}
 
-						obj->change_data_source(texture::datatype::depthbuffer, _runtime->_depth_texture, 0);
+						obj->change_datatype(texture::datatype::depthbuffer, _runtime->_depth_texture, 0);
 					}
 					else
 					{
@@ -2102,18 +2102,20 @@ namespace reshade
 
 					visit_annotation(node->annotations, *obj);
 
-					if (_current_uniform_size >= _runtime->get_uniform_data_storage_size())
+					auto &uniform_storage = _runtime->get_uniform_value_storage();
+
+					if (_current_uniform_size >= uniform_storage.size())
 					{
-						_runtime->enlarge_uniform_data_storage();
+						uniform_storage.resize(uniform_storage.size() + 128);
 					}
 
 					if (node->initializer_expression != nullptr && node->initializer_expression->id == fx::nodeid::literal_expression)
 					{
-						std::memcpy(_runtime->get_uniform_data_storage() + obj->storage_offset, &static_cast<const fx::nodes::literal_expression_node *>(node->initializer_expression)->value_float, obj->storage_size);
+						std::memcpy(uniform_storage.data() + obj->storage_offset, &static_cast<const fx::nodes::literal_expression_node *>(node->initializer_expression)->value_float, obj->storage_size);
 					}
 					else
 					{
-						std::memset(_runtime->get_uniform_data_storage() + obj->storage_offset, 0, obj->storage_size);
+						std::memset(uniform_storage.data() + obj->storage_offset, 0, obj->storage_size);
 					}
 
 					_runtime->add_uniform(obj);
@@ -2547,7 +2549,7 @@ namespace reshade
 				std::unordered_map<const fx::nodes::function_declaration_node *, function> _functions;
 			};
 
-			GLenum TargetToBinding(GLenum target)
+			GLenum target_to_binding(GLenum target)
 			{
 				switch (target)
 				{
@@ -2583,7 +2585,7 @@ namespace reshade
 						return GL_NONE;
 				}
 			}
-			inline void FlipBC1Block(unsigned char *block)
+			inline void flip_bc1_block(unsigned char *block)
 			{
 				// BC1 Block:
 				//  [0-1]  color 0
@@ -2593,7 +2595,7 @@ namespace reshade
 				std::swap(block[4], block[7]);
 				std::swap(block[5], block[6]);
 			}
-			inline void FlipBC2Block(unsigned char *block)
+			inline void flip_bc2_block(unsigned char *block)
 			{
 				// BC2 Block:
 				//  [0-7]  alpha indices
@@ -2604,9 +2606,9 @@ namespace reshade
 				std::swap(block[2], block[4]);
 				std::swap(block[3], block[5]);
 
-				FlipBC1Block(block + 8);
+				flip_bc1_block(block + 8);
 			}
-			inline void FlipBC4Block(unsigned char *block)
+			inline void flip_bc4_block(unsigned char *block)
 			{
 				// BC4 Block:
 				//  [0]    red 0
@@ -2624,25 +2626,25 @@ namespace reshade
 				block[6] = static_cast<unsigned char>((line_1_0 & 0xFF00) >> 8);
 				block[7] = static_cast<unsigned char>((line_1_0 & 0xFF0000) >> 16);
 			}
-			inline void FlipBC3Block(unsigned char *block)
+			inline void flip_bc3_block(unsigned char *block)
 			{
 				// BC3 Block:
 				//  [0-7]  alpha block
 				//  [8-15] color block
 
-				FlipBC4Block(block);
-				FlipBC1Block(block + 8);
+				flip_bc4_block(block);
+				flip_bc1_block(block + 8);
 			}
-			inline void FlipBC5Block(unsigned char *block)
+			inline void flip_bc5_block(unsigned char *block)
 			{
 				// BC5 Block:
 				//  [0-7]  red block
 				//  [8-15] green block
 
-				FlipBC4Block(block);
-				FlipBC4Block(block + 8);
+				flip_bc4_block(block);
+				flip_bc4_block(block + 8);
 			}
-			void FlipImageData(const texture *texture, unsigned char *data)
+			void flip_image_data(const texture *texture, unsigned char *data)
 			{
 				typedef void (*FlipBlockFunc)(unsigned char *block);
 
@@ -2672,27 +2674,27 @@ namespace reshade
 					case texture::pixelformat::dxt1:
 						blocksize = 8;
 						compressed = true;
-						compressedFunc = &FlipBC1Block;
+						compressedFunc = &flip_bc1_block;
 						break;
 					case texture::pixelformat::dxt3:
 						blocksize = 16;
 						compressed = true;
-						compressedFunc = &FlipBC2Block;
+						compressedFunc = &flip_bc2_block;
 						break;
 					case texture::pixelformat::dxt5:
 						blocksize = 16;
 						compressed = true;
-						compressedFunc = &FlipBC3Block;
+						compressedFunc = &flip_bc3_block;
 						break;
 					case texture::pixelformat::latc1:
 						blocksize = 8;
 						compressed = true;
-						compressedFunc = &FlipBC4Block;
+						compressedFunc = &flip_bc4_block;
 						break;
 					case texture::pixelformat::latc2:
 						blocksize = 16;
 						compressed = true;
-						compressedFunc = &FlipBC5Block;
+						compressedFunc = &flip_bc5_block;
 						break;
 					default:
 						return;
@@ -3221,7 +3223,8 @@ namespace reshade
 			// Update shader constants
 			if (_effect_ubo != 0)
 			{
-				GLCHECK(glBufferSubData(GL_UNIFORM_BUFFER, 0, _uniform_data_storage.size(), _uniform_data_storage.data()));
+				auto &uniform_storage = get_uniform_value_storage();
+				GLCHECK(glBufferSubData(GL_UNIFORM_BUFFER, 0, uniform_storage.size(), uniform_storage.data()));
 			}
 
 			for (const auto &pass : static_cast<const gl_technique *>(technique)->passes)
@@ -3297,7 +3300,7 @@ namespace reshade
 
 			// Get current framebuffer
 			GLint fbo = 0;
-			GLCHECK(glGetIntegerv(TargetToBinding(target), &fbo));
+			GLCHECK(glGetIntegerv(target_to_binding(target), &fbo));
 
 			assert(fbo != 0);
 
@@ -3336,7 +3339,7 @@ namespace reshade
 				}
 
 				GLint previous = 0;
-				GLCHECK(glGetIntegerv(TargetToBinding(objecttarget), &previous));
+				GLCHECK(glGetIntegerv(target_to_binding(objecttarget), &previous));
 
 				// Get depthstencil parameters from texture
 				GLCHECK(glBindTexture(objecttarget, object));
@@ -3406,7 +3409,7 @@ namespace reshade
 			std::memcpy(dataFlipped.get(), data, size);
 
 			// Flip image data vertically
-			FlipImageData(texture, dataFlipped.get());
+			flip_image_data(texture, dataFlipped.get());
 
 			// Bind and update texture
 			GLCHECK(glBindTexture(GL_TEXTURE_2D, textureImpl->ID[0]));
@@ -3500,8 +3503,8 @@ namespace reshade
 				}
 			}
 
-			GLuint best = 0;
-			depth_source_info bestInfo = { 0, 0, 0, GL_NONE };
+			GLuint best_match = 0;
+			depth_source_info best_info = { 0, 0, 0, GL_NONE };
 
 			for (auto &it : _depth_source_table)
 			{
@@ -3509,28 +3512,28 @@ namespace reshade
 				{
 					continue;
 				}
-				else if (((it.second.vertices_count * (1.2f - it.second.drawcall_count / _drawcalls)) >= (bestInfo.vertices_count * (1.2f - bestInfo.drawcall_count / _drawcalls))) && ((it.second.width > _width * 0.95 && it.second.width < _width * 1.05) && (it.second.height > _height * 0.95 && it.second.height < _height * 1.05)))
+				else if (((it.second.vertices_count * (1.2f - it.second.drawcall_count / _drawcalls)) >= (best_info.vertices_count * (1.2f - best_info.drawcall_count / _drawcalls))) && ((it.second.width > _width * 0.95 && it.second.width < _width * 1.05) && (it.second.height > _height * 0.95 && it.second.height < _height * 1.05)))
 				{
-					best = it.first;
-					bestInfo = it.second;
+					best_match = it.first;
+					best_info = it.second;
 				}
 
 				it.second.drawcall_count = it.second.vertices_count = 0;
 			}
 
-			if (best == 0)
+			if (best_match == 0)
 			{
-				bestInfo = _depth_source_table.at(0);
+				best_info = _depth_source_table.at(0);
 			}
 
-			if (_depth_source != best || _depth_texture == 0)
+			if (_depth_source != best_match || _depth_texture == 0)
 			{
 				const depth_source_info &previousInfo = _depth_source_table.at(_depth_source);
 
-				if ((bestInfo.width != previousInfo.width || bestInfo.height != previousInfo.height || bestInfo.format != previousInfo.format) || _depth_texture == 0)
+				if ((best_info.width != previousInfo.width || best_info.height != previousInfo.height || best_info.format != previousInfo.format) || _depth_texture == 0)
 				{
 					// Resize depth texture
-					create_depth_texture(bestInfo.width, bestInfo.height, bestInfo.format);
+					create_depth_texture(best_info.width, best_info.height, best_info.format);
 				}
 
 				GLint previousFBO = 0;
@@ -3541,9 +3544,9 @@ namespace reshade
 
 				assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
 
-				_depth_source = best;
+				_depth_source = best_match;
 
-				if (best != 0)
+				if (best_match != 0)
 				{
 					if (_depth_source_fbo == 0)
 					{
@@ -3552,19 +3555,19 @@ namespace reshade
 
 					GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, _depth_source_fbo));
 
-					if ((best & 0x80000000) != 0)
+					if ((best_match & 0x80000000) != 0)
 					{
-						best ^= 0x80000000;
+						best_match ^= 0x80000000;
 
-						LOG(TRACE) << "Switched depth source to renderbuffer " << best << ".";
+						LOG(TRACE) << "Switched depth source to renderbuffer " << best_match << ".";
 
-						GLCHECK(glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, best));
+						GLCHECK(glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, best_match));
 					}
 					else
 					{
-						LOG(TRACE) << "Switched depth source to texture " << best << ".";
+						LOG(TRACE) << "Switched depth source to texture " << best_match << ".";
 
-						GLCHECK(glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, best, bestInfo.level));
+						GLCHECK(glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, best_match, best_info.level));
 					}
 
 					const GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
@@ -3635,7 +3638,7 @@ namespace reshade
 
 				if (texture->basetype == texture::datatype::depthbuffer)
 				{
-					texture->change_data_source(texture::datatype::depthbuffer, _depth_texture, 0);
+					texture->change_datatype(texture::datatype::depthbuffer, _depth_texture, 0);
 				}
 			}
 		}
