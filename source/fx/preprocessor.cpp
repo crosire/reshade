@@ -855,6 +855,11 @@ namespace reshade
 					case lexer::tokenid::uint_literal:
 						pragma += std::to_string(current_token().literal_as_int);
 						break;
+					case lexer::tokenid::identifier:
+						if (evaluate_identifier_as_macro())
+						{
+							continue;
+						}
 					default:
 						pragma += _current_token_raw_data;
 						break;
