@@ -29,8 +29,8 @@ namespace reshade
 
 		_window_x = 0;
 		_window_y = 0;
-		_window_w = static_cast<float>(_runtime->buffer_width());
-		_window_h = static_cast<float>(_runtime->buffer_height());
+		_window_w = static_cast<float>(_runtime->frame_width());
+		_window_h = static_cast<float>(_runtime->frame_height());
 
 		nvgBeginFrame(_nvg, static_cast<int>(_window_w), static_cast<int>(_window_h), 1.0f);
 
@@ -100,8 +100,8 @@ namespace reshade
 
 		_window_x = 0;
 		_window_y = 0;
-		_window_w = static_cast<float>(_runtime->buffer_width());
-		_window_h = static_cast<float>(_runtime->buffer_height());
+		_window_w = static_cast<float>(_runtime->frame_width());
+		_window_h = static_cast<float>(_runtime->frame_height());
 	}
 
 	void gui::draw_debug_text(float x, float y, int alignx, float linewidth, int fontsize, unsigned int color, const std::string &text)

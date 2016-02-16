@@ -24,10 +24,6 @@ namespace reshade
 
 namespace reshade
 {
-	extern volatile long s_network_upload;
-
-	// ---------------------------------------------------------------------------------------------------
-
 	struct annotation
 	{
 		annotation()
@@ -219,11 +215,11 @@ namespace reshade
 		/// <summary>
 		/// Return the back buffer width.
 		/// </summary>
-		unsigned int buffer_width() const { return _width; }
+		unsigned int frame_width() const { return _width; }
 		/// <summary>
 		/// Return the back buffer height.
 		/// </summary>
-		unsigned int buffer_height() const { return _height; }
+		unsigned int frame_height() const { return _height; }
 
 		/// <summary>
 		/// Create a copy of the current image on the screen.
@@ -255,8 +251,9 @@ namespace reshade
 		/// <summary>
 		/// Compile effect from the specified abstract syntax tree and initialize textures, constants and techniques.
 		/// </summary>
-		/// <param name="ast">The abstract syntax tree representation of the effect to compile.</param>
-		/// <param name="errors">A string buffer to store any errors that occur during compilation.</param>
+		/// <param name="ast">The abstract syntax tree of the effect to compile.</param>
+		/// <param name="pragmas">A list of additional commands to the compiler.</param>
+		/// <param name="errors">A reference to a buffer to store errors in which occur during compilation.</param>
 		virtual bool update_effect(const fx::nodetree &ast, const std::vector<std::string> &pragmas, std::string &errors) = 0;
 		/// <summary>
 		/// Update the image data of a texture.
@@ -291,6 +288,8 @@ namespace reshade
 		void set_uniform_value(uniform &variable, const int *values, size_t count);
 		void set_uniform_value(uniform &variable, const unsigned int *values, size_t count);
 		void set_uniform_value(uniform &variable, const float *values, size_t count);
+
+		static volatile long s_network_upload;
 
 	protected:
 		/// <summary>

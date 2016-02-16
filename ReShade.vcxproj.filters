@@ -161,6 +161,9 @@
     <ClInclude Include="source\runtime\runtime.hpp">
       <Filter>core\runtime</Filter>
     </ClInclude>
+    <ClInclude Include="source\utils\com.hpp">
+      <Filter>core\utils</Filter>
+    </ClInclude>
     <ClInclude Include="source\utils\critical_section.hpp">
       <Filter>core\utils</Filter>
     </ClInclude>

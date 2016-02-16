@@ -4,6 +4,7 @@
 #include "fx\compiler.hpp"
 #include "gui.hpp"
 #include "input.hpp"
+#include "utils\com.hpp"
 
 #include <assert.h>
 #include <d3dcompiler.h>
@@ -18,21 +19,6 @@ namespace reshade
 	{
 		namespace
 		{
-			template <typename T>
-			inline ULONG SAFE_RELEASE(T *&object)
-			{
-				if (object == nullptr)
-				{
-					return 0;
-				}
-
-				const ULONG ref = object->Release();
-
-				object = nullptr;
-
-				return ref;
-			}
-
 			struct d3d10_pass
 			{
 				ID3D10VertexShader *VS;
@@ -79,12 +65,12 @@ namespace reshade
 				}
 				~d3d10_texture()
 				{
-					SAFE_RELEASE(RenderTargetView[0]);
-					SAFE_RELEASE(RenderTargetView[1]);
-					SAFE_RELEASE(ShaderResourceView[0]);
-					SAFE_RELEASE(ShaderResourceView[1]);
+					safe_release(RenderTargetView[0]);
+					safe_release(RenderTargetView[1]);
+					safe_release(ShaderResourceView[0]);
+					safe_release(ShaderResourceView[1]);
 
-					SAFE_RELEASE(TextureInterface);
+					safe_release(TextureInterface);
 				}
 
 				size_t ShaderRegister;
@@ -1857,8 +1843,8 @@ namespace reshade
 
 					if (pass.Viewport.Width == 0 && pass.Viewport.Height == 0)
 					{
-						pass.Viewport.Width = _runtime->buffer_width();
-						pass.Viewport.Height = _runtime->buffer_height();
+						pass.Viewport.Width = _runtime->frame_width();
+						pass.Viewport.Height = _runtime->frame_height();
 					}
 
 					D3D10_DEPTH_STENCIL_DESC ddesc;
@@ -2145,7 +2131,7 @@ namespace reshade
 				{
 					LOG(TRACE) << "Failed to create backbuffer replacement (Width = " << texdesc.Width << ", Height = " << texdesc.Height << ", Format = " << texdesc.Format << ", SampleCount = " << texdesc.SampleDesc.Count << ", SampleQuality = " << texdesc.SampleDesc.Quality << ")! HRESULT is '" << hr << "'.";
 
-					SAFE_RELEASE(_backbuffer);
+					safe_release(_backbuffer);
 
 					return false;
 				}
@@ -2201,11 +2187,11 @@ namespace reshade
 
 			if (FAILED(hr))
 			{
-				SAFE_RELEASE(_backbuffer);
-				SAFE_RELEASE(_backbuffer_resolved);
-				SAFE_RELEASE(_backbuffer_texture);
-				SAFE_RELEASE(_backbuffer_texture_srv[0]);
-				SAFE_RELEASE(_backbuffer_texture_srv[1]);
+				safe_release(_backbuffer);
+				safe_release(_backbuffer_resolved);
+				safe_release(_backbuffer_texture);
+				safe_release(_backbuffer_texture_srv[0]);
+				safe_release(_backbuffer_texture_srv[1]);
 
 				return false;
 			}
@@ -2220,11 +2206,11 @@ namespace reshade
 
 			if (FAILED(hr))
 			{
-				SAFE_RELEASE(_backbuffer);
-				SAFE_RELEASE(_backbuffer_resolved);
-				SAFE_RELEASE(_backbuffer_texture);
-				SAFE_RELEASE(_backbuffer_texture_srv[0]);
-				SAFE_RELEASE(_backbuffer_texture_srv[1]);
+				safe_release(_backbuffer);
+				safe_release(_backbuffer_resolved);
+				safe_release(_backbuffer_texture);
+				safe_release(_backbuffer_texture_srv[0]);
+				safe_release(_backbuffer_texture_srv[1]);
 
 				LOG(TRACE) << "Failed to create backbuffer rendertarget (Format = " << rtdesc.Format << ")! HRESULT is '" << hr << "'.";
 
@@ -2237,12 +2223,12 @@ namespace reshade
 
 			if (FAILED(hr))
 			{
-				SAFE_RELEASE(_backbuffer);
-				SAFE_RELEASE(_backbuffer_resolved);
-				SAFE_RELEASE(_backbuffer_texture);
-				SAFE_RELEASE(_backbuffer_texture_srv[0]);
-				SAFE_RELEASE(_backbuffer_texture_srv[1]);
-				SAFE_RELEASE(_backbuffer_rtv[0]);
+				safe_release(_backbuffer);
+				safe_release(_backbuffer_resolved);
+				safe_release(_backbuffer_texture);
+				safe_release(_backbuffer_texture_srv[0]);
+				safe_release(_backbuffer_texture_srv[1]);
+				safe_release(_backbuffer_rtv[0]);
 
 				LOG(TRACE) << "Failed to create backbuffer SRGB rendertarget (Format = " << rtdesc.Format << ")! HRESULT is '" << hr << "'.";
 
@@ -2269,7 +2255,7 @@ namespace reshade
 			{
 				hr = _device->CreateDepthStencilView(dstexture, nullptr, &_default_depthstencil);
 
-				SAFE_RELEASE(dstexture);
+				safe_release(dstexture);
 			}
 			if (FAILED(hr))
 			{
@@ -2327,26 +2313,26 @@ namespace reshade
 			nvgDeleteD3D10(nvg);
 
 			// Destroy resources
-			SAFE_RELEASE(_backbuffer);
-			SAFE_RELEASE(_backbuffer_resolved);
-			SAFE_RELEASE(_backbuffer_texture);
-			SAFE_RELEASE(_backbuffer_texture_srv[0]);
-			SAFE_RELEASE(_backbuffer_texture_srv[1]);
-			SAFE_RELEASE(_backbuffer_rtv[0]);
-			SAFE_RELEASE(_backbuffer_rtv[1]);
-			SAFE_RELEASE(_backbuffer_rtv[2]);
+			safe_release(_backbuffer);
+			safe_release(_backbuffer_resolved);
+			safe_release(_backbuffer_texture);
+			safe_release(_backbuffer_texture_srv[0]);
+			safe_release(_backbuffer_texture_srv[1]);
+			safe_release(_backbuffer_rtv[0]);
+			safe_release(_backbuffer_rtv[1]);
+			safe_release(_backbuffer_rtv[2]);
 
-			SAFE_RELEASE(_depthstencil);
-			SAFE_RELEASE(_depthstencil_replacement);
-			SAFE_RELEASE(_depthstencil_texture);
-			SAFE_RELEASE(_depthstencil_texture_srv);
+			safe_release(_depthstencil);
+			safe_release(_depthstencil_replacement);
+			safe_release(_depthstencil_texture);
+			safe_release(_depthstencil_texture_srv);
 
-			SAFE_RELEASE(_default_depthstencil);
-			SAFE_RELEASE(_copy_vertex_shader);
-			SAFE_RELEASE(_copy_pixel_shader);
-			SAFE_RELEASE(_copy_sampler);
+			safe_release(_default_depthstencil);
+			safe_release(_copy_vertex_shader);
+			safe_release(_copy_pixel_shader);
+			safe_release(_copy_sampler);
 
-			SAFE_RELEASE(_effect_rasterizer_state);
+			safe_release(_effect_rasterizer_state);
 		}
 		void d3d10_runtime::on_reset_effect()
 		{
@@ -2360,7 +2346,7 @@ namespace reshade
 			_effect_sampler_states.clear();
 			_effect_shader_resources.clear();
 
-			SAFE_RELEASE(_constant_buffer);
+			safe_release(_constant_buffer);
 
 			_constant_buffer_size = 0;
 		}
@@ -2424,10 +2410,10 @@ namespace reshade
 
 			for (UINT i = 0; i < D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT; ++i)
 			{
-				SAFE_RELEASE(stateblock_rendertargets[i]);
+				safe_release(stateblock_rendertargets[i]);
 			}
 
-			SAFE_RELEASE(stateblock_depthstencil);
+			safe_release(stateblock_depthstencil);
 		}
 		void d3d10_runtime::on_draw_call(UINT vertices)
 		{
@@ -2801,12 +2787,12 @@ namespace reshade
 				return;
 			}
 
-			SAFE_RELEASE(texture_impl->RenderTargetView[0]);
-			SAFE_RELEASE(texture_impl->RenderTargetView[1]);
-			SAFE_RELEASE(texture_impl->ShaderResourceView[0]);
-			SAFE_RELEASE(texture_impl->ShaderResourceView[1]);
+			safe_release(texture_impl->RenderTargetView[0]);
+			safe_release(texture_impl->RenderTargetView[1]);
+			safe_release(texture_impl->ShaderResourceView[0]);
+			safe_release(texture_impl->ShaderResourceView[1]);
 
-			SAFE_RELEASE(texture_impl->TextureInterface);
+			safe_release(texture_impl->TextureInterface);
 
 			if (srv != nullptr)
 			{
@@ -2923,10 +2909,10 @@ namespace reshade
 		}
 		bool d3d10_runtime::create_depthstencil_replacement(ID3D10DepthStencilView *depthstencil)
 		{
-			SAFE_RELEASE(_depthstencil);
-			SAFE_RELEASE(_depthstencil_replacement);
-			SAFE_RELEASE(_depthstencil_texture);
-			SAFE_RELEASE(_depthstencil_texture_srv);
+			safe_release(_depthstencil);
+			safe_release(_depthstencil_replacement);
+			safe_release(_depthstencil_texture);
+			safe_release(_depthstencil_texture_srv);
 
 			if (depthstencil != nullptr)
 			{
@@ -2941,7 +2927,7 @@ namespace reshade
 
 				if ((texdesc.BindFlags & D3D10_BIND_SHADER_RESOURCE) == 0)
 				{
-					SAFE_RELEASE(_depthstencil_texture);
+					safe_release(_depthstencil_texture);
 
 					switch (texdesc.Format)
 					{
@@ -3003,8 +2989,8 @@ namespace reshade
 				{
 					LOG(TRACE) << "Failed to create depthstencil replacement texture! HRESULT is '" << hr << "'.";
 
-					SAFE_RELEASE(_depthstencil);
-					SAFE_RELEASE(_depthstencil_texture);
+					safe_release(_depthstencil);
+					safe_release(_depthstencil_texture);
 
 					return false;
 				}
@@ -3036,9 +3022,9 @@ namespace reshade
 				{
 					LOG(TRACE) << "Failed to create depthstencil replacement resource view! HRESULT is '" << hr << "'.";
 
-					SAFE_RELEASE(_depthstencil);
-					SAFE_RELEASE(_depthstencil_replacement);
-					SAFE_RELEASE(_depthstencil_texture);
+					safe_release(_depthstencil);
+					safe_release(_depthstencil_replacement);
+					safe_release(_depthstencil_texture);
 
 					return false;
 				}
@@ -3063,7 +3049,7 @@ namespace reshade
 
 					for (UINT i = 0; i < D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT; ++i)
 					{
-						SAFE_RELEASE(targets[i]);
+						safe_release(targets[i]);
 					}
 				}
 			}

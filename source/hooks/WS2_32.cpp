@@ -9,7 +9,7 @@ EXPORT int WSAAPI HookWSASend(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount,
 
 	for (DWORD i = 0; i < dwBufferCount; ++i)
 	{
-		InterlockedExchangeAdd(&reshade::s_network_upload, lpBuffers[i].len);
+		InterlockedExchangeAdd(&reshade::runtime::s_network_upload, lpBuffers[i].len);
 	}
 
 	return trampoline(s, lpBuffers, dwBufferCount, lpNumberOfBytesSent, dwFlags, lpOverlapped, lpCompletionRoutine);
@@ -20,7 +20,7 @@ EXPORT int WSAAPI HookWSASendTo(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCoun
 
 	for (DWORD i = 0; i < dwBufferCount; ++i)
 	{
-		InterlockedExchangeAdd(&reshade::s_network_upload, lpBuffers[i].len);
+		InterlockedExchangeAdd(&reshade::runtime::s_network_upload, lpBuffers[i].len);
 	}
 
 	return trampoline(s, lpBuffers, dwBufferCount, lpNumberOfBytesSent, dwFlags, lpTo, iToLen, lpOverlapped, lpCompletionRoutine);

@@ -46,9 +46,7 @@ namespace reshade
 		boost::filesystem::path s_executable_path, s_injector_path, s_effect_path;
 	}
 
-	volatile long s_network_upload = 0;
-
-	// ---------------------------------------------------------------------------------------------------
+	volatile long runtime::s_network_upload = 0;
 
 	void runtime::startup(const boost::filesystem::path &executable_path, const boost::filesystem::path &injector_path)
 	{
@@ -102,8 +100,6 @@ namespace reshade
 
 		LOG(INFO) << "Exited.";
 	}
-
-	// ---------------------------------------------------------------------------------------------------
 
 	runtime::runtime(unsigned int renderer) : _is_initialized(false), _is_effect_compiled(false), _width(0), _height(0), _vendor_id(0), _device_id(0), _renderer_id(renderer), _framecount(0), _drawcalls(0), _vertices(0), _input(nullptr), _date(), _compile_step(0), _compile_count(0), _screenshot_format("png"), _screenshot_path(s_executable_path.parent_path()), _screenshot_key(VK_SNAPSHOT), _show_statistics(false), _show_fps(false), _show_clock(false), _show_toggle_message(false), _show_info_messages(true)
 	{
@@ -583,7 +579,7 @@ namespace reshade
 
 		assert(values != nullptr);
 
-		unsigned char *const data = static_cast<unsigned char *>(alloca(variable.storage_size));
+		const auto data = static_cast<unsigned char *>(alloca(variable.storage_size));
 		get_uniform_value(variable, data, variable.storage_size);
 
 		for (size_t i = 0; i < count; i++)
@@ -608,7 +604,7 @@ namespace reshade
 
 				assert(values != nullptr);
 
-				unsigned char *const data = static_cast<unsigned char *>(alloca(variable.storage_size));
+				const auto data = static_cast<unsigned char *>(alloca(variable.storage_size));
 				get_uniform_value(variable, data, variable.storage_size);
 
 				for (size_t i = 0; i < count; i++)
@@ -635,7 +631,7 @@ namespace reshade
 
 				assert(values != nullptr);
 
-				unsigned char *const data = static_cast<unsigned char *>(alloca(variable.storage_size));
+				const auto data = static_cast<unsigned char *>(alloca(variable.storage_size));
 				get_uniform_value(variable, data, variable.storage_size);
 
 				for (size_t i = 0; i < count; ++i)
@@ -673,7 +669,7 @@ namespace reshade
 	{
 		static_assert(sizeof(int) == 4 && sizeof(float) == 4, "expected int and float size to equal 4");
 
-		unsigned char *const data = static_cast<unsigned char *>(alloca(count * 4));
+		const auto data = static_cast<unsigned char *>(alloca(count * 4));
 
 		switch (variable.basetype)
 		{
@@ -713,7 +709,7 @@ namespace reshade
 			}
 			case uniform::datatype::float_:
 			{
-				float *const data = static_cast<float *>(alloca(count * sizeof(float)));
+				const auto data = static_cast<float *>(alloca(count * sizeof(float)));
 
 				for (size_t i = 0; i < count; ++i)
 				{
@@ -738,7 +734,7 @@ namespace reshade
 			}
 			case uniform::datatype::float_:
 			{
-				float *const data = static_cast<float *>(alloca(count * sizeof(float)));
+				const auto data = static_cast<float *>(alloca(count * sizeof(float)));
 
 				for (size_t i = 0; i < count; ++i)
 				{
@@ -758,7 +754,7 @@ namespace reshade
 			case uniform::datatype::int_:
 			case uniform::datatype::uint_:
 			{
-				int *const data = static_cast<int *>(alloca(count * sizeof(int)));
+				const auto data = static_cast<int *>(alloca(count * sizeof(int)));
 
 				for (size_t i = 0; i < count; ++i)
 				{

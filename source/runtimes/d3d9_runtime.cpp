@@ -4,6 +4,7 @@
 #include "fx\compiler.hpp"
 #include "gui.hpp"
 #include "input.hpp"
+#include "utils\com.hpp"
 
 #include <assert.h>
 #include <d3dx9math.h>
@@ -22,29 +23,6 @@ namespace reshade
 	{
 		namespace
 		{
-			template <typename T>
-			inline ULONG SAFE_RELEASE(T *&object)
-			{
-				if (object == nullptr)
-				{
-					return 0;
-				}
-
-				const ULONG ref = object->Release();
-
-				object = nullptr;
-
-				return ref;
-			}
-			inline ULONG GetRefCount(IUnknown *object)
-			{
-				const ULONG ref = object->AddRef() - 1;
-
-				object->Release();
-
-				return ref;
-			}
-
 			struct d3d9_texture : public texture
 			{
 				d3d9_texture() : TextureInterface(nullptr), SurfaceInterface(nullptr)
@@ -52,8 +30,8 @@ namespace reshade
 				}
 				~d3d9_texture()
 				{
-					SAFE_RELEASE(TextureInterface);
-					SAFE_RELEASE(SurfaceInterface);
+					safe_release(TextureInterface);
+					safe_release(SurfaceInterface);
 				}
 
 				void change_datatype(datatype source, IDirect3DTexture9 *texture)
@@ -65,8 +43,8 @@ namespace reshade
 						return;
 					}
 
-					SAFE_RELEASE(TextureInterface);
-					SAFE_RELEASE(SurfaceInterface);
+					safe_release(TextureInterface);
+					safe_release(SurfaceInterface);
 
 					if (texture != nullptr)
 					{
@@ -1682,7 +1660,7 @@ namespace reshade
 
 							if (texture->semantic == "COLOR" || texture->semantic == "SV_TARGET" || texture->semantic == "DEPTH" || texture->semantic == "SV_DEPTH")
 							{
-								samplers += ", float2(" + std::to_string(1.0f / _runtime->buffer_width()) + ", " + std::to_string(1.0f / _runtime->buffer_height()) + ")";
+								samplers += ", float2(" + std::to_string(1.0f / _runtime->frame_width()) + ", " + std::to_string(1.0f / _runtime->frame_height()) + ")";
 							}
 							else
 							{
@@ -2133,7 +2111,7 @@ namespace reshade
 				{
 					LOG(TRACE) << "Failed to create backbuffer resolve texture! HRESULT is '" << hr << "'.";
 
-					SAFE_RELEASE(_backbuffer);
+					safe_release(_backbuffer);
 
 					return false;
 				}
@@ -2156,8 +2134,8 @@ namespace reshade
 			{
 				LOG(TRACE) << "Failed to create backbuffer texture! HRESULT is '" << hr << "'.";
 
-				SAFE_RELEASE(_backbuffer);
-				SAFE_RELEASE(_backbuffer_resolved);
+				safe_release(_backbuffer);
+				safe_release(_backbuffer_resolved);
 
 				return false;
 			}
@@ -2170,10 +2148,10 @@ namespace reshade
 			{
 				LOG(TRACE) << "Failed to create default depthstencil! HRESULT is '" << hr << "'.";
 
-				SAFE_RELEASE(_backbuffer);
-				SAFE_RELEASE(_backbuffer_resolved);
-				SAFE_RELEASE(_backbuffer_texture);
-				SAFE_RELEASE(_backbuffer_texture_surface);
+				safe_release(_backbuffer);
+				safe_release(_backbuffer_resolved);
+				safe_release(_backbuffer_texture);
+				safe_release(_backbuffer_texture_surface);
 
 				return nullptr;
 			}
@@ -2186,11 +2164,11 @@ namespace reshade
 			{
 				LOG(TRACE) << "Failed to create stateblock! HRESULT is '" << hr << "'.";
 
-				SAFE_RELEASE(_backbuffer);
-				SAFE_RELEASE(_backbuffer_resolved);
-				SAFE_RELEASE(_backbuffer_texture);
-				SAFE_RELEASE(_backbuffer_texture_surface);
-				SAFE_RELEASE(_default_depthstencil);
+				safe_release(_backbuffer);
+				safe_release(_backbuffer_resolved);
+				safe_release(_backbuffer_texture);
+				safe_release(_backbuffer_texture_surface);
+				safe_release(_default_depthstencil);
 
 				return false;
 			}
@@ -2216,12 +2194,12 @@ namespace reshade
 			{
 				LOG(TRACE) << "Failed to create effect vertexbuffer! HRESULT is '" << hr << "'.";
 
-				SAFE_RELEASE(_backbuffer);
-				SAFE_RELEASE(_backbuffer_resolved);
-				SAFE_RELEASE(_backbuffer_texture);
-				SAFE_RELEASE(_backbuffer_texture_surface);
-				SAFE_RELEASE(_default_depthstencil);
-				SAFE_RELEASE(_stateblock);
+				safe_release(_backbuffer);
+				safe_release(_backbuffer_resolved);
+				safe_release(_backbuffer_texture);
+				safe_release(_backbuffer_texture_surface);
+				safe_release(_default_depthstencil);
+				safe_release(_stateblock);
 
 				return false;
 			}
@@ -2238,13 +2216,13 @@ namespace reshade
 			{
 				LOG(TRACE) << "Failed to create effect vertex declaration! HRESULT is '" << hr << "'.";
 
-				SAFE_RELEASE(_backbuffer);
-				SAFE_RELEASE(_backbuffer_resolved);
-				SAFE_RELEASE(_backbuffer_texture);
-				SAFE_RELEASE(_backbuffer_texture_surface);
-				SAFE_RELEASE(_default_depthstencil);
-				SAFE_RELEASE(_stateblock);
-				SAFE_RELEASE(_effect_triangle_buffer);
+				safe_release(_backbuffer);
+				safe_release(_backbuffer_resolved);
+				safe_release(_backbuffer_texture);
+				safe_release(_backbuffer_texture_surface);
+				safe_release(_default_depthstencil);
+				safe_release(_stateblock);
+				safe_release(_effect_triangle_buffer);
 
 				return false;
 			}
@@ -2271,21 +2249,21 @@ namespace reshade
 			nvgDeleteD3D9(nvg);
 
 			// Destroy resources
-			SAFE_RELEASE(_stateblock);
+			safe_release(_stateblock);
 
-			SAFE_RELEASE(_backbuffer);
-			SAFE_RELEASE(_backbuffer_resolved);
-			SAFE_RELEASE(_backbuffer_texture);
-			SAFE_RELEASE(_backbuffer_texture_surface);
+			safe_release(_backbuffer);
+			safe_release(_backbuffer_resolved);
+			safe_release(_backbuffer_texture);
+			safe_release(_backbuffer_texture_surface);
 
-			SAFE_RELEASE(_depthstencil);
-			SAFE_RELEASE(_depthstencil_replacement);
-			SAFE_RELEASE(_depthstencil_texture);
+			safe_release(_depthstencil);
+			safe_release(_depthstencil_replacement);
+			safe_release(_depthstencil_texture);
 
-			SAFE_RELEASE(_default_depthstencil);
+			safe_release(_default_depthstencil);
 
-			SAFE_RELEASE(_effect_triangle_buffer);
-			SAFE_RELEASE(_effect_triangle_layout);
+			safe_release(_effect_triangle_buffer);
+			safe_release(_effect_triangle_layout);
 
 			// Clearing depth source table
 			for (auto &it : _depth_source_table)
@@ -2368,12 +2346,12 @@ namespace reshade
 			{
 				_device->SetRenderTarget(target, stateblock_rendertargets[target]);
 
-				SAFE_RELEASE(stateblock_rendertargets[target]);
+				safe_release(stateblock_rendertargets[target]);
 			}
 			
 			_device->SetDepthStencilSurface(stateblock_depthstencil);
 
-			SAFE_RELEASE(stateblock_depthstencil);
+			safe_release(stateblock_depthstencil);
 
 			_device->SetViewport(&viewport);
 
@@ -2777,7 +2755,7 @@ namespace reshade
 
 			for (auto it = _depth_source_table.begin(); it != _depth_source_table.end(); ++it)
 			{
-				if (GetRefCount(it->first) == 1)
+				if (refcount(it->first) == 1)
 				{
 					LOG(TRACE) << "Removing depthstencil " << it->first << " from list of possible depth candidates ...";
 
@@ -2810,9 +2788,9 @@ namespace reshade
 		}
 		bool d3d9_runtime::create_depthstencil_replacement(IDirect3DSurface9 *depthstencil)
 		{
-			SAFE_RELEASE(_depthstencil);
-			SAFE_RELEASE(_depthstencil_replacement);
-			SAFE_RELEASE(_depthstencil_texture);
+			safe_release(_depthstencil);
+			safe_release(_depthstencil_replacement);
+			safe_release(_depthstencil_texture);
 
 			if (depthstencil != nullptr)
 			{
