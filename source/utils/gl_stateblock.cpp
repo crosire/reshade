@@ -11,48 +11,50 @@ namespace reshade
 
 		void gl_stateblock::capture()
 		{
-			glGetIntegerv(GL_VERTEX_ARRAY_BINDING, reinterpret_cast<GLint *>(&_vao));
-			glGetIntegerv(GL_ARRAY_BUFFER_BINDING, reinterpret_cast<GLint *>(&_vbo));
-			glGetIntegerv(GL_UNIFORM_BUFFER_BINDING, reinterpret_cast<GLint *>(&_ubo));
-			glGetIntegerv(GL_CURRENT_PROGRAM, reinterpret_cast<GLint *>(&_program));
+			glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &_vao);
+			glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &_vbo);
+			glGetIntegerv(GL_UNIFORM_BUFFER_BINDING, &_ubo);
+			glGetIntegerv(GL_CURRENT_PROGRAM, &_program);
 
 			for (GLuint i = 0; i < ARRAYSIZE(_textures2d); i++)
 			{
 				glActiveTexture(GL_TEXTURE0 + i);
-				glGetIntegerv(GL_TEXTURE_BINDING_2D, reinterpret_cast<GLint *>(&_textures2d[i]));
-				glGetIntegerv(GL_SAMPLER_BINDING, reinterpret_cast<GLint *>(&_samplers[i]));
+				glGetIntegerv(GL_TEXTURE_BINDING_2D, &_textures2d[i]);
+				glGetIntegerv(GL_SAMPLER_BINDING, &_samplers[i]);
 			}
 
-			glGetIntegerv(GL_ACTIVE_TEXTURE, reinterpret_cast<GLint *>(&_active_texture));
+			glGetIntegerv(GL_ACTIVE_TEXTURE, &_active_texture);
 			glGetIntegerv(GL_VIEWPORT, _viewport);
 			_scissor_test = glIsEnabled(GL_SCISSOR_TEST);
 			_blend = glIsEnabled(GL_BLEND);
-			glGetIntegerv(GL_BLEND_SRC, reinterpret_cast<GLint *>(&_blend_src));
-			glGetIntegerv(GL_BLEND_DST, reinterpret_cast<GLint *>(&_blend_dest));
-			glGetIntegerv(GL_BLEND_EQUATION_RGB, reinterpret_cast<GLint *>(&_blend_eq_color));
-			glGetIntegerv(GL_BLEND_EQUATION_ALPHA, reinterpret_cast<GLint *>(&_blend_eq_alpha));
+			glGetIntegerv(GL_BLEND_SRC, &_blend_src);
+			glGetIntegerv(GL_BLEND_DST, &_blend_dest);
+			glGetIntegerv(GL_BLEND_EQUATION_RGB, &_blend_eq_color);
+			glGetIntegerv(GL_BLEND_EQUATION_ALPHA, &_blend_eq_alpha);
 			_depth_test = glIsEnabled(GL_DEPTH_TEST);
 			glGetBooleanv(GL_DEPTH_WRITEMASK, &_depth_mask);
-			glGetIntegerv(GL_DEPTH_FUNC, reinterpret_cast<GLint *>(&_depth_func));
+			glGetIntegerv(GL_DEPTH_FUNC, &_depth_func);
 			_stencil_test = glIsEnabled(GL_STENCIL_TEST);
 			glGetIntegerv(GL_STENCIL_REF, &_stencil_ref);
-			glGetIntegerv(GL_STENCIL_FUNC, reinterpret_cast<GLint *>(&_stencil_func));
-			glGetIntegerv(GL_STENCIL_FAIL, reinterpret_cast<GLint *>(&_stencil_op_fail));
-			glGetIntegerv(GL_STENCIL_PASS_DEPTH_FAIL, reinterpret_cast<GLint *>(&_stencil_op_zfail));
-			glGetIntegerv(GL_STENCIL_PASS_DEPTH_PASS, reinterpret_cast<GLint *>(&_stencil_op_zpass));
-			glGetIntegerv(GL_STENCIL_VALUE_MASK, reinterpret_cast<GLint *>(&_stencil_read_mask));
-			glGetIntegerv(GL_STENCIL_WRITEMASK, reinterpret_cast<GLint *>(&_stencil_mask));
-			glGetIntegerv(GL_POLYGON_MODE, reinterpret_cast<GLint *>(&_polygon_mode));
-			glGetIntegerv(GL_FRONT_FACE, reinterpret_cast<GLint *>(&_frontface));
+			glGetIntegerv(GL_STENCIL_FUNC, &_stencil_func);
+			glGetIntegerv(GL_STENCIL_FAIL, &_stencil_op_fail);
+			glGetIntegerv(GL_STENCIL_PASS_DEPTH_FAIL, &_stencil_op_zfail);
+			glGetIntegerv(GL_STENCIL_PASS_DEPTH_PASS, &_stencil_op_zpass);
+			glGetIntegerv(GL_STENCIL_VALUE_MASK, &_stencil_read_mask);
+			glGetIntegerv(GL_STENCIL_WRITEMASK, &_stencil_mask);
+			glGetIntegerv(GL_POLYGON_MODE, &_polygon_mode);
+			glGetIntegerv(GL_FRONT_FACE, &_frontface);
 			_cullface = glIsEnabled(GL_CULL_FACE);
-			glGetIntegerv(GL_CULL_FACE_MODE, reinterpret_cast<GLint *>(&_cullface_mode));
-			glGetIntegerv(GL_FRAMEBUFFER_BINDING, reinterpret_cast<GLint *>(&_fbo));
+			glGetIntegerv(GL_CULL_FACE_MODE, &_cullface_mode);
+			glGetIntegerv(GL_FRAMEBUFFER_BINDING, &_fbo);
 			_srgb = glIsEnabled(GL_FRAMEBUFFER_SRGB);
 			glGetBooleanv(GL_COLOR_WRITEMASK, _color_mask);
 
 			for (GLuint i = 0; i < ARRAYSIZE(_drawbuffers); i++)
 			{
-				glGetIntegerv(GL_DRAW_BUFFER0 + i, reinterpret_cast<GLint *>(&_drawbuffers[i]));
+				GLint drawbuffer = GL_NONE;
+				glGetIntegerv(GL_DRAW_BUFFER0 + i, &drawbuffer);
+				_drawbuffers[i] = static_cast<GLenum>(drawbuffer);
 			}
 		}
 		void gl_stateblock::apply() const
