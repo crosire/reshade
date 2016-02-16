@@ -288,7 +288,7 @@ tools\upx --backup "$(TargetPath)"</Command>
     <ClInclude Include="source\runtimes\d3d11_runtime.hpp" />
     <ClInclude Include="source\runtimes\d3d12_runtime.hpp" />
     <ClInclude Include="source\runtimes\gl_runtime.hpp" />
-    <ClInclude Include="source\utils\com.hpp" />
+    <ClInclude Include="source\utils\com_ptr.hpp" />
     <ClInclude Include="source\utils\critical_section.hpp" />
     <ClInclude Include="source\utils\d3d10_stateblock.hpp" />
     <ClInclude Include="source\utils\d3d11_stateblock.hpp" />

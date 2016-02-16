@@ -1,10 +1,22 @@
 #include "d3d11_stateblock.hpp"
-#include "utils\com.hpp"
 
 namespace reshade
 {
 	namespace utils
 	{
+		namespace
+		{
+			template <typename T>
+			inline void safe_release(T *&object)
+			{
+				if (object != nullptr)
+				{
+					object->Release();
+					object = nullptr;
+				}
+			}
+		}
+
 		d3d11_stateblock::d3d11_stateblock(ID3D11Device *device)
 		{
 			ZeroMemory(this, sizeof(*this));

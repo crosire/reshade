@@ -22,6 +22,8 @@ namespace reshade
 		void on_apply_effect_technique(const technique *technique) override;
 		void on_fbo_attachment(GLenum target, GLenum attachment, GLenum objecttarget, GLuint object, GLint level);
 
+		static void update_texture_datatype(texture *texture, texture::datatype source, GLuint newtexture, GLuint newtexture_srgb);
+
 		HDC _hdc;
 
 		GLuint _reference_count, _current_vertex_count;

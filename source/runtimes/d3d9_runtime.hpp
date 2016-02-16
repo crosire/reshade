@@ -1,6 +1,7 @@
 #pragma once
 
 #include "runtime.hpp"
+#include "utils\com_ptr.hpp"
 
 #include <algorithm>
 #include <d3d9.h>
@@ -11,7 +12,6 @@ namespace reshade
 	{
 	public:
 		d3d9_runtime(IDirect3DDevice9 *device, IDirect3DSwapChain9 *swapchain);
-		~d3d9_runtime();
 
 		bool on_init(const D3DPRESENT_PARAMETERS &pp);
 		void on_reset() override;
@@ -22,13 +22,16 @@ namespace reshade
 		void on_set_depthstencil_surface(IDirect3DSurface9 *&depthstencil);
 		void on_get_depthstencil_surface(IDirect3DSurface9 *&depthstencil);
 
-		IDirect3D9 *_d3d;
-		IDirect3DDevice9 *_device;
-		IDirect3DSwapChain9 *_swapchain;
+		static void update_texture_datatype(texture *texture, texture::datatype source, const com_ptr<IDirect3DTexture9> &newtexture);
 
-		IDirect3DSurface9 *_backbuffer, *_backbuffer_resolved, *_backbuffer_texture_surface;
-		IDirect3DTexture9 *_backbuffer_texture;
-		IDirect3DTexture9 *_depthstencil_texture;
+		com_ptr<IDirect3D9> _d3d;
+		com_ptr<IDirect3DDevice9> _device;
+		com_ptr<IDirect3DSwapChain9> _swapchain;
+
+		com_ptr<IDirect3DSurface9> _backbuffer, _backbuffer_resolved;
+		com_ptr<IDirect3DTexture9> _backbuffer_texture;
+		com_ptr<IDirect3DSurface9> _backbuffer_texture_surface;
+		com_ptr<IDirect3DTexture9> _depthstencil_texture;
 		UINT _constant_register_count;
 
 	private:
@@ -48,12 +51,11 @@ namespace reshade
 		UINT _behavior_flags, _num_simultaneous_rendertargets;
 		bool _is_multisampling_enabled;
 		D3DFORMAT _backbuffer_format;
-		IDirect3DStateBlock9 *_stateblock;
-		IDirect3DSurface9 *_depthstencil, *_depthstencil_replacement;
-		IDirect3DSurface9 *_default_depthstencil;
+		com_ptr<IDirect3DStateBlock9> _stateblock;
+		com_ptr<IDirect3DSurface9> _depthstencil, _depthstencil_replacement, _default_depthstencil;
 		std::unordered_map<IDirect3DSurface9 *, depth_source_info> _depth_source_table;
 
-		IDirect3DVertexBuffer9 *_effect_triangle_buffer;
-		IDirect3DVertexDeclaration9 *_effect_triangle_layout;
+		com_ptr<IDirect3DVertexBuffer9> _effect_triangle_buffer;
+		com_ptr<IDirect3DVertexDeclaration9> _effect_triangle_layout;
 	};
 }

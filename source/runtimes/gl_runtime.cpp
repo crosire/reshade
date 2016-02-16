@@ -40,29 +40,6 @@ namespace reshade
 			}
 		}
 
-		void change_datatype(datatype source, GLuint texture, GLuint textureSRGB)
-		{
-			if (basetype == datatype::image)
-			{
-				GLCHECK(glDeleteTextures(2, ID));
-			}
-
-			basetype = source;
-
-			if (textureSRGB == 0)
-			{
-				textureSRGB = texture;
-			}
-
-			if (ID[0] == texture && ID[1] == textureSRGB)
-			{
-				return;
-			}
-
-			ID[0] = texture;
-			ID[1] = textureSRGB;
-		}
-
 		GLuint ID[2];
 	};
 	struct gl_sampler
@@ -71,29 +48,33 @@ namespace reshade
 		gl_texture *Texture;
 		bool SRGB;
 	};
+	struct gl_pass
+	{
+		gl_pass()
+		{
+			ZeroMemory(this, sizeof(*this));
+		}
+
+		GLuint program;
+		GLuint fbo, draw_textures[8];
+		GLint stencil_reference;
+		GLuint stencil_mask, stencil_read_mask;
+		GLsizei viewport_width, viewport_height;
+		GLenum draw_buffers[8], blend_eq_color, blend_eq_alpha, blend_src, blend_dest, depth_func, stencil_func, stencil_op_fail, stencil_op_z_fail, stencil_op_z_pass;
+		GLboolean srgb, blend, depth_mask, depth_test, stencil_test, color_mask[4];
+	};
 	struct gl_technique : public technique
 	{
-		struct Pass
-		{
-			GLuint Program;
-			GLuint Framebuffer, DrawTextures[8];
-			GLint StencilRef;
-			GLuint StencilMask, StencilReadMask;
-			GLsizei ViewportWidth, ViewportHeight;
-			GLenum DrawBuffers[8], BlendEqColor, BlendEqAlpha, BlendFuncSrc, BlendFuncDest, DepthFunc, StencilFunc, StencilOpFail, StencilOpZFail, StencilOpZPass;
-			GLboolean FramebufferSRGB, Blend, DepthMask, DepthTest, StencilTest, ColorMaskR, ColorMaskG, ColorMaskB, ColorMaskA;
-		};
-
 		~gl_technique()
 		{
 			for (auto &pass : passes)
 			{
-				GLCHECK(glDeleteProgram(pass.Program));
-				GLCHECK(glDeleteFramebuffers(1, &pass.Framebuffer));
+				GLCHECK(glDeleteProgram(pass.program));
+				GLCHECK(glDeleteFramebuffers(1, &pass.fbo));
 			}
 		}
 
-		std::vector<Pass> passes;
+		std::vector<gl_pass> passes;
 	};
 
 	class gl_fx_compiler : fx::compiler
@@ -1930,7 +1911,7 @@ namespace reshade
 		}
 		void visit_texture(const fx::nodes::variable_declaration_node *node)
 		{
-			gl_texture *const obj = new gl_texture();
+			const auto obj = new gl_texture();
 			obj->name = node->name;
 			GLuint width = obj->width = node->properties.Width;
 			GLuint height = obj->height = node->properties.Height;
@@ -1955,7 +1936,7 @@ namespace reshade
 					warning(node->location, "texture property on backbuffer textures are ignored");
 				}
 
-				obj->change_datatype(texture::datatype::backbuffer, _runtime->_backbuffer_texture[0], _runtime->_backbuffer_texture[1]);
+				_runtime->update_texture_datatype(obj, texture::datatype::backbuffer, _runtime->_backbuffer_texture[0], _runtime->_backbuffer_texture[1]);
 			}
 			else if (node->semantic == "DEPTH" || node->semantic == "SV_DEPTH")
 			{
@@ -1964,7 +1945,7 @@ namespace reshade
 					warning(node->location, "texture property on depthbuffer textures are ignored");
 				}
 
-				obj->change_datatype(texture::datatype::depthbuffer, _runtime->_depth_texture, 0);
+				_runtime->update_texture_datatype(obj, texture::datatype::depthbuffer, _runtime->_depth_texture, 0);
 			}
 			else
 			{
@@ -1999,7 +1980,7 @@ namespace reshade
 				return;
 			}
 
-			gl_texture *const texture = static_cast<gl_texture *>(_runtime->find_texture(node->properties.Texture->name));
+			const auto texture = static_cast<gl_texture *>(_runtime->find_texture(node->properties.Texture->name));
 
 			if (texture == nullptr)
 			{
@@ -2063,7 +2044,7 @@ namespace reshade
 
 			_global_uniforms += ";\n";
 
-			uniform *const obj = new uniform();
+			const auto obj = new uniform();
 			obj->name = node->name;
 			obj->rows = node->type.rows;
 			obj->columns = node->type.cols;
@@ -2116,7 +2097,7 @@ namespace reshade
 		}
 		void visit_technique(const fx::nodes::technique_declaration_node *node)
 		{
-			gl_technique *const obj = new gl_technique();
+			const auto obj = new gl_technique();
 			obj->name = node->name;
 			obj->pass_count = static_cast<unsigned int>(node->pass_list.size());
 
@@ -2129,34 +2110,33 @@ namespace reshade
 
 			_runtime->add_technique(obj);
 		}
-		void visit_pass(const fx::nodes::pass_declaration_node *node, std::vector<gl_technique::Pass> &passes)
+		void visit_pass(const fx::nodes::pass_declaration_node *node, std::vector<gl_pass> &passes)
 		{
-			gl_technique::Pass pass;
-			ZeroMemory(&pass, sizeof(gl_technique::Pass));
-			pass.ColorMaskR = (node->states.RenderTargetWriteMask & (1 << 0)) != 0;
-			pass.ColorMaskG = (node->states.RenderTargetWriteMask & (1 << 1)) != 0;
-			pass.ColorMaskB = (node->states.RenderTargetWriteMask & (1 << 2)) != 0;
-			pass.ColorMaskA = (node->states.RenderTargetWriteMask & (1 << 3)) != 0;
-			pass.DepthTest = node->states.DepthEnable;
-			pass.DepthMask = node->states.DepthWriteMask;
-			pass.DepthFunc = LiteralToCompFunc(node->states.DepthFunc);
-			pass.StencilTest = node->states.StencilEnable;
-			pass.StencilReadMask = node->states.StencilReadMask;
-			pass.StencilMask = node->states.StencilWriteMask;
-			pass.StencilFunc = LiteralToCompFunc(node->states.StencilFunc);
-			pass.StencilOpZPass = LiteralToStencilOp(node->states.StencilOpPass);
-			pass.StencilOpFail = LiteralToStencilOp(node->states.StencilOpFail);
-			pass.StencilOpZFail = LiteralToStencilOp(node->states.StencilOpDepthFail);
-			pass.Blend = node->states.BlendEnable;
-			pass.BlendEqColor = LiteralToBlendEq(node->states.BlendOp);
-			pass.BlendEqAlpha = LiteralToBlendEq(node->states.BlendOpAlpha);
-			pass.BlendFuncSrc = LiteralToBlendFunc(node->states.SrcBlend);
-			pass.BlendFuncDest = LiteralToBlendFunc(node->states.DestBlend);
-			pass.StencilRef = node->states.StencilRef;
-			pass.FramebufferSRGB = node->states.SRGBWriteEnable;
+			gl_pass pass;
+			pass.color_mask[0] = (node->states.RenderTargetWriteMask & (1 << 0)) != 0;
+			pass.color_mask[1] = (node->states.RenderTargetWriteMask & (1 << 1)) != 0;
+			pass.color_mask[2] = (node->states.RenderTargetWriteMask & (1 << 2)) != 0;
+			pass.color_mask[3] = (node->states.RenderTargetWriteMask & (1 << 3)) != 0;
+			pass.depth_test = node->states.DepthEnable;
+			pass.depth_mask = node->states.DepthWriteMask;
+			pass.depth_func = LiteralToCompFunc(node->states.DepthFunc);
+			pass.stencil_test = node->states.StencilEnable;
+			pass.stencil_read_mask = node->states.StencilReadMask;
+			pass.stencil_mask = node->states.StencilWriteMask;
+			pass.stencil_func = LiteralToCompFunc(node->states.StencilFunc);
+			pass.stencil_op_z_pass = LiteralToStencilOp(node->states.StencilOpPass);
+			pass.stencil_op_fail = LiteralToStencilOp(node->states.StencilOpFail);
+			pass.stencil_op_z_fail = LiteralToStencilOp(node->states.StencilOpDepthFail);
+			pass.blend = node->states.BlendEnable;
+			pass.blend_eq_color = LiteralToBlendEq(node->states.BlendOp);
+			pass.blend_eq_alpha = LiteralToBlendEq(node->states.BlendOpAlpha);
+			pass.blend_src = LiteralToBlendFunc(node->states.SrcBlend);
+			pass.blend_dest = LiteralToBlendFunc(node->states.DestBlend);
+			pass.stencil_reference = node->states.StencilRef;
+			pass.srgb = node->states.SRGBWriteEnable;
 
-			GLCHECK(glGenFramebuffers(1, &pass.Framebuffer));
-			GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, pass.Framebuffer));
+			GLCHECK(glGenFramebuffers(1, &pass.fbo));
+			GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, pass.fbo));
 
 			bool backbufferFramebuffer = true;
 
@@ -2167,7 +2147,7 @@ namespace reshade
 					continue;
 				}
 
-				const gl_texture *const texture = static_cast<gl_texture *>(_runtime->find_texture(node->states.RenderTargets[i]->name));
+				const auto texture = static_cast<const gl_texture *>(_runtime->find_texture(node->states.RenderTargets[i]->name));
 
 				if (texture == nullptr)
 				{
@@ -2175,37 +2155,37 @@ namespace reshade
 					return;
 				}
 
-				if (pass.ViewportWidth != 0 && pass.ViewportHeight != 0 && (texture->width != static_cast<unsigned int>(pass.ViewportWidth) || texture->height != static_cast<unsigned int>(pass.ViewportHeight)))
+				if (pass.viewport_width != 0 && pass.viewport_height != 0 && (texture->width != static_cast<unsigned int>(pass.viewport_width) || texture->height != static_cast<unsigned int>(pass.viewport_height)))
 				{
 					error(node->location, "cannot use multiple rendertargets with different sized textures");
 					return;
 				}
 				else
 				{
-					pass.ViewportWidth = texture->width;
-					pass.ViewportHeight = texture->height;
+					pass.viewport_width = texture->width;
+					pass.viewport_height = texture->height;
 				}
 
 				backbufferFramebuffer = false;
 
-				GLCHECK(glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, texture->ID[pass.FramebufferSRGB], 0));
+				GLCHECK(glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, texture->ID[pass.srgb], 0));
 
-				pass.DrawBuffers[i] = GL_COLOR_ATTACHMENT0 + i;
-				pass.DrawTextures[i] = texture->ID[pass.FramebufferSRGB];
+				pass.draw_buffers[i] = GL_COLOR_ATTACHMENT0 + i;
+				pass.draw_textures[i] = texture->ID[pass.srgb];
 			}
 
 			if (backbufferFramebuffer)
 			{
 				GLCHECK(glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, _runtime->_default_backbuffer_rbo[0]));
 
-				pass.DrawBuffers[0] = GL_COLOR_ATTACHMENT0;
-				pass.DrawTextures[0] = _runtime->_backbuffer_texture[1];
+				pass.draw_buffers[0] = GL_COLOR_ATTACHMENT0;
+				pass.draw_textures[0] = _runtime->_backbuffer_texture[1];
 
 				RECT rect;
 				GetClientRect(WindowFromDC(_runtime->_hdc), &rect);
 
-				pass.ViewportWidth = static_cast<GLsizei>(rect.right - rect.left);
-				pass.ViewportHeight = static_cast<GLsizei>(rect.bottom - rect.top);
+				pass.viewport_width = static_cast<GLsizei>(rect.right - rect.left);
+				pass.viewport_height = static_cast<GLsizei>(rect.bottom - rect.top);
 			}
 
 			GLCHECK(glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, _runtime->_default_backbuffer_rbo[1]));
@@ -2215,44 +2195,44 @@ namespace reshade
 			GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, 0));
 
 			GLuint shaders[2] = { 0, 0 };
-			GLenum shaderTypes[2] = { GL_VERTEX_SHADER, GL_FRAGMENT_SHADER };
-			const fx::nodes::function_declaration_node *shaderFunctions[2] = { node->states.VertexShader, node->states.PixelShader };
+			GLenum shader_types[2] = { GL_VERTEX_SHADER, GL_FRAGMENT_SHADER };
+			const fx::nodes::function_declaration_node *shader_functions[2] = { node->states.VertexShader, node->states.PixelShader };
 
-			pass.Program = glCreateProgram();
+			pass.program = glCreateProgram();
 
-			for (unsigned int i = 0; i < 2; ++i)
+			for (unsigned int i = 0; i < 2; i++)
 			{
-				if (shaderFunctions[i] != nullptr)
+				if (shader_functions[i] != nullptr)
 				{
-					shaders[i] = glCreateShader(shaderTypes[i]);
+					shaders[i] = glCreateShader(shader_types[i]);
 
-					visit_pass_shader(shaderFunctions[i], shaderTypes[i], shaders[i]);
+					visit_pass_shader(shader_functions[i], shader_types[i], shaders[i]);
 
-					GLCHECK(glAttachShader(pass.Program, shaders[i]));
+					GLCHECK(glAttachShader(pass.program, shaders[i]));
 				}
 			}
 
-			GLCHECK(glLinkProgram(pass.Program));
+			GLCHECK(glLinkProgram(pass.program));
 
-			for (unsigned int i = 0; i < 2; ++i)
+			for (unsigned int i = 0; i < 2; i++)
 			{
-				GLCHECK(glDetachShader(pass.Program, shaders[i]));
+				GLCHECK(glDetachShader(pass.program, shaders[i]));
 				GLCHECK(glDeleteShader(shaders[i]));
 			}
 
 			GLint status = GL_FALSE;
 
-			GLCHECK(glGetProgramiv(pass.Program, GL_LINK_STATUS, &status));
+			GLCHECK(glGetProgramiv(pass.program, GL_LINK_STATUS, &status));
 
 			if (status == GL_FALSE)
 			{
 				GLint logsize = 0;
-				GLCHECK(glGetProgramiv(pass.Program, GL_INFO_LOG_LENGTH, &logsize));
+				GLCHECK(glGetProgramiv(pass.program, GL_INFO_LOG_LENGTH, &logsize));
 
 				std::string log(logsize, '\0');
-				GLCHECK(glGetProgramInfoLog(pass.Program, logsize, nullptr, &log.front()));
+				GLCHECK(glGetProgramInfoLog(pass.program, logsize, nullptr, &log.front()));
 
-				GLCHECK(glDeleteProgram(pass.Program));
+				GLCHECK(glDeleteProgram(pass.program));
 
 				_errors += log;
 				error(node->location, "program linking failed");
@@ -2304,12 +2284,12 @@ namespace reshade
 				{
 					for (auto field : parameter->type.definition->field_list)
 					{
-						visitShaderParameter(source, field->type, parameter->type.qualifiers, "_param_" + parameter->name + "_" + field->name, field->semantic, shadertype);
+						visit_shader_param(source, field->type, parameter->type.qualifiers, "_param_" + parameter->name + "_" + field->name, field->semantic, shadertype);
 					}
 				}
 				else
 				{
-					visitShaderParameter(source, parameter->type, parameter->type.qualifiers, "_param_" + parameter->name, parameter->semantic, shadertype);
+					visit_shader_param(source, parameter->type, parameter->type.qualifiers, "_param_" + parameter->name, parameter->semantic, shadertype);
 				}
 			}
 
@@ -2317,12 +2297,12 @@ namespace reshade
 			{
 				for (auto field : node->return_type.definition->field_list)
 				{
-					visitShaderParameter(source, field->type, fx::nodes::type_node::qualifier_out, "_return_" + field->name, field->semantic, shadertype);
+					visit_shader_param(source, field->type, fx::nodes::type_node::qualifier_out, "_return_" + field->name, field->semantic, shadertype);
 				}
 			}
 			else if (!node->return_type.is_void())
 			{
-				visitShaderParameter(source, node->return_type, fx::nodes::type_node::qualifier_out, "_return", node->return_semantic, shadertype);
+				visit_shader_param(source, node->return_type, fx::nodes::type_node::qualifier_out, "_return", node->return_semantic, shadertype);
 			}
 
 			source += "void main()\n{\n";
@@ -2486,7 +2466,7 @@ namespace reshade
 				error(node->location, "internal shader compilation failed");
 			}
 		}
-		void visitShaderParameter(std::string &source, fx::nodes::type_node type, unsigned int qualifier, const std::string &name, const std::string &semantic, GLuint shadertype)
+		void visit_shader_param(std::string &source, fx::nodes::type_node type, unsigned int qualifier, const std::string &name, const std::string &semantic, GLuint shadertype)
 		{
 			type.qualifiers = static_cast<unsigned int>(qualifier);
 
@@ -3106,23 +3086,23 @@ namespace reshade
 		for (const auto &pass : static_cast<const gl_technique *>(technique)->passes)
 		{
 			// Setup states
-			GLCHECK(glUseProgram(pass.Program));
-			GLCHECK(pass.FramebufferSRGB ? glEnable(GL_FRAMEBUFFER_SRGB) : glDisable(GL_FRAMEBUFFER_SRGB));
+			GLCHECK(glUseProgram(pass.program));
+			GLCHECK(pass.srgb ? glEnable(GL_FRAMEBUFFER_SRGB) : glDisable(GL_FRAMEBUFFER_SRGB));
 			GLCHECK(glDisable(GL_SCISSOR_TEST));
 			GLCHECK(glFrontFace(GL_CCW));
 			GLCHECK(glPolygonMode(GL_FRONT_AND_BACK, GL_FILL));
 			GLCHECK(glDisable(GL_CULL_FACE));
-			GLCHECK(glColorMask(pass.ColorMaskR, pass.ColorMaskG, pass.ColorMaskB, pass.ColorMaskA));
-			GLCHECK(pass.Blend ? glEnable(GL_BLEND) : glDisable(GL_BLEND));
-			GLCHECK(glBlendFunc(pass.BlendFuncSrc, pass.BlendFuncDest));
-			GLCHECK(glBlendEquationSeparate(pass.BlendEqColor, pass.BlendEqAlpha));
-			GLCHECK(pass.DepthTest ? glEnable(GL_DEPTH_TEST) : glDisable(GL_DEPTH_TEST));
-			GLCHECK(glDepthMask(pass.DepthMask));
-			GLCHECK(glDepthFunc(pass.DepthFunc));
-			GLCHECK(pass.StencilTest ? glEnable(GL_STENCIL_TEST) : glDisable(GL_STENCIL_TEST));
-			GLCHECK(glStencilFunc(pass.StencilFunc, pass.StencilRef, pass.StencilReadMask));
-			GLCHECK(glStencilOp(pass.StencilOpFail, pass.StencilOpZFail, pass.StencilOpZPass));
-			GLCHECK(glStencilMask(pass.StencilMask));
+			GLCHECK(glColorMask(pass.color_mask[0], pass.color_mask[1], pass.color_mask[2], pass.color_mask[3]));
+			GLCHECK(pass.blend ? glEnable(GL_BLEND) : glDisable(GL_BLEND));
+			GLCHECK(glBlendFunc(pass.blend_src, pass.blend_dest));
+			GLCHECK(glBlendEquationSeparate(pass.blend_eq_color, pass.blend_eq_alpha));
+			GLCHECK(pass.depth_test ? glEnable(GL_DEPTH_TEST) : glDisable(GL_DEPTH_TEST));
+			GLCHECK(glDepthMask(pass.depth_mask));
+			GLCHECK(glDepthFunc(pass.depth_func));
+			GLCHECK(pass.stencil_test ? glEnable(GL_STENCIL_TEST) : glDisable(GL_STENCIL_TEST));
+			GLCHECK(glStencilFunc(pass.stencil_func, pass.stencil_reference, pass.stencil_read_mask));
+			GLCHECK(glStencilOp(pass.stencil_op_fail, pass.stencil_op_z_fail, pass.stencil_op_z_pass));
+			GLCHECK(glStencilMask(pass.stencil_mask));
 
 			// Save backbuffer of previous pass
 			GLCHECK(glBindFramebuffer(GL_READ_FRAMEBUFFER, _default_backbuffer_fbo));
@@ -3132,13 +3112,13 @@ namespace reshade
 			GLCHECK(glBlitFramebuffer(0, 0, _width, _height, 0, 0, _width, _height, GL_COLOR_BUFFER_BIT, GL_NEAREST));
 
 			// Setup rendertargets
-			GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, pass.Framebuffer));
-			GLCHECK(glDrawBuffers(8, pass.DrawBuffers));
-			GLCHECK(glViewport(0, 0, pass.ViewportWidth, pass.ViewportHeight));
+			GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, pass.fbo));
+			GLCHECK(glDrawBuffers(8, pass.draw_buffers));
+			GLCHECK(glViewport(0, 0, pass.viewport_width, pass.viewport_height));
 
 			for (GLuint k = 0; k < 8; k++)
 			{
-				if (pass.DrawBuffers[k] == GL_NONE)
+				if (pass.draw_buffers[k] == GL_NONE)
 				{
 					continue;
 				}
@@ -3151,7 +3131,7 @@ namespace reshade
 			GLCHECK(glDrawArrays(GL_TRIANGLES, 0, 3));
 
 			// Update shader resources
-			for (GLuint id : pass.DrawTextures)
+			for (GLuint id : pass.draw_textures)
 			{
 				for (GLsizei sampler = 0, samplerCount = static_cast<GLsizei>(_effect_samplers.size()); sampler < samplerCount; sampler++)
 				{
@@ -3262,12 +3242,12 @@ namespace reshade
 	}
 	bool gl_runtime::update_texture(texture *texture, const unsigned char *data, size_t size)
 	{
-		gl_texture *const textureImpl = dynamic_cast<gl_texture *>(texture);
+		const auto texture_impl = dynamic_cast<gl_texture *>(texture);
 
-		assert(textureImpl != nullptr);
+		assert(texture_impl != nullptr);
 		assert(data != nullptr && size > 0);
 
-		if (textureImpl->basetype != texture::datatype::image)
+		if (texture_impl->basetype != texture::datatype::image)
 		{
 			return false;
 		}
@@ -3288,7 +3268,7 @@ namespace reshade
 		flip_image_data(texture, dataFlipped.get());
 
 		// Bind and update texture
-		GLCHECK(glBindTexture(GL_TEXTURE_2D, textureImpl->ID[0]));
+		GLCHECK(glBindTexture(GL_TEXTURE_2D, texture_impl->ID[0]));
 
 		if (texture->format >= texture::pixelformat::dxt1 && texture->format <= texture::pixelformat::latc2)
 		{
@@ -3351,6 +3331,30 @@ namespace reshade
 		GLCHECK(glBindTexture(GL_TEXTURE_2D, previous));
 
 		return true;
+	}
+	void gl_runtime::update_texture_datatype(texture *texture, texture::datatype source, GLuint newtexture, GLuint newtexture_srgb)
+	{
+		const auto texture_impl = static_cast<gl_texture *>(texture);
+
+		if (texture_impl->basetype == texture::datatype::image)
+		{
+			GLCHECK(glDeleteTextures(2, texture_impl->ID));
+		}
+
+		texture_impl->basetype = source;
+
+		if (newtexture_srgb == 0)
+		{
+			newtexture_srgb = newtexture;
+		}
+
+		if (texture_impl->ID[0] == newtexture && texture_impl->ID[1] == newtexture_srgb)
+		{
+			return;
+		}
+
+		texture_impl->ID[0] = newtexture;
+		texture_impl->ID[1] = newtexture_srgb;
 	}
 
 	void gl_runtime::detect_depth_source()
@@ -3508,13 +3512,11 @@ namespace reshade
 		}
 
 		// Update effect textures
-		for (const auto &it : _textures)
+		for (const auto &texture : _textures)
 		{
-			gl_texture *texture = static_cast<gl_texture *>(it.get());
-
 			if (texture->basetype == texture::datatype::depthbuffer)
 			{
-				texture->change_datatype(texture::datatype::depthbuffer, _depth_texture, 0);
+				update_texture_datatype(texture.get(), texture::datatype::depthbuffer, _depth_texture, 0);
 			}
 		}
 	}
