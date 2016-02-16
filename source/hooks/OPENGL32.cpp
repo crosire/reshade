@@ -107,7 +107,7 @@ namespace
 	std::unordered_map<HWND, RECT> s_window_rects;
 	std::unordered_set<HDC> s_pbuffer_device_contexts;
 	std::unordered_map<HGLRC, HGLRC> s_shared_contexts;
-	std::unordered_map<HDC, std::shared_ptr<reshade::runtimes::gl_runtime>> s_runtimes;
+	std::unordered_map<HDC, std::shared_ptr<reshade::gl_runtime>> s_runtimes;
 }
 
 // GL
@@ -3534,7 +3534,7 @@ EXPORT BOOL WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 
 		if (gl3wIsSupported(4, 3))
 		{
-			const auto runtime = std::make_shared<reshade::runtimes::gl_runtime>(hdc);
+			const auto runtime = std::make_shared<reshade::gl_runtime>(hdc);
 
 			s_runtimes[hdc] = runtime;
 

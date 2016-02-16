@@ -155,7 +155,7 @@ ULONG STDMETHODCALLTYPE DXGISwapChain::Release()
 			{
 				assert(_runtime != nullptr);
 
-				const auto runtime = std::static_pointer_cast<reshade::runtimes::d3d10_runtime>(_runtime);
+				const auto runtime = std::static_pointer_cast<reshade::d3d10_runtime>(_runtime);
 				auto &runtimes = static_cast<D3D10Device *>(_direct3d_device)->_runtimes;
 
 				runtime->on_reset();
@@ -167,7 +167,7 @@ ULONG STDMETHODCALLTYPE DXGISwapChain::Release()
 			{
 				assert(_runtime != nullptr);
 
-				const auto runtime = std::static_pointer_cast<reshade::runtimes::d3d11_runtime>(_runtime);
+				const auto runtime = std::static_pointer_cast<reshade::d3d11_runtime>(_runtime);
 				auto &runtimes = static_cast<D3D11Device *>(_direct3d_device)->_runtimes;
 
 				runtime->on_reset();
@@ -179,7 +179,7 @@ ULONG STDMETHODCALLTYPE DXGISwapChain::Release()
 			{
 				assert(_runtime != nullptr);
 
-				const auto runtime = std::static_pointer_cast<reshade::runtimes::d3d12_runtime>(_runtime);
+				const auto runtime = std::static_pointer_cast<reshade::d3d12_runtime>(_runtime);
 
 				runtime->on_reset();
 				break;
@@ -242,15 +242,15 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::Present(UINT SyncInterval, UINT Flags)
 	{
 		case 10:
 			assert(_runtime != nullptr);
-			std::static_pointer_cast<reshade::runtimes::d3d10_runtime>(_runtime)->on_present();
+			std::static_pointer_cast<reshade::d3d10_runtime>(_runtime)->on_present();
 			break;
 		case 11:
 			assert(_runtime != nullptr);
-			std::static_pointer_cast<reshade::runtimes::d3d11_runtime>(_runtime)->on_present();
+			std::static_pointer_cast<reshade::d3d11_runtime>(_runtime)->on_present();
 			break;
 		case 12:
 			assert(_runtime != nullptr);
-			std::static_pointer_cast<reshade::runtimes::d3d12_runtime>(_runtime)->on_present();
+			std::static_pointer_cast<reshade::d3d12_runtime>(_runtime)->on_present();
 			break;
 	}
 
@@ -282,15 +282,15 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Wi
 	{
 		case 10:
 			assert(_runtime != nullptr);
-			std::static_pointer_cast<reshade::runtimes::d3d10_runtime>(_runtime)->on_reset();
+			std::static_pointer_cast<reshade::d3d10_runtime>(_runtime)->on_reset();
 			break;
 		case 11:
 			assert(_runtime != nullptr);
-			std::static_pointer_cast<reshade::runtimes::d3d11_runtime>(_runtime)->on_reset();
+			std::static_pointer_cast<reshade::d3d11_runtime>(_runtime)->on_reset();
 			break;
 		case 12:
 			assert(_runtime != nullptr);
-			std::static_pointer_cast<reshade::runtimes::d3d12_runtime>(_runtime)->on_reset();
+			std::static_pointer_cast<reshade::d3d12_runtime>(_runtime)->on_reset();
 			break;
 	}
 
@@ -316,15 +316,15 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Wi
 	{
 		case 10:
 			assert(_runtime != nullptr);
-			initialized = std::static_pointer_cast<reshade::runtimes::d3d10_runtime>(_runtime)->on_init(desc);
+			initialized = std::static_pointer_cast<reshade::d3d10_runtime>(_runtime)->on_init(desc);
 			break;
 		case 11:
 			assert(_runtime != nullptr);
-			initialized = std::static_pointer_cast<reshade::runtimes::d3d11_runtime>(_runtime)->on_init(desc);
+			initialized = std::static_pointer_cast<reshade::d3d11_runtime>(_runtime)->on_init(desc);
 			break;
 		case 12:
 			assert(_runtime != nullptr);
-			initialized = std::static_pointer_cast<reshade::runtimes::d3d12_runtime>(_runtime)->on_init(desc);
+			initialized = std::static_pointer_cast<reshade::d3d12_runtime>(_runtime)->on_init(desc);
 			break;
 	}
 
@@ -385,15 +385,15 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::Present1(UINT SyncInterval, UINT Presen
 	{
 		case 10:
 			assert(_runtime != nullptr);
-			std::static_pointer_cast<reshade::runtimes::d3d10_runtime>(_runtime)->on_present();
+			std::static_pointer_cast<reshade::d3d10_runtime>(_runtime)->on_present();
 			break;
 		case 11:
 			assert(_runtime != nullptr);
-			std::static_pointer_cast<reshade::runtimes::d3d11_runtime>(_runtime)->on_present();
+			std::static_pointer_cast<reshade::d3d11_runtime>(_runtime)->on_present();
 			break;
 		case 12:
 			assert(_runtime != nullptr);
-			std::static_pointer_cast<reshade::runtimes::d3d12_runtime>(_runtime)->on_present();
+			std::static_pointer_cast<reshade::d3d12_runtime>(_runtime)->on_present();
 			break;
 	}
 
@@ -509,15 +509,15 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers1(UINT BufferCount, UINT W
 	{
 		case 10:
 			assert(_runtime != nullptr);
-			std::static_pointer_cast<reshade::runtimes::d3d10_runtime>(_runtime)->on_reset();
+			std::static_pointer_cast<reshade::d3d10_runtime>(_runtime)->on_reset();
 			break;
 		case 11:
 			assert(_runtime != nullptr);
-			std::static_pointer_cast<reshade::runtimes::d3d11_runtime>(_runtime)->on_reset();
+			std::static_pointer_cast<reshade::d3d11_runtime>(_runtime)->on_reset();
 			break;
 		case 12:
 			assert(_runtime != nullptr);
-			std::static_pointer_cast<reshade::runtimes::d3d12_runtime>(_runtime)->on_reset();
+			std::static_pointer_cast<reshade::d3d12_runtime>(_runtime)->on_reset();
 			break;
 	}
 
@@ -543,15 +543,15 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers1(UINT BufferCount, UINT W
 	{
 		case 10:
 			assert(_runtime != nullptr);
-			initialized = std::static_pointer_cast<reshade::runtimes::d3d10_runtime>(_runtime)->on_init(desc);
+			initialized = std::static_pointer_cast<reshade::d3d10_runtime>(_runtime)->on_init(desc);
 			break;
 		case 11:
 			assert(_runtime != nullptr);
-			initialized = std::static_pointer_cast<reshade::runtimes::d3d11_runtime>(_runtime)->on_init(desc);
+			initialized = std::static_pointer_cast<reshade::d3d11_runtime>(_runtime)->on_init(desc);
 			break;
 		case 12:
 			assert(_runtime != nullptr);
-			initialized = std::static_pointer_cast<reshade::runtimes::d3d12_runtime>(_runtime)->on_init(desc);
+			initialized = std::static_pointer_cast<reshade::d3d12_runtime>(_runtime)->on_init(desc);
 			break;
 	}
 
@@ -807,7 +807,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, I
 	{
 		device_d3d10->AddRef();
 
-		const auto runtime = std::make_shared<reshade::runtimes::d3d10_runtime>(device_d3d10->_orig, swapchain);
+		const auto runtime = std::make_shared<reshade::d3d10_runtime>(device_d3d10->_orig, swapchain);
 
 		if (!runtime->on_init(desc))
 		{
@@ -822,7 +822,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, I
 	{
 		device_d3d11->AddRef();
 
-		const auto runtime = std::make_shared<reshade::runtimes::d3d11_runtime>(device_d3d11->_orig, swapchain);
+		const auto runtime = std::make_shared<reshade::d3d11_runtime>(device_d3d11->_orig, swapchain);
 
 		if (!runtime->on_init(desc))
 		{
@@ -841,7 +841,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, I
 		{
 			commandqueue_d3d12->AddRef();
 
-			const auto runtime = std::make_shared<reshade::runtimes::d3d12_runtime>(commandqueue_d3d12->_device->_orig, commandqueue_d3d12->_orig, swapchain3);
+			const auto runtime = std::make_shared<reshade::d3d12_runtime>(commandqueue_d3d12->_device->_orig, commandqueue_d3d12->_orig, swapchain3);
 
 			if (!runtime->on_init(desc))
 			{
@@ -924,7 +924,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pF
 	{
 		device_d3d10->AddRef();
 
-		const auto runtime = std::make_shared<reshade::runtimes::d3d10_runtime>(device_d3d10->_orig, swapchain);
+		const auto runtime = std::make_shared<reshade::d3d10_runtime>(device_d3d10->_orig, swapchain);
 
 		if (!runtime->on_init(desc))
 		{
@@ -939,7 +939,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pF
 	{
 		device_d3d11->AddRef();
 
-		const auto runtime = std::make_shared<reshade::runtimes::d3d11_runtime>(device_d3d11->_orig, swapchain);
+		const auto runtime = std::make_shared<reshade::d3d11_runtime>(device_d3d11->_orig, swapchain);
 
 		if (!runtime->on_init(desc))
 		{
@@ -958,7 +958,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pF
 		{
 			commandqueue_d3d12->AddRef();
 
-			const auto runtime = std::make_shared<reshade::runtimes::d3d12_runtime>(commandqueue_d3d12->_device->_orig, commandqueue_d3d12->_orig, swapchain3);
+			const auto runtime = std::make_shared<reshade::d3d12_runtime>(commandqueue_d3d12->_device->_orig, commandqueue_d3d12->_orig, swapchain3);
 
 			if (!runtime->on_init(desc))
 			{
@@ -1039,7 +1039,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactor
 	{
 		device_d3d10->AddRef();
 
-		const auto runtime = std::make_shared<reshade::runtimes::d3d10_runtime>(device_d3d10->_orig, swapchain);
+		const auto runtime = std::make_shared<reshade::d3d10_runtime>(device_d3d10->_orig, swapchain);
 
 		if (!runtime->on_init(desc))
 		{
@@ -1054,7 +1054,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactor
 	{
 		device_d3d11->AddRef();
 
-		const auto runtime = std::make_shared<reshade::runtimes::d3d11_runtime>(device_d3d11->_orig, swapchain);
+		const auto runtime = std::make_shared<reshade::d3d11_runtime>(device_d3d11->_orig, swapchain);
 
 		if (!runtime->on_init(desc))
 		{
@@ -1073,7 +1073,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactor
 		{
 			commandqueue_d3d12->AddRef();
 
-			const auto runtime = std::make_shared<reshade::runtimes::d3d12_runtime>(commandqueue_d3d12->_device->_orig, commandqueue_d3d12->_orig, swapchain3);
+			const auto runtime = std::make_shared<reshade::d3d12_runtime>(commandqueue_d3d12->_device->_orig, commandqueue_d3d12->_orig, swapchain3);
 
 			if (!runtime->on_init(desc))
 			{
@@ -1154,7 +1154,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFacto
 	{
 		device_d3d10->AddRef();
 
-		const auto runtime = std::make_shared<reshade::runtimes::d3d10_runtime>(device_d3d10->_orig, swapchain);
+		const auto runtime = std::make_shared<reshade::d3d10_runtime>(device_d3d10->_orig, swapchain);
 
 		if (!runtime->on_init(desc))
 		{
@@ -1169,7 +1169,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFacto
 	{
 		device_d3d11->AddRef();
 
-		const auto runtime = std::make_shared<reshade::runtimes::d3d11_runtime>(device_d3d11->_orig, swapchain);
+		const auto runtime = std::make_shared<reshade::d3d11_runtime>(device_d3d11->_orig, swapchain);
 
 		if (!runtime->on_init(desc))
 		{
@@ -1188,7 +1188,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFacto
 		{
 			commandqueue_d3d12->AddRef();
 
-			const auto runtime = std::make_shared<reshade::runtimes::d3d12_runtime>(commandqueue_d3d12->_device->_orig, commandqueue_d3d12->_orig, swapchain3);
+			const auto runtime = std::make_shared<reshade::d3d12_runtime>(commandqueue_d3d12->_device->_orig, commandqueue_d3d12->_orig, swapchain3);
 
 			if (!runtime->on_init(desc))
 			{

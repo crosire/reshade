@@ -165,9 +165,9 @@ namespace reshade
 			char time_string[128];
 			std::strftime(time_string, 128, "%Y-%m-%d %H-%M-%S", &tm);
 			const boost::filesystem::path path = _screenshot_path / (s_executable_path.stem().string() + ' ' + time_string + '.' + _screenshot_format);
-			std::unique_ptr<unsigned char[]> data(new unsigned char[_width * _height * 4]());
+			std::vector<unsigned char> data(_width * _height * 4);
 
-			screenshot(data.get());
+			screenshot(data.data());
 
 			LOG(INFO) << "Saving screenshot to " << obfuscate_path(path) << " ...";
 
@@ -175,11 +175,11 @@ namespace reshade
 
 			if (path.extension() == ".bmp")
 			{
-				success = stbi_write_bmp(path.string().c_str(), _width, _height, 4, data.get()) != 0;
+				success = stbi_write_bmp(path.string().c_str(), _width, _height, 4, data.data()) != 0;
 			}
 			else if (path.extension() == ".png")
 			{
-				success = stbi_write_png(path.string().c_str(), _width, _height, 4, data.get(), 0) != 0;
+				success = stbi_write_png(path.string().c_str(), _width, _height, 4, data.data(), 0) != 0;
 			}
 
 			if (!success)

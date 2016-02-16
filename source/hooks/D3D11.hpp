@@ -93,7 +93,7 @@ struct D3D11Device : ID3D11Device3
 	unsigned int _interface_version;
 	struct DXGIDevice *_dxgi_device;
 	D3D11DeviceContext *_immediate_context;
-	std::vector<std::shared_ptr<reshade::runtimes::d3d11_runtime>> _runtimes;
+	std::vector<std::shared_ptr<reshade::d3d11_runtime>> _runtimes;
 
 private:
 	D3D11Device(const D3D11Device &);
