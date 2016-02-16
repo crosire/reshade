@@ -72,7 +72,6 @@ namespace reshade
 
 		LOG(INFO) << "Initializing crosire's ReShade version '" BOOST_STRINGIZE(VERSION_FULL) "' built on '" VERSION_DATE " " VERSION_TIME "' loaded from " << obfuscate_path(injector_path) << " to " << obfuscate_path(executable_path) << " ...";
 
-
 		TCHAR system_path_buffer[MAX_PATH];
 		GetSystemDirectory(system_path_buffer, MAX_PATH);
 		const boost::filesystem::path system_path = system_path_buffer;
@@ -110,14 +109,10 @@ namespace reshade
 	{
 		_status = "Initializing ...";
 		_start_time = boost::chrono::high_resolution_clock::now();
-
-		input::load_eyex();
 	}
 	runtime::~runtime()
 	{
 		assert(!_is_initialized && !_is_effect_compiled);
-
-		input::unload_eyex();
 	}
 
 	bool runtime::on_init()

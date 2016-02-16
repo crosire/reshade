@@ -14,7 +14,29 @@ namespace reshade
 	{
 		_hook_wndproc = SetWindowsHookEx(WH_GETMESSAGE, &handle_window_message, nullptr, GetWindowThreadProcessId(hwnd, nullptr));
 
-		if (s_eyex_initialized && txCreateContext(&_eyex, TX_FALSE) == TX_RESULT_OK)
+		if (s_eyex_initialized == 0)
+		{
+			const auto eyex_module = LoadLibraryA("Tobii.EyeX.Client.dll");
+
+			if (eyex_module != nullptr)
+			{
+				FreeLibrary(eyex_module);
+
+				LOG(INFO) << "Found Tobii EyeX library. Initializing ...";
+
+				const TX_RESULT initresult = txInitializeEyeX(TX_EYEXCOMPONENTOVERRIDEFLAG_NONE, nullptr, nullptr, nullptr, nullptr);
+
+				if (initresult == TX_RESULT_OK)
+				{
+					s_eyex_initialized++;
+				}
+				else
+				{
+					LOG(ERROR) << "EyeX initialization failed with error code " << initresult << ".";
+				}
+			}
+		}
+		if (s_eyex_initialized != 0 && txCreateContext(&_eyex, TX_FALSE) == TX_RESULT_OK)
 		{
 			LOG(INFO) << "Enabling connection with EyeX client ...";
 
@@ -47,47 +69,12 @@ namespace reshade
 			txShutdownContext(_eyex, TX_CLEANUPTIMEOUT_DEFAULT, TX_FALSE);
 			txReleaseContext(&_eyex);
 		}
-	}
-
-	void input::load_eyex()
-	{
-		if (s_eyex_initialized != 0)
+		if (s_eyex_initialized != 0 && --s_eyex_initialized == 0)
 		{
-			return;
+			LOG(INFO) << "Shutting down Tobii EyeX library ...";
+
+			txUninitializeEyeX();
 		}
-
-		const auto eyex_module = LoadLibraryA("Tobii.EyeX.Client.dll");
-
-		if (eyex_module == nullptr)
-		{
-			return;
-		}
-
-		FreeLibrary(eyex_module);
-
-		LOG(INFO) << "Found Tobii EyeX library. Initializing ...";
-
-		const TX_RESULT initresult = txInitializeEyeX(TX_EYEXCOMPONENTOVERRIDEFLAG_NONE, nullptr, nullptr, nullptr, nullptr);
-
-		if (initresult == TX_RESULT_OK)
-		{
-			s_eyex_initialized++;
-		}
-		else
-		{
-			LOG(ERROR) << "EyeX initialization failed with error code " << initresult << ".";
-		}
-	}
-	void input::unload_eyex()
-	{
-		if (s_eyex_initialized == 0 || --s_eyex_initialized != 0)
-		{
-			return;
-		}
-
-		LOG(INFO) << "Shutting down Tobii EyeX library ...";
-
-		txUninitializeEyeX();
 	}
 
 	void input::register_window(HWND hwnd, std::shared_ptr<input> &instance)

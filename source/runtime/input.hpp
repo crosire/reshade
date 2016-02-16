@@ -15,9 +15,6 @@ namespace reshade
 		input(HWND hwnd);
 		~input();
 
-		static void load_eyex();
-		static void unload_eyex();
-
 		static void register_window(HWND hwnd, std::shared_ptr<input> &instance);
 		static void register_raw_input_device(const RAWINPUTDEVICE &device);
 		static void uninstall();
@@ -58,13 +55,13 @@ namespace reshade
 
 			return _mouse_buttons[button] == -1;
 		}
-		const POINT &mouse_position() const
-		{
-			return _mouse_position;
-		}
 		const POINT &gaze_position() const
 		{
 			return _gaze_position;
+		}
+		const POINT &mouse_position() const
+		{
+			return _mouse_position;
 		}
 
 		void next_frame();
@@ -76,10 +73,8 @@ namespace reshade
 
 		HWND _hwnd;
 		HHOOK _hook_wndproc;
-		signed char _keys[256];
-		POINT _mouse_position;
-		signed char _mouse_buttons[3];
-		POINT _gaze_position;
+		signed char _keys[256], _mouse_buttons[3];
+		POINT _gaze_position, _mouse_position;
 		TX_CONTEXTHANDLE _eyex;
 		TX_HANDLE _eyex_interactor, _eyex_interactor_snapshot;
 		static unsigned long s_eyex_initialized;
