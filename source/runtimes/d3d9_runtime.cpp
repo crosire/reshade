@@ -16,6 +16,14 @@ const D3DFORMAT D3DFMT_INTZ = static_cast<D3DFORMAT>(MAKEFOURCC('I', 'N', 'T', '
 
 namespace reshade
 {
+	namespace
+	{
+		inline bool is_pow2(int x)
+		{
+			return ((x > 0) && ((x & (x - 1)) == 0));
+		}
+	}
+
 	struct d3d9_texture : public texture
 	{
 		com_ptr<IDirect3DTexture9> texture;
@@ -93,11 +101,8 @@ namespace reshade
 			return _success;
 		}
 
-		static inline bool IsPowerOf2(int x)
-		{
-			return ((x > 0) && ((x & (x - 1)) == 0));
-		}
-		static inline D3DBLEND LiteralToBlend(unsigned int value)
+	private:
+		static inline D3DBLEND literal_to_blend_func(unsigned int value)
 		{
 			switch (value)
 			{
@@ -109,7 +114,7 @@ namespace reshade
 
 			return static_cast<D3DBLEND>(value);
 		}
-		static inline D3DSTENCILOP LiteralToStencilOp(unsigned int value)
+		static inline D3DSTENCILOP literal_to_stencil_op(unsigned int value)
 		{
 			if (value == fx::nodes::pass_declaration_node::states::ZERO)
 			{
@@ -118,7 +123,7 @@ namespace reshade
 
 			return static_cast<D3DSTENCILOP>(value);
 		}
-		static D3DFORMAT LiteralToFormat(unsigned int value, texture::pixelformat &name)
+		static D3DFORMAT literal_to_format(unsigned int value, texture::pixelformat &name)
 		{
 			switch (value)
 			{
@@ -204,7 +209,6 @@ namespace reshade
 			return semantic;
 		}
 
-	private:
 		using compiler::visit;
 		void visit(std::string &output, const fx::nodes::type_node &type, bool with_qualifiers = true) override
 		{
@@ -446,14 +450,14 @@ namespace reshade
 					{
 						const unsigned int value = static_cast<const fx::nodes::literal_expression_node *>(node->operands[1])->value_uint[0];
 
-						if (IsPowerOf2(value + 1))
+						if (is_pow2(value + 1))
 						{
 							output += "((" + std::to_string(value + 1) + ") * frac((";
 							visit(output, node->operands[0]);
 							output += ") / (" + std::to_string(value + 1) + ")))";
 							return;
 						}
-						else if (IsPowerOf2(value))
+						else if (is_pow2(value))
 						{
 							output += "((((";
 							visit(output, node->operands[0]);
@@ -1372,7 +1376,7 @@ namespace reshade
 			UINT width = obj->width = node->properties.Width;
 			UINT height = obj->height = node->properties.Height;
 			UINT levels = obj->levels = node->properties.MipLevels;
-			const D3DFORMAT format = LiteralToFormat(node->properties.Format, obj->format);
+			const D3DFORMAT format = literal_to_format(node->properties.Format, obj->format);
 
 			visit_annotation(node->annotations, *obj);
 
@@ -1631,8 +1635,8 @@ namespace reshade
 			device->SetRenderState(D3DRS_ZWRITEENABLE, TRUE);
 			device->SetRenderState(D3DRS_ALPHATESTENABLE, FALSE);
 			device->SetRenderState(D3DRS_LASTPIXEL, TRUE);
-			device->SetRenderState(D3DRS_SRCBLEND, LiteralToBlend(node->states.SrcBlend));
-			device->SetRenderState(D3DRS_DESTBLEND, LiteralToBlend(node->states.DestBlend));
+			device->SetRenderState(D3DRS_SRCBLEND, literal_to_blend_func(node->states.SrcBlend));
+			device->SetRenderState(D3DRS_DESTBLEND, literal_to_blend_func(node->states.DestBlend));
 			device->SetRenderState(D3DRS_ZFUNC, static_cast<D3DCMPFUNC>(node->states.DepthFunc));
 			device->SetRenderState(D3DRS_ALPHAREF, 0);
 			device->SetRenderState(D3DRS_ALPHAFUNC, D3DCMP_ALWAYS);
@@ -1643,9 +1647,9 @@ namespace reshade
 			device->SetRenderState(D3DRS_ALPHABLENDENABLE, node->states.BlendEnable);
 			device->SetRenderState(D3DRS_DEPTHBIAS, 0);
 			device->SetRenderState(D3DRS_STENCILENABLE, node->states.StencilEnable);
-			device->SetRenderState(D3DRS_STENCILPASS, LiteralToStencilOp(node->states.StencilOpPass));
-			device->SetRenderState(D3DRS_STENCILFAIL, LiteralToStencilOp(node->states.StencilOpFail));
-			device->SetRenderState(D3DRS_STENCILZFAIL, LiteralToStencilOp(node->states.StencilOpDepthFail));
+			device->SetRenderState(D3DRS_STENCILPASS, literal_to_stencil_op(node->states.StencilOpPass));
+			device->SetRenderState(D3DRS_STENCILFAIL, literal_to_stencil_op(node->states.StencilOpFail));
+			device->SetRenderState(D3DRS_STENCILZFAIL, literal_to_stencil_op(node->states.StencilOpDepthFail));
 			device->SetRenderState(D3DRS_STENCILFUNC, static_cast<D3DCMPFUNC>(node->states.StencilFunc));
 			device->SetRenderState(D3DRS_STENCILREF, node->states.StencilRef);
 			device->SetRenderState(D3DRS_STENCILMASK, node->states.StencilReadMask);

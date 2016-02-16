@@ -27,26 +27,38 @@
 
 namespace reshade
 {
+	namespace
+	{
+		unsigned int get_renderer_id()
+		{
+			GLint major = 0, minor = 0;
+			GLCHECK(glGetIntegerv(GL_MAJOR_VERSION, &major));
+			GLCHECK(glGetIntegerv(GL_MAJOR_VERSION, &minor));
+
+			return 0x10000 | (major << 12) | (minor << 8);
+		}
+	}
+
 	struct gl_texture : public texture
 	{
-		gl_texture() : ID()
+		gl_texture() : id()
 		{
 		}
 		~gl_texture()
 		{
 			if (basetype == datatype::image)
 			{
-				GLCHECK(glDeleteTextures(2, ID));
+				GLCHECK(glDeleteTextures(2, id));
 			}
 		}
 
-		GLuint ID[2];
+		GLuint id[2];
 	};
 	struct gl_sampler
 	{
-		GLuint ID;
-		gl_texture *Texture;
-		bool SRGB;
+		GLuint id;
+		gl_texture *texture;
+		bool is_srgb;
 	};
 	struct gl_pass : public technique::pass
 	{
@@ -137,7 +149,8 @@ namespace reshade
 			return _success;
 		}
 
-		static GLenum LiteralToCompFunc(unsigned int value)
+	private:
+		static GLenum literal_to_comp_func(unsigned int value)
 		{
 			switch (value)
 			{
@@ -160,7 +173,7 @@ namespace reshade
 					return GL_GEQUAL;
 			}
 		}
-		static GLenum LiteralToBlendEq(unsigned int value)
+		static GLenum literal_to_blend_eq(unsigned int value)
 		{
 			switch (value)
 			{
@@ -178,7 +191,7 @@ namespace reshade
 
 			return GL_NONE;
 		}
-		static GLenum LiteralToBlendFunc(unsigned int value)
+		static GLenum literal_to_blend_func(unsigned int value)
 		{
 			switch (value)
 			{
@@ -206,7 +219,7 @@ namespace reshade
 
 			return GL_NONE;
 		}
-		static GLenum LiteralToStencilOp(unsigned int value)
+		static GLenum literal_to_stencil_op(unsigned int value)
 		{
 			switch (value)
 			{
@@ -229,7 +242,7 @@ namespace reshade
 					return GL_INVERT;
 			}
 		}
-		static GLenum LiteralToTextureWrap(unsigned int value)
+		static GLenum literal_to_wrap_mode(unsigned int value)
 		{
 			switch (value)
 			{
@@ -245,7 +258,7 @@ namespace reshade
 
 			return GL_NONE;
 		}
-		static GLenum LiteralToTextureFilter(unsigned int value)
+		static GLenum literal_to_filter_mode(unsigned int value)
 		{
 			switch (value)
 			{
@@ -259,7 +272,7 @@ namespace reshade
 
 			return GL_NONE;
 		}
-		static void LiteralToFormat(unsigned int value, GLenum &internalformat, GLenum &internalformatsrgb, texture::pixelformat &name)
+		static void literal_to_format(unsigned int value, GLenum &internalformat, GLenum &internalformatsrgb, texture::pixelformat &name)
 		{
 			switch (value)
 			{
@@ -337,7 +350,7 @@ namespace reshade
 					break;
 			}
 		}
-		static std::string FixName(const std::string &name)
+		static std::string escape_name(const std::string &name)
 		{
 			std::string res;
 
@@ -353,7 +366,7 @@ namespace reshade
 
 			return res;
 		}
-		static std::string FixNameWithSemantic(const std::string &name, const std::string &semantic, GLuint shadertype)
+		static std::string escape_name_with_builtins(const std::string &name, const std::string &semantic, GLuint shadertype)
 		{
 			if (semantic == "SV_VERTEXID" || semantic == "VERTEXID")
 			{
@@ -376,10 +389,8 @@ namespace reshade
 				return "gl_FragDepth";
 			}
 
-			return FixName(name);
+			return escape_name(name);
 		}
-
-	private:
 		std::pair<std::string, std::string> write_cast(const fx::nodes::type_node &from, const fx::nodes::type_node &to)
 		{
 			std::pair<std::string, std::string> code;
@@ -489,13 +500,13 @@ namespace reshade
 					output += "sampler2D";
 					break;
 				case fx::nodes::type_node::datatype_struct:
-					output += FixName(type.definition->unique_name);
+					output += escape_name(type.definition->unique_name);
 					break;
 			}
 		}
 		void visit(std::string &output, const fx::nodes::lvalue_expression_node *node) override
 		{
-			output += FixName(node->reference->unique_name);
+			output += escape_name(node->reference->unique_name);
 		}
 		void visit(std::string &output, const fx::nodes::literal_expression_node *node) override
 		{
@@ -1413,7 +1424,7 @@ namespace reshade
 			visit(output, node->operand);
 
 			output += '.';
-			output += FixName(node->field_reference->unique_name);
+			output += escape_name(node->field_reference->unique_name);
 			output += ')';
 		}
 		void visit(std::string &output, const fx::nodes::assignment_expression_node *node) override
@@ -1471,7 +1482,7 @@ namespace reshade
 		}
 		void visit(std::string &output, const fx::nodes::call_expression_node *node) override
 		{
-			output += FixName(node->callee->unique_name) + '(';
+			output += escape_name(node->callee->unique_name) + '(';
 
 			if (!node->arguments.empty())
 			{
@@ -1799,7 +1810,7 @@ namespace reshade
 		}
 		void visit(std::string &output, const fx::nodes::struct_declaration_node *node)
 		{
-			output += "struct " + FixName(node->unique_name) + "\n{\n";
+			output += "struct " + escape_name(node->unique_name) + "\n{\n";
 
 			if (!node->field_list.empty())
 			{
@@ -1824,7 +1835,7 @@ namespace reshade
 				visit(output, node->type);
 			}
 
-			output += ' ' + FixName(node->unique_name);
+			output += ' ' + escape_name(node->unique_name);
 
 			if (node->type.is_array())
 			{
@@ -1857,7 +1868,7 @@ namespace reshade
 
 			visit(output, node->return_type, false);
 
-			output += ' ' + FixName(node->unique_name) + '(';
+			output += ' ' + escape_name(node->unique_name) + '(';
 
 			if (!node->parameter_list.empty())
 			{
@@ -1910,7 +1921,7 @@ namespace reshade
 			GLuint levels = obj->levels = node->properties.MipLevels;
 
 			GLenum internalformat = GL_RGBA8, internalformatSRGB = GL_SRGB8_ALPHA8;
-			LiteralToFormat(node->properties.Format, internalformat, internalformatSRGB, obj->format);
+			literal_to_format(node->properties.Format, internalformat, internalformatSRGB, obj->format);
 
 			if (levels == 0)
 			{
@@ -1941,20 +1952,20 @@ namespace reshade
 			}
 			else
 			{
-				GLCHECK(glGenTextures(2, obj->ID));
+				GLCHECK(glGenTextures(2, obj->id));
 
 				GLint previous = 0, previousFBO = 0;
 				GLCHECK(glGetIntegerv(GL_TEXTURE_BINDING_2D, &previous));
 				GLCHECK(glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &previousFBO));
 
-				GLCHECK(glBindTexture(GL_TEXTURE_2D, obj->ID[0]));
+				GLCHECK(glBindTexture(GL_TEXTURE_2D, obj->id[0]));
 				GLCHECK(glTexStorage2D(GL_TEXTURE_2D, levels, internalformat, width, height));
-				GLCHECK(glTextureView(obj->ID[1], GL_TEXTURE_2D, obj->ID[0], internalformatSRGB, 0, levels, 0, 1));
+				GLCHECK(glTextureView(obj->id[1], GL_TEXTURE_2D, obj->id[0], internalformatSRGB, 0, levels, 0, 1));
 				GLCHECK(glBindTexture(GL_TEXTURE_2D, previous));
 
 				// Clear texture to black
 				GLCHECK(glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _runtime->_blit_fbo));
-				GLCHECK(glFramebufferTexture(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, obj->ID[0], 0));
+				GLCHECK(glFramebufferTexture(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, obj->id[0], 0));
 				GLCHECK(glDrawBuffer(GL_COLOR_ATTACHMENT1));
 				const GLuint clearColor[4] = { 0, 0, 0, 0 };
 				GLCHECK(glClearBufferuiv(GL_COLOR, 0, clearColor));
@@ -1981,12 +1992,12 @@ namespace reshade
 			}
 
 			gl_sampler sampler;
-			sampler.ID = 0;
-			sampler.Texture = texture;
-			sampler.SRGB = node->properties.SRGBTexture;
+			sampler.id = 0;
+			sampler.texture = texture;
+			sampler.is_srgb = node->properties.SRGBTexture;
 
-			GLenum minfilter = LiteralToTextureFilter(node->properties.MinFilter);
-			const GLenum mipfilter = LiteralToTextureFilter(node->properties.MipFilter);
+			GLenum minfilter = literal_to_filter_mode(node->properties.MinFilter);
+			const GLenum mipfilter = literal_to_filter_mode(node->properties.MipFilter);
 				
 			if (minfilter == GL_NEAREST && mipfilter == GL_NEAREST)
 			{
@@ -2005,19 +2016,19 @@ namespace reshade
 				minfilter = GL_LINEAR_MIPMAP_LINEAR;
 			}
 
-			GLCHECK(glGenSamplers(1, &sampler.ID));
-			GLCHECK(glSamplerParameteri(sampler.ID, GL_TEXTURE_WRAP_S, LiteralToTextureWrap(node->properties.AddressU)));
-			GLCHECK(glSamplerParameteri(sampler.ID, GL_TEXTURE_WRAP_T, LiteralToTextureWrap(node->properties.AddressV)));
-			GLCHECK(glSamplerParameteri(sampler.ID, GL_TEXTURE_WRAP_R, LiteralToTextureWrap(node->properties.AddressW)));
-			GLCHECK(glSamplerParameteri(sampler.ID, GL_TEXTURE_MIN_FILTER, minfilter));
-			GLCHECK(glSamplerParameteri(sampler.ID, GL_TEXTURE_MAG_FILTER, LiteralToTextureFilter(node->properties.MagFilter)));
-			GLCHECK(glSamplerParameterf(sampler.ID, GL_TEXTURE_LOD_BIAS, node->properties.MipLODBias));
-			GLCHECK(glSamplerParameterf(sampler.ID, GL_TEXTURE_MIN_LOD, node->properties.MinLOD));
-			GLCHECK(glSamplerParameterf(sampler.ID, GL_TEXTURE_MAX_LOD, node->properties.MaxLOD));
-			GLCHECK(glSamplerParameterf(sampler.ID, GL_TEXTURE_MAX_ANISOTROPY_EXT, static_cast<GLfloat>(node->properties.MaxAnisotropy)));
+			GLCHECK(glGenSamplers(1, &sampler.id));
+			GLCHECK(glSamplerParameteri(sampler.id, GL_TEXTURE_WRAP_S, literal_to_wrap_mode(node->properties.AddressU)));
+			GLCHECK(glSamplerParameteri(sampler.id, GL_TEXTURE_WRAP_T, literal_to_wrap_mode(node->properties.AddressV)));
+			GLCHECK(glSamplerParameteri(sampler.id, GL_TEXTURE_WRAP_R, literal_to_wrap_mode(node->properties.AddressW)));
+			GLCHECK(glSamplerParameteri(sampler.id, GL_TEXTURE_MIN_FILTER, minfilter));
+			GLCHECK(glSamplerParameteri(sampler.id, GL_TEXTURE_MAG_FILTER, literal_to_filter_mode(node->properties.MagFilter)));
+			GLCHECK(glSamplerParameterf(sampler.id, GL_TEXTURE_LOD_BIAS, node->properties.MipLODBias));
+			GLCHECK(glSamplerParameterf(sampler.id, GL_TEXTURE_MIN_LOD, node->properties.MinLOD));
+			GLCHECK(glSamplerParameterf(sampler.id, GL_TEXTURE_MAX_LOD, node->properties.MaxLOD));
+			GLCHECK(glSamplerParameterf(sampler.id, GL_TEXTURE_MAX_ANISOTROPY_EXT, static_cast<GLfloat>(node->properties.MaxAnisotropy)));
 
 			_global_code += "layout(binding = " + std::to_string(_runtime->_effect_samplers.size()) + ") uniform sampler2D ";
-			_global_code += FixName(node->unique_name);
+			_global_code += escape_name(node->unique_name);
 			_global_code += ";\n";
 
 			_runtime->_effect_samplers.push_back(std::move(sampler));
@@ -2027,7 +2038,7 @@ namespace reshade
 			visit(_global_uniforms, node->type, true);
 
 			_global_uniforms += ' ';			
-			_global_uniforms += FixName(node->unique_name);
+			_global_uniforms += escape_name(node->unique_name);
 
 			if (node->type.is_array())
 			{
@@ -2110,19 +2121,19 @@ namespace reshade
 			pass.color_mask[3] = (node->states.RenderTargetWriteMask & (1 << 3)) != 0;
 			pass.depth_test = node->states.DepthEnable;
 			pass.depth_mask = node->states.DepthWriteMask;
-			pass.depth_func = LiteralToCompFunc(node->states.DepthFunc);
+			pass.depth_func = literal_to_comp_func(node->states.DepthFunc);
 			pass.stencil_test = node->states.StencilEnable;
 			pass.stencil_read_mask = node->states.StencilReadMask;
 			pass.stencil_mask = node->states.StencilWriteMask;
-			pass.stencil_func = LiteralToCompFunc(node->states.StencilFunc);
-			pass.stencil_op_z_pass = LiteralToStencilOp(node->states.StencilOpPass);
-			pass.stencil_op_fail = LiteralToStencilOp(node->states.StencilOpFail);
-			pass.stencil_op_z_fail = LiteralToStencilOp(node->states.StencilOpDepthFail);
+			pass.stencil_func = literal_to_comp_func(node->states.StencilFunc);
+			pass.stencil_op_z_pass = literal_to_stencil_op(node->states.StencilOpPass);
+			pass.stencil_op_fail = literal_to_stencil_op(node->states.StencilOpFail);
+			pass.stencil_op_z_fail = literal_to_stencil_op(node->states.StencilOpDepthFail);
 			pass.blend = node->states.BlendEnable;
-			pass.blend_eq_color = LiteralToBlendEq(node->states.BlendOp);
-			pass.blend_eq_alpha = LiteralToBlendEq(node->states.BlendOpAlpha);
-			pass.blend_src = LiteralToBlendFunc(node->states.SrcBlend);
-			pass.blend_dest = LiteralToBlendFunc(node->states.DestBlend);
+			pass.blend_eq_color = literal_to_blend_eq(node->states.BlendOp);
+			pass.blend_eq_alpha = literal_to_blend_eq(node->states.BlendOpAlpha);
+			pass.blend_src = literal_to_blend_func(node->states.SrcBlend);
+			pass.blend_dest = literal_to_blend_func(node->states.DestBlend);
 			pass.stencil_reference = node->states.StencilRef;
 			pass.srgb = node->states.SRGBWriteEnable;
 
@@ -2159,10 +2170,10 @@ namespace reshade
 
 				backbufferFramebuffer = false;
 
-				GLCHECK(glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, texture->ID[pass.srgb], 0));
+				GLCHECK(glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, texture->id[pass.srgb], 0));
 
 				pass.draw_buffers[i] = GL_COLOR_ATTACHMENT0 + i;
-				pass.draw_textures[i] = texture->ID[pass.srgb];
+				pass.draw_textures[i] = texture->id[pass.srgb];
 			}
 
 			if (backbufferFramebuffer)
@@ -2314,7 +2325,7 @@ namespace reshade
 						{
 							for (auto field : parameter->type.definition->field_list)
 							{
-								source += FixNameWithSemantic("_param_" + parameter->name + "_" + field->name + (parameter->type.is_array() ? std::to_string(i) : ""), field->semantic, shadertype) + ", ";
+								source += escape_name_with_builtins("_param_" + parameter->name + "_" + field->name + (parameter->type.is_array() ? std::to_string(i) : ""), field->semantic, shadertype) + ", ";
 							}
 
 							source.erase(source.end() - 2, source.end());
@@ -2368,13 +2379,13 @@ namespace reshade
 				}
 			}
 
-			source += FixName(node->unique_name) + '(';
+			source += escape_name(node->unique_name) + '(';
 
 			if (!node->parameter_list.empty())
 			{
 				for (auto parameter : node->parameter_list)
 				{
-					source += FixNameWithSemantic("_param_" + parameter->name, parameter->semantic, shadertype);
+					source += escape_name_with_builtins("_param_" + parameter->name, parameter->semantic, shadertype);
 
 					if ((boost::starts_with(parameter->semantic, "COLOR") || boost::starts_with(parameter->semantic, "SV_TARGET")) && parameter->type.rows < 4)
 					{
@@ -2422,7 +2433,7 @@ namespace reshade
 			{
 				for (auto field : node->return_type.definition->field_list)
 				{
-					source += FixNameWithSemantic("_return_" + field->name, field->semantic, shadertype) + " = _return." + field->name + ";\n";
+					source += escape_name_with_builtins("_return_" + field->name, field->semantic, shadertype) + " = _return." + field->name + ";\n";
 				}
 			}
 			
@@ -2463,7 +2474,7 @@ namespace reshade
 
 			for (int i = 0, arraylength = std::max(1, type.array_length); i < arraylength; ++i)
 			{
-				if (!FixNameWithSemantic(std::string(), semantic, shadertype).empty())
+				if (!escape_name_with_builtins(std::string(), semantic, shadertype).empty())
 				{
 					continue;
 				}
@@ -2696,15 +2707,6 @@ namespace reshade
 				std::memcpy(line2, templine, stride);
 			}
 		}
-	}
-
-	static unsigned int get_renderer_id()
-	{
-		GLint major = 0, minor = 0;
-		GLCHECK(glGetIntegerv(GL_MAJOR_VERSION, &major));
-		GLCHECK(glGetIntegerv(GL_MAJOR_VERSION, &minor));
-
-		return 0x10000 | (major << 12) | (minor << 8);
 	}
 
 	gl_runtime::gl_runtime(HDC device) : runtime(get_renderer_id()), _hdc(device), _reference_count(1), _default_backbuffer_fbo(0), _default_backbuffer_rbo(), _backbuffer_texture(), _depth_source_fbo(0), _depth_source(0), _depth_texture(0), _blit_fbo(0), _default_vao(0), _default_vbo(0), _effect_ubo(0)
@@ -2947,7 +2949,7 @@ namespace reshade
 
 		for (auto &sampler : _effect_samplers)
 		{
-			GLCHECK(glDeleteSamplers(1, &sampler.ID));
+			GLCHECK(glDeleteSamplers(1, &sampler.id));
 		}
 
 		_effect_samplers.clear();
@@ -3044,8 +3046,8 @@ namespace reshade
 		for (GLsizei sampler = 0, samplerCount = static_cast<GLsizei>(_effect_samplers.size()); sampler < samplerCount; sampler++)
 		{
 			GLCHECK(glActiveTexture(GL_TEXTURE0 + sampler));
-			GLCHECK(glBindTexture(GL_TEXTURE_2D, _effect_samplers[sampler].Texture->ID[_effect_samplers[sampler].SRGB]));
-			GLCHECK(glBindSampler(sampler, _effect_samplers[sampler].ID));
+			GLCHECK(glBindTexture(GL_TEXTURE_2D, _effect_samplers[sampler].texture->id[_effect_samplers[sampler].is_srgb]));
+			GLCHECK(glBindSampler(sampler, _effect_samplers[sampler].id));
 		}
 
 		// Setup shader constants
@@ -3126,9 +3128,9 @@ namespace reshade
 			{
 				for (GLsizei sampler = 0, samplerCount = static_cast<GLsizei>(_effect_samplers.size()); sampler < samplerCount; sampler++)
 				{
-					const gl_texture *const texture = _effect_samplers[sampler].Texture;
+					const gl_texture *const texture = _effect_samplers[sampler].texture;
 
-					if (texture->levels > 1 && (texture->ID[0] == id || texture->ID[1] == id))
+					if (texture->levels > 1 && (texture->id[0] == id || texture->id[1] == id))
 					{
 						GLCHECK(glActiveTexture(GL_TEXTURE0 + sampler));
 						GLCHECK(glGenerateMipmap(GL_TEXTURE_2D));
@@ -3259,7 +3261,7 @@ namespace reshade
 		flip_image_data(texture, dataFlipped.get());
 
 		// Bind and update texture
-		GLCHECK(glBindTexture(GL_TEXTURE_2D, texture_impl->ID[0]));
+		GLCHECK(glBindTexture(GL_TEXTURE_2D, texture_impl->id[0]));
 
 		if (texture->format >= texture::pixelformat::dxt1 && texture->format <= texture::pixelformat::latc2)
 		{
@@ -3329,7 +3331,7 @@ namespace reshade
 
 		if (texture_impl->basetype == texture::datatype::image)
 		{
-			GLCHECK(glDeleteTextures(2, texture_impl->ID));
+			GLCHECK(glDeleteTextures(2, texture_impl->id));
 		}
 
 		texture_impl->basetype = source;
@@ -3339,13 +3341,13 @@ namespace reshade
 			newtexture_srgb = newtexture;
 		}
 
-		if (texture_impl->ID[0] == newtexture && texture_impl->ID[1] == newtexture_srgb)
+		if (texture_impl->id[0] == newtexture && texture_impl->id[1] == newtexture_srgb)
 		{
 			return;
 		}
 
-		texture_impl->ID[0] = newtexture;
-		texture_impl->ID[1] = newtexture_srgb;
+		texture_impl->id[0] = newtexture;
+		texture_impl->id[1] = newtexture_srgb;
 	}
 
 	void gl_runtime::detect_depth_source()

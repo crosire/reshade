@@ -10,13 +10,77 @@
 #include <nanovg_d3d11.h>
 #include <boost\algorithm\string.hpp>
 
-inline bool operator ==(const D3D11_SAMPLER_DESC &left, const D3D11_SAMPLER_DESC &right)
-{
-	return std::memcmp(&left, &right, sizeof(D3D11_SAMPLER_DESC)) == 0;
-}
-
 namespace reshade
 {
+	namespace
+	{
+		inline UINT roundto16(UINT size)
+		{
+			return (size + 15) & ~15;
+		}
+
+		DXGI_FORMAT make_format_srgb(DXGI_FORMAT format)
+		{
+			switch (format)
+			{
+				case DXGI_FORMAT_R8G8B8A8_TYPELESS:
+				case DXGI_FORMAT_R8G8B8A8_UNORM:
+					return DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+				case DXGI_FORMAT_BC1_TYPELESS:
+				case DXGI_FORMAT_BC1_UNORM:
+					return DXGI_FORMAT_BC1_UNORM_SRGB;
+				case DXGI_FORMAT_BC2_TYPELESS:
+				case DXGI_FORMAT_BC2_UNORM:
+					return DXGI_FORMAT_BC2_UNORM_SRGB;
+				case DXGI_FORMAT_BC3_TYPELESS:
+				case DXGI_FORMAT_BC3_UNORM:
+					return DXGI_FORMAT_BC3_UNORM_SRGB;
+				default:
+					return format;
+			}
+		}
+		DXGI_FORMAT make_format_normal(DXGI_FORMAT format)
+		{
+			switch (format)
+			{
+				case DXGI_FORMAT_R8G8B8A8_TYPELESS:
+				case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
+					return DXGI_FORMAT_R8G8B8A8_UNORM;
+				case DXGI_FORMAT_BC1_TYPELESS:
+				case DXGI_FORMAT_BC1_UNORM_SRGB:
+					return DXGI_FORMAT_BC1_UNORM;
+				case DXGI_FORMAT_BC2_TYPELESS:
+				case DXGI_FORMAT_BC2_UNORM_SRGB:
+					return DXGI_FORMAT_BC2_UNORM;
+				case DXGI_FORMAT_BC3_TYPELESS:
+				case DXGI_FORMAT_BC3_UNORM_SRGB:
+					return DXGI_FORMAT_BC3_UNORM;
+				default:
+					return format;
+			}
+		}
+		DXGI_FORMAT make_format_typeless(DXGI_FORMAT format)
+		{
+			switch (format)
+			{
+				case DXGI_FORMAT_R8G8B8A8_UNORM:
+				case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
+					return DXGI_FORMAT_R8G8B8A8_TYPELESS;
+				case DXGI_FORMAT_BC1_UNORM:
+				case DXGI_FORMAT_BC1_UNORM_SRGB:
+					return DXGI_FORMAT_BC1_TYPELESS;
+				case DXGI_FORMAT_BC2_UNORM:
+				case DXGI_FORMAT_BC2_UNORM_SRGB:
+					return DXGI_FORMAT_BC2_TYPELESS;
+				case DXGI_FORMAT_BC3_UNORM:
+				case DXGI_FORMAT_BC3_UNORM_SRGB:
+					return DXGI_FORMAT_BC3_TYPELESS;
+				default:
+					return format;
+			}
+		}
+	}
+
 	struct d3d11_texture : public texture
 	{
 		d3d11_texture() : shader_register(0) { }
@@ -88,7 +152,7 @@ namespace reshade
 
 			if (_current_global_size != 0)
 			{
-				CD3D11_BUFFER_DESC globalsDesc(RoundToMultipleOf16(_current_global_size), D3D11_BIND_CONSTANT_BUFFER, D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE);
+				CD3D11_BUFFER_DESC globalsDesc(roundto16(_current_global_size), D3D11_BIND_CONSTANT_BUFFER, D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE);
 				D3D11_SUBRESOURCE_DATA globalsInitial;
 				globalsInitial.pSysMem = _runtime->get_uniform_value_storage().data();
 				globalsInitial.SysMemPitch = globalsInitial.SysMemSlicePitch = _current_global_size;
@@ -98,20 +162,8 @@ namespace reshade
 			return _success;
 		}
 
-		static inline UINT RoundToMultipleOf16(UINT size)
-		{
-			return (size + 15) & ~15;
-		}
-		static D3D11_STENCIL_OP LiteralToStencilOp(unsigned int value)
-		{
-			if (value == fx::nodes::pass_declaration_node::states::ZERO)
-			{
-				return D3D11_STENCIL_OP_ZERO;
-			}
-							
-			return static_cast<D3D11_STENCIL_OP>(value);
-		}
-		static D3D11_BLEND LiteralToBlend(unsigned int value)
+	private:
+		static D3D11_BLEND literal_to_blend_func(unsigned int value)
 		{
 			switch (value)
 			{
@@ -123,7 +175,16 @@ namespace reshade
 
 			return static_cast<D3D11_BLEND>(value);
 		}
-		static DXGI_FORMAT LiteralToFormat(unsigned int value, texture::pixelformat &name)
+		static D3D11_STENCIL_OP literal_to_stencil_op(unsigned int value)
+		{
+			if (value == fx::nodes::pass_declaration_node::states::ZERO)
+			{
+				return D3D11_STENCIL_OP_ZERO;
+			}
+
+			return static_cast<D3D11_STENCIL_OP>(value);
+		}
+		static DXGI_FORMAT literal_to_format(unsigned int value, texture::pixelformat &name)
 		{
 			switch (value)
 			{
@@ -180,66 +241,6 @@ namespace reshade
 					return DXGI_FORMAT_UNKNOWN;
 			}
 		}
-		static DXGI_FORMAT MakeTypelessFormat(DXGI_FORMAT format)
-		{
-			switch (format)
-			{
-				case DXGI_FORMAT_R8G8B8A8_UNORM:
-				case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
-					return DXGI_FORMAT_R8G8B8A8_TYPELESS;
-				case DXGI_FORMAT_BC1_UNORM:
-				case DXGI_FORMAT_BC1_UNORM_SRGB:
-					return DXGI_FORMAT_BC1_TYPELESS;
-				case DXGI_FORMAT_BC2_UNORM:
-				case DXGI_FORMAT_BC2_UNORM_SRGB:
-					return DXGI_FORMAT_BC2_TYPELESS;
-				case DXGI_FORMAT_BC3_UNORM:
-				case DXGI_FORMAT_BC3_UNORM_SRGB:
-					return DXGI_FORMAT_BC3_TYPELESS;
-				default:
-					return format;
-			}
-		}
-		static DXGI_FORMAT MakeSRGBFormat(DXGI_FORMAT format)
-		{
-			switch (format)
-			{
-				case DXGI_FORMAT_R8G8B8A8_TYPELESS:
-				case DXGI_FORMAT_R8G8B8A8_UNORM:
-					return DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
-				case DXGI_FORMAT_BC1_TYPELESS:
-				case DXGI_FORMAT_BC1_UNORM:
-					return DXGI_FORMAT_BC1_UNORM_SRGB;
-				case DXGI_FORMAT_BC2_TYPELESS:
-				case DXGI_FORMAT_BC2_UNORM:
-					return DXGI_FORMAT_BC2_UNORM_SRGB;
-				case DXGI_FORMAT_BC3_TYPELESS:
-				case DXGI_FORMAT_BC3_UNORM:
-					return DXGI_FORMAT_BC3_UNORM_SRGB;
-				default:
-					return format;
-			}
-		}
-		static DXGI_FORMAT MakeNonSRGBFormat(DXGI_FORMAT format)
-		{
-			switch (format)
-			{
-				case DXGI_FORMAT_R8G8B8A8_TYPELESS:
-				case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
-					return DXGI_FORMAT_R8G8B8A8_UNORM;
-				case DXGI_FORMAT_BC1_TYPELESS:
-				case DXGI_FORMAT_BC1_UNORM_SRGB:
-					return DXGI_FORMAT_BC1_UNORM;
-				case DXGI_FORMAT_BC2_TYPELESS:
-				case DXGI_FORMAT_BC2_UNORM_SRGB:
-					return DXGI_FORMAT_BC2_UNORM;
-				case DXGI_FORMAT_BC3_TYPELESS:
-				case DXGI_FORMAT_BC3_UNORM_SRGB:
-					return DXGI_FORMAT_BC3_UNORM;
-				default:
-					return format;
-			}
-		}
 		static size_t D3D11_SAMPLER_DESC_HASH(const D3D11_SAMPLER_DESC &s) 
 		{
 			const unsigned char *p = reinterpret_cast<const unsigned char *>(&s);
@@ -252,8 +253,6 @@ namespace reshade
 
 			return h;
 		}
-
-	private:
 		static std::string convert_semantic(const std::string &semantic)
 		{
 			if (semantic == "VERTEXID")
@@ -277,7 +276,7 @@ namespace reshade
 		}
 
 		using compiler::visit;
-		void visit(std::string &output, const fx::nodes::type_node &type, bool with_qualifiers = true)
+		void visit(std::string &output, const fx::nodes::type_node &type, bool with_qualifiers = true) override
 		{
 			if (with_qualifiers)
 			{
@@ -1449,7 +1448,7 @@ namespace reshade
 			texdesc.Height = obj->height = node->properties.Height;
 			texdesc.MipLevels = obj->levels = node->properties.MipLevels;
 			texdesc.ArraySize = 1;
-			texdesc.Format = LiteralToFormat(node->properties.Format, obj->format);
+			texdesc.Format = literal_to_format(node->properties.Format, obj->format);
 			texdesc.SampleDesc.Count = 1;
 			texdesc.SampleDesc.Quality = 0;
 			texdesc.Usage = D3D11_USAGE_DEFAULT;
@@ -1496,7 +1495,7 @@ namespace reshade
 				D3D11_SHADER_RESOURCE_VIEW_DESC srvdesc = { };
 				srvdesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
 				srvdesc.Texture2D.MipLevels = texdesc.MipLevels;
-				srvdesc.Format = MakeNonSRGBFormat(texdesc.Format);
+				srvdesc.Format = make_format_normal(texdesc.Format);
 
 				hr = _runtime->_device->CreateShaderResourceView(obj->texture.get(), &srvdesc, &obj->srv[0]);
 
@@ -1506,7 +1505,7 @@ namespace reshade
 					return;
 				}
 
-				srvdesc.Format = MakeSRGBFormat(texdesc.Format);
+				srvdesc.Format = make_format_srgb(texdesc.Format);
 
 				if (srvdesc.Format != texdesc.Format)
 				{
@@ -1771,7 +1770,7 @@ namespace reshade
 				}
 
 				D3D11_RENDER_TARGET_VIEW_DESC rtvdesc = { };
-				rtvdesc.Format = node->states.SRGBWriteEnable ? MakeSRGBFormat(desc.Format) : MakeNonSRGBFormat(desc.Format);
+				rtvdesc.Format = node->states.SRGBWriteEnable ? make_format_srgb(desc.Format) : make_format_normal(desc.Format);
 				rtvdesc.ViewDimension = desc.SampleDesc.Count > 1 ? D3D11_RTV_DIMENSION_TEXTURE2DMS : D3D11_RTV_DIMENSION_TEXTURE2D;
 
 				if (texture->rtv[target_index] == nullptr)
@@ -1802,9 +1801,9 @@ namespace reshade
 			ddesc.StencilReadMask = node->states.StencilReadMask;
 			ddesc.StencilWriteMask = node->states.StencilWriteMask;
 			ddesc.FrontFace.StencilFunc = ddesc.BackFace.StencilFunc = static_cast<D3D11_COMPARISON_FUNC>(node->states.StencilFunc);
-			ddesc.FrontFace.StencilPassOp = ddesc.BackFace.StencilPassOp = LiteralToStencilOp(node->states.StencilOpPass);
-			ddesc.FrontFace.StencilFailOp = ddesc.BackFace.StencilFailOp = LiteralToStencilOp(node->states.StencilOpFail);
-			ddesc.FrontFace.StencilDepthFailOp = ddesc.BackFace.StencilDepthFailOp = LiteralToStencilOp(node->states.StencilOpDepthFail);
+			ddesc.FrontFace.StencilPassOp = ddesc.BackFace.StencilPassOp = literal_to_stencil_op(node->states.StencilOpPass);
+			ddesc.FrontFace.StencilFailOp = ddesc.BackFace.StencilFailOp = literal_to_stencil_op(node->states.StencilOpFail);
+			ddesc.FrontFace.StencilDepthFailOp = ddesc.BackFace.StencilDepthFailOp = literal_to_stencil_op(node->states.StencilOpDepthFail);
 			pass.stencil_reference = node->states.StencilRef;
 
 			HRESULT hr = _runtime->_device->CreateDepthStencilState(&ddesc, &pass.depth_stencil_state);
@@ -1821,8 +1820,8 @@ namespace reshade
 			bdesc.RenderTarget[0].BlendEnable = node->states.BlendEnable;
 			bdesc.RenderTarget[0].BlendOp = static_cast<D3D11_BLEND_OP>(node->states.BlendOp);
 			bdesc.RenderTarget[0].BlendOpAlpha = static_cast<D3D11_BLEND_OP>(node->states.BlendOpAlpha);
-			bdesc.RenderTarget[0].SrcBlend = LiteralToBlend(node->states.SrcBlend);
-			bdesc.RenderTarget[0].DestBlend = LiteralToBlend(node->states.DestBlend);
+			bdesc.RenderTarget[0].SrcBlend = literal_to_blend_func(node->states.SrcBlend);
+			bdesc.RenderTarget[0].DestBlend = literal_to_blend_func(node->states.DestBlend);
 
 			hr = _runtime->_device->CreateBlendState(&bdesc, &pass.blend_state);
 
@@ -2032,7 +2031,7 @@ namespace reshade
 		texdesc.Width = _width;
 		texdesc.Height = _height;
 		texdesc.ArraySize = texdesc.MipLevels = 1;
-		texdesc.Format = d3d11_fx_compiler::MakeTypelessFormat(_backbuffer_format);
+		texdesc.Format = make_format_typeless(_backbuffer_format);
 		texdesc.SampleDesc.Count = 1;
 		texdesc.SampleDesc.Quality = 0;
 		texdesc.Usage = D3D11_USAGE_DEFAULT;
@@ -2042,7 +2041,7 @@ namespace reshade
 		OSVERSIONINFOEX verinfo_windows7 = { sizeof(OSVERSIONINFOEX), 6, 1 };
 		const bool is_windows7 = VerifyVersionInfo(&verinfo_windows7, VER_MAJORVERSION | VER_MINORVERSION, VerSetConditionMask(VerSetConditionMask(0, VER_MAJORVERSION, VER_EQUAL), VER_MINORVERSION, VER_EQUAL)) != FALSE;
 
-		if (_is_multisampling_enabled || d3d11_fx_compiler::MakeNonSRGBFormat(_backbuffer_format) != _backbuffer_format || !is_windows7)
+		if (_is_multisampling_enabled || make_format_normal(_backbuffer_format) != _backbuffer_format || !is_windows7)
 		{
 			hr = _device->CreateTexture2D(&texdesc, nullptr, &_backbuffer_resolved);
 
@@ -2071,7 +2070,7 @@ namespace reshade
 		if (SUCCEEDED(hr))
 		{
 			D3D11_SHADER_RESOURCE_VIEW_DESC srvdesc = { };
-			srvdesc.Format = d3d11_fx_compiler::MakeNonSRGBFormat(texdesc.Format);
+			srvdesc.Format = make_format_normal(texdesc.Format);
 			srvdesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
 			srvdesc.Texture2D.MipLevels = texdesc.MipLevels;
 
@@ -2084,7 +2083,7 @@ namespace reshade
 				LOG(TRACE) << "Failed to create backbuffer texture resource view (Format = " << srvdesc.Format << ")! HRESULT is '" << hr << "'.";
 			}
 
-			srvdesc.Format = d3d11_fx_compiler::MakeSRGBFormat(texdesc.Format);
+			srvdesc.Format = make_format_srgb(texdesc.Format);
 
 			if (SUCCEEDED(hr))
 			{
@@ -2107,7 +2106,7 @@ namespace reshade
 		#pragma endregion
 
 		D3D11_RENDER_TARGET_VIEW_DESC rtdesc = { };
-		rtdesc.Format = d3d11_fx_compiler::MakeNonSRGBFormat(texdesc.Format);
+		rtdesc.Format = make_format_normal(texdesc.Format);
 		rtdesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
 
 		hr = _device->CreateRenderTargetView(_backbuffer_resolved.get(), &rtdesc, &_backbuffer_rtv[0]);
@@ -2119,7 +2118,7 @@ namespace reshade
 			return false;
 		}
 
-		rtdesc.Format = d3d11_fx_compiler::MakeSRGBFormat(texdesc.Format);
+		rtdesc.Format = make_format_srgb(texdesc.Format);
 
 		hr = _device->CreateRenderTargetView(_backbuffer_resolved.get(), &rtdesc, &_backbuffer_rtv[1]);
 
@@ -2292,7 +2291,7 @@ namespace reshade
 			_immediate_context->PSSetShader(_copy_pixel_shader.get(), nullptr, 0);
 			const auto sst = _copy_sampler.get();
 			_immediate_context->PSSetSamplers(0, 1, &sst);
-			const auto srv = _backbuffer_texture_srv[d3d11_fx_compiler::MakeSRGBFormat(_backbuffer_format) == _backbuffer_format].get();
+			const auto srv = _backbuffer_texture_srv[make_format_srgb(_backbuffer_format) == _backbuffer_format].get();
 			_immediate_context->PSSetShaderResources(0, 1, &srv);
 			_immediate_context->Draw(3, 0);
 		}
