@@ -64,7 +64,7 @@ namespace reshade
 	{
 		runtime::on_apply_effect();
 	}
-	void d3d12_runtime::on_apply_effect_technique(const technique *technique)
+	void d3d12_runtime::on_apply_effect_technique(const technique &technique)
 	{
 		runtime::on_apply_effect_technique(technique);
 	}

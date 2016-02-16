@@ -48,11 +48,16 @@ namespace reshade
 		gl_texture *Texture;
 		bool SRGB;
 	};
-	struct gl_pass
+	struct gl_pass : public technique::pass
 	{
 		gl_pass()
 		{
 			ZeroMemory(this, sizeof(*this));
+		}
+		~gl_pass()
+		{
+			GLCHECK(glDeleteProgram(program));
+			GLCHECK(glDeleteFramebuffers(1, &fbo));
 		}
 
 		GLuint program;
@@ -62,19 +67,6 @@ namespace reshade
 		GLsizei viewport_width, viewport_height;
 		GLenum draw_buffers[8], blend_eq_color, blend_eq_alpha, blend_src, blend_dest, depth_func, stencil_func, stencil_op_fail, stencil_op_z_fail, stencil_op_z_pass;
 		GLboolean srgb, blend, depth_mask, depth_test, stencil_test, color_mask[4];
-	};
-	struct gl_technique : public technique
-	{
-		~gl_technique()
-		{
-			for (auto &pass : passes)
-			{
-				GLCHECK(glDeleteProgram(pass.program));
-				GLCHECK(glDeleteFramebuffers(1, &pass.fbo));
-			}
-		}
-
-		std::vector<gl_pass> passes;
 	};
 
 	class gl_fx_compiler : fx::compiler
@@ -2097,22 +2089,21 @@ namespace reshade
 		}
 		void visit_technique(const fx::nodes::technique_declaration_node *node)
 		{
-			const auto obj = new gl_technique();
+			const auto obj = new technique();
 			obj->name = node->name;
-			obj->pass_count = static_cast<unsigned int>(node->pass_list.size());
 
 			visit_annotation(node->annotation_list, *obj);
 
 			for (auto pass : node->pass_list)
 			{
-				visit_pass(pass, obj->passes);
+				obj->passes.emplace_back(new gl_pass());
+				visit_pass(pass, *static_cast<gl_pass *>(obj->passes.back().get()));
 			}
 
 			_runtime->add_technique(obj);
 		}
-		void visit_pass(const fx::nodes::pass_declaration_node *node, std::vector<gl_pass> &passes)
+		void visit_pass(const fx::nodes::pass_declaration_node *node, gl_pass &pass)
 		{
-			gl_pass pass;
 			pass.color_mask[0] = (node->states.RenderTargetWriteMask & (1 << 0)) != 0;
 			pass.color_mask[1] = (node->states.RenderTargetWriteMask & (1 << 1)) != 0;
 			pass.color_mask[2] = (node->states.RenderTargetWriteMask & (1 << 2)) != 0;
@@ -2238,8 +2229,6 @@ namespace reshade
 				error(node->location, "program linking failed");
 				return;
 			}
-
-			passes.push_back(std::move(pass));
 		}
 		void visit_pass_shader(const fx::nodes::function_declaration_node *node, GLuint shadertype, GLuint &shader)
 		{
@@ -3068,7 +3057,7 @@ namespace reshade
 		// Reset states
 		GLCHECK(glBindSampler(0, 0));
 	}
-	void gl_runtime::on_apply_effect_technique(const technique *technique)
+	void gl_runtime::on_apply_effect_technique(const technique &technique)
 	{
 		runtime::on_apply_effect_technique(technique);
 
@@ -3083,8 +3072,10 @@ namespace reshade
 			GLCHECK(glBufferSubData(GL_UNIFORM_BUFFER, 0, uniform_storage.size(), uniform_storage.data()));
 		}
 
-		for (const auto &pass : static_cast<const gl_technique *>(technique)->passes)
+		for (const auto &pass_ptr : technique.passes)
 		{
+			const auto &pass = *static_cast<const gl_pass *>(pass_ptr.get());
+
 			// Setup states
 			GLCHECK(glUseProgram(pass.program));
 			GLCHECK(pass.srgb ? glEnable(GL_FRAMEBUFFER_SRGB) : glDisable(GL_FRAMEBUFFER_SRGB));

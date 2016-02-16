@@ -26,7 +26,7 @@ namespace reshade
 		DWORD States[12];
 		d3d9_texture *Texture;
 	};
-	struct d3d9_pass
+	struct d3d9_pass : public technique::pass
 	{
 		d3d9_pass() : samplers(), sampler_count(0), render_targets() { }
 
@@ -36,10 +36,6 @@ namespace reshade
 		DWORD sampler_count;
 		com_ptr<IDirect3DStateBlock9> stateblock;
 		IDirect3DSurface9 *render_targets[8];
-	};
-	struct d3d9_technique : public technique
-	{
-		std::vector<d3d9_pass> passes;
 	};
 
 	class d3d9_fx_compiler : fx::compiler
@@ -1548,22 +1544,21 @@ namespace reshade
 		}
 		void visit_technique(const fx::nodes::technique_declaration_node *node)
 		{
-			const auto obj = new d3d9_technique();
+			const auto obj = new technique();
 			obj->name = node->name;
-			obj->pass_count = static_cast<unsigned int>(node->pass_list.size());
 
 			visit_annotation(node->annotation_list, *obj);
 
 			for (auto pass : node->pass_list)
 			{
-				visit_pass(pass, obj->passes);
+				obj->passes.emplace_back(new d3d9_pass());
+				visit_pass(pass, *static_cast<d3d9_pass *>(obj->passes.back().get()));
 			}
 
 			_runtime->add_technique(obj);
 		}
-		void visit_pass(const fx::nodes::pass_declaration_node *node, std::vector<d3d9_pass> &passes)
+		void visit_pass(const fx::nodes::pass_declaration_node *node, d3d9_pass & pass)
 		{
-			d3d9_pass pass;
 			pass.render_targets[0] = _runtime->_backbuffer_resolved.get();
 
 			std::string samplers;
@@ -1712,8 +1707,6 @@ namespace reshade
 
 				pass.render_targets[i] = texture->surface.get();
 			}
-
-			passes.push_back(std::move(pass));
 		}
 		void visit_pass_shader(const fx::nodes::function_declaration_node *node, const std::string &shadertype, const std::string &samplers, d3d9_pass &pass)
 		{
@@ -2301,7 +2294,7 @@ namespace reshade
 		// Apply post processing
 		runtime::on_apply_effect();
 	}
-	void d3d9_runtime::on_apply_effect_technique(const technique *technique)
+	void d3d9_runtime::on_apply_effect_technique(const technique &technique)
 	{
 		runtime::on_apply_effect_technique(technique);
 
@@ -2312,8 +2305,10 @@ namespace reshade
 		_device->SetVertexShaderConstantF(0, uniform_storage_data, _constant_register_count);
 		_device->SetPixelShaderConstantF(0, uniform_storage_data, _constant_register_count);
 
-		for (const auto &pass : static_cast<const d3d9_technique *>(technique)->passes)
+		for (const auto &pass_ptr : technique.passes)
 		{
+			const auto &pass = *static_cast<const d3d9_pass *>(pass_ptr.get());
+
 			// Setup states
 			pass.stateblock->Apply();
 

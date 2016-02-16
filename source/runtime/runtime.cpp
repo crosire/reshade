@@ -301,7 +301,7 @@ namespace reshade
 
 				for (const auto &technique : _techniques)
 				{
-					stats << technique->name << " (" << technique->pass_count << " passes): " << (technique->average_duration * 1e-6f) << "ms" << std::endl;
+					stats << technique->name << " (" << technique->passes.size() << " passes): " << (technique->average_duration * 1e-6f) << "ms" << std::endl;
 				}
 			}
 
@@ -531,20 +531,20 @@ namespace reshade
 
 			const auto time_technique_started = boost::chrono::high_resolution_clock::now();
 
-			on_apply_effect_technique(technique.get());
+			on_apply_effect_technique(*technique);
 
 			technique->average_duration.append(boost::chrono::duration_cast<boost::chrono::nanoseconds>(boost::chrono::high_resolution_clock::now() - time_technique_started).count());
 		}
 
 		_last_postprocessing_duration = boost::chrono::high_resolution_clock::now() - time_postprocessing_started;
 	}
-	void runtime::on_apply_effect_technique(const technique *technique)
+	void runtime::on_apply_effect_technique(const technique &technique)
 	{
 		for (const auto &variable : _uniforms)
 		{
 			if (variable->annotations["source"].as<std::string>() == "timeleft")
 			{
-				set_uniform_value(*variable, &technique->timeleft, 1);
+				set_uniform_value(*variable, &technique.timeleft, 1);
 			}
 		}
 	}

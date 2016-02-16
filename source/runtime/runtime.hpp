@@ -174,13 +174,18 @@ namespace reshade
 		size_t storage_offset, storage_size;
 		std::unordered_map<std::string, annotation> annotations;
 	};
-	struct technique abstract
+	struct technique
 	{
-		technique() : pass_count(0), enabled(false), timeout(0), timeleft(0), toggle_key(0), toggle_time(0), toggle_key_ctrl(false), toggle_key_shift(false), toggle_key_alt(false) { }
+		struct pass
+		{
+			virtual ~pass() { }
+		};
+
+		technique() : enabled(false), timeout(0), timeleft(0), toggle_key(0), toggle_time(0), toggle_key_ctrl(false), toggle_key_shift(false), toggle_key_alt(false) { }
 		virtual ~technique() { }
 
 		std::string name;
-		unsigned int pass_count;
+		std::vector<std::unique_ptr<pass>> passes;
 		std::unordered_map<std::string, annotation> annotations;
 		bool enabled;
 		int timeout, timeleft;
@@ -322,7 +327,7 @@ namespace reshade
 		/// Callback function called to render the specified effect technique.
 		/// </summary>
 		/// <param name="technique">The technique to render.</param>
-		virtual void on_apply_effect_technique(const technique *technique);
+		virtual void on_apply_effect_technique(const technique &technique);
 
 		bool _is_initialized, _is_effect_compiled;
 		unsigned int _width, _height;

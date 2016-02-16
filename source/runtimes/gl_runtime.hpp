@@ -19,7 +19,7 @@ namespace reshade
 		void on_present() override;
 		void on_draw_call(unsigned int vertices) override;
 		void on_apply_effect() override;
-		void on_apply_effect_technique(const technique *technique) override;
+		void on_apply_effect_technique(const technique &technique) override;
 		void on_fbo_attachment(GLenum target, GLenum attachment, GLenum objecttarget, GLuint object, GLint level);
 
 		static void update_texture_datatype(texture *texture, texture::datatype source, GLuint newtexture, GLuint newtexture_srgb);

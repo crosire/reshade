@@ -12,7 +12,16 @@
 
 namespace reshade
 {
-	struct d3d10_pass
+	struct d3d10_texture : public texture
+	{
+		d3d10_texture() : shader_register(0) { }
+
+		size_t shader_register;
+		com_ptr<ID3D10Texture2D> texture;
+		com_ptr<ID3D10ShaderResourceView> srv[2];
+		com_ptr<ID3D10RenderTargetView> rtv[2];
+	};
+	struct d3d10_pass : public technique::pass
 	{
 		com_ptr<ID3D10VertexShader> vertex_shader;
 		com_ptr<ID3D10PixelShader> pixel_shader;
@@ -23,19 +32,6 @@ namespace reshade
 		ID3D10ShaderResourceView *render_target_resources[D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT];
 		D3D10_VIEWPORT viewport;
 		std::vector<ID3D10ShaderResourceView *> shader_resources;
-	};
-	struct d3d10_technique : public technique
-	{
-		std::vector<d3d10_pass> passes;
-	};
-	struct d3d10_texture : public texture
-	{
-		d3d10_texture() : shader_register(0) { }
-
-		size_t shader_register;
-		com_ptr<ID3D10Texture2D> texture;
-		com_ptr<ID3D10ShaderResourceView> srv[2];
-		com_ptr<ID3D10RenderTargetView> rtv[2];
 	};
 
 	class d3d10_fx_compiler : fx::compiler
@@ -1704,22 +1700,21 @@ namespace reshade
 		}
 		void visit_technique(const fx::nodes::technique_declaration_node *node)
 		{
-			const auto obj = new d3d10_technique();
+			const auto obj = new technique();
 			obj->name = node->name;
-			obj->pass_count = static_cast<unsigned int>(node->pass_list.size());
 
 			visit_annotation(node->annotation_list, *obj);
 
 			for (auto pass : node->pass_list)
 			{
-				visit_pass(pass, obj->passes);
+				obj->passes.emplace_back(new d3d10_pass());
+				visit_pass(pass, *static_cast<d3d10_pass *>(obj->passes.back().get()));
 			}
 
 			_runtime->add_technique(obj);
 		}
-		void visit_pass(const fx::nodes::pass_declaration_node *node, std::vector<d3d10_pass> &passes)
+		void visit_pass(const fx::nodes::pass_declaration_node *node, d3d10_pass &pass)
 		{
-			d3d10_pass pass;
 			pass.stencil_reference = 0;
 			pass.viewport.TopLeftX = pass.viewport.TopLeftY = pass.viewport.Width = pass.viewport.Height = 0;
 			pass.viewport.MinDepth = 0.0f;
@@ -1863,8 +1858,6 @@ namespace reshade
 					}
 				}
 			}
-
-			passes.push_back(std::move(pass));
 		}
 		void visit_pass_shader(const fx::nodes::function_declaration_node *node, const std::string &shadertype, d3d10_pass &pass)
 		{
@@ -2377,7 +2370,7 @@ namespace reshade
 		// Apply post processing
 		runtime::on_apply_effect();
 	}
-	void d3d10_runtime::on_apply_effect_technique(const technique *technique)
+	void d3d10_runtime::on_apply_effect_technique(const technique &technique)
 	{
 		runtime::on_apply_effect_technique(technique);
 
@@ -2402,8 +2395,10 @@ namespace reshade
 			}
 		}
 
-		for (const auto &pass : static_cast<const d3d10_technique *>(technique)->passes)
+		for (const auto &pass_ptr : technique.passes)
 		{
+			const auto &pass = *static_cast<const d3d10_pass *>(pass_ptr.get());
+
 			// Setup states
 			_device->VSSetShader(pass.vertex_shader.get());
 			_device->PSSetShader(pass.pixel_shader.get());
@@ -2699,10 +2694,12 @@ namespace reshade
 		}
 
 		// Update techniques shader resourceviews
-		for (auto &technique : _techniques)
+		for (const auto &technique : _techniques)
 		{
-			for (auto &pass : static_cast<d3d10_technique *>(technique.get())->passes)
+			for (const auto &pass_ptr : technique->passes)
 			{
+				auto &pass = *static_cast<d3d10_pass *>(pass_ptr.get());
+
 				pass.shader_resources[texture_impl->shader_register] = texture_impl->srv[0].get();
 				pass.shader_resources[texture_impl->shader_register + 1] = texture_impl->srv[1].get();
 			}

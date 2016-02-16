@@ -18,7 +18,7 @@ namespace reshade
 		void on_present() override;
 		void on_draw_call(D3DPRIMITIVETYPE type, UINT count);
 		void on_apply_effect() override;
-		void on_apply_effect_technique(const technique *technique) override;
+		void on_apply_effect_technique(const technique &technique) override;
 		void on_set_depthstencil_surface(IDirect3DSurface9 *&depthstencil);
 		void on_get_depthstencil_surface(IDirect3DSurface9 *&depthstencil);
 

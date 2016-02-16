@@ -18,7 +18,7 @@ namespace reshade
 		void on_reset_effect() override;
 		void on_present() override;
 		void on_apply_effect() override;
-		void on_apply_effect_technique(const technique *technique) override;
+		void on_apply_effect_technique(const technique &technique) override;
 
 		void screenshot(unsigned char *buffer) const override;
 		bool update_effect(const fx::nodetree &ast, const std::vector<std::string> &pragmas, std::string &errors) override;
