@@ -1740,7 +1740,7 @@ namespace reshade
 			pass.render_targets[0] = _runtime->_backbuffer_rtv[target_index].get();
 			pass.render_target_resources[0] = _runtime->_backbuffer_texture_srv[target_index].get();
 
-			for (unsigned int i = 0; i < 8; ++i)
+			for (unsigned int i = 0; i < 8; i++)
 			{
 				if (node->states.RenderTargets[i] == nullptr)
 				{
@@ -1830,26 +1830,25 @@ namespace reshade
 				warning(node->location, "'ID3D11Device::CreateBlendState' failed with error code " + std::to_string(static_cast<unsigned long>(hr)) + "!");
 			}
 
-			for (ID3D11ShaderResourceView *&srv : pass.shader_resources)
+			for (auto &srv : pass.shader_resources)
 			{
 				if (srv == nullptr)
 				{
 					continue;
 				}
 
-				ID3D11Resource *res1, *res2;
+				com_ptr<ID3D11Resource> res1;
 				srv->GetResource(&res1);
-				res1->Release();
 
-				for (ID3D11RenderTargetView *rtv : pass.render_targets)
+				for (auto rtv : pass.render_targets)
 				{
 					if (rtv == nullptr)
 					{
 						continue;
 					}
 
+					com_ptr<ID3D11Resource> res2;
 					rtv->GetResource(&res2);
-					res2->Release();
 
 					if (res1 == res2)
 					{
@@ -1940,7 +1939,7 @@ namespace reshade
 			LOG(TRACE) << "> Compiling shader '" << node->name << "':\n\n" << source.c_str() << "\n";
 
 			UINT flags = D3DCOMPILE_ENABLE_STRICTNESS;
-			ID3DBlob *compiled = nullptr, *errors = nullptr;
+			com_ptr<ID3DBlob> compiled, errors;
 
 			if (_skip_shader_optimization)
 			{
@@ -1952,8 +1951,6 @@ namespace reshade
 			if (errors != nullptr)
 			{
 				_errors += std::string(static_cast<const char *>(errors->GetBufferPointer()), errors->GetBufferSize());
-
-				errors->Release();
 			}
 
 			if (FAILED(hr))
@@ -1970,8 +1967,6 @@ namespace reshade
 			{
 				hr = _runtime->_device->CreatePixelShader(compiled->GetBufferPointer(), compiled->GetBufferSize(), nullptr, &pass.pixel_shader);
 			}
-
-			compiled->Release();
 
 			if (FAILED(hr))
 			{
@@ -2334,7 +2329,8 @@ namespace reshade
 		}
 
 		// Setup real back buffer
-		_immediate_context->OMSetRenderTargets(1, &_backbuffer_rtv[0], nullptr);
+		const auto render_target = _backbuffer_rtv[0].get();
+		_immediate_context->OMSetRenderTargets(1, &render_target, nullptr);
 
 		// Setup vertex input
 		const uintptr_t null = 0;
@@ -2471,21 +2467,18 @@ namespace reshade
 
 		if (_depth_source_table.find(depthstencil) == _depth_source_table.end())
 		{
-			ID3D11Resource *resource;
-			ID3D11Texture2D *texture;
 			D3D11_TEXTURE2D_DESC texture_desc;
+			com_ptr<ID3D11Resource> resource;
+			com_ptr<ID3D11Texture2D> texture;
 
 			depthstencil->GetResource(&resource);
 
-			if (FAILED(resource->QueryInterface(&texture)))
+			if (FAILED(resource.get_interface(texture)))
 			{
-				resource->Release();
 				return;
 			}
 
 			texture->GetDesc(&texture_desc);
-			texture->Release();
-			resource->Release();
 
 			// Early depth-stencil rejection
 			if (texture_desc.Width != _width || texture_desc.Height != _height || texture_desc.SampleDesc.Count > 1)
@@ -2713,10 +2706,9 @@ namespace reshade
 		for (auto it = _depth_source_table.begin(); it != _depth_source_table.end();)
 		{
 			const auto depthstencil = it->first;
-			depthstencil->AddRef();
-			const auto ref = depthstencil->Release();
+			const auto refcount = (depthstencil->AddRef(), depthstencil->Release());
 
-			if (ref == 1)
+			if (refcount == 1)
 			{
 				LOG(TRACE) << "Removing depthstencil " << depthstencil << " from list of possible depth candidates ...";
 
@@ -2913,7 +2905,10 @@ namespace reshade
 
 				for (UINT i = 0; i < D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT; ++i)
 				{
-					targets[i]->Release();
+					if (targets[i] != nullptr)
+					{
+						targets[i]->Release();
+					}
 				}
 			}
 		}

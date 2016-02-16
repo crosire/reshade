@@ -82,12 +82,10 @@ namespace reshade
 
 		UINT get_renderer_id(ID3D10Device *device)
 		{
-			ID3D10Device1 *device1 = nullptr;
+			com_ptr<ID3D10Device1> device1;
 
 			if (SUCCEEDED(device->QueryInterface(&device1)))
 			{
-				device1->Release();
-
 				return device1->GetFeatureLevel();
 			}
 			else
@@ -1756,7 +1754,7 @@ namespace reshade
 			pass.render_targets[0] = _runtime->_backbuffer_rtv[target_index].get();
 			pass.render_target_resources[0] = _runtime->_backbuffer_texture_srv[target_index].get();
 
-			for (unsigned int i = 0; i < 8; ++i)
+			for (unsigned int i = 0; i < 8; i++)
 			{
 				if (node->states.RenderTargets[i] == nullptr)
 				{
@@ -1861,7 +1859,7 @@ namespace reshade
 				com_ptr<ID3D10Resource> res1;
 				srv->GetResource(&res1);
 
-				for (ID3D10RenderTargetView *rtv : pass.render_targets)
+				for (auto rtv : pass.render_targets)
 				{
 					if (rtv == nullptr)
 					{
@@ -1881,14 +1879,12 @@ namespace reshade
 		}
 		void visit_pass_shader(const fx::nodes::function_declaration_node *node, const std::string &shadertype, d3d10_pass &pass)
 		{
-			ID3D10Device1 *device1 = nullptr;
+			com_ptr<ID3D10Device1> device1;
 			D3D10_FEATURE_LEVEL1 featurelevel = D3D10_FEATURE_LEVEL_10_0;
 					
 			if (SUCCEEDED(_runtime->_device->QueryInterface(&device1)))
 			{
 				featurelevel = device1->GetFeatureLevel();
-
-				device1->Release();
 			}
 
 			std::string profile = shadertype;
@@ -1953,7 +1949,7 @@ namespace reshade
 			LOG(TRACE) << "> Compiling shader '" << node->name << "':\n\n" << source.c_str() << "\n";
 
 			UINT flags = D3DCOMPILE_ENABLE_STRICTNESS;
-			ID3DBlob *compiled = nullptr, *errors = nullptr;
+			com_ptr<ID3DBlob> compiled, errors;
 
 			if (_skip_shader_optimization)
 			{
@@ -1965,8 +1961,6 @@ namespace reshade
 			if (errors != nullptr)
 			{
 				_errors += std::string(static_cast<const char *>(errors->GetBufferPointer()), errors->GetBufferSize());
-
-				errors->Release();
 			}
 
 			if (FAILED(hr))
@@ -1983,8 +1977,6 @@ namespace reshade
 			{
 				hr = _runtime->_device->CreatePixelShader(compiled->GetBufferPointer(), compiled->GetBufferSize(), &pass.pixel_shader);
 			}
-
-			compiled->Release();
 
 			if (FAILED(hr))
 			{
@@ -2267,11 +2259,6 @@ namespace reshade
 		// Capture device state
 		_stateblock.capture();
 
-		ID3D10RenderTargetView *stateblock_rendertargets[D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT] = { nullptr };
-		com_ptr<ID3D10DepthStencilView> stateblock_depthstencil;
-
-		_device->OMGetRenderTargets(D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, stateblock_rendertargets, &stateblock_depthstencil);
-
 		// Resolve back buffer
 		if (_backbuffer_resolved != _backbuffer)
 		{
@@ -2308,13 +2295,6 @@ namespace reshade
 
 		// Apply previous device state
 		_stateblock.apply_and_release();
-
-		_device->OMSetRenderTargets(D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, stateblock_rendertargets, stateblock_depthstencil.get());
-
-		for (UINT i = 0; i < D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT; ++i)
-		{
-			stateblock_rendertargets[i]->Release();
-		}
 	}
 	void d3d10_runtime::on_draw_call(UINT vertices)
 	{
@@ -2349,7 +2329,8 @@ namespace reshade
 		}
 
 		// Setup real back buffer
-		_device->OMSetRenderTargets(1, &_backbuffer_rtv[0], nullptr);
+		const auto render_target = _backbuffer_rtv[0].get();
+		_device->OMSetRenderTargets(1, &render_target, nullptr);
 
 		// Setup vertex input
 		const uintptr_t null = 0;
@@ -2488,7 +2469,7 @@ namespace reshade
 
 			depthstencil->GetResource(&resource);
 
-			if (FAILED(resource->QueryInterface(&texture)))
+			if (FAILED(resource.get_interface(texture)))
 			{
 				return;
 			}
@@ -2715,10 +2696,9 @@ namespace reshade
 		for (auto it = _depth_source_table.begin(); it != _depth_source_table.end();)
 		{
 			const auto depthstencil = it->first;
-			depthstencil->AddRef();
-			const auto ref = depthstencil->Release();
+			const auto refcount = (depthstencil->AddRef(), depthstencil->Release());
 
-			if (ref == 1)
+			if (refcount == 1)
 			{
 				LOG(TRACE) << "Removing depthstencil " << depthstencil << " from list of possible depth candidates ...";
 
@@ -2917,7 +2897,10 @@ namespace reshade
 
 				for (UINT i = 0; i < D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT; ++i)
 				{
-					targets[i]->Release();
+					if (targets[i] != nullptr)
+					{
+						targets[i]->Release();
+					}
 				}
 			}
 		}
