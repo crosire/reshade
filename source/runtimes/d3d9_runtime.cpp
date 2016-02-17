@@ -10,7 +10,6 @@
 #include <d3dcompiler.h>
 #include <nanovg_d3d9.h>
 #include <unordered_set>
-#include <boost\algorithm\string.hpp>
 
 const D3DFORMAT D3DFMT_INTZ = static_cast<D3DFORMAT>(MAKEFOURCC('I', 'N', 'T', 'Z'));
 
@@ -182,7 +181,7 @@ namespace reshade
 		}
 		static std::string convert_semantic(const std::string &semantic)
 		{
-			if (boost::starts_with(semantic, "SV_"))
+			if (semantic.compare(0, 3, "SV_") == 0)
 			{
 				if (semantic == "SV_VERTEXID")
 				{
@@ -192,7 +191,7 @@ namespace reshade
 				{
 					return "POSITION";
 				}
-				else if (boost::starts_with(semantic, "SV_TARGET"))
+				else if (semantic.compare(0, 9, "SV_TARGET") == 0)
 				{
 					return "COLOR" + semantic.substr(9);
 				}
@@ -1759,7 +1758,7 @@ namespace reshade
 						position_variable = "_return." + field->name;
 						break;
 					}
-					else if ((boost::starts_with(field->semantic, "SV_TARGET") || boost::starts_with(field->semantic, "COLOR")) && field->type.rows != 4)
+					else if ((field->semantic.compare(0, 9, "SV_TARGET") == 0 || field->semantic.compare(0, 5, "COLOR") == 0) && field->type.rows != 4)
 					{
 						error(node->location, "'SV_Target' must be a four-component vector when used inside structs in Direct3D9");
 						return;
@@ -1772,7 +1771,7 @@ namespace reshade
 				{
 					position_variable = "_return";
 				}
-				else if (boost::starts_with(node->return_semantic, "SV_TARGET") || boost::starts_with(node->return_semantic, "COLOR"))
+				else if (node->return_semantic.compare(0, 9, "SV_TARGET") == 0 || node->return_semantic.compare(0, 5, "COLOR") == 0)
 				{
 					return_type.rows = 4;
 				}
@@ -1799,7 +1798,7 @@ namespace reshade
 									position_variable = parameter->name + '.' + field->name;
 									break;
 								}
-								else if ((boost::starts_with(field->semantic, "SV_TARGET") || boost::starts_with(field->semantic, "COLOR")) && field->type.rows != 4)
+								else if ((field->semantic.compare(0, 9, "SV_TARGET") == 0 || field->semantic.compare(0, 5, "COLOR") == 0) && field->type.rows != 4)
 								{
 									error(node->location, "'SV_Target' must be a four-component vector when used inside structs in Direct3D9");
 									return;
@@ -1812,7 +1811,7 @@ namespace reshade
 							{
 								position_variable = parameter->name;
 							}
-							else if (boost::starts_with(parameter->semantic, "SV_TARGET") || boost::starts_with(parameter->semantic, "COLOR"))
+							else if (parameter->semantic.compare(0, 9, "SV_TARGET") == 0 || parameter->semantic.compare(0, 5, "COLOR") == 0)
 							{
 								parameter_type.rows = 4;
 
@@ -1872,7 +1871,7 @@ namespace reshade
 				{
 					source += parameter->name;
 
-					if (boost::starts_with(parameter->semantic, "SV_TARGET") || boost::starts_with(parameter->semantic, "COLOR"))
+					if (parameter->semantic.compare(0, 9, "SV_TARGET") == 0 || parameter->semantic.compare(0, 5, "COLOR") == 0)
 					{
 						source += '.';
 
@@ -2488,14 +2487,18 @@ namespace reshade
 
 		for (const auto &pragma : pragmas)
 		{
-			if (!boost::istarts_with(pragma, "reshade "))
+			fx::lexer lexer(pragma);
+
+			const auto prefix_token = lexer.lex();
+
+			if (prefix_token.literal_as_string != "reshade")
 			{
 				continue;
 			}
 
-			const std::string command = pragma.substr(8);
+			const auto command_token = lexer.lex();
 
-			if (boost::iequals(command, "skipoptimization") || boost::iequals(command, "nooptimization"))
+			if (command_token.literal_as_string == "skipoptimization" || command_token.literal_as_string == "nooptimization")
 			{
 				skip_optimization = true;
 			}

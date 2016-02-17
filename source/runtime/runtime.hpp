@@ -345,7 +345,7 @@ namespace reshade
 		bool compile_effect();
 		void process_effect();
 
-		unsigned int _renderer_id;
+		const unsigned int _renderer_id;
 		std::vector<std::string> _pragmas;
 		std::vector<boost::filesystem::path> _included_files;
 		boost::chrono::high_resolution_clock::time_point _start_time, _last_create, _last_present;

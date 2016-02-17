@@ -8,7 +8,6 @@
 #include <assert.h>
 #include <d3dcompiler.h>
 #include <nanovg_d3d11.h>
-#include <boost\algorithm\string.hpp>
 
 namespace reshade
 {
@@ -263,7 +262,7 @@ namespace reshade
 			{
 				return "SV_POSITION";
 			}
-			else if (boost::starts_with(semantic, "COLOR"))
+			else if (semantic.compare(0, 5, "COLOR") == 0)
 			{
 				return "SV_TARGET" + semantic.substr(5);
 			}
@@ -2548,26 +2547,28 @@ namespace reshade
 
 	void d3d11_runtime::screenshot(unsigned char *buffer) const
 	{
-		if (_backbuffer_format != DXGI_FORMAT_R8G8B8A8_UNORM && _backbuffer_format != DXGI_FORMAT_R8G8B8A8_UNORM_SRGB && _backbuffer_format != DXGI_FORMAT_B8G8R8A8_UNORM && _backbuffer_format != DXGI_FORMAT_B8G8R8A8_UNORM_SRGB)
+		if (_backbuffer_format != DXGI_FORMAT_R8G8B8A8_UNORM &&
+			_backbuffer_format != DXGI_FORMAT_R8G8B8A8_UNORM_SRGB &&
+			_backbuffer_format != DXGI_FORMAT_B8G8R8A8_UNORM &&
+			_backbuffer_format != DXGI_FORMAT_B8G8R8A8_UNORM_SRGB)
 		{
 			LOG(WARNING) << "Screenshots are not supported for backbuffer format " << _backbuffer_format << ".";
 			return;
 		}
 
-		D3D11_TEXTURE2D_DESC texdesc = { };
-		texdesc.Width = _width;
-		texdesc.Height = _height;
-		texdesc.ArraySize = 1;
-		texdesc.MipLevels = 1;
-		texdesc.Format = _backbuffer_format;
-		texdesc.SampleDesc.Count = 1;
-		texdesc.SampleDesc.Quality = 0;
-		texdesc.Usage = D3D11_USAGE_STAGING;
-		texdesc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+		D3D11_TEXTURE2D_DESC texture_desc = { };
+		texture_desc.Width = _width;
+		texture_desc.Height = _height;
+		texture_desc.ArraySize = 1;
+		texture_desc.MipLevels = 1;
+		texture_desc.Format = _backbuffer_format;
+		texture_desc.SampleDesc.Count = 1;
+		texture_desc.Usage = D3D11_USAGE_STAGING;
+		texture_desc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
 
 		com_ptr<ID3D11Texture2D> texture_staging;
 
-		HRESULT hr = _device->CreateTexture2D(&texdesc, nullptr, &texture_staging);
+		HRESULT hr = _device->CreateTexture2D(&texture_desc, nullptr, &texture_staging);
 
 		if (FAILED(hr))
 		{
@@ -2587,9 +2588,9 @@ namespace reshade
 		}
 
 		auto mapped_data = static_cast<BYTE *>(mapped.pData);
-		const UINT pitch = texdesc.Width * 4;
+		const UINT pitch = texture_desc.Width * 4;
 
-		for (UINT y = 0; y < texdesc.Height; y++)
+		for (UINT y = 0; y < texture_desc.Height; y++)
 		{
 			CopyMemory(buffer, mapped_data, std::min(pitch, static_cast<UINT>(mapped.RowPitch)));
 
@@ -2597,7 +2598,7 @@ namespace reshade
 			{
 				buffer[x + 3] = 0xFF;
 
-				if (texdesc.Format == DXGI_FORMAT_B8G8R8A8_UNORM || texdesc.Format == DXGI_FORMAT_B8G8R8A8_UNORM_SRGB)
+				if (texture_desc.Format == DXGI_FORMAT_B8G8R8A8_UNORM || texture_desc.Format == DXGI_FORMAT_B8G8R8A8_UNORM_SRGB)
 				{
 					std::swap(buffer[x + 0], buffer[x + 2]);
 				}
@@ -2613,16 +2614,20 @@ namespace reshade
 	{
 		bool skip_optimization = false;
 
-		for (const std::string &pragma : pragmas)
+		for (const auto &pragma : pragmas)
 		{
-			if (!boost::istarts_with(pragma, "reshade "))
+			fx::lexer lexer(pragma);
+
+			const auto prefix_token = lexer.lex();
+
+			if (prefix_token.literal_as_string != "reshade")
 			{
 				continue;
 			}
 
-			const std::string command = pragma.substr(8);
+			const auto command_token = lexer.lex();
 
-			if (boost::iequals(command, "skipoptimization") || boost::iequals(command, "nooptimization"))
+			if (command_token.literal_as_string == "skipoptimization" || command_token.literal_as_string == "nooptimization")
 			{
 				skip_optimization = true;
 			}

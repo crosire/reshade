@@ -7,7 +7,6 @@
 
 #include <assert.h>
 #include <nanovg_gl.h>
-#include <boost\algorithm\string.hpp>
 
 #ifdef _DEBUG
 	#define GLCHECK(call) { glGetError(); call; GLenum __e = glGetError(); if (__e != GL_NO_ERROR) { char __m[1024]; sprintf_s(__m, "OpenGL Error %x at line %d: %s", __e, __LINE__, #call); MessageBoxA(nullptr, __m, 0, MB_ICONERROR); } }
@@ -354,7 +353,7 @@ namespace reshade
 		{
 			std::string res;
 
-			if (boost::starts_with(name, "gl_") ||
+			if (name.compare(0, 3, "gl_") == 0 ||
 				name == "common" || name == "partition" || name == "input" || name == "ouput" || name == "active" || name == "filter" || name == "superp" ||
 				name == "invariant" || name == "lowp" || name == "mediump" || name == "highp" || name == "precision" || name == "patch" || name == "subroutine" ||
 				name == "abs" || name == "sign" || name == "all" || name == "any" || name == "sin" || name == "sinh" || name == "cos" || name == "cosh" || name == "tan" || name == "tanh" || name == "asin" || name == "acos" || name == "atan" || name == "exp" || name == "exp2" || name == "log" || name == "log2" || name == "sqrt" || name == "inversesqrt" || name == "ceil" || name == "floor" || name == "fract" || name == "trunc" || name == "round" || name == "radians" || name == "degrees" || name == "length" || name == "normalize" || name == "transpose" || name == "determinant" || name == "intBitsToFloat" || name == "uintBitsToFloat" || name == "floatBitsToInt" || name == "floatBitsToUint" || name == "matrixCompMult" || name == "not" || name == "lessThan" || name == "greaterThan" || name == "lessThanEqual" || name == "greaterThanEqual" || name == "equal" || name == "notEqual" || name == "dot" || name == "cross" || name == "distance" || name == "pow" || name == "modf" || name == "frexp" || name == "ldexp" || name == "min" || name == "max" || name == "step" || name == "reflect" || name == "texture" || name == "textureOffset" || name == "fma" || name == "mix" || name == "clamp" || name == "smoothstep" || name == "refract" || name == "faceforward" || name == "textureLod" || name == "textureLodOffset" || name == "texelFetch" || name == "main")
@@ -362,7 +361,14 @@ namespace reshade
 				res += '_';
 			}
 
-			res += boost::replace_all_copy(name, "__", "_US");
+			res += name;
+
+			size_t p;
+
+			while ((p = res.find("__")) != std::string::npos)
+			{
+				res.replace(p, 2, "_US");
+			}
 
 			return res;
 		}
@@ -2333,7 +2339,7 @@ namespace reshade
 
 						source += ");\n";
 					}
-					else if (boost::starts_with(parameter->semantic, "COLOR") || boost::starts_with(parameter->semantic, "SV_TARGET"))
+					else if (parameter->semantic.compare(0, 5, "COLOR") == 0 || parameter->semantic.compare(0, 9, "SV_TARGET") == 0)
 					{
 						source += " _param_" + parameter->name + (parameter->type.is_array() ? std::to_string(i) : "") + " = vec4(0, 0, 0, 1);\n";
 					}
@@ -2371,7 +2377,7 @@ namespace reshade
 			{
 				source += "_return = ";
 
-				if ((boost::starts_with(node->return_semantic, "COLOR") || boost::starts_with(node->return_semantic, "SV_TARGET")) && node->return_type.rows < 4)
+				if ((node->return_semantic.compare(0, 5, "COLOR") == 0 || node->return_semantic.compare(0, 9, "SV_TARGET") == 0) && node->return_type.rows < 4)
 				{
 					const std::string swizzle[3] = { "x", "xy", "xyz" };
 
@@ -2387,7 +2393,7 @@ namespace reshade
 				{
 					source += escape_name_with_builtins("_param_" + parameter->name, parameter->semantic, shadertype);
 
-					if ((boost::starts_with(parameter->semantic, "COLOR") || boost::starts_with(parameter->semantic, "SV_TARGET")) && parameter->type.rows < 4)
+					if ((parameter->semantic.compare(0, 5, "COLOR") == 0 || parameter->semantic.compare(0, 9, "SV_TARGET") == 0) && parameter->type.rows < 4)
 					{
 						const std::string swizzle[3] = { "x", "xy", "xyz" };
 
@@ -2478,17 +2484,17 @@ namespace reshade
 				{
 					continue;
 				}
-				else if (boost::starts_with(semantic, "COLOR"))
+				else if (semantic.compare(0, 5, "COLOR") == 0)
 				{
 					type.rows = 4;
 
 					location = static_cast<unsigned int>(::strtol(semantic.c_str() + 5, nullptr, 10));
 				}
-				else if (boost::starts_with(semantic, "TEXCOORD"))
+				else if (semantic.compare(0, 8, "TEXCOORD") == 0)
 				{
 					location = static_cast<unsigned int>(::strtol(semantic.c_str() + 8, nullptr, 10)) + 1;
 				}
-				else if (boost::starts_with(semantic, "SV_TARGET"))
+				else if (semantic.compare(0, 9, "SV_TARGET") == 0)
 				{
 					type.rows = 4;
 
@@ -2742,22 +2748,19 @@ namespace reshade
 		// Get vendor and device information on general devices
 		if (_vendor_id == 0)
 		{
-			const auto name = reinterpret_cast<const char *>(glGetString(GL_VENDOR));
+			const std::string name = reinterpret_cast<const char *>(glGetString(GL_VENDOR));
 
-			if (name != nullptr)
+			if (name.find("NVIDIA") != std::string::npos)
 			{
-				if (boost::contains(name, "NVIDIA"))
-				{
-					_vendor_id = 0x10DE;
-				}
-				else if (boost::contains(name, "AMD") || boost::contains(name, "ATI"))
-				{
-					_vendor_id = 0x1002;
-				}
-				else if (boost::contains(name, "Intel"))
-				{
-					_vendor_id = 0x8086;
-				}
+				_vendor_id = 0x10DE;
+			}
+			else if (name.find("AMD") != std::string::npos || name.find("ATI") != std::string::npos)
+			{
+				_vendor_id = 0x1002;
+			}
+			else if (name.find("Intel") != std::string::npos)
+			{
+				_vendor_id = 0x8086;
 			}
 		}
 	}

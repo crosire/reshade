@@ -8,7 +8,6 @@
 #include <assert.h>
 #include <d3dcompiler.h>
 #include <nanovg_d3d10.h>
-#include <boost\algorithm\string.hpp>
 
 namespace reshade
 {
@@ -277,7 +276,7 @@ namespace reshade
 			{
 				return "SV_POSITION";
 			}
-			else if (boost::starts_with(semantic, "COLOR"))
+			else if (semantic.compare(0, 5, "COLOR") == 0)
 			{
 				return "SV_TARGET" + semantic.substr(5);
 			}
@@ -2538,7 +2537,10 @@ namespace reshade
 
 	void d3d10_runtime::screenshot(unsigned char *buffer) const
 	{
-		if (_backbuffer_format != DXGI_FORMAT_R8G8B8A8_UNORM && _backbuffer_format != DXGI_FORMAT_R8G8B8A8_UNORM_SRGB && _backbuffer_format != DXGI_FORMAT_B8G8R8A8_UNORM && _backbuffer_format != DXGI_FORMAT_B8G8R8A8_UNORM_SRGB)
+		if (_backbuffer_format != DXGI_FORMAT_R8G8B8A8_UNORM &&
+			_backbuffer_format != DXGI_FORMAT_R8G8B8A8_UNORM_SRGB &&
+			_backbuffer_format != DXGI_FORMAT_B8G8R8A8_UNORM &&
+			_backbuffer_format != DXGI_FORMAT_B8G8R8A8_UNORM_SRGB)
 		{
 			LOG(WARNING) << "Screenshots are not supported for backbuffer format " << _backbuffer_format << ".";
 			return;
@@ -2551,7 +2553,6 @@ namespace reshade
 		texture_desc.MipLevels = 1;
 		texture_desc.ArraySize = 1;
 		texture_desc.SampleDesc.Count = 1;
-		texture_desc.SampleDesc.Quality = 0;
 		texture_desc.Usage = D3D10_USAGE_STAGING;
 		texture_desc.CPUAccessFlags = D3D10_CPU_ACCESS_READ;
 
@@ -2605,14 +2606,18 @@ namespace reshade
 
 		for (const auto &pragma : pragmas)
 		{
-			if (!boost::istarts_with(pragma, "reshade "))
+			fx::lexer lexer(pragma);
+
+			const auto prefix_token = lexer.lex();
+
+			if (prefix_token.literal_as_string != "reshade")
 			{
 				continue;
 			}
 
-			const std::string command = pragma.substr(8);
+			const auto command_token = lexer.lex();
 
-			if (boost::iequals(command, "skipoptimization") || boost::iequals(command, "nooptimization"))
+			if (command_token.literal_as_string == "skipoptimization" || command_token.literal_as_string == "nooptimization")
 			{
 				skip_optimization = true;
 			}
