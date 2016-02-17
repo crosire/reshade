@@ -42,6 +42,8 @@ namespace reshade
 				return false;
 			}
 
+			stream.setf(std::ios_base::showbase);
+
 			stream.flush();
 
 			return true;

@@ -1497,7 +1497,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateImageSurface(UINT Width, UINT H
 
 	if (FAILED(hr))
 	{
-		LOG(WARNING) << "> 'IDirect3DDevice8::CreateImageSurface' failed with error code " << std::showbase << std::hex << hr << std::dec << std::noshowbase << "!";
+		LOG(WARNING) << "> 'IDirect3DDevice9::CreateOffscreenPlainSurface' failed with error code " << std::hex << hr << std::dec << "!";
 
 		return hr;
 	}
@@ -2221,7 +2221,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateVertexShader(CONST DWORD *pDecl
 
 	for (UINT k = 0; k < i; k++)
 	{
-		LOG(TRACE) << "  | v" << std::setw(7) << inputs[k] << " | " << std::setw(7) << elements[k].Stream << " | " << std::setw(7) << elements[k].Offset << " | " << std::showbase << std::hex << std::setw(12) << static_cast<UINT>(elements[k].Type) << " | " << std::setw(12) << static_cast<UINT>(elements[k].Method) << " | " << std::setw(12) << static_cast<UINT>(elements[k].Usage) << std::dec << std::noshowbase << " | " << std::setw(5) << static_cast<UINT>(elements[k].UsageIndex) << " |";
+		LOG(TRACE) << "  | v" << std::setw(7) << inputs[k] << " | " << std::setw(7) << elements[k].Stream << " | " << std::setw(7) << elements[k].Offset << " | " << std::hex << std::setw(12) << static_cast<UINT>(elements[k].Type) << " | " << std::setw(12) << static_cast<UINT>(elements[k].Method) << " | " << std::setw(12) << static_cast<UINT>(elements[k].Usage) << std::dec << " | " << std::setw(5) << static_cast<UINT>(elements[k].UsageIndex) << " |";
 	}
 
 	LOG(TRACE) << "  +----------+---------+---------+--------------+--------------+--------------+-------+";
@@ -2238,7 +2238,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateVertexShader(CONST DWORD *pDecl
 
 		if (*pFunction < D3DVS_VERSION(1, 0) || *pFunction > D3DVS_VERSION(1, 1))
 		{
-			LOG(ERROR) << "> Failed because of version mismatch ('" << std::showbase << std::hex << *pFunction << std::dec << std::noshowbase << "')! Only 'vs_1_x' shaders are supported.";
+			LOG(ERROR) << "> Failed because of version mismatch ('" << std::hex << *pFunction << std::dec << "')! Only 'vs_1_x' shaders are supported.";
 
 			return D3DERR_INVALIDCALL;
 		}
@@ -2249,7 +2249,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateVertexShader(CONST DWORD *pDecl
 
 		if (FAILED(hr))
 		{
-			LOG(ERROR) << "> Failed to disassemble shader with error code " << std::showbase << std::hex << hr << std::dec << std::noshowbase << "!";
+			LOG(ERROR) << "> Failed to disassemble shader with error code " << std::hex << hr << std::dec << "!";
 
 			return hr;
 		}
@@ -2364,7 +2364,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateVertexShader(CONST DWORD *pDecl
 			}
 			else
 			{
-				LOG(ERROR) << "> Failed to reassemble shader with error code " << std::showbase << std::hex << hr << std::dec << std::noshowbase << "!";
+				LOG(ERROR) << "> Failed to reassemble shader with error code " << std::hex << hr << std::dec << "!";
 			}
 
 			return hr;
@@ -2394,7 +2394,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateVertexShader(CONST DWORD *pDecl
 		}
 		else
 		{
-			LOG(ERROR) << "> 'IDirect3DDevice9::CreateVertexDeclaration' failed with error code " << std::showbase << std::hex << hr << std::dec << std::noshowbase << "!";
+			LOG(ERROR) << "> 'IDirect3DDevice9::CreateVertexDeclaration' failed with error code " << std::hex << hr << std::dec << "!";
 
 			if (shader->shader != nullptr)
 			{
@@ -2404,7 +2404,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreateVertexShader(CONST DWORD *pDecl
 	}
 	else
 	{
-		LOG(ERROR) << "> 'IDirect3DDevice9::CreateVertexShader' failed with error code " << std::showbase << std::hex << hr << std::dec << std::noshowbase << "!";
+		LOG(ERROR) << "> 'IDirect3DDevice9::CreateVertexShader' failed with error code " << std::hex << hr << std::dec << "!";
 	}
 
 	if (FAILED(hr))
@@ -2614,7 +2614,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreatePixelShader(CONST DWORD *pFunct
 
 	if (*pFunction < D3DPS_VERSION(1, 0) || *pFunction > D3DPS_VERSION(1, 4))
 	{
-		LOG(ERROR) << "> Failed because of version mismatch ('" << std::showbase << std::hex << *pFunction << std::dec << std::noshowbase << "')! Only 'ps_1_x' shaders are supported.";
+		LOG(ERROR) << "> Failed because of version mismatch ('" << std::hex << *pFunction << std::dec << "')! Only 'ps_1_x' shaders are supported.";
 
 		return D3DERR_INVALIDCALL;
 	}
@@ -2625,7 +2625,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreatePixelShader(CONST DWORD *pFunct
 
 	if (FAILED(hr))
 	{
-		LOG(ERROR) << "> Failed to disassemble shader with error code " << std::showbase << std::hex << hr << std::dec << std::noshowbase << "!";
+		LOG(ERROR) << "> Failed to disassemble shader with error code " << std::hex << hr << std::dec << "!";
 
 		return hr;
 	}
@@ -2662,7 +2662,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreatePixelShader(CONST DWORD *pFunct
 		}
 		else
 		{
-			LOG(ERROR) << "> Failed to reassemble shader with error code " << std::showbase << std::hex << hr << std::dec << std::noshowbase << "!";
+			LOG(ERROR) << "> Failed to reassemble shader with error code " << std::hex << hr << std::dec << "!";
 		}
 
 		return hr;
@@ -2672,7 +2672,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice8::CreatePixelShader(CONST DWORD *pFunct
 
 	if (FAILED(hr))
 	{
-		LOG(ERROR) << "> 'IDirect3DDevice9::CreatePixelShader' failed with error code " << std::showbase << std::hex << hr << std::dec << std::noshowbase << "!";
+		LOG(ERROR) << "> 'IDirect3DDevice9::CreatePixelShader' failed with error code " << std::hex << hr << std::dec << "!";
 	}
 
 	return hr;

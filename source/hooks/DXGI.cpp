@@ -23,7 +23,7 @@ namespace
 		LOG(TRACE) << "  | OutputWindow                            | " << std::setw(39) << desc.OutputWindow << " |";
 		LOG(TRACE) << "  | Windowed                                | " << std::setw(39) << (desc.Windowed != FALSE ? "TRUE" : "FALSE") << " |";
 		LOG(TRACE) << "  | SwapEffect                              | " << std::setw(39) << desc.SwapEffect << " |";
-		LOG(TRACE) << "  | Flags                                   | " << std::setw(39) << std::showbase << std::hex << desc.Flags << std::dec << std::noshowbase << " |";
+		LOG(TRACE) << "  | Flags                                   | " << std::setw(39) << std::hex << desc.Flags << std::dec << " |";
 		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
 
 		if (desc.SampleDesc.Count > 1)
@@ -48,7 +48,7 @@ namespace
 		LOG(TRACE) << "  | Scaling                                 | " << std::setw(39) << desc.Scaling << " |";
 		LOG(TRACE) << "  | SwapEffect                              | " << std::setw(39) << desc.SwapEffect << " |";
 		LOG(TRACE) << "  | AlphaMode                               | " << std::setw(39) << desc.AlphaMode << " |";
-		LOG(TRACE) << "  | Flags                                   | " << std::setw(39) << std::showbase << std::hex << desc.Flags << std::dec << std::noshowbase << " |";
+		LOG(TRACE) << "  | Flags                                   | " << std::setw(39) << std::hex << desc.Flags << std::dec << " |";
 		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
 
 		if (desc.SampleDesc.Count > 1)
@@ -276,7 +276,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::GetDesc(DXGI_SWAP_CHAIN_DESC *pDesc)
 }
 HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Width, UINT Height, DXGI_FORMAT NewFormat, UINT SwapChainFlags)
 {
-	LOG(INFO) << "Redirecting '" << "IDXGISwapChain::ResizeBuffers" << "(" << this << ", " << BufferCount << ", " << Width << ", " << Height << ", " << NewFormat << ", " << std::showbase << std::hex << SwapChainFlags << std::dec << std::noshowbase << ")' ...";
+	LOG(INFO) << "Redirecting '" << "IDXGISwapChain::ResizeBuffers" << "(" << this << ", " << BufferCount << ", " << Width << ", " << Height << ", " << NewFormat << ", " << std::hex << SwapChainFlags << std::dec << ")' ...";
 
 	switch (_direct3d_version)
 	{
@@ -302,7 +302,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Wi
 	}
 	else if (FAILED(hr))
 	{
-		LOG(ERROR) << "> 'IDXGISwapChain::ResizeBuffers' failed with error code " << std::showbase << std::hex << hr << std::dec << std::noshowbase << "!";
+		LOG(ERROR) << "> 'IDXGISwapChain::ResizeBuffers' failed with error code " << std::hex << hr << std::dec << "!";
 
 		return hr;
 	}
@@ -503,7 +503,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers1(UINT BufferCount, UINT W
 {
 	assert(_interface_version >= 3);
 
-	LOG(INFO) << "Redirecting '" << "IDXGISwapChain3::ResizeBuffers1" << "(" << this << ", " << BufferCount << ", " << Width << ", " << Height << ", " << Format << ", " << std::showbase << std::hex << SwapChainFlags << std::dec << std::noshowbase << ", " << pCreationNodeMask << ", " << ppPresentQueue << ")' ...";
+	LOG(INFO) << "Redirecting '" << "IDXGISwapChain3::ResizeBuffers1" << "(" << this << ", " << BufferCount << ", " << Width << ", " << Height << ", " << Format << ", " << std::hex << SwapChainFlags << std::dec << ", " << pCreationNodeMask << ", " << ppPresentQueue << ")' ...";
 
 	switch (_direct3d_version)
 	{
@@ -529,7 +529,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers1(UINT BufferCount, UINT W
 	}
 	else if (FAILED(hr))
 	{
-		LOG(ERROR) << "> 'IDXGISwapChain3::ResizeBuffers1' failed with error code " << std::showbase << std::hex << hr << std::dec << std::noshowbase << "!";
+		LOG(ERROR) << "> 'IDXGISwapChain3::ResizeBuffers1' failed with error code " << std::hex << hr << std::dec << "!";
 
 		return hr;
 	}
@@ -789,7 +789,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, I
 
 	if (FAILED(hr))
 	{
-		LOG(WARNING) << "> 'IDXGIFactory::CreateSwapChain' failed with error code " << std::showbase << std::hex << hr << std::dec << std::noshowbase << "!";
+		LOG(WARNING) << "> 'IDXGIFactory::CreateSwapChain' failed with error code " << std::hex << hr << std::dec << "!";
 
 		return hr;
 	}
@@ -906,7 +906,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pF
 
 	if (FAILED(hr))
 	{
-		LOG(WARNING) << "> 'IDXGIFactory2::CreateSwapChainForHwnd' failed with error code " << std::showbase << std::hex << hr << std::dec << std::noshowbase << "!";
+		LOG(WARNING) << "> 'IDXGIFactory2::CreateSwapChainForHwnd' failed with error code " << std::hex << hr << std::dec << "!";
 
 		return hr;
 	}
@@ -1021,7 +1021,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactor
 
 	if (FAILED(hr))
 	{
-		LOG(WARNING) << "> 'IDXGIFactory2::CreateSwapChainForCoreWindow' failed with error code " << std::showbase << std::hex << hr << std::dec << std::noshowbase << "!";
+		LOG(WARNING) << "> 'IDXGIFactory2::CreateSwapChainForCoreWindow' failed with error code " << std::hex << hr << std::dec << "!";
 
 		return hr;
 	}
@@ -1136,7 +1136,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFacto
 
 	if (FAILED(hr))
 	{
-		LOG(WARNING) << "> 'IDXGIFactory2::CreateSwapChainForComposition' failed with error code " << std::showbase << std::hex << hr << std::dec << std::noshowbase << "!";
+		LOG(WARNING) << "> 'IDXGIFactory2::CreateSwapChainForComposition' failed with error code " << std::hex << hr << std::dec << "!";
 
 		return hr;
 	}
@@ -1256,7 +1256,7 @@ EXPORT HRESULT WINAPI CreateDXGIFactory(REFIID riid, void **ppFactory)
 
 	if (FAILED(hr))
 	{
-		LOG(WARNING) << "> 'CreateDXGIFactory' failed with error code " << std::showbase << std::hex << hr << std::dec << std::noshowbase << "!";
+		LOG(WARNING) << "> 'CreateDXGIFactory' failed with error code " << std::hex << hr << std::dec << "!";
 
 		return hr;
 	}
@@ -1290,7 +1290,7 @@ EXPORT HRESULT WINAPI CreateDXGIFactory1(REFIID riid, void **ppFactory)
 
 	if (FAILED(hr))
 	{
-		LOG(WARNING) << "> 'CreateDXGIFactory1' failed with error code " << std::showbase << std::hex << hr << std::dec << std::noshowbase << "!";
+		LOG(WARNING) << "> 'CreateDXGIFactory1' failed with error code " << std::hex << hr << std::dec << "!";
 
 		return hr;
 	}
@@ -1328,7 +1328,7 @@ EXPORT HRESULT WINAPI CreateDXGIFactory2(UINT flags, REFIID riid, void **ppFacto
 
 	if (FAILED(hr))
 	{
-		LOG(WARNING) << "> 'CreateDXGIFactory2' failed with error code " << std::showbase << std::hex << hr << std::dec << std::noshowbase << "!";
+		LOG(WARNING) << "> 'CreateDXGIFactory2' failed with error code " << std::hex << hr << std::dec << "!";
 
 		return hr;
 	}

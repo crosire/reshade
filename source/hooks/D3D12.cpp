@@ -210,7 +210,7 @@ HRESULT STDMETHODCALLTYPE D3D12Device::CreateCommandQueue(const D3D12_COMMAND_QU
 
 	if (FAILED(hr))
 	{
-		LOG(WARNING) << "> 'ID3D12Device::CreateCommandQueue' failed with error code " << std::showbase << std::hex << hr << std::dec << std::noshowbase << "!";
+		LOG(WARNING) << "> 'ID3D12Device::CreateCommandQueue' failed with error code " << std::hex << hr << std::dec << "!";
 	}
 	else if (riid == __uuidof(ID3D12CommandQueue))
 	{
@@ -366,13 +366,13 @@ EXPORT HRESULT WINAPI D3D12CreateDevice(IUnknown *pAdapter, D3D_FEATURE_LEVEL Mi
 	OLECHAR riidString[40];
 	StringFromGUID2(riid, riidString, ARRAYSIZE(riidString));
 
-	LOG(INFO) << "Redirecting '" << "D3D12CreateDevice" << "(" << pAdapter << ", " << std::showbase << std::hex << MinimumFeatureLevel << std::dec << std::noshowbase << ", " << riidString << ", " << ppDevice << ")' ...";
+	LOG(INFO) << "Redirecting '" << "D3D12CreateDevice" << "(" << pAdapter << ", " << std::hex << MinimumFeatureLevel << std::dec << ", " << riidString << ", " << ppDevice << ")' ...";
 
 	const HRESULT hr = reshade::hooks::call(&D3D12CreateDevice)(pAdapter, MinimumFeatureLevel, riid, ppDevice);
 
 	if (FAILED(hr))
 	{
-		LOG(WARNING) << "> 'D3D12CreateDevice' failed with error code " << std::showbase << std::hex << hr << std::dec << std::noshowbase << "!";
+		LOG(WARNING) << "> 'D3D12CreateDevice' failed with error code " << std::hex << hr << std::dec << "!";
 
 		return hr;
 	}

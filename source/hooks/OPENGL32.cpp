@@ -2860,7 +2860,7 @@ EXPORT int WINAPI wglChoosePixelFormat(HDC hdc, const PIXELFORMATDESCRIPTOR *ppf
 	LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
 	LOG(TRACE) << "  | Name                                    | Value                                   |";
 	LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
-	LOG(TRACE) << "  | Flags                                   | " << std::setw(39) << std::showbase << std::hex << ppfd->dwFlags << std::dec << std::noshowbase << " |";
+	LOG(TRACE) << "  | Flags                                   | " << std::setw(39) << std::hex << ppfd->dwFlags << std::dec << " |";
 	LOG(TRACE) << "  | ColorBits                               | " << std::setw(39) << static_cast<unsigned int>(ppfd->cColorBits) << " |";
 	LOG(TRACE) << "  | DepthBits                               | " << std::setw(39) << static_cast<unsigned int>(ppfd->cDepthBits) << " |";
 	LOG(TRACE) << "  | StencilBits                             | " << std::setw(39) << static_cast<unsigned int>(ppfd->cStencilBits) << " |";
@@ -2969,14 +2969,14 @@ BOOL WINAPI wglChoosePixelFormatARB(HDC hdc, const int *piAttribIList, const FLO
 				LOG(TRACE) << "  | WGL_DRAW_TO_BITMAP_ARB                  | " << std::setw(39) << (attrib[1] != FALSE ? "TRUE" : "FALSE") << " |";
 				break;
 			case attribute::WGL_ACCELERATION_ARB:
-				LOG(TRACE) << "  | WGL_ACCELERATION_ARB                    | " << std::setw(39) << std::showbase << std::hex << attrib[1] << std::dec << std::noshowbase << " |";
+				LOG(TRACE) << "  | WGL_ACCELERATION_ARB                    | " << std::setw(39) << std::hex << attrib[1] << std::dec << " |";
 				break;
 			case attribute::WGL_SWAP_LAYER_BUFFERS_ARB:
 				layerplanes = layerplanes || attrib[1] != FALSE;
 				LOG(TRACE) << "  | WGL_SWAP_LAYER_BUFFERS_ARB              | " << std::setw(39) << (attrib[1] != FALSE ? "TRUE" : "FALSE") << " |";
 				break;
 			case attribute::WGL_SWAP_METHOD_ARB:
-				LOG(TRACE) << "  | WGL_SWAP_METHOD_ARB                     | " << std::setw(39) << std::showbase << std::hex << attrib[1] << std::dec << std::noshowbase << " |";
+				LOG(TRACE) << "  | WGL_SWAP_METHOD_ARB                     | " << std::setw(39) << std::hex << attrib[1] << std::dec << " |";
 				break;
 			case attribute::WGL_NUMBER_OVERLAYS_ARB:
 				layerplanes = layerplanes || attrib[1] != 0;
@@ -3030,14 +3030,14 @@ BOOL WINAPI wglChoosePixelFormatARB(HDC hdc, const int *piAttribIList, const FLO
 				LOG(TRACE) << "  | WGL_DRAW_TO_PBUFFER_ARB                 | " << std::setw(39) << (attrib[1] != FALSE ? "TRUE" : "FALSE") << " |";
 				break;
 			default:
-				LOG(TRACE) << "  | " << std::showbase << std::hex << std::setw(39) << attrib[0] << " | " << std::setw(39) << attrib[1] << std::dec << std::noshowbase << " |";
+				LOG(TRACE) << "  | " << std::hex << std::setw(39) << attrib[0] << " | " << std::setw(39) << attrib[1] << std::dec << " |";
 				break;
 		}
 	}
 
 	for (const FLOAT *attrib = pfAttribFList; attrib != nullptr && *attrib != 0.0f; attrib += 2)
 	{
-		LOG(TRACE) << "  | " << std::showbase << std::hex << std::setw(39) << static_cast<int>(attrib[0]) << " | " << std::setw(39) << attrib[1] << std::dec << std::noshowbase << " |";
+		LOG(TRACE) << "  | " << std::hex << std::setw(39) << static_cast<int>(attrib[0]) << " | " << std::setw(39) << attrib[1] << std::dec << " |";
 	}
 
 	LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
@@ -3291,13 +3291,13 @@ HPBUFFERARB WINAPI wglCreatePbufferARB(HDC hdc, int iPixelFormat, int iWidth, in
 				LOG(TRACE) << "  | WGL_PBUFFER_LARGEST_ARB                 | " << std::setw(39) << (attrib[1] != FALSE ? "TRUE" : "FALSE") << " |";
 				break;
 			case attribute::WGL_TEXTURE_FORMAT_ARB:
-				LOG(TRACE) << "  | WGL_TEXTURE_FORMAT_ARB                  | " << std::setw(39) << std::showbase << std::hex << attrib[1] << std::dec << std::noshowbase << " |";
+				LOG(TRACE) << "  | WGL_TEXTURE_FORMAT_ARB                  | " << std::setw(39) << std::hex << attrib[1] << std::dec << " |";
 				break;
 			case attribute::WGL_TEXTURE_TARGET_ARB:
-				LOG(TRACE) << "  | WGL_TEXTURE_TARGET_ARB                  | " << std::setw(39) << std::showbase << std::hex << attrib[1] << std::dec << std::noshowbase << " |";
+				LOG(TRACE) << "  | WGL_TEXTURE_TARGET_ARB                  | " << std::setw(39) << std::hex << attrib[1] << std::dec << " |";
 				break;
 			default:
-				LOG(TRACE) << "  | " << std::showbase << std::hex << std::setw(39) << attrib[0] << " | " << std::setw(39) << attrib[1] << std::dec << std::noshowbase << " |";
+				LOG(TRACE) << "  | " << std::hex << std::setw(39) << attrib[0] << " | " << std::setw(39) << attrib[1] << std::dec << " |";
 				break;
 		}
 	}

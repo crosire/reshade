@@ -26,9 +26,9 @@ namespace
 		LOG(TRACE) << "  | Windowed                                | " << std::setw(39) << (pp.Windowed != FALSE ? "TRUE" : "FALSE") << " |";
 		LOG(TRACE) << "  | EnableAutoDepthStencil                  | " << std::setw(39) << (pp.EnableAutoDepthStencil ? "TRUE" : "FALSE") << " |";
 		LOG(TRACE) << "  | AutoDepthStencilFormat                  | " << std::setw(39) << pp.AutoDepthStencilFormat << " |";
-		LOG(TRACE) << "  | Flags                                   | " << std::setw(39) << std::showbase << std::hex << pp.Flags << std::dec << std::noshowbase << " |";
+		LOG(TRACE) << "  | Flags                                   | " << std::setw(39) << std::hex << pp.Flags << std::dec << " |";
 		LOG(TRACE) << "  | FullScreen_RefreshRateInHz              | " << std::setw(39) << pp.FullScreen_RefreshRateInHz << " |";
-		LOG(TRACE) << "  | PresentationInterval                    | " << std::setw(39) << std::showbase << std::hex << pp.PresentationInterval << std::dec << std::noshowbase << " |";
+		LOG(TRACE) << "  | PresentationInterval                    | " << std::setw(39) << std::hex << pp.PresentationInterval << std::dec << " |";
 		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
 
 		if (pp.MultiSampleType != D3DMULTISAMPLE_NONE)
@@ -333,7 +333,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateAdditionalSwapChain(D3DPRESENT_
 
 	if (FAILED(hr))
 	{
-		LOG(WARNING) << "> 'IDirect3DDevice9::CreateAdditionalSwapChain' failed with error code " << std::showbase << std::hex << hr << std::dec << std::noshowbase << "!";
+		LOG(WARNING) << "> 'IDirect3DDevice9::CreateAdditionalSwapChain' failed with error code " << std::hex << hr << std::dec << "!";
 
 		return hr;
 	}
@@ -418,7 +418,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Reset(D3DPRESENT_PARAMETERS *pPresent
 
 	if (FAILED(hr))
 	{
-		LOG(ERROR) << "> 'IDirect3DDevice9::Reset' failed with error code " << std::showbase << std::hex << hr << std::dec << std::noshowbase << "!";
+		LOG(ERROR) << "> 'IDirect3DDevice9::Reset' failed with error code " << std::hex << hr << std::dec << "!";
 
 		return hr;
 	}
@@ -1108,7 +1108,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ResetEx(D3DPRESENT_PARAMETERS *pPrese
 
 	if (FAILED(hr))
 	{
-		LOG(ERROR) << "> 'IDirect3DDevice9Ex::ResetEx' failed with error code " << std::showbase << std::hex << hr << std::dec << std::noshowbase << "!";
+		LOG(ERROR) << "> 'IDirect3DDevice9Ex::ResetEx' failed with error code " << std::hex << hr << std::dec << "!";
 
 		return hr;
 	}
@@ -1149,7 +1149,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::GetDisplayModeEx(UINT iSwapChain, D3D
 // IDirect3D9
 HRESULT STDMETHODCALLTYPE IDirect3D9_CreateDevice(IDirect3D9 *pD3D, UINT Adapter, D3DDEVTYPE DeviceType, HWND hFocusWindow, DWORD BehaviorFlags, D3DPRESENT_PARAMETERS *pPresentationParameters, IDirect3DDevice9 **ppReturnedDeviceInterface)
 {
-	LOG(INFO) << "Redirecting '" << "IDirect3D9::CreateDevice" << "(" << pD3D << ", " << Adapter << ", " << DeviceType << ", " << hFocusWindow << ", " << std::showbase << std::hex << BehaviorFlags << std::dec << std::noshowbase << ", " << pPresentationParameters << ", " << ppReturnedDeviceInterface << ")' ...";
+	LOG(INFO) << "Redirecting '" << "IDirect3D9::CreateDevice" << "(" << pD3D << ", " << Adapter << ", " << DeviceType << ", " << hFocusWindow << ", " << std::hex << BehaviorFlags << std::dec << ", " << pPresentationParameters << ", " << ppReturnedDeviceInterface << ")' ...";
 
 	if (pPresentationParameters == nullptr)
 	{
@@ -1171,7 +1171,7 @@ HRESULT STDMETHODCALLTYPE IDirect3D9_CreateDevice(IDirect3D9 *pD3D, UINT Adapter
 
 	if (FAILED(hr))
 	{
-		LOG(WARNING) << "> 'IDirect3D9::CreateDevice' failed with error code " << std::showbase << std::hex << hr << std::dec << std::noshowbase << "!";
+		LOG(WARNING) << "> 'IDirect3D9::CreateDevice' failed with error code " << std::hex << hr << std::dec << "!";
 
 		return hr;
 	}
@@ -1226,7 +1226,7 @@ HRESULT STDMETHODCALLTYPE IDirect3D9_CreateDevice(IDirect3D9 *pD3D, UINT Adapter
 // IDirect3D9Ex
 HRESULT STDMETHODCALLTYPE IDirect3D9Ex_CreateDeviceEx(IDirect3D9Ex *pD3D, UINT Adapter, D3DDEVTYPE DeviceType, HWND hFocusWindow, DWORD BehaviorFlags, D3DPRESENT_PARAMETERS *pPresentationParameters, D3DDISPLAYMODEEX *pFullscreenDisplayMode, IDirect3DDevice9Ex **ppReturnedDeviceInterface)
 {
-	LOG(INFO) << "Redirecting '" << "IDirect3D9Ex::CreateDeviceEx" << "(" << pD3D << ", " << Adapter << ", " << DeviceType << ", " << hFocusWindow << ", " << std::showbase << std::hex << BehaviorFlags << std::dec << std::noshowbase << ", " << pPresentationParameters << ", " << pFullscreenDisplayMode << ", " << ppReturnedDeviceInterface << ")' ...";
+	LOG(INFO) << "Redirecting '" << "IDirect3D9Ex::CreateDeviceEx" << "(" << pD3D << ", " << Adapter << ", " << DeviceType << ", " << hFocusWindow << ", " << std::hex << BehaviorFlags << std::dec<< ", " << pPresentationParameters << ", " << pFullscreenDisplayMode << ", " << ppReturnedDeviceInterface << ")' ...";
 
 	if (pPresentationParameters == nullptr)
 	{
@@ -1248,7 +1248,7 @@ HRESULT STDMETHODCALLTYPE IDirect3D9Ex_CreateDeviceEx(IDirect3D9Ex *pD3D, UINT A
 
 	if (FAILED(hr))
 	{
-		LOG(WARNING) << "> 'IDirect3D9Ex::CreateDeviceEx' failed with error code " << std::showbase << std::hex << hr << std::dec << std::noshowbase << "!";
+		LOG(WARNING) << "> 'IDirect3D9Ex::CreateDeviceEx' failed with error code " << std::hex << hr << std::dec << "!";
 
 		return hr;
 	}
@@ -1367,7 +1367,7 @@ EXPORT HRESULT WINAPI Direct3DCreate9Ex(UINT SDKVersion, IDirect3D9Ex **ppD3D)
 
 	if (FAILED(hr))
 	{
-		LOG(WARNING) << "> 'Direct3DCreate9Ex' failed with error code " << std::showbase << std::hex << hr << std::dec << std::noshowbase << "!";
+		LOG(WARNING) << "> 'Direct3DCreate9Ex' failed with error code " << std::hex << hr << std::dec << "!";
 
 		return hr;
 	}

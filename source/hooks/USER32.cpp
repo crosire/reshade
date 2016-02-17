@@ -98,9 +98,9 @@ EXPORT BOOL WINAPI HookRegisterRawInputDevices(PCRAWINPUTDEVICE pRawInputDevices
 		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
 		LOG(TRACE) << "  | Parameter                               | Value                                   |";
 		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
-		LOG(TRACE) << "  | UsagePage                               | " << std::setw(39) << std::showbase << std::hex << device.usUsagePage << std::dec << std::noshowbase << " |";
-		LOG(TRACE) << "  | Usage                                   | " << std::setw(39) << std::showbase << std::hex << device.usUsage << std::dec << std::noshowbase << " |";
-		LOG(TRACE) << "  | Flags                                   | " << std::setw(39) << std::showbase << std::hex << device.dwFlags << std::dec << std::noshowbase << " |";
+		LOG(TRACE) << "  | UsagePage                               | " << std::setw(39) << std::hex << device.usUsagePage << std::dec << " |";
+		LOG(TRACE) << "  | Usage                                   | " << std::setw(39) << std::hex << device.usUsage << std::dec << " |";
+		LOG(TRACE) << "  | Flags                                   | " << std::setw(39) << std::hex << device.dwFlags << std::dec << " |";
 		LOG(TRACE) << "  | TargetWindow                            | " << std::setw(39) << device.hwndTarget << " |";
 		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
 

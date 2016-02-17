@@ -1081,7 +1081,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDeferredContext(UINT ContextFlags, 
 
 	if (FAILED(hr))
 	{
-		LOG(WARNING) << "> 'ID3D11Device::CreateDeferredContext' failed with error code " << std::showbase << std::hex << hr << std::dec << std::noshowbase << "!";
+		LOG(WARNING) << "> 'ID3D11Device::CreateDeferredContext' failed with error code " << std::hex << hr << std::dec << "!";
 
 		return hr;
 	}
@@ -1191,7 +1191,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDeferredContext1(UINT ContextFlags,
 
 	if (FAILED(hr))
 	{
-		LOG(WARNING) << "> 'ID3D11Device1::CreateDeferredContext1' failed with error code " << std::showbase << std::hex << hr << std::dec << std::noshowbase << "!";
+		LOG(WARNING) << "> 'ID3D11Device1::CreateDeferredContext1' failed with error code " << std::hex << hr << std::dec << "!";
 
 		return hr;
 	}
@@ -1328,14 +1328,14 @@ void STDMETHODCALLTYPE D3D11Device::ReadFromSubresource(void *pDstData, UINT Dst
 // D3D11
 EXPORT HRESULT WINAPI D3D11CreateDevice(IDXGIAdapter *pAdapter, D3D_DRIVER_TYPE DriverType, HMODULE Software, UINT Flags, const D3D_FEATURE_LEVEL *pFeatureLevels, UINT FeatureLevels, UINT SDKVersion, ID3D11Device **ppDevice, D3D_FEATURE_LEVEL *pFeatureLevel, ID3D11DeviceContext **ppImmediateContext)
 {
-	LOG(INFO) << "Redirecting '" << "D3D11CreateDevice" << "(" << pAdapter << ", " << DriverType << ", " << Software << ", " << std::showbase << std::hex << Flags << std::dec << std::noshowbase << ", " << pFeatureLevels << ", " << FeatureLevels << ", " << SDKVersion << ", " << ppDevice << ", " << pFeatureLevel << ", " << ppImmediateContext << ")' ...";
+	LOG(INFO) << "Redirecting '" << "D3D11CreateDevice" << "(" << pAdapter << ", " << DriverType << ", " << Software << ", " << std::hex << Flags << std::dec << ", " << pFeatureLevels << ", " << FeatureLevels << ", " << SDKVersion << ", " << ppDevice << ", " << pFeatureLevel << ", " << ppImmediateContext << ")' ...";
 	LOG(INFO) << "> Passing on to 'D3D11CreateDeviceAndSwapChain':";
 
 	return D3D11CreateDeviceAndSwapChain(pAdapter, DriverType, Software, Flags, pFeatureLevels, FeatureLevels, SDKVersion, nullptr, nullptr, ppDevice, pFeatureLevel, ppImmediateContext);
 }
 EXPORT HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, D3D_DRIVER_TYPE DriverType, HMODULE Software, UINT Flags, const D3D_FEATURE_LEVEL *pFeatureLevels, UINT FeatureLevels, UINT SDKVersion, const DXGI_SWAP_CHAIN_DESC *pSwapChainDesc, IDXGISwapChain **ppSwapChain, ID3D11Device **ppDevice, D3D_FEATURE_LEVEL *pFeatureLevel, ID3D11DeviceContext **ppImmediateContext)
 {
-	LOG(INFO) << "Redirecting '" << "D3D11CreateDeviceAndSwapChain" << "(" << pAdapter << ", " << DriverType << ", " << Software << ", " << std::showbase << std::hex << Flags << std::dec << std::noshowbase << ", " << pFeatureLevels << ", " << FeatureLevels << ", " << SDKVersion << ", " << pSwapChainDesc << ", " << ppSwapChain << ", " << ppDevice << ", " << pFeatureLevel << ", " << ppImmediateContext << ")' ...";
+	LOG(INFO) << "Redirecting '" << "D3D11CreateDeviceAndSwapChain" << "(" << pAdapter << ", " << DriverType << ", " << Software << ", " << std::hex << Flags << std::dec << ", " << pFeatureLevels << ", " << FeatureLevels << ", " << SDKVersion << ", " << pSwapChainDesc << ", " << ppSwapChain << ", " << ppDevice << ", " << pFeatureLevel << ", " << ppImmediateContext << ")' ...";
 
 #ifdef _DEBUG
 	Flags |= D3D11_CREATE_DEVICE_DEBUG;
@@ -1347,12 +1347,12 @@ EXPORT HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter, D3D_
 
 	if (FAILED(hr))
 	{
-		LOG(WARNING) << "> 'D3D11CreateDeviceAndSwapChain' failed with error code " << std::showbase << std::hex << hr << std::dec << std::noshowbase << "!";
+		LOG(WARNING) << "> 'D3D11CreateDeviceAndSwapChain' failed with error code " << std::hex << hr << std::dec << "!";
 
 		return hr;
 	}
 
-	LOG(TRACE) << "> Using feature level " << std::showbase << std::hex << FeatureLevel << std::dec << std::noshowbase << ".";
+	LOG(TRACE) << "> Using feature level " << std::hex << FeatureLevel << std::dec << ".";
 
 	if (ppDevice != nullptr)
 	{
