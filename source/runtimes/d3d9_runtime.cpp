@@ -149,7 +149,7 @@ namespace reshade
 					return D3DFMT_G32R32F;
 				case fx::nodes::variable_declaration_node::properties::RGBA8:
 					name = texture::pixelformat::rgba8;
-					return D3DFMT_A8R8G8B8;  // D3DFMT_A8B8G8R8 appearently isn't supported by hardware very well
+					return D3DFMT_A8R8G8B8;
 				case fx::nodes::variable_declaration_node::properties::RGBA16:
 					name = texture::pixelformat::rgba16;
 					return D3DFMT_A16B16G16R16;
@@ -1982,6 +1982,8 @@ namespace reshade
 
 		_device->GetDirect3D(&_d3d);
 
+		assert(_d3d != nullptr);
+
 		D3DCAPS9 caps;
 		D3DADAPTER_IDENTIFIER9 adapter_desc;
 		D3DDEVICE_CREATION_PARAMETERS creation_params;
@@ -2004,7 +2006,7 @@ namespace reshade
 		_is_multisampling_enabled = pp.MultiSampleType != D3DMULTISAMPLE_NONE;
 		input::register_window(pp.hDeviceWindow, _input);
 
-		#pragma region Get backbuffer surface
+		// Get back buffer surface
 		HRESULT hr = _swapchain->GetBackBuffer(0, D3DBACKBUFFER_TYPE_MONO, &_backbuffer);
 
 		assert(SUCCEEDED(hr));
@@ -2025,7 +2027,7 @@ namespace reshade
 
 			if (FAILED(hr))
 			{
-				LOG(TRACE) << "Failed to create backbuffer resolve texture! HRESULT is '" << hr << "'.";
+				LOG(TRACE) << "Failed to create back buffer resolve texture! HRESULT is '" << std::hex << hr << std::dec << "'.";
 
 				return false;
 			}
@@ -2034,9 +2036,8 @@ namespace reshade
 		{
 			_backbuffer_resolved = _backbuffer;
 		}
-		#pragma endregion
 
-		#pragma region Create backbuffer shader texture
+		// Create back buffer shader texture
 		hr = _device->CreateTexture(_width, _height, 1, D3DUSAGE_RENDERTARGET, _backbuffer_format, D3DPOOL_DEFAULT, &_backbuffer_texture, nullptr);
 
 		if (SUCCEEDED(hr))
@@ -2045,29 +2046,27 @@ namespace reshade
 		}
 		else
 		{
-			LOG(TRACE) << "Failed to create backbuffer texture! HRESULT is '" << hr << "'.";
+			LOG(TRACE) << "Failed to create back buffer texture! HRESULT is '" << std::hex << hr << std::dec << "'.";
 
 			return false;
 		}
-		#pragma endregion
 
-		#pragma region Create default depthstencil surface
+		// Create default depth-stencil surface
 		hr = _device->CreateDepthStencilSurface(_width, _height, D3DFMT_D24S8, D3DMULTISAMPLE_NONE, 0, FALSE, &_default_depthstencil, nullptr);
 
 		if (FAILED(hr))
 		{
-			LOG(TRACE) << "Failed to create default depthstencil! HRESULT is '" << hr << "'.";
+			LOG(TRACE) << "Failed to create default depth-stencil! HRESULT is '" << std::hex << hr << std::dec << "'.";
 
 			return nullptr;
 		}
-		#pragma endregion
 
-		#pragma region Create effect stateblock and objects
+		// Create effect state block and objects
 		hr = _device->CreateStateBlock(D3DSBT_ALL, &_stateblock);
 
 		if (FAILED(hr))
 		{
-			LOG(TRACE) << "Failed to create stateblock! HRESULT is '" << hr << "'.";
+			LOG(TRACE) << "Failed to create state block! HRESULT is '" << std::hex << hr << std::dec << "'.";
 
 			return false;
 		}
@@ -2091,7 +2090,7 @@ namespace reshade
 		}
 		else
 		{
-			LOG(TRACE) << "Failed to create effect vertexbuffer! HRESULT is '" << hr << "'.";
+			LOG(TRACE) << "Failed to create effect vertex buffer! HRESULT is '" << std::hex << hr << std::dec << "'.";
 
 			return false;
 		}
@@ -2106,11 +2105,10 @@ namespace reshade
 
 		if (FAILED(hr))
 		{
-			LOG(TRACE) << "Failed to create effect vertex declaration! HRESULT is '" << hr << "'.";
+			LOG(TRACE) << "Failed to create effect vertex declaration! HRESULT is '" << std::hex << hr << std::dec << "'.";
 
 			return false;
 		}
-		#pragma endregion
 
 		_gui.reset(new gui(this, nvgCreateD3D9(_device.get(), 0)));
 
@@ -2126,11 +2124,8 @@ namespace reshade
 		runtime::on_reset();
 
 		// Destroy NanoVG
-		NVGcontext *const nvg = _gui->context();
-
+		nvgDeleteD3D9(_gui->context());
 		_gui.reset();
-
-		nvgDeleteD3D9(nvg);
 
 		// Destroy resources
 		_stateblock.reset();
@@ -2149,10 +2144,10 @@ namespace reshade
 		_effect_triangle_buffer.reset();
 		_effect_triangle_layout.reset();
 
-		// Clearing depth source table
+		// Clear depth source table
 		for (auto &it : _depth_source_table)
 		{
-			LOG(TRACE) << "Removing depthstencil " << it.first << " from list of possible depth candidates ...";
+			LOG(TRACE) << "Removing depth-stencil " << it.first << " from list of possible depth candidates ...";
 
 			it.first->Release();
 		}
@@ -2170,9 +2165,7 @@ namespace reshade
 		detect_depth_source();
 
 		// Begin post processing
-		HRESULT hr = _device->BeginScene();
-
-		if (FAILED(hr))
+		if (FAILED(_device->BeginScene()))
 		{
 			return;
 		}
@@ -2396,7 +2389,7 @@ namespace reshade
 				return;
 			}
 	
-			LOG(TRACE) << "Adding depthstencil " << depthstencil << " (Width: " << desc.Width << ", Height: " << desc.Height << ", Format: " << desc.Format << ") to list of possible depth candidates ...";
+			LOG(TRACE) << "Adding depth-stencil " << depthstencil << " (Width: " << desc.Width << ", Height: " << desc.Height << ", Format: " << desc.Format << ") to list of possible depth candidates ...";
 
 			depthstencil->AddRef();
 
@@ -2429,7 +2422,7 @@ namespace reshade
 			_backbuffer_format != D3DFMT_A8R8G8B8 &&
 			_backbuffer_format != D3DFMT_A8B8G8R8)
 		{
-			LOG(WARNING) << "Screenshots are not supported for backbuffer format " << _backbuffer_format << ".";
+			LOG(WARNING) << "Screenshots are not supported for back buffer format " << _backbuffer_format << ".";
 			return;
 		}
 
@@ -2518,12 +2511,13 @@ namespace reshade
 			return false;
 		}
 
+		HRESULT hr;
 		D3DSURFACE_DESC desc;
 		texture_impl->texture->GetLevelDesc(0, &desc);
 
 		com_ptr<IDirect3DTexture9> mem_texture;
 
-		HRESULT hr = _device->CreateTexture(desc.Width, desc.Height, 1, 0, desc.Format, D3DPOOL_SYSTEMMEM, &mem_texture, nullptr);
+		hr = _device->CreateTexture(desc.Width, desc.Height, 1, 0, desc.Format, D3DPOOL_SYSTEMMEM, &mem_texture, nullptr);
 
 		if (FAILED(hr))
 		{
@@ -2532,8 +2526,8 @@ namespace reshade
 			return false;
 		}
 
-		D3DLOCKED_RECT mem_lock;
-		hr = mem_texture->LockRect(0, &mem_lock, nullptr, 0);
+		D3DLOCKED_RECT mapped_rect;
+		hr = mem_texture->LockRect(0, &mapped_rect, nullptr, 0);
 
 		if (FAILED(hr))
 		{
@@ -2542,31 +2536,31 @@ namespace reshade
 			return false;
 		}
 
-		size = std::min<size_t>(size, mem_lock.Pitch * texture->height);
-		BYTE *pLocked = static_cast<BYTE *>(mem_lock.pBits);
+		size = std::min(size, size_t(mapped_rect.Pitch * texture->height));
+		auto mapped_data = static_cast<BYTE *>(mapped_rect.pBits);
 
 		switch (texture->format)
 		{
 			case texture::pixelformat::r8:
-				for (size_t i = 0; i < size; i += 1, pLocked += 4)
+				for (size_t i = 0; i < size; i += 1, mapped_data += 4)
 				{
-					pLocked[0] = 0, pLocked[1] = 0, pLocked[2] = data[i], pLocked[3] = 0;
+					mapped_data[0] = 0, mapped_data[1] = 0, mapped_data[2] = data[i], mapped_data[3] = 0;
 				}
 				break;
 			case texture::pixelformat::rg8:
-				for (size_t i = 0; i < size; i += 2, pLocked += 4)
+				for (size_t i = 0; i < size; i += 2, mapped_data += 4)
 				{
-					pLocked[0] = 0, pLocked[1] = data[i + 1], pLocked[2] = data[i], pLocked[3] = 0;
+					mapped_data[0] = 0, mapped_data[1] = data[i + 1], mapped_data[2] = data[i], mapped_data[3] = 0;
 				}
 				break;
 			case texture::pixelformat::rgba8:
-				for (size_t i = 0; i < size; i += 4, pLocked += 4)
+				for (size_t i = 0; i < size; i += 4, mapped_data += 4)
 				{
-					pLocked[0] = data[i + 2], pLocked[1] = data[i + 1], pLocked[2] = data[i], pLocked[3] = data[i + 3];
+					mapped_data[0] = data[i + 2], mapped_data[1] = data[i + 1], mapped_data[2] = data[i], mapped_data[3] = data[i + 3];
 				}
 				break;
 			default:
-				CopyMemory(pLocked, data, size);
+				CopyMemory(mapped_data, data, size);
 				break;
 		}
 
@@ -2652,33 +2646,35 @@ namespace reshade
 
 		for (auto it = _depth_source_table.begin(); it != _depth_source_table.end(); ++it)
 		{
-			if (com_ptr<IDirect3DSurface9>(it->first).ref_count() == 1)
+			const auto depthstencil = it->first;
+			auto &depthstencil_info = it->second;
+
+			if ((depthstencil->AddRef(), depthstencil->Release()) == 1)
 			{
-				LOG(TRACE) << "Removing depthstencil " << it->first << " from list of possible depth candidates ...";
+				LOG(TRACE) << "Removing depth-stencil " << depthstencil << " from list of possible depth candidates ...";
 
-				it->first->Release();
+				depthstencil->Release();
 
-				it = _depth_source_table.erase(it);
-				it = std::prev(it);
+				it = std::prev(_depth_source_table.erase(it));
+				continue;
+			}
+			if (depthstencil_info.drawcall_count == 0)
+			{
 				continue;
 			}
 
-			if (it->second.drawcall_count == 0)
+			if ((depthstencil_info.vertices_count * (1.2f - depthstencil_info.drawcall_count / _drawcalls)) >= (best_info.vertices_count * (1.2f - best_info.drawcall_count / _drawcalls)))
 			{
-				continue;
-			}
-			else if ((it->second.vertices_count * (1.2f - it->second.drawcall_count / _drawcalls)) >= (best_info.vertices_count * (1.2f - best_info.drawcall_count / _drawcalls)))
-			{
-				best_match = it->first;
-				best_info = it->second;
+				best_match = depthstencil;
+				best_info = depthstencil_info;
 			}
 
-			it->second.drawcall_count = it->second.vertices_count = 0;
+			depthstencil_info.drawcall_count = depthstencil_info.vertices_count = 0;
 		}
 
-		if (_depthstencil != best_match)
+		if (best_match != nullptr && _depthstencil != best_match)
 		{
-			LOG(TRACE) << "Switched depth source to depthstencil " << best_match << ".";
+			LOG(TRACE) << "Switched depth source to depth-stencil " << best_match << ".";
 
 			create_depthstencil_replacement(best_match);
 		}
@@ -2718,7 +2714,7 @@ namespace reshade
 				}
 				else
 				{
-					LOG(TRACE) << "Failed to create depthstencil replacement texture! HRESULT is '" << hr << "'. Are you missing support for the 'INTZ' format?";
+					LOG(TRACE) << "Failed to create depth-stencil replacement texture! HRESULT is '" << std::hex << hr << std::dec << "'. Are you missing support for the 'INTZ' format?";
 
 					return false;
 				}

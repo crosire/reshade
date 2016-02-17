@@ -17,7 +17,6 @@ namespace reshade
 	{
 	public:
 		gui(const runtime *runtime, NVGcontext *context);
-		~gui();
 
 		NVGcontext *context() const
 		{

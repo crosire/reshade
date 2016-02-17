@@ -2019,7 +2019,7 @@ namespace reshade
 		_is_multisampling_enabled = desc.SampleDesc.Count > 1;
 		input::register_window(desc.OutputWindow, _input);
 
-		#pragma region Get backbuffer rendertarget
+		// Get back buffer texture
 		HRESULT hr = _swapchain->GetBuffer(0, __uuidof(ID3D11Texture2D), reinterpret_cast<void **>(&_backbuffer));
 
 		assert(SUCCEEDED(hr));
@@ -2044,7 +2044,7 @@ namespace reshade
 
 			if (FAILED(hr))
 			{
-				LOG(TRACE) << "Failed to create backbuffer resolve texture (Width = " << texdesc.Width << ", Height = " << texdesc.Height << ", Format = " << texdesc.Format << ", SampleCount = " << texdesc.SampleDesc.Count << ", SampleQuality = " << texdesc.SampleDesc.Quality << ")! HRESULT is '" << hr << "'.";
+				LOG(TRACE) << "Failed to create back buffer resolve texture (Width = " << texdesc.Width << ", Height = " << texdesc.Height << ", Format = " << texdesc.Format << ", SampleCount = " << texdesc.SampleDesc.Count << ", SampleQuality = " << texdesc.SampleDesc.Quality << ")! HRESULT is '" << std::hex << hr << std::dec << "'.";
 
 				return false;
 			}
@@ -2057,9 +2057,8 @@ namespace reshade
 		{
 			_backbuffer_resolved = _backbuffer;
 		}
-		#pragma endregion
 
-		#pragma region Create backbuffer shader texture
+		// Create back buffer shader texture
 		texdesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
 
 		hr = _device->CreateTexture2D(&texdesc, nullptr, &_backbuffer_texture);
@@ -2077,7 +2076,7 @@ namespace reshade
 			}
 			else
 			{
-				LOG(TRACE) << "Failed to create backbuffer texture resource view (Format = " << srvdesc.Format << ")! HRESULT is '" << hr << "'.";
+				LOG(TRACE) << "Failed to create back buffer texture resource view (Format = " << srvdesc.Format << ")! HRESULT is '" << std::hex << hr << std::dec << "'.";
 			}
 
 			srvdesc.Format = make_format_srgb(texdesc.Format);
@@ -2088,19 +2087,18 @@ namespace reshade
 			}
 			else
 			{
-				LOG(TRACE) << "Failed to create backbuffer SRGB texture resource view (Format = " << srvdesc.Format << ")! HRESULT is '" << hr << "'.";
+				LOG(TRACE) << "Failed to create back buffer SRGB texture resource view (Format = " << srvdesc.Format << ")! HRESULT is '" << std::hex << hr << std::dec << "'.";
 			}
 		}
 		else
 		{
-			LOG(TRACE) << "Failed to create backbuffer texture (Width = " << texdesc.Width << ", Height = " << texdesc.Height << ", Format = " << texdesc.Format << ", SampleCount = " << texdesc.SampleDesc.Count << ", SampleQuality = " << texdesc.SampleDesc.Quality << ")! HRESULT is '" << hr << "'.";
+			LOG(TRACE) << "Failed to create back buffer texture (Width = " << texdesc.Width << ", Height = " << texdesc.Height << ", Format = " << texdesc.Format << ", SampleCount = " << texdesc.SampleDesc.Count << ", SampleQuality = " << texdesc.SampleDesc.Quality << ")! HRESULT is '" << std::hex << hr << std::dec << "'.";
 		}
 
 		if (FAILED(hr))
 		{
 			return false;
 		}
-		#pragma endregion
 
 		D3D11_RENDER_TARGET_VIEW_DESC rtdesc = { };
 		rtdesc.Format = make_format_normal(texdesc.Format);
@@ -2110,7 +2108,7 @@ namespace reshade
 
 		if (FAILED(hr))
 		{
-			LOG(TRACE) << "Failed to create backbuffer rendertarget (Format = " << rtdesc.Format << ")! HRESULT is '" << hr << "'.";
+			LOG(TRACE) << "Failed to create back buffer render target (Format = " << rtdesc.Format << ")! HRESULT is '" << std::hex << hr << std::dec << "'.";
 
 			return false;
 		}
@@ -2121,12 +2119,12 @@ namespace reshade
 
 		if (FAILED(hr))
 		{
-			LOG(TRACE) << "Failed to create backbuffer SRGB rendertarget (Format = " << rtdesc.Format << ")! HRESULT is '" << hr << "'.";
+			LOG(TRACE) << "Failed to create back buffer SRGB render target (Format = " << rtdesc.Format << ")! HRESULT is '" << std::hex << hr << std::dec << "'.";
 
 			return false;
 		}
 
-		#pragma region Create default depthstencil surface
+		// Create default depth-stencil
 		D3D11_TEXTURE2D_DESC dstdesc = { };
 		dstdesc.Width = desc.BufferDesc.Width;
 		dstdesc.Height = desc.BufferDesc.Height;
@@ -2147,11 +2145,10 @@ namespace reshade
 		}
 		if (FAILED(hr))
 		{
-			LOG(TRACE) << "Failed to create default depthstencil! HRESULT is '" << hr << "'.";
+			LOG(TRACE) << "Failed to create default depth-stencil! HRESULT is '" << std::hex << hr << std::dec << "'.";
 
 			return false;
 		}
-		#pragma endregion
 
 		const BYTE vs[] = { 68, 88, 66, 67, 224, 206, 72, 137, 142, 185, 68, 219, 247, 216, 225, 132, 111, 78, 106, 20, 1, 0, 0, 0, 156, 2, 0, 0, 5, 0, 0, 0, 52, 0, 0, 0, 140, 0, 0, 0, 192, 0, 0, 0, 24, 1, 0, 0, 32, 2, 0, 0, 82, 68, 69, 70, 80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 28, 0, 0, 0, 0, 4, 254, 255, 0, 1, 0, 0, 28, 0, 0, 0, 77, 105, 99, 114, 111, 115, 111, 102, 116, 32, 40, 82, 41, 32, 72, 76, 83, 76, 32, 83, 104, 97, 100, 101, 114, 32, 67, 111, 109, 112, 105, 108, 101, 114, 32, 54, 46, 51, 46, 57, 54, 48, 48, 46, 49, 54, 51, 56, 52, 0, 171, 171, 73, 83, 71, 78, 44, 0, 0, 0, 1, 0, 0, 0, 8, 0, 0, 0, 32, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 83, 86, 95, 86, 101, 114, 116, 101, 120, 73, 68, 0, 79, 83, 71, 78, 80, 0, 0, 0, 2, 0, 0, 0, 8, 0, 0, 0, 56, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 15, 0, 0, 0, 68, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 1, 0, 0, 0, 3, 12, 0, 0, 83, 86, 95, 80, 111, 115, 105, 116, 105, 111, 110, 0, 84, 69, 88, 67, 79, 79, 82, 68, 0, 171, 171, 171, 83, 72, 68, 82, 0, 1, 0, 0, 64, 0, 1, 0, 64, 0, 0, 0, 96, 0, 0, 4, 18, 16, 16, 0, 0, 0, 0, 0, 6, 0, 0, 0, 103, 0, 0, 4, 242, 32, 16, 0, 0, 0, 0, 0, 1, 0, 0, 0, 101, 0, 0, 3, 50, 32, 16, 0, 1, 0, 0, 0, 104, 0, 0, 2, 1, 0, 0, 0, 32, 0, 0, 10, 50, 0, 16, 0, 0, 0, 0, 0, 6, 16, 16, 0, 0, 0, 0, 0, 2, 64, 0, 0, 2, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 10, 50, 0, 16, 0, 0, 0, 0, 0, 70, 0, 16, 0, 0, 0, 0, 0, 2, 64, 0, 0, 0, 0, 0, 64, 0, 0, 0, 64, 0, 0, 0, 0, 0, 0, 0, 0, 50, 0, 0, 15, 50, 32, 16, 0, 0, 0, 0, 0, 70, 0, 16, 0, 0, 0, 0, 0, 2, 64, 0, 0, 0, 0, 0, 64, 0, 0, 0, 192, 0, 0, 0, 0, 0, 0, 0, 0, 2, 64, 0, 0, 0, 0, 128, 191, 0, 0, 128, 63, 0, 0, 0, 0, 0, 0, 0, 0, 54, 0, 0, 5, 50, 32, 16, 0, 1, 0, 0, 0, 70, 0, 16, 0, 0, 0, 0, 0, 54, 0, 0, 8, 194, 32, 16, 0, 0, 0, 0, 0, 2, 64, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 128, 63, 62, 0, 0, 1, 83, 84, 65, 84, 116, 0, 0, 0, 6, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 		hr = _device->CreateVertexShader(vs, ARRAYSIZE(vs), nullptr, &_copy_vertex_shader);
@@ -2168,7 +2165,7 @@ namespace reshade
 
 		assert(SUCCEEDED(hr));
 
-		#pragma region Create effect objects
+		// Create effect objects
 		D3D11_RASTERIZER_DESC rsdesc = { };
 		rsdesc.FillMode = D3D11_FILL_SOLID;
 		rsdesc.CullMode = D3D11_CULL_NONE;
@@ -2177,7 +2174,6 @@ namespace reshade
 		hr = _device->CreateRasterizerState(&rsdesc, &_effect_rasterizer_state);
 
 		assert(SUCCEEDED(hr));
-		#pragma endregion
 
 		_gui.reset(new gui(this, nvgCreateD3D11(_device.get(), 0)));
 
@@ -2197,11 +2193,8 @@ namespace reshade
 		runtime::on_reset();
 
 		// Destroy NanoVG
-		NVGcontext *const nvg = _gui->context();
-
+		nvgDeleteD3D11(_gui->context());
 		_gui.reset();
-
-		nvgDeleteD3D11(nvg);
 
 		// Reset reference count to make UnrealEngine happy
 		_backbuffer->AddRef();
@@ -2381,7 +2374,7 @@ namespace reshade
 			}
 			else
 			{
-				LOG(TRACE) << "Failed to map constant buffer! HRESULT is '" << hr << "'!";
+				LOG(TRACE) << "Failed to map constant buffer! HRESULT is '" << std::hex << hr << std::dec << "'!";
 			}
 		}
 
@@ -2552,7 +2545,7 @@ namespace reshade
 			_backbuffer_format != DXGI_FORMAT_B8G8R8A8_UNORM &&
 			_backbuffer_format != DXGI_FORMAT_B8G8R8A8_UNORM_SRGB)
 		{
-			LOG(WARNING) << "Screenshots are not supported for backbuffer format " << _backbuffer_format << ".";
+			LOG(WARNING) << "Screenshots are not supported for back buffer format " << _backbuffer_format << ".";
 			return;
 		}
 
@@ -2572,7 +2565,7 @@ namespace reshade
 
 		if (FAILED(hr))
 		{
-			LOG(TRACE) << "Failed to create staging resource for screenshot capture! HRESULT is '" << hr << "'.";
+			LOG(TRACE) << "Failed to create staging resource for screenshot capture! HRESULT is '" << std::hex << hr << std::dec << "'.";
 			return;
 		}
 
@@ -2583,7 +2576,7 @@ namespace reshade
 
 		if (FAILED(hr))
 		{
-			LOG(TRACE) << "Failed to map staging resource with screenshot capture! HRESULT is '" << hr << "'.";
+			LOG(TRACE) << "Failed to map staging resource with screenshot capture! HRESULT is '" << std::hex << hr << std::dec << "'.";
 			return;
 		}
 
@@ -2712,30 +2705,6 @@ namespace reshade
 
 	void d3d11_runtime::detect_depth_source()
 	{
-		for (auto it = _depth_source_table.begin(); it != _depth_source_table.end();)
-		{
-			const auto depthstencil = it->first;
-			const auto refcount = (depthstencil->AddRef(), depthstencil->Release());
-
-			if (refcount == 1)
-			{
-				LOG(TRACE) << "Removing depthstencil " << depthstencil << " from list of possible depth candidates ...";
-
-				if (depthstencil == _depthstencil)
-				{
-					create_depthstencil_replacement(nullptr);
-				}
-
-				depthstencil->Release();
-
-				it = _depth_source_table.erase(it);
-			}
-			else
-			{
-				++it;
-			}
-		}
-
 		static int cooldown = 0, traffic = 0;
 
 		if (cooldown-- > 0)
@@ -2769,24 +2738,37 @@ namespace reshade
 		depth_source_info best_info = { 0 };
 		ID3D11DepthStencilView *best_match = nullptr;
 
-		for (auto &it : _depth_source_table)
+		for (auto it = _depth_source_table.begin(); it != _depth_source_table.end(); ++it)
 		{
-			if (it.second.drawcall_count == 0)
+			const auto depthstencil = it->first;
+			auto &depthstencil_info = it->second;
+
+			if ((depthstencil->AddRef(), depthstencil->Release()) == 1)
+			{
+				LOG(TRACE) << "Removing depth-stencil " << depthstencil << " from list of possible depth candidates ...";
+
+				depthstencil->Release();
+
+				it = std::prev(_depth_source_table.erase(it));
+				continue;
+			}
+			if (depthstencil_info.drawcall_count == 0)
 			{
 				continue;
 			}
-			else if ((it.second.vertices_count * (1.2f - it.second.drawcall_count / _drawcalls)) >= (best_info.vertices_count * (1.2f - best_info.drawcall_count / _drawcalls)))
+
+			if ((depthstencil_info.vertices_count * (1.2f - depthstencil_info.drawcall_count / _drawcalls)) >= (best_info.vertices_count * (1.2f - best_info.drawcall_count / _drawcalls)))
 			{
-				best_match = it.first;
-				best_info = it.second;
+				best_match = depthstencil;
+				best_info = depthstencil_info;
 			}
 
-			it.second.drawcall_count = it.second.vertices_count = 0;
+			depthstencil_info.drawcall_count = depthstencil_info.vertices_count = 0;
 		}
 
 		if (best_match != nullptr && _depthstencil != best_match)
 		{
-			LOG(TRACE) << "Switched depth source to depthstencil " << best_match << ".";
+			LOG(TRACE) << "Switched depth source to depth-stencil " << best_match << ".";
 
 			create_depthstencil_replacement(best_match);
 		}
@@ -2865,7 +2847,7 @@ namespace reshade
 
 			if (FAILED(hr))
 			{
-				LOG(TRACE) << "Failed to create depthstencil replacement texture! HRESULT is '" << hr << "'.";
+				LOG(TRACE) << "Failed to create depth-stencil replacement texture! HRESULT is '" << std::hex << hr << std::dec << "'.";
 
 				return false;
 			}
@@ -2894,14 +2876,14 @@ namespace reshade
 
 			if (FAILED(hr))
 			{
-				LOG(TRACE) << "Failed to create depthstencil replacement resource view! HRESULT is '" << hr << "'.";
+				LOG(TRACE) << "Failed to create depth-stencil replacement resource view! HRESULT is '" << std::hex << hr << std::dec << "'.";
 
 				return false;
 			}
 
 			if (_depthstencil != _depthstencil_replacement)
 			{
-				// Update auto depthstencil
+				// Update auto depth-stencil
 				com_ptr<ID3D11DepthStencilView> current_depthstencil;
 				ID3D11RenderTargetView *targets[D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT] = { nullptr };
 

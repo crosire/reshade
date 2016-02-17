@@ -16,9 +16,6 @@ namespace reshade
 
 		nvgCreateFont(_nvg, "DefaultFont", (windows_directory / "Fonts" / "courbd.ttf").string().c_str());
 	}
-	gui::~gui()
-	{
-	}
 
 	bool gui::begin_frame()
 	{
