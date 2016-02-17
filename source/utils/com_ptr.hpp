@@ -62,6 +62,18 @@ public:
 			_object->AddRef();
 		}
 	}
+	com_ptr<T> &operator=(T *object)
+	{
+		reset(object);
+
+		return *this;
+	}
+	com_ptr<T> &operator=(const com_ptr<T> &copy)
+	{
+		reset(copy._object);
+
+		return *this;
+	}
 
 	bool operator==(T *other) const
 	{
