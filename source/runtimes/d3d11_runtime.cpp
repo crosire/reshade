@@ -1986,6 +1986,9 @@ namespace reshade
 
 	d3d11_runtime::d3d11_runtime(ID3D11Device *device, IDXGISwapChain *swapchain) : runtime(device->GetFeatureLevel()), _device(device), _swapchain(swapchain), _backbuffer_format(DXGI_FORMAT_UNKNOWN), _is_multisampling_enabled(false), _stateblock(device)
 	{
+		assert(device != nullptr);
+		assert(swapchain != nullptr);
+
 		_device->GetImmediateContext(&_immediate_context);
 
 		HRESULT hr;
@@ -1993,7 +1996,7 @@ namespace reshade
 		com_ptr<IDXGIDevice> dxgidevice;
 		com_ptr<IDXGIAdapter> dxgiadapter;
 
-		hr = _device.get_interface(dxgidevice);
+		hr = _device->QueryInterface(&dxgidevice);
 
 		assert(SUCCEEDED(hr));
 
@@ -2266,11 +2269,11 @@ namespace reshade
 		// Apply post processing
 		on_apply_effect();
 
-		// Reset rendertargets
-		const auto rtv = _backbuffer_rtv[0].get();
-		_immediate_context->OMSetRenderTargets(1, &rtv, _default_depthstencil.get());
+		// Reset render target
+		const auto render_target = _backbuffer_rtv[0].get();
+		_immediate_context->OMSetRenderTargets(1, &render_target, _default_depthstencil.get());
 
-		const D3D11_VIEWPORT viewport = { 0, 0, static_cast<FLOAT>(_width), static_cast<FLOAT>(_height), 0.0f, 1.0f };
+		const D3D11_VIEWPORT viewport = { 0, 0, static_cast<float>(_width), static_cast<float>(_height), 0.0f, 1.0f };
 		_immediate_context->RSSetViewports(1, &viewport);
 
 		// Apply presenting
@@ -2279,7 +2282,8 @@ namespace reshade
 		// Copy to back buffer
 		if (_backbuffer_resolved != _backbuffer)
 		{
-			_immediate_context->OMSetRenderTargets(1, &_backbuffer_rtv[2], nullptr);
+			const auto rtv = _backbuffer_rtv[2].get();
+			_immediate_context->OMSetRenderTargets(1, &rtv, nullptr);
 			_immediate_context->CopyResource(_backbuffer_texture.get(), _backbuffer_resolved.get());
 
 			_immediate_context->VSSetShader(_copy_vertex_shader.get(), nullptr, 0);
@@ -2473,7 +2477,7 @@ namespace reshade
 
 			depthstencil->GetResource(&resource);
 
-			if (FAILED(resource.get_interface(texture)))
+			if (FAILED(resource->QueryInterface(&texture)))
 			{
 				return;
 			}

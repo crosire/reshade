@@ -25,12 +25,6 @@ public:
 		return _object->AddRef(), _object->Release();
 	}
 
-	template <typename Q>
-	long get_interface(com_ptr<Q> &result)
-	{
-		return _object->QueryInterface(__uuidof(Q), reinterpret_cast<void **>(&result));
-	}
-
 	inline T *get() const
 	{
 		return _object;

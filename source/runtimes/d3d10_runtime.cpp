@@ -1996,12 +1996,15 @@ namespace reshade
 
 	d3d10_runtime::d3d10_runtime(ID3D10Device *device, IDXGISwapChain *swapchain) : runtime(get_renderer_id(device)), _device(device), _swapchain(swapchain), _backbuffer_format(DXGI_FORMAT_UNKNOWN), _is_multisampling_enabled(false), _stateblock(device), _constant_buffer_size(0)
 	{
+		assert(device != nullptr);
+		assert(swapchain != nullptr);
+
 		HRESULT hr;
 		DXGI_ADAPTER_DESC adapter_desc;
 		com_ptr<IDXGIDevice> dxgidevice;
 		com_ptr<IDXGIAdapter> dxgiadapter;
 
-		hr = _device.get_interface(dxgidevice);
+		hr = _device->QueryInterface(&dxgidevice);
 
 		assert(SUCCEEDED(hr));
 
@@ -2269,8 +2272,8 @@ namespace reshade
 		on_apply_effect();
 
 		// Reset render target
-		const auto rtv = _backbuffer_rtv[0].get();
-		_device->OMSetRenderTargets(1, &rtv, _default_depthstencil.get());
+		const auto render_target = _backbuffer_rtv[0].get();
+		_device->OMSetRenderTargets(1, &render_target, _default_depthstencil.get());
 
 		const D3D10_VIEWPORT viewport = { 0, 0, _width, _height, 0.0f, 1.0f };
 		_device->RSSetViewports(1, &viewport);
@@ -2281,7 +2284,8 @@ namespace reshade
 		// Copy to back buffer
 		if (_backbuffer_resolved != _backbuffer)
 		{
-			_device->OMSetRenderTargets(1, &_backbuffer_rtv[2], nullptr);
+			const auto rtv = _backbuffer_rtv[2].get();
+			_device->OMSetRenderTargets(1, &rtv, nullptr);
 			_device->CopyResource(_backbuffer_texture.get(), _backbuffer_resolved.get());
 
 			_device->VSSetShader(_copy_vertex_shader.get());
@@ -2469,7 +2473,7 @@ namespace reshade
 
 			depthstencil->GetResource(&resource);
 
-			if (FAILED(resource.get_interface(texture)))
+			if (FAILED(resource->QueryInterface(&texture)))
 			{
 				return;
 			}

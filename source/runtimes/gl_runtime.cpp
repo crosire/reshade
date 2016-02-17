@@ -2711,6 +2711,8 @@ namespace reshade
 
 	gl_runtime::gl_runtime(HDC device) : runtime(get_renderer_id()), _hdc(device), _reference_count(1), _default_backbuffer_fbo(0), _default_backbuffer_rbo(), _backbuffer_texture(), _depth_source_fbo(0), _depth_source(0), _depth_texture(0), _blit_fbo(0), _default_vao(0), _default_vbo(0), _effect_ubo(0)
 	{
+		assert(device != nullptr);
+
 		_vendor_id = 0;
 		_device_id = 0;
 		input::register_window(WindowFromDC(_hdc), _input);
@@ -2740,7 +2742,7 @@ namespace reshade
 		// Get vendor and device information on general devices
 		if (_vendor_id == 0)
 		{
-			const char *const name = reinterpret_cast<const char *>(glGetString(GL_VENDOR));
+			const auto name = reinterpret_cast<const char *>(glGetString(GL_VENDOR));
 
 			if (name != nullptr)
 			{

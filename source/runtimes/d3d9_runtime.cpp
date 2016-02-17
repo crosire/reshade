@@ -90,7 +90,7 @@ namespace reshade
 
 				_current_function = function;
 
-				visit(_functions[function].SourceCode, function);
+				visit(_functions[function].code, function);
 			}
 
 			for (auto node : _ast.techniques)
@@ -280,7 +280,7 @@ namespace reshade
 
 			if (node->reference->type.is_sampler() && (_samplers.find(node->reference->name) != _samplers.end()))
 			{
-				_functions.at(_current_function).SamplerDependencies.insert(node->reference);
+				_functions.at(_current_function).sampler_dependencies.insert(node->reference);
 			}
 		}
 		void visit(std::string &output, const fx::nodes::literal_expression_node *node) override
@@ -980,19 +980,19 @@ namespace reshade
 			auto &info = _functions.at(_current_function);
 			auto &infoCallee = _functions.at(node->callee);
 					
-			info.SamplerDependencies.insert(infoCallee.SamplerDependencies.begin(), infoCallee.SamplerDependencies.end());
+			info.sampler_dependencies.insert(infoCallee.sampler_dependencies.begin(), infoCallee.sampler_dependencies.end());
 
-			for (auto dependency : infoCallee.FunctionDependencies)
+			for (auto dependency : infoCallee.dependencies)
 			{
-				if (std::find(info.FunctionDependencies.begin(), info.FunctionDependencies.end(), dependency) == info.FunctionDependencies.end())
+				if (std::find(info.dependencies.begin(), info.dependencies.end(), dependency) == info.dependencies.end())
 				{
-					info.FunctionDependencies.push_back(dependency);
+					info.dependencies.push_back(dependency);
 				}
 			}
 
-			if (std::find(info.FunctionDependencies.begin(), info.FunctionDependencies.end(), node->callee) == info.FunctionDependencies.end())
+			if (std::find(info.dependencies.begin(), info.dependencies.end(), node->callee) == info.dependencies.end())
 			{
-				info.FunctionDependencies.push_back(node->callee);
+				info.dependencies.push_back(node->callee);
 			}
 		}
 		void visit(std::string &output, const fx::nodes::constructor_expression_node *node) override
@@ -1576,7 +1576,7 @@ namespace reshade
 					continue;
 				}
 
-				for (auto sampler : _functions.at(shader_functions[i]).SamplerDependencies)
+				for (auto sampler : _functions.at(shader_functions[i]).sampler_dependencies)
 				{
 					pass.samplers[pass.sampler_count] = _samplers.at(sampler->name);
 					const auto *const texture = sampler->properties.Texture;
@@ -1740,12 +1740,12 @@ namespace reshade
 			source += samplers;
 			source += _global_code;
 
-			for (auto dependency : _functions.at(node).FunctionDependencies)
+			for (auto dependency : _functions.at(node).dependencies)
 			{
-				source += _functions.at(dependency).SourceCode;
+				source += _functions.at(dependency).code;
 			}
 
-			source += _functions.at(node).SourceCode;
+			source += _functions.at(node).code;
 
 			std::string position_variable, initialization;
 			fx::nodes::type_node return_type = node->return_type;
@@ -1962,9 +1962,9 @@ namespace reshade
 	private:
 		struct function
 		{
-			std::string SourceCode;
-			std::unordered_set<const fx::nodes::variable_declaration_node *> SamplerDependencies;
-			std::vector<const fx::nodes::function_declaration_node *> FunctionDependencies;
+			std::string code;
+			std::vector<const fx::nodes::function_declaration_node *> dependencies;
+			std::unordered_set<const fx::nodes::variable_declaration_node *> sampler_dependencies;
 		};
 
 		d3d9_runtime *_runtime;
@@ -1978,6 +1978,9 @@ namespace reshade
 
 	d3d9_runtime::d3d9_runtime(IDirect3DDevice9 *device, IDirect3DSwapChain9 *swapchain) : runtime(D3D_FEATURE_LEVEL_9_3), _device(device), _swapchain(swapchain), _is_multisampling_enabled(false), _backbuffer_format(D3DFMT_UNKNOWN), _constant_register_count(0)
 	{
+		assert(device != nullptr);
+		assert(swapchain != nullptr);
+
 		_device->GetDirect3D(&_d3d);
 
 		D3DCAPS9 caps;
