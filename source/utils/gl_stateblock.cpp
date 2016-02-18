@@ -15,15 +15,15 @@ namespace reshade
 			glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &_vbo);
 			glGetIntegerv(GL_UNIFORM_BUFFER_BINDING, &_ubo);
 			glGetIntegerv(GL_CURRENT_PROGRAM, &_program);
+			glGetIntegerv(GL_ACTIVE_TEXTURE, &_active_texture);
 
-			for (GLuint i = 0; i < ARRAYSIZE(_textures2d); i++)
+			for (GLuint i = 0; i < 8; i++)
 			{
 				glActiveTexture(GL_TEXTURE0 + i);
-				glGetIntegerv(GL_TEXTURE_BINDING_2D, &_textures2d[i]);
+				glGetIntegerv(GL_TEXTURE_BINDING_2D, &_textures2D[i]);
 				glGetIntegerv(GL_SAMPLER_BINDING, &_samplers[i]);
 			}
 
-			glGetIntegerv(GL_ACTIVE_TEXTURE, &_active_texture);
 			glGetIntegerv(GL_VIEWPORT, _viewport);
 			_scissor_test = glIsEnabled(GL_SCISSOR_TEST);
 			_blend = glIsEnabled(GL_BLEND);
@@ -50,7 +50,7 @@ namespace reshade
 			_srgb = glIsEnabled(GL_FRAMEBUFFER_SRGB);
 			glGetBooleanv(GL_COLOR_WRITEMASK, _color_mask);
 
-			for (GLuint i = 0; i < ARRAYSIZE(_drawbuffers); i++)
+			for (GLuint i = 0; i < 8; i++)
 			{
 				GLint drawbuffer = GL_NONE;
 				glGetIntegerv(GL_DRAW_BUFFER0 + i, &drawbuffer);
@@ -59,16 +59,16 @@ namespace reshade
 		}
 		void gl_stateblock::apply() const
 		{
-			glBindVertexArray(glIsVertexArray(_vao) ? _vao : 0);
-			glBindBuffer(GL_ARRAY_BUFFER, glIsBuffer(_vbo) ? _vbo : 0);
-			glBindBuffer(GL_UNIFORM_BUFFER, glIsBuffer(_ubo) ? _ubo : 0);
-			glUseProgram(glIsProgram(_program) ? _program : 0);
+			glBindVertexArray(_vao);
+			glBindBuffer(GL_ARRAY_BUFFER, _vbo);
+			glBindBuffer(GL_UNIFORM_BUFFER, _ubo);
+			glUseProgram(_program);
 
-			for (GLuint i = 0; i < ARRAYSIZE(_textures2d); i++)
+			for (GLuint i = 0; i < 8; i++)
 			{
 				glActiveTexture(GL_TEXTURE0 + i);
-				glBindTexture(GL_TEXTURE_2D, glIsTexture(_textures2d[i]) ? _textures2d[i] : 0);
-				glBindSampler(i, glIsSampler(_samplers[i]) ? _samplers[i] : 0);
+				glBindTexture(GL_TEXTURE_2D, _textures2D[i]);
+				glBindSampler(i, _samplers[i]);
 			}
 
 			glActiveTexture(_active_texture);
@@ -88,7 +88,7 @@ namespace reshade
 			glFrontFace(_frontface);
 			_cullface ? glEnable(GL_CULL_FACE) : glDisable(GL_CULL_FACE);
 			glCullFace(_cullface_mode);
-			glBindFramebuffer(GL_FRAMEBUFFER, glIsFramebuffer(_fbo) ? _fbo : 0);
+			glBindFramebuffer(GL_FRAMEBUFFER, _fbo);
 			_srgb ? glEnable(GL_FRAMEBUFFER_SRGB) : glDisable(GL_FRAMEBUFFER_SRGB);
 			glColorMask(_color_mask[0], _color_mask[1], _color_mask[2], _color_mask[3]);
 
