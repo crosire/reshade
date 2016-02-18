@@ -61,9 +61,15 @@ namespace reshade
 	};
 	struct gl_pass : public technique::pass
 	{
-		gl_pass()
+		gl_pass() :
+			program(0),
+			fbo(0), draw_textures(),
+			stencil_reference(0),
+			stencil_mask(0), stencil_read_mask(0),
+			viewport_width(0), viewport_height(0),
+			draw_buffers(), blend_eq_color(GL_NONE), blend_eq_alpha(GL_NONE), blend_src(GL_NONE), blend_dest(GL_NONE), depth_func(GL_NONE), stencil_func(GL_NONE), stencil_op_fail(GL_NONE), stencil_op_z_fail(GL_NONE), stencil_op_z_pass(GL_NONE),
+			srgb(GL_FALSE), blend(GL_FALSE), depth_mask(GL_FALSE), depth_test(GL_FALSE), color_mask()
 		{
-			ZeroMemory(this, sizeof(*this));
 		}
 		~gl_pass()
 		{
