@@ -3141,7 +3141,7 @@ namespace reshade
 
 					return false;
 				}
-				else if (!type.has_qualifier(type_node::qualifier_uniform))
+				else if (!type.has_qualifier(type_node::qualifier_uniform) && !type.is_array())
 				{
 					const auto zero_initializer = _ast.make_node<literal_expression_node>(location);
 					zero_initializer->type = type;
