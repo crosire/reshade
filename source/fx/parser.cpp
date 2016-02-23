@@ -3141,6 +3141,14 @@ namespace reshade
 
 					return false;
 				}
+				else if (!type.has_qualifier(type_node::qualifier_uniform))
+				{
+					const auto zero_initializer = _ast.make_node<literal_expression_node>(location);
+					zero_initializer->type = type;
+					zero_initializer->type.qualifiers = type_node::qualifier_const;
+
+					variable->initializer_expression = zero_initializer;
+				}
 			}
 			else if (peek('{'))
 			{
