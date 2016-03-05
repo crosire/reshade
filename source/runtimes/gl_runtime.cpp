@@ -2721,7 +2721,7 @@ namespace reshade
 		}
 	}
 
-	gl_runtime::gl_runtime(HDC device) : runtime(get_renderer_id()), _hdc(device), _reference_count(1), _default_backbuffer_fbo(0), _default_backbuffer_rbo(), _backbuffer_texture(), _depth_source_fbo(0), _depth_source(0), _depth_texture(0), _blit_fbo(0), _default_vao(0), _default_vbo(0), _effect_ubo(0)
+	gl_runtime::gl_runtime(HDC device) : runtime(get_renderer_id()), _hdc(device), _reference_count(1), _default_backbuffer_fbo(0), _default_backbuffer_rbo(), _backbuffer_texture(), _depth_source_fbo(0), _depth_source(0), _depth_texture(0), _blit_fbo(0), _default_vao(0), _effect_ubo(0)
 	{
 		assert(device != nullptr);
 
@@ -2898,14 +2898,7 @@ namespace reshade
 			return false;
 		}
 
-
 		GLCHECK(glGenVertexArrays(1, &_default_vao));
-		GLCHECK(glGenBuffers(1, &_default_vbo));
-
-		GLCHECK(glBindBuffer(GL_ARRAY_BUFFER, _default_vbo));
-		GLCHECK(glBufferData(GL_ARRAY_BUFFER, 0, nullptr, GL_STATIC_DRAW));
-		GLCHECK(glBindBuffer(GL_ARRAY_BUFFER, 0));
-
 
 		_gui.reset(new gui(this, nvgCreateGL3(0)));
 
@@ -2927,7 +2920,6 @@ namespace reshade
 		_gui.reset();
 
 		// Destroy resources
-		GLCHECK(glDeleteBuffers(1, &_default_vbo));
 		GLCHECK(glDeleteBuffers(1, &_effect_ubo));
 		GLCHECK(glDeleteVertexArrays(1, &_default_vao));
 		GLCHECK(glDeleteFramebuffers(1, &_default_backbuffer_fbo));
@@ -2937,7 +2929,6 @@ namespace reshade
 		GLCHECK(glDeleteTextures(2, _backbuffer_texture));
 		GLCHECK(glDeleteTextures(1, &_depth_texture));
 
-		_default_vbo = 0;
 		_effect_ubo = 0;
 		_default_vao = 0;
 		_default_backbuffer_fbo = 0;
@@ -3048,7 +3039,6 @@ namespace reshade
 
 		// Setup vertex input
 		GLCHECK(glBindVertexArray(_default_vao));
-		GLCHECK(glBindVertexBuffer(0, _default_vbo, 0, sizeof(float)));
 
 		// Setup shader resources
 		for (GLsizei sampler = 0, samplerCount = static_cast<GLsizei>(_effect_samplers.size()); sampler < samplerCount; sampler++)

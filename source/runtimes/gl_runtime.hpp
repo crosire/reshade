@@ -30,7 +30,7 @@ namespace reshade
 		GLuint _default_backbuffer_fbo, _default_backbuffer_rbo[2], _backbuffer_texture[2];
 		GLuint _depth_source_fbo, _depth_source, _depth_texture, _blit_fbo;
 		std::vector<struct gl_sampler> _effect_samplers;
-		GLuint _default_vao, _default_vbo, _effect_ubo;
+		GLuint _default_vao, _effect_ubo;
 
 	private:
 		struct depth_source_info
