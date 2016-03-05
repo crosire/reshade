@@ -44,6 +44,7 @@ namespace reshade
 
 		std::unique_ptr<utils::file_watcher> s_effect_filewatcher;
 		boost::filesystem::path s_executable_path, s_injector_path, s_effect_path;
+		std::string s_executable_name;
 	}
 
 	volatile long runtime::s_network_upload = 0;
@@ -52,6 +53,7 @@ namespace reshade
 	{
 		s_injector_path = injector_path;
 		s_executable_path = executable_path;
+		s_executable_name = executable_path.stem().string();
 
 		boost::filesystem::path log_path = injector_path, tracelog_path = injector_path;
 		log_path.replace_extension("log");
@@ -278,7 +280,7 @@ namespace reshade
 			if (_show_statistics)
 			{
 				stats << "General" << std::endl << "-------" << std::endl;
-				stats << "Application: " << std::hash<std::string>()(s_executable_path.stem().string()) << std::endl;
+				stats << "Application: " << std::hash<std::string>()(s_executable_name) << std::endl;
 				stats << "Date: " << static_cast<int>(_date[0]) << '-' << static_cast<int>(_date[1]) << '-' << static_cast<int>(_date[2]) << ' ' << static_cast<int>(_date[3]) << '\n';
 				stats << "Device: " << std::hex << std::uppercase << _vendor_id << ' ' << _device_id << std::nouppercase << std::dec << std::endl;
 				stats << "FPS: " << (1e9f / _average_frametime) << std::endl;
@@ -819,6 +821,9 @@ namespace reshade
 		std::time_t time = std::time(nullptr);
 		::localtime_s(&tm, &time);
 
+		auto executable_name = s_executable_name;
+		std::replace(executable_name.begin(), executable_name.end(), ' ', '_');
+
 		// Pre-process
 		fx::preprocessor preprocessor(_pragmas, _effect_source, _errors);
 		preprocessor.add_include_path(s_effect_path.parent_path());
@@ -826,7 +831,8 @@ namespace reshade
 		preprocessor.add_macro_definition("__VENDOR__", std::to_string(_vendor_id));
 		preprocessor.add_macro_definition("__DEVICE__", std::to_string(_device_id));
 		preprocessor.add_macro_definition("__RENDERER__", std::to_string(_renderer_id));
-		preprocessor.add_macro_definition("__APPLICATION__", std::to_string(std::hash<std::string>()(s_executable_path.stem().string())));
+		preprocessor.add_macro_definition("__APPLICATION__", std::to_string(std::hash<std::string>()(s_executable_name)));
+		preprocessor.add_macro_definition("__APPLICATION_NAME__", executable_name);
 		preprocessor.add_macro_definition("__DATE_YEAR__", std::to_string(tm.tm_year + 1900));
 		preprocessor.add_macro_definition("__DATE_MONTH__", std::to_string(tm.tm_mday));
 		preprocessor.add_macro_definition("__DATE_DAY__", std::to_string(tm.tm_mon + 1));
