@@ -482,6 +482,49 @@ namespace reshade
 						{
 							continue;
 						}
+						else if (current_token().literal_as_string == "exists")
+						{
+							const bool has_parentheses = accept(lexer::tokenid::parenthesis_open);
+
+							while (accept(lexer::tokenid::identifier))
+							{
+								if (!evaluate_identifier_as_macro())
+								{
+									error(current_token().location, "syntax error: unexpected identifier after 'exists'");
+									return 0;
+								}
+							}
+
+							if (!expect(lexer::tokenid::string_literal))
+							{
+								return 0;
+							}
+
+							const boost::filesystem::path filename = current_token().literal_as_string;
+							bool is_existing = exists(boost::filesystem::path(_output_location.source).parent_path() / filename);
+
+							if (!is_existing)
+							{
+								for (const auto &include_path : _include_paths)
+								{
+									is_existing = exists(absolute(filename, include_path));
+
+									if (is_existing)
+									{
+										break;
+									}
+								}
+							}
+
+							if (has_parentheses && !expect(lexer::tokenid::parenthesis_close))
+							{
+								return 0;
+							}
+
+							rpn[rpn_count].is_op = false;
+							rpn[rpn_count++].value = is_existing;
+							continue;
+						}
 						else if (current_token().literal_as_string == "defined")
 						{
 							const bool has_parentheses = accept(lexer::tokenid::parenthesis_open);
@@ -889,16 +932,13 @@ namespace reshade
 			}
 
 			boost::filesystem::path filename = current_token().literal_as_string;
-			filename.make_preferred();
 			auto path = boost::filesystem::path(_output_location.source).parent_path() / filename;
 
-			if (!boost::filesystem::exists(path))
+			if (!exists(path))
 			{
 				for (const auto &include_path : _include_paths)
 				{
-					path = boost::filesystem::absolute(filename, include_path);
-
-					if (boost::filesystem::exists(path))
+					if (exists(path = absolute(filename, include_path)))
 					{
 						break;
 					}
@@ -913,7 +953,7 @@ namespace reshade
 
 				if (!file.is_open())
 				{
-					error(keyword_location, "could not open included file '" + filename.string() + "'");
+					error(keyword_location, "could not open included file '" + filename.make_preferred().string() + "'");
 					consume_until(lexer::tokenid::end_of_line);
 					return;
 				}
