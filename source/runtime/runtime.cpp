@@ -10,7 +10,6 @@
 #include "utils\file_watcher.hpp"
 
 #include <iterator>
-#include <assert.h>
 #include <stb_dxt.h>
 #include <stb_image.h>
 #include <stb_image_write.h>
@@ -103,7 +102,7 @@ namespace reshade
 		LOG(INFO) << "Exited.";
 	}
 
-	runtime::runtime(unsigned int renderer) : _is_initialized(false), _is_effect_compiled(false), _width(0), _height(0), _vendor_id(0), _device_id(0), _renderer_id(renderer), _framecount(0), _drawcalls(0), _vertices(0), _input(nullptr), _date(), _compile_step(0), _compile_count(0), _screenshot_format("png"), _screenshot_path(s_executable_path.parent_path()), _screenshot_key(VK_SNAPSHOT), _show_statistics(false), _show_fps(false), _show_clock(false), _show_toggle_message(false), _show_info_messages(true)
+	runtime::runtime(unsigned int renderer) : _is_initialized(false), _is_effect_compiled(false), _width(0), _height(0), _vendor_id(0), _device_id(0), _framecount(0), _drawcalls(0), _vertices(0), _input(nullptr), _renderer_id(renderer), _date(), _compile_step(0), _compile_count(0), _screenshot_format("png"), _screenshot_path(s_executable_path.parent_path()), _screenshot_key(VK_SNAPSHOT), _show_statistics(false), _show_fps(false), _show_clock(false), _show_toggle_message(false), _show_info_messages(true)
 	{
 		_status = "Initializing ...";
 		_start_time = boost::chrono::high_resolution_clock::now();
@@ -548,9 +547,9 @@ namespace reshade
 	texture *runtime::find_texture(const std::string &name)
 	{
 		const auto it = std::find_if(_textures.begin(), _textures.end(),
-			[name](const std::unique_ptr<texture> &it)
+			[name](const std::unique_ptr<texture> &item)
 			{
-				return it->name == name;
+				return item->name == name;
 			});
 
 		return it != _textures.end() ? it->get() : nullptr;

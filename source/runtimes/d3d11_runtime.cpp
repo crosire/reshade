@@ -2197,9 +2197,9 @@ namespace reshade
 
 		// Reset reference count to make UnrealEngine happy
 		_backbuffer->AddRef();
-		_backbuffer.reset();
 
 		// Destroy resources
+		_backbuffer.reset();
 		_backbuffer_resolved.reset();
 		_backbuffer_texture.reset();
 		_backbuffer_texture_srv[0].reset();
@@ -2737,7 +2737,7 @@ namespace reshade
 		depth_source_info best_info = { 0 };
 		ID3D11DepthStencilView *best_match = nullptr;
 
-		for (auto it = _depth_source_table.begin(); it != _depth_source_table.end(); ++it)
+		for (auto it = _depth_source_table.begin(); it != _depth_source_table.end();)
 		{
 			const auto depthstencil = it->first;
 			auto &depthstencil_info = it->second;
@@ -2748,9 +2748,14 @@ namespace reshade
 
 				depthstencil->Release();
 
-				it = std::prev(_depth_source_table.erase(it));
+				it = _depth_source_table.erase(it);
 				continue;
 			}
+			else
+			{
+				++it;
+			}
+
 			if (depthstencil_info.drawcall_count == 0)
 			{
 				continue;
