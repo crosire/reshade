@@ -2179,7 +2179,6 @@ namespace reshade
 
 		// Clear reference count to make UnrealEngine happy
 		_backbuffer->Release();
-		_backbuffer->Release();
 
 		return runtime::on_init();
 	}
@@ -2198,7 +2197,7 @@ namespace reshade
 
 		// Reset reference count to make UnrealEngine happy
 		_backbuffer->AddRef();
-		_backbuffer = nullptr;
+		_backbuffer.reset();
 
 		// Destroy resources
 		_backbuffer_resolved.reset();
