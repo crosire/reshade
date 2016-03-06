@@ -1,80 +1,18 @@
 #include "log.hpp"
 #include "input.hpp"
 
-#include <algorithm>
-#include <WindowsX.h>
-
 namespace reshade
 {
-	unsigned long input::s_eyex_initialized = 0;
 	std::unordered_map<HWND, HHOOK> input::s_raw_input_hooks;
 	std::unordered_map<HWND, std::weak_ptr<input>> input::s_windows;
 
-	input::input(HWND hwnd) : _hwnd(hwnd), _keys(), _mouse_position(), _mouse_buttons(), _gaze_position(), _eyex(TX_EMPTY_HANDLE), _eyex_interactor(TX_EMPTY_HANDLE), _eyex_interactor_snapshot(TX_EMPTY_HANDLE)
+	input::input(HWND hwnd) : _hwnd(hwnd), _keys(), _mouse_buttons(), _mouse_position()
 	{
 		_hook_wndproc = SetWindowsHookEx(WH_GETMESSAGE, &handle_window_message, nullptr, GetWindowThreadProcessId(hwnd, nullptr));
-
-		if (s_eyex_initialized == 0)
-		{
-			const auto eyex_module = LoadLibraryA("Tobii.EyeX.Client.dll");
-
-			if (eyex_module != nullptr)
-			{
-				FreeLibrary(eyex_module);
-
-				LOG(INFO) << "Found Tobii EyeX library. Initializing ...";
-
-				const TX_RESULT initresult = txInitializeEyeX(TX_EYEXCOMPONENTOVERRIDEFLAG_NONE, nullptr, nullptr, nullptr, nullptr);
-
-				if (initresult == TX_RESULT_OK)
-				{
-					s_eyex_initialized++;
-				}
-				else
-				{
-					LOG(ERROR) << "EyeX initialization failed with error code " << initresult << ".";
-				}
-			}
-		}
-		if (s_eyex_initialized != 0 && txCreateContext(&_eyex, TX_FALSE) == TX_RESULT_OK)
-		{
-			LOG(INFO) << "Enabling connection with EyeX client ...";
-
-			TX_GAZEPOINTDATAPARAMS params = { TX_GAZEPOINTDATAMODE_LIGHTLYFILTERED };
-
-			txCreateGlobalInteractorSnapshot(_eyex, "ReShade", &_eyex_interactor_snapshot, &_eyex_interactor);
-			txCreateGazePointDataBehavior(_eyex_interactor, &params);
-
-			TX_TICKET ticket1 = TX_INVALID_TICKET, ticket2 = TX_INVALID_TICKET;
-
-			txRegisterEventHandler(_eyex, &ticket1, &handle_eyex_event, this);
-			txRegisterConnectionStateChangedHandler(_eyex, &ticket2, &handle_eyex_connection_state, this);
-
-			txEnableConnection(_eyex);
-		}
 	}
 	input::~input()
 	{
 		UnhookWindowsHookEx(_hook_wndproc);
-
-		if (_eyex != TX_EMPTY_HANDLE)
-		{
-			LOG(INFO) << "Disabling connection with EyeX client ...";
-
-			txDisableConnection(_eyex);
-
-			txReleaseObject(&_eyex_interactor);
-			txReleaseObject(&_eyex_interactor_snapshot);
-
-			txShutdownContext(_eyex, TX_CLEANUPTIMEOUT_DEFAULT, TX_FALSE);
-			txReleaseContext(&_eyex);
-		}
-		if (s_eyex_initialized != 0 && --s_eyex_initialized == 0)
-		{
-			LOG(INFO) << "Shutting down Tobii EyeX library ...";
-
-			txUninitializeEyeX();
-		}
 	}
 
 	void input::register_window(HWND hwnd, std::shared_ptr<input> &instance)
@@ -229,48 +167,6 @@ namespace reshade
 		}
 
 		return CallNextHookEx(nullptr, nCode, wParam, lParam);
-	}
-	void TX_CALLCONVENTION input::handle_eyex_event(TX_CONSTHANDLE hAsyncData, TX_USERPARAM userParam)
-	{
-		auto &input = *static_cast<class input *>(userParam);
-		TX_HANDLE event = TX_EMPTY_HANDLE, behavior = TX_EMPTY_HANDLE;
-
-		if (txGetAsyncDataContent(hAsyncData, &event) != TX_RESULT_OK)
-		{
-			return;
-		}
-
-		if (txGetEventBehavior(event, &behavior, TX_BEHAVIORTYPE_GAZEPOINTDATA) == TX_RESULT_OK)
-		{
-			TX_GAZEPOINTDATAEVENTPARAMS data;
-
-			if (txGetGazePointDataEventParams(behavior, &data) == TX_RESULT_OK)
-			{
-				input._gaze_position.x = static_cast<LONG>(data.X);
-				input._gaze_position.y = static_cast<LONG>(data.Y);
-
-				ScreenToClient(input._hwnd, &input._gaze_position);
-			}
-
-			txReleaseObject(&behavior);
-		}
-
-		txReleaseObject(&event);
-	}
-	void TX_CALLCONVENTION input::handle_eyex_connection_state(TX_CONNECTIONSTATE connectionState, TX_USERPARAM userParam)
-	{
-		auto &input = *static_cast<class input *>(userParam);
-
-		switch (connectionState)
-		{
-			case TX_CONNECTIONSTATE_CONNECTED:
-				LOG(TRACE) << "EyeX client connected.";
-				txCommitSnapshotAsync(input._eyex_interactor_snapshot, nullptr, nullptr);
-				break;
-			case TX_CONNECTIONSTATE_DISCONNECTED:
-				LOG(TRACE) << "EyeX client disconnected.";
-				break;
-		}
 	}
 
 	void input::next_frame()

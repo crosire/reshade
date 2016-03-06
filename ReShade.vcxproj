@@ -58,7 +58,6 @@
     <Import Project="deps\GL3W.props" />
     <Import Project="deps\STB.props" />
     <Import Project="deps\NanoVG.props" />
-    <Import Project="deps\EyeX.props" />
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
@@ -67,7 +66,6 @@
     <Import Project="deps\GL3W.props" />
     <Import Project="deps\STB.props" />
     <Import Project="deps\NanoVG.props" />
-    <Import Project="deps\EyeX.props" />
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
@@ -76,7 +74,6 @@
     <Import Project="deps\GL3W.props" />
     <Import Project="deps\STB.props" />
     <Import Project="deps\NanoVG.props" />
-    <Import Project="deps\EyeX.props" />
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
@@ -85,7 +82,6 @@
     <Import Project="deps\GL3W.props" />
     <Import Project="deps\STB.props" />
     <Import Project="deps\NanoVG.props" />
-    <Import Project="deps\EyeX.props" />
   </ImportGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
@@ -128,7 +124,7 @@
       <AdditionalLibraryDirectories>$(SolutionDir)\bin\$(Platform)\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <ModuleDefinitionFile>res\exports32.def</ModuleDefinitionFile>
       <AdditionalDependencies>d3dcompiler.lib;d3dx9.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <DelayLoadDLLs>Tobii.EyeX.Client.dll;d3dcompiler_43.dll;d3dx9_43.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
+      <DelayLoadDLLs>d3dcompiler_43.dll;d3dx9_43.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
     </Link>
     <ResourceCompile>
       <PreprocessorDefinitions>WIN32;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -151,7 +147,7 @@
       <AdditionalLibraryDirectories>$(SolutionDir)\bin\$(Platform)\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <ModuleDefinitionFile>res\exports64.def</ModuleDefinitionFile>
       <AdditionalDependencies>d3dcompiler.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <DelayLoadDLLs>Tobii.EyeX.Client.dll;d3dcompiler_43.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
+      <DelayLoadDLLs>d3dcompiler_43.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
     </Link>
     <ResourceCompile>
       <PreprocessorDefinitions>WIN64;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -178,7 +174,7 @@
       <AdditionalLibraryDirectories>$(SolutionDir)\bin\$(Platform)\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <ModuleDefinitionFile>res\exports32.def</ModuleDefinitionFile>
       <AdditionalDependencies>d3dcompiler.lib;d3dx9.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <DelayLoadDLLs>Tobii.EyeX.Client.dll;d3dcompiler_43.dll;d3dx9_43.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
+      <DelayLoadDLLs>d3dcompiler_43.dll;d3dx9_43.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
     </Link>
     <ResourceCompile>
       <PreprocessorDefinitions>WIN32;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -212,7 +208,7 @@ tools\upx --backup "$(TargetPath)"</Command>
       <AdditionalLibraryDirectories>$(SolutionDir)\bin\$(Platform)\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <ModuleDefinitionFile>res\exports64.def</ModuleDefinitionFile>
       <AdditionalDependencies>d3dcompiler.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <DelayLoadDLLs>Tobii.EyeX.Client.dll;d3dcompiler_43.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
+      <DelayLoadDLLs>d3dcompiler_43.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
     </Link>
     <ResourceCompile>
       <PreprocessorDefinitions>WIN64;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>

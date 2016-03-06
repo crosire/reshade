@@ -1,10 +1,8 @@
 #pragma once
 
 #include <memory>
-#include <vector>
 #include <unordered_map>
 #include <assert.h>
-#include <EyeX.h>
 #include <Windows.h>
 
 namespace reshade
@@ -12,7 +10,7 @@ namespace reshade
 	class input
 	{
 	public:
-		input(HWND hwnd);
+		explicit input(HWND hwnd);
 		~input();
 
 		static void register_window(HWND hwnd, std::shared_ptr<input> &instance);
@@ -55,10 +53,6 @@ namespace reshade
 
 			return _mouse_buttons[button] == -1;
 		}
-		const POINT &gaze_position() const
-		{
-			return _gaze_position;
-		}
 		const POINT &mouse_position() const
 		{
 			return _mouse_position;
@@ -68,16 +62,11 @@ namespace reshade
 
 	private:
 		static LRESULT CALLBACK handle_window_message(int nCode, WPARAM wParam, LPARAM lParam);
-		static void TX_CALLCONVENTION handle_eyex_event(TX_CONSTHANDLE hAsyncData, TX_USERPARAM userParam);
-		static void TX_CALLCONVENTION handle_eyex_connection_state(TX_CONNECTIONSTATE connectionState, TX_USERPARAM userParam);
 
 		HWND _hwnd;
 		HHOOK _hook_wndproc;
 		signed char _keys[256], _mouse_buttons[3];
-		POINT _gaze_position, _mouse_position;
-		TX_CONTEXTHANDLE _eyex;
-		TX_HANDLE _eyex_interactor, _eyex_interactor_snapshot;
-		static unsigned long s_eyex_initialized;
+		POINT _mouse_position;
 		static std::unordered_map<HWND, HHOOK> s_raw_input_hooks;
 		static std::unordered_map<HWND, std::weak_ptr<input>> s_windows;
 	};
