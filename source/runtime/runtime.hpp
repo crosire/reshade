@@ -2,6 +2,7 @@
 
 #include "utils\moving_average.hpp"
 
+#include <atomic>
 #include <memory>
 #include <string>
 #include <vector>
@@ -210,7 +211,7 @@ namespace reshade
 		/// </summary>
 		static void shutdown();
 
-		runtime(unsigned int renderer);
+		explicit runtime(unsigned int renderer);
 		virtual ~runtime();
 
 		/// <summary>
@@ -294,7 +295,7 @@ namespace reshade
 		void set_uniform_value(uniform &variable, const unsigned int *values, size_t count);
 		void set_uniform_value(uniform &variable, const float *values, size_t count);
 
-		static volatile long s_network_upload;
+		static std::atomic<unsigned int> s_network_traffic;
 
 	protected:
 		/// <summary>

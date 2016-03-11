@@ -46,7 +46,7 @@ namespace reshade
 		std::string s_executable_name;
 	}
 
-	volatile long runtime::s_network_upload = 0;
+	std::atomic<unsigned int> runtime::s_network_traffic(0);
 
 	void runtime::startup(const boost::filesystem::path &executable_path, const boost::filesystem::path &injector_path)
 	{
@@ -287,7 +287,7 @@ namespace reshade
 				stats << "Frame " << (_framecount + 1) << ": " << (frametime.count() * 1e-6f) << "ms" << std::endl;
 				stats << "PostProcessing: " << (boost::chrono::duration_cast<boost::chrono::nanoseconds>(_last_postprocessing_duration).count() * 1e-6f) << "ms" << std::endl;
 				stats << "Timer: " << std::fmod(boost::chrono::duration_cast<boost::chrono::nanoseconds>(_last_present - _start_time).count() * 1e-6f, 16777216.0f) << "ms" << std::endl;
-				stats << "Network: " << s_network_upload << "B up" << std::endl;
+				stats << "Network: " << s_network_traffic << "B" << std::endl;
 
 				stats << std::endl;
 				stats << "Textures" << std::endl << "--------" << std::endl;
@@ -319,7 +319,7 @@ namespace reshade
 		#pragma endregion
 
 		#pragma region Update statistics
-		s_network_upload = 0;
+		s_network_traffic = 0;
 		_last_present = time_present;
 		_last_frame_duration = frametime;
 		_framecount++;

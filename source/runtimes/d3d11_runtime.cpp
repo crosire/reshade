@@ -2708,7 +2708,7 @@ namespace reshade
 
 		if (cooldown-- > 0)
 		{
-			traffic += s_network_upload > 0;
+			traffic += s_network_traffic > 0;
 			return;
 		}
 		else

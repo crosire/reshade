@@ -411,5 +411,10 @@ EXPORTS
 	; ws2_32.dll
 	send = HookSend
 	sendto = HookSendTo
+	recv = HookRecv
+	recvfrom = HookRecvFrom
 	WSASend = HookWSASend
 	WSASendTo = HookWSASendTo
+	WSARecv = HookWSARecv
+	WSARecvEx = HookWSARecvEx
+	WSARecvFrom = HookWSARecvFrom
