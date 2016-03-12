@@ -1,7 +1,4 @@
 #include "parser.hpp"
-
-#include <algorithm>
-#include <functional>
 #include <boost\assign\list_of.hpp>
 #include <boost\algorithm\string.hpp>
 
@@ -3744,15 +3741,15 @@ namespace reshade
 						switch (right->type.basetype) \
 						{ \
 							case type_node::datatype_bool: case type_node::datatype_int: case type_node::datatype_uint: \
-								result.value_int[i] = left->value_int[leftScalar ? 0 : i] op right->value_int[rightScalar ? 0 : i]; \
+								result.value_int[i] = left->value_int[left_scalar ? 0 : i] op right->value_int[right_scalar ? 0 : i]; \
 								break; \
 							case type_node::datatype_float: \
-								result.value_float[i] = static_cast<float>(left->value_int[!leftScalar * i]) op right->value_float[!rightScalar * i]; \
+								result.value_float[i] = static_cast<float>(left->value_int[!left_scalar * i]) op right->value_float[!right_scalar * i]; \
 								break; \
 						} \
 						break; \
 					case type_node::datatype_float: \
-						result.value_float[i] = (right->type.basetype == type_node::datatype_float) ? (left->value_float[!leftScalar * i] op right->value_float[!rightScalar * i]) : (left->value_float[!leftScalar * i] op static_cast<float>(right->value_int[!rightScalar * i])); \
+						result.value_float[i] = (right->type.basetype == type_node::datatype_float) ? (left->value_float[!left_scalar * i] op right->value_float[!right_scalar * i]) : (left->value_float[!left_scalar * i] op static_cast<float>(right->value_int[!right_scalar * i])); \
 						break; \
 				} \
 			left->type = expression->type; \
@@ -3764,7 +3761,7 @@ namespace reshade
 			literal_expression_node result; \
 			for (unsigned int i = 0; i < expression->type.rows * expression->type.cols; ++i) \
 			{ \
-				result.value_int[i] = left->value_int[!leftScalar * i] op right->value_int[!rightScalar * i]; \
+				result.value_int[i] = left->value_int[!left_scalar * i] op right->value_int[!right_scalar * i]; \
 			} \
 			left->type = expression->type; \
 			memcpy(left->value_uint, result.value_uint, sizeof(result.value_uint)); \
@@ -3777,10 +3774,10 @@ namespace reshade
 				switch (left->type.basetype) \
 				{ \
 					case type_node::datatype_bool: case type_node::datatype_int: case type_node::datatype_uint: \
-						result.value_int[i] = (right->type.basetype == type_node::datatype_float) ? (static_cast<float>(left->value_int[!leftScalar * i]) op right->value_float[!rightScalar * i]) : (left->value_int[!leftScalar * i] op right->value_int[!rightScalar * i]); \
+						result.value_int[i] = (right->type.basetype == type_node::datatype_float) ? (static_cast<float>(left->value_int[!left_scalar * i]) op right->value_float[!right_scalar * i]) : (left->value_int[!left_scalar * i] op right->value_int[!right_scalar * i]); \
 						break; \
 					case type_node::datatype_float: \
-						result.value_int[i] = (right->type.basetype == type_node::datatype_float) ? (left->value_float[!leftScalar * i] op static_cast<float>(right->value_int[!rightScalar * i])) : (left->value_float[!leftScalar * i] op right->value_float[!rightScalar * i]); \
+						result.value_int[i] = (right->type.basetype == type_node::datatype_float) ? (left->value_float[!left_scalar * i] op static_cast<float>(right->value_int[!right_scalar * i])) : (left->value_float[!left_scalar * i] op right->value_float[!right_scalar * i]); \
 						break; \
 				} \
 			left->type = expression->type; \
@@ -3795,10 +3792,10 @@ namespace reshade
 				switch (left->type.basetype) \
 				{ \
 					case type_node::datatype_bool:  case type_node::datatype_int: case type_node::datatype_uint: \
-						result.value_float[i] = (right->type.basetype == type_node::datatype_float) ? (static_cast<float>(left->value_int[!leftScalar * i]) op right->value_float[!rightScalar * i]) : (left->value_int[leftScalar ? 0 : i] op right->value_int[rightScalar ? 0 : i]); \
+						result.value_float[i] = (right->type.basetype == type_node::datatype_float) ? (static_cast<float>(left->value_int[!left_scalar * i]) op right->value_float[!right_scalar * i]) : (left->value_int[left_scalar ? 0 : i] op right->value_int[right_scalar ? 0 : i]); \
 						break; \
 					case type_node::datatype_float: \
-						result.value_float[i] = (right->type.basetype == type_node::datatype_float) ? (left->value_float[!leftScalar * i] op right->value_float[!rightScalar * i]) : (left->value_float[!leftScalar * i] op static_cast<float>(right->value_int[!rightScalar * i])); \
+						result.value_float[i] = (right->type.basetype == type_node::datatype_float) ? (left->value_float[!left_scalar * i] op right->value_float[!right_scalar * i]) : (left->value_float[!left_scalar * i] op static_cast<float>(right->value_int[!right_scalar * i])); \
 						break; \
 				} \
 			left->type = expression->type; \
@@ -3887,8 +3884,8 @@ namespace reshade
 
 				const auto left = static_cast<literal_expression_node *>(binaryexpression->operands[0]);
 				const auto right = static_cast<literal_expression_node *>(binaryexpression->operands[1]);
-				const bool leftScalar = left->type.rows * left->type.cols == 1;
-				const bool rightScalar = right->type.rows * right->type.cols == 1;
+				const bool left_scalar = left->type.rows * left->type.cols == 1;
+				const bool right_scalar = right->type.rows * right->type.cols == 1;
 
 				switch (binaryexpression->op)
 				{
@@ -3902,7 +3899,11 @@ namespace reshade
 						DOFOLDING2(*);
 						break;
 					case binary_expression_node::divide:
-						DOFOLDING2_FLOAT(/ );
+						if (right->value_float[0] == 0)
+						{
+							return expression;
+						}
+						DOFOLDING2_FLOAT(/);
 						break;
 					case binary_expression_node::modulo:
 						DOFOLDING2_FUNCTION(std::fmod);
@@ -3914,28 +3915,28 @@ namespace reshade
 						DOFOLDING2_BOOL(>);
 						break;
 					case binary_expression_node::less_equal:
-						DOFOLDING2_BOOL(<= );
+						DOFOLDING2_BOOL(<=);
 						break;
 					case binary_expression_node::greater_equal:
-						DOFOLDING2_BOOL(>= );
+						DOFOLDING2_BOOL(>=);
 						break;
 					case binary_expression_node::equal:
-						DOFOLDING2_BOOL(== );
+						DOFOLDING2_BOOL(==);
 						break;
 					case binary_expression_node::not_equal:
-						DOFOLDING2_BOOL(!= );
+						DOFOLDING2_BOOL(!=);
 						break;
 					case binary_expression_node::left_shift:
-						DOFOLDING2_INT(<< );
+						DOFOLDING2_INT(<<);
 						break;
 					case binary_expression_node::right_shift:
-						DOFOLDING2_INT(>> );
+						DOFOLDING2_INT(>>);
 						break;
 					case binary_expression_node::bitwise_and:
 						DOFOLDING2_INT(&);
 						break;
 					case binary_expression_node::bitwise_or:
-						DOFOLDING2_INT(| );
+						DOFOLDING2_INT(|);
 						break;
 					case binary_expression_node::bitwise_xor:
 						DOFOLDING2_INT(^);
@@ -3944,7 +3945,7 @@ namespace reshade
 						DOFOLDING2_BOOL(&&);
 						break;
 					case binary_expression_node::logical_or:
-						DOFOLDING2_BOOL(|| );
+						DOFOLDING2_BOOL(||);
 						break;
 				}
 			}
