@@ -634,10 +634,15 @@ namespace reshade
 
 			for (char c = *end; c != '"'; c = *++end)
 			{
-				if (c == '\n' || c == '\r' || end >= _end)
+				if (c == '\n' || end >= _end)
 				{
 					end--;
 					break;
+				}
+				if (c == '\\' && end[1] == '\n')
+				{
+					end++;
+					continue;
 				}
 
 				if (c == '\\' && escape)
