@@ -3,13 +3,35 @@
 #include "runtime.hpp"
 #include "utils\com_ptr.hpp"
 #include "utils\critical_section.hpp"
-#include "utils\d3d11_stateblock.hpp"
+#include "d3d11_stateblock.hpp"
 
 #include <algorithm>
 #include <d3d11_3.h>
 
 namespace reshade
 {
+	struct d3d11_texture : texture
+	{
+		d3d11_texture() : shader_register(0) { }
+
+		size_t shader_register;
+		com_ptr<ID3D11Texture2D> texture;
+		com_ptr<ID3D11ShaderResourceView> srv[2];
+		com_ptr<ID3D11RenderTargetView> rtv[2];
+	};
+	struct d3d11_pass : technique::pass
+	{
+		com_ptr<ID3D11VertexShader> vertex_shader;
+		com_ptr<ID3D11PixelShader> pixel_shader;
+		com_ptr<ID3D11BlendState> blend_state;
+		com_ptr<ID3D11DepthStencilState> depth_stencil_state;
+		UINT stencil_reference;
+		ID3D11RenderTargetView *render_targets[D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT];
+		ID3D11ShaderResourceView *render_target_resources[D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT];
+		D3D11_VIEWPORT viewport;
+		std::vector<ID3D11ShaderResourceView *> shader_resources;
+	};
+
 	class d3d11_runtime : public runtime
 	{
 	public:

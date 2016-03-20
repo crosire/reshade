@@ -246,15 +246,19 @@ tools\upx --backup "$(TargetPath)"</Command>
     <ClCompile Include="source\runtime\gui.cpp" />
     <ClCompile Include="source\runtime\runtime.cpp" />
     <ClCompile Include="source\runtime\input.cpp" />
+    <ClCompile Include="source\runtimes\d3d9_fx_compiler.cpp" />
     <ClCompile Include="source\runtimes\d3d9_runtime.cpp" />
+    <ClCompile Include="source\runtimes\d3d10_fx_compiler.cpp" />
     <ClCompile Include="source\runtimes\d3d10_runtime.cpp" />
+    <ClCompile Include="source\runtimes\d3d10_stateblock.cpp" />
+    <ClCompile Include="source\runtimes\d3d11_fx_compiler.cpp" />
     <ClCompile Include="source\runtimes\d3d11_runtime.cpp" />
+    <ClCompile Include="source\runtimes\d3d11_stateblock.cpp" />
     <ClCompile Include="source\runtimes\d3d12_runtime.cpp" />
+    <ClCompile Include="source\runtimes\gl_fx_compiler.cpp" />
     <ClCompile Include="source\runtimes\gl_runtime.cpp" />
-    <ClCompile Include="source\utils\d3d10_stateblock.cpp" />
-    <ClCompile Include="source\utils\d3d11_stateblock.cpp" />
+    <ClCompile Include="source\runtimes\gl_stateblock.cpp" />
     <ClCompile Include="source\utils\file_watcher.cpp" />
-    <ClCompile Include="source\utils\gl_stateblock.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="res\version.h" />
@@ -279,17 +283,21 @@ tools\upx --backup "$(TargetPath)"</Command>
     <ClInclude Include="source\runtime\gui.hpp" />
     <ClInclude Include="source\runtime\runtime.hpp" />
     <ClInclude Include="source\runtime\input.hpp" />
+    <ClInclude Include="source\runtimes\d3d9_fx_compiler.hpp" />
     <ClInclude Include="source\runtimes\d3d9_runtime.hpp" />
+    <ClInclude Include="source\runtimes\d3d10_fx_compiler.hpp" />
     <ClInclude Include="source\runtimes\d3d10_runtime.hpp" />
+    <ClInclude Include="source\runtimes\d3d10_stateblock.hpp" />
+    <ClInclude Include="source\runtimes\d3d11_fx_compiler.hpp" />
     <ClInclude Include="source\runtimes\d3d11_runtime.hpp" />
+    <ClInclude Include="source\runtimes\d3d11_stateblock.hpp" />
     <ClInclude Include="source\runtimes\d3d12_runtime.hpp" />
+    <ClInclude Include="source\runtimes\gl_fx_compiler.hpp" />
     <ClInclude Include="source\runtimes\gl_runtime.hpp" />
+    <ClInclude Include="source\runtimes\gl_stateblock.hpp" />
     <ClInclude Include="source\utils\com_ptr.hpp" />
     <ClInclude Include="source\utils\critical_section.hpp" />
-    <ClInclude Include="source\utils\d3d10_stateblock.hpp" />
-    <ClInclude Include="source\utils\d3d11_stateblock.hpp" />
     <ClInclude Include="source\utils\file_watcher.hpp" />
-    <ClInclude Include="source\utils\gl_stateblock.hpp" />
     <ClInclude Include="source\utils\moving_average.hpp" />
   </ItemGroup>
   <ItemGroup>

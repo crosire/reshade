@@ -2,13 +2,34 @@
 
 #include "runtime.hpp"
 #include "utils\com_ptr.hpp"
-#include "utils\d3d10_stateblock.hpp"
+#include "d3d10_stateblock.hpp"
 
-#include <algorithm>
 #include <d3d10_1.h>
 
 namespace reshade
 {
+	struct d3d10_texture : texture
+	{
+		d3d10_texture() : shader_register(0) { }
+
+		size_t shader_register;
+		com_ptr<ID3D10Texture2D> texture;
+		com_ptr<ID3D10ShaderResourceView> srv[2];
+		com_ptr<ID3D10RenderTargetView> rtv[2];
+	};
+	struct d3d10_pass : technique::pass
+	{
+		com_ptr<ID3D10VertexShader> vertex_shader;
+		com_ptr<ID3D10PixelShader> pixel_shader;
+		com_ptr<ID3D10BlendState> blend_state;
+		com_ptr<ID3D10DepthStencilState> depth_stencil_state;
+		UINT stencil_reference;
+		ID3D10RenderTargetView *render_targets[D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT];
+		ID3D10ShaderResourceView *render_target_resources[D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT];
+		D3D10_VIEWPORT viewport;
+		std::vector<ID3D10ShaderResourceView *> shader_resources;
+	};
+
 	class d3d10_runtime : public runtime
 	{
 	public:

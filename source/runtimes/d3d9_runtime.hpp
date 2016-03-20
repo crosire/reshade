@@ -3,11 +3,32 @@
 #include "runtime.hpp"
 #include "utils\com_ptr.hpp"
 
-#include <algorithm>
 #include <d3d9.h>
 
 namespace reshade
 {
+	struct d3d9_texture : texture
+	{
+		com_ptr<IDirect3DTexture9> texture;
+		com_ptr<IDirect3DSurface9> surface;
+	};
+	struct d3d9_sampler
+	{
+		DWORD States[12];
+		d3d9_texture *Texture;
+	};
+	struct d3d9_pass : technique::pass
+	{
+		d3d9_pass() : samplers(), sampler_count(0), render_targets() { }
+
+		com_ptr<IDirect3DVertexShader9> vertex_shader;
+		com_ptr<IDirect3DPixelShader9> pixel_shader;
+		d3d9_sampler samplers[16];
+		DWORD sampler_count;
+		com_ptr<IDirect3DStateBlock9> stateblock;
+		IDirect3DSurface9 *render_targets[8];
+	};
+
 	class d3d9_runtime : public runtime
 	{
 	public:

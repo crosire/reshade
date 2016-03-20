@@ -23,7 +23,7 @@ namespace reshade
 			_errors += location.source + "(" + std::to_string(location.line) + ", " + std::to_string(location.column) + "): warning: " + message + '\n';
 		}
 
-		void compiler::visit(std::string &output, const statement_node *node)
+		void compiler::visit(std::stringstream &output, const statement_node *node)
 		{
 			if (node == nullptr)
 			{
@@ -63,7 +63,7 @@ namespace reshade
 					assert(false);
 			}
 		}
-		void compiler::visit(std::string &output, const expression_node *node)
+		void compiler::visit(std::stringstream &output, const expression_node *node)
 		{
 			switch (node->id)
 			{
