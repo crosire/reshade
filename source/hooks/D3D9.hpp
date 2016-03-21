@@ -160,8 +160,8 @@ struct Direct3DDevice9 : IDirect3DDevice9Ex
 	bool _use_software_rendering;
 
 private:
-	Direct3DDevice9(const Direct3DDevice9 &);
-	Direct3DDevice9 &operator=(const Direct3DDevice9 &);
+	Direct3DDevice9(const Direct3DDevice9 &) = delete;
+	Direct3DDevice9 &operator=(const Direct3DDevice9 &) = delete;
 };
 struct Direct3DSwapChain9 : IDirect3DSwapChain9Ex
 {
@@ -195,6 +195,6 @@ struct Direct3DSwapChain9 : IDirect3DSwapChain9Ex
 	std::shared_ptr<reshade::d3d9_runtime> _runtime;
 
 private:
-	Direct3DSwapChain9(const Direct3DSwapChain9 &);
-	Direct3DSwapChain9 &operator=(const Direct3DSwapChain9 &);
+	Direct3DSwapChain9(const Direct3DSwapChain9 &) = delete;
+	Direct3DSwapChain9 &operator=(const Direct3DSwapChain9 &) = delete;
 };

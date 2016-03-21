@@ -64,8 +64,8 @@ struct D3D12Device : ID3D12Device
 	ID3D12Device *const _orig;
 
 private:
-	D3D12Device(const D3D12Device &);
-	D3D12Device &operator=(const D3D12Device &);
+	D3D12Device(const D3D12Device &) = delete;
+	D3D12Device &operator=(const D3D12Device &) = delete;
 };
 struct D3D12CommandQueue : ID3D12CommandQueue
 {
@@ -104,6 +104,6 @@ struct D3D12CommandQueue : ID3D12CommandQueue
 	D3D12Device *const _device;
 
 private:
-	D3D12CommandQueue(const D3D12CommandQueue &);
-	D3D12CommandQueue &operator=(const D3D12CommandQueue &);
+	D3D12CommandQueue(const D3D12CommandQueue &) = delete;
+	D3D12CommandQueue &operator=(const D3D12CommandQueue &) = delete;
 };

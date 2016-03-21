@@ -49,8 +49,8 @@ struct DXGIDevice : IDXGIDevice3
 	IUnknown *const _direct3d_device;
 
 private:
-	DXGIDevice(const DXGIDevice &);
-	DXGIDevice &operator=(const DXGIDevice &);
+	DXGIDevice(const DXGIDevice &) = delete;
+	DXGIDevice &operator=(const DXGIDevice &) = delete;
 };
 struct DXGISwapChain : IDXGISwapChain3
 {
@@ -124,6 +124,6 @@ struct DXGISwapChain : IDXGISwapChain3
 	std::shared_ptr<reshade::runtime> _runtime;
 
 private:
-	DXGISwapChain(const DXGISwapChain &);
-	DXGISwapChain &operator=(const DXGISwapChain &);
+	DXGISwapChain(const DXGISwapChain &) = delete;
+	DXGISwapChain &operator=(const DXGISwapChain &) = delete;
 };

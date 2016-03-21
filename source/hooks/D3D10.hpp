@@ -124,6 +124,6 @@ struct D3D10Device : ID3D10Device1
 	std::vector<std::shared_ptr<reshade::d3d10_runtime>> _runtimes;
 
 private:
-	D3D10Device(const D3D10Device &);
-	D3D10Device &operator=(const D3D10Device &);
+	D3D10Device(const D3D10Device &) = delete;
+	D3D10Device &operator=(const D3D10Device &) = delete;
 };

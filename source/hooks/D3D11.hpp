@@ -96,8 +96,8 @@ struct D3D11Device : ID3D11Device3
 	std::vector<std::shared_ptr<reshade::d3d11_runtime>> _runtimes;
 
 private:
-	D3D11Device(const D3D11Device &);
-	D3D11Device &operator=(const D3D11Device &);
+	D3D11Device(const D3D11Device &) = delete;
+	D3D11Device &operator=(const D3D11Device &) = delete;
 };
 struct D3D11DeviceContext : ID3D11DeviceContext3
 {
@@ -272,6 +272,6 @@ struct D3D11DeviceContext : ID3D11DeviceContext3
 	D3D11Device *const _device;
 
 private:
-	D3D11DeviceContext(const D3D11DeviceContext &);
-	D3D11DeviceContext &operator=(const D3D11DeviceContext &);
+	D3D11DeviceContext(const D3D11DeviceContext &) = delete;
+	D3D11DeviceContext &operator=(const D3D11DeviceContext &) = delete;
 };
