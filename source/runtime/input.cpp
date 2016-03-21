@@ -19,7 +19,7 @@ namespace reshade
 	{
 		const auto insert = s_windows.emplace(hwnd, std::weak_ptr<input>());
 
-		if (insert.second)
+		if (insert.second || insert.first->second.expired())
 		{
 			LOG(INFO) << "Starting input capture for window " << hwnd << " ...";
 
