@@ -2,7 +2,7 @@
 
 #include "hook.hpp"
 
-#include <boost\filesystem\path.hpp>
+#include <boost/filesystem/path.hpp>
 
 #define EXPORT extern "C"
 #define VTABLE(object) (*reinterpret_cast<reshade::hook::address **>(object))

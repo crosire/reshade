@@ -1,14 +1,14 @@
 #pragma once
 
-#include "utils\moving_average.hpp"
+#include "utils/moving_average.hpp"
 
 #include <atomic>
 #include <memory>
 #include <string>
 #include <vector>
 #include <unordered_map>
-#include <boost\chrono.hpp>
-#include <boost\filesystem\path.hpp>
+#include <boost/chrono.hpp>
+#include <boost/filesystem/path.hpp>
 
 #pragma region Forward Declarations
 namespace reshade

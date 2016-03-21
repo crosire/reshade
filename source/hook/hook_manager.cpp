@@ -1,6 +1,6 @@
 #include "log.hpp"
 #include "hook_manager.hpp"
-#include "utils\critical_section.hpp"
+#include "utils/critical_section.hpp"
 
 #include <vector>
 #include <algorithm>

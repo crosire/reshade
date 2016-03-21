@@ -3,7 +3,7 @@
 #include "runtime.hpp"
 
 #include <nanovg.h>
-#include <boost\filesystem\path.hpp>
+#include <boost/filesystem/path.hpp>
 #include <Windows.h>
 
 namespace reshade

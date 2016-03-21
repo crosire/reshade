@@ -3,7 +3,7 @@
 #include <codecvt>
 #include <fstream>
 #include <iomanip>
-#include <boost\filesystem\path.hpp>
+#include <boost/filesystem/path.hpp>
 
 #define LOG(LEVEL) LOG_##LEVEL()
 #define LOG_FATAL() reshade::log::message(reshade::log::level::fatal)

@@ -1,5 +1,5 @@
 #include "log.hpp"
-#include "hooks\D3D8.hpp"
+#include "hooks/d3d8.hpp"
 
 #include <regex>
 #include <assert.h>

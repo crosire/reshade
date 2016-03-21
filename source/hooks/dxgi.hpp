@@ -1,8 +1,8 @@
 #pragma once
 
-#include "Hooks\D3D10.hpp"
-#include "Hooks\D3D11.hpp"
-#include "Hooks\D3D12.hpp"
+#include "hooks/d3d10.hpp"
+#include "hooks/d3d11.hpp"
+#include "hooks/d3d12.hpp"
 
 struct __declspec(uuid("CB285C3B-3677-4332-98C7-D6339B9782B1")) DXGIDevice;
 struct __declspec(uuid("1F445F9F-9887-4C4C-9055-4E3BADAFCCA8")) DXGISwapChain;

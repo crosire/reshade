@@ -231,18 +231,18 @@ tools\upx --backup "$(TargetPath)"</Command>
     <ClCompile Include="source\fx\symbol_table.cpp" />
     <ClCompile Include="source\hook\hook.cpp" />
     <ClCompile Include="source\hook\hook_manager.cpp" />
-    <ClCompile Include="source\hooks\D3D8.cpp">
+    <ClCompile Include="source\hooks\d3d8.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </ClCompile>
-    <ClCompile Include="source\hooks\D3D9.cpp" />
-    <ClCompile Include="source\hooks\D3D10.cpp" />
-    <ClCompile Include="source\hooks\D3D11.cpp" />
-    <ClCompile Include="source\hooks\D3D12.cpp" />
-    <ClCompile Include="source\hooks\DXGI.cpp" />
-    <ClCompile Include="source\hooks\OPENGL32.cpp" />
-    <ClCompile Include="source\hooks\USER32.cpp" />
-    <ClCompile Include="source\hooks\WS2_32.cpp" />
+    <ClCompile Include="source\hooks\d3d9.cpp" />
+    <ClCompile Include="source\hooks\d3d10.cpp" />
+    <ClCompile Include="source\hooks\d3d11.cpp" />
+    <ClCompile Include="source\hooks\d3d12.cpp" />
+    <ClCompile Include="source\hooks\dxgi.cpp" />
+    <ClCompile Include="source\hooks\opengl32.cpp" />
+    <ClCompile Include="source\hooks\user32.cpp" />
+    <ClCompile Include="source\hooks\ws2_32.cpp" />
     <ClCompile Include="source\runtime\gui.cpp" />
     <ClCompile Include="source\runtime\runtime.cpp" />
     <ClCompile Include="source\runtime\input.cpp" />
@@ -262,7 +262,7 @@ tools\upx --backup "$(TargetPath)"</Command>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="res\version.h" />
-    <ClInclude Include="source\log.hpp" />
+        <ClInclude Include="source\log.hpp" />
     <ClInclude Include="source\fx\ast.hpp" />
     <ClInclude Include="source\fx\compiler.hpp" />
     <ClInclude Include="source\fx\lexer.hpp" />
@@ -271,15 +271,13 @@ tools\upx --backup "$(TargetPath)"</Command>
     <ClInclude Include="source\fx\symbol_table.hpp" />
     <ClInclude Include="source\hook\hook.hpp" />
     <ClInclude Include="source\hook\hook_manager.hpp" />
-    <ClInclude Include="source\hooks\D3D8.hpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-    </ClInclude>
-    <ClInclude Include="source\hooks\D3D9.hpp" />
-    <ClInclude Include="source\hooks\D3D10.hpp" />
-    <ClInclude Include="source\hooks\D3D11.hpp" />
-    <ClInclude Include="source\hooks\D3D12.hpp" />
-    <ClInclude Include="source\hooks\DXGI.hpp" />
+    <ClInclude Include="source\hooks\d3d8.hpp" />
+	<ClInclude Include="source\hooks\d3d8_types.h" />
+    <ClInclude Include="source\hooks\d3d9.hpp" />
+    <ClInclude Include="source\hooks\d3d10.hpp" />
+    <ClInclude Include="source\hooks\d3d11.hpp" />
+    <ClInclude Include="source\hooks\d3d12.hpp" />
+    <ClInclude Include="source\hooks\dxgi.hpp" />
     <ClInclude Include="source\runtime\gui.hpp" />
     <ClInclude Include="source\runtime\runtime.hpp" />
     <ClInclude Include="source\runtime\input.hpp" />

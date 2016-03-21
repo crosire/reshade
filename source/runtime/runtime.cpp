@@ -2,19 +2,19 @@
 #include "version.h"
 #include "runtime.hpp"
 #include "hook_manager.hpp"
-#include "fx\ast.hpp"
-#include "fx\parser.hpp"
-#include "fx\preprocessor.hpp"
+#include "fx/ast.hpp"
+#include "fx/parser.hpp"
+#include "fx/preprocessor.hpp"
 #include "gui.hpp"
 #include "input.hpp"
-#include "utils\file_watcher.hpp"
+#include "utils/file_watcher.hpp"
 
 #include <iterator>
 #include <stb_dxt.h>
 #include <stb_image.h>
 #include <stb_image_write.h>
 #include <stb_image_resize.h>
-#include <boost\filesystem\operations.hpp>
+#include <boost/filesystem/operations.hpp>
 
 namespace reshade
 {

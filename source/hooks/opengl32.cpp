@@ -1,7 +1,7 @@
 #include "log.hpp"
 #include "hook_manager.hpp"
-#include "runtimes\gl_runtime.hpp"
-#include "utils\critical_section.hpp"
+#include "runtimes/gl_runtime.hpp"
+#include "utils/critical_section.hpp"
 
 #include <memory>
 #include <unordered_map>
