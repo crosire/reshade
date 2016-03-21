@@ -12,8 +12,8 @@ namespace reshade
 	{
 		class preprocessor
 		{
-			preprocessor(const preprocessor &);
-			preprocessor &operator=(const preprocessor &);
+			preprocessor(const preprocessor &) = delete;
+			preprocessor &operator=(const preprocessor &) = delete;
 
 		public:
 			struct macro

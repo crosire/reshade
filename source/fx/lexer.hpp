@@ -18,7 +18,7 @@ namespace reshade
 
 		class lexer
 		{
-			lexer &operator=(const lexer &);
+			lexer &operator=(const lexer &) = delete;
 
 		public:
 			enum class tokenid

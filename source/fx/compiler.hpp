@@ -8,8 +8,8 @@ namespace reshade
 	{
 		class compiler
 		{
-			compiler(const compiler &);
-			compiler &operator=(const compiler &);
+			compiler(const compiler &) = delete;
+			compiler &operator=(const compiler &) = delete;
 
 		public:
 			compiler(const nodetree &ast, std::string &errors);

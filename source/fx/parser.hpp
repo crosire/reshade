@@ -11,8 +11,8 @@ namespace reshade
 	{
 		class parser
 		{
-			parser(const parser &);
-			parser &operator=(const parser &);
+			parser(const parser &) = delete;
+			parser &operator=(const parser &) = delete;
 
 		public:
 			parser(const std::string &input, nodetree &ast, std::string &errors);

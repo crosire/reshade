@@ -1,6 +1,7 @@
 #include "parser.hpp"
-#include <boost\assign\list_of.hpp>
-#include <boost\algorithm\string.hpp>
+
+#include <boost/assign/list_of.hpp>
+#include <boost/algorithm/string.hpp>
 
 namespace reshade
 {

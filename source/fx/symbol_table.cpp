@@ -1,3 +1,4 @@
+#include "ast.hpp"
 #include "symbol_table.hpp"
 
 #include <assert.h>
@@ -98,8 +99,7 @@ namespace reshade
 				variable_declaration_node arguments[4];
 			};
 
-			const intrinsic s_intrinsics[] =
-			{
+			const intrinsic s_intrinsics[] = {
 				intrinsic("abs", intrinsic_expression_node::abs, type_node::datatype_float, 1, 1, type_node::datatype_float, 1, 1),
 				intrinsic("abs", intrinsic_expression_node::abs, type_node::datatype_float, 2, 1, type_node::datatype_float, 2, 1),
 				intrinsic("abs", intrinsic_expression_node::abs, type_node::datatype_float, 3, 1, type_node::datatype_float, 3, 1),
@@ -467,7 +467,7 @@ namespace reshade
 			_current_scope.namespace_level = 0;
 		}
 
-		void symbol_table::enter_scope(symbol *parent)
+		void symbol_table::enter_scope(symbol parent)
 		{
 			if (parent != nullptr || _parent_stack.empty())
 			{
@@ -526,7 +526,7 @@ namespace reshade
 			_current_scope.namespace_level--;
 		}
 
-		bool symbol_table::insert(symbol *symbol, bool global)
+		bool symbol_table::insert(symbol symbol, bool global)
 		{
 			if (symbol->id != nodeid::function_declaration && find(symbol->name, _current_scope, true))
 			{
@@ -555,11 +555,11 @@ namespace reshade
 
 			return true;
 		}
-		symbol *symbol_table::find(const std::string &name) const
+		symbol symbol_table::find(const std::string &name) const
 		{
 			return find(name, _current_scope, false);
 		}
-		symbol *symbol_table::find(const std::string &name, const scope &scope, bool exclusive) const
+		symbol symbol_table::find(const std::string &name, const scope &scope, bool exclusive) const
 		{
 			const auto it = _symbol_stack.find(name);
 
@@ -568,7 +568,7 @@ namespace reshade
 				return nullptr;
 			}
 
-			symbol *result = nullptr;
+			symbol result = nullptr;
 			const auto &scopes = it->second;
 
 			for (auto it2 = scopes.rbegin(), end = scopes.rend(); it2 != end; ++it2)
