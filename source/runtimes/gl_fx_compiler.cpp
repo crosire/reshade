@@ -373,7 +373,7 @@ namespace reshade
 			}
 			else
 			{
-				visit(_global_code, uniform, true);
+				visit(_global_code, uniform);
 
 				_global_code << ";\n";
 			}
@@ -508,7 +508,7 @@ namespace reshade
 					output << node->value_uint[i] << 'u';
 					break;
 				case fx::nodes::type_node::datatype_float:
-					output << std::setprecision(8) << node->value_float[i];
+					output << std::setprecision(8) << std::fixed << node->value_float[i];
 					break;
 			}
 
@@ -1513,11 +1513,13 @@ namespace reshade
 		}
 		else
 		{
-			const char swizzle[4] = { 'x', 'y', 'z', 'w' };
+			const char swizzle[4] = {
+				'x', 'y', 'z', 'w'
+			};
 
 			output << '.';
 
-			for (int i = 0; i < 4 && node->mask[i] >= 0; ++i)
+			for (unsigned int i = 0; i < 4 && node->mask[i] >= 0; i++)
 			{
 				output << swizzle[node->mask[i]];
 			}
@@ -1526,9 +1528,7 @@ namespace reshade
 	void gl_fx_compiler::visit(std::stringstream &output, const fx::nodes::field_expression_node *node)
 	{
 		output << '(';
-
 		visit(output, node->operand);
-
 		output << '.' << escape_name(node->field_reference->unique_name) << ')';
 	}
 	void gl_fx_compiler::visit(std::stringstream &output, const fx::nodes::assignment_expression_node *node)
@@ -1586,13 +1586,11 @@ namespace reshade
 
 		for (size_t i = 0, count = node->arguments.size(); i < count; i++)
 		{
-			const auto argument = node->arguments[i];
-			const auto parameter = node->callee->parameter_list[i];
-
-			const std::pair<std::string, std::string> cast = write_cast(argument->type, parameter->type);
+			const auto arg = node->arguments[i];
+			const auto cast = write_cast(arg->type, node->callee->parameter_list[i]->type);
 
 			output << cast.first;
-			visit(output, argument);
+			visit(output, arg);
 			output << cast.second;
 
 			if (i < count - 1)
@@ -1790,7 +1788,7 @@ namespace reshade
 			{
 				visit(output, static_cast<fx::nodes::declarator_list_node *>(node->init_statement), true);
 
-				output.seekp(2, std::ios_base::end);
+				output.seekp(-2, std::ios_base::end);
 			}
 			else
 			{
@@ -1901,7 +1899,7 @@ namespace reshade
 		{
 			for (auto field : node->field_list)
 			{
-				visit(output, field, true);
+				visit(output, field);
 
 				output << ";\n";
 			}
@@ -1918,9 +1916,10 @@ namespace reshade
 		if (with_type)
 		{
 			visit(output, node->type);
+			output << ' ';
 		}
 
-		output << ' ' << escape_name(node->unique_name);
+		output << escape_name(node->unique_name);
 
 		if (node->type.is_array())
 		{
@@ -1958,11 +1957,11 @@ namespace reshade
 
 		visit(output, node->return_type, false);
 
-		output << ' ' + escape_name(node->unique_name) + '(';
+		output << ' ' << escape_name(node->unique_name) << '(';
 
 		for (size_t i = 0, count = node->parameter_list.size(); i < count; i++)
 		{
-			visit(output, node->parameter_list[i], true);
+			visit(output, node->parameter_list[i]);
 
 			if (i < count - 1)
 			{

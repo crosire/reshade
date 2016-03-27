@@ -270,7 +270,7 @@ namespace reshade
 					output << node->value_uint[i];
 					break;
 				case fx::nodes::type_node::datatype_float:
-					output << std::setprecision(8) << node->value_float[i];
+					output << std::setprecision(8) << std::fixed << node->value_float[i];
 					break;
 			}
 
@@ -864,9 +864,13 @@ namespace reshade
 		}
 		else
 		{
+			const char swizzle[4] = {
+				'x', 'y', 'z', 'w'
+			};
+
 			for (unsigned int i = 0; i < 4 && node->mask[i] >= 0; i++)
 			{
-				output << "xyzw"[node->mask[i]];
+				output << swizzle[node->mask[i]];
 			}
 		}
 	}
@@ -960,7 +964,6 @@ namespace reshade
 	void d3d9_fx_compiler::visit(std::stringstream &output, const fx::nodes::constructor_expression_node *node)
 	{
 		visit(output, node->type, false);
-
 		output << '(';
 
 		for (size_t i = 0, count = node->arguments.size(); i < count; i++)
@@ -1012,7 +1015,7 @@ namespace reshade
 
 			if (i < count - 1)
 			{
-				output << (single_statement ? ", " : ",\n");
+				output << (single_statement ? ", " : ";\n");
 			}
 			if (single_statement)
 			{
@@ -1086,17 +1089,21 @@ namespace reshade
 	{
 		output << "if (";
 
-		for (auto it = node->labels.begin(); it != node->labels.end(); ++it, output << " || ")
+		for (size_t i = 0, count = node->labels.size(); i < count; i++)
 		{
-			if (*it == nullptr)
+			if (node->labels[i] == nullptr)
 			{
 				output << "true";
 			}
 			else
 			{
 				output << "__switch_condition == ";
+				visit(output, node->labels[i]);
+			}
 
-				visit(output, *it);
+			if (i < count - 1)
+			{
+				output << " || ";
 			}
 		}
 
@@ -1119,7 +1126,7 @@ namespace reshade
 			{
 				visit(output, static_cast<fx::nodes::declarator_list_node *>(node->init_statement), true);
 
-				output.seekp(2, std::ios_base::end);
+				output.seekp(-2, std::ios_base::end);
 			}
 			else
 			{
@@ -1248,7 +1255,6 @@ namespace reshade
 		if (with_type)
 		{
 			visit(output, node->type);
-
 			output << ' ';
 		}
 

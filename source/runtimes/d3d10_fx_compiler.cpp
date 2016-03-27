@@ -224,8 +224,6 @@ namespace reshade
 	{
 		if (with_qualifiers)
 		{
-			if (type.has_qualifier(fx::nodes::type_node::qualifier_extern))
-				output << "extern ";
 			if (type.has_qualifier(fx::nodes::type_node::qualifier_static))
 				output << "static ";
 			if (type.has_qualifier(fx::nodes::type_node::qualifier_const))
@@ -313,7 +311,7 @@ namespace reshade
 					output << node->value_uint[i];
 					break;
 				case fx::nodes::type_node::datatype_float:
-					output << std::setprecision(8) << node->value_float[i];
+					output << std::setprecision(8) << std::fixed << node->value_float[i];
 					break;
 			}
 
@@ -776,7 +774,7 @@ namespace reshade
 					visit(output, node->arguments[0]);
 					output << ", ";
 					visit(output, node->arguments[1]);
-					output << ")";
+					output << ')';
 				}
 				else
 				{
@@ -794,7 +792,7 @@ namespace reshade
 					visit(output, node->arguments[1]);
 					output << ", ";
 					visit(output, node->arguments[2]);
-					output << ")";
+					output << ')';
 				}
 				else
 				{
@@ -1037,10 +1035,14 @@ namespace reshade
 	{
 		bool with_type = true;
 
-		for (auto it = node->declarator_list.begin(); it != node->declarator_list.end(); ++it, (single_statement ? output << ", " : output << ";\n"))
+		for (size_t i = 0, count = node->declarator_list.size(); i < count; i++)
 		{
-			visit(output, *it, with_type);
+			visit(output, node->declarator_list[i], with_type);
 
+			if (i < count - 1)
+			{
+				output << (single_statement ? ", " : ";\n");
+			}
 			if (single_statement)
 			{
 				with_type = false;
@@ -1135,7 +1137,7 @@ namespace reshade
 			{
 				visit(output, static_cast<fx::nodes::declarator_list_node *>(node->init_statement), true);
 
-				output.seekp(2, std::ios_base::end);
+				output.seekp(-2, std::ios_base::end);
 			}
 			else
 			{
@@ -1184,8 +1186,7 @@ namespace reshade
 				visit(output, node->statement_list);
 			}
 
-			output << "}\n";
-			output << "while (";
+			output << "}\nwhile (";
 			visit(output, node->condition);
 			output << ");\n";
 		}

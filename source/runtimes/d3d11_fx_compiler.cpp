@@ -224,8 +224,6 @@ namespace reshade
 	{
 		if (with_qualifiers)
 		{
-			if (type.has_qualifier(fx::nodes::type_node::qualifier_extern))
-				output << "extern ";
 			if (type.has_qualifier(fx::nodes::type_node::qualifier_static))
 				output << "static ";
 			if (type.has_qualifier(fx::nodes::type_node::qualifier_const))
@@ -295,10 +293,11 @@ namespace reshade
 		if (!node->type.is_scalar())
 		{
 			visit(output, node->type, false);
+
 			output << '(';
 		}
 
-		for (size_t i = 0, count = node->type.rows * node->type.cols; i < count;  i++)
+		for (size_t i = 0, count = node->type.rows * node->type.cols; i < count; i++)
 		{
 			switch (node->type.basetype)
 			{
@@ -312,7 +311,7 @@ namespace reshade
 					output << node->value_uint[i];
 					break;
 				case fx::nodes::type_node::datatype_float:
-					output << std::setprecision(8) << node->value_float[i];
+					output << std::setprecision(8) << std::fixed << node->value_float[i];
 					break;
 			}
 
@@ -775,7 +774,7 @@ namespace reshade
 					visit(output, node->arguments[0]);
 					output << ", ";
 					visit(output, node->arguments[1]);
-					output << ")";
+					output << ')';
 				}
 				else
 				{
@@ -793,7 +792,7 @@ namespace reshade
 					visit(output, node->arguments[1]);
 					output << ", ";
 					visit(output, node->arguments[2]);
-					output << ")";
+					output << ')';
 				}
 				else
 				{
@@ -899,7 +898,7 @@ namespace reshade
 				"_m30", "_m31", "_m32", "_m33"
 			};
 
-			for (unsigned int i = 0; i < 4 && node->mask[i] >= 0; ++i)
+			for (unsigned int i = 0; i < 4 && node->mask[i] >= 0; i++)
 			{
 				output << swizzle[node->mask[i]];
 			}
@@ -910,7 +909,7 @@ namespace reshade
 				'x', 'y', 'z', 'w'
 			};
 
-			for (unsigned int i = 0; i < 4 && node->mask[i] >= 0; ++i)
+			for (unsigned int i = 0; i < 4 && node->mask[i] >= 0; i++)
 			{
 				output << swizzle[node->mask[i]];
 			}
@@ -990,6 +989,7 @@ namespace reshade
 	void d3d11_fx_compiler::visit(std::stringstream &output, const fx::nodes::constructor_expression_node *node)
 	{
 		visit(output, node->type, false);
+
 		output << '(';
 
 		for (size_t i = 0, count = node->arguments.size(); i < count; i++)
@@ -1035,10 +1035,14 @@ namespace reshade
 	{
 		bool with_type = true;
 
-		for (auto it = node->declarator_list.begin(); it != node->declarator_list.end(); ++it, (single_statement ? output << ", " : output << ";\n"))
+		for (size_t i = 0, count = node->declarator_list.size(); i < count; i++)
 		{
-			visit(output, *it, with_type);
+			visit(output, node->declarator_list[i], with_type);
 
+			if (i < count - 1)
+			{
+				output << (single_statement ? ", " : ";\n");
+			}
 			if (single_statement)
 			{
 				with_type = false;
@@ -1133,7 +1137,7 @@ namespace reshade
 			{
 				visit(output, static_cast<fx::nodes::declarator_list_node *>(node->init_statement), true);
 
-				output.seekp(2, std::ios_base::end);
+				output.seekp(-2, std::ios_base::end);
 			}
 			else
 			{
@@ -1268,13 +1272,18 @@ namespace reshade
 		if (node->type.is_array())
 		{
 			output << '[';
-			output << (node->type.array_length >= 1) ? std::to_string(node->type.array_length) : "";
+
+			if (node->type.array_length > 0)
+			{
+				output << node->type.array_length;
+			}
+
 			output << ']';
 		}
 
 		if (!node->semantic.empty())
 		{
-			output << " : " + convert_semantic(node->semantic);
+			output << " : " << convert_semantic(node->semantic);
 		}
 
 		if (node->initializer_expression != nullptr)
