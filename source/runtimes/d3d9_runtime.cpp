@@ -8,6 +8,8 @@
 #include <nanovg_d3d9.h>
 
 const D3DFORMAT D3DFMT_INTZ = static_cast<D3DFORMAT>(MAKEFOURCC('I', 'N', 'T', 'Z'));
+const D3DFORMAT D3DFMT_DF16 = static_cast<D3DFORMAT>(MAKEFOURCC('D', 'F', '1', '6'));
+const D3DFORMAT D3DFMT_DF24 = static_cast<D3DFORMAT>(MAKEFOURCC('D', 'F', '2', '4'));
 
 namespace reshade
 {
@@ -733,9 +735,31 @@ namespace reshade
 			D3DSURFACE_DESC desc;
 			_depthstencil->GetDesc(&desc);
 
-			if (desc.Format != D3DFMT_INTZ)
+			if (desc.Format != D3DFMT_INTZ && desc.Format != D3DFMT_DF16 && desc.Format != D3DFMT_DF24)
 			{
-				const HRESULT hr = _device->CreateTexture(desc.Width, desc.Height, 1, D3DUSAGE_DEPTHSTENCIL, D3DFMT_INTZ, D3DPOOL_DEFAULT, &_depthstencil_texture, nullptr);
+				D3DDEVICE_CREATION_PARAMETERS creation_params;
+				_device->GetCreationParameters(&creation_params);
+
+				desc.Format = D3DFMT_UNKNOWN;
+				const D3DFORMAT formats[] = { D3DFMT_INTZ, D3DFMT_DF24, D3DFMT_DF16 };
+
+				for (const auto format : formats)
+				{
+					if (SUCCEEDED(_d3d->CheckDeviceFormat(creation_params.AdapterOrdinal, creation_params.DeviceType, _backbuffer_format, D3DUSAGE_DEPTHSTENCIL, D3DRTYPE_TEXTURE, format)))
+					{
+						desc.Format = format;
+						break;
+					}
+				}
+
+				if (desc.Format == D3DFMT_UNKNOWN)
+				{
+					LOG(ERROR) << "Your graphics card is missing support for at least one of the 'INTZ', 'DF24' or 'DF16' texture formats. Cannot create depth replacement texture.";
+
+					return false;
+				}
+
+				const HRESULT hr = _device->CreateTexture(desc.Width, desc.Height, 1, D3DUSAGE_DEPTHSTENCIL, desc.Format, D3DPOOL_DEFAULT, &_depthstencil_texture, nullptr);
 
 				if (SUCCEEDED(hr))
 				{
@@ -755,7 +779,7 @@ namespace reshade
 				}
 				else
 				{
-					LOG(TRACE) << "Failed to create depth-stencil replacement texture! HRESULT is '" << std::hex << hr << std::dec << "'. Are you missing support for the 'INTZ' format?";
+					LOG(TRACE) << "Failed to create depth replacement texture! HRESULT is '" << std::hex << hr << std::dec << "'.";
 
 					return false;
 				}
