@@ -9,6 +9,7 @@
 ipch/
 *.aps
 *.cachefile
+*.VC.db
 *.opendb
 *.opensdf
 *.user
