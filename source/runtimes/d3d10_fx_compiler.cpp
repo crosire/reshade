@@ -1860,7 +1860,7 @@ namespace reshade
 
 		if (errors != nullptr)
 		{
-			_errors += std::string(static_cast<const char *>(errors->GetBufferPointer()), errors->GetBufferSize());
+			_errors.append(static_cast<const char *>(errors->GetBufferPointer()), errors->GetBufferSize());
 		}
 
 		if (FAILED(hr))

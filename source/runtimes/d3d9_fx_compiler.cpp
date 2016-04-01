@@ -1908,7 +1908,7 @@ namespace reshade
 		LOG(TRACE) << "> Compiling shader '" << node->name << "':\n\n" << source_str.c_str() << "\n";
 
 		UINT flags = 0;
-		ID3DBlob *compiled = nullptr, *errors = nullptr;
+		com_ptr<ID3DBlob> compiled, errors;
 
 		if (_skip_shader_optimization)
 		{
@@ -1920,8 +1920,6 @@ namespace reshade
 		if (errors != nullptr)
 		{
 			_errors.append(static_cast<const char *>(errors->GetBufferPointer()), errors->GetBufferSize());
-
-			errors->Release();
 		}
 
 		if (FAILED(hr))
@@ -1938,8 +1936,6 @@ namespace reshade
 		{
 			hr = _runtime->_device->CreatePixelShader(static_cast<const DWORD *>(compiled->GetBufferPointer()), &pass.pixel_shader);
 		}
-
-		compiled->Release();
 
 		if (FAILED(hr))
 		{
