@@ -737,6 +737,8 @@ namespace reshade
 
 			if (desc.Format != D3DFMT_INTZ && desc.Format != D3DFMT_DF16 && desc.Format != D3DFMT_DF24)
 			{
+				D3DDISPLAYMODE displaymode;
+				_swapchain->GetDisplayMode(&displaymode);
 				D3DDEVICE_CREATION_PARAMETERS creation_params;
 				_device->GetCreationParameters(&creation_params);
 
@@ -745,7 +747,7 @@ namespace reshade
 
 				for (const auto format : formats)
 				{
-					if (SUCCEEDED(_d3d->CheckDeviceFormat(creation_params.AdapterOrdinal, creation_params.DeviceType, _backbuffer_format, D3DUSAGE_DEPTHSTENCIL, D3DRTYPE_TEXTURE, format)))
+					if (SUCCEEDED(_d3d->CheckDeviceFormat(creation_params.AdapterOrdinal, creation_params.DeviceType, displaymode.Format, D3DUSAGE_DEPTHSTENCIL, D3DRTYPE_TEXTURE, format)))
 					{
 						desc.Format = format;
 						break;
