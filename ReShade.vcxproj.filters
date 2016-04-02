@@ -43,24 +43,6 @@
     <Filter Include="hooks\windows">
       <UniqueIdentifier>{ab5a23b3-e97e-4a41-99a1-89c6f1d54b16}</UniqueIdentifier>
     </Filter>
-    <Filter Include="runtimes">
-      <UniqueIdentifier>{3d98f6bc-aafb-47f4-97de-20bb7012bc62}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="runtimes\d3d9">
-      <UniqueIdentifier>{3ddea36a-70a0-41fe-8ac7-22056c0529c8}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="runtimes\d3d10">
-      <UniqueIdentifier>{656a4bd3-7634-4f46-9320-eed891cbae81}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="runtimes\d3d11">
-      <UniqueIdentifier>{0b37621c-33c5-47fc-9b01-fffeda923947}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="runtimes\d3d12">
-      <UniqueIdentifier>{531f9035-b03c-4519-975c-dd95538d1ef1}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="runtimes\opengl">
-      <UniqueIdentifier>{51a90c82-ce06-43fb-b346-2f810687d180}</UniqueIdentifier>
-    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="source\log.cpp">
@@ -69,101 +51,101 @@
     <ClCompile Include="source\main.cpp">
       <Filter>core</Filter>
     </ClCompile>
-    <ClCompile Include="source\fx\compiler.cpp">
+    <ClCompile Include="source\fx_compiler.cpp">
       <Filter>core\fx</Filter>
     </ClCompile>
-    <ClCompile Include="source\fx\lexer.cpp">
+    <ClCompile Include="source\fx_lexer.cpp">
       <Filter>core\fx</Filter>
     </ClCompile>
-    <ClCompile Include="source\fx\parser.cpp">
+    <ClCompile Include="source\fx_parser.cpp">
       <Filter>core\fx</Filter>
     </ClCompile>
-    <ClCompile Include="source\fx\preprocessor.cpp">
+    <ClCompile Include="source\fx_preprocessor.cpp">
       <Filter>core\fx</Filter>
     </ClCompile>
-    <ClCompile Include="source\fx\symbol_table.cpp">
+    <ClCompile Include="source\fx_symbol_table.cpp">
       <Filter>core\fx</Filter>
     </ClCompile>
-    <ClCompile Include="source\hook\hook.cpp">
+    <ClCompile Include="source\hook.cpp">
       <Filter>core\hook</Filter>
     </ClCompile>
-    <ClCompile Include="source\hook\hook_manager.cpp">
+    <ClCompile Include="source\hook_manager.cpp">
       <Filter>core\hook</Filter>
     </ClCompile>
-    <ClCompile Include="source\runtime\gui.cpp">
+    <ClCompile Include="source\runtime.cpp">
       <Filter>core\runtime</Filter>
     </ClCompile>
-    <ClCompile Include="source\runtime\input.cpp">
+    <ClCompile Include="source\gui.cpp">
       <Filter>core\runtime</Filter>
     </ClCompile>
-    <ClCompile Include="source\runtime\runtime.cpp">
+    <ClCompile Include="source\input.cpp">
       <Filter>core\runtime</Filter>
     </ClCompile>
-    <ClCompile Include="source\utils\file_watcher.cpp">
+    <ClCompile Include="source\file_watcher.cpp">
       <Filter>core\utils</Filter>
     </ClCompile>
-    <ClCompile Include="source\hooks\d3d8.cpp">
+    <ClCompile Include="source\d3d8\d3d8.cpp">
       <Filter>hooks\d3d8</Filter>
     </ClCompile>
-    <ClCompile Include="source\hooks\d3d9.cpp">
+    <ClCompile Include="source\d3d9\d3d9_hook.cpp">
       <Filter>hooks\d3d9</Filter>
     </ClCompile>
-    <ClCompile Include="source\hooks\d3d10.cpp">
+    <ClCompile Include="source\d3d10\d3d10_hook.cpp">
       <Filter>hooks\d3d10</Filter>
     </ClCompile>
-    <ClCompile Include="source\hooks\d3d11.cpp">
+    <ClCompile Include="source\d3d11\d3d11_hook.cpp">
       <Filter>hooks\d3d11</Filter>
     </ClCompile>
-    <ClCompile Include="source\hooks\d3d12.cpp">
+    <ClCompile Include="source\d3d12\d3d12_hook.cpp">
       <Filter>hooks\d3d12</Filter>
     </ClCompile>
-    <ClCompile Include="source\hooks\dxgi.cpp">
+    <ClCompile Include="source\dxgi\dxgi_hook.cpp">
       <Filter>hooks\dxgi</Filter>
     </ClCompile>
-    <ClCompile Include="source\hooks\opengl32.cpp">
+    <ClCompile Include="source\opengl\gl_hook.cpp">
       <Filter>hooks\opengl</Filter>
     </ClCompile>
-    <ClCompile Include="source\hooks\user32.cpp">
+    <ClCompile Include="source\windows\user32.cpp">
       <Filter>hooks\windows</Filter>
     </ClCompile>
-    <ClCompile Include="source\hooks\ws2_32.cpp">
+    <ClCompile Include="source\windows\ws2_32.cpp">
       <Filter>hooks\windows</Filter>
     </ClCompile>
-    <ClCompile Include="source\runtimes\d3d9_fx_compiler.cpp">
-      <Filter>runtimes\d3d9</Filter>
+    <ClCompile Include="source\d3d9\d3d9_fx_compiler.cpp">
+      <Filter>hooks\d3d9</Filter>
     </ClCompile>
-    <ClCompile Include="source\runtimes\d3d9_runtime.cpp">
-      <Filter>runtimes\d3d9</Filter>
+    <ClCompile Include="source\d3d9\d3d9_runtime.cpp">
+      <Filter>hooks\d3d9</Filter>
     </ClCompile>
-    <ClCompile Include="source\runtimes\d3d10_fx_compiler.cpp">
-      <Filter>runtimes\d3d10</Filter>
+    <ClCompile Include="source\d3d10\d3d10_fx_compiler.cpp">
+      <Filter>hooks\d3d10</Filter>
     </ClCompile>
-    <ClCompile Include="source\runtimes\d3d10_runtime.cpp">
-      <Filter>runtimes\d3d10</Filter>
+    <ClCompile Include="source\d3d10\d3d10_runtime.cpp">
+      <Filter>hooks\d3d10</Filter>
     </ClCompile>
-    <ClCompile Include="source\runtimes\d3d10_stateblock.cpp">
-      <Filter>runtimes\d3d10</Filter>
+    <ClCompile Include="source\d3d10\d3d10_stateblock.cpp">
+      <Filter>hooks\d3d10</Filter>
     </ClCompile>
-    <ClCompile Include="source\runtimes\d3d11_fx_compiler.cpp">
-      <Filter>runtimes\d3d11</Filter>
+    <ClCompile Include="source\d3d11\d3d11_fx_compiler.cpp">
+      <Filter>hooks\d3d11</Filter>
     </ClCompile>
-    <ClCompile Include="source\runtimes\d3d11_runtime.cpp">
-      <Filter>runtimes\d3d11</Filter>
+    <ClCompile Include="source\d3d11\d3d11_runtime.cpp">
+      <Filter>hooks\d3d11</Filter>
     </ClCompile>
-    <ClCompile Include="source\runtimes\d3d11_stateblock.cpp">
-      <Filter>runtimes\d3d11</Filter>
+    <ClCompile Include="source\d3d11\d3d11_stateblock.cpp">
+      <Filter>hooks\d3d11</Filter>
     </ClCompile>
-    <ClCompile Include="source\runtimes\d3d12_runtime.cpp">
-      <Filter>runtimes\d3d12</Filter>
+    <ClCompile Include="source\d3d12\d3d12_runtime.cpp">
+      <Filter>hooks\d3d12</Filter>
     </ClCompile>
-    <ClCompile Include="source\runtimes\gl_fx_compiler.cpp">
-      <Filter>runtimes\opengl</Filter>
+    <ClCompile Include="source\opengl\gl_fx_compiler.cpp">
+      <Filter>hooks\opengl</Filter>
     </ClCompile>
-    <ClCompile Include="source\runtimes\gl_runtime.cpp">
-      <Filter>runtimes\opengl</Filter>
+    <ClCompile Include="source\opengl\gl_runtime.cpp">
+      <Filter>hooks\opengl</Filter>
     </ClCompile>
-    <ClCompile Include="source\runtimes\gl_stateblock.cpp">
-      <Filter>runtimes\opengl</Filter>
+    <ClCompile Include="source\opengl\gl_stateblock.cpp">
+      <Filter>hooks\opengl</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -173,107 +155,107 @@
     <ClInclude Include="res\version.h">
       <Filter>core</Filter>
     </ClInclude>
-    <ClInclude Include="source\fx\ast.hpp">
+    <ClInclude Include="source\fx_ast.hpp">
       <Filter>core\fx</Filter>
     </ClInclude>
-    <ClInclude Include="source\fx\compiler.hpp">
+    <ClInclude Include="source\fx_compiler.hpp">
       <Filter>core\fx</Filter>
     </ClInclude>
-    <ClInclude Include="source\fx\lexer.hpp">
+    <ClInclude Include="source\fx_lexer.hpp">
       <Filter>core\fx</Filter>
     </ClInclude>
-    <ClInclude Include="source\fx\parser.hpp">
+    <ClInclude Include="source\fx_parser.hpp">
       <Filter>core\fx</Filter>
     </ClInclude>
-    <ClInclude Include="source\fx\preprocessor.hpp">
+    <ClInclude Include="source\fx_preprocessor.hpp">
       <Filter>core\fx</Filter>
     </ClInclude>
-    <ClInclude Include="source\fx\symbol_table.hpp">
+    <ClInclude Include="source\fx_symbol_table.hpp">
       <Filter>core\fx</Filter>
     </ClInclude>
-    <ClInclude Include="source\hook\hook.hpp">
+    <ClInclude Include="source\hook.hpp">
       <Filter>core\hook</Filter>
     </ClInclude>
-    <ClInclude Include="source\hook\hook_manager.hpp">
+    <ClInclude Include="source\hook_manager.hpp">
       <Filter>core\hook</Filter>
     </ClInclude>
-    <ClInclude Include="source\runtime\gui.hpp">
+    <ClInclude Include="source\runtime.hpp">
       <Filter>core\runtime</Filter>
     </ClInclude>
-    <ClInclude Include="source\runtime\input.hpp">
+    <ClInclude Include="source\input.hpp">
       <Filter>core\runtime</Filter>
     </ClInclude>
-    <ClInclude Include="source\runtime\runtime.hpp">
+    <ClInclude Include="source\gui.hpp">
       <Filter>core\runtime</Filter>
     </ClInclude>
-    <ClInclude Include="source\utils\com_ptr.hpp">
+    <ClInclude Include="source\com_ptr.hpp">
       <Filter>core\utils</Filter>
     </ClInclude>
-    <ClInclude Include="source\utils\critical_section.hpp">
+    <ClInclude Include="source\critical_section.hpp">
       <Filter>core\utils</Filter>
     </ClInclude>
-    <ClInclude Include="source\utils\file_watcher.hpp">
+    <ClInclude Include="source\file_watcher.hpp">
       <Filter>core\utils</Filter>
     </ClInclude>
-    <ClInclude Include="source\utils\moving_average.hpp">
+    <ClInclude Include="source\moving_average.hpp">
       <Filter>core\utils</Filter>
     </ClInclude>
-    <ClInclude Include="source\hooks\d3d8.hpp">
+    <ClInclude Include="source\d3d8\d3d8.hpp">
       <Filter>hooks\d3d8</Filter>
     </ClInclude>
-    <ClInclude Include="source\hooks\d3d8_types.h">
+    <ClInclude Include="source\d3d8\d3d8_types.h">
       <Filter>hooks\d3d8</Filter>
     </ClInclude>
-    <ClInclude Include="source\hooks\d3d9.hpp">
+    <ClInclude Include="source\d3d9\d3d9_hook.hpp">
       <Filter>hooks\d3d9</Filter>
     </ClInclude>
-    <ClInclude Include="source\hooks\d3d10.hpp">
+    <ClInclude Include="source\d3d10\d3d10_hook.hpp">
       <Filter>hooks\d3d10</Filter>
     </ClInclude>
-    <ClInclude Include="source\hooks\d3d11.hpp">
+    <ClInclude Include="source\d3d11\d3d11_hook.hpp">
       <Filter>hooks\d3d11</Filter>
     </ClInclude>
-    <ClInclude Include="source\hooks\d3d12.hpp">
+    <ClInclude Include="source\d3d12\d3d12_hook.hpp">
       <Filter>hooks\d3d12</Filter>
     </ClInclude>
-    <ClInclude Include="source\hooks\dxgi.hpp">
+    <ClInclude Include="source\dxgi\dxgi_hook.hpp">
       <Filter>hooks\dxgi</Filter>
     </ClInclude>
-    <ClInclude Include="source\runtimes\d3d9_fx_compiler.hpp">
-      <Filter>runtimes\d3d9</Filter>
+    <ClInclude Include="source\d3d9\d3d9_fx_compiler.hpp">
+      <Filter>hooks\d3d9</Filter>
     </ClInclude>
-    <ClInclude Include="source\runtimes\d3d9_runtime.hpp">
-      <Filter>runtimes\d3d9</Filter>
+    <ClInclude Include="source\d3d9\d3d9_runtime.hpp">
+      <Filter>hooks\d3d9</Filter>
     </ClInclude>
-    <ClInclude Include="source\runtimes\d3d10_fx_compiler.hpp">
-      <Filter>runtimes\d3d10</Filter>
+    <ClInclude Include="source\d3d10\d3d10_fx_compiler.hpp">
+      <Filter>hooks\d3d10</Filter>
     </ClInclude>
-    <ClInclude Include="source\runtimes\d3d10_runtime.hpp">
-      <Filter>runtimes\d3d10</Filter>
+    <ClInclude Include="source\d3d10\d3d10_runtime.hpp">
+      <Filter>hooks\d3d10</Filter>
     </ClInclude>
-    <ClInclude Include="source\runtimes\d3d10_stateblock.hpp">
-      <Filter>runtimes\d3d10</Filter>
+    <ClInclude Include="source\d3d10\d3d10_stateblock.hpp">
+      <Filter>hooks\d3d10</Filter>
     </ClInclude>
-    <ClInclude Include="source\runtimes\d3d11_fx_compiler.hpp">
-      <Filter>runtimes\d3d11</Filter>
+    <ClInclude Include="source\d3d11\d3d11_fx_compiler.hpp">
+      <Filter>hooks\d3d11</Filter>
     </ClInclude>
-    <ClInclude Include="source\runtimes\d3d11_runtime.hpp">
-      <Filter>runtimes\d3d11</Filter>
+    <ClInclude Include="source\d3d11\d3d11_runtime.hpp">
+      <Filter>hooks\d3d11</Filter>
     </ClInclude>
-    <ClInclude Include="source\runtimes\d3d11_stateblock.hpp">
-      <Filter>runtimes\d3d11</Filter>
+    <ClInclude Include="source\d3d11\d3d11_stateblock.hpp">
+      <Filter>hooks\d3d11</Filter>
     </ClInclude>
-    <ClInclude Include="source\runtimes\d3d12_runtime.hpp">
-      <Filter>runtimes\d3d12</Filter>
+    <ClInclude Include="source\d3d12\d3d12_runtime.hpp">
+      <Filter>hooks\d3d12</Filter>
     </ClInclude>
-    <ClInclude Include="source\runtimes\gl_fx_compiler.hpp">
-      <Filter>runtimes\opengl</Filter>
+    <ClInclude Include="source\opengl\gl_fx_compiler.hpp">
+      <Filter>hooks\opengl</Filter>
     </ClInclude>
-    <ClInclude Include="source\runtimes\gl_runtime.hpp">
-      <Filter>runtimes\opengl</Filter>
+    <ClInclude Include="source\opengl\gl_runtime.hpp">
+      <Filter>hooks\opengl</Filter>
     </ClInclude>
-    <ClInclude Include="source\runtimes\gl_stateblock.hpp">
-      <Filter>runtimes\opengl</Filter>
+    <ClInclude Include="source\opengl\gl_stateblock.hpp">
+      <Filter>hooks\opengl</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

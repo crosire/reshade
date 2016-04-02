@@ -112,7 +112,7 @@
       <WarningLevel>Level4</WarningLevel>
       <SDLCheck>true</SDLCheck>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>$(SolutionDir)\source;$(SolutionDir)\source\Hook;$(SolutionDir)\source\Runtime;$(SolutionDir)\res;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)res;$(SolutionDir)source;$(SolutionDir)source\dxgi;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;WIN32_LEAN_AND_MEAN;NOMINMAX;_GDI32_;WINSOCK_API_LINKAGE=;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DisableSpecificWarnings>4351;%(DisableSpecificWarnings)</DisableSpecificWarnings>
       <ObjectFileName>$(IntDir)\%(RelativeDir)\</ObjectFileName>
@@ -135,7 +135,7 @@
       <WarningLevel>Level4</WarningLevel>
       <SDLCheck>true</SDLCheck>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>$(SolutionDir)\source;$(SolutionDir)\source\Hook;$(SolutionDir)\source\Runtime;$(SolutionDir)\res;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)res;$(SolutionDir)source;$(SolutionDir)source\dxgi;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN64;WIN32_LEAN_AND_MEAN;NOMINMAX;_GDI32_;WINSOCK_API_LINKAGE=;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DisableSpecificWarnings>4351;%(DisableSpecificWarnings)</DisableSpecificWarnings>
       <ObjectFileName>$(IntDir)\%(RelativeDir)\</ObjectFileName>
@@ -160,7 +160,7 @@
       <Optimization>MaxSpeed</Optimization>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <FunctionLevelLinking>true</FunctionLevelLinking>
-      <AdditionalIncludeDirectories>$(SolutionDir)\source;$(SolutionDir)\source\Hook;$(SolutionDir)\source\Runtime;$(SolutionDir)\res;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)res;$(SolutionDir)source;$(SolutionDir)source\dxgi;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;WIN32_LEAN_AND_MEAN;NOMINMAX;_GDI32_;WINSOCK_API_LINKAGE=;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DisableSpecificWarnings>4351;%(DisableSpecificWarnings)</DisableSpecificWarnings>
       <ObjectFileName>$(IntDir)\%(RelativeDir)\</ObjectFileName>
@@ -194,7 +194,7 @@ tools\upx --backup "$(TargetPath)"</Command>
       <Optimization>MaxSpeed</Optimization>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <FunctionLevelLinking>true</FunctionLevelLinking>
-      <AdditionalIncludeDirectories>$(SolutionDir)\source;$(SolutionDir)\source\Hook;$(SolutionDir)\source\Runtime;$(SolutionDir)\res;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)res;$(SolutionDir)source;$(SolutionDir)source\dxgi;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN64;WIN32_LEAN_AND_MEAN;NOMINMAX;_GDI32_;WINSOCK_API_LINKAGE=;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DisableSpecificWarnings>4351;%(DisableSpecificWarnings)</DisableSpecificWarnings>
       <ObjectFileName>$(IntDir)\%(RelativeDir)\</ObjectFileName>
@@ -224,79 +224,78 @@ tools\upx --backup "$(TargetPath)"</Command>
   <ItemGroup>
     <ClCompile Include="source\log.cpp" />
     <ClCompile Include="source\main.cpp" />
-    <ClCompile Include="source\fx\compiler.cpp" />
-    <ClCompile Include="source\fx\lexer.cpp" />
-    <ClCompile Include="source\fX\parser.cpp" />
-    <ClCompile Include="source\fX\preprocessor.cpp" />
-    <ClCompile Include="source\fx\symbol_table.cpp" />
-    <ClCompile Include="source\hook\hook.cpp" />
-    <ClCompile Include="source\hook\hook_manager.cpp" />
-    <ClCompile Include="source\hooks\d3d8.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    <ClCompile Include="source\fx_compiler.cpp" />
+    <ClCompile Include="source\fx_lexer.cpp" />
+    <ClCompile Include="source\fx_parser.cpp" />
+    <ClCompile Include="source\fx_preprocessor.cpp" />
+    <ClCompile Include="source\fx_symbol_table.cpp" />
+    <ClCompile Include="source\hook.cpp" />
+    <ClCompile Include="source\hook_manager.cpp" />
+    <ClCompile Include="source\d3d8\d3d8.cpp">
+      <ExcludedFromBuild Condition="'$(Platform)'=='x64'">true</ExcludedFromBuild>
     </ClCompile>
-    <ClCompile Include="source\hooks\d3d9.cpp" />
-    <ClCompile Include="source\hooks\d3d10.cpp" />
-    <ClCompile Include="source\hooks\d3d11.cpp" />
-    <ClCompile Include="source\hooks\d3d12.cpp" />
-    <ClCompile Include="source\hooks\dxgi.cpp" />
-    <ClCompile Include="source\hooks\opengl32.cpp" />
-    <ClCompile Include="source\hooks\user32.cpp" />
-    <ClCompile Include="source\hooks\ws2_32.cpp" />
-    <ClCompile Include="source\runtime\gui.cpp" />
-    <ClCompile Include="source\runtime\runtime.cpp" />
-    <ClCompile Include="source\runtime\input.cpp" />
-    <ClCompile Include="source\runtimes\d3d9_fx_compiler.cpp" />
-    <ClCompile Include="source\runtimes\d3d9_runtime.cpp" />
-    <ClCompile Include="source\runtimes\d3d10_fx_compiler.cpp" />
-    <ClCompile Include="source\runtimes\d3d10_runtime.cpp" />
-    <ClCompile Include="source\runtimes\d3d10_stateblock.cpp" />
-    <ClCompile Include="source\runtimes\d3d11_fx_compiler.cpp" />
-    <ClCompile Include="source\runtimes\d3d11_runtime.cpp" />
-    <ClCompile Include="source\runtimes\d3d11_stateblock.cpp" />
-    <ClCompile Include="source\runtimes\d3d12_runtime.cpp" />
-    <ClCompile Include="source\runtimes\gl_fx_compiler.cpp" />
-    <ClCompile Include="source\runtimes\gl_runtime.cpp" />
-    <ClCompile Include="source\runtimes\gl_stateblock.cpp" />
-    <ClCompile Include="source\utils\file_watcher.cpp" />
+    <ClCompile Include="source\d3d9\d3d9_hook.cpp" />
+    <ClCompile Include="source\d3d10\d3d10_hook.cpp" />
+    <ClCompile Include="source\d3d11\d3d11_hook.cpp" />
+    <ClCompile Include="source\d3d12\d3d12_hook.cpp" />
+    <ClCompile Include="source\dxgi\dxgi_hook.cpp" />
+    <ClCompile Include="source\opengl\gl_hook.cpp" />
+    <ClCompile Include="source\windows\user32.cpp" />
+    <ClCompile Include="source\windows\ws2_32.cpp" />
+    <ClCompile Include="source\gui.cpp" />
+    <ClCompile Include="source\runtime.cpp" />
+    <ClCompile Include="source\input.cpp" />
+    <ClCompile Include="source\d3d9\d3d9_fx_compiler.cpp" />
+    <ClCompile Include="source\d3d9\d3d9_runtime.cpp" />
+    <ClCompile Include="source\d3d10\d3d10_fx_compiler.cpp" />
+    <ClCompile Include="source\d3d10\d3d10_runtime.cpp" />
+    <ClCompile Include="source\d3d10\d3d10_stateblock.cpp" />
+    <ClCompile Include="source\d3d11\d3d11_fx_compiler.cpp" />
+    <ClCompile Include="source\d3d11\d3d11_runtime.cpp" />
+    <ClCompile Include="source\d3d11\d3d11_stateblock.cpp" />
+    <ClCompile Include="source\d3d12\d3d12_runtime.cpp" />
+    <ClCompile Include="source\opengl\gl_fx_compiler.cpp" />
+    <ClCompile Include="source\opengl\gl_runtime.cpp" />
+    <ClCompile Include="source\opengl\gl_stateblock.cpp" />
+    <ClCompile Include="source\file_watcher.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="res\version.h" />
     <ClInclude Include="source\log.hpp" />
-    <ClInclude Include="source\fx\ast.hpp" />
-    <ClInclude Include="source\fx\compiler.hpp" />
-    <ClInclude Include="source\fx\lexer.hpp" />
-    <ClInclude Include="source\fx\parser.hpp" />
-    <ClInclude Include="source\fx\preprocessor.hpp" />
-    <ClInclude Include="source\fx\symbol_table.hpp" />
-    <ClInclude Include="source\hook\hook.hpp" />
-    <ClInclude Include="source\hook\hook_manager.hpp" />
-    <ClInclude Include="source\hooks\d3d8.hpp" />
-    <ClInclude Include="source\hooks\d3d8_types.h" />
-    <ClInclude Include="source\hooks\d3d9.hpp" />
-    <ClInclude Include="source\hooks\d3d10.hpp" />
-    <ClInclude Include="source\hooks\d3d11.hpp" />
-    <ClInclude Include="source\hooks\d3d12.hpp" />
-    <ClInclude Include="source\hooks\dxgi.hpp" />
-    <ClInclude Include="source\runtime\gui.hpp" />
-    <ClInclude Include="source\runtime\runtime.hpp" />
-    <ClInclude Include="source\runtime\input.hpp" />
-    <ClInclude Include="source\runtimes\d3d9_fx_compiler.hpp" />
-    <ClInclude Include="source\runtimes\d3d9_runtime.hpp" />
-    <ClInclude Include="source\runtimes\d3d10_fx_compiler.hpp" />
-    <ClInclude Include="source\runtimes\d3d10_runtime.hpp" />
-    <ClInclude Include="source\runtimes\d3d10_stateblock.hpp" />
-    <ClInclude Include="source\runtimes\d3d11_fx_compiler.hpp" />
-    <ClInclude Include="source\runtimes\d3d11_runtime.hpp" />
-    <ClInclude Include="source\runtimes\d3d11_stateblock.hpp" />
-    <ClInclude Include="source\runtimes\d3d12_runtime.hpp" />
-    <ClInclude Include="source\runtimes\gl_fx_compiler.hpp" />
-    <ClInclude Include="source\runtimes\gl_runtime.hpp" />
-    <ClInclude Include="source\runtimes\gl_stateblock.hpp" />
-    <ClInclude Include="source\utils\com_ptr.hpp" />
-    <ClInclude Include="source\utils\critical_section.hpp" />
-    <ClInclude Include="source\utils\file_watcher.hpp" />
-    <ClInclude Include="source\utils\moving_average.hpp" />
+    <ClInclude Include="source\fx_ast.hpp" />
+    <ClInclude Include="source\fx_compiler.hpp" />
+    <ClInclude Include="source\fx_lexer.hpp" />
+    <ClInclude Include="source\fx_parser.hpp" />
+    <ClInclude Include="source\fx_preprocessor.hpp" />
+    <ClInclude Include="source\fx_symbol_table.hpp" />
+    <ClInclude Include="source\hook.hpp" />
+    <ClInclude Include="source\hook_manager.hpp" />
+    <ClInclude Include="source\d3d8\d3d8.hpp" />
+    <ClInclude Include="source\d3d8\d3d8_types.h" />
+    <ClInclude Include="source\d3d9\d3d9_hook.hpp" />
+    <ClInclude Include="source\d3d10\d3d10_hook.hpp" />
+    <ClInclude Include="source\d3d11\d3d11_hook.hpp" />
+    <ClInclude Include="source\d3d12\d3d12_hook.hpp" />
+    <ClInclude Include="source\dxgi\dxgi_hook.hpp" />
+    <ClInclude Include="source\gui.hpp" />
+    <ClInclude Include="source\runtime.hpp" />
+    <ClInclude Include="source\input.hpp" />
+    <ClInclude Include="source\d3d9\d3d9_fx_compiler.hpp" />
+    <ClInclude Include="source\d3d9\d3d9_runtime.hpp" />
+    <ClInclude Include="source\d3d10\d3d10_fx_compiler.hpp" />
+    <ClInclude Include="source\d3d10\d3d10_runtime.hpp" />
+    <ClInclude Include="source\d3d10\d3d10_stateblock.hpp" />
+    <ClInclude Include="source\d3d11\d3d11_fx_compiler.hpp" />
+    <ClInclude Include="source\d3d11\d3d11_runtime.hpp" />
+    <ClInclude Include="source\d3d11\d3d11_stateblock.hpp" />
+    <ClInclude Include="source\d3d12\d3d12_runtime.hpp" />
+    <ClInclude Include="source\opengl\gl_fx_compiler.hpp" />
+    <ClInclude Include="source\opengl\gl_runtime.hpp" />
+    <ClInclude Include="source\opengl\gl_stateblock.hpp" />
+    <ClInclude Include="source\com_ptr.hpp" />
+    <ClInclude Include="source\critical_section.hpp" />
+    <ClInclude Include="source\file_watcher.hpp" />
+    <ClInclude Include="source\moving_average.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="res\resource.rc" />
