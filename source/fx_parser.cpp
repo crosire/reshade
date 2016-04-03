@@ -3900,7 +3900,7 @@ namespace reshade
 						DOFOLDING2(*);
 						break;
 					case binary_expression_node::divide:
-						if (right->value_float[0] == 0)
+						if (right->value_uint[0] == 0)
 						{
 							return expression;
 						}
@@ -4064,9 +4064,12 @@ namespace reshade
 
 				const auto literal = _ast.make_node<literal_expression_node>(expression->location);
 				literal->type = expression->type;
-				memcpy(literal->value_uint, static_cast<const literal_expression_node *>(variable->initializer_expression)->value_uint, sizeof(literal->value_uint));
-
 				expression = literal;
+
+				for (unsigned int i = 0, size = std::min(variable->initializer_expression->type.rows * variable->initializer_expression->type.cols, literal->type.rows * literal->type.cols); i < size; ++i)
+				{
+					vector_literal_cast(static_cast<const literal_expression_node *>(variable->initializer_expression), i, literal, i);
+				}
 			}
 
 			return expression;
