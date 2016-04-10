@@ -483,6 +483,32 @@ namespace reshade
 
 				set_uniform_value(*variable, values, 2);
 			}
+			else if (source == "mousebutton")
+			{
+				const int index = variable->annotations["keycode"].as<int>();
+
+				if (index > 0 && index < 3)
+				{
+					if (variable->annotations["toggle"].as<bool>())
+					{
+						bool current = false;
+						get_uniform_value(*variable, &current, 1);
+
+						if (_input->is_mouse_button_pressed(index))
+						{
+							current = !current;
+
+							set_uniform_value(*variable, &current, 1);
+						}
+					}
+					else
+					{
+						const bool state = _input->is_mouse_button_down(index);
+
+						set_uniform_value(*variable, &state, 1);
+					}
+				}
+			}
 			else if (source == "random")
 			{
 				const int min = variable->annotations["min"].as<int>(), max = variable->annotations["max"].as<int>();
