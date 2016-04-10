@@ -287,7 +287,7 @@ namespace reshade
 				stats << "Application: " << std::hash<std::string>()(s_executable_name) << std::endl;
 				stats << "Date: " << static_cast<int>(_date[0]) << '-' << static_cast<int>(_date[1]) << '-' << static_cast<int>(_date[2]) << ' ' << static_cast<int>(_date[3]) << '\n';
 				stats << "Device: " << std::hex << std::uppercase << _vendor_id << ' ' << _device_id << std::nouppercase << std::dec << std::endl;
-				stats << "FPS: " << (1e9f / _average_frametime) << std::endl;
+				stats << "FPS: " << std::fixed << std::setprecision(2) << (1e9f / _average_frametime) << std::endl;
 				stats << "Draw Calls: " << _drawcalls << " (" << _vertices << " vertices)" << std::endl;
 				stats << "Frame " << (_framecount + 1) << ": " << (frametime.count() * 1e-6f) << "ms" << std::endl;
 				stats << "PostProcessing: " << (boost::chrono::duration_cast<boost::chrono::nanoseconds>(_last_postprocessing_duration).count() * 1e-6f) << "ms" << std::endl;
