@@ -1316,10 +1316,10 @@ namespace reshade
 			}
 			case fx::nodes::intrinsic_expression_node::tex2dfetch:
 			{
-				const fx::nodes::type_node type2to = { fx::nodes::type_node::datatype_int, 0, 2, 1 };
+				const fx::nodes::type_node type2to = { fx::nodes::type_node::datatype_int, 0, 4, 1 };
 				cast2 = write_cast(type2, type2to);
 
-				output << "texelFetch(";
+				output << "_texelFetch(";
 				visit(output, node->arguments[0]);
 				output << ", " << cast2.first;
 				visit(output, node->arguments[1]);
@@ -2351,6 +2351,7 @@ namespace reshade
 			"void _sincos(vec3 x, out vec3 s, out vec3 c) { s = sin(x), c = cos(x); }"
 			"void _sincos(vec4 x, out vec4 s, out vec4 c) { s = sin(x), c = cos(x); }\n"
 			"vec4 _textureLod(sampler2D s, vec4 c) { return textureLod(s, c.xy, c.w); }\n"
+			"vec4 _texelFetch(sampler2D s, ivec4 c) { return texelFetch(s, c.xy, c.w); }\n"
 			"#define _textureLodOffset(s, c, offset) textureLodOffset(s, (c).xy, (c).w, offset)\n";
 
 		source << "layout(std140, binding = 0) uniform _GLOBAL_\n{\n" << _global_uniforms.str() << "};\n";

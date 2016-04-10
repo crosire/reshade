@@ -344,7 +344,7 @@ namespace reshade
 				intrinsic("tanh", intrinsic_expression_node::tanh, type_node::datatype_float, 3, 1, type_node::datatype_float, 3, 1),
 				intrinsic("tanh", intrinsic_expression_node::tanh, type_node::datatype_float, 4, 1, type_node::datatype_float, 4, 1),
 				intrinsic("tex2D", intrinsic_expression_node::tex2d, type_node::datatype_float, 4, 1, type_node::datatype_sampler, 0, 0, type_node::datatype_float, 2, 1),
-				intrinsic("tex2Dfetch", intrinsic_expression_node::tex2dfetch, type_node::datatype_float, 4, 1, type_node::datatype_sampler, 0, 0, type_node::datatype_int,   2, 1),
+				intrinsic("tex2Dfetch", intrinsic_expression_node::tex2dfetch, type_node::datatype_float, 4, 1, type_node::datatype_sampler, 0, 0, type_node::datatype_int, 4, 1),
 				intrinsic("tex2Dgather", intrinsic_expression_node::tex2dgather, type_node::datatype_float, 4, 1, type_node::datatype_sampler, 0, 0, type_node::datatype_float, 2, 1, type_node::datatype_int, 1, 1),
 				intrinsic("tex2Dgatheroffset", intrinsic_expression_node::tex2dgatheroffset, type_node::datatype_float, 4, 1, type_node::datatype_sampler, 0, 0, type_node::datatype_float, 2, 1, type_node::datatype_int, 2, 1, type_node::datatype_int, 1, 1),
 				intrinsic("tex2Dgrad", intrinsic_expression_node::tex2dgrad, type_node::datatype_float, 4, 1, type_node::datatype_sampler, 0, 0, type_node::datatype_float, 2, 1, type_node::datatype_float, 2, 1, type_node::datatype_float, 2, 1),

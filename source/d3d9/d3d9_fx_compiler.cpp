@@ -720,8 +720,8 @@ namespace reshade
 				part3 = ")";
 				break;
 			case fx::nodes::intrinsic_expression_node::tex2dfetch:
-				part1 = "tex2D((";
-				part2 = ").s, float2(";
+				part1 = "tex2Dlod((";
+				part2 = ").s, float4(";
 				part3 = "))";
 				break;
 			case fx::nodes::intrinsic_expression_node::tex2dgather:
