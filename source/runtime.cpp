@@ -69,7 +69,12 @@ namespace reshade
 			log::open(log_path);
 		}
 
-		LOG(INFO) << "Initializing crosire's ReShade version '" BOOST_STRINGIZE(VERSION_FULL) "' built on '" VERSION_DATE " " VERSION_TIME "' loaded from " << obfuscate_path(injector_path) << " to " << obfuscate_path(executable_path) << " ...";
+#ifdef WIN64
+#define VERSION_PLATFORM "64-bit"
+#else
+#define VERSION_PLATFORM "32-bit"
+#endif
+		LOG(INFO) << "Initializing crosire's ReShade version '" BOOST_STRINGIZE(VERSION_FULL) "' (" << VERSION_PLATFORM << ") built on '" VERSION_DATE " " VERSION_TIME "' loaded from " << obfuscate_path(injector_path) << " to " << obfuscate_path(executable_path) << " ...";
 
 		TCHAR system_path_buffer[MAX_PATH];
 		GetSystemDirectory(system_path_buffer, MAX_PATH);
