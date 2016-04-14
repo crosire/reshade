@@ -8,13 +8,11 @@
 # Visual Studio cache files
 ipch/
 *.aps
-*.cachefile
 *.VC.db
-*.opendb
-*.opensdf
-*.user
+*.VC.opendb
 *.sdf
 *.suo
+*.user
 
 # Temporary OS files
 .DS_Store
