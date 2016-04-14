@@ -1,6 +1,6 @@
 //
 // Copyright (c) 2009-2013 Mikko Mononen memon@inside.org
-// Port of _gl.h to _d3d9.h by crosire
+// Port of _gl.h to _d3d9.h by Patrick Mours
 //
 // This software is provided 'as-is', without any express or implied
 // warranty.  In no event will the authors be held liable for any damages
@@ -34,4 +34,5 @@ enum NVGimageFlagsD3D9 {
 #ifdef __cplusplus
 }
 #endif
-#endif //NANOVG_D3D9_H
+
+#endif /* NANOVG_D3D9_H */

@@ -8,11 +8,8 @@
 #include "nanovg.h"
 #include "nanovg_d3d11.h"
 
-static
 #include "D3D11VertexShader.h"
-static
 #include "D3D11PixelShaderAA.h"
-static
 #include "D3D11PixelShader.h"
 
 // The cpp calling is much simpler.
@@ -259,15 +256,9 @@ static int D3Dnvg__createShader(struct D3DNVGcontext* D3D, struct D3DNVGshader* 
     // Shader byte code is created at compile time from the .hlsl files.
     // No need for error checks; shader errors can be fixed in the IDE.
     hr = D3D_API_4(D3D->pDevice, CreateVertexShader, vshader, vshader_size, NULL, &vert);
-    if (D3Dnvg__checkError(hr, "Create Vertex Shader"))
-		return 0;
-
-	shader->vert = vert;
-
-	hr = D3D_API_4(D3D->pDevice, CreatePixelShader, fshader, fshader_size, NULL, &frag);
-    if (D3Dnvg__checkError(hr, "Create Pixel Shader"))
-		return 0;
-   
+    hr = D3D_API_4(D3D->pDevice, CreatePixelShader, fshader, fshader_size, NULL, &frag);
+    
+    shader->vert = vert;
     shader->frag = frag;
 
     return 1;
@@ -279,76 +270,93 @@ static void D3Dnvg__deleteShader(struct D3DNVGshader* shader)
     D3D_API_RELEASE(shader->frag);
 }
 
-static void D3Dnvg_buildFanIndices(struct D3DNVGcontext* D3D)
+void D3Dnvg_buildFanIndices(struct D3DNVGcontext* D3D)
 {
-    D3D11_MAPPED_SUBRESOURCE resource;
-    WORD* pIndices;
-    unsigned int index0 = 0;
-    unsigned int index1 = 1;
-    unsigned int index2 = 2;
-    unsigned int current = 0;
+    UINT32 index0 = 0;
+    UINT32 index1 = 1;
+    UINT32 index2 = 2;
+    UINT32 current = 0;
+	D3D11_MAPPED_SUBRESOURCE resource;
+	UINT32* pIndices = NULL;
 
     D3D_API_5(D3D->pDeviceContext, Map, (ID3D11Resource*)D3D->pFanIndexBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &resource);
-    pIndices = (WORD*)resource.pData;
+    pIndices = (UINT32*)resource.pData;
     
     while (current < (D3D->VertexBuffer.MaxBufferEntries - 3))
     {
-        pIndices[current++] = (WORD)index0;
-        pIndices[current++] = (WORD)index1++;
-        pIndices[current++] = (WORD)index2++;
+        pIndices[current++] = index0;
+        pIndices[current++] = index1++;
+        pIndices[current++] = index2++;
     }
     D3D_API_2(D3D->pDeviceContext, Unmap, (ID3D11Resource*)D3D->pFanIndexBuffer, 0);
 }
 
-static unsigned int D3Dnvg_updateVertexBuffer(struct D3DNVGcontext* D3D)
+struct NVGvertex* D3Dnvg_beginVertexBuffer(struct D3DNVGcontext* D3D, unsigned int maxCount, unsigned int* baseOffset)
 {
-	HRESULT hr;
+    D3D11_MAPPED_SUBRESOURCE resource;
+    if (maxCount >= D3D->VertexBuffer.MaxBufferEntries)
+    {
+        D3Dnvg__checkError(E_FAIL, "Vertex buffer too small!");
+        return NULL;
+    }
+    if ((D3D->VertexBuffer.CurrentBufferEntry + maxCount) >= D3D->VertexBuffer.MaxBufferEntries)
+    {
+        *baseOffset = 0;
+        D3D->VertexBuffer.CurrentBufferEntry = maxCount;
+        D3D_API_5(D3D->pDeviceContext, Map, (ID3D11Resource*)D3D->VertexBuffer.pBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &resource);
+    }
+    else
+    {
+        *baseOffset = D3D->VertexBuffer.CurrentBufferEntry;
+        D3D->VertexBuffer.CurrentBufferEntry = *baseOffset + maxCount;
+        D3D_API_5(D3D->pDeviceContext, Map, (ID3D11Resource*)D3D->VertexBuffer.pBuffer, 0, D3D11_MAP_WRITE_NO_OVERWRITE, 0, &resource);
+    }
+    return ((struct NVGvertex*)resource.pData + *baseOffset);
+}
+
+void D3Dnvg_endVertexBuffer(struct D3DNVGcontext* D3D)
+{
+    D3D_API_2(D3D->pDeviceContext, Unmap, (ID3D11Resource*)D3D->VertexBuffer.pBuffer, 0);
+}
+
+static void D3Dnvg__copyVerts(struct NVGvertex* pDest, const struct NVGvertex* pSource, unsigned int num)
+{
+    unsigned int i;
+    for (i = 0; i < num; i++)
+    {
+        pDest[i].x = pSource[i].x;
+        pDest[i].y = pSource[i].y;
+        pDest[i].u = pSource[i].u;
+        pDest[i].v = pSource[i].v;
+    }
+}
+
+static unsigned int D3Dnvg_updateVertexBuffer(ID3D11DeviceContext* pContext, struct D3DNVGBuffer* buffer, const struct NVGvertex* verts, unsigned int nverts)
+{
     D3D11_MAPPED_SUBRESOURCE resource;
     unsigned int retEntry;
 
-    if (D3D->nverts > D3D->VertexBuffer.MaxBufferEntries)
+    if (nverts > buffer->MaxBufferEntries)
     {
-		D3D11_BUFFER_DESC bufferDesc;
-
-		D3D_API_RELEASE(D3D->VertexBuffer.pBuffer);
-
-		while (D3D->VertexBuffer.MaxBufferEntries < D3D->nverts)
-			D3D->VertexBuffer.MaxBufferEntries *= 2;
-		D3D->VertexBuffer.CurrentBufferEntry = 0;
-
-		memset(&bufferDesc, 0, sizeof(bufferDesc));
-		bufferDesc.Usage = D3D11_USAGE_DYNAMIC;
-		bufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-		bufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-		bufferDesc.MiscFlags = 0;
-		bufferDesc.ByteWidth = sizeof(struct NVGvertex)* D3D->VertexBuffer.MaxBufferEntries;
-		
-		hr = D3D_API_3(D3D->pDevice, CreateBuffer, &bufferDesc, NULL, &D3D->VertexBuffer.pBuffer);
-		if (D3Dnvg__checkError(hr, "Create Vertex Buffer"))
-		{
-			ZeroMemory(&D3D->VertexBuffer, sizeof(D3D->VertexBuffer));
-			return 0;
-		}
+        D3Dnvg__checkError(E_FAIL, "Vertex buffer too small!");
+        return 0;
+    }
+    if ((buffer->CurrentBufferEntry + nverts) >= buffer->MaxBufferEntries)
+    {
+        buffer->CurrentBufferEntry = 0;
+        D3D_API_5(pContext, Map, (ID3D11Resource*)buffer->pBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &resource);
+    }
+    else
+    {
+        D3D_API_5(pContext, Map, (ID3D11Resource*)buffer->pBuffer, 0, D3D11_MAP_WRITE_NO_OVERWRITE, 0, &resource);
     }
 
-	if ((D3D->VertexBuffer.CurrentBufferEntry + D3D->nverts) >= D3D->VertexBuffer.MaxBufferEntries || D3D->VertexBuffer.CurrentBufferEntry == 0)
-	{
-		D3D->VertexBuffer.CurrentBufferEntry = 0;
-		D3D_API_5(D3D->pDeviceContext, Map, (ID3D11Resource*)D3D->VertexBuffer.pBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &resource);
-	}
-	else
-	{
-		D3D_API_5(D3D->pDeviceContext, Map, (ID3D11Resource*)D3D->VertexBuffer.pBuffer, 0, D3D11_MAP_WRITE_NO_OVERWRITE, 0, &resource);
-	}
-
-	memcpy((((struct NVGvertex*)resource.pData) + D3D->VertexBuffer.CurrentBufferEntry), D3D->verts, D3D->nverts * sizeof(struct NVGvertex));
+    D3Dnvg__copyVerts((((struct NVGvertex*)resource.pData) + buffer->CurrentBufferEntry), (const struct NVGvertex*)verts, nverts);
     
-	D3D_API_2(D3D->pDeviceContext, Unmap, (ID3D11Resource*)D3D->VertexBuffer.pBuffer, 0);
-
-	retEntry = D3D->VertexBuffer.CurrentBufferEntry;
-	D3D->VertexBuffer.CurrentBufferEntry += D3D->nverts;
-
-	return retEntry;
+    D3D_API_2(pContext, Unmap, (ID3D11Resource*)buffer->pBuffer, 0);
+    retEntry = buffer->CurrentBufferEntry;
+    buffer->CurrentBufferEntry += nverts;
+    return retEntry;
 }
 
 static void D3Dnvg_setBuffers(struct D3DNVGcontext* D3D, unsigned int dynamicOffset)
@@ -361,12 +369,10 @@ static void D3Dnvg_setBuffers(struct D3DNVGcontext* D3D, unsigned int dynamicOff
     strides[0] = sizeof(struct NVGvertex);
     offsets[0] = dynamicOffset * sizeof(struct NVGvertex);
 
-    D3D_API_3(D3D->pDeviceContext, IASetIndexBuffer, D3D->pFanIndexBuffer, DXGI_FORMAT_R16_UINT, 0);
+    D3D_API_3(D3D->pDeviceContext, IASetIndexBuffer, D3D->pFanIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
     D3D_API_5(D3D->pDeviceContext, IASetVertexBuffers, 0, 1, pBuffers, strides, offsets);
     D3D_API_1(D3D->pDeviceContext, IASetInputLayout, D3D->pLayoutRenderTriangles);
 }
-
-static void D3Dnvg__renderDelete(void* uptr);
 
 static int D3Dnvg__renderCreate(void* uptr)
 {
@@ -395,14 +401,16 @@ static int D3Dnvg__renderCreate(void* uptr)
     
     if (D3D->flags & NVG_ANTIALIAS) {
         if (D3Dnvg__createShader(D3D, &D3D->shader, g_D3D11VertexShader_Main, sizeof(g_D3D11VertexShader_Main), g_D3D11PixelShaderAA_Main, sizeof(g_D3D11PixelShaderAA_Main)) == 0)
-           goto error;
+            return 0;
     }
     else {
         if (D3Dnvg__createShader(D3D, &D3D->shader, g_D3D11VertexShader_Main, sizeof(g_D3D11VertexShader_Main), g_D3D11PixelShader_Main, sizeof(g_D3D11PixelShader_Main)) == 0)
-           goto error;
+            return 0;
     }
 
-    D3D->VertexBuffer.MaxBufferEntries = 20000;
+    // Todo: Need to find a good value for this, and
+    // Use the dynamic buffer fill technnique to handle overflow
+    D3D->VertexBuffer.MaxBufferEntries = 1000000;
     D3D->VertexBuffer.CurrentBufferEntry = 0;
 
     memset(&bufferDesc, 0, sizeof(bufferDesc));
@@ -414,20 +422,17 @@ static int D3Dnvg__renderCreate(void* uptr)
     // Create the vertex buffer.
     bufferDesc.ByteWidth = sizeof(struct NVGvertex)* D3D->VertexBuffer.MaxBufferEntries;
     hr = D3D_API_3(D3D->pDevice, CreateBuffer, &bufferDesc, NULL, &D3D->VertexBuffer.pBuffer);
-    if (D3Dnvg__checkError(hr, "Create Vertex Buffer"))
-		goto error;
+    D3Dnvg__checkError(hr, "Create Vertex Buffer");
 
     bufferDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
-    bufferDesc.ByteWidth = sizeof(WORD)* D3D->VertexBuffer.MaxBufferEntries;
+    bufferDesc.ByteWidth = sizeof(UINT32)* D3D->VertexBuffer.MaxBufferEntries;
     hr = D3D_API_3(D3D->pDevice, CreateBuffer, &bufferDesc, NULL, &D3D->pFanIndexBuffer);
-    if (D3Dnvg__checkError(hr, "Create Vertex Buffer Static"))
-		goto error;
+    D3Dnvg__checkError(hr, "Create Vertex Buffer Static");
 
     D3Dnvg_buildFanIndices(D3D);
 
     hr = D3D_API_5(D3D->pDevice, CreateInputLayout, LayoutRenderTriangles, 2, g_D3D11VertexShader_Main, sizeof(g_D3D11VertexShader_Main), &D3D->pLayoutRenderTriangles);
-    if (D3Dnvg__checkError(hr, "Create Input Layout"))
-		goto error;
+    D3Dnvg__checkError(hr, "Create Input Layout");
 
     bufferDesc.Usage = D3D11_USAGE_DYNAMIC;
     bufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
@@ -440,8 +445,7 @@ static int D3Dnvg__renderCreate(void* uptr)
     }
 
     hr = D3D_API_3(D3D->pDevice, CreateBuffer, &bufferDesc, NULL, &D3D->pVSConstants);
-    if (D3Dnvg__checkError(hr, "Create Constant Buffer"))
-		goto error;
+    D3Dnvg__checkError(hr, "Create Constant Buffer");
 
     bufferDesc.ByteWidth = sizeof(struct D3DNVGfragUniforms);
     if ((bufferDesc.ByteWidth % 16) != 0)
@@ -451,8 +455,7 @@ static int D3Dnvg__renderCreate(void* uptr)
     D3D->fragSize = bufferDesc.ByteWidth;
 
     hr = D3D_API_3(D3D->pDevice, CreateBuffer, &bufferDesc, NULL, &D3D->pPSConstants);
-    if (D3Dnvg__checkError(hr, "Create Constant Buffer"))
-		goto error;
+    D3Dnvg__checkError(hr, "Create Constant Buffer");
 
     ZeroMemory(&rasterDesc, sizeof(rasterDesc));
     rasterDesc.FillMode = D3D11_FILL_SOLID;
@@ -460,13 +463,9 @@ static int D3Dnvg__renderCreate(void* uptr)
     rasterDesc.DepthClipEnable = TRUE;
     rasterDesc.FrontCounterClockwise = TRUE;
     hr = D3D_API_2(D3D->pDevice, CreateRasterizerState, &rasterDesc, &D3D->pRSNoCull);
-    if (D3Dnvg__checkError(hr, "Create Rasterizer State (NoCull)"))
-		goto error;
 
     rasterDesc.CullMode = D3D11_CULL_BACK;
     hr = D3D_API_2(D3D->pDevice, CreateRasterizerState, &rasterDesc, &D3D->pRSCull);
-    if (D3Dnvg__checkError(hr, "Create Rasterizer State (Cull)"))
-		goto error;
 
     ZeroMemory(&blendDesc, sizeof(blendDesc));
     blendDesc.RenderTarget[0].BlendEnable = TRUE;
@@ -479,14 +478,11 @@ static int D3Dnvg__renderCreate(void* uptr)
     blendDesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_INV_SRC_ALPHA;
     blendDesc.IndependentBlendEnable = FALSE;
     hr = D3D_API_2(D3D->pDevice, CreateBlendState, &blendDesc, &D3D->pBSBlend);
-    if (D3Dnvg__checkError(hr, "Create Blend State (Blend)"))
-		goto error;
+
 
     blendDesc.RenderTarget[0].BlendEnable = FALSE;
     blendDesc.RenderTarget[0].RenderTargetWriteMask = 0;
     hr = D3D_API_2(D3D->pDevice, CreateBlendState, &blendDesc, &D3D->pBSNoWrite);
-    if (D3Dnvg__checkError(hr, "Create Blend State (NoWrite)"))
-		goto error;
 
     // Stencil A Draw shapes
     ZeroMemory(&depthStencilDesc, sizeof(depthStencilDesc));
@@ -502,30 +498,22 @@ static int D3Dnvg__renderCreate(void* uptr)
     
     // No color write
     hr = D3D_API_2(D3D->pDevice, CreateDepthStencilState, &depthStencilDesc, &D3D->pDepthStencilDrawShapes);
-    if (D3Dnvg__checkError(hr, "Create DepthStencil State (DrawShapes)"))
-		goto error;
 
     // Draw AA
     depthStencilDesc.FrontFace = aaOp;
     depthStencilDesc.BackFace = aaOp;
     
     hr = D3D_API_2(D3D->pDevice, CreateDepthStencilState, &depthStencilDesc, &D3D->pDepthStencilDrawAA);
-    if (D3Dnvg__checkError(hr, "Create DepthStencil State (DrawAA)"))
-		goto error;
 
     // Stencil Fill
     depthStencilDesc.FrontFace = fillOp;
     depthStencilDesc.BackFace = fillOp;
     hr = D3D_API_2(D3D->pDevice, CreateDepthStencilState, &depthStencilDesc, &D3D->pDepthStencilFill);
-    if (D3Dnvg__checkError(hr, "Create DepthStencil State (Fill)"))
-		goto error;
 
     depthStencilDesc.FrontFace = defaultOp;
     depthStencilDesc.BackFace = defaultOp;
     depthStencilDesc.StencilEnable = FALSE;
     hr = D3D_API_2(D3D->pDevice, CreateDepthStencilState, &depthStencilDesc, &D3D->pDepthStencilDefault);
-    if (D3Dnvg__checkError(hr, "Create DepthStencil State (Default)"))
-		goto error;
 
     ZeroMemory(&sampDesc, sizeof(sampDesc));
     sampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
@@ -537,33 +525,21 @@ static int D3Dnvg__renderCreate(void* uptr)
 
     sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
     sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
-    hr = D3D_API_2(D3D->pDevice, CreateSamplerState, &sampDesc, &D3D->pSamplerState[0]);
-    if (D3Dnvg__checkError(hr, "Create Sampler State 0"))
-		goto error;
+    D3D_API_2(D3D->pDevice, CreateSamplerState, &sampDesc, &D3D->pSamplerState[0]);
 
     sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
     sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
-	hr = D3D_API_2(D3D->pDevice, CreateSamplerState, &sampDesc, &D3D->pSamplerState[1]);
-    if (D3Dnvg__checkError(hr, "Create Sampler State 1"))
-		goto error;
+	D3D_API_2(D3D->pDevice, CreateSamplerState, &sampDesc, &D3D->pSamplerState[1]);
 
     sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
     sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
-	hr = D3D_API_2(D3D->pDevice, CreateSamplerState, &sampDesc, &D3D->pSamplerState[2]);
-    if (D3Dnvg__checkError(hr, "Create Sampler State 2"))
-		goto error;
+	D3D_API_2(D3D->pDevice, CreateSamplerState, &sampDesc, &D3D->pSamplerState[2]);
 
     sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
     sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
-	hr = D3D_API_2(D3D->pDevice, CreateSamplerState, &sampDesc, &D3D->pSamplerState[3]);
-    if (D3Dnvg__checkError(hr, "Create Sampler State 3"))
-		goto error;
+	D3D_API_2(D3D->pDevice, CreateSamplerState, &sampDesc, &D3D->pSamplerState[3]);
     
     return 1;
-
-error:
-	D3Dnvg__renderDelete(D3D);
-	return 0;
 }
 
 static int D3Dnvg__renderCreateTexture(void* uptr, int type, int w, int h, int imageFlags, const unsigned char* data)
@@ -616,8 +592,10 @@ static int D3Dnvg__renderCreateTexture(void* uptr, int type, int w, int h, int i
     texDesc.Usage = D3D11_USAGE_DEFAULT;
 
     hr = D3D_API_3(D3D->pDevice, CreateTexture2D, &texDesc, NULL, &tex->tex);
-    if (D3Dnvg__checkError(hr, "Create texture"))
+    if (FAILED(hr))
+    {
         return 0;
+    }
 
     if (data != NULL)
     {
@@ -629,18 +607,15 @@ static int D3Dnvg__renderCreateTexture(void* uptr, int type, int w, int h, int i
     viewDesc.Texture2D.MipLevels = (UINT)-1;
     viewDesc.Texture2D.MostDetailedMip = 0;
  
-    hr = D3D_API_3(D3D->pDevice, CreateShaderResourceView, (ID3D11Resource*)tex->tex, &viewDesc, &tex->resourceView);
+    D3D_API_3(D3D->pDevice, CreateShaderResourceView, (ID3D11Resource*)tex->tex, &viewDesc, &tex->resourceView);
 
     if (data != NULL && texDesc.MipLevels == 0)
     {
         D3D_API_1(D3D->pDeviceContext, GenerateMips, tex->resourceView);
     }
 
-    if (D3Dnvg__checkError(hr, "Create ShaderResourceView"))
-	{
-		D3D_API_RELEASE(tex->tex);
+    if (D3Dnvg__checkError(hr, "create tex"))
         return 0;
-	}
 
     return tex->id;
 }
@@ -681,7 +656,7 @@ static int D3Dnvg__renderUpdateTexture(void* uptr, int image, int x, int y, int 
     }
 
     pData = (unsigned char*)data + (y * (tex->width * pixelWidthBytes)) + (x * pixelWidthBytes);
-	D3D_API_6(D3D->pDeviceContext, UpdateSubresource, (ID3D11Resource*)tex->tex, 0, &box, pData, tex->width, tex->width * tex->height);
+    D3D_API_6(D3D->pDeviceContext, UpdateSubresource, (ID3D11Resource*)tex->tex, 0, &box, pData, tex->width, tex->width * tex->height);
  
     return 1;
 }
@@ -913,12 +888,15 @@ static void D3Dnvg__convexFill(struct D3DNVGcontext* D3D, struct D3DNVGcall* cal
 	for (i = 0; i < npaths; i++)
     {
         // Draws a fan using indices to fake it up, since there isn't a fan primitive in D3D11.
-        unsigned int numIndices = ((paths[i].fillCount - 2) * 3);
-        assert(numIndices < D3D->VertexBuffer.MaxBufferEntries);
-        if (numIndices < D3D->VertexBuffer.MaxBufferEntries)
-        {
-            D3D_API_3(D3D->pDeviceContext, DrawIndexed, numIndices, 0, paths[i].fillOffset);        
-        }
+		if (paths[i].fillCount > 2)
+		{
+			unsigned int numIndices = ((paths[i].fillCount - 2) * 3);
+			assert(numIndices < D3D->VertexBuffer.MaxBufferEntries);
+			if (numIndices < D3D->VertexBuffer.MaxBufferEntries)
+			{
+				D3D_API_3(D3D->pDeviceContext, DrawIndexed, numIndices, 0, paths[i].fillOffset);
+			}
+		}
     }
 
     D3D_API_1(D3D->pDeviceContext, IASetPrimitiveTopology, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
@@ -1003,7 +981,7 @@ static void D3Dnvg__renderFlush(void* uptr)
 
 	if (D3D->ncalls > 0) 
     {
-        unsigned int buffer0Offset = D3Dnvg_updateVertexBuffer(D3D);
+        unsigned int buffer0Offset = D3Dnvg_updateVertexBuffer(D3D->pDeviceContext, &D3D->VertexBuffer, D3D->verts, D3D->nverts);
         D3Dnvg_setBuffers(D3D, buffer0Offset);
 
         // Ensure valid state
@@ -1011,9 +989,6 @@ static void D3Dnvg__renderFlush(void* uptr)
         D3D_API_3(D3D->pDeviceContext, VSSetConstantBuffers, 0, 1, &D3D->pVSConstants);
 
         D3D_API_3(D3D->pDeviceContext, PSSetShader, D3D->shader.frag, NULL, 0);
-		D3D_API_3(D3D->pDeviceContext, GSSetShader, NULL, NULL, 0);
-		D3D_API_3(D3D->pDeviceContext, DSSetShader, NULL, NULL, 0);
-		D3D_API_3(D3D->pDeviceContext, HSSetShader, NULL, NULL, 0);
         D3D_API_3(D3D->pDeviceContext, VSSetShader, D3D->shader.vert, NULL, 0);
 
          // Draw shapes
@@ -1024,7 +999,7 @@ static void D3Dnvg__renderFlush(void* uptr)
        
 		for (i = 0; i < D3D->ncalls; i++) {
 			struct D3DNVGcall* call = &D3D->calls[i];
-
+			
 			if (call->image != 0)
 			{
 				struct D3DNVGtexture* tex = D3Dnvg__findTexture(D3D, call->image);
@@ -1328,7 +1303,7 @@ static void D3Dnvg__renderDelete(void* uptr)
             D3D_API_RELEASE(D3D->textures[i].resourceView);
         }
     }
-	for (i = 0; i < 4; i++)
+    for (i = 0; i < 4; i++)
 	{
 		D3D_API_RELEASE(D3D->pSamplerState[i]);
 	}
@@ -1350,8 +1325,9 @@ static void D3Dnvg__renderDelete(void* uptr)
     D3D_API_RELEASE(D3D->pDepthStencilFill);
     D3D_API_RELEASE(D3D->pDepthStencilDefault);
 
+    // We took a reference to this
+    // Don't delete the device though.
     D3D_API_RELEASE(D3D->pDeviceContext);
-    D3D_API_RELEASE(D3D->pDevice);
     
     free(D3D->textures);
 
@@ -1374,9 +1350,8 @@ struct NVGcontext* nvgCreateD3D11(ID3D11Device* pDevice, int flags)
         goto error;
     }
     memset(D3D, 0, sizeof(struct D3DNVGcontext));
-	D3D_API(pDevice, AddRef);
     D3D->pDevice = pDevice;
-	D3D_API_1(D3D->pDevice, GetImmediateContext, &D3D->pDeviceContext);
+    D3D_API_1(pDevice, GetImmediateContext, &D3D->pDeviceContext);
 
     memset(&params, 0, sizeof(params));
     params.renderCreate = D3Dnvg__renderCreate;
@@ -1411,3 +1386,42 @@ void nvgDeleteD3D11(struct NVGcontext* ctx)
 {
     nvgDeleteInternal(ctx);
 }
+
+#ifdef IMPLEMENTED_IMAGE_FUNCS
+int nvd3dCreateImageFromHandle(struct NVGcontext* ctx, void* textureId, int w, int h, int flags)
+{
+
+    /*struct D3DNVGcontext* gl = (struct D3DNVGcontext*)nvgInternalParams(ctx)->userPtr;
+	struct D3DNVGtexture* tex = D3Dnvg__allocTexture(gl);
+
+	if (tex == NULL) return 0;
+
+	tex->type = NVG_TEXTURE_RGBA;
+	tex->tex = textureId;
+	tex->flags = flags;
+	tex->width = w;
+	tex->height = h;
+
+	return tex->id;
+*/
+    return 0;
+}
+
+unsigned int nvd3dImageHandle(struct NVGcontext* ctx, int image)
+{
+    /*
+	struct D3DNVGcontext* gl = (struct D3DNVGcontext*)nvgInternalParams(ctx)->userPtr;
+	struct D3DNVGtexture* tex = D3Dnvg__findTexture(gl, image);
+	return tex->tex;*/
+    return 0;
+}
+
+void nvd3dImageFlags(struct NVGcontext* ctx, int image, int flags)
+{
+    /*
+	struct D3DNVGcontext* gl = (struct D3DNVGcontext*)nvgInternalParams(ctx)->userPtr;
+	struct D3DNVGtexture* tex = D3Dnvg__findTexture(gl, image);
+	tex->flags = flags;
+    */
+}
+#endif

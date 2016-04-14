@@ -227,7 +227,6 @@ static unsigned int D3D9nvg_updateVertexBuffer(struct D3D9NVGcontext* D3D)
 		while (D3D->VertexBuffer.MaxBufferEntries < D3D->nverts)
 			D3D->VertexBuffer.MaxBufferEntries *= 2;
 		D3D->VertexBuffer.CurrentBufferEntry = 0;
-
 		hr = IDirect3DDevice9_CreateVertexBuffer(D3D->pDevice, sizeof(NVGvertex) * D3D->VertexBuffer.MaxBufferEntries, D3DUSAGE_DYNAMIC | D3DUSAGE_WRITEONLY, 0, D3DPOOL_DEFAULT, &D3D->VertexBuffer.pBuffer, NULL);
 
 		if (FAILED(hr))

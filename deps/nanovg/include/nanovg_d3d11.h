@@ -31,7 +31,15 @@ enum NVGimageFlagsD3D11 {
 	NVG_IMAGE_NODELETE			= 1<<16,	// Do not delete texture object.
 };
 
+// Not done yet.  Simple enough to do though...
+#ifdef IMPLEMENTED_IMAGE_FUNCS
+int nvd3dCreateImageFromHandle(struct NVGcontext* ctx, void* texture, int w, int h, int flags);
+unsigned int nvd3dImageHandle(struct NVGcontext* ctx, int image);
+void nvd3dImageFlags(struct NVGcontext* ctx, int image, int flags);
+#endif
+
 #ifdef __cplusplus
 }
 #endif
+
 #endif //NANOVG_D3D11_H
