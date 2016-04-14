@@ -15,7 +15,7 @@ namespace reshade
 		UnhookWindowsHookEx(_hook_wndproc);
 	}
 
-	void input::register_window(HWND hwnd, std::shared_ptr<input> &instance)
+	std::shared_ptr<input> input::register_window(HWND hwnd)
 	{
 		const auto insert = s_windows.emplace(hwnd, std::weak_ptr<input>());
 
@@ -23,13 +23,15 @@ namespace reshade
 		{
 			LOG(INFO) << "Starting input capture for window " << hwnd << " ...";
 
-			instance = std::make_shared<input>(hwnd);
+			const auto instance = std::make_shared<input>(hwnd);
 
 			insert.first->second = instance;
+
+			return instance;
 		}
 		else
 		{
-			instance = insert.first->second.lock();
+			return insert.first->second.lock();
 		}
 	}
 	void input::register_raw_input_device(const RAWINPUTDEVICE &device)
@@ -80,6 +82,8 @@ namespace reshade
 			return CallNextHookEx(nullptr, nCode, wParam, lParam);
 		}
 
+		RAWINPUT raw_data = { };
+		UINT raw_data_size = sizeof(raw_data);
 		const auto input_lock = it->second.lock();
 		input &input = *input_lock;
 
@@ -91,51 +95,48 @@ namespace reshade
 		switch (details.message)
 		{
 			case WM_INPUT:
-				if (GET_RAWINPUT_CODE_WPARAM(details.wParam) == RIM_INPUT)
+				if (GET_RAWINPUT_CODE_WPARAM(details.wParam) != RIM_INPUT)
 				{
-					RAWINPUT data = { 0 };
-					UINT data_size = sizeof(data);
+					break;
+				}
+				if (GetRawInputData(reinterpret_cast<HRAWINPUT>(details.lParam), RID_INPUT, &raw_data, &raw_data_size, sizeof(raw_data.header)) == UINT(-1))
+				{
+					break;
+				}
 
-					if (GetRawInputData(reinterpret_cast<HRAWINPUT>(details.lParam), RID_INPUT, &data, &data_size, sizeof(RAWINPUTHEADER)) == UINT(-1))
-					{
+				switch (raw_data.header.dwType)
+				{
+					case RIM_TYPEMOUSE:
+						if (raw_data.data.mouse.usButtonFlags & RI_MOUSE_LEFT_BUTTON_DOWN)
+							input._mouse_buttons[0] = 1;
+						else if (raw_data.data.mouse.usButtonFlags & RI_MOUSE_LEFT_BUTTON_UP)
+							input._mouse_buttons[0] = -1;
+						if (raw_data.data.mouse.usButtonFlags & RI_MOUSE_RIGHT_BUTTON_DOWN)
+							input._mouse_buttons[2] = 1;
+						else if (raw_data.data.mouse.usButtonFlags & RI_MOUSE_RIGHT_BUTTON_UP)
+							input._mouse_buttons[2] = -1;
+						if (raw_data.data.mouse.usButtonFlags & RI_MOUSE_MIDDLE_BUTTON_DOWN)
+							input._mouse_buttons[1] = 1;
+						else if (raw_data.data.mouse.usButtonFlags & RI_MOUSE_MIDDLE_BUTTON_UP)
+							input._mouse_buttons[1] = -1;
+
+						if (raw_data.data.mouse.usButtonFlags & RI_MOUSE_BUTTON_4_DOWN)
+							input._mouse_buttons[3] = 1;
+						else if (raw_data.data.mouse.usButtonFlags & RI_MOUSE_BUTTON_4_UP)
+							input._mouse_buttons[3] = -1;
+
+						if (raw_data.data.mouse.usButtonFlags & RI_MOUSE_BUTTON_5_DOWN)
+							input._mouse_buttons[4] = 1;
+						else if (raw_data.data.mouse.usButtonFlags & RI_MOUSE_BUTTON_5_UP)
+							input._mouse_buttons[4] = -1;
+
+						if (raw_data.data.mouse.usButtonFlags & RI_MOUSE_WHEEL)
+							input._mouse_wheel_delta += static_cast<short>(raw_data.data.mouse.usButtonData) / WHEEL_DELTA;
 						break;
-					}
-
-					switch (data.header.dwType)
-					{
-						case RIM_TYPEMOUSE:
-							if (data.data.mouse.usButtonFlags & RI_MOUSE_LEFT_BUTTON_DOWN)
-							{
-								input._mouse_buttons[0] = 1;
-							}
-							else if (data.data.mouse.usButtonFlags & RI_MOUSE_LEFT_BUTTON_UP)
-							{
-								input._mouse_buttons[0] = -1;
-							}
-							if (data.data.mouse.usButtonFlags & RI_MOUSE_RIGHT_BUTTON_DOWN)
-							{
-								input._mouse_buttons[2] = 1;
-							}
-							else if (data.data.mouse.usButtonFlags & RI_MOUSE_RIGHT_BUTTON_UP)
-							{
-								input._mouse_buttons[2] = -1;
-							}
-							if (data.data.mouse.usButtonFlags & RI_MOUSE_MIDDLE_BUTTON_DOWN)
-							{
-								input._mouse_buttons[1] = 1;
-							}
-							else if (data.data.mouse.usButtonFlags & RI_MOUSE_MIDDLE_BUTTON_UP)
-							{
-								input._mouse_buttons[1] = -1;
-							}
-							break;
-						case RIM_TYPEKEYBOARD:
-							if (data.data.keyboard.VKey != 0xFF)
-							{
-								input._keys[data.data.keyboard.VKey] = (data.data.keyboard.Flags & RI_KEY_BREAK) == 0 ? 1 : -1;
-							}
-							break;
-					}
+					case RIM_TYPEKEYBOARD:
+						if (raw_data.data.keyboard.VKey != 0xFF)
+							input._keys[raw_data.data.keyboard.VKey] = (raw_data.data.keyboard.Flags & RI_KEY_BREAK) == 0 ? 1 : -1;
+						break;
 				}
 				break;
 			case WM_KEYDOWN:
@@ -163,6 +164,15 @@ namespace reshade
 				break;
 			case WM_MBUTTONUP:
 				input._mouse_buttons[1] = -1;
+				break;
+			case WM_MOUSEWHEEL:
+				input._mouse_wheel_delta += GET_WHEEL_DELTA_WPARAM(details.wParam) / WHEEL_DELTA;
+				break;
+			case WM_XBUTTONDOWN:
+				input._mouse_buttons[2 + HIWORD(details.wParam)] = 1;
+				break;
+			case WM_XBUTTONUP:
+				input._mouse_buttons[2 + HIWORD(details.wParam)] = -1;
 				break;
 		}
 
@@ -194,5 +204,7 @@ namespace reshade
 				_mouse_buttons[i] = 0;
 			}
 		}
+
+		_mouse_wheel_delta = 0;
 	}
 }

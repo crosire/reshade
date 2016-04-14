@@ -42,7 +42,7 @@ namespace reshade
 		_height = pp.BackBufferHeight;
 		_backbuffer_format = pp.BackBufferFormat;
 		_is_multisampling_enabled = pp.MultiSampleType != D3DMULTISAMPLE_NONE;
-		input::register_window(pp.hDeviceWindow, _input);
+		_input = input::register_window(pp.hDeviceWindow);
 
 		// Get back buffer surface
 		HRESULT hr = _swapchain->GetBackBuffer(0, D3DBACKBUFFER_TYPE_MONO, &_backbuffer);

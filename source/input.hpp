@@ -2,7 +2,6 @@
 
 #include <memory>
 #include <unordered_map>
-#include <assert.h>
 #include <Windows.h>
 
 namespace reshade
@@ -13,45 +12,37 @@ namespace reshade
 		explicit input(HWND hwnd);
 		~input();
 
-		static void register_window(HWND hwnd, std::shared_ptr<input> &instance);
+		static std::shared_ptr<input> register_window(HWND hwnd);
 		static void register_raw_input_device(const RAWINPUTDEVICE &device);
 		static void uninstall();
 
-		bool is_key_down(UINT keycode) const
+		bool is_key_down(unsigned int keycode) const
 		{
-			assert(keycode < 255);
-
 			return _keys[keycode] > 0;
 		}
-		bool is_key_pressed(UINT keycode) const
+		bool is_key_pressed(unsigned int keycode) const
 		{
-			assert(keycode < 255);
-
 			return _keys[keycode] == 1;
 		}
-		bool is_key_released(UINT keycode) const
+		bool is_key_released(unsigned int keycode) const
 		{
-			assert(keycode < 255);
-
 			return _keys[keycode] == -1;
 		}
-		bool is_mouse_button_down(UINT button) const
+		bool is_mouse_button_down(unsigned int button) const
 		{
-			assert(button < 3);
-
 			return _mouse_buttons[button] > 0;
 		}
-		bool is_mouse_button_pressed(UINT button) const
+		bool is_mouse_button_pressed(unsigned int button) const
 		{
-			assert(button < 3);
-
 			return _mouse_buttons[button] == 1;
 		}
-		bool is_mouse_button_released(UINT button) const
+		bool is_mouse_button_released(unsigned int button) const
 		{
-			assert(button < 3);
-
 			return _mouse_buttons[button] == -1;
+		}
+		short mouse_wheel_delta() const
+		{
+			return _mouse_wheel_delta;
 		}
 		const POINT &mouse_position() const
 		{
@@ -65,8 +56,9 @@ namespace reshade
 
 		HWND _hwnd;
 		HHOOK _hook_wndproc;
-		signed char _keys[256], _mouse_buttons[3];
+		signed char _keys[256], _mouse_buttons[5];
 		POINT _mouse_position;
+		short _mouse_wheel_delta;
 		static std::unordered_map<HWND, HHOOK> s_raw_input_hooks;
 		static std::unordered_map<HWND, std::weak_ptr<input>> s_windows;
 	};

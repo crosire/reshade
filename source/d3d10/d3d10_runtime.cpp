@@ -119,7 +119,7 @@ namespace reshade
 		_height = desc.BufferDesc.Height;
 		_backbuffer_format = desc.BufferDesc.Format;
 		_is_multisampling_enabled = desc.SampleDesc.Count > 1;
-		input::register_window(desc.OutputWindow, _input);
+		_input = input::register_window(desc.OutputWindow);
 
 		// Get back buffer texture
 		HRESULT hr = _swapchain->GetBuffer(0, __uuidof(ID3D10Texture2D), reinterpret_cast<void **>(&_backbuffer));
