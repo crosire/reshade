@@ -6,7 +6,7 @@
       <AdditionalIncludeDirectories>$(SolutionDir)\deps\minhook\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>$(SolutionDir)\deps\minhook\lib\$(Platform)\$(Configuration)\MinHook.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>MinHook.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
 </Project>
