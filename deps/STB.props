@@ -6,7 +6,7 @@
       <AdditionalIncludeDirectories>$(SolutionDir)\deps\stb\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>$(SolutionDir)\deps\stb\lib\$(Platform)\$(Configuration)\STB.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>STB.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
 </Project>
