@@ -19,7 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{783FEDFB-5124-4F8C-87BC-70AA8490266B}</ProjectGuid>
+    <ProjectGuid>{9175EE2B-44B4-47AF-88EB-9B92CD53E52C}</ProjectGuid>
     <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -37,22 +37,24 @@
   <ImportGroup Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>stb\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+  </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="minhook\src\buffer.c" />
-    <ClCompile Include="minhook\src\HDE\hde32.c" />
-    <ClCompile Include="minhook\src\HDE\hde64.c" />
-    <ClCompile Include="minhook\src\hook.c" />
-    <ClCompile Include="minhook\src\trampoline.c" />
+    <ClCompile Include="stb\source\stb_dxt.c" />
+    <ClCompile Include="stb\source\stb_image.c" />
+    <ClCompile Include="stb\source\stb_image_resize.c" />
+    <ClCompile Include="stb\source\stb_image_write.c" />
+    <ClCompile Include="stb\source\stb_truetype.c" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="minhook\include\MinHook.h" />
-    <ClInclude Include="minhook\src\buffer.h" />
-    <ClInclude Include="minhook\src\HDE\hde32.h" />
-    <ClInclude Include="minhook\src\HDE\hde64.h" />
-    <ClInclude Include="minhook\src\HDE\pstdint.h" />
-    <ClInclude Include="minhook\src\HDE\table32.h" />
-    <ClInclude Include="minhook\src\HDE\table64.h" />
-    <ClInclude Include="minhook\src\trampoline.h" />
+    <ClInclude Include="stb\include\stb_dxt.h" />
+    <ClInclude Include="stb\include\stb_image.h" />
+    <ClInclude Include="stb\include\stb_image_resize.h" />
+    <ClInclude Include="stb\include\stb_image_write.h" />
+    <ClInclude Include="stb\include\stb_truetype.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

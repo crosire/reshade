@@ -1,9 +1,9 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <ClInclude Include="include\GL\gl3w.h" />
+    <ClCompile Include="gl3w\source\gl3w.c" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="source\gl3w.c" />
+    <ClInclude Include="gl3w\include\GL\gl3w.h" />
   </ItemGroup>
 </Project>
