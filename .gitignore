@@ -11,6 +11,7 @@ ipch/
 *.VC.db
 *.VC.opendb
 *.sdf
+*.opensdf
 *.suo
 *.user
 

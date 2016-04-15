@@ -107,6 +107,6 @@ namespace reshade
 		GLuint _imgui_shader_program = 0, _imgui_VertHandle = 0, _imgui_FragHandle = 0;
 		int _imgui_attribloc_tex = 0, _imgui_attribloc_projmtx = 0;
 		int _imgui_attribloc_pos = 0, _imgui_attribloc_uv = 0, _imgui_attribloc_color = 0;
-		GLuint _imgui_vbo[2] = { 0, 0 }, _imgui_vao = 0;
+		GLuint _imgui_vbo[2] = { }, _imgui_vao = 0;
 	};
 }
