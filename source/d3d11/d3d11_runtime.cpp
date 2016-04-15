@@ -448,6 +448,7 @@ namespace reshade
 
 		if (!init_backbuffer_texture() ||
 			!init_default_depth_stencil() ||
+			!init_fx_resources() ||
 			!init_imgui_resources() ||
 			!init_imgui_font_atlas())
 		{
@@ -684,7 +685,7 @@ namespace reshade
 			// Setup render targets
 			if (static_cast<UINT>(pass.viewport.Width) == _width && static_cast<UINT>(pass.viewport.Height) == _height)
 			{
-				_immediate_context->OMSetRenderTargets(D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, pass.render_targets, _default_depthstencil.get());
+				_immediate_context->OMSetRenderTargets(D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT, pass.render_targets, _default_depthstencil.get());
 
 				if (!is_default_depthstencil_cleared)
 				{
@@ -695,7 +696,7 @@ namespace reshade
 			}
 			else
 			{
-				_immediate_context->OMSetRenderTargets(D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, pass.render_targets, nullptr);
+				_immediate_context->OMSetRenderTargets(D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT, pass.render_targets, nullptr);
 			}
 
 			_immediate_context->RSSetViewports(1, &pass.viewport);
