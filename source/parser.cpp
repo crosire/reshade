@@ -2,9 +2,6 @@
 #include "symbol_table.hpp"
 #include "constant_folding.hpp"
 
-#include <boost/assign/list_of.hpp>
-#include <boost/algorithm/string.hpp>
-
 namespace reshade
 {
 	namespace fx
@@ -2658,7 +2655,8 @@ namespace reshade
 				structure->name = "__anonymous_struct_" + std::to_string(structure->location.line) + '_' + std::to_string(structure->location.column);
 			}
 
-			structure->unique_name = boost::replace_all_copy(_symbol_table->current_scope().name, "::", "_NS_") + structure->name;
+			structure->unique_name = 'S' + _symbol_table->current_scope().name + structure->name;
+			std::replace(structure->unique_name.begin(), structure->unique_name.end(), ':', '_');
 
 			if (!expect('{'))
 			{
@@ -2729,7 +2727,7 @@ namespace reshade
 						}
 
 						field->semantic = _token.literal_as_string;
-						boost::to_upper(field->semantic);
+						std::transform(field->semantic.begin(), field->semantic.end(), field->semantic.begin(), ::toupper);
 					}
 
 					structure->field_list.push_back(std::move(field));
@@ -2773,7 +2771,9 @@ namespace reshade
 			function->return_type = type;
 			function->return_type.qualifiers = type_node::qualifier_const;
 			function->name = name;
-			function->unique_name = boost::replace_all_copy(_symbol_table->current_scope().name, "::", "_NS_") + function->name;
+
+			function->unique_name = 'F' + _symbol_table->current_scope().name + function->name;
+			std::replace(function->unique_name.begin(), function->unique_name.end(), ':', '_');
 
 			_symbol_table->insert(function, true);
 
@@ -2879,7 +2879,7 @@ namespace reshade
 					}
 
 					parameter->semantic = _token.literal_as_string;
-					boost::to_upper(parameter->semantic);
+					std::transform(parameter->semantic.begin(), parameter->semantic.end(), parameter->semantic.begin(), ::toupper);
 				}
 
 				function->parameter_list.push_back(parameter);
@@ -2902,7 +2902,7 @@ namespace reshade
 				}
 
 				function->return_semantic = _token.literal_as_string;
-				boost::to_upper(function->return_semantic);
+				std::transform(function->return_semantic.begin(), function->return_semantic.end(), function->return_semantic.begin(), ::toupper);
 
 				if (type.is_void())
 				{
@@ -2985,7 +2985,8 @@ namespace reshade
 
 			if (global)
 			{
-				variable->unique_name = boost::replace_all_copy(_symbol_table->current_scope().name, "::", "_NS_") + variable->name;
+				variable->unique_name = 'U' + _symbol_table->current_scope().name + variable->name;
+				std::replace(variable->unique_name.begin(), variable->unique_name.end(), ':', '_');
 			}
 			else
 			{
@@ -3007,7 +3008,7 @@ namespace reshade
 				}
 
 				variable->semantic = _token.literal_as_string;
-				boost::to_upper(variable->semantic);
+				std::transform(variable->semantic.begin(), variable->semantic.end(), variable->semantic.begin(), ::toupper);
 			}
 
 			parse_annotations(variable->annotations);
@@ -3271,56 +3272,58 @@ namespace reshade
 
 			if (accept(lexer::tokenid::identifier))
 			{
-				const auto identifier = _token.literal_as_string;
+				const std::pair<const char *, unsigned int> s_values[] = {
+					{ "NONE", variable_declaration_node::properties::NONE },
+					{ "POINT", variable_declaration_node::properties::POINT },
+					{ "LINEAR", variable_declaration_node::properties::LINEAR },
+					{ "ANISOTROPIC", variable_declaration_node::properties::ANISOTROPIC },
+					{ "CLAMP", variable_declaration_node::properties::CLAMP },
+					{ "WRAP", variable_declaration_node::properties::REPEAT },
+					{ "REPEAT", variable_declaration_node::properties::REPEAT },
+					{ "MIRROR", variable_declaration_node::properties::MIRROR },
+					{ "BORDER", variable_declaration_node::properties::BORDER },
+					{ "R8", variable_declaration_node::properties::R8 },
+					{ "R16F", variable_declaration_node::properties::R16F },
+					{ "R32F", variable_declaration_node::properties::R32F },
+					{ "RG8", variable_declaration_node::properties::RG8 },
+					{ "R8G8", variable_declaration_node::properties::RG8 },
+					{ "RG16", variable_declaration_node::properties::RG16 },
+					{ "R16G16", variable_declaration_node::properties::RG16 },
+					{ "RG16F", variable_declaration_node::properties::RG16F },
+					{ "R16G16F", variable_declaration_node::properties::RG16F },
+					{ "RG32F", variable_declaration_node::properties::RG32F },
+					{ "R32G32F", variable_declaration_node::properties::RG32F },
+					{ "RGBA8", variable_declaration_node::properties::RGBA8 },
+					{ "R8G8B8A8", variable_declaration_node::properties::RGBA8 },
+					{ "RGBA16", variable_declaration_node::properties::RGBA16 },
+					{ "R16G16B16A16", variable_declaration_node::properties::RGBA16 },
+					{ "RGBA16F", variable_declaration_node::properties::RGBA16F },
+					{ "R16G16B16A16F", variable_declaration_node::properties::RGBA16F },
+					{ "RGBA32F", variable_declaration_node::properties::RGBA32F },
+					{ "R32G32B32A32F", variable_declaration_node::properties::RGBA32F },
+					{ "DXT1", variable_declaration_node::properties::DXT1 },
+					{ "DXT3", variable_declaration_node::properties::DXT3 },
+					{ "DXT4", variable_declaration_node::properties::DXT5 },
+					{ "LATC1", variable_declaration_node::properties::LATC1 },
+					{ "LATC2", variable_declaration_node::properties::LATC2 },
+				};
+
 				const auto location = _token.location;
+				std::transform(_token.literal_as_string.begin(), _token.literal_as_string.end(), _token.literal_as_string.begin(), ::toupper);
 
-				static const std::unordered_map<std::string, unsigned int> sEnums = boost::assign::map_list_of
-					("NONE", variable_declaration_node::properties::NONE)
-					("POINT", variable_declaration_node::properties::POINT)
-					("LINEAR", variable_declaration_node::properties::LINEAR)
-					("ANISOTROPIC", variable_declaration_node::properties::ANISOTROPIC)
-					("CLAMP", variable_declaration_node::properties::CLAMP)
-					("WRAP", variable_declaration_node::properties::REPEAT)
-					("REPEAT", variable_declaration_node::properties::REPEAT)
-					("MIRROR", variable_declaration_node::properties::MIRROR)
-					("BORDER", variable_declaration_node::properties::BORDER)
-					("R8", variable_declaration_node::properties::R8)
-					("R16F", variable_declaration_node::properties::R16F)
-					("R32F", variable_declaration_node::properties::R32F)
-					("RG8", variable_declaration_node::properties::RG8)
-					("R8G8", variable_declaration_node::properties::RG8)
-					("RG16", variable_declaration_node::properties::RG16)
-					("R16G16", variable_declaration_node::properties::RG16)
-					("RG16F", variable_declaration_node::properties::RG16F)
-					("R16G16F", variable_declaration_node::properties::RG16F)
-					("RG32F", variable_declaration_node::properties::RG32F)
-					("R32G32F", variable_declaration_node::properties::RG32F)
-					("RGBA8", variable_declaration_node::properties::RGBA8)
-					("R8G8B8A8", variable_declaration_node::properties::RGBA8)
-					("RGBA16", variable_declaration_node::properties::RGBA16)
-					("R16G16B16A16", variable_declaration_node::properties::RGBA16)
-					("RGBA16F", variable_declaration_node::properties::RGBA16F)
-					("R16G16B16A16F", variable_declaration_node::properties::RGBA16F)
-					("RGBA32F", variable_declaration_node::properties::RGBA32F)
-					("R32G32B32A32F", variable_declaration_node::properties::RGBA32F)
-					("DXT1", variable_declaration_node::properties::DXT1)
-					("DXT3", variable_declaration_node::properties::DXT3)
-					("DXT4", variable_declaration_node::properties::DXT5)
-					("LATC1", variable_declaration_node::properties::LATC1)
-					("LATC2", variable_declaration_node::properties::LATC2);
-
-				const auto it = sEnums.find(boost::to_upper_copy(identifier));
-
-				if (it != sEnums.end())
+				for (const auto &value : s_values)
 				{
-					const auto newexpression = _ast.make_node<literal_expression_node>(location);
-					newexpression->type.basetype = type_node::datatype_uint;
-					newexpression->type.rows = newexpression->type.cols = 1, newexpression->type.array_length = 0;
-					newexpression->value_uint[0] = it->second;
+					if (value.first == _token.literal_as_string)
+					{
+						const auto newexpression = _ast.make_node<literal_expression_node>(location);
+						newexpression->type.basetype = type_node::datatype_uint;
+						newexpression->type.rows = newexpression->type.cols = 1, newexpression->type.array_length = 0;
+						newexpression->value_uint[0] = value.second;
 
-					expression = newexpression;
+						expression = newexpression;
 
-					return true;
+						return true;
+					}
 				}
 
 				restore();
@@ -3344,7 +3347,9 @@ namespace reshade
 
 			technique = _ast.make_node<technique_declaration_node>(location);
 			technique->name = _token.literal_as_string;
-			technique->unique_name = boost::replace_all_copy(_symbol_table->current_scope().name, "::", "_NS_") + technique->name;
+
+			technique->unique_name = 'T' + _symbol_table->current_scope().name + technique->name;
+			std::replace(technique->unique_name.begin(), technique->unique_name.end(), ':', '_');
 
 			parse_annotations(technique->annotation_list);
 
@@ -3416,7 +3421,7 @@ namespace reshade
 
 					(passstate[0] == 'V' ? pass->states.VertexShader : pass->states.PixelShader) = reinterpret_cast<const function_declaration_node *>(static_cast<lvalue_expression_node *>(value)->reference);
 				}
-				else if (boost::starts_with(passstate, "RenderTarget") && (passstate == "RenderTarget" || (passstate[12] >= '0' && passstate[12] < '8')))
+				else if (passstate.compare(0, 12, "RenderTarget") == 0 && (passstate == "RenderTarget" || (passstate[12] >= '0' && passstate[12] < '8')))
 				{
 					size_t index = 0;
 
@@ -3555,57 +3560,60 @@ namespace reshade
 
 			if (exclusive ? expect(lexer::tokenid::identifier) : accept(lexer::tokenid::identifier))
 			{
+				const std::pair<const char *, unsigned int> s_enums[] = {
+					{ "NONE", pass_declaration_node::states::NONE },
+					{ "ZERO", pass_declaration_node::states::ZERO },
+					{ "ONE", pass_declaration_node::states::ONE },
+					{ "SRCCOLOR", pass_declaration_node::states::SRCCOLOR },
+					{ "SRCALPHA", pass_declaration_node::states::SRCALPHA },
+					{ "INVSRCCOLOR", pass_declaration_node::states::INVSRCCOLOR },
+					{ "INVSRCALPHA", pass_declaration_node::states::INVSRCALPHA },
+					{ "DESTCOLOR", pass_declaration_node::states::DESTCOLOR },
+					{ "DESTALPHA", pass_declaration_node::states::DESTALPHA },
+					{ "INVDESTCOLOR", pass_declaration_node::states::INVDESTCOLOR },
+					{ "INVDESTALPHA", pass_declaration_node::states::INVDESTALPHA },
+					{ "ADD", pass_declaration_node::states::ADD },
+					{ "SUBTRACT", pass_declaration_node::states::SUBTRACT },
+					{ "REVSUBTRACT", pass_declaration_node::states::REVSUBTRACT },
+					{ "MIN", pass_declaration_node::states::MIN },
+					{ "MAX", pass_declaration_node::states::MAX },
+					{ "KEEP", pass_declaration_node::states::KEEP },
+					{ "REPLACE", pass_declaration_node::states::REPLACE },
+					{ "INVERT", pass_declaration_node::states::INVERT },
+					{ "INCR", pass_declaration_node::states::INCR },
+					{ "INCRSAT", pass_declaration_node::states::INCRSAT },
+					{ "DECR", pass_declaration_node::states::DECR },
+					{ "DECRSAT", pass_declaration_node::states::DECRSAT },
+					{ "NEVER", pass_declaration_node::states::NEVER },
+					{ "ALWAYS", pass_declaration_node::states::ALWAYS },
+					{ "LESS", pass_declaration_node::states::LESS },
+					{ "GREATER", pass_declaration_node::states::GREATER },
+					{ "LEQUAL", pass_declaration_node::states::LESSEQUAL },
+					{ "LESSEQUAL", pass_declaration_node::states::LESSEQUAL },
+					{ "GEQUAL", pass_declaration_node::states::GREATEREQUAL },
+					{ "GREATEREQUAL", pass_declaration_node::states::GREATEREQUAL },
+					{ "EQUAL", pass_declaration_node::states::EQUAL },
+					{ "NEQUAL", pass_declaration_node::states::NOTEQUAL },
+					{ "NOTEQUAL", pass_declaration_node::states::NOTEQUAL },
+				};
+
 				auto identifier = _token.literal_as_string;
 				const auto location = _token.location;
+				std::transform(_token.literal_as_string.begin(), _token.literal_as_string.end(), _token.literal_as_string.begin(), ::toupper);
 
-				static const std::unordered_map<std::string, unsigned int> sEnums = boost::assign::map_list_of
-					("NONE", pass_declaration_node::states::NONE)
-					("ZERO", pass_declaration_node::states::ZERO)
-					("ONE", pass_declaration_node::states::ONE)
-					("SRCCOLOR", pass_declaration_node::states::SRCCOLOR)
-					("SRCALPHA", pass_declaration_node::states::SRCALPHA)
-					("INVSRCCOLOR", pass_declaration_node::states::INVSRCCOLOR)
-					("INVSRCALPHA", pass_declaration_node::states::INVSRCALPHA)
-					("DESTCOLOR", pass_declaration_node::states::DESTCOLOR)
-					("DESTALPHA", pass_declaration_node::states::DESTALPHA)
-					("INVDESTCOLOR", pass_declaration_node::states::INVDESTCOLOR)
-					("INVDESTALPHA", pass_declaration_node::states::INVDESTALPHA)
-					("ADD", pass_declaration_node::states::ADD)
-					("SUBTRACT", pass_declaration_node::states::SUBTRACT)
-					("REVSUBTRACT", pass_declaration_node::states::REVSUBTRACT)
-					("MIN", pass_declaration_node::states::MIN)
-					("MAX", pass_declaration_node::states::MAX)
-					("KEEP", pass_declaration_node::states::KEEP)
-					("REPLACE", pass_declaration_node::states::REPLACE)
-					("INVERT", pass_declaration_node::states::INVERT)
-					("INCR", pass_declaration_node::states::INCR)
-					("INCRSAT", pass_declaration_node::states::INCRSAT)
-					("DECR", pass_declaration_node::states::DECR)
-					("DECRSAT", pass_declaration_node::states::DECRSAT)
-					("NEVER", pass_declaration_node::states::NEVER)
-					("ALWAYS", pass_declaration_node::states::ALWAYS)
-					("LESS", pass_declaration_node::states::LESS)
-					("GREATER", pass_declaration_node::states::GREATER)
-					("LEQUAL", pass_declaration_node::states::LESSEQUAL)
-					("LESSEQUAL", pass_declaration_node::states::LESSEQUAL)
-					("GEQUAL", pass_declaration_node::states::GREATEREQUAL)
-					("GREATEREQUAL", pass_declaration_node::states::GREATEREQUAL)
-					("EQUAL", pass_declaration_node::states::EQUAL)
-					("NEQUAL", pass_declaration_node::states::NOTEQUAL)
-					("NOTEQUAL", pass_declaration_node::states::NOTEQUAL);
-
-				const auto it = sEnums.find(boost::to_upper_copy(identifier));
-
-				if (it != sEnums.end())
+				for (const auto &value : s_enums)
 				{
-					const auto newexpression = _ast.make_node<literal_expression_node>(location);
-					newexpression->type.basetype = type_node::datatype_uint;
-					newexpression->type.rows = newexpression->type.cols = 1, newexpression->type.array_length = 0;
-					newexpression->value_uint[0] = it->second;
+					if (value.first == _token.literal_as_string)
+					{
+						const auto newexpression = _ast.make_node<literal_expression_node>(location);
+						newexpression->type.basetype = type_node::datatype_uint;
+						newexpression->type.rows = newexpression->type.cols = 1, newexpression->type.array_length = 0;
+						newexpression->value_uint[0] = value.second;
 
-					expression = newexpression;
+						expression = newexpression;
 
-					return true;
+						return true;
+					}
 				}
 
 				while (accept(lexer::tokenid::colon_colon) && expect(lexer::tokenid::identifier))
