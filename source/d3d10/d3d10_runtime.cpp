@@ -1,6 +1,7 @@
 #include "log.hpp"
 #include "d3d10_runtime.hpp"
 #include "d3d10_fx_compiler.hpp"
+#include "lexer.hpp"
 #include "input.hpp"
 #include <imgui.h>
 

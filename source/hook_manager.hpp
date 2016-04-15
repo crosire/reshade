@@ -1,8 +1,7 @@
 #pragma once
 
-#include "hook.hpp"
-
 #include <boost/filesystem/path.hpp>
+#include "hook.hpp"
 
 #define EXPORT extern "C"
 #define VTABLE(object) (*reinterpret_cast<reshade::hook::address **>(object))

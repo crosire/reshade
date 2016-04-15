@@ -51,21 +51,6 @@
     <ClCompile Include="source\main.cpp">
       <Filter>core</Filter>
     </ClCompile>
-    <ClCompile Include="source\fx_compiler.cpp">
-      <Filter>core\fx</Filter>
-    </ClCompile>
-    <ClCompile Include="source\fx_lexer.cpp">
-      <Filter>core\fx</Filter>
-    </ClCompile>
-    <ClCompile Include="source\fx_parser.cpp">
-      <Filter>core\fx</Filter>
-    </ClCompile>
-    <ClCompile Include="source\fx_preprocessor.cpp">
-      <Filter>core\fx</Filter>
-    </ClCompile>
-    <ClCompile Include="source\fx_symbol_table.cpp">
-      <Filter>core\fx</Filter>
-    </ClCompile>
     <ClCompile Include="source\hook.cpp">
       <Filter>core\hook</Filter>
     </ClCompile>
@@ -144,6 +129,21 @@
     <ClCompile Include="source\opengl\gl_stateblock.cpp">
       <Filter>hooks\opengl</Filter>
     </ClCompile>
+    <ClCompile Include="source\lexer.cpp">
+      <Filter>core\fx</Filter>
+    </ClCompile>
+    <ClCompile Include="source\parser.cpp">
+      <Filter>core\fx</Filter>
+    </ClCompile>
+    <ClCompile Include="source\preprocessor.cpp">
+      <Filter>core\fx</Filter>
+    </ClCompile>
+    <ClCompile Include="source\symbol_table.cpp">
+      <Filter>core\fx</Filter>
+    </ClCompile>
+    <ClCompile Include="source\constant_folding.cpp">
+      <Filter>core\fx</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="source\log.hpp">
@@ -151,24 +151,6 @@
     </ClInclude>
     <ClInclude Include="res\version.h">
       <Filter>core</Filter>
-    </ClInclude>
-    <ClInclude Include="source\fx_ast.hpp">
-      <Filter>core\fx</Filter>
-    </ClInclude>
-    <ClInclude Include="source\fx_compiler.hpp">
-      <Filter>core\fx</Filter>
-    </ClInclude>
-    <ClInclude Include="source\fx_lexer.hpp">
-      <Filter>core\fx</Filter>
-    </ClInclude>
-    <ClInclude Include="source\fx_parser.hpp">
-      <Filter>core\fx</Filter>
-    </ClInclude>
-    <ClInclude Include="source\fx_preprocessor.hpp">
-      <Filter>core\fx</Filter>
-    </ClInclude>
-    <ClInclude Include="source\fx_symbol_table.hpp">
-      <Filter>core\fx</Filter>
     </ClInclude>
     <ClInclude Include="source\hook.hpp">
       <Filter>core\hook</Filter>
@@ -250,6 +232,30 @@
     </ClInclude>
     <ClInclude Include="source\opengl\gl_stateblock.hpp">
       <Filter>hooks\opengl</Filter>
+    </ClInclude>
+    <ClInclude Include="source\lexer.hpp">
+      <Filter>core\fx</Filter>
+    </ClInclude>
+    <ClInclude Include="source\parser.hpp">
+      <Filter>core\fx</Filter>
+    </ClInclude>
+    <ClInclude Include="source\preprocessor.hpp">
+      <Filter>core\fx</Filter>
+    </ClInclude>
+    <ClInclude Include="source\symbol_table.hpp">
+      <Filter>core\fx</Filter>
+    </ClInclude>
+    <ClInclude Include="source\syntax_tree.hpp">
+      <Filter>core\fx</Filter>
+    </ClInclude>
+    <ClInclude Include="source\syntax_tree_nodes.hpp">
+      <Filter>core\fx</Filter>
+    </ClInclude>
+    <ClInclude Include="source\constant_folding.hpp">
+      <Filter>core\fx</Filter>
+    </ClInclude>
+    <ClInclude Include="source\location.hpp">
+      <Filter>core\fx</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

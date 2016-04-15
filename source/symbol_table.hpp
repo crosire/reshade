@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stack>
+#include <string>
 #include <unordered_map>
 
 #pragma region Forward Declaration
@@ -21,13 +22,13 @@ namespace reshade
 {
 	namespace fx
 	{
+		typedef nodes::declaration_node *symbol;
+
 		struct scope
 		{
 			std::string name;
 			unsigned int level, namespace_level;
 		};
-
-		typedef nodes::declaration_node *symbol;
 
 		class symbol_table
 		{
@@ -40,7 +41,7 @@ namespace reshade
 			void leave_namespace();
 
 			symbol current_parent() const { return _parent_stack.empty() ? nullptr : _parent_stack.top(); }
-			inline const scope &current_scope() const { return _current_scope; }
+			const scope &current_scope() const { return _current_scope; }
 
 			bool insert(symbol symbol, bool global = false);
 			symbol find(const std::string &name) const;

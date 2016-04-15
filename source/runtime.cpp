@@ -2,9 +2,8 @@
 #include "version.h"
 #include "runtime.hpp"
 #include "hook_manager.hpp"
-#include "fx_ast.hpp"
-#include "fx_parser.hpp"
-#include "fx_preprocessor.hpp"
+#include "parser.hpp"
+#include "preprocessor.hpp"
 #include "input.hpp"
 #include "file_watcher.hpp"
 

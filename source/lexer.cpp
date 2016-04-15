@@ -1,4 +1,4 @@
-#include "fx_lexer.hpp"
+#include "lexer.hpp"
 
 namespace reshade
 {
@@ -12,9 +12,14 @@ namespace reshade
 				IDENT = 'A',
 				SPACE = ' ',
 			};
-
-			const unsigned char type_lookup[256] =
+			struct keyword_type
 			{
+				const char *data;
+				unsigned char length;
+				lexer::tokenid id;
+			};
+
+			const unsigned type_lookup[256] = {
 				 0xFF,  0x00,  0x00,  0x00,  0x00,  0x00,  0x00,  0x00,  0x00, SPACE,
 				 '\n', SPACE, SPACE, SPACE,  0x00,  0x00,  0x00,  0x00,  0x00,  0x00,
 				 0x00,  0x00,  0x00,  0x00,  0x00,  0x00,  0x00,  0x00,  0x00,  0x00,
@@ -28,6 +33,169 @@ namespace reshade
 				IDENT, IDENT, IDENT, IDENT, IDENT, IDENT, IDENT, IDENT, IDENT, IDENT,
 				IDENT, IDENT, IDENT, IDENT, IDENT, IDENT, IDENT, IDENT, IDENT, IDENT,
 				IDENT, IDENT, IDENT,   '{',   '|',   '}',   '~',  0x00,  0x00,  0x00,
+			};
+			const keyword_type keyword_lookup[] = {
+				{ "asm", 3, lexer::tokenid::reserved },
+				{ "asm_fragment", 12, lexer::tokenid::reserved },
+				{ "auto", 4, lexer::tokenid::reserved },
+				{ "bool", 4, lexer::tokenid::bool_ },
+				{ "bool2", 5, lexer::tokenid::bool2 },
+				{ "bool2x2", 7, lexer::tokenid::bool2x2 },
+				{ "bool3", 5, lexer::tokenid::bool3 },
+				{ "bool3x3", 7, lexer::tokenid::bool3x3 },
+				{ "bool4", 5, lexer::tokenid::bool4 },
+				{ "bool4x4", 7, lexer::tokenid::bool4x4 },
+				{ "break", 5, lexer::tokenid::break_ },
+				{ "case", 4, lexer::tokenid::case_ },
+				{ "cast", 4, lexer::tokenid::reserved },
+				{ "catch", 5, lexer::tokenid::reserved },
+				{ "centroid", 8, lexer::tokenid::reserved },
+				{ "char", 4, lexer::tokenid::reserved },
+				{ "class", 5, lexer::tokenid::reserved },
+				{ "column_major", 12, lexer::tokenid::reserved },
+				{ "compile", 7, lexer::tokenid::reserved },
+				{ "const", 5, lexer::tokenid::const_ },
+				{ "const_cast", 10, lexer::tokenid::reserved },
+				{ "continue", 8, lexer::tokenid::continue_ },
+				{ "default", 7, lexer::tokenid::default_ },
+				{ "delete", 6, lexer::tokenid::reserved },
+				{ "discard", 7, lexer::tokenid::discard_ },
+				{ "do", 2, lexer::tokenid::do_ },
+				{ "double", 6, lexer::tokenid::reserved },
+				{ "dword", 5, lexer::tokenid::uint_ },
+				{ "dword2", 6, lexer::tokenid::uint2 },
+				{ "dword2x2", 8, lexer::tokenid::uint2x2 },
+				{ "dword3", 6, lexer::tokenid::uint3, },
+				{ "dword3x3", 8, lexer::tokenid::uint3x3 },
+				{ "dword4", 6, lexer::tokenid::uint4 },
+				{ "dword4x4", 8, lexer::tokenid::uint4x4 },
+				{ "dynamic_cast", 12, lexer::tokenid::reserved },
+				{ "else", 4, lexer::tokenid::else_ },
+				{ "enum", 4, lexer::tokenid::reserved },
+				{ "explicit", 8, lexer::tokenid::reserved },
+				{ "extern", 6, lexer::tokenid::extern_ },
+				{ "external", 8, lexer::tokenid::reserved },
+				{ "false", 5, lexer::tokenid::false_literal },
+				{ "FALSE", 5, lexer::tokenid::false_literal },
+				{ "float", 5, lexer::tokenid::float_ },
+				{ "float2", 6, lexer::tokenid::float2 },
+				{ "float2x2", 8, lexer::tokenid::float2x2 },
+				{ "float3", 6, lexer::tokenid::float3 },
+				{ "float3x3", 8, lexer::tokenid::float3x3 },
+				{ "float4", 6, lexer::tokenid::float4 },
+				{ "float4x4", 8, lexer::tokenid::float4x4 },
+				{ "for", 3, lexer::tokenid::for_ },
+				{ "foreach", 7, lexer::tokenid::reserved },
+				{ "friend", 6, lexer::tokenid::reserved },
+				{ "globallycoherent", 16, lexer::tokenid::reserved },
+				{ "goto", 4, lexer::tokenid::reserved },
+				{ "groupshared", 11, lexer::tokenid::reserved },
+				{ "half", 4, lexer::tokenid::reserved },
+				{ "half2", 5, lexer::tokenid::reserved },
+				{ "half2x2", 7, lexer::tokenid::reserved },
+				{ "half3", 5, lexer::tokenid::reserved },
+				{ "half3x3", 7, lexer::tokenid::reserved },
+				{ "half4", 5, lexer::tokenid::reserved },
+				{ "half4x4", 7, lexer::tokenid::reserved },
+				{ "if", 2, lexer::tokenid::if_ },
+				{ "in", 2, lexer::tokenid::in },
+				{ "inline", 6, lexer::tokenid::reserved },
+				{ "inout", 5, lexer::tokenid::inout },
+				{ "int", 3, lexer::tokenid::int_ },
+				{ "int2", 4, lexer::tokenid::int2 },
+				{ "int2x2", 6, lexer::tokenid::int2x2 },
+				{ "int3", 4, lexer::tokenid::int3 },
+				{ "int3x3", 6, lexer::tokenid::int3x3 },
+				{ "int4", 4, lexer::tokenid::int4 },
+				{ "int4x4", 6, lexer::tokenid::int4x4 },
+				{ "interface", 9, lexer::tokenid::reserved },
+				{ "linear", 6, lexer::tokenid::linear },
+				{ "long", 4, lexer::tokenid::reserved },
+				{ "matrix", 6, lexer::tokenid::matrix },
+				{ "mutable", 7, lexer::tokenid::reserved },
+				{ "namespace", 9, lexer::tokenid::namespace_ },
+				{ "new", 3, lexer::tokenid::reserved },
+				{ "noinline", 8, lexer::tokenid::reserved },
+				{ "nointerpolation", 15, lexer::tokenid::nointerpolation },
+				{ "noperspective", 13, lexer::tokenid::noperspective },
+				{ "operator", 8, lexer::tokenid::reserved },
+				{ "out", 3, lexer::tokenid::out },
+				{ "packed", 6, lexer::tokenid::reserved },
+				{ "packoffset", 10, lexer::tokenid::reserved },
+				{ "pass", 4, lexer::tokenid::pass },
+				{ "precise", 7, lexer::tokenid::precise },
+				{ "private", 7, lexer::tokenid::reserved },
+				{ "protected", 9, lexer::tokenid::reserved },
+				{ "public", 6, lexer::tokenid::reserved },
+				{ "register", 8, lexer::tokenid::reserved },
+				{ "reinterpret_cast", 16, lexer::tokenid::reserved },
+				{ "return", 6, lexer::tokenid::return_ },
+				{ "row_major", 9, lexer::tokenid::reserved },
+				{ "sample", 6, lexer::tokenid::reserved },
+				{ "sampler", 7, lexer::tokenid::sampler },
+				{ "sampler1D", 9, lexer::tokenid::sampler },
+				{ "sampler1DArray", 14, lexer::tokenid::reserved },
+				{ "sampler1DArrayShadow", 20, lexer::tokenid::reserved },
+				{ "sampler1DShadow", 15, lexer::tokenid::reserved },
+				{ "sampler2D", 9, lexer::tokenid::sampler },
+				{ "sampler2DArray", 14, lexer::tokenid::reserved },
+				{ "sampler2DArrayShadow", 20, lexer::tokenid::reserved },
+				{ "sampler2DMS", 11, lexer::tokenid::reserved },
+				{ "sampler2DMSArray", 16, lexer::tokenid::reserved },
+				{ "sampler2DShadow", 15, lexer::tokenid::reserved },
+				{ "sampler3D", 9, lexer::tokenid::sampler },
+				{ "sampler_state", 13, lexer::tokenid::reserved },
+				{ "samplerCUBE", 11, lexer::tokenid::reserved },
+				{ "samplerRECT", 11, lexer::tokenid::reserved },
+				{ "SamplerState", 12, lexer::tokenid::reserved },
+				{ "shared", 6, lexer::tokenid::reserved },
+				{ "short", 5, lexer::tokenid::reserved },
+				{ "signed", 6, lexer::tokenid::reserved },
+				{ "sizeof", 6, lexer::tokenid::reserved },
+				{ "snorm", 5, lexer::tokenid::reserved },
+				{ "static", 6, lexer::tokenid::static_ },
+				{ "static_cast", 11, lexer::tokenid::reserved },
+				{ "string", 6, lexer::tokenid::string_ },
+				{ "struct", 6, lexer::tokenid::struct_ },
+				{ "switch", 6, lexer::tokenid::switch_ },
+				{ "technique", 9, lexer::tokenid::technique },
+				{ "template", 8, lexer::tokenid::reserved },
+				{ "texture", 7, lexer::tokenid::texture },
+				{ "Texture1D", 9, lexer::tokenid::reserved },
+				{ "texture1D", 9, lexer::tokenid::texture },
+				{ "Texture1DArray", 14, lexer::tokenid::reserved },
+				{ "Texture2D", 9, lexer::tokenid::reserved },
+				{ "texture2D", 9, lexer::tokenid::texture },
+				{ "Texture2DArray", 14, lexer::tokenid::reserved },
+				{ "Texture2DMS", 11, lexer::tokenid::reserved },
+				{ "Texture2DMSArray", 16, lexer::tokenid::reserved },
+				{ "Texture3D", 9, lexer::tokenid::reserved },
+				{ "texture3D", 9, lexer::tokenid::texture },
+				{ "textureCUBE", 11, lexer::tokenid::reserved },
+				{ "TextureCube", 11, lexer::tokenid::reserved },
+				{ "TextureCubeArray", 16, lexer::tokenid::reserved },
+				{ "textureRECT", 11, lexer::tokenid::reserved },
+				{ "this", 4, lexer::tokenid::reserved },
+				{ "true", 4, lexer::tokenid::true_literal },
+				{ "TRUE", 4, lexer::tokenid::true_literal },
+				{ "try", 3, lexer::tokenid::reserved },
+				{ "typedef", 7, lexer::tokenid::reserved },
+				{ "uint", 4, lexer::tokenid::uint_ },
+				{ "uint2", 5, lexer::tokenid::uint2 },
+				{ "uint2x2", 7, lexer::tokenid::uint2x2 },
+				{ "uint3", 5, lexer::tokenid::uint3 },
+				{ "uint3x3", 7, lexer::tokenid::uint3x3 },
+				{ "uint4", 5, lexer::tokenid::uint4 },
+				{ "uint4x4", 7, lexer::tokenid::uint4x4 },
+				{ "uniform", 7, lexer::tokenid::uniform_ },
+				{ "union", 5, lexer::tokenid::reserved },
+				{ "unorm", 5, lexer::tokenid::reserved },
+				{ "unsigned", 8, lexer::tokenid::reserved },
+				{ "vector", 6, lexer::tokenid::vector },
+				{ "virtual", 7, lexer::tokenid::reserved },
+				{ "void", 4, lexer::tokenid::void_ },
+				{ "volatile", 8, lexer::tokenid::volatile_ },
+				{ "while", 5, lexer::tokenid::while_ }
 			};
 
 			bool is_octal_digit(char c)
@@ -60,12 +228,23 @@ namespace reshade
 			}
 		}
 
-		lexer::lexer(const lexer &lexer) : _input(lexer._input), _location(lexer._location), _ignore_whitespace(lexer._ignore_whitespace), _ignore_pp_directives(lexer._ignore_pp_directives), _ignore_keywords(lexer._ignore_keywords), _escape_string_literals(lexer._escape_string_literals)
+		lexer::lexer(const lexer &lexer) :
+			_input(lexer._input),
+			_cur_location(lexer._cur_location),
+			_ignore_whitespace(lexer._ignore_whitespace),
+			_ignore_pp_directives(lexer._ignore_pp_directives),
+			_ignore_keywords(lexer._ignore_keywords),
+			_escape_string_literals(lexer._escape_string_literals)
 		{
 			_cur = _input.data() + (lexer._cur - lexer._input.data());
 			_end = _input.data() + _input.size();
 		}
-		lexer::lexer(const std::string &source, bool ignore_whitespace, bool ignore_pp_directives, bool ignore_keywords, bool escape_string_literals) : _input(source), _ignore_whitespace(ignore_whitespace), _ignore_pp_directives(ignore_pp_directives), _ignore_keywords(ignore_keywords), _escape_string_literals(escape_string_literals)
+		lexer::lexer(const std::string &source, bool ignore_whitespace, bool ignore_pp_directives, bool ignore_keywords, bool escape_string_literals) :
+			_input(source),
+			_ignore_whitespace(ignore_whitespace),
+			_ignore_pp_directives(ignore_pp_directives),
+			_ignore_keywords(ignore_keywords),
+			_escape_string_literals(escape_string_literals)
 		{
 			_cur = _input.data();
 			_end = _cur + _input.size();
@@ -73,10 +252,10 @@ namespace reshade
 
 		lexer::token lexer::lex()
 		{
-			bool is_at_line_begin = _location.column <= 1;
+			bool is_at_line_begin = _cur_location.column <= 1;
 			token tok;
 		next_token:
-			tok.location = _location;
+			tok.location = _cur_location;
 			tok.offset = _cur - _input.data();
 			tok.length = 1;
 			tok.literal_as_double = 0;
@@ -94,8 +273,8 @@ namespace reshade
 					return tok;
 				case '\n':
 					_cur++;
-					_location.line++;
-					_location.column = 1;
+					_cur_location.line++;
+					_cur_location.column = 1;
 					is_at_line_begin = true;
 					if (_ignore_whitespace)
 						goto next_token;
@@ -209,8 +388,8 @@ namespace reshade
 						{
 							if (*_cur == '\n')
 							{
-								_location.line++;
-								_location.column = 1;
+								_cur_location.line++;
+								_cur_location.column = 1;
 							}
 							else if (_cur[0] == '*' && _cur[1] == '/')
 							{
@@ -326,7 +505,7 @@ namespace reshade
 		void lexer::skip(size_t length)
 		{
 			_cur += length;
-			_location.column += length;
+			_cur_location.column += length;
 		}
 		void lexer::skip_space()
 		{
@@ -358,185 +537,11 @@ namespace reshade
 				return;
 			}
 
-			#pragma region Keywords
-			struct keyword
+			for (size_t i = 0; i < _countof(keyword_lookup); i++)
 			{
-				const char *data;
-				unsigned char length;
-				tokenid id;
-			};
-
-			static const keyword keywords[] =
-			{
-				{ "asm", 3, tokenid::reserved },
-				{ "asm_fragment", 12, tokenid::reserved },
-				{ "auto", 4, tokenid::reserved },
-				{ "bool", 4, tokenid::bool_ },
-				{ "bool2", 5, tokenid::bool2 },
-				{ "bool2x2", 7, tokenid::bool2x2 },
-				{ "bool3", 5, tokenid::bool3 },
-				{ "bool3x3", 7, tokenid::bool3x3 },
-				{ "bool4", 5, tokenid::bool4 },
-				{ "bool4x4", 7, tokenid::bool4x4 },
-				{ "break", 5, tokenid::break_ },
-				{ "case", 4, tokenid::case_ },
-				{ "cast", 4, tokenid::reserved },
-				{ "catch", 5, tokenid::reserved },
-				{ "centroid", 8, tokenid::reserved },
-				{ "char", 4, tokenid::reserved },
-				{ "class", 5, tokenid::reserved },
-				{ "column_major", 12, tokenid::reserved },
-				{ "compile", 7, tokenid::reserved },
-				{ "const", 5, tokenid::const_ },
-				{ "const_cast", 10, tokenid::reserved },
-				{ "continue", 8, tokenid::continue_ },
-				{ "default", 7, tokenid::default_ },
-				{ "delete", 6, tokenid::reserved },
-				{ "discard", 7, tokenid::discard_ },
-				{ "do", 2, tokenid::do_ },
-				{ "double", 6, tokenid::reserved },
-				{ "dword", 5, tokenid::uint_ },
-				{ "dword2", 6, tokenid::uint2 },
-				{ "dword2x2", 8, tokenid::uint2x2 },
-				{ "dword3", 6, tokenid::uint3, },
-				{ "dword3x3", 8, tokenid::uint3x3 },
-				{ "dword4", 6, tokenid::uint4 },
-				{ "dword4x4", 8, tokenid::uint4x4 },
-				{ "dynamic_cast", 12, tokenid::reserved },
-				{ "else", 4, tokenid::else_ },
-				{ "enum", 4, tokenid::reserved },
-				{ "explicit", 8, tokenid::reserved },
-				{ "extern", 6, tokenid::extern_ },
-				{ "external", 8, tokenid::reserved },
-				{ "false", 5, tokenid::false_literal },
-				{ "FALSE", 5, tokenid::false_literal },
-				{ "float", 5, tokenid::float_ },
-				{ "float2", 6, tokenid::float2 },
-				{ "float2x2", 8, tokenid::float2x2 },
-				{ "float3", 6, tokenid::float3 },
-				{ "float3x3", 8, tokenid::float3x3 },
-				{ "float4", 6, tokenid::float4 },
-				{ "float4x4", 8, tokenid::float4x4 },
-				{ "for", 3, tokenid::for_ },
-				{ "foreach", 7, tokenid::reserved },
-				{ "friend", 6, tokenid::reserved },
-				{ "globallycoherent", 16, tokenid::reserved },
-				{ "goto", 4, tokenid::reserved },
-				{ "groupshared", 11, tokenid::reserved },
-				{ "half", 4, tokenid::reserved },
-				{ "half2", 5, tokenid::reserved },
-				{ "half2x2", 7, tokenid::reserved },
-				{ "half3", 5, tokenid::reserved },
-				{ "half3x3", 7, tokenid::reserved },
-				{ "half4", 5, tokenid::reserved },
-				{ "half4x4", 7, tokenid::reserved },
-				{ "if", 2, tokenid::if_ },
-				{ "in", 2, tokenid::in },
-				{ "inline", 6, tokenid::reserved },
-				{ "inout", 5, tokenid::inout },
-				{ "int", 3, tokenid::int_ },
-				{ "int2", 4, tokenid::int2 },
-				{ "int2x2", 6, tokenid::int2x2 },
-				{ "int3", 4, tokenid::int3 },
-				{ "int3x3", 6, tokenid::int3x3 },
-				{ "int4", 4, tokenid::int4 },
-				{ "int4x4", 6, tokenid::int4x4 },
-				{ "interface", 9, tokenid::reserved },
-				{ "linear", 6, tokenid::linear },
-				{ "long", 4, tokenid::reserved },
-				{ "matrix", 6, tokenid::matrix },
-				{ "mutable", 7, tokenid::reserved },
-				{ "namespace", 9, tokenid::namespace_ },
-				{ "new", 3, tokenid::reserved },
-				{ "noinline", 8, tokenid::reserved },
-				{ "nointerpolation", 15, tokenid::nointerpolation },
-				{ "noperspective", 13, tokenid::noperspective },
-				{ "operator", 8, tokenid::reserved },
-				{ "out", 3, tokenid::out },
-				{ "packed", 6, tokenid::reserved },
-				{ "packoffset", 10, tokenid::reserved },
-				{ "pass", 4, tokenid::pass },
-				{ "precise", 7, tokenid::precise },
-				{ "private", 7, tokenid::reserved },
-				{ "protected", 9, tokenid::reserved },
-				{ "public", 6, tokenid::reserved },
-				{ "register", 8, tokenid::reserved },
-				{ "reinterpret_cast", 16, tokenid::reserved },
-				{ "return", 6, tokenid::return_ },
-				{ "row_major", 9, tokenid::reserved },
-				{ "sample", 6, tokenid::reserved },
-				{ "sampler", 7, tokenid::sampler },
-				{ "sampler1D", 9, tokenid::sampler },
-				{ "sampler1DArray", 14, tokenid::reserved },
-				{ "sampler1DArrayShadow", 20, tokenid::reserved },
-				{ "sampler1DShadow", 15, tokenid::reserved },
-				{ "sampler2D", 9, tokenid::sampler },
-				{ "sampler2DArray", 14, tokenid::reserved },
-				{ "sampler2DArrayShadow", 20, tokenid::reserved },
-				{ "sampler2DMS", 11, tokenid::reserved },
-				{ "sampler2DMSArray", 16, tokenid::reserved },
-				{ "sampler2DShadow", 15, tokenid::reserved },
-				{ "sampler3D", 9, tokenid::sampler },
-				{ "sampler_state", 13, tokenid::reserved },
-				{ "samplerCUBE", 11, tokenid::reserved },
-				{ "samplerRECT", 11, tokenid::reserved },
-				{ "SamplerState", 12, tokenid::reserved },
-				{ "shared", 6, tokenid::reserved },
-				{ "short", 5, tokenid::reserved },
-				{ "signed", 6, tokenid::reserved },
-				{ "sizeof", 6, tokenid::reserved },
-				{ "snorm", 5, tokenid::reserved },
-				{ "static", 6, tokenid::static_ },
-				{ "static_cast", 11, tokenid::reserved },
-				{ "string", 6, tokenid::string_ },
-				{ "struct", 6, tokenid::struct_ },
-				{ "switch", 6, tokenid::switch_ },
-				{ "technique", 9, tokenid::technique },
-				{ "template", 8, tokenid::reserved },
-				{ "texture", 7, tokenid::texture },
-				{ "Texture1D", 9, tokenid::reserved },
-				{ "texture1D", 9, tokenid::texture },
-				{ "Texture1DArray", 14, tokenid::reserved },
-				{ "Texture2D", 9, tokenid::reserved },
-				{ "texture2D", 9, tokenid::texture },
-				{ "Texture2DArray", 14, tokenid::reserved },
-				{ "Texture2DMS", 11, tokenid::reserved },
-				{ "Texture2DMSArray", 16, tokenid::reserved },
-				{ "Texture3D", 9, tokenid::reserved },
-				{ "texture3D", 9, tokenid::texture },
-				{ "textureCUBE", 11, tokenid::reserved },
-				{ "TextureCube", 11, tokenid::reserved },
-				{ "TextureCubeArray", 16, tokenid::reserved },
-				{ "textureRECT", 11, tokenid::reserved },
-				{ "this", 4, tokenid::reserved },
-				{ "true", 4, tokenid::true_literal },
-				{ "TRUE", 4, tokenid::true_literal },
-				{ "try", 3, tokenid::reserved },
-				{ "typedef", 7, tokenid::reserved },
-				{ "uint", 4, tokenid::uint_ },
-				{ "uint2", 5, tokenid::uint2 },
-				{ "uint2x2", 7, tokenid::uint2x2 },
-				{ "uint3", 5, tokenid::uint3 },
-				{ "uint3x3", 7, tokenid::uint3x3 },
-				{ "uint4", 5, tokenid::uint4 },
-				{ "uint4x4", 7, tokenid::uint4x4 },
-				{ "uniform", 7, tokenid::uniform_ },
-				{ "union", 5, tokenid::reserved },
-				{ "unorm", 5, tokenid::reserved },
-				{ "unsigned", 8, tokenid::reserved },
-				{ "vector", 6, tokenid::vector },
-				{ "virtual", 7, tokenid::reserved },
-				{ "void", 4, tokenid::void_ },
-				{ "volatile", 8, tokenid::volatile_ },
-				{ "while", 5, tokenid::while_ }
-			};
-			#pragma endregion
-
-			for (size_t i = 0; i < sizeof(keywords) / sizeof(keyword); i++)
-			{
-				if (keywords[i].length == tok.length && strncmp(begin, keywords[i].data, tok.length) == 0)
+				if (keyword_lookup[i].length == tok.length && strncmp(begin, keyword_lookup[i].data, tok.length) == 0)
 				{
-					tok.id = keywords[i].id;
+					tok.id = keyword_lookup[i].id;
 					break;
 				}
 			}
@@ -554,11 +559,11 @@ namespace reshade
 				parse_numeric_literal(tok);
 				skip(tok.length);
 
-				_location.line = tok.literal_as_int;
+				_cur_location.line = tok.literal_as_int;
 
-				if (_location.line != 0)
+				if (_cur_location.line != 0)
 				{
-					_location.line--;
+					_cur_location.line--;
 				}
 
 				skip_space();
@@ -568,7 +573,7 @@ namespace reshade
 					token temptok;
 					parse_string_literal(temptok, false);
 
-					_location.source = temptok.literal_as_string;
+					_cur_location.source = temptok.literal_as_string;
 				}
 
 				return false;
@@ -852,7 +857,17 @@ namespace reshade
 				}
 
 				double e = 1.0;
-				const double powers_of_10[] = { 10., 100., 1.0e4, 1.0e8, 1.0e16, 1.0e32, 1.0e64, 1.0e128, 1.0e256 };
+				const double powers_of_10[] = {
+					10.,
+					100.,
+					1.0e4,
+					1.0e8,
+					1.0e16,
+					1.0e32,
+					1.0e64,
+					1.0e128,
+					1.0e256
+				};
 
 				for (auto d = powers_of_10; exponent != 0; exponent >>= 1, d++)
 				{

@@ -1,7 +1,8 @@
-#include "fx_ast.hpp"
-#include "fx_symbol_table.hpp"
+#include "symbol_table.hpp"
+#include "syntax_tree_nodes.hpp"
 
 #include <assert.h>
+#include <algorithm>
 #include <functional>
 
 namespace reshade
@@ -363,7 +364,7 @@ namespace reshade
 			};
 		}
 
-		unsigned int get_type_rank(const type_node &src, const type_node &dst)
+		unsigned int nodes::type_node::rank(const type_node &src, const type_node &dst)
 		{
 			if (src.is_array() != dst.is_array() || (src.array_length != dst.array_length && src.array_length > 0 && dst.array_length > 0))
 			{
@@ -413,7 +414,7 @@ namespace reshade
 		{
 			for (size_t i = 0, count = call->arguments.size(); i < count; ++i)
 			{
-				ranks[i] = get_type_rank(call->arguments[i]->type, function->parameter_list[i]->type);
+				ranks[i] = type_node::rank(call->arguments[i]->type, function->parameter_list[i]->type);
 
 				if (ranks[i] == 0)
 				{
@@ -490,24 +491,20 @@ namespace reshade
 		{
 			assert(_current_scope.level > 0);
 
-			for (auto it1 = _symbol_stack.begin(), end = _symbol_stack.end(); it1 != end; ++it1)
+			for (auto &symbol : _symbol_stack)
 			{
-				auto &scopes = it1->second;
+				auto &scope_list = symbol.second;
 
-				if (scopes.empty())
+				for (auto scope_it = scope_list.begin(); scope_it != scope_list.end();)
 				{
-					continue;
-				}
-
-				for (auto it2 = scopes.begin(); it2 != scopes.end();)
-				{
-					if (it2->first.level > it2->first.namespace_level && it2->first.level >= _current_scope.level)
+					if (scope_it->first.level > scope_it->first.namespace_level &&
+					    scope_it->first.level >= _current_scope.level)
 					{
-						it2 = scopes.erase(it2);
+						scope_it = scope_list.erase(scope_it);
 					}
 					else
 					{
-						++it2;
+						++scope_it;
 					}
 				}
 			}
@@ -569,26 +566,28 @@ namespace reshade
 			}
 
 			symbol result = nullptr;
-			const auto &scopes = it->second;
+			const auto &scope_list = it->second;
 
-			for (auto it2 = scopes.rbegin(), end = scopes.rend(); it2 != end; ++it2)
+			for (auto scope_it = scope_list.rbegin(), end = scope_list.rend(); scope_it != end; ++scope_it)
 			{
-				if (it2->first.level > scope.level || it2->first.namespace_level > scope.namespace_level || (it2->first.namespace_level == scope.namespace_level && it2->first.name != scope.name))
+				if (scope_it->first.level > scope.level ||
+				    scope_it->first.namespace_level > scope.namespace_level ||
+				   (scope_it->first.namespace_level == scope.namespace_level && scope_it->first.name != scope.name))
 				{
 					continue;
 				}
-				if (exclusive && it2->first.level < scope.level)
+				if (exclusive && scope_it->first.level < scope.level)
 				{
 					continue;
 				}
 
-				if (it2->second->id == nodeid::variable_declaration || it2->second->id == nodeid::struct_declaration)
+				if (scope_it->second->id == nodeid::variable_declaration || scope_it->second->id == nodeid::struct_declaration)
 				{
-					return it2->second;
+					return scope_it->second;
 				}
 				if (result == nullptr)
 				{
-					result = it2->second;
+					result = scope_it->second;
 				}
 			}
 
@@ -607,16 +606,18 @@ namespace reshade
 
 			if (it != _symbol_stack.end() && !it->second.empty())
 			{
-				const auto &scopes = it->second;
+				const auto &scope_list = it->second;
 
-				for (auto it2 = scopes.rbegin(), end = scopes.rend(); it2 != end; ++it2)
+				for (auto scope_it = scope_list.rbegin(), end = scope_list.rend(); scope_it != end; ++scope_it)
 				{
-					if (it2->first.level > scope.level || it2->first.namespace_level > scope.namespace_level || it2->second->id != nodeid::function_declaration)
+					if (scope_it->first.level > scope.level ||
+					    scope_it->first.namespace_level > scope.namespace_level ||
+					    scope_it->second->id != nodeid::function_declaration)
 					{
 						continue;
 					}
 
-					const auto function = static_cast<function_declaration_node *>(it2->second);
+					const auto function = static_cast<function_declaration_node *>(scope_it->second);
 
 					if (function->parameter_list.empty())
 					{
@@ -642,9 +643,9 @@ namespace reshade
 					{
 						overload = function;
 						overload_count = 1;
-						overload_namespace = it2->first.namespace_level;
+						overload_namespace = scope_it->first.namespace_level;
 					}
-					else if (comparison == 0 && overload_namespace == it2->first.namespace_level)
+					else if (comparison == 0 && overload_namespace == scope_it->first.namespace_level)
 					{
 						++overload_count;
 					}

@@ -225,11 +225,11 @@ tools\upx --backup "$(TargetPath)"</Command>
   <ItemGroup>
     <ClCompile Include="source\log.cpp" />
     <ClCompile Include="source\main.cpp" />
-    <ClCompile Include="source\fx_compiler.cpp" />
-    <ClCompile Include="source\fx_lexer.cpp" />
-    <ClCompile Include="source\fx_parser.cpp" />
-    <ClCompile Include="source\fx_preprocessor.cpp" />
-    <ClCompile Include="source\fx_symbol_table.cpp" />
+    <ClCompile Include="source\lexer.cpp" />
+    <ClCompile Include="source\constant_folding.cpp" />
+    <ClCompile Include="source\parser.cpp" />
+    <ClCompile Include="source\preprocessor.cpp" />
+    <ClCompile Include="source\symbol_table.cpp" />
     <ClCompile Include="source\hook.cpp" />
     <ClCompile Include="source\hook_manager.cpp" />
     <ClCompile Include="source\d3d8\d3d8.cpp">
@@ -261,13 +261,15 @@ tools\upx --backup "$(TargetPath)"</Command>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="res\version.h" />
+    <ClInclude Include="source\constant_folding.hpp" />
+    <ClInclude Include="source\syntax_tree.hpp" />
+    <ClInclude Include="source\location.hpp" />
     <ClInclude Include="source\log.hpp" />
-    <ClInclude Include="source\fx_ast.hpp" />
-    <ClInclude Include="source\fx_compiler.hpp" />
-    <ClInclude Include="source\fx_lexer.hpp" />
-    <ClInclude Include="source\fx_parser.hpp" />
-    <ClInclude Include="source\fx_preprocessor.hpp" />
-    <ClInclude Include="source\fx_symbol_table.hpp" />
+    <ClInclude Include="source\syntax_tree_nodes.hpp" />
+    <ClInclude Include="source\lexer.hpp" />
+    <ClInclude Include="source\parser.hpp" />
+    <ClInclude Include="source\preprocessor.hpp" />
+    <ClInclude Include="source\symbol_table.hpp" />
     <ClInclude Include="source\hook.hpp" />
     <ClInclude Include="source\hook_manager.hpp" />
     <ClInclude Include="source\d3d8\d3d8.hpp" />

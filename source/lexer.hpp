@@ -1,26 +1,20 @@
 #pragma once
 
 #include <string>
+#include "location.hpp"
 
 namespace reshade
 {
 	namespace fx
 	{
-		struct location
-		{
-			location() : line(1), column(1) { }
-			explicit location(unsigned int line, unsigned int column = 1) : line(line), column(column) { }
-			explicit location(const std::string &source, unsigned int line, unsigned int column = 1) : source(source), line(line), column(column) { }
-
-			std::string source;
-			unsigned int line, column;
-		};
-
 		class lexer
 		{
 			lexer &operator=(const lexer &) = delete;
 
 		public:
+			/// <summary>
+			/// A collection of identifiers for various possible tokens.
+			/// </summary>
 			enum class tokenid
 			{
 				unknown = -1,
@@ -175,13 +169,11 @@ namespace reshade
 				hash_include,
 				hash_unknown,
 			};
+			/// <summary>
+			/// A structure describing a single token in the input string.
+			/// </summary>
 			struct token
 			{
-				inline operator tokenid() const
-				{
-					return id;
-				}
-
 				tokenid id;
 				location location;
 				size_t offset, length;
@@ -193,6 +185,8 @@ namespace reshade
 					double literal_as_double;
 				};
 				std::string literal_as_string;
+
+				operator tokenid() const { return id; }
 			};
 
 			/// <summary>
@@ -235,8 +229,8 @@ namespace reshade
 			void parse_string_literal(token &tok, bool escape) const;
 			void parse_numeric_literal(token &tok) const;
 
-			location _location;
 			std::string _input;
+			location _cur_location;
 			const std::string::value_type *_cur, *_end;
 			bool _ignore_whitespace, _ignore_pp_directives, _ignore_keywords, _escape_string_literals;
 		};

@@ -164,7 +164,15 @@ namespace reshade
 		}
 	}
 
-	d3d11_fx_compiler::d3d11_fx_compiler(d3d11_runtime *runtime, const fx::nodetree &ast, std::string &errors, bool skipoptimization) : compiler(ast, errors), _runtime(runtime), _skip_shader_optimization(skipoptimization), _is_in_parameter_block(false), _is_in_function_block(false), _current_global_size(0)
+	d3d11_fx_compiler::d3d11_fx_compiler(d3d11_runtime *runtime, const fx::nodetree &ast, std::string &errors, bool skipoptimization) :
+		_runtime(runtime),
+		_success(true),
+		_ast(ast),
+		_errors(errors),
+		_skip_shader_optimization(skipoptimization),
+		_is_in_parameter_block(false),
+		_is_in_function_block(false),
+		_current_global_size(0)
 	{
 	}
 
@@ -218,6 +226,107 @@ namespace reshade
 		}
 
 		return _success;
+	}
+
+	void d3d11_fx_compiler::error(const fx::location &location, const std::string &message)
+	{
+		_success = false;
+
+		_errors += location.source + "(" + std::to_string(location.line) + ", " + std::to_string(location.column) + "): error: " + message + '\n';
+	}
+	void d3d11_fx_compiler::warning(const fx::location &location, const std::string &message)
+	{
+		_errors += location.source + "(" + std::to_string(location.line) + ", " + std::to_string(location.column) + "): warning: " + message + '\n';
+	}
+
+	void d3d11_fx_compiler::visit(std::stringstream &output, const fx::nodes::statement_node *node)
+	{
+		if (node == nullptr)
+		{
+			return;
+		}
+
+		switch (node->id)
+		{
+			case fx::nodeid::compound_statement:
+				visit(output, static_cast<const fx::nodes::compound_statement_node *>(node));
+				break;
+			case fx::nodeid::declarator_list:
+				visit(output, static_cast<const fx::nodes::declarator_list_node *>(node), false);
+				break;
+			case fx::nodeid::expression_statement:
+				visit(output, static_cast<const fx::nodes::expression_statement_node *>(node));
+				break;
+			case fx::nodeid::if_statement:
+				visit(output, static_cast<const fx::nodes::if_statement_node *>(node));
+				break;
+			case fx::nodeid::switch_statement:
+				visit(output, static_cast<const fx::nodes::switch_statement_node *>(node));
+				break;
+			case fx::nodeid::for_statement:
+				visit(output, static_cast<const fx::nodes::for_statement_node *>(node));
+				break;
+			case fx::nodeid::while_statement:
+				visit(output, static_cast<const fx::nodes::while_statement_node *>(node));
+				break;
+			case fx::nodeid::return_statement:
+				visit(output, static_cast<const fx::nodes::return_statement_node *>(node));
+				break;
+			case fx::nodeid::jump_statement:
+				visit(output, static_cast<const fx::nodes::jump_statement_node *>(node));
+				break;
+			default:
+				assert(false);
+		}
+	}
+	void d3d11_fx_compiler::visit(std::stringstream &output, const fx::nodes::expression_node *node)
+	{
+		assert(node != nullptr);
+
+		switch (node->id)
+		{
+			case fx::nodeid::lvalue_expression:
+				visit(output, static_cast<const fx::nodes::lvalue_expression_node *>(node));
+				break;
+			case fx::nodeid::literal_expression:
+				visit(output, static_cast<const fx::nodes::literal_expression_node *>(node));
+				break;
+			case fx::nodeid::expression_sequence:
+				visit(output, static_cast<const fx::nodes::expression_sequence_node *>(node));
+				break;
+			case fx::nodeid::unary_expression:
+				visit(output, static_cast<const fx::nodes::unary_expression_node *>(node));
+				break;
+			case fx::nodeid::binary_expression:
+				visit(output, static_cast<const fx::nodes::binary_expression_node *>(node));
+				break;
+			case fx::nodeid::intrinsic_expression:
+				visit(output, static_cast<const fx::nodes::intrinsic_expression_node *>(node));
+				break;
+			case fx::nodeid::conditional_expression:
+				visit(output, static_cast<const fx::nodes::conditional_expression_node *>(node));
+				break;
+			case fx::nodeid::swizzle_expression:
+				visit(output, static_cast<const fx::nodes::swizzle_expression_node *>(node));
+				break;
+			case fx::nodeid::field_expression:
+				visit(output, static_cast<const fx::nodes::field_expression_node *>(node));
+				break;
+			case fx::nodeid::initializer_list:
+				visit(output, static_cast<const fx::nodes::initializer_list_node *>(node));
+				break;
+			case fx::nodeid::assignment_expression:
+				visit(output, static_cast<const fx::nodes::assignment_expression_node *>(node));
+				break;
+			case fx::nodeid::call_expression:
+				visit(output, static_cast<const fx::nodes::call_expression_node *>(node));
+				break;
+			case fx::nodeid::constructor_expression:
+				visit(output, static_cast<const fx::nodes::constructor_expression_node *>(node));
+				break;
+			default:
+				assert(false);
+		}
 	}
 
 	void d3d11_fx_compiler::visit(std::stringstream &output, const fx::nodes::type_node &type, bool with_qualifiers)

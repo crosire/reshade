@@ -1,9 +1,18 @@
 #pragma once
 
-#include "fx_ast.hpp"
-#include "fx_symbol_table.hpp"
-
 #include <memory>
+#include "lexer.hpp"
+#include "syntax_tree.hpp"
+
+#pragma region Forward Declaration
+namespace reshade
+{
+	namespace fx
+	{
+		class symbol_table;
+	}
+}
+#pragma endregion
 
 namespace reshade
 {
@@ -16,6 +25,7 @@ namespace reshade
 
 		public:
 			parser(const std::string &input, nodetree &ast, std::string &errors);
+			~parser();
 
 			bool run();
 
@@ -64,13 +74,11 @@ namespace reshade
 			bool parse_technique_pass(nodes::pass_declaration_node *&pass);
 			bool parse_technique_pass_expression(nodes::expression_node *&expression);
 
-			nodes::expression_node *fold_constant_expression(nodes::expression_node *expression) const;
-
 			nodetree &_ast;
 			std::string &_errors;
 			std::unique_ptr<lexer> _lexer, _lexer_backup;
 			lexer::token _token, _token_next, _token_backup;
-			symbol_table _symbol_table;
+			std::unique_ptr<symbol_table> _symbol_table;
 		};
 	}
 }

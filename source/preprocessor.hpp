@@ -1,10 +1,9 @@
 #pragma once
 
-#include "fx_lexer.hpp"
-
 #include <stack>
 #include <unordered_map>
 #include <boost\filesystem\path.hpp>
+#include "lexer.hpp"
 
 namespace reshade
 {

@@ -1,4 +1,6 @@
-#include "fx_parser.hpp"
+#include "parser.hpp"
+#include "symbol_table.hpp"
+#include "constant_folding.hpp"
 
 #include <boost/assign/list_of.hpp>
 #include <boost/algorithm/string.hpp>
@@ -9,317 +11,246 @@ namespace reshade
 	{
 		using namespace nodes;
 
-		namespace
+		const std::string get_token_name(lexer::tokenid id)
 		{
-			void scalar_literal_cast(const literal_expression_node *from, size_t i, int &to)
+			switch (id)
 			{
-				switch (from->type.basetype)
-				{
-					case type_node::datatype_bool:
-					case type_node::datatype_int:
-					case type_node::datatype_uint:
-						to = from->value_int[i];
-						break;
-					case type_node::datatype_float:
-						to = static_cast<int>(from->value_float[i]);
-						break;
-					default:
-						to = 0;
-						break;
-				}
-			}
-			void scalar_literal_cast(const literal_expression_node *from, size_t i, unsigned int &to)
-			{
-				switch (from->type.basetype)
-				{
-					case type_node::datatype_bool:
-					case type_node::datatype_int:
-					case type_node::datatype_uint:
-						to = from->value_uint[i];
-						break;
-					case type_node::datatype_float:
-						to = static_cast<unsigned int>(from->value_float[i]);
-						break;
-					default:
-						to = 0;
-						break;
-				}
-			}
-			void scalar_literal_cast(const literal_expression_node *from, size_t i, float &to)
-			{
-				switch (from->type.basetype)
-				{
-					case type_node::datatype_bool:
-					case type_node::datatype_int:
-						to = static_cast<float>(from->value_int[i]);
-						break;
-					case type_node::datatype_uint:
-						to = static_cast<float>(from->value_uint[i]);
-						break;
-					case type_node::datatype_float:
-						to = from->value_float[i];
-						break;
-					default:
-						to = 0;
-						break;
-				}
-			}
-			void vector_literal_cast(const literal_expression_node *from, size_t k, literal_expression_node *to, size_t j)
-			{
-				switch (to->type.basetype)
-				{
-					case type_node::datatype_bool:
-					case type_node::datatype_int:
-						scalar_literal_cast(from, j, to->value_int[k]);
-						break;
-					case type_node::datatype_uint:
-						scalar_literal_cast(from, j, to->value_uint[k]);
-						break;
-					case type_node::datatype_float:
-						scalar_literal_cast(from, j, to->value_float[k]);
-						break;
-					default:
-						memcpy(to->value_uint, from->value_uint, sizeof(from->value_uint));
-						break;
-				}
-			}
-
-			const std::string get_token_name(lexer::tokenid tokid)
-			{
-				switch (tokid)
-				{
-					default:
-					case lexer::tokenid::unknown:
-						return "unknown";
-					case lexer::tokenid::end_of_file:
-						return "end of file";
-					case lexer::tokenid::exclaim:
-						return "!";
-					case lexer::tokenid::hash:
-						return "#";
-					case lexer::tokenid::dollar:
-						return "$";
-					case lexer::tokenid::percent:
-						return "%";
-					case lexer::tokenid::ampersand:
-						return "&";
-					case lexer::tokenid::parenthesis_open:
-						return "(";
-					case lexer::tokenid::parenthesis_close:
-						return ")";
-					case lexer::tokenid::star:
-						return "*";
-					case lexer::tokenid::plus:
-						return "+";
-					case lexer::tokenid::comma:
-						return ",";
-					case lexer::tokenid::minus:
-						return "-";
-					case lexer::tokenid::dot:
-						return ".";
-					case lexer::tokenid::slash:
-						return "/";
-					case lexer::tokenid::colon:
-						return ":";
-					case lexer::tokenid::semicolon:
-						return ";";
-					case lexer::tokenid::less:
-						return "<";
-					case lexer::tokenid::equal:
-						return "=";
-					case lexer::tokenid::greater:
-						return ">";
-					case lexer::tokenid::question:
-						return "?";
-					case lexer::tokenid::at:
-						return "@";
-					case lexer::tokenid::bracket_open:
-						return "[";
-					case lexer::tokenid::backslash:
-						return "\\";
-					case lexer::tokenid::bracket_close:
-						return "]";
-					case lexer::tokenid::caret:
-						return "^";
-					case lexer::tokenid::brace_open:
-						return "{";
-					case lexer::tokenid::pipe:
-						return "|";
-					case lexer::tokenid::brace_close:
-						return "}";
-					case lexer::tokenid::tilde:
-						return "~";
-					case lexer::tokenid::exclaim_equal:
-						return "!=";
-					case lexer::tokenid::percent_equal:
-						return "%=";
-					case lexer::tokenid::ampersand_ampersand:
-						return "&&";
-					case lexer::tokenid::ampersand_equal:
-						return "&=";
-					case lexer::tokenid::star_equal:
-						return "*=";
-					case lexer::tokenid::plus_plus:
-						return "++";
-					case lexer::tokenid::plus_equal:
-						return "+=";
-					case lexer::tokenid::minus_minus:
-						return "--";
-					case lexer::tokenid::minus_equal:
-						return "-=";
-					case lexer::tokenid::arrow:
-						return "->";
-					case lexer::tokenid::ellipsis:
-						return "...";
-					case lexer::tokenid::slash_equal:
-						return "|=";
-					case lexer::tokenid::colon_colon:
-						return "::";
-					case lexer::tokenid::less_less_equal:
-						return "<<=";
-					case lexer::tokenid::less_less:
-						return "<<";
-					case lexer::tokenid::less_equal:
-						return "<=";
-					case lexer::tokenid::equal_equal:
-						return "==";
-					case lexer::tokenid::greater_greater_equal:
-						return ">>=";
-					case lexer::tokenid::greater_greater:
-						return ">>";
-					case lexer::tokenid::greater_equal:
-						return ">=";
-					case lexer::tokenid::caret_equal:
-						return "^=";
-					case lexer::tokenid::pipe_equal:
-						return "|=";
-					case lexer::tokenid::pipe_pipe:
-						return "||";
-					case lexer::tokenid::identifier:
-						return "identifier";
-					case lexer::tokenid::reserved:
-						return "reserved word";
-					case lexer::tokenid::true_literal:
-						return "true";
-					case lexer::tokenid::false_literal:
-						return "false";
-					case lexer::tokenid::int_literal:
-					case lexer::tokenid::uint_literal:
-						return "integral literal";
-					case lexer::tokenid::float_literal:
-					case lexer::tokenid::double_literal:
-						return "floating point literal";
-					case lexer::tokenid::string_literal:
-						return "string literal";
-					case lexer::tokenid::namespace_:
-						return "namespace";
-					case lexer::tokenid::struct_:
-						return "struct";
-					case lexer::tokenid::technique:
-						return "technique";
-					case lexer::tokenid::pass:
-						return "pass";
-					case lexer::tokenid::for_:
-						return "for";
-					case lexer::tokenid::while_:
-						return "while";
-					case lexer::tokenid::do_:
-						return "do";
-					case lexer::tokenid::if_:
-						return "if";
-					case lexer::tokenid::else_:
-						return "else";
-					case lexer::tokenid::switch_:
-						return "switch";
-					case lexer::tokenid::case_:
-						return "case";
-					case lexer::tokenid::default_:
-						return "default";
-					case lexer::tokenid::break_:
-						return "break";
-					case lexer::tokenid::continue_:
-						return "continue";
-					case lexer::tokenid::return_:
-						return "return";
-					case lexer::tokenid::discard_:
-						return "discard";
-					case lexer::tokenid::extern_:
-						return "extern";
-					case lexer::tokenid::static_:
-						return "static";
-					case lexer::tokenid::uniform_:
-						return "uniform";
-					case lexer::tokenid::volatile_:
-						return "volatile";
-					case lexer::tokenid::precise:
-						return "precise";
-					case lexer::tokenid::in:
-						return "in";
-					case lexer::tokenid::out:
-						return "out";
-					case lexer::tokenid::inout:
-						return "inout";
-					case lexer::tokenid::const_:
-						return "const";
-					case lexer::tokenid::linear:
-						return "linear";
-					case lexer::tokenid::noperspective:
-						return "noperspective";
-					case lexer::tokenid::centroid:
-						return "centroid";
-					case lexer::tokenid::nointerpolation:
-						return "nointerpolation";
-					case lexer::tokenid::void_:
-						return "void";
-					case lexer::tokenid::bool_:
-					case lexer::tokenid::bool2:
-					case lexer::tokenid::bool3:
-					case lexer::tokenid::bool4:
-					case lexer::tokenid::bool2x2:
-					case lexer::tokenid::bool3x3:
-					case lexer::tokenid::bool4x4:
-						return "bool type";
-					case lexer::tokenid::int_:
-					case lexer::tokenid::int2:
-					case lexer::tokenid::int3:
-					case lexer::tokenid::int4:
-					case lexer::tokenid::int2x2:
-					case lexer::tokenid::int3x3:
-					case lexer::tokenid::int4x4:
-						return "int type";
-					case lexer::tokenid::uint_:
-					case lexer::tokenid::uint2:
-					case lexer::tokenid::uint3:
-					case lexer::tokenid::uint4:
-					case lexer::tokenid::uint2x2:
-					case lexer::tokenid::uint3x3:
-					case lexer::tokenid::uint4x4:
-						return "uint type";
-					case lexer::tokenid::float_:
-					case lexer::tokenid::float2:
-					case lexer::tokenid::float3:
-					case lexer::tokenid::float4:
-					case lexer::tokenid::float2x2:
-					case lexer::tokenid::float3x3:
-					case lexer::tokenid::float4x4:
-						return "float type";
-					case lexer::tokenid::vector:
-						return "vector";
-					case lexer::tokenid::matrix:
-						return "matrix";
-					case lexer::tokenid::string_:
-						return "string";
-					case lexer::tokenid::texture:
-						return "texture";
-					case lexer::tokenid::sampler:
-						return "sampler";
-				}
+				default:
+				case lexer::tokenid::unknown:
+					return "unknown";
+				case lexer::tokenid::end_of_file:
+					return "end of file";
+				case lexer::tokenid::exclaim:
+					return "!";
+				case lexer::tokenid::hash:
+					return "#";
+				case lexer::tokenid::dollar:
+					return "$";
+				case lexer::tokenid::percent:
+					return "%";
+				case lexer::tokenid::ampersand:
+					return "&";
+				case lexer::tokenid::parenthesis_open:
+					return "(";
+				case lexer::tokenid::parenthesis_close:
+					return ")";
+				case lexer::tokenid::star:
+					return "*";
+				case lexer::tokenid::plus:
+					return "+";
+				case lexer::tokenid::comma:
+					return ",";
+				case lexer::tokenid::minus:
+					return "-";
+				case lexer::tokenid::dot:
+					return ".";
+				case lexer::tokenid::slash:
+					return "/";
+				case lexer::tokenid::colon:
+					return ":";
+				case lexer::tokenid::semicolon:
+					return ";";
+				case lexer::tokenid::less:
+					return "<";
+				case lexer::tokenid::equal:
+					return "=";
+				case lexer::tokenid::greater:
+					return ">";
+				case lexer::tokenid::question:
+					return "?";
+				case lexer::tokenid::at:
+					return "@";
+				case lexer::tokenid::bracket_open:
+					return "[";
+				case lexer::tokenid::backslash:
+					return "\\";
+				case lexer::tokenid::bracket_close:
+					return "]";
+				case lexer::tokenid::caret:
+					return "^";
+				case lexer::tokenid::brace_open:
+					return "{";
+				case lexer::tokenid::pipe:
+					return "|";
+				case lexer::tokenid::brace_close:
+					return "}";
+				case lexer::tokenid::tilde:
+					return "~";
+				case lexer::tokenid::exclaim_equal:
+					return "!=";
+				case lexer::tokenid::percent_equal:
+					return "%=";
+				case lexer::tokenid::ampersand_ampersand:
+					return "&&";
+				case lexer::tokenid::ampersand_equal:
+					return "&=";
+				case lexer::tokenid::star_equal:
+					return "*=";
+				case lexer::tokenid::plus_plus:
+					return "++";
+				case lexer::tokenid::plus_equal:
+					return "+=";
+				case lexer::tokenid::minus_minus:
+					return "--";
+				case lexer::tokenid::minus_equal:
+					return "-=";
+				case lexer::tokenid::arrow:
+					return "->";
+				case lexer::tokenid::ellipsis:
+					return "...";
+				case lexer::tokenid::slash_equal:
+					return "|=";
+				case lexer::tokenid::colon_colon:
+					return "::";
+				case lexer::tokenid::less_less_equal:
+					return "<<=";
+				case lexer::tokenid::less_less:
+					return "<<";
+				case lexer::tokenid::less_equal:
+					return "<=";
+				case lexer::tokenid::equal_equal:
+					return "==";
+				case lexer::tokenid::greater_greater_equal:
+					return ">>=";
+				case lexer::tokenid::greater_greater:
+					return ">>";
+				case lexer::tokenid::greater_equal:
+					return ">=";
+				case lexer::tokenid::caret_equal:
+					return "^=";
+				case lexer::tokenid::pipe_equal:
+					return "|=";
+				case lexer::tokenid::pipe_pipe:
+					return "||";
+				case lexer::tokenid::identifier:
+					return "identifier";
+				case lexer::tokenid::reserved:
+					return "reserved word";
+				case lexer::tokenid::true_literal:
+					return "true";
+				case lexer::tokenid::false_literal:
+					return "false";
+				case lexer::tokenid::int_literal:
+				case lexer::tokenid::uint_literal:
+					return "integral literal";
+				case lexer::tokenid::float_literal:
+				case lexer::tokenid::double_literal:
+					return "floating point literal";
+				case lexer::tokenid::string_literal:
+					return "string literal";
+				case lexer::tokenid::namespace_:
+					return "namespace";
+				case lexer::tokenid::struct_:
+					return "struct";
+				case lexer::tokenid::technique:
+					return "technique";
+				case lexer::tokenid::pass:
+					return "pass";
+				case lexer::tokenid::for_:
+					return "for";
+				case lexer::tokenid::while_:
+					return "while";
+				case lexer::tokenid::do_:
+					return "do";
+				case lexer::tokenid::if_:
+					return "if";
+				case lexer::tokenid::else_:
+					return "else";
+				case lexer::tokenid::switch_:
+					return "switch";
+				case lexer::tokenid::case_:
+					return "case";
+				case lexer::tokenid::default_:
+					return "default";
+				case lexer::tokenid::break_:
+					return "break";
+				case lexer::tokenid::continue_:
+					return "continue";
+				case lexer::tokenid::return_:
+					return "return";
+				case lexer::tokenid::discard_:
+					return "discard";
+				case lexer::tokenid::extern_:
+					return "extern";
+				case lexer::tokenid::static_:
+					return "static";
+				case lexer::tokenid::uniform_:
+					return "uniform";
+				case lexer::tokenid::volatile_:
+					return "volatile";
+				case lexer::tokenid::precise:
+					return "precise";
+				case lexer::tokenid::in:
+					return "in";
+				case lexer::tokenid::out:
+					return "out";
+				case lexer::tokenid::inout:
+					return "inout";
+				case lexer::tokenid::const_:
+					return "const";
+				case lexer::tokenid::linear:
+					return "linear";
+				case lexer::tokenid::noperspective:
+					return "noperspective";
+				case lexer::tokenid::centroid:
+					return "centroid";
+				case lexer::tokenid::nointerpolation:
+					return "nointerpolation";
+				case lexer::tokenid::void_:
+					return "void";
+				case lexer::tokenid::bool_:
+				case lexer::tokenid::bool2:
+				case lexer::tokenid::bool3:
+				case lexer::tokenid::bool4:
+				case lexer::tokenid::bool2x2:
+				case lexer::tokenid::bool3x3:
+				case lexer::tokenid::bool4x4:
+					return "bool type";
+				case lexer::tokenid::int_:
+				case lexer::tokenid::int2:
+				case lexer::tokenid::int3:
+				case lexer::tokenid::int4:
+				case lexer::tokenid::int2x2:
+				case lexer::tokenid::int3x3:
+				case lexer::tokenid::int4x4:
+					return "int type";
+				case lexer::tokenid::uint_:
+				case lexer::tokenid::uint2:
+				case lexer::tokenid::uint3:
+				case lexer::tokenid::uint4:
+				case lexer::tokenid::uint2x2:
+				case lexer::tokenid::uint3x3:
+				case lexer::tokenid::uint4x4:
+					return "uint type";
+				case lexer::tokenid::float_:
+				case lexer::tokenid::float2:
+				case lexer::tokenid::float3:
+				case lexer::tokenid::float4:
+				case lexer::tokenid::float2x2:
+				case lexer::tokenid::float3x3:
+				case lexer::tokenid::float4x4:
+					return "float type";
+				case lexer::tokenid::vector:
+					return "vector";
+				case lexer::tokenid::matrix:
+					return "matrix";
+				case lexer::tokenid::string_:
+					return "string";
+				case lexer::tokenid::texture:
+					return "texture";
+				case lexer::tokenid::sampler:
+					return "sampler";
 			}
 		}
 
-		extern unsigned int get_type_rank(const type_node &src, const type_node &dst);
-
-		parser::parser(const std::string &input, nodetree &ast, std::string &errors) : _ast(ast), _errors(errors), _lexer(new lexer(input))
+		parser::parser(const std::string &input, nodetree &ast, std::string &errors) :
+			_ast(ast),
+			_errors(errors),
+			_lexer(new lexer(input)),
+			_symbol_table(new symbol_table())
+		{
+		}
+		parser::~parser()
 		{
 		}
 
@@ -434,7 +365,7 @@ namespace reshade
 				type.rows = type.cols = 0;
 				type.basetype = type_node::datatype_struct;
 
-				const auto symbol = _symbol_table.find(_token_next.literal_as_string);
+				const auto symbol = _symbol_table->find(_token_next.literal_as_string);
 
 				if (symbol != nullptr && symbol->id == nodeid::struct_declaration)
 				{
@@ -1040,7 +971,7 @@ namespace reshade
 					newexpression->op = op;
 					newexpression->operand = node;
 
-					node = fold_constant_expression(newexpression);
+					node = fold_constant_expression(_ast, newexpression);
 				}
 
 				type = node->type;
@@ -1086,7 +1017,7 @@ namespace reshade
 							castexpression->op = unary_expression_node::cast;
 							castexpression->operand = node;
 
-							node = fold_constant_expression(castexpression);
+							node = fold_constant_expression(_ast, castexpression);
 
 							return true;
 						}
@@ -1277,7 +1208,7 @@ namespace reshade
 					node = castexpression;
 				}
 
-				node = fold_constant_expression(node);
+				node = fold_constant_expression(_ast, node);
 			}
 			else
 			{
@@ -1292,7 +1223,7 @@ namespace reshade
 				}
 				else
 				{
-					scope = _symbol_table.current_scope();
+					scope = _symbol_table->current_scope();
 					exclusive = false;
 				}
 
@@ -1315,7 +1246,7 @@ namespace reshade
 					identifier += "::" + _token.literal_as_string;
 				}
 
-				const auto symbol = _symbol_table.find(identifier, scope, exclusive);
+				const auto symbol = _symbol_table->find(identifier, scope, exclusive);
 
 				if (accept('('))
 				{
@@ -1353,7 +1284,7 @@ namespace reshade
 
 					bool undeclared = symbol == nullptr, intrinsic = false, ambiguous = false;
 
-					if (!_symbol_table.resolve_call(callexpression, scope, intrinsic, ambiguous))
+					if (!_symbol_table->resolve_call(callexpression, scope, intrinsic, ambiguous))
 					{
 						if (undeclared && !intrinsic)
 						{
@@ -1382,11 +1313,11 @@ namespace reshade
 							newexpression->arguments[i] = callexpression->arguments[i];
 						}
 
-						node = fold_constant_expression(newexpression);
+						node = fold_constant_expression(_ast, newexpression);
 					}
 					else
 					{
-						const auto parent = _symbol_table.current_parent();
+						const auto parent = _symbol_table->current_parent();
 
 						if (parent == callexpression->callee)
 						{
@@ -1420,7 +1351,7 @@ namespace reshade
 					newexpression->reference = static_cast<const variable_declaration_node *>(symbol);
 					newexpression->type = newexpression->reference->type;
 
-					node = fold_constant_expression(newexpression);
+					node = fold_constant_expression(_ast, newexpression);
 					type = node->type;
 				}
 			}
@@ -1559,7 +1490,7 @@ namespace reshade
 							newexpression->type.qualifiers &= ~type_node::qualifier_uniform;
 						}
 
-						node = fold_constant_expression(newexpression);
+						node = fold_constant_expression(_ast, newexpression);
 						type = node->type;
 					}
 					else if (type.is_matrix())
@@ -1631,7 +1562,7 @@ namespace reshade
 							newexpression->type.qualifiers &= ~type_node::qualifier_uniform;
 						}
 
-						node = fold_constant_expression(newexpression);
+						node = fold_constant_expression(_ast, newexpression);
 						type = node->type;
 					}
 					else if (type.is_struct())
@@ -1745,7 +1676,7 @@ namespace reshade
 						newexpression->type.rows = 1;
 					}
 
-					node = fold_constant_expression(newexpression);
+					node = fold_constant_expression(_ast, newexpression);
 					type = node->type;
 
 					if (!expect(']'))
@@ -1901,7 +1832,7 @@ namespace reshade
 					}
 				}
 
-				left = fold_constant_expression(left);
+				left = fold_constant_expression(_ast, left);
 			}
 
 			return true;
@@ -1931,7 +1862,7 @@ namespace reshade
 					return false;
 				}
 
-				if (left->type.is_array() || right->type.is_array() || !get_type_rank(left->type, right->type))
+				if (left->type.is_array() || right->type.is_array() || !type_node::rank(left->type, right->type))
 				{
 					error(right->location, 3020, "cannot convert these types");
 
@@ -2126,7 +2057,7 @@ namespace reshade
 					return false;
 				}
 
-				_symbol_table.enter_scope();
+				_symbol_table->enter_scope();
 
 				if (!parse_statement_declarator_list(newstatement->init_statement))
 				{
@@ -2143,7 +2074,7 @@ namespace reshade
 
 				if (!expect(';'))
 				{
-					_symbol_table.leave_scope();
+					_symbol_table->leave_scope();
 
 					return false;
 				}
@@ -2152,7 +2083,7 @@ namespace reshade
 
 				if (!expect(';'))
 				{
-					_symbol_table.leave_scope();
+					_symbol_table->leave_scope();
 
 					return false;
 				}
@@ -2161,7 +2092,7 @@ namespace reshade
 
 				if (!expect(')'))
 				{
-					_symbol_table.leave_scope();
+					_symbol_table->leave_scope();
 
 					return false;
 				}
@@ -2175,12 +2106,12 @@ namespace reshade
 
 				if (!parse_statement(newstatement->statement_list, false))
 				{
-					_symbol_table.leave_scope();
+					_symbol_table->leave_scope();
 
 					return false;
 				}
 
-				_symbol_table.leave_scope();
+				_symbol_table->leave_scope();
 
 				statement = newstatement;
 
@@ -2195,11 +2126,11 @@ namespace reshade
 				newstatement->attributes = attributes;
 				newstatement->is_do_while = false;
 
-				_symbol_table.enter_scope();
+				_symbol_table->enter_scope();
 
 				if (!(expect('(') && parse_expression(newstatement->condition) && expect(')')))
 				{
-					_symbol_table.leave_scope();
+					_symbol_table->leave_scope();
 
 					return false;
 				}
@@ -2208,19 +2139,19 @@ namespace reshade
 				{
 					error(newstatement->condition->location, 3019, "scalar value expected");
 
-					_symbol_table.leave_scope();
+					_symbol_table->leave_scope();
 
 					return false;
 				}
 
 				if (!parse_statement(newstatement->statement_list, false))
 				{
-					_symbol_table.leave_scope();
+					_symbol_table->leave_scope();
 
 					return false;
 				}
 
-				_symbol_table.leave_scope();
+				_symbol_table->leave_scope();
 
 				statement = newstatement;
 
@@ -2286,7 +2217,7 @@ namespace reshade
 				newstatement->attributes = attributes;
 				newstatement->is_discard = false;
 
-				const auto parent = static_cast<const function_declaration_node *>(_symbol_table.current_parent());
+				const auto parent = static_cast<const function_declaration_node *>(_symbol_table->current_parent());
 
 				if (!peek(';'))
 				{
@@ -2304,7 +2235,7 @@ namespace reshade
 						return false;
 					}
 
-					if (!get_type_rank(newstatement->return_value->type, parent->return_type))
+					if (!type_node::rank(newstatement->return_value->type, parent->return_type))
 					{
 						error(newstatement->location, 3017, "expression does not match function return type");
 
@@ -2385,7 +2316,7 @@ namespace reshade
 
 			if (scoped)
 			{
-				_symbol_table.enter_scope();
+				_symbol_table->enter_scope();
 			}
 
 			while (!peek('}') && !peek(lexer::tokenid::end_of_file))
@@ -2396,7 +2327,7 @@ namespace reshade
 				{
 					if (scoped)
 					{
-						_symbol_table.leave_scope();
+						_symbol_table->leave_scope();
 					}
 
 					unsigned level = 0;
@@ -2428,7 +2359,7 @@ namespace reshade
 
 			if (scoped)
 			{
-				_symbol_table.leave_scope();
+				_symbol_table->leave_scope();
 			}
 
 			statement = compound;
@@ -2603,7 +2534,7 @@ namespace reshade
 				return false;
 			}
 
-			_symbol_table.enter_namespace(name);
+			_symbol_table->enter_namespace(name);
 
 			bool success = true;
 
@@ -2616,7 +2547,7 @@ namespace reshade
 				}
 			}
 
-			_symbol_table.leave_namespace();
+			_symbol_table->leave_namespace();
 
 			return success && expect('}');
 		}
@@ -2715,7 +2646,7 @@ namespace reshade
 			{
 				structure->name = _token.literal_as_string;
 
-				if (!_symbol_table.insert(structure, true))
+				if (!_symbol_table->insert(structure, true))
 				{
 					error(_token.location, 3003, "redefinition of '" + structure->name + "'");
 
@@ -2727,7 +2658,7 @@ namespace reshade
 				structure->name = "__anonymous_struct_" + std::to_string(structure->location.line) + '_' + std::to_string(structure->location.column);
 			}
 
-			structure->unique_name = boost::replace_all_copy(_symbol_table.current_scope().name, "::", "_NS_") + structure->name;
+			structure->unique_name = boost::replace_all_copy(_symbol_table->current_scope().name, "::", "_NS_") + structure->name;
 
 			if (!expect('{'))
 			{
@@ -2842,17 +2773,17 @@ namespace reshade
 			function->return_type = type;
 			function->return_type.qualifiers = type_node::qualifier_const;
 			function->name = name;
-			function->unique_name = boost::replace_all_copy(_symbol_table.current_scope().name, "::", "_NS_") + function->name;
+			function->unique_name = boost::replace_all_copy(_symbol_table->current_scope().name, "::", "_NS_") + function->name;
 
-			_symbol_table.insert(function, true);
+			_symbol_table->insert(function, true);
 
-			_symbol_table.enter_scope(function);
+			_symbol_table->enter_scope(function);
 
 			while (!peek(')'))
 			{
 				if (!function->parameter_list.empty() && !expect(','))
 				{
-					_symbol_table.leave_scope();
+					_symbol_table->leave_scope();
 
 					return false;
 				}
@@ -2861,7 +2792,7 @@ namespace reshade
 
 				if (!parse_type(parameter->type))
 				{
-					_symbol_table.leave_scope();
+					_symbol_table->leave_scope();
 
 					error(_token_next.location, 3000, "syntax error: unexpected '" + get_token_name(_token_next.id) + "', expected parameter type");
 
@@ -2870,7 +2801,7 @@ namespace reshade
 
 				if (!expect(lexer::tokenid::identifier))
 				{
-					_symbol_table.leave_scope();
+					_symbol_table->leave_scope();
 
 					return false;
 				}
@@ -2882,7 +2813,7 @@ namespace reshade
 				{
 					error(parameter->location, 3038, "function parameters cannot be void");
 
-					_symbol_table.leave_scope();
+					_symbol_table->leave_scope();
 
 					return false;
 				}
@@ -2890,7 +2821,7 @@ namespace reshade
 				{
 					error(parameter->location, 3006, "function parameters cannot be declared 'extern'");
 
-					_symbol_table.leave_scope();
+					_symbol_table->leave_scope();
 
 					return false;
 				}
@@ -2898,7 +2829,7 @@ namespace reshade
 				{
 					error(parameter->location, 3007, "function parameters cannot be declared 'static'");
 
-					_symbol_table.leave_scope();
+					_symbol_table->leave_scope();
 
 					return false;
 				}
@@ -2906,7 +2837,7 @@ namespace reshade
 				{
 					error(parameter->location, 3047, "function parameters cannot be declared 'uniform', consider placing in global scope instead");
 
-					_symbol_table.leave_scope();
+					_symbol_table->leave_scope();
 
 					return false;
 				}
@@ -2917,7 +2848,7 @@ namespace reshade
 					{
 						error(parameter->location, 3046, "output parameters cannot be declared 'const'");
 
-						_symbol_table.leave_scope();
+						_symbol_table->leave_scope();
 
 						return false;
 					}
@@ -2929,11 +2860,11 @@ namespace reshade
 
 				parse_array(parameter->type.array_length);
 
-				if (!_symbol_table.insert(parameter))
+				if (!_symbol_table->insert(parameter))
 				{
 					error(parameter->location, 3003, "redefinition of '" + parameter->name + "'");
 
-					_symbol_table.leave_scope();
+					_symbol_table->leave_scope();
 
 					return false;
 				}
@@ -2942,7 +2873,7 @@ namespace reshade
 				{
 					if (!expect(lexer::tokenid::identifier))
 					{
-						_symbol_table.leave_scope();
+						_symbol_table->leave_scope();
 
 						return false;
 					}
@@ -2956,7 +2887,7 @@ namespace reshade
 
 			if (!expect(')'))
 			{
-				_symbol_table.leave_scope();
+				_symbol_table->leave_scope();
 
 				return false;
 			}
@@ -2965,7 +2896,7 @@ namespace reshade
 			{
 				if (!expect(lexer::tokenid::identifier))
 				{
-					_symbol_table.leave_scope();
+					_symbol_table->leave_scope();
 
 					return false;
 				}
@@ -2983,12 +2914,12 @@ namespace reshade
 
 			if (!parse_statement_block(reinterpret_cast<statement_node *&>(function->definition)))
 			{
-				_symbol_table.leave_scope();
+				_symbol_table->leave_scope();
 
 				return false;
 			}
 
-			_symbol_table.leave_scope();
+			_symbol_table->leave_scope();
 
 			return true;
 		}
@@ -3009,7 +2940,7 @@ namespace reshade
 				return false;
 			}
 
-			const auto parent = _symbol_table.current_parent();
+			const auto parent = _symbol_table->current_parent();
 
 			if (parent == nullptr)
 			{
@@ -3054,14 +2985,14 @@ namespace reshade
 
 			if (global)
 			{
-				variable->unique_name = boost::replace_all_copy(_symbol_table.current_scope().name, "::", "_NS_") + variable->name;
+				variable->unique_name = boost::replace_all_copy(_symbol_table->current_scope().name, "::", "_NS_") + variable->name;
 			}
 			else
 			{
 				variable->unique_name = variable->name;
 			}
 
-			if (!_symbol_table.insert(variable, global))
+			if (!_symbol_table->insert(variable, global))
 			{
 				error(location, 3003, "redefinition of '" + name + "'");
 
@@ -3113,7 +3044,7 @@ namespace reshade
 					}
 				}
 
-				if (!get_type_rank(variable->initializer_expression->type, type))
+				if (!type_node::rank(variable->initializer_expression->type, type))
 				{
 					error(location, 3017, "initial value does not match variable type");
 
@@ -3413,7 +3344,7 @@ namespace reshade
 
 			technique = _ast.make_node<technique_declaration_node>(location);
 			technique->name = _token.literal_as_string;
-			technique->unique_name = boost::replace_all_copy(_symbol_table.current_scope().name, "::", "_NS_") + technique->name;
+			technique->unique_name = boost::replace_all_copy(_symbol_table->current_scope().name, "::", "_NS_") + technique->name;
 
 			parse_annotations(technique->annotation_list);
 
@@ -3618,7 +3549,7 @@ namespace reshade
 			}
 			else
 			{
-				scope = _symbol_table.current_scope();
+				scope = _symbol_table->current_scope();
 				exclusive = false;
 			}
 
@@ -3682,7 +3613,7 @@ namespace reshade
 					identifier += "::" + _token.literal_as_string;
 				}
 
-				const auto symbol = _symbol_table.find(identifier, scope, exclusive);
+				const auto symbol = _symbol_table->find(identifier, scope, exclusive);
 
 				if (symbol == nullptr)
 				{
@@ -3701,378 +3632,6 @@ namespace reshade
 			}
 
 			return parse_expression_multary(expression);
-		}
-
-		expression_node *parser::fold_constant_expression(expression_node *expression) const
-		{
-			#pragma region Helpers
-#define DOFOLDING1(op) \
-		{ \
-			for (unsigned int i = 0; i < operand->type.rows * operand->type.cols; ++i) \
-				switch (operand->type.basetype) \
-				{ \
-					case type_node::datatype_bool: case type_node::datatype_int: case type_node::datatype_uint: \
-						switch (expression->type.basetype) \
-						{ \
-							case type_node::datatype_bool: case type_node::datatype_int: case type_node::datatype_uint: \
-								operand->value_int[i] = static_cast<int>(op(operand->value_int[i])); break; \
-							case type_node::datatype_float: \
-								operand->value_float[i] = static_cast<float>(op(operand->value_int[i])); break; \
-						} \
-						break; \
-					case type_node::datatype_float: \
-						switch (expression->type.basetype) \
-						{ \
-							case type_node::datatype_bool: case type_node::datatype_int: case type_node::datatype_uint: \
-								operand->value_int[i] = static_cast<int>(op(operand->value_float[i])); break; \
-							case type_node::datatype_float: \
-								operand->value_float[i] = static_cast<float>(op(operand->value_float[i])); break; \
-						} \
-						break; \
-				} \
-			expression = operand; \
-		}
-#define DOFOLDING2(op) \
-		{ \
-			literal_expression_node result; \
-			for (unsigned int i = 0; i < expression->type.rows * expression->type.cols; ++i) \
-				switch (left->type.basetype) \
-				{ \
-					case type_node::datatype_bool:  case type_node::datatype_int: case type_node::datatype_uint: \
-						switch (right->type.basetype) \
-						{ \
-							case type_node::datatype_bool: case type_node::datatype_int: case type_node::datatype_uint: \
-								result.value_int[i] = left->value_int[left_scalar ? 0 : i] op right->value_int[right_scalar ? 0 : i]; \
-								break; \
-							case type_node::datatype_float: \
-								result.value_float[i] = static_cast<float>(left->value_int[!left_scalar * i]) op right->value_float[!right_scalar * i]; \
-								break; \
-						} \
-						break; \
-					case type_node::datatype_float: \
-						result.value_float[i] = (right->type.basetype == type_node::datatype_float) ? (left->value_float[!left_scalar * i] op right->value_float[!right_scalar * i]) : (left->value_float[!left_scalar * i] op static_cast<float>(right->value_int[!right_scalar * i])); \
-						break; \
-				} \
-			left->type = expression->type; \
-			memcpy(left->value_uint, result.value_uint, sizeof(result.value_uint)); \
-			expression = left; \
-		}
-#define DOFOLDING2_INT(op) \
-		{ \
-			literal_expression_node result; \
-			for (unsigned int i = 0; i < expression->type.rows * expression->type.cols; ++i) \
-			{ \
-				result.value_int[i] = left->value_int[!left_scalar * i] op right->value_int[!right_scalar * i]; \
-			} \
-			left->type = expression->type; \
-			memcpy(left->value_uint, result.value_uint, sizeof(result.value_uint)); \
-			expression = left; \
-		}
-#define DOFOLDING2_BOOL(op) \
-		{ \
-			literal_expression_node result; \
-			for (unsigned int i = 0; i < expression->type.rows * expression->type.cols; ++i) \
-				switch (left->type.basetype) \
-				{ \
-					case type_node::datatype_bool: case type_node::datatype_int: case type_node::datatype_uint: \
-						result.value_int[i] = (right->type.basetype == type_node::datatype_float) ? (static_cast<float>(left->value_int[!left_scalar * i]) op right->value_float[!right_scalar * i]) : (left->value_int[!left_scalar * i] op right->value_int[!right_scalar * i]); \
-						break; \
-					case type_node::datatype_float: \
-						result.value_int[i] = (right->type.basetype == type_node::datatype_float) ? (left->value_float[!left_scalar * i] op static_cast<float>(right->value_int[!right_scalar * i])) : (left->value_float[!left_scalar * i] op right->value_float[!right_scalar * i]); \
-						break; \
-				} \
-			left->type = expression->type; \
-			left->type.basetype = type_node::datatype_bool; \
-			memcpy(left->value_uint, result.value_uint, sizeof(result.value_uint)); \
-			expression = left; \
-		}
-#define DOFOLDING2_FLOAT(op) \
-		{ \
-			literal_expression_node result; \
-			for (unsigned int i = 0; i < expression->type.rows * expression->type.cols; ++i) \
-				switch (left->type.basetype) \
-				{ \
-					case type_node::datatype_bool:  case type_node::datatype_int: case type_node::datatype_uint: \
-						result.value_float[i] = (right->type.basetype == type_node::datatype_float) ? (static_cast<float>(left->value_int[!left_scalar * i]) op right->value_float[!right_scalar * i]) : (left->value_int[left_scalar ? 0 : i] op right->value_int[right_scalar ? 0 : i]); \
-						break; \
-					case type_node::datatype_float: \
-						result.value_float[i] = (right->type.basetype == type_node::datatype_float) ? (left->value_float[!left_scalar * i] op right->value_float[!right_scalar * i]) : (left->value_float[!left_scalar * i] op static_cast<float>(right->value_int[!right_scalar * i])); \
-						break; \
-				} \
-			left->type = expression->type; \
-			left->type.basetype = type_node::datatype_float; \
-			memcpy(left->value_uint, result.value_uint, sizeof(result.value_uint)); \
-			expression = left; \
-		}
-#define DOFOLDING2_FUNCTION(op) \
-		{ \
-			for (unsigned int i = 0; i < expression->type.rows * expression->type.cols; ++i) \
-				switch (left->type.basetype) \
-				{ \
-					case type_node::datatype_bool: case type_node::datatype_int: case type_node::datatype_uint: \
-						switch (right->type.basetype) \
-						{ \
-							case type_node::datatype_bool: case type_node::datatype_int: case type_node::datatype_uint: \
-								left->value_int[i] = static_cast<int>(op(left->value_int[i], right->value_int[i])); \
-								break; \
-							case type_node::datatype_float: \
-								left->value_float[i] = static_cast<float>(op(static_cast<float>(left->value_int[i]), right->value_float[i])); \
-								break; \
-						} \
-						break; \
-					case type_node::datatype_float: \
-						left->value_float[i] = (right->type.basetype == type_node::datatype_float) ? (static_cast<float>(op(left->value_float[i], right->value_float[i]))) : (static_cast<float>(op(left->value_float[i], static_cast<float>(right->value_int[i])))); \
-						break; \
-				} \
-			left->type = expression->type; \
-			expression = left; \
-		}
-			#pragma endregion
-
-			if (expression->id == nodeid::unary_expression)
-			{
-				const auto unaryexpression = static_cast<unary_expression_node *>(expression);
-
-				if (unaryexpression->operand->id != nodeid::literal_expression)
-				{
-					return expression;
-				}
-
-				const auto operand = static_cast<literal_expression_node *>(unaryexpression->operand);
-
-				switch (unaryexpression->op)
-				{
-					case unary_expression_node::negate:
-						DOFOLDING1(-);
-						break;
-					case unary_expression_node::bitwise_not:
-						for (unsigned int i = 0; i < operand->type.rows * operand->type.cols; i++)
-						{
-							operand->value_int[i] = ~operand->value_int[i];
-						}
-						expression = operand;
-						break;
-					case unary_expression_node::logical_not:
-						for (unsigned int i = 0; i < operand->type.rows * operand->type.cols; i++)
-						{
-							operand->value_int[i] = (operand->type.basetype == type_node::datatype_float) ? !operand->value_float[i] : !operand->value_int[i];
-						}
-						operand->type.basetype = type_node::datatype_bool;
-						expression = operand;
-						break;
-					case unary_expression_node::cast:
-					{
-						literal_expression_node old = *operand;
-						operand->type = expression->type;
-						expression = operand;
-
-						for (unsigned int i = 0, size = std::min(old.type.rows * old.type.cols, operand->type.rows * operand->type.cols); i < size; ++i)
-						{
-							vector_literal_cast(&old, i, operand, i);
-						}
-						break;
-					}
-				}
-			}
-			else if (expression->id == nodeid::binary_expression)
-			{
-				const auto binaryexpression = static_cast<binary_expression_node *>(expression);
-
-				if (binaryexpression->operands[0]->id != nodeid::literal_expression || binaryexpression->operands[1]->id != nodeid::literal_expression)
-				{
-					return expression;
-				}
-
-				const auto left = static_cast<literal_expression_node *>(binaryexpression->operands[0]);
-				const auto right = static_cast<literal_expression_node *>(binaryexpression->operands[1]);
-				const bool left_scalar = left->type.rows * left->type.cols == 1;
-				const bool right_scalar = right->type.rows * right->type.cols == 1;
-
-				switch (binaryexpression->op)
-				{
-					case binary_expression_node::add:
-						DOFOLDING2(+);
-						break;
-					case binary_expression_node::subtract:
-						DOFOLDING2(-);
-						break;
-					case binary_expression_node::multiply:
-						DOFOLDING2(*);
-						break;
-					case binary_expression_node::divide:
-						if (right->value_uint[0] == 0)
-						{
-							return expression;
-						}
-						DOFOLDING2_FLOAT(/);
-						break;
-					case binary_expression_node::modulo:
-						DOFOLDING2_FUNCTION(std::fmod);
-						break;
-					case binary_expression_node::less:
-						DOFOLDING2_BOOL(<);
-						break;
-					case binary_expression_node::greater:
-						DOFOLDING2_BOOL(>);
-						break;
-					case binary_expression_node::less_equal:
-						DOFOLDING2_BOOL(<=);
-						break;
-					case binary_expression_node::greater_equal:
-						DOFOLDING2_BOOL(>=);
-						break;
-					case binary_expression_node::equal:
-						DOFOLDING2_BOOL(==);
-						break;
-					case binary_expression_node::not_equal:
-						DOFOLDING2_BOOL(!=);
-						break;
-					case binary_expression_node::left_shift:
-						DOFOLDING2_INT(<<);
-						break;
-					case binary_expression_node::right_shift:
-						DOFOLDING2_INT(>>);
-						break;
-					case binary_expression_node::bitwise_and:
-						DOFOLDING2_INT(&);
-						break;
-					case binary_expression_node::bitwise_or:
-						DOFOLDING2_INT(|);
-						break;
-					case binary_expression_node::bitwise_xor:
-						DOFOLDING2_INT(^);
-						break;
-					case binary_expression_node::logical_and:
-						DOFOLDING2_BOOL(&&);
-						break;
-					case binary_expression_node::logical_or:
-						DOFOLDING2_BOOL(||);
-						break;
-				}
-			}
-			else if (expression->id == nodeid::intrinsic_expression)
-			{
-				const auto intrinsicexpression = static_cast<intrinsic_expression_node *>(expression);
-
-				if ((intrinsicexpression->arguments[0] != nullptr && intrinsicexpression->arguments[0]->id != nodeid::literal_expression) || (intrinsicexpression->arguments[1] != nullptr && intrinsicexpression->arguments[1]->id != nodeid::literal_expression) || (intrinsicexpression->arguments[2] != nullptr && intrinsicexpression->arguments[2]->id != nodeid::literal_expression))
-				{
-					return expression;
-				}
-
-				const auto operand = static_cast<literal_expression_node *>(intrinsicexpression->arguments[0]);
-				const auto left = operand;
-				const auto right = static_cast<literal_expression_node *>(intrinsicexpression->arguments[1]);
-
-				switch (intrinsicexpression->op)
-				{
-					case intrinsic_expression_node::abs:
-						DOFOLDING1(std::abs);
-						break;
-					case intrinsic_expression_node::sin:
-						DOFOLDING1(std::sin);
-						break;
-					case intrinsic_expression_node::sinh:
-						DOFOLDING1(std::sinh);
-						break;
-					case intrinsic_expression_node::cos:
-						DOFOLDING1(std::cos);
-						break;
-					case intrinsic_expression_node::cosh:
-						DOFOLDING1(std::cosh);
-						break;
-					case intrinsic_expression_node::tan:
-						DOFOLDING1(std::tan);
-						break;
-					case intrinsic_expression_node::tanh:
-						DOFOLDING1(std::tanh);
-						break;
-					case intrinsic_expression_node::asin:
-						DOFOLDING1(std::asin);
-						break;
-					case intrinsic_expression_node::acos:
-						DOFOLDING1(std::acos);
-						break;
-					case intrinsic_expression_node::atan:
-						DOFOLDING1(std::atan);
-						break;
-					case intrinsic_expression_node::exp:
-						DOFOLDING1(std::exp);
-						break;
-					case intrinsic_expression_node::log:
-						DOFOLDING1(std::log);
-						break;
-					case intrinsic_expression_node::log10:
-						DOFOLDING1(std::log10);
-						break;
-					case intrinsic_expression_node::sqrt:
-						DOFOLDING1(std::sqrt);
-						break;
-					case intrinsic_expression_node::ceil:
-						DOFOLDING1(std::ceil);
-						break;
-					case intrinsic_expression_node::floor:
-						DOFOLDING1(std::floor);
-						break;
-					case intrinsic_expression_node::atan2:
-						DOFOLDING2_FUNCTION(std::atan2);
-						break;
-					case intrinsic_expression_node::pow:
-						DOFOLDING2_FUNCTION(std::pow);
-						break;
-					case intrinsic_expression_node::min:
-						DOFOLDING2_FUNCTION(std::min);
-						break;
-					case intrinsic_expression_node::max:
-						DOFOLDING2_FUNCTION(std::max);
-						break;
-				}
-			}
-			else if (expression->id == nodeid::constructor_expression)
-			{
-				const auto constructor = static_cast<constructor_expression_node *>(expression);
-
-				for (auto argument : constructor->arguments)
-				{
-					if (argument->id != nodeid::literal_expression)
-					{
-						return expression;
-					}
-				}
-
-				unsigned int k = 0;
-				const auto literal = _ast.make_node<literal_expression_node>(constructor->location);
-				literal->type = constructor->type;
-
-				for (auto argument : constructor->arguments)
-				{
-					for (unsigned int j = 0; j < argument->type.rows * argument->type.cols; ++k, ++j)
-					{
-						vector_literal_cast(static_cast<literal_expression_node *>(argument), k, literal, j);
-					}
-				}
-
-				expression = literal;
-			}
-			else if (expression->id == nodeid::lvalue_expression)
-			{
-				const auto variable = static_cast<lvalue_expression_node *>(expression)->reference;
-
-				if (variable->initializer_expression == nullptr || !(variable->initializer_expression->id == nodeid::literal_expression && variable->type.has_qualifier(type_node::qualifier_const)))
-				{
-					return expression;
-				}
-
-				const auto literal = _ast.make_node<literal_expression_node>(expression->location);
-				literal->type = expression->type;
-				expression = literal;
-
-				for (unsigned int i = 0, size = std::min(variable->initializer_expression->type.rows * variable->initializer_expression->type.cols, literal->type.rows * literal->type.cols); i < size; ++i)
-				{
-					vector_literal_cast(static_cast<const literal_expression_node *>(variable->initializer_expression), i, literal, i);
-				}
-			}
-
-			return expression;
 		}
 	}
 }
