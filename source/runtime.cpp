@@ -5,7 +5,6 @@
 #include "fx_ast.hpp"
 #include "fx_parser.hpp"
 #include "fx_preprocessor.hpp"
-#include "gui.hpp"
 #include "input.hpp"
 #include "file_watcher.hpp"
 
@@ -15,6 +14,7 @@
 #include <stb_image_write.h>
 #include <stb_image_resize.h>
 #include <boost/filesystem/operations.hpp>
+#include <imgui.h>
 
 namespace reshade
 {
@@ -93,11 +93,51 @@ namespace reshade
 
 		s_effect_filewatcher.reset(new utils::file_watcher(s_injector_path.parent_path()));
 
+		auto &imgui_io = ImGui::GetIO();
+		imgui_io.IniFilename = nullptr;
+		imgui_io.KeyMap[ImGuiKey_Tab] = VK_TAB;
+		imgui_io.KeyMap[ImGuiKey_LeftArrow] = VK_LEFT;
+		imgui_io.KeyMap[ImGuiKey_RightArrow] = VK_RIGHT;
+		imgui_io.KeyMap[ImGuiKey_UpArrow] = VK_UP;
+		imgui_io.KeyMap[ImGuiKey_DownArrow] = VK_DOWN;
+		imgui_io.KeyMap[ImGuiKey_PageUp] = VK_PRIOR;
+		imgui_io.KeyMap[ImGuiKey_PageDown] = VK_NEXT;
+		imgui_io.KeyMap[ImGuiKey_Home] = VK_HOME;
+		imgui_io.KeyMap[ImGuiKey_End] = VK_END;
+		imgui_io.KeyMap[ImGuiKey_Delete] = VK_DELETE;
+		imgui_io.KeyMap[ImGuiKey_Backspace] = VK_BACK;
+		imgui_io.KeyMap[ImGuiKey_Enter] = VK_RETURN;
+		imgui_io.KeyMap[ImGuiKey_Escape] = VK_ESCAPE;
+		imgui_io.KeyMap[ImGuiKey_A] = 'A';
+		imgui_io.KeyMap[ImGuiKey_C] = 'C';
+		imgui_io.KeyMap[ImGuiKey_V] = 'V';
+		imgui_io.KeyMap[ImGuiKey_X] = 'X';
+		imgui_io.KeyMap[ImGuiKey_Y] = 'Y';
+		imgui_io.KeyMap[ImGuiKey_Z] = 'Z';
+		auto &imgui_style = ImGui::GetStyle();
+		imgui_style.WindowRounding = 0.0f;
+		imgui_style.ScrollbarRounding = 0.0f;
+		imgui_style.Colors[ImGuiCol_WindowBg] = ImVec4(0.00f, 0.00f, 0.00f, 0.78f);
+		imgui_style.Colors[ImGuiCol_TitleBg] = ImVec4(0.91f, 0.27f, 0.05f, 1.00f);
+		imgui_style.Colors[ImGuiCol_TitleBgCollapsed] = ImVec4(0.91f, 0.27f, 0.05f, 1.00f);
+		imgui_style.Colors[ImGuiCol_TitleBgActive] = ImVec4(1.00f, 0.43f, 0.05f, 1.00f);
+		imgui_style.Colors[ImGuiCol_MenuBarBg] = ImVec4(0.91f, 0.27f, 0.05f, 0.80f);
+		imgui_style.Colors[ImGuiCol_ScrollbarGrab] = ImVec4(0.91f, 0.27f, 0.05f, 1.00f);
+		imgui_style.Colors[ImGuiCol_ScrollbarGrabHovered] = ImVec4(1.00f, 0.43f, 0.05f, 1.00f);
+		imgui_style.Colors[ImGuiCol_Header] = ImVec4(0.91f, 0.27f, 0.05f, 0.80f);
+		imgui_style.Colors[ImGuiCol_HeaderHovered] = ImVec4(1.00f, 0.43f, 0.05f, 1.00f);
+		imgui_style.Colors[ImGuiCol_HeaderActive] = ImVec4(1.00f, 0.43f, 0.05f, 1.00f);
+		imgui_style.Colors[ImGuiCol_CloseButton] = ImVec4(0.90f, 0.90f, 0.90f, 1.00f);
+		imgui_style.Colors[ImGuiCol_CloseButtonHovered] = ImVec4(0.70f, 0.70f, 0.70f, 1.00f);
+		imgui_style.Colors[ImGuiCol_CloseButtonActive] = ImVec4(0.64f, 0.64f, 0.64f, 1.00f);
+
 		LOG(INFO) << "Initialized.";
 	}
 	void runtime::shutdown()
 	{
 		LOG(INFO) << "Exiting ...";
+
+		ImGui::Shutdown();
 
 		s_effect_filewatcher.reset();
 
@@ -135,6 +175,8 @@ namespace reshade
 		{
 			return;
 		}
+
+		_imgui_font_atlas.reset();
 
 		LOG(INFO) << "Destroyed runtime environment on runtime " << this << ".";
 
@@ -241,87 +283,13 @@ namespace reshade
 		}
 		#pragma endregion
 
-		#pragma region Draw overlay
-		if (_gui != nullptr && _gui->begin_frame())
-		{
-			if (_show_info_messages || _compile_count <= 1)
-			{
-				if (!_status.empty())
-				{
-					_gui->add_label(22, 0xFFBCBCBC, "ReShade " BOOST_STRINGIZE(VERSION_FULL) " by crosire");
-					_gui->add_label(16, 0xFFBCBCBC, "Visit http://reshade.me for news, updates, shaders and discussion.");
-					_gui->add_label(16, 0xFFBCBCBC, _status);
-
-					if (!_errors.empty() && _compile_step == 0)
-					{
-						if (!_is_effect_compiled)
-						{
-							_gui->add_label(16, 0xFFFF0000, _errors);
-						}
-						else
-						{
-							_gui->add_label(16, 0xFFFFFF00, _errors);
-						}
-					}
-				}
-
-				if (!_message.empty() && _is_effect_compiled)
-				{
-					_gui->add_label(16, 0xFFBCBCBC, _message);
-				}
-			}
-
-			std::stringstream stats;
-
-			if (_show_clock)
-			{
-				stats << std::setfill('0') << std::setw(2) << tm.tm_hour << ':' << std::setw(2) << tm.tm_min << std::endl;
-			}
-			if (_show_fps)
-			{
-				stats << (1e9f / _average_frametime) << std::endl;
-			}
-			if (_show_statistics)
-			{
-				stats << "General" << std::endl << "-------" << std::endl;
-				stats << "Application: " << std::hash<std::string>()(s_executable_name) << std::endl;
-				stats << "Date: " << static_cast<int>(_date[0]) << '-' << static_cast<int>(_date[1]) << '-' << static_cast<int>(_date[2]) << ' ' << static_cast<int>(_date[3]) << '\n';
-				stats << "Device: " << std::hex << std::uppercase << _vendor_id << ' ' << _device_id << std::nouppercase << std::dec << std::endl;
-				stats << "FPS: " << std::fixed << std::setprecision(2) << (1e9f / _average_frametime) << std::endl;
-				stats << "Draw Calls: " << _drawcalls << " (" << _vertices << " vertices)" << std::endl;
-				stats << "Frame " << (_framecount + 1) << ": " << (frametime.count() * 1e-6f) << "ms" << std::endl;
-				stats << "PostProcessing: " << (boost::chrono::duration_cast<boost::chrono::nanoseconds>(_last_postprocessing_duration).count() * 1e-6f) << "ms" << std::endl;
-				stats << "Timer: " << std::fmod(boost::chrono::duration_cast<boost::chrono::nanoseconds>(_last_present - _start_time).count() * 1e-6f, 16777216.0f) << "ms" << std::endl;
-				stats << "Network: " << s_network_traffic << "B" << std::endl;
-
-				stats << std::endl;
-				stats << "Textures" << std::endl << "--------" << std::endl;
-
-				for (const auto &texture : _textures)
-				{
-					stats << texture->name << ": " << texture->width << "x" << texture->height << "+" << (texture->levels - 1) << " (" << texture->storage_size << "B)" << std::endl;
-				}
-
-				stats << std::endl;
-				stats << "Techniques" << std::endl << "----------" << std::endl;
-
-				for (const auto &technique : _techniques)
-				{
-					stats << technique->name << " (" << technique->passes.size() << " passes): " << (technique->average_duration * 1e-6f) << "ms" << std::endl;
-				}
-			}
-
-			_gui->draw_debug_text(0, 0, 1, static_cast<float>(_width), 16, 0xFFBCBCBC, stats.str());
-
-			_gui->end_frame();
-		}
+		draw_overlay(frametime.count() * 1e-9f);
 
 		if (_is_effect_compiled && time_since_create.count() > (!_show_info_messages && _compile_count <= 1 ? 12 : _errors.empty() ? 4 : 8))
 		{
 			_status.clear();
 			_message.clear();
 		}
-		#pragma endregion
 
 		#pragma region Update statistics
 		s_network_traffic = 0;
@@ -796,6 +764,129 @@ namespace reshade
 				break;
 			}
 		}
+	}
+
+	void runtime::draw_overlay(float dt)
+	{
+		const utils::critical_section::lock lock(_imgui_cs);
+
+		auto &imgui_io = ImGui::GetIO();
+		imgui_io.DeltaTime = dt;
+		imgui_io.DisplaySize.x = static_cast<float>(_width);
+		imgui_io.DisplaySize.y = static_cast<float>(_height);
+		imgui_io.MousePos.x = static_cast<float>(_input->mouse_position().x);
+		imgui_io.MousePos.y = static_cast<float>(_input->mouse_position().y);
+		imgui_io.MouseWheel += _input->mouse_wheel_delta();
+		imgui_io.KeyCtrl = _input->is_key_down(VK_CONTROL);
+		imgui_io.KeyShift = _input->is_key_down(VK_SHIFT);
+		imgui_io.KeyAlt = _input->is_key_down(VK_MENU);
+		imgui_io.Fonts->TexID = _imgui_font_atlas.get();
+
+		BYTE kbs[256];
+		GetKeyboardState(kbs);
+
+		for (unsigned int i = 0; i < 5; i++)
+		{
+			imgui_io.MouseDown[i] = _input->is_mouse_button_down(i);
+		}
+		for (unsigned int i = 0; i < 256; i++)
+		{
+			imgui_io.KeysDown[i] = _input->is_key_down(i);
+
+			if (!_input->is_key_pressed(i))
+			{
+				continue;
+			}
+
+			WORD ch = 0;
+
+			if (ToAscii(i, MapVirtualKey(i, MAPVK_VK_TO_VSC), kbs, &ch, 0))
+			{
+				imgui_io.AddInputCharacter(ch);
+			}
+		}
+
+		ImGui::NewFrame();
+
+		tm tm;
+		const std::time_t time = std::time(nullptr);
+		localtime_s(&tm, &time);
+
+		if (_show_info_messages || _compile_count <= 1)
+		{
+			if (!_status.empty())
+			{
+				ImGui::SetNextWindowPos(ImVec2());
+				ImGui::Begin("About", nullptr, ImVec2(), 0.0f, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoInputs);
+				ImGui::TextColored(ImVec4(0.73f, 0.73f, 0.73f, 1.0f), "ReShade " BOOST_STRINGIZE(VERSION_FULL) " by crosire");
+				ImGui::TextColored(ImVec4(0.73f, 0.73f, 0.73f, 1.0f), "Visit http://reshade.me for news, updates, shaders and discussion.");
+				ImGui::TextColored(ImVec4(0.73f, 0.73f, 0.73f, 1.0f), _status.c_str());
+
+				if (!_errors.empty() && _compile_step == 0)
+				{
+					ImGui::TextColored(_is_effect_compiled ? ImVec4(1.0f, 1.0f, 0.0f, 1.0f) : ImVec4(1.0f, 0.0f, 0.0f, 1.0f), _errors.c_str());
+				}
+
+				ImGui::End();
+			}
+
+			if (!_message.empty() && _is_effect_compiled)
+			{
+				ImGui::Begin("About");
+				ImGui::TextColored(ImVec4(0.73f, 0.73f, 0.73f, 1.0f), _message.c_str());
+				ImGui::End();
+			}
+		}
+
+		if (_show_clock)
+		{
+			ImGui::Begin("Clock", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize);
+			ImGui::Text("%.2d:%.2d", tm.tm_hour, tm.tm_min);
+			ImGui::End();
+		}
+		if (_show_fps)
+		{
+			ImGui::Begin("FPS", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize);
+			ImGui::Text("FPS: %.2f", (1e9f / _average_frametime));
+			ImGui::End();
+		}
+		if (_show_statistics)
+		{
+			ImGui::Begin("Statistics");
+
+			if (ImGui::CollapsingHeader("General", nullptr, true, true))
+			{
+				ImGui::Text("Application: %X", std::hash<std::string>()(s_executable_name));
+				ImGui::Text("Date: %d-%d-%d %d", static_cast<int>(_date[0]), static_cast<int>(_date[1]), static_cast<int>(_date[2]), static_cast<int>(_date[3]));
+				ImGui::Text("Device: %X %d", _vendor_id, _device_id);
+				ImGui::Text("FPS: %.2f", (1e9f / _average_frametime));
+				ImGui::Text("Draw Calls: %u (%u vertices)", _drawcalls, _vertices);
+				ImGui::Text("Frame %llu: %fs", (_framecount + 1), dt);
+				ImGui::Text("PostProcessing: %fms", (boost::chrono::duration_cast<boost::chrono::nanoseconds>(_last_postprocessing_duration).count() * 1e-6f));
+				ImGui::Text("Timer: %fms", std::fmod(boost::chrono::duration_cast<boost::chrono::nanoseconds>(_last_present - _start_time).count() * 1e-6f, 16777216.0f));
+				ImGui::Text("Network: %uB", s_network_traffic.load());
+			}
+			if (ImGui::CollapsingHeader("Textures", nullptr, true, true))
+			{
+				for (const auto &texture : _textures)
+				{
+					ImGui::Text("%s: %ux%u+%u (%uB)", texture->name.c_str(), texture->width, texture->height, (texture->levels - 1), static_cast<unsigned int>(texture->storage_size));
+				}
+			}
+			if (ImGui::CollapsingHeader("Techniques", nullptr, true, true))
+			{
+				for (const auto &technique : _techniques)
+				{
+					ImGui::Text("%s (%u passes): %fms", technique->name.c_str(), static_cast<unsigned int>(technique->passes.size()), (technique->average_duration * 1e-6f));
+				}
+			}
+
+			ImGui::End();
+		}
+
+		ImGui::Render();
+
+		render_draw_lists(ImGui::GetDrawData());
 	}
 
 	bool runtime::load_effect()

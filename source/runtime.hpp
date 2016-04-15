@@ -1,6 +1,7 @@
 #pragma once
 
 #include "moving_average.hpp"
+#include "critical_section.hpp"
 
 #include <atomic>
 #include <memory>
@@ -11,9 +12,10 @@
 #include <boost/filesystem/path.hpp>
 
 #pragma region Forward Declarations
+struct ImDrawData;
+
 namespace reshade
 {
-	class gui;
 	class input;
 
 	namespace fx
@@ -330,18 +332,26 @@ namespace reshade
 		/// <param name="technique">The technique to render.</param>
 		virtual void on_apply_effect_technique(const technique &technique);
 
+		/// <summary>
+		/// Render ImGui draw lists.
+		/// </summary>
+		/// <param name="data">The draw data to render.</param>
+		virtual void render_draw_lists(ImDrawData *draw_data) = 0;
+
 		bool _is_initialized, _is_effect_compiled;
 		unsigned int _width, _height;
 		unsigned int _vendor_id, _device_id;
 		uint64_t _framecount;
 		unsigned int _drawcalls, _vertices;
-		std::unique_ptr<gui> _gui;
 		std::shared_ptr<class input> _input;
+		std::unique_ptr<texture> _imgui_font_atlas;
 		std::vector<std::unique_ptr<texture>> _textures;
 		std::vector<std::unique_ptr<uniform>> _uniforms;
 		std::vector<std::unique_ptr<technique>> _techniques;
 
 	private:
+		void draw_overlay(float dt);
+
 		bool load_effect();
 		bool compile_effect();
 		void process_effect();
@@ -360,5 +370,6 @@ namespace reshade
 		boost::filesystem::path _screenshot_path;
 		unsigned int _screenshot_key;
 		bool _show_statistics, _show_fps, _show_clock, _show_toggle_message, _show_info_messages;
+		utils::critical_section _imgui_cs;
 	};
 }

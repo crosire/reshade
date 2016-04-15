@@ -1,11 +1,8 @@
 #include "log.hpp"
 #include "d3d11_runtime.hpp"
 #include "d3d11_fx_compiler.hpp"
-#include "gui.hpp"
 #include "input.hpp"
-
-#include <assert.h>
-#include <nanovg_d3d11.h>
+#include <imgui.h>
 
 namespace reshade
 {
@@ -101,16 +98,10 @@ namespace reshade
 		_device_id = adapter_desc.DeviceId;
 	}
 
-	bool d3d11_runtime::on_init(const DXGI_SWAP_CHAIN_DESC &desc)
+	bool d3d11_runtime::init_backbuffer_texture()
 	{
-		_width = desc.BufferDesc.Width;
-		_height = desc.BufferDesc.Height;
-		_backbuffer_format = desc.BufferDesc.Format;
-		_is_multisampling_enabled = desc.SampleDesc.Count > 1;
-		_input = input::register_window(desc.OutputWindow);
-
 		// Get back buffer texture
-		HRESULT hr = _swapchain->GetBuffer(0, __uuidof(ID3D11Texture2D), reinterpret_cast<void **>(&_backbuffer));
+		HRESULT hr = _swapchain->GetBuffer(0, IID_PPV_ARGS(&_backbuffer));
 
 		assert(SUCCEEDED(hr));
 
@@ -214,58 +205,253 @@ namespace reshade
 			return false;
 		}
 
-		// Create default depth-stencil
-		D3D11_TEXTURE2D_DESC dstdesc = { };
-		dstdesc.Width = desc.BufferDesc.Width;
-		dstdesc.Height = desc.BufferDesc.Height;
-		dstdesc.MipLevels = 1;
-		dstdesc.ArraySize = 1;
-		dstdesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-		dstdesc.SampleDesc.Count = 1;
-		dstdesc.SampleDesc.Quality = 0;
-		dstdesc.Usage = D3D11_USAGE_DEFAULT;
-		dstdesc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
-
-		com_ptr<ID3D11Texture2D> dstexture;
-		hr = _device->CreateTexture2D(&dstdesc, nullptr, &dstexture);
-
-		if (SUCCEEDED(hr))
 		{
-			hr = _device->CreateDepthStencilView(dstexture.get(), nullptr, &_default_depthstencil);
+			const BYTE vs[] = { 68, 88, 66, 67, 224, 206, 72, 137, 142, 185, 68, 219, 247, 216, 225, 132, 111, 78, 106, 20, 1, 0, 0, 0, 156, 2, 0, 0, 5, 0, 0, 0, 52, 0, 0, 0, 140, 0, 0, 0, 192, 0, 0, 0, 24, 1, 0, 0, 32, 2, 0, 0, 82, 68, 69, 70, 80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 28, 0, 0, 0, 0, 4, 254, 255, 0, 1, 0, 0, 28, 0, 0, 0, 77, 105, 99, 114, 111, 115, 111, 102, 116, 32, 40, 82, 41, 32, 72, 76, 83, 76, 32, 83, 104, 97, 100, 101, 114, 32, 67, 111, 109, 112, 105, 108, 101, 114, 32, 54, 46, 51, 46, 57, 54, 48, 48, 46, 49, 54, 51, 56, 52, 0, 171, 171, 73, 83, 71, 78, 44, 0, 0, 0, 1, 0, 0, 0, 8, 0, 0, 0, 32, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 83, 86, 95, 86, 101, 114, 116, 101, 120, 73, 68, 0, 79, 83, 71, 78, 80, 0, 0, 0, 2, 0, 0, 0, 8, 0, 0, 0, 56, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 15, 0, 0, 0, 68, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 1, 0, 0, 0, 3, 12, 0, 0, 83, 86, 95, 80, 111, 115, 105, 116, 105, 111, 110, 0, 84, 69, 88, 67, 79, 79, 82, 68, 0, 171, 171, 171, 83, 72, 68, 82, 0, 1, 0, 0, 64, 0, 1, 0, 64, 0, 0, 0, 96, 0, 0, 4, 18, 16, 16, 0, 0, 0, 0, 0, 6, 0, 0, 0, 103, 0, 0, 4, 242, 32, 16, 0, 0, 0, 0, 0, 1, 0, 0, 0, 101, 0, 0, 3, 50, 32, 16, 0, 1, 0, 0, 0, 104, 0, 0, 2, 1, 0, 0, 0, 32, 0, 0, 10, 50, 0, 16, 0, 0, 0, 0, 0, 6, 16, 16, 0, 0, 0, 0, 0, 2, 64, 0, 0, 2, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 10, 50, 0, 16, 0, 0, 0, 0, 0, 70, 0, 16, 0, 0, 0, 0, 0, 2, 64, 0, 0, 0, 0, 0, 64, 0, 0, 0, 64, 0, 0, 0, 0, 0, 0, 0, 0, 50, 0, 0, 15, 50, 32, 16, 0, 0, 0, 0, 0, 70, 0, 16, 0, 0, 0, 0, 0, 2, 64, 0, 0, 0, 0, 0, 64, 0, 0, 0, 192, 0, 0, 0, 0, 0, 0, 0, 0, 2, 64, 0, 0, 0, 0, 128, 191, 0, 0, 128, 63, 0, 0, 0, 0, 0, 0, 0, 0, 54, 0, 0, 5, 50, 32, 16, 0, 1, 0, 0, 0, 70, 0, 16, 0, 0, 0, 0, 0, 54, 0, 0, 8, 194, 32, 16, 0, 0, 0, 0, 0, 2, 64, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 128, 63, 62, 0, 0, 1, 83, 84, 65, 84, 116, 0, 0, 0, 6, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+			hr = _device->CreateVertexShader(vs, sizeof(vs), nullptr, &_copy_vertex_shader);
+
+			assert(SUCCEEDED(hr));
 		}
+		{
+			const BYTE ps[] = { 68, 88, 66, 67, 93, 102, 148, 45, 34, 106, 51, 79, 54, 23, 136, 21, 27, 217, 232, 71, 1, 0, 0, 0, 116, 2, 0, 0, 5, 0, 0, 0, 52, 0, 0, 0, 208, 0, 0, 0, 40, 1, 0, 0, 92, 1, 0, 0, 248, 1, 0, 0, 82, 68, 69, 70, 148, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 28, 0, 0, 0, 0, 4, 255, 255, 0, 1, 0, 0, 98, 0, 0, 0, 92, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 95, 0, 0, 0, 2, 0, 0, 0, 5, 0, 0, 0, 4, 0, 0, 0, 255, 255, 255, 255, 0, 0, 0, 0, 1, 0, 0, 0, 13, 0, 0, 0, 115, 48, 0, 116, 48, 0, 77, 105, 99, 114, 111, 115, 111, 102, 116, 32, 40, 82, 41, 32, 72, 76, 83, 76, 32, 83, 104, 97, 100, 101, 114, 32, 67, 111, 109, 112, 105, 108, 101, 114, 32, 54, 46, 51, 46, 57, 54, 48, 48, 46, 49, 54, 51, 56, 52, 0, 73, 83, 71, 78, 80, 0, 0, 0, 2, 0, 0, 0, 8, 0, 0, 0, 56, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 15, 0, 0, 0, 68, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 1, 0, 0, 0, 3, 3, 0, 0, 83, 86, 95, 80, 111, 115, 105, 116, 105, 111, 110, 0, 84, 69, 88, 67, 79, 79, 82, 68, 0, 171, 171, 171, 79, 83, 71, 78, 44, 0, 0, 0, 1, 0, 0, 0, 8, 0, 0, 0, 32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 15, 0, 0, 0, 83, 86, 95, 84, 97, 114, 103, 101, 116, 0, 171, 171, 83, 72, 68, 82, 148, 0, 0, 0, 64, 0, 0, 0, 37, 0, 0, 0, 90, 0, 0, 3, 0, 96, 16, 0, 0, 0, 0, 0, 88, 24, 0, 4, 0, 112, 16, 0, 0, 0, 0, 0, 85, 85, 0, 0, 98, 16, 0, 3, 50, 16, 16, 0, 1, 0, 0, 0, 101, 0, 0, 3, 242, 32, 16, 0, 0, 0, 0, 0, 104, 0, 0, 2, 1, 0, 0, 0, 69, 0, 0, 9, 242, 0, 16, 0, 0, 0, 0, 0, 70, 16, 16, 0, 1, 0, 0, 0, 70, 126, 16, 0, 0, 0, 0, 0, 0, 96, 16, 0, 0, 0, 0, 0, 54, 0, 0, 5, 114, 32, 16, 0, 0, 0, 0, 0, 70, 2, 16, 0, 0, 0, 0, 0, 54, 0, 0, 5, 130, 32, 16, 0, 0, 0, 0, 0, 1, 64, 0, 0, 0, 0, 128, 63, 62, 0, 0, 1, 83, 84, 65, 84, 116, 0, 0, 0, 4, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+			hr = _device->CreatePixelShader(ps, sizeof(ps), nullptr, &_copy_pixel_shader);
+
+			assert(SUCCEEDED(hr));
+		}
+		{
+			const D3D11_SAMPLER_DESC copysampdesc = { D3D11_FILTER_MIN_MAG_MIP_POINT, D3D11_TEXTURE_ADDRESS_CLAMP, D3D11_TEXTURE_ADDRESS_CLAMP, D3D11_TEXTURE_ADDRESS_CLAMP };
+			hr = _device->CreateSamplerState(&copysampdesc, &_copy_sampler);
+
+			assert(SUCCEEDED(hr));
+		}
+
+		return true;
+	}
+	bool d3d11_runtime::init_default_depth_stencil()
+	{
+		const D3D11_TEXTURE2D_DESC desc = {
+			_width,
+			_height,
+			1,
+			1,
+			DXGI_FORMAT_D24_UNORM_S8_UINT,
+			{ 1, 0 },
+			D3D11_USAGE_DEFAULT,
+			D3D11_BIND_DEPTH_STENCIL
+		};
+
+		com_ptr<ID3D11Texture2D> depth_stencil_texture;
+
+		HRESULT hr = _device->CreateTexture2D(&desc, nullptr, &depth_stencil_texture);
+
 		if (FAILED(hr))
 		{
-			LOG(TRACE) << "Failed to create default depth-stencil! HRESULT is '" << std::hex << hr << std::dec << "'.";
-
 			return false;
 		}
 
-		const BYTE vs[] = { 68, 88, 66, 67, 224, 206, 72, 137, 142, 185, 68, 219, 247, 216, 225, 132, 111, 78, 106, 20, 1, 0, 0, 0, 156, 2, 0, 0, 5, 0, 0, 0, 52, 0, 0, 0, 140, 0, 0, 0, 192, 0, 0, 0, 24, 1, 0, 0, 32, 2, 0, 0, 82, 68, 69, 70, 80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 28, 0, 0, 0, 0, 4, 254, 255, 0, 1, 0, 0, 28, 0, 0, 0, 77, 105, 99, 114, 111, 115, 111, 102, 116, 32, 40, 82, 41, 32, 72, 76, 83, 76, 32, 83, 104, 97, 100, 101, 114, 32, 67, 111, 109, 112, 105, 108, 101, 114, 32, 54, 46, 51, 46, 57, 54, 48, 48, 46, 49, 54, 51, 56, 52, 0, 171, 171, 73, 83, 71, 78, 44, 0, 0, 0, 1, 0, 0, 0, 8, 0, 0, 0, 32, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 83, 86, 95, 86, 101, 114, 116, 101, 120, 73, 68, 0, 79, 83, 71, 78, 80, 0, 0, 0, 2, 0, 0, 0, 8, 0, 0, 0, 56, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 15, 0, 0, 0, 68, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 1, 0, 0, 0, 3, 12, 0, 0, 83, 86, 95, 80, 111, 115, 105, 116, 105, 111, 110, 0, 84, 69, 88, 67, 79, 79, 82, 68, 0, 171, 171, 171, 83, 72, 68, 82, 0, 1, 0, 0, 64, 0, 1, 0, 64, 0, 0, 0, 96, 0, 0, 4, 18, 16, 16, 0, 0, 0, 0, 0, 6, 0, 0, 0, 103, 0, 0, 4, 242, 32, 16, 0, 0, 0, 0, 0, 1, 0, 0, 0, 101, 0, 0, 3, 50, 32, 16, 0, 1, 0, 0, 0, 104, 0, 0, 2, 1, 0, 0, 0, 32, 0, 0, 10, 50, 0, 16, 0, 0, 0, 0, 0, 6, 16, 16, 0, 0, 0, 0, 0, 2, 64, 0, 0, 2, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 10, 50, 0, 16, 0, 0, 0, 0, 0, 70, 0, 16, 0, 0, 0, 0, 0, 2, 64, 0, 0, 0, 0, 0, 64, 0, 0, 0, 64, 0, 0, 0, 0, 0, 0, 0, 0, 50, 0, 0, 15, 50, 32, 16, 0, 0, 0, 0, 0, 70, 0, 16, 0, 0, 0, 0, 0, 2, 64, 0, 0, 0, 0, 0, 64, 0, 0, 0, 192, 0, 0, 0, 0, 0, 0, 0, 0, 2, 64, 0, 0, 0, 0, 128, 191, 0, 0, 128, 63, 0, 0, 0, 0, 0, 0, 0, 0, 54, 0, 0, 5, 50, 32, 16, 0, 1, 0, 0, 0, 70, 0, 16, 0, 0, 0, 0, 0, 54, 0, 0, 8, 194, 32, 16, 0, 0, 0, 0, 0, 2, 64, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 128, 63, 62, 0, 0, 1, 83, 84, 65, 84, 116, 0, 0, 0, 6, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-		hr = _device->CreateVertexShader(vs, ARRAYSIZE(vs), nullptr, &_copy_vertex_shader);
+		hr = _device->CreateDepthStencilView(depth_stencil_texture.get(), nullptr, &_default_depthstencil);
 
-		assert(SUCCEEDED(hr));
+		if (FAILED(hr))
+		{
+			return false;
+		}
 
-		const BYTE ps[] = { 68, 88, 66, 67, 93, 102, 148, 45, 34, 106, 51, 79, 54, 23, 136, 21, 27, 217, 232, 71, 1, 0, 0, 0, 116, 2, 0, 0, 5, 0, 0, 0, 52, 0, 0, 0, 208, 0, 0, 0, 40, 1, 0, 0, 92, 1, 0, 0, 248, 1, 0, 0, 82, 68, 69, 70, 148, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 28, 0, 0, 0, 0, 4, 255, 255, 0, 1, 0, 0, 98, 0, 0, 0, 92, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 95, 0, 0, 0, 2, 0, 0, 0, 5, 0, 0, 0, 4, 0, 0, 0, 255, 255, 255, 255, 0, 0, 0, 0, 1, 0, 0, 0, 13, 0, 0, 0, 115, 48, 0, 116, 48, 0, 77, 105, 99, 114, 111, 115, 111, 102, 116, 32, 40, 82, 41, 32, 72, 76, 83, 76, 32, 83, 104, 97, 100, 101, 114, 32, 67, 111, 109, 112, 105, 108, 101, 114, 32, 54, 46, 51, 46, 57, 54, 48, 48, 46, 49, 54, 51, 56, 52, 0, 73, 83, 71, 78, 80, 0, 0, 0, 2, 0, 0, 0, 8, 0, 0, 0, 56, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 15, 0, 0, 0, 68, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 1, 0, 0, 0, 3, 3, 0, 0, 83, 86, 95, 80, 111, 115, 105, 116, 105, 111, 110, 0, 84, 69, 88, 67, 79, 79, 82, 68, 0, 171, 171, 171, 79, 83, 71, 78, 44, 0, 0, 0, 1, 0, 0, 0, 8, 0, 0, 0, 32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 15, 0, 0, 0, 83, 86, 95, 84, 97, 114, 103, 101, 116, 0, 171, 171, 83, 72, 68, 82, 148, 0, 0, 0, 64, 0, 0, 0, 37, 0, 0, 0, 90, 0, 0, 3, 0, 96, 16, 0, 0, 0, 0, 0, 88, 24, 0, 4, 0, 112, 16, 0, 0, 0, 0, 0, 85, 85, 0, 0, 98, 16, 0, 3, 50, 16, 16, 0, 1, 0, 0, 0, 101, 0, 0, 3, 242, 32, 16, 0, 0, 0, 0, 0, 104, 0, 0, 2, 1, 0, 0, 0, 69, 0, 0, 9, 242, 0, 16, 0, 0, 0, 0, 0, 70, 16, 16, 0, 1, 0, 0, 0, 70, 126, 16, 0, 0, 0, 0, 0, 0, 96, 16, 0, 0, 0, 0, 0, 54, 0, 0, 5, 114, 32, 16, 0, 0, 0, 0, 0, 70, 2, 16, 0, 0, 0, 0, 0, 54, 0, 0, 5, 130, 32, 16, 0, 0, 0, 0, 0, 1, 64, 0, 0, 0, 0, 128, 63, 62, 0, 0, 1, 83, 84, 65, 84, 116, 0, 0, 0, 4, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-		hr = _device->CreatePixelShader(ps, ARRAYSIZE(ps), nullptr, &_copy_pixel_shader);
+		return true;
+	}
+	bool d3d11_runtime::init_fx_resources()
+	{
+		D3D11_RASTERIZER_DESC desc = { };
+		desc.FillMode = D3D11_FILL_SOLID;
+		desc.CullMode = D3D11_CULL_NONE;
+		desc.DepthClipEnable = TRUE;
 
-		assert(SUCCEEDED(hr));
+		HRESULT hr = _device->CreateRasterizerState(&desc, &_effect_rasterizer_state);
 
-		const D3D11_SAMPLER_DESC copysampdesc = { D3D11_FILTER_MIN_MAG_MIP_POINT, D3D11_TEXTURE_ADDRESS_CLAMP, D3D11_TEXTURE_ADDRESS_CLAMP, D3D11_TEXTURE_ADDRESS_CLAMP };
-		hr = _device->CreateSamplerState(&copysampdesc, &_copy_sampler);
+		if (FAILED(hr))
+		{
+			return false;
+		}
 
-		assert(SUCCEEDED(hr));
+		return true;
+	}
+	bool d3d11_runtime::init_imgui_resources()
+	{
+		HRESULT hr = E_FAIL;
 
-		// Create effect objects
-		D3D11_RASTERIZER_DESC rsdesc = { };
-		rsdesc.FillMode = D3D11_FILL_SOLID;
-		rsdesc.CullMode = D3D11_CULL_NONE;
-		rsdesc.DepthClipEnable = TRUE;
+		// Create the vertex shader
+		{
+			const BYTE vs[] = { 68, 88, 66, 67, 165, 101, 108, 186, 56, 122, 39, 81, 174, 124, 224, 24, 237, 222, 192, 228, 1, 0, 0, 0, 120, 3, 0, 0, 5, 0, 0, 0, 52, 0, 0, 0, 16, 1, 0, 0, 128, 1, 0, 0, 244, 1, 0, 0, 252, 2, 0, 0, 82, 68, 69, 70, 212, 0, 0, 0, 1, 0, 0, 0, 76, 0, 0, 0, 1, 0, 0, 0, 28, 0, 0, 0, 0, 4, 254, 255, 0, 1, 0, 0, 160, 0, 0, 0, 60, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 118, 101, 114, 116, 101, 120, 66, 117, 102, 102, 101, 114, 0, 171, 171, 171, 60, 0, 0, 0, 1, 0, 0, 0, 100, 0, 0, 0, 64, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 124, 0, 0, 0, 0, 0, 0, 0, 64, 0, 0, 0, 2, 0, 0, 0, 144, 0, 0, 0, 0, 0, 0, 0, 80, 114, 111, 106, 101, 99, 116, 105, 111, 110, 77, 97, 116, 114, 105, 120, 0, 171, 171, 171, 3, 0, 3, 0, 4, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 77, 105, 99, 114, 111, 115, 111, 102, 116, 32, 40, 82, 41, 32, 72, 76, 83, 76, 32, 83, 104, 97, 100, 101, 114, 32, 67, 111, 109, 112, 105, 108, 101, 114, 32, 49, 48, 46, 48, 46, 49, 48, 48, 49, 49, 46, 49, 54, 51, 56, 52, 0, 73, 83, 71, 78, 104, 0, 0, 0, 3, 0, 0, 0, 8, 0, 0, 0, 80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 3, 3, 0, 0, 89, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 1, 0, 0, 0, 15, 15, 0, 0, 95, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 2, 0, 0, 0, 3, 3, 0, 0, 80, 79, 83, 73, 84, 73, 79, 78, 0, 67, 79, 76, 79, 82, 0, 84, 69, 88, 67, 79, 79, 82, 68, 0, 79, 83, 71, 78, 108, 0, 0, 0, 3, 0, 0, 0, 8, 0, 0, 0, 80, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 15, 0, 0, 0, 92, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 1, 0, 0, 0, 15, 0, 0, 0, 98, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 2, 0, 0, 0, 3, 12, 0, 0, 83, 86, 95, 80, 79, 83, 73, 84, 73, 79, 78, 0, 67, 79, 76, 79, 82, 0, 84, 69, 88, 67, 79, 79, 82, 68, 0, 171, 83, 72, 68, 82, 0, 1, 0, 0, 64, 0, 1, 0, 64, 0, 0, 0, 89, 0, 0, 4, 70, 142, 32, 0, 0, 0, 0, 0, 4, 0, 0, 0, 95, 0, 0, 3, 50, 16, 16, 0, 0, 0, 0, 0, 95, 0, 0, 3, 242, 16, 16, 0, 1, 0, 0, 0, 95, 0, 0, 3, 50, 16, 16, 0, 2, 0, 0, 0, 103, 0, 0, 4, 242, 32, 16, 0, 0, 0, 0, 0, 1, 0, 0, 0, 101, 0, 0, 3, 242, 32, 16, 0, 1, 0, 0, 0, 101, 0, 0, 3, 50, 32, 16, 0, 2, 0, 0, 0, 104, 0, 0, 2, 1, 0, 0, 0, 56, 0, 0, 8, 242, 0, 16, 0, 0, 0, 0, 0, 86, 21, 16, 0, 0, 0, 0, 0, 70, 142, 32, 0, 0, 0, 0, 0, 1, 0, 0, 0, 50, 0, 0, 10, 242, 0, 16, 0, 0, 0, 0, 0, 70, 142, 32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 16, 16, 0, 0, 0, 0, 0, 70, 14, 16, 0, 0, 0, 0, 0, 0, 0, 0, 8, 242, 32, 16, 0, 0, 0, 0, 0, 70, 14, 16, 0, 0, 0, 0, 0, 70, 142, 32, 0, 0, 0, 0, 0, 3, 0, 0, 0, 54, 0, 0, 5, 242, 32, 16, 0, 1, 0, 0, 0, 70, 30, 16, 0, 1, 0, 0, 0, 54, 0, 0, 5, 50, 32, 16, 0, 2, 0, 0, 0, 70, 16, 16, 0, 2, 0, 0, 0, 62, 0, 0, 1, 83, 84, 65, 84, 116, 0, 0, 0, 6, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+			hr = _device->CreateVertexShader(vs, sizeof(vs), nullptr, &_imgui_vertex_shader);
 
-		hr = _device->CreateRasterizerState(&rsdesc, &_effect_rasterizer_state);
+			if (FAILED(hr))
+			{
+				return false;
+			}
 
-		assert(SUCCEEDED(hr));
+			// Create the input layout
+			const D3D11_INPUT_ELEMENT_DESC input_layout[] = {
+				{ "POSITION", 0, DXGI_FORMAT_R32G32_FLOAT, 0, offsetof(ImDrawVert, pos), D3D11_INPUT_PER_VERTEX_DATA, 0 },
+				{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, offsetof(ImDrawVert, uv), D3D11_INPUT_PER_VERTEX_DATA, 0 },
+				{ "COLOR", 0, DXGI_FORMAT_R8G8B8A8_UNORM, 0, offsetof(ImDrawVert, col), D3D11_INPUT_PER_VERTEX_DATA, 0 },
+			};
 
-		_gui.reset(new gui(this, nvgCreateD3D11(_device.get(), 0)));
+			hr = _device->CreateInputLayout(input_layout, _countof(input_layout), vs, sizeof(vs), &_imgui_input_layout);
+
+			if (FAILED(hr))
+			{
+				return false;
+			}
+		}
+
+		// Create the pixel shader
+		{
+			const BYTE ps[] = { 68, 88, 66, 67, 244, 55, 63, 173, 76, 165, 188, 216, 93, 202, 217, 79, 224, 122, 206, 154, 1, 0, 0, 0, 160, 2, 0, 0, 5, 0, 0, 0, 52, 0, 0, 0, 224, 0, 0, 0, 84, 1, 0, 0, 136, 1, 0, 0, 36, 2, 0, 0, 82, 68, 69, 70, 164, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 28, 0, 0, 0, 0, 4, 255, 255, 0, 1, 0, 0, 110, 0, 0, 0, 92, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 101, 0, 0, 0, 2, 0, 0, 0, 5, 0, 0, 0, 4, 0, 0, 0, 255, 255, 255, 255, 0, 0, 0, 0, 1, 0, 0, 0, 12, 0, 0, 0, 115, 97, 109, 112, 108, 101, 114, 48, 0, 116, 101, 120, 116, 117, 114, 101, 48, 0, 77, 105, 99, 114, 111, 115, 111, 102, 116, 32, 40, 82, 41, 32, 72, 76, 83, 76, 32, 83, 104, 97, 100, 101, 114, 32, 67, 111, 109, 112, 105, 108, 101, 114, 32, 49, 48, 46, 48, 46, 49, 48, 48, 49, 49, 46, 49, 54, 51, 56, 52, 0, 171, 171, 73, 83, 71, 78, 108, 0, 0, 0, 3, 0, 0, 0, 8, 0, 0, 0, 80, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 15, 0, 0, 0, 92, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 1, 0, 0, 0, 15, 15, 0, 0, 98, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 2, 0, 0, 0, 3, 3, 0, 0, 83, 86, 95, 80, 79, 83, 73, 84, 73, 79, 78, 0, 67, 79, 76, 79, 82, 0, 84, 69, 88, 67, 79, 79, 82, 68, 0, 171, 79, 83, 71, 78, 44, 0, 0, 0, 1, 0, 0, 0, 8, 0, 0, 0, 32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 15, 0, 0, 0, 83, 86, 95, 84, 97, 114, 103, 101, 116, 0, 171, 171, 83, 72, 68, 82, 148, 0, 0, 0, 64, 0, 0, 0, 37, 0, 0, 0, 90, 0, 0, 3, 0, 96, 16, 0, 0, 0, 0, 0, 88, 24, 0, 4, 0, 112, 16, 0, 0, 0, 0, 0, 85, 85, 0, 0, 98, 16, 0, 3, 242, 16, 16, 0, 1, 0, 0, 0, 98, 16, 0, 3, 50, 16, 16, 0, 2, 0, 0, 0, 101, 0, 0, 3, 242, 32, 16, 0, 0, 0, 0, 0, 104, 0, 0, 2, 1, 0, 0, 0, 69, 0, 0, 9, 242, 0, 16, 0, 0, 0, 0, 0, 70, 16, 16, 0, 2, 0, 0, 0, 70, 126, 16, 0, 0, 0, 0, 0, 0, 96, 16, 0, 0, 0, 0, 0, 56, 0, 0, 7, 242, 32, 16, 0, 0, 0, 0, 0, 70, 14, 16, 0, 0, 0, 0, 0, 70, 30, 16, 0, 1, 0, 0, 0, 62, 0, 0, 1, 83, 84, 65, 84, 116, 0, 0, 0, 3, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+			hr = _device->CreatePixelShader(ps, sizeof(ps), nullptr, &_imgui_pixel_shader);
+
+			if (FAILED(hr))
+			{
+				return false;
+			}
+		}
+
+		// Create the constant buffer
+		{
+			D3D11_BUFFER_DESC desc = { };
+			desc.ByteWidth = 16 * sizeof(float);
+			desc.Usage = D3D11_USAGE_DYNAMIC;
+			desc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+			desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+
+			hr = _device->CreateBuffer(&desc, nullptr, &_imgui_constant_buffer);
+
+			if (FAILED(hr))
+			{
+				return false;
+			}
+		}
+
+		// Create the blending state
+		{
+			D3D11_BLEND_DESC desc = { };
+			desc.RenderTarget[0].BlendEnable = true;
+			desc.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_ALPHA;
+			desc.RenderTarget[0].DestBlend = D3D11_BLEND_INV_SRC_ALPHA;
+			desc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
+			desc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_INV_SRC_ALPHA;
+			desc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ZERO;
+			desc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
+			desc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
+
+			hr = _device->CreateBlendState(&desc, &_imgui_blend_state);
+
+			if (FAILED(hr))
+			{
+				return false;
+			}
+		}
+
+		// Create the rasterizer state
+		{
+			D3D11_RASTERIZER_DESC desc = { };
+			desc.FillMode = D3D11_FILL_SOLID;
+			desc.CullMode = D3D11_CULL_NONE;
+			desc.ScissorEnable = true;
+			desc.DepthClipEnable = true;
+
+			hr = _device->CreateRasterizerState(&desc, &_imgui_rasterizer_state);
+
+			if (FAILED(hr))
+			{
+				return false;
+			}
+		}
+
+		// Create texture sampler
+		{
+			D3D11_SAMPLER_DESC desc = { };
+			desc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+			desc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
+			desc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
+			desc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
+			desc.ComparisonFunc = D3D11_COMPARISON_ALWAYS;
+
+			hr = _device->CreateSamplerState(&desc, &_imgui_texture_sampler);
+
+			if (FAILED(hr))
+			{
+				return false;
+			}
+		}
+
+		return true;
+	}
+	bool d3d11_runtime::init_imgui_font_atlas()
+	{
+		int width, height;
+		unsigned char *pixels;
+
+		ImGui::GetIO().Fonts->GetTexDataAsRGBA32(&pixels, &width, &height);
+
+		const D3D11_TEXTURE2D_DESC tex_desc = {
+			static_cast<UINT>(width),
+			static_cast<UINT>(height),
+			1,
+			1,
+			DXGI_FORMAT_R8G8B8A8_UNORM,
+			{ 1, 0 },
+			D3D11_USAGE_DEFAULT,
+			D3D11_BIND_SHADER_RESOURCE
+		};
+		const D3D11_SUBRESOURCE_DATA tex_data = {
+			pixels,
+			tex_desc.Width * 4
+		};
+
+		com_ptr<ID3D11Texture2D> font_atlas;
+		com_ptr<ID3D11ShaderResourceView> font_atlas_view;
+
+		HRESULT hr = _device->CreateTexture2D(&tex_desc, &tex_data, &font_atlas);
+
+		if (FAILED(hr))
+		{
+			return false;
+		}
+
+		hr = _device->CreateShaderResourceView(font_atlas.get(), nullptr, &font_atlas_view);
+
+		if (FAILED(hr))
+		{
+			return false;
+		}
+
+		const auto obj = new d3d11_texture();
+		obj->basetype = texture::datatype::image;
+		obj->width = width;
+		obj->height = height;
+		obj->levels = 1;
+		obj->format = texture::pixelformat::rgba8;
+		obj->texture = font_atlas;
+		obj->srv[0] = font_atlas_view;
+
+		_imgui_font_atlas.reset(obj);
+
+		return true;
+	}
+
+	bool d3d11_runtime::on_init(const DXGI_SWAP_CHAIN_DESC &desc)
+	{
+		_width = desc.BufferDesc.Width;
+		_height = desc.BufferDesc.Height;
+		_backbuffer_format = desc.BufferDesc.Format;
+		_is_multisampling_enabled = desc.SampleDesc.Count > 1;
+		_input = input::register_window(desc.OutputWindow);
+
+		if (!init_backbuffer_texture() ||
+			!init_default_depth_stencil() ||
+			!init_imgui_resources() ||
+			!init_imgui_font_atlas())
+		{
+			return false;
+		}
 
 		// Clear reference count to make UnrealEngine happy
 		_backbuffer->Release();
@@ -280,10 +466,6 @@ namespace reshade
 		}
 
 		runtime::on_reset();
-
-		// Destroy NanoVG
-		nvgDeleteD3D11(_gui->context());
-		_gui.reset();
 
 		// Reset reference count to make UnrealEngine happy
 		_backbuffer->AddRef();
@@ -309,6 +491,18 @@ namespace reshade
 		_copy_sampler.reset();
 
 		_effect_rasterizer_state.reset();
+
+		_imgui_vertex_buffer.reset();
+		_imgui_index_buffer.reset();
+		_imgui_vertex_shader.reset();
+		_imgui_pixel_shader.reset();
+		_imgui_input_layout.reset();
+		_imgui_constant_buffer.reset();
+		_imgui_texture_sampler.reset();
+		_imgui_rasterizer_state.reset();
+		_imgui_blend_state.reset();
+		_imgui_vertex_buffer_size = 0;
+		_imgui_index_buffer_size = 0;
 	}
 	void d3d11_runtime::on_reset_effect()
 	{
@@ -789,6 +983,139 @@ namespace reshade
 				pass.shader_resources[texture_impl->shader_register] = texture_impl->srv[0].get();
 				pass.shader_resources[texture_impl->shader_register + 1] = texture_impl->srv[1].get();
 			}
+		}
+	}
+
+	void d3d11_runtime::render_draw_lists(ImDrawData *draw_data)
+	{
+		// Create and grow vertex/index buffers if needed
+		if (_imgui_vertex_buffer == nullptr || _imgui_vertex_buffer_size < draw_data->TotalVtxCount)
+		{
+			_imgui_vertex_buffer.reset();
+			_imgui_vertex_buffer_size = draw_data->TotalVtxCount + 5000;
+
+			D3D11_BUFFER_DESC desc = { };
+			desc.Usage = D3D11_USAGE_DYNAMIC;
+			desc.ByteWidth = _imgui_vertex_buffer_size * sizeof(ImDrawVert);
+			desc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+			desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+			desc.MiscFlags = 0;
+
+			if (FAILED(_device->CreateBuffer(&desc, nullptr, &_imgui_vertex_buffer)))
+			{
+				return;
+			}
+		}
+		if (_imgui_index_buffer == nullptr || _imgui_index_buffer_size < draw_data->TotalIdxCount)
+		{
+			_imgui_index_buffer.reset();
+			_imgui_index_buffer_size = draw_data->TotalIdxCount + 10000;
+
+			D3D11_BUFFER_DESC desc = { };
+			desc.Usage = D3D11_USAGE_DYNAMIC;
+			desc.ByteWidth = _imgui_index_buffer_size * sizeof(ImDrawIdx);
+			desc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+			desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+
+			if (FAILED(_device->CreateBuffer(&desc, nullptr, &_imgui_index_buffer)))
+			{
+				return;
+			}
+		}
+
+		D3D11_MAPPED_SUBRESOURCE vtx_resource, idx_resource;
+
+		if (FAILED(_immediate_context->Map(_imgui_vertex_buffer.get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &vtx_resource)) ||
+			FAILED(_immediate_context->Map(_imgui_index_buffer.get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &idx_resource)))
+		{
+			return;
+		}
+
+		auto vtx_dst = static_cast<ImDrawVert *>(vtx_resource.pData);
+		auto idx_dst = static_cast<ImDrawIdx *>(idx_resource.pData);
+
+		for (int n = 0; n < draw_data->CmdListsCount; n++)
+		{
+			const auto cmd_list = draw_data->CmdLists[n];
+
+			CopyMemory(vtx_dst, &cmd_list->VtxBuffer.front(), cmd_list->VtxBuffer.size() * sizeof(ImDrawVert));
+			CopyMemory(idx_dst, &cmd_list->IdxBuffer.front(), cmd_list->IdxBuffer.size() * sizeof(ImDrawIdx));
+
+			vtx_dst += cmd_list->VtxBuffer.size();
+			idx_dst += cmd_list->IdxBuffer.size();
+		}
+
+		_immediate_context->Unmap(_imgui_vertex_buffer.get(), 0);
+		_immediate_context->Unmap(_imgui_index_buffer.get(), 0);
+
+		// Setup orthographic projection matrix
+		D3D11_MAPPED_SUBRESOURCE constant_buffer_data;
+
+		if (FAILED(_immediate_context->Map(_imgui_constant_buffer.get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &constant_buffer_data)))
+		{
+			return;
+		}
+
+		const float ortho_projection[16] =
+		{
+			2.0f / _width, 0.0f, 0.0f, 0.0f,
+			0.0f, -2.0f / _height, 0.0f, 0.0f,
+			0.0f, 0.0f, 0.5f, 0.0f,
+			-1.0f, 1.0f, 0.5f, 1.0f
+		};
+
+		CopyMemory(constant_buffer_data.pData, ortho_projection, sizeof(ortho_projection));
+
+		_immediate_context->Unmap(_imgui_constant_buffer.get(), 0);
+
+		// Setup render state
+		const float blend_factor[4] = { 0.f, 0.f, 0.f, 0.f };
+		_immediate_context->OMSetBlendState(_imgui_blend_state.get(), blend_factor, 0xffffffff);
+		_immediate_context->RSSetState(_imgui_rasterizer_state.get());
+
+		UINT stride = sizeof(ImDrawVert), offset = 0;
+		ID3D11Buffer *vertex_buffers[1] = { _imgui_vertex_buffer.get() }, *constant_buffers[1] = { _imgui_constant_buffer.get() };
+		ID3D11SamplerState *samplers[1] = { _imgui_texture_sampler.get() };
+		_immediate_context->IASetInputLayout(_imgui_input_layout.get());
+		_immediate_context->IASetVertexBuffers(0, 1, vertex_buffers, &stride, &offset);
+		_immediate_context->IASetIndexBuffer(_imgui_index_buffer.get(), sizeof(ImDrawIdx) == 2 ? DXGI_FORMAT_R16_UINT : DXGI_FORMAT_R32_UINT, 0);
+		_immediate_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		_immediate_context->VSSetShader(_imgui_vertex_shader.get(), nullptr, 0);
+		_immediate_context->VSSetConstantBuffers(0, 1, constant_buffers);
+		_immediate_context->PSSetShader(_imgui_pixel_shader.get(), nullptr, 0);
+		_immediate_context->PSSetSamplers(0, 1, samplers);
+
+		// Render command lists
+		UINT vtx_offset = 0, idx_offset = 0;
+
+		for (int n = 0; n < draw_data->CmdListsCount; n++)
+		{
+			const auto cmd_list = draw_data->CmdLists[n];
+
+			for (auto cmd = cmd_list->CmdBuffer.begin(); cmd != cmd_list->CmdBuffer.end(); idx_offset += cmd->ElemCount, cmd++)
+			{
+				if (cmd->UserCallback != nullptr)
+				{
+					cmd->UserCallback(cmd_list, cmd);
+				}
+				else
+				{
+					const D3D11_RECT scissor_rect = {
+						static_cast<LONG>(cmd->ClipRect.x),
+						static_cast<LONG>(cmd->ClipRect.y),
+						static_cast<LONG>(cmd->ClipRect.z),
+						static_cast<LONG>(cmd->ClipRect.w)
+					};
+
+					ID3D11ShaderResourceView *const texture_view = static_cast<const d3d11_texture *>(cmd->TextureId)->srv[0].get();
+					_immediate_context->PSSetShaderResources(0, 1, &texture_view);
+					_immediate_context->RSSetScissorRects(1, &scissor_rect);
+
+					_immediate_context->DrawIndexed(cmd->ElemCount, idx_offset, vtx_offset);
+				}
+			}
+
+			vtx_offset += cmd_list->VtxBuffer.size();
 		}
 	}
 

@@ -1,12 +1,11 @@
 #pragma once
 
+#include <d3d11_3.h>
+
 #include "runtime.hpp"
 #include "com_ptr.hpp"
 #include "critical_section.hpp"
 #include "d3d11_stateblock.hpp"
-
-#include <algorithm>
-#include <d3d11_3.h>
 
 namespace reshade
 {
@@ -70,9 +69,17 @@ namespace reshade
 			FLOAT drawcall_count, vertices_count;
 		};
 
+		bool init_backbuffer_texture();
+		bool init_default_depth_stencil();
+		bool init_fx_resources();
+		bool init_imgui_resources();
+		bool init_imgui_font_atlas();
+
 		void screenshot(unsigned char *buffer) const override;
 		bool update_effect(const fx::nodetree &ast, const std::vector<std::string> &pragmas, std::string &errors) override;
 		bool update_texture(texture *texture, const unsigned char *data, size_t size) override;
+
+		void render_draw_lists(ImDrawData *data) override;
 
 		void detect_depth_source();
 		bool create_depthstencil_replacement(ID3D11DepthStencilView *depthstencil);
@@ -90,5 +97,15 @@ namespace reshade
 		com_ptr<ID3D11SamplerState> _copy_sampler;
 		utils::critical_section _cs;
 		com_ptr<ID3D11RasterizerState> _effect_rasterizer_state;
+
+		com_ptr<ID3D11Buffer> _imgui_vertex_buffer, _imgui_index_buffer;
+		com_ptr<ID3D11VertexShader> _imgui_vertex_shader;
+		com_ptr<ID3D11PixelShader> _imgui_pixel_shader;
+		com_ptr<ID3D11InputLayout> _imgui_input_layout;
+		com_ptr<ID3D11Buffer> _imgui_constant_buffer;
+		com_ptr<ID3D11SamplerState> _imgui_texture_sampler;
+		com_ptr<ID3D11RasterizerState> _imgui_rasterizer_state;
+		com_ptr<ID3D11BlendState> _imgui_blend_state;
+		int _imgui_vertex_buffer_size = 0, _imgui_index_buffer_size = 0;
 	};
 }

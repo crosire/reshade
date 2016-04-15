@@ -80,4 +80,8 @@ namespace reshade
 	{
 		return false;
 	}
+
+	void d3d12_runtime::render_draw_lists(ImDrawData *draw_data)
+	{
+	}
 }

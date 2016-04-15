@@ -1,11 +1,10 @@
 #include "log.hpp"
 #include "gl_runtime.hpp"
 #include "gl_fx_compiler.hpp"
-#include "gui.hpp"
 #include "input.hpp"
 
+#include <imgui.h>
 #include <assert.h>
-#include <nanovg_gl.h>
 
 #ifdef _DEBUG
 	#define GLCHECK(call) { glGetError(); call; GLenum __e = glGetError(); if (__e != GL_NO_ERROR) { char __m[1024]; sprintf_s(__m, "OpenGL Error %x at line %d: %s", __e, __LINE__, #call); MessageBoxA(nullptr, __m, 0, MB_ICONERROR); } }
@@ -17,6 +16,182 @@ namespace reshade
 {
 	namespace
 	{
+		GLenum target_to_binding(GLenum target)
+		{
+			switch (target)
+			{
+				case GL_FRAMEBUFFER:
+					return GL_FRAMEBUFFER_BINDING;
+				case GL_READ_FRAMEBUFFER:
+					return GL_READ_FRAMEBUFFER_BINDING;
+				case GL_DRAW_FRAMEBUFFER:
+					return GL_DRAW_FRAMEBUFFER_BINDING;
+				case GL_RENDERBUFFER:
+					return GL_RENDERBUFFER_BINDING;
+				case GL_TEXTURE_2D:
+					return GL_TEXTURE_BINDING_2D;
+				case GL_TEXTURE_2D_ARRAY:
+					return GL_TEXTURE_BINDING_2D_ARRAY;
+				case GL_TEXTURE_2D_MULTISAMPLE:
+					return GL_TEXTURE_BINDING_2D_MULTISAMPLE;
+				case GL_TEXTURE_2D_MULTISAMPLE_ARRAY:
+					return GL_TEXTURE_BINDING_2D_MULTISAMPLE_ARRAY;
+				case GL_TEXTURE_3D:
+					return GL_TEXTURE_BINDING_3D;
+				case GL_TEXTURE_CUBE_MAP:
+				case GL_TEXTURE_CUBE_MAP_NEGATIVE_X:
+				case GL_TEXTURE_CUBE_MAP_NEGATIVE_Y:
+				case GL_TEXTURE_CUBE_MAP_NEGATIVE_Z:
+				case GL_TEXTURE_CUBE_MAP_POSITIVE_X:
+				case GL_TEXTURE_CUBE_MAP_POSITIVE_Y:
+				case GL_TEXTURE_CUBE_MAP_POSITIVE_Z:
+					return GL_TEXTURE_BINDING_CUBE_MAP;
+				case GL_TEXTURE_CUBE_MAP_ARRAY:
+					return GL_TEXTURE_BINDING_CUBE_MAP_ARRAY;
+				default:
+					return GL_NONE;
+			}
+		}
+		inline void flip_bc1_block(unsigned char *block)
+		{
+			// BC1 Block:
+			//  [0-1]  color 0
+			//  [2-3]  color 1
+			//  [4-7]  color indices
+
+			std::swap(block[4], block[7]);
+			std::swap(block[5], block[6]);
+		}
+		inline void flip_bc2_block(unsigned char *block)
+		{
+			// BC2 Block:
+			//  [0-7]  alpha indices
+			//  [8-15] color block
+
+			std::swap(block[0], block[6]);
+			std::swap(block[1], block[7]);
+			std::swap(block[2], block[4]);
+			std::swap(block[3], block[5]);
+
+			flip_bc1_block(block + 8);
+		}
+		inline void flip_bc4_block(unsigned char *block)
+		{
+			// BC4 Block:
+			//  [0]    red 0
+			//  [1]    red 1
+			//  [2-7]  red indices
+
+			const unsigned int line_0_1 = block[2] + 256 * (block[3] + 256 * block[4]);
+			const unsigned int line_2_3 = block[5] + 256 * (block[6] + 256 * block[7]);
+			const unsigned int line_1_0 = ((line_0_1 & 0x000FFF) << 12) | ((line_0_1 & 0xFFF000) >> 12);
+			const unsigned int line_3_2 = ((line_2_3 & 0x000FFF) << 12) | ((line_2_3 & 0xFFF000) >> 12);
+			block[2] = static_cast<unsigned char>((line_3_2 & 0xFF));
+			block[3] = static_cast<unsigned char>((line_3_2 & 0xFF00) >> 8);
+			block[4] = static_cast<unsigned char>((line_3_2 & 0xFF0000) >> 16);
+			block[5] = static_cast<unsigned char>((line_1_0 & 0xFF));
+			block[6] = static_cast<unsigned char>((line_1_0 & 0xFF00) >> 8);
+			block[7] = static_cast<unsigned char>((line_1_0 & 0xFF0000) >> 16);
+		}
+		inline void flip_bc3_block(unsigned char *block)
+		{
+			// BC3 Block:
+			//  [0-7]  alpha block
+			//  [8-15] color block
+
+			flip_bc4_block(block);
+			flip_bc1_block(block + 8);
+		}
+		inline void flip_bc5_block(unsigned char *block)
+		{
+			// BC5 Block:
+			//  [0-7]  red block
+			//  [8-15] green block
+
+			flip_bc4_block(block);
+			flip_bc4_block(block + 8);
+		}
+		void flip_image_data(const texture *texture, unsigned char *data)
+		{
+			typedef void(*block_flip_func_t)(unsigned char *block);
+
+			unsigned int block_size = 0;
+			block_flip_func_t block_flip_func = nullptr;
+
+			switch (texture->format)
+			{
+				case texture::pixelformat::r8:
+					block_size = 1;
+					break;
+				case texture::pixelformat::rg8:
+					block_size = 2;
+					break;
+				case texture::pixelformat::r32f:
+				case texture::pixelformat::rgba8:
+					block_size = 4;
+					break;
+				case texture::pixelformat::rgba16:
+				case texture::pixelformat::rgba16f:
+					block_size = 8;
+					break;
+				case texture::pixelformat::rgba32f:
+					block_size = 16;
+					break;
+				case texture::pixelformat::dxt1:
+					block_size = 8;
+					block_flip_func = &flip_bc1_block;
+					break;
+				case texture::pixelformat::dxt3:
+					block_size = 16;
+					block_flip_func = &flip_bc2_block;
+					break;
+				case texture::pixelformat::dxt5:
+					block_size = 16;
+					block_flip_func = &flip_bc3_block;
+					break;
+				case texture::pixelformat::latc1:
+					block_size = 8;
+					block_flip_func = &flip_bc4_block;
+					break;
+				case texture::pixelformat::latc2:
+					block_size = 16;
+					block_flip_func = &flip_bc5_block;
+					break;
+				default:
+					return;
+			}
+
+			if (block_flip_func != nullptr)
+			{
+				const auto w = (texture->width + 3) / 4, h = (texture->height + 3) / 4, stride = w * block_size;
+
+				for (unsigned int y = 0; y < h; ++y)
+				{
+					const auto line = data + stride * (h - 1 - y);
+
+					for (unsigned int x = 0; x < stride; x += block_size)
+					{
+						block_flip_func(line + x);
+					}
+				}
+			}
+			else
+			{
+				const auto w = texture->width, h = texture->height, stride = w * block_size;
+				const auto temp = static_cast<unsigned char *>(alloca(stride));
+
+				for (unsigned int y = 0; 2 * y < h; ++y)
+				{
+					const auto line1 = data + stride * y;
+					const auto line2 = data + stride * (h - 1 - y);
+
+					std::memcpy(temp, line1, stride);
+					std::memcpy(line1, line2, stride);
+					std::memcpy(line2, temp, stride);
+				}
+			}
+		}
+
 		unsigned int get_renderer_id()
 		{
 			GLint major = 0, minor = 0;
@@ -24,192 +199,6 @@ namespace reshade
 			GLCHECK(glGetIntegerv(GL_MAJOR_VERSION, &minor));
 
 			return 0x10000 | (major << 12) | (minor << 8);
-		}
-	}
-
-	GLenum target_to_binding(GLenum target)
-	{
-		switch (target)
-		{
-			case GL_FRAMEBUFFER:
-				return GL_FRAMEBUFFER_BINDING;
-			case GL_READ_FRAMEBUFFER:
-				return GL_READ_FRAMEBUFFER_BINDING;
-			case GL_DRAW_FRAMEBUFFER:
-				return GL_DRAW_FRAMEBUFFER_BINDING;
-			case GL_RENDERBUFFER:
-				return GL_RENDERBUFFER_BINDING;
-			case GL_TEXTURE_2D:
-				return GL_TEXTURE_BINDING_2D;
-			case GL_TEXTURE_2D_ARRAY:
-				return GL_TEXTURE_BINDING_2D_ARRAY;
-			case GL_TEXTURE_2D_MULTISAMPLE:
-				return GL_TEXTURE_BINDING_2D_MULTISAMPLE;
-			case GL_TEXTURE_2D_MULTISAMPLE_ARRAY:
-				return GL_TEXTURE_BINDING_2D_MULTISAMPLE_ARRAY;
-			case GL_TEXTURE_3D:
-				return GL_TEXTURE_BINDING_3D;
-			case GL_TEXTURE_CUBE_MAP:
-			case GL_TEXTURE_CUBE_MAP_NEGATIVE_X:
-			case GL_TEXTURE_CUBE_MAP_NEGATIVE_Y:
-			case GL_TEXTURE_CUBE_MAP_NEGATIVE_Z:
-			case GL_TEXTURE_CUBE_MAP_POSITIVE_X:
-			case GL_TEXTURE_CUBE_MAP_POSITIVE_Y:
-			case GL_TEXTURE_CUBE_MAP_POSITIVE_Z:
-				return GL_TEXTURE_BINDING_CUBE_MAP;
-			case GL_TEXTURE_CUBE_MAP_ARRAY:
-				return GL_TEXTURE_BINDING_CUBE_MAP_ARRAY;
-			default:
-				return GL_NONE;
-		}
-	}
-	inline void flip_bc1_block(unsigned char *block)
-	{
-		// BC1 Block:
-		//  [0-1]  color 0
-		//  [2-3]  color 1
-		//  [4-7]  color indices
-
-		std::swap(block[4], block[7]);
-		std::swap(block[5], block[6]);
-	}
-	inline void flip_bc2_block(unsigned char *block)
-	{
-		// BC2 Block:
-		//  [0-7]  alpha indices
-		//  [8-15] color block
-
-		std::swap(block[0], block[6]);
-		std::swap(block[1], block[7]);
-		std::swap(block[2], block[4]);
-		std::swap(block[3], block[5]);
-
-		flip_bc1_block(block + 8);
-	}
-	inline void flip_bc4_block(unsigned char *block)
-	{
-		// BC4 Block:
-		//  [0]    red 0
-		//  [1]    red 1
-		//  [2-7]  red indices
-
-		const unsigned int line_0_1 = block[2] + 256 * (block[3] + 256 * block[4]);
-		const unsigned int line_2_3 = block[5] + 256 * (block[6] + 256 * block[7]);
-		const unsigned int line_1_0 = ((line_0_1 & 0x000FFF) << 12) | ((line_0_1 & 0xFFF000) >> 12);
-		const unsigned int line_3_2 = ((line_2_3 & 0x000FFF) << 12) | ((line_2_3 & 0xFFF000) >> 12);
-		block[2] = static_cast<unsigned char>((line_3_2 & 0xFF));
-		block[3] = static_cast<unsigned char>((line_3_2 & 0xFF00) >> 8);
-		block[4] = static_cast<unsigned char>((line_3_2 & 0xFF0000) >> 16);
-		block[5] = static_cast<unsigned char>((line_1_0 & 0xFF));
-		block[6] = static_cast<unsigned char>((line_1_0 & 0xFF00) >> 8);
-		block[7] = static_cast<unsigned char>((line_1_0 & 0xFF0000) >> 16);
-	}
-	inline void flip_bc3_block(unsigned char *block)
-	{
-		// BC3 Block:
-		//  [0-7]  alpha block
-		//  [8-15] color block
-
-		flip_bc4_block(block);
-		flip_bc1_block(block + 8);
-	}
-	inline void flip_bc5_block(unsigned char *block)
-	{
-		// BC5 Block:
-		//  [0-7]  red block
-		//  [8-15] green block
-
-		flip_bc4_block(block);
-		flip_bc4_block(block + 8);
-	}
-	void flip_image_data(const texture *texture, unsigned char *data)
-	{
-		typedef void (*FlipBlockFunc)(unsigned char *block);
-
-		size_t blocksize = 0;
-		bool compressed = false;
-		FlipBlockFunc compressedFunc = nullptr;
-
-		switch (texture->format)
-		{
-			case texture::pixelformat::r8:
-				blocksize = 1;
-				break;
-			case texture::pixelformat::rg8:
-				blocksize = 2;
-				break;
-			case texture::pixelformat::r32f:
-			case texture::pixelformat::rgba8:
-				blocksize = 4;
-				break;
-			case texture::pixelformat::rgba16:
-			case texture::pixelformat::rgba16f:
-				blocksize = 8;
-				break;
-			case texture::pixelformat::rgba32f:
-				blocksize = 16;
-				break;
-			case texture::pixelformat::dxt1:
-				blocksize = 8;
-				compressed = true;
-				compressedFunc = &flip_bc1_block;
-				break;
-			case texture::pixelformat::dxt3:
-				blocksize = 16;
-				compressed = true;
-				compressedFunc = &flip_bc2_block;
-				break;
-			case texture::pixelformat::dxt5:
-				blocksize = 16;
-				compressed = true;
-				compressedFunc = &flip_bc3_block;
-				break;
-			case texture::pixelformat::latc1:
-				blocksize = 8;
-				compressed = true;
-				compressedFunc = &flip_bc4_block;
-				break;
-			case texture::pixelformat::latc2:
-				blocksize = 16;
-				compressed = true;
-				compressedFunc = &flip_bc5_block;
-				break;
-			default:
-				return;
-		}
-
-		if (compressed)
-		{
-			const size_t w = (texture->width + 3) / 4;
-			const size_t h = (texture->height + 3) / 4;
-			const size_t stride = w * blocksize;
-
-			for (size_t y = 0; y < h; ++y)
-			{
-				unsigned char *dataLine = data + stride * (h - 1 - y);
-
-				for (size_t x = 0; x < stride; x += blocksize)
-				{
-					compressedFunc(dataLine + x);
-				}
-			}
-		}
-		else
-		{
-			const size_t w = texture->width;
-			const size_t h = texture->height;
-			const size_t stride = w * blocksize;
-			unsigned char *templine = static_cast<unsigned char *>(::alloca(stride));
-
-			for (size_t y = 0; 2 * y < h; ++y)
-			{
-				unsigned char *line1 = data + stride * y;
-				unsigned char *line2 = data + stride * (h - 1 - y);
-
-				std::memcpy(templine, line1, stride);
-				std::memcpy(line1, line2, stride);
-				std::memcpy(line2, templine, stride);
-			}
 		}
 	}
 
@@ -263,27 +252,16 @@ namespace reshade
 		}
 	}
 
-	bool gl_runtime::on_init(unsigned int width, unsigned int height)
+	bool gl_runtime::init_backbuffer_texture()
 	{
-		assert(width != 0 && height != 0);
-
-		_width = width;
-		_height = height;
-
-		// Clear errors
-		GLenum status = glGetError();
-
-		_stateblock.capture();
-
-		#pragma region Generate backbuffer targets
 		GLCHECK(glGenRenderbuffers(2, _default_backbuffer_rbo));
 
 		GLCHECK(glBindRenderbuffer(GL_RENDERBUFFER, _default_backbuffer_rbo[0]));
-		glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA8, width, height);
+		glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA8, _width, _height);
 		GLCHECK(glBindRenderbuffer(GL_RENDERBUFFER, _default_backbuffer_rbo[1]));
-		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, width, height);
+		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, _width, _height);
 
-		status = glGetError();
+		GLenum status = glGetError();
 
 		GLCHECK(glBindRenderbuffer(GL_RENDERBUFFER, 0));
 
@@ -319,9 +297,9 @@ namespace reshade
 		GLCHECK(glGenTextures(2, _backbuffer_texture));
 
 		GLCHECK(glBindTexture(GL_TEXTURE_2D, _backbuffer_texture[0]));
-		glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA8, width, height);
+		glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA8, _width, _height);
 		glTextureView(_backbuffer_texture[1], GL_TEXTURE_2D, _backbuffer_texture[0], GL_SRGB8_ALPHA8, 0, 1, 0, 1);
-		
+
 		status = glGetError();
 
 		GLCHECK(glBindTexture(GL_TEXTURE_2D, 0));
@@ -336,21 +314,28 @@ namespace reshade
 
 			return false;
 		}
-		#pragma endregion
 
-		#pragma region Generate depthbuffer targets
-		const depth_source_info defaultdepth = { static_cast<GLint>(width), static_cast<GLint>(height), 0, GL_DEPTH24_STENCIL8 };
+		return true;
+	}
+	bool gl_runtime::init_default_depth_stencil()
+	{
+		const depth_source_info defaultdepth = {
+			static_cast<GLint>(_width),
+			static_cast<GLint>(_height),
+			0,
+			GL_DEPTH24_STENCIL8
+		};
 
 		_depth_source_table[0] = defaultdepth;
 
-		LOG(TRACE) << "Switched depth source to default depthstencil.";
+		LOG(TRACE) << "Switched depth source to default depth texture.";
 
 		GLCHECK(glGenTextures(1, &_depth_texture));
 
 		GLCHECK(glBindTexture(GL_TEXTURE_2D, _depth_texture));
 		glTexStorage2D(GL_TEXTURE_2D, 1, defaultdepth.format, defaultdepth.width, defaultdepth.height);
 
-		status = glGetError();
+		GLenum status = glGetError();
 
 		GLCHECK(glBindTexture(GL_TEXTURE_2D, 0));
 
@@ -365,15 +350,18 @@ namespace reshade
 
 			return false;
 		}
-		#pragma endregion
 
+		return true;
+	}
+	bool gl_runtime::init_fx_resources()
+	{
 		GLCHECK(glGenFramebuffers(1, &_blit_fbo));
 
 		GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, _blit_fbo));
 		GLCHECK(glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, _depth_texture, 0));
 		GLCHECK(glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, _backbuffer_texture[1], 0));
 
-		status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+		GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
 
 		GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, 0));
 
@@ -392,7 +380,114 @@ namespace reshade
 
 		GLCHECK(glGenVertexArrays(1, &_default_vao));
 
-		_gui.reset(new gui(this, nvgCreateGL3(0)));
+		return true;
+	}
+	bool gl_runtime::init_imgui_resources()
+	{
+		const GLchar *vertex_shader[] = {
+			"#version 330\n"
+			"uniform mat4 ProjMtx;\n"
+			"in vec2 Position, UV;\n"
+			"in vec4 Color;\n"
+			"out vec2 Frag_UV;\n"
+			"out vec4 Frag_Color;\n"
+			"void main()\n"
+			"{\n"
+			"	Frag_UV = UV;\n"
+			"	Frag_Color = Color;\n"
+			"	gl_Position = ProjMtx * vec4(Position.xy, 0, 1);\n"
+			"}\n"
+		};
+		const GLchar *fragment_shader[] = {
+			"#version 330\n"
+			"uniform sampler2D Texture;\n"
+			"in vec2 Frag_UV;\n"
+			"in vec4 Frag_Color;\n"
+			"out vec4 Out_Color;\n"
+			"void main()\n"
+			"{\n"
+			"	Out_Color = Frag_Color * texture(Texture, Frag_UV.st);\n"
+			"}\n"
+		};
+
+		_imgui_shader_program = glCreateProgram();
+		const auto imgui_vs = glCreateShader(GL_VERTEX_SHADER);
+		const auto imgui_fs = glCreateShader(GL_FRAGMENT_SHADER);
+		glShaderSource(imgui_vs, 1, vertex_shader, 0);
+		glShaderSource(imgui_fs, 1, fragment_shader, 0);
+		glCompileShader(imgui_vs);
+		glCompileShader(imgui_fs);
+		glAttachShader(_imgui_shader_program, imgui_vs);
+		glAttachShader(_imgui_shader_program, imgui_fs);
+		glLinkProgram(_imgui_shader_program);
+		glDeleteShader(imgui_vs);
+		glDeleteShader(imgui_fs);
+
+		_imgui_attribloc_tex = glGetUniformLocation(_imgui_shader_program, "Texture");
+		_imgui_attribloc_projmtx = glGetUniformLocation(_imgui_shader_program, "ProjMtx");
+		_imgui_attribloc_pos = glGetAttribLocation(_imgui_shader_program, "Position");
+		_imgui_attribloc_uv = glGetAttribLocation(_imgui_shader_program, "UV");
+		_imgui_attribloc_color = glGetAttribLocation(_imgui_shader_program, "Color");
+
+		glGenBuffers(2, _imgui_vbo);
+
+		glGenVertexArrays(1, &_imgui_vao);
+		glBindVertexArray(_imgui_vao);
+		glBindBuffer(GL_ARRAY_BUFFER, _imgui_vbo[0]);
+		glEnableVertexAttribArray(_imgui_attribloc_pos);
+		glEnableVertexAttribArray(_imgui_attribloc_uv);
+		glEnableVertexAttribArray(_imgui_attribloc_color);
+		glVertexAttribPointer(_imgui_attribloc_pos, 2, GL_FLOAT, GL_FALSE, sizeof(ImDrawVert), reinterpret_cast<GLvoid *>(offsetof(ImDrawVert, pos)));
+		glVertexAttribPointer(_imgui_attribloc_uv, 2, GL_FLOAT, GL_FALSE, sizeof(ImDrawVert), reinterpret_cast<GLvoid *>(offsetof(ImDrawVert, uv)));
+		glVertexAttribPointer(_imgui_attribloc_color, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(ImDrawVert), reinterpret_cast<GLvoid *>(offsetof(ImDrawVert, col)));
+
+		return true;
+	}
+	bool gl_runtime::init_imgui_font_atlas()
+	{
+		int width, height;
+		unsigned char *pixels;
+
+		ImGui::GetIO().Fonts->GetTexDataAsRGBA32(&pixels, &width, &height);
+
+		GLuint font_atlas_id = 0;
+
+		glGenTextures(1, &font_atlas_id);
+		glBindTexture(GL_TEXTURE_2D, font_atlas_id);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+
+		const auto obj = new gl_texture();
+		obj->basetype = texture::datatype::image;
+		obj->width = width;
+		obj->height = height;
+		obj->levels = 1;
+		obj->format = texture::pixelformat::rgba8;
+		obj->id[0] = font_atlas_id;
+
+		_imgui_font_atlas.reset(obj);
+
+		return true;
+	}
+
+	bool gl_runtime::on_init(unsigned int width, unsigned int height)
+	{
+		_width = width;
+		_height = height;
+
+		_stateblock.capture();
+
+		if (!init_backbuffer_texture() ||
+			!init_default_depth_stencil() ||
+			!init_fx_resources() ||
+			!init_imgui_resources() ||
+			!init_imgui_font_atlas())
+		{
+			_stateblock.apply();
+
+			return false;
+		}
 
 		_stateblock.apply();
 
@@ -407,10 +502,6 @@ namespace reshade
 
 		runtime::on_reset();
 
-		// Destroy NanoVG
-		nvgDeleteGL3(_gui->context());
-		_gui.reset();
-
 		// Destroy resources
 		GLCHECK(glDeleteBuffers(1, &_effect_ubo));
 		GLCHECK(glDeleteVertexArrays(1, &_default_vao));
@@ -420,6 +511,9 @@ namespace reshade
 		GLCHECK(glDeleteRenderbuffers(2, _default_backbuffer_rbo));
 		GLCHECK(glDeleteTextures(2, _backbuffer_texture));
 		GLCHECK(glDeleteTextures(1, &_depth_texture));
+		GLCHECK(glDeleteVertexArrays(1, &_imgui_vao));
+		GLCHECK(glDeleteBuffers(2, _imgui_vbo));
+		GLCHECK(glDeleteProgram(_imgui_shader_program));
 
 		_effect_ubo = 0;
 		_default_vao = 0;
@@ -431,6 +525,9 @@ namespace reshade
 		_backbuffer_texture[0] = 0;
 		_backbuffer_texture[1] = 0;
 		_depth_texture = 0;
+		_imgui_shader_program = 0;
+		_imgui_vao = _imgui_vbo[0] = _imgui_vbo[1] = 0;
+		_imgui_font_atlas = 0;
 
 		_depth_source = 0;
 	}
@@ -838,6 +935,58 @@ namespace reshade
 
 		texture_impl->id[0] = newtexture;
 		texture_impl->id[1] = newtexture_srgb;
+	}
+
+	void gl_runtime::render_draw_lists(ImDrawData *draw_data)
+	{
+		// Setup render state: alpha-blending enabled, no face culling, no depth testing, scissor enabled
+		glEnable(GL_BLEND);
+		glBlendEquation(GL_FUNC_ADD);
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		glDisable(GL_CULL_FACE);
+		glDisable(GL_DEPTH_TEST);
+		glEnable(GL_SCISSOR_TEST);
+		glActiveTexture(GL_TEXTURE0);
+		glUseProgram(_imgui_shader_program);
+		glBindVertexArray(_imgui_vao);
+
+		const float ortho_projection[16] = {
+			2.0f / _width, 0.0f, 0.0f, 0.0f,
+			0.0f, -2.0f / _height, 0.0f, 0.0f,
+			0.0f, 0.0f, -1.0f, 0.0f,
+			-1.0f, 1.0f, 0.0f, 1.0f
+		};
+
+		glUniform1i(_imgui_attribloc_tex, 0);
+		glUniformMatrix4fv(_imgui_attribloc_projmtx, 1, GL_FALSE, ortho_projection);
+
+		// Render command lists
+		for (int n = 0; n < draw_data->CmdListsCount; n++)
+		{
+			const auto cmd_list = draw_data->CmdLists[n];
+			const ImDrawIdx *idx_buffer_offset = 0;
+
+			glBindBuffer(GL_ARRAY_BUFFER, _imgui_vbo[0]);
+			glBufferData(GL_ARRAY_BUFFER, cmd_list->VtxBuffer.size() * sizeof(ImDrawVert), &cmd_list->VtxBuffer.front(), GL_STREAM_DRAW);
+
+			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _imgui_vbo[1]);
+			glBufferData(GL_ELEMENT_ARRAY_BUFFER, cmd_list->IdxBuffer.size() * sizeof(ImDrawIdx), &cmd_list->IdxBuffer.front(), GL_STREAM_DRAW);
+
+			for (auto cmd = cmd_list->CmdBuffer.begin(); cmd != cmd_list->CmdBuffer.end(); idx_buffer_offset += cmd->ElemCount, cmd++)
+			{
+				if (cmd->UserCallback != nullptr)
+				{
+					cmd->UserCallback(cmd_list, cmd);
+				}
+				else
+				{
+					glBindTexture(GL_TEXTURE_2D, static_cast<const gl_texture *>(cmd->TextureId)->id[0]);
+					glScissor(static_cast<GLint>(cmd->ClipRect.x), static_cast<GLint>(_height - cmd->ClipRect.w), static_cast<GLint>(cmd->ClipRect.z - cmd->ClipRect.x), static_cast<GLint>(cmd->ClipRect.w - cmd->ClipRect.y));
+
+					glDrawElements(GL_TRIANGLES, cmd->ElemCount, sizeof(ImDrawIdx) == 2 ? GL_UNSIGNED_SHORT : GL_UNSIGNED_INT, idx_buffer_offset);
+				}
+			}
+		}
 	}
 
 	void gl_runtime::detect_depth_source()

@@ -1,9 +1,9 @@
 #pragma once
 
+#include <gl\gl3w.h>
+
 #include "runtime.hpp"
 #include "gl_stateblock.hpp"
-
-#include <gl\gl3w.h>
 
 namespace reshade
 {
@@ -86,14 +86,27 @@ namespace reshade
 			GLfloat drawcall_count, vertices_count;
 		};
 
+		bool init_backbuffer_texture();
+		bool init_default_depth_stencil();
+		bool init_fx_resources();
+		bool init_imgui_resources();
+		bool init_imgui_font_atlas();
+
 		void screenshot(unsigned char *buffer) const override;
 		bool update_effect(const fx::nodetree &ast, const std::vector<std::string> &pragmas, std::string &errors) override;
 		bool update_texture(texture *texture, const unsigned char *data, size_t size) override;
+
+		void render_draw_lists(ImDrawData *data) override;
 
 		void detect_depth_source();
 		void create_depth_texture(GLuint width, GLuint height, GLenum format);
 
 		utils::gl_stateblock _stateblock;
 		std::unordered_map<GLuint, depth_source_info> _depth_source_table;
+
+		GLuint _imgui_shader_program = 0, _imgui_VertHandle = 0, _imgui_FragHandle = 0;
+		int _imgui_attribloc_tex = 0, _imgui_attribloc_projmtx = 0;
+		int _imgui_attribloc_pos = 0, _imgui_attribloc_uv = 0, _imgui_attribloc_color = 0;
+		GLuint _imgui_vbo[2] = { 0, 0 }, _imgui_vao = 0;
 	};
 }

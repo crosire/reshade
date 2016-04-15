@@ -20,12 +20,15 @@ namespace reshade
 		void on_apply_effect() override;
 		void on_apply_effect_technique(const technique &technique) override;
 
+		ID3D12Device *_device;
+		ID3D12CommandQueue *_commandqueue;
+		IDXGISwapChain3 *_swapchain;
+
+	private:
 		void screenshot(unsigned char *buffer) const override;
 		bool update_effect(const fx::nodetree &ast, const std::vector<std::string> &pragmas, std::string &errors) override;
 		bool update_texture(texture *texture, const unsigned char *data, size_t size) override;
 
-		ID3D12Device *_device;
-		ID3D12CommandQueue *_commandqueue;
-		IDXGISwapChain3 *_swapchain;
+		void render_draw_lists(ImDrawData *data) override;
 	};
 }

@@ -1,19 +1,16 @@
 #include "log.hpp"
 #include "d3d9_runtime.hpp"
 #include "d3d9_fx_compiler.hpp"
-#include "gui.hpp"
 #include "input.hpp"
+#include <imgui.h>
 
-#include <assert.h>
-#include <nanovg_d3d9.h>
-
-const D3DFORMAT D3DFMT_INTZ = static_cast<D3DFORMAT>(MAKEFOURCC('I', 'N', 'T', 'Z'));
-const D3DFORMAT D3DFMT_DF16 = static_cast<D3DFORMAT>(MAKEFOURCC('D', 'F', '1', '6'));
-const D3DFORMAT D3DFMT_DF24 = static_cast<D3DFORMAT>(MAKEFOURCC('D', 'F', '2', '4'));
+const auto D3DFMT_INTZ = static_cast<D3DFORMAT>(MAKEFOURCC('I', 'N', 'T', 'Z'));
+const auto D3DFMT_DF16 = static_cast<D3DFORMAT>(MAKEFOURCC('D', 'F', '1', '6'));
+const auto D3DFMT_DF24 = static_cast<D3DFORMAT>(MAKEFOURCC('D', 'F', '2', '4'));
 
 namespace reshade
 {
-	d3d9_runtime::d3d9_runtime(IDirect3DDevice9 *device, IDirect3DSwapChain9 *swapchain) : runtime(0x9300), _device(device), _swapchain(swapchain), _is_multisampling_enabled(false), _backbuffer_format(D3DFMT_UNKNOWN), _constant_register_count(0)
+	d3d9_runtime::d3d9_runtime(IDirect3DDevice9 *device, IDirect3DSwapChain9 *swapchain) : runtime(0x9300), _device(device), _swapchain(swapchain)
 	{
 		assert(device != nullptr);
 		assert(swapchain != nullptr);
@@ -36,22 +33,16 @@ namespace reshade
 		_num_simultaneous_rendertargets = std::min(caps.NumSimultaneousRTs, 8ul);
 	}
 
-	bool d3d9_runtime::on_init(const D3DPRESENT_PARAMETERS &pp)
+	bool d3d9_runtime::init_backbuffer_texture()
 	{
-		_width = pp.BackBufferWidth;
-		_height = pp.BackBufferHeight;
-		_backbuffer_format = pp.BackBufferFormat;
-		_is_multisampling_enabled = pp.MultiSampleType != D3DMULTISAMPLE_NONE;
-		_input = input::register_window(pp.hDeviceWindow);
-
 		// Get back buffer surface
 		HRESULT hr = _swapchain->GetBackBuffer(0, D3DBACKBUFFER_TYPE_MONO, &_backbuffer);
 
 		assert(SUCCEEDED(hr));
 
-		if (pp.MultiSampleType != D3DMULTISAMPLE_NONE || (pp.BackBufferFormat == D3DFMT_X8R8G8B8 || pp.BackBufferFormat == D3DFMT_X8B8G8R8))
+		if (_is_multisampling_enabled || (_backbuffer_format == D3DFMT_X8R8G8B8 || _backbuffer_format == D3DFMT_X8B8G8R8))
 		{
-			switch (pp.BackBufferFormat)
+			switch (_backbuffer_format)
 			{
 				case D3DFMT_X8R8G8B8:
 					_backbuffer_format = D3DFMT_A8R8G8B8;
@@ -89,8 +80,12 @@ namespace reshade
 			return false;
 		}
 
+		return true;
+	}
+	bool d3d9_runtime::init_default_depth_stencil()
+	{
 		// Create default depth-stencil surface
-		hr = _device->CreateDepthStencilSurface(_width, _height, D3DFMT_D24S8, D3DMULTISAMPLE_NONE, 0, FALSE, &_default_depthstencil, nullptr);
+		HRESULT hr = _device->CreateDepthStencilSurface(_width, _height, D3DFMT_D24S8, D3DMULTISAMPLE_NONE, 0, FALSE, &_default_depthstencil, nullptr);
 
 		if (FAILED(hr))
 		{
@@ -99,17 +94,11 @@ namespace reshade
 			return false;
 		}
 
-		// Create effect state block and objects
-		hr = _device->CreateStateBlock(D3DSBT_ALL, &_stateblock);
-
-		if (FAILED(hr))
-		{
-			LOG(TRACE) << "Failed to create state block! HRESULT is '" << std::hex << hr << std::dec << "'.";
-
-			return false;
-		}
-
-		hr = _device->CreateVertexBuffer(3 * sizeof(float), D3DUSAGE_WRITEONLY, 0, D3DPOOL_DEFAULT, &_effect_triangle_buffer, nullptr);
+		return true;
+	}
+	bool d3d9_runtime::init_fx_resources()
+	{
+		HRESULT hr = _device->CreateVertexBuffer(3 * sizeof(float), D3DUSAGE_WRITEONLY, 0, D3DPOOL_DEFAULT, &_effect_triangle_buffer, nullptr);
 
 		if (SUCCEEDED(hr))
 		{
@@ -148,7 +137,68 @@ namespace reshade
 			return false;
 		}
 
-		_gui.reset(new gui(this, nvgCreateD3D9(_device.get(), 0)));
+		return true;
+	}
+	bool d3d9_runtime::init_imgui_font_atlas()
+	{
+		int width, height, bits_per_pixel;
+		unsigned char *pixels;
+
+		ImGui::GetIO().Fonts->GetTexDataAsRGBA32(&pixels, &width, &height, &bits_per_pixel);
+
+		com_ptr<IDirect3DTexture9> font_atlas;
+
+		HRESULT hr = _device->CreateTexture(width, height, 1, D3DUSAGE_DYNAMIC, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &font_atlas, nullptr);
+
+		D3DLOCKED_RECT font_atlas_rect;
+
+		if (FAILED(hr) || FAILED(font_atlas->LockRect(0, &font_atlas_rect, nullptr, 0)))
+		{
+			LOG(TRACE) << "Failed to create font atlas texture! HRESULT is '" << std::hex << hr << std::dec << "'.";
+
+			return false;
+		}
+
+		for (int y = 0; y < height; y++)
+		{
+			CopyMemory(static_cast<BYTE *>(font_atlas_rect.pBits) + font_atlas_rect.Pitch * y, pixels + (width * bits_per_pixel) * y, width * bits_per_pixel);
+		}
+
+		font_atlas->UnlockRect(0);
+
+		const auto obj = new d3d9_texture();
+		obj->basetype = texture::datatype::image;
+		obj->width = width;
+		obj->height = height;
+		obj->levels = 1;
+		obj->format = texture::pixelformat::rgba8;
+		obj->texture = font_atlas;
+
+		_imgui_font_atlas.reset(obj);
+
+		return true;
+	}
+
+	bool d3d9_runtime::on_init(const D3DPRESENT_PARAMETERS &pp)
+	{
+		_width = pp.BackBufferWidth;
+		_height = pp.BackBufferHeight;
+		_backbuffer_format = pp.BackBufferFormat;
+		_is_multisampling_enabled = pp.MultiSampleType != D3DMULTISAMPLE_NONE;
+		_input = input::register_window(pp.hDeviceWindow);
+
+		if (FAILED(_device->CreateStateBlock(D3DSBT_ALL, &_stateblock)))
+		{
+			return false;
+		}
+
+		if (!init_backbuffer_texture() ||
+			!init_default_depth_stencil() ||
+			!init_fx_resources() ||
+			!init_imgui_font_atlas())
+		{
+			return false;
+		}
 
 		return runtime::on_init();
 	}
@@ -160,10 +210,6 @@ namespace reshade
 		}
 
 		runtime::on_reset();
-
-		// Destroy NanoVG
-		nvgDeleteD3D9(_gui->context());
-		_gui.reset();
 
 		// Destroy resources
 		_stateblock.reset();
@@ -181,6 +227,11 @@ namespace reshade
 
 		_effect_triangle_buffer.reset();
 		_effect_triangle_layout.reset();
+
+		_imgui_vertex_buffer.reset();
+		_imgui_index_buffer.reset();
+		_imgui_vertex_buffer_size = 0;
+		_imgui_index_buffer_size = 0;
 
 		// Clear depth source table
 		for (auto &it : _depth_source_table)
@@ -646,6 +697,146 @@ namespace reshade
 		{
 			texture_impl->width = texture_impl->height = texture_impl->levels = 0;
 			texture_impl->format = texture::pixelformat::unknown;
+		}
+	}
+
+	void d3d9_runtime::render_draw_lists(ImDrawData *draw_data)
+	{
+		// Fixed-function vertex layout
+		struct vertex
+		{
+			float x, y, z;
+			D3DCOLOR col;
+			float u, v;
+		};
+
+		// Create and grow buffers if needed
+		if (_imgui_vertex_buffer == nullptr || _imgui_vertex_buffer_size < draw_data->TotalVtxCount)
+		{
+			_imgui_vertex_buffer.reset();
+			_imgui_vertex_buffer_size = draw_data->TotalVtxCount + 5000;
+
+			if (FAILED(_device->CreateVertexBuffer(_imgui_vertex_buffer_size * sizeof(vertex), D3DUSAGE_DYNAMIC | D3DUSAGE_WRITEONLY, D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1, D3DPOOL_DEFAULT, &_imgui_vertex_buffer, nullptr)))
+			{
+				return;
+			}
+		}
+		if (_imgui_index_buffer == nullptr || _imgui_index_buffer_size < draw_data->TotalIdxCount)
+		{
+			_imgui_index_buffer.reset();
+			_imgui_index_buffer_size = draw_data->TotalIdxCount + 10000;
+
+			if (FAILED(_device->CreateIndexBuffer(_imgui_index_buffer_size * sizeof(ImDrawIdx), D3DUSAGE_DYNAMIC | D3DUSAGE_WRITEONLY, sizeof(ImDrawIdx) == 2 ? D3DFMT_INDEX16 : D3DFMT_INDEX32, D3DPOOL_DEFAULT, &_imgui_index_buffer, nullptr)))
+			{
+				return;
+			}
+		}
+
+		vertex *vtx_dst;
+		ImDrawIdx *idx_dst;
+
+		if (FAILED(_imgui_vertex_buffer->Lock(0, draw_data->TotalVtxCount * sizeof(vertex), reinterpret_cast<void **>(&vtx_dst), D3DLOCK_DISCARD)) ||
+			FAILED(_imgui_index_buffer->Lock(0, draw_data->TotalIdxCount * sizeof(ImDrawIdx), reinterpret_cast<void **>(&idx_dst), D3DLOCK_DISCARD)))
+		{
+			return;
+		}
+
+		for (int n = 0; n < draw_data->CmdListsCount; n++)
+		{
+			const auto cmd_list = draw_data->CmdLists[n];
+
+			for (auto vtx_src = cmd_list->VtxBuffer.begin(); vtx_src != cmd_list->VtxBuffer.end(); vtx_src++, vtx_dst++)
+			{
+				vtx_dst->x = vtx_src->pos.x;
+				vtx_dst->y = vtx_src->pos.y;
+				vtx_dst->z = 0.0f;
+
+				// RGBA --> ARGB for Direct3D 9
+				vtx_dst->col = (vtx_src->col & 0xFF00FF00) | ((vtx_src->col & 0xFF0000) >> 16) | ((vtx_src->col & 0xFF) << 16);
+
+				vtx_dst->u = vtx_src->uv.x;
+				vtx_dst->v = vtx_src->uv.y;
+			}
+
+			CopyMemory(idx_dst, &cmd_list->IdxBuffer.front(), cmd_list->IdxBuffer.size() * sizeof(ImDrawIdx));
+
+			idx_dst += cmd_list->IdxBuffer.size();
+		}
+
+		_imgui_vertex_buffer->Unlock();
+		_imgui_index_buffer->Unlock();
+
+		// Setup render state: fixed-pipeline, alpha-blending, no face culling, no depth testing
+		_device->SetStreamSource(0, _imgui_vertex_buffer.get(), 0, sizeof(vertex));
+		_device->SetIndices(_imgui_index_buffer.get());
+		_device->SetFVF(D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1);
+		_device->SetPixelShader(nullptr);
+		_device->SetVertexShader(nullptr);
+		_device->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
+		_device->SetRenderState(D3DRS_LIGHTING, false);
+		_device->SetRenderState(D3DRS_ZENABLE, false);
+		_device->SetRenderState(D3DRS_ALPHABLENDENABLE, true);
+		_device->SetRenderState(D3DRS_ALPHATESTENABLE, false);
+		_device->SetRenderState(D3DRS_BLENDOP, D3DBLENDOP_ADD);
+		_device->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
+		_device->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
+		_device->SetRenderState(D3DRS_SCISSORTESTENABLE, true);
+		_device->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATE);
+		_device->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
+		_device->SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
+		_device->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_MODULATE);
+		_device->SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
+		_device->SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
+		_device->SetSamplerState(0, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
+		_device->SetSamplerState(0, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
+
+		const D3DMATRIX identity_mat = {
+			1.0f, 0.0f, 0.0f, 0.0f,
+			0.0f, 1.0f, 0.0f, 0.0f,
+			0.0f, 0.0f, 1.0f, 0.0f,
+			0.0f, 0.0f, 0.0f, 1.0f
+		};
+		const D3DMATRIX ortho_projection = {
+			2.0f / _width, 0.0f, 0.0f, 0.0f,
+			0.0f, -2.0f / _height, 0.0f, 0.0f,
+			0.0f, 0.0f, 0.5f, 0.0f,
+			-(_width + 1.0f) / _width, (_height + 1.0f) / _height, 0.5f, 1.0f
+		};
+
+		_device->SetTransform(D3DTS_WORLD, &identity_mat);
+		_device->SetTransform(D3DTS_VIEW, &identity_mat);
+		_device->SetTransform(D3DTS_PROJECTION, &ortho_projection);
+
+		// Render command lists
+		UINT vtx_offset = 0, idx_offset = 0;
+
+		for (int n = 0; n < draw_data->CmdListsCount; n++)
+		{
+			const auto cmd_list = draw_data->CmdLists[n];
+
+			for (auto cmd = cmd_list->CmdBuffer.begin(); cmd != cmd_list->CmdBuffer.end(); idx_offset += cmd->ElemCount, cmd++)
+			{
+				if (cmd->UserCallback != nullptr)
+				{
+					cmd->UserCallback(cmd_list, cmd);
+				}
+				else
+				{
+					const RECT scissor_rect = {
+						static_cast<LONG>(cmd->ClipRect.x),
+						static_cast<LONG>(cmd->ClipRect.y),
+						static_cast<LONG>(cmd->ClipRect.z),
+						static_cast<LONG>(cmd->ClipRect.w)
+					};
+
+					_device->SetTexture(0, static_cast<const d3d9_texture *>(cmd->TextureId)->texture.get());
+					_device->SetScissorRect(&scissor_rect);
+
+					_device->DrawIndexedPrimitive(D3DPT_TRIANGLELIST, vtx_offset, 0, cmd_list->VtxBuffer.size(), idx_offset, cmd->ElemCount / 3);
+				}
+			}
+
+			vtx_offset += cmd_list->VtxBuffer.size();
 		}
 	}
 
