@@ -75,9 +75,6 @@
     <ClCompile Include="source\runtime.cpp">
       <Filter>core\runtime</Filter>
     </ClCompile>
-    <ClCompile Include="source\gui.cpp">
-      <Filter>core\runtime</Filter>
-    </ClCompile>
     <ClCompile Include="source\input.cpp">
       <Filter>core\runtime</Filter>
     </ClCompile>
@@ -183,9 +180,6 @@
       <Filter>core\runtime</Filter>
     </ClInclude>
     <ClInclude Include="source\input.hpp">
-      <Filter>core\runtime</Filter>
-    </ClInclude>
-    <ClInclude Include="source\gui.hpp">
       <Filter>core\runtime</Filter>
     </ClInclude>
     <ClInclude Include="source\com_ptr.hpp">
