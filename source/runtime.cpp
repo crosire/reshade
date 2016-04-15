@@ -46,8 +46,6 @@ namespace reshade
 		std::string s_executable_name;
 	}
 
-	std::atomic<unsigned int> runtime::s_network_traffic(0);
-
 	void runtime::startup(const boost::filesystem::path &executable_path, const boost::filesystem::path &injector_path)
 	{
 		s_injector_path = injector_path;
@@ -292,7 +290,7 @@ namespace reshade
 		}
 
 		#pragma region Update statistics
-		s_network_traffic = 0;
+		g_network_traffic = 0;
 		_last_present = time_present;
 		_last_frame_duration = frametime;
 		_framecount++;
@@ -641,7 +639,7 @@ namespace reshade
 				ImGui::Text("Frame %llu: %fs", (_framecount + 1), dt);
 				ImGui::Text("PostProcessing: %fms", (boost::chrono::duration_cast<boost::chrono::nanoseconds>(_last_postprocessing_duration).count() * 1e-6f));
 				ImGui::Text("Timer: %fms", std::fmod(boost::chrono::duration_cast<boost::chrono::nanoseconds>(_last_present - _start_time).count() * 1e-6f, 16777216.0f));
-				ImGui::Text("Network: %uB", s_network_traffic.load());
+				ImGui::Text("Network: %uB", g_network_traffic);
 			}
 			if (ImGui::CollapsingHeader("Textures", nullptr, true, true))
 			{

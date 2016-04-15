@@ -1,7 +1,9 @@
-#include "runtime.hpp"
 #include "hook_manager.hpp"
 
+#include <Windows.h>
 #include <Winsock2.h>
+
+volatile long g_network_traffic = 0;
 
 EXPORT int WSAAPI HookWSASend(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPDWORD lpNumberOfBytesSent, DWORD dwFlags, LPWSAOVERLAPPED lpOverlapped, LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine)
 {
@@ -9,7 +11,7 @@ EXPORT int WSAAPI HookWSASend(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount,
 
 	for (DWORD i = 0; i < dwBufferCount; ++i)
 	{
-		reshade::runtime::s_network_traffic += lpBuffers[i].len;
+		InterlockedAdd(&g_network_traffic, lpBuffers[i].len);
 	}
 
 	return trampoline(s, lpBuffers, dwBufferCount, lpNumberOfBytesSent, dwFlags, lpOverlapped, lpCompletionRoutine);
@@ -20,7 +22,7 @@ EXPORT int WSAAPI HookWSASendTo(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCoun
 
 	for (DWORD i = 0; i < dwBufferCount; ++i)
 	{
-		reshade::runtime::s_network_traffic += lpBuffers[i].len;
+		InterlockedAdd(&g_network_traffic, lpBuffers[i].len);
 	}
 
 	return trampoline(s, lpBuffers, dwBufferCount, lpNumberOfBytesSent, dwFlags, lpTo, iToLen, lpOverlapped, lpCompletionRoutine);
@@ -29,21 +31,11 @@ EXPORT int WSAAPI HookWSARecv(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount,
 {
 	static const auto trampoline = reshade::hooks::call(&HookWSARecv);
 
-	DWORD recieved = 0;
+	const auto status = trampoline(s, lpBuffers, dwBufferCount, lpNumberOfBytesRecvd, lpFlags, lpOverlapped, lpCompletionRoutine);
 
-	const auto status = trampoline(s, lpBuffers, dwBufferCount, &recieved, lpFlags, lpOverlapped, lpCompletionRoutine);
-
-	if (lpNumberOfBytesRecvd != nullptr)
+	if (status == 0 && lpNumberOfBytesRecvd != nullptr)
 	{
-		*lpNumberOfBytesRecvd = recieved;
-	}
-
-	if (status == 0)
-	{
-		for (DWORD i = 0; i < dwBufferCount; recieved -= lpBuffers[i++].len)
-		{
-			reshade::runtime::s_network_traffic += std::min(recieved, lpBuffers[i].len);
-		}
+		InterlockedAdd(&g_network_traffic, *lpNumberOfBytesRecvd);
 	}
 
 	return status;
@@ -56,7 +48,7 @@ EXPORT int WSAAPI HookWSARecvEx(SOCKET s, char *buf, int len, int *flags)
 
 	if (recieved > 0)
 	{
-		reshade::runtime::s_network_traffic += recieved;
+		InterlockedAdd(&g_network_traffic, recieved);
 	}
 
 	return recieved;
@@ -65,21 +57,11 @@ EXPORT int WSAAPI HookWSARecvFrom(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCo
 {
 	static const auto trampoline = reshade::hooks::call(&HookWSARecvFrom);
 
-	DWORD recieved = 0;
+	const auto status = trampoline(s, lpBuffers, dwBufferCount, lpNumberOfBytesRecvd, lpFlags, lpFrom, lpFromlen, lpOverlapped, lpCompletionRoutine);
 
-	const auto status = trampoline(s, lpBuffers, dwBufferCount, &recieved, lpFlags, lpFrom, lpFromlen, lpOverlapped, lpCompletionRoutine);
-
-	if (lpNumberOfBytesRecvd != nullptr)
+	if (status == 0 && lpNumberOfBytesRecvd != nullptr)
 	{
-		*lpNumberOfBytesRecvd = recieved;
-	}
-
-	if (status == 0)
-	{
-		for (DWORD i = 0; i < dwBufferCount; recieved -= lpBuffers[i++].len)
-		{
-			reshade::runtime::s_network_traffic += std::min(recieved, lpBuffers[i].len);
-		}
+		InterlockedAdd(&g_network_traffic, *lpNumberOfBytesRecvd);
 	}
 
 	return status;

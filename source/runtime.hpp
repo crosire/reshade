@@ -24,6 +24,8 @@ namespace reshade
 		class nodetree;
 	}
 }
+
+extern volatile long g_network_traffic;
 #pragma endregion
 
 namespace reshade
@@ -125,8 +127,6 @@ namespace reshade
 		void set_uniform_value(uniform &variable, const int *values, size_t count);
 		void set_uniform_value(uniform &variable, const unsigned int *values, size_t count);
 		void set_uniform_value(uniform &variable, const float *values, size_t count);
-
-		static std::atomic<unsigned int> s_network_traffic;
 
 	protected:
 		/// <summary>

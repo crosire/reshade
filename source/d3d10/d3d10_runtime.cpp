@@ -1119,7 +1119,7 @@ namespace reshade
 
 		if (cooldown-- > 0)
 		{
-			traffic += s_network_traffic > 0;
+			traffic += g_network_traffic > 0;
 			return;
 		}
 		else
