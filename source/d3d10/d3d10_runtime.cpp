@@ -437,11 +437,10 @@ namespace reshade
 		}
 
 		const auto obj = new d3d10_texture();
-		obj->basetype = texture::datatype::image;
 		obj->width = width;
 		obj->height = height;
 		obj->levels = 1;
-		obj->format = texture::pixelformat::rgba8;
+		obj->format = texture_format::rgba8;
 		obj->texture = font_atlas;
 		obj->srv[0] = font_atlas_view;
 
@@ -915,7 +914,7 @@ namespace reshade
 		assert(texture_impl != nullptr);
 		assert(data != nullptr && size != 0);
 
-		if (texture->basetype != texture::datatype::image)
+		if (texture->type != texture_type::image)
 		{
 			return false;
 		}
@@ -931,12 +930,12 @@ namespace reshade
 
 		return true;
 	}
-	void d3d10_runtime::update_texture_datatype(texture *texture, texture::datatype source, const com_ptr<ID3D10ShaderResourceView> &srv, const com_ptr<ID3D10ShaderResourceView> &srv_srgb)
+	void d3d10_runtime::update_texture_datatype(texture *texture, texture_type source, const com_ptr<ID3D10ShaderResourceView> &srv, const com_ptr<ID3D10ShaderResourceView> &srv_srgb)
 	{
 		const auto texture_impl = dynamic_cast<d3d10_texture *>(texture);
 		const auto srv_srgb_ptr = srv_srgb == nullptr ? srv.get() : srv_srgb.get();
 
-		texture->basetype = source;
+		texture->type = source;
 
 		if (srv == texture_impl->srv[0] && srv_srgb_ptr == texture_impl->srv[1])
 		{
@@ -961,13 +960,13 @@ namespace reshade
 
 			texture->width = desc.Width;
 			texture->height = desc.Height;
-			texture->format = texture::pixelformat::unknown;
+			texture->format = texture_format::unknown;
 			texture->levels = desc.MipLevels;
 		}
 		else
 		{
 			texture->width = texture->height = texture->levels = 0;
-			texture->format = texture::pixelformat::unknown;
+			texture->format = texture_format::unknown;
 		}
 
 		// Update techniques shader resource views
@@ -1325,9 +1324,9 @@ namespace reshade
 		// Update effect textures
 		for (const auto &texture : _textures)
 		{
-			if (texture->basetype == texture::datatype::depthbuffer)
+			if (texture->type == texture_type::depthbuffer)
 			{
-				update_texture_datatype(texture.get(), texture::datatype::depthbuffer, _depthstencil_texture_srv, nullptr);
+				update_texture_datatype(texture.get(), texture_type::depthbuffer, _depthstencil_texture_srv, nullptr);
 			}
 		}
 

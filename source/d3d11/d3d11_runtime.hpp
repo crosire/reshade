@@ -3,6 +3,7 @@
 #include <d3d11_3.h>
 
 #include "runtime.hpp"
+#include "runtime_objects.hpp"
 #include "com_ptr.hpp"
 #include "critical_section.hpp"
 #include "d3d11_stateblock.hpp"
@@ -48,7 +49,7 @@ namespace reshade
 		void on_clear_depthstencil_view(ID3D11DepthStencilView *&depthstencil);
 		void on_copy_resource(ID3D11Resource *&dest, ID3D11Resource *&source);
 
-		void update_texture_datatype(texture *texture, texture::datatype source, const com_ptr<ID3D11ShaderResourceView> &srv, const com_ptr<ID3D11ShaderResourceView> &srvSRGB);
+		void update_texture_datatype(texture *texture, texture_type source, const com_ptr<ID3D11ShaderResourceView> &srv, const com_ptr<ID3D11ShaderResourceView> &srvSRGB);
 
 		com_ptr<ID3D11Device> _device;
 		com_ptr<ID3D11DeviceContext> _immediate_context;

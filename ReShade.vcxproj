@@ -229,6 +229,7 @@ tools\upx --backup "$(TargetPath)"</Command>
     <ClCompile Include="source\constant_folding.cpp" />
     <ClCompile Include="source\parser.cpp" />
     <ClCompile Include="source\preprocessor.cpp" />
+    <ClCompile Include="source\runtime_objects.cpp" />
     <ClCompile Include="source\symbol_table.cpp" />
     <ClCompile Include="source\hook.cpp" />
     <ClCompile Include="source\hook_manager.cpp" />
@@ -262,6 +263,7 @@ tools\upx --backup "$(TargetPath)"</Command>
   <ItemGroup>
     <ClInclude Include="res\version.h" />
     <ClInclude Include="source\constant_folding.hpp" />
+    <ClInclude Include="source\runtime_objects.hpp" />
     <ClInclude Include="source\syntax_tree.hpp" />
     <ClInclude Include="source\location.hpp" />
     <ClInclude Include="source\log.hpp" />

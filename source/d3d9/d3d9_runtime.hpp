@@ -3,6 +3,7 @@
 #include <d3d9.h>
 
 #include "runtime.hpp"
+#include "runtime_objects.hpp"
 #include "com_ptr.hpp"
 
 namespace reshade
@@ -43,7 +44,7 @@ namespace reshade
 		void on_set_depthstencil_surface(IDirect3DSurface9 *&depthstencil);
 		void on_get_depthstencil_surface(IDirect3DSurface9 *&depthstencil);
 
-		static void update_texture_datatype(texture *texture, texture::datatype source, const com_ptr<IDirect3DTexture9> &newtexture);
+		static void update_texture_datatype(texture *texture, texture_type source, const com_ptr<IDirect3DTexture9> &newtexture);
 
 		com_ptr<IDirect3D9> _d3d;
 		com_ptr<IDirect3DDevice9> _device;

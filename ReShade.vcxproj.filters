@@ -144,6 +144,9 @@
     <ClCompile Include="source\constant_folding.cpp">
       <Filter>core\fx</Filter>
     </ClCompile>
+    <ClCompile Include="source\runtime_objects.cpp">
+      <Filter>core\runtime</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="source\log.hpp">
@@ -256,6 +259,9 @@
     </ClInclude>
     <ClInclude Include="source\location.hpp">
       <Filter>core\fx</Filter>
+    </ClInclude>
+    <ClInclude Include="source\runtime_objects.hpp">
+      <Filter>core\runtime</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

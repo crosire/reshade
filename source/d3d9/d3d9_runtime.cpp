@@ -168,11 +168,10 @@ namespace reshade
 		font_atlas->UnlockRect(0);
 
 		const auto obj = new d3d9_texture();
-		obj->basetype = texture::datatype::image;
 		obj->width = width;
 		obj->height = height;
 		obj->levels = 1;
-		obj->format = texture::pixelformat::rgba8;
+		obj->format = texture_format::rgba8;
 		obj->texture = font_atlas;
 
 		_imgui_font_atlas.reset(obj);
@@ -596,7 +595,7 @@ namespace reshade
 		assert(texture_impl != nullptr);
 		assert(data != nullptr && size != 0);
 
-		if (texture_impl->basetype != texture::datatype::image)
+		if (texture_impl->type != texture_type::image)
 		{
 			return false;
 		}
@@ -631,19 +630,19 @@ namespace reshade
 
 		switch (texture->format)
 		{
-			case texture::pixelformat::r8:
+			case texture_format::r8:
 				for (size_t i = 0; i < size; i += 1, mapped_data += 4)
 				{
 					mapped_data[0] = 0, mapped_data[1] = 0, mapped_data[2] = data[i], mapped_data[3] = 0;
 				}
 				break;
-			case texture::pixelformat::rg8:
+			case texture_format::rg8:
 				for (size_t i = 0; i < size; i += 2, mapped_data += 4)
 				{
 					mapped_data[0] = 0, mapped_data[1] = data[i + 1], mapped_data[2] = data[i], mapped_data[3] = 0;
 				}
 				break;
-			case texture::pixelformat::rgba8:
+			case texture_format::rgba8:
 				for (size_t i = 0; i < size; i += 4, mapped_data += 4)
 				{
 					mapped_data[0] = data[i + 2], mapped_data[1] = data[i + 1], mapped_data[2] = data[i], mapped_data[3] = data[i + 3];
@@ -667,11 +666,11 @@ namespace reshade
 
 		return true;
 	}
-	void d3d9_runtime::update_texture_datatype(texture *texture, texture::datatype source, const com_ptr<IDirect3DTexture9> &newtexture)
+	void d3d9_runtime::update_texture_datatype(texture *texture, texture_type source, const com_ptr<IDirect3DTexture9> &newtexture)
 	{
 		const auto texture_impl = static_cast<d3d9_texture *>(texture);
 
-		texture_impl->basetype = source;
+		texture_impl->type = source;
 
 		if (texture_impl->texture == newtexture)
 		{
@@ -691,13 +690,13 @@ namespace reshade
 
 			texture_impl->width = desc.Width;
 			texture_impl->height = desc.Height;
-			texture_impl->format = texture::pixelformat::unknown;
+			texture_impl->format = texture_format::unknown;
 			texture_impl->levels = newtexture->GetLevelCount();
 		}
 		else
 		{
 			texture_impl->width = texture_impl->height = texture_impl->levels = 0;
-			texture_impl->format = texture::pixelformat::unknown;
+			texture_impl->format = texture_format::unknown;
 		}
 	}
 
@@ -989,9 +988,9 @@ namespace reshade
 		// Update effect textures
 		for (const auto &texture : _textures)
 		{
-			if (texture->basetype == texture::datatype::depthbuffer)
+			if (texture->type == texture_type::depthbuffer)
 			{
-				update_texture_datatype(texture.get(), texture::datatype::depthbuffer, _depthstencil_texture);
+				update_texture_datatype(texture.get(), texture_type::depthbuffer, _depthstencil_texture);
 			}
 		}
 

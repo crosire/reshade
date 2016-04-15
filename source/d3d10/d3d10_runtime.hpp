@@ -3,6 +3,7 @@
 #include <d3d10_1.h>
 
 #include "runtime.hpp"
+#include "runtime_objects.hpp"
 #include "com_ptr.hpp"
 #include "d3d10_stateblock.hpp"
 
@@ -47,7 +48,7 @@ namespace reshade
 		void on_clear_depthstencil_view(ID3D10DepthStencilView *&depthstencil);
 		void on_copy_resource(ID3D10Resource *&dest, ID3D10Resource *&source);
 
-		void update_texture_datatype(texture *texture, texture::datatype source, const com_ptr<ID3D10ShaderResourceView> &srv, const com_ptr<ID3D10ShaderResourceView> &srvSRGB);
+		void update_texture_datatype(texture *texture, texture_type source, const com_ptr<ID3D10ShaderResourceView> &srv, const com_ptr<ID3D10ShaderResourceView> &srvSRGB);
 
 		com_ptr<ID3D10Device> _device;
 		com_ptr<IDXGISwapChain> _swapchain;

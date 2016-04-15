@@ -1,15 +1,13 @@
 #pragma once
 
-#include "moving_average.hpp"
-#include "critical_section.hpp"
-
 #include <atomic>
 #include <memory>
 #include <string>
 #include <vector>
-#include <unordered_map>
 #include <boost/chrono.hpp>
 #include <boost/filesystem/path.hpp>
+#include "moving_average.hpp"
+#include "critical_section.hpp"
 
 #pragma region Forward Declarations
 struct ImDrawData;
@@ -17,6 +15,9 @@ struct ImDrawData;
 namespace reshade
 {
 	class input;
+	struct texture;
+	struct uniform;
+	struct technique;
 
 	namespace fx
 	{
@@ -27,178 +28,6 @@ namespace reshade
 
 namespace reshade
 {
-	struct annotation
-	{
-		annotation()
-		{
-		}
-		annotation(bool value)
-		{
-			_value[0] = value ? "1" : "0";
-		}
-		annotation(const bool values[4])
-		{
-			_value[0] = values[0] ? "1" : "0";
-			_value[1] = values[1] ? "1" : "0";
-			_value[2] = values[2] ? "1" : "0";
-			_value[3] = values[3] ? "1" : "0";
-		}
-		annotation(int value)
-		{
-			_value[0] = std::to_string(value);
-		}
-		annotation(const int values[4])
-		{
-			_value[0] = std::to_string(values[0]);
-			_value[1] = std::to_string(values[1]);
-			_value[2] = std::to_string(values[2]);
-			_value[3] = std::to_string(values[3]);
-		}
-		annotation(unsigned int value)
-		{
-			_value[0] = std::to_string(value);
-		}
-		annotation(const unsigned int values[4])
-		{
-			_value[0] = std::to_string(values[0]);
-			_value[1] = std::to_string(values[1]);
-			_value[2] = std::to_string(values[2]);
-			_value[3] = std::to_string(values[3]);
-		}
-		annotation(float value)
-		{
-			_value[0] = std::to_string(value);
-		}
-		annotation(const float values[4])
-		{
-			_value[0] = std::to_string(values[0]);
-			_value[1] = std::to_string(values[1]);
-			_value[2] = std::to_string(values[2]);
-			_value[3] = std::to_string(values[3]);
-		}
-		annotation(const std::string &value)
-		{
-			_value[0] = value;
-		}
-
-		template <typename T>
-		const T as(size_t index = 0) const;
-		template <>
-		inline const bool as(size_t i) const
-		{
-			return as<int>(i) != 0 || (_value[i] == "true" || _value[i] == "True" || _value[i] == "TRUE");
-		}
-		template <>
-		inline const int as(size_t i) const
-		{
-			return static_cast<int>(std::strtol(_value[i].c_str(), nullptr, 10));
-		}
-		template <>
-		inline const unsigned int as(size_t i) const
-		{
-			return static_cast<unsigned int>(std::strtoul(_value[i].c_str(), nullptr, 10));
-		}
-		template <>
-		inline const float as(size_t i) const
-		{
-			return static_cast<float>(std::strtod(_value[i].c_str(), nullptr));
-		}
-		template <>
-		inline const double as(size_t i) const
-		{
-			return std::strtod(_value[i].c_str(), nullptr);
-		}
-		template <>
-		inline const std::string as(size_t i) const
-		{
-			return _value[i];
-		}
-
-	private:
-		std::string _value[4];
-	};
-	struct texture abstract
-	{
-		enum class datatype
-		{
-			image,
-			backbuffer,
-			depthbuffer
-		};
-		enum class pixelformat
-		{
-			unknown,
-
-			r8,
-			r16f,
-			r32f,
-			rg8,
-			rg16,
-			rg16f,
-			rg32f,
-			rgba8,
-			rgba16,
-			rgba16f,
-			rgba32f,
-
-			dxt1,
-			dxt3,
-			dxt5,
-			latc1,
-			latc2
-		};
-
-		texture() : basetype(datatype::image), width(0), height(0), levels(0), format(pixelformat::unknown), storage_size(0) { }
-		virtual ~texture() { }
-
-		std::string name;
-		datatype basetype;
-		unsigned int width, height, levels;
-		pixelformat format;
-		size_t storage_size;
-		std::unordered_map<std::string, annotation> annotations;
-	};
-	struct uniform
-	{
-		enum class datatype
-		{
-			bool_,
-			int_,
-			uint_,
-			float_
-		};
-
-		uniform() : basetype(datatype::float_), rows(0), columns(0), elements(0), storage_offset(0), storage_size(0) { }
-		virtual ~uniform() { }
-
-		std::string name;
-		datatype basetype;
-		unsigned int rows, columns, elements;
-		size_t storage_offset, storage_size;
-		std::unordered_map<std::string, annotation> annotations;
-	};
-	struct technique
-	{
-		struct pass
-		{
-			virtual ~pass() { }
-		};
-
-		technique() : enabled(false), timeout(0), timeleft(0), toggle_key(0), toggle_time(0), toggle_key_ctrl(false), toggle_key_shift(false), toggle_key_alt(false) { }
-		virtual ~technique() { }
-
-		std::string name;
-		std::vector<std::unique_ptr<pass>> passes;
-		std::unordered_map<std::string, annotation> annotations;
-		bool enabled;
-		int timeout, timeleft;
-		int toggle_key, toggle_time;
-		bool toggle_key_ctrl, toggle_key_shift, toggle_key_alt;
-		utils::moving_average<uint64_t, 512> average_duration;
-	};
-
-	// ---------------------------------------------------------------------------------------------------
-
 	class runtime abstract
 	{
 	public:
@@ -239,17 +68,17 @@ namespace reshade
 		/// Add a new texture. This transfers ownership of the pointer to this class.
 		/// </summary>
 		/// <param name="texture">The texture to add.</param>
-		void add_texture(texture *texture) { _textures.emplace_back(texture); }
+		void add_texture(texture *texture);
 		/// <summary>
 		/// Add a new uniform. This transfers ownership of the pointer to this class.
 		/// </summary>
 		/// <param name="uniform">The uniform to add.</param>
-		void add_uniform(uniform *uniform) { _uniforms.emplace_back(uniform); }
+		void add_uniform(uniform *uniform);
 		/// <summary>
 		/// Add a new technique. This transfers ownership of the pointer to this class.
 		/// </summary>
 		/// <param name="technique">The technique to add.</param>
-		void add_technique(technique *technique) { _techniques.emplace_back(technique); }
+		void add_technique(technique *technique);
 		/// <summary>
 		/// Find the texture with the specified name.
 		/// </summary>

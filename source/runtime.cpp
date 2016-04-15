@@ -1,6 +1,7 @@
 #include "log.hpp"
 #include "version.h"
 #include "runtime.hpp"
+#include "runtime_objects.hpp"
 #include "hook_manager.hpp"
 #include "parser.hpp"
 #include "preprocessor.hpp"
@@ -331,20 +332,20 @@ namespace reshade
 			{
 				switch (variable->basetype)
 				{
-					case uniform::datatype::bool_:
+					case uniform_datatype::bool_:
 					{
 						const bool even = (_framecount % 2) == 0;
 						set_uniform_value(*variable, &even, 1);
 						break;
 					}
-					case uniform::datatype::int_:
-					case uniform::datatype::uint_:
+					case uniform_datatype::int_:
+					case uniform_datatype::uint_:
 					{
 						const unsigned int framecount = static_cast<unsigned int>(_framecount % UINT_MAX);
 						set_uniform_value(*variable, &framecount, 1);
 						break;
 					}
-					case uniform::datatype::float_:
+					case uniform_datatype::float_:
 					{
 						const float framecount = static_cast<float>(_framecount % 16777216);
 						set_uniform_value(*variable, &framecount, 1);
@@ -397,20 +398,20 @@ namespace reshade
 
 				switch (variable->basetype)
 				{
-					case uniform::datatype::bool_:
+					case uniform_datatype::bool_:
 					{
 						const bool even = (timer % 2) == 0;
 						set_uniform_value(*variable, &even, 1);
 						break;
 					}
-					case uniform::datatype::int_:
-					case uniform::datatype::uint_:
+					case uniform_datatype::int_:
+					case uniform_datatype::uint_:
 					{
 						const unsigned int timerInt = static_cast<unsigned int>(timer % UINT_MAX);
 						set_uniform_value(*variable, &timerInt, 1);
 						break;
 					}
-					case uniform::datatype::float_:
+					case uniform_datatype::float_:
 					{
 						const float timerFloat = std::fmod(static_cast<float>(timer * 1e-6f), 16777216.0f);
 						set_uniform_value(*variable, &timerFloat, 1);
@@ -538,229 +539,6 @@ namespace reshade
 			if (variable->annotations["source"].as<std::string>() == "timeleft")
 			{
 				set_uniform_value(*variable, &technique.timeleft, 1);
-			}
-		}
-	}
-
-	texture *runtime::find_texture(const std::string &name)
-	{
-		const auto it = std::find_if(_textures.begin(), _textures.end(),
-			[name](const std::unique_ptr<texture> &item)
-			{
-				return item->name == name;
-			});
-
-		return it != _textures.end() ? it->get() : nullptr;
-	}
-
-	void runtime::get_uniform_value(const uniform &variable, unsigned char *data, size_t size) const
-	{
-		assert(data != nullptr);
-		assert(_is_effect_compiled);
-
-		size = std::min(size, variable.storage_size);
-
-		assert(variable.storage_offset + size < _uniform_data_storage.size());
-
-		std::memcpy(data, &_uniform_data_storage[variable.storage_offset], size);
-	}
-	void runtime::get_uniform_value(const uniform &variable, bool *values, size_t count) const
-	{
-		static_assert(sizeof(int) == 4 && sizeof(float) == 4, "expected int and float size to equal 4");
-
-		count = std::min(count, variable.storage_size / 4);
-
-		assert(values != nullptr);
-
-		const auto data = static_cast<unsigned char *>(alloca(variable.storage_size));
-		get_uniform_value(variable, data, variable.storage_size);
-
-		for (size_t i = 0; i < count; i++)
-		{
-			values[i] = reinterpret_cast<const unsigned int *>(data)[i] != 0;
-		}
-	}
-	void runtime::get_uniform_value(const uniform &variable, int *values, size_t count) const
-	{
-		switch (variable.basetype)
-		{
-			case uniform::datatype::bool_:
-			case uniform::datatype::int_:
-			case uniform::datatype::uint_:
-			{
-				get_uniform_value(variable, reinterpret_cast<unsigned char *>(values), count * sizeof(int));
-				break;
-			}
-			case uniform::datatype::float_:
-			{
-				count = std::min(count, variable.storage_size / sizeof(float));
-
-				assert(values != nullptr);
-
-				const auto data = static_cast<unsigned char *>(alloca(variable.storage_size));
-				get_uniform_value(variable, data, variable.storage_size);
-
-				for (size_t i = 0; i < count; i++)
-				{
-					values[i] = static_cast<int>(reinterpret_cast<const float *>(data)[i]);
-				}
-				break;
-			}
-		}
-	}
-	void runtime::get_uniform_value(const uniform &variable, unsigned int *values, size_t count) const
-	{
-		get_uniform_value(variable, reinterpret_cast<int *>(values), count);
-	}
-	void runtime::get_uniform_value(const uniform &variable, float *values, size_t count) const
-	{
-		switch (variable.basetype)
-		{
-			case uniform::datatype::bool_:
-			case uniform::datatype::int_:
-			case uniform::datatype::uint_:
-			{
-				count = std::min(count, variable.storage_size / sizeof(int));
-
-				assert(values != nullptr);
-
-				const auto data = static_cast<unsigned char *>(alloca(variable.storage_size));
-				get_uniform_value(variable, data, variable.storage_size);
-
-				for (size_t i = 0; i < count; ++i)
-				{
-					if (variable.basetype != uniform::datatype::uint_)
-					{
-						values[i] = static_cast<float>(reinterpret_cast<const int *>(data)[i]);
-					}
-					else
-					{
-						values[i] = static_cast<float>(reinterpret_cast<const unsigned int *>(data)[i]);
-					}
-				}
-				break;
-			}
-			case uniform::datatype::float_:
-			{
-				get_uniform_value(variable, reinterpret_cast<unsigned char *>(values), count * sizeof(float));
-				break;
-			}
-		}
-	}
-	void runtime::set_uniform_value(uniform &variable, const unsigned char *data, size_t size)
-	{
-		assert(data != nullptr);
-		assert(_is_effect_compiled);
-
-		size = std::min(size, variable.storage_size);
-
-		assert(variable.storage_offset + size < _uniform_data_storage.size());
-
-		std::memcpy(&_uniform_data_storage[variable.storage_offset], data, size);
-	}
-	void runtime::set_uniform_value(uniform &variable, const bool *values, size_t count)
-	{
-		static_assert(sizeof(int) == 4 && sizeof(float) == 4, "expected int and float size to equal 4");
-
-		const auto data = static_cast<unsigned char *>(alloca(count * 4));
-
-		switch (variable.basetype)
-		{
-			case uniform::datatype::bool_:
-				for (size_t i = 0; i < count; ++i)
-				{
-					reinterpret_cast<int *>(data)[i] = values[i] ? -1 : 0;
-				}
-				break;
-			case uniform::datatype::int_:
-			case uniform::datatype::uint_:
-				for (size_t i = 0; i < count; ++i)
-				{
-					reinterpret_cast<int *>(data)[i] = values[i] ? 1 : 0;
-				}
-				break;
-			case uniform::datatype::float_:
-				for (size_t i = 0; i < count; ++i)
-				{
-					reinterpret_cast<float *>(data)[i] = values[i] ? 1.0f : 0.0f;
-				}
-				break;
-		}
-
-		set_uniform_value(variable, data, count * 4);
-	}
-	void runtime::set_uniform_value(uniform &variable, const int *values, size_t count)
-	{
-		switch (variable.basetype)
-		{
-			case uniform::datatype::bool_:
-			case uniform::datatype::int_:
-			case uniform::datatype::uint_:
-			{
-				set_uniform_value(variable, reinterpret_cast<const unsigned char *>(values), count * sizeof(int));
-				break;
-			}
-			case uniform::datatype::float_:
-			{
-				const auto data = static_cast<float *>(alloca(count * sizeof(float)));
-
-				for (size_t i = 0; i < count; ++i)
-				{
-					data[i] = static_cast<float>(values[i]);
-				}
-
-				set_uniform_value(variable, reinterpret_cast<const unsigned char *>(data), count * sizeof(float));
-				break;
-			}
-		}
-	}
-	void runtime::set_uniform_value(uniform &variable, const unsigned int *values, size_t count)
-	{
-		switch (variable.basetype)
-		{
-			case uniform::datatype::bool_:
-			case uniform::datatype::int_:
-			case uniform::datatype::uint_:
-			{
-				set_uniform_value(variable, reinterpret_cast<const unsigned char *>(values), count * sizeof(int));
-				break;
-			}
-			case uniform::datatype::float_:
-			{
-				const auto data = static_cast<float *>(alloca(count * sizeof(float)));
-
-				for (size_t i = 0; i < count; ++i)
-				{
-					data[i] = static_cast<float>(values[i]);
-				}
-
-				set_uniform_value(variable, reinterpret_cast<const unsigned char *>(data), count * sizeof(float));
-				break;
-			}
-		}
-	}
-	void runtime::set_uniform_value(uniform &variable, const float *values, size_t count)
-	{
-		switch (variable.basetype)
-		{
-			case uniform::datatype::bool_:
-			case uniform::datatype::int_:
-			case uniform::datatype::uint_:
-			{
-				const auto data = static_cast<int *>(alloca(count * sizeof(int)));
-
-				for (size_t i = 0; i < count; ++i)
-				{
-					data[i] = static_cast<int>(values[i]);
-				}
-
-				set_uniform_value(variable, reinterpret_cast<const unsigned char *>(data), count * sizeof(int));
-				break;
-			}
-			case uniform::datatype::float_:
-			{
-				set_uniform_value(variable, reinterpret_cast<const unsigned char *>(values), count * sizeof(float));
-				break;
 			}
 		}
 	}
@@ -1120,17 +898,17 @@ namespace reshade
 
 				switch (texture->format)
 				{
-					case texture::pixelformat::r8:
+					case texture_format::r8:
 						channels = STBI_r;
 						break;
-					case texture::pixelformat::rg8:
+					case texture_format::rg8:
 						channels = STBI_rg;
 						break;
-					case texture::pixelformat::dxt1:
+					case texture_format::dxt1:
 						channels = STBI_rgb;
 						break;
-					case texture::pixelformat::rgba8:
-					case texture::pixelformat::dxt5:
+					case texture_format::rgba8:
+					case texture_format::dxt5:
 						channels = STBI_rgba;
 						break;
 					default:
@@ -1159,11 +937,11 @@ namespace reshade
 
 					switch (texture->format)
 					{
-						case texture::pixelformat::dxt1:
+						case texture_format::dxt1:
 							stb_compress_dxt_block(data.get(), data.get(), FALSE, STB_DXT_NORMAL);
 							data_size = ((texture->width + 3) >> 2) * ((texture->height + 3) >> 2) * 8;
 							break;
-						case texture::pixelformat::dxt5:
+						case texture_format::dxt5:
 							stb_compress_dxt_block(data.get(), data.get(), TRUE, STB_DXT_NORMAL);
 							data_size = ((texture->width + 3) >> 2) * ((texture->height + 3) >> 2) * 16;
 							break;

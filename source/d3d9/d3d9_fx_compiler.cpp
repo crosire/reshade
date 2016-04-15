@@ -32,60 +32,60 @@ namespace reshade
 
 			return static_cast<D3DSTENCILOP>(value);
 		}
-		D3DFORMAT literal_to_format(unsigned int value, texture::pixelformat &name)
+		D3DFORMAT literal_to_format(unsigned int value, texture_format &name)
 		{
 			switch (value)
 			{
 				case fx::nodes::variable_declaration_node::properties::R8:
-					name = texture::pixelformat::r8;
+					name = texture_format::r8;
 					return D3DFMT_A8R8G8B8;
 				case fx::nodes::variable_declaration_node::properties::R16F:
-					name = texture::pixelformat::r16f;
+					name = texture_format::r16f;
 					return D3DFMT_R16F;
 				case fx::nodes::variable_declaration_node::properties::R32F:
-					name = texture::pixelformat::r32f;
+					name = texture_format::r32f;
 					return D3DFMT_R32F;
 				case fx::nodes::variable_declaration_node::properties::RG8:
-					name = texture::pixelformat::rg8;
+					name = texture_format::rg8;
 					return D3DFMT_A8R8G8B8;
 				case fx::nodes::variable_declaration_node::properties::RG16:
-					name = texture::pixelformat::rg16;
+					name = texture_format::rg16;
 					return D3DFMT_G16R16;
 				case fx::nodes::variable_declaration_node::properties::RG16F:
-					name = texture::pixelformat::rg16f;
+					name = texture_format::rg16f;
 					return D3DFMT_G16R16F;
 				case fx::nodes::variable_declaration_node::properties::RG32F:
-					name = texture::pixelformat::rg32f;
+					name = texture_format::rg32f;
 					return D3DFMT_G32R32F;
 				case fx::nodes::variable_declaration_node::properties::RGBA8:
-					name = texture::pixelformat::rgba8;
+					name = texture_format::rgba8;
 					return D3DFMT_A8R8G8B8;
 				case fx::nodes::variable_declaration_node::properties::RGBA16:
-					name = texture::pixelformat::rgba16;
+					name = texture_format::rgba16;
 					return D3DFMT_A16B16G16R16;
 				case fx::nodes::variable_declaration_node::properties::RGBA16F:
-					name = texture::pixelformat::rgba16f;
+					name = texture_format::rgba16f;
 					return D3DFMT_A16B16G16R16F;
 				case fx::nodes::variable_declaration_node::properties::RGBA32F:
-					name = texture::pixelformat::rgba32f;
+					name = texture_format::rgba32f;
 					return D3DFMT_A32B32G32R32F;
 				case fx::nodes::variable_declaration_node::properties::DXT1:
-					name = texture::pixelformat::dxt1;
+					name = texture_format::dxt1;
 					return D3DFMT_DXT1;
 				case fx::nodes::variable_declaration_node::properties::DXT3:
-					name = texture::pixelformat::dxt3;
+					name = texture_format::dxt3;
 					return D3DFMT_DXT3;
 				case fx::nodes::variable_declaration_node::properties::DXT5:
-					name = texture::pixelformat::dxt5;
+					name = texture_format::dxt5;
 					return D3DFMT_DXT5;
 				case fx::nodes::variable_declaration_node::properties::LATC1:
-					name = texture::pixelformat::latc1;
+					name = texture_format::latc1;
 					return static_cast<D3DFORMAT>(MAKEFOURCC('A', 'T', 'I', '1'));
 				case fx::nodes::variable_declaration_node::properties::LATC2:
-					name = texture::pixelformat::latc2;
+					name = texture_format::latc2;
 					return static_cast<D3DFORMAT>(MAKEFOURCC('A', 'T', 'I', '2'));
 				default:
-					name = texture::pixelformat::unknown;
+					name = texture_format::unknown;
 					return D3DFMT_UNKNOWN;
 			}
 		}
@@ -1455,7 +1455,7 @@ namespace reshade
 				warning(node->location, "texture properties on backbuffer textures are ignored");
 			}
 
-			_runtime->update_texture_datatype(obj, texture::datatype::backbuffer, _runtime->_backbuffer_texture);
+			_runtime->update_texture_datatype(obj, texture_type::backbuffer, _runtime->_backbuffer_texture);
 		}
 		else if (node->semantic == "DEPTH" || node->semantic == "SV_DEPTH")
 		{
@@ -1464,7 +1464,7 @@ namespace reshade
 				warning(node->location, "texture properties on depthbuffer textures are ignored");
 			}
 
-			_runtime->update_texture_datatype(obj, texture::datatype::depthbuffer, _runtime->_depthstencil_texture);
+			_runtime->update_texture_datatype(obj, texture_type::depthbuffer, _runtime->_depthstencil_texture);
 		}
 		else
 		{
@@ -1575,19 +1575,19 @@ namespace reshade
 		switch (node->type.basetype)
 		{
 			case fx::nodes::type_node::datatype_bool:
-				obj->basetype = uniform::datatype::bool_;
+				obj->basetype = uniform_datatype::bool_;
 				obj->storage_size *= sizeof(int);
 				break;
 			case fx::nodes::type_node::datatype_int:
-				obj->basetype = uniform::datatype::int_;
+				obj->basetype = uniform_datatype::int_;
 				obj->storage_size *= sizeof(int);
 				break;
 			case fx::nodes::type_node::datatype_uint:
-				obj->basetype = uniform::datatype::uint_;
+				obj->basetype = uniform_datatype::uint_;
 				obj->storage_size *= sizeof(unsigned int);
 				break;
 			case fx::nodes::type_node::datatype_float:
-				obj->basetype = uniform::datatype::float_;
+				obj->basetype = uniform_datatype::float_;
 				obj->storage_size *= sizeof(float);
 				break;
 		}

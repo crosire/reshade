@@ -3,6 +3,7 @@
 #include <gl\gl3w.h>
 
 #include "runtime.hpp"
+#include "runtime_objects.hpp"
 #include "gl_stateblock.hpp"
 
 namespace reshade
@@ -14,7 +15,7 @@ namespace reshade
 		}
 		~gl_texture()
 		{
-			if (basetype == datatype::image)
+			if (type == texture_type::image)
 			{
 				glDeleteTextures(2, id);
 			}
@@ -69,7 +70,7 @@ namespace reshade
 		void on_apply_effect_technique(const technique &technique) override;
 		void on_fbo_attachment(GLenum target, GLenum attachment, GLenum objecttarget, GLuint object, GLint level);
 
-		static void update_texture_datatype(texture *texture, texture::datatype source, GLuint newtexture, GLuint newtexture_srgb);
+		static void update_texture_datatype(texture *texture, texture_type source, GLuint newtexture, GLuint newtexture_srgb);
 
 		HDC _hdc;
 

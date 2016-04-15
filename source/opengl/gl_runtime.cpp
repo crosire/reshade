@@ -120,40 +120,40 @@ namespace reshade
 
 			switch (texture->format)
 			{
-				case texture::pixelformat::r8:
+				case texture_format::r8:
 					block_size = 1;
 					break;
-				case texture::pixelformat::rg8:
+				case texture_format::rg8:
 					block_size = 2;
 					break;
-				case texture::pixelformat::r32f:
-				case texture::pixelformat::rgba8:
+				case texture_format::r32f:
+				case texture_format::rgba8:
 					block_size = 4;
 					break;
-				case texture::pixelformat::rgba16:
-				case texture::pixelformat::rgba16f:
+				case texture_format::rgba16:
+				case texture_format::rgba16f:
 					block_size = 8;
 					break;
-				case texture::pixelformat::rgba32f:
+				case texture_format::rgba32f:
 					block_size = 16;
 					break;
-				case texture::pixelformat::dxt1:
+				case texture_format::dxt1:
 					block_size = 8;
 					block_flip_func = &flip_bc1_block;
 					break;
-				case texture::pixelformat::dxt3:
+				case texture_format::dxt3:
 					block_size = 16;
 					block_flip_func = &flip_bc2_block;
 					break;
-				case texture::pixelformat::dxt5:
+				case texture_format::dxt5:
 					block_size = 16;
 					block_flip_func = &flip_bc3_block;
 					break;
-				case texture::pixelformat::latc1:
+				case texture_format::latc1:
 					block_size = 8;
 					block_flip_func = &flip_bc4_block;
 					break;
-				case texture::pixelformat::latc2:
+				case texture_format::latc2:
 					block_size = 16;
 					block_flip_func = &flip_bc5_block;
 					break;
@@ -459,11 +459,10 @@ namespace reshade
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
 
 		const auto obj = new gl_texture();
-		obj->basetype = texture::datatype::image;
 		obj->width = width;
 		obj->height = height;
 		obj->levels = 1;
-		obj->format = texture::pixelformat::rgba8;
+		obj->format = texture_format::rgba8;
 		obj->id[0] = font_atlas_id;
 
 		_imgui_font_atlas.reset(obj);
@@ -827,7 +826,7 @@ namespace reshade
 		assert(texture_impl != nullptr);
 		assert(data != nullptr && size > 0);
 
-		if (texture_impl->basetype != texture::datatype::image)
+		if (texture_impl->type != texture_type::image)
 		{
 			return false;
 		}
@@ -850,7 +849,7 @@ namespace reshade
 		// Bind and update texture
 		GLCHECK(glBindTexture(GL_TEXTURE_2D, texture_impl->id[0]));
 
-		if (texture->format >= texture::pixelformat::dxt1 && texture->format <= texture::pixelformat::latc2)
+		if (texture->format >= texture_format::dxt1 && texture->format <= texture_format::latc2)
 		{
 			GLCHECK(glCompressedTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, texture->width, texture->height, GL_UNSIGNED_BYTE, static_cast<GLsizei>(size), dataFlipped.get()));
 		}
@@ -861,39 +860,39 @@ namespace reshade
 
 			switch (texture->format)
 			{
-				case texture::pixelformat::r8:
+				case texture_format::r8:
 					dataFormat = GL_RED;
 					dataAlignment = 1;
 					break;
-				case texture::pixelformat::r16f:
+				case texture_format::r16f:
 					dataType = GL_UNSIGNED_SHORT;
 					dataFormat = GL_RED;
 					dataAlignment = 2;
 					break;
-				case texture::pixelformat::r32f:
+				case texture_format::r32f:
 					dataType = GL_FLOAT;
 					dataFormat = GL_RED;
 					break;
-				case texture::pixelformat::rg8:
+				case texture_format::rg8:
 					dataFormat = GL_RG;
 					dataAlignment = 2;
 					break;
-				case texture::pixelformat::rg16:
-				case texture::pixelformat::rg16f:
+				case texture_format::rg16:
+				case texture_format::rg16f:
 					dataType = GL_UNSIGNED_SHORT;
 					dataFormat = GL_RG;
 					dataAlignment = 2;
 					break;
-				case texture::pixelformat::rg32f:
+				case texture_format::rg32f:
 					dataType = GL_FLOAT;
 					dataFormat = GL_RG;
 					break;
-				case texture::pixelformat::rgba16:
-				case texture::pixelformat::rgba16f:
+				case texture_format::rgba16:
+				case texture_format::rgba16f:
 					dataType = GL_UNSIGNED_SHORT;
 					dataAlignment = 2;
 					break;
-				case texture::pixelformat::rgba32f:
+				case texture_format::rgba32f:
 					dataType = GL_FLOAT;
 					break;
 			}
@@ -912,16 +911,16 @@ namespace reshade
 
 		return true;
 	}
-	void gl_runtime::update_texture_datatype(texture *texture, texture::datatype source, GLuint newtexture, GLuint newtexture_srgb)
+	void gl_runtime::update_texture_datatype(texture *texture, texture_type source, GLuint newtexture, GLuint newtexture_srgb)
 	{
 		const auto texture_impl = static_cast<gl_texture *>(texture);
 
-		if (texture_impl->basetype == texture::datatype::image)
+		if (texture_impl->type == texture_type::image)
 		{
 			GLCHECK(glDeleteTextures(2, texture_impl->id));
 		}
 
-		texture_impl->basetype = source;
+		texture_impl->type = source;
 
 		if (newtexture_srgb == 0)
 		{
@@ -1151,9 +1150,9 @@ namespace reshade
 		// Update effect textures
 		for (const auto &texture : _textures)
 		{
-			if (texture->basetype == texture::datatype::depthbuffer)
+			if (texture->type == texture_type::depthbuffer)
 			{
-				update_texture_datatype(texture.get(), texture::datatype::depthbuffer, _depth_texture, 0);
+				update_texture_datatype(texture.get(), texture_type::depthbuffer, _depth_texture, 0);
 			}
 		}
 	}
