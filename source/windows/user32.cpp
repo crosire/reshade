@@ -109,7 +109,7 @@ EXPORT BOOL WINAPI HookRegisterRawInputDevices(PCRAWINPUTDEVICE pRawInputDevices
 			continue;
 		}
 
-		reshade::input::register_raw_input_device(device);
+		reshade::input::register_window_with_raw_input(device.hwndTarget);
 	}
 
 	if (!reshade::hooks::call(&HookRegisterRawInputDevices)(pRawInputDevices, uiNumDevices, cbSize))
@@ -120,4 +120,22 @@ EXPORT BOOL WINAPI HookRegisterRawInputDevices(PCRAWINPUTDEVICE pRawInputDevices
 	}
 
 	return TRUE;
+}
+
+EXPORT LRESULT WINAPI HookDispatchMessageA(const MSG *lpmsg)
+{
+	assert(lpmsg != nullptr);
+
+	if (lpmsg->hwnd != nullptr && reshade::input::handle_window_message(lpmsg))
+	{
+		return 0;
+	}
+
+	static const auto trampoline = reshade::hooks::call(&HookDispatchMessageA);
+
+	return trampoline(lpmsg);
+}
+EXPORT LRESULT WINAPI HookDispatchMessageW(const MSG *lpmsg)
+{
+	return HookDispatchMessageA(lpmsg);
 }

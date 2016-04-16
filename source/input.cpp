@@ -1,29 +1,39 @@
 #include "log.hpp"
 #include "input.hpp"
 
+#include <Windows.h>
+#include <unordered_map>
+
 namespace reshade
 {
-	std::unordered_map<HWND, HHOOK> input::s_raw_input_hooks;
-	std::unordered_map<HWND, std::weak_ptr<input>> input::s_windows;
-
-	input::input(HWND hwnd) : _hwnd(hwnd), _keys(), _mouse_buttons(), _mouse_position()
+	namespace
 	{
-		_hook_wndproc = SetWindowsHookEx(WH_GETMESSAGE, &handle_window_message, nullptr, GetWindowThreadProcessId(hwnd, nullptr));
-	}
-	input::~input()
-	{
-		UnhookWindowsHookEx(_hook_wndproc);
+		std::unordered_map<HWND, std::weak_ptr<input>> s_windows;
+		std::unordered_map<HWND, std::shared_ptr<input>> s_raw_input_windows;
 	}
 
-	std::shared_ptr<input> input::register_window(HWND hwnd)
+	input::input(window_handle window) : _window(window)
 	{
-		const auto insert = s_windows.emplace(hwnd, std::weak_ptr<input>());
+	}
+
+	void input::register_window_with_raw_input(window_handle window)
+	{
+		const auto insert = s_raw_input_windows.emplace(static_cast<HWND>(window), nullptr);
+
+		if (insert.second)
+		{
+			insert.first->second = register_window(window);
+		}
+	}
+	std::shared_ptr<input> input::register_window(window_handle window)
+	{
+		const auto insert = s_windows.emplace(static_cast<HWND>(window), std::weak_ptr<input>());
 
 		if (insert.second || insert.first->second.expired())
 		{
-			LOG(INFO) << "Starting input capture for window " << hwnd << " ...";
+			LOG(INFO) << "Starting input capture for window " << window << " ...";
 
-			const auto instance = std::make_shared<input>(hwnd);
+			const auto instance = std::make_shared<input>(window);
 
 			insert.first->second = instance;
 
@@ -34,52 +44,33 @@ namespace reshade
 			return insert.first->second.lock();
 		}
 	}
-	void input::register_raw_input_device(const RAWINPUTDEVICE &device)
-	{
-		const auto insert = s_raw_input_hooks.emplace(device.hwndTarget, nullptr);
-
-		if (insert.second)
-		{
-			LOG(INFO) << "Starting raw input capture for window " << device.hwndTarget << " ...";
-
-			insert.first->second = SetWindowsHookEx(WH_GETMESSAGE, &handle_window_message, nullptr, GetWindowThreadProcessId(device.hwndTarget, nullptr));
-		}
-	}
 	void input::uninstall()
 	{
-		for (auto &it : s_raw_input_hooks)
-		{
-			UnhookWindowsHookEx(it.second);
-		}
-
 		s_windows.clear();
-		s_raw_input_hooks.clear();
+		s_raw_input_windows.clear();
 	}
 
-	LRESULT CALLBACK input::handle_window_message(int nCode, WPARAM wParam, LPARAM lParam)
+	bool input::handle_window_message(const void *message_data)
 	{
-		if (nCode < HC_ACTION || (wParam & PM_REMOVE) == 0)
-		{
-			return CallNextHookEx(nullptr, nCode, wParam, lParam);
-		}
+		assert(message_data != nullptr);
 
-		auto details = *reinterpret_cast<MSG *>(lParam);
+		MSG details = *static_cast<const MSG *>(message_data);
 
-		if (details.hwnd == nullptr)
+		if (details.message < WM_INPUT || details.message > WM_XBUTTONUP)
 		{
-			details.hwnd = GetActiveWindow();
+			return false;
 		}
 
 		auto it = s_windows.find(details.hwnd);
 
-		if (it == s_windows.end() && s_raw_input_hooks.find(details.hwnd) != s_raw_input_hooks.end())
+		if (it == s_windows.end() && s_raw_input_windows.find(details.hwnd) != s_raw_input_windows.end())
 		{
 			// This is a raw input message. Just reroute it to the first window for now, since it is rare to have more than one active at a time.
 			it = s_windows.begin();
 		}
 		if (it == s_windows.end() || it->second.expired())
 		{
-			return CallNextHookEx(nullptr, nCode, wParam, lParam);
+			return false;
 		}
 
 		RAWINPUT raw_data = { };
@@ -87,10 +78,10 @@ namespace reshade
 		const auto input_lock = it->second.lock();
 		input &input = *input_lock;
 
-		ScreenToClient(input._hwnd, &details.pt);
+		ScreenToClient(static_cast<HWND>(input._window), &details.pt);
 
-		input._mouse_position.x = details.pt.x;
-		input._mouse_position.y = details.pt.y;
+		input._mouse_position[0] = details.pt.x;
+		input._mouse_position[1] = details.pt.y;
 
 		switch (details.message)
 		{
@@ -176,32 +167,23 @@ namespace reshade
 				break;
 		}
 
-		return CallNextHookEx(nullptr, nCode, wParam, lParam);
+		return false;
 	}
 
 	void input::next_frame()
 	{
-		for (unsigned int i = 0; i < 256; i++)
+		for (auto &state : _keys)
 		{
-			if (_keys[i] == 1)
+			if (state == -1 || state == 1)
 			{
-				_keys[i] = 2;
-			}
-			else if (_keys[i] == -1)
-			{
-				_keys[i] = 0;
+				state++;
 			}
 		}
-
-		for (unsigned int i = 0; i < 3; i++)
+		for (auto &state : _mouse_buttons)
 		{
-			if (_mouse_buttons[i] == 1)
+			if (state == -1 || state == 1)
 			{
-				_mouse_buttons[i] = 2;
-			}
-			else if (_mouse_buttons[i] == -1)
-			{
-				_mouse_buttons[i] = 0;
+				state++;
 			}
 		}
 

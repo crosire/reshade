@@ -410,6 +410,8 @@ EXPORTS
 	RegisterClassExA = HookRegisterClassExA
 	RegisterClassExW = HookRegisterClassExW
 	RegisterRawInputDevices = HookRegisterRawInputDevices
+	DispatchMessageA = HookDispatchMessageA
+	DispatchMessageW = HookDispatchMessageW
 
 	; ws2_32.dll
 	send = HookSend

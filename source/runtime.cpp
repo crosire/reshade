@@ -445,7 +445,7 @@ namespace reshade
 			}
 			else if (source == "mousepoint")
 			{
-				const float values[2] = { static_cast<float>(_input->mouse_position().x), static_cast<float>(_input->mouse_position().y) };
+				const float values[2] = { static_cast<float>(_input->mouse_position_x()), static_cast<float>(_input->mouse_position_y()) };
 
 				set_uniform_value(*variable, values, 2);
 			}
@@ -549,13 +549,14 @@ namespace reshade
 		imgui_io.DeltaTime = dt;
 		imgui_io.DisplaySize.x = static_cast<float>(_width);
 		imgui_io.DisplaySize.y = static_cast<float>(_height);
-		imgui_io.MousePos.x = static_cast<float>(_input->mouse_position().x);
-		imgui_io.MousePos.y = static_cast<float>(_input->mouse_position().y);
+		imgui_io.Fonts->TexID = _imgui_font_atlas.get();
+
+		imgui_io.MousePos.x = static_cast<float>(_input->mouse_position_x());
+		imgui_io.MousePos.y = static_cast<float>(_input->mouse_position_y());
 		imgui_io.MouseWheel += _input->mouse_wheel_delta();
 		imgui_io.KeyCtrl = _input->is_key_down(VK_CONTROL);
 		imgui_io.KeyShift = _input->is_key_down(VK_SHIFT);
 		imgui_io.KeyAlt = _input->is_key_down(VK_MENU);
-		imgui_io.Fonts->TexID = _imgui_font_atlas.get();
 
 		BYTE kbs[256];
 		GetKeyboardState(kbs);
