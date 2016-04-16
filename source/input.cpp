@@ -112,13 +112,13 @@ namespace reshade
 						else if (raw_data.data.mouse.usButtonFlags & RI_MOUSE_LEFT_BUTTON_UP)
 							input._mouse_buttons[0] = -1;
 						if (raw_data.data.mouse.usButtonFlags & RI_MOUSE_RIGHT_BUTTON_DOWN)
-							input._mouse_buttons[2] = 1;
-						else if (raw_data.data.mouse.usButtonFlags & RI_MOUSE_RIGHT_BUTTON_UP)
-							input._mouse_buttons[2] = -1;
-						if (raw_data.data.mouse.usButtonFlags & RI_MOUSE_MIDDLE_BUTTON_DOWN)
 							input._mouse_buttons[1] = 1;
-						else if (raw_data.data.mouse.usButtonFlags & RI_MOUSE_MIDDLE_BUTTON_UP)
+						else if (raw_data.data.mouse.usButtonFlags & RI_MOUSE_RIGHT_BUTTON_UP)
 							input._mouse_buttons[1] = -1;
+						if (raw_data.data.mouse.usButtonFlags & RI_MOUSE_MIDDLE_BUTTON_DOWN)
+							input._mouse_buttons[2] = 1;
+						else if (raw_data.data.mouse.usButtonFlags & RI_MOUSE_MIDDLE_BUTTON_UP)
+							input._mouse_buttons[2] = -1;
 
 						if (raw_data.data.mouse.usButtonFlags & RI_MOUSE_BUTTON_4_DOWN)
 							input._mouse_buttons[3] = 1;
@@ -154,16 +154,16 @@ namespace reshade
 				input._mouse_buttons[0] = -1;
 				break;
 			case WM_RBUTTONDOWN:
-				input._mouse_buttons[2] = 1;
-				break;
-			case WM_RBUTTONUP:
-				input._mouse_buttons[2] = -1;
-				break;
-			case WM_MBUTTONDOWN:
 				input._mouse_buttons[1] = 1;
 				break;
-			case WM_MBUTTONUP:
+			case WM_RBUTTONUP:
 				input._mouse_buttons[1] = -1;
+				break;
+			case WM_MBUTTONDOWN:
+				input._mouse_buttons[2] = 1;
+				break;
+			case WM_MBUTTONUP:
+				input._mouse_buttons[2] = -1;
 				break;
 			case WM_MOUSEWHEEL:
 				input._mouse_wheel_delta += GET_WHEEL_DELTA_WPARAM(details.wParam) / WHEEL_DELTA;
