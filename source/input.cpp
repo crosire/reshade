@@ -56,7 +56,10 @@ namespace reshade
 
 		MSG details = *static_cast<const MSG *>(message_data);
 
-		if (details.message < WM_INPUT || details.message > WM_XBUTTONUP)
+		bool is_mouse_message = details.message >= WM_MOUSEFIRST && details.message <= WM_MOUSELAST;
+		bool is_keyboard_message = details.message >= WM_KEYFIRST && details.message <= WM_KEYLAST;
+
+		if (details.message != WM_INPUT && !is_mouse_message && !is_keyboard_message)
 		{
 			return false;
 		}
@@ -98,6 +101,8 @@ namespace reshade
 				switch (raw_data.header.dwType)
 				{
 					case RIM_TYPEMOUSE:
+						is_mouse_message = true;
+
 						if (raw_data.data.mouse.usButtonFlags & RI_MOUSE_LEFT_BUTTON_DOWN)
 							input._mouse_buttons[0] = 1;
 						else if (raw_data.data.mouse.usButtonFlags & RI_MOUSE_LEFT_BUTTON_UP)
@@ -125,6 +130,8 @@ namespace reshade
 							input._mouse_wheel_delta += static_cast<short>(raw_data.data.mouse.usButtonData) / WHEEL_DELTA;
 						break;
 					case RIM_TYPEKEYBOARD:
+						is_keyboard_message = true;
+
 						if (raw_data.data.keyboard.VKey != 0xFF)
 							input._keys[raw_data.data.keyboard.VKey] = (raw_data.data.keyboard.Flags & RI_KEY_BREAK) == 0 ? 1 : -1;
 						break;
@@ -167,7 +174,7 @@ namespace reshade
 				break;
 		}
 
-		return false;
+		return (is_mouse_message && input._block_mouse) || (is_keyboard_message && input._block_keyboard);
 	}
 
 	void input::next_frame()

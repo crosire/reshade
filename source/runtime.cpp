@@ -662,6 +662,9 @@ namespace reshade
 
 		ImGui::Render();
 
+		_input->block_mouse_input(imgui_io.WantCaptureMouse);
+		_input->block_keyboard_input(imgui_io.WantCaptureKeyboard);
+
 		render_draw_lists(ImGui::GetDrawData());
 	}
 

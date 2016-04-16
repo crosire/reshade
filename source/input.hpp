@@ -25,12 +25,16 @@ namespace reshade
 		unsigned int mouse_position_x() const { return _mouse_position[0]; }
 		unsigned int mouse_position_y() const { return _mouse_position[1]; }
 
+		void block_mouse_input(bool enable) { _block_mouse = enable; }
+		void block_keyboard_input(bool enable) { _block_keyboard = enable; }
+
 		void next_frame();
 
 		static bool handle_window_message(const void *message_data);
 
 	private:
 		window_handle _window;
+		bool _block_mouse = false, _block_keyboard = false;
 		signed char _keys[256] = { }, _mouse_buttons[5] = { };
 		short _mouse_wheel_delta = 0;
 		unsigned int _mouse_position[2] = { };
