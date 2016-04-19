@@ -240,7 +240,7 @@ namespace reshade
 			}
 		}
 
-		parser::parser(const std::string &input, nodetree &ast, std::string &errors) :
+		parser::parser(const std::string &input, syntax_tree &ast, std::string &errors) :
 			_ast(ast),
 			_errors(errors),
 			_lexer(new lexer(input)),
@@ -3173,7 +3173,7 @@ namespace reshade
 						return false;
 					}
 
-					variable->properties.Texture = static_cast<lvalue_expression_node *>(value)->reference;
+					variable->properties.texture = static_cast<lvalue_expression_node *>(value)->reference;
 				}
 				else
 				{
@@ -3188,67 +3188,108 @@ namespace reshade
 
 					if (name == "Width")
 					{
-						scalar_literal_cast(valueLiteral, 0, variable->properties.Width);
+						scalar_literal_cast(valueLiteral, 0, variable->properties.width);
 					}
 					else if (name == "Height")
 					{
-						scalar_literal_cast(valueLiteral, 0, variable->properties.Height);
+						scalar_literal_cast(valueLiteral, 0, variable->properties.height);
 					}
 					else if (name == "Depth")
 					{
-						scalar_literal_cast(valueLiteral, 0, variable->properties.Depth);
+						scalar_literal_cast(valueLiteral, 0, variable->properties.depth);
 					}
 					else if (name == "MipLevels")
 					{
-						scalar_literal_cast(valueLiteral, 0, variable->properties.MipLevels);
+						scalar_literal_cast(valueLiteral, 0, variable->properties.levels);
 					}
 					else if (name == "Format")
 					{
-						scalar_literal_cast(valueLiteral, 0, variable->properties.Format);
+						unsigned int format;
+						scalar_literal_cast(valueLiteral, 0, format);
+						variable->properties.format = static_cast<texture_format>(format);
 					}
 					else if (name == "SRGBTexture" || name == "SRGBReadEnable")
 					{
-						variable->properties.SRGBTexture = valueLiteral->value_int[0] != 0;
+						variable->properties.srgb_texture = valueLiteral->value_int[0] != 0;
 					}
 					else if (name == "AddressU")
 					{
-						scalar_literal_cast(valueLiteral, 0, variable->properties.AddressU);
+						unsigned address_mode;
+						scalar_literal_cast(valueLiteral, 0, address_mode);
+						variable->properties.address_u = static_cast<texture_address_mode>(address_mode);
 					}
 					else if (name == "AddressV")
 					{
-						scalar_literal_cast(valueLiteral, 0, variable->properties.AddressV);
+						unsigned address_mode;
+						scalar_literal_cast(valueLiteral, 0, address_mode);
+						variable->properties.address_v = static_cast<texture_address_mode>(address_mode);
 					}
 					else if (name == "AddressW")
 					{
-						scalar_literal_cast(valueLiteral, 0, variable->properties.AddressW);
+						unsigned address_mode;
+						scalar_literal_cast(valueLiteral, 0, address_mode);
+						variable->properties.address_w = static_cast<texture_address_mode>(address_mode);
 					}
 					else if (name == "MinFilter")
 					{
-						scalar_literal_cast(valueLiteral, 0, variable->properties.MinFilter);
+						unsigned int a = static_cast<unsigned int>(variable->properties.filter), b;
+						scalar_literal_cast(valueLiteral, 0, b);
+
+						if (b == 3 || variable->properties.filter == texture_filter::anisotropic)
+						{
+							variable->properties.filter = texture_filter::anisotropic;
+						}
+						else
+						{
+							b = (a & 0xF) | ((b << 4) & 0x30);
+							variable->properties.filter = static_cast<texture_filter>(b);
+						}
 					}
 					else if (name == "MagFilter")
 					{
-						scalar_literal_cast(valueLiteral, 0, variable->properties.MagFilter);
+						unsigned int a = static_cast<unsigned int>(variable->properties.filter), b;
+						scalar_literal_cast(valueLiteral, 0, b);
+
+						if (b == 3 || variable->properties.filter == texture_filter::anisotropic)
+						{
+							variable->properties.filter = texture_filter::anisotropic;
+						}
+						else
+						{
+							b = (a & 0x33) | ((b << 2) & 0xC);
+							variable->properties.filter = static_cast<texture_filter>(b);
+						}
 					}
 					else if (name == "MipFilter")
 					{
-						scalar_literal_cast(valueLiteral, 0, variable->properties.MipFilter);
+						unsigned int a = static_cast<unsigned int>(variable->properties.filter), b;
+						scalar_literal_cast(valueLiteral, 0, b);
+
+						if (b == 3 || variable->properties.filter == texture_filter::anisotropic)
+						{
+							variable->properties.filter = texture_filter::anisotropic;
+						}
+						else
+						{
+							b = (a & 0x3C) | (b & 0x3);
+							variable->properties.filter = static_cast<texture_filter>(b);
+						}
 					}
 					else if (name == "MaxAnisotropy")
 					{
-						scalar_literal_cast(valueLiteral, 0, variable->properties.MaxAnisotropy);
+						scalar_literal_cast(valueLiteral, 0, variable->properties.max_anisotropy);
 					}
 					else if (name == "MinLOD" || name == "MaxMipLevel")
 					{
-						scalar_literal_cast(valueLiteral, 0, variable->properties.MinLOD);
+						scalar_literal_cast(valueLiteral, 0, variable->properties.min_lod);
 					}
 					else if (name == "MaxLOD")
 					{
-						scalar_literal_cast(valueLiteral, 0, variable->properties.MaxLOD);
+						scalar_literal_cast(valueLiteral, 0, variable->properties.max_lod);
 					}
 					else if (name == "MipLODBias" || name == "MipMapLodBias")
 					{
-						scalar_literal_cast(valueLiteral, 0, variable->properties.MipLODBias);
+						scalar_literal_cast(valueLiteral, 0, variable->properties.lod_bias);
 					}
 					else
 					{
@@ -3273,39 +3314,39 @@ namespace reshade
 			if (accept(lexer::tokenid::identifier))
 			{
 				const std::pair<const char *, unsigned int> s_values[] = {
-					{ "NONE", variable_declaration_node::properties::NONE },
-					{ "POINT", variable_declaration_node::properties::POINT },
-					{ "LINEAR", variable_declaration_node::properties::LINEAR },
-					{ "ANISOTROPIC", variable_declaration_node::properties::ANISOTROPIC },
-					{ "CLAMP", variable_declaration_node::properties::CLAMP },
-					{ "WRAP", variable_declaration_node::properties::REPEAT },
-					{ "REPEAT", variable_declaration_node::properties::REPEAT },
-					{ "MIRROR", variable_declaration_node::properties::MIRROR },
-					{ "BORDER", variable_declaration_node::properties::BORDER },
-					{ "R8", variable_declaration_node::properties::R8 },
-					{ "R16F", variable_declaration_node::properties::R16F },
-					{ "R32F", variable_declaration_node::properties::R32F },
-					{ "RG8", variable_declaration_node::properties::RG8 },
-					{ "R8G8", variable_declaration_node::properties::RG8 },
-					{ "RG16", variable_declaration_node::properties::RG16 },
-					{ "R16G16", variable_declaration_node::properties::RG16 },
-					{ "RG16F", variable_declaration_node::properties::RG16F },
-					{ "R16G16F", variable_declaration_node::properties::RG16F },
-					{ "RG32F", variable_declaration_node::properties::RG32F },
-					{ "R32G32F", variable_declaration_node::properties::RG32F },
-					{ "RGBA8", variable_declaration_node::properties::RGBA8 },
-					{ "R8G8B8A8", variable_declaration_node::properties::RGBA8 },
-					{ "RGBA16", variable_declaration_node::properties::RGBA16 },
-					{ "R16G16B16A16", variable_declaration_node::properties::RGBA16 },
-					{ "RGBA16F", variable_declaration_node::properties::RGBA16F },
-					{ "R16G16B16A16F", variable_declaration_node::properties::RGBA16F },
-					{ "RGBA32F", variable_declaration_node::properties::RGBA32F },
-					{ "R32G32B32A32F", variable_declaration_node::properties::RGBA32F },
-					{ "DXT1", variable_declaration_node::properties::DXT1 },
-					{ "DXT3", variable_declaration_node::properties::DXT3 },
-					{ "DXT4", variable_declaration_node::properties::DXT5 },
-					{ "LATC1", variable_declaration_node::properties::LATC1 },
-					{ "LATC2", variable_declaration_node::properties::LATC2 },
+					{ "NONE", 0 },
+					{ "POINT", 0 },
+					{ "LINEAR", 1 },
+					{ "ANISOTROPIC", 3 },
+					{ "CLAMP", static_cast<unsigned int>(texture_address_mode::clamp) },
+					{ "WRAP", static_cast<unsigned int>(texture_address_mode::wrap) },
+					{ "REPEAT", static_cast<unsigned int>(texture_address_mode::wrap) },
+					{ "MIRROR", static_cast<unsigned int>(texture_address_mode::mirror) },
+					{ "BORDER", static_cast<unsigned int>(texture_address_mode::border) },
+					{ "R8", static_cast<unsigned int>(texture_format::r8) },
+					{ "R16F", static_cast<unsigned int>(texture_format::r16f) },
+					{ "R32F", static_cast<unsigned int>(texture_format::r32f) },
+					{ "RG8", static_cast<unsigned int>(texture_format::rg8) },
+					{ "R8G8", static_cast<unsigned int>(texture_format::rg8) },
+					{ "RG16", static_cast<unsigned int>(texture_format::rg16) },
+					{ "R16G16", static_cast<unsigned int>(texture_format::rg16) },
+					{ "RG16F", static_cast<unsigned int>(texture_format::rg16f) },
+					{ "R16G16F", static_cast<unsigned int>(texture_format::rg16f) },
+					{ "RG32F", static_cast<unsigned int>(texture_format::rg32f) },
+					{ "R32G32F", static_cast<unsigned int>(texture_format::rg32f) },
+					{ "RGBA8", static_cast<unsigned int>(texture_format::rgba8) },
+					{ "R8G8B8A8", static_cast<unsigned int>(texture_format::rgba8) },
+					{ "RGBA16", static_cast<unsigned int>(texture_format::rgba16) },
+					{ "R16G16B16A16", static_cast<unsigned int>(texture_format::rgba16) },
+					{ "RGBA16F", static_cast<unsigned int>(texture_format::rgba16f) },
+					{ "R16G16B16A16F", static_cast<unsigned int>(texture_format::rgba16f) },
+					{ "RGBA32F", static_cast<unsigned int>(texture_format::rgba32f) },
+					{ "R32G32B32A32F", static_cast<unsigned int>(texture_format::rgba32f) },
+					{ "DXT1", static_cast<unsigned int>(texture_format::dxt1) },
+					{ "DXT3", static_cast<unsigned int>(texture_format::dxt3) },
+					{ "DXT4", static_cast<unsigned int>(texture_format::dxt5) },
+					{ "LATC1", static_cast<unsigned int>(texture_format::latc1) },
+					{ "LATC2", static_cast<unsigned int>(texture_format::latc2) },
 				};
 
 				const auto location = _token.location;
@@ -3419,7 +3460,7 @@ namespace reshade
 						return false;
 					}
 
-					(passstate[0] == 'V' ? pass->states.VertexShader : pass->states.PixelShader) = reinterpret_cast<const function_declaration_node *>(static_cast<lvalue_expression_node *>(value)->reference);
+					(passstate[0] == 'V' ? pass->vertex_shader : pass->pixel_shader) = reinterpret_cast<const function_declaration_node *>(static_cast<lvalue_expression_node *>(value)->reference);
 				}
 				else if (passstate.compare(0, 12, "RenderTarget") == 0 && (passstate == "RenderTarget" || (passstate[12] >= '0' && passstate[12] < '8')))
 				{
@@ -3437,7 +3478,7 @@ namespace reshade
 						return false;
 					}
 
-					pass->states.RenderTargets[index] = static_cast<lvalue_expression_node *>(value)->reference;
+					pass->render_targets[index] = static_cast<lvalue_expression_node *>(value)->reference;
 				}
 				else
 				{
@@ -3452,84 +3493,84 @@ namespace reshade
 
 					if (passstate == "SRGBWriteEnable")
 					{
-						pass->states.SRGBWriteEnable = valueLiteral->value_int[0] != 0;
+						pass->srgb_write_enable = valueLiteral->value_int[0] != 0;
 					}
 					else if (passstate == "BlendEnable" || passstate == "AlphaBlendEnable")
 					{
-						pass->states.BlendEnable = valueLiteral->value_int[0] != 0;
+						pass->blend_enable = valueLiteral->value_int[0] != 0;
 					}
 					else if (passstate == "DepthEnable" || passstate == "ZEnable")
 					{
-						pass->states.DepthEnable = valueLiteral->value_int[0] != 0;
+						pass->depth_enable = valueLiteral->value_int[0] != 0;
 					}
 					else if (passstate == "StencilEnable")
 					{
-						pass->states.StencilEnable = valueLiteral->value_int[0] != 0;
+						pass->stencil_enable = valueLiteral->value_int[0] != 0;
 					}
 					else if (passstate == "RenderTargetWriteMask" || passstate == "ColorWriteMask")
 					{
 						unsigned int mask = 0;
 						scalar_literal_cast(valueLiteral, 0, mask);
 
-						pass->states.RenderTargetWriteMask = mask & 0xFF;
+						pass->color_write_mask = mask & 0xFF;
 					}
 					else if (passstate == "DepthWriteMask" || passstate == "ZWriteEnable")
 					{
-						pass->states.DepthWriteMask = valueLiteral->value_int[0] != 0;
+						pass->depth_write_mask = valueLiteral->value_int[0] != 0;
 					}
 					else if (passstate == "StencilReadMask" || passstate == "StencilMask")
 					{
 						unsigned int mask = 0;
 						scalar_literal_cast(valueLiteral, 0, mask);
 
-						pass->states.StencilReadMask = mask & 0xFF;
+						pass->stencil_read_mask = mask & 0xFF;
 					}
 					else if (passstate == "StencilWriteMask")
 					{
 						unsigned int mask = 0;
 						scalar_literal_cast(valueLiteral, 0, mask);
 
-						pass->states.StencilWriteMask = mask & 0xFF;
+						pass->stencil_write_mask = mask & 0xFF;
 					}
 					else if (passstate == "BlendOp")
 					{
-						scalar_literal_cast(valueLiteral, 0, pass->states.BlendOp);
+						scalar_literal_cast(valueLiteral, 0, pass->blend_op);
 					}
 					else if (passstate == "BlendOpAlpha")
 					{
-						scalar_literal_cast(valueLiteral, 0, pass->states.BlendOpAlpha);
+						scalar_literal_cast(valueLiteral, 0, pass->blend_op_alpha);
 					}
 					else if (passstate == "SrcBlend")
 					{
-						scalar_literal_cast(valueLiteral, 0, pass->states.SrcBlend);
+						scalar_literal_cast(valueLiteral, 0, pass->src_blend);
 					}
 					else if (passstate == "DestBlend")
 					{
-						scalar_literal_cast(valueLiteral, 0, pass->states.DestBlend);
+						scalar_literal_cast(valueLiteral, 0, pass->dest_blend);
 					}
 					else if (passstate == "DepthFunc" || passstate == "ZFunc")
 					{
-						scalar_literal_cast(valueLiteral, 0, pass->states.DepthFunc);
+						scalar_literal_cast(valueLiteral, 0, pass->depth_comparison_func);
 					}
 					else if (passstate == "StencilFunc")
 					{
-						scalar_literal_cast(valueLiteral, 0, pass->states.StencilFunc);
+						scalar_literal_cast(valueLiteral, 0, pass->stencil_comparison_func);
 					}
 					else if (passstate == "StencilRef")
 					{
-						scalar_literal_cast(valueLiteral, 0, pass->states.StencilRef);
+						scalar_literal_cast(valueLiteral, 0, pass->stencil_reference_value);
 					}
 					else if (passstate == "StencilPass" || passstate == "StencilPassOp")
 					{
-						scalar_literal_cast(valueLiteral, 0, pass->states.StencilOpPass);
+						scalar_literal_cast(valueLiteral, 0, pass->stencil_op_pass);
 					}
 					else if (passstate == "StencilFail" || passstate == "StencilFailOp")
 					{
-						scalar_literal_cast(valueLiteral, 0, pass->states.StencilOpFail);
+						scalar_literal_cast(valueLiteral, 0, pass->stencil_op_fail);
 					}
 					else if (passstate == "StencilZFail" || passstate == "StencilDepthFail" || passstate == "StencilDepthFailOp")
 					{
-						scalar_literal_cast(valueLiteral, 0, pass->states.StencilOpDepthFail);
+						scalar_literal_cast(valueLiteral, 0, pass->stencil_op_depth_fail);
 					}
 					else
 					{
@@ -3561,40 +3602,40 @@ namespace reshade
 			if (exclusive ? expect(lexer::tokenid::identifier) : accept(lexer::tokenid::identifier))
 			{
 				const std::pair<const char *, unsigned int> s_enums[] = {
-					{ "NONE", pass_declaration_node::states::NONE },
-					{ "ZERO", pass_declaration_node::states::ZERO },
-					{ "ONE", pass_declaration_node::states::ONE },
-					{ "SRCCOLOR", pass_declaration_node::states::SRCCOLOR },
-					{ "SRCALPHA", pass_declaration_node::states::SRCALPHA },
-					{ "INVSRCCOLOR", pass_declaration_node::states::INVSRCCOLOR },
-					{ "INVSRCALPHA", pass_declaration_node::states::INVSRCALPHA },
-					{ "DESTCOLOR", pass_declaration_node::states::DESTCOLOR },
-					{ "DESTALPHA", pass_declaration_node::states::DESTALPHA },
-					{ "INVDESTCOLOR", pass_declaration_node::states::INVDESTCOLOR },
-					{ "INVDESTALPHA", pass_declaration_node::states::INVDESTALPHA },
-					{ "ADD", pass_declaration_node::states::ADD },
-					{ "SUBTRACT", pass_declaration_node::states::SUBTRACT },
-					{ "REVSUBTRACT", pass_declaration_node::states::REVSUBTRACT },
-					{ "MIN", pass_declaration_node::states::MIN },
-					{ "MAX", pass_declaration_node::states::MAX },
-					{ "KEEP", pass_declaration_node::states::KEEP },
-					{ "REPLACE", pass_declaration_node::states::REPLACE },
-					{ "INVERT", pass_declaration_node::states::INVERT },
-					{ "INCR", pass_declaration_node::states::INCR },
-					{ "INCRSAT", pass_declaration_node::states::INCRSAT },
-					{ "DECR", pass_declaration_node::states::DECR },
-					{ "DECRSAT", pass_declaration_node::states::DECRSAT },
-					{ "NEVER", pass_declaration_node::states::NEVER },
-					{ "ALWAYS", pass_declaration_node::states::ALWAYS },
-					{ "LESS", pass_declaration_node::states::LESS },
-					{ "GREATER", pass_declaration_node::states::GREATER },
-					{ "LEQUAL", pass_declaration_node::states::LESSEQUAL },
-					{ "LESSEQUAL", pass_declaration_node::states::LESSEQUAL },
-					{ "GEQUAL", pass_declaration_node::states::GREATEREQUAL },
-					{ "GREATEREQUAL", pass_declaration_node::states::GREATEREQUAL },
-					{ "EQUAL", pass_declaration_node::states::EQUAL },
-					{ "NEQUAL", pass_declaration_node::states::NOTEQUAL },
-					{ "NOTEQUAL", pass_declaration_node::states::NOTEQUAL },
+					{ "NONE", pass_declaration_node::NONE },
+					{ "ZERO", pass_declaration_node::ZERO },
+					{ "ONE", pass_declaration_node::ONE },
+					{ "SRCCOLOR", pass_declaration_node::SRCCOLOR },
+					{ "SRCALPHA", pass_declaration_node::SRCALPHA },
+					{ "INVSRCCOLOR", pass_declaration_node::INVSRCCOLOR },
+					{ "INVSRCALPHA", pass_declaration_node::INVSRCALPHA },
+					{ "DESTCOLOR", pass_declaration_node::DESTCOLOR },
+					{ "DESTALPHA", pass_declaration_node::DESTALPHA },
+					{ "INVDESTCOLOR", pass_declaration_node::INVDESTCOLOR },
+					{ "INVDESTALPHA", pass_declaration_node::INVDESTALPHA },
+					{ "ADD", pass_declaration_node::ADD },
+					{ "SUBTRACT", pass_declaration_node::SUBTRACT },
+					{ "REVSUBTRACT", pass_declaration_node::REVSUBTRACT },
+					{ "MIN", pass_declaration_node::MIN },
+					{ "MAX", pass_declaration_node::MAX },
+					{ "KEEP", pass_declaration_node::KEEP },
+					{ "REPLACE", pass_declaration_node::REPLACE },
+					{ "INVERT", pass_declaration_node::INVERT },
+					{ "INCR", pass_declaration_node::INCR },
+					{ "INCRSAT", pass_declaration_node::INCRSAT },
+					{ "DECR", pass_declaration_node::DECR },
+					{ "DECRSAT", pass_declaration_node::DECRSAT },
+					{ "NEVER", pass_declaration_node::NEVER },
+					{ "ALWAYS", pass_declaration_node::ALWAYS },
+					{ "LESS", pass_declaration_node::LESS },
+					{ "GREATER", pass_declaration_node::GREATER },
+					{ "LEQUAL", pass_declaration_node::LESSEQUAL },
+					{ "LESSEQUAL", pass_declaration_node::LESSEQUAL },
+					{ "GEQUAL", pass_declaration_node::GREATEREQUAL },
+					{ "GREATEREQUAL", pass_declaration_node::GREATEREQUAL },
+					{ "EQUAL", pass_declaration_node::EQUAL },
+					{ "NEQUAL", pass_declaration_node::NOTEQUAL },
+					{ "NOTEQUAL", pass_declaration_node::NOTEQUAL },
 				};
 
 				auto identifier = _token.literal_as_string;

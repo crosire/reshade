@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include "location.hpp"
+#include "runtime_objects.hpp"
 
 namespace reshade
 {
@@ -273,18 +274,18 @@ namespace reshade
 					step,
 					tan,
 					tanh,
-					tex2d,
-					tex2dfetch,
-					tex2dgather,
-					tex2dgatheroffset,
-					tex2dgrad,
-					tex2dlevel,
-					tex2dleveloffset,
-					tex2doffset,
-					tex2dproj,
-					tex2dsize,
+					texture,
+					texture_fetch,
+					texture_gather,
+					texture_gather_offset,
+					texture_gradient,
+					texture_level,
+					texture_level_offset,
+					texture_offset,
+					texture_projection,
+					texture_size,
 					transpose,
-					trunc,
+					trunc
 				};
 
 				intrinsic_expression_node() : expression_node(nodeid::intrinsic_expression) { }
@@ -387,7 +388,7 @@ namespace reshade
 				case_statement_node() : statement_node(nodeid::case_statement) { }
 
 				statement_node *statement_list;
-				std::vector<struct literal_expression_node *> labels;
+				std::vector<literal_expression_node *> labels;
 			};
 			struct switch_statement_node : public statement_node
 			{
@@ -434,66 +435,46 @@ namespace reshade
 				std::string name;
 				literal_expression_node *value;
 			};
-			struct declarator_list_node : public statement_node
+			struct variable_properties
 			{
-				declarator_list_node() : statement_node(nodeid::declarator_list) { }
+				variable_properties() :
+					width(1),
+					height(1),
+					depth(1),
+					levels(1),
+					format(texture_format::rgba8),
+					filter(texture_filter::min_mag_mip_linear),
+					address_u(texture_address_mode::clamp),
+					address_v(texture_address_mode::clamp),
+					address_w(texture_address_mode::clamp),
+					max_anisotropy(1),
+					max_lod(FLT_MAX)
+				{ }
 
-				std::vector<struct variable_declaration_node *> declarator_list;
+				const variable_declaration_node *texture;
+				unsigned int width, height, depth, levels;
+				bool srgb_texture;
+				texture_format format;
+				texture_filter filter;
+				texture_address_mode address_u, address_v, address_w;
+				unsigned int max_anisotropy;
+				float min_lod, max_lod, lod_bias;
 			};
 			struct variable_declaration_node : public declaration_node
 			{
-				struct properties
-				{
-					enum : unsigned int
-					{
-						NONE = 0,
-
-						R8 = 50,
-						R16F = 111,
-						R32F = 114,
-						RG8 = 51,
-						RG16 = 34,
-						RG16F = 112,
-						RG32F = 115,
-						RGBA8 = 32,
-						RGBA16 = 36,
-						RGBA16F = 113,
-						RGBA32F = 116,
-						DXT1 = 827611204,
-						DXT3 = 861165636,
-						DXT5 = 894720068,
-						LATC1 = 826889281,
-						LATC2 = 843666497,
-
-						POINT = 1,
-						LINEAR,
-						ANISOTROPIC,
-
-						WRAP = 1,
-						REPEAT = 1,
-						MIRROR,
-						CLAMP,
-						BORDER,
-					};
-
-					properties() : Texture(nullptr), Width(1), Height(1), Depth(1), MipLevels(1), Format(RGBA8), SRGBTexture(false), AddressU(CLAMP), AddressV(CLAMP), AddressW(CLAMP), MinFilter(LINEAR), MagFilter(LINEAR), MipFilter(LINEAR), MaxAnisotropy(1), MinLOD(0), MaxLOD(FLT_MAX), MipLODBias(0.0f) { }
-
-					const variable_declaration_node *Texture;
-					unsigned int Width, Height, Depth, MipLevels;
-					unsigned int Format;
-					bool SRGBTexture;
-					unsigned int AddressU, AddressV, AddressW, MinFilter, MagFilter, MipFilter;
-					unsigned int MaxAnisotropy;
-					float MinLOD, MaxLOD, MipLODBias;
-				};
-
 				variable_declaration_node() : declaration_node(nodeid::variable_declaration) { }
 
 				type_node type;
 				std::vector<annotation_node> annotations;
 				std::string semantic;
-				properties properties;
+				variable_properties properties;
 				expression_node *initializer_expression;
+			};
+			struct declarator_list_node : public statement_node
+			{
+				declarator_list_node() : statement_node(nodeid::declarator_list) { }
+
+				std::vector<variable_declaration_node *> declarator_list;
 			};
 			struct struct_declaration_node : public declaration_node
 			{
@@ -512,60 +493,67 @@ namespace reshade
 			};
 			struct pass_declaration_node : public declaration_node
 			{
-				struct states
+				enum : unsigned int
 				{
-					enum : unsigned int
-					{
-						NONE = 0,
+					NONE = 0,
 
-						ZERO = 0,
-						ONE = 1,
-						SRCCOLOR,
-						INVSRCCOLOR,
-						SRCALPHA,
-						INVSRCALPHA,
-						DESTALPHA,
-						INVDESTALPHA,
-						DESTCOLOR,
-						INVDESTCOLOR,
+					ZERO = 0,
+					ONE = 1,
+					SRCCOLOR,
+					INVSRCCOLOR,
+					SRCALPHA,
+					INVSRCALPHA,
+					DESTALPHA,
+					INVDESTALPHA,
+					DESTCOLOR,
+					INVDESTCOLOR,
 
-						ADD = 1,
-						SUBTRACT,
-						REVSUBTRACT,
-						MIN,
-						MAX,
+					ADD = 1,
+					SUBTRACT,
+					REVSUBTRACT,
+					MIN,
+					MAX,
 
-						KEEP = 1,
-						REPLACE = 3,
-						INVERT,
-						INCRSAT,
-						DECRSAT,
-						INCR,
-						DECR,
+					KEEP = 1,
+					REPLACE = 3,
+					INVERT,
+					INCRSAT,
+					DECRSAT,
+					INCR,
+					DECR,
 
-						NEVER = 1,
-						LESS,
-						EQUAL,
-						LESSEQUAL,
-						GREATER,
-						NOTEQUAL,
-						GREATEREQUAL,
-						ALWAYS
-					};
-
-					states() : RenderTargets(), VertexShader(nullptr), PixelShader(nullptr), SRGBWriteEnable(false), BlendEnable(false), DepthEnable(false), StencilEnable(false), RenderTargetWriteMask(0xF), DepthWriteMask(1), StencilReadMask(0xFF), StencilWriteMask(0xFF), BlendOp(ADD), BlendOpAlpha(ADD), SrcBlend(ONE), DestBlend(ZERO), DepthFunc(LESS), StencilFunc(ALWAYS), StencilRef(0), StencilOpPass(KEEP), StencilOpFail(KEEP), StencilOpDepthFail(KEEP) { }
-
-					const variable_declaration_node *RenderTargets[8];
-					const function_declaration_node *VertexShader, *PixelShader;
-					bool SRGBWriteEnable, BlendEnable, DepthEnable, StencilEnable;
-					unsigned char RenderTargetWriteMask, DepthWriteMask, StencilReadMask, StencilWriteMask;
-					unsigned int BlendOp, BlendOpAlpha, SrcBlend, DestBlend, DepthFunc, StencilFunc, StencilRef, StencilOpPass, StencilOpFail, StencilOpDepthFail;
+					NEVER = 1,
+					LESS,
+					EQUAL,
+					LESSEQUAL,
+					GREATER,
+					NOTEQUAL,
+					GREATEREQUAL,
+					ALWAYS
 				};
 
-				pass_declaration_node() : declaration_node(nodeid::pass_declaration) { }
+				pass_declaration_node() : declaration_node(nodeid::pass_declaration),
+					color_write_mask(0xF),
+					depth_write_mask(0x1),
+					stencil_read_mask(0xFF),
+					stencil_write_mask(0xFF),
+					blend_op(ADD),
+					blend_op_alpha(ADD),
+					src_blend(ONE),
+					dest_blend(ZERO),
+					depth_comparison_func(LESS),
+					stencil_comparison_func(ALWAYS),
+					stencil_op_pass(KEEP),
+					stencil_op_fail(KEEP),
+					stencil_op_depth_fail(KEEP)
+				{ }
 
 				std::vector<annotation_node> annotation_list;
-				states states;
+				const variable_declaration_node *render_targets[8];
+				const function_declaration_node *vertex_shader, *pixel_shader;
+				bool srgb_write_enable, blend_enable, depth_enable, stencil_enable;
+				unsigned char color_write_mask, depth_write_mask, stencil_read_mask, stencil_write_mask;
+				unsigned int blend_op, blend_op_alpha, src_blend, dest_blend, depth_comparison_func, stencil_comparison_func, stencil_reference_value, stencil_op_pass, stencil_op_fail, stencil_op_depth_fail;
 			};
 			struct technique_declaration_node : public declaration_node
 			{

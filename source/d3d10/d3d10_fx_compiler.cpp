@@ -15,9 +15,9 @@ namespace reshade
 		{
 			switch (value)
 			{
-				case fx::nodes::pass_declaration_node::states::ZERO:
+				case fx::nodes::pass_declaration_node::ZERO:
 					return D3D10_BLEND_ZERO;
-				case fx::nodes::pass_declaration_node::states::ONE:
+				case fx::nodes::pass_declaration_node::ONE:
 					return D3D10_BLEND_ONE;
 			}
 
@@ -25,69 +25,52 @@ namespace reshade
 		}
 		D3D10_STENCIL_OP literal_to_stencil_op(unsigned int value)
 		{
-			if (value == fx::nodes::pass_declaration_node::states::ZERO)
+			if (value == fx::nodes::pass_declaration_node::ZERO)
 			{
 				return D3D10_STENCIL_OP_ZERO;
 			}
 
 			return static_cast<D3D10_STENCIL_OP>(value);
 		}
-		DXGI_FORMAT literal_to_format(unsigned int value, texture_format &name)
+		DXGI_FORMAT literal_to_format(texture_format value)
 		{
 			switch (value)
 			{
-				case fx::nodes::variable_declaration_node::properties::R8:
-					name = texture_format::r8;
+				case texture_format::r8:
 					return DXGI_FORMAT_R8_UNORM;
-				case fx::nodes::variable_declaration_node::properties::R16F:
-					name = texture_format::r16f;
+				case texture_format::r16f:
 					return DXGI_FORMAT_R16_FLOAT;
-				case fx::nodes::variable_declaration_node::properties::R32F:
-					name = texture_format::r32f;
+				case texture_format::r32f:
 					return DXGI_FORMAT_R32_FLOAT;
-				case fx::nodes::variable_declaration_node::properties::RG8:
-					name = texture_format::rg8;
+				case texture_format::rg8:
 					return DXGI_FORMAT_R8G8_UNORM;
-				case fx::nodes::variable_declaration_node::properties::RG16:
-					name = texture_format::rg16;
+				case texture_format::rg16:
 					return DXGI_FORMAT_R16G16_UNORM;
-				case fx::nodes::variable_declaration_node::properties::RG16F:
-					name = texture_format::rg16f;
+				case texture_format::rg16f:
 					return DXGI_FORMAT_R16G16_FLOAT;
-				case fx::nodes::variable_declaration_node::properties::RG32F:
-					name = texture_format::rg32f;
+				case texture_format::rg32f:
 					return DXGI_FORMAT_R32G32_FLOAT;
-				case fx::nodes::variable_declaration_node::properties::RGBA8:
-					name = texture_format::rgba8;
+				case texture_format::rgba8:
 					return DXGI_FORMAT_R8G8B8A8_TYPELESS;
-				case fx::nodes::variable_declaration_node::properties::RGBA16:
-					name = texture_format::rgba16;
+				case texture_format::rgba16:
 					return DXGI_FORMAT_R16G16B16A16_UNORM;
-				case fx::nodes::variable_declaration_node::properties::RGBA16F:
-					name = texture_format::rgba16f;
+				case texture_format::rgba16f:
 					return DXGI_FORMAT_R16G16B16A16_FLOAT;
-				case fx::nodes::variable_declaration_node::properties::RGBA32F:
-					name = texture_format::rgba32f;
+				case texture_format::rgba32f:
 					return DXGI_FORMAT_R32G32B32A32_FLOAT;
-				case fx::nodes::variable_declaration_node::properties::DXT1:
-					name = texture_format::dxt1;
+				case texture_format::dxt1:
 					return DXGI_FORMAT_BC1_TYPELESS;
-				case fx::nodes::variable_declaration_node::properties::DXT3:
-					name = texture_format::dxt3;
+				case texture_format::dxt3:
 					return DXGI_FORMAT_BC2_TYPELESS;
-				case fx::nodes::variable_declaration_node::properties::DXT5:
-					name = texture_format::dxt5;
+				case texture_format::dxt5:
 					return DXGI_FORMAT_BC3_TYPELESS;
-				case fx::nodes::variable_declaration_node::properties::LATC1:
-					name = texture_format::latc1;
+				case texture_format::latc1:
 					return DXGI_FORMAT_BC4_UNORM;
-				case fx::nodes::variable_declaration_node::properties::LATC2:
-					name = texture_format::latc2;
+				case texture_format::latc2:
 					return DXGI_FORMAT_BC5_UNORM;
-				default:
-					name = texture_format::unknown;
-					return DXGI_FORMAT_UNKNOWN;
 			}
+
+			return DXGI_FORMAT_UNKNOWN;
 		}
 		size_t D3D10_SAMPLER_DESC_HASH(const D3D10_SAMPLER_DESC &s)
 		{
@@ -164,7 +147,7 @@ namespace reshade
 		}
 	}
 
-	d3d10_fx_compiler::d3d10_fx_compiler(d3d10_runtime *runtime, const fx::nodetree &ast, std::string &errors, bool skipoptimization) :
+	d3d10_fx_compiler::d3d10_fx_compiler(d3d10_runtime *runtime, const fx::syntax_tree &ast, std::string &errors, bool skipoptimization) :
 		_runtime(runtime),
 		_success(true),
 		_ast(ast),
@@ -864,17 +847,17 @@ namespace reshade
 				part1 = "tanh(";
 				part2 = ")";
 				break;
-			case fx::nodes::intrinsic_expression_node::tex2d:
+			case fx::nodes::intrinsic_expression_node::texture:
 				part1 = "__tex2D(";
 				part2 = ", ";
 				part3 = ")";
 				break;
-			case fx::nodes::intrinsic_expression_node::tex2dfetch:
+			case fx::nodes::intrinsic_expression_node::texture_fetch:
 				part1 = "__tex2Dfetch(";
 				part2 = ", ";
 				part3 = ")";
 				break;
-			case fx::nodes::intrinsic_expression_node::tex2dgather:
+			case fx::nodes::intrinsic_expression_node::texture_gather:
 				if (node->arguments[2]->id == fx::nodeid::literal_expression && node->arguments[2]->type.is_integral())
 				{
 					const int component = static_cast<const fx::nodes::literal_expression_node *>(node->arguments[2])->value_int[0];
@@ -890,7 +873,7 @@ namespace reshade
 					error(node->location, "texture gather component argument has to be constant");
 				}
 				return;
-			case fx::nodes::intrinsic_expression_node::tex2dgatheroffset:
+			case fx::nodes::intrinsic_expression_node::texture_gather_offset:
 				if (node->arguments[3]->id == fx::nodeid::literal_expression && node->arguments[3]->type.is_integral())
 				{
 					const int component = static_cast<const fx::nodes::literal_expression_node *>(node->arguments[3])->value_int[0];
@@ -908,36 +891,36 @@ namespace reshade
 					error(node->location, "texture gather component argument has to be constant");
 				}
 				return;
-			case fx::nodes::intrinsic_expression_node::tex2dgrad:
+			case fx::nodes::intrinsic_expression_node::texture_gradient:
 				part1 = "__tex2Dgrad(";
 				part2 = ", ";
 				part3 = ", ";
 				part4 = ", ";
 				part5 = ")";
 				break;
-			case fx::nodes::intrinsic_expression_node::tex2dlevel:
+			case fx::nodes::intrinsic_expression_node::texture_level:
 				part1 = "__tex2Dlod(";
 				part2 = ", ";
 				part3 = ")";
 				break;
-			case fx::nodes::intrinsic_expression_node::tex2dleveloffset:
+			case fx::nodes::intrinsic_expression_node::texture_level_offset:
 				part1 = "__tex2Dlodoffset(";
 				part2 = ", ";
 				part3 = ", ";
 				part4 = ")";
 				break;
-			case fx::nodes::intrinsic_expression_node::tex2doffset:
+			case fx::nodes::intrinsic_expression_node::texture_offset:
 				part1 = "__tex2Doffset(";
 				part2 = ", ";
 				part3 = ", ";
 				part4 = ")";
 				break;
-			case fx::nodes::intrinsic_expression_node::tex2dproj:
+			case fx::nodes::intrinsic_expression_node::texture_projection:
 				part1 = "__tex2Dproj(";
 				part2 = ", ";
 				part3 = ")";
 				break;
-			case fx::nodes::intrinsic_expression_node::tex2dsize:
+			case fx::nodes::intrinsic_expression_node::texture_size:
 				part1 = "__tex2Dsize(";
 				part2 = ", ";
 				part3 = ")";
@@ -1473,11 +1456,11 @@ namespace reshade
 		D3D10_TEXTURE2D_DESC texdesc = { };
 		obj->name = node->name;
 		obj->shader_register = _runtime->_effect_shader_resources.size();
-		texdesc.Width = obj->width = node->properties.Width;
-		texdesc.Height = obj->height = node->properties.Height;
-		texdesc.MipLevels = obj->levels = node->properties.MipLevels;
+		texdesc.Width = obj->width = node->properties.width;
+		texdesc.Height = obj->height = node->properties.height;
+		texdesc.MipLevels = obj->levels = node->properties.levels;
 		texdesc.ArraySize = 1;
-		texdesc.Format = literal_to_format(node->properties.Format, obj->format);
+		texdesc.Format = literal_to_format(obj->format = node->properties.format);
 		texdesc.SampleDesc.Count = 1;
 		texdesc.SampleDesc.Quality = 0;
 		texdesc.Usage = D3D10_USAGE_DEFAULT;
@@ -1559,68 +1542,28 @@ namespace reshade
 	}
 	void d3d10_fx_compiler::visit_sampler(const fx::nodes::variable_declaration_node *node)
 	{
-		if (node->properties.Texture == nullptr)
+		if (node->properties.texture == nullptr)
 		{
 			error(node->location, "sampler '" + node->name + "' is missing required 'Texture' property");
 			return;
 		}
 
 		D3D10_SAMPLER_DESC desc;
-		desc.AddressU = static_cast<D3D10_TEXTURE_ADDRESS_MODE>(node->properties.AddressU);
-		desc.AddressV = static_cast<D3D10_TEXTURE_ADDRESS_MODE>(node->properties.AddressV);
-		desc.AddressW = static_cast<D3D10_TEXTURE_ADDRESS_MODE>(node->properties.AddressW);
-		desc.MipLODBias = node->properties.MipLODBias;
-		desc.MinLOD = node->properties.MinLOD;
-		desc.MaxLOD = node->properties.MaxLOD;
-		desc.MaxAnisotropy = node->properties.MaxAnisotropy;
+		desc.Filter = static_cast<D3D10_FILTER>(node->properties.filter);
+		desc.AddressU = static_cast<D3D10_TEXTURE_ADDRESS_MODE>(node->properties.address_u);
+		desc.AddressV = static_cast<D3D10_TEXTURE_ADDRESS_MODE>(node->properties.address_v);
+		desc.AddressW = static_cast<D3D10_TEXTURE_ADDRESS_MODE>(node->properties.address_w);
+		desc.MipLODBias = node->properties.lod_bias;
+		desc.MinLOD = node->properties.min_lod;
+		desc.MaxLOD = node->properties.max_lod;
+		desc.MaxAnisotropy = node->properties.max_anisotropy;
 		desc.ComparisonFunc = D3D10_COMPARISON_NEVER;
 
-		const UINT minfilter = node->properties.MinFilter;
-		const UINT magfilter = node->properties.MagFilter;
-		const UINT mipfilter = node->properties.MipFilter;
-
-		if (minfilter == fx::nodes::variable_declaration_node::properties::ANISOTROPIC || magfilter == fx::nodes::variable_declaration_node::properties::ANISOTROPIC || mipfilter == fx::nodes::variable_declaration_node::properties::ANISOTROPIC)
-		{
-			desc.Filter = D3D10_FILTER_ANISOTROPIC;
-		}
-		else if (minfilter == fx::nodes::variable_declaration_node::properties::POINT && magfilter == fx::nodes::variable_declaration_node::properties::POINT && mipfilter == fx::nodes::variable_declaration_node::properties::LINEAR)
-		{
-			desc.Filter = D3D10_FILTER_MIN_MAG_POINT_MIP_LINEAR;
-		}
-		else if (minfilter == fx::nodes::variable_declaration_node::properties::POINT && magfilter == fx::nodes::variable_declaration_node::properties::LINEAR && mipfilter == fx::nodes::variable_declaration_node::properties::POINT)
-		{
-			desc.Filter = D3D10_FILTER_MIN_POINT_MAG_LINEAR_MIP_POINT;
-		}
-		else if (minfilter == fx::nodes::variable_declaration_node::properties::POINT && magfilter == fx::nodes::variable_declaration_node::properties::LINEAR && mipfilter == fx::nodes::variable_declaration_node::properties::LINEAR)
-		{
-			desc.Filter = D3D10_FILTER_MIN_POINT_MAG_MIP_LINEAR;
-		}
-		else if (minfilter == fx::nodes::variable_declaration_node::properties::LINEAR && magfilter == fx::nodes::variable_declaration_node::properties::POINT && mipfilter == fx::nodes::variable_declaration_node::properties::POINT)
-		{
-			desc.Filter = D3D10_FILTER_MIN_LINEAR_MAG_MIP_POINT;
-		}
-		else if (minfilter == fx::nodes::variable_declaration_node::properties::LINEAR && magfilter == fx::nodes::variable_declaration_node::properties::POINT && mipfilter == fx::nodes::variable_declaration_node::properties::LINEAR)
-		{
-			desc.Filter = D3D10_FILTER_MIN_LINEAR_MAG_POINT_MIP_LINEAR;
-		}
-		else if (minfilter == fx::nodes::variable_declaration_node::properties::LINEAR && magfilter == fx::nodes::variable_declaration_node::properties::LINEAR && mipfilter == fx::nodes::variable_declaration_node::properties::POINT)
-		{
-			desc.Filter = D3D10_FILTER_MIN_MAG_LINEAR_MIP_POINT;
-		}
-		else if (minfilter == fx::nodes::variable_declaration_node::properties::LINEAR && magfilter == fx::nodes::variable_declaration_node::properties::LINEAR && mipfilter == fx::nodes::variable_declaration_node::properties::LINEAR)
-		{
-			desc.Filter = D3D10_FILTER_MIN_MAG_MIP_LINEAR;
-		}
-		else
-		{
-			desc.Filter = D3D10_FILTER_MIN_MAG_MIP_POINT;
-		}
-
-		const auto texture = static_cast<d3d10_texture *>(_runtime->find_texture(node->properties.Texture->name));
+		const auto texture = static_cast<d3d10_texture *>(_runtime->find_texture(node->properties.texture->name));
 
 		if (texture == nullptr)
 		{
-			error(node->location, "texture '" + node->properties.Texture->name + "' for sampler '" + node->name + "' is missing due to previous error");
+			error(node->location, "texture '" + node->properties.texture->name + "' for sampler '" + node->name + "' is missing due to previous error");
 			return;
 		}
 
@@ -1647,13 +1590,13 @@ namespace reshade
 
 		_global_code << "static const __sampler2D " << node->unique_name << " = { ";
 
-		if (node->properties.SRGBTexture && texture->srv[1] != nullptr)
+		if (node->properties.srgb_texture && texture->srv[1] != nullptr)
 		{
-			_global_code << "__" << node->properties.Texture->unique_name << "SRGB";
+			_global_code << "__" << node->properties.texture->unique_name << "SRGB";
 		}
 		else
 		{
-			_global_code << node->properties.Texture->unique_name;
+			_global_code << node->properties.texture->unique_name;
 		}
 
 		_global_code << ", __SamplerState" << it->second << " };\n";
@@ -1754,27 +1697,27 @@ namespace reshade
 		ZeroMemory(pass.render_target_resources, sizeof(pass.render_target_resources));
 		pass.shader_resources = _runtime->_effect_shader_resources;
 
-		if (node->states.VertexShader != nullptr)
+		if (node->vertex_shader != nullptr)
 		{
-			visit_pass_shader(node->states.VertexShader, "vs", pass);
+			visit_pass_shader(node->vertex_shader, "vs", pass);
 		}
-		if (node->states.PixelShader != nullptr)
+		if (node->pixel_shader != nullptr)
 		{
-			visit_pass_shader(node->states.PixelShader, "ps", pass);
+			visit_pass_shader(node->pixel_shader, "ps", pass);
 		}
 
-		const int target_index = node->states.SRGBWriteEnable ? 1 : 0;
+		const int target_index = node->srgb_write_enable ? 1 : 0;
 		pass.render_targets[0] = _runtime->_backbuffer_rtv[target_index].get();
 		pass.render_target_resources[0] = _runtime->_backbuffer_texture_srv[target_index].get();
 
 		for (unsigned int i = 0; i < 8; i++)
 		{
-			if (node->states.RenderTargets[i] == nullptr)
+			if (node->render_targets[i] == nullptr)
 			{
 				continue;
 			}
 
-			const auto texture = static_cast<d3d10_texture *>(_runtime->find_texture(node->states.RenderTargets[i]->name));
+			const auto texture = static_cast<d3d10_texture *>(_runtime->find_texture(node->render_targets[i]->name));
 
 			if (texture == nullptr)
 			{
@@ -1797,7 +1740,7 @@ namespace reshade
 			}
 
 			D3D10_RENDER_TARGET_VIEW_DESC rtvdesc = { };
-			rtvdesc.Format = node->states.SRGBWriteEnable ? make_format_srgb(texture_desc.Format) : make_format_normal(texture_desc.Format);
+			rtvdesc.Format = node->srgb_write_enable ? make_format_srgb(texture_desc.Format) : make_format_normal(texture_desc.Format);
 			rtvdesc.ViewDimension = texture_desc.SampleDesc.Count > 1 ? D3D10_RTV_DIMENSION_TEXTURE2DMS : D3D10_RTV_DIMENSION_TEXTURE2D;
 
 			if (texture->rtv[target_index] == nullptr)
@@ -1821,17 +1764,17 @@ namespace reshade
 		}
 
 		D3D10_DEPTH_STENCIL_DESC ddesc = { };
-		ddesc.DepthEnable = node->states.DepthEnable;
-		ddesc.DepthWriteMask = node->states.DepthWriteMask ? D3D10_DEPTH_WRITE_MASK_ALL : D3D10_DEPTH_WRITE_MASK_ZERO;
-		ddesc.DepthFunc = static_cast<D3D10_COMPARISON_FUNC>(node->states.DepthFunc);
-		ddesc.StencilEnable = node->states.StencilEnable;
-		ddesc.StencilReadMask = node->states.StencilReadMask;
-		ddesc.StencilWriteMask = node->states.StencilWriteMask;
-		ddesc.FrontFace.StencilFunc = ddesc.BackFace.StencilFunc = static_cast<D3D10_COMPARISON_FUNC>(node->states.StencilFunc);
-		ddesc.FrontFace.StencilPassOp = ddesc.BackFace.StencilPassOp = literal_to_stencil_op(node->states.StencilOpPass);
-		ddesc.FrontFace.StencilFailOp = ddesc.BackFace.StencilFailOp = literal_to_stencil_op(node->states.StencilOpFail);
-		ddesc.FrontFace.StencilDepthFailOp = ddesc.BackFace.StencilDepthFailOp = literal_to_stencil_op(node->states.StencilOpDepthFail);
-		pass.stencil_reference = node->states.StencilRef;
+		ddesc.DepthEnable = node->depth_enable;
+		ddesc.DepthWriteMask = node->depth_write_mask ? D3D10_DEPTH_WRITE_MASK_ALL : D3D10_DEPTH_WRITE_MASK_ZERO;
+		ddesc.DepthFunc = static_cast<D3D10_COMPARISON_FUNC>(node->depth_comparison_func);
+		ddesc.StencilEnable = node->stencil_enable;
+		ddesc.StencilReadMask = node->stencil_read_mask;
+		ddesc.StencilWriteMask = node->stencil_write_mask;
+		ddesc.FrontFace.StencilFunc = ddesc.BackFace.StencilFunc = static_cast<D3D10_COMPARISON_FUNC>(node->stencil_comparison_func);
+		ddesc.FrontFace.StencilPassOp = ddesc.BackFace.StencilPassOp = literal_to_stencil_op(node->stencil_op_pass);
+		ddesc.FrontFace.StencilFailOp = ddesc.BackFace.StencilFailOp = literal_to_stencil_op(node->stencil_op_fail);
+		ddesc.FrontFace.StencilDepthFailOp = ddesc.BackFace.StencilDepthFailOp = literal_to_stencil_op(node->stencil_op_depth_fail);
+		pass.stencil_reference = node->stencil_reference_value;
 
 		HRESULT hr = _runtime->_device->CreateDepthStencilState(&ddesc, &pass.depth_stencil_state);
 
@@ -1842,12 +1785,12 @@ namespace reshade
 
 		D3D10_BLEND_DESC bdesc = { };
 		bdesc.AlphaToCoverageEnable = FALSE;
-		bdesc.RenderTargetWriteMask[0] = node->states.RenderTargetWriteMask;
-		bdesc.BlendEnable[0] = node->states.BlendEnable;
-		bdesc.BlendOp = static_cast<D3D10_BLEND_OP>(node->states.BlendOp);
-		bdesc.BlendOpAlpha = static_cast<D3D10_BLEND_OP>(node->states.BlendOpAlpha);
-		bdesc.SrcBlend = literal_to_blend_func(node->states.SrcBlend);
-		bdesc.DestBlend = literal_to_blend_func(node->states.DestBlend);
+		bdesc.RenderTargetWriteMask[0] = node->color_write_mask;
+		bdesc.BlendEnable[0] = node->blend_enable;
+		bdesc.BlendOp = static_cast<D3D10_BLEND_OP>(node->blend_op);
+		bdesc.BlendOpAlpha = static_cast<D3D10_BLEND_OP>(node->blend_op_alpha);
+		bdesc.SrcBlend = literal_to_blend_func(node->src_blend);
+		bdesc.DestBlend = literal_to_blend_func(node->dest_blend);
 
 		for (UINT i = 1; i < 8; i++)
 		{

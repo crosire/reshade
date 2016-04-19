@@ -8,7 +8,7 @@ namespace reshade
 	class gl_fx_compiler
 	{
 	public:
-		gl_fx_compiler(gl_runtime *runtime, const fx::nodetree &ast, std::string &errors);
+		gl_fx_compiler(gl_runtime *runtime, const fx::syntax_tree &ast, std::string &errors);
 
 		bool run();
 
@@ -63,7 +63,7 @@ namespace reshade
 
 		gl_runtime *_runtime;
 		bool _success;
-		const fx::nodetree &_ast;
+		const fx::syntax_tree &_ast;
 		std::string &_errors;
 		std::stringstream _global_code, _global_uniforms;
 		size_t _current_uniform_size;

@@ -21,7 +21,7 @@ namespace reshade
 
 	namespace fx
 	{
-		class nodetree;
+		class syntax_tree;
 	}
 }
 
@@ -88,7 +88,7 @@ namespace reshade
 		/// <param name="ast">The abstract syntax tree of the effect to compile.</param>
 		/// <param name="pragmas">A list of additional commands to the compiler.</param>
 		/// <param name="errors">A reference to a buffer to store errors which occur during compilation.</param>
-		virtual bool update_effect(const fx::nodetree &ast, const std::vector<std::string> &pragmas, std::string &errors) = 0;
+		virtual bool update_effect(const fx::syntax_tree &ast, const std::vector<std::string> &pragmas, std::string &errors) = 0;
 		/// <summary>
 		/// Update the image data of a texture.
 		/// </summary>

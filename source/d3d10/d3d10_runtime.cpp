@@ -882,7 +882,7 @@ namespace reshade
 
 		texture_staging->Unmap(0);
 	}
-	bool d3d10_runtime::update_effect(const fx::nodetree &ast, const std::vector<std::string> &pragmas, std::string &errors)
+	bool d3d10_runtime::update_effect(const fx::syntax_tree &ast, const std::vector<std::string> &pragmas, std::string &errors)
 	{
 		bool skip_optimization = false;
 

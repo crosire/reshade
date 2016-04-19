@@ -13,6 +13,18 @@ namespace reshade
 		backbuffer,
 		depthbuffer
 	};
+	enum class texture_filter
+	{
+		anisotropic = 0x55,
+		min_mag_mip_point = 0,
+		min_mag_point_mip_linear = 0x1,
+		min_point_mag_linear_mip_point = 0x4,
+		min_point_mag_mip_linear = 0x5,
+		min_linear_mag_mip_point = 0x10,
+		min_linear_mag_point_mip_linear = 0x11,
+		min_mag_linear_mip_point = 0x14,
+		min_mag_mip_linear = 0x15
+	};
 	enum class texture_format
 	{
 		unknown,
@@ -34,6 +46,13 @@ namespace reshade
 		dxt5,
 		latc1,
 		latc2
+	};
+	enum class texture_address_mode
+	{
+		wrap = 1,
+		mirror = 2,
+		clamp = 3,
+		border = 4
 	};
 	enum class uniform_datatype
 	{

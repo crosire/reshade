@@ -15,9 +15,9 @@ namespace reshade
 		{
 			switch (value)
 			{
-				case fx::nodes::pass_declaration_node::states::ZERO:
+				case fx::nodes::pass_declaration_node::ZERO:
 					return D3DBLEND_ZERO;
-				case fx::nodes::pass_declaration_node::states::ONE:
+				case fx::nodes::pass_declaration_node::ONE:
 					return D3DBLEND_ONE;
 			}
 
@@ -25,69 +25,52 @@ namespace reshade
 		}
 		D3DSTENCILOP literal_to_stencil_op(unsigned int value)
 		{
-			if (value == fx::nodes::pass_declaration_node::states::ZERO)
+			if (value == fx::nodes::pass_declaration_node::ZERO)
 			{
 				return D3DSTENCILOP_ZERO;
 			}
 
 			return static_cast<D3DSTENCILOP>(value);
 		}
-		D3DFORMAT literal_to_format(unsigned int value, texture_format &name)
+		D3DFORMAT literal_to_format(texture_format value)
 		{
 			switch (value)
 			{
-				case fx::nodes::variable_declaration_node::properties::R8:
-					name = texture_format::r8;
+				case texture_format::r8:
 					return D3DFMT_A8R8G8B8;
-				case fx::nodes::variable_declaration_node::properties::R16F:
-					name = texture_format::r16f;
+				case texture_format::r16f:
 					return D3DFMT_R16F;
-				case fx::nodes::variable_declaration_node::properties::R32F:
-					name = texture_format::r32f;
+				case texture_format::r32f:
 					return D3DFMT_R32F;
-				case fx::nodes::variable_declaration_node::properties::RG8:
-					name = texture_format::rg8;
+				case texture_format::rg8:
 					return D3DFMT_A8R8G8B8;
-				case fx::nodes::variable_declaration_node::properties::RG16:
-					name = texture_format::rg16;
+				case texture_format::rg16:
 					return D3DFMT_G16R16;
-				case fx::nodes::variable_declaration_node::properties::RG16F:
-					name = texture_format::rg16f;
+				case texture_format::rg16f:
 					return D3DFMT_G16R16F;
-				case fx::nodes::variable_declaration_node::properties::RG32F:
-					name = texture_format::rg32f;
+				case texture_format::rg32f:
 					return D3DFMT_G32R32F;
-				case fx::nodes::variable_declaration_node::properties::RGBA8:
-					name = texture_format::rgba8;
+				case texture_format::rgba8:
 					return D3DFMT_A8R8G8B8;
-				case fx::nodes::variable_declaration_node::properties::RGBA16:
-					name = texture_format::rgba16;
+				case texture_format::rgba16:
 					return D3DFMT_A16B16G16R16;
-				case fx::nodes::variable_declaration_node::properties::RGBA16F:
-					name = texture_format::rgba16f;
+				case texture_format::rgba16f:
 					return D3DFMT_A16B16G16R16F;
-				case fx::nodes::variable_declaration_node::properties::RGBA32F:
-					name = texture_format::rgba32f;
+				case texture_format::rgba32f:
 					return D3DFMT_A32B32G32R32F;
-				case fx::nodes::variable_declaration_node::properties::DXT1:
-					name = texture_format::dxt1;
+				case texture_format::dxt1:
 					return D3DFMT_DXT1;
-				case fx::nodes::variable_declaration_node::properties::DXT3:
-					name = texture_format::dxt3;
+				case texture_format::dxt3:
 					return D3DFMT_DXT3;
-				case fx::nodes::variable_declaration_node::properties::DXT5:
-					name = texture_format::dxt5;
+				case texture_format::dxt5:
 					return D3DFMT_DXT5;
-				case fx::nodes::variable_declaration_node::properties::LATC1:
-					name = texture_format::latc1;
+				case texture_format::latc1:
 					return static_cast<D3DFORMAT>(MAKEFOURCC('A', 'T', 'I', '1'));
-				case fx::nodes::variable_declaration_node::properties::LATC2:
-					name = texture_format::latc2;
+				case texture_format::latc2:
 					return static_cast<D3DFORMAT>(MAKEFOURCC('A', 'T', 'I', '2'));
-				default:
-					name = texture_format::unknown;
-					return D3DFMT_UNKNOWN;
 			}
+
+			return D3DFMT_UNKNOWN;
 		}
 		std::string convert_semantic(const std::string &semantic)
 		{
@@ -119,7 +102,7 @@ namespace reshade
 		}
 	}
 
-	d3d9_fx_compiler::d3d9_fx_compiler(d3d9_runtime *runtime, const fx::nodetree &ast, std::string &errors, bool skipoptimization) :
+	d3d9_fx_compiler::d3d9_fx_compiler(d3d9_runtime *runtime, const fx::syntax_tree &ast, std::string &errors, bool skipoptimization) :
 		_runtime(runtime),
 		_success(true),
 		_ast(ast),
@@ -822,17 +805,17 @@ namespace reshade
 				part1 = "tanh(";
 				part2 = ")";
 				break;
-			case fx::nodes::intrinsic_expression_node::tex2d:
+			case fx::nodes::intrinsic_expression_node::texture:
 				part1 = "tex2D((";
 				part2 = ").s, ";
 				part3 = ")";
 				break;
-			case fx::nodes::intrinsic_expression_node::tex2dfetch:
+			case fx::nodes::intrinsic_expression_node::texture_fetch:
 				part1 = "tex2Dlod((";
 				part2 = ").s, float4(";
 				part3 = "))";
 				break;
-			case fx::nodes::intrinsic_expression_node::tex2dgather:
+			case fx::nodes::intrinsic_expression_node::texture_gather:
 				if (node->arguments[2]->id == fx::nodeid::literal_expression && node->arguments[2]->type.is_integral())
 				{
 					const int component = static_cast<const fx::nodes::literal_expression_node *>(node->arguments[2])->value_int[0];
@@ -848,7 +831,7 @@ namespace reshade
 					error(node->location, "texture gather component argument has to be constant");
 				}
 				return;
-			case fx::nodes::intrinsic_expression_node::tex2dgatheroffset:
+			case fx::nodes::intrinsic_expression_node::texture_gather_offset:
 				if (node->arguments[3]->id == fx::nodeid::literal_expression && node->arguments[3]->type.is_integral())
 				{
 					const int component = static_cast<const fx::nodes::literal_expression_node *>(node->arguments[3])->value_int[0];
@@ -866,36 +849,36 @@ namespace reshade
 					error(node->location, "texture gather component argument has to be constant");
 				}
 				return;
-			case fx::nodes::intrinsic_expression_node::tex2dgrad:
+			case fx::nodes::intrinsic_expression_node::texture_gradient:
 				part1 = "tex2Dgrad((";
 				part2 = ").s, ";
 				part3 = ", ";
 				part4 = ", ";
 				part5 = ")";
 				break;
-			case fx::nodes::intrinsic_expression_node::tex2dlevel:
+			case fx::nodes::intrinsic_expression_node::texture_level:
 				part1 = "tex2Dlod((";
 				part2 = ").s, ";
 				part3 = ")";
 				break;
-			case fx::nodes::intrinsic_expression_node::tex2dleveloffset:
+			case fx::nodes::intrinsic_expression_node::texture_level_offset:
 				part1 = "__tex2Dlodoffset(";
 				part2 = ", ";
 				part3 = ", ";
 				part4 = ")";
 				break;
-			case fx::nodes::intrinsic_expression_node::tex2doffset:
+			case fx::nodes::intrinsic_expression_node::texture_offset:
 				part1 = "__tex2Doffset(";
 				part2 = ", ";
 				part3 = ", ";
 				part4 = ")";
 				break;
-			case fx::nodes::intrinsic_expression_node::tex2dproj:
+			case fx::nodes::intrinsic_expression_node::texture_projection:
 				part1 = "tex2Dproj((";
 				part2 = ").s, ";
 				part3 = ")";
 				break;
-			case fx::nodes::intrinsic_expression_node::tex2dsize:
+			case fx::nodes::intrinsic_expression_node::texture_size:
 				part1 = "__tex2Dsize(";
 				part2 = ", ";
 				part3 = ")";
@@ -1441,10 +1424,10 @@ namespace reshade
 	{
 		const auto obj = new d3d9_texture();
 		obj->name = node->name;
-		UINT width = obj->width = node->properties.Width;
-		UINT height = obj->height = node->properties.Height;
-		UINT levels = obj->levels = node->properties.MipLevels;
-		const D3DFORMAT format = literal_to_format(node->properties.Format, obj->format);
+		UINT width = obj->width = node->properties.width;
+		UINT height = obj->height = node->properties.height;
+		UINT levels = obj->levels = node->properties.levels;
+		const D3DFORMAT format = literal_to_format(obj->format = node->properties.format);
 
 		visit_annotation(node->annotations, *obj);
 
@@ -1515,13 +1498,13 @@ namespace reshade
 	}
 	void d3d9_fx_compiler::visit_sampler(const fx::nodes::variable_declaration_node *node)
 	{
-		if (node->properties.Texture == nullptr)
+		if (node->properties.texture == nullptr)
 		{
 			error(node->location, "sampler '" + node->name + "' is missing required 'Texture' property");
 			return;
 		}
 
-		const auto texture = static_cast<d3d9_texture *>(_runtime->find_texture(node->properties.Texture->name));
+		const auto texture = static_cast<d3d9_texture *>(_runtime->find_texture(node->properties.texture->name));
 
 		if (texture == nullptr)
 		{
@@ -1531,17 +1514,25 @@ namespace reshade
 
 		d3d9_sampler sampler;
 		sampler.Texture = texture;
-		sampler.States[D3DSAMP_ADDRESSU] = static_cast<D3DTEXTUREADDRESS>(node->properties.AddressU);
-		sampler.States[D3DSAMP_ADDRESSV] = static_cast<D3DTEXTUREADDRESS>(node->properties.AddressV);
-		sampler.States[D3DSAMP_ADDRESSW] = static_cast<D3DTEXTUREADDRESS>(node->properties.AddressW);
+		sampler.States[D3DSAMP_ADDRESSU] = static_cast<D3DTEXTUREADDRESS>(node->properties.address_u);
+		sampler.States[D3DSAMP_ADDRESSV] = static_cast<D3DTEXTUREADDRESS>(node->properties.address_v);
+		sampler.States[D3DSAMP_ADDRESSW] = static_cast<D3DTEXTUREADDRESS>(node->properties.address_w);
 		sampler.States[D3DSAMP_BORDERCOLOR] = 0;
-		sampler.States[D3DSAMP_MINFILTER] = static_cast<D3DTEXTUREFILTERTYPE>(node->properties.MinFilter);
-		sampler.States[D3DSAMP_MAGFILTER] = static_cast<D3DTEXTUREFILTERTYPE>(node->properties.MagFilter);
-		sampler.States[D3DSAMP_MIPFILTER] = static_cast<D3DTEXTUREFILTERTYPE>(node->properties.MipFilter);
-		sampler.States[D3DSAMP_MIPMAPLODBIAS] = *reinterpret_cast<const DWORD *>(&node->properties.MipLODBias);
-		sampler.States[D3DSAMP_MAXMIPLEVEL] = static_cast<DWORD>(std::max(0.0f, node->properties.MinLOD));
-		sampler.States[D3DSAMP_MAXANISOTROPY] = node->properties.MaxAnisotropy;
-		sampler.States[D3DSAMP_SRGBTEXTURE] = node->properties.SRGBTexture;
+		sampler.States[D3DSAMP_MIPMAPLODBIAS] = *reinterpret_cast<const DWORD *>(&node->properties.lod_bias);
+		sampler.States[D3DSAMP_MAXMIPLEVEL] = static_cast<DWORD>(std::max(0.0f, node->properties.min_lod));
+		sampler.States[D3DSAMP_MAXANISOTROPY] = node->properties.max_anisotropy;
+		sampler.States[D3DSAMP_SRGBTEXTURE] = node->properties.srgb_texture;
+
+		if (node->properties.filter == texture_filter::anisotropic)
+		{
+			sampler.States[D3DSAMP_MINFILTER] = sampler.States[D3DSAMP_MAGFILTER] = sampler.States[D3DSAMP_MIPFILTER] = D3DTEXF_ANISOTROPIC;
+		}
+		else
+		{
+			sampler.States[D3DSAMP_MINFILTER] = 1 + ((static_cast<unsigned int>(node->properties.filter) & 0x30) >> 4);
+			sampler.States[D3DSAMP_MAGFILTER] = 1 + ((static_cast<unsigned int>(node->properties.filter) & 0xC) >> 2);
+			sampler.States[D3DSAMP_MIPFILTER] = 1 + ((static_cast<unsigned int>(node->properties.filter) & 0x3));
+		}
 
 		_samplers[node->name] = sampler;
 	}
@@ -1641,7 +1632,7 @@ namespace reshade
 
 		std::string samplers;
 		const char shader_types[2][3] = { "vs", "ps" };
-		const fx::nodes::function_declaration_node *shader_functions[2] = { node->states.VertexShader, node->states.PixelShader };
+		const fx::nodes::function_declaration_node *shader_functions[2] = { node->vertex_shader, node->pixel_shader };
 
 		for (unsigned int i = 0; i < 2; i++)
 		{
@@ -1653,7 +1644,7 @@ namespace reshade
 			for (auto sampler : _functions.at(shader_functions[i]).sampler_dependencies)
 			{
 				pass.samplers[pass.sampler_count] = _samplers.at(sampler->name);
-				const auto *const texture = sampler->properties.Texture;
+				const auto *const texture = sampler->properties.texture;
 
 				samplers += "sampler2D __Sampler";
 				samplers += sampler->unique_name;
@@ -1669,7 +1660,7 @@ namespace reshade
 				}
 				else
 				{
-					samplers += ", float2(" + std::to_string(1.0f / texture->properties.Width) + ", " + std::to_string(1.0f / texture->properties.Height) + ")";
+					samplers += ", float2(" + std::to_string(1.0f / texture->properties.width) + ", " + std::to_string(1.0f / texture->properties.height) + ")";
 				}
 
 				samplers += " };\n";
@@ -1702,40 +1693,40 @@ namespace reshade
 		device->SetVertexShader(pass.vertex_shader.get());
 		device->SetPixelShader(pass.pixel_shader.get());
 
-		device->SetRenderState(D3DRS_ZENABLE, node->states.DepthEnable);
+		device->SetRenderState(D3DRS_ZENABLE, node->depth_enable);
 		device->SetRenderState(D3DRS_SPECULARENABLE, FALSE);
 		device->SetRenderState(D3DRS_FILLMODE, D3DFILL_SOLID);
 		device->SetRenderState(D3DRS_SHADEMODE, D3DSHADE_GOURAUD);
 		device->SetRenderState(D3DRS_ZWRITEENABLE, TRUE);
 		device->SetRenderState(D3DRS_ALPHATESTENABLE, FALSE);
 		device->SetRenderState(D3DRS_LASTPIXEL, TRUE);
-		device->SetRenderState(D3DRS_SRCBLEND, literal_to_blend_func(node->states.SrcBlend));
-		device->SetRenderState(D3DRS_DESTBLEND, literal_to_blend_func(node->states.DestBlend));
-		device->SetRenderState(D3DRS_ZFUNC, static_cast<D3DCMPFUNC>(node->states.DepthFunc));
+		device->SetRenderState(D3DRS_SRCBLEND, literal_to_blend_func(node->src_blend));
+		device->SetRenderState(D3DRS_DESTBLEND, literal_to_blend_func(node->dest_blend));
+		device->SetRenderState(D3DRS_ZFUNC, static_cast<D3DCMPFUNC>(node->depth_comparison_func));
 		device->SetRenderState(D3DRS_ALPHAREF, 0);
 		device->SetRenderState(D3DRS_ALPHAFUNC, D3DCMP_ALWAYS);
 		device->SetRenderState(D3DRS_DITHERENABLE, FALSE);
 		device->SetRenderState(D3DRS_FOGSTART, 0);
 		device->SetRenderState(D3DRS_FOGEND, 1);
 		device->SetRenderState(D3DRS_FOGDENSITY, 1);
-		device->SetRenderState(D3DRS_ALPHABLENDENABLE, node->states.BlendEnable);
+		device->SetRenderState(D3DRS_ALPHABLENDENABLE, node->blend_enable);
 		device->SetRenderState(D3DRS_DEPTHBIAS, 0);
-		device->SetRenderState(D3DRS_STENCILENABLE, node->states.StencilEnable);
-		device->SetRenderState(D3DRS_STENCILPASS, literal_to_stencil_op(node->states.StencilOpPass));
-		device->SetRenderState(D3DRS_STENCILFAIL, literal_to_stencil_op(node->states.StencilOpFail));
-		device->SetRenderState(D3DRS_STENCILZFAIL, literal_to_stencil_op(node->states.StencilOpDepthFail));
-		device->SetRenderState(D3DRS_STENCILFUNC, static_cast<D3DCMPFUNC>(node->states.StencilFunc));
-		device->SetRenderState(D3DRS_STENCILREF, node->states.StencilRef);
-		device->SetRenderState(D3DRS_STENCILMASK, node->states.StencilReadMask);
-		device->SetRenderState(D3DRS_STENCILWRITEMASK, node->states.StencilWriteMask);
+		device->SetRenderState(D3DRS_STENCILENABLE, node->stencil_enable);
+		device->SetRenderState(D3DRS_STENCILPASS, literal_to_stencil_op(node->stencil_op_pass));
+		device->SetRenderState(D3DRS_STENCILFAIL, literal_to_stencil_op(node->stencil_op_fail));
+		device->SetRenderState(D3DRS_STENCILZFAIL, literal_to_stencil_op(node->stencil_op_depth_fail));
+		device->SetRenderState(D3DRS_STENCILFUNC, static_cast<D3DCMPFUNC>(node->stencil_comparison_func));
+		device->SetRenderState(D3DRS_STENCILREF, node->stencil_reference_value);
+		device->SetRenderState(D3DRS_STENCILMASK, node->stencil_read_mask);
+		device->SetRenderState(D3DRS_STENCILWRITEMASK, node->stencil_write_mask);
 		device->SetRenderState(D3DRS_TEXTUREFACTOR, 0xFFFFFFFF);
 		device->SetRenderState(D3DRS_LOCALVIEWER, TRUE);
 		device->SetRenderState(D3DRS_EMISSIVEMATERIALSOURCE, D3DMCS_MATERIAL);
 		device->SetRenderState(D3DRS_AMBIENTMATERIALSOURCE, D3DMCS_MATERIAL);
 		device->SetRenderState(D3DRS_DIFFUSEMATERIALSOURCE, D3DMCS_COLOR1);
 		device->SetRenderState(D3DRS_SPECULARMATERIALSOURCE, D3DMCS_COLOR2);
-		device->SetRenderState(D3DRS_COLORWRITEENABLE, node->states.RenderTargetWriteMask);
-		device->SetRenderState(D3DRS_BLENDOP, static_cast<D3DBLENDOP>(node->states.BlendOp));
+		device->SetRenderState(D3DRS_COLORWRITEENABLE, node->color_write_mask);
+		device->SetRenderState(D3DRS_BLENDOP, static_cast<D3DBLENDOP>(node->blend_op));
 		device->SetRenderState(D3DRS_SCISSORTESTENABLE, FALSE);
 		device->SetRenderState(D3DRS_SLOPESCALEDEPTHBIAS, 0);
 		device->SetRenderState(D3DRS_ANTIALIASEDLINEENABLE, FALSE);
@@ -1748,11 +1739,11 @@ namespace reshade
 		device->SetRenderState(D3DRS_COLORWRITEENABLE2, 0x0000000F);
 		device->SetRenderState(D3DRS_COLORWRITEENABLE3, 0x0000000F);
 		device->SetRenderState(D3DRS_BLENDFACTOR, 0xFFFFFFFF);
-		device->SetRenderState(D3DRS_SRGBWRITEENABLE, node->states.SRGBWriteEnable);
+		device->SetRenderState(D3DRS_SRGBWRITEENABLE, node->srgb_write_enable);
 		device->SetRenderState(D3DRS_SEPARATEALPHABLENDENABLE, FALSE);
 		device->SetRenderState(D3DRS_SRCBLENDALPHA, D3DBLEND_ONE);
 		device->SetRenderState(D3DRS_DESTBLENDALPHA, D3DBLEND_ZERO);
-		device->SetRenderState(D3DRS_BLENDOPALPHA, static_cast<D3DBLENDOP>(node->states.BlendOpAlpha));
+		device->SetRenderState(D3DRS_BLENDOPALPHA, static_cast<D3DBLENDOP>(node->blend_op_alpha));
 		device->SetRenderState(D3DRS_FOGENABLE, FALSE);
 		device->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
 		device->SetRenderState(D3DRS_LIGHTING, FALSE);
@@ -1764,7 +1755,7 @@ namespace reshade
 
 		for (unsigned int i = 0; i < 8; ++i)
 		{
-			if (node->states.RenderTargets[i] == nullptr)
+			if (node->render_targets[i] == nullptr)
 			{
 				continue;
 			}
@@ -1775,7 +1766,7 @@ namespace reshade
 				break;
 			}
 
-			const auto texture = static_cast<d3d9_texture *>(_runtime->find_texture(node->states.RenderTargets[i]->name));
+			const auto texture = static_cast<d3d9_texture *>(_runtime->find_texture(node->render_targets[i]->name));
 
 			if (texture == nullptr)
 			{

@@ -8,7 +8,7 @@ namespace reshade
 	class d3d10_fx_compiler
 	{
 	public:
-		d3d10_fx_compiler(d3d10_runtime *runtime, const fx::nodetree &ast, std::string &errors, bool skipoptimization = false);
+		d3d10_fx_compiler(d3d10_runtime *runtime, const fx::syntax_tree &ast, std::string &errors, bool skipoptimization = false);
 
 		bool run();
 
@@ -55,7 +55,7 @@ namespace reshade
 
 		d3d10_runtime *_runtime;
 		bool _success;
-		const fx::nodetree &_ast;
+		const fx::syntax_tree &_ast;
 		std::string &_errors;
 		std::stringstream _global_code, _global_uniforms;
 		bool _skip_shader_optimization;

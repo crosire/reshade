@@ -72,7 +72,7 @@ namespace reshade
 	void d3d12_runtime::screenshot(unsigned char *buffer) const
 	{
 	}
-	bool d3d12_runtime::update_effect(const fx::nodetree &ast, const std::vector<std::string> &pragmas, std::string &errors)
+	bool d3d12_runtime::update_effect(const fx::syntax_tree &ast, const std::vector<std::string> &pragmas, std::string &errors)
 	{
 		return false;
 	}

@@ -24,7 +24,7 @@ namespace reshade
 			parser &operator=(const parser &) = delete;
 
 		public:
-			parser(const std::string &input, nodetree &ast, std::string &errors);
+			parser(const std::string &input, syntax_tree &ast, std::string &errors);
 			~parser();
 
 			bool run();
@@ -74,7 +74,7 @@ namespace reshade
 			bool parse_technique_pass(nodes::pass_declaration_node *&pass);
 			bool parse_technique_pass_expression(nodes::expression_node *&expression);
 
-			nodetree &_ast;
+			syntax_tree &_ast;
 			std::string &_errors;
 			std::unique_ptr<lexer> _lexer, _lexer_backup;
 			lexer::token _token, _token_next, _token_backup;

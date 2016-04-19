@@ -82,7 +82,7 @@ namespace reshade
 			}
 		}
 
-		expression_node *fold_constant_expression(nodetree &ast, expression_node *expression)
+		expression_node *fold_constant_expression(syntax_tree &ast, expression_node *expression)
 		{
 #define DOFOLDING1(op) \
 		{ \

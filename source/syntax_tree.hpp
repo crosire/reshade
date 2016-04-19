@@ -8,7 +8,7 @@ namespace reshade
 {
 	namespace fx
 	{
-		class nodetree
+		class syntax_tree
 		{
 		public:
 			template <typename T>

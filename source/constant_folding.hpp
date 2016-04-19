@@ -5,7 +5,7 @@ namespace reshade
 {
 	namespace fx
 	{
-		class nodetree;
+		class syntax_tree;
 
 		namespace nodes
 		{
@@ -25,6 +25,6 @@ namespace reshade
 		void scalar_literal_cast(const nodes::literal_expression_node *from, size_t i, float &to);
 		void vector_literal_cast(const nodes::literal_expression_node *from, size_t k, nodes::literal_expression_node *to, size_t j);
 
-		nodes::expression_node *fold_constant_expression(nodetree &ast, nodes::expression_node *expression);
+		nodes::expression_node *fold_constant_expression(syntax_tree &ast, nodes::expression_node *expression);
 	}
 }

@@ -16,21 +16,21 @@ namespace reshade
 			switch (value)
 			{
 				default:
-				case fx::nodes::pass_declaration_node::states::ALWAYS:
+				case fx::nodes::pass_declaration_node::ALWAYS:
 					return GL_ALWAYS;
-				case fx::nodes::pass_declaration_node::states::NEVER:
+				case fx::nodes::pass_declaration_node::NEVER:
 					return GL_NEVER;
-				case fx::nodes::pass_declaration_node::states::EQUAL:
+				case fx::nodes::pass_declaration_node::EQUAL:
 					return GL_EQUAL;
-				case fx::nodes::pass_declaration_node::states::NOTEQUAL:
+				case fx::nodes::pass_declaration_node::NOTEQUAL:
 					return GL_NOTEQUAL;
-				case fx::nodes::pass_declaration_node::states::LESS:
+				case fx::nodes::pass_declaration_node::LESS:
 					return GL_LESS;
-				case fx::nodes::pass_declaration_node::states::LESSEQUAL:
+				case fx::nodes::pass_declaration_node::LESSEQUAL:
 					return GL_LEQUAL;
-				case fx::nodes::pass_declaration_node::states::GREATER:
+				case fx::nodes::pass_declaration_node::GREATER:
 					return GL_GREATER;
-				case fx::nodes::pass_declaration_node::states::GREATEREQUAL:
+				case fx::nodes::pass_declaration_node::GREATEREQUAL:
 					return GL_GEQUAL;
 			}
 		}
@@ -38,15 +38,15 @@ namespace reshade
 		{
 			switch (value)
 			{
-				case fx::nodes::pass_declaration_node::states::ADD:
+				case fx::nodes::pass_declaration_node::ADD:
 					return GL_FUNC_ADD;
-				case fx::nodes::pass_declaration_node::states::SUBTRACT:
+				case fx::nodes::pass_declaration_node::SUBTRACT:
 					return GL_FUNC_SUBTRACT;
-				case fx::nodes::pass_declaration_node::states::REVSUBTRACT:
+				case fx::nodes::pass_declaration_node::REVSUBTRACT:
 					return GL_FUNC_REVERSE_SUBTRACT;
-				case fx::nodes::pass_declaration_node::states::MIN:
+				case fx::nodes::pass_declaration_node::MIN:
 					return GL_MIN;
-				case fx::nodes::pass_declaration_node::states::MAX:
+				case fx::nodes::pass_declaration_node::MAX:
 					return GL_MAX;
 			}
 
@@ -56,25 +56,25 @@ namespace reshade
 		{
 			switch (value)
 			{
-				case fx::nodes::pass_declaration_node::states::ZERO:
+				case fx::nodes::pass_declaration_node::ZERO:
 					return GL_ZERO;
-				case fx::nodes::pass_declaration_node::states::ONE:
+				case fx::nodes::pass_declaration_node::ONE:
 					return GL_ONE;
-				case fx::nodes::pass_declaration_node::states::SRCCOLOR:
+				case fx::nodes::pass_declaration_node::SRCCOLOR:
 					return GL_SRC_COLOR;
-				case fx::nodes::pass_declaration_node::states::SRCALPHA:
+				case fx::nodes::pass_declaration_node::SRCALPHA:
 					return GL_SRC_ALPHA;
-				case fx::nodes::pass_declaration_node::states::INVSRCCOLOR:
+				case fx::nodes::pass_declaration_node::INVSRCCOLOR:
 					return GL_ONE_MINUS_SRC_COLOR;
-				case fx::nodes::pass_declaration_node::states::INVSRCALPHA:
+				case fx::nodes::pass_declaration_node::INVSRCALPHA:
 					return GL_ONE_MINUS_SRC_ALPHA;
-				case fx::nodes::pass_declaration_node::states::DESTCOLOR:
+				case fx::nodes::pass_declaration_node::DESTCOLOR:
 					return GL_DST_COLOR;
-				case fx::nodes::pass_declaration_node::states::DESTALPHA:
+				case fx::nodes::pass_declaration_node::DESTALPHA:
 					return GL_DST_ALPHA;
-				case fx::nodes::pass_declaration_node::states::INVDESTCOLOR:
+				case fx::nodes::pass_declaration_node::INVDESTCOLOR:
 					return GL_ONE_MINUS_DST_COLOR;
-				case fx::nodes::pass_declaration_node::states::INVDESTALPHA:
+				case fx::nodes::pass_declaration_node::INVDESTALPHA:
 					return GL_ONE_MINUS_DST_ALPHA;
 			}
 
@@ -85,128 +85,136 @@ namespace reshade
 			switch (value)
 			{
 				default:
-				case fx::nodes::pass_declaration_node::states::KEEP:
+				case fx::nodes::pass_declaration_node::KEEP:
 					return GL_KEEP;
-				case fx::nodes::pass_declaration_node::states::ZERO:
+				case fx::nodes::pass_declaration_node::ZERO:
 					return GL_ZERO;
-				case fx::nodes::pass_declaration_node::states::REPLACE:
+				case fx::nodes::pass_declaration_node::REPLACE:
 					return GL_REPLACE;
-				case fx::nodes::pass_declaration_node::states::INCR:
+				case fx::nodes::pass_declaration_node::INCR:
 					return GL_INCR_WRAP;
-				case fx::nodes::pass_declaration_node::states::INCRSAT:
+				case fx::nodes::pass_declaration_node::INCRSAT:
 					return GL_INCR;
-				case fx::nodes::pass_declaration_node::states::DECR:
+				case fx::nodes::pass_declaration_node::DECR:
 					return GL_DECR_WRAP;
-				case fx::nodes::pass_declaration_node::states::DECRSAT:
+				case fx::nodes::pass_declaration_node::DECRSAT:
 					return GL_DECR;
-				case fx::nodes::pass_declaration_node::states::INVERT:
+				case fx::nodes::pass_declaration_node::INVERT:
 					return GL_INVERT;
 			}
 		}
-		GLenum literal_to_wrap_mode(unsigned int value)
+		GLenum literal_to_wrap_mode(texture_address_mode value)
 		{
 			switch (value)
 			{
-				case fx::nodes::variable_declaration_node::properties::REPEAT:
+				case texture_address_mode::wrap:
 					return GL_REPEAT;
-				case fx::nodes::variable_declaration_node::properties::MIRROR:
+				case texture_address_mode::mirror:
 					return GL_MIRRORED_REPEAT;
-				case fx::nodes::variable_declaration_node::properties::CLAMP:
+				case texture_address_mode::clamp:
 					return GL_CLAMP_TO_EDGE;
-				case fx::nodes::variable_declaration_node::properties::BORDER:
+				case texture_address_mode::border:
 					return GL_CLAMP_TO_BORDER;
 			}
 
 			return GL_NONE;
 		}
-		GLenum literal_to_filter_mode(unsigned int value)
+		void literal_to_filter_mode(texture_filter value, GLenum &minfilter, GLenum &magfilter)
 		{
 			switch (value)
 			{
-				case fx::nodes::variable_declaration_node::properties::POINT:
-					return GL_NEAREST;
-				case fx::nodes::variable_declaration_node::properties::LINEAR:
-					return GL_LINEAR;
-				case fx::nodes::variable_declaration_node::properties::ANISOTROPIC:
-					return GL_LINEAR_MIPMAP_LINEAR;
+				case reshade::texture_filter::min_mag_mip_point:
+					minfilter = GL_NEAREST_MIPMAP_NEAREST;
+					magfilter = GL_NEAREST;
+					break;
+				case reshade::texture_filter::min_mag_point_mip_linear:
+					minfilter = GL_NEAREST_MIPMAP_LINEAR;
+					magfilter = GL_NEAREST;
+					break;
+				case reshade::texture_filter::min_point_mag_linear_mip_point:
+					minfilter = GL_NEAREST_MIPMAP_NEAREST;
+					magfilter = GL_LINEAR;
+					break;
+				case reshade::texture_filter::min_point_mag_mip_linear:
+					minfilter = GL_NEAREST_MIPMAP_LINEAR;
+					magfilter = GL_LINEAR;
+					break;
+				case reshade::texture_filter::min_linear_mag_mip_point:
+					minfilter = GL_LINEAR_MIPMAP_NEAREST;
+					magfilter = GL_NEAREST;
+					break;
+				case reshade::texture_filter::min_linear_mag_point_mip_linear:
+					minfilter = GL_LINEAR_MIPMAP_LINEAR;
+					magfilter = GL_NEAREST;
+					break;
+				case reshade::texture_filter::min_mag_linear_mip_point:
+					minfilter = GL_LINEAR_MIPMAP_NEAREST;
+					magfilter = GL_LINEAR;
+					break;
+				case reshade::texture_filter::anisotropic:
+				case reshade::texture_filter::min_mag_mip_linear:
+					minfilter = GL_LINEAR_MIPMAP_LINEAR;
+					magfilter = GL_LINEAR;
+					break;
 			}
-
-			return GL_NONE;
 		}
-		void literal_to_format(unsigned int value, GLenum &internalformat, GLenum &internalformatsrgb, texture_format &name)
+		void literal_to_format(texture_format value, GLenum &internalformat, GLenum &internalformatsrgb)
 		{
 			switch (value)
 			{
-				case fx::nodes::variable_declaration_node::properties::R8:
-					name = texture_format::r8;
+				case texture_format::r8:
 					internalformat = internalformatsrgb = GL_R8;
 					break;
-				case fx::nodes::variable_declaration_node::properties::R16F:
-					name = texture_format::r16f;
+				case texture_format::r16f:
 					internalformat = internalformatsrgb = GL_R16F;
 					break;
-				case fx::nodes::variable_declaration_node::properties::R32F:
-					name = texture_format::r32f;
+				case texture_format::r32f:
 					internalformat = internalformatsrgb = GL_R32F;
 					break;
-				case fx::nodes::variable_declaration_node::properties::RG8:
-					name = texture_format::rg8;
+				case texture_format::rg8:
 					internalformat = internalformatsrgb = GL_RG8;
 					break;
-				case fx::nodes::variable_declaration_node::properties::RG16:
-					name = texture_format::rg16;
+				case texture_format::rg16:
 					internalformat = internalformatsrgb = GL_RG16;
 					break;
-				case fx::nodes::variable_declaration_node::properties::RG16F:
-					name = texture_format::rg16f;
+				case texture_format::rg16f:
 					internalformat = internalformatsrgb = GL_RG16F;
 					break;
-				case fx::nodes::variable_declaration_node::properties::RG32F:
-					name = texture_format::rg32f;
+				case texture_format::rg32f:
 					internalformat = internalformatsrgb = GL_RG32F;
 					break;
-				case fx::nodes::variable_declaration_node::properties::RGBA8:
-					name = texture_format::rgba8;
+				case texture_format::rgba8:
 					internalformat = GL_RGBA8;
 					internalformatsrgb = GL_SRGB8_ALPHA8;
 					break;
-				case fx::nodes::variable_declaration_node::properties::RGBA16:
-					name = texture_format::rgba16;
+				case texture_format::rgba16:
 					internalformat = internalformatsrgb = GL_RGBA16;
 					break;
-				case fx::nodes::variable_declaration_node::properties::RGBA16F:
-					name = texture_format::rgba16f;
+				case texture_format::rgba16f:
 					internalformat = internalformatsrgb = GL_RGBA16F;
 					break;
-				case fx::nodes::variable_declaration_node::properties::RGBA32F:
-					name = texture_format::rgba32f;
+				case texture_format::rgba32f:
 					internalformat = internalformatsrgb = GL_RGBA32F;
 					break;
-				case fx::nodes::variable_declaration_node::properties::DXT1:
-					name = texture_format::dxt1;
+				case texture_format::dxt1:
 					internalformat = 0x83F1; // GL_COMPRESSED_RGBA_S3TC_DXT1_EXT
 					internalformatsrgb = 0x8C4D; // GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT1_EXT
 					break;
-				case fx::nodes::variable_declaration_node::properties::DXT3:
-					name = texture_format::dxt3;
+				case texture_format::dxt3:
 					internalformat = 0x83F2; // GL_COMPRESSED_RGBA_S3TC_DXT3_EXT
 					internalformatsrgb = 0x8C4E; // GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT3_EXT
 					break;
-				case fx::nodes::variable_declaration_node::properties::DXT5:
-					name = texture_format::dxt5;
+				case texture_format::dxt5:
 					internalformat = 0x83F3; // GL_COMPRESSED_RGBA_S3TC_DXT5_EXT
 					internalformatsrgb = 0x8C4F; // GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT5_EXT
 					break;
-				case fx::nodes::variable_declaration_node::properties::LATC1:
-					name = texture_format::latc1;
+				case texture_format::latc1:
 					internalformat = internalformatsrgb = 0x8C70; // GL_COMPRESSED_LUMINANCE_LATC1_EXT
 					break;
-				case fx::nodes::variable_declaration_node::properties::LATC2:
-					name = texture_format::latc2;
+				case texture_format::latc2:
 					internalformat = internalformatsrgb = 0x8C72; // GL_COMPRESSED_LUMINANCE_ALPHA_LATC2_EXT
 					break;
 				default:
-					name = texture_format::unknown;
 					internalformat = internalformatsrgb = GL_NONE;
 					break;
 			}
@@ -344,7 +352,7 @@ namespace reshade
 		}
 	}
 
-	gl_fx_compiler::gl_fx_compiler(gl_runtime *runtime, const fx::nodetree &ast, std::string &errors) :
+	gl_fx_compiler::gl_fx_compiler(gl_runtime *runtime, const fx::syntax_tree &ast, std::string &errors) :
 		_runtime(runtime),
 		_success(true),
 		_ast(ast),
@@ -1409,7 +1417,7 @@ namespace reshade
 				visit(output, node->arguments[0]);
 				output << cast1.second << ')';
 				break;
-			case fx::nodes::intrinsic_expression_node::tex2d:
+			case fx::nodes::intrinsic_expression_node::texture:
 			{
 				const fx::nodes::type_node type2to = { fx::nodes::type_node::datatype_float, 0, 2, 1 };
 				cast2 = write_cast(type2, type2to);
@@ -1421,7 +1429,7 @@ namespace reshade
 				output << cast2.second << " * vec2(1.0, -1.0) + vec2(0.0, 1.0))";
 				break;
 			}
-			case fx::nodes::intrinsic_expression_node::tex2dfetch:
+			case fx::nodes::intrinsic_expression_node::texture_fetch:
 			{
 				const fx::nodes::type_node type2to = { fx::nodes::type_node::datatype_int, 0, 4, 1 };
 				cast2 = write_cast(type2, type2to);
@@ -1433,7 +1441,7 @@ namespace reshade
 				output << cast2.second << " * ivec2(1, -1) + ivec2(0, 1))";
 				break;
 			}
-			case fx::nodes::intrinsic_expression_node::tex2dgather:
+			case fx::nodes::intrinsic_expression_node::texture_gather:
 			{
 				const fx::nodes::type_node type2to = { fx::nodes::type_node::datatype_float, 0, 2, 1 };
 				cast2 = write_cast(type2, type2to);
@@ -1447,7 +1455,7 @@ namespace reshade
 				output << "))";
 				break;
 			}
-			case fx::nodes::intrinsic_expression_node::tex2dgatheroffset:
+			case fx::nodes::intrinsic_expression_node::texture_gather_offset:
 			{
 				const fx::nodes::type_node type2to = { fx::nodes::type_node::datatype_float, 0, 2, 1 };
 				const fx::nodes::type_node type3to = { fx::nodes::type_node::datatype_int, 0, 2, 1 };
@@ -1465,7 +1473,7 @@ namespace reshade
 				output << "))";
 				break;
 			}
-			case fx::nodes::intrinsic_expression_node::tex2dgrad:
+			case fx::nodes::intrinsic_expression_node::texture_gradient:
 			{
 				const fx::nodes::type_node type2to = { fx::nodes::type_node::datatype_float, 0, 2, 1 };
 				cast2 = write_cast(type2, type2to);
@@ -1483,7 +1491,7 @@ namespace reshade
 				output << cast4.second << ")";
 				break;
 			}
-			case fx::nodes::intrinsic_expression_node::tex2dlevel:
+			case fx::nodes::intrinsic_expression_node::texture_level:
 			{
 				const fx::nodes::type_node type2to = { fx::nodes::type_node::datatype_float, 0, 4, 1 };
 				cast2 = write_cast(type2, type2to);
@@ -1495,7 +1503,7 @@ namespace reshade
 				output << cast2.second << " * vec4(1.0, -1.0, 1.0, 1.0) + vec4(0.0, 1.0, 0.0, 0.0))";
 				break;
 			}
-			case fx::nodes::intrinsic_expression_node::tex2dleveloffset:
+			case fx::nodes::intrinsic_expression_node::texture_level_offset:
 			{
 				const fx::nodes::type_node type2to = { fx::nodes::type_node::datatype_float, 0, 4, 1 };
 				const fx::nodes::type_node type3to = { fx::nodes::type_node::datatype_int, 0, 2, 1 };
@@ -1511,7 +1519,7 @@ namespace reshade
 				output << cast3.second << " * ivec2(1, -1))";
 				break;
 			}
-			case fx::nodes::intrinsic_expression_node::tex2doffset:
+			case fx::nodes::intrinsic_expression_node::texture_offset:
 			{
 				const fx::nodes::type_node type2to = { fx::nodes::type_node::datatype_float, 0, 2, 1 };
 				const fx::nodes::type_node type3to = { fx::nodes::type_node::datatype_int, 0, 2, 1 };
@@ -1527,7 +1535,7 @@ namespace reshade
 				output << cast3.second << " * ivec2(1, -1))";
 				break;
 			}
-			case fx::nodes::intrinsic_expression_node::tex2dproj:
+			case fx::nodes::intrinsic_expression_node::texture_projection:
 			{
 				const fx::nodes::type_node type2to = { fx::nodes::type_node::datatype_float, 0, 4, 1 };
 				cast2 = write_cast(type2, type2to);
@@ -1539,7 +1547,7 @@ namespace reshade
 				output << cast2.second << " * vec4(1.0, -1.0, 1.0, 1.0) + vec4(0.0, 1.0, 0.0, 0.0))";
 				break;
 			}
-			case fx::nodes::intrinsic_expression_node::tex2dsize:
+			case fx::nodes::intrinsic_expression_node::texture_size:
 				output << "textureSize(";
 				visit(output, node->arguments[0]);
 				output << ", int(";
@@ -2111,12 +2119,12 @@ namespace reshade
 	{
 		const auto obj = new gl_texture();
 		obj->name = node->name;
-		GLuint width = obj->width = node->properties.Width;
-		GLuint height = obj->height = node->properties.Height;
-		GLuint levels = obj->levels = node->properties.MipLevels;
+		GLuint width = obj->width = node->properties.width;
+		GLuint height = obj->height = node->properties.height;
+		GLuint levels = obj->levels = node->properties.levels;
 
 		GLenum internalformat = GL_RGBA8, internalformatSRGB = GL_SRGB8_ALPHA8;
-		literal_to_format(node->properties.Format, internalformat, internalformatSRGB, obj->format);
+		literal_to_format(obj->format = node->properties.format, internalformat, internalformatSRGB);
 
 		if (levels == 0)
 		{
@@ -2172,13 +2180,13 @@ namespace reshade
 	}
 	void gl_fx_compiler::visit_sampler(const fx::nodes::variable_declaration_node *node)
 	{
-		if (node->properties.Texture == nullptr)
+		if (node->properties.texture == nullptr)
 		{
 			error(node->location, "sampler '" + node->name + "' is missing required 'Texture' property");
 			return;
 		}
 
-		const auto texture = static_cast<gl_texture *>(_runtime->find_texture(node->properties.Texture->name));
+		const auto texture = static_cast<gl_texture *>(_runtime->find_texture(node->properties.texture->name));
 
 		if (texture == nullptr)
 		{
@@ -2189,38 +2197,21 @@ namespace reshade
 		gl_sampler sampler;
 		sampler.id = 0;
 		sampler.texture = texture;
-		sampler.is_srgb = node->properties.SRGBTexture;
+		sampler.is_srgb = node->properties.srgb_texture;
 
-		GLenum minfilter = literal_to_filter_mode(node->properties.MinFilter);
-		const GLenum mipfilter = literal_to_filter_mode(node->properties.MipFilter);
-
-		if (minfilter == GL_NEAREST && mipfilter == GL_NEAREST)
-		{
-			minfilter = GL_NEAREST_MIPMAP_NEAREST;
-		}
-		else if (minfilter == GL_NEAREST && mipfilter == GL_LINEAR)
-		{
-			minfilter = GL_NEAREST_MIPMAP_LINEAR;
-		}
-		else if (minfilter == GL_LINEAR && mipfilter == GL_NEAREST)
-		{
-			minfilter = GL_LINEAR_MIPMAP_NEAREST;
-		}
-		else if (minfilter == GL_LINEAR && mipfilter == GL_LINEAR)
-		{
-			minfilter = GL_LINEAR_MIPMAP_LINEAR;
-		}
+		GLenum minfilter = GL_NONE, magfilter = GL_NONE;
+		literal_to_filter_mode(node->properties.filter, minfilter, magfilter);
 
 		GLCHECK(glGenSamplers(1, &sampler.id));
-		GLCHECK(glSamplerParameteri(sampler.id, GL_TEXTURE_WRAP_S, literal_to_wrap_mode(node->properties.AddressU)));
-		GLCHECK(glSamplerParameteri(sampler.id, GL_TEXTURE_WRAP_T, literal_to_wrap_mode(node->properties.AddressV)));
-		GLCHECK(glSamplerParameteri(sampler.id, GL_TEXTURE_WRAP_R, literal_to_wrap_mode(node->properties.AddressW)));
+		GLCHECK(glSamplerParameteri(sampler.id, GL_TEXTURE_WRAP_S, literal_to_wrap_mode(node->properties.address_u)));
+		GLCHECK(glSamplerParameteri(sampler.id, GL_TEXTURE_WRAP_T, literal_to_wrap_mode(node->properties.address_v)));
+		GLCHECK(glSamplerParameteri(sampler.id, GL_TEXTURE_WRAP_R, literal_to_wrap_mode(node->properties.address_w)));
 		GLCHECK(glSamplerParameteri(sampler.id, GL_TEXTURE_MIN_FILTER, minfilter));
-		GLCHECK(glSamplerParameteri(sampler.id, GL_TEXTURE_MAG_FILTER, literal_to_filter_mode(node->properties.MagFilter)));
-		GLCHECK(glSamplerParameterf(sampler.id, GL_TEXTURE_LOD_BIAS, node->properties.MipLODBias));
-		GLCHECK(glSamplerParameterf(sampler.id, GL_TEXTURE_MIN_LOD, node->properties.MinLOD));
-		GLCHECK(glSamplerParameterf(sampler.id, GL_TEXTURE_MAX_LOD, node->properties.MaxLOD));
-		GLCHECK(glSamplerParameterf(sampler.id, 0x84FE /* GL_TEXTURE_MAX_ANISOTROPY_EXT */, static_cast<GLfloat>(node->properties.MaxAnisotropy)));
+		GLCHECK(glSamplerParameteri(sampler.id, GL_TEXTURE_MAG_FILTER, magfilter));
+		GLCHECK(glSamplerParameterf(sampler.id, GL_TEXTURE_LOD_BIAS, node->properties.lod_bias));
+		GLCHECK(glSamplerParameterf(sampler.id, GL_TEXTURE_MIN_LOD, node->properties.min_lod));
+		GLCHECK(glSamplerParameterf(sampler.id, GL_TEXTURE_MAX_LOD, node->properties.max_lod));
+		GLCHECK(glSamplerParameterf(sampler.id, 0x84FE /* GL_TEXTURE_MAX_ANISOTROPY_EXT */, static_cast<GLfloat>(node->properties.max_anisotropy)));
 
 		_global_code << "layout(binding = " << _runtime->_effect_samplers.size() << ") uniform sampler2D " << escape_name(node->unique_name) << ";\n";
 
@@ -2314,27 +2305,27 @@ namespace reshade
 	}
 	void gl_fx_compiler::visit_pass(const fx::nodes::pass_declaration_node *node, gl_pass &pass)
 	{
-		pass.color_mask[0] = (node->states.RenderTargetWriteMask & (1 << 0)) != 0;
-		pass.color_mask[1] = (node->states.RenderTargetWriteMask & (1 << 1)) != 0;
-		pass.color_mask[2] = (node->states.RenderTargetWriteMask & (1 << 2)) != 0;
-		pass.color_mask[3] = (node->states.RenderTargetWriteMask & (1 << 3)) != 0;
-		pass.depth_test = node->states.DepthEnable;
-		pass.depth_mask = node->states.DepthWriteMask;
-		pass.depth_func = literal_to_comp_func(node->states.DepthFunc);
-		pass.stencil_test = node->states.StencilEnable;
-		pass.stencil_read_mask = node->states.StencilReadMask;
-		pass.stencil_mask = node->states.StencilWriteMask;
-		pass.stencil_func = literal_to_comp_func(node->states.StencilFunc);
-		pass.stencil_op_z_pass = literal_to_stencil_op(node->states.StencilOpPass);
-		pass.stencil_op_fail = literal_to_stencil_op(node->states.StencilOpFail);
-		pass.stencil_op_z_fail = literal_to_stencil_op(node->states.StencilOpDepthFail);
-		pass.blend = node->states.BlendEnable;
-		pass.blend_eq_color = literal_to_blend_eq(node->states.BlendOp);
-		pass.blend_eq_alpha = literal_to_blend_eq(node->states.BlendOpAlpha);
-		pass.blend_src = literal_to_blend_func(node->states.SrcBlend);
-		pass.blend_dest = literal_to_blend_func(node->states.DestBlend);
-		pass.stencil_reference = node->states.StencilRef;
-		pass.srgb = node->states.SRGBWriteEnable;
+		pass.color_mask[0] = (node->color_write_mask & (1 << 0)) != 0;
+		pass.color_mask[1] = (node->color_write_mask & (1 << 1)) != 0;
+		pass.color_mask[2] = (node->color_write_mask & (1 << 2)) != 0;
+		pass.color_mask[3] = (node->color_write_mask & (1 << 3)) != 0;
+		pass.depth_test = node->depth_enable;
+		pass.depth_mask = node->depth_write_mask;
+		pass.depth_func = literal_to_comp_func(node->depth_comparison_func);
+		pass.stencil_test = node->stencil_enable;
+		pass.stencil_read_mask = node->stencil_read_mask;
+		pass.stencil_mask = node->stencil_write_mask;
+		pass.stencil_func = literal_to_comp_func(node->stencil_comparison_func);
+		pass.stencil_op_z_pass = literal_to_stencil_op(node->stencil_op_pass);
+		pass.stencil_op_fail = literal_to_stencil_op(node->stencil_op_fail);
+		pass.stencil_op_z_fail = literal_to_stencil_op(node->stencil_op_depth_fail);
+		pass.blend = node->blend_enable;
+		pass.blend_eq_color = literal_to_blend_eq(node->blend_op);
+		pass.blend_eq_alpha = literal_to_blend_eq(node->blend_op_alpha);
+		pass.blend_src = literal_to_blend_func(node->src_blend);
+		pass.blend_dest = literal_to_blend_func(node->dest_blend);
+		pass.stencil_reference = node->stencil_reference_value;
+		pass.srgb = node->srgb_write_enable;
 
 		GLCHECK(glGenFramebuffers(1, &pass.fbo));
 		GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, pass.fbo));
@@ -2343,12 +2334,12 @@ namespace reshade
 
 		for (unsigned int i = 0; i < 8; ++i)
 		{
-			if (node->states.RenderTargets[i] == nullptr)
+			if (node->render_targets[i] == nullptr)
 			{
 				continue;
 			}
 
-			const auto texture = static_cast<const gl_texture *>(_runtime->find_texture(node->states.RenderTargets[i]->name));
+			const auto texture = static_cast<const gl_texture *>(_runtime->find_texture(node->render_targets[i]->name));
 
 			if (texture == nullptr)
 			{
@@ -2397,7 +2388,7 @@ namespace reshade
 
 		GLuint shaders[2] = { 0, 0 };
 		GLenum shader_types[2] = { GL_VERTEX_SHADER, GL_FRAGMENT_SHADER };
-		const fx::nodes::function_declaration_node *shader_functions[2] = { node->states.VertexShader, node->states.PixelShader };
+		const fx::nodes::function_declaration_node *shader_functions[2] = { node->vertex_shader, node->pixel_shader };
 
 		pass.program = glCreateProgram();
 

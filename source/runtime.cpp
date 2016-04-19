@@ -843,7 +843,7 @@ namespace reshade
 
 		LOG(TRACE) << "> Running parser ...";
 
-		fx::nodetree ast;
+		fx::syntax_tree ast;
 
 		const bool success = fx::parser(_effect_source, ast, _errors).run();
 

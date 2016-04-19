@@ -563,7 +563,7 @@ namespace reshade
 
 		screenshot_surface->UnlockRect();
 	}
-	bool d3d9_runtime::update_effect(const fx::nodetree &ast, const std::vector<std::string> &pragmas, std::string &errors)
+	bool d3d9_runtime::update_effect(const fx::syntax_tree &ast, const std::vector<std::string> &pragmas, std::string &errors)
 	{
 		bool skip_optimization = false;
 
