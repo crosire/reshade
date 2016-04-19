@@ -44,7 +44,7 @@ namespace reshade
 		void on_set_depthstencil_surface(IDirect3DSurface9 *&depthstencil);
 		void on_get_depthstencil_surface(IDirect3DSurface9 *&depthstencil);
 
-		static void update_texture_datatype(texture *texture, texture_type source, const com_ptr<IDirect3DTexture9> &newtexture);
+		static void update_texture_datatype(d3d9_texture &texture, texture_type source, const com_ptr<IDirect3DTexture9> &newtexture);
 
 		com_ptr<IDirect3D9> _d3d;
 		com_ptr<IDirect3DDevice9> _device;
@@ -70,7 +70,7 @@ namespace reshade
 
 		void screenshot(unsigned char *buffer) const override;
 		bool update_effect(const fx::nodetree &ast, const std::vector<std::string> &pragmas, std::string &errors) override;
-		bool update_texture(texture *texture, const unsigned char *data, size_t size) override;
+		bool update_texture(texture &texture, const unsigned char *data, size_t size) override;
 
 		void render_draw_lists(ImDrawData *data) override;
 

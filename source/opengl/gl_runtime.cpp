@@ -111,14 +111,14 @@ namespace reshade
 			flip_bc4_block(block);
 			flip_bc4_block(block + 8);
 		}
-		void flip_image_data(const texture *texture, unsigned char *data)
+		void flip_image_data(const texture &texture, unsigned char *data)
 		{
 			typedef void(*block_flip_func_t)(unsigned char *block);
 
 			unsigned int block_size = 0;
 			block_flip_func_t block_flip_func = nullptr;
 
-			switch (texture->format)
+			switch (texture.format)
 			{
 				case texture_format::r8:
 					block_size = 1;
@@ -163,7 +163,7 @@ namespace reshade
 
 			if (block_flip_func != nullptr)
 			{
-				const auto w = (texture->width + 3) / 4, h = (texture->height + 3) / 4, stride = w * block_size;
+				const auto w = (texture.width + 3) / 4, h = (texture.height + 3) / 4, stride = w * block_size;
 
 				for (unsigned int y = 0; y < h; ++y)
 				{
@@ -177,7 +177,7 @@ namespace reshade
 			}
 			else
 			{
-				const auto w = texture->width, h = texture->height, stride = w * block_size;
+				const auto w = texture.width, h = texture.height, stride = w * block_size;
 				const auto temp = static_cast<unsigned char *>(alloca(stride));
 
 				for (unsigned int y = 0; 2 * y < h; ++y)
@@ -819,9 +819,9 @@ namespace reshade
 	{
 		return gl_fx_compiler(this, ast, errors).run();
 	}
-	bool gl_runtime::update_texture(texture *texture, const unsigned char *data, size_t size)
+	bool gl_runtime::update_texture(texture &texture, const unsigned char *data, size_t size)
 	{
-		const auto texture_impl = dynamic_cast<gl_texture *>(texture);
+		const auto texture_impl = dynamic_cast<gl_texture *>(&texture);
 
 		assert(texture_impl != nullptr);
 		assert(data != nullptr && size > 0);
@@ -849,16 +849,16 @@ namespace reshade
 		// Bind and update texture
 		GLCHECK(glBindTexture(GL_TEXTURE_2D, texture_impl->id[0]));
 
-		if (texture->format >= texture_format::dxt1 && texture->format <= texture_format::latc2)
+		if (texture.format >= texture_format::dxt1 && texture.format <= texture_format::latc2)
 		{
-			GLCHECK(glCompressedTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, texture->width, texture->height, GL_UNSIGNED_BYTE, static_cast<GLsizei>(size), dataFlipped.get()));
+			GLCHECK(glCompressedTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, texture.width, texture.height, GL_UNSIGNED_BYTE, static_cast<GLsizei>(size), dataFlipped.get()));
 		}
 		else
 		{
 			GLint dataAlignment = 4;
 			GLenum dataFormat = GL_RGBA, dataType = GL_UNSIGNED_BYTE;
 
-			switch (texture->format)
+			switch (texture.format)
 			{
 				case texture_format::r8:
 					dataFormat = GL_RED;
@@ -898,11 +898,11 @@ namespace reshade
 			}
 
 			GLCHECK(glPixelStorei(GL_UNPACK_ALIGNMENT, dataAlignment));
-			GLCHECK(glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, texture->width, texture->height, dataFormat, dataType, dataFlipped.get()));
+			GLCHECK(glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, texture.width, texture.height, dataFormat, dataType, dataFlipped.get()));
 			GLCHECK(glPixelStorei(GL_UNPACK_ALIGNMENT, 4));
 		}
 
-		if (texture->levels > 1)
+		if (texture.levels > 1)
 		{
 			GLCHECK(glGenerateMipmap(GL_TEXTURE_2D));
 		}
@@ -911,29 +911,27 @@ namespace reshade
 
 		return true;
 	}
-	void gl_runtime::update_texture_datatype(texture *texture, texture_type source, GLuint newtexture, GLuint newtexture_srgb)
+	void gl_runtime::update_texture_datatype(gl_texture &texture, texture_type source, GLuint newtexture, GLuint newtexture_srgb)
 	{
-		const auto texture_impl = static_cast<gl_texture *>(texture);
-
-		if (texture_impl->type == texture_type::image)
+		if (texture.type == texture_type::image)
 		{
-			GLCHECK(glDeleteTextures(2, texture_impl->id));
+			GLCHECK(glDeleteTextures(2, texture.id));
 		}
 
-		texture_impl->type = source;
+		texture.type = source;
 
 		if (newtexture_srgb == 0)
 		{
 			newtexture_srgb = newtexture;
 		}
 
-		if (texture_impl->id[0] == newtexture && texture_impl->id[1] == newtexture_srgb)
+		if (texture.id[0] == newtexture && texture.id[1] == newtexture_srgb)
 		{
 			return;
 		}
 
-		texture_impl->id[0] = newtexture;
-		texture_impl->id[1] = newtexture_srgb;
+		texture.id[0] = newtexture;
+		texture.id[1] = newtexture_srgb;
 	}
 
 	void gl_runtime::render_draw_lists(ImDrawData *draw_data)
@@ -1152,7 +1150,7 @@ namespace reshade
 		{
 			if (texture->type == texture_type::depthbuffer)
 			{
-				update_texture_datatype(texture.get(), texture_type::depthbuffer, _depth_texture, 0);
+				update_texture_datatype(static_cast<gl_texture &>(*texture), texture_type::depthbuffer, _depth_texture, 0);
 			}
 		}
 	}

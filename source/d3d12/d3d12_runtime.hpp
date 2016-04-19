@@ -27,7 +27,7 @@ namespace reshade
 	private:
 		void screenshot(unsigned char *buffer) const override;
 		bool update_effect(const fx::nodetree &ast, const std::vector<std::string> &pragmas, std::string &errors) override;
-		bool update_texture(texture *texture, const unsigned char *data, size_t size) override;
+		bool update_texture(texture &texture, const unsigned char *data, size_t size) override;
 
 		void render_draw_lists(ImDrawData *data) override;
 	};

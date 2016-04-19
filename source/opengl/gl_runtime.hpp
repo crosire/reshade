@@ -70,7 +70,7 @@ namespace reshade
 		void on_apply_effect_technique(const technique &technique) override;
 		void on_fbo_attachment(GLenum target, GLenum attachment, GLenum objecttarget, GLuint object, GLint level);
 
-		static void update_texture_datatype(texture *texture, texture_type source, GLuint newtexture, GLuint newtexture_srgb);
+		static void update_texture_datatype(gl_texture &texture, texture_type source, GLuint newtexture, GLuint newtexture_srgb);
 
 		HDC _hdc;
 
@@ -95,7 +95,7 @@ namespace reshade
 
 		void screenshot(unsigned char *buffer) const override;
 		bool update_effect(const fx::nodetree &ast, const std::vector<std::string> &pragmas, std::string &errors) override;
-		bool update_texture(texture *texture, const unsigned char *data, size_t size) override;
+		bool update_texture(texture &texture, const unsigned char *data, size_t size) override;
 
 		void render_draw_lists(ImDrawData *data) override;
 

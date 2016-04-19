@@ -588,9 +588,9 @@ namespace reshade
 
 		return d3d9_fx_compiler(this, ast, errors, skip_optimization).run();
 	}
-	bool d3d9_runtime::update_texture(texture *texture, const unsigned char *data, size_t size)
+	bool d3d9_runtime::update_texture(texture &texture, const unsigned char *data, size_t size)
 	{
-		const auto texture_impl = dynamic_cast<d3d9_texture *>(texture);
+		const auto texture_impl = dynamic_cast<d3d9_texture *>(&texture);
 
 		assert(texture_impl != nullptr);
 		assert(data != nullptr && size != 0);
@@ -625,10 +625,10 @@ namespace reshade
 			return false;
 		}
 
-		size = std::min(size, size_t(mapped_rect.Pitch * texture->height));
+		size = std::min(size, size_t(mapped_rect.Pitch * texture.height));
 		auto mapped_data = static_cast<BYTE *>(mapped_rect.pBits);
 
-		switch (texture->format)
+		switch (texture.format)
 		{
 			case texture_format::r8:
 				for (size_t i = 0; i < size; i += 1, mapped_data += 4)
@@ -666,37 +666,35 @@ namespace reshade
 
 		return true;
 	}
-	void d3d9_runtime::update_texture_datatype(texture *texture, texture_type source, const com_ptr<IDirect3DTexture9> &newtexture)
+	void d3d9_runtime::update_texture_datatype(d3d9_texture &texture, texture_type source, const com_ptr<IDirect3DTexture9> &newtexture)
 	{
-		const auto texture_impl = static_cast<d3d9_texture *>(texture);
+		texture.type = source;
 
-		texture_impl->type = source;
-
-		if (texture_impl->texture == newtexture)
+		if (texture.texture == newtexture)
 		{
 			return;
 		}
 
-		texture_impl->texture.reset();
-		texture_impl->surface.reset();
+		texture.texture.reset();
+		texture.surface.reset();
 
 		if (newtexture != nullptr)
 		{
-			texture_impl->texture = newtexture;
-			newtexture->GetSurfaceLevel(0, &texture_impl->surface);
+			texture.texture = newtexture;
+			newtexture->GetSurfaceLevel(0, &texture.surface);
 
 			D3DSURFACE_DESC desc;
-			texture_impl->surface->GetDesc(&desc);
+			texture.surface->GetDesc(&desc);
 
-			texture_impl->width = desc.Width;
-			texture_impl->height = desc.Height;
-			texture_impl->format = texture_format::unknown;
-			texture_impl->levels = newtexture->GetLevelCount();
+			texture.width = desc.Width;
+			texture.height = desc.Height;
+			texture.format = texture_format::unknown;
+			texture.levels = newtexture->GetLevelCount();
 		}
 		else
 		{
-			texture_impl->width = texture_impl->height = texture_impl->levels = 0;
-			texture_impl->format = texture_format::unknown;
+			texture.width = texture.height = texture.levels = 0;
+			texture.format = texture_format::unknown;
 		}
 	}
 
@@ -990,7 +988,7 @@ namespace reshade
 		{
 			if (texture->type == texture_type::depthbuffer)
 			{
-				update_texture_datatype(texture.get(), texture_type::depthbuffer, _depthstencil_texture);
+				update_texture_datatype(static_cast<d3d9_texture &>(*texture), texture_type::depthbuffer, _depthstencil_texture);
 			}
 		}
 

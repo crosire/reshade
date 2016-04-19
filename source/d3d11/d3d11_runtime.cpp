@@ -912,9 +912,9 @@ namespace reshade
 
 		return d3d11_fx_compiler(this, ast, errors, skip_optimization).run();
 	}
-	bool d3d11_runtime::update_texture(texture *texture, const unsigned char *data, size_t size)
+	bool d3d11_runtime::update_texture(texture &texture, const unsigned char *data, size_t size)
 	{
-		const auto texture_impl = dynamic_cast<d3d11_texture *>(texture);
+		const auto texture_impl = dynamic_cast<d3d11_texture *>(&texture);
 
 		assert(texture_impl != nullptr);
 		assert(data != nullptr && size != 0);
@@ -924,54 +924,53 @@ namespace reshade
 			return false;
 		}
 
-		assert(texture->height != 0);
+		assert(texture.height != 0);
 
-		_immediate_context->UpdateSubresource(texture_impl->texture.get(), 0, nullptr, data, static_cast<UINT>(size / texture->height), static_cast<UINT>(size));
+		_immediate_context->UpdateSubresource(texture_impl->texture.get(), 0, nullptr, data, static_cast<UINT>(size / texture.height), static_cast<UINT>(size));
 
-		if (texture->levels > 1)
+		if (texture.levels > 1)
 		{
 			_immediate_context->GenerateMips(texture_impl->srv[0].get());
 		}
 
 		return true;
 	}
-	void d3d11_runtime::update_texture_datatype(texture *texture, texture_type source, const com_ptr<ID3D11ShaderResourceView> &srv, const com_ptr<ID3D11ShaderResourceView> &srv_srgb)
+	void d3d11_runtime::update_texture_datatype(d3d11_texture &texture, texture_type source, const com_ptr<ID3D11ShaderResourceView> &srv, const com_ptr<ID3D11ShaderResourceView> &srv_srgb)
 	{
-		const auto texture_impl = dynamic_cast<d3d11_texture *>(texture);
 		const auto srv_srgb_ptr = srv_srgb == nullptr ? srv.get() : srv_srgb.get();
 
-		texture->type = source;
+		texture.type = source;
 
-		if (srv == texture_impl->srv[0] && srv_srgb_ptr == texture_impl->srv[1])
+		if (srv == texture.srv[0] && srv_srgb_ptr == texture.srv[1])
 		{
 			return;
 		}
 
-		texture_impl->rtv[0].reset();
-		texture_impl->rtv[1].reset();
-		texture_impl->srv[0].reset();
-		texture_impl->srv[1].reset();
-		texture_impl->texture.reset();
+		texture.rtv[0].reset();
+		texture.rtv[1].reset();
+		texture.srv[0].reset();
+		texture.srv[1].reset();
+		texture.texture.reset();
 
 		if (srv != nullptr)
 		{
-			texture_impl->srv[0] = srv;
-			texture_impl->srv[1] = srv_srgb_ptr;
+			texture.srv[0] = srv;
+			texture.srv[1] = srv_srgb_ptr;
 
-			texture_impl->srv[0]->GetResource(reinterpret_cast<ID3D11Resource **>(&texture_impl->texture));
+			texture.srv[0]->GetResource(reinterpret_cast<ID3D11Resource **>(&texture.texture));
 
 			D3D11_TEXTURE2D_DESC desc;
-			texture_impl->texture->GetDesc(&desc);
+			texture.texture->GetDesc(&desc);
 
-			texture->width = desc.Width;
-			texture->height = desc.Height;
-			texture->format = texture_format::unknown;
-			texture->levels = desc.MipLevels;
+			texture.width = desc.Width;
+			texture.height = desc.Height;
+			texture.format = texture_format::unknown;
+			texture.levels = desc.MipLevels;
 		}
 		else
 		{
-			texture->width = texture->height = texture->levels = 0;
-			texture->format = texture_format::unknown;
+			texture.width = texture.height = texture.levels = 0;
+			texture.format = texture_format::unknown;
 		}
 
 		// Update techniques shader resource views
@@ -981,8 +980,8 @@ namespace reshade
 			{
 				auto &pass = *static_cast<d3d11_pass *>(pass_ptr.get());
 
-				pass.shader_resources[texture_impl->shader_register] = texture_impl->srv[0].get();
-				pass.shader_resources[texture_impl->shader_register + 1] = texture_impl->srv[1].get();
+				pass.shader_resources[texture.shader_register] = texture.srv[0].get();
+				pass.shader_resources[texture.shader_register + 1] = texture.srv[1].get();
 			}
 		}
 	}
@@ -1331,7 +1330,7 @@ namespace reshade
 		{
 			if (texture->type == texture_type::depthbuffer)
 			{
-				update_texture_datatype(texture.get(), texture_type::depthbuffer, _depthstencil_texture_srv, nullptr);
+				update_texture_datatype(static_cast<d3d11_texture &>(*texture), texture_type::depthbuffer, _depthstencil_texture_srv, nullptr);
 			}
 		}
 

@@ -1493,7 +1493,7 @@ namespace reshade
 				warning(node->location, "texture properties on backbuffer textures are ignored");
 			}
 
-			_runtime->update_texture_datatype(obj, texture_type::backbuffer, _runtime->_backbuffer_texture_srv[0], _runtime->_backbuffer_texture_srv[1]);
+			_runtime->update_texture_datatype(*obj, texture_type::backbuffer, _runtime->_backbuffer_texture_srv[0], _runtime->_backbuffer_texture_srv[1]);
 		}
 		else if (node->semantic == "DEPTH" || node->semantic == "SV_DEPTH")
 		{
@@ -1502,7 +1502,7 @@ namespace reshade
 				warning(node->location, "texture properties on depthbuffer textures are ignored");
 			}
 
-			_runtime->update_texture_datatype(obj, texture_type::depthbuffer, _runtime->_depthstencil_texture_srv, nullptr);
+			_runtime->update_texture_datatype(*obj, texture_type::depthbuffer, _runtime->_depthstencil_texture_srv, nullptr);
 		}
 		else
 		{

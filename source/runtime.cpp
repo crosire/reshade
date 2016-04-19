@@ -145,10 +145,13 @@ namespace reshade
 		LOG(INFO) << "Exited.";
 	}
 
-	runtime::runtime(unsigned int renderer) : _is_initialized(false), _is_effect_compiled(false), _width(0), _height(0), _vendor_id(0), _device_id(0), _framecount(0), _drawcalls(0), _vertices(0), _input(nullptr), _renderer_id(renderer), _date(), _compile_step(0), _compile_count(0), _screenshot_format("png"), _screenshot_path(s_executable_path.parent_path()), _screenshot_key(VK_SNAPSHOT), _show_statistics(false), _show_fps(false), _show_clock(false), _show_toggle_message(false), _show_info_messages(true)
+	runtime::runtime(uint32_t renderer) :
+		_renderer_id(renderer),
+		_start_time(boost::chrono::high_resolution_clock::now()),
+		_screenshot_format("png"),
+		_screenshot_path(s_executable_path.parent_path()),
+		_screenshot_key(VK_SNAPSHOT)
 	{
-		_status = "Initializing ...";
-		_start_time = boost::chrono::high_resolution_clock::now();
 	}
 	runtime::~runtime()
 	{
@@ -211,7 +214,7 @@ namespace reshade
 			char time_string[128];
 			std::strftime(time_string, 128, "%Y-%m-%d %H-%M-%S", &tm);
 			const boost::filesystem::path path = _screenshot_path / (s_executable_path.stem().string() + ' ' + time_string + '.' + _screenshot_format);
-			std::vector<unsigned char> data(_width * _height * 4);
+			std::vector<uint8_t> data(_width * _height * 4);
 
 			screenshot(data.data());
 
@@ -296,11 +299,11 @@ namespace reshade
 		_framecount++;
 		_drawcalls = _vertices = 0;
 		_average_frametime.append(frametime.count());
-		_date[0] = static_cast<float>(tm.tm_year + 1900);
-		_date[1] = static_cast<float>(tm.tm_mon + 1);
-		_date[2] = static_cast<float>(tm.tm_mday);
-		_date[3] = static_cast<float>(tm.tm_hour * 3600 + tm.tm_min * 60 + tm.tm_sec);
 		#pragma endregion
+		_date[0] = tm.tm_year + 1900;
+		_date[1] = tm.tm_mon + 1;
+		_date[2] = tm.tm_mday;
+		_date[3] = tm.tm_hour * 3600 + tm.tm_min * 60 + tm.tm_sec;
 
 		_input->next_frame();
 	}
@@ -949,7 +952,7 @@ namespace reshade
 							break;
 					}
 
-					update_texture(texture.get(), data.get(), data_size);
+					update_texture(*texture, data.get(), data_size);
 				}
 				else
 				{

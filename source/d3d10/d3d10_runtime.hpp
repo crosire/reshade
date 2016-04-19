@@ -48,7 +48,7 @@ namespace reshade
 		void on_clear_depthstencil_view(ID3D10DepthStencilView *&depthstencil);
 		void on_copy_resource(ID3D10Resource *&dest, ID3D10Resource *&source);
 
-		void update_texture_datatype(texture *texture, texture_type source, const com_ptr<ID3D10ShaderResourceView> &srv, const com_ptr<ID3D10ShaderResourceView> &srvSRGB);
+		void update_texture_datatype(d3d10_texture &texture, texture_type source, const com_ptr<ID3D10ShaderResourceView> &srv, const com_ptr<ID3D10ShaderResourceView> &srvSRGB);
 
 		com_ptr<ID3D10Device> _device;
 		com_ptr<IDXGISwapChain> _swapchain;
@@ -76,7 +76,7 @@ namespace reshade
 
 		void screenshot(unsigned char *buffer) const override;
 		bool update_effect(const fx::nodetree &ast, const std::vector<std::string> &pragmas, std::string &errors) override;
-		bool update_texture(texture *texture, const unsigned char *data, size_t size) override;
+		bool update_texture(texture &texture, const unsigned char *data, size_t size) override;
 
 		void render_draw_lists(ImDrawData *data) override;
 

@@ -44,27 +44,22 @@ namespace reshade
 		/// </summary>
 		static void shutdown();
 
-		explicit runtime(unsigned int renderer);
+		explicit runtime(uint32_t renderer);
 		virtual ~runtime();
 
 		/// <summary>
-		/// Return the current input manager.
+		/// Create a copy of the current frame.
 		/// </summary>
-		const input *input() const { return _input.get(); }
+		/// <param name="buffer">The buffer to save the copy to. It has to be the size of at least "WIDTH * HEIGHT * 4".</param>
+		virtual void screenshot(uint8_t *buffer) const = 0;
 		/// <summary>
-		/// Return the back buffer width.
+		/// Returns the frame width in pixels.
 		/// </summary>
 		unsigned int frame_width() const { return _width; }
 		/// <summary>
-		/// Return the back buffer height.
+		/// Returns the frame height in pixels.
 		/// </summary>
 		unsigned int frame_height() const { return _height; }
-
-		/// <summary>
-		/// Create a copy of the current image on the screen.
-		/// </summary>
-		/// <param name="buffer">The buffer to save the copy to. It has to be the size of at least "WIDTH * HEIGHT * 4".</param>
-		virtual void screenshot(unsigned char *buffer) const = 0;
 
 		/// <summary>
 		/// Add a new texture. This transfers ownership of the pointer to this class.
@@ -92,15 +87,15 @@ namespace reshade
 		/// </summary>
 		/// <param name="ast">The abstract syntax tree of the effect to compile.</param>
 		/// <param name="pragmas">A list of additional commands to the compiler.</param>
-		/// <param name="errors">A reference to a buffer to store errors in which occur during compilation.</param>
+		/// <param name="errors">A reference to a buffer to store errors which occur during compilation.</param>
 		virtual bool update_effect(const fx::nodetree &ast, const std::vector<std::string> &pragmas, std::string &errors) = 0;
 		/// <summary>
 		/// Update the image data of a texture.
 		/// </summary>
 		/// <param name="texture">The texture to update.</param>
 		/// <param name="data">The image data to update the texture to.</param>
-		/// <param name="size">The size of the image in <paramref name="data"/>.</param>
-		virtual bool update_texture(texture *texture, const unsigned char *data, size_t size) = 0;
+		/// <param name="size">The size of the image data.</param>
+		virtual bool update_texture(texture &texture, const uint8_t *data, size_t size) = 0;
 		/// <summary>
 		/// Return a reference to the uniform storage buffer.
 		/// </summary>
@@ -110,7 +105,7 @@ namespace reshade
 		/// </summary>
 		/// <param name="variable">The variable to retrieve the value from.</param>
 		/// <param name="data">The buffer to store the value in.</param>
-		/// <param name="size">The size of the buffer in <paramref name="data"/>.</param>
+		/// <param name="size">The size of the buffer.</param>
 		void get_uniform_value(const uniform &variable, unsigned char *data, size_t size) const;
 		void get_uniform_value(const uniform &variable, bool *values, size_t count) const;
 		void get_uniform_value(const uniform &variable, int *values, size_t count) const;
@@ -121,7 +116,7 @@ namespace reshade
 		/// </summary>
 		/// <param name="variable">The variable to update.</param>
 		/// <param name="data">The value data to update the variable to.</param>
-		/// <param name="size">The size of the value in <paramref name="data"/>.</param>
+		/// <param name="size">The size of the value.</param>
 		virtual void set_uniform_value(uniform &variable, const unsigned char *data, size_t size);
 		void set_uniform_value(uniform &variable, const bool *values, size_t count);
 		void set_uniform_value(uniform &variable, const int *values, size_t count);
@@ -167,11 +162,11 @@ namespace reshade
 		/// <param name="data">The draw data to render.</param>
 		virtual void render_draw_lists(ImDrawData *draw_data) = 0;
 
-		bool _is_initialized, _is_effect_compiled;
-		unsigned int _width, _height;
-		unsigned int _vendor_id, _device_id;
-		uint64_t _framecount;
-		unsigned int _drawcalls, _vertices;
+		bool _is_initialized = false, _is_effect_compiled = false;
+		unsigned int _width = 0, _height = 0;
+		unsigned int _vendor_id = 0, _device_id = 0;
+		uint64_t _framecount = 0;
+		unsigned int _drawcalls = 0, _vertices = 0;
 		std::shared_ptr<class input> _input;
 		std::unique_ptr<texture> _imgui_font_atlas;
 		std::vector<std::unique_ptr<texture>> _textures;
@@ -185,20 +180,20 @@ namespace reshade
 		bool compile_effect();
 		void process_effect();
 
-		const unsigned int _renderer_id;
+		const uint32_t _renderer_id;
 		std::vector<std::string> _pragmas;
 		std::vector<boost::filesystem::path> _included_files;
 		boost::chrono::high_resolution_clock::time_point _start_time, _last_create, _last_present;
 		boost::chrono::high_resolution_clock::duration _last_frame_duration, _last_postprocessing_duration;
 		utils::moving_average<uint64_t, 128> _average_frametime;
 		std::vector<unsigned char> _uniform_data_storage;
-		float _date[4];
-		unsigned int _compile_step, _compile_count;
+		int _date[4] = { };
+		unsigned int _compile_step = 0, _compile_count = 0;
 		std::string _status, _errors, _message, _effect_source;
 		std::string _screenshot_format;
 		boost::filesystem::path _screenshot_path;
-		unsigned int _screenshot_key;
-		bool _show_statistics, _show_fps, _show_clock, _show_toggle_message, _show_info_messages;
+		unsigned int _screenshot_key = 0;
+		bool _show_statistics = false, _show_fps = false, _show_clock = false, _show_toggle_message = false, _show_info_messages = true;
 		utils::critical_section _imgui_cs;
 	};
 }
