@@ -695,15 +695,18 @@ namespace reshade
 			GLCHECK(glDrawBuffers(8, pass.draw_buffers));
 			GLCHECK(glViewport(0, 0, pass.viewport_width, pass.viewport_height));
 
-			for (GLuint k = 0; k < 8; k++)
+			if (pass.clear_render_targets)
 			{
-				if (pass.draw_buffers[k] == GL_NONE)
+				for (GLuint k = 0; k < 8; k++)
 				{
-					continue;
-				}
+					if (pass.draw_buffers[k] == GL_NONE)
+					{
+						continue;
+					}
 
-				const GLfloat color[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
-				GLCHECK(glClearBufferfv(GL_COLOR, k, color));
+					const GLfloat color[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+					GLCHECK(glClearBufferfv(GL_COLOR, k, color));
+				}
 			}
 
 			// Draw triangle

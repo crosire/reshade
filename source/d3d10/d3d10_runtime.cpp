@@ -703,12 +703,15 @@ namespace reshade
 
 			_device->RSSetViewports(1, &pass.viewport);
 
-			for (const auto target : pass.render_targets)
+			if (pass.clear_render_targets)
 			{
-				if (target != nullptr)
+				for (const auto target : pass.render_targets)
 				{
-					const float color[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
-					_device->ClearRenderTargetView(target, color);
+					if (target != nullptr)
+					{
+						const float color[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+						_device->ClearRenderTargetView(target, color);
+					}
 				}
 			}
 

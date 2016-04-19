@@ -2326,6 +2326,7 @@ namespace reshade
 		pass.blend_dest = literal_to_blend_func(node->dest_blend);
 		pass.stencil_reference = node->stencil_reference_value;
 		pass.srgb = node->srgb_write_enable;
+		pass.clear_render_targets = node->clear_render_targets;
 
 		GLCHECK(glGenFramebuffers(1, &pass.fbo));
 		GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, pass.fbo));

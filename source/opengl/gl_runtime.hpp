@@ -10,9 +10,6 @@ namespace reshade
 {
 	struct gl_texture : texture
 	{
-		gl_texture() : id()
-		{
-		}
 		~gl_texture()
 		{
 			if (type == texture_type::image)
@@ -21,7 +18,7 @@ namespace reshade
 			}
 		}
 
-		GLuint id[2];
+		GLuint id[2] = { };
 	};
 	struct gl_sampler
 	{
@@ -54,6 +51,7 @@ namespace reshade
 		GLsizei viewport_width, viewport_height;
 		GLenum draw_buffers[8], blend_eq_color, blend_eq_alpha, blend_src, blend_dest, depth_func, stencil_func, stencil_op_fail, stencil_op_z_fail, stencil_op_z_pass;
 		GLboolean srgb, blend, depth_mask, depth_test, stencil_test, color_mask[4];
+		bool clear_render_targets;
 	};
 
 	class gl_runtime : public runtime

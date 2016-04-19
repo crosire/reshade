@@ -20,14 +20,13 @@ namespace reshade
 	};
 	struct d3d9_pass : technique::pass
 	{
-		d3d9_pass() : samplers(), sampler_count(0), render_targets() { }
-
 		com_ptr<IDirect3DVertexShader9> vertex_shader;
 		com_ptr<IDirect3DPixelShader9> pixel_shader;
-		d3d9_sampler samplers[16];
-		DWORD sampler_count;
+		d3d9_sampler samplers[16] = { };
+		DWORD sampler_count = 0;
 		com_ptr<IDirect3DStateBlock9> stateblock;
-		IDirect3DSurface9 *render_targets[8];
+		bool clear_render_targets = false;
+		IDirect3DSurface9 *render_targets[8] = { };
 	};
 
 	class d3d9_runtime : public runtime

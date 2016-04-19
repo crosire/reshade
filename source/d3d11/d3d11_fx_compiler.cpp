@@ -1693,6 +1693,7 @@ namespace reshade
 		pass.viewport.TopLeftX = pass.viewport.TopLeftY = pass.viewport.Width = pass.viewport.Height = 0.0f;
 		pass.viewport.MinDepth = 0.0f;
 		pass.viewport.MaxDepth = 1.0f;
+		pass.clear_render_targets = node->clear_render_targets;
 		ZeroMemory(pass.render_targets, sizeof(pass.render_targets));
 		ZeroMemory(pass.render_target_resources, sizeof(pass.render_target_resources));
 		pass.shader_resources = _runtime->_effect_shader_resources;

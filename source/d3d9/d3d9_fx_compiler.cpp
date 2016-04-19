@@ -1629,6 +1629,7 @@ namespace reshade
 	void d3d9_fx_compiler::visit_pass(const fx::nodes::pass_declaration_node *node, d3d9_pass & pass)
 	{
 		pass.render_targets[0] = _runtime->_backbuffer_resolved.get();
+		pass.clear_render_targets = node->clear_render_targets;
 
 		std::string samplers;
 		const char shader_types[2][3] = { "vs", "ps" };

@@ -551,7 +551,7 @@ namespace reshade
 				std::vector<annotation_node> annotation_list;
 				const variable_declaration_node *render_targets[8];
 				const function_declaration_node *vertex_shader, *pixel_shader;
-				bool srgb_write_enable, blend_enable, depth_enable, stencil_enable;
+				bool clear_render_targets, srgb_write_enable, blend_enable, depth_enable, stencil_enable;
 				unsigned char color_write_mask, depth_write_mask, stencil_read_mask, stencil_write_mask;
 				unsigned int blend_op, blend_op_alpha, src_blend, dest_blend, depth_comparison_func, stencil_comparison_func, stencil_reference_value, stencil_op_pass, stencil_op_fail, stencil_op_depth_fail;
 			};

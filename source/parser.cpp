@@ -3184,56 +3184,56 @@ namespace reshade
 						return false;
 					}
 
-					const auto valueLiteral = static_cast<literal_expression_node *>(value);
+					const auto value_literal = static_cast<literal_expression_node *>(value);
 
 					if (name == "Width")
 					{
-						scalar_literal_cast(valueLiteral, 0, variable->properties.width);
+						scalar_literal_cast(value_literal, 0, variable->properties.width);
 					}
 					else if (name == "Height")
 					{
-						scalar_literal_cast(valueLiteral, 0, variable->properties.height);
+						scalar_literal_cast(value_literal, 0, variable->properties.height);
 					}
 					else if (name == "Depth")
 					{
-						scalar_literal_cast(valueLiteral, 0, variable->properties.depth);
+						scalar_literal_cast(value_literal, 0, variable->properties.depth);
 					}
 					else if (name == "MipLevels")
 					{
-						scalar_literal_cast(valueLiteral, 0, variable->properties.levels);
+						scalar_literal_cast(value_literal, 0, variable->properties.levels);
 					}
 					else if (name == "Format")
 					{
 						unsigned int format;
-						scalar_literal_cast(valueLiteral, 0, format);
+						scalar_literal_cast(value_literal, 0, format);
 						variable->properties.format = static_cast<texture_format>(format);
 					}
 					else if (name == "SRGBTexture" || name == "SRGBReadEnable")
 					{
-						variable->properties.srgb_texture = valueLiteral->value_int[0] != 0;
+						variable->properties.srgb_texture = value_literal->value_int[0] != 0;
 					}
 					else if (name == "AddressU")
 					{
 						unsigned address_mode;
-						scalar_literal_cast(valueLiteral, 0, address_mode);
+						scalar_literal_cast(value_literal, 0, address_mode);
 						variable->properties.address_u = static_cast<texture_address_mode>(address_mode);
 					}
 					else if (name == "AddressV")
 					{
 						unsigned address_mode;
-						scalar_literal_cast(valueLiteral, 0, address_mode);
+						scalar_literal_cast(value_literal, 0, address_mode);
 						variable->properties.address_v = static_cast<texture_address_mode>(address_mode);
 					}
 					else if (name == "AddressW")
 					{
 						unsigned address_mode;
-						scalar_literal_cast(valueLiteral, 0, address_mode);
+						scalar_literal_cast(value_literal, 0, address_mode);
 						variable->properties.address_w = static_cast<texture_address_mode>(address_mode);
 					}
 					else if (name == "MinFilter")
 					{
 						unsigned int a = static_cast<unsigned int>(variable->properties.filter), b;
-						scalar_literal_cast(valueLiteral, 0, b);
+						scalar_literal_cast(value_literal, 0, b);
 
 						if (b == 3 || variable->properties.filter == texture_filter::anisotropic)
 						{
@@ -3248,7 +3248,7 @@ namespace reshade
 					else if (name == "MagFilter")
 					{
 						unsigned int a = static_cast<unsigned int>(variable->properties.filter), b;
-						scalar_literal_cast(valueLiteral, 0, b);
+						scalar_literal_cast(value_literal, 0, b);
 
 						if (b == 3 || variable->properties.filter == texture_filter::anisotropic)
 						{
@@ -3263,7 +3263,7 @@ namespace reshade
 					else if (name == "MipFilter")
 					{
 						unsigned int a = static_cast<unsigned int>(variable->properties.filter), b;
-						scalar_literal_cast(valueLiteral, 0, b);
+						scalar_literal_cast(value_literal, 0, b);
 
 						if (b == 3 || variable->properties.filter == texture_filter::anisotropic)
 						{
@@ -3277,19 +3277,19 @@ namespace reshade
 					}
 					else if (name == "MaxAnisotropy")
 					{
-						scalar_literal_cast(valueLiteral, 0, variable->properties.max_anisotropy);
+						scalar_literal_cast(value_literal, 0, variable->properties.max_anisotropy);
 					}
 					else if (name == "MinLOD" || name == "MaxMipLevel")
 					{
-						scalar_literal_cast(valueLiteral, 0, variable->properties.min_lod);
+						scalar_literal_cast(value_literal, 0, variable->properties.min_lod);
 					}
 					else if (name == "MaxLOD")
 					{
-						scalar_literal_cast(valueLiteral, 0, variable->properties.max_lod);
+						scalar_literal_cast(value_literal, 0, variable->properties.max_lod);
 					}
 					else if (name == "MipLODBias" || name == "MipMapLodBias")
 					{
-						scalar_literal_cast(valueLiteral, 0, variable->properties.lod_bias);
+						scalar_literal_cast(value_literal, 0, variable->properties.lod_bias);
 					}
 					else
 					{
@@ -3489,88 +3489,92 @@ namespace reshade
 						return false;
 					}
 
-					const auto valueLiteral = static_cast<literal_expression_node *>(value);
+					const auto value_literal = static_cast<literal_expression_node *>(value);
 
 					if (passstate == "SRGBWriteEnable")
 					{
-						pass->srgb_write_enable = valueLiteral->value_int[0] != 0;
+						pass->srgb_write_enable = value_literal->value_int[0] != 0;
 					}
 					else if (passstate == "BlendEnable" || passstate == "AlphaBlendEnable")
 					{
-						pass->blend_enable = valueLiteral->value_int[0] != 0;
+						pass->blend_enable = value_literal->value_int[0] != 0;
 					}
 					else if (passstate == "DepthEnable" || passstate == "ZEnable")
 					{
-						pass->depth_enable = valueLiteral->value_int[0] != 0;
+						pass->depth_enable = value_literal->value_int[0] != 0;
 					}
 					else if (passstate == "StencilEnable")
 					{
-						pass->stencil_enable = valueLiteral->value_int[0] != 0;
+						pass->stencil_enable = value_literal->value_int[0] != 0;
+					}
+					else if (passstate == "ClearRenderTargets")
+					{
+						pass->clear_render_targets = value_literal->value_int[0] != 0;
 					}
 					else if (passstate == "RenderTargetWriteMask" || passstate == "ColorWriteMask")
 					{
 						unsigned int mask = 0;
-						scalar_literal_cast(valueLiteral, 0, mask);
+						scalar_literal_cast(value_literal, 0, mask);
 
 						pass->color_write_mask = mask & 0xFF;
 					}
 					else if (passstate == "DepthWriteMask" || passstate == "ZWriteEnable")
 					{
-						pass->depth_write_mask = valueLiteral->value_int[0] != 0;
+						pass->depth_write_mask = value_literal->value_int[0] != 0;
 					}
 					else if (passstate == "StencilReadMask" || passstate == "StencilMask")
 					{
 						unsigned int mask = 0;
-						scalar_literal_cast(valueLiteral, 0, mask);
+						scalar_literal_cast(value_literal, 0, mask);
 
 						pass->stencil_read_mask = mask & 0xFF;
 					}
 					else if (passstate == "StencilWriteMask")
 					{
 						unsigned int mask = 0;
-						scalar_literal_cast(valueLiteral, 0, mask);
+						scalar_literal_cast(value_literal, 0, mask);
 
 						pass->stencil_write_mask = mask & 0xFF;
 					}
 					else if (passstate == "BlendOp")
 					{
-						scalar_literal_cast(valueLiteral, 0, pass->blend_op);
+						scalar_literal_cast(value_literal, 0, pass->blend_op);
 					}
 					else if (passstate == "BlendOpAlpha")
 					{
-						scalar_literal_cast(valueLiteral, 0, pass->blend_op_alpha);
+						scalar_literal_cast(value_literal, 0, pass->blend_op_alpha);
 					}
 					else if (passstate == "SrcBlend")
 					{
-						scalar_literal_cast(valueLiteral, 0, pass->src_blend);
+						scalar_literal_cast(value_literal, 0, pass->src_blend);
 					}
 					else if (passstate == "DestBlend")
 					{
-						scalar_literal_cast(valueLiteral, 0, pass->dest_blend);
+						scalar_literal_cast(value_literal, 0, pass->dest_blend);
 					}
 					else if (passstate == "DepthFunc" || passstate == "ZFunc")
 					{
-						scalar_literal_cast(valueLiteral, 0, pass->depth_comparison_func);
+						scalar_literal_cast(value_literal, 0, pass->depth_comparison_func);
 					}
 					else if (passstate == "StencilFunc")
 					{
-						scalar_literal_cast(valueLiteral, 0, pass->stencil_comparison_func);
+						scalar_literal_cast(value_literal, 0, pass->stencil_comparison_func);
 					}
 					else if (passstate == "StencilRef")
 					{
-						scalar_literal_cast(valueLiteral, 0, pass->stencil_reference_value);
+						scalar_literal_cast(value_literal, 0, pass->stencil_reference_value);
 					}
 					else if (passstate == "StencilPass" || passstate == "StencilPassOp")
 					{
-						scalar_literal_cast(valueLiteral, 0, pass->stencil_op_pass);
+						scalar_literal_cast(value_literal, 0, pass->stencil_op_pass);
 					}
 					else if (passstate == "StencilFail" || passstate == "StencilFailOp")
 					{
-						scalar_literal_cast(valueLiteral, 0, pass->stencil_op_fail);
+						scalar_literal_cast(value_literal, 0, pass->stencil_op_fail);
 					}
 					else if (passstate == "StencilZFail" || passstate == "StencilDepthFail" || passstate == "StencilDepthFailOp")
 					{
-						scalar_literal_cast(valueLiteral, 0, pass->stencil_op_depth_fail);
+						scalar_literal_cast(value_literal, 0, pass->stencil_op_depth_fail);
 					}
 					else
 					{

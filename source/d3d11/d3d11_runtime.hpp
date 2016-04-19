@@ -12,9 +12,7 @@ namespace reshade
 {
 	struct d3d11_texture : texture
 	{
-		d3d11_texture() : shader_register(0) { }
-
-		size_t shader_register;
+		size_t shader_register = 0;
 		com_ptr<ID3D11Texture2D> texture;
 		com_ptr<ID3D11ShaderResourceView> srv[2];
 		com_ptr<ID3D11RenderTargetView> rtv[2];
@@ -26,6 +24,7 @@ namespace reshade
 		com_ptr<ID3D11BlendState> blend_state;
 		com_ptr<ID3D11DepthStencilState> depth_stencil_state;
 		UINT stencil_reference;
+		bool clear_render_targets;
 		ID3D11RenderTargetView *render_targets[D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT];
 		ID3D11ShaderResourceView *render_target_resources[D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT];
 		D3D11_VIEWPORT viewport;
