@@ -243,6 +243,12 @@ namespace reshade
 
 		_depth_source_table.clear();
 	}
+	void d3d9_runtime::on_reset_effect()
+	{
+		runtime::on_reset_effect();
+
+		_constant_register_count = 0;
+	}
 	void d3d9_runtime::on_present()
 	{
 		if (!_is_initialized)

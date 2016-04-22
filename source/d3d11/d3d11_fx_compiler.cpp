@@ -154,8 +154,7 @@ namespace reshade
 		_errors(errors),
 		_skip_shader_optimization(skipoptimization),
 		_is_in_parameter_block(false),
-		_is_in_function_block(false),
-		_current_global_size(0)
+		_is_in_function_block(false)
 	{
 	}
 
@@ -199,13 +198,12 @@ namespace reshade
 			visit_technique(static_cast<fx::nodes::technique_declaration_node *>(node));
 		}
 
-		if (_current_global_size != 0)
+		if (_runtime->_constant_buffer_size != 0)
 		{
-			CD3D11_BUFFER_DESC globalsDesc(roundto16(_current_global_size), D3D11_BIND_CONSTANT_BUFFER, D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE);
-			D3D11_SUBRESOURCE_DATA globalsInitial;
-			globalsInitial.pSysMem = _runtime->get_uniform_value_storage().data();
-			globalsInitial.SysMemPitch = globalsInitial.SysMemSlicePitch = _current_global_size;
-			_runtime->_device->CreateBuffer(&globalsDesc, &globalsInitial, &_runtime->_constant_buffer);
+			const CD3D11_BUFFER_DESC globals_desc(roundto16(_runtime->_constant_buffer_size), D3D11_BIND_CONSTANT_BUFFER, D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE);
+			const D3D11_SUBRESOURCE_DATA globals_initial = { _runtime->get_uniform_value_storage().data(), _runtime->_constant_buffer_size };
+
+			_runtime->_device->CreateBuffer(&globals_desc, &globals_initial, &_runtime->_constant_buffer);
 		}
 
 		return _success;
@@ -1648,15 +1646,15 @@ namespace reshade
 				break;
 		}
 
-		const UINT alignment = 16 - (_current_global_size % 16);
-		_current_global_size += static_cast<UINT>((obj->storage_size > alignment && (alignment != 16 || obj->storage_size <= 16)) ? obj->storage_size + alignment : obj->storage_size);
-		obj->storage_offset = _current_global_size - obj->storage_size;
+		const UINT alignment = 16 - (_runtime->_constant_buffer_size % 16);
+		_runtime->_constant_buffer_size += static_cast<UINT>((obj->storage_size > alignment && (alignment != 16 || obj->storage_size <= 16)) ? obj->storage_size + alignment : obj->storage_size);
+		obj->storage_offset = _runtime->_constant_buffer_size - obj->storage_size;
 
 		visit_annotation(node->annotations, *obj);
 
 		auto &uniform_storage = _runtime->get_uniform_value_storage();
 
-		if (_current_global_size >= uniform_storage.size())
+		if (_runtime->_constant_buffer_size >= uniform_storage.size())
 		{
 			uniform_storage.resize(uniform_storage.size() + 128);
 		}

@@ -61,6 +61,7 @@ namespace reshade
 		std::vector<ID3D11SamplerState *> _effect_sampler_states;
 		std::vector<ID3D11ShaderResourceView *> _effect_shader_resources;
 		com_ptr<ID3D11Buffer> _constant_buffer;
+		UINT _constant_buffer_size = 0;
 
 	private:
 		struct depth_source_info
@@ -84,8 +85,8 @@ namespace reshade
 		void detect_depth_source();
 		bool create_depthstencil_replacement(ID3D11DepthStencilView *depthstencil);
 
-		bool _is_multisampling_enabled;
-		DXGI_FORMAT _backbuffer_format;
+		bool _is_multisampling_enabled = false;
+		DXGI_FORMAT _backbuffer_format = DXGI_FORMAT_UNKNOWN;
 		utils::d3d11_stateblock _stateblock;
 		com_ptr<ID3D11Texture2D> _backbuffer, _backbuffer_resolved;
 		com_ptr<ID3D11DepthStencilView> _depthstencil, _depthstencil_replacement;

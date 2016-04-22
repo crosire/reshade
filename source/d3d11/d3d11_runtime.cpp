@@ -71,7 +71,7 @@ namespace reshade
 		}
 	}
 
-	d3d11_runtime::d3d11_runtime(ID3D11Device *device, IDXGISwapChain *swapchain) : runtime(device->GetFeatureLevel()), _device(device), _swapchain(swapchain), _backbuffer_format(DXGI_FORMAT_UNKNOWN), _is_multisampling_enabled(false), _stateblock(device)
+	d3d11_runtime::d3d11_runtime(ID3D11Device *device, IDXGISwapChain *swapchain) : runtime(device->GetFeatureLevel()), _device(device), _swapchain(swapchain), _stateblock(device)
 	{
 		assert(device != nullptr);
 		assert(swapchain != nullptr);
@@ -518,6 +518,7 @@ namespace reshade
 		_effect_shader_resources.clear();
 
 		_constant_buffer.reset();
+		_constant_buffer_size = 0;
 	}
 	void d3d11_runtime::on_present()
 	{

@@ -60,7 +60,6 @@ namespace reshade
 		std::stringstream _global_code, _global_uniforms;
 		bool _skip_shader_optimization;
 		std::unordered_map<size_t, size_t> _sampler_descs;
-		UINT _current_global_size;
 		bool _is_in_parameter_block, _is_in_function_block;
 	};
 }

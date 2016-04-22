@@ -66,7 +66,6 @@ namespace reshade
 		const fx::syntax_tree &_ast;
 		std::string &_errors;
 		std::stringstream _global_code, _global_uniforms;
-		size_t _current_uniform_size;
 		const fx::nodes::function_declaration_node *_current_function;
 		std::unordered_map<const fx::nodes::function_declaration_node *, function> _functions;
 	};

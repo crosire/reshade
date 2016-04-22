@@ -77,6 +77,7 @@ namespace reshade
 		GLuint _depth_source_fbo, _depth_source, _depth_texture, _blit_fbo;
 		std::vector<struct gl_sampler> _effect_samplers;
 		GLuint _default_vao, _effect_ubo;
+		size_t _effect_ubo_size = 0;
 
 	private:
 		struct depth_source_info

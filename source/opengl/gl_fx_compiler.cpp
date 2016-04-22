@@ -357,8 +357,7 @@ namespace reshade
 		_success(true),
 		_ast(ast),
 		_errors(errors),
-		_current_function(nullptr),
-		_current_uniform_size(0)
+		_current_function(nullptr)
 	{
 	}
 
@@ -410,7 +409,7 @@ namespace reshade
 			visit_technique(static_cast<fx::nodes::technique_declaration_node *>(node));
 		}
 
-		if (_current_uniform_size != 0)
+		if (_runtime->_effect_ubo_size != 0)
 		{
 			glGenBuffers(1, &_runtime->_effect_ubo);
 
@@ -2264,15 +2263,15 @@ namespace reshade
 				break;
 		}
 
-		const size_t alignment = 16 - (_current_uniform_size % 16);
-		_current_uniform_size += (obj->storage_size > alignment && (alignment != 16 || obj->storage_size <= 16)) ? obj->storage_size + alignment : obj->storage_size;
-		obj->storage_offset = _current_uniform_size - obj->storage_size;
+		const size_t alignment = 16 - (_runtime->_effect_ubo_size % 16);
+		_runtime->_effect_ubo_size += (obj->storage_size > alignment && (alignment != 16 || obj->storage_size <= 16)) ? obj->storage_size + alignment : obj->storage_size;
+		obj->storage_offset = _runtime->_effect_ubo_size - obj->storage_size;
 
 		visit_annotation(node->annotations, *obj);
 
 		auto &uniform_storage = _runtime->get_uniform_value_storage();
 
-		if (_current_uniform_size >= uniform_storage.size())
+		if (_runtime->_effect_ubo_size >= uniform_storage.size())
 		{
 			uniform_storage.resize(uniform_storage.size() + 128);
 		}

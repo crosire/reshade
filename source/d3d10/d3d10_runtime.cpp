@@ -85,7 +85,7 @@ namespace reshade
 		}
 	}
 
-	d3d10_runtime::d3d10_runtime(ID3D10Device *device, IDXGISwapChain *swapchain) : runtime(get_renderer_id(device)), _device(device), _swapchain(swapchain), _backbuffer_format(DXGI_FORMAT_UNKNOWN), _is_multisampling_enabled(false), _stateblock(device), _constant_buffer_size(0)
+	d3d10_runtime::d3d10_runtime(ID3D10Device *device, IDXGISwapChain *swapchain) : runtime(get_renderer_id(device)), _device(device), _swapchain(swapchain), _stateblock(device)
 	{
 		assert(device != nullptr);
 		assert(swapchain != nullptr);

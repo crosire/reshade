@@ -540,6 +540,8 @@ namespace reshade
 		}
 
 		_effect_samplers.clear();
+
+		_effect_ubo_size = 0;
 	}
 	void gl_runtime::on_present()
 	{

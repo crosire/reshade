@@ -68,7 +68,6 @@ namespace reshade
 		std::string &_errors;
 		std::stringstream _global_code, _global_uniforms;
 		bool _skip_shader_optimization;
-		unsigned int _current_register_offset;
 		const fx::nodes::function_declaration_node *_current_function;
 		std::unordered_map<std::string, d3d9_sampler> _samplers;
 		std::unordered_map<const fx::nodes::function_declaration_node *, function> _functions;

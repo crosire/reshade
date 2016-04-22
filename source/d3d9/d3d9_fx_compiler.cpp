@@ -108,7 +108,6 @@ namespace reshade
 		_ast(ast),
 		_errors(errors),
 		_skip_shader_optimization(skipoptimization),
-		_current_register_offset(0),
 		_current_function(nullptr)
 	{
 	}
@@ -1554,7 +1553,7 @@ namespace reshade
 			_global_code << ']';
 		}
 
-		_global_code << " : register(c" << (_current_register_offset / 4) << ");\n";
+		_global_code << " : register(c" << _runtime->_constant_register_count << ");\n";
 
 		const auto obj = new uniform();
 		obj->name = node->name;
@@ -1583,22 +1582,20 @@ namespace reshade
 				break;
 		}
 
-		const UINT regsize = static_cast<UINT>(static_cast<float>(obj->storage_size) / sizeof(float));
+		const UINT regsize = static_cast<UINT>(static_cast<float>(obj->storage_size) / 4);
 		const UINT regalignment = 4 - (regsize % 4);
 
-		obj->storage_offset = _current_register_offset * sizeof(float);
-		_current_register_offset += regsize + regalignment;
+		obj->storage_offset = _runtime->_constant_register_count * 16;
+		_runtime->_constant_register_count += (regsize + regalignment) * 4;
 
 		visit_annotation(node->annotations, *obj);
 
 		auto &uniform_storage = _runtime->get_uniform_value_storage();
 
-		if (_current_register_offset * sizeof(float) >= uniform_storage.size())
+		if (_runtime->_constant_register_count * 16 >= uniform_storage.size())
 		{
-			uniform_storage.resize(uniform_storage.size() + 64 * sizeof(float));
+			uniform_storage.resize(uniform_storage.size() + 4096);
 		}
-
-		_runtime->_constant_register_count = _current_register_offset / 4;
 
 		if (node->initializer_expression != nullptr && node->initializer_expression->id == fx::nodeid::literal_expression)
 		{
