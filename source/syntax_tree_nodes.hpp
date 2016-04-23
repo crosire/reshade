@@ -533,6 +533,7 @@ namespace reshade
 				};
 
 				pass_declaration_node() : declaration_node(nodeid::pass_declaration),
+					clear_render_targets(true),
 					color_write_mask(0xF),
 					depth_write_mask(0x1),
 					stencil_read_mask(0xFF),
