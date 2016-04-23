@@ -6,7 +6,6 @@
 #include <vector>
 #include <boost/chrono.hpp>
 #include <boost/filesystem/path.hpp>
-#include "moving_average.hpp"
 #include "critical_section.hpp"
 
 #pragma region Forward Declarations
@@ -174,26 +173,35 @@ namespace reshade
 		std::vector<std::unique_ptr<technique>> _techniques;
 
 	private:
-		void draw_overlay(float dt);
+		void reload();
+		void screenshot();
 
-		bool load_effect();
-		bool compile_effect();
-		void process_effect();
+		bool load_effect(const boost::filesystem::path &path);
+		void load_textures();
+		void save_configuration();
 
-		const uint32_t _renderer_id;
-		std::vector<std::string> _pragmas;
+		void draw_overlay();
+		void draw_home();
+		void draw_settings();
+		void draw_shader_editor();
+		void draw_macro_editor();
+		void draw_uniform_editor();
+		void draw_statistics();
+
+		const unsigned int _renderer_id;
+		std::vector<std::string> _effect_files;
 		std::vector<boost::filesystem::path> _included_files;
 		boost::chrono::high_resolution_clock::time_point _start_time, _last_create, _last_present;
-		boost::chrono::high_resolution_clock::duration _last_frame_duration, _last_postprocessing_duration;
-		utils::moving_average<uint64_t, 128> _average_frametime;
+		boost::chrono::high_resolution_clock::duration _last_frame_duration;
 		std::vector<unsigned char> _uniform_data_storage;
 		int _date[4] = { };
-		unsigned int _compile_step = 0, _compile_count = 0;
-		std::string _status, _errors, _message, _effect_source;
-		std::string _screenshot_format;
-		boost::filesystem::path _screenshot_path;
-		unsigned int _screenshot_key = 0;
-		bool _show_statistics = false, _show_fps = false, _show_clock = false, _show_toggle_message = false, _show_info_messages = true;
+		std::string _errors, _message, _effect_source;
+		int _menu_key = 0, _menu_index = 0, _screenshot_key = 0, _screenshot_format = 0, _current_effect_file = -1;
+		std::string _screenshot_path;
+		std::vector<std::string> _effect_search_paths, _texture_search_paths;
 		utils::critical_section _imgui_cs;
+		bool _show_menu = false, _show_macro_editor = false, _show_shader_editor = false, _show_uniform_editor = false;
+		int _selected_technique = -1, _hovered_technique = -1;
+		std::vector<char> _shader_edit_buffer;
 	};
 }

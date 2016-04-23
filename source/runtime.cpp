@@ -14,13 +14,21 @@
 #include <stb_image_write.h>
 #include <stb_image_resize.h>
 #include <boost/filesystem/operations.hpp>
+#include <ShlObj.h>
+
+#define IMGUI_DISABLE_OBSOLETE_FUNCTIONS
+#define IMGUI_DEFINE_MATH_OPERATORS
 #include <imgui.h>
+#include <imgui_internal.h>
+#include "ini_file.hpp"
 
 namespace reshade
 {
+	namespace fs = boost::filesystem;
+
 	namespace
 	{
-		boost::filesystem::path obfuscate_path(const boost::filesystem::path &path)
+		fs::path obfuscate_path(const fs::path &path)
 		{
 			WCHAR username_data[257];
 			DWORD username_size = 257;
@@ -40,23 +48,52 @@ namespace reshade
 
 			return result;
 		}
+		std::vector<std::string> split(const std::string& s, char delim)
+		{
+			std::vector<std::string> output;
+			std::string item;
+			std::stringstream ss(s);
 
-		std::unique_ptr<utils::file_watcher> s_effect_filewatcher;
-		boost::filesystem::path s_executable_path, s_injector_path, s_effect_path;
+			while (std::getline(ss, item, delim))
+			{
+				if (!item.empty())
+				{
+					output.push_back(item);
+				}
+			}
+
+			return output;
+		}
+
+		utils::ini_file config;
+		fs::path s_executable_path, s_injector_path;
 		std::string s_executable_name;
+
+		const char keyboard_keys[256][16] = {
+			"", "", "", "Cancel", "", "", "", "", "Backspace", "Tab", "", "", "Clear", "Enter", "", "",
+			"Shift", "Control", "Alt", "Pause", "Caps Lock", "", "", "", "", "", "", "Escape", "", "", "", "",
+			"Space", "Page Up", "Page Down", "End", "Home", "Left Arrow", "Up Arrow", "Right Arrow", "Down Arrow", "Select", "", "", "Print Screen", "Insert", "Delete", "Help",
+			"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "", "", "", "", "", "",
+			"", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O",
+			"P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z", "Left Windows", "Right Windows", "", "", "Sleep",
+			"Numpad 0", "Numpad 1", "Numpad 2", "Numpad 3", "Numpad 4", "Numpad 5", "Numpad 6", "Numpad 7", "Numpad 8", "Numpad 9", "Numpad *", "Numpad +", "", "Numpad -", "Numpad Decimal", "Numpad /",
+			"F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "F10", "F11", "F12", "F13", "F14", "F15", "F16",
+			"F17", "F18", "F19", "F20", "F21", "F22", "F23", "F24", "", "", "", "", "", "", "", "",
+			"Num Lock", "Scroll Lock",
+		};
 	}
 
-	void runtime::startup(const boost::filesystem::path &executable_path, const boost::filesystem::path &injector_path)
+	void runtime::startup(const fs::path &executable_path, const fs::path &injector_path)
 	{
 		s_injector_path = injector_path;
 		s_executable_path = executable_path;
 		s_executable_name = executable_path.stem().string();
 
-		boost::filesystem::path log_path = injector_path, tracelog_path = injector_path;
+		fs::path log_path = injector_path, tracelog_path = injector_path;
 		log_path.replace_extension("log");
 		tracelog_path.replace_extension("tracelog");
 
-		if (boost::filesystem::exists(tracelog_path))
+		if (fs::exists(tracelog_path))
 		{
 			log::debug = true;
 
@@ -76,7 +113,18 @@ namespace reshade
 
 		TCHAR system_path_buffer[MAX_PATH];
 		GetSystemDirectory(system_path_buffer, MAX_PATH);
-		const boost::filesystem::path system_path = system_path_buffer;
+		const fs::path system_path(system_path_buffer);
+
+		TCHAR appdata_path_buffer[MAX_PATH];
+		SHGetFolderPath(nullptr, CSIDL_APPDATA, nullptr, SHGFP_TYPE_CURRENT, appdata_path_buffer);
+		const fs::path appdata_path(appdata_path_buffer);
+
+		if (!fs::exists(appdata_path / "ReShade"))
+		{
+			fs::create_directory(appdata_path / "ReShade");
+		}
+
+		config = utils::ini_file(appdata_path / "ReShade" / "ReShade.ini");
 
 		hooks::register_module(system_path / "d3d8.dll");
 		hooks::register_module(system_path / "d3d9.dll");
@@ -88,8 +136,6 @@ namespace reshade
 		hooks::register_module(system_path / "opengl32.dll");
 		hooks::register_module(system_path / "user32.dll");
 		hooks::register_module(system_path / "ws2_32.dll");
-
-		s_effect_filewatcher.reset(new utils::file_watcher(s_injector_path.parent_path()));
 
 		auto &imgui_io = ImGui::GetIO();
 		imgui_io.IniFilename = nullptr;
@@ -137,8 +183,6 @@ namespace reshade
 
 		ImGui::Shutdown();
 
-		s_effect_filewatcher.reset();
-
 		input::uninstall();
 		hooks::uninstall();
 
@@ -148,10 +192,14 @@ namespace reshade
 	runtime::runtime(uint32_t renderer) :
 		_renderer_id(renderer),
 		_start_time(boost::chrono::high_resolution_clock::now()),
-		_screenshot_format("png"),
-		_screenshot_path(s_executable_path.parent_path()),
-		_screenshot_key(VK_SNAPSHOT)
+		_shader_edit_buffer(2048)
 	{
+		_menu_key = config.get(s_executable_path.string(), "MenuKey", VK_F9).as<int>();
+		_screenshot_key = config.get(s_executable_path.string(), "ScreenshotKey", VK_SNAPSHOT).as<int>();
+		_screenshot_path = config.get(s_executable_path.string(), "ScreenshotPath", s_executable_path.parent_path().string()).as<std::string>();
+		_screenshot_format = config.get(s_executable_path.string(), "ScreenshotFormat", 0).as<int>();
+		_effect_search_paths = split(config.get(s_executable_path.string(), "EffectSearchPaths", s_injector_path.parent_path().string()).as<std::string>(), ',');
+		_texture_search_paths = split(config.get(s_executable_path.string(), "TextureSearchPaths", s_injector_path.parent_path().string()).as<std::string>(), ',');
 	}
 	runtime::~runtime()
 	{
@@ -160,11 +208,11 @@ namespace reshade
 
 	bool runtime::on_init()
 	{
-		_compile_step = 1;
-
 		LOG(INFO) << "Recreated runtime environment on runtime " << this << ".";
 
 		_is_initialized = true;
+
+		reload();
 
 		return true;
 	}
@@ -196,110 +244,32 @@ namespace reshade
 		_techniques.clear();
 		_uniform_data_storage.clear();
 
+		_errors.clear();
+		_included_files.clear();
+
 		_is_effect_compiled = false;
 	}
 	void runtime::on_present()
 	{
-		const std::time_t time = std::time(nullptr);
 		const auto time_present = boost::chrono::high_resolution_clock::now();
-		const auto frametime = boost::chrono::duration_cast<boost::chrono::nanoseconds>(time_present - _last_present);
+		_last_frame_duration = boost::chrono::duration_cast<boost::chrono::nanoseconds>(time_present - _last_present);
 		const auto time_since_create = boost::chrono::duration_cast<boost::chrono::seconds>(time_present - _last_create);
 
-		tm tm;
+		if ((_menu_index != 1 || !_show_menu) && (GetAsyncKeyState(_screenshot_key) & 0x8000))
+		{
+			screenshot();
+		}
+
+		draw_overlay();
+
+		struct tm tm;
+		const std::time_t time = std::time(nullptr);
 		localtime_s(&tm, &time);
 
-		#pragma region Screenshot
-		if (_input->is_key_pressed(_screenshot_key))
-		{
-			char time_string[128];
-			std::strftime(time_string, 128, "%Y-%m-%d %H-%M-%S", &tm);
-			const boost::filesystem::path path = _screenshot_path / (s_executable_path.stem().string() + ' ' + time_string + '.' + _screenshot_format);
-			std::vector<uint8_t> data(_width * _height * 4);
-
-			screenshot(data.data());
-
-			LOG(INFO) << "Saving screenshot to " << obfuscate_path(path) << " ...";
-
-			bool success = false;
-
-			if (path.extension() == ".bmp")
-			{
-				success = stbi_write_bmp(path.string().c_str(), _width, _height, 4, data.data()) != 0;
-			}
-			else if (path.extension() == ".png")
-			{
-				success = stbi_write_png(path.string().c_str(), _width, _height, 4, data.data(), 0) != 0;
-			}
-
-			if (!success)
-			{
-				LOG(ERROR) << "Failed to write screenshot to " << obfuscate_path(path) << "!";
-			}
-		}
-		#pragma endregion
-
-		#pragma region Compile effect
-		std::vector<boost::filesystem::path> modifications, matchedmodifications;
-
-		if (s_effect_filewatcher->check(modifications))
-		{
-			std::sort(modifications.begin(), modifications.end());
-			std::sort(_included_files.begin(), _included_files.end());
-			std::set_intersection(modifications.begin(), modifications.end(), _included_files.begin(), _included_files.end(), std::back_inserter(matchedmodifications));
-
-			if (!matchedmodifications.empty())
-			{
-				LOG(INFO) << "Detected modification to " << obfuscate_path(matchedmodifications.front()) << ". Reloading ...";
-
-				_compile_step = 1;
-			}
-		}
-
-		if (_compile_step != 0)
-		{
-			_last_create = time_present;
-
-			switch (_compile_step)
-			{
-				case 1:
-					_status = "Loading effect ...";
-					_compile_step++;
-					_compile_count++;
-					break;
-				case 2:
-					_compile_step = load_effect() ? 3 : 0;
-					break;
-				case 3:
-					_status = "Compiling effect ...";
-					_compile_step++;
-					break;
-				case 4:
-					_compile_step = compile_effect() ? 5 : 0;
-					break;
-				case 5:
-					process_effect();
-					_compile_step = 0;
-					break;
-			}
-		}
-		#pragma endregion
-
-		draw_overlay(frametime.count() * 1e-9f);
-
-		if (_is_effect_compiled && time_since_create.count() > (!_show_info_messages && _compile_count <= 1 ? 12 : _errors.empty() ? 4 : 8))
-		{
-			_status.clear();
-			_message.clear();
-		}
-
-		#pragma region Update statistics
 		g_network_traffic = 0;
 		_last_present = time_present;
-		_last_frame_duration = frametime;
 		_framecount++;
 		_drawcalls = _vertices = 0;
-		_average_frametime.append(frametime.count());
-		#pragma endregion
 		_date[0] = tm.tm_year + 1900;
 		_date[1] = tm.tm_mon + 1;
 		_date[2] = tm.tm_mday;
@@ -314,8 +284,6 @@ namespace reshade
 	}
 	void runtime::on_apply_effect()
 	{
-		const auto time_postprocessing_started = boost::chrono::high_resolution_clock::now();
-
 		for (const auto &variable : _uniforms)
 		{
 			const auto source = variable->annotations["source"].as<std::string>();
@@ -509,12 +477,6 @@ namespace reshade
 			{
 				technique->enabled = !technique->enabled;
 				technique->timeleft = technique->timeout;
-
-				if (_show_toggle_message)
-				{
-					_status = technique->name + (technique->enabled ? " enabled." : " disabled.");
-					_last_create = time_postprocessing_started;
-				}
 			}
 
 			if (!technique->enabled)
@@ -530,8 +492,6 @@ namespace reshade
 
 			technique->average_duration.append(boost::chrono::duration_cast<boost::chrono::nanoseconds>(boost::chrono::high_resolution_clock::now() - time_technique_started).count());
 		}
-
-		_last_postprocessing_duration = boost::chrono::high_resolution_clock::now() - time_postprocessing_started;
 	}
 	void runtime::on_apply_effect_technique(const technique &technique)
 	{
@@ -544,211 +504,106 @@ namespace reshade
 		}
 	}
 
-	void runtime::draw_overlay(float dt)
+	void runtime::reload()
 	{
-		const utils::critical_section::lock lock(_imgui_cs);
+		on_reset_effect();
 
-		auto &imgui_io = ImGui::GetIO();
-		imgui_io.DeltaTime = dt;
-		imgui_io.DisplaySize.x = static_cast<float>(_width);
-		imgui_io.DisplaySize.y = static_cast<float>(_height);
-		imgui_io.Fonts->TexID = _imgui_font_atlas.get();
-
-		imgui_io.MousePos.x = static_cast<float>(_input->mouse_position_x());
-		imgui_io.MousePos.y = static_cast<float>(_input->mouse_position_y());
-		imgui_io.MouseWheel += _input->mouse_wheel_delta();
-		imgui_io.KeyCtrl = _input->is_key_down(VK_CONTROL);
-		imgui_io.KeyShift = _input->is_key_down(VK_SHIFT);
-		imgui_io.KeyAlt = _input->is_key_down(VK_MENU);
-
-		for (unsigned int i = 0; i < 5; i++)
+		for (const auto &search_path : _effect_search_paths)
 		{
-			imgui_io.MouseDown[i] = _input->is_mouse_button_down(i);
-		}
-		for (unsigned int i = 0; i < 256; i++)
-		{
-			imgui_io.KeysDown[i] = _input->is_key_down(i);
-
-			if (!_input->is_key_pressed(i))
+			if (!fs::is_directory(search_path))
 			{
 				continue;
 			}
 
-			imgui_io.AddInputCharacter(_input->key_to_text(i));
-		}
-
-		ImGui::NewFrame();
-
-		tm tm;
-		const std::time_t time = std::time(nullptr);
-		localtime_s(&tm, &time);
-
-		if (_show_info_messages || _compile_count <= 1)
-		{
-			if (!_status.empty())
+			for (fs::directory_iterator dirit(search_path); dirit != fs::directory_iterator(); dirit++)
 			{
-				ImGui::SetNextWindowPos(ImVec2());
-				ImGui::Begin("About", nullptr, ImVec2(), 0.0f, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoInputs);
-				ImGui::TextColored(ImVec4(0.73f, 0.73f, 0.73f, 1.0f), "ReShade " BOOST_STRINGIZE(VERSION_FULL) " by crosire");
-				ImGui::TextColored(ImVec4(0.73f, 0.73f, 0.73f, 1.0f), "Visit http://reshade.me for news, updates, shaders and discussion.");
-				ImGui::TextColored(ImVec4(0.73f, 0.73f, 0.73f, 1.0f), _status.c_str());
-
-				if (!_errors.empty() && _compile_step == 0)
+				if (dirit->path().extension() != ".fx")
 				{
-					ImGui::TextColored(_is_effect_compiled ? ImVec4(1.0f, 1.0f, 0.0f, 1.0f) : ImVec4(1.0f, 0.0f, 0.0f, 1.0f), _errors.c_str());
+					continue;
 				}
 
-				ImGui::End();
-			}
-
-			if (!_message.empty() && _is_effect_compiled)
-			{
-				ImGui::Begin("About");
-				ImGui::TextColored(ImVec4(0.73f, 0.73f, 0.73f, 1.0f), _message.c_str());
-				ImGui::End();
+				load_effect(dirit->path());
 			}
 		}
+	}
+	void runtime::screenshot()
+	{
+		const int hour = _date[3] / 3600;
+		const int minute = (_date[3] - hour * 3600) / 60;
+		const int second = _date[3] - hour * 3600 - minute * 60;
 
-		if (_show_clock)
+		const std::string extensions[] { ".bmp", ".png" };
+		const fs::path path = fs::path(_screenshot_path) / (s_executable_path.stem().string() + ' ' +
+			std::to_string(_date[0]) + '-' + std::to_string(_date[1]) + '-' + std::to_string(_date[2]) + ' ' +
+			std::to_string(hour) + '-' + std::to_string(minute) + '-' + std::to_string(second) +
+			extensions[_screenshot_format]);
+		std::vector<uint8_t> data(_width * _height * 4);
+
+		screenshot(data.data());
+
+		LOG(INFO) << "Saving screenshot to " << obfuscate_path(path) << " ...";
+
+		bool success = false;
+
+		switch (_screenshot_format)
 		{
-			ImGui::Begin("Clock", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize);
-			ImGui::Text("%.2d:%.2d", tm.tm_hour, tm.tm_min);
-			ImGui::End();
+			case 0:
+				success = stbi_write_bmp(path.string().c_str(), _width, _height, 4, data.data()) != 0;
+				break;
+			case 1:
+				success = stbi_write_png(path.string().c_str(), _width, _height, 4, data.data(), 0) != 0;
+				break;
 		}
-		if (_show_fps)
+
+		if (!success)
 		{
-			ImGui::Begin("FPS", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize);
-			ImGui::Text("FPS: %.2f", (1e9f / _average_frametime));
-			ImGui::End();
+			LOG(ERROR) << "Failed to write screenshot to " << obfuscate_path(path) << "!";
 		}
-		if (_show_statistics)
-		{
-			ImGui::Begin("Statistics");
-
-			if (ImGui::CollapsingHeader("General", nullptr, true, true))
-			{
-				ImGui::Text("Application: %X", std::hash<std::string>()(s_executable_name));
-				ImGui::Text("Date: %d-%d-%d %d", static_cast<int>(_date[0]), static_cast<int>(_date[1]), static_cast<int>(_date[2]), static_cast<int>(_date[3]));
-				ImGui::Text("Device: %X %d", _vendor_id, _device_id);
-				ImGui::Text("FPS: %.2f", (1e9f / _average_frametime));
-				ImGui::Text("Draw Calls: %u (%u vertices)", _drawcalls, _vertices);
-				ImGui::Text("Frame %llu: %fs", (_framecount + 1), dt);
-				ImGui::Text("PostProcessing: %fms", (boost::chrono::duration_cast<boost::chrono::nanoseconds>(_last_postprocessing_duration).count() * 1e-6f));
-				ImGui::Text("Timer: %fms", std::fmod(boost::chrono::duration_cast<boost::chrono::nanoseconds>(_last_present - _start_time).count() * 1e-6f, 16777216.0f));
-				ImGui::Text("Network: %uB", g_network_traffic);
-			}
-			if (ImGui::CollapsingHeader("Textures", nullptr, true, true))
-			{
-				for (const auto &texture : _textures)
-				{
-					ImGui::Text("%s: %ux%u+%u (%uB)", texture->name.c_str(), texture->width, texture->height, (texture->levels - 1), static_cast<unsigned int>(texture->storage_size));
-				}
-			}
-			if (ImGui::CollapsingHeader("Techniques", nullptr, true, true))
-			{
-				for (const auto &technique : _techniques)
-				{
-					ImGui::Text("%s (%u passes): %fms", technique->name.c_str(), static_cast<unsigned int>(technique->passes.size()), (technique->average_duration * 1e-6f));
-				}
-			}
-
-			ImGui::End();
-		}
-
-		ImGui::Render();
-
-		_input->block_mouse_input(imgui_io.WantCaptureMouse);
-		_input->block_keyboard_input(imgui_io.WantCaptureKeyboard);
-
-		render_draw_lists(ImGui::GetDrawData());
 	}
 
-	bool runtime::load_effect()
+	bool runtime::load_effect(const fs::path &path)
 	{
-		_errors.clear();
-		_message.clear();
-		_pragmas.clear();
-		_effect_source.clear();
-		_included_files.clear();
-		_show_statistics = _show_fps = _show_clock = _show_toggle_message = false;
-		_screenshot_key = VK_SNAPSHOT;
-		_screenshot_path = s_executable_path.parent_path();
-		_screenshot_format = "png";
-
-		s_effect_path = s_injector_path;
-		s_effect_path.replace_extension("fx");
-
-		if (!boost::filesystem::exists(s_effect_path))
+		if (!fs::exists(path))
 		{
-			s_effect_path = s_effect_path.parent_path() / "ReShade.fx";
-
-			if (!boost::filesystem::exists(s_effect_path))
-			{
-				LOG(ERROR) << "Effect file " << s_effect_path << " does not exist.";
-
-				_status += " No effect found!";
-
-				return false;
-			}
-		}
-
-		if ((GetFileAttributes(s_effect_path.c_str()) & FILE_ATTRIBUTE_REPARSE_POINT) != 0)
-		{
-			TCHAR path2[MAX_PATH] = { 0 };
-			const HANDLE handle = CreateFile(s_effect_path.c_str(), 0, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_EXISTING, 0, nullptr);
-			assert(handle != INVALID_HANDLE_VALUE);
-			GetFinalPathNameByHandle(handle, path2, MAX_PATH, 0);
-			CloseHandle(handle);
-
-			// Uh oh, shouldn't do this. Get's rid of the //?/ prefix.
-			s_effect_path = path2 + 4;
-
-			s_effect_filewatcher.reset(new utils::file_watcher(s_effect_path.parent_path()));
-		}
-
-		tm tm;
-		std::time_t time = std::time(nullptr);
-		::localtime_s(&tm, &time);
-
-		auto executable_name = s_executable_name;
-		std::replace(executable_name.begin(), executable_name.end(), ' ', '_');
-
-		// Pre-process
-		fx::preprocessor preprocessor(_pragmas, _effect_source, _errors);
-		preprocessor.add_include_path(s_effect_path.parent_path());
-		preprocessor.add_macro_definition("__RESHADE__", std::to_string(VERSION_MAJOR * 10000 + VERSION_MINOR * 100 + VERSION_REVISION));
-		preprocessor.add_macro_definition("__VENDOR__", std::to_string(_vendor_id));
-		preprocessor.add_macro_definition("__DEVICE__", std::to_string(_device_id));
-		preprocessor.add_macro_definition("__RENDERER__", std::to_string(_renderer_id));
-		preprocessor.add_macro_definition("__APPLICATION__", std::to_string(std::hash<std::string>()(s_executable_name)));
-		preprocessor.add_macro_definition("__APPLICATION_NAME__", executable_name);
-		preprocessor.add_macro_definition("__DATE_YEAR__", std::to_string(tm.tm_year + 1900));
-		preprocessor.add_macro_definition("__DATE_MONTH__", std::to_string(tm.tm_mday));
-		preprocessor.add_macro_definition("__DATE_DAY__", std::to_string(tm.tm_mon + 1));
-		preprocessor.add_macro_definition("BUFFER_WIDTH", std::to_string(_width));
-		preprocessor.add_macro_definition("BUFFER_HEIGHT", std::to_string(_height));
-		preprocessor.add_macro_definition("BUFFER_RCP_WIDTH", std::to_string(1.0f / static_cast<float>(_width)));
-		preprocessor.add_macro_definition("BUFFER_RCP_HEIGHT", std::to_string(1.0f / static_cast<float>(_height)));
-
-		LOG(INFO) << "Loading effect from " << obfuscate_path(s_effect_path) << " ...";
-		LOG(TRACE) << "> Running preprocessor ...";
-
-		if (!preprocessor.run(s_effect_path, _included_files))
-		{
-			LOG(ERROR) << "Failed to preprocess effect on context " << this << ":\n\n" << _errors << "\n";
-
-			_status += " Failed!";
-
-			on_reset_effect();
+			LOG(ERROR) << "Effect file " << path << " does not exist.";
 
 			return false;
 		}
 
-		_included_files.push_back(s_effect_path);
+		fx::syntax_tree ast;
+		std::string source_code, errors;
+		std::vector<std::string> pragmas;
 
-		_show_info_messages = true;
+		// Pre-process
+		fx::preprocessor pp(pragmas, source_code, errors);
+		pp.add_include_path(path.parent_path());
+		pp.add_macro_definition("__RESHADE__", std::to_string(VERSION_MAJOR * 10000 + VERSION_MINOR * 100 + VERSION_REVISION));
+		pp.add_macro_definition("__VENDOR__", std::to_string(_vendor_id));
+		pp.add_macro_definition("__DEVICE__", std::to_string(_device_id));
+		pp.add_macro_definition("__RENDERER__", std::to_string(_renderer_id));
+		pp.add_macro_definition("__APPLICATION__", std::to_string(std::hash<std::string>()(s_executable_name)));
+		pp.add_macro_definition("BUFFER_WIDTH", std::to_string(_width));
+		pp.add_macro_definition("BUFFER_HEIGHT", std::to_string(_height));
+		pp.add_macro_definition("BUFFER_RCP_WIDTH", std::to_string(1.0f / static_cast<float>(_width)));
+		pp.add_macro_definition("BUFFER_RCP_HEIGHT", std::to_string(1.0f / static_cast<float>(_height)));
 
-		for (const auto &pragma : _pragmas)
+		LOG(INFO) << "Loading effect from " << obfuscate_path(path) << " ...";
+		LOG(TRACE) << "> Running preprocessor ...";
+
+		std::vector<fs::path> included_files;
+
+		if (!pp.run(path, _included_files))
+		{
+			_errors += errors;
+			LOG(ERROR) << "Failed to pre-process effect on context " << this << ":\n\n" << errors << "\n";
+
+			return false;
+		}
+
+		_effect_files.push_back(path.string());
+		_included_files.push_back(path);
+
+		for (const auto &pragma : pragmas)
 		{
 			fx::lexer lexer(pragma);
 
@@ -764,86 +619,15 @@ namespace reshade
 				}
 				continue;
 			}
-			else if (prefix_token.literal_as_string != "reshade")
-			{
-				continue;
-			}
-
-			const auto command_token = lexer.lex();
-
-			if (command_token.literal_as_string == "showstatistics")
-			{
-				_show_statistics = true;
-			}
-			else if (command_token.literal_as_string == "showfps")
-			{
-				_show_fps = true;
-			}
-			else if (command_token.literal_as_string == "showclock")
-			{
-				_show_clock = true;
-			}
-			else if (command_token.literal_as_string == "showtogglemessage")
-			{
-				_show_toggle_message = true;
-			}
-			else if (command_token.literal_as_string == "noinfomessages")
-			{
-				_show_info_messages = false;
-			}
-			else if (command_token.literal_as_string == "screenshot_key")
-			{
-				const auto screenshot_key_token = lexer.lex();
-
-				if (screenshot_key_token == fx::lexer::tokenid::int_literal || screenshot_key_token == fx::lexer::tokenid::uint_literal)
-				{
-					_screenshot_key = screenshot_key_token.literal_as_uint;
-				}
-			}
-			else if (command_token.literal_as_string == "screenshot_format")
-			{
-				const auto screenshot_format_token = lexer.lex();
-
-				if (screenshot_format_token == fx::lexer::tokenid::identifier || screenshot_format_token == fx::lexer::tokenid::string_literal)
-				{
-					_screenshot_format = screenshot_format_token.literal_as_string;
-				}
-			}
-			else if (command_token.literal_as_string == "screenshot_location")
-			{
-				const auto screenshot_location_token = lexer.lex();
-
-				if (screenshot_location_token == fx::lexer::tokenid::string_literal)
-				{
-					if (boost::filesystem::exists(screenshot_location_token.literal_as_string))
-					{
-						_screenshot_path = screenshot_location_token.literal_as_string;
-					}
-					else
-					{
-						LOG(ERROR) << "Failed to find screenshot location \"" << screenshot_location_token.literal_as_string << "\".";
-					}
-				}
-			}
 		}
 
-		return true;
-	}
-	bool runtime::compile_effect()
-	{
-		on_reset_effect();
-
+		// Parse
 		LOG(TRACE) << "> Running parser ...";
 
-		fx::syntax_tree ast;
-
-		const bool success = fx::parser(_effect_source, ast, _errors).run();
-
-		if (!success)
+		if (!fx::parser(source_code, ast, errors).run())
 		{
-			LOG(ERROR) << "Failed to compile effect on context " << this << ":\n\n" << _errors << "\n";
-
-			_status += " Failed!";
+			_errors += errors;
+			LOG(ERROR) << "Failed to compile effect on context " << this << ":\n\n" << errors << "\n";
 
 			return false;
 		}
@@ -851,46 +635,84 @@ namespace reshade
 		// Compile
 		LOG(TRACE) << "> Running compiler ...";
 
-		_is_effect_compiled = update_effect(ast, _pragmas, _errors);
-
-		if (!_is_effect_compiled)
+		if (!update_effect(ast, pragmas, errors))
 		{
-			LOG(ERROR) << "Failed to compile effect on context " << this << ":\n\n" << _errors << "\n";
-
-			_status += " Failed!";
+			_errors += errors;
+			LOG(ERROR) << "Failed to compile effect on context " << this << ":\n\n" << errors << "\n";
 
 			return false;
 		}
-		else if (!_errors.empty())
+		else if (!errors.empty())
 		{
-			LOG(WARNING) << "> Successfully compiled effect with warnings:" << "\n\n" << _errors << "\n";
-
-			_status += " Succeeded!";
+			_errors += errors;
+			LOG(WARNING) << "> Successfully compiled effect with warnings:" << "\n\n" << errors << "\n";
 		}
 		else
 		{
 			LOG(INFO) << "> Successfully compiled effect.";
+		}
 
-			_status += " Succeeded!";
+		_is_effect_compiled = true;
+
+		for (const auto &uniform : _uniforms)
+		{
+			if (uniform->annotations.count("__FILE__"))
+			{
+				continue;
+			}
+
+			uniform->annotations["__FILE__"] = path.string();
+		}
+		for (const auto &texture : _textures)
+		{
+			if (texture->annotations.count("__FILE__"))
+			{
+				continue;
+			}
+
+			texture->annotations["__FILE__"] = path.string();
+		}
+		for (const auto &technique : _techniques)
+		{
+			if (technique->annotations.count("__FILE__"))
+			{
+				continue;
+			}
+
+			technique->annotations["__FILE__"] = path.string();
+
+			technique->enabled = technique->annotations["enabled"].as<bool>();
+			technique->timeleft = technique->timeout = technique->annotations["timeout"].as<int>();
+			technique->toggle_key = technique->annotations["toggle"].as<int>();
+			technique->toggle_key_ctrl = technique->annotations["togglectrl"].as<bool>();
+			technique->toggle_key_shift = technique->annotations["toggleshift"].as<bool>();
+			technique->toggle_key_alt = technique->annotations["togglealt"].as<bool>();
+			technique->toggle_time = technique->annotations["toggletime"].as<int>();
+		}
+
+		// Reorder techniques
+		auto order = split(config.get(s_executable_path.string(), "Techniques").as<std::string>(), ',');
+		std::sort(_techniques.begin(), _techniques.end(),
+			[&order](const std::unique_ptr<technique> &lhs, const std::unique_ptr<technique> &rhs)
+			{
+				return (std::find(order.begin(), order.end(), lhs->name) - order.begin()) < (std::find(order.begin(), order.end(), rhs->name) - order.begin());
+			});
+		for (const auto &technique : _techniques)
+		{
+			technique->enabled = std::find(order.begin(), order.end(), technique->name) != order.end();
 		}
 
 		return true;
 	}
-	void runtime::process_effect()
+	void runtime::load_textures()
 	{
-		if (_techniques.empty())
-		{
-			LOG(WARNING) << "> Effect doesn't contain any techniques.";
-			return;
-		}
-
 		for (const auto &texture : _textures)
 		{
 			const std::string source = texture->annotations["source"].as<std::string>();
 
 			if (!source.empty())
 			{
-				const boost::filesystem::path path = boost::filesystem::absolute(source, s_effect_path.parent_path());
+				const fs::path path = fs::absolute(source, s_injector_path.parent_path());
 				int widthFile = 0, heightFile = 0, channelsFile = 0, channels = STBI_default;
 
 				switch (texture->format)
@@ -956,15 +778,464 @@ namespace reshade
 				texture->storage_size = data_size;
 			}
 		}
+	}
+	void runtime::save_configuration()
+	{
+		std::string technique_list, effect_search_paths_list, texture_search_paths_list;
+
 		for (const auto &technique : _techniques)
 		{
-			technique->enabled = technique->annotations["enabled"].as<bool>();
-			technique->timeleft = technique->timeout = technique->annotations["timeout"].as<int>();
-			technique->toggle_key = technique->annotations["toggle"].as<int>();
-			technique->toggle_key_ctrl = technique->annotations["togglectrl"].as<bool>();
-			technique->toggle_key_shift = technique->annotations["toggleshift"].as<bool>();
-			technique->toggle_key_alt = technique->annotations["togglealt"].as<bool>();
-			technique->toggle_time = technique->annotations["toggletime"].as<int>();
+			if (technique->enabled)
+			{
+				technique_list += technique->name + ',';
+			}
+		}
+
+		for (const auto &path : _effect_search_paths)
+		{
+			effect_search_paths_list += path + ',';
+		}
+		for (const auto &path : _texture_search_paths)
+		{
+			texture_search_paths_list += path + ',';
+		}
+
+		config.set(s_executable_path.string(), "MenuKey", _menu_key);
+		config.set(s_executable_path.string(), "ScreenshotKey", _screenshot_key);
+		config.set(s_executable_path.string(), "ScreenshotPath", _screenshot_path);
+		config.set(s_executable_path.string(), "ScreenshotFormat", _screenshot_format);
+		config.set(s_executable_path.string(), "Techniques", technique_list);
+		config.set(s_executable_path.string(), "EffectSearchPaths", effect_search_paths_list);
+		config.set(s_executable_path.string(), "TextureSearchPaths", texture_search_paths_list);
+	}
+
+	void runtime::draw_overlay()
+	{
+		if (_input->is_key_pressed(_menu_key))
+		{
+			_show_menu = !_show_menu;
+		}
+
+		const utils::critical_section::lock lock(_imgui_cs);
+
+		auto &imgui_io = ImGui::GetIO();
+		imgui_io.DeltaTime = _last_frame_duration.count() * 1e-9f;
+		imgui_io.DisplaySize.x = static_cast<float>(_width);
+		imgui_io.DisplaySize.y = static_cast<float>(_height);
+		imgui_io.Fonts->TexID = _imgui_font_atlas.get();
+
+		imgui_io.MousePos.x = static_cast<float>(_input->mouse_position_x());
+		imgui_io.MousePos.y = static_cast<float>(_input->mouse_position_y());
+		imgui_io.MouseWheel += _input->mouse_wheel_delta();
+		imgui_io.KeyCtrl = _input->is_key_down(VK_CONTROL);
+		imgui_io.KeyShift = _input->is_key_down(VK_SHIFT);
+		imgui_io.KeyAlt = _input->is_key_down(VK_MENU);
+
+		for (unsigned int i = 0; i < 5; i++)
+		{
+			imgui_io.MouseDown[i] = _input->is_mouse_button_down(i);
+		}
+		for (unsigned int i = 0; i < 256; i++)
+		{
+			imgui_io.KeysDown[i] = _input->is_key_down(i);
+
+			if (!_input->is_key_pressed(i))
+			{
+				continue;
+			}
+
+			imgui_io.AddInputCharacter(_input->key_to_text(i));
+		}
+
+		ImGui::NewFrame();
+
+		if (boost::chrono::duration_cast<boost::chrono::seconds>(_last_present - _start_time).count() < 8)
+		{
+			ImGui::SetNextWindowPos(ImVec2(0, 0));
+			ImGui::Begin("##logo", nullptr, ImVec2(), 0.0f, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoInputs);
+			ImGui::TextColored(ImVec4(0.73f, 0.73f, 0.73f, 1.0f), "ReShade " VERSION_STRING_FILE " by crosire");
+			ImGui::TextColored(ImVec4(0.73f, 0.73f, 0.73f, 1.0f), "Visit http://reshade.me for news, updates, shaders and discussion.");
+			ImGui::End();
+		}
+
+		if (_show_menu)
+		{
+			ImGui::SetNextWindowSize(ImVec2(600, 500), ImGuiSetCond_Once);
+			ImGui::SetNextWindowPosCenter(ImGuiSetCond_Once);
+			ImGui::Begin("ReShade " VERSION_STRING_PRODUCT " by crosire", &_show_menu, ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoCollapse);
+
+			if (ImGui::BeginMenuBar())
+			{
+				ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImGui::GetStyle().ItemSpacing * 2);
+
+				const char *menu_items[] = { "Home", "Settings", "Statistics" };
+
+				for (int i = 0; i < _countof(menu_items); i++)
+				{
+					if (ImGui::Selectable(menu_items[i], _menu_index == i, 0, ImVec2(ImGui::CalcTextSize(menu_items[i]).x, 0)))
+					{
+						_menu_index = i;
+					}
+
+					ImGui::SameLine();
+				}
+
+				ImGui::PopStyleVar();
+
+				ImGui::EndMenuBar();
+			}
+
+			switch (_menu_index)
+			{
+				case 0:
+					draw_home();
+					break;
+				case 1:
+					draw_settings();
+					break;
+				case 2:
+					draw_statistics();
+					break;
+			}
+
+			ImGui::End();
+		}
+
+		if (_show_shader_editor)
+		{
+			ImGui::SetNextWindowSize(ImVec2(500, 500), ImGuiSetCond_Once);
+			ImGui::Begin("Shader Editor", &_show_shader_editor);
+			draw_shader_editor();
+			ImGui::End();
+		}
+		if (_show_macro_editor)
+		{
+			ImGui::SetNextWindowSize(ImVec2(500, 500), ImGuiSetCond_Once);
+			ImGui::Begin("Macro Editor", &_show_macro_editor);
+			draw_macro_editor();
+			ImGui::End();
+		}
+		if (_show_uniform_editor)
+		{
+			ImGui::SetNextWindowSize(ImVec2(500, 300), ImGuiSetCond_Once);
+			ImGui::Begin("Uniform Editor", &_show_uniform_editor);
+			draw_uniform_editor();
+			ImGui::End();
+		}
+
+		ImGui::Render();
+
+		_input->block_mouse_input(imgui_io.WantCaptureMouse);
+		_input->block_keyboard_input(imgui_io.WantCaptureKeyboard);
+
+		render_draw_lists(ImGui::GetDrawData());
+	}
+	void runtime::draw_home()
+	{
+		if (ImGui::Button("Reload", ImVec2(-1, 0)))
+		{
+			reload();
+		}
+
+		if (ImGui::Button("Open Shader Editor", ImVec2(-1, 0)))
+		{
+			_show_shader_editor = true;
+		}
+		if (ImGui::Button("Open Macro Editor", ImVec2(-1, 0)))
+		{
+			_show_macro_editor = true;
+		}
+		if (ImGui::Button("Open Uniform Editor", ImVec2(-1, 0)))
+		{
+			_show_uniform_editor = true;
+		}
+
+		ImGui::Text("Techniques");
+
+		if (ImGui::IsItemHovered())
+		{
+			ImGui::SetTooltip("Click on a technique to enable/disable it.\nClick and then drag an item to a new location in the list to change the execution order.");
+		}
+
+		if (ImGui::BeginChild("##techniques", ImVec2(-1, -130), true, 0))
+		{
+			for (size_t n = 0; n < _techniques.size(); n++)
+			{
+				ImGui::PushID(n);
+
+				const auto name = _techniques[n]->name + " [" + _techniques[n]->annotations["__FILE__"].as<std::string>() + "]";
+
+				if (ImGui::Checkbox(name.c_str(), &_techniques[n]->enabled))
+				{
+					save_configuration();
+				}
+
+				if (ImGui::IsItemActive())
+				{
+					_selected_technique = n;
+				}
+				if (ImGui::IsItemHoveredRect())
+				{
+					_hovered_technique = n;
+				}
+
+				ImGui::PopID();
+			}
+		}
+
+		ImGui::EndChild();
+
+		if (ImGui::IsMouseDragging() && _selected_technique >= 0)
+		{
+			ImGui::SetTooltip(_techniques[_selected_technique]->name.c_str());
+
+			if (_hovered_technique >= 0 && _hovered_technique != _selected_technique)
+			{
+				std::swap(_techniques[_hovered_technique], _techniques[_selected_technique]);
+				_selected_technique = _hovered_technique;
+
+				save_configuration();
+			}
+		}
+		else
+		{
+			_selected_technique = _hovered_technique = -1;
+		}
+
+		ImGui::Text("Effect Compiler Log");
+
+		if (ImGui::BeginChild("##errors", ImVec2(-1, -1), true, ImGuiWindowFlags_HorizontalScrollbar))
+		{
+			ImGui::TextColored(ImVec4(1, 0, 0, 1), _errors.c_str());
+		}
+
+		ImGui::EndChild();
+	}
+	void runtime::draw_settings()
+	{
+		char edit_buffer[2048];
+
+		if (ImGui::CollapsingHeader("General", "settings_general", true, true))
+		{
+			ImGui::InputText("Overlay Key", const_cast<char *>(keyboard_keys[_menu_key]), sizeof(*keyboard_keys), ImGuiInputTextFlags_ReadOnly);
+
+			if (ImGui::IsItemActive())
+			{
+				for (unsigned int i = 0; i < 256; i++)
+				{
+					if (_input->is_key_pressed(i))
+					{
+						_menu_key = i;
+						save_configuration();
+						break;
+					}
+				}
+			}
+			else if (ImGui::IsItemHovered())
+			{
+				ImGui::SetTooltip("Click in the field and press any key to change the shortcut to that key.");
+			}
+
+			for (size_t i = 0, offset = 0; i < _effect_search_paths.size(); i++)
+			{
+				memcpy(edit_buffer + offset, _effect_search_paths[i].c_str(), _effect_search_paths[i].size());
+				offset += _effect_search_paths[i].size();
+				edit_buffer[offset++] = '\n';
+				edit_buffer[offset] = '\0';
+			}
+
+			if (ImGui::InputTextMultiline("Effect Search Paths", edit_buffer, sizeof(edit_buffer), ImVec2(0, 100)))
+			{
+				_effect_search_paths = split(edit_buffer, '\n');
+
+				save_configuration();
+			}
+
+			for (size_t i = 0, offset = 0; i < _texture_search_paths.size(); i++)
+			{
+				memcpy(edit_buffer + offset, _texture_search_paths[i].c_str(), _texture_search_paths[i].size());
+				offset += _texture_search_paths[i].size();
+				edit_buffer[offset++] = '\n';
+				edit_buffer[offset] = '\0';
+			}
+
+			if (ImGui::InputTextMultiline("Texture Search Paths", edit_buffer, sizeof(edit_buffer), ImVec2(0, 100)))
+			{
+				_texture_search_paths = split(edit_buffer, '\n');
+
+				save_configuration();
+			}
+		}
+
+		if (ImGui::CollapsingHeader("Screenshots", "settings_screenshots", true, true))
+		{
+			ImGui::InputText("Screenshot Key", const_cast<char *>(keyboard_keys[_screenshot_key]), sizeof(*keyboard_keys), ImGuiInputTextFlags_ReadOnly);
+
+			if (ImGui::IsItemActive())
+			{
+				for (unsigned int i = 0; i < 256; i++)
+				{
+					if (_input->is_key_pressed(i) || (i == VK_SNAPSHOT && GetAsyncKeyState(VK_SNAPSHOT) & 0x8000))
+					{
+						_screenshot_key = i;
+						save_configuration();
+						break;
+					}
+				}
+			}
+			else if (ImGui::IsItemHovered())
+			{
+				ImGui::SetTooltip("Click in the field and press any key to change the shortcut to that key.");
+			}
+
+			memcpy(edit_buffer, _screenshot_path.c_str(), _screenshot_path.size() + 1);
+
+			if (ImGui::InputText("Screenshot Path", edit_buffer, sizeof(edit_buffer)))
+			{
+				_screenshot_path = edit_buffer;
+
+				save_configuration();
+			}
+
+			if (ImGui::Combo("Screenshot Format", &_screenshot_format, "Bitmap (*.bmp)\0Portable Network Graphics (*.png)\0"))
+			{
+				save_configuration();
+			}
+		}
+	}
+	void runtime::draw_shader_editor()
+	{
+		std::string effect_files;
+		for (const auto &path : _included_files)
+		{
+			effect_files += path.string() + '\0';
+		}
+
+		ImGui::PushItemWidth(-1);
+		if (ImGui::Combo("##effect_files", &_current_effect_file, effect_files.c_str()))
+		{
+			std::ifstream file(_included_files[_current_effect_file].c_str());
+			std::copy(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>(), _shader_edit_buffer.begin());
+		}
+
+		ImGui::Separator();
+
+		if (!_errors.empty() && ImGui::BeginChildFrame(0, ImVec2(-1, 80)))
+		{
+			ImGui::TextColored(ImVec4(1, 0, 0, 1), _errors.c_str());
+			ImGui::EndChildFrame();
+		}
+
+		ImGui::InputTextMultiline("##editor", _shader_edit_buffer.data(), _shader_edit_buffer.size(), ImVec2(-1, -20), ImGuiInputTextFlags_AllowTabInput);
+
+		if (ImGui::Button("Save", ImVec2(-1, 0)) || (_input->is_key_down(VK_CONTROL) && _input->is_key_pressed('S')))
+		{
+			std::ofstream file(_included_files[_current_effect_file].c_str(), std::ios::out | std::ios::trunc);
+			file << _shader_edit_buffer.data();
+			file.close();
+
+			reload();
+		}
+	}
+	void runtime::draw_macro_editor()
+	{
+		std::string effect_files;
+		for (const auto &path : _included_files)
+		{
+			effect_files += path.string() + '\0';
+		}
+
+		ImGui::PushItemWidth(-1);
+		if (ImGui::Combo("##effect_files", &_current_effect_file, effect_files.c_str()))
+		{
+		}
+
+		ImGui::Separator();
+	}
+	void runtime::draw_uniform_editor()
+	{
+		bool opened = true;
+		std::string current_header, new_header;
+
+		for (size_t i = 0; i < _uniforms.size(); i++)
+		{
+			const auto &uniform = _uniforms[i];
+
+			new_header = uniform->annotations["__FILE__"].as<std::string>();
+
+			if (new_header != current_header)
+			{
+				current_header = new_header;
+				opened = ImGui::CollapsingHeader(new_header.c_str());
+			}
+			if (!opened)
+			{
+				continue;
+			}
+
+			float data[4] = { };
+			get_uniform_value(*uniform, data, 4);
+
+			const auto ui_type = uniform->annotations["ui_type"].as<std::string>();
+
+			ImGui::PushID(i);
+
+			if (ui_type == "input")
+			{
+				ImGui::InputFloat4(uniform->name.c_str(), data);
+			}
+			else if (ui_type == "drag")
+			{
+				ImGui::DragFloat4(uniform->name.c_str(), data, uniform->annotations["ui_step"].as<float>(), uniform->annotations["ui_min"].as<float>(), uniform->annotations["ui_max"].as<float>());
+			}
+			else if (ui_type == "slider")
+			{
+				ImGui::SliderFloat4(uniform->name.c_str(), data, uniform->annotations["ui_min"].as<float>(), uniform->annotations["ui_max"].as<float>());
+			}
+			else if (ui_type == "color")
+			{
+				ImGui::ColorEdit4(uniform->name.c_str(), data);
+			}
+			else
+			{
+				ImGui::InputFloat4(uniform->name.c_str(), data, -1, ImGuiInputTextFlags_ReadOnly);
+			}
+
+			ImGui::PopID();
+
+			set_uniform_value(*uniform, data, 4);
+		}
+	}
+	void runtime::draw_statistics()
+	{
+		const auto state = static_cast<ImGuiState *>(ImGui::GetInternalState());
+
+		if (ImGui::CollapsingHeader("General", "statistics_general", true, true))
+		{
+			ImGui::Text("Application: %X", std::hash<std::string>()(s_executable_name));
+			ImGui::Text("Date: %d-%d-%d %d", _date[0], _date[1], _date[2], _date[3]);
+			ImGui::Text("Device: %X %d", _vendor_id, _device_id);
+			ImGui::Text("FPS: %.2f", ImGui::GetIO().Framerate);
+			ImGui::PushItemWidth(-1);
+			ImGui::PlotLines("##framerate", state->FramerateSecPerFrame, 120, state->FramerateSecPerFrameIdx, nullptr, state->FramerateSecPerFrameAccum / 120 * 0.5f, state->FramerateSecPerFrameAccum / 120 * 1.5f, ImVec2(0, 50));
+			ImGui::Text("Draw Calls: %u (%u vertices)", _drawcalls, _vertices);
+			ImGui::Text("Frame %llu: %fms", _framecount + 1, _last_frame_duration.count() * 1e-6f);
+			ImGui::Text("Timer: %fms", std::fmod(boost::chrono::duration_cast<boost::chrono::nanoseconds>(_last_present - _start_time).count() * 1e-6f, 16777216.0f));
+			ImGui::Text("Network: %uB", g_network_traffic);
+		}
+		if (ImGui::CollapsingHeader("Textures", "statistics_textures", true, true))
+		{
+			for (const auto &texture : _textures)
+			{
+				ImGui::Text("%s: %ux%u+%u (%uB)", texture->name.c_str(), texture->width, texture->height, (texture->levels - 1), static_cast<unsigned int>(texture->storage_size));
+			}
+		}
+		if (ImGui::CollapsingHeader("Techniques", "statistics_techniques", true, true))
+		{
+			for (const auto &technique : _techniques)
+			{
+				ImGui::Text("%s (%u passes): %fms", technique->name.c_str(), static_cast<unsigned int>(technique->passes.size()), (technique->average_duration * 1e-6f));
+			}
 		}
 	}
 }

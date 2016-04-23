@@ -147,6 +147,9 @@
     <ClCompile Include="source\runtime_objects.cpp">
       <Filter>core\runtime</Filter>
     </ClCompile>
+    <ClCompile Include="source\ini_file.cpp">
+      <Filter>core\utils</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="source\log.hpp">
@@ -262,6 +265,9 @@
     </ClInclude>
     <ClInclude Include="source\runtime_objects.hpp">
       <Filter>core\runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="source\ini_file.hpp">
+      <Filter>core\utils</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
