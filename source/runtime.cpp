@@ -952,13 +952,13 @@ namespace reshade
 
 		ImGui::Text("Techniques");
 
-		if (ImGui::IsItemHovered())
-		{
-			ImGui::SetTooltip("Click on a technique to enable/disable it.\nClick and then drag an item to a new location in the list to change the execution order.");
-		}
-
 		if (ImGui::BeginChild("##techniques", ImVec2(-1, -130), true, 0))
 		{
+			if (ImGui::IsItemHovered() && !_input->is_mouse_button_down(0))
+			{
+				ImGui::SetTooltip("Click on a technique to enable/disable it.\nClick and then drag an item to a new location in the list to change the execution order.");
+			}
+
 			for (size_t n = 0; n < _techniques.size(); n++)
 			{
 				ImGui::PushID(n);
@@ -1021,14 +1021,11 @@ namespace reshade
 
 			if (ImGui::IsItemActive())
 			{
-				for (unsigned int i = 0; i < 256; i++)
+				if (_input->is_any_key_pressed())
 				{
-					if (_input->is_key_pressed(i))
-					{
-						_menu_key = i;
-						save_configuration();
-						break;
-					}
+					_menu_key = _input->last_key_pressed();
+
+					save_configuration();
 				}
 			}
 			else if (ImGui::IsItemHovered())
@@ -1073,14 +1070,11 @@ namespace reshade
 
 			if (ImGui::IsItemActive())
 			{
-				for (unsigned int i = 0; i < 256; i++)
+				if (_input->is_any_key_pressed())
 				{
-					if (_input->is_key_pressed(i) || (i == VK_SNAPSHOT && GetAsyncKeyState(VK_SNAPSHOT) & 0x8000))
-					{
-						_screenshot_key = i;
-						save_configuration();
-						break;
-					}
+					_screenshot_key = _input->last_key_pressed();
+
+					save_configuration();
 				}
 			}
 			else if (ImGui::IsItemHovered())
