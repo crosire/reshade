@@ -209,7 +209,7 @@ namespace reshade
 		localtime_s(&tm, &time);
 
 		#pragma region Screenshot
-		if (GetAsyncKeyState(_screenshot_key) & 0x8000)
+		if (_input->is_key_pressed(_screenshot_key))
 		{
 			char time_string[128];
 			std::strftime(time_string, 128, "%Y-%m-%d %H-%M-%S", &tm);

@@ -292,5 +292,10 @@ namespace reshade
 		}
 
 		_mouse_wheel_delta = 0;
+
+		if (_keys[VK_SNAPSHOT] < 1 && GetAsyncKeyState(VK_SNAPSHOT) & 0x8000)
+		{
+			_keys[VK_SNAPSHOT] = 1;
+		}
 	}
 }

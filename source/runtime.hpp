@@ -167,7 +167,7 @@ namespace reshade
 		unsigned int _vendor_id = 0, _device_id = 0;
 		uint64_t _framecount = 0;
 		unsigned int _drawcalls = 0, _vertices = 0;
-		std::shared_ptr<class input> _input;
+		std::shared_ptr<input> _input;
 		std::unique_ptr<texture> _imgui_font_atlas;
 		std::vector<std::unique_ptr<texture>> _textures;
 		std::vector<std::unique_ptr<uniform>> _uniforms;
