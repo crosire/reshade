@@ -177,6 +177,42 @@ namespace reshade
 		return (is_mouse_message && input._block_mouse) || (is_keyboard_message && input._block_keyboard);
 	}
 
+	bool input::is_any_key_down() const
+	{
+		for (unsigned int i = 0; i < 256; i++)
+		{
+			if (is_key_down(i))
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+	bool input::is_any_key_pressed() const
+	{
+		for (unsigned int i = 0; i < 256; i++)
+		{
+			if (is_key_pressed(i))
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+	bool input::is_any_key_released() const
+	{
+		for (unsigned int i = 0; i < 256; i++)
+		{
+			if (is_key_released(i))
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
 	unsigned int input::last_key_pressed() const
 	{
 		for (unsigned int i = 0; i < 256; i++)
@@ -200,6 +236,42 @@ namespace reshade
 		}
 
 		return 0;
+	}
+	bool input::is_any_mouse_button_down() const
+	{
+		for (unsigned int i = 0; i < 5; i++)
+		{
+			if (is_mouse_button_down(i))
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+	bool input::is_any_mouse_button_pressed() const
+	{
+		for (unsigned int i = 0; i < 5; i++)
+		{
+			if (is_mouse_button_pressed(i))
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+	bool input::is_any_mouse_button_released() const
+	{
+		for (unsigned int i = 0; i < 5; i++)
+		{
+			if (is_mouse_button_released(i))
+			{
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	void input::next_frame()
