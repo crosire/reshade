@@ -177,6 +177,31 @@ namespace reshade
 		return (is_mouse_message && input._block_mouse) || (is_keyboard_message && input._block_keyboard);
 	}
 
+	unsigned int input::last_key_pressed() const
+	{
+		for (unsigned int i = 0; i < 256; i++)
+		{
+			if (is_key_pressed(i))
+			{
+				return i;
+			}
+		}
+
+		return 0;
+	}
+	unsigned int input::last_key_released() const
+	{
+		for (unsigned int i = 0; i < 256; i++)
+		{
+			if (is_key_released(i))
+			{
+				return i;
+			}
+		}
+
+		return 0;
+	}
+
 	void input::next_frame()
 	{
 		for (auto &state : _keys)

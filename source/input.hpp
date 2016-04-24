@@ -18,6 +18,8 @@ namespace reshade
 		bool is_key_down(unsigned int keycode) const { return _keys[keycode] > 0; }
 		bool is_key_pressed(unsigned int keycode) const { return _keys[keycode] == 1; }
 		bool is_key_released(unsigned int keycode) const { return _keys[keycode] == -1; }
+		unsigned int last_key_pressed() const;
+		unsigned int last_key_released() const;
 		bool is_mouse_button_down(unsigned int button) const { return _mouse_buttons[button] > 0; }
 		bool is_mouse_button_pressed(unsigned int button) const { return _mouse_buttons[button] == 1; }
 		bool is_mouse_button_released(unsigned int button) const { return _mouse_buttons[button] == -1; }
