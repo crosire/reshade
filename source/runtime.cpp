@@ -67,7 +67,7 @@ namespace reshade
 
 		utils::ini_file config;
 		fs::path s_executable_path, s_injector_path;
-		std::string s_executable_name;
+		std::string s_executable_name, s_imgui_ini_path;
 
 		const char keyboard_keys[256][16] = {
 			"", "", "", "Cancel", "", "", "", "", "Backspace", "Tab", "", "", "Clear", "Enter", "", "",
@@ -125,6 +125,7 @@ namespace reshade
 		}
 
 		config = utils::ini_file(appdata_path / "ReShade" / "ReShade.ini");
+		s_imgui_ini_path = (appdata_path / "ReShade" / "ReShadeGUI.ini").string();
 
 		hooks::register_module(system_path / "d3d8.dll");
 		hooks::register_module(system_path / "d3d9.dll");
@@ -138,7 +139,7 @@ namespace reshade
 		hooks::register_module(system_path / "ws2_32.dll");
 
 		auto &imgui_io = ImGui::GetIO();
-		imgui_io.IniFilename = nullptr;
+		imgui_io.IniFilename = s_imgui_ini_path.c_str();
 		imgui_io.KeyMap[ImGuiKey_Tab] = VK_TAB;
 		imgui_io.KeyMap[ImGuiKey_LeftArrow] = VK_LEFT;
 		imgui_io.KeyMap[ImGuiKey_RightArrow] = VK_RIGHT;
@@ -882,8 +883,8 @@ namespace reshade
 
 		if (_show_menu)
 		{
-			ImGui::SetNextWindowSize(ImVec2(600, 500), ImGuiSetCond_Once);
-			ImGui::SetNextWindowPosCenter(ImGuiSetCond_Once);
+			ImGui::SetNextWindowSize(ImVec2(600, 500), ImGuiSetCond_FirstUseEver);
+			ImGui::SetNextWindowPosCenter(ImGuiSetCond_FirstUseEver);
 			ImGui::Begin("ReShade " VERSION_STRING_PRODUCT " by crosire", &_show_menu, ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoCollapse);
 
 			if (ImGui::BeginMenuBar())
@@ -925,7 +926,7 @@ namespace reshade
 
 		if (_show_shader_editor)
 		{
-			ImGui::SetNextWindowSize(ImVec2(500, 500), ImGuiSetCond_Once);
+			ImGui::SetNextWindowSize(ImVec2(500, 500), ImGuiSetCond_FirstUseEver);
 
 			if (ImGui::Begin("Shader Editor", &_show_shader_editor))
 			{
@@ -936,7 +937,7 @@ namespace reshade
 		}
 		if (_show_macro_editor)
 		{
-			ImGui::SetNextWindowSize(ImVec2(500, 500), ImGuiSetCond_Once);
+			ImGui::SetNextWindowSize(ImVec2(500, 500), ImGuiSetCond_FirstUseEver);
 
 			if (ImGui::Begin("Macro Editor", &_show_macro_editor))
 			{
@@ -947,7 +948,7 @@ namespace reshade
 		}
 		if (_show_uniform_editor)
 		{
-			ImGui::SetNextWindowSize(ImVec2(500, 300), ImGuiSetCond_Once);
+			ImGui::SetNextWindowSize(ImVec2(500, 300), ImGuiSetCond_FirstUseEver);
 
 			if (ImGui::Begin("Uniform Editor", &_show_uniform_editor))
 			{
