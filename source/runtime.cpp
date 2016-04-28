@@ -904,22 +904,34 @@ namespace reshade
 		if (_show_shader_editor)
 		{
 			ImGui::SetNextWindowSize(ImVec2(500, 500), ImGuiSetCond_Once);
-			ImGui::Begin("Shader Editor", &_show_shader_editor);
-			draw_shader_editor();
+
+			if (ImGui::Begin("Shader Editor", &_show_shader_editor))
+			{
+				draw_shader_editor();
+			}
+
 			ImGui::End();
 		}
 		if (_show_macro_editor)
 		{
 			ImGui::SetNextWindowSize(ImVec2(500, 500), ImGuiSetCond_Once);
-			ImGui::Begin("Macro Editor", &_show_macro_editor);
-			draw_macro_editor();
+
+			if (ImGui::Begin("Macro Editor", &_show_macro_editor))
+			{
+				draw_macro_editor();
+			}
+
 			ImGui::End();
 		}
 		if (_show_uniform_editor)
 		{
 			ImGui::SetNextWindowSize(ImVec2(500, 300), ImGuiSetCond_Once);
-			ImGui::Begin("Uniform Editor", &_show_uniform_editor);
-			draw_uniform_editor();
+
+			if (ImGui::Begin("Uniform Editor", &_show_uniform_editor))
+			{
+				draw_uniform_editor();
+			}
+
 			ImGui::End();
 		}
 
@@ -937,17 +949,20 @@ namespace reshade
 			reload();
 		}
 
-		if (ImGui::Button("Open Shader Editor", ImVec2(-1, 0)))
+		if (_developer_mode)
 		{
-			_show_shader_editor = true;
-		}
-		if (ImGui::Button("Open Macro Editor", ImVec2(-1, 0)))
-		{
-			_show_macro_editor = true;
-		}
-		if (ImGui::Button("Open Uniform Editor", ImVec2(-1, 0)))
-		{
-			_show_uniform_editor = true;
+			if (ImGui::Button("Open Shader Editor", ImVec2(-1, 0)))
+			{
+				_show_shader_editor = true;
+			}
+			if (ImGui::Button("Open Macro Editor", ImVec2(-1, 0)))
+			{
+				_show_macro_editor = true;
+			}
+			if (ImGui::Button("Open Uniform Editor", ImVec2(-1, 0)))
+			{
+				_show_uniform_editor = true;
+			}
 		}
 
 		ImGui::Text("Techniques");
@@ -956,7 +971,7 @@ namespace reshade
 		{
 			if (ImGui::IsItemHovered() && !_input->is_mouse_button_down(0))
 			{
-				ImGui::SetTooltip("Click on a technique to enable/disable it.\nClick and then drag an item to a new location in the list to change the execution order.");
+				ImGui::SetTooltip("Click on a technique to enable/disable it.\nClick and then drag one to a new location in the list to change the execution order.");
 			}
 
 			for (size_t n = 0; n < _techniques.size(); n++)
@@ -1031,6 +1046,12 @@ namespace reshade
 			else if (ImGui::IsItemHovered())
 			{
 				ImGui::SetTooltip("Click in the field and press any key to change the shortcut to that key.");
+			}
+
+			int overlay_mode_index = _developer_mode ? 1 : 0;
+			if (ImGui::Combo("Overlay Mode", &overlay_mode_index, "User Mode\0Developer Mode\0"))
+			{
+				_developer_mode = overlay_mode_index != 0;
 			}
 
 			for (size_t i = 0, offset = 0; i < _effect_search_paths.size(); i++)
@@ -1114,8 +1135,9 @@ namespace reshade
 
 		ImGui::Separator();
 
-		if (!_errors.empty() && ImGui::BeginChildFrame(0, ImVec2(-1, 80)))
+		if (!_errors.empty())
 		{
+			ImGui::BeginChildFrame(0, ImVec2(-1, 80));
 			ImGui::TextColored(ImVec4(1, 0, 0, 1), _errors.c_str());
 			ImGui::EndChildFrame();
 		}
