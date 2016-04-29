@@ -195,6 +195,7 @@ namespace reshade
 		_start_time(boost::chrono::high_resolution_clock::now()),
 		_shader_edit_buffer(2048)
 	{
+		_developer_mode = config.get(s_executable_path.string(), "DeveloperMode", false).as<bool>();
 		_menu_key = config.get(s_executable_path.string(), "MenuKey", VK_F9).as<int>();
 		_screenshot_key = config.get(s_executable_path.string(), "ScreenshotKey", VK_SNAPSHOT).as<int>();
 		_screenshot_path = config.get(s_executable_path.string(), "ScreenshotPath", s_executable_path.parent_path().string()).as<std::string>();
@@ -823,6 +824,7 @@ namespace reshade
 			texture_search_paths_list += path + ',';
 		}
 
+		config.set(s_executable_path.string(), "DeveloperMode", _developer_mode);
 		config.set(s_executable_path.string(), "MenuKey", _menu_key);
 		config.set(s_executable_path.string(), "ScreenshotKey", _screenshot_key);
 		config.set(s_executable_path.string(), "ScreenshotPath", _screenshot_path);
@@ -1072,9 +1074,12 @@ namespace reshade
 			}
 
 			int overlay_mode_index = _developer_mode ? 1 : 0;
+
 			if (ImGui::Combo("Overlay Mode", &overlay_mode_index, "User Mode\0Developer Mode\0"))
 			{
 				_developer_mode = overlay_mode_index != 0;
+
+				save_configuration();
 			}
 
 			for (size_t i = 0, offset = 0; i < _effect_search_paths.size(); i++)
