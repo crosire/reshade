@@ -998,11 +998,6 @@ namespace reshade
 
 		if (ImGui::BeginChild("##techniques", ImVec2(-1, -130), true, 0))
 		{
-			if (ImGui::IsItemHovered() && !_input->is_mouse_button_down(0))
-			{
-				ImGui::SetTooltip("Click on a technique to enable/disable it.\nClick and then drag one to a new location in the list to change the execution order.");
-			}
-
 			for (size_t n = 0; n < _techniques.size(); n++)
 			{
 				ImGui::PushID(n);
@@ -1028,6 +1023,11 @@ namespace reshade
 		}
 
 		ImGui::EndChild();
+
+		if (ImGui::IsItemHovered() && !_input->is_mouse_button_down(0))
+		{
+			ImGui::SetTooltip("Click on a technique to enable/disable it.\nClick and then drag one to a new location in the list to change the execution order.");
+		}
 
 		if (ImGui::IsMouseDragging() && _selected_technique >= 0)
 		{
