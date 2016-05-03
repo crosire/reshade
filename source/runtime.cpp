@@ -195,13 +195,7 @@ namespace reshade
 		_start_time(boost::chrono::high_resolution_clock::now()),
 		_shader_edit_buffer(2048)
 	{
-		_developer_mode = config.get(s_executable_path.string(), "DeveloperMode", false).as<bool>();
-		_menu_key = config.get(s_executable_path.string(), "MenuKey", VK_F9).as<int>();
-		_screenshot_key = config.get(s_executable_path.string(), "ScreenshotKey", VK_SNAPSHOT).as<int>();
-		_screenshot_path = config.get(s_executable_path.string(), "ScreenshotPath", s_executable_path.parent_path().string()).as<std::string>();
-		_screenshot_format = config.get(s_executable_path.string(), "ScreenshotFormat", 0).as<int>();
-		_effect_search_paths = split(config.get(s_executable_path.string(), "EffectSearchPaths", s_injector_path.parent_path().string()).as<std::string>(), ',');
-		_texture_search_paths = split(config.get(s_executable_path.string(), "TextureSearchPaths", s_injector_path.parent_path().string()).as<std::string>(), ',');
+		load_configuration();
 	}
 	runtime::~runtime()
 	{
@@ -802,6 +796,16 @@ namespace reshade
 
 			texture->storage_size = data_size;
 		}
+	}
+	void runtime::load_configuration()
+	{
+		_developer_mode = config.get(s_executable_path.string(), "DeveloperMode", false).as<bool>();
+		_menu_key = config.get(s_executable_path.string(), "MenuKey", VK_F9).as<int>();
+		_screenshot_key = config.get(s_executable_path.string(), "ScreenshotKey", VK_SNAPSHOT).as<int>();
+		_screenshot_path = config.get(s_executable_path.string(), "ScreenshotPath", s_executable_path.parent_path().string()).as<std::string>();
+		_screenshot_format = config.get(s_executable_path.string(), "ScreenshotFormat", 0).as<int>();
+		_effect_search_paths = split(config.get(s_executable_path.string(), "EffectSearchPaths", s_injector_path.parent_path().string()).as<std::string>(), ',');
+		_texture_search_paths = split(config.get(s_executable_path.string(), "TextureSearchPaths", s_injector_path.parent_path().string()).as<std::string>(), ',');
 	}
 	void runtime::save_configuration()
 	{

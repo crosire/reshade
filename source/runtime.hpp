@@ -178,6 +178,7 @@ namespace reshade
 
 		bool load_effect(const boost::filesystem::path &path);
 		void load_textures();
+		void load_configuration();
 		void save_configuration();
 
 		void draw_overlay();
