@@ -706,7 +706,7 @@ namespace reshade
 	{
 		for (const auto &texture : _textures)
 		{
-			const std::string source = texture->annotations["source"].as<std::string>();
+			const auto source = texture->annotations["source"].as<std::string>();
 
 			if (source.empty())
 			{
@@ -941,24 +941,13 @@ namespace reshade
 
 			ImGui::End();
 		}
-		if (_show_macro_editor)
-		{
-			ImGui::SetNextWindowSize(ImVec2(500, 500), ImGuiSetCond_FirstUseEver);
-
-			if (ImGui::Begin("Macro Editor", &_show_macro_editor))
-			{
-				draw_macro_editor();
-			}
-
-			ImGui::End();
-		}
-		if (_show_uniform_editor)
+		if (_show_variable_editor)
 		{
 			ImGui::SetNextWindowSize(ImVec2(500, 300), ImGuiSetCond_FirstUseEver);
 
-			if (ImGui::Begin("Uniform Editor", &_show_uniform_editor))
+			if (ImGui::Begin("Variable Editor", &_show_variable_editor))
 			{
-				draw_uniform_editor();
+				draw_variable_editor();
 			}
 
 			ImGui::End();
@@ -984,13 +973,9 @@ namespace reshade
 			{
 				_show_shader_editor = true;
 			}
-			if (ImGui::Button("Open Macro Editor", ImVec2(-1, 0)))
+			if (ImGui::Button("Open Variable Editor", ImVec2(-1, 0)))
 			{
-				_show_macro_editor = true;
-			}
-			if (ImGui::Button("Open Uniform Editor", ImVec2(-1, 0)))
-			{
-				_show_uniform_editor = true;
+				_show_variable_editor = true;
 			}
 		}
 
@@ -1185,22 +1170,7 @@ namespace reshade
 			reload();
 		}
 	}
-	void runtime::draw_macro_editor()
-	{
-		std::string effect_files;
-		for (const auto &path : _included_files)
-		{
-			effect_files += path.string() + '\0';
-		}
-
-		ImGui::PushItemWidth(-1);
-		if (ImGui::Combo("##effect_files", &_current_effect_file, effect_files.c_str()))
-		{
-		}
-
-		ImGui::Separator();
-	}
-	void runtime::draw_uniform_editor()
+	void runtime::draw_variable_editor()
 	{
 		bool opened = true;
 		std::string current_header, new_header;

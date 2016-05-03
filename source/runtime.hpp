@@ -185,8 +185,7 @@ namespace reshade
 		void draw_home();
 		void draw_settings();
 		void draw_shader_editor();
-		void draw_macro_editor();
-		void draw_uniform_editor();
+		void draw_variable_editor();
 		void draw_statistics();
 
 		const unsigned int _renderer_id;
@@ -201,7 +200,7 @@ namespace reshade
 		std::string _screenshot_path;
 		std::vector<std::string> _effect_search_paths, _texture_search_paths;
 		utils::critical_section _imgui_cs;
-		bool _developer_mode = false, _show_menu = false, _show_macro_editor = false, _show_shader_editor = false, _show_uniform_editor = false;
+		bool _developer_mode = false, _show_menu = false, _show_shader_editor = false, _show_variable_editor = false;
 		int _selected_technique = -1, _hovered_technique = -1;
 		std::vector<char> _shader_edit_buffer;
 	};
