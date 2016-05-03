@@ -2236,38 +2236,38 @@ namespace reshade
 
 		_global_uniforms << ";\n";
 
-		const auto obj = new uniform();
-		obj->name = node->name;
-		obj->rows = node->type.rows;
-		obj->columns = node->type.cols;
-		obj->elements = node->type.array_length;
-		obj->storage_size = obj->rows * obj->columns * std::max(1u, obj->elements);
+		uniform obj;
+		obj.name = node->name;
+		obj.rows = node->type.rows;
+		obj.columns = node->type.cols;
+		obj.elements = node->type.array_length;
+		obj.storage_size = obj.rows * obj.columns * std::max(1u, obj.elements);
 
 		switch (node->type.basetype)
 		{
 			case fx::nodes::type_node::datatype_bool:
-				obj->basetype = uniform_datatype::bool_;
-				obj->storage_size *= sizeof(int);
+				obj.basetype = uniform_datatype::bool_;
+				obj.storage_size *= sizeof(int);
 				break;
 			case fx::nodes::type_node::datatype_int:
-				obj->basetype = uniform_datatype::int_;
-				obj->storage_size *= sizeof(int);
+				obj.basetype = uniform_datatype::int_;
+				obj.storage_size *= sizeof(int);
 				break;
 			case fx::nodes::type_node::datatype_uint:
-				obj->basetype = uniform_datatype::uint_;
-				obj->storage_size *= sizeof(unsigned int);
+				obj.basetype = uniform_datatype::uint_;
+				obj.storage_size *= sizeof(unsigned int);
 				break;
 			case fx::nodes::type_node::datatype_float:
-				obj->basetype = uniform_datatype::float_;
-				obj->storage_size *= sizeof(float);
+				obj.basetype = uniform_datatype::float_;
+				obj.storage_size *= sizeof(float);
 				break;
 		}
 
 		const size_t alignment = 16 - (_runtime->_effect_ubo_size % 16);
-		_runtime->_effect_ubo_size += (obj->storage_size > alignment && (alignment != 16 || obj->storage_size <= 16)) ? obj->storage_size + alignment : obj->storage_size;
-		obj->storage_offset = _runtime->_effect_ubo_size - obj->storage_size;
+		_runtime->_effect_ubo_size += (obj.storage_size > alignment && (alignment != 16 || obj.storage_size <= 16)) ? obj.storage_size + alignment : obj.storage_size;
+		obj.storage_offset = _runtime->_effect_ubo_size - obj.storage_size;
 
-		visit_annotation(node->annotations, *obj);
+		visit_annotation(node->annotations, obj);
 
 		auto &uniform_storage = _runtime->get_uniform_value_storage();
 
@@ -2278,29 +2278,29 @@ namespace reshade
 
 		if (node->initializer_expression != nullptr && node->initializer_expression->id == fx::nodeid::literal_expression)
 		{
-			std::memcpy(uniform_storage.data() + obj->storage_offset, &static_cast<const fx::nodes::literal_expression_node *>(node->initializer_expression)->value_float, obj->storage_size);
+			std::memcpy(uniform_storage.data() + obj.storage_offset, &static_cast<const fx::nodes::literal_expression_node *>(node->initializer_expression)->value_float, obj.storage_size);
 		}
 		else
 		{
-			std::memset(uniform_storage.data() + obj->storage_offset, 0, obj->storage_size);
+			std::memset(uniform_storage.data() + obj.storage_offset, 0, obj.storage_size);
 		}
 
-		_runtime->add_uniform(obj);
+		_runtime->add_uniform(std::move(obj));
 	}
 	void gl_fx_compiler::visit_technique(const fx::nodes::technique_declaration_node *node)
 	{
-		const auto obj = new technique();
-		obj->name = node->name;
+		technique obj;
+		obj.name = node->name;
 
-		visit_annotation(node->annotation_list, *obj);
+		visit_annotation(node->annotation_list, obj);
 
 		for (auto pass : node->pass_list)
 		{
-			obj->passes.emplace_back(new gl_pass());
-			visit_pass(pass, *static_cast<gl_pass *>(obj->passes.back().get()));
+			obj.passes.emplace_back(new gl_pass());
+			visit_pass(pass, *static_cast<gl_pass *>(obj.passes.back().get()));
 		}
 
-		_runtime->add_technique(obj);
+		_runtime->add_technique(std::move(obj));
 	}
 	void gl_fx_compiler::visit_pass(const fx::nodes::pass_declaration_node *node, gl_pass &pass)
 	{

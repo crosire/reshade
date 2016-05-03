@@ -280,9 +280,9 @@ namespace reshade
 	}
 	void runtime::on_apply_effect()
 	{
-		for (const auto &variable : _uniforms)
+		for (auto &variable : _uniforms)
 		{
-			const auto source = variable->annotations["source"].as<std::string>();
+			const auto source = variable.annotations["source"].as<std::string>();
 
 			if (source.empty())
 			{
@@ -291,29 +291,29 @@ namespace reshade
 			else if (source == "frametime")
 			{
 				const float value = _last_frame_duration.count() * 1e-6f;
-				set_uniform_value(*variable, &value, 1);
+				set_uniform_value(variable, &value, 1);
 			}
 			else if (source == "framecount" || source == "framecounter")
 			{
-				switch (variable->basetype)
+				switch (variable.basetype)
 				{
 					case uniform_datatype::bool_:
 					{
 						const bool even = (_framecount % 2) == 0;
-						set_uniform_value(*variable, &even, 1);
+						set_uniform_value(variable, &even, 1);
 						break;
 					}
 					case uniform_datatype::int_:
 					case uniform_datatype::uint_:
 					{
 						const unsigned int framecount = static_cast<unsigned int>(_framecount % UINT_MAX);
-						set_uniform_value(*variable, &framecount, 1);
+						set_uniform_value(variable, &framecount, 1);
 						break;
 					}
 					case uniform_datatype::float_:
 					{
 						const float framecount = static_cast<float>(_framecount % 16777216);
-						set_uniform_value(*variable, &framecount, 1);
+						set_uniform_value(variable, &framecount, 1);
 						break;
 					}
 				}
@@ -321,12 +321,12 @@ namespace reshade
 			else if (source == "pingpong")
 			{
 				float value[2] = { 0, 0 };
-				get_uniform_value(*variable, value, 2);
+				get_uniform_value(variable, value, 2);
 
-				const float min = variable->annotations["min"].as<float>(), max = variable->annotations["max"].as<float>();
-				const float stepMin = variable->annotations["step"].as<float>(0), stepMax = variable->annotations["step"].as<float>(1);
-				float increment = stepMax == 0 ? stepMin : (stepMin + std::fmodf(static_cast<float>(std::rand()), stepMax - stepMin + 1));
-				const float smoothing = variable->annotations["smoothing"].as<float>();
+				const float min = variable.annotations["min"].as<float>(), max = variable.annotations["max"].as<float>();
+				const float step_min = variable.annotations["step"].as<float>(0), step_max = variable.annotations["step"].as<float>(1);
+				float increment = step_max == 0 ? step_min : (step_min + std::fmodf(static_cast<float>(std::rand()), step_max - step_min + 1));
+				const float smoothing = variable.annotations["smoothing"].as<float>();
 
 				if (value[1] >= 0)
 				{
@@ -351,62 +351,62 @@ namespace reshade
 					}
 				}
 
-				set_uniform_value(*variable, value, 2);
+				set_uniform_value(variable, value, 2);
 			}
 			else if (source == "date")
 			{
-				set_uniform_value(*variable, _date, 4);
+				set_uniform_value(variable, _date, 4);
 			}
 			else if (source == "timer")
 			{
 				const unsigned long long timer = boost::chrono::duration_cast<boost::chrono::nanoseconds>(_last_present - _start_time).count();
 
-				switch (variable->basetype)
+				switch (variable.basetype)
 				{
 					case uniform_datatype::bool_:
 					{
 						const bool even = (timer % 2) == 0;
-						set_uniform_value(*variable, &even, 1);
+						set_uniform_value(variable, &even, 1);
 						break;
 					}
 					case uniform_datatype::int_:
 					case uniform_datatype::uint_:
 					{
-						const unsigned int timerInt = static_cast<unsigned int>(timer % UINT_MAX);
-						set_uniform_value(*variable, &timerInt, 1);
+						const unsigned int timer_int = static_cast<unsigned int>(timer % UINT_MAX);
+						set_uniform_value(variable, &timer_int, 1);
 						break;
 					}
 					case uniform_datatype::float_:
 					{
-						const float timerFloat = std::fmod(static_cast<float>(timer * 1e-6f), 16777216.0f);
-						set_uniform_value(*variable, &timerFloat, 1);
+						const float timer_float = std::fmod(static_cast<float>(timer * 1e-6f), 16777216.0f);
+						set_uniform_value(variable, &timer_float, 1);
 						break;
 					}
 				}
 			}
 			else if (source == "key")
 			{
-				const int key = variable->annotations["keycode"].as<int>();
+				const int key = variable.annotations["keycode"].as<int>();
 
 				if (key > 0 && key < 256)
 				{
-					if (variable->annotations["toggle"].as<bool>())
+					if (variable.annotations["toggle"].as<bool>())
 					{
 						bool current = false;
-						get_uniform_value(*variable, &current, 1);
+						get_uniform_value(variable, &current, 1);
 
 						if (_input->is_key_pressed(key))
 						{
 							current = !current;
 
-							set_uniform_value(*variable, &current, 1);
+							set_uniform_value(variable, &current, 1);
 						}
 					}
 					else
 					{
 						const bool state = _input->is_key_down(key);
 
-						set_uniform_value(*variable, &state, 1);
+						set_uniform_value(variable, &state, 1);
 					}
 				}
 			}
@@ -414,88 +414,88 @@ namespace reshade
 			{
 				const float values[2] = { static_cast<float>(_input->mouse_position_x()), static_cast<float>(_input->mouse_position_y()) };
 
-				set_uniform_value(*variable, values, 2);
+				set_uniform_value(variable, values, 2);
 			}
 			else if (source == "mousebutton")
 			{
-				const int index = variable->annotations["keycode"].as<int>();
+				const int index = variable.annotations["keycode"].as<int>();
 
 				if (index > 0 && index < 3)
 				{
-					if (variable->annotations["toggle"].as<bool>())
+					if (variable.annotations["toggle"].as<bool>())
 					{
 						bool current = false;
-						get_uniform_value(*variable, &current, 1);
+						get_uniform_value(variable, &current, 1);
 
 						if (_input->is_mouse_button_pressed(index))
 						{
 							current = !current;
 
-							set_uniform_value(*variable, &current, 1);
+							set_uniform_value(variable, &current, 1);
 						}
 					}
 					else
 					{
 						const bool state = _input->is_mouse_button_down(index);
 
-						set_uniform_value(*variable, &state, 1);
+						set_uniform_value(variable, &state, 1);
 					}
 				}
 			}
 			else if (source == "random")
 			{
-				const int min = variable->annotations["min"].as<int>(), max = variable->annotations["max"].as<int>();
+				const int min = variable.annotations["min"].as<int>(), max = variable.annotations["max"].as<int>();
 				const int value = min + (std::rand() % (max - min + 1));
 
-				set_uniform_value(*variable, &value, 1);
+				set_uniform_value(variable, &value, 1);
 			}
 		}
 
-		for (const auto &technique : _techniques)
+		for (auto &technique : _techniques)
 		{
-			if (technique->toggle_time != 0 && technique->toggle_time == static_cast<int>(_date[3]))
+			if (technique.toggle_time != 0 && technique.toggle_time == static_cast<int>(_date[3]))
 			{
-				technique->enabled = !technique->enabled;
-				technique->timeleft = technique->timeout;
-				technique->toggle_time = 0;
+				technique.enabled = !technique.enabled;
+				technique.timeleft = technique.timeout;
+				technique.toggle_time = 0;
 			}
-			else if (technique->timeleft > 0)
+			else if (technique.timeleft > 0)
 			{
-				technique->timeleft -= static_cast<unsigned int>(boost::chrono::duration_cast<boost::chrono::milliseconds>(_last_frame_duration).count());
+				technique.timeleft -= static_cast<unsigned int>(boost::chrono::duration_cast<boost::chrono::milliseconds>(_last_frame_duration).count());
 
-				if (technique->timeleft <= 0)
+				if (technique.timeleft <= 0)
 				{
-					technique->enabled = !technique->enabled;
-					technique->timeleft = 0;
+					technique.enabled = !technique.enabled;
+					technique.timeleft = 0;
 				}
 			}
-			else if (_input->is_key_pressed(technique->toggle_key) && (!technique->toggle_key_ctrl || _input->is_key_down(VK_CONTROL)) && (!technique->toggle_key_shift || _input->is_key_down(VK_SHIFT)) && (!technique->toggle_key_alt || _input->is_key_down(VK_MENU)))
+			else if (_input->is_key_pressed(technique.toggle_key) && (!technique.toggle_key_ctrl || _input->is_key_down(VK_CONTROL)) && (!technique.toggle_key_shift || _input->is_key_down(VK_SHIFT)) && (!technique.toggle_key_alt || _input->is_key_down(VK_MENU)))
 			{
-				technique->enabled = !technique->enabled;
-				technique->timeleft = technique->timeout;
+				technique.enabled = !technique.enabled;
+				technique.timeleft = technique.timeout;
 			}
 
-			if (!technique->enabled)
+			if (!technique.enabled)
 			{
-				technique->average_duration.clear();
+				technique.average_duration.clear();
 
 				continue;
 			}
 
 			const auto time_technique_started = boost::chrono::high_resolution_clock::now();
 
-			on_apply_effect_technique(*technique);
+			on_apply_effect_technique(technique);
 
-			technique->average_duration.append(boost::chrono::duration_cast<boost::chrono::nanoseconds>(boost::chrono::high_resolution_clock::now() - time_technique_started).count());
+			technique.average_duration.append(boost::chrono::duration_cast<boost::chrono::nanoseconds>(boost::chrono::high_resolution_clock::now() - time_technique_started).count());
 		}
 	}
 	void runtime::on_apply_effect_technique(const technique &technique)
 	{
-		for (const auto &variable : _uniforms)
+		for (auto &variable : _uniforms)
 		{
-			if (variable->annotations["source"].as<std::string>() == "timeleft")
+			if (variable.annotations["source"].as<std::string>() == "timeleft")
 			{
-				set_uniform_value(*variable, &technique.timeleft, 1);
+				set_uniform_value(variable, &technique.timeleft, 1);
 			}
 		}
 	}
@@ -652,14 +652,14 @@ namespace reshade
 
 		_is_effect_compiled = true;
 
-		for (const auto &uniform : _uniforms)
+		for (auto &variable : _uniforms)
 		{
-			if (uniform->annotations.count("__FILE__"))
+			if (variable.annotations.count("__FILE__"))
 			{
 				continue;
 			}
 
-			uniform->annotations["__FILE__"] = path.string();
+			variable.annotations["__FILE__"] = path.string();
 		}
 		for (const auto &texture : _textures)
 		{
@@ -670,34 +670,34 @@ namespace reshade
 
 			texture->annotations["__FILE__"] = path.string();
 		}
-		for (const auto &technique : _techniques)
+		for (auto &technique : _techniques)
 		{
-			if (technique->annotations.count("__FILE__"))
+			if (technique.annotations.count("__FILE__"))
 			{
 				continue;
 			}
 
-			technique->annotations["__FILE__"] = path.string();
+			technique.annotations["__FILE__"] = path.string();
 
-			technique->enabled = technique->annotations["enabled"].as<bool>();
-			technique->timeleft = technique->timeout = technique->annotations["timeout"].as<int>();
-			technique->toggle_key = technique->annotations["toggle"].as<int>();
-			technique->toggle_key_ctrl = technique->annotations["togglectrl"].as<bool>();
-			technique->toggle_key_shift = technique->annotations["toggleshift"].as<bool>();
-			technique->toggle_key_alt = technique->annotations["togglealt"].as<bool>();
-			technique->toggle_time = technique->annotations["toggletime"].as<int>();
+			technique.enabled = technique.annotations["enabled"].as<bool>();
+			technique.timeleft = technique.timeout = technique.annotations["timeout"].as<int>();
+			technique.toggle_key = technique.annotations["toggle"].as<int>();
+			technique.toggle_key_ctrl = technique.annotations["togglectrl"].as<bool>();
+			technique.toggle_key_shift = technique.annotations["toggleshift"].as<bool>();
+			technique.toggle_key_alt = technique.annotations["togglealt"].as<bool>();
+			technique.toggle_time = technique.annotations["toggletime"].as<int>();
 		}
 
 		// Reorder techniques
 		auto order = split(config.get(s_executable_path.string(), "Techniques").as<std::string>(), ',');
 		std::sort(_techniques.begin(), _techniques.end(),
-			[&order](const std::unique_ptr<technique> &lhs, const std::unique_ptr<technique> &rhs)
+			[&order](const technique &lhs, const technique &rhs)
 			{
-				return (std::find(order.begin(), order.end(), lhs->name) - order.begin()) < (std::find(order.begin(), order.end(), rhs->name) - order.begin());
+				return (std::find(order.begin(), order.end(), lhs.name) - order.begin()) < (std::find(order.begin(), order.end(), rhs.name) - order.begin());
 			});
-		for (const auto &technique : _techniques)
+		for (auto &technique : _techniques)
 		{
-			technique->enabled = std::find(order.begin(), order.end(), technique->name) != order.end();
+			technique.enabled = std::find(order.begin(), order.end(), technique.name) != order.end();
 		}
 
 		return true;
@@ -807,15 +807,15 @@ namespace reshade
 		_effect_search_paths = split(config.get(s_executable_path.string(), "EffectSearchPaths", s_injector_path.parent_path().string()).as<std::string>(), ',');
 		_texture_search_paths = split(config.get(s_executable_path.string(), "TextureSearchPaths", s_injector_path.parent_path().string()).as<std::string>(), ',');
 	}
-	void runtime::save_configuration()
+	void runtime::save_configuration() const
 	{
 		std::string technique_list, effect_search_paths_list, texture_search_paths_list;
 
 		for (const auto &technique : _techniques)
 		{
-			if (technique->enabled)
+			if (technique.enabled)
 			{
-				technique_list += technique->name + ',';
+				technique_list += technique.name + ',';
 			}
 		}
 
@@ -987,9 +987,9 @@ namespace reshade
 			{
 				ImGui::PushID(n);
 
-				const auto name = _techniques[n]->name + " [" + _techniques[n]->annotations["__FILE__"].as<std::string>() + "]";
+				const auto name = _techniques[n].name + " [" + _techniques[n].annotations["__FILE__"].as<std::string>() + "]";
 
-				if (ImGui::Checkbox(name.c_str(), &_techniques[n]->enabled))
+				if (ImGui::Checkbox(name.c_str(), &_techniques[n].enabled))
 				{
 					save_configuration();
 				}
@@ -1016,7 +1016,7 @@ namespace reshade
 
 		if (ImGui::IsMouseDragging() && _selected_technique >= 0)
 		{
-			ImGui::SetTooltip(_techniques[_selected_technique]->name.c_str());
+			ImGui::SetTooltip(_techniques[_selected_technique].name.c_str());
 
 			if (_hovered_technique >= 0 && _hovered_technique != _selected_technique)
 			{
@@ -1177,9 +1177,9 @@ namespace reshade
 
 		for (size_t i = 0; i < _uniforms.size(); i++)
 		{
-			const auto &uniform = _uniforms[i];
+			auto &variable = _uniforms[i];
 
-			new_header = uniform->annotations["__FILE__"].as<std::string>();
+			new_header = variable.annotations["__FILE__"].as<std::string>();
 
 			if (new_header != current_header)
 			{
@@ -1192,36 +1192,36 @@ namespace reshade
 			}
 
 			float data[4] = { };
-			get_uniform_value(*uniform, data, 4);
+			get_uniform_value(variable, data, 4);
 
-			const auto ui_type = uniform->annotations["ui_type"].as<std::string>();
+			const auto ui_type = variable.annotations["ui_type"].as<std::string>();
 
 			ImGui::PushID(i);
 
 			if (ui_type == "input")
 			{
-				ImGui::InputFloat4(uniform->name.c_str(), data);
+				ImGui::InputFloat4(variable.name.c_str(), data);
 			}
 			else if (ui_type == "drag")
 			{
-				ImGui::DragFloat4(uniform->name.c_str(), data, uniform->annotations["ui_step"].as<float>(), uniform->annotations["ui_min"].as<float>(), uniform->annotations["ui_max"].as<float>());
+				ImGui::DragFloat4(variable.name.c_str(), data, variable.annotations["ui_step"].as<float>(), variable.annotations["ui_min"].as<float>(), variable.annotations["ui_max"].as<float>());
 			}
 			else if (ui_type == "slider")
 			{
-				ImGui::SliderFloat4(uniform->name.c_str(), data, uniform->annotations["ui_min"].as<float>(), uniform->annotations["ui_max"].as<float>());
+				ImGui::SliderFloat4(variable.name.c_str(), data, variable.annotations["ui_min"].as<float>(), variable.annotations["ui_max"].as<float>());
 			}
 			else if (ui_type == "color")
 			{
-				ImGui::ColorEdit4(uniform->name.c_str(), data);
+				ImGui::ColorEdit4(variable.name.c_str(), data);
 			}
 			else
 			{
-				ImGui::InputFloat4(uniform->name.c_str(), data, -1, ImGuiInputTextFlags_ReadOnly);
+				ImGui::InputFloat4(variable.name.c_str(), data, -1, ImGuiInputTextFlags_ReadOnly);
 			}
 
 			ImGui::PopID();
 
-			set_uniform_value(*uniform, data, 4);
+			set_uniform_value(variable, data, 4);
 		}
 	}
 	void runtime::draw_statistics()
@@ -1252,7 +1252,7 @@ namespace reshade
 		{
 			for (const auto &technique : _techniques)
 			{
-				ImGui::Text("%s (%u passes): %fms", technique->name.c_str(), static_cast<unsigned int>(technique->passes.size()), (technique->average_duration * 1e-6f));
+				ImGui::Text("%s (%u passes): %fms", technique.name.c_str(), static_cast<unsigned int>(technique.passes.size()), (technique.average_duration * 1e-6f));
 			}
 		}
 	}

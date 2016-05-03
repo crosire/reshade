@@ -66,15 +66,15 @@ namespace reshade
 		/// <param name="texture">The texture to add.</param>
 		void add_texture(texture *texture);
 		/// <summary>
-		/// Add a new uniform. This transfers ownership of the pointer to this class.
+		/// Add a new uniform.
 		/// </summary>
 		/// <param name="uniform">The uniform to add.</param>
-		void add_uniform(uniform *uniform);
+		void add_uniform(uniform &&uniform);
 		/// <summary>
-		/// Add a new technique. This transfers ownership of the pointer to this class.
+		/// Add a new technique.
 		/// </summary>
 		/// <param name="technique">The technique to add.</param>
-		void add_technique(technique *technique);
+		void add_technique(technique &&technique);
 		/// <summary>
 		/// Find the texture with the specified name.
 		/// </summary>
@@ -169,8 +169,8 @@ namespace reshade
 		std::shared_ptr<input> _input;
 		std::unique_ptr<texture> _imgui_font_atlas;
 		std::vector<std::unique_ptr<texture>> _textures;
-		std::vector<std::unique_ptr<uniform>> _uniforms;
-		std::vector<std::unique_ptr<technique>> _techniques;
+		std::vector<uniform> _uniforms;
+		std::vector<technique> _techniques;
 
 	private:
 		void reload();
@@ -179,7 +179,7 @@ namespace reshade
 		bool load_effect(const boost::filesystem::path &path);
 		void load_textures();
 		void load_configuration();
-		void save_configuration();
+		void save_configuration() const;
 
 		void draw_overlay();
 		void draw_home();

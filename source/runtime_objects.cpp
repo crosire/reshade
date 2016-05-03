@@ -7,13 +7,13 @@ namespace reshade
 	{
 		_textures.emplace_back(texture);
 	}
-	void runtime::add_uniform(uniform *uniform)
+	void runtime::add_uniform(uniform &&uniform)
 	{
-		_uniforms.emplace_back(uniform);
+		_uniforms.push_back(std::move(uniform));
 	}
-	void runtime::add_technique(technique *technique)
+	void runtime::add_technique(technique &&technique)
 	{
-		_techniques.emplace_back(technique);
+		_techniques.push_back(std::move(technique));
 	}
 	texture *runtime::find_texture(const std::string &name)
 	{

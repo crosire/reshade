@@ -980,7 +980,7 @@ namespace reshade
 		// Update techniques shader resource views
 		for (const auto &technique : _techniques)
 		{
-			for (const auto &pass_ptr : technique->passes)
+			for (const auto &pass_ptr : technique.passes)
 			{
 				auto &pass = *static_cast<d3d11_pass *>(pass_ptr.get());
 
