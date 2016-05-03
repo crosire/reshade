@@ -2491,7 +2491,7 @@ namespace reshade
 							return false;
 						}
 
-						_ast.uniforms.push_back(std::move(variable));
+						_ast.variables.push_back(std::move(variable));
 					}
 					while (!peek(';'));
 

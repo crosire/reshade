@@ -119,7 +119,7 @@ namespace reshade
 			visit(_global_code, static_cast<fx::nodes::struct_declaration_node *>(node));
 		}
 
-		for (auto node : _ast.uniforms)
+		for (auto node : _ast.variables)
 		{
 			const auto uniform = static_cast<fx::nodes::variable_declaration_node *>(node);
 

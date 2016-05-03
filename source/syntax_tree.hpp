@@ -26,7 +26,7 @@ namespace reshade
 			}
 
 			std::vector<nodes::struct_declaration_node *> structs;
-			std::vector<nodes::variable_declaration_node *> uniforms;
+			std::vector<nodes::variable_declaration_node *> variables;
 			std::vector<nodes::function_declaration_node *> functions;
 			std::vector<nodes::technique_declaration_node *> techniques;
 
