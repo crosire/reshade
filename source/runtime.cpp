@@ -561,9 +561,6 @@ namespace reshade
 		imgui_io.KeyShift = _input->is_key_down(VK_SHIFT);
 		imgui_io.KeyAlt = _input->is_key_down(VK_MENU);
 
-		BYTE kbs[256];
-		GetKeyboardState(kbs);
-
 		for (unsigned int i = 0; i < 5; i++)
 		{
 			imgui_io.MouseDown[i] = _input->is_mouse_button_down(i);
@@ -577,12 +574,7 @@ namespace reshade
 				continue;
 			}
 
-			WORD ch = 0;
-
-			if (ToAscii(i, MapVirtualKey(i, MAPVK_VK_TO_VSC), kbs, &ch, 0))
-			{
-				imgui_io.AddInputCharacter(ch);
-			}
+			imgui_io.AddInputCharacter(_input->key_to_text(i));
 		}
 
 		ImGui::NewFrame();

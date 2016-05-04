@@ -104,27 +104,27 @@ namespace reshade
 						is_mouse_message = true;
 
 						if (raw_data.data.mouse.usButtonFlags & RI_MOUSE_LEFT_BUTTON_DOWN)
-							input._mouse_buttons[0] = 1;
+							input._mouse_buttons[0] = 0x88;
 						else if (raw_data.data.mouse.usButtonFlags & RI_MOUSE_LEFT_BUTTON_UP)
-							input._mouse_buttons[0] = -1;
+							input._mouse_buttons[0] = 0x08;
 						if (raw_data.data.mouse.usButtonFlags & RI_MOUSE_RIGHT_BUTTON_DOWN)
-							input._mouse_buttons[1] = 1;
+							input._mouse_buttons[1] = 0x88;
 						else if (raw_data.data.mouse.usButtonFlags & RI_MOUSE_RIGHT_BUTTON_UP)
-							input._mouse_buttons[1] = -1;
+							input._mouse_buttons[1] = 0x08;
 						if (raw_data.data.mouse.usButtonFlags & RI_MOUSE_MIDDLE_BUTTON_DOWN)
-							input._mouse_buttons[2] = 1;
+							input._mouse_buttons[2] = 0x88;
 						else if (raw_data.data.mouse.usButtonFlags & RI_MOUSE_MIDDLE_BUTTON_UP)
-							input._mouse_buttons[2] = -1;
+							input._mouse_buttons[2] = 0x08;
 
 						if (raw_data.data.mouse.usButtonFlags & RI_MOUSE_BUTTON_4_DOWN)
-							input._mouse_buttons[3] = 1;
+							input._mouse_buttons[3] = 0x88;
 						else if (raw_data.data.mouse.usButtonFlags & RI_MOUSE_BUTTON_4_UP)
-							input._mouse_buttons[3] = -1;
+							input._mouse_buttons[3] = 0x08;
 
 						if (raw_data.data.mouse.usButtonFlags & RI_MOUSE_BUTTON_5_DOWN)
-							input._mouse_buttons[4] = 1;
+							input._mouse_buttons[4] = 0x88;
 						else if (raw_data.data.mouse.usButtonFlags & RI_MOUSE_BUTTON_5_UP)
-							input._mouse_buttons[4] = -1;
+							input._mouse_buttons[4] = 0x08;
 
 						if (raw_data.data.mouse.usButtonFlags & RI_MOUSE_WHEEL)
 							input._mouse_wheel_delta += static_cast<short>(raw_data.data.mouse.usButtonData) / WHEEL_DELTA;
@@ -133,44 +133,46 @@ namespace reshade
 						is_keyboard_message = true;
 
 						if (raw_data.data.keyboard.VKey != 0xFF)
-							input._keys[raw_data.data.keyboard.VKey] = (raw_data.data.keyboard.Flags & RI_KEY_BREAK) == 0 ? 1 : -1;
+							input._keys[raw_data.data.keyboard.VKey] = (raw_data.data.keyboard.Flags & RI_KEY_BREAK) == 0 ? 0x88 : 0x08;
 						break;
 				}
 				break;
 			case WM_KEYDOWN:
 			case WM_SYSKEYDOWN:
-				input._keys[details.wParam] = 1;
+				input._keys[details.wParam] = 0x88;
 				break;
 			case WM_KEYUP:
 			case WM_SYSKEYUP:
-				input._keys[details.wParam] = -1;
+				input._keys[details.wParam] = 0x08;
 				break;
 			case WM_LBUTTONDOWN:
-				input._mouse_buttons[0] = 1;
+				input._mouse_buttons[0] = 0x88;
 				break;
 			case WM_LBUTTONUP:
-				input._mouse_buttons[0] = -1;
+				input._mouse_buttons[0] = 0x08;
 				break;
 			case WM_RBUTTONDOWN:
-				input._mouse_buttons[1] = 1;
+				input._mouse_buttons[1] = 0x88;
 				break;
 			case WM_RBUTTONUP:
-				input._mouse_buttons[1] = -1;
+				input._mouse_buttons[1] = 0x08;
 				break;
 			case WM_MBUTTONDOWN:
-				input._mouse_buttons[2] = 1;
+				input._mouse_buttons[2] = 0x88;
 				break;
 			case WM_MBUTTONUP:
-				input._mouse_buttons[2] = -1;
+				input._mouse_buttons[2] = 0x08;
 				break;
 			case WM_MOUSEWHEEL:
 				input._mouse_wheel_delta += GET_WHEEL_DELTA_WPARAM(details.wParam) / WHEEL_DELTA;
 				break;
 			case WM_XBUTTONDOWN:
-				input._mouse_buttons[2 + HIWORD(details.wParam)] = 1;
+				assert(HIWORD(details.wParam) < 3);
+				input._mouse_buttons[2 + HIWORD(details.wParam)] = 0x88;
 				break;
 			case WM_XBUTTONUP:
-				input._mouse_buttons[2 + HIWORD(details.wParam)] = -1;
+				assert(HIWORD(details.wParam) < 3);
+				input._mouse_buttons[2 + HIWORD(details.wParam)] = 0x08;
 				break;
 		}
 
@@ -274,28 +276,32 @@ namespace reshade
 		return false;
 	}
 
+	unsigned short input::key_to_text(unsigned int keycode) const
+	{
+		WORD ch = 0;
+		return ToAscii(keycode, MapVirtualKey(keycode, MAPVK_VK_TO_VSC), _keys, &ch, 0) ? ch : 0;
+	}
+
 	void input::next_frame()
 	{
 		for (auto &state : _keys)
 		{
-			if (state == -1 || state == 1)
-			{
-				state++;
-			}
+			state &= ~0x8;
 		}
 		for (auto &state : _mouse_buttons)
 		{
-			if (state == -1 || state == 1)
-			{
-				state++;
-			}
+			state &= ~0x8;
 		}
 
 		_mouse_wheel_delta = 0;
 
-		if (_keys[VK_SNAPSHOT] < 1 && GetAsyncKeyState(VK_SNAPSHOT) & 0x8000)
+		// Update caps lock state
+		_keys[VK_CAPITAL] |= GetKeyState(VK_CAPITAL) & 0x1;
+
+		// Update print screen state
+		if ((_keys[VK_SNAPSHOT] & 0x80) == 0 && (GetAsyncKeyState(VK_SNAPSHOT) & 0x8000) != 0)
 		{
-			_keys[VK_SNAPSHOT] = 1;
+			_keys[VK_SNAPSHOT] = 0x88;
 		}
 	}
 }
