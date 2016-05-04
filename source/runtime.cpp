@@ -7,6 +7,7 @@
 #include "preprocessor.hpp"
 #include "input.hpp"
 #include "file_watcher.hpp"
+#include "string_utils.hpp"
 
 #include <iterator>
 #include <stb_dxt.h>
@@ -47,22 +48,6 @@ namespace reshade
 			}
 
 			return result;
-		}
-		std::vector<std::string> split(const std::string& s, char delim)
-		{
-			std::vector<std::string> output;
-			std::string item;
-			std::stringstream ss(s);
-
-			while (std::getline(ss, item, delim))
-			{
-				if (!item.empty())
-				{
-					output.push_back(item);
-				}
-			}
-
-			return output;
 		}
 
 		utils::ini_file config;

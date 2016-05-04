@@ -269,6 +269,9 @@
     <ClInclude Include="source\ini_file.hpp">
       <Filter>core\utils</Filter>
     </ClInclude>
+    <ClInclude Include="source\string_utils.hpp">
+      <Filter>core\utils</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="res\resource.rc2" />
