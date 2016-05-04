@@ -734,13 +734,18 @@ namespace reshade
 				}
 			}
 
-			for (;; mantissa_size++, end++)
+			for (; mantissa_size <= 18; mantissa_size++, end++)
 			{
 				int c = *end;
 
 				if (c >= '0' && c <= '9')
 				{
 					c -= '0';
+
+					if (c >= radix)
+					{
+						break;
+					}
 				}
 				else if (radix == 16)
 				{
@@ -776,6 +781,12 @@ namespace reshade
 
 				fraction *= radix;
 				fraction += c;
+			}
+
+			while (is_hexadecimal_digit(*end))
+			{
+				// Ignore additional digits that cannot affect the value
+				end++;
 			}
 
 			if (decimal_location < 0)
