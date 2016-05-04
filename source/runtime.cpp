@@ -184,7 +184,7 @@ namespace reshade
 	}
 	runtime::~runtime()
 	{
-		assert(!_is_initialized && !_is_effect_compiled);
+		assert(!_is_initialized);
 	}
 
 	bool runtime::on_init()
@@ -215,11 +215,6 @@ namespace reshade
 	}
 	void runtime::on_reset_effect()
 	{
-		if (!_is_effect_compiled)
-		{
-			return;
-		}
-
 		_textures.clear();
 		_uniforms.clear();
 		_techniques.clear();
@@ -227,8 +222,6 @@ namespace reshade
 
 		_errors.clear();
 		_included_files.clear();
-
-		_is_effect_compiled = false;
 	}
 	void runtime::on_present()
 	{

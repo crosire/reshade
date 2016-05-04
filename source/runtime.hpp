@@ -161,7 +161,7 @@ namespace reshade
 		/// <param name="data">The draw data to render.</param>
 		virtual void render_draw_lists(ImDrawData *draw_data) = 0;
 
-		bool _is_initialized = false, _is_effect_compiled = false;
+		bool _is_initialized = false;
 		unsigned int _width = 0, _height = 0;
 		unsigned int _vendor_id = 0, _device_id = 0;
 		uint64_t _framecount = 0;

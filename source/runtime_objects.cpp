@@ -29,7 +29,6 @@ namespace reshade
 	void runtime::get_uniform_value(const uniform &variable, unsigned char *data, size_t size) const
 	{
 		assert(data != nullptr);
-		assert(_is_effect_compiled);
 
 		size = std::min(size, variable.storage_size);
 
@@ -123,7 +122,6 @@ namespace reshade
 	void runtime::set_uniform_value(uniform &variable, const unsigned char *data, size_t size)
 	{
 		assert(data != nullptr);
-		assert(_is_effect_compiled);
 
 		size = std::min(size, variable.storage_size);
 

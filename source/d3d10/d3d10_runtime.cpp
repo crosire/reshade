@@ -608,7 +608,7 @@ namespace reshade
 	}
 	void d3d10_runtime::on_apply_effect()
 	{
-		if (!_is_effect_compiled)
+		if (_techniques.empty())
 		{
 			return;
 		}
