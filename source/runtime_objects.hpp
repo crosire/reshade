@@ -64,56 +64,68 @@ namespace reshade
 
 	struct annotation
 	{
-		annotation()
+		annotation() : _values(1)
 		{
 		}
-		annotation(bool value)
+		annotation(bool value) : _values(1)
 		{
-			_value[0] = value ? "1" : "0";
+			_values[0] = value ? "1" : "0";
 		}
-		annotation(const bool values[4])
+		annotation(const bool values[4]) : _values(4)
 		{
-			_value[0] = values[0] ? "1" : "0";
-			_value[1] = values[1] ? "1" : "0";
-			_value[2] = values[2] ? "1" : "0";
-			_value[3] = values[3] ? "1" : "0";
+			_values[0] = values[0] ? "1" : "0";
+			_values[1] = values[1] ? "1" : "0";
+			_values[2] = values[2] ? "1" : "0";
+			_values[3] = values[3] ? "1" : "0";
 		}
-		annotation(int value)
+		annotation(int value) : _values(1)
 		{
-			_value[0] = std::to_string(value);
+			_values[0] = std::to_string(value);
 		}
-		annotation(const int values[4])
+		annotation(const int values[4]) : _values(4)
 		{
-			_value[0] = std::to_string(values[0]);
-			_value[1] = std::to_string(values[1]);
-			_value[2] = std::to_string(values[2]);
-			_value[3] = std::to_string(values[3]);
+			_values[0] = std::to_string(values[0]);
+			_values[1] = std::to_string(values[1]);
+			_values[2] = std::to_string(values[2]);
+			_values[3] = std::to_string(values[3]);
 		}
-		annotation(unsigned int value)
+		annotation(unsigned int value) : _values(1)
 		{
-			_value[0] = std::to_string(value);
+			_values[0] = std::to_string(value);
 		}
-		annotation(const unsigned int values[4])
+		annotation(const unsigned int values[4]) : _values(4)
 		{
-			_value[0] = std::to_string(values[0]);
-			_value[1] = std::to_string(values[1]);
-			_value[2] = std::to_string(values[2]);
-			_value[3] = std::to_string(values[3]);
+			_values[0] = std::to_string(values[0]);
+			_values[1] = std::to_string(values[1]);
+			_values[2] = std::to_string(values[2]);
+			_values[3] = std::to_string(values[3]);
 		}
-		annotation(float value)
+		annotation(float value) : _values(1)
 		{
-			_value[0] = std::to_string(value);
+			_values[0] = std::to_string(value);
 		}
-		annotation(const float values[4])
+		annotation(const float values[4]) : _values(4)
 		{
-			_value[0] = std::to_string(values[0]);
-			_value[1] = std::to_string(values[1]);
-			_value[2] = std::to_string(values[2]);
-			_value[3] = std::to_string(values[3]);
+			_values[0] = std::to_string(values[0]);
+			_values[1] = std::to_string(values[1]);
+			_values[2] = std::to_string(values[2]);
+			_values[3] = std::to_string(values[3]);
 		}
-		annotation(const std::string &value)
+		annotation(const std::string &value) : _values(1)
 		{
-			_value[0] = value;
+			_values[0] = value;
+		}
+		annotation(const std::vector<std::string> &values) : _values(values)
+		{
+		}
+
+		inline std::vector<std::string> &data()
+		{
+			return _values;
+		}
+		inline const std::vector<std::string> &data() const
+		{
+			return _values;
 		}
 
 		template <typename T>
@@ -121,36 +133,36 @@ namespace reshade
 		template <>
 		inline const bool as(size_t i) const
 		{
-			return as<int>(i) != 0 || (_value[i] == "true" || _value[i] == "True" || _value[i] == "TRUE");
+			return as<int>(i) != 0 || (_values[i] == "true" || _values[i] == "True" || _values[i] == "TRUE");
 		}
 		template <>
 		inline const int as(size_t i) const
 		{
-			return static_cast<int>(std::strtol(_value[i].c_str(), nullptr, 10));
+			return static_cast<int>(std::strtol(_values[i].c_str(), nullptr, 10));
 		}
 		template <>
 		inline const unsigned int as(size_t i) const
 		{
-			return static_cast<unsigned int>(std::strtoul(_value[i].c_str(), nullptr, 10));
+			return static_cast<unsigned int>(std::strtoul(_values[i].c_str(), nullptr, 10));
 		}
 		template <>
 		inline const float as(size_t i) const
 		{
-			return static_cast<float>(std::strtod(_value[i].c_str(), nullptr));
+			return static_cast<float>(as<double>(i));
 		}
 		template <>
 		inline const double as(size_t i) const
 		{
-			return std::strtod(_value[i].c_str(), nullptr);
+			return std::strtod(_values[i].c_str(), nullptr);
 		}
 		template <>
 		inline const std::string as(size_t i) const
 		{
-			return _value[i];
+			return _values[i];
 		}
 
 	private:
-		std::string _value[4];
+		std::vector<std::string> _values;
 	};
 
 	struct texture abstract

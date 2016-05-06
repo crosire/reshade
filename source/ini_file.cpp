@@ -1,8 +1,7 @@
 #include "ini_file.hpp"
+#include "string_utils.hpp"
 
-#include <Windows.h>
-
-// TODO: Custom parser
+#include <fstream>
 
 namespace reshade
 {
@@ -11,19 +10,106 @@ namespace reshade
 		ini_file::ini_file()
 		{
 		}
-		ini_file::ini_file(const boost::filesystem::path &path) : _path(path)
+		ini_file::ini_file(const boost::filesystem::path &path)
 		{
+			load(path);
+		}
+		ini_file::~ini_file()
+		{
+			save();
+		}
+
+		void ini_file::load(const boost::filesystem::path &path)
+		{
+			_path = path;
+
+			std::string line, section;
+			std::ifstream file(_path.c_str());
+
+			while (std::getline(file, line))
+			{
+				trim(line);
+
+				if (line.empty() || line[0] == ';' || line[0] == '/')
+				{
+					continue;
+				}
+
+				// Read section name
+				if (line[0] == '[')
+				{
+					section = trim(line.substr(0, line.find(']')), " \t[]");
+					continue;
+				}
+
+				// Read section content
+				const auto assign_index = line.find('=');
+
+				if (assign_index != std::string::npos)
+				{
+					const auto key = trim(line.substr(0, assign_index));
+					const auto value = trim(line.substr(assign_index + 1));
+
+					_data[section][key] = split(value, ',');
+				}
+				else
+				{
+					_data[section][line] = 0;
+				}
+			}
+		}
+		void ini_file::save() const
+		{
+			std::ofstream file(_path.c_str());
+
+			for (const auto &section : _data)
+			{
+				file << '[' << section.first << ']' << std::endl;
+
+				for (const auto &section_line : section.second)
+				{
+					file << section_line.first << '=';
+
+					size_t i = 0;
+
+					for (const auto &item : section_line.second.data())
+					{
+						if (i++ != 0)
+						{
+							file << ',';
+						}
+
+						file << item;
+					}
+
+					file << std::endl;
+				}
+
+				file << std::endl;
+			}
 		}
 
 		annotation ini_file::get(const std::string &section, const std::string &key, const annotation &default) const
 		{
-			char data[1024] = "";
-			GetPrivateProfileStringA(section.c_str(), key.c_str(), default.as<std::string>().c_str(), data, sizeof(data), _path.string().c_str());
-			return std::string(data);
+			const auto it1 = _data.find(section);
+
+			if (it1 == _data.end())
+			{
+				return default;
+			}
+
+			const auto it2 = it1->second.find(key);
+
+			if (it2 == it1->second.end())
+			{
+				return default;
+			}
+
+			return it2->second;
 		}
 		void ini_file::set(const std::string &section, const std::string &key, const annotation &value)
 		{
-			WritePrivateProfileStringA(section.c_str(), key.c_str(), value.as<std::string>().c_str(), _path.string().c_str());
+			_data[section][key] = value;
 		}
 	}
 }
