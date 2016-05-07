@@ -110,17 +110,27 @@ namespace reshade
 		void get_uniform_value(const uniform &variable, int *values, size_t count) const;
 		void get_uniform_value(const uniform &variable, unsigned int *values, size_t count) const;
 		void get_uniform_value(const uniform &variable, float *values, size_t count) const;
+		template <typename T, size_t COUNT>
+		inline void get_uniform_value(const uniform &variable, T(&values)[COUNT]) const
+		{
+			get_uniform_value(variable, values, COUNT);
+		}
 		/// <summary>
 		/// Update the value of a uniform variable.
 		/// </summary>
 		/// <param name="variable">The variable to update.</param>
 		/// <param name="data">The value data to update the variable to.</param>
 		/// <param name="size">The size of the value.</param>
-		virtual void set_uniform_value(uniform &variable, const unsigned char *data, size_t size);
+		void set_uniform_value(uniform &variable, const unsigned char *data, size_t size);
 		void set_uniform_value(uniform &variable, const bool *values, size_t count);
 		void set_uniform_value(uniform &variable, const int *values, size_t count);
 		void set_uniform_value(uniform &variable, const unsigned int *values, size_t count);
 		void set_uniform_value(uniform &variable, const float *values, size_t count);
+		template <typename T, size_t COUNT>
+		inline void set_uniform_value(uniform &variable, const T(&values)[COUNT])
+		{
+			set_uniform_value(variable, values, COUNT);
+		}
 
 	protected:
 		/// <summary>
@@ -176,17 +186,19 @@ namespace reshade
 		void reload();
 		void screenshot();
 
-		bool load_effect(const boost::filesystem::path &path);
+		bool load_effect(const boost::filesystem::path &path, fx::syntax_tree &ast);
 		void load_textures();
 		void load_configuration();
 		void save_configuration() const;
+		void load_preset(const std::string &name);
+		void save_preset(const std::string &name) const;
 
 		void draw_overlay();
 		void draw_home();
 		void draw_settings();
+		void draw_statistics();
 		void draw_shader_editor();
 		void draw_variable_editor();
-		void draw_statistics();
 
 		const unsigned int _renderer_id;
 		std::vector<std::string> _effect_files;
@@ -196,7 +208,7 @@ namespace reshade
 		std::vector<unsigned char> _uniform_data_storage;
 		int _date[4] = { };
 		std::string _errors, _message, _effect_source;
-		int _menu_key = 0, _menu_index = 0, _screenshot_key = 0, _screenshot_format = 0, _current_effect_file = -1;
+		int _menu_key = 0, _menu_index = 0, _screenshot_key = 0, _screenshot_format = 0, _current_preset = 0, _current_effect_file = -1;
 		std::string _screenshot_path;
 		std::vector<std::string> _effect_search_paths, _texture_search_paths;
 		utils::critical_section _imgui_cs;

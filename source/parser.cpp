@@ -240,15 +240,32 @@ namespace reshade
 			}
 		}
 
-		parser::parser(const std::string &input, syntax_tree &ast, std::string &errors) :
+		parser::parser(syntax_tree &ast, std::string &errors) :
 			_ast(ast),
 			_errors(errors),
-			_lexer(new lexer(input)),
 			_symbol_table(new symbol_table())
 		{
 		}
 		parser::~parser()
 		{
+		}
+
+		bool parser::run(const std::string &input)
+		{
+			_lexer.reset(new lexer(input));
+			_lexer_backup.reset();
+
+			consume();
+
+			while (!peek(lexer::tokenid::end_of_file))
+			{
+				if (!parse_top_level())
+				{
+					return false;
+				}
+			}
+
+			return true;
 		}
 
 		// Error handling
@@ -2406,20 +2423,6 @@ namespace reshade
 		}
 
 		// Declarations
-		bool parser::run()
-		{
-			consume();
-
-			while (!peek(lexer::tokenid::end_of_file))
-			{
-				if (!parse_top_level())
-				{
-					return false;
-				}
-			}
-
-			return true;
-		}
 		bool parser::parse_top_level()
 		{
 			type_node type = { type_node::datatype_void };

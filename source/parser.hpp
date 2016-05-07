@@ -24,10 +24,18 @@ namespace reshade
 			parser &operator=(const parser &) = delete;
 
 		public:
-			parser(const std::string &input, syntax_tree &ast, std::string &errors);
+			/// <summary>
+			/// Construct a new parser instance.
+			/// </summary>
+			parser(syntax_tree &ast, std::string &errors);
 			~parser();
 
-			bool run();
+			/// <summary>
+			/// Parse the provided input string.
+			/// </summary>
+			/// <param name="source">The string to analyze.</param>
+			/// <returns>A boolean value indicating whether parsing was successful or not.</returns>
+			bool run(const std::string &source);
 
 		private:
 			void error(const location &location, unsigned int code, const std::string &message);

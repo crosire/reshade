@@ -50,8 +50,7 @@ namespace reshade
 			return result;
 		}
 
-		utils::ini_file config;
-		fs::path s_executable_path, s_injector_path;
+		fs::path s_executable_path, s_injector_path, s_config_path;
 		std::string s_executable_name, s_imgui_ini_path;
 
 		const char keyboard_keys[256][16] = {
@@ -109,7 +108,7 @@ namespace reshade
 			fs::create_directory(appdata_path / "ReShade");
 		}
 
-		config = utils::ini_file(appdata_path / "ReShade" / "ReShade.ini");
+		s_config_path = appdata_path / "ReShade" / "ReShade.ini";
 		s_imgui_ini_path = (appdata_path / "ReShade" / "ReShadeGUI.ini").string();
 
 		hooks::register_module(system_path / "d3d8.dll");
@@ -491,13 +490,89 @@ namespace reshade
 
 			for (fs::directory_iterator dirit(search_path); dirit != fs::directory_iterator(); dirit++)
 			{
-				if (dirit->path().extension() != ".fx")
+				const auto path = dirit->path();
+
+				if (path.extension() != ".fx")
 				{
 					continue;
 				}
 
-				load_effect(dirit->path());
+				std::string errors;
+				fx::syntax_tree ast;
+
+				if (!load_effect(path, ast))
+				{
+					continue;
+				}
+
+				/*for (const auto &variable : ast.variables)
+				{
+					if (variable->type.has_qualifier(fx::nodes::type_node::qualifier_uniform))
+					{
+						continue;
+					}
+
+					uniform c;
+					c.name = variable->name;
+					c.basetype = static_cast<uniform_datatype>(variable->type.basetype - 1);
+					c.rows = variable->type.rows;
+					c.columns = variable->type.cols;
+
+					_constants.push_back(c);
+				}*/
+
+				if (!update_effect(ast, { }, errors))
+				{
+					_errors += errors;
+					continue;
+				}
+				else if (!errors.empty())
+				{
+					_errors += errors;
+				}
+
+				for (auto &variable : _uniforms)
+				{
+					if (!variable.annotations.count("__FILE__"))
+					{
+						variable.annotations["__FILE__"] = path.string();
+					}
+				}
+				for (const auto &texture : _textures)
+				{
+					if (!texture->annotations.count("__FILE__"))
+					{
+						texture->annotations["__FILE__"] = path.string();
+					}
+				}
+				for (auto &technique : _techniques)
+				{
+					if (!technique.annotations.count("__FILE__"))
+					{
+						technique.annotations["__FILE__"] = path.string();
+
+						technique.enabled = technique.annotations["enabled"].as<bool>();
+						technique.timeleft = technique.timeout = technique.annotations["timeout"].as<int>();
+						technique.toggle_key = technique.annotations["toggle"].as<int>();
+						technique.toggle_key_ctrl = technique.annotations["togglectrl"].as<bool>();
+						technique.toggle_key_shift = technique.annotations["toggleshift"].as<bool>();
+						technique.toggle_key_alt = technique.annotations["togglealt"].as<bool>();
+						technique.toggle_time = technique.annotations["toggletime"].as<int>();
+					}
+				}
 			}
+		}
+
+		// Reorder techniques
+		auto order = utils::ini_file(s_config_path).get(s_executable_path.string(), "Techniques").data();
+		std::sort(_techniques.begin(), _techniques.end(),
+			[&order](const technique &lhs, const technique &rhs)
+		{
+			return (std::find(order.begin(), order.end(), lhs.name) - order.begin()) < (std::find(order.begin(), order.end(), rhs.name) - order.begin());
+		});
+		for (auto &technique : _techniques)
+		{
+			technique.enabled = std::find(order.begin(), order.end(), technique.name) != order.end();
 		}
 
 		load_textures();
@@ -537,21 +612,11 @@ namespace reshade
 		}
 	}
 
-	bool runtime::load_effect(const fs::path &path)
+	bool runtime::load_effect(const fs::path &path, fx::syntax_tree &ast)
 	{
-		if (!fs::exists(path))
-		{
-			LOG(ERROR) << "Effect file " << path << " does not exist.";
+		fx::parser pa(ast, _errors);
+		fx::preprocessor pp;
 
-			return false;
-		}
-
-		fx::syntax_tree ast;
-		std::string source_code, errors;
-		std::vector<std::string> pragmas;
-
-		// Pre-process
-		fx::preprocessor pp(pragmas, source_code, errors);
 		pp.add_include_path(path.parent_path());
 		pp.add_macro_definition("__RESHADE__", std::to_string(VERSION_MAJOR * 10000 + VERSION_MINOR * 100 + VERSION_REVISION));
 		pp.add_macro_definition("__VENDOR__", std::to_string(_vendor_id));
@@ -563,15 +628,9 @@ namespace reshade
 		pp.add_macro_definition("BUFFER_RCP_WIDTH", std::to_string(1.0f / static_cast<float>(_width)));
 		pp.add_macro_definition("BUFFER_RCP_HEIGHT", std::to_string(1.0f / static_cast<float>(_height)));
 
-		LOG(INFO) << "Loading effect from " << obfuscate_path(path) << " ...";
-		LOG(TRACE) << "> Running preprocessor ...";
-
-		std::vector<fs::path> included_files;
-
 		if (!pp.run(path, _included_files))
 		{
-			_errors += errors;
-			LOG(ERROR) << "Failed to pre-process effect on context " << this << ":\n\n" << errors << "\n";
+			_errors += pp.current_errors();
 
 			return false;
 		}
@@ -579,7 +638,7 @@ namespace reshade
 		_effect_files.push_back(path.string());
 		_included_files.push_back(path);
 
-		for (const auto &pragma : pragmas)
+		for (const auto &pragma : pp.current_pragmas())
 		{
 			fx::lexer lexer(pragma);
 
@@ -597,85 +656,9 @@ namespace reshade
 			}
 		}
 
-		// Parse
-		LOG(TRACE) << "> Running parser ...";
-
-		if (!fx::parser(source_code, ast, errors).run())
+		if (!pa.run(pp.current_output()))
 		{
-			_errors += errors;
-			LOG(ERROR) << "Failed to compile effect on context " << this << ":\n\n" << errors << "\n";
-
 			return false;
-		}
-
-		// Compile
-		LOG(TRACE) << "> Running compiler ...";
-
-		if (!update_effect(ast, pragmas, errors))
-		{
-			_errors += errors;
-			LOG(ERROR) << "Failed to compile effect on context " << this << ":\n\n" << errors << "\n";
-
-			return false;
-		}
-		else if (!errors.empty())
-		{
-			_errors += errors;
-			LOG(WARNING) << "> Successfully compiled effect with warnings:" << "\n\n" << errors << "\n";
-		}
-		else
-		{
-			LOG(INFO) << "> Successfully compiled effect.";
-		}
-
-		_is_effect_compiled = true;
-
-		for (auto &variable : _uniforms)
-		{
-			if (variable.annotations.count("__FILE__"))
-			{
-				continue;
-			}
-
-			variable.annotations["__FILE__"] = path.string();
-		}
-		for (const auto &texture : _textures)
-		{
-			if (texture->annotations.count("__FILE__"))
-			{
-				continue;
-			}
-
-			texture->annotations["__FILE__"] = path.string();
-		}
-		for (auto &technique : _techniques)
-		{
-			if (technique.annotations.count("__FILE__"))
-			{
-				continue;
-			}
-
-			technique.annotations["__FILE__"] = path.string();
-
-			technique.enabled = technique.annotations["enabled"].as<bool>();
-			technique.timeleft = technique.timeout = technique.annotations["timeout"].as<int>();
-			technique.toggle_key = technique.annotations["toggle"].as<int>();
-			technique.toggle_key_ctrl = technique.annotations["togglectrl"].as<bool>();
-			technique.toggle_key_shift = technique.annotations["toggleshift"].as<bool>();
-			technique.toggle_key_alt = technique.annotations["togglealt"].as<bool>();
-			technique.toggle_time = technique.annotations["toggletime"].as<int>();
-		}
-
-		// Reorder techniques
-		auto order = split(config.get(s_executable_path.string(), "Techniques").as<std::string>(), ',');
-		std::sort(_techniques.begin(), _techniques.end(),
-			[&order](const technique &lhs, const technique &rhs)
-			{
-				return (std::find(order.begin(), order.end(), lhs.name) - order.begin()) < (std::find(order.begin(), order.end(), rhs.name) - order.begin());
-			});
-		for (auto &technique : _techniques)
-		{
-			technique.enabled = std::find(order.begin(), order.end(), technique.name) != order.end();
 		}
 
 		return true;
@@ -777,13 +760,15 @@ namespace reshade
 	}
 	void runtime::load_configuration()
 	{
+		const utils::ini_file config(s_config_path);
+
 		_developer_mode = config.get(s_executable_path.string(), "DeveloperMode", false).as<bool>();
 		_menu_key = config.get(s_executable_path.string(), "MenuKey", VK_F9).as<int>();
 		_screenshot_key = config.get(s_executable_path.string(), "ScreenshotKey", VK_SNAPSHOT).as<int>();
 		_screenshot_path = config.get(s_executable_path.string(), "ScreenshotPath", s_executable_path.parent_path().string()).as<std::string>();
 		_screenshot_format = config.get(s_executable_path.string(), "ScreenshotFormat", 0).as<int>();
-		_effect_search_paths = split(config.get(s_executable_path.string(), "EffectSearchPaths", s_injector_path.parent_path().string()).as<std::string>(), ',');
-		_texture_search_paths = split(config.get(s_executable_path.string(), "TextureSearchPaths", s_injector_path.parent_path().string()).as<std::string>(), ',');
+		_effect_search_paths = config.get(s_executable_path.string(), "EffectSearchPaths", s_injector_path.parent_path().string()).data();
+		_texture_search_paths = config.get(s_executable_path.string(), "TextureSearchPaths", s_injector_path.parent_path().string()).data();
 	}
 	void runtime::save_configuration() const
 	{
@@ -806,6 +791,7 @@ namespace reshade
 			texture_search_paths_list += path + ',';
 		}
 
+		utils::ini_file config(s_config_path);
 		config.set(s_executable_path.string(), "DeveloperMode", _developer_mode);
 		config.set(s_executable_path.string(), "MenuKey", _menu_key);
 		config.set(s_executable_path.string(), "ScreenshotKey", _screenshot_key);
@@ -814,6 +800,41 @@ namespace reshade
 		config.set(s_executable_path.string(), "Techniques", technique_list);
 		config.set(s_executable_path.string(), "EffectSearchPaths", effect_search_paths_list);
 		config.set(s_executable_path.string(), "TextureSearchPaths", texture_search_paths_list);
+	}
+	void runtime::load_preset(const std::string &name)
+	{
+		utils::ini_file preset(name + ".ini");
+
+		for (auto &variable : _uniforms)
+		{
+			const fs::path filepath = variable.annotations.at("__FILE__").as<std::string>();
+			const std::string filename = filepath.filename().string();
+
+			const auto data = preset.get(filename, variable.name);
+
+			float values[4];
+			values[0] = data.as<float>(0);
+			values[1] = data.as<float>(1);
+			values[2] = data.as<float>(2);
+			values[3] = data.as<float>(3);
+
+			set_uniform_value(variable, values);
+		}
+	}
+	void runtime::save_preset(const std::string &name) const
+	{
+		utils::ini_file preset(name + ".ini");
+
+		for (const auto &variable : _uniforms)
+		{
+			const fs::path filepath = variable.annotations.at("__FILE__").as<std::string>();
+			const std::string filename = filepath.filename().string();
+
+			float values[4] = { };
+			get_uniform_value(variable, values);
+
+			preset.set(filename, variable.name, values);
+		}
 	}
 
 	void runtime::draw_overlay()
@@ -940,13 +961,13 @@ namespace reshade
 	}
 	void runtime::draw_home()
 	{
-		if (ImGui::Button("Reload", ImVec2(-1, 0)))
-		{
-			reload();
-		}
-
 		if (_developer_mode)
 		{
+			if (ImGui::Button("Reload", ImVec2(-1, 0)))
+			{
+				reload();
+			}
+
 			if (ImGui::Button("Open Shader Editor", ImVec2(-1, 0)))
 			{
 				_show_shader_editor = true;
@@ -954,6 +975,58 @@ namespace reshade
 			if (ImGui::Button("Open Variable Editor", ImVec2(-1, 0)))
 			{
 				_show_variable_editor = true;
+			}
+		}
+		else
+		{
+			ImGui::PushItemWidth(-(60 + ImGui::GetStyle().ItemSpacing.x) * 3 - 1);
+			
+			if (ImGui::Combo("##presets", &_current_preset, "Preset1\0Preset2\0"))
+			{
+			}
+
+			ImGui::SameLine();
+
+			if (ImGui::Button("Add", ImVec2(60, 0)))
+			{
+				ImGui::OpenPopup("Add Preset");
+			}
+
+			ImGui::SameLine();
+
+			if (ImGui::Button("Remove", ImVec2(60, 0)))
+			{
+				ImGui::OpenPopup("Remove Preset");
+			}
+
+			ImGui::SameLine();
+
+			if (ImGui::Button("Edit", ImVec2(60, 0)))
+			{
+				_show_variable_editor = true;
+			}
+
+			if (ImGui::BeginPopup("Add Preset"))
+			{
+				char buf[512] = "";
+
+				if (ImGui::InputText("Name", buf, sizeof(buf), ImGuiInputTextFlags_EnterReturnsTrue))
+				{
+					ImGui::CloseCurrentPopup();
+				}
+
+				ImGui::EndPopup();
+			}
+			if (ImGui::BeginPopup("Remove Preset"))
+			{
+				ImGui::Text("Do you really want to remove this preset?");
+
+				if (ImGui::Button("Yes", ImVec2(-1, 0)))
+				{
+					ImGui::CloseCurrentPopup();
+				}
+
+				ImGui::EndPopup();
 			}
 		}
 
@@ -1024,6 +1097,8 @@ namespace reshade
 
 		if (ImGui::CollapsingHeader("General", "settings_general", true, true))
 		{
+			assert(_menu_key < 256);
+
 			ImGui::InputText("Overlay Key", const_cast<char *>(keyboard_keys[_menu_key]), sizeof(*keyboard_keys), ImGuiInputTextFlags_ReadOnly);
 
 			if (ImGui::IsItemActive())
@@ -1082,6 +1157,8 @@ namespace reshade
 
 		if (ImGui::CollapsingHeader("Screenshots", "settings_screenshots", true, true))
 		{
+			assert(_screenshot_key < 256);
+
 			ImGui::InputText("Screenshot Key", const_cast<char *>(keyboard_keys[_screenshot_key]), sizeof(*keyboard_keys), ImGuiInputTextFlags_ReadOnly);
 
 			if (ImGui::IsItemActive())
@@ -1110,6 +1187,42 @@ namespace reshade
 			if (ImGui::Combo("Screenshot Format", &_screenshot_format, "Bitmap (*.bmp)\0Portable Network Graphics (*.png)\0"))
 			{
 				save_configuration();
+			}
+		}
+	}
+	void runtime::draw_statistics()
+	{
+		const auto state = static_cast<ImGuiState *>(ImGui::GetInternalState());
+
+		if (ImGui::CollapsingHeader("General", "statistics_general", true, true))
+		{
+			ImGui::Text("Application: %X", std::hash<std::string>()(s_executable_name));
+			ImGui::Text("Date: %d-%d-%d %d", _date[0], _date[1], _date[2], _date[3]);
+			ImGui::Text("Device: %X %d", _vendor_id, _device_id);
+			ImGui::Text("FPS: %.2f", ImGui::GetIO().Framerate);
+			ImGui::PushItemWidth(-1);
+			ImGui::PlotLines("##framerate", state->FramerateSecPerFrame, 120, state->FramerateSecPerFrameIdx, nullptr, state->FramerateSecPerFrameAccum / 120 * 0.5f, state->FramerateSecPerFrameAccum / 120 * 1.5f, ImVec2(0, 50));
+			ImGui::Text("Draw Calls: %u (%u vertices)", _drawcalls, _vertices);
+			ImGui::Text("Frame %llu: %fms", _framecount + 1, _last_frame_duration.count() * 1e-6f);
+			ImGui::Text("Timer: %fms", std::fmod(boost::chrono::duration_cast<boost::chrono::nanoseconds>(_last_present - _start_time).count() * 1e-6f, 16777216.0f));
+			ImGui::Text("Network: %uB", g_network_traffic);
+		}
+
+		if (_developer_mode)
+		{
+			if (ImGui::CollapsingHeader("Textures", "statistics_textures", true, true))
+			{
+				for (const auto &texture : _textures)
+				{
+					ImGui::Text("%s: %ux%u+%u (%uB)", texture->name.c_str(), texture->width, texture->height, (texture->levels - 1), static_cast<unsigned int>(texture->storage_size));
+				}
+			}
+			if (ImGui::CollapsingHeader("Techniques", "statistics_techniques", true, true))
+			{
+				for (const auto &technique : _techniques)
+				{
+					ImGui::Text("%s (%u passes): %fms", technique.name.c_str(), static_cast<unsigned int>(technique.passes.size()), (technique.average_duration * 1e-6f));
+				}
 			}
 		}
 	}
@@ -1150,12 +1263,58 @@ namespace reshade
 	}
 	void runtime::draw_variable_editor()
 	{
+		if (!_developer_mode)
+		{
+			if (ImGui::Button("Import", ImVec2(-1, 0)))
+			{
+				ImGui::OpenPopup("Import Preset");
+			}
+			if (ImGui::Button("Export", ImVec2(-1, 0)))
+			{
+				ImGui::OpenPopup("Export Preset");
+			}
+
+			if (ImGui::BeginPopup("Import Preset"))
+			{
+				char buf[512] = "";
+
+				if (ImGui::InputText("Path", buf, sizeof(buf), ImGuiInputTextFlags_EnterReturnsTrue))
+				{
+					load_preset(buf);
+
+					ImGui::CloseCurrentPopup();
+				}
+
+				ImGui::EndPopup();
+			}
+			if (ImGui::BeginPopup("Export Preset"))
+			{
+				char buf[512] = "";
+
+				if (ImGui::InputText("Path", buf, sizeof(buf), ImGuiInputTextFlags_EnterReturnsTrue))
+				{
+					save_preset(buf);
+
+					ImGui::CloseCurrentPopup();
+				}
+
+				ImGui::EndPopup();
+			}
+
+			ImGui::Spacing();
+		}
+
 		bool opened = true;
 		std::string current_header, new_header;
 
 		for (size_t i = 0; i < _uniforms.size(); i++)
 		{
 			auto &variable = _uniforms[i];
+
+			if (!variable.annotations["source"].as<std::string>().empty())
+			{
+				continue;
+			}
 
 			new_header = variable.annotations["__FILE__"].as<std::string>();
 
@@ -1200,38 +1359,6 @@ namespace reshade
 			ImGui::PopID();
 
 			set_uniform_value(variable, data, 4);
-		}
-	}
-	void runtime::draw_statistics()
-	{
-		const auto state = static_cast<ImGuiState *>(ImGui::GetInternalState());
-
-		if (ImGui::CollapsingHeader("General", "statistics_general", true, true))
-		{
-			ImGui::Text("Application: %X", std::hash<std::string>()(s_executable_name));
-			ImGui::Text("Date: %d-%d-%d %d", _date[0], _date[1], _date[2], _date[3]);
-			ImGui::Text("Device: %X %d", _vendor_id, _device_id);
-			ImGui::Text("FPS: %.2f", ImGui::GetIO().Framerate);
-			ImGui::PushItemWidth(-1);
-			ImGui::PlotLines("##framerate", state->FramerateSecPerFrame, 120, state->FramerateSecPerFrameIdx, nullptr, state->FramerateSecPerFrameAccum / 120 * 0.5f, state->FramerateSecPerFrameAccum / 120 * 1.5f, ImVec2(0, 50));
-			ImGui::Text("Draw Calls: %u (%u vertices)", _drawcalls, _vertices);
-			ImGui::Text("Frame %llu: %fms", _framecount + 1, _last_frame_duration.count() * 1e-6f);
-			ImGui::Text("Timer: %fms", std::fmod(boost::chrono::duration_cast<boost::chrono::nanoseconds>(_last_present - _start_time).count() * 1e-6f, 16777216.0f));
-			ImGui::Text("Network: %uB", g_network_traffic);
-		}
-		if (ImGui::CollapsingHeader("Textures", "statistics_textures", true, true))
-		{
-			for (const auto &texture : _textures)
-			{
-				ImGui::Text("%s: %ux%u+%u (%uB)", texture->name.c_str(), texture->width, texture->height, (texture->levels - 1), static_cast<unsigned int>(texture->storage_size));
-			}
-		}
-		if (ImGui::CollapsingHeader("Techniques", "statistics_techniques", true, true))
-		{
-			for (const auto &technique : _techniques)
-			{
-				ImGui::Text("%s (%u passes): %fms", technique.name.c_str(), static_cast<unsigned int>(technique.passes.size()), (technique.average_duration * 1e-6f));
-			}
 		}
 	}
 }

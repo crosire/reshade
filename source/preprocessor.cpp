@@ -18,10 +18,6 @@ namespace reshade
 			macro_replacement_expand = '\xFB',
 		};
 
-		preprocessor::preprocessor(std::vector<std::string> &pragmas, std::string &output, std::string &errors) : _success(true), _output(output), _errors(errors), _pragmas(pragmas), _recursion_count(0)
-		{
-		}
-
 		void preprocessor::add_include_path(const boost::filesystem::path &path)
 		{
 			_include_paths.push_back(path);

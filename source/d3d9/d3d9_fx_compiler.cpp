@@ -1,5 +1,6 @@
 #include "log.hpp"
 #include "d3d9_fx_compiler.hpp"
+#include "constant_folding.hpp"
 
 #include <d3dcompiler.h>
 
@@ -1537,7 +1538,9 @@ namespace reshade
 	}
 	void d3d9_fx_compiler::visit_uniform(const fx::nodes::variable_declaration_node *node)
 	{
-		visit(_global_code, node->type);
+		auto type = node->type;
+		type.basetype = fx::nodes::type_node::datatype_float;
+		visit(_global_code, type);
 
 		_global_code << ' ' << node->unique_name;
 
@@ -1557,36 +1560,14 @@ namespace reshade
 
 		uniform obj;
 		obj.name = node->name;
+		obj.basetype = uniform_datatype::float_;
 		obj.rows = node->type.rows;
 		obj.columns = node->type.cols;
 		obj.elements = node->type.array_length;
 		obj.storage_size = obj.rows * obj.columns * std::max(1u, obj.elements);
-
-		switch (node->type.basetype)
-		{
-			case fx::nodes::type_node::datatype_bool:
-				obj.basetype = uniform_datatype::bool_;
-				obj.storage_size *= sizeof(int);
-				break;
-			case fx::nodes::type_node::datatype_int:
-				obj.basetype = uniform_datatype::int_;
-				obj.storage_size *= sizeof(int);
-				break;
-			case fx::nodes::type_node::datatype_uint:
-				obj.basetype = uniform_datatype::uint_;
-				obj.storage_size *= sizeof(unsigned int);
-				break;
-			case fx::nodes::type_node::datatype_float:
-				obj.basetype = uniform_datatype::float_;
-				obj.storage_size *= sizeof(float);
-				break;
-		}
-
-		const UINT regsize = static_cast<UINT>(static_cast<float>(obj.storage_size) / 4);
-		const UINT regalignment = 4 - (regsize % 4);
-
 		obj.storage_offset = _runtime->_constant_register_count * 16;
-		_runtime->_constant_register_count += (regsize + regalignment) * 4;
+		_runtime->_constant_register_count += (obj.storage_size + 4 - (obj.storage_size % 4)) / 4;
+		obj.storage_size *= 4;
 
 		visit_annotation(node->annotations, obj);
 
@@ -1599,7 +1580,10 @@ namespace reshade
 
 		if (node->initializer_expression != nullptr && node->initializer_expression->id == fx::nodeid::literal_expression)
 		{
-			CopyMemory(uniform_storage.data() + obj.storage_offset, &static_cast<const fx::nodes::literal_expression_node *>(node->initializer_expression)->value_float, obj.storage_size);
+			for (size_t i = 0; i < obj.storage_size / 4; i++)
+			{
+				fx::scalar_literal_cast(static_cast<const fx::nodes::literal_expression_node *>(node->initializer_expression), i, reinterpret_cast<float *>(uniform_storage.data() + obj.storage_offset)[i]);
+			}
 		}
 		else
 		{

@@ -11,9 +11,6 @@ namespace reshade
 	{
 		class preprocessor
 		{
-			preprocessor(const preprocessor &) = delete;
-			preprocessor &operator=(const preprocessor &) = delete;
-
 		public:
 			struct macro
 			{
@@ -24,11 +21,13 @@ namespace reshade
 				std::vector<std::string> parameters;
 			};
 
-			preprocessor(std::vector<std::string> &pragmas, std::string &output, std::string &errors);
-
 			void add_include_path(const boost::filesystem::path &path);
 			bool add_macro_definition(const std::string &name, const macro &macro);
 			bool add_macro_definition(const std::string &name, const std::string &value = "1");
+
+			const std::string &current_output() const { return _output; }
+			const std::string &current_errors() const { return _errors; }
+			const std::vector<std::string> &current_pragmas() const { return _pragmas; }
 
 			bool run(const boost::filesystem::path &file_path, std::vector<boost::filesystem::path> &included_files);
 
@@ -88,15 +87,14 @@ namespace reshade
 			void expand_macro(const macro &macro, const std::vector<std::string> &arguments, std::string &out);
 			void create_macro_replacement_list(macro &macro);
 
-			bool _success;
+			bool _success = true;
 			lexer::token _token;
 			std::stack<input_level> _input_stack;
 			location _output_location;
-			std::string &_output, &_errors;
-			std::string _current_token_raw_data;
-			int _recursion_count;
+			std::string _output, _errors, _current_token_raw_data;
+			int _recursion_count = 0;
 			std::unordered_map<std::string, macro> _macros;
-			std::vector<std::string> &_pragmas;
+			std::vector<std::string> _pragmas;
 			std::vector<boost::filesystem::path> _include_paths;
 			std::unordered_map<std::string, std::string> _filecache;
 		};
