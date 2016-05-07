@@ -412,6 +412,7 @@ EXPORTS
 	RegisterRawInputDevices = HookRegisterRawInputDevices
 	DispatchMessageA = HookDispatchMessageA
 	DispatchMessageW = HookDispatchMessageW
+	SetCursorPos = HookSetCursorPos
 
 	; ws2_32.dll
 	send = HookSend

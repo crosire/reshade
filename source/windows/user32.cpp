@@ -5,6 +5,8 @@
 #include <assert.h>
 #include <Windows.h>
 
+bool g_blockSetCursorPos = false;
+
 EXPORT ATOM WINAPI HookRegisterClassA(CONST WNDCLASSA *lpWndClass)
 {
 	assert(lpWndClass != nullptr);
@@ -138,4 +140,16 @@ EXPORT LRESULT WINAPI HookDispatchMessageA(const MSG *lpmsg)
 EXPORT LRESULT WINAPI HookDispatchMessageW(const MSG *lpmsg)
 {
 	return HookDispatchMessageA(lpmsg);
+}
+
+EXPORT BOOL WINAPI HookSetCursorPos(int X, int Y)
+{
+	if (g_blockSetCursorPos)
+	{
+		return TRUE;
+	}
+
+	static const auto trampoline = reshade::hooks::call(&HookSetCursorPos);
+
+	return trampoline(X, Y);
 }

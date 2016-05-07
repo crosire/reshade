@@ -23,6 +23,8 @@
 #include <imgui_internal.h>
 #include "ini_file.hpp"
 
+extern bool g_blockSetCursorPos;
+
 namespace reshade
 {
 	namespace fs = boost::filesystem;
@@ -885,6 +887,8 @@ namespace reshade
 			ImGui::TextColored(ImVec4(0.73f, 0.73f, 0.73f, 1.0f), "Visit http://reshade.me for news, updates, shaders and discussion.");
 			ImGui::End();
 		}
+
+		g_blockSetCursorPos = _show_menu;
 
 		if (_show_menu)
 		{
