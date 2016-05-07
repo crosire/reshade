@@ -51,6 +51,13 @@ namespace reshade
 
 			return result;
 		}
+		std::streamsize stream_size(std::istream &s)
+		{
+			s.seekg(0, std::ios::end);
+			const auto size = s.tellg();
+			s.seekg(0, std::ios::beg);
+			return size;
+		}
 
 		fs::path s_executable_path, s_injector_path, s_config_path;
 		std::string s_executable_name, s_imgui_ini_path;
@@ -179,7 +186,7 @@ namespace reshade
 	runtime::runtime(uint32_t renderer) :
 		_renderer_id(renderer),
 		_start_time(boost::chrono::high_resolution_clock::now()),
-		_shader_edit_buffer(2048)
+		_shader_edit_buffer(32768)
 	{
 		load_configuration();
 	}
@@ -1242,7 +1249,21 @@ namespace reshade
 		if (ImGui::Combo("##effect_files", &_current_effect_file, effect_files.c_str()))
 		{
 			std::ifstream file(_included_files[_current_effect_file].c_str());
-			std::copy(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>(), _shader_edit_buffer.begin());
+
+			if (file.is_open())
+			{
+				const auto file_size = stream_size(file);
+
+				if (file_size > _shader_edit_buffer.size())
+				{
+					_shader_edit_buffer.resize(file_size);
+				}
+
+				std::copy(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>(), _shader_edit_buffer.begin());
+			}
+			else
+			{
+			}
 		}
 
 		ImGui::Separator();

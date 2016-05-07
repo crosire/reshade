@@ -681,13 +681,8 @@ namespace reshade
 
 				m.is_function_like = true;
 
-				while (true)
+				while (accept(lexer::tokenid::identifier))
 				{
-					if (!accept(lexer::tokenid::identifier))
-					{
-						break;
-					}
-
 					m.parameters.push_back(current_token().literal_as_string);
 
 					if (!accept(lexer::tokenid::comma))
