@@ -312,19 +312,19 @@ namespace reshade
 				const auto remove = std::remove_if(s_delayed_hook_paths.begin(), s_delayed_hook_paths.end(),
 					[lpFileName](const boost::filesystem::path &path)
 					{
-						HMODULE handle = nullptr;
-						GetModuleHandleExW(0, path.c_str(), &handle);
+						HMODULE delayed_handle = nullptr;
+						GetModuleHandleExW(0, path.c_str(), &delayed_handle);
 
-						if (handle == nullptr)
+						if (delayed_handle == nullptr)
 						{
 							return false;
 						}
 
 						LOG(INFO) << "Installing delayed hooks for " << path << " (Just loaded via 'LoadLibraryA(\"" << lpFileName << "\")') ...";
 
-						s_delayed_hook_modules.push_back(handle);
+						s_delayed_hook_modules.push_back(delayed_handle);
 
-						return install(handle, get_current_module(), hook_method::function_hook);
+						return install(delayed_handle, get_current_module(), hook_method::function_hook);
 					});
 
 				s_delayed_hook_paths.erase(remove, s_delayed_hook_paths.end());
@@ -358,19 +358,19 @@ namespace reshade
 				const auto remove = std::remove_if(s_delayed_hook_paths.begin(), s_delayed_hook_paths.end(),
 					[lpFileName](const boost::filesystem::path &path)
 					{
-						HMODULE handle = nullptr;
-						GetModuleHandleExW(0, path.c_str(), &handle);
+						HMODULE delayed_handle = nullptr;
+						GetModuleHandleExW(0, path.c_str(), &delayed_handle);
 
-						if (handle == nullptr)
+						if (delayed_handle == nullptr)
 						{
 							return false;
 						}
 
 						LOG(INFO) << "Installing delayed hooks for " << path << " (Just loaded via 'LoadLibraryW(\"" << lpFileName << "\")') ...";
 
-						s_delayed_hook_modules.push_back(handle);
+						s_delayed_hook_modules.push_back(delayed_handle);
 
-						return install(handle, get_current_module(), hook_method::function_hook);
+						return install(delayed_handle, get_current_module(), hook_method::function_hook);
 					});
 
 				s_delayed_hook_paths.erase(remove, s_delayed_hook_paths.end());
