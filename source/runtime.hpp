@@ -92,9 +92,8 @@ namespace reshade
 		/// Update the image data of a texture.
 		/// </summary>
 		/// <param name="texture">The texture to update.</param>
-		/// <param name="data">The image data to update the texture to.</param>
-		/// <param name="size">The size of the image data.</param>
-		virtual bool update_texture(texture &texture, const uint8_t *data, size_t size) = 0;
+		/// <param name="data">The RGBA image data to update the texture to.</param>
+		virtual bool update_texture(texture &texture, const uint8_t *data) = 0;
 		/// <summary>
 		/// Return a reference to the uniform storage buffer.
 		/// </summary>

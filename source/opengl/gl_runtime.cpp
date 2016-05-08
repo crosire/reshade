@@ -177,18 +177,7 @@ namespace reshade
 			}
 			else
 			{
-				const auto w = texture.width, h = texture.height, stride = w * block_size;
-				const auto temp = static_cast<unsigned char *>(alloca(stride));
-
-				for (unsigned int y = 0; 2 * y < h; ++y)
-				{
-					const auto line1 = data + stride * y;
-					const auto line2 = data + stride * (h - 1 - y);
-
-					std::memcpy(temp, line1, stride);
-					std::memcpy(line1, line2, stride);
-					std::memcpy(line2, temp, stride);
-				}
+				
 			}
 		}
 
@@ -796,7 +785,7 @@ namespace reshade
 		_depth_source_table.emplace(id, info);
 	}
 
-	void gl_runtime::screenshot(unsigned char *buffer) const
+	void gl_runtime::screenshot(uint8_t *buffer) const
 	{
 		GLCHECK(glReadBuffer(GL_BACK));
 		GLCHECK(glReadPixels(0, 0, static_cast<GLsizei>(_width), static_cast<GLsizei>(_height), GL_RGBA, GL_UNSIGNED_BYTE, buffer));
@@ -824,12 +813,12 @@ namespace reshade
 	{
 		return gl_fx_compiler(this, ast, errors).run();
 	}
-	bool gl_runtime::update_texture(texture &texture, const unsigned char *data, size_t size)
+	bool gl_runtime::update_texture(texture &texture, const uint8_t *data)
 	{
 		const auto texture_impl = dynamic_cast<gl_texture *>(&texture);
 
+		assert(data != nullptr);
 		assert(texture_impl != nullptr);
-		assert(data != nullptr && size > 0);
 
 		if (texture_impl->type != texture_type::image)
 		{
@@ -840,72 +829,28 @@ namespace reshade
 		GLCHECK(glPixelStorei(GL_UNPACK_IMAGE_HEIGHT, 0));
 		GLCHECK(glPixelStorei(GL_UNPACK_SKIP_ROWS, 0));
 		GLCHECK(glPixelStorei(GL_UNPACK_SKIP_PIXELS, 0));
+		GLCHECK(glPixelStorei(GL_UNPACK_ALIGNMENT, 4));
 
 		GLint previous = 0;
 		GLCHECK(glGetIntegerv(GL_TEXTURE_BINDING_2D, &previous));
 
-		// Copy image data
-		const std::unique_ptr<unsigned char[]> dataFlipped(new unsigned char[size]);
-		std::memcpy(dataFlipped.get(), data, size);
-
 		// Flip image data vertically
-		flip_image_data(texture, dataFlipped.get());
+		std::vector<uint8_t> data_flipped(data, data + texture.width * texture.height * 4);
+
+		for (unsigned int y = 0, stride = texture.width * 4; 2 * y < texture.height; y++)
+		{
+			const auto line1 = data_flipped.data() + stride * (y);
+			const auto line2 = data_flipped.data() + stride * (texture.height - 1 - y);
+
+			unsigned char temp[4];
+			std::memcpy(temp, line1, stride);
+			std::memcpy(line1, line2, stride);
+			std::memcpy(line2, temp, stride);
+		}
 
 		// Bind and update texture
 		GLCHECK(glBindTexture(GL_TEXTURE_2D, texture_impl->id[0]));
-
-		if (texture.format >= texture_format::dxt1 && texture.format <= texture_format::latc2)
-		{
-			GLCHECK(glCompressedTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, texture.width, texture.height, GL_UNSIGNED_BYTE, static_cast<GLsizei>(size), dataFlipped.get()));
-		}
-		else
-		{
-			GLint dataAlignment = 4;
-			GLenum dataFormat = GL_RGBA, dataType = GL_UNSIGNED_BYTE;
-
-			switch (texture.format)
-			{
-				case texture_format::r8:
-					dataFormat = GL_RED;
-					dataAlignment = 1;
-					break;
-				case texture_format::r16f:
-					dataType = GL_UNSIGNED_SHORT;
-					dataFormat = GL_RED;
-					dataAlignment = 2;
-					break;
-				case texture_format::r32f:
-					dataType = GL_FLOAT;
-					dataFormat = GL_RED;
-					break;
-				case texture_format::rg8:
-					dataFormat = GL_RG;
-					dataAlignment = 2;
-					break;
-				case texture_format::rg16:
-				case texture_format::rg16f:
-					dataType = GL_UNSIGNED_SHORT;
-					dataFormat = GL_RG;
-					dataAlignment = 2;
-					break;
-				case texture_format::rg32f:
-					dataType = GL_FLOAT;
-					dataFormat = GL_RG;
-					break;
-				case texture_format::rgba16:
-				case texture_format::rgba16f:
-					dataType = GL_UNSIGNED_SHORT;
-					dataAlignment = 2;
-					break;
-				case texture_format::rgba32f:
-					dataType = GL_FLOAT;
-					break;
-			}
-
-			GLCHECK(glPixelStorei(GL_UNPACK_ALIGNMENT, dataAlignment));
-			GLCHECK(glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, texture.width, texture.height, dataFormat, dataType, dataFlipped.get()));
-			GLCHECK(glPixelStorei(GL_UNPACK_ALIGNMENT, 4));
-		}
+		GLCHECK(glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, texture.width, texture.height, GL_RGBA, GL_UNSIGNED_BYTE, data_flipped.data()));
 
 		if (texture.levels > 1)
 		{

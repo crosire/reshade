@@ -8,20 +8,25 @@
 #include "input.hpp"
 #include "file_watcher.hpp"
 #include "string_utils.hpp"
+#include "ini_file.hpp"
 
+#include <ShlObj.h>
 #include <iterator>
-#include <stb_dxt.h>
+#include <boost/filesystem/operations.hpp>
+
+#define STB_IMAGE_IMPLEMENTATION
+#define STB_IMAGE_DDS_IMPLEMENTATION
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#define STB_IMAGE_RESIZE_IMPLEMENTATION
 #include <stb_image.h>
+#include <stb_image_dds.h>
 #include <stb_image_write.h>
 #include <stb_image_resize.h>
-#include <boost/filesystem/operations.hpp>
-#include <ShlObj.h>
 
 #define IMGUI_DISABLE_OBSOLETE_FUNCTIONS
 #define IMGUI_DEFINE_MATH_OPERATORS
 #include <imgui.h>
 #include <imgui_internal.h>
-#include "ini_file.hpp"
 
 extern bool g_blockSetCursorPos;
 
@@ -683,6 +688,13 @@ namespace reshade
 				continue;
 			}
 
+			if (texture->format != texture_format::r8 && texture->format != texture_format::rg8 && texture->format != texture_format::rgba8 && texture->format != texture_format::dxt1 && texture->format != texture_format::dxt5)
+			{
+				LOG(ERROR) << "> Texture " << texture->name << " uses unsupported format ('R32F'/'RGBA16'/'RGBA16F'/'RGBA32F'/'DXT3'/'LATC1'/'LATC2') for image loading.";
+
+				continue;
+			}
+
 			fs::path path;
 
 			for (const auto &search_path : _texture_search_paths)
@@ -702,31 +714,25 @@ namespace reshade
 				continue;
 			}
 
-			int width = 0, height = 0, channels = STBI_default;
+			FILE *file;
+			unsigned char *filedata = nullptr;
+			int width = 0, height = 0, channels = 0;
 
-			switch (texture->format)
+			texture->storage_size = texture->width * texture->height * 4;
+
+			if (fopen_s(&file, path.string().c_str(), "rb") == 0)
 			{
-				case texture_format::r8:
-					channels = STBI_r;
-					break;
-				case texture_format::rg8:
-					channels = STBI_rg;
-					break;
-				case texture_format::dxt1:
-					channels = STBI_rgb;
-					break;
-				case texture_format::rgba8:
-				case texture_format::dxt5:
-					channels = STBI_rgba;
-					break;
-				default:
-					LOG(ERROR) << "> Texture " << texture->name << " uses unsupported format ('R32F'/'RGBA16'/'RGBA16F'/'RGBA32F'/'DXT3'/'LATC1'/'LATC2') for image loading.";
-					continue;
-			}
+				if (stbi_dds_test_file(file))
+				{
+					filedata = stbi_dds_load_from_file(file, &width, &height, &channels, STBI_rgb_alpha);
+				}
+				else
+				{
+					filedata = stbi_load_from_file(file, &width, &height, &channels, STBI_rgb_alpha);
+				}
 
-			size_t data_size = texture->width * texture->height * channels;
-			unsigned char *const filedata = stbi_load(path.string().c_str(), &width, &height, &channels, channels);
-			std::unique_ptr<unsigned char[]> data(new unsigned char[data_size]);
+				fclose(file);
+			}
 
 			if (filedata != nullptr)
 			{
@@ -734,28 +740,16 @@ namespace reshade
 				{
 					LOG(INFO) << "> Resizing image data for texture '" << texture->name << "' from " << width << "x" << height << " to " << texture->width << "x" << texture->height << " ...";
 
-					stbir_resize_uint8(filedata, width, height, 0, data.get(), texture->width, texture->height, 0, channels);
+					std::vector<uint8_t> resized(texture->width * texture->height * 4);
+					stbir_resize_uint8(filedata, width, height, 0, resized.data(), texture->width, texture->height, 0, 4);
+					update_texture(*texture, resized.data());
 				}
 				else
 				{
-					std::memcpy(data.get(), filedata, data_size);
+					update_texture(*texture, filedata);
 				}
 
 				stbi_image_free(filedata);
-
-				switch (texture->format)
-				{
-					case texture_format::dxt1:
-						stb_compress_dxt_block(data.get(), data.get(), FALSE, STB_DXT_NORMAL);
-						data_size = ((texture->width + 3) >> 2) * ((texture->height + 3) >> 2) * 8;
-						break;
-					case texture_format::dxt5:
-						stb_compress_dxt_block(data.get(), data.get(), TRUE, STB_DXT_NORMAL);
-						data_size = ((texture->width + 3) >> 2) * ((texture->height + 3) >> 2) * 16;
-						break;
-				}
-
-				update_texture(*texture, data.get(), data_size);
 			}
 			else
 			{
@@ -763,8 +757,6 @@ namespace reshade
 
 				LOG(ERROR) << "> Source " << obfuscate_path(path) << " for texture '" << texture->name << "' could not be loaded! Make sure it is of a compatible format.";
 			}
-
-			texture->storage_size = data_size;
 		}
 	}
 	void runtime::load_configuration()

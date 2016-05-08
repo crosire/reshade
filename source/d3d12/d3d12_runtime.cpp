@@ -69,14 +69,14 @@ namespace reshade
 		runtime::on_apply_effect_technique(technique);
 	}
 
-	void d3d12_runtime::screenshot(unsigned char *buffer) const
+	void d3d12_runtime::screenshot(uint8_t *buffer) const
 	{
 	}
 	bool d3d12_runtime::update_effect(const fx::syntax_tree &ast, const std::vector<std::string> &pragmas, std::string &errors)
 	{
 		return false;
 	}
-	bool d3d12_runtime::update_texture(texture &texture, const unsigned char *data, size_t size)
+	bool d3d12_runtime::update_texture(texture &texture, const uint8_t *data)
 	{
 		return false;
 	}

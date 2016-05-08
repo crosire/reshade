@@ -510,7 +510,7 @@ namespace reshade
 		}
 	}
 
-	void d3d9_runtime::screenshot(unsigned char *buffer) const
+	void d3d9_runtime::screenshot(uint8_t *buffer) const
 	{
 		if (_backbuffer_format != D3DFMT_X8R8G8B8 &&
 			_backbuffer_format != D3DFMT_X8B8G8R8 &&
@@ -594,12 +594,12 @@ namespace reshade
 
 		return d3d9_fx_compiler(this, ast, errors, skip_optimization).run();
 	}
-	bool d3d9_runtime::update_texture(texture &texture, const unsigned char *data, size_t size)
+	bool d3d9_runtime::update_texture(texture &texture, const uint8_t *data)
 	{
 		const auto texture_impl = dynamic_cast<d3d9_texture *>(&texture);
 
+		assert(data != nullptr);
 		assert(texture_impl != nullptr);
-		assert(data != nullptr && size != 0);
 
 		if (texture_impl->type != texture_type::image)
 		{
@@ -631,19 +631,19 @@ namespace reshade
 			return false;
 		}
 
-		size = std::min(size, size_t(mapped_rect.Pitch * texture.height));
+		const auto size = std::min(texture.width * 4, static_cast<unsigned int>(mapped_rect.Pitch)) * texture.height;
 		auto mapped_data = static_cast<BYTE *>(mapped_rect.pBits);
 
 		switch (texture.format)
 		{
 			case texture_format::r8:
-				for (size_t i = 0; i < size; i += 1, mapped_data += 4)
+				for (size_t i = 0; i < size; i += 4, mapped_data += 4)
 				{
 					mapped_data[0] = 0, mapped_data[1] = 0, mapped_data[2] = data[i], mapped_data[3] = 0;
 				}
 				break;
 			case texture_format::rg8:
-				for (size_t i = 0; i < size; i += 2, mapped_data += 4)
+				for (size_t i = 0; i < size; i += 4, mapped_data += 4)
 				{
 					mapped_data[0] = 0, mapped_data[1] = data[i + 1], mapped_data[2] = data[i], mapped_data[3] = 0;
 				}

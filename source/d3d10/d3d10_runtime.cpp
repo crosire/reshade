@@ -820,7 +820,7 @@ namespace reshade
 		}
 	}
 
-	void d3d10_runtime::screenshot(unsigned char *buffer) const
+	void d3d10_runtime::screenshot(uint8_t *buffer) const
 	{
 		if (_backbuffer_format != DXGI_FORMAT_R8G8B8A8_UNORM &&
 			_backbuffer_format != DXGI_FORMAT_R8G8B8A8_UNORM_SRGB &&
@@ -910,21 +910,19 @@ namespace reshade
 
 		return d3d10_fx_compiler(this, ast, errors, skip_optimization).run();
 	}
-	bool d3d10_runtime::update_texture(texture &texture, const unsigned char *data, size_t size)
+	bool d3d10_runtime::update_texture(texture &texture, const uint8_t *data)
 	{
 		const auto texture_impl = dynamic_cast<d3d10_texture *>(&texture);
 
+		assert(data != nullptr);
 		assert(texture_impl != nullptr);
-		assert(data != nullptr && size != 0);
 
 		if (texture.type != texture_type::image)
 		{
 			return false;
 		}
 
-		assert(texture.height != 0);
-
-		_device->UpdateSubresource(texture_impl->texture.get(), 0, nullptr, data, static_cast<UINT>(size / texture.height), static_cast<UINT>(size));
+		_device->UpdateSubresource(texture_impl->texture.get(), 0, nullptr, data, texture.width * 4, texture.width * texture.height * 4);
 
 		if (texture.levels > 1)
 		{
