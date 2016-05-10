@@ -10,7 +10,7 @@ namespace reshade
 		ini_file::ini_file()
 		{
 		}
-		ini_file::ini_file(const boost::filesystem::path &path)
+		ini_file::ini_file(const std::wstring &path)
 		{
 			load(path);
 		}
@@ -19,12 +19,12 @@ namespace reshade
 			save();
 		}
 
-		void ini_file::load(const boost::filesystem::path &path)
+		void ini_file::load(const std::wstring &path)
 		{
 			_path = path;
 
 			std::string line, section;
-			std::ifstream file(_path.c_str());
+			std::ifstream file(_path);
 
 			while (std::getline(file, line))
 			{

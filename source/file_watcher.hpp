@@ -2,7 +2,7 @@
 
 #include <memory>
 #include <vector>
-#include <boost\filesystem\path.hpp>
+#include <string>
 
 namespace reshade
 {
@@ -11,14 +11,13 @@ namespace reshade
 		class file_watcher
 		{
 		public:
-			explicit file_watcher(const boost::filesystem::path &path);
+			explicit file_watcher(const wchar_t *path);
 			~file_watcher();
 
-			bool check(std::vector<boost::filesystem::path> &modifications);
+			bool check(std::vector<std::wstring> &modifications);
 
 		private:
-			boost::filesystem::path _path;
-			std::unique_ptr<unsigned char[]> _buffer;
+			std::unique_ptr<uint8_t[]> _buffer;
 			void *_file_handle, *_completion_handle;
 		};
 	}

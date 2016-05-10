@@ -1,7 +1,6 @@
 #pragma once
 
 #include "runtime_objects.hpp"
-#include <boost/filesystem/path.hpp>
 
 namespace reshade
 {
@@ -11,17 +10,17 @@ namespace reshade
 		{
 		public:
 			ini_file();
-			explicit ini_file(const boost::filesystem::path &path);
+			explicit ini_file(const std::wstring &path);
 			~ini_file();
 
-			void load(const boost::filesystem::path &path);
+			void load(const std::wstring &path);
 			void save() const;
 
 			annotation get(const std::string &section, const std::string &key, const annotation &default = "") const;
 			void set(const std::string &section, const std::string &key, const annotation &value);
 
 		private:
-			boost::filesystem::path _path;
+			std::wstring _path;
 			std::unordered_map<std::string, std::unordered_map<std::string, annotation>> _data;
 		};
 	}
