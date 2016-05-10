@@ -5,7 +5,7 @@
 
 volatile long g_network_traffic = 0;
 
-EXPORT int WSAAPI HookWSASend(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPDWORD lpNumberOfBytesSent, DWORD dwFlags, LPWSAOVERLAPPED lpOverlapped, LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine)
+HOOK_EXPORT int WSAAPI HookWSASend(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPDWORD lpNumberOfBytesSent, DWORD dwFlags, LPWSAOVERLAPPED lpOverlapped, LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine)
 {
 	static const auto trampoline = reshade::hooks::call(&HookWSASend);
 
@@ -16,7 +16,7 @@ EXPORT int WSAAPI HookWSASend(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount,
 
 	return trampoline(s, lpBuffers, dwBufferCount, lpNumberOfBytesSent, dwFlags, lpOverlapped, lpCompletionRoutine);
 }
-EXPORT int WSAAPI HookWSASendTo(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPDWORD lpNumberOfBytesSent, DWORD dwFlags, const struct sockaddr *lpTo, int iToLen, LPWSAOVERLAPPED lpOverlapped, LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine)
+HOOK_EXPORT int WSAAPI HookWSASendTo(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPDWORD lpNumberOfBytesSent, DWORD dwFlags, const struct sockaddr *lpTo, int iToLen, LPWSAOVERLAPPED lpOverlapped, LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine)
 {
 	static const auto trampoline = reshade::hooks::call(&HookWSASendTo);
 
@@ -27,7 +27,7 @@ EXPORT int WSAAPI HookWSASendTo(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCoun
 
 	return trampoline(s, lpBuffers, dwBufferCount, lpNumberOfBytesSent, dwFlags, lpTo, iToLen, lpOverlapped, lpCompletionRoutine);
 }
-EXPORT int WSAAPI HookWSARecv(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPDWORD lpNumberOfBytesRecvd, LPDWORD lpFlags, LPWSAOVERLAPPED lpOverlapped, LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine)
+HOOK_EXPORT int WSAAPI HookWSARecv(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPDWORD lpNumberOfBytesRecvd, LPDWORD lpFlags, LPWSAOVERLAPPED lpOverlapped, LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine)
 {
 	static const auto trampoline = reshade::hooks::call(&HookWSARecv);
 
@@ -40,7 +40,7 @@ EXPORT int WSAAPI HookWSARecv(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount,
 
 	return status;
 }
-EXPORT int WSAAPI HookWSARecvEx(SOCKET s, char *buf, int len, int *flags)
+HOOK_EXPORT int WSAAPI HookWSARecvEx(SOCKET s, char *buf, int len, int *flags)
 {
 	static const auto trampoline = reshade::hooks::call(&HookWSARecvEx);
 
@@ -53,7 +53,7 @@ EXPORT int WSAAPI HookWSARecvEx(SOCKET s, char *buf, int len, int *flags)
 
 	return recieved;
 }
-EXPORT int WSAAPI HookWSARecvFrom(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPDWORD lpNumberOfBytesRecvd, LPDWORD lpFlags, struct sockaddr *lpFrom, LPINT lpFromlen, LPWSAOVERLAPPED lpOverlapped, LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine)
+HOOK_EXPORT int WSAAPI HookWSARecvFrom(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCount, LPDWORD lpNumberOfBytesRecvd, LPDWORD lpFlags, struct sockaddr *lpFrom, LPINT lpFromlen, LPWSAOVERLAPPED lpOverlapped, LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine)
 {
 	static const auto trampoline = reshade::hooks::call(&HookWSARecvFrom);
 
@@ -67,28 +67,28 @@ EXPORT int WSAAPI HookWSARecvFrom(SOCKET s, LPWSABUF lpBuffers, DWORD dwBufferCo
 	return status;
 }
 
-EXPORT int WSAAPI HookSend(SOCKET s, const char *buf, int len, int flags)
+HOOK_EXPORT int WSAAPI HookSend(SOCKET s, const char *buf, int len, int flags)
 {
 	DWORD result = 0;
 	WSABUF buffer = { static_cast<ULONG>(len), const_cast<CHAR *>(buf) };
 
 	return HookWSASend(s, &buffer, 1, &result, flags, nullptr, nullptr) == 0 ? static_cast<int>(result) : SOCKET_ERROR;
 }
-EXPORT int WSAAPI HookSendTo(SOCKET s, const char *buf, int len, int flags, const struct sockaddr *to, int tolen)
+HOOK_EXPORT int WSAAPI HookSendTo(SOCKET s, const char *buf, int len, int flags, const struct sockaddr *to, int tolen)
 {
 	DWORD result = 0;
 	WSABUF buffer = { static_cast<ULONG>(len), const_cast<CHAR *>(buf) };
 
 	return HookWSASendTo(s, &buffer, 1, &result, flags, to, tolen, nullptr, nullptr) == 0 ? static_cast<int>(result) : SOCKET_ERROR;
 }
-EXPORT int WSAAPI HookRecv(SOCKET s, char *buf, int len, int flags)
+HOOK_EXPORT int WSAAPI HookRecv(SOCKET s, char *buf, int len, int flags)
 {
 	DWORD result = 0, flags2 = flags;
 	WSABUF buffer = { static_cast<ULONG>(len), buf };
 
 	return HookWSARecv(s, &buffer, 1, &result, &flags2, nullptr, nullptr) == 0 ? static_cast<int>(result) : SOCKET_ERROR;
 }
-EXPORT int WSAAPI HookRecvFrom(SOCKET s, char *buf, int len, int flags, struct sockaddr *from, int *fromlen)
+HOOK_EXPORT int WSAAPI HookRecvFrom(SOCKET s, char *buf, int len, int flags, struct sockaddr *from, int *fromlen)
 {
 	DWORD result = 0, flags2 = flags;
 	WSABUF buffer = { static_cast<ULONG>(len), buf };

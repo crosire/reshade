@@ -2,7 +2,7 @@
 
 #include "hook.hpp"
 
-#define EXPORT extern "C"
+#define HOOK_EXPORT extern "C"
 #define VTABLE(object) (*reinterpret_cast<reshade::hook::address **>(object))
 
 namespace reshade

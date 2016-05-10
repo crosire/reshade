@@ -1301,32 +1301,32 @@ HRESULT STDMETHODCALLTYPE IDirect3D9Ex_CreateDeviceEx(IDirect3D9Ex *pD3D, UINT A
 }
 
 // PIX
-EXPORT int WINAPI D3DPERF_BeginEvent(D3DCOLOR col, LPCWSTR wszName)
+HOOK_EXPORT int WINAPI D3DPERF_BeginEvent(D3DCOLOR col, LPCWSTR wszName)
 {
 	UNREFERENCED_PARAMETER(col);
 	UNREFERENCED_PARAMETER(wszName);
 
 	return 0;
 }
-EXPORT int WINAPI D3DPERF_EndEvent()
+HOOK_EXPORT int WINAPI D3DPERF_EndEvent()
 {
 	return 0;
 }
-EXPORT void WINAPI D3DPERF_SetMarker(D3DCOLOR col, LPCWSTR wszName)
+HOOK_EXPORT void WINAPI D3DPERF_SetMarker(D3DCOLOR col, LPCWSTR wszName)
 {
 	UNREFERENCED_PARAMETER(col);
 	UNREFERENCED_PARAMETER(wszName);
 }
-EXPORT void WINAPI D3DPERF_SetRegion(D3DCOLOR col, LPCWSTR wszName)
+HOOK_EXPORT void WINAPI D3DPERF_SetRegion(D3DCOLOR col, LPCWSTR wszName)
 {
 	UNREFERENCED_PARAMETER(col);
 	UNREFERENCED_PARAMETER(wszName);
 }
-EXPORT BOOL WINAPI D3DPERF_QueryRepeatFrame()
+HOOK_EXPORT BOOL WINAPI D3DPERF_QueryRepeatFrame()
 {
 	return FALSE;
 }
-EXPORT void WINAPI D3DPERF_SetOptions(DWORD dwOptions)
+HOOK_EXPORT void WINAPI D3DPERF_SetOptions(DWORD dwOptions)
 {
 	UNREFERENCED_PARAMETER(dwOptions);
 
@@ -1334,13 +1334,13 @@ EXPORT void WINAPI D3DPERF_SetOptions(DWORD dwOptions)
 	reshade::hooks::call(&D3DPERF_SetOptions)(0);
 #endif
 }
-EXPORT DWORD WINAPI D3DPERF_GetStatus()
+HOOK_EXPORT DWORD WINAPI D3DPERF_GetStatus()
 {
 	return 0;
 }
 
 // D3D9
-EXPORT IDirect3D9 *WINAPI Direct3DCreate9(UINT SDKVersion)
+HOOK_EXPORT IDirect3D9 *WINAPI Direct3DCreate9(UINT SDKVersion)
 {
 	LOG(INFO) << "Redirecting '" << "Direct3DCreate9" << "(" << SDKVersion << ")' ...";
 
@@ -1359,7 +1359,7 @@ EXPORT IDirect3D9 *WINAPI Direct3DCreate9(UINT SDKVersion)
 
 	return res;
 }
-EXPORT HRESULT WINAPI Direct3DCreate9Ex(UINT SDKVersion, IDirect3D9Ex **ppD3D)
+HOOK_EXPORT HRESULT WINAPI Direct3DCreate9Ex(UINT SDKVersion, IDirect3D9Ex **ppD3D)
 {
 	LOG(INFO) << "Redirecting '" << "Direct3DCreate9Ex" << "(" << SDKVersion << ", " << ppD3D << ")' ...";
 

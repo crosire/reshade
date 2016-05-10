@@ -361,7 +361,7 @@ LUID STDMETHODCALLTYPE D3D12Device::GetAdapterLuid()
 }
 
 // D3D12
-EXPORT HRESULT WINAPI D3D12CreateDevice(IUnknown *pAdapter, D3D_FEATURE_LEVEL MinimumFeatureLevel, REFIID riid, void **ppDevice)
+HOOK_EXPORT HRESULT WINAPI D3D12CreateDevice(IUnknown *pAdapter, D3D_FEATURE_LEVEL MinimumFeatureLevel, REFIID riid, void **ppDevice)
 {
 	OLECHAR riidString[40];
 	StringFromGUID2(riid, riidString, ARRAYSIZE(riidString));

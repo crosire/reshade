@@ -7,7 +7,7 @@
 
 bool g_blockSetCursorPos = false;
 
-EXPORT ATOM WINAPI HookRegisterClassA(CONST WNDCLASSA *lpWndClass)
+HOOK_EXPORT ATOM WINAPI HookRegisterClassA(CONST WNDCLASSA *lpWndClass)
 {
 	assert(lpWndClass != nullptr);
 
@@ -27,7 +27,7 @@ EXPORT ATOM WINAPI HookRegisterClassA(CONST WNDCLASSA *lpWndClass)
 
 	return reshade::hooks::call(&HookRegisterClassA)(&wndclass);
 }
-EXPORT ATOM WINAPI HookRegisterClassW(CONST WNDCLASSW *lpWndClass)
+HOOK_EXPORT ATOM WINAPI HookRegisterClassW(CONST WNDCLASSW *lpWndClass)
 {
 	assert(lpWndClass != nullptr);
 
@@ -47,7 +47,7 @@ EXPORT ATOM WINAPI HookRegisterClassW(CONST WNDCLASSW *lpWndClass)
 
 	return reshade::hooks::call(&HookRegisterClassW)(&wndclass);
 }
-EXPORT ATOM WINAPI HookRegisterClassExA(CONST WNDCLASSEXA *lpWndClassEx)
+HOOK_EXPORT ATOM WINAPI HookRegisterClassExA(CONST WNDCLASSEXA *lpWndClassEx)
 {
 	assert(lpWndClassEx != nullptr);
 
@@ -67,7 +67,7 @@ EXPORT ATOM WINAPI HookRegisterClassExA(CONST WNDCLASSEXA *lpWndClassEx)
 
 	return reshade::hooks::call(&HookRegisterClassExA)(&wndclass);
 }
-EXPORT ATOM WINAPI HookRegisterClassExW(CONST WNDCLASSEXW *lpWndClassEx)
+HOOK_EXPORT ATOM WINAPI HookRegisterClassExW(CONST WNDCLASSEXW *lpWndClassEx)
 {
 	assert(lpWndClassEx != nullptr);
 
@@ -88,7 +88,7 @@ EXPORT ATOM WINAPI HookRegisterClassExW(CONST WNDCLASSEXW *lpWndClassEx)
 	return reshade::hooks::call(&HookRegisterClassExW)(&wndclass);
 }
 
-EXPORT BOOL WINAPI HookRegisterRawInputDevices(PCRAWINPUTDEVICE pRawInputDevices, UINT uiNumDevices, UINT cbSize)
+HOOK_EXPORT BOOL WINAPI HookRegisterRawInputDevices(PCRAWINPUTDEVICE pRawInputDevices, UINT uiNumDevices, UINT cbSize)
 {
 	LOG(INFO) << "Redirecting '" << "RegisterRawInputDevices" << "(" << pRawInputDevices << ", " << uiNumDevices << ", " << cbSize << ")' ...";
 
@@ -124,7 +124,7 @@ EXPORT BOOL WINAPI HookRegisterRawInputDevices(PCRAWINPUTDEVICE pRawInputDevices
 	return TRUE;
 }
 
-EXPORT LRESULT WINAPI HookDispatchMessageA(const MSG *lpmsg)
+HOOK_EXPORT LRESULT WINAPI HookDispatchMessageA(const MSG *lpmsg)
 {
 	assert(lpmsg != nullptr);
 
@@ -137,7 +137,7 @@ EXPORT LRESULT WINAPI HookDispatchMessageA(const MSG *lpmsg)
 
 	return trampoline(lpmsg);
 }
-EXPORT LRESULT WINAPI HookDispatchMessageW(const MSG *lpmsg)
+HOOK_EXPORT LRESULT WINAPI HookDispatchMessageW(const MSG *lpmsg)
 {
 	return HookDispatchMessageA(lpmsg);
 }

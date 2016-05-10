@@ -1215,37 +1215,37 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFacto
 }
 
 // DXGI
-EXPORT HRESULT WINAPI DXGIDumpJournal()
+HOOK_EXPORT HRESULT WINAPI DXGIDumpJournal()
 {
 	assert(false);
 
 	return E_NOTIMPL;
 }
-EXPORT HRESULT WINAPI DXGIReportAdapterConfiguration()
+HOOK_EXPORT HRESULT WINAPI DXGIReportAdapterConfiguration()
 {
 	assert(false);
 
 	return E_NOTIMPL;
 }
 
-EXPORT HRESULT WINAPI DXGID3D10CreateDevice(HMODULE hModule, IDXGIFactory *pFactory, IDXGIAdapter *pAdapter, UINT Flags, void *pUnknown, void **ppDevice)
+HOOK_EXPORT HRESULT WINAPI DXGID3D10CreateDevice(HMODULE hModule, IDXGIFactory *pFactory, IDXGIAdapter *pAdapter, UINT Flags, void *pUnknown, void **ppDevice)
 {
 	return reshade::hooks::call(&DXGID3D10CreateDevice)(hModule, pFactory, pAdapter, Flags, pUnknown, ppDevice);
 }
-EXPORT HRESULT WINAPI DXGID3D10CreateLayeredDevice(void *pUnknown1, void *pUnknown2, void *pUnknown3, void *pUnknown4, void *pUnknown5)
+HOOK_EXPORT HRESULT WINAPI DXGID3D10CreateLayeredDevice(void *pUnknown1, void *pUnknown2, void *pUnknown3, void *pUnknown4, void *pUnknown5)
 {
 	return reshade::hooks::call(&DXGID3D10CreateLayeredDevice)(pUnknown1, pUnknown2, pUnknown3, pUnknown4, pUnknown5);
 }
-EXPORT SIZE_T WINAPI DXGID3D10GetLayeredDeviceSize(const void *pLayers, UINT NumLayers)
+HOOK_EXPORT SIZE_T WINAPI DXGID3D10GetLayeredDeviceSize(const void *pLayers, UINT NumLayers)
 {
 	return reshade::hooks::call(&DXGID3D10GetLayeredDeviceSize)(pLayers, NumLayers);
 }
-EXPORT HRESULT WINAPI DXGID3D10RegisterLayers(const void *pLayers, UINT NumLayers)
+HOOK_EXPORT HRESULT WINAPI DXGID3D10RegisterLayers(const void *pLayers, UINT NumLayers)
 {
 	return reshade::hooks::call(&DXGID3D10RegisterLayers)(pLayers, NumLayers);
 }
 
-EXPORT HRESULT WINAPI CreateDXGIFactory(REFIID riid, void **ppFactory)
+HOOK_EXPORT HRESULT WINAPI CreateDXGIFactory(REFIID riid, void **ppFactory)
 {
 	OLECHAR riidString[40];
 	StringFromGUID2(riid, riidString, ARRAYSIZE(riidString));
@@ -1279,7 +1279,7 @@ EXPORT HRESULT WINAPI CreateDXGIFactory(REFIID riid, void **ppFactory)
 
 	return S_OK;
 }
-EXPORT HRESULT WINAPI CreateDXGIFactory1(REFIID riid, void **ppFactory)
+HOOK_EXPORT HRESULT WINAPI CreateDXGIFactory1(REFIID riid, void **ppFactory)
 {
 	OLECHAR riidString[40];
 	StringFromGUID2(riid, riidString, ARRAYSIZE(riidString));
@@ -1313,7 +1313,7 @@ EXPORT HRESULT WINAPI CreateDXGIFactory1(REFIID riid, void **ppFactory)
 
 	return S_OK;
 }
-EXPORT HRESULT WINAPI CreateDXGIFactory2(UINT flags, REFIID riid, void **ppFactory)
+HOOK_EXPORT HRESULT WINAPI CreateDXGIFactory2(UINT flags, REFIID riid, void **ppFactory)
 {
 	OLECHAR riidString[40];
 	StringFromGUID2(riid, riidString, ARRAYSIZE(riidString));
