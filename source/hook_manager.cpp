@@ -2,11 +2,11 @@
 #include "hook_manager.hpp"
 #include "critical_section.hpp"
 
-#include <vector>
 #include <algorithm>
+#include <vector>
 #include <unordered_map>
-#include <assert.h>
 #include <Windows.h>
+#include <Shlwapi.h>
 
 namespace reshade
 {
@@ -70,9 +70,9 @@ namespace reshade
 			}
 
 			utils::critical_section s_cs;
-			boost::filesystem::path s_export_hook_path;
+			std::wstring s_export_hook_path;
 			std::vector<HMODULE> s_delayed_hook_modules;
-			std::vector<boost::filesystem::path> s_delayed_hook_paths;
+			std::vector<std::wstring> s_delayed_hook_paths;
 			std::vector<std::pair<hook, hook_method>> s_hooks;
 			std::unordered_map<hook::address, hook::address *> s_vtable_addresses;
 
@@ -310,7 +310,7 @@ namespace reshade
 				const utils::critical_section::lock lock(s_cs);
 
 				const auto remove = std::remove_if(s_delayed_hook_paths.begin(), s_delayed_hook_paths.end(),
-					[lpFileName](const boost::filesystem::path &path)
+					[lpFileName](const std::wstring &path)
 					{
 						HMODULE delayed_handle = nullptr;
 						GetModuleHandleExW(0, path.c_str(), &delayed_handle);
@@ -320,7 +320,7 @@ namespace reshade
 							return false;
 						}
 
-						LOG(INFO) << "Installing delayed hooks for " << path << " (Just loaded via 'LoadLibraryA(\"" << lpFileName << "\")') ...";
+						LOG(INFO) << "Installing delayed hooks for '" << path << "' (Just loaded via 'LoadLibraryA(\"" << lpFileName << "\")') ...";
 
 						s_delayed_hook_modules.push_back(delayed_handle);
 
@@ -356,7 +356,7 @@ namespace reshade
 				const utils::critical_section::lock lock(s_cs);
 
 				const auto remove = std::remove_if(s_delayed_hook_paths.begin(), s_delayed_hook_paths.end(),
-					[lpFileName](const boost::filesystem::path &path)
+					[lpFileName](const std::wstring &path)
 					{
 						HMODULE delayed_handle = nullptr;
 						GetModuleHandleExW(0, path.c_str(), &delayed_handle);
@@ -366,7 +366,7 @@ namespace reshade
 							return false;
 						}
 
-						LOG(INFO) << "Installing delayed hooks for " << path << " (Just loaded via 'LoadLibraryW(\"" << lpFileName << "\")') ...";
+						LOG(INFO) << "Installing delayed hooks for '" << path << "' (Just loaded via 'LoadLibraryW(\"" << lpFileName << "\")') ...";
 
 						s_delayed_hook_modules.push_back(delayed_handle);
 
@@ -464,20 +464,23 @@ namespace reshade
 
 			s_delayed_hook_modules.clear();
 		}
-		void register_module(const boost::filesystem::path &target_path) // Unsafe
+		void register_module(LPCWSTR target_path) // Unsafe
 		{
 			install(reinterpret_cast<hook::address>(&LoadLibraryA), reinterpret_cast<hook::address>(&HookLoadLibraryA));
 			install(reinterpret_cast<hook::address>(&LoadLibraryExA), reinterpret_cast<hook::address>(&HookLoadLibraryExA));
 			install(reinterpret_cast<hook::address>(&LoadLibraryW), reinterpret_cast<hook::address>(&HookLoadLibraryW));
 			install(reinterpret_cast<hook::address>(&LoadLibraryExW), reinterpret_cast<hook::address>(&HookLoadLibraryExW));
 
-			LOG(INFO) << "Registering hooks for " << target_path << " ...";
+			LOG(INFO) << "Registering hooks for '" << target_path << "' ...";
 
-			wchar_t replacement_filename[MAX_PATH];
-			GetModuleFileNameW(get_current_module(), replacement_filename, MAX_PATH);
-			const boost::filesystem::path replacement_path = replacement_filename;
+			WCHAR replacement_path[MAX_PATH], *replacement_filename, *target_filename;
+			GetModuleFileNameW(get_current_module(), replacement_path, MAX_PATH);
+			target_filename = PathFindFileNameW(target_path);
+			replacement_filename = PathFindFileNameW(replacement_path);
+			PathRemoveExtensionW(target_filename);
+			PathRemoveExtensionW(replacement_filename);
 
-			if (_wcsicmp(target_path.stem().c_str(), replacement_path.stem().c_str()) == 0)
+			if (_wcsicmp(target_filename, replacement_filename) == 0)
 			{
 				LOG(INFO) << "> Delayed.";
 
@@ -486,7 +489,7 @@ namespace reshade
 			else
 			{
 				HMODULE handle = nullptr;
-				GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_PIN, target_path.c_str(), &handle);
+				GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_PIN, target_path, &handle);
 
 				if (handle != nullptr)
 				{
@@ -513,7 +516,7 @@ namespace reshade
 			{
 				const HMODULE handle = HookLoadLibraryW(s_export_hook_path.c_str());
 
-				LOG(INFO) << "Installing delayed hooks for " << s_export_hook_path << " ...";
+				LOG(INFO) << "Installing delayed hooks for '" << s_export_hook_path << "' ...";
 
 				if (handle != nullptr)
 				{
@@ -524,7 +527,7 @@ namespace reshade
 				}
 				else
 				{
-					LOG(ERROR) << "Failed to load " << s_export_hook_path << "!";
+					LOG(ERROR) << "Failed to load '" << s_export_hook_path << "'!";
 				}
 			}
 

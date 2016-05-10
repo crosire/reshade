@@ -1,6 +1,5 @@
 #pragma once
 
-#include <boost/filesystem/path.hpp>
 #include "hook.hpp"
 
 #define EXPORT extern "C"
@@ -31,7 +30,7 @@ namespace reshade
 		/// Register the matching exports in the specified module and install or delay their hooking.
 		/// </summary>
 		/// <param name="path">The file path to the target module.</param>
-		void register_module(const boost::filesystem::path &path);
+		void register_module(const wchar_t *path);
 
 		/// <summary>
 		/// Call the original/trampoline function for the specified hook.

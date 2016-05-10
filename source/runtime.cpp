@@ -125,16 +125,16 @@ namespace reshade
 		s_config_path = appdata_path / "ReShade" / "ReShade.ini";
 		s_imgui_ini_path = (appdata_path / "ReShade" / "ReShadeGUI.ini").string();
 
-		hooks::register_module(system_path / "d3d8.dll");
-		hooks::register_module(system_path / "d3d9.dll");
-		hooks::register_module(system_path / "d3d10.dll");
-		hooks::register_module(system_path / "d3d10_1.dll");
-		hooks::register_module(system_path / "d3d11.dll");
-		hooks::register_module(system_path / "d3d12.dll");
-		hooks::register_module(system_path / "dxgi.dll");
-		hooks::register_module(system_path / "opengl32.dll");
-		hooks::register_module(system_path / "user32.dll");
-		hooks::register_module(system_path / "ws2_32.dll");
+		hooks::register_module((system_path / "d3d8.dll").c_str());
+		hooks::register_module((system_path / "d3d9.dll").c_str());
+		hooks::register_module((system_path / "d3d10.dll").c_str());
+		hooks::register_module((system_path / "d3d10_1.dll").c_str());
+		hooks::register_module((system_path / "d3d11.dll").c_str());
+		hooks::register_module((system_path / "d3d12.dll").c_str());
+		hooks::register_module((system_path / "dxgi.dll").c_str());
+		hooks::register_module((system_path / "opengl32.dll").c_str());
+		hooks::register_module((system_path / "user32.dll").c_str());
+		hooks::register_module((system_path / "ws2_32.dll").c_str());
 
 		auto &imgui_io = ImGui::GetIO();
 		imgui_io.IniFilename = s_imgui_ini_path.c_str();
