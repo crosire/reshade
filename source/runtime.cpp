@@ -770,6 +770,7 @@ namespace reshade
 		_screenshot_format = config.get(s_executable_path.string(), "ScreenshotFormat", 0).as<int>();
 		_effect_search_paths = config.get(s_executable_path.string(), "EffectSearchPaths", s_injector_path.parent_path().string()).data();
 		_texture_search_paths = config.get(s_executable_path.string(), "TextureSearchPaths", s_injector_path.parent_path().string()).data();
+		_preset_files = config.get(s_executable_path.string(), "Presets", std::vector<std::string>()).data();
 	}
 	void runtime::save_configuration() const
 	{
@@ -801,10 +802,11 @@ namespace reshade
 		config.set(s_executable_path.string(), "Techniques", technique_list);
 		config.set(s_executable_path.string(), "EffectSearchPaths", effect_search_paths_list);
 		config.set(s_executable_path.string(), "TextureSearchPaths", texture_search_paths_list);
+		config.set(s_executable_path.string(), "Presets", _preset_files);
 	}
 	void runtime::load_preset(const std::string &name)
 	{
-		utils::ini_file preset(name + ".ini");
+		utils::ini_file preset(std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>>().from_bytes(name + ".ini"));
 
 		for (auto &variable : _uniforms)
 		{
@@ -813,18 +815,22 @@ namespace reshade
 
 			const auto data = preset.get(filename, variable.name);
 
-			float values[4];
+			float values[4] = { };
 			values[0] = data.as<float>(0);
-			values[1] = data.as<float>(1);
-			values[2] = data.as<float>(2);
-			values[3] = data.as<float>(3);
+
+			if (data.data().size() > 1)
+			{
+				values[1] = data.as<float>(1);
+				values[2] = data.as<float>(2);
+				values[3] = data.as<float>(3);
+			}
 
 			set_uniform_value(variable, values);
 		}
 	}
 	void runtime::save_preset(const std::string &name) const
 	{
-		utils::ini_file preset(name + ".ini");
+		utils::ini_file preset(std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>>().from_bytes(name + ".ini"));
 
 		for (const auto &variable : _uniforms)
 		{
@@ -932,6 +938,18 @@ namespace reshade
 			ImGui::End();
 		}
 
+		if (_developer_mode)
+		{
+			ImGui::SetNextWindowSize(ImVec2(500, 200), ImGuiSetCond_FirstUseEver);
+
+			if (ImGui::Begin("Effect Compiler Log"))
+			{
+				ImGui::TextColored(ImVec4(1, 0, 0, 1), _errors.c_str());
+			}
+
+			ImGui::End();
+		}
+
 		if (_show_shader_editor)
 		{
 			ImGui::SetNextWindowSize(ImVec2(500, 500), ImGuiSetCond_FirstUseEver);
@@ -975,67 +993,89 @@ namespace reshade
 			{
 				_show_shader_editor = true;
 			}
-			if (ImGui::Button("Open Variable Editor", ImVec2(-1, 0)))
-			{
-				_show_variable_editor = true;
-			}
 		}
-		else
+
+		std::string preset_files;
+		for (const auto &path : _preset_files)
 		{
-			ImGui::PushItemWidth(-(60 + ImGui::GetStyle().ItemSpacing.x) * 3 - 1);
-			
-			if (ImGui::Combo("##presets", &_current_preset, "Preset1\0Preset2\0"))
-			{
-			}
-
-			ImGui::SameLine();
-
-			if (ImGui::Button("Add", ImVec2(60, 0)))
-			{
-				ImGui::OpenPopup("Add Preset");
-			}
-
-			ImGui::SameLine();
-
-			if (ImGui::Button("Remove", ImVec2(60, 0)))
-			{
-				ImGui::OpenPopup("Remove Preset");
-			}
-
-			ImGui::SameLine();
-
-			if (ImGui::Button("Edit", ImVec2(60, 0)))
-			{
-				_show_variable_editor = true;
-			}
-
-			if (ImGui::BeginPopup("Add Preset"))
-			{
-				char buf[512] = "";
-
-				if (ImGui::InputText("Name", buf, sizeof(buf), ImGuiInputTextFlags_EnterReturnsTrue))
-				{
-					ImGui::CloseCurrentPopup();
-				}
-
-				ImGui::EndPopup();
-			}
-			if (ImGui::BeginPopup("Remove Preset"))
-			{
-				ImGui::Text("Do you really want to remove this preset?");
-
-				if (ImGui::Button("Yes", ImVec2(-1, 0)))
-				{
-					ImGui::CloseCurrentPopup();
-				}
-
-				ImGui::EndPopup();
-			}
+			preset_files += path + '\0';
 		}
 
-		ImGui::Text("Techniques");
+		ImGui::PushItemWidth(-(60 + ImGui::GetStyle().ItemSpacing.x) * 3 - 1);
 
-		if (ImGui::BeginChild("##techniques", ImVec2(-1, -130), true, 0))
+		if (ImGui::Combo("##presets", &_current_preset, preset_files.c_str()))
+		{
+			load_preset(_preset_files[_current_preset]);
+		}
+
+		if (_current_preset >= 0 && ImGui::IsItemHovered() && !_input->is_mouse_button_down(0))
+		{
+			ImGui::SetTooltip(_preset_files[_current_preset].c_str());
+		}
+
+		ImGui::SameLine();
+
+		if (ImGui::Button("Load", ImVec2(60, 0)))
+		{
+			ImGui::OpenPopup("Add Preset");
+		}
+
+		ImGui::SameLine();
+
+		if (ImGui::ButtonEx("Remove", ImVec2(60, 0), _current_preset < 0 ? ImGuiButtonFlags_Disabled : 0))
+		{
+			ImGui::OpenPopup("Remove Preset");
+		}
+
+		ImGui::SameLine();
+
+		if (ImGui::ButtonEx("Edit", ImVec2(60, 0), _current_preset < 0 ? ImGuiButtonFlags_Disabled : 0))
+		{
+			_show_variable_editor = true;
+		}
+
+		if (ImGui::BeginPopup("Add Preset"))
+		{
+			char buf[MAX_PATH] = "";
+
+			if (ImGui::InputText("Path to INI", buf, sizeof(buf), ImGuiInputTextFlags_EnterReturnsTrue))
+			{
+				const auto path = fs::absolute(buf);
+
+				if (fs::exists(path) || fs::exists(path.parent_path()))
+				{
+					_preset_files.push_back(path.string());
+
+					save_configuration();
+
+					ImGui::CloseCurrentPopup();
+				}
+				else
+				{
+
+				}
+			}
+
+			ImGui::EndPopup();
+		}
+		if (ImGui::BeginPopup("Remove Preset"))
+		{
+			ImGui::Text("Do you really want to remove this preset?");
+
+			if (ImGui::Button("Yes", ImVec2(-1, 0)))
+			{
+				_preset_files.erase(_preset_files.begin() + _current_preset);
+				_current_preset = -1;
+
+				save_configuration();
+
+				ImGui::CloseCurrentPopup();
+			}
+
+			ImGui::EndPopup();
+		}
+
+		if (ImGui::BeginChild("##techniques", ImVec2(-1, -1), true, 0))
 		{
 			for (size_t n = 0; n < _techniques.size(); n++)
 			{
@@ -1063,7 +1103,7 @@ namespace reshade
 
 		ImGui::EndChild();
 
-		if (ImGui::IsItemHovered() && !_input->is_mouse_button_down(0))
+		if (!_developer_mode && ImGui::IsItemHovered() && !_input->is_mouse_button_down(0))
 		{
 			ImGui::SetTooltip("Click on a technique to enable/disable it.\nClick and then drag one to a new location in the list to change the execution order.");
 		}
@@ -1084,15 +1124,6 @@ namespace reshade
 		{
 			_selected_technique = _hovered_technique = -1;
 		}
-
-		ImGui::Text("Effect Compiler Log");
-
-		if (ImGui::BeginChild("##errors", ImVec2(-1, -1), true, ImGuiWindowFlags_HorizontalScrollbar))
-		{
-			ImGui::TextColored(ImVec4(1, 0, 0, 1), _errors.c_str());
-		}
-
-		ImGui::EndChild();
 	}
 	void runtime::draw_settings()
 	{
@@ -1280,47 +1311,6 @@ namespace reshade
 	}
 	void runtime::draw_variable_editor()
 	{
-		if (!_developer_mode)
-		{
-			if (ImGui::Button("Import", ImVec2(-1, 0)))
-			{
-				ImGui::OpenPopup("Import Preset");
-			}
-			if (ImGui::Button("Export", ImVec2(-1, 0)))
-			{
-				ImGui::OpenPopup("Export Preset");
-			}
-
-			if (ImGui::BeginPopup("Import Preset"))
-			{
-				char buf[512] = "";
-
-				if (ImGui::InputText("Path", buf, sizeof(buf), ImGuiInputTextFlags_EnterReturnsTrue))
-				{
-					load_preset(buf);
-
-					ImGui::CloseCurrentPopup();
-				}
-
-				ImGui::EndPopup();
-			}
-			if (ImGui::BeginPopup("Export Preset"))
-			{
-				char buf[512] = "";
-
-				if (ImGui::InputText("Path", buf, sizeof(buf), ImGuiInputTextFlags_EnterReturnsTrue))
-				{
-					save_preset(buf);
-
-					ImGui::CloseCurrentPopup();
-				}
-
-				ImGui::EndPopup();
-			}
-
-			ImGui::Spacing();
-		}
-
 		bool opened = true;
 		std::string current_header, new_header;
 
@@ -1345,6 +1335,7 @@ namespace reshade
 				continue;
 			}
 
+			bool modified = false;
 			float data[4] = { };
 			get_uniform_value(variable, data, 4);
 
@@ -1354,28 +1345,33 @@ namespace reshade
 
 			if (ui_type == "input")
 			{
-				ImGui::InputFloat4(variable.name.c_str(), data);
+				modified = ImGui::InputFloat4(variable.name.c_str(), data);
 			}
 			else if (ui_type == "drag")
 			{
-				ImGui::DragFloat4(variable.name.c_str(), data, variable.annotations["ui_step"].as<float>(), variable.annotations["ui_min"].as<float>(), variable.annotations["ui_max"].as<float>());
+				modified = ImGui::DragFloat4(variable.name.c_str(), data, variable.annotations["ui_step"].as<float>(), variable.annotations["ui_min"].as<float>(), variable.annotations["ui_max"].as<float>());
 			}
 			else if (ui_type == "slider")
 			{
-				ImGui::SliderFloat4(variable.name.c_str(), data, variable.annotations["ui_min"].as<float>(), variable.annotations["ui_max"].as<float>());
+				modified = ImGui::SliderFloat4(variable.name.c_str(), data, variable.annotations["ui_min"].as<float>(), variable.annotations["ui_max"].as<float>());
 			}
 			else if (ui_type == "color")
 			{
-				ImGui::ColorEdit4(variable.name.c_str(), data);
+				modified = ImGui::ColorEdit4(variable.name.c_str(), data);
 			}
 			else
 			{
-				ImGui::InputFloat4(variable.name.c_str(), data, -1, ImGuiInputTextFlags_ReadOnly);
+				modified = ImGui::InputFloat4(variable.name.c_str(), data, -1, ImGuiInputTextFlags_ReadOnly);
 			}
 
 			ImGui::PopID();
 
-			set_uniform_value(variable, data, 4);
+			if (modified)
+			{
+				set_uniform_value(variable, data, 4);
+
+				save_preset(_preset_files[_current_preset]);
+			}
 		}
 	}
 }

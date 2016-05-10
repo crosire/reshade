@@ -200,14 +200,14 @@ namespace reshade
 		void draw_variable_editor();
 
 		const unsigned int _renderer_id;
-		std::vector<std::string> _effect_files;
+		std::vector<std::string> _effect_files, _preset_files;
 		std::vector<boost::filesystem::path> _included_files;
 		boost::chrono::high_resolution_clock::time_point _start_time, _last_create, _last_present;
 		boost::chrono::high_resolution_clock::duration _last_frame_duration;
 		std::vector<unsigned char> _uniform_data_storage;
 		int _date[4] = { };
 		std::string _errors, _message, _effect_source;
-		int _menu_key = 0, _menu_index = 0, _screenshot_key = 0, _screenshot_format = 0, _current_preset = 0, _current_effect_file = -1;
+		int _menu_key = 0, _menu_index = 0, _screenshot_key = 0, _screenshot_format = 0, _current_preset = -1, _current_effect_file = -1;
 		std::string _screenshot_path;
 		std::vector<std::string> _effect_search_paths, _texture_search_paths;
 		utils::critical_section _imgui_cs;
