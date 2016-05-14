@@ -9,6 +9,9 @@
 
 namespace reshade
 {
+	using namespace reshadefx;
+	using namespace reshadefx::nodes;
+
 	namespace
 	{
 		GLenum literal_to_comp_func(unsigned int value)
@@ -16,21 +19,21 @@ namespace reshade
 			switch (value)
 			{
 				default:
-				case fx::nodes::pass_declaration_node::ALWAYS:
+				case pass_declaration_node::ALWAYS:
 					return GL_ALWAYS;
-				case fx::nodes::pass_declaration_node::NEVER:
+				case pass_declaration_node::NEVER:
 					return GL_NEVER;
-				case fx::nodes::pass_declaration_node::EQUAL:
+				case pass_declaration_node::EQUAL:
 					return GL_EQUAL;
-				case fx::nodes::pass_declaration_node::NOTEQUAL:
+				case pass_declaration_node::NOTEQUAL:
 					return GL_NOTEQUAL;
-				case fx::nodes::pass_declaration_node::LESS:
+				case pass_declaration_node::LESS:
 					return GL_LESS;
-				case fx::nodes::pass_declaration_node::LESSEQUAL:
+				case pass_declaration_node::LESSEQUAL:
 					return GL_LEQUAL;
-				case fx::nodes::pass_declaration_node::GREATER:
+				case pass_declaration_node::GREATER:
 					return GL_GREATER;
-				case fx::nodes::pass_declaration_node::GREATEREQUAL:
+				case pass_declaration_node::GREATEREQUAL:
 					return GL_GEQUAL;
 			}
 		}
@@ -38,15 +41,15 @@ namespace reshade
 		{
 			switch (value)
 			{
-				case fx::nodes::pass_declaration_node::ADD:
+				case pass_declaration_node::ADD:
 					return GL_FUNC_ADD;
-				case fx::nodes::pass_declaration_node::SUBTRACT:
+				case pass_declaration_node::SUBTRACT:
 					return GL_FUNC_SUBTRACT;
-				case fx::nodes::pass_declaration_node::REVSUBTRACT:
+				case pass_declaration_node::REVSUBTRACT:
 					return GL_FUNC_REVERSE_SUBTRACT;
-				case fx::nodes::pass_declaration_node::MIN:
+				case pass_declaration_node::MIN:
 					return GL_MIN;
-				case fx::nodes::pass_declaration_node::MAX:
+				case pass_declaration_node::MAX:
 					return GL_MAX;
 			}
 
@@ -56,25 +59,25 @@ namespace reshade
 		{
 			switch (value)
 			{
-				case fx::nodes::pass_declaration_node::ZERO:
+				case pass_declaration_node::ZERO:
 					return GL_ZERO;
-				case fx::nodes::pass_declaration_node::ONE:
+				case pass_declaration_node::ONE:
 					return GL_ONE;
-				case fx::nodes::pass_declaration_node::SRCCOLOR:
+				case pass_declaration_node::SRCCOLOR:
 					return GL_SRC_COLOR;
-				case fx::nodes::pass_declaration_node::SRCALPHA:
+				case pass_declaration_node::SRCALPHA:
 					return GL_SRC_ALPHA;
-				case fx::nodes::pass_declaration_node::INVSRCCOLOR:
+				case pass_declaration_node::INVSRCCOLOR:
 					return GL_ONE_MINUS_SRC_COLOR;
-				case fx::nodes::pass_declaration_node::INVSRCALPHA:
+				case pass_declaration_node::INVSRCALPHA:
 					return GL_ONE_MINUS_SRC_ALPHA;
-				case fx::nodes::pass_declaration_node::DESTCOLOR:
+				case pass_declaration_node::DESTCOLOR:
 					return GL_DST_COLOR;
-				case fx::nodes::pass_declaration_node::DESTALPHA:
+				case pass_declaration_node::DESTALPHA:
 					return GL_DST_ALPHA;
-				case fx::nodes::pass_declaration_node::INVDESTCOLOR:
+				case pass_declaration_node::INVDESTCOLOR:
 					return GL_ONE_MINUS_DST_COLOR;
-				case fx::nodes::pass_declaration_node::INVDESTALPHA:
+				case pass_declaration_node::INVDESTALPHA:
 					return GL_ONE_MINUS_DST_ALPHA;
 			}
 
@@ -85,21 +88,21 @@ namespace reshade
 			switch (value)
 			{
 				default:
-				case fx::nodes::pass_declaration_node::KEEP:
+				case pass_declaration_node::KEEP:
 					return GL_KEEP;
-				case fx::nodes::pass_declaration_node::ZERO:
+				case pass_declaration_node::ZERO:
 					return GL_ZERO;
-				case fx::nodes::pass_declaration_node::REPLACE:
+				case pass_declaration_node::REPLACE:
 					return GL_REPLACE;
-				case fx::nodes::pass_declaration_node::INCR:
+				case pass_declaration_node::INCR:
 					return GL_INCR_WRAP;
-				case fx::nodes::pass_declaration_node::INCRSAT:
+				case pass_declaration_node::INCRSAT:
 					return GL_INCR;
-				case fx::nodes::pass_declaration_node::DECR:
+				case pass_declaration_node::DECR:
 					return GL_DECR_WRAP;
-				case fx::nodes::pass_declaration_node::DECRSAT:
+				case pass_declaration_node::DECRSAT:
 					return GL_DECR;
-				case fx::nodes::pass_declaration_node::INVERT:
+				case pass_declaration_node::INVERT:
 					return GL_INVERT;
 			}
 		}
@@ -267,17 +270,17 @@ namespace reshade
 
 			return escape_name(name);
 		}
-		std::pair<std::string, std::string> write_cast(const fx::nodes::type_node &from, const fx::nodes::type_node &to)
+		std::pair<std::string, std::string> write_cast(const type_node &from, const type_node &to)
 		{
 			std::pair<std::string, std::string> code;
 
 			if (from.basetype != to.basetype && !(from.is_matrix() && to.is_matrix()))
 			{
-				const fx::nodes::type_node type = { to.basetype, 0, from.rows, from.cols, 0, to.definition };
+				const type_node type = { to.basetype, 0, from.rows, from.cols, 0, to.definition };
 
 				switch (type.basetype)
 				{
-					case fx::nodes::type_node::datatype_bool:
+					case type_node::datatype_bool:
 						if (type.is_matrix())
 							code.first += "mat" + std::to_string(type.rows) + 'x' + std::to_string(type.cols);
 						else if (type.is_vector())
@@ -285,7 +288,7 @@ namespace reshade
 						else
 							code.first += "bool";
 						break;
-					case fx::nodes::type_node::datatype_int:
+					case type_node::datatype_int:
 						if (type.is_matrix())
 							code.first += "mat" + std::to_string(type.rows) + 'x' + std::to_string(type.cols);
 						else if (type.is_vector())
@@ -293,7 +296,7 @@ namespace reshade
 						else
 							code.first += "int";
 						break;
-					case fx::nodes::type_node::datatype_uint:
+					case type_node::datatype_uint:
 						if (type.is_matrix())
 							code.first += "mat" + std::to_string(type.rows) + 'x' + std::to_string(type.cols);
 						else if (type.is_vector())
@@ -301,7 +304,7 @@ namespace reshade
 						else
 							code.first += "uint";
 						break;
-					case fx::nodes::type_node::datatype_float:
+					case type_node::datatype_float:
 						if (type.is_matrix())
 							code.first += "mat" + std::to_string(type.rows) + 'x' + std::to_string(type.cols);
 						else if (type.is_vector())
@@ -309,10 +312,10 @@ namespace reshade
 						else
 							code.first += "float";
 						break;
-					case fx::nodes::type_node::datatype_sampler:
+					case type_node::datatype_sampler:
 						code.first += "sampler2D";
 						break;
-					case fx::nodes::type_node::datatype_struct:
+					case type_node::datatype_struct:
 						code.first += escape_name(type.definition->unique_name);
 						break;
 				}
@@ -352,7 +355,7 @@ namespace reshade
 		}
 	}
 
-	gl_fx_compiler::gl_fx_compiler(gl_runtime *runtime, const fx::syntax_tree &ast, std::string &errors) :
+	gl_fx_compiler::gl_fx_compiler(gl_runtime *runtime, const syntax_tree &ast, std::string &errors) :
 		_runtime(runtime),
 		_success(true),
 		_ast(ast),
@@ -365,13 +368,11 @@ namespace reshade
 	{
 		for (auto node : _ast.structs)
 		{
-			visit(_global_code, static_cast<fx::nodes::struct_declaration_node *>(node));
+			visit(_global_code, node);
 		}
 
-		for (auto node : _ast.variables)
+		for (auto uniform : _ast.variables)
 		{
-			const auto uniform = static_cast<fx::nodes::variable_declaration_node *>(node);
-
 			if (uniform->type.is_texture())
 			{
 				visit_texture(uniform);
@@ -380,7 +381,7 @@ namespace reshade
 			{
 				visit_sampler(uniform);
 			}
-			else if (uniform->type.has_qualifier(fx::nodes::type_node::qualifier_uniform))
+			else if (uniform->type.has_qualifier(type_node::qualifier_uniform))
 			{
 				visit_uniform(uniform);
 			}
@@ -392,9 +393,8 @@ namespace reshade
 			}
 		}
 
-		for (auto node : _ast.functions)
+		for (auto function : _ast.functions)
 		{
-			const auto function = static_cast<fx::nodes::function_declaration_node *>(node);
 			std::stringstream function_code;
 
 			_functions[_current_function = function];
@@ -404,9 +404,9 @@ namespace reshade
 			_functions[function].code = function_code.str();
 		}
 
-		for (auto node : _ast.techniques)
+		for (auto technique : _ast.techniques)
 		{
-			visit_technique(static_cast<fx::nodes::technique_declaration_node *>(node));
+			visit_technique(technique);
 		}
 
 		if (_runtime->_effect_ubo_size != 0)
@@ -425,18 +425,18 @@ namespace reshade
 		return _success;
 	}
 
-	void gl_fx_compiler::error(const fx::location &location, const std::string &message)
+	void gl_fx_compiler::error(const location &location, const std::string &message)
 	{
 		_success = false;
 
 		_errors += location.source + "(" + std::to_string(location.line) + ", " + std::to_string(location.column) + "): error: " + message + '\n';
 	}
-	void gl_fx_compiler::warning(const fx::location &location, const std::string &message)
+	void gl_fx_compiler::warning(const location &location, const std::string &message)
 	{
 		_errors += location.source + "(" + std::to_string(location.line) + ", " + std::to_string(location.column) + "): warning: " + message + '\n';
 	}
 
-	void gl_fx_compiler::visit(std::stringstream &output, const fx::nodes::statement_node *node)
+	void gl_fx_compiler::visit(std::stringstream &output, const statement_node *node)
 	{
 		if (node == nullptr)
 		{
@@ -445,117 +445,117 @@ namespace reshade
 
 		switch (node->id)
 		{
-			case fx::nodeid::compound_statement:
-				visit(output, static_cast<const fx::nodes::compound_statement_node *>(node));
+			case nodeid::compound_statement:
+				visit(output, static_cast<const compound_statement_node *>(node));
 				break;
-			case fx::nodeid::declarator_list:
-				visit(output, static_cast<const fx::nodes::declarator_list_node *>(node), false);
+			case nodeid::declarator_list:
+				visit(output, static_cast<const declarator_list_node *>(node), false);
 				break;
-			case fx::nodeid::expression_statement:
-				visit(output, static_cast<const fx::nodes::expression_statement_node *>(node));
+			case nodeid::expression_statement:
+				visit(output, static_cast<const expression_statement_node *>(node));
 				break;
-			case fx::nodeid::if_statement:
-				visit(output, static_cast<const fx::nodes::if_statement_node *>(node));
+			case nodeid::if_statement:
+				visit(output, static_cast<const if_statement_node *>(node));
 				break;
-			case fx::nodeid::switch_statement:
-				visit(output, static_cast<const fx::nodes::switch_statement_node *>(node));
+			case nodeid::switch_statement:
+				visit(output, static_cast<const switch_statement_node *>(node));
 				break;
-			case fx::nodeid::for_statement:
-				visit(output, static_cast<const fx::nodes::for_statement_node *>(node));
+			case nodeid::for_statement:
+				visit(output, static_cast<const for_statement_node *>(node));
 				break;
-			case fx::nodeid::while_statement:
-				visit(output, static_cast<const fx::nodes::while_statement_node *>(node));
+			case nodeid::while_statement:
+				visit(output, static_cast<const while_statement_node *>(node));
 				break;
-			case fx::nodeid::return_statement:
-				visit(output, static_cast<const fx::nodes::return_statement_node *>(node));
+			case nodeid::return_statement:
+				visit(output, static_cast<const return_statement_node *>(node));
 				break;
-			case fx::nodeid::jump_statement:
-				visit(output, static_cast<const fx::nodes::jump_statement_node *>(node));
+			case nodeid::jump_statement:
+				visit(output, static_cast<const jump_statement_node *>(node));
 				break;
 			default:
 				assert(false);
 		}
 	}
-	void gl_fx_compiler::visit(std::stringstream &output, const fx::nodes::expression_node *node)
+	void gl_fx_compiler::visit(std::stringstream &output, const expression_node *node)
 	{
 		assert(node != nullptr);
 
 		switch (node->id)
 		{
-			case fx::nodeid::lvalue_expression:
-				visit(output, static_cast<const fx::nodes::lvalue_expression_node *>(node));
+			case nodeid::lvalue_expression:
+				visit(output, static_cast<const lvalue_expression_node *>(node));
 				break;
-			case fx::nodeid::literal_expression:
-				visit(output, static_cast<const fx::nodes::literal_expression_node *>(node));
+			case nodeid::literal_expression:
+				visit(output, static_cast<const literal_expression_node *>(node));
 				break;
-			case fx::nodeid::expression_sequence:
-				visit(output, static_cast<const fx::nodes::expression_sequence_node *>(node));
+			case nodeid::expression_sequence:
+				visit(output, static_cast<const expression_sequence_node *>(node));
 				break;
-			case fx::nodeid::unary_expression:
-				visit(output, static_cast<const fx::nodes::unary_expression_node *>(node));
+			case nodeid::unary_expression:
+				visit(output, static_cast<const unary_expression_node *>(node));
 				break;
-			case fx::nodeid::binary_expression:
-				visit(output, static_cast<const fx::nodes::binary_expression_node *>(node));
+			case nodeid::binary_expression:
+				visit(output, static_cast<const binary_expression_node *>(node));
 				break;
-			case fx::nodeid::intrinsic_expression:
-				visit(output, static_cast<const fx::nodes::intrinsic_expression_node *>(node));
+			case nodeid::intrinsic_expression:
+				visit(output, static_cast<const intrinsic_expression_node *>(node));
 				break;
-			case fx::nodeid::conditional_expression:
-				visit(output, static_cast<const fx::nodes::conditional_expression_node *>(node));
+			case nodeid::conditional_expression:
+				visit(output, static_cast<const conditional_expression_node *>(node));
 				break;
-			case fx::nodeid::swizzle_expression:
-				visit(output, static_cast<const fx::nodes::swizzle_expression_node *>(node));
+			case nodeid::swizzle_expression:
+				visit(output, static_cast<const swizzle_expression_node *>(node));
 				break;
-			case fx::nodeid::field_expression:
-				visit(output, static_cast<const fx::nodes::field_expression_node *>(node));
+			case nodeid::field_expression:
+				visit(output, static_cast<const field_expression_node *>(node));
 				break;
-			case fx::nodeid::initializer_list:
-				visit(output, static_cast<const fx::nodes::initializer_list_node *>(node));
+			case nodeid::initializer_list:
+				visit(output, static_cast<const initializer_list_node *>(node));
 				break;
-			case fx::nodeid::assignment_expression:
-				visit(output, static_cast<const fx::nodes::assignment_expression_node *>(node));
+			case nodeid::assignment_expression:
+				visit(output, static_cast<const assignment_expression_node *>(node));
 				break;
-			case fx::nodeid::call_expression:
-				visit(output, static_cast<const fx::nodes::call_expression_node *>(node));
+			case nodeid::call_expression:
+				visit(output, static_cast<const call_expression_node *>(node));
 				break;
-			case fx::nodeid::constructor_expression:
-				visit(output, static_cast<const fx::nodes::constructor_expression_node *>(node));
+			case nodeid::constructor_expression:
+				visit(output, static_cast<const constructor_expression_node *>(node));
 				break;
 			default:
 				assert(false);
 		}
 	}
 
-	void gl_fx_compiler::visit(std::stringstream &output, const fx::nodes::type_node &type, bool with_qualifiers)
+	void gl_fx_compiler::visit(std::stringstream &output, const type_node &type, bool with_qualifiers)
 	{
 		if (with_qualifiers)
 		{
-			if (type.has_qualifier(fx::nodes::type_node::qualifier_linear))
+			if (type.has_qualifier(type_node::qualifier_linear))
 				output << "smooth ";
-			if (type.has_qualifier(fx::nodes::type_node::qualifier_noperspective))
+			if (type.has_qualifier(type_node::qualifier_noperspective))
 				output << "noperspective ";
-			if (type.has_qualifier(fx::nodes::type_node::qualifier_centroid))
+			if (type.has_qualifier(type_node::qualifier_centroid))
 				output << "centroid ";
-			if (type.has_qualifier(fx::nodes::type_node::qualifier_nointerpolation))
+			if (type.has_qualifier(type_node::qualifier_nointerpolation))
 				output << "flat ";
-			if (type.has_qualifier(fx::nodes::type_node::qualifier_inout))
+			if (type.has_qualifier(type_node::qualifier_inout))
 				output << "inout ";
-			else if (type.has_qualifier(fx::nodes::type_node::qualifier_in))
+			else if (type.has_qualifier(type_node::qualifier_in))
 				output << "in ";
-			else if (type.has_qualifier(fx::nodes::type_node::qualifier_out))
+			else if (type.has_qualifier(type_node::qualifier_out))
 				output << "out ";
-			else if (type.has_qualifier(fx::nodes::type_node::qualifier_uniform))
+			else if (type.has_qualifier(type_node::qualifier_uniform))
 				output << "uniform ";
-			if (type.has_qualifier(fx::nodes::type_node::qualifier_const))
+			if (type.has_qualifier(type_node::qualifier_const))
 				output << "const ";
 		}
 
 		switch (type.basetype)
 		{
-			case fx::nodes::type_node::datatype_void:
+			case type_node::datatype_void:
 				output << "void";
 				break;
-			case fx::nodes::type_node::datatype_bool:
+			case type_node::datatype_bool:
 				if (type.is_matrix())
 					output << "mat" << type.rows << 'x' << type.cols;
 				else if (type.is_vector())
@@ -563,7 +563,7 @@ namespace reshade
 				else
 					output << "bool";
 				break;
-			case fx::nodes::type_node::datatype_int:
+			case type_node::datatype_int:
 				if (type.is_matrix())
 					output << "mat" << type.rows << 'x' << type.cols;
 				else if (type.is_vector())
@@ -571,7 +571,7 @@ namespace reshade
 				else
 					output << "int";
 				break;
-			case fx::nodes::type_node::datatype_uint:
+			case type_node::datatype_uint:
 				if (type.is_matrix())
 					output << "mat" << type.rows << 'x' << type.cols;
 				else if (type.is_vector())
@@ -579,7 +579,7 @@ namespace reshade
 				else
 					output << "uint";
 				break;
-			case fx::nodes::type_node::datatype_float:
+			case type_node::datatype_float:
 				if (type.is_matrix())
 					output << "mat" << type.rows << 'x' << type.cols;
 				else if (type.is_vector())
@@ -587,19 +587,19 @@ namespace reshade
 				else
 					output << "float";
 				break;
-			case fx::nodes::type_node::datatype_sampler:
+			case type_node::datatype_sampler:
 				output << "sampler2D";
 				break;
-			case fx::nodes::type_node::datatype_struct:
+			case type_node::datatype_struct:
 				output << escape_name(type.definition->unique_name);
 				break;
 		}
 	}
-	void gl_fx_compiler::visit(std::stringstream &output, const fx::nodes::lvalue_expression_node *node)
+	void gl_fx_compiler::visit(std::stringstream &output, const lvalue_expression_node *node)
 	{
 		output << escape_name(node->reference->unique_name);
 	}
-	void gl_fx_compiler::visit(std::stringstream &output, const fx::nodes::literal_expression_node *node)
+	void gl_fx_compiler::visit(std::stringstream &output, const literal_expression_node *node)
 	{
 		if (!node->type.is_scalar())
 		{
@@ -612,16 +612,16 @@ namespace reshade
 		{
 			switch (node->type.basetype)
 			{
-				case fx::nodes::type_node::datatype_bool:
+				case type_node::datatype_bool:
 					output << (node->value_int[i] ? "true" : "false");
 					break;
-				case fx::nodes::type_node::datatype_int:
+				case type_node::datatype_int:
 					output << node->value_int[i];
 					break;
-				case fx::nodes::type_node::datatype_uint:
+				case type_node::datatype_uint:
 					output << node->value_uint[i] << 'u';
 					break;
-				case fx::nodes::type_node::datatype_float:
+				case type_node::datatype_float:
 					output << std::setprecision(8) << std::fixed << node->value_float[i];
 					break;
 			}
@@ -637,7 +637,7 @@ namespace reshade
 			output << ')';
 		}
 	}
-	void gl_fx_compiler::visit(std::stringstream &output, const fx::nodes::expression_sequence_node *node)
+	void gl_fx_compiler::visit(std::stringstream &output, const expression_sequence_node *node)
 	{
 		output << '(';
 
@@ -653,17 +653,17 @@ namespace reshade
 
 		output << ')';
 	}
-	void gl_fx_compiler::visit(std::stringstream &output, const fx::nodes::unary_expression_node *node)
+	void gl_fx_compiler::visit(std::stringstream &output, const unary_expression_node *node)
 	{
 		switch (node->op)
 		{
-			case fx::nodes::unary_expression_node::negate:
+			case unary_expression_node::negate:
 				output << '-';
 				break;
-			case fx::nodes::unary_expression_node::bitwise_not:
+			case unary_expression_node::bitwise_not:
 				output << "~";
 				break;
-			case fx::nodes::unary_expression_node::logical_not:
+			case unary_expression_node::logical_not:
 				if (node->type.is_vector())
 				{
 					const auto cast = write_cast(node->operand->type, node->type);
@@ -675,13 +675,13 @@ namespace reshade
 					output << "!bool(";
 				}
 				break;
-			case fx::nodes::unary_expression_node::pre_increase:
+			case unary_expression_node::pre_increase:
 				output << "++";
 				break;
-			case fx::nodes::unary_expression_node::pre_decrease:
+			case unary_expression_node::pre_decrease:
 				output << "--";
 				break;
-			case fx::nodes::unary_expression_node::cast:
+			case unary_expression_node::cast:
 				visit(output, node->type, false);
 				output << '(';
 				break;
@@ -691,13 +691,13 @@ namespace reshade
 
 		switch (node->op)
 		{
-			case fx::nodes::unary_expression_node::post_increase:
+			case unary_expression_node::post_increase:
 				output << "++";
 				break;
-			case fx::nodes::unary_expression_node::post_decrease:
+			case unary_expression_node::post_decrease:
 				output << "--";
 				break;
-			case fx::nodes::unary_expression_node::logical_not:
+			case unary_expression_node::logical_not:
 				if (node->type.is_vector())
 				{
 					const auto cast = write_cast(node->operand->type, node->type);
@@ -705,12 +705,12 @@ namespace reshade
 					output << cast.second;
 				}
 				// fall through
-			case fx::nodes::unary_expression_node::cast:
+			case unary_expression_node::cast:
 				output << ')';
 				break;
 		}
 	}
-	void gl_fx_compiler::visit(std::stringstream &output, const fx::nodes::binary_expression_node *node)
+	void gl_fx_compiler::visit(std::stringstream &output, const binary_expression_node *node)
 	{
 		const auto type1 = node->operands[0]->type;
 		const auto type2 = node->operands[1]->type;
@@ -725,17 +725,17 @@ namespace reshade
 
 		switch (node->op)
 		{
-			case fx::nodes::binary_expression_node::add:
+			case binary_expression_node::add:
 				part1 = '(' + cast1.first;
 				part2 = cast1.second + " + " + cast2.first;
 				part3 = cast2.second + ')';
 				break;
-			case fx::nodes::binary_expression_node::subtract:
+			case binary_expression_node::subtract:
 				part1 = '(' + cast1.first;
 				part2 = cast1.second + " - " + cast2.first;
 				part3 = cast2.second + ')';
 				break;
-			case fx::nodes::binary_expression_node::multiply:
+			case binary_expression_node::multiply:
 				if (node->type.is_matrix())
 				{
 					part1 = "matrixCompMult(" + cast1.first;
@@ -749,12 +749,12 @@ namespace reshade
 					part3 = cast2.second + ')';
 				}
 				break;
-			case fx::nodes::binary_expression_node::divide:
+			case binary_expression_node::divide:
 				part1 = '(' + cast1.first;
 				part2 = cast1.second + " / " + cast2.first;
 				part3 = cast2.second + ')';
 				break;
-			case fx::nodes::binary_expression_node::modulo:
+			case binary_expression_node::modulo:
 				if (node->type.is_floating_point())
 				{
 					part1 = "_fmod(" + cast1.first;
@@ -768,7 +768,7 @@ namespace reshade
 					part3 = cast2.second + ')';
 				}
 				break;
-			case fx::nodes::binary_expression_node::less:
+			case binary_expression_node::less:
 				if (node->type.is_vector())
 				{
 					part1 = "lessThan(" + cast121.first;
@@ -782,7 +782,7 @@ namespace reshade
 					part3 = cast122.second + ')';
 				}
 				break;
-			case fx::nodes::binary_expression_node::greater:
+			case binary_expression_node::greater:
 				if (node->type.is_vector())
 				{
 					part1 = "greaterThan(" + cast121.first;
@@ -796,7 +796,7 @@ namespace reshade
 					part3 = cast122.second + ')';
 				}
 				break;
-			case fx::nodes::binary_expression_node::less_equal:
+			case binary_expression_node::less_equal:
 				if (node->type.is_vector())
 				{
 					part1 = "lessThanEqual(" + cast121.first;
@@ -810,7 +810,7 @@ namespace reshade
 					part3 = cast122.second + ')';
 				}
 				break;
-			case fx::nodes::binary_expression_node::greater_equal:
+			case binary_expression_node::greater_equal:
 				if (node->type.is_vector())
 				{
 					part1 = "greaterThanEqual(" + cast121.first;
@@ -824,7 +824,7 @@ namespace reshade
 					part3 = cast122.second + ')';
 				}
 				break;
-			case fx::nodes::binary_expression_node::equal:
+			case binary_expression_node::equal:
 				if (node->type.is_vector())
 				{
 					part1 = "equal(" + cast121.first;
@@ -838,7 +838,7 @@ namespace reshade
 					part3 = cast122.second + ')';
 				}
 				break;
-			case fx::nodes::binary_expression_node::not_equal:
+			case binary_expression_node::not_equal:
 				if (node->type.is_vector())
 				{
 					part1 = "notEqual(" + cast121.first;
@@ -852,43 +852,43 @@ namespace reshade
 					part3 = cast122.second + ')';
 				}
 				break;
-			case fx::nodes::binary_expression_node::left_shift:
+			case binary_expression_node::left_shift:
 				part1 = '(';
 				part2 = " << ";
 				part3 = ')';
 				break;
-			case fx::nodes::binary_expression_node::right_shift:
+			case binary_expression_node::right_shift:
 				part1 = '(';
 				part2 = " >> ";
 				part3 = ')';
 				break;
-			case fx::nodes::binary_expression_node::bitwise_and:
+			case binary_expression_node::bitwise_and:
 				part1 = '(' + cast1.first;
 				part2 = cast1.second + " & " + cast2.first;
 				part3 = cast2.second + ')';
 				break;
-			case fx::nodes::binary_expression_node::bitwise_or:
+			case binary_expression_node::bitwise_or:
 				part1 = '(' + cast1.first;
 				part2 = cast1.second + " | " + cast2.first;
 				part3 = cast2.second + ')';
 				break;
-			case fx::nodes::binary_expression_node::bitwise_xor:
+			case binary_expression_node::bitwise_xor:
 				part1 = '(' + cast1.first;
 				part2 = cast1.second + " ^ " + cast2.first;
 				part3 = cast2.second + ')';
 				break;
-			case fx::nodes::binary_expression_node::logical_and:
+			case binary_expression_node::logical_and:
 				part1 = '(' + cast121.first;
 				part2 = cast121.second + " && " + cast122.first;
 				part3 = cast122.second + ')';
 				break;
-			case fx::nodes::binary_expression_node::logical_or:
+			case binary_expression_node::logical_or:
 				part1 = '(' + cast121.first;
 				part2 = cast121.second + " || " + cast122.first;
 				part3 = cast122.second + ')';
 				break;
-			case fx::nodes::binary_expression_node::element_extract:
-				if (type2.basetype != fx::nodes::type_node::datatype_uint)
+			case binary_expression_node::element_extract:
+				if (type2.basetype != type_node::datatype_uint)
 				{
 					part2 = "[uint(";
 					part3 = ")]";
@@ -907,9 +907,9 @@ namespace reshade
 		visit(output, node->operands[1]);
 		output << part3;
 	}
-	void gl_fx_compiler::visit(std::stringstream &output, const fx::nodes::intrinsic_expression_node *node)
+	void gl_fx_compiler::visit(std::stringstream &output, const intrinsic_expression_node *node)
 	{
-		fx::nodes::type_node type1 = { fx::nodes::type_node::datatype_void }, type2, type3, type4, type12;
+		type_node type1 = { type_node::datatype_void }, type2, type3, type4, type12;
 		std::pair<std::string, std::string> cast1, cast2, cast3, cast4, cast121, cast122;
 
 		if (node->arguments[0] != nullptr)
@@ -938,17 +938,17 @@ namespace reshade
 
 		switch (node->op)
 		{
-			case fx::nodes::intrinsic_expression_node::abs:
+			case intrinsic_expression_node::abs:
 				output << "abs(" << cast1.first;
 				visit(output, node->arguments[0]);
 				output << cast1.second << ')';
 				break;
-			case fx::nodes::intrinsic_expression_node::acos:
+			case intrinsic_expression_node::acos:
 				output << "acos(" << cast1.first;
 				visit(output, node->arguments[0]);
 				output << cast1.second << ')';
 				break;
-			case fx::nodes::intrinsic_expression_node::all:
+			case intrinsic_expression_node::all:
 				if (type1.is_vector())
 				{
 					output << "all(bvec" << type1.rows << '(';
@@ -962,7 +962,7 @@ namespace reshade
 					output << ')';
 				}
 				break;
-			case fx::nodes::intrinsic_expression_node::any:
+			case intrinsic_expression_node::any:
 				if (type1.is_vector())
 				{
 					output << "any(bvec" << type1.rows << '(';
@@ -976,55 +976,55 @@ namespace reshade
 					output << ')';
 				}
 				break;
-			case fx::nodes::intrinsic_expression_node::bitcast_int2float:
+			case intrinsic_expression_node::bitcast_int2float:
 				output << "intBitsToFloat(";
 
-				if (type1.basetype != fx::nodes::type_node::datatype_int)
+				if (type1.basetype != type_node::datatype_int)
 				{
-					type1.basetype = fx::nodes::type_node::datatype_int;
+					type1.basetype = type_node::datatype_int;
 					visit(output, type1, false);
 					output << '(';
 				}
 
 				visit(output, node->arguments[0]);
 
-				if (type1.basetype != fx::nodes::type_node::datatype_int)
+				if (type1.basetype != type_node::datatype_int)
 				{
 					output << ')';
 				}
 
 				output << ')';
 				break;
-			case fx::nodes::intrinsic_expression_node::bitcast_uint2float:
+			case intrinsic_expression_node::bitcast_uint2float:
 				output << "uintBitsToFloat(";
 
-				if (type1.basetype != fx::nodes::type_node::datatype_uint)
+				if (type1.basetype != type_node::datatype_uint)
 				{
-					type1.basetype = fx::nodes::type_node::datatype_uint;
+					type1.basetype = type_node::datatype_uint;
 					visit(output, type1, false);
 					output << '(';
 				}
 
 				visit(output, node->arguments[0]);
 
-				if (type1.basetype != fx::nodes::type_node::datatype_uint)
+				if (type1.basetype != type_node::datatype_uint)
 				{
 					output << ')';
 				}
 
 				output << ')';
 				break;
-			case fx::nodes::intrinsic_expression_node::asin:
+			case intrinsic_expression_node::asin:
 				output << "asin(" << cast1.first;
 				visit(output, node->arguments[0]);
 				output << cast1.second << ')';
 				break;
-			case fx::nodes::intrinsic_expression_node::bitcast_float2int:
+			case intrinsic_expression_node::bitcast_float2int:
 				output << "floatBitsToInt(";
 
 				if (!type1.is_floating_point())
 				{
-					type1.basetype = fx::nodes::type_node::datatype_float;
+					type1.basetype = type_node::datatype_float;
 					visit(output, type1, false);
 					output << '(';
 				}
@@ -1038,12 +1038,12 @@ namespace reshade
 
 				output << ')';
 				break;
-			case fx::nodes::intrinsic_expression_node::bitcast_float2uint:
+			case intrinsic_expression_node::bitcast_float2uint:
 				output << "floatBitsToUint(";
 
 				if (!type1.is_floating_point())
 				{
-					type1.basetype = fx::nodes::type_node::datatype_float;
+					type1.basetype = type_node::datatype_float;
 					visit(output, type1, false);
 					output << '(';
 				}
@@ -1057,24 +1057,24 @@ namespace reshade
 
 				output << ')';
 				break;
-			case fx::nodes::intrinsic_expression_node::atan:
+			case intrinsic_expression_node::atan:
 				output << "atan(" << cast1.first;
 				visit(output, node->arguments[0]);
 				output << cast1.second << ')';
 				break;
-			case fx::nodes::intrinsic_expression_node::atan2:
+			case intrinsic_expression_node::atan2:
 				output << "atan(" << cast1.first;
 				visit(output, node->arguments[0]);
 				output << cast1.second << ", " << cast2.first;
 				visit(output, node->arguments[1]);
 				output << cast2.second << ')';
 				break;
-			case fx::nodes::intrinsic_expression_node::ceil:
+			case intrinsic_expression_node::ceil:
 				output << "ceil(" << cast1.first;
 				visit(output, node->arguments[0]);
 				output << cast1.second << ')';
 				break;
-			case fx::nodes::intrinsic_expression_node::clamp:
+			case intrinsic_expression_node::clamp:
 				output << "clamp(" << cast1.first;
 				visit(output, node->arguments[0]);
 				output << cast1.second << ", " << cast2.first;
@@ -1083,44 +1083,44 @@ namespace reshade
 				visit(output, node->arguments[2]);
 				output << cast3.second << ')';
 				break;
-			case fx::nodes::intrinsic_expression_node::cos:
+			case intrinsic_expression_node::cos:
 				output << "cos(" << cast1.first;
 				visit(output, node->arguments[0]);
 				output << cast1.second << ')';
 				break;
-			case fx::nodes::intrinsic_expression_node::cosh:
+			case intrinsic_expression_node::cosh:
 				output << "cosh(" << cast1.first;
 				visit(output, node->arguments[0]);
 				output << cast1.second << ')';
 				break;
-			case fx::nodes::intrinsic_expression_node::cross:
+			case intrinsic_expression_node::cross:
 				output << "cross(" << cast1.first;
 				visit(output, node->arguments[0]);
 				output << cast1.second << ", " << cast2.first;
 				visit(output, node->arguments[1]);
 				output << cast2.second << ')';
 				break;
-			case fx::nodes::intrinsic_expression_node::ddx:
+			case intrinsic_expression_node::ddx:
 				output << "dFdx(" << cast1.first;
 				visit(output, node->arguments[0]);
 				output << cast1.second << ')';
 				break;
-			case fx::nodes::intrinsic_expression_node::ddy:
+			case intrinsic_expression_node::ddy:
 				output << "dFdy(" << cast1.first;
 				visit(output, node->arguments[0]);
 				output << cast1.second << ')';
 				break;
-			case fx::nodes::intrinsic_expression_node::degrees:
+			case intrinsic_expression_node::degrees:
 				output << "degrees(" << cast1.first;
 				visit(output, node->arguments[0]);
 				output << cast1.second << ')';
 				break;
-			case fx::nodes::intrinsic_expression_node::determinant:
+			case intrinsic_expression_node::determinant:
 				output << "determinant(";
 
 				if (!type1.is_floating_point())
 				{
-					type1.basetype = fx::nodes::type_node::datatype_float;
+					type1.basetype = type_node::datatype_float;
 					visit(output, type1, false);
 					output << '(';
 				}
@@ -1134,31 +1134,31 @@ namespace reshade
 
 				output << ')';
 				break;
-			case fx::nodes::intrinsic_expression_node::distance:
+			case intrinsic_expression_node::distance:
 				output << "distance(" << cast121.first;
 				visit(output, node->arguments[0]);
 				output << cast121.second << ", " << cast122.first;
 				visit(output, node->arguments[1]);
 				output << cast122.second << ')';
 				break;
-			case fx::nodes::intrinsic_expression_node::dot:
+			case intrinsic_expression_node::dot:
 				output << "dot(" << cast121.first;
 				visit(output, node->arguments[0]);
 				output << cast121.second << ", " << cast122.first;
 				visit(output, node->arguments[1]);
 				output << cast122.second << ')';
 				break;
-			case fx::nodes::intrinsic_expression_node::exp:
+			case intrinsic_expression_node::exp:
 				output << "exp(" << cast1.first;
 				visit(output, node->arguments[0]);
 				output << cast1.second << ')';
 				break;
-			case fx::nodes::intrinsic_expression_node::exp2:
+			case intrinsic_expression_node::exp2:
 				output << "exp2(" << cast1.first;
 				visit(output, node->arguments[0]);
 				output << cast1.second << ')';
 				break;
-			case fx::nodes::intrinsic_expression_node::faceforward:
+			case intrinsic_expression_node::faceforward:
 				output << "faceforward(" << cast1.first;
 				visit(output, node->arguments[0]);
 				output << cast1.second << ", " << cast2.first;
@@ -1167,41 +1167,41 @@ namespace reshade
 				visit(output, node->arguments[2]);
 				output << cast3.second << ')';
 				break;
-			case fx::nodes::intrinsic_expression_node::floor:
+			case intrinsic_expression_node::floor:
 				output << "floor(" << cast1.first;
 				visit(output, node->arguments[0]);
 				output << cast1.second << ')';
 				break;
-			case fx::nodes::intrinsic_expression_node::frac:
+			case intrinsic_expression_node::frac:
 				output << "fract(" << cast1.first;
 				visit(output, node->arguments[0]);
 				output << cast1.second << ')';
 				break;
-			case fx::nodes::intrinsic_expression_node::frexp:
+			case intrinsic_expression_node::frexp:
 				output << "frexp(" << cast1.first;
 				visit(output, node->arguments[0]);
 				output << cast1.second << ", " << cast2.first;
 				visit(output, node->arguments[1]);
 				output << cast2.second << ')';
 				break;
-			case fx::nodes::intrinsic_expression_node::fwidth:
+			case intrinsic_expression_node::fwidth:
 				output << "fwidth(" << cast1.first;
 				visit(output, node->arguments[0]);
 				output << cast1.second << ')';
 				break;
-			case fx::nodes::intrinsic_expression_node::ldexp:
+			case intrinsic_expression_node::ldexp:
 				output << "ldexp(" << cast1.first;
 				visit(output, node->arguments[0]);
 				output << cast1.second << ", " << cast2.first;
 				visit(output, node->arguments[1]);
 				output << cast2.second << ')';
 				break;
-			case fx::nodes::intrinsic_expression_node::length:
+			case intrinsic_expression_node::length:
 				output << "length(";
 
 				if (!type1.is_floating_point())
 				{
-					type1.basetype = fx::nodes::type_node::datatype_float;
+					type1.basetype = type_node::datatype_float;
 					visit(output, type1, false);
 					output << '(';
 				}
@@ -1215,7 +1215,7 @@ namespace reshade
 
 				output << ')';
 				break;
-			case fx::nodes::intrinsic_expression_node::lerp:
+			case intrinsic_expression_node::lerp:
 				output << "mix(" << cast1.first;
 				visit(output, node->arguments[0]);
 				output << cast1.second << ", " << cast2.first;
@@ -1224,24 +1224,24 @@ namespace reshade
 				visit(output, node->arguments[2]);
 				output << cast3.second << ')';
 				break;
-			case fx::nodes::intrinsic_expression_node::log:
+			case intrinsic_expression_node::log:
 				output << "log(" << cast1.first;
 				visit(output, node->arguments[0]);
 				output << cast1.second << ')';
 				break;
-			case fx::nodes::intrinsic_expression_node::log10:
+			case intrinsic_expression_node::log10:
 				output << "(log2(" << cast1.first;
 				visit(output, node->arguments[0]);
 				output << cast1.second << ") / ";
 				visit(output, node->type, false);
 				output << "(2.302585093))";
 				break;
-			case fx::nodes::intrinsic_expression_node::log2:
+			case intrinsic_expression_node::log2:
 				output << "log2(" << cast1.first;
 				visit(output, node->arguments[0]);
 				output << cast1.second << ')';
 				break;
-			case fx::nodes::intrinsic_expression_node::mad:
+			case intrinsic_expression_node::mad:
 				output << "(" << cast1.first;
 				visit(output, node->arguments[0]);
 				output << cast1.second << " * " << cast2.first;
@@ -1250,40 +1250,40 @@ namespace reshade
 				visit(output, node->arguments[2]);
 				output << cast3.second << ')';
 				break;
-			case fx::nodes::intrinsic_expression_node::max:
+			case intrinsic_expression_node::max:
 				output << "max(" << cast1.first;
 				visit(output, node->arguments[0]);
 				output << cast1.second << ", " << cast2.first;
 				visit(output, node->arguments[1]);
 				output << cast2.second << ')';
 				break;
-			case fx::nodes::intrinsic_expression_node::min:
+			case intrinsic_expression_node::min:
 				output << "min(" << cast1.first;
 				visit(output, node->arguments[0]);
 				output << cast1.second << ", " << cast2.first;
 				visit(output, node->arguments[1]);
 				output << cast2.second << ')';
 				break;
-			case fx::nodes::intrinsic_expression_node::modf:
+			case intrinsic_expression_node::modf:
 				output << "modf(" << cast1.first;
 				visit(output, node->arguments[0]);
 				output << cast1.second << ", " << cast2.first;
 				visit(output, node->arguments[1]);
 				output << cast2.second << ')';
 				break;
-			case fx::nodes::intrinsic_expression_node::mul:
+			case intrinsic_expression_node::mul:
 				output << '(';
 				visit(output, node->arguments[0]);
 				output << " * ";
 				visit(output, node->arguments[1]);
 				output << ')';
 				break;
-			case fx::nodes::intrinsic_expression_node::normalize:
+			case intrinsic_expression_node::normalize:
 				output << "normalize(";
 
 				if (!type1.is_floating_point())
 				{
-					type1.basetype = fx::nodes::type_node::datatype_float;
+					type1.basetype = type_node::datatype_float;
 					visit(output, type1, false);
 					output << '(';
 				}
@@ -1297,33 +1297,33 @@ namespace reshade
 
 				output << ')';
 				break;
-			case fx::nodes::intrinsic_expression_node::pow:
+			case intrinsic_expression_node::pow:
 				output << "pow(" << cast1.first;
 				visit(output, node->arguments[0]);
 				output << cast1.second << ", " << cast2.first;
 				visit(output, node->arguments[1]);
 				output << cast2.second << ')';
 				break;
-			case fx::nodes::intrinsic_expression_node::radians:
+			case intrinsic_expression_node::radians:
 				output << "radians(" << cast1.first;
 				visit(output, node->arguments[0]);
 				output << cast1.second << ')';
 				break;
-			case fx::nodes::intrinsic_expression_node::rcp:
+			case intrinsic_expression_node::rcp:
 				output << '(';
 				visit(output, node->type, false);
 				output << "(1.0) / ";
 				visit(output, node->arguments[0]);
 				output << ')';
 				break;
-			case fx::nodes::intrinsic_expression_node::reflect:
+			case intrinsic_expression_node::reflect:
 				output << "reflect(" << cast1.first;
 				visit(output, node->arguments[0]);
 				output << cast1.second << ", " << cast2.first;
 				visit(output, node->arguments[1]);
 				output << cast2.second << ')';
 				break;
-			case fx::nodes::intrinsic_expression_node::refract:
+			case intrinsic_expression_node::refract:
 				output << "refract(" << cast1.first;
 				visit(output, node->arguments[0]);
 				output << cast1.second << ", " << cast2.first;
@@ -1332,37 +1332,37 @@ namespace reshade
 				visit(output, node->arguments[2]);
 				output << "))";
 				break;
-			case fx::nodes::intrinsic_expression_node::round:
+			case intrinsic_expression_node::round:
 				output << "round(" << cast1.first;
 				visit(output, node->arguments[0]);
 				output << cast1.second << ')';
 				break;
-			case fx::nodes::intrinsic_expression_node::rsqrt:
+			case intrinsic_expression_node::rsqrt:
 				output << "inversesqrt(" << cast1.first;
 				visit(output, node->arguments[0]);
 				output << cast1.second << ')';
 				break;
-			case fx::nodes::intrinsic_expression_node::saturate:
+			case intrinsic_expression_node::saturate:
 				output << "clamp(" << cast1.first;
 				visit(output, node->arguments[0]);
 				output << cast1.second << ", 0.0, 1.0)";
 				break;
-			case fx::nodes::intrinsic_expression_node::sign:
+			case intrinsic_expression_node::sign:
 				output << cast1.first << "sign(";
 				visit(output, node->arguments[0]);
 				output << ')' << cast1.second;
 				break;
-			case fx::nodes::intrinsic_expression_node::sin:
+			case intrinsic_expression_node::sin:
 				output << "sin(" << cast1.first;
 				visit(output, node->arguments[0]);
 				output << cast1.second << ')';
 				break;
-			case fx::nodes::intrinsic_expression_node::sincos:
+			case intrinsic_expression_node::sincos:
 				output << "_sincos(";
 
 				if (!type1.is_floating_point())
 				{
-					type1.basetype = fx::nodes::type_node::datatype_float;
+					type1.basetype = type_node::datatype_float;
 					visit(output, type1, false);
 					output << '(';
 				}
@@ -1380,12 +1380,12 @@ namespace reshade
 				visit(output, node->arguments[2]);
 				output << ')';
 				break;
-			case fx::nodes::intrinsic_expression_node::sinh:
+			case intrinsic_expression_node::sinh:
 				output << "sinh(" << cast1.first;
 				visit(output, node->arguments[0]);
 				output << cast1.second << ')';
 				break;
-			case fx::nodes::intrinsic_expression_node::smoothstep:
+			case intrinsic_expression_node::smoothstep:
 				output << "smoothstep(" << cast1.first;
 				visit(output, node->arguments[0]);
 				output << cast1.second << ", " << cast2.first;
@@ -1394,31 +1394,31 @@ namespace reshade
 				visit(output, node->arguments[2]);
 				output << cast3.second << ')';
 				break;
-			case fx::nodes::intrinsic_expression_node::sqrt:
+			case intrinsic_expression_node::sqrt:
 				output << "sqrt(" << cast1.first;
 				visit(output, node->arguments[0]);
 				output << cast1.second << ')';
 				break;
-			case fx::nodes::intrinsic_expression_node::step:
+			case intrinsic_expression_node::step:
 				output << "step(" << cast1.first;
 				visit(output, node->arguments[0]);
 				output << cast1.second << ", " << cast2.first;
 				visit(output, node->arguments[1]);
 				output << cast2.second << ')';
 				break;
-			case fx::nodes::intrinsic_expression_node::tan:
+			case intrinsic_expression_node::tan:
 				output << "tan(" << cast1.first;
 				visit(output, node->arguments[0]);
 				output << cast1.second << ')';
 				break;
-			case fx::nodes::intrinsic_expression_node::tanh:
+			case intrinsic_expression_node::tanh:
 				output << "tanh(" << cast1.first;
 				visit(output, node->arguments[0]);
 				output << cast1.second << ')';
 				break;
-			case fx::nodes::intrinsic_expression_node::texture:
+			case intrinsic_expression_node::texture:
 			{
-				const fx::nodes::type_node type2to = { fx::nodes::type_node::datatype_float, 0, 2, 1 };
+				const type_node type2to = { type_node::datatype_float, 0, 2, 1 };
 				cast2 = write_cast(type2, type2to);
 
 				output << "texture(";
@@ -1428,9 +1428,9 @@ namespace reshade
 				output << cast2.second << " * vec2(1.0, -1.0) + vec2(0.0, 1.0))";
 				break;
 			}
-			case fx::nodes::intrinsic_expression_node::texture_fetch:
+			case intrinsic_expression_node::texture_fetch:
 			{
-				const fx::nodes::type_node type2to = { fx::nodes::type_node::datatype_int, 0, 4, 1 };
+				const type_node type2to = { type_node::datatype_int, 0, 4, 1 };
 				cast2 = write_cast(type2, type2to);
 
 				output << "_texelFetch(";
@@ -1440,9 +1440,9 @@ namespace reshade
 				output << cast2.second << " * ivec2(1, -1) + ivec2(0, 1))";
 				break;
 			}
-			case fx::nodes::intrinsic_expression_node::texture_gather:
+			case intrinsic_expression_node::texture_gather:
 			{
-				const fx::nodes::type_node type2to = { fx::nodes::type_node::datatype_float, 0, 2, 1 };
+				const type_node type2to = { type_node::datatype_float, 0, 2, 1 };
 				cast2 = write_cast(type2, type2to);
 
 				output << "textureGather(";
@@ -1454,10 +1454,10 @@ namespace reshade
 				output << "))";
 				break;
 			}
-			case fx::nodes::intrinsic_expression_node::texture_gather_offset:
+			case intrinsic_expression_node::texture_gather_offset:
 			{
-				const fx::nodes::type_node type2to = { fx::nodes::type_node::datatype_float, 0, 2, 1 };
-				const fx::nodes::type_node type3to = { fx::nodes::type_node::datatype_int, 0, 2, 1 };
+				const type_node type2to = { type_node::datatype_float, 0, 2, 1 };
+				const type_node type3to = { type_node::datatype_int, 0, 2, 1 };
 				cast2 = write_cast(type2, type2to);
 				cast3 = write_cast(type3, type3to);
 
@@ -1472,9 +1472,9 @@ namespace reshade
 				output << "))";
 				break;
 			}
-			case fx::nodes::intrinsic_expression_node::texture_gradient:
+			case intrinsic_expression_node::texture_gradient:
 			{
-				const fx::nodes::type_node type2to = { fx::nodes::type_node::datatype_float, 0, 2, 1 };
+				const type_node type2to = { type_node::datatype_float, 0, 2, 1 };
 				cast2 = write_cast(type2, type2to);
 				cast3 = write_cast(type3, type2to);
 				cast4 = write_cast(type4, type2to);
@@ -1490,9 +1490,9 @@ namespace reshade
 				output << cast4.second << ")";
 				break;
 			}
-			case fx::nodes::intrinsic_expression_node::texture_level:
+			case intrinsic_expression_node::texture_level:
 			{
-				const fx::nodes::type_node type2to = { fx::nodes::type_node::datatype_float, 0, 4, 1 };
+				const type_node type2to = { type_node::datatype_float, 0, 4, 1 };
 				cast2 = write_cast(type2, type2to);
 
 				output << "_textureLod(";
@@ -1502,10 +1502,10 @@ namespace reshade
 				output << cast2.second << " * vec4(1.0, -1.0, 1.0, 1.0) + vec4(0.0, 1.0, 0.0, 0.0))";
 				break;
 			}
-			case fx::nodes::intrinsic_expression_node::texture_level_offset:
+			case intrinsic_expression_node::texture_level_offset:
 			{
-				const fx::nodes::type_node type2to = { fx::nodes::type_node::datatype_float, 0, 4, 1 };
-				const fx::nodes::type_node type3to = { fx::nodes::type_node::datatype_int, 0, 2, 1 };
+				const type_node type2to = { type_node::datatype_float, 0, 4, 1 };
+				const type_node type3to = { type_node::datatype_int, 0, 2, 1 };
 				cast2 = write_cast(type2, type2to);
 				cast3 = write_cast(type3, type3to);
 
@@ -1518,10 +1518,10 @@ namespace reshade
 				output << cast3.second << " * ivec2(1, -1))";
 				break;
 			}
-			case fx::nodes::intrinsic_expression_node::texture_offset:
+			case intrinsic_expression_node::texture_offset:
 			{
-				const fx::nodes::type_node type2to = { fx::nodes::type_node::datatype_float, 0, 2, 1 };
-				const fx::nodes::type_node type3to = { fx::nodes::type_node::datatype_int, 0, 2, 1 };
+				const type_node type2to = { type_node::datatype_float, 0, 2, 1 };
+				const type_node type3to = { type_node::datatype_int, 0, 2, 1 };
 				cast2 = write_cast(type2, type2to);
 				cast3 = write_cast(type3, type3to);
 
@@ -1534,9 +1534,9 @@ namespace reshade
 				output << cast3.second << " * ivec2(1, -1))";
 				break;
 			}
-			case fx::nodes::intrinsic_expression_node::texture_projection:
+			case intrinsic_expression_node::texture_projection:
 			{
-				const fx::nodes::type_node type2to = { fx::nodes::type_node::datatype_float, 0, 4, 1 };
+				const type_node type2to = { type_node::datatype_float, 0, 4, 1 };
 				cast2 = write_cast(type2, type2to);
 
 				output << "textureProj(";
@@ -1546,19 +1546,19 @@ namespace reshade
 				output << cast2.second << " * vec4(1.0, -1.0, 1.0, 1.0) + vec4(0.0, 1.0, 0.0, 0.0))";
 				break;
 			}
-			case fx::nodes::intrinsic_expression_node::texture_size:
+			case intrinsic_expression_node::texture_size:
 				output << "textureSize(";
 				visit(output, node->arguments[0]);
 				output << ", int(";
 				visit(output, node->arguments[1]);
 				output << "))";
 				break;
-			case fx::nodes::intrinsic_expression_node::transpose:
+			case intrinsic_expression_node::transpose:
 				output << "transpose(";
 
 				if (!type1.is_floating_point())
 				{
-					type1.basetype = fx::nodes::type_node::datatype_float;
+					type1.basetype = type_node::datatype_float;
 					visit(output, type1, false);
 					output << '(';
 				}
@@ -1571,14 +1571,14 @@ namespace reshade
 					output << ')';
 				}
 				break;
-			case fx::nodes::intrinsic_expression_node::trunc:
+			case intrinsic_expression_node::trunc:
 				output << "trunc(" << cast1.first;
 				visit(output, node->arguments[0]);
 				output << cast1.second << ')';
 				break;
 		}
 	}
-	void gl_fx_compiler::visit(std::stringstream &output, const fx::nodes::conditional_expression_node *node)
+	void gl_fx_compiler::visit(std::stringstream &output, const conditional_expression_node *node)
 	{
 		output<< '(';
 
@@ -1608,7 +1608,7 @@ namespace reshade
 		visit(output, node->expression_when_false);
 		output << cast2.second << ')';
 	}
-	void gl_fx_compiler::visit(std::stringstream &output, const fx::nodes::swizzle_expression_node *node)
+	void gl_fx_compiler::visit(std::stringstream &output, const swizzle_expression_node *node)
 	{
 		visit(output, node->operand);
 
@@ -1639,13 +1639,13 @@ namespace reshade
 			}
 		}
 	}
-	void gl_fx_compiler::visit(std::stringstream &output, const fx::nodes::field_expression_node *node)
+	void gl_fx_compiler::visit(std::stringstream &output, const field_expression_node *node)
 	{
 		output << '(';
 		visit(output, node->operand);
 		output << '.' << escape_name(node->field_reference->unique_name) << ')';
 	}
-	void gl_fx_compiler::visit(std::stringstream &output, const fx::nodes::assignment_expression_node *node)
+	void gl_fx_compiler::visit(std::stringstream &output, const assignment_expression_node *node)
 	{
 		output << '(';
 		visit(output, node->left);
@@ -1653,37 +1653,37 @@ namespace reshade
 
 		switch (node->op)
 		{
-			case fx::nodes::assignment_expression_node::none:
+			case assignment_expression_node::none:
 				output << '=';
 				break;
-			case fx::nodes::assignment_expression_node::add:
+			case assignment_expression_node::add:
 				output << "+=";
 				break;
-			case fx::nodes::assignment_expression_node::subtract:
+			case assignment_expression_node::subtract:
 				output << "-=";
 				break;
-			case fx::nodes::assignment_expression_node::multiply:
+			case assignment_expression_node::multiply:
 				output << "*=";
 				break;
-			case fx::nodes::assignment_expression_node::divide:
+			case assignment_expression_node::divide:
 				output << "/=";
 				break;
-			case fx::nodes::assignment_expression_node::modulo:
+			case assignment_expression_node::modulo:
 				output << "%=";
 				break;
-			case fx::nodes::assignment_expression_node::left_shift:
+			case assignment_expression_node::left_shift:
 				output << "<<=";
 				break;
-			case fx::nodes::assignment_expression_node::right_shift:
+			case assignment_expression_node::right_shift:
 				output << ">>=";
 				break;
-			case fx::nodes::assignment_expression_node::bitwise_and:
+			case assignment_expression_node::bitwise_and:
 				output << "&=";
 				break;
-			case fx::nodes::assignment_expression_node::bitwise_or:
+			case assignment_expression_node::bitwise_or:
 				output << "|=";
 				break;
-			case fx::nodes::assignment_expression_node::bitwise_xor:
+			case assignment_expression_node::bitwise_xor:
 				output << "^=";
 				break;
 		}
@@ -1694,7 +1694,7 @@ namespace reshade
 		visit(output, node->right);
 		output << cast.second << ')';
 	}
-	void gl_fx_compiler::visit(std::stringstream &output, const fx::nodes::call_expression_node *node)
+	void gl_fx_compiler::visit(std::stringstream &output, const call_expression_node *node)
 	{
 		output << escape_name(node->callee->unique_name) << '(';
 
@@ -1731,7 +1731,7 @@ namespace reshade
 			info.dependencies.push_back(node->callee);
 		}
 	}
-	void gl_fx_compiler::visit(std::stringstream &output, const fx::nodes::constructor_expression_node *node)
+	void gl_fx_compiler::visit(std::stringstream &output, const constructor_expression_node *node)
 	{
 		if (node->type.is_matrix())
 		{
@@ -1758,11 +1758,11 @@ namespace reshade
 			output << ')';
 		}
 	}
-	void gl_fx_compiler::visit(std::stringstream &, const fx::nodes::initializer_list_node *)
+	void gl_fx_compiler::visit(std::stringstream &, const initializer_list_node *)
 	{
 		assert(false);
 	}
-	void gl_fx_compiler::visit(std::stringstream &output, const fx::nodes::initializer_list_node *node, const fx::nodes::type_node &type)
+	void gl_fx_compiler::visit(std::stringstream &output, const initializer_list_node *node, const type_node &type)
 	{
 		visit(output, type, false);
 
@@ -1772,9 +1772,9 @@ namespace reshade
 		{
 			const auto expression = node->values[i];
 
-			if (expression->id == fx::nodeid::initializer_list)
+			if (expression->id == nodeid::initializer_list)
 			{
-				visit(output, static_cast<fx::nodes::initializer_list_node *>(expression), node->type);
+				visit(output, static_cast<initializer_list_node *>(expression), node->type);
 			}
 			else
 			{
@@ -1793,7 +1793,7 @@ namespace reshade
 
 		output << ')';
 	}
-	void gl_fx_compiler::visit(std::stringstream &output, const fx::nodes::compound_statement_node *node)
+	void gl_fx_compiler::visit(std::stringstream &output, const compound_statement_node *node)
 	{
 		output << "{\n";
 
@@ -1804,7 +1804,7 @@ namespace reshade
 
 		output << "}\n";
 	}
-	void gl_fx_compiler::visit(std::stringstream &output, const fx::nodes::declarator_list_node *node, bool single_statement)
+	void gl_fx_compiler::visit(std::stringstream &output, const declarator_list_node *node, bool single_statement)
 	{
 		bool with_type = true;
 
@@ -1824,15 +1824,15 @@ namespace reshade
 
 		output << ";\n";
 	}
-	void gl_fx_compiler::visit(std::stringstream &output, const fx::nodes::expression_statement_node *node)
+	void gl_fx_compiler::visit(std::stringstream &output, const expression_statement_node *node)
 	{
 		visit(output, node->expression);
 
 		output << ";\n";
 	}
-	void gl_fx_compiler::visit(std::stringstream &output, const fx::nodes::if_statement_node *node)
+	void gl_fx_compiler::visit(std::stringstream &output, const if_statement_node *node)
 	{
-		const fx::nodes::type_node typeto = { fx::nodes::type_node::datatype_bool, 0, 1, 1 };
+		const type_node typeto = { type_node::datatype_bool, 0, 1, 1 };
 		const auto cast = write_cast(node->condition->type, typeto);
 
 		output << "if (" << cast.first;
@@ -1857,7 +1857,7 @@ namespace reshade
 			visit(output, node->statement_when_false);
 		}
 	}
-	void gl_fx_compiler::visit(std::stringstream &output, const fx::nodes::switch_statement_node *node)
+	void gl_fx_compiler::visit(std::stringstream &output, const switch_statement_node *node)
 	{
 		output << "switch (";
 
@@ -1872,7 +1872,7 @@ namespace reshade
 
 		output << "}\n";
 	}
-	void gl_fx_compiler::visit(std::stringstream &output, const fx::nodes::case_statement_node *node)
+	void gl_fx_compiler::visit(std::stringstream &output, const case_statement_node *node)
 	{
 		for (auto label : node->labels)
 		{
@@ -1892,21 +1892,21 @@ namespace reshade
 
 		visit(output, node->statement_list);
 	}
-	void gl_fx_compiler::visit(std::stringstream &output, const fx::nodes::for_statement_node *node)
+	void gl_fx_compiler::visit(std::stringstream &output, const for_statement_node *node)
 	{
 		output << "for (";
 
 		if (node->init_statement != nullptr)
 		{
-			if (node->init_statement->id == fx::nodeid::declarator_list)
+			if (node->init_statement->id == nodeid::declarator_list)
 			{
-				visit(output, static_cast<fx::nodes::declarator_list_node *>(node->init_statement), true);
+				visit(output, static_cast<declarator_list_node *>(node->init_statement), true);
 
 				output.seekp(-2, std::ios_base::end);
 			}
 			else
 			{
-				visit(output, static_cast<fx::nodes::expression_statement_node *>(node->init_statement)->expression);
+				visit(output, static_cast<expression_statement_node *>(node->init_statement)->expression);
 			}
 		}
 
@@ -1935,7 +1935,7 @@ namespace reshade
 			output << "\t;";
 		}
 	}
-	void gl_fx_compiler::visit(std::stringstream &output, const fx::nodes::while_statement_node *node)
+	void gl_fx_compiler::visit(std::stringstream &output, const while_statement_node *node)
 	{
 		if (node->is_do_while)
 		{
@@ -1970,7 +1970,7 @@ namespace reshade
 			}
 		}
 	}
-	void gl_fx_compiler::visit(std::stringstream &output, const fx::nodes::return_statement_node *node)
+	void gl_fx_compiler::visit(std::stringstream &output, const return_statement_node *node)
 	{
 		if (node->is_discard)
 		{
@@ -1994,7 +1994,7 @@ namespace reshade
 
 		output << ";\n";
 	}
-	void gl_fx_compiler::visit(std::stringstream &output, const fx::nodes::jump_statement_node *node)
+	void gl_fx_compiler::visit(std::stringstream &output, const jump_statement_node *node)
 	{
 		if (node->is_break)
 		{
@@ -2005,7 +2005,7 @@ namespace reshade
 			output << "continue;\n";
 		}
 	}
-	void gl_fx_compiler::visit(std::stringstream &output, const fx::nodes::struct_declaration_node *node)
+	void gl_fx_compiler::visit(std::stringstream &output, const struct_declaration_node *node)
 	{
 		output << "struct " << escape_name(node->unique_name) << "\n{\n";
 
@@ -2025,7 +2025,7 @@ namespace reshade
 
 		output << "};\n";
 	}
-	void gl_fx_compiler::visit(std::stringstream &output, const fx::nodes::variable_declaration_node *node, bool with_type)
+	void gl_fx_compiler::visit(std::stringstream &output, const variable_declaration_node *node, bool with_type)
 	{
 		if (with_type)
 		{
@@ -2051,9 +2051,9 @@ namespace reshade
 		{
 			output << " = ";
 
-			if (node->initializer_expression->id == fx::nodeid::initializer_list)
+			if (node->initializer_expression->id == nodeid::initializer_list)
 			{
-				visit(output, static_cast<fx::nodes::initializer_list_node *>(node->initializer_expression), node->type);
+				visit(output, static_cast<initializer_list_node *>(node->initializer_expression), node->type);
 			}
 			else
 			{
@@ -2065,7 +2065,7 @@ namespace reshade
 			}
 		}
 	}
-	void gl_fx_compiler::visit(std::stringstream &output, const fx::nodes::function_declaration_node *node)
+	void gl_fx_compiler::visit(std::stringstream &output, const function_declaration_node *node)
 	{
 		_current_function = node;
 
@@ -2091,30 +2091,30 @@ namespace reshade
 	}
 
 	template <typename T>
-	void visit_annotation(const std::vector<fx::nodes::annotation_node> &annotations, T &object)
+	void visit_annotation(const std::vector<annotation_node> &annotations, T &object)
 	{
 		for (auto &annotation : annotations)
 		{
 			switch (annotation.value->type.basetype)
 			{
-				case fx::nodes::type_node::datatype_bool:
-				case fx::nodes::type_node::datatype_int:
+				case type_node::datatype_bool:
+				case type_node::datatype_int:
 					object.annotations[annotation.name] = annotation.value->value_int;
 					break;
-				case fx::nodes::type_node::datatype_uint:
+				case type_node::datatype_uint:
 					object.annotations[annotation.name] = annotation.value->value_uint;
 					break;
-				case fx::nodes::type_node::datatype_float:
+				case type_node::datatype_float:
 					object.annotations[annotation.name] = annotation.value->value_float;
 					break;
-				case fx::nodes::type_node::datatype_string:
+				case type_node::datatype_string:
 					object.annotations[annotation.name] = annotation.value->value_string;
 					break;
 			}
 		}
 	}
 
-	void gl_fx_compiler::visit_texture(const fx::nodes::variable_declaration_node *node)
+	void gl_fx_compiler::visit_texture(const variable_declaration_node *node)
 	{
 		const auto obj = new gl_texture();
 		obj->name = node->name;
@@ -2177,7 +2177,7 @@ namespace reshade
 
 		_runtime->add_texture(obj);
 	}
-	void gl_fx_compiler::visit_sampler(const fx::nodes::variable_declaration_node *node)
+	void gl_fx_compiler::visit_sampler(const variable_declaration_node *node)
 	{
 		if (node->properties.texture == nullptr)
 		{
@@ -2216,7 +2216,7 @@ namespace reshade
 
 		_runtime->_effect_samplers.push_back(std::move(sampler));
 	}
-	void gl_fx_compiler::visit_uniform(const fx::nodes::variable_declaration_node *node)
+	void gl_fx_compiler::visit_uniform(const variable_declaration_node *node)
 	{
 		visit(_global_uniforms, node->type, true);
 
@@ -2245,19 +2245,19 @@ namespace reshade
 
 		switch (node->type.basetype)
 		{
-			case fx::nodes::type_node::datatype_bool:
+			case type_node::datatype_bool:
 				obj.basetype = uniform_datatype::bool_;
 				obj.storage_size *= sizeof(int);
 				break;
-			case fx::nodes::type_node::datatype_int:
+			case type_node::datatype_int:
 				obj.basetype = uniform_datatype::int_;
 				obj.storage_size *= sizeof(int);
 				break;
-			case fx::nodes::type_node::datatype_uint:
+			case type_node::datatype_uint:
 				obj.basetype = uniform_datatype::uint_;
 				obj.storage_size *= sizeof(unsigned int);
 				break;
-			case fx::nodes::type_node::datatype_float:
+			case type_node::datatype_float:
 				obj.basetype = uniform_datatype::float_;
 				obj.storage_size *= sizeof(float);
 				break;
@@ -2276,9 +2276,9 @@ namespace reshade
 			uniform_storage.resize(uniform_storage.size() + 128);
 		}
 
-		if (node->initializer_expression != nullptr && node->initializer_expression->id == fx::nodeid::literal_expression)
+		if (node->initializer_expression != nullptr && node->initializer_expression->id == nodeid::literal_expression)
 		{
-			std::memcpy(uniform_storage.data() + obj.storage_offset, &static_cast<const fx::nodes::literal_expression_node *>(node->initializer_expression)->value_float, obj.storage_size);
+			std::memcpy(uniform_storage.data() + obj.storage_offset, &static_cast<const literal_expression_node *>(node->initializer_expression)->value_float, obj.storage_size);
 		}
 		else
 		{
@@ -2287,7 +2287,7 @@ namespace reshade
 
 		_runtime->add_uniform(std::move(obj));
 	}
-	void gl_fx_compiler::visit_technique(const fx::nodes::technique_declaration_node *node)
+	void gl_fx_compiler::visit_technique(const technique_declaration_node *node)
 	{
 		technique obj;
 		obj.name = node->name;
@@ -2302,7 +2302,7 @@ namespace reshade
 
 		_runtime->add_technique(std::move(obj));
 	}
-	void gl_fx_compiler::visit_pass(const fx::nodes::pass_declaration_node *node, gl_pass &pass)
+	void gl_fx_compiler::visit_pass(const pass_declaration_node *node, gl_pass &pass)
 	{
 		pass.color_mask[0] = (node->color_write_mask & (1 << 0)) != 0;
 		pass.color_mask[1] = (node->color_write_mask & (1 << 1)) != 0;
@@ -2388,7 +2388,7 @@ namespace reshade
 
 		GLuint shaders[2] = { 0, 0 };
 		GLenum shader_types[2] = { GL_VERTEX_SHADER, GL_FRAGMENT_SHADER };
-		const fx::nodes::function_declaration_node *shader_functions[2] = { node->vertex_shader, node->pixel_shader };
+		const function_declaration_node *shader_functions[2] = { node->vertex_shader, node->pixel_shader };
 
 		pass.program = glCreateProgram();
 
@@ -2431,7 +2431,7 @@ namespace reshade
 			return;
 		}
 	}
-	void gl_fx_compiler::visit_pass_shader(const fx::nodes::function_declaration_node *node, GLuint shadertype, GLuint &shader)
+	void gl_fx_compiler::visit_pass_shader(const function_declaration_node *node, GLuint shadertype, GLuint &shader)
 	{
 		std::stringstream source;
 
@@ -2487,12 +2487,12 @@ namespace reshade
 		{
 			for (auto field : node->return_type.definition->field_list)
 			{
-				visit_shader_param(source, field->type, fx::nodes::type_node::qualifier_out, "_return_" + field->name, field->semantic, shadertype);
+				visit_shader_param(source, field->type, type_node::qualifier_out, "_return_" + field->name, field->semantic, shadertype);
 			}
 		}
 		else if (!node->return_type.is_void())
 		{
-			visit_shader_param(source, node->return_type, fx::nodes::type_node::qualifier_out, "_return", node->return_semantic, shadertype);
+			visit_shader_param(source, node->return_type, type_node::qualifier_out, "_return", node->return_semantic, shadertype);
 		}
 
 		source << "void main()\n{\n";
@@ -2619,7 +2619,7 @@ namespace reshade
 
 		for (auto parameter : node->parameter_list)
 		{
-			if (!parameter->type.has_qualifier(fx::nodes::type_node::qualifier_out))
+			if (!parameter->type.has_qualifier(type_node::qualifier_out))
 			{
 				continue;
 			}
@@ -2697,7 +2697,7 @@ namespace reshade
 			error(node->location, "internal shader compilation failed");
 		}
 	}
-	void gl_fx_compiler::visit_shader_param(std::stringstream &output, fx::nodes::type_node type, unsigned int qualifier, const std::string &name, const std::string &semantic, GLuint shadertype)
+	void gl_fx_compiler::visit_shader_param(std::stringstream &output, type_node type, unsigned int qualifier, const std::string &name, const std::string &semantic, GLuint shadertype)
 	{
 		type.qualifiers = static_cast<unsigned int>(qualifier);
 

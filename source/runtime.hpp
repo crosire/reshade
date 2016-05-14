@@ -17,11 +17,10 @@ namespace reshade
 	struct texture;
 	struct uniform;
 	struct technique;
-
-	namespace fx
-	{
-		class syntax_tree;
-	}
+}
+namespace reshadefx
+{
+	class syntax_tree;
 }
 
 extern volatile long g_network_traffic;
@@ -87,7 +86,7 @@ namespace reshade
 		/// <param name="ast">The abstract syntax tree of the effect to compile.</param>
 		/// <param name="pragmas">A list of additional commands to the compiler.</param>
 		/// <param name="errors">A reference to a buffer to store errors which occur during compilation.</param>
-		virtual bool update_effect(const fx::syntax_tree &ast, const std::vector<std::string> &pragmas, std::string &errors) = 0;
+		virtual bool update_effect(const reshadefx::syntax_tree &ast, const std::vector<std::string> &pragmas, std::string &errors) = 0;
 		/// <summary>
 		/// Update the image data of a texture.
 		/// </summary>
@@ -185,7 +184,7 @@ namespace reshade
 		void reload();
 		void screenshot();
 
-		bool load_effect(const boost::filesystem::path &path, fx::syntax_tree &ast);
+		bool load_effect(const std::string &path, reshadefx::syntax_tree &ast);
 		void load_textures();
 		void load_configuration();
 		void save_configuration() const;
@@ -200,8 +199,7 @@ namespace reshade
 		void draw_variable_editor();
 
 		const unsigned int _renderer_id;
-		std::vector<std::string> _effect_files, _preset_files;
-		std::vector<boost::filesystem::path> _included_files;
+		std::vector<std::string> _effect_files, _preset_files, _included_files;
 		boost::chrono::high_resolution_clock::time_point _start_time, _last_create, _last_present;
 		boost::chrono::high_resolution_clock::duration _last_frame_duration;
 		std::vector<unsigned char> _uniform_data_storage;

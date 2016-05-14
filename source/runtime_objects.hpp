@@ -169,7 +169,7 @@ namespace reshade
 	{
 		virtual ~texture() { }
 
-		std::string name;
+		std::string name, unique_name;
 		texture_type type = texture_type::image;
 		unsigned int width = 0, height = 0, levels = 0;
 		texture_format format = texture_format::unknown;
@@ -178,7 +178,7 @@ namespace reshade
 	};
 	struct uniform final
 	{
-		std::string name;
+		std::string name, unique_name;
 		uniform_datatype basetype = uniform_datatype::float_;
 		unsigned int rows = 0, columns = 0, elements = 0;
 		size_t storage_offset = 0, storage_size = 0;

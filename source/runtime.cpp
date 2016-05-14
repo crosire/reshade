@@ -507,9 +507,9 @@ namespace reshade
 				}
 
 				std::string errors;
-				fx::syntax_tree ast;
+				reshadefx::syntax_tree ast;
 
-				if (!load_effect(path, ast))
+				if (!load_effect(path.string(), ast))
 				{
 					continue;
 				}
@@ -621,12 +621,12 @@ namespace reshade
 		}
 	}
 
-	bool runtime::load_effect(const fs::path &path, fx::syntax_tree &ast)
+	bool runtime::load_effect(const std::string &path, reshadefx::syntax_tree &ast)
 	{
-		fx::parser pa(ast, _errors);
-		fx::preprocessor pp;
+		reshadefx::parser pa(ast, _errors);
+		reshadefx::preprocessor pp;
 
-		pp.add_include_path(path.parent_path());
+		pp.add_include_path(fs::path(path).parent_path().string());
 		pp.add_macro_definition("__RESHADE__", std::to_string(VERSION_MAJOR * 10000 + VERSION_MINOR * 100 + VERSION_REVISION));
 		pp.add_macro_definition("__VENDOR__", std::to_string(_vendor_id));
 		pp.add_macro_definition("__DEVICE__", std::to_string(_device_id));
@@ -644,12 +644,12 @@ namespace reshade
 			return false;
 		}
 
-		_effect_files.push_back(path.string());
+		_effect_files.push_back(path);
 		_included_files.push_back(path);
 
 		for (const auto &pragma : pp.current_pragmas())
 		{
-			fx::lexer lexer(pragma);
+			reshadefx::lexer lexer(pragma);
 
 			const auto prefix_token = lexer.lex();
 
@@ -657,7 +657,7 @@ namespace reshade
 			{
 				const auto message_token = lexer.lex();
 
-				if (message_token == fx::lexer::tokenid::string_literal)
+				if (message_token == reshadefx::lexer::tokenid::string_literal)
 				{
 					_message += message_token.literal_as_string;
 				}
@@ -808,7 +808,7 @@ namespace reshade
 			const fs::path filepath = variable.annotations.at("__FILE__").as<std::string>();
 			const std::string filename = filepath.filename().string();
 
-			const auto data = preset.get(filename, variable.name);
+			const auto data = preset.get(filename, variable.unique_name);
 
 			float values[4] = { };
 			values[0] = data.as<float>(0);
@@ -835,7 +835,7 @@ namespace reshade
 			float values[4] = { };
 			get_uniform_value(variable, values);
 
-			preset.set(filename, variable.name, values);
+			preset.set(filename, variable.unique_name, values);
 		}
 	}
 
@@ -1260,7 +1260,7 @@ namespace reshade
 		std::string effect_files;
 		for (const auto &path : _included_files)
 		{
-			effect_files += path.string() + '\0';
+			effect_files += path + '\0';
 		}
 
 		ImGui::PushItemWidth(-1);

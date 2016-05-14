@@ -74,7 +74,7 @@ namespace reshade
 		bool init_imgui_font_atlas();
 
 		void screenshot(uint8_t *buffer) const override;
-		bool update_effect(const fx::syntax_tree &ast, const std::vector<std::string> &pragmas, std::string &errors) override;
+		bool update_effect(const reshadefx::syntax_tree &ast, const std::vector<std::string> &pragmas, std::string &errors) override;
 		bool update_texture(texture &texture, const uint8_t *data) override;
 
 		void render_draw_lists(ImDrawData *data) override;

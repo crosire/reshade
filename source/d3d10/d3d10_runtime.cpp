@@ -885,13 +885,13 @@ namespace reshade
 
 		texture_staging->Unmap(0);
 	}
-	bool d3d10_runtime::update_effect(const fx::syntax_tree &ast, const std::vector<std::string> &pragmas, std::string &errors)
+	bool d3d10_runtime::update_effect(const reshadefx::syntax_tree &ast, const std::vector<std::string> &pragmas, std::string &errors)
 	{
 		bool skip_optimization = false;
 
 		for (const auto &pragma : pragmas)
 		{
-			fx::lexer lexer(pragma);
+			reshadefx::lexer lexer(pragma);
 
 			const auto prefix_token = lexer.lex();
 

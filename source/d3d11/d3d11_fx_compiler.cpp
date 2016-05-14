@@ -5,6 +5,9 @@
 
 namespace reshade
 {
+	using namespace reshadefx;
+	using namespace reshadefx::nodes;
+
 	namespace
 	{
 		UINT roundto16(UINT size)
@@ -15,9 +18,9 @@ namespace reshade
 		{
 			switch (value)
 			{
-				case fx::nodes::pass_declaration_node::ZERO:
+				case pass_declaration_node::ZERO:
 					return D3D11_BLEND_ZERO;
-				case fx::nodes::pass_declaration_node::ONE:
+				case pass_declaration_node::ONE:
 					return D3D11_BLEND_ONE;
 			}
 
@@ -25,7 +28,7 @@ namespace reshade
 		}
 		D3D11_STENCIL_OP literal_to_stencil_op(unsigned int value)
 		{
-			if (value == fx::nodes::pass_declaration_node::ZERO)
+			if (value == pass_declaration_node::ZERO)
 			{
 				return D3D11_STENCIL_OP_ZERO;
 			}
@@ -147,7 +150,7 @@ namespace reshade
 		}
 	}
 
-	d3d11_fx_compiler::d3d11_fx_compiler(d3d11_runtime *runtime, const fx::syntax_tree &ast, std::string &errors, bool skipoptimization) :
+	d3d11_fx_compiler::d3d11_fx_compiler(d3d11_runtime *runtime, const syntax_tree &ast, std::string &errors, bool skipoptimization) :
 		_runtime(runtime),
 		_success(true),
 		_ast(ast),
@@ -162,12 +165,10 @@ namespace reshade
 	{
 		for (auto node : _ast.structs)
 		{
-			visit(_global_code, static_cast<fx::nodes::struct_declaration_node *>(node));
+			visit(_global_code, node);
 		}
-		for (auto node : _ast.variables)
+		for (auto uniform : _ast.variables)
 		{
-			const auto uniform = static_cast<fx::nodes::variable_declaration_node *>(node);
-
 			if (uniform->type.is_texture())
 			{
 				visit_texture(uniform);
@@ -176,7 +177,7 @@ namespace reshade
 			{
 				visit_sampler(uniform);
 			}
-			else if (uniform->type.has_qualifier(fx::nodes::type_node::qualifier_uniform))
+			else if (uniform->type.has_qualifier(type_node::qualifier_uniform))
 			{
 				visit_uniform(uniform);
 			}
@@ -187,15 +188,13 @@ namespace reshade
 				_global_code << ";\n";
 			}
 		}
-		for (auto node : _ast.functions)
+		for (auto function : _ast.functions)
 		{
-			const auto function = static_cast<fx::nodes::function_declaration_node *>(node);
-
 			visit(_global_code, function);
 		}
-		for (auto node : _ast.techniques)
+		for (auto technique : _ast.techniques)
 		{
-			visit_technique(static_cast<fx::nodes::technique_declaration_node *>(node));
+			visit_technique(technique);
 		}
 
 		if (_runtime->_constant_buffer_size != 0)
@@ -209,18 +208,18 @@ namespace reshade
 		return _success;
 	}
 
-	void d3d11_fx_compiler::error(const fx::location &location, const std::string &message)
+	void d3d11_fx_compiler::error(const location &location, const std::string &message)
 	{
 		_success = false;
 
 		_errors += location.source + "(" + std::to_string(location.line) + ", " + std::to_string(location.column) + "): error: " + message + '\n';
 	}
-	void d3d11_fx_compiler::warning(const fx::location &location, const std::string &message)
+	void d3d11_fx_compiler::warning(const location &location, const std::string &message)
 	{
 		_errors += location.source + "(" + std::to_string(location.line) + ", " + std::to_string(location.column) + "): warning: " + message + '\n';
 	}
 
-	void d3d11_fx_compiler::visit(std::stringstream &output, const fx::nodes::statement_node *node)
+	void d3d11_fx_compiler::visit(std::stringstream &output, const statement_node *node)
 	{
 		if (node == nullptr)
 		{
@@ -229,138 +228,138 @@ namespace reshade
 
 		switch (node->id)
 		{
-			case fx::nodeid::compound_statement:
-				visit(output, static_cast<const fx::nodes::compound_statement_node *>(node));
+			case nodeid::compound_statement:
+				visit(output, static_cast<const compound_statement_node *>(node));
 				break;
-			case fx::nodeid::declarator_list:
-				visit(output, static_cast<const fx::nodes::declarator_list_node *>(node), false);
+			case nodeid::declarator_list:
+				visit(output, static_cast<const declarator_list_node *>(node), false);
 				break;
-			case fx::nodeid::expression_statement:
-				visit(output, static_cast<const fx::nodes::expression_statement_node *>(node));
+			case nodeid::expression_statement:
+				visit(output, static_cast<const expression_statement_node *>(node));
 				break;
-			case fx::nodeid::if_statement:
-				visit(output, static_cast<const fx::nodes::if_statement_node *>(node));
+			case nodeid::if_statement:
+				visit(output, static_cast<const if_statement_node *>(node));
 				break;
-			case fx::nodeid::switch_statement:
-				visit(output, static_cast<const fx::nodes::switch_statement_node *>(node));
+			case nodeid::switch_statement:
+				visit(output, static_cast<const switch_statement_node *>(node));
 				break;
-			case fx::nodeid::for_statement:
-				visit(output, static_cast<const fx::nodes::for_statement_node *>(node));
+			case nodeid::for_statement:
+				visit(output, static_cast<const for_statement_node *>(node));
 				break;
-			case fx::nodeid::while_statement:
-				visit(output, static_cast<const fx::nodes::while_statement_node *>(node));
+			case nodeid::while_statement:
+				visit(output, static_cast<const while_statement_node *>(node));
 				break;
-			case fx::nodeid::return_statement:
-				visit(output, static_cast<const fx::nodes::return_statement_node *>(node));
+			case nodeid::return_statement:
+				visit(output, static_cast<const return_statement_node *>(node));
 				break;
-			case fx::nodeid::jump_statement:
-				visit(output, static_cast<const fx::nodes::jump_statement_node *>(node));
+			case nodeid::jump_statement:
+				visit(output, static_cast<const jump_statement_node *>(node));
 				break;
 			default:
 				assert(false);
 		}
 	}
-	void d3d11_fx_compiler::visit(std::stringstream &output, const fx::nodes::expression_node *node)
+	void d3d11_fx_compiler::visit(std::stringstream &output, const expression_node *node)
 	{
 		assert(node != nullptr);
 
 		switch (node->id)
 		{
-			case fx::nodeid::lvalue_expression:
-				visit(output, static_cast<const fx::nodes::lvalue_expression_node *>(node));
+			case nodeid::lvalue_expression:
+				visit(output, static_cast<const lvalue_expression_node *>(node));
 				break;
-			case fx::nodeid::literal_expression:
-				visit(output, static_cast<const fx::nodes::literal_expression_node *>(node));
+			case nodeid::literal_expression:
+				visit(output, static_cast<const literal_expression_node *>(node));
 				break;
-			case fx::nodeid::expression_sequence:
-				visit(output, static_cast<const fx::nodes::expression_sequence_node *>(node));
+			case nodeid::expression_sequence:
+				visit(output, static_cast<const expression_sequence_node *>(node));
 				break;
-			case fx::nodeid::unary_expression:
-				visit(output, static_cast<const fx::nodes::unary_expression_node *>(node));
+			case nodeid::unary_expression:
+				visit(output, static_cast<const unary_expression_node *>(node));
 				break;
-			case fx::nodeid::binary_expression:
-				visit(output, static_cast<const fx::nodes::binary_expression_node *>(node));
+			case nodeid::binary_expression:
+				visit(output, static_cast<const binary_expression_node *>(node));
 				break;
-			case fx::nodeid::intrinsic_expression:
-				visit(output, static_cast<const fx::nodes::intrinsic_expression_node *>(node));
+			case nodeid::intrinsic_expression:
+				visit(output, static_cast<const intrinsic_expression_node *>(node));
 				break;
-			case fx::nodeid::conditional_expression:
-				visit(output, static_cast<const fx::nodes::conditional_expression_node *>(node));
+			case nodeid::conditional_expression:
+				visit(output, static_cast<const conditional_expression_node *>(node));
 				break;
-			case fx::nodeid::swizzle_expression:
-				visit(output, static_cast<const fx::nodes::swizzle_expression_node *>(node));
+			case nodeid::swizzle_expression:
+				visit(output, static_cast<const swizzle_expression_node *>(node));
 				break;
-			case fx::nodeid::field_expression:
-				visit(output, static_cast<const fx::nodes::field_expression_node *>(node));
+			case nodeid::field_expression:
+				visit(output, static_cast<const field_expression_node *>(node));
 				break;
-			case fx::nodeid::initializer_list:
-				visit(output, static_cast<const fx::nodes::initializer_list_node *>(node));
+			case nodeid::initializer_list:
+				visit(output, static_cast<const initializer_list_node *>(node));
 				break;
-			case fx::nodeid::assignment_expression:
-				visit(output, static_cast<const fx::nodes::assignment_expression_node *>(node));
+			case nodeid::assignment_expression:
+				visit(output, static_cast<const assignment_expression_node *>(node));
 				break;
-			case fx::nodeid::call_expression:
-				visit(output, static_cast<const fx::nodes::call_expression_node *>(node));
+			case nodeid::call_expression:
+				visit(output, static_cast<const call_expression_node *>(node));
 				break;
-			case fx::nodeid::constructor_expression:
-				visit(output, static_cast<const fx::nodes::constructor_expression_node *>(node));
+			case nodeid::constructor_expression:
+				visit(output, static_cast<const constructor_expression_node *>(node));
 				break;
 			default:
 				assert(false);
 		}
 	}
 
-	void d3d11_fx_compiler::visit(std::stringstream &output, const fx::nodes::type_node &type, bool with_qualifiers)
+	void d3d11_fx_compiler::visit(std::stringstream &output, const type_node &type, bool with_qualifiers)
 	{
 		if (with_qualifiers)
 		{
-			if (type.has_qualifier(fx::nodes::type_node::qualifier_static))
+			if (type.has_qualifier(type_node::qualifier_static))
 				output << "static ";
-			if (type.has_qualifier(fx::nodes::type_node::qualifier_const))
+			if (type.has_qualifier(type_node::qualifier_const))
 				output << "const ";
-			if (type.has_qualifier(fx::nodes::type_node::qualifier_volatile))
+			if (type.has_qualifier(type_node::qualifier_volatile))
 				output << "volatile ";
-			if (type.has_qualifier(fx::nodes::type_node::qualifier_precise))
+			if (type.has_qualifier(type_node::qualifier_precise))
 				output << "precise ";
-			if (type.has_qualifier(fx::nodes::type_node::qualifier_linear))
+			if (type.has_qualifier(type_node::qualifier_linear))
 				output << "linear ";
-			if (type.has_qualifier(fx::nodes::type_node::qualifier_noperspective))
+			if (type.has_qualifier(type_node::qualifier_noperspective))
 				output << "noperspective ";
-			if (type.has_qualifier(fx::nodes::type_node::qualifier_centroid))
+			if (type.has_qualifier(type_node::qualifier_centroid))
 				output << "centroid ";
-			if (type.has_qualifier(fx::nodes::type_node::qualifier_nointerpolation))
+			if (type.has_qualifier(type_node::qualifier_nointerpolation))
 				output << "nointerpolation ";
-			if (type.has_qualifier(fx::nodes::type_node::qualifier_inout))
+			if (type.has_qualifier(type_node::qualifier_inout))
 				output << "inout ";
-			else if (type.has_qualifier(fx::nodes::type_node::qualifier_in))
+			else if (type.has_qualifier(type_node::qualifier_in))
 				output << "in ";
-			else if (type.has_qualifier(fx::nodes::type_node::qualifier_out))
+			else if (type.has_qualifier(type_node::qualifier_out))
 				output << "out ";
-			else if (type.has_qualifier(fx::nodes::type_node::qualifier_uniform))
+			else if (type.has_qualifier(type_node::qualifier_uniform))
 				output << "uniform ";
 		}
 
 		switch (type.basetype)
 		{
-			case fx::nodes::type_node::datatype_void:
+			case type_node::datatype_void:
 				output << "void";
 				break;
-			case fx::nodes::type_node::datatype_bool:
+			case type_node::datatype_bool:
 				output << "bool";
 				break;
-			case fx::nodes::type_node::datatype_int:
+			case type_node::datatype_int:
 				output << "int";
 				break;
-			case fx::nodes::type_node::datatype_uint:
+			case type_node::datatype_uint:
 				output << "uint";
 				break;
-			case fx::nodes::type_node::datatype_float:
+			case type_node::datatype_float:
 				output << "float";
 				break;
-			case fx::nodes::type_node::datatype_sampler:
+			case type_node::datatype_sampler:
 				output << "__sampler2D";
 				break;
-			case fx::nodes::type_node::datatype_struct:
+			case type_node::datatype_struct:
 				output << type.definition->unique_name;
 				break;
 		}
@@ -374,11 +373,11 @@ namespace reshade
 			output << type.rows;
 		}
 	}
-	void d3d11_fx_compiler::visit(std::stringstream &output, const fx::nodes::lvalue_expression_node *node)
+	void d3d11_fx_compiler::visit(std::stringstream &output, const lvalue_expression_node *node)
 	{
 		output << node->reference->unique_name;
 	}
-	void d3d11_fx_compiler::visit(std::stringstream &output, const fx::nodes::literal_expression_node *node)
+	void d3d11_fx_compiler::visit(std::stringstream &output, const literal_expression_node *node)
 	{
 		if (!node->type.is_scalar())
 		{
@@ -391,16 +390,16 @@ namespace reshade
 		{
 			switch (node->type.basetype)
 			{
-				case fx::nodes::type_node::datatype_bool:
+				case type_node::datatype_bool:
 					output << (node->value_int[i] ? "true" : "false");
 					break;
-				case fx::nodes::type_node::datatype_int:
+				case type_node::datatype_int:
 					output << node->value_int[i];
 					break;
-				case fx::nodes::type_node::datatype_uint:
+				case type_node::datatype_uint:
 					output << node->value_uint[i];
 					break;
-				case fx::nodes::type_node::datatype_float:
+				case type_node::datatype_float:
 					output << std::setprecision(8) << std::fixed << node->value_float[i];
 					break;
 			}
@@ -416,7 +415,7 @@ namespace reshade
 			output << ')';
 		}
 	}
-	void d3d11_fx_compiler::visit(std::stringstream &output, const fx::nodes::expression_sequence_node *node)
+	void d3d11_fx_compiler::visit(std::stringstream &output, const expression_sequence_node *node)
 	{
 		output << '(';
 
@@ -432,26 +431,26 @@ namespace reshade
 
 		output << ')';
 	}
-	void d3d11_fx_compiler::visit(std::stringstream &output, const fx::nodes::unary_expression_node *node)
+	void d3d11_fx_compiler::visit(std::stringstream &output, const unary_expression_node *node)
 	{
 		switch (node->op)
 		{
-			case fx::nodes::unary_expression_node::negate:
+			case unary_expression_node::negate:
 				output << '-';
 				break;
-			case fx::nodes::unary_expression_node::bitwise_not:
+			case unary_expression_node::bitwise_not:
 				output << "~";
 				break;
-			case fx::nodes::unary_expression_node::logical_not:
+			case unary_expression_node::logical_not:
 				output << '!';
 				break;
-			case fx::nodes::unary_expression_node::pre_increase:
+			case unary_expression_node::pre_increase:
 				output << "++";
 				break;
-			case fx::nodes::unary_expression_node::pre_decrease:
+			case unary_expression_node::pre_decrease:
 				output << "--";
 				break;
-			case fx::nodes::unary_expression_node::cast:
+			case unary_expression_node::cast:
 				visit(output, node->type, false);
 				output << '(';
 				break;
@@ -461,114 +460,114 @@ namespace reshade
 
 		switch (node->op)
 		{
-			case fx::nodes::unary_expression_node::post_increase:
+			case unary_expression_node::post_increase:
 				output << "++";
 				break;
-			case fx::nodes::unary_expression_node::post_decrease:
+			case unary_expression_node::post_decrease:
 				output << "--";
 				break;
-			case fx::nodes::unary_expression_node::cast:
+			case unary_expression_node::cast:
 				output << ')';
 				break;
 		}
 	}
-	void d3d11_fx_compiler::visit(std::stringstream &output, const fx::nodes::binary_expression_node *node)
+	void d3d11_fx_compiler::visit(std::stringstream &output, const binary_expression_node *node)
 	{
 		std::string part1, part2, part3;
 
 		switch (node->op)
 		{
-			case fx::nodes::binary_expression_node::add:
+			case binary_expression_node::add:
 				part1 = '(';
 				part2 = " + ";
 				part3 = ')';
 				break;
-			case fx::nodes::binary_expression_node::subtract:
+			case binary_expression_node::subtract:
 				part1 = '(';
 				part2 = " - ";
 				part3 = ')';
 				break;
-			case fx::nodes::binary_expression_node::multiply:
+			case binary_expression_node::multiply:
 				part1 = '(';
 				part2 = " * ";
 				part3 = ')';
 				break;
-			case fx::nodes::binary_expression_node::divide:
+			case binary_expression_node::divide:
 				part1 = '(';
 				part2 = " / ";
 				part3 = ')';
 				break;
-			case fx::nodes::binary_expression_node::modulo:
+			case binary_expression_node::modulo:
 				part1 = '(';
 				part2 = " % ";
 				part3 = ')';
 				break;
-			case fx::nodes::binary_expression_node::less:
+			case binary_expression_node::less:
 				part1 = '(';
 				part2 = " < ";
 				part3 = ')';
 				break;
-			case fx::nodes::binary_expression_node::greater:
+			case binary_expression_node::greater:
 				part1 = '(';
 				part2 = " > ";
 				part3 = ')';
 				break;
-			case fx::nodes::binary_expression_node::less_equal:
+			case binary_expression_node::less_equal:
 				part1 = '(';
 				part2 = " <= ";
 				part3 = ')';
 				break;
-			case fx::nodes::binary_expression_node::greater_equal:
+			case binary_expression_node::greater_equal:
 				part1 = '(';
 				part2 = " >= ";
 				part3 = ')';
 				break;
-			case fx::nodes::binary_expression_node::equal:
+			case binary_expression_node::equal:
 				part1 = '(';
 				part2 = " == ";
 				part3 = ')';
 				break;
-			case fx::nodes::binary_expression_node::not_equal:
+			case binary_expression_node::not_equal:
 				part1 = '(';
 				part2 = " != ";
 				part3 = ')';
 				break;
-			case fx::nodes::binary_expression_node::left_shift:
+			case binary_expression_node::left_shift:
 				part1 = "(";
 				part2 = " << ";
 				part3 = ")";
 				break;
-			case fx::nodes::binary_expression_node::right_shift:
+			case binary_expression_node::right_shift:
 				part1 = "(";
 				part2 = " >> ";
 				part3 = ")";
 				break;
-			case fx::nodes::binary_expression_node::bitwise_and:
+			case binary_expression_node::bitwise_and:
 				part1 = "(";
 				part2 = " & ";
 				part3 = ")";
 				break;
-			case fx::nodes::binary_expression_node::bitwise_or:
+			case binary_expression_node::bitwise_or:
 				part1 = "(";
 				part2 = " | ";
 				part3 = ")";
 				break;
-			case fx::nodes::binary_expression_node::bitwise_xor:
+			case binary_expression_node::bitwise_xor:
 				part1 = "(";
 				part2 = " ^ ";
 				part3 = ")";
 				break;
-			case fx::nodes::binary_expression_node::logical_and:
+			case binary_expression_node::logical_and:
 				part1 = '(';
 				part2 = " && ";
 				part3 = ')';
 				break;
-			case fx::nodes::binary_expression_node::logical_or:
+			case binary_expression_node::logical_or:
 				part1 = '(';
 				part2 = " || ";
 				part3 = ')';
 				break;
-			case fx::nodes::binary_expression_node::element_extract:
+			case binary_expression_node::element_extract:
 				part2 = '[';
 				part3 = ']';
 				break;
@@ -580,285 +579,285 @@ namespace reshade
 		visit(output, node->operands[1]);
 		output << part3;
 	}
-	void d3d11_fx_compiler::visit(std::stringstream &output, const fx::nodes::intrinsic_expression_node *node)
+	void d3d11_fx_compiler::visit(std::stringstream &output, const intrinsic_expression_node *node)
 	{
 		std::string part1, part2, part3, part4, part5;
 
 		switch (node->op)
 		{
-			case fx::nodes::intrinsic_expression_node::abs:
+			case intrinsic_expression_node::abs:
 				part1 = "abs(";
 				part2 = ")";
 				break;
-			case fx::nodes::intrinsic_expression_node::acos:
+			case intrinsic_expression_node::acos:
 				part1 = "acos(";
 				part2 = ")";
 				break;
-			case fx::nodes::intrinsic_expression_node::all:
+			case intrinsic_expression_node::all:
 				part1 = "all(";
 				part2 = ")";
 				break;
-			case fx::nodes::intrinsic_expression_node::any:
+			case intrinsic_expression_node::any:
 				part1 = "any(";
 				part2 = ")";
 				break;
-			case fx::nodes::intrinsic_expression_node::bitcast_int2float:
+			case intrinsic_expression_node::bitcast_int2float:
 				part1 = "asfloat(";
 				part2 = ")";
 				break;
-			case fx::nodes::intrinsic_expression_node::bitcast_uint2float:
+			case intrinsic_expression_node::bitcast_uint2float:
 				part1 = "asfloat(";
 				part2 = ")";
 				break;
-			case fx::nodes::intrinsic_expression_node::asin:
+			case intrinsic_expression_node::asin:
 				part1 = "asin(";
 				part2 = ")";
 				break;
-			case fx::nodes::intrinsic_expression_node::bitcast_float2int:
+			case intrinsic_expression_node::bitcast_float2int:
 				part1 = "asint(";
 				part2 = ")";
 				break;
-			case fx::nodes::intrinsic_expression_node::bitcast_float2uint:
+			case intrinsic_expression_node::bitcast_float2uint:
 				part1 = "asuint(";
 				part2 = ")";
 				break;
-			case fx::nodes::intrinsic_expression_node::atan:
+			case intrinsic_expression_node::atan:
 				part1 = "atan(";
 				part2 = ")";
 				break;
-			case fx::nodes::intrinsic_expression_node::atan2:
+			case intrinsic_expression_node::atan2:
 				part1 = "atan2(";
 				part2 = ", ";
 				part3 = ")";
 				break;
-			case fx::nodes::intrinsic_expression_node::ceil:
+			case intrinsic_expression_node::ceil:
 				part1 = "ceil(";
 				part2 = ")";
 				break;
-			case fx::nodes::intrinsic_expression_node::clamp:
+			case intrinsic_expression_node::clamp:
 				part1 = "clamp(";
 				part2 = ", ";
 				part3 = ", ";
 				part4 = ")";
 				break;
-			case fx::nodes::intrinsic_expression_node::cos:
+			case intrinsic_expression_node::cos:
 				part1 = "cos(";
 				part2 = ")";
 				break;
-			case fx::nodes::intrinsic_expression_node::cosh:
+			case intrinsic_expression_node::cosh:
 				part1 = "cosh(";
 				part2 = ")";
 				break;
-			case fx::nodes::intrinsic_expression_node::cross:
+			case intrinsic_expression_node::cross:
 				part1 = "cross(";
 				part2 = ", ";
 				part3 = ")";
 				break;
-			case fx::nodes::intrinsic_expression_node::ddx:
+			case intrinsic_expression_node::ddx:
 				part1 = "ddx(";
 				part2 = ")";
 				break;
-			case fx::nodes::intrinsic_expression_node::ddy:
+			case intrinsic_expression_node::ddy:
 				part1 = "ddy(";
 				part2 = ")";
 				break;
-			case fx::nodes::intrinsic_expression_node::degrees:
+			case intrinsic_expression_node::degrees:
 				part1 = "degrees(";
 				part2 = ")";
 				break;
-			case fx::nodes::intrinsic_expression_node::determinant:
+			case intrinsic_expression_node::determinant:
 				part1 = "determinant(";
 				part2 = ")";
 				break;
-			case fx::nodes::intrinsic_expression_node::distance:
+			case intrinsic_expression_node::distance:
 				part1 = "distance(";
 				part2 = ", ";
 				part3 = ")";
 				break;
-			case fx::nodes::intrinsic_expression_node::dot:
+			case intrinsic_expression_node::dot:
 				part1 = "dot(";
 				part2 = ", ";
 				part3 = ")";
 				break;
-			case fx::nodes::intrinsic_expression_node::exp:
+			case intrinsic_expression_node::exp:
 				part1 = "exp(";
 				part2 = ")";
 				break;
-			case fx::nodes::intrinsic_expression_node::exp2:
+			case intrinsic_expression_node::exp2:
 				part1 = "exp2(";
 				part2 = ")";
 				break;
-			case fx::nodes::intrinsic_expression_node::faceforward:
+			case intrinsic_expression_node::faceforward:
 				part1 = "faceforward(";
 				part2 = ", ";
 				part3 = ", ";
 				part4 = ")";
 				break;
-			case fx::nodes::intrinsic_expression_node::floor:
+			case intrinsic_expression_node::floor:
 				part1 = "floor(";
 				part2 = ")";
 				break;
-			case fx::nodes::intrinsic_expression_node::frac:
+			case intrinsic_expression_node::frac:
 				part1 = "frac(";
 				part2 = ")";
 				break;
-			case fx::nodes::intrinsic_expression_node::frexp:
+			case intrinsic_expression_node::frexp:
 				part1 = "frexp(";
 				part2 = ", ";
 				part3 = ")";
 				break;
-			case fx::nodes::intrinsic_expression_node::fwidth:
+			case intrinsic_expression_node::fwidth:
 				part1 = "fwidth(";
 				part2 = ")";
 				break;
-			case fx::nodes::intrinsic_expression_node::ldexp:
+			case intrinsic_expression_node::ldexp:
 				part1 = "ldexp(";
 				part2 = ", ";
 				part3 = ")";
 				break;
-			case fx::nodes::intrinsic_expression_node::length:
+			case intrinsic_expression_node::length:
 				part1 = "length(";
 				part2 = ")";
 				break;
-			case fx::nodes::intrinsic_expression_node::lerp:
+			case intrinsic_expression_node::lerp:
 				part1 = "lerp(";
 				part2 = ", ";
 				part3 = ", ";
 				part4 = ")";
 				break;
-			case fx::nodes::intrinsic_expression_node::log:
+			case intrinsic_expression_node::log:
 				part1 = "log(";
 				part2 = ")";
 				break;
-			case fx::nodes::intrinsic_expression_node::log10:
+			case intrinsic_expression_node::log10:
 				part1 = "log10(";
 				part2 = ")";
 				break;
-			case fx::nodes::intrinsic_expression_node::log2:
+			case intrinsic_expression_node::log2:
 				part1 = "log2(";
 				part2 = ")";
 				break;
-			case fx::nodes::intrinsic_expression_node::mad:
+			case intrinsic_expression_node::mad:
 				part1 = "((";
 				part2 = ") * (";
 				part3 = ") + (";
 				part4 = "))";
 				break;
-			case fx::nodes::intrinsic_expression_node::max:
+			case intrinsic_expression_node::max:
 				part1 = "max(";
 				part2 = ", ";
 				part3 = ")";
 				break;
-			case fx::nodes::intrinsic_expression_node::min:
+			case intrinsic_expression_node::min:
 				part1 = "min(";
 				part2 = ", ";
 				part3 = ")";
 				break;
-			case fx::nodes::intrinsic_expression_node::modf:
+			case intrinsic_expression_node::modf:
 				part1 = "modf(";
 				part2 = ", ";
 				part3 = ")";
 				break;
-			case fx::nodes::intrinsic_expression_node::mul:
+			case intrinsic_expression_node::mul:
 				part1 = "mul(";
 				part2 = ", ";
 				part3 = ")";
 				break;
-			case fx::nodes::intrinsic_expression_node::normalize:
+			case intrinsic_expression_node::normalize:
 				part1 = "normalize(";
 				part2 = ")";
 				break;
-			case fx::nodes::intrinsic_expression_node::pow:
+			case intrinsic_expression_node::pow:
 				part1 = "pow(";
 				part2 = ", ";
 				part3 = ")";
 				break;
-			case fx::nodes::intrinsic_expression_node::radians:
+			case intrinsic_expression_node::radians:
 				part1 = "radians(";
 				part2 = ")";
 				break;
-			case fx::nodes::intrinsic_expression_node::rcp:
+			case intrinsic_expression_node::rcp:
 				part1 = "(1.0f / ";
 				part2 = ")";
 				break;
-			case fx::nodes::intrinsic_expression_node::reflect:
+			case intrinsic_expression_node::reflect:
 				part1 = "reflect(";
 				part2 = ", ";
 				part3 = ")";
 				break;
-			case fx::nodes::intrinsic_expression_node::refract:
+			case intrinsic_expression_node::refract:
 				part1 = "refract(";
 				part2 = ", ";
 				part3 = ", ";
 				part4 = ")";
 				break;
-			case fx::nodes::intrinsic_expression_node::round:
+			case intrinsic_expression_node::round:
 				part1 = "round(";
 				part2 = ")";
 				break;
-			case fx::nodes::intrinsic_expression_node::rsqrt:
+			case intrinsic_expression_node::rsqrt:
 				part1 = "rsqrt(";
 				part2 = ")";
 				break;
-			case fx::nodes::intrinsic_expression_node::saturate:
+			case intrinsic_expression_node::saturate:
 				part1 = "saturate(";
 				part2 = ")";
 				break;
-			case fx::nodes::intrinsic_expression_node::sign:
+			case intrinsic_expression_node::sign:
 				part1 = "sign(";
 				part2 = ")";
 				break;
-			case fx::nodes::intrinsic_expression_node::sin:
+			case intrinsic_expression_node::sin:
 				part1 = "sin(";
 				part2 = ")";
 				break;
-			case fx::nodes::intrinsic_expression_node::sincos:
+			case intrinsic_expression_node::sincos:
 				part1 = "sincos(";
 				part2 = ", ";
 				part3 = ", ";
 				part4 = ")";
 				break;
-			case fx::nodes::intrinsic_expression_node::sinh:
+			case intrinsic_expression_node::sinh:
 				part1 = "sinh(";
 				part2 = ")";
 				break;
-			case fx::nodes::intrinsic_expression_node::smoothstep:
+			case intrinsic_expression_node::smoothstep:
 				part1 = "smoothstep(";
 				part2 = ", ";
 				part3 = ", ";
 				part4 = ")";
 				break;
-			case fx::nodes::intrinsic_expression_node::sqrt:
+			case intrinsic_expression_node::sqrt:
 				part1 = "sqrt(";
 				part2 = ")";
 				break;
-			case fx::nodes::intrinsic_expression_node::step:
+			case intrinsic_expression_node::step:
 				part1 = "step(";
 				part2 = ", ";
 				part3 = ")";
 				break;
-			case fx::nodes::intrinsic_expression_node::tan:
+			case intrinsic_expression_node::tan:
 				part1 = "tan(";
 				part2 = ")";
 				break;
-			case fx::nodes::intrinsic_expression_node::tanh:
+			case intrinsic_expression_node::tanh:
 				part1 = "tanh(";
 				part2 = ")";
 				break;
-			case fx::nodes::intrinsic_expression_node::texture:
+			case intrinsic_expression_node::texture:
 				part1 = "__tex2D(";
 				part2 = ", ";
 				part3 = ")";
 				break;
-			case fx::nodes::intrinsic_expression_node::texture_fetch:
+			case intrinsic_expression_node::texture_fetch:
 				part1 = "__tex2Dfetch(";
 				part2 = ", ";
 				part3 = ")";
 				break;
-			case fx::nodes::intrinsic_expression_node::texture_gather:
-				if (node->arguments[2]->id == fx::nodeid::literal_expression && node->arguments[2]->type.is_integral())
+			case intrinsic_expression_node::texture_gather:
+				if (node->arguments[2]->id == nodeid::literal_expression && node->arguments[2]->type.is_integral())
 				{
-					const int component = static_cast<const fx::nodes::literal_expression_node *>(node->arguments[2])->value_int[0];
+					const int component = static_cast<const literal_expression_node *>(node->arguments[2])->value_int[0];
 
 					output << "__tex2Dgather" << component << '(';
 					visit(output, node->arguments[0]);
@@ -871,10 +870,10 @@ namespace reshade
 					error(node->location, "texture gather component argument has to be constant");
 				}
 				return;
-			case fx::nodes::intrinsic_expression_node::texture_gather_offset:
-				if (node->arguments[3]->id == fx::nodeid::literal_expression && node->arguments[3]->type.is_integral())
+			case intrinsic_expression_node::texture_gather_offset:
+				if (node->arguments[3]->id == nodeid::literal_expression && node->arguments[3]->type.is_integral())
 				{
-					const int component = static_cast<const fx::nodes::literal_expression_node *>(node->arguments[3])->value_int[0];
+					const int component = static_cast<const literal_expression_node *>(node->arguments[3])->value_int[0];
 
 					output << "__tex2Dgatheroffset" << component << '(';
 					visit(output, node->arguments[0]);
@@ -889,45 +888,45 @@ namespace reshade
 					error(node->location, "texture gather component argument has to be constant");
 				}
 				return;
-			case fx::nodes::intrinsic_expression_node::texture_gradient:
+			case intrinsic_expression_node::texture_gradient:
 				part1 = "__tex2Dgrad(";
 				part2 = ", ";
 				part3 = ", ";
 				part4 = ", ";
 				part5 = ")";
 				break;
-			case fx::nodes::intrinsic_expression_node::texture_level:
+			case intrinsic_expression_node::texture_level:
 				part1 = "__tex2Dlod(";
 				part2 = ", ";
 				part3 = ")";
 				break;
-			case fx::nodes::intrinsic_expression_node::texture_level_offset:
+			case intrinsic_expression_node::texture_level_offset:
 				part1 = "__tex2Dlodoffset(";
 				part2 = ", ";
 				part3 = ", ";
 				part4 = ")";
 				break;
-			case fx::nodes::intrinsic_expression_node::texture_offset:
+			case intrinsic_expression_node::texture_offset:
 				part1 = "__tex2Doffset(";
 				part2 = ", ";
 				part3 = ", ";
 				part4 = ")";
 				break;
-			case fx::nodes::intrinsic_expression_node::texture_projection:
+			case intrinsic_expression_node::texture_projection:
 				part1 = "__tex2Dproj(";
 				part2 = ", ";
 				part3 = ")";
 				break;
-			case fx::nodes::intrinsic_expression_node::texture_size:
+			case intrinsic_expression_node::texture_size:
 				part1 = "__tex2Dsize(";
 				part2 = ", ";
 				part3 = ")";
 				break;
-			case fx::nodes::intrinsic_expression_node::transpose:
+			case intrinsic_expression_node::transpose:
 				part1 = "transpose(";
 				part2 = ")";
 				break;
-			case fx::nodes::intrinsic_expression_node::trunc:
+			case intrinsic_expression_node::trunc:
 				part1 = "trunc(";
 				part2 = ")";
 				break;
@@ -963,7 +962,7 @@ namespace reshade
 
 		output << part5;
 	}
-	void d3d11_fx_compiler::visit(std::stringstream &output, const fx::nodes::conditional_expression_node *node)
+	void d3d11_fx_compiler::visit(std::stringstream &output, const conditional_expression_node *node)
 	{
 		output << '(';
 		visit(output, node->condition);
@@ -973,7 +972,7 @@ namespace reshade
 		visit(output, node->expression_when_false);
 		output << ')';
 	}
-	void d3d11_fx_compiler::visit(std::stringstream &output, const fx::nodes::swizzle_expression_node *node)
+	void d3d11_fx_compiler::visit(std::stringstream &output, const swizzle_expression_node *node)
 	{
 		visit(output, node->operand);
 
@@ -1005,7 +1004,7 @@ namespace reshade
 			}
 		}
 	}
-	void d3d11_fx_compiler::visit(std::stringstream &output, const fx::nodes::field_expression_node *node)
+	void d3d11_fx_compiler::visit(std::stringstream &output, const field_expression_node *node)
 	{
 		output << '(';
 
@@ -1013,7 +1012,7 @@ namespace reshade
 
 		output << '.' << node->field_reference->unique_name << ')';
 	}
-	void d3d11_fx_compiler::visit(std::stringstream &output, const fx::nodes::assignment_expression_node *node)
+	void d3d11_fx_compiler::visit(std::stringstream &output, const assignment_expression_node *node)
 	{
 		output << '(';
 		visit(output, node->left);
@@ -1021,37 +1020,37 @@ namespace reshade
 
 		switch (node->op)
 		{
-			case fx::nodes::assignment_expression_node::none:
+			case assignment_expression_node::none:
 				output << '=';
 				break;
-			case fx::nodes::assignment_expression_node::add:
+			case assignment_expression_node::add:
 				output << "+=";
 				break;
-			case fx::nodes::assignment_expression_node::subtract:
+			case assignment_expression_node::subtract:
 				output << "-=";
 				break;
-			case fx::nodes::assignment_expression_node::multiply:
+			case assignment_expression_node::multiply:
 				output << "*=";
 				break;
-			case fx::nodes::assignment_expression_node::divide:
+			case assignment_expression_node::divide:
 				output << "/=";
 				break;
-			case fx::nodes::assignment_expression_node::modulo:
+			case assignment_expression_node::modulo:
 				output << "%=";
 				break;
-			case fx::nodes::assignment_expression_node::left_shift:
+			case assignment_expression_node::left_shift:
 				output << "<<=";
 				break;
-			case fx::nodes::assignment_expression_node::right_shift:
+			case assignment_expression_node::right_shift:
 				output << ">>=";
 				break;
-			case fx::nodes::assignment_expression_node::bitwise_and:
+			case assignment_expression_node::bitwise_and:
 				output << "&=";
 				break;
-			case fx::nodes::assignment_expression_node::bitwise_or:
+			case assignment_expression_node::bitwise_or:
 				output << "|=";
 				break;
-			case fx::nodes::assignment_expression_node::bitwise_xor:
+			case assignment_expression_node::bitwise_xor:
 				output << "^=";
 				break;
 		}
@@ -1060,7 +1059,7 @@ namespace reshade
 		visit(output, node->right);
 		output << ')';
 	}
-	void d3d11_fx_compiler::visit(std::stringstream &output, const fx::nodes::call_expression_node *node)
+	void d3d11_fx_compiler::visit(std::stringstream &output, const call_expression_node *node)
 	{
 		output << node->callee->unique_name << '(';
 
@@ -1076,7 +1075,7 @@ namespace reshade
 
 		output << ')';
 	}
-	void d3d11_fx_compiler::visit(std::stringstream &output, const fx::nodes::constructor_expression_node *node)
+	void d3d11_fx_compiler::visit(std::stringstream &output, const constructor_expression_node *node)
 	{
 		visit(output, node->type, false);
 
@@ -1094,7 +1093,7 @@ namespace reshade
 
 		output << ')';
 	}
-	void d3d11_fx_compiler::visit(std::stringstream &output, const fx::nodes::initializer_list_node *node)
+	void d3d11_fx_compiler::visit(std::stringstream &output, const initializer_list_node *node)
 	{
 		output << "{ ";
 
@@ -1110,7 +1109,7 @@ namespace reshade
 
 		output << " }";
 	}
-	void d3d11_fx_compiler::visit(std::stringstream &output, const fx::nodes::compound_statement_node *node)
+	void d3d11_fx_compiler::visit(std::stringstream &output, const compound_statement_node *node)
 	{
 		output << "{\n";
 
@@ -1121,7 +1120,7 @@ namespace reshade
 
 		output << "}\n";
 	}
-	void d3d11_fx_compiler::visit(std::stringstream &output, const fx::nodes::declarator_list_node *node, bool single_statement)
+	void d3d11_fx_compiler::visit(std::stringstream &output, const declarator_list_node *node, bool single_statement)
 	{
 		bool with_type = true;
 
@@ -1141,13 +1140,13 @@ namespace reshade
 
 		output << ";\n";
 	}
-	void d3d11_fx_compiler::visit(std::stringstream &output, const fx::nodes::expression_statement_node *node)
+	void d3d11_fx_compiler::visit(std::stringstream &output, const expression_statement_node *node)
 	{
 		visit(output, node->expression);
 
 		output << ";\n";
 	}
-	void d3d11_fx_compiler::visit(std::stringstream &output, const fx::nodes::if_statement_node *node)
+	void d3d11_fx_compiler::visit(std::stringstream &output, const if_statement_node *node)
 	{
 		for (const auto &attribute : node->attributes)
 		{
@@ -1174,7 +1173,7 @@ namespace reshade
 			visit(output, node->statement_when_false);
 		}
 	}
-	void d3d11_fx_compiler::visit(std::stringstream &output, const fx::nodes::switch_statement_node *node)
+	void d3d11_fx_compiler::visit(std::stringstream &output, const switch_statement_node *node)
 	{
 		for (const auto &attribute : node->attributes)
 		{
@@ -1192,7 +1191,7 @@ namespace reshade
 
 		output << "}\n";
 	}
-	void d3d11_fx_compiler::visit(std::stringstream &output, const fx::nodes::case_statement_node *node)
+	void d3d11_fx_compiler::visit(std::stringstream &output, const case_statement_node *node)
 	{
 		for (auto label : node->labels)
 		{
@@ -1212,7 +1211,7 @@ namespace reshade
 
 		visit(output, node->statement_list);
 	}
-	void d3d11_fx_compiler::visit(std::stringstream &output, const fx::nodes::for_statement_node *node)
+	void d3d11_fx_compiler::visit(std::stringstream &output, const for_statement_node *node)
 	{
 		for (const auto &attribute : node->attributes)
 		{
@@ -1223,15 +1222,15 @@ namespace reshade
 
 		if (node->init_statement != nullptr)
 		{
-			if (node->init_statement->id == fx::nodeid::declarator_list)
+			if (node->init_statement->id == nodeid::declarator_list)
 			{
-				visit(output, static_cast<fx::nodes::declarator_list_node *>(node->init_statement), true);
+				visit(output, static_cast<declarator_list_node *>(node->init_statement), true);
 
 				output.seekp(-2, std::ios_base::end);
 			}
 			else
 			{
-				visit(output, static_cast<fx::nodes::expression_statement_node *>(node->init_statement)->expression);
+				visit(output, static_cast<expression_statement_node *>(node->init_statement)->expression);
 			}
 		}
 
@@ -1260,7 +1259,7 @@ namespace reshade
 			output << "\t;";
 		}
 	}
-	void d3d11_fx_compiler::visit(std::stringstream &output, const fx::nodes::while_statement_node *node)
+	void d3d11_fx_compiler::visit(std::stringstream &output, const while_statement_node *node)
 	{
 		for (const auto &attribute : node->attributes)
 		{
@@ -1296,7 +1295,7 @@ namespace reshade
 			}
 		}
 	}
-	void d3d11_fx_compiler::visit(std::stringstream &output, const fx::nodes::return_statement_node *node)
+	void d3d11_fx_compiler::visit(std::stringstream &output, const return_statement_node *node)
 	{
 		if (node->is_discard)
 		{
@@ -1316,7 +1315,7 @@ namespace reshade
 
 		output << ";\n";
 	}
-	void d3d11_fx_compiler::visit(std::stringstream &output, const fx::nodes::jump_statement_node *node)
+	void d3d11_fx_compiler::visit(std::stringstream &output, const jump_statement_node *node)
 	{
 		if (node->is_break)
 		{
@@ -1327,7 +1326,7 @@ namespace reshade
 			output << "continue;\n";
 		}
 	}
-	void d3d11_fx_compiler::visit(std::stringstream &output, const fx::nodes::struct_declaration_node *node)
+	void d3d11_fx_compiler::visit(std::stringstream &output, const struct_declaration_node *node)
 	{
 		output << "struct " << node->unique_name << "\n{\n";
 
@@ -1345,7 +1344,7 @@ namespace reshade
 
 		output << "};\n";
 	}
-	void d3d11_fx_compiler::visit(std::stringstream &output, const fx::nodes::variable_declaration_node *node, bool with_type)
+	void d3d11_fx_compiler::visit(std::stringstream &output, const variable_declaration_node *node, bool with_type)
 	{
 		if (with_type)
 		{
@@ -1388,7 +1387,7 @@ namespace reshade
 			output << ";\n";
 		}
 	}
-	void d3d11_fx_compiler::visit(std::stringstream &output, const fx::nodes::function_declaration_node *node)
+	void d3d11_fx_compiler::visit(std::stringstream &output, const function_declaration_node *node)
 	{
 		visit(output, node->return_type, false);
 
@@ -1425,30 +1424,30 @@ namespace reshade
 	}
 
 	template <typename T>
-	void visit_annotation(const std::vector<fx::nodes::annotation_node> &annotations, T &object)
+	void visit_annotation(const std::vector<annotation_node> &annotations, T &object)
 	{
 		for (auto &annotation : annotations)
 		{
 			switch (annotation.value->type.basetype)
 			{
-				case fx::nodes::type_node::datatype_bool:
-				case fx::nodes::type_node::datatype_int:
+				case type_node::datatype_bool:
+				case type_node::datatype_int:
 					object.annotations[annotation.name] = annotation.value->value_int;
 					break;
-				case fx::nodes::type_node::datatype_uint:
+				case type_node::datatype_uint:
 					object.annotations[annotation.name] = annotation.value->value_uint;
 					break;
-				case fx::nodes::type_node::datatype_float:
+				case type_node::datatype_float:
 					object.annotations[annotation.name] = annotation.value->value_float;
 					break;
-				case fx::nodes::type_node::datatype_string:
+				case type_node::datatype_string:
 					object.annotations[annotation.name] = annotation.value->value_string;
 					break;
 			}
 		}
 	}
 
-	void d3d11_fx_compiler::visit_texture(const fx::nodes::variable_declaration_node *node)
+	void d3d11_fx_compiler::visit_texture(const variable_declaration_node *node)
 	{
 		const auto obj = new d3d11_texture();
 		D3D11_TEXTURE2D_DESC texdesc = { };
@@ -1538,7 +1537,7 @@ namespace reshade
 
 		_runtime->add_texture(obj);
 	}
-	void d3d11_fx_compiler::visit_sampler(const fx::nodes::variable_declaration_node *node)
+	void d3d11_fx_compiler::visit_sampler(const variable_declaration_node *node)
 	{
 		if (node->properties.texture == nullptr)
 		{
@@ -1599,7 +1598,7 @@ namespace reshade
 
 		_global_code << ", __SamplerState" << it->second << " };\n";
 	}
-	void d3d11_fx_compiler::visit_uniform(const fx::nodes::variable_declaration_node *node)
+	void d3d11_fx_compiler::visit_uniform(const variable_declaration_node *node)
 	{
 		visit(_global_uniforms, node->type);
 
@@ -1628,19 +1627,19 @@ namespace reshade
 
 		switch (node->type.basetype)
 		{
-			case fx::nodes::type_node::datatype_bool:
+			case type_node::datatype_bool:
 				obj.basetype = uniform_datatype::bool_;
 				obj.storage_size *= sizeof(int);
 				break;
-			case fx::nodes::type_node::datatype_int:
+			case type_node::datatype_int:
 				obj.basetype = uniform_datatype::int_;
 				obj.storage_size *= sizeof(int);
 				break;
-			case fx::nodes::type_node::datatype_uint:
+			case type_node::datatype_uint:
 				obj.basetype = uniform_datatype::uint_;
 				obj.storage_size *= sizeof(unsigned int);
 				break;
-			case fx::nodes::type_node::datatype_float:
+			case type_node::datatype_float:
 				obj.basetype = uniform_datatype::float_;
 				obj.storage_size *= sizeof(float);
 				break;
@@ -1659,9 +1658,9 @@ namespace reshade
 			uniform_storage.resize(uniform_storage.size() + 128);
 		}
 
-		if (node->initializer_expression != nullptr && node->initializer_expression->id == fx::nodeid::literal_expression)
+		if (node->initializer_expression != nullptr && node->initializer_expression->id == nodeid::literal_expression)
 		{
-			CopyMemory(uniform_storage.data() + obj.storage_offset, &static_cast<const fx::nodes::literal_expression_node *>(node->initializer_expression)->value_float, obj.storage_size);
+			CopyMemory(uniform_storage.data() + obj.storage_offset, &static_cast<const literal_expression_node *>(node->initializer_expression)->value_float, obj.storage_size);
 		}
 		else
 		{
@@ -1670,7 +1669,7 @@ namespace reshade
 
 		_runtime->add_uniform(std::move(obj));
 	}
-	void d3d11_fx_compiler::visit_technique(const fx::nodes::technique_declaration_node *node)
+	void d3d11_fx_compiler::visit_technique(const technique_declaration_node *node)
 	{
 		technique obj;
 		obj.name = node->name;
@@ -1685,7 +1684,7 @@ namespace reshade
 
 		_runtime->add_technique(std::move(obj));
 	}
-	void d3d11_fx_compiler::visit_pass(const fx::nodes::pass_declaration_node *node, d3d11_pass &pass)
+	void d3d11_fx_compiler::visit_pass(const pass_declaration_node *node, d3d11_pass &pass)
 	{
 		pass.stencil_reference = 0;
 		pass.viewport.TopLeftX = pass.viewport.TopLeftY = pass.viewport.Width = pass.viewport.Height = 0.0f;
@@ -1827,7 +1826,7 @@ namespace reshade
 			}
 		}
 	}
-	void d3d11_fx_compiler::visit_pass_shader(const fx::nodes::function_declaration_node *node, const std::string &shadertype, d3d11_pass &pass)
+	void d3d11_fx_compiler::visit_pass_shader(const function_declaration_node *node, const std::string &shadertype, d3d11_pass &pass)
 	{
 		std::string profile = shadertype;
 		const D3D_FEATURE_LEVEL featurelevel = _runtime->_device->GetFeatureLevel();
