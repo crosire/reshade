@@ -14,16 +14,11 @@
 #include <iterator>
 #include <boost/filesystem/operations.hpp>
 
-#define STB_IMAGE_IMPLEMENTATION
-#define STB_IMAGE_DDS_IMPLEMENTATION
-#define STB_IMAGE_WRITE_IMPLEMENTATION
-#define STB_IMAGE_RESIZE_IMPLEMENTATION
 #include <stb_image.h>
 #include <stb_image_dds.h>
 #include <stb_image_write.h>
 #include <stb_image_resize.h>
 
-#define IMGUI_DISABLE_OBSOLETE_FUNCTIONS
 #define IMGUI_DEFINE_MATH_OPERATORS
 #include <imgui.h>
 #include <imgui_internal.h>

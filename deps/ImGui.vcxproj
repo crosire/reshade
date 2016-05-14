@@ -58,7 +58,6 @@
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="imgui\imconfig.h" />
     <ClInclude Include="imgui\imgui.h" />
   </ItemGroup>
   <ItemGroup>
