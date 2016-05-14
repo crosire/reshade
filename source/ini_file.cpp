@@ -28,7 +28,7 @@ namespace reshade
 
 			while (std::getline(file, line))
 			{
-				trim(line);
+				stdext::trim(line);
 
 				if (line.empty() || line[0] == ';' || line[0] == '/')
 				{
@@ -38,7 +38,7 @@ namespace reshade
 				// Read section name
 				if (line[0] == '[')
 				{
-					section = trim(line.substr(0, line.find(']')), " \t[]");
+					section = stdext::trim(line.substr(0, line.find(']')), " \t[]");
 					continue;
 				}
 
@@ -47,10 +47,10 @@ namespace reshade
 
 				if (assign_index != std::string::npos)
 				{
-					const auto key = trim(line.substr(0, assign_index));
-					const auto value = trim(line.substr(assign_index + 1));
+					const auto key = stdext::trim(line.substr(0, assign_index));
+					const auto value = stdext::trim(line.substr(assign_index + 1));
 
-					_data[section][key] = split(value, ',');
+					_data[section][key] = stdext::split(value, ',');
 				}
 				else
 				{

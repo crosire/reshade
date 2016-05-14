@@ -1168,7 +1168,7 @@ namespace reshade
 
 			if (ImGui::InputTextMultiline("Effect Search Paths", edit_buffer, sizeof(edit_buffer), ImVec2(0, 100)))
 			{
-				_effect_search_paths = split(edit_buffer, '\n');
+				_effect_search_paths = stdext::split(edit_buffer, '\n');
 
 				save_configuration();
 			}
@@ -1183,7 +1183,7 @@ namespace reshade
 
 			if (ImGui::InputTextMultiline("Texture Search Paths", edit_buffer, sizeof(edit_buffer), ImVec2(0, 100)))
 			{
-				_texture_search_paths = split(edit_buffer, '\n');
+				_texture_search_paths = stdext::split(edit_buffer, '\n');
 
 				save_configuration();
 			}
