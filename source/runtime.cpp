@@ -238,13 +238,16 @@ namespace reshade
 	{
 		for (auto &variable : _uniforms)
 		{
-			const auto source = variable.annotations["source"].as<std::string>();
+			const auto it = variable.annotations.find("source");
 
-			if (source.empty())
+			if (it == variable.annotations.end())
 			{
 				continue;
 			}
-			else if (source == "frametime")
+
+			const auto source = it->second.as<std::string>();
+
+			if (source == "frametime")
 			{
 				const float value = _last_frame_duration.count() * 1e-6f;
 				set_uniform_value(variable, &value, 1);
@@ -449,7 +452,16 @@ namespace reshade
 	{
 		for (auto &variable : _uniforms)
 		{
-			if (variable.annotations["source"].as<std::string>() == "timeleft")
+			const auto it = variable.annotations.find("source");
+
+			if (it == variable.annotations.end())
+			{
+				continue;
+			}
+
+			const auto source = it->second.as<std::string>();
+
+			if (source == "timeleft")
 			{
 				set_uniform_value(variable, &technique.timeleft, 1);
 			}
@@ -530,18 +542,6 @@ namespace reshade
 					}
 				}
 			}
-		}
-
-		// Reorder techniques
-		auto order = utils::ini_file(s_config_path).get(s_executable_path, "Techniques").data();
-		std::sort(_techniques.begin(), _techniques.end(),
-			[&order](const technique &lhs, const technique &rhs)
-		{
-			return (std::find(order.begin(), order.end(), lhs.name) - order.begin()) < (std::find(order.begin(), order.end(), rhs.name) - order.begin());
-		});
-		for (auto &technique : _techniques)
-		{
-			technique.enabled = std::find(order.begin(), order.end(), technique.name) != order.end();
 		}
 
 		load_textures();
@@ -736,23 +736,12 @@ namespace reshade
 	}
 	void runtime::save_configuration() const
 	{
-		std::string technique_list;
-
-		for (const auto &technique : _techniques)
-		{
-			if (technique.enabled)
-			{
-				technique_list += technique.name + ',';
-			}
-		}
-
 		utils::ini_file config(s_config_path);
 		config.set(s_executable_path, "DeveloperMode", _developer_mode);
 		config.set(s_executable_path, "MenuKey", _menu_key);
 		config.set(s_executable_path, "ScreenshotKey", _screenshot_key);
 		config.set(s_executable_path, "ScreenshotPath", _screenshot_path);
 		config.set(s_executable_path, "ScreenshotFormat", _screenshot_format);
-		config.set(s_executable_path, "Techniques", technique_list);
 		config.set(s_executable_path, "EffectSearchPaths", _effect_search_paths);
 		config.set(s_executable_path, "TextureSearchPaths", _texture_search_paths);
 		config.set(s_executable_path, "Presets", _preset_files);
@@ -777,6 +766,18 @@ namespace reshade
 
 			set_uniform_value(variable, values, variable.rows);
 		}
+
+		// Reorder techniques
+		auto order = preset.get("GLOBAL", "Techniques").data();
+		std::sort(_techniques.begin(), _techniques.end(),
+			[&order](const technique &lhs, const technique &rhs)
+		{
+			return (std::find(order.begin(), order.end(), lhs.name) - order.begin()) < (std::find(order.begin(), order.end(), rhs.name) - order.begin());
+		});
+		for (auto &technique : _techniques)
+		{
+			technique.enabled = std::find(order.begin(), order.end(), technique.name) != order.end();
+		}
 	}
 	void runtime::save_preset(const filesystem::path &path) const
 	{
@@ -784,6 +785,11 @@ namespace reshade
 
 		for (const auto &variable : _uniforms)
 		{
+			if (variable.annotations.count("source"))
+			{
+				continue;
+			}
+
 			const std::string filename = filesystem::path(variable.annotations.at("__FILE__").as<std::string>()).filename();
 
 			float values[4] = { };
@@ -791,6 +797,18 @@ namespace reshade
 
 			preset.set(filename, variable.unique_name, annotation(values, variable.rows));
 		}
+
+		std::string technique_list;
+
+		for (const auto &technique : _techniques)
+		{
+			if (technique.enabled)
+			{
+				technique_list += technique.name + ',';
+			}
+		}
+
+		preset.set("GLOBAL", "Techniques", technique_list);
 	}
 
 	void runtime::draw_overlay()
@@ -901,7 +919,7 @@ namespace reshade
 		{
 			ImGui::SetNextWindowSize(ImVec2(500, 500), ImGuiSetCond_FirstUseEver);
 
-			if (ImGui::Begin("Shader Editor", &_show_shader_editor))
+			if (ImGui::Begin("Shader Code", &_show_shader_editor))
 			{
 				draw_shader_editor();
 			}
@@ -912,7 +930,7 @@ namespace reshade
 		{
 			ImGui::SetNextWindowSize(ImVec2(500, 300), ImGuiSetCond_FirstUseEver);
 
-			if (ImGui::Begin("Variable Editor", &_show_variable_editor))
+			if (ImGui::Begin("Shaders Parameters", &_show_variable_editor))
 			{
 				draw_variable_editor();
 			}
@@ -967,18 +985,21 @@ namespace reshade
 			ImGui::OpenPopup("Add Preset");
 		}
 
-		ImGui::SameLine();
-
-		if (ImGui::ButtonEx("Remove", ImVec2(60, 0), _current_preset < 0 ? ImGuiButtonFlags_Disabled : 0))
+		if (_current_preset >= 0)
 		{
-			ImGui::OpenPopup("Remove Preset");
-		}
+			ImGui::SameLine();
 
-		ImGui::SameLine();
+			if (ImGui::ButtonEx("Remove", ImVec2(60, 0)))
+			{
+				ImGui::OpenPopup("Remove Preset");
+			}
 
-		if (ImGui::ButtonEx("Edit", ImVec2(60, 0), _current_preset < 0 ? ImGuiButtonFlags_Disabled : 0))
-		{
-			_show_variable_editor = true;
+			ImGui::SameLine();
+
+			if (ImGui::ButtonEx("Edit", ImVec2(60, 0)))
+			{
+				_show_variable_editor = true;
+			}
 		}
 
 		if (ImGui::BeginPopup("Add Preset"))
@@ -1026,13 +1047,18 @@ namespace reshade
 		{
 			for (size_t n = 0; n < _techniques.size(); n++)
 			{
+				if (_techniques[n].annotations["hidden"].as<bool>())
+				{
+					continue;
+				}
+
 				ImGui::PushID(n);
 
 				const auto name = _techniques[n].name + " [" + _techniques[n].annotations["__FILE__"].as<std::string>() + "]";
 
 				if (ImGui::Checkbox(name.c_str(), &_techniques[n].enabled))
 				{
-					save_configuration();
+					save_preset(_preset_files[_current_preset]);
 				}
 
 				if (ImGui::IsItemActive())
@@ -1064,7 +1090,7 @@ namespace reshade
 				std::swap(_techniques[_hovered_technique], _techniques[_selected_technique]);
 				_selected_technique = _hovered_technique;
 
-				save_configuration();
+				save_preset(_preset_files[_current_preset]);
 			}
 		}
 		else
@@ -1269,13 +1295,12 @@ namespace reshade
 	void runtime::draw_variable_editor()
 	{
 		bool opened = true;
+		size_t id = 0;
 		std::string current_header, new_header;
 
-		for (size_t i = 0; i < _uniforms.size(); i++)
+		for (auto &variable : _uniforms)
 		{
-			auto &variable = _uniforms[i];
-
-			if (!variable.annotations["source"].as<std::string>().empty())
+			if (variable.annotations.count("source"))
 			{
 				continue;
 			}
@@ -1296,29 +1321,53 @@ namespace reshade
 			float data[4] = { };
 			get_uniform_value(variable, data, 4);
 
-			const auto ui_type = variable.annotations["ui_type"].as<std::string>();
+			auto ui_type = variable.annotations["ui_type"].as<std::string>();
 
-			ImGui::PushID(i);
+			ImGui::PushID(id++);
 
-			if (ui_type == "input")
+			if (ui_type == "drag")
 			{
-				modified = ImGui::InputFloat4(variable.name.c_str(), data);
+				switch (variable.rows)
+				{
+					case 1:
+						modified = ImGui::DragFloat(variable.name.c_str(), data, variable.annotations["ui_step"].as<float>(), variable.annotations["ui_min"].as<float>(), variable.annotations["ui_max"].as<float>());
+						break;
+					case 2:
+						modified = ImGui::DragFloat2(variable.name.c_str(), data, variable.annotations["ui_step"].as<float>(), variable.annotations["ui_min"].as<float>(), variable.annotations["ui_max"].as<float>());
+						break;
+					case 3:
+						modified = ImGui::DragFloat3(variable.name.c_str(), data, variable.annotations["ui_step"].as<float>(), variable.annotations["ui_min"].as<float>(), variable.annotations["ui_max"].as<float>());
+						break;
+					case 4:
+						modified = ImGui::DragFloat4(variable.name.c_str(), data, variable.annotations["ui_step"].as<float>(), variable.annotations["ui_min"].as<float>(), variable.annotations["ui_max"].as<float>());
+						break;
+				}
 			}
-			else if (ui_type == "drag")
+			else if (ui_type == "input" || (ui_type.empty() && variable.rows < 3))
 			{
-				modified = ImGui::DragFloat4(variable.name.c_str(), data, variable.annotations["ui_step"].as<float>(), variable.annotations["ui_min"].as<float>(), variable.annotations["ui_max"].as<float>());
+				switch (variable.rows)
+				{
+					case 1:
+						modified = ImGui::InputFloat(variable.name.c_str(), data);
+						break;
+					case 2:
+						modified = ImGui::InputFloat2(variable.name.c_str(), data);
+						break;
+					case 3:
+						modified = ImGui::InputFloat3(variable.name.c_str(), data);
+						break;
+					case 4:
+						modified = ImGui::InputFloat4(variable.name.c_str(), data);
+						break;
+				}
 			}
-			else if (ui_type == "slider")
+			else if (variable.rows == 3)
 			{
-				modified = ImGui::SliderFloat4(variable.name.c_str(), data, variable.annotations["ui_min"].as<float>(), variable.annotations["ui_max"].as<float>());
+				modified = ImGui::ColorEdit3(variable.name.c_str(), data);
 			}
-			else if (ui_type == "color")
+			else if (variable.rows == 4)
 			{
 				modified = ImGui::ColorEdit4(variable.name.c_str(), data);
-			}
-			else
-			{
-				modified = ImGui::InputFloat4(variable.name.c_str(), data, -1, ImGuiInputTextFlags_ReadOnly);
 			}
 
 			ImGui::PopID();
