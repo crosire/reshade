@@ -215,7 +215,7 @@ namespace reshade
 		_last_frame_duration = std::chrono::duration_cast<std::chrono::nanoseconds>(time_present - _last_present);
 		const auto time_since_create = std::chrono::duration_cast<std::chrono::seconds>(time_present - _last_create);
 
-		if ((_menu_index != 1 || !_show_menu) && (GetAsyncKeyState(_screenshot_key) & 0x8000))
+		if ((_menu_index != 1 || !_show_menu) && _input->is_key_pressed(_screenshot_key.keycode, _screenshot_key.ctrl, _screenshot_key.shift, false))
 		{
 			screenshot();
 		}
@@ -735,8 +735,12 @@ namespace reshade
 		const utils::ini_file style_config(s_appdata_path / "Style.ini");
 
 		_developer_mode = apps_config.get(s_executable_path, "DeveloperMode", false).as<bool>();
-		_menu_key = apps_config.get(s_executable_path, "MenuKey", 0x78).as<int>(); // VK_F9
-		_screenshot_key = apps_config.get(s_executable_path, "ScreenshotKey", 0x2C).as<int>(); // VK_SNAPSHOT
+		_menu_key.keycode = apps_config.get(s_executable_path, "MenuKey", 0x78).as<int>(); // VK_F9
+		_menu_key.ctrl = apps_config.get(s_executable_path, "MenuKeyCtrl", false).as<bool>();
+		_menu_key.shift = apps_config.get(s_executable_path, "MenuKeyShift", false).as<bool>();
+		_screenshot_key.keycode = apps_config.get(s_executable_path, "ScreenshotKey", 0x2C).as<int>(); // VK_SNAPSHOT
+		_screenshot_key.ctrl = apps_config.get(s_executable_path, "ScreenshotKeyCtrl", false).as<bool>();
+		_screenshot_key.shift = apps_config.get(s_executable_path, "ScreenshotKeyShift", false).as<bool>();
 		_screenshot_path = apps_config.get(s_executable_path, "ScreenshotPath", static_cast<const std::string &>(s_executable_path.parent_path())).as<std::string>();
 		_screenshot_format = apps_config.get(s_executable_path, "ScreenshotFormat", 0).as<int>();
 		_effect_search_paths = apps_config.get(s_executable_path, "EffectSearchPaths", static_cast<const std::string &>(s_injector_path.parent_path())).data();
@@ -773,8 +777,12 @@ namespace reshade
 		utils::ini_file style_config(s_appdata_path / "Style.ini");
 
 		apps_config.set(s_executable_path, "DeveloperMode", _developer_mode);
-		apps_config.set(s_executable_path, "MenuKey", _menu_key);
-		apps_config.set(s_executable_path, "ScreenshotKey", _screenshot_key);
+		apps_config.set(s_executable_path, "MenuKey", _menu_key.keycode);
+		apps_config.set(s_executable_path, "MenuKeyCtrl", _menu_key.ctrl);
+		apps_config.set(s_executable_path, "MenuKeyShift", _menu_key.shift);
+		apps_config.set(s_executable_path, "ScreenshotKey", _screenshot_key.keycode);
+		apps_config.set(s_executable_path, "ScreenshotKeyCtrl", _screenshot_key.ctrl);
+		apps_config.set(s_executable_path, "ScreenshotKeyShift", _screenshot_key.shift);
 		apps_config.set(s_executable_path, "ScreenshotPath", _screenshot_path);
 		apps_config.set(s_executable_path, "ScreenshotFormat", _screenshot_format);
 		apps_config.set(s_executable_path, "EffectSearchPaths", _effect_search_paths);
@@ -870,7 +878,7 @@ namespace reshade
 
 	void runtime::draw_overlay()
 	{
-		if (_input->is_key_pressed(_menu_key))
+		if ((_menu_index != 1 || !_show_menu) && _input->is_key_pressed(_menu_key.keycode, _menu_key.ctrl, _menu_key.shift, false))
 		{
 			_show_menu = !_show_menu;
 		}
@@ -1170,15 +1178,25 @@ namespace reshade
 
 		if (ImGui::CollapsingHeader("General", "settings_general", true, true))
 		{
-			assert(_menu_key < 256);
+			assert(_menu_key.keycode < 256);
 
-			ImGui::InputText("Overlay Key", const_cast<char *>(keyboard_keys[_menu_key]), sizeof(*keyboard_keys), ImGuiInputTextFlags_ReadOnly);
+			std::string menu_key_text = keyboard_keys[_menu_key.keycode];
+			if (_menu_key.shift) menu_key_text = "Shift + " + menu_key_text;
+			if (_menu_key.ctrl) menu_key_text = "Ctrl + " + menu_key_text;
+			ImGui::InputText("Overlay Key", const_cast<char *>(menu_key_text.data()), menu_key_text.size(), ImGuiInputTextFlags_ReadOnly);
 
 			if (ImGui::IsItemActive())
 			{
 				if (_input->is_any_key_pressed())
 				{
-					_menu_key = _input->last_key_pressed();
+					const unsigned int last_key_pressed = _input->last_key_pressed();
+
+					if (last_key_pressed != 0x11 && last_key_pressed != 0x10)
+					{
+						_menu_key.ctrl = _input->is_key_down(0x11);
+						_menu_key.shift = _input->is_key_down(0x10);
+						_menu_key.keycode = _input->last_key_pressed();
+					}
 				}
 			}
 			else if (ImGui::IsItemHovered())
@@ -1234,15 +1252,25 @@ namespace reshade
 
 		if (ImGui::CollapsingHeader("Screenshots", "settings_screenshots", true, true))
 		{
-			assert(_screenshot_key < 256);
+			assert(_screenshot_key.keycode < 256);
 
-			ImGui::InputText("Screenshot Key", const_cast<char *>(keyboard_keys[_screenshot_key]), sizeof(*keyboard_keys), ImGuiInputTextFlags_ReadOnly);
+			std::string screenshot_key_text = keyboard_keys[_screenshot_key.keycode];
+			if (_screenshot_key.shift) screenshot_key_text = "Shift + " + screenshot_key_text;
+			if (_screenshot_key.ctrl) screenshot_key_text = "Ctrl + " + screenshot_key_text;
+			ImGui::InputText("Screenshot Key", const_cast<char *>(screenshot_key_text.data()), screenshot_key_text.size(), ImGuiInputTextFlags_ReadOnly);
 
 			if (ImGui::IsItemActive())
 			{
 				if (_input->is_any_key_pressed())
 				{
-					_screenshot_key = _input->last_key_pressed();
+					const unsigned int last_key_pressed = _input->last_key_pressed();
+
+					if (last_key_pressed != 0x11 && last_key_pressed != 0x10)
+					{
+						_screenshot_key.ctrl = _input->is_key_down(0x11);
+						_screenshot_key.shift = _input->is_key_down(0x10);
+						_screenshot_key.keycode = _input->last_key_pressed();
+					}
 				}
 			}
 			else if (ImGui::IsItemHovered())
@@ -1390,7 +1418,7 @@ namespace reshade
 			if (new_header != current_header)
 			{
 				current_header = new_header;
-				opened = ImGui::CollapsingHeader(new_header.c_str());
+				opened = ImGui::CollapsingHeader(new_header.c_str(), nullptr, true, true);
 			}
 			if (!opened)
 			{

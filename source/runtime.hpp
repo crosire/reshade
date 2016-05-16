@@ -173,6 +173,8 @@ namespace reshade
 		std::vector<technique> _techniques;
 
 	private:
+		struct key_shortcut { int keycode; bool ctrl, shift; };
+
 		void reload();
 		void screenshot();
 
@@ -198,7 +200,8 @@ namespace reshade
 		std::vector<unsigned char> _uniform_data_storage;
 		int _date[4] = { };
 		std::string _errors, _message, _effect_source;
-		int _menu_key = 0, _menu_index = 0, _screenshot_key = 0, _screenshot_format = 0, _current_preset = -1, _current_effect_file = -1;
+		int _menu_index = 0, _screenshot_format = 0, _current_preset = -1, _current_effect_file = -1;
+		key_shortcut _menu_key = { }, _screenshot_key = { };
 		std::string _screenshot_path;
 		bool _developer_mode = false, _show_menu = false, _show_shader_editor = false, _show_variable_editor = false;
 		int _selected_technique = -1, _hovered_technique = -1;
