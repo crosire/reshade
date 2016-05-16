@@ -413,6 +413,11 @@ namespace reshade
 
 		if (_runtime->_effect_ubo_size != 0)
 		{
+			if (_runtime->_effect_ubo != 0)
+			{
+				glDeleteBuffers(1, &_runtime->_effect_ubo);
+			}
+
 			glGenBuffers(1, &_runtime->_effect_ubo);
 
 			GLint previous = 0;

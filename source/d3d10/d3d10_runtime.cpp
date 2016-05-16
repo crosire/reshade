@@ -976,6 +976,12 @@ namespace reshade
 			{
 				auto &pass = *static_cast<d3d10_pass *>(pass_ptr.get());
 
+				// Pass was created before this texture was created and therefore does not have have enough shader resource slots
+				if (texture.shader_register >= pass.shader_resources.size())
+				{
+					break;
+				}
+
 				pass.shader_resources[texture.shader_register] = texture.srv[0].get();
 				pass.shader_resources[texture.shader_register + 1] = texture.srv[1].get();
 			}

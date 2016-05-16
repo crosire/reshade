@@ -200,6 +200,8 @@ namespace reshade
 
 		if (_runtime->_constant_buffer_size != 0)
 		{
+			_runtime->_constant_buffer.reset();
+
 			const CD3D11_BUFFER_DESC globals_desc(roundto16(_runtime->_constant_buffer_size), D3D11_BIND_CONSTANT_BUFFER, D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE);
 			const D3D11_SUBRESOURCE_DATA globals_initial = { _runtime->get_uniform_value_storage().data(), _runtime->_constant_buffer_size };
 
