@@ -598,6 +598,12 @@ namespace reshade
 		reshadefx::preprocessor pp;
 
 		pp.add_include_path(path.parent_path());
+
+		for (const auto &include_path : _effect_search_paths)
+		{
+			pp.add_include_path(include_path);
+		}
+
 		pp.add_macro_definition("__RESHADE__", std::to_string(VERSION_MAJOR * 10000 + VERSION_MINOR * 100 + VERSION_REVISION));
 		pp.add_macro_definition("__VENDOR__", std::to_string(_vendor_id));
 		pp.add_macro_definition("__DEVICE__", std::to_string(_device_id));
