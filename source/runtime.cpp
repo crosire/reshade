@@ -880,9 +880,18 @@ namespace reshade
 
 	void runtime::draw_overlay()
 	{
+		const bool show_splash = std::chrono::duration_cast<std::chrono::seconds>(_last_present - _start_time).count() < 8;
+
 		if ((_menu_index != 1 || !_show_menu) && _input->is_key_pressed(_menu_key.keycode, _menu_key.ctrl, _menu_key.shift, false))
 		{
 			_show_menu = !_show_menu;
+		}
+
+		if (!_show_menu && !show_splash)
+		{
+			_input->block_mouse_input(false);
+			_input->block_keyboard_input(false);
+			return;
 		}
 
 		auto &imgui_io = ImGui::GetIO();
@@ -890,6 +899,7 @@ namespace reshade
 		imgui_io.DisplaySize.x = static_cast<float>(_width);
 		imgui_io.DisplaySize.y = static_cast<float>(_height);
 		imgui_io.Fonts->TexID = _imgui_font_atlas.get();
+		imgui_io.MouseDrawCursor = _show_menu;
 
 		imgui_io.MousePos.x = static_cast<float>(_input->mouse_position_x());
 		imgui_io.MousePos.y = static_cast<float>(_input->mouse_position_y());
@@ -916,7 +926,7 @@ namespace reshade
 
 		ImGui::NewFrame();
 
-		if (std::chrono::duration_cast<std::chrono::seconds>(_last_present - _start_time).count() < 8)
+		if (show_splash)
 		{
 			ImGui::SetNextWindowPos(ImVec2(0, 0));
 			ImGui::Begin("##logo", nullptr, ImVec2(), 0.0f, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoInputs);
@@ -1125,7 +1135,7 @@ namespace reshade
 
 				const auto name = _techniques[n].name + " [" + _techniques[n].annotations["__FILE__"].as<std::string>() + "]";
 
-				if (ImGui::Checkbox(name.c_str(), &_techniques[n].enabled))
+				if (ImGui::Checkbox(name.c_str(), &_techniques[n].enabled) && _current_preset >= 0)
 				{
 					save_preset(_preset_files[_current_preset]);
 				}
@@ -1159,7 +1169,10 @@ namespace reshade
 				std::swap(_techniques[_hovered_technique], _techniques[_selected_technique]);
 				_selected_technique = _hovered_technique;
 
-				save_preset(_preset_files[_current_preset]);
+				if (_current_preset >= 0)
+				{
+					save_preset(_preset_files[_current_preset]);
+				}
 			}
 		}
 		else
@@ -1486,7 +1499,10 @@ namespace reshade
 			{
 				set_uniform_value(variable, data, 4);
 
-				save_preset(_preset_files[_current_preset]);
+				if (_current_preset >= 0)
+				{
+					save_preset(_preset_files[_current_preset]);
+				}
 			}
 		}
 	}
