@@ -3,6 +3,7 @@
 #include "hook_manager.hpp"
 #include "critical_section.hpp"
 
+#include <assert.h>
 #include <memory>
 #include <unordered_map>
 #include <unordered_set>

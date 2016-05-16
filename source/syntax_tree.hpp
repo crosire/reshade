@@ -1,7 +1,6 @@
 #pragma once
 
 #include <list>
-#include <algorithm>
 #include "syntax_tree_nodes.hpp"
 
 namespace reshadefx

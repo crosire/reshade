@@ -1,9 +1,8 @@
 #include "preprocessor.hpp"
+#include "string_utils.hpp"
 
-#include <cassert>
-#include <codecvt>
+#include <assert.h>
 #include <fstream>
-#include <boost\filesystem\operations.hpp>
 
 namespace reshadefx
 {
@@ -18,7 +17,9 @@ namespace reshadefx
 		macro_replacement_expand = '\xFB',
 	};
 
-	void preprocessor::add_include_path(const std::string &path)
+	namespace filesystem = reshade::filesystem;
+
+	void preprocessor::add_include_path(const filesystem::path &path)
 	{
 		_include_paths.push_back(path);
 	}
@@ -34,9 +35,9 @@ namespace reshadefx
 		return add_macro_definition(name, macro);
 	}
 
-	bool preprocessor::run(const std::string &file_path, std::vector<std::string> &included_files)
+	bool preprocessor::run(const filesystem::path &file_path, std::vector<filesystem::path> &included_files)
 	{
-		std::ifstream file(std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>>().from_bytes(file_path));
+		std::ifstream file(stdext::utf8_to_utf16(file_path));
 
 		if (!file.is_open())
 		{
@@ -572,39 +573,33 @@ namespace reshadefx
 			return;
 		}
 
-		boost::filesystem::path filename = current_token().literal_as_string;
-		auto path = boost::filesystem::path(_output_location.source).parent_path() / filename;
+		filesystem::path filename = current_token().literal_as_string;
+		filesystem::path filepath = filesystem::path(_output_location.source).remove_filename() / filename;
 
-		if (!exists(path))
+		if (!filesystem::exists(filepath))
 		{
-			for (const auto &include_path : _include_paths)
-			{
-				if (exists(path = absolute(filename, include_path)))
-				{
-					break;
-				}
-			}
+			filepath = filesystem::resolve(filename, _include_paths);
 		}
 
-		auto it = _filecache.find(path.string());
+		auto it = _filecache.find(filepath);
 
 		if (it == _filecache.end())
 		{
-			std::ifstream file(path.wstring());
+			std::ifstream file(stdext::utf8_to_utf16(filepath));
 
 			if (!file.is_open())
 			{
-				error(keyword_location, "could not open included file '" + filename.make_preferred().string() + "'");
+				error(keyword_location, "could not open included file '" + static_cast<const std::string &>(filepath) + "'");
 				consume_until(lexer::tokenid::end_of_line);
 				return;
 			}
 
 			const std::string filedata(std::istreambuf_iterator<char>(file.rdbuf()), std::istreambuf_iterator<char>());
 
-			it = _filecache.emplace(path.string(), filedata + '\n').first;
+			it = _filecache.emplace(filepath, filedata + '\n').first;
 		}
 
-		push(it->second, path.string());
+		push(it->second, filepath);
 	}
 
 	bool preprocessor::evaluate_expression()
@@ -797,21 +792,8 @@ namespace reshadefx
 							return false;
 						}
 
-						const boost::filesystem::path filename = current_token().literal_as_string;
-						bool is_existing = exists(boost::filesystem::path(_output_location.source).parent_path() / filename);
-
-						if (!is_existing)
-						{
-							for (const auto &include_path : _include_paths)
-							{
-								is_existing = exists(absolute(filename, include_path));
-
-								if (is_existing)
-								{
-									break;
-								}
-							}
-						}
+						const filesystem::path filename = current_token().literal_as_string;
+						const filesystem::path filename_with_current_directory = filesystem::path(_output_location.source).remove_filename() / filename;
 
 						if (has_parentheses && !expect(lexer::tokenid::parenthesis_close))
 						{
@@ -819,7 +801,7 @@ namespace reshadefx
 						}
 
 						rpn[rpn_count].is_op = false;
-						rpn[rpn_count++].value = is_existing;
+						rpn[rpn_count++].value = filesystem::exists(filename_with_current_directory) || filesystem::exists(filesystem::resolve(filename, _include_paths));
 						continue;
 					}
 					else if (current_token().literal_as_string == "defined")

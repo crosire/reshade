@@ -1,7 +1,5 @@
 #pragma once
 
-#include <string>
-#include <vector>
 #include "location.hpp"
 #include "runtime_objects.hpp"
 

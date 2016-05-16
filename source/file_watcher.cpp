@@ -1,4 +1,5 @@
 #include "file_watcher.hpp"
+#include "string_utils.hpp"
 
 #include <Windows.h>
 
@@ -11,9 +12,9 @@ namespace reshade
 			const DWORD buffer_size = sizeof(FILE_NOTIFY_INFORMATION) + MAX_PATH * sizeof(WCHAR);
 		}
 
-		file_watcher::file_watcher(LPCWSTR path) : _buffer(new uint8_t[buffer_size])
+		file_watcher::file_watcher(const filesystem::path &path) : _buffer(new uint8_t[buffer_size])
 		{
-			_file_handle = CreateFileW(path, FILE_LIST_DIRECTORY, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED, nullptr);
+			_file_handle = CreateFileW(stdext::utf8_to_utf16(path).c_str(), FILE_LIST_DIRECTORY, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED, nullptr);
 			_completion_handle = CreateIoCompletionPort(_file_handle, nullptr, reinterpret_cast<ULONG_PTR>(_file_handle), 1);
 
 			OVERLAPPED overlapped = { };
@@ -27,7 +28,7 @@ namespace reshade
 			CloseHandle(_completion_handle);
 		}
 
-		bool file_watcher::check(std::vector<std::wstring> &modifications)
+		bool file_watcher::check(std::vector<filesystem::path> &modifications)
 		{
 			DWORD transferred;
 			ULONG_PTR key;
@@ -39,14 +40,14 @@ namespace reshade
 			}
 
 			static DWORD s_last_tick_count = 0;
-			static std::wstring s_last_filename;
+			static std::string s_last_filename;
 
 			auto record = reinterpret_cast<const FILE_NOTIFY_INFORMATION *>(_buffer.get());
 			const auto current_tick_count = GetTickCount();
 
 			while (true)
 			{
-				const std::wstring filename(record->FileName, record->FileNameLength / sizeof(WCHAR));
+				std::string filename = stdext::utf16_to_utf8(record->FileName, record->FileNameLength / sizeof(WCHAR));
 
 				if (filename != s_last_filename || s_last_tick_count + 2000 < current_tick_count)
 				{

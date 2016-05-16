@@ -2,6 +2,7 @@
 #include "d3d9_fx_compiler.hpp"
 #include "constant_folding.hpp"
 
+#include <assert.h>
 #include <d3dcompiler.h>
 
 namespace reshade

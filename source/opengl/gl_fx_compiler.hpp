@@ -3,6 +3,8 @@
 #include "syntax_tree.hpp"
 #include "gl_runtime.hpp"
 
+#include <sstream>
+
 namespace reshade
 {
 	class gl_fx_compiler

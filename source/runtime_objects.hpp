@@ -1,7 +1,8 @@
 #pragma once
 
-#include <string>
 #include <memory>
+#include <string>
+#include <vector>
 #include <unordered_map>
 #include "moving_average.hpp"
 

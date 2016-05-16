@@ -1,6 +1,9 @@
 #include "runtime.hpp"
 #include "runtime_objects.hpp"
 
+#include <assert.h>
+#include <algorithm>
+
 namespace reshade
 {
 	void runtime::add_texture(texture *texture)

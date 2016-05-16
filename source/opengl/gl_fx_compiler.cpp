@@ -1,6 +1,8 @@
 #include "log.hpp"
 #include "gl_fx_compiler.hpp"
 
+#include <assert.h>
+
 #ifdef _DEBUG
 	#define GLCHECK(call) { glGetError(); call; GLenum __e = glGetError(); if (__e != GL_NO_ERROR) { char __m[1024]; sprintf_s(__m, "OpenGL Error %x at line %d: %s", __e, __LINE__, #call); MessageBoxA(nullptr, __m, 0, MB_ICONERROR); } }
 #else

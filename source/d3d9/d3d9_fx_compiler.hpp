@@ -3,6 +3,7 @@
 #include "syntax_tree.hpp"
 #include "d3d9_runtime.hpp"
 
+#include <sstream>
 #include <unordered_set>
 
 namespace reshade

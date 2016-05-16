@@ -9,10 +9,7 @@
 #include "file_watcher.hpp"
 #include "string_utils.hpp"
 #include "ini_file.hpp"
-
-#include <ShlObj.h>
-#include <iterator>
-#include <boost/filesystem/operations.hpp>
+#include "filesystem.hpp"
 
 #include <stb_image.h>
 #include <stb_image_dds.h>
@@ -27,30 +24,8 @@ extern bool g_blockSetCursorPos;
 
 namespace reshade
 {
-	namespace fs = boost::filesystem;
-
 	namespace
 	{
-		fs::path obfuscate_path(const fs::path &path)
-		{
-			WCHAR username_data[257];
-			DWORD username_size = 257;
-			GetUserNameW(username_data, &username_size);
-
-			std::wstring result = path.wstring();
-			const std::wstring username(username_data, username_size - 1);
-			const std::wstring username_replacement(username_size - 1, L'*');
-
-			size_t start_pos = 0;
-
-			while ((start_pos = result.find(username, start_pos)) != std::string::npos)
-			{
-				result.replace(start_pos, username.length(), username_replacement);
-				start_pos += username.length();
-			}
-
-			return result;
-		}
 		std::streamsize stream_size(std::istream &s)
 		{
 			s.seekg(0, std::ios::end);
@@ -59,7 +34,7 @@ namespace reshade
 			return size;
 		}
 
-		fs::path s_executable_path, s_injector_path, s_config_path;
+		filesystem::path s_executable_path, s_injector_path, s_config_path;
 		std::string s_executable_name, s_imgui_ini_path;
 
 		const char keyboard_keys[256][16] = {
@@ -76,17 +51,17 @@ namespace reshade
 		};
 	}
 
-	void runtime::startup(const fs::path &executable_path, const fs::path &injector_path)
+	void runtime::startup(const filesystem::path &executable_path, const filesystem::path &injector_path)
 	{
 		s_injector_path = injector_path;
 		s_executable_path = executable_path;
-		s_executable_name = executable_path.stem().string();
+		s_executable_name = s_executable_path.filename_without_extension();
 
-		fs::path log_path = injector_path, tracelog_path = injector_path;
+		filesystem::path log_path(injector_path), tracelog_path(injector_path);
 		log_path.replace_extension("log");
 		tracelog_path.replace_extension("tracelog");
 
-		if (fs::exists(tracelog_path))
+		if (filesystem::exists(tracelog_path))
 		{
 			log::debug = true;
 
@@ -102,50 +77,45 @@ namespace reshade
 #else
 #define VERSION_PLATFORM "32-bit"
 #endif
-		LOG(INFO) << "Initializing crosire's ReShade version '" BOOST_STRINGIZE(VERSION_FULL) "' (" << VERSION_PLATFORM << ") built on '" VERSION_DATE " " VERSION_TIME "' loaded from " << obfuscate_path(injector_path) << " to " << obfuscate_path(executable_path) << " ...";
+		LOG(INFO) << "Initializing crosire's ReShade version '" VERSION_STRING_FILE "' (" << VERSION_PLATFORM << ") built on '" VERSION_DATE " " VERSION_TIME "' loaded from " << injector_path << " to " << executable_path << " ...";
 
-		TCHAR system_path_buffer[MAX_PATH];
-		GetSystemDirectory(system_path_buffer, MAX_PATH);
-		const fs::path system_path(system_path_buffer);
+		const auto system_path = filesystem::get_special_folder_path(filesystem::special_folder::system);
+		const auto appdata_path = filesystem::get_special_folder_path(filesystem::special_folder::app_data) / "ReShade";
 
-		TCHAR appdata_path_buffer[MAX_PATH];
-		SHGetFolderPath(nullptr, CSIDL_APPDATA, nullptr, SHGFP_TYPE_CURRENT, appdata_path_buffer);
-		const fs::path appdata_path(appdata_path_buffer);
-
-		if (!fs::exists(appdata_path / "ReShade"))
+		if (!filesystem::exists(appdata_path))
 		{
-			fs::create_directory(appdata_path / "ReShade");
+			filesystem::create_directory(appdata_path);
 		}
 
-		s_config_path = appdata_path / "ReShade" / "ReShade.ini";
-		s_imgui_ini_path = (appdata_path / "ReShade" / "ReShadeGUI.ini").string();
+		s_config_path = appdata_path / "ReShade.ini";
+		s_imgui_ini_path = appdata_path / "ReShadeGUI.ini";
 
-		hooks::register_module((system_path / "d3d8.dll").c_str());
-		hooks::register_module((system_path / "d3d9.dll").c_str());
-		hooks::register_module((system_path / "d3d10.dll").c_str());
-		hooks::register_module((system_path / "d3d10_1.dll").c_str());
-		hooks::register_module((system_path / "d3d11.dll").c_str());
-		hooks::register_module((system_path / "d3d12.dll").c_str());
-		hooks::register_module((system_path / "dxgi.dll").c_str());
-		hooks::register_module((system_path / "opengl32.dll").c_str());
-		hooks::register_module((system_path / "user32.dll").c_str());
-		hooks::register_module((system_path / "ws2_32.dll").c_str());
+		hooks::register_module(system_path / "d3d8.dll");
+		hooks::register_module(system_path / "d3d9.dll");
+		hooks::register_module(system_path / "d3d10.dll");
+		hooks::register_module(system_path / "d3d10_1.dll");
+		hooks::register_module(system_path / "d3d11.dll");
+		hooks::register_module(system_path / "d3d12.dll");
+		hooks::register_module(system_path / "dxgi.dll");
+		hooks::register_module(system_path / "opengl32.dll");
+		hooks::register_module(system_path / "user32.dll");
+		hooks::register_module(system_path / "ws2_32.dll");
 
 		auto &imgui_io = ImGui::GetIO();
 		imgui_io.IniFilename = s_imgui_ini_path.c_str();
-		imgui_io.KeyMap[ImGuiKey_Tab] = VK_TAB;
-		imgui_io.KeyMap[ImGuiKey_LeftArrow] = VK_LEFT;
-		imgui_io.KeyMap[ImGuiKey_RightArrow] = VK_RIGHT;
-		imgui_io.KeyMap[ImGuiKey_UpArrow] = VK_UP;
-		imgui_io.KeyMap[ImGuiKey_DownArrow] = VK_DOWN;
-		imgui_io.KeyMap[ImGuiKey_PageUp] = VK_PRIOR;
-		imgui_io.KeyMap[ImGuiKey_PageDown] = VK_NEXT;
-		imgui_io.KeyMap[ImGuiKey_Home] = VK_HOME;
-		imgui_io.KeyMap[ImGuiKey_End] = VK_END;
-		imgui_io.KeyMap[ImGuiKey_Delete] = VK_DELETE;
-		imgui_io.KeyMap[ImGuiKey_Backspace] = VK_BACK;
-		imgui_io.KeyMap[ImGuiKey_Enter] = VK_RETURN;
-		imgui_io.KeyMap[ImGuiKey_Escape] = VK_ESCAPE;
+		imgui_io.KeyMap[ImGuiKey_Tab] = 0x09; // VK_TAB
+		imgui_io.KeyMap[ImGuiKey_LeftArrow] = 0x25; // VK_LEFT
+		imgui_io.KeyMap[ImGuiKey_RightArrow] = 0x27; // VK_RIGHT
+		imgui_io.KeyMap[ImGuiKey_UpArrow] = 0x26; // VK_UP
+		imgui_io.KeyMap[ImGuiKey_DownArrow] = 0x28; // VK_DOWN
+		imgui_io.KeyMap[ImGuiKey_PageUp] = 0x21; // VK_PRIOR
+		imgui_io.KeyMap[ImGuiKey_PageDown] = 0x22; // VK_NEXT
+		imgui_io.KeyMap[ImGuiKey_Home] = 0x24; // VK_HOME
+		imgui_io.KeyMap[ImGuiKey_End] = 0x23; // VK_END
+		imgui_io.KeyMap[ImGuiKey_Delete] = 0x2E; // VK_DELETE
+		imgui_io.KeyMap[ImGuiKey_Backspace] = 0x08; // VK_BACK
+		imgui_io.KeyMap[ImGuiKey_Enter] = 0x0D; // VK_RETURN
+		imgui_io.KeyMap[ImGuiKey_Escape] = 0x1B; // VK_ESCAPE
 		imgui_io.KeyMap[ImGuiKey_A] = 'A';
 		imgui_io.KeyMap[ImGuiKey_C] = 'C';
 		imgui_io.KeyMap[ImGuiKey_V] = 'V';
@@ -185,7 +155,7 @@ namespace reshade
 
 	runtime::runtime(uint32_t renderer) :
 		_renderer_id(renderer),
-		_start_time(boost::chrono::high_resolution_clock::now()),
+		_start_time(std::chrono::high_resolution_clock::now()),
 		_shader_edit_buffer(32768)
 	{
 		load_configuration();
@@ -233,9 +203,9 @@ namespace reshade
 	}
 	void runtime::on_present()
 	{
-		const auto time_present = boost::chrono::high_resolution_clock::now();
-		_last_frame_duration = boost::chrono::duration_cast<boost::chrono::nanoseconds>(time_present - _last_present);
-		const auto time_since_create = boost::chrono::duration_cast<boost::chrono::seconds>(time_present - _last_create);
+		const auto time_present = std::chrono::high_resolution_clock::now();
+		_last_frame_duration = std::chrono::duration_cast<std::chrono::nanoseconds>(time_present - _last_present);
+		const auto time_since_create = std::chrono::duration_cast<std::chrono::seconds>(time_present - _last_create);
 
 		if ((_menu_index != 1 || !_show_menu) && (GetAsyncKeyState(_screenshot_key) & 0x8000))
 		{
@@ -345,7 +315,7 @@ namespace reshade
 			}
 			else if (source == "timer")
 			{
-				const unsigned long long timer = boost::chrono::duration_cast<boost::chrono::nanoseconds>(_last_present - _start_time).count();
+				const unsigned long long timer = std::chrono::duration_cast<std::chrono::nanoseconds>(_last_present - _start_time).count();
 
 				switch (variable.basetype)
 				{
@@ -447,7 +417,7 @@ namespace reshade
 			}
 			else if (technique.timeleft > 0)
 			{
-				technique.timeleft -= static_cast<unsigned int>(boost::chrono::duration_cast<boost::chrono::milliseconds>(_last_frame_duration).count());
+				technique.timeleft -= static_cast<unsigned int>(std::chrono::duration_cast<std::chrono::milliseconds>(_last_frame_duration).count());
 
 				if (technique.timeleft <= 0)
 				{
@@ -468,11 +438,11 @@ namespace reshade
 				continue;
 			}
 
-			const auto time_technique_started = boost::chrono::high_resolution_clock::now();
+			const auto time_technique_started = std::chrono::high_resolution_clock::now();
 
 			on_apply_effect_technique(technique);
 
-			technique.average_duration.append(boost::chrono::duration_cast<boost::chrono::nanoseconds>(boost::chrono::high_resolution_clock::now() - time_technique_started).count());
+			technique.average_duration.append(std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now() - time_technique_started).count());
 		}
 	}
 	void runtime::on_apply_effect_technique(const technique &technique)
@@ -492,24 +462,14 @@ namespace reshade
 
 		for (const auto &search_path : _effect_search_paths)
 		{
-			if (!fs::is_directory(search_path))
+			const auto files = filesystem::list_files(search_path, "*.fx");
+
+			for (const auto &path : files)
 			{
-				continue;
-			}
-
-			for (fs::directory_iterator dirit(search_path); dirit != fs::directory_iterator(); dirit++)
-			{
-				const auto path = dirit->path();
-
-				if (path.extension() != ".fx")
-				{
-					continue;
-				}
-
 				std::string errors;
 				reshadefx::syntax_tree ast;
 
-				if (!load_effect(path.string(), ast))
+				if (!load_effect(path, ast))
 				{
 					continue;
 				}
@@ -544,21 +504,21 @@ namespace reshade
 				{
 					if (!variable.annotations.count("__FILE__"))
 					{
-						variable.annotations["__FILE__"] = path.string();
+						variable.annotations["__FILE__"] = annotation(path);
 					}
 				}
 				for (const auto &texture : _textures)
 				{
 					if (!texture->annotations.count("__FILE__"))
 					{
-						texture->annotations["__FILE__"] = path.string();
+						texture->annotations["__FILE__"] = annotation(path);
 					}
 				}
 				for (auto &technique : _techniques)
 				{
 					if (!technique.annotations.count("__FILE__"))
 					{
-						technique.annotations["__FILE__"] = path.string();
+						technique.annotations["__FILE__"] = annotation(path);
 
 						technique.enabled = technique.annotations["enabled"].as<bool>();
 						technique.timeleft = technique.timeout = technique.annotations["timeout"].as<int>();
@@ -573,7 +533,7 @@ namespace reshade
 		}
 
 		// Reorder techniques
-		auto order = utils::ini_file(s_config_path).get(s_executable_path.string(), "Techniques").data();
+		auto order = utils::ini_file(s_config_path).get(s_executable_path, "Techniques").data();
 		std::sort(_techniques.begin(), _techniques.end(),
 			[&order](const technique &lhs, const technique &rhs)
 		{
@@ -593,40 +553,51 @@ namespace reshade
 		const int second = _date[3] - hour * 3600 - minute * 60;
 
 		const std::string extensions[] { ".bmp", ".png" };
-		const fs::path path = fs::path(_screenshot_path) / (s_executable_path.stem().string() + ' ' +
+		const filesystem::path path = _screenshot_path + '\\' + s_executable_name + ' ' +
 			std::to_string(_date[0]) + '-' + std::to_string(_date[1]) + '-' + std::to_string(_date[2]) + ' ' +
 			std::to_string(hour) + '-' + std::to_string(minute) + '-' + std::to_string(second) +
-			extensions[_screenshot_format]);
+			extensions[_screenshot_format];
 		std::vector<uint8_t> data(_width * _height * 4);
 
 		screenshot(data.data());
 
-		LOG(INFO) << "Saving screenshot to " << obfuscate_path(path) << " ...";
+		LOG(INFO) << "Saving screenshot to " << path << " ...";
 
+		FILE *file;
 		bool success = false;
 
-		switch (_screenshot_format)
+		if (_wfopen_s(&file, stdext::utf8_to_utf16(path).c_str(), L"rb") == 0)
 		{
-			case 0:
-				success = stbi_write_bmp(path.string().c_str(), _width, _height, 4, data.data()) != 0;
-				break;
-			case 1:
-				success = stbi_write_png(path.string().c_str(), _width, _height, 4, data.data(), 0) != 0;
-				break;
+			stbi_write_func *func = [](void *context, void *data, int size)
+			{
+				fwrite(data, 1, size, static_cast<FILE *>(context));
+			};
+
+			switch (_screenshot_format)
+			{
+				case 0:
+					success = stbi_write_bmp_to_func(func, file, _width, _height, 4, data.data()) != 0;
+					break;
+				case 1:
+					success = stbi_write_png_to_func(func, file, _width, _height, 4, data.data(), 0) != 0;
+					break;
+			}
+
+			fclose(file);
 		}
 
 		if (!success)
 		{
-			LOG(ERROR) << "Failed to write screenshot to " << obfuscate_path(path) << "!";
+			LOG(ERROR) << "Failed to write screenshot to " << path << "!";
 		}
 	}
 
-	bool runtime::load_effect(const std::string &path, reshadefx::syntax_tree &ast)
+	bool runtime::load_effect(const filesystem::path &path, reshadefx::syntax_tree &ast)
 	{
 		reshadefx::parser pa(ast, _errors);
 		reshadefx::preprocessor pp;
 
-		pp.add_include_path(fs::path(path).parent_path().string());
+		pp.add_include_path(path.parent_path());
 		pp.add_macro_definition("__RESHADE__", std::to_string(VERSION_MAJOR * 10000 + VERSION_MINOR * 100 + VERSION_REVISION));
 		pp.add_macro_definition("__VENDOR__", std::to_string(_vendor_id));
 		pp.add_macro_definition("__DEVICE__", std::to_string(_device_id));
@@ -690,21 +661,11 @@ namespace reshade
 				continue;
 			}
 
-			fs::path path;
+			const filesystem::path path = filesystem::resolve(source, _texture_search_paths);
 
-			for (const auto &search_path : _texture_search_paths)
+			if (!filesystem::exists(path))
 			{
-				path = fs::absolute(source, search_path);
-
-				if (fs::exists(path))
-				{
-					break;
-				}
-			}
-
-			if (!fs::exists(path))
-			{
-				LOG(ERROR) << "> Source " << obfuscate_path(path) << " for texture '" << texture->name << "' could not be found.";
+				LOG(ERROR) << "> Source " << path << " for texture '" << texture->name << "' could not be found.";
 
 				continue;
 			}
@@ -715,7 +676,7 @@ namespace reshade
 
 			texture->storage_size = texture->width * texture->height * 4;
 
-			if (fopen_s(&file, path.string().c_str(), "rb") == 0)
+			if (_wfopen_s(&file, stdext::utf8_to_utf16(path).c_str(), L"rb") == 0)
 			{
 				if (stbi_dds_test_file(file))
 				{
@@ -750,7 +711,7 @@ namespace reshade
 			{
 				_errors += "Unable to load source for texture '" + texture->name + "'!";
 
-				LOG(ERROR) << "> Source " << obfuscate_path(path) << " for texture '" << texture->name << "' could not be loaded! Make sure it is of a compatible format.";
+				LOG(ERROR) << "> Source " << path << " for texture '" << texture->name << "' could not be loaded! Make sure it is of a compatible format.";
 			}
 		}
 	}
@@ -758,18 +719,18 @@ namespace reshade
 	{
 		const utils::ini_file config(s_config_path);
 
-		_developer_mode = config.get(s_executable_path.string(), "DeveloperMode", false).as<bool>();
-		_menu_key = config.get(s_executable_path.string(), "MenuKey", VK_F9).as<int>();
-		_screenshot_key = config.get(s_executable_path.string(), "ScreenshotKey", VK_SNAPSHOT).as<int>();
-		_screenshot_path = config.get(s_executable_path.string(), "ScreenshotPath", s_executable_path.parent_path().string()).as<std::string>();
-		_screenshot_format = config.get(s_executable_path.string(), "ScreenshotFormat", 0).as<int>();
-		_effect_search_paths = config.get(s_executable_path.string(), "EffectSearchPaths", s_injector_path.parent_path().string()).data();
-		_texture_search_paths = config.get(s_executable_path.string(), "TextureSearchPaths", s_injector_path.parent_path().string()).data();
-		_preset_files = config.get(s_executable_path.string(), "Presets", std::vector<std::string>()).data();
+		_developer_mode = config.get(s_executable_path, "DeveloperMode", false).as<bool>();
+		_menu_key = config.get(s_executable_path, "MenuKey", 0x78).as<int>(); // VK_F9
+		_screenshot_key = config.get(s_executable_path, "ScreenshotKey", 0x2C).as<int>(); // VK_SNAPSHOT
+		_screenshot_path = config.get(s_executable_path, "ScreenshotPath", annotation(s_executable_path.parent_path())).as<std::string>();
+		_screenshot_format = config.get(s_executable_path, "ScreenshotFormat", 0).as<int>();
+		_effect_search_paths = config.get(s_executable_path, "EffectSearchPaths", annotation(s_injector_path.parent_path())).data();
+		_texture_search_paths = config.get(s_executable_path, "TextureSearchPaths", annotation(s_injector_path.parent_path())).data();
+		_preset_files = config.get(s_executable_path, "Presets", std::vector<std::string>()).data();
 	}
 	void runtime::save_configuration() const
 	{
-		std::string technique_list, effect_search_paths_list, texture_search_paths_list;
+		std::string technique_list;
 
 		for (const auto &technique : _techniques)
 		{
@@ -779,34 +740,24 @@ namespace reshade
 			}
 		}
 
-		for (const auto &path : _effect_search_paths)
-		{
-			effect_search_paths_list += path + ',';
-		}
-		for (const auto &path : _texture_search_paths)
-		{
-			texture_search_paths_list += path + ',';
-		}
-
 		utils::ini_file config(s_config_path);
-		config.set(s_executable_path.string(), "DeveloperMode", _developer_mode);
-		config.set(s_executable_path.string(), "MenuKey", _menu_key);
-		config.set(s_executable_path.string(), "ScreenshotKey", _screenshot_key);
-		config.set(s_executable_path.string(), "ScreenshotPath", _screenshot_path);
-		config.set(s_executable_path.string(), "ScreenshotFormat", _screenshot_format);
-		config.set(s_executable_path.string(), "Techniques", technique_list);
-		config.set(s_executable_path.string(), "EffectSearchPaths", effect_search_paths_list);
-		config.set(s_executable_path.string(), "TextureSearchPaths", texture_search_paths_list);
-		config.set(s_executable_path.string(), "Presets", _preset_files);
+		config.set(s_executable_path, "DeveloperMode", _developer_mode);
+		config.set(s_executable_path, "MenuKey", _menu_key);
+		config.set(s_executable_path, "ScreenshotKey", _screenshot_key);
+		config.set(s_executable_path, "ScreenshotPath", _screenshot_path);
+		config.set(s_executable_path, "ScreenshotFormat", _screenshot_format);
+		config.set(s_executable_path, "Techniques", technique_list);
+		config.set(s_executable_path, "EffectSearchPaths", _effect_search_paths);
+		config.set(s_executable_path, "TextureSearchPaths", _texture_search_paths);
+		config.set(s_executable_path, "Presets", _preset_files);
 	}
-	void runtime::load_preset(const std::string &name)
+	void runtime::load_preset(const filesystem::path &path)
 	{
-		utils::ini_file preset(std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>>().from_bytes(name + ".ini"));
+		utils::ini_file preset(path);
 
 		for (auto &variable : _uniforms)
 		{
-			const fs::path filepath = variable.annotations.at("__FILE__").as<std::string>();
-			const std::string filename = filepath.filename().string();
+			const std::string filename = filesystem::path(variable.annotations.at("__FILE__").as<std::string>()).filename();
 
 			const auto data = preset.get(filename, variable.unique_name);
 
@@ -823,14 +774,13 @@ namespace reshade
 			set_uniform_value(variable, values);
 		}
 	}
-	void runtime::save_preset(const std::string &name) const
+	void runtime::save_preset(const filesystem::path &path) const
 	{
-		utils::ini_file preset(std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>>().from_bytes(name + ".ini"));
+		utils::ini_file preset(path);
 
 		for (const auto &variable : _uniforms)
 		{
-			const fs::path filepath = variable.annotations.at("__FILE__").as<std::string>();
-			const std::string filename = filepath.filename().string();
+			const std::string filename = filesystem::path(variable.annotations.at("__FILE__").as<std::string>()).filename();
 
 			float values[4] = { };
 			get_uniform_value(variable, values);
@@ -846,8 +796,6 @@ namespace reshade
 			_show_menu = !_show_menu;
 		}
 
-		const utils::critical_section::lock lock(_imgui_cs);
-
 		auto &imgui_io = ImGui::GetIO();
 		imgui_io.DeltaTime = _last_frame_duration.count() * 1e-9f;
 		imgui_io.DisplaySize.x = static_cast<float>(_width);
@@ -857,9 +805,9 @@ namespace reshade
 		imgui_io.MousePos.x = static_cast<float>(_input->mouse_position_x());
 		imgui_io.MousePos.y = static_cast<float>(_input->mouse_position_y());
 		imgui_io.MouseWheel += _input->mouse_wheel_delta();
-		imgui_io.KeyCtrl = _input->is_key_down(VK_CONTROL);
-		imgui_io.KeyShift = _input->is_key_down(VK_SHIFT);
-		imgui_io.KeyAlt = _input->is_key_down(VK_MENU);
+		imgui_io.KeyCtrl = _input->is_key_down(0x11); // VK_CONTROL
+		imgui_io.KeyShift = _input->is_key_down(0x10); // VK_SHIFT
+		imgui_io.KeyAlt = _input->is_key_down(0x12); // VK_MENU
 
 		for (unsigned int i = 0; i < 5; i++)
 		{
@@ -879,7 +827,7 @@ namespace reshade
 
 		ImGui::NewFrame();
 
-		if (boost::chrono::duration_cast<boost::chrono::seconds>(_last_present - _start_time).count() < 8)
+		if (std::chrono::duration_cast<std::chrono::seconds>(_last_present - _start_time).count() < 8)
 		{
 			ImGui::SetNextWindowPos(ImVec2(0, 0));
 			ImGui::Begin("##logo", nullptr, ImVec2(), 0.0f, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoInputs);
@@ -991,7 +939,7 @@ namespace reshade
 		}
 
 		std::string preset_files;
-		for (const auto &path : _preset_files)
+		for (const std::string &path : _preset_files)
 		{
 			preset_files += path + '\0';
 		}
@@ -1005,7 +953,7 @@ namespace reshade
 
 		if (_current_preset >= 0 && ImGui::IsItemHovered() && !_input->is_mouse_button_down(0))
 		{
-			ImGui::SetTooltip(_preset_files[_current_preset].c_str());
+			ImGui::SetTooltip(static_cast<const std::string &>(_preset_files[_current_preset]).c_str());
 		}
 
 		ImGui::SameLine();
@@ -1031,15 +979,15 @@ namespace reshade
 
 		if (ImGui::BeginPopup("Add Preset"))
 		{
-			char buf[MAX_PATH] = "";
+			char buf[260] = { };
 
 			if (ImGui::InputText("Path to INI", buf, sizeof(buf), ImGuiInputTextFlags_EnterReturnsTrue))
 			{
-				const auto path = fs::absolute(buf);
+				const auto path = filesystem::absolute(buf);
 
-				if (fs::exists(path) || fs::exists(path.parent_path()))
+				if (filesystem::exists(path) || filesystem::exists(path.parent_path()))
 				{
-					_preset_files.push_back(path.string());
+					_preset_files.push_back(path);
 
 					save_configuration();
 
@@ -1153,32 +1101,42 @@ namespace reshade
 				save_configuration();
 			}
 
-			for (size_t i = 0, offset = 0; i < _effect_search_paths.size(); i++)
+			size_t offset = 0;
+			for (const std::string &search_path : _effect_search_paths)
 			{
-				memcpy(edit_buffer + offset, _effect_search_paths[i].c_str(), _effect_search_paths[i].size());
-				offset += _effect_search_paths[i].size();
+				memcpy(edit_buffer + offset, search_path.c_str(), search_path.size());
+				offset += search_path.size();
 				edit_buffer[offset++] = '\n';
 				edit_buffer[offset] = '\0';
 			}
 
 			if (ImGui::InputTextMultiline("Effect Search Paths", edit_buffer, sizeof(edit_buffer), ImVec2(0, 100)))
 			{
-				_effect_search_paths = stdext::split(edit_buffer, '\n');
+				_effect_search_paths.clear();
+				for (const auto &search_path : stdext::split(edit_buffer, '\n'))
+				{
+					_effect_search_paths.push_back(search_path);
+				}
 
 				save_configuration();
 			}
 
-			for (size_t i = 0, offset = 0; i < _texture_search_paths.size(); i++)
+			offset = 0;
+			for (const std::string &search_path : _texture_search_paths)
 			{
-				memcpy(edit_buffer + offset, _texture_search_paths[i].c_str(), _texture_search_paths[i].size());
-				offset += _texture_search_paths[i].size();
+				memcpy(edit_buffer + offset, search_path.c_str(), search_path.size());
+				offset += search_path.size();
 				edit_buffer[offset++] = '\n';
 				edit_buffer[offset] = '\0';
 			}
 
 			if (ImGui::InputTextMultiline("Texture Search Paths", edit_buffer, sizeof(edit_buffer), ImVec2(0, 100)))
 			{
-				_texture_search_paths = stdext::split(edit_buffer, '\n');
+				_texture_search_paths.clear();
+				for (const auto &search_path : stdext::split(edit_buffer, '\n'))
+				{
+					_texture_search_paths.push_back(search_path);
+				}
 
 				save_configuration();
 			}
@@ -1233,7 +1191,7 @@ namespace reshade
 			ImGui::PlotLines("##framerate", state->FramerateSecPerFrame, 120, state->FramerateSecPerFrameIdx, nullptr, state->FramerateSecPerFrameAccum / 120 * 0.5f, state->FramerateSecPerFrameAccum / 120 * 1.5f, ImVec2(0, 50));
 			ImGui::Text("Draw Calls: %u (%u vertices)", _drawcalls, _vertices);
 			ImGui::Text("Frame %llu: %fms", _framecount + 1, _last_frame_duration.count() * 1e-6f);
-			ImGui::Text("Timer: %fms", std::fmod(boost::chrono::duration_cast<boost::chrono::nanoseconds>(_last_present - _start_time).count() * 1e-6f, 16777216.0f));
+			ImGui::Text("Timer: %fms", std::fmod(std::chrono::duration_cast<std::chrono::nanoseconds>(_last_present - _start_time).count() * 1e-6f, 16777216.0f));
 			ImGui::Text("Network: %uB", g_network_traffic);
 		}
 
@@ -1258,7 +1216,7 @@ namespace reshade
 	void runtime::draw_shader_editor()
 	{
 		std::string effect_files;
-		for (const auto &path : _included_files)
+		for (const std::string &path : _included_files)
 		{
 			effect_files += path + '\0';
 		}
@@ -1266,7 +1224,7 @@ namespace reshade
 		ImGui::PushItemWidth(-1);
 		if (ImGui::Combo("##effect_files", &_current_effect_file, effect_files.c_str()))
 		{
-			std::ifstream file(_included_files[_current_effect_file].c_str());
+			std::ifstream file(stdext::utf8_to_utf16(_included_files[_current_effect_file]).c_str());
 
 			if (file.is_open())
 			{
@@ -1297,7 +1255,7 @@ namespace reshade
 
 		if (ImGui::Button("Save", ImVec2(-1, 0)) || _input->is_key_pressed('S', true, false, false))
 		{
-			std::ofstream file(_included_files[_current_effect_file].c_str(), std::ios::out | std::ios::trunc);
+			std::ofstream file(stdext::utf8_to_utf16(_included_files[_current_effect_file]).c_str(), std::ios::out | std::ios::trunc);
 			file << _shader_edit_buffer.data();
 			file.close();
 

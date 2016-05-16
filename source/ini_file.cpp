@@ -7,24 +7,19 @@ namespace reshade
 {
 	namespace utils
 	{
-		ini_file::ini_file()
+		ini_file::ini_file(const filesystem::path &path) : _path(path)
 		{
-		}
-		ini_file::ini_file(const std::wstring &path)
-		{
-			load(path);
+			load();
 		}
 		ini_file::~ini_file()
 		{
 			save();
 		}
 
-		void ini_file::load(const std::wstring &path)
+		void ini_file::load()
 		{
-			_path = path;
-
 			std::string line, section;
-			std::ifstream file(_path);
+			std::ifstream file(stdext::utf8_to_utf16(_path));
 
 			while (std::getline(file, line))
 			{
@@ -60,7 +55,7 @@ namespace reshade
 		}
 		void ini_file::save() const
 		{
-			std::ofstream file(_path.c_str());
+			std::ofstream file(stdext::utf8_to_utf16(_path));
 
 			for (const auto &section : _data)
 			{

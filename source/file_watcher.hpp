@@ -3,6 +3,7 @@
 #include <memory>
 #include <vector>
 #include <string>
+#include "filesystem.hpp"
 
 namespace reshade
 {
@@ -11,10 +12,10 @@ namespace reshade
 		class file_watcher
 		{
 		public:
-			explicit file_watcher(const wchar_t *path);
+			explicit file_watcher(const filesystem::path &path);
 			~file_watcher();
 
-			bool check(std::vector<std::wstring> &modifications);
+			bool check(std::vector<filesystem::path> &modifications);
 
 		private:
 			std::unique_ptr<uint8_t[]> _buffer;

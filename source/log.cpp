@@ -32,10 +32,17 @@ namespace reshade
 				<< '[' << std::setw(5) << GetCurrentThreadId() << ']' << std::setfill(' ')
 				<< " | " << level_names[static_cast<unsigned int>(level)] << " | " << std::left;
 		}
-
-		bool open(const boost::filesystem::path &path)
+		message::~message()
 		{
-			stream.open(path.native(), std::ios::out | std::ios::trunc);
+			if (_dispatch)
+			{
+				stream << std::endl;
+			}
+		}
+
+		bool open(const filesystem::path &path)
+		{
+			stream.open(stdext::utf8_to_utf16(path), std::ios::out | std::ios::trunc);
 
 			if (!stream.is_open())
 			{

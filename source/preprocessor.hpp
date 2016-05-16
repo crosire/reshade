@@ -5,6 +5,7 @@
 #include <unordered_map>
 #include <memory>
 #include "lexer.hpp"
+#include "filesystem.hpp"
 
 namespace reshadefx
 {
@@ -20,7 +21,7 @@ namespace reshadefx
 			std::vector<std::string> parameters;
 		};
 
-		void add_include_path(const std::string &path);
+		void add_include_path(const reshade::filesystem::path &path);
 		bool add_macro_definition(const std::string &name, const macro &macro);
 		bool add_macro_definition(const std::string &name, const std::string &value = "1");
 
@@ -28,7 +29,7 @@ namespace reshadefx
 		const std::string &current_errors() const { return _errors; }
 		const std::vector<std::string> &current_pragmas() const { return _pragmas; }
 
-		bool run(const std::string &file_path, std::vector<std::string> &included_files);
+		bool run(const reshade::filesystem::path &file_path, std::vector<reshade::filesystem::path> &included_files);
 
 	private:
 		struct if_level
@@ -94,7 +95,8 @@ namespace reshadefx
 		std::string _output, _errors, _current_token_raw_data;
 		int _recursion_count = 0;
 		std::unordered_map<std::string, macro> _macros;
-		std::vector<std::string> _pragmas, _include_paths;
+		std::vector<std::string> _pragmas;
+		std::vector<reshade::filesystem::path> _include_paths;
 		std::unordered_map<std::string, std::string> _filecache;
 	};
 }

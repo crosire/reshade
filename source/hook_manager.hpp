@@ -1,6 +1,7 @@
 #pragma once
 
 #include "hook.hpp"
+#include "filesystem.hpp"
 
 #define HOOK_EXPORT extern "C"
 #define VTABLE(object) (*reinterpret_cast<reshade::hook::address **>(object))
@@ -30,7 +31,7 @@ namespace reshade
 		/// Register the matching exports in the specified module and install or delay their hooking.
 		/// </summary>
 		/// <param name="path">The file path to the target module.</param>
-		void register_module(const wchar_t *path);
+		void register_module(const filesystem::path &path);
 
 		/// <summary>
 		/// Call the original/trampoline function for the specified hook.

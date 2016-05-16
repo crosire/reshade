@@ -153,6 +153,9 @@
     <ClCompile Include="source\stb_impl.cpp">
       <Filter>core\utils</Filter>
     </ClCompile>
+    <ClCompile Include="source\filesystem.cpp">
+      <Filter>core\utils</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="source\log.hpp">
@@ -273,6 +276,9 @@
       <Filter>core\utils</Filter>
     </ClInclude>
     <ClInclude Include="source\string_utils.hpp">
+      <Filter>core\utils</Filter>
+    </ClInclude>
+    <ClInclude Include="source\filesystem.hpp">
       <Filter>core\utils</Filter>
     </ClInclude>
   </ItemGroup>

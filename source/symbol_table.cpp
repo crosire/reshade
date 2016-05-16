@@ -1,7 +1,7 @@
 #include "symbol_table.hpp"
 #include "syntax_tree_nodes.hpp"
 
-#include <cassert>
+#include <assert.h>
 #include <algorithm>
 #include <functional>
 

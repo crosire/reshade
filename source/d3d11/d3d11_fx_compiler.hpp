@@ -3,6 +3,8 @@
 #include "syntax_tree.hpp"
 #include "d3d11_runtime.hpp"
 
+#include <sstream>
+
 namespace reshade
 {
 	class d3d11_fx_compiler

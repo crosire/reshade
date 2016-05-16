@@ -1,12 +1,9 @@
 #pragma once
 
-#include <atomic>
 #include <memory>
 #include <string>
 #include <vector>
-#include <boost/chrono.hpp>
-#include <boost/filesystem/path.hpp>
-#include "critical_section.hpp"
+#include <chrono>
 
 #pragma region Forward Declarations
 struct ImDrawData;
@@ -17,6 +14,11 @@ namespace reshade
 	struct texture;
 	struct uniform;
 	struct technique;
+
+	namespace filesystem
+	{
+		class path;
+	}
 }
 namespace reshadefx
 {
@@ -34,9 +36,9 @@ namespace reshade
 		/// <summary>
 		/// Initialize ReShade. Registers hooks and starts logging.
 		/// </summary>
-		/// <param name="executablePath">Path to the executable ReShade was injected into.</param>
-		/// <param name="injectorPath">Path to the ReShade module itself.</param>
-		static void startup(const boost::filesystem::path &exe_path, const boost::filesystem::path &injector_path);
+		/// <param name="exe_path">Path to the executable ReShade was injected into.</param>
+		/// <param name="injector_path">Path to the ReShade module.</param>
+		static void startup(const filesystem::path &exe_path, const filesystem::path &injector_path);
 		/// <summary>
 		/// Shut down ReShade. Removes all installed hooks and cleans up.
 		/// </summary>
@@ -184,12 +186,12 @@ namespace reshade
 		void reload();
 		void screenshot();
 
-		bool load_effect(const std::string &path, reshadefx::syntax_tree &ast);
+		bool load_effect(const filesystem::path &path, reshadefx::syntax_tree &ast);
 		void load_textures();
 		void load_configuration();
 		void save_configuration() const;
-		void load_preset(const std::string &name);
-		void save_preset(const std::string &name) const;
+		void load_preset(const filesystem::path &path);
+		void save_preset(const filesystem::path &path) const;
 
 		void draw_overlay();
 		void draw_home();
@@ -199,16 +201,15 @@ namespace reshade
 		void draw_variable_editor();
 
 		const unsigned int _renderer_id;
-		std::vector<std::string> _effect_files, _preset_files, _included_files;
-		boost::chrono::high_resolution_clock::time_point _start_time, _last_create, _last_present;
-		boost::chrono::high_resolution_clock::duration _last_frame_duration;
+		std::vector<std::string> _effect_files, _preset_files, _effect_search_paths, _texture_search_paths;
+		std::vector<filesystem::path> _included_files;
+		std::chrono::high_resolution_clock::time_point _start_time, _last_create, _last_present;
+		std::chrono::high_resolution_clock::duration _last_frame_duration;
 		std::vector<unsigned char> _uniform_data_storage;
 		int _date[4] = { };
 		std::string _errors, _message, _effect_source;
 		int _menu_key = 0, _menu_index = 0, _screenshot_key = 0, _screenshot_format = 0, _current_preset = -1, _current_effect_file = -1;
 		std::string _screenshot_path;
-		std::vector<std::string> _effect_search_paths, _texture_search_paths;
-		utils::critical_section _imgui_cs;
 		bool _developer_mode = false, _show_menu = false, _show_shader_editor = false, _show_variable_editor = false;
 		int _selected_technique = -1, _hovered_technique = -1;
 		std::vector<char> _shader_edit_buffer;

@@ -1,12 +1,13 @@
 #include "log.hpp"
 #include "hook_manager.hpp"
 #include "critical_section.hpp"
+#include "string_utils.hpp"
 
+#include <assert.h>
 #include <algorithm>
 #include <vector>
 #include <unordered_map>
 #include <Windows.h>
-#include <Shlwapi.h>
 
 namespace reshade
 {
@@ -70,9 +71,9 @@ namespace reshade
 			}
 
 			utils::critical_section s_cs;
-			std::wstring s_export_hook_path;
+			std::string s_export_hook_path;
+			std::vector<std::string> s_delayed_hook_paths;
 			std::vector<HMODULE> s_delayed_hook_modules;
-			std::vector<std::wstring> s_delayed_hook_paths;
 			std::vector<std::pair<hook, hook_method>> s_hooks;
 			std::unordered_map<hook::address, hook::address *> s_vtable_addresses;
 
@@ -310,10 +311,10 @@ namespace reshade
 				const utils::critical_section::lock lock(s_cs);
 
 				const auto remove = std::remove_if(s_delayed_hook_paths.begin(), s_delayed_hook_paths.end(),
-					[lpFileName](const std::wstring &path)
+					[lpFileName](const std::string &path)
 					{
 						HMODULE delayed_handle = nullptr;
-						GetModuleHandleExW(0, path.c_str(), &delayed_handle);
+						GetModuleHandleExW(0, stdext::utf8_to_utf16(path).c_str(), &delayed_handle);
 
 						if (delayed_handle == nullptr)
 						{
@@ -356,17 +357,17 @@ namespace reshade
 				const utils::critical_section::lock lock(s_cs);
 
 				const auto remove = std::remove_if(s_delayed_hook_paths.begin(), s_delayed_hook_paths.end(),
-					[lpFileName](const std::wstring &path)
+					[lpFileName](const std::string &path)
 					{
 						HMODULE delayed_handle = nullptr;
-						GetModuleHandleExW(0, path.c_str(), &delayed_handle);
+						GetModuleHandleExW(0, stdext::utf8_to_utf16(path).c_str(), &delayed_handle);
 
 						if (delayed_handle == nullptr)
 						{
 							return false;
 						}
 
-						LOG(INFO) << "Installing delayed hooks for '" << path << "' (Just loaded via 'LoadLibraryW(\"" << lpFileName << "\")') ...";
+						LOG(INFO) << "Installing delayed hooks for '" << path << "' (Just loaded via 'LoadLibraryW(\"" << stdext::utf16_to_utf8(lpFileName) << "\")') ...";
 
 						s_delayed_hook_modules.push_back(delayed_handle);
 
@@ -464,23 +465,19 @@ namespace reshade
 
 			s_delayed_hook_modules.clear();
 		}
-		void register_module(LPCWSTR target_path) // Unsafe
+		void register_module(const filesystem::path &target_path) // Unsafe
 		{
 			install(reinterpret_cast<hook::address>(&LoadLibraryA), reinterpret_cast<hook::address>(&HookLoadLibraryA));
 			install(reinterpret_cast<hook::address>(&LoadLibraryExA), reinterpret_cast<hook::address>(&HookLoadLibraryExA));
 			install(reinterpret_cast<hook::address>(&LoadLibraryW), reinterpret_cast<hook::address>(&HookLoadLibraryW));
 			install(reinterpret_cast<hook::address>(&LoadLibraryExW), reinterpret_cast<hook::address>(&HookLoadLibraryExW));
 
-			LOG(INFO) << "Registering hooks for '" << target_path << "' ...";
+			LOG(INFO) << "Registering hooks for " << target_path << " ...";
 
-			WCHAR replacement_path[MAX_PATH], *replacement_filename, *target_filename;
-			GetModuleFileNameW(get_current_module(), replacement_path, MAX_PATH);
-			target_filename = PathFindFileNameW(target_path);
-			replacement_filename = PathFindFileNameW(replacement_path);
-			PathRemoveExtensionW(target_filename);
-			PathRemoveExtensionW(replacement_filename);
+			const auto target_filename = target_path.filename_without_extension();
+			const auto replacement_filename = filesystem::get_module_path(get_current_module()).filename_without_extension();
 
-			if (_wcsicmp(target_filename, replacement_filename) == 0)
+			if (target_filename == replacement_filename)
 			{
 				LOG(INFO) << "> Delayed.";
 
@@ -489,7 +486,7 @@ namespace reshade
 			else
 			{
 				HMODULE handle = nullptr;
-				GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_PIN, target_path, &handle);
+				GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_PIN, stdext::utf8_to_utf16(target_path).c_str(), &handle);
 
 				if (handle != nullptr)
 				{
@@ -514,7 +511,7 @@ namespace reshade
 
 			if (!s_export_hook_path.empty())
 			{
-				const HMODULE handle = HookLoadLibraryW(s_export_hook_path.c_str());
+				const HMODULE handle = HookLoadLibraryW(stdext::utf8_to_utf16(s_export_hook_path).c_str());
 
 				LOG(INFO) << "Installing delayed hooks for '" << s_export_hook_path << "' ...";
 

@@ -1,6 +1,7 @@
 #include "log.hpp"
 #include "d3d10_fx_compiler.hpp"
 
+#include <assert.h>
 #include <d3dcompiler.h>
 
 namespace reshade
