@@ -34,7 +34,7 @@ namespace reshade
 			return size;
 		}
 
-		filesystem::path s_executable_path, s_injector_path, s_config_path;
+		filesystem::path s_executable_path, s_injector_path, s_appdata_path;
 		std::string s_executable_name, s_imgui_ini_path;
 
 		const char keyboard_keys[256][16] = {
@@ -49,6 +49,31 @@ namespace reshade
 			"F17", "F18", "F19", "F20", "F21", "F22", "F23", "F24", "", "", "", "", "", "", "", "",
 			"Num Lock", "Scroll Lock",
 		};
+	}
+
+	template <>
+	annotation::annotation(const ImVec2 &value) : _values(2)
+	{
+		_values[0] = std::to_string(value.x);
+		_values[1] = std::to_string(value.y);
+	}
+	template <>
+	annotation::annotation(const ImVec4 &value) : _values(4)
+	{
+		_values[0] = std::to_string(value.x);
+		_values[1] = std::to_string(value.y);
+		_values[2] = std::to_string(value.z);
+		_values[3] = std::to_string(value.w);
+	}
+	template <>
+	inline const ImVec2 annotation::as(size_t i) const
+	{
+		return ImVec2(as<float>(i), as<float>(i + 1));
+	}
+	template <>
+	inline const ImVec4 annotation::as(size_t i) const
+	{
+		return ImVec4(as<float>(i), as<float>(i + 1), as<float>(i + 2), as<float>(i + 3));
 	}
 
 	void runtime::startup(const filesystem::path &executable_path, const filesystem::path &injector_path)
@@ -80,15 +105,14 @@ namespace reshade
 		LOG(INFO) << "Initializing crosire's ReShade version '" VERSION_STRING_FILE "' (" << VERSION_PLATFORM << ") built on '" VERSION_DATE " " VERSION_TIME "' loaded from " << injector_path << " to " << executable_path << " ...";
 
 		const auto system_path = filesystem::get_special_folder_path(filesystem::special_folder::system);
-		const auto appdata_path = filesystem::get_special_folder_path(filesystem::special_folder::app_data) / "ReShade";
+		s_appdata_path = filesystem::get_special_folder_path(filesystem::special_folder::app_data) / "ReShade";
 
-		if (!filesystem::exists(appdata_path))
+		if (!filesystem::exists(s_appdata_path))
 		{
-			filesystem::create_directory(appdata_path);
+			filesystem::create_directory(s_appdata_path);
 		}
 
-		s_config_path = appdata_path / "ReShade.ini";
-		s_imgui_ini_path = appdata_path / "ReShadeGUI.ini";
+		s_imgui_ini_path = s_appdata_path / "Windows.ini";
 
 		hooks::register_module(system_path / "d3d8.dll");
 		hooks::register_module(system_path / "d3d9.dll");
@@ -122,22 +146,6 @@ namespace reshade
 		imgui_io.KeyMap[ImGuiKey_X] = 'X';
 		imgui_io.KeyMap[ImGuiKey_Y] = 'Y';
 		imgui_io.KeyMap[ImGuiKey_Z] = 'Z';
-		auto &imgui_style = ImGui::GetStyle();
-		imgui_style.WindowRounding = 0.0f;
-		imgui_style.ScrollbarRounding = 0.0f;
-		imgui_style.Colors[ImGuiCol_WindowBg] = ImVec4(0.00f, 0.00f, 0.00f, 0.78f);
-		imgui_style.Colors[ImGuiCol_TitleBg] = ImVec4(0.91f, 0.27f, 0.05f, 1.00f);
-		imgui_style.Colors[ImGuiCol_TitleBgCollapsed] = ImVec4(0.91f, 0.27f, 0.05f, 1.00f);
-		imgui_style.Colors[ImGuiCol_TitleBgActive] = ImVec4(1.00f, 0.43f, 0.05f, 1.00f);
-		imgui_style.Colors[ImGuiCol_MenuBarBg] = ImVec4(0.91f, 0.27f, 0.05f, 0.80f);
-		imgui_style.Colors[ImGuiCol_ScrollbarGrab] = ImVec4(0.91f, 0.27f, 0.05f, 1.00f);
-		imgui_style.Colors[ImGuiCol_ScrollbarGrabHovered] = ImVec4(1.00f, 0.43f, 0.05f, 1.00f);
-		imgui_style.Colors[ImGuiCol_Header] = ImVec4(0.91f, 0.27f, 0.05f, 0.80f);
-		imgui_style.Colors[ImGuiCol_HeaderHovered] = ImVec4(1.00f, 0.43f, 0.05f, 1.00f);
-		imgui_style.Colors[ImGuiCol_HeaderActive] = ImVec4(1.00f, 0.43f, 0.05f, 1.00f);
-		imgui_style.Colors[ImGuiCol_CloseButton] = ImVec4(0.90f, 0.90f, 0.90f, 1.00f);
-		imgui_style.Colors[ImGuiCol_CloseButtonHovered] = ImVec4(0.70f, 0.70f, 0.70f, 1.00f);
-		imgui_style.Colors[ImGuiCol_CloseButtonActive] = ImVec4(0.64f, 0.64f, 0.64f, 1.00f);
 
 		LOG(INFO) << "Initialized.";
 	}
@@ -516,21 +524,21 @@ namespace reshade
 				{
 					if (!variable.annotations.count("__FILE__"))
 					{
-						variable.annotations["__FILE__"] = annotation(path);
+						variable.annotations["__FILE__"] = static_cast<const std::string &>(path);
 					}
 				}
 				for (const auto &texture : _textures)
 				{
 					if (!texture->annotations.count("__FILE__"))
 					{
-						texture->annotations["__FILE__"] = annotation(path);
+						texture->annotations["__FILE__"] = static_cast<const std::string &>(path);
 					}
 				}
 				for (auto &technique : _techniques)
 				{
 					if (!technique.annotations.count("__FILE__"))
 					{
-						technique.annotations["__FILE__"] = annotation(path);
+						technique.annotations["__FILE__"] = static_cast<const std::string &>(path);
 
 						technique.enabled = technique.annotations["enabled"].as<bool>();
 						technique.timeleft = technique.timeout = technique.annotations["timeout"].as<int>();
@@ -723,28 +731,77 @@ namespace reshade
 	}
 	void runtime::load_configuration()
 	{
-		const utils::ini_file config(s_config_path);
+		const utils::ini_file apps_config(s_appdata_path / "Apps.ini");
+		const utils::ini_file style_config(s_appdata_path / "Style.ini");
 
-		_developer_mode = config.get(s_executable_path, "DeveloperMode", false).as<bool>();
-		_menu_key = config.get(s_executable_path, "MenuKey", 0x78).as<int>(); // VK_F9
-		_screenshot_key = config.get(s_executable_path, "ScreenshotKey", 0x2C).as<int>(); // VK_SNAPSHOT
-		_screenshot_path = config.get(s_executable_path, "ScreenshotPath", annotation(s_executable_path.parent_path())).as<std::string>();
-		_screenshot_format = config.get(s_executable_path, "ScreenshotFormat", 0).as<int>();
-		_effect_search_paths = config.get(s_executable_path, "EffectSearchPaths", annotation(s_injector_path.parent_path())).data();
-		_texture_search_paths = config.get(s_executable_path, "TextureSearchPaths", annotation(s_injector_path.parent_path())).data();
-		_preset_files = config.get(s_executable_path, "Presets", std::vector<std::string>()).data();
+		_developer_mode = apps_config.get(s_executable_path, "DeveloperMode", false).as<bool>();
+		_menu_key = apps_config.get(s_executable_path, "MenuKey", 0x78).as<int>(); // VK_F9
+		_screenshot_key = apps_config.get(s_executable_path, "ScreenshotKey", 0x2C).as<int>(); // VK_SNAPSHOT
+		_screenshot_path = apps_config.get(s_executable_path, "ScreenshotPath", static_cast<const std::string &>(s_executable_path.parent_path())).as<std::string>();
+		_screenshot_format = apps_config.get(s_executable_path, "ScreenshotFormat", 0).as<int>();
+		_effect_search_paths = apps_config.get(s_executable_path, "EffectSearchPaths", static_cast<const std::string &>(s_injector_path.parent_path())).data();
+		_texture_search_paths = apps_config.get(s_executable_path, "TextureSearchPaths", static_cast<const std::string &>(s_injector_path.parent_path())).data();
+		_preset_files = apps_config.get(s_executable_path, "Presets", { }).data();
+
+		auto &style = ImGui::GetStyle();
+
+		style.Alpha = style_config.get("Vars", "GlobalAlpha", style.Alpha).as<float>();
+		style.WindowPadding = style_config.get("Vars", "WindowPadding", style.WindowPadding).as<ImVec2>();
+		style.WindowRounding = style_config.get("Vars", "WindowRounding", 0.0f).as<float>();
+		style.ChildWindowRounding = style_config.get("Vars", "ChildWindowRounding", style.ChildWindowRounding).as<float>();
+		style.FramePadding = style_config.get("Vars", "FramePadding", style.FramePadding).as<ImVec2>();
+		style.FrameRounding = style_config.get("Vars", "FrameRounding", style.FrameRounding).as<float>();
+		style.ItemSpacing = style_config.get("Vars", "ItemSpacing", style.ItemSpacing).as<ImVec2>();
+		style.ItemInnerSpacing = style_config.get("Vars", "ItemInnerSpacing", style.ItemInnerSpacing).as<ImVec2>();
+		style.TouchExtraPadding = style_config.get("Vars", "TouchExtraPadding", style.TouchExtraPadding).as<ImVec2>();
+		style.IndentSpacing = style_config.get("Vars", "IndentSpacing", style.IndentSpacing).as<float>();
+		style.ScrollbarSize = style_config.get("Vars", "ScrollbarSize", style.ScrollbarSize).as<float>();
+		style.ScrollbarRounding = style_config.get("Vars", "ScrollbarRounding", 0.0f).as<float>();
+		style.GrabMinSize = style_config.get("Vars", "GrabMinSize", style.GrabMinSize).as<float>();
+		style.GrabRounding = style_config.get("Vars", "GrabRounding", style.GrabRounding).as<float>();
+
+		style.Colors[ImGuiCol_WindowBg].w = 0.8f;
+
+		for (unsigned int i = 0; i < ImGuiCol_COUNT; i++)
+		{
+			style.Colors[i] = style_config.get("Colors", ImGui::GetStyleColName(i), style.Colors[i]).as<ImVec4>();
+		}
 	}
 	void runtime::save_configuration() const
 	{
-		utils::ini_file config(s_config_path);
-		config.set(s_executable_path, "DeveloperMode", _developer_mode);
-		config.set(s_executable_path, "MenuKey", _menu_key);
-		config.set(s_executable_path, "ScreenshotKey", _screenshot_key);
-		config.set(s_executable_path, "ScreenshotPath", _screenshot_path);
-		config.set(s_executable_path, "ScreenshotFormat", _screenshot_format);
-		config.set(s_executable_path, "EffectSearchPaths", _effect_search_paths);
-		config.set(s_executable_path, "TextureSearchPaths", _texture_search_paths);
-		config.set(s_executable_path, "Presets", _preset_files);
+		utils::ini_file apps_config(s_appdata_path / "Apps.ini");
+		utils::ini_file style_config(s_appdata_path / "Style.ini");
+
+		apps_config.set(s_executable_path, "DeveloperMode", _developer_mode);
+		apps_config.set(s_executable_path, "MenuKey", _menu_key);
+		apps_config.set(s_executable_path, "ScreenshotKey", _screenshot_key);
+		apps_config.set(s_executable_path, "ScreenshotPath", _screenshot_path);
+		apps_config.set(s_executable_path, "ScreenshotFormat", _screenshot_format);
+		apps_config.set(s_executable_path, "EffectSearchPaths", _effect_search_paths);
+		apps_config.set(s_executable_path, "TextureSearchPaths", _texture_search_paths);
+		apps_config.set(s_executable_path, "Presets", _preset_files);
+
+		const auto &style = ImGui::GetStyle();
+
+		style_config.set("Vars", "GlobalAlpha", style.Alpha);
+		style_config.set("Vars", "WindowPadding", style.WindowPadding);
+		style_config.set("Vars", "WindowRounding", style.WindowRounding);
+		style_config.set("Vars", "ChildWindowRounding", style.ChildWindowRounding);
+		style_config.set("Vars", "FramePadding", style.FramePadding);
+		style_config.set("Vars", "FrameRounding", style.FrameRounding);
+		style_config.set("Vars", "ItemSpacing", style.ItemSpacing);
+		style_config.set("Vars", "ItemInnerSpacing", style.ItemInnerSpacing);
+		style_config.set("Vars", "TouchExtraPadding", style.TouchExtraPadding);
+		style_config.set("Vars", "IndentSpacing", style.IndentSpacing);
+		style_config.set("Vars", "ScrollbarSize", style.ScrollbarSize);
+		style_config.set("Vars", "ScrollbarRounding", style.ScrollbarRounding);
+		style_config.set("Vars", "GrabMinSize", style.GrabMinSize);
+		style_config.set("Vars", "GrabRounding", style.GrabRounding);
+
+		for (unsigned int i = 0; i < ImGuiCol_COUNT; i++)
+		{
+			style_config.set("Colors", ImGui::GetStyleColName(i), style.Colors[i]);
+		}
 	}
 	void runtime::load_preset(const filesystem::path &path)
 	{
@@ -1043,6 +1100,8 @@ namespace reshade
 			ImGui::EndPopup();
 		}
 
+		ImGui::Spacing();
+
 		if (ImGui::BeginChild("##techniques", ImVec2(-1, -1), true, 0))
 		{
 			for (size_t n = 0; n < _techniques.size(); n++)
@@ -1102,6 +1161,13 @@ namespace reshade
 	{
 		char edit_buffer[2048];
 
+		if (ImGui::Button("Save", ImVec2(-1, 0)))
+		{
+			save_configuration();
+		}
+
+		ImGui::Spacing();
+
 		if (ImGui::CollapsingHeader("General", "settings_general", true, true))
 		{
 			assert(_menu_key < 256);
@@ -1113,8 +1179,6 @@ namespace reshade
 				if (_input->is_any_key_pressed())
 				{
 					_menu_key = _input->last_key_pressed();
-
-					save_configuration();
 				}
 			}
 			else if (ImGui::IsItemHovered())
@@ -1127,8 +1191,6 @@ namespace reshade
 			if (ImGui::Combo("Overlay Mode", &overlay_mode_index, "User Mode\0Developer Mode\0"))
 			{
 				_developer_mode = overlay_mode_index != 0;
-
-				save_configuration();
 			}
 
 			size_t offset = 0;
@@ -1143,12 +1205,11 @@ namespace reshade
 			if (ImGui::InputTextMultiline("Effect Search Paths", edit_buffer, sizeof(edit_buffer), ImVec2(0, 100)))
 			{
 				_effect_search_paths.clear();
+
 				for (const auto &search_path : stdext::split(edit_buffer, '\n'))
 				{
 					_effect_search_paths.push_back(search_path);
 				}
-
-				save_configuration();
 			}
 
 			offset = 0;
@@ -1163,12 +1224,11 @@ namespace reshade
 			if (ImGui::InputTextMultiline("Texture Search Paths", edit_buffer, sizeof(edit_buffer), ImVec2(0, 100)))
 			{
 				_texture_search_paths.clear();
+
 				for (const auto &search_path : stdext::split(edit_buffer, '\n'))
 				{
 					_texture_search_paths.push_back(search_path);
 				}
-
-				save_configuration();
 			}
 		}
 
@@ -1183,8 +1243,6 @@ namespace reshade
 				if (_input->is_any_key_pressed())
 				{
 					_screenshot_key = _input->last_key_pressed();
-
-					save_configuration();
 				}
 			}
 			else if (ImGui::IsItemHovered())
@@ -1197,13 +1255,35 @@ namespace reshade
 			if (ImGui::InputText("Screenshot Path", edit_buffer, sizeof(edit_buffer)))
 			{
 				_screenshot_path = edit_buffer;
-
-				save_configuration();
 			}
 
-			if (ImGui::Combo("Screenshot Format", &_screenshot_format, "Bitmap (*.bmp)\0Portable Network Graphics (*.png)\0"))
+			ImGui::Combo("Screenshot Format", &_screenshot_format, "Bitmap (*.bmp)\0Portable Network Graphics (*.png)\0");
+		}
+
+		if (ImGui::CollapsingHeader("User Interface", "settings_ui", true, true))
+		{
+			auto &style = ImGui::GetStyle();
+
+			ImGui::DragFloat("GlobalAlpha", &style.Alpha, 0.005f, 0.20f, 1.0f, "%.2f");
+			ImGui::SliderFloat2("WindowPadding", &style.WindowPadding.x, 0.0f, 20.0f, "%.0f");
+			ImGui::SliderFloat("WindowRounding", &style.WindowRounding, 0.0f, 16.0f, "%.0f");
+			ImGui::SliderFloat("ChildWindowRounding", &style.ChildWindowRounding, 0.0f, 16.0f, "%.0f");
+			ImGui::SliderFloat2("FramePadding", &style.FramePadding.x, 0.0f, 20.0f, "%.0f");
+			ImGui::SliderFloat("FrameRounding", &style.FrameRounding, 0.0f, 16.0f, "%.0f");
+			ImGui::SliderFloat2("ItemSpacing", &style.ItemSpacing.x, 0.0f, 20.0f, "%.0f");
+			ImGui::SliderFloat2("ItemInnerSpacing", &style.ItemInnerSpacing.x, 0.0f, 20.0f, "%.0f");
+			ImGui::SliderFloat2("TouchExtraPadding", &style.TouchExtraPadding.x, 0.0f, 10.0f, "%.0f");
+			ImGui::SliderFloat("IndentSpacing", &style.IndentSpacing, 0.0f, 30.0f, "%.0f");
+			ImGui::SliderFloat("ScrollbarSize", &style.ScrollbarSize, 1.0f, 20.0f, "%.0f");
+			ImGui::SliderFloat("ScrollbarRounding", &style.ScrollbarRounding, 0.0f, 16.0f, "%.0f");
+			ImGui::SliderFloat("GrabMinSize", &style.GrabMinSize, 1.0f, 20.0f, "%.0f");
+			ImGui::SliderFloat("GrabRounding", &style.GrabRounding, 0.0f, 16.0f, "%.0f");
+
+			for (int i = 0; i < ImGuiCol_COUNT; i++)
 			{
-				save_configuration();
+				ImGui::PushID(i);
+				ImGui::ColorEdit4(ImGui::GetStyleColName(i), &style.Colors[i].x, true);
+				ImGui::PopID();
 			}
 		}
 	}

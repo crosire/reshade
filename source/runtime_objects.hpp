@@ -68,47 +68,43 @@ namespace reshade
 		annotation() : _values(1)
 		{
 		}
-		annotation(bool value) : _values(1)
+		annotation(const char *value) : _values(1)
+		{
+			_values[0] = value;
+		}
+		template <typename T>
+		annotation(const T &value) : _values(1)
+		{
+			_values[0] = std::to_string(value);
+		}
+		template <typename T>
+		annotation(const T *values, size_t count) : _values(count)
+		{
+			for (size_t i = 0; i < count; i++)
+				_values[i] = std::to_string(values[i]);
+		}
+		template <>
+		annotation(const bool &value) : _values(1)
 		{
 			_values[0] = value ? "1" : "0";
 		}
+		template <>
 		annotation(const bool *values, size_t count) : _values(count)
 		{
 			for (size_t i = 0; i < count; i++)
 				_values[i] = values[i] ? "1" : "0";
 		}
-		annotation(int value) : _values(1)
-		{
-			_values[0] = std::to_string(value);
-		}
-		annotation(const int *values, size_t count) : _values(count)
-		{
-			for (size_t i = 0; i < count; i++)
-				_values[i] = std::to_string(values[i]);
-		}
-		annotation(unsigned int value) : _values(1)
-		{
-			_values[0] = std::to_string(value);
-		}
-		annotation(const unsigned int *values, size_t count) : _values(count)
-		{
-			for (size_t i = 0; i < count; i++)
-				_values[i] = std::to_string(values[i]);
-		}
-		annotation(float value) : _values(1)
-		{
-			_values[0] = std::to_string(value);
-		}
-		annotation(const float *values, size_t count) : _values(count)
-		{
-			for (size_t i = 0; i < count; i++)
-				_values[i] = std::to_string(values[i]);
-		}
+		template <>
 		annotation(const std::string &value) : _values(1)
 		{
 			_values[0] = value;
 		}
+		template <>
 		annotation(const std::vector<std::string> &values) : _values(values)
+		{
+		}
+		template <typename T>
+		annotation(std::initializer_list<T> values) : annotation(values.begin(), values.size())
 		{
 		}
 
