@@ -455,7 +455,7 @@ namespace reshade
 					technique.timeleft = 0;
 				}
 			}
-			else if (_input->is_key_pressed(technique.toggle_key) && (!technique.toggle_key_ctrl || _input->is_key_down(VK_CONTROL)) && (!technique.toggle_key_shift || _input->is_key_down(VK_SHIFT)) && (!technique.toggle_key_alt || _input->is_key_down(VK_MENU)))
+			else if (_input->is_key_pressed(technique.toggle_key, technique.toggle_key_ctrl, technique.toggle_key_shift, technique.toggle_key_alt))
 			{
 				technique.enabled = !technique.enabled;
 				technique.timeleft = technique.timeout;
@@ -1295,7 +1295,7 @@ namespace reshade
 
 		ImGui::InputTextMultiline("##editor", _shader_edit_buffer.data(), _shader_edit_buffer.size(), ImVec2(-1, -20), ImGuiInputTextFlags_AllowTabInput);
 
-		if (ImGui::Button("Save", ImVec2(-1, 0)) || (_input->is_key_down(VK_CONTROL) && _input->is_key_pressed('S')))
+		if (ImGui::Button("Save", ImVec2(-1, 0)) || _input->is_key_pressed('S', true, false, false))
 		{
 			std::ofstream file(_included_files[_current_effect_file].c_str(), std::ios::out | std::ios::trunc);
 			file << _shader_edit_buffer.data();

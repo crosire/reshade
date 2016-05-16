@@ -2,6 +2,7 @@
 #include "input.hpp"
 
 #include <Windows.h>
+#include <assert.h>
 #include <unordered_map>
 
 namespace reshade
@@ -179,6 +180,32 @@ namespace reshade
 		return (is_mouse_message && input._block_mouse) || (is_keyboard_message && input._block_keyboard);
 	}
 
+	bool input::is_key_down(unsigned int keycode) const
+	{
+		assert(keycode < 256);
+
+		return (_keys[keycode] & 0x80) == 0x80;
+	}
+	bool input::is_key_down(unsigned int keycode, bool ctrl, bool shift, bool alt) const
+	{
+		return is_key_down(keycode) && (!ctrl || is_key_down(VK_CONTROL)) && (!shift || is_key_down(VK_SHIFT)) && (!alt || is_key_down(VK_MENU));
+	}
+	bool input::is_key_pressed(unsigned int keycode) const
+	{
+		assert(keycode < 256);
+
+		return (_keys[keycode] & 0x88) == 0x88;
+	}
+	bool input::is_key_pressed(unsigned int keycode, bool ctrl, bool shift, bool alt) const
+	{
+		return is_key_pressed(keycode) && (!ctrl || is_key_down(VK_CONTROL)) && (!shift || is_key_down(VK_SHIFT)) && (!alt || is_key_down(VK_MENU));
+	}
+	bool input::is_key_released(unsigned int keycode) const
+	{
+		assert(keycode < 256);
+
+		return (_keys[keycode] & 0x88) == 0x08;
+	}
 	bool input::is_any_key_down() const
 	{
 		for (unsigned int i = 0; i < 256; i++)
@@ -238,6 +265,24 @@ namespace reshade
 		}
 
 		return 0;
+	}
+	bool input::is_mouse_button_down(unsigned int button) const
+	{
+		assert(button < 5);
+
+		return (_mouse_buttons[button] & 0x80) == 0x80;
+	}
+	bool input::is_mouse_button_pressed(unsigned int button) const
+	{
+		assert(button < 5);
+
+		return (_mouse_buttons[button] & 0x88) == 0x88;
+	}
+	bool input::is_mouse_button_released(unsigned int button) const
+	{
+		assert(button < 5);
+
+		return (_mouse_buttons[button] & 0x88) == 0x08;
 	}
 	bool input::is_any_mouse_button_down() const
 	{

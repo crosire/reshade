@@ -15,17 +15,19 @@ namespace reshade
 		static std::shared_ptr<input> register_window(window_handle window);
 		static void uninstall();
 
-		bool is_key_down(unsigned int keycode) const { return (_keys[keycode] & 0x80) == 0x80; }
-		bool is_key_pressed(unsigned int keycode) const { return (_keys[keycode] & 0x88) == 0x88; }
-		bool is_key_released(unsigned int keycode) const { return (_keys[keycode] & 0x88) == 0x08; }
+		bool is_key_down(unsigned int keycode) const;
+		bool is_key_down(unsigned int keycode, bool ctrl, bool shift, bool alt) const;
+		bool is_key_pressed(unsigned int keycode) const;
+		bool is_key_pressed(unsigned int keycode, bool ctrl, bool shift, bool alt) const;
+		bool is_key_released(unsigned int keycode) const;
 		bool is_any_key_down() const;
 		bool is_any_key_pressed() const;
 		bool is_any_key_released() const;
 		unsigned int last_key_pressed() const;
 		unsigned int last_key_released() const;
-		bool is_mouse_button_down(unsigned int button) const { return (_mouse_buttons[button] & 0x80) == 0x80; }
-		bool is_mouse_button_pressed(unsigned int button) const { return (_mouse_buttons[button] & 0x88) == 0x88; }
-		bool is_mouse_button_released(unsigned int button) const { return (_mouse_buttons[button] & 0x88) == 0x08; }
+		bool is_mouse_button_down(unsigned int button) const;
+		bool is_mouse_button_pressed(unsigned int button) const;
+		bool is_mouse_button_released(unsigned int button) const;
 		bool is_any_mouse_button_down() const;
 		bool is_any_mouse_button_pressed() const;
 		bool is_any_mouse_button_released() const;
