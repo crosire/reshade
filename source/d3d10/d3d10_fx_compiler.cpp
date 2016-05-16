@@ -1427,22 +1427,22 @@ namespace reshade
 	template <typename T>
 	void visit_annotation(const std::vector<annotation_node> &annotations, T &object)
 	{
-		for (auto &annotation : annotations)
+		for (auto &item : annotations)
 		{
-			switch (annotation.value->type.basetype)
+			switch (item.value->type.basetype)
 			{
 				case type_node::datatype_bool:
 				case type_node::datatype_int:
-					object.annotations[annotation.name] = annotation.value->value_int;
+					object.annotations[item.name] = annotation(item.value->value_int, 4);
 					break;
 				case type_node::datatype_uint:
-					object.annotations[annotation.name] = annotation.value->value_uint;
+					object.annotations[item.name] = annotation(item.value->value_uint, 4);
 					break;
 				case type_node::datatype_float:
-					object.annotations[annotation.name] = annotation.value->value_float;
+					object.annotations[item.name] = annotation(item.value->value_float, 4);
 					break;
 				case type_node::datatype_string:
-					object.annotations[annotation.name] = annotation.value->value_string;
+					object.annotations[item.name] = item.value->value_string;
 					break;
 			}
 		}

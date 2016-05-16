@@ -72,45 +72,37 @@ namespace reshade
 		{
 			_values[0] = value ? "1" : "0";
 		}
-		annotation(const bool values[4]) : _values(4)
+		annotation(const bool *values, size_t count) : _values(count)
 		{
-			_values[0] = values[0] ? "1" : "0";
-			_values[1] = values[1] ? "1" : "0";
-			_values[2] = values[2] ? "1" : "0";
-			_values[3] = values[3] ? "1" : "0";
+			for (size_t i = 0; i < count; i++)
+				_values[i] = values[i] ? "1" : "0";
 		}
 		annotation(int value) : _values(1)
 		{
 			_values[0] = std::to_string(value);
 		}
-		annotation(const int values[4]) : _values(4)
+		annotation(const int *values, size_t count) : _values(count)
 		{
-			_values[0] = std::to_string(values[0]);
-			_values[1] = std::to_string(values[1]);
-			_values[2] = std::to_string(values[2]);
-			_values[3] = std::to_string(values[3]);
+			for (size_t i = 0; i < count; i++)
+				_values[i] = std::to_string(values[i]);
 		}
 		annotation(unsigned int value) : _values(1)
 		{
 			_values[0] = std::to_string(value);
 		}
-		annotation(const unsigned int values[4]) : _values(4)
+		annotation(const unsigned int *values, size_t count) : _values(count)
 		{
-			_values[0] = std::to_string(values[0]);
-			_values[1] = std::to_string(values[1]);
-			_values[2] = std::to_string(values[2]);
-			_values[3] = std::to_string(values[3]);
+			for (size_t i = 0; i < count; i++)
+				_values[i] = std::to_string(values[i]);
 		}
 		annotation(float value) : _values(1)
 		{
 			_values[0] = std::to_string(value);
 		}
-		annotation(const float values[4]) : _values(4)
+		annotation(const float *values, size_t count) : _values(count)
 		{
-			_values[0] = std::to_string(values[0]);
-			_values[1] = std::to_string(values[1]);
-			_values[2] = std::to_string(values[2]);
-			_values[3] = std::to_string(values[3]);
+			for (size_t i = 0; i < count; i++)
+				_values[i] = std::to_string(values[i]);
 		}
 		annotation(const std::string &value) : _values(1)
 		{

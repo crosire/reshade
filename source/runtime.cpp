@@ -765,19 +765,17 @@ namespace reshade
 		{
 			const std::string filename = filesystem::path(variable.annotations.at("__FILE__").as<std::string>()).filename();
 
-			const auto data = preset.get(filename, variable.unique_name);
-
 			float values[4] = { };
-			values[0] = data.as<float>(0);
+			get_uniform_value(variable, values, variable.rows);
 
-			if (data.data().size() > 1)
+			const auto data = preset.get(filename, variable.unique_name, annotation(values, variable.rows));
+
+			for (unsigned int i = 0; i < std::min(variable.rows, static_cast<unsigned int>(data.data().size())); i++)
 			{
-				values[1] = data.as<float>(1);
-				values[2] = data.as<float>(2);
-				values[3] = data.as<float>(3);
+				values[i] = data.as<float>(i);
 			}
 
-			set_uniform_value(variable, values);
+			set_uniform_value(variable, values, variable.rows);
 		}
 	}
 	void runtime::save_preset(const filesystem::path &path) const
@@ -789,9 +787,9 @@ namespace reshade
 			const std::string filename = filesystem::path(variable.annotations.at("__FILE__").as<std::string>()).filename();
 
 			float values[4] = { };
-			get_uniform_value(variable, values);
+			get_uniform_value(variable, values, variable.rows);
 
-			preset.set(filename, variable.unique_name, values);
+			preset.set(filename, variable.unique_name, annotation(values, variable.rows));
 		}
 	}
 

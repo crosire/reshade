@@ -110,11 +110,6 @@ namespace reshade
 		void get_uniform_value(const uniform &variable, int *values, size_t count) const;
 		void get_uniform_value(const uniform &variable, unsigned int *values, size_t count) const;
 		void get_uniform_value(const uniform &variable, float *values, size_t count) const;
-		template <typename T, size_t COUNT>
-		inline void get_uniform_value(const uniform &variable, T(&values)[COUNT]) const
-		{
-			get_uniform_value(variable, values, COUNT);
-		}
 		/// <summary>
 		/// Update the value of a uniform variable.
 		/// </summary>
@@ -126,11 +121,6 @@ namespace reshade
 		void set_uniform_value(uniform &variable, const int *values, size_t count);
 		void set_uniform_value(uniform &variable, const unsigned int *values, size_t count);
 		void set_uniform_value(uniform &variable, const float *values, size_t count);
-		template <typename T, size_t COUNT>
-		inline void set_uniform_value(uniform &variable, const T(&values)[COUNT])
-		{
-			set_uniform_value(variable, values, COUNT);
-		}
 
 	protected:
 		/// <summary>
