@@ -553,6 +553,11 @@ namespace reshade
 		}
 
 		load_textures();
+
+		if (_current_preset >= 0)
+		{
+			load_preset(_preset_files[_current_preset]);
+		}
 	}
 	void runtime::screenshot()
 	{
@@ -735,9 +740,9 @@ namespace reshade
 		const utils::ini_file style_config(s_appdata_path / "Style.ini");
 
 		_developer_mode = apps_config.get(s_executable_path, "DeveloperMode", false).as<bool>();
-		_menu_key.keycode = apps_config.get(s_executable_path, "MenuKey", 0x78).as<int>(); // VK_F9
+		_menu_key.keycode = apps_config.get(s_executable_path, "MenuKey", 0x71).as<int>(); // VK_F2
 		_menu_key.ctrl = apps_config.get(s_executable_path, "MenuKeyCtrl", false).as<bool>();
-		_menu_key.shift = apps_config.get(s_executable_path, "MenuKeyShift", false).as<bool>();
+		_menu_key.shift = apps_config.get(s_executable_path, "MenuKeyShift", true).as<bool>();
 		_screenshot_key.keycode = apps_config.get(s_executable_path, "ScreenshotKey", 0x2C).as<int>(); // VK_SNAPSHOT
 		_screenshot_key.ctrl = apps_config.get(s_executable_path, "ScreenshotKeyCtrl", false).as<bool>();
 		_screenshot_key.shift = apps_config.get(s_executable_path, "ScreenshotKeyShift", false).as<bool>();
@@ -867,10 +872,7 @@ namespace reshade
 
 		for (const auto &technique : _techniques)
 		{
-			if (technique.enabled)
-			{
-				technique_list += technique.name + ',';
-			}
+			technique_list += technique.name + ',';
 		}
 
 		preset.set("GLOBAL", "Techniques", technique_list);
