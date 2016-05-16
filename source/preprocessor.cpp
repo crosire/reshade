@@ -551,6 +551,16 @@ namespace reshadefx
 			}
 		}
 
+		if (pragma == "once")
+		{
+			const auto it = _filecache.find(_output_location.source);
+
+			if (it != _filecache.end())
+			{
+				it->second.clear();
+			}
+		}
+
 		_pragmas.push_back(pragma);
 	}
 	void preprocessor::parse_include()
