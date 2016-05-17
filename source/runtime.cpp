@@ -728,7 +728,12 @@ namespace reshade
 		_effect_search_paths = apps_config.get(s_executable_path, "EffectSearchPaths", static_cast<const std::string &>(s_injector_path.parent_path())).data();
 		_texture_search_paths = apps_config.get(s_executable_path, "TextureSearchPaths", static_cast<const std::string &>(s_injector_path.parent_path())).data();
 		_preset_files = apps_config.get(s_executable_path, "Presets", { }).data();
-		_preset_files.erase(std::remove_if(_preset_files.begin(), _preset_files.end(), [](const std::string &it) { return it.empty(); }), _preset_files.end());
+		_current_preset = apps_config.get(s_executable_path, "CurrentPreset", -1).as<int>();
+
+		if (_current_preset >= _preset_files.size())
+		{
+			_current_preset = -1;
+		}
 
 		auto &style = ImGui::GetStyle();
 
@@ -771,6 +776,7 @@ namespace reshade
 		apps_config.set(s_executable_path, "EffectSearchPaths", _effect_search_paths);
 		apps_config.set(s_executable_path, "TextureSearchPaths", _texture_search_paths);
 		apps_config.set(s_executable_path, "Presets", _preset_files);
+		apps_config.set(s_executable_path, "CurrentPreset", _current_preset);
 
 		const auto &style = ImGui::GetStyle();
 
@@ -850,7 +856,10 @@ namespace reshade
 
 		for (const auto &technique : _techniques)
 		{
-			technique_list += technique.name + ',';
+			if (technique.enabled)
+			{
+				technique_list += technique.name + ',';
+			}
 		}
 
 		preset.set("GLOBAL", "Techniques", technique_list);
@@ -858,7 +867,7 @@ namespace reshade
 
 	void runtime::draw_overlay()
 	{
-		const bool show_splash = std::chrono::duration_cast<std::chrono::seconds>(_last_present - _start_time).count() < 8;
+		const bool show_splash = std::chrono::duration_cast<std::chrono::seconds>(_last_present - _start_time).count() < 10;
 
 		if ((_menu_index != 1 || !_show_menu) && _input->is_key_pressed(_menu_key.keycode, _menu_key.ctrl, _menu_key.shift, false))
 		{
@@ -908,11 +917,20 @@ namespace reshade
 
 		if (show_splash)
 		{
-			ImGui::SetNextWindowPos(ImVec2(0, 0));
-			ImGui::Begin("##logo", nullptr, ImVec2(), 0.0f, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoInputs);
-			ImGui::TextColored(ImVec4(0.73f, 0.73f, 0.73f, 1.0f), "ReShade " VERSION_STRING_FILE " by crosire");
-			ImGui::TextColored(ImVec4(0.73f, 0.73f, 0.73f, 1.0f), "Visit http://reshade.me for news, updates, shaders and discussion.");
+			ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 1.0f, 1.0f, 1.0f));
+			ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.0f, 0.0f, 0.0f, 1.0f));
+
+			ImGui::Begin("##splash", nullptr, ImVec2(), -1, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoInputs);
+			ImGui::SetWindowPos(ImVec2(10, 10));
+			ImGui::SetWindowSize(ImVec2(_width - 20.0f, ImGui::GetItemsLineHeightWithSpacing() * 3));
+			ImGui::TextUnformatted("ReShade " VERSION_STRING_FILE " by crosire");
+			ImGui::TextUnformatted("Visit http://reshade.me for news, updates, shaders and discussion.");
+			ImGui::Spacing();
+			ImGui::Text("Press '%s%s%s' to open the configuration menu.", _menu_key.ctrl ? "Ctrl + " : "", _menu_key.shift ? "Shift + " : "", keyboard_keys[_menu_key.keycode]);
 			ImGui::End();
+
+			ImGui::PopStyleColor();
+			ImGui::PopStyleColor();
 		}
 
 		g_blockSetCursorPos = _show_menu;
@@ -1024,24 +1042,25 @@ namespace reshade
 			}
 		}
 
-		std::string preset_files;
-		for (const std::string &path : _preset_files)
-		{
-			preset_files += path + '\0';
-		}
+		ImGui::PushItemWidth(-(60 + ImGui::GetStyle().ItemInnerSpacing.x) * 3 - 1);
 
-		ImGui::PushItemWidth(-(60 + ImGui::GetStyle().ItemSpacing.x) * 3 - 1);
+		const auto preset_getter = [](void *data, int i, const char **out) { *out = static_cast<runtime *>(data)->_preset_files[i].c_str(); return true; };
 
-		if (ImGui::Combo("##presets", &_current_preset, preset_files.c_str()))
+		if (ImGui::Combo("##presets", &_current_preset, preset_getter, this, _preset_files.size()))
 		{
 			load_preset(_preset_files[_current_preset]);
+
+			save_configuration();
 		}
+
+		ImGui::PopItemWidth();
 
 		if (_current_preset >= 0 && ImGui::IsItemHovered() && !_input->is_mouse_button_down(0))
 		{
 			ImGui::SetTooltip(static_cast<const std::string &>(_preset_files[_current_preset]).c_str());
 		}
 
+		ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImGui::GetStyle().ItemInnerSpacing);
 		ImGui::SameLine();
 
 		if (ImGui::Button("Load", ImVec2(60, 0)))
@@ -1066,6 +1085,8 @@ namespace reshade
 			}
 		}
 
+		ImGui::PopStyleVar();
+
 		if (ImGui::BeginPopup("Add Preset"))
 		{
 			char buf[260] = { };
@@ -1078,6 +1099,9 @@ namespace reshade
 				{
 					_preset_files.push_back(path);
 
+					_current_preset = _preset_files.size() - 1;
+
+					load_preset(path);
 					save_configuration();
 
 					ImGui::CloseCurrentPopup();
@@ -1097,7 +1121,15 @@ namespace reshade
 			if (ImGui::Button("Yes", ImVec2(-1, 0)))
 			{
 				_preset_files.erase(_preset_files.begin() + _current_preset);
-				_current_preset = -1;
+
+				if (_current_preset == _preset_files.size())
+				{
+					_current_preset -= 1;
+				}
+				if (_current_preset >= 0)
+				{
+					load_preset(_preset_files[_current_preset]);
+				}
 
 				save_configuration();
 
@@ -1171,21 +1203,30 @@ namespace reshade
 	{
 		char edit_buffer[2048];
 
-		if (ImGui::Button("Save", ImVec2(-1, 0)))
-		{
-			save_configuration();
-		}
-
-		ImGui::Spacing();
+		const auto copy_key_shortcut_to_edit_buffer = [&edit_buffer](const key_shortcut &shortcut) {
+			size_t offset = 0;
+			if (shortcut.ctrl) memcpy(edit_buffer, "Ctrl + ", 8), offset += 7;
+			if (shortcut.shift) memcpy(edit_buffer, "Shift + ", 9), offset += 8;
+			memcpy(edit_buffer + offset, keyboard_keys[shortcut.keycode], sizeof(*keyboard_keys));
+		};
+		const auto copy_search_paths_to_edit_buffer = [&edit_buffer](const std::vector<std::string> &search_paths) {
+			size_t offset = 0;
+			for (const auto &search_path : search_paths)
+			{
+				memcpy(edit_buffer + offset, search_path.c_str(), search_path.size());
+				offset += search_path.size();
+				edit_buffer[offset++] = '\n';
+				edit_buffer[offset] = '\0';
+			}
+		};
 
 		if (ImGui::CollapsingHeader("General", ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_DefaultOpen))
 		{
 			assert(_menu_key.keycode < 256);
 
-			std::string menu_key_text = keyboard_keys[_menu_key.keycode];
-			if (_menu_key.shift) menu_key_text = "Shift + " + menu_key_text;
-			if (_menu_key.ctrl) menu_key_text = "Ctrl + " + menu_key_text;
-			ImGui::InputText("Overlay Key", const_cast<char *>(menu_key_text.data()), menu_key_text.size(), ImGuiInputTextFlags_ReadOnly);
+			copy_key_shortcut_to_edit_buffer(_menu_key);
+
+			ImGui::InputText("Overlay Key", edit_buffer, sizeof(edit_buffer), ImGuiInputTextFlags_ReadOnly);
 
 			if (ImGui::IsItemActive())
 			{
@@ -1198,6 +1239,8 @@ namespace reshade
 						_menu_key.ctrl = _input->is_key_down(0x11);
 						_menu_key.shift = _input->is_key_down(0x10);
 						_menu_key.keycode = _input->last_key_pressed();
+
+						save_configuration();
 					}
 				}
 			}
@@ -1211,44 +1254,26 @@ namespace reshade
 			if (ImGui::Combo("Overlay Mode", &overlay_mode_index, "User Mode\0Developer Mode\0"))
 			{
 				_developer_mode = overlay_mode_index != 0;
+
+				save_configuration();
 			}
 
-			size_t offset = 0;
-			for (const std::string &search_path : _effect_search_paths)
-			{
-				memcpy(edit_buffer + offset, search_path.c_str(), search_path.size());
-				offset += search_path.size();
-				edit_buffer[offset++] = '\n';
-				edit_buffer[offset] = '\0';
-			}
+			copy_search_paths_to_edit_buffer(_effect_search_paths);
 
 			if (ImGui::InputTextMultiline("Effect Search Paths", edit_buffer, sizeof(edit_buffer), ImVec2(0, 100)))
 			{
-				_effect_search_paths.clear();
+				_effect_search_paths = stdext::split(edit_buffer, '\n');
 
-				for (const auto &search_path : stdext::split(edit_buffer, '\n'))
-				{
-					_effect_search_paths.push_back(search_path);
-				}
+				save_configuration();
 			}
 
-			offset = 0;
-			for (const std::string &search_path : _texture_search_paths)
-			{
-				memcpy(edit_buffer + offset, search_path.c_str(), search_path.size());
-				offset += search_path.size();
-				edit_buffer[offset++] = '\n';
-				edit_buffer[offset] = '\0';
-			}
+			copy_search_paths_to_edit_buffer(_texture_search_paths);
 
 			if (ImGui::InputTextMultiline("Texture Search Paths", edit_buffer, sizeof(edit_buffer), ImVec2(0, 100)))
 			{
-				_texture_search_paths.clear();
+				_texture_search_paths = stdext::split(edit_buffer, '\n');
 
-				for (const auto &search_path : stdext::split(edit_buffer, '\n'))
-				{
-					_texture_search_paths.push_back(search_path);
-				}
+				save_configuration();
 			}
 		}
 
@@ -1256,10 +1281,9 @@ namespace reshade
 		{
 			assert(_screenshot_key.keycode < 256);
 
-			std::string screenshot_key_text = keyboard_keys[_screenshot_key.keycode];
-			if (_screenshot_key.shift) screenshot_key_text = "Shift + " + screenshot_key_text;
-			if (_screenshot_key.ctrl) screenshot_key_text = "Ctrl + " + screenshot_key_text;
-			ImGui::InputText("Screenshot Key", const_cast<char *>(screenshot_key_text.data()), screenshot_key_text.size(), ImGuiInputTextFlags_ReadOnly);
+			copy_key_shortcut_to_edit_buffer(_screenshot_key);
+
+			ImGui::InputText("Screenshot Key", edit_buffer, sizeof(edit_buffer), ImGuiInputTextFlags_ReadOnly);
 
 			if (ImGui::IsItemActive())
 			{
@@ -1272,6 +1296,8 @@ namespace reshade
 						_screenshot_key.ctrl = _input->is_key_down(0x11);
 						_screenshot_key.shift = _input->is_key_down(0x10);
 						_screenshot_key.keycode = _input->last_key_pressed();
+
+						save_configuration();
 					}
 				}
 			}
@@ -1285,13 +1311,34 @@ namespace reshade
 			if (ImGui::InputText("Screenshot Path", edit_buffer, sizeof(edit_buffer)))
 			{
 				_screenshot_path = edit_buffer;
+
+				save_configuration();
 			}
 
-			ImGui::Combo("Screenshot Format", &_screenshot_format, "Bitmap (*.bmp)\0Portable Network Graphics (*.png)\0");
+			if (ImGui::Combo("Screenshot Format", &_screenshot_format, "Bitmap (*.bmp)\0Portable Network Graphics (*.png)\0"))
+			{
+				save_configuration();
+			}
 		}
 
-		if (ImGui::CollapsingHeader("User Interface", ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_DefaultOpen))
+		if (ImGui::CollapsingHeader("User Interface", ImGuiTreeNodeFlags_Framed))
 		{
+			const ImVec2 button_width(ImGui::CalcItemWidth() / 2 - 2, 0);
+
+			if (ImGui::Button("Revert Style", button_width))
+			{
+				load_configuration();
+			}
+
+			ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImGui::GetStyle().ItemInnerSpacing);
+			ImGui::SameLine();
+			ImGui::PopStyleVar();
+
+			if (ImGui::Button("Save Style", button_width))
+			{
+				save_configuration();
+			}
+
 			auto &style = ImGui::GetStyle();
 
 			ImGui::DragFloat("GlobalAlpha", &style.Alpha, 0.005f, 0.20f, 1.0f, "%.2f");
@@ -1312,7 +1359,7 @@ namespace reshade
 			for (int i = 0; i < ImGuiCol_COUNT; i++)
 			{
 				ImGui::PushID(i);
-				ImGui::ColorEdit4(ImGui::GetStyleColName(i), &style.Colors[i].x, true);
+				ImGui::ColorEdit4(ImGui::GetStyleColName(i), &style.Colors[i].x);
 				ImGui::PopID();
 			}
 		}
@@ -1327,6 +1374,7 @@ namespace reshade
 			ImGui::Text("FPS: %.2f", ImGui::GetIO().Framerate);
 			ImGui::PushItemWidth(-1);
 			ImGui::PlotLines("##framerate", _imgui_context->FramerateSecPerFrame, 120, _imgui_context->FramerateSecPerFrameIdx, nullptr, _imgui_context->FramerateSecPerFrameAccum / 120 * 0.5f, _imgui_context->FramerateSecPerFrameAccum / 120 * 1.5f, ImVec2(0, 50));
+			ImGui::PopItemWidth();
 			ImGui::Text("Draw Calls: %u (%u vertices)", _drawcalls, _vertices);
 			ImGui::Text("Frame %llu: %fms", _framecount + 1, _last_frame_duration.count() * 1e-6f);
 			ImGui::Text("Timer: %fms", std::fmod(std::chrono::duration_cast<std::chrono::nanoseconds>(_last_present - _start_time).count() * 1e-6f, 16777216.0f));
@@ -1353,7 +1401,8 @@ namespace reshade
 	}
 	void runtime::draw_overlay_menu_about()
 	{
-		ImGui::TextWrapped("\
+		ImGui::PushTextWrapPos(0.0f);
+		ImGui::TextUnformatted("\
 Copyright (C) 2014 Patrick \"crosire\" Mours\n\
 \n\
 This software is provided 'as-is', without any express or implied warranty.\n\
@@ -1370,17 +1419,14 @@ Libraries in use:\n\
   Sean Barrett and contributors\n\
 - DDS loading from SOIL\n\
   Jonathan \"lonesock\" Dummer");
+		ImGui::PopTextWrapPos();
 	}
 	void runtime::draw_overlay_shader_editor()
 	{
-		std::string effect_files;
-		for (const std::string &path : _included_files)
-		{
-			effect_files += path + '\0';
-		}
-
 		ImGui::PushItemWidth(-1);
-		if (ImGui::Combo("##effect_files", &_current_effect_file, effect_files.c_str()))
+
+		const auto effect_file_getter = [](void *data, int i, const char **out) { *out = static_cast<const std::string &>(static_cast<runtime *>(data)->_included_files[i]).c_str(); return true; };
+		if (ImGui::Combo("##effect_files", &_current_effect_file, effect_file_getter, this, _included_files.size()))
 		{
 			std::ifstream file(stdext::utf8_to_utf16(_included_files[_current_effect_file]).c_str());
 
@@ -1400,14 +1446,7 @@ Libraries in use:\n\
 			}
 		}
 
-		ImGui::Separator();
-
-		if (!_errors.empty())
-		{
-			ImGui::BeginChildFrame(0, ImVec2(-1, 80));
-			ImGui::TextColored(ImVec4(1, 0, 0, 1), _errors.c_str());
-			ImGui::EndChildFrame();
-		}
+		ImGui::PopItemWidth();
 
 		ImGui::InputTextMultiline("##editor", _shader_edit_buffer.data(), _shader_edit_buffer.size(), ImVec2(-1, -20), ImGuiInputTextFlags_AllowTabInput);
 
