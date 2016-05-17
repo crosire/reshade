@@ -94,6 +94,8 @@ namespace reshade
 				case special_folder::system:
 					GetSystemDirectoryW(result, MAX_PATH);
 					break;
+				case special_folder::windows:
+					GetWindowsDirectoryW(result, MAX_PATH);
 			}
 
 			return stdext::utf16_to_utf8(result);

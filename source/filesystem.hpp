@@ -12,6 +12,7 @@ namespace reshade
 		{
 			app_data,
 			system,
+			windows,
 		};
 
 		class path
