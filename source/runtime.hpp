@@ -7,6 +7,7 @@
 
 #pragma region Forward Declarations
 struct ImDrawData;
+struct ImGuiContext;
 
 namespace reshade
 {
@@ -211,5 +212,6 @@ namespace reshade
 		bool _developer_mode = false, _show_menu = false, _show_shader_editor = false, _show_variable_editor = false;
 		int _selected_technique = -1, _hovered_technique = -1;
 		std::vector<char> _shader_edit_buffer;
+		ImGuiContext *_imgui_context = nullptr;
 	};
 }

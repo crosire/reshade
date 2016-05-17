@@ -125,6 +125,26 @@ namespace reshade
 		hooks::register_module(system_path / "user32.dll");
 		hooks::register_module(system_path / "ws2_32.dll");
 
+		LOG(INFO) << "Initialized.";
+	}
+	void runtime::shutdown()
+	{
+		LOG(INFO) << "Exiting ...";
+
+		input::uninstall();
+		hooks::uninstall();
+
+		LOG(INFO) << "Exited.";
+	}
+
+	runtime::runtime(uint32_t renderer) :
+		_renderer_id(renderer),
+		_start_time(std::chrono::high_resolution_clock::now()),
+		_shader_edit_buffer(32768),
+		_imgui_context(ImGui::CreateContext())
+	{
+		ImGui::SetCurrentContext(_imgui_context);
+
 		auto &imgui_io = ImGui::GetIO();
 		imgui_io.IniFilename = s_imgui_ini_path.c_str();
 		imgui_io.KeyMap[ImGuiKey_Tab] = 0x09; // VK_TAB
@@ -147,29 +167,15 @@ namespace reshade
 		imgui_io.KeyMap[ImGuiKey_Y] = 'Y';
 		imgui_io.KeyMap[ImGuiKey_Z] = 'Z';
 
-		LOG(INFO) << "Initialized.";
-	}
-	void runtime::shutdown()
-	{
-		LOG(INFO) << "Exiting ...";
-
-		ImGui::Shutdown();
-
-		input::uninstall();
-		hooks::uninstall();
-
-		LOG(INFO) << "Exited.";
-	}
-
-	runtime::runtime(uint32_t renderer) :
-		_renderer_id(renderer),
-		_start_time(std::chrono::high_resolution_clock::now()),
-		_shader_edit_buffer(32768)
-	{
 		load_configuration();
 	}
 	runtime::~runtime()
 	{
+		ImGui::SetCurrentContext(_imgui_context);
+
+		ImGui::Shutdown();
+		ImGui::DestroyContext(_imgui_context);
+
 		assert(!_is_initialized && _techniques.empty());
 	}
 
@@ -722,6 +728,7 @@ namespace reshade
 		_effect_search_paths = apps_config.get(s_executable_path, "EffectSearchPaths", static_cast<const std::string &>(s_injector_path.parent_path())).data();
 		_texture_search_paths = apps_config.get(s_executable_path, "TextureSearchPaths", static_cast<const std::string &>(s_injector_path.parent_path())).data();
 		_preset_files = apps_config.get(s_executable_path, "Presets", { }).data();
+		_preset_files.erase(std::remove_if(_preset_files.begin(), _preset_files.end(), [](const std::string &it) { return it.empty(); }), _preset_files.end());
 
 		auto &style = ImGui::GetStyle();
 
@@ -864,6 +871,8 @@ namespace reshade
 			_input->block_keyboard_input(false);
 			return;
 		}
+
+		ImGui::SetCurrentContext(_imgui_context);
 
 		auto &imgui_io = ImGui::GetIO();
 		imgui_io.DeltaTime = _last_frame_duration.count() * 1e-9f;
@@ -1169,7 +1178,7 @@ namespace reshade
 
 		ImGui::Spacing();
 
-		if (ImGui::CollapsingHeader("General", "settings_general", true, true))
+		if (ImGui::CollapsingHeader("General", ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_DefaultOpen))
 		{
 			assert(_menu_key.keycode < 256);
 
@@ -1243,7 +1252,7 @@ namespace reshade
 			}
 		}
 
-		if (ImGui::CollapsingHeader("Screenshots", "settings_screenshots", true, true))
+		if (ImGui::CollapsingHeader("Screenshots", ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_DefaultOpen))
 		{
 			assert(_screenshot_key.keycode < 256);
 
@@ -1281,7 +1290,7 @@ namespace reshade
 			ImGui::Combo("Screenshot Format", &_screenshot_format, "Bitmap (*.bmp)\0Portable Network Graphics (*.png)\0");
 		}
 
-		if (ImGui::CollapsingHeader("User Interface", "settings_ui", true, true))
+		if (ImGui::CollapsingHeader("User Interface", ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_DefaultOpen))
 		{
 			auto &style = ImGui::GetStyle();
 
@@ -1310,16 +1319,14 @@ namespace reshade
 	}
 	void runtime::draw_overlay_menu_statistics()
 	{
-		const auto state = static_cast<ImGuiState *>(ImGui::GetInternalState());
-
-		if (ImGui::CollapsingHeader("General", "statistics_general", true, true))
+		if (ImGui::CollapsingHeader("General", ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_DefaultOpen))
 		{
 			ImGui::Text("Application: %X", std::hash<std::string>()(s_executable_name));
 			ImGui::Text("Date: %d-%d-%d %d", _date[0], _date[1], _date[2], _date[3]);
 			ImGui::Text("Device: %X %d", _vendor_id, _device_id);
 			ImGui::Text("FPS: %.2f", ImGui::GetIO().Framerate);
 			ImGui::PushItemWidth(-1);
-			ImGui::PlotLines("##framerate", state->FramerateSecPerFrame, 120, state->FramerateSecPerFrameIdx, nullptr, state->FramerateSecPerFrameAccum / 120 * 0.5f, state->FramerateSecPerFrameAccum / 120 * 1.5f, ImVec2(0, 50));
+			ImGui::PlotLines("##framerate", _imgui_context->FramerateSecPerFrame, 120, _imgui_context->FramerateSecPerFrameIdx, nullptr, _imgui_context->FramerateSecPerFrameAccum / 120 * 0.5f, _imgui_context->FramerateSecPerFrameAccum / 120 * 1.5f, ImVec2(0, 50));
 			ImGui::Text("Draw Calls: %u (%u vertices)", _drawcalls, _vertices);
 			ImGui::Text("Frame %llu: %fms", _framecount + 1, _last_frame_duration.count() * 1e-6f);
 			ImGui::Text("Timer: %fms", std::fmod(std::chrono::duration_cast<std::chrono::nanoseconds>(_last_present - _start_time).count() * 1e-6f, 16777216.0f));
@@ -1328,14 +1335,14 @@ namespace reshade
 
 		if (_developer_mode)
 		{
-			if (ImGui::CollapsingHeader("Textures", "statistics_textures", true, true))
+			if (ImGui::CollapsingHeader("Textures", ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_DefaultOpen))
 			{
 				for (const auto &texture : _textures)
 				{
 					ImGui::Text("%s: %ux%u+%u (%uB)", texture->name.c_str(), texture->width, texture->height, (texture->levels - 1), static_cast<unsigned int>(texture->storage_size));
 				}
 			}
-			if (ImGui::CollapsingHeader("Techniques", "statistics_techniques", true, true))
+			if (ImGui::CollapsingHeader("Techniques", ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_DefaultOpen))
 			{
 				for (const auto &technique : _techniques)
 				{
@@ -1431,7 +1438,7 @@ Libraries in use:\n\
 			if (new_header != current_header)
 			{
 				current_header = new_header;
-				opened = ImGui::CollapsingHeader(new_header.c_str(), nullptr, true, true);
+				opened = ImGui::CollapsingHeader(new_header.c_str(), ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_DefaultOpen);
 			}
 			if (!opened)
 			{
