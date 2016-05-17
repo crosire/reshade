@@ -72,12 +72,12 @@ namespace reshade
 
 		HDC _hdc;
 
-		GLuint _reference_count, _current_vertex_count;
-		GLuint _default_backbuffer_fbo, _default_backbuffer_rbo[2], _backbuffer_texture[2];
-		GLuint _depth_source_fbo, _depth_source, _depth_texture, _blit_fbo;
+		GLuint _reference_count = 1, _current_vertex_count = 0;
+		GLuint _default_backbuffer_fbo = 0, _default_backbuffer_rbo[2] = { }, _backbuffer_texture[2] = { };
+		GLuint _depth_source_fbo = 0, _depth_source = 0, _depth_texture = 0, _blit_fbo = 0;
 		std::vector<struct gl_sampler> _effect_samplers;
-		GLuint _default_vao, _effect_ubo;
-		size_t _effect_ubo_size = 0;
+		GLuint _default_vao = 0;
+		std::vector<std::pair<GLuint, GLsizei>> _effect_ubos;
 
 	private:
 		struct depth_source_info

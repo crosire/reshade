@@ -57,8 +57,7 @@ namespace reshade
 		com_ptr<ID3D10ShaderResourceView> _backbuffer_texture_srv[2], _depthstencil_texture_srv;
 		std::vector<ID3D10SamplerState *> _effect_sampler_states;
 		std::vector<ID3D10ShaderResourceView *> _effect_shader_resources;
-		com_ptr<ID3D10Buffer> _constant_buffer;
-		UINT _constant_buffer_size = 0;
+		std::vector<com_ptr<ID3D10Buffer>> _constant_buffers;
 
 	private:
 		struct depth_source_info

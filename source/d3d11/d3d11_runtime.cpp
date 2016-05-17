@@ -516,9 +516,7 @@ namespace reshade
 
 		_effect_sampler_states.clear();
 		_effect_shader_resources.clear();
-
-		_constant_buffer.reset();
-		_constant_buffer_size = 0;
+		_constant_buffers.clear();
 	}
 	void d3d11_runtime::on_present()
 	{
@@ -630,11 +628,6 @@ namespace reshade
 		_immediate_context->VSSetSamplers(0, static_cast<UINT>(_effect_sampler_states.size()), _effect_sampler_states.data());
 		_immediate_context->PSSetSamplers(0, static_cast<UINT>(_effect_sampler_states.size()), _effect_sampler_states.data());
 
-		// Setup shader constants
-		const auto constant_buffer = _constant_buffer.get();
-		_immediate_context->VSSetConstantBuffers(0, 1, &constant_buffer);
-		_immediate_context->PSSetConstantBuffers(0, 1, &constant_buffer);
-
 		// Apply post processing
 		runtime::on_apply_effect();
 	}
@@ -644,23 +637,27 @@ namespace reshade
 
 		bool is_default_depthstencil_cleared = false;
 
-		// Update shader constants
-		if (_constant_buffer != nullptr)
+		// Setup shader constants
+		if (technique.uniform_storage_index >= 0)
 		{
+			const auto constant_buffer = _constant_buffers[technique.uniform_storage_index].get();
 			D3D11_MAPPED_SUBRESOURCE mapped;
 
-			const HRESULT hr = _immediate_context->Map(_constant_buffer.get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
+			const HRESULT hr = _immediate_context->Map(constant_buffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
 
 			if (SUCCEEDED(hr))
 			{
-				CopyMemory(mapped.pData, get_uniform_value_storage().data(), mapped.RowPitch);
+				CopyMemory(mapped.pData, get_uniform_value_storage().data() + technique.uniform_storage_offset, mapped.RowPitch);
 
-				_immediate_context->Unmap(_constant_buffer.get(), 0);
+				_immediate_context->Unmap(constant_buffer, 0);
 			}
 			else
 			{
 				LOG(TRACE) << "Failed to map constant buffer! HRESULT is '" << std::hex << hr << std::dec << "'!";
 			}
+
+			_immediate_context->VSSetConstantBuffers(0, 1, &constant_buffer);
+			_immediate_context->PSSetConstantBuffers(0, 1, &constant_buffer);
 		}
 
 		for (const auto &pass_ptr : technique.passes)

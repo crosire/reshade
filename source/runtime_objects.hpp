@@ -188,5 +188,6 @@ namespace reshade
 		int toggle_key = 0, toggle_time = 0;
 		bool toggle_key_ctrl = false, toggle_key_shift = false, toggle_key_alt = false;
 		utils::moving_average<uint64_t, 512> average_duration;
+		int uniform_storage_offset = 0, uniform_storage_index = -1;
 	};
 }

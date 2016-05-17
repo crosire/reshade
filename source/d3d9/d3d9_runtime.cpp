@@ -243,12 +243,6 @@ namespace reshade
 
 		_depth_source_table.clear();
 	}
-	void d3d9_runtime::on_reset_effect()
-	{
-		runtime::on_reset_effect();
-
-		_constant_register_count = 0;
-	}
 	void d3d9_runtime::on_present()
 	{
 		if (!_is_initialized)
@@ -395,9 +389,12 @@ namespace reshade
 		bool is_default_depthstencil_cleared = false;
 
 		// Setup shader constants
-		const auto uniform_storage_data = reinterpret_cast<const float *>(get_uniform_value_storage().data());
-		_device->SetVertexShaderConstantF(0, uniform_storage_data, _constant_register_count);
-		_device->SetPixelShaderConstantF(0, uniform_storage_data, _constant_register_count);
+		if (technique.uniform_storage_index >= 0)
+		{
+			const auto uniform_storage_data = reinterpret_cast<const float *>(get_uniform_value_storage().data() + technique.uniform_storage_offset);
+			_device->SetVertexShaderConstantF(0, uniform_storage_data, technique.uniform_storage_index);
+			_device->SetPixelShaderConstantF(0, uniform_storage_data, technique.uniform_storage_index);
+		}
 
 		for (const auto &pass_ptr : technique.passes)
 		{

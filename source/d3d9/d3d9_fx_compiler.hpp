@@ -1,13 +1,17 @@
 #pragma once
 
-#include "syntax_tree.hpp"
-#include "d3d9_runtime.hpp"
-
 #include <sstream>
 #include <unordered_set>
+#include "syntax_tree.hpp"
 
 namespace reshade
 {
+	#pragma region Forward Declarations
+	struct d3d9_sampler;
+	struct d3d9_pass;
+	class d3d9_runtime;
+	#pragma endregion
+
 	class d3d9_fx_compiler
 	{
 	public:
@@ -64,9 +68,10 @@ namespace reshade
 		};
 
 		d3d9_runtime *_runtime;
-		bool _success;
+		bool _success = true;
 		const reshadefx::syntax_tree &_ast;
 		std::string &_errors;
+		size_t _uniform_storage_offset = 0, _constant_register_count = 0;
 		std::stringstream _global_code, _global_uniforms;
 		bool _skip_shader_optimization;
 		const reshadefx::nodes::function_declaration_node *_current_function;

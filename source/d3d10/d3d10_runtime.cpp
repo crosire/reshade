@@ -522,9 +522,7 @@ namespace reshade
 
 		_effect_sampler_states.clear();
 		_effect_shader_resources.clear();
-
-		_constant_buffer.reset();
-		_constant_buffer_size = 0;
+		_constant_buffers.clear();
 	}
 	void d3d10_runtime::on_present()
 	{
@@ -632,11 +630,6 @@ namespace reshade
 		_device->VSSetSamplers(0, static_cast<UINT>(_effect_sampler_states.size()), _effect_sampler_states.data());
 		_device->PSSetSamplers(0, static_cast<UINT>(_effect_sampler_states.size()), _effect_sampler_states.data());
 
-		// Setup shader constants
-		const auto constant_buffer = _constant_buffer.get();
-		_device->VSSetConstantBuffers(0, 1, &constant_buffer);
-		_device->PSSetConstantBuffers(0, 1, &constant_buffer);
-
 		// Apply post processing
 		runtime::on_apply_effect();
 	}
@@ -646,23 +639,29 @@ namespace reshade
 
 		bool is_default_depthstencil_cleared = false;
 
-		// Update shader constants
-		if (_constant_buffer != nullptr)
+		// Setup shader constants
+		if (technique.uniform_storage_index >= 0)
 		{
 			void *data = nullptr;
+			D3D10_BUFFER_DESC desc = { };
+			const auto constant_buffer = _constant_buffers[technique.uniform_storage_index].get();
 
-			const HRESULT hr = _constant_buffer->Map(D3D10_MAP_WRITE_DISCARD, 0, &data);
+			constant_buffer->GetDesc(&desc);
+			const HRESULT hr = constant_buffer->Map(D3D10_MAP_WRITE_DISCARD, 0, &data);
 
 			if (SUCCEEDED(hr))
 			{
-				CopyMemory(data, get_uniform_value_storage().data(), _constant_buffer_size);
+				CopyMemory(data, get_uniform_value_storage().data() + technique.uniform_storage_offset, desc.ByteWidth);
 
-				_constant_buffer->Unmap();
+				constant_buffer->Unmap();
 			}
 			else
 			{
 				LOG(TRACE) << "Failed to map constant buffer! HRESULT is '" << std::hex << hr << std::dec << "'!";
 			}
+
+			_device->VSSetConstantBuffers(0, 1, &constant_buffer);
+			_device->PSSetConstantBuffers(0, 1, &constant_buffer);
 		}
 
 		for (const auto &pass_ptr : technique.passes)

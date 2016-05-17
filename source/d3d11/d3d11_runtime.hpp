@@ -60,8 +60,7 @@ namespace reshade
 		com_ptr<ID3D11ShaderResourceView> _depthstencil_texture_srv;
 		std::vector<ID3D11SamplerState *> _effect_sampler_states;
 		std::vector<ID3D11ShaderResourceView *> _effect_shader_resources;
-		com_ptr<ID3D11Buffer> _constant_buffer;
-		UINT _constant_buffer_size = 0;
+		std::vector<com_ptr<ID3D11Buffer>> _constant_buffers;
 
 	private:
 		struct depth_source_info

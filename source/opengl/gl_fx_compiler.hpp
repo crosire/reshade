@@ -1,12 +1,15 @@
 #pragma once
 
-#include "syntax_tree.hpp"
-#include "gl_runtime.hpp"
-
 #include <sstream>
+#include "syntax_tree.hpp"
 
 namespace reshade
 {
+	#pragma region Forward Declarations
+	struct gl_pass;
+	class gl_runtime;
+	#pragma endregion
+
 	class gl_fx_compiler
 	{
 	public:
@@ -54,8 +57,8 @@ namespace reshade
 		void visit_uniform(const reshadefx::nodes::variable_declaration_node *node);
 		void visit_technique(const reshadefx::nodes::technique_declaration_node *node);
 		void visit_pass(const reshadefx::nodes::pass_declaration_node *node, gl_pass &pass);
-		void visit_pass_shader(const reshadefx::nodes::function_declaration_node *node, GLuint shadertype, GLuint &shader);
-		void visit_shader_param(std::stringstream &output, reshadefx::nodes::type_node type, unsigned int qualifier, const std::string &name, const std::string &semantic, GLuint shadertype);
+		void visit_pass_shader(const reshadefx::nodes::function_declaration_node *node, unsigned int shadertype, unsigned int &shader);
+		void visit_shader_param(std::stringstream &output, reshadefx::nodes::type_node type, unsigned int qualifier, const std::string &name, const std::string &semantic, unsigned int shadertype);
 
 		struct function
 		{
@@ -70,5 +73,6 @@ namespace reshade
 		std::stringstream _global_code, _global_uniforms;
 		const reshadefx::nodes::function_declaration_node *_current_function;
 		std::unordered_map<const reshadefx::nodes::function_declaration_node *, function> _functions;
+		size_t _uniform_storage_offset = 0, _uniform_buffer_size = 0;
 	};
 }

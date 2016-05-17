@@ -62,7 +62,7 @@ namespace reshade
 		}
 	}
 
-	gl_runtime::gl_runtime(HDC device) : runtime(get_renderer_id()), _hdc(device), _reference_count(1), _default_backbuffer_fbo(0), _default_backbuffer_rbo(), _backbuffer_texture(), _depth_source_fbo(0), _depth_source(0), _depth_texture(0), _blit_fbo(0), _default_vao(0), _effect_ubo(0)
+	gl_runtime::gl_runtime(HDC device) : runtime(get_renderer_id()), _hdc(device)
 	{
 		assert(device != nullptr);
 
@@ -362,7 +362,6 @@ namespace reshade
 		runtime::on_reset();
 
 		// Destroy resources
-		GLCHECK(glDeleteBuffers(1, &_effect_ubo));
 		GLCHECK(glDeleteVertexArrays(1, &_default_vao));
 		GLCHECK(glDeleteFramebuffers(1, &_default_backbuffer_fbo));
 		GLCHECK(glDeleteFramebuffers(1, &_depth_source_fbo));
@@ -374,7 +373,6 @@ namespace reshade
 		GLCHECK(glDeleteBuffers(2, _imgui_vbo));
 		GLCHECK(glDeleteProgram(_imgui_shader_program));
 
-		_effect_ubo = 0;
 		_default_vao = 0;
 		_default_backbuffer_fbo = 0;
 		_depth_source_fbo = 0;
@@ -401,7 +399,12 @@ namespace reshade
 
 		_effect_samplers.clear();
 
-		_effect_ubo_size = 0;
+		for (auto &uniform_buffer : _effect_ubos)
+		{
+			GLCHECK(glDeleteBuffers(1, &uniform_buffer.first));
+		}
+
+		_effect_ubos.clear();
 	}
 	void gl_runtime::on_present()
 	{
@@ -498,9 +501,6 @@ namespace reshade
 			GLCHECK(glBindSampler(sampler, _effect_samplers[sampler].id));
 		}
 
-		// Setup shader constants
-		GLCHECK(glBindBufferBase(GL_UNIFORM_BUFFER, 0, _effect_ubo));
-
 		// Apply post processing
 		runtime::on_apply_effect();
 
@@ -515,11 +515,11 @@ namespace reshade
 		GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, _default_backbuffer_fbo));
 		GLCHECK(glClearBufferfi(GL_DEPTH_STENCIL, 0, 1.0f, 0));
 
-		// Update shader constants
-		if (_effect_ubo != 0)
+		// Setup shader constants
+		if (technique.uniform_storage_index >= 0)
 		{
-			auto &uniform_storage = get_uniform_value_storage();
-			GLCHECK(glBufferSubData(GL_UNIFORM_BUFFER, 0, uniform_storage.size(), uniform_storage.data()));
+			GLCHECK(glBindBufferBase(GL_UNIFORM_BUFFER, 0, _effect_ubos[technique.uniform_storage_index].first));
+			GLCHECK(glBufferSubData(GL_UNIFORM_BUFFER, 0, _effect_ubos[technique.uniform_storage_index].second, get_uniform_value_storage().data() + technique.uniform_storage_offset));
 		}
 
 		for (const auto &pass_ptr : technique.passes)

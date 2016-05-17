@@ -1,4 +1,5 @@
 #include "log.hpp"
+#include "gl_runtime.hpp"
 #include "gl_fx_compiler.hpp"
 
 #include <assert.h>
@@ -368,6 +369,8 @@ namespace reshade
 
 	bool gl_fx_compiler::run()
 	{
+		_uniform_storage_offset = _runtime->get_uniform_value_storage().size();
+
 		for (auto node : _ast.structs)
 		{
 			visit(_global_code, node);
@@ -411,22 +414,20 @@ namespace reshade
 			visit_technique(technique);
 		}
 
-		if (_runtime->_effect_ubo_size != 0)
+		if (_uniform_buffer_size != 0)
 		{
-			if (_runtime->_effect_ubo != 0)
-			{
-				glDeleteBuffers(1, &_runtime->_effect_ubo);
-			}
-
-			glGenBuffers(1, &_runtime->_effect_ubo);
+			GLuint ubo = 0;
+			glGenBuffers(1, &ubo);
 
 			GLint previous = 0;
 			glGetIntegerv(GL_UNIFORM_BUFFER_BINDING, &previous);
 
-			glBindBuffer(GL_UNIFORM_BUFFER, _runtime->_effect_ubo);
-			glBufferData(GL_UNIFORM_BUFFER, _runtime->get_uniform_value_storage().size(), _runtime->get_uniform_value_storage().data(), GL_DYNAMIC_DRAW);
+			glBindBuffer(GL_UNIFORM_BUFFER, ubo);
+			glBufferData(GL_UNIFORM_BUFFER, _uniform_buffer_size, _runtime->get_uniform_value_storage().data() + _uniform_storage_offset, GL_DYNAMIC_DRAW);
 
 			glBindBuffer(GL_UNIFORM_BUFFER, previous);
+
+			_runtime->_effect_ubos.push_back(std::make_pair(ubo, _uniform_buffer_size));
 		}
 
 		return _success;
@@ -2270,15 +2271,15 @@ namespace reshade
 				break;
 		}
 
-		const size_t alignment = 16 - (_runtime->_effect_ubo_size % 16);
-		_runtime->_effect_ubo_size += (obj.storage_size > alignment && (alignment != 16 || obj.storage_size <= 16)) ? obj.storage_size + alignment : obj.storage_size;
-		obj.storage_offset = _runtime->_effect_ubo_size - obj.storage_size;
+		const size_t alignment = 16 - (_uniform_buffer_size % 16);
+		_uniform_buffer_size += (obj.storage_size > alignment && (alignment != 16 || obj.storage_size <= 16)) ? obj.storage_size + alignment : obj.storage_size;
+		obj.storage_offset = _uniform_storage_offset + _uniform_buffer_size - obj.storage_size;
 
 		visit_annotation(node->annotations, obj);
 
 		auto &uniform_storage = _runtime->get_uniform_value_storage();
 
-		if (_runtime->_effect_ubo_size >= uniform_storage.size())
+		if (_uniform_storage_offset + _uniform_buffer_size >= uniform_storage.size())
 		{
 			uniform_storage.resize(uniform_storage.size() + 128);
 		}
@@ -2438,7 +2439,7 @@ namespace reshade
 			return;
 		}
 	}
-	void gl_fx_compiler::visit_pass_shader(const function_declaration_node *node, GLuint shadertype, GLuint &shader)
+	void gl_fx_compiler::visit_pass_shader(const function_declaration_node *node, unsigned int shadertype, unsigned int &shader)
 	{
 		std::stringstream source;
 
@@ -2704,7 +2705,7 @@ namespace reshade
 			error(node->location, "internal shader compilation failed");
 		}
 	}
-	void gl_fx_compiler::visit_shader_param(std::stringstream &output, type_node type, unsigned int qualifier, const std::string &name, const std::string &semantic, GLuint shadertype)
+	void gl_fx_compiler::visit_shader_param(std::stringstream &output, type_node type, unsigned int qualifier, const std::string &name, const std::string &semantic, unsigned int shadertype)
 	{
 		type.qualifiers = static_cast<unsigned int>(qualifier);
 

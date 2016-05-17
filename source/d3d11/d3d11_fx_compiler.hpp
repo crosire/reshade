@@ -1,12 +1,15 @@
 #pragma once
 
-#include "syntax_tree.hpp"
-#include "d3d11_runtime.hpp"
-
 #include <sstream>
+#include "syntax_tree.hpp"
 
 namespace reshade
 {
+	#pragma region Forward Declarations
+	struct d3d11_pass;
+	class d3d11_runtime;
+	#pragma endregion
+
 	class d3d11_fx_compiler
 	{
 	public:
@@ -56,12 +59,13 @@ namespace reshade
 		void visit_pass_shader(const reshadefx::nodes::function_declaration_node *node, const std::string &shadertype, d3d11_pass &pass);
 
 		d3d11_runtime *_runtime;
-		bool _success;
+		bool _success = true;
 		const reshadefx::syntax_tree &_ast;
 		std::string &_errors;
 		std::stringstream _global_code, _global_uniforms;
 		bool _skip_shader_optimization;
 		std::unordered_map<size_t, size_t> _sampler_descs;
-		bool _is_in_parameter_block, _is_in_function_block;
+		bool _is_in_parameter_block = false, _is_in_function_block = false;
+		size_t _uniform_storage_offset = 0, _constant_buffer_size = 0;
 	};
 }

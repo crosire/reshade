@@ -1,4 +1,5 @@
 #include "log.hpp"
+#include "d3d11_runtime.hpp"
 #include "d3d11_fx_compiler.hpp"
 
 #include <assert.h>
@@ -153,17 +154,16 @@ namespace reshade
 
 	d3d11_fx_compiler::d3d11_fx_compiler(d3d11_runtime *runtime, const syntax_tree &ast, std::string &errors, bool skipoptimization) :
 		_runtime(runtime),
-		_success(true),
 		_ast(ast),
 		_errors(errors),
-		_skip_shader_optimization(skipoptimization),
-		_is_in_parameter_block(false),
-		_is_in_function_block(false)
+		_skip_shader_optimization(skipoptimization)
 	{
 	}
 
 	bool d3d11_fx_compiler::run()
 	{
+		_uniform_storage_offset = _runtime->get_uniform_value_storage().size();
+
 		for (auto node : _ast.structs)
 		{
 			visit(_global_code, node);
@@ -198,14 +198,18 @@ namespace reshade
 			visit_technique(technique);
 		}
 
-		if (_runtime->_constant_buffer_size != 0)
+		if (_constant_buffer_size != 0)
 		{
-			_runtime->_constant_buffer.reset();
+			_constant_buffer_size = roundto16(_constant_buffer_size);
+			_runtime->get_uniform_value_storage().resize(_uniform_storage_offset + _constant_buffer_size);
 
-			const CD3D11_BUFFER_DESC globals_desc(roundto16(_runtime->_constant_buffer_size), D3D11_BIND_CONSTANT_BUFFER, D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE);
-			const D3D11_SUBRESOURCE_DATA globals_initial = { _runtime->get_uniform_value_storage().data(), _runtime->_constant_buffer_size };
+			const CD3D11_BUFFER_DESC globals_desc(_constant_buffer_size, D3D11_BIND_CONSTANT_BUFFER, D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE);
+			const D3D11_SUBRESOURCE_DATA globals_initial = { _runtime->get_uniform_value_storage().data() + _uniform_storage_offset, _constant_buffer_size };
 
-			_runtime->_device->CreateBuffer(&globals_desc, &globals_initial, &_runtime->_constant_buffer);
+			com_ptr<ID3D11Buffer> constant_buffer;
+			_runtime->_device->CreateBuffer(&globals_desc, &globals_initial, &constant_buffer);
+
+			_runtime->_constant_buffers.push_back(constant_buffer);
 		}
 
 		return _success;
@@ -1648,15 +1652,15 @@ namespace reshade
 				break;
 		}
 
-		const UINT alignment = 16 - (_runtime->_constant_buffer_size % 16);
-		_runtime->_constant_buffer_size += static_cast<UINT>((obj.storage_size > alignment && (alignment != 16 || obj.storage_size <= 16)) ? obj.storage_size + alignment : obj.storage_size);
-		obj.storage_offset = _runtime->_constant_buffer_size - obj.storage_size;
+		const UINT alignment = 16 - (_constant_buffer_size % 16);
+		_constant_buffer_size += static_cast<UINT>((obj.storage_size > alignment && (alignment != 16 || obj.storage_size <= 16)) ? obj.storage_size + alignment : obj.storage_size);
+		obj.storage_offset = _uniform_storage_offset + _constant_buffer_size - obj.storage_size;
 
 		visit_annotation(node->annotations, obj);
 
 		auto &uniform_storage = _runtime->get_uniform_value_storage();
 
-		if (_runtime->_constant_buffer_size >= uniform_storage.size())
+		if (_uniform_storage_offset + _constant_buffer_size >= uniform_storage.size())
 		{
 			uniform_storage.resize(uniform_storage.size() + 128);
 		}
@@ -1676,6 +1680,12 @@ namespace reshade
 	{
 		technique obj;
 		obj.name = node->name;
+
+		if (_constant_buffer_size != 0)
+		{
+			obj.uniform_storage_index = _runtime->_constant_buffers.size();
+			obj.uniform_storage_offset = _uniform_storage_offset;
+		}
 
 		visit_annotation(node->annotation_list, obj);
 

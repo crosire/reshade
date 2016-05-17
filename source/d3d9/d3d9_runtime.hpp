@@ -36,7 +36,6 @@ namespace reshade
 
 		bool on_init(const D3DPRESENT_PARAMETERS &pp);
 		void on_reset() override;
-		void on_reset_effect() override;
 		void on_present() override;
 		void on_draw_call(D3DPRIMITIVETYPE type, UINT count);
 		void on_apply_effect() override;
@@ -54,7 +53,6 @@ namespace reshade
 		com_ptr<IDirect3DTexture9> _backbuffer_texture;
 		com_ptr<IDirect3DSurface9> _backbuffer_texture_surface;
 		com_ptr<IDirect3DTexture9> _depthstencil_texture;
-		UINT _constant_register_count = 0;
 
 	private:
 		struct depth_source_info

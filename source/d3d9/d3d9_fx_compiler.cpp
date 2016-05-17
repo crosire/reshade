@@ -1,4 +1,5 @@
 #include "log.hpp"
+#include "d3d9_runtime.hpp"
 #include "d3d9_fx_compiler.hpp"
 #include "constant_folding.hpp"
 
@@ -109,7 +110,6 @@ namespace reshade
 
 	d3d9_fx_compiler::d3d9_fx_compiler(d3d9_runtime *runtime, const syntax_tree &ast, std::string &errors, bool skipoptimization) :
 		_runtime(runtime),
-		_success(true),
 		_ast(ast),
 		_errors(errors),
 		_skip_shader_optimization(skipoptimization),
@@ -119,6 +119,8 @@ namespace reshade
 
 	bool d3d9_fx_compiler::run()
 	{
+		_uniform_storage_offset = _runtime->get_uniform_value_storage().size();
+
 		for (auto node : _ast.structs)
 		{
 			visit(_global_code, node);
@@ -1558,7 +1560,7 @@ namespace reshade
 			_global_code << ']';
 		}
 
-		_global_code << " : register(c" << _runtime->_constant_register_count << ");\n";
+		_global_code << " : register(c" << _constant_register_count << ");\n";
 
 		uniform obj;
 		obj.name = node->name;
@@ -1568,15 +1570,15 @@ namespace reshade
 		obj.columns = node->type.cols;
 		obj.elements = node->type.array_length;
 		obj.storage_size = obj.rows * obj.columns * std::max(1u, obj.elements);
-		obj.storage_offset = _runtime->_constant_register_count * 16;
-		_runtime->_constant_register_count += (obj.storage_size + 4 - (obj.storage_size % 4)) / 4;
+		obj.storage_offset = _uniform_storage_offset + _constant_register_count * 16;
+		_constant_register_count += (obj.storage_size + 4 - (obj.storage_size % 4)) / 4;
 		obj.storage_size *= 4;
 
 		visit_annotation(node->annotations, obj);
 
 		auto &uniform_storage = _runtime->get_uniform_value_storage();
 
-		if (_runtime->_constant_register_count * 16 >= uniform_storage.size())
+		if (_uniform_storage_offset + _constant_register_count * 16 >= uniform_storage.size())
 		{
 			uniform_storage.resize(uniform_storage.size() + 4096);
 		}
@@ -1599,6 +1601,12 @@ namespace reshade
 	{
 		technique obj;
 		obj.name = node->name;
+
+		if (_constant_register_count != 0)
+		{
+			obj.uniform_storage_index = _constant_register_count;
+			obj.uniform_storage_offset = _uniform_storage_offset;
+		}
 
 		visit_annotation(node->annotation_list, obj);
 
