@@ -947,7 +947,7 @@ namespace reshade
 			{
 				ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImGui::GetStyle().ItemSpacing * 2);
 
-				const char *menu_items[] = { "Home", "Settings", "Statistics" };
+				const char *menu_items[] = { "Home", "Settings", "Statistics", "About" };
 
 				for (int i = 0; i < _countof(menu_items); i++)
 				{
@@ -974,6 +974,27 @@ namespace reshade
 					break;
 				case 2:
 					draw_statistics();
+					break;
+				case 3:
+					ImGui::TextWrapped("\
+Copyright (C) 2014 Patrick \"crosire\" Mours\n\
+\n\
+This software is provided 'as-is', without any express or implied warranty.\n\
+In no event will the authors be held liable for any damages arising from the use of this software.\n\
+\n\
+Libraries in use:\n\
+- MinHook\n\
+  Tsuda Kageyu and contributors\n\
+- gl3w\n\
+  Slavomir Kaslev\n\
+- dear imgui\n\
+  Omar Cornut and contributors\n\
+- stb_image\n\
+  Sean Barrett and contributors\n\
+- DDS loading from SOIL\n\
+  Jonathan \"lonesock\" Dummer\n\
+\n\
+With special thanks to Christian \"CeeJay\" Jensen, who was an irreplaceable help in the beginning days of ReShade and is always a nice person to talk to.");
 					break;
 			}
 
