@@ -170,7 +170,7 @@ namespace reshade
 	}
 	runtime::~runtime()
 	{
-		assert(!_is_initialized);
+		assert(!_is_initialized && _techniques.empty());
 	}
 
 	bool runtime::on_init()
@@ -211,9 +211,21 @@ namespace reshade
 	}
 	void runtime::on_present()
 	{
-		const auto time_present = std::chrono::high_resolution_clock::now();
-		_last_frame_duration = std::chrono::duration_cast<std::chrono::nanoseconds>(time_present - _last_present);
-		const auto time_since_create = std::chrono::duration_cast<std::chrono::seconds>(time_present - _last_create);
+		const auto time = std::time(nullptr);
+		const auto ticks = std::chrono::high_resolution_clock::now();
+
+		g_network_traffic = 0;
+		_framecount++;
+		_drawcalls = _vertices = 0;
+		_last_frame_duration = std::chrono::duration_cast<std::chrono::nanoseconds>(ticks - _last_present);
+		_last_present = ticks;
+
+		tm tm;
+		localtime_s(&tm, &time);
+		_date[0] = tm.tm_year + 1900;
+		_date[1] = tm.tm_mon + 1;
+		_date[2] = tm.tm_mday;
+		_date[3] = tm.tm_hour * 3600 + tm.tm_min * 60 + tm.tm_sec;
 
 		if ((_menu_index != 1 || !_show_menu) && _input->is_key_pressed(_screenshot_key.keycode, _screenshot_key.ctrl, _screenshot_key.shift, false))
 		{
@@ -221,19 +233,6 @@ namespace reshade
 		}
 
 		draw_overlay();
-
-		struct tm tm;
-		const std::time_t time = std::time(nullptr);
-		localtime_s(&tm, &time);
-
-		g_network_traffic = 0;
-		_last_present = time_present;
-		_framecount++;
-		_drawcalls = _vertices = 0;
-		_date[0] = tm.tm_year + 1900;
-		_date[1] = tm.tm_mon + 1;
-		_date[2] = tm.tm_mday;
-		_date[3] = tm.tm_hour * 3600 + tm.tm_min * 60 + tm.tm_sec;
 
 		_input->next_frame();
 	}
@@ -420,7 +419,7 @@ namespace reshade
 
 		for (auto &technique : _techniques)
 		{
-			if (technique.toggle_time != 0 && technique.toggle_time == static_cast<int>(_date[3]))
+			if (technique.toggle_time != 0 && technique.toggle_time == _date[3])
 			{
 				technique.enabled = !technique.enabled;
 				technique.timeleft = technique.timeout;
@@ -486,7 +485,6 @@ namespace reshade
 
 			for (const auto &path : files)
 			{
-				std::string errors;
 				reshadefx::syntax_tree ast;
 
 				if (!load_effect(path, ast))
@@ -494,30 +492,9 @@ namespace reshade
 					continue;
 				}
 
-				/*for (const auto &variable : ast.variables)
+				if (!update_effect(ast, _errors))
 				{
-					if (variable->type.has_qualifier(fx::nodes::type_node::qualifier_uniform))
-					{
-						continue;
-					}
-
-					uniform c;
-					c.name = variable->name;
-					c.basetype = static_cast<uniform_datatype>(variable->type.basetype - 1);
-					c.rows = variable->type.rows;
-					c.columns = variable->type.cols;
-
-					_constants.push_back(c);
-				}*/
-
-				if (!update_effect(ast, { }, errors))
-				{
-					_errors += errors;
 					continue;
-				}
-				else if (!errors.empty())
-				{
-					_errors += errors;
 				}
 
 				for (auto &variable : _uniforms)
@@ -604,7 +581,6 @@ namespace reshade
 			LOG(ERROR) << "Failed to write screenshot to " << path << "!";
 		}
 	}
-
 	bool runtime::load_effect(const filesystem::path &path, reshadefx::syntax_tree &ast)
 	{
 		reshadefx::parser pa(ast, _errors);
@@ -666,21 +642,14 @@ namespace reshade
 	{
 		for (const auto &texture : _textures)
 		{
-			const auto source = texture->annotations["source"].as<std::string>();
+			const auto it = texture->annotations.find("source");
 
-			if (source.empty())
+			if (it == texture->annotations.end())
 			{
 				continue;
 			}
 
-			if (texture->format != texture_format::r8 && texture->format != texture_format::rg8 && texture->format != texture_format::rgba8 && texture->format != texture_format::dxt1 && texture->format != texture_format::dxt5)
-			{
-				LOG(ERROR) << "> Texture " << texture->name << " uses unsupported format ('R32F'/'RGBA16'/'RGBA16F'/'RGBA32F'/'DXT3'/'LATC1'/'LATC2') for image loading.";
-
-				continue;
-			}
-
-			const filesystem::path path = filesystem::resolve(source, _texture_search_paths);
+			const filesystem::path path = filesystem::resolve(it->second.as<std::string>(), _texture_search_paths);
 
 			if (!filesystem::exists(path))
 			{
@@ -692,6 +661,7 @@ namespace reshade
 			FILE *file;
 			unsigned char *filedata = nullptr;
 			int width = 0, height = 0, channels = 0;
+			bool success = false;
 
 			texture->storage_size = texture->width * texture->height * 4;
 
@@ -717,20 +687,21 @@ namespace reshade
 
 					std::vector<uint8_t> resized(texture->width * texture->height * 4);
 					stbir_resize_uint8(filedata, width, height, 0, resized.data(), texture->width, texture->height, 0, 4);
-					update_texture(*texture, resized.data());
+					success = update_texture(*texture, resized.data());
 				}
 				else
 				{
-					update_texture(*texture, filedata);
+					success = update_texture(*texture, filedata);
 				}
 
 				stbi_image_free(filedata);
 			}
-			else
+
+			if (!success)
 			{
 				_errors += "Unable to load source for texture '" + texture->name + "'!";
 
-				LOG(ERROR) << "> Source " << path << " for texture '" << texture->name << "' could not be loaded! Make sure it is of a compatible format.";
+				LOG(ERROR) << "> Source " << path << " for texture '" << texture->name << "' could not be loaded! Make sure it is of a compatible file format.";
 			}
 		}
 	}
@@ -943,60 +914,7 @@ namespace reshade
 			ImGui::SetNextWindowPosCenter(ImGuiSetCond_FirstUseEver);
 			ImGui::Begin("ReShade " VERSION_STRING_PRODUCT " by crosire", &_show_menu, ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoCollapse);
 
-			if (ImGui::BeginMenuBar())
-			{
-				ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImGui::GetStyle().ItemSpacing * 2);
-
-				const char *menu_items[] = { "Home", "Settings", "Statistics", "About" };
-
-				for (int i = 0; i < _countof(menu_items); i++)
-				{
-					if (ImGui::Selectable(menu_items[i], _menu_index == i, 0, ImVec2(ImGui::CalcTextSize(menu_items[i]).x, 0)))
-					{
-						_menu_index = i;
-					}
-
-					ImGui::SameLine();
-				}
-
-				ImGui::PopStyleVar();
-
-				ImGui::EndMenuBar();
-			}
-
-			switch (_menu_index)
-			{
-				case 0:
-					draw_home();
-					break;
-				case 1:
-					draw_settings();
-					break;
-				case 2:
-					draw_statistics();
-					break;
-				case 3:
-					ImGui::TextWrapped("\
-Copyright (C) 2014 Patrick \"crosire\" Mours\n\
-\n\
-This software is provided 'as-is', without any express or implied warranty.\n\
-In no event will the authors be held liable for any damages arising from the use of this software.\n\
-\n\
-Libraries in use:\n\
-- MinHook\n\
-  Tsuda Kageyu and contributors\n\
-- gl3w\n\
-  Slavomir Kaslev\n\
-- dear imgui\n\
-  Omar Cornut and contributors\n\
-- stb_image\n\
-  Sean Barrett and contributors\n\
-- DDS loading from SOIL\n\
-  Jonathan \"lonesock\" Dummer\n\
-\n\
-With special thanks to Christian \"CeeJay\" Jensen, who was an irreplaceable help in the beginning days of ReShade and is always a nice person to talk to.");
-					break;
-			}
+			draw_overlay_menu();
 
 			ImGui::End();
 		}
@@ -1019,7 +937,7 @@ With special thanks to Christian \"CeeJay\" Jensen, who was an irreplaceable hel
 
 			if (ImGui::Begin("Shader Code", &_show_shader_editor))
 			{
-				draw_shader_editor();
+				draw_overlay_shader_editor();
 			}
 
 			ImGui::End();
@@ -1030,7 +948,7 @@ With special thanks to Christian \"CeeJay\" Jensen, who was an irreplaceable hel
 
 			if (ImGui::Begin("Shaders Parameters", &_show_variable_editor))
 			{
-				draw_variable_editor();
+				draw_overlay_variable_editor();
 			}
 
 			ImGui::End();
@@ -1043,7 +961,46 @@ With special thanks to Christian \"CeeJay\" Jensen, who was an irreplaceable hel
 
 		render_draw_lists(ImGui::GetDrawData());
 	}
-	void runtime::draw_home()
+	void runtime::draw_overlay_menu()
+	{
+		if (ImGui::BeginMenuBar())
+		{
+			ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImGui::GetStyle().ItemSpacing * 2);
+
+			const char *menu_items[] = { "Home", "Settings", "Statistics", "About" };
+
+			for (int i = 0; i < 4; i++)
+			{
+				if (ImGui::Selectable(menu_items[i], _menu_index == i, 0, ImVec2(ImGui::CalcTextSize(menu_items[i]).x, 0)))
+				{
+					_menu_index = i;
+				}
+
+				ImGui::SameLine();
+			}
+
+			ImGui::PopStyleVar();
+
+			ImGui::EndMenuBar();
+		}
+
+		switch (_menu_index)
+		{
+			case 0:
+				draw_overlay_menu_home();
+				break;
+			case 1:
+				draw_overlay_menu_settings();
+				break;
+			case 2:
+				draw_overlay_menu_statistics();
+				break;
+			case 3:
+				draw_overlay_menu_about();
+				break;
+		}
+	}
+	void runtime::draw_overlay_menu_home()
 	{
 		if (_developer_mode)
 		{
@@ -1201,7 +1158,7 @@ With special thanks to Christian \"CeeJay\" Jensen, who was an irreplaceable hel
 			_selected_technique = _hovered_technique = -1;
 		}
 	}
-	void runtime::draw_settings()
+	void runtime::draw_overlay_menu_settings()
 	{
 		char edit_buffer[2048];
 
@@ -1351,7 +1308,7 @@ With special thanks to Christian \"CeeJay\" Jensen, who was an irreplaceable hel
 			}
 		}
 	}
-	void runtime::draw_statistics()
+	void runtime::draw_overlay_menu_statistics()
 	{
 		const auto state = static_cast<ImGuiState *>(ImGui::GetInternalState());
 
@@ -1387,7 +1344,27 @@ With special thanks to Christian \"CeeJay\" Jensen, who was an irreplaceable hel
 			}
 		}
 	}
-	void runtime::draw_shader_editor()
+	void runtime::draw_overlay_menu_about()
+	{
+		ImGui::TextWrapped("\
+Copyright (C) 2014 Patrick \"crosire\" Mours\n\
+\n\
+This software is provided 'as-is', without any express or implied warranty.\n\
+In no event will the authors be held liable for any damages arising from the use of this software.\n\
+\n\
+Libraries in use:\n\
+- MinHook\n\
+  Tsuda Kageyu and contributors\n\
+- gl3w\n\
+  Slavomir Kaslev\n\
+- dear imgui\n\
+  Omar Cornut and contributors\n\
+- stb_image\n\
+  Sean Barrett and contributors\n\
+- DDS loading from SOIL\n\
+  Jonathan \"lonesock\" Dummer");
+	}
+	void runtime::draw_overlay_shader_editor()
 	{
 		std::string effect_files;
 		for (const std::string &path : _included_files)
@@ -1436,7 +1413,7 @@ With special thanks to Christian \"CeeJay\" Jensen, who was an irreplaceable hel
 			reload();
 		}
 	}
-	void runtime::draw_variable_editor()
+	void runtime::draw_overlay_variable_editor()
 	{
 		bool opened = true;
 		size_t id = 0;

@@ -680,7 +680,7 @@ namespace reshade
 			}
 		}
 	}
-	bool gl_runtime::update_effect(const reshadefx::syntax_tree &ast, const std::vector<std::string> &/*pragmas*/, std::string &errors)
+	bool gl_runtime::update_effect(const reshadefx::syntax_tree &ast, std::string &errors)
 	{
 		return gl_fx_compiler(this, ast, errors).run();
 	}

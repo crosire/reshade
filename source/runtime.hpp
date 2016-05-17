@@ -44,13 +44,17 @@ namespace reshade
 		/// </summary>
 		static void shutdown();
 
+		/// <summary>
+		/// Construct a new runtime instance.
+		/// </summary>
+		/// <param name="renderer">A unique number identifying the renderer implementation.</param>
 		explicit runtime(uint32_t renderer);
 		virtual ~runtime();
 
 		/// <summary>
 		/// Create a copy of the current frame.
 		/// </summary>
-		/// <param name="buffer">The buffer to save the copy to. It has to be the size of at least "WIDTH * HEIGHT * 4".</param>
+		/// <param name="buffer">The buffer to save the copy to. It has to be the size of at least "frame_width() * frame_height() * 4".</param>
 		virtual void screenshot(uint8_t *buffer) const = 0;
 		/// <summary>
 		/// Returns the frame width in pixels.
@@ -88,7 +92,7 @@ namespace reshade
 		/// <param name="ast">The abstract syntax tree of the effect to compile.</param>
 		/// <param name="pragmas">A list of additional commands to the compiler.</param>
 		/// <param name="errors">A reference to a buffer to store errors which occur during compilation.</param>
-		virtual bool update_effect(const reshadefx::syntax_tree &ast, const std::vector<std::string> &pragmas, std::string &errors) = 0;
+		virtual bool update_effect(const reshadefx::syntax_tree &ast, std::string &errors) = 0;
 		/// <summary>
 		/// Update the image data of a texture.
 		/// </summary>
@@ -177,7 +181,6 @@ namespace reshade
 
 		void reload();
 		void screenshot();
-
 		bool load_effect(const filesystem::path &path, reshadefx::syntax_tree &ast);
 		void load_textures();
 		void load_configuration();
@@ -186,11 +189,13 @@ namespace reshade
 		void save_preset(const filesystem::path &path) const;
 
 		void draw_overlay();
-		void draw_home();
-		void draw_settings();
-		void draw_statistics();
-		void draw_shader_editor();
-		void draw_variable_editor();
+		void draw_overlay_menu();
+		void draw_overlay_menu_home();
+		void draw_overlay_menu_settings();
+		void draw_overlay_menu_statistics();
+		void draw_overlay_menu_about();
+		void draw_overlay_shader_editor();
+		void draw_overlay_variable_editor();
 
 		const unsigned int _renderer_id;
 		std::vector<std::string> _effect_files, _preset_files, _effect_search_paths, _texture_search_paths;

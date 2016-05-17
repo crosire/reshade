@@ -72,7 +72,7 @@ namespace reshade
 	void d3d12_runtime::screenshot(uint8_t *buffer) const
 	{
 	}
-	bool d3d12_runtime::update_effect(const reshadefx::syntax_tree &ast, const std::vector<std::string> &pragmas, std::string &errors)
+	bool d3d12_runtime::update_effect(const reshadefx::syntax_tree &ast, std::string &errors)
 	{
 		return false;
 	}

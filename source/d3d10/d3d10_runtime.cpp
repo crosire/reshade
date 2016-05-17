@@ -885,30 +885,9 @@ namespace reshade
 
 		texture_staging->Unmap(0);
 	}
-	bool d3d10_runtime::update_effect(const reshadefx::syntax_tree &ast, const std::vector<std::string> &pragmas, std::string &errors)
+	bool d3d10_runtime::update_effect(const reshadefx::syntax_tree &ast, std::string &errors)
 	{
-		bool skip_optimization = false;
-
-		for (const auto &pragma : pragmas)
-		{
-			reshadefx::lexer lexer(pragma);
-
-			const auto prefix_token = lexer.lex();
-
-			if (prefix_token.literal_as_string != "reshade")
-			{
-				continue;
-			}
-
-			const auto command_token = lexer.lex();
-
-			if (command_token.literal_as_string == "skipoptimization" || command_token.literal_as_string == "nooptimization")
-			{
-				skip_optimization = true;
-			}
-		}
-
-		return d3d10_fx_compiler(this, ast, errors, skip_optimization).run();
+		return d3d10_fx_compiler(this, ast, errors, false).run();
 	}
 	bool d3d10_runtime::update_texture(texture &texture, const uint8_t *data)
 	{
