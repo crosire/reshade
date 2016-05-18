@@ -1459,6 +1459,7 @@ namespace reshade
 		const auto obj = new d3d10_texture();
 		D3D10_TEXTURE2D_DESC texdesc = { };
 		obj->name = node->name;
+		obj->unique_name = node->unique_name;
 		obj->shader_register = _runtime->_effect_shader_resources.size();
 		texdesc.Width = obj->width = node->properties.width;
 		texdesc.Height = obj->height = node->properties.height;
@@ -1627,6 +1628,7 @@ namespace reshade
 
 		uniform obj;
 		obj.name = node->name;
+		obj.unique_name = node->unique_name;
 		obj.rows = node->type.rows;
 		obj.columns = node->type.cols;
 		obj.elements = node->type.array_length;

@@ -2126,6 +2126,7 @@ namespace reshade
 	{
 		const auto obj = new gl_texture();
 		obj->name = node->name;
+		obj->unique_name = node->unique_name;
 		GLuint width = obj->width = node->properties.width;
 		GLuint height = obj->height = node->properties.height;
 		GLuint levels = obj->levels = node->properties.levels;
@@ -2246,6 +2247,7 @@ namespace reshade
 
 		uniform obj;
 		obj.name = node->name;
+		obj.unique_name = node->unique_name;
 		obj.rows = node->type.rows;
 		obj.columns = node->type.cols;
 		obj.elements = node->type.array_length;
