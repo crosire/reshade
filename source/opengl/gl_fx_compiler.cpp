@@ -356,6 +356,12 @@ namespace reshade
 
 			return code;
 		}
+		inline uintptr_t align(uintptr_t address, size_t alignment)
+		{
+			if (address % alignment != 0)
+				address += alignment - address % alignment;
+			return address;
+		}
 	}
 
 	gl_fx_compiler::gl_fx_compiler(gl_runtime *runtime, const syntax_tree &ast, std::string &errors) :
@@ -2251,31 +2257,21 @@ namespace reshade
 		obj.rows = node->type.rows;
 		obj.columns = node->type.cols;
 		obj.elements = node->type.array_length;
-		obj.storage_size = obj.rows * obj.columns * std::max(1u, obj.elements);
+		obj.storage_size = obj.rows * obj.columns * std::max(1u, obj.elements) * 4;
+		obj.basetype = static_cast<uniform_datatype>(node->type.basetype - 1);
 
-		switch (node->type.basetype)
+		// GLSL specification on std140 layout:
+		// 1. If the member is a scalar consuming N basic machine units, the base alignment is N.
+		// 2. If the member is a two- or four-component vector with components consuming N basic machine units, the base alignment is 2N or 4N, respectively.
+		// 3. If the member is a three-component vector with components consuming N basic machine units, the base alignment is 4N.
+		size_t alignment = obj.storage_size;
+		if (obj.rows == 3)
 		{
-			case type_node::datatype_bool:
-				obj.basetype = uniform_datatype::bool_;
-				obj.storage_size *= sizeof(int);
-				break;
-			case type_node::datatype_int:
-				obj.basetype = uniform_datatype::int_;
-				obj.storage_size *= sizeof(int);
-				break;
-			case type_node::datatype_uint:
-				obj.basetype = uniform_datatype::uint_;
-				obj.storage_size *= sizeof(unsigned int);
-				break;
-			case type_node::datatype_float:
-				obj.basetype = uniform_datatype::float_;
-				obj.storage_size *= sizeof(float);
-				break;
+			alignment = alignment * 4 / 3;
 		}
-
-		const size_t alignment = 16 - (_uniform_buffer_size % 16);
-		_uniform_buffer_size += (obj.storage_size > alignment && (alignment != 16 || obj.storage_size <= 16)) ? obj.storage_size + alignment : obj.storage_size;
-		obj.storage_offset = _uniform_storage_offset + _uniform_buffer_size - obj.storage_size;
+		_uniform_buffer_size = align(_uniform_buffer_size, alignment);
+		obj.storage_offset = _uniform_storage_offset + _uniform_buffer_size;
+		_uniform_buffer_size += obj.storage_size;
 
 		visit_annotation(node->annotations, obj);
 
@@ -2301,6 +2297,12 @@ namespace reshade
 	{
 		technique obj;
 		obj.name = node->name;
+
+		if (_uniform_buffer_size != 0)
+		{
+			obj.uniform_storage_index = _runtime->_effect_ubos.size();
+			obj.uniform_storage_offset = _uniform_storage_offset;
+		}
 
 		visit_annotation(node->annotation_list, obj);
 
@@ -2462,7 +2464,10 @@ namespace reshade
 			"vec4 _texelFetch(sampler2D s, ivec4 c) { return texelFetch(s, c.xy, c.w); }\n"
 			"#define _textureLodOffset(s, c, offset) textureLodOffset(s, (c).xy, (c).w, offset)\n";
 
-		source << "layout(std140, binding = 0) uniform _GLOBAL_\n{\n" << _global_uniforms.str() << "};\n";
+		if (_uniform_buffer_size != 0)
+		{
+			source << "layout(std140, binding = 0) uniform _GLOBAL_\n{\n" << _global_uniforms.str() << "};\n";
+		}
 
 		if (shadertype != GL_FRAGMENT_SHADER)
 		{
