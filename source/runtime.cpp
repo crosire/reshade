@@ -20,7 +20,7 @@
 #include <imgui.h>
 #include <imgui_internal.h>
 
-extern bool g_blockSetCursorPos;
+extern bool g_block_cursor_reset;
 
 namespace reshade
 {
@@ -874,6 +874,8 @@ namespace reshade
 			_show_menu = !_show_menu;
 		}
 
+		g_block_cursor_reset = _show_menu;
+
 		if (!_show_menu && !show_splash)
 		{
 			_input->block_mouse_input(false);
@@ -932,8 +934,6 @@ namespace reshade
 			ImGui::PopStyleColor();
 			ImGui::PopStyleColor();
 		}
-
-		g_blockSetCursorPos = _show_menu;
 
 		if (_show_menu)
 		{
