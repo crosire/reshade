@@ -904,7 +904,34 @@ namespace reshade
 			return false;
 		}
 
-		_immediate_context->UpdateSubresource(texture_impl->texture.get(), 0, nullptr, data, texture.width * 4, texture.width * texture.height * 4);
+		switch (texture.format)
+		{
+			case texture_format::r8:
+			{
+				std::vector<uint8_t> data2(texture.width * texture.height);
+				for (size_t i = 0, k = 0; i < texture.width * texture.height * 4; i += 4, k++)
+				{
+					data2[k] = data[i];
+				}
+				_immediate_context->UpdateSubresource(texture_impl->texture.get(), 0, nullptr, data2.data(), texture.width, texture.width * texture.height);
+				break;
+			}
+			case texture_format::rg8:
+			{
+				std::vector<uint8_t> data2(texture.width * texture.height * 2);
+				for (size_t i = 0, k = 0; i < texture.width * texture.height * 4; i += 4, k += 2)
+				{
+					data2[k] = data[i], data2[k + 1] = data[i + 1];
+				}
+				_immediate_context->UpdateSubresource(texture_impl->texture.get(), 0, nullptr, data2.data(), texture.width * 2, texture.width * texture.height * 2);
+				break;
+			}
+			default:
+			{
+				_immediate_context->UpdateSubresource(texture_impl->texture.get(), 0, nullptr, data, texture.width * 4, texture.width * texture.height * 4);
+				break;
+			}
+		}
 
 		if (texture.levels > 1)
 		{
