@@ -659,6 +659,8 @@ namespace reshade
 
 			if (!filesystem::exists(path))
 			{
+				_errors += "Source '" + static_cast<const std::string &>(path) + "' for texture '" + texture->name + "' could not be found.";
+
 				LOG(ERROR) << "> Source " << path << " for texture '" << texture->name << "' could not be found.";
 
 				continue;
@@ -727,10 +729,15 @@ namespace reshade
 		_screenshot_format = apps_config.get(s_executable_path, "ScreenshotFormat", 0).as<int>();
 		_effect_search_paths = apps_config.get(s_executable_path, "EffectSearchPaths", static_cast<const std::string &>(s_injector_path.parent_path())).data();
 		_texture_search_paths = apps_config.get(s_executable_path, "TextureSearchPaths", static_cast<const std::string &>(s_injector_path.parent_path())).data();
-		_preset_files = apps_config.get(s_executable_path, "Presets", { }).data();
+		_preset_files = apps_config.get(s_executable_path, "Presets", std::vector<std::string>()).data();
 		_current_preset = apps_config.get(s_executable_path, "CurrentPreset", -1).as<int>();
 
-		if (_current_preset >= _preset_files.size())
+		if (_preset_files.empty())
+		{
+			_preset_files.push_back(s_injector_path.parent_path() / "DefaultPreset.ini");
+			_current_preset = 0;
+		}
+		else if (_current_preset >= _preset_files.size())
 		{
 			_current_preset = -1;
 		}
@@ -806,6 +813,11 @@ namespace reshade
 
 		for (auto &variable : _uniforms)
 		{
+			if (!variable.annotations.count("__FILE__"))
+			{
+				continue;
+			}
+
 			const std::string filename = filesystem::path(variable.annotations.at("__FILE__").as<std::string>()).filename();
 
 			float values[4] = { };
@@ -839,7 +851,7 @@ namespace reshade
 
 		for (const auto &variable : _uniforms)
 		{
-			if (variable.annotations.count("source"))
+			if (variable.annotations.count("source") || !variable.annotations.count("__FILE__"))
 			{
 				continue;
 			}
@@ -1321,7 +1333,7 @@ namespace reshade
 			}
 		}
 
-		if (ImGui::CollapsingHeader("User Interface", ImGuiTreeNodeFlags_Framed))
+		if (ImGui::CollapsingHeader("User Interface", ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_DefaultOpen))
 		{
 			const ImVec2 button_width(ImGui::CalcItemWidth() / 2 - 2, 0);
 
@@ -1415,7 +1427,7 @@ Libraries in use:\n\
   Slavomir Kaslev\n\
 - dear imgui\n\
   Omar Cornut and contributors\n\
-- stb_image\n\
+- stb_image, stb_image_write\n\
   Sean Barrett and contributors\n\
 - DDS loading from SOIL\n\
   Jonathan \"lonesock\" Dummer");
