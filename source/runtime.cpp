@@ -105,7 +105,12 @@ namespace reshade
 		LOG(INFO) << "Initializing crosire's ReShade version '" VERSION_STRING_FILE "' (" << VERSION_PLATFORM << ") built on '" VERSION_DATE " " VERSION_TIME "' loaded from " << injector_path << " to " << executable_path << " ...";
 
 		const auto system_path = filesystem::get_special_folder_path(filesystem::special_folder::system);
-		s_appdata_path = filesystem::get_special_folder_path(filesystem::special_folder::app_data) / "ReShade";
+		s_appdata_path = s_executable_path.parent_path() / "ReShade";
+
+		if (!filesystem::exists(s_appdata_path / "Settings.ini"))
+		{
+			s_appdata_path = filesystem::get_special_folder_path(filesystem::special_folder::app_data) / "ReShade";
+		}
 
 		if (!filesystem::exists(s_appdata_path))
 		{
@@ -715,22 +720,24 @@ namespace reshade
 	}
 	void runtime::load_configuration()
 	{
-		const utils::ini_file apps_config(s_appdata_path / "Apps.ini");
+		const utils::ini_file apps_config(s_appdata_path / "Settings.ini");
 		const utils::ini_file style_config(s_appdata_path / "Style.ini");
 
-		_developer_mode = apps_config.get(s_executable_path, "DeveloperMode", false).as<bool>();
-		_menu_key.keycode = apps_config.get(s_executable_path, "MenuKey", 0x71).as<int>(); // VK_F2
-		_menu_key.ctrl = apps_config.get(s_executable_path, "MenuKeyCtrl", false).as<bool>();
-		_menu_key.shift = apps_config.get(s_executable_path, "MenuKeyShift", true).as<bool>();
-		_screenshot_key.keycode = apps_config.get(s_executable_path, "ScreenshotKey", 0x2C).as<int>(); // VK_SNAPSHOT
-		_screenshot_key.ctrl = apps_config.get(s_executable_path, "ScreenshotKeyCtrl", false).as<bool>();
-		_screenshot_key.shift = apps_config.get(s_executable_path, "ScreenshotKeyShift", false).as<bool>();
-		_screenshot_path = apps_config.get(s_executable_path, "ScreenshotPath", static_cast<const std::string &>(s_executable_path.parent_path())).as<std::string>();
-		_screenshot_format = apps_config.get(s_executable_path, "ScreenshotFormat", 0).as<int>();
-		_effect_search_paths = apps_config.get(s_executable_path, "EffectSearchPaths", static_cast<const std::string &>(s_injector_path.parent_path())).data();
-		_texture_search_paths = apps_config.get(s_executable_path, "TextureSearchPaths", static_cast<const std::string &>(s_injector_path.parent_path())).data();
-		_preset_files = apps_config.get(s_executable_path, "Presets", std::vector<std::string>()).data();
-		_current_preset = apps_config.get(s_executable_path, "CurrentPreset", -1).as<int>();
+		const std::string section = s_appdata_path.parent_path() == s_executable_path.parent_path() ? "" : s_executable_path;
+
+		_developer_mode = apps_config.get(section, "DeveloperMode", false).as<bool>();
+		_menu_key.keycode = apps_config.get(section, "MenuKey", 0x71).as<int>(); // VK_F2
+		_menu_key.ctrl = apps_config.get(section, "MenuKeyCtrl", false).as<bool>();
+		_menu_key.shift = apps_config.get(section, "MenuKeyShift", true).as<bool>();
+		_screenshot_key.keycode = apps_config.get(section, "ScreenshotKey", 0x2C).as<int>(); // VK_SNAPSHOT
+		_screenshot_key.ctrl = apps_config.get(section, "ScreenshotKeyCtrl", false).as<bool>();
+		_screenshot_key.shift = apps_config.get(section, "ScreenshotKeyShift", false).as<bool>();
+		_screenshot_path = apps_config.get(section, "ScreenshotPath", static_cast<const std::string &>(s_executable_path.parent_path())).as<std::string>();
+		_screenshot_format = apps_config.get(section, "ScreenshotFormat", 0).as<int>();
+		_effect_search_paths = apps_config.get(section, "EffectSearchPaths", static_cast<const std::string &>(s_injector_path.parent_path())).data();
+		_texture_search_paths = apps_config.get(section, "TextureSearchPaths", static_cast<const std::string &>(s_injector_path.parent_path())).data();
+		_preset_files = apps_config.get(section, "Presets", std::vector<std::string>()).data();
+		_current_preset = apps_config.get(section, "CurrentPreset", -1).as<int>();
 
 		if (_preset_files.empty())
 		{
@@ -768,22 +775,24 @@ namespace reshade
 	}
 	void runtime::save_configuration() const
 	{
-		utils::ini_file apps_config(s_appdata_path / "Apps.ini");
+		utils::ini_file apps_config(s_appdata_path / "Settings.ini");
 		utils::ini_file style_config(s_appdata_path / "Style.ini");
 
-		apps_config.set(s_executable_path, "DeveloperMode", _developer_mode);
-		apps_config.set(s_executable_path, "MenuKey", _menu_key.keycode);
-		apps_config.set(s_executable_path, "MenuKeyCtrl", _menu_key.ctrl);
-		apps_config.set(s_executable_path, "MenuKeyShift", _menu_key.shift);
-		apps_config.set(s_executable_path, "ScreenshotKey", _screenshot_key.keycode);
-		apps_config.set(s_executable_path, "ScreenshotKeyCtrl", _screenshot_key.ctrl);
-		apps_config.set(s_executable_path, "ScreenshotKeyShift", _screenshot_key.shift);
-		apps_config.set(s_executable_path, "ScreenshotPath", _screenshot_path);
-		apps_config.set(s_executable_path, "ScreenshotFormat", _screenshot_format);
-		apps_config.set(s_executable_path, "EffectSearchPaths", _effect_search_paths);
-		apps_config.set(s_executable_path, "TextureSearchPaths", _texture_search_paths);
-		apps_config.set(s_executable_path, "Presets", _preset_files);
-		apps_config.set(s_executable_path, "CurrentPreset", _current_preset);
+		const std::string section = s_appdata_path.parent_path() == s_executable_path.parent_path() ? "" : s_executable_path;
+
+		apps_config.set(section, "DeveloperMode", _developer_mode);
+		apps_config.set(section, "MenuKey", _menu_key.keycode);
+		apps_config.set(section, "MenuKeyCtrl", _menu_key.ctrl);
+		apps_config.set(section, "MenuKeyShift", _menu_key.shift);
+		apps_config.set(section, "ScreenshotKey", _screenshot_key.keycode);
+		apps_config.set(section, "ScreenshotKeyCtrl", _screenshot_key.ctrl);
+		apps_config.set(section, "ScreenshotKeyShift", _screenshot_key.shift);
+		apps_config.set(section, "ScreenshotPath", _screenshot_path);
+		apps_config.set(section, "ScreenshotFormat", _screenshot_format);
+		apps_config.set(section, "EffectSearchPaths", _effect_search_paths);
+		apps_config.set(section, "TextureSearchPaths", _texture_search_paths);
+		apps_config.set(section, "Presets", _preset_files);
+		apps_config.set(section, "CurrentPreset", _current_preset);
 
 		const auto &style = ImGui::GetStyle();
 
@@ -934,7 +943,7 @@ namespace reshade
 			ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 1.0f, 1.0f, 1.0f));
 			ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.0f, 0.0f, 0.0f, 1.0f));
 
-			ImGui::Begin("##splash", nullptr, ImVec2(), -1, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoInputs);
+			ImGui::Begin("Splash Screen", nullptr, ImVec2(), -1, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoInputs);
 			ImGui::SetWindowPos(ImVec2(10, 10));
 			ImGui::SetWindowSize(ImVec2(_width - 20.0f, ImGui::GetItemsLineHeightWithSpacing() * 3));
 			ImGui::TextUnformatted("ReShade " VERSION_STRING_FILE " by crosire");
@@ -951,7 +960,7 @@ namespace reshade
 		{
 			ImGui::SetNextWindowSize(ImVec2(600, 500), ImGuiSetCond_FirstUseEver);
 			ImGui::SetNextWindowPosCenter(ImGuiSetCond_FirstUseEver);
-			ImGui::Begin("ReShade " VERSION_STRING_PRODUCT " by crosire", &_show_menu, ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoCollapse);
+			ImGui::Begin("ReShade " VERSION_STRING_FILE " by crosire###MENU", &_show_menu, ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoCollapse);
 
 			draw_overlay_menu();
 
@@ -962,7 +971,7 @@ namespace reshade
 		{
 			ImGui::SetNextWindowSize(ImVec2(500, 200), ImGuiSetCond_FirstUseEver);
 
-			if (ImGui::Begin("Effect Compiler Log"))
+			if (ImGui::Begin("Effect Compiler Log###LOG"))
 			{
 				ImGui::TextColored(ImVec4(1, 0, 0, 1), _errors.c_str());
 			}
@@ -974,7 +983,7 @@ namespace reshade
 		{
 			ImGui::SetNextWindowSize(ImVec2(500, 500), ImGuiSetCond_FirstUseEver);
 
-			if (ImGui::Begin("Shader Code", &_show_shader_editor))
+			if (ImGui::Begin("Shader Code###EDITOR", &_show_shader_editor))
 			{
 				draw_overlay_shader_editor();
 			}
@@ -985,7 +994,7 @@ namespace reshade
 		{
 			ImGui::SetNextWindowSize(ImVec2(500, 300), ImGuiSetCond_FirstUseEver);
 
-			if (ImGui::Begin("Shaders Parameters", &_show_variable_editor))
+			if (ImGui::Begin("Shaders Parameters###VARIABLES", &_show_variable_editor))
 			{
 				draw_overlay_variable_editor();
 			}
