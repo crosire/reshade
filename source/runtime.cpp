@@ -1509,7 +1509,8 @@ Libraries in use:\n\
 			float data[4] = { };
 			get_uniform_value(variable, data, 4);
 
-			auto ui_type = variable.annotations["ui_type"].as<std::string>();
+			const auto ui_type = variable.annotations["ui_type"].as<std::string>();
+			const auto ui_tooltip = variable.annotations["ui_tooltip"].as<std::string>();
 
 			ImGui::PushID(id++);
 
@@ -1556,6 +1557,11 @@ Libraries in use:\n\
 			else if (variable.rows == 4)
 			{
 				modified = ImGui::ColorEdit4(variable.name.c_str(), data);
+			}
+
+			if (ImGui::IsItemHovered() && !ui_tooltip.empty())
+			{
+				ImGui::SetTooltip("%s", ui_tooltip.c_str());
 			}
 
 			ImGui::PopID();
