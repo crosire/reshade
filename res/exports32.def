@@ -410,8 +410,8 @@ EXPORTS
 	RegisterClassExA = HookRegisterClassExA
 	RegisterClassExW = HookRegisterClassExW
 	RegisterRawInputDevices = HookRegisterRawInputDevices
-	DispatchMessageA = HookDispatchMessageA
-	DispatchMessageW = HookDispatchMessageW
+	PeekMessageA = HookPeekMessageA
+	PeekMessageW = HookPeekMessageW
 	GetCursorPos = HookGetCursorPos
 	SetCursorPos = HookSetCursorPos
 

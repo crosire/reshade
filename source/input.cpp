@@ -4,13 +4,14 @@
 #include <Windows.h>
 #include <assert.h>
 #include <unordered_map>
+#include <unordered_set>
 
 namespace reshade
 {
 	namespace
 	{
+		std::unordered_set<HWND> s_raw_input_windows;
 		std::unordered_map<HWND, std::weak_ptr<input>> s_windows;
-		std::unordered_map<HWND, std::shared_ptr<input>> s_raw_input_windows;
 	}
 
 	input::input(window_handle window) : _window(window)
@@ -19,12 +20,7 @@ namespace reshade
 
 	void input::register_window_with_raw_input(window_handle window)
 	{
-		const auto insert = s_raw_input_windows.emplace(static_cast<HWND>(window), nullptr);
-
-		if (insert.second)
-		{
-			insert.first->second = register_window(window);
-		}
+		s_raw_input_windows.emplace(static_cast<HWND>(window));
 	}
 	std::shared_ptr<input> input::register_window(window_handle window)
 	{
@@ -72,8 +68,14 @@ namespace reshade
 			// This is a raw input message. Just reroute it to the first window for now, since it is rare to have more than one active at a time.
 			it = s_windows.begin();
 		}
-		if (it == s_windows.end() || it->second.expired())
+
+		if (it == s_windows.end())
 		{
+			return false;
+		}
+		else if (it->second.expired())
+		{
+			s_windows.erase(it);
 			return false;
 		}
 

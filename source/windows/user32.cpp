@@ -5,10 +5,7 @@
 #include <assert.h>
 #include <Windows.h>
 
-bool g_block_cursor_reset = false;
-POINT g_last_cursor_position = { };
-
-HOOK_EXPORT ATOM WINAPI HookRegisterClassA(CONST WNDCLASSA *lpWndClass)
+HOOK_EXPORT ATOM WINAPI HookRegisterClassA(const WNDCLASSA *lpWndClass)
 {
 	assert(lpWndClass != nullptr);
 
@@ -28,7 +25,7 @@ HOOK_EXPORT ATOM WINAPI HookRegisterClassA(CONST WNDCLASSA *lpWndClass)
 
 	return reshade::hooks::call(&HookRegisterClassA)(&wndclass);
 }
-HOOK_EXPORT ATOM WINAPI HookRegisterClassW(CONST WNDCLASSW *lpWndClass)
+HOOK_EXPORT ATOM WINAPI HookRegisterClassW(const WNDCLASSW *lpWndClass)
 {
 	assert(lpWndClass != nullptr);
 
@@ -48,7 +45,7 @@ HOOK_EXPORT ATOM WINAPI HookRegisterClassW(CONST WNDCLASSW *lpWndClass)
 
 	return reshade::hooks::call(&HookRegisterClassW)(&wndclass);
 }
-HOOK_EXPORT ATOM WINAPI HookRegisterClassExA(CONST WNDCLASSEXA *lpWndClassEx)
+HOOK_EXPORT ATOM WINAPI HookRegisterClassExA(const WNDCLASSEXA *lpWndClassEx)
 {
 	assert(lpWndClassEx != nullptr);
 
@@ -68,7 +65,7 @@ HOOK_EXPORT ATOM WINAPI HookRegisterClassExA(CONST WNDCLASSEXA *lpWndClassEx)
 
 	return reshade::hooks::call(&HookRegisterClassExA)(&wndclass);
 }
-HOOK_EXPORT ATOM WINAPI HookRegisterClassExW(CONST WNDCLASSEXW *lpWndClassEx)
+HOOK_EXPORT ATOM WINAPI HookRegisterClassExW(const WNDCLASSEXW *lpWndClassEx)
 {
 	assert(lpWndClassEx != nullptr);
 
@@ -107,7 +104,7 @@ HOOK_EXPORT BOOL WINAPI HookRegisterRawInputDevices(PCRAWINPUTDEVICE pRawInputDe
 		LOG(TRACE) << "  | TargetWindow                            | " << std::setw(39) << device.hwndTarget << " |";
 		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
 
-		if (device.usUsagePage != 1 || (device.dwFlags & RIDEV_NOLEGACY) == 0 || device.hwndTarget == nullptr)
+		if (device.usUsagePage != 1 || device.hwndTarget == nullptr)
 		{
 			continue;
 		}
@@ -125,23 +122,31 @@ HOOK_EXPORT BOOL WINAPI HookRegisterRawInputDevices(PCRAWINPUTDEVICE pRawInputDe
 	return TRUE;
 }
 
-HOOK_EXPORT LRESULT WINAPI HookDispatchMessageA(const MSG *lpmsg)
+HOOK_EXPORT BOOL WINAPI HookPeekMessageA(LPMSG lpMsg, HWND hWnd, UINT wMsgFilterMin, UINT wMsgFilterMax, UINT wRemoveMsg)
 {
-	assert(lpmsg != nullptr);
+	assert(lpMsg != nullptr);
 
-	if (lpmsg->hwnd != nullptr && reshade::input::handle_window_message(lpmsg))
+	static const auto trampoline = reshade::hooks::call(&HookPeekMessageA);
+
+	if (!trampoline(lpMsg, hWnd, wMsgFilterMin, wMsgFilterMax, wRemoveMsg))
 	{
-		return 0;
+		return FALSE;
 	}
 
-	static const auto trampoline = reshade::hooks::call(&HookDispatchMessageA);
+	if (lpMsg->hwnd != nullptr && (wRemoveMsg & PM_REMOVE) != 0 && reshade::input::handle_window_message(lpMsg))
+	{
+		return FALSE;
+	}
 
-	return trampoline(lpmsg);
+	return TRUE;
 }
-HOOK_EXPORT LRESULT WINAPI HookDispatchMessageW(const MSG *lpmsg)
+HOOK_EXPORT BOOL WINAPI HookPeekMessageW(LPMSG lpMsg, HWND hWnd, UINT wMsgFilterMin, UINT wMsgFilterMax, UINT wRemoveMsg)
 {
-	return HookDispatchMessageA(lpmsg);
+	return HookPeekMessageA(lpMsg, hWnd, wMsgFilterMin, wMsgFilterMax, wRemoveMsg);
 }
+
+bool g_block_cursor_reset = false;
+POINT g_last_cursor_position = { };
 
 HOOK_EXPORT BOOL WINAPI HookGetCursorPos(LPPOINT lpPoint)
 {
