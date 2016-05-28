@@ -567,7 +567,7 @@ namespace reshade
 		FILE *file;
 		bool success = false;
 
-		if (_wfopen_s(&file, stdext::utf8_to_utf16(path).c_str(), L"rb") == 0)
+		if (_wfopen_s(&file, stdext::utf8_to_utf16(path).c_str(), L"wb") == 0)
 		{
 			stbi_write_func *func = [](void *context, void *data, int size)
 			{
