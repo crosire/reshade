@@ -196,13 +196,31 @@ namespace reshadefx
 			{ "while", 5, lexer::tokenid::while_ }
 		};
 
-		bool is_octal_digit(char c)
+		inline bool is_octal_digit(char c)
 		{
 			return static_cast<unsigned>(c - '0') < 8;
 		}
-		bool is_hexadecimal_digit(char c)
+		inline bool is_decimal_digit(char c)
 		{
-			return static_cast<unsigned>(c - '0') < 10 || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
+			return static_cast<unsigned>(c - '0') < 10;
+		}
+		inline bool is_hexadecimal_digit(char c)
+		{
+			return is_decimal_digit(c) || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
+		}
+		bool is_digit(char c, int radix)
+		{
+			switch (radix)
+			{
+				case 8:
+					return is_octal_digit(c);
+				case 10:
+					return is_decimal_digit(c);
+				case 16:
+					return is_hexadecimal_digit(c);
+			}
+
+			return false;
 		}
 		long long octal_to_decimal(long long n)
 		{
@@ -522,7 +540,7 @@ namespace reshadefx
 
 	void lexer::parse_identifier(token &tok) const
 	{
-		const char *const begin = _cur, *end = begin;
+		auto *const begin = _cur, *end = begin;
 
 		do end++; while (type_lookup[*end] == IDENT || type_lookup[*end] == DIGIT);
 
@@ -633,7 +651,7 @@ namespace reshadefx
 	}
 	void lexer::parse_string_literal(token &tok, bool escape) const
 	{
-		const char *const begin = _cur, *end = begin + 1;
+		auto *const begin = _cur, *end = begin + 1;
 
 		for (char c = *end; c != '"'; c = *++end)
 		{
@@ -697,7 +715,7 @@ namespace reshadefx
 							while (is_hexadecimal_digit(*end) && end < _end)
 							{
 								c = *end++;
-								n = (n << 4) | (static_cast<unsigned>(c -= '0') < 10 ? c : (c + '0' - 55 - 32 * (c & 0x20)));
+								n = (n << 4) | (is_decimal_digit(c) ? c - '0' : c - 55 - 32 * (c & 0x20));
 							}
 
 							c = static_cast<char>(n);
@@ -715,7 +733,7 @@ namespace reshadefx
 	}
 	void lexer::parse_numeric_literal(token &tok) const
 	{
-		const char *const begin = _cur, *end = _cur;
+		auto *const begin = _cur, *end = _cur;
 		int mantissa_size = 0, decimal_location = -1, radix = 10;
 		long long fraction = 0, exponent = 0;
 
@@ -734,9 +752,9 @@ namespace reshadefx
 
 		for (; mantissa_size <= 18; mantissa_size++, end++)
 		{
-			int c = *end;
+			auto c = *end;
 
-			if (c >= '0' && c <= '9')
+			if (is_decimal_digit(c))
 			{
 				c -= '0';
 
@@ -781,9 +799,9 @@ namespace reshadefx
 			fraction += c;
 		}
 
-		while (is_hexadecimal_digit(*end))
+		// Ignore additional digits that cannot affect the value
+		while (is_digit(*end, radix))
 		{
-			// Ignore additional digits that cannot affect the value
 			end++;
 		}
 
@@ -810,7 +828,7 @@ namespace reshadefx
 				tmp++;
 			}
 
-			if (*tmp >= '0' && *tmp <= '9')
+			if (is_decimal_digit(*tmp))
 			{
 				end = tmp;
 
@@ -821,7 +839,7 @@ namespace reshadefx
 					exponent *= 10;
 					exponent += *end++ - '0';
 				}
-				while (*end >= '0' && *end <= '9');
+				while (is_decimal_digit(*end));
 
 				if (negative)
 				{
