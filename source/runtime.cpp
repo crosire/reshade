@@ -739,12 +739,7 @@ namespace reshade
 		_preset_files = apps_config.get(section, "Presets", std::vector<std::string>()).data();
 		_current_preset = apps_config.get(section, "CurrentPreset", -1).as<int>();
 
-		if (_preset_files.empty())
-		{
-			_preset_files.push_back(s_injector_path.parent_path() / "DefaultPreset.ini");
-			_current_preset = 0;
-		}
-		else if (_current_preset >= _preset_files.size())
+		if (_preset_files.empty() || _current_preset >= _preset_files.size())
 		{
 			_current_preset = -1;
 		}

@@ -35,7 +35,7 @@ namespace reshade
 
 		size = std::min(size, variable.storage_size);
 
-		assert(variable.storage_offset + size < _uniform_data_storage.size());
+		assert(variable.storage_offset + size <= _uniform_data_storage.size());
 
 		std::memcpy(data, &_uniform_data_storage[variable.storage_offset], size);
 	}
@@ -128,7 +128,7 @@ namespace reshade
 
 		size = std::min(size, variable.storage_size);
 
-		assert(variable.storage_offset + size < _uniform_data_storage.size());
+		assert(variable.storage_offset + size <= _uniform_data_storage.size());
 
 		std::memcpy(&_uniform_data_storage[variable.storage_offset], data, size);
 	}

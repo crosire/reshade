@@ -30,6 +30,20 @@ namespace reshadefx
 	private:
 		class memory_pool
 		{
+			struct page
+			{
+				explicit page(size_t size) : cursor(0), memory(size, '\0') { }
+
+				size_t cursor;
+				std::vector<unsigned char> memory;
+			};
+			struct nodeinfo
+			{
+				size_t size;
+				void(*dtor)(void *);
+				unsigned char data[sizeof(node)];
+			};
+
 		public:
 			~memory_pool()
 			{
@@ -78,20 +92,6 @@ namespace reshadefx
 			}
 
 		private:
-			struct page
-			{
-				explicit page(size_t size) : cursor(0), memory(size, '\0') { }
-
-				size_t cursor;
-				std::vector<unsigned char> memory;
-			};
-			struct nodeinfo
-			{
-				size_t size;
-				void(*dtor)(void *);
-				unsigned char data[sizeof(node)];
-			};
-
 			std::list<page> _pages;
 		} _pool;
 	};
