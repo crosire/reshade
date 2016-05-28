@@ -764,6 +764,7 @@ namespace reshade
 		glDisable(GL_CULL_FACE);
 		glDisable(GL_DEPTH_TEST);
 		glEnable(GL_SCISSOR_TEST);
+		glDisable(GL_FRAMEBUFFER_SRGB);
 		glActiveTexture(GL_TEXTURE0);
 		glUseProgram(_imgui_shader_program);
 		glBindVertexArray(_imgui_vao);

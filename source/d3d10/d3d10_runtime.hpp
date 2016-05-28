@@ -102,6 +102,7 @@ namespace reshade
 		com_ptr<ID3D10SamplerState> _imgui_texture_sampler;
 		com_ptr<ID3D10RasterizerState> _imgui_rasterizer_state;
 		com_ptr<ID3D10BlendState> _imgui_blend_state;
+		com_ptr<ID3D10DepthStencilState> _imgui_depthstencil_state;
 		int _imgui_vertex_buffer_size = 0, _imgui_index_buffer_size = 0;
 	};
 }

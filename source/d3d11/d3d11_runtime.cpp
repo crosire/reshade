@@ -330,7 +330,7 @@ namespace reshade
 			}
 		}
 
-		// Create the blending state
+		// Create the blending setup
 		{
 			D3D11_BLEND_DESC desc = { };
 			desc.RenderTarget[0].BlendEnable = true;
@@ -343,6 +343,20 @@ namespace reshade
 			desc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
 
 			hr = _device->CreateBlendState(&desc, &_imgui_blend_state);
+
+			if (FAILED(hr))
+			{
+				return false;
+			}
+		}
+
+		// Create the depth-stencil state
+		{
+			D3D11_DEPTH_STENCIL_DESC desc = { };
+			desc.DepthEnable = false;
+			desc.StencilEnable = false;
+
+			hr = _device->CreateDepthStencilState(&desc, &_imgui_depthstencil_state);
 
 			if (FAILED(hr))
 			{
@@ -502,6 +516,7 @@ namespace reshade
 		_imgui_texture_sampler.reset();
 		_imgui_rasterizer_state.reset();
 		_imgui_blend_state.reset();
+		_imgui_depthstencil_state.reset();
 		_imgui_vertex_buffer_size = 0;
 		_imgui_index_buffer_size = 0;
 	}
@@ -1081,7 +1096,8 @@ namespace reshade
 
 		// Setup render state
 		const float blend_factor[4] = { 0.f, 0.f, 0.f, 0.f };
-		_immediate_context->OMSetBlendState(_imgui_blend_state.get(), blend_factor, 0xffffffff);
+		_immediate_context->OMSetBlendState(_imgui_blend_state.get(), blend_factor, D3D11_DEFAULT_SAMPLE_MASK);
+		_immediate_context->OMSetDepthStencilState(_imgui_depthstencil_state.get(), 0);
 		_immediate_context->RSSetState(_imgui_rasterizer_state.get());
 
 		UINT stride = sizeof(ImDrawVert), offset = 0;

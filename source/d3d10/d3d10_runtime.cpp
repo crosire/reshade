@@ -362,6 +362,20 @@ namespace reshade
 			}
 		}
 
+		// Create the depth-stencil state
+		{
+			D3D10_DEPTH_STENCIL_DESC desc = { };
+			desc.DepthEnable = false;
+			desc.StencilEnable = false;
+
+			hr = _device->CreateDepthStencilState(&desc, &_imgui_depthstencil_state);
+
+			if (FAILED(hr))
+			{
+				return false;
+			}
+		}
+
 		// Create the rasterizer state
 		{
 			D3D10_RASTERIZER_DESC desc = { };
@@ -508,6 +522,7 @@ namespace reshade
 		_imgui_texture_sampler.reset();
 		_imgui_rasterizer_state.reset();
 		_imgui_blend_state.reset();
+		_imgui_depthstencil_state.reset();
 		_imgui_vertex_buffer_size = 0;
 		_imgui_index_buffer_size = 0;
 	}
@@ -1075,7 +1090,8 @@ namespace reshade
 
 		// Setup render state
 		const float blend_factor[4] = { 0.f, 0.f, 0.f, 0.f };
-		_device->OMSetBlendState(_imgui_blend_state.get(), blend_factor, 0xffffffff);
+		_device->OMSetBlendState(_imgui_blend_state.get(), blend_factor, D3D10_DEFAULT_SAMPLE_MASK);
+		_device->OMSetDepthStencilState(_imgui_depthstencil_state.get(), 0);
 		_device->RSSetState(_imgui_rasterizer_state.get());
 
 		UINT stride = sizeof(ImDrawVert), offset = 0;

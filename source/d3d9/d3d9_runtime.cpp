@@ -761,6 +761,7 @@ namespace reshade
 		_device->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
 		_device->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
 		_device->SetRenderState(D3DRS_SCISSORTESTENABLE, true);
+		_device->SetRenderState(D3DRS_SRGBWRITEENABLE, false);
 		_device->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATE);
 		_device->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
 		_device->SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
