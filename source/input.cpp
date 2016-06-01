@@ -4,13 +4,12 @@
 #include <Windows.h>
 #include <assert.h>
 #include <unordered_map>
-#include <unordered_set>
 
 namespace reshade
 {
 	namespace
 	{
-		std::unordered_set<HWND> s_raw_input_windows;
+		std::unordered_map<HWND, unsigned int> s_raw_input_windows;
 		std::unordered_map<HWND, std::weak_ptr<input>> s_windows;
 	}
 
@@ -18,9 +17,16 @@ namespace reshade
 	{
 	}
 
-	void input::register_window_with_raw_input(window_handle window)
+	void input::register_window_with_raw_input(window_handle window, bool no_legacy_keyboard, bool no_legacy_mouse)
 	{
-		s_raw_input_windows.emplace(static_cast<HWND>(window));
+		const auto flags = (no_legacy_keyboard ? 0x1 : 0u) | (no_legacy_mouse ? 0x2 : 0u);
+
+		const auto insert = s_raw_input_windows.emplace(static_cast<HWND>(window), flags);
+
+		if (!insert.second)
+		{
+			insert.first->second |= flags;
+		}
 	}
 	std::shared_ptr<input> input::register_window(window_handle window)
 	{
@@ -61,27 +67,28 @@ namespace reshade
 			return false;
 		}
 
-		auto it = s_windows.find(details.hwnd);
+		auto input_window = s_windows.find(details.hwnd);
+		const auto raw_input_window = s_raw_input_windows.find(details.hwnd);
 
-		if (it == s_windows.end() && s_raw_input_windows.find(details.hwnd) != s_raw_input_windows.end())
+		if (input_window == s_windows.end() && raw_input_window != s_raw_input_windows.end())
 		{
 			// This is a raw input message. Just reroute it to the first window for now, since it is rare to have more than one active at a time.
-			it = s_windows.begin();
+			input_window = s_windows.begin();
 		}
 
-		if (it == s_windows.end())
+		if (input_window == s_windows.end())
 		{
 			return false;
 		}
-		else if (it->second.expired())
+		else if (input_window->second.expired())
 		{
-			s_windows.erase(it);
+			s_windows.erase(input_window);
 			return false;
 		}
 
 		RAWINPUT raw_data = { };
 		UINT raw_data_size = sizeof(raw_data);
-		const auto input_lock = it->second.lock();
+		const auto input_lock = input_window->second.lock();
 		input &input = *input_lock;
 
 		ScreenToClient(static_cast<HWND>(input._window), &details.pt);
@@ -101,10 +108,15 @@ namespace reshade
 					break;
 				}
 
+				assert(raw_input_window != s_raw_input_windows.end());
+
 				switch (raw_data.header.dwType)
 				{
 					case RIM_TYPEMOUSE:
 						is_mouse_message = true;
+
+						if ((raw_input_window->second & 0x2) == 0)
+							break;
 
 						if (raw_data.data.mouse.usButtonFlags & RI_MOUSE_LEFT_BUTTON_DOWN)
 							input._mouse_buttons[0] = 0x88;
@@ -134,6 +146,9 @@ namespace reshade
 						break;
 					case RIM_TYPEKEYBOARD:
 						is_keyboard_message = true;
+
+						if ((raw_input_window->second & 0x1) == 0)
+							break;
 
 						if (raw_data.data.keyboard.VKey != 0xFF)
 							input._keys[raw_data.data.keyboard.VKey] = (raw_data.data.keyboard.Flags & RI_KEY_BREAK) == 0 ? 0x88 : 0x08;
