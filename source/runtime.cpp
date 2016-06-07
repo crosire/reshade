@@ -503,6 +503,44 @@ namespace reshade
 					continue;
 				}
 
+				if (_performance_mode && _current_preset >= 0)
+				{
+					utils::ini_file preset(_preset_files[_current_preset]);
+
+					for (auto variable : ast.variables)
+					{
+						if (!variable->type.has_qualifier(reshadefx::nodes::type_node::qualifier_uniform) ||
+							variable->initializer_expression == nullptr ||
+							variable->initializer_expression->id != reshadefx::nodeid::literal_expression)
+						{
+							continue;
+						}
+
+						const auto initializer = static_cast<reshadefx::nodes::literal_expression_node *>(variable->initializer_expression);
+						const auto data = preset.get(path.filename(), variable->unique_name);
+
+						for (unsigned int i = 0; i < std::min(variable->type.rows, static_cast<unsigned int>(data.data().size())); i++)
+						{
+							switch (initializer->type.basetype)
+							{
+								case reshadefx::nodes::type_node::datatype_int:
+									initializer->value_int[i] = data.as<int>(i);
+									break;
+								case reshadefx::nodes::type_node::datatype_bool:
+								case reshadefx::nodes::type_node::datatype_uint:
+									initializer->value_uint[i] = data.as<unsigned int>(i);
+									break;
+								case reshadefx::nodes::type_node::datatype_float:
+									initializer->value_float[i] = data.as<float>(i);
+									break;
+							}
+						}
+
+						variable->type.qualifiers ^= reshadefx::nodes::type_node::qualifier_uniform;
+						variable->type.qualifiers |= reshadefx::nodes::type_node::qualifier_static | reshadefx::nodes::type_node::qualifier_const;
+					}
+				}
+
 				if (!update_effect(ast, _errors))
 				{
 					continue;
@@ -725,7 +763,8 @@ namespace reshade
 
 		const std::string section = s_appdata_path.parent_path() == s_executable_path.parent_path() ? "" : s_executable_path;
 
-		_developer_mode = apps_config.get(section, "DeveloperMode", false).as<bool>();
+		_show_developer_menu = apps_config.get(section, "DeveloperMode", false).as<bool>();
+		_performance_mode = apps_config.get(section, "PerformanceMode", false).as<bool>();
 		_menu_key.keycode = apps_config.get(section, "MenuKey", 0x71).as<int>(); // VK_F2
 		_menu_key.ctrl = apps_config.get(section, "MenuKeyCtrl", false).as<bool>();
 		_menu_key.shift = apps_config.get(section, "MenuKeyShift", true).as<bool>();
@@ -775,7 +814,8 @@ namespace reshade
 
 		const std::string section = s_appdata_path.parent_path() == s_executable_path.parent_path() ? "" : s_executable_path;
 
-		apps_config.set(section, "DeveloperMode", _developer_mode);
+		apps_config.set(section, "DeveloperMode", _show_developer_menu);
+		apps_config.set(section, "PerformanceMode", _performance_mode);
 		apps_config.set(section, "MenuKey", _menu_key.keycode);
 		apps_config.set(section, "MenuKeyCtrl", _menu_key.ctrl);
 		apps_config.set(section, "MenuKeyShift", _menu_key.shift);
@@ -883,16 +923,16 @@ namespace reshade
 
 	void runtime::draw_overlay()
 	{
-		const bool show_splash = std::chrono::duration_cast<std::chrono::seconds>(_last_present - _start_time).count() < 10;
+		const bool show_splash = std::chrono::duration_cast<std::chrono::seconds>(_last_present - _start_time).count() < 15;
 
 		if ((_menu_index != 1 || !_show_menu) && _input->is_key_pressed(_menu_key.keycode, _menu_key.ctrl, _menu_key.shift, false))
 		{
 			_show_menu = !_show_menu;
 		}
 
-		g_block_cursor_reset = _show_menu;
+		g_block_cursor_reset = _show_menu || _show_developer_menu;
 
-		if (!_show_menu && !show_splash)
+		if (!(_show_menu || _show_developer_menu || show_splash))
 		{
 			_input->block_mouse_input(false);
 			_input->block_keyboard_input(false);
@@ -938,13 +978,23 @@ namespace reshade
 			ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 1.0f, 1.0f, 1.0f));
 			ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.0f, 0.0f, 0.0f, 1.0f));
 
-			ImGui::Begin("Splash Screen", nullptr, ImVec2(), -1, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoInputs);
+			const bool has_errors = !_errors.empty();
+			const ImVec2 splash_size(_width - 20.0f, ImGui::GetItemsLineHeightWithSpacing() * (has_errors ? 4 : 3));
+
+			ImGui::Begin("Splash Screen", nullptr, splash_size, -1, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoInputs);
 			ImGui::SetWindowPos(ImVec2(10, 10));
-			ImGui::SetWindowSize(ImVec2(_width - 20.0f, ImGui::GetItemsLineHeightWithSpacing() * 3));
+
 			ImGui::TextUnformatted("ReShade " VERSION_STRING_FILE " by crosire");
 			ImGui::TextUnformatted("Visit http://reshade.me for news, updates, shaders and discussion.");
 			ImGui::Spacing();
 			ImGui::Text("Press '%s%s%s' to open the configuration menu.", _menu_key.ctrl ? "Ctrl + " : "", _menu_key.shift ? "Shift + " : "", keyboard_keys[_menu_key.keycode]);
+
+			if (has_errors)
+			{
+				ImGui::Spacing();
+				ImGui::TextColored(ImVec4(1, 0, 0, 1), "There were errors compiling some shaders. Open 'Settings' and switch to developer mode for more details.");
+			}
+
 			ImGui::End();
 
 			ImGui::PopStyleColor();
@@ -955,43 +1005,33 @@ namespace reshade
 		{
 			ImGui::SetNextWindowSize(ImVec2(600, 500), ImGuiSetCond_FirstUseEver);
 			ImGui::SetNextWindowPosCenter(ImGuiSetCond_FirstUseEver);
-			ImGui::Begin("ReShade " VERSION_STRING_FILE " by crosire###MENU", &_show_menu, ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoCollapse);
+			ImGui::Begin("ReShade " VERSION_STRING_FILE " by crosire###Main", &_show_menu, ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoCollapse);
 
 			draw_overlay_menu();
 
 			ImGui::End();
 		}
-
-		if (_developer_mode)
+		if (_show_developer_menu)
 		{
 			ImGui::SetNextWindowSize(ImVec2(500, 200), ImGuiSetCond_FirstUseEver);
 
-			if (ImGui::Begin("Effect Compiler Log###LOG"))
-			{
-				ImGui::TextColored(ImVec4(1, 0, 0, 1), _errors.c_str());
-			}
-
-			ImGui::End();
-		}
-
-		if (_show_shader_editor)
-		{
-			ImGui::SetNextWindowSize(ImVec2(500, 500), ImGuiSetCond_FirstUseEver);
-
-			if (ImGui::Begin("Shader Code###EDITOR", &_show_shader_editor))
+			if (ImGui::Begin("Shader Editor", &_show_developer_menu))
 			{
 				draw_overlay_shader_editor();
 			}
 
 			ImGui::End();
-		}
-		if (_show_variable_editor)
-		{
-			ImGui::SetNextWindowSize(ImVec2(500, 300), ImGuiSetCond_FirstUseEver);
 
-			if (ImGui::Begin("Shaders Parameters###VARIABLES", &_show_variable_editor))
+			if (ImGui::Begin("Effect Compiler Log"))
 			{
-				draw_overlay_variable_editor();
+				ImGui::PushTextWrapPos(0.0f);
+
+				for (const auto &line : stdext::split(_errors, '\n'))
+				{
+					ImGui::TextColored(line.find("warning") != std::string::npos ? ImVec4(1, 1, 0, 1) : ImVec4(1, 0, 0, 1), line.c_str());
+				}
+
+				ImGui::PopTextWrapPos();
 			}
 
 			ImGui::End();
@@ -1045,63 +1085,47 @@ namespace reshade
 	}
 	void runtime::draw_overlay_menu_home()
 	{
-		if (_developer_mode)
+		ImGui::PushItemWidth(-(30 + ImGui::GetStyle().ItemSpacing.x) * 2 - 1);
+
+		const auto get_preset_file = [](void *data, int i, const char **out) {
+			*out = static_cast<runtime *>(data)->_preset_files[i].c_str();
+			return true;
+		};
+		const auto is_item_hovered = [this]() {
+			return ImGui::IsItemHovered() && !_input->is_any_mouse_button_down();
+		};
+
+		if (ImGui::Combo("##presets", &_current_preset, get_preset_file, this, _preset_files.size()))
 		{
-			if (ImGui::Button("Reload", ImVec2(-1, 0)))
+			save_configuration();
+
+			if (_performance_mode)
 			{
 				reload();
 			}
-
-			if (ImGui::Button("Open Shader Editor", ImVec2(-1, 0)))
+			else
 			{
-				_show_shader_editor = true;
+				load_preset(_preset_files[_current_preset]);
 			}
-		}
-
-		ImGui::PushItemWidth(-(60 + ImGui::GetStyle().ItemInnerSpacing.x) * 3 - 1);
-
-		const auto preset_getter = [](void *data, int i, const char **out) { *out = static_cast<runtime *>(data)->_preset_files[i].c_str(); return true; };
-
-		if (ImGui::Combo("##presets", &_current_preset, preset_getter, this, _preset_files.size()))
-		{
-			load_preset(_preset_files[_current_preset]);
-
-			save_configuration();
 		}
 
 		ImGui::PopItemWidth();
 
-		if (_current_preset >= 0 && ImGui::IsItemHovered() && !_input->is_mouse_button_down(0))
+		if (_current_preset >= 0 && is_item_hovered())
 		{
-			ImGui::SetTooltip(static_cast<const std::string &>(_preset_files[_current_preset]).c_str());
+			ImGui::SetTooltip("Select a preset file from the dropdown menu.");
 		}
 
-		ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImGui::GetStyle().ItemInnerSpacing);
 		ImGui::SameLine();
 
-		if (ImGui::Button("Load", ImVec2(60, 0)))
+		if (ImGui::Button("+", ImVec2(30, 0)))
 		{
 			ImGui::OpenPopup("Add Preset");
 		}
-
-		if (_current_preset >= 0)
+		else if (is_item_hovered())
 		{
-			ImGui::SameLine();
-
-			if (ImGui::ButtonEx("Remove", ImVec2(60, 0)))
-			{
-				ImGui::OpenPopup("Remove Preset");
-			}
-
-			ImGui::SameLine();
-
-			if (ImGui::ButtonEx("Edit", ImVec2(60, 0)))
-			{
-				_show_variable_editor = true;
-			}
+			ImGui::SetTooltip("Add a new or existing preset file.");
 		}
-
-		ImGui::PopStyleVar();
 
 		if (ImGui::BeginPopup("Add Preset"))
 		{
@@ -1130,89 +1154,68 @@ namespace reshade
 
 			ImGui::EndPopup();
 		}
-		if (ImGui::BeginPopup("Remove Preset"))
+
+		if (_current_preset >= 0)
 		{
-			ImGui::Text("Do you really want to remove this preset?");
+			ImGui::SameLine();
 
-			if (ImGui::Button("Yes", ImVec2(-1, 0)))
+			if (ImGui::Button("-", ImVec2(30, 0)))
 			{
-				_preset_files.erase(_preset_files.begin() + _current_preset);
-
-				if (_current_preset == _preset_files.size())
-				{
-					_current_preset -= 1;
-				}
-				if (_current_preset >= 0)
-				{
-					load_preset(_preset_files[_current_preset]);
-				}
-
-				save_configuration();
-
-				ImGui::CloseCurrentPopup();
+				ImGui::OpenPopup("Remove Preset");
+			}
+			else if (is_item_hovered())
+			{
+				ImGui::SetTooltip("Remove the selected preset file.");
 			}
 
-			ImGui::EndPopup();
+			if (ImGui::BeginPopup("Remove Preset"))
+			{
+				ImGui::Text("Do you really want to remove this preset?");
+
+				if (ImGui::Button("Yes", ImVec2(-1, 0)))
+				{
+					_preset_files.erase(_preset_files.begin() + _current_preset);
+
+					if (_current_preset == _preset_files.size())
+					{
+						_current_preset -= 1;
+					}
+					if (_current_preset >= 0)
+					{
+						load_preset(_preset_files[_current_preset]);
+					}
+
+					save_configuration();
+
+					ImGui::CloseCurrentPopup();
+				}
+
+				ImGui::EndPopup();
+			}
 		}
 
 		ImGui::Spacing();
 
-		if (ImGui::BeginChild("##techniques", ImVec2(-1, -1), true, 0))
+		if (ImGui::BeginChild("##techniques", ImVec2(-1, _performance_mode ? -1 : 200), true))
 		{
-			for (size_t n = 0; n < _techniques.size(); n++)
-			{
-				if (_techniques[n].annotations["hidden"].as<bool>())
-				{
-					continue;
-				}
-
-				ImGui::PushID(n);
-
-				const auto name = _techniques[n].name + " [" + _techniques[n].annotations["__FILE__"].as<std::string>() + "]";
-
-				if (ImGui::Checkbox(name.c_str(), &_techniques[n].enabled) && _current_preset >= 0)
-				{
-					save_preset(_preset_files[_current_preset]);
-				}
-
-				if (ImGui::IsItemActive())
-				{
-					_selected_technique = n;
-				}
-				if (ImGui::IsItemHoveredRect())
-				{
-					_hovered_technique = n;
-				}
-
-				ImGui::PopID();
-			}
+			draw_overlay_technique_editor();
 		}
 
 		ImGui::EndChild();
 
-		if (!_developer_mode && ImGui::IsItemHovered() && !_input->is_mouse_button_down(0))
+		if (is_item_hovered())
 		{
 			ImGui::SetTooltip("Click on a technique to enable/disable it.\nClick and then drag one to a new location in the list to change the execution order.");
 		}
 
-		if (ImGui::IsMouseDragging() && _selected_technique >= 0)
+		if (!_performance_mode)
 		{
-			ImGui::SetTooltip(_techniques[_selected_technique].name.c_str());
-
-			if (_hovered_technique >= 0 && _hovered_technique != _selected_technique)
+			if (ImGui::BeginChild("##variables", ImVec2(-1, -1), true))
 			{
-				std::swap(_techniques[_hovered_technique], _techniques[_selected_technique]);
-				_selected_technique = _hovered_technique;
-
-				if (_current_preset >= 0)
-				{
-					save_preset(_preset_files[_current_preset]);
-				}
+				draw_overlay_variable_editor();
 			}
-		}
-		else
-		{
-			_selected_technique = _hovered_technique = -1;
+
+			ImGui::EndChild();
 		}
 	}
 	void runtime::draw_overlay_menu_settings()
@@ -1265,13 +1268,15 @@ namespace reshade
 				ImGui::SetTooltip("Click in the field and press any key to change the shortcut to that key.");
 			}
 
-			int overlay_mode_index = _developer_mode ? 1 : 0;
+			int overlay_mode_index = _performance_mode ? 0 : _show_developer_menu ? 2 : 1;
 
-			if (ImGui::Combo("Overlay Mode", &overlay_mode_index, "User Mode\0Developer Mode\0"))
+			if (ImGui::Combo("Overlay Mode", &overlay_mode_index, "Performance Mode\0Configuration Mode\0Developer Mode\0"))
 			{
-				_developer_mode = overlay_mode_index != 0;
+				_performance_mode = overlay_mode_index == 0;
+				_show_developer_menu = overlay_mode_index == 2;
 
 				save_configuration();
+				reload();
 			}
 
 			copy_search_paths_to_edit_buffer(_effect_search_paths);
@@ -1397,21 +1402,19 @@ namespace reshade
 			ImGui::Text("Network: %uB", g_network_traffic);
 		}
 
-		if (_developer_mode)
+		if (ImGui::CollapsingHeader("Textures", ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_DefaultOpen))
 		{
-			if (ImGui::CollapsingHeader("Textures", ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_DefaultOpen))
+			for (const auto &texture : _textures)
 			{
-				for (const auto &texture : _textures)
-				{
-					ImGui::Text("%s: %ux%u+%u (%uB)", texture->name.c_str(), texture->width, texture->height, (texture->levels - 1), static_cast<unsigned int>(texture->storage_size));
-				}
+				ImGui::Text("%s: %ux%u+%u (%uB)", texture->name.c_str(), texture->width, texture->height, (texture->levels - 1), static_cast<unsigned int>(texture->storage_size));
 			}
-			if (ImGui::CollapsingHeader("Techniques", ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_DefaultOpen))
+		}
+
+		if (ImGui::CollapsingHeader("Techniques", ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_DefaultOpen))
+		{
+			for (const auto &technique : _techniques)
 			{
-				for (const auto &technique : _techniques)
-				{
-					ImGui::Text("%s (%u passes): %fms", technique.name.c_str(), static_cast<unsigned int>(technique.passes.size()), (technique.average_duration * 1e-6f));
-				}
+				ImGui::Text("%s (%u passes): %fms", technique.name.c_str(), static_cast<unsigned int>(technique.passes.size()), (technique.average_duration * 1e-6f));
 			}
 		}
 	}
@@ -1442,6 +1445,7 @@ Libraries in use:\n\
 		ImGui::PushItemWidth(-1);
 
 		const auto effect_file_getter = [](void *data, int i, const char **out) { *out = static_cast<const std::string &>(static_cast<runtime *>(data)->_included_files[i]).c_str(); return true; };
+
 		if (ImGui::Combo("##effect_files", &_current_effect_file, effect_file_getter, this, _included_files.size()))
 		{
 			std::ifstream file(stdext::utf8_to_utf16(_included_files[_current_effect_file]).c_str());
@@ -1457,45 +1461,31 @@ Libraries in use:\n\
 
 				std::copy(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>(), _shader_edit_buffer.begin());
 			}
-			else
-			{
-			}
 		}
 
 		ImGui::PopItemWidth();
 
 		ImGui::InputTextMultiline("##editor", _shader_edit_buffer.data(), _shader_edit_buffer.size(), ImVec2(-1, -20), ImGuiInputTextFlags_AllowTabInput);
 
-		if (ImGui::Button("Save", ImVec2(-1, 0)) || _input->is_key_pressed('S', true, false, false))
+		if (ImGui::Button("Save & Reload", ImVec2(-1, 0)) || _input->is_key_pressed('S', true, false, false))
 		{
-			std::ofstream file(stdext::utf8_to_utf16(_included_files[_current_effect_file]).c_str(), std::ios::out | std::ios::trunc);
-			file << _shader_edit_buffer.data();
-			file.close();
+			if (_current_effect_file >= 0)
+			{
+				std::ofstream file(stdext::utf8_to_utf16(_included_files[_current_effect_file]).c_str(), std::ios::out | std::ios::trunc);
+				file << _shader_edit_buffer.data();
+				file.close();
+			}
 
 			reload();
 		}
 	}
 	void runtime::draw_overlay_variable_editor()
 	{
-		bool opened = true;
-		size_t id = 0;
-		std::string current_header, new_header;
-
-		for (auto &variable : _uniforms)
+		for (int id = 0; id < _uniforms.size(); id++)
 		{
+			auto &variable = _uniforms[id];
+
 			if (variable.annotations.count("source"))
-			{
-				continue;
-			}
-
-			new_header = variable.annotations["__FILE__"].as<std::string>();
-
-			if (new_header != current_header)
-			{
-				current_header = new_header;
-				opened = ImGui::CollapsingHeader(new_header.c_str(), ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_DefaultOpen);
-			}
-			if (!opened)
 			{
 				continue;
 			}
@@ -1504,26 +1494,28 @@ Libraries in use:\n\
 			float data[4] = { };
 			get_uniform_value(variable, data, 4);
 
+			const std::string filename = filesystem::path(variable.annotations.at("__FILE__").as<std::string>()).filename();
 			const auto ui_type = variable.annotations["ui_type"].as<std::string>();
+			const auto ui_label = variable.annotations.count("ui_label") ? variable.annotations.at("ui_label").as<std::string>() : variable.name + " [" + filename + "]";
 			const auto ui_tooltip = variable.annotations["ui_tooltip"].as<std::string>();
 
-			ImGui::PushID(id++);
+			ImGui::PushID(id);
 
 			if (ui_type == "drag")
 			{
 				switch (variable.rows)
 				{
 					case 1:
-						modified = ImGui::DragFloat(variable.name.c_str(), data, variable.annotations["ui_step"].as<float>(), variable.annotations["ui_min"].as<float>(), variable.annotations["ui_max"].as<float>());
+						modified = ImGui::DragFloat(ui_label.c_str(), data, variable.annotations["ui_step"].as<float>(), variable.annotations["ui_min"].as<float>(), variable.annotations["ui_max"].as<float>());
 						break;
 					case 2:
-						modified = ImGui::DragFloat2(variable.name.c_str(), data, variable.annotations["ui_step"].as<float>(), variable.annotations["ui_min"].as<float>(), variable.annotations["ui_max"].as<float>());
+						modified = ImGui::DragFloat2(ui_label.c_str(), data, variable.annotations["ui_step"].as<float>(), variable.annotations["ui_min"].as<float>(), variable.annotations["ui_max"].as<float>());
 						break;
 					case 3:
-						modified = ImGui::DragFloat3(variable.name.c_str(), data, variable.annotations["ui_step"].as<float>(), variable.annotations["ui_min"].as<float>(), variable.annotations["ui_max"].as<float>());
+						modified = ImGui::DragFloat3(ui_label.c_str(), data, variable.annotations["ui_step"].as<float>(), variable.annotations["ui_min"].as<float>(), variable.annotations["ui_max"].as<float>());
 						break;
 					case 4:
-						modified = ImGui::DragFloat4(variable.name.c_str(), data, variable.annotations["ui_step"].as<float>(), variable.annotations["ui_min"].as<float>(), variable.annotations["ui_max"].as<float>());
+						modified = ImGui::DragFloat4(ui_label.c_str(), data, variable.annotations["ui_step"].as<float>(), variable.annotations["ui_min"].as<float>(), variable.annotations["ui_max"].as<float>());
 						break;
 				}
 			}
@@ -1532,26 +1524,26 @@ Libraries in use:\n\
 				switch (variable.rows)
 				{
 					case 1:
-						modified = ImGui::InputFloat(variable.name.c_str(), data);
+						modified = ImGui::InputFloat(ui_label.c_str(), data);
 						break;
 					case 2:
-						modified = ImGui::InputFloat2(variable.name.c_str(), data);
+						modified = ImGui::InputFloat2(ui_label.c_str(), data);
 						break;
 					case 3:
-						modified = ImGui::InputFloat3(variable.name.c_str(), data);
+						modified = ImGui::InputFloat3(ui_label.c_str(), data);
 						break;
 					case 4:
-						modified = ImGui::InputFloat4(variable.name.c_str(), data);
+						modified = ImGui::InputFloat4(ui_label.c_str(), data);
 						break;
 				}
 			}
 			else if (variable.rows == 3)
 			{
-				modified = ImGui::ColorEdit3(variable.name.c_str(), data);
+				modified = ImGui::ColorEdit3(ui_label.c_str(), data);
 			}
 			else if (variable.rows == 4)
 			{
-				modified = ImGui::ColorEdit4(variable.name.c_str(), data);
+				modified = ImGui::ColorEdit4(ui_label.c_str(), data);
 			}
 
 			if (ImGui::IsItemHovered() && !ui_tooltip.empty())
@@ -1570,6 +1562,61 @@ Libraries in use:\n\
 					save_preset(_preset_files[_current_preset]);
 				}
 			}
+		}
+	}
+	void runtime::draw_overlay_technique_editor()
+	{
+		int hovered_technique_index = -1;
+
+		for (int id = 0; id < _techniques.size(); id++)
+		{
+			auto &technique = _techniques[id];
+
+			if (technique.annotations["hidden"].as<bool>())
+			{
+				continue;
+			}
+
+			const std::string filename = filesystem::path(technique.annotations.at("__FILE__").as<std::string>()).filename();
+			const auto ui_label = technique.name + " [" + filename + "]";
+
+			ImGui::PushID(id);
+
+			if (ImGui::Checkbox(ui_label.c_str(), &technique.enabled) && _current_preset >= 0)
+			{
+				save_preset(_preset_files[_current_preset]);
+			}
+
+			if (ImGui::IsItemActive())
+			{
+				_selected_technique = id;
+			}
+			if (ImGui::IsItemHoveredRect())
+			{
+				hovered_technique_index = id;
+			}
+
+			ImGui::PopID();
+		}
+
+		if (ImGui::IsMouseDragging() && _selected_technique >= 0)
+		{
+			ImGui::SetTooltip(_techniques[_selected_technique].name.c_str());
+
+			if (hovered_technique_index >= 0 && hovered_technique_index != _selected_technique)
+			{
+				std::swap(_techniques[hovered_technique_index], _techniques[_selected_technique]);
+				_selected_technique = hovered_technique_index;
+
+				if (_current_preset >= 0)
+				{
+					save_preset(_preset_files[_current_preset]);
+				}
+			}
+		}
+		else
+		{
+			_selected_technique = -1;
 		}
 	}
 }

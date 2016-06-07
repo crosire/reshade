@@ -197,6 +197,7 @@ namespace reshade
 		void draw_overlay_menu_about();
 		void draw_overlay_shader_editor();
 		void draw_overlay_variable_editor();
+		void draw_overlay_technique_editor();
 
 		const unsigned int _renderer_id;
 		std::vector<std::string> _effect_files, _preset_files, _effect_search_paths, _texture_search_paths;
@@ -209,8 +210,8 @@ namespace reshade
 		int _menu_index = 0, _screenshot_format = 0, _current_preset = -1, _current_effect_file = -1;
 		key_shortcut _menu_key = { }, _screenshot_key = { };
 		std::string _screenshot_path;
-		bool _developer_mode = false, _show_menu = false, _show_shader_editor = false, _show_variable_editor = false;
-		int _selected_technique = -1, _hovered_technique = -1;
+		int _selected_technique = -1;
+		bool _show_menu = false, _show_developer_menu = false, _performance_mode = false;
 		std::vector<char> _shader_edit_buffer;
 		ImGuiContext *_imgui_context = nullptr;
 	};
