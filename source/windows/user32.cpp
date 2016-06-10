@@ -135,7 +135,7 @@ HOOK_EXPORT BOOL WINAPI HookPeekMessageA(LPMSG lpMsg, HWND hWnd, UINT wMsgFilter
 
 	if (lpMsg->hwnd != nullptr && (wRemoveMsg & PM_REMOVE) != 0 && reshade::input::handle_window_message(lpMsg))
 	{
-		return FALSE;
+		lpMsg->message = WM_NULL;
 	}
 
 	return TRUE;
