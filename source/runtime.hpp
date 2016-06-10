@@ -212,6 +212,7 @@ namespace reshade
 		std::string _screenshot_path;
 		int _selected_technique = -1;
 		bool _show_menu = false, _show_developer_menu = false, _performance_mode = false;
+		bool _block_input_outside_overlay = false, _overlay_key_setting_active = false, _screenshot_key_setting_active = false;
 		std::vector<char> _shader_edit_buffer;
 		ImGuiContext *_imgui_context = nullptr;
 	};

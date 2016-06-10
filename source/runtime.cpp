@@ -238,7 +238,7 @@ namespace reshade
 		_date[2] = tm.tm_mday;
 		_date[3] = tm.tm_hour * 3600 + tm.tm_min * 60 + tm.tm_sec;
 
-		if ((_menu_index != 1 || !_show_menu) && _input->is_key_pressed(_screenshot_key.keycode, _screenshot_key.ctrl, _screenshot_key.shift, false))
+		if (!_screenshot_key_setting_active && _input->is_key_pressed(_screenshot_key.keycode, _screenshot_key.ctrl, _screenshot_key.shift, false))
 		{
 			screenshot();
 		}
@@ -765,6 +765,7 @@ namespace reshade
 
 		_show_developer_menu = apps_config.get(section, "DeveloperMode", false).as<bool>();
 		_performance_mode = apps_config.get(section, "PerformanceMode", false).as<bool>();
+		_block_input_outside_overlay = apps_config.get(section, "BlockInputOutsideOverlay", false).as<bool>();
 		_menu_key.keycode = apps_config.get(section, "MenuKey", 0x71).as<int>(); // VK_F2
 		_menu_key.ctrl = apps_config.get(section, "MenuKeyCtrl", false).as<bool>();
 		_menu_key.shift = apps_config.get(section, "MenuKeyShift", true).as<bool>();
@@ -816,6 +817,7 @@ namespace reshade
 
 		apps_config.set(section, "DeveloperMode", _show_developer_menu);
 		apps_config.set(section, "PerformanceMode", _performance_mode);
+		apps_config.set(section, "BlockInputOutsideOverlay", _block_input_outside_overlay);
 		apps_config.set(section, "MenuKey", _menu_key.keycode);
 		apps_config.set(section, "MenuKeyCtrl", _menu_key.ctrl);
 		apps_config.set(section, "MenuKeyShift", _menu_key.shift);
@@ -925,7 +927,7 @@ namespace reshade
 	{
 		const bool show_splash = std::chrono::duration_cast<std::chrono::seconds>(_last_present - _start_time).count() < 15;
 
-		if ((_menu_index != 1 || !_show_menu) && _input->is_key_pressed(_menu_key.keycode, _menu_key.ctrl, _menu_key.shift, false))
+		if (!_overlay_key_setting_active && _input->is_key_pressed(_menu_key.keycode, _menu_key.ctrl, _menu_key.shift, false))
 		{
 			_show_menu = !_show_menu;
 		}
@@ -1039,8 +1041,8 @@ namespace reshade
 
 		ImGui::Render();
 
-		_input->block_mouse_input(imgui_io.WantCaptureMouse);
-		_input->block_keyboard_input(imgui_io.WantCaptureKeyboard);
+		_input->block_mouse_input(imgui_io.WantCaptureMouse || _block_input_outside_overlay);
+		_input->block_keyboard_input(imgui_io.WantCaptureKeyboard || _block_input_outside_overlay);
 
 		render_draw_lists(ImGui::GetDrawData());
 	}
@@ -1241,14 +1243,20 @@ namespace reshade
 
 		if (ImGui::CollapsingHeader("General", ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_DefaultOpen))
 		{
+			ImGui::Checkbox("Block input outside overlay when visible", &_block_input_outside_overlay);
+
 			assert(_menu_key.keycode < 256);
 
 			copy_key_shortcut_to_edit_buffer(_menu_key);
 
 			ImGui::InputText("Overlay Key", edit_buffer, sizeof(edit_buffer), ImGuiInputTextFlags_ReadOnly);
 
+			_overlay_key_setting_active = false;
+
 			if (ImGui::IsItemActive())
 			{
+				_overlay_key_setting_active = true;
+
 				if (_input->is_any_key_pressed())
 				{
 					const unsigned int last_key_pressed = _input->last_key_pressed();
@@ -1306,8 +1314,12 @@ namespace reshade
 
 			ImGui::InputText("Screenshot Key", edit_buffer, sizeof(edit_buffer), ImGuiInputTextFlags_ReadOnly);
 
+			_screenshot_key_setting_active = false;
+
 			if (ImGui::IsItemActive())
 			{
+				_screenshot_key_setting_active = true;
+
 				if (_input->is_any_key_pressed())
 				{
 					const unsigned int last_key_pressed = _input->last_key_pressed();
