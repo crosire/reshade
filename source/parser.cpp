@@ -2001,7 +2001,7 @@ namespace reshadefx
 
 			while (!peek('}') && !peek(lexer::tokenid::end_of_file))
 			{
-				const auto casenode = _ast.make_node<case_statement_node>(struct location());
+				const auto casenode = _ast.make_node<case_statement_node>(_token_next.location);
 
 				while (accept(lexer::tokenid::case_) || accept(lexer::tokenid::default_))
 				{
@@ -2034,8 +2034,6 @@ namespace reshadefx
 				{
 					return false;
 				}
-
-				casenode->location = casenode->labels[0]->location;
 
 				if (!parse_statement(casenode->statement_list))
 				{
