@@ -365,7 +365,7 @@ namespace reshade
 			{
 				const int key = variable.annotations["keycode"].as<int>();
 
-				if (key > 0 && key < 256)
+				if (key > 7 && key < 256)
 				{
 					if (variable.annotations["toggle"].as<bool>())
 					{
@@ -397,7 +397,7 @@ namespace reshade
 			{
 				const int index = variable.annotations["keycode"].as<int>();
 
-				if (index > 0 && index < 3)
+				if (index > 0 && index < 5)
 				{
 					if (variable.annotations["toggle"].as<bool>())
 					{
@@ -511,7 +511,8 @@ namespace reshade
 					{
 						if (!variable->type.has_qualifier(reshadefx::nodes::type_node::qualifier_uniform) ||
 							variable->initializer_expression == nullptr ||
-							variable->initializer_expression->id != reshadefx::nodeid::literal_expression)
+							variable->initializer_expression->id != reshadefx::nodeid::literal_expression ||
+							std::find_if(variable->annotations.begin(), variable->annotations.end(), [](const reshadefx::nodes::annotation_node &node) { return node.name == "source"; }) != variable->annotations.end())
 						{
 							continue;
 						}
