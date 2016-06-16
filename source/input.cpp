@@ -108,14 +108,12 @@ namespace reshade
 					break;
 				}
 
-				assert(raw_input_window != s_raw_input_windows.end());
-
 				switch (raw_data.header.dwType)
 				{
 					case RIM_TYPEMOUSE:
 						is_mouse_message = true;
 
-						if ((raw_input_window->second & 0x2) == 0)
+						if (raw_input_window != s_raw_input_windows.end() && (raw_input_window->second & 0x2) == 0)
 							break;
 
 						if (raw_data.data.mouse.usButtonFlags & RI_MOUSE_LEFT_BUTTON_DOWN)
@@ -147,7 +145,7 @@ namespace reshade
 					case RIM_TYPEKEYBOARD:
 						is_keyboard_message = true;
 
-						if ((raw_input_window->second & 0x1) == 0)
+						if (raw_input_window != s_raw_input_windows.end() && (raw_input_window->second & 0x1) == 0)
 							break;
 
 						if (raw_data.data.keyboard.VKey != 0xFF)
