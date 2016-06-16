@@ -8,7 +8,7 @@ namespace reshade
 	class variant
 	{
 	public:
-		variant() : _values(1)
+		variant()
 		{
 		}
 		variant(const char *value) : _values(1, value)
@@ -65,17 +65,37 @@ namespace reshade
 		template <>
 		inline const bool as(size_t i) const
 		{
-			return as<int>(i) != 0 || (_values[i] == "true" || _values[i] == "True" || _values[i] == "TRUE");
+			return as<int>(i) != 0 || i < _values.size() && (_values[i] == "true" || _values[i] == "True" || _values[i] == "TRUE");
 		}
 		template <>
 		inline const int as(size_t i) const
 		{
-			return static_cast<int>(std::strtol(_values[i].c_str(), nullptr, 10));
+			return static_cast<int>(as<long>(i));
 		}
 		template <>
 		inline const unsigned int as(size_t i) const
 		{
-			return static_cast<unsigned int>(std::strtoul(_values[i].c_str(), nullptr, 10));
+			return static_cast<unsigned int>(as<unsigned long>(i));
+		}
+		template <>
+		inline const long as(size_t i) const
+		{
+			if (i >= _values.size())
+			{
+				return 0l;
+			}
+
+			return std::strtol(_values[i].c_str(), nullptr, 10);
+		}
+		template <>
+		inline const unsigned long as(size_t i) const
+		{
+			if (i >= _values.size())
+			{
+				return 0ul;
+			}
+
+			return std::strtoul(_values[i].c_str(), nullptr, 10);
 		}
 		template <>
 		inline const float as(size_t i) const
@@ -85,11 +105,21 @@ namespace reshade
 		template <>
 		inline const double as(size_t i) const
 		{
+			if (i >= _values.size())
+			{
+				return 0.0;
+			}
+
 			return std::strtod(_values[i].c_str(), nullptr);
 		}
 		template <>
 		inline const std::string as(size_t i) const
 		{
+			if (i >= _values.size())
+			{
+				return "";
+			}
+
 			return _values[i];
 		}
 

@@ -15,7 +15,7 @@ namespace reshade
 		void load();
 		void save() const;
 
-		variant get(const std::string &section, const std::string &key, const variant &default = "") const;
+		variant get(const std::string &section, const std::string &key, const variant &default = variant()) const;
 		void set(const std::string &section, const std::string &key, const variant &value);
 
 	private:
