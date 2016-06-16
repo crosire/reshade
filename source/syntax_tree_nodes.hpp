@@ -425,40 +425,28 @@ namespace reshadefx
 		};
 
 		// Declarations
-		struct variable_properties
-		{
-			variable_properties() :
-				width(1),
-				height(1),
-				depth(1),
-				levels(1),
-				format(reshade::texture_format::rgba8),
-				filter(reshade::texture_filter::min_mag_mip_linear),
-				address_u(reshade::texture_address_mode::clamp),
-				address_v(reshade::texture_address_mode::clamp),
-				address_w(reshade::texture_address_mode::clamp),
-				max_anisotropy(1),
-				max_lod(FLT_MAX)
-			{ }
-
-			const variable_declaration_node *texture;
-			unsigned int width, height, depth, levels;
-			bool srgb_texture;
-			reshade::texture_format format;
-			reshade::texture_filter filter;
-			reshade::texture_address_mode address_u, address_v, address_w;
-			unsigned int max_anisotropy;
-			float min_lod, max_lod, lod_bias;
-		};
 		struct variable_declaration_node : public declaration_node
 		{
 			variable_declaration_node() : declaration_node(nodeid::variable_declaration) { }
 
 			type_node type;
-			std::unordered_map<std::string, reshade::variant> annotations;
+			std::unordered_map<std::string, reshade::variant> annotation_list;
 			std::string semantic;
-			variable_properties properties;
 			expression_node *initializer_expression;
+
+			struct
+			{
+				const variable_declaration_node *texture;
+				unsigned int width = 1, height = 1, depth = 1, levels = 1;
+				bool srgb_texture;
+				reshade::texture_format format = reshade::texture_format::rgba8;
+				reshade::texture_filter filter = reshade::texture_filter::min_mag_mip_linear;
+				reshade::texture_address_mode address_u = reshade::texture_address_mode::clamp;
+				reshade::texture_address_mode address_v = reshade::texture_address_mode::clamp;
+				reshade::texture_address_mode address_w = reshade::texture_address_mode::clamp;
+				unsigned int max_anisotropy = 1;
+				float min_lod, max_lod = FLT_MAX, lod_bias;
+			} properties;
 		};
 		struct declarator_list_node : public statement_node
 		{
@@ -522,29 +510,15 @@ namespace reshadefx
 				ALWAYS
 			};
 
-			pass_declaration_node() : declaration_node(nodeid::pass_declaration),
-				clear_render_targets(true),
-				color_write_mask(0xF),
-				depth_write_mask(0x1),
-				stencil_read_mask(0xFF),
-				stencil_write_mask(0xFF),
-				blend_op(ADD),
-				blend_op_alpha(ADD),
-				src_blend(ONE),
-				dest_blend(ZERO),
-				depth_comparison_func(LESS),
-				stencil_comparison_func(ALWAYS),
-				stencil_op_pass(KEEP),
-				stencil_op_fail(KEEP),
-				stencil_op_depth_fail(KEEP)
-			{ }
+			pass_declaration_node() : declaration_node(nodeid::pass_declaration) { }
 
 			std::unordered_map<std::string, reshade::variant> annotation_list;
 			const variable_declaration_node *render_targets[8];
 			const function_declaration_node *vertex_shader, *pixel_shader;
-			bool clear_render_targets, srgb_write_enable, blend_enable, depth_enable, stencil_enable;
-			unsigned char color_write_mask, depth_write_mask, stencil_read_mask, stencil_write_mask;
-			unsigned int blend_op, blend_op_alpha, src_blend, dest_blend, depth_comparison_func, stencil_comparison_func, stencil_reference_value, stencil_op_pass, stencil_op_fail, stencil_op_depth_fail;
+			bool clear_render_targets = true, srgb_write_enable, blend_enable, depth_enable, stencil_enable;
+			unsigned char color_write_mask = 0xF, depth_write_mask = 0x1, stencil_read_mask = 0xFF, stencil_write_mask = 0xFF;
+			unsigned int blend_op = ADD, blend_op_alpha = ADD, src_blend = ONE, dest_blend = ZERO;
+			unsigned int depth_comparison_func = LESS, stencil_comparison_func = ALWAYS, stencil_reference_value, stencil_op_pass = KEEP, stencil_op_fail = KEEP, stencil_op_depth_fail = KEEP;
 		};
 		struct technique_declaration_node : public declaration_node
 		{

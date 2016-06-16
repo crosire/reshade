@@ -9,12 +9,6 @@
 
 namespace reshade
 {
-	enum class texture_type
-	{
-		image,
-		backbuffer,
-		depthbuffer
-	};
 	enum class texture_filter
 	{
 		anisotropic = 0x55,
@@ -77,10 +71,10 @@ namespace reshade
 	struct texture final
 	{
 		std::string name, unique_name;
-		texture_type type = texture_type::image;
 		unsigned int width = 0, height = 0, levels = 0;
 		texture_format format = texture_format::unknown;
 		std::unordered_map<std::string, variant> annotations;
+		unsigned short impl_is_reference = 0;
 		std::unique_ptr<base_object> impl;
 	};
 	struct uniform final

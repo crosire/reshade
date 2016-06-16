@@ -503,89 +503,6 @@ namespace reshade
 		// Reset states
 		GLCHECK(glBindSampler(0, 0));
 	}
-	void opengl_runtime::on_apply_effect_technique(const technique &technique)
-	{
-		runtime::on_apply_effect_technique(technique);
-
-		// Clear depth-stencil
-		GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, _default_backbuffer_fbo));
-		GLCHECK(glClearBufferfi(GL_DEPTH_STENCIL, 0, 1.0f, 0));
-
-		// Setup shader constants
-		if (technique.uniform_storage_index >= 0)
-		{
-			GLCHECK(glBindBufferBase(GL_UNIFORM_BUFFER, 0, _effect_ubos[technique.uniform_storage_index].first));
-			GLCHECK(glBufferSubData(GL_UNIFORM_BUFFER, 0, _effect_ubos[technique.uniform_storage_index].second, get_uniform_value_storage().data() + technique.uniform_storage_offset));
-		}
-
-		for (const auto &pass_ptr : technique.passes)
-		{
-			const auto &pass = *static_cast<const opengl_pass_data *>(pass_ptr.get());
-
-			// Setup states
-			GLCHECK(glUseProgram(pass.program));
-			GLCHECK(pass.srgb ? glEnable(GL_FRAMEBUFFER_SRGB) : glDisable(GL_FRAMEBUFFER_SRGB));
-			GLCHECK(glDisable(GL_SCISSOR_TEST));
-			GLCHECK(glFrontFace(GL_CCW));
-			GLCHECK(glPolygonMode(GL_FRONT_AND_BACK, GL_FILL));
-			GLCHECK(glDisable(GL_CULL_FACE));
-			GLCHECK(glColorMask(pass.color_mask[0], pass.color_mask[1], pass.color_mask[2], pass.color_mask[3]));
-			GLCHECK(pass.blend ? glEnable(GL_BLEND) : glDisable(GL_BLEND));
-			GLCHECK(glBlendFunc(pass.blend_src, pass.blend_dest));
-			GLCHECK(glBlendEquationSeparate(pass.blend_eq_color, pass.blend_eq_alpha));
-			GLCHECK(pass.depth_test ? glEnable(GL_DEPTH_TEST) : glDisable(GL_DEPTH_TEST));
-			GLCHECK(glDepthMask(pass.depth_mask));
-			GLCHECK(glDepthFunc(pass.depth_func));
-			GLCHECK(pass.stencil_test ? glEnable(GL_STENCIL_TEST) : glDisable(GL_STENCIL_TEST));
-			GLCHECK(glStencilFunc(pass.stencil_func, pass.stencil_reference, pass.stencil_read_mask));
-			GLCHECK(glStencilOp(pass.stencil_op_fail, pass.stencil_op_z_fail, pass.stencil_op_z_pass));
-			GLCHECK(glStencilMask(pass.stencil_mask));
-
-			// Save frame buffer of previous pass
-			GLCHECK(glBindFramebuffer(GL_READ_FRAMEBUFFER, _default_backbuffer_fbo));
-			GLCHECK(glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _blit_fbo));
-			GLCHECK(glReadBuffer(GL_COLOR_ATTACHMENT0));
-			GLCHECK(glDrawBuffer(GL_COLOR_ATTACHMENT0));
-			GLCHECK(glBlitFramebuffer(0, 0, _width, _height, 0, 0, _width, _height, GL_COLOR_BUFFER_BIT, GL_NEAREST));
-
-			// Setup render targets
-			GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, pass.fbo));
-			GLCHECK(glDrawBuffers(8, pass.draw_buffers));
-			GLCHECK(glViewport(0, 0, pass.viewport_width, pass.viewport_height));
-
-			if (pass.clear_render_targets)
-			{
-				for (GLuint k = 0; k < 8; k++)
-				{
-					if (pass.draw_buffers[k] == GL_NONE)
-					{
-						continue;
-					}
-
-					const GLfloat color[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
-					GLCHECK(glClearBufferfv(GL_COLOR, k, color));
-				}
-			}
-
-			// Draw triangle
-			GLCHECK(glDrawArrays(GL_TRIANGLES, 0, 3));
-
-			// Update shader resources
-			for (GLuint id : pass.draw_textures)
-			{
-				for (GLsizei sampler = 0, samplerCount = static_cast<GLsizei>(_effect_samplers.size()); sampler < samplerCount; sampler++)
-				{
-					const auto texture = _effect_samplers[sampler].texture;
-
-					if (_effect_samplers[sampler].has_mipmaps && (texture->id[0] == id || texture->id[1] == id))
-					{
-						GLCHECK(glActiveTexture(GL_TEXTURE0 + sampler));
-						GLCHECK(glGenerateMipmap(GL_TEXTURE_2D));
-					}
-				}
-			}
-		}
-	}
 
 	void opengl_runtime::on_fbo_attachment(GLenum target, GLenum attachment, GLenum objecttarget, GLuint object, GLint level)
 	{
@@ -682,15 +599,15 @@ namespace reshade
 	}
 	bool opengl_runtime::update_texture(texture &texture, const uint8_t *data)
 	{
+		if (texture.impl_is_reference)
+		{
+			return false;
+		}
+
 		const auto texture_impl = texture.impl->as<opengl_tex_data>();
 
 		assert(data != nullptr);
 		assert(texture_impl != nullptr);
-
-		if (texture.type != texture_type::image)
-		{
-			return false;
-		}
 
 		GLCHECK(glPixelStorei(GL_UNPACK_ROW_LENGTH, 0));
 		GLCHECK(glPixelStorei(GL_UNPACK_IMAGE_HEIGHT, 0));
@@ -728,34 +645,129 @@ namespace reshade
 
 		return true;
 	}
-	void opengl_runtime::update_texture_datatype(texture &texture, texture_type source, GLuint newtexture, GLuint newtexture_srgb)
+	bool opengl_runtime::update_texture_reference(texture &texture, unsigned short id)
 	{
+		GLuint new_reference[2] = { };
+
+		switch (id)
+		{
+			case 1:
+				new_reference[0] = _backbuffer_texture[0];
+				new_reference[1] = _backbuffer_texture[1];
+				break;
+			case 2:
+				new_reference[0] = _depth_texture;
+				new_reference[1] = _depth_texture;
+				break;
+			default:
+				return false;
+		}
+
+		texture.impl_is_reference = id;
+
 		const auto texture_impl = texture.impl->as<opengl_tex_data>();
 
 		assert(texture_impl != nullptr);
+
+		if (texture_impl->id[0] == new_reference[0] &&
+			texture_impl->id[1] == new_reference[1])
+		{
+			return true;
+		}
 
 		if (texture_impl->should_delete)
 		{
 			GLCHECK(glDeleteTextures(2, texture_impl->id));
 		}
 
-		texture.type = source;
-
-		if (newtexture_srgb == 0)
-		{
-			newtexture_srgb = newtexture;
-		}
-
-		if (texture_impl->id[0] == newtexture && texture_impl->id[1] == newtexture_srgb)
-		{
-			return;
-		}
-
-		texture_impl->id[0] = newtexture;
-		texture_impl->id[1] = newtexture_srgb;
+		texture_impl->id[0] = new_reference[0];
+		texture_impl->id[1] = new_reference[1];
 		texture_impl->should_delete = false;
+
+		return true;
 	}
 
+	void opengl_runtime::render_technique(const technique &technique)
+	{
+		// Clear depth-stencil
+		GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, _default_backbuffer_fbo));
+		GLCHECK(glClearBufferfi(GL_DEPTH_STENCIL, 0, 1.0f, 0));
+
+		// Setup shader constants
+		if (technique.uniform_storage_index >= 0)
+		{
+			GLCHECK(glBindBufferBase(GL_UNIFORM_BUFFER, 0, _effect_ubos[technique.uniform_storage_index].first));
+			GLCHECK(glBufferSubData(GL_UNIFORM_BUFFER, 0, _effect_ubos[technique.uniform_storage_index].second, get_uniform_value_storage().data() + technique.uniform_storage_offset));
+		}
+
+		for (const auto &pass_ptr : technique.passes)
+		{
+			const auto &pass = *static_cast<const opengl_pass_data *>(pass_ptr.get());
+
+			// Setup states
+			GLCHECK(glUseProgram(pass.program));
+			GLCHECK(pass.srgb ? glEnable(GL_FRAMEBUFFER_SRGB) : glDisable(GL_FRAMEBUFFER_SRGB));
+			GLCHECK(glDisable(GL_SCISSOR_TEST));
+			GLCHECK(glFrontFace(GL_CCW));
+			GLCHECK(glPolygonMode(GL_FRONT_AND_BACK, GL_FILL));
+			GLCHECK(glDisable(GL_CULL_FACE));
+			GLCHECK(glColorMask(pass.color_mask[0], pass.color_mask[1], pass.color_mask[2], pass.color_mask[3]));
+			GLCHECK(pass.blend ? glEnable(GL_BLEND) : glDisable(GL_BLEND));
+			GLCHECK(glBlendFunc(pass.blend_src, pass.blend_dest));
+			GLCHECK(glBlendEquationSeparate(pass.blend_eq_color, pass.blend_eq_alpha));
+			GLCHECK(pass.depth_test ? glEnable(GL_DEPTH_TEST) : glDisable(GL_DEPTH_TEST));
+			GLCHECK(glDepthMask(pass.depth_mask));
+			GLCHECK(glDepthFunc(pass.depth_func));
+			GLCHECK(pass.stencil_test ? glEnable(GL_STENCIL_TEST) : glDisable(GL_STENCIL_TEST));
+			GLCHECK(glStencilFunc(pass.stencil_func, pass.stencil_reference, pass.stencil_read_mask));
+			GLCHECK(glStencilOp(pass.stencil_op_fail, pass.stencil_op_z_fail, pass.stencil_op_z_pass));
+			GLCHECK(glStencilMask(pass.stencil_mask));
+
+			// Save frame buffer of previous pass
+			GLCHECK(glBindFramebuffer(GL_READ_FRAMEBUFFER, _default_backbuffer_fbo));
+			GLCHECK(glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _blit_fbo));
+			GLCHECK(glReadBuffer(GL_COLOR_ATTACHMENT0));
+			GLCHECK(glDrawBuffer(GL_COLOR_ATTACHMENT0));
+			GLCHECK(glBlitFramebuffer(0, 0, _width, _height, 0, 0, _width, _height, GL_COLOR_BUFFER_BIT, GL_NEAREST));
+
+			// Setup render targets
+			GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, pass.fbo));
+			GLCHECK(glDrawBuffers(8, pass.draw_buffers));
+			GLCHECK(glViewport(0, 0, pass.viewport_width, pass.viewport_height));
+
+			if (pass.clear_render_targets)
+			{
+				for (GLuint k = 0; k < 8; k++)
+				{
+					if (pass.draw_buffers[k] == GL_NONE)
+					{
+						continue;
+					}
+
+					const GLfloat color[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+					GLCHECK(glClearBufferfv(GL_COLOR, k, color));
+				}
+			}
+
+			// Draw triangle
+			GLCHECK(glDrawArrays(GL_TRIANGLES, 0, 3));
+
+			// Update shader resources
+			for (GLuint id : pass.draw_textures)
+			{
+				for (GLsizei sampler = 0, samplerCount = static_cast<GLsizei>(_effect_samplers.size()); sampler < samplerCount; sampler++)
+				{
+					const auto texture = _effect_samplers[sampler].texture;
+
+					if (_effect_samplers[sampler].has_mipmaps && (texture->id[0] == id || texture->id[1] == id))
+					{
+						GLCHECK(glActiveTexture(GL_TEXTURE0 + sampler));
+						GLCHECK(glGenerateMipmap(GL_TEXTURE_2D));
+					}
+				}
+			}
+		}
+	}
 	void opengl_runtime::render_draw_lists(ImDrawData *draw_data)
 	{
 		// Setup render state: alpha-blending enabled, no face culling, no depth testing, scissor enabled
@@ -971,9 +983,9 @@ namespace reshade
 		// Update effect textures
 		for (auto &texture : _textures)
 		{
-			if (texture.type == texture_type::depthbuffer)
+			if (texture.impl_is_reference == 2)
 			{
-				update_texture_datatype(texture, texture_type::depthbuffer, _depth_texture, 0);
+				update_texture_reference(texture, 2);
 			}
 		}
 	}

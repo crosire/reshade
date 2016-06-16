@@ -67,10 +67,15 @@ namespace reshade
 		void on_present() override;
 		void on_draw_call(unsigned int vertices) override;
 		void on_apply_effect() override;
-		void on_apply_effect_technique(const technique &technique) override;
 		void on_fbo_attachment(GLenum target, GLenum attachment, GLenum objecttarget, GLuint object, GLint level);
 
-		static void update_texture_datatype(texture &texture, texture_type source, GLuint newtexture, GLuint newtexture_srgb);
+		void screenshot(uint8_t *buffer) const override;
+		bool update_effect(const reshadefx::syntax_tree &ast, std::string &errors) override;
+		bool update_texture(texture &texture, const uint8_t *data) override;
+		bool update_texture_reference(texture &texture, unsigned short id) override;
+
+		void render_technique(const technique &technique) override;
+		void render_draw_lists(ImDrawData *data) override;
 
 		HDC _hdc;
 
@@ -93,12 +98,6 @@ namespace reshade
 		bool init_fx_resources();
 		bool init_imgui_resources();
 		bool init_imgui_font_atlas();
-
-		void screenshot(uint8_t *buffer) const override;
-		bool update_effect(const reshadefx::syntax_tree &ast, std::string &errors) override;
-		bool update_texture(texture &texture, const uint8_t *data) override;
-
-		void render_draw_lists(ImDrawData *data) override;
 
 		void detect_depth_source();
 		void create_depth_texture(GLuint width, GLuint height, GLenum format);

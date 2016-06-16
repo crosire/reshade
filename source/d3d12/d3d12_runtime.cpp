@@ -62,10 +62,6 @@ namespace reshade
 	{
 		runtime::on_apply_effect();
 	}
-	void d3d12_runtime::on_apply_effect_technique(const technique &technique)
-	{
-		runtime::on_apply_effect_technique(technique);
-	}
 
 	void d3d12_runtime::screenshot(uint8_t *buffer) const
 	{
@@ -78,7 +74,14 @@ namespace reshade
 	{
 		return false;
 	}
+	bool d3d12_runtime::update_texture_reference(texture &texture, unsigned short id)
+	{
+		return false;
+	}
 
+	void d3d12_runtime::render_technique(const technique &technique)
+	{
+	}
 	void d3d12_runtime::render_draw_lists(ImDrawData *draw_data)
 	{
 	}

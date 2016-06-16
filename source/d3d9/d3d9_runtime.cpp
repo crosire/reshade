@@ -378,91 +378,6 @@ namespace reshade
 		// Apply post processing
 		runtime::on_apply_effect();
 	}
-	void d3d9_runtime::on_apply_effect_technique(const technique &technique)
-	{
-		runtime::on_apply_effect_technique(technique);
-
-		bool is_default_depthstencil_cleared = false;
-
-		// Setup shader constants
-		if (technique.uniform_storage_index >= 0)
-		{
-			const auto uniform_storage_data = reinterpret_cast<const float *>(get_uniform_value_storage().data() + technique.uniform_storage_offset);
-			_device->SetVertexShaderConstantF(0, uniform_storage_data, technique.uniform_storage_index);
-			_device->SetPixelShaderConstantF(0, uniform_storage_data, technique.uniform_storage_index);
-		}
-
-		for (const auto &pass_ptr : technique.passes)
-		{
-			const auto &pass = *static_cast<const d3d9_pass_data *>(pass_ptr.get());
-
-			// Setup states
-			pass.stateblock->Apply();
-
-			// Save back buffer of previous pass
-			_device->StretchRect(_backbuffer_resolved.get(), nullptr, _backbuffer_texture_surface.get(), nullptr, D3DTEXF_NONE);
-
-			// Setup shader resources
-			for (DWORD sampler = 0; sampler < pass.sampler_count; sampler++)
-			{
-				_device->SetTexture(sampler, pass.samplers[sampler].texture->texture.get());
-
-				for (DWORD state = D3DSAMP_ADDRESSU; state <= D3DSAMP_SRGBTEXTURE; state++)
-				{
-					_device->SetSamplerState(sampler, static_cast<D3DSAMPLERSTATETYPE>(state), pass.samplers[sampler].states[state]);
-				}
-			}
-
-			// Setup render targets
-			for (DWORD target = 0; target < _num_simultaneous_rendertargets; target++)
-			{
-				_device->SetRenderTarget(target, pass.render_targets[target]);
-			}
-
-			D3DVIEWPORT9 viewport;
-			_device->GetViewport(&viewport);
-
-			const float texelsize[4] = { -1.0f / viewport.Width, 1.0f / viewport.Height };
-			_device->SetVertexShaderConstantF(255, texelsize, 1);
-
-			const bool is_viewport_sized = viewport.Width == _width && viewport.Height == _height;
-
-			_device->SetDepthStencilSurface(is_viewport_sized ? _default_depthstencil.get() : nullptr);
-
-			if (is_viewport_sized && !is_default_depthstencil_cleared)
-			{
-				is_default_depthstencil_cleared = true;
-
-				_device->Clear(0, nullptr, (pass.clear_render_targets ? D3DCLEAR_TARGET : 0) | D3DCLEAR_ZBUFFER | D3DCLEAR_STENCIL, 0, 1.0f, 0);
-			}
-			else if (pass.clear_render_targets)
-			{
-				_device->Clear(0, nullptr, D3DCLEAR_TARGET, 0, 0.0f, 0);
-			}
-
-			// Draw triangle
-			_device->DrawPrimitive(D3DPT_TRIANGLELIST, 0, 1);
-
-			runtime::on_draw_call(3);
-
-			// Update shader resources
-			for (const auto target : pass.render_targets)
-			{
-				if (target == nullptr || target == _backbuffer_resolved)
-				{
-					continue;
-				}
-
-				com_ptr<IDirect3DBaseTexture9> texture;
-
-				if (SUCCEEDED(target->GetContainer(IID_PPV_ARGS(&texture))) && texture->GetLevelCount() > 1)
-				{
-					texture->SetAutoGenFilterType(D3DTEXF_LINEAR);
-					texture->GenerateMipSubLevels();
-				}
-			}
-		}
-	}
 
 	void d3d9_runtime::on_set_depthstencil_surface(IDirect3DSurface9 *&depthstencil)
 	{
@@ -568,23 +483,22 @@ namespace reshade
 	}
 	bool d3d9_runtime::update_texture(texture &texture, const uint8_t *data)
 	{
+		if (texture.impl_is_reference)
+		{
+			return false;
+		}
+
 		const auto texture_impl = texture.impl->as<d3d9_tex_data>();
 
 		assert(data != nullptr);
 		assert(texture_impl != nullptr);
 
-		if (texture.type != texture_type::image)
-		{
-			return false;
-		}
-
-		HRESULT hr;
 		D3DSURFACE_DESC desc;
 		texture_impl->texture->GetLevelDesc(0, &desc);
 
 		com_ptr<IDirect3DTexture9> mem_texture;
 
-		hr = _device->CreateTexture(desc.Width, desc.Height, 1, 0, desc.Format, D3DPOOL_SYSTEMMEM, &mem_texture, nullptr);
+		HRESULT hr = _device->CreateTexture(desc.Width, desc.Height, 1, 0, desc.Format, D3DPOOL_SYSTEMMEM, &mem_texture, nullptr);
 
 		if (FAILED(hr))
 		{
@@ -644,42 +558,142 @@ namespace reshade
 
 		return true;
 	}
-	void d3d9_runtime::update_texture_datatype(texture &texture, texture_type source, const com_ptr<IDirect3DTexture9> &newtexture)
+	bool d3d9_runtime::update_texture_reference(texture &texture, unsigned short id)
 	{
+		com_ptr<IDirect3DTexture9> new_reference;
+
+		switch (id)
+		{
+			case 1:
+				new_reference = _backbuffer_texture;
+				break;
+			case 2:
+				new_reference = _depthstencil_texture;
+				break;
+			default:
+				return false;
+		}
+
+		texture.impl_is_reference = id;
+
 		const auto texture_impl = texture.impl->as<d3d9_tex_data>();
 
 		assert(texture_impl != nullptr);
 
-		texture.type = source;
-
-		if (texture_impl->texture == newtexture)
+		if (new_reference == nullptr)
 		{
-			return;
-		}
+			texture_impl->texture.reset();
+			texture_impl->surface.reset();
 
-		texture_impl->texture.reset();
-		texture_impl->surface.reset();
-
-		if (newtexture != nullptr)
-		{
-			texture_impl->texture = newtexture;
-			newtexture->GetSurfaceLevel(0, &texture_impl->surface);
-
-			D3DSURFACE_DESC desc;
-			texture_impl->surface->GetDesc(&desc);
-
-			texture.width = desc.Width;
-			texture.height = desc.Height;
-			texture.format = texture_format::unknown;
-			texture.levels = newtexture->GetLevelCount();
-		}
-		else
-		{
 			texture.width = texture.height = texture.levels = 0;
 			texture.format = texture_format::unknown;
+			return true;
 		}
+
+		if (new_reference == texture_impl->texture)
+		{
+			return true;
+		}
+
+		texture_impl->texture = new_reference;
+		texture_impl->surface = nullptr;
+
+		new_reference->GetSurfaceLevel(0, &texture_impl->surface);
+
+		D3DSURFACE_DESC desc;
+		texture_impl->surface->GetDesc(&desc);
+
+		texture.width = desc.Width;
+		texture.height = desc.Height;
+		texture.format = texture_format::unknown;
+		texture.levels = new_reference->GetLevelCount();
+
+		return true;
 	}
 
+	void d3d9_runtime::render_technique(const technique &technique)
+	{
+		bool is_default_depthstencil_cleared = false;
+
+		// Setup shader constants
+		if (technique.uniform_storage_index >= 0)
+		{
+			const auto uniform_storage_data = reinterpret_cast<const float *>(get_uniform_value_storage().data() + technique.uniform_storage_offset);
+			_device->SetVertexShaderConstantF(0, uniform_storage_data, technique.uniform_storage_index);
+			_device->SetPixelShaderConstantF(0, uniform_storage_data, technique.uniform_storage_index);
+		}
+
+		for (const auto &pass_ptr : technique.passes)
+		{
+			const auto &pass = *static_cast<const d3d9_pass_data *>(pass_ptr.get());
+
+			// Setup states
+			pass.stateblock->Apply();
+
+			// Save back buffer of previous pass
+			_device->StretchRect(_backbuffer_resolved.get(), nullptr, _backbuffer_texture_surface.get(), nullptr, D3DTEXF_NONE);
+
+			// Setup shader resources
+			for (DWORD sampler = 0; sampler < pass.sampler_count; sampler++)
+			{
+				_device->SetTexture(sampler, pass.samplers[sampler].texture->texture.get());
+
+				for (DWORD state = D3DSAMP_ADDRESSU; state <= D3DSAMP_SRGBTEXTURE; state++)
+				{
+					_device->SetSamplerState(sampler, static_cast<D3DSAMPLERSTATETYPE>(state), pass.samplers[sampler].states[state]);
+				}
+			}
+
+			// Setup render targets
+			for (DWORD target = 0; target < _num_simultaneous_rendertargets; target++)
+			{
+				_device->SetRenderTarget(target, pass.render_targets[target]);
+			}
+
+			D3DVIEWPORT9 viewport;
+			_device->GetViewport(&viewport);
+
+			const float texelsize[4] = { -1.0f / viewport.Width, 1.0f / viewport.Height };
+			_device->SetVertexShaderConstantF(255, texelsize, 1);
+
+			const bool is_viewport_sized = viewport.Width == _width && viewport.Height == _height;
+
+			_device->SetDepthStencilSurface(is_viewport_sized ? _default_depthstencil.get() : nullptr);
+
+			if (is_viewport_sized && !is_default_depthstencil_cleared)
+			{
+				is_default_depthstencil_cleared = true;
+
+				_device->Clear(0, nullptr, (pass.clear_render_targets ? D3DCLEAR_TARGET : 0) | D3DCLEAR_ZBUFFER | D3DCLEAR_STENCIL, 0, 1.0f, 0);
+			}
+			else if (pass.clear_render_targets)
+			{
+				_device->Clear(0, nullptr, D3DCLEAR_TARGET, 0, 0.0f, 0);
+			}
+
+			// Draw triangle
+			_device->DrawPrimitive(D3DPT_TRIANGLELIST, 0, 1);
+
+			runtime::on_draw_call(3);
+
+			// Update shader resources
+			for (const auto target : pass.render_targets)
+			{
+				if (target == nullptr || target == _backbuffer_resolved)
+				{
+					continue;
+				}
+
+				com_ptr<IDirect3DBaseTexture9> texture;
+
+				if (SUCCEEDED(target->GetContainer(IID_PPV_ARGS(&texture))) && texture->GetLevelCount() > 1)
+				{
+					texture->SetAutoGenFilterType(D3DTEXF_LINEAR);
+					texture->GenerateMipSubLevels();
+				}
+			}
+		}
+	}
 	void d3d9_runtime::render_draw_lists(ImDrawData *draw_data)
 	{
 		// Fixed-function vertex layout
@@ -969,9 +983,9 @@ namespace reshade
 		// Update effect textures
 		for (auto &texture : _textures)
 		{
-			if (texture.type == texture_type::depthbuffer)
+			if (texture.impl_is_reference == 2)
 			{
-				update_texture_datatype(texture, texture_type::depthbuffer, _depthstencil_texture);
+				update_texture_reference(texture, 2);
 			}
 		}
 

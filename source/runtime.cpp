@@ -459,30 +459,28 @@ namespace reshade
 				continue;
 			}
 
+			for (auto &variable : _uniforms)
+			{
+				const auto it = variable.annotations.find("source");
+
+				if (it == variable.annotations.end())
+				{
+					continue;
+				}
+
+				const auto source = it->second.as<std::string>();
+
+				if (source == "timeleft")
+				{
+					set_uniform_value(variable, &technique.timeleft, 1);
+				}
+			}
+
 			const auto time_technique_started = std::chrono::high_resolution_clock::now();
 
-			on_apply_effect_technique(technique);
+			render_technique(technique);
 
 			technique.average_duration.append(std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now() - time_technique_started).count());
-		}
-	}
-	void runtime::on_apply_effect_technique(const technique &technique)
-	{
-		for (auto &variable : _uniforms)
-		{
-			const auto it = variable.annotations.find("source");
-
-			if (it == variable.annotations.end())
-			{
-				continue;
-			}
-
-			const auto source = it->second.as<std::string>();
-
-			if (source == "timeleft")
-			{
-				set_uniform_value(variable, &technique.timeleft, 1);
-			}
 		}
 	}
 
@@ -512,7 +510,7 @@ namespace reshade
 						if (!variable->type.has_qualifier(reshadefx::nodes::type_node::qualifier_uniform) ||
 							variable->initializer_expression == nullptr ||
 							variable->initializer_expression->id != reshadefx::nodeid::literal_expression ||
-							variable->annotations.count("source"))
+							variable->annotation_list.count("source"))
 						{
 							continue;
 						}
@@ -692,6 +690,11 @@ namespace reshade
 	{
 		for (auto &texture : _textures)
 		{
+			if (texture.impl_is_reference)
+			{
+				continue;
+			}
+
 			const auto it = texture.annotations.find("source");
 
 			if (it == texture.annotations.end())
@@ -1417,6 +1420,11 @@ namespace reshade
 		{
 			for (const auto &texture : _textures)
 			{
+				if (texture.impl_is_reference)
+				{
+					continue;
+				}
+
 				ImGui::Text("%s: %ux%u+%u (%uB)", texture.name.c_str(), texture.width, texture.height, (texture.levels - 1), (texture.width * texture.height * 4));
 			}
 		}

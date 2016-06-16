@@ -1406,7 +1406,7 @@ namespace reshade
 		const auto obj_data = obj.impl->as<d3d9_tex_data>();
 		obj.name = node->name;
 		obj.unique_name = node->unique_name;
-		obj.annotations = node->annotations;
+		obj.annotations = node->annotation_list;
 		UINT width = obj.width = node->properties.width;
 		UINT height = obj.height = node->properties.height;
 		UINT levels = obj.levels = node->properties.levels;
@@ -1414,11 +1414,11 @@ namespace reshade
 
 		if (node->semantic == "COLOR" || node->semantic == "SV_TARGET")
 		{
-			_runtime->update_texture_datatype(obj, texture_type::backbuffer, _runtime->_backbuffer_texture);
+			_runtime->update_texture_reference(obj, 1);
 		}
 		else if (node->semantic == "DEPTH" || node->semantic == "SV_DEPTH")
 		{
-			_runtime->update_texture_datatype(obj, texture_type::depthbuffer, _runtime->_depthstencil_texture);
+			_runtime->update_texture_reference(obj, 2);
 		}
 		else
 		{
@@ -1540,7 +1540,7 @@ namespace reshade
 		obj.storage_offset = _uniform_storage_offset + _constant_register_count * 16;
 		_constant_register_count += (obj.storage_size + 4 - (obj.storage_size % 4)) / 4;
 		obj.storage_size *= 4;
-		obj.annotations = node->annotations;
+		obj.annotations = node->annotation_list;
 
 		auto &uniform_storage = _runtime->get_uniform_value_storage();
 

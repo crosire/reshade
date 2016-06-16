@@ -1438,7 +1438,7 @@ namespace reshade
 		D3D11_TEXTURE2D_DESC texdesc = { };
 		obj.name = node->name;
 		obj.unique_name = node->unique_name;
-		obj.annotations = node->annotations;
+		obj.annotations = node->annotation_list;
 		obj_data->shader_register = _runtime->_effect_shader_resources.size();
 		texdesc.Width = obj.width = node->properties.width;
 		texdesc.Height = obj.height = node->properties.height;
@@ -1453,11 +1453,11 @@ namespace reshade
 
 		if (node->semantic == "COLOR" || node->semantic == "SV_TARGET")
 		{
-			_runtime->update_texture_datatype(obj, texture_type::backbuffer, _runtime->_backbuffer_texture_srv[0], _runtime->_backbuffer_texture_srv[1]);
+			_runtime->update_texture_reference(obj, 1);
 		}
 		else if (node->semantic == "DEPTH" || node->semantic == "SV_DEPTH")
 		{
-			_runtime->update_texture_datatype(obj, texture_type::depthbuffer, _runtime->_depthstencil_texture_srv, nullptr);
+			_runtime->update_texture_reference(obj, 2);
 		}
 		else
 		{
@@ -1602,7 +1602,7 @@ namespace reshade
 		obj.columns = node->type.cols;
 		obj.elements = node->type.array_length;
 		obj.storage_size = node->type.rows * node->type.cols;
-		obj.annotations = node->annotations;
+		obj.annotations = node->annotation_list;
 
 		switch (node->type.basetype)
 		{

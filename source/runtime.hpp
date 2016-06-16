@@ -68,7 +68,7 @@ namespace reshade
 		unsigned int frame_height() const { return _height; }
 
 		/// <summary>
-		/// Add a new texture. This transfers ownership of the pointer to this class.
+		/// Add a new texture.
 		/// </summary>
 		/// <param name="texture">The texture to add.</param>
 		void add_texture(texture &&texture);
@@ -99,8 +99,15 @@ namespace reshade
 		/// Update the image data of a texture.
 		/// </summary>
 		/// <param name="texture">The texture to update.</param>
-		/// <param name="data">The RGBA image data to update the texture to.</param>
+		/// <param name="data">The 32bpp RGBA image data to update the texture to.</param>
 		virtual bool update_texture(texture &texture, const uint8_t *data) = 0;
+		/// <summary>
+		/// Replace texture with a reference to special data.
+		/// </summary>
+		/// <param name="texture">The texture to update.</param>
+		/// <param name="id">The number identifying the special data this texture should reference.</param>
+		virtual bool update_texture_reference(texture &texture, unsigned short id) = 0;
+
 		/// <summary>
 		/// Return a reference to the uniform storage buffer.
 		/// </summary>
@@ -143,11 +150,11 @@ namespace reshade
 		/// </summary>
 		virtual void on_reset_effect();
 		/// <summary>
-		/// Callback function called at the end of each frame.
+		/// Callback function called every frame.
 		/// </summary>
 		virtual void on_present();
 		/// <summary>
-		/// Callback function called at every draw call.
+		/// Callback function called every draw call.
 		/// </summary>
 		/// <param name="vertices">The number of vertices this draw call generates.</param>
 		virtual void on_draw_call(unsigned int vertices);
@@ -155,14 +162,14 @@ namespace reshade
 		/// Callback function called to apply the post-processing effects to the screen.
 		/// </summary>
 		virtual void on_apply_effect();
-		/// <summary>
-		/// Callback function called to render the specified effect technique.
-		/// </summary>
-		/// <param name="technique">The technique to render.</param>
-		virtual void on_apply_effect_technique(const technique &technique);
 
 		/// <summary>
-		/// Render ImGui draw lists.
+		/// Render all passes in a technique.
+		/// </summary>
+		/// <param name="technique">The technique to render.</param>
+		virtual void render_technique(const technique &technique) = 0;
+		/// <summary>
+		/// Render draw lists obtained from ImGui.
 		/// </summary>
 		/// <param name="data">The draw data to render.</param>
 		virtual void render_draw_lists(ImDrawData *draw_data) = 0;

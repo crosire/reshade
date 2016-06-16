@@ -3023,7 +3023,7 @@ namespace reshadefx
 			return true;
 		}
 
-		parse_annotations(variable->annotations);
+		parse_annotations(variable->annotation_list);
 
 		if (accept('='))
 		{

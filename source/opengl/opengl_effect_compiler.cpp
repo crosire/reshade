@@ -2111,7 +2111,7 @@ namespace reshade
 		const auto obj_data = obj.impl->as<opengl_tex_data>();
 		obj.name = node->name;
 		obj.unique_name = node->unique_name;
-		obj.annotations = node->annotations;
+		obj.annotations = node->annotation_list;
 		GLuint width = obj.width = node->properties.width;
 		GLuint height = obj.height = node->properties.height;
 		GLuint levels = obj.levels = node->properties.levels;
@@ -2128,11 +2128,11 @@ namespace reshade
 
 		if (node->semantic == "COLOR" || node->semantic == "SV_TARGET")
 		{
-			_runtime->update_texture_datatype(obj, texture_type::backbuffer, _runtime->_backbuffer_texture[0], _runtime->_backbuffer_texture[1]);
+			_runtime->update_texture_reference(obj, 1);
 		}
 		else if (node->semantic == "DEPTH" || node->semantic == "SV_DEPTH")
 		{
-			_runtime->update_texture_datatype(obj, texture_type::depthbuffer, _runtime->_depth_texture, 0);
+			_runtime->update_texture_reference(obj, 2);
 		}
 		else
 		{
@@ -2228,7 +2228,7 @@ namespace reshade
 		obj.elements = node->type.array_length;
 		obj.storage_size = obj.rows * obj.columns * std::max(1u, obj.elements) * 4;
 		obj.basetype = static_cast<uniform_datatype>(node->type.basetype - 1);
-		obj.annotations = node->annotations;
+		obj.annotations = node->annotation_list;
 
 		// GLSL specification on std140 layout:
 		// 1. If the member is a scalar consuming N basic machine units, the base alignment is N.

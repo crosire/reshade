@@ -42,13 +42,18 @@ namespace reshade
 		void on_present() override;
 		void on_draw_call(ID3D11DeviceContext *context, unsigned int vertices);
 		void on_apply_effect() override;
-		void on_apply_effect_technique(const technique &technique) override;
 		void on_set_depthstencil_view(ID3D11DepthStencilView *&depthstencil);
 		void on_get_depthstencil_view(ID3D11DepthStencilView *&depthstencil);
 		void on_clear_depthstencil_view(ID3D11DepthStencilView *&depthstencil);
 		void on_copy_resource(ID3D11Resource *&dest, ID3D11Resource *&source);
 
-		void update_texture_datatype(texture &texture, texture_type source, const com_ptr<ID3D11ShaderResourceView> &srv, const com_ptr<ID3D11ShaderResourceView> &srvSRGB);
+		void screenshot(uint8_t *buffer) const override;
+		bool update_effect(const reshadefx::syntax_tree &ast, std::string &errors) override;
+		bool update_texture(texture &texture, const uint8_t *data) override;
+		bool update_texture_reference(texture &texture, unsigned short) override;
+
+		void render_technique(const technique &technique) override;
+		void render_draw_lists(ImDrawData *data) override;
 
 		com_ptr<ID3D11Device> _device;
 		com_ptr<ID3D11DeviceContext> _immediate_context;
@@ -74,12 +79,6 @@ namespace reshade
 		bool init_fx_resources();
 		bool init_imgui_resources();
 		bool init_imgui_font_atlas();
-
-		void screenshot(uint8_t *buffer) const override;
-		bool update_effect(const reshadefx::syntax_tree &ast, std::string &errors) override;
-		bool update_texture(texture &texture, const uint8_t *data) override;
-
-		void render_draw_lists(ImDrawData *data) override;
 
 		void detect_depth_source();
 		bool create_depthstencil_replacement(ID3D11DepthStencilView *depthstencil);
