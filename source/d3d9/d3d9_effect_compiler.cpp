@@ -1532,7 +1532,7 @@ namespace reshade
 		uniform obj;
 		obj.name = node->name;
 		obj.unique_name = node->unique_name;
-		obj.basetype = uniform_datatype::float_;
+		obj.basetype = node->type.basetype == type_node::datatype_bool ? uniform_datatype::bool_ : uniform_datatype::float_;
 		obj.rows = node->type.rows;
 		obj.columns = node->type.cols;
 		obj.elements = node->type.array_length;

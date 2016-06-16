@@ -1488,8 +1488,6 @@ Libraries in use:\n\
 			}
 
 			bool modified = false;
-			float data[4] = { };
-			get_uniform_value(variable, data, 4);
 
 			const std::string filename = filesystem::path(variable.annotations.at("__FILE__").as<std::string>()).filename();
 			const auto ui_type = variable.annotations["ui_type"].as<std::string>();
@@ -1498,49 +1496,68 @@ Libraries in use:\n\
 
 			ImGui::PushID(id);
 
-			if (ui_type == "drag")
+			switch (variable.basetype)
 			{
-				switch (variable.rows)
+				case uniform_datatype::bool_:
 				{
-					case 1:
-						modified = ImGui::DragFloat(ui_label.c_str(), data, variable.annotations["ui_step"].as<float>(), variable.annotations["ui_min"].as<float>(), variable.annotations["ui_max"].as<float>());
-						break;
-					case 2:
-						modified = ImGui::DragFloat2(ui_label.c_str(), data, variable.annotations["ui_step"].as<float>(), variable.annotations["ui_min"].as<float>(), variable.annotations["ui_max"].as<float>());
-						break;
-					case 3:
-						modified = ImGui::DragFloat3(ui_label.c_str(), data, variable.annotations["ui_step"].as<float>(), variable.annotations["ui_min"].as<float>(), variable.annotations["ui_max"].as<float>());
-						break;
-					case 4:
-						modified = ImGui::DragFloat4(ui_label.c_str(), data, variable.annotations["ui_step"].as<float>(), variable.annotations["ui_min"].as<float>(), variable.annotations["ui_max"].as<float>());
-						break;
+					bool data[1] = { };
+					get_uniform_value(variable, data, 1);
+
+					if (ImGui::Checkbox(ui_label.c_str(), data))
+					{
+						set_uniform_value(variable, data, 1);
+					}
+					break;
 				}
-			}
-			else if (ui_type == "input" || (ui_type.empty() && variable.rows < 3))
-			{
-				switch (variable.rows)
+				case uniform_datatype::int_:
+				case uniform_datatype::uint_:
 				{
-					case 1:
-						modified = ImGui::InputFloat(ui_label.c_str(), data);
-						break;
-					case 2:
-						modified = ImGui::InputFloat2(ui_label.c_str(), data);
-						break;
-					case 3:
-						modified = ImGui::InputFloat3(ui_label.c_str(), data);
-						break;
-					case 4:
-						modified = ImGui::InputFloat4(ui_label.c_str(), data);
-						break;
+					int data[4] = { };
+					get_uniform_value(variable, data, 4);
+
+					if (ui_type == "drag")
+					{
+						modified = ImGui::DragIntN(ui_label.c_str(), data, variable.rows, variable.annotations["ui_step"].as<int>(), variable.annotations["ui_min"].as<int>(), variable.annotations["ui_max"].as<int>(), "%d");
+					}
+					else
+					{
+						modified = ImGui::InputIntN(ui_label.c_str(), data, variable.rows, 0);
+					}
+
+					if (modified)
+					{
+						set_uniform_value(variable, data, 4);
+					}
+					break;
 				}
-			}
-			else if (variable.rows == 3)
-			{
-				modified = ImGui::ColorEdit3(ui_label.c_str(), data);
-			}
-			else if (variable.rows == 4)
-			{
-				modified = ImGui::ColorEdit4(ui_label.c_str(), data);
+				case uniform_datatype::float_:
+				{
+					float data[4] = { };
+					get_uniform_value(variable, data, 4);
+
+					if (ui_type == "drag")
+					{
+						modified = ImGui::DragFloatN(ui_label.c_str(), data, variable.rows, variable.annotations["ui_step"].as<float>(), variable.annotations["ui_min"].as<float>(), variable.annotations["ui_max"].as<float>(), "%.3f", 1.0f);
+					}
+					else if (ui_type == "input" || (ui_type.empty() && variable.rows < 3))
+					{
+						modified = ImGui::InputFloatN(ui_label.c_str(), data, variable.rows, 8, 0);
+					}
+					else if (variable.rows == 3)
+					{
+						modified = ImGui::ColorEdit3(ui_label.c_str(), data);
+					}
+					else if (variable.rows == 4)
+					{
+						modified = ImGui::ColorEdit4(ui_label.c_str(), data);
+					}
+
+					if (modified)
+					{
+						set_uniform_value(variable, data, 4);
+					}
+					break;
+				}
 			}
 
 			if (ImGui::IsItemHovered() && !ui_tooltip.empty())
@@ -1550,14 +1567,9 @@ Libraries in use:\n\
 
 			ImGui::PopID();
 
-			if (modified)
+			if (_current_preset >= 0 && modified)
 			{
-				set_uniform_value(variable, data, 4);
-
-				if (_current_preset >= 0)
-				{
-					save_preset(_preset_files[_current_preset]);
-				}
+				save_preset(_preset_files[_current_preset]);
 			}
 		}
 	}
