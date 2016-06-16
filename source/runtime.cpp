@@ -51,31 +51,6 @@ namespace reshade
 		};
 	}
 
-	template <>
-	variant::variant(const ImVec2 &value) : _values(2)
-	{
-		_values[0] = std::to_string(value.x);
-		_values[1] = std::to_string(value.y);
-	}
-	template <>
-	variant::variant(const ImVec4 &value) : _values(4)
-	{
-		_values[0] = std::to_string(value.x);
-		_values[1] = std::to_string(value.y);
-		_values[2] = std::to_string(value.z);
-		_values[3] = std::to_string(value.w);
-	}
-	template <>
-	inline const ImVec2 variant::as(size_t i) const
-	{
-		return ImVec2(as<float>(i), as<float>(i + 1));
-	}
-	template <>
-	inline const ImVec4 variant::as(size_t i) const
-	{
-		return ImVec4(as<float>(i), as<float>(i + 1), as<float>(i + 2), as<float>(i + 3));
-	}
-
 	void runtime::startup(const filesystem::path &executable_path, const filesystem::path &injector_path)
 	{
 		s_injector_path = injector_path;
@@ -680,12 +655,7 @@ namespace reshade
 			}
 		}
 
-		if (!pa.run(pp.current_output()))
-		{
-			return false;
-		}
-
-		return true;
+		return pa.run(pp.current_output());
 	}
 	void runtime::load_textures()
 	{
@@ -940,9 +910,9 @@ namespace reshade
 			_show_menu = !_show_menu;
 		}
 
-		g_block_cursor_reset = _show_menu || _show_developer_menu;
+		g_block_cursor_reset = _show_menu || _show_shader_editor;
 
-		if (!(_show_menu || _show_developer_menu || show_splash))
+		if (!(_show_menu || _show_shader_editor || _show_error_log || show_splash))
 		{
 			_input->block_mouse_input(false);
 			_input->block_keyboard_input(false);
@@ -1002,7 +972,7 @@ namespace reshade
 			if (has_errors)
 			{
 				ImGui::Spacing();
-				ImGui::TextColored(ImVec4(1, 0, 0, 1), "There were errors compiling some shaders. Open 'Settings' and switch to developer mode for more details.");
+				ImGui::TextColored(ImVec4(1, 0, 0, 1), "There were errors compiling some shaders. Click on 'Show error log' on the overlay settings menu for more details.");
 			}
 
 			ImGui::End();
@@ -1013,7 +983,7 @@ namespace reshade
 
 		if (_show_menu)
 		{
-			ImGui::SetNextWindowSize(ImVec2(600, 500), ImGuiSetCond_FirstUseEver);
+			ImGui::SetNextWindowSize(ImVec2(800, 600), ImGuiSetCond_FirstUseEver);
 			ImGui::SetNextWindowPosCenter(ImGuiSetCond_FirstUseEver);
 			ImGui::Begin("ReShade " VERSION_STRING_FILE " by crosire###Main", &_show_menu, ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoCollapse);
 
@@ -1021,18 +991,22 @@ namespace reshade
 
 			ImGui::End();
 		}
-		if (_show_developer_menu)
+		if (_show_shader_editor)
 		{
-			ImGui::SetNextWindowSize(ImVec2(500, 200), ImGuiSetCond_FirstUseEver);
+			ImGui::SetNextWindowSize(ImVec2(500, 300), ImGuiSetCond_FirstUseEver);
 
-			if (ImGui::Begin("Shader Editor", &_show_developer_menu))
+			if (ImGui::Begin("Shader Editor", &_show_shader_editor))
 			{
 				draw_overlay_shader_editor();
 			}
 
 			ImGui::End();
+		}
+		if (_show_error_log)
+		{
+			ImGui::SetNextWindowSize(ImVec2(500, 100), ImGuiSetCond_FirstUseEver);
 
-			if (ImGui::Begin("Effect Compiler Log"))
+			if (ImGui::Begin("Error Log", &_show_error_log))
 			{
 				ImGui::PushTextWrapPos(0.0f);
 
@@ -1156,10 +1130,6 @@ namespace reshade
 
 					ImGui::CloseCurrentPopup();
 				}
-				else
-				{
-
-				}
 			}
 
 			ImGui::EndPopup();
@@ -1251,7 +1221,15 @@ namespace reshade
 
 		if (ImGui::CollapsingHeader("General", ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_DefaultOpen))
 		{
-			ImGui::Checkbox("Block input outside overlay when visible", &_block_input_outside_overlay);
+			if (ImGui::Checkbox("Block input outside overlay", &_block_input_outside_overlay))
+			{
+				save_configuration();
+			}
+
+			ImGui::SameLine(0.0f, 10.0f);
+			ImGui::Checkbox("Show shader editor", &_show_shader_editor);
+			ImGui::SameLine(0.0f, 10.0f);
+			ImGui::Checkbox("Show error log", &_show_error_log);
 
 			assert(_menu_key.keycode < 256);
 
@@ -1284,12 +1262,11 @@ namespace reshade
 				ImGui::SetTooltip("Click in the field and press any key to change the shortcut to that key.");
 			}
 
-			int overlay_mode_index = _performance_mode ? 0 : _show_developer_menu ? 2 : 1;
+			int usage_mode_index = _performance_mode ? 0 : 1;
 
-			if (ImGui::Combo("Overlay Mode", &overlay_mode_index, "Performance Mode\0Configuration Mode\0Developer Mode\0"))
+			if (ImGui::Combo("Usage Mode", &usage_mode_index, "Performance Mode\0Configuration Mode\0"))
 			{
-				_performance_mode = overlay_mode_index == 0;
-				_show_developer_menu = overlay_mode_index == 2;
+				_performance_mode = usage_mode_index == 0;
 
 				save_configuration();
 				reload();
