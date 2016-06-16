@@ -63,7 +63,7 @@ namespace reshadefx
 		bool parse_statement_block(nodes::statement_node *&statement, bool scoped = true);
 		bool parse_statement_declarator_list(nodes::statement_node *&statement);
 		bool parse_array(int &size);
-		bool parse_annotations(std::vector<nodes::annotation_node> &annotations);
+		bool parse_annotations(std::unordered_map<std::string, reshade::variant> &annotations);
 		bool parse_struct(nodes::struct_declaration_node *&structure);
 		bool parse_function_residue(nodes::type_node &type, std::string name, nodes::function_declaration_node *&function);
 		bool parse_variable_residue(nodes::type_node &type, std::string name, nodes::variable_declaration_node *&variable, bool global = false);

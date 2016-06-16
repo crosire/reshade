@@ -1,5 +1,6 @@
 #pragma once
 
+#include "variant.hpp"
 #include "location.hpp"
 #include "runtime_objects.hpp"
 
@@ -424,13 +425,6 @@ namespace reshadefx
 		};
 
 		// Declarations
-		struct annotation_node : public node
-		{
-			annotation_node() : node(nodeid::annotation) { }
-
-			std::string name;
-			literal_expression_node *value;
-		};
 		struct variable_properties
 		{
 			variable_properties() :
@@ -461,7 +455,7 @@ namespace reshadefx
 			variable_declaration_node() : declaration_node(nodeid::variable_declaration) { }
 
 			type_node type;
-			std::vector<annotation_node> annotations;
+			std::unordered_map<std::string, reshade::variant> annotations;
 			std::string semantic;
 			variable_properties properties;
 			expression_node *initializer_expression;
@@ -545,7 +539,7 @@ namespace reshadefx
 				stencil_op_depth_fail(KEEP)
 			{ }
 
-			std::vector<annotation_node> annotation_list;
+			std::unordered_map<std::string, reshade::variant> annotation_list;
 			const variable_declaration_node *render_targets[8];
 			const function_declaration_node *vertex_shader, *pixel_shader;
 			bool clear_render_targets, srgb_write_enable, blend_enable, depth_enable, stencil_enable;
@@ -556,7 +550,7 @@ namespace reshadefx
 		{
 			technique_declaration_node() : declaration_node(nodeid::technique_declaration) { }
 
-			std::vector<annotation_node> annotation_list;
+			std::unordered_map<std::string, reshade::variant> annotation_list;
 			std::vector<pass_declaration_node *> pass_list;
 		};
 	}

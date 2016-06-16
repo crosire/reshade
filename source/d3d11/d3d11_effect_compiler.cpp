@@ -1430,30 +1430,6 @@ namespace reshade
 		_is_in_function_block = false;
 	}
 
-	template <typename T>
-	void visit_annotation(const std::vector<annotation_node> &annotations, T &object)
-	{
-		for (auto &item : annotations)
-		{
-			switch (item.value->type.basetype)
-			{
-				case type_node::datatype_bool:
-				case type_node::datatype_int:
-					object.annotations[item.name] = annotation(item.value->value_int, 4);
-					break;
-				case type_node::datatype_uint:
-					object.annotations[item.name] = annotation(item.value->value_uint, 4);
-					break;
-				case type_node::datatype_float:
-					object.annotations[item.name] = annotation(item.value->value_float, 4);
-					break;
-				case type_node::datatype_string:
-					object.annotations[item.name] = item.value->value_string;
-					break;
-			}
-		}
-	}
-
 	void d3d11_effect_compiler::visit_texture(const variable_declaration_node *node)
 	{
 		const auto obj = new d3d11_texture();
@@ -1461,6 +1437,7 @@ namespace reshade
 		obj->name = node->name;
 		obj->unique_name = node->unique_name;
 		obj->shader_register = _runtime->_effect_shader_resources.size();
+		obj->annotations = node->annotations;
 		texdesc.Width = obj->width = node->properties.width;
 		texdesc.Height = obj->height = node->properties.height;
 		texdesc.MipLevels = obj->levels = node->properties.levels;
@@ -1471,8 +1448,6 @@ namespace reshade
 		texdesc.Usage = D3D11_USAGE_DEFAULT;
 		texdesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
 		texdesc.MiscFlags = D3D11_RESOURCE_MISC_GENERATE_MIPS;
-
-		visit_annotation(node->annotations, *obj);
 
 		if (node->semantic == "COLOR" || node->semantic == "SV_TARGET")
 		{
@@ -1633,6 +1608,7 @@ namespace reshade
 		obj.columns = node->type.cols;
 		obj.elements = node->type.array_length;
 		obj.storage_size = node->type.rows * node->type.cols;
+		obj.annotations = node->annotations;
 
 		switch (node->type.basetype)
 		{
@@ -1658,8 +1634,6 @@ namespace reshade
 		_constant_buffer_size += static_cast<UINT>((obj.storage_size > alignment && (alignment != 16 || obj.storage_size <= 16)) ? obj.storage_size + alignment : obj.storage_size);
 		obj.storage_offset = _uniform_storage_offset + _constant_buffer_size - obj.storage_size;
 
-		visit_annotation(node->annotations, obj);
-
 		auto &uniform_storage = _runtime->get_uniform_value_storage();
 
 		if (_uniform_storage_offset + _constant_buffer_size >= uniform_storage.size())
@@ -1682,14 +1656,13 @@ namespace reshade
 	{
 		technique obj;
 		obj.name = node->name;
+		obj.annotations = node->annotation_list;
 
 		if (_constant_buffer_size != 0)
 		{
 			obj.uniform_storage_index = _runtime->_constant_buffers.size();
 			obj.uniform_storage_offset = _uniform_storage_offset;
 		}
-
-		visit_annotation(node->annotation_list, obj);
 
 		for (auto pass : node->pass_list)
 		{

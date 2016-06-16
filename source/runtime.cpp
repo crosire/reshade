@@ -52,13 +52,13 @@ namespace reshade
 	}
 
 	template <>
-	annotation::annotation(const ImVec2 &value) : _values(2)
+	variant::variant(const ImVec2 &value) : _values(2)
 	{
 		_values[0] = std::to_string(value.x);
 		_values[1] = std::to_string(value.y);
 	}
 	template <>
-	annotation::annotation(const ImVec4 &value) : _values(4)
+	variant::variant(const ImVec4 &value) : _values(4)
 	{
 		_values[0] = std::to_string(value.x);
 		_values[1] = std::to_string(value.y);
@@ -66,12 +66,12 @@ namespace reshade
 		_values[3] = std::to_string(value.w);
 	}
 	template <>
-	inline const ImVec2 annotation::as(size_t i) const
+	inline const ImVec2 variant::as(size_t i) const
 	{
 		return ImVec2(as<float>(i), as<float>(i + 1));
 	}
 	template <>
-	inline const ImVec4 annotation::as(size_t i) const
+	inline const ImVec4 variant::as(size_t i) const
 	{
 		return ImVec4(as<float>(i), as<float>(i + 1), as<float>(i + 2), as<float>(i + 3));
 	}
@@ -505,14 +505,14 @@ namespace reshade
 
 				if (_performance_mode && _current_preset >= 0)
 				{
-					utils::ini_file preset(_preset_files[_current_preset]);
+					ini_file preset(_preset_files[_current_preset]);
 
 					for (auto variable : ast.variables)
 					{
 						if (!variable->type.has_qualifier(reshadefx::nodes::type_node::qualifier_uniform) ||
 							variable->initializer_expression == nullptr ||
 							variable->initializer_expression->id != reshadefx::nodeid::literal_expression ||
-							std::find_if(variable->annotations.begin(), variable->annotations.end(), [](const reshadefx::nodes::annotation_node &node) { return node.name == "source"; }) != variable->annotations.end())
+							variable->annotations.count("source"))
 						{
 							continue;
 						}
@@ -759,8 +759,8 @@ namespace reshade
 	}
 	void runtime::load_configuration()
 	{
-		const utils::ini_file apps_config(s_appdata_path / "Settings.ini");
-		const utils::ini_file style_config(s_appdata_path / "Style.ini");
+		const ini_file apps_config(s_appdata_path / "Settings.ini");
+		const ini_file style_config(s_appdata_path / "Style.ini");
 
 		const std::string section = s_appdata_path.parent_path() == s_executable_path.parent_path() ? "" : s_executable_path;
 
@@ -811,8 +811,8 @@ namespace reshade
 	}
 	void runtime::save_configuration() const
 	{
-		utils::ini_file apps_config(s_appdata_path / "Settings.ini");
-		utils::ini_file style_config(s_appdata_path / "Style.ini");
+		ini_file apps_config(s_appdata_path / "Settings.ini");
+		ini_file style_config(s_appdata_path / "Style.ini");
 
 		const std::string section = s_appdata_path.parent_path() == s_executable_path.parent_path() ? "" : s_executable_path;
 
@@ -856,7 +856,7 @@ namespace reshade
 	}
 	void runtime::load_preset(const filesystem::path &path)
 	{
-		utils::ini_file preset(path);
+		ini_file preset(path);
 
 		for (auto &variable : _uniforms)
 		{
@@ -870,7 +870,7 @@ namespace reshade
 			float values[4] = { };
 			get_uniform_value(variable, values, variable.rows);
 
-			const auto data = preset.get(filename, variable.unique_name, annotation(values, variable.rows));
+			const auto data = preset.get(filename, variable.unique_name, variant(values, variable.rows));
 
 			for (unsigned int i = 0; i < std::min(variable.rows, static_cast<unsigned int>(data.data().size())); i++)
 			{
@@ -894,7 +894,7 @@ namespace reshade
 	}
 	void runtime::save_preset(const filesystem::path &path) const
 	{
-		utils::ini_file preset(path);
+		ini_file preset(path);
 
 		for (const auto &variable : _uniforms)
 		{
@@ -908,7 +908,7 @@ namespace reshade
 			float values[4] = { };
 			get_uniform_value(variable, values, variable.rows);
 
-			preset.set(filename, variable.unique_name, annotation(values, variable.rows));
+			preset.set(filename, variable.unique_name, variant(values, variable.rows));
 		}
 
 		std::string technique_list;

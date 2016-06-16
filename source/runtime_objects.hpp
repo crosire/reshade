@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
+#include "variant.hpp"
 #include "moving_average.hpp"
 
 namespace reshade
@@ -63,97 +64,6 @@ namespace reshade
 		float_
 	};
 
-	struct annotation
-	{
-		annotation() : _values(1)
-		{
-		}
-		annotation(const char *value) : _values(1)
-		{
-			_values[0] = value;
-		}
-		template <typename T>
-		annotation(const T &value) : _values(1)
-		{
-			_values[0] = std::to_string(value);
-		}
-		template <typename T>
-		annotation(const T *values, size_t count) : _values(count)
-		{
-			for (size_t i = 0; i < count; i++)
-				_values[i] = std::to_string(values[i]);
-		}
-		template <>
-		annotation(const bool &value) : _values(1)
-		{
-			_values[0] = value ? "1" : "0";
-		}
-		template <>
-		annotation(const bool *values, size_t count) : _values(count)
-		{
-			for (size_t i = 0; i < count; i++)
-				_values[i] = values[i] ? "1" : "0";
-		}
-		template <>
-		annotation(const std::string &value) : _values(1)
-		{
-			_values[0] = value;
-		}
-		template <>
-		annotation(const std::vector<std::string> &values) : _values(values)
-		{
-		}
-		template <typename T>
-		annotation(std::initializer_list<T> values) : annotation(values.begin(), values.size())
-		{
-		}
-
-		inline std::vector<std::string> &data()
-		{
-			return _values;
-		}
-		inline const std::vector<std::string> &data() const
-		{
-			return _values;
-		}
-
-		template <typename T>
-		const T as(size_t index = 0) const;
-		template <>
-		inline const bool as(size_t i) const
-		{
-			return as<int>(i) != 0 || (_values[i] == "true" || _values[i] == "True" || _values[i] == "TRUE");
-		}
-		template <>
-		inline const int as(size_t i) const
-		{
-			return static_cast<int>(std::strtol(_values[i].c_str(), nullptr, 10));
-		}
-		template <>
-		inline const unsigned int as(size_t i) const
-		{
-			return static_cast<unsigned int>(std::strtoul(_values[i].c_str(), nullptr, 10));
-		}
-		template <>
-		inline const float as(size_t i) const
-		{
-			return static_cast<float>(as<double>(i));
-		}
-		template <>
-		inline const double as(size_t i) const
-		{
-			return std::strtod(_values[i].c_str(), nullptr);
-		}
-		template <>
-		inline const std::string as(size_t i) const
-		{
-			return _values[i];
-		}
-
-	private:
-		std::vector<std::string> _values;
-	};
-
 	struct texture abstract
 	{
 		virtual ~texture() { }
@@ -163,7 +73,7 @@ namespace reshade
 		unsigned int width = 0, height = 0, levels = 0;
 		texture_format format = texture_format::unknown;
 		size_t storage_size = 0;
-		std::unordered_map<std::string, annotation> annotations;
+		std::unordered_map<std::string, variant> annotations;
 	};
 	struct uniform final
 	{
@@ -171,7 +81,7 @@ namespace reshade
 		uniform_datatype basetype = uniform_datatype::float_;
 		unsigned int rows = 0, columns = 0, elements = 0;
 		size_t storage_offset = 0, storage_size = 0;
-		std::unordered_map<std::string, annotation> annotations;
+		std::unordered_map<std::string, variant> annotations;
 	};
 	struct technique final
 	{
@@ -182,7 +92,7 @@ namespace reshade
 
 		std::string name;
 		std::vector<std::unique_ptr<pass>> passes;
-		std::unordered_map<std::string, annotation> annotations;
+		std::unordered_map<std::string, variant> annotations;
 		bool enabled = false;
 		int timeout = 0, timeleft = 0;
 		int toggle_key = 0, toggle_time = 0;

@@ -1399,30 +1399,6 @@ namespace reshade
 		visit(output, node->definition);
 	}
 
-	template <typename T>
-	void visit_annotation(const std::vector<annotation_node> &annotations, T &object)
-	{
-		for (auto &item : annotations)
-		{
-			switch (item.value->type.basetype)
-			{
-				case type_node::datatype_bool:
-				case type_node::datatype_int:
-					object.annotations[item.name] = annotation(item.value->value_int, 4);
-					break;
-				case type_node::datatype_uint:
-					object.annotations[item.name] = annotation(item.value->value_uint, 4);
-					break;
-				case type_node::datatype_float:
-					object.annotations[item.name] = annotation(item.value->value_float, 4);
-					break;
-				case type_node::datatype_string:
-					object.annotations[item.name] = item.value->value_string;
-					break;
-			}
-		}
-	}
-
 	void d3d9_effect_compiler::visit_texture(const variable_declaration_node *node)
 	{
 		const auto obj = new d3d9_texture();
@@ -1432,8 +1408,7 @@ namespace reshade
 		UINT height = obj->height = node->properties.height;
 		UINT levels = obj->levels = node->properties.levels;
 		const D3DFORMAT format = literal_to_format(obj->format = node->properties.format);
-
-		visit_annotation(node->annotations, *obj);
+		obj->annotations = node->annotations;
 
 		if (node->semantic == "COLOR" || node->semantic == "SV_TARGET")
 		{
@@ -1573,8 +1548,7 @@ namespace reshade
 		obj.storage_offset = _uniform_storage_offset + _constant_register_count * 16;
 		_constant_register_count += (obj.storage_size + 4 - (obj.storage_size % 4)) / 4;
 		obj.storage_size *= 4;
-
-		visit_annotation(node->annotations, obj);
+		obj.annotations = node->annotations;
 
 		auto &uniform_storage = _runtime->get_uniform_value_storage();
 
@@ -1601,14 +1575,13 @@ namespace reshade
 	{
 		technique obj;
 		obj.name = node->name;
+		obj.annotations = node->annotation_list;
 
 		if (_constant_register_count != 0)
 		{
 			obj.uniform_storage_index = _constant_register_count;
 			obj.uniform_storage_offset = _uniform_storage_offset;
 		}
-
-		visit_annotation(node->annotation_list, obj);
 
 		for (auto pass : node->pass_list)
 		{

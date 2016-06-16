@@ -332,6 +332,9 @@
     <ClInclude Include="source\opengl\opengl_effect_compiler.hpp">
       <Filter>hooks\opengl</Filter>
     </ClInclude>
+    <ClInclude Include="source\variant.hpp">
+      <Filter>core\utils</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="res\resource.rc2" />

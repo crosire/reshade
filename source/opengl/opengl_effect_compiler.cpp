@@ -2104,30 +2104,6 @@ namespace reshade
 		_current_function = nullptr;
 	}
 
-	template <typename T>
-	void visit_annotation(const std::vector<annotation_node> &annotations, T &object)
-	{
-		for (auto &item : annotations)
-		{
-			switch (item.value->type.basetype)
-			{
-				case type_node::datatype_bool:
-				case type_node::datatype_int:
-					object.annotations[item.name] = annotation(item.value->value_int, 4);
-					break;
-				case type_node::datatype_uint:
-					object.annotations[item.name] = annotation(item.value->value_uint, 4);
-					break;
-				case type_node::datatype_float:
-					object.annotations[item.name] = annotation(item.value->value_float, 4);
-					break;
-				case type_node::datatype_string:
-					object.annotations[item.name] = item.value->value_string;
-					break;
-			}
-		}
-	}
-
 	void opengl_effect_compiler::visit_texture(const variable_declaration_node *node)
 	{
 		const auto obj = new opengl_texture();
@@ -2136,6 +2112,7 @@ namespace reshade
 		GLuint width = obj->width = node->properties.width;
 		GLuint height = obj->height = node->properties.height;
 		GLuint levels = obj->levels = node->properties.levels;
+		obj->annotations = node->annotations;
 
 		GLenum internalformat = GL_RGBA8, internalformatSRGB = GL_SRGB8_ALPHA8;
 		literal_to_format(obj->format = node->properties.format, internalformat, internalformatSRGB);
@@ -2146,8 +2123,6 @@ namespace reshade
 
 			levels = 1;
 		}
-
-		visit_annotation(node->annotations, *obj);
 
 		if (node->semantic == "COLOR" || node->semantic == "SV_TARGET")
 		{
@@ -2259,6 +2234,7 @@ namespace reshade
 		obj.elements = node->type.array_length;
 		obj.storage_size = obj.rows * obj.columns * std::max(1u, obj.elements) * 4;
 		obj.basetype = static_cast<uniform_datatype>(node->type.basetype - 1);
+		obj.annotations = node->annotations;
 
 		// GLSL specification on std140 layout:
 		// 1. If the member is a scalar consuming N basic machine units, the base alignment is N.
@@ -2272,8 +2248,6 @@ namespace reshade
 		_uniform_buffer_size = align(_uniform_buffer_size, alignment);
 		obj.storage_offset = _uniform_storage_offset + _uniform_buffer_size;
 		_uniform_buffer_size += obj.storage_size;
-
-		visit_annotation(node->annotations, obj);
 
 		auto &uniform_storage = _runtime->get_uniform_value_storage();
 
@@ -2297,14 +2271,13 @@ namespace reshade
 	{
 		technique obj;
 		obj.name = node->name;
+		obj.annotations = node->annotation_list;
 
 		if (_uniform_buffer_size != 0)
 		{
 			obj.uniform_storage_index = _runtime->_effect_ubos.size();
 			obj.uniform_storage_offset = _uniform_storage_offset;
 		}
-
-		visit_annotation(node->annotation_list, obj);
 
 		for (auto pass : node->pass_list)
 		{

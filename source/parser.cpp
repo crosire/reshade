@@ -2587,7 +2587,7 @@ namespace reshadefx
 
 		return false;
 	}
-	bool parser::parse_annotations(std::vector<annotation_node> &annotations)
+	bool parser::parse_annotations(std::unordered_map<std::string, reshade::variant> &annotations)
 	{
 		if (!accept('<'))
 		{
@@ -2600,19 +2600,15 @@ namespace reshadefx
 
 			accept_type_class(type);
 
-			annotation_node annotation;
-
 			if (!expect(lexer::tokenid::identifier))
 			{
 				return false;
 			}
 
-			annotation.name = _token.literal_as_string;
-			annotation.location = _token.location;
+			const auto name = _token.literal_as_string;
+			literal_expression_node *expression = nullptr;
 
-			expression_node *expression = nullptr;
-
-			if (!(expect('=') && parse_expression_assignment(expression) && expect(';')))
+			if (!(expect('=') && parse_expression_assignment(reinterpret_cast<expression_node *&>(expression)) && expect(';')))
 			{
 				return false;
 			}
@@ -2624,9 +2620,22 @@ namespace reshadefx
 				continue;
 			}
 
-			annotation.value = static_cast<literal_expression_node *>(expression);
-
-			annotations.push_back(std::move(annotation));
+			switch (expression->type.basetype)
+			{
+				case type_node::datatype_int:
+					annotations[name] = expression->value_int;
+					break;
+				case type_node::datatype_bool:
+				case type_node::datatype_uint:
+					annotations[name] = expression->value_uint;
+					break;
+				case type_node::datatype_float:
+					annotations[name] = expression->value_float;
+					break;
+				case type_node::datatype_string:
+					annotations[name] = expression->value_string;
+					break;
+			}
 		}
 
 		return expect('>');
