@@ -318,14 +318,10 @@ namespace reshade
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
 
-		const auto obj = new opengl_texture();
-		obj->width = width;
-		obj->height = height;
-		obj->levels = 1;
-		obj->format = texture_format::rgba8;
-		obj->id[0] = font_atlas_id;
+		opengl_tex_data obj = { };
+		obj.id[0] = font_atlas_id;
 
-		_imgui_font_atlas.reset(obj);
+		_imgui_font_atlas = std::make_unique<opengl_tex_data>(obj);
 
 		return true;
 	}
@@ -524,7 +520,7 @@ namespace reshade
 
 		for (const auto &pass_ptr : technique.passes)
 		{
-			const auto &pass = *static_cast<const opengl_pass *>(pass_ptr.get());
+			const auto &pass = *static_cast<const opengl_pass_data *>(pass_ptr.get());
 
 			// Setup states
 			GLCHECK(glUseProgram(pass.program));
@@ -579,9 +575,9 @@ namespace reshade
 			{
 				for (GLsizei sampler = 0, samplerCount = static_cast<GLsizei>(_effect_samplers.size()); sampler < samplerCount; sampler++)
 				{
-					const opengl_texture *const texture = _effect_samplers[sampler].texture;
+					const auto texture = _effect_samplers[sampler].texture;
 
-					if (texture->levels > 1 && (texture->id[0] == id || texture->id[1] == id))
+					if (_effect_samplers[sampler].has_mipmaps && (texture->id[0] == id || texture->id[1] == id))
 					{
 						GLCHECK(glActiveTexture(GL_TEXTURE0 + sampler));
 						GLCHECK(glGenerateMipmap(GL_TEXTURE_2D));
@@ -686,12 +682,12 @@ namespace reshade
 	}
 	bool opengl_runtime::update_texture(texture &texture, const uint8_t *data)
 	{
-		const auto texture_impl = dynamic_cast<opengl_texture *>(&texture);
+		const auto texture_impl = texture.impl->as<opengl_tex_data>();
 
 		assert(data != nullptr);
 		assert(texture_impl != nullptr);
 
-		if (texture_impl->type != texture_type::image)
+		if (texture.type != texture_type::image)
 		{
 			return false;
 		}
@@ -732,11 +728,15 @@ namespace reshade
 
 		return true;
 	}
-	void opengl_runtime::update_texture_datatype(opengl_texture &texture, texture_type source, GLuint newtexture, GLuint newtexture_srgb)
+	void opengl_runtime::update_texture_datatype(texture &texture, texture_type source, GLuint newtexture, GLuint newtexture_srgb)
 	{
-		if (texture.type == texture_type::image)
+		const auto texture_impl = texture.impl->as<opengl_tex_data>();
+
+		assert(texture_impl != nullptr);
+
+		if (texture_impl->should_delete)
 		{
-			GLCHECK(glDeleteTextures(2, texture.id));
+			GLCHECK(glDeleteTextures(2, texture_impl->id));
 		}
 
 		texture.type = source;
@@ -746,13 +746,14 @@ namespace reshade
 			newtexture_srgb = newtexture;
 		}
 
-		if (texture.id[0] == newtexture && texture.id[1] == newtexture_srgb)
+		if (texture_impl->id[0] == newtexture && texture_impl->id[1] == newtexture_srgb)
 		{
 			return;
 		}
 
-		texture.id[0] = newtexture;
-		texture.id[1] = newtexture_srgb;
+		texture_impl->id[0] = newtexture;
+		texture_impl->id[1] = newtexture_srgb;
+		texture_impl->should_delete = false;
 	}
 
 	void opengl_runtime::render_draw_lists(ImDrawData *draw_data)
@@ -799,7 +800,7 @@ namespace reshade
 				}
 				else
 				{
-					glBindTexture(GL_TEXTURE_2D, static_cast<const opengl_texture *>(cmd->TextureId)->id[0]);
+					glBindTexture(GL_TEXTURE_2D, static_cast<const opengl_tex_data *>(cmd->TextureId)->id[0]);
 					glScissor(static_cast<GLint>(cmd->ClipRect.x), static_cast<GLint>(_height - cmd->ClipRect.w), static_cast<GLint>(cmd->ClipRect.z - cmd->ClipRect.x), static_cast<GLint>(cmd->ClipRect.w - cmd->ClipRect.y));
 
 					glDrawElements(GL_TRIANGLES, cmd->ElemCount, sizeof(ImDrawIdx) == 2 ? GL_UNSIGNED_SHORT : GL_UNSIGNED_INT, idx_buffer_offset);
@@ -968,11 +969,11 @@ namespace reshade
 		}
 
 		// Update effect textures
-		for (const auto &texture : _textures)
+		for (auto &texture : _textures)
 		{
-			if (texture->type == texture_type::depthbuffer)
+			if (texture.type == texture_type::depthbuffer)
 			{
-				update_texture_datatype(static_cast<opengl_texture &>(*texture), texture_type::depthbuffer, _depth_texture, 0);
+				update_texture_datatype(texture, texture_type::depthbuffer, _depth_texture, 0);
 			}
 		}
 	}

@@ -167,14 +167,10 @@ namespace reshade
 
 		font_atlas->UnlockRect(0);
 
-		const auto obj = new d3d9_texture();
-		obj->width = width;
-		obj->height = height;
-		obj->levels = 1;
-		obj->format = texture_format::rgba8;
-		obj->texture = font_atlas;
+		d3d9_tex_data obj = { };
+		obj.texture = font_atlas;
 
-		_imgui_font_atlas.reset(obj);
+		_imgui_font_atlas = std::make_unique<d3d9_tex_data>(obj);
 
 		return true;
 	}
@@ -398,7 +394,7 @@ namespace reshade
 
 		for (const auto &pass_ptr : technique.passes)
 		{
-			const auto &pass = *static_cast<const d3d9_pass *>(pass_ptr.get());
+			const auto &pass = *static_cast<const d3d9_pass_data *>(pass_ptr.get());
 
 			// Setup states
 			pass.stateblock->Apply();
@@ -409,11 +405,11 @@ namespace reshade
 			// Setup shader resources
 			for (DWORD sampler = 0; sampler < pass.sampler_count; sampler++)
 			{
-				_device->SetTexture(sampler, pass.samplers[sampler].Texture->texture.get());
+				_device->SetTexture(sampler, pass.samplers[sampler].texture->texture.get());
 
 				for (DWORD state = D3DSAMP_ADDRESSU; state <= D3DSAMP_SRGBTEXTURE; state++)
 				{
-					_device->SetSamplerState(sampler, static_cast<D3DSAMPLERSTATETYPE>(state), pass.samplers[sampler].States[state]);
+					_device->SetSamplerState(sampler, static_cast<D3DSAMPLERSTATETYPE>(state), pass.samplers[sampler].states[state]);
 				}
 			}
 
@@ -572,12 +568,12 @@ namespace reshade
 	}
 	bool d3d9_runtime::update_texture(texture &texture, const uint8_t *data)
 	{
-		const auto texture_impl = dynamic_cast<d3d9_texture *>(&texture);
+		const auto texture_impl = texture.impl->as<d3d9_tex_data>();
 
 		assert(data != nullptr);
 		assert(texture_impl != nullptr);
 
-		if (texture_impl->type != texture_type::image)
+		if (texture.type != texture_type::image)
 		{
 			return false;
 		}
@@ -648,25 +644,29 @@ namespace reshade
 
 		return true;
 	}
-	void d3d9_runtime::update_texture_datatype(d3d9_texture &texture, texture_type source, const com_ptr<IDirect3DTexture9> &newtexture)
+	void d3d9_runtime::update_texture_datatype(texture &texture, texture_type source, const com_ptr<IDirect3DTexture9> &newtexture)
 	{
+		const auto texture_impl = texture.impl->as<d3d9_tex_data>();
+
+		assert(texture_impl != nullptr);
+
 		texture.type = source;
 
-		if (texture.texture == newtexture)
+		if (texture_impl->texture == newtexture)
 		{
 			return;
 		}
 
-		texture.texture.reset();
-		texture.surface.reset();
+		texture_impl->texture.reset();
+		texture_impl->surface.reset();
 
 		if (newtexture != nullptr)
 		{
-			texture.texture = newtexture;
-			newtexture->GetSurfaceLevel(0, &texture.surface);
+			texture_impl->texture = newtexture;
+			newtexture->GetSurfaceLevel(0, &texture_impl->surface);
 
 			D3DSURFACE_DESC desc;
-			texture.surface->GetDesc(&desc);
+			texture_impl->surface->GetDesc(&desc);
 
 			texture.width = desc.Width;
 			texture.height = desc.Height;
@@ -810,7 +810,7 @@ namespace reshade
 						static_cast<LONG>(cmd->ClipRect.w)
 					};
 
-					_device->SetTexture(0, static_cast<const d3d9_texture *>(cmd->TextureId)->texture.get());
+					_device->SetTexture(0, static_cast<const d3d9_tex_data *>(cmd->TextureId)->texture.get());
 					_device->SetScissorRect(&scissor_rect);
 
 					_device->DrawIndexedPrimitive(D3DPT_TRIANGLELIST, vtx_offset, 0, cmd_list->VtxBuffer.size(), idx_offset, cmd->ElemCount / 3);
@@ -967,11 +967,11 @@ namespace reshade
 		}
 
 		// Update effect textures
-		for (const auto &texture : _textures)
+		for (auto &texture : _textures)
 		{
-			if (texture->type == texture_type::depthbuffer)
+			if (texture.type == texture_type::depthbuffer)
 			{
-				update_texture_datatype(static_cast<d3d9_texture &>(*texture), texture_type::depthbuffer, _depthstencil_texture);
+				update_texture_datatype(texture, texture_type::depthbuffer, _depthstencil_texture);
 			}
 		}
 

@@ -8,27 +8,22 @@
 
 namespace reshade
 {
-	struct opengl_texture : texture
+	struct opengl_tex_data : base_object
 	{
-		~opengl_texture()
+		~opengl_tex_data()
 		{
-			if (type == texture_type::image)
+			if (should_delete)
 			{
 				glDeleteTextures(2, id);
 			}
 		}
 
+		bool should_delete = false;
 		GLuint id[2] = { };
 	};
-	struct opengl_sampler
+	struct opengl_pass_data : base_object
 	{
-		GLuint id;
-		opengl_texture *texture;
-		bool is_srgb;
-	};
-	struct opengl_pass : technique::pass
-	{
-		opengl_pass() :
+		opengl_pass_data() :
 			program(0),
 			fbo(0), draw_textures(),
 			stencil_reference(0),
@@ -38,7 +33,7 @@ namespace reshade
 			srgb(GL_FALSE), blend(GL_FALSE), depth_mask(GL_FALSE), depth_test(GL_FALSE), color_mask()
 		{
 		}
-		~opengl_pass()
+		~opengl_pass_data()
 		{
 			glDeleteProgram(program);
 			glDeleteFramebuffers(1, &fbo);
@@ -52,6 +47,13 @@ namespace reshade
 		GLenum draw_buffers[8], blend_eq_color, blend_eq_alpha, blend_src, blend_dest, depth_func, stencil_func, stencil_op_fail, stencil_op_z_fail, stencil_op_z_pass;
 		GLboolean srgb, blend, depth_mask, depth_test, stencil_test, color_mask[4];
 		bool clear_render_targets;
+	};
+	struct opengl_sampler
+	{
+		GLuint id;
+		opengl_tex_data *texture;
+		bool is_srgb;
+		bool has_mipmaps;
 	};
 
 	class opengl_runtime : public runtime
@@ -68,7 +70,7 @@ namespace reshade
 		void on_apply_effect_technique(const technique &technique) override;
 		void on_fbo_attachment(GLenum target, GLenum attachment, GLenum objecttarget, GLuint object, GLint level);
 
-		static void update_texture_datatype(opengl_texture &texture, texture_type source, GLuint newtexture, GLuint newtexture_srgb);
+		static void update_texture_datatype(texture &texture, texture_type source, GLuint newtexture, GLuint newtexture_srgb);
 
 		HDC _hdc;
 

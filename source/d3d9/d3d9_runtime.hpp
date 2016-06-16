@@ -8,17 +8,18 @@
 
 namespace reshade
 {
-	struct d3d9_texture : texture
+	struct d3d9_sampler
+	{
+		DWORD states[12];
+		struct d3d9_tex_data *texture;
+	};
+
+	struct d3d9_tex_data : base_object
 	{
 		com_ptr<IDirect3DTexture9> texture;
 		com_ptr<IDirect3DSurface9> surface;
 	};
-	struct d3d9_sampler
-	{
-		DWORD States[12];
-		d3d9_texture *Texture;
-	};
-	struct d3d9_pass : technique::pass
+	struct d3d9_pass_data : base_object
 	{
 		com_ptr<IDirect3DVertexShader9> vertex_shader;
 		com_ptr<IDirect3DPixelShader9> pixel_shader;
@@ -43,7 +44,7 @@ namespace reshade
 		void on_set_depthstencil_surface(IDirect3DSurface9 *&depthstencil);
 		void on_get_depthstencil_surface(IDirect3DSurface9 *&depthstencil);
 
-		static void update_texture_datatype(d3d9_texture &texture, texture_type source, const com_ptr<IDirect3DTexture9> &newtexture);
+		static void update_texture_datatype(texture &texture, texture_type source, const com_ptr<IDirect3DTexture9> &newtexture);
 
 		com_ptr<IDirect3D9> _d3d;
 		com_ptr<IDirect3DDevice9> _device;

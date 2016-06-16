@@ -6,9 +6,9 @@
 
 namespace reshade
 {
-	void runtime::add_texture(texture *texture)
+	void runtime::add_texture(texture &&texture)
 	{
-		_textures.emplace_back(texture);
+		_textures.push_back(std::move(texture));
 	}
 	void runtime::add_uniform(uniform &&uniform)
 	{
@@ -21,12 +21,12 @@ namespace reshade
 	texture *runtime::find_texture(const std::string &name)
 	{
 		const auto it = std::find_if(_textures.begin(), _textures.end(),
-			[name](const std::unique_ptr<texture> &item)
+			[name](const auto &item)
 		{
-			return item->name == name;
+			return item.name == name;
 		});
 
-		return it != _textures.end() ? it->get() : nullptr;
+		return it != _textures.end() ? &(*it) : nullptr;
 	}
 
 	void runtime::get_uniform_value(const uniform &variable, unsigned char *data, size_t size) const

@@ -64,16 +64,24 @@ namespace reshade
 		float_
 	};
 
-	struct texture abstract
+	struct base_object abstract
 	{
-		virtual ~texture() { }
+		virtual ~base_object() { }
 
+		template <typename T>
+		T *as() { return dynamic_cast<T *>(this); }
+		template <typename T>
+		const T *as() const { return dynamic_cast<const T *>(this); }
+	};
+
+	struct texture final
+	{
 		std::string name, unique_name;
 		texture_type type = texture_type::image;
 		unsigned int width = 0, height = 0, levels = 0;
 		texture_format format = texture_format::unknown;
-		size_t storage_size = 0;
 		std::unordered_map<std::string, variant> annotations;
+		std::unique_ptr<base_object> impl;
 	};
 	struct uniform final
 	{
@@ -85,13 +93,8 @@ namespace reshade
 	};
 	struct technique final
 	{
-		struct pass abstract
-		{
-			virtual ~pass() { }
-		};
-
 		std::string name;
-		std::vector<std::unique_ptr<pass>> passes;
+		std::vector<std::unique_ptr<base_object>> passes;
 		std::unordered_map<std::string, variant> annotations;
 		bool enabled = false;
 		int timeout = 0, timeleft = 0;

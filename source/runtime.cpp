@@ -554,11 +554,11 @@ namespace reshade
 						variable.annotations["__FILE__"] = static_cast<const std::string &>(path);
 					}
 				}
-				for (const auto &texture : _textures)
+				for (auto &texture : _textures)
 				{
-					if (!texture->annotations.count("__FILE__"))
+					if (!texture.annotations.count("__FILE__"))
 					{
-						texture->annotations["__FILE__"] = static_cast<const std::string &>(path);
+						texture.annotations["__FILE__"] = static_cast<const std::string &>(path);
 					}
 				}
 				for (auto &technique : _techniques)
@@ -690,11 +690,11 @@ namespace reshade
 	}
 	void runtime::load_textures()
 	{
-		for (const auto &texture : _textures)
+		for (auto &texture : _textures)
 		{
-			const auto it = texture->annotations.find("source");
+			const auto it = texture.annotations.find("source");
 
-			if (it == texture->annotations.end())
+			if (it == texture.annotations.end())
 			{
 				continue;
 			}
@@ -703,9 +703,9 @@ namespace reshade
 
 			if (!filesystem::exists(path))
 			{
-				_errors += "Source '" + static_cast<const std::string &>(path) + "' for texture '" + texture->name + "' could not be found.";
+				_errors += "Source '" + static_cast<const std::string &>(path) + "' for texture '" + texture.name + "' could not be found.";
 
-				LOG(ERROR) << "> Source " << path << " for texture '" << texture->name << "' could not be found.";
+				LOG(ERROR) << "> Source " << path << " for texture '" << texture.name << "' could not be found.";
 
 				continue;
 			}
@@ -714,8 +714,6 @@ namespace reshade
 			unsigned char *filedata = nullptr;
 			int width = 0, height = 0, channels = 0;
 			bool success = false;
-
-			texture->storage_size = texture->width * texture->height * 4;
 
 			if (_wfopen_s(&file, stdext::utf8_to_utf16(path).c_str(), L"rb") == 0)
 			{
@@ -733,17 +731,17 @@ namespace reshade
 
 			if (filedata != nullptr)
 			{
-				if (texture->width != static_cast<unsigned int>(width) || texture->height != static_cast<unsigned int>(height))
+				if (texture.width != static_cast<unsigned int>(width) || texture.height != static_cast<unsigned int>(height))
 				{
-					LOG(INFO) << "> Resizing image data for texture '" << texture->name << "' from " << width << "x" << height << " to " << texture->width << "x" << texture->height << " ...";
+					LOG(INFO) << "> Resizing image data for texture '" << texture.name << "' from " << width << "x" << height << " to " << texture.width << "x" << texture.height << " ...";
 
-					std::vector<uint8_t> resized(texture->width * texture->height * 4);
-					stbir_resize_uint8(filedata, width, height, 0, resized.data(), texture->width, texture->height, 0, 4);
-					success = update_texture(*texture, resized.data());
+					std::vector<uint8_t> resized(texture.width * texture.height * 4);
+					stbir_resize_uint8(filedata, width, height, 0, resized.data(), texture.width, texture.height, 0, 4);
+					success = update_texture(texture, resized.data());
 				}
 				else
 				{
-					success = update_texture(*texture, filedata);
+					success = update_texture(texture, filedata);
 				}
 
 				stbi_image_free(filedata);
@@ -751,9 +749,9 @@ namespace reshade
 
 			if (!success)
 			{
-				_errors += "Unable to load source for texture '" + texture->name + "'!";
+				_errors += "Unable to load source for texture '" + texture.name + "'!";
 
-				LOG(ERROR) << "> Source " << path << " for texture '" << texture->name << "' could not be loaded! Make sure it is of a compatible file format.";
+				LOG(ERROR) << "> Source " << path << " for texture '" << texture.name << "' could not be loaded! Make sure it is of a compatible file format.";
 			}
 		}
 	}
@@ -1419,7 +1417,7 @@ namespace reshade
 		{
 			for (const auto &texture : _textures)
 			{
-				ImGui::Text("%s: %ux%u+%u (%uB)", texture->name.c_str(), texture->width, texture->height, (texture->levels - 1), static_cast<unsigned int>(texture->storage_size));
+				ImGui::Text("%s: %ux%u+%u (%uB)", texture.name.c_str(), texture.width, texture.height, (texture.levels - 1), (texture.width * texture.height * 4));
 			}
 		}
 

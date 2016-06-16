@@ -12,6 +12,7 @@ struct ImGuiContext;
 namespace reshade
 {
 	class input;
+	struct base_object;
 	struct texture;
 	struct uniform;
 	struct technique;
@@ -70,7 +71,7 @@ namespace reshade
 		/// Add a new texture. This transfers ownership of the pointer to this class.
 		/// </summary>
 		/// <param name="texture">The texture to add.</param>
-		void add_texture(texture *texture);
+		void add_texture(texture &&texture);
 		/// <summary>
 		/// Add a new uniform.
 		/// </summary>
@@ -172,8 +173,8 @@ namespace reshade
 		uint64_t _framecount = 0;
 		unsigned int _drawcalls = 0, _vertices = 0;
 		std::shared_ptr<input> _input;
-		std::unique_ptr<texture> _imgui_font_atlas;
-		std::vector<std::unique_ptr<texture>> _textures;
+		std::unique_ptr<base_object> _imgui_font_atlas;
+		std::vector<texture> _textures;
 		std::vector<uniform> _uniforms;
 		std::vector<technique> _techniques;
 

@@ -1401,14 +1401,16 @@ namespace reshade
 
 	void d3d9_effect_compiler::visit_texture(const variable_declaration_node *node)
 	{
-		const auto obj = new d3d9_texture();
-		obj->name = node->name;
-		obj->unique_name = node->unique_name;
-		UINT width = obj->width = node->properties.width;
-		UINT height = obj->height = node->properties.height;
-		UINT levels = obj->levels = node->properties.levels;
-		const D3DFORMAT format = literal_to_format(obj->format = node->properties.format);
-		obj->annotations = node->annotations;
+		texture obj;
+		obj.impl = std::make_unique<d3d9_tex_data>();
+		const auto obj_data = obj.impl->as<d3d9_tex_data>();
+		obj.name = node->name;
+		obj.unique_name = node->unique_name;
+		obj.annotations = node->annotations;
+		UINT width = obj.width = node->properties.width;
+		UINT height = obj.height = node->properties.height;
+		UINT levels = obj.levels = node->properties.levels;
+		const D3DFORMAT format = literal_to_format(obj.format = node->properties.format);
 
 		if (node->semantic == "COLOR" || node->semantic == "SV_TARGET")
 		{
@@ -1417,7 +1419,7 @@ namespace reshade
 				warning(node->location, "texture properties on backbuffer textures are ignored");
 			}
 
-			_runtime->update_texture_datatype(*obj, texture_type::backbuffer, _runtime->_backbuffer_texture);
+			_runtime->update_texture_datatype(obj, texture_type::backbuffer, _runtime->_backbuffer_texture);
 		}
 		else if (node->semantic == "DEPTH" || node->semantic == "SV_DEPTH")
 		{
@@ -1426,7 +1428,7 @@ namespace reshade
 				warning(node->location, "texture properties on depthbuffer textures are ignored");
 			}
 
-			_runtime->update_texture_datatype(*obj, texture_type::depthbuffer, _runtime->_depthstencil_texture);
+			_runtime->update_texture_datatype(obj, texture_type::depthbuffer, _runtime->_depthstencil_texture);
 		}
 		else
 		{
@@ -1460,7 +1462,7 @@ namespace reshade
 				usage |= D3DUSAGE_RENDERTARGET;
 			}
 
-			hr = _runtime->_device->CreateTexture(width, height, levels, usage, format, D3DPOOL_DEFAULT, &obj->texture, nullptr);
+			hr = _runtime->_device->CreateTexture(width, height, levels, usage, format, D3DPOOL_DEFAULT, &obj_data->texture, nullptr);
 
 			if (FAILED(hr))
 			{
@@ -1468,12 +1470,12 @@ namespace reshade
 				return;
 			}
 
-			hr = obj->texture->GetSurfaceLevel(0, &obj->surface);
+			hr = obj_data->texture->GetSurfaceLevel(0, &obj_data->surface);
 
 			assert(SUCCEEDED(hr));
 		}
 
-		_runtime->add_texture(obj);
+		_runtime->add_texture(std::move(obj));
 	}
 	void d3d9_effect_compiler::visit_sampler(const variable_declaration_node *node)
 	{
@@ -1483,7 +1485,7 @@ namespace reshade
 			return;
 		}
 
-		const auto texture = static_cast<d3d9_texture *>(_runtime->find_texture(node->properties.texture->name));
+		const auto texture = _runtime->find_texture(node->properties.texture->name);
 
 		if (texture == nullptr)
 		{
@@ -1492,25 +1494,25 @@ namespace reshade
 		}
 
 		d3d9_sampler sampler;
-		sampler.Texture = texture;
-		sampler.States[D3DSAMP_ADDRESSU] = static_cast<D3DTEXTUREADDRESS>(node->properties.address_u);
-		sampler.States[D3DSAMP_ADDRESSV] = static_cast<D3DTEXTUREADDRESS>(node->properties.address_v);
-		sampler.States[D3DSAMP_ADDRESSW] = static_cast<D3DTEXTUREADDRESS>(node->properties.address_w);
-		sampler.States[D3DSAMP_BORDERCOLOR] = 0;
-		sampler.States[D3DSAMP_MIPMAPLODBIAS] = *reinterpret_cast<const DWORD *>(&node->properties.lod_bias);
-		sampler.States[D3DSAMP_MAXMIPLEVEL] = static_cast<DWORD>(std::max(0.0f, node->properties.min_lod));
-		sampler.States[D3DSAMP_MAXANISOTROPY] = node->properties.max_anisotropy;
-		sampler.States[D3DSAMP_SRGBTEXTURE] = node->properties.srgb_texture;
+		sampler.texture = texture->impl->as<d3d9_tex_data>();
+		sampler.states[D3DSAMP_ADDRESSU] = static_cast<D3DTEXTUREADDRESS>(node->properties.address_u);
+		sampler.states[D3DSAMP_ADDRESSV] = static_cast<D3DTEXTUREADDRESS>(node->properties.address_v);
+		sampler.states[D3DSAMP_ADDRESSW] = static_cast<D3DTEXTUREADDRESS>(node->properties.address_w);
+		sampler.states[D3DSAMP_BORDERCOLOR] = 0;
+		sampler.states[D3DSAMP_MIPMAPLODBIAS] = *reinterpret_cast<const DWORD *>(&node->properties.lod_bias);
+		sampler.states[D3DSAMP_MAXMIPLEVEL] = static_cast<DWORD>(std::max(0.0f, node->properties.min_lod));
+		sampler.states[D3DSAMP_MAXANISOTROPY] = node->properties.max_anisotropy;
+		sampler.states[D3DSAMP_SRGBTEXTURE] = node->properties.srgb_texture;
 
 		if (node->properties.filter == texture_filter::anisotropic)
 		{
-			sampler.States[D3DSAMP_MINFILTER] = sampler.States[D3DSAMP_MAGFILTER] = sampler.States[D3DSAMP_MIPFILTER] = D3DTEXF_ANISOTROPIC;
+			sampler.states[D3DSAMP_MINFILTER] = sampler.states[D3DSAMP_MAGFILTER] = sampler.states[D3DSAMP_MIPFILTER] = D3DTEXF_ANISOTROPIC;
 		}
 		else
 		{
-			sampler.States[D3DSAMP_MINFILTER] = 1 + ((static_cast<unsigned int>(node->properties.filter) & 0x30) >> 4);
-			sampler.States[D3DSAMP_MAGFILTER] = 1 + ((static_cast<unsigned int>(node->properties.filter) & 0xC) >> 2);
-			sampler.States[D3DSAMP_MIPFILTER] = 1 + ((static_cast<unsigned int>(node->properties.filter) & 0x3));
+			sampler.states[D3DSAMP_MINFILTER] = 1 + ((static_cast<unsigned int>(node->properties.filter) & 0x30) >> 4);
+			sampler.states[D3DSAMP_MAGFILTER] = 1 + ((static_cast<unsigned int>(node->properties.filter) & 0xC) >> 2);
+			sampler.states[D3DSAMP_MIPFILTER] = 1 + ((static_cast<unsigned int>(node->properties.filter) & 0x3));
 		}
 
 		_samplers[node->name] = sampler;
@@ -1585,13 +1587,13 @@ namespace reshade
 
 		for (auto pass : node->pass_list)
 		{
-			obj.passes.emplace_back(new d3d9_pass());
-			visit_pass(pass, *static_cast<d3d9_pass *>(obj.passes.back().get()));
+			obj.passes.emplace_back(std::make_unique<d3d9_pass_data>());
+			visit_pass(pass, *static_cast<d3d9_pass_data *>(obj.passes.back().get()));
 		}
 
 		_runtime->add_technique(std::move(obj));
 	}
-	void d3d9_effect_compiler::visit_pass(const pass_declaration_node *node, d3d9_pass & pass)
+	void d3d9_effect_compiler::visit_pass(const pass_declaration_node *node, d3d9_pass_data & pass)
 	{
 		pass.render_targets[0] = _runtime->_backbuffer_resolved.get();
 		pass.clear_render_targets = node->clear_render_targets;
@@ -1732,7 +1734,7 @@ namespace reshade
 				break;
 			}
 
-			const auto texture = static_cast<d3d9_texture *>(_runtime->find_texture(node->render_targets[i]->name));
+			const auto texture = _runtime->find_texture(node->render_targets[i]->name);
 
 			if (texture == nullptr)
 			{
@@ -1740,10 +1742,10 @@ namespace reshade
 				return;
 			}
 
-			pass.render_targets[i] = texture->surface.get();
+			pass.render_targets[i] = texture->impl->as<d3d9_tex_data>()->surface.get();
 		}
 	}
-	void d3d9_effect_compiler::visit_pass_shader(const function_declaration_node *node, const std::string &shadertype, const std::string &samplers, d3d9_pass &pass)
+	void d3d9_effect_compiler::visit_pass_shader(const function_declaration_node *node, const std::string &shadertype, const std::string &samplers, d3d9_pass_data &pass)
 	{
 		std::stringstream source;
 

@@ -2106,16 +2106,18 @@ namespace reshade
 
 	void opengl_effect_compiler::visit_texture(const variable_declaration_node *node)
 	{
-		const auto obj = new opengl_texture();
-		obj->name = node->name;
-		obj->unique_name = node->unique_name;
-		GLuint width = obj->width = node->properties.width;
-		GLuint height = obj->height = node->properties.height;
-		GLuint levels = obj->levels = node->properties.levels;
-		obj->annotations = node->annotations;
+		texture obj;
+		obj.impl = std::make_unique<opengl_tex_data>();
+		const auto obj_data = obj.impl->as<opengl_tex_data>();
+		obj.name = node->name;
+		obj.unique_name = node->unique_name;
+		obj.annotations = node->annotations;
+		GLuint width = obj.width = node->properties.width;
+		GLuint height = obj.height = node->properties.height;
+		GLuint levels = obj.levels = node->properties.levels;
 
 		GLenum internalformat = GL_RGBA8, internalformatSRGB = GL_SRGB8_ALPHA8;
-		literal_to_format(obj->format = node->properties.format, internalformat, internalformatSRGB);
+		literal_to_format(obj.format = node->properties.format, internalformat, internalformatSRGB);
 
 		if (levels == 0)
 		{
@@ -2131,7 +2133,7 @@ namespace reshade
 				warning(node->location, "texture property on backbuffer textures are ignored");
 			}
 
-			_runtime->update_texture_datatype(*obj, texture_type::backbuffer, _runtime->_backbuffer_texture[0], _runtime->_backbuffer_texture[1]);
+			_runtime->update_texture_datatype(obj, texture_type::backbuffer, _runtime->_backbuffer_texture[0], _runtime->_backbuffer_texture[1]);
 		}
 		else if (node->semantic == "DEPTH" || node->semantic == "SV_DEPTH")
 		{
@@ -2140,24 +2142,25 @@ namespace reshade
 				warning(node->location, "texture property on depthbuffer textures are ignored");
 			}
 
-			_runtime->update_texture_datatype(*obj, texture_type::depthbuffer, _runtime->_depth_texture, 0);
+			_runtime->update_texture_datatype(obj, texture_type::depthbuffer, _runtime->_depth_texture, 0);
 		}
 		else
 		{
-			GLCHECK(glGenTextures(2, obj->id));
+			obj_data->should_delete = true;
+			GLCHECK(glGenTextures(2, obj_data->id));
 
 			GLint previous = 0, previousFBO = 0;
 			GLCHECK(glGetIntegerv(GL_TEXTURE_BINDING_2D, &previous));
 			GLCHECK(glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &previousFBO));
 
-			GLCHECK(glBindTexture(GL_TEXTURE_2D, obj->id[0]));
+			GLCHECK(glBindTexture(GL_TEXTURE_2D, obj_data->id[0]));
 			GLCHECK(glTexStorage2D(GL_TEXTURE_2D, levels, internalformat, width, height));
-			GLCHECK(glTextureView(obj->id[1], GL_TEXTURE_2D, obj->id[0], internalformatSRGB, 0, levels, 0, 1));
+			GLCHECK(glTextureView(obj_data->id[1], GL_TEXTURE_2D, obj_data->id[0], internalformatSRGB, 0, levels, 0, 1));
 			GLCHECK(glBindTexture(GL_TEXTURE_2D, previous));
 
 			// Clear texture to black
 			GLCHECK(glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _runtime->_blit_fbo));
-			GLCHECK(glFramebufferTexture(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, obj->id[0], 0));
+			GLCHECK(glFramebufferTexture(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, obj_data->id[0], 0));
 			GLCHECK(glDrawBuffer(GL_COLOR_ATTACHMENT1));
 			const GLuint clearColor[4] = { 0, 0, 0, 0 };
 			GLCHECK(glClearBufferuiv(GL_COLOR, 0, clearColor));
@@ -2165,7 +2168,7 @@ namespace reshade
 			GLCHECK(glBindFramebuffer(GL_DRAW_FRAMEBUFFER, previousFBO));
 		}
 
-		_runtime->add_texture(obj);
+		_runtime->add_texture(std::move(obj));
 	}
 	void opengl_effect_compiler::visit_sampler(const variable_declaration_node *node)
 	{
@@ -2175,7 +2178,7 @@ namespace reshade
 			return;
 		}
 
-		const auto texture = static_cast<opengl_texture *>(_runtime->find_texture(node->properties.texture->name));
+		const auto texture = _runtime->find_texture(node->properties.texture->name);
 
 		if (texture == nullptr)
 		{
@@ -2185,8 +2188,9 @@ namespace reshade
 
 		opengl_sampler sampler;
 		sampler.id = 0;
-		sampler.texture = texture;
+		sampler.texture = texture->impl->as<opengl_tex_data>();
 		sampler.is_srgb = node->properties.srgb_texture;
+		sampler.has_mipmaps = texture->levels > 1;
 
 		GLenum minfilter = GL_NONE, magfilter = GL_NONE;
 		literal_to_filter_mode(node->properties.filter, minfilter, magfilter);
@@ -2281,13 +2285,13 @@ namespace reshade
 
 		for (auto pass : node->pass_list)
 		{
-			obj.passes.emplace_back(new opengl_pass());
-			visit_pass(pass, *static_cast<opengl_pass *>(obj.passes.back().get()));
+			obj.passes.emplace_back(std::make_unique<opengl_pass_data>());
+			visit_pass(pass, *static_cast<opengl_pass_data *>(obj.passes.back().get()));
 		}
 
 		_runtime->add_technique(std::move(obj));
 	}
-	void opengl_effect_compiler::visit_pass(const pass_declaration_node *node, opengl_pass &pass)
+	void opengl_effect_compiler::visit_pass(const pass_declaration_node *node, opengl_pass_data &pass)
 	{
 		pass.color_mask[0] = (node->color_write_mask & (1 << 0)) != 0;
 		pass.color_mask[1] = (node->color_write_mask & (1 << 1)) != 0;
@@ -2324,7 +2328,7 @@ namespace reshade
 				continue;
 			}
 
-			const auto texture = static_cast<const opengl_texture *>(_runtime->find_texture(node->render_targets[i]->name));
+			const auto texture = _runtime->find_texture(node->render_targets[i]->name);
 
 			if (texture == nullptr)
 			{
@@ -2345,10 +2349,12 @@ namespace reshade
 
 			backbufferFramebuffer = false;
 
-			GLCHECK(glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, texture->id[pass.srgb], 0));
+			const auto texture_data = texture->impl->as<opengl_tex_data>();
+
+			GLCHECK(glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, texture_data->id[pass.srgb], 0));
 
 			pass.draw_buffers[i] = GL_COLOR_ATTACHMENT0 + i;
-			pass.draw_textures[i] = texture->id[pass.srgb];
+			pass.draw_textures[i] = texture_data->id[pass.srgb];
 		}
 
 		if (backbufferFramebuffer)

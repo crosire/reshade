@@ -9,14 +9,14 @@
 
 namespace reshade
 {
-	struct d3d10_texture : texture
+	struct d3d10_tex_data : base_object
 	{
 		size_t shader_register = 0;
 		com_ptr<ID3D10Texture2D> texture;
 		com_ptr<ID3D10ShaderResourceView> srv[2];
 		com_ptr<ID3D10RenderTargetView> rtv[2];
 	};
-	struct d3d10_pass : technique::pass
+	struct d3d10_pass_data : base_object
 	{
 		com_ptr<ID3D10VertexShader> vertex_shader;
 		com_ptr<ID3D10PixelShader> pixel_shader;
@@ -47,7 +47,7 @@ namespace reshade
 		void on_clear_depthstencil_view(ID3D10DepthStencilView *&depthstencil);
 		void on_copy_resource(ID3D10Resource *&dest, ID3D10Resource *&source);
 
-		void update_texture_datatype(d3d10_texture &texture, texture_type source, const com_ptr<ID3D10ShaderResourceView> &srv, const com_ptr<ID3D10ShaderResourceView> &srvSRGB);
+		void update_texture_datatype(texture &texture, texture_type source, const com_ptr<ID3D10ShaderResourceView> &srv, const com_ptr<ID3D10ShaderResourceView> &srvSRGB);
 
 		com_ptr<ID3D10Device> _device;
 		com_ptr<IDXGISwapChain> _swapchain;

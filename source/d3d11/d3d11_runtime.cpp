@@ -438,15 +438,11 @@ namespace reshade
 			return false;
 		}
 
-		const auto obj = new d3d11_texture();
-		obj->width = width;
-		obj->height = height;
-		obj->levels = 1;
-		obj->format = texture_format::rgba8;
-		obj->texture = font_atlas;
-		obj->srv[0] = font_atlas_view;
+		d3d11_tex_data obj = { };
+		obj.texture = font_atlas;
+		obj.srv[0] = font_atlas_view;
 
-		_imgui_font_atlas.reset(obj);
+		_imgui_font_atlas = std::make_unique<d3d11_tex_data>(obj);
 
 		return true;
 	}
@@ -677,7 +673,7 @@ namespace reshade
 
 		for (const auto &pass_ptr : technique.passes)
 		{
-			const auto &pass = *static_cast<const d3d11_pass *>(pass_ptr.get());
+			const auto &pass = *static_cast<const d3d11_pass_data *>(pass_ptr.get());
 
 			// Setup states
 			_immediate_context->VSSetShader(pass.vertex_shader.get(), nullptr, 0);
@@ -909,12 +905,12 @@ namespace reshade
 	}
 	bool d3d11_runtime::update_texture(texture &texture, const uint8_t *data)
 	{
-		const auto texture_impl = dynamic_cast<d3d11_texture *>(&texture);
+		const auto texture_impl = texture.impl->as<d3d11_tex_data>();
 
 		assert(data != nullptr);
 		assert(texture_impl != nullptr);
 
-		if (texture_impl->type != texture_type::image)
+		if (texture.type != texture_type::image)
 		{
 			return false;
 		}
@@ -955,32 +951,35 @@ namespace reshade
 
 		return true;
 	}
-	void d3d11_runtime::update_texture_datatype(d3d11_texture &texture, texture_type source, const com_ptr<ID3D11ShaderResourceView> &srv, const com_ptr<ID3D11ShaderResourceView> &srv_srgb)
+	void d3d11_runtime::update_texture_datatype(texture &texture, texture_type source, const com_ptr<ID3D11ShaderResourceView> &srv, const com_ptr<ID3D11ShaderResourceView> &srv_srgb)
 	{
+		const auto texture_impl = texture.impl->as<d3d11_tex_data>();
 		const auto srv_srgb_ptr = srv_srgb == nullptr ? srv.get() : srv_srgb.get();
+
+		assert(texture_impl != nullptr);
 
 		texture.type = source;
 
-		if (srv == texture.srv[0] && srv_srgb_ptr == texture.srv[1])
+		if (srv == texture_impl->srv[0] && srv_srgb_ptr == texture_impl->srv[1])
 		{
 			return;
 		}
 
-		texture.rtv[0].reset();
-		texture.rtv[1].reset();
-		texture.srv[0].reset();
-		texture.srv[1].reset();
-		texture.texture.reset();
+		texture_impl->rtv[0].reset();
+		texture_impl->rtv[1].reset();
+		texture_impl->srv[0].reset();
+		texture_impl->srv[1].reset();
+		texture_impl->texture.reset();
 
 		if (srv != nullptr)
 		{
-			texture.srv[0] = srv;
-			texture.srv[1] = srv_srgb_ptr;
+			texture_impl->srv[0] = srv;
+			texture_impl->srv[1] = srv_srgb_ptr;
 
-			texture.srv[0]->GetResource(reinterpret_cast<ID3D11Resource **>(&texture.texture));
+			texture_impl->srv[0]->GetResource(reinterpret_cast<ID3D11Resource **>(&texture_impl->texture));
 
 			D3D11_TEXTURE2D_DESC desc;
-			texture.texture->GetDesc(&desc);
+			texture_impl->texture->GetDesc(&desc);
 
 			texture.width = desc.Width;
 			texture.height = desc.Height;
@@ -998,16 +997,16 @@ namespace reshade
 		{
 			for (const auto &pass_ptr : technique.passes)
 			{
-				auto &pass = *static_cast<d3d11_pass *>(pass_ptr.get());
+				auto &pass = *static_cast<d3d11_pass_data *>(pass_ptr.get());
 
 				// Pass was created before this texture was created and therefore does not have have enough shader resource slots
-				if (texture.shader_register >= pass.shader_resources.size())
+				if (texture_impl->shader_register >= pass.shader_resources.size())
 				{
 					break;
 				}
 
-				pass.shader_resources[texture.shader_register] = texture.srv[0].get();
-				pass.shader_resources[texture.shader_register + 1] = texture.srv[1].get();
+				pass.shader_resources[texture_impl->shader_register] = texture_impl->srv[0].get();
+				pass.shader_resources[texture_impl->shader_register + 1] = texture_impl->srv[1].get();
 			}
 		}
 	}
@@ -1134,7 +1133,7 @@ namespace reshade
 						static_cast<LONG>(cmd->ClipRect.w)
 					};
 
-					ID3D11ShaderResourceView *const texture_view = static_cast<const d3d11_texture *>(cmd->TextureId)->srv[0].get();
+					ID3D11ShaderResourceView *const texture_view = static_cast<const d3d11_tex_data *>(cmd->TextureId)->srv[0].get();
 					_immediate_context->PSSetShaderResources(0, 1, &texture_view);
 					_immediate_context->RSSetScissorRects(1, &scissor_rect);
 
@@ -1353,11 +1352,11 @@ namespace reshade
 		}
 
 		// Update effect textures
-		for (const auto &texture : _textures)
+		for (auto &texture : _textures)
 		{
-			if (texture->type == texture_type::depthbuffer)
+			if (texture.type == texture_type::depthbuffer)
 			{
-				update_texture_datatype(static_cast<d3d11_texture &>(*texture), texture_type::depthbuffer, _depthstencil_texture_srv, nullptr);
+				update_texture_datatype(texture, texture_type::depthbuffer, _depthstencil_texture_srv, nullptr);
 			}
 		}
 

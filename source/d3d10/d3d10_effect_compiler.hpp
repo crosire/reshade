@@ -6,7 +6,7 @@
 namespace reshade
 {
 	#pragma region Forward Declarations
-	struct d3d10_pass;
+	struct d3d10_pass_data;
 	class d3d10_runtime;
 	#pragma endregion
 
@@ -55,8 +55,8 @@ namespace reshade
 		void visit_sampler(const reshadefx::nodes::variable_declaration_node *node);
 		void visit_uniform(const reshadefx::nodes::variable_declaration_node *node);
 		void visit_technique(const reshadefx::nodes::technique_declaration_node *node);
-		void visit_pass(const reshadefx::nodes::pass_declaration_node *node, d3d10_pass &pass);
-		void visit_pass_shader(const reshadefx::nodes::function_declaration_node *node, const std::string &shadertype, d3d10_pass &pass);
+		void visit_pass(const reshadefx::nodes::pass_declaration_node *node, d3d10_pass_data &pass);
+		void visit_pass_shader(const reshadefx::nodes::function_declaration_node *node, const std::string &shadertype, d3d10_pass_data &pass);
 
 		d3d10_runtime *_runtime;
 		bool _success = true;

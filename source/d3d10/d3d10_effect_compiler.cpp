@@ -1432,17 +1432,19 @@ namespace reshade
 
 	void d3d10_effect_compiler::visit_texture(const variable_declaration_node *node)
 	{
-		const auto obj = new d3d10_texture();
+		texture obj;
+		obj.impl = std::make_unique<d3d10_tex_data>();
+		const auto obj_data = obj.impl->as<d3d10_tex_data>();
 		D3D10_TEXTURE2D_DESC texdesc = { };
-		obj->name = node->name;
-		obj->unique_name = node->unique_name;
-		obj->shader_register = _runtime->_effect_shader_resources.size();
-		obj->annotations = node->annotations;
-		texdesc.Width = obj->width = node->properties.width;
-		texdesc.Height = obj->height = node->properties.height;
-		texdesc.MipLevels = obj->levels = node->properties.levels;
+		obj.name = node->name;
+		obj.unique_name = node->unique_name;
+		obj.annotations = node->annotations;
+		obj_data->shader_register = _runtime->_effect_shader_resources.size();
+		texdesc.Width = obj.width = node->properties.width;
+		texdesc.Height = obj.height = node->properties.height;
+		texdesc.MipLevels = obj.levels = node->properties.levels;
 		texdesc.ArraySize = 1;
-		texdesc.Format = literal_to_format(obj->format = node->properties.format);
+		texdesc.Format = literal_to_format(obj.format = node->properties.format);
 		texdesc.SampleDesc.Count = 1;
 		texdesc.SampleDesc.Quality = 0;
 		texdesc.Usage = D3D10_USAGE_DEFAULT;
@@ -1456,7 +1458,7 @@ namespace reshade
 				warning(node->location, "texture properties on backbuffer textures are ignored");
 			}
 
-			_runtime->update_texture_datatype(*obj, texture_type::backbuffer, _runtime->_backbuffer_texture_srv[0], _runtime->_backbuffer_texture_srv[1]);
+			_runtime->update_texture_datatype(obj, texture_type::backbuffer, _runtime->_backbuffer_texture_srv[0], _runtime->_backbuffer_texture_srv[1]);
 		}
 		else if (node->semantic == "DEPTH" || node->semantic == "SV_DEPTH")
 		{
@@ -1465,7 +1467,7 @@ namespace reshade
 				warning(node->location, "texture properties on depthbuffer textures are ignored");
 			}
 
-			_runtime->update_texture_datatype(*obj, texture_type::depthbuffer, _runtime->_depthstencil_texture_srv, nullptr);
+			_runtime->update_texture_datatype(obj, texture_type::depthbuffer, _runtime->_depthstencil_texture_srv, nullptr);
 		}
 		else
 		{
@@ -1476,7 +1478,7 @@ namespace reshade
 				texdesc.MipLevels = 1;
 			}
 
-			HRESULT hr = _runtime->_device->CreateTexture2D(&texdesc, nullptr, &obj->texture);
+			HRESULT hr = _runtime->_device->CreateTexture2D(&texdesc, nullptr, &obj_data->texture);
 
 			if (FAILED(hr))
 			{
@@ -1489,7 +1491,7 @@ namespace reshade
 			srvdesc.Texture2D.MipLevels = texdesc.MipLevels;
 			srvdesc.Format = make_format_normal(texdesc.Format);
 
-			hr = _runtime->_device->CreateShaderResourceView(obj->texture.get(), &srvdesc, &obj->srv[0]);
+			hr = _runtime->_device->CreateShaderResourceView(obj_data->texture.get(), &srvdesc, &obj_data->srv[0]);
 
 			if (FAILED(hr))
 			{
@@ -1501,7 +1503,7 @@ namespace reshade
 
 			if (srvdesc.Format != texdesc.Format)
 			{
-				hr = _runtime->_device->CreateShaderResourceView(obj->texture.get(), &srvdesc, &obj->srv[1]);
+				hr = _runtime->_device->CreateShaderResourceView(obj_data->texture.get(), &srvdesc, &obj_data->srv[1]);
 
 				if (FAILED(hr))
 				{
@@ -1515,10 +1517,10 @@ namespace reshade
 			node->unique_name << " : register(t" << _runtime->_effect_shader_resources.size() << "), __" <<
 			node->unique_name << "SRGB : register(t" << (_runtime->_effect_shader_resources.size() + 1) << ");\n";
 
-		_runtime->_effect_shader_resources.push_back(obj->srv[0].get());
-		_runtime->_effect_shader_resources.push_back(obj->srv[1].get());
+		_runtime->_effect_shader_resources.push_back(obj_data->srv[0].get());
+		_runtime->_effect_shader_resources.push_back(obj_data->srv[1].get());
 
-		_runtime->add_texture(obj);
+		_runtime->add_texture(std::move(obj));
 	}
 	void d3d10_effect_compiler::visit_sampler(const variable_declaration_node *node)
 	{
@@ -1539,7 +1541,7 @@ namespace reshade
 		desc.MaxAnisotropy = node->properties.max_anisotropy;
 		desc.ComparisonFunc = D3D10_COMPARISON_NEVER;
 
-		const auto texture = static_cast<d3d10_texture *>(_runtime->find_texture(node->properties.texture->name));
+		const auto texture = _runtime->find_texture(node->properties.texture->name);
 
 		if (texture == nullptr)
 		{
@@ -1570,7 +1572,9 @@ namespace reshade
 
 		_global_code << "static const __sampler2D " << node->unique_name << " = { ";
 
-		if (node->properties.srgb_texture && texture->srv[1] != nullptr)
+		const auto texture_impl = texture->impl->as<d3d10_tex_data>();
+
+		if (node->properties.srgb_texture && texture_impl->srv[1] != nullptr)
 		{
 			_global_code << "__" << node->properties.texture->unique_name << "SRGB";
 		}
@@ -1666,13 +1670,13 @@ namespace reshade
 
 		for (auto pass : node->pass_list)
 		{
-			obj.passes.emplace_back(new d3d10_pass());
-			visit_pass(pass, *static_cast<d3d10_pass *>(obj.passes.back().get()));
+			obj.passes.emplace_back(std::make_unique<d3d10_pass_data>());
+			visit_pass(pass, *static_cast<d3d10_pass_data *>(obj.passes.back().get()));
 		}
 
 		_runtime->add_technique(std::move(obj));
 	}
-	void d3d10_effect_compiler::visit_pass(const pass_declaration_node *node, d3d10_pass &pass)
+	void d3d10_effect_compiler::visit_pass(const pass_declaration_node *node, d3d10_pass_data &pass)
 	{
 		pass.stencil_reference = 0;
 		pass.viewport.TopLeftX = pass.viewport.TopLeftY = pass.viewport.Width = pass.viewport.Height = 0;
@@ -1703,7 +1707,7 @@ namespace reshade
 				continue;
 			}
 
-			const auto texture = static_cast<d3d10_texture *>(_runtime->find_texture(node->render_targets[i]->name));
+			const auto texture = _runtime->find_texture(node->render_targets[i]->name);
 
 			if (texture == nullptr)
 			{
@@ -1711,8 +1715,10 @@ namespace reshade
 				return;
 			}
 
+			const auto texture_impl = texture->impl->as<d3d10_tex_data>();
+
 			D3D10_TEXTURE2D_DESC texture_desc;
-			texture->texture->GetDesc(&texture_desc);
+			texture_impl->texture->GetDesc(&texture_desc);
 
 			if (pass.viewport.Width != 0 && pass.viewport.Height != 0 && (texture_desc.Width != static_cast<unsigned int>(pass.viewport.Width) || texture_desc.Height != static_cast<unsigned int>(pass.viewport.Height)))
 			{
@@ -1729,9 +1735,9 @@ namespace reshade
 			rtvdesc.Format = node->srgb_write_enable ? make_format_srgb(texture_desc.Format) : make_format_normal(texture_desc.Format);
 			rtvdesc.ViewDimension = texture_desc.SampleDesc.Count > 1 ? D3D10_RTV_DIMENSION_TEXTURE2DMS : D3D10_RTV_DIMENSION_TEXTURE2D;
 
-			if (texture->rtv[target_index] == nullptr)
+			if (texture_impl->rtv[target_index] == nullptr)
 			{
-				const HRESULT hr = _runtime->_device->CreateRenderTargetView(texture->texture.get(), &rtvdesc, &texture->rtv[target_index]);
+				const HRESULT hr = _runtime->_device->CreateRenderTargetView(texture_impl->texture.get(), &rtvdesc, &texture_impl->rtv[target_index]);
 
 				if (FAILED(hr))
 				{
@@ -1739,8 +1745,8 @@ namespace reshade
 				}
 			}
 
-			pass.render_targets[i] = texture->rtv[target_index].get();
-			pass.render_target_resources[i] = texture->srv[target_index].get();
+			pass.render_targets[i] = texture_impl->rtv[target_index].get();
+			pass.render_target_resources[i] = texture_impl->srv[target_index].get();
 		}
 
 		if (pass.viewport.Width == 0 && pass.viewport.Height == 0)
@@ -1819,7 +1825,7 @@ namespace reshade
 			}
 		}
 	}
-	void d3d10_effect_compiler::visit_pass_shader(const function_declaration_node *node, const std::string &shadertype, d3d10_pass &pass)
+	void d3d10_effect_compiler::visit_pass_shader(const function_declaration_node *node, const std::string &shadertype, d3d10_pass_data &pass)
 	{
 		com_ptr<ID3D10Device1> device1;
 		D3D10_FEATURE_LEVEL1 featurelevel = D3D10_FEATURE_LEVEL_10_0;

@@ -6,7 +6,7 @@
 namespace reshade
 {
 	#pragma region Forward Declarations
-	struct opengl_pass;
+	struct opengl_pass_data;
 	class opengl_runtime;
 	#pragma endregion
 
@@ -56,7 +56,7 @@ namespace reshade
 		void visit_sampler(const reshadefx::nodes::variable_declaration_node *node);
 		void visit_uniform(const reshadefx::nodes::variable_declaration_node *node);
 		void visit_technique(const reshadefx::nodes::technique_declaration_node *node);
-		void visit_pass(const reshadefx::nodes::pass_declaration_node *node, opengl_pass &pass);
+		void visit_pass(const reshadefx::nodes::pass_declaration_node *node, opengl_pass_data &pass);
 		void visit_pass_shader(const reshadefx::nodes::function_declaration_node *node, unsigned int shadertype, unsigned int &shader);
 		void visit_shader_param(std::stringstream &output, reshadefx::nodes::type_node type, unsigned int qualifier, const std::string &name, const std::string &semantic, unsigned int shadertype);
 
