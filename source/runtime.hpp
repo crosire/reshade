@@ -223,5 +223,7 @@ namespace reshade
 		bool _block_input_outside_overlay = false, _overlay_key_setting_active = false, _screenshot_key_setting_active = false;
 		std::vector<char> _shader_edit_buffer;
 		ImGuiContext *_imgui_context = nullptr;
+		float _imgui_col_background[3] = { 0.275f, 0.275f, 0.275f }, _imgui_col_item_background[3] = { 0.447f, 0.447f, 0.447f };
+		float _imgui_col_text[3] = { 0.8f, 0.9f, 0.9f }, _imgui_col_active[3] = { 0.2f, 0.5f, 0.6f };
 	};
 }

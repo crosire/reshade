@@ -151,6 +151,7 @@ namespace reshade
 		ImGui::SetCurrentContext(_imgui_context);
 
 		auto &imgui_io = ImGui::GetIO();
+		auto &imgui_style = ImGui::GetStyle();
 		imgui_io.IniFilename = s_imgui_ini_path.c_str();
 		imgui_io.KeyMap[ImGuiKey_Tab] = 0x09; // VK_TAB
 		imgui_io.KeyMap[ImGuiKey_LeftArrow] = 0x25; // VK_LEFT
@@ -171,6 +172,11 @@ namespace reshade
 		imgui_io.KeyMap[ImGuiKey_X] = 'X';
 		imgui_io.KeyMap[ImGuiKey_Y] = 'Y';
 		imgui_io.KeyMap[ImGuiKey_Z] = 'Z';
+		imgui_style.WindowRounding = 0.0f;
+		imgui_style.ChildWindowRounding = 0.0f;
+		imgui_style.FrameRounding = 0.0f;
+		imgui_style.ScrollbarRounding = 0.0f;
+		imgui_style.GrabRounding = 0.0f;
 
 		load_configuration();
 	}
@@ -760,100 +766,105 @@ namespace reshade
 	}
 	void runtime::load_configuration()
 	{
-		const ini_file apps_config(s_appdata_path / "Settings.ini");
-		const ini_file style_config(s_appdata_path / "Style.ini");
-
+		const ini_file config(s_appdata_path / "Settings.ini");
 		const std::string section = s_appdata_path.parent_path() == s_executable_path.parent_path() ? "" : s_executable_path;
 
-		_show_developer_menu = apps_config.get(section, "DeveloperMode", false).as<bool>();
-		_performance_mode = apps_config.get(section, "PerformanceMode", false).as<bool>();
-		_block_input_outside_overlay = apps_config.get(section, "BlockInputOutsideOverlay", false).as<bool>();
-		_menu_key.keycode = apps_config.get(section, "MenuKey", 0x71).as<int>(); // VK_F2
-		_menu_key.ctrl = apps_config.get(section, "MenuKeyCtrl", false).as<bool>();
-		_menu_key.shift = apps_config.get(section, "MenuKeyShift", true).as<bool>();
-		_screenshot_key.keycode = apps_config.get(section, "ScreenshotKey", 0x2C).as<int>(); // VK_SNAPSHOT
-		_screenshot_key.ctrl = apps_config.get(section, "ScreenshotKeyCtrl", false).as<bool>();
-		_screenshot_key.shift = apps_config.get(section, "ScreenshotKeyShift", false).as<bool>();
-		_screenshot_path = apps_config.get(section, "ScreenshotPath", static_cast<const std::string &>(s_executable_path.parent_path())).as<std::string>();
-		_screenshot_format = apps_config.get(section, "ScreenshotFormat", 0).as<int>();
-		_effect_search_paths = apps_config.get(section, "EffectSearchPaths", static_cast<const std::string &>(s_injector_path.parent_path())).data();
-		_texture_search_paths = apps_config.get(section, "TextureSearchPaths", static_cast<const std::string &>(s_injector_path.parent_path())).data();
-		_preset_files = apps_config.get(section, "Presets", std::vector<std::string>()).data();
-		_current_preset = apps_config.get(section, "CurrentPreset", -1).as<int>();
+		_performance_mode = config.get(section, "PerformanceMode", false).as<bool>();
+		_block_input_outside_overlay = config.get(section, "BlockInputOutsideOverlay", false).as<bool>();
+		_menu_key.keycode = config.get(section, "OverlayKey", { 0x71, 0, 1 }).as<int>(0); // VK_F2
+		_menu_key.ctrl = config.get(section, "OverlayKey", { 0x71, 0, 1 }).as<bool>(1);
+		_menu_key.shift = config.get(section, "OverlayKey", { 0x71, 0, 1 }).as<bool>(2);
+		_screenshot_key.keycode = config.get(section, "ScreenshotKey", { 0x2C, 0, 0 }).as<int>(0); // VK_SNAPSHOT
+		_screenshot_key.ctrl = config.get(section, "ScreenshotKey", { 0x2C, 0, 0 }).as<bool>(1);
+		_screenshot_key.shift = config.get(section, "ScreenshotKey", { 0x2C, 0, 0 }).as<bool>(2);
+		_screenshot_path = config.get(section, "ScreenshotPath", static_cast<const std::string &>(s_executable_path.parent_path())).as<std::string>();
+		_screenshot_format = config.get(section, "ScreenshotFormat", 0).as<int>();
+		_effect_search_paths = config.get(section, "EffectSearchPaths", static_cast<const std::string &>(s_injector_path.parent_path())).data();
+		_texture_search_paths = config.get(section, "TextureSearchPaths", static_cast<const std::string &>(s_injector_path.parent_path())).data();
+		_preset_files = config.get(section, "PresetFiles", std::vector<std::string>()).data();
+		_current_preset = config.get(section, "CurrentPreset", -1).as<int>();
+
+		auto &style = ImGui::GetStyle();
+		style.Alpha = config.get(section, "UIAlpha", 0.95f).as<float>();
+
+		for (size_t i = 0; i < 3; i++)
+			_imgui_col_background[i] = config.get(section, "UIColBackground", _imgui_col_background).as<float>(i);
+		for (size_t i = 0; i < 3; i++)
+			_imgui_col_item_background[i] = config.get(section, "UIColItemBackground", _imgui_col_item_background).as<float>(i);
+		for (size_t i = 0; i < 3; i++)
+			_imgui_col_text[i] = config.get(section, "UIColText", _imgui_col_text).as<float>(i);
+		for (size_t i = 0; i < 3; i++)
+			_imgui_col_active[i] = config.get(section, "UIColActive", _imgui_col_active).as<float>(i);
+
+		style.Colors[ImGuiCol_Text] = ImVec4(_imgui_col_text[0], _imgui_col_text[1], _imgui_col_text[2], 1.00f);
+		style.Colors[ImGuiCol_TextDisabled] = ImVec4(_imgui_col_text[0], _imgui_col_text[1], _imgui_col_text[2], 0.58f);
+		style.Colors[ImGuiCol_WindowBg] = ImVec4(_imgui_col_background[0], _imgui_col_background[1], _imgui_col_background[2], 1.00f);
+		style.Colors[ImGuiCol_ChildWindowBg] = ImVec4(_imgui_col_item_background[0], _imgui_col_item_background[1], _imgui_col_item_background[2], 0.00f);
+		style.Colors[ImGuiCol_Border] = ImVec4(_imgui_col_text[0], _imgui_col_text[1], _imgui_col_text[2], 0.30f);
+		style.Colors[ImGuiCol_FrameBg] = ImVec4(_imgui_col_item_background[0], _imgui_col_item_background[1], _imgui_col_item_background[2], 1.00f);
+		style.Colors[ImGuiCol_FrameBgHovered] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.68f);
+		style.Colors[ImGuiCol_FrameBgActive] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 1.00f);
+		style.Colors[ImGuiCol_TitleBg] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.45f);
+		style.Colors[ImGuiCol_TitleBgCollapsed] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.35f);
+		style.Colors[ImGuiCol_TitleBgActive] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.78f);
+		style.Colors[ImGuiCol_MenuBarBg] = ImVec4(_imgui_col_item_background[0], _imgui_col_item_background[1], _imgui_col_item_background[2], 0.57f);
+		style.Colors[ImGuiCol_ScrollbarBg] = ImVec4(_imgui_col_item_background[0], _imgui_col_item_background[1], _imgui_col_item_background[2], 1.00f);
+		style.Colors[ImGuiCol_ScrollbarGrab] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.31f);
+		style.Colors[ImGuiCol_ScrollbarGrabHovered] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.78f);
+		style.Colors[ImGuiCol_ScrollbarGrabActive] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 1.00f);
+		style.Colors[ImGuiCol_ComboBg] = ImVec4(_imgui_col_item_background[0], _imgui_col_item_background[1], _imgui_col_item_background[2], 1.00f);
+		style.Colors[ImGuiCol_CheckMark] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.80f);
+		style.Colors[ImGuiCol_SliderGrab] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.24f);
+		style.Colors[ImGuiCol_SliderGrabActive] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 1.00f);
+		style.Colors[ImGuiCol_Button] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.44f);
+		style.Colors[ImGuiCol_ButtonHovered] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.86f);
+		style.Colors[ImGuiCol_ButtonActive] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 1.00f);
+		style.Colors[ImGuiCol_Header] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.76f);
+		style.Colors[ImGuiCol_HeaderHovered] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.86f);
+		style.Colors[ImGuiCol_HeaderActive] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 1.00f);
+		style.Colors[ImGuiCol_Column] = ImVec4(_imgui_col_text[0], _imgui_col_text[1], _imgui_col_text[2], 0.32f);
+		style.Colors[ImGuiCol_ColumnHovered] = ImVec4(_imgui_col_text[0], _imgui_col_text[1], _imgui_col_text[2], 0.78f);
+		style.Colors[ImGuiCol_ColumnActive] = ImVec4(_imgui_col_text[0], _imgui_col_text[1], _imgui_col_text[2], 1.00f);
+		style.Colors[ImGuiCol_ResizeGrip] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.20f);
+		style.Colors[ImGuiCol_ResizeGripHovered] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.78f);
+		style.Colors[ImGuiCol_ResizeGripActive] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 1.00f);
+		style.Colors[ImGuiCol_CloseButton] = ImVec4(_imgui_col_text[0], _imgui_col_text[1], _imgui_col_text[2], 0.16f);
+		style.Colors[ImGuiCol_CloseButtonHovered] = ImVec4(_imgui_col_text[0], _imgui_col_text[1], _imgui_col_text[2], 0.39f);
+		style.Colors[ImGuiCol_CloseButtonActive] = ImVec4(_imgui_col_text[0], _imgui_col_text[1], _imgui_col_text[2], 1.00f);
+		style.Colors[ImGuiCol_PlotLines] = ImVec4(_imgui_col_text[0], _imgui_col_text[1], _imgui_col_text[2], 0.63f);
+		style.Colors[ImGuiCol_PlotLinesHovered] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 1.00f);
+		style.Colors[ImGuiCol_PlotHistogram] = ImVec4(_imgui_col_text[0], _imgui_col_text[1], _imgui_col_text[2], 0.63f);
+		style.Colors[ImGuiCol_PlotHistogramHovered] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 1.00f);
+		style.Colors[ImGuiCol_TextSelectedBg] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.43f);
+		style.Colors[ImGuiCol_PopupBg] = ImVec4(_imgui_col_item_background[0], _imgui_col_item_background[1], _imgui_col_item_background[2], 0.92f);
 
 		if (_preset_files.empty() || _current_preset >= _preset_files.size())
 		{
 			_current_preset = -1;
 		}
-
-		auto &style = ImGui::GetStyle();
-
-		style.Alpha = style_config.get("Vars", "GlobalAlpha", style.Alpha).as<float>();
-		style.WindowPadding = style_config.get("Vars", "WindowPadding", style.WindowPadding).as<ImVec2>();
-		style.WindowRounding = style_config.get("Vars", "WindowRounding", 0.0f).as<float>();
-		style.ChildWindowRounding = style_config.get("Vars", "ChildWindowRounding", style.ChildWindowRounding).as<float>();
-		style.FramePadding = style_config.get("Vars", "FramePadding", style.FramePadding).as<ImVec2>();
-		style.FrameRounding = style_config.get("Vars", "FrameRounding", style.FrameRounding).as<float>();
-		style.ItemSpacing = style_config.get("Vars", "ItemSpacing", style.ItemSpacing).as<ImVec2>();
-		style.ItemInnerSpacing = style_config.get("Vars", "ItemInnerSpacing", style.ItemInnerSpacing).as<ImVec2>();
-		style.TouchExtraPadding = style_config.get("Vars", "TouchExtraPadding", style.TouchExtraPadding).as<ImVec2>();
-		style.IndentSpacing = style_config.get("Vars", "IndentSpacing", style.IndentSpacing).as<float>();
-		style.ScrollbarSize = style_config.get("Vars", "ScrollbarSize", style.ScrollbarSize).as<float>();
-		style.ScrollbarRounding = style_config.get("Vars", "ScrollbarRounding", 0.0f).as<float>();
-		style.GrabMinSize = style_config.get("Vars", "GrabMinSize", style.GrabMinSize).as<float>();
-		style.GrabRounding = style_config.get("Vars", "GrabRounding", style.GrabRounding).as<float>();
-
-		style.Colors[ImGuiCol_WindowBg].w = 0.8f;
-
-		for (unsigned int i = 0; i < ImGuiCol_COUNT; i++)
-		{
-			style.Colors[i] = style_config.get("Colors", ImGui::GetStyleColName(i), style.Colors[i]).as<ImVec4>();
-		}
 	}
 	void runtime::save_configuration() const
 	{
-		ini_file apps_config(s_appdata_path / "Settings.ini");
-		ini_file style_config(s_appdata_path / "Style.ini");
-
+		ini_file config(s_appdata_path / "Settings.ini");
 		const std::string section = s_appdata_path.parent_path() == s_executable_path.parent_path() ? "" : s_executable_path;
 
-		apps_config.set(section, "DeveloperMode", _show_developer_menu);
-		apps_config.set(section, "PerformanceMode", _performance_mode);
-		apps_config.set(section, "BlockInputOutsideOverlay", _block_input_outside_overlay);
-		apps_config.set(section, "MenuKey", _menu_key.keycode);
-		apps_config.set(section, "MenuKeyCtrl", _menu_key.ctrl);
-		apps_config.set(section, "MenuKeyShift", _menu_key.shift);
-		apps_config.set(section, "ScreenshotKey", _screenshot_key.keycode);
-		apps_config.set(section, "ScreenshotKeyCtrl", _screenshot_key.ctrl);
-		apps_config.set(section, "ScreenshotKeyShift", _screenshot_key.shift);
-		apps_config.set(section, "ScreenshotPath", _screenshot_path);
-		apps_config.set(section, "ScreenshotFormat", _screenshot_format);
-		apps_config.set(section, "EffectSearchPaths", _effect_search_paths);
-		apps_config.set(section, "TextureSearchPaths", _texture_search_paths);
-		apps_config.set(section, "Presets", _preset_files);
-		apps_config.set(section, "CurrentPreset", _current_preset);
+		config.set(section, "PerformanceMode", _performance_mode);
+		config.set(section, "BlockInputOutsideOverlay", _block_input_outside_overlay);
+		config.set(section, "OverlayKey", { _menu_key.keycode, _menu_key.ctrl ? 1 : 0, _menu_key.shift ? 1 : 0 });
+		config.set(section, "ScreenshotKey", { _screenshot_key.keycode, _screenshot_key.ctrl ? 1 : 0, _screenshot_key.shift ? 1 : 0 });
+		config.set(section, "ScreenshotPath", _screenshot_path);
+		config.set(section, "ScreenshotFormat", _screenshot_format);
+		config.set(section, "EffectSearchPaths", _effect_search_paths);
+		config.set(section, "TextureSearchPaths", _texture_search_paths);
+		config.set(section, "PresetFiles", _preset_files);
+		config.set(section, "CurrentPreset", _current_preset);
 
 		const auto &style = ImGui::GetStyle();
-
-		style_config.set("Vars", "GlobalAlpha", style.Alpha);
-		style_config.set("Vars", "WindowPadding", style.WindowPadding);
-		style_config.set("Vars", "WindowRounding", style.WindowRounding);
-		style_config.set("Vars", "ChildWindowRounding", style.ChildWindowRounding);
-		style_config.set("Vars", "FramePadding", style.FramePadding);
-		style_config.set("Vars", "FrameRounding", style.FrameRounding);
-		style_config.set("Vars", "ItemSpacing", style.ItemSpacing);
-		style_config.set("Vars", "ItemInnerSpacing", style.ItemInnerSpacing);
-		style_config.set("Vars", "TouchExtraPadding", style.TouchExtraPadding);
-		style_config.set("Vars", "IndentSpacing", style.IndentSpacing);
-		style_config.set("Vars", "ScrollbarSize", style.ScrollbarSize);
-		style_config.set("Vars", "ScrollbarRounding", style.ScrollbarRounding);
-		style_config.set("Vars", "GrabMinSize", style.GrabMinSize);
-		style_config.set("Vars", "GrabRounding", style.GrabRounding);
-
-		for (unsigned int i = 0; i < ImGuiCol_COUNT; i++)
-		{
-			style_config.set("Colors", ImGui::GetStyleColName(i), style.Colors[i]);
-		}
+		config.set(section, "UIAlpha", style.Alpha);
+		config.set(section, "UIColBackground", _imgui_col_background);
+		config.set(section, "UIColItemBackground", _imgui_col_item_background);
+		config.set(section, "UIColText", _imgui_col_text);
+		config.set(section, "UIColActive", _imgui_col_active);
 	}
 	void runtime::load_preset(const filesystem::path &path)
 	{
@@ -1135,7 +1146,7 @@ namespace reshade
 		{
 			char buf[260] = { };
 
-			if (ImGui::InputText("Path to INI", buf, sizeof(buf), ImGuiInputTextFlags_EnterReturnsTrue))
+			if (ImGui::InputText("Path to preset file", buf, sizeof(buf), ImGuiInputTextFlags_EnterReturnsTrue))
 			{
 				const auto path = filesystem::absolute(buf);
 
@@ -1358,44 +1369,16 @@ namespace reshade
 
 		if (ImGui::CollapsingHeader("User Interface", ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_DefaultOpen))
 		{
-			const ImVec2 button_width(ImGui::CalcItemWidth() / 2 - 2, 0);
+			const bool modified1 = ImGui::DragFloat("Alpha", &ImGui::GetStyle().Alpha, 0.005f, 0.20f, 1.0f, "%.2f");
+			const bool modified2 = ImGui::ColorEdit3("Background Color", _imgui_col_background);
+			const bool modified3 = ImGui::ColorEdit3("Item Background Color", _imgui_col_item_background);
+			const bool modified4 = ImGui::ColorEdit3("Text Color", _imgui_col_text);
+			const bool modified5 = ImGui::ColorEdit3("Active Item Color", _imgui_col_active);
 
-			if (ImGui::Button("Revert Style", button_width))
-			{
-				load_configuration();
-			}
-
-			ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImGui::GetStyle().ItemInnerSpacing);
-			ImGui::SameLine();
-			ImGui::PopStyleVar();
-
-			if (ImGui::Button("Save Style", button_width))
+			if (modified1 || modified2 || modified3 || modified4 || modified5)
 			{
 				save_configuration();
-			}
-
-			auto &style = ImGui::GetStyle();
-
-			ImGui::DragFloat("GlobalAlpha", &style.Alpha, 0.005f, 0.20f, 1.0f, "%.2f");
-			ImGui::SliderFloat2("WindowPadding", &style.WindowPadding.x, 0.0f, 20.0f, "%.0f");
-			ImGui::SliderFloat("WindowRounding", &style.WindowRounding, 0.0f, 16.0f, "%.0f");
-			ImGui::SliderFloat("ChildWindowRounding", &style.ChildWindowRounding, 0.0f, 16.0f, "%.0f");
-			ImGui::SliderFloat2("FramePadding", &style.FramePadding.x, 0.0f, 20.0f, "%.0f");
-			ImGui::SliderFloat("FrameRounding", &style.FrameRounding, 0.0f, 16.0f, "%.0f");
-			ImGui::SliderFloat2("ItemSpacing", &style.ItemSpacing.x, 0.0f, 20.0f, "%.0f");
-			ImGui::SliderFloat2("ItemInnerSpacing", &style.ItemInnerSpacing.x, 0.0f, 20.0f, "%.0f");
-			ImGui::SliderFloat2("TouchExtraPadding", &style.TouchExtraPadding.x, 0.0f, 10.0f, "%.0f");
-			ImGui::SliderFloat("IndentSpacing", &style.IndentSpacing, 0.0f, 30.0f, "%.0f");
-			ImGui::SliderFloat("ScrollbarSize", &style.ScrollbarSize, 1.0f, 20.0f, "%.0f");
-			ImGui::SliderFloat("ScrollbarRounding", &style.ScrollbarRounding, 0.0f, 16.0f, "%.0f");
-			ImGui::SliderFloat("GrabMinSize", &style.GrabMinSize, 1.0f, 20.0f, "%.0f");
-			ImGui::SliderFloat("GrabRounding", &style.GrabRounding, 0.0f, 16.0f, "%.0f");
-
-			for (int i = 0; i < ImGuiCol_COUNT; i++)
-			{
-				ImGui::PushID(i);
-				ImGui::ColorEdit4(ImGui::GetStyleColName(i), &style.Colors[i].x);
-				ImGui::PopID();
+				load_configuration();
 			}
 		}
 	}
