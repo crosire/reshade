@@ -2128,20 +2128,10 @@ namespace reshade
 
 		if (node->semantic == "COLOR" || node->semantic == "SV_TARGET")
 		{
-			if (width != 1 || height != 1 || levels != 1 || internalformat != GL_RGBA8)
-			{
-				warning(node->location, "texture property on backbuffer textures are ignored");
-			}
-
 			_runtime->update_texture_datatype(obj, texture_type::backbuffer, _runtime->_backbuffer_texture[0], _runtime->_backbuffer_texture[1]);
 		}
 		else if (node->semantic == "DEPTH" || node->semantic == "SV_DEPTH")
 		{
-			if (width != 1 || height != 1 || levels != 1 || internalformat != GL_RGBA8)
-			{
-				warning(node->location, "texture property on depthbuffer textures are ignored");
-			}
-
 			_runtime->update_texture_datatype(obj, texture_type::depthbuffer, _runtime->_depth_texture, 0);
 		}
 		else

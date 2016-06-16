@@ -1322,7 +1322,7 @@ namespace reshadefx
 					newexpression->type = callexpression->type;
 					newexpression->op = static_cast<enum intrinsic_expression_node::op>(callexpression->callee_name[0]);
 
-					for (size_t i = 0, count = std::min(callexpression->arguments.size(), sizeof(newexpression->arguments) / sizeof(*newexpression->arguments)); i < count; ++i)
+					for (size_t i = 0, count = std::min(callexpression->arguments.size(), _countof(newexpression->arguments)); i < count; ++i)
 					{
 						newexpression->arguments[i] = callexpression->arguments[i];
 					}
@@ -2389,8 +2389,8 @@ namespace reshadefx
 			return false;
 		}
 
-		unsigned int count = 0;
 		const auto declarators = _ast.make_node<declarator_list_node>(location);
+		unsigned int count = 0;
 
 		do
 		{
@@ -2406,7 +2406,7 @@ namespace reshadefx
 
 			variable_declaration_node *declarator = nullptr;
 
-			if (!parse_variable_residue(type, _token.literal_as_string, declarator))
+			if (!parse_variable_declaration(type, _token.literal_as_string, declarator))
 			{
 				return false;
 			}
@@ -2465,7 +2465,7 @@ namespace reshadefx
 			{
 				function_declaration_node *function = nullptr;
 
-				if (!parse_function_residue(type, _token.literal_as_string, function))
+				if (!parse_function_declaration(type, _token.literal_as_string, function))
 				{
 					return false;
 				}
@@ -2485,7 +2485,7 @@ namespace reshadefx
 
 					variable_declaration_node *variable = nullptr;
 
-					if (!parse_variable_residue(type, _token.literal_as_string, variable, true))
+					if (!parse_variable_declaration(type, _token.literal_as_string, variable, true))
 					{
 						consume_until(';');
 
@@ -2761,7 +2761,7 @@ namespace reshadefx
 
 		return expect('}');
 	}
-	bool parser::parse_function_residue(type_node &type, std::string name, function_declaration_node *&function)
+	bool parser::parse_function_declaration(type_node &type, std::string name, function_declaration_node *&function)
 	{
 		const auto location = _token.location;
 
@@ -2933,7 +2933,7 @@ namespace reshadefx
 
 		return true;
 	}
-	bool parser::parse_variable_residue(type_node &type, std::string name, variable_declaration_node *&variable, bool global)
+	bool parser::parse_variable_declaration(type_node &type, std::string name, variable_declaration_node *&variable, bool global)
 	{
 		auto location = _token.location;
 
@@ -3019,6 +3019,8 @@ namespace reshadefx
 
 			variable->semantic = _token.literal_as_string;
 			std::transform(variable->semantic.begin(), variable->semantic.end(), variable->semantic.begin(), ::toupper);
+
+			return true;
 		}
 
 		parse_annotations(variable->annotations);

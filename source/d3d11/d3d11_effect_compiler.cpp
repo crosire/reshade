@@ -1453,20 +1453,10 @@ namespace reshade
 
 		if (node->semantic == "COLOR" || node->semantic == "SV_TARGET")
 		{
-			if (texdesc.Width != 1 || texdesc.Height != 1 || texdesc.MipLevels != 1 || texdesc.Format != DXGI_FORMAT_R8G8B8A8_TYPELESS)
-			{
-				warning(node->location, "texture properties on backbuffer textures are ignored");
-			}
-
 			_runtime->update_texture_datatype(obj, texture_type::backbuffer, _runtime->_backbuffer_texture_srv[0], _runtime->_backbuffer_texture_srv[1]);
 		}
 		else if (node->semantic == "DEPTH" || node->semantic == "SV_DEPTH")
 		{
-			if (texdesc.Width != 1 || texdesc.Height != 1 || texdesc.MipLevels != 1 || texdesc.Format != DXGI_FORMAT_R8G8B8A8_TYPELESS)
-			{
-				warning(node->location, "texture properties on depthbuffer textures are ignored");
-			}
-
 			_runtime->update_texture_datatype(obj, texture_type::depthbuffer, _runtime->_depthstencil_texture_srv, nullptr);
 		}
 		else

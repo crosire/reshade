@@ -1414,20 +1414,10 @@ namespace reshade
 
 		if (node->semantic == "COLOR" || node->semantic == "SV_TARGET")
 		{
-			if (width != 1 || height != 1 || levels != 1 || format != D3DFMT_A8R8G8B8)
-			{
-				warning(node->location, "texture properties on backbuffer textures are ignored");
-			}
-
 			_runtime->update_texture_datatype(obj, texture_type::backbuffer, _runtime->_backbuffer_texture);
 		}
 		else if (node->semantic == "DEPTH" || node->semantic == "SV_DEPTH")
 		{
-			if (width != 1 || height != 1 || levels != 1 || format != D3DFMT_A8R8G8B8)
-			{
-				warning(node->location, "texture properties on depthbuffer textures are ignored");
-			}
-
 			_runtime->update_texture_datatype(obj, texture_type::depthbuffer, _runtime->_depthstencil_texture);
 		}
 		else
