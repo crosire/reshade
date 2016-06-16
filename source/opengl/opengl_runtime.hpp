@@ -65,8 +65,8 @@ namespace reshade
 		void on_reset() override;
 		void on_reset_effect() override;
 		void on_present() override;
-		void on_draw_call(unsigned int vertices) override;
-		void on_apply_effect() override;
+		void on_present_effect() override;
+		void on_draw_call(unsigned int vertices);
 		void on_fbo_attachment(GLenum target, GLenum attachment, GLenum objecttarget, GLuint object, GLint level);
 
 		void screenshot(uint8_t *buffer) const override;

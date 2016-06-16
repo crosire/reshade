@@ -39,8 +39,8 @@ namespace reshade
 		void on_reset() override;
 		void on_reset_effect() override;
 		void on_present() override;
-		void on_draw_call(UINT vertices) override;
-		void on_apply_effect() override;
+		void on_present_effect() override;
+		void on_draw_call(UINT vertices);
 		void on_set_depthstencil_view(ID3D10DepthStencilView *&depthstencil);
 		void on_get_depthstencil_view(ID3D10DepthStencilView *&depthstencil);
 		void on_clear_depthstencil_view(ID3D10DepthStencilView *&depthstencil);

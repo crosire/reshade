@@ -559,7 +559,7 @@ namespace reshade
 		}
 
 		// Apply post processing
-		on_apply_effect();
+		on_present_effect();
 
 		// Reset render target
 		const auto render_target = _backbuffer_rtv[0].get();
@@ -590,32 +590,7 @@ namespace reshade
 		// Apply previous device state
 		_stateblock.apply_and_release();
 	}
-	void d3d10_runtime::on_draw_call(UINT vertices)
-	{
-		runtime::on_draw_call(vertices);
-
-		com_ptr<ID3D10DepthStencilView> current_depthstencil;
-
-		_device->OMGetRenderTargets(0, nullptr, &current_depthstencil);
-
-		if (current_depthstencil == nullptr || current_depthstencil == _default_depthstencil)
-		{
-			return;
-		}
-		if (current_depthstencil == _depthstencil_replacement)
-		{
-			current_depthstencil = _depthstencil;
-		}
-
-		const auto it = _depth_source_table.find(current_depthstencil.get());
-
-		if (it != _depth_source_table.end())
-		{
-			it->second.drawcall_count = static_cast<float>(_drawcalls);
-			it->second.vertices_count += vertices;
-		}
-	}
-	void d3d10_runtime::on_apply_effect()
+	void d3d10_runtime::on_present_effect()
 	{
 		if (_techniques.empty())
 		{
@@ -642,9 +617,34 @@ namespace reshade
 		_device->PSSetSamplers(0, static_cast<UINT>(_effect_sampler_states.size()), _effect_sampler_states.data());
 
 		// Apply post processing
-		runtime::on_apply_effect();
+		runtime::on_present_effect();
 	}
+	void d3d10_runtime::on_draw_call(UINT vertices)
+	{
+		_vertices += vertices;
+		_drawcalls += 1;
 
+		com_ptr<ID3D10DepthStencilView> current_depthstencil;
+
+		_device->OMGetRenderTargets(0, nullptr, &current_depthstencil);
+
+		if (current_depthstencil == nullptr || current_depthstencil == _default_depthstencil)
+		{
+			return;
+		}
+		if (current_depthstencil == _depthstencil_replacement)
+		{
+			current_depthstencil = _depthstencil;
+		}
+
+		const auto it = _depth_source_table.find(current_depthstencil.get());
+
+		if (it != _depth_source_table.end())
+		{
+			it->second.drawcall_count = static_cast<float>(_drawcalls);
+			it->second.vertices_count += vertices;
+		}
+	}
 	void d3d10_runtime::on_set_depthstencil_view(ID3D10DepthStencilView *&depthstencil)
 	{
 		if (_depth_source_table.find(depthstencil) == _depth_source_table.end())
@@ -997,7 +997,8 @@ namespace reshade
 			// Draw triangle
 			_device->Draw(3, 0);
 
-			runtime::on_draw_call(3);
+			_vertices += 3;
+			_drawcalls += 1;
 
 			// Reset render targets
 			_device->OMSetRenderTargets(0, nullptr, nullptr);

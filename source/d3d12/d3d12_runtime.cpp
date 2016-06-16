@@ -58,9 +58,9 @@ namespace reshade
 
 		runtime::on_present();
 	}
-	void d3d12_runtime::on_apply_effect()
+	void d3d12_runtime::on_present_effect()
 	{
-		runtime::on_apply_effect();
+		runtime::on_present_effect();
 	}
 
 	void d3d12_runtime::screenshot(uint8_t *buffer) const

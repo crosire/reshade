@@ -154,14 +154,9 @@ namespace reshade
 		/// </summary>
 		virtual void on_present();
 		/// <summary>
-		/// Callback function called every draw call.
-		/// </summary>
-		/// <param name="vertices">The number of vertices this draw call generates.</param>
-		virtual void on_draw_call(unsigned int vertices);
-		/// <summary>
 		/// Callback function called to apply the post-processing effects to the screen.
 		/// </summary>
-		virtual void on_apply_effect();
+		virtual void on_present_effect();
 
 		/// <summary>
 		/// Render all passes in a technique.

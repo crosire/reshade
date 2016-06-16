@@ -253,12 +253,7 @@ namespace reshade
 
 		_input->next_frame();
 	}
-	void runtime::on_draw_call(unsigned int vertices)
-	{
-		_vertices += vertices;
-		_drawcalls += 1;
-	}
-	void runtime::on_apply_effect()
+	void runtime::on_present_effect()
 	{
 		for (auto &variable : _uniforms)
 		{

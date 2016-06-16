@@ -285,7 +285,7 @@ namespace reshade
 		}
 
 		// Apply post processing
-		on_apply_effect();
+		on_present_effect();
 
 		// Reset render target
 		_device->SetRenderTarget(0, _backbuffer_resolved.get());
@@ -321,6 +321,23 @@ namespace reshade
 		// End post processing
 		_device->EndScene();
 	}
+	void d3d9_runtime::on_present_effect()
+	{
+		if (_techniques.empty())
+		{
+			return;
+		}
+
+		_device->SetRenderTarget(0, _backbuffer_resolved.get());
+		_device->SetDepthStencilSurface(nullptr);
+
+		// Setup vertex input
+		_device->SetStreamSource(0, _effect_triangle_buffer.get(), 0, sizeof(float));
+		_device->SetVertexDeclaration(_effect_triangle_layout.get());
+
+		// Apply post processing
+		runtime::on_present_effect();
+	}
 	void d3d9_runtime::on_draw_call(D3DPRIMITIVETYPE type, UINT vertices)
 	{
 		switch (type)
@@ -340,7 +357,8 @@ namespace reshade
 				break;
 		}
 
-		runtime::on_draw_call(vertices);
+		_vertices += vertices;
+		_drawcalls += 1;
 
 		com_ptr<IDirect3DSurface9> depthstencil;
 		_device->GetDepthStencilSurface(&depthstencil);
@@ -361,24 +379,6 @@ namespace reshade
 			}
 		}
 	}
-	void d3d9_runtime::on_apply_effect()
-	{
-		if (_techniques.empty())
-		{
-			return;
-		}
-
-		_device->SetRenderTarget(0, _backbuffer_resolved.get());
-		_device->SetDepthStencilSurface(nullptr);
-
-		// Setup vertex input
-		_device->SetStreamSource(0, _effect_triangle_buffer.get(), 0, sizeof(float));
-		_device->SetVertexDeclaration(_effect_triangle_layout.get());
-
-		// Apply post processing
-		runtime::on_apply_effect();
-	}
-
 	void d3d9_runtime::on_set_depthstencil_surface(IDirect3DSurface9 *&depthstencil)
 	{
 		if (_depth_source_table.find(depthstencil) == _depth_source_table.end())
@@ -674,7 +674,8 @@ namespace reshade
 			// Draw triangle
 			_device->DrawPrimitive(D3DPT_TRIANGLELIST, 0, 1);
 
-			runtime::on_draw_call(3);
+			_vertices += 3;
+			_drawcalls += 1;
 
 			// Update shader resources
 			for (const auto target : pass.render_targets)

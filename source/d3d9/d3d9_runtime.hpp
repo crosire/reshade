@@ -38,8 +38,8 @@ namespace reshade
 		bool on_init(const D3DPRESENT_PARAMETERS &pp);
 		void on_reset() override;
 		void on_present() override;
+		void on_present_effect() override;
 		void on_draw_call(D3DPRIMITIVETYPE type, UINT count);
-		void on_apply_effect() override;
 		void on_set_depthstencil_surface(IDirect3DSurface9 *&depthstencil);
 		void on_get_depthstencil_surface(IDirect3DSurface9 *&depthstencil);
 

@@ -432,7 +432,7 @@ namespace reshade
 		GLCHECK(glBlitFramebuffer(0, 0, _width, _height, 0, 0, _width, _height, GL_DEPTH_BUFFER_BIT, GL_NEAREST));
 
 		// Apply post processing
-		on_apply_effect();
+		on_present_effect();
 
 		glDisable(GL_FRAMEBUFFER_SRGB);
 
@@ -450,9 +450,34 @@ namespace reshade
 		// Apply states
 		_stateblock.apply();
 	}
+	void opengl_runtime::on_present_effect()
+	{
+		if (_techniques.empty())
+		{
+			return;
+		}
+
+		// Setup vertex input
+		GLCHECK(glBindVertexArray(_default_vao));
+
+		// Setup shader resources
+		for (GLsizei sampler = 0, samplerCount = static_cast<GLsizei>(_effect_samplers.size()); sampler < samplerCount; sampler++)
+		{
+			GLCHECK(glActiveTexture(GL_TEXTURE0 + sampler));
+			GLCHECK(glBindTexture(GL_TEXTURE_2D, _effect_samplers[sampler].texture->id[_effect_samplers[sampler].is_srgb]));
+			GLCHECK(glBindSampler(sampler, _effect_samplers[sampler].id));
+		}
+
+		// Apply post processing
+		runtime::on_present_effect();
+
+		// Reset states
+		GLCHECK(glBindSampler(0, 0));
+	}
 	void opengl_runtime::on_draw_call(unsigned int vertices)
 	{
-		runtime::on_draw_call(vertices);
+		_vertices += vertices;
+		_drawcalls += 1;
 
 		GLint fbo = 0, object = 0, objecttarget = GL_NONE;
 		GLCHECK(glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &fbo));
@@ -479,31 +504,6 @@ namespace reshade
 			it->second.vertices_count += vertices;
 		}
 	}
-	void opengl_runtime::on_apply_effect()
-	{
-		if (_techniques.empty())
-		{
-			return;
-		}
-
-		// Setup vertex input
-		GLCHECK(glBindVertexArray(_default_vao));
-
-		// Setup shader resources
-		for (GLsizei sampler = 0, samplerCount = static_cast<GLsizei>(_effect_samplers.size()); sampler < samplerCount; sampler++)
-		{
-			GLCHECK(glActiveTexture(GL_TEXTURE0 + sampler));
-			GLCHECK(glBindTexture(GL_TEXTURE_2D, _effect_samplers[sampler].texture->id[_effect_samplers[sampler].is_srgb]));
-			GLCHECK(glBindSampler(sampler, _effect_samplers[sampler].id));
-		}
-
-		// Apply post processing
-		runtime::on_apply_effect();
-
-		// Reset states
-		GLCHECK(glBindSampler(0, 0));
-	}
-
 	void opengl_runtime::on_fbo_attachment(GLenum target, GLenum attachment, GLenum objecttarget, GLuint object, GLint level)
 	{
 		if (object == 0 || (attachment != GL_DEPTH_ATTACHMENT && attachment != GL_DEPTH_STENCIL_ATTACHMENT))

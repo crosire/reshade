@@ -18,7 +18,7 @@ namespace reshade
 		void on_reset() override;
 		void on_reset_effect() override;
 		void on_present() override;
-		void on_apply_effect() override;
+		void on_present_effect() override;
 
 		void screenshot(uint8_t *buffer) const override;
 		bool update_effect(const reshadefx::syntax_tree &ast, std::string &errors) override;
