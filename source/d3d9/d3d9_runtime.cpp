@@ -1,6 +1,6 @@
 #include "log.hpp"
 #include "d3d9_runtime.hpp"
-#include "d3d9_fx_compiler.hpp"
+#include "d3d9_effect_compiler.hpp"
 #include "lexer.hpp"
 #include "input.hpp"
 #include <imgui.h>
@@ -568,7 +568,7 @@ namespace reshade
 	}
 	bool d3d9_runtime::update_effect(const reshadefx::syntax_tree &ast, std::string &errors)
 	{
-		return d3d9_fx_compiler(this, ast, errors, false).run();
+		return d3d9_effect_compiler(this, ast, errors, false).run();
 	}
 	bool d3d9_runtime::update_texture(texture &texture, const uint8_t *data)
 	{

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "runtime.hpp"
+#include "com_ptr.hpp"
 
 #include <d3d12.h>
 #include <dxgi1_4.h>

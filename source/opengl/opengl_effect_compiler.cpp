@@ -1,6 +1,6 @@
 #include "log.hpp"
-#include "gl_runtime.hpp"
-#include "gl_fx_compiler.hpp"
+#include "opengl_runtime.hpp"
+#include "opengl_effect_compiler.hpp"
 
 #include <assert.h>
 
@@ -364,7 +364,7 @@ namespace reshade
 		}
 	}
 
-	gl_fx_compiler::gl_fx_compiler(gl_runtime *runtime, const syntax_tree &ast, std::string &errors) :
+	opengl_effect_compiler::opengl_effect_compiler(opengl_runtime *runtime, const syntax_tree &ast, std::string &errors) :
 		_runtime(runtime),
 		_success(true),
 		_ast(ast),
@@ -373,7 +373,7 @@ namespace reshade
 	{
 	}
 
-	bool gl_fx_compiler::run()
+	bool opengl_effect_compiler::run()
 	{
 		_uniform_storage_offset = _runtime->get_uniform_value_storage().size();
 
@@ -439,18 +439,18 @@ namespace reshade
 		return _success;
 	}
 
-	void gl_fx_compiler::error(const location &location, const std::string &message)
+	void opengl_effect_compiler::error(const location &location, const std::string &message)
 	{
 		_success = false;
 
 		_errors += location.source + "(" + std::to_string(location.line) + ", " + std::to_string(location.column) + "): error: " + message + '\n';
 	}
-	void gl_fx_compiler::warning(const location &location, const std::string &message)
+	void opengl_effect_compiler::warning(const location &location, const std::string &message)
 	{
 		_errors += location.source + "(" + std::to_string(location.line) + ", " + std::to_string(location.column) + "): warning: " + message + '\n';
 	}
 
-	void gl_fx_compiler::visit(std::stringstream &output, const statement_node *node)
+	void opengl_effect_compiler::visit(std::stringstream &output, const statement_node *node)
 	{
 		if (node == nullptr)
 		{
@@ -490,7 +490,7 @@ namespace reshade
 				assert(false);
 		}
 	}
-	void gl_fx_compiler::visit(std::stringstream &output, const expression_node *node)
+	void opengl_effect_compiler::visit(std::stringstream &output, const expression_node *node)
 	{
 		assert(node != nullptr);
 
@@ -540,7 +540,7 @@ namespace reshade
 		}
 	}
 
-	void gl_fx_compiler::visit(std::stringstream &output, const type_node &type, bool with_qualifiers)
+	void opengl_effect_compiler::visit(std::stringstream &output, const type_node &type, bool with_qualifiers)
 	{
 		if (with_qualifiers)
 		{
@@ -609,11 +609,11 @@ namespace reshade
 				break;
 		}
 	}
-	void gl_fx_compiler::visit(std::stringstream &output, const lvalue_expression_node *node)
+	void opengl_effect_compiler::visit(std::stringstream &output, const lvalue_expression_node *node)
 	{
 		output << escape_name(node->reference->unique_name);
 	}
-	void gl_fx_compiler::visit(std::stringstream &output, const literal_expression_node *node)
+	void opengl_effect_compiler::visit(std::stringstream &output, const literal_expression_node *node)
 	{
 		if (!node->type.is_scalar())
 		{
@@ -651,7 +651,7 @@ namespace reshade
 			output << ')';
 		}
 	}
-	void gl_fx_compiler::visit(std::stringstream &output, const expression_sequence_node *node)
+	void opengl_effect_compiler::visit(std::stringstream &output, const expression_sequence_node *node)
 	{
 		output << '(';
 
@@ -667,7 +667,7 @@ namespace reshade
 
 		output << ')';
 	}
-	void gl_fx_compiler::visit(std::stringstream &output, const unary_expression_node *node)
+	void opengl_effect_compiler::visit(std::stringstream &output, const unary_expression_node *node)
 	{
 		switch (node->op)
 		{
@@ -724,7 +724,7 @@ namespace reshade
 				break;
 		}
 	}
-	void gl_fx_compiler::visit(std::stringstream &output, const binary_expression_node *node)
+	void opengl_effect_compiler::visit(std::stringstream &output, const binary_expression_node *node)
 	{
 		const auto type1 = node->operands[0]->type;
 		const auto type2 = node->operands[1]->type;
@@ -921,7 +921,7 @@ namespace reshade
 		visit(output, node->operands[1]);
 		output << part3;
 	}
-	void gl_fx_compiler::visit(std::stringstream &output, const intrinsic_expression_node *node)
+	void opengl_effect_compiler::visit(std::stringstream &output, const intrinsic_expression_node *node)
 	{
 		type_node type1 = { type_node::datatype_void }, type2, type3, type4, type12;
 		std::pair<std::string, std::string> cast1, cast2, cast3, cast4, cast121, cast122;
@@ -1592,7 +1592,7 @@ namespace reshade
 				break;
 		}
 	}
-	void gl_fx_compiler::visit(std::stringstream &output, const conditional_expression_node *node)
+	void opengl_effect_compiler::visit(std::stringstream &output, const conditional_expression_node *node)
 	{
 		output<< '(';
 
@@ -1622,7 +1622,7 @@ namespace reshade
 		visit(output, node->expression_when_false);
 		output << cast2.second << ')';
 	}
-	void gl_fx_compiler::visit(std::stringstream &output, const swizzle_expression_node *node)
+	void opengl_effect_compiler::visit(std::stringstream &output, const swizzle_expression_node *node)
 	{
 		visit(output, node->operand);
 
@@ -1653,13 +1653,13 @@ namespace reshade
 			}
 		}
 	}
-	void gl_fx_compiler::visit(std::stringstream &output, const field_expression_node *node)
+	void opengl_effect_compiler::visit(std::stringstream &output, const field_expression_node *node)
 	{
 		output << '(';
 		visit(output, node->operand);
 		output << '.' << escape_name(node->field_reference->unique_name) << ')';
 	}
-	void gl_fx_compiler::visit(std::stringstream &output, const assignment_expression_node *node)
+	void opengl_effect_compiler::visit(std::stringstream &output, const assignment_expression_node *node)
 	{
 		output << '(';
 		visit(output, node->left);
@@ -1708,7 +1708,7 @@ namespace reshade
 		visit(output, node->right);
 		output << cast.second << ')';
 	}
-	void gl_fx_compiler::visit(std::stringstream &output, const call_expression_node *node)
+	void opengl_effect_compiler::visit(std::stringstream &output, const call_expression_node *node)
 	{
 		output << escape_name(node->callee->unique_name) << '(';
 
@@ -1745,7 +1745,7 @@ namespace reshade
 			info.dependencies.push_back(node->callee);
 		}
 	}
-	void gl_fx_compiler::visit(std::stringstream &output, const constructor_expression_node *node)
+	void opengl_effect_compiler::visit(std::stringstream &output, const constructor_expression_node *node)
 	{
 		if (node->type.is_matrix())
 		{
@@ -1772,11 +1772,11 @@ namespace reshade
 			output << ')';
 		}
 	}
-	void gl_fx_compiler::visit(std::stringstream &, const initializer_list_node *)
+	void opengl_effect_compiler::visit(std::stringstream &, const initializer_list_node *)
 	{
 		assert(false);
 	}
-	void gl_fx_compiler::visit(std::stringstream &output, const initializer_list_node *node, const type_node &type)
+	void opengl_effect_compiler::visit(std::stringstream &output, const initializer_list_node *node, const type_node &type)
 	{
 		visit(output, type, false);
 
@@ -1807,7 +1807,7 @@ namespace reshade
 
 		output << ')';
 	}
-	void gl_fx_compiler::visit(std::stringstream &output, const compound_statement_node *node)
+	void opengl_effect_compiler::visit(std::stringstream &output, const compound_statement_node *node)
 	{
 		output << "{\n";
 
@@ -1818,7 +1818,7 @@ namespace reshade
 
 		output << "}\n";
 	}
-	void gl_fx_compiler::visit(std::stringstream &output, const declarator_list_node *node, bool single_statement)
+	void opengl_effect_compiler::visit(std::stringstream &output, const declarator_list_node *node, bool single_statement)
 	{
 		bool with_type = true;
 
@@ -1838,13 +1838,13 @@ namespace reshade
 
 		output << ";\n";
 	}
-	void gl_fx_compiler::visit(std::stringstream &output, const expression_statement_node *node)
+	void opengl_effect_compiler::visit(std::stringstream &output, const expression_statement_node *node)
 	{
 		visit(output, node->expression);
 
 		output << ";\n";
 	}
-	void gl_fx_compiler::visit(std::stringstream &output, const if_statement_node *node)
+	void opengl_effect_compiler::visit(std::stringstream &output, const if_statement_node *node)
 	{
 		const type_node typeto = { type_node::datatype_bool, 0, 1, 1 };
 		const auto cast = write_cast(node->condition->type, typeto);
@@ -1871,7 +1871,7 @@ namespace reshade
 			visit(output, node->statement_when_false);
 		}
 	}
-	void gl_fx_compiler::visit(std::stringstream &output, const switch_statement_node *node)
+	void opengl_effect_compiler::visit(std::stringstream &output, const switch_statement_node *node)
 	{
 		output << "switch (";
 
@@ -1886,7 +1886,7 @@ namespace reshade
 
 		output << "}\n";
 	}
-	void gl_fx_compiler::visit(std::stringstream &output, const case_statement_node *node)
+	void opengl_effect_compiler::visit(std::stringstream &output, const case_statement_node *node)
 	{
 		for (auto label : node->labels)
 		{
@@ -1906,7 +1906,7 @@ namespace reshade
 
 		visit(output, node->statement_list);
 	}
-	void gl_fx_compiler::visit(std::stringstream &output, const for_statement_node *node)
+	void opengl_effect_compiler::visit(std::stringstream &output, const for_statement_node *node)
 	{
 		output << "for (";
 
@@ -1949,7 +1949,7 @@ namespace reshade
 			output << "\t;";
 		}
 	}
-	void gl_fx_compiler::visit(std::stringstream &output, const while_statement_node *node)
+	void opengl_effect_compiler::visit(std::stringstream &output, const while_statement_node *node)
 	{
 		if (node->is_do_while)
 		{
@@ -1984,7 +1984,7 @@ namespace reshade
 			}
 		}
 	}
-	void gl_fx_compiler::visit(std::stringstream &output, const return_statement_node *node)
+	void opengl_effect_compiler::visit(std::stringstream &output, const return_statement_node *node)
 	{
 		if (node->is_discard)
 		{
@@ -2008,7 +2008,7 @@ namespace reshade
 
 		output << ";\n";
 	}
-	void gl_fx_compiler::visit(std::stringstream &output, const jump_statement_node *node)
+	void opengl_effect_compiler::visit(std::stringstream &output, const jump_statement_node *node)
 	{
 		if (node->is_break)
 		{
@@ -2019,7 +2019,7 @@ namespace reshade
 			output << "continue;\n";
 		}
 	}
-	void gl_fx_compiler::visit(std::stringstream &output, const struct_declaration_node *node)
+	void opengl_effect_compiler::visit(std::stringstream &output, const struct_declaration_node *node)
 	{
 		output << "struct " << escape_name(node->unique_name) << "\n{\n";
 
@@ -2039,7 +2039,7 @@ namespace reshade
 
 		output << "};\n";
 	}
-	void gl_fx_compiler::visit(std::stringstream &output, const variable_declaration_node *node, bool with_type)
+	void opengl_effect_compiler::visit(std::stringstream &output, const variable_declaration_node *node, bool with_type)
 	{
 		if (with_type)
 		{
@@ -2079,7 +2079,7 @@ namespace reshade
 			}
 		}
 	}
-	void gl_fx_compiler::visit(std::stringstream &output, const function_declaration_node *node)
+	void opengl_effect_compiler::visit(std::stringstream &output, const function_declaration_node *node)
 	{
 		_current_function = node;
 
@@ -2128,9 +2128,9 @@ namespace reshade
 		}
 	}
 
-	void gl_fx_compiler::visit_texture(const variable_declaration_node *node)
+	void opengl_effect_compiler::visit_texture(const variable_declaration_node *node)
 	{
-		const auto obj = new gl_texture();
+		const auto obj = new opengl_texture();
 		obj->name = node->name;
 		obj->unique_name = node->unique_name;
 		GLuint width = obj->width = node->properties.width;
@@ -2192,7 +2192,7 @@ namespace reshade
 
 		_runtime->add_texture(obj);
 	}
-	void gl_fx_compiler::visit_sampler(const variable_declaration_node *node)
+	void opengl_effect_compiler::visit_sampler(const variable_declaration_node *node)
 	{
 		if (node->properties.texture == nullptr)
 		{
@@ -2200,7 +2200,7 @@ namespace reshade
 			return;
 		}
 
-		const auto texture = static_cast<gl_texture *>(_runtime->find_texture(node->properties.texture->name));
+		const auto texture = static_cast<opengl_texture *>(_runtime->find_texture(node->properties.texture->name));
 
 		if (texture == nullptr)
 		{
@@ -2208,7 +2208,7 @@ namespace reshade
 			return;
 		}
 
-		gl_sampler sampler;
+		opengl_sampler sampler;
 		sampler.id = 0;
 		sampler.texture = texture;
 		sampler.is_srgb = node->properties.srgb_texture;
@@ -2231,7 +2231,7 @@ namespace reshade
 
 		_runtime->_effect_samplers.push_back(std::move(sampler));
 	}
-	void gl_fx_compiler::visit_uniform(const variable_declaration_node *node)
+	void opengl_effect_compiler::visit_uniform(const variable_declaration_node *node)
 	{
 		visit(_global_uniforms, node->type, true);
 
@@ -2293,7 +2293,7 @@ namespace reshade
 
 		_runtime->add_uniform(std::move(obj));
 	}
-	void gl_fx_compiler::visit_technique(const technique_declaration_node *node)
+	void opengl_effect_compiler::visit_technique(const technique_declaration_node *node)
 	{
 		technique obj;
 		obj.name = node->name;
@@ -2308,13 +2308,13 @@ namespace reshade
 
 		for (auto pass : node->pass_list)
 		{
-			obj.passes.emplace_back(new gl_pass());
-			visit_pass(pass, *static_cast<gl_pass *>(obj.passes.back().get()));
+			obj.passes.emplace_back(new opengl_pass());
+			visit_pass(pass, *static_cast<opengl_pass *>(obj.passes.back().get()));
 		}
 
 		_runtime->add_technique(std::move(obj));
 	}
-	void gl_fx_compiler::visit_pass(const pass_declaration_node *node, gl_pass &pass)
+	void opengl_effect_compiler::visit_pass(const pass_declaration_node *node, opengl_pass &pass)
 	{
 		pass.color_mask[0] = (node->color_write_mask & (1 << 0)) != 0;
 		pass.color_mask[1] = (node->color_write_mask & (1 << 1)) != 0;
@@ -2351,7 +2351,7 @@ namespace reshade
 				continue;
 			}
 
-			const auto texture = static_cast<const gl_texture *>(_runtime->find_texture(node->render_targets[i]->name));
+			const auto texture = static_cast<const opengl_texture *>(_runtime->find_texture(node->render_targets[i]->name));
 
 			if (texture == nullptr)
 			{
@@ -2443,7 +2443,7 @@ namespace reshade
 			return;
 		}
 	}
-	void gl_fx_compiler::visit_pass_shader(const function_declaration_node *node, unsigned int shadertype, unsigned int &shader)
+	void opengl_effect_compiler::visit_pass_shader(const function_declaration_node *node, unsigned int shadertype, unsigned int &shader)
 	{
 		std::stringstream source;
 
@@ -2712,7 +2712,7 @@ namespace reshade
 			error(node->location, "internal shader compilation failed");
 		}
 	}
-	void gl_fx_compiler::visit_shader_param(std::stringstream &output, type_node type, unsigned int qualifier, const std::string &name, const std::string &semantic, unsigned int shadertype)
+	void opengl_effect_compiler::visit_shader_param(std::stringstream &output, type_node type, unsigned int qualifier, const std::string &name, const std::string &semantic, unsigned int shadertype)
 	{
 		type.qualifiers = static_cast<unsigned int>(qualifier);
 

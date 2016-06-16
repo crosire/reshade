@@ -6,10 +6,10 @@ namespace reshade
 {
 	namespace utils
 	{
-		class gl_stateblock
+		class opengl_stateblock
 		{
 		public:
-			gl_stateblock();
+			opengl_stateblock();
 
 			void capture();
 			void apply() const;

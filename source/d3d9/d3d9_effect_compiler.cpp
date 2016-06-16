@@ -1,6 +1,6 @@
 #include "log.hpp"
 #include "d3d9_runtime.hpp"
-#include "d3d9_fx_compiler.hpp"
+#include "d3d9_effect_compiler.hpp"
 #include "constant_folding.hpp"
 
 #include <assert.h>
@@ -108,7 +108,7 @@ namespace reshade
 		}
 	}
 
-	d3d9_fx_compiler::d3d9_fx_compiler(d3d9_runtime *runtime, const syntax_tree &ast, std::string &errors, bool skipoptimization) :
+	d3d9_effect_compiler::d3d9_effect_compiler(d3d9_runtime *runtime, const syntax_tree &ast, std::string &errors, bool skipoptimization) :
 		_runtime(runtime),
 		_ast(ast),
 		_errors(errors),
@@ -117,7 +117,7 @@ namespace reshade
 	{
 	}
 
-	bool d3d9_fx_compiler::run()
+	bool d3d9_effect_compiler::run()
 	{
 		_uniform_storage_offset = _runtime->get_uniform_value_storage().size();
 
@@ -167,18 +167,18 @@ namespace reshade
 		return _success;
 	}
 
-	void d3d9_fx_compiler::error(const location &location, const std::string &message)
+	void d3d9_effect_compiler::error(const location &location, const std::string &message)
 	{
 		_success = false;
 
 		_errors += location.source + "(" + std::to_string(location.line) + ", " + std::to_string(location.column) + "): error: " + message + '\n';
 	}
-	void d3d9_fx_compiler::warning(const location &location, const std::string &message)
+	void d3d9_effect_compiler::warning(const location &location, const std::string &message)
 	{
 		_errors += location.source + "(" + std::to_string(location.line) + ", " + std::to_string(location.column) + "): warning: " + message + '\n';
 	}
 
-	void d3d9_fx_compiler::visit(std::stringstream &output, const statement_node *node)
+	void d3d9_effect_compiler::visit(std::stringstream &output, const statement_node *node)
 	{
 		if (node == nullptr)
 		{
@@ -218,7 +218,7 @@ namespace reshade
 				assert(false);
 		}
 	}
-	void d3d9_fx_compiler::visit(std::stringstream &output, const expression_node *node)
+	void d3d9_effect_compiler::visit(std::stringstream &output, const expression_node *node)
 	{
 		assert(node != nullptr);
 
@@ -268,7 +268,7 @@ namespace reshade
 		}
 	}
 
-	void d3d9_fx_compiler::visit(std::stringstream &output, const type_node &type, bool with_qualifiers)
+	void d3d9_effect_compiler::visit(std::stringstream &output, const type_node &type, bool with_qualifiers)
 	{
 		if (with_qualifiers)
 		{
@@ -332,7 +332,7 @@ namespace reshade
 			output << type.rows;
 		}
 	}
-	void d3d9_fx_compiler::visit(std::stringstream &output, const lvalue_expression_node *node)
+	void d3d9_effect_compiler::visit(std::stringstream &output, const lvalue_expression_node *node)
 	{
 		output << node->reference->unique_name;
 
@@ -341,7 +341,7 @@ namespace reshade
 			_functions.at(_current_function).sampler_dependencies.insert(node->reference);
 		}
 	}
-	void d3d9_fx_compiler::visit(std::stringstream &output, const literal_expression_node *node)
+	void d3d9_effect_compiler::visit(std::stringstream &output, const literal_expression_node *node)
 	{
 		if (!node->type.is_scalar())
 		{
@@ -379,7 +379,7 @@ namespace reshade
 			output << ')';
 		}
 	}
-	void d3d9_fx_compiler::visit(std::stringstream &output, const expression_sequence_node *node)
+	void d3d9_effect_compiler::visit(std::stringstream &output, const expression_sequence_node *node)
 	{
 		output << '(';
 
@@ -395,7 +395,7 @@ namespace reshade
 
 		output << ')';
 	}
-	void d3d9_fx_compiler::visit(std::stringstream &output, const unary_expression_node *node)
+	void d3d9_effect_compiler::visit(std::stringstream &output, const unary_expression_node *node)
 	{
 		switch (node->op)
 		{
@@ -436,7 +436,7 @@ namespace reshade
 				break;
 		}
 	}
-	void d3d9_fx_compiler::visit(std::stringstream &output, const binary_expression_node *node)
+	void d3d9_effect_compiler::visit(std::stringstream &output, const binary_expression_node *node)
 	{
 		std::string part1, part2, part3;
 
@@ -553,7 +553,7 @@ namespace reshade
 		visit(output, node->operands[1]);
 		output << part3;
 	}
-	void d3d9_fx_compiler::visit(std::stringstream &output, const intrinsic_expression_node *node)
+	void d3d9_effect_compiler::visit(std::stringstream &output, const intrinsic_expression_node *node)
 	{
 		std::string part1, part2, part3, part4, part5;
 
@@ -926,7 +926,7 @@ namespace reshade
 
 		output << part5;
 	}
-	void d3d9_fx_compiler::visit(std::stringstream &output, const conditional_expression_node *node)
+	void d3d9_effect_compiler::visit(std::stringstream &output, const conditional_expression_node *node)
 	{
 		output << '(';
 		visit(output, node->condition);
@@ -936,7 +936,7 @@ namespace reshade
 		visit(output, node->expression_when_false);
 		output << ')';
 	}
-	void d3d9_fx_compiler::visit(std::stringstream &output, const swizzle_expression_node *node)
+	void d3d9_effect_compiler::visit(std::stringstream &output, const swizzle_expression_node *node)
 	{
 		visit(output, node->operand);
 
@@ -968,13 +968,13 @@ namespace reshade
 			}
 		}
 	}
-	void d3d9_fx_compiler::visit(std::stringstream &output, const field_expression_node *node)
+	void d3d9_effect_compiler::visit(std::stringstream &output, const field_expression_node *node)
 	{
 		output << '(';
 		visit(output, node->operand);
 		output << '.' << node->field_reference->unique_name << ')';
 	}
-	void d3d9_fx_compiler::visit(std::stringstream &output, const assignment_expression_node *node)
+	void d3d9_effect_compiler::visit(std::stringstream &output, const assignment_expression_node *node)
 	{
 		std::string part1, part2, part3;
 
@@ -1021,7 +1021,7 @@ namespace reshade
 		visit(output, node->right);
 		output << part3 << ')';
 	}
-	void d3d9_fx_compiler::visit(std::stringstream &output, const call_expression_node *node)
+	void d3d9_effect_compiler::visit(std::stringstream &output, const call_expression_node *node)
 	{
 		output << node->callee->unique_name << '(';
 
@@ -1055,7 +1055,7 @@ namespace reshade
 			info.dependencies.push_back(node->callee);
 		}
 	}
-	void d3d9_fx_compiler::visit(std::stringstream &output, const constructor_expression_node *node)
+	void d3d9_effect_compiler::visit(std::stringstream &output, const constructor_expression_node *node)
 	{
 		visit(output, node->type, false);
 		output << '(';
@@ -1072,7 +1072,7 @@ namespace reshade
 
 		output << ')';
 	}
-	void d3d9_fx_compiler::visit(std::stringstream &output, const initializer_list_node *node)
+	void d3d9_effect_compiler::visit(std::stringstream &output, const initializer_list_node *node)
 	{
 		output << "{ ";
 
@@ -1088,7 +1088,7 @@ namespace reshade
 
 		output << " }";
 	}
-	void d3d9_fx_compiler::visit(std::stringstream &output, const compound_statement_node *node)
+	void d3d9_effect_compiler::visit(std::stringstream &output, const compound_statement_node *node)
 	{
 		output << "{\n";
 
@@ -1099,7 +1099,7 @@ namespace reshade
 
 		output << "}\n";
 	}
-	void d3d9_fx_compiler::visit(std::stringstream &output, const declarator_list_node *node, bool single_statement)
+	void d3d9_effect_compiler::visit(std::stringstream &output, const declarator_list_node *node, bool single_statement)
 	{
 		bool with_type = true;
 
@@ -1119,13 +1119,13 @@ namespace reshade
 
 		output << ";\n";
 	}
-	void d3d9_fx_compiler::visit(std::stringstream &output, const expression_statement_node *node)
+	void d3d9_effect_compiler::visit(std::stringstream &output, const expression_statement_node *node)
 	{
 		visit(output, node->expression);
 
 		output << ";\n";
 	}
-	void d3d9_fx_compiler::visit(std::stringstream &output, const if_statement_node *node)
+	void d3d9_effect_compiler::visit(std::stringstream &output, const if_statement_node *node)
 	{
 		for (const auto &attribute : node->attributes)
 		{
@@ -1154,7 +1154,7 @@ namespace reshade
 			visit(output, node->statement_when_false);
 		}
 	}
-	void d3d9_fx_compiler::visit(std::stringstream &output, const switch_statement_node *node)
+	void d3d9_effect_compiler::visit(std::stringstream &output, const switch_statement_node *node)
 	{
 		warning(node->location, "switch statements do not currently support fall-through in Direct3D9!");
 
@@ -1179,7 +1179,7 @@ namespace reshade
 
 		output << "} while (false);\n";
 	}
-	void d3d9_fx_compiler::visit(std::stringstream &output, const case_statement_node *node)
+	void d3d9_effect_compiler::visit(std::stringstream &output, const case_statement_node *node)
 	{
 		output << "if (";
 
@@ -1205,7 +1205,7 @@ namespace reshade
 
 		visit(output, node->statement_list);
 	}
-	void d3d9_fx_compiler::visit(std::stringstream &output, const for_statement_node *node)
+	void d3d9_effect_compiler::visit(std::stringstream &output, const for_statement_node *node)
 	{
 		for (const auto &attribute : node->attributes)
 		{
@@ -1253,7 +1253,7 @@ namespace reshade
 			output << "\t;";
 		}
 	}
-	void d3d9_fx_compiler::visit(std::stringstream &output, const while_statement_node *node)
+	void d3d9_effect_compiler::visit(std::stringstream &output, const while_statement_node *node)
 	{
 		for (const auto &attribute : node->attributes)
 		{
@@ -1293,7 +1293,7 @@ namespace reshade
 			}
 		}
 	}
-	void d3d9_fx_compiler::visit(std::stringstream &output, const return_statement_node *node)
+	void d3d9_effect_compiler::visit(std::stringstream &output, const return_statement_node *node)
 	{
 		if (node->is_discard)
 		{
@@ -1313,7 +1313,7 @@ namespace reshade
 
 		output << ";\n";
 	}
-	void d3d9_fx_compiler::visit(std::stringstream &output, const jump_statement_node *node)
+	void d3d9_effect_compiler::visit(std::stringstream &output, const jump_statement_node *node)
 	{
 		if (node->is_break)
 		{
@@ -1324,7 +1324,7 @@ namespace reshade
 			output << "continue;\n";
 		}
 	}
-	void d3d9_fx_compiler::visit(std::stringstream &output, const struct_declaration_node *node)
+	void d3d9_effect_compiler::visit(std::stringstream &output, const struct_declaration_node *node)
 	{
 		output << "struct " << node->unique_name << "\n{\n";
 
@@ -1344,7 +1344,7 @@ namespace reshade
 
 		output << "};\n";
 	}
-	void d3d9_fx_compiler::visit(std::stringstream &output, const variable_declaration_node *node, bool with_type, bool with_semantic)
+	void d3d9_effect_compiler::visit(std::stringstream &output, const variable_declaration_node *node, bool with_type, bool with_semantic)
 	{
 		if (with_type)
 		{
@@ -1378,7 +1378,7 @@ namespace reshade
 			visit(output, node->initializer_expression);
 		}
 	}
-	void d3d9_fx_compiler::visit(std::stringstream &output, const function_declaration_node *node)
+	void d3d9_effect_compiler::visit(std::stringstream &output, const function_declaration_node *node)
 	{
 		visit(output, node->return_type, false);
 
@@ -1423,7 +1423,7 @@ namespace reshade
 		}
 	}
 
-	void d3d9_fx_compiler::visit_texture(const variable_declaration_node *node)
+	void d3d9_effect_compiler::visit_texture(const variable_declaration_node *node)
 	{
 		const auto obj = new d3d9_texture();
 		obj->name = node->name;
@@ -1500,7 +1500,7 @@ namespace reshade
 
 		_runtime->add_texture(obj);
 	}
-	void d3d9_fx_compiler::visit_sampler(const variable_declaration_node *node)
+	void d3d9_effect_compiler::visit_sampler(const variable_declaration_node *node)
 	{
 		if (node->properties.texture == nullptr)
 		{
@@ -1540,7 +1540,7 @@ namespace reshade
 
 		_samplers[node->name] = sampler;
 	}
-	void d3d9_fx_compiler::visit_uniform(const variable_declaration_node *node)
+	void d3d9_effect_compiler::visit_uniform(const variable_declaration_node *node)
 	{
 		auto type = node->type;
 		type.basetype = type_node::datatype_float;
@@ -1597,7 +1597,7 @@ namespace reshade
 
 		_runtime->add_uniform(std::move(obj));
 	}
-	void d3d9_fx_compiler::visit_technique(const technique_declaration_node *node)
+	void d3d9_effect_compiler::visit_technique(const technique_declaration_node *node)
 	{
 		technique obj;
 		obj.name = node->name;
@@ -1618,7 +1618,7 @@ namespace reshade
 
 		_runtime->add_technique(std::move(obj));
 	}
-	void d3d9_fx_compiler::visit_pass(const pass_declaration_node *node, d3d9_pass & pass)
+	void d3d9_effect_compiler::visit_pass(const pass_declaration_node *node, d3d9_pass & pass)
 	{
 		pass.render_targets[0] = _runtime->_backbuffer_resolved.get();
 		pass.clear_render_targets = node->clear_render_targets;
@@ -1770,7 +1770,7 @@ namespace reshade
 			pass.render_targets[i] = texture->surface.get();
 		}
 	}
-	void d3d9_fx_compiler::visit_pass_shader(const function_declaration_node *node, const std::string &shadertype, const std::string &samplers, d3d9_pass &pass)
+	void d3d9_effect_compiler::visit_pass_shader(const function_declaration_node *node, const std::string &shadertype, const std::string &samplers, d3d9_pass &pass)
 	{
 		std::stringstream source;
 

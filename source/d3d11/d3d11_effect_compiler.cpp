@@ -1,6 +1,6 @@
 #include "log.hpp"
-#include "d3d10_runtime.hpp"
-#include "d3d10_fx_compiler.hpp"
+#include "d3d11_runtime.hpp"
+#include "d3d11_effect_compiler.hpp"
 
 #include <assert.h>
 #include <d3dcompiler.h>
@@ -16,26 +16,26 @@ namespace reshade
 		{
 			return (size + 15) & ~15;
 		}
-		D3D10_BLEND literal_to_blend_func(unsigned int value)
+		D3D11_BLEND literal_to_blend_func(unsigned int value)
 		{
 			switch (value)
 			{
 				case pass_declaration_node::ZERO:
-					return D3D10_BLEND_ZERO;
+					return D3D11_BLEND_ZERO;
 				case pass_declaration_node::ONE:
-					return D3D10_BLEND_ONE;
+					return D3D11_BLEND_ONE;
 			}
 
-			return static_cast<D3D10_BLEND>(value);
+			return static_cast<D3D11_BLEND>(value);
 		}
-		D3D10_STENCIL_OP literal_to_stencil_op(unsigned int value)
+		D3D11_STENCIL_OP literal_to_stencil_op(unsigned int value)
 		{
 			if (value == pass_declaration_node::ZERO)
 			{
-				return D3D10_STENCIL_OP_ZERO;
+				return D3D11_STENCIL_OP_ZERO;
 			}
 
-			return static_cast<D3D10_STENCIL_OP>(value);
+			return static_cast<D3D11_STENCIL_OP>(value);
 		}
 		DXGI_FORMAT literal_to_format(texture_format value)
 		{
@@ -77,12 +77,12 @@ namespace reshade
 
 			return DXGI_FORMAT_UNKNOWN;
 		}
-		size_t D3D10_SAMPLER_DESC_HASH(const D3D10_SAMPLER_DESC &s)
+		size_t D3D11_SAMPLER_DESC_HASH(const D3D11_SAMPLER_DESC &s)
 		{
 			const unsigned char *p = reinterpret_cast<const unsigned char *>(&s);
 			size_t h = 2166136261;
 
-			for (size_t i = 0; i < sizeof(D3D10_SAMPLER_DESC); ++i)
+			for (size_t i = 0; i < sizeof(D3D11_SAMPLER_DESC); ++i)
 			{
 				h = (h * 16777619) ^ p[i];
 			}
@@ -152,7 +152,7 @@ namespace reshade
 		}
 	}
 
-	d3d10_fx_compiler::d3d10_fx_compiler(d3d10_runtime *runtime, const syntax_tree &ast, std::string &errors, bool skipoptimization) :
+	d3d11_effect_compiler::d3d11_effect_compiler(d3d11_runtime *runtime, const syntax_tree &ast, std::string &errors, bool skipoptimization) :
 		_runtime(runtime),
 		_ast(ast),
 		_errors(errors),
@@ -160,7 +160,7 @@ namespace reshade
 	{
 	}
 
-	bool d3d10_fx_compiler::run()
+	bool d3d11_effect_compiler::run()
 	{
 		_uniform_storage_offset = _runtime->get_uniform_value_storage().size();
 
@@ -203,10 +203,10 @@ namespace reshade
 			_constant_buffer_size = roundto16(_constant_buffer_size);
 			_runtime->get_uniform_value_storage().resize(_uniform_storage_offset + _constant_buffer_size);
 
-			const CD3D10_BUFFER_DESC globals_desc(_constant_buffer_size, D3D10_BIND_CONSTANT_BUFFER, D3D10_USAGE_DYNAMIC, D3D10_CPU_ACCESS_WRITE);
-			const D3D10_SUBRESOURCE_DATA globals_initial = { _runtime->get_uniform_value_storage().data(), _constant_buffer_size };
+			const CD3D11_BUFFER_DESC globals_desc(_constant_buffer_size, D3D11_BIND_CONSTANT_BUFFER, D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE);
+			const D3D11_SUBRESOURCE_DATA globals_initial = { _runtime->get_uniform_value_storage().data() + _uniform_storage_offset, _constant_buffer_size };
 
-			com_ptr<ID3D10Buffer> constant_buffer;
+			com_ptr<ID3D11Buffer> constant_buffer;
 			_runtime->_device->CreateBuffer(&globals_desc, &globals_initial, &constant_buffer);
 
 			_runtime->_constant_buffers.push_back(constant_buffer);
@@ -215,18 +215,18 @@ namespace reshade
 		return _success;
 	}
 
-	void d3d10_fx_compiler::error(const location &location, const std::string &message)
+	void d3d11_effect_compiler::error(const location &location, const std::string &message)
 	{
 		_success = false;
 
 		_errors += location.source + "(" + std::to_string(location.line) + ", " + std::to_string(location.column) + "): error: " + message + '\n';
 	}
-	void d3d10_fx_compiler::warning(const location &location, const std::string &message)
+	void d3d11_effect_compiler::warning(const location &location, const std::string &message)
 	{
 		_errors += location.source + "(" + std::to_string(location.line) + ", " + std::to_string(location.column) + "): warning: " + message + '\n';
 	}
 
-	void d3d10_fx_compiler::visit(std::stringstream &output, const statement_node *node)
+	void d3d11_effect_compiler::visit(std::stringstream &output, const statement_node *node)
 	{
 		if (node == nullptr)
 		{
@@ -266,7 +266,7 @@ namespace reshade
 				assert(false);
 		}
 	}
-	void d3d10_fx_compiler::visit(std::stringstream &output, const expression_node *node)
+	void d3d11_effect_compiler::visit(std::stringstream &output, const expression_node *node)
 	{
 		assert(node != nullptr);
 
@@ -316,7 +316,7 @@ namespace reshade
 		}
 	}
 
-	void d3d10_fx_compiler::visit(std::stringstream &output, const type_node &type, bool with_qualifiers)
+	void d3d11_effect_compiler::visit(std::stringstream &output, const type_node &type, bool with_qualifiers)
 	{
 		if (with_qualifiers)
 		{
@@ -380,11 +380,11 @@ namespace reshade
 			output << type.rows;
 		}
 	}
-	void d3d10_fx_compiler::visit(std::stringstream &output, const lvalue_expression_node *node)
+	void d3d11_effect_compiler::visit(std::stringstream &output, const lvalue_expression_node *node)
 	{
 		output << node->reference->unique_name;
 	}
-	void d3d10_fx_compiler::visit(std::stringstream &output, const literal_expression_node *node)
+	void d3d11_effect_compiler::visit(std::stringstream &output, const literal_expression_node *node)
 	{
 		if (!node->type.is_scalar())
 		{
@@ -422,7 +422,7 @@ namespace reshade
 			output << ')';
 		}
 	}
-	void d3d10_fx_compiler::visit(std::stringstream &output, const expression_sequence_node *node)
+	void d3d11_effect_compiler::visit(std::stringstream &output, const expression_sequence_node *node)
 	{
 		output << '(';
 
@@ -438,7 +438,7 @@ namespace reshade
 
 		output << ')';
 	}
-	void d3d10_fx_compiler::visit(std::stringstream &output, const unary_expression_node *node)
+	void d3d11_effect_compiler::visit(std::stringstream &output, const unary_expression_node *node)
 	{
 		switch (node->op)
 		{
@@ -478,7 +478,7 @@ namespace reshade
 				break;
 		}
 	}
-	void d3d10_fx_compiler::visit(std::stringstream &output, const binary_expression_node *node)
+	void d3d11_effect_compiler::visit(std::stringstream &output, const binary_expression_node *node)
 	{
 		std::string part1, part2, part3;
 
@@ -586,7 +586,7 @@ namespace reshade
 		visit(output, node->operands[1]);
 		output << part3;
 	}
-	void d3d10_fx_compiler::visit(std::stringstream &output, const intrinsic_expression_node *node)
+	void d3d11_effect_compiler::visit(std::stringstream &output, const intrinsic_expression_node *node)
 	{
 		std::string part1, part2, part3, part4, part5;
 
@@ -969,7 +969,7 @@ namespace reshade
 
 		output << part5;
 	}
-	void d3d10_fx_compiler::visit(std::stringstream &output, const conditional_expression_node *node)
+	void d3d11_effect_compiler::visit(std::stringstream &output, const conditional_expression_node *node)
 	{
 		output << '(';
 		visit(output, node->condition);
@@ -979,7 +979,7 @@ namespace reshade
 		visit(output, node->expression_when_false);
 		output << ')';
 	}
-	void d3d10_fx_compiler::visit(std::stringstream &output, const swizzle_expression_node *node)
+	void d3d11_effect_compiler::visit(std::stringstream &output, const swizzle_expression_node *node)
 	{
 		visit(output, node->operand);
 
@@ -1011,7 +1011,7 @@ namespace reshade
 			}
 		}
 	}
-	void d3d10_fx_compiler::visit(std::stringstream &output, const field_expression_node *node)
+	void d3d11_effect_compiler::visit(std::stringstream &output, const field_expression_node *node)
 	{
 		output << '(';
 
@@ -1019,7 +1019,7 @@ namespace reshade
 
 		output << '.' << node->field_reference->unique_name << ')';
 	}
-	void d3d10_fx_compiler::visit(std::stringstream &output, const assignment_expression_node *node)
+	void d3d11_effect_compiler::visit(std::stringstream &output, const assignment_expression_node *node)
 	{
 		output << '(';
 		visit(output, node->left);
@@ -1066,7 +1066,7 @@ namespace reshade
 		visit(output, node->right);
 		output << ')';
 	}
-	void d3d10_fx_compiler::visit(std::stringstream &output, const call_expression_node *node)
+	void d3d11_effect_compiler::visit(std::stringstream &output, const call_expression_node *node)
 	{
 		output << node->callee->unique_name << '(';
 
@@ -1082,7 +1082,7 @@ namespace reshade
 
 		output << ')';
 	}
-	void d3d10_fx_compiler::visit(std::stringstream &output, const constructor_expression_node *node)
+	void d3d11_effect_compiler::visit(std::stringstream &output, const constructor_expression_node *node)
 	{
 		visit(output, node->type, false);
 
@@ -1100,7 +1100,7 @@ namespace reshade
 
 		output << ')';
 	}
-	void d3d10_fx_compiler::visit(std::stringstream &output, const initializer_list_node *node)
+	void d3d11_effect_compiler::visit(std::stringstream &output, const initializer_list_node *node)
 	{
 		output << "{ ";
 
@@ -1116,7 +1116,7 @@ namespace reshade
 
 		output << " }";
 	}
-	void d3d10_fx_compiler::visit(std::stringstream &output, const compound_statement_node *node)
+	void d3d11_effect_compiler::visit(std::stringstream &output, const compound_statement_node *node)
 	{
 		output << "{\n";
 
@@ -1127,7 +1127,7 @@ namespace reshade
 
 		output << "}\n";
 	}
-	void d3d10_fx_compiler::visit(std::stringstream &output, const declarator_list_node *node, bool single_statement)
+	void d3d11_effect_compiler::visit(std::stringstream &output, const declarator_list_node *node, bool single_statement)
 	{
 		bool with_type = true;
 
@@ -1147,13 +1147,13 @@ namespace reshade
 
 		output << ";\n";
 	}
-	void d3d10_fx_compiler::visit(std::stringstream &output, const expression_statement_node *node)
+	void d3d11_effect_compiler::visit(std::stringstream &output, const expression_statement_node *node)
 	{
 		visit(output, node->expression);
 
 		output << ";\n";
 	}
-	void d3d10_fx_compiler::visit(std::stringstream &output, const if_statement_node *node)
+	void d3d11_effect_compiler::visit(std::stringstream &output, const if_statement_node *node)
 	{
 		for (const auto &attribute : node->attributes)
 		{
@@ -1180,7 +1180,7 @@ namespace reshade
 			visit(output, node->statement_when_false);
 		}
 	}
-	void d3d10_fx_compiler::visit(std::stringstream &output, const switch_statement_node *node)
+	void d3d11_effect_compiler::visit(std::stringstream &output, const switch_statement_node *node)
 	{
 		for (const auto &attribute : node->attributes)
 		{
@@ -1198,7 +1198,7 @@ namespace reshade
 
 		output << "}\n";
 	}
-	void d3d10_fx_compiler::visit(std::stringstream &output, const case_statement_node *node)
+	void d3d11_effect_compiler::visit(std::stringstream &output, const case_statement_node *node)
 	{
 		for (auto label : node->labels)
 		{
@@ -1218,7 +1218,7 @@ namespace reshade
 
 		visit(output, node->statement_list);
 	}
-	void d3d10_fx_compiler::visit(std::stringstream &output, const for_statement_node *node)
+	void d3d11_effect_compiler::visit(std::stringstream &output, const for_statement_node *node)
 	{
 		for (const auto &attribute : node->attributes)
 		{
@@ -1266,7 +1266,7 @@ namespace reshade
 			output << "\t;";
 		}
 	}
-	void d3d10_fx_compiler::visit(std::stringstream &output, const while_statement_node *node)
+	void d3d11_effect_compiler::visit(std::stringstream &output, const while_statement_node *node)
 	{
 		for (const auto &attribute : node->attributes)
 		{
@@ -1302,7 +1302,7 @@ namespace reshade
 			}
 		}
 	}
-	void d3d10_fx_compiler::visit(std::stringstream &output, const return_statement_node *node)
+	void d3d11_effect_compiler::visit(std::stringstream &output, const return_statement_node *node)
 	{
 		if (node->is_discard)
 		{
@@ -1322,7 +1322,7 @@ namespace reshade
 
 		output << ";\n";
 	}
-	void d3d10_fx_compiler::visit(std::stringstream &output, const jump_statement_node *node)
+	void d3d11_effect_compiler::visit(std::stringstream &output, const jump_statement_node *node)
 	{
 		if (node->is_break)
 		{
@@ -1333,7 +1333,7 @@ namespace reshade
 			output << "continue;\n";
 		}
 	}
-	void d3d10_fx_compiler::visit(std::stringstream &output, const struct_declaration_node *node)
+	void d3d11_effect_compiler::visit(std::stringstream &output, const struct_declaration_node *node)
 	{
 		output << "struct " << node->unique_name << "\n{\n";
 
@@ -1351,7 +1351,7 @@ namespace reshade
 
 		output << "};\n";
 	}
-	void d3d10_fx_compiler::visit(std::stringstream &output, const variable_declaration_node *node, bool with_type)
+	void d3d11_effect_compiler::visit(std::stringstream &output, const variable_declaration_node *node, bool with_type)
 	{
 		if (with_type)
 		{
@@ -1394,7 +1394,7 @@ namespace reshade
 			output << ";\n";
 		}
 	}
-	void d3d10_fx_compiler::visit(std::stringstream &output, const function_declaration_node *node)
+	void d3d11_effect_compiler::visit(std::stringstream &output, const function_declaration_node *node)
 	{
 		visit(output, node->return_type, false);
 
@@ -1454,10 +1454,10 @@ namespace reshade
 		}
 	}
 
-	void d3d10_fx_compiler::visit_texture(const variable_declaration_node *node)
+	void d3d11_effect_compiler::visit_texture(const variable_declaration_node *node)
 	{
-		const auto obj = new d3d10_texture();
-		D3D10_TEXTURE2D_DESC texdesc = { };
+		const auto obj = new d3d11_texture();
+		D3D11_TEXTURE2D_DESC texdesc = { };
 		obj->name = node->name;
 		obj->unique_name = node->unique_name;
 		obj->shader_register = _runtime->_effect_shader_resources.size();
@@ -1468,9 +1468,9 @@ namespace reshade
 		texdesc.Format = literal_to_format(obj->format = node->properties.format);
 		texdesc.SampleDesc.Count = 1;
 		texdesc.SampleDesc.Quality = 0;
-		texdesc.Usage = D3D10_USAGE_DEFAULT;
-		texdesc.BindFlags = D3D10_BIND_SHADER_RESOURCE | D3D10_BIND_RENDER_TARGET;
-		texdesc.MiscFlags = D3D10_RESOURCE_MISC_GENERATE_MIPS;
+		texdesc.Usage = D3D11_USAGE_DEFAULT;
+		texdesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
+		texdesc.MiscFlags = D3D11_RESOURCE_MISC_GENERATE_MIPS;
 
 		visit_annotation(node->annotations, *obj);
 
@@ -1505,12 +1505,12 @@ namespace reshade
 
 			if (FAILED(hr))
 			{
-				error(node->location, "'ID3D10Device::CreateTexture2D' failed with error code " + std::to_string(static_cast<unsigned long>(hr)) + "!");
+				error(node->location, "'ID3D11Device::CreateTexture2D' failed with error code " + std::to_string(static_cast<unsigned long>(hr)) + "!");
 				return;
 			}
 
-			D3D10_SHADER_RESOURCE_VIEW_DESC srvdesc = { };
-			srvdesc.ViewDimension = D3D10_SRV_DIMENSION_TEXTURE2D;
+			D3D11_SHADER_RESOURCE_VIEW_DESC srvdesc = { };
+			srvdesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
 			srvdesc.Texture2D.MipLevels = texdesc.MipLevels;
 			srvdesc.Format = make_format_normal(texdesc.Format);
 
@@ -1518,7 +1518,7 @@ namespace reshade
 
 			if (FAILED(hr))
 			{
-				error(node->location, "'ID3D10Device::CreateShaderResourceView' failed with error code " + std::to_string(static_cast<unsigned long>(hr)) + "!");
+				error(node->location, "'ID3D11Device::CreateShaderResourceView' failed with error code " + std::to_string(static_cast<unsigned long>(hr)) + "!");
 				return;
 			}
 
@@ -1530,7 +1530,7 @@ namespace reshade
 
 				if (FAILED(hr))
 				{
-					error(node->location, "'ID3D10Device::CreateShaderResourceView' failed with error code " + std::to_string(static_cast<unsigned long>(hr)) + "!");
+					error(node->location, "'ID3D11Device::CreateShaderResourceView' failed with error code " + std::to_string(static_cast<unsigned long>(hr)) + "!");
 					return;
 				}
 			}
@@ -1545,7 +1545,7 @@ namespace reshade
 
 		_runtime->add_texture(obj);
 	}
-	void d3d10_fx_compiler::visit_sampler(const variable_declaration_node *node)
+	void d3d11_effect_compiler::visit_sampler(const variable_declaration_node *node)
 	{
 		if (node->properties.texture == nullptr)
 		{
@@ -1553,18 +1553,18 @@ namespace reshade
 			return;
 		}
 
-		D3D10_SAMPLER_DESC desc;
-		desc.Filter = static_cast<D3D10_FILTER>(node->properties.filter);
-		desc.AddressU = static_cast<D3D10_TEXTURE_ADDRESS_MODE>(node->properties.address_u);
-		desc.AddressV = static_cast<D3D10_TEXTURE_ADDRESS_MODE>(node->properties.address_v);
-		desc.AddressW = static_cast<D3D10_TEXTURE_ADDRESS_MODE>(node->properties.address_w);
+		D3D11_SAMPLER_DESC desc;
+		desc.Filter = static_cast<D3D11_FILTER>(node->properties.filter);
+		desc.AddressU = static_cast<D3D11_TEXTURE_ADDRESS_MODE>(node->properties.address_u);
+		desc.AddressV = static_cast<D3D11_TEXTURE_ADDRESS_MODE>(node->properties.address_v);
+		desc.AddressW = static_cast<D3D11_TEXTURE_ADDRESS_MODE>(node->properties.address_w);
 		desc.MipLODBias = node->properties.lod_bias;
 		desc.MinLOD = node->properties.min_lod;
 		desc.MaxLOD = node->properties.max_lod;
 		desc.MaxAnisotropy = node->properties.max_anisotropy;
-		desc.ComparisonFunc = D3D10_COMPARISON_NEVER;
+		desc.ComparisonFunc = D3D11_COMPARISON_NEVER;
 
-		const auto texture = static_cast<d3d10_texture *>(_runtime->find_texture(node->properties.texture->name));
+		const auto texture = static_cast<d3d11_texture *>(_runtime->find_texture(node->properties.texture->name));
 
 		if (texture == nullptr)
 		{
@@ -1572,18 +1572,18 @@ namespace reshade
 			return;
 		}
 
-		const size_t descHash = D3D10_SAMPLER_DESC_HASH(desc);
+		const size_t descHash = D3D11_SAMPLER_DESC_HASH(desc);
 		auto it = _sampler_descs.find(descHash);
 
 		if (it == _sampler_descs.end())
 		{
-			ID3D10SamplerState *sampler = nullptr;
+			ID3D11SamplerState *sampler = nullptr;
 
 			HRESULT hr = _runtime->_device->CreateSamplerState(&desc, &sampler);
 
 			if (FAILED(hr))
 			{
-				error(node->location, "'ID3D10Device::CreateSamplerState' failed with error code " + std::to_string(static_cast<unsigned long>(hr)) + "!");
+				error(node->location, "'ID3D11Device::CreateSamplerState' failed with error code " + std::to_string(static_cast<unsigned long>(hr)) + "!");
 				return;
 			}
 
@@ -1606,7 +1606,7 @@ namespace reshade
 
 		_global_code << ", __SamplerState" << it->second << " };\n";
 	}
-	void d3d10_fx_compiler::visit_uniform(const variable_declaration_node *node)
+	void d3d11_effect_compiler::visit_uniform(const variable_declaration_node *node)
 	{
 		visit(_global_uniforms, node->type);
 
@@ -1678,7 +1678,7 @@ namespace reshade
 
 		_runtime->add_uniform(std::move(obj));
 	}
-	void d3d10_fx_compiler::visit_technique(const technique_declaration_node *node)
+	void d3d11_effect_compiler::visit_technique(const technique_declaration_node *node)
 	{
 		technique obj;
 		obj.name = node->name;
@@ -1693,16 +1693,16 @@ namespace reshade
 
 		for (auto pass : node->pass_list)
 		{
-			obj.passes.emplace_back(new d3d10_pass());
-			visit_pass(pass, *static_cast<d3d10_pass *>(obj.passes.back().get()));
+			obj.passes.emplace_back(new d3d11_pass());
+			visit_pass(pass, *static_cast<d3d11_pass *>(obj.passes.back().get()));
 		}
 
 		_runtime->add_technique(std::move(obj));
 	}
-	void d3d10_fx_compiler::visit_pass(const pass_declaration_node *node, d3d10_pass &pass)
+	void d3d11_effect_compiler::visit_pass(const pass_declaration_node *node, d3d11_pass &pass)
 	{
 		pass.stencil_reference = 0;
-		pass.viewport.TopLeftX = pass.viewport.TopLeftY = pass.viewport.Width = pass.viewport.Height = 0;
+		pass.viewport.TopLeftX = pass.viewport.TopLeftY = pass.viewport.Width = pass.viewport.Height = 0.0f;
 		pass.viewport.MinDepth = 0.0f;
 		pass.viewport.MaxDepth = 1.0f;
 		pass.clear_render_targets = node->clear_render_targets;
@@ -1730,7 +1730,7 @@ namespace reshade
 				continue;
 			}
 
-			const auto texture = static_cast<d3d10_texture *>(_runtime->find_texture(node->render_targets[i]->name));
+			const auto texture = static_cast<d3d11_texture *>(_runtime->find_texture(node->render_targets[i]->name));
 
 			if (texture == nullptr)
 			{
@@ -1738,31 +1738,31 @@ namespace reshade
 				return;
 			}
 
-			D3D10_TEXTURE2D_DESC texture_desc;
-			texture->texture->GetDesc(&texture_desc);
+			D3D11_TEXTURE2D_DESC desc;
+			texture->texture->GetDesc(&desc);
 
-			if (pass.viewport.Width != 0 && pass.viewport.Height != 0 && (texture_desc.Width != static_cast<unsigned int>(pass.viewport.Width) || texture_desc.Height != static_cast<unsigned int>(pass.viewport.Height)))
+			if (pass.viewport.Width != 0 && pass.viewport.Height != 0 && (desc.Width != static_cast<unsigned int>(pass.viewport.Width) || desc.Height != static_cast<unsigned int>(pass.viewport.Height)))
 			{
 				error(node->location, "cannot use multiple rendertargets with different sized textures");
 				return;
 			}
 			else
 			{
-				pass.viewport.Width = texture_desc.Width;
-				pass.viewport.Height = texture_desc.Height;
+				pass.viewport.Width = static_cast<FLOAT>(desc.Width);
+				pass.viewport.Height = static_cast<FLOAT>(desc.Height);
 			}
 
-			D3D10_RENDER_TARGET_VIEW_DESC rtvdesc = { };
-			rtvdesc.Format = node->srgb_write_enable ? make_format_srgb(texture_desc.Format) : make_format_normal(texture_desc.Format);
-			rtvdesc.ViewDimension = texture_desc.SampleDesc.Count > 1 ? D3D10_RTV_DIMENSION_TEXTURE2DMS : D3D10_RTV_DIMENSION_TEXTURE2D;
+			D3D11_RENDER_TARGET_VIEW_DESC rtvdesc = { };
+			rtvdesc.Format = node->srgb_write_enable ? make_format_srgb(desc.Format) : make_format_normal(desc.Format);
+			rtvdesc.ViewDimension = desc.SampleDesc.Count > 1 ? D3D11_RTV_DIMENSION_TEXTURE2DMS : D3D11_RTV_DIMENSION_TEXTURE2D;
 
 			if (texture->rtv[target_index] == nullptr)
 			{
-				const HRESULT hr = _runtime->_device->CreateRenderTargetView(texture->texture.get(), &rtvdesc, &texture->rtv[target_index]);
+				HRESULT hr = _runtime->_device->CreateRenderTargetView(texture->texture.get(), &rtvdesc, &texture->rtv[target_index]);
 
 				if (FAILED(hr))
 				{
-					warning(node->location, "'CreateRenderTargetView' failed with error code " + std::to_string(static_cast<unsigned long>(hr)) + "!");
+					warning(node->location, "'ID3D11Device::CreateRenderTargetView' failed with error code " + std::to_string(static_cast<unsigned long>(hr)) + "!");
 				}
 			}
 
@@ -1772,18 +1772,18 @@ namespace reshade
 
 		if (pass.viewport.Width == 0 && pass.viewport.Height == 0)
 		{
-			pass.viewport.Width = _runtime->frame_width();
-			pass.viewport.Height = _runtime->frame_height();
+			pass.viewport.Width = static_cast<FLOAT>(_runtime->frame_width());
+			pass.viewport.Height = static_cast<FLOAT>(_runtime->frame_height());
 		}
 
-		D3D10_DEPTH_STENCIL_DESC ddesc = { };
+		D3D11_DEPTH_STENCIL_DESC ddesc;
 		ddesc.DepthEnable = node->depth_enable;
-		ddesc.DepthWriteMask = node->depth_write_mask ? D3D10_DEPTH_WRITE_MASK_ALL : D3D10_DEPTH_WRITE_MASK_ZERO;
-		ddesc.DepthFunc = static_cast<D3D10_COMPARISON_FUNC>(node->depth_comparison_func);
+		ddesc.DepthWriteMask = node->depth_write_mask ? D3D11_DEPTH_WRITE_MASK_ALL : D3D11_DEPTH_WRITE_MASK_ZERO;
+		ddesc.DepthFunc = static_cast<D3D11_COMPARISON_FUNC>(node->depth_comparison_func);
 		ddesc.StencilEnable = node->stencil_enable;
 		ddesc.StencilReadMask = node->stencil_read_mask;
 		ddesc.StencilWriteMask = node->stencil_write_mask;
-		ddesc.FrontFace.StencilFunc = ddesc.BackFace.StencilFunc = static_cast<D3D10_COMPARISON_FUNC>(node->stencil_comparison_func);
+		ddesc.FrontFace.StencilFunc = ddesc.BackFace.StencilFunc = static_cast<D3D11_COMPARISON_FUNC>(node->stencil_comparison_func);
 		ddesc.FrontFace.StencilPassOp = ddesc.BackFace.StencilPassOp = literal_to_stencil_op(node->stencil_op_pass);
 		ddesc.FrontFace.StencilFailOp = ddesc.BackFace.StencilFailOp = literal_to_stencil_op(node->stencil_op_fail);
 		ddesc.FrontFace.StencilDepthFailOp = ddesc.BackFace.StencilDepthFailOp = literal_to_stencil_op(node->stencil_op_depth_fail);
@@ -1793,29 +1793,24 @@ namespace reshade
 
 		if (FAILED(hr))
 		{
-			warning(node->location, "'ID3D10Device::CreateDepthStencilState' failed with error code " + std::to_string(static_cast<unsigned long>(hr)) + "!");
+			warning(node->location, "'ID3D11Device::CreateDepthStencilState' failed with error code " + std::to_string(static_cast<unsigned long>(hr)) + "!");
 		}
 
-		D3D10_BLEND_DESC bdesc = { };
+		D3D11_BLEND_DESC bdesc;
 		bdesc.AlphaToCoverageEnable = FALSE;
-		bdesc.RenderTargetWriteMask[0] = node->color_write_mask;
-		bdesc.BlendEnable[0] = node->blend_enable;
-		bdesc.BlendOp = static_cast<D3D10_BLEND_OP>(node->blend_op);
-		bdesc.BlendOpAlpha = static_cast<D3D10_BLEND_OP>(node->blend_op_alpha);
-		bdesc.SrcBlend = literal_to_blend_func(node->src_blend);
-		bdesc.DestBlend = literal_to_blend_func(node->dest_blend);
-
-		for (UINT i = 1; i < 8; i++)
-		{
-			bdesc.RenderTargetWriteMask[i] = bdesc.RenderTargetWriteMask[0];
-			bdesc.BlendEnable[i] = bdesc.BlendEnable[0];
-		}
+		bdesc.IndependentBlendEnable = FALSE;
+		bdesc.RenderTarget[0].RenderTargetWriteMask = node->color_write_mask;
+		bdesc.RenderTarget[0].BlendEnable = node->blend_enable;
+		bdesc.RenderTarget[0].BlendOp = static_cast<D3D11_BLEND_OP>(node->blend_op);
+		bdesc.RenderTarget[0].BlendOpAlpha = static_cast<D3D11_BLEND_OP>(node->blend_op_alpha);
+		bdesc.RenderTarget[0].SrcBlend = literal_to_blend_func(node->src_blend);
+		bdesc.RenderTarget[0].DestBlend = literal_to_blend_func(node->dest_blend);
 
 		hr = _runtime->_device->CreateBlendState(&bdesc, &pass.blend_state);
 
 		if (FAILED(hr))
 		{
-			warning(node->location, "'ID3D10Device::CreateBlendState' failed with error code " + std::to_string(static_cast<unsigned long>(hr)) + "!");
+			warning(node->location, "'ID3D11Device::CreateBlendState' failed with error code " + std::to_string(static_cast<unsigned long>(hr)) + "!");
 		}
 
 		for (auto &srv : pass.shader_resources)
@@ -1825,7 +1820,7 @@ namespace reshade
 				continue;
 			}
 
-			com_ptr<ID3D10Resource> res1;
+			com_ptr<ID3D11Resource> res1;
 			srv->GetResource(&res1);
 
 			for (auto rtv : pass.render_targets)
@@ -1835,7 +1830,7 @@ namespace reshade
 					continue;
 				}
 
-				com_ptr<ID3D10Resource> res2;
+				com_ptr<ID3D11Resource> res2;
 				rtv->GetResource(&res2);
 
 				if (res1 == res2)
@@ -1846,32 +1841,28 @@ namespace reshade
 			}
 		}
 	}
-	void d3d10_fx_compiler::visit_pass_shader(const function_declaration_node *node, const std::string &shadertype, d3d10_pass &pass)
+	void d3d11_effect_compiler::visit_pass_shader(const function_declaration_node *node, const std::string &shadertype, d3d11_pass &pass)
 	{
-		com_ptr<ID3D10Device1> device1;
-		D3D10_FEATURE_LEVEL1 featurelevel = D3D10_FEATURE_LEVEL_10_0;
-
-		if (SUCCEEDED(_runtime->_device->QueryInterface(&device1)))
-		{
-			featurelevel = device1->GetFeatureLevel();
-		}
-
 		std::string profile = shadertype;
+		const D3D_FEATURE_LEVEL featurelevel = _runtime->_device->GetFeatureLevel();
 
 		switch (featurelevel)
 		{
-			case D3D10_FEATURE_LEVEL_10_1:
+			default:
+			case D3D_FEATURE_LEVEL_11_0:
+				profile += "_5_0";
+				break;
+			case D3D_FEATURE_LEVEL_10_1:
 				profile += "_4_1";
 				break;
-			default:
-			case D3D10_FEATURE_LEVEL_10_0:
+			case D3D_FEATURE_LEVEL_10_0:
 				profile += "_4_0";
 				break;
-			case D3D10_FEATURE_LEVEL_9_1:
-			case D3D10_FEATURE_LEVEL_9_2:
+			case D3D_FEATURE_LEVEL_9_1:
+			case D3D_FEATURE_LEVEL_9_2:
 				profile += "_4_0_level_9_1";
 				break;
-			case D3D10_FEATURE_LEVEL_9_3:
+			case D3D_FEATURE_LEVEL_9_3:
 				profile += "_4_0_level_9_3";
 				break;
 		}
@@ -1887,7 +1878,7 @@ namespace reshade
 			"inline float4 __tex2Dproj(__sampler2D s, float4 c) { return s.t.Sample(s.s, c.xy / c.w); }\n"
 			"inline int2 __tex2Dsize(__sampler2D s, int lod) { uint w, h, l; s.t.GetDimensions(lod, w, h, l); return int2(w, h); }\n";
 
-		if (featurelevel >= D3D10_FEATURE_LEVEL_10_1)
+		if (featurelevel >= D3D_FEATURE_LEVEL_10_1)
 		{
 			source +=
 				"inline float4 __tex2Dgather0(__sampler2D s, float2 c) { return s.t.Gather(s.s, c); }\n"
@@ -1900,13 +1891,26 @@ namespace reshade
 				"inline float4 __tex2Dgather0offset(__sampler2D s, float2 c, int2 offset) { return float4( s.t.SampleLevel(s.s, c, 0, offset + int2(0, 1)).r, s.t.SampleLevel(s.s, c, 0, offset + int2(1, 1)).r, s.t.SampleLevel(s.s, c, 0, offset + int2(1, 0)).r, s.t.SampleLevel(s.s, c, 0, offset).r); }\n";
 		}
 
-		source +=
-			"inline float4 __tex2Dgather1(__sampler2D s, float2 c) { return float4( s.t.SampleLevel(s.s, c, 0, int2(0, 1)).g, s.t.SampleLevel(s.s, c, 0, int2(1, 1)).g, s.t.SampleLevel(s.s, c, 0, int2(1, 0)).g, s.t.SampleLevel(s.s, c, 0).g); }\n"
-			"inline float4 __tex2Dgather1offset(__sampler2D s, float2 c, int2 offset) { return float4( s.t.SampleLevel(s.s, c, 0, offset + int2(0, 1)).g, s.t.SampleLevel(s.s, c, 0, offset + int2(1, 1)).g, s.t.SampleLevel(s.s, c, 0, offset + int2(1, 0)).g, s.t.SampleLevel(s.s, c, 0, offset).g); }\n"
-			"inline float4 __tex2Dgather2(__sampler2D s, float2 c) { return float4( s.t.SampleLevel(s.s, c, 0, int2(0, 1)).b, s.t.SampleLevel(s.s, c, 0, int2(1, 1)).b, s.t.SampleLevel(s.s, c, 0, int2(1, 0)).b, s.t.SampleLevel(s.s, c, 0).b); }\n"
-			"inline float4 __tex2Dgather2offset(__sampler2D s, float2 c, int2 offset) { return float4( s.t.SampleLevel(s.s, c, 0, offset + int2(0, 1)).b, s.t.SampleLevel(s.s, c, 0, offset + int2(1, 1)).b, s.t.SampleLevel(s.s, c, 0, offset + int2(1, 0)).b, s.t.SampleLevel(s.s, c, 0, offset).b); }\n"
-			"inline float4 __tex2Dgather3(__sampler2D s, float2 c) { return float4( s.t.SampleLevel(s.s, c, 0, int2(0, 1)).a, s.t.SampleLevel(s.s, c, 0, int2(1, 1)).a, s.t.SampleLevel(s.s, c, 0, int2(1, 0)).a, s.t.SampleLevel(s.s, c, 0).a); }\n"
-			"inline float4 __tex2Dgather3offset(__sampler2D s, float2 c, int2 offset) { return float4( s.t.SampleLevel(s.s, c, 0, offset + int2(0, 1)).a, s.t.SampleLevel(s.s, c, 0, offset + int2(1, 1)).a, s.t.SampleLevel(s.s, c, 0, offset + int2(1, 0)).a, s.t.SampleLevel(s.s, c, 0, offset).a); }\n";
+		if (featurelevel >= D3D_FEATURE_LEVEL_11_0)
+		{
+			source +=
+				"inline float4 __tex2Dgather1(__sampler2D s, float2 c) { return s.t.GatherGreen(s.s, c); }\n"
+				"inline float4 __tex2Dgather1offset(__sampler2D s, float2 c, int2 offset) { return s.t.GatherGreen(s.s, c, offset); }\n"
+				"inline float4 __tex2Dgather2(__sampler2D s, float2 c) { return s.t.GatherBlue(s.s, c); }\n"
+				"inline float4 __tex2Dgather2offset(__sampler2D s, float2 c, int2 offset) { return s.t.GatherBlue(s.s, c, offset); }\n"
+				"inline float4 __tex2Dgather3(__sampler2D s, float2 c) { return s.t.GatherAlpha(s.s, c); }\n"
+				"inline float4 __tex2Dgather3offset(__sampler2D s, float2 c, int2 offset) { return s.t.GatherAlpha(s.s, c, offset); }\n";
+		}
+		else
+		{
+			source +=
+				"inline float4 __tex2Dgather1(__sampler2D s, float2 c) { return float4( s.t.SampleLevel(s.s, c, 0, int2(0, 1)).g, s.t.SampleLevel(s.s, c, 0, int2(1, 1)).g, s.t.SampleLevel(s.s, c, 0, int2(1, 0)).g, s.t.SampleLevel(s.s, c, 0).g); }\n"
+				"inline float4 __tex2Dgather1offset(__sampler2D s, float2 c, int2 offset) { return float4( s.t.SampleLevel(s.s, c, 0, offset + int2(0, 1)).g, s.t.SampleLevel(s.s, c, 0, offset + int2(1, 1)).g, s.t.SampleLevel(s.s, c, 0, offset + int2(1, 0)).g, s.t.SampleLevel(s.s, c, 0, offset).g); }\n"
+				"inline float4 __tex2Dgather2(__sampler2D s, float2 c) { return float4( s.t.SampleLevel(s.s, c, 0, int2(0, 1)).b, s.t.SampleLevel(s.s, c, 0, int2(1, 1)).b, s.t.SampleLevel(s.s, c, 0, int2(1, 0)).b, s.t.SampleLevel(s.s, c, 0).b); }\n"
+				"inline float4 __tex2Dgather2offset(__sampler2D s, float2 c, int2 offset) { return float4( s.t.SampleLevel(s.s, c, 0, offset + int2(0, 1)).b, s.t.SampleLevel(s.s, c, 0, offset + int2(1, 1)).b, s.t.SampleLevel(s.s, c, 0, offset + int2(1, 0)).b, s.t.SampleLevel(s.s, c, 0, offset).b); }\n"
+				"inline float4 __tex2Dgather3(__sampler2D s, float2 c) { return float4( s.t.SampleLevel(s.s, c, 0, int2(0, 1)).a, s.t.SampleLevel(s.s, c, 0, int2(1, 1)).a, s.t.SampleLevel(s.s, c, 0, int2(1, 0)).a, s.t.SampleLevel(s.s, c, 0).a); }\n"
+				"inline float4 __tex2Dgather3offset(__sampler2D s, float2 c, int2 offset) { return float4( s.t.SampleLevel(s.s, c, 0, offset + int2(0, 1)).a, s.t.SampleLevel(s.s, c, 0, offset + int2(1, 1)).a, s.t.SampleLevel(s.s, c, 0, offset + int2(1, 0)).a, s.t.SampleLevel(s.s, c, 0, offset).a); }\n";
+		}
 
 		source += "cbuffer __GLOBAL__ : register(b0)\n{\n" + _global_uniforms.str() + "};\n";
 		source += _global_code.str();
@@ -1936,11 +1940,11 @@ namespace reshade
 
 		if (shadertype == "vs")
 		{
-			hr = _runtime->_device->CreateVertexShader(compiled->GetBufferPointer(), compiled->GetBufferSize(), &pass.vertex_shader);
+			hr = _runtime->_device->CreateVertexShader(compiled->GetBufferPointer(), compiled->GetBufferSize(), nullptr, &pass.vertex_shader);
 		}
 		else if (shadertype == "ps")
 		{
-			hr = _runtime->_device->CreatePixelShader(compiled->GetBufferPointer(), compiled->GetBufferSize(), &pass.pixel_shader);
+			hr = _runtime->_device->CreatePixelShader(compiled->GetBufferPointer(), compiled->GetBufferSize(), nullptr, &pass.pixel_shader);
 		}
 
 		if (FAILED(hr))

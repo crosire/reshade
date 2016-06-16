@@ -163,6 +163,19 @@
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="source\d3d10\d3d10.cpp" />
+    <ClCompile Include="source\d3d10\d3d10_device.cpp" />
+    <ClCompile Include="source\d3d11\d3d11.cpp" />
+    <ClCompile Include="source\d3d11\d3d11_device.cpp" />
+    <ClCompile Include="source\d3d11\d3d11_device_context.cpp" />
+    <ClCompile Include="source\d3d12\d3d12.cpp" />
+    <ClCompile Include="source\d3d12\d3d12_command_queue.cpp" />
+    <ClCompile Include="source\d3d12\d3d12_device.cpp" />
+    <ClCompile Include="source\d3d9\d3d9.cpp" />
+    <ClCompile Include="source\d3d9\d3d9_device.cpp" />
+    <ClCompile Include="source\d3d9\d3d9_swapchain.cpp" />
+    <ClCompile Include="source\dxgi\dxgi.cpp" />
+    <ClCompile Include="source\dxgi\dxgi_swapchain.cpp" />
     <ClCompile Include="source\ini_file.cpp" />
     <ClCompile Include="source\log.cpp" />
     <ClCompile Include="source\main.cpp" />
@@ -178,33 +191,42 @@
     <ClCompile Include="source\d3d8\d3d8.cpp">
       <ExcludedFromBuild Condition="'$(Platform)'=='x64'">true</ExcludedFromBuild>
     </ClCompile>
-    <ClCompile Include="source\d3d9\d3d9_hook.cpp" />
-    <ClCompile Include="source\d3d10\d3d10_hook.cpp" />
-    <ClCompile Include="source\d3d11\d3d11_hook.cpp" />
-    <ClCompile Include="source\d3d12\d3d12_hook.cpp" />
-    <ClCompile Include="source\dxgi\dxgi_hook.cpp" />
-    <ClCompile Include="source\opengl\gl_hook.cpp" />
+    <ClCompile Include="source\dxgi\dxgi_device.cpp" />
+    <ClCompile Include="source\opengl\opengl.cpp" />
     <ClCompile Include="source\windows\user32.cpp" />
     <ClCompile Include="source\windows\ws2_32.cpp" />
     <ClCompile Include="source\runtime.cpp" />
     <ClCompile Include="source\input.cpp" />
-    <ClCompile Include="source\d3d9\d3d9_fx_compiler.cpp" />
+    <ClCompile Include="source\d3d9\d3d9_effect_compiler.cpp" />
     <ClCompile Include="source\d3d9\d3d9_runtime.cpp" />
-    <ClCompile Include="source\d3d10\d3d10_fx_compiler.cpp" />
+    <ClCompile Include="source\d3d10\d3d10_effect_compiler.cpp" />
     <ClCompile Include="source\d3d10\d3d10_runtime.cpp" />
     <ClCompile Include="source\d3d10\d3d10_stateblock.cpp" />
-    <ClCompile Include="source\d3d11\d3d11_fx_compiler.cpp" />
+    <ClCompile Include="source\d3d11\d3d11_effect_compiler.cpp" />
     <ClCompile Include="source\d3d11\d3d11_runtime.cpp" />
     <ClCompile Include="source\d3d11\d3d11_stateblock.cpp" />
     <ClCompile Include="source\d3d12\d3d12_runtime.cpp" />
-    <ClCompile Include="source\opengl\gl_fx_compiler.cpp" />
-    <ClCompile Include="source\opengl\gl_runtime.cpp" />
-    <ClCompile Include="source\opengl\gl_stateblock.cpp" />
+    <ClCompile Include="source\opengl\opengl_effect_compiler.cpp" />
+    <ClCompile Include="source\opengl\opengl_runtime.cpp" />
+    <ClCompile Include="source\opengl\opengl_stateblock.cpp" />
     <ClCompile Include="source\file_watcher.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="res\version.h" />
     <ClInclude Include="source\constant_folding.hpp" />
+    <ClInclude Include="source\d3d10\d3d10.hpp" />
+    <ClInclude Include="source\d3d10\d3d10_device.hpp" />
+    <ClInclude Include="source\d3d11\d3d11.hpp" />
+    <ClInclude Include="source\d3d11\d3d11_device.hpp" />
+    <ClInclude Include="source\d3d11\d3d11_device_context.hpp" />
+    <ClInclude Include="source\d3d12\d3d12.hpp" />
+    <ClInclude Include="source\d3d12\d3d12_command_queue.hpp" />
+    <ClInclude Include="source\d3d12\d3d12_device.hpp" />
+    <ClInclude Include="source\d3d9\d3d9.hpp" />
+    <ClInclude Include="source\d3d9\d3d9_device.hpp" />
+    <ClInclude Include="source\d3d9\d3d9_swapchain.hpp" />
+    <ClInclude Include="source\dxgi\dxgi.hpp" />
+    <ClInclude Include="source\dxgi\dxgi_swapchain.hpp" />
     <ClInclude Include="source\ini_file.hpp" />
     <ClInclude Include="source\filesystem.hpp" />
     <ClInclude Include="source\runtime_objects.hpp" />
@@ -221,25 +243,21 @@
     <ClInclude Include="source\hook_manager.hpp" />
     <ClInclude Include="source\d3d8\d3d8.hpp" />
     <ClInclude Include="source\d3d8\d3d8_types.h" />
-    <ClInclude Include="source\d3d9\d3d9_hook.hpp" />
-    <ClInclude Include="source\d3d10\d3d10_hook.hpp" />
-    <ClInclude Include="source\d3d11\d3d11_hook.hpp" />
-    <ClInclude Include="source\d3d12\d3d12_hook.hpp" />
-    <ClInclude Include="source\dxgi\dxgi_hook.hpp" />
+    <ClInclude Include="source\dxgi\dxgi_device.hpp" />
     <ClInclude Include="source\runtime.hpp" />
     <ClInclude Include="source\input.hpp" />
-    <ClInclude Include="source\d3d9\d3d9_fx_compiler.hpp" />
+    <ClInclude Include="source\d3d9\d3d9_effect_compiler.hpp" />
     <ClInclude Include="source\d3d9\d3d9_runtime.hpp" />
-    <ClInclude Include="source\d3d10\d3d10_fx_compiler.hpp" />
+    <ClInclude Include="source\d3d10\d3d10_effect_compiler.hpp" />
     <ClInclude Include="source\d3d10\d3d10_runtime.hpp" />
     <ClInclude Include="source\d3d10\d3d10_stateblock.hpp" />
-    <ClInclude Include="source\d3d11\d3d11_fx_compiler.hpp" />
+    <ClInclude Include="source\d3d11\d3d11_effect_compiler.hpp" />
     <ClInclude Include="source\d3d11\d3d11_runtime.hpp" />
     <ClInclude Include="source\d3d11\d3d11_stateblock.hpp" />
     <ClInclude Include="source\d3d12\d3d12_runtime.hpp" />
-    <ClInclude Include="source\opengl\gl_fx_compiler.hpp" />
-    <ClInclude Include="source\opengl\gl_runtime.hpp" />
-    <ClInclude Include="source\opengl\gl_stateblock.hpp" />
+    <ClInclude Include="source\opengl\opengl_effect_compiler.hpp" />
+    <ClInclude Include="source\opengl\opengl_runtime.hpp" />
+    <ClInclude Include="source\opengl\opengl_stateblock.hpp" />
     <ClInclude Include="source\com_ptr.hpp" />
     <ClInclude Include="source\critical_section.hpp" />
     <ClInclude Include="source\file_watcher.hpp" />

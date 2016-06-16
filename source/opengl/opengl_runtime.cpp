@@ -1,6 +1,6 @@
 #include "log.hpp"
-#include "gl_runtime.hpp"
-#include "gl_fx_compiler.hpp"
+#include "opengl_runtime.hpp"
+#include "opengl_effect_compiler.hpp"
 #include "input.hpp"
 
 #include <imgui.h>
@@ -62,7 +62,7 @@ namespace reshade
 		}
 	}
 
-	gl_runtime::gl_runtime(HDC device) : runtime(get_renderer_id()), _hdc(device)
+	opengl_runtime::opengl_runtime(HDC device) : runtime(get_renderer_id()), _hdc(device)
 	{
 		assert(device != nullptr);
 
@@ -112,7 +112,7 @@ namespace reshade
 		}
 	}
 
-	bool gl_runtime::init_backbuffer_texture()
+	bool opengl_runtime::init_backbuffer_texture()
 	{
 		GLCHECK(glGenRenderbuffers(2, _default_backbuffer_rbo));
 
@@ -177,7 +177,7 @@ namespace reshade
 
 		return true;
 	}
-	bool gl_runtime::init_default_depth_stencil()
+	bool opengl_runtime::init_default_depth_stencil()
 	{
 		const depth_source_info defaultdepth = {
 			static_cast<GLint>(_width),
@@ -213,7 +213,7 @@ namespace reshade
 
 		return true;
 	}
-	bool gl_runtime::init_fx_resources()
+	bool opengl_runtime::init_fx_resources()
 	{
 		GLCHECK(glGenFramebuffers(1, &_blit_fbo));
 
@@ -242,7 +242,7 @@ namespace reshade
 
 		return true;
 	}
-	bool gl_runtime::init_imgui_resources()
+	bool opengl_runtime::init_imgui_resources()
 	{
 		const GLchar *vertex_shader[] = {
 			"#version 330\n"
@@ -303,7 +303,7 @@ namespace reshade
 
 		return true;
 	}
-	bool gl_runtime::init_imgui_font_atlas()
+	bool opengl_runtime::init_imgui_font_atlas()
 	{
 		int width, height;
 		unsigned char *pixels;
@@ -318,7 +318,7 @@ namespace reshade
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
 
-		const auto obj = new gl_texture();
+		const auto obj = new opengl_texture();
 		obj->width = width;
 		obj->height = height;
 		obj->levels = 1;
@@ -330,7 +330,7 @@ namespace reshade
 		return true;
 	}
 
-	bool gl_runtime::on_init(unsigned int width, unsigned int height)
+	bool opengl_runtime::on_init(unsigned int width, unsigned int height)
 	{
 		_width = width;
 		_height = height;
@@ -352,7 +352,7 @@ namespace reshade
 
 		return runtime::on_init();
 	}
-	void gl_runtime::on_reset()
+	void opengl_runtime::on_reset()
 	{
 		if (!_is_initialized)
 		{
@@ -388,7 +388,7 @@ namespace reshade
 
 		_depth_source = 0;
 	}
-	void gl_runtime::on_reset_effect()
+	void opengl_runtime::on_reset_effect()
 	{
 		runtime::on_reset_effect();
 
@@ -406,7 +406,7 @@ namespace reshade
 
 		_effect_ubos.clear();
 	}
-	void gl_runtime::on_present()
+	void opengl_runtime::on_present()
 	{
 		if (!_is_initialized)
 		{
@@ -454,7 +454,7 @@ namespace reshade
 		// Apply states
 		_stateblock.apply();
 	}
-	void gl_runtime::on_draw_call(unsigned int vertices)
+	void opengl_runtime::on_draw_call(unsigned int vertices)
 	{
 		runtime::on_draw_call(vertices);
 
@@ -483,7 +483,7 @@ namespace reshade
 			it->second.vertices_count += vertices;
 		}
 	}
-	void gl_runtime::on_apply_effect()
+	void opengl_runtime::on_apply_effect()
 	{
 		if (_techniques.empty())
 		{
@@ -507,7 +507,7 @@ namespace reshade
 		// Reset states
 		GLCHECK(glBindSampler(0, 0));
 	}
-	void gl_runtime::on_apply_effect_technique(const technique &technique)
+	void opengl_runtime::on_apply_effect_technique(const technique &technique)
 	{
 		runtime::on_apply_effect_technique(technique);
 
@@ -524,7 +524,7 @@ namespace reshade
 
 		for (const auto &pass_ptr : technique.passes)
 		{
-			const auto &pass = *static_cast<const gl_pass *>(pass_ptr.get());
+			const auto &pass = *static_cast<const opengl_pass *>(pass_ptr.get());
 
 			// Setup states
 			GLCHECK(glUseProgram(pass.program));
@@ -579,7 +579,7 @@ namespace reshade
 			{
 				for (GLsizei sampler = 0, samplerCount = static_cast<GLsizei>(_effect_samplers.size()); sampler < samplerCount; sampler++)
 				{
-					const gl_texture *const texture = _effect_samplers[sampler].texture;
+					const opengl_texture *const texture = _effect_samplers[sampler].texture;
 
 					if (texture->levels > 1 && (texture->id[0] == id || texture->id[1] == id))
 					{
@@ -591,7 +591,7 @@ namespace reshade
 		}
 	}
 
-	void gl_runtime::on_fbo_attachment(GLenum target, GLenum attachment, GLenum objecttarget, GLuint object, GLint level)
+	void opengl_runtime::on_fbo_attachment(GLenum target, GLenum attachment, GLenum objecttarget, GLuint object, GLint level)
 	{
 		if (object == 0 || (attachment != GL_DEPTH_ATTACHMENT && attachment != GL_DEPTH_STENCIL_ATTACHMENT))
 		{
@@ -656,7 +656,7 @@ namespace reshade
 		_depth_source_table.emplace(id, info);
 	}
 
-	void gl_runtime::screenshot(uint8_t *buffer) const
+	void opengl_runtime::screenshot(uint8_t *buffer) const
 	{
 		GLCHECK(glReadBuffer(GL_BACK));
 		GLCHECK(glReadPixels(0, 0, static_cast<GLsizei>(_width), static_cast<GLsizei>(_height), GL_RGBA, GL_UNSIGNED_BYTE, buffer));
@@ -680,13 +680,13 @@ namespace reshade
 			}
 		}
 	}
-	bool gl_runtime::update_effect(const reshadefx::syntax_tree &ast, std::string &errors)
+	bool opengl_runtime::update_effect(const reshadefx::syntax_tree &ast, std::string &errors)
 	{
-		return gl_fx_compiler(this, ast, errors).run();
+		return opengl_effect_compiler(this, ast, errors).run();
 	}
-	bool gl_runtime::update_texture(texture &texture, const uint8_t *data)
+	bool opengl_runtime::update_texture(texture &texture, const uint8_t *data)
 	{
-		const auto texture_impl = dynamic_cast<gl_texture *>(&texture);
+		const auto texture_impl = dynamic_cast<opengl_texture *>(&texture);
 
 		assert(data != nullptr);
 		assert(texture_impl != nullptr);
@@ -732,7 +732,7 @@ namespace reshade
 
 		return true;
 	}
-	void gl_runtime::update_texture_datatype(gl_texture &texture, texture_type source, GLuint newtexture, GLuint newtexture_srgb)
+	void opengl_runtime::update_texture_datatype(opengl_texture &texture, texture_type source, GLuint newtexture, GLuint newtexture_srgb)
 	{
 		if (texture.type == texture_type::image)
 		{
@@ -755,7 +755,7 @@ namespace reshade
 		texture.id[1] = newtexture_srgb;
 	}
 
-	void gl_runtime::render_draw_lists(ImDrawData *draw_data)
+	void opengl_runtime::render_draw_lists(ImDrawData *draw_data)
 	{
 		// Setup render state: alpha-blending enabled, no face culling, no depth testing, scissor enabled
 		glEnable(GL_BLEND);
@@ -799,7 +799,7 @@ namespace reshade
 				}
 				else
 				{
-					glBindTexture(GL_TEXTURE_2D, static_cast<const gl_texture *>(cmd->TextureId)->id[0]);
+					glBindTexture(GL_TEXTURE_2D, static_cast<const opengl_texture *>(cmd->TextureId)->id[0]);
 					glScissor(static_cast<GLint>(cmd->ClipRect.x), static_cast<GLint>(_height - cmd->ClipRect.w), static_cast<GLint>(cmd->ClipRect.z - cmd->ClipRect.x), static_cast<GLint>(cmd->ClipRect.w - cmd->ClipRect.y));
 
 					glDrawElements(GL_TRIANGLES, cmd->ElemCount, sizeof(ImDrawIdx) == 2 ? GL_UNSIGNED_SHORT : GL_UNSIGNED_INT, idx_buffer_offset);
@@ -808,7 +808,7 @@ namespace reshade
 		}
 	}
 
-	void gl_runtime::detect_depth_source()
+	void opengl_runtime::detect_depth_source()
 	{
 		static int cooldown = 0, traffic = 0;
 
@@ -927,7 +927,7 @@ namespace reshade
 			GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, previous_fbo));
 		}
 	}
-	void gl_runtime::create_depth_texture(GLuint width, GLuint height, GLenum format)
+	void opengl_runtime::create_depth_texture(GLuint width, GLuint height, GLenum format)
 	{
 		GLCHECK(glDeleteTextures(1, &_depth_texture));
 
@@ -972,7 +972,7 @@ namespace reshade
 		{
 			if (texture->type == texture_type::depthbuffer)
 			{
-				update_texture_datatype(static_cast<gl_texture &>(*texture), texture_type::depthbuffer, _depth_texture, 0);
+				update_texture_datatype(static_cast<opengl_texture &>(*texture), texture_type::depthbuffer, _depth_texture, 0);
 			}
 		}
 	}

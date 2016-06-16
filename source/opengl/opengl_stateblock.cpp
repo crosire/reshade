@@ -1,15 +1,15 @@
-#include "gl_stateblock.hpp"
+#include "opengl_stateblock.hpp"
 
 namespace reshade
 {
 	namespace utils
 	{
-		gl_stateblock::gl_stateblock()
+		opengl_stateblock::opengl_stateblock()
 		{
 			ZeroMemory(this, sizeof(*this));
 		}
 
-		void gl_stateblock::capture()
+		void opengl_stateblock::capture()
 		{
 			glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &_vao);
 			glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &_vbo);
@@ -57,7 +57,7 @@ namespace reshade
 				_drawbuffers[i] = static_cast<GLenum>(drawbuffer);
 			}
 		}
-		void gl_stateblock::apply() const
+		void opengl_stateblock::apply() const
 		{
 			glBindVertexArray(_vao);
 			glBindBuffer(GL_ARRAY_BUFFER, _vbo);
