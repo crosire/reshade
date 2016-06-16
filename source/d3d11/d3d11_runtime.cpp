@@ -865,8 +865,15 @@ namespace reshade
 
 		assert(texture_impl != nullptr);
 
+		if (new_reference[0] == texture_impl->srv[0] &&
+			new_reference[1] == texture_impl->srv[1])
+		{
+			return true;
+		}
+
 		texture_impl->rtv[0].reset();
 		texture_impl->rtv[1].reset();
+		texture_impl->texture.reset();
 
 		if (new_reference[0] == nullptr)
 		{
@@ -875,28 +882,22 @@ namespace reshade
 
 			texture.width = texture.height = texture.levels = 0;
 			texture.format = texture_format::unknown;
-			return true;
 		}
-
-		if (new_reference[0] == texture_impl->srv[0] &&
-			new_reference[1] == texture_impl->srv[1])
+		else
 		{
-			return true;
+			texture_impl->srv[0] = new_reference[0];
+			texture_impl->srv[1] = new_reference[1];
+
+			texture_impl->srv[0]->GetResource(reinterpret_cast<ID3D11Resource **>(&texture_impl->texture));
+
+			D3D11_TEXTURE2D_DESC desc;
+			texture_impl->texture->GetDesc(&desc);
+
+			texture.width = desc.Width;
+			texture.height = desc.Height;
+			texture.format = texture_format::unknown;
+			texture.levels = desc.MipLevels;
 		}
-
-		texture_impl->texture.reset();
-		texture_impl->srv[0] = new_reference[0];
-		texture_impl->srv[1] = new_reference[1];
-
-		texture_impl->srv[0]->GetResource(reinterpret_cast<ID3D11Resource **>(&texture_impl->texture));
-
-		D3D11_TEXTURE2D_DESC desc;
-		texture_impl->texture->GetDesc(&desc);
-
-		texture.width = desc.Width;
-		texture.height = desc.Height;
-		texture.format = texture_format::unknown;
-		texture.levels = desc.MipLevels;
 
 		// Update techniques shader resource views
 		for (const auto &technique : _techniques)

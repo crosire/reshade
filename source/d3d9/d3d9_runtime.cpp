@@ -580,33 +580,33 @@ namespace reshade
 
 		assert(texture_impl != nullptr);
 
-		if (new_reference == nullptr)
-		{
-			texture_impl->texture.reset();
-			texture_impl->surface.reset();
-
-			texture.width = texture.height = texture.levels = 0;
-			texture.format = texture_format::unknown;
-			return true;
-		}
-
 		if (new_reference == texture_impl->texture)
 		{
 			return true;
 		}
 
-		texture_impl->texture = new_reference;
-		texture_impl->surface = nullptr;
+		texture_impl->surface.reset();
 
-		new_reference->GetSurfaceLevel(0, &texture_impl->surface);
+		if (new_reference == nullptr)
+		{
+			texture_impl->texture.reset();
 
-		D3DSURFACE_DESC desc;
-		texture_impl->surface->GetDesc(&desc);
+			texture.width = texture.height = texture.levels = 0;
+			texture.format = texture_format::unknown;
+		}
+		else
+		{
+			texture_impl->texture = new_reference;
+			new_reference->GetSurfaceLevel(0, &texture_impl->surface);
 
-		texture.width = desc.Width;
-		texture.height = desc.Height;
-		texture.format = texture_format::unknown;
-		texture.levels = new_reference->GetLevelCount();
+			D3DSURFACE_DESC desc;
+			texture_impl->surface->GetDesc(&desc);
+
+			texture.width = desc.Width;
+			texture.height = desc.Height;
+			texture.format = texture_format::unknown;
+			texture.levels = new_reference->GetLevelCount();
+		}
 
 		return true;
 	}
