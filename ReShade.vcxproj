@@ -176,10 +176,6 @@
     <PreBuildEvent>
       <Command>tools\verbuild res\version.h *.*.*.+ -xFP -b0.0.0.0 -s</Command>
     </PreBuildEvent>
-    <PostBuildEvent>
-      <Command>del "$(TargetDir)$(TargetName).dl~"
-tools\upx --backup "$(TargetPath)"</Command>
-    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -210,10 +206,6 @@ tools\upx --backup "$(TargetPath)"</Command>
     <PreBuildEvent>
       <Command>tools\verbuild res\version.h *.*.*.+ -xFP -b0.0.0.0 -s</Command>
     </PreBuildEvent>
-    <PostBuildEvent>
-      <Command>del "$(TargetDir)$(TargetName).dl~"
-tools\upx --backup "$(TargetPath)"</Command>
-    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="source\ini_file.cpp" />
