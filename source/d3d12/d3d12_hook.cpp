@@ -1,6 +1,6 @@
 #include "log.hpp"
-#include "dxgi_hook.hpp"
 #include "hook_manager.hpp"
+#include "../dxgi/dxgi_hook.hpp"
 
 // ID3D12CommandQueue
 HRESULT STDMETHODCALLTYPE D3D12CommandQueue::QueryInterface(REFIID riid, void **ppvObj)

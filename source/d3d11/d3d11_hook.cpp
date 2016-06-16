@@ -1,6 +1,6 @@
 #include "log.hpp"
-#include "dxgi_hook.hpp"
 #include "hook_manager.hpp"
+#include "../dxgi/dxgi_hook.hpp"
 
 // ID3D11DeviceContext
 HRESULT STDMETHODCALLTYPE D3D11DeviceContext::QueryInterface(REFIID riid, void **ppvObj)

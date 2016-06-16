@@ -150,9 +150,6 @@
     <ClCompile Include="source\ini_file.cpp">
       <Filter>core\utils</Filter>
     </ClCompile>
-    <ClCompile Include="source\stb_impl.cpp">
-      <Filter>core\utils</Filter>
-    </ClCompile>
     <ClCompile Include="source\filesystem.cpp">
       <Filter>core\utils</Filter>
     </ClCompile>
