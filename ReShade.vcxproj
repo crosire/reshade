@@ -215,7 +215,7 @@
     <ClCompile Include="source\opengl\opengl_effect_compiler.cpp" />
     <ClCompile Include="source\opengl\opengl_runtime.cpp" />
     <ClCompile Include="source\opengl\opengl_stateblock.cpp" />
-    <ClCompile Include="source\file_watcher.cpp" />
+    <ClCompile Include="source\directory_watcher.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="res\version.h" />
@@ -266,7 +266,7 @@
     <ClInclude Include="source\opengl\opengl_stateblock.hpp" />
     <ClInclude Include="source\com_ptr.hpp" />
     <ClInclude Include="source\critical_section.hpp" />
-    <ClInclude Include="source\file_watcher.hpp" />
+    <ClInclude Include="source\directory_watcher.hpp" />
     <ClInclude Include="source\moving_average.hpp" />
     <ClInclude Include="source\variant.hpp" />
   </ItemGroup>

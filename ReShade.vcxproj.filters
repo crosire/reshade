@@ -63,9 +63,6 @@
     <ClCompile Include="source\input.cpp">
       <Filter>core\runtime</Filter>
     </ClCompile>
-    <ClCompile Include="source\file_watcher.cpp">
-      <Filter>core\utils</Filter>
-    </ClCompile>
     <ClCompile Include="source\d3d8\d3d8.cpp">
       <Filter>hooks\d3d8</Filter>
     </ClCompile>
@@ -180,6 +177,9 @@
     <ClCompile Include="source\opengl\opengl.cpp">
       <Filter>hooks\opengl</Filter>
     </ClCompile>
+    <ClCompile Include="source\directory_watcher.cpp">
+      <Filter>core\utils</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="source\log.hpp">
@@ -204,9 +204,6 @@
       <Filter>core\utils</Filter>
     </ClInclude>
     <ClInclude Include="source\critical_section.hpp">
-      <Filter>core\utils</Filter>
-    </ClInclude>
-    <ClInclude Include="source\file_watcher.hpp">
       <Filter>core\utils</Filter>
     </ClInclude>
     <ClInclude Include="source\moving_average.hpp">
@@ -333,6 +330,9 @@
       <Filter>hooks\opengl</Filter>
     </ClInclude>
     <ClInclude Include="source\variant.hpp">
+      <Filter>core\utils</Filter>
+    </ClInclude>
+    <ClInclude Include="source\directory_watcher.hpp">
       <Filter>core\utils</Filter>
     </ClInclude>
   </ItemGroup>

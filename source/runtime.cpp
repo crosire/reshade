@@ -6,7 +6,6 @@
 #include "parser.hpp"
 #include "preprocessor.hpp"
 #include "input.hpp"
-#include "file_watcher.hpp"
 #include "string_utils.hpp"
 #include "ini_file.hpp"
 #include "filesystem.hpp"
