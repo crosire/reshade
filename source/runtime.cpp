@@ -8,7 +8,6 @@
 #include "input.hpp"
 #include "string_utils.hpp"
 #include "ini_file.hpp"
-#include "filesystem.hpp"
 
 #include <stb_image.h>
 #include <stb_image_dds.h>
@@ -80,7 +79,7 @@ namespace reshade
 
 		if (!filesystem::exists(s_settings_path))
 		{
-			s_settings_path = appdata_path / (s_executable_path.filename_without_extension().operator const std::string &() + ".ini");
+			s_settings_path = appdata_path / (s_executable_path.filename_without_extension() + ".ini");
 		}
 
 		hooks::register_module(system_path / "d3d8.dll");
@@ -482,7 +481,7 @@ namespace reshade
 						}
 
 						const auto initializer = static_cast<reshadefx::nodes::literal_expression_node *>(variable->initializer_expression);
-						const auto data = preset.get(path.filename(), variable->unique_name);
+						const auto data = preset.get(path.filename().string(), variable->unique_name);
 
 						for (unsigned int i = 0; i < std::min(variable->type.rows, static_cast<unsigned int>(data.data().size())); i++)
 						{
@@ -515,21 +514,21 @@ namespace reshade
 				{
 					if (!variable.annotations.count("__FILE__"))
 					{
-						variable.annotations["__FILE__"] = static_cast<const std::string &>(path);
+						variable.annotations["__FILE__"] = path;
 					}
 				}
 				for (auto &texture : _textures)
 				{
 					if (!texture.annotations.count("__FILE__"))
 					{
-						texture.annotations["__FILE__"] = static_cast<const std::string &>(path);
+						texture.annotations["__FILE__"] = path;
 					}
 				}
 				for (auto &technique : _techniques)
 				{
 					if (!technique.annotations.count("__FILE__"))
 					{
-						technique.annotations["__FILE__"] = static_cast<const std::string &>(path);
+						technique.annotations["__FILE__"] = path;
 
 						technique.enabled = technique.annotations["enabled"].as<bool>();
 						technique.timeleft = technique.timeout = technique.annotations["timeout"].as<int>();
@@ -557,10 +556,10 @@ namespace reshade
 		const int second = _date[3] - hour * 3600 - minute * 60;
 
 		const std::string extensions[] { ".bmp", ".png" };
-		const filesystem::path path = _screenshot_path + '\\' + (s_executable_path.filename_without_extension().operator const std::string &()) + ' ' +
+		const filesystem::path path = _screenshot_path / (s_executable_path.filename_without_extension() + ' ' +
 			std::to_string(_date[0]) + '-' + std::to_string(_date[1]) + '-' + std::to_string(_date[2]) + ' ' +
 			std::to_string(hour) + '-' + std::to_string(minute) + '-' + std::to_string(second) +
-			extensions[_screenshot_format];
+			extensions[_screenshot_format]);
 		std::vector<uint8_t> data(_width * _height * 4);
 
 		screenshot(data.data());
@@ -570,7 +569,7 @@ namespace reshade
 		FILE *file;
 		bool success = false;
 
-		if (_wfopen_s(&file, stdext::utf8_to_utf16(path).c_str(), L"wb") == 0)
+		if (_wfopen_s(&file, path.wstring().c_str(), L"wb") == 0)
 		{
 			stbi_write_func *func = [](void *context, void *data, int size)
 			{
@@ -611,7 +610,7 @@ namespace reshade
 		pp.add_macro_definition("__VENDOR__", std::to_string(_vendor_id));
 		pp.add_macro_definition("__DEVICE__", std::to_string(_device_id));
 		pp.add_macro_definition("__RENDERER__", std::to_string(_renderer_id));
-		pp.add_macro_definition("__APPLICATION__", std::to_string(std::hash<std::string>()(s_executable_path.filename_without_extension().operator const std::string &())));
+		pp.add_macro_definition("__APPLICATION__", std::to_string(std::hash<std::string>()(s_executable_path.filename_without_extension().string())));
 		pp.add_macro_definition("BUFFER_WIDTH", std::to_string(_width));
 		pp.add_macro_definition("BUFFER_HEIGHT", std::to_string(_height));
 		pp.add_macro_definition("BUFFER_RCP_WIDTH", std::to_string(1.0f / static_cast<float>(_width)));
@@ -667,7 +666,7 @@ namespace reshade
 
 			if (!filesystem::exists(path))
 			{
-				_errors += "Source '" + static_cast<const std::string &>(path) + "' for texture '" + texture.name + "' could not be found.";
+				_errors += "Source '" + path.string() + "' for texture '" + texture.name + "' could not be found.";
 
 				LOG(ERROR) << "> Source " << path << " for texture '" << texture.name << "' could not be found.";
 
@@ -679,7 +678,7 @@ namespace reshade
 			int width = 0, height = 0, channels = 0;
 			bool success = false;
 
-			if (_wfopen_s(&file, stdext::utf8_to_utf16(path).c_str(), L"rb") == 0)
+			if (_wfopen_s(&file, stdext::utf8_to_utf16(path.string()).c_str(), L"rb") == 0)
 			{
 				if (stbi_dds_test_file(file))
 				{
@@ -728,16 +727,19 @@ namespace reshade
 		_menu_key.ctrl = config.get("General", "OverlayKey", { 0x71, 0, 1 }).as<bool>(1);
 		_menu_key.shift = config.get("General", "OverlayKey", { 0x71, 0, 1 }).as<bool>(2);
 		_performance_mode = config.get("General", "PerformanceMode", false).as<bool>();
-		_effect_search_paths = config.get("General", "EffectSearchPaths", static_cast<const std::string &>(s_injector_path.parent_path())).data();
-		_texture_search_paths = config.get("General", "TextureSearchPaths", static_cast<const std::string &>(s_injector_path.parent_path())).data();
-		_preset_files = config.get("General", "PresetFiles", std::vector<std::string>()).data();
+		const auto effect_search_paths = config.get("General", "EffectSearchPaths", s_injector_path.parent_path()).data();
+		_effect_search_paths.assign(effect_search_paths.begin(), effect_search_paths.end());
+		const auto texture_search_paths = config.get("General", "TextureSearchPaths", s_injector_path.parent_path()).data();
+		_texture_search_paths.assign(texture_search_paths.begin(), texture_search_paths.end());
+		const auto preset_files = config.get("General", "PresetFiles").data();
+		_preset_files.assign(preset_files.begin(), preset_files.end());
 		_current_preset = config.get("General", "CurrentPreset", -1).as<int>();
 		_tutorial_index = config.get("General", "TutorialProgress", _tutorial_index).as<unsigned int>();
 
 		_screenshot_key.keycode = config.get("Screenshots", "Key", { 0x2C, 0, 0 }).as<int>(0); // VK_SNAPSHOT
 		_screenshot_key.ctrl = config.get("Screenshots", "Key", { 0x2C, 0, 0 }).as<bool>(1);
 		_screenshot_key.shift = config.get("Screenshots", "Key", { 0x2C, 0, 0 }).as<bool>(2);
-		_screenshot_path = config.get("Screenshots", "TargetPath", static_cast<const std::string &>(s_executable_path.parent_path())).as<std::string>();
+		_screenshot_path = config.get("Screenshots", "TargetPath", s_executable_path.parent_path()).as<filesystem::path>();
 		_screenshot_format = config.get("Screenshots", "ImageFormat", 0).as<int>();
 
 		auto &style = ImGui::GetStyle();
@@ -852,7 +854,7 @@ namespace reshade
 				continue;
 			}
 
-			const std::string effect_name = filesystem::path(variable.annotations.at("__FILE__").as<std::string>()).filename();
+			const std::string effect_name = variable.annotations.at("__FILE__").as<filesystem::path>().filename().string();
 
 			float values[16] = { };
 			get_uniform_value(variable, values, 16);
@@ -890,7 +892,7 @@ namespace reshade
 				continue;
 			}
 
-			const std::string effect_name = filesystem::path(variable.annotations.at("__FILE__").as<std::string>()).filename();
+			const std::string effect_name = variable.annotations.at("__FILE__").as<filesystem::path>().filename().string();
 
 			float values[16] = { };
 			get_uniform_value(variable, values, 16);
@@ -1081,7 +1083,7 @@ namespace reshade
 			}
 
 			const auto get_preset_file = [](void *data, int i, const char **out) {
-				*out = static_cast<runtime *>(data)->_preset_files[i].c_str();
+				*out = static_cast<runtime *>(data)->_preset_files[i].string().c_str();
 				return true;
 			};
 
@@ -1116,7 +1118,7 @@ namespace reshade
 
 				if (ImGui::InputText("Path to preset file", buf, sizeof(buf), ImGuiInputTextFlags_EnterReturnsTrue))
 				{
-					const auto path = filesystem::absolute(buf);
+					const auto path = filesystem::absolute(buf, s_injector_path);
 
 					if (filesystem::exists(path) || filesystem::exists(path.parent_path()))
 					{
@@ -1260,12 +1262,12 @@ namespace reshade
 			if (shortcut.shift) memcpy(edit_buffer, "Shift + ", 9), offset += 8;
 			memcpy(edit_buffer + offset, keyboard_keys[shortcut.keycode], sizeof(*keyboard_keys));
 		};
-		const auto copy_search_paths_to_edit_buffer = [&edit_buffer](const std::vector<std::string> &search_paths) {
+		const auto copy_search_paths_to_edit_buffer = [&edit_buffer](const std::vector<filesystem::path> &search_paths) {
 			size_t offset = 0;
 			for (const auto &search_path : search_paths)
 			{
-				memcpy(edit_buffer + offset, search_path.c_str(), search_path.size());
-				offset += search_path.size();
+				memcpy(edit_buffer + offset, search_path.string().c_str(), search_path.length());
+				offset += search_path.length();
 				edit_buffer[offset++] = '\n';
 				edit_buffer[offset] = '\0';
 			}
@@ -1323,7 +1325,8 @@ namespace reshade
 
 			if (ImGui::InputTextMultiline("Effect Search Paths", edit_buffer, sizeof(edit_buffer), ImVec2(0, 100)))
 			{
-				_effect_search_paths = stdext::split(edit_buffer, '\n');
+				const auto effect_search_paths = stdext::split(edit_buffer, '\n');
+				_effect_search_paths.assign(effect_search_paths.begin(), effect_search_paths.end());
 
 				save_configuration();
 			}
@@ -1332,7 +1335,8 @@ namespace reshade
 
 			if (ImGui::InputTextMultiline("Texture Search Paths", edit_buffer, sizeof(edit_buffer), ImVec2(0, 100)))
 			{
-				_texture_search_paths = stdext::split(edit_buffer, '\n');
+				const auto texture_search_paths = stdext::split(edit_buffer, '\n');
+				_texture_search_paths.assign(texture_search_paths.begin(), texture_search_paths.end());
 
 				save_configuration();
 			}
@@ -1376,7 +1380,7 @@ namespace reshade
 				ImGui::SetTooltip("Click in the field and press any key to change the shortcut to that key.");
 			}
 
-			memcpy(edit_buffer, _screenshot_path.c_str(), _screenshot_path.size() + 1);
+			memcpy(edit_buffer, _screenshot_path.string().c_str(), _screenshot_path.length() + 1);
 
 			if (ImGui::InputText("Screenshot Path", edit_buffer, sizeof(edit_buffer)))
 			{
@@ -1410,7 +1414,7 @@ namespace reshade
 	{
 		if (ImGui::CollapsingHeader("General", ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_DefaultOpen))
 		{
-			ImGui::Text("Application: %X", std::hash<std::string>()(s_executable_path.filename_without_extension().operator const std::string &()));
+			ImGui::Text("Application: %X", std::hash<std::string>()(s_executable_path.filename_without_extension().string()));
 			ImGui::Text("Date: %d-%d-%d %d", _date[0], _date[1], _date[2], _date[3]);
 			ImGui::Text("Device: %X %d", _vendor_id, _device_id);
 			ImGui::Text("FPS: %.2f", ImGui::GetIO().Framerate);
@@ -1519,7 +1523,7 @@ Libraries in use:\n\
 
 			bool modified = false;
 
-			const std::string filename = filesystem::path(variable.annotations.at("__FILE__").as<std::string>()).filename();
+			const std::string filename = variable.annotations.at("__FILE__").as<filesystem::path>().filename().string();
 			const auto ui_type = variable.annotations["ui_type"].as<std::string>();
 			const auto ui_label = variable.annotations.count("ui_label") ? variable.annotations.at("ui_label").as<std::string>() : variable.name + " [" + filename + "]";
 			const auto ui_tooltip = variable.annotations["ui_tooltip"].as<std::string>();
@@ -1616,7 +1620,7 @@ Libraries in use:\n\
 				continue;
 			}
 
-			const std::string filename = filesystem::path(technique.annotations.at("__FILE__").as<std::string>()).filename();
+			const std::string filename = technique.annotations.at("__FILE__").as<filesystem::path>().filename().string();
 			const auto ui_label = technique.name + " [" + filename + "]";
 
 			ImGui::PushID(id);

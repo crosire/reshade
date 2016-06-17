@@ -42,7 +42,7 @@ namespace reshade
 
 		bool open(const filesystem::path &path)
 		{
-			stream.open(stdext::utf8_to_utf16(path), std::ios::out | std::ios::trunc);
+			stream.open(stdext::utf8_to_utf16(path.string()), std::ios::out | std::ios::trunc);
 
 			if (!stream.is_open())
 			{

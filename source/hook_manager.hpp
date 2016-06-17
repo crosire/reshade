@@ -15,6 +15,7 @@ namespace reshade
 		/// </summary>
 		/// <param name="target">The address of the target function.</param>
 		/// <param name="replacement">The address of the hook function.</param>
+		/// <returns>The status of the hook installation.</returns>
 		bool install(hook::address target, hook::address replacement);
 		/// <summary>
 		/// Install hook for the specified virtual function table entry.
@@ -22,6 +23,7 @@ namespace reshade
 		/// <param name="vtable">The virtual function table pointer of the object to targeted object.</param>
 		/// <param name="offset">The index of the target function in the virtual function table.</param>
 		/// <param name="replacement">The address of the hook function.</param>
+		/// <returns>The status of the hook installation.</returns>
 		bool install(hook::address vtable[], unsigned int offset, hook::address replacement);
 		/// <summary>
 		/// Uninstall all previously installed hooks.
@@ -37,6 +39,7 @@ namespace reshade
 		/// Call the original/trampoline function for the specified hook.
 		/// </summary>
 		/// <param name="replacement">The address of the hook function which was previously used to install a hook.</param>
+		/// <returns>The address of original/trampoline function.</returns>
 		hook::address call(hook::address replacement);
 		template <typename T>
 		inline T call(T replacement)

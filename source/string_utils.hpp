@@ -37,16 +37,16 @@ namespace stdext
 		return result;
 	}
 
-	inline std::string &trim(std::string &str, const char *chars = " \t")
+	inline void trim(std::string &str, const char *chars = " \t")
 	{
 		str.erase(0, str.find_first_not_of(chars));
 		str.erase(str.find_last_not_of(chars) + 1);
-		return str;
 	}
 	inline std::string trim(const std::string &str, const char *chars = " \t")
 	{
 		std::string res(str);
-		return trim(res, chars);
+		trim(res, chars);
+		return res;
 	}
 
 	inline std::string utf16_to_utf8(const std::wstring &s)
@@ -72,7 +72,7 @@ namespace stdext
 		std::copy(o.begin(), o.end(), target);
 	}
 	template <size_t OUTSIZE>
-	inline void utf8_to_utf16(const std::string &s, wchar_t (&target)[OUTSIZE])
+	inline void utf8_to_utf16(const std::string &s, wchar_t(&target)[OUTSIZE])
 	{
 		const auto o = std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>>().from_bytes(s);
 		std::copy(o.begin(), o.end(), target);

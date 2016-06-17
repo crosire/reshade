@@ -1,8 +1,8 @@
 #pragma once
 
-#include "filesystem.hpp"
-#include "variant.hpp"
 #include <unordered_map>
+#include "variant.hpp"
+#include "filesystem.hpp"
 
 namespace reshade
 {
@@ -12,14 +12,15 @@ namespace reshade
 		explicit ini_file(const filesystem::path &path);
 		~ini_file();
 
-		void load();
-		void save() const;
-
 		variant get(const std::string &section, const std::string &key, const variant &default = variant()) const;
 		void set(const std::string &section, const std::string &key, const variant &value);
 
 	private:
+		void load();
+		void save() const;
+
 		filesystem::path _path;
-		std::unordered_map<std::string, std::unordered_map<std::string, variant>> _data;
+		using section = std::unordered_map<std::string, variant>;
+		std::unordered_map<std::string, section> _sections;
 	};
 }

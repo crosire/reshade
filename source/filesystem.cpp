@@ -8,16 +8,6 @@ namespace reshade
 {
 	namespace filesystem
 	{
-		path::path() : _data()
-		{
-		}
-		path::path(const char *data) : _data(data)
-		{
-		}
-		path::path(const std::string &data) : _data(data)
-		{
-		}
-
 		bool path::operator==(const path &other) const
 		{
 			return _stricmp(_data.c_str(), other._data.c_str()) == 0;
@@ -25,6 +15,33 @@ namespace reshade
 		bool path::operator!=(const path &other) const
 		{
 			return !operator==(other);
+		}
+
+		std::wstring path::wstring() const
+		{
+			return stdext::utf8_to_utf16(_data);
+		}
+
+		std::ostream &operator<<(std::ostream &stream, const path &path)
+		{
+			WCHAR username[257];
+			DWORD username_length = _countof(username);
+			GetUserNameW(username, &username_length);
+			username_length -= 1;
+
+			std::wstring result = stdext::utf8_to_utf16(path._data);
+
+			for (size_t start_pos = 0; (start_pos = result.find(username, start_pos)) != std::wstring::npos; start_pos += username_length)
+			{
+				result.replace(start_pos, username_length, username_length, '*');
+			}
+
+			return stream << '\'' << stdext::utf16_to_utf8(result) << '\'';
+		}
+
+		bool path::is_absolute() const
+		{
+			return PathIsRelativeW(stdext::utf8_to_utf16(_data).c_str()) == FALSE;
 		}
 
 		path path::parent_path() const
@@ -57,6 +74,11 @@ namespace reshade
 
 			return stdext::utf16_to_utf8(PathFindExtensionW(buffer));
 		}
+
+		path &path::remove_filename()
+		{
+			return operator=(parent_path());
+		}
 		path &path::replace_extension(const std::string &extension)
 		{
 			WCHAR buffer[MAX_PATH] = { };
@@ -71,10 +93,65 @@ namespace reshade
 			WCHAR buffer[MAX_PATH] = { };
 			stdext::utf8_to_utf16(_data, buffer);
 
-			PathAppendW(buffer, stdext::utf8_to_utf16(more).c_str());
+			PathAppendW(buffer, stdext::utf8_to_utf16(more.string()).c_str());
 			return stdext::utf16_to_utf8(buffer);
 		}
+		path path::operator+(char c) const
+		{
+			return _data + c;
+		}
+		path path::operator+(const path &more) const
+		{
+			return _data + more._data;
+		}
 
+		path resolve(const path &filename, const std::vector<path> &paths)
+		{
+			for (const auto &path : paths)
+			{
+				auto result = absolute(filename, path);
+
+				if (exists(result))
+				{
+					return result;
+				}
+			}
+
+			return filename;
+		}
+		path absolute(const path &filename, const path &parent_path)
+		{
+			if (filename.is_absolute())
+			{
+				return filename;
+			}
+
+			WCHAR result[MAX_PATH] = { };
+			PathCombineW(result, stdext::utf8_to_utf16(parent_path.string()).c_str(), stdext::utf8_to_utf16(filename.string()).c_str());
+
+			return stdext::utf16_to_utf8(result);
+		}
+
+		bool exists(const path &path)
+		{
+			return GetFileAttributesW(path.wstring().c_str()) != INVALID_FILE_ATTRIBUTES;
+		}
+		bool is_symlink(const path &path)
+		{
+			return (GetFileAttributesW(path.wstring().c_str()) & FILE_ATTRIBUTE_REPARSE_POINT) != 0;
+		}
+		bool is_directory(const path &path)
+		{
+			return PathIsDirectoryW(path.wstring().c_str()) != FALSE;
+		}
+
+		path current_directory()
+		{
+			WCHAR result[MAX_PATH] = { };
+			GetCurrentDirectoryW(MAX_PATH, result);
+
+			return stdext::utf16_to_utf8(result);
+		}
 		path get_module_path(void *handle)
 		{
 			WCHAR result[MAX_PATH] = { };
@@ -100,13 +177,6 @@ namespace reshade
 
 			return stdext::utf16_to_utf8(result);
 		}
-		path current_directory()
-		{
-			WCHAR result[MAX_PATH] = { };
-			GetCurrentDirectoryW(MAX_PATH, result);
-
-			return stdext::utf16_to_utf8(result);
-		}
 
 		std::vector<path> list_files(const path &path, const std::string &mask, bool recursive)
 		{
@@ -117,7 +187,7 @@ namespace reshade
 
 			WIN32_FIND_DATAW ffd;
 
-			const HANDLE handle = FindFirstFileW(stdext::utf8_to_utf16(static_cast<const std::string &>(path) + '\\' + mask).c_str(), &ffd);
+			const HANDLE handle = FindFirstFileW((path / mask).wstring().c_str(), &ffd);
 
 			if (handle == INVALID_HANDLE_VALUE)
 			{
@@ -150,79 +220,9 @@ namespace reshade
 			return result;
 		}
 
-		bool exists(const path &path)
-		{
-			return GetFileAttributesW(stdext::utf8_to_utf16(path).c_str()) != INVALID_FILE_ATTRIBUTES;
-		}
-		bool is_symlink(const path &path)
-		{
-			return (GetFileAttributesW(stdext::utf8_to_utf16(path).c_str()) & FILE_ATTRIBUTE_REPARSE_POINT) != 0;
-		}
-		bool is_directory(const path &path)
-		{
-			return PathIsDirectoryW(stdext::utf8_to_utf16(path).c_str()) != FALSE;
-		}
-
-		path resolve(const path &filename, const std::vector<path> &paths)
-		{
-			path result;
-
-			for (const auto &path : paths)
-			{
-				result = absolute(filename, path);
-
-				if (exists(result))
-				{
-					return result;
-				}
-			}
-
-			return filename;
-		}
-		path resolve(const path &filename, const std::vector<std::string> &paths)
-		{
-			path result;
-
-			for (const auto &path : paths)
-			{
-				result = absolute(filename, path);
-
-				if (exists(result))
-				{
-					return result;
-				}
-			}
-
-			return filename;
-		}
-		path absolute(const path &filename, const path &parent)
-		{
-			WCHAR result[MAX_PATH] = { };
-			PathCombineW(result, stdext::utf8_to_utf16(parent).c_str(), stdext::utf8_to_utf16(filename).c_str());
-
-			return stdext::utf16_to_utf8(result);
-		}
-
 		bool create_directory(const path &path)
 		{
-			return SHCreateDirectoryExW(nullptr, stdext::utf8_to_utf16(path).c_str(), nullptr) == ERROR_SUCCESS;
+			return SHCreateDirectoryExW(nullptr, path.wstring().c_str(), nullptr) == ERROR_SUCCESS;
 		}
 	}
-}
-
-std::ostream &operator<<(std::ostream &stream, const reshade::filesystem::path &path)
-{
-	WCHAR username[257];
-	DWORD username_length = _countof(username);
-	GetUserNameW(username, &username_length);
-	username_length -= 1;
-
-	std::wstring result = stdext::utf8_to_utf16(path);
-
-	for (size_t start_pos = 0; (start_pos = result.find(username, start_pos)) != std::wstring::npos; start_pos += username_length)
-	{
-		result.replace(start_pos, username_length, username_length, '*');
-	}
-
-	return stream << '\'' << stdext::utf16_to_utf8(result) << '\'';
 }

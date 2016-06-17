@@ -1,9 +1,8 @@
 #pragma once
 
 #include <memory>
-#include <string>
-#include <vector>
 #include <chrono>
+#include "filesystem.hpp"
 
 #pragma region Forward Declarations
 struct ImDrawData;
@@ -16,11 +15,6 @@ namespace reshade
 	struct texture;
 	struct uniform;
 	struct technique;
-
-	namespace filesystem
-	{
-		class path;
-	}
 }
 namespace reshadefx
 {
@@ -202,8 +196,7 @@ namespace reshade
 		void draw_overlay_technique_editor();
 
 		const unsigned int _renderer_id;
-		std::vector<std::string> _effect_files, _preset_files, _effect_search_paths, _texture_search_paths;
-		std::vector<filesystem::path> _included_files;
+		std::vector<filesystem::path> _effect_files, _preset_files, _effect_search_paths, _texture_search_paths, _included_files;
 		std::chrono::high_resolution_clock::time_point _start_time, _last_create, _last_present;
 		std::chrono::high_resolution_clock::duration _last_frame_duration;
 		std::vector<unsigned char> _uniform_data_storage;
@@ -211,7 +204,7 @@ namespace reshade
 		std::string _errors, _message, _effect_source;
 		int _menu_index = 0, _screenshot_format = 0, _current_preset = -1, _current_effect_file = -1;
 		key_shortcut _menu_key = { }, _screenshot_key = { };
-		std::string _screenshot_path;
+		filesystem::path _screenshot_path;
 		int _selected_technique = -1;
 		bool _show_menu = false, _show_error_log = false, _performance_mode = false;
 		bool _block_input_outside_overlay = false, _overlay_key_setting_active = false, _screenshot_key_setting_active = false;

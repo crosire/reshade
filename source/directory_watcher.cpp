@@ -9,7 +9,7 @@ namespace reshade
 	{
 		directory_watcher::directory_watcher(const path &path, bool recursive) : _path(path), _recursive(recursive), _buffer(sizeof(FILE_NOTIFY_INFORMATION) + MAX_PATH * sizeof(WCHAR))
 		{
-			_file_handle = CreateFileW(stdext::utf8_to_utf16(path).c_str(), FILE_LIST_DIRECTORY, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED, nullptr);
+			_file_handle = CreateFileW(stdext::utf8_to_utf16(path.string()).c_str(), FILE_LIST_DIRECTORY, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED, nullptr);
 			_completion_handle = CreateIoCompletionPort(_file_handle, nullptr, reinterpret_cast<ULONG_PTR>(_file_handle), 1);
 
 			OVERLAPPED overlapped = { };

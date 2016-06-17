@@ -17,7 +17,7 @@ namespace reshade
 	void ini_file::load()
 	{
 		std::string line, section;
-		std::ifstream file(stdext::utf8_to_utf16(_path));
+		std::ifstream file(stdext::utf8_to_utf16(_path.string()));
 
 		while (std::getline(file, line))
 		{
@@ -43,19 +43,19 @@ namespace reshade
 				const auto key = stdext::trim(line.substr(0, assign_index));
 				const auto value = stdext::trim(line.substr(assign_index + 1));
 
-				_data[section][key] = stdext::split(value, ',');
+				_sections[section][key] = stdext::split(value, ',');
 			}
 			else
 			{
-				_data[section][line] = 0;
+				_sections[section][line] = 0;
 			}
 		}
 	}
 	void ini_file::save() const
 	{
-		std::ofstream file(stdext::utf8_to_utf16(_path));
+		std::ofstream file(stdext::utf8_to_utf16(_path.string()));
 
-		for (const auto &section : _data)
+		for (const auto &section : _sections)
 		{
 			file << '[' << section.first << ']' << std::endl;
 
@@ -84,9 +84,9 @@ namespace reshade
 
 	variant ini_file::get(const std::string &section, const std::string &key, const variant &default) const
 	{
-		const auto it1 = _data.find(section);
+		const auto it1 = _sections.find(section);
 
-		if (it1 == _data.end())
+		if (it1 == _sections.end())
 		{
 			return default;
 		}
@@ -102,6 +102,6 @@ namespace reshade
 	}
 	void ini_file::set(const std::string &section, const std::string &key, const variant &value)
 	{
-		_data[section][key] = value;
+		_sections[section][key] = value;
 	}
 }

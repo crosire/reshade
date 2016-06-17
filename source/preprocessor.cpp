@@ -37,7 +37,7 @@ namespace reshadefx
 
 	bool preprocessor::run(const filesystem::path &file_path, std::vector<filesystem::path> &included_files)
 	{
-		std::ifstream file(stdext::utf8_to_utf16(file_path));
+		std::ifstream file(stdext::utf8_to_utf16(file_path.string()));
 
 		if (!file.is_open())
 		{
@@ -48,7 +48,7 @@ namespace reshadefx
 
 		const std::string filedata(std::istreambuf_iterator<char>(file.rdbuf()), std::istreambuf_iterator<char>());
 
-		push(filedata + '\n', file_path);
+		push(filedata + '\n', file_path.string());
 		parse();
 
 		if (_success)
@@ -591,25 +591,25 @@ namespace reshadefx
 			filepath = filesystem::resolve(filename, _include_paths);
 		}
 
-		auto it = _filecache.find(filepath);
+		auto it = _filecache.find(filepath.string());
 
 		if (it == _filecache.end())
 		{
-			std::ifstream file(stdext::utf8_to_utf16(filepath));
+			std::ifstream file(stdext::utf8_to_utf16(filepath.string()));
 
 			if (!file.is_open())
 			{
-				error(keyword_location, "could not open included file '" + static_cast<const std::string &>(filepath) + "'");
+				error(keyword_location, "could not open included file '" + filepath.string() + "'");
 				consume_until(lexer::tokenid::end_of_line);
 				return;
 			}
 
 			const std::string filedata(std::istreambuf_iterator<char>(file.rdbuf()), std::istreambuf_iterator<char>());
 
-			it = _filecache.emplace(filepath, filedata + '\n').first;
+			it = _filecache.emplace(filepath.string(), filedata + '\n').first;
 		}
 
-		push(it->second, filepath);
+		push(it->second, filepath.string());
 	}
 
 	bool preprocessor::evaluate_expression()

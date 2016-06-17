@@ -23,8 +23,8 @@ namespace reshade
 				critical_section &_cs;
 
 			private:
-				lock(const lock &);
-				void operator=(const lock &);
+				lock(const lock &) = delete;
+				void operator=(const lock &) = delete;
 			};
 
 			critical_section()
