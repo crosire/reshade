@@ -718,7 +718,7 @@ namespace reshade
 		}
 	}
 
-	void d3d10_runtime::screenshot(uint8_t *buffer) const
+	void d3d10_runtime::capture_frame(uint8_t *buffer) const
 	{
 		if (_backbuffer_format != DXGI_FORMAT_R8G8B8A8_UNORM &&
 			_backbuffer_format != DXGI_FORMAT_R8G8B8A8_UNORM_SRGB &&

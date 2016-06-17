@@ -48,11 +48,6 @@ namespace reshade
 		virtual ~runtime();
 
 		/// <summary>
-		/// Create a copy of the current frame.
-		/// </summary>
-		/// <param name="buffer">The buffer to save the copy to. It has to be the size of at least "frame_width() * frame_height() * 4".</param>
-		virtual void screenshot(uint8_t *buffer) const = 0;
-		/// <summary>
 		/// Returns the frame width in pixels.
 		/// </summary>
 		unsigned int frame_width() const { return _width; }
@@ -60,6 +55,11 @@ namespace reshade
 		/// Returns the frame height in pixels.
 		/// </summary>
 		unsigned int frame_height() const { return _height; }
+		/// <summary>
+		/// Create a copy of the current frame.
+		/// </summary>
+		/// <param name="buffer">The buffer to save the copy to. It has to be the size of at least "frame_width() * frame_height() * 4".</param>
+		virtual void capture_frame(uint8_t *buffer) const = 0;
 
 		/// <summary>
 		/// Add a new texture.
@@ -178,13 +178,13 @@ namespace reshade
 		struct key_shortcut { int keycode; bool ctrl, shift; };
 
 		void reload();
-		void screenshot();
 		bool load_effect(const filesystem::path &path, reshadefx::syntax_tree &ast);
 		void load_textures();
 		void load_configuration();
 		void save_configuration() const;
 		void load_preset(const filesystem::path &path);
 		void save_preset(const filesystem::path &path) const;
+		void save_screenshot();
 
 		void draw_overlay();
 		void draw_overlay_menu();

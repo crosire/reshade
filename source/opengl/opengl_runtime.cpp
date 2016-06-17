@@ -569,7 +569,7 @@ namespace reshade
 		_depth_source_table.emplace(id, info);
 	}
 
-	void opengl_runtime::screenshot(uint8_t *buffer) const
+	void opengl_runtime::capture_frame(uint8_t *buffer) const
 	{
 		GLCHECK(glReadBuffer(GL_BACK));
 		GLCHECK(glReadPixels(0, 0, static_cast<GLsizei>(_width), static_cast<GLsizei>(_height), GL_RGBA, GL_UNSIGNED_BYTE, buffer));

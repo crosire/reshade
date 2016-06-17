@@ -202,7 +202,7 @@ namespace reshade
 
 		if (!_screenshot_key_setting_active && _input->is_key_pressed(_screenshot_key.keycode, _screenshot_key.ctrl, _screenshot_key.shift, false))
 		{
-			screenshot();
+			save_screenshot();
 		}
 
 		draw_overlay();
@@ -549,51 +549,6 @@ namespace reshade
 			load_preset(_preset_files[_current_preset]);
 		}
 	}
-	void runtime::screenshot()
-	{
-		const int hour = _date[3] / 3600;
-		const int minute = (_date[3] - hour * 3600) / 60;
-		const int second = _date[3] - hour * 3600 - minute * 60;
-
-		const std::string extensions[] { ".bmp", ".png" };
-		const filesystem::path path = _screenshot_path / (s_executable_path.filename_without_extension() + ' ' +
-			std::to_string(_date[0]) + '-' + std::to_string(_date[1]) + '-' + std::to_string(_date[2]) + ' ' +
-			std::to_string(hour) + '-' + std::to_string(minute) + '-' + std::to_string(second) +
-			extensions[_screenshot_format]);
-		std::vector<uint8_t> data(_width * _height * 4);
-
-		screenshot(data.data());
-
-		LOG(INFO) << "Saving screenshot to " << path << " ...";
-
-		FILE *file;
-		bool success = false;
-
-		if (_wfopen_s(&file, path.wstring().c_str(), L"wb") == 0)
-		{
-			stbi_write_func *func = [](void *context, void *data, int size)
-			{
-				fwrite(data, 1, size, static_cast<FILE *>(context));
-			};
-
-			switch (_screenshot_format)
-			{
-				case 0:
-					success = stbi_write_bmp_to_func(func, file, _width, _height, 4, data.data()) != 0;
-					break;
-				case 1:
-					success = stbi_write_png_to_func(func, file, _width, _height, 4, data.data(), 0) != 0;
-					break;
-			}
-
-			fclose(file);
-		}
-
-		if (!success)
-		{
-			LOG(ERROR) << "Failed to write screenshot to " << path << "!";
-		}
-	}
 	bool runtime::load_effect(const filesystem::path &path, reshadefx::syntax_tree &ast)
 	{
 		reshadefx::parser pa(ast, _errors);
@@ -913,6 +868,49 @@ namespace reshade
 		}
 
 		preset.set("GLOBAL", "Techniques", technique_list);
+	}
+	void runtime::save_screenshot()
+	{
+		std::vector<uint8_t> data(_width * _height * 4);
+		capture_frame(data.data());
+
+		const int hour = _date[3] / 3600;
+		const int minute = (_date[3] - hour * 3600) / 60;
+		const int second = _date[3] - hour * 3600 - minute * 60;
+
+		char filename[25];
+		ImFormatString(filename, sizeof(filename), " %.4d-%.2d-%.2d %.2d-%.2d-%.2d%s", _date[0], _date[1], _date[2], hour, minute, second, _screenshot_format == 0 ? ".bmp" : ".png");
+		const auto path = _screenshot_path / (s_executable_path.filename_without_extension() + filename);
+
+		LOG(INFO) << "Saving screenshot to " << path << " ...";
+
+		FILE *file;
+		bool success = false;
+
+		if (_wfopen_s(&file, path.wstring().c_str(), L"wb") == 0)
+		{
+			stbi_write_func *func = [](void *context, void *data, int size)
+			{
+				fwrite(data, 1, size, static_cast<FILE *>(context));
+			};
+
+			switch (_screenshot_format)
+			{
+				case 0:
+					success = stbi_write_bmp_to_func(func, file, _width, _height, 4, data.data()) != 0;
+					break;
+				case 1:
+					success = stbi_write_png_to_func(func, file, _width, _height, 4, data.data(), 0) != 0;
+					break;
+			}
+
+			fclose(file);
+		}
+
+		if (!success)
+		{
+			LOG(ERROR) << "Failed to write screenshot to " << path << "!";
+		}
 	}
 
 	void runtime::draw_overlay()

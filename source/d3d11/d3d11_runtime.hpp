@@ -47,7 +47,7 @@ namespace reshade
 		void on_clear_depthstencil_view(ID3D11DepthStencilView *&depthstencil);
 		void on_copy_resource(ID3D11Resource *&dest, ID3D11Resource *&source);
 
-		void screenshot(uint8_t *buffer) const override;
+		void capture_frame(uint8_t *buffer) const override;
 		bool update_effect(const reshadefx::syntax_tree &ast, std::string &errors) override;
 		bool update_texture(texture &texture, const uint8_t *data) override;
 		bool update_texture_reference(texture &texture, unsigned short) override;

@@ -43,7 +43,7 @@ namespace reshade
 		void on_set_depthstencil_surface(IDirect3DSurface9 *&depthstencil);
 		void on_get_depthstencil_surface(IDirect3DSurface9 *&depthstencil);
 
-		void screenshot(uint8_t *buffer) const override;
+		void capture_frame(uint8_t *buffer) const override;
 		bool update_effect(const reshadefx::syntax_tree &ast, std::string &errors) override;
 		bool update_texture(texture &texture, const uint8_t *data) override;
 		bool update_texture_reference(texture &texture, unsigned short id) override;

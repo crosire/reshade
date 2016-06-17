@@ -418,7 +418,7 @@ namespace reshade
 		}
 	}
 
-	void d3d9_runtime::screenshot(uint8_t *buffer) const
+	void d3d9_runtime::capture_frame(uint8_t *buffer) const
 	{
 		if (_backbuffer_format != D3DFMT_X8R8G8B8 &&
 			_backbuffer_format != D3DFMT_X8B8G8R8 &&
