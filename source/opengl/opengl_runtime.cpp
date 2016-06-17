@@ -619,14 +619,15 @@ namespace reshade
 		GLCHECK(glGetIntegerv(GL_TEXTURE_BINDING_2D, &previous));
 
 		// Flip image data vertically
-		std::vector<uint8_t> data_flipped(data, data + texture.width * texture.height * 4);
+		unsigned int stride = texture.width * 4;
+		std::vector<uint8_t> data_flipped(data, data + stride * texture.height);
+		const auto temp = static_cast<uint8_t *>(alloca(stride));
 
-		for (unsigned int y = 0, stride = texture.width * 4; 2 * y < texture.height; y++)
+		for (unsigned int y = 0; 2 * y < texture.height; y++)
 		{
 			const auto line1 = data_flipped.data() + stride * (y);
 			const auto line2 = data_flipped.data() + stride * (texture.height - 1 - y);
 
-			unsigned char temp[4];
 			std::memcpy(temp, line1, stride);
 			std::memcpy(line1, line2, stride);
 			std::memcpy(line2, temp, stride);
