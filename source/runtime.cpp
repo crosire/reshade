@@ -25,14 +25,6 @@ namespace reshade
 {
 	namespace
 	{
-		std::streamsize stream_size(std::istream &s)
-		{
-			s.seekg(0, std::ios::end);
-			const auto size = s.tellg();
-			s.seekg(0, std::ios::beg);
-			return size;
-		}
-
 		filesystem::path s_executable_path, s_injector_path, s_appdata_path;
 		std::string s_executable_name, s_imgui_ini_path;
 
@@ -119,7 +111,6 @@ namespace reshade
 	runtime::runtime(uint32_t renderer) :
 		_renderer_id(renderer),
 		_start_time(std::chrono::high_resolution_clock::now()),
-		_shader_edit_buffer(32768),
 		_imgui_context(ImGui::CreateContext())
 	{
 		ImGui::SetCurrentContext(_imgui_context);
@@ -909,9 +900,9 @@ namespace reshade
 			_show_menu = !_show_menu;
 		}
 
-		g_block_cursor_reset = _show_menu || _show_shader_editor;
+		g_block_cursor_reset = _show_menu;
 
-		if (!(_show_menu || _show_shader_editor || _show_error_log || show_splash))
+		if (!(_show_menu || _show_error_log || show_splash))
 		{
 			_input->block_mouse_input(false);
 			_input->block_keyboard_input(false);
@@ -954,9 +945,6 @@ namespace reshade
 
 		if (show_splash)
 		{
-			ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 1.0f, 1.0f, 1.0f));
-			ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.0f, 0.0f, 0.0f, 1.0f));
-
 			const bool has_errors = !_errors.empty();
 			const ImVec2 splash_size(_width - 20.0f, ImGui::GetItemsLineHeightWithSpacing() * (has_errors ? 4 : 3));
 
@@ -971,13 +959,10 @@ namespace reshade
 			if (has_errors)
 			{
 				ImGui::Spacing();
-				ImGui::TextColored(ImVec4(1, 0, 0, 1), "There were errors compiling some shaders. Click on 'Show error log' on the overlay settings menu for more details.");
+				ImGui::TextColored(ImVec4(1, 0, 0, 1), "There were errors compiling some shaders. Open the configuration menu and click on 'Show log' for more details.");
 			}
 
 			ImGui::End();
-
-			ImGui::PopStyleColor();
-			ImGui::PopStyleColor();
 		}
 
 		if (_show_menu)
@@ -987,17 +972,6 @@ namespace reshade
 			ImGui::Begin("ReShade " VERSION_STRING_FILE " by crosire###Main", &_show_menu, ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoCollapse);
 
 			draw_overlay_menu();
-
-			ImGui::End();
-		}
-		if (_show_shader_editor)
-		{
-			ImGui::SetNextWindowSize(ImVec2(500, 300), ImGuiSetCond_FirstUseEver);
-
-			if (ImGui::Begin("Shader Editor", &_show_shader_editor))
-			{
-				draw_overlay_shader_editor();
-			}
 
 			ImGui::End();
 		}
@@ -1189,12 +1163,24 @@ namespace reshade
 
 		if (!_performance_mode)
 		{
-			if (ImGui::BeginChild("##variables", ImVec2(-1, -1), true))
+			if (ImGui::BeginChild("##variables", ImVec2(-1, -25), true))
 			{
 				draw_overlay_variable_editor();
 			}
 
 			ImGui::EndChild();
+		}
+
+		if (ImGui::Button("Recompile", ImVec2(ImGui::GetWindowContentRegionWidth() * 0.5f - 5, 0)))
+		{
+			reload();
+		}
+
+		ImGui::SameLine();
+
+		if (ImGui::Button("Show Log", ImVec2(ImGui::GetWindowContentRegionWidth() * 0.5f - 5, 0)))
+		{
+			_show_error_log = true;
 		}
 	}
 	void runtime::draw_overlay_menu_settings()
@@ -1224,11 +1210,6 @@ namespace reshade
 			{
 				save_configuration();
 			}
-
-			ImGui::SameLine(0.0f, 10.0f);
-			ImGui::Checkbox("Show shader editor", &_show_shader_editor);
-			ImGui::SameLine(0.0f, 10.0f);
-			ImGui::Checkbox("Show error log", &_show_error_log);
 
 			assert(_menu_key.keycode < 256);
 
@@ -1412,45 +1393,6 @@ Libraries in use:\n\
 - DDS loading from SOIL\n\
   Jonathan \"lonesock\" Dummer");
 		ImGui::PopTextWrapPos();
-	}
-	void runtime::draw_overlay_shader_editor()
-	{
-		ImGui::PushItemWidth(-1);
-
-		const auto effect_file_getter = [](void *data, int i, const char **out) { *out = static_cast<const std::string &>(static_cast<runtime *>(data)->_included_files[i]).c_str(); return true; };
-
-		if (ImGui::Combo("##effect_files", &_current_effect_file, effect_file_getter, this, _included_files.size()))
-		{
-			std::ifstream file(stdext::utf8_to_utf16(_included_files[_current_effect_file]).c_str());
-
-			if (file.is_open())
-			{
-				const auto file_size = stream_size(file);
-
-				if (file_size > _shader_edit_buffer.size())
-				{
-					_shader_edit_buffer.resize(file_size);
-				}
-
-				std::copy(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>(), _shader_edit_buffer.begin());
-			}
-		}
-
-		ImGui::PopItemWidth();
-
-		ImGui::InputTextMultiline("##editor", _shader_edit_buffer.data(), _shader_edit_buffer.size(), ImVec2(-1, -20), ImGuiInputTextFlags_AllowTabInput);
-
-		if (ImGui::Button("Save & Reload", ImVec2(-1, 0)) || _input->is_key_pressed('S', true, false, false))
-		{
-			if (_current_effect_file >= 0)
-			{
-				std::ofstream file(stdext::utf8_to_utf16(_included_files[_current_effect_file]).c_str(), std::ios::out | std::ios::trunc);
-				file << _shader_edit_buffer.data();
-				file.close();
-			}
-
-			reload();
-		}
 	}
 	void runtime::draw_overlay_variable_editor()
 	{

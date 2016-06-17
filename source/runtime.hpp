@@ -198,7 +198,6 @@ namespace reshade
 		void draw_overlay_menu_settings();
 		void draw_overlay_menu_statistics();
 		void draw_overlay_menu_about();
-		void draw_overlay_shader_editor();
 		void draw_overlay_variable_editor();
 		void draw_overlay_technique_editor();
 
@@ -214,9 +213,8 @@ namespace reshade
 		key_shortcut _menu_key = { }, _screenshot_key = { };
 		std::string _screenshot_path;
 		int _selected_technique = -1;
-		bool _show_menu = false, _show_shader_editor = false, _show_error_log = false, _performance_mode = false;
+		bool _show_menu = false, _show_error_log = false, _performance_mode = false;
 		bool _block_input_outside_overlay = false, _overlay_key_setting_active = false, _screenshot_key_setting_active = false;
-		std::vector<char> _shader_edit_buffer;
 		ImGuiContext *_imgui_context = nullptr;
 		float _imgui_col_background[3] = { 0.275f, 0.275f, 0.275f }, _imgui_col_item_background[3] = { 0.447f, 0.447f, 0.447f };
 		float _imgui_col_text[3] = { 0.8f, 0.9f, 0.9f }, _imgui_col_active[3] = { 0.2f, 0.5f, 0.6f };
