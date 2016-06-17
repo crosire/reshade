@@ -752,6 +752,9 @@ namespace reshade
 			// Draw triangle
 			GLCHECK(glDrawArrays(GL_TRIANGLES, 0, 3));
 
+			_vertices += 3;
+			_drawcalls += 1;
+
 			// Update shader resources
 			for (GLuint id : pass.draw_textures)
 			{
