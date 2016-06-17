@@ -111,6 +111,7 @@ namespace reshade
 	runtime::runtime(uint32_t renderer) :
 		_renderer_id(renderer),
 		_start_time(std::chrono::high_resolution_clock::now()),
+		_last_frame_duration(std::chrono::milliseconds(1)),
 		_imgui_context(ImGui::CreateContext())
 	{
 		ImGui::SetCurrentContext(_imgui_context);
@@ -196,13 +197,6 @@ namespace reshade
 	void runtime::on_present()
 	{
 		const auto time = std::time(nullptr);
-		const auto ticks = std::chrono::high_resolution_clock::now();
-
-		g_network_traffic = 0;
-		_framecount++;
-		_drawcalls = _vertices = 0;
-		_last_frame_duration = std::chrono::duration_cast<std::chrono::nanoseconds>(ticks - _last_present);
-		_last_present = ticks;
 
 		tm tm;
 		localtime_s(&tm, &time);
@@ -219,6 +213,14 @@ namespace reshade
 		draw_overlay();
 
 		_input->next_frame();
+
+		g_network_traffic = 0;
+		_framecount++;
+		_drawcalls = _vertices = 0;
+
+		const auto ticks = std::chrono::high_resolution_clock::now();
+		_last_frame_duration = std::chrono::duration_cast<std::chrono::nanoseconds>(ticks - _last_present);
+		_last_present = ticks;
 	}
 	void runtime::on_present_effect()
 	{
