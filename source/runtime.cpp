@@ -1443,11 +1443,51 @@ Libraries in use:\n\
 	}
 	void runtime::draw_overlay_variable_editor()
 	{
+		ImGui::PushItemWidth(-1);
+
+		if (ImGui::InputText("##filter", _variable_filter_buffer, sizeof(_variable_filter_buffer)))
+		{
+			if (_variable_filter_buffer[0] == '\0')
+			{
+				for (auto &uniform : _uniforms)
+				{
+					uniform.annotations["hidden"] = false;
+				}
+			}
+			else
+			{
+				const auto words = stdext::split(_variable_filter_buffer, ' ');
+
+				for (auto &uniform : _uniforms)
+				{
+					bool hidden = true;
+	
+					for (const auto &word : words)
+					{
+						if (std::search(uniform.name.begin(), uniform.name.end(), word.begin(), word.end(),
+							[](auto c1, auto c2) {
+								return tolower(c1) == tolower(c2);
+							}) != uniform.name.end())
+						{
+							hidden = false;
+							break;
+						}
+					}
+
+					uniform.annotations["hidden"] = hidden;
+				}
+			}
+		}
+
+		ImGui::PopItemWidth();
+
+		ImGui::Spacing();
+
 		for (int id = 0; id < _uniforms.size(); id++)
 		{
 			auto &variable = _uniforms[id];
 
-			if (variable.annotations.count("source"))
+			if (variable.annotations.count("source") || variable.annotations["hidden"].as<bool>())
 			{
 				continue;
 			}
