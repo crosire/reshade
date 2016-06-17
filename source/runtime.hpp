@@ -218,5 +218,6 @@ namespace reshade
 		ImGuiContext *_imgui_context = nullptr;
 		float _imgui_col_background[3] = { 0.275f, 0.275f, 0.275f }, _imgui_col_item_background[3] = { 0.447f, 0.447f, 0.447f };
 		float _imgui_col_text[3] = { 0.8f, 0.9f, 0.9f }, _imgui_col_active[3] = { 0.2f, 0.5f, 0.6f };
+		unsigned int _tutorial_index = 0;
 	};
 }

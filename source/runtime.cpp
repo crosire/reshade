@@ -144,6 +144,8 @@ namespace reshade
 		imgui_style.GrabRounding = 0.0f;
 
 		load_configuration();
+
+		_tutorial_index = ini_file(s_appdata_path / "Settings.ini").get("GLOBAL", "Tutorial", _tutorial_index).as<unsigned int>();
 	}
 	runtime::~runtime()
 	{
@@ -959,7 +961,7 @@ namespace reshade
 			if (has_errors)
 			{
 				ImGui::Spacing();
-				ImGui::TextColored(ImVec4(1, 0, 0, 1), "There were errors compiling some shaders. Open the configuration menu and click on 'Show log' for more details.");
+				ImGui::TextColored(ImVec4(1, 0, 0, 1), "There were errors compiling some shaders. Open the configuration menu and click on 'Show Log' for more details.");
 			}
 
 			ImGui::End();
@@ -1042,145 +1044,183 @@ namespace reshade
 	}
 	void runtime::draw_overlay_menu_home()
 	{
-		ImGui::PushItemWidth(-(30 + ImGui::GetStyle().ItemSpacing.x) * 2 - 1);
+		const char *tutorial_text = "Since this is the first time you start ReShade, we'll go through a quick tutorial covering the most important features.";
 
-		const auto get_preset_file = [](void *data, int i, const char **out) {
-			*out = static_cast<runtime *>(data)->_preset_files[i].c_str();
-			return true;
-		};
-		const auto is_item_hovered = [this]() {
-			return ImGui::IsItemHovered() && !_input->is_any_mouse_button_down();
-		};
-
-		if (ImGui::Combo("##presets", &_current_preset, get_preset_file, this, _preset_files.size()))
+		if (_tutorial_index > 0)
 		{
-			save_configuration();
-
-			if (_performance_mode)
+			if (_tutorial_index == 1)
 			{
-				reload();
+				tutorial_text = "This is the preset file section. Add a new file with the '+' button. All changes to techniques and variables will be saved to the selected file.";
+				ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(1, 0, 0, 1));
+				ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1, 0, 0, 1));
 			}
-			else
+
+			const auto get_preset_file = [](void *data, int i, const char **out) {
+				*out = static_cast<runtime *>(data)->_preset_files[i].c_str();
+				return true;
+			};
+
+			ImGui::PushItemWidth(-(30 + ImGui::GetStyle().ItemSpacing.x) * 2 - 1);
+
+			if (ImGui::Combo("##presets", &_current_preset, get_preset_file, this, _preset_files.size()))
 			{
-				load_preset(_preset_files[_current_preset]);
-			}
-		}
+				save_configuration();
 
-		ImGui::PopItemWidth();
-
-		if (_current_preset >= 0 && is_item_hovered())
-		{
-			ImGui::SetTooltip("Select a preset file from the dropdown menu.");
-		}
-
-		ImGui::SameLine();
-
-		if (ImGui::Button("+", ImVec2(30, 0)))
-		{
-			ImGui::OpenPopup("Add Preset");
-		}
-		else if (is_item_hovered())
-		{
-			ImGui::SetTooltip("Add a new or existing preset file.");
-		}
-
-		if (ImGui::BeginPopup("Add Preset"))
-		{
-			char buf[260] = { };
-
-			if (ImGui::InputText("Path to preset file", buf, sizeof(buf), ImGuiInputTextFlags_EnterReturnsTrue))
-			{
-				const auto path = filesystem::absolute(buf);
-
-				if (filesystem::exists(path) || filesystem::exists(path.parent_path()))
+				if (_performance_mode)
 				{
-					_preset_files.push_back(path);
-
-					_current_preset = _preset_files.size() - 1;
-
-					load_preset(path);
-					save_configuration();
-
-					ImGui::CloseCurrentPopup();
+					reload();
+				}
+				else
+				{
+					load_preset(_preset_files[_current_preset]);
 				}
 			}
 
-			ImGui::EndPopup();
-		}
+			ImGui::PopItemWidth();
 
-		if (_current_preset >= 0)
-		{
 			ImGui::SameLine();
 
-			if (ImGui::Button("-", ImVec2(30, 0)))
+			if (ImGui::Button("+", ImVec2(30, 0)))
 			{
-				ImGui::OpenPopup("Remove Preset");
-			}
-			else if (is_item_hovered())
-			{
-				ImGui::SetTooltip("Remove the selected preset file.");
+				ImGui::OpenPopup("Add Preset");
 			}
 
-			if (ImGui::BeginPopup("Remove Preset"))
+			if (ImGui::BeginPopup("Add Preset"))
 			{
-				ImGui::Text("Do you really want to remove this preset?");
+				char buf[260] = { };
 
-				if (ImGui::Button("Yes", ImVec2(-1, 0)))
+				if (ImGui::InputText("Path to preset file", buf, sizeof(buf), ImGuiInputTextFlags_EnterReturnsTrue))
 				{
-					_preset_files.erase(_preset_files.begin() + _current_preset);
+					const auto path = filesystem::absolute(buf);
 
-					if (_current_preset == _preset_files.size())
+					if (filesystem::exists(path) || filesystem::exists(path.parent_path()))
 					{
-						_current_preset -= 1;
-					}
-					if (_current_preset >= 0)
-					{
-						load_preset(_preset_files[_current_preset]);
-					}
+						_preset_files.push_back(path);
 
-					save_configuration();
+						_current_preset = _preset_files.size() - 1;
 
-					ImGui::CloseCurrentPopup();
+						load_preset(path);
+						save_configuration();
+
+						ImGui::CloseCurrentPopup();
+					}
 				}
 
 				ImGui::EndPopup();
 			}
+
+			if (_current_preset >= 0)
+			{
+				ImGui::SameLine();
+
+				if (ImGui::Button("-", ImVec2(30, 0)))
+				{
+					ImGui::OpenPopup("Remove Preset");
+				}
+
+				if (ImGui::BeginPopup("Remove Preset"))
+				{
+					ImGui::Text("Do you really want to remove this preset?");
+
+					if (ImGui::Button("Yes", ImVec2(-1, 0)))
+					{
+						_preset_files.erase(_preset_files.begin() + _current_preset);
+
+						if (_current_preset == _preset_files.size())
+						{
+							_current_preset -= 1;
+						}
+						if (_current_preset >= 0)
+						{
+							load_preset(_preset_files[_current_preset]);
+						}
+
+						save_configuration();
+
+						ImGui::CloseCurrentPopup();
+					}
+
+					ImGui::EndPopup();
+				}
+			}
+
+			if (_tutorial_index == 1)
+			{
+				ImGui::PopStyleColor();
+				ImGui::PopStyleColor();
+			}
 		}
 
-		ImGui::Spacing();
-
-		if (ImGui::BeginChild("##techniques", ImVec2(-1, _performance_mode ? -1 : 200), true))
+		if (_tutorial_index > 1)
 		{
-			draw_overlay_technique_editor();
+			if (_tutorial_index == 2)
+			{
+				tutorial_text = "This is the list of techniques.\nClick on a technique to enable/disable it.\nClick and then drag one to a new location in the list to change the execution order.";
+				ImGui::PushStyleColor(ImGuiCol_ChildWindowBg, ImVec4(1, 0, 0, 1));
+			}
+
+			ImGui::Spacing();
+
+			if (ImGui::BeginChild("##techniques", ImVec2(-1, _performance_mode ? -25 : 200), true))
+			{
+				draw_overlay_technique_editor();
+			}
+
+			ImGui::EndChild();
+
+			if (_tutorial_index == 2)
+			{
+				ImGui::PopStyleColor();
+			}
 		}
 
-		ImGui::EndChild();
-
-		if (is_item_hovered())
+		if (_tutorial_index > 2 && !_performance_mode)
 		{
-			ImGui::SetTooltip("Click on a technique to enable/disable it.\nClick and then drag one to a new location in the list to change the execution order.");
-		}
+			if (_tutorial_index == 3)
+			{
+				tutorial_text = "This is the list of variables.";
+				ImGui::PushStyleColor(ImGuiCol_ChildWindowBg, ImVec4(1, 0, 0, 1));
+			}
 
-		if (!_performance_mode)
-		{
-			if (ImGui::BeginChild("##variables", ImVec2(-1, -25), true))
+			if (ImGui::BeginChild("##variables", ImVec2(-1, _tutorial_index == 3 ? -105 : -25), true))
 			{
 				draw_overlay_variable_editor();
 			}
 
 			ImGui::EndChild();
+
+			if (_tutorial_index == 3)
+			{
+				ImGui::PopStyleColor();
+			}
 		}
 
-		if (ImGui::Button("Recompile", ImVec2(ImGui::GetWindowContentRegionWidth() * 0.5f - 5, 0)))
+		if (_tutorial_index > 3)
 		{
-			reload();
+			if (ImGui::Button("Recompile", ImVec2(ImGui::GetWindowContentRegionWidth() * 0.5f - 5, 0)))
+			{
+				reload();
+			}
+
+			ImGui::SameLine();
+
+			if (ImGui::Button("Show Log", ImVec2(ImGui::GetWindowContentRegionWidth() * 0.5f - 5, 0)))
+			{
+				_show_error_log = true;
+			}
 		}
-
-		ImGui::SameLine();
-
-		if (ImGui::Button("Show Log", ImVec2(ImGui::GetWindowContentRegionWidth() * 0.5f - 5, 0)))
+		else
 		{
-			_show_error_log = true;
+			ImGui::BeginChildFrame(0, ImVec2(-1, 75));
+			ImGui::TextWrapped(tutorial_text);
+			ImGui::EndChildFrame();
+
+			if (ImGui::Button("Continue Tutorial", ImVec2(-1, 20)))
+			{
+				_tutorial_index++;
+
+				ini_file(s_appdata_path / "Settings.ini").set("GLOBAL", "Tutorial", _tutorial_index);
+			}
 		}
 	}
 	void runtime::draw_overlay_menu_settings()
@@ -1268,6 +1308,11 @@ namespace reshade
 				_texture_search_paths = stdext::split(edit_buffer, '\n');
 
 				save_configuration();
+			}
+
+			if (ImGui::Button("Restart Tutorial", ImVec2(ImGui::CalcItemWidth(), 0)))
+			{
+				_tutorial_index = 0;
 			}
 		}
 
