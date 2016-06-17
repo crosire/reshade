@@ -947,6 +947,11 @@ namespace reshade
 
 		ImGui::NewFrame();
 
+		if (_input->is_key_down(0x11))
+		{
+			imgui_io.FontGlobalScale = ImClamp(imgui_io.FontGlobalScale + imgui_io.MouseWheel * 0.10f, 0.50f, 2.50f);
+		}
+
 		if (show_splash)
 		{
 			const bool has_errors = !_errors.empty();
@@ -1184,7 +1189,9 @@ namespace reshade
 				ImGui::PushStyleColor(ImGuiCol_ChildWindowBg, ImVec4(1, 0, 0, 1));
 			}
 
-			if (ImGui::BeginChild("##variables", ImVec2(-1, _tutorial_index == 3 ? -105 : -25), true))
+			const float bottom_height = _tutorial_index == 3 ? ImGui::GetItemsLineHeightWithSpacing() + ImGui::GetStyle().ItemSpacing.y + 75 : ImGui::GetItemsLineHeightWithSpacing();
+
+			if (ImGui::BeginChild("##variables", ImVec2(-1, -bottom_height), true))
 			{
 				draw_overlay_variable_editor();
 			}
@@ -1217,7 +1224,7 @@ namespace reshade
 			ImGui::TextWrapped(tutorial_text);
 			ImGui::EndChildFrame();
 
-			if (ImGui::Button("Continue Tutorial", ImVec2(-1, 20)))
+			if (ImGui::Button("Continue Tutorial", ImVec2(-1, 0)))
 			{
 				_tutorial_index++;
 
