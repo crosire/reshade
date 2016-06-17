@@ -38,6 +38,10 @@
     <ClCompile>
       <AdditionalIncludeDirectories>gl3w\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
+    <PreBuildEvent>
+      <Command>cd gl3w
+python gl3w_gen.py</Command>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -64,7 +68,7 @@
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="gl3w\source\gl3w.c" />
+    <ClCompile Include="gl3w\src\gl3w.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="gl3w\include\GL\gl3w.h" />

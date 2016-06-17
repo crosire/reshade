@@ -52,7 +52,7 @@
     <Import Project="deps\Windows.props" />
     <Import Project="deps\DirectX.props" />
     <Import Project="deps\MinHook.props" />
-    <Import Project="deps\GL3W.props" />
+    <Import Project="deps\gl3w.props" />
     <Import Project="deps\stb.props" />
     <Import Project="deps\ImGui.props" />
   </ImportGroup>

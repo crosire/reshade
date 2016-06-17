@@ -1,9 +1,12 @@
 [submodule "imgui"]
 	path = deps/imgui
-	url = https://github.com/ocornut/imgui
+	url = https://github.com/ocornut/imgui.git
 [submodule "minhook"]
 	path = deps/minhook
-	url = https://github.com/TsudaKageyu/minhook
+	url = https://github.com/TsudaKageyu/minhook.git
 [submodule "stb"]
 	path = deps/stb
-	url = https://github.com/nothings/stb
+	url = https://github.com/nothings/stb.git
+[submodule "gl3w"]
+	path = deps/gl3w
+	url = https://github.com/skaslev/gl3w.git
