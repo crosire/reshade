@@ -967,7 +967,7 @@ namespace reshade
 
 		if (_input->is_key_down(0x11))
 		{
-			imgui_io.FontGlobalScale = ImClamp(imgui_io.FontGlobalScale + imgui_io.MouseWheel * 0.10f, 0.50f, 2.50f);
+			imgui_io.FontGlobalScale = ImClamp(imgui_io.FontGlobalScale + imgui_io.MouseWheel * 0.10f, 1.0f, 2.50f);
 		}
 
 		if (show_splash)
@@ -1069,13 +1069,22 @@ namespace reshade
 	}
 	void runtime::draw_overlay_menu_home()
 	{
-		const char *tutorial_text = "Since this is the first time you start ReShade, we'll go through a quick tutorial covering the most important features.";
+		const char *tutorial_text =
+			"Welcome! Since this is the first time you start ReShade, we'll go through a quick tutorial covering the most important features.\n\n"
+			"Before we continue: If you have difficulties reading this text, press the 'Ctrl' key and adjust the text size with your mouse wheel. "
+			"The window size is variable as well, just grab the bottom right corner and move it around.\n\n"
+			"Click on the 'Continue' button to continue the tutorial.";
 
 		if (_tutorial_index > 0)
 		{
 			if (_tutorial_index == 1)
 			{
-				tutorial_text = "This is the preset file section. Add a new file with the '+' button. All changes to techniques and variables will be saved to the selected file.";
+				tutorial_text =
+					"This is the preset file selection. All changes to techniques and variables will be saved to the selected file.\n\n"
+					"You can add a new one by clicking on the '+' button and entering the full path to the file. To delete the selected preset, click on the '-' button. "
+					"If any valid presets were put into the same folder as ReShade (or a subdirectory), they were already added to the list for you.\n"
+					"Make sure a valid file is selected here before starting to tweak any values later, or else your changes won't be saved!";
+
 				ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(1, 0, 0, 1));
 				ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1, 0, 0, 1));
 			}
@@ -1180,13 +1189,18 @@ namespace reshade
 		{
 			if (_tutorial_index == 2)
 			{
-				tutorial_text = "This is the list of techniques.\nClick on a technique to enable/disable it.\nClick and then drag one to a new location in the list to change the execution order.";
+				tutorial_text =
+					"This is the list of techniques. It contains all effects (*.fx) that were found in the effect search paths as specified on the 'Settings' tab.\n\n"
+					"Click on a technique to enable or disable it or drag it to a new location in the list to change the order in which the effects are applied.";
+
 				ImGui::PushStyleColor(ImGuiCol_ChildWindowBg, ImVec4(1, 0, 0, 1));
 			}
 
 			ImGui::Spacing();
 
-			if (ImGui::BeginChild("##techniques", ImVec2(-1, _performance_mode ? -25 : 200), true))
+			const float bottom_height = _performance_mode ? ImGui::GetItemsLineHeightWithSpacing() : -200;
+
+			if (ImGui::BeginChild("##techniques", ImVec2(-1, -bottom_height), true))
 			{
 				draw_overlay_technique_editor();
 			}
@@ -1203,11 +1217,16 @@ namespace reshade
 		{
 			if (_tutorial_index == 3)
 			{
-				tutorial_text = "This is the list of variables.";
+				tutorial_text =
+					"This is the list of variables. It contains all tweakable options the effects expose. All values here apply in real-time.\n\n"
+					"Enter text in the box at the top of the list to filter it and search for specific variable names.\n\n"
+					"Once you have finished tweaking your preset, be sure to go to the 'Settings' tab and change the 'Usage Mode' to 'Performance Mode'. "
+					"This will recompile all shaders into a more optimal representation that gives a significant performance boost, but will disable variable tweaking and this list.";
+
 				ImGui::PushStyleColor(ImGuiCol_ChildWindowBg, ImVec4(1, 0, 0, 1));
 			}
 
-			const float bottom_height = _tutorial_index == 3 ? ImGui::GetItemsLineHeightWithSpacing() + ImGui::GetStyle().ItemSpacing.y + 75 : ImGui::GetItemsLineHeightWithSpacing();
+			const float bottom_height = _tutorial_index == 3 ? ImGui::GetItemsLineHeightWithSpacing() + ImGui::GetStyle().ItemSpacing.y + 120 : ImGui::GetItemsLineHeightWithSpacing();
 
 			if (ImGui::BeginChild("##variables", ImVec2(-1, -bottom_height), true))
 			{
@@ -1238,11 +1257,11 @@ namespace reshade
 		}
 		else
 		{
-			ImGui::BeginChildFrame(0, ImVec2(-1, 75));
+			ImGui::BeginChildFrame(0, ImVec2(-1, 120));
 			ImGui::TextWrapped(tutorial_text);
 			ImGui::EndChildFrame();
 
-			if (ImGui::Button("Continue Tutorial", ImVec2(-1, 0)))
+			if (ImGui::Button(_tutorial_index == 3 ? "Finish" : "Continue", ImVec2(-1, 0)))
 			{
 				_tutorial_index++;
 
