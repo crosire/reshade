@@ -794,7 +794,25 @@ namespace reshade
 		style.Colors[ImGuiCol_TextSelectedBg] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.43f);
 		style.Colors[ImGuiCol_PopupBg] = ImVec4(_imgui_col_item_background[0], _imgui_col_item_background[1], _imgui_col_item_background[2], 0.92f);
 
-		if (_preset_files.empty() || _current_preset >= _preset_files.size())
+		if (_preset_files.empty())
+		{
+			_current_preset = -1;
+
+			const auto preset_files = filesystem::list_files(s_injector_path.parent_path(), "*.ini", true);
+
+			for (auto &file : preset_files)
+			{
+				const ini_file preset(file);
+
+				if (preset.get("GLOBAL", "Techniques").data().empty())
+				{
+					continue;
+				}
+
+				_preset_files.push_back(file);
+			}
+		}
+		else if (_current_preset >= _preset_files.size())
 		{
 			_current_preset = -1;
 		}
