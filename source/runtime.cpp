@@ -25,8 +25,7 @@ namespace reshade
 {
 	namespace
 	{
-		filesystem::path s_executable_path, s_injector_path, s_appdata_path;
-		std::string s_executable_name, s_imgui_ini_path;
+		filesystem::path s_executable_path, s_injector_path, s_settings_path;
 
 		const char keyboard_keys[256][16] = {
 			"", "", "", "Cancel", "", "", "", "", "Backspace", "Tab", "", "", "Clear", "Enter", "", "",
@@ -46,7 +45,6 @@ namespace reshade
 	{
 		s_injector_path = injector_path;
 		s_executable_path = executable_path;
-		s_executable_name = s_executable_path.filename_without_extension();
 
 		filesystem::path log_path(injector_path), tracelog_path(injector_path);
 		log_path.replace_extension("log");
@@ -71,19 +69,19 @@ namespace reshade
 		LOG(INFO) << "Initializing crosire's ReShade version '" VERSION_STRING_FILE "' (" << VERSION_PLATFORM << ") built on '" VERSION_DATE " " VERSION_TIME "' loaded from " << injector_path << " to " << executable_path << " ...";
 
 		const auto system_path = filesystem::get_special_folder_path(filesystem::special_folder::system);
-		s_appdata_path = s_executable_path.parent_path() / "ReShade";
+		const auto appdata_path = filesystem::get_special_folder_path(filesystem::special_folder::app_data) / "ReShade";
 
-		if (!filesystem::exists(s_appdata_path / "Settings.ini"))
+		if (!filesystem::exists(appdata_path))
 		{
-			s_appdata_path = filesystem::get_special_folder_path(filesystem::special_folder::app_data) / "ReShade";
+			filesystem::create_directory(appdata_path);
 		}
 
-		if (!filesystem::exists(s_appdata_path))
-		{
-			filesystem::create_directory(s_appdata_path);
-		}
+		s_settings_path = s_injector_path.parent_path() / "ReShade.ini";
 
-		s_imgui_ini_path = s_appdata_path / "Windows.ini";
+		if (!filesystem::exists(s_settings_path))
+		{
+			s_settings_path = appdata_path / (s_executable_path.filename_without_extension().operator const std::string &() + ".ini");
+		}
 
 		hooks::register_module(system_path / "d3d8.dll");
 		hooks::register_module(system_path / "d3d9.dll");
@@ -118,7 +116,7 @@ namespace reshade
 
 		auto &imgui_io = ImGui::GetIO();
 		auto &imgui_style = ImGui::GetStyle();
-		imgui_io.IniFilename = s_imgui_ini_path.c_str();
+		imgui_io.IniFilename = nullptr;
 		imgui_io.KeyMap[ImGuiKey_Tab] = 0x09; // VK_TAB
 		imgui_io.KeyMap[ImGuiKey_LeftArrow] = 0x25; // VK_LEFT
 		imgui_io.KeyMap[ImGuiKey_RightArrow] = 0x27; // VK_RIGHT
@@ -145,8 +143,6 @@ namespace reshade
 		imgui_style.GrabRounding = 0.0f;
 
 		load_configuration();
-
-		_tutorial_index = ini_file(s_appdata_path / "Settings.ini").get("GLOBAL", "Tutorial", _tutorial_index).as<unsigned int>();
 	}
 	runtime::~runtime()
 	{
@@ -561,7 +557,7 @@ namespace reshade
 		const int second = _date[3] - hour * 3600 - minute * 60;
 
 		const std::string extensions[] { ".bmp", ".png" };
-		const filesystem::path path = _screenshot_path + '\\' + s_executable_name + ' ' +
+		const filesystem::path path = _screenshot_path + '\\' + (s_executable_path.filename_without_extension().operator const std::string &()) + ' ' +
 			std::to_string(_date[0]) + '-' + std::to_string(_date[1]) + '-' + std::to_string(_date[2]) + ' ' +
 			std::to_string(hour) + '-' + std::to_string(minute) + '-' + std::to_string(second) +
 			extensions[_screenshot_format];
@@ -615,7 +611,7 @@ namespace reshade
 		pp.add_macro_definition("__VENDOR__", std::to_string(_vendor_id));
 		pp.add_macro_definition("__DEVICE__", std::to_string(_device_id));
 		pp.add_macro_definition("__RENDERER__", std::to_string(_renderer_id));
-		pp.add_macro_definition("__APPLICATION__", std::to_string(std::hash<std::string>()(s_executable_name)));
+		pp.add_macro_definition("__APPLICATION__", std::to_string(std::hash<std::string>()(s_executable_path.filename_without_extension().operator const std::string &())));
 		pp.add_macro_definition("BUFFER_WIDTH", std::to_string(_width));
 		pp.add_macro_definition("BUFFER_HEIGHT", std::to_string(_height));
 		pp.add_macro_definition("BUFFER_RCP_WIDTH", std::to_string(1.0f / static_cast<float>(_width)));
@@ -725,35 +721,36 @@ namespace reshade
 	}
 	void runtime::load_configuration()
 	{
-		const ini_file config(s_appdata_path / "Settings.ini");
-		const std::string section = s_appdata_path.parent_path() == s_executable_path.parent_path() ? "" : s_executable_path;
+		const ini_file config(s_settings_path);
 
-		_performance_mode = config.get(section, "PerformanceMode", false).as<bool>();
-		_block_input_outside_overlay = config.get(section, "BlockInputOutsideOverlay", false).as<bool>();
-		_menu_key.keycode = config.get(section, "OverlayKey", { 0x71, 0, 1 }).as<int>(0); // VK_F2
-		_menu_key.ctrl = config.get(section, "OverlayKey", { 0x71, 0, 1 }).as<bool>(1);
-		_menu_key.shift = config.get(section, "OverlayKey", { 0x71, 0, 1 }).as<bool>(2);
-		_screenshot_key.keycode = config.get(section, "ScreenshotKey", { 0x2C, 0, 0 }).as<int>(0); // VK_SNAPSHOT
-		_screenshot_key.ctrl = config.get(section, "ScreenshotKey", { 0x2C, 0, 0 }).as<bool>(1);
-		_screenshot_key.shift = config.get(section, "ScreenshotKey", { 0x2C, 0, 0 }).as<bool>(2);
-		_screenshot_path = config.get(section, "ScreenshotPath", static_cast<const std::string &>(s_executable_path.parent_path())).as<std::string>();
-		_screenshot_format = config.get(section, "ScreenshotFormat", 0).as<int>();
-		_effect_search_paths = config.get(section, "EffectSearchPaths", static_cast<const std::string &>(s_injector_path.parent_path())).data();
-		_texture_search_paths = config.get(section, "TextureSearchPaths", static_cast<const std::string &>(s_injector_path.parent_path())).data();
-		_preset_files = config.get(section, "PresetFiles", std::vector<std::string>()).data();
-		_current_preset = config.get(section, "CurrentPreset", -1).as<int>();
+		_block_input_outside_overlay = config.get("General", "BlockInputOutsideOverlay", false).as<bool>();
+		_menu_key.keycode = config.get("General", "OverlayKey", { 0x71, 0, 1 }).as<int>(0); // VK_F2
+		_menu_key.ctrl = config.get("General", "OverlayKey", { 0x71, 0, 1 }).as<bool>(1);
+		_menu_key.shift = config.get("General", "OverlayKey", { 0x71, 0, 1 }).as<bool>(2);
+		_performance_mode = config.get("General", "PerformanceMode", false).as<bool>();
+		_effect_search_paths = config.get("General", "EffectSearchPaths", static_cast<const std::string &>(s_injector_path.parent_path())).data();
+		_texture_search_paths = config.get("General", "TextureSearchPaths", static_cast<const std::string &>(s_injector_path.parent_path())).data();
+		_preset_files = config.get("General", "PresetFiles", std::vector<std::string>()).data();
+		_current_preset = config.get("General", "CurrentPreset", -1).as<int>();
+		_tutorial_index = config.get("General", "TutorialProgress", _tutorial_index).as<unsigned int>();
+
+		_screenshot_key.keycode = config.get("Screenshots", "Key", { 0x2C, 0, 0 }).as<int>(0); // VK_SNAPSHOT
+		_screenshot_key.ctrl = config.get("Screenshots", "Key", { 0x2C, 0, 0 }).as<bool>(1);
+		_screenshot_key.shift = config.get("Screenshots", "Key", { 0x2C, 0, 0 }).as<bool>(2);
+		_screenshot_path = config.get("Screenshots", "TargetPath", static_cast<const std::string &>(s_executable_path.parent_path())).as<std::string>();
+		_screenshot_format = config.get("Screenshots", "ImageFormat", 0).as<int>();
 
 		auto &style = ImGui::GetStyle();
-		style.Alpha = config.get(section, "UIAlpha", 0.95f).as<float>();
+		style.Alpha = config.get("User Interface", "Alpha", 0.95f).as<float>();
 
 		for (size_t i = 0; i < 3; i++)
-			_imgui_col_background[i] = config.get(section, "UIColBackground", _imgui_col_background).as<float>(i);
+			_imgui_col_background[i] = config.get("User Interface", "ColBackground", _imgui_col_background).as<float>(i);
 		for (size_t i = 0; i < 3; i++)
-			_imgui_col_item_background[i] = config.get(section, "UIColItemBackground", _imgui_col_item_background).as<float>(i);
+			_imgui_col_item_background[i] = config.get("User Interface", "ColItemBackground", _imgui_col_item_background).as<float>(i);
 		for (size_t i = 0; i < 3; i++)
-			_imgui_col_text[i] = config.get(section, "UIColText", _imgui_col_text).as<float>(i);
+			_imgui_col_text[i] = config.get("User Interface", "ColText", _imgui_col_text).as<float>(i);
 		for (size_t i = 0; i < 3; i++)
-			_imgui_col_active[i] = config.get(section, "UIColActive", _imgui_col_active).as<float>(i);
+			_imgui_col_active[i] = config.get("User Interface", "ColActive", _imgui_col_active).as<float>(i);
 
 		style.Colors[ImGuiCol_Text] = ImVec4(_imgui_col_text[0], _imgui_col_text[1], _imgui_col_text[2], 1.00f);
 		style.Colors[ImGuiCol_TextDisabled] = ImVec4(_imgui_col_text[0], _imgui_col_text[1], _imgui_col_text[2], 0.58f);
@@ -804,26 +801,27 @@ namespace reshade
 	}
 	void runtime::save_configuration() const
 	{
-		ini_file config(s_appdata_path / "Settings.ini");
-		const std::string section = s_appdata_path.parent_path() == s_executable_path.parent_path() ? "" : s_executable_path;
+		ini_file config(s_settings_path);
 
-		config.set(section, "PerformanceMode", _performance_mode);
-		config.set(section, "BlockInputOutsideOverlay", _block_input_outside_overlay);
-		config.set(section, "OverlayKey", { _menu_key.keycode, _menu_key.ctrl ? 1 : 0, _menu_key.shift ? 1 : 0 });
-		config.set(section, "ScreenshotKey", { _screenshot_key.keycode, _screenshot_key.ctrl ? 1 : 0, _screenshot_key.shift ? 1 : 0 });
-		config.set(section, "ScreenshotPath", _screenshot_path);
-		config.set(section, "ScreenshotFormat", _screenshot_format);
-		config.set(section, "EffectSearchPaths", _effect_search_paths);
-		config.set(section, "TextureSearchPaths", _texture_search_paths);
-		config.set(section, "PresetFiles", _preset_files);
-		config.set(section, "CurrentPreset", _current_preset);
+		config.set("General", "BlockInputOutsideOverlay", _block_input_outside_overlay);
+		config.set("General", "OverlayKey", { _menu_key.keycode, _menu_key.ctrl ? 1 : 0, _menu_key.shift ? 1 : 0 });
+		config.set("General", "PerformanceMode", _performance_mode);
+		config.set("General", "EffectSearchPaths", _effect_search_paths);
+		config.set("General", "TextureSearchPaths", _texture_search_paths);
+		config.set("General", "PresetFiles", _preset_files);
+		config.set("General", "CurrentPreset", _current_preset);
+		config.set("General", "TutorialProgress", _tutorial_index);
+
+		config.set("Screenshots", "Key", { _screenshot_key.keycode, _screenshot_key.ctrl ? 1 : 0, _screenshot_key.shift ? 1 : 0 });
+		config.set("Screenshots", "TargetPath", _screenshot_path);
+		config.set("Screenshots", "ImageFormat", _screenshot_format);
 
 		const auto &style = ImGui::GetStyle();
-		config.set(section, "UIAlpha", style.Alpha);
-		config.set(section, "UIColBackground", _imgui_col_background);
-		config.set(section, "UIColItemBackground", _imgui_col_item_background);
-		config.set(section, "UIColText", _imgui_col_text);
-		config.set(section, "UIColActive", _imgui_col_active);
+		config.set("User Interface", "Alpha", style.Alpha);
+		config.set("User Interface", "ColBackground", _imgui_col_background);
+		config.set("User Interface", "ColItemBackground", _imgui_col_item_background);
+		config.set("User Interface", "ColText", _imgui_col_text);
+		config.set("User Interface", "ColActive", _imgui_col_active);
 	}
 	void runtime::load_preset(const filesystem::path &path)
 	{
@@ -836,25 +834,25 @@ namespace reshade
 				continue;
 			}
 
-			const std::string filename = filesystem::path(variable.annotations.at("__FILE__").as<std::string>()).filename();
+			const std::string effect_name = filesystem::path(variable.annotations.at("__FILE__").as<std::string>()).filename();
 
-			float values[4] = { };
-			get_uniform_value(variable, values, variable.rows);
+			float values[16] = { };
+			get_uniform_value(variable, values, 16);
 
-			const auto data = preset.get(filename, variable.unique_name, variant(values, variable.rows));
+			const auto preset_values = preset.get(effect_name, variable.unique_name, variant(values, 16));
 
-			for (unsigned int i = 0; i < std::min(variable.rows, static_cast<unsigned int>(data.data().size())); i++)
+			for (unsigned int i = 0; i < 16; i++)
 			{
-				values[i] = data.as<float>(i);
+				values[i] = preset_values.as<float>(i);
 			}
 
-			set_uniform_value(variable, values, variable.rows);
+			set_uniform_value(variable, values, 16);
 		}
 
 		// Reorder techniques
 		auto order = preset.get("GLOBAL", "Techniques").data();
 		std::sort(_techniques.begin(), _techniques.end(),
-			[&order](const technique &lhs, const technique &rhs)
+			[&order](const auto &lhs, const auto &rhs)
 		{
 			return (std::find(order.begin(), order.end(), lhs.name) - order.begin()) < (std::find(order.begin(), order.end(), rhs.name) - order.begin());
 		});
@@ -874,12 +872,14 @@ namespace reshade
 				continue;
 			}
 
-			const std::string filename = filesystem::path(variable.annotations.at("__FILE__").as<std::string>()).filename();
+			const std::string effect_name = filesystem::path(variable.annotations.at("__FILE__").as<std::string>()).filename();
 
-			float values[4] = { };
-			get_uniform_value(variable, values, variable.rows);
+			float values[16] = { };
+			get_uniform_value(variable, values, 16);
 
-			preset.set(filename, variable.unique_name, variant(values, variable.rows));
+			assert(variable.rows * variable.columns < 16);
+
+			preset.set(effect_name, variable.unique_name, variant(values, variable.rows * variable.columns));
 		}
 
 		std::string technique_list;
@@ -971,8 +971,8 @@ namespace reshade
 
 		if (_show_menu)
 		{
-			ImGui::SetNextWindowSize(ImVec2(800, 600), ImGuiSetCond_FirstUseEver);
-			ImGui::SetNextWindowPosCenter(ImGuiSetCond_FirstUseEver);
+			ImGui::SetNextWindowSize(ImVec2(800, 700), ImGuiSetCond_Once);
+			ImGui::SetNextWindowPosCenter(ImGuiSetCond_Once);
 			ImGui::Begin("ReShade " VERSION_STRING_FILE " by crosire###Main", &_show_menu, ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoCollapse);
 
 			draw_overlay_menu();
@@ -981,7 +981,7 @@ namespace reshade
 		}
 		if (_show_error_log)
 		{
-			ImGui::SetNextWindowSize(ImVec2(500, 100), ImGuiSetCond_FirstUseEver);
+			ImGui::SetNextWindowSize(ImVec2(500, 100), ImGuiSetCond_Once);
 
 			if (ImGui::Begin("Error Log", &_show_error_log))
 			{
@@ -1221,7 +1221,7 @@ namespace reshade
 			{
 				_tutorial_index++;
 
-				ini_file(s_appdata_path / "Settings.ini").set("GLOBAL", "Tutorial", _tutorial_index);
+				save_configuration();
 			}
 		}
 	}
@@ -1385,7 +1385,7 @@ namespace reshade
 	{
 		if (ImGui::CollapsingHeader("General", ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_DefaultOpen))
 		{
-			ImGui::Text("Application: %X", std::hash<std::string>()(s_executable_name));
+			ImGui::Text("Application: %X", std::hash<std::string>()(s_executable_path.filename_without_extension().operator const std::string &()));
 			ImGui::Text("Date: %d-%d-%d %d", _date[0], _date[1], _date[2], _date[3]);
 			ImGui::Text("Device: %X %d", _vendor_id, _device_id);
 			ImGui::Text("FPS: %.2f", ImGui::GetIO().Framerate);
