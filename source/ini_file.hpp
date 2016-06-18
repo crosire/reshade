@@ -19,6 +19,7 @@ namespace reshade
 		void load();
 		void save() const;
 
+		bool _modified = false;
 		filesystem::path _path;
 		using section = std::unordered_map<std::string, variant>;
 		std::unordered_map<std::string, section> _sections;

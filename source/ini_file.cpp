@@ -53,6 +53,11 @@ namespace reshade
 	}
 	void ini_file::save() const
 	{
+		if (!_modified)
+		{
+			return;
+		}
+
 		std::ofstream file(stdext::utf8_to_utf16(_path.string()));
 
 		for (const auto &section : _sections)
@@ -102,6 +107,7 @@ namespace reshade
 	}
 	void ini_file::set(const std::string &section, const std::string &key, const variant &value)
 	{
+		_modified = true;
 		_sections[section][key] = value;
 	}
 }
