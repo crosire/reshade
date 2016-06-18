@@ -143,7 +143,22 @@ HOOK_EXPORT BOOL WINAPI HookGetMessageA(LPMSG lpMsg, HWND hWnd, UINT wMsgFilterM
 }
 HOOK_EXPORT BOOL WINAPI HookGetMessageW(LPMSG lpMsg, HWND hWnd, UINT wMsgFilterMin, UINT wMsgFilterMax)
 {
-	return HookGetMessageA(lpMsg, hWnd, wMsgFilterMin, wMsgFilterMax);
+	static const auto trampoline = reshade::hooks::call(&HookGetMessageW);
+
+	if (!trampoline(lpMsg, hWnd, wMsgFilterMin, wMsgFilterMax))
+	{
+		return FALSE;
+	}
+
+	assert(lpMsg != nullptr);
+
+	if (lpMsg->hwnd != nullptr && reshade::input::handle_window_message(lpMsg))
+	{
+		// Change message so it is ignored by the recipient window
+		lpMsg->message = WM_NULL;
+	}
+
+	return TRUE;
 }
 HOOK_EXPORT BOOL WINAPI HookPeekMessageA(LPMSG lpMsg, HWND hWnd, UINT wMsgFilterMin, UINT wMsgFilterMax, UINT wRemoveMsg)
 {
@@ -166,7 +181,22 @@ HOOK_EXPORT BOOL WINAPI HookPeekMessageA(LPMSG lpMsg, HWND hWnd, UINT wMsgFilter
 }
 HOOK_EXPORT BOOL WINAPI HookPeekMessageW(LPMSG lpMsg, HWND hWnd, UINT wMsgFilterMin, UINT wMsgFilterMax, UINT wRemoveMsg)
 {
-	return HookPeekMessageA(lpMsg, hWnd, wMsgFilterMin, wMsgFilterMax, wRemoveMsg);
+	static const auto trampoline = reshade::hooks::call(&HookPeekMessageW);
+
+	if (!trampoline(lpMsg, hWnd, wMsgFilterMin, wMsgFilterMax, wRemoveMsg))
+	{
+		return FALSE;
+	}
+
+	assert(lpMsg != nullptr);
+
+	if (lpMsg->hwnd != nullptr && (wRemoveMsg & PM_REMOVE) != 0 && reshade::input::handle_window_message(lpMsg))
+	{
+		// Change message so it is ignored by the recipient window
+		lpMsg->message = WM_NULL;
+	}
+
+	return TRUE;
 }
 
 bool g_block_cursor_reset = false;
