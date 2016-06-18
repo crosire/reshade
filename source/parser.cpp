@@ -2032,6 +2032,8 @@ namespace reshadefx
 
 				if (casenode->labels.empty())
 				{
+					error(casenode->location, 3000, "a case body can only contain a single statement");
+
 					return false;
 				}
 
