@@ -18,8 +18,6 @@
 #include <imgui.h>
 #include <imgui_internal.h>
 
-extern bool g_block_cursor_reset;
-
 namespace reshade
 {
 	namespace
@@ -922,8 +920,6 @@ namespace reshade
 			_show_menu = !_show_menu;
 		}
 
-		g_block_cursor_reset = _show_menu;
-
 		if (!(_show_menu || _show_error_log || show_splash))
 		{
 			_input->block_mouse_input(false);
@@ -1023,8 +1019,8 @@ namespace reshade
 
 		ImGui::Render();
 
-		_input->block_mouse_input(imgui_io.WantCaptureMouse || _block_input_outside_overlay);
-		_input->block_keyboard_input(imgui_io.WantCaptureKeyboard || _block_input_outside_overlay);
+		_input->block_mouse_input(imgui_io.WantCaptureMouse || (_block_input_outside_overlay && _show_menu));
+		_input->block_keyboard_input(imgui_io.WantCaptureKeyboard || (_block_input_outside_overlay && _show_menu));
 
 		render_draw_lists(ImGui::GetDrawData());
 	}

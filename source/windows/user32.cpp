@@ -199,35 +199,38 @@ HOOK_EXPORT BOOL WINAPI HookPeekMessageW(LPMSG lpMsg, HWND hWnd, UINT wMsgFilter
 	return TRUE;
 }
 
-bool g_block_cursor_reset = false;
-POINT g_last_cursor_position = { };
+POINT last_cursor_position = { };
 
-HOOK_EXPORT BOOL WINAPI HookGetCursorPos(LPPOINT lpPoint)
+HOOK_EXPORT BOOL WINAPI HookSetCursorPosition(int X, int Y)
 {
-	if (g_block_cursor_reset)
+	const auto input = reshade::input::register_window(GetActiveWindow());
+
+	if (input->is_blocking_mouse_input())
+	{
+		last_cursor_position.x = X;
+		last_cursor_position.y = Y;
+
+		return TRUE;
+	}
+
+	static const auto trampoline = reshade::hooks::call(&HookSetCursorPosition);
+
+	return trampoline(X, Y);
+}
+HOOK_EXPORT BOOL WINAPI HookGetCursorPosition(LPPOINT lpPoint)
+{
+	const auto input = reshade::input::register_window(GetActiveWindow());
+
+	if (input->is_blocking_mouse_input())
 	{
 		assert(lpPoint != nullptr);
 
-		*lpPoint = g_last_cursor_position;
+		*lpPoint = last_cursor_position;
 
 		return TRUE;
 	}
 
-	static const auto trampoline = reshade::hooks::call(&HookGetCursorPos);
+	static const auto trampoline = reshade::hooks::call(&HookGetCursorPosition);
 
 	return trampoline(lpPoint);
-}
-HOOK_EXPORT BOOL WINAPI HookSetCursorPos(int X, int Y)
-{
-	if (g_block_cursor_reset)
-	{
-		g_last_cursor_position.x = X;
-		g_last_cursor_position.y = Y;
-
-		return TRUE;
-	}
-
-	static const auto trampoline = reshade::hooks::call(&HookSetCursorPos);
-
-	return trampoline(X, Y);
 }
