@@ -122,10 +122,31 @@ HOOK_EXPORT BOOL WINAPI HookRegisterRawInputDevices(PCRAWINPUTDEVICE pRawInputDe
 	return TRUE;
 }
 
-HOOK_EXPORT BOOL WINAPI HookPeekMessageA(LPMSG lpMsg, HWND hWnd, UINT wMsgFilterMin, UINT wMsgFilterMax, UINT wRemoveMsg)
+HOOK_EXPORT BOOL WINAPI HookGetMessageA(LPMSG lpMsg, HWND hWnd, UINT wMsgFilterMin, UINT wMsgFilterMax)
 {
+	static const auto trampoline = reshade::hooks::call(&HookGetMessageA);
+
+	if (!trampoline(lpMsg, hWnd, wMsgFilterMin, wMsgFilterMax))
+	{
+		return FALSE;
+	}
+
 	assert(lpMsg != nullptr);
 
+	if (lpMsg->hwnd != nullptr && reshade::input::handle_window_message(lpMsg))
+	{
+		// Change message so it is ignored by the recipient window
+		lpMsg->message = WM_NULL;
+	}
+
+	return TRUE;
+}
+HOOK_EXPORT BOOL WINAPI HookGetMessageW(LPMSG lpMsg, HWND hWnd, UINT wMsgFilterMin, UINT wMsgFilterMax)
+{
+	return HookGetMessageA(lpMsg, hWnd, wMsgFilterMin, wMsgFilterMax);
+}
+HOOK_EXPORT BOOL WINAPI HookPeekMessageA(LPMSG lpMsg, HWND hWnd, UINT wMsgFilterMin, UINT wMsgFilterMax, UINT wRemoveMsg)
+{
 	static const auto trampoline = reshade::hooks::call(&HookPeekMessageA);
 
 	if (!trampoline(lpMsg, hWnd, wMsgFilterMin, wMsgFilterMax, wRemoveMsg))
@@ -133,23 +154,12 @@ HOOK_EXPORT BOOL WINAPI HookPeekMessageA(LPMSG lpMsg, HWND hWnd, UINT wMsgFilter
 		return FALSE;
 	}
 
+	assert(lpMsg != nullptr);
+
 	if (lpMsg->hwnd != nullptr && (wRemoveMsg & PM_REMOVE) != 0 && reshade::input::handle_window_message(lpMsg))
 	{
 		// Change message so it is ignored by the recipient window
 		lpMsg->message = WM_NULL;
-	}
-
-	// SDL calls PeekMessage with PM_NOREMOVE, only to make a follow-up call to GetMessage
-	static bool sdl_loaded = GetModuleHandleA("SDL.dll") != nullptr;
-	if (sdl_loaded && reshade::input::handle_window_message(lpMsg))
-	{
-		assert(wRemoveMsg == PM_NOREMOVE);
-
-		// Remove message from queue
-		trampoline(lpMsg, hWnd, wMsgFilterMin, wMsgFilterMax, PM_REMOVE);
-
-		// Skip to next message in queue
-		return HookPeekMessageA(lpMsg, hWnd, wMsgFilterMin, wMsgFilterMax, wRemoveMsg);
 	}
 
 	return TRUE;

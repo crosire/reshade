@@ -3147,12 +3147,8 @@ namespace reshadefx
 
 			return expect('}');
 		}
-		else if (parse_expression_assignment(expression))
-		{
-			return true;
-		}
 
-		return false;
+		return parse_expression_assignment(expression);
 	}
 	bool parser::parse_variable_properties(variable_declaration_node *variable)
 	{
