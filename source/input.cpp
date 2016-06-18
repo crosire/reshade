@@ -15,6 +15,7 @@ namespace reshade
 
 	input::input(window_handle window) : _window(window)
 	{
+		assert(window != nullptr);
 	}
 
 	void input::register_window_with_raw_input(window_handle window, bool no_legacy_keyboard, bool no_legacy_mouse)

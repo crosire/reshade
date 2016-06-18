@@ -203,14 +203,19 @@ POINT last_cursor_position = { };
 
 HOOK_EXPORT BOOL WINAPI HookSetCursorPosition(int X, int Y)
 {
-	const auto input = reshade::input::register_window(GetActiveWindow());
+	const HWND hwnd = GetActiveWindow();
 
-	if (input->is_blocking_mouse_input())
+	if (hwnd != nullptr)
 	{
-		last_cursor_position.x = X;
-		last_cursor_position.y = Y;
+		const auto input = reshade::input::register_window(hwnd);
 
-		return TRUE;
+		if (input->is_blocking_mouse_input())
+		{
+			last_cursor_position.x = X;
+			last_cursor_position.y = Y;
+
+			return TRUE;
+		}
 	}
 
 	static const auto trampoline = reshade::hooks::call(&HookSetCursorPosition);
@@ -219,15 +224,20 @@ HOOK_EXPORT BOOL WINAPI HookSetCursorPosition(int X, int Y)
 }
 HOOK_EXPORT BOOL WINAPI HookGetCursorPosition(LPPOINT lpPoint)
 {
-	const auto input = reshade::input::register_window(GetActiveWindow());
+	const HWND hwnd = GetActiveWindow();
 
-	if (input->is_blocking_mouse_input())
+	if (hwnd != nullptr)
 	{
-		assert(lpPoint != nullptr);
+		const auto input = reshade::input::register_window(hwnd);
 
-		*lpPoint = last_cursor_position;
+		if (input->is_blocking_mouse_input())
+		{
+			assert(lpPoint != nullptr);
 
-		return TRUE;
+			*lpPoint = last_cursor_position;
+
+			return TRUE;
+		}
 	}
 
 	static const auto trampoline = reshade::hooks::call(&HookGetCursorPosition);
