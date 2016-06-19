@@ -1239,7 +1239,7 @@ namespace reshade
 
 		if (_tutorial_index > 3)
 		{
-			if (ImGui::Button("Recompile", ImVec2(ImGui::GetWindowContentRegionWidth() * 0.5f - 5, 0)))
+			if (ImGui::Button("Reload", ImVec2(ImGui::GetWindowContentRegionWidth() * 0.5f - 5, 0)))
 			{
 				reload();
 			}
@@ -1498,25 +1498,17 @@ Libraries in use:\n\
 			}
 			else
 			{
-				const auto words = stdext::split(_variable_filter_buffer, ' ');
+				const std::string filter(_variable_filter_buffer);
 
 				for (auto &uniform : _uniforms)
 				{
-					bool hidden = true;
-	
-					for (const auto &word : words)
-					{
-						if (std::search(uniform.name.begin(), uniform.name.end(), word.begin(), word.end(),
-							[](auto c1, auto c2) {
-								return tolower(c1) == tolower(c2);
-							}) != uniform.name.end())
-						{
-							hidden = false;
-							break;
-						}
-					}
+					const auto filename = uniform.annotations["__FILE__"].as<std::string>();
 
-					uniform.annotations["hidden"] = hidden;
+					uniform.annotations["hidden"] =
+						std::search(uniform.name.begin(), uniform.name.end(), filter.begin(), filter.end(),
+						[](auto c1, auto c2) {
+							return tolower(c1) == tolower(c2);
+						}) == uniform.name.end() && filename.find(filter) == std::string::npos;
 				}
 			}
 		}
