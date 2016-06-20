@@ -1025,7 +1025,7 @@ namespace reshade
 
 		if (_show_menu)
 		{
-			ImGui::SetNextWindowSize(ImVec2(800, 700), ImGuiSetCond_Once);
+			ImGui::SetNextWindowSize(ImVec2(700, 600), ImGuiSetCond_Once);
 			ImGui::SetNextWindowPosCenter(ImGuiSetCond_Once);
 			ImGui::Begin("ReShade " VERSION_STRING_FILE " by crosire###Main", &_show_menu, ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoCollapse);
 
