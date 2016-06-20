@@ -107,7 +107,14 @@ namespace reshade
 		_renderer_id(renderer),
 		_start_time(std::chrono::high_resolution_clock::now()),
 		_last_frame_duration(std::chrono::milliseconds(1)),
-		_imgui_context(ImGui::CreateContext())
+		_imgui_context(ImGui::CreateContext()),
+		_effect_search_paths({ s_injector_path.parent_path() }),
+		_texture_search_paths({ s_injector_path.parent_path() }),
+		_preprocessor_definitions({
+			"RESHADE_DEPTH_LINEARIZATION_FAR_PLANE=1000.0",
+			"RESHADE_DEPTH_INPUT_IS_UPSIDE_DOWN=0",
+			"RESHADE_DEPTH_INPUT_IS_REVERSED=0",
+			"RESHADE_DEPTH_INPUT_IS_LOGARITHMIC=0" })
 	{
 		ImGui::SetCurrentContext(_imgui_context);
 
@@ -556,6 +563,11 @@ namespace reshade
 
 		for (const auto &include_path : _effect_search_paths)
 		{
+			if (include_path.empty())
+			{
+				continue;
+			}
+
 			pp.add_include_path(include_path);
 		}
 
@@ -568,6 +580,25 @@ namespace reshade
 		pp.add_macro_definition("BUFFER_HEIGHT", std::to_string(_height));
 		pp.add_macro_definition("BUFFER_RCP_WIDTH", std::to_string(1.0f / static_cast<float>(_width)));
 		pp.add_macro_definition("BUFFER_RCP_HEIGHT", std::to_string(1.0f / static_cast<float>(_height)));
+
+		for (const auto &definition : _preprocessor_definitions)
+		{
+			if (definition.empty())
+			{
+				continue;
+			}
+
+			const size_t equals_index = definition.find_first_of('=');
+
+			if (equals_index != std::string::npos)
+			{
+				pp.add_macro_definition(definition.substr(0, equals_index), definition.substr(equals_index + 1));
+			}
+			else
+			{
+				pp.add_macro_definition(definition);
+			}
+		}
 
 		if (!pp.run(path, _included_files))
 		{
@@ -675,23 +706,26 @@ namespace reshade
 	{
 		const ini_file config(s_settings_path);
 
-		_block_input_outside_overlay = config.get("General", "BlockInputOutsideOverlay", false).as<bool>();
-		_menu_key.keycode = config.get("General", "OverlayKey", { 0x71, 0, 1 }).as<int>(0); // VK_F2
-		_menu_key.ctrl = config.get("General", "OverlayKey", { 0x71, 0, 1 }).as<bool>(1);
-		_menu_key.shift = config.get("General", "OverlayKey", { 0x71, 0, 1 }).as<bool>(2);
-		_performance_mode = config.get("General", "PerformanceMode", false).as<bool>();
-		const auto effect_search_paths = config.get("General", "EffectSearchPaths", s_injector_path.parent_path()).data();
+		_block_input_outside_overlay = config.get("General", "BlockInputOutsideOverlay", _block_input_outside_overlay).as<bool>();
+		const int menu_key[3] = { _menu_key.keycode, _menu_key.ctrl ? 1 : 0, _menu_key.shift ? 1 : 0 };
+		_menu_key.keycode = config.get("General", "OverlayKey", menu_key).as<int>(0);
+		_menu_key.ctrl = config.get("General", "OverlayKey", menu_key).as<bool>(1);
+		_menu_key.shift = config.get("General", "OverlayKey", menu_key).as<bool>(2);
+		_performance_mode = config.get("General", "PerformanceMode", _performance_mode).as<bool>();
+		const auto effect_search_paths = config.get("General", "EffectSearchPaths", _effect_search_paths).data();
 		_effect_search_paths.assign(effect_search_paths.begin(), effect_search_paths.end());
-		const auto texture_search_paths = config.get("General", "TextureSearchPaths", s_injector_path.parent_path()).data();
+		const auto texture_search_paths = config.get("General", "TextureSearchPaths", _texture_search_paths).data();
 		_texture_search_paths.assign(texture_search_paths.begin(), texture_search_paths.end());
-		const auto preset_files = config.get("General", "PresetFiles").data();
+		_preprocessor_definitions = config.get("General", "PreprocessorDefinitions", _preprocessor_definitions).data();
+		const auto preset_files = config.get("General", "PresetFiles", _preset_files).data();
 		_preset_files.assign(preset_files.begin(), preset_files.end());
-		_current_preset = config.get("General", "CurrentPreset", -1).as<int>();
+		_current_preset = config.get("General", "CurrentPreset", _current_preset).as<int>();
 		_tutorial_index = config.get("General", "TutorialProgress", _tutorial_index).as<unsigned int>();
 
-		_screenshot_key.keycode = config.get("Screenshots", "Key", { 0x2C, 0, 0 }).as<int>(0); // VK_SNAPSHOT
-		_screenshot_key.ctrl = config.get("Screenshots", "Key", { 0x2C, 0, 0 }).as<bool>(1);
-		_screenshot_key.shift = config.get("Screenshots", "Key", { 0x2C, 0, 0 }).as<bool>(2);
+		const int screenshot_key[3] = { _screenshot_key.keycode, _screenshot_key.ctrl ? 1 : 0, _screenshot_key.shift ? 1 : 0 };
+		_screenshot_key.keycode = config.get("Screenshots", "Key", screenshot_key).as<int>(0);
+		_screenshot_key.ctrl = config.get("Screenshots", "Key", screenshot_key).as<bool>(1);
+		_screenshot_key.shift = config.get("Screenshots", "Key", screenshot_key).as<bool>(2);
 		_screenshot_path = config.get("Screenshots", "TargetPath", s_executable_path.parent_path()).as<filesystem::path>();
 		_screenshot_format = config.get("Screenshots", "ImageFormat", 0).as<int>();
 
@@ -781,6 +815,7 @@ namespace reshade
 		config.set("General", "PerformanceMode", _performance_mode);
 		config.set("General", "EffectSearchPaths", _effect_search_paths);
 		config.set("General", "TextureSearchPaths", _texture_search_paths);
+		config.set("General", "PreprocessorDefinitions", _preprocessor_definitions);
 		config.set("General", "PresetFiles", _preset_files);
 		config.set("General", "CurrentPreset", _current_preset);
 		config.set("General", "TutorialProgress", _tutorial_index);
@@ -1275,8 +1310,20 @@ namespace reshade
 			if (shortcut.shift) memcpy(edit_buffer, "Shift + ", 9), offset += 8;
 			memcpy(edit_buffer + offset, keyboard_keys[shortcut.keycode], sizeof(*keyboard_keys));
 		};
+		const auto copy_vector_to_edit_buffer = [&edit_buffer](const std::vector<std::string> &data) {
+			size_t offset = 0;
+			edit_buffer[0] = '\0';
+			for (const auto &line : data)
+			{
+				memcpy(edit_buffer + offset, line.c_str(), line.size());
+				offset += line.size();
+				edit_buffer[offset++] = '\n';
+				edit_buffer[offset] = '\0';
+			}
+		};
 		const auto copy_search_paths_to_edit_buffer = [&edit_buffer](const std::vector<filesystem::path> &search_paths) {
 			size_t offset = 0;
+			edit_buffer[0] = '\0';
 			for (const auto &search_path : search_paths)
 			{
 				memcpy(edit_buffer + offset, search_path.string().c_str(), search_path.length());
@@ -1336,7 +1383,7 @@ namespace reshade
 
 			copy_search_paths_to_edit_buffer(_effect_search_paths);
 
-			if (ImGui::InputTextMultiline("Effect Search Paths", edit_buffer, sizeof(edit_buffer), ImVec2(0, 100)))
+			if (ImGui::InputTextMultiline("Effect Search Paths", edit_buffer, sizeof(edit_buffer), ImVec2(0, 60)))
 			{
 				const auto effect_search_paths = stdext::split(edit_buffer, '\n');
 				_effect_search_paths.assign(effect_search_paths.begin(), effect_search_paths.end());
@@ -1346,12 +1393,19 @@ namespace reshade
 
 			copy_search_paths_to_edit_buffer(_texture_search_paths);
 
-			if (ImGui::InputTextMultiline("Texture Search Paths", edit_buffer, sizeof(edit_buffer), ImVec2(0, 100)))
+			if (ImGui::InputTextMultiline("Texture Search Paths", edit_buffer, sizeof(edit_buffer), ImVec2(0, 60)))
 			{
 				const auto texture_search_paths = stdext::split(edit_buffer, '\n');
 				_texture_search_paths.assign(texture_search_paths.begin(), texture_search_paths.end());
 
 				save_configuration();
+			}
+
+			copy_vector_to_edit_buffer(_preprocessor_definitions);
+
+			if (ImGui::InputTextMultiline("Preprocessor Definitions", edit_buffer, sizeof(edit_buffer), ImVec2(0, 100)))
+			{
+				_preprocessor_definitions = stdext::split(edit_buffer, '\n');
 			}
 
 			if (ImGui::Button("Restart Tutorial", ImVec2(ImGui::CalcItemWidth(), 0)))
