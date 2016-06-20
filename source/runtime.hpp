@@ -180,8 +180,8 @@ namespace reshade
 		void reload();
 		bool load_effect(const filesystem::path &path, reshadefx::syntax_tree &ast);
 		void load_textures();
-		void load_configuration();
-		void save_configuration() const;
+		void load_configuration(const filesystem::path &path);
+		void save_configuration(const filesystem::path &path) const;
 		void load_preset(const filesystem::path &path);
 		void save_preset(const filesystem::path &path) const;
 		void save_screenshot();
