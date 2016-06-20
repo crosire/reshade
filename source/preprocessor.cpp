@@ -21,10 +21,14 @@ namespace reshadefx
 
 	void preprocessor::add_include_path(const filesystem::path &path)
 	{
+		assert(!path.empty());
+
 		_include_paths.push_back(path);
 	}
 	bool preprocessor::add_macro_definition(const std::string &name, const macro &macro)
 	{
+		assert(!name.empty());
+
 		return _macros.emplace(name, macro).second;
 	}
 	bool preprocessor::add_macro_definition(const std::string &name, const std::string &value)

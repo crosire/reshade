@@ -1406,6 +1406,8 @@ namespace reshade
 			if (ImGui::InputTextMultiline("Preprocessor Definitions", edit_buffer, sizeof(edit_buffer), ImVec2(0, 100)))
 			{
 				_preprocessor_definitions = stdext::split(edit_buffer, '\n');
+
+				save_configuration();
 			}
 
 			if (ImGui::Button("Restart Tutorial", ImVec2(ImGui::CalcItemWidth(), 0)))
