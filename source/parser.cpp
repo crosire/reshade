@@ -2963,6 +2963,13 @@ namespace reshadefx
 					warning(location, 5000, "global variables are considered 'uniform' by default");
 				}
 
+				if (type.has_qualifier(type_node::qualifier_const))
+				{
+					error(location, 3035, "variables which are 'uniform' cannot be declared 'const'");
+
+					return false;
+				}
+
 				type.qualifiers |= type_node::qualifier_extern | type_node::qualifier_uniform;
 			}
 		}
