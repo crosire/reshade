@@ -203,12 +203,12 @@ namespace reshade
 		int _date[4] = { };
 		std::string _errors, _message, _effect_source;
 		std::vector<std::string> _preprocessor_definitions;
-		int _menu_index = 0, _screenshot_format = 0, _current_preset = -1, _current_effect_file = -1;
+		int _menu_index = 0, _screenshot_format = 0, _current_preset = -1, _current_effect_file = -1, _input_processing_mode = 1;
 		key_shortcut _menu_key = { 0x71, false, true }, _screenshot_key = { 0x2C };
 		filesystem::path _screenshot_path;
 		int _selected_technique = -1;
 		bool _show_menu = false, _show_error_log = false, _performance_mode = false;
-		bool _block_input_outside_overlay = false, _overlay_key_setting_active = false, _screenshot_key_setting_active = false;
+		bool _overlay_key_setting_active = false, _screenshot_key_setting_active = false;
 		ImGuiContext *_imgui_context = nullptr;
 		float _imgui_col_background[3] = { 0.275f, 0.275f, 0.275f }, _imgui_col_item_background[3] = { 0.447f, 0.447f, 0.447f };
 		float _imgui_col_text[3] = { 0.8f, 0.9f, 0.9f }, _imgui_col_active[3] = { 0.2f, 0.5f, 0.6f };

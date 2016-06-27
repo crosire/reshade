@@ -713,11 +713,11 @@ namespace reshade
 	{
 		const ini_file config(path);
 
-		_block_input_outside_overlay = config.get("General", "BlockInputOutsideOverlay", _block_input_outside_overlay).as<bool>();
 		const int menu_key[3] = { _menu_key.keycode, _menu_key.ctrl ? 1 : 0, _menu_key.shift ? 1 : 0 };
 		_menu_key.keycode = config.get("General", "OverlayKey", menu_key).as<int>(0);
 		_menu_key.ctrl = config.get("General", "OverlayKey", menu_key).as<bool>(1);
 		_menu_key.shift = config.get("General", "OverlayKey", menu_key).as<bool>(2);
+		_input_processing_mode = config.get("General", "InputProcessing", _input_processing_mode).as<bool>();
 		_performance_mode = config.get("General", "PerformanceMode", _performance_mode).as<bool>();
 		const auto effect_search_paths = config.get("General", "EffectSearchPaths", _effect_search_paths).data();
 		_effect_search_paths.assign(effect_search_paths.begin(), effect_search_paths.end());
@@ -817,8 +817,8 @@ namespace reshade
 	{
 		ini_file config(path);
 
-		config.set("General", "BlockInputOutsideOverlay", _block_input_outside_overlay);
 		config.set("General", "OverlayKey", { _menu_key.keycode, _menu_key.ctrl ? 1 : 0, _menu_key.shift ? 1 : 0 });
+		config.set("General", "InputProcessing", _input_processing_mode);
 		config.set("General", "PerformanceMode", _performance_mode);
 		config.set("General", "EffectSearchPaths", _effect_search_paths);
 		config.set("General", "TextureSearchPaths", _texture_search_paths);
@@ -1061,8 +1061,11 @@ namespace reshade
 
 		ImGui::Render();
 
-		_input->block_mouse_input(imgui_io.WantCaptureMouse || (_block_input_outside_overlay && _show_menu));
-		_input->block_keyboard_input(imgui_io.WantCaptureKeyboard || (_block_input_outside_overlay && _show_menu));
+		if (_input_processing_mode)
+		{
+			_input->block_mouse_input(imgui_io.WantCaptureMouse || (_input_processing_mode == 2 && _show_menu));
+			_input->block_keyboard_input(imgui_io.WantCaptureKeyboard || (_input_processing_mode == 2 && _show_menu));
+		}
 
 		render_draw_lists(ImGui::GetDrawData());
 	}
@@ -1342,11 +1345,6 @@ namespace reshade
 
 		if (ImGui::CollapsingHeader("General", ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_DefaultOpen))
 		{
-			if (ImGui::Checkbox("Block input outside overlay", &_block_input_outside_overlay))
-			{
-				save_configuration(s_settings_path);
-			}
-
 			assert(_menu_key.keycode < 256);
 
 			copy_key_shortcut_to_edit_buffer(_menu_key);
@@ -1386,6 +1384,11 @@ namespace reshade
 
 				save_configuration(s_settings_path);
 				reload();
+			}
+
+			if (ImGui::Combo("Input Processing", &_input_processing_mode, "Pass on all input\0Block input when cursor is on overlay\0Block all input when overlay is visible\0"))
+			{
+				save_configuration(s_settings_path);
 			}
 
 			copy_search_paths_to_edit_buffer(_effect_search_paths);

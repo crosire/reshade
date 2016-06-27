@@ -18,7 +18,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::QueryInterface(REFIID riid, void **ppvO
 		riid == __uuidof(IDXGISwapChain2) ||
 		riid == __uuidof(IDXGISwapChain3))
 	{
-#pragma region Update to IDXGISwapChain1 interface
+		#pragma region Update to IDXGISwapChain1 interface
 		if (riid == __uuidof(IDXGISwapChain1) && _interface_version < 1)
 		{
 			IDXGISwapChain1 *swapchain1 = nullptr;
@@ -35,8 +35,8 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::QueryInterface(REFIID riid, void **ppvO
 			_orig = swapchain1;
 			_interface_version = 1;
 		}
-#pragma endregion
-#pragma region Update to IDXGISwapChain2 interface
+		#pragma endregion
+		#pragma region Update to IDXGISwapChain2 interface
 		if (riid == __uuidof(IDXGISwapChain2) && _interface_version < 2)
 		{
 			IDXGISwapChain2 *swapchain2 = nullptr;
@@ -53,8 +53,8 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::QueryInterface(REFIID riid, void **ppvO
 			_orig = swapchain2;
 			_interface_version = 2;
 		}
-#pragma endregion
-#pragma region Update to IDXGISwapChain3 interface
+		#pragma endregion
+		#pragma region Update to IDXGISwapChain3 interface
 		if (riid == __uuidof(IDXGISwapChain3) && _interface_version < 3)
 		{
 			IDXGISwapChain3 *swapchain3 = nullptr;
@@ -71,7 +71,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::QueryInterface(REFIID riid, void **ppvO
 			_orig = swapchain3;
 			_interface_version = 3;
 		}
-#pragma endregion
+		#pragma endregion
 
 		AddRef();
 
