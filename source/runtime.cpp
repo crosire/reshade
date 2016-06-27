@@ -1578,7 +1578,7 @@ Libraries in use:\n\
 
 		ImGui::PopItemWidth();
 
-		ImGui::Spacing();
+		ImGui::BeginChild("##variables", ImVec2(-1, -1), false, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysUseWindowPadding);
 
 		for (int id = 0; id < _uniforms.size(); id++)
 		{
@@ -1674,6 +1674,8 @@ Libraries in use:\n\
 				save_preset(_preset_files[_current_preset]);
 			}
 		}
+
+		ImGui::EndChild();
 	}
 	void runtime::draw_overlay_technique_editor()
 	{
