@@ -1344,6 +1344,17 @@ namespace reshadefx
 				}
 
 				type = node->type;
+
+				for (size_t i = 0; i < callexpression->arguments.size(); i++)
+				{
+					const auto argument = callexpression->arguments[i];
+					const auto parameter = callexpression->callee->parameter_list[i];
+
+					if (argument->type.rows > parameter->type.rows || argument->type.cols > parameter->type.cols)
+					{
+						warning(argument->location, 3206, "implicit truncation of vector type");
+					}
+				}
 			}
 			else
 			{

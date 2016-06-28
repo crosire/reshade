@@ -684,17 +684,16 @@ namespace reshadefx
 		if (overload_count == 1)
 		{
 			call->type = overload->return_type;
+			call->callee = overload;
 
 			if (is_intrinsic)
 			{
 				assert(intrinsic_op < 0xFF);
 
-				call->callee = nullptr;
 				call->callee_name = static_cast<char>(intrinsic_op);
 			}
 			else
 			{
-				call->callee = overload;
 				call->callee_name = overload->name;
 			}
 
