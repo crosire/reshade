@@ -465,6 +465,8 @@ namespace reshade
 	{
 		on_reset_effect();
 
+		LOG(INFO) << "Compiling effect files ...";
+
 		for (const auto &search_path : _effect_search_paths)
 		{
 			const auto files = filesystem::list_files(search_path, "*.fx");
@@ -554,6 +556,8 @@ namespace reshade
 			}
 		}
 
+		LOG(ERROR) << "Failed to compile some effect files:\n" << _errors;
+
 		load_textures();
 
 		if (_current_preset >= 0)
@@ -639,6 +643,8 @@ namespace reshade
 	}
 	void runtime::load_textures()
 	{
+		LOG(INFO) << "Loading image files for textures ...";
+
 		for (auto &texture : _textures)
 		{
 			if (texture.impl_is_reference)
