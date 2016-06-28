@@ -1540,9 +1540,9 @@ namespace reshade
 		}
 
 		const size_t descHash = D3D10_SAMPLER_DESC_HASH(desc);
-		auto it = _sampler_descs.find(descHash);
+		auto it = _runtime->_effect_sampler_descs.find(descHash);
 
-		if (it == _sampler_descs.end())
+		if (it == _runtime->_effect_sampler_descs.end())
 		{
 			ID3D10SamplerState *sampler = nullptr;
 
@@ -1555,9 +1555,7 @@ namespace reshade
 			}
 
 			_runtime->_effect_sampler_states.push_back(sampler);
-			it = _sampler_descs.emplace(descHash, _runtime->_effect_sampler_states.size() - 1).first;
-
-			_global_code << "SamplerState __SamplerState" << it->second << " : register(s" << it->second << ");\n";
+			it = _runtime->_effect_sampler_descs.emplace(descHash, _runtime->_effect_sampler_states.size() - 1).first;
 		}
 
 		_global_code << "static const __sampler2D " << node->unique_name << " = { ";
@@ -1859,6 +1857,12 @@ namespace reshade
 			"inline float4 __tex2Dgather3offset(__sampler2D s, float2 c, int2 offset) { return float4( s.t.SampleLevel(s.s, c, 0, offset + int2(0, 1)).a, s.t.SampleLevel(s.s, c, 0, offset + int2(1, 1)).a, s.t.SampleLevel(s.s, c, 0, offset + int2(1, 0)).a, s.t.SampleLevel(s.s, c, 0, offset).a); }\n";
 
 		source += "cbuffer __GLOBAL__ : register(b0)\n{\n" + _global_uniforms.str() + "};\n";
+
+		for (const auto &samplerdesc : _runtime->_effect_sampler_descs)
+		{
+			source += "SamplerState __SamplerState" + std::to_string(samplerdesc.second) + " : register(s" + std::to_string(samplerdesc.second) + ");\n";
+		}
+
 		source += _global_code.str();
 
 		LOG(TRACE) << "> Compiling shader '" << node->name << "':\n\n" << source.c_str() << "\n";

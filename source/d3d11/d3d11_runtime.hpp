@@ -64,6 +64,7 @@ namespace reshade
 		com_ptr<ID3D11RenderTargetView> _backbuffer_rtv[3];
 		com_ptr<ID3D11ShaderResourceView> _depthstencil_texture_srv;
 		std::vector<ID3D11SamplerState *> _effect_sampler_states;
+		std::unordered_map<size_t, size_t> _effect_sampler_descs;
 		std::vector<ID3D11ShaderResourceView *> _effect_shader_resources;
 		std::vector<com_ptr<ID3D11Buffer>> _constant_buffers;
 

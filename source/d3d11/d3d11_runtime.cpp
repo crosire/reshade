@@ -525,6 +525,7 @@ namespace reshade
 			it->Release();
 		}
 
+		_effect_sampler_descs.clear();
 		_effect_sampler_states.clear();
 		_effect_shader_resources.clear();
 		_constant_buffers.clear();
