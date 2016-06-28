@@ -1172,7 +1172,7 @@ namespace reshade
 
 				if (ImGui::InputText("Path to preset file", buf, sizeof(buf), ImGuiInputTextFlags_EnterReturnsTrue))
 				{
-					const auto path = filesystem::absolute(buf, s_injector_path);
+					const auto path = filesystem::absolute(buf, s_injector_path.parent_path());
 
 					if (filesystem::exists(path) || filesystem::exists(path.parent_path()))
 					{
