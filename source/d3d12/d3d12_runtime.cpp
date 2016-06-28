@@ -11,16 +11,6 @@ namespace reshade
 		assert(queue != nullptr);
 		assert(device != nullptr);
 		assert(swapchain != nullptr);
-
-		_device->AddRef();
-		_commandqueue->AddRef();
-		_swapchain->AddRef();
-	}
-	d3d12_runtime::~d3d12_runtime()
-	{
-		_device->Release();
-		_commandqueue->Release();
-		_swapchain->Release();
 	}
 
 	bool d3d12_runtime::on_init(const DXGI_SWAP_CHAIN_DESC &desc)

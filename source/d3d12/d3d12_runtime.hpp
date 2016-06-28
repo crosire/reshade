@@ -12,7 +12,6 @@ namespace reshade
 	{
 	public:
 		d3d12_runtime(ID3D12Device *device, ID3D12CommandQueue *queue, IDXGISwapChain3 *swapchain);
-		~d3d12_runtime();
 
 		bool on_init(const DXGI_SWAP_CHAIN_DESC &desc);
 		void on_reset() override;
@@ -28,8 +27,8 @@ namespace reshade
 		void render_technique(const technique &technique) override;
 		void render_draw_lists(ImDrawData *data) override;
 
-		ID3D12Device *_device;
-		ID3D12CommandQueue *_commandqueue;
-		IDXGISwapChain3 *_swapchain;
+		com_ptr<ID3D12Device> _device;
+		com_ptr<ID3D12CommandQueue> _commandqueue;
+		com_ptr<IDXGISwapChain3> _swapchain;
 	};
 }
