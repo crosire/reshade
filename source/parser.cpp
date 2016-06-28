@@ -2562,10 +2562,8 @@ namespace reshadefx
 			if (accept(']'))
 			{
 				size = -1;
-
-				return true;
 			}
-			if (parse_expression(expression) && expect(']'))
+			else if (parse_expression(expression) && expect(']'))
 			{
 				if (expression->id != nodeid::literal_expression || !(expression->type.is_scalar() && expression->type.is_integral()))
 				{
@@ -2582,18 +2580,20 @@ namespace reshadefx
 
 					return false;
 				}
-
-				return true;
+			}
+			else
+			{
+				return false;
 			}
 		}
 
-		return false;
+		return true;
 	}
 	bool parser::parse_annotations(std::unordered_map<std::string, reshade::variant> &annotations)
 	{
 		if (!accept('<'))
 		{
-			return false;
+			return true;
 		}
 
 		while (!peek('>'))
@@ -2610,7 +2610,7 @@ namespace reshadefx
 			const auto name = _token.literal_as_string;
 			literal_expression_node *expression = nullptr;
 
-			if (!(expect('=') && parse_expression_assignment(reinterpret_cast<expression_node *&>(expression)) && expect(';')))
+			if (!(expect('=') && parse_expression_unary(reinterpret_cast<expression_node *&>(expression)) && expect(';')))
 			{
 				return false;
 			}
@@ -2727,7 +2727,10 @@ namespace reshadefx
 				field->unique_name = field->name = _token.literal_as_string;
 				field->type = type;
 
-				parse_array(field->type.array_length);
+				if (!parse_array(field->type.array_length))
+				{
+					return false;
+				}
 
 				if (accept(':'))
 				{
@@ -2870,7 +2873,10 @@ namespace reshadefx
 				parameter->type.qualifiers |= type_node::qualifier_in;
 			}
 
-			parse_array(parameter->type.array_length);
+			if (!parse_array(parameter->type.array_length))
+			{
+				return false;
+			}
 
 			if (!_symbol_table->insert(parameter))
 			{
@@ -2996,7 +3002,10 @@ namespace reshadefx
 			}
 		}
 
-		parse_array(type.array_length);
+		if (!parse_array(type.array_length))
+		{
+			return false;
+		}
 
 		variable = _ast.make_node<variable_declaration_node>(location);
 		variable->type = type;
@@ -3032,7 +3041,10 @@ namespace reshadefx
 			return true;
 		}
 
-		parse_annotations(variable->annotation_list);
+		if (global && !parse_annotations(variable->annotation_list))
+		{
+			return false;
+		}
 
 		if (accept('='))
 		{
@@ -3409,7 +3421,10 @@ namespace reshadefx
 		technique->unique_name = 'T' + _symbol_table->current_scope().name + technique->name;
 		std::replace(technique->unique_name.begin(), technique->unique_name.end(), ':', '_');
 
-		parse_annotations(technique->annotation_list);
+		if (!parse_annotations(technique->annotation_list))
+		{
+			return false;
+		}
 
 		if (!expect('{'))
 		{
@@ -3443,8 +3458,6 @@ namespace reshadefx
 		{
 			pass->unique_name = pass->name = _token.literal_as_string;
 		}
-
-		parse_annotations(pass->annotation_list);
 
 		if (!expect('{'))
 		{

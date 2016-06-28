@@ -512,7 +512,6 @@ namespace reshadefx
 
 			pass_declaration_node() : declaration_node(nodeid::pass_declaration) { }
 
-			std::unordered_map<std::string, reshade::variant> annotation_list;
 			const variable_declaration_node *render_targets[8];
 			const function_declaration_node *vertex_shader, *pixel_shader;
 			bool clear_render_targets = true, srgb_write_enable, blend_enable, depth_enable, stencil_enable;
