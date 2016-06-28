@@ -1976,7 +1976,7 @@ namespace reshade
 
 		if (errors != nullptr)
 		{
-			_errors.append(static_cast<const char *>(errors->GetBufferPointer()), errors->GetBufferSize());
+			_errors.append(static_cast<const char *>(errors->GetBufferPointer()), errors->GetBufferSize() - 1);
 		}
 
 		if (FAILED(hr))
