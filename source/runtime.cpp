@@ -1587,7 +1587,7 @@ Libraries in use:\n\
 		{
 			auto &variable = _uniforms[id];
 
-			if (variable.annotations.count("source") || variable.annotations["hidden"].as<bool>())
+			if (variable.annotations.count("source") || !variable.annotations.count("__FILE__") || variable.annotations["hidden"].as<bool>())
 			{
 				continue;
 			}
@@ -1601,15 +1601,19 @@ Libraries in use:\n\
 
 			ImGui::PushID(id);
 
-			switch (variable.basetype)
+			switch (variable.displaytype)
 			{
 				case uniform_datatype::bool_:
 				{
 					bool data[1] = { };
 					get_uniform_value(variable, data, 1);
 
-					if (ImGui::Checkbox(ui_label.c_str(), data))
+					int index = data[0] ? 0 : 1;
+
+					if (ImGui::Combo(ui_label.c_str(), &index, "On\0Off\0"))
 					{
+						data[0] = index == 0;
+
 						set_uniform_value(variable, data, 1);
 					}
 					break;
@@ -1623,6 +1627,10 @@ Libraries in use:\n\
 					if (ui_type == "drag")
 					{
 						modified = ImGui::DragIntN(ui_label.c_str(), data, variable.rows, variable.annotations["ui_step"].as<int>(), variable.annotations["ui_min"].as<int>(), variable.annotations["ui_max"].as<int>(), nullptr);
+					}
+					else if (ui_type == "combo")
+					{
+						modified = ImGui::Combo(ui_label.c_str(), data, variable.annotations["ui_items"].as<std::string>().c_str());
 					}
 					else
 					{
@@ -1688,7 +1696,7 @@ Libraries in use:\n\
 		{
 			auto &technique = _techniques[id];
 
-			if (technique.annotations["hidden"].as<bool>())
+			if (!technique.annotations.count("__FILE__") || technique.annotations["hidden"].as<bool>())
 			{
 				continue;
 			}

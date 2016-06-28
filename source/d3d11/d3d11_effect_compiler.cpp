@@ -1598,31 +1598,12 @@ namespace reshade
 		uniform obj;
 		obj.name = node->name;
 		obj.unique_name = node->unique_name;
+		obj.basetype = obj.displaytype = static_cast<uniform_datatype>(node->type.basetype - 1);
 		obj.rows = node->type.rows;
 		obj.columns = node->type.cols;
 		obj.elements = node->type.array_length;
-		obj.storage_size = node->type.rows * node->type.cols;
+		obj.storage_size = node->type.rows * node->type.cols * std::max(1u, obj.elements) * 4;
 		obj.annotations = node->annotation_list;
-
-		switch (node->type.basetype)
-		{
-			case type_node::datatype_bool:
-				obj.basetype = uniform_datatype::bool_;
-				obj.storage_size *= sizeof(int);
-				break;
-			case type_node::datatype_int:
-				obj.basetype = uniform_datatype::int_;
-				obj.storage_size *= sizeof(int);
-				break;
-			case type_node::datatype_uint:
-				obj.basetype = uniform_datatype::uint_;
-				obj.storage_size *= sizeof(unsigned int);
-				break;
-			case type_node::datatype_float:
-				obj.basetype = uniform_datatype::float_;
-				obj.storage_size *= sizeof(float);
-				break;
-		}
 
 		const UINT alignment = 16 - (_constant_buffer_size % 16);
 		_constant_buffer_size += static_cast<UINT>((obj.storage_size > alignment && (alignment != 16 || obj.storage_size <= 16)) ? obj.storage_size + alignment : obj.storage_size);

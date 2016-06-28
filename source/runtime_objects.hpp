@@ -80,7 +80,7 @@ namespace reshade
 	struct uniform final
 	{
 		std::string name, unique_name;
-		uniform_datatype basetype = uniform_datatype::float_;
+		uniform_datatype basetype = uniform_datatype::float_, displaytype = uniform_datatype::float_;
 		unsigned int rows = 0, columns = 0, elements = 0;
 		size_t storage_offset = 0, storage_size = 0;
 		std::unordered_map<std::string, variant> annotations;

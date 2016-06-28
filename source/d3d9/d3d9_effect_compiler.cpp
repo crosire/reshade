@@ -1532,15 +1532,16 @@ namespace reshade
 		uniform obj;
 		obj.name = node->name;
 		obj.unique_name = node->unique_name;
-		obj.basetype = node->type.basetype == type_node::datatype_bool ? uniform_datatype::bool_ : uniform_datatype::float_;
+		obj.basetype = uniform_datatype::float_;
+		obj.displaytype = static_cast<uniform_datatype>(node->type.basetype - 1);
 		obj.rows = node->type.rows;
 		obj.columns = node->type.cols;
 		obj.elements = node->type.array_length;
-		obj.storage_size = obj.rows * obj.columns * std::max(1u, obj.elements);
-		obj.storage_offset = _uniform_storage_offset + _constant_register_count * 16;
-		_constant_register_count += (obj.storage_size + 4 - (obj.storage_size % 4)) / 4;
-		obj.storage_size *= 4;
+		obj.storage_size = obj.rows * obj.columns * std::max(1u, obj.elements) * 4;
 		obj.annotations = node->annotation_list;
+
+		obj.storage_offset = _uniform_storage_offset + _constant_register_count * 16;
+		_constant_register_count += (obj.storage_size / 4 + 4 - ((obj.storage_size / 4) % 4)) / 4;
 
 		auto &uniform_storage = _runtime->get_uniform_value_storage();
 

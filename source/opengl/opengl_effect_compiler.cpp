@@ -2223,11 +2223,11 @@ namespace reshade
 		uniform obj;
 		obj.name = node->name;
 		obj.unique_name = node->unique_name;
+		obj.basetype = obj.displaytype = static_cast<uniform_datatype>(node->type.basetype - 1);
 		obj.rows = node->type.rows;
 		obj.columns = node->type.cols;
 		obj.elements = node->type.array_length;
 		obj.storage_size = obj.rows * obj.columns * std::max(1u, obj.elements) * 4;
-		obj.basetype = static_cast<uniform_datatype>(node->type.basetype - 1);
 		obj.annotations = node->annotation_list;
 
 		// GLSL specification on std140 layout:
