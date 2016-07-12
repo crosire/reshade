@@ -2,7 +2,6 @@
 #include "version.h"
 #include "runtime.hpp"
 #include "runtime_objects.hpp"
-#include "hook_manager.hpp"
 #include "parser.hpp"
 #include "preprocessor.hpp"
 #include "input.hpp"
@@ -20,88 +19,20 @@
 
 namespace reshade
 {
-	namespace
-	{
-		filesystem::path s_executable_path, s_injector_path, s_settings_path;
+	extern filesystem::path s_executable_path, s_injector_path;
 
-		const char keyboard_keys[256][16] = {
-			"", "", "", "Cancel", "", "", "", "", "Backspace", "Tab", "", "", "Clear", "Enter", "", "",
-			"Shift", "Control", "Alt", "Pause", "Caps Lock", "", "", "", "", "", "", "Escape", "", "", "", "",
-			"Space", "Page Up", "Page Down", "End", "Home", "Left Arrow", "Up Arrow", "Right Arrow", "Down Arrow", "Select", "", "", "Print Screen", "Insert", "Delete", "Help",
-			"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "", "", "", "", "", "",
-			"", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O",
-			"P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z", "Left Windows", "Right Windows", "", "", "Sleep",
-			"Numpad 0", "Numpad 1", "Numpad 2", "Numpad 3", "Numpad 4", "Numpad 5", "Numpad 6", "Numpad 7", "Numpad 8", "Numpad 9", "Numpad *", "Numpad +", "", "Numpad -", "Numpad Decimal", "Numpad /",
-			"F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "F10", "F11", "F12", "F13", "F14", "F15", "F16",
-			"F17", "F18", "F19", "F20", "F21", "F22", "F23", "F24", "", "", "", "", "", "", "", "",
-			"Num Lock", "Scroll Lock",
-		};
-	}
-
-	void runtime::startup(const filesystem::path &executable_path, const filesystem::path &injector_path)
-	{
-		s_injector_path = injector_path;
-		s_executable_path = executable_path;
-
-		filesystem::path log_path(injector_path), tracelog_path(injector_path);
-		log_path.replace_extension("log");
-		tracelog_path.replace_extension("tracelog");
-
-		if (filesystem::exists(tracelog_path))
-		{
-			log::debug = true;
-
-			log::open(tracelog_path);
-		}
-		else
-		{
-			log::open(log_path);
-		}
-
-#ifdef WIN64
-#define VERSION_PLATFORM "64-bit"
-#else
-#define VERSION_PLATFORM "32-bit"
-#endif
-		LOG(INFO) << "Initializing crosire's ReShade version '" VERSION_STRING_FILE "' (" << VERSION_PLATFORM << ") built on '" VERSION_DATE " " VERSION_TIME "' loaded from " << injector_path << " to " << executable_path << " ...";
-
-		const auto system_path = filesystem::get_special_folder_path(filesystem::special_folder::system);
-		const auto appdata_path = filesystem::get_special_folder_path(filesystem::special_folder::app_data) / "ReShade";
-
-		if (!filesystem::exists(appdata_path))
-		{
-			filesystem::create_directory(appdata_path);
-		}
-
-		s_settings_path = s_injector_path.parent_path() / "ReShade.ini";
-
-		if (!filesystem::exists(s_settings_path))
-		{
-			s_settings_path = appdata_path / (s_executable_path.filename_without_extension() + ".ini");
-		}
-
-		hooks::register_module(system_path / "d3d8.dll");
-		hooks::register_module(system_path / "d3d9.dll");
-		hooks::register_module(system_path / "d3d10.dll");
-		hooks::register_module(system_path / "d3d10_1.dll");
-		hooks::register_module(system_path / "d3d11.dll");
-		hooks::register_module(system_path / "d3d12.dll");
-		hooks::register_module(system_path / "dxgi.dll");
-		hooks::register_module(system_path / "opengl32.dll");
-		hooks::register_module(system_path / "user32.dll");
-		hooks::register_module(system_path / "ws2_32.dll");
-
-		LOG(INFO) << "Initialized.";
-	}
-	void runtime::shutdown()
-	{
-		LOG(INFO) << "Exiting ...";
-
-		input::uninstall();
-		hooks::uninstall();
-
-		LOG(INFO) << "Exited.";
-	}
+	const char keyboard_keys[256][16] = {
+		"", "", "", "Cancel", "", "", "", "", "Backspace", "Tab", "", "", "Clear", "Enter", "", "",
+		"Shift", "Control", "Alt", "Pause", "Caps Lock", "", "", "", "", "", "", "Escape", "", "", "", "",
+		"Space", "Page Up", "Page Down", "End", "Home", "Left Arrow", "Up Arrow", "Right Arrow", "Down Arrow", "Select", "", "", "Print Screen", "Insert", "Delete", "Help",
+		"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "", "", "", "", "", "",
+		"", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O",
+		"P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z", "Left Windows", "Right Windows", "", "", "Sleep",
+		"Numpad 0", "Numpad 1", "Numpad 2", "Numpad 3", "Numpad 4", "Numpad 5", "Numpad 6", "Numpad 7", "Numpad 8", "Numpad 9", "Numpad *", "Numpad +", "", "Numpad -", "Numpad Decimal", "Numpad /",
+		"F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "F10", "F11", "F12", "F13", "F14", "F15", "F16",
+		"F17", "F18", "F19", "F20", "F21", "F22", "F23", "F24", "", "", "", "", "", "", "", "",
+		"Num Lock", "Scroll Lock",
+	};
 
 	runtime::runtime(uint32_t renderer) :
 		_renderer_id(renderer),
@@ -116,6 +47,20 @@ namespace reshade
 			"RESHADE_DEPTH_INPUT_IS_REVERSED=0",
 			"RESHADE_DEPTH_INPUT_IS_LOGARITHMIC=0" })
 	{
+		_settings_path = s_injector_path.parent_path() / "ReShade.ini";
+
+		if (!filesystem::exists(_settings_path))
+		{
+			const auto appdata_path = filesystem::get_special_folder_path(filesystem::special_folder::app_data) / "ReShade";
+
+			if (!filesystem::exists(appdata_path))
+			{
+				filesystem::create_directory(appdata_path);
+			}
+
+			_settings_path = appdata_path / (s_executable_path.filename_without_extension() + ".ini");
+		}
+
 		ImGui::SetCurrentContext(_imgui_context);
 
 		auto &imgui_io = ImGui::GetIO();
@@ -146,14 +91,14 @@ namespace reshade
 		imgui_style.ScrollbarRounding = 0.0f;
 		imgui_style.GrabRounding = 0.0f;
 
-		const auto default_settings_path = s_settings_path.parent_path() / "Defaults.ini";
+		const auto default_settings_path = _settings_path.parent_path() / "Defaults.ini";
 
 		if (filesystem::exists(default_settings_path))
 		{
 			load_configuration(default_settings_path);
 		}
 
-		load_configuration(s_settings_path);
+		load_configuration(_settings_path);
 	}
 	runtime::~runtime()
 	{

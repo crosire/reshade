@@ -30,17 +30,6 @@ namespace reshade
 	{
 	public:
 		/// <summary>
-		/// Initialize ReShade. Registers hooks and starts logging.
-		/// </summary>
-		/// <param name="exe_path">Path to the executable ReShade was injected into.</param>
-		/// <param name="injector_path">Path to the ReShade module.</param>
-		static void startup(const filesystem::path &exe_path, const filesystem::path &injector_path);
-		/// <summary>
-		/// Shut down ReShade. Removes all installed hooks and cleans up.
-		/// </summary>
-		static void shutdown();
-
-		/// <summary>
 		/// Construct a new runtime instance.
 		/// </summary>
 		/// <param name="renderer">A unique number identifying the renderer implementation.</param>
@@ -197,6 +186,7 @@ namespace reshade
 
 		const unsigned int _renderer_id;
 		std::vector<filesystem::path> _effect_files, _preset_files, _effect_search_paths, _texture_search_paths, _included_files;
+		filesystem::path _settings_path;
 		std::chrono::high_resolution_clock::time_point _start_time, _last_create, _last_present;
 		std::chrono::high_resolution_clock::duration _last_frame_duration;
 		std::vector<unsigned char> _uniform_data_storage;
