@@ -36,9 +36,8 @@ namespace reshade
 		d3d9_runtime(IDirect3DDevice9 *device, IDirect3DSwapChain9 *swapchain);
 
 		bool on_init(const D3DPRESENT_PARAMETERS &pp);
-		void on_reset() override;
-		void on_present() override;
-		void on_present_effect() override;
+		void on_reset();
+		void on_present();
 		void on_draw_call(D3DPRIMITIVETYPE type, UINT count);
 		void on_set_depthstencil_surface(IDirect3DSurface9 *&depthstencil);
 		void on_get_depthstencil_surface(IDirect3DSurface9 *&depthstencil);

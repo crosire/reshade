@@ -14,10 +14,9 @@ namespace reshade
 		d3d12_runtime(ID3D12Device *device, ID3D12CommandQueue *queue, IDXGISwapChain3 *swapchain);
 
 		bool on_init(const DXGI_SWAP_CHAIN_DESC &desc);
-		void on_reset() override;
+		void on_reset();
 		void on_reset_effect() override;
-		void on_present() override;
-		void on_present_effect() override;
+		void on_present();
 
 		void capture_frame(uint8_t *buffer) const override;
 		bool update_effect(const reshadefx::syntax_tree &ast, std::string &errors) override;

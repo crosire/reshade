@@ -285,7 +285,17 @@ namespace reshade
 		}
 
 		// Apply post processing
-		on_present_effect();
+		if (!_techniques.empty())
+		{
+			_device->SetRenderTarget(0, _backbuffer_resolved.get());
+			_device->SetDepthStencilSurface(nullptr);
+
+			// Setup vertex input
+			_device->SetStreamSource(0, _effect_triangle_buffer.get(), 0, sizeof(float));
+			_device->SetVertexDeclaration(_effect_triangle_layout.get());
+
+			runtime::on_present_effect();
+		}
 
 		// Reset render target
 		_device->SetRenderTarget(0, _backbuffer_resolved.get());
@@ -320,23 +330,6 @@ namespace reshade
 
 		// End post processing
 		_device->EndScene();
-	}
-	void d3d9_runtime::on_present_effect()
-	{
-		if (_techniques.empty())
-		{
-			return;
-		}
-
-		_device->SetRenderTarget(0, _backbuffer_resolved.get());
-		_device->SetDepthStencilSurface(nullptr);
-
-		// Setup vertex input
-		_device->SetStreamSource(0, _effect_triangle_buffer.get(), 0, sizeof(float));
-		_device->SetVertexDeclaration(_effect_triangle_layout.get());
-
-		// Apply post processing
-		runtime::on_present_effect();
 	}
 	void d3d9_runtime::on_draw_call(D3DPRIMITIVETYPE type, UINT vertices)
 	{

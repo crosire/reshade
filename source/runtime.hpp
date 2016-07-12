@@ -123,11 +123,11 @@ namespace reshade
 		/// Callback function called when the runtime is initialized.
 		/// </summary>
 		/// <returns>Returns if the initialization succeeded.</returns>
-		virtual bool on_init();
+		bool on_init();
 		/// <summary>
 		/// Callback function called when the runtime is uninitialized.
 		/// </summary>
-		virtual void on_reset();
+		void on_reset();
 		/// <summary>
 		/// Callback function called when the post-processing effects are uninitialized.
 		/// </summary>
@@ -135,11 +135,11 @@ namespace reshade
 		/// <summary>
 		/// Callback function called every frame.
 		/// </summary>
-		virtual void on_present();
+		void on_present();
 		/// <summary>
 		/// Callback function called to apply the post-processing effects to the screen.
 		/// </summary>
-		virtual void on_present_effect();
+		void on_present_effect();
 
 		/// <summary>
 		/// Render all passes in a technique.

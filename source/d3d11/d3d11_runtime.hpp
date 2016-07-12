@@ -37,10 +37,9 @@ namespace reshade
 		d3d11_runtime(ID3D11Device *device, IDXGISwapChain *swapchain);
 
 		bool on_init(const DXGI_SWAP_CHAIN_DESC &desc);
-		void on_reset() override;
+		void on_reset();
 		void on_reset_effect() override;
-		void on_present() override;
-		void on_present_effect() override;
+		void on_present();
 		void on_draw_call(ID3D11DeviceContext *context, unsigned int vertices);
 		void on_set_depthstencil_view(ID3D11DepthStencilView *&depthstencil);
 		void on_get_depthstencil_view(ID3D11DepthStencilView *&depthstencil);

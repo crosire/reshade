@@ -560,7 +560,29 @@ namespace reshade
 		}
 
 		// Apply post processing
-		on_present_effect();
+		if (!_techniques.empty())
+		{
+			// Setup real back buffer
+			const auto render_target = _backbuffer_rtv[0].get();
+			_device->OMSetRenderTargets(1, &render_target, nullptr);
+
+			// Setup vertex input
+			const uintptr_t null = 0;
+			_device->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+			_device->IASetInputLayout(nullptr);
+			_device->IASetVertexBuffers(0, 1, reinterpret_cast<ID3D10Buffer *const *>(&null), reinterpret_cast<const UINT *>(&null), reinterpret_cast<const UINT *>(&null));
+
+			_device->RSSetState(_effect_rasterizer_state.get());
+
+			// Disable unused pipeline stages
+			_device->GSSetShader(nullptr);
+
+			// Setup samplers
+			_device->VSSetSamplers(0, static_cast<UINT>(_effect_sampler_states.size()), _effect_sampler_states.data());
+			_device->PSSetSamplers(0, static_cast<UINT>(_effect_sampler_states.size()), _effect_sampler_states.data());
+
+			runtime::on_present_effect();
+		}
 
 		// Reset render target
 		const auto render_target = _backbuffer_rtv[0].get();
@@ -590,35 +612,6 @@ namespace reshade
 
 		// Apply previous device state
 		_stateblock.apply_and_release();
-	}
-	void d3d10_runtime::on_present_effect()
-	{
-		if (_techniques.empty())
-		{
-			return;
-		}
-
-		// Setup real back buffer
-		const auto render_target = _backbuffer_rtv[0].get();
-		_device->OMSetRenderTargets(1, &render_target, nullptr);
-
-		// Setup vertex input
-		const uintptr_t null = 0;
-		_device->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-		_device->IASetInputLayout(nullptr);
-		_device->IASetVertexBuffers(0, 1, reinterpret_cast<ID3D10Buffer *const *>(&null), reinterpret_cast<const UINT *>(&null), reinterpret_cast<const UINT *>(&null));
-
-		_device->RSSetState(_effect_rasterizer_state.get());
-
-		// Disable unused pipeline stages
-		_device->GSSetShader(nullptr);
-
-		// Setup samplers
-		_device->VSSetSamplers(0, static_cast<UINT>(_effect_sampler_states.size()), _effect_sampler_states.data());
-		_device->PSSetSamplers(0, static_cast<UINT>(_effect_sampler_states.size()), _effect_sampler_states.data());
-
-		// Apply post processing
-		runtime::on_present_effect();
 	}
 	void d3d10_runtime::on_draw_call(UINT vertices)
 	{

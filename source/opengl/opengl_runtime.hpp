@@ -1,6 +1,6 @@
 #pragma once
 
-#include <gl\gl3w.h>
+#include <gl/gl3w.h>
 
 #include "runtime.hpp"
 #include "runtime_objects.hpp"
@@ -62,10 +62,9 @@ namespace reshade
 		opengl_runtime(HDC device);
 
 		bool on_init(unsigned int width, unsigned int height);
-		void on_reset() override;
+		void on_reset();
 		void on_reset_effect() override;
-		void on_present() override;
-		void on_present_effect() override;
+		void on_present();
 		void on_draw_call(unsigned int vertices);
 		void on_fbo_attachment(GLenum target, GLenum attachment, GLenum objecttarget, GLuint object, GLint level);
 

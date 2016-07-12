@@ -46,11 +46,8 @@ namespace reshade
 			return;
 		}
 
-		runtime::on_present();
-	}
-	void d3d12_runtime::on_present_effect()
-	{
 		runtime::on_present_effect();
+		runtime::on_present();
 	}
 
 	void d3d12_runtime::capture_frame(uint8_t *buffer) const

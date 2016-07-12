@@ -39,6 +39,7 @@ namespace reshade
 		_start_time(std::chrono::high_resolution_clock::now()),
 		_last_frame_duration(std::chrono::milliseconds(1)),
 		_imgui_context(ImGui::CreateContext()),
+		_settings_path(s_injector_path.parent_path() / "ReShade.ini"),
 		_effect_search_paths({ s_injector_path.parent_path() }),
 		_texture_search_paths({ s_injector_path.parent_path() }),
 		_preprocessor_definitions({
@@ -47,8 +48,6 @@ namespace reshade
 			"RESHADE_DEPTH_INPUT_IS_REVERSED=0",
 			"RESHADE_DEPTH_INPUT_IS_LOGARITHMIC=0" })
 	{
-		_settings_path = s_injector_path.parent_path() / "ReShade.ini";
-
 		if (!filesystem::exists(_settings_path))
 		{
 			const auto appdata_path = filesystem::get_special_folder_path(filesystem::special_folder::app_data) / "ReShade";
