@@ -401,6 +401,16 @@ EXPORTS
 	wglUseFontOutlinesA
 	wglUseFontOutlinesW
 
+	; vulkan-1.dll
+	vkCreateDevice
+	vkCreateSwapchainKHR
+	vkCreateWin32SurfaceKHR
+	vkDestroySurfaceKHR
+	vkDestroySwapchainKHR
+	vkGetSwapchainImagesKHR
+	vkQueuePresentKHR
+	vkGetDeviceProcAddr
+
 	; user32.dll
 	RegisterClassA = HookRegisterClassA
 	RegisterClassW = HookRegisterClassW

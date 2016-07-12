@@ -49,6 +49,7 @@
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="deps\Vulkan.props" />
     <Import Project="deps\Windows.props" />
     <Import Project="deps\DirectX.props" />
     <Import Project="deps\MinHook.props" />
@@ -196,6 +197,8 @@
     <ClCompile Include="source\hook_manager.cpp" />
     <ClCompile Include="source\dxgi\dxgi_device.cpp" />
     <ClCompile Include="source\opengl\opengl.cpp" />
+    <ClCompile Include="source\vulkan\vulkan.cpp" />
+    <ClCompile Include="source\vulkan\vulkan_runtime.cpp" />
     <ClCompile Include="source\windows\user32.cpp" />
     <ClCompile Include="source\windows\ws2_32.cpp" />
     <ClCompile Include="source\runtime.cpp" />
@@ -265,6 +268,7 @@
     <ClInclude Include="source\moving_average.hpp" />
     <ClInclude Include="source\unicode.hpp" />
     <ClInclude Include="source\variant.hpp" />
+    <ClInclude Include="source\vulkan\vulkan_runtime.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="res\resource.rc" />
