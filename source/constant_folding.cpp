@@ -106,6 +106,7 @@ namespace reshadefx
 					} \
 					break; \
 			} \
+		operand->type = expression->type; \
 		expression = operand; \
 	}
 #define DOFOLDING2(op) \
@@ -448,5 +449,5 @@ namespace reshadefx
 		}
 
 		return expression;
-		}
+	}
 }
