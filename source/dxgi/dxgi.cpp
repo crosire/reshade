@@ -154,7 +154,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, I
 				LOG(ERROR) << "Failed to initialize Direct3D 12 runtime environment on runtime " << runtime.get() << ".";
 			}
 
-			*ppSwapChain = new DXGISwapChain(commandqueue_d3d12, swapchain, runtime);
+			*ppSwapChain = new DXGISwapChain(commandqueue_d3d12, swapchain3, runtime);
 
 			swapchain3->Release();
 		}
@@ -271,7 +271,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pF
 				LOG(ERROR) << "Failed to initialize Direct3D 12 runtime environment on runtime " << runtime.get() << ".";
 			}
 
-			*ppSwapChain = new DXGISwapChain(commandqueue_d3d12, swapchain, runtime);
+			*ppSwapChain = new DXGISwapChain(commandqueue_d3d12, swapchain3, runtime);
 
 			swapchain3->Release();
 		}
@@ -386,7 +386,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactor
 				LOG(ERROR) << "Failed to initialize Direct3D 12 runtime environment on runtime " << runtime.get() << ".";
 			}
 
-			*ppSwapChain = new DXGISwapChain(commandqueue_d3d12, swapchain, runtime);
+			*ppSwapChain = new DXGISwapChain(commandqueue_d3d12, swapchain3, runtime);
 
 			swapchain3->Release();
 		}
@@ -501,7 +501,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFacto
 				LOG(ERROR) << "Failed to initialize Direct3D 12 runtime environment on runtime " << runtime.get() << ".";
 			}
 
-			*ppSwapChain = new DXGISwapChain(commandqueue_d3d12, swapchain, runtime);
+			*ppSwapChain = new DXGISwapChain(commandqueue_d3d12, swapchain3, runtime);
 
 			swapchain3->Release();
 		}

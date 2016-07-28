@@ -547,6 +547,11 @@ namespace reshade
 		// Capture device state
 		_stateblock.capture(_immediate_context.get());
 
+		// Disable unused pipeline stages
+		_immediate_context->HSSetShader(nullptr, nullptr, 0);
+		_immediate_context->DSSetShader(nullptr, nullptr, 0);
+		_immediate_context->GSSetShader(nullptr, nullptr, 0);
+
 		// Resolve back buffer
 		if (_backbuffer_resolved != _backbuffer)
 		{
@@ -567,11 +572,6 @@ namespace reshade
 			_immediate_context->IASetVertexBuffers(0, 1, reinterpret_cast<ID3D11Buffer *const *>(&null), reinterpret_cast<const UINT *>(&null), reinterpret_cast<const UINT *>(&null));
 
 			_immediate_context->RSSetState(_effect_rasterizer_state.get());
-
-			// Disable unused pipeline stages
-			_immediate_context->HSSetShader(nullptr, nullptr, 0);
-			_immediate_context->DSSetShader(nullptr, nullptr, 0);
-			_immediate_context->GSSetShader(nullptr, nullptr, 0);
 
 			// Setup samplers
 			_immediate_context->VSSetSamplers(0, static_cast<UINT>(_effect_sampler_states.size()), _effect_sampler_states.data());

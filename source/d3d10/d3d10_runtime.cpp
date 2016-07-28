@@ -553,6 +553,9 @@ namespace reshade
 		// Capture device state
 		_stateblock.capture();
 
+		// Disable unused pipeline stages
+		_device->GSSetShader(nullptr);
+
 		// Resolve back buffer
 		if (_backbuffer_resolved != _backbuffer)
 		{
@@ -573,9 +576,6 @@ namespace reshade
 			_device->IASetVertexBuffers(0, 1, reinterpret_cast<ID3D10Buffer *const *>(&null), reinterpret_cast<const UINT *>(&null), reinterpret_cast<const UINT *>(&null));
 
 			_device->RSSetState(_effect_rasterizer_state.get());
-
-			// Disable unused pipeline stages
-			_device->GSSetShader(nullptr);
 
 			// Setup samplers
 			_device->VSSetSamplers(0, static_cast<UINT>(_effect_sampler_states.size()), _effect_sampler_states.data());
