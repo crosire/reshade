@@ -19,7 +19,7 @@ namespace reshade
 			GLint _vbo;
 			GLint _ubo;
 			GLint _program;
-			GLint _textures2D[8], _samplers[8];
+			GLint _textures2D[32], _samplers[32];
 			GLint _active_texture;
 			GLint _viewport[4];
 			GLint _scissor_test;

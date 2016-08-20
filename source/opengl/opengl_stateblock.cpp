@@ -17,7 +17,7 @@ namespace reshade
 			glGetIntegerv(GL_CURRENT_PROGRAM, &_program);
 			glGetIntegerv(GL_ACTIVE_TEXTURE, &_active_texture);
 
-			for (GLuint i = 0; i < 8; i++)
+			for (GLuint i = 0; i < 32; i++)
 			{
 				glActiveTexture(GL_TEXTURE0 + i);
 				glGetIntegerv(GL_TEXTURE_BINDING_2D, &_textures2D[i]);
@@ -64,7 +64,7 @@ namespace reshade
 			glBindBuffer(GL_UNIFORM_BUFFER, _ubo);
 			glUseProgram(_program);
 
-			for (GLuint i = 0; i < 8; i++)
+			for (GLuint i = 0; i < 32; i++)
 			{
 				glActiveTexture(GL_TEXTURE0 + i);
 				glBindTexture(GL_TEXTURE_2D, _textures2D[i]);
