@@ -39,7 +39,6 @@ namespace reshade
 		_start_time(std::chrono::high_resolution_clock::now()),
 		_last_frame_duration(std::chrono::milliseconds(1)),
 		_imgui_context(ImGui::CreateContext()),
-		_settings_path(s_injector_path.parent_path() / "ReShade.ini"),
 		_effect_search_paths({ s_injector_path.parent_path() }),
 		_texture_search_paths({ s_injector_path.parent_path() }),
 		_preprocessor_definitions({
@@ -48,18 +47,6 @@ namespace reshade
 			"RESHADE_DEPTH_INPUT_IS_REVERSED=0",
 			"RESHADE_DEPTH_INPUT_IS_LOGARITHMIC=0" })
 	{
-		if (!filesystem::exists(_settings_path))
-		{
-			const auto appdata_path = filesystem::get_special_folder_path(filesystem::special_folder::app_data) / "ReShade";
-
-			if (!filesystem::exists(appdata_path))
-			{
-				filesystem::create_directory(appdata_path);
-			}
-
-			_settings_path = appdata_path / (s_executable_path.filename_without_extension() + ".ini");
-		}
-
 		ImGui::SetCurrentContext(_imgui_context);
 
 		auto &imgui_io = ImGui::GetIO();
@@ -90,14 +77,7 @@ namespace reshade
 		imgui_style.ScrollbarRounding = 0.0f;
 		imgui_style.GrabRounding = 0.0f;
 
-		const auto default_settings_path = _settings_path.parent_path() / "Defaults.ini";
-
-		if (filesystem::exists(default_settings_path))
-		{
-			load_configuration(default_settings_path);
-		}
-
-		load_configuration(_settings_path);
+		load_configuration();
 	}
 	runtime::~runtime()
 	{
@@ -659,8 +639,10 @@ namespace reshade
 			}
 		}
 	}
-	void runtime::load_configuration(const filesystem::path &path)
+	void runtime::load_configuration()
 	{
+		filesystem::path path(s_injector_path);
+		path.replace_extension(".ini");
 		const ini_file config(path);
 
 		const int menu_key[3] = { _menu_key.keycode, _menu_key.ctrl ? 1 : 0, _menu_key.shift ? 1 : 0 };
@@ -763,8 +745,10 @@ namespace reshade
 			_current_preset = -1;
 		}
 	}
-	void runtime::save_configuration(const filesystem::path &path) const
+	void runtime::save_configuration() const
 	{
+		filesystem::path path(s_injector_path);
+		path.replace_extension(".ini");
 		ini_file config(path);
 
 		config.set("General", "OverlayKey", { _menu_key.keycode, _menu_key.ctrl ? 1 : 0, _menu_key.shift ? 1 : 0 });
@@ -1089,7 +1073,7 @@ namespace reshade
 
 			if (ImGui::Combo("##presets", &_current_preset, get_preset_file, this, _preset_files.size()))
 			{
-				save_configuration(s_settings_path);
+				save_configuration();
 
 				if (_performance_mode)
 				{
@@ -1125,7 +1109,7 @@ namespace reshade
 						_current_preset = _preset_files.size() - 1;
 
 						load_preset(path);
-						save_configuration(s_settings_path);
+						save_configuration();
 
 						ImGui::CloseCurrentPopup();
 					}
@@ -1160,7 +1144,7 @@ namespace reshade
 							load_preset(_preset_files[_current_preset]);
 						}
 
-						save_configuration(s_settings_path);
+						save_configuration();
 
 						ImGui::CloseCurrentPopup();
 					}
@@ -1256,7 +1240,7 @@ namespace reshade
 			{
 				_tutorial_index++;
 
-				save_configuration(s_settings_path);
+				save_configuration();
 			}
 		}
 	}
@@ -1317,7 +1301,7 @@ namespace reshade
 						_menu_key.shift = _input->is_key_down(0x10);
 						_menu_key.keycode = _input->last_key_pressed();
 
-						save_configuration(s_settings_path);
+						save_configuration();
 					}
 				}
 			}
@@ -1332,13 +1316,13 @@ namespace reshade
 			{
 				_performance_mode = usage_mode_index == 0;
 
-				save_configuration(s_settings_path);
+				save_configuration();
 				reload();
 			}
 
 			if (ImGui::Combo("Input Processing", &_input_processing_mode, "Pass on all input\0Block input when cursor is on overlay\0Block all input when overlay is visible\0"))
 			{
-				save_configuration(s_settings_path);
+				save_configuration();
 			}
 
 			copy_search_paths_to_edit_buffer(_effect_search_paths);
@@ -1348,7 +1332,7 @@ namespace reshade
 				const auto effect_search_paths = stdext::split(edit_buffer, '\n');
 				_effect_search_paths.assign(effect_search_paths.begin(), effect_search_paths.end());
 
-				save_configuration(s_settings_path);
+				save_configuration();
 			}
 
 			copy_search_paths_to_edit_buffer(_texture_search_paths);
@@ -1358,7 +1342,7 @@ namespace reshade
 				const auto texture_search_paths = stdext::split(edit_buffer, '\n');
 				_texture_search_paths.assign(texture_search_paths.begin(), texture_search_paths.end());
 
-				save_configuration(s_settings_path);
+				save_configuration();
 			}
 
 			copy_vector_to_edit_buffer(_preprocessor_definitions);
@@ -1367,7 +1351,7 @@ namespace reshade
 			{
 				_preprocessor_definitions = stdext::split(edit_buffer, '\n');
 
-				save_configuration(s_settings_path);
+				save_configuration();
 			}
 
 			if (ImGui::Button("Restart Tutorial", ImVec2(ImGui::CalcItemWidth(), 0)))
@@ -1400,7 +1384,7 @@ namespace reshade
 						_screenshot_key.shift = _input->is_key_down(0x10);
 						_screenshot_key.keycode = _input->last_key_pressed();
 
-						save_configuration(s_settings_path);
+						save_configuration();
 					}
 				}
 			}
@@ -1415,12 +1399,12 @@ namespace reshade
 			{
 				_screenshot_path = edit_buffer;
 
-				save_configuration(s_settings_path);
+				save_configuration();
 			}
 
 			if (ImGui::Combo("Screenshot Format", &_screenshot_format, "Bitmap (*.bmp)\0Portable Network Graphics (*.png)\0"))
 			{
-				save_configuration(s_settings_path);
+				save_configuration();
 			}
 		}
 
@@ -1434,8 +1418,8 @@ namespace reshade
 
 			if (modified1 || modified2 || modified3 || modified4 || modified5)
 			{
-				save_configuration(s_settings_path);
-				load_configuration(s_settings_path);
+				save_configuration();
+				load_configuration();
 			}
 		}
 	}

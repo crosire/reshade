@@ -169,8 +169,8 @@ namespace reshade
 		void reload();
 		bool load_effect(const filesystem::path &path, reshadefx::syntax_tree &ast);
 		void load_textures();
-		void load_configuration(const filesystem::path &path);
-		void save_configuration(const filesystem::path &path) const;
+		void load_configuration();
+		void save_configuration() const;
 		void load_preset(const filesystem::path &path);
 		void save_preset(const filesystem::path &path) const;
 		void save_screenshot();
@@ -186,7 +186,6 @@ namespace reshade
 
 		const unsigned int _renderer_id;
 		std::vector<filesystem::path> _effect_files, _preset_files, _effect_search_paths, _texture_search_paths, _included_files;
-		filesystem::path _settings_path;
 		std::chrono::high_resolution_clock::time_point _start_time, _last_create, _last_present;
 		std::chrono::high_resolution_clock::duration _last_frame_duration;
 		std::vector<unsigned char> _uniform_data_storage;
