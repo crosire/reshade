@@ -1,7 +1,4 @@
 EXPORTS
-	; d3d8.dll
-	Direct3DCreate8
-
 	; d3d9.dll
 	Direct3DCreate9
 	Direct3DCreate9Ex

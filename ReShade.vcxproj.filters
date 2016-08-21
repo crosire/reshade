@@ -19,9 +19,6 @@
     <Filter Include="hooks">
       <UniqueIdentifier>{3c3eb495-1eeb-4c7c-b58f-3bbcf24758f6}</UniqueIdentifier>
     </Filter>
-    <Filter Include="hooks\d3d8">
-      <UniqueIdentifier>{a3913447-db24-436c-b638-efb49465b199}</UniqueIdentifier>
-    </Filter>
     <Filter Include="hooks\d3d9">
       <UniqueIdentifier>{63356f14-45b5-4047-9be1-e7e6e8a3f3e5}</UniqueIdentifier>
     </Filter>
@@ -62,9 +59,6 @@
     </ClCompile>
     <ClCompile Include="source\input.cpp">
       <Filter>core\runtime</Filter>
-    </ClCompile>
-    <ClCompile Include="source\d3d8\d3d8.cpp">
-      <Filter>hooks\d3d8</Filter>
     </ClCompile>
     <ClCompile Include="source\windows\user32.cpp">
       <Filter>hooks\windows</Filter>
@@ -208,12 +202,6 @@
     </ClInclude>
     <ClInclude Include="source\moving_average.hpp">
       <Filter>core\utils</Filter>
-    </ClInclude>
-    <ClInclude Include="source\d3d8\d3d8.hpp">
-      <Filter>hooks\d3d8</Filter>
-    </ClInclude>
-    <ClInclude Include="source\d3d8\d3d8_types.h">
-      <Filter>hooks\d3d8</Filter>
     </ClInclude>
     <ClInclude Include="source\lexer.hpp">
       <Filter>core\fx</Filter>

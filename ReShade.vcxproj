@@ -72,8 +72,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>$(SolutionDir)\bin\$(Platform)\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <ModuleDefinitionFile>res\exports32.def</ModuleDefinitionFile>
-      <AdditionalDependencies>d3dx9.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <DelayLoadDLLs>d3dcompiler_43.dll;d3dx9_43.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
+      <DelayLoadDLLs>d3dcompiler_43.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
     </Link>
     <ResourceCompile>
       <PreprocessorDefinitions>WIN32;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -98,7 +97,6 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>$(SolutionDir)\bin\$(Platform)\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <ModuleDefinitionFile>res\exports64.def</ModuleDefinitionFile>
-      <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
       <DelayLoadDLLs>d3dcompiler_43.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
     </Link>
     <ResourceCompile>
@@ -128,8 +126,7 @@
       <OptimizeReferences>true</OptimizeReferences>
       <AdditionalLibraryDirectories>$(SolutionDir)\bin\$(Platform)\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <ModuleDefinitionFile>res\exports32.def</ModuleDefinitionFile>
-      <AdditionalDependencies>d3dx9.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <DelayLoadDLLs>d3dcompiler_43.dll;d3dx9_43.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
+      <DelayLoadDLLs>d3dcompiler_43.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
     </Link>
     <ResourceCompile>
       <PreprocessorDefinitions>WIN32;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -158,7 +155,6 @@
       <OptimizeReferences>true</OptimizeReferences>
       <AdditionalLibraryDirectories>$(SolutionDir)\bin\$(Platform)\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <ModuleDefinitionFile>res\exports64.def</ModuleDefinitionFile>
-      <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
       <DelayLoadDLLs>d3dcompiler_43.dll;%(DelayLoadDLLs)</DelayLoadDLLs>
     </Link>
     <ResourceCompile>
@@ -194,9 +190,6 @@
     <ClCompile Include="source\symbol_table.cpp" />
     <ClCompile Include="source\hook.cpp" />
     <ClCompile Include="source\hook_manager.cpp" />
-    <ClCompile Include="source\d3d8\d3d8.cpp">
-      <ExcludedFromBuild Condition="'$(Platform)'=='x64'">true</ExcludedFromBuild>
-    </ClCompile>
     <ClCompile Include="source\dxgi\dxgi_device.cpp" />
     <ClCompile Include="source\opengl\opengl.cpp" />
     <ClCompile Include="source\windows\user32.cpp" />
@@ -247,8 +240,6 @@
     <ClInclude Include="source\symbol_table.hpp" />
     <ClInclude Include="source\hook.hpp" />
     <ClInclude Include="source\hook_manager.hpp" />
-    <ClInclude Include="source\d3d8\d3d8.hpp" />
-    <ClInclude Include="source\d3d8\d3d8_types.h" />
     <ClInclude Include="source\dxgi\dxgi_device.hpp" />
     <ClInclude Include="source\runtime.hpp" />
     <ClInclude Include="source\input.hpp" />
