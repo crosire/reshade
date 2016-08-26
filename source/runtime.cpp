@@ -1044,6 +1044,7 @@ namespace reshade
 	}
 	void runtime::draw_overlay_menu_home()
 	{
+		bool continue_tutorial = false;
 		const char *tutorial_text =
 			"Welcome! Since this is the first time you start ReShade, we'll go through a quick tutorial covering the most important features.\n\n"
 			"Before we continue: If you have difficulties reading this text, press the 'Ctrl' key and adjust the text size with your mouse wheel. "
@@ -1055,10 +1056,11 @@ namespace reshade
 			if (_tutorial_index == 1)
 			{
 				tutorial_text =
-					"This is the preset file selection. All changes to techniques and variables will be saved to the selected file.\n\n"
-					"You can add a new one by clicking on the '+' button and entering the full path to the file. To delete the selected preset, click on the '-' button. "
-					"If any valid presets were put into the same folder as ReShade (or a subdirectory), they were already added to the list for you.\n"
-					"Make sure a valid file is selected here before starting to tweak any values later, or else your changes won't be saved!";
+					"This is the preset selection. All changes to techniques and variables will be saved to the selected file.\n\n"
+					"You can add a new one by clicking on the '+' button. Simply enter a new preset name or the full path to an existing preset (*.ini files) in the text box that opens.\n"
+					"To delete the selected preset file, click on the '-' button.\n"
+					"Make sure a valid file is selected here before starting to tweak any values later, or else your changes won't be saved!\n\n"
+					"Add a new preset by clicking on the '+' button to continue the tutorial.";
 
 				ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(1, 0, 0, 1));
 				ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1, 0, 0, 1));
@@ -1098,9 +1100,10 @@ namespace reshade
 			{
 				char buf[260] = { };
 
-				if (ImGui::InputText("Path to preset file", buf, sizeof(buf), ImGuiInputTextFlags_EnterReturnsTrue))
+				if (ImGui::InputText("Name", buf, sizeof(buf), ImGuiInputTextFlags_EnterReturnsTrue))
 				{
-					const auto path = filesystem::absolute(buf, s_injector_path.parent_path());
+					auto path = filesystem::absolute(buf, s_injector_path.parent_path());
+					path.replace_extension(".ini");
 
 					if (filesystem::exists(path) || filesystem::exists(path.parent_path()))
 					{
@@ -1112,6 +1115,11 @@ namespace reshade
 						save_configuration();
 
 						ImGui::CloseCurrentPopup();
+
+						if (_tutorial_index == 1)
+						{
+							continue_tutorial = true;
+						}
 					}
 				}
 
@@ -1236,7 +1244,7 @@ namespace reshade
 			ImGui::TextWrapped(tutorial_text);
 			ImGui::EndChildFrame();
 
-			if (ImGui::Button(_tutorial_index == 3 ? "Finish" : "Continue", ImVec2(-1, 0)))
+			if (_tutorial_index != 1 && ImGui::Button(_tutorial_index == 3 ? "Finish" : "Continue", ImVec2(-1, 0)) || continue_tutorial)
 			{
 				_tutorial_index++;
 
