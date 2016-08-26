@@ -27,7 +27,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID lpvReserved)
 			s_executable_path = filesystem::get_module_path(nullptr);
 
 			filesystem::path log_path(s_injector_path);
-			log_path.replace_extension("log");
+			log_path.replace_extension(".log");
 
 			log::open(log_path);
 

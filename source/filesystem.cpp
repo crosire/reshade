@@ -84,7 +84,7 @@ namespace reshade
 			WCHAR buffer[MAX_PATH] = { };
 			stdext::utf8_to_utf16(_data, buffer);
 
-			PathRenameExtensionW(buffer, stdext::utf8_to_utf16('.' + extension).c_str());
+			PathRenameExtensionW(buffer, stdext::utf8_to_utf16(extension).c_str());
 			return operator=(stdext::utf16_to_utf8(buffer));
 		}
 
