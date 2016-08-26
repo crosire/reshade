@@ -1,6 +1,6 @@
 #pragma once
 
-#include "location.hpp"
+#include "source_location.hpp"
 
 namespace reshadefx
 {
@@ -195,7 +195,12 @@ namespace reshadefx
 		/// Construct a new lexical analyzer for an input string.
 		/// </summary>
 		/// <param name="source">The string to analyze.</param>
-		explicit lexer(const std::string &input, bool ignore_whitespace = true, bool ignore_pp_directives = true, bool ignore_keywords = false, bool escape_string_literals = true);
+		explicit lexer(
+			const std::string &input,
+			bool ignore_whitespace = true,
+			bool ignore_pp_directives = true,
+			bool ignore_keywords = false,
+			bool escape_string_literals = true);
 
 		/// <summary>
 		/// Get the input string this lexical analyzer works on.

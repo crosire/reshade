@@ -14,10 +14,8 @@ namespace reshadefx
 	public:
 		struct macro
 		{
-			macro() : is_function_like(false), is_variadic(false) { }
-
 			std::string replacement_list;
-			bool is_function_like, is_variadic;
+			bool is_function_like = false, is_variadic = false;
 			std::vector<std::string> parameters;
 		};
 
@@ -40,7 +38,10 @@ namespace reshadefx
 		};
 		struct input_level
 		{
-			input_level(const std::string &name, const std::string &text, input_level *parent) : _name(name), _lexer(new lexer(text, false, false, true, false)), _parent(parent)
+			input_level(const std::string &name, const std::string &text, input_level *parent) :
+				_name(name),
+				_lexer(new lexer(text, false, false, true, false)),
+				_parent(parent)
 			{
 				_next_token.id = lexer::tokenid::unknown;
 				_next_token.offset = _next_token.length = 0;

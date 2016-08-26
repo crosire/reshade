@@ -1,7 +1,6 @@
 #include "parser.hpp"
 #include "symbol_table.hpp"
 #include "constant_folding.hpp"
-
 #include <algorithm>
 
 namespace reshadefx

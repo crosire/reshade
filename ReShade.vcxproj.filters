@@ -224,7 +224,7 @@
     <ClInclude Include="source\constant_folding.hpp">
       <Filter>core\fx</Filter>
     </ClInclude>
-    <ClInclude Include="source\location.hpp">
+    <ClInclude Include="source\source_location.hpp">
       <Filter>core\fx</Filter>
     </ClInclude>
     <ClInclude Include="source\runtime_objects.hpp">
