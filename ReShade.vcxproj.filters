@@ -326,10 +326,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="res\resource.rc2" />
-    <None Include="res\exports32.def">
-      <Filter>hooks</Filter>
-    </None>
-    <None Include="res\exports64.def">
+    <None Include="res\exports.def">
       <Filter>hooks</Filter>
     </None>
   </ItemGroup>
