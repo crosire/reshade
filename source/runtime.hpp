@@ -167,7 +167,7 @@ namespace reshade
 		struct key_shortcut { int keycode; bool ctrl, shift; };
 
 		void reload();
-		bool load_effect(const filesystem::path &path, reshadefx::syntax_tree &ast);
+		bool load_effect(const filesystem::path &path, reshadefx::syntax_tree &ast, std::string &errors);
 		void load_textures();
 		void load_configuration();
 		void save_configuration() const;
@@ -190,9 +190,9 @@ namespace reshade
 		std::chrono::high_resolution_clock::duration _last_frame_duration;
 		std::vector<unsigned char> _uniform_data_storage;
 		int _date[4] = { };
-		std::string _errors, _message, _effect_source;
+		std::string _errors, _message;
 		std::vector<std::string> _preprocessor_definitions;
-		int _menu_index = 0, _screenshot_format = 0, _current_preset = -1, _current_effect_file = -1, _input_processing_mode = 1;
+		int _menu_index = 0, _screenshot_format = 0, _current_preset = -1, _input_processing_mode = 1;
 		key_shortcut _menu_key = { 0x71, false, true }, _screenshot_key = { 0x2C };
 		filesystem::path _screenshot_path;
 		int _selected_technique = -1;

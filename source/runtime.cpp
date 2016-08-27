@@ -397,10 +397,13 @@ namespace reshade
 
 			for (const auto &path : files)
 			{
+				std::string errors;
 				reshadefx::syntax_tree ast;
 
-				if (!load_effect(path, ast))
+				if (!load_effect(path, ast, errors))
 				{
+					LOG(ERROR) << "Failed to compile " << path << ":\n" << errors;
+					_errors += path.string() + ":\n" + errors;
 					continue;
 				}
 
@@ -443,8 +446,10 @@ namespace reshade
 					}
 				}
 
-				if (!update_effect(ast, _errors))
+				if (!update_effect(ast, errors))
 				{
+					LOG(ERROR) << "Failed to compile " << path << ":\n" << errors;
+					_errors += path.string() + ":\n" + errors;
 					continue;
 				}
 
@@ -477,10 +482,18 @@ namespace reshade
 						technique.toggle_time = technique.annotations["toggletime"].as<int>();
 					}
 				}
+
+				if (errors.empty())
+				{
+					LOG(INFO) << "Successfully compiled " << path << ".";
+				}
+				else
+				{
+					LOG(WARNING) << "Successfully compiled " << path << " with warnings:\n" << errors;
+					_errors += path.string() + ":\n" + errors;
+				}
 			}
 		}
-
-		LOG(ERROR) << "Failed to compile some effect files:\n" << _errors;
 
 		load_textures();
 
@@ -489,9 +502,9 @@ namespace reshade
 			load_preset(_preset_files[_current_preset]);
 		}
 	}
-	bool runtime::load_effect(const filesystem::path &path, reshadefx::syntax_tree &ast)
+	bool runtime::load_effect(const filesystem::path &path, reshadefx::syntax_tree &ast, std::string &errors)
 	{
-		reshadefx::parser pa(ast, _errors);
+		reshadefx::parser pa(ast, errors);
 		reshadefx::preprocessor pp;
 
 		pp.add_include_path(path.parent_path());
@@ -537,7 +550,7 @@ namespace reshade
 
 		if (!pp.run(path, _included_files))
 		{
-			_errors += pp.current_errors();
+			errors += pp.current_errors();
 
 			return false;
 		}
@@ -646,39 +659,40 @@ namespace reshade
 		const ini_file config(path);
 
 		const int menu_key[3] = { _menu_key.keycode, _menu_key.ctrl ? 1 : 0, _menu_key.shift ? 1 : 0 };
-		_menu_key.keycode = config.get("General", "OverlayKey", menu_key).as<int>(0);
-		_menu_key.ctrl = config.get("General", "OverlayKey", menu_key).as<bool>(1);
-		_menu_key.shift = config.get("General", "OverlayKey", menu_key).as<bool>(2);
-		_input_processing_mode = config.get("General", "InputProcessing", _input_processing_mode).as<bool>();
-		_performance_mode = config.get("General", "PerformanceMode", _performance_mode).as<bool>();
-		const auto effect_search_paths = config.get("General", "EffectSearchPaths", _effect_search_paths).data();
-		_effect_search_paths.assign(effect_search_paths.begin(), effect_search_paths.end());
-		const auto texture_search_paths = config.get("General", "TextureSearchPaths", _texture_search_paths).data();
-		_texture_search_paths.assign(texture_search_paths.begin(), texture_search_paths.end());
-		_preprocessor_definitions = config.get("General", "PreprocessorDefinitions", _preprocessor_definitions).data();
-		const auto preset_files = config.get("General", "PresetFiles", _preset_files).data();
-		_preset_files.assign(preset_files.begin(), preset_files.end());
-		_current_preset = config.get("General", "CurrentPreset", _current_preset).as<int>();
-		_tutorial_index = config.get("General", "TutorialProgress", _tutorial_index).as<unsigned int>();
-
+		_menu_key.keycode = config.get("INPUT", "KeyMenu", menu_key).as<int>();
+		_menu_key.ctrl = config.get("INPUT", "KeyMenu", menu_key).as<bool>(1);
+		_menu_key.shift = config.get("INPUT", "KeyMenu", menu_key).as<bool>(2);
 		const int screenshot_key[3] = { _screenshot_key.keycode, _screenshot_key.ctrl ? 1 : 0, _screenshot_key.shift ? 1 : 0 };
-		_screenshot_key.keycode = config.get("Screenshots", "Key", screenshot_key).as<int>(0);
-		_screenshot_key.ctrl = config.get("Screenshots", "Key", screenshot_key).as<bool>(1);
-		_screenshot_key.shift = config.get("Screenshots", "Key", screenshot_key).as<bool>(2);
-		_screenshot_path = config.get("Screenshots", "TargetPath", s_executable_path.parent_path()).as<filesystem::path>();
-		_screenshot_format = config.get("Screenshots", "ImageFormat", 0).as<int>();
+		_screenshot_key.keycode = config.get("INPUT", "KeyScreenshot", screenshot_key).as<int>();
+		_screenshot_key.ctrl = config.get("INPUT", "KeyScreenshot", screenshot_key).as<bool>(1);
+		_screenshot_key.shift = config.get("INPUT", "KeyScreenshot", screenshot_key).as<bool>(2);
+		_input_processing_mode = config.get("INPUT", "InputProcessing", _input_processing_mode).as<bool>();
+
+		_performance_mode = config.get("GENERAL", "PerformanceMode", _performance_mode).as<bool>();
+		const auto effect_search_paths = config.get("GENERAL", "EffectSearchPaths", _effect_search_paths).data();
+		_effect_search_paths.assign(effect_search_paths.begin(), effect_search_paths.end());
+		const auto texture_search_paths = config.get("GENERAL", "TextureSearchPaths", _texture_search_paths).data();
+		_texture_search_paths.assign(texture_search_paths.begin(), texture_search_paths.end());
+		_preprocessor_definitions = config.get("GENERAL", "PreprocessorDefinitions", _preprocessor_definitions).data();
+		const auto preset_files = config.get("GENERAL", "PresetFiles", _preset_files).data();
+		_preset_files.assign(preset_files.begin(), preset_files.end());
+		_current_preset = config.get("GENERAL", "CurrentPreset", _current_preset).as<int>();
+		_tutorial_index = config.get("GENERAL", "TutorialProgress", _tutorial_index).as<unsigned int>();
+
+		_screenshot_path = config.get("GENERAL", "ScreenshotPath", s_executable_path.parent_path()).as<filesystem::path>();
+		_screenshot_format = config.get("GENERAL", "ScreenshotFormat", 0).as<int>();
 
 		auto &style = ImGui::GetStyle();
-		style.Alpha = config.get("User Interface", "Alpha", 0.95f).as<float>();
+		style.Alpha = config.get("STYLE", "Alpha", 0.95f).as<float>();
 
 		for (size_t i = 0; i < 3; i++)
-			_imgui_col_background[i] = config.get("User Interface", "ColBackground", _imgui_col_background).as<float>(i);
+			_imgui_col_background[i] = config.get("STYLE", "ColBackground", _imgui_col_background).as<float>(i);
 		for (size_t i = 0; i < 3; i++)
-			_imgui_col_item_background[i] = config.get("User Interface", "ColItemBackground", _imgui_col_item_background).as<float>(i);
+			_imgui_col_item_background[i] = config.get("STYLE", "ColItemBackground", _imgui_col_item_background).as<float>(i);
 		for (size_t i = 0; i < 3; i++)
-			_imgui_col_text[i] = config.get("User Interface", "ColText", _imgui_col_text).as<float>(i);
+			_imgui_col_text[i] = config.get("STYLE", "ColText", _imgui_col_text).as<float>(i);
 		for (size_t i = 0; i < 3; i++)
-			_imgui_col_active[i] = config.get("User Interface", "ColActive", _imgui_col_active).as<float>(i);
+			_imgui_col_active[i] = config.get("STYLE", "ColActive", _imgui_col_active).as<float>(i);
 
 		style.Colors[ImGuiCol_Text] = ImVec4(_imgui_col_text[0], _imgui_col_text[1], _imgui_col_text[2], 1.00f);
 		style.Colors[ImGuiCol_TextDisabled] = ImVec4(_imgui_col_text[0], _imgui_col_text[1], _imgui_col_text[2], 0.58f);
@@ -751,26 +765,26 @@ namespace reshade
 		path.replace_extension(".ini");
 		ini_file config(path);
 
-		config.set("General", "OverlayKey", { _menu_key.keycode, _menu_key.ctrl ? 1 : 0, _menu_key.shift ? 1 : 0 });
-		config.set("General", "InputProcessing", _input_processing_mode);
-		config.set("General", "PerformanceMode", _performance_mode);
-		config.set("General", "EffectSearchPaths", _effect_search_paths);
-		config.set("General", "TextureSearchPaths", _texture_search_paths);
-		config.set("General", "PreprocessorDefinitions", _preprocessor_definitions);
-		config.set("General", "PresetFiles", _preset_files);
-		config.set("General", "CurrentPreset", _current_preset);
-		config.set("General", "TutorialProgress", _tutorial_index);
+		config.set("INPUT", "KeyMenu", { _menu_key.keycode, _menu_key.ctrl ? 1 : 0, _menu_key.shift ? 1 : 0 });
+		config.set("INPUT", "KeyScreenshot", { _screenshot_key.keycode, _screenshot_key.ctrl ? 1 : 0, _screenshot_key.shift ? 1 : 0 });
+		config.set("INPUT", "InputProcessing", _input_processing_mode);
 
-		config.set("Screenshots", "Key", { _screenshot_key.keycode, _screenshot_key.ctrl ? 1 : 0, _screenshot_key.shift ? 1 : 0 });
-		config.set("Screenshots", "TargetPath", _screenshot_path);
-		config.set("Screenshots", "ImageFormat", _screenshot_format);
+		config.set("GENERAL", "PerformanceMode", _performance_mode);
+		config.set("GENERAL", "EffectSearchPaths", _effect_search_paths);
+		config.set("GENERAL", "TextureSearchPaths", _texture_search_paths);
+		config.set("GENERAL", "PreprocessorDefinitions", _preprocessor_definitions);
+		config.set("GENERAL", "PresetFiles", _preset_files);
+		config.set("GENERAL", "CurrentPreset", _current_preset);
+		config.set("GENERAL", "TutorialProgress", _tutorial_index);
+		config.set("GENERAL", "ScreenshotPath", _screenshot_path);
+		config.set("GENERAL", "ScreenshotFormat", _screenshot_format);
 
 		const auto &style = ImGui::GetStyle();
-		config.set("User Interface", "Alpha", style.Alpha);
-		config.set("User Interface", "ColBackground", _imgui_col_background);
-		config.set("User Interface", "ColItemBackground", _imgui_col_item_background);
-		config.set("User Interface", "ColText", _imgui_col_text);
-		config.set("User Interface", "ColActive", _imgui_col_active);
+		config.set("STYLE", "Alpha", style.Alpha);
+		config.set("STYLE", "ColBackground", _imgui_col_background);
+		config.set("STYLE", "ColItemBackground", _imgui_col_item_background);
+		config.set("STYLE", "ColText", _imgui_col_text);
+		config.set("STYLE", "ColActive", _imgui_col_active);
 	}
 	void runtime::load_preset(const filesystem::path &path)
 	{
@@ -799,7 +813,7 @@ namespace reshade
 		}
 
 		// Reorder techniques
-		auto order = preset.get("GLOBAL", "Techniques").data();
+		auto order = preset.get("", "Techniques").data();
 		std::sort(_techniques.begin(), _techniques.end(),
 			[&order](const auto &lhs, const auto &rhs)
 		{
@@ -841,7 +855,7 @@ namespace reshade
 			}
 		}
 
-		preset.set("GLOBAL", "Techniques", technique_list);
+		preset.set("", "Techniques", technique_list);
 	}
 	void runtime::save_screenshot()
 	{
@@ -944,7 +958,7 @@ namespace reshade
 
 		if (show_splash)
 		{
-			const bool has_errors = !_errors.empty();
+			const bool has_errors = _errors.find("error") != std::string::npos;
 			const ImVec2 splash_size(_width - 20.0f, ImGui::GetItemsLineHeightWithSpacing() * (has_errors ? 4 : 3));
 
 			ImGui::Begin("Splash Screen", nullptr, splash_size, -1, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoInputs);
@@ -984,7 +998,18 @@ namespace reshade
 
 				for (const auto &line : stdext::split(_errors, '\n'))
 				{
-					ImGui::TextColored(line.find("warning") != std::string::npos ? ImVec4(1, 1, 0, 1) : ImVec4(1, 0, 0, 1), line.c_str());
+					ImVec4 textcol(1, 1, 1, 1);
+
+					if (line.find("error") != std::string::npos)
+					{
+						textcol = ImVec4(1, 0, 0, 1);
+					}
+					else if (line.find("warning") != std::string::npos)
+					{
+						textcol = ImVec4(1, 1, 0, 1);
+					}
+
+					ImGui::TextColored(textcol, line.c_str());
 				}
 
 				ImGui::PopTextWrapPos();
@@ -1057,8 +1082,8 @@ namespace reshade
 			{
 				tutorial_text =
 					"This is the preset selection. All changes to techniques and variables will be saved to the selected file.\n\n"
-					"You can add a new one by clicking on the '+' button. Simply enter a new preset name or the full path to an existing preset (*.ini files) in the text box that opens.\n"
-					"To delete the selected preset file, click on the '-' button.\n"
+					"You can add a new one by clicking on the '+' button. Simply enter a new preset name or the full path to an existing file (*.ini) in the text box that opens.\n"
+					"To delete the currently selected preset file, click on the '-' button.\n"
 					"Make sure a valid file is selected here before starting to tweak any values later, or else your changes won't be saved!\n\n"
 					"Add a new preset by clicking on the '+' button to continue the tutorial.";
 
@@ -1525,6 +1550,9 @@ Libraries in use:\n\
 
 		ImGui::BeginChild("##variables", ImVec2(-1, -1), false, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysUseWindowPadding);
 
+		std::string current_filename;
+		bool tree_is_closed = true;
+
 		for (int id = 0; id < _uniforms.size(); id++)
 		{
 			auto &variable = _uniforms[id];
@@ -1538,8 +1566,24 @@ Libraries in use:\n\
 
 			const std::string filename = variable.annotations.at("__FILE__").as<filesystem::path>().filename().string();
 			const auto ui_type = variable.annotations["ui_type"].as<std::string>();
-			const auto ui_label = variable.annotations.count("ui_label") ? variable.annotations.at("ui_label").as<std::string>() : variable.name + " [" + filename + "]";
+			const auto ui_label = variable.annotations.count("ui_label") ? variable.annotations.at("ui_label").as<std::string>() : variable.name;
 			const auto ui_tooltip = variable.annotations["ui_tooltip"].as<std::string>();
+
+			if (current_filename != filename)
+			{
+				if (!tree_is_closed)
+				{
+					ImGui::TreePop();
+				}
+
+				tree_is_closed = !ImGui::TreeNodeEx(filename.c_str(), ImGuiTreeNodeFlags_DefaultOpen);
+
+				current_filename = filename;
+			}
+			if (tree_is_closed)
+			{
+				continue;
+			}
 
 			ImGui::PushID(id);
 
@@ -1628,11 +1672,18 @@ Libraries in use:\n\
 			}
 		}
 
+		if (!tree_is_closed)
+		{
+			ImGui::TreePop();
+		}
+
 		ImGui::EndChild();
 	}
 	void runtime::draw_overlay_technique_editor()
 	{
 		int hovered_technique_index = -1;
+		std::string current_filename;
+		bool tree_is_closed = true;
 
 		for (int id = 0; id < _techniques.size(); id++)
 		{
@@ -1644,11 +1695,26 @@ Libraries in use:\n\
 			}
 
 			const std::string filename = technique.annotations.at("__FILE__").as<filesystem::path>().filename().string();
-			const auto ui_label = technique.name + " [" + filename + "]";
+
+			if (current_filename != filename)
+			{
+				if (!tree_is_closed)
+				{
+					ImGui::TreePop();
+				}
+
+				tree_is_closed = !ImGui::TreeNodeEx(filename.c_str(), ImGuiTreeNodeFlags_DefaultOpen);
+
+				current_filename = filename;
+			}
+			if (tree_is_closed)
+			{
+				continue;
+			}
 
 			ImGui::PushID(id);
 
-			if (ImGui::Checkbox(ui_label.c_str(), &technique.enabled) && _current_preset >= 0)
+			if (ImGui::Checkbox(technique.name.c_str(), &technique.enabled) && _current_preset >= 0)
 			{
 				save_preset(_preset_files[_current_preset]);
 			}
@@ -1663,6 +1729,11 @@ Libraries in use:\n\
 			}
 
 			ImGui::PopID();
+		}
+
+		if (!tree_is_closed)
+		{
+			ImGui::TreePop();
 		}
 
 		if (ImGui::IsMouseDragging() && _selected_technique >= 0)
