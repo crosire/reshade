@@ -4,8 +4,19 @@
 
 struct Direct3DSwapChain9 : IDirect3DSwapChain9Ex
 {
-	Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapChain9   *original, const std::shared_ptr<reshade::d3d9_runtime> &runtime) : _ref(1), _orig(original), _interface_version(0), _device(device), _runtime(runtime) { }
-	Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapChain9Ex *original, const std::shared_ptr<reshade::d3d9_runtime> &runtime) : _ref(1), _orig(original), _interface_version(1), _device(device), _runtime(runtime) { }
+	Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapChain9   *original, const std::shared_ptr<reshade::d3d9_runtime> &runtime) :
+		_orig(original),
+		_interface_version(0),
+		_device(device),
+		_runtime(runtime) { }
+	Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapChain9Ex *original, const std::shared_ptr<reshade::d3d9_runtime> &runtime) :
+		_orig(original),
+		_interface_version(1),
+		_device(device),
+		_runtime(runtime) { }
+
+	Direct3DSwapChain9(const Direct3DSwapChain9 &) = delete;
+	Direct3DSwapChain9 &operator=(const Direct3DSwapChain9 &) = delete;
 
 	#pragma region IUnknown
 	virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
@@ -27,13 +38,9 @@ struct Direct3DSwapChain9 : IDirect3DSwapChain9Ex
 	virtual HRESULT STDMETHODCALLTYPE GetDisplayModeEx(D3DDISPLAYMODEEX *pMode, D3DDISPLAYROTATION *pRotation) override;
 	#pragma endregion
 
-	LONG _ref;
+	LONG _ref = 1;
 	IDirect3DSwapChain9 *_orig;
 	unsigned int _interface_version;
 	Direct3DDevice9 *const _device;
 	std::shared_ptr<reshade::d3d9_runtime> _runtime;
-
-private:
-	Direct3DSwapChain9(const Direct3DSwapChain9 &) = delete;
-	Direct3DSwapChain9 &operator=(const Direct3DSwapChain9 &) = delete;
 };

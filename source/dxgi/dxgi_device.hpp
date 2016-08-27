@@ -4,8 +4,17 @@
 
 struct DXGIDevice : IDXGIDevice3
 {
-	DXGIDevice(IDXGIDevice *original, D3D10Device *direct3d_device) : _ref(1), _orig(original), _interface_version(0), _direct3d_device(direct3d_device) { }
-	DXGIDevice(IDXGIDevice *original, D3D11Device *direct3d_device) : _ref(1), _orig(original), _interface_version(0), _direct3d_device(direct3d_device) { }
+	DXGIDevice(IDXGIDevice *original, D3D10Device *direct3d_device) :
+		_orig(original),
+		_interface_version(0),
+		_direct3d_device(direct3d_device) { }
+	DXGIDevice(IDXGIDevice *original, D3D11Device *direct3d_device) :
+		_orig(original),
+		_interface_version(0),
+		_direct3d_device(direct3d_device) { }
+
+	DXGIDevice(const DXGIDevice &) = delete;
+	DXGIDevice &operator=(const DXGIDevice &) = delete;
 
 	#pragma region IUnknown
 	virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
@@ -38,12 +47,8 @@ struct DXGIDevice : IDXGIDevice3
 	virtual void STDMETHODCALLTYPE Trim() override;
 	#pragma endregion
 
-	LONG _ref;
+	LONG _ref = 1;
 	IDXGIDevice *_orig;
 	unsigned int _interface_version;
 	IUnknown *const _direct3d_device;
-
-private:
-	DXGIDevice(const DXGIDevice &) = delete;
-	DXGIDevice &operator=(const DXGIDevice &) = delete;
 };

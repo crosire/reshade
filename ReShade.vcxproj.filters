@@ -325,10 +325,8 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
+    <None Include="res\exports.def" />
     <None Include="res\resource.rc2" />
-    <None Include="res\exports.def">
-      <Filter>hooks</Filter>
-    </None>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="res\resource.rc" />

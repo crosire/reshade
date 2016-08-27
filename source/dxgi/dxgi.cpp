@@ -52,7 +52,7 @@ void dump_swapchain_desc(const DXGI_SWAP_CHAIN_DESC1 &desc)
 
 	if (desc.SampleDesc.Count > 1)
 	{
-		LOG(WARNING) << "> Multisampling is enabled. This is not compatible with depthbuffer access, which was therefore disabled.";
+		LOG(WARNING) << "> Multisampling is enabled. This is not compatible with depth buffer access, which was therefore disabled.";
 	}
 }
 

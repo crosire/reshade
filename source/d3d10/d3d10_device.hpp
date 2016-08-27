@@ -4,8 +4,15 @@
 
 struct D3D10Device : ID3D10Device1
 {
-	explicit D3D10Device(ID3D10Device  *original) : _ref(1), _orig(original), _interface_version(0), _dxgi_device(nullptr) { }
-	explicit D3D10Device(ID3D10Device1 *original) : _ref(1), _orig(original), _interface_version(1), _dxgi_device(nullptr) { }
+	explicit D3D10Device(ID3D10Device  *original) :
+		_orig(original),
+		_interface_version(0) { }
+	explicit D3D10Device(ID3D10Device1 *original) :
+		_orig(original),
+		_interface_version(1) { }
+
+	D3D10Device(const D3D10Device &) = delete;
+	D3D10Device &operator=(const D3D10Device &) = delete;
 
 	#pragma region IUnknown
 	virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
@@ -115,13 +122,9 @@ struct D3D10Device : ID3D10Device1
 	virtual D3D10_FEATURE_LEVEL1 STDMETHODCALLTYPE GetFeatureLevel() override;
 	#pragma endregion
 
-	LONG _ref;
+	LONG _ref = 1;
 	ID3D10Device *_orig;
 	unsigned int _interface_version;
-	struct DXGIDevice *_dxgi_device;
+	struct DXGIDevice *_dxgi_device = nullptr;
 	std::vector<std::shared_ptr<reshade::d3d10_runtime>> _runtimes;
-
-private:
-	D3D10Device(const D3D10Device &) = delete;
-	D3D10Device &operator=(const D3D10Device &) = delete;
 };

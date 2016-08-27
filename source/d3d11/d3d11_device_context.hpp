@@ -4,10 +4,25 @@
 
 struct D3D11DeviceContext : ID3D11DeviceContext3
 {
-	D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext  *original) : _ref(1), _orig(original), _interface_version(0), _device(device) { }
-	D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext1 *original) : _ref(1), _orig(original), _interface_version(1), _device(device) { }
-	D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext2 *original) : _ref(1), _orig(original), _interface_version(2), _device(device) { }
-	D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext3 *original) : _ref(1), _orig(original), _interface_version(3), _device(device) { }
+	D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext  *original) :
+		_orig(original),
+		_interface_version(0),
+		_device(device) { }
+	D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext1 *original) :
+		_orig(original),
+		_interface_version(1),
+		_device(device) { }
+	D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext2 *original) :
+		_orig(original),
+		_interface_version(2),
+		_device(device) { }
+	D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext3 *original) :
+		_orig(original),
+		_interface_version(3),
+		_device(device) { }
+
+	D3D11DeviceContext(const D3D11DeviceContext &) = delete;
+	D3D11DeviceContext &operator=(const D3D11DeviceContext &) = delete;
 
 	#pragma region IUnknown
 	virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
@@ -169,12 +184,8 @@ struct D3D11DeviceContext : ID3D11DeviceContext3
 	virtual void STDMETHODCALLTYPE GetHardwareProtectionState(BOOL *pHwProtectionEnable) override;
 	#pragma endregion
 
-	LONG _ref;
+	LONG _ref = 1;
 	ID3D11DeviceContext *_orig;
 	unsigned int _interface_version;
 	D3D11Device *const _device;
-
-private:
-	D3D11DeviceContext(const D3D11DeviceContext &) = delete;
-	D3D11DeviceContext &operator=(const D3D11DeviceContext &) = delete;
 };

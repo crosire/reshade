@@ -4,10 +4,21 @@
 
 struct D3D11Device : ID3D11Device3
 {
-	explicit D3D11Device(ID3D11Device  *original) : _ref(1), _orig(original), _interface_version(0), _dxgi_device(nullptr), _immediate_context(nullptr) { }
-	explicit D3D11Device(ID3D11Device1 *original) : _ref(1), _orig(original), _interface_version(1), _dxgi_device(nullptr), _immediate_context(nullptr) { }
-	explicit D3D11Device(ID3D11Device2 *original) : _ref(1), _orig(original), _interface_version(2), _dxgi_device(nullptr), _immediate_context(nullptr) { }
-	explicit D3D11Device(ID3D11Device3 *original) : _ref(1), _orig(original), _interface_version(3), _dxgi_device(nullptr), _immediate_context(nullptr) { }
+	explicit D3D11Device(ID3D11Device  *original) :
+		_orig(original),
+		_interface_version(0) { }
+	explicit D3D11Device(ID3D11Device1 *original) :
+		_orig(original),
+		_interface_version(1) { }
+	explicit D3D11Device(ID3D11Device2 *original) :
+		_orig(original),
+		_interface_version(2) { }
+	explicit D3D11Device(ID3D11Device3 *original) :
+		_orig(original),
+		_interface_version(3) { }
+
+	D3D11Device(const D3D11Device &) = delete;
+	D3D11Device &operator=(const D3D11Device &) = delete;
 
 	#pragma region IUnknown
 	virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
@@ -85,14 +96,10 @@ struct D3D11Device : ID3D11Device3
 	virtual void STDMETHODCALLTYPE ReadFromSubresource(void *pDstData, UINT DstRowPitch, UINT DstDepthPitch, ID3D11Resource *pSrcResource, UINT SrcSubresource, const D3D11_BOX *pSrcBox) override;
 	#pragma endregion
 
-	LONG _ref;
+	LONG _ref = 1;
 	ID3D11Device *_orig;
 	unsigned int _interface_version;
-	struct DXGIDevice *_dxgi_device;
-	D3D11DeviceContext *_immediate_context;
+	struct DXGIDevice *_dxgi_device = nullptr;
+	D3D11DeviceContext *_immediate_context = nullptr;
 	std::vector<std::shared_ptr<reshade::d3d11_runtime>> _runtimes;
-
-private:
-	D3D11Device(const D3D11Device &) = delete;
-	D3D11Device &operator=(const D3D11Device &) = delete;
 };

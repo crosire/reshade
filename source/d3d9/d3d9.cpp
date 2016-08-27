@@ -32,7 +32,7 @@ void dump_present_parameters(const D3DPRESENT_PARAMETERS &pp)
 
 	if (pp.MultiSampleType != D3DMULTISAMPLE_NONE)
 	{
-		LOG(WARNING) << "> Multisampling is enabled. This is not compatible with depthbuffer access, which was therefore disabled.";
+		LOG(WARNING) << "> Multisampling is enabled. This is not compatible with depth buffer access, which was therefore disabled.";
 	}
 }
 

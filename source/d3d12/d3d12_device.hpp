@@ -4,7 +4,11 @@
 
 struct D3D12Device : ID3D12Device
 {
-	explicit D3D12Device(ID3D12Device *original) : _ref(1), _orig(original) { }
+	explicit D3D12Device(ID3D12Device *original) :
+		_orig(original) { }
+
+	D3D12Device(const D3D12Device &) = delete;
+	D3D12Device &operator=(const D3D12Device &) = delete;
 
 	#pragma region IUnknown
 	virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
@@ -57,10 +61,6 @@ struct D3D12Device : ID3D12Device
 	virtual LUID STDMETHODCALLTYPE GetAdapterLuid() override;
 	#pragma endregion
 
-	LONG _ref;
+	LONG _ref = 1;
 	ID3D12Device *const _orig;
-
-private:
-	D3D12Device(const D3D12Device &) = delete;
-	D3D12Device &operator=(const D3D12Device &) = delete;
 };

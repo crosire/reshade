@@ -4,7 +4,12 @@
 
 struct D3D12CommandQueue : ID3D12CommandQueue
 {
-	D3D12CommandQueue(D3D12Device *device, ID3D12CommandQueue *original) : _ref(1), _orig(original), _device(device) { }
+	D3D12CommandQueue(D3D12Device *device, ID3D12CommandQueue *original) :
+		_orig(original),
+		_device(device) { }
+
+	D3D12CommandQueue(const D3D12CommandQueue &) = delete;
+	D3D12CommandQueue &operator=(const D3D12CommandQueue &) = delete;
 
 	#pragma region IUnknown
 	virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
@@ -34,11 +39,7 @@ struct D3D12CommandQueue : ID3D12CommandQueue
 	virtual D3D12_COMMAND_QUEUE_DESC STDMETHODCALLTYPE GetDesc() override;
 	#pragma endregion
 
-	ULONG _ref;
+	ULONG _ref = 1;
 	ID3D12CommandQueue *const _orig;
 	D3D12Device *const _device;
-
-private:
-	D3D12CommandQueue(const D3D12CommandQueue &) = delete;
-	D3D12CommandQueue &operator=(const D3D12CommandQueue &) = delete;
 };

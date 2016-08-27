@@ -4,11 +4,39 @@
 
 struct DXGISwapChain : IDXGISwapChain3
 {
-	DXGISwapChain(D3D10Device *device, IDXGISwapChain *original, const std::shared_ptr<reshade::runtime> &runtime) : _ref(1), _orig(original), _interface_version(0), _direct3d_device(device), _direct3d_version(10), _runtime(runtime) { }
-	DXGISwapChain(D3D10Device *device, IDXGISwapChain1 *original, const std::shared_ptr<reshade::runtime> &runtime) : _ref(1), _orig(original), _interface_version(1), _direct3d_device(device), _direct3d_version(10), _runtime(runtime) { }
-	DXGISwapChain(D3D11Device *device, IDXGISwapChain *original, const std::shared_ptr<reshade::runtime> &runtime) : _ref(1), _orig(original), _interface_version(0), _direct3d_device(device), _direct3d_version(11), _runtime(runtime) { }
-	DXGISwapChain(D3D11Device *device, IDXGISwapChain1 *original, const std::shared_ptr<reshade::runtime> &runtime) : _ref(1), _orig(original), _interface_version(1), _direct3d_device(device), _direct3d_version(11), _runtime(runtime) { }
-	DXGISwapChain(D3D12CommandQueue *device, IDXGISwapChain3 *original, const std::shared_ptr<reshade::runtime> &runtime) : _ref(1), _orig(original), _interface_version(3), _direct3d_device(device), _direct3d_version(12), _runtime(runtime) { }
+	DXGISwapChain(D3D10Device *device, IDXGISwapChain *original, const std::shared_ptr<reshade::runtime> &runtime) :
+		_orig(original),
+		_interface_version(0),
+		_direct3d_device(device),
+		_direct3d_version(10),
+		_runtime(runtime) { }
+	DXGISwapChain(D3D10Device *device, IDXGISwapChain1 *original, const std::shared_ptr<reshade::runtime> &runtime) :
+		_orig(original),
+		_interface_version(1),
+		_direct3d_device(device),
+		_direct3d_version(10),
+		_runtime(runtime) { }
+	DXGISwapChain(D3D11Device *device, IDXGISwapChain *original, const std::shared_ptr<reshade::runtime> &runtime) :
+		_orig(original),
+		_interface_version(0),
+		_direct3d_device(device),
+		_direct3d_version(11),
+		_runtime(runtime) { }
+	DXGISwapChain(D3D11Device *device, IDXGISwapChain1 *original, const std::shared_ptr<reshade::runtime> &runtime) :
+		_orig(original),
+		_interface_version(1),
+		_direct3d_device(device),
+		_direct3d_version(11),
+		_runtime(runtime) { }
+	DXGISwapChain(D3D12CommandQueue *device, IDXGISwapChain3 *original, const std::shared_ptr<reshade::runtime> &runtime) :
+		_orig(original),
+		_interface_version(3),
+		_direct3d_device(device),
+		_direct3d_version(12),
+		_runtime(runtime) { }
+
+	DXGISwapChain(const DXGISwapChain &) = delete;
+	DXGISwapChain &operator=(const DXGISwapChain &) = delete;
 
 	#pragma region IUnknown
 	virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
@@ -65,14 +93,10 @@ struct DXGISwapChain : IDXGISwapChain3
 	virtual HRESULT STDMETHODCALLTYPE ResizeBuffers1(UINT BufferCount, UINT Width, UINT Height, DXGI_FORMAT Format, UINT SwapChainFlags, const UINT *pCreationNodeMask, IUnknown *const *ppPresentQueue) override;
 	#pragma endregion
 
-	LONG _ref;
+	LONG _ref = 1;
 	IDXGISwapChain *_orig;
 	unsigned int _interface_version;
 	IUnknown *const _direct3d_device;
 	const unsigned int _direct3d_version;
 	std::shared_ptr<reshade::runtime> _runtime;
-
-private:
-	DXGISwapChain(const DXGISwapChain &) = delete;
-	DXGISwapChain &operator=(const DXGISwapChain &) = delete;
 };

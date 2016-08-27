@@ -4,8 +4,15 @@
 
 struct Direct3DDevice9 : IDirect3DDevice9Ex
 {
-	explicit Direct3DDevice9(IDirect3DDevice9   *original) : _ref(1), _orig(original), _interface_version(0), _implicit_swapchain(nullptr), _auto_depthstencil(nullptr), _use_software_rendering(false) { }
-	explicit Direct3DDevice9(IDirect3DDevice9Ex *original) : _ref(1), _orig(original), _interface_version(1), _implicit_swapchain(nullptr), _auto_depthstencil(nullptr), _use_software_rendering(false) { }
+	explicit Direct3DDevice9(IDirect3DDevice9   *original) :
+		_orig(original),
+		_interface_version(0) { }
+	explicit Direct3DDevice9(IDirect3DDevice9Ex *original) :
+		_orig(original),
+		_interface_version(1) { }
+
+	Direct3DDevice9(const Direct3DDevice9 &) = delete;
+	Direct3DDevice9 &operator=(const Direct3DDevice9 &) = delete;
 
 	#pragma region IUnknown
 	virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
@@ -148,15 +155,11 @@ struct Direct3DDevice9 : IDirect3DDevice9Ex
 	virtual HRESULT STDMETHODCALLTYPE GetDisplayModeEx(UINT iSwapChain, D3DDISPLAYMODEEX *pMode, D3DDISPLAYROTATION *pRotation) override;
 	#pragma endregion
 
-	LONG _ref;
+	LONG _ref = 1;
 	IDirect3DDevice9 *_orig;
 	unsigned int _interface_version;
-	Direct3DSwapChain9 *_implicit_swapchain;
+	Direct3DSwapChain9 *_implicit_swapchain = nullptr;
 	std::vector<Direct3DSwapChain9 *> _additional_swapchains;
-	IDirect3DSurface9 *_auto_depthstencil;
-	bool _use_software_rendering;
-
-private:
-	Direct3DDevice9(const Direct3DDevice9 &) = delete;
-	Direct3DDevice9 &operator=(const Direct3DDevice9 &) = delete;
+	IDirect3DSurface9 *_auto_depthstencil = nullptr;
+	bool _use_software_rendering = false;
 };
