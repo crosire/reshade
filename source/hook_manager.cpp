@@ -67,7 +67,7 @@ namespace reshade::hooks
 			return exports;
 		}
 
-		utils::critical_section s_cs;
+		critical_section s_cs;
 		filesystem::path s_export_hook_path;
 		std::vector<filesystem::path> s_delayed_hook_paths;
 		std::vector<HMODULE> s_delayed_hook_modules;
@@ -125,7 +125,7 @@ namespace reshade::hooks
 
 			LOG(TRACE) << "> Succeeded.";
 
-			const utils::critical_section::lock lock(s_cs);
+			const critical_section::lock lock(s_cs);
 
 			s_hooks.emplace_back(std::move(hook), method);
 
@@ -273,7 +273,7 @@ namespace reshade::hooks
 
 		hook find(hook::address replacement)
 		{
-			const utils::critical_section::lock lock(s_cs);
+			const critical_section::lock lock(s_cs);
 
 			const auto it = std::find_if(s_hooks.cbegin(), s_hooks.cend(),
 				[replacement](const std::pair<hook, hook_method> &hook)
@@ -305,7 +305,7 @@ namespace reshade::hooks
 				return handle;
 			}
 
-			const utils::critical_section::lock lock(s_cs);
+			const critical_section::lock lock(s_cs);
 
 			const auto remove = std::remove_if(s_delayed_hook_paths.begin(), s_delayed_hook_paths.end(),
 				[lpFileName](const filesystem::path &path)
@@ -351,7 +351,7 @@ namespace reshade::hooks
 				return handle;
 			}
 
-			const utils::critical_section::lock lock(s_cs);
+			const critical_section::lock lock(s_cs);
 
 			const auto remove = std::remove_if(s_delayed_hook_paths.begin(), s_delayed_hook_paths.end(),
 				[lpFileName](const filesystem::path &path)
@@ -417,7 +417,7 @@ namespace reshade::hooks
 
 		if (VirtualProtect(&target, sizeof(hook::address), protection, &protection))
 		{
-			const utils::critical_section::lock lock(s_cs);
+			const critical_section::lock lock(s_cs);
 
 			const auto insert = s_vtable_addresses.emplace(target, &target);
 
@@ -442,7 +442,7 @@ namespace reshade::hooks
 	}
 	void uninstall()
 	{
-		const utils::critical_section::lock lock(s_cs);
+		const critical_section::lock lock(s_cs);
 
 		LOG(INFO) << "Uninstalling " << s_hooks.size() << " hook(s) ...";
 
@@ -504,7 +504,7 @@ namespace reshade::hooks
 
 	hook::address call(hook::address replacement)
 	{
-		const utils::critical_section::lock lock(s_cs);
+		const critical_section::lock lock(s_cs);
 
 		if (!s_export_hook_path.empty())
 		{

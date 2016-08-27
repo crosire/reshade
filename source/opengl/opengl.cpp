@@ -103,7 +103,7 @@ DECLARE_HANDLE(HPBUFFERARB);
 
 namespace
 {
-	reshade::utils::critical_section s_cs;
+	critical_section s_cs;
 	std::unordered_map<HWND, RECT> s_window_rects;
 	std::unordered_set<HDC> s_pbuffer_device_contexts;
 	std::unordered_map<HGLRC, HGLRC> s_shared_contexts;
@@ -3105,7 +3105,7 @@ HOOK_EXPORT HGLRC WINAPI wglCreateContext(HDC hdc)
 		return nullptr;
 	}
 
-	const reshade::utils::critical_section::lock lock(s_cs);
+	const critical_section::lock lock(s_cs);
 
 	s_shared_contexts.emplace(hglrc, nullptr);
 
@@ -3208,7 +3208,7 @@ HGLRC WINAPI wglCreateContextAttribsARB(HDC hdc, HGLRC hShareContext, const int 
 		return nullptr;
 	}
 
-	const reshade::utils::critical_section::lock lock(s_cs);
+	const critical_section::lock lock(s_cs);
 
 	s_shared_contexts.emplace(hglrc, hShareContext);
 
@@ -3308,7 +3308,7 @@ HOOK_EXPORT BOOL WINAPI wglDeleteContext(HGLRC hglrc)
 
 	LOG(INFO) << "Redirecting '" << "wglDeleteContext" << "(" << hglrc << ")' ...";
 
-	const reshade::utils::critical_section::lock lock(s_cs);
+	const critical_section::lock lock(s_cs);
 
 	for (auto it = s_shared_contexts.begin(); it != s_shared_contexts.end();)
 	{
@@ -3398,7 +3398,7 @@ HDC WINAPI wglGetPbufferDCARB(HPBUFFERARB hPbuffer)
 		return nullptr;
 	}
 
-	const reshade::utils::critical_section::lock lock(s_cs);
+	const critical_section::lock lock(s_cs);
 
 	s_pbuffer_device_contexts.insert(hdc);
 
@@ -3452,7 +3452,7 @@ HOOK_EXPORT BOOL WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 		return TRUE;
 	}
 	
-	const reshade::utils::critical_section::lock lock(s_cs);
+	const critical_section::lock lock(s_cs);
 
 	const bool isPbufferDeviceContext = s_pbuffer_device_contexts.find(hdc) != s_pbuffer_device_contexts.end();
 	
@@ -3643,7 +3643,7 @@ int WINAPI wglReleasePbufferDCARB(HPBUFFERARB hPbuffer, HDC hdc)
 		return FALSE;
 	}
 
-	const reshade::utils::critical_section::lock lock(s_cs);
+	const critical_section::lock lock(s_cs);
 
 	s_pbuffer_device_contexts.erase(hdc);
 
@@ -3669,7 +3669,7 @@ HOOK_EXPORT BOOL WINAPI wglShareLists(HGLRC hglrc1, HGLRC hglrc2)
 		return FALSE;
 	}
 
-	const reshade::utils::critical_section::lock lock(s_cs);
+	const critical_section::lock lock(s_cs);
 
 	s_shared_contexts[hglrc2] = hglrc1;
 

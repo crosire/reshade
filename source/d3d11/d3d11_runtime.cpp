@@ -611,7 +611,7 @@ namespace reshade
 	}
 	void d3d11_runtime::on_draw_call(ID3D11DeviceContext *context, unsigned int vertices)
 	{
-		const utils::critical_section::lock lock(_cs);
+		const critical_section::lock lock(_cs);
 
 		_vertices += vertices;
 		_drawcalls += 1;
@@ -639,7 +639,7 @@ namespace reshade
 	}
 	void d3d11_runtime::on_set_depthstencil_view(ID3D11DepthStencilView *&depthstencil)
 	{
-		const utils::critical_section::lock lock(_cs);
+		const critical_section::lock lock(_cs);
 
 		if (_depth_source_table.find(depthstencil) == _depth_source_table.end())
 		{
@@ -678,7 +678,7 @@ namespace reshade
 	}
 	void d3d11_runtime::on_get_depthstencil_view(ID3D11DepthStencilView *&depthstencil)
 	{
-		const utils::critical_section::lock lock(_cs);
+		const critical_section::lock lock(_cs);
 
 		if (_depthstencil_replacement != nullptr && depthstencil == _depthstencil_replacement)
 		{
@@ -691,7 +691,7 @@ namespace reshade
 	}
 	void d3d11_runtime::on_clear_depthstencil_view(ID3D11DepthStencilView *&depthstencil)
 	{
-		const utils::critical_section::lock lock(_cs);
+		const critical_section::lock lock(_cs);
 
 		if (_depthstencil_replacement != nullptr && depthstencil == _depthstencil)
 		{
@@ -700,7 +700,7 @@ namespace reshade
 	}
 	void d3d11_runtime::on_copy_resource(ID3D11Resource *&dest, ID3D11Resource *&source)
 	{
-		const utils::critical_section::lock lock(_cs);
+		const critical_section::lock lock(_cs);
 
 		if (_depthstencil_replacement != nullptr)
 		{
@@ -1182,7 +1182,7 @@ namespace reshade
 			}
 		}
 
-		const utils::critical_section::lock lock(_cs);
+		const critical_section::lock lock(_cs);
 
 		if (_is_multisampling_enabled || _depth_source_table.empty())
 		{

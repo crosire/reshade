@@ -94,7 +94,7 @@ namespace reshade
 		com_ptr<ID3D11VertexShader> _copy_vertex_shader;
 		com_ptr<ID3D11PixelShader> _copy_pixel_shader;
 		com_ptr<ID3D11SamplerState> _copy_sampler;
-		utils::critical_section _cs;
+		critical_section _cs;
 		com_ptr<ID3D11RasterizerState> _effect_rasterizer_state;
 
 		com_ptr<ID3D11Buffer> _imgui_vertex_buffer, _imgui_index_buffer;
