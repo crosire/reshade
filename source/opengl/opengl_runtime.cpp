@@ -307,6 +307,7 @@ namespace reshade
 		int width, height;
 		unsigned char *pixels;
 
+		ImGui::SetCurrentContext(_imgui_context);
 		ImGui::GetIO().Fonts->GetTexDataAsRGBA32(&pixels, &width, &height);
 
 		GLuint font_atlas_id = 0;
@@ -315,7 +316,7 @@ namespace reshade
 		glBindTexture(GL_TEXTURE_2D, font_atlas_id);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
 
 		opengl_tex_data obj = { };
 		obj.id[0] = font_atlas_id;

@@ -417,6 +417,7 @@ namespace reshade
 		int width, height;
 		unsigned char *pixels;
 
+		ImGui::SetCurrentContext(_imgui_context);
 		ImGui::GetIO().Fonts->GetTexDataAsRGBA32(&pixels, &width, &height);
 
 		const D3D10_TEXTURE2D_DESC tex_desc = {

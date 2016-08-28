@@ -146,6 +146,7 @@ namespace reshade
 		int width, height, bits_per_pixel;
 		unsigned char *pixels;
 
+		ImGui::SetCurrentContext(_imgui_context);
 		ImGui::GetIO().Fonts->GetTexDataAsRGBA32(&pixels, &width, &height, &bits_per_pixel);
 
 		com_ptr<IDirect3DTexture9> font_atlas;

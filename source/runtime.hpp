@@ -157,6 +157,7 @@ namespace reshade
 		uint64_t _framecount = 0;
 		unsigned int _drawcalls = 0, _vertices = 0;
 		std::shared_ptr<input> _input;
+		ImGuiContext *_imgui_context = nullptr;
 		std::unique_ptr<base_object> _imgui_font_atlas;
 		std::vector<texture> _textures;
 		std::vector<uniform> _uniforms;
@@ -197,7 +198,6 @@ namespace reshade
 		int _selected_technique = -1;
 		bool _show_menu = false, _show_error_log = false, _performance_mode = false;
 		bool _overlay_key_setting_active = false, _screenshot_key_setting_active = false;
-		ImGuiContext *_imgui_context = nullptr;
 		float _imgui_col_background[3] = { 0.275f, 0.275f, 0.275f }, _imgui_col_item_background[3] = { 0.447f, 0.447f, 0.447f };
 		float _imgui_col_text[3] = { 0.8f, 0.9f, 0.9f }, _imgui_col_active[3] = { 0.2f, 0.5f, 0.6f };
 		unsigned int _tutorial_index = 0;
