@@ -272,5 +272,19 @@
     <None Include="res\exports.def" />
     <None Include="res\resource.rc2" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="deps\gl3w.vcxproj">
+      <Project>{09c0d610-9b82-40d8-b37e-0d26e3bff77f}</Project>
+    </ProjectReference>
+    <ProjectReference Include="deps\ImGui.vcxproj">
+      <Project>{9a62233b-0b70-4b48-91e8-35aa666bc32e}</Project>
+    </ProjectReference>
+    <ProjectReference Include="deps\MinHook.vcxproj">
+      <Project>{783fedfb-5124-4f8c-87bc-70aa8490266b}</Project>
+    </ProjectReference>
+    <ProjectReference Include="deps\stb.vcxproj">
+      <Project>{723bdef8-4a39-4961-bdab-54074012ff47}</Project>
+    </ProjectReference>
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>
