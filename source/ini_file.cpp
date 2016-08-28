@@ -1,10 +1,24 @@
 #include "ini_file.hpp"
-#include "string_utils.hpp"
-
+#include "algorithm.hpp"
 #include <fstream>
 
 namespace reshade
 {
+	namespace
+	{
+		inline void trim(std::string &str, const char *chars = " \t")
+		{
+			str.erase(0, str.find_first_not_of(chars));
+			str.erase(str.find_last_not_of(chars) + 1);
+		}
+		inline std::string trim(const std::string &str, const char *chars = " \t")
+		{
+			std::string res(str);
+			trim(res, chars);
+			return res;
+		}
+	}
+
 	ini_file::ini_file(const filesystem::path &path) : _path(path)
 	{
 		load();
@@ -17,11 +31,11 @@ namespace reshade
 	void ini_file::load()
 	{
 		std::string line, section;
-		std::ifstream file(stdext::utf8_to_utf16(_path.string()));
+		std::ifstream file(_path.wstring());
 
 		while (std::getline(file, line))
 		{
-			stdext::trim(line);
+			trim(line);
 
 			if (line.empty() || line[0] == ';' || line[0] == '/')
 			{
@@ -31,7 +45,7 @@ namespace reshade
 			// Read section name
 			if (line[0] == '[')
 			{
-				section = stdext::trim(line.substr(0, line.find(']')), " \t[]");
+				section = trim(line.substr(0, line.find(']')), " \t[]");
 				continue;
 			}
 
@@ -40,8 +54,8 @@ namespace reshade
 
 			if (assign_index != std::string::npos)
 			{
-				const auto key = stdext::trim(line.substr(0, assign_index));
-				const auto value = stdext::trim(line.substr(assign_index + 1));
+				const auto key = trim(line.substr(0, assign_index));
+				const auto value = trim(line.substr(assign_index + 1));
 
 				_sections[section][key] = stdext::split(value, ',');
 			}
@@ -58,7 +72,7 @@ namespace reshade
 			return;
 		}
 
-		std::ofstream file(stdext::utf8_to_utf16(_path.string()));
+		std::ofstream file(_path.wstring());
 
 		for (const auto &section : _sections)
 		{

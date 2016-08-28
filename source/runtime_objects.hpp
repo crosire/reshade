@@ -50,16 +50,23 @@ namespace reshade
 		clamp = 3,
 		border = 4
 	};
+	enum class texture_reference
+	{
+		none,
+		back_buffer,
+		depth_buffer
+	};
 	enum class uniform_datatype
 	{
-		bool_,
-		int_,
-		uint_,
-		float_
+		boolean,
+		signed_integer,
+		unsigned_integer,
+		floating_point
 	};
 
-	struct base_object abstract
+	class base_object abstract
 	{
+	public:
 		virtual ~base_object() { }
 
 		template <typename T>
@@ -74,13 +81,13 @@ namespace reshade
 		unsigned int width = 0, height = 0, levels = 0;
 		texture_format format = texture_format::unknown;
 		std::unordered_map<std::string, variant> annotations;
-		unsigned short impl_is_reference = 0;
+		texture_reference impl_reference = texture_reference::none;
 		std::unique_ptr<base_object> impl;
 	};
 	struct uniform final
 	{
 		std::string name, unique_name;
-		uniform_datatype basetype = uniform_datatype::float_, displaytype = uniform_datatype::float_;
+		uniform_datatype basetype = uniform_datatype::floating_point, displaytype = uniform_datatype::floating_point;
 		unsigned int rows = 0, columns = 0, elements = 0;
 		size_t storage_offset = 0, storage_size = 0;
 		std::unordered_map<std::string, variant> annotations;

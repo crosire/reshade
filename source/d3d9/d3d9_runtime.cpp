@@ -4,6 +4,7 @@
 #include "lexer.hpp"
 #include "input.hpp"
 #include <imgui.h>
+#include <algorithm>
 
 const auto D3DFMT_INTZ = static_cast<D3DFORMAT>(MAKEFOURCC('I', 'N', 'T', 'Z'));
 const auto D3DFMT_DF16 = static_cast<D3DFORMAT>(MAKEFOURCC('D', 'F', '1', '6'));
@@ -476,7 +477,7 @@ namespace reshade
 	}
 	bool d3d9_runtime::update_texture(texture &texture, const uint8_t *data)
 	{
-		if (texture.impl_is_reference)
+		if (texture.impl_reference != texture_reference::none)
 		{
 			return false;
 		}
@@ -551,23 +552,23 @@ namespace reshade
 
 		return true;
 	}
-	bool d3d9_runtime::update_texture_reference(texture &texture, unsigned short id)
+	bool d3d9_runtime::update_texture_reference(texture &texture, texture_reference id)
 	{
 		com_ptr<IDirect3DTexture9> new_reference;
 
 		switch (id)
 		{
-			case 1:
+			case texture_reference::back_buffer:
 				new_reference = _backbuffer_texture;
 				break;
-			case 2:
+			case texture_reference::depth_buffer:
 				new_reference = _depthstencil_texture;
 				break;
 			default:
 				return false;
 		}
 
-		texture.impl_is_reference = id;
+		texture.impl_reference = id;
 
 		const auto texture_impl = texture.impl->as<d3d9_tex_data>();
 
@@ -977,9 +978,9 @@ namespace reshade
 		// Update effect textures
 		for (auto &texture : _textures)
 		{
-			if (texture.impl_is_reference == 2)
+			if (texture.impl_reference == texture_reference::depth_buffer)
 			{
-				update_texture_reference(texture, 2);
+				update_texture_reference(texture, texture_reference::depth_buffer);
 			}
 		}
 

@@ -233,7 +233,7 @@
     <ClInclude Include="source\ini_file.hpp" />
     <ClInclude Include="source\filesystem.hpp" />
     <ClInclude Include="source\runtime_objects.hpp" />
-    <ClInclude Include="source\string_utils.hpp" />
+    <ClInclude Include="source\algorithm.hpp" />
     <ClInclude Include="source\syntax_tree.hpp" />
     <ClInclude Include="source\source_location.hpp" />
     <ClInclude Include="source\log.hpp" />
@@ -263,6 +263,7 @@
     <ClInclude Include="source\critical_section.hpp" />
     <ClInclude Include="source\directory_watcher.hpp" />
     <ClInclude Include="source\moving_average.hpp" />
+    <ClInclude Include="source\unicode.hpp" />
     <ClInclude Include="source\variant.hpp" />
   </ItemGroup>
   <ItemGroup>

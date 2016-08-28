@@ -2,7 +2,6 @@
 #include "opengl_runtime.hpp"
 #include "opengl_effect_compiler.hpp"
 #include "input.hpp"
-
 #include <imgui.h>
 #include <assert.h>
 
@@ -593,7 +592,7 @@ namespace reshade
 	}
 	bool opengl_runtime::update_texture(texture &texture, const uint8_t *data)
 	{
-		if (texture.impl_is_reference)
+		if (texture.impl_reference != texture_reference::none)
 		{
 			return false;
 		}
@@ -640,17 +639,17 @@ namespace reshade
 
 		return true;
 	}
-	bool opengl_runtime::update_texture_reference(texture &texture, unsigned short id)
+	bool opengl_runtime::update_texture_reference(texture &texture, texture_reference id)
 	{
 		GLuint new_reference[2] = { };
 
 		switch (id)
 		{
-			case 1:
+			case texture_reference::back_buffer:
 				new_reference[0] = _backbuffer_texture[0];
 				new_reference[1] = _backbuffer_texture[1];
 				break;
-			case 2:
+			case texture_reference::depth_buffer:
 				new_reference[0] = _depth_texture;
 				new_reference[1] = _depth_texture;
 				break;
@@ -658,7 +657,7 @@ namespace reshade
 				return false;
 		}
 
-		texture.impl_is_reference = id;
+		texture.impl_reference = id;
 
 		const auto texture_impl = texture.impl->as<opengl_tex_data>();
 
@@ -981,9 +980,9 @@ namespace reshade
 		// Update effect textures
 		for (auto &texture : _textures)
 		{
-			if (texture.impl_is_reference == 2)
+			if (texture.impl_reference == texture_reference::depth_buffer)
 			{
-				update_texture_reference(texture, 2);
+				update_texture_reference(texture, texture_reference::depth_buffer);
 			}
 		}
 	}

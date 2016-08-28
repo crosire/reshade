@@ -2,8 +2,8 @@
 #include "d3d9_runtime.hpp"
 #include "d3d9_effect_compiler.hpp"
 #include "constant_folding.hpp"
-
 #include <assert.h>
+#include <algorithm>
 #include <d3dcompiler.h>
 
 namespace reshade
@@ -1414,11 +1414,11 @@ namespace reshade
 
 		if (node->semantic == "COLOR" || node->semantic == "SV_TARGET")
 		{
-			_runtime->update_texture_reference(obj, 1);
+			_runtime->update_texture_reference(obj, texture_reference::back_buffer);
 		}
 		else if (node->semantic == "DEPTH" || node->semantic == "SV_DEPTH")
 		{
-			_runtime->update_texture_reference(obj, 2);
+			_runtime->update_texture_reference(obj, texture_reference::depth_buffer);
 		}
 		else
 		{
@@ -1532,7 +1532,7 @@ namespace reshade
 		uniform obj;
 		obj.name = node->name;
 		obj.unique_name = node->unique_name;
-		obj.basetype = uniform_datatype::float_;
+		obj.basetype = uniform_datatype::floating_point;
 		obj.displaytype = static_cast<uniform_datatype>(node->type.basetype - 1);
 		obj.rows = node->type.rows;
 		obj.columns = node->type.cols;

@@ -1,8 +1,8 @@
 #include "log.hpp"
 #include "opengl_runtime.hpp"
 #include "opengl_effect_compiler.hpp"
-
 #include <assert.h>
+#include <algorithm>
 
 #ifdef _DEBUG
 	#define GLCHECK(call) { glGetError(); call; GLenum __e = glGetError(); if (__e != GL_NO_ERROR) { char __m[1024]; sprintf_s(__m, "OpenGL Error %x at line %d: %s", __e, __LINE__, #call); MessageBoxA(nullptr, __m, 0, MB_ICONERROR); } }
@@ -2128,11 +2128,11 @@ namespace reshade
 
 		if (node->semantic == "COLOR" || node->semantic == "SV_TARGET")
 		{
-			_runtime->update_texture_reference(obj, 1);
+			_runtime->update_texture_reference(obj, texture_reference::back_buffer);
 		}
 		else if (node->semantic == "DEPTH" || node->semantic == "SV_DEPTH")
 		{
-			_runtime->update_texture_reference(obj, 2);
+			_runtime->update_texture_reference(obj, texture_reference::depth_buffer);
 		}
 		else
 		{

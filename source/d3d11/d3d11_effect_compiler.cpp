@@ -1,8 +1,8 @@
 #include "log.hpp"
 #include "d3d11_runtime.hpp"
 #include "d3d11_effect_compiler.hpp"
-
 #include <assert.h>
+#include <algorithm>
 #include <d3dcompiler.h>
 
 namespace reshade
@@ -1453,11 +1453,11 @@ namespace reshade
 
 		if (node->semantic == "COLOR" || node->semantic == "SV_TARGET")
 		{
-			_runtime->update_texture_reference(obj, 1);
+			_runtime->update_texture_reference(obj, texture_reference::back_buffer);
 		}
 		else if (node->semantic == "DEPTH" || node->semantic == "SV_DEPTH")
 		{
-			_runtime->update_texture_reference(obj, 2);
+			_runtime->update_texture_reference(obj, texture_reference::depth_buffer);
 		}
 		else
 		{

@@ -2,23 +2,19 @@
 
 #include "filesystem.hpp"
 
-namespace reshade
+namespace reshade::filesystem
 {
-	namespace filesystem
+	class directory_watcher
 	{
-		class directory_watcher
-		{
-		public:
-			directory_watcher(const path &path, bool recursive);
-			~directory_watcher();
+	public:
+		explicit directory_watcher(const path &path);
+		~directory_watcher();
 
-			bool check(std::vector<path> &modifications);
+		bool check(std::vector<path> &modifications);
 
-		private:
-			path _path;
-			bool _recursive;
-			std::vector<uint8_t> _buffer;
-			void *_file_handle, *_completion_handle;
-		};
-	}
+	private:
+		path _path;
+		std::vector<uint8_t> _buffer;
+		void *_file_handle, *_completion_handle;
+	};
 }

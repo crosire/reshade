@@ -1,5 +1,6 @@
 #include "log.hpp"
 #include "dxgi_swapchain.hpp"
+#include <algorithm>
 
 // IDXGISwapChain
 HRESULT STDMETHODCALLTYPE DXGISwapChain::QueryInterface(REFIID riid, void **ppvObj)

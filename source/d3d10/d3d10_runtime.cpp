@@ -4,6 +4,7 @@
 #include "lexer.hpp"
 #include "input.hpp"
 #include <imgui.h>
+#include <algorithm>
 
 namespace reshade
 {
@@ -783,7 +784,7 @@ namespace reshade
 	}
 	bool d3d10_runtime::update_texture(texture &texture, const uint8_t *data)
 	{
-		if (texture.impl_is_reference)
+		if (texture.impl_reference != texture_reference::none)
 		{
 			return false;
 		}
@@ -829,17 +830,17 @@ namespace reshade
 
 		return true;
 	}
-	bool d3d10_runtime::update_texture_reference(texture &texture, unsigned short id)
+	bool d3d10_runtime::update_texture_reference(texture &texture, texture_reference id)
 	{
 		com_ptr<ID3D10ShaderResourceView> new_reference[2];
 
 		switch (id)
 		{
-			case 1:
+			case texture_reference::back_buffer:
 				new_reference[0] = _backbuffer_texture_srv[0];
 				new_reference[1] = _backbuffer_texture_srv[1];
 				break;
-			case 2:
+			case texture_reference::depth_buffer:
 				new_reference[0] = _depthstencil_texture_srv;
 				new_reference[1] = _depthstencil_texture_srv;
 				break;
@@ -847,7 +848,7 @@ namespace reshade
 				return false;
 		}
 
-		texture.impl_is_reference = id;
+		texture.impl_reference = id;
 
 		const auto texture_impl = texture.impl->as<d3d10_tex_data>();
 
@@ -1364,9 +1365,9 @@ namespace reshade
 		// Update effect textures
 		for (auto &texture : _textures)
 		{
-			if (texture.impl_is_reference == 2)
+			if (texture.impl_reference == texture_reference::depth_buffer)
 			{
-				update_texture_reference(texture, 2);
+				update_texture_reference(texture, texture_reference::depth_buffer);
 			}
 		}
 

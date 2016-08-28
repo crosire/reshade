@@ -1,8 +1,6 @@
 #include "preprocessor.hpp"
-#include "string_utils.hpp"
-
-#include <assert.h>
 #include <fstream>
+#include <assert.h>
 
 namespace reshadefx
 {
@@ -41,7 +39,7 @@ namespace reshadefx
 
 	bool preprocessor::run(const filesystem::path &file_path, std::vector<filesystem::path> &included_files)
 	{
-		std::ifstream file(stdext::utf8_to_utf16(file_path.string()));
+		std::ifstream file(file_path.wstring());
 
 		if (!file.is_open())
 		{
@@ -599,7 +597,7 @@ namespace reshadefx
 
 		if (it == _filecache.end())
 		{
-			std::ifstream file(stdext::utf8_to_utf16(filepath.string()));
+			std::ifstream file(filepath.wstring());
 
 			if (!file.is_open())
 			{

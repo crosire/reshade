@@ -1,6 +1,5 @@
 #include "runtime.hpp"
 #include "runtime_objects.hpp"
-
 #include <assert.h>
 #include <algorithm>
 
@@ -59,14 +58,14 @@ namespace reshade
 	{
 		switch (variable.basetype)
 		{
-			case uniform_datatype::bool_:
-			case uniform_datatype::int_:
-			case uniform_datatype::uint_:
+			case uniform_datatype::boolean:
+			case uniform_datatype::signed_integer:
+			case uniform_datatype::unsigned_integer:
 			{
 				get_uniform_value(variable, reinterpret_cast<unsigned char *>(values), count * sizeof(int));
 				break;
 			}
-			case uniform_datatype::float_:
+			case uniform_datatype::floating_point:
 			{
 				count = std::min(count, variable.storage_size / sizeof(float));
 
@@ -91,9 +90,9 @@ namespace reshade
 	{
 		switch (variable.basetype)
 		{
-			case uniform_datatype::bool_:
-			case uniform_datatype::int_:
-			case uniform_datatype::uint_:
+			case uniform_datatype::boolean:
+			case uniform_datatype::signed_integer:
+			case uniform_datatype::unsigned_integer:
 			{
 				count = std::min(count, variable.storage_size / sizeof(int));
 
@@ -104,7 +103,7 @@ namespace reshade
 
 				for (size_t i = 0; i < count; ++i)
 				{
-					if (variable.basetype != uniform_datatype::uint_)
+					if (variable.basetype != uniform_datatype::unsigned_integer)
 					{
 						values[i] = static_cast<float>(reinterpret_cast<const int *>(data)[i]);
 					}
@@ -115,7 +114,7 @@ namespace reshade
 				}
 				break;
 			}
-			case uniform_datatype::float_:
+			case uniform_datatype::floating_point:
 			{
 				get_uniform_value(variable, reinterpret_cast<unsigned char *>(values), count * sizeof(float));
 				break;
@@ -140,20 +139,20 @@ namespace reshade
 
 		switch (variable.basetype)
 		{
-			case uniform_datatype::bool_:
+			case uniform_datatype::boolean:
 				for (size_t i = 0; i < count; ++i)
 				{
 					reinterpret_cast<int *>(data)[i] = values[i] ? -1 : 0;
 				}
 				break;
-			case uniform_datatype::int_:
-			case uniform_datatype::uint_:
+			case uniform_datatype::signed_integer:
+			case uniform_datatype::unsigned_integer:
 				for (size_t i = 0; i < count; ++i)
 				{
 					reinterpret_cast<int *>(data)[i] = values[i] ? 1 : 0;
 				}
 				break;
-			case uniform_datatype::float_:
+			case uniform_datatype::floating_point:
 				for (size_t i = 0; i < count; ++i)
 				{
 					reinterpret_cast<float *>(data)[i] = values[i] ? 1.0f : 0.0f;
@@ -167,14 +166,14 @@ namespace reshade
 	{
 		switch (variable.basetype)
 		{
-			case uniform_datatype::bool_:
-			case uniform_datatype::int_:
-			case uniform_datatype::uint_:
+			case uniform_datatype::boolean:
+			case uniform_datatype::signed_integer:
+			case uniform_datatype::unsigned_integer:
 			{
 				set_uniform_value(variable, reinterpret_cast<const unsigned char *>(values), count * sizeof(int));
 				break;
 			}
-			case uniform_datatype::float_:
+			case uniform_datatype::floating_point:
 			{
 				const auto data = static_cast<float *>(alloca(count * sizeof(float)));
 
@@ -192,14 +191,14 @@ namespace reshade
 	{
 		switch (variable.basetype)
 		{
-			case uniform_datatype::bool_:
-			case uniform_datatype::int_:
-			case uniform_datatype::uint_:
+			case uniform_datatype::boolean:
+			case uniform_datatype::signed_integer:
+			case uniform_datatype::unsigned_integer:
 			{
 				set_uniform_value(variable, reinterpret_cast<const unsigned char *>(values), count * sizeof(int));
 				break;
 			}
-			case uniform_datatype::float_:
+			case uniform_datatype::floating_point:
 			{
 				const auto data = static_cast<float *>(alloca(count * sizeof(float)));
 
@@ -217,9 +216,9 @@ namespace reshade
 	{
 		switch (variable.basetype)
 		{
-			case uniform_datatype::bool_:
-			case uniform_datatype::int_:
-			case uniform_datatype::uint_:
+			case uniform_datatype::boolean:
+			case uniform_datatype::signed_integer:
+			case uniform_datatype::unsigned_integer:
 			{
 				const auto data = static_cast<int *>(alloca(count * sizeof(int)));
 
@@ -231,7 +230,7 @@ namespace reshade
 				set_uniform_value(variable, reinterpret_cast<const unsigned char *>(data), count * sizeof(int));
 				break;
 			}
-			case uniform_datatype::float_:
+			case uniform_datatype::floating_point:
 			{
 				set_uniform_value(variable, reinterpret_cast<const unsigned char *>(values), count * sizeof(float));
 				break;

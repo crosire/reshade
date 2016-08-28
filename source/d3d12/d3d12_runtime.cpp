@@ -1,7 +1,6 @@
 #include "log.hpp"
 #include "d3d12_runtime.hpp"
 #include "input.hpp"
-
 #include <assert.h>
 
 namespace reshade
@@ -61,7 +60,7 @@ namespace reshade
 	{
 		return false;
 	}
-	bool d3d12_runtime::update_texture_reference(texture &texture, unsigned short id)
+	bool d3d12_runtime::update_texture_reference(texture &texture, texture_reference id)
 	{
 		return false;
 	}

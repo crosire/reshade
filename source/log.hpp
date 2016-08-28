@@ -2,8 +2,8 @@
 
 #include <fstream>
 #include <iomanip>
+#include "unicode.hpp"
 #include "filesystem.hpp"
-#include "string_utils.hpp"
 
 #define LOG(LEVEL) LOG_##LEVEL()
 #define LOG_FATAL() reshade::log::message(reshade::log::level::fatal)
@@ -54,11 +54,11 @@ namespace reshade
 			template <>
 			inline message &operator<<(const std::wstring &message)
 			{
-				return operator<<(stdext::utf16_to_utf8(message));
+				return operator<<(utf16_to_utf8(message));
 			}
 			inline message &operator<<(const wchar_t *message)
 			{
-				return operator<<(stdext::utf16_to_utf8(message));
+				return operator<<(utf16_to_utf8(message));
 			}
 
 		private:

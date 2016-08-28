@@ -3,6 +3,7 @@
 #include <memory>
 #include <chrono>
 #include "filesystem.hpp"
+#include "runtime_objects.hpp"
 
 #pragma region Forward Declarations
 struct ImDrawData;
@@ -11,10 +12,6 @@ struct ImGuiContext;
 namespace reshade
 {
 	class input;
-	struct base_object;
-	struct texture;
-	struct uniform;
-	struct technique;
 }
 namespace reshadefx
 {
@@ -89,7 +86,7 @@ namespace reshade
 		/// </summary>
 		/// <param name="texture">The texture to update.</param>
 		/// <param name="id">The number identifying the special data this texture should reference.</param>
-		virtual bool update_texture_reference(texture &texture, unsigned short id) = 0;
+		virtual bool update_texture_reference(texture &texture, texture_reference id) = 0;
 
 		/// <summary>
 		/// Return a reference to the uniform storage buffer.

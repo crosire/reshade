@@ -1,13 +1,11 @@
 #include "log.hpp"
 #include "version.h"
 #include "runtime.hpp"
-#include "runtime_objects.hpp"
 #include "parser.hpp"
 #include "preprocessor.hpp"
 #include "input.hpp"
-#include "string_utils.hpp"
 #include "ini_file.hpp"
-
+#include "algorithm.hpp"
 #include <stb_image.h>
 #include <stb_image_dds.h>
 #include <stb_image_write.h>
@@ -175,20 +173,20 @@ namespace reshade
 			{
 				switch (variable.basetype)
 				{
-					case uniform_datatype::bool_:
+					case uniform_datatype::boolean:
 					{
 						const bool even = (_framecount % 2) == 0;
 						set_uniform_value(variable, &even, 1);
 						break;
 					}
-					case uniform_datatype::int_:
-					case uniform_datatype::uint_:
+					case uniform_datatype::signed_integer:
+					case uniform_datatype::unsigned_integer:
 					{
 						const unsigned int framecount = static_cast<unsigned int>(_framecount % UINT_MAX);
 						set_uniform_value(variable, &framecount, 1);
 						break;
 					}
-					case uniform_datatype::float_:
+					case uniform_datatype::floating_point:
 					{
 						const float framecount = static_cast<float>(_framecount % 16777216);
 						set_uniform_value(variable, &framecount, 1);
@@ -241,20 +239,20 @@ namespace reshade
 
 				switch (variable.basetype)
 				{
-					case uniform_datatype::bool_:
+					case uniform_datatype::boolean:
 					{
 						const bool even = (timer % 2) == 0;
 						set_uniform_value(variable, &even, 1);
 						break;
 					}
-					case uniform_datatype::int_:
-					case uniform_datatype::uint_:
+					case uniform_datatype::signed_integer:
+					case uniform_datatype::unsigned_integer:
 					{
 						const unsigned int timer_int = static_cast<unsigned int>(timer % UINT_MAX);
 						set_uniform_value(variable, &timer_int, 1);
 						break;
 					}
-					case uniform_datatype::float_:
+					case uniform_datatype::floating_point:
 					{
 						const float timer_float = std::fmod(static_cast<float>(timer * 1e-6f), 16777216.0f);
 						set_uniform_value(variable, &timer_float, 1);
@@ -584,7 +582,7 @@ namespace reshade
 
 		for (auto &texture : _textures)
 		{
-			if (texture.impl_is_reference)
+			if (texture.impl_reference != texture_reference::none)
 			{
 				continue;
 			}
@@ -612,7 +610,7 @@ namespace reshade
 			int width = 0, height = 0, channels = 0;
 			bool success = false;
 
-			if (_wfopen_s(&file, stdext::utf8_to_utf16(path.string()).c_str(), L"rb") == 0)
+			if (_wfopen_s(&file, path.wstring().c_str(), L"rb") == 0)
 			{
 				if (stbi_dds_test_file(file))
 				{
@@ -1459,7 +1457,7 @@ namespace reshade
 		{
 			for (const auto &texture : _textures)
 			{
-				if (texture.impl_is_reference)
+				if (texture.impl_reference != texture_reference::none)
 				{
 					continue;
 				}
@@ -1571,7 +1569,7 @@ Libraries in use:\n\
 
 			switch (variable.displaytype)
 			{
-				case uniform_datatype::bool_:
+				case uniform_datatype::boolean:
 				{
 					bool data[1] = { };
 					get_uniform_value(variable, data, 1);
@@ -1586,8 +1584,8 @@ Libraries in use:\n\
 					}
 					break;
 				}
-				case uniform_datatype::int_:
-				case uniform_datatype::uint_:
+				case uniform_datatype::signed_integer:
+				case uniform_datatype::unsigned_integer:
 				{
 					int data[4] = { };
 					get_uniform_value(variable, data, 4);
@@ -1611,7 +1609,7 @@ Libraries in use:\n\
 					}
 					break;
 				}
-				case uniform_datatype::float_:
+				case uniform_datatype::floating_point:
 				{
 					float data[4] = { };
 					get_uniform_value(variable, data, 4);
