@@ -1,15 +1,10 @@
 #include "log.hpp"
 #include "filesystem.hpp"
 #include "input.hpp"
+#include "runtime.hpp"
 #include "hook_manager.hpp"
 #include "version.h"
-
 #include <Windows.h>
-
-namespace reshade
-{
-	filesystem::path s_injector_path, s_executable_path;
-}
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID lpvReserved)
 {
@@ -23,10 +18,10 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID lpvReserved)
 		{
 			DisableThreadLibraryCalls(hModule);
 
-			s_injector_path = filesystem::get_module_path(hModule);
-			s_executable_path = filesystem::get_module_path(nullptr);
+			runtime::s_reshade_dll_path = filesystem::get_module_path(hModule);
+			runtime::s_target_executable_path = filesystem::get_module_path(nullptr);
 
-			filesystem::path log_path(s_injector_path);
+			filesystem::path log_path(runtime::s_reshade_dll_path);
 			log_path.replace_extension(".log");
 
 			log::open(log_path);
@@ -36,7 +31,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID lpvReserved)
 #else
 #define VERSION_PLATFORM "32-bit"
 #endif
-			LOG(INFO) << "Initializing crosire's ReShade version '" VERSION_STRING_FILE "' (" << VERSION_PLATFORM << ") built on '" VERSION_DATE " " VERSION_TIME "' loaded from " << s_injector_path << " to " << s_executable_path << " ...";
+			LOG(INFO) << "Initializing crosire's ReShade version '" VERSION_STRING_FILE "' (" << VERSION_PLATFORM << ") built on '" VERSION_DATE " " VERSION_TIME "' loaded from " << runtime::s_reshade_dll_path << " to " << runtime::s_target_executable_path << " ...";
 
 			const auto system_path = filesystem::get_special_folder_path(filesystem::special_folder::system);
 			hooks::register_module(system_path / "d3d8.dll");

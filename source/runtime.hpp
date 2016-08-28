@@ -26,6 +26,8 @@ namespace reshade
 	class runtime abstract
 	{
 	public:
+		static filesystem::path s_reshade_dll_path, s_target_executable_path;
+
 		/// <summary>
 		/// Construct a new runtime instance.
 		/// </summary>

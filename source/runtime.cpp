@@ -17,7 +17,7 @@
 
 namespace reshade
 {
-	extern filesystem::path s_executable_path, s_injector_path;
+	filesystem::path runtime::s_reshade_dll_path, runtime::s_target_executable_path;
 
 	const char keyboard_keys[256][16] = {
 		"", "", "", "Cancel", "", "", "", "", "Backspace", "Tab", "", "", "Clear", "Enter", "", "",
@@ -37,8 +37,8 @@ namespace reshade
 		_start_time(std::chrono::high_resolution_clock::now()),
 		_last_frame_duration(std::chrono::milliseconds(1)),
 		_imgui_context(ImGui::CreateContext()),
-		_effect_search_paths({ s_injector_path.parent_path() }),
-		_texture_search_paths({ s_injector_path.parent_path() }),
+		_effect_search_paths({ s_reshade_dll_path.parent_path() }),
+		_texture_search_paths({ s_reshade_dll_path.parent_path() }),
 		_preprocessor_definitions({
 			"RESHADE_DEPTH_LINEARIZATION_FAR_PLANE=1000.0",
 			"RESHADE_DEPTH_INPUT_IS_UPSIDE_DOWN=0",
@@ -521,7 +521,7 @@ namespace reshade
 		pp.add_macro_definition("__VENDOR__", std::to_string(_vendor_id));
 		pp.add_macro_definition("__DEVICE__", std::to_string(_device_id));
 		pp.add_macro_definition("__RENDERER__", std::to_string(_renderer_id));
-		pp.add_macro_definition("__APPLICATION__", std::to_string(std::hash<std::string>()(s_executable_path.filename_without_extension().string())));
+		pp.add_macro_definition("__APPLICATION__", std::to_string(std::hash<std::string>()(s_target_executable_path.filename_without_extension().string())));
 		pp.add_macro_definition("BUFFER_WIDTH", std::to_string(_width));
 		pp.add_macro_definition("BUFFER_HEIGHT", std::to_string(_height));
 		pp.add_macro_definition("BUFFER_RCP_WIDTH", std::to_string(1.0f / static_cast<float>(_width)));
@@ -652,7 +652,7 @@ namespace reshade
 	}
 	void runtime::load_configuration()
 	{
-		filesystem::path path(s_injector_path);
+		filesystem::path path(s_reshade_dll_path);
 		path.replace_extension(".ini");
 		const ini_file config(path);
 
@@ -677,7 +677,7 @@ namespace reshade
 		_current_preset = config.get("GENERAL", "CurrentPreset", _current_preset).as<int>();
 		_tutorial_index = config.get("GENERAL", "TutorialProgress", _tutorial_index).as<unsigned int>();
 
-		_screenshot_path = config.get("GENERAL", "ScreenshotPath", s_executable_path.parent_path()).as<filesystem::path>();
+		_screenshot_path = config.get("GENERAL", "ScreenshotPath", s_target_executable_path.parent_path()).as<filesystem::path>();
 		_screenshot_format = config.get("GENERAL", "ScreenshotFormat", 0).as<int>();
 
 		auto &style = ImGui::GetStyle();
@@ -741,7 +741,7 @@ namespace reshade
 	}
 	void runtime::save_configuration() const
 	{
-		filesystem::path path(s_injector_path);
+		filesystem::path path(s_reshade_dll_path);
 		path.replace_extension(".ini");
 		ini_file config(path);
 
@@ -848,7 +848,7 @@ namespace reshade
 
 		char filename[25];
 		ImFormatString(filename, sizeof(filename), " %.4d-%.2d-%.2d %.2d-%.2d-%.2d%s", _date[0], _date[1], _date[2], hour, minute, second, _screenshot_format == 0 ? ".bmp" : ".png");
-		const auto path = _screenshot_path / (s_executable_path.filename_without_extension() + filename);
+		const auto path = _screenshot_path / (s_target_executable_path.filename_without_extension() + filename);
 
 		LOG(INFO) << "Saving screenshot to " << path << " ...";
 
@@ -1107,7 +1107,7 @@ namespace reshade
 
 				if (ImGui::InputText("Name", buf, sizeof(buf), ImGuiInputTextFlags_EnterReturnsTrue))
 				{
-					auto path = filesystem::absolute(buf, s_injector_path.parent_path());
+					auto path = filesystem::absolute(buf, s_reshade_dll_path.parent_path());
 					path.replace_extension(".ini");
 
 					if (filesystem::exists(path) || filesystem::exists(path.parent_path()))
@@ -1440,7 +1440,7 @@ namespace reshade
 	{
 		if (ImGui::CollapsingHeader("General", ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_DefaultOpen))
 		{
-			ImGui::Text("Application: %X", std::hash<std::string>()(s_executable_path.filename_without_extension().string()));
+			ImGui::Text("Application: %X", std::hash<std::string>()(s_target_executable_path.filename_without_extension().string()));
 			ImGui::Text("Date: %d-%d-%d %d", _date[0], _date[1], _date[2], _date[3]);
 			ImGui::Text("Device: %X %d", _vendor_id, _device_id);
 			ImGui::Text("FPS: %.2f", ImGui::GetIO().Framerate);
