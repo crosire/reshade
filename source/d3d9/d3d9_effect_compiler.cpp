@@ -508,7 +508,7 @@ namespace reshade
 				part3 = "))";
 				break;
 			case binary_expression_node::bitwise_and:
-				if (node->operands[1]->id == nodeid::literal_expression && node->operands[1]->type.is_integral())
+				if (node->operands[1]->id == nodeid::literal_expression && node->operands[1]->type.is_integral() && node->operands[1]->type.is_scalar())
 				{
 					const unsigned int value = static_cast<const literal_expression_node *>(node->operands[1])->value_uint[0];
 
@@ -516,7 +516,7 @@ namespace reshade
 					{
 						output << "(("  << (value + 1) << ") * frac((";
 						visit(output, node->operands[0]);
-						output << ") / (" << (value + 1) << ")))";
+						output << ") / (" << (value + 1) << ".0)))";
 						return;
 					}
 					else if (is_pow2(value))
