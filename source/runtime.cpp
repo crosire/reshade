@@ -1207,14 +1207,14 @@ namespace reshade
 			{
 				tutorial_text =
 					"This is the list of variables. It contains all tweakable options the effects expose. All values here apply in real-time.\n\n"
-					"Enter text in the box at the top of the list to filter it and search for specific variable names.\n\n"
+					"Enter text in the box at the top of the list to filter it and search for specific variables.\n\n"
 					"Once you have finished tweaking your preset, be sure to go to the 'Settings' tab and change the 'Usage Mode' to 'Performance Mode'. "
 					"This will recompile all shaders into a more optimal representation that gives a significant performance boost, but will disable variable tweaking and this list.";
 
 				ImGui::PushStyleColor(ImGuiCol_ChildWindowBg, ImVec4(1, 0, 0, 1));
 			}
 
-			const float bottom_height = _tutorial_index == 3 ? ImGui::GetItemsLineHeightWithSpacing() + ImGui::GetStyle().ItemSpacing.y + 120 : ImGui::GetItemsLineHeightWithSpacing();
+			const float bottom_height = _tutorial_index == 3 ? ImGui::GetItemsLineHeightWithSpacing() + ImGui::GetStyle().ItemSpacing.y + 125 : ImGui::GetItemsLineHeightWithSpacing();
 
 			if (ImGui::BeginChild("##variables", ImVec2(-1, -bottom_height), true))
 			{
@@ -1245,11 +1245,12 @@ namespace reshade
 		}
 		else
 		{
-			ImGui::BeginChildFrame(0, ImVec2(-1, 120));
+			ImGui::BeginChildFrame(0, ImVec2(-1, 125));
 			ImGui::TextWrapped(tutorial_text);
 			ImGui::EndChildFrame();
 
-			if (_tutorial_index != 1 && ImGui::Button(_tutorial_index == 3 ? "Finish" : "Continue", ImVec2(-1, 0)) || continue_tutorial)
+			if ((_tutorial_index != 1 || _current_preset != -1) &&
+				ImGui::Button(_tutorial_index == 3 ? "Finish" : "Continue", ImVec2(-1, 0)) || continue_tutorial)
 			{
 				_tutorial_index++;
 
@@ -1528,7 +1529,7 @@ Libraries in use:\n\
 
 		ImGui::PopItemWidth();
 
-		ImGui::BeginChild("##variables", ImVec2(-1, -1), false, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysUseWindowPadding);
+		ImGui::Spacing();
 
 		std::string current_filename;
 		bool tree_is_closed = true;
@@ -1656,8 +1657,6 @@ Libraries in use:\n\
 		{
 			ImGui::TreePop();
 		}
-
-		ImGui::EndChild();
 	}
 	void runtime::draw_overlay_technique_editor()
 	{
