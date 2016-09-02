@@ -37,7 +37,7 @@ namespace reshadefx
 		return add_macro_definition(name, macro);
 	}
 
-	bool preprocessor::run(const filesystem::path &file_path, std::vector<filesystem::path> &included_files)
+	bool preprocessor::run(const filesystem::path &file_path)
 	{
 		std::ifstream file(file_path.wstring());
 
@@ -46,6 +46,7 @@ namespace reshadefx
 			return false;
 		}
 
+		_success = true;
 		_filecache.clear();
 
 		const std::string filedata(std::istreambuf_iterator<char>(file.rdbuf()), std::istreambuf_iterator<char>());
@@ -53,7 +54,11 @@ namespace reshadefx
 		push(filedata + '\n', file_path.string());
 		parse();
 
-		if (_success)
+		return _success;
+	}
+	bool preprocessor::run(const filesystem::path &file_path, std::vector<filesystem::path> &included_files)
+	{
+		if (run(file_path))
 		{
 			for (const auto &element : _filecache)
 			{

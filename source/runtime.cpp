@@ -119,9 +119,7 @@ namespace reshade
 		_uniforms.clear();
 		_techniques.clear();
 		_uniform_data_storage.clear();
-
 		_errors.clear();
-		_included_files.clear();
 	}
 	void runtime::on_present()
 	{
@@ -150,6 +148,148 @@ namespace reshade
 		const auto ticks = std::chrono::high_resolution_clock::now();
 		_last_frame_duration = std::chrono::duration_cast<std::chrono::nanoseconds>(ticks - _last_present);
 		_last_present = ticks;
+
+		if (_reload_remaining_effects != 0)
+		{
+			_reload_time = _last_present;
+
+			switch (_reload_step)
+			{
+				case 0:
+				{
+					std::string errors;
+					const filesystem::path path = _effect_files[_effect_files.size() - _reload_remaining_effects];
+					_reload_current_ast = std::make_unique<reshadefx::syntax_tree>();
+
+					if (!load_effect(path, *_reload_current_ast, errors))
+					{
+						LOG(ERROR) << "Failed to compile " << path << ":\n" << errors;
+						_errors += path.string() + ":\n" + errors;
+						_reload_step = 2;
+						break;
+					}
+
+					if (_performance_mode && _current_preset >= 0)
+					{
+						ini_file preset(_preset_files[_current_preset]);
+
+						for (auto variable : _reload_current_ast->variables)
+						{
+							if (!variable->type.has_qualifier(reshadefx::nodes::type_node::qualifier_uniform) ||
+								variable->initializer_expression == nullptr ||
+								variable->initializer_expression->id != reshadefx::nodeid::literal_expression ||
+								variable->annotation_list.count("source"))
+							{
+								continue;
+							}
+
+							const auto initializer = static_cast<reshadefx::nodes::literal_expression_node *>(variable->initializer_expression);
+							const auto data = preset.get(path.filename().string(), variable->unique_name);
+
+							for (unsigned int i = 0; i < std::min(variable->type.rows, static_cast<unsigned int>(data.data().size())); i++)
+							{
+								switch (initializer->type.basetype)
+								{
+									case reshadefx::nodes::type_node::datatype_int:
+										initializer->value_int[i] = data.as<int>(i);
+										break;
+									case reshadefx::nodes::type_node::datatype_bool:
+									case reshadefx::nodes::type_node::datatype_uint:
+										initializer->value_uint[i] = data.as<unsigned int>(i);
+										break;
+									case reshadefx::nodes::type_node::datatype_float:
+										initializer->value_float[i] = data.as<float>(i);
+										break;
+								}
+							}
+
+							variable->type.qualifiers ^= reshadefx::nodes::type_node::qualifier_uniform;
+							variable->type.qualifiers |= reshadefx::nodes::type_node::qualifier_static | reshadefx::nodes::type_node::qualifier_const;
+						}
+					}
+
+					if (!errors.empty())
+					{
+						_errors += path.string() + ":\n" + errors;
+					}
+
+					_reload_step = 1;
+					break;
+				}
+				case 1:
+				{
+					std::string errors;
+					const filesystem::path path = _effect_files[_effect_files.size() - _reload_remaining_effects];
+
+					if (!update_effect(*_reload_current_ast, errors))
+					{
+						LOG(ERROR) << "Failed to compile " << path << ":\n" << errors;
+						_errors += path.string() + ":\n" + errors;
+						_reload_step = 2;
+						break;
+					}
+					for (auto &variable : _uniforms)
+					{
+						if (!variable.annotations.count("__FILE__"))
+						{
+							variable.annotations["__FILE__"] = path;
+						}
+					}
+					for (auto &texture : _textures)
+					{
+						if (!texture.annotations.count("__FILE__"))
+						{
+							texture.annotations["__FILE__"] = path;
+						}
+					}
+					for (auto &technique : _techniques)
+					{
+						if (!technique.annotations.count("__FILE__"))
+						{
+							technique.annotations["__FILE__"] = path;
+
+							technique.enabled = technique.annotations["enabled"].as<bool>();
+							technique.timeleft = technique.timeout = technique.annotations["timeout"].as<int>();
+							technique.toggle_key = technique.annotations["toggle"].as<int>();
+							technique.toggle_key_ctrl = technique.annotations["togglectrl"].as<bool>();
+							technique.toggle_key_shift = technique.annotations["toggleshift"].as<bool>();
+							technique.toggle_key_alt = technique.annotations["togglealt"].as<bool>();
+							technique.toggle_time = technique.annotations["toggletime"].as<int>();
+						}
+					}
+
+					if (errors.empty())
+					{
+						LOG(INFO) << "Successfully compiled " << path << ".";
+					}
+					else
+					{
+						LOG(WARNING) << "Successfully compiled " << path << " with warnings:\n" << errors;
+						_errors += path.string() + ":\n" + errors;
+					}
+
+					_reload_step = 2;
+					break;
+				}
+				case 2:
+				{
+					_reload_step = 0;
+					_reload_remaining_effects--;
+					_reload_current_ast.reset();
+					break;
+				}
+			}
+
+			if (_reload_remaining_effects == 0)
+			{
+				load_textures();
+
+				if (_current_preset >= 0)
+				{
+					load_preset(_preset_files[_current_preset]);
+				}
+			}
+		}
 	}
 	void runtime::on_present_effect()
 	{
@@ -389,116 +529,15 @@ namespace reshade
 
 		LOG(INFO) << "Compiling effect files ...";
 
+		_effect_files.clear();
+
 		for (const auto &search_path : _effect_search_paths)
 		{
 			const auto files = filesystem::list_files(search_path, "*.fx");
-
-			for (const auto &path : files)
-			{
-				std::string errors;
-				reshadefx::syntax_tree ast;
-
-				if (!load_effect(path, ast, errors))
-				{
-					LOG(ERROR) << "Failed to compile " << path << ":\n" << errors;
-					_errors += path.string() + ":\n" + errors;
-					continue;
-				}
-
-				if (_performance_mode && _current_preset >= 0)
-				{
-					ini_file preset(_preset_files[_current_preset]);
-
-					for (auto variable : ast.variables)
-					{
-						if (!variable->type.has_qualifier(reshadefx::nodes::type_node::qualifier_uniform) ||
-							variable->initializer_expression == nullptr ||
-							variable->initializer_expression->id != reshadefx::nodeid::literal_expression ||
-							variable->annotation_list.count("source"))
-						{
-							continue;
-						}
-
-						const auto initializer = static_cast<reshadefx::nodes::literal_expression_node *>(variable->initializer_expression);
-						const auto data = preset.get(path.filename().string(), variable->unique_name);
-
-						for (unsigned int i = 0; i < std::min(variable->type.rows, static_cast<unsigned int>(data.data().size())); i++)
-						{
-							switch (initializer->type.basetype)
-							{
-								case reshadefx::nodes::type_node::datatype_int:
-									initializer->value_int[i] = data.as<int>(i);
-									break;
-								case reshadefx::nodes::type_node::datatype_bool:
-								case reshadefx::nodes::type_node::datatype_uint:
-									initializer->value_uint[i] = data.as<unsigned int>(i);
-									break;
-								case reshadefx::nodes::type_node::datatype_float:
-									initializer->value_float[i] = data.as<float>(i);
-									break;
-							}
-						}
-
-						variable->type.qualifiers ^= reshadefx::nodes::type_node::qualifier_uniform;
-						variable->type.qualifiers |= reshadefx::nodes::type_node::qualifier_static | reshadefx::nodes::type_node::qualifier_const;
-					}
-				}
-
-				if (!update_effect(ast, errors))
-				{
-					LOG(ERROR) << "Failed to compile " << path << ":\n" << errors;
-					_errors += path.string() + ":\n" + errors;
-					continue;
-				}
-
-				for (auto &variable : _uniforms)
-				{
-					if (!variable.annotations.count("__FILE__"))
-					{
-						variable.annotations["__FILE__"] = path;
-					}
-				}
-				for (auto &texture : _textures)
-				{
-					if (!texture.annotations.count("__FILE__"))
-					{
-						texture.annotations["__FILE__"] = path;
-					}
-				}
-				for (auto &technique : _techniques)
-				{
-					if (!technique.annotations.count("__FILE__"))
-					{
-						technique.annotations["__FILE__"] = path;
-
-						technique.enabled = technique.annotations["enabled"].as<bool>();
-						technique.timeleft = technique.timeout = technique.annotations["timeout"].as<int>();
-						technique.toggle_key = technique.annotations["toggle"].as<int>();
-						technique.toggle_key_ctrl = technique.annotations["togglectrl"].as<bool>();
-						technique.toggle_key_shift = technique.annotations["toggleshift"].as<bool>();
-						technique.toggle_key_alt = technique.annotations["togglealt"].as<bool>();
-						technique.toggle_time = technique.annotations["toggletime"].as<int>();
-					}
-				}
-
-				if (errors.empty())
-				{
-					LOG(INFO) << "Successfully compiled " << path << ".";
-				}
-				else
-				{
-					LOG(WARNING) << "Successfully compiled " << path << " with warnings:\n" << errors;
-					_errors += path.string() + ":\n" + errors;
-				}
-			}
+			_effect_files.insert(_effect_files.end(), files.begin(), files.end());
 		}
 
-		load_textures();
-
-		if (_current_preset >= 0)
-		{
-			load_preset(_preset_files[_current_preset]);
-		}
+		_reload_remaining_effects = _effect_files.size();
 	}
 	bool runtime::load_effect(const filesystem::path &path, reshadefx::syntax_tree &ast, std::string &errors)
 	{
@@ -546,15 +585,12 @@ namespace reshade
 			}
 		}
 
-		if (!pp.run(path, _included_files))
+		if (!pp.run(path))
 		{
 			errors += pp.current_errors();
 
 			return false;
 		}
-
-		_effect_files.push_back(path);
-		_included_files.push_back(path);
 
 		for (const auto &pragma : pp.current_pragmas())
 		{
@@ -883,7 +919,7 @@ namespace reshade
 
 	void runtime::draw_overlay()
 	{
-		const bool show_splash = std::chrono::duration_cast<std::chrono::seconds>(_last_present - _start_time).count() < 15;
+		const bool show_splash = std::chrono::duration_cast<std::chrono::seconds>(_last_present - _reload_time).count() < 5;
 
 		if (!_overlay_key_setting_active && _input->is_key_pressed(_menu_key.keycode, _menu_key.ctrl, _menu_key.shift, false))
 		{
@@ -938,21 +974,36 @@ namespace reshade
 
 		if (show_splash)
 		{
-			const bool has_errors = _errors.find("error") != std::string::npos;
-			const ImVec2 splash_size(_width - 20.0f, ImGui::GetItemsLineHeightWithSpacing() * (has_errors ? 4 : 3));
-
-			ImGui::Begin("Splash Screen", nullptr, splash_size, -1, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoInputs);
+			ImGui::Begin("Splash Screen", nullptr, ImVec2(), -1,
+				ImGuiWindowFlags_NoTitleBar |
+				ImGuiWindowFlags_NoResize |
+				ImGuiWindowFlags_NoMove |
+				ImGuiWindowFlags_NoSavedSettings |
+				ImGuiWindowFlags_NoInputs |
+				ImGuiWindowFlags_NoFocusOnAppearing);
 			ImGui::SetWindowPos(ImVec2(10, 10));
+			ImGui::SetWindowSize(ImVec2(_width - 20.0f, ImGui::GetItemsLineHeightWithSpacing() * 3));
 
 			ImGui::TextUnformatted("ReShade " VERSION_STRING_FILE " by crosire");
 			ImGui::TextUnformatted("Visit http://reshade.me for news, updates, shaders and discussion.");
-			ImGui::Spacing();
-			ImGui::Text("Press '%s%s%s' to open the configuration menu.", _menu_key.ctrl ? "Ctrl + " : "", _menu_key.shift ? "Shift + " : "", keyboard_keys[_menu_key.keycode]);
 
-			if (has_errors)
+			if (_reload_remaining_effects != 0)
 			{
 				ImGui::Spacing();
-				ImGui::TextColored(ImVec4(1, 0, 0, 1), "There were errors compiling some shaders. Open the configuration menu and click on 'Show Log' for more details.");
+				ImGui::Text("Loading (%u effects remaining) ...", static_cast<unsigned int>(_reload_remaining_effects));
+			}
+			else
+			{
+				ImGui::Spacing();
+				ImGui::Text("Press '%s%s%s' to open the configuration menu.", _menu_key.ctrl ? "Ctrl + " : "", _menu_key.shift ? "Shift + " : "", keyboard_keys[_menu_key.keycode]);
+
+				if (_errors.find("error") != std::string::npos)
+				{
+					ImGui::SetWindowSize(ImVec2(_width - 20.0f, ImGui::GetItemsLineHeightWithSpacing() * 4));
+
+					ImGui::Spacing();
+					ImGui::TextColored(ImVec4(1, 0, 0, 1), "There were errors compiling some shaders. Open the configuration menu and click on 'Show Log' for more details.");
+				}
 			}
 
 			ImGui::End();
@@ -1010,6 +1061,12 @@ namespace reshade
 	}
 	void runtime::draw_overlay_menu()
 	{
+		if (_reload_remaining_effects != 0)
+		{
+			ImGui::TextUnformatted("Loading ...\nThis might take a while. The application could become unresponsive for some time.");
+			return;
+		}
+
 		if (ImGui::BeginMenuBar())
 		{
 			ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImGui::GetStyle().ItemSpacing * 2);

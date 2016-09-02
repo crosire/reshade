@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <chrono>
+#include <atomic>
 #include "filesystem.hpp"
 #include "runtime_objects.hpp"
 
@@ -185,22 +186,23 @@ namespace reshade
 		void draw_overlay_technique_editor();
 
 		const unsigned int _renderer_id;
-		std::vector<filesystem::path> _effect_files, _preset_files, _effect_search_paths, _texture_search_paths, _included_files;
-		std::chrono::high_resolution_clock::time_point _start_time, _last_create, _last_present;
+		std::vector<filesystem::path> _effect_files, _preset_files, _effect_search_paths, _texture_search_paths;
+		std::chrono::high_resolution_clock::time_point _start_time, _reload_time, _last_present;
 		std::chrono::high_resolution_clock::duration _last_frame_duration;
 		std::vector<unsigned char> _uniform_data_storage;
 		int _date[4] = { };
 		std::string _errors, _message;
 		std::vector<std::string> _preprocessor_definitions;
-		int _menu_index = 0, _screenshot_format = 0, _current_preset = -1, _input_processing_mode = 1;
+		int _menu_index = 0, _screenshot_format = 0, _current_preset = -1, _selected_technique = -1, _input_processing_mode = 1;
 		key_shortcut _menu_key = { 0x71, false, true }, _screenshot_key = { 0x2C };
 		filesystem::path _screenshot_path;
-		int _selected_technique = -1;
 		bool _show_menu = false, _show_error_log = false, _performance_mode = false;
 		bool _overlay_key_setting_active = false, _screenshot_key_setting_active = false;
 		float _imgui_col_background[3] = { 0.275f, 0.275f, 0.275f }, _imgui_col_item_background[3] = { 0.447f, 0.447f, 0.447f };
 		float _imgui_col_text[3] = { 0.8f, 0.9f, 0.9f }, _imgui_col_active[3] = { 0.2f, 0.5f, 0.6f };
 		unsigned int _tutorial_index = 0;
 		char _variable_filter_buffer[64] = { };
+		size_t _reload_remaining_effects = 0, _reload_step = 0;
+		std::unique_ptr<reshadefx::syntax_tree> _reload_current_ast;
 	};
 }

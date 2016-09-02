@@ -27,6 +27,7 @@ namespace reshadefx
 		const std::string &current_errors() const { return _errors; }
 		const std::vector<std::string> &current_pragmas() const { return _pragmas; }
 
+		bool run(const reshade::filesystem::path &file_path);
 		bool run(const reshade::filesystem::path &file_path, std::vector<reshade::filesystem::path> &included_files);
 
 	private:
