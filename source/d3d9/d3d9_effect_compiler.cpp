@@ -119,6 +119,18 @@ namespace reshade
 
 	bool d3d9_effect_compiler::run()
 	{
+		_d3dcompiler_module = LoadLibraryW(L"d3dcompiler_47.dll");
+
+		if (_d3dcompiler_module == nullptr)
+		{
+			_d3dcompiler_module = LoadLibraryW(L"d3dcompiler_46.dll");
+		}
+		if (_d3dcompiler_module == nullptr)
+		{
+			_errors += "Unable to load D3DCompiler library. Make sure you have the DirectX end-user runtime (June 2010) installed or a newer version of the library in the application directory.";
+			return false;
+		}
+
 		_uniform_storage_offset = _runtime->get_uniform_value_storage().size();
 
 		for (auto node : _ast.structs)
@@ -1973,6 +1985,7 @@ namespace reshade
 			flags |= D3DCOMPILE_SKIP_OPTIMIZATION;
 		}
 
+		const auto D3DCompile = reinterpret_cast<pD3DCompile>(GetProcAddress(_d3dcompiler_module, "D3DCompile"));
 		HRESULT hr = D3DCompile(source_str.c_str(), source_str.size(), nullptr, nullptr, nullptr, "__main", (shadertype + "_3_0").c_str(), flags, 0, &compiled, &errors);
 
 		if (errors != nullptr)

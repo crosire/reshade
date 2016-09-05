@@ -65,5 +65,6 @@ namespace reshade
 		std::stringstream _global_code, _global_uniforms;
 		bool _skip_shader_optimization, _is_in_parameter_block = false, _is_in_function_block = false;
 		size_t _uniform_storage_offset = 0, _constant_buffer_size = 0;
+		HMODULE _d3dcompiler_module = nullptr;
 	};
 }
