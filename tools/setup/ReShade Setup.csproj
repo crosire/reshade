@@ -7,6 +7,7 @@
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <OutputType>WinExe</OutputType>
     <AssemblyName>ReShade Setup</AssemblyName>
+    <ApplicationIcon>Properties\Icon.ico</ApplicationIcon>
     <OutputPath>$(SolutionDir)\bin\$(Platform)\$(Configuration)\</OutputPath>
     <IntermediateOutputPath>$(SolutionDir)\intermediate\$(AssemblyName)\$(Platform)\$(Configuration)\</IntermediateOutputPath>
     <AppDesignerFolder>Properties</AppDesignerFolder>
@@ -85,6 +86,9 @@
     <None Include="..\..\bin\x64\Release\ReShade64.dll">
       <Visible>false</Visible>
     </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="Properties\Icon.ico" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
