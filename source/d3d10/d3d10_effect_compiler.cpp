@@ -1515,12 +1515,35 @@ namespace reshade
 			}
 		}
 
-		_global_code << "Texture2D " <<
-			node->unique_name << " : register(t" << _runtime->_effect_shader_resources.size() << "), __" <<
-			node->unique_name << "SRGB : register(t" << (_runtime->_effect_shader_resources.size() + 1) << ");\n";
+		size_t texture_register_index = 0, texture_register_index_srgb = 0;
 
-		_runtime->_effect_shader_resources.push_back(obj_data->srv[0].get());
-		_runtime->_effect_shader_resources.push_back(obj_data->srv[1].get());
+		const auto it1 = std::find(_runtime->_effect_shader_resources.begin(), _runtime->_effect_shader_resources.end(), obj_data->srv[0]);
+
+		if (it1 != _runtime->_effect_shader_resources.end())
+		{
+			texture_register_index = it1 - _runtime->_effect_shader_resources.begin();
+		}
+		else
+		{
+			texture_register_index = _runtime->_effect_shader_resources.size();
+			_runtime->_effect_shader_resources.push_back(obj_data->srv[0].get());
+		}
+
+		const auto it2 = std::find(_runtime->_effect_shader_resources.begin(), _runtime->_effect_shader_resources.end(), obj_data->srv[1]);
+
+		if (it2 != _runtime->_effect_shader_resources.end())
+		{
+			texture_register_index_srgb = it2 - _runtime->_effect_shader_resources.begin();
+		}
+		else
+		{
+			texture_register_index_srgb = _runtime->_effect_shader_resources.size();
+			_runtime->_effect_shader_resources.push_back(obj_data->srv[1].get());
+		}
+
+		_global_code << "Texture2D " <<
+			node->unique_name << " : register(t" << texture_register_index << "), __" <<
+			node->unique_name << "SRGB : register(t" << texture_register_index_srgb << ");\n";
 
 		_runtime->add_texture(std::move(obj));
 	}
