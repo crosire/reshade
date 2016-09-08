@@ -166,7 +166,7 @@ namespace reshade
 
 		if (_d3dcompiler_module == nullptr)
 		{
-			_d3dcompiler_module = LoadLibraryW(L"d3dcompiler_46.dll");
+			_d3dcompiler_module = LoadLibraryW(L"d3dcompiler_43.dll");
 		}
 		if (_d3dcompiler_module == nullptr)
 		{
