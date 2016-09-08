@@ -92,6 +92,7 @@ namespace reshade
 		LOG(INFO) << "Recreated runtime environment on runtime " << this << ".";
 
 		_is_initialized = true;
+		_reload_time = std::chrono::high_resolution_clock::now();
 
 		reload();
 
