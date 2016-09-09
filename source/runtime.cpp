@@ -1615,7 +1615,7 @@ Libraries in use:\n\
 					ImGui::TreePop();
 				}
 
-				tree_is_closed = !ImGui::TreeNodeEx(filename.c_str(), ImGuiTreeNodeFlags_DefaultOpen);
+				tree_is_closed = !ImGui::TreeNode(filename.c_str());
 
 				current_filename = filename;
 			}
@@ -1740,7 +1740,7 @@ Libraries in use:\n\
 					ImGui::TreePop();
 				}
 
-				tree_is_closed = !ImGui::TreeNodeEx(filename.c_str(), ImGuiTreeNodeFlags_DefaultOpen);
+				tree_is_closed = !ImGui::TreeNode(filename.c_str());
 
 				current_filename = filename;
 			}
