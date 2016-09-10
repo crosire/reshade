@@ -74,6 +74,10 @@
       <AdditionalLibraryDirectories>$(SolutionDir)\bin\$(Platform)\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <ModuleDefinitionFile>res\exports.def</ModuleDefinitionFile>
     </Link>
+    <FxCompile>
+      <ShaderModel>4.0</ShaderModel>
+      <ObjectFileOutput>$(SolutionDir)res\%(Filename).cso</ObjectFileOutput>
+    </FxCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>WIN32;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ResourceCompile>
@@ -99,6 +103,10 @@
       <AdditionalLibraryDirectories>$(SolutionDir)\bin\$(Platform)\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <ModuleDefinitionFile>res\exports.def</ModuleDefinitionFile>
     </Link>
+    <FxCompile>
+      <ShaderModel>4.0</ShaderModel>
+      <ObjectFileOutput>$(SolutionDir)res\%(Filename).cso</ObjectFileOutput>
+    </FxCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>WIN64;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ResourceCompile>
@@ -128,6 +136,10 @@
       <AdditionalLibraryDirectories>$(SolutionDir)\bin\$(Platform)\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <ModuleDefinitionFile>res\exports.def</ModuleDefinitionFile>
     </Link>
+    <FxCompile>
+      <ShaderModel>4.0</ShaderModel>
+      <ObjectFileOutput>$(SolutionDir)res\%(Filename).cso</ObjectFileOutput>
+    </FxCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>WIN32;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ResourceCompile>
@@ -157,6 +169,10 @@
       <AdditionalLibraryDirectories>$(SolutionDir)\bin\$(Platform)\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <ModuleDefinitionFile>res\exports.def</ModuleDefinitionFile>
     </Link>
+    <FxCompile>
+      <ShaderModel>4.0</ShaderModel>
+      <ObjectFileOutput>$(SolutionDir)res\%(Filename).cso</ObjectFileOutput>
+    </FxCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>WIN64;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ResourceCompile>
@@ -164,6 +180,20 @@
       <Command>tools\verbuild res\version.h *.*.*.+ -xFP -b0.0.0.0 -s</Command>
     </PreBuildEvent>
   </ItemDefinitionGroup>
+  <ItemGroup>
+    <ProjectReference Include="deps\gl3w.vcxproj">
+      <Project>{09c0d610-9b82-40d8-b37e-0d26e3bff77f}</Project>
+    </ProjectReference>
+    <ProjectReference Include="deps\ImGui.vcxproj">
+      <Project>{9a62233b-0b70-4b48-91e8-35aa666bc32e}</Project>
+    </ProjectReference>
+    <ProjectReference Include="deps\MinHook.vcxproj">
+      <Project>{783fedfb-5124-4f8c-87bc-70aa8490266b}</Project>
+    </ProjectReference>
+    <ProjectReference Include="deps\stb.vcxproj">
+      <Project>{723bdef8-4a39-4961-bdab-54074012ff47}</Project>
+    </ProjectReference>
+  </ItemGroup>
   <ItemGroup>
     <ClCompile Include="source\d3d10\d3d10.cpp" />
     <ClCompile Include="source\d3d10\d3d10_device.cpp" />
@@ -186,6 +216,7 @@
     <ClCompile Include="source\parser.cpp" />
     <ClCompile Include="source\filesystem.cpp" />
     <ClCompile Include="source\preprocessor.cpp" />
+    <ClCompile Include="source\resource_loading.cpp" />
     <ClCompile Include="source\runtime_objects.cpp" />
     <ClCompile Include="source\symbol_table.cpp" />
     <ClCompile Include="source\hook.cpp" />
@@ -213,6 +244,7 @@
     <ClCompile Include="source\directory_watcher.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="res\resource.h" />
     <ClInclude Include="res\version.h" />
     <ClInclude Include="source\constant_folding.hpp" />
     <ClInclude Include="source\d3d10\d3d10.hpp" />
@@ -230,6 +262,7 @@
     <ClInclude Include="source\dxgi\dxgi_swapchain.hpp" />
     <ClInclude Include="source\ini_file.hpp" />
     <ClInclude Include="source\filesystem.hpp" />
+    <ClInclude Include="source\resource_loading.hpp" />
     <ClInclude Include="source\runtime_objects.hpp" />
     <ClInclude Include="source\algorithm.hpp" />
     <ClInclude Include="source\syntax_tree.hpp" />
@@ -273,18 +306,18 @@
     <None Include="res\resource.rc2" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="deps\gl3w.vcxproj">
-      <Project>{09c0d610-9b82-40d8-b37e-0d26e3bff77f}</Project>
-    </ProjectReference>
-    <ProjectReference Include="deps\ImGui.vcxproj">
-      <Project>{9a62233b-0b70-4b48-91e8-35aa666bc32e}</Project>
-    </ProjectReference>
-    <ProjectReference Include="deps\MinHook.vcxproj">
-      <Project>{783fedfb-5124-4f8c-87bc-70aa8490266b}</Project>
-    </ProjectReference>
-    <ProjectReference Include="deps\stb.vcxproj">
-      <Project>{723bdef8-4a39-4961-bdab-54074012ff47}</Project>
-    </ProjectReference>
+    <FxCompile Include="res\shader_copy_ps.hlsl">
+      <ShaderType>Pixel</ShaderType>
+    </FxCompile>
+    <FxCompile Include="res\shader_copy_vs.hlsl">
+      <ShaderType>Vertex</ShaderType>
+    </FxCompile>
+    <FxCompile Include="res\shader_imgui_ps.hlsl">
+      <ShaderType>Pixel</ShaderType>
+    </FxCompile>
+    <FxCompile Include="res\shader_imgui_vs.hlsl">
+      <ShaderType>Vertex</ShaderType>
+    </FxCompile>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

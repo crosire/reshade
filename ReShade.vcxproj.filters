@@ -40,6 +40,9 @@
     <Filter Include="hooks\vulkan">
       <UniqueIdentifier>{9b07374b-f95c-42ca-8357-f3af0e12c8b8}</UniqueIdentifier>
     </Filter>
+    <Filter Include="resources">
+      <UniqueIdentifier>{7f3f7a66-aeb1-4c44-abb4-d7eff03a1247}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="source\log.cpp">
@@ -179,6 +182,9 @@
     </ClCompile>
     <ClCompile Include="source\vulkan\vulkan_runtime.cpp">
       <Filter>hooks\vulkan</Filter>
+    </ClCompile>
+    <ClCompile Include="source\resource_loading.cpp">
+      <Filter>core</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -335,12 +341,38 @@
     <ClInclude Include="source\vulkan\vulkan_runtime.hpp">
       <Filter>hooks\vulkan</Filter>
     </ClInclude>
+    <ClInclude Include="source\resource_loading.hpp">
+      <Filter>core</Filter>
+    </ClInclude>
+    <ClInclude Include="res\resource.h">
+      <Filter>resources</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <None Include="res\exports.def" />
-    <None Include="res\resource.rc2" />
+    <None Include="res\exports.def">
+      <Filter>resources</Filter>
+    </None>
+    <None Include="res\resource.rc2">
+      <Filter>resources</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="res\resource.rc" />
+    <FxCompile Include="res\shader_copy_ps.hlsl">
+      <Filter>resources</Filter>
+    </FxCompile>
+    <FxCompile Include="res\shader_copy_vs.hlsl">
+      <Filter>resources</Filter>
+    </FxCompile>
+    <FxCompile Include="res\shader_imgui_ps.hlsl">
+      <Filter>resources</Filter>
+    </FxCompile>
+    <FxCompile Include="res\shader_imgui_vs.hlsl">
+      <Filter>resources</Filter>
+    </FxCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="res\resource.rc">
+      <Filter>resources</Filter>
+    </ResourceCompile>
   </ItemGroup>
 </Project>

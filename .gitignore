@@ -5,6 +5,7 @@
 [Bb]uild/
 [Dd]ebug/
 [Rr]elease/
+*.cso
 
 # Visual Studio cache files
 ipch/
