@@ -6,6 +6,8 @@
 #include "version.h"
 #include <Windows.h>
 
+HMODULE g_module_handle = nullptr;
+
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID lpvReserved)
 {
 	UNREFERENCED_PARAMETER(lpvReserved);
@@ -18,6 +20,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID lpvReserved)
 		{
 			DisableThreadLibraryCalls(hModule);
 
+			g_module_handle = hModule;
 			runtime::s_reshade_dll_path = filesystem::get_module_path(hModule);
 			runtime::s_target_executable_path = filesystem::get_module_path(nullptr);
 

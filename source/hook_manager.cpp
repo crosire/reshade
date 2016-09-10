@@ -1,12 +1,13 @@
 #include "log.hpp"
 #include "hook_manager.hpp"
 #include "critical_section.hpp"
-
 #include <assert.h>
 #include <algorithm>
 #include <vector>
 #include <unordered_map>
 #include <Windows.h>
+
+extern HMODULE g_module_handle;
 
 namespace reshade::hooks
 {
@@ -25,13 +26,6 @@ namespace reshade::hooks
 			unsigned short ordinal;
 		};
 
-		HMODULE get_current_module()
-		{
-			HMODULE handle = nullptr;
-			GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT, reinterpret_cast<LPCWSTR>(&get_current_module), &handle);
-
-			return handle;
-		}
 		std::vector<module_export> get_module_exports(HMODULE handle)
 		{
 			std::vector<module_export> exports;
@@ -300,7 +294,7 @@ namespace reshade::hooks
 
 			const HMODULE handle = trampoline(lpFileName);
 
-			if (handle == nullptr || handle == get_current_module())
+			if (handle == nullptr || handle == g_module_handle)
 			{
 				return handle;
 			}
@@ -322,7 +316,7 @@ namespace reshade::hooks
 
 				s_delayed_hook_modules.push_back(delayed_handle);
 
-				return install(delayed_handle, get_current_module(), hook_method::function_hook);
+				return install(delayed_handle, g_module_handle, hook_method::function_hook);
 			});
 
 			s_delayed_hook_paths.erase(remove, s_delayed_hook_paths.end());
@@ -346,7 +340,7 @@ namespace reshade::hooks
 
 			const HMODULE handle = trampoline(lpFileName);
 
-			if (handle == nullptr || handle == get_current_module())
+			if (handle == nullptr || handle == g_module_handle)
 			{
 				return handle;
 			}
@@ -368,7 +362,7 @@ namespace reshade::hooks
 
 				s_delayed_hook_modules.push_back(delayed_handle);
 
-				return install(delayed_handle, get_current_module(), hook_method::function_hook);
+				return install(delayed_handle, g_module_handle, hook_method::function_hook);
 			});
 
 			s_delayed_hook_paths.erase(remove, s_delayed_hook_paths.end());
@@ -472,7 +466,7 @@ namespace reshade::hooks
 		LOG(INFO) << "Registering hooks for " << target_path << " ...";
 
 		const auto target_filename = target_path.filename_without_extension();
-		const auto replacement_filename = filesystem::get_module_path(get_current_module()).filename_without_extension();
+		const auto replacement_filename = filesystem::get_module_path(g_module_handle).filename_without_extension();
 
 		if (target_filename == replacement_filename)
 		{
@@ -491,7 +485,7 @@ namespace reshade::hooks
 
 				s_delayed_hook_modules.push_back(handle);
 
-				install(handle, get_current_module(), hook_method::function_hook);
+				install(handle, g_module_handle, hook_method::function_hook);
 			}
 			else
 			{
@@ -517,7 +511,7 @@ namespace reshade::hooks
 				s_export_hook_path = "";
 				s_delayed_hook_modules.push_back(handle);
 
-				install(handle, get_current_module(), hook_method::export_hook);
+				install(handle, g_module_handle, hook_method::export_hook);
 			}
 			else
 			{
