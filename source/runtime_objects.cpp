@@ -21,9 +21,9 @@ namespace reshade
 	{
 		const auto it = std::find_if(_textures.begin(), _textures.end(),
 			[name](const auto &item)
-		{
-			return item.name == name;
-		});
+			{
+				return item.name == name;
+			});
 
 		return it != _textures.end() ? &(*it) : nullptr;
 	}

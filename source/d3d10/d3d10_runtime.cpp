@@ -779,7 +779,7 @@ namespace reshade
 
 		texture_staging->Unmap(0);
 	}
-	bool d3d10_runtime::update_effect(const reshadefx::syntax_tree &ast, std::string &errors)
+	bool d3d10_runtime::load_effect(const reshadefx::syntax_tree &ast, std::string &errors)
 	{
 		return d3d10_effect_compiler(this, ast, errors, false).run();
 	}

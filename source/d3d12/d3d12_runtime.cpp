@@ -52,7 +52,7 @@ namespace reshade
 	void d3d12_runtime::capture_frame(uint8_t *buffer) const
 	{
 	}
-	bool d3d12_runtime::update_effect(const reshadefx::syntax_tree &ast, std::string &errors)
+	bool d3d12_runtime::load_effect(const reshadefx::syntax_tree &ast, std::string &errors)
 	{
 		return false;
 	}

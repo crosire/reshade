@@ -77,7 +77,7 @@ namespace reshade
 
 	struct texture final
 	{
-		std::string name, unique_name;
+		std::string name, unique_name, effect_filename;
 		unsigned int width = 0, height = 0, levels = 0;
 		texture_format format = texture_format::unknown;
 		std::unordered_map<std::string, variant> annotations;
@@ -86,20 +86,21 @@ namespace reshade
 	};
 	struct uniform final
 	{
-		std::string name, unique_name;
-		uniform_datatype basetype = uniform_datatype::floating_point, displaytype = uniform_datatype::floating_point;
+		std::string name, unique_name, effect_filename;
+		uniform_datatype basetype = uniform_datatype::floating_point;
+		uniform_datatype displaytype = uniform_datatype::floating_point;
 		unsigned int rows = 0, columns = 0, elements = 0;
 		size_t storage_offset = 0, storage_size = 0;
 		std::unordered_map<std::string, variant> annotations;
+		bool hidden = false;
 	};
 	struct technique final
 	{
-		std::string name;
+		std::string name, effect_filename;
 		std::vector<std::unique_ptr<base_object>> passes;
 		std::unordered_map<std::string, variant> annotations;
-		bool enabled = false;
-		int timeout = 0, timeleft = 0;
-		int toggle_key = 0, toggle_time = 0;
+		bool enabled = false, hidden = false;
+		int timeout = 0, timeleft = 0, toggle_key = 0;
 		bool toggle_key_ctrl = false, toggle_key_shift = false, toggle_key_alt = false;
 		utils::moving_average<uint64_t, 512> average_duration;
 		int uniform_storage_offset = 0, uniform_storage_index = -1;

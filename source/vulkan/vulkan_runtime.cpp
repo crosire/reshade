@@ -41,7 +41,7 @@ namespace reshade
 	void vulkan_runtime::capture_frame(uint8_t *buffer) const
 	{
 	}
-	bool vulkan_runtime::update_effect(const reshadefx::syntax_tree &ast, std::string & errors)
+	bool vulkan_runtime::load_effect(const reshadefx::syntax_tree &ast, std::string & errors)
 	{
 		return false;
 	}

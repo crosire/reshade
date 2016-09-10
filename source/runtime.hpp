@@ -27,7 +27,14 @@ namespace reshade
 	class runtime abstract
 	{
 	public:
-		static filesystem::path s_reshade_dll_path, s_target_executable_path;
+		/// <summary>
+		/// File path to the current module.
+		/// </summary>
+		static filesystem::path s_reshade_dll_path;
+		/// <summary>
+		/// File path to the current executable.
+		/// </summary>
+		static filesystem::path s_target_executable_path;
 
 		/// <summary>
 		/// Construct a new runtime instance.
@@ -72,27 +79,7 @@ namespace reshade
 		texture *find_texture(const std::string &name);
 
 		/// <summary>
-		/// Compile effect from the specified abstract syntax tree and initialize textures, constants and techniques.
-		/// </summary>
-		/// <param name="ast">The abstract syntax tree of the effect to compile.</param>
-		/// <param name="pragmas">A list of additional commands to the compiler.</param>
-		/// <param name="errors">A reference to a buffer to store errors which occur during compilation.</param>
-		virtual bool update_effect(const reshadefx::syntax_tree &ast, std::string &errors) = 0;
-		/// <summary>
-		/// Update the image data of a texture.
-		/// </summary>
-		/// <param name="texture">The texture to update.</param>
-		/// <param name="data">The 32bpp RGBA image data to update the texture to.</param>
-		virtual bool update_texture(texture &texture, const uint8_t *data) = 0;
-		/// <summary>
-		/// Replace texture with a reference to special data.
-		/// </summary>
-		/// <param name="texture">The texture to update.</param>
-		/// <param name="id">The number identifying the special data this texture should reference.</param>
-		virtual bool update_texture_reference(texture &texture, texture_reference id) = 0;
-
-		/// <summary>
-		/// Return a reference to the uniform storage buffer.
+		/// Return a reference to the internal uniform storage buffer.
 		/// </summary>
 		inline std::vector<unsigned char> &get_uniform_value_storage() { return _uniform_data_storage; }
 		/// <summary>
@@ -142,6 +129,36 @@ namespace reshade
 		void on_present_effect();
 
 		/// <summary>
+		/// Compile effect from the specified source file and initialize textures, constants and techniques.
+		/// </summary>
+		/// <param name="path">The path to an effect source code file.</param>
+		void load_effect(const filesystem::path &path);
+		/// <summary>
+		/// Compile effect from the specified abstract syntax tree and initialize textures, constants and techniques.
+		/// </summary>
+		/// <param name="ast">The abstract syntax tree of the effect to compile.</param>
+		/// <param name="pragmas">A list of additional commands to the compiler.</param>
+		/// <param name="errors">A reference to a buffer to store errors which occur during compilation.</param>
+		virtual bool load_effect(const reshadefx::syntax_tree &ast, std::string &errors) = 0;
+
+		/// <summary>
+		/// Loads image files and updates all textures with image data.
+		/// </summary>
+		void load_textures();
+		/// <summary>
+		/// Update the image data of a texture.
+		/// </summary>
+		/// <param name="texture">The texture to update.</param>
+		/// <param name="data">The 32bpp RGBA image data to update the texture to.</param>
+		virtual bool update_texture(texture &texture, const uint8_t *data) = 0;
+		/// <summary>
+		/// Replace texture with a reference to special data.
+		/// </summary>
+		/// <param name="texture">The texture to update.</param>
+		/// <param name="id">The number identifying the special data this texture should reference.</param>
+		virtual bool update_texture_reference(texture &texture, texture_reference id) = 0;
+
+		/// <summary>
 		/// Render all passes in a technique.
 		/// </summary>
 		/// <param name="technique">The technique to render.</param>
@@ -168,13 +185,11 @@ namespace reshade
 		struct key_shortcut { int keycode; bool ctrl, shift; };
 
 		void reload();
-		bool load_effect(const filesystem::path &path, reshadefx::syntax_tree &ast, std::string &errors);
-		void load_textures();
 		void load_configuration();
 		void save_configuration() const;
 		void load_preset(const filesystem::path &path);
 		void save_preset(const filesystem::path &path) const;
-		void save_screenshot();
+		void save_screenshot() const;
 
 		void draw_overlay();
 		void draw_overlay_menu();
@@ -187,14 +202,14 @@ namespace reshade
 
 		const unsigned int _renderer_id;
 		std::vector<filesystem::path> _effect_files, _preset_files, _effect_search_paths, _texture_search_paths;
-		std::chrono::high_resolution_clock::time_point _start_time, _reload_time, _last_present;
+		std::chrono::high_resolution_clock::time_point _start_time, _last_reload_time, _last_present_time;
 		std::chrono::high_resolution_clock::duration _last_frame_duration;
 		std::vector<unsigned char> _uniform_data_storage;
 		int _date[4] = { };
-		std::string _errors, _message;
+		std::string _errors;
 		std::vector<std::string> _preprocessor_definitions;
 		int _menu_index = 0, _screenshot_format = 0, _current_preset = -1, _selected_technique = -1, _input_processing_mode = 1;
-		key_shortcut _menu_key = { 0x71, false, true }, _screenshot_key = { 0x2C };
+		key_shortcut _menu_key, _screenshot_key;
 		filesystem::path _screenshot_path;
 		bool _show_menu = false, _show_error_log = false, _performance_mode = false;
 		bool _overlay_key_setting_active = false, _screenshot_key_setting_active = false;
@@ -202,7 +217,6 @@ namespace reshade
 		float _imgui_col_text[3] = { 0.8f, 0.9f, 0.9f }, _imgui_col_active[3] = { 0.2f, 0.5f, 0.6f };
 		unsigned int _tutorial_index = 0;
 		char _variable_filter_buffer[64] = { };
-		size_t _reload_remaining_effects = 0, _reload_step = 0;
-		std::unique_ptr<reshadefx::syntax_tree> _reload_current_ast;
+		size_t _reload_remaining_effects = 0, _texture_count = 0, _uniform_count = 0, _technique_count = 0;
 	};
 }

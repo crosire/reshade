@@ -472,7 +472,7 @@ namespace reshade
 
 		screenshot_surface->UnlockRect();
 	}
-	bool d3d9_runtime::update_effect(const reshadefx::syntax_tree &ast, std::string &errors)
+	bool d3d9_runtime::load_effect(const reshadefx::syntax_tree &ast, std::string &errors)
 	{
 		return d3d9_effect_compiler(this, ast, errors, false).run();
 	}

@@ -100,11 +100,8 @@ namespace reshade
 		switch (details.message)
 		{
 			case WM_INPUT:
-				if (GET_RAWINPUT_CODE_WPARAM(details.wParam) != RIM_INPUT)
-				{
-					break;
-				}
-				if (GetRawInputData(reinterpret_cast<HRAWINPUT>(details.lParam), RID_INPUT, &raw_data, &raw_data_size, sizeof(raw_data.header)) == UINT(-1))
+				if (GET_RAWINPUT_CODE_WPARAM(details.wParam) != RIM_INPUT ||
+					GetRawInputData(reinterpret_cast<HRAWINPUT>(details.lParam), RID_INPUT, &raw_data, &raw_data_size, sizeof(raw_data.header)) == UINT(-1))
 				{
 					break;
 				}
@@ -360,7 +357,8 @@ namespace reshade
 		_keys[VK_CAPITAL] |= GetKeyState(VK_CAPITAL) & 0x1;
 
 		// Update print screen state
-		if ((_keys[VK_SNAPSHOT] & 0x80) == 0 && (GetAsyncKeyState(VK_SNAPSHOT) & 0x8000) != 0)
+		if ((_keys[VK_SNAPSHOT] & 0x80) == 0 &&
+			(GetAsyncKeyState(VK_SNAPSHOT) & 0x8000) != 0)
 		{
 			_keys[VK_SNAPSHOT] = 0x88;
 		}

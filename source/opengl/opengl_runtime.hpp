@@ -67,7 +67,7 @@ namespace reshade
 		void on_fbo_attachment(GLenum target, GLenum attachment, GLenum objecttarget, GLuint object, GLint level);
 
 		void capture_frame(uint8_t *buffer) const override;
-		bool update_effect(const reshadefx::syntax_tree &ast, std::string &errors) override;
+		bool load_effect(const reshadefx::syntax_tree &ast, std::string &errors) override;
 		bool update_texture(texture &texture, const uint8_t *data) override;
 		bool update_texture_reference(texture &texture, texture_reference id) override;
 

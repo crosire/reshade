@@ -587,7 +587,7 @@ namespace reshade
 			}
 		}
 	}
-	bool opengl_runtime::update_effect(const reshadefx::syntax_tree &ast, std::string &errors)
+	bool opengl_runtime::load_effect(const reshadefx::syntax_tree &ast, std::string &errors)
 	{
 		return opengl_effect_compiler(this, ast, errors).run();
 	}
