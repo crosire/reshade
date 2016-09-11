@@ -3,7 +3,7 @@
 #include <sstream>
 #include "syntax_tree.hpp"
 
-namespace reshade
+namespace reshade::opengl
 {
 	#pragma region Forward Declarations
 	struct opengl_pass_data;

@@ -4,12 +4,12 @@
 
 struct Direct3DSwapChain9 : IDirect3DSwapChain9Ex
 {
-	Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapChain9   *original, const std::shared_ptr<reshade::d3d9_runtime> &runtime) :
+	Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapChain9   *original, const std::shared_ptr<reshade::d3d9::d3d9_runtime> &runtime) :
 		_orig(original),
 		_interface_version(0),
 		_device(device),
 		_runtime(runtime) { }
-	Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapChain9Ex *original, const std::shared_ptr<reshade::d3d9_runtime> &runtime) :
+	Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapChain9Ex *original, const std::shared_ptr<reshade::d3d9::d3d9_runtime> &runtime) :
 		_orig(original),
 		_interface_version(1),
 		_device(device),
@@ -24,7 +24,7 @@ struct Direct3DSwapChain9 : IDirect3DSwapChain9Ex
 	virtual ULONG STDMETHODCALLTYPE Release() override;
 	#pragma endregion
 	#pragma region IDirect3DSwapChain9
-	virtual HRESULT STDMETHODCALLTYPE Present(CONST RECT *pSourceRect, CONST RECT *pDestRect, HWND hDestWindowOverride, CONST RGNDATA *pDirtyRegion, DWORD dwFlags) override;
+	virtual HRESULT STDMETHODCALLTYPE Present(const RECT *pSourceRect, const RECT *pDestRect, HWND hDestWindowOverride, const RGNDATA *pDirtyRegion, DWORD dwFlags) override;
 	virtual HRESULT STDMETHODCALLTYPE GetFrontBufferData(IDirect3DSurface9 *pDestSurface) override;
 	virtual HRESULT STDMETHODCALLTYPE GetBackBuffer(UINT iBackBuffer, D3DBACKBUFFER_TYPE Type, IDirect3DSurface9 **ppBackBuffer) override;
 	virtual HRESULT STDMETHODCALLTYPE GetRasterStatus(D3DRASTER_STATUS *pRasterStatus) override;
@@ -42,5 +42,5 @@ struct Direct3DSwapChain9 : IDirect3DSwapChain9Ex
 	IDirect3DSwapChain9 *_orig;
 	unsigned int _interface_version;
 	Direct3DDevice9 *const _device;
-	std::shared_ptr<reshade::d3d9_runtime> _runtime;
+	std::shared_ptr<reshade::d3d9::d3d9_runtime> _runtime;
 };

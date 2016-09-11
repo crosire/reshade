@@ -5,10 +5,7 @@
 
 namespace reshade
 {
-	namespace
-	{
-		unsigned long s_reference_count = 0;
-	}
+	static unsigned long s_reference_count = 0;
 
 	hook::hook() : target(nullptr), replacement(nullptr), trampoline(nullptr)
 	{

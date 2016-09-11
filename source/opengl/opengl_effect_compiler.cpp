@@ -10,358 +10,355 @@
 	#define GLCHECK(call) call
 #endif
 
-namespace reshade
+namespace reshade::opengl
 {
 	using namespace reshadefx;
 	using namespace reshadefx::nodes;
 
-	namespace
+	GLenum literal_to_comp_func(unsigned int value)
 	{
-		GLenum literal_to_comp_func(unsigned int value)
+		switch (value)
 		{
-			switch (value)
+			default:
+			case pass_declaration_node::ALWAYS:
+				return GL_ALWAYS;
+			case pass_declaration_node::NEVER:
+				return GL_NEVER;
+			case pass_declaration_node::EQUAL:
+				return GL_EQUAL;
+			case pass_declaration_node::NOTEQUAL:
+				return GL_NOTEQUAL;
+			case pass_declaration_node::LESS:
+				return GL_LESS;
+			case pass_declaration_node::LESSEQUAL:
+				return GL_LEQUAL;
+			case pass_declaration_node::GREATER:
+				return GL_GREATER;
+			case pass_declaration_node::GREATEREQUAL:
+				return GL_GEQUAL;
+		}
+	}
+	GLenum literal_to_blend_eq(unsigned int value)
+	{
+		switch (value)
+		{
+			case pass_declaration_node::ADD:
+				return GL_FUNC_ADD;
+			case pass_declaration_node::SUBTRACT:
+				return GL_FUNC_SUBTRACT;
+			case pass_declaration_node::REVSUBTRACT:
+				return GL_FUNC_REVERSE_SUBTRACT;
+			case pass_declaration_node::MIN:
+				return GL_MIN;
+			case pass_declaration_node::MAX:
+				return GL_MAX;
+		}
+
+		return GL_NONE;
+	}
+	GLenum literal_to_blend_func(unsigned int value)
+	{
+		switch (value)
+		{
+			case pass_declaration_node::ZERO:
+				return GL_ZERO;
+			case pass_declaration_node::ONE:
+				return GL_ONE;
+			case pass_declaration_node::SRCCOLOR:
+				return GL_SRC_COLOR;
+			case pass_declaration_node::SRCALPHA:
+				return GL_SRC_ALPHA;
+			case pass_declaration_node::INVSRCCOLOR:
+				return GL_ONE_MINUS_SRC_COLOR;
+			case pass_declaration_node::INVSRCALPHA:
+				return GL_ONE_MINUS_SRC_ALPHA;
+			case pass_declaration_node::DESTCOLOR:
+				return GL_DST_COLOR;
+			case pass_declaration_node::DESTALPHA:
+				return GL_DST_ALPHA;
+			case pass_declaration_node::INVDESTCOLOR:
+				return GL_ONE_MINUS_DST_COLOR;
+			case pass_declaration_node::INVDESTALPHA:
+				return GL_ONE_MINUS_DST_ALPHA;
+		}
+
+		return GL_NONE;
+	}
+	GLenum literal_to_stencil_op(unsigned int value)
+	{
+		switch (value)
+		{
+			default:
+			case pass_declaration_node::KEEP:
+				return GL_KEEP;
+			case pass_declaration_node::ZERO:
+				return GL_ZERO;
+			case pass_declaration_node::REPLACE:
+				return GL_REPLACE;
+			case pass_declaration_node::INCR:
+				return GL_INCR_WRAP;
+			case pass_declaration_node::INCRSAT:
+				return GL_INCR;
+			case pass_declaration_node::DECR:
+				return GL_DECR_WRAP;
+			case pass_declaration_node::DECRSAT:
+				return GL_DECR;
+			case pass_declaration_node::INVERT:
+				return GL_INVERT;
+		}
+	}
+	GLenum literal_to_wrap_mode(texture_address_mode value)
+	{
+		switch (value)
+		{
+			case texture_address_mode::wrap:
+				return GL_REPEAT;
+			case texture_address_mode::mirror:
+				return GL_MIRRORED_REPEAT;
+			case texture_address_mode::clamp:
+				return GL_CLAMP_TO_EDGE;
+			case texture_address_mode::border:
+				return GL_CLAMP_TO_BORDER;
+		}
+
+		return GL_NONE;
+	}
+	void literal_to_filter_mode(texture_filter value, GLenum &minfilter, GLenum &magfilter)
+	{
+		switch (value)
+		{
+			case reshade::texture_filter::min_mag_mip_point:
+				minfilter = GL_NEAREST_MIPMAP_NEAREST;
+				magfilter = GL_NEAREST;
+				break;
+			case reshade::texture_filter::min_mag_point_mip_linear:
+				minfilter = GL_NEAREST_MIPMAP_LINEAR;
+				magfilter = GL_NEAREST;
+				break;
+			case reshade::texture_filter::min_point_mag_linear_mip_point:
+				minfilter = GL_NEAREST_MIPMAP_NEAREST;
+				magfilter = GL_LINEAR;
+				break;
+			case reshade::texture_filter::min_point_mag_mip_linear:
+				minfilter = GL_NEAREST_MIPMAP_LINEAR;
+				magfilter = GL_LINEAR;
+				break;
+			case reshade::texture_filter::min_linear_mag_mip_point:
+				minfilter = GL_LINEAR_MIPMAP_NEAREST;
+				magfilter = GL_NEAREST;
+				break;
+			case reshade::texture_filter::min_linear_mag_point_mip_linear:
+				minfilter = GL_LINEAR_MIPMAP_LINEAR;
+				magfilter = GL_NEAREST;
+				break;
+			case reshade::texture_filter::min_mag_linear_mip_point:
+				minfilter = GL_LINEAR_MIPMAP_NEAREST;
+				magfilter = GL_LINEAR;
+				break;
+			case reshade::texture_filter::anisotropic:
+			case reshade::texture_filter::min_mag_mip_linear:
+				minfilter = GL_LINEAR_MIPMAP_LINEAR;
+				magfilter = GL_LINEAR;
+				break;
+		}
+	}
+	void literal_to_format(texture_format value, GLenum &internalformat, GLenum &internalformatsrgb)
+	{
+		switch (value)
+		{
+			case texture_format::r8:
+				internalformat = internalformatsrgb = GL_R8;
+				break;
+			case texture_format::r16f:
+				internalformat = internalformatsrgb = GL_R16F;
+				break;
+			case texture_format::r32f:
+				internalformat = internalformatsrgb = GL_R32F;
+				break;
+			case texture_format::rg8:
+				internalformat = internalformatsrgb = GL_RG8;
+				break;
+			case texture_format::rg16:
+				internalformat = internalformatsrgb = GL_RG16;
+				break;
+			case texture_format::rg16f:
+				internalformat = internalformatsrgb = GL_RG16F;
+				break;
+			case texture_format::rg32f:
+				internalformat = internalformatsrgb = GL_RG32F;
+				break;
+			case texture_format::rgba8:
+				internalformat = GL_RGBA8;
+				internalformatsrgb = GL_SRGB8_ALPHA8;
+				break;
+			case texture_format::rgba16:
+				internalformat = internalformatsrgb = GL_RGBA16;
+				break;
+			case texture_format::rgba16f:
+				internalformat = internalformatsrgb = GL_RGBA16F;
+				break;
+			case texture_format::rgba32f:
+				internalformat = internalformatsrgb = GL_RGBA32F;
+				break;
+			case texture_format::dxt1:
+				internalformat = 0x83F1; // GL_COMPRESSED_RGBA_S3TC_DXT1_EXT
+				internalformatsrgb = 0x8C4D; // GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT1_EXT
+				break;
+			case texture_format::dxt3:
+				internalformat = 0x83F2; // GL_COMPRESSED_RGBA_S3TC_DXT3_EXT
+				internalformatsrgb = 0x8C4E; // GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT3_EXT
+				break;
+			case texture_format::dxt5:
+				internalformat = 0x83F3; // GL_COMPRESSED_RGBA_S3TC_DXT5_EXT
+				internalformatsrgb = 0x8C4F; // GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT5_EXT
+				break;
+			case texture_format::latc1:
+				internalformat = internalformatsrgb = 0x8C70; // GL_COMPRESSED_LUMINANCE_LATC1_EXT
+				break;
+			case texture_format::latc2:
+				internalformat = internalformatsrgb = 0x8C72; // GL_COMPRESSED_LUMINANCE_ALPHA_LATC2_EXT
+				break;
+			default:
+				internalformat = internalformatsrgb = GL_NONE;
+				break;
+		}
+	}
+	std::string escape_name(const std::string &name)
+	{
+		std::string res;
+
+		if (name.compare(0, 3, "gl_") == 0 ||
+			name == "common" || name == "partition" || name == "input" || name == "ouput" || name == "active" || name == "filter" || name == "superp" ||
+			name == "invariant" || name == "lowp" || name == "mediump" || name == "highp" || name == "precision" || name == "patch" || name == "subroutine" ||
+			name == "abs" || name == "sign" || name == "all" || name == "any" || name == "sin" || name == "sinh" || name == "cos" || name == "cosh" || name == "tan" || name == "tanh" || name == "asin" || name == "acos" || name == "atan" || name == "exp" || name == "exp2" || name == "log" || name == "log2" || name == "sqrt" || name == "inversesqrt" || name == "ceil" || name == "floor" || name == "fract" || name == "trunc" || name == "round" || name == "radians" || name == "degrees" || name == "length" || name == "normalize" || name == "transpose" || name == "determinant" || name == "intBitsToFloat" || name == "uintBitsToFloat" || name == "floatBitsToInt" || name == "floatBitsToUint" || name == "matrixCompMult" || name == "not" || name == "lessThan" || name == "greaterThan" || name == "lessThanEqual" || name == "greaterThanEqual" || name == "equal" || name == "notEqual" || name == "dot" || name == "cross" || name == "distance" || name == "pow" || name == "modf" || name == "frexp" || name == "ldexp" || name == "min" || name == "max" || name == "step" || name == "reflect" || name == "texture" || name == "textureOffset" || name == "fma" || name == "mix" || name == "clamp" || name == "smoothstep" || name == "refract" || name == "faceforward" || name == "textureLod" || name == "textureLodOffset" || name == "texelFetch" || name == "main")
+		{
+			res += '_';
+		}
+
+		res += name;
+
+		size_t p;
+
+		while ((p = res.find("__")) != std::string::npos)
+		{
+			res.replace(p, 2, "_US");
+		}
+
+		return res;
+	}
+	std::string escape_name_with_builtins(const std::string &name, const std::string &semantic, GLuint shadertype)
+	{
+		if (semantic == "SV_VERTEXID" || semantic == "VERTEXID")
+		{
+			return "gl_VertexID";
+		}
+		else if (semantic == "SV_INSTANCEID")
+		{
+			return "gl_InstanceID";
+		}
+		else if ((semantic == "SV_POSITION" || semantic == "POSITION") && shadertype == GL_VERTEX_SHADER)
+		{
+			return "gl_Position";
+		}
+		else if ((semantic == "SV_POSITION" || semantic == "VPOS") && shadertype == GL_FRAGMENT_SHADER)
+		{
+			return "gl_FragCoord";
+		}
+		else if ((semantic == "SV_DEPTH" || semantic == "DEPTH") && shadertype == GL_FRAGMENT_SHADER)
+		{
+			return "gl_FragDepth";
+		}
+
+		return escape_name(name);
+	}
+	std::pair<std::string, std::string> write_cast(const type_node &from, const type_node &to)
+	{
+		std::pair<std::string, std::string> code;
+
+		if (from.basetype != to.basetype && !(from.is_matrix() && to.is_matrix()))
+		{
+			const type_node type = { to.basetype, 0, from.rows, from.cols, 0, to.definition };
+
+			switch (type.basetype)
 			{
-				default:
-				case pass_declaration_node::ALWAYS:
-					return GL_ALWAYS;
-				case pass_declaration_node::NEVER:
-					return GL_NEVER;
-				case pass_declaration_node::EQUAL:
-					return GL_EQUAL;
-				case pass_declaration_node::NOTEQUAL:
-					return GL_NOTEQUAL;
-				case pass_declaration_node::LESS:
-					return GL_LESS;
-				case pass_declaration_node::LESSEQUAL:
-					return GL_LEQUAL;
-				case pass_declaration_node::GREATER:
-					return GL_GREATER;
-				case pass_declaration_node::GREATEREQUAL:
-					return GL_GEQUAL;
+				case type_node::datatype_bool:
+					if (type.is_matrix())
+						code.first += "mat" + std::to_string(type.rows) + 'x' + std::to_string(type.cols);
+					else if (type.is_vector())
+						code.first += "bvec" + std::to_string(type.rows);
+					else
+						code.first += "bool";
+					break;
+				case type_node::datatype_int:
+					if (type.is_matrix())
+						code.first += "mat" + std::to_string(type.rows) + 'x' + std::to_string(type.cols);
+					else if (type.is_vector())
+						code.first += "ivec" + std::to_string(type.rows);
+					else
+						code.first += "int";
+					break;
+				case type_node::datatype_uint:
+					if (type.is_matrix())
+						code.first += "mat" + std::to_string(type.rows) + 'x' + std::to_string(type.cols);
+					else if (type.is_vector())
+						code.first += "uvec" + std::to_string(type.rows);
+					else
+						code.first += "uint";
+					break;
+				case type_node::datatype_float:
+					if (type.is_matrix())
+						code.first += "mat" + std::to_string(type.rows) + 'x' + std::to_string(type.cols);
+					else if (type.is_vector())
+						code.first += "vec" + std::to_string(type.rows);
+					else
+						code.first += "float";
+					break;
+				case type_node::datatype_sampler:
+					code.first += "sampler2D";
+					break;
+				case type_node::datatype_struct:
+					code.first += escape_name(type.definition->unique_name);
+					break;
+			}
+
+			code.first += '(';
+			code.second += ')';
+		}
+
+		if (from.rows > 0 && from.rows < to.rows)
+		{
+			const char subscript[4] = { 'x', 'y', 'z', 'w' };
+
+			code.second += '.';
+
+			for (unsigned int i = 0; i < from.rows; ++i)
+			{
+				code.second += subscript[i];
+			}
+			for (unsigned int i = from.rows; i < to.rows; ++i)
+			{
+				code.second += subscript[from.rows - 1];
 			}
 		}
-		GLenum literal_to_blend_eq(unsigned int value)
+		else if (from.rows > to.rows)
 		{
-			switch (value)
-			{
-				case pass_declaration_node::ADD:
-					return GL_FUNC_ADD;
-				case pass_declaration_node::SUBTRACT:
-					return GL_FUNC_SUBTRACT;
-				case pass_declaration_node::REVSUBTRACT:
-					return GL_FUNC_REVERSE_SUBTRACT;
-				case pass_declaration_node::MIN:
-					return GL_MIN;
-				case pass_declaration_node::MAX:
-					return GL_MAX;
-			}
+			const char subscript[4] = { 'x', 'y', 'z', 'w' };
 
-			return GL_NONE;
-		}
-		GLenum literal_to_blend_func(unsigned int value)
-		{
-			switch (value)
-			{
-				case pass_declaration_node::ZERO:
-					return GL_ZERO;
-				case pass_declaration_node::ONE:
-					return GL_ONE;
-				case pass_declaration_node::SRCCOLOR:
-					return GL_SRC_COLOR;
-				case pass_declaration_node::SRCALPHA:
-					return GL_SRC_ALPHA;
-				case pass_declaration_node::INVSRCCOLOR:
-					return GL_ONE_MINUS_SRC_COLOR;
-				case pass_declaration_node::INVSRCALPHA:
-					return GL_ONE_MINUS_SRC_ALPHA;
-				case pass_declaration_node::DESTCOLOR:
-					return GL_DST_COLOR;
-				case pass_declaration_node::DESTALPHA:
-					return GL_DST_ALPHA;
-				case pass_declaration_node::INVDESTCOLOR:
-					return GL_ONE_MINUS_DST_COLOR;
-				case pass_declaration_node::INVDESTALPHA:
-					return GL_ONE_MINUS_DST_ALPHA;
-			}
+			code.second += '.';
 
-			return GL_NONE;
-		}
-		GLenum literal_to_stencil_op(unsigned int value)
-		{
-			switch (value)
+			for (unsigned int i = 0; i < to.rows; ++i)
 			{
-				default:
-				case pass_declaration_node::KEEP:
-					return GL_KEEP;
-				case pass_declaration_node::ZERO:
-					return GL_ZERO;
-				case pass_declaration_node::REPLACE:
-					return GL_REPLACE;
-				case pass_declaration_node::INCR:
-					return GL_INCR_WRAP;
-				case pass_declaration_node::INCRSAT:
-					return GL_INCR;
-				case pass_declaration_node::DECR:
-					return GL_DECR_WRAP;
-				case pass_declaration_node::DECRSAT:
-					return GL_DECR;
-				case pass_declaration_node::INVERT:
-					return GL_INVERT;
+				code.second += subscript[i];
 			}
 		}
-		GLenum literal_to_wrap_mode(texture_address_mode value)
-		{
-			switch (value)
-			{
-				case texture_address_mode::wrap:
-					return GL_REPEAT;
-				case texture_address_mode::mirror:
-					return GL_MIRRORED_REPEAT;
-				case texture_address_mode::clamp:
-					return GL_CLAMP_TO_EDGE;
-				case texture_address_mode::border:
-					return GL_CLAMP_TO_BORDER;
-			}
 
-			return GL_NONE;
-		}
-		void literal_to_filter_mode(texture_filter value, GLenum &minfilter, GLenum &magfilter)
-		{
-			switch (value)
-			{
-				case reshade::texture_filter::min_mag_mip_point:
-					minfilter = GL_NEAREST_MIPMAP_NEAREST;
-					magfilter = GL_NEAREST;
-					break;
-				case reshade::texture_filter::min_mag_point_mip_linear:
-					minfilter = GL_NEAREST_MIPMAP_LINEAR;
-					magfilter = GL_NEAREST;
-					break;
-				case reshade::texture_filter::min_point_mag_linear_mip_point:
-					minfilter = GL_NEAREST_MIPMAP_NEAREST;
-					magfilter = GL_LINEAR;
-					break;
-				case reshade::texture_filter::min_point_mag_mip_linear:
-					minfilter = GL_NEAREST_MIPMAP_LINEAR;
-					magfilter = GL_LINEAR;
-					break;
-				case reshade::texture_filter::min_linear_mag_mip_point:
-					minfilter = GL_LINEAR_MIPMAP_NEAREST;
-					magfilter = GL_NEAREST;
-					break;
-				case reshade::texture_filter::min_linear_mag_point_mip_linear:
-					minfilter = GL_LINEAR_MIPMAP_LINEAR;
-					magfilter = GL_NEAREST;
-					break;
-				case reshade::texture_filter::min_mag_linear_mip_point:
-					minfilter = GL_LINEAR_MIPMAP_NEAREST;
-					magfilter = GL_LINEAR;
-					break;
-				case reshade::texture_filter::anisotropic:
-				case reshade::texture_filter::min_mag_mip_linear:
-					minfilter = GL_LINEAR_MIPMAP_LINEAR;
-					magfilter = GL_LINEAR;
-					break;
-			}
-		}
-		void literal_to_format(texture_format value, GLenum &internalformat, GLenum &internalformatsrgb)
-		{
-			switch (value)
-			{
-				case texture_format::r8:
-					internalformat = internalformatsrgb = GL_R8;
-					break;
-				case texture_format::r16f:
-					internalformat = internalformatsrgb = GL_R16F;
-					break;
-				case texture_format::r32f:
-					internalformat = internalformatsrgb = GL_R32F;
-					break;
-				case texture_format::rg8:
-					internalformat = internalformatsrgb = GL_RG8;
-					break;
-				case texture_format::rg16:
-					internalformat = internalformatsrgb = GL_RG16;
-					break;
-				case texture_format::rg16f:
-					internalformat = internalformatsrgb = GL_RG16F;
-					break;
-				case texture_format::rg32f:
-					internalformat = internalformatsrgb = GL_RG32F;
-					break;
-				case texture_format::rgba8:
-					internalformat = GL_RGBA8;
-					internalformatsrgb = GL_SRGB8_ALPHA8;
-					break;
-				case texture_format::rgba16:
-					internalformat = internalformatsrgb = GL_RGBA16;
-					break;
-				case texture_format::rgba16f:
-					internalformat = internalformatsrgb = GL_RGBA16F;
-					break;
-				case texture_format::rgba32f:
-					internalformat = internalformatsrgb = GL_RGBA32F;
-					break;
-				case texture_format::dxt1:
-					internalformat = 0x83F1; // GL_COMPRESSED_RGBA_S3TC_DXT1_EXT
-					internalformatsrgb = 0x8C4D; // GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT1_EXT
-					break;
-				case texture_format::dxt3:
-					internalformat = 0x83F2; // GL_COMPRESSED_RGBA_S3TC_DXT3_EXT
-					internalformatsrgb = 0x8C4E; // GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT3_EXT
-					break;
-				case texture_format::dxt5:
-					internalformat = 0x83F3; // GL_COMPRESSED_RGBA_S3TC_DXT5_EXT
-					internalformatsrgb = 0x8C4F; // GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT5_EXT
-					break;
-				case texture_format::latc1:
-					internalformat = internalformatsrgb = 0x8C70; // GL_COMPRESSED_LUMINANCE_LATC1_EXT
-					break;
-				case texture_format::latc2:
-					internalformat = internalformatsrgb = 0x8C72; // GL_COMPRESSED_LUMINANCE_ALPHA_LATC2_EXT
-					break;
-				default:
-					internalformat = internalformatsrgb = GL_NONE;
-					break;
-			}
-		}
-		std::string escape_name(const std::string &name)
-		{
-			std::string res;
-
-			if (name.compare(0, 3, "gl_") == 0 ||
-				name == "common" || name == "partition" || name == "input" || name == "ouput" || name == "active" || name == "filter" || name == "superp" ||
-				name == "invariant" || name == "lowp" || name == "mediump" || name == "highp" || name == "precision" || name == "patch" || name == "subroutine" ||
-				name == "abs" || name == "sign" || name == "all" || name == "any" || name == "sin" || name == "sinh" || name == "cos" || name == "cosh" || name == "tan" || name == "tanh" || name == "asin" || name == "acos" || name == "atan" || name == "exp" || name == "exp2" || name == "log" || name == "log2" || name == "sqrt" || name == "inversesqrt" || name == "ceil" || name == "floor" || name == "fract" || name == "trunc" || name == "round" || name == "radians" || name == "degrees" || name == "length" || name == "normalize" || name == "transpose" || name == "determinant" || name == "intBitsToFloat" || name == "uintBitsToFloat" || name == "floatBitsToInt" || name == "floatBitsToUint" || name == "matrixCompMult" || name == "not" || name == "lessThan" || name == "greaterThan" || name == "lessThanEqual" || name == "greaterThanEqual" || name == "equal" || name == "notEqual" || name == "dot" || name == "cross" || name == "distance" || name == "pow" || name == "modf" || name == "frexp" || name == "ldexp" || name == "min" || name == "max" || name == "step" || name == "reflect" || name == "texture" || name == "textureOffset" || name == "fma" || name == "mix" || name == "clamp" || name == "smoothstep" || name == "refract" || name == "faceforward" || name == "textureLod" || name == "textureLodOffset" || name == "texelFetch" || name == "main")
-			{
-				res += '_';
-			}
-
-			res += name;
-
-			size_t p;
-
-			while ((p = res.find("__")) != std::string::npos)
-			{
-				res.replace(p, 2, "_US");
-			}
-
-			return res;
-		}
-		std::string escape_name_with_builtins(const std::string &name, const std::string &semantic, GLuint shadertype)
-		{
-			if (semantic == "SV_VERTEXID" || semantic == "VERTEXID")
-			{
-				return "gl_VertexID";
-			}
-			else if (semantic == "SV_INSTANCEID")
-			{
-				return "gl_InstanceID";
-			}
-			else if ((semantic == "SV_POSITION" || semantic == "POSITION") && shadertype == GL_VERTEX_SHADER)
-			{
-				return "gl_Position";
-			}
-			else if ((semantic == "SV_POSITION" || semantic == "VPOS") && shadertype == GL_FRAGMENT_SHADER)
-			{
-				return "gl_FragCoord";
-			}
-			else if ((semantic == "SV_DEPTH" || semantic == "DEPTH") && shadertype == GL_FRAGMENT_SHADER)
-			{
-				return "gl_FragDepth";
-			}
-
-			return escape_name(name);
-		}
-		std::pair<std::string, std::string> write_cast(const type_node &from, const type_node &to)
-		{
-			std::pair<std::string, std::string> code;
-
-			if (from.basetype != to.basetype && !(from.is_matrix() && to.is_matrix()))
-			{
-				const type_node type = { to.basetype, 0, from.rows, from.cols, 0, to.definition };
-
-				switch (type.basetype)
-				{
-					case type_node::datatype_bool:
-						if (type.is_matrix())
-							code.first += "mat" + std::to_string(type.rows) + 'x' + std::to_string(type.cols);
-						else if (type.is_vector())
-							code.first += "bvec" + std::to_string(type.rows);
-						else
-							code.first += "bool";
-						break;
-					case type_node::datatype_int:
-						if (type.is_matrix())
-							code.first += "mat" + std::to_string(type.rows) + 'x' + std::to_string(type.cols);
-						else if (type.is_vector())
-							code.first += "ivec" + std::to_string(type.rows);
-						else
-							code.first += "int";
-						break;
-					case type_node::datatype_uint:
-						if (type.is_matrix())
-							code.first += "mat" + std::to_string(type.rows) + 'x' + std::to_string(type.cols);
-						else if (type.is_vector())
-							code.first += "uvec" + std::to_string(type.rows);
-						else
-							code.first += "uint";
-						break;
-					case type_node::datatype_float:
-						if (type.is_matrix())
-							code.first += "mat" + std::to_string(type.rows) + 'x' + std::to_string(type.cols);
-						else if (type.is_vector())
-							code.first += "vec" + std::to_string(type.rows);
-						else
-							code.first += "float";
-						break;
-					case type_node::datatype_sampler:
-						code.first += "sampler2D";
-						break;
-					case type_node::datatype_struct:
-						code.first += escape_name(type.definition->unique_name);
-						break;
-				}
-
-				code.first += '(';
-				code.second += ')';
-			}
-
-			if (from.rows > 0 && from.rows < to.rows)
-			{
-				const char subscript[4] = { 'x', 'y', 'z', 'w' };
-
-				code.second += '.';
-
-				for (unsigned int i = 0; i < from.rows; ++i)
-				{
-					code.second += subscript[i];
-				}
-				for (unsigned int i = from.rows; i < to.rows; ++i)
-				{
-					code.second += subscript[from.rows - 1];
-				}
-			}
-			else if (from.rows > to.rows)
-			{
-				const char subscript[4] = { 'x', 'y', 'z', 'w' };
-
-				code.second += '.';
-
-				for (unsigned int i = 0; i < to.rows; ++i)
-				{
-					code.second += subscript[i];
-				}
-			}
-
-			return code;
-		}
-		inline uintptr_t align(uintptr_t address, size_t alignment)
-		{
-			if (address % alignment != 0)
-				address += alignment - address % alignment;
-			return address;
-		}
+		return code;
+	}
+	inline uintptr_t align(uintptr_t address, size_t alignment)
+	{
+		if (address % alignment != 0)
+			address += alignment - address % alignment;
+		return address;
 	}
 
 	opengl_effect_compiler::opengl_effect_compiler(opengl_runtime *runtime, const syntax_tree &ast, std::string &errors) :

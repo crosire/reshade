@@ -5,9 +5,10 @@
 extern std::unordered_map<VkDevice, VkPhysicalDevice> g_vulkan_device_mapping;
 extern std::unordered_map<VkSwapchainKHR, std::vector<VkImage>> g_vulkan_swapchain_images;
 
-namespace reshade
+namespace reshade::vulkan
 {
-	vulkan_runtime::vulkan_runtime(VkDevice device, VkSwapchainKHR swapchain) : runtime(0x20000), _device(device), _swapchain(swapchain)
+	vulkan_runtime::vulkan_runtime(VkDevice device, VkSwapchainKHR swapchain) :
+		runtime(0x20000), _device(device), _swapchain(swapchain)
 	{
 	}
 

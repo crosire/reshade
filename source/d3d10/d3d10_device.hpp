@@ -126,5 +126,5 @@ struct D3D10Device : ID3D10Device1
 	ID3D10Device *_orig;
 	unsigned int _interface_version;
 	struct DXGIDevice *_dxgi_device = nullptr;
-	std::vector<std::shared_ptr<reshade::d3d10_runtime>> _runtimes;
+	std::vector<std::shared_ptr<reshade::d3d10::d3d10_runtime>> _runtimes;
 };

@@ -11,57 +11,55 @@
 	#define GLCHECK(call) call
 #endif
 
-namespace reshade
+namespace reshade::opengl
 {
-	namespace
+	GLenum target_to_binding(GLenum target)
 	{
-		GLenum target_to_binding(GLenum target)
+		switch (target)
 		{
-			switch (target)
-			{
-				case GL_FRAMEBUFFER:
-					return GL_FRAMEBUFFER_BINDING;
-				case GL_READ_FRAMEBUFFER:
-					return GL_READ_FRAMEBUFFER_BINDING;
-				case GL_DRAW_FRAMEBUFFER:
-					return GL_DRAW_FRAMEBUFFER_BINDING;
-				case GL_RENDERBUFFER:
-					return GL_RENDERBUFFER_BINDING;
-				case GL_TEXTURE_2D:
-					return GL_TEXTURE_BINDING_2D;
-				case GL_TEXTURE_2D_ARRAY:
-					return GL_TEXTURE_BINDING_2D_ARRAY;
-				case GL_TEXTURE_2D_MULTISAMPLE:
-					return GL_TEXTURE_BINDING_2D_MULTISAMPLE;
-				case GL_TEXTURE_2D_MULTISAMPLE_ARRAY:
-					return GL_TEXTURE_BINDING_2D_MULTISAMPLE_ARRAY;
-				case GL_TEXTURE_3D:
-					return GL_TEXTURE_BINDING_3D;
-				case GL_TEXTURE_CUBE_MAP:
-				case GL_TEXTURE_CUBE_MAP_NEGATIVE_X:
-				case GL_TEXTURE_CUBE_MAP_NEGATIVE_Y:
-				case GL_TEXTURE_CUBE_MAP_NEGATIVE_Z:
-				case GL_TEXTURE_CUBE_MAP_POSITIVE_X:
-				case GL_TEXTURE_CUBE_MAP_POSITIVE_Y:
-				case GL_TEXTURE_CUBE_MAP_POSITIVE_Z:
-					return GL_TEXTURE_BINDING_CUBE_MAP;
-				case GL_TEXTURE_CUBE_MAP_ARRAY:
-					return GL_TEXTURE_BINDING_CUBE_MAP_ARRAY;
-				default:
-					return GL_NONE;
-			}
-		}
-		unsigned int get_renderer_id()
-		{
-			GLint major = 0, minor = 0;
-			GLCHECK(glGetIntegerv(GL_MAJOR_VERSION, &major));
-			GLCHECK(glGetIntegerv(GL_MAJOR_VERSION, &minor));
-
-			return 0x10000 | (major << 12) | (minor << 8);
+			case GL_FRAMEBUFFER:
+				return GL_FRAMEBUFFER_BINDING;
+			case GL_READ_FRAMEBUFFER:
+				return GL_READ_FRAMEBUFFER_BINDING;
+			case GL_DRAW_FRAMEBUFFER:
+				return GL_DRAW_FRAMEBUFFER_BINDING;
+			case GL_RENDERBUFFER:
+				return GL_RENDERBUFFER_BINDING;
+			case GL_TEXTURE_2D:
+				return GL_TEXTURE_BINDING_2D;
+			case GL_TEXTURE_2D_ARRAY:
+				return GL_TEXTURE_BINDING_2D_ARRAY;
+			case GL_TEXTURE_2D_MULTISAMPLE:
+				return GL_TEXTURE_BINDING_2D_MULTISAMPLE;
+			case GL_TEXTURE_2D_MULTISAMPLE_ARRAY:
+				return GL_TEXTURE_BINDING_2D_MULTISAMPLE_ARRAY;
+			case GL_TEXTURE_3D:
+				return GL_TEXTURE_BINDING_3D;
+			case GL_TEXTURE_CUBE_MAP:
+			case GL_TEXTURE_CUBE_MAP_NEGATIVE_X:
+			case GL_TEXTURE_CUBE_MAP_NEGATIVE_Y:
+			case GL_TEXTURE_CUBE_MAP_NEGATIVE_Z:
+			case GL_TEXTURE_CUBE_MAP_POSITIVE_X:
+			case GL_TEXTURE_CUBE_MAP_POSITIVE_Y:
+			case GL_TEXTURE_CUBE_MAP_POSITIVE_Z:
+				return GL_TEXTURE_BINDING_CUBE_MAP;
+			case GL_TEXTURE_CUBE_MAP_ARRAY:
+				return GL_TEXTURE_BINDING_CUBE_MAP_ARRAY;
+			default:
+				return GL_NONE;
 		}
 	}
+	unsigned int get_renderer_id()
+	{
+		GLint major = 0, minor = 0;
+		GLCHECK(glGetIntegerv(GL_MAJOR_VERSION, &major));
+		GLCHECK(glGetIntegerv(GL_MAJOR_VERSION, &minor));
 
-	opengl_runtime::opengl_runtime(HDC device) : runtime(get_renderer_id()), _hdc(device)
+		return 0x10000 | (major << 12) | (minor << 8);
+	}
+
+	opengl_runtime::opengl_runtime(HDC device) :
+		runtime(get_renderer_id()), _hdc(device)
 	{
 		assert(device != nullptr);
 
@@ -494,7 +492,7 @@ namespace reshade
 
 		if (it != _depth_source_table.end())
 		{
-			it->second.drawcall_count = static_cast<GLfloat>(_drawcalls);
+			it->second.drawcall_count = _drawcalls;
 			it->second.vertices_count += vertices;
 		}
 	}
@@ -532,8 +530,8 @@ namespace reshade
 
 			// Get depth-stencil parameters from render buffer
 			GLCHECK(glBindRenderbuffer(GL_RENDERBUFFER, object));
-			GLCHECK(glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_WIDTH, &info.width));
-			GLCHECK(glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_HEIGHT, &info.height));
+			GLCHECK(glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_WIDTH, reinterpret_cast<int *>(&info.width)));
+			GLCHECK(glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_HEIGHT, reinterpret_cast<int *>(&info.height)));
 			GLCHECK(glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_INTERNAL_FORMAT, &info.format));
 
 			GLCHECK(glBindRenderbuffer(GL_RENDERBUFFER, previous));
@@ -551,8 +549,8 @@ namespace reshade
 			// Get depth-stencil parameters from texture
 			GLCHECK(glBindTexture(objecttarget, object));
 			info.level = level;
-			GLCHECK(glGetTexLevelParameteriv(objecttarget, level, GL_TEXTURE_WIDTH, &info.width));
-			GLCHECK(glGetTexLevelParameteriv(objecttarget, level, GL_TEXTURE_HEIGHT, &info.height));
+			GLCHECK(glGetTexLevelParameteriv(objecttarget, level, GL_TEXTURE_WIDTH, reinterpret_cast<int *>(&info.width)));
+			GLCHECK(glGetTexLevelParameteriv(objecttarget, level, GL_TEXTURE_HEIGHT, reinterpret_cast<int *>(&info.height)));
 			GLCHECK(glGetTexLevelParameteriv(objecttarget, level, GL_TEXTURE_INTERNAL_FORMAT, &info.format));
 			
 			GLCHECK(glBindTexture(objecttarget, previous));
@@ -793,8 +791,8 @@ namespace reshade
 		// Render command lists
 		for (int n = 0; n < draw_data->CmdListsCount; n++)
 		{
-			const auto cmd_list = draw_data->CmdLists[n];
 			const ImDrawIdx *idx_buffer_offset = 0;
+			ImDrawList *const cmd_list = draw_data->CmdLists[n];
 
 			glBindBuffer(GL_ARRAY_BUFFER, _imgui_vbo[0]);
 			glBufferData(GL_ARRAY_BUFFER, cmd_list->VtxBuffer.size() * sizeof(ImDrawVert), &cmd_list->VtxBuffer.front(), GL_STREAM_DRAW);
@@ -802,19 +800,16 @@ namespace reshade
 			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _imgui_vbo[1]);
 			glBufferData(GL_ELEMENT_ARRAY_BUFFER, cmd_list->IdxBuffer.size() * sizeof(ImDrawIdx), &cmd_list->IdxBuffer.front(), GL_STREAM_DRAW);
 
-			for (auto cmd = cmd_list->CmdBuffer.begin(); cmd != cmd_list->CmdBuffer.end(); idx_buffer_offset += cmd->ElemCount, cmd++)
+			for (ImDrawCmd *cmd = cmd_list->CmdBuffer.begin(); cmd != cmd_list->CmdBuffer.end(); idx_buffer_offset += cmd->ElemCount, cmd++)
 			{
-				if (cmd->UserCallback != nullptr)
-				{
-					cmd->UserCallback(cmd_list, cmd);
-				}
-				else
-				{
-					glBindTexture(GL_TEXTURE_2D, static_cast<const opengl_tex_data *>(cmd->TextureId)->id[0]);
-					glScissor(static_cast<GLint>(cmd->ClipRect.x), static_cast<GLint>(_height - cmd->ClipRect.w), static_cast<GLint>(cmd->ClipRect.z - cmd->ClipRect.x), static_cast<GLint>(cmd->ClipRect.w - cmd->ClipRect.y));
+				glScissor(
+					static_cast<GLint>(cmd->ClipRect.x),
+					static_cast<GLint>(_height - cmd->ClipRect.w),
+					static_cast<GLint>(cmd->ClipRect.z - cmd->ClipRect.x),
+					static_cast<GLint>(cmd->ClipRect.w - cmd->ClipRect.y));
+				glBindTexture(GL_TEXTURE_2D, static_cast<const opengl_tex_data *>(cmd->TextureId)->id[0]);
 
-					glDrawElements(GL_TRIANGLES, cmd->ElemCount, sizeof(ImDrawIdx) == 2 ? GL_UNSIGNED_SHORT : GL_UNSIGNED_INT, idx_buffer_offset);
-				}
+				glDrawElements(GL_TRIANGLES, cmd->ElemCount, sizeof(ImDrawIdx) == 2 ? GL_UNSIGNED_SHORT : GL_UNSIGNED_INT, idx_buffer_offset);
 			}
 		}
 	}
@@ -858,7 +853,7 @@ namespace reshade
 				continue;
 			}
 
-			if (((depthstencil_info.vertices_count * (1.2f - depthstencil_info.drawcall_count / _drawcalls)) >= (best_info.vertices_count * (1.2f - best_info.drawcall_count / _drawcalls))) &&
+			if (((depthstencil_info.vertices_count * (1.2f - float(depthstencil_info.drawcall_count) / _drawcalls)) >= (best_info.vertices_count * (1.2f - float(best_info.drawcall_count) / _drawcalls))) &&
 				((depthstencil_info.width > _width * 0.95 && depthstencil_info.width < _width * 1.05) && (depthstencil_info.height > _height * 0.95 && depthstencil_info.height < _height * 1.05)))
 			{
 				best_match = depthstencil;

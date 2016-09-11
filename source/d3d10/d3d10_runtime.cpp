@@ -7,87 +7,28 @@
 #include <imgui.h>
 #include <algorithm>
 
-namespace reshade
+namespace reshade::d3d10
 {
-	namespace
+	UINT get_renderer_id(ID3D10Device *device)
 	{
-		DXGI_FORMAT make_format_srgb(DXGI_FORMAT format)
-		{
-			switch (format)
-			{
-				case DXGI_FORMAT_R8G8B8A8_TYPELESS:
-				case DXGI_FORMAT_R8G8B8A8_UNORM:
-					return DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
-				case DXGI_FORMAT_BC1_TYPELESS:
-				case DXGI_FORMAT_BC1_UNORM:
-					return DXGI_FORMAT_BC1_UNORM_SRGB;
-				case DXGI_FORMAT_BC2_TYPELESS:
-				case DXGI_FORMAT_BC2_UNORM:
-					return DXGI_FORMAT_BC2_UNORM_SRGB;
-				case DXGI_FORMAT_BC3_TYPELESS:
-				case DXGI_FORMAT_BC3_UNORM:
-					return DXGI_FORMAT_BC3_UNORM_SRGB;
-				default:
-					return format;
-			}
-		}
-		DXGI_FORMAT make_format_normal(DXGI_FORMAT format)
-		{
-			switch (format)
-			{
-				case DXGI_FORMAT_R8G8B8A8_TYPELESS:
-				case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
-					return DXGI_FORMAT_R8G8B8A8_UNORM;
-				case DXGI_FORMAT_BC1_TYPELESS:
-				case DXGI_FORMAT_BC1_UNORM_SRGB:
-					return DXGI_FORMAT_BC1_UNORM;
-				case DXGI_FORMAT_BC2_TYPELESS:
-				case DXGI_FORMAT_BC2_UNORM_SRGB:
-					return DXGI_FORMAT_BC2_UNORM;
-				case DXGI_FORMAT_BC3_TYPELESS:
-				case DXGI_FORMAT_BC3_UNORM_SRGB:
-					return DXGI_FORMAT_BC3_UNORM;
-				default:
-					return format;
-			}
-		}
-		DXGI_FORMAT make_format_typeless(DXGI_FORMAT format)
-		{
-			switch (format)
-			{
-				case DXGI_FORMAT_R8G8B8A8_UNORM:
-				case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
-					return DXGI_FORMAT_R8G8B8A8_TYPELESS;
-				case DXGI_FORMAT_BC1_UNORM:
-				case DXGI_FORMAT_BC1_UNORM_SRGB:
-					return DXGI_FORMAT_BC1_TYPELESS;
-				case DXGI_FORMAT_BC2_UNORM:
-				case DXGI_FORMAT_BC2_UNORM_SRGB:
-					return DXGI_FORMAT_BC2_TYPELESS;
-				case DXGI_FORMAT_BC3_UNORM:
-				case DXGI_FORMAT_BC3_UNORM_SRGB:
-					return DXGI_FORMAT_BC3_TYPELESS;
-				default:
-					return format;
-			}
-		}
+		com_ptr<ID3D10Device1> device1;
 
-		UINT get_renderer_id(ID3D10Device *device)
+		if (SUCCEEDED(device->QueryInterface(&device1)))
 		{
-			com_ptr<ID3D10Device1> device1;
-
-			if (SUCCEEDED(device->QueryInterface(&device1)))
-			{
-				return device1->GetFeatureLevel();
-			}
-			else
-			{
-				return D3D10_FEATURE_LEVEL_10_0;
-			}
+			return device1->GetFeatureLevel();
+		}
+		else
+		{
+			return D3D10_FEATURE_LEVEL_10_0;
 		}
 	}
+	extern DXGI_FORMAT make_format_srgb(DXGI_FORMAT format);
+	extern DXGI_FORMAT make_format_normal(DXGI_FORMAT format);
+	extern DXGI_FORMAT make_format_typeless(DXGI_FORMAT format);
 
-	d3d10_runtime::d3d10_runtime(ID3D10Device *device, IDXGISwapChain *swapchain) : runtime(get_renderer_id(device)), _device(device), _swapchain(swapchain), _stateblock(device)
+	d3d10_runtime::d3d10_runtime(ID3D10Device *device, IDXGISwapChain *swapchain) :
+		runtime(get_renderer_id(device)), _device(device), _swapchain(swapchain),
+		_stateblock(device)
 	{
 		assert(device != nullptr);
 		assert(swapchain != nullptr);
@@ -115,7 +56,7 @@ namespace reshade
 
 	bool d3d10_runtime::init_backbuffer_texture()
 	{
-		HRESULT hr = _swapchain->GetBuffer(0, __uuidof(ID3D10Texture2D), reinterpret_cast<void **>(&_backbuffer));
+		HRESULT hr = _swapchain->GetBuffer(0, IID_PPV_ARGS(&_backbuffer));
 
 		assert(SUCCEEDED(hr));
 
@@ -235,8 +176,14 @@ namespace reshade
 		}
 
 		{
-			const D3D10_SAMPLER_DESC copysampdesc = { D3D10_FILTER_MIN_MAG_MIP_POINT, D3D10_TEXTURE_ADDRESS_CLAMP, D3D10_TEXTURE_ADDRESS_CLAMP, D3D10_TEXTURE_ADDRESS_CLAMP };
-			hr = _device->CreateSamplerState(&copysampdesc, &_copy_sampler);
+			const D3D10_SAMPLER_DESC desc = {
+				D3D10_FILTER_MIN_MAG_MIP_POINT,
+				D3D10_TEXTURE_ADDRESS_CLAMP,
+				D3D10_TEXTURE_ADDRESS_CLAMP,
+				D3D10_TEXTURE_ADDRESS_CLAMP
+			};
+
+			hr = _device->CreateSamplerState(&desc, &_copy_sampler);
 
 			assert(SUCCEEDED(hr));
 		}
@@ -428,8 +375,7 @@ namespace reshade
 		const D3D10_TEXTURE2D_DESC tex_desc = {
 			static_cast<UINT>(width),
 			static_cast<UINT>(height),
-			1,
-			1,
+			1, 1,
 			DXGI_FORMAT_R8G8B8A8_UNORM,
 			{ 1, 0 },
 			D3D10_USAGE_DEFAULT,
@@ -642,7 +588,7 @@ namespace reshade
 
 		if (it != _depth_source_table.end())
 		{
-			it->second.drawcall_count = static_cast<float>(_drawcalls);
+			it->second.drawcall_count = _drawcalls;
 			it->second.vertices_count += vertices;
 		}
 	}
@@ -1031,7 +977,8 @@ namespace reshade
 	void d3d10_runtime::render_draw_lists(ImDrawData *draw_data)
 	{
 		// Create and grow vertex/index buffers if needed
-		if (_imgui_vertex_buffer == nullptr || _imgui_vertex_buffer_size < draw_data->TotalVtxCount)
+		if (_imgui_vertex_buffer == nullptr ||
+			_imgui_vertex_buffer_size < draw_data->TotalVtxCount)
 		{
 			_imgui_vertex_buffer.reset();
 			_imgui_vertex_buffer_size = draw_data->TotalVtxCount + 5000;
@@ -1048,7 +995,8 @@ namespace reshade
 				return;
 			}
 		}
-		if (_imgui_index_buffer == nullptr || _imgui_index_buffer_size < draw_data->TotalIdxCount)
+		if (_imgui_index_buffer == nullptr ||
+			_imgui_index_buffer_size < draw_data->TotalIdxCount)
 		{
 			_imgui_index_buffer.reset();
 			_imgui_index_buffer_size = draw_data->TotalIdxCount + 10000;
@@ -1096,8 +1044,7 @@ namespace reshade
 			return;
 		}
 
-		const float ortho_projection[16] =
-		{
+		const float ortho_projection[16] = {
 			2.0f / _width, 0.0f, 0.0f, 0.0f,
 			0.0f, -2.0f / _height, 0.0f, 0.0f,
 			0.0f, 0.0f, 0.5f, 0.0f,
@@ -1131,29 +1078,22 @@ namespace reshade
 
 		for (int n = 0; n < draw_data->CmdListsCount; n++)
 		{
-			const auto cmd_list = draw_data->CmdLists[n];
+			const ImDrawList *const cmd_list = draw_data->CmdLists[n];
 
-			for (auto cmd = cmd_list->CmdBuffer.begin(); cmd != cmd_list->CmdBuffer.end(); idx_offset += cmd->ElemCount, cmd++)
+			for (const ImDrawCmd *cmd = cmd_list->CmdBuffer.begin(); cmd != cmd_list->CmdBuffer.end(); idx_offset += cmd->ElemCount, cmd++)
 			{
-				if (cmd->UserCallback != nullptr)
-				{
-					cmd->UserCallback(cmd_list, cmd);
-				}
-				else
-				{
-					const D3D10_RECT scissor_rect = {
-						static_cast<LONG>(cmd->ClipRect.x),
-						static_cast<LONG>(cmd->ClipRect.y),
-						static_cast<LONG>(cmd->ClipRect.z),
-						static_cast<LONG>(cmd->ClipRect.w)
-					};
+				const D3D10_RECT scissor_rect = {
+					static_cast<LONG>(cmd->ClipRect.x),
+					static_cast<LONG>(cmd->ClipRect.y),
+					static_cast<LONG>(cmd->ClipRect.z),
+					static_cast<LONG>(cmd->ClipRect.w)
+				};
 
-					ID3D10ShaderResourceView *const texture_view = static_cast<const d3d10_tex_data *>(cmd->TextureId)->srv[0].get();
-					_device->PSSetShaderResources(0, 1, &texture_view);
-					_device->RSSetScissorRects(1, &scissor_rect);
+				ID3D10ShaderResourceView *const texture_view = static_cast<const d3d10_tex_data *>(cmd->TextureId)->srv[0].get();
+				_device->PSSetShaderResources(0, 1, &texture_view);
+				_device->RSSetScissorRects(1, &scissor_rect);
 
-					_device->DrawIndexed(cmd->ElemCount, idx_offset, vtx_offset);
-				}
+				_device->DrawIndexed(cmd->ElemCount, idx_offset, vtx_offset);
 			}
 
 			vtx_offset += cmd_list->VtxBuffer.size();
@@ -1217,7 +1157,7 @@ namespace reshade
 				continue;
 			}
 
-			if ((depthstencil_info.vertices_count * (1.2f - depthstencil_info.drawcall_count / _drawcalls)) >= (best_info.vertices_count * (1.2f - best_info.drawcall_count / _drawcalls)))
+			if ((depthstencil_info.vertices_count * (1.2f - float(depthstencil_info.drawcall_count) / _drawcalls)) >= (best_info.vertices_count * (1.2f - float(best_info.drawcall_count) / _drawcalls)))
 			{
 				best_match = depthstencil;
 				best_info = depthstencil_info;

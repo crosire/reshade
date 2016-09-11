@@ -3,7 +3,7 @@
 #include <vulkan/vulkan.h>
 #include "runtime.hpp"
 
-namespace reshade
+namespace reshade::vulkan
 {
 	struct vulkan_tex_data : base_object
 	{

@@ -264,7 +264,6 @@
     <ClInclude Include="source\filesystem.hpp" />
     <ClInclude Include="source\resource_loading.hpp" />
     <ClInclude Include="source\runtime_objects.hpp" />
-    <ClInclude Include="source\algorithm.hpp" />
     <ClInclude Include="source\syntax_tree.hpp" />
     <ClInclude Include="source\source_location.hpp" />
     <ClInclude Include="source\log.hpp" />

@@ -3,7 +3,7 @@
 #include <sstream>
 #include "syntax_tree.hpp"
 
-namespace reshade
+namespace reshade::d3d10
 {
 	#pragma region Forward Declarations
 	struct d3d10_pass_data;

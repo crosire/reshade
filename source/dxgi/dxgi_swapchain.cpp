@@ -99,9 +99,8 @@ ULONG STDMETHODCALLTYPE DXGISwapChain::Release()
 			{
 				assert(_runtime != nullptr);
 
-				const auto runtime = std::static_pointer_cast<reshade::d3d10_runtime>(_runtime);
 				auto &runtimes = static_cast<D3D10Device *>(_direct3d_device)->_runtimes;
-
+				const auto runtime = std::static_pointer_cast<reshade::d3d10::d3d10_runtime>(_runtime);
 				runtime->on_reset();
 
 				runtimes.erase(std::remove(runtimes.begin(), runtimes.end(), runtime), runtimes.end());
@@ -111,9 +110,8 @@ ULONG STDMETHODCALLTYPE DXGISwapChain::Release()
 			{
 				assert(_runtime != nullptr);
 
-				const auto runtime = std::static_pointer_cast<reshade::d3d11_runtime>(_runtime);
 				auto &runtimes = static_cast<D3D11Device *>(_direct3d_device)->_runtimes;
-
+				const auto runtime = std::static_pointer_cast<reshade::d3d11::d3d11_runtime>(_runtime);
 				runtime->on_reset();
 
 				runtimes.erase(std::remove(runtimes.begin(), runtimes.end(), runtime), runtimes.end());
@@ -123,8 +121,7 @@ ULONG STDMETHODCALLTYPE DXGISwapChain::Release()
 			{
 				assert(_runtime != nullptr);
 
-				const auto runtime = std::static_pointer_cast<reshade::d3d12_runtime>(_runtime);
-
+				const auto runtime = std::static_pointer_cast<reshade::d3d12::d3d12_runtime>(_runtime);
 				runtime->on_reset();
 				break;
 			}
@@ -186,15 +183,15 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::Present(UINT SyncInterval, UINT Flags)
 	{
 		case 10:
 			assert(_runtime != nullptr);
-			std::static_pointer_cast<reshade::d3d10_runtime>(_runtime)->on_present();
+			std::static_pointer_cast<reshade::d3d10::d3d10_runtime>(_runtime)->on_present();
 			break;
 		case 11:
 			assert(_runtime != nullptr);
-			std::static_pointer_cast<reshade::d3d11_runtime>(_runtime)->on_present();
+			std::static_pointer_cast<reshade::d3d11::d3d11_runtime>(_runtime)->on_present();
 			break;
 		case 12:
 			assert(_runtime != nullptr);
-			std::static_pointer_cast<reshade::d3d12_runtime>(_runtime)->on_present();
+			std::static_pointer_cast<reshade::d3d12::d3d12_runtime>(_runtime)->on_present();
 			break;
 	}
 
@@ -226,15 +223,15 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Wi
 	{
 		case 10:
 			assert(_runtime != nullptr);
-			std::static_pointer_cast<reshade::d3d10_runtime>(_runtime)->on_reset();
+			std::static_pointer_cast<reshade::d3d10::d3d10_runtime>(_runtime)->on_reset();
 			break;
 		case 11:
 			assert(_runtime != nullptr);
-			std::static_pointer_cast<reshade::d3d11_runtime>(_runtime)->on_reset();
+			std::static_pointer_cast<reshade::d3d11::d3d11_runtime>(_runtime)->on_reset();
 			break;
 		case 12:
 			assert(_runtime != nullptr);
-			std::static_pointer_cast<reshade::d3d12_runtime>(_runtime)->on_reset();
+			std::static_pointer_cast<reshade::d3d12::d3d12_runtime>(_runtime)->on_reset();
 			break;
 	}
 
@@ -260,15 +257,15 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Wi
 	{
 		case 10:
 			assert(_runtime != nullptr);
-			initialized = std::static_pointer_cast<reshade::d3d10_runtime>(_runtime)->on_init(desc);
+			initialized = std::static_pointer_cast<reshade::d3d10::d3d10_runtime>(_runtime)->on_init(desc);
 			break;
 		case 11:
 			assert(_runtime != nullptr);
-			initialized = std::static_pointer_cast<reshade::d3d11_runtime>(_runtime)->on_init(desc);
+			initialized = std::static_pointer_cast<reshade::d3d11::d3d11_runtime>(_runtime)->on_init(desc);
 			break;
 		case 12:
 			assert(_runtime != nullptr);
-			initialized = std::static_pointer_cast<reshade::d3d12_runtime>(_runtime)->on_init(desc);
+			initialized = std::static_pointer_cast<reshade::d3d12::d3d12_runtime>(_runtime)->on_init(desc);
 			break;
 	}
 
@@ -329,15 +326,15 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::Present1(UINT SyncInterval, UINT Presen
 	{
 		case 10:
 			assert(_runtime != nullptr);
-			std::static_pointer_cast<reshade::d3d10_runtime>(_runtime)->on_present();
+			std::static_pointer_cast<reshade::d3d10::d3d10_runtime>(_runtime)->on_present();
 			break;
 		case 11:
 			assert(_runtime != nullptr);
-			std::static_pointer_cast<reshade::d3d11_runtime>(_runtime)->on_present();
+			std::static_pointer_cast<reshade::d3d11::d3d11_runtime>(_runtime)->on_present();
 			break;
 		case 12:
 			assert(_runtime != nullptr);
-			std::static_pointer_cast<reshade::d3d12_runtime>(_runtime)->on_present();
+			std::static_pointer_cast<reshade::d3d12::d3d12_runtime>(_runtime)->on_present();
 			break;
 	}
 
@@ -453,15 +450,15 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers1(UINT BufferCount, UINT W
 	{
 		case 10:
 			assert(_runtime != nullptr);
-			std::static_pointer_cast<reshade::d3d10_runtime>(_runtime)->on_reset();
+			std::static_pointer_cast<reshade::d3d10::d3d10_runtime>(_runtime)->on_reset();
 			break;
 		case 11:
 			assert(_runtime != nullptr);
-			std::static_pointer_cast<reshade::d3d11_runtime>(_runtime)->on_reset();
+			std::static_pointer_cast<reshade::d3d11::d3d11_runtime>(_runtime)->on_reset();
 			break;
 		case 12:
 			assert(_runtime != nullptr);
-			std::static_pointer_cast<reshade::d3d12_runtime>(_runtime)->on_reset();
+			std::static_pointer_cast<reshade::d3d12::d3d12_runtime>(_runtime)->on_reset();
 			break;
 	}
 
@@ -487,15 +484,15 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers1(UINT BufferCount, UINT W
 	{
 		case 10:
 			assert(_runtime != nullptr);
-			initialized = std::static_pointer_cast<reshade::d3d10_runtime>(_runtime)->on_init(desc);
+			initialized = std::static_pointer_cast<reshade::d3d10::d3d10_runtime>(_runtime)->on_init(desc);
 			break;
 		case 11:
 			assert(_runtime != nullptr);
-			initialized = std::static_pointer_cast<reshade::d3d11_runtime>(_runtime)->on_init(desc);
+			initialized = std::static_pointer_cast<reshade::d3d11::d3d11_runtime>(_runtime)->on_init(desc);
 			break;
 		case 12:
 			assert(_runtime != nullptr);
-			initialized = std::static_pointer_cast<reshade::d3d12_runtime>(_runtime)->on_init(desc);
+			initialized = std::static_pointer_cast<reshade::d3d12::d3d12_runtime>(_runtime)->on_init(desc);
 			break;
 	}
 

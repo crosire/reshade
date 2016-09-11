@@ -113,7 +113,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, I
 	{
 		device_d3d10->AddRef();
 
-		const auto runtime = std::make_shared<reshade::d3d10_runtime>(device_d3d10->_orig, swapchain);
+		const auto runtime = std::make_shared<reshade::d3d10::d3d10_runtime>(device_d3d10->_orig, swapchain);
 
 		if (!runtime->on_init(desc))
 		{
@@ -128,7 +128,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, I
 	{
 		device_d3d11->AddRef();
 
-		const auto runtime = std::make_shared<reshade::d3d11_runtime>(device_d3d11->_orig, swapchain);
+		const auto runtime = std::make_shared<reshade::d3d11::d3d11_runtime>(device_d3d11->_orig, swapchain);
 
 		if (!runtime->on_init(desc))
 		{
@@ -147,7 +147,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, I
 		{
 			commandqueue_d3d12->AddRef();
 
-			const auto runtime = std::make_shared<reshade::d3d12_runtime>(commandqueue_d3d12->_device->_orig, commandqueue_d3d12->_orig, swapchain3);
+			const auto runtime = std::make_shared<reshade::d3d12::d3d12_runtime>(commandqueue_d3d12->_device->_orig, commandqueue_d3d12->_orig, swapchain3);
 
 			if (!runtime->on_init(desc))
 			{
@@ -230,7 +230,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pF
 	{
 		device_d3d10->AddRef();
 
-		const auto runtime = std::make_shared<reshade::d3d10_runtime>(device_d3d10->_orig, swapchain);
+		const auto runtime = std::make_shared<reshade::d3d10::d3d10_runtime>(device_d3d10->_orig, swapchain);
 
 		if (!runtime->on_init(desc))
 		{
@@ -245,7 +245,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pF
 	{
 		device_d3d11->AddRef();
 
-		const auto runtime = std::make_shared<reshade::d3d11_runtime>(device_d3d11->_orig, swapchain);
+		const auto runtime = std::make_shared<reshade::d3d11::d3d11_runtime>(device_d3d11->_orig, swapchain);
 
 		if (!runtime->on_init(desc))
 		{
@@ -264,7 +264,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pF
 		{
 			commandqueue_d3d12->AddRef();
 
-			const auto runtime = std::make_shared<reshade::d3d12_runtime>(commandqueue_d3d12->_device->_orig, commandqueue_d3d12->_orig, swapchain3);
+			const auto runtime = std::make_shared<reshade::d3d12::d3d12_runtime>(commandqueue_d3d12->_device->_orig, commandqueue_d3d12->_orig, swapchain3);
 
 			if (!runtime->on_init(desc))
 			{
@@ -345,7 +345,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactor
 	{
 		device_d3d10->AddRef();
 
-		const auto runtime = std::make_shared<reshade::d3d10_runtime>(device_d3d10->_orig, swapchain);
+		const auto runtime = std::make_shared<reshade::d3d10::d3d10_runtime>(device_d3d10->_orig, swapchain);
 
 		if (!runtime->on_init(desc))
 		{
@@ -360,7 +360,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactor
 	{
 		device_d3d11->AddRef();
 
-		const auto runtime = std::make_shared<reshade::d3d11_runtime>(device_d3d11->_orig, swapchain);
+		const auto runtime = std::make_shared<reshade::d3d11::d3d11_runtime>(device_d3d11->_orig, swapchain);
 
 		if (!runtime->on_init(desc))
 		{
@@ -379,7 +379,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactor
 		{
 			commandqueue_d3d12->AddRef();
 
-			const auto runtime = std::make_shared<reshade::d3d12_runtime>(commandqueue_d3d12->_device->_orig, commandqueue_d3d12->_orig, swapchain3);
+			const auto runtime = std::make_shared<reshade::d3d12::d3d12_runtime>(commandqueue_d3d12->_device->_orig, commandqueue_d3d12->_orig, swapchain3);
 
 			if (!runtime->on_init(desc))
 			{
@@ -460,7 +460,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFacto
 	{
 		device_d3d10->AddRef();
 
-		const auto runtime = std::make_shared<reshade::d3d10_runtime>(device_d3d10->_orig, swapchain);
+		const auto runtime = std::make_shared<reshade::d3d10::d3d10_runtime>(device_d3d10->_orig, swapchain);
 
 		if (!runtime->on_init(desc))
 		{
@@ -475,7 +475,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFacto
 	{
 		device_d3d11->AddRef();
 
-		const auto runtime = std::make_shared<reshade::d3d11_runtime>(device_d3d11->_orig, swapchain);
+		const auto runtime = std::make_shared<reshade::d3d11::d3d11_runtime>(device_d3d11->_orig, swapchain);
 
 		if (!runtime->on_init(desc))
 		{
@@ -494,7 +494,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFacto
 		{
 			commandqueue_d3d12->AddRef();
 
-			const auto runtime = std::make_shared<reshade::d3d12_runtime>(commandqueue_d3d12->_device->_orig, commandqueue_d3d12->_orig, swapchain3);
+			const auto runtime = std::make_shared<reshade::d3d12::d3d12_runtime>(commandqueue_d3d12->_device->_orig, commandqueue_d3d12->_orig, swapchain3);
 
 			if (!runtime->on_init(desc))
 			{

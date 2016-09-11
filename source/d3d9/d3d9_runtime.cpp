@@ -10,9 +10,10 @@ const auto D3DFMT_INTZ = static_cast<D3DFORMAT>(MAKEFOURCC('I', 'N', 'T', 'Z'));
 const auto D3DFMT_DF16 = static_cast<D3DFORMAT>(MAKEFOURCC('D', 'F', '1', '6'));
 const auto D3DFMT_DF24 = static_cast<D3DFORMAT>(MAKEFOURCC('D', 'F', '2', '4'));
 
-namespace reshade
+namespace reshade::d3d9
 {
-	d3d9_runtime::d3d9_runtime(IDirect3DDevice9 *device, IDirect3DSwapChain9 *swapchain) : runtime(0x9300), _device(device), _swapchain(swapchain)
+	d3d9_runtime::d3d9_runtime(IDirect3DDevice9 *device, IDirect3DSwapChain9 *swapchain) :
+		runtime(0x9300), _device(device), _swapchain(swapchain)
 	{
 		assert(device != nullptr);
 		assert(swapchain != nullptr);
@@ -32,7 +33,7 @@ namespace reshade
 		_vendor_id = adapter_desc.VendorId;
 		_device_id = adapter_desc.DeviceId;
 		_behavior_flags = creation_params.BehaviorFlags;
-		_num_simultaneous_rendertargets = std::min(caps.NumSimultaneousRTs, 8ul);
+		_num_simultaneous_rendertargets = std::min(static_cast<UINT>(caps.NumSimultaneousRTs), 8u);
 	}
 
 	bool d3d9_runtime::init_backbuffer_texture()
@@ -42,7 +43,8 @@ namespace reshade
 
 		assert(SUCCEEDED(hr));
 
-		if (_is_multisampling_enabled || (_backbuffer_format == D3DFMT_X8R8G8B8 || _backbuffer_format == D3DFMT_X8B8G8R8))
+		if (_is_multisampling_enabled ||
+			(_backbuffer_format == D3DFMT_X8R8G8B8 || _backbuffer_format == D3DFMT_X8B8G8R8))
 		{
 			switch (_backbuffer_format)
 			{
@@ -124,8 +126,7 @@ namespace reshade
 			return false;
 		}
 
-		const D3DVERTEXELEMENT9 declaration[] =
-		{
+		const D3DVERTEXELEMENT9 declaration[] = {
 			{ 0, 0, D3DDECLTYPE_FLOAT1, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD, 0 },
 			D3DDECL_END()
 		};
@@ -149,11 +150,10 @@ namespace reshade
 		ImGui::SetCurrentContext(_imgui_context);
 		ImGui::GetIO().Fonts->GetTexDataAsRGBA32(&pixels, &width, &height, &bits_per_pixel);
 
+		D3DLOCKED_RECT font_atlas_rect;
 		com_ptr<IDirect3DTexture9> font_atlas;
 
-		HRESULT hr = _device->CreateTexture(width, height, 1, D3DUSAGE_DYNAMIC, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &font_atlas, nullptr);
-
-		D3DLOCKED_RECT font_atlas_rect;
+		const HRESULT hr = _device->CreateTexture(width, height, 1, D3DUSAGE_DYNAMIC, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &font_atlas, nullptr);
 
 		if (FAILED(hr) || FAILED(font_atlas->LockRect(0, &font_atlas_rect, nullptr, 0)))
 		{
@@ -164,7 +164,7 @@ namespace reshade
 
 		for (int y = 0; y < height; y++)
 		{
-			CopyMemory(static_cast<BYTE *>(font_atlas_rect.pBits) + font_atlas_rect.Pitch * y, pixels + (width * bits_per_pixel) * y, width * bits_per_pixel);
+			std::memcpy(static_cast<BYTE *>(font_atlas_rect.pBits) + font_atlas_rect.Pitch * y, pixels + (width * bits_per_pixel) * y, width * bits_per_pixel);
 		}
 
 		font_atlas->UnlockRect(0);
@@ -202,11 +202,6 @@ namespace reshade
 	}
 	void d3d9_runtime::on_reset()
 	{
-		if (!_is_initialized)
-		{
-			return;
-		}
-
 		runtime::on_reset();
 
 		// Destroy resources
@@ -369,7 +364,7 @@ namespace reshade
 
 			if (it != _depth_source_table.end())
 			{
-				it->second.drawcall_count = static_cast<float>(_drawcalls);
+				it->second.drawcall_count = _drawcalls;
 				it->second.vertices_count += vertices;
 			}
 		}
@@ -382,7 +377,9 @@ namespace reshade
 			depthstencil->GetDesc(&desc);
 
 			// Early rejection
-			if ((desc.Width < _width * 0.95 || desc.Width > _width * 1.05) || (desc.Height < _height * 0.95 || desc.Height > _height * 1.05) || desc.MultiSampleType != D3DMULTISAMPLE_NONE)
+			if ( desc.MultiSampleType != D3DMULTISAMPLE_NONE ||
+				(desc.Width < _width * 0.95 || desc.Width > _width * 1.05) ||
+				(desc.Height < _height * 0.95 || desc.Height > _height * 1.05))
 			{
 				return;
 			}
@@ -426,7 +423,6 @@ namespace reshade
 
 		HRESULT hr;
 		com_ptr<IDirect3DSurface9> screenshot_surface;
-
 		hr = _device->CreateOffscreenPlainSurface(_width, _height, _backbuffer_format, D3DPOOL_SYSTEMMEM, &screenshot_surface, nullptr);
 
 		if (FAILED(hr))
@@ -454,7 +450,7 @@ namespace reshade
 
 		for (UINT y = 0; y < _height; y++)
 		{
-			CopyMemory(buffer, mapped_data, std::min(pitch, static_cast<UINT>(mapped_rect.Pitch)));
+			std::memcpy(buffer, mapped_data, std::min(pitch, static_cast<UINT>(mapped_rect.Pitch)));
 
 			for (UINT x = 0; x < pitch; x += 4)
 			{
@@ -491,9 +487,9 @@ namespace reshade
 		D3DSURFACE_DESC desc;
 		texture_impl->texture->GetLevelDesc(0, &desc);
 
+		HRESULT hr;
 		com_ptr<IDirect3DTexture9> mem_texture;
-
-		HRESULT hr = _device->CreateTexture(desc.Width, desc.Height, 1, 0, desc.Format, D3DPOOL_SYSTEMMEM, &mem_texture, nullptr);
+		hr = _device->CreateTexture(desc.Width, desc.Height, 1, 0, desc.Format, D3DPOOL_SYSTEMMEM, &mem_texture, nullptr);
 
 		if (FAILED(hr))
 		{
@@ -512,25 +508,25 @@ namespace reshade
 			return false;
 		}
 
-		const auto size = std::min(texture.width * 4, static_cast<unsigned int>(mapped_rect.Pitch)) * texture.height;
+		const UINT size = std::min(texture.width * 4, static_cast<UINT>(mapped_rect.Pitch)) * texture.height;
 		auto mapped_data = static_cast<BYTE *>(mapped_rect.pBits);
 
 		switch (texture.format)
 		{
 			case texture_format::r8:
-				for (size_t i = 0; i < size; i += 4, mapped_data += 4)
+				for (UINT i = 0; i < size; i += 4, mapped_data += 4)
 				{
 					mapped_data[0] = 0, mapped_data[1] = 0, mapped_data[2] = data[i], mapped_data[3] = 0;
 				}
 				break;
 			case texture_format::rg8:
-				for (size_t i = 0; i < size; i += 4, mapped_data += 4)
+				for (UINT i = 0; i < size; i += 4, mapped_data += 4)
 				{
 					mapped_data[0] = 0, mapped_data[1] = data[i + 1], mapped_data[2] = data[i], mapped_data[3] = 0;
 				}
 				break;
 			case texture_format::rgba8:
-				for (size_t i = 0; i < size; i += 4, mapped_data += 4)
+				for (UINT i = 0; i < size; i += 4, mapped_data += 4)
 				{
 					mapped_data[0] = data[i + 2], mapped_data[1] = data[i + 1], mapped_data[2] = data[i], mapped_data[3] = data[i + 3];
 				}
@@ -701,7 +697,8 @@ namespace reshade
 		};
 
 		// Create and grow buffers if needed
-		if (_imgui_vertex_buffer == nullptr || _imgui_vertex_buffer_size < draw_data->TotalVtxCount)
+		if (_imgui_vertex_buffer == nullptr ||
+			_imgui_vertex_buffer_size < draw_data->TotalVtxCount)
 		{
 			_imgui_vertex_buffer.reset();
 			_imgui_vertex_buffer_size = draw_data->TotalVtxCount + 5000;
@@ -711,7 +708,8 @@ namespace reshade
 				return;
 			}
 		}
-		if (_imgui_index_buffer == nullptr || _imgui_index_buffer_size < draw_data->TotalIdxCount)
+		if (_imgui_index_buffer == nullptr ||
+			_imgui_index_buffer_size < draw_data->TotalIdxCount)
 		{
 			_imgui_index_buffer.reset();
 			_imgui_index_buffer_size = draw_data->TotalIdxCount + 10000;
@@ -733,7 +731,7 @@ namespace reshade
 
 		for (int n = 0; n < draw_data->CmdListsCount; n++)
 		{
-			const auto cmd_list = draw_data->CmdLists[n];
+			const ImDrawList *const cmd_list = draw_data->CmdLists[n];
 
 			for (auto vtx_src = cmd_list->VtxBuffer.begin(); vtx_src != cmd_list->VtxBuffer.end(); vtx_src++, vtx_dst++)
 			{
@@ -748,7 +746,7 @@ namespace reshade
 				vtx_dst->v = vtx_src->uv.y;
 			}
 
-			CopyMemory(idx_dst, &cmd_list->IdxBuffer.front(), cmd_list->IdxBuffer.size() * sizeof(ImDrawIdx));
+			std::memcpy(idx_dst, &cmd_list->IdxBuffer.front(), cmd_list->IdxBuffer.size() * sizeof(ImDrawIdx));
 
 			idx_dst += cmd_list->IdxBuffer.size();
 		}
@@ -803,28 +801,21 @@ namespace reshade
 
 		for (int n = 0; n < draw_data->CmdListsCount; n++)
 		{
-			const auto cmd_list = draw_data->CmdLists[n];
+			const ImDrawList *const cmd_list = draw_data->CmdLists[n];
 
-			for (auto cmd = cmd_list->CmdBuffer.begin(); cmd != cmd_list->CmdBuffer.end(); idx_offset += cmd->ElemCount, cmd++)
+			for (const ImDrawCmd *cmd = cmd_list->CmdBuffer.begin(); cmd != cmd_list->CmdBuffer.end(); idx_offset += cmd->ElemCount, cmd++)
 			{
-				if (cmd->UserCallback != nullptr)
-				{
-					cmd->UserCallback(cmd_list, cmd);
-				}
-				else
-				{
-					const RECT scissor_rect = {
-						static_cast<LONG>(cmd->ClipRect.x),
-						static_cast<LONG>(cmd->ClipRect.y),
-						static_cast<LONG>(cmd->ClipRect.z),
-						static_cast<LONG>(cmd->ClipRect.w)
-					};
+				const RECT scissor_rect = {
+					static_cast<LONG>(cmd->ClipRect.x),
+					static_cast<LONG>(cmd->ClipRect.y),
+					static_cast<LONG>(cmd->ClipRect.z),
+					static_cast<LONG>(cmd->ClipRect.w)
+				};
 
-					_device->SetTexture(0, static_cast<const d3d9_tex_data *>(cmd->TextureId)->texture.get());
-					_device->SetScissorRect(&scissor_rect);
+				_device->SetTexture(0, static_cast<const d3d9_tex_data *>(cmd->TextureId)->texture.get());
+				_device->SetScissorRect(&scissor_rect);
 
-					_device->DrawIndexedPrimitive(D3DPT_TRIANGLELIST, vtx_offset, 0, cmd_list->VtxBuffer.size(), idx_offset, cmd->ElemCount / 3);
-				}
+				_device->DrawIndexedPrimitive(D3DPT_TRIANGLELIST, vtx_offset, 0, cmd_list->VtxBuffer.size(), idx_offset, cmd->ElemCount / 3);
 			}
 
 			vtx_offset += cmd_list->VtxBuffer.size();
@@ -888,7 +879,7 @@ namespace reshade
 				continue;
 			}
 
-			if ((depthstencil_info.vertices_count * (1.2f - depthstencil_info.drawcall_count / _drawcalls)) >= (best_info.vertices_count * (1.2f - best_info.drawcall_count / _drawcalls)))
+			if ((depthstencil_info.vertices_count * (1.2f - float(depthstencil_info.drawcall_count) / _drawcalls)) >= (best_info.vertices_count * (1.2f - float(best_info.drawcall_count) / _drawcalls)))
 			{
 				best_match = depthstencil;
 				best_info = depthstencil_info;

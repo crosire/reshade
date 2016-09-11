@@ -4,7 +4,7 @@
 #include "runtime.hpp"
 #include "com_ptr.hpp"
 
-namespace reshade
+namespace reshade::d3d9
 {
 	struct d3d9_sampler
 	{
@@ -61,7 +61,7 @@ namespace reshade
 		struct depth_source_info
 		{
 			UINT width, height;
-			FLOAT drawcall_count, vertices_count;
+			UINT drawcall_count, vertices_count;
 		};
 
 		bool init_backbuffer_texture();

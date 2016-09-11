@@ -163,7 +163,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateAdditionalSwapChain(D3DPRESENT_
 	D3DPRESENT_PARAMETERS pp;
 	swapchain->GetPresentParameters(&pp);
 
-	const auto runtime = std::make_shared<reshade::d3d9_runtime>(device, swapchain);
+	const auto runtime = std::make_shared<reshade::d3d9::d3d9_runtime>(device, swapchain);
 
 	if (!runtime->on_init(pp))
 	{

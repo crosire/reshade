@@ -2,44 +2,41 @@
 
 #include <gl/gl3w.h>
 
-namespace reshade
+namespace reshade::opengl
 {
-	namespace utils
+	class opengl_stateblock
 	{
-		class opengl_stateblock
-		{
-		public:
-			opengl_stateblock();
+	public:
+		opengl_stateblock();
 
-			void capture();
-			void apply() const;
+		void capture();
+		void apply() const;
 
-		private:
-			GLint _vao;
-			GLint _vbo;
-			GLint _ubo;
-			GLint _program;
-			GLint _textures2D[32], _samplers[32];
-			GLint _active_texture;
-			GLint _viewport[4];
-			GLint _scissor_test;
-			GLint _blend;
-			GLint _blend_src, _blend_dest;
-			GLint _blend_eq_color, _blend_eq_alpha;
-			GLint _depth_test;
-			GLboolean _depth_mask;
-			GLint _depth_func;
-			GLint _stencil_test;
-			GLint _stencil_ref;
-			GLint _stencil_func;
-			GLint _stencil_op_fail, _stencil_op_zfail, _stencil_op_zpass;
-			GLint _stencil_read_mask, _stencil_mask;
-			GLint _polygon_mode, _frontface;
-			GLint _cullface, _cullface_mode;
-			GLint _fbo;
-			GLint _srgb;
-			GLboolean _color_mask[4];
-			GLenum _drawbuffers[8];
-		};
-	}
+	private:
+		GLint _vao;
+		GLint _vbo;
+		GLint _ubo;
+		GLint _program;
+		GLint _textures2D[32], _samplers[32];
+		GLint _active_texture;
+		GLint _viewport[4];
+		GLint _scissor_test;
+		GLint _blend;
+		GLint _blend_src, _blend_dest;
+		GLint _blend_eq_color, _blend_eq_alpha;
+		GLint _depth_test;
+		GLboolean _depth_mask;
+		GLint _depth_func;
+		GLint _stencil_test;
+		GLint _stencil_ref;
+		GLint _stencil_func;
+		GLint _stencil_op_fail, _stencil_op_zfail, _stencil_op_zpass;
+		GLint _stencil_read_mask, _stencil_mask;
+		GLint _polygon_mode, _frontface;
+		GLint _cullface, _cullface_mode;
+		GLint _fbo;
+		GLint _srgb;
+		GLboolean _color_mask[4];
+		GLenum _drawbuffers[8];
+	};
 }

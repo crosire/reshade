@@ -2,10 +2,9 @@
 
 #include <d3d10_1.h>
 #include "runtime.hpp"
-#include "com_ptr.hpp"
 #include "d3d10_stateblock.hpp"
 
-namespace reshade
+namespace reshade::d3d10
 {
 	struct d3d10_tex_data : base_object
 	{
@@ -66,7 +65,7 @@ namespace reshade
 		struct depth_source_info
 		{
 			UINT width, height;
-			FLOAT drawcall_count, vertices_count;
+			UINT drawcall_count, vertices_count;
 		};
 
 		bool init_backbuffer_texture();
@@ -80,7 +79,7 @@ namespace reshade
 
 		bool _is_multisampling_enabled = false;
 		DXGI_FORMAT _backbuffer_format = DXGI_FORMAT_UNKNOWN;
-		utils::d3d10_stateblock _stateblock;
+		d3d10_stateblock _stateblock;
 		com_ptr<ID3D10Texture2D> _backbuffer, _backbuffer_resolved;
 		com_ptr<ID3D10DepthStencilView> _depthstencil, _depthstencil_replacement;
 		com_ptr<ID3D10Texture2D> _depthstencil_texture;

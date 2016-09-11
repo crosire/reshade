@@ -7,11 +7,8 @@
 
 namespace reshade
 {
-	namespace
-	{
-		std::unordered_map<HWND, unsigned int> s_raw_input_windows;
-		std::unordered_map<HWND, std::weak_ptr<input>> s_windows;
-	}
+	static std::unordered_map<HWND, unsigned int> s_raw_input_windows;
+	static std::unordered_map<HWND, std::weak_ptr<input>> s_windows;
 
 	input::input(window_handle window) : _window(window)
 	{

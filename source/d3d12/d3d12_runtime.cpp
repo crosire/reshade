@@ -3,9 +3,10 @@
 #include "input.hpp"
 #include <assert.h>
 
-namespace reshade
+namespace reshade::d3d12
 {
-	d3d12_runtime::d3d12_runtime(ID3D12Device *device, ID3D12CommandQueue *queue, IDXGISwapChain3 *swapchain) : runtime(D3D_FEATURE_LEVEL_12_0), _device(device), _commandqueue(queue), _swapchain(swapchain)
+	d3d12_runtime::d3d12_runtime(ID3D12Device *device, ID3D12CommandQueue *queue, IDXGISwapChain3 *swapchain) :
+		runtime(D3D_FEATURE_LEVEL_12_0), _device(device), _commandqueue(queue), _swapchain(swapchain)
 	{
 		assert(queue != nullptr);
 		assert(device != nullptr);

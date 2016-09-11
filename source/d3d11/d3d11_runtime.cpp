@@ -7,73 +7,15 @@
 #include <imgui.h>
 #include <algorithm>
 
-namespace reshade
+namespace reshade::d3d11
 {
-	namespace
-	{
-		DXGI_FORMAT make_format_srgb(DXGI_FORMAT format)
-		{
-			switch (format)
-			{
-				case DXGI_FORMAT_R8G8B8A8_TYPELESS:
-				case DXGI_FORMAT_R8G8B8A8_UNORM:
-					return DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
-				case DXGI_FORMAT_BC1_TYPELESS:
-				case DXGI_FORMAT_BC1_UNORM:
-					return DXGI_FORMAT_BC1_UNORM_SRGB;
-				case DXGI_FORMAT_BC2_TYPELESS:
-				case DXGI_FORMAT_BC2_UNORM:
-					return DXGI_FORMAT_BC2_UNORM_SRGB;
-				case DXGI_FORMAT_BC3_TYPELESS:
-				case DXGI_FORMAT_BC3_UNORM:
-					return DXGI_FORMAT_BC3_UNORM_SRGB;
-				default:
-					return format;
-			}
-		}
-		DXGI_FORMAT make_format_normal(DXGI_FORMAT format)
-		{
-			switch (format)
-			{
-				case DXGI_FORMAT_R8G8B8A8_TYPELESS:
-				case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
-					return DXGI_FORMAT_R8G8B8A8_UNORM;
-				case DXGI_FORMAT_BC1_TYPELESS:
-				case DXGI_FORMAT_BC1_UNORM_SRGB:
-					return DXGI_FORMAT_BC1_UNORM;
-				case DXGI_FORMAT_BC2_TYPELESS:
-				case DXGI_FORMAT_BC2_UNORM_SRGB:
-					return DXGI_FORMAT_BC2_UNORM;
-				case DXGI_FORMAT_BC3_TYPELESS:
-				case DXGI_FORMAT_BC3_UNORM_SRGB:
-					return DXGI_FORMAT_BC3_UNORM;
-				default:
-					return format;
-			}
-		}
-		DXGI_FORMAT make_format_typeless(DXGI_FORMAT format)
-		{
-			switch (format)
-			{
-				case DXGI_FORMAT_R8G8B8A8_UNORM:
-				case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
-					return DXGI_FORMAT_R8G8B8A8_TYPELESS;
-				case DXGI_FORMAT_BC1_UNORM:
-				case DXGI_FORMAT_BC1_UNORM_SRGB:
-					return DXGI_FORMAT_BC1_TYPELESS;
-				case DXGI_FORMAT_BC2_UNORM:
-				case DXGI_FORMAT_BC2_UNORM_SRGB:
-					return DXGI_FORMAT_BC2_TYPELESS;
-				case DXGI_FORMAT_BC3_UNORM:
-				case DXGI_FORMAT_BC3_UNORM_SRGB:
-					return DXGI_FORMAT_BC3_TYPELESS;
-				default:
-					return format;
-			}
-		}
-	}
+	extern DXGI_FORMAT make_format_srgb(DXGI_FORMAT format);
+	extern DXGI_FORMAT make_format_normal(DXGI_FORMAT format);
+	extern DXGI_FORMAT make_format_typeless(DXGI_FORMAT format);
 
-	d3d11_runtime::d3d11_runtime(ID3D11Device *device, IDXGISwapChain *swapchain) : runtime(device->GetFeatureLevel()), _device(device), _swapchain(swapchain), _stateblock(device)
+	d3d11_runtime::d3d11_runtime(ID3D11Device *device, IDXGISwapChain *swapchain) :
+		runtime(device->GetFeatureLevel()), _device(device), _swapchain(swapchain),
+		_stateblock(device)
 	{
 		assert(device != nullptr);
 		assert(swapchain != nullptr);
@@ -223,8 +165,14 @@ namespace reshade
 			assert(SUCCEEDED(hr));
 		}
 		{
-			const D3D11_SAMPLER_DESC copysampdesc = { D3D11_FILTER_MIN_MAG_MIP_POINT, D3D11_TEXTURE_ADDRESS_CLAMP, D3D11_TEXTURE_ADDRESS_CLAMP, D3D11_TEXTURE_ADDRESS_CLAMP };
-			hr = _device->CreateSamplerState(&copysampdesc, &_copy_sampler);
+			const D3D11_SAMPLER_DESC desc = {
+				D3D11_FILTER_MIN_MAG_MIP_POINT,
+				D3D11_TEXTURE_ADDRESS_CLAMP,
+				D3D11_TEXTURE_ADDRESS_CLAMP,
+				D3D11_TEXTURE_ADDRESS_CLAMP
+			};
+
+			hr = _device->CreateSamplerState(&desc, &_copy_sampler);
 
 			assert(SUCCEEDED(hr));
 		}
@@ -236,8 +184,7 @@ namespace reshade
 		const D3D11_TEXTURE2D_DESC desc = {
 			_width,
 			_height,
-			1,
-			1,
+			1, 1,
 			DXGI_FORMAT_D24_UNORM_S8_UINT,
 			{ 1, 0 },
 			D3D11_USAGE_DEFAULT,
@@ -416,8 +363,7 @@ namespace reshade
 		const D3D11_TEXTURE2D_DESC tex_desc = {
 			static_cast<UINT>(width),
 			static_cast<UINT>(height),
-			1,
-			1,
+			1, 1,
 			DXGI_FORMAT_R8G8B8A8_UNORM,
 			{ 1, 0 },
 			D3D11_USAGE_DEFAULT,
@@ -627,7 +573,8 @@ namespace reshade
 
 		context->OMGetRenderTargets(0, nullptr, &current_depthstencil);
 
-		if (current_depthstencil == nullptr || current_depthstencil == _default_depthstencil)
+		if (current_depthstencil == nullptr ||
+			current_depthstencil == _default_depthstencil)
 		{
 			return;
 		}
@@ -640,7 +587,7 @@ namespace reshade
 
 		if (it != _depth_source_table.end())
 		{
-			it->second.drawcall_count = static_cast<FLOAT>(_drawcalls);
+			it->second.drawcall_count = _drawcalls;
 			it->second.vertices_count += vertices;
 		}
 	}
@@ -1033,7 +980,8 @@ namespace reshade
 	void d3d11_runtime::render_draw_lists(ImDrawData *draw_data)
 	{
 		// Create and grow vertex/index buffers if needed
-		if (_imgui_vertex_buffer == nullptr || _imgui_vertex_buffer_size < draw_data->TotalVtxCount)
+		if (_imgui_vertex_buffer == nullptr ||
+			_imgui_vertex_buffer_size < draw_data->TotalVtxCount)
 		{
 			_imgui_vertex_buffer.reset();
 			_imgui_vertex_buffer_size = draw_data->TotalVtxCount + 5000;
@@ -1050,7 +998,8 @@ namespace reshade
 				return;
 			}
 		}
-		if (_imgui_index_buffer == nullptr || _imgui_index_buffer_size < draw_data->TotalIdxCount)
+		if (_imgui_index_buffer == nullptr ||
+			_imgui_index_buffer_size < draw_data->TotalIdxCount)
 		{
 			_imgui_index_buffer.reset();
 			_imgui_index_buffer_size = draw_data->TotalIdxCount + 10000;
@@ -1080,7 +1029,7 @@ namespace reshade
 
 		for (int n = 0; n < draw_data->CmdListsCount; n++)
 		{
-			const auto cmd_list = draw_data->CmdLists[n];
+			const ImDrawList *const cmd_list = draw_data->CmdLists[n];
 
 			CopyMemory(vtx_dst, &cmd_list->VtxBuffer.front(), cmd_list->VtxBuffer.size() * sizeof(ImDrawVert));
 			CopyMemory(idx_dst, &cmd_list->IdxBuffer.front(), cmd_list->IdxBuffer.size() * sizeof(ImDrawIdx));
@@ -1100,8 +1049,7 @@ namespace reshade
 			return;
 		}
 
-		const float ortho_projection[16] =
-		{
+		const float ortho_projection[16] = {
 			2.0f / _width, 0.0f, 0.0f, 0.0f,
 			0.0f, -2.0f / _height, 0.0f, 0.0f,
 			0.0f, 0.0f, 0.5f, 0.0f,
@@ -1119,7 +1067,8 @@ namespace reshade
 		_immediate_context->RSSetState(_imgui_rasterizer_state.get());
 
 		UINT stride = sizeof(ImDrawVert), offset = 0;
-		ID3D11Buffer *vertex_buffers[1] = { _imgui_vertex_buffer.get() }, *constant_buffers[1] = { _imgui_constant_buffer.get() };
+		ID3D11Buffer *vertex_buffers[1] = { _imgui_vertex_buffer.get() };
+		ID3D11Buffer *constant_buffers[1] = { _imgui_constant_buffer.get() };
 		ID3D11SamplerState *samplers[1] = { _imgui_texture_sampler.get() };
 		_immediate_context->IASetInputLayout(_imgui_input_layout.get());
 		_immediate_context->IASetVertexBuffers(0, 1, vertex_buffers, &stride, &offset);
@@ -1135,29 +1084,22 @@ namespace reshade
 
 		for (int n = 0; n < draw_data->CmdListsCount; n++)
 		{
-			const auto cmd_list = draw_data->CmdLists[n];
+			const ImDrawList *const cmd_list = draw_data->CmdLists[n];
 
-			for (auto cmd = cmd_list->CmdBuffer.begin(); cmd != cmd_list->CmdBuffer.end(); idx_offset += cmd->ElemCount, cmd++)
+			for (const ImDrawCmd *cmd = cmd_list->CmdBuffer.begin(); cmd != cmd_list->CmdBuffer.end(); idx_offset += cmd->ElemCount, cmd++)
 			{
-				if (cmd->UserCallback != nullptr)
-				{
-					cmd->UserCallback(cmd_list, cmd);
-				}
-				else
-				{
-					const D3D11_RECT scissor_rect = {
-						static_cast<LONG>(cmd->ClipRect.x),
-						static_cast<LONG>(cmd->ClipRect.y),
-						static_cast<LONG>(cmd->ClipRect.z),
-						static_cast<LONG>(cmd->ClipRect.w)
-					};
+				const D3D11_RECT scissor_rect = {
+					static_cast<LONG>(cmd->ClipRect.x),
+					static_cast<LONG>(cmd->ClipRect.y),
+					static_cast<LONG>(cmd->ClipRect.z),
+					static_cast<LONG>(cmd->ClipRect.w)
+				};
 
-					ID3D11ShaderResourceView *const texture_view = static_cast<const d3d11_tex_data *>(cmd->TextureId)->srv[0].get();
-					_immediate_context->PSSetShaderResources(0, 1, &texture_view);
-					_immediate_context->RSSetScissorRects(1, &scissor_rect);
+				ID3D11ShaderResourceView *const texture_view = static_cast<const d3d11_tex_data *>(cmd->TextureId)->srv[0].get();
+				_immediate_context->PSSetShaderResources(0, 1, &texture_view);
+				_immediate_context->RSSetScissorRects(1, &scissor_rect);
 
-					_immediate_context->DrawIndexed(cmd->ElemCount, idx_offset, vtx_offset);
-				}
+				_immediate_context->DrawIndexed(cmd->ElemCount, idx_offset, vtx_offset);
 			}
 
 			vtx_offset += cmd_list->VtxBuffer.size();
@@ -1223,7 +1165,7 @@ namespace reshade
 				continue;
 			}
 
-			if ((depthstencil_info.vertices_count * (1.2f - depthstencil_info.drawcall_count / _drawcalls)) >= (best_info.vertices_count * (1.2f - best_info.drawcall_count / _drawcalls)))
+			if ((depthstencil_info.vertices_count * (1.2f - float(depthstencil_info.drawcall_count) / _drawcalls)) >= (best_info.vertices_count * (1.2f - float(best_info.drawcall_count) / _drawcalls)))
 			{
 				best_match = depthstencil;
 				best_info = depthstencil_info;

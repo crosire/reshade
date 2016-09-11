@@ -5,150 +5,167 @@
 #include <algorithm>
 #include <d3dcompiler.h>
 
-namespace reshade
+namespace reshade::d3d11
 {
 	using namespace reshadefx;
 	using namespace reshadefx::nodes;
 
-	namespace
+	UINT roundto16(UINT size)
 	{
-		UINT roundto16(UINT size)
+		return (size + 15) & ~15;
+	}
+	D3D11_BLEND literal_to_blend_func(unsigned int value)
+	{
+		switch (value)
 		{
-			return (size + 15) & ~15;
+			case pass_declaration_node::ZERO:
+				return D3D11_BLEND_ZERO;
+			case pass_declaration_node::ONE:
+				return D3D11_BLEND_ONE;
 		}
-		D3D11_BLEND literal_to_blend_func(unsigned int value)
-		{
-			switch (value)
-			{
-				case pass_declaration_node::ZERO:
-					return D3D11_BLEND_ZERO;
-				case pass_declaration_node::ONE:
-					return D3D11_BLEND_ONE;
-			}
 
-			return static_cast<D3D11_BLEND>(value);
-		}
-		D3D11_STENCIL_OP literal_to_stencil_op(unsigned int value)
+		return static_cast<D3D11_BLEND>(value);
+	}
+	D3D11_STENCIL_OP literal_to_stencil_op(unsigned int value)
+	{
+		if (value == pass_declaration_node::ZERO)
 		{
-			if (value == pass_declaration_node::ZERO)
-			{
-				return D3D11_STENCIL_OP_ZERO;
-			}
+			return D3D11_STENCIL_OP_ZERO;
+		}
 
-			return static_cast<D3D11_STENCIL_OP>(value);
-		}
-		DXGI_FORMAT literal_to_format(texture_format value)
+		return static_cast<D3D11_STENCIL_OP>(value);
+	}
+	DXGI_FORMAT literal_to_format(texture_format value)
+	{
+		switch (value)
 		{
-			switch (value)
-			{
-				case texture_format::r8:
-					return DXGI_FORMAT_R8_UNORM;
-				case texture_format::r16f:
-					return DXGI_FORMAT_R16_FLOAT;
-				case texture_format::r32f:
-					return DXGI_FORMAT_R32_FLOAT;
-				case texture_format::rg8:
-					return DXGI_FORMAT_R8G8_UNORM;
-				case texture_format::rg16:
-					return DXGI_FORMAT_R16G16_UNORM;
-				case texture_format::rg16f:
-					return DXGI_FORMAT_R16G16_FLOAT;
-				case texture_format::rg32f:
-					return DXGI_FORMAT_R32G32_FLOAT;
-				case texture_format::rgba8:
-					return DXGI_FORMAT_R8G8B8A8_TYPELESS;
-				case texture_format::rgba16:
-					return DXGI_FORMAT_R16G16B16A16_UNORM;
-				case texture_format::rgba16f:
-					return DXGI_FORMAT_R16G16B16A16_FLOAT;
-				case texture_format::rgba32f:
-					return DXGI_FORMAT_R32G32B32A32_FLOAT;
-				case texture_format::dxt1:
-					return DXGI_FORMAT_BC1_TYPELESS;
-				case texture_format::dxt3:
-					return DXGI_FORMAT_BC2_TYPELESS;
-				case texture_format::dxt5:
-					return DXGI_FORMAT_BC3_TYPELESS;
-				case texture_format::latc1:
-					return DXGI_FORMAT_BC4_UNORM;
-				case texture_format::latc2:
-					return DXGI_FORMAT_BC5_UNORM;
-			}
+			case texture_format::r8:
+				return DXGI_FORMAT_R8_UNORM;
+			case texture_format::r16f:
+				return DXGI_FORMAT_R16_FLOAT;
+			case texture_format::r32f:
+				return DXGI_FORMAT_R32_FLOAT;
+			case texture_format::rg8:
+				return DXGI_FORMAT_R8G8_UNORM;
+			case texture_format::rg16:
+				return DXGI_FORMAT_R16G16_UNORM;
+			case texture_format::rg16f:
+				return DXGI_FORMAT_R16G16_FLOAT;
+			case texture_format::rg32f:
+				return DXGI_FORMAT_R32G32_FLOAT;
+			case texture_format::rgba8:
+				return DXGI_FORMAT_R8G8B8A8_TYPELESS;
+			case texture_format::rgba16:
+				return DXGI_FORMAT_R16G16B16A16_UNORM;
+			case texture_format::rgba16f:
+				return DXGI_FORMAT_R16G16B16A16_FLOAT;
+			case texture_format::rgba32f:
+				return DXGI_FORMAT_R32G32B32A32_FLOAT;
+			case texture_format::dxt1:
+				return DXGI_FORMAT_BC1_TYPELESS;
+			case texture_format::dxt3:
+				return DXGI_FORMAT_BC2_TYPELESS;
+			case texture_format::dxt5:
+				return DXGI_FORMAT_BC3_TYPELESS;
+			case texture_format::latc1:
+				return DXGI_FORMAT_BC4_UNORM;
+			case texture_format::latc2:
+				return DXGI_FORMAT_BC5_UNORM;
+		}
 
-			return DXGI_FORMAT_UNKNOWN;
-		}
-		size_t D3D11_SAMPLER_DESC_HASH(const D3D11_SAMPLER_DESC &s)
-		{
-			const unsigned char *p = reinterpret_cast<const unsigned char *>(&s);
-			size_t h = 2166136261;
+		return DXGI_FORMAT_UNKNOWN;
+	}
+	size_t D3D11_SAMPLER_DESC_HASH(const D3D11_SAMPLER_DESC &s)
+	{
+		const unsigned char *p = reinterpret_cast<const unsigned char *>(&s);
+		size_t h = 2166136261;
 
-			for (size_t i = 0; i < sizeof(D3D11_SAMPLER_DESC); ++i)
-			{
-				h = (h * 16777619) ^ p[i];
-			}
+		for (size_t i = 0; i < sizeof(D3D11_SAMPLER_DESC); ++i)
+		{
+			h = (h * 16777619) ^ p[i];
+		}
 
-			return h;
-		}
-		std::string convert_semantic(const std::string &semantic)
+		return h;
+	}
+	std::string convert_semantic(const std::string &semantic)
+	{
+		if (semantic == "VERTEXID")
 		{
-			if (semantic == "VERTEXID")
-			{
-				return "SV_VERTEXID";
-			}
-			else if (semantic == "POSITION" || semantic == "VPOS")
-			{
-				return "SV_POSITION";
-			}
-			else if (semantic.compare(0, 5, "COLOR") == 0)
-			{
-				return "SV_TARGET" + semantic.substr(5);
-			}
-			else if (semantic == "DEPTH")
-			{
-				return "SV_DEPTH";
-			}
+			return "SV_VERTEXID";
+		}
+		else if (semantic == "POSITION" || semantic == "VPOS")
+		{
+			return "SV_POSITION";
+		}
+		else if (semantic.compare(0, 5, "COLOR") == 0)
+		{
+			return "SV_TARGET" + semantic.substr(5);
+		}
+		else if (semantic == "DEPTH")
+		{
+			return "SV_DEPTH";
+		}
 
-			return semantic;
-		}
-		DXGI_FORMAT make_format_srgb(DXGI_FORMAT format)
+		return semantic;
+	}
+	DXGI_FORMAT make_format_srgb(DXGI_FORMAT format)
+	{
+		switch (format)
 		{
-			switch (format)
-			{
-				case DXGI_FORMAT_R8G8B8A8_TYPELESS:
-				case DXGI_FORMAT_R8G8B8A8_UNORM:
-					return DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
-				case DXGI_FORMAT_BC1_TYPELESS:
-				case DXGI_FORMAT_BC1_UNORM:
-					return DXGI_FORMAT_BC1_UNORM_SRGB;
-				case DXGI_FORMAT_BC2_TYPELESS:
-				case DXGI_FORMAT_BC2_UNORM:
-					return DXGI_FORMAT_BC2_UNORM_SRGB;
-				case DXGI_FORMAT_BC3_TYPELESS:
-				case DXGI_FORMAT_BC3_UNORM:
-					return DXGI_FORMAT_BC3_UNORM_SRGB;
-				default:
-					return format;
-			}
+			case DXGI_FORMAT_R8G8B8A8_TYPELESS:
+			case DXGI_FORMAT_R8G8B8A8_UNORM:
+				return DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+			case DXGI_FORMAT_BC1_TYPELESS:
+			case DXGI_FORMAT_BC1_UNORM:
+				return DXGI_FORMAT_BC1_UNORM_SRGB;
+			case DXGI_FORMAT_BC2_TYPELESS:
+			case DXGI_FORMAT_BC2_UNORM:
+				return DXGI_FORMAT_BC2_UNORM_SRGB;
+			case DXGI_FORMAT_BC3_TYPELESS:
+			case DXGI_FORMAT_BC3_UNORM:
+				return DXGI_FORMAT_BC3_UNORM_SRGB;
+			default:
+				return format;
 		}
-		DXGI_FORMAT make_format_normal(DXGI_FORMAT format)
+	}
+	DXGI_FORMAT make_format_normal(DXGI_FORMAT format)
+	{
+		switch (format)
 		{
-			switch (format)
-			{
-				case DXGI_FORMAT_R8G8B8A8_TYPELESS:
-				case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
-					return DXGI_FORMAT_R8G8B8A8_UNORM;
-				case DXGI_FORMAT_BC1_TYPELESS:
-				case DXGI_FORMAT_BC1_UNORM_SRGB:
-					return DXGI_FORMAT_BC1_UNORM;
-				case DXGI_FORMAT_BC2_TYPELESS:
-				case DXGI_FORMAT_BC2_UNORM_SRGB:
-					return DXGI_FORMAT_BC2_UNORM;
-				case DXGI_FORMAT_BC3_TYPELESS:
-				case DXGI_FORMAT_BC3_UNORM_SRGB:
-					return DXGI_FORMAT_BC3_UNORM;
-				default:
-					return format;
-			}
+			case DXGI_FORMAT_R8G8B8A8_TYPELESS:
+			case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
+				return DXGI_FORMAT_R8G8B8A8_UNORM;
+			case DXGI_FORMAT_BC1_TYPELESS:
+			case DXGI_FORMAT_BC1_UNORM_SRGB:
+				return DXGI_FORMAT_BC1_UNORM;
+			case DXGI_FORMAT_BC2_TYPELESS:
+			case DXGI_FORMAT_BC2_UNORM_SRGB:
+				return DXGI_FORMAT_BC2_UNORM;
+			case DXGI_FORMAT_BC3_TYPELESS:
+			case DXGI_FORMAT_BC3_UNORM_SRGB:
+				return DXGI_FORMAT_BC3_UNORM;
+			default:
+				return format;
+		}
+	}
+	DXGI_FORMAT make_format_typeless(DXGI_FORMAT format)
+	{
+		switch (format)
+		{
+			case DXGI_FORMAT_R8G8B8A8_UNORM:
+			case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
+				return DXGI_FORMAT_R8G8B8A8_TYPELESS;
+			case DXGI_FORMAT_BC1_UNORM:
+			case DXGI_FORMAT_BC1_UNORM_SRGB:
+				return DXGI_FORMAT_BC1_TYPELESS;
+			case DXGI_FORMAT_BC2_UNORM:
+			case DXGI_FORMAT_BC2_UNORM_SRGB:
+				return DXGI_FORMAT_BC2_TYPELESS;
+			case DXGI_FORMAT_BC3_UNORM:
+			case DXGI_FORMAT_BC3_UNORM_SRGB:
+				return DXGI_FORMAT_BC3_TYPELESS;
+			default:
+				return format;
 		}
 	}
 
@@ -170,7 +187,7 @@ namespace reshade
 		}
 		if (_d3dcompiler_module == nullptr)
 		{
-			_errors += "Unable to load D3DCompiler library. Make sure you have the DirectX end-user runtime (June 2010) installed or a newer version of the library in the application directory.";
+			_errors += "Unable to load D3DCompiler library. Make sure you have the DirectX end-user runtime (June 2010) installed or a newer version of the library in the application directory.\n";
 			return false;
 		}
 

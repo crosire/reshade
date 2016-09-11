@@ -5,7 +5,7 @@
 #include "runtime.hpp"
 #include "com_ptr.hpp"
 
-namespace reshade
+namespace reshade::d3d12
 {
 	class d3d12_runtime : public runtime
 	{

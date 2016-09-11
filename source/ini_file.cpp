@@ -1,22 +1,18 @@
 #include "ini_file.hpp"
-#include "algorithm.hpp"
 #include <fstream>
 
 namespace reshade
 {
-	namespace
+	static inline void trim(std::string &str, const char *chars = " \t")
 	{
-		inline void trim(std::string &str, const char *chars = " \t")
-		{
-			str.erase(0, str.find_first_not_of(chars));
-			str.erase(str.find_last_not_of(chars) + 1);
-		}
-		inline std::string trim(const std::string &str, const char *chars = " \t")
-		{
-			std::string res(str);
-			trim(res, chars);
-			return res;
-		}
+		str.erase(0, str.find_first_not_of(chars));
+		str.erase(str.find_last_not_of(chars) + 1);
+	}
+	static inline std::string trim(const std::string &str, const char *chars = " \t")
+	{
+		std::string res(str);
+		trim(res, chars);
+		return res;
 	}
 
 	ini_file::ini_file(const filesystem::path &path) : _path(path)
@@ -56,8 +52,19 @@ namespace reshade
 			{
 				const auto key = trim(line.substr(0, assign_index));
 				const auto value = trim(line.substr(assign_index + 1));
+				std::vector<std::string> value_splitted;
 
-				_sections[section][key] = stdext::split(value, ',');
+				for (size_t i = 0, len = value.size(), found; i < len; i = found + 1)
+				{
+					found = value.find_first_of(',', i);
+
+					if (found == std::string::npos)
+						found = len;
+
+					value_splitted.push_back(value.substr(i, found - i));
+				}
+
+				_sections[section][key] = value_splitted;
 			}
 			else
 			{

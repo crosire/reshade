@@ -6,106 +6,103 @@
 #include <algorithm>
 #include <d3dcompiler.h>
 
-namespace reshade
+namespace reshade::d3d9
 {
 	using namespace reshadefx;
 	using namespace reshadefx::nodes;
 
-	namespace
+	bool is_pow2(int x)
 	{
-		bool is_pow2(int x)
+		return ((x > 0) && ((x & (x - 1)) == 0));
+	}
+	D3DBLEND literal_to_blend_func(unsigned int value)
+	{
+		switch (value)
 		{
-			return ((x > 0) && ((x & (x - 1)) == 0));
+			case pass_declaration_node::ZERO:
+				return D3DBLEND_ZERO;
+			case pass_declaration_node::ONE:
+				return D3DBLEND_ONE;
 		}
-		D3DBLEND literal_to_blend_func(unsigned int value)
-		{
-			switch (value)
-			{
-				case pass_declaration_node::ZERO:
-					return D3DBLEND_ZERO;
-				case pass_declaration_node::ONE:
-					return D3DBLEND_ONE;
-			}
 
-			return static_cast<D3DBLEND>(value);
-		}
-		D3DSTENCILOP literal_to_stencil_op(unsigned int value)
+		return static_cast<D3DBLEND>(value);
+	}
+	D3DSTENCILOP literal_to_stencil_op(unsigned int value)
+	{
+		if (value == pass_declaration_node::ZERO)
 		{
-			if (value == pass_declaration_node::ZERO)
-			{
-				return D3DSTENCILOP_ZERO;
-			}
+			return D3DSTENCILOP_ZERO;
+		}
 
-			return static_cast<D3DSTENCILOP>(value);
-		}
-		D3DFORMAT literal_to_format(texture_format value)
+		return static_cast<D3DSTENCILOP>(value);
+	}
+	D3DFORMAT literal_to_format(texture_format value)
+	{
+		switch (value)
 		{
-			switch (value)
-			{
-				case texture_format::r8:
-					return D3DFMT_A8R8G8B8;
-				case texture_format::r16f:
-					return D3DFMT_R16F;
-				case texture_format::r32f:
-					return D3DFMT_R32F;
-				case texture_format::rg8:
-					return D3DFMT_A8R8G8B8;
-				case texture_format::rg16:
-					return D3DFMT_G16R16;
-				case texture_format::rg16f:
-					return D3DFMT_G16R16F;
-				case texture_format::rg32f:
-					return D3DFMT_G32R32F;
-				case texture_format::rgba8:
-					return D3DFMT_A8R8G8B8;
-				case texture_format::rgba16:
-					return D3DFMT_A16B16G16R16;
-				case texture_format::rgba16f:
-					return D3DFMT_A16B16G16R16F;
-				case texture_format::rgba32f:
-					return D3DFMT_A32B32G32R32F;
-				case texture_format::dxt1:
-					return D3DFMT_DXT1;
-				case texture_format::dxt3:
-					return D3DFMT_DXT3;
-				case texture_format::dxt5:
-					return D3DFMT_DXT5;
-				case texture_format::latc1:
-					return static_cast<D3DFORMAT>(MAKEFOURCC('A', 'T', 'I', '1'));
-				case texture_format::latc2:
-					return static_cast<D3DFORMAT>(MAKEFOURCC('A', 'T', 'I', '2'));
-			}
+			case texture_format::r8:
+				return D3DFMT_A8R8G8B8;
+			case texture_format::r16f:
+				return D3DFMT_R16F;
+			case texture_format::r32f:
+				return D3DFMT_R32F;
+			case texture_format::rg8:
+				return D3DFMT_A8R8G8B8;
+			case texture_format::rg16:
+				return D3DFMT_G16R16;
+			case texture_format::rg16f:
+				return D3DFMT_G16R16F;
+			case texture_format::rg32f:
+				return D3DFMT_G32R32F;
+			case texture_format::rgba8:
+				return D3DFMT_A8R8G8B8;
+			case texture_format::rgba16:
+				return D3DFMT_A16B16G16R16;
+			case texture_format::rgba16f:
+				return D3DFMT_A16B16G16R16F;
+			case texture_format::rgba32f:
+				return D3DFMT_A32B32G32R32F;
+			case texture_format::dxt1:
+				return D3DFMT_DXT1;
+			case texture_format::dxt3:
+				return D3DFMT_DXT3;
+			case texture_format::dxt5:
+				return D3DFMT_DXT5;
+			case texture_format::latc1:
+				return static_cast<D3DFORMAT>(MAKEFOURCC('A', 'T', 'I', '1'));
+			case texture_format::latc2:
+				return static_cast<D3DFORMAT>(MAKEFOURCC('A', 'T', 'I', '2'));
+		}
 
-			return D3DFMT_UNKNOWN;
-		}
-		std::string convert_semantic(const std::string &semantic)
+		return D3DFMT_UNKNOWN;
+	}
+	std::string convert_semantic(const std::string &semantic)
+	{
+		if (semantic.compare(0, 3, "SV_") == 0)
 		{
-			if (semantic.compare(0, 3, "SV_") == 0)
-			{
-				if (semantic == "SV_VERTEXID")
-				{
-					return "TEXCOORD0";
-				}
-				else if (semantic == "SV_POSITION")
-				{
-					return "POSITION";
-				}
-				else if (semantic.compare(0, 9, "SV_TARGET") == 0)
-				{
-					return "COLOR" + semantic.substr(9);
-				}
-				else if (semantic == "SV_DEPTH")
-				{
-					return "DEPTH";
-				}
-			}
-			else if (semantic == "VERTEXID")
+			if (semantic == "SV_VERTEXID")
 			{
 				return "TEXCOORD0";
 			}
-
-			return semantic;
+			else if (semantic == "SV_POSITION")
+			{
+				return "POSITION";
+			}
+			else if (semantic.compare(0, 9, "SV_TARGET") == 0)
+			{
+				return "COLOR" + semantic.substr(9);
+			}
+			else if (semantic == "SV_DEPTH")
+			{
+				return "DEPTH";
+			}
 		}
+		else if (semantic == "VERTEXID")
+		{
+			return "TEXCOORD0";
+		}
+
+		return semantic;
 	}
 
 	d3d9_effect_compiler::d3d9_effect_compiler(d3d9_runtime *runtime, const syntax_tree &ast, std::string &errors, bool skipoptimization) :
@@ -123,11 +120,11 @@ namespace reshade
 
 		if (_d3dcompiler_module == nullptr)
 		{
-			_d3dcompiler_module = LoadLibraryW(L"d3dcompiler_46.dll");
+			_d3dcompiler_module = LoadLibraryW(L"d3dcompiler_43.dll");
 		}
 		if (_d3dcompiler_module == nullptr)
 		{
-			_errors += "Unable to load D3DCompiler library. Make sure you have the DirectX end-user runtime (June 2010) installed or a newer version of the library in the application directory.";
+			_errors += "Unable to load D3DCompiler library. Make sure you have the DirectX end-user runtime (June 2010) installed or a newer version of the library in the application directory.\n";
 			return false;
 		}
 

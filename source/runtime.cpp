@@ -5,7 +5,7 @@
 #include "preprocessor.hpp"
 #include "input.hpp"
 #include "ini_file.hpp"
-#include "algorithm.hpp"
+#include <algorithm>
 #include <stb_image.h>
 #include <stb_image_dds.h>
 #include <stb_image_write.h>
@@ -129,9 +129,8 @@ namespace reshade
 		g_network_traffic = 0;
 		_framecount++;
 		_drawcalls = _vertices = 0;
-		const auto current_present_time = std::chrono::high_resolution_clock::now();
-		_last_frame_duration = std::chrono::duration_cast<std::chrono::nanoseconds>(current_present_time - _last_present_time);
-		_last_present_time = current_present_time;
+		_last_frame_duration = std::chrono::high_resolution_clock::now() - _last_present_time;
+		_last_present_time += _last_frame_duration;
 
 		// Create and save screenshot if associated shortcut is down
 		if (!_screenshot_key_setting_active &&
@@ -140,12 +139,18 @@ namespace reshade
 			save_screenshot();
 		}
 
+		// Draw overlay
+		draw_overlay();
+
+		// Reset input status
+		_input->next_frame();
+
 		// Update and compile next effect queued for reloading
 		if (_reload_remaining_effects != 0)
 		{
 			load_effect(_effect_files[_effect_files.size() - _reload_remaining_effects]);
 
-			_last_reload_time = current_present_time;
+			_last_reload_time = std::chrono::high_resolution_clock::now();
 			_reload_remaining_effects--;
 
 			if (_reload_remaining_effects == 0)
@@ -158,12 +163,6 @@ namespace reshade
 				}
 			}
 		}
-
-		// Draw overlay
-		draw_overlay();
-
-		// Reset input status
-		_input->next_frame();
 	}
 	void runtime::on_present_effect()
 	{
@@ -845,6 +844,23 @@ namespace reshade
 		"Num Lock", "Scroll Lock",
 	};
 
+	static inline std::vector<std::string> split(const std::string &str, char delim)
+	{
+		std::vector<std::string> result;
+
+		for (size_t i = 0, len = str.size(), found; i < len; i = found + 1)
+		{
+			found = str.find_first_of(delim, i);
+
+			if (found == std::string::npos)
+				found = len;
+
+			result.push_back(str.substr(i, found - i));
+		}
+
+		return result;
+	}
+
 	void runtime::draw_overlay()
 	{
 		const bool show_splash = std::chrono::duration_cast<std::chrono::seconds>(_last_present_time - _last_reload_time).count() < 5;
@@ -953,7 +969,7 @@ namespace reshade
 			if (_show_menu)
 			{
 				ImGui::SetNextWindowPosCenter(ImGuiSetCond_Once);
-				ImGui::SetNextWindowSize(ImVec2(700, 600), ImGuiSetCond_Once);
+				ImGui::SetNextWindowSize(ImVec2(700, 650), ImGuiSetCond_Once);
 				ImGui::Begin("ReShade " VERSION_STRING_FILE " by crosire###Main", &_show_menu,
 					ImGuiWindowFlags_MenuBar |
 					ImGuiWindowFlags_NoCollapse);
@@ -970,7 +986,7 @@ namespace reshade
 				ImGui::Begin("Error Log", &_show_error_log);
 				ImGui::PushTextWrapPos();
 
-				for (const auto &line : stdext::split(_errors, '\n'))
+				for (const auto &line : split(_errors, '\n'))
 				{
 					ImVec4 textcol(1, 1, 1, 1);
 
@@ -1336,7 +1352,7 @@ namespace reshade
 
 			if (ImGui::InputTextMultiline("Effect Search Paths", edit_buffer, sizeof(edit_buffer), ImVec2(0, 60)))
 			{
-				const auto effect_search_paths = stdext::split(edit_buffer, '\n');
+				const auto effect_search_paths = split(edit_buffer, '\n');
 				_effect_search_paths.assign(effect_search_paths.begin(), effect_search_paths.end());
 
 				save_configuration();
@@ -1346,7 +1362,7 @@ namespace reshade
 
 			if (ImGui::InputTextMultiline("Texture Search Paths", edit_buffer, sizeof(edit_buffer), ImVec2(0, 60)))
 			{
-				const auto texture_search_paths = stdext::split(edit_buffer, '\n');
+				const auto texture_search_paths = split(edit_buffer, '\n');
 				_texture_search_paths.assign(texture_search_paths.begin(), texture_search_paths.end());
 
 				save_configuration();
@@ -1356,7 +1372,7 @@ namespace reshade
 
 			if (ImGui::InputTextMultiline("Preprocessor Definitions", edit_buffer, sizeof(edit_buffer), ImVec2(0, 100)))
 			{
-				_preprocessor_definitions = stdext::split(edit_buffer, '\n');
+				_preprocessor_definitions = split(edit_buffer, '\n');
 
 				save_configuration();
 			}
@@ -1579,7 +1595,7 @@ namespace reshade
 
 					if (ui_type == "drag")
 					{
-						modified = ImGui::DragIntN(ui_label.c_str(), data, variable.rows, variable.annotations["ui_step"].as<int>(), variable.annotations["ui_min"].as<int>(), variable.annotations["ui_max"].as<int>(), nullptr);
+						modified = ImGui::DragIntN(ui_label.c_str(), data, variable.rows, variable.annotations["ui_step"].as<float>(), variable.annotations["ui_min"].as<int>(), variable.annotations["ui_max"].as<int>(), nullptr);
 					}
 					else if (ui_type == "combo")
 					{

@@ -8,7 +8,7 @@
 std::unordered_map<VkDevice, VkPhysicalDevice> g_vulkan_device_mapping;
 std::unordered_map<VkSwapchainKHR, std::vector<VkImage>> g_vulkan_swapchain_images;
 static std::unordered_map<VkSurfaceKHR, HWND> s_surface_windows;
-static std::unordered_map<VkSwapchainKHR, std::shared_ptr<reshade::vulkan_runtime>> s_runtimes;
+static std::unordered_map<VkSwapchainKHR, std::shared_ptr<reshade::vulkan::vulkan_runtime>> s_runtimes;
 
 HOOK_EXPORT VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, const VkDeviceCreateInfo *pCreateInfo, const VkAllocationCallbacks *pAllocator, VkDevice *pDevice)
 {
@@ -45,7 +45,7 @@ HOOK_EXPORT VkResult VKAPI_CALL vkCreateSwapchainKHR(VkDevice device, const VkSw
 
 	g_vulkan_swapchain_images[swapchain] = swapchain_images;
 
-	const auto runtime = std::make_shared<reshade::vulkan_runtime>(device, swapchain);
+	const auto runtime = std::make_shared<reshade::vulkan::vulkan_runtime>(device, swapchain);
 
 	if (!runtime->on_init(*pCreateInfo, s_surface_windows[pCreateInfo->surface]))
 	{

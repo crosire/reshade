@@ -2,7 +2,6 @@
 #include "hook_manager.hpp"
 #include "critical_section.hpp"
 #include "opengl_runtime.hpp"
-
 #include <assert.h>
 #include <memory>
 #include <unordered_map>
@@ -101,14 +100,11 @@
 
 DECLARE_HANDLE(HPBUFFERARB);
 
-namespace
-{
-	critical_section s_cs;
-	std::unordered_map<HWND, RECT> s_window_rects;
-	std::unordered_set<HDC> s_pbuffer_device_contexts;
-	std::unordered_map<HGLRC, HGLRC> s_shared_contexts;
-	std::unordered_map<HDC, std::shared_ptr<reshade::opengl_runtime>> s_runtimes;
-}
+static critical_section s_cs;
+static std::unordered_map<HWND, RECT> s_window_rects;
+static std::unordered_set<HDC> s_pbuffer_device_contexts;
+static std::unordered_map<HGLRC, HGLRC> s_shared_contexts;
+static std::unordered_map<HDC, std::shared_ptr<reshade::opengl::opengl_runtime>> s_runtimes;
 
 // GL
 HOOK_EXPORT void WINAPI glAccum(GLenum op, GLfloat value)
@@ -3444,23 +3440,23 @@ HOOK_EXPORT BOOL WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 
 	LOG(INFO) << "Redirecting '" << "wglMakeCurrent" << "(" << hdc << ", " << hglrc << ")' ...";
 
-	const HDC hdcPrevious = wglGetCurrentDC();
-	const HGLRC hglrcPrevious = wglGetCurrentContext();
+	const HDC hdc_previous = wglGetCurrentDC();
+	const HGLRC hglrc_previous = wglGetCurrentContext();
 
-	if (hdc == hdcPrevious && hglrc == hglrcPrevious)
+	if (hdc == hdc_previous && hglrc == hglrc_previous)
 	{
 		return TRUE;
 	}
 	
 	const critical_section::lock lock(s_cs);
 
-	const bool isPbufferDeviceContext = s_pbuffer_device_contexts.find(hdc) != s_pbuffer_device_contexts.end();
+	const bool is_pbuffer_device_context = s_pbuffer_device_contexts.find(hdc) != s_pbuffer_device_contexts.end();
 	
-	if (hdcPrevious != nullptr)
+	if (hdc_previous != nullptr)
 	{
-		const auto it = s_runtimes.find(hdcPrevious);
+		const auto it = s_runtimes.find(hdc_previous);
 
-		if (it != s_runtimes.end() && --it->second->_reference_count == 0 && !isPbufferDeviceContext)
+		if (it != s_runtimes.end() && --it->second->_reference_count == 0 && !is_pbuffer_device_context)
 		{
 			LOG(INFO) << "> Cleaning up runtime " << it->second << " ...";
 
@@ -3494,7 +3490,7 @@ HOOK_EXPORT BOOL WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 	{
 		const HWND hwnd = WindowFromDC(hdc);
 
-		if (hwnd == nullptr || isPbufferDeviceContext)
+		if (hwnd == nullptr || is_pbuffer_device_context)
 		{
 			LOG(WARNING) << "> Skipped because there is no window associated with this device context.";
 
@@ -3603,7 +3599,7 @@ HOOK_EXPORT BOOL WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 
 		if (gl3wIsSupported(4, 3))
 		{
-			const auto runtime = std::make_shared<reshade::opengl_runtime>(hdc);
+			const auto runtime = std::make_shared<reshade::opengl::opengl_runtime>(hdc);
 
 			s_runtimes[hdc] = runtime;
 

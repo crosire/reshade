@@ -4,7 +4,7 @@
 #include "runtime.hpp"
 #include "opengl_stateblock.hpp"
 
-namespace reshade
+namespace reshade::opengl
 {
 	struct opengl_tex_data : base_object
 	{
@@ -86,8 +86,9 @@ namespace reshade
 	private:
 		struct depth_source_info
 		{
-			GLint width, height, level, format;
-			GLfloat drawcall_count, vertices_count;
+			unsigned int width, height;
+			GLint level, format;
+			unsigned int drawcall_count, vertices_count;
 		};
 
 		bool init_backbuffer_texture();
@@ -99,7 +100,7 @@ namespace reshade
 		void detect_depth_source();
 		void create_depth_texture(GLuint width, GLuint height, GLenum format);
 
-		utils::opengl_stateblock _stateblock;
+		opengl_stateblock _stateblock;
 		std::unordered_map<GLuint, depth_source_info> _depth_source_table;
 
 		GLuint _imgui_shader_program = 0, _imgui_VertHandle = 0, _imgui_FragHandle = 0;
