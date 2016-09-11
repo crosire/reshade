@@ -32,7 +32,8 @@ namespace reshade
 			"RESHADE_DEPTH_INPUT_IS_LOGARITHMIC=0" }),
 		_menu_key({ 0x71, false, true }), // VK_F2 + VK_SHIFT
 		_screenshot_key({ 0x2C, false, false }), // VK_SNAPSHOT
-		_screenshot_path(s_target_executable_path.parent_path())
+		_screenshot_path(s_target_executable_path.parent_path()),
+		_variable_editor_height(300)
 	{
 		ImGui::SetCurrentContext(_imgui_context);
 
@@ -1195,7 +1196,7 @@ namespace reshade
 
 			ImGui::Spacing();
 
-			const float bottom_height = _performance_mode ? ImGui::GetItemsLineHeightWithSpacing() : -200;
+			const float bottom_height = _performance_mode ? ImGui::GetItemsLineHeightWithSpacing() + ImGui::GetStyle().ItemSpacing.y : _variable_editor_height;
 
 			if (ImGui::BeginChild("##techniques", ImVec2(-1, -bottom_height), true))
 			{
@@ -1212,6 +1213,15 @@ namespace reshade
 
 		if (_tutorial_index > 2 && !_performance_mode)
 		{
+			ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
+			ImGui::InvisibleButton("splitter", ImVec2(-1, 5));
+			ImGui::PopStyleVar();
+
+			if (ImGui::IsItemActive())
+			{
+				_variable_editor_height -= ImGui::GetIO().MouseDelta.y;
+			}
+
 			if (_tutorial_index == 3)
 			{
 				tutorial_text =
@@ -1223,7 +1233,7 @@ namespace reshade
 				ImGui::PushStyleColor(ImGuiCol_ChildWindowBg, ImVec4(1, 0, 0, 1));
 			}
 
-			const float bottom_height = _tutorial_index == 3 ? ImGui::GetItemsLineHeightWithSpacing() + ImGui::GetStyle().ItemSpacing.y + 125 : ImGui::GetItemsLineHeightWithSpacing();
+			const float bottom_height = ImGui::GetItemsLineHeightWithSpacing() + ImGui::GetStyle().ItemSpacing.y + (_tutorial_index == 3 ? 125 : 0);
 
 			if (ImGui::BeginChild("##variables", ImVec2(-1, -bottom_height), true))
 			{
@@ -1240,6 +1250,8 @@ namespace reshade
 
 		if (_tutorial_index > 3)
 		{
+			ImGui::Spacing();
+
 			if (ImGui::Button("Reload", ImVec2(ImGui::GetWindowContentRegionWidth() * 0.5f - 5, 0)))
 			{
 				reload();

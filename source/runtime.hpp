@@ -215,6 +215,7 @@ namespace reshade
 		bool _overlay_key_setting_active = false, _screenshot_key_setting_active = false;
 		float _imgui_col_background[3] = { 0.275f, 0.275f, 0.275f }, _imgui_col_item_background[3] = { 0.447f, 0.447f, 0.447f };
 		float _imgui_col_text[3] = { 0.8f, 0.9f, 0.9f }, _imgui_col_active[3] = { 0.2f, 0.5f, 0.6f };
+		float _variable_editor_height = 0.0f;
 		unsigned int _tutorial_index = 0;
 		char _variable_filter_buffer[64] = { };
 		size_t _reload_remaining_effects = 0, _texture_count = 0, _uniform_count = 0, _technique_count = 0;
