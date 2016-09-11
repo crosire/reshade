@@ -969,7 +969,7 @@ namespace reshade
 			if (_show_menu)
 			{
 				ImGui::SetNextWindowPosCenter(ImGuiSetCond_Once);
-				ImGui::SetNextWindowSize(ImVec2(700, 650), ImGuiSetCond_Once);
+				ImGui::SetNextWindowSize(ImVec2(710, 650), ImGuiSetCond_Once);
 				ImGui::Begin("ReShade " VERSION_STRING_FILE " by crosire###Main", &_show_menu,
 					ImGuiWindowFlags_MenuBar |
 					ImGuiWindowFlags_NoCollapse);
@@ -1538,6 +1538,8 @@ namespace reshade
 
 		ImGui::Spacing();
 
+		ImGui::PushItemWidth(ImGui::GetWindowWidth() * 0.5f);
+
 		bool current_tree_is_closed = true;
 		std::string current_filename;
 
@@ -1659,6 +1661,8 @@ namespace reshade
 		{
 			ImGui::TreePop();
 		}
+
+		ImGui::PopItemWidth();
 	}
 	void runtime::draw_overlay_technique_editor()
 	{
