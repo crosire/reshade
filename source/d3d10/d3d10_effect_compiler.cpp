@@ -1468,7 +1468,6 @@ namespace reshade::d3d10
 		obj.name = node->name;
 		obj.unique_name = node->unique_name;
 		obj.annotations = node->annotation_list;
-		obj_data->shader_register = _runtime->_effect_shader_resources.size();
 		texdesc.Width = obj.width = node->properties.width;
 		texdesc.Height = obj.height = node->properties.height;
 		texdesc.MipLevels = obj.levels = node->properties.levels;

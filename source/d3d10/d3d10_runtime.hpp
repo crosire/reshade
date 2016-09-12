@@ -8,7 +8,6 @@ namespace reshade::d3d10
 {
 	struct d3d10_tex_data : base_object
 	{
-		size_t shader_register = 0;
 		com_ptr<ID3D10Texture2D> texture;
 		com_ptr<ID3D10ShaderResourceView> srv[2];
 		com_ptr<ID3D10RenderTargetView> rtv[2];

@@ -9,7 +9,6 @@ namespace reshade::d3d11
 {
 	struct d3d11_tex_data : base_object
 	{
-		size_t shader_register = 0;
 		com_ptr<ID3D11Texture2D> texture;
 		com_ptr<ID3D11ShaderResourceView> srv[2];
 		com_ptr<ID3D11RenderTargetView> rtv[2];

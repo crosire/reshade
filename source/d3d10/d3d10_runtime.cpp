@@ -777,7 +777,7 @@ namespace reshade::d3d10
 	}
 	bool d3d10_runtime::update_texture_reference(texture &texture, texture_reference id)
 	{
-		com_ptr<ID3D10ShaderResourceView> new_reference[2];
+		com_ptr<ID3D10ShaderResourceView> new_reference[2], old_reference[2];
 
 		switch (id)
 		{
@@ -809,6 +809,9 @@ namespace reshade::d3d10
 		texture_impl->rtv[1].reset();
 		texture_impl->texture.reset();
 
+		old_reference[0] = texture_impl->srv[0];
+		old_reference[1] = texture_impl->srv[1];
+
 		if (new_reference[0] == nullptr)
 		{
 			texture_impl->srv[0].reset();
@@ -838,18 +841,17 @@ namespace reshade::d3d10
 		{
 			for (const auto &pass : technique.passes)
 			{
-				const auto pass_data = pass->as<d3d10_pass_data>();
-
-				assert(pass_data != nullptr);
-
-				// Pass was created before this texture was created and therefore does not have enough shader resource slots
-				if (texture_impl->shader_register >= pass_data->shader_resources.size())
+				for (auto &srv : pass->as<d3d10_pass_data>()->shader_resources)
 				{
-					break;
+					if (srv == old_reference[0])
+					{
+						srv = texture_impl->srv[0].get();
+					}
+					if (srv == old_reference[1])
+					{
+						srv = texture_impl->srv[1].get();
+					}
 				}
-
-				pass_data->shader_resources[texture_impl->shader_register] = texture_impl->srv[0].get();
-				pass_data->shader_resources[texture_impl->shader_register + 1] = texture_impl->srv[1].get();
 			}
 		}
 
