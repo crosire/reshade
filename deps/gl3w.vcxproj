@@ -38,10 +38,6 @@
     <ClCompile>
       <AdditionalIncludeDirectories>gl3w\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
-    <PreBuildEvent>
-      <Command>cd gl3w
-python gl3w_gen.py</Command>
-    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -74,4 +70,20 @@ python gl3w_gen.py</Command>
     <ClInclude Include="gl3w\include\GL\gl3w.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <PropertyGroup>
+  	<CleanDependsOn>
+        $(CleanDependsOn);
+        CleanGL3WSources;
+    </CleanDependsOn>
+    <BuildDependsOn>
+    	GenerateGL3WSources;
+    	$(BuildDependsOn);
+    </BuildDependsOn>
+  </PropertyGroup>
+  <Target Name="CleanGL3WSources">
+    <Delete Files="@(ClCompile);@(ClInclude);" />
+  </Target>
+  <Target Name="GenerateGL3WSources" Condition="!Exists(@(ClCompile))">
+    <Exec Command="python gl3w_gen.py" WorkingDirectory="gl3w\" />
+  </Target>
 </Project>
