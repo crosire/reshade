@@ -147,7 +147,7 @@ namespace reshade
 		_input->next_frame();
 
 		// Update and compile next effect queued for reloading
-		if (_reload_remaining_effects != 0)
+		if (_reload_remaining_effects != 0 && _framecount > 1)
 		{
 			load_effect(_effect_files[_effect_files.size() - _reload_remaining_effects]);
 
