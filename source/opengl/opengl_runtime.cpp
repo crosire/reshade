@@ -458,7 +458,6 @@ namespace reshade::opengl
 		GLCHECK(glReadBuffer(GL_COLOR_ATTACHMENT0));
 		GLCHECK(glDrawBuffer(GL_BACK));
 		GLCHECK(glBlitFramebuffer(0, 0, _width, _height, 0, 0, _width, _height, GL_COLOR_BUFFER_BIT, GL_NEAREST));
-		GLCHECK(glViewport(0, 0, _width, _height));
 
 		// Apply presenting
 		runtime::on_present();
@@ -777,6 +776,7 @@ namespace reshade::opengl
 		glActiveTexture(GL_TEXTURE0);
 		glUseProgram(_imgui_shader_program);
 		glBindVertexArray(_imgui_vao);
+		glViewport(0, 0, _width, _height);
 
 		const float ortho_projection[16] = {
 			2.0f / _width, 0.0f, 0.0f, 0.0f,

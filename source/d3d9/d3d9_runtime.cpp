@@ -294,11 +294,6 @@ namespace reshade::d3d9
 			runtime::on_present_effect();
 		}
 
-		// Reset render target
-		_device->SetRenderTarget(0, _backbuffer_resolved.get());
-		_device->SetDepthStencilSurface(_default_depthstencil.get());
-		_device->Clear(0, nullptr, D3DCLEAR_ZBUFFER | D3DCLEAR_STENCIL, 0, 1.0f, 0);
-
 		// Apply presenting
 		runtime::on_present();
 
@@ -755,6 +750,8 @@ namespace reshade::d3d9
 		_imgui_index_buffer->Unlock();
 
 		// Setup render state: fixed-pipeline, alpha-blending, no face culling, no depth testing
+		_device->SetRenderTarget(0, _backbuffer_resolved.get());
+		_device->SetDepthStencilSurface(nullptr);
 		_device->SetStreamSource(0, _imgui_vertex_buffer.get(), 0, sizeof(vertex));
 		_device->SetIndices(_imgui_index_buffer.get());
 		_device->SetFVF(D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1);

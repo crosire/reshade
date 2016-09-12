@@ -537,13 +537,6 @@ namespace reshade::d3d10
 			runtime::on_present_effect();
 		}
 
-		// Reset render target
-		const auto render_target = _backbuffer_rtv[0].get();
-		_device->OMSetRenderTargets(1, &render_target, _default_depthstencil.get());
-
-		const D3D10_VIEWPORT viewport = { 0, 0, _width, _height, 0.0f, 1.0f };
-		_device->RSSetViewports(1, &viewport);
-
 		// Apply presenting
 		runtime::on_present();
 
@@ -1056,6 +1049,12 @@ namespace reshade::d3d10
 		_imgui_constant_buffer->Unmap();
 
 		// Setup render state
+		const auto render_target = _backbuffer_rtv[0].get();
+		_device->OMSetRenderTargets(1, &render_target, nullptr);
+
+		const D3D10_VIEWPORT viewport = { 0, 0, _width, _height, 0.0f, 1.0f };
+		_device->RSSetViewports(1, &viewport);
+
 		const float blend_factor[4] = { 0.f, 0.f, 0.f, 0.f };
 		_device->OMSetBlendState(_imgui_blend_state.get(), blend_factor, D3D10_DEFAULT_SAMPLE_MASK);
 		_device->OMSetDepthStencilState(_imgui_depthstencil_state.get(), 0);

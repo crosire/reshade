@@ -533,13 +533,6 @@ namespace reshade::d3d11
 			runtime::on_present_effect();
 		}
 
-		// Reset render target
-		const auto render_target = _backbuffer_rtv[0].get();
-		_immediate_context->OMSetRenderTargets(1, &render_target, _default_depthstencil.get());
-
-		const D3D11_VIEWPORT viewport = { 0, 0, static_cast<float>(_width), static_cast<float>(_height), 0.0f, 1.0f };
-		_immediate_context->RSSetViewports(1, &viewport);
-
 		// Apply presenting
 		runtime::on_present();
 
@@ -1061,6 +1054,12 @@ namespace reshade::d3d11
 		_immediate_context->Unmap(_imgui_constant_buffer.get(), 0);
 
 		// Setup render state
+		const auto render_target = _backbuffer_rtv[0].get();
+		_immediate_context->OMSetRenderTargets(1, &render_target, nullptr);
+
+		const D3D11_VIEWPORT viewport = { 0, 0, static_cast<float>(_width), static_cast<float>(_height), 0.0f, 1.0f };
+		_immediate_context->RSSetViewports(1, &viewport);
+
 		const float blend_factor[4] = { 0.f, 0.f, 0.f, 0.f };
 		_immediate_context->OMSetBlendState(_imgui_blend_state.get(), blend_factor, D3D11_DEFAULT_SAMPLE_MASK);
 		_immediate_context->OMSetDepthStencilState(_imgui_depthstencil_state.get(), 0);
