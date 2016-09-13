@@ -68,10 +68,11 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="gl3w\include\GL\gl3w.h" />
+    <ClInclude Include="gl3w\include\GL\glcorearb.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <PropertyGroup>
-  	<CleanDependsOn>
+    <CleanDependsOn>
         $(CleanDependsOn);
         CleanGL3WSources;
     </CleanDependsOn>
