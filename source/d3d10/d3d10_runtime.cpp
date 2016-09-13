@@ -395,7 +395,7 @@ namespace reshade::d3d10
 		obj.texture = font_atlas;
 		obj.srv[0] = font_atlas_view;
 
-		_imgui_font_atlas = std::make_unique<d3d10_tex_data>(obj);
+		_imgui_font_atlas_texture = std::make_unique<d3d10_tex_data>(obj);
 
 		return true;
 	}

@@ -23,6 +23,7 @@ namespace reshade
 		_start_time(std::chrono::high_resolution_clock::now()),
 		_last_frame_duration(std::chrono::milliseconds(1)),
 		_imgui_context(ImGui::CreateContext()),
+		_imgui_font_atlas(std::make_unique<ImFontAtlas>()),
 		_effect_search_paths({ s_reshade_dll_path.parent_path() }),
 		_texture_search_paths({ s_reshade_dll_path.parent_path() }),
 		_preprocessor_definitions({
@@ -37,6 +38,7 @@ namespace reshade
 	{
 		auto &imgui_io = _imgui_context->IO;
 		auto &imgui_style = _imgui_context->Style;
+		imgui_io.Fonts = _imgui_font_atlas.get();
 		imgui_io.IniFilename = nullptr;
 		imgui_io.KeyMap[ImGuiKey_Tab] = 0x09; // VK_TAB
 		imgui_io.KeyMap[ImGuiKey_LeftArrow] = 0x25; // VK_LEFT
@@ -95,7 +97,7 @@ namespace reshade
 			return;
 		}
 
-		_imgui_font_atlas.reset();
+		_imgui_font_atlas_texture.reset();
 
 		LOG(INFO) << "Destroyed runtime environment on runtime " << this << ".";
 
@@ -884,7 +886,7 @@ namespace reshade
 		imgui_io.DeltaTime = _last_frame_duration.count() * 1e-9f;
 		imgui_io.DisplaySize.x = static_cast<float>(_width);
 		imgui_io.DisplaySize.y = static_cast<float>(_height);
-		imgui_io.Fonts->TexID = _imgui_font_atlas.get();
+		imgui_io.Fonts->TexID = _imgui_font_atlas_texture.get();
 		imgui_io.MouseDrawCursor = _show_menu;
 
 		imgui_io.KeyCtrl = _input->is_key_down(0x11); // VK_CONTROL

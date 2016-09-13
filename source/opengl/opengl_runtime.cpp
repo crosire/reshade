@@ -317,7 +317,7 @@ namespace reshade::opengl
 		opengl_tex_data obj = { };
 		obj.id[0] = font_atlas_id;
 
-		_imgui_font_atlas = std::make_unique<opengl_tex_data>(obj);
+		_imgui_font_atlas_texture = std::make_unique<opengl_tex_data>(obj);
 
 		return true;
 	}
@@ -376,7 +376,6 @@ namespace reshade::opengl
 		_depth_texture = 0;
 		_imgui_shader_program = 0;
 		_imgui_vao = _imgui_vbo[0] = _imgui_vbo[1] = 0;
-		_imgui_font_atlas = 0;
 
 		_depth_source = 0;
 	}

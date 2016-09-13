@@ -172,7 +172,7 @@ namespace reshade::d3d9
 		d3d9_tex_data obj = { };
 		obj.texture = font_atlas;
 
-		_imgui_font_atlas = std::make_unique<d3d9_tex_data>(obj);
+		_imgui_font_atlas_texture = std::make_unique<d3d9_tex_data>(obj);
 
 		return true;
 	}
