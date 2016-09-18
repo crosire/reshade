@@ -1502,18 +1502,23 @@ namespace reshade
 			"\n"
 			"This software is provided 'as-is', without any express or implied warranty.\n"
 			"In no event will the authors be held liable for any damages arising from the use of this software.\n"
-			"\n"
-			"Libraries in use:\n"
-			"- MinHook\n"
-			"  Tsuda Kageyu and contributors\n"
-			"- gl3w\n"
-			"  Slavomir Kaslev\n"
-			"- dear imgui\n"
-			"  Omar Cornut and contributors\n"
-			"- stb_image, stb_image_write\n"
-			"  Sean Barrett and contributors\n"
-			"- DDS loading from SOIL\n"
-			"  Jonathan \"lonesock\" Dummer");
+			"\n");
+
+		if (ImGui::CollapsingHeader("Credits", ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_DefaultOpen))
+		{
+			ImGui::TextUnformatted(
+				"- MinHook\n"
+				"  Tsuda Kageyu and contributors\n"
+				"- gl3w\n"
+				"  Slavomir Kaslev\n"
+				"- dear imgui\n"
+				"  Omar Cornut and contributors\n"
+				"- stb_image, stb_image_write\n"
+				"  Sean Barrett and contributors\n"
+				"- DDS loading from SOIL\n"
+				"  Jonathan \"lonesock\" Dummer");
+		}
+
 		ImGui::PopTextWrapPos();
 	}
 	void runtime::draw_overlay_variable_editor()
