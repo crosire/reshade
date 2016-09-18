@@ -35,10 +35,8 @@ namespace reshade
 		_screenshot_path(s_target_executable_path.parent_path()),
 		_variable_editor_height(300)
 	{
-		ImGui::SetCurrentContext(_imgui_context);
-
-		auto &imgui_io = ImGui::GetIO();
-		auto &imgui_style = ImGui::GetStyle();
+		auto &imgui_io = _imgui_context->IO;
+		auto &imgui_style = _imgui_context->Style;
 		imgui_io.IniFilename = nullptr;
 		imgui_io.KeyMap[ImGuiKey_Tab] = 0x09; // VK_TAB
 		imgui_io.KeyMap[ImGuiKey_LeftArrow] = 0x25; // VK_LEFT
@@ -639,7 +637,7 @@ namespace reshade
 		_screenshot_path = config.get("GENERAL", "ScreenshotPath", _screenshot_path).as<filesystem::path>();
 		_screenshot_format = config.get("GENERAL", "ScreenshotFormat", 0).as<int>();
 
-		auto &style = ImGui::GetStyle();
+		auto &style = _imgui_context->Style;
 		style.Alpha = config.get("STYLE", "Alpha", 0.95f).as<float>();
 
 		for (size_t i = 0; i < 3; i++)
@@ -718,7 +716,7 @@ namespace reshade
 		config.set("GENERAL", "ScreenshotPath", _screenshot_path);
 		config.set("GENERAL", "ScreenshotFormat", _screenshot_format);
 
-		const auto &style = ImGui::GetStyle();
+		const auto &style = _imgui_context->Style;
 		config.set("STYLE", "Alpha", style.Alpha);
 		config.set("STYLE", "ColBackground", _imgui_col_background);
 		config.set("STYLE", "ColItemBackground", _imgui_col_item_background);

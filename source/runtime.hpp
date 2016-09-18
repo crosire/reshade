@@ -2,7 +2,6 @@
 
 #include <memory>
 #include <chrono>
-#include <atomic>
 #include "filesystem.hpp"
 #include "runtime_objects.hpp"
 
