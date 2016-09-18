@@ -515,8 +515,8 @@ namespace reshade::d3d11
 		if (!_techniques.empty())
 		{
 			// Setup real back buffer
-			const auto render_target = _backbuffer_rtv[0].get();
-			_immediate_context->OMSetRenderTargets(1, &render_target, nullptr);
+			const auto rtv = _backbuffer_rtv[0].get();
+			_immediate_context->OMSetRenderTargets(1, &rtv, nullptr);
 
 			// Setup vertex input
 			const uintptr_t null = 0;
@@ -539,9 +539,17 @@ namespace reshade::d3d11
 		// Copy to back buffer
 		if (_backbuffer_resolved != _backbuffer)
 		{
+			_immediate_context->CopyResource(_backbuffer_texture.get(), _backbuffer_resolved.get());
+
 			const auto rtv = _backbuffer_rtv[2].get();
 			_immediate_context->OMSetRenderTargets(1, &rtv, nullptr);
-			_immediate_context->CopyResource(_backbuffer_texture.get(), _backbuffer_resolved.get());
+
+			const uintptr_t null = 0;
+			_immediate_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+			_immediate_context->IASetInputLayout(nullptr);
+			_immediate_context->IASetVertexBuffers(0, 1, reinterpret_cast<ID3D11Buffer *const *>(&null), reinterpret_cast<const UINT *>(&null), reinterpret_cast<const UINT *>(&null));
+
+			_immediate_context->RSSetState(_effect_rasterizer_state.get());
 
 			_immediate_context->VSSetShader(_copy_vertex_shader.get(), nullptr, 0);
 			_immediate_context->PSSetShader(_copy_pixel_shader.get(), nullptr, 0);
@@ -549,6 +557,7 @@ namespace reshade::d3d11
 			_immediate_context->PSSetSamplers(0, 1, &sst);
 			const auto srv = _backbuffer_texture_srv[make_format_srgb(_backbuffer_format) == _backbuffer_format].get();
 			_immediate_context->PSSetShaderResources(0, 1, &srv);
+
 			_immediate_context->Draw(3, 0);
 		}
 

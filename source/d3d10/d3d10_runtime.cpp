@@ -519,8 +519,8 @@ namespace reshade::d3d10
 		if (!_techniques.empty())
 		{
 			// Setup real back buffer
-			const auto render_target = _backbuffer_rtv[0].get();
-			_device->OMSetRenderTargets(1, &render_target, nullptr);
+			const auto rtv = _backbuffer_rtv[0].get();
+			_device->OMSetRenderTargets(1, &rtv, nullptr);
 
 			// Setup vertex input
 			const uintptr_t null = 0;
@@ -543,9 +543,17 @@ namespace reshade::d3d10
 		// Copy to back buffer
 		if (_backbuffer_resolved != _backbuffer)
 		{
+			_device->CopyResource(_backbuffer_texture.get(), _backbuffer_resolved.get());
+
 			const auto rtv = _backbuffer_rtv[2].get();
 			_device->OMSetRenderTargets(1, &rtv, nullptr);
-			_device->CopyResource(_backbuffer_texture.get(), _backbuffer_resolved.get());
+
+			const uintptr_t null = 0;
+			_device->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+			_device->IASetInputLayout(nullptr);
+			_device->IASetVertexBuffers(0, 1, reinterpret_cast<ID3D10Buffer *const *>(&null), reinterpret_cast<const UINT *>(&null), reinterpret_cast<const UINT *>(&null));
+
+			_device->RSSetState(_effect_rasterizer_state.get());
 
 			_device->VSSetShader(_copy_vertex_shader.get());
 			_device->PSSetShader(_copy_pixel_shader.get());
@@ -553,6 +561,7 @@ namespace reshade::d3d10
 			_device->PSSetSamplers(0, 1, &sst);
 			const auto srv = _backbuffer_texture_srv[make_format_srgb(_backbuffer_format) == _backbuffer_format].get();
 			_device->PSSetShaderResources(0, 1, &srv);
+
 			_device->Draw(3, 0);
 		}
 
