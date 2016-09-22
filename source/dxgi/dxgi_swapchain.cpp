@@ -31,7 +31,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::QueryInterface(REFIID riid, void **ppvO
 
 			_orig->Release();
 
-			LOG(TRACE) << "Upgraded 'IDXGISwapChain' object " << this << " to 'IDXGISwapChain1'.";
+			LOG(INFO) << "Upgraded 'IDXGISwapChain' object " << this << " to 'IDXGISwapChain1'.";
 
 			_orig = swapchain1;
 			_interface_version = 1;
@@ -49,7 +49,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::QueryInterface(REFIID riid, void **ppvO
 
 			_orig->Release();
 
-			LOG(TRACE) << "Upgraded 'IDXGISwapChain" << (_interface_version > 0 ? std::to_string(_interface_version) : "") << "' object " << this << " to 'IDXGISwapChain2'.";
+			LOG(INFO) << "Upgraded 'IDXGISwapChain" << (_interface_version > 0 ? std::to_string(_interface_version) : "") << "' object " << this << " to 'IDXGISwapChain2'.";
 
 			_orig = swapchain2;
 			_interface_version = 2;
@@ -67,7 +67,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::QueryInterface(REFIID riid, void **ppvO
 
 			_orig->Release();
 
-			LOG(TRACE) << "Upgraded 'IDXGISwapChain" << (_interface_version > 0 ? std::to_string(_interface_version) : "") << "' object " << this << " to 'IDXGISwapChain3'.";
+			LOG(INFO) << "Upgraded 'IDXGISwapChain" << (_interface_version > 0 ? std::to_string(_interface_version) : "") << "' object " << this << " to 'IDXGISwapChain3'.";
 
 			_orig = swapchain3;
 			_interface_version = 3;
@@ -145,7 +145,7 @@ ULONG STDMETHODCALLTYPE DXGISwapChain::Release()
 	{
 		assert(_ref <= 0);
 
-		LOG(TRACE) << "Destroyed 'IDXGISwapChain" << (_interface_version > 0 ? std::to_string(_interface_version) : "") << "' object " << this << ".";
+		LOG(INFO) << "Destroyed 'IDXGISwapChain" << (_interface_version > 0 ? std::to_string(_interface_version) : "") << "' object " << this << ".";
 
 		delete this;
 	}

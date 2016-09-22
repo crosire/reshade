@@ -1,7 +1,7 @@
-#include "log.hpp"
 #include "opengl_runtime.hpp"
 #include "opengl_effect_compiler.hpp"
 #include <assert.h>
+#include <iomanip>
 #include <algorithm>
 
 #ifdef _DEBUG
@@ -2654,11 +2654,8 @@ namespace reshade::opengl
 
 		source << "}\n";
 
-		const auto source_str = source.str();
-
-		LOG(TRACE) << "> Compiling shader '" << node->name << "':\n\n" << source_str.c_str() << "\n";
-
 		GLint status = GL_FALSE;
+		const std::string source_str = source.str();
 		const GLchar *src = source_str.c_str();
 		const GLsizei len = static_cast<GLsizei>(source_str.size());
 

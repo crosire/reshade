@@ -1,7 +1,7 @@
-#include "log.hpp"
 #include "d3d11_runtime.hpp"
 #include "d3d11_effect_compiler.hpp"
 #include <assert.h>
+#include <iomanip>
 #include <algorithm>
 #include <d3dcompiler.h>
 
@@ -1919,8 +1919,6 @@ namespace reshade::d3d11
 		}
 
 		source += _global_code.str();
-
-		LOG(TRACE) << "> Compiling shader '" << node->name << "':\n\n" << source.c_str() << "\n";
 
 		UINT flags = D3DCOMPILE_ENABLE_STRICTNESS;
 		com_ptr<ID3DBlob> compiled, errors;

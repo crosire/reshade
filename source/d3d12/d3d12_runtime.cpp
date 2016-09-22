@@ -38,7 +38,7 @@ namespace reshade::d3d12
 	{
 		if (!_is_initialized)
 		{
-			LOG(TRACE) << "Failed to present! Runtime is in a lost state.";
+			LOG(ERROR) << "Failed to present! Runtime is in a lost state.";
 			return;
 		}
 		else if (_drawcalls == 0)

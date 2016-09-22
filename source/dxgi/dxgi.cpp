@@ -5,25 +5,25 @@
 
 void dump_swapchain_desc(const DXGI_SWAP_CHAIN_DESC &desc)
 {
-	LOG(TRACE) << "> Dumping swap chain description:";
-	LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
-	LOG(TRACE) << "  | Parameter                               | Value                                   |";
-	LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
-	LOG(TRACE) << "  | Width                                   | " << std::setw(39) << desc.BufferDesc.Width << " |";
-	LOG(TRACE) << "  | Height                                  | " << std::setw(39) << desc.BufferDesc.Height << " |";
-	LOG(TRACE) << "  | RefreshRate                             | " << std::setw(19) << desc.BufferDesc.RefreshRate.Numerator << ' ' << std::setw(19) << desc.BufferDesc.RefreshRate.Denominator << " |";
-	LOG(TRACE) << "  | Format                                  | " << std::setw(39) << desc.BufferDesc.Format << " |";
-	LOG(TRACE) << "  | ScanlineOrdering                        | " << std::setw(39) << desc.BufferDesc.ScanlineOrdering << " |";
-	LOG(TRACE) << "  | Scaling                                 | " << std::setw(39) << desc.BufferDesc.Scaling << " |";
-	LOG(TRACE) << "  | SampleCount                             | " << std::setw(39) << desc.SampleDesc.Count << " |";
-	LOG(TRACE) << "  | SampleQuality                           | " << std::setw(39) << desc.SampleDesc.Quality << " |";
-	LOG(TRACE) << "  | BufferUsage                             | " << std::setw(39) << desc.BufferUsage << " |";
-	LOG(TRACE) << "  | BufferCount                             | " << std::setw(39) << desc.BufferCount << " |";
-	LOG(TRACE) << "  | OutputWindow                            | " << std::setw(39) << desc.OutputWindow << " |";
-	LOG(TRACE) << "  | Windowed                                | " << std::setw(39) << (desc.Windowed != FALSE ? "TRUE" : "FALSE") << " |";
-	LOG(TRACE) << "  | SwapEffect                              | " << std::setw(39) << desc.SwapEffect << " |";
-	LOG(TRACE) << "  | Flags                                   | " << std::setw(39) << std::hex << desc.Flags << std::dec << " |";
-	LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
+	LOG(INFO) << "> Dumping swap chain description:";
+	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
+	LOG(INFO) << "  | Parameter                               | Value                                   |";
+	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
+	LOG(INFO) << "  | Width                                   | " << std::setw(39) << desc.BufferDesc.Width << " |";
+	LOG(INFO) << "  | Height                                  | " << std::setw(39) << desc.BufferDesc.Height << " |";
+	LOG(INFO) << "  | RefreshRate                             | " << std::setw(19) << desc.BufferDesc.RefreshRate.Numerator << ' ' << std::setw(19) << desc.BufferDesc.RefreshRate.Denominator << " |";
+	LOG(INFO) << "  | Format                                  | " << std::setw(39) << desc.BufferDesc.Format << " |";
+	LOG(INFO) << "  | ScanlineOrdering                        | " << std::setw(39) << desc.BufferDesc.ScanlineOrdering << " |";
+	LOG(INFO) << "  | Scaling                                 | " << std::setw(39) << desc.BufferDesc.Scaling << " |";
+	LOG(INFO) << "  | SampleCount                             | " << std::setw(39) << desc.SampleDesc.Count << " |";
+	LOG(INFO) << "  | SampleQuality                           | " << std::setw(39) << desc.SampleDesc.Quality << " |";
+	LOG(INFO) << "  | BufferUsage                             | " << std::setw(39) << desc.BufferUsage << " |";
+	LOG(INFO) << "  | BufferCount                             | " << std::setw(39) << desc.BufferCount << " |";
+	LOG(INFO) << "  | OutputWindow                            | " << std::setw(39) << desc.OutputWindow << " |";
+	LOG(INFO) << "  | Windowed                                | " << std::setw(39) << (desc.Windowed != FALSE ? "TRUE" : "FALSE") << " |";
+	LOG(INFO) << "  | SwapEffect                              | " << std::setw(39) << desc.SwapEffect << " |";
+	LOG(INFO) << "  | Flags                                   | " << std::setw(39) << std::hex << desc.Flags << std::dec << " |";
+	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
 
 	if (desc.SampleDesc.Count > 1)
 	{
@@ -32,23 +32,23 @@ void dump_swapchain_desc(const DXGI_SWAP_CHAIN_DESC &desc)
 }
 void dump_swapchain_desc(const DXGI_SWAP_CHAIN_DESC1 &desc)
 {
-	LOG(TRACE) << "> Dumping swap chain description:";
-	LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
-	LOG(TRACE) << "  | Parameter                               | Value                                   |";
-	LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
-	LOG(TRACE) << "  | Width                                   | " << std::setw(39) << desc.Width << " |";
-	LOG(TRACE) << "  | Height                                  | " << std::setw(39) << desc.Height << " |";
-	LOG(TRACE) << "  | Format                                  | " << std::setw(39) << desc.Format << " |";
-	LOG(TRACE) << "  | Stereo                                  | " << std::setw(39) << (desc.Stereo != FALSE ? "TRUE" : "FALSE") << " |";
-	LOG(TRACE) << "  | SampleCount                             | " << std::setw(39) << desc.SampleDesc.Count << " |";
-	LOG(TRACE) << "  | SampleQuality                           | " << std::setw(39) << desc.SampleDesc.Quality << " |";
-	LOG(TRACE) << "  | BufferUsage                             | " << std::setw(39) << desc.BufferUsage << " |";
-	LOG(TRACE) << "  | BufferCount                             | " << std::setw(39) << desc.BufferCount << " |";
-	LOG(TRACE) << "  | Scaling                                 | " << std::setw(39) << desc.Scaling << " |";
-	LOG(TRACE) << "  | SwapEffect                              | " << std::setw(39) << desc.SwapEffect << " |";
-	LOG(TRACE) << "  | AlphaMode                               | " << std::setw(39) << desc.AlphaMode << " |";
-	LOG(TRACE) << "  | Flags                                   | " << std::setw(39) << std::hex << desc.Flags << std::dec << " |";
-	LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
+	LOG(INFO) << "> Dumping swap chain description:";
+	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
+	LOG(INFO) << "  | Parameter                               | Value                                   |";
+	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
+	LOG(INFO) << "  | Width                                   | " << std::setw(39) << desc.Width << " |";
+	LOG(INFO) << "  | Height                                  | " << std::setw(39) << desc.Height << " |";
+	LOG(INFO) << "  | Format                                  | " << std::setw(39) << desc.Format << " |";
+	LOG(INFO) << "  | Stereo                                  | " << std::setw(39) << (desc.Stereo != FALSE ? "TRUE" : "FALSE") << " |";
+	LOG(INFO) << "  | SampleCount                             | " << std::setw(39) << desc.SampleDesc.Count << " |";
+	LOG(INFO) << "  | SampleQuality                           | " << std::setw(39) << desc.SampleDesc.Quality << " |";
+	LOG(INFO) << "  | BufferUsage                             | " << std::setw(39) << desc.BufferUsage << " |";
+	LOG(INFO) << "  | BufferCount                             | " << std::setw(39) << desc.BufferCount << " |";
+	LOG(INFO) << "  | Scaling                                 | " << std::setw(39) << desc.Scaling << " |";
+	LOG(INFO) << "  | SwapEffect                              | " << std::setw(39) << desc.SwapEffect << " |";
+	LOG(INFO) << "  | AlphaMode                               | " << std::setw(39) << desc.AlphaMode << " |";
+	LOG(INFO) << "  | Flags                                   | " << std::setw(39) << std::hex << desc.Flags << std::dec << " |";
+	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
 
 	if (desc.SampleDesc.Count > 1)
 	{
@@ -168,7 +168,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, I
 		LOG(WARNING) << "> Skipping swap chain because it was created without a (hooked) Direct3D device.";
 	}
 
-	LOG(TRACE) << "> Returned swap chain object: " << *ppSwapChain;
+	LOG(INFO) << "> Returned swap chain object: " << *ppSwapChain;
 
 	return S_OK;
 }
@@ -285,7 +285,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pF
 		LOG(WARNING) << "> Skipping swap chain because it was created without a (hooked) Direct3D device.";
 	}
 
-	LOG(TRACE) << "> Returned swap chain object: " << *ppSwapChain;
+	LOG(INFO) << "> Returned swap chain object: " << *ppSwapChain;
 
 	return S_OK;
 }
@@ -400,7 +400,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactor
 		LOG(WARNING) << "> Skipping swap chain because it was created without a (hooked) Direct3D device.";
 	}
 
-	LOG(TRACE) << "> Returned swap chain object: " << *ppSwapChain;
+	LOG(INFO) << "> Returned swap chain object: " << *ppSwapChain;
 
 	return S_OK;
 }
@@ -515,7 +515,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFacto
 		LOG(WARNING) << "> Skipping swap chain because it was created without a (hooked) Direct3D device.";
 	}
 
-	LOG(TRACE) << "> Returned swap chain object: " << *ppSwapChain;
+	LOG(INFO) << "> Returned swap chain object: " << *ppSwapChain;
 
 	return S_OK;
 }
@@ -591,7 +591,7 @@ HOOK_EXPORT HRESULT WINAPI CreateDXGIFactory1(REFIID riid, void **ppFactory)
 		factory2->Release();
 	}
 
-	LOG(TRACE) << "> Returned factory object: " << *ppFactory;
+	LOG(INFO) << "> Returned factory object: " << *ppFactory;
 
 	return S_OK;
 }
@@ -629,7 +629,7 @@ HOOK_EXPORT HRESULT WINAPI CreateDXGIFactory2(UINT flags, REFIID riid, void **pp
 		factory2->Release();
 	}
 
-	LOG(TRACE) << "> Returned factory object: " << *ppFactory;
+	LOG(INFO) << "> Returned factory object: " << *ppFactory;
 
 	return S_OK;
 }

@@ -45,7 +45,7 @@ ULONG STDMETHODCALLTYPE D3D12Device::Release()
 	{
 		assert(_ref <= 0);
 
-		LOG(TRACE) << "Destroyed 'ID3D12Device' object " << this << ".";
+		LOG(INFO) << "Destroyed 'ID3D12Device' object " << this << ".";
 
 		delete this;
 	}

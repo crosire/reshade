@@ -124,7 +124,7 @@ namespace reshade::opengl
 
 		if (status != GL_NO_ERROR)
 		{
-			LOG(TRACE) << "Failed to create backbuffer renderbuffer with error code " << status;
+			LOG(ERROR) << "Failed to create backbuffer renderbuffer with error code " << status;
 
 			GLCHECK(glDeleteRenderbuffers(2, _default_backbuffer_rbo));
 
@@ -143,7 +143,7 @@ namespace reshade::opengl
 
 		if (status != GL_FRAMEBUFFER_COMPLETE)
 		{
-			LOG(TRACE) << "Failed to create backbuffer framebuffer object with status code " << status;
+			LOG(ERROR) << "Failed to create backbuffer framebuffer object with status code " << status;
 
 			GLCHECK(glDeleteFramebuffers(1, &_default_backbuffer_fbo));
 			GLCHECK(glDeleteRenderbuffers(2, _default_backbuffer_rbo));
@@ -163,7 +163,7 @@ namespace reshade::opengl
 
 		if (status != GL_NO_ERROR)
 		{
-			LOG(TRACE) << "Failed to create backbuffer texture with error code " << status;
+			LOG(ERROR) << "Failed to create backbuffer texture with error code " << status;
 
 			GLCHECK(glDeleteTextures(2, _backbuffer_texture));
 			GLCHECK(glDeleteFramebuffers(1, &_default_backbuffer_fbo));
@@ -185,8 +185,6 @@ namespace reshade::opengl
 
 		_depth_source_table[0] = defaultdepth;
 
-		LOG(TRACE) << "Switched depth source to default depth texture.";
-
 		GLCHECK(glGenTextures(1, &_depth_texture));
 
 		GLCHECK(glBindTexture(GL_TEXTURE_2D, _depth_texture));
@@ -198,7 +196,7 @@ namespace reshade::opengl
 
 		if (status != GL_NO_ERROR)
 		{
-			LOG(TRACE) << "Failed to create depth texture with error code " << status;
+			LOG(ERROR) << "Failed to create depth texture with error code " << status;
 
 			GLCHECK(glDeleteTextures(1, &_depth_texture));
 			GLCHECK(glDeleteTextures(2, _backbuffer_texture));
@@ -224,7 +222,7 @@ namespace reshade::opengl
 
 		if (status != GL_FRAMEBUFFER_COMPLETE)
 		{
-			LOG(TRACE) << "Failed to create blit framebuffer object with status code " << status;
+			LOG(ERROR) << "Failed to create blit framebuffer object with status code " << status;
 
 			GLCHECK(glDeleteFramebuffers(1, &_blit_fbo));
 			GLCHECK(glDeleteTextures(1, &_depth_texture));
@@ -404,7 +402,7 @@ namespace reshade::opengl
 	{
 		if (!_is_initialized)
 		{
-			LOG(TRACE) << "Failed to present! Runtime is in a lost state.";
+			LOG(ERROR) << "Failed to present! Runtime is in a lost state.";
 			return;
 		}
 		else if (_drawcalls == 0)
@@ -554,8 +552,6 @@ namespace reshade::opengl
 			
 			GLCHECK(glBindTexture(objecttarget, previous));
 		}
-
-		LOG(TRACE) << "Adding frame buffer " << fbo << " attachment " << object << " (Attachment Type: " << attachment << ", Object Type: " << objecttarget << ", Width: " << info.width << ", Height: " << info.height << ", Format: " << info.format << ") to list of possible depth candidates ...";
 
 		_depth_source_table.emplace(id, info);
 	}
@@ -901,14 +897,10 @@ namespace reshade::opengl
 				{
 					best_match ^= 0x80000000;
 
-					LOG(TRACE) << "Switched depth source to render buffer " << best_match << ".";
-
 					GLCHECK(glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, best_match));
 				}
 				else
 				{
-					LOG(TRACE) << "Switched depth source to texture " << best_match << ".";
-
 					GLCHECK(glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, best_match, best_info.level));
 				}
 
@@ -916,7 +908,7 @@ namespace reshade::opengl
 
 				if (status != GL_FRAMEBUFFER_COMPLETE)
 				{
-					LOG(TRACE) << "Failed to create depth source frame buffer with status code " << status << ".";
+					LOG(ERROR) << "Failed to create depth source frame buffer with status code " << status << ".";
 
 					GLCHECK(glDeleteFramebuffers(1, &_depth_source_fbo));
 					_depth_source_fbo = 0;
@@ -924,8 +916,6 @@ namespace reshade::opengl
 			}
 			else
 			{
-				LOG(TRACE) << "Switched depth source to default frame buffer.";
-
 				GLCHECK(glDeleteFramebuffers(1, &_depth_source_fbo));
 				_depth_source_fbo = 0;
 			}

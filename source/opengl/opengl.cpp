@@ -2834,15 +2834,15 @@ HOOK_EXPORT int WINAPI wglChoosePixelFormat(HDC hdc, const PIXELFORMATDESCRIPTOR
 
 	assert(ppfd != nullptr);
 
-	LOG(TRACE) << "> Dumping pixel format descriptor:";
-	LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
-	LOG(TRACE) << "  | Name                                    | Value                                   |";
-	LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
-	LOG(TRACE) << "  | Flags                                   | " << std::setw(39) << std::hex << ppfd->dwFlags << std::dec << " |";
-	LOG(TRACE) << "  | ColorBits                               | " << std::setw(39) << static_cast<unsigned int>(ppfd->cColorBits) << " |";
-	LOG(TRACE) << "  | DepthBits                               | " << std::setw(39) << static_cast<unsigned int>(ppfd->cDepthBits) << " |";
-	LOG(TRACE) << "  | StencilBits                             | " << std::setw(39) << static_cast<unsigned int>(ppfd->cStencilBits) << " |";
-	LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
+	LOG(INFO) << "> Dumping pixel format descriptor:";
+	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
+	LOG(INFO) << "  | Name                                    | Value                                   |";
+	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
+	LOG(INFO) << "  | Flags                                   | " << std::setw(39) << std::hex << ppfd->dwFlags << std::dec << " |";
+	LOG(INFO) << "  | ColorBits                               | " << std::setw(39) << static_cast<unsigned int>(ppfd->cColorBits) << " |";
+	LOG(INFO) << "  | DepthBits                               | " << std::setw(39) << static_cast<unsigned int>(ppfd->cDepthBits) << " |";
+	LOG(INFO) << "  | StencilBits                             | " << std::setw(39) << static_cast<unsigned int>(ppfd->cStencilBits) << " |";
+	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
 
 	if (ppfd->iLayerType != PFD_MAIN_PLANE || ppfd->bReserved != 0)
 	{
@@ -2859,7 +2859,7 @@ HOOK_EXPORT int WINAPI wglChoosePixelFormat(HDC hdc, const PIXELFORMATDESCRIPTOR
 
 	const int format = reshade::hooks::call(&wglChoosePixelFormat)(hdc, ppfd);
 
-	LOG(TRACE) << "> Returned format: " << format;
+	LOG(INFO) << "> Returned format: " << format;
 
 	return format;
 }
@@ -2931,94 +2931,94 @@ BOOL WINAPI wglChoosePixelFormatARB(HDC hdc, const int *piAttribIList, const FLO
 
 	bool layerplanes = false, doublebuffered = false;
 
-	LOG(TRACE) << "> Dumping attributes:";
-	LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
-	LOG(TRACE) << "  | Attribute                               | Value                                   |";
-	LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
+	LOG(INFO) << "> Dumping attributes:";
+	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
+	LOG(INFO) << "  | Attribute                               | Value                                   |";
+	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
 
 	for (const int *attrib = piAttribIList; attrib != nullptr && *attrib != 0; attrib += 2)
 	{
 		switch (attrib[0])
 		{
 			case attribute::WGL_DRAW_TO_WINDOW_ARB:
-				LOG(TRACE) << "  | WGL_DRAW_TO_WINDOW_ARB                  | " << std::setw(39) << (attrib[1] != FALSE ? "TRUE" : "FALSE") << " |";
+				LOG(INFO) << "  | WGL_DRAW_TO_WINDOW_ARB                  | " << std::setw(39) << (attrib[1] != FALSE ? "TRUE" : "FALSE") << " |";
 				break;
 			case attribute::WGL_DRAW_TO_BITMAP_ARB:
-				LOG(TRACE) << "  | WGL_DRAW_TO_BITMAP_ARB                  | " << std::setw(39) << (attrib[1] != FALSE ? "TRUE" : "FALSE") << " |";
+				LOG(INFO) << "  | WGL_DRAW_TO_BITMAP_ARB                  | " << std::setw(39) << (attrib[1] != FALSE ? "TRUE" : "FALSE") << " |";
 				break;
 			case attribute::WGL_ACCELERATION_ARB:
-				LOG(TRACE) << "  | WGL_ACCELERATION_ARB                    | " << std::setw(39) << std::hex << attrib[1] << std::dec << " |";
+				LOG(INFO) << "  | WGL_ACCELERATION_ARB                    | " << std::setw(39) << std::hex << attrib[1] << std::dec << " |";
 				break;
 			case attribute::WGL_SWAP_LAYER_BUFFERS_ARB:
 				layerplanes = layerplanes || attrib[1] != FALSE;
-				LOG(TRACE) << "  | WGL_SWAP_LAYER_BUFFERS_ARB              | " << std::setw(39) << (attrib[1] != FALSE ? "TRUE" : "FALSE") << " |";
+				LOG(INFO) << "  | WGL_SWAP_LAYER_BUFFERS_ARB              | " << std::setw(39) << (attrib[1] != FALSE ? "TRUE" : "FALSE") << " |";
 				break;
 			case attribute::WGL_SWAP_METHOD_ARB:
-				LOG(TRACE) << "  | WGL_SWAP_METHOD_ARB                     | " << std::setw(39) << std::hex << attrib[1] << std::dec << " |";
+				LOG(INFO) << "  | WGL_SWAP_METHOD_ARB                     | " << std::setw(39) << std::hex << attrib[1] << std::dec << " |";
 				break;
 			case attribute::WGL_NUMBER_OVERLAYS_ARB:
 				layerplanes = layerplanes || attrib[1] != 0;
-				LOG(TRACE) << "  | WGL_NUMBER_OVERLAYS_ARB                 | " << std::setw(39) << attrib[1] << " |";
+				LOG(INFO) << "  | WGL_NUMBER_OVERLAYS_ARB                 | " << std::setw(39) << attrib[1] << " |";
 				break;
 			case attribute::WGL_NUMBER_UNDERLAYS_ARB:
 				layerplanes = layerplanes || attrib[1] != 0;
-				LOG(TRACE) << "  | WGL_NUMBER_UNDERLAYS_ARB                | " << std::setw(39) << attrib[1] << " |";
+				LOG(INFO) << "  | WGL_NUMBER_UNDERLAYS_ARB                | " << std::setw(39) << attrib[1] << " |";
 				break;
 			case attribute::WGL_SUPPORT_GDI_ARB:
-				LOG(TRACE) << "  | WGL_SUPPORT_GDI_ARB                     | " << std::setw(39) << (attrib[1] != FALSE ? "TRUE" : "FALSE") << " |";
+				LOG(INFO) << "  | WGL_SUPPORT_GDI_ARB                     | " << std::setw(39) << (attrib[1] != FALSE ? "TRUE" : "FALSE") << " |";
 				break;
 			case attribute::WGL_SUPPORT_OPENGL_ARB:
-				LOG(TRACE) << "  | WGL_SUPPORT_OPENGL_ARB                  | " << std::setw(39) << (attrib[1] != FALSE ? "TRUE" : "FALSE") << " |";
+				LOG(INFO) << "  | WGL_SUPPORT_OPENGL_ARB                  | " << std::setw(39) << (attrib[1] != FALSE ? "TRUE" : "FALSE") << " |";
 				break;
 			case attribute::WGL_DOUBLE_BUFFER_ARB:
 				doublebuffered = attrib[1] != FALSE;
-				LOG(TRACE) << "  | WGL_DOUBLE_BUFFER_ARB                   | " << std::setw(39) << (attrib[1] != FALSE ? "TRUE" : "FALSE") << " |";
+				LOG(INFO) << "  | WGL_DOUBLE_BUFFER_ARB                   | " << std::setw(39) << (attrib[1] != FALSE ? "TRUE" : "FALSE") << " |";
 				break;
 			case attribute::WGL_STEREO_ARB:
-				LOG(TRACE) << "  | WGL_STEREO_ARB                          | " << std::setw(39) << (attrib[1] != FALSE ? "TRUE" : "FALSE") << " |";
+				LOG(INFO) << "  | WGL_STEREO_ARB                          | " << std::setw(39) << (attrib[1] != FALSE ? "TRUE" : "FALSE") << " |";
 				break;
 			case attribute::WGL_RED_BITS_ARB:
-				LOG(TRACE) << "  | WGL_RED_BITS_ARB                        | " << std::setw(39) << attrib[1] << " |";
+				LOG(INFO) << "  | WGL_RED_BITS_ARB                        | " << std::setw(39) << attrib[1] << " |";
 				break;
 			case attribute::WGL_GREEN_BITS_ARB:
-				LOG(TRACE) << "  | WGL_GREEN_BITS_ARB                      | " << std::setw(39) << attrib[1] << " |";
+				LOG(INFO) << "  | WGL_GREEN_BITS_ARB                      | " << std::setw(39) << attrib[1] << " |";
 				break;
 			case attribute::WGL_BLUE_BITS_ARB:
-				LOG(TRACE) << "  | WGL_BLUE_BITS_ARB                       | " << std::setw(39) << attrib[1] << " |";
+				LOG(INFO) << "  | WGL_BLUE_BITS_ARB                       | " << std::setw(39) << attrib[1] << " |";
 				break;
 			case attribute::WGL_ALPHA_BITS_ARB:
-				LOG(TRACE) << "  | WGL_ALPHA_BITS_ARB                      | " << std::setw(39) << attrib[1] << " |";
+				LOG(INFO) << "  | WGL_ALPHA_BITS_ARB                      | " << std::setw(39) << attrib[1] << " |";
 				break;
 			case attribute::WGL_COLOR_BITS_ARB:
-				LOG(TRACE) << "  | WGL_COLOR_BITS_ARB                      | " << std::setw(39) << attrib[1] << " |";
+				LOG(INFO) << "  | WGL_COLOR_BITS_ARB                      | " << std::setw(39) << attrib[1] << " |";
 				break;
 			case attribute::WGL_DEPTH_BITS_ARB:
-				LOG(TRACE) << "  | WGL_DEPTH_BITS_ARB                      | " << std::setw(39) << attrib[1] << " |";
+				LOG(INFO) << "  | WGL_DEPTH_BITS_ARB                      | " << std::setw(39) << attrib[1] << " |";
 				break;
 			case attribute::WGL_STENCIL_BITS_ARB:
-				LOG(TRACE) << "  | WGL_STENCIL_BITS_ARB                    | " << std::setw(39) << attrib[1] << " |";
+				LOG(INFO) << "  | WGL_STENCIL_BITS_ARB                    | " << std::setw(39) << attrib[1] << " |";
 				break;
 			case attribute::WGL_SAMPLE_BUFFERS_ARB:
-				LOG(TRACE) << "  | WGL_SAMPLE_BUFFERS_ARB                  | " << std::setw(39) << attrib[1] << " |";
+				LOG(INFO) << "  | WGL_SAMPLE_BUFFERS_ARB                  | " << std::setw(39) << attrib[1] << " |";
 				break;
 			case attribute::WGL_SAMPLES_ARB:
-				LOG(TRACE) << "  | WGL_SAMPLES_ARB                         | " << std::setw(39) << attrib[1] << " |";
+				LOG(INFO) << "  | WGL_SAMPLES_ARB                         | " << std::setw(39) << attrib[1] << " |";
 				break;
 			case attribute::WGL_DRAW_TO_PBUFFER_ARB:
-				LOG(TRACE) << "  | WGL_DRAW_TO_PBUFFER_ARB                 | " << std::setw(39) << (attrib[1] != FALSE ? "TRUE" : "FALSE") << " |";
+				LOG(INFO) << "  | WGL_DRAW_TO_PBUFFER_ARB                 | " << std::setw(39) << (attrib[1] != FALSE ? "TRUE" : "FALSE") << " |";
 				break;
 			default:
-				LOG(TRACE) << "  | " << std::hex << std::setw(39) << attrib[0] << " | " << std::setw(39) << attrib[1] << std::dec << " |";
+				LOG(INFO) << "  | " << std::hex << std::setw(39) << attrib[0] << " | " << std::setw(39) << attrib[1] << std::dec << " |";
 				break;
 		}
 	}
 
 	for (const FLOAT *attrib = pfAttribFList; attrib != nullptr && *attrib != 0.0f; attrib += 2)
 	{
-		LOG(TRACE) << "  | " << std::hex << std::setw(39) << static_cast<int>(attrib[0]) << " | " << std::setw(39) << attrib[1] << std::dec << " |";
+		LOG(INFO) << "  | " << std::hex << std::setw(39) << static_cast<int>(attrib[0]) << " | " << std::setw(39) << attrib[1] << std::dec << " |";
 	}
 
-	LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
+	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
 
 	if (layerplanes)
 	{
@@ -3056,7 +3056,7 @@ BOOL WINAPI wglChoosePixelFormatARB(HDC hdc, const int *piAttribIList, const FLO
 		formats += " " + std::to_string(piFormats[i]);
 	}
 
-	LOG(TRACE) << "> Returned format(s):" << formats;
+	LOG(INFO) << "> Returned format(s):" << formats;
 
 	return TRUE;
 }
@@ -3105,7 +3105,7 @@ HOOK_EXPORT HGLRC WINAPI wglCreateContext(HDC hdc)
 
 	s_shared_contexts.emplace(hglrc, nullptr);
 
-	LOG(TRACE) << "> Returned OpenGL context: " << hglrc;
+	LOG(INFO) << "> Returned OpenGL context: " << hglrc;
 
 	return hglrc;
 }
@@ -3172,7 +3172,7 @@ HGLRC WINAPI wglCreateContextAttribsARB(HDC hdc, HGLRC hShareContext, const int 
 	attribs[i].name = attribute::WGL_CONTEXT_PROFILE_MASK_ARB;
 	attribs[i++].value = compatibility ? attribute::WGL_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB : attribute::WGL_CONTEXT_CORE_PROFILE_BIT_ARB;
 
-	LOG(TRACE) << "> Requesting " << (core ? "core " : compatibility ? "compatibility " : "") << "OpenGL context for version " << major << '.' << minor << " ...";
+	LOG(INFO) << "> Requesting " << (core ? "core " : compatibility ? "compatibility " : "") << "OpenGL context for version " << major << '.' << minor << " ...";
 
 	if (major < 4 || minor < 3)
 	{
@@ -3218,7 +3218,7 @@ HGLRC WINAPI wglCreateContextAttribsARB(HDC hdc, HGLRC hShareContext, const int 
 		}
 	}
 
-	LOG(TRACE) << "> Returned OpenGL context: " << hglrc;
+	LOG(INFO) << "> Returned OpenGL context: " << hglrc;
 
 	return hglrc;
 }
@@ -3256,31 +3256,31 @@ HPBUFFERARB WINAPI wglCreatePbufferARB(HDC hdc, int iPixelFormat, int iWidth, in
 		};
 	};
 
-	LOG(TRACE) << "> Dumping attributes:";
-	LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
-	LOG(TRACE) << "  | Attribute                               | Value                                   |";
-	LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
+	LOG(INFO) << "> Dumping attributes:";
+	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
+	LOG(INFO) << "  | Attribute                               | Value                                   |";
+	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
 
 	for (const int *attrib = piAttribList; attrib != nullptr && *attrib != 0; attrib += 2)
 	{
 		switch (attrib[0])
 		{
 			case attribute::WGL_PBUFFER_LARGEST_ARB:
-				LOG(TRACE) << "  | WGL_PBUFFER_LARGEST_ARB                 | " << std::setw(39) << (attrib[1] != FALSE ? "TRUE" : "FALSE") << " |";
+				LOG(INFO) << "  | WGL_PBUFFER_LARGEST_ARB                 | " << std::setw(39) << (attrib[1] != FALSE ? "TRUE" : "FALSE") << " |";
 				break;
 			case attribute::WGL_TEXTURE_FORMAT_ARB:
-				LOG(TRACE) << "  | WGL_TEXTURE_FORMAT_ARB                  | " << std::setw(39) << std::hex << attrib[1] << std::dec << " |";
+				LOG(INFO) << "  | WGL_TEXTURE_FORMAT_ARB                  | " << std::setw(39) << std::hex << attrib[1] << std::dec << " |";
 				break;
 			case attribute::WGL_TEXTURE_TARGET_ARB:
-				LOG(TRACE) << "  | WGL_TEXTURE_TARGET_ARB                  | " << std::setw(39) << std::hex << attrib[1] << std::dec << " |";
+				LOG(INFO) << "  | WGL_TEXTURE_TARGET_ARB                  | " << std::setw(39) << std::hex << attrib[1] << std::dec << " |";
 				break;
 			default:
-				LOG(TRACE) << "  | " << std::hex << std::setw(39) << attrib[0] << " | " << std::setw(39) << attrib[1] << std::dec << " |";
+				LOG(INFO) << "  | " << std::hex << std::setw(39) << attrib[0] << " | " << std::setw(39) << attrib[1] << std::dec << " |";
 				break;
 		}
 	}
 
-	LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
+	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
 
 	const HPBUFFERARB hpbuffer = reshade::hooks::call(&wglCreatePbufferARB)(hdc, iPixelFormat, iWidth, iHeight, piAttribList);
 
@@ -3291,7 +3291,7 @@ HPBUFFERARB WINAPI wglCreatePbufferARB(HDC hdc, int iPixelFormat, int iWidth, in
 		return nullptr;
 	}
 
-	LOG(TRACE) << "> Returned pbuffer: " << hpbuffer;
+	LOG(INFO) << "> Returned pbuffer: " << hpbuffer;
 
 	return hpbuffer;
 }
@@ -3398,7 +3398,7 @@ HDC WINAPI wglGetPbufferDCARB(HPBUFFERARB hPbuffer)
 
 	s_pbuffer_device_contexts.insert(hdc);
 
-	LOG(TRACE) << "> Returned pixel buffer device context: " << hdc;
+	LOG(INFO) << "> Returned pixel buffer device context: " << hdc;
 
 	return hdc;
 }

@@ -1,8 +1,8 @@
-#include "log.hpp"
 #include "d3d9_runtime.hpp"
 #include "d3d9_effect_compiler.hpp"
 #include "constant_folding.hpp"
 #include <assert.h>
+#include <iomanip>
 #include <algorithm>
 #include <d3dcompiler.h>
 
@@ -1970,10 +1970,6 @@ namespace reshade::d3d9
 
 		source << "}\n";
 
-		const auto source_str = source.str();
-
-		LOG(TRACE) << "> Compiling shader '" << node->name << "':\n\n" << source_str.c_str() << "\n";
-
 		UINT flags = 0;
 		com_ptr<ID3DBlob> compiled, errors;
 
@@ -1983,6 +1979,7 @@ namespace reshade::d3d9
 		}
 
 		const auto D3DCompile = reinterpret_cast<pD3DCompile>(GetProcAddress(_d3dcompiler_module, "D3DCompile"));
+		const std::string source_str = source.str();
 		HRESULT hr = D3DCompile(source_str.c_str(), source_str.size(), nullptr, nullptr, nullptr, "__main", (shadertype + "_3_0").c_str(), flags, 0, &compiled, &errors);
 
 		if (errors != nullptr)

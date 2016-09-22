@@ -31,7 +31,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::QueryInterface(REFIID riid, void **ppvObj
 
 			_orig->Release();
 
-			LOG(TRACE) << "Upgraded 'ID3D11Device' object " << this << " to 'ID3D11Device1'.";
+			LOG(INFO) << "Upgraded 'ID3D11Device' object " << this << " to 'ID3D11Device1'.";
 
 			_orig = device1;
 			_interface_version = 1;
@@ -54,7 +54,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::QueryInterface(REFIID riid, void **ppvObj
 
 			_orig->Release();
 
-			LOG(TRACE) << "Upgraded 'ID3D11Device" << (_interface_version > 0 ? std::to_string(_interface_version) : "") << "' object " << this << " to 'ID3D11Device2'.";
+			LOG(INFO) << "Upgraded 'ID3D11Device" << (_interface_version > 0 ? std::to_string(_interface_version) : "") << "' object " << this << " to 'ID3D11Device2'.";
 
 			_orig = device2;
 			_interface_version = 2;
@@ -77,7 +77,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::QueryInterface(REFIID riid, void **ppvObj
 
 			_orig->Release();
 
-			LOG(TRACE) << "Upgraded 'ID3D11Device" << (_interface_version > 0 ? std::to_string(_interface_version) : "") << "' object " << this << " to 'ID3D11Device3'.";
+			LOG(INFO) << "Upgraded 'ID3D11Device" << (_interface_version > 0 ? std::to_string(_interface_version) : "") << "' object " << this << " to 'ID3D11Device3'.";
 
 			_orig = device3;
 			_interface_version = 3;
@@ -142,7 +142,7 @@ ULONG STDMETHODCALLTYPE D3D11Device::Release()
 	{
 		assert(_ref <= 0);
 
-		LOG(TRACE) << "Destroyed 'ID3D11Device" << (_interface_version > 0 ? std::to_string(_interface_version) : "") << "' object " << this << ".";
+		LOG(INFO) << "Destroyed 'ID3D11Device" << (_interface_version > 0 ? std::to_string(_interface_version) : "") << "' object " << this << ".";
 
 		delete this;
 	}

@@ -1,7 +1,6 @@
 #include "log.hpp"
 #include "hook_manager.hpp"
 #include "input.hpp"
-
 #include <assert.h>
 #include <Windows.h>
 
@@ -94,15 +93,15 @@ HOOK_EXPORT BOOL WINAPI HookRegisterRawInputDevices(PCRAWINPUTDEVICE pRawInputDe
 	{
 		const auto &device = pRawInputDevices[i];
 
-		LOG(TRACE) << "> Dumping device registration at index " << i << ":";
-		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
-		LOG(TRACE) << "  | Parameter                               | Value                                   |";
-		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
-		LOG(TRACE) << "  | UsagePage                               | " << std::setw(39) << std::hex << device.usUsagePage << std::dec << " |";
-		LOG(TRACE) << "  | Usage                                   | " << std::setw(39) << std::hex << device.usUsage << std::dec << " |";
-		LOG(TRACE) << "  | Flags                                   | " << std::setw(39) << std::hex << device.dwFlags << std::dec << " |";
-		LOG(TRACE) << "  | TargetWindow                            | " << std::setw(39) << device.hwndTarget << " |";
-		LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
+		LOG(INFO) << "> Dumping device registration at index " << i << ":";
+		LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
+		LOG(INFO) << "  | Parameter                               | Value                                   |";
+		LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
+		LOG(INFO) << "  | UsagePage                               | " << std::setw(39) << std::hex << device.usUsagePage << std::dec << " |";
+		LOG(INFO) << "  | Usage                                   | " << std::setw(39) << std::hex << device.usUsage << std::dec << " |";
+		LOG(INFO) << "  | Flags                                   | " << std::setw(39) << std::hex << device.dwFlags << std::dec << " |";
+		LOG(INFO) << "  | TargetWindow                            | " << std::setw(39) << device.hwndTarget << " |";
+		LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
 
 		if (device.usUsagePage != 1 || device.hwndTarget == nullptr)
 		{

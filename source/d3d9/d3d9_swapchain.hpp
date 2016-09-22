@@ -6,12 +6,12 @@ struct Direct3DSwapChain9 : IDirect3DSwapChain9Ex
 {
 	Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapChain9   *original, const std::shared_ptr<reshade::d3d9::d3d9_runtime> &runtime) :
 		_orig(original),
-		_interface_version(0),
+		_extended_interface(false),
 		_device(device),
 		_runtime(runtime) { }
 	Direct3DSwapChain9(Direct3DDevice9 *device, IDirect3DSwapChain9Ex *original, const std::shared_ptr<reshade::d3d9::d3d9_runtime> &runtime) :
 		_orig(original),
-		_interface_version(1),
+		_extended_interface(true),
 		_device(device),
 		_runtime(runtime) { }
 
@@ -40,7 +40,7 @@ struct Direct3DSwapChain9 : IDirect3DSwapChain9Ex
 
 	LONG _ref = 1;
 	IDirect3DSwapChain9 *_orig;
-	unsigned int _interface_version;
+	bool _extended_interface;
 	Direct3DDevice9 *const _device;
 	std::shared_ptr<reshade::d3d9::d3d9_runtime> _runtime;
 };

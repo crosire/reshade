@@ -1,59 +1,46 @@
 #include "log.hpp"
-
 #include <Windows.h>
 
-namespace reshade
+namespace reshade::log
 {
-	namespace log
+	std::ofstream stream;
+
+	message::message(level level)
 	{
-		bool debug = false;
-		std::ofstream stream;
+		SYSTEMTIME time;
+		GetLocalTime(&time);
 
-		message::message(level level) : _dispatch(level <= (debug ? level::debug : level::info) && stream.is_open())
+		const char level_names[][6] = { "INFO ", "ERROR", "WARN " };
+
+		stream << std::right << std::setfill('0')
+			<< std::setw(2) << time.wDay << '/'
+			<< std::setw(2) << time.wMonth << '/'
+			<< std::setw(4) << time.wYear << ' '
+			<< std::setw(2) << time.wHour << ':'
+			<< std::setw(2) << time.wMinute << ':'
+			<< std::setw(2) << time.wSecond << ':'
+			<< std::setw(3) << time.wMilliseconds << ' '
+			<< '[' << std::setw(5) << GetCurrentThreadId() << ']' << std::setfill(' ')
+			<< " | " << level_names[static_cast<unsigned int>(level)] << " | " << std::left;
+	}
+	message::~message()
+	{
+		stream << std::endl;
+	}
+
+	bool open(const filesystem::path &path)
+	{
+		stream.open(path.wstring(), std::ios::out | std::ios::trunc);
+
+		if (!stream.is_open())
 		{
-			if (!_dispatch)
-			{
-				return;
-			}
-
-			SYSTEMTIME time;
-			GetLocalTime(&time);
-
-			const char level_names[][6] = { "FATAL", "ERROR", "WARN ", "INFO ", "TRACE" };
-
-			stream << std::right << std::setfill('0')
-				<< std::setw(2) << time.wDay << '/'
-				<< std::setw(2) << time.wMonth << '/'
-				<< std::setw(4) << time.wYear << ' '
-				<< std::setw(2) << time.wHour << ':'
-				<< std::setw(2) << time.wMinute << ':'
-				<< std::setw(2) << time.wSecond << ':'
-				<< std::setw(3) << time.wMilliseconds << ' '
-				<< '[' << std::setw(5) << GetCurrentThreadId() << ']' << std::setfill(' ')
-				<< " | " << level_names[static_cast<unsigned int>(level)] << " | " << std::left;
-		}
-		message::~message()
-		{
-			if (_dispatch)
-			{
-				stream << std::endl;
-			}
+			return false;
 		}
 
-		bool open(const filesystem::path &path)
-		{
-			stream.open(path.wstring(), std::ios::out | std::ios::trunc);
+		stream.setf(std::ios_base::showbase);
 
-			if (!stream.is_open())
-			{
-				return false;
-			}
+		stream.flush();
 
-			stream.setf(std::ios_base::showbase);
-
-			stream.flush();
-
-			return true;
-		}
+		return true;
 	}
 }

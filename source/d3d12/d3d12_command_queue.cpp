@@ -47,7 +47,7 @@ ULONG STDMETHODCALLTYPE D3D12CommandQueue::Release()
 	{
 		assert(_ref <= 0);
 
-		LOG(TRACE) << "Destroyed 'ID3D12CommandQueue' object " << this << ".";
+		LOG(INFO) << "Destroyed 'ID3D12CommandQueue' object " << this << ".";
 
 		delete this;
 	}

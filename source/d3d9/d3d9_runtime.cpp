@@ -60,7 +60,7 @@ namespace reshade::d3d9
 
 			if (FAILED(hr))
 			{
-				LOG(TRACE) << "Failed to create back buffer resolve texture! HRESULT is '" << std::hex << hr << std::dec << "'.";
+				LOG(ERROR) << "Failed to create back buffer resolve texture! HRESULT is '" << std::hex << hr << std::dec << "'.";
 
 				return false;
 			}
@@ -79,7 +79,7 @@ namespace reshade::d3d9
 		}
 		else
 		{
-			LOG(TRACE) << "Failed to create back buffer texture! HRESULT is '" << std::hex << hr << std::dec << "'.";
+			LOG(ERROR) << "Failed to create back buffer texture! HRESULT is '" << std::hex << hr << std::dec << "'.";
 
 			return false;
 		}
@@ -93,7 +93,7 @@ namespace reshade::d3d9
 
 		if (FAILED(hr))
 		{
-			LOG(TRACE) << "Failed to create default depth-stencil! HRESULT is '" << std::hex << hr << std::dec << "'.";
+			LOG(ERROR) << "Failed to create default depth-stencil! HRESULT is '" << std::hex << hr << std::dec << "'.";
 
 			return false;
 		}
@@ -121,7 +121,7 @@ namespace reshade::d3d9
 		}
 		else
 		{
-			LOG(TRACE) << "Failed to create effect vertex buffer! HRESULT is '" << std::hex << hr << std::dec << "'.";
+			LOG(ERROR) << "Failed to create effect vertex buffer! HRESULT is '" << std::hex << hr << std::dec << "'.";
 
 			return false;
 		}
@@ -135,7 +135,7 @@ namespace reshade::d3d9
 
 		if (FAILED(hr))
 		{
-			LOG(TRACE) << "Failed to create effect vertex declaration! HRESULT is '" << std::hex << hr << std::dec << "'.";
+			LOG(ERROR) << "Failed to create effect vertex declaration! HRESULT is '" << std::hex << hr << std::dec << "'.";
 
 			return false;
 		}
@@ -157,7 +157,7 @@ namespace reshade::d3d9
 
 		if (FAILED(hr) || FAILED(font_atlas->LockRect(0, &font_atlas_rect, nullptr, 0)))
 		{
-			LOG(TRACE) << "Failed to create font atlas texture! HRESULT is '" << std::hex << hr << std::dec << "'.";
+			LOG(ERROR) << "Failed to create font atlas texture! HRESULT is '" << std::hex << hr << std::dec << "'.";
 
 			return false;
 		}
@@ -229,8 +229,6 @@ namespace reshade::d3d9
 		// Clear depth source table
 		for (auto &it : _depth_source_table)
 		{
-			LOG(TRACE) << "Removing depth-stencil " << it.first << " from list of possible depth candidates ...";
-
 			it.first->Release();
 		}
 
@@ -240,7 +238,7 @@ namespace reshade::d3d9
 	{
 		if (!_is_initialized)
 		{
-			LOG(TRACE) << "Failed to present! Runtime is in a lost state.";
+			LOG(ERROR) << "Failed to present! Runtime is in a lost state.";
 			return;
 		}
 
@@ -379,8 +377,6 @@ namespace reshade::d3d9
 				return;
 			}
 	
-			LOG(TRACE) << "Adding depth-stencil " << depthstencil << " (Width: " << desc.Width << ", Height: " << desc.Height << ", Format: " << desc.Format << ") to list of possible depth candidates ...";
-
 			depthstencil->AddRef();
 
 			// Begin tracking
@@ -488,7 +484,7 @@ namespace reshade::d3d9
 
 		if (FAILED(hr))
 		{
-			LOG(TRACE) << "Failed to create memory texture for texture updating! HRESULT is '" << hr << "'.";
+			LOG(ERROR) << "Failed to create memory texture for texture updating! HRESULT is '" << hr << "'.";
 
 			return false;
 		}
@@ -498,7 +494,7 @@ namespace reshade::d3d9
 
 		if (FAILED(hr))
 		{
-			LOG(TRACE) << "Failed to lock memory texture for texture updating! HRESULT is '" << hr << "'.";
+			LOG(ERROR) << "Failed to lock memory texture for texture updating! HRESULT is '" << hr << "'.";
 
 			return false;
 		}
@@ -537,7 +533,7 @@ namespace reshade::d3d9
 
 		if (FAILED(hr))
 		{
-			LOG(TRACE) << "Failed to update texture from memory texture! HRESULT is '" << hr << "'.";
+			LOG(ERROR) << "Failed to update texture from memory texture! HRESULT is '" << hr << "'.";
 
 			return false;
 		}
@@ -859,8 +855,6 @@ namespace reshade::d3d9
 
 			if ((depthstencil->AddRef(), depthstencil->Release()) == 1)
 			{
-				LOG(TRACE) << "Removing depth-stencil " << depthstencil << " from list of possible depth candidates ...";
-
 				depthstencil->Release();
 
 				it = _depth_source_table.erase(it);
@@ -887,8 +881,6 @@ namespace reshade::d3d9
 
 		if (best_match != nullptr && _depthstencil != best_match)
 		{
-			LOG(TRACE) << "Switched depth source to depth-stencil " << best_match << ".";
-
 			create_depthstencil_replacement(best_match);
 		}
 	}
@@ -951,7 +943,7 @@ namespace reshade::d3d9
 				}
 				else
 				{
-					LOG(TRACE) << "Failed to create depth replacement texture! HRESULT is '" << std::hex << hr << std::dec << "'.";
+					LOG(ERROR) << "Failed to create depth replacement texture! HRESULT is '" << std::hex << hr << std::dec << "'.";
 
 					return false;
 				}

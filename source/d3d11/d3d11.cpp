@@ -90,7 +90,7 @@ HOOK_EXPORT HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter,
 				*ppImmediateContext = devicecontext_proxy;
 			}
 
-			LOG(TRACE) << "> Returned device objects: " << device_proxy << ", " << device_proxy->_dxgi_device;
+			LOG(INFO) << "> Returned device objects: " << device_proxy << ", " << device_proxy->_dxgi_device;
 		}
 		else
 		{

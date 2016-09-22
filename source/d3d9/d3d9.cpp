@@ -10,25 +10,25 @@
 
 void dump_present_parameters(const D3DPRESENT_PARAMETERS &pp)
 {
-	LOG(TRACE) << "> Dumping presentation parameters:";
-	LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
-	LOG(TRACE) << "  | Parameter                               | Value                                   |";
-	LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
-	LOG(TRACE) << "  | BackBufferWidth                         | " << std::setw(39) << pp.BackBufferWidth << " |";
-	LOG(TRACE) << "  | BackBufferHeight                        | " << std::setw(39) << pp.BackBufferHeight << " |";
-	LOG(TRACE) << "  | BackBufferFormat                        | " << std::setw(39) << pp.BackBufferFormat << " |";
-	LOG(TRACE) << "  | BackBufferCount                         | " << std::setw(39) << pp.BackBufferCount << " |";
-	LOG(TRACE) << "  | MultiSampleType                         | " << std::setw(39) << pp.MultiSampleType << " |";
-	LOG(TRACE) << "  | MultiSampleQuality                      | " << std::setw(39) << pp.MultiSampleQuality << " |";
-	LOG(TRACE) << "  | SwapEffect                              | " << std::setw(39) << pp.SwapEffect << " |";
-	LOG(TRACE) << "  | DeviceWindow                            | " << std::setw(39) << pp.hDeviceWindow << " |";
-	LOG(TRACE) << "  | Windowed                                | " << std::setw(39) << (pp.Windowed != FALSE ? "TRUE" : "FALSE") << " |";
-	LOG(TRACE) << "  | EnableAutoDepthStencil                  | " << std::setw(39) << (pp.EnableAutoDepthStencil ? "TRUE" : "FALSE") << " |";
-	LOG(TRACE) << "  | AutoDepthStencilFormat                  | " << std::setw(39) << pp.AutoDepthStencilFormat << " |";
-	LOG(TRACE) << "  | Flags                                   | " << std::setw(39) << std::hex << pp.Flags << std::dec << " |";
-	LOG(TRACE) << "  | FullScreen_RefreshRateInHz              | " << std::setw(39) << pp.FullScreen_RefreshRateInHz << " |";
-	LOG(TRACE) << "  | PresentationInterval                    | " << std::setw(39) << std::hex << pp.PresentationInterval << std::dec << " |";
-	LOG(TRACE) << "  +-----------------------------------------+-----------------------------------------+";
+	LOG(INFO) << "> Dumping presentation parameters:";
+	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
+	LOG(INFO) << "  | Parameter                               | Value                                   |";
+	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
+	LOG(INFO) << "  | BackBufferWidth                         | " << std::setw(39) << pp.BackBufferWidth << " |";
+	LOG(INFO) << "  | BackBufferHeight                        | " << std::setw(39) << pp.BackBufferHeight << " |";
+	LOG(INFO) << "  | BackBufferFormat                        | " << std::setw(39) << pp.BackBufferFormat << " |";
+	LOG(INFO) << "  | BackBufferCount                         | " << std::setw(39) << pp.BackBufferCount << " |";
+	LOG(INFO) << "  | MultiSampleType                         | " << std::setw(39) << pp.MultiSampleType << " |";
+	LOG(INFO) << "  | MultiSampleQuality                      | " << std::setw(39) << pp.MultiSampleQuality << " |";
+	LOG(INFO) << "  | SwapEffect                              | " << std::setw(39) << pp.SwapEffect << " |";
+	LOG(INFO) << "  | DeviceWindow                            | " << std::setw(39) << pp.hDeviceWindow << " |";
+	LOG(INFO) << "  | Windowed                                | " << std::setw(39) << (pp.Windowed != FALSE ? "TRUE" : "FALSE") << " |";
+	LOG(INFO) << "  | EnableAutoDepthStencil                  | " << std::setw(39) << (pp.EnableAutoDepthStencil ? "TRUE" : "FALSE") << " |";
+	LOG(INFO) << "  | AutoDepthStencilFormat                  | " << std::setw(39) << pp.AutoDepthStencilFormat << " |";
+	LOG(INFO) << "  | Flags                                   | " << std::setw(39) << std::hex << pp.Flags << std::dec << " |";
+	LOG(INFO) << "  | FullScreen_RefreshRateInHz              | " << std::setw(39) << pp.FullScreen_RefreshRateInHz << " |";
+	LOG(INFO) << "  | PresentationInterval                    | " << std::setw(39) << std::hex << pp.PresentationInterval << std::dec << " |";
+	LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
 
 	if (pp.MultiSampleType != D3DMULTISAMPLE_NONE)
 	{
@@ -108,7 +108,7 @@ HRESULT STDMETHODCALLTYPE IDirect3D9_CreateDevice(IDirect3D9 *pD3D, UINT Adapter
 		LOG(WARNING) << "> Skipping device due to device type being 'D3DDEVTYPE_NULLREF'.";
 	}
 
-	LOG(TRACE) << "> Returned device object: " << *ppReturnedDeviceInterface;
+	LOG(INFO) << "> Returned device object: " << *ppReturnedDeviceInterface;
 
 	return D3D_OK;
 }
@@ -185,7 +185,7 @@ HRESULT STDMETHODCALLTYPE IDirect3D9Ex_CreateDeviceEx(IDirect3D9Ex *pD3D, UINT A
 		LOG(WARNING) << "> Skipping device due to device type being 'D3DDEVTYPE_NULLREF'.";
 	}
 
-	LOG(TRACE) << "> Returned device object: " << *ppReturnedDeviceInterface;
+	LOG(INFO) << "> Returned device object: " << *ppReturnedDeviceInterface;
 
 	return D3D_OK;
 }
@@ -245,7 +245,7 @@ HOOK_EXPORT IDirect3D9 *WINAPI Direct3DCreate9(UINT SDKVersion)
 
 	reshade::hooks::install(VTABLE(res), 16, reinterpret_cast<reshade::hook::address>(&IDirect3D9_CreateDevice));
 
-	LOG(TRACE) << "> Returned factory object: " << res;
+	LOG(INFO) << "> Returned factory object: " << res;
 
 	return res;
 }
@@ -265,7 +265,7 @@ HOOK_EXPORT HRESULT WINAPI Direct3DCreate9Ex(UINT SDKVersion, IDirect3D9Ex **ppD
 	reshade::hooks::install(VTABLE(*ppD3D), 16, reinterpret_cast<reshade::hook::address>(&IDirect3D9_CreateDevice));
 	reshade::hooks::install(VTABLE(*ppD3D), 20, reinterpret_cast<reshade::hook::address>(&IDirect3D9Ex_CreateDeviceEx));
 
-	LOG(TRACE) << "> Returned factory object: " << *ppD3D;
+	LOG(INFO) << "> Returned factory object: " << *ppD3D;
 
 	return D3D_OK;
 }
