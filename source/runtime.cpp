@@ -1310,7 +1310,7 @@ namespace reshade
 			}
 		};
 
-		if (ImGui::CollapsingHeader("General", ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_DefaultOpen))
+		if (ImGui::CollapsingHeader("General", ImGuiTreeNodeFlags_DefaultOpen))
 		{
 			assert(_menu_key.keycode < 256);
 
@@ -1393,7 +1393,7 @@ namespace reshade
 			}
 		}
 
-		if (ImGui::CollapsingHeader("Screenshots", ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_DefaultOpen))
+		if (ImGui::CollapsingHeader("Screenshots", ImGuiTreeNodeFlags_DefaultOpen))
 		{
 			assert(_screenshot_key.keycode < 256);
 
@@ -1441,7 +1441,7 @@ namespace reshade
 			}
 		}
 
-		if (ImGui::CollapsingHeader("User Interface", ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_DefaultOpen))
+		if (ImGui::CollapsingHeader("User Interface", ImGuiTreeNodeFlags_DefaultOpen))
 		{
 			const bool modified1 = ImGui::DragFloat("Alpha", &ImGui::GetStyle().Alpha, 0.005f, 0.20f, 1.0f, "%.2f");
 			const bool modified2 = ImGui::ColorEdit3("Background Color", _imgui_col_background);
@@ -1458,7 +1458,7 @@ namespace reshade
 	}
 	void runtime::draw_overlay_menu_statistics()
 	{
-		if (ImGui::CollapsingHeader("General", ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_DefaultOpen))
+		if (ImGui::CollapsingHeader("General", ImGuiTreeNodeFlags_DefaultOpen))
 		{
 			ImGui::Text("Application: %X", std::hash<std::string>()(s_target_executable_path.filename_without_extension().string()));
 			ImGui::Text("Date: %d-%d-%d %d", _date[0], _date[1], _date[2], _date[3]);
@@ -1473,7 +1473,7 @@ namespace reshade
 			ImGui::Text("Network (traffic per frame): %uB", g_network_traffic);
 		}
 
-		if (ImGui::CollapsingHeader("Textures", ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_DefaultOpen))
+		if (ImGui::CollapsingHeader("Textures", ImGuiTreeNodeFlags_DefaultOpen))
 		{
 			for (const auto &texture : _textures)
 			{
@@ -1486,7 +1486,7 @@ namespace reshade
 			}
 		}
 
-		if (ImGui::CollapsingHeader("Techniques", ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_DefaultOpen))
+		if (ImGui::CollapsingHeader("Techniques", ImGuiTreeNodeFlags_DefaultOpen))
 		{
 			for (const auto &technique : _techniques)
 			{
@@ -1498,25 +1498,100 @@ namespace reshade
 	{
 		ImGui::PushTextWrapPos();
 		ImGui::TextUnformatted(
-			"Copyright (C) 2014 Patrick \"crosire\" Mours\n"
+			"Copyright (C) 2014 Patrick \"crosire\" Mours. All rights reserved.\n"
 			"\n"
 			"This software is provided 'as-is', without any express or implied warranty.\n"
 			"In no event will the authors be held liable for any damages arising from the use of this software.\n"
-			"\n");
+			"\n"
+			"Additional Credits:");
 
-		if (ImGui::CollapsingHeader("Credits", ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_DefaultOpen))
+		if (ImGui::CollapsingHeader("MinHook"))
 		{
-			ImGui::TextUnformatted(
-				"- MinHook\n"
-				"  Tsuda Kageyu and contributors\n"
-				"- gl3w\n"
-				"  Slavomir Kaslev\n"
-				"- dear imgui\n"
-				"  Omar Cornut and contributors\n"
-				"- stb_image, stb_image_write\n"
-				"  Sean Barrett and contributors\n"
-				"- DDS loading from SOIL\n"
-				"  Jonathan \"lonesock\" Dummer");
+			ImGui::TextUnformatted(R"(Copyright (C) 2009-2016 Tsuda Kageyu.
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions
+are met:
+
+ 1. Redistributions of source code must retain the above copyright
+	notice, this list of conditions and the following disclaimer.
+ 2. Redistributions in binary form must reproduce the above copyright
+	notice, this list of conditions and the following disclaimer in the
+	documentation and/or other materials provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER
+OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.)");
+		}
+		if (ImGui::CollapsingHeader("Hacker Disassembler Engine 32/64 C"))
+		{
+			ImGui::TextUnformatted(R"(Copyright (c) 2008-2009, Vyacheslav Patkov.
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions
+are met:
+
+ 1. Redistributions of source code must retain the above copyright
+	notice, this list of conditions and the following disclaimer.
+ 2. Redistributions in binary form must reproduce the above copyright
+	notice, this list of conditions and the following disclaimer in the
+	documentation and/or other materials provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR
+CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.)");
+		}
+		if (ImGui::CollapsingHeader("dear imgui"))
+		{
+			ImGui::TextUnformatted(R"(Copyright (c) 2014-2015 Omar Cornut and ImGui contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.)");
+		}
+		if (ImGui::CollapsingHeader("gl3w"))
+		{
+			ImGui::TextUnformatted("Slavomir Kaslev");
+		}
+		if (ImGui::CollapsingHeader("stb_image, stb_image_write"))
+		{
+			ImGui::TextUnformatted("Sean Barrett and contributors");
+		}
+		if (ImGui::CollapsingHeader("DDS loading from SOIL"))
+		{
+			ImGui::TextUnformatted("Jonathan \"lonesock\" Dummer");
 		}
 
 		ImGui::PopTextWrapPos();
