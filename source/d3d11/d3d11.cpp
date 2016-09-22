@@ -32,7 +32,7 @@ HOOK_EXPORT HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter,
 		return hr;
 	}
 
-	LOG(TRACE) << "> Using feature level " << std::hex << FeatureLevel << std::dec << ".";
+	LOG(INFO) << "> Using feature level " << std::hex << FeatureLevel << std::dec << ".";
 
 	if (ppDevice != nullptr)
 	{

@@ -70,7 +70,7 @@ namespace reshade::hooks
 
 		bool install(hook::address target, hook::address replacement, hook_method method)
 		{
-			LOG(TRACE) << "Installing hook for '0x" << target << "' with '0x" << replacement << "' using method " << static_cast<int>(method) << " ...";
+			LOG(INFO) << "Installing hook for '0x" << target << "' with '0x" << replacement << "' using method " << static_cast<int>(method) << " ...";
 
 			hook hook(target, replacement);
 			hook.trampoline = target;
@@ -117,7 +117,7 @@ namespace reshade::hooks
 				return false;
 			}
 
-			LOG(TRACE) << "> Succeeded.";
+			LOG(INFO) << "> Succeeded.";
 
 			const critical_section::lock lock(s_cs);
 
@@ -145,10 +145,10 @@ namespace reshade::hooks
 			std::vector<std::pair<hook::address, hook::address>> matches;
 			matches.reserve(replacement_exports.size());
 
-			LOG(TRACE) << "> Analyzing export table:";
-			LOG(TRACE) << "  +--------------------+---------+----------------------------------------------------+";
-			LOG(TRACE) << "  | Address            | Ordinal | Name                                               |";
-			LOG(TRACE) << "  +--------------------+---------+----------------------------------------------------+";
+			LOG(INFO) << "> Dumping matches in export table:";
+			LOG(INFO) << "  +--------------------+---------+----------------------------------------------------+";
+			LOG(INFO) << "  | Address            | Ordinal | Name                                               |";
+			LOG(INFO) << "  +--------------------+---------+----------------------------------------------------+";
 
 			// Analyze export table
 			for (const auto &symbol : target_exports)
@@ -160,25 +160,22 @@ namespace reshade::hooks
 
 				// Find appropriate replacement
 				const auto it = std::find_if(replacement_exports.cbegin(), replacement_exports.cend(),
-					[&symbol](const module_export &moduleexport)
-				{
-					return std::strcmp(moduleexport.name, symbol.name) == 0;
-				});
+					[&symbol](const module_export &moduleexport) {
+						return std::strcmp(moduleexport.name, symbol.name) == 0;
+					});
 
-			// Filter uninteresting functions
-				if (it == replacement_exports.cend() || (std::strcmp(symbol.name, "DXGIReportAdapterConfiguration") == 0 || std::strcmp(symbol.name, "DXGIDumpJournal") == 0))
+				// Filter uninteresting functions
+				if (it != replacement_exports.cend() &&
+					std::strcmp(symbol.name, "DXGIReportAdapterConfiguration") != 0 &&
+					std::strcmp(symbol.name, "DXGIDumpJournal") != 0)
 				{
-					LOG(TRACE) << "  | 0x" << std::setw(16) << symbol.address << " | " << std::setw(7) << symbol.ordinal << " | " << std::setw(50) << symbol.name << " |";
-				}
-				else
-				{
-					LOG(TRACE) << "  | 0x" << std::setw(16) << symbol.address << " | " << std::setw(7) << symbol.ordinal << " | " << std::setw(50) << symbol.name << " | <";
+					LOG(INFO) << "  | 0x" << std::setw(16) << symbol.address << " | " << std::setw(7) << symbol.ordinal << " | " << std::setw(50) << symbol.name << " |";
 
-					matches.push_back(std::make_pair(reinterpret_cast<hook::address>(symbol.address), reinterpret_cast<hook::address>(it->address)));
+					matches.push_back({ symbol.address, it->address });
 				}
 			}
 
-			LOG(TRACE) << "  +--------------------+---------+----------------------------------------------------+";
+			LOG(INFO) << "  +--------------------+---------+----------------------------------------------------+";
 			LOG(INFO) << "> Found " << matches.size() << " match(es). Installing ...";
 
 			// Hook matching exports
@@ -190,26 +187,15 @@ namespace reshade::hooks
 				}
 			}
 
-			if (install_count != 0)
-			{
-				LOG(INFO) << "> Installed " << install_count << " hook(s).";
-
-				return true;
-			}
-			else
-			{
-				LOG(WARNING) << "> Installed 0 hook(s).";
-
-				return false;
-			}
+			return install_count != 0;
 		}
 		bool uninstall(hook &hook, hook_method method)
 		{
-			LOG(TRACE) << "Uninstalling hook for '0x" << hook.target << "' ...";
+			LOG(INFO) << "Uninstalling hook for '0x" << hook.target << "' ...";
 
 			if (hook.uninstalled())
 			{
-				LOG(TRACE) << "> Already uninstalled.";
+				LOG(WARNING) << "> Already uninstalled.";
 
 				return true;
 			}
@@ -220,7 +206,7 @@ namespace reshade::hooks
 			{
 				case hook_method::export_hook:
 				{
-					LOG(TRACE) << "> Skipped.";
+					LOG(INFO) << "> Skipped.";
 
 					return true;
 				}
@@ -258,7 +244,7 @@ namespace reshade::hooks
 				return false;
 			}
 
-			LOG(TRACE) << "> Succeeded.";
+			LOG(INFO) << "> Succeeded.";
 
 			hook.trampoline = nullptr;
 
@@ -302,22 +288,21 @@ namespace reshade::hooks
 			const critical_section::lock lock(s_cs);
 
 			const auto remove = std::remove_if(s_delayed_hook_paths.begin(), s_delayed_hook_paths.end(),
-				[lpFileName](const filesystem::path &path)
-			{
-				HMODULE delayed_handle = nullptr;
-				GetModuleHandleExW(0, path.wstring().c_str(), &delayed_handle);
+				[lpFileName](const filesystem::path &path) {
+					HMODULE delayed_handle = nullptr;
+					GetModuleHandleExW(0, path.wstring().c_str(), &delayed_handle);
 
-				if (delayed_handle == nullptr)
-				{
-					return false;
-				}
+					if (delayed_handle == nullptr)
+					{
+						return false;
+					}
 
-				LOG(INFO) << "Installing delayed hooks for " << path << " (Just loaded via 'LoadLibraryA(\"" << lpFileName << "\")') ...";
+					LOG(INFO) << "Installing delayed hooks for " << path << " (Just loaded via 'LoadLibraryA(\"" << lpFileName << "\")') ...";
 
-				s_delayed_hook_modules.push_back(delayed_handle);
+					s_delayed_hook_modules.push_back(delayed_handle);
 
-				return install(delayed_handle, g_module_handle, hook_method::function_hook);
-			});
+					return install(delayed_handle, g_module_handle, hook_method::function_hook);
+				});
 
 			s_delayed_hook_paths.erase(remove, s_delayed_hook_paths.end());
 
@@ -348,22 +333,21 @@ namespace reshade::hooks
 			const critical_section::lock lock(s_cs);
 
 			const auto remove = std::remove_if(s_delayed_hook_paths.begin(), s_delayed_hook_paths.end(),
-				[lpFileName](const filesystem::path &path)
-			{
-				HMODULE delayed_handle = nullptr;
-				GetModuleHandleExW(0, path.wstring().c_str(), &delayed_handle);
+				[lpFileName](const filesystem::path &path) {
+					HMODULE delayed_handle = nullptr;
+					GetModuleHandleExW(0, path.wstring().c_str(), &delayed_handle);
 
-				if (delayed_handle == nullptr)
-				{
-					return false;
-				}
+					if (delayed_handle == nullptr)
+					{
+						return false;
+					}
 
-				LOG(INFO) << "Installing delayed hooks for " << path << " (Just loaded via 'LoadLibraryW(\"" << lpFileName << "\")') ...";
+					LOG(INFO) << "Installing delayed hooks for " << path << " (Just loaded via 'LoadLibraryW(\"" << lpFileName << "\")') ...";
 
-				s_delayed_hook_modules.push_back(delayed_handle);
+					s_delayed_hook_modules.push_back(delayed_handle);
 
-				return install(delayed_handle, g_module_handle, hook_method::function_hook);
-			});
+					return install(delayed_handle, g_module_handle, hook_method::function_hook);
+				});
 
 			s_delayed_hook_paths.erase(remove, s_delayed_hook_paths.end());
 
