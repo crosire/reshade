@@ -4,12 +4,8 @@
 
 struct D3D10Device : ID3D10Device1
 {
-	explicit D3D10Device(ID3D10Device  *original) :
-		_orig(original),
-		_interface_version(0) { }
 	explicit D3D10Device(ID3D10Device1 *original) :
-		_orig(original),
-		_interface_version(1) { }
+		_orig(original) { }
 
 	D3D10Device(const D3D10Device &) = delete;
 	D3D10Device &operator=(const D3D10Device &) = delete;
@@ -123,8 +119,7 @@ struct D3D10Device : ID3D10Device1
 	#pragma endregion
 
 	LONG _ref = 1;
-	ID3D10Device *_orig;
-	unsigned int _interface_version;
+	ID3D10Device1 *_orig;
 	struct DXGIDevice *_dxgi_device = nullptr;
 	std::vector<std::shared_ptr<reshade::d3d10::d3d10_runtime>> _runtimes;
 };

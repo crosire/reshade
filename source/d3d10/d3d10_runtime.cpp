@@ -9,25 +9,12 @@
 
 namespace reshade::d3d10
 {
-	UINT get_renderer_id(ID3D10Device *device)
-	{
-		com_ptr<ID3D10Device1> device1;
-
-		if (SUCCEEDED(device->QueryInterface(&device1)))
-		{
-			return device1->GetFeatureLevel();
-		}
-		else
-		{
-			return D3D10_FEATURE_LEVEL_10_0;
-		}
-	}
 	extern DXGI_FORMAT make_format_srgb(DXGI_FORMAT format);
 	extern DXGI_FORMAT make_format_normal(DXGI_FORMAT format);
 	extern DXGI_FORMAT make_format_typeless(DXGI_FORMAT format);
 
-	d3d10_runtime::d3d10_runtime(ID3D10Device *device, IDXGISwapChain *swapchain) :
-		runtime(get_renderer_id(device)), _device(device), _swapchain(swapchain),
+	d3d10_runtime::d3d10_runtime(ID3D10Device1 *device, IDXGISwapChain *swapchain) :
+		runtime(device->GetFeatureLevel()), _device(device), _swapchain(swapchain),
 		_stateblock(device)
 	{
 		assert(device != nullptr);

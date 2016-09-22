@@ -36,7 +36,7 @@ HOOK_EXPORT HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter,
 
 	if (ppDevice != nullptr)
 	{
-		IDXGIDevice *dxgidevice = nullptr;
+		IDXGIDevice1 *dxgidevice = nullptr;
 		ID3D11Device *const device = *ppDevice;
 		ID3D11DeviceContext *devicecontext = nullptr;
 

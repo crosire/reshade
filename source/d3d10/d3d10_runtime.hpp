@@ -29,7 +29,7 @@ namespace reshade::d3d10
 	class d3d10_runtime : public runtime
 	{
 	public:
-		d3d10_runtime(ID3D10Device *device, IDXGISwapChain *swapchain);
+		d3d10_runtime(ID3D10Device1 *device, IDXGISwapChain *swapchain);
 
 		bool on_init(const DXGI_SWAP_CHAIN_DESC &desc);
 		void on_reset();
@@ -49,7 +49,7 @@ namespace reshade::d3d10
 		void render_technique(const technique &technique) override;
 		void render_draw_lists(ImDrawData *data) override;
 
-		com_ptr<ID3D10Device> _device;
+		com_ptr<ID3D10Device1> _device;
 		com_ptr<IDXGISwapChain> _swapchain;
 
 		com_ptr<ID3D10Texture2D> _backbuffer_texture;

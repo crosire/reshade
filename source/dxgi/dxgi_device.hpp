@@ -4,13 +4,13 @@
 
 struct DXGIDevice : IDXGIDevice3
 {
-	DXGIDevice(IDXGIDevice *original, D3D10Device *direct3d_device) :
+	DXGIDevice(IDXGIDevice1 *original, D3D10Device *direct3d_device) :
 		_orig(original),
-		_interface_version(0),
+		_interface_version(1),
 		_direct3d_device(direct3d_device) { }
-	DXGIDevice(IDXGIDevice *original, D3D11Device *direct3d_device) :
+	DXGIDevice(IDXGIDevice1 *original, D3D11Device *direct3d_device) :
 		_orig(original),
-		_interface_version(0),
+		_interface_version(1),
 		_direct3d_device(direct3d_device) { }
 
 	DXGIDevice(const DXGIDevice &) = delete;
@@ -48,7 +48,7 @@ struct DXGIDevice : IDXGIDevice3
 	#pragma endregion
 
 	LONG _ref = 1;
-	IDXGIDevice *_orig;
+	IDXGIDevice1 *_orig;
 	unsigned int _interface_version;
 	IUnknown *const _direct3d_device;
 };

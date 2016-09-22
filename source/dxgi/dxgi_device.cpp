@@ -18,24 +18,6 @@ HRESULT STDMETHODCALLTYPE DXGIDevice::QueryInterface(REFIID riid, void **ppvObj)
 		riid == __uuidof(IDXGIDevice2) ||
 		riid == __uuidof(IDXGIDevice3))
 	{
-		#pragma region Update to IDXGIDevice1 interface
-		if (riid == __uuidof(IDXGIDevice1) && _interface_version < 1)
-		{
-			IDXGIDevice1 *device1 = nullptr;
-
-			if (FAILED(_orig->QueryInterface(&device1)))
-			{
-				return E_NOINTERFACE;
-			}
-
-			_orig->Release();
-
-			LOG(TRACE) << "Upgraded 'IDXGIDevice' object " << this << " to 'IDXGIDevice1'.";
-
-			_orig = device1;
-			_interface_version = 1;
-		}
-		#pragma endregion
 		#pragma region Update to IDXGIDevice2 interface
 		if (riid == __uuidof(IDXGIDevice2) && _interface_version < 2)
 		{
@@ -150,15 +132,11 @@ HRESULT STDMETHODCALLTYPE DXGIDevice::GetGPUThreadPriority(INT *pPriority)
 // IDXGIDevice1
 HRESULT STDMETHODCALLTYPE DXGIDevice::SetMaximumFrameLatency(UINT MaxLatency)
 {
-	assert(_interface_version >= 1);
-
-	return static_cast<IDXGIDevice1 *>(_orig)->SetMaximumFrameLatency(MaxLatency);
+	return _orig->SetMaximumFrameLatency(MaxLatency);
 }
 HRESULT STDMETHODCALLTYPE DXGIDevice::GetMaximumFrameLatency(UINT *pMaxLatency)
 {
-	assert(_interface_version >= 1);
-
-	return static_cast<IDXGIDevice1 *>(_orig)->GetMaximumFrameLatency(pMaxLatency);
+	return _orig->GetMaximumFrameLatency(pMaxLatency);
 }
 
 // IDXGIDevice2

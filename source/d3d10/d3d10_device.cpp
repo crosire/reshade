@@ -15,25 +15,6 @@ HRESULT STDMETHODCALLTYPE D3D10Device::QueryInterface(REFIID riid, void **ppvObj
 		riid == __uuidof(ID3D10Device) ||
 		riid == __uuidof(ID3D10Device1))
 	{
-		#pragma region Update to ID3D10Device1 interface
-		if (riid == __uuidof(ID3D10Device1) && _interface_version < 1)
-		{
-			ID3D10Device1 *device1 = nullptr;
-
-			if (FAILED(_orig->QueryInterface(&device1)))
-			{
-				return E_NOINTERFACE;
-			}
-
-			_orig->Release();
-
-			LOG(TRACE) << "Upgraded 'ID3D10Device' object " << this << " to 'ID3D10Device1'.";
-
-			_orig = device1;
-			_interface_version = 1;
-		}
-		#pragma endregion
-	
 		AddRef();
 
 		*ppvObj = this;
@@ -75,7 +56,7 @@ ULONG STDMETHODCALLTYPE D3D10Device::Release()
 
 	if (--_ref == 0 && ref != 0)
 	{
-		LOG(WARNING) << "Reference count for 'ID3D10Device" << (_interface_version > 0 ? std::to_string(_interface_version) : "") << "' object " << this << " is inconsistent: " << ref << ", but expected 0.";
+		LOG(WARNING) << "Reference count for 'ID3D10Device1' object " << this << " is inconsistent: " << ref << ", but expected 0.";
 
 		ref = 0;
 	}
@@ -84,7 +65,7 @@ ULONG STDMETHODCALLTYPE D3D10Device::Release()
 	{
 		assert(_ref <= 0);
 
-		LOG(TRACE) << "Destroyed 'ID3D10Device" << (_interface_version > 0 ? std::to_string(_interface_version) : "") << "' object " << this << ".";
+		LOG(TRACE) << "Destroyed 'ID3D10Device1' object " << this << ".";
 
 		delete this;
 	}
@@ -521,19 +502,13 @@ void STDMETHODCALLTYPE D3D10Device::GetTextFilterSize(UINT *pWidth, UINT *pHeigh
 // ID3D10Device1
 HRESULT STDMETHODCALLTYPE D3D10Device::CreateShaderResourceView1(ID3D10Resource *pResource, const D3D10_SHADER_RESOURCE_VIEW_DESC1 *pDesc, ID3D10ShaderResourceView1 **ppSRView)
 {
-	assert(_interface_version >= 1);
-
-	return static_cast<ID3D10Device1 *>(_orig)->CreateShaderResourceView1(pResource, pDesc, ppSRView);
+	return _orig->CreateShaderResourceView1(pResource, pDesc, ppSRView);
 }
 HRESULT STDMETHODCALLTYPE D3D10Device::CreateBlendState1(const D3D10_BLEND_DESC1 *pBlendStateDesc, ID3D10BlendState1 **ppBlendState)
 {
-	assert(_interface_version >= 1);
-
-	return static_cast<ID3D10Device1 *>(_orig)->CreateBlendState1(pBlendStateDesc, ppBlendState);
+	return _orig->CreateBlendState1(pBlendStateDesc, ppBlendState);
 }
 D3D10_FEATURE_LEVEL1 STDMETHODCALLTYPE D3D10Device::GetFeatureLevel()
 {
-	assert(_interface_version >= 1);
-
-	return static_cast<ID3D10Device1 *>(_orig)->GetFeatureLevel();
+	return _orig->GetFeatureLevel();
 }

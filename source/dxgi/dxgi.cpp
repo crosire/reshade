@@ -557,33 +557,9 @@ HOOK_EXPORT HRESULT WINAPI CreateDXGIFactory(REFIID riid, void **ppFactory)
 	StringFromGUID2(riid, riidString, ARRAYSIZE(riidString));
 
 	LOG(INFO) << "Redirecting '" << "CreateDXGIFactory" << "(" << riidString << ", " << ppFactory << ")' ...";
+	LOG(INFO) << "> Passing on to 'CreateDXGIFactory1':";
 
-	const HRESULT hr = reshade::hooks::call(&CreateDXGIFactory)(riid, ppFactory);
-
-	if (FAILED(hr))
-	{
-		LOG(WARNING) << "> 'CreateDXGIFactory' failed with error code " << std::hex << hr << std::dec << "!";
-
-		return hr;
-	}
-
-	IDXGIFactory *const factory = static_cast<IDXGIFactory *>(*ppFactory);
-	IDXGIFactory2 *factory2 = nullptr;
-
-	reshade::hooks::install(VTABLE(factory), 10, reinterpret_cast<reshade::hook::address>(&IDXGIFactory_CreateSwapChain));
-
-	if (SUCCEEDED(factory->QueryInterface(&factory2)))
-	{
-		reshade::hooks::install(VTABLE(factory2), 15, reinterpret_cast<reshade::hook::address>(&IDXGIFactory2_CreateSwapChainForHwnd));
-		reshade::hooks::install(VTABLE(factory2), 16, reinterpret_cast<reshade::hook::address>(&IDXGIFactory2_CreateSwapChainForCoreWindow));
-		reshade::hooks::install(VTABLE(factory2), 24, reinterpret_cast<reshade::hook::address>(&IDXGIFactory2_CreateSwapChainForComposition));
-
-		factory2->Release();
-	}
-
-	LOG(TRACE) << "> Returned factory object: " << *ppFactory;
-
-	return S_OK;
+	return CreateDXGIFactory1(riid, ppFactory);
 }
 HOOK_EXPORT HRESULT WINAPI CreateDXGIFactory1(REFIID riid, void **ppFactory)
 {
