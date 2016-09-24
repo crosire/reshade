@@ -108,7 +108,7 @@ HRESULT STDMETHODCALLTYPE IDirect3D9_CreateDevice(IDirect3D9 *pD3D, UINT Adapter
 		LOG(WARNING) << "> Skipping device due to device type being 'D3DDEVTYPE_NULLREF'.";
 	}
 
-	LOG(INFO) << "> Returned device object: " << *ppReturnedDeviceInterface;
+	LOG(INFO) << "Returning 'IDirect3DDevice9' object " << *ppReturnedDeviceInterface;
 
 	return D3D_OK;
 }
@@ -185,7 +185,7 @@ HRESULT STDMETHODCALLTYPE IDirect3D9Ex_CreateDeviceEx(IDirect3D9Ex *pD3D, UINT A
 		LOG(WARNING) << "> Skipping device due to device type being 'D3DDEVTYPE_NULLREF'.";
 	}
 
-	LOG(INFO) << "> Returned device object: " << *ppReturnedDeviceInterface;
+	LOG(INFO) << "Returning 'IDirect3DDevice9Ex' object " << *ppReturnedDeviceInterface;
 
 	return D3D_OK;
 }
@@ -245,7 +245,7 @@ HOOK_EXPORT IDirect3D9 *WINAPI Direct3DCreate9(UINT SDKVersion)
 
 	reshade::hooks::install(VTABLE(res), 16, reinterpret_cast<reshade::hook::address>(&IDirect3D9_CreateDevice));
 
-	LOG(INFO) << "> Returned factory object: " << res;
+	LOG(INFO) << "Returning 'IDirect3D9' object " << res;
 
 	return res;
 }
@@ -265,7 +265,7 @@ HOOK_EXPORT HRESULT WINAPI Direct3DCreate9Ex(UINT SDKVersion, IDirect3D9Ex **ppD
 	reshade::hooks::install(VTABLE(*ppD3D), 16, reinterpret_cast<reshade::hook::address>(&IDirect3D9_CreateDevice));
 	reshade::hooks::install(VTABLE(*ppD3D), 20, reinterpret_cast<reshade::hook::address>(&IDirect3D9Ex_CreateDeviceEx));
 
-	LOG(INFO) << "> Returned factory object: " << *ppD3D;
+	LOG(INFO) << "Returning 'IDirect3D9Ex' object " << *ppD3D;
 
 	return D3D_OK;
 }

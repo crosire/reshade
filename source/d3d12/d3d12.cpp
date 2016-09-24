@@ -33,7 +33,7 @@ HOOK_EXPORT HRESULT WINAPI D3D12CreateDevice(IUnknown *pAdapter, D3D_FEATURE_LEV
 
 			*ppDevice = device_proxy;
 
-			LOG(INFO) << "> Returned device objects: " << device_proxy;
+			LOG(INFO) << "Returning 'ID3D12Device' object " << device_proxy;
 		}
 		else
 		{

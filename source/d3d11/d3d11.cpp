@@ -74,6 +74,8 @@ HOOK_EXPORT HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter,
 
 			assert(SUCCEEDED(hr));
 
+			LOG(INFO) << "> Calling 'IDXGIFactory::CreateSwapChain':";
+
 			hr = factory->CreateSwapChain(device_proxy, const_cast<DXGI_SWAP_CHAIN_DESC *>(pSwapChainDesc), ppSwapChain);
 
 			factory->Release();
@@ -82,15 +84,18 @@ HOOK_EXPORT HRESULT WINAPI D3D11CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter,
 
 		if (SUCCEEDED(hr))
 		{
+			LOG(INFO) << "Returning 'IDXGIDevice1' object " << device_proxy->_dxgi_device;
+			LOG(INFO) << "Returning 'ID3D11Device' object " << device_proxy;
+
 			*ppDevice = device_proxy;
 
 			if (ppImmediateContext != nullptr)
 			{
+				LOG(INFO) << "Returning 'ID3D11DeviceContext' object " << devicecontext_proxy;
+
 				devicecontext_proxy->AddRef();
 				*ppImmediateContext = devicecontext_proxy;
 			}
-
-			LOG(INFO) << "> Returned device objects: " << device_proxy << ", " << device_proxy->_dxgi_device;
 		}
 		else
 		{

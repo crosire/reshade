@@ -78,6 +78,8 @@ HOOK_EXPORT HRESULT WINAPI D3D10CreateDeviceAndSwapChain1(IDXGIAdapter *pAdapter
 
 			assert(SUCCEEDED(hr));
 
+			LOG(INFO) << "> Calling 'IDXGIFactory::CreateSwapChain':";
+
 			hr = factory->CreateSwapChain(device_proxy, pSwapChainDesc, ppSwapChain);
 
 			factory->Release();
@@ -86,9 +88,10 @@ HOOK_EXPORT HRESULT WINAPI D3D10CreateDeviceAndSwapChain1(IDXGIAdapter *pAdapter
 
 		if (SUCCEEDED(hr))
 		{
-			*ppDevice = device_proxy;
+			LOG(INFO) << "Returning 'IDXGIDevice1' object " << device_proxy->_dxgi_device;
+			LOG(INFO) << "Returning 'ID3D10Device1' object " << device_proxy;
 
-			LOG(INFO) << "> Returned device objects: " << device_proxy << ", " << device_proxy->_dxgi_device;
+			*ppDevice = device_proxy;
 		}
 		else
 		{

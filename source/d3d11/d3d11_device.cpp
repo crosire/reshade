@@ -265,6 +265,8 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDeferredContext(UINT ContextFlags, 
 
 	*ppDeferredContext = new D3D11DeviceContext(this, *ppDeferredContext);
 
+	LOG(INFO) << "Returning 'ID3D11DeviceContext' object " << *ppDeferredContext;
+
 	return S_OK;
 }
 HRESULT STDMETHODCALLTYPE D3D11Device::OpenSharedResource(HANDLE hResource, REFIID ReturnedInterface, void **ppResource)
@@ -374,6 +376,8 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDeferredContext1(UINT ContextFlags,
 	}
 
 	*ppDeferredContext = new D3D11DeviceContext(this, *ppDeferredContext);
+
+	LOG(INFO) << "Returning 'ID3D11DeviceContext1' object " << *ppDeferredContext;
 
 	return S_OK;
 }

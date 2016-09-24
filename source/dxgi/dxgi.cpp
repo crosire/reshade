@@ -168,7 +168,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, I
 		LOG(WARNING) << "> Skipping swap chain because it was created without a (hooked) Direct3D device.";
 	}
 
-	LOG(INFO) << "> Returned swap chain object: " << *ppSwapChain;
+	LOG(INFO) << "Returning 'IDXGISwapChain' object " << *ppSwapChain;
 
 	return S_OK;
 }
@@ -285,7 +285,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pF
 		LOG(WARNING) << "> Skipping swap chain because it was created without a (hooked) Direct3D device.";
 	}
 
-	LOG(INFO) << "> Returned swap chain object: " << *ppSwapChain;
+	LOG(INFO) << "Returning 'IDXGISwapChain1' object " << *ppSwapChain;
 
 	return S_OK;
 }
@@ -400,7 +400,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactor
 		LOG(WARNING) << "> Skipping swap chain because it was created without a (hooked) Direct3D device.";
 	}
 
-	LOG(INFO) << "> Returned swap chain object: " << *ppSwapChain;
+	LOG(INFO) << "Returning 'IDXGISwapChain1' object " << *ppSwapChain;
 
 	return S_OK;
 }
@@ -515,7 +515,7 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFacto
 		LOG(WARNING) << "> Skipping swap chain because it was created without a (hooked) Direct3D device.";
 	}
 
-	LOG(INFO) << "> Returned swap chain object: " << *ppSwapChain;
+	LOG(INFO) << "Returning 'IDXGISwapChain1' object " << *ppSwapChain;
 
 	return S_OK;
 }
@@ -591,7 +591,7 @@ HOOK_EXPORT HRESULT WINAPI CreateDXGIFactory1(REFIID riid, void **ppFactory)
 		factory2->Release();
 	}
 
-	LOG(INFO) << "> Returned factory object: " << *ppFactory;
+	LOG(INFO) << "Returning 'IDXGIFactory' object " << *ppFactory;
 
 	return S_OK;
 }
@@ -629,7 +629,7 @@ HOOK_EXPORT HRESULT WINAPI CreateDXGIFactory2(UINT flags, REFIID riid, void **pp
 		factory2->Release();
 	}
 
-	LOG(INFO) << "> Returned factory object: " << *ppFactory;
+	LOG(INFO) << "Returning 'IDXGIFactory' object " << *ppFactory;
 
 	return S_OK;
 }
