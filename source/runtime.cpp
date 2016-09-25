@@ -65,6 +65,10 @@ namespace reshade
 		imgui_style.ScrollbarRounding = 0.0f;
 		imgui_style.GrabRounding = 0.0f;
 
+		_imgui_font_atlas->AddFontDefault();
+		const auto font_path = filesystem::get_special_folder_path(filesystem::special_folder::windows) / "Fonts" / "consolab.ttf";
+		_imgui_font_atlas->AddFontFromFileTTF(font_path.string().c_str(), 18.0f);
+
 		load_configuration();
 	}
 	runtime::~runtime()
@@ -640,6 +644,8 @@ namespace reshade
 		_screenshot_path = config.get("GENERAL", "ScreenshotPath", _screenshot_path).as<filesystem::path>();
 		_screenshot_format = config.get("GENERAL", "ScreenshotFormat", 0).as<int>();
 
+		_show_fps = config.get("GENERAL", "ShowFPS", _show_fps).as<bool>();
+
 		auto &style = _imgui_context->Style;
 		style.Alpha = config.get("STYLE", "Alpha", 0.95f).as<float>();
 
@@ -648,9 +654,11 @@ namespace reshade
 		for (size_t i = 0; i < 3; i++)
 			_imgui_col_item_background[i] = config.get("STYLE", "ColItemBackground", _imgui_col_item_background).as<float>(i);
 		for (size_t i = 0; i < 3; i++)
+			_imgui_col_active[i] = config.get("STYLE", "ColActive", _imgui_col_active).as<float>(i);
+		for (size_t i = 0; i < 3; i++)
 			_imgui_col_text[i] = config.get("STYLE", "ColText", _imgui_col_text).as<float>(i);
 		for (size_t i = 0; i < 3; i++)
-			_imgui_col_active[i] = config.get("STYLE", "ColActive", _imgui_col_active).as<float>(i);
+			_imgui_col_text_fps[i] = config.get("STYLE", "ColFPSText", _imgui_col_text_fps).as<float>(i);
 
 		style.Colors[ImGuiCol_Text] = ImVec4(_imgui_col_text[0], _imgui_col_text[1], _imgui_col_text[2], 1.00f);
 		style.Colors[ImGuiCol_TextDisabled] = ImVec4(_imgui_col_text[0], _imgui_col_text[1], _imgui_col_text[2], 0.58f);
@@ -718,13 +726,15 @@ namespace reshade
 		config.set("GENERAL", "TutorialProgress", _tutorial_index);
 		config.set("GENERAL", "ScreenshotPath", _screenshot_path);
 		config.set("GENERAL", "ScreenshotFormat", _screenshot_format);
+		config.set("GENERAL", "ShowFPS", _show_fps);
 
 		const auto &style = _imgui_context->Style;
 		config.set("STYLE", "Alpha", style.Alpha);
 		config.set("STYLE", "ColBackground", _imgui_col_background);
 		config.set("STYLE", "ColItemBackground", _imgui_col_item_background);
-		config.set("STYLE", "ColText", _imgui_col_text);
 		config.set("STYLE", "ColActive", _imgui_col_active);
+		config.set("STYLE", "ColText", _imgui_col_text);
+		config.set("STYLE", "ColFPSText", _imgui_col_text_fps);
 	}
 	void runtime::load_preset(const filesystem::path &path)
 	{
@@ -873,7 +883,7 @@ namespace reshade
 			_show_menu = !_show_menu;
 		}
 
-		if (!(_show_menu || _show_error_log || show_splash))
+		if (!(_show_menu || _show_fps || _show_error_log || show_splash))
 		{
 			_input->block_mouse_input(false);
 			_input->block_keyboard_input(false);
@@ -926,8 +936,9 @@ namespace reshade
 			ImGui::SetNextWindowSize(ImVec2(_width - 20.0f, ImGui::GetItemsLineHeightWithSpacing() * 3));
 			ImGui::Begin("Splash Screen", nullptr, ImVec2(), -1,
 				ImGuiWindowFlags_NoTitleBar |
-				ImGuiWindowFlags_NoResize |
+				ImGuiWindowFlags_NoScrollbar |
 				ImGuiWindowFlags_NoMove |
+				ImGuiWindowFlags_NoResize |
 				ImGuiWindowFlags_NoSavedSettings |
 				ImGuiWindowFlags_NoInputs |
 				ImGuiWindowFlags_NoFocusOnAppearing);
@@ -981,10 +992,32 @@ namespace reshade
 				ImGui::End();
 			}
 
+			if (_show_fps)
+			{
+				ImGui::SetNextWindowPos(ImVec2(_width - 70, 0));
+				ImGui::SetNextWindowSize(ImVec2(70, 0));
+				ImGui::PushFont(imgui_io.Fonts->Fonts[1]);
+				ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(_imgui_col_text_fps[0], _imgui_col_text_fps[1], _imgui_col_text_fps[2], 1.0f));
+				ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4());
+				ImGui::Begin("FPS", nullptr,
+					ImGuiWindowFlags_NoTitleBar |
+					ImGuiWindowFlags_NoScrollbar |
+					ImGuiWindowFlags_NoMove |
+					ImGuiWindowFlags_NoResize |
+					ImGuiWindowFlags_NoSavedSettings |
+					ImGuiWindowFlags_NoInputs |
+					ImGuiWindowFlags_NoFocusOnAppearing);
+
+				ImGui::Text("%.2f", imgui_io.Framerate);
+
+				ImGui::End();
+				ImGui::PopStyleColor(2);
+				ImGui::PopFont();
+			}
+
 			if (_show_error_log)
 			{
 				ImGui::SetNextWindowSize(ImVec2(500, 100), ImGuiSetCond_Once);
-
 				ImGui::Begin("Error Log", &_show_error_log);
 				ImGui::PushTextWrapPos();
 
@@ -1449,10 +1482,14 @@ namespace reshade
 			const bool modified1 = ImGui::DragFloat("Alpha", &ImGui::GetStyle().Alpha, 0.005f, 0.20f, 1.0f, "%.2f");
 			const bool modified2 = ImGui::ColorEdit3("Background Color", _imgui_col_background);
 			const bool modified3 = ImGui::ColorEdit3("Item Background Color", _imgui_col_item_background);
-			const bool modified4 = ImGui::ColorEdit3("Text Color", _imgui_col_text);
-			const bool modified5 = ImGui::ColorEdit3("Active Item Color", _imgui_col_active);
+			const bool modified4 = ImGui::ColorEdit3("Active Item Color", _imgui_col_active);
+			const bool modified5 = ImGui::ColorEdit3("Text Color", _imgui_col_text);
+			const bool modified6 = ImGui::ColorEdit3("FPS Text Color", _imgui_col_text_fps);
 
-			if (modified1 || modified2 || modified3 || modified4 || modified5)
+			ImGui::SameLine(ImGui::GetWindowWidth() - 100);
+			ImGui::Checkbox("Show FPS", &_show_fps);
+
+			if (modified1 || modified2 || modified3 || modified4 || modified5 || modified6)
 			{
 				save_configuration();
 				load_configuration();
