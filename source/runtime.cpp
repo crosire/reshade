@@ -475,7 +475,7 @@ namespace reshade
 				}
 
 				const auto initializer = static_cast<reshadefx::nodes::literal_expression_node *>(variable->initializer_expression);
-				const auto data = preset.get(path.filename().string(), variable->unique_name);
+				const auto data = preset.get(path.filename().string(), variable->name);
 
 				for (unsigned int i = 0; i < std::min(variable->type.rows, static_cast<unsigned int>(data.data().size())); i++)
 				{
@@ -745,7 +745,7 @@ namespace reshade
 			float values[16] = { };
 			get_uniform_value(variable, values, 16);
 
-			const auto preset_values = preset.get(variable.effect_filename, variable.unique_name, variant(values, 16));
+			const auto preset_values = preset.get(variable.effect_filename, variable.name, variant(values, 16));
 
 			for (unsigned int i = 0; i < 16; i++)
 			{
@@ -756,20 +756,22 @@ namespace reshade
 		}
 
 		// Reorder techniques
-		auto order = preset.get("", "Techniques").data();
+		std::vector<std::string> technique_list = preset.get("", "Techniques").data();
 		std::sort(_techniques.begin(), _techniques.end(),
-			[&order](const auto &lhs, const auto &rhs) {
-				return (std::find(order.begin(), order.end(), lhs.name) - order.begin()) < (std::find(order.begin(), order.end(), rhs.name) - order.begin());
+			[&technique_list](const auto &lhs, const auto &rhs) {
+				return
+					(std::find(technique_list.begin(), technique_list.end(), lhs.name) - technique_list.begin()) <
+					(std::find(technique_list.begin(), technique_list.end(), rhs.name) - technique_list.begin());
 			});
 		for (auto &technique : _techniques)
 		{
-			technique.enabled = std::find(order.begin(), order.end(), technique.name) != order.end();
+			technique.enabled = std::find(technique_list.begin(), technique_list.end(), technique.name) != technique_list.end();
 
 			const int toggle_key[4] = { technique.toggle_key, technique.toggle_key_ctrl ? 1 : 0, technique.toggle_key_shift ? 1 : 0, technique.toggle_key_alt ? 1 : 0 };
-			technique.toggle_key = preset.get(technique.effect_filename, "Toggle", toggle_key).as<int>(0);
-			technique.toggle_key_ctrl = preset.get(technique.effect_filename, "Toggle", toggle_key).as<int>(1);
-			technique.toggle_key_shift = preset.get(technique.effect_filename, "Toggle", toggle_key).as<int>(2);
-			technique.toggle_key_alt = preset.get(technique.effect_filename, "Toggle", toggle_key).as<int>(3);
+			technique.toggle_key = preset.get("", "Key" + technique.name, toggle_key).as<int>(0);
+			technique.toggle_key_ctrl = preset.get("", "Key" + technique.name, toggle_key).as<bool>(1);
+			technique.toggle_key_shift = preset.get("", "Key" + technique.name, toggle_key).as<bool>(2);
+			technique.toggle_key_alt = preset.get("", "Key" + technique.name, toggle_key).as<bool>(3);
 		}
 	}
 	void runtime::save_preset(const filesystem::path &path) const
@@ -788,19 +790,20 @@ namespace reshade
 
 			assert(variable.rows * variable.columns < 16);
 
-			preset.set(variable.effect_filename, variable.unique_name, variant(values, variable.rows * variable.columns));
+			preset.set(variable.effect_filename, variable.name, variant(values, variable.rows * variable.columns));
 		}
 
-		std::string technique_list;
+		std::vector<std::string> technique_list;
 
 		for (const auto &technique : _techniques)
 		{
 			if (technique.enabled)
 			{
-				technique_list += technique.name + ',';
+				technique_list.push_back(technique.name);
 			}
 
-			preset.set(technique.effect_filename, "Toggle", { technique.toggle_key, technique.toggle_key_ctrl ? 1 : 0, technique.toggle_key_shift ? 1 : 0, technique.toggle_key_alt ? 1 : 0 });
+			const int toggle_key[4] = { technique.toggle_key, technique.toggle_key_ctrl ? 1 : 0, technique.toggle_key_shift ? 1 : 0, technique.toggle_key_alt ? 1 : 0 };
+			preset.set("", "Key" + technique.name, toggle_key);
 		}
 
 		preset.set("", "Techniques", technique_list);
@@ -1001,7 +1004,7 @@ namespace reshade
 
 			if (_show_fps && !show_splash)
 			{
-				ImGui::SetNextWindowPos(ImVec2(_width - 50, 0));
+				ImGui::SetNextWindowPos(ImVec2(_width - 50.f, 0));
 				ImGui::SetNextWindowSize(ImVec2(50, 0));
 				ImGui::PushFont(imgui_io.Fonts->Fonts[1]);
 				ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(_imgui_col_text_fps[0], _imgui_col_text_fps[1], _imgui_col_text_fps[2], 1.0f));

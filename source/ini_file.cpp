@@ -81,8 +81,39 @@ namespace reshade
 
 		std::ofstream file(_path.wstring());
 
+		const auto it = _sections.find("");
+
+		if (it != _sections.end())
+		{
+			for (const auto &section_line : it->second)
+			{
+				file << section_line.first << '=';
+
+				size_t i = 0;
+
+				for (const auto &item : section_line.second.data())
+				{
+					if (i++ != 0)
+					{
+						file << ',';
+					}
+
+					file << item;
+				}
+
+				file << std::endl;
+			}
+
+			file << std::endl;
+		}
+
 		for (const auto &section : _sections)
 		{
+			if (section.first.empty())
+			{
+				continue;
+			}
+
 			file << '[' << section.first << ']' << std::endl;
 
 			for (const auto &section_line : section.second)
