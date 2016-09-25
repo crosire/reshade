@@ -37,7 +37,6 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID lpvReserved)
 			LOG(INFO) << "Initializing crosire's ReShade version '" VERSION_STRING_FILE "' (" << VERSION_PLATFORM << ") built on '" VERSION_DATE " " VERSION_TIME "' loaded from " << runtime::s_reshade_dll_path << " to " << runtime::s_target_executable_path << " ...";
 
 			const auto system_path = filesystem::get_special_folder_path(filesystem::special_folder::system);
-			hooks::register_module(system_path / "d3d8.dll");
 			hooks::register_module(system_path / "d3d9.dll");
 			hooks::register_module(system_path / "d3d10.dll");
 			hooks::register_module(system_path / "d3d10_1.dll");
