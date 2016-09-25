@@ -442,12 +442,7 @@ namespace reshade::opengl
 
 			// Apply post processing
 			runtime::on_present_effect();
-
-			// Reset states
-			GLCHECK(glBindSampler(0, 0));
 		}
-
-		glDisable(GL_FRAMEBUFFER_SRGB);
 
 		// Reset render target and copy to frame buffer
 		GLCHECK(glBindFramebuffer(GL_READ_FRAMEBUFFER, _default_backbuffer_fbo));
@@ -770,6 +765,7 @@ namespace reshade::opengl
 		glDisable(GL_FRAMEBUFFER_SRGB);
 		glActiveTexture(GL_TEXTURE0);
 		glUseProgram(_imgui_shader_program);
+		glBindSampler(0, 0);
 		glBindVertexArray(_imgui_vao);
 		glViewport(0, 0, _width, _height);
 

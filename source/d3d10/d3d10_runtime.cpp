@@ -831,21 +831,24 @@ namespace reshade::d3d10
 			texture.levels = desc.MipLevels;
 		}
 
-		// Update techniques shader resource views
+		// Update effect shader resource views
+		for (auto &srv : _effect_shader_resources)
+		{
+			if (old_reference[0] == srv)
+				srv = new_reference[0].get();
+			if (old_reference[1] == srv)
+				srv = new_reference[1].get();
+		}
 		for (const auto &technique : _techniques)
 		{
 			for (const auto &pass : technique.passes)
 			{
 				for (auto &srv : pass->as<d3d10_pass_data>()->shader_resources)
 				{
-					if (srv == old_reference[0])
-					{
-						srv = texture_impl->srv[0].get();
-					}
-					if (srv == old_reference[1])
-					{
-						srv = texture_impl->srv[1].get();
-					}
+					if (old_reference[0] == srv)
+						srv = new_reference[0].get();
+					if (old_reference[1] == srv)
+						srv = new_reference[1].get();
 				}
 			}
 		}
