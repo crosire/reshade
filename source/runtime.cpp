@@ -628,7 +628,7 @@ namespace reshade
 		_screenshot_key.keycode = config.get("INPUT", "KeyScreenshot", screenshot_key).as<int>();
 		_screenshot_key.ctrl = config.get("INPUT", "KeyScreenshot", screenshot_key).as<bool>(1);
 		_screenshot_key.shift = config.get("INPUT", "KeyScreenshot", screenshot_key).as<bool>(2);
-		_input_processing_mode = config.get("INPUT", "InputProcessing", _input_processing_mode).as<bool>();
+		_input_processing_mode = config.get("INPUT", "InputProcessing", _input_processing_mode).as<int>();
 
 		_performance_mode = config.get("GENERAL", "PerformanceMode", _performance_mode).as<bool>();
 		const auto effect_search_paths = config.get("GENERAL", "EffectSearchPaths", _effect_search_paths).data();
