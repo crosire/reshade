@@ -230,27 +230,11 @@ namespace reshade
 	}
 	bool input::is_any_key_pressed() const
 	{
-		for (unsigned int i = 0; i < 256; i++)
-		{
-			if (is_key_pressed(i))
-			{
-				return true;
-			}
-		}
-
-		return false;
+		return last_key_pressed() != 0;
 	}
 	bool input::is_any_key_released() const
 	{
-		for (unsigned int i = 0; i < 256; i++)
-		{
-			if (is_key_released(i))
-			{
-				return true;
-			}
-		}
-
-		return false;
+		return last_key_released() != 0;
 	}
 	unsigned int input::last_key_pressed() const
 	{

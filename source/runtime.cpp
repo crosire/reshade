@@ -758,13 +758,18 @@ namespace reshade
 		// Reorder techniques
 		auto order = preset.get("", "Techniques").data();
 		std::sort(_techniques.begin(), _techniques.end(),
-			[&order](const auto &lhs, const auto &rhs)
-		{
-			return (std::find(order.begin(), order.end(), lhs.name) - order.begin()) < (std::find(order.begin(), order.end(), rhs.name) - order.begin());
-		});
+			[&order](const auto &lhs, const auto &rhs) {
+				return (std::find(order.begin(), order.end(), lhs.name) - order.begin()) < (std::find(order.begin(), order.end(), rhs.name) - order.begin());
+			});
 		for (auto &technique : _techniques)
 		{
 			technique.enabled = std::find(order.begin(), order.end(), technique.name) != order.end();
+
+			const int toggle_key[4] = { technique.toggle_key, technique.toggle_key_ctrl ? 1 : 0, technique.toggle_key_shift ? 1 : 0, technique.toggle_key_alt ? 1 : 0 };
+			technique.toggle_key = preset.get(technique.effect_filename, "Toggle", toggle_key).as<int>(0);
+			technique.toggle_key_ctrl = preset.get(technique.effect_filename, "Toggle", toggle_key).as<int>(1);
+			technique.toggle_key_shift = preset.get(technique.effect_filename, "Toggle", toggle_key).as<int>(2);
+			technique.toggle_key_alt = preset.get(technique.effect_filename, "Toggle", toggle_key).as<int>(3);
 		}
 	}
 	void runtime::save_preset(const filesystem::path &path) const
@@ -794,6 +799,8 @@ namespace reshade
 			{
 				technique_list += technique.name + ',';
 			}
+
+			preset.set(technique.effect_filename, "Toggle", { technique.toggle_key, technique.toggle_key_ctrl ? 1 : 0, technique.toggle_key_shift ? 1 : 0, technique.toggle_key_alt ? 1 : 0 });
 		}
 
 		preset.set("", "Techniques", technique_list);
@@ -1320,7 +1327,7 @@ namespace reshade
 		const auto copy_key_shortcut_to_edit_buffer = [&edit_buffer](const key_shortcut &shortcut) {
 			size_t offset = 0;
 			if (shortcut.ctrl) memcpy(edit_buffer, "Ctrl + ", 8), offset += 7;
-			if (shortcut.shift) memcpy(edit_buffer, "Shift + ", 9), offset += 8;
+			if (shortcut.shift) memcpy(edit_buffer + offset, "Shift + ", 9), offset += 8;
 			memcpy(edit_buffer + offset, keyboard_keys[shortcut.keycode], sizeof(*keyboard_keys));
 		};
 		const auto copy_vector_to_edit_buffer = [&edit_buffer](const std::vector<std::string> &data) {
@@ -1360,18 +1367,15 @@ namespace reshade
 			{
 				_overlay_key_setting_active = true;
 
-				if (_input->is_any_key_pressed())
+				const unsigned int last_key_pressed = _input->last_key_pressed();
+
+				if (last_key_pressed != 0 && (last_key_pressed < 0x10 || last_key_pressed > 0x11))
 				{
-					const unsigned int last_key_pressed = _input->last_key_pressed();
+					_menu_key.keycode = last_key_pressed;
+					_menu_key.ctrl = _input->is_key_down(0x11);
+					_menu_key.shift = _input->is_key_down(0x10);
 
-					if (last_key_pressed != 0x11 && last_key_pressed != 0x10)
-					{
-						_menu_key.ctrl = _input->is_key_down(0x11);
-						_menu_key.shift = _input->is_key_down(0x10);
-						_menu_key.keycode = _input->last_key_pressed();
-
-						save_configuration();
-					}
+					save_configuration();
 				}
 			}
 			else if (ImGui::IsItemHovered())
@@ -1443,18 +1447,15 @@ namespace reshade
 			{
 				_screenshot_key_setting_active = true;
 
-				if (_input->is_any_key_pressed())
+				const unsigned int last_key_pressed = _input->last_key_pressed();
+
+				if (last_key_pressed != 0 && (last_key_pressed < 0x10 || last_key_pressed > 0x11))
 				{
-					const unsigned int last_key_pressed = _input->last_key_pressed();
+					_screenshot_key.keycode = last_key_pressed;
+					_screenshot_key.ctrl = _input->is_key_down(0x11);
+					_screenshot_key.shift = _input->is_key_down(0x10);
 
-					if (last_key_pressed != 0x11 && last_key_pressed != 0x10)
-					{
-						_screenshot_key.ctrl = _input->is_key_down(0x11);
-						_screenshot_key.shift = _input->is_key_down(0x10);
-						_screenshot_key.keycode = _input->last_key_pressed();
-
-						save_configuration();
-					}
+					save_configuration();
 				}
 			}
 			else if (ImGui::IsItemHovered())
@@ -1755,6 +1756,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 		int hovered_technique_index = -1;
 		bool current_tree_is_closed = true;
 		std::string current_filename;
+		char edit_buffer[2048];
+		const float toggle_key_text_offset = ImGui::GetWindowContentRegionWidth() - ImGui::CalcTextSize("Toggle Key").x - 201;
 
 		for (int id = 0; id < static_cast<int>(_technique_count); id++)
 		{
@@ -1792,6 +1795,51 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 			if (ImGui::IsItemHoveredRect())
 			{
 				hovered_technique_index = id;
+			}
+
+			assert(technique.toggle_key < 256);
+
+			size_t offset = 0;
+			if (technique.toggle_key_ctrl) memcpy(edit_buffer, "Ctrl + ", 8), offset += 7;
+			if (technique.toggle_key_shift) memcpy(edit_buffer + offset, "Shift + ", 9), offset += 8;
+			if (technique.toggle_key_alt) memcpy(edit_buffer + offset, "Alt + ", 7), offset += 6;
+			memcpy(edit_buffer + offset, keyboard_keys[technique.toggle_key], sizeof(*keyboard_keys));
+
+			ImGui::SameLine(toggle_key_text_offset);
+			ImGui::TextUnformatted("Toggle Key");
+			ImGui::SameLine();
+			ImGui::InputTextEx("##ToggleKey", edit_buffer, sizeof(edit_buffer), ImVec2(200, 0), ImGuiInputTextFlags_ReadOnly);
+
+			if (ImGui::IsItemActive())
+			{
+				const unsigned int last_key_pressed = _input->last_key_pressed();
+
+				if (last_key_pressed != 0)
+				{
+					if (last_key_pressed == 0x08) // Backspace
+					{
+						technique.toggle_key = 0;
+						technique.toggle_key_ctrl = false;
+						technique.toggle_key_shift = false;
+						technique.toggle_key_alt = false;
+					}
+					else if (last_key_pressed < 0x10 || last_key_pressed > 0x12)
+					{
+						technique.toggle_key = last_key_pressed;
+						technique.toggle_key_ctrl = _input->is_key_down(0x11);
+						technique.toggle_key_shift = _input->is_key_down(0x10);
+						technique.toggle_key_alt = _input->is_key_down(0x12);
+					}
+
+					if (_current_preset >= 0)
+					{
+						save_preset(_preset_files[_current_preset]);
+					}
+				}
+			}
+			else if (ImGui::IsItemHovered())
+			{
+				ImGui::SetTooltip("Click in the field and press any key to change the toggle shortcut to that key.\nPress backspace to disable the shortcut.");
 			}
 
 			ImGui::PopID();
