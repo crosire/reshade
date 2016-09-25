@@ -151,12 +151,6 @@ namespace reshade
 		/// <param name="texture">The texture to update.</param>
 		/// <param name="data">The 32bpp RGBA image data to update the texture to.</param>
 		virtual bool update_texture(texture &texture, const uint8_t *data) = 0;
-		/// <summary>
-		/// Replace texture with a reference to special data.
-		/// </summary>
-		/// <param name="texture">The texture to update.</param>
-		/// <param name="id">The number identifying the special data this texture should reference.</param>
-		virtual bool update_texture_reference(texture &texture, texture_reference id) = 0;
 
 		/// <summary>
 		/// Render all passes in a technique.

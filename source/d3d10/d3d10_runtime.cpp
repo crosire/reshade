@@ -474,8 +474,12 @@ namespace reshade::d3d10
 
 		_effect_sampler_descs.clear();
 		_effect_sampler_states.clear();
-		_effect_shader_resources.clear();
 		_constant_buffers.clear();
+
+		_effect_shader_resources.resize(3);
+		_effect_shader_resources[0] = _backbuffer_texture_srv[0].get();
+		_effect_shader_resources[1] = _backbuffer_texture_srv[1].get();
+		_effect_shader_resources[2] = _depthstencil_texture_srv.get();
 	}
 	void d3d10_runtime::on_present()
 	{
@@ -772,7 +776,7 @@ namespace reshade::d3d10
 	}
 	bool d3d10_runtime::update_texture_reference(texture &texture, texture_reference id)
 	{
-		com_ptr<ID3D10ShaderResourceView> new_reference[2], old_reference[2];
+		com_ptr<ID3D10ShaderResourceView> new_reference[2];
 
 		switch (id)
 		{
@@ -794,24 +798,14 @@ namespace reshade::d3d10
 
 		assert(texture_impl != nullptr);
 
-		if (new_reference[0] == texture_impl->srv[0] &&
-			new_reference[1] == texture_impl->srv[1])
-		{
-			return true;
-		}
-
+		texture_impl->texture.reset();
+		texture_impl->srv[0].reset();
+		texture_impl->srv[1].reset();
 		texture_impl->rtv[0].reset();
 		texture_impl->rtv[1].reset();
-		texture_impl->texture.reset();
-
-		old_reference[0] = texture_impl->srv[0];
-		old_reference[1] = texture_impl->srv[1];
 
 		if (new_reference[0] == nullptr)
 		{
-			texture_impl->srv[0].reset();
-			texture_impl->srv[1].reset();
-
 			texture.width = texture.height = texture.levels = 0;
 			texture.format = texture_format::unknown;
 		}
@@ -829,28 +823,6 @@ namespace reshade::d3d10
 			texture.height = desc.Height;
 			texture.format = texture_format::unknown;
 			texture.levels = desc.MipLevels;
-		}
-
-		// Update effect shader resource views
-		for (auto &srv : _effect_shader_resources)
-		{
-			if (old_reference[0] == srv)
-				srv = new_reference[0].get();
-			if (old_reference[1] == srv)
-				srv = new_reference[1].get();
-		}
-		for (const auto &technique : _techniques)
-		{
-			for (const auto &pass : technique.passes)
-			{
-				for (auto &srv : pass->as<d3d10_pass_data>()->shader_resources)
-				{
-					if (old_reference[0] == srv)
-						srv = new_reference[0].get();
-					if (old_reference[1] == srv)
-						srv = new_reference[1].get();
-				}
-			}
 		}
 
 		return true;
@@ -1304,13 +1276,10 @@ namespace reshade::d3d10
 		}
 
 		// Update effect textures
-		for (auto &texture : _textures)
-		{
-			if (texture.impl_reference == texture_reference::depth_buffer)
-			{
-				update_texture_reference(texture, texture_reference::depth_buffer);
-			}
-		}
+		_effect_shader_resources[2] = _depthstencil_texture_srv.get();
+		for (const auto &technique : _techniques)
+			for (const auto &pass : technique.passes)
+				pass->as<d3d10_pass_data>()->shader_resources[2] = _depthstencil_texture_srv.get();
 
 		return true;
 	}

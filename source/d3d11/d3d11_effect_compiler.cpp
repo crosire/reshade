@@ -1479,13 +1479,21 @@ namespace reshade::d3d11
 		texdesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
 		texdesc.MiscFlags = D3D11_RESOURCE_MISC_GENERATE_MIPS;
 
+		size_t texture_register_index, texture_register_index_srgb;
+
 		if (node->semantic == "COLOR" || node->semantic == "SV_TARGET")
 		{
 			_runtime->update_texture_reference(obj, texture_reference::back_buffer);
+
+			texture_register_index = 0;
+			texture_register_index_srgb = 1;
 		}
 		else if (node->semantic == "DEPTH" || node->semantic == "SV_DEPTH")
 		{
 			_runtime->update_texture_reference(obj, texture_reference::depth_buffer);
+
+			texture_register_index = 2;
+			texture_register_index_srgb = 2;
 		}
 		else
 		{
@@ -1519,6 +1527,9 @@ namespace reshade::d3d11
 
 			srvdesc.Format = make_format_srgb(texdesc.Format);
 
+			texture_register_index = _runtime->_effect_shader_resources.size();
+			_runtime->_effect_shader_resources.push_back(obj_data->srv[0].get());
+
 			if (srvdesc.Format != texdesc.Format)
 			{
 				hr = _runtime->_device->CreateShaderResourceView(obj_data->texture.get(), &srvdesc, &obj_data->srv[1]);
@@ -1528,33 +1539,14 @@ namespace reshade::d3d11
 					error(node->location, "'ID3D11Device::CreateShaderResourceView' failed with error code " + std::to_string(static_cast<unsigned long>(hr)) + "!");
 					return;
 				}
+
+				texture_register_index_srgb = _runtime->_effect_shader_resources.size();
+				_runtime->_effect_shader_resources.push_back(obj_data->srv[1].get());
 			}
-		}
-
-		size_t texture_register_index = 0, texture_register_index_srgb = 0;
-
-		const auto it1 = std::find(_runtime->_effect_shader_resources.begin(), _runtime->_effect_shader_resources.end(), obj_data->srv[0]);
-
-		if (it1 != _runtime->_effect_shader_resources.end())
-		{
-			texture_register_index = it1 - _runtime->_effect_shader_resources.begin();
-		}
-		else
-		{
-			texture_register_index = _runtime->_effect_shader_resources.size();
-			_runtime->_effect_shader_resources.push_back(obj_data->srv[0].get());
-		}
-
-		const auto it2 = std::find(_runtime->_effect_shader_resources.begin(), _runtime->_effect_shader_resources.end(), obj_data->srv[1]);
-
-		if (it2 != _runtime->_effect_shader_resources.end())
-		{
-			texture_register_index_srgb = it2 - _runtime->_effect_shader_resources.begin();
-		}
-		else
-		{
-			texture_register_index_srgb = _runtime->_effect_shader_resources.size();
-			_runtime->_effect_shader_resources.push_back(obj_data->srv[1].get());
+			else
+			{
+				texture_register_index_srgb = texture_register_index;
+			}
 		}
 
 		_global_code << "Texture2D " <<

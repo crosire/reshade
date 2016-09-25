@@ -61,10 +61,6 @@ namespace reshade::d3d12
 	{
 		return false;
 	}
-	bool d3d12_runtime::update_texture_reference(texture &texture, texture_reference id)
-	{
-		return false;
-	}
 
 	void d3d12_runtime::render_technique(const technique &technique)
 	{

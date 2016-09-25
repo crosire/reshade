@@ -44,7 +44,7 @@ namespace reshade::d3d10
 		void capture_frame(uint8_t *buffer) const override;
 		bool load_effect(const reshadefx::syntax_tree &ast, std::string &errors) override;
 		bool update_texture(texture &texture, const uint8_t *data) override;
-		bool update_texture_reference(texture &texture, texture_reference id) override;
+		bool update_texture_reference(texture &texture, texture_reference id);
 
 		void render_technique(const technique &technique) override;
 		void render_draw_lists(ImDrawData *data) override;

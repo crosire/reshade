@@ -50,10 +50,6 @@ namespace reshade::vulkan
 	{
 		return false;
 	}
-	bool vulkan_runtime::update_texture_reference(texture &texture, texture_reference id)
-	{
-		return false;
-	}
 
 	void vulkan_runtime::render_technique(const technique &technique)
 	{
