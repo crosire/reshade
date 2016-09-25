@@ -992,10 +992,10 @@ namespace reshade
 				ImGui::End();
 			}
 
-			if (_show_fps)
+			if (_show_fps && !show_splash)
 			{
-				ImGui::SetNextWindowPos(ImVec2(_width - 70, 0));
-				ImGui::SetNextWindowSize(ImVec2(70, 0));
+				ImGui::SetNextWindowPos(ImVec2(_width - 50, 0));
+				ImGui::SetNextWindowSize(ImVec2(50, 0));
 				ImGui::PushFont(imgui_io.Fonts->Fonts[1]);
 				ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(_imgui_col_text_fps[0], _imgui_col_text_fps[1], _imgui_col_text_fps[2], 1.0f));
 				ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4());
@@ -1008,7 +1008,7 @@ namespace reshade
 					ImGuiWindowFlags_NoInputs |
 					ImGuiWindowFlags_NoFocusOnAppearing);
 
-				ImGui::Text("%.2f", imgui_io.Framerate);
+				ImGui::Text("%.0f", imgui_io.Framerate);
 
 				ImGui::End();
 				ImGui::PopStyleColor(2);
