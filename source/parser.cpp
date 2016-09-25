@@ -2610,7 +2610,10 @@ namespace reshadefx
 		{
 			type_node type;
 
-			accept_type_class(type);
+			if (accept_type_class(type))
+			{
+				warning(_token.location, 4717, "type prefixes for annotations are deprecated");
+			}
 
 			if (!expect(lexer::tokenid::identifier))
 			{
