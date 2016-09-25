@@ -355,7 +355,8 @@ namespace reshade
 					technique.timeleft = 0;
 				}
 			}
-			else if (_input->is_key_pressed(technique.toggle_key, technique.toggle_key_ctrl, technique.toggle_key_shift, technique.toggle_key_alt))
+			else if (_input->is_key_pressed(technique.toggle_key, technique.toggle_key_ctrl, technique.toggle_key_shift, technique.toggle_key_alt) ||
+				(technique.toggle_key >= 0x01 && technique.toggle_key <= 0x06 && _input->is_mouse_button_pressed(technique.toggle_key - 1)))
 			{
 				technique.enabled = !technique.enabled;
 				technique.timeleft = technique.timeout;
