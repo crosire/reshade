@@ -36,6 +36,8 @@ namespace reshade
 		_screenshot_path(s_target_executable_path.parent_path()),
 		_variable_editor_height(300)
 	{
+		ImGui::SetCurrentContext(_imgui_context);
+
 		auto &imgui_io = _imgui_context->IO;
 		auto &imgui_style = _imgui_context->Style;
 		imgui_io.Fonts = _imgui_font_atlas.get();
