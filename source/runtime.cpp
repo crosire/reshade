@@ -1661,6 +1661,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 					if (ImGui::Combo(ui_label.c_str(), &index, "On\0Off\0"))
 					{
 						data[0] = index == 0;
+						modified = true;
 
 						set_uniform_value(variable, data, 1);
 					}
