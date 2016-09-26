@@ -1586,9 +1586,7 @@ namespace reshade::d3d10
 
 		_global_code << "static const __sampler2D " << node->unique_name << " = { ";
 
-		const auto texture_impl = texture->impl->as<d3d10_tex_data>();
-
-		if (node->properties.srgb_texture && texture_impl->srv[1] != nullptr)
+		if (node->properties.srgb_texture)
 		{
 			_global_code << "__" << node->properties.texture->unique_name << "SRGB";
 		}
