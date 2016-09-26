@@ -10,11 +10,11 @@ namespace reshade::d3d10
 	using namespace reshadefx;
 	using namespace reshadefx::nodes;
 
-	UINT roundto16(UINT size)
+	static inline UINT roundto16(UINT size)
 	{
 		return (size + 15) & ~15;
 	}
-	D3D10_BLEND literal_to_blend_func(unsigned int value)
+	static D3D10_BLEND literal_to_blend_func(unsigned int value)
 	{
 		switch (value)
 		{
@@ -26,7 +26,7 @@ namespace reshade::d3d10
 
 		return static_cast<D3D10_BLEND>(value);
 	}
-	D3D10_STENCIL_OP literal_to_stencil_op(unsigned int value)
+	static D3D10_STENCIL_OP literal_to_stencil_op(unsigned int value)
 	{
 		if (value == pass_declaration_node::ZERO)
 		{
@@ -35,7 +35,7 @@ namespace reshade::d3d10
 
 		return static_cast<D3D10_STENCIL_OP>(value);
 	}
-	DXGI_FORMAT literal_to_format(texture_format value)
+	static DXGI_FORMAT literal_to_format(texture_format value)
 	{
 		switch (value)
 		{
@@ -75,7 +75,7 @@ namespace reshade::d3d10
 
 		return DXGI_FORMAT_UNKNOWN;
 	}
-	size_t D3D10_SAMPLER_DESC_HASH(const D3D10_SAMPLER_DESC &s)
+	static size_t D3D10_SAMPLER_DESC_HASH(const D3D10_SAMPLER_DESC &s)
 	{
 		const unsigned char *p = reinterpret_cast<const unsigned char *>(&s);
 		size_t h = 2166136261;
@@ -87,7 +87,7 @@ namespace reshade::d3d10
 
 		return h;
 	}
-	std::string convert_semantic(const std::string &semantic)
+	static std::string convert_semantic(const std::string &semantic)
 	{
 		if (semantic == "VERTEXID")
 		{
@@ -1557,12 +1557,6 @@ namespace reshade::d3d10
 	}
 	void d3d10_effect_compiler::visit_sampler(const variable_declaration_node *node)
 	{
-		if (node->properties.texture == nullptr)
-		{
-			error(node->location, "sampler '" + node->name + "' is missing required 'Texture' property");
-			return;
-		}
-
 		D3D10_SAMPLER_DESC desc;
 		desc.Filter = static_cast<D3D10_FILTER>(node->properties.filter);
 		desc.AddressU = static_cast<D3D10_TEXTURE_ADDRESS_MODE>(node->properties.address_u);

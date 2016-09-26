@@ -3134,6 +3134,13 @@ namespace reshadefx
 			}
 		}
 
+		if (type.is_sampler() && variable->properties.texture == nullptr)
+		{
+			error(location, 3012, "missing 'Texture' property for '" + name + "'");
+
+			return false;
+		}
+
 		return true;
 	}
 	bool parser::parse_variable_assignment(expression_node *&expression)

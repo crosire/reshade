@@ -15,7 +15,7 @@ namespace reshade::opengl
 	using namespace reshadefx;
 	using namespace reshadefx::nodes;
 
-	GLenum literal_to_comp_func(unsigned int value)
+	static GLenum literal_to_comp_func(unsigned int value)
 	{
 		switch (value)
 		{
@@ -38,7 +38,7 @@ namespace reshade::opengl
 				return GL_GEQUAL;
 		}
 	}
-	GLenum literal_to_blend_eq(unsigned int value)
+	static GLenum literal_to_blend_eq(unsigned int value)
 	{
 		switch (value)
 		{
@@ -56,7 +56,7 @@ namespace reshade::opengl
 
 		return GL_NONE;
 	}
-	GLenum literal_to_blend_func(unsigned int value)
+	static GLenum literal_to_blend_func(unsigned int value)
 	{
 		switch (value)
 		{
@@ -84,7 +84,7 @@ namespace reshade::opengl
 
 		return GL_NONE;
 	}
-	GLenum literal_to_stencil_op(unsigned int value)
+	static GLenum literal_to_stencil_op(unsigned int value)
 	{
 		switch (value)
 		{
@@ -107,7 +107,7 @@ namespace reshade::opengl
 				return GL_INVERT;
 		}
 	}
-	GLenum literal_to_wrap_mode(texture_address_mode value)
+	static GLenum literal_to_wrap_mode(texture_address_mode value)
 	{
 		switch (value)
 		{
@@ -123,7 +123,7 @@ namespace reshade::opengl
 
 		return GL_NONE;
 	}
-	void literal_to_filter_mode(texture_filter value, GLenum &minfilter, GLenum &magfilter)
+	static void literal_to_filter_mode(texture_filter value, GLenum &minfilter, GLenum &magfilter)
 	{
 		switch (value)
 		{
@@ -162,7 +162,7 @@ namespace reshade::opengl
 				break;
 		}
 	}
-	void literal_to_format(texture_format value, GLenum &internalformat, GLenum &internalformatsrgb)
+	static void literal_to_format(texture_format value, GLenum &internalformat, GLenum &internalformatsrgb)
 	{
 		switch (value)
 		{
@@ -223,7 +223,7 @@ namespace reshade::opengl
 				break;
 		}
 	}
-	std::string escape_name(const std::string &name)
+	static std::string escape_name(const std::string &name)
 	{
 		std::string res;
 
@@ -246,7 +246,7 @@ namespace reshade::opengl
 
 		return res;
 	}
-	std::string escape_name_with_builtins(const std::string &name, const std::string &semantic, GLuint shadertype)
+	static std::string escape_name_with_builtins(const std::string &name, const std::string &semantic, GLuint shadertype)
 	{
 		if (semantic == "SV_VERTEXID" || semantic == "VERTEXID")
 		{
@@ -271,7 +271,7 @@ namespace reshade::opengl
 
 		return escape_name(name);
 	}
-	std::pair<std::string, std::string> write_cast(const type_node &from, const type_node &to)
+	static std::pair<std::string, std::string> write_cast(const type_node &from, const type_node &to)
 	{
 		std::pair<std::string, std::string> code;
 
@@ -354,7 +354,7 @@ namespace reshade::opengl
 
 		return code;
 	}
-	inline uintptr_t align(uintptr_t address, size_t alignment)
+	static inline uintptr_t align(uintptr_t address, size_t alignment)
 	{
 		if (address % alignment != 0)
 			address += alignment - address % alignment;
@@ -2159,12 +2159,6 @@ namespace reshade::opengl
 	}
 	void opengl_effect_compiler::visit_sampler(const variable_declaration_node *node)
 	{
-		if (node->properties.texture == nullptr)
-		{
-			error(node->location, "sampler '" + node->name + "' is missing required 'Texture' property");
-			return;
-		}
-
 		const auto texture = _runtime->find_texture(node->properties.texture->name);
 
 		if (texture == nullptr)

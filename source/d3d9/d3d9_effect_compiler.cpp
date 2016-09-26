@@ -11,11 +11,11 @@ namespace reshade::d3d9
 	using namespace reshadefx;
 	using namespace reshadefx::nodes;
 
-	bool is_pow2(int x)
+	static inline bool is_pow2(int x)
 	{
 		return ((x > 0) && ((x & (x - 1)) == 0));
 	}
-	D3DBLEND literal_to_blend_func(unsigned int value)
+	static D3DBLEND literal_to_blend_func(unsigned int value)
 	{
 		switch (value)
 		{
@@ -27,7 +27,7 @@ namespace reshade::d3d9
 
 		return static_cast<D3DBLEND>(value);
 	}
-	D3DSTENCILOP literal_to_stencil_op(unsigned int value)
+	static D3DSTENCILOP literal_to_stencil_op(unsigned int value)
 	{
 		if (value == pass_declaration_node::ZERO)
 		{
@@ -36,7 +36,7 @@ namespace reshade::d3d9
 
 		return static_cast<D3DSTENCILOP>(value);
 	}
-	D3DFORMAT literal_to_format(texture_format value)
+	static D3DFORMAT literal_to_format(texture_format value)
 	{
 		switch (value)
 		{
@@ -76,7 +76,7 @@ namespace reshade::d3d9
 
 		return D3DFMT_UNKNOWN;
 	}
-	std::string convert_semantic(const std::string &semantic)
+	static std::string convert_semantic(const std::string &semantic)
 	{
 		if (semantic.compare(0, 3, "SV_") == 0)
 		{
@@ -1478,12 +1478,6 @@ namespace reshade::d3d9
 	}
 	void d3d9_effect_compiler::visit_sampler(const variable_declaration_node *node)
 	{
-		if (node->properties.texture == nullptr)
-		{
-			error(node->location, "sampler '" + node->name + "' is missing required 'Texture' property");
-			return;
-		}
-
 		const auto texture = _runtime->find_texture(node->properties.texture->name);
 
 		if (texture == nullptr)
