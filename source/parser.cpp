@@ -3250,6 +3250,13 @@ namespace reshadefx
 				else if (name == "MipLevels")
 				{
 					scalar_literal_cast(value_literal, 0, variable->properties.levels);
+
+					if (variable->properties.levels == 0)
+					{
+						warning(location, 0, "a texture cannot have 0 mipmap levels, changed it to 1");
+
+						variable->properties.levels = 1;
+					}
 				}
 				else if (name == "Format")
 				{

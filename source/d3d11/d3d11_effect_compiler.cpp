@@ -1497,12 +1497,6 @@ namespace reshade::d3d11
 		}
 		else
 		{
-			if (texdesc.MipLevels == 0)
-			{
-				warning(node->location, "a texture cannot have 0 miplevels, changed it to 1");
-
-				texdesc.MipLevels = 1;
-			}
 
 			HRESULT hr = _runtime->_device->CreateTexture2D(&texdesc, nullptr, &obj_data->texture);
 

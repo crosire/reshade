@@ -2116,13 +2116,6 @@ namespace reshade::opengl
 		GLenum internalformat = GL_RGBA8, internalformatSRGB = GL_SRGB8_ALPHA8;
 		literal_to_format(obj.format = node->properties.format, internalformat, internalformatSRGB);
 
-		if (levels == 0)
-		{
-			warning(node->location, "a texture cannot have 0 miplevels, changed it to 1");
-
-			levels = 1;
-		}
-
 		if (node->semantic == "COLOR" || node->semantic == "SV_TARGET")
 		{
 			_runtime->update_texture_reference(obj, texture_reference::back_buffer);
