@@ -327,6 +327,20 @@ namespace reshade
 		return ToAscii(keycode, MapVirtualKey(keycode, MAPVK_VK_TO_VSC), _keys, &ch, 0) ? ch : 0;
 	}
 
+	void input::block_mouse_input(bool enable)
+	{
+		_block_mouse = enable;
+
+		if (enable)
+		{
+			ClipCursor(nullptr);
+		}
+	}
+	void input::block_keyboard_input(bool enable)
+	{
+		_block_keyboard = enable;
+	}
+
 	void input::next_frame()
 	{
 		for (auto &state : _keys)

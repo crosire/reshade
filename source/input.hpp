@@ -39,8 +39,8 @@ namespace reshade
 
 		bool is_blocking_mouse_input() const { return _block_mouse; }
 		bool is_blocking_keyboard_input() const { return _block_keyboard; }
-		void block_mouse_input(bool enable) { _block_mouse = enable; }
-		void block_keyboard_input(bool enable) { _block_keyboard = enable; }
+		void block_mouse_input(bool enable);
+		void block_keyboard_input(bool enable);
 
 		void next_frame();
 
