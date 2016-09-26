@@ -421,6 +421,16 @@ namespace reshade::opengl
 		// Apply post processing
 		if (is_effect_loaded())
 		{
+			GLint clip_origin, clip_depthmode;
+
+			// Force Direct3D coordinate conventions
+			if (gl3wClipControl != nullptr)
+			{
+				glGetIntegerv(GL_CLIP_ORIGIN, &clip_origin);
+				glGetIntegerv(GL_CLIP_DEPTH_MODE, &clip_depthmode);
+				glClipControl(GL_LOWER_LEFT, GL_ZERO_TO_ONE);
+			}
+
 			// Setup vertex input
 			glBindVertexArray(_default_vao);
 
@@ -434,6 +444,11 @@ namespace reshade::opengl
 
 			// Apply post processing
 			on_present_effect();
+
+			if (gl3wClipControl != nullptr)
+			{
+				glClipControl(clip_origin, clip_depthmode);
+			}
 		}
 
 		// Reset render target and copy to frame buffer

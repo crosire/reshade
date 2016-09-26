@@ -2628,7 +2628,7 @@ namespace reshade::opengl
 			}
 		}
 
-		if (shadertype == GL_VERTEX_SHADER)
+		if (shadertype == GL_VERTEX_SHADER && gl3wClipControl == nullptr)
 		{
 			source << "gl_Position = gl_Position * vec4(1.0, 1.0, 2.0, 1.0) + vec4(0.0, 0.0, -gl_Position.w, 0.0);\n";
 		}
