@@ -886,7 +886,7 @@ namespace reshade::d3d10
 			}
 		}
 	}
-	void d3d10_runtime::render_draw_lists(ImDrawData *draw_data)
+	void d3d10_runtime::render_imgui_draw_data(ImDrawData *draw_data)
 	{
 		// Create and grow vertex/index buffers if needed
 		if (_imgui_vertex_buffer == nullptr ||

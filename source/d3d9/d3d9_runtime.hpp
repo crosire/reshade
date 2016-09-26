@@ -46,7 +46,7 @@ namespace reshade::d3d9
 		bool update_texture_reference(texture &texture, texture_reference id);
 
 		void render_technique(const technique &technique) override;
-		void render_draw_lists(ImDrawData *data) override;
+		void render_imgui_draw_data(ImDrawData *data) override;
 
 		com_ptr<IDirect3D9> _d3d;
 		com_ptr<IDirect3DDevice9> _device;

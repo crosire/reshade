@@ -191,9 +191,6 @@
     <ClInclude Include="source\log.hpp">
       <Filter>core</Filter>
     </ClInclude>
-    <ClInclude Include="res\version.h">
-      <Filter>core</Filter>
-    </ClInclude>
     <ClInclude Include="source\hook.hpp">
       <Filter>core\hook</Filter>
     </ClInclude>
@@ -342,6 +339,9 @@
       <Filter>core</Filter>
     </ClInclude>
     <ClInclude Include="res\resource.h">
+      <Filter>resources</Filter>
+    </ClInclude>
+    <ClInclude Include="res\version.h">
       <Filter>resources</Filter>
     </ClInclude>
   </ItemGroup>

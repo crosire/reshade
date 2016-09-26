@@ -65,7 +65,7 @@ namespace reshade::d3d12
 	void d3d12_runtime::render_technique(const technique &technique)
 	{
 	}
-	void d3d12_runtime::render_draw_lists(ImDrawData *draw_data)
+	void d3d12_runtime::render_imgui_draw_data(ImDrawData *draw_data)
 	{
 	}
 }

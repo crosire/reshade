@@ -828,9 +828,8 @@ namespace reshade
 
 		if (_wfopen_s(&file, path.wstring().c_str(), L"wb") == 0)
 		{
-			stbi_write_func *func =
-				[](void *context, void *data, int size)
-				{
+			stbi_write_func *const func =
+				[](void *context, void *data, int size) {
 					fwrite(data, 1, size, static_cast<FILE *>(context));
 				};
 
@@ -1061,7 +1060,7 @@ namespace reshade
 			_input->block_keyboard_input(imgui_io.WantCaptureKeyboard || (_input_processing_mode == 2 && _show_menu));
 		}
 
-		render_draw_lists(ImGui::GetDrawData());
+		render_imgui_draw_data(ImGui::GetDrawData());
 	}
 	void runtime::draw_overlay_menu()
 	{

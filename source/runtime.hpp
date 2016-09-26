@@ -1,6 +1,5 @@
 #pragma once
 
-#include <memory>
 #include <chrono>
 #include "filesystem.hpp"
 #include "runtime_objects.hpp"
@@ -158,10 +157,10 @@ namespace reshade
 		/// <param name="technique">The technique to render.</param>
 		virtual void render_technique(const technique &technique) = 0;
 		/// <summary>
-		/// Render draw lists obtained from ImGui.
+		/// Render command lists obtained from ImGui.
 		/// </summary>
 		/// <param name="data">The draw data to render.</param>
-		virtual void render_draw_lists(ImDrawData *draw_data) = 0;
+		virtual void render_imgui_draw_data(ImDrawData *draw_data) = 0;
 
 		bool _is_initialized = false;
 		unsigned int _width = 0, _height = 0;

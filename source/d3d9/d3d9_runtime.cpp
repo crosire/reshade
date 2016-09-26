@@ -677,7 +677,7 @@ namespace reshade::d3d9
 			}
 		}
 	}
-	void d3d9_runtime::render_draw_lists(ImDrawData *draw_data)
+	void d3d9_runtime::render_imgui_draw_data(ImDrawData *draw_data)
 	{
 		// Fixed-function vertex layout
 		struct vertex

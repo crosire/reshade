@@ -46,7 +46,7 @@ namespace reshade::d3d10
 		bool update_texture(texture &texture, const uint8_t *data) override;
 
 		void render_technique(const technique &technique) override;
-		void render_draw_lists(ImDrawData *data) override;
+		void render_imgui_draw_data(ImDrawData *data) override;
 
 		com_ptr<ID3D10Device1> _device;
 		com_ptr<IDXGISwapChain> _swapchain;

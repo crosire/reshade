@@ -753,7 +753,7 @@ namespace reshade::opengl
 			}
 		}
 	}
-	void opengl_runtime::render_draw_lists(ImDrawData *draw_data)
+	void opengl_runtime::render_imgui_draw_data(ImDrawData *draw_data)
 	{
 		// Setup render state: alpha-blending enabled, no face culling, no depth testing, scissor enabled
 		glEnable(GL_BLEND);

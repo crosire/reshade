@@ -54,7 +54,7 @@ namespace reshade::vulkan
 	void vulkan_runtime::render_technique(const technique &technique)
 	{
 	}
-	void vulkan_runtime::render_draw_lists(ImDrawData *data)
+	void vulkan_runtime::render_imgui_draw_data(ImDrawData *data)
 	{
 	}
 }
