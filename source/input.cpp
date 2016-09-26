@@ -343,6 +343,13 @@ namespace reshade
 		// Update caps lock state
 		_keys[VK_CAPITAL] |= GetKeyState(VK_CAPITAL) & 0x1;
 
+		// Update modifier key state
+		if ((_keys[VK_MENU] & 0x88) != 0 &&
+			(GetKeyState(VK_MENU) & 0x8000) == 0)
+		{
+			_keys[VK_MENU] = 0x08;
+		}
+
 		// Update print screen state
 		if ((_keys[VK_SNAPSHOT] & 0x80) == 0 &&
 			(GetAsyncKeyState(VK_SNAPSHOT) & 0x8000) != 0)
