@@ -22,11 +22,6 @@ namespace reshade::vulkan
 	}
 	void vulkan_runtime::on_reset()
 	{
-		if (!_is_initialized)
-		{
-			return;
-		}
-
 		runtime::on_reset();
 	}
 	void vulkan_runtime::on_reset_effect()
@@ -35,7 +30,16 @@ namespace reshade::vulkan
 	}
 	void vulkan_runtime::on_present(uint32_t swapchain_image_index)
 	{
-		runtime::on_present_effect();
+		if (!is_initialized())
+		{
+			return;
+		}
+
+		if (is_effect_loaded())
+		{
+			on_present_effect();
+		}
+
 		runtime::on_present();
 	}
 

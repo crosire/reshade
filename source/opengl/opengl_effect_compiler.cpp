@@ -4,12 +4,6 @@
 #include <iomanip>
 #include <algorithm>
 
-#ifdef _DEBUG
-	#define GLCHECK(call) { glGetError(); call; GLenum __e = glGetError(); if (__e != GL_NO_ERROR) { char __m[1024]; sprintf_s(__m, "OpenGL Error %x at line %d: %s", __e, __LINE__, #call); MessageBoxA(nullptr, __m, 0, MB_ICONERROR); } }
-#else
-	#define GLCHECK(call) call
-#endif
-
 namespace reshade::opengl
 {
 	using namespace reshadefx;
@@ -2127,25 +2121,25 @@ namespace reshade::opengl
 		else
 		{
 			obj_data->should_delete = true;
-			GLCHECK(glGenTextures(2, obj_data->id));
+			glGenTextures(2, obj_data->id);
 
 			GLint previous = 0, previousFBO = 0;
-			GLCHECK(glGetIntegerv(GL_TEXTURE_BINDING_2D, &previous));
-			GLCHECK(glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &previousFBO));
+			glGetIntegerv(GL_TEXTURE_BINDING_2D, &previous);
+			glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &previousFBO);
 
-			GLCHECK(glBindTexture(GL_TEXTURE_2D, obj_data->id[0]));
-			GLCHECK(glTexStorage2D(GL_TEXTURE_2D, levels, internalformat, width, height));
-			GLCHECK(glTextureView(obj_data->id[1], GL_TEXTURE_2D, obj_data->id[0], internalformatSRGB, 0, levels, 0, 1));
-			GLCHECK(glBindTexture(GL_TEXTURE_2D, previous));
+			glBindTexture(GL_TEXTURE_2D, obj_data->id[0]);
+			glTexStorage2D(GL_TEXTURE_2D, levels, internalformat, width, height);
+			glTextureView(obj_data->id[1], GL_TEXTURE_2D, obj_data->id[0], internalformatSRGB, 0, levels, 0, 1);
+			glBindTexture(GL_TEXTURE_2D, previous);
 
 			// Clear texture to black
-			GLCHECK(glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _runtime->_blit_fbo));
-			GLCHECK(glFramebufferTexture(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, obj_data->id[0], 0));
-			GLCHECK(glDrawBuffer(GL_COLOR_ATTACHMENT1));
+			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _runtime->_blit_fbo);
+			glFramebufferTexture(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, obj_data->id[0], 0);
+			glDrawBuffer(GL_COLOR_ATTACHMENT1);
 			const GLuint clearColor[4] = { 0, 0, 0, 0 };
-			GLCHECK(glClearBufferuiv(GL_COLOR, 0, clearColor));
-			GLCHECK(glFramebufferTexture(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, 0, 0));
-			GLCHECK(glBindFramebuffer(GL_DRAW_FRAMEBUFFER, previousFBO));
+			glClearBufferuiv(GL_COLOR, 0, clearColor);
+			glFramebufferTexture(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, 0, 0);
+			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, previousFBO);
 		}
 
 		_runtime->add_texture(std::move(obj));
@@ -2169,16 +2163,16 @@ namespace reshade::opengl
 		GLenum minfilter = GL_NONE, magfilter = GL_NONE;
 		literal_to_filter_mode(node->properties.filter, minfilter, magfilter);
 
-		GLCHECK(glGenSamplers(1, &sampler.id));
-		GLCHECK(glSamplerParameteri(sampler.id, GL_TEXTURE_WRAP_S, literal_to_wrap_mode(node->properties.address_u)));
-		GLCHECK(glSamplerParameteri(sampler.id, GL_TEXTURE_WRAP_T, literal_to_wrap_mode(node->properties.address_v)));
-		GLCHECK(glSamplerParameteri(sampler.id, GL_TEXTURE_WRAP_R, literal_to_wrap_mode(node->properties.address_w)));
-		GLCHECK(glSamplerParameteri(sampler.id, GL_TEXTURE_MIN_FILTER, minfilter));
-		GLCHECK(glSamplerParameteri(sampler.id, GL_TEXTURE_MAG_FILTER, magfilter));
-		GLCHECK(glSamplerParameterf(sampler.id, GL_TEXTURE_LOD_BIAS, node->properties.lod_bias));
-		GLCHECK(glSamplerParameterf(sampler.id, GL_TEXTURE_MIN_LOD, node->properties.min_lod));
-		GLCHECK(glSamplerParameterf(sampler.id, GL_TEXTURE_MAX_LOD, node->properties.max_lod));
-		GLCHECK(glSamplerParameterf(sampler.id, 0x84FE /* GL_TEXTURE_MAX_ANISOTROPY_EXT */, static_cast<GLfloat>(node->properties.max_anisotropy)));
+		glGenSamplers(1, &sampler.id);
+		glSamplerParameteri(sampler.id, GL_TEXTURE_WRAP_S, literal_to_wrap_mode(node->properties.address_u));
+		glSamplerParameteri(sampler.id, GL_TEXTURE_WRAP_T, literal_to_wrap_mode(node->properties.address_v));
+		glSamplerParameteri(sampler.id, GL_TEXTURE_WRAP_R, literal_to_wrap_mode(node->properties.address_w));
+		glSamplerParameteri(sampler.id, GL_TEXTURE_MIN_FILTER, minfilter);
+		glSamplerParameteri(sampler.id, GL_TEXTURE_MAG_FILTER, magfilter);
+		glSamplerParameterf(sampler.id, GL_TEXTURE_LOD_BIAS, node->properties.lod_bias);
+		glSamplerParameterf(sampler.id, GL_TEXTURE_MIN_LOD, node->properties.min_lod);
+		glSamplerParameterf(sampler.id, GL_TEXTURE_MAX_LOD, node->properties.max_lod);
+		glSamplerParameterf(sampler.id, 0x84FE /* GL_TEXTURE_MAX_ANISOTROPY_EXT */, static_cast<GLfloat>(node->properties.max_anisotropy));
 
 		_global_code << "layout(binding = " << _runtime->_effect_samplers.size() << ") uniform sampler2D " << escape_name(node->unique_name) << ";\n";
 
@@ -2290,8 +2284,8 @@ namespace reshade::opengl
 		pass.srgb = node->srgb_write_enable;
 		pass.clear_render_targets = node->clear_render_targets;
 
-		GLCHECK(glGenFramebuffers(1, &pass.fbo));
-		GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, pass.fbo));
+		glGenFramebuffers(1, &pass.fbo);
+		glBindFramebuffer(GL_FRAMEBUFFER, pass.fbo);
 
 		bool backbufferFramebuffer = true;
 
@@ -2325,7 +2319,7 @@ namespace reshade::opengl
 
 			const auto texture_data = texture->impl->as<opengl_tex_data>();
 
-			GLCHECK(glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, texture_data->id[pass.srgb], 0));
+			glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, texture_data->id[pass.srgb], 0);
 
 			pass.draw_buffers[i] = GL_COLOR_ATTACHMENT0 + i;
 			pass.draw_textures[i] = texture_data->id[pass.srgb];
@@ -2333,7 +2327,7 @@ namespace reshade::opengl
 
 		if (backbufferFramebuffer)
 		{
-			GLCHECK(glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, _runtime->_default_backbuffer_rbo[0]));
+			glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, _runtime->_default_backbuffer_rbo[0]);
 
 			pass.draw_buffers[0] = GL_COLOR_ATTACHMENT0;
 			pass.draw_textures[0] = _runtime->_backbuffer_texture[1];
@@ -2345,11 +2339,11 @@ namespace reshade::opengl
 			pass.viewport_height = static_cast<GLsizei>(rect.bottom - rect.top);
 		}
 
-		GLCHECK(glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, _runtime->_default_backbuffer_rbo[1]));
+		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, _runtime->_default_backbuffer_rbo[1]);
 
 		assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
 
-		GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, 0));
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 		GLuint shaders[2] = { 0, 0 };
 		GLenum shader_types[2] = { GL_VERTEX_SHADER, GL_FRAGMENT_SHADER };
@@ -2365,31 +2359,31 @@ namespace reshade::opengl
 
 				visit_pass_shader(shader_functions[i], shader_types[i], shaders[i]);
 
-				GLCHECK(glAttachShader(pass.program, shaders[i]));
+				glAttachShader(pass.program, shaders[i]);
 			}
 		}
 
-		GLCHECK(glLinkProgram(pass.program));
+		glLinkProgram(pass.program);
 
 		for (unsigned int i = 0; i < 2; i++)
 		{
-			GLCHECK(glDetachShader(pass.program, shaders[i]));
-			GLCHECK(glDeleteShader(shaders[i]));
+			glDetachShader(pass.program, shaders[i]);
+			glDeleteShader(shaders[i]);
 		}
 
 		GLint status = GL_FALSE;
 
-		GLCHECK(glGetProgramiv(pass.program, GL_LINK_STATUS, &status));
+		glGetProgramiv(pass.program, GL_LINK_STATUS, &status);
 
 		if (status == GL_FALSE)
 		{
 			GLint logsize = 0;
-			GLCHECK(glGetProgramiv(pass.program, GL_INFO_LOG_LENGTH, &logsize));
+			glGetProgramiv(pass.program, GL_INFO_LOG_LENGTH, &logsize);
 
 			std::string log(logsize, '\0');
-			GLCHECK(glGetProgramInfoLog(pass.program, logsize, nullptr, &log.front()));
+			glGetProgramInfoLog(pass.program, logsize, nullptr, &log.front());
 
-			GLCHECK(glDeleteProgram(pass.program));
+			glDeleteProgram(pass.program);
 
 			_errors += log;
 			error(node->location, "program linking failed");
@@ -2646,17 +2640,17 @@ namespace reshade::opengl
 		const GLchar *src = source_str.c_str();
 		const GLsizei len = static_cast<GLsizei>(source_str.size());
 
-		GLCHECK(glShaderSource(shader, 1, &src, &len));
-		GLCHECK(glCompileShader(shader));
-		GLCHECK(glGetShaderiv(shader, GL_COMPILE_STATUS, &status));
+		glShaderSource(shader, 1, &src, &len);
+		glCompileShader(shader);
+		glGetShaderiv(shader, GL_COMPILE_STATUS, &status);
 
 		if (status == GL_FALSE)
 		{
 			GLint logsize = 0;
-			GLCHECK(glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &logsize));
+			glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &logsize);
 
 			std::string log(logsize, '\0');
-			GLCHECK(glGetShaderInfoLog(shader, logsize, nullptr, &log.front()));
+			glGetShaderInfoLog(shader, logsize, nullptr, &log.front());
 
 			_errors += log;
 			error(node->location, "internal shader compilation failed");

@@ -47,27 +47,33 @@ namespace reshade::d3d10
 
 		assert(SUCCEEDED(hr));
 
-		D3D10_TEXTURE2D_DESC texdesc;
+		D3D10_TEXTURE2D_DESC texdesc = { };
 		texdesc.Width = _width;
 		texdesc.Height = _height;
 		texdesc.ArraySize = texdesc.MipLevels = 1;
 		texdesc.Format = make_format_typeless(_backbuffer_format);
-		texdesc.SampleDesc.Count = 1;
-		texdesc.SampleDesc.Quality = 0;
+		texdesc.SampleDesc = { 1, 0 };
 		texdesc.Usage = D3D10_USAGE_DEFAULT;
 		texdesc.BindFlags = D3D10_BIND_RENDER_TARGET;
-		texdesc.MiscFlags = texdesc.CPUAccessFlags = 0;
 
 		OSVERSIONINFOEX verinfo_windows7 = { sizeof(OSVERSIONINFOEX), 6, 1 };
-		const bool is_windows7 = VerifyVersionInfo(&verinfo_windows7, VER_MAJORVERSION | VER_MINORVERSION, VerSetConditionMask(VerSetConditionMask(0, VER_MAJORVERSION, VER_EQUAL), VER_MINORVERSION, VER_EQUAL)) != FALSE;
+		const bool is_windows7 = VerifyVersionInfo(&verinfo_windows7, VER_MAJORVERSION | VER_MINORVERSION,
+			VerSetConditionMask(VerSetConditionMask(0, VER_MAJORVERSION, VER_EQUAL), VER_MINORVERSION, VER_EQUAL)) != FALSE;
 
-		if (_is_multisampling_enabled || make_format_normal(_backbuffer_format) != _backbuffer_format || !is_windows7)
+		if (_is_multisampling_enabled ||
+			make_format_normal(_backbuffer_format) != _backbuffer_format ||
+			!is_windows7)
 		{
 			hr = _device->CreateTexture2D(&texdesc, nullptr, &_backbuffer_resolved);
 
 			if (FAILED(hr))
 			{
-				LOG(ERROR) << "Failed to create back buffer replacement (Width = " << texdesc.Width << ", Height = " << texdesc.Height << ", Format = " << texdesc.Format << ", SampleCount = " << texdesc.SampleDesc.Count << ", SampleQuality = " << texdesc.SampleDesc.Quality << ")! HRESULT is '" << std::hex << hr << std::dec << "'.";
+				LOG(ERROR) << "Failed to create back buffer replacement ("
+					<< "Width = " << texdesc.Width << ", "
+					<< "Height = " << texdesc.Height << ", "
+					<< "Format = " << texdesc.Format << ", "
+					<< "SampleCount = " << texdesc.SampleDesc.Count << ", "
+					<< "SampleQuality = " << texdesc.SampleDesc.Quality << ")! HRESULT is '" << std::hex << hr << std::dec << "'.";
 
 				return false;
 			}
@@ -99,7 +105,8 @@ namespace reshade::d3d10
 			}
 			else
 			{
-				LOG(ERROR) << "Failed to create back buffer texture resource view (Format = " << srvdesc.Format << ")! HRESULT is '" << std::hex << hr << std::dec << "'.";
+				LOG(ERROR) << "Failed to create back buffer texture resource view ("
+					"Format = " << srvdesc.Format << ")! HRESULT is '" << std::hex << hr << std::dec << "'.";
 			}
 
 			srvdesc.Format = make_format_srgb(texdesc.Format);
@@ -110,12 +117,18 @@ namespace reshade::d3d10
 			}
 			else
 			{
-				LOG(ERROR) << "Failed to create back buffer SRGB texture resource view (Format = " << srvdesc.Format << ")! HRESULT is '" << std::hex << hr << std::dec << "'.";
+				LOG(ERROR) << "Failed to create back buffer SRGB texture resource view ("
+					"Format = " << srvdesc.Format << ")! HRESULT is '" << std::hex << hr << std::dec << "'.";
 			}
 		}
 		else
 		{
-			LOG(ERROR) << "Failed to create back buffer texture (Width = " << texdesc.Width << ", Height = " << texdesc.Height << ", Format = " << texdesc.Format << ", SampleCount = " << texdesc.SampleDesc.Count << ", SampleQuality = " << texdesc.SampleDesc.Quality << ")! HRESULT is '" << std::hex << hr << std::dec << "'.";
+			LOG(ERROR) << "Failed to create back buffer texture ("
+				"Width = " << texdesc.Width << ", "
+				"Height = " << texdesc.Height << ", "
+				"Format = " << texdesc.Format << ", "
+				"SampleCount = " << texdesc.SampleDesc.Count << ", "
+				"SampleQuality = " << texdesc.SampleDesc.Quality << ")! HRESULT is '" << std::hex << hr << std::dec << "'.";
 		}
 
 		if (FAILED(hr))
@@ -131,7 +144,8 @@ namespace reshade::d3d10
 
 		if (FAILED(hr))
 		{
-			LOG(ERROR) << "Failed to create back buffer render target (Format = " << rtdesc.Format << ")! HRESULT is '" << std::hex << hr << std::dec << "'.";
+			LOG(ERROR) << "Failed to create back buffer render target ("
+				"Format = " << rtdesc.Format << ")! HRESULT is '" << std::hex << hr << std::dec << "'.";
 
 			return false;
 		}
@@ -142,7 +156,8 @@ namespace reshade::d3d10
 
 		if (FAILED(hr))
 		{
-			LOG(ERROR) << "Failed to create back buffer SRGB render target (Format = " << rtdesc.Format << ")! HRESULT is '" << std::hex << hr << std::dec << "'.";
+			LOG(ERROR) << "Failed to create back buffer SRGB render target ("
+				"Format = " << rtdesc.Format << ")! HRESULT is '" << std::hex << hr << std::dec << "'.";
 
 			return false;
 		}
@@ -152,15 +167,19 @@ namespace reshade::d3d10
 
 			hr = _device->CreateVertexShader(vs.data, vs.data_size, &_copy_vertex_shader);
 
-			assert(SUCCEEDED(hr));
-		}
+			if (FAILED(hr))
+			{
+				return false;
+			}
 
-		{
 			const resources::data_resource ps = resources::load_data_resource(IDR_RCDATA2);
 
 			hr = _device->CreatePixelShader(ps.data, ps.data_size, &_copy_pixel_shader);
 
-			assert(SUCCEEDED(hr));
+			if (FAILED(hr))
+			{
+				return false;
+			}
 		}
 
 		{
@@ -173,18 +192,20 @@ namespace reshade::d3d10
 
 			hr = _device->CreateSamplerState(&desc, &_copy_sampler);
 
-			assert(SUCCEEDED(hr));
+			if (FAILED(hr))
+			{
+				return false;
+			}
 		}
 
 		return true;
 	}
 	bool d3d10_runtime::init_default_depth_stencil()
 	{
-		const D3D10_TEXTURE2D_DESC desc = {
+		const D3D10_TEXTURE2D_DESC texdesc = {
 			_width,
 			_height,
-			1,
-			1,
+			1, 1,
 			DXGI_FORMAT_D24_UNORM_S8_UINT,
 			{ 1, 0 },
 			D3D10_USAGE_DEFAULT,
@@ -193,21 +214,22 @@ namespace reshade::d3d10
 
 		com_ptr<ID3D10Texture2D> depth_stencil_texture;
 
-		HRESULT hr = _device->CreateTexture2D(&desc, nullptr, &depth_stencil_texture);
+		HRESULT hr = _device->CreateTexture2D(&texdesc, nullptr, &depth_stencil_texture);
 
 		if (FAILED(hr))
 		{
+			LOG(ERROR) << "Failed to create depth stencil texture ("
+				"Width = " << texdesc.Width << ", "
+				"Height = " << texdesc.Height << ", "
+				"Format = " << texdesc.Format << ", "
+				"SampleCount = " << texdesc.SampleDesc.Count << ", "
+				"SampleQuality = " << texdesc.SampleDesc.Quality << ")! HRESULT is '" << std::hex << hr << std::dec << "'.";
 			return false;
 		}
 
 		hr = _device->CreateDepthStencilView(depth_stencil_texture.get(), nullptr, &_default_depthstencil);
 
-		if (FAILED(hr))
-		{
-			return false;
-		}
-
-		return true;
+		return SUCCEEDED(hr);
 	}
 	bool d3d10_runtime::init_fx_resources()
 	{
@@ -216,14 +238,7 @@ namespace reshade::d3d10
 		desc.CullMode = D3D10_CULL_NONE;
 		desc.DepthClipEnable = TRUE;
 
-		HRESULT hr = _device->CreateRasterizerState(&desc, &_effect_rasterizer_state);
-
-		if (FAILED(hr))
-		{
-			return false;
-		}
-
-		return true;
+		return SUCCEEDED(_device->CreateRasterizerState(&desc, &_effect_rasterizer_state));
 	}
 	bool d3d10_runtime::init_imgui_resources()
 	{
@@ -303,7 +318,7 @@ namespace reshade::d3d10
 			}
 		}
 
-		// Create the depth-stencil state
+		// Create the depth stencil state
 		{
 			D3D10_DEPTH_STENCIL_DESC desc = { };
 			desc.DepthEnable = false;
@@ -391,7 +406,7 @@ namespace reshade::d3d10
 			return false;
 		}
 
-		d3d10_tex_data obj;
+		d3d10_tex_data obj = { };
 		obj.texture = font_atlas;
 		obj.srv[0] = font_atlas_view;
 
@@ -421,7 +436,7 @@ namespace reshade::d3d10
 	}
 	void d3d10_runtime::on_reset()
 	{
-		if (!_is_initialized)
+		if (!is_initialized())
 		{
 			return;
 		}
@@ -483,12 +498,7 @@ namespace reshade::d3d10
 	}
 	void d3d10_runtime::on_present()
 	{
-		if (!_is_initialized)
-		{
-			LOG(ERROR) << "Failed to present! Runtime is in a lost state.";
-			return;
-		}
-		else if (_drawcalls == 0)
+		if (!is_initialized() || _drawcalls == 0)
 		{
 			return;
 		}
@@ -508,7 +518,7 @@ namespace reshade::d3d10
 		}
 
 		// Apply post processing
-		if (!_techniques.empty())
+		if (is_effect_loaded())
 		{
 			// Setup real back buffer
 			const auto rtv = _backbuffer_rtv[0].get();
@@ -526,7 +536,7 @@ namespace reshade::d3d10
 			_device->VSSetSamplers(0, static_cast<UINT>(_effect_sampler_states.size()), _effect_sampler_states.data());
 			_device->PSSetSamplers(0, static_cast<UINT>(_effect_sampler_states.size()), _effect_sampler_states.data());
 
-			runtime::on_present_effect();
+			on_present_effect();
 		}
 
 		// Apply presenting
@@ -603,7 +613,7 @@ namespace reshade::d3d10
 
 			texture->GetDesc(&texture_desc);
 
-			// Early depth-stencil rejection
+			// Early depth stencil rejection
 			if (texture_desc.Width != _width || texture_desc.Height != _height || texture_desc.SampleDesc.Count > 1)
 			{
 				return;
@@ -611,7 +621,7 @@ namespace reshade::d3d10
 
 			depthstencil->AddRef();
 
-			// Begin tracking new depth-stencil
+			// Begin tracking new depth stencil
 			const depth_source_info info = { texture_desc.Width, texture_desc.Height };
 			_depth_source_table.emplace(depthstencil, info);
 		}
@@ -744,9 +754,7 @@ namespace reshade::d3d10
 			{
 				std::vector<uint8_t> data2(texture.width * texture.height);
 				for (size_t i = 0, k = 0; i < texture.width * texture.height * 4; i += 4, k++)
-				{
 					data2[k] = data[i];
-				}
 				_device->UpdateSubresource(texture_impl->texture.get(), 0, nullptr, data2.data(), texture.width, texture.width * texture.height);
 				break;
 			}
@@ -754,9 +762,8 @@ namespace reshade::d3d10
 			{
 				std::vector<uint8_t> data2(texture.width * texture.height * 2);
 				for (size_t i = 0, k = 0; i < texture.width * texture.height * 4; i += 4, k += 2)
-				{
-					data2[k] = data[i], data2[k + 1] = data[i + 1];
-				}
+					data2[k] = data[i],
+					data2[k + 1] = data[i + 1];
 				_device->UpdateSubresource(texture_impl->texture.get(), 0, nullptr, data2.data(), texture.width * 2, texture.width * texture.height * 2);
 				break;
 			}
@@ -804,9 +811,9 @@ namespace reshade::d3d10
 			_device->PSSetConstantBuffers(0, 1, &constant_buffer);
 		}
 
-		for (const auto &pass_ptr : technique.passes)
+		for (const auto &pass_object : technique.passes)
 		{
-			const auto &pass = *static_cast<const d3d10_pass_data *>(pass_ptr.get());
+			const d3d10_pass_data &pass = *pass_object->as<d3d10_pass_data>();
 
 			// Setup states
 			_device->VSSetShader(pass.vertex_shader.get());
@@ -1165,7 +1172,7 @@ namespace reshade::d3d10
 
 			if (FAILED(hr))
 			{
-				LOG(ERROR) << "Failed to create depth-stencil replacement texture! HRESULT is '" << std::hex << hr << std::dec << "'.";
+				LOG(ERROR) << "Failed to create depth stencil replacement texture! HRESULT is '" << std::hex << hr << std::dec << "'.";
 
 				return false;
 			}
@@ -1194,14 +1201,14 @@ namespace reshade::d3d10
 
 			if (FAILED(hr))
 			{
-				LOG(ERROR) << "Failed to create depth-stencil replacement resource view! HRESULT is '" << std::hex << hr << std::dec << "'.";
+				LOG(ERROR) << "Failed to create depth stencil replacement resource view! HRESULT is '" << std::hex << hr << std::dec << "'.";
 
 				return false;
 			}
 
 			if (_depthstencil != _depthstencil_replacement)
 			{
-				// Update auto depth-stencil
+				// Update auto depth stencil
 				com_ptr<ID3D10DepthStencilView> current_depthstencil;
 				ID3D10RenderTargetView *targets[D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT] = { nullptr };
 

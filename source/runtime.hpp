@@ -57,6 +57,15 @@ namespace reshade
 		virtual void capture_frame(uint8_t *buffer) const = 0;
 
 		/// <summary>
+		/// Returns the initialization status.
+		/// </summary>
+		bool is_initialized() const { return _is_initialized; }
+		/// <summary>
+		/// Returns a boolean indicating whether any effects were loaded.
+		/// </summary>
+		bool is_effect_loaded() const { return _technique_count > 0 && _reload_remaining_effects == 0; }
+
+		/// <summary>
 		/// Add a new texture.
 		/// </summary>
 		/// <param name="texture">The texture to add.</param>
@@ -162,7 +171,6 @@ namespace reshade
 		/// <param name="data">The draw data to render.</param>
 		virtual void render_imgui_draw_data(ImDrawData *draw_data) = 0;
 
-		bool _is_initialized = false;
 		unsigned int _width = 0, _height = 0;
 		unsigned int _vendor_id = 0, _device_id = 0;
 		uint64_t _framecount = 0;
@@ -195,6 +203,7 @@ namespace reshade
 		void draw_overlay_technique_editor();
 
 		const unsigned int _renderer_id;
+		bool _is_initialized = false;
 		std::vector<filesystem::path> _effect_files, _preset_files, _effect_search_paths, _texture_search_paths;
 		std::chrono::high_resolution_clock::time_point _start_time, _last_reload_time, _last_present_time;
 		std::chrono::high_resolution_clock::duration _last_frame_duration;

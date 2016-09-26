@@ -1,6 +1,6 @@
 #pragma once
 
-#include <gl/gl3w.h>
+#include "opengl_loader.hpp"
 
 namespace reshade::opengl
 {
@@ -17,7 +17,7 @@ namespace reshade::opengl
 		GLint _vbo;
 		GLint _ubo;
 		GLint _program;
-		GLint _textures2D[32], _samplers[32];
+		GLint _textures2d[32], _samplers[32];
 		GLint _active_texture;
 		GLint _viewport[4];
 		GLint _scissor_test;

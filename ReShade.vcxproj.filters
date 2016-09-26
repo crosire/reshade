@@ -45,26 +45,23 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="source\directory_watcher.cpp">
+      <Filter>core</Filter>
+    </ClCompile>
+    <ClCompile Include="source\filesystem.cpp">
+      <Filter>core</Filter>
+    </ClCompile>
+    <ClCompile Include="source\ini_file.cpp">
+      <Filter>core</Filter>
+    </ClCompile>
     <ClCompile Include="source\log.cpp">
       <Filter>core</Filter>
     </ClCompile>
-    <ClCompile Include="source\hook.cpp">
-      <Filter>core\hook</Filter>
+    <ClCompile Include="source\resource_loading.cpp">
+      <Filter>core</Filter>
     </ClCompile>
-    <ClCompile Include="source\hook_manager.cpp">
-      <Filter>core\hook</Filter>
-    </ClCompile>
-    <ClCompile Include="source\runtime.cpp">
-      <Filter>core\runtime</Filter>
-    </ClCompile>
-    <ClCompile Include="source\input.cpp">
-      <Filter>core\runtime</Filter>
-    </ClCompile>
-    <ClCompile Include="source\windows\user32.cpp">
-      <Filter>hooks\windows</Filter>
-    </ClCompile>
-    <ClCompile Include="source\windows\ws2_32.cpp">
-      <Filter>hooks\windows</Filter>
+    <ClCompile Include="source\constant_folding.cpp">
+      <Filter>core\fx</Filter>
     </ClCompile>
     <ClCompile Include="source\lexer.cpp">
       <Filter>core\fx</Filter>
@@ -78,11 +75,56 @@
     <ClCompile Include="source\symbol_table.cpp">
       <Filter>core\fx</Filter>
     </ClCompile>
-    <ClCompile Include="source\constant_folding.cpp">
-      <Filter>core\fx</Filter>
+    <ClCompile Include="source\hook.cpp">
+      <Filter>core\hook</Filter>
+    </ClCompile>
+    <ClCompile Include="source\hook_manager.cpp">
+      <Filter>core\hook</Filter>
+    </ClCompile>
+    <ClCompile Include="source\input.cpp">
+      <Filter>core\runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="source\main.cpp">
+      <Filter>core\runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="source\runtime.cpp">
+      <Filter>core\runtime</Filter>
     </ClCompile>
     <ClCompile Include="source\runtime_objects.cpp">
       <Filter>core\runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="source\d3d9\d3d9.cpp">
+      <Filter>hooks\d3d9</Filter>
+    </ClCompile>
+    <ClCompile Include="source\d3d9\d3d9_device.cpp">
+      <Filter>hooks\d3d9</Filter>
+    </ClCompile>
+    <ClCompile Include="source\d3d9\d3d9_effect_compiler.cpp">
+      <Filter>hooks\d3d9</Filter>
+    </ClCompile>
+    <ClCompile Include="source\d3d9\d3d9_runtime.cpp">
+      <Filter>hooks\d3d9</Filter>
+    </ClCompile>
+    <ClCompile Include="source\d3d9\d3d9_swapchain.cpp">
+      <Filter>hooks\d3d9</Filter>
+    </ClCompile>
+    <ClCompile Include="source\d3d10\d3d10.cpp">
+      <Filter>hooks\d3d10</Filter>
+    </ClCompile>
+    <ClCompile Include="source\d3d10\d3d10_device.cpp">
+      <Filter>hooks\d3d10</Filter>
+    </ClCompile>
+    <ClCompile Include="source\d3d10\d3d10_effect_compiler.cpp">
+      <Filter>hooks\d3d10</Filter>
+    </ClCompile>
+    <ClCompile Include="source\d3d10\d3d10_runtime.cpp">
+      <Filter>hooks\d3d10</Filter>
+    </ClCompile>
+    <ClCompile Include="source\d3d10\d3d10_stateblock.cpp">
+      <Filter>hooks\d3d10</Filter>
+    </ClCompile>
+    <ClCompile Include="source\d3d11\d3d11.cpp">
+      <Filter>hooks\d3d11</Filter>
     </ClCompile>
     <ClCompile Include="source\d3d11\d3d11_device.cpp">
       <Filter>hooks\d3d11</Filter>
@@ -90,22 +132,13 @@
     <ClCompile Include="source\d3d11\d3d11_device_context.cpp">
       <Filter>hooks\d3d11</Filter>
     </ClCompile>
-    <ClCompile Include="source\d3d10\d3d10_device.cpp">
-      <Filter>hooks\d3d10</Filter>
+    <ClCompile Include="source\d3d11\d3d11_effect_compiler.cpp">
+      <Filter>hooks\d3d11</Filter>
     </ClCompile>
-    <ClCompile Include="source\d3d9\d3d9_device.cpp">
-      <Filter>hooks\d3d9</Filter>
+    <ClCompile Include="source\d3d11\d3d11_runtime.cpp">
+      <Filter>hooks\d3d11</Filter>
     </ClCompile>
-    <ClCompile Include="source\d3d9\d3d9_swapchain.cpp">
-      <Filter>hooks\d3d9</Filter>
-    </ClCompile>
-    <ClCompile Include="source\d3d9\d3d9.cpp">
-      <Filter>hooks\d3d9</Filter>
-    </ClCompile>
-    <ClCompile Include="source\d3d10\d3d10.cpp">
-      <Filter>hooks\d3d10</Filter>
-    </ClCompile>
-    <ClCompile Include="source\d3d11\d3d11.cpp">
+    <ClCompile Include="source\d3d11\d3d11_stateblock.cpp">
       <Filter>hooks\d3d11</Filter>
     </ClCompile>
     <ClCompile Include="source\d3d12\d3d12.cpp">
@@ -117,32 +150,11 @@
     <ClCompile Include="source\d3d12\d3d12_device.cpp">
       <Filter>hooks\d3d12</Filter>
     </ClCompile>
-    <ClCompile Include="source\d3d9\d3d9_runtime.cpp">
-      <Filter>hooks\d3d9</Filter>
-    </ClCompile>
-    <ClCompile Include="source\d3d9\d3d9_effect_compiler.cpp">
-      <Filter>hooks\d3d9</Filter>
-    </ClCompile>
-    <ClCompile Include="source\d3d10\d3d10_effect_compiler.cpp">
-      <Filter>hooks\d3d10</Filter>
-    </ClCompile>
-    <ClCompile Include="source\d3d10\d3d10_runtime.cpp">
-      <Filter>hooks\d3d10</Filter>
-    </ClCompile>
-    <ClCompile Include="source\d3d10\d3d10_stateblock.cpp">
-      <Filter>hooks\d3d10</Filter>
-    </ClCompile>
-    <ClCompile Include="source\d3d11\d3d11_effect_compiler.cpp">
-      <Filter>hooks\d3d11</Filter>
-    </ClCompile>
-    <ClCompile Include="source\d3d11\d3d11_runtime.cpp">
-      <Filter>hooks\d3d11</Filter>
-    </ClCompile>
-    <ClCompile Include="source\d3d11\d3d11_stateblock.cpp">
-      <Filter>hooks\d3d11</Filter>
-    </ClCompile>
     <ClCompile Include="source\d3d12\d3d12_runtime.cpp">
       <Filter>hooks\d3d12</Filter>
+    </ClCompile>
+    <ClCompile Include="source\dxgi\dxgi.cpp">
+      <Filter>hooks\dxgi</Filter>
     </ClCompile>
     <ClCompile Include="source\dxgi\dxgi_device.cpp">
       <Filter>hooks\dxgi</Filter>
@@ -150,8 +162,11 @@
     <ClCompile Include="source\dxgi\dxgi_swapchain.cpp">
       <Filter>hooks\dxgi</Filter>
     </ClCompile>
-    <ClCompile Include="source\dxgi\dxgi.cpp">
-      <Filter>hooks\dxgi</Filter>
+    <ClCompile Include="source\opengl\opengl.cpp">
+      <Filter>hooks\opengl</Filter>
+    </ClCompile>
+    <ClCompile Include="source\opengl\opengl_effect_compiler.cpp">
+      <Filter>hooks\opengl</Filter>
     </ClCompile>
     <ClCompile Include="source\opengl\opengl_runtime.cpp">
       <Filter>hooks\opengl</Filter>
@@ -159,49 +174,52 @@
     <ClCompile Include="source\opengl\opengl_stateblock.cpp">
       <Filter>hooks\opengl</Filter>
     </ClCompile>
-    <ClCompile Include="source\opengl\opengl_effect_compiler.cpp">
-      <Filter>hooks\opengl</Filter>
-    </ClCompile>
-    <ClCompile Include="source\opengl\opengl.cpp">
-      <Filter>hooks\opengl</Filter>
-    </ClCompile>
-    <ClCompile Include="source\main.cpp">
-      <Filter>core\runtime</Filter>
-    </ClCompile>
-    <ClCompile Include="source\directory_watcher.cpp">
-      <Filter>core</Filter>
-    </ClCompile>
-    <ClCompile Include="source\filesystem.cpp">
-      <Filter>core</Filter>
-    </ClCompile>
-    <ClCompile Include="source\ini_file.cpp">
-      <Filter>core</Filter>
-    </ClCompile>
     <ClCompile Include="source\vulkan\vulkan.cpp">
       <Filter>hooks\vulkan</Filter>
     </ClCompile>
     <ClCompile Include="source\vulkan\vulkan_runtime.cpp">
       <Filter>hooks\vulkan</Filter>
     </ClCompile>
-    <ClCompile Include="source\resource_loading.cpp">
-      <Filter>core</Filter>
+    <ClCompile Include="source\windows\user32.cpp">
+      <Filter>hooks\windows</Filter>
+    </ClCompile>
+    <ClCompile Include="source\windows\ws2_32.cpp">
+      <Filter>hooks\windows</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="source\com_ptr.hpp">
+      <Filter>core</Filter>
+    </ClInclude>
+    <ClInclude Include="source\critical_section.hpp">
+      <Filter>core</Filter>
+    </ClInclude>
+    <ClInclude Include="source\directory_watcher.hpp">
+      <Filter>core</Filter>
+    </ClInclude>
+    <ClInclude Include="source\filesystem.hpp">
+      <Filter>core</Filter>
+    </ClInclude>
+    <ClInclude Include="source\ini_file.hpp">
+      <Filter>core</Filter>
+    </ClInclude>
     <ClInclude Include="source\log.hpp">
       <Filter>core</Filter>
     </ClInclude>
-    <ClInclude Include="source\hook.hpp">
-      <Filter>core\hook</Filter>
+    <ClInclude Include="source\moving_average.hpp">
+      <Filter>core</Filter>
     </ClInclude>
-    <ClInclude Include="source\hook_manager.hpp">
-      <Filter>core\hook</Filter>
+    <ClInclude Include="source\resource_loading.hpp">
+      <Filter>core</Filter>
     </ClInclude>
-    <ClInclude Include="source\runtime.hpp">
-      <Filter>core\runtime</Filter>
+    <ClInclude Include="source\variant.hpp">
+      <Filter>core</Filter>
     </ClInclude>
-    <ClInclude Include="source\input.hpp">
-      <Filter>core\runtime</Filter>
+    <ClInclude Include="source\unicode.hpp">
+      <Filter>core</Filter>
+    </ClInclude>
+    <ClInclude Include="source\constant_folding.hpp">
+      <Filter>core\fx</Filter>
     </ClInclude>
     <ClInclude Include="source\lexer.hpp">
       <Filter>core\fx</Filter>
@@ -221,44 +239,44 @@
     <ClInclude Include="source\syntax_tree_nodes.hpp">
       <Filter>core\fx</Filter>
     </ClInclude>
-    <ClInclude Include="source\constant_folding.hpp">
-      <Filter>core\fx</Filter>
-    </ClInclude>
     <ClInclude Include="source\source_location.hpp">
       <Filter>core\fx</Filter>
+    </ClInclude>
+    <ClInclude Include="source\hook.hpp">
+      <Filter>core\hook</Filter>
+    </ClInclude>
+    <ClInclude Include="source\hook_manager.hpp">
+      <Filter>core\hook</Filter>
+    </ClInclude>
+    <ClInclude Include="source\input.hpp">
+      <Filter>core\runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="source\runtime.hpp">
+      <Filter>core\runtime</Filter>
     </ClInclude>
     <ClInclude Include="source\runtime_objects.hpp">
       <Filter>core\runtime</Filter>
     </ClInclude>
-    <ClInclude Include="source\d3d11\d3d11_device.hpp">
-      <Filter>hooks\d3d11</Filter>
+    <ClInclude Include="source\d3d9\d3d9.hpp">
+      <Filter>hooks\d3d9</Filter>
     </ClInclude>
-    <ClInclude Include="source\d3d11\d3d11_device_context.hpp">
-      <Filter>hooks\d3d11</Filter>
-    </ClInclude>
-    <ClInclude Include="source\d3d10\d3d10_device.hpp">
-      <Filter>hooks\d3d10</Filter>
+    <ClInclude Include="source\d3d9\d3d9_effect_compiler.hpp">
+      <Filter>hooks\d3d9</Filter>
     </ClInclude>
     <ClInclude Include="source\d3d9\d3d9_device.hpp">
-      <Filter>hooks\d3d9</Filter>
-    </ClInclude>
-    <ClInclude Include="source\d3d9\d3d9_swapchain.hpp">
-      <Filter>hooks\d3d9</Filter>
-    </ClInclude>
-    <ClInclude Include="source\d3d12\d3d12_command_queue.hpp">
-      <Filter>hooks\d3d12</Filter>
-    </ClInclude>
-    <ClInclude Include="source\d3d12\d3d12_device.hpp">
-      <Filter>hooks\d3d12</Filter>
-    </ClInclude>
-    <ClInclude Include="source\d3d9\d3d9.hpp">
       <Filter>hooks\d3d9</Filter>
     </ClInclude>
     <ClInclude Include="source\d3d9\d3d9_runtime.hpp">
       <Filter>hooks\d3d9</Filter>
     </ClInclude>
-    <ClInclude Include="source\d3d9\d3d9_effect_compiler.hpp">
+    <ClInclude Include="source\d3d9\d3d9_swapchain.hpp">
       <Filter>hooks\d3d9</Filter>
+    </ClInclude>
+    <ClInclude Include="source\d3d10\d3d10.hpp">
+      <Filter>hooks\d3d10</Filter>
+    </ClInclude>
+    <ClInclude Include="source\d3d10\d3d10_device.hpp">
+      <Filter>hooks\d3d10</Filter>
     </ClInclude>
     <ClInclude Include="source\d3d10\d3d10_effect_compiler.hpp">
       <Filter>hooks\d3d10</Filter>
@@ -269,6 +287,15 @@
     <ClInclude Include="source\d3d10\d3d10_stateblock.hpp">
       <Filter>hooks\d3d10</Filter>
     </ClInclude>
+    <ClInclude Include="source\d3d11\d3d11.hpp">
+      <Filter>hooks\d3d11</Filter>
+    </ClInclude>
+    <ClInclude Include="source\d3d11\d3d11_device.hpp">
+      <Filter>hooks\d3d11</Filter>
+    </ClInclude>
+    <ClInclude Include="source\d3d11\d3d11_device_context.hpp">
+      <Filter>hooks\d3d11</Filter>
+    </ClInclude>
     <ClInclude Include="source\d3d11\d3d11_effect_compiler.hpp">
       <Filter>hooks\d3d11</Filter>
     </ClInclude>
@@ -278,26 +305,32 @@
     <ClInclude Include="source\d3d11\d3d11_stateblock.hpp">
       <Filter>hooks\d3d11</Filter>
     </ClInclude>
+    <ClInclude Include="source\d3d12\d3d12.hpp">
+      <Filter>hooks\d3d12</Filter>
+    </ClInclude>
+    <ClInclude Include="source\d3d12\d3d12_command_queue.hpp">
+      <Filter>hooks\d3d12</Filter>
+    </ClInclude>
+    <ClInclude Include="source\d3d12\d3d12_device.hpp">
+      <Filter>hooks\d3d12</Filter>
+    </ClInclude>
     <ClInclude Include="source\d3d12\d3d12_runtime.hpp">
       <Filter>hooks\d3d12</Filter>
+    </ClInclude>
+    <ClInclude Include="source\dxgi\dxgi.hpp">
+      <Filter>hooks\dxgi</Filter>
     </ClInclude>
     <ClInclude Include="source\dxgi\dxgi_device.hpp">
       <Filter>hooks\dxgi</Filter>
     </ClInclude>
-    <ClInclude Include="source\d3d10\d3d10.hpp">
-      <Filter>hooks\d3d10</Filter>
-    </ClInclude>
-    <ClInclude Include="source\d3d11\d3d11.hpp">
-      <Filter>hooks\d3d11</Filter>
-    </ClInclude>
-    <ClInclude Include="source\d3d12\d3d12.hpp">
-      <Filter>hooks\d3d12</Filter>
-    </ClInclude>
     <ClInclude Include="source\dxgi\dxgi_swapchain.hpp">
       <Filter>hooks\dxgi</Filter>
     </ClInclude>
-    <ClInclude Include="source\dxgi\dxgi.hpp">
-      <Filter>hooks\dxgi</Filter>
+    <ClInclude Include="source\opengl\opengl_effect_compiler.hpp">
+      <Filter>hooks\opengl</Filter>
+    </ClInclude>
+    <ClInclude Include="source\opengl\opengl_loader.hpp">
+      <Filter>hooks\opengl</Filter>
     </ClInclude>
     <ClInclude Include="source\opengl\opengl_runtime.hpp">
       <Filter>hooks\opengl</Filter>
@@ -305,38 +338,8 @@
     <ClInclude Include="source\opengl\opengl_stateblock.hpp">
       <Filter>hooks\opengl</Filter>
     </ClInclude>
-    <ClInclude Include="source\opengl\opengl_effect_compiler.hpp">
-      <Filter>hooks\opengl</Filter>
-    </ClInclude>
-    <ClInclude Include="source\com_ptr.hpp">
-      <Filter>core</Filter>
-    </ClInclude>
-    <ClInclude Include="source\critical_section.hpp">
-      <Filter>core</Filter>
-    </ClInclude>
-    <ClInclude Include="source\directory_watcher.hpp">
-      <Filter>core</Filter>
-    </ClInclude>
-    <ClInclude Include="source\filesystem.hpp">
-      <Filter>core</Filter>
-    </ClInclude>
-    <ClInclude Include="source\ini_file.hpp">
-      <Filter>core</Filter>
-    </ClInclude>
-    <ClInclude Include="source\moving_average.hpp">
-      <Filter>core</Filter>
-    </ClInclude>
-    <ClInclude Include="source\variant.hpp">
-      <Filter>core</Filter>
-    </ClInclude>
-    <ClInclude Include="source\unicode.hpp">
-      <Filter>core</Filter>
-    </ClInclude>
     <ClInclude Include="source\vulkan\vulkan_runtime.hpp">
       <Filter>hooks\vulkan</Filter>
-    </ClInclude>
-    <ClInclude Include="source\resource_loading.hpp">
-      <Filter>core</Filter>
     </ClInclude>
     <ClInclude Include="res\resource.h">
       <Filter>resources</Filter>
@@ -344,14 +347,6 @@
     <ClInclude Include="res\version.h">
       <Filter>resources</Filter>
     </ClInclude>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="res\exports.def">
-      <Filter>resources</Filter>
-    </None>
-    <None Include="res\resource.rc2">
-      <Filter>resources</Filter>
-    </None>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="res\shader_copy_ps.hlsl">
@@ -366,6 +361,14 @@
     <FxCompile Include="res\shader_imgui_vs.hlsl">
       <Filter>resources</Filter>
     </FxCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="res\exports.def">
+      <Filter>resources</Filter>
+    </None>
+    <None Include="res\resource.rc2">
+      <Filter>resources</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="res\resource.rc">

@@ -1,3 +1,4 @@
+#include "opengl_loader.hpp"
 #include "opengl_stateblock.hpp"
 
 namespace reshade::opengl
@@ -18,7 +19,7 @@ namespace reshade::opengl
 		for (GLuint i = 0; i < 32; i++)
 		{
 			glActiveTexture(GL_TEXTURE0 + i);
-			glGetIntegerv(GL_TEXTURE_BINDING_2D, &_textures2D[i]);
+			glGetIntegerv(GL_TEXTURE_BINDING_2D, &_textures2d[i]);
 			glGetIntegerv(GL_SAMPLER_BINDING, &_samplers[i]);
 		}
 
@@ -65,29 +66,35 @@ namespace reshade::opengl
 		for (GLuint i = 0; i < 32; i++)
 		{
 			glActiveTexture(GL_TEXTURE0 + i);
-			glBindTexture(GL_TEXTURE_2D, _textures2D[i]);
+			glBindTexture(GL_TEXTURE_2D, _textures2d[i]);
 			glBindSampler(i, _samplers[i]);
 		}
 
 		glActiveTexture(_active_texture);
 		glViewport(_viewport[0], _viewport[1], _viewport[2], _viewport[3]);
-		_scissor_test ? glEnable(GL_SCISSOR_TEST) : glDisable(GL_SCISSOR_TEST);
-		_blend ? glEnable(GL_BLEND) : glDisable(GL_BLEND);
+		if (_scissor_test) { glEnable(GL_SCISSOR_TEST); }
+		else { glDisable(GL_SCISSOR_TEST); }
+		if (_blend) { glEnable(GL_BLEND); }
+		else { glDisable(GL_BLEND); }
 		glBlendFunc(_blend_src, _blend_dest);
 		glBlendEquationSeparate(_blend_eq_color, _blend_eq_alpha);
-		_depth_test ? glEnable(GL_DEPTH_TEST) : glDisable(GL_DEPTH_TEST);
+		if (_depth_test) { glEnable(GL_DEPTH_TEST); }
+		else { glDisable(GL_DEPTH_TEST); }
 		glDepthMask(_depth_mask);
 		glDepthFunc(_depth_func);
-		_stencil_test ? glEnable(GL_STENCIL_TEST) : glDisable(GL_STENCIL_TEST);
+		if (_stencil_test) { glEnable(GL_STENCIL_TEST); }
+		else { glDisable(GL_STENCIL_TEST); }
 		glStencilFunc(_stencil_func, _stencil_ref, _stencil_read_mask);
 		glStencilOp(_stencil_op_fail, _stencil_op_zfail, _stencil_op_zpass);
 		glStencilMask(_stencil_mask);
 		glPolygonMode(GL_FRONT_AND_BACK, _polygon_mode);
 		glFrontFace(_frontface);
-		_cullface ? glEnable(GL_CULL_FACE) : glDisable(GL_CULL_FACE);
+		if (_cullface) { glEnable(GL_CULL_FACE); }
+		else { glDisable(GL_CULL_FACE); }
 		glCullFace(_cullface_mode);
 		glBindFramebuffer(GL_FRAMEBUFFER, _fbo);
-		_srgb ? glEnable(GL_FRAMEBUFFER_SRGB) : glDisable(GL_FRAMEBUFFER_SRGB);
+		if (_srgb) { glEnable(GL_FRAMEBUFFER_SRGB); }
+		else { glDisable(GL_FRAMEBUFFER_SRGB); }
 		glColorMask(_color_mask[0], _color_mask[1], _color_mask[2], _color_mask[3]);
 
 		if (_drawbuffers[1] == GL_NONE &&

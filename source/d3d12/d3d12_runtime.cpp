@@ -23,11 +23,6 @@ namespace reshade::d3d12
 	}
 	void d3d12_runtime::on_reset()
 	{
-		if (!_is_initialized)
-		{
-			return;
-		}
-
 		runtime::on_reset();
 	}
 	void d3d12_runtime::on_reset_effect()
@@ -36,17 +31,16 @@ namespace reshade::d3d12
 	}
 	void d3d12_runtime::on_present()
 	{
-		if (!_is_initialized)
-		{
-			LOG(ERROR) << "Failed to present! Runtime is in a lost state.";
-			return;
-		}
-		else if (_drawcalls == 0)
+		if (!is_initialized() || _drawcalls == 0)
 		{
 			return;
 		}
 
-		runtime::on_present_effect();
+		if (is_effect_loaded())
+		{
+			on_present_effect();
+		}
+
 		runtime::on_present();
 	}
 

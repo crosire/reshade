@@ -61,7 +61,6 @@ namespace reshade::d3d9
 			if (FAILED(hr))
 			{
 				LOG(ERROR) << "Failed to create back buffer resolve texture! HRESULT is '" << std::hex << hr << std::dec << "'.";
-
 				return false;
 			}
 		}
@@ -80,7 +79,6 @@ namespace reshade::d3d9
 		else
 		{
 			LOG(ERROR) << "Failed to create back buffer texture! HRESULT is '" << std::hex << hr << std::dec << "'.";
-
 			return false;
 		}
 
@@ -88,13 +86,12 @@ namespace reshade::d3d9
 	}
 	bool d3d9_runtime::init_default_depth_stencil()
 	{
-		// Create default depth-stencil surface
+		// Create default depth stencil surface
 		HRESULT hr = _device->CreateDepthStencilSurface(_width, _height, D3DFMT_D24S8, D3DMULTISAMPLE_NONE, 0, FALSE, &_default_depthstencil, nullptr);
 
 		if (FAILED(hr))
 		{
-			LOG(ERROR) << "Failed to create default depth-stencil! HRESULT is '" << std::hex << hr << std::dec << "'.";
-
+			LOG(ERROR) << "Failed to create default depth stencil! HRESULT is '" << std::hex << hr << std::dec << "'.";
 			return false;
 		}
 
@@ -112,7 +109,7 @@ namespace reshade::d3d9
 
 			assert(SUCCEEDED(hr));
 
-			for (UINT i = 0; i < 3; i++)
+			for (unsigned int i = 0; i < 3; i++)
 			{
 				data[i] = static_cast<float>(i);
 			}
@@ -122,7 +119,6 @@ namespace reshade::d3d9
 		else
 		{
 			LOG(ERROR) << "Failed to create effect vertex buffer! HRESULT is '" << std::hex << hr << std::dec << "'.";
-
 			return false;
 		}
 
@@ -136,7 +132,6 @@ namespace reshade::d3d9
 		if (FAILED(hr))
 		{
 			LOG(ERROR) << "Failed to create effect vertex declaration! HRESULT is '" << std::hex << hr << std::dec << "'.";
-
 			return false;
 		}
 
@@ -158,7 +153,6 @@ namespace reshade::d3d9
 		if (FAILED(hr) || FAILED(font_atlas->LockRect(0, &font_atlas_rect, nullptr, 0)))
 		{
 			LOG(ERROR) << "Failed to create font atlas texture! HRESULT is '" << std::hex << hr << std::dec << "'.";
-
 			return false;
 		}
 
@@ -202,6 +196,11 @@ namespace reshade::d3d9
 	}
 	void d3d9_runtime::on_reset()
 	{
+		if (!is_initialized())
+		{
+			return;
+		}
+
 		runtime::on_reset();
 
 		// Destroy resources
@@ -236,9 +235,8 @@ namespace reshade::d3d9
 	}
 	void d3d9_runtime::on_present()
 	{
-		if (!_is_initialized)
+		if (!is_initialized())
 		{
-			LOG(ERROR) << "Failed to present! Runtime is in a lost state.";
 			return;
 		}
 
@@ -280,7 +278,7 @@ namespace reshade::d3d9
 		}
 
 		// Apply post processing
-		if (!_techniques.empty())
+		if (is_effect_loaded())
 		{
 			_device->SetRenderTarget(0, _backbuffer_resolved.get());
 			_device->SetDepthStencilSurface(nullptr);
@@ -289,7 +287,7 @@ namespace reshade::d3d9
 			_device->SetStreamSource(0, _effect_triangle_buffer.get(), 0, sizeof(float));
 			_device->SetVertexDeclaration(_effect_triangle_layout.get());
 
-			runtime::on_present_effect();
+			on_present_effect();
 		}
 
 		// Apply presenting
@@ -484,8 +482,7 @@ namespace reshade::d3d9
 
 		if (FAILED(hr))
 		{
-			LOG(ERROR) << "Failed to create memory texture for texture updating! HRESULT is '" << hr << "'.";
-
+			LOG(ERROR) << "Failed to create memory texture for texture updating! HRESULT is '" << std::hex << hr << std::dec << "'.";
 			return false;
 		}
 
@@ -494,8 +491,7 @@ namespace reshade::d3d9
 
 		if (FAILED(hr))
 		{
-			LOG(ERROR) << "Failed to lock memory texture for texture updating! HRESULT is '" << hr << "'.";
-
+			LOG(ERROR) << "Failed to lock memory texture for texture updating! HRESULT is '" << std::hex << hr << std::dec << "'.";
 			return false;
 		}
 
@@ -506,24 +502,27 @@ namespace reshade::d3d9
 		{
 			case texture_format::r8:
 				for (UINT i = 0; i < size; i += 4, mapped_data += 4)
-				{
-					mapped_data[0] = 0, mapped_data[1] = 0, mapped_data[2] = data[i], mapped_data[3] = 0;
-				}
+					mapped_data[0] = 0,
+					mapped_data[1] = 0,
+					mapped_data[2] = data[i],
+					mapped_data[3] = 0;
 				break;
 			case texture_format::rg8:
 				for (UINT i = 0; i < size; i += 4, mapped_data += 4)
-				{
-					mapped_data[0] = 0, mapped_data[1] = data[i + 1], mapped_data[2] = data[i], mapped_data[3] = 0;
-				}
+					mapped_data[0] = 0,
+					mapped_data[1] = data[i + 1],
+					mapped_data[2] = data[i],
+					mapped_data[3] = 0;
 				break;
 			case texture_format::rgba8:
 				for (UINT i = 0; i < size; i += 4, mapped_data += 4)
-				{
-					mapped_data[0] = data[i + 2], mapped_data[1] = data[i + 1], mapped_data[2] = data[i], mapped_data[3] = data[i + 3];
-				}
+					mapped_data[0] = data[i + 2],
+					mapped_data[1] = data[i + 1],
+					mapped_data[2] = data[i],
+					mapped_data[3] = data[i + 3];
 				break;
 			default:
-				CopyMemory(mapped_data, data, size);
+				std::memcpy(mapped_data, data, size);
 				break;
 		}
 
@@ -533,8 +532,7 @@ namespace reshade::d3d9
 
 		if (FAILED(hr))
 		{
-			LOG(ERROR) << "Failed to update texture from memory texture! HRESULT is '" << hr << "'.";
-
+			LOG(ERROR) << "Failed to update texture from memory texture! HRESULT is '" << std::hex << hr << std::dec << "'.";
 			return false;
 		}
 
@@ -605,9 +603,9 @@ namespace reshade::d3d9
 			_device->SetPixelShaderConstantF(0, uniform_storage_data, technique.uniform_storage_index);
 		}
 
-		for (const auto &pass_ptr : technique.passes)
+		for (const auto &pass_object : technique.passes)
 		{
-			const auto &pass = *static_cast<const d3d9_pass_data *>(pass_ptr.get());
+			const d3d9_pass_data &pass = *pass_object->as<d3d9_pass_data>();
 
 			// Setup states
 			pass.stateblock->Apply();
@@ -929,7 +927,7 @@ namespace reshade::d3d9
 				{
 					_depthstencil_texture->GetSurfaceLevel(0, &_depthstencil_replacement);
 
-					// Update auto depth-stencil
+					// Update auto depth stencil
 					com_ptr<IDirect3DSurface9> current_depthstencil;
 					_device->GetDepthStencilSurface(&current_depthstencil);
 

@@ -75,18 +75,6 @@ namespace reshade::d3d11
 
 		return DXGI_FORMAT_UNKNOWN;
 	}
-	static size_t D3D11_SAMPLER_DESC_HASH(const D3D11_SAMPLER_DESC &s)
-	{
-		const unsigned char *p = reinterpret_cast<const unsigned char *>(&s);
-		size_t h = 2166136261;
-
-		for (size_t i = 0; i < sizeof(D3D11_SAMPLER_DESC); ++i)
-		{
-			h = (h * 16777619) ^ p[i];
-		}
-
-		return h;
-	}
 	static std::string convert_semantic(const std::string &semantic)
 	{
 		if (semantic == "VERTEXID")
@@ -1574,8 +1562,11 @@ namespace reshade::d3d11
 			return;
 		}
 
-		const size_t descHash = D3D11_SAMPLER_DESC_HASH(desc);
-		auto it = _runtime->_effect_sampler_descs.find(descHash);
+		size_t desc_hash = 2166136261;
+		for (size_t i = 0; i < sizeof(desc); ++i)
+			desc_hash = (desc_hash * 16777619) ^ reinterpret_cast<const uint8_t *>(&desc)[i];
+
+		auto it = _runtime->_effect_sampler_descs.find(desc_hash);
 
 		if (it == _runtime->_effect_sampler_descs.end())
 		{
@@ -1590,7 +1581,7 @@ namespace reshade::d3d11
 			}
 
 			_runtime->_effect_sampler_states.push_back(sampler);
-			it = _runtime->_effect_sampler_descs.emplace(descHash, _runtime->_effect_sampler_states.size() - 1).first;
+			it = _runtime->_effect_sampler_descs.emplace(desc_hash, _runtime->_effect_sampler_states.size() - 1).first;
 		}
 
 		_global_code << "static const __sampler2D " << node->unique_name << " = { ";
