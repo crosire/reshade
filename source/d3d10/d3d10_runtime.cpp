@@ -774,59 +774,6 @@ namespace reshade::d3d10
 
 		return true;
 	}
-	bool d3d10_runtime::update_texture_reference(texture &texture, texture_reference id)
-	{
-		com_ptr<ID3D10ShaderResourceView> new_reference[2];
-
-		switch (id)
-		{
-			case texture_reference::back_buffer:
-				new_reference[0] = _backbuffer_texture_srv[0];
-				new_reference[1] = _backbuffer_texture_srv[1];
-				break;
-			case texture_reference::depth_buffer:
-				new_reference[0] = _depthstencil_texture_srv;
-				new_reference[1] = _depthstencil_texture_srv;
-				break;
-			default:
-				return false;
-		}
-
-		texture.impl_reference = id;
-
-		const auto texture_impl = texture.impl->as<d3d10_tex_data>();
-
-		assert(texture_impl != nullptr);
-
-		texture_impl->texture.reset();
-		texture_impl->srv[0].reset();
-		texture_impl->srv[1].reset();
-		texture_impl->rtv[0].reset();
-		texture_impl->rtv[1].reset();
-
-		if (new_reference[0] == nullptr)
-		{
-			texture.width = texture.height = texture.levels = 0;
-			texture.format = texture_format::unknown;
-		}
-		else
-		{
-			texture_impl->srv[0] = new_reference[0];
-			texture_impl->srv[1] = new_reference[1];
-
-			texture_impl->srv[0]->GetResource(reinterpret_cast<ID3D10Resource **>(&texture_impl->texture));
-
-			D3D10_TEXTURE2D_DESC desc;
-			texture_impl->texture->GetDesc(&desc);
-
-			texture.width = desc.Width;
-			texture.height = desc.Height;
-			texture.format = texture_format::unknown;
-			texture.levels = desc.MipLevels;
-		}
-
-		return true;
-	}
 
 	void d3d10_runtime::render_technique(const technique &technique)
 	{

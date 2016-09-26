@@ -1462,8 +1462,6 @@ namespace reshade::d3d10
 	void d3d10_effect_compiler::visit_texture(const variable_declaration_node *node)
 	{
 		texture obj;
-		obj.impl = std::make_unique<d3d10_tex_data>();
-		const auto obj_data = obj.impl->as<d3d10_tex_data>();
 		D3D10_TEXTURE2D_DESC texdesc = { };
 		obj.name = node->name;
 		obj.unique_name = node->unique_name;
@@ -1483,20 +1481,26 @@ namespace reshade::d3d10
 
 		if (node->semantic == "COLOR" || node->semantic == "SV_TARGET")
 		{
-			_runtime->update_texture_reference(obj, texture_reference::back_buffer);
+			obj.width = _runtime->frame_width();
+			obj.height = _runtime->frame_height();
+			obj.impl_reference = texture_reference::back_buffer;
 
 			texture_register_index = 0;
 			texture_register_index_srgb = 1;
 		}
 		else if (node->semantic == "DEPTH" || node->semantic == "SV_DEPTH")
 		{
-			_runtime->update_texture_reference(obj, texture_reference::depth_buffer);
+			obj.width = _runtime->frame_width();
+			obj.height = _runtime->frame_height();
+			obj.impl_reference = texture_reference::depth_buffer;
 
 			texture_register_index = 2;
 			texture_register_index_srgb = 2;
 		}
 		else
 		{
+			obj.impl = std::make_unique<d3d10_tex_data>();
+			const auto obj_data = obj.impl->as<d3d10_tex_data>();
 
 			HRESULT hr = _runtime->_device->CreateTexture2D(&texdesc, nullptr, &obj_data->texture);
 
