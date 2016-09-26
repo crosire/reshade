@@ -349,26 +349,15 @@ namespace reshade
 		// Render all enabled techniques
 		for (auto &technique : _techniques)
 		{
-			if (technique.timeleft > 0)
-			{
-				technique.timeleft -= static_cast<unsigned int>(std::chrono::duration_cast<std::chrono::milliseconds>(_last_frame_duration).count());
-
-				if (technique.timeleft <= 0)
-				{
-					technique.enabled = !technique.enabled;
-					technique.timeleft = 0;
-				}
-			}
-			else if (_input->is_key_pressed(technique.toggle_key, technique.toggle_key_ctrl, technique.toggle_key_shift, technique.toggle_key_alt) ||
+			if (_input->is_key_pressed(technique.toggle_key, technique.toggle_key_ctrl, technique.toggle_key_shift, technique.toggle_key_alt) ||
 				(technique.toggle_key >= 0x01 && technique.toggle_key <= 0x06 && _input->is_mouse_button_pressed(technique.toggle_key - 1)))
 			{
 				technique.enabled = !technique.enabled;
-				technique.timeleft = technique.timeout;
+				technique.average_duration.clear();
 			}
 
 			if (!technique.enabled)
 			{
-				technique.average_duration.clear();
 				continue;
 			}
 
@@ -531,7 +520,6 @@ namespace reshade
 			technique.effect_filename = path.filename().string();
 			technique.enabled = technique.annotations["enabled"].as<bool>();
 			technique.hidden = technique.annotations["hidden"].as<bool>();
-			technique.timeleft = technique.timeout = technique.annotations["timeout"].as<int>();
 			technique.toggle_key = technique.annotations["toggle"].as<int>();
 			technique.toggle_key_ctrl = technique.annotations["togglectrl"].as<bool>();
 			technique.toggle_key_shift = technique.annotations["toggleshift"].as<bool>();
