@@ -1,12 +1,13 @@
 #include "log.hpp"
 #include "input.hpp"
-
+#include "critical_section.hpp"
 #include <Windows.h>
 #include <assert.h>
 #include <unordered_map>
 
 namespace reshade
 {
+	static critical_section s_cs;
 	static std::unordered_map<HWND, unsigned int> s_raw_input_windows;
 	static std::unordered_map<HWND, std::weak_ptr<input>> s_windows;
 
@@ -17,8 +18,9 @@ namespace reshade
 
 	void input::register_window_with_raw_input(window_handle window, bool no_legacy_keyboard, bool no_legacy_mouse)
 	{
-		const auto flags = (no_legacy_keyboard ? 0x1 : 0u) | (no_legacy_mouse ? 0x2 : 0u);
+		const critical_section::lock lock(s_cs);
 
+		const auto flags = (no_legacy_keyboard ? 0x1 : 0u) | (no_legacy_mouse ? 0x2 : 0u);
 		const auto insert = s_raw_input_windows.emplace(static_cast<HWND>(window), flags);
 
 		if (!insert.second)
@@ -28,6 +30,8 @@ namespace reshade
 	}
 	std::shared_ptr<input> input::register_window(window_handle window)
 	{
+		const critical_section::lock lock(s_cs);
+
 		const auto insert = s_windows.emplace(static_cast<HWND>(window), std::weak_ptr<input>());
 
 		if (insert.second || insert.first->second.expired())
@@ -64,6 +68,8 @@ namespace reshade
 		{
 			return false;
 		}
+
+		const critical_section::lock lock(s_cs);
 
 		auto input_window = s_windows.find(details.hwnd);
 		const auto raw_input_window = s_raw_input_windows.find(details.hwnd);
