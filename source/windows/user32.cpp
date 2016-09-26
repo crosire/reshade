@@ -200,6 +200,12 @@ HOOK_EXPORT BOOL WINAPI HookPeekMessageW(LPMSG lpMsg, HWND hWnd, UINT wMsgFilter
 
 POINT last_cursor_position = { };
 
+HOOK_EXPORT BOOL WINAPI HookClipCursor(const RECT *lpRect)
+{
+	UNREFERENCED_PARAMETER(lpRect);
+
+	return TRUE;
+}
 HOOK_EXPORT BOOL WINAPI HookSetCursorPosition(int X, int Y)
 {
 	const HWND hwnd = GetActiveWindow();
