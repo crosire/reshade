@@ -494,6 +494,10 @@ namespace reshade
 		{
 			LOG(ERROR) << "Failed to compile " << path << ":\n" << errors;
 			_errors += path.string() + ":\n" + errors;
+			_textures.erase(_textures.begin() + _texture_count, _textures.end());
+			_uniforms.erase(_uniforms.begin() + _uniform_count, _uniforms.end());
+			_techniques.erase(_techniques.begin() + _technique_count, _techniques.end());
+			return;
 		}
 		else if (errors.empty())
 		{
