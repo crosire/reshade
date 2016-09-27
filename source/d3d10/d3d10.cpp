@@ -9,6 +9,8 @@ HOOK_EXPORT HRESULT WINAPI D3D10CreateDevice(IDXGIAdapter *pAdapter, D3D10_DRIVE
 	LOG(INFO) << "Redirecting '" << "D3D10CreateDevice" << "(" << pAdapter << ", " << DriverType << ", " << Software << ", " << std::hex << Flags << std::dec << ", " << SDKVersion << ", " << ppDevice << ")' ...";
 	LOG(INFO) << "> Passing on to 'D3D10CreateDeviceAndSwapChain1':";
 
+	LoadLibraryW(L"d3d10_1.dll");
+
 	return D3D10CreateDeviceAndSwapChain1(pAdapter, DriverType, Software, Flags, D3D10_FEATURE_LEVEL_10_0, D3D10_1_SDK_VERSION, nullptr, nullptr, reinterpret_cast<ID3D10Device1 **>(ppDevice));
 }
 HOOK_EXPORT HRESULT WINAPI D3D10CreateDevice1(IDXGIAdapter *pAdapter, D3D10_DRIVER_TYPE DriverType, HMODULE Software, UINT Flags, D3D10_FEATURE_LEVEL1 HardwareLevel, UINT SDKVersion, ID3D10Device1 **ppDevice)
@@ -22,6 +24,8 @@ HOOK_EXPORT HRESULT WINAPI D3D10CreateDeviceAndSwapChain(IDXGIAdapter *pAdapter,
 {
 	LOG(INFO) << "Redirecting '" << "D3D10CreateDeviceAndSwapChain" << "(" << pAdapter << ", " << DriverType << ", " << Software << ", " << std::hex << Flags << std::dec << ", " << SDKVersion << ", " << pSwapChainDesc << ", " << ppSwapChain << ", " << ppDevice << ")' ...";
 	LOG(INFO) << "> Passing on to 'D3D10CreateDeviceAndSwapChain1':";
+
+	LoadLibraryW(L"d3d10_1.dll");
 
 	return D3D10CreateDeviceAndSwapChain1(pAdapter, DriverType, Software, Flags, D3D10_FEATURE_LEVEL_10_0, D3D10_1_SDK_VERSION, pSwapChainDesc, ppSwapChain, reinterpret_cast<ID3D10Device1 **>(ppDevice));
 }
