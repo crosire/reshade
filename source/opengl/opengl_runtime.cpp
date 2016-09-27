@@ -62,8 +62,8 @@ namespace reshade::opengl
 		_input = input::register_window(WindowFromDC(_hdc));
 
 		// Get vendor and device information on NVIDIA Optimus devices
-		if (GetModuleHandle(TEXT("nvd3d9wrap.dll")) == nullptr &&
-			GetModuleHandle(TEXT("nvd3d9wrapx.dll")) == nullptr)
+		if (GetModuleHandleW(L"nvd3d9wrap.dll") == nullptr &&
+			GetModuleHandleW(L"nvd3d9wrapx.dll") == nullptr)
 		{
 			DISPLAY_DEVICEA dd = { sizeof(dd) };
 

@@ -229,6 +229,8 @@ namespace reshade::d3d10
 			_runtime->_constant_buffers.push_back(constant_buffer);
 		}
 
+		FreeLibrary(_d3dcompiler_module);
+
 		return _success;
 	}
 

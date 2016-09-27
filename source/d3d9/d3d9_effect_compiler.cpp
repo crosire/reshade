@@ -173,6 +173,8 @@ namespace reshade::d3d9
 			visit_technique(technique);
 		}
 
+		FreeLibrary(_d3dcompiler_module);
+
 		return _success;
 	}
 
