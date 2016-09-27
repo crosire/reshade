@@ -16,6 +16,7 @@ namespace ReShade.Setup
 		string _targetPath = null;
 		string _targetModulePath = null;
 		PEInfo _targetPEInfo = null;
+		string _tempDownloadPath = null;
 
 		public Wizard()
 		{
@@ -141,7 +142,7 @@ namespace ReShade.Setup
 
 			if (isApiD3D8)
 			{
-				MessageBox.Show(this, "It looks like the target application uses Direct3D 8. You'll have to download 'd3d8to9' from 'http://reshade.me/d3d8to9' which converts all API calls to Direct3D 9 in order to use ReShade.", "Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
+				MessageBox.Show(this, "It looks like the target application uses Direct3D 8. You'll have to download an additional wrapper from 'http://reshade.me/d3d8to9' which converts all API calls to Direct3D 9 in order to use ReShade.", "Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
 			}
 
 			Message.Content = "Select rendering API";
@@ -206,6 +207,8 @@ namespace ReShade.Setup
 			Message.Content = "Downloading ...";
 			Glass.HideSystemMenu(this);
 
+			_tempDownloadPath = Path.GetTempFileName();
+
 			var client = new WebClient();
 			client.DownloadProgressChanged += (object sender, DownloadProgressChangedEventArgs e)
 				=> {
@@ -225,21 +228,33 @@ namespace ReShade.Setup
 					}
 				};
 
-			client.DownloadFileAsync(new Uri("https://github.com/crosire/reshade-shaders/archive/master.zip"), "reshade-shaders.zip");
+			try
+			{
+				client.DownloadFileAsync(new Uri("https://github.com/crosire/reshade-shaders/archive/master.zip"), _tempDownloadPath);
+			}
+			catch
+			{
+				Title += " Failed!";
+				Message.Content = "Unable to download archive.";
+				Glass.HideSystemMenu(this, false);
+			}
 		}
 		void InstallationStep4()
 		{
 			string targetDirectory = Path.GetDirectoryName(_targetPath);
+			string shadersDirectory = Path.Combine(targetDirectory, "reshade-shaders");
 
 			try
 			{
-				if (Directory.Exists(Path.Combine(targetDirectory, "reshade-shaders-master")))
+				if (Directory.Exists(shadersDirectory))
 				{
-					Directory.Delete(Path.Combine(targetDirectory, "reshade-shaders-master"), true);
+					Directory.Delete(shadersDirectory, true);
 				}
 
-				ZipFile.ExtractToDirectory("reshade-shaders.zip", targetDirectory);
-				File.Delete("reshade-shaders.zip");
+				ZipFile.ExtractToDirectory(_tempDownloadPath, Path.GetTempPath());
+				File.Delete(_tempDownloadPath);
+
+				Directory.Move(Path.Combine(Path.GetTempPath(), "reshade-shaders-master"), shadersDirectory);
 			}
 			catch
 			{
@@ -249,14 +264,14 @@ namespace ReShade.Setup
 				return;
 			}
 
-			string effectSearchPaths = targetDirectory + "," + Path.Combine(targetDirectory, "reshade-shaders-master", "Shaders");
-			string textureSearchPaths = targetDirectory + "," + Path.Combine(targetDirectory, "reshade-shaders-master", "Textures");
+			string effectSearchPaths = targetDirectory + "," + Path.Combine(shadersDirectory, "Shaders");
+			string textureSearchPaths = targetDirectory + "," + Path.Combine(shadersDirectory, "Textures");
 
 			File.WriteAllText(Path.ChangeExtension(_targetModulePath, ".ini"),
 				string.Format(
-					"[GENERAL]\r\n" +
-					"EffectSearchPaths={0}\r\n" +
-					"TextureSearchPaths={1}\r\n",
+					"[GENERAL]" + Environment.NewLine +
+					"EffectSearchPaths={0}" + Environment.NewLine +
+					"TextureSearchPaths={1}",
 					effectSearchPaths, textureSearchPaths));
 
 			Title += " Succeeded!";
