@@ -1129,7 +1129,7 @@ namespace reshade
 			if (_tutorial_index == 1)
 			{
 				tutorial_text =
-					"This is the preset selection. All changes to techniques and variables will be saved to the selected file.\n\n"
+					"This is the preset selection. All changes will be saved to the selected file.\n\n"
 					"You can add a new one by clicking on the '+' button. Simply enter a new preset name or the full path to an existing file (*.ini) in the text box that opens.\n"
 					"To delete the currently selected preset file, click on the '-' button.\n"
 					"Make sure a valid file is selected here before starting to tweak any values later, or else your changes won't be saved!\n\n"
@@ -1247,7 +1247,8 @@ namespace reshade
 			{
 				tutorial_text =
 					"This is the list of techniques. It contains all effects (*.fx) that were found in the effect search paths as specified on the 'Settings' tab.\n\n"
-					"Click on a technique to enable or disable it or drag it to a new location in the list to change the order in which the effects are applied.";
+					"Click on a technique to enable or disable it or drag it to a new location in the list to change the order in which the effects are applied.\n\n"
+					"Note that you can grab the splitter between this technique list and the upcoming variable list and move it vertically to adjust the available space.";
 
 				ImGui::PushStyleColor(ImGuiCol_ChildWindowBg, ImVec4(1, 0, 0, 1));
 			}
@@ -1283,7 +1284,7 @@ namespace reshade
 			if (_tutorial_index == 3)
 			{
 				tutorial_text =
-					"This is the list of variables. It contains all tweakable options the effects expose. All values here apply in real-time.\n\n"
+					"This is the list of variables. It contains all tweakable options the effects expose. All values here apply in real-time. Press 'Ctrl' and click on a widget to manually edit the value.\n\n"
 					"Enter text in the box at the top of the list to filter it and search for specific variables.\n\n"
 					"Once you have finished tweaking your preset, be sure to go to the 'Settings' tab and change the 'Usage Mode' to 'Performance Mode'. "
 					"This will recompile all shaders into a more optimal representation that gives a significant performance boost, but will disable variable tweaking and this list.";
