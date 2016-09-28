@@ -561,7 +561,9 @@ namespace reshade::opengl
 
 	void opengl_runtime::capture_frame(uint8_t *buffer) const
 	{
+		glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
 		glReadBuffer(GL_BACK);
+
 		glReadPixels(0, 0, static_cast<GLsizei>(_width), static_cast<GLsizei>(_height), GL_RGBA, GL_UNSIGNED_BYTE, buffer);
 
 		// Flip image
