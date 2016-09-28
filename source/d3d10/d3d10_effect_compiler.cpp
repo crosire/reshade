@@ -1851,6 +1851,7 @@ namespace reshade::d3d10
 		}
 
 		std::string source =
+			"#pragma warning(disable: 3571)\n"
 			"struct __sampler2D { Texture2D t; SamplerState s; };\n"
 			"inline float4 __tex2D(__sampler2D s, float2 c) { return s.t.Sample(s.s, c); }\n"
 			"inline float4 __tex2Dfetch(__sampler2D s, int4 c) { return s.t.Load(c.xyw); }\n"
