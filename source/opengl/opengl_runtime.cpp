@@ -407,6 +407,7 @@ namespace reshade::opengl
 		_stateblock.capture();
 
 		// Copy frame buffer
+		glDisable(GL_SCISSOR_TEST);
 		glDisable(GL_FRAMEBUFFER_SRGB);
 		glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
 		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _default_backbuffer_fbo);
@@ -453,6 +454,7 @@ namespace reshade::opengl
 		}
 
 		// Reset render target and copy to frame buffer
+		glDisable(GL_SCISSOR_TEST);
 		glDisable(GL_FRAMEBUFFER_SRGB);
 		glBindFramebuffer(GL_READ_FRAMEBUFFER, _default_backbuffer_fbo);
 		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
@@ -697,6 +699,15 @@ namespace reshade::opengl
 		{
 			const opengl_pass_data &pass = *pass_object->as<opengl_pass_data>();
 
+			// Save frame buffer of previous pass
+			glDisable(GL_SCISSOR_TEST);
+			glDisable(GL_FRAMEBUFFER_SRGB);
+			glBindFramebuffer(GL_READ_FRAMEBUFFER, _default_backbuffer_fbo);
+			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _blit_fbo);
+			glReadBuffer(GL_COLOR_ATTACHMENT0);
+			glDrawBuffer(GL_COLOR_ATTACHMENT0);
+			glBlitFramebuffer(0, 0, _width, _height, 0, 0, _width, _height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+
 			// Setup states
 			glUseProgram(pass.program);
 			if (pass.srgb)
@@ -743,13 +754,6 @@ namespace reshade::opengl
 			glStencilFunc(pass.stencil_func, pass.stencil_reference, pass.stencil_read_mask);
 			glStencilOp(pass.stencil_op_fail, pass.stencil_op_z_fail, pass.stencil_op_z_pass);
 			glStencilMask(pass.stencil_mask);
-
-			// Save frame buffer of previous pass
-			glBindFramebuffer(GL_READ_FRAMEBUFFER, _default_backbuffer_fbo);
-			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _blit_fbo);
-			glReadBuffer(GL_COLOR_ATTACHMENT0);
-			glDrawBuffer(GL_COLOR_ATTACHMENT0);
-			glBlitFramebuffer(0, 0, _width, _height, 0, 0, _width, _height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
 
 			// Setup render targets
 			glBindFramebuffer(GL_FRAMEBUFFER, pass.fbo);
