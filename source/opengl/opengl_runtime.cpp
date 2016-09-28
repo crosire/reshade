@@ -407,6 +407,7 @@ namespace reshade::opengl
 		_stateblock.capture();
 
 		// Copy frame buffer
+		glDisable(GL_FRAMEBUFFER_SRGB);
 		glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
 		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _default_backbuffer_fbo);
 		glReadBuffer(GL_BACK);
@@ -452,6 +453,7 @@ namespace reshade::opengl
 		}
 
 		// Reset render target and copy to frame buffer
+		glDisable(GL_FRAMEBUFFER_SRGB);
 		glBindFramebuffer(GL_READ_FRAMEBUFFER, _default_backbuffer_fbo);
 		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
 		glReadBuffer(GL_COLOR_ATTACHMENT0);
@@ -797,7 +799,6 @@ namespace reshade::opengl
 		glDisable(GL_CULL_FACE);
 		glDisable(GL_DEPTH_TEST);
 		glEnable(GL_SCISSOR_TEST);
-		glDisable(GL_FRAMEBUFFER_SRGB);
 		glActiveTexture(GL_TEXTURE0);
 		glUseProgram(_imgui_shader_program);
 		glBindSampler(0, 0);
