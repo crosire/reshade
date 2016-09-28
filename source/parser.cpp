@@ -3552,13 +3552,9 @@ namespace reshadefx
 				{
 					pass->srgb_write_enable = value_literal->value_int[0] != 0;
 				}
-				else if (passstate == "BlendEnable" || passstate == "AlphaBlendEnable")
+				else if (passstate == "BlendEnable")
 				{
 					pass->blend_enable = value_literal->value_int[0] != 0;
-				}
-				else if (passstate == "DepthEnable" || passstate == "ZEnable")
-				{
-					pass->depth_enable = value_literal->value_int[0] != 0;
 				}
 				else if (passstate == "StencilEnable")
 				{
@@ -3574,10 +3570,6 @@ namespace reshadefx
 					scalar_literal_cast(value_literal, 0, mask);
 
 					pass->color_write_mask = mask & 0xFF;
-				}
-				else if (passstate == "DepthWriteMask" || passstate == "ZWriteEnable")
-				{
-					pass->depth_write_mask = value_literal->value_int[0] != 0;
 				}
 				else if (passstate == "StencilReadMask" || passstate == "StencilMask")
 				{
@@ -3608,10 +3600,6 @@ namespace reshadefx
 				else if (passstate == "DestBlend")
 				{
 					scalar_literal_cast(value_literal, 0, pass->dest_blend);
-				}
-				else if (passstate == "DepthFunc" || passstate == "ZFunc")
-				{
-					scalar_literal_cast(value_literal, 0, pass->depth_comparison_func);
 				}
 				else if (passstate == "StencilFunc")
 				{

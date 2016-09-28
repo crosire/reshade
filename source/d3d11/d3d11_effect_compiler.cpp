@@ -1751,9 +1751,9 @@ namespace reshade::d3d11
 		}
 
 		D3D11_DEPTH_STENCIL_DESC ddesc;
-		ddesc.DepthEnable = node->depth_enable;
-		ddesc.DepthWriteMask = node->depth_write_mask ? D3D11_DEPTH_WRITE_MASK_ALL : D3D11_DEPTH_WRITE_MASK_ZERO;
-		ddesc.DepthFunc = static_cast<D3D11_COMPARISON_FUNC>(node->depth_comparison_func);
+		ddesc.DepthEnable = FALSE;
+		ddesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
+		ddesc.DepthFunc = D3D11_COMPARISON_ALWAYS;
 		ddesc.StencilEnable = node->stencil_enable;
 		ddesc.StencilReadMask = node->stencil_read_mask;
 		ddesc.StencilWriteMask = node->stencil_write_mask;

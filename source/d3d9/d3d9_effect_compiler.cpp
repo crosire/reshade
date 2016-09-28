@@ -1651,7 +1651,7 @@ namespace reshade::d3d9
 		device->SetVertexShader(pass.vertex_shader.get());
 		device->SetPixelShader(pass.pixel_shader.get());
 
-		device->SetRenderState(D3DRS_ZENABLE, node->depth_enable);
+		device->SetRenderState(D3DRS_ZENABLE, FALSE);
 		device->SetRenderState(D3DRS_SPECULARENABLE, FALSE);
 		device->SetRenderState(D3DRS_FILLMODE, D3DFILL_SOLID);
 		device->SetRenderState(D3DRS_SHADEMODE, D3DSHADE_GOURAUD);
@@ -1660,7 +1660,6 @@ namespace reshade::d3d9
 		device->SetRenderState(D3DRS_LASTPIXEL, TRUE);
 		device->SetRenderState(D3DRS_SRCBLEND, literal_to_blend_func(node->src_blend));
 		device->SetRenderState(D3DRS_DESTBLEND, literal_to_blend_func(node->dest_blend));
-		device->SetRenderState(D3DRS_ZFUNC, static_cast<D3DCMPFUNC>(node->depth_comparison_func));
 		device->SetRenderState(D3DRS_ALPHAREF, 0);
 		device->SetRenderState(D3DRS_ALPHAFUNC, D3DCMP_ALWAYS);
 		device->SetRenderState(D3DRS_DITHERENABLE, FALSE);

@@ -515,10 +515,10 @@ namespace reshadefx::nodes
 
 		const variable_declaration_node *render_targets[8];
 		const function_declaration_node *vertex_shader, *pixel_shader;
-		bool clear_render_targets = true, srgb_write_enable, blend_enable, depth_enable, stencil_enable;
-		unsigned char color_write_mask = 0xF, depth_write_mask = 0x1, stencil_read_mask = 0xFF, stencil_write_mask = 0xFF;
+		bool clear_render_targets = true, srgb_write_enable, blend_enable, stencil_enable;
+		unsigned char color_write_mask = 0xF, stencil_read_mask = 0xFF, stencil_write_mask = 0xFF;
 		unsigned int blend_op = ADD, blend_op_alpha = ADD, src_blend = ONE, dest_blend = ZERO;
-		unsigned int depth_comparison_func = LESS, stencil_comparison_func = ALWAYS, stencil_reference_value, stencil_op_pass = KEEP, stencil_op_fail = KEEP, stencil_op_depth_fail = KEEP;
+		unsigned int stencil_comparison_func = ALWAYS, stencil_reference_value, stencil_op_pass = KEEP, stencil_op_fail = KEEP, stencil_op_depth_fail = KEEP;
 	};
 	struct technique_declaration_node : public declaration_node
 	{

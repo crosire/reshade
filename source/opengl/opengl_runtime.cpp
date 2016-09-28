@@ -444,6 +444,12 @@ namespace reshade::opengl
 				glBindSampler(i, _effect_samplers[i].id);
 			}
 
+			// Setup global states
+			glDisable(GL_CULL_FACE);
+			glDisable(GL_DEPTH_TEST);
+			glFrontFace(GL_CCW);
+			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+
 			// Apply post processing
 			on_present_effect();
 
@@ -700,7 +706,6 @@ namespace reshade::opengl
 			const opengl_pass_data &pass = *pass_object->as<opengl_pass_data>();
 
 			// Save frame buffer of previous pass
-			glDisable(GL_SCISSOR_TEST);
 			glDisable(GL_FRAMEBUFFER_SRGB);
 			glBindFramebuffer(GL_READ_FRAMEBUFFER, _default_backbuffer_fbo);
 			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _blit_fbo);
@@ -710,6 +715,13 @@ namespace reshade::opengl
 
 			// Setup states
 			glUseProgram(pass.program);
+			glColorMask(pass.color_mask[0], pass.color_mask[1], pass.color_mask[2], pass.color_mask[3]);
+			glBlendFunc(pass.blend_src, pass.blend_dest);
+			glBlendEquationSeparate(pass.blend_eq_color, pass.blend_eq_alpha);
+			glStencilFunc(pass.stencil_func, pass.stencil_reference, pass.stencil_read_mask);
+			glStencilOp(pass.stencil_op_fail, pass.stencil_op_z_fail, pass.stencil_op_z_pass);
+			glStencilMask(pass.stencil_mask);
+
 			if (pass.srgb)
 			{
 				glEnable(GL_FRAMEBUFFER_SRGB);
@@ -718,11 +730,7 @@ namespace reshade::opengl
 			{
 				glDisable(GL_FRAMEBUFFER_SRGB);
 			}
-			glDisable(GL_SCISSOR_TEST);
-			glFrontFace(GL_CCW);
-			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-			glDisable(GL_CULL_FACE);
-			glColorMask(pass.color_mask[0], pass.color_mask[1], pass.color_mask[2], pass.color_mask[3]);
+
 			if (pass.blend)
 			{
 				glEnable(GL_BLEND);
@@ -731,18 +739,7 @@ namespace reshade::opengl
 			{
 				glDisable(GL_BLEND);
 			}
-			glBlendFunc(pass.blend_src, pass.blend_dest);
-			glBlendEquationSeparate(pass.blend_eq_color, pass.blend_eq_alpha);
-			if (pass.depth_test)
-			{
-				glEnable(GL_DEPTH_TEST);
-			}
-			else
-			{
-				glDisable(GL_DEPTH_TEST);
-			}
-			glDepthMask(pass.depth_mask);
-			glDepthFunc(pass.depth_func);
+
 			if (pass.stencil_test)
 			{
 				glEnable(GL_STENCIL_TEST);
@@ -751,9 +748,6 @@ namespace reshade::opengl
 			{
 				glDisable(GL_STENCIL_TEST);
 			}
-			glStencilFunc(pass.stencil_func, pass.stencil_reference, pass.stencil_read_mask);
-			glStencilOp(pass.stencil_op_fail, pass.stencil_op_z_fail, pass.stencil_op_z_pass);
-			glStencilMask(pass.stencil_mask);
 
 			// Setup render targets
 			glBindFramebuffer(GL_FRAMEBUFFER, pass.fbo);
@@ -798,12 +792,9 @@ namespace reshade::opengl
 	}
 	void opengl_runtime::render_imgui_draw_data(ImDrawData *draw_data)
 	{
-		// Setup render state: alpha-blending enabled, no face culling, no depth testing, scissor enabled
 		glEnable(GL_BLEND);
 		glBlendEquation(GL_FUNC_ADD);
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-		glDisable(GL_CULL_FACE);
-		glDisable(GL_DEPTH_TEST);
 		glEnable(GL_SCISSOR_TEST);
 		glActiveTexture(GL_TEXTURE0);
 		glUseProgram(_imgui_shader_program);

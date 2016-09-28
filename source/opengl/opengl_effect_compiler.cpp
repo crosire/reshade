@@ -2265,9 +2265,6 @@ namespace reshade::opengl
 		pass.color_mask[1] = (node->color_write_mask & (1 << 1)) != 0;
 		pass.color_mask[2] = (node->color_write_mask & (1 << 2)) != 0;
 		pass.color_mask[3] = (node->color_write_mask & (1 << 3)) != 0;
-		pass.depth_test = node->depth_enable;
-		pass.depth_mask = node->depth_write_mask;
-		pass.depth_func = literal_to_comp_func(node->depth_comparison_func);
 		pass.stencil_test = node->stencil_enable;
 		pass.stencil_read_mask = node->stencil_read_mask;
 		pass.stencil_mask = node->stencil_write_mask;

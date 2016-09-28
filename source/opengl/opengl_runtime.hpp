@@ -32,10 +32,10 @@ namespace reshade::opengl
 		GLuint stencil_mask = 0, stencil_read_mask = 0;
 		GLsizei viewport_width = 0, viewport_height = 0;
 		GLenum draw_buffers[8] = { };
-		GLenum depth_func = GL_NONE, stencil_func = GL_NONE, stencil_op_fail = GL_NONE, stencil_op_z_fail = GL_NONE, stencil_op_z_pass = GL_NONE;
+		GLenum stencil_func = GL_NONE, stencil_op_fail = GL_NONE, stencil_op_z_fail = GL_NONE, stencil_op_z_pass = GL_NONE;
 		GLenum blend_eq_color = GL_NONE, blend_eq_alpha = GL_NONE, blend_src = GL_NONE, blend_dest = GL_NONE;
 		GLboolean color_mask[4] = { };
-		bool srgb = false, blend = false, depth_mask = false, depth_test = false, stencil_test = false, clear_render_targets = true;
+		bool srgb = false, blend = false, stencil_test = false, clear_render_targets = true;
 	};
 	struct opengl_sampler
 	{
