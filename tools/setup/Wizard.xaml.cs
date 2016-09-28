@@ -178,11 +178,14 @@ namespace ReShade.Setup
 
 			try
 			{
-				byte[] data = _targetPEInfo.Type == PEInfo.BinaryType.IMAGE_FILE_MACHINE_AMD64
-					? Properties.Resources.ReShade64
-					: Properties.Resources.ReShade32;
+				Stream stream = _targetPEInfo.Type == PEInfo.BinaryType.IMAGE_FILE_MACHINE_AMD64
+					? Assembly.GetExecutingAssembly().GetManifestResourceStream("ReShade.Setup.ReShade64.dll")
+					: Assembly.GetExecutingAssembly().GetManifestResourceStream("ReShade.Setup.ReShade32.dll");
 
-				File.WriteAllBytes(pathModule, data);
+				using (FileStream file = File.Create(pathModule))
+				{
+					stream.CopyTo(file);
+				}
 			}
 			catch
 			{

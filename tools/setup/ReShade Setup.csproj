@@ -49,11 +49,6 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
-    <Compile Include="Properties\Resources.Designer.cs">
-      <AutoGen>True</AutoGen>
-      <DesignTime>True</DesignTime>
-      <DependentUpon>Resources.resx</DependentUpon>
-    </Compile>
     <Compile Include="Glass.cs" />
     <Compile Include="PEInfo.cs" />
     <Page Include="Wizard.xaml">
@@ -76,16 +71,9 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="Properties\Resources.resx">
-      <Generator>ResXFileCodeGenerator</Generator>
-      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+    <EmbeddedResource Include="..\..\bin\**\Release\ReShade*.dll">
+      <Visible>false</Visible>
     </EmbeddedResource>
-    <None Include="..\..\bin\Win32\Release\ReShade32.dll">
-      <Visible>false</Visible>
-    </None>
-    <None Include="..\..\bin\x64\Release\ReShade64.dll">
-      <Visible>false</Visible>
-    </None>
   </ItemGroup>
   <ItemGroup>
     <Content Include="Properties\Icon.ico" />
