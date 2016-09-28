@@ -242,19 +242,24 @@ namespace ReShade.Setup
 		void InstallationStep4()
 		{
 			string targetDirectory = Path.GetDirectoryName(_targetPath);
-			string shadersDirectory = Path.Combine(targetDirectory, "reshade-shaders");
+			string shadersDirectoryFinal = Path.Combine(targetDirectory, "reshade-shaders");
+			string shadersDirectoryExtracted = Path.Combine(targetDirectory, "reshade-shaders-master");
 
 			try
 			{
-				if (Directory.Exists(shadersDirectory))
+				if (Directory.Exists(shadersDirectoryFinal))
 				{
-					Directory.Delete(shadersDirectory, true);
+					Directory.Delete(shadersDirectoryFinal, true);
+				}
+				if (Directory.Exists(shadersDirectoryExtracted))
+				{
+					Directory.Delete(shadersDirectoryExtracted, true);
 				}
 
-				ZipFile.ExtractToDirectory(_tempDownloadPath, Path.GetTempPath());
+				ZipFile.ExtractToDirectory(_tempDownloadPath, targetDirectory);
 				File.Delete(_tempDownloadPath);
 
-				Directory.Move(Path.Combine(Path.GetTempPath(), "reshade-shaders-master"), shadersDirectory);
+				Directory.Move(shadersDirectoryExtracted, shadersDirectoryFinal);
 			}
 			catch
 			{
@@ -264,8 +269,8 @@ namespace ReShade.Setup
 				return;
 			}
 
-			string effectSearchPaths = targetDirectory + "," + Path.Combine(shadersDirectory, "Shaders");
-			string textureSearchPaths = targetDirectory + "," + Path.Combine(shadersDirectory, "Textures");
+			string effectSearchPaths = targetDirectory + "," + Path.Combine(shadersDirectoryFinal, "Shaders");
+			string textureSearchPaths = targetDirectory + "," + Path.Combine(shadersDirectoryFinal, "Textures");
 
 			File.WriteAllText(Path.ChangeExtension(_targetModulePath, ".ini"),
 				string.Format(
