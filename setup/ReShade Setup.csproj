@@ -71,7 +71,7 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="..\..\bin\**\Release\ReShade*.dll">
+    <EmbeddedResource Include="..\bin\**\Release\ReShade*.dll">
       <Visible>false</Visible>
     </EmbeddedResource>
   </ItemGroup>
