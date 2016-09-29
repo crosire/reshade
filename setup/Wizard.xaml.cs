@@ -6,6 +6,7 @@ using System.Linq;
 using System.Net;
 using System.Reflection;
 using System.Windows;
+using System.Windows.Input;
 using Microsoft.Win32;
 
 namespace ReShade.Setup
@@ -51,6 +52,21 @@ namespace ReShade.Setup
 		}
 		void OnSetupButtonClick(object sender, RoutedEventArgs e)
 		{
+			if (Keyboard.Modifiers == ModifierKeys.Control)
+			{
+				using (FileStream file = File.Create("ReShade32.dll"))
+				{
+					Assembly.GetExecutingAssembly().GetManifestResourceStream("ReShade.Setup.ReShade32.dll").CopyTo(file);
+				}
+				using (FileStream file = File.Create("ReShade64.dll"))
+				{
+					Assembly.GetExecutingAssembly().GetManifestResourceStream("ReShade.Setup.ReShade64.dll").CopyTo(file);
+				}
+
+				Close();
+				return;
+			}
+
 			var dlg = new OpenFileDialog {
 				Filter = "Applications|*.exe",
 				DefaultExt = ".exe",
