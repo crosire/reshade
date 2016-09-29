@@ -901,7 +901,7 @@ namespace reshade::d3d10
 				{
 					const int component = static_cast<const literal_expression_node *>(node->arguments[3])->value_int[0];
 
-					output << "__tex2Dgatheroffset" << component << '(';
+					output << "__tex2Dgather" << component << "offset(";
 					visit(output, node->arguments[0]);
 					output << ", ";
 					visit(output, node->arguments[1]);
