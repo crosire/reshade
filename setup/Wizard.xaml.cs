@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
@@ -288,15 +289,14 @@ namespace ReShade.Setup
 				return;
 			}
 
-			string effectSearchPaths = targetDirectory + "," + Path.Combine(shadersDirectoryFinal, "Shaders");
-			string textureSearchPaths = targetDirectory + "," + Path.Combine(shadersDirectoryFinal, "Textures");
+			string configFilePath = Path.ChangeExtension(_targetModulePath, ".ini");
 
-			File.WriteAllText(Path.ChangeExtension(_targetModulePath, ".ini"),
-				string.Format(
-					"[GENERAL]" + Environment.NewLine +
-					"EffectSearchPaths={0}" + Environment.NewLine +
-					"TextureSearchPaths={1}",
-					effectSearchPaths, textureSearchPaths));
+			var effectSearchPaths = new HashSet<string>(IniFile.ReadValue(configFilePath, "GENERAL", "EffectSearchPaths", targetDirectory).Split(','));
+			var textureSearchPaths = new HashSet<string>(IniFile.ReadValue(configFilePath, "GENERAL", "TextureSearchPaths", targetDirectory).Split(','));
+			effectSearchPaths.Add(Path.Combine(shadersDirectoryFinal, "Shaders"));
+			textureSearchPaths.Add(Path.Combine(shadersDirectoryFinal, "Textures"));
+			IniFile.WriteValue(configFilePath, "GENERAL", "EffectSearchPaths", string.Join(",", effectSearchPaths));
+			IniFile.WriteValue(configFilePath, "GENERAL", "TextureSearchPaths", string.Join(",", textureSearchPaths));
 
 			Title += " Succeeded!";
 			Message.Content = "Done";

@@ -50,6 +50,7 @@
       <SubType>Designer</SubType>
     </ApplicationDefinition>
     <Compile Include="Glass.cs" />
+    <Compile Include="IniFile.cs" />
     <Compile Include="PEInfo.cs" />
     <Page Include="Wizard.xaml">
       <SubType>Designer</SubType>
