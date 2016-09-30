@@ -1248,8 +1248,8 @@ namespace reshade
 			{
 				tutorial_text =
 					"This is the list of techniques. It contains all effects (*.fx) that were found in the effect search paths as specified on the 'Settings' tab.\n\n"
-					"Click on a technique to enable or disable it or drag it to a new location in the list to change the order in which the effects are applied.\n\n"
-					"Note that you can grab the splitter between this technique list and the upcoming variable list and move it vertically to adjust the available space.";
+					"Enter text in the box at the top of the list to filter it and search for specific techniques.\n\n"
+					"Click on a technique to enable or disable it or drag it to a new location in the list to change the order in which the effects are applied.";
 
 				ImGui::PushStyleColor(ImGuiCol_ChildWindowBg, ImVec4(1, 0, 0, 1));
 			}
@@ -1622,6 +1622,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 			{
 				for (auto &uniform : _uniforms)
 				{
+					if (uniform.annotations["hidden"].as<bool>())
+						continue;
+
 					uniform.hidden = false;
 				}
 			}
@@ -1631,6 +1634,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 				for (auto &uniform : _uniforms)
 				{
+					if (uniform.annotations["hidden"].as<bool>())
+						continue;
+
 					uniform.hidden =
 						std::search(uniform.name.begin(), uniform.name.end(), filter.begin(), filter.end(),
 						[](auto c1, auto c2) {
@@ -1773,6 +1779,42 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 	}
 	void runtime::draw_overlay_technique_editor()
 	{
+		ImGui::PushItemWidth(-1);
+
+		if (ImGui::InputText("##filter", _technique_filter_buffer, sizeof(_technique_filter_buffer)))
+		{
+			if (_technique_filter_buffer[0] == '\0')
+			{
+				for (auto &technique : _techniques)
+				{
+					if (technique.annotations["hidden"].as<bool>())
+						continue;
+
+					technique.hidden = false;
+				}
+			}
+			else
+			{
+				const std::string filter(_technique_filter_buffer);
+
+				for (auto &technique : _techniques)
+				{
+					if (technique.annotations["hidden"].as<bool>())
+						continue;
+
+					technique.hidden =
+						std::search(technique.name.begin(), technique.name.end(), filter.begin(), filter.end(),
+							[](auto c1, auto c2) {
+						return tolower(c1) == tolower(c2);
+					}) == technique.name.end() && technique.effect_filename.find(filter) == std::string::npos;
+				}
+			}
+		}
+
+		ImGui::PopItemWidth();
+
+		ImGui::Spacing();
+
 		int hovered_technique_index = -1;
 		bool current_tree_is_closed = true;
 		std::string current_filename;
