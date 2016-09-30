@@ -2107,8 +2107,8 @@ namespace reshade::opengl
 		GLuint height = obj.height = node->properties.height;
 		GLuint levels = obj.levels = node->properties.levels;
 
-		GLenum internalformat = GL_RGBA8, internalformatSRGB = GL_SRGB8_ALPHA8;
-		literal_to_format(obj.format = node->properties.format, internalformat, internalformatSRGB);
+		GLenum internalformat = GL_RGBA8, internalformat_srgb = GL_SRGB8_ALPHA8;
+		literal_to_format(obj.format = node->properties.format, internalformat, internalformat_srgb);
 
 		if (node->semantic == "COLOR" || node->semantic == "SV_TARGET")
 		{
@@ -2123,13 +2123,13 @@ namespace reshade::opengl
 			obj_data->should_delete = true;
 			glGenTextures(2, obj_data->id);
 
-			GLint previous = 0, previousFBO = 0;
+			GLint previous = 0, previous_fbo = 0;
 			glGetIntegerv(GL_TEXTURE_BINDING_2D, &previous);
-			glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &previousFBO);
+			glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &previous_fbo);
 
 			glBindTexture(GL_TEXTURE_2D, obj_data->id[0]);
 			glTexStorage2D(GL_TEXTURE_2D, levels, internalformat, width, height);
-			glTextureView(obj_data->id[1], GL_TEXTURE_2D, obj_data->id[0], internalformatSRGB, 0, levels, 0, 1);
+			glTextureView(obj_data->id[1], GL_TEXTURE_2D, obj_data->id[0], internalformat_srgb, 0, levels, 0, 1);
 			glBindTexture(GL_TEXTURE_2D, previous);
 
 			// Clear texture to black
@@ -2139,7 +2139,7 @@ namespace reshade::opengl
 			const GLuint clearColor[4] = { 0, 0, 0, 0 };
 			glClearBufferuiv(GL_COLOR, 0, clearColor);
 			glFramebufferTexture(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, 0, 0);
-			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, previousFBO);
+			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, previous_fbo);
 		}
 
 		_runtime->add_texture(std::move(obj));
@@ -2284,7 +2284,7 @@ namespace reshade::opengl
 		glGenFramebuffers(1, &pass.fbo);
 		glBindFramebuffer(GL_FRAMEBUFFER, pass.fbo);
 
-		bool backbufferFramebuffer = true;
+		bool backbuffer_fbo = true;
 
 		for (unsigned int i = 0; i < 8; ++i)
 		{
@@ -2312,7 +2312,7 @@ namespace reshade::opengl
 				pass.viewport_height = texture->height;
 			}
 
-			backbufferFramebuffer = false;
+			backbuffer_fbo = false;
 
 			const auto texture_data = texture->impl->as<opengl_tex_data>();
 
@@ -2322,7 +2322,7 @@ namespace reshade::opengl
 			pass.draw_textures[i] = texture_data->id[pass.srgb];
 		}
 
-		if (backbufferFramebuffer)
+		if (backbuffer_fbo)
 		{
 			glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, _runtime->_default_backbuffer_rbo[0]);
 
@@ -2339,6 +2339,11 @@ namespace reshade::opengl
 		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, _runtime->_default_backbuffer_rbo[1]);
 
 		assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
+
+		GLint encoding = 0;
+		glGetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_FRAMEBUFFER_ATTACHMENT_COLOR_ENCODING, &encoding);
+
+		assert(pass.srgb == (encoding == GL_SRGB));
 
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 

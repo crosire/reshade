@@ -108,7 +108,7 @@ namespace reshade::opengl
 		glGenRenderbuffers(2, _default_backbuffer_rbo);
 
 		glBindRenderbuffer(GL_RENDERBUFFER, _default_backbuffer_rbo[0]);
-		glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA8, _width, _height);
+		glRenderbufferStorage(GL_RENDERBUFFER, GL_SRGB8_ALPHA8, _width, _height);
 		glBindRenderbuffer(GL_RENDERBUFFER, _default_backbuffer_rbo[1]);
 		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, _width, _height);
 
