@@ -1019,8 +1019,8 @@ namespace reshade
 
 			if (_show_fps && !show_splash)
 			{
-				ImGui::SetNextWindowPos(ImVec2(_width - 50.f, 0));
-				ImGui::SetNextWindowSize(ImVec2(50, 0));
+				ImGui::SetNextWindowPos(ImVec2(_width - 80.f, 0));
+				ImGui::SetNextWindowSize(ImVec2(80, 100));
 				ImGui::PushFont(imgui_io.Fonts->Fonts[1]);
 				ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(_imgui_col_text_fps[0], _imgui_col_text_fps[1], _imgui_col_text_fps[2], 1.0f));
 				ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4());
@@ -1033,7 +1033,8 @@ namespace reshade
 					ImGuiWindowFlags_NoInputs |
 					ImGuiWindowFlags_NoFocusOnAppearing);
 
-				ImGui::Text("%.0f", imgui_io.Framerate);
+				ImGui::Text("%.0f fps", imgui_io.Framerate);
+				ImGui::Text("%03lld ms", std::chrono::duration_cast<std::chrono::milliseconds>(_last_frame_duration).count());
 
 				ImGui::End();
 				ImGui::PopStyleColor(2);
@@ -1507,9 +1508,10 @@ namespace reshade
 			const bool modified6 = ImGui::ColorEdit3("FPS Text Color", _imgui_col_text_fps);
 
 			ImGui::SameLine(ImGui::GetWindowWidth() - 100);
-			ImGui::Checkbox("Show FPS", &_show_fps);
 
-			if (modified1 || modified2 || modified3 || modified4 || modified5 || modified6)
+			const bool modified7 = ImGui::Checkbox("Show FPS", &_show_fps);
+
+			if (modified1 || modified2 || modified3 || modified4 || modified5 || modified6 || modified7)
 			{
 				save_configuration();
 				load_configuration();
@@ -1527,10 +1529,14 @@ namespace reshade
 			ImGui::PushItemWidth(-1);
 			ImGui::PlotLines("##framerate", _imgui_context->FramerateSecPerFrame, 120, _imgui_context->FramerateSecPerFrameIdx, nullptr, _imgui_context->FramerateSecPerFrameAccum / 120 * 0.5f, _imgui_context->FramerateSecPerFrameAccum / 120 * 1.5f, ImVec2(0, 50));
 			ImGui::PopItemWidth();
+			uint64_t post_processing_time = 0;
+			for (const auto &technique : _techniques)
+				post_processing_time += technique.average_duration;
+			ImGui::Text("Post-Processing: %f ms", (post_processing_time * 1e-6f));
 			ImGui::Text("Draw Calls: %u (%u vertices)", _drawcalls, _vertices);
-			ImGui::Text("Frame %llu: %fms", _framecount + 1, _last_frame_duration.count() * 1e-6f);
-			ImGui::Text("Timer: %fms", std::fmod(std::chrono::duration_cast<std::chrono::nanoseconds>(_last_present_time - _start_time).count() * 1e-6f, 16777216.0f));
-			ImGui::Text("Network (traffic per frame): %uB", g_network_traffic);
+			ImGui::Text("Frame %llu: %f ms", _framecount + 1, _last_frame_duration.count() * 1e-6f);
+			ImGui::Text("Timer: %f ms", std::fmod(std::chrono::duration_cast<std::chrono::nanoseconds>(_last_present_time - _start_time).count() * 1e-6f, 16777216.0f));
+			ImGui::Text("Network (traffic per frame): %u B", g_network_traffic);
 		}
 
 		if (ImGui::CollapsingHeader("Textures", ImGuiTreeNodeFlags_DefaultOpen))
@@ -1542,7 +1548,7 @@ namespace reshade
 					continue;
 				}
 
-				ImGui::Text("%s: %ux%u+%u (~%ukB)", texture.name.c_str(), texture.width, texture.height, (texture.levels - 1), (texture.width * texture.height * 4) / 1000);
+				ImGui::Text("%s: %ux%u+%u (~%u kB)", texture.name.c_str(), texture.width, texture.height, (texture.levels - 1), (texture.width * texture.height * 4) / 1000);
 			}
 		}
 
@@ -1550,7 +1556,7 @@ namespace reshade
 		{
 			for (const auto &technique : _techniques)
 			{
-				ImGui::Text("%s (%u passes): %fms", technique.name.c_str(), static_cast<unsigned int>(technique.passes.size()), (technique.average_duration * 1e-6f));
+				ImGui::Text("%s (%u passes): %f ms", technique.name.c_str(), static_cast<unsigned int>(technique.passes.size()), (technique.average_duration * 1e-6f));
 			}
 		}
 	}
