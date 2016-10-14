@@ -143,8 +143,7 @@ namespace ReShade.Setup
 				s.StartsWith("d3d8", StringComparison.OrdinalIgnoreCase) ||
 				s.StartsWith("d3d9", StringComparison.OrdinalIgnoreCase) ||
 				s.StartsWith("dxgi", StringComparison.OrdinalIgnoreCase) ||
-				s.StartsWith("opengl32", StringComparison.OrdinalIgnoreCase) ||
-				s.StartsWith("vulkan-1", StringComparison.OrdinalIgnoreCase));
+				s.StartsWith("opengl32", StringComparison.OrdinalIgnoreCase));
 
 			if (nameModule == null)
 			{
@@ -155,7 +154,6 @@ namespace ReShade.Setup
 			bool isApiD3D9 = isApiD3D8 || nameModule.StartsWith("d3d9", StringComparison.OrdinalIgnoreCase);
 			bool isApiDXGI = nameModule.StartsWith("dxgi", StringComparison.OrdinalIgnoreCase);
 			bool isApiOpenGL = nameModule.StartsWith("opengl32", StringComparison.OrdinalIgnoreCase);
-			bool isApiVulkan = nameModule.StartsWith("vulkan-1", StringComparison.OrdinalIgnoreCase);
 
 			if (isApiD3D8)
 			{
@@ -167,7 +165,6 @@ namespace ReShade.Setup
 			ApiDirect3D9.IsChecked = isApiD3D9;
 			ApiDirectXGI.IsChecked = isApiDXGI;
 			ApiOpenGL.IsChecked = isApiOpenGL;
-			ApiVulkan.IsChecked = isApiVulkan;
 		}
 		void InstallationStep2()
 		{
@@ -179,8 +176,6 @@ namespace ReShade.Setup
 				nameModule = "dxgi.dll";
 			if (ApiOpenGL.IsChecked == true)
 				nameModule = "opengl32.dll";
-			if (ApiVulkan.IsChecked == true)
-				nameModule = "vulkan-1.dll";
 
 			string pathModule = _targetModulePath = Path.Combine(Path.GetDirectoryName(_targetPath), nameModule);
 

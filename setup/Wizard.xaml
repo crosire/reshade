@@ -46,13 +46,6 @@
 					VerticalAlignment="Center"
 					Margin="8,0,0,0"
 					Click="OnApiChecked" />
-				<RadioButton
-					x:Name="ApiVulkan"
-					Content="Vulkan"
-					HorizontalAlignment="Center"
-					VerticalAlignment="Center"
-					Margin="8,0,0,0"
-					Click="OnApiChecked" />
 			</StackPanel>
 		</Border>
 		<Button

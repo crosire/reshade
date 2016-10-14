@@ -28,12 +28,6 @@ struct DXGISwapChain : IDXGISwapChain3
 		_direct3d_device(device),
 		_direct3d_version(11),
 		_runtime(runtime) { }
-	DXGISwapChain(D3D12CommandQueue *device, IDXGISwapChain3 *original, const std::shared_ptr<reshade::runtime> &runtime) :
-		_orig(original),
-		_interface_version(3),
-		_direct3d_device(device),
-		_direct3d_version(12),
-		_runtime(runtime) { }
 
 	DXGISwapChain(const DXGISwapChain &) = delete;
 	DXGISwapChain &operator=(const DXGISwapChain &) = delete;

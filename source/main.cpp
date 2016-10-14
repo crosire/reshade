@@ -41,10 +41,8 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID lpvReserved)
 			hooks::register_module(system_path / "d3d10.dll");
 			hooks::register_module(system_path / "d3d10_1.dll");
 			hooks::register_module(system_path / "d3d11.dll");
-			hooks::register_module(system_path / "d3d12.dll");
 			hooks::register_module(system_path / "dxgi.dll");
 			hooks::register_module(system_path / "opengl32.dll");
-			hooks::register_module(system_path / "vulkan-1.dll");
 			hooks::register_module(system_path / "user32.dll");
 			hooks::register_module(system_path / "ws2_32.dll");
 

@@ -64,7 +64,6 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, I
 	IUnknown *device_orig = pDevice;
 	D3D10Device *device_d3d10 = nullptr;
 	D3D11Device *device_d3d11 = nullptr;
-	D3D12CommandQueue *commandqueue_d3d12 = nullptr;
 
 	if (pDevice == nullptr || pDesc == nullptr || ppSwapChain == nullptr)
 	{
@@ -81,12 +80,6 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, I
 		device_orig = device_d3d11->_orig;
 
 		device_d3d11->Release();
-	}
-	else if (SUCCEEDED(pDevice->QueryInterface(&commandqueue_d3d12)))
-	{
-		device_orig = commandqueue_d3d12->_orig;
-
-		commandqueue_d3d12->Release();
 	}
 
 	dump_swapchain_desc(*pDesc);
@@ -139,30 +132,6 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory_CreateSwapChain(IDXGIFactory *pFactory, I
 
 		*ppSwapChain = new DXGISwapChain(device_d3d11, swapchain, runtime);
 	}
-	else if (commandqueue_d3d12 != nullptr)
-	{
-		IDXGISwapChain3 *swapchain3 = nullptr;
-
-		if (SUCCEEDED(swapchain->QueryInterface(&swapchain3)))
-		{
-			commandqueue_d3d12->AddRef();
-
-			const auto runtime = std::make_shared<reshade::d3d12::d3d12_runtime>(commandqueue_d3d12->_device->_orig, commandqueue_d3d12->_orig, swapchain3);
-
-			if (!runtime->on_init(desc))
-			{
-				LOG(ERROR) << "Failed to initialize Direct3D 12 runtime environment on runtime " << runtime.get() << ".";
-			}
-
-			*ppSwapChain = new DXGISwapChain(commandqueue_d3d12, swapchain3, runtime);
-
-			swapchain3->Release();
-		}
-		else
-		{
-			LOG(WARNING) << "> Skipping swap chain because it is missing support for the 'IDXGISwapChain3' interface.";
-		}
-	}
 	else
 	{
 		LOG(WARNING) << "> Skipping swap chain because it was created without a (hooked) Direct3D device.";
@@ -181,7 +150,6 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pF
 	IUnknown *device_orig = pDevice;
 	D3D10Device *device_d3d10 = nullptr;
 	D3D11Device *device_d3d11 = nullptr;
-	D3D12CommandQueue *commandqueue_d3d12 = nullptr;
 
 	if (pDevice == nullptr || pDesc == nullptr || ppSwapChain == nullptr)
 	{
@@ -198,12 +166,6 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pF
 		device_orig = device_d3d11->_orig;
 
 		device_d3d11->Release();
-	}
-	else if (SUCCEEDED(pDevice->QueryInterface(&commandqueue_d3d12)))
-	{
-		device_orig = commandqueue_d3d12->_orig;
-
-		commandqueue_d3d12->Release();
 	}
 
 	dump_swapchain_desc(*pDesc);
@@ -256,30 +218,6 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForHwnd(IDXGIFactory2 *pF
 
 		*ppSwapChain = new DXGISwapChain(device_d3d11, swapchain, runtime);
 	}
-	else if (commandqueue_d3d12 != nullptr)
-	{
-		IDXGISwapChain3 *swapchain3 = nullptr;
-
-		if (SUCCEEDED(swapchain->QueryInterface(&swapchain3)))
-		{
-			commandqueue_d3d12->AddRef();
-
-			const auto runtime = std::make_shared<reshade::d3d12::d3d12_runtime>(commandqueue_d3d12->_device->_orig, commandqueue_d3d12->_orig, swapchain3);
-
-			if (!runtime->on_init(desc))
-			{
-				LOG(ERROR) << "Failed to initialize Direct3D 12 runtime environment on runtime " << runtime.get() << ".";
-			}
-
-			*ppSwapChain = new DXGISwapChain(commandqueue_d3d12, swapchain3, runtime);
-
-			swapchain3->Release();
-		}
-		else
-		{
-			LOG(WARNING) << "> Skipping swap chain because it is missing support for the 'IDXGISwapChain3' interface.";
-		}
-	}
 	else
 	{
 		LOG(WARNING) << "> Skipping swap chain because it was created without a (hooked) Direct3D device.";
@@ -296,7 +234,6 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactor
 	IUnknown *device_orig = pDevice;
 	D3D10Device *device_d3d10 = nullptr;
 	D3D11Device *device_d3d11 = nullptr;
-	D3D12CommandQueue *commandqueue_d3d12 = nullptr;
 
 	if (pDevice == nullptr || pDesc == nullptr || ppSwapChain == nullptr)
 	{
@@ -313,12 +250,6 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactor
 		device_orig = device_d3d11->_orig;
 
 		device_d3d11->Release();
-	}
-	else if (SUCCEEDED(pDevice->QueryInterface(&commandqueue_d3d12)))
-	{
-		device_orig = commandqueue_d3d12->_orig;
-
-		commandqueue_d3d12->Release();
 	}
 
 	dump_swapchain_desc(*pDesc);
@@ -371,30 +302,6 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForCoreWindow(IDXGIFactor
 
 		*ppSwapChain = new DXGISwapChain(device_d3d11, swapchain, runtime);
 	}
-	else if (commandqueue_d3d12 != nullptr)
-	{
-		IDXGISwapChain3 *swapchain3 = nullptr;
-
-		if (SUCCEEDED(swapchain->QueryInterface(&swapchain3)))
-		{
-			commandqueue_d3d12->AddRef();
-
-			const auto runtime = std::make_shared<reshade::d3d12::d3d12_runtime>(commandqueue_d3d12->_device->_orig, commandqueue_d3d12->_orig, swapchain3);
-
-			if (!runtime->on_init(desc))
-			{
-				LOG(ERROR) << "Failed to initialize Direct3D 12 runtime environment on runtime " << runtime.get() << ".";
-			}
-
-			*ppSwapChain = new DXGISwapChain(commandqueue_d3d12, swapchain3, runtime);
-
-			swapchain3->Release();
-		}
-		else
-		{
-			LOG(WARNING) << "> Skipping swap chain because it is missing support for the 'IDXGISwapChain3' interface.";
-		}
-	}
 	else
 	{
 		LOG(WARNING) << "> Skipping swap chain because it was created without a (hooked) Direct3D device.";
@@ -411,7 +318,6 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFacto
 	IUnknown *device_orig = pDevice;
 	D3D10Device *device_d3d10 = nullptr;
 	D3D11Device *device_d3d11 = nullptr;
-	D3D12CommandQueue *commandqueue_d3d12 = nullptr;
 
 	if (pDevice == nullptr || pDesc == nullptr || ppSwapChain == nullptr)
 	{
@@ -428,12 +334,6 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFacto
 		device_orig = device_d3d11->_orig;
 
 		device_d3d11->Release();
-	}
-	else if (SUCCEEDED(pDevice->QueryInterface(&commandqueue_d3d12)))
-	{
-		device_orig = commandqueue_d3d12->_orig;
-
-		commandqueue_d3d12->Release();
 	}
 
 	dump_swapchain_desc(*pDesc);
@@ -485,30 +385,6 @@ HRESULT STDMETHODCALLTYPE IDXGIFactory2_CreateSwapChainForComposition(IDXGIFacto
 		device_d3d11->_runtimes.push_back(runtime);
 
 		*ppSwapChain = new DXGISwapChain(device_d3d11, swapchain, runtime);
-	}
-	else if (commandqueue_d3d12 != nullptr)
-	{
-		IDXGISwapChain3 *swapchain3 = nullptr;
-
-		if (SUCCEEDED(swapchain->QueryInterface(&swapchain3)))
-		{
-			commandqueue_d3d12->AddRef();
-
-			const auto runtime = std::make_shared<reshade::d3d12::d3d12_runtime>(commandqueue_d3d12->_device->_orig, commandqueue_d3d12->_orig, swapchain3);
-
-			if (!runtime->on_init(desc))
-			{
-				LOG(ERROR) << "Failed to initialize Direct3D 12 runtime environment on runtime " << runtime.get() << ".";
-			}
-
-			*ppSwapChain = new DXGISwapChain(commandqueue_d3d12, swapchain3, runtime);
-
-			swapchain3->Release();
-		}
-		else
-		{
-			LOG(WARNING) << "> Skipping swap chain because it is missing support for the 'IDXGISwapChain3' interface.";
-		}
 	}
 	else
 	{

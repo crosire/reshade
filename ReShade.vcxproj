@@ -207,10 +207,6 @@
     <ClCompile Include="source\d3d11\d3d11_effect_compiler.cpp" />
     <ClCompile Include="source\d3d11\d3d11_runtime.cpp" />
     <ClCompile Include="source\d3d11\d3d11_stateblock.cpp" />
-    <ClCompile Include="source\d3d12\d3d12.cpp" />
-    <ClCompile Include="source\d3d12\d3d12_command_queue.cpp" />
-    <ClCompile Include="source\d3d12\d3d12_device.cpp" />
-    <ClCompile Include="source\d3d12\d3d12_runtime.cpp" />
     <ClCompile Include="source\d3d9\d3d9.cpp" />
     <ClCompile Include="source\d3d9\d3d9_device.cpp" />
     <ClCompile Include="source\d3d9\d3d9_effect_compiler.cpp" />
@@ -238,8 +234,6 @@
     <ClCompile Include="source\runtime.cpp" />
     <ClCompile Include="source\runtime_objects.cpp" />
     <ClCompile Include="source\symbol_table.cpp" />
-    <ClCompile Include="source\vulkan\vulkan.cpp" />
-    <ClCompile Include="source\vulkan\vulkan_runtime.cpp" />
     <ClCompile Include="source\windows\user32.cpp" />
     <ClCompile Include="source\windows\ws2_32.cpp" />
   </ItemGroup>
@@ -260,10 +254,6 @@
     <ClInclude Include="source\d3d11\d3d11_effect_compiler.hpp" />
     <ClInclude Include="source\d3d11\d3d11_runtime.hpp" />
     <ClInclude Include="source\d3d11\d3d11_stateblock.hpp" />
-    <ClInclude Include="source\d3d12\d3d12.hpp" />
-    <ClInclude Include="source\d3d12\d3d12_command_queue.hpp" />
-    <ClInclude Include="source\d3d12\d3d12_device.hpp" />
-    <ClInclude Include="source\d3d12\d3d12_runtime.hpp" />
     <ClInclude Include="source\d3d9\d3d9.hpp" />
     <ClInclude Include="source\d3d9\d3d9_device.hpp" />
     <ClInclude Include="source\d3d9\d3d9_effect_compiler.hpp" />
@@ -296,7 +286,6 @@
     <ClInclude Include="source\syntax_tree_nodes.hpp" />
     <ClInclude Include="source\unicode.hpp" />
     <ClInclude Include="source\variant.hpp" />
-    <ClInclude Include="source\vulkan\vulkan_runtime.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="res\resource.rc" />

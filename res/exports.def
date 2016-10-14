@@ -23,9 +23,6 @@ EXPORTS
 	D3D11CreateDevice
 	D3D11CreateDeviceAndSwapChain
 
-	; d3d12.dll
-	D3D12CreateDevice
-
 	; dxgi.dll
 	CreateDXGIFactory
 	CreateDXGIFactory1
@@ -400,16 +397,6 @@ EXPORTS
 	wglUseFontBitmapsW
 	wglUseFontOutlinesA
 	wglUseFontOutlinesW
-
-	; vulkan-1.dll
-	vkCreateDevice
-	vkCreateSwapchainKHR
-	vkCreateWin32SurfaceKHR
-	vkDestroySurfaceKHR
-	vkDestroySwapchainKHR
-	vkGetSwapchainImagesKHR
-	vkQueuePresentKHR
-	vkGetDeviceProcAddr
 
 	; user32.dll
 	RegisterClassA = HookRegisterClassA
