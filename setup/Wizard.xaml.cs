@@ -220,6 +220,18 @@ namespace ReShade.Setup
 			{
 				InstallationStep3();
 			}
+			else
+			{
+				string configFilePath = Path.ChangeExtension(_targetModulePath, ".ini");
+
+				if (!File.Exists(configFilePath))
+				{
+					string targetDirectory = Path.GetDirectoryName(_targetPath);
+
+					IniFile.WriteValue(configFilePath, "GENERAL", "EffectSearchPaths", targetDirectory);
+					IniFile.WriteValue(configFilePath, "GENERAL", "TextureSearchPaths", targetDirectory);
+				}
+			}
 		}
 		void InstallationStep3()
 		{
