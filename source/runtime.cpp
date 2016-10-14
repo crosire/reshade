@@ -33,6 +33,7 @@ namespace reshade
 			"RESHADE_DEPTH_INPUT_IS_LOGARITHMIC=0" }),
 		_menu_key({ 0x71, false, true }), // VK_F2 + VK_SHIFT
 		_screenshot_key({ 0x2C, false, false }), // VK_SNAPSHOT
+		_effects_key({ }),
 		_screenshot_path(s_target_executable_path.parent_path()),
 		_variable_editor_height(300)
 	{
@@ -173,6 +174,16 @@ namespace reshade
 	}
 	void runtime::on_present_effect()
 	{
+		if (_input->is_key_pressed(_effects_key.keycode, _effects_key.ctrl, _effects_key.shift, false))
+		{
+			_effects_enabled = !_effects_enabled;
+		}
+
+		if (!_effects_enabled)
+		{
+			return;
+		}
+
 		// Update all uniform variables
 		for (auto &variable : _uniforms)
 		{
@@ -644,9 +655,13 @@ namespace reshade
 		_screenshot_key.keycode = config.get("INPUT", "KeyScreenshot", screenshot_key).as<int>();
 		_screenshot_key.ctrl = config.get("INPUT", "KeyScreenshot", screenshot_key).as<bool>(1);
 		_screenshot_key.shift = config.get("INPUT", "KeyScreenshot", screenshot_key).as<bool>(2);
-		_input_processing_mode = config.get("INPUT", "InputProcessing", _input_processing_mode).as<int>();
+		const int effects_key[3] = { _effects_key.keycode, _effects_key.ctrl ? 1 : 0, _effects_key.shift ? 1 : 0 };
+		_effects_key.keycode = config.get("INPUT", "KeyEffects", effects_key).as<int>();
+		_effects_key.ctrl = config.get("INPUT", "KeyEffects", effects_key).as<bool>(1);
+		_effects_key.shift = config.get("INPUT", "KeyEffects", effects_key).as<bool>(2);
 
 		_performance_mode = config.get("GENERAL", "PerformanceMode", _performance_mode).as<bool>();
+		_input_processing_mode = config.get("INPUT", "InputProcessing", _input_processing_mode).as<int>();
 		const auto effect_search_paths = config.get("GENERAL", "EffectSearchPaths", _effect_search_paths).data();
 		_effect_search_paths.assign(effect_search_paths.begin(), effect_search_paths.end());
 		const auto texture_search_paths = config.get("GENERAL", "TextureSearchPaths", _texture_search_paths).data();
@@ -731,6 +746,7 @@ namespace reshade
 
 		config.set("INPUT", "KeyMenu", { _menu_key.keycode, _menu_key.ctrl ? 1 : 0, _menu_key.shift ? 1 : 0 });
 		config.set("INPUT", "KeyScreenshot", { _screenshot_key.keycode, _screenshot_key.ctrl ? 1 : 0, _screenshot_key.shift ? 1 : 0 });
+		config.set("INPUT", "KeyEffects", { _effects_key.keycode, _effects_key.ctrl ? 1 : 0, _effects_key.shift ? 1 : 0 });
 		config.set("INPUT", "InputProcessing", _input_processing_mode);
 
 		config.set("GENERAL", "PerformanceMode", _performance_mode);
@@ -971,9 +987,10 @@ namespace reshade
 			ImGui::TextUnformatted("ReShade " VERSION_STRING_FILE " by crosire");
 			ImGui::TextUnformatted("Visit http://reshade.me for news, updates, shaders and discussion.");
 
+			ImGui::Spacing();
+
 			if (_reload_remaining_effects != 0)
 			{
-				ImGui::Spacing();
 				ImGui::Text(
 					"Loading (%u effects remaining) ... "
 					"This might take a while. The application could become unresponsive for some time.",
@@ -981,7 +998,6 @@ namespace reshade
 			}
 			else
 			{
-				ImGui::Spacing();
 				ImGui::Text(
 					"Press '%s%s%s' to open the configuration menu.",
 					_menu_key.ctrl ? "Ctrl + " : "",
@@ -1119,6 +1135,14 @@ namespace reshade
 	}
 	void runtime::draw_overlay_menu_home()
 	{
+		if (!_effects_enabled)
+		{
+			ImGui::Text("Effects are disabled. Press '%s%s%s' to enable them again.",
+				_effects_key.ctrl ? "Ctrl + " : "",
+				_effects_key.shift ? "Shift + " : "",
+				keyboard_keys[_effects_key.keycode]);
+		}
+
 		bool continue_tutorial = false;
 		const char *tutorial_text =
 			"Welcome! Since this is the first time you start ReShade, we'll go through a quick tutorial covering the most important features.\n\n"
@@ -1394,6 +1418,30 @@ namespace reshade
 					_menu_key.keycode = last_key_pressed;
 					_menu_key.ctrl = _input->is_key_down(0x11);
 					_menu_key.shift = _input->is_key_down(0x10);
+
+					save_configuration();
+				}
+			}
+			else if (ImGui::IsItemHovered())
+			{
+				ImGui::SetTooltip("Click in the field and press any key to change the shortcut to that key.");
+			}
+
+			assert(_effects_key.keycode < 256);
+
+			copy_key_shortcut_to_edit_buffer(_effects_key);
+
+			ImGui::InputText("Global Effects Toggle Key", edit_buffer, sizeof(edit_buffer), ImGuiInputTextFlags_ReadOnly);
+
+			if (ImGui::IsItemActive())
+			{
+				const unsigned int last_key_pressed = _input->last_key_pressed();
+
+				if (last_key_pressed != 0 && (last_key_pressed < 0x10 || last_key_pressed > 0x11))
+				{
+					_effects_key.keycode = last_key_pressed;
+					_effects_key.ctrl = _input->is_key_down(0x11);
+					_effects_key.shift = _input->is_key_down(0x10);
 
 					save_configuration();
 				}
