@@ -732,6 +732,18 @@ namespace reshade
 		}
 
 		const filesystem::path parent_path = s_reshade_dll_path.parent_path();
+		auto preset_files2 = filesystem::list_files(parent_path, "*.ini");
+		auto preset_files3 = filesystem::list_files(parent_path, "*.txt");
+		preset_files2.insert(preset_files2.end(), preset_files3.begin(), preset_files3.end());
+
+		for (const auto &preset_file : preset_files2)
+		{
+			if (std::find(_preset_files.begin(), _preset_files.end(), preset_file) == _preset_files.end() &&
+				!ini_file(preset_file).get("", "Techniques").data().empty())
+			{
+				_preset_files.push_back(preset_file);
+			}
+		}
 
 		for (auto &search_path : _effect_search_paths)
 		{
