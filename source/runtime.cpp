@@ -1431,7 +1431,7 @@ namespace reshade
 
 			copy_key_shortcut_to_edit_buffer(_effects_key);
 
-			ImGui::InputText("Global Effects Toggle Key", edit_buffer, sizeof(edit_buffer), ImGuiInputTextFlags_ReadOnly);
+			ImGui::InputText("Effects Toggle Key", edit_buffer, sizeof(edit_buffer), ImGuiInputTextFlags_ReadOnly);
 
 			if (ImGui::IsItemActive())
 			{
@@ -1724,7 +1724,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 					ImGui::TreePop();
 
 				current_filename = variable.effect_filename;
-				current_tree_is_closed = !ImGui::TreeNode(variable.effect_filename.c_str());
+				current_tree_is_closed = !ImGui::TreeNodeEx(variable.effect_filename.c_str(), _variable_filter_buffer[0] != 0 ? ImGuiTreeNodeFlags_DefaultOpen : 0);
 			}
 			if (current_tree_is_closed)
 			{
@@ -1890,7 +1890,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 					ImGui::TreePop();
 
 				current_filename = technique.effect_filename;
-				current_tree_is_closed = !ImGui::TreeNodeEx(technique.effect_filename.c_str(), ImGuiTreeNodeFlags_DefaultOpen);
+				current_tree_is_closed = !ImGui::TreeNodeEx(technique.effect_filename.c_str(), _technique_filter_buffer[0] != '\0' ? ImGuiTreeNodeFlags_DefaultOpen : 0);
 			}
 			if (current_tree_is_closed)
 			{
