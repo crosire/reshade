@@ -220,7 +220,7 @@ namespace reshade
 		float _imgui_col_active[3] = { 0.2f, 0.5f, 0.6f }, _imgui_col_text[3] = { 0.8f, 0.9f, 0.9f }, _imgui_col_text_fps[3] = { 1.0f, 1.0f, 0.0f };
 		float _variable_editor_height = 0.0f;
 		unsigned int _tutorial_index = 0;
-		char _variable_filter_buffer[64] = { }, _technique_filter_buffer[64] = { };
+		char _effect_filter_buffer[64] = { };
 		size_t _reload_remaining_effects = 0, _texture_count = 0, _uniform_count = 0, _technique_count = 0;
 	};
 }

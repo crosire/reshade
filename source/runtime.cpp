@@ -1269,11 +1269,67 @@ namespace reshade
 
 		if (_tutorial_index > 1)
 		{
+			ImGui::Spacing();
+			ImGui::Separator();
+			ImGui::Spacing();
+
+			ImGui::PushItemWidth(-1);
+
+			if (ImGui::InputText("##filter", _effect_filter_buffer, sizeof(_effect_filter_buffer)))
+			{
+				if (_effect_filter_buffer[0] == '\0')
+				{
+					for (auto &uniform : _uniforms)
+					{
+						if (uniform.annotations["hidden"].as<bool>())
+							continue;
+
+						uniform.hidden = false;
+					}
+					for (auto &technique : _techniques)
+					{
+						if (technique.annotations["hidden"].as<bool>())
+							continue;
+
+						technique.hidden = false;
+					}
+				}
+				else
+				{
+					const std::string filter(_effect_filter_buffer);
+
+					for (auto &uniform : _uniforms)
+					{
+						if (uniform.annotations["hidden"].as<bool>())
+							continue;
+
+						uniform.hidden =
+							std::search(uniform.name.begin(), uniform.name.end(), filter.begin(), filter.end(),
+								[](auto c1, auto c2) {
+							return tolower(c1) == tolower(c2);
+						}) == uniform.name.end() && uniform.effect_filename.find(filter) == std::string::npos;
+					}
+					for (auto &technique : _techniques)
+					{
+						if (technique.annotations["hidden"].as<bool>())
+							continue;
+
+						technique.hidden =
+							std::search(technique.name.begin(), technique.name.end(), filter.begin(), filter.end(),
+								[](auto c1, auto c2) {
+							return tolower(c1) == tolower(c2);
+						}) == technique.name.end() && technique.effect_filename.find(filter) == std::string::npos;
+					}
+				}
+			}
+
+			ImGui::PopItemWidth();
+
 			if (_tutorial_index == 2)
 			{
 				tutorial_text =
-					"This is the list of techniques. It contains all effects (*.fx) that were found in the effect search paths as specified on the 'Settings' tab.\n\n"
-					"Enter text in the box at the top of the list to filter it and search for specific techniques.\n\n"
+					"This is the list of techniques. It contains all techniques in the effect files (*.fx) that were found in the effect search paths as specified on the 'Settings' tab.\n\n"
+					"Enter text in the box at the top to filter it and search for specific techniques.\n\n"
 					"Click on a technique to enable or disable it or drag it to a new location in the list to change the order in which the effects are applied.";
 
 				ImGui::PushStyleColor(ImGuiCol_ChildWindowBg, ImVec4(1, 0, 0, 1));
@@ -1311,7 +1367,7 @@ namespace reshade
 			{
 				tutorial_text =
 					"This is the list of variables. It contains all tweakable options the effects expose. All values here apply in real-time. Press 'Ctrl' and click on a widget to manually edit the value.\n\n"
-					"Enter text in the box at the top of the list to filter it and search for specific variables.\n\n"
+					"Enter text in the box at the top to filter it and search for specific variables.\n\n"
 					"Once you have finished tweaking your preset, be sure to go to the 'Settings' tab and change the 'Usage Mode' to 'Performance Mode'. "
 					"This will recompile all shaders into a more optimal representation that gives a significant performance boost, but will disable variable tweaking and this list.";
 
@@ -1668,42 +1724,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 	}
 	void runtime::draw_overlay_variable_editor()
 	{
-		ImGui::PushItemWidth(-1);
-
-		if (ImGui::InputText("##filter", _variable_filter_buffer, sizeof(_variable_filter_buffer)))
-		{
-			if (_variable_filter_buffer[0] == '\0')
-			{
-				for (auto &uniform : _uniforms)
-				{
-					if (uniform.annotations["hidden"].as<bool>())
-						continue;
-
-					uniform.hidden = false;
-				}
-			}
-			else
-			{
-				const std::string filter(_variable_filter_buffer);
-
-				for (auto &uniform : _uniforms)
-				{
-					if (uniform.annotations["hidden"].as<bool>())
-						continue;
-
-					uniform.hidden =
-						std::search(uniform.name.begin(), uniform.name.end(), filter.begin(), filter.end(),
-						[](auto c1, auto c2) {
-							return tolower(c1) == tolower(c2);
-						}) == uniform.name.end() && uniform.effect_filename.find(filter) == std::string::npos;
-				}
-			}
-		}
-
-		ImGui::PopItemWidth();
-
-		ImGui::Spacing();
-
 		ImGui::PushItemWidth(ImGui::GetWindowWidth() * 0.5f);
 
 		bool current_tree_is_closed = true;
@@ -1724,7 +1744,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 					ImGui::TreePop();
 
 				current_filename = variable.effect_filename;
-				current_tree_is_closed = !ImGui::TreeNodeEx(variable.effect_filename.c_str(), _variable_filter_buffer[0] != 0 ? ImGuiTreeNodeFlags_DefaultOpen : 0);
+				current_tree_is_closed = !ImGui::TreeNodeEx(variable.effect_filename.c_str(), _effect_filter_buffer[0] != 0 ? ImGuiTreeNodeFlags_DefaultOpen : 0);
 			}
 			if (current_tree_is_closed)
 			{
@@ -1833,42 +1853,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 	}
 	void runtime::draw_overlay_technique_editor()
 	{
-		ImGui::PushItemWidth(-1);
-
-		if (ImGui::InputText("##filter", _technique_filter_buffer, sizeof(_technique_filter_buffer)))
-		{
-			if (_technique_filter_buffer[0] == '\0')
-			{
-				for (auto &technique : _techniques)
-				{
-					if (technique.annotations["hidden"].as<bool>())
-						continue;
-
-					technique.hidden = false;
-				}
-			}
-			else
-			{
-				const std::string filter(_technique_filter_buffer);
-
-				for (auto &technique : _techniques)
-				{
-					if (technique.annotations["hidden"].as<bool>())
-						continue;
-
-					technique.hidden =
-						std::search(technique.name.begin(), technique.name.end(), filter.begin(), filter.end(),
-							[](auto c1, auto c2) {
-						return tolower(c1) == tolower(c2);
-					}) == technique.name.end() && technique.effect_filename.find(filter) == std::string::npos;
-				}
-			}
-		}
-
-		ImGui::PopItemWidth();
-
-		ImGui::Spacing();
-
 		int hovered_technique_index = -1;
 		bool current_tree_is_closed = true;
 		std::string current_filename;
@@ -1890,7 +1874,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 					ImGui::TreePop();
 
 				current_filename = technique.effect_filename;
-				current_tree_is_closed = !ImGui::TreeNodeEx(technique.effect_filename.c_str(), _technique_filter_buffer[0] != '\0' ? ImGuiTreeNodeFlags_DefaultOpen : 0);
+				current_tree_is_closed = !ImGui::TreeNodeEx(technique.effect_filename.c_str(), _effect_filter_buffer[0] != '\0' ? ImGuiTreeNodeFlags_DefaultOpen : 0);
 			}
 			if (current_tree_is_closed)
 			{
