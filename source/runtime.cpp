@@ -377,20 +377,12 @@ namespace reshade
 				(technique.toggle_key >= 0x01 && technique.toggle_key <= 0x06 && _input->is_mouse_button_pressed(technique.toggle_key - 1)))
 			{
 				technique.enabled = !technique.enabled;
-
-				if (technique.enabled)
-				{
-					technique.timeleft = technique.timeout;
-				}
-				else
-				{
-					technique.timeleft = 0;
-					technique.average_duration.clear();
-				}
+				technique.timeleft = technique.enabled ? technique.timeout : 0;
 			}
 
 			if (!technique.enabled)
 			{
+				technique.average_duration.clear();
 				continue;
 			}
 
