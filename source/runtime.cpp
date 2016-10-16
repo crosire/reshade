@@ -730,6 +730,21 @@ namespace reshade
 		{
 			_current_preset = -1;
 		}
+
+		const filesystem::path parent_path = s_reshade_dll_path.parent_path();
+
+		for (auto &search_path : _effect_search_paths)
+		{
+			search_path = filesystem::absolute(search_path, parent_path);
+		}
+		for (auto &search_path : _texture_search_paths)
+		{
+			search_path = filesystem::absolute(search_path, parent_path);
+		}
+		for (auto &preset_file : _preset_files)
+		{
+			preset_file = filesystem::absolute(preset_file, parent_path);
+		}
 	}
 	void runtime::save_configuration() const
 	{
