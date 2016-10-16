@@ -373,7 +373,8 @@ namespace reshade
 					technique.average_duration.clear();
 				}
 			}
-			else if (_input->is_key_pressed(technique.toggle_key, technique.toggle_key_ctrl, technique.toggle_key_shift, technique.toggle_key_alt) ||
+			else if (!_toggle_key_setting_active &&
+				_input->is_key_pressed(technique.toggle_key, technique.toggle_key_ctrl, technique.toggle_key_shift, technique.toggle_key_alt) ||
 				(technique.toggle_key >= 0x01 && technique.toggle_key <= 0x06 && _input->is_mouse_button_pressed(technique.toggle_key - 1)))
 			{
 				technique.enabled = !technique.enabled;
@@ -1902,8 +1903,12 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 			ImGui::SameLine();
 			ImGui::InputTextEx("##ToggleKey", edit_buffer, sizeof(edit_buffer), ImVec2(200, 0), ImGuiInputTextFlags_ReadOnly);
 
+			_toggle_key_setting_active = false;
+
 			if (ImGui::IsItemActive())
 			{
+				_toggle_key_setting_active = true;
+
 				const unsigned int last_key_pressed = _input->last_key_pressed();
 
 				if (last_key_pressed != 0)
