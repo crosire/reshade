@@ -1266,7 +1266,7 @@ namespace reshade
 			ImGui::Separator();
 			ImGui::Spacing();
 
-			ImGui::PushItemWidth(-1);
+			ImGui::PushItemWidth(-130);
 
 			if (ImGui::InputText("##filter", _effect_filter_buffer, sizeof(_effect_filter_buffer)))
 			{
@@ -1317,6 +1317,13 @@ namespace reshade
 			}
 
 			ImGui::PopItemWidth();
+
+			ImGui::SameLine();
+
+			if (ImGui::Button(_effects_expanded ? "Collapse All" : "Expand All", ImVec2(130 - ImGui::GetStyle().ItemSpacing.x, 0)))
+			{
+				_effects_expanded = !_effects_expanded;
+			}
 
 			if (_tutorial_index == 2)
 			{
@@ -1737,7 +1744,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 					ImGui::TreePop();
 
 				current_filename = variable.effect_filename;
-				current_tree_is_closed = !ImGui::TreeNodeEx(variable.effect_filename.c_str(), _effect_filter_buffer[0] != 0 ? ImGuiTreeNodeFlags_DefaultOpen : 0);
+				current_tree_is_closed = !ImGui::TreeNodeEx(variable.effect_filename.c_str(), _effect_filter_buffer[0] != 0 || _effects_expanded ? ImGuiTreeNodeFlags_DefaultOpen : 0);
 			}
 			if (current_tree_is_closed)
 			{
@@ -1867,7 +1874,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 					ImGui::TreePop();
 
 				current_filename = technique.effect_filename;
-				current_tree_is_closed = !ImGui::TreeNodeEx(technique.effect_filename.c_str(), _effect_filter_buffer[0] != '\0' ? ImGuiTreeNodeFlags_DefaultOpen : 0);
+				current_tree_is_closed = !ImGui::TreeNodeEx(technique.effect_filename.c_str(), _effect_filter_buffer[0] != '\0' || _effects_expanded ? ImGuiTreeNodeFlags_DefaultOpen : 0);
 			}
 			if (current_tree_is_closed)
 			{
