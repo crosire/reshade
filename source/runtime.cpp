@@ -1042,7 +1042,7 @@ namespace reshade
 					ImGuiWindowFlags_NoFocusOnAppearing);
 
 				ImGui::Text("%.0f fps", imgui_io.Framerate);
-				ImGui::Text("%03lld ms", std::chrono::duration_cast<std::chrono::milliseconds>(_last_frame_duration).count());
+				ImGui::Text("%*lld ms", 3, std::chrono::duration_cast<std::chrono::milliseconds>(_last_frame_duration).count());
 
 				ImGui::End();
 				ImGui::PopStyleColor(2);
