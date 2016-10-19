@@ -990,6 +990,7 @@ namespace reshade
 
 		// Create ImGui widgets and windows
 		ImGui::NewFrame();
+		_effects_expanded_state &= 2;
 
 		if (show_splash)
 		{
@@ -1295,10 +1296,12 @@ namespace reshade
 
 			ImGui::PushItemWidth(-130);
 
-			if (ImGui::InputText("##filter", _effect_filter_buffer, sizeof(_effect_filter_buffer)))
+			if (ImGui::InputText("##filter", _effect_filter_buffer, sizeof(_effect_filter_buffer), ImGuiInputTextFlags_AutoSelectAll))
 			{
 				if (_effect_filter_buffer[0] == '\0')
 				{
+					_effects_expanded_state = 1;
+
 					for (auto &uniform : _uniforms)
 					{
 						if (uniform.annotations["hidden"].as<bool>())
@@ -1316,6 +1319,7 @@ namespace reshade
 				}
 				else
 				{
+					_effects_expanded_state = 3;
 					const std::string filter(_effect_filter_buffer);
 
 					for (auto &uniform : _uniforms)
@@ -1343,13 +1347,18 @@ namespace reshade
 				}
 			}
 
+			if (!ImGui::IsItemActive() && _effect_filter_buffer[0] == '\0')
+			{
+				strcpy(_effect_filter_buffer, "Search");
+			}
+
 			ImGui::PopItemWidth();
 
 			ImGui::SameLine();
 
-			if (ImGui::Button(_effects_expanded ? "Collapse All" : "Expand All", ImVec2(130 - ImGui::GetStyle().ItemSpacing.x, 0)))
+			if (ImGui::Button(_effects_expanded_state & 2 ? "Collapse All" : "Expand All", ImVec2(130 - ImGui::GetStyle().ItemSpacing.x, 0)))
 			{
-				_effects_expanded = !_effects_expanded;
+				_effects_expanded_state = (~_effects_expanded_state & 2) | 1;
 			}
 
 			if (_tutorial_index == 2)
@@ -1769,9 +1778,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 			{
 				if (!current_tree_is_closed)
 					ImGui::TreePop();
+				if (_effects_expanded_state & 1)
+					ImGui::SetNextTreeNodeOpen(_effects_expanded_state >> 1);
 
 				current_filename = variable.effect_filename;
-				current_tree_is_closed = !ImGui::TreeNodeEx(variable.effect_filename.c_str(), _effect_filter_buffer[0] != 0 || _effects_expanded ? ImGuiTreeNodeFlags_DefaultOpen : 0);
+				current_tree_is_closed = !ImGui::TreeNodeEx(variable.effect_filename.c_str(), ImGuiTreeNodeFlags_DefaultOpen);
 			}
 			if (current_tree_is_closed)
 			{
@@ -1899,9 +1910,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 			{
 				if (!current_tree_is_closed)
 					ImGui::TreePop();
+				if (_effects_expanded_state & 1)
+					ImGui::SetNextTreeNodeOpen(_effects_expanded_state >> 1);
 
 				current_filename = technique.effect_filename;
-				current_tree_is_closed = !ImGui::TreeNodeEx(technique.effect_filename.c_str(), _effect_filter_buffer[0] != '\0' || _effects_expanded ? ImGuiTreeNodeFlags_DefaultOpen : 0);
+				current_tree_is_closed = !ImGui::TreeNodeEx(technique.effect_filename.c_str(), ImGuiTreeNodeFlags_DefaultOpen);
 			}
 			if (current_tree_is_closed)
 			{
