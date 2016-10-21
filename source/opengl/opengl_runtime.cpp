@@ -796,6 +796,8 @@ namespace reshade::opengl
 		glBlendEquation(GL_FUNC_ADD);
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		glEnable(GL_SCISSOR_TEST);
+		glDisable(GL_STENCIL_TEST);
+		glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 		glActiveTexture(GL_TEXTURE0);
 		glUseProgram(_imgui_shader_program);
 		glBindSampler(0, 0);

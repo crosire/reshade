@@ -1779,7 +1779,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 				if (!current_tree_is_closed)
 					ImGui::TreePop();
 				if (_effects_expanded_state & 1)
-					ImGui::SetNextTreeNodeOpen(_effects_expanded_state >> 1);
+					ImGui::SetNextTreeNodeOpen((_effects_expanded_state >> 1) != 0);
 
 				current_filename = variable.effect_filename;
 				current_tree_is_closed = !ImGui::TreeNodeEx(variable.effect_filename.c_str(), ImGuiTreeNodeFlags_DefaultOpen);
@@ -1911,7 +1911,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 				if (!current_tree_is_closed)
 					ImGui::TreePop();
 				if (_effects_expanded_state & 1)
-					ImGui::SetNextTreeNodeOpen(_effects_expanded_state >> 1);
+					ImGui::SetNextTreeNodeOpen((_effects_expanded_state >> 1) != 0);
 
 				current_filename = technique.effect_filename;
 				current_tree_is_closed = !ImGui::TreeNodeEx(technique.effect_filename.c_str(), ImGuiTreeNodeFlags_DefaultOpen);

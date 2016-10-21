@@ -1651,18 +1651,18 @@ namespace reshade::d3d9
 		device->SetVertexShader(pass.vertex_shader.get());
 		device->SetPixelShader(pass.pixel_shader.get());
 
-		device->SetRenderState(D3DRS_ZENABLE, FALSE);
-		device->SetRenderState(D3DRS_SPECULARENABLE, FALSE);
+		device->SetRenderState(D3DRS_ZENABLE, false);
+		device->SetRenderState(D3DRS_SPECULARENABLE, false);
 		device->SetRenderState(D3DRS_FILLMODE, D3DFILL_SOLID);
 		device->SetRenderState(D3DRS_SHADEMODE, D3DSHADE_GOURAUD);
-		device->SetRenderState(D3DRS_ZWRITEENABLE, TRUE);
-		device->SetRenderState(D3DRS_ALPHATESTENABLE, FALSE);
-		device->SetRenderState(D3DRS_LASTPIXEL, TRUE);
+		device->SetRenderState(D3DRS_ZWRITEENABLE, true);
+		device->SetRenderState(D3DRS_ALPHATESTENABLE, false);
+		device->SetRenderState(D3DRS_LASTPIXEL, true);
 		device->SetRenderState(D3DRS_SRCBLEND, literal_to_blend_func(node->src_blend));
 		device->SetRenderState(D3DRS_DESTBLEND, literal_to_blend_func(node->dest_blend));
 		device->SetRenderState(D3DRS_ALPHAREF, 0);
 		device->SetRenderState(D3DRS_ALPHAFUNC, D3DCMP_ALWAYS);
-		device->SetRenderState(D3DRS_DITHERENABLE, FALSE);
+		device->SetRenderState(D3DRS_DITHERENABLE, false);
 		device->SetRenderState(D3DRS_FOGSTART, 0);
 		device->SetRenderState(D3DRS_FOGEND, 1);
 		device->SetRenderState(D3DRS_FOGDENSITY, 1);
@@ -1677,17 +1677,17 @@ namespace reshade::d3d9
 		device->SetRenderState(D3DRS_STENCILMASK, node->stencil_read_mask);
 		device->SetRenderState(D3DRS_STENCILWRITEMASK, node->stencil_write_mask);
 		device->SetRenderState(D3DRS_TEXTUREFACTOR, 0xFFFFFFFF);
-		device->SetRenderState(D3DRS_LOCALVIEWER, TRUE);
+		device->SetRenderState(D3DRS_LOCALVIEWER, true);
 		device->SetRenderState(D3DRS_EMISSIVEMATERIALSOURCE, D3DMCS_MATERIAL);
 		device->SetRenderState(D3DRS_AMBIENTMATERIALSOURCE, D3DMCS_MATERIAL);
 		device->SetRenderState(D3DRS_DIFFUSEMATERIALSOURCE, D3DMCS_COLOR1);
 		device->SetRenderState(D3DRS_SPECULARMATERIALSOURCE, D3DMCS_COLOR2);
 		device->SetRenderState(D3DRS_COLORWRITEENABLE, node->color_write_mask);
 		device->SetRenderState(D3DRS_BLENDOP, static_cast<D3DBLENDOP>(node->blend_op));
-		device->SetRenderState(D3DRS_SCISSORTESTENABLE, FALSE);
+		device->SetRenderState(D3DRS_SCISSORTESTENABLE, false);
 		device->SetRenderState(D3DRS_SLOPESCALEDEPTHBIAS, 0);
-		device->SetRenderState(D3DRS_ANTIALIASEDLINEENABLE, FALSE);
-		device->SetRenderState(D3DRS_TWOSIDEDSTENCILMODE, FALSE);
+		device->SetRenderState(D3DRS_ANTIALIASEDLINEENABLE, false);
+		device->SetRenderState(D3DRS_TWOSIDEDSTENCILMODE, false);
 		device->SetRenderState(D3DRS_CCW_STENCILFAIL, D3DSTENCILOP_KEEP);
 		device->SetRenderState(D3DRS_CCW_STENCILZFAIL, D3DSTENCILOP_KEEP);
 		device->SetRenderState(D3DRS_CCW_STENCILPASS, D3DSTENCILOP_KEEP);
@@ -1697,13 +1697,13 @@ namespace reshade::d3d9
 		device->SetRenderState(D3DRS_COLORWRITEENABLE3, 0x0000000F);
 		device->SetRenderState(D3DRS_BLENDFACTOR, 0xFFFFFFFF);
 		device->SetRenderState(D3DRS_SRGBWRITEENABLE, node->srgb_write_enable);
-		device->SetRenderState(D3DRS_SEPARATEALPHABLENDENABLE, FALSE);
+		device->SetRenderState(D3DRS_SEPARATEALPHABLENDENABLE, false);
 		device->SetRenderState(D3DRS_SRCBLENDALPHA, D3DBLEND_ONE);
 		device->SetRenderState(D3DRS_DESTBLENDALPHA, D3DBLEND_ZERO);
 		device->SetRenderState(D3DRS_BLENDOPALPHA, static_cast<D3DBLENDOP>(node->blend_op_alpha));
-		device->SetRenderState(D3DRS_FOGENABLE, FALSE);
+		device->SetRenderState(D3DRS_FOGENABLE, false);
 		device->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
-		device->SetRenderState(D3DRS_LIGHTING, FALSE);
+		device->SetRenderState(D3DRS_LIGHTING, false);
 
 		device->EndStateBlock(&pass.stateblock);
 

@@ -72,7 +72,7 @@ namespace reshade::d3d9
 		void detect_depth_source();
 		bool create_depthstencil_replacement(IDirect3DSurface9 *depthstencil);
 
-		UINT _behavior_flags, _num_simultaneous_rendertargets;
+		UINT _behavior_flags, _num_simultaneous_rendertargets, _num_samplers;
 		bool _is_multisampling_enabled = false;
 		D3DFORMAT _backbuffer_format = D3DFMT_UNKNOWN;
 		com_ptr<IDirect3DStateBlock9> _stateblock;

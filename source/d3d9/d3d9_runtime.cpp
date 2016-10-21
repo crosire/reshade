@@ -33,7 +33,8 @@ namespace reshade::d3d9
 		_vendor_id = adapter_desc.VendorId;
 		_device_id = adapter_desc.DeviceId;
 		_behavior_flags = creation_params.BehaviorFlags;
-		_num_simultaneous_rendertargets = std::min(static_cast<UINT>(caps.NumSimultaneousRTs), 8u);
+		_num_samplers = caps.MaxSimultaneousTextures;
+		_num_simultaneous_rendertargets = std::min(caps.NumSimultaneousRTs, DWORD(8));
 	}
 
 	bool d3d9_runtime::init_backbuffer_texture()
@@ -757,10 +758,13 @@ namespace reshade::d3d9
 		_device->SetRenderState(D3DRS_ALPHABLENDENABLE, true);
 		_device->SetRenderState(D3DRS_ALPHATESTENABLE, false);
 		_device->SetRenderState(D3DRS_BLENDOP, D3DBLENDOP_ADD);
+		_device->SetRenderState(D3DRS_BLENDOPALPHA, D3DBLENDOP_ADD);
 		_device->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
 		_device->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
+		_device->SetRenderState(D3DRS_STENCILENABLE, false);
 		_device->SetRenderState(D3DRS_SCISSORTESTENABLE, true);
 		_device->SetRenderState(D3DRS_SRGBWRITEENABLE, false);
+		_device->SetRenderState(D3DRS_COLORWRITEENABLE, D3DCOLORWRITEENABLE_RED | D3DCOLORWRITEENABLE_GREEN | D3DCOLORWRITEENABLE_BLUE | D3DCOLORWRITEENABLE_ALPHA);
 		_device->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATE);
 		_device->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
 		_device->SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
@@ -789,6 +793,9 @@ namespace reshade::d3d9
 
 		// Render command lists
 		UINT vtx_offset = 0, idx_offset = 0;
+
+		for (UINT i = 0; i < _num_samplers; i++)
+			_device->SetTexture(i, nullptr);
 
 		for (int n = 0; n < draw_data->CmdListsCount; n++)
 		{
