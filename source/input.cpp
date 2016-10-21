@@ -69,6 +69,13 @@ namespace reshade
 			return false;
 		}
 
+		const HWND parent = GetParent(details.hwnd);
+
+		if (parent != nullptr)
+		{
+			details.hwnd = parent;
+		}
+
 		const critical_section::lock lock(s_cs);
 
 		auto input_window = s_windows.find(details.hwnd);

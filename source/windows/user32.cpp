@@ -199,6 +199,7 @@ HOOK_EXPORT BOOL WINAPI HookPeekMessageW(LPMSG lpMsg, HWND hWnd, UINT wMsgFilter
 }
 
 POINT last_cursor_position = { };
+std::shared_ptr<reshade::input> last_input;
 
 HOOK_EXPORT BOOL WINAPI HookSetCursorPosition(int X, int Y)
 {
@@ -206,9 +207,9 @@ HOOK_EXPORT BOOL WINAPI HookSetCursorPosition(int X, int Y)
 
 	if (hwnd != nullptr)
 	{
-		const auto input = reshade::input::register_window(hwnd);
+		last_input = reshade::input::register_window(hwnd);
 
-		if (input->is_blocking_mouse_input())
+		if (last_input->is_blocking_mouse_input())
 		{
 			last_cursor_position.x = X;
 			last_cursor_position.y = Y;
@@ -227,9 +228,9 @@ HOOK_EXPORT BOOL WINAPI HookGetCursorPosition(LPPOINT lpPoint)
 
 	if (hwnd != nullptr)
 	{
-		const auto input = reshade::input::register_window(hwnd);
+		last_input = reshade::input::register_window(hwnd);
 
-		if (input->is_blocking_mouse_input())
+		if (last_input->is_blocking_mouse_input())
 		{
 			assert(lpPoint != nullptr);
 
