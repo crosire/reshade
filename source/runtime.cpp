@@ -668,7 +668,8 @@ namespace reshade
 		_screenshot_path = config.get("GENERAL", "ScreenshotPath", _screenshot_path).as<filesystem::path>();
 		_screenshot_format = config.get("GENERAL", "ScreenshotFormat", 0).as<int>();
 
-		_show_fps = config.get("GENERAL", "ShowFPS", _show_fps).as<bool>();
+		_show_clock = config.get("GENERAL", "ShowClock", _show_clock).as<bool>();
+		_show_framerate = config.get("GENERAL", "ShowFPS", _show_framerate).as<bool>();
 
 		auto &style = _imgui_context->Style;
 		style.Alpha = config.get("STYLE", "Alpha", 0.95f).as<float>();
@@ -778,7 +779,8 @@ namespace reshade
 		config.set("GENERAL", "TutorialProgress", _tutorial_index);
 		config.set("GENERAL", "ScreenshotPath", _screenshot_path);
 		config.set("GENERAL", "ScreenshotFormat", _screenshot_format);
-		config.set("GENERAL", "ShowFPS", _show_fps);
+		config.set("GENERAL", "ShowClock", _show_clock);
+		config.set("GENERAL", "ShowFPS", _show_framerate);
 
 		const auto &style = _imgui_context->Style;
 		config.set("STYLE", "Alpha", style.Alpha);
@@ -944,7 +946,7 @@ namespace reshade
 			_show_menu = !_show_menu;
 		}
 
-		if (!(_show_menu || _show_fps || _show_error_log || show_splash))
+		if (!(_show_menu || _show_clock || _show_framerate || _show_error_log || show_splash))
 		{
 			_input->block_mouse_input(false);
 			_input->block_keyboard_input(false);
@@ -1041,20 +1043,7 @@ namespace reshade
 
 		if (_reload_remaining_effects == 0)
 		{
-			if (_show_menu)
-			{
-				ImGui::SetNextWindowPosCenter(ImGuiSetCond_Once);
-				ImGui::SetNextWindowSize(ImVec2(710, 650), ImGuiSetCond_Once);
-				ImGui::Begin("ReShade " VERSION_STRING_FILE " by crosire###Main", &_show_menu,
-					ImGuiWindowFlags_MenuBar |
-					ImGuiWindowFlags_NoCollapse);
-
-				draw_overlay_menu();
-
-				ImGui::End();
-			}
-
-			if (_show_fps && !show_splash)
+			if (!show_splash)
 			{
 				ImGui::SetNextWindowPos(ImVec2(_width - 80.f, 0));
 				ImGui::SetNextWindowSize(ImVec2(80, 100));
@@ -1070,12 +1059,34 @@ namespace reshade
 					ImGuiWindowFlags_NoInputs |
 					ImGuiWindowFlags_NoFocusOnAppearing);
 
-				ImGui::Text("%.0f fps", imgui_io.Framerate);
-				ImGui::Text("%*lld ms", 3, std::chrono::duration_cast<std::chrono::milliseconds>(_last_frame_duration).count());
+				if (_show_clock)
+				{
+					const int hour = _date[3] / 3600;
+					const int minute = (_date[3] - hour * 3600) / 60;
+					ImGui::Text(" %02u%s%02u", hour, _date[3] % 2 ? ":" : " ", minute);
+				}
+				if (_show_framerate)
+				{
+					ImGui::Text("%.0f fps", imgui_io.Framerate);
+					ImGui::Text("%*lld ms", 3, std::chrono::duration_cast<std::chrono::milliseconds>(_last_frame_duration).count());
+				}
 
 				ImGui::End();
 				ImGui::PopStyleColor(2);
 				ImGui::PopFont();
+			}
+
+			if (_show_menu)
+			{
+				ImGui::SetNextWindowPosCenter(ImGuiSetCond_Once);
+				ImGui::SetNextWindowSize(ImVec2(710, 650), ImGuiSetCond_Once);
+				ImGui::Begin("ReShade " VERSION_STRING_FILE " by crosire###Main", &_show_menu,
+					ImGuiWindowFlags_MenuBar |
+					ImGuiWindowFlags_NoCollapse);
+
+				draw_overlay_menu();
+
+				ImGui::End();
 			}
 
 			if (_show_error_log)
@@ -1640,18 +1651,19 @@ namespace reshade
 
 		if (ImGui::CollapsingHeader("User Interface", ImGuiTreeNodeFlags_DefaultOpen))
 		{
-			const bool modified1 = ImGui::DragFloat("Alpha", &ImGui::GetStyle().Alpha, 0.005f, 0.20f, 1.0f, "%.2f");
-			const bool modified2 = ImGui::ColorEdit3("Background Color", _imgui_col_background);
-			const bool modified3 = ImGui::ColorEdit3("Item Background Color", _imgui_col_item_background);
-			const bool modified4 = ImGui::ColorEdit3("Active Item Color", _imgui_col_active);
-			const bool modified5 = ImGui::ColorEdit3("Text Color", _imgui_col_text);
-			const bool modified6 = ImGui::ColorEdit3("FPS Text Color", _imgui_col_text_fps);
+			bool modified = false;
+			modified |= ImGui::Checkbox("Show Clock", &_show_clock);
+			ImGui::SameLine(0, 10);
+			modified |= ImGui::Checkbox("Show FPS", &_show_framerate);
 
-			ImGui::SameLine(ImGui::GetWindowWidth() - 100);
+			modified |= ImGui::DragFloat("Alpha", &ImGui::GetStyle().Alpha, 0.005f, 0.20f, 1.0f, "%.2f");
+			modified |= ImGui::ColorEdit3("Background Color", _imgui_col_background);
+			modified |= ImGui::ColorEdit3("Item Background Color", _imgui_col_item_background);
+			modified |= ImGui::ColorEdit3("Active Item Color", _imgui_col_active);
+			modified |= ImGui::ColorEdit3("Text Color", _imgui_col_text);
+			modified |= ImGui::ColorEdit3("FPS Text Color", _imgui_col_text_fps);
 
-			const bool modified7 = ImGui::Checkbox("Show FPS", &_show_fps);
-
-			if (modified1 || modified2 || modified3 || modified4 || modified5 || modified6 || modified7)
+			if (modified)
 			{
 				save_configuration();
 				load_configuration();
