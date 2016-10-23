@@ -8,11 +8,12 @@ using System.Net;
 using System.Reflection;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Media;
 using Microsoft.Win32;
 
 namespace ReShade.Setup
 {
-	public partial class Wizard
+	public partial class WizardWindow
 	{
 		bool _isElevated = false;
 		string _targetPath = null;
@@ -20,7 +21,7 @@ namespace ReShade.Setup
 		PEInfo _targetPEInfo = null;
 		string _tempDownloadPath = null;
 
-		public Wizard()
+		public WizardWindow()
 		{
 			InitializeComponent();
 		}
@@ -294,6 +295,18 @@ namespace ReShade.Setup
 				Message.Content = "Unable to extract downloaded archive.";
 				Glass.HideSystemMenu(this, false);
 				return;
+			}
+
+			var wnd = new SelectWindow(Directory.GetFiles(Path.Combine(shadersDirectoryFinal, "Shaders")));
+			wnd.Owner = this;
+			wnd.ShowDialog();
+
+			foreach (var item in wnd.GetSelection())
+			{
+				if (item.IsChecked)
+					continue;
+
+				File.Delete(item.Path);
 			}
 
 			string configFilePath = Path.ChangeExtension(_targetModulePath, ".ini");

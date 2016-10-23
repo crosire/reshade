@@ -52,10 +52,17 @@
     <Compile Include="Glass.cs" />
     <Compile Include="IniFile.cs" />
     <Compile Include="PEInfo.cs" />
+    <Page Include="Select.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Include="Wizard.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
+    <Compile Include="Select.xaml.cs">
+      <DependentUpon>Select.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Wizard.xaml.cs">
       <DependentUpon>Wizard.xaml</DependentUpon>
     </Compile>

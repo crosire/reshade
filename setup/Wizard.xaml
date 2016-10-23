@@ -1,7 +1,7 @@
 ﻿<Window
 	xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
 	xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-	x:Class="ReShade.Setup.Wizard"
+	x:Class="ReShade.Setup.WizardWindow"
 	Title="Welcome"
 	Width="500"
 	Height="146"
