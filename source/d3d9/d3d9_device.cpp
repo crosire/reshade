@@ -17,25 +17,6 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::QueryInterface(REFIID riid, void **pp
 		riid == __uuidof(IDirect3DDevice9) ||
 		riid == __uuidof(IDirect3DDevice9Ex))
 	{
-		#pragma region Update to IDirect3DDevice9Ex interface
-		if (!_extended_interface && riid == __uuidof(IDirect3DDevice9Ex))
-		{
-			IDirect3DDevice9Ex *deviceex = nullptr;
-
-			if (FAILED(_orig->QueryInterface(IID_PPV_ARGS(&deviceex))))
-			{
-				return E_NOINTERFACE;
-			}
-
-			_orig->Release();
-
-			LOG(INFO) << "Upgraded 'IDirect3DDevice9' object " << this << " to 'IDirect3DDevice9Ex'.";
-
-			_orig = deviceex;
-			_extended_interface = 1;
-		}
-		#pragma endregion
-
 		AddRef();
 
 		*ppvObj = this;
