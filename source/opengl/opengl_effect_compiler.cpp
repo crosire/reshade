@@ -938,7 +938,7 @@ namespace reshade::opengl
 		}
 		if (node->arguments[3] != nullptr)
 		{
-			cast4 = write_cast(type4 = node->arguments[2]->type, node->type);
+			cast4 = write_cast(type4 = node->arguments[3]->type, node->type);
 		}
 
 		switch (node->op)
