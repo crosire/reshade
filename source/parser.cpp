@@ -2943,7 +2943,7 @@ namespace reshadefx
 			}
 		}
 
-		if (!parse_statement_block(reinterpret_cast<statement_node *&>(function->definition)))
+		if (!parse_statement_block(reinterpret_cast<statement_node *&>(function->definition), false))
 		{
 			_symbol_table->leave_scope();
 
