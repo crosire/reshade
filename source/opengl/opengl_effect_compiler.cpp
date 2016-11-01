@@ -2340,11 +2340,6 @@ namespace reshade::opengl
 
 		assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
 
-		GLint encoding = 0;
-		glGetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_FRAMEBUFFER_ATTACHMENT_COLOR_ENCODING, &encoding);
-
-		assert(pass.srgb == (encoding == GL_SRGB));
-
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 		GLuint shaders[2] = { 0, 0 };
