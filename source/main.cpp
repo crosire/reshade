@@ -23,11 +23,9 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID lpvReserved)
 			g_module_handle = hModule;
 			runtime::s_reshade_dll_path = filesystem::get_module_path(hModule);
 			runtime::s_target_executable_path = filesystem::get_module_path(nullptr);
+			const filesystem::path system_path = filesystem::get_special_folder_path(filesystem::special_folder::system);
 
-			filesystem::path log_path(runtime::s_reshade_dll_path);
-			log_path.replace_extension(".log");
-
-			log::open(log_path);
+			log::open(filesystem::path(runtime::s_reshade_dll_path).replace_extension(".log"));
 
 #ifdef WIN64
 #define VERSION_PLATFORM "64-bit"
@@ -36,7 +34,6 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID lpvReserved)
 #endif
 			LOG(INFO) << "Initializing crosire's ReShade version '" VERSION_STRING_FILE "' (" << VERSION_PLATFORM << ") built on '" VERSION_DATE " " VERSION_TIME "' loaded from " << runtime::s_reshade_dll_path << " to " << runtime::s_target_executable_path << " ...";
 
-			const auto system_path = filesystem::get_special_folder_path(filesystem::special_folder::system);
 			hooks::register_module(system_path / "d3d9.dll");
 			hooks::register_module(system_path / "d3d10.dll");
 			hooks::register_module(system_path / "d3d10_1.dll");

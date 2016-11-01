@@ -1,6 +1,5 @@
 #include "log.hpp"
 #include "hook_manager.hpp"
-#include "critical_section.hpp"
 #include <assert.h>
 #include <algorithm>
 #include <vector>
@@ -61,7 +60,6 @@ namespace reshade::hooks
 			return exports;
 		}
 
-		critical_section s_cs;
 		filesystem::path s_export_hook_path;
 		std::vector<filesystem::path> s_delayed_hook_paths;
 		std::vector<HMODULE> s_delayed_hook_modules;
@@ -118,8 +116,6 @@ namespace reshade::hooks
 			}
 
 			LOG(INFO) << "> Succeeded.";
-
-			const critical_section::lock lock(s_cs);
 
 			s_hooks.emplace_back(std::move(hook), method);
 
@@ -253,13 +249,10 @@ namespace reshade::hooks
 
 		hook find(hook::address replacement)
 		{
-			const critical_section::lock lock(s_cs);
-
 			const auto it = std::find_if(s_hooks.cbegin(), s_hooks.cend(),
-				[replacement](const std::pair<hook, hook_method> &hook)
-			{
-				return hook.first.replacement == replacement;
-			});
+				[replacement](const std::pair<hook, hook_method> &hook) {
+					return hook.first.replacement == replacement;
+				});
 
 			if (it == s_hooks.cend())
 			{
@@ -284,8 +277,6 @@ namespace reshade::hooks
 			{
 				return handle;
 			}
-
-			const critical_section::lock lock(s_cs);
 
 			const auto remove = std::remove_if(s_delayed_hook_paths.begin(), s_delayed_hook_paths.end(),
 				[lpFileName](const filesystem::path &path) {
@@ -329,8 +320,6 @@ namespace reshade::hooks
 			{
 				return handle;
 			}
-
-			const critical_section::lock lock(s_cs);
 
 			const auto remove = std::remove_if(s_delayed_hook_paths.begin(), s_delayed_hook_paths.end(),
 				[lpFileName](const filesystem::path &path) {
@@ -395,8 +384,6 @@ namespace reshade::hooks
 
 		if (VirtualProtect(&target, sizeof(hook::address), protection, &protection))
 		{
-			const critical_section::lock lock(s_cs);
-
 			const auto insert = s_vtable_addresses.emplace(target, &target);
 
 			VirtualProtect(&target, sizeof(hook::address), protection, &protection);
@@ -420,8 +407,6 @@ namespace reshade::hooks
 	}
 	void uninstall()
 	{
-		const critical_section::lock lock(s_cs);
-
 		LOG(INFO) << "Uninstalling " << s_hooks.size() << " hook(s) ...";
 
 		// Uninstall hooks
@@ -440,7 +425,7 @@ namespace reshade::hooks
 
 		s_delayed_hook_modules.clear();
 	}
-	void register_module(const filesystem::path &target_path) // Unsafe
+	void register_module(const filesystem::path &target_path)
 	{
 		install(reinterpret_cast<hook::address>(&LoadLibraryA), reinterpret_cast<hook::address>(&HookLoadLibraryA));
 		install(reinterpret_cast<hook::address>(&LoadLibraryExA), reinterpret_cast<hook::address>(&HookLoadLibraryExA));
@@ -482,8 +467,6 @@ namespace reshade::hooks
 
 	hook::address call(hook::address replacement)
 	{
-		const critical_section::lock lock(s_cs);
-
 		if (!s_export_hook_path.empty())
 		{
 			const HMODULE handle = HookLoadLibraryW(s_export_hook_path.wstring().c_str());
