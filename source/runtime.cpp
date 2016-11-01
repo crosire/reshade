@@ -70,7 +70,10 @@ namespace reshade
 
 		_imgui_font_atlas->AddFontDefault();
 		const auto font_path = filesystem::get_special_folder_path(filesystem::special_folder::windows) / "Fonts" / "consolab.ttf";
-		_imgui_font_atlas->AddFontFromFileTTF(font_path.string().c_str(), 18.0f);
+		if (filesystem::exists(font_path))
+			_imgui_font_atlas->AddFontFromFileTTF(font_path.string().c_str(), 18.0f);
+		else
+			_imgui_font_atlas->AddFontDefault();
 
 		load_configuration();
 	}
