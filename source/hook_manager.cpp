@@ -1,5 +1,6 @@
 #include "log.hpp"
 #include "hook_manager.hpp"
+#include "critical_section.hpp"
 #include <assert.h>
 #include <algorithm>
 #include <vector>
@@ -60,9 +61,9 @@ namespace reshade::hooks
 			return exports;
 		}
 
+		critical_section s_cs;
 		filesystem::path s_export_hook_path;
 		std::vector<filesystem::path> s_delayed_hook_paths;
-		std::vector<HMODULE> s_delayed_hook_modules;
 		std::vector<std::pair<hook, hook_method>> s_hooks;
 		std::unordered_map<hook::address, hook::address *> s_vtable_addresses;
 
@@ -117,7 +118,9 @@ namespace reshade::hooks
 
 			LOG(INFO) << "> Succeeded.";
 
-			s_hooks.emplace_back(std::move(hook), method);
+			{ const critical_section::lock lock(s_cs);
+				s_hooks.emplace_back(std::move(hook), method);
+			}
 
 			return true;
 		}
@@ -249,17 +252,13 @@ namespace reshade::hooks
 
 		hook find(hook::address replacement)
 		{
+			const critical_section::lock lock(s_cs);
 			const auto it = std::find_if(s_hooks.cbegin(), s_hooks.cend(),
 				[replacement](const std::pair<hook, hook_method> &hook) {
 					return hook.first.replacement == replacement;
 				});
 
-			if (it == s_hooks.cend())
-			{
-				return hook();
-			}
-
-			return it->first;
+			return it != s_hooks.cend() ? it->first : hook();
 		}
 		template <typename T>
 		inline T call_unchecked(T replacement)
@@ -281,7 +280,7 @@ namespace reshade::hooks
 			const auto remove = std::remove_if(s_delayed_hook_paths.begin(), s_delayed_hook_paths.end(),
 				[lpFileName](const filesystem::path &path) {
 					HMODULE delayed_handle = nullptr;
-					GetModuleHandleExW(0, path.wstring().c_str(), &delayed_handle);
+					GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_PIN, path.wstring().c_str(), &delayed_handle);
 
 					if (delayed_handle == nullptr)
 					{
@@ -289,8 +288,6 @@ namespace reshade::hooks
 					}
 
 					LOG(INFO) << "Installing delayed hooks for " << path << " (Just loaded via 'LoadLibraryA(\"" << lpFileName << "\")') ...";
-
-					s_delayed_hook_modules.push_back(delayed_handle);
 
 					return install(delayed_handle, g_module_handle, hook_method::function_hook);
 				});
@@ -324,7 +321,7 @@ namespace reshade::hooks
 			const auto remove = std::remove_if(s_delayed_hook_paths.begin(), s_delayed_hook_paths.end(),
 				[lpFileName](const filesystem::path &path) {
 					HMODULE delayed_handle = nullptr;
-					GetModuleHandleExW(0, path.wstring().c_str(), &delayed_handle);
+					GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_PIN, path.wstring().c_str(), &delayed_handle);
 
 					if (delayed_handle == nullptr)
 					{
@@ -332,8 +329,6 @@ namespace reshade::hooks
 					}
 
 					LOG(INFO) << "Installing delayed hooks for " << path << " (Just loaded via 'LoadLibraryW(\"" << lpFileName << "\")') ...";
-
-					s_delayed_hook_modules.push_back(delayed_handle);
 
 					return install(delayed_handle, g_module_handle, hook_method::function_hook);
 				});
@@ -416,14 +411,6 @@ namespace reshade::hooks
 		}
 
 		s_hooks.clear();
-
-		// Free loaded modules
-		for (HMODULE module : s_delayed_hook_modules)
-		{
-			FreeLibrary(module);
-		}
-
-		s_delayed_hook_modules.clear();
 	}
 	void register_module(const filesystem::path &target_path)
 	{
@@ -452,8 +439,6 @@ namespace reshade::hooks
 			{
 				LOG(INFO) << "> Libraries loaded.";
 
-				s_delayed_hook_modules.push_back(handle);
-
 				install(handle, g_module_handle, hook_method::function_hook);
 			}
 			else
@@ -467,22 +452,23 @@ namespace reshade::hooks
 
 	hook::address call(hook::address replacement)
 	{
-		if (!s_export_hook_path.empty())
-		{
-			const HMODULE handle = HookLoadLibraryW(s_export_hook_path.wstring().c_str());
-
-			LOG(INFO) << "Installing delayed hooks for " << s_export_hook_path << " ...";
-
-			if (handle != nullptr)
+		{ const critical_section::lock lock(s_cs);
+			if (!s_export_hook_path.empty())
 			{
-				s_export_hook_path = "";
-				s_delayed_hook_modules.push_back(handle);
+				const HMODULE handle = HookLoadLibraryW(s_export_hook_path.wstring().c_str());
 
-				install(handle, g_module_handle, hook_method::export_hook);
-			}
-			else
-			{
-				LOG(ERROR) << "Failed to load " << s_export_hook_path << "!";
+				LOG(INFO) << "Installing delayed hooks for " << s_export_hook_path << " ...";
+
+				if (handle != nullptr)
+				{
+					s_export_hook_path = "";
+
+					install(handle, g_module_handle, hook_method::export_hook);
+				}
+				else
+				{
+					LOG(ERROR) << "Failed to load " << s_export_hook_path << "!";
+				}
 			}
 		}
 
