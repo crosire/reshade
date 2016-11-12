@@ -30,6 +30,13 @@ namespace reshade
 	}
 	std::shared_ptr<input> input::register_window(window_handle window)
 	{
+		const HWND parent = GetParent(static_cast<HWND>(window));
+
+		if (parent != nullptr)
+		{
+			window = parent;
+		}
+
 		const critical_section::lock lock(s_cs);
 
 		const auto insert = s_windows.emplace(static_cast<HWND>(window), std::weak_ptr<input>());
