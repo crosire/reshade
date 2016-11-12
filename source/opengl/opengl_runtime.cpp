@@ -420,19 +420,19 @@ namespace reshade::opengl
 		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, _blit_fbo);
 		glBlitFramebuffer(0, 0, _width, _height, 0, 0, _width, _height, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
 
+		// Force Direct3D coordinate conventions
+		GLint clip_origin, clip_depthmode;
+
+		if (gl3wClipControl != nullptr)
+		{
+			glGetIntegerv(GL_CLIP_ORIGIN, &clip_origin);
+			glGetIntegerv(GL_CLIP_DEPTH_MODE, &clip_depthmode);
+			glClipControl(GL_LOWER_LEFT, GL_ZERO_TO_ONE);
+		}
+
 		// Apply post processing
 		if (is_effect_loaded())
 		{
-			GLint clip_origin, clip_depthmode;
-
-			// Force Direct3D coordinate conventions
-			if (gl3wClipControl != nullptr)
-			{
-				glGetIntegerv(GL_CLIP_ORIGIN, &clip_origin);
-				glGetIntegerv(GL_CLIP_DEPTH_MODE, &clip_depthmode);
-				glClipControl(GL_LOWER_LEFT, GL_ZERO_TO_ONE);
-			}
-
 			// Setup vertex input
 			glBindVertexArray(_default_vao);
 
@@ -452,11 +452,6 @@ namespace reshade::opengl
 
 			// Apply post processing
 			on_present_effect();
-
-			if (gl3wClipControl != nullptr)
-			{
-				glClipControl(clip_origin, clip_depthmode);
-			}
 		}
 
 		// Reset render target and copy to frame buffer
@@ -473,6 +468,12 @@ namespace reshade::opengl
 
 		// Apply states
 		_stateblock.apply();
+
+		if (gl3wClipControl != nullptr
+			&& (clip_origin != GL_LOWER_LEFT && clip_depthmode != GL_ZERO_TO_ONE))
+		{
+			glClipControl(clip_origin, clip_depthmode);
+		}
 	}
 	void opengl_runtime::on_draw_call(unsigned int vertices)
 	{
