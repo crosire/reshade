@@ -202,6 +202,8 @@ namespace reshade
 		void draw_overlay_variable_editor();
 		void draw_overlay_technique_editor();
 
+		void filter_techniques(const std::string &filter);
+
 		const unsigned int _renderer_id;
 		bool _is_initialized = false;
 		std::vector<filesystem::path> _effect_files, _preset_files, _effect_search_paths, _texture_search_paths;

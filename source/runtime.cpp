@@ -172,6 +172,11 @@ namespace reshade
 				{
 					load_preset(_preset_files[_current_preset]);
 				}
+
+				if (strcmp(_effect_filter_buffer, "Search") != 0)
+				{
+					filter_techniques(_effect_filter_buffer);
+				}
 			}
 		}
 	}
@@ -1312,56 +1317,9 @@ namespace reshade
 
 			if (ImGui::InputText("##filter", _effect_filter_buffer, sizeof(_effect_filter_buffer), ImGuiInputTextFlags_AutoSelectAll))
 			{
-				if (_effect_filter_buffer[0] == '\0')
-				{
-					_effects_expanded_state = 1;
-
-					for (auto &uniform : _uniforms)
-					{
-						if (uniform.annotations["hidden"].as<bool>())
-							continue;
-
-						uniform.hidden = false;
-					}
-					for (auto &technique : _techniques)
-					{
-						if (technique.annotations["hidden"].as<bool>())
-							continue;
-
-						technique.hidden = false;
-					}
-				}
-				else
-				{
-					_effects_expanded_state = 3;
-					const std::string filter(_effect_filter_buffer);
-
-					for (auto &uniform : _uniforms)
-					{
-						if (uniform.annotations["hidden"].as<bool>())
-							continue;
-
-						uniform.hidden =
-							std::search(uniform.name.begin(), uniform.name.end(), filter.begin(), filter.end(),
-								[](auto c1, auto c2) {
-							return tolower(c1) == tolower(c2);
-						}) == uniform.name.end() && uniform.effect_filename.find(filter) == std::string::npos;
-					}
-					for (auto &technique : _techniques)
-					{
-						if (technique.annotations["hidden"].as<bool>())
-							continue;
-
-						technique.hidden =
-							std::search(technique.name.begin(), technique.name.end(), filter.begin(), filter.end(),
-								[](auto c1, auto c2) {
-							return tolower(c1) == tolower(c2);
-						}) == technique.name.end() && technique.effect_filename.find(filter) == std::string::npos;
-					}
-				}
+				filter_techniques(_effect_filter_buffer);
 			}
-
-			if (!ImGui::IsItemActive() && _effect_filter_buffer[0] == '\0')
+			else if (!ImGui::IsItemActive() && _effect_filter_buffer[0] == '\0')
 			{
 				strcpy(_effect_filter_buffer, "Search");
 			}
@@ -1827,6 +1785,13 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 						set_uniform_value(variable, data, 1);
 					}
+					else if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0))
+					{
+						data[0] = !data[0];
+						modified = true;
+
+						set_uniform_value(variable, data, 1);
+					}
 					break;
 				}
 				case uniform_datatype::signed_integer:
@@ -2027,6 +1992,56 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 		else
 		{
 			_selected_technique = -1;
+		}
+	}
+
+	void runtime::filter_techniques(const std::string &filter)
+	{
+		if (filter.empty())
+		{
+			_effects_expanded_state = 1;
+
+			for (auto &uniform : _uniforms)
+			{
+				if (uniform.annotations["hidden"].as<bool>())
+					continue;
+
+				uniform.hidden = false;
+			}
+			for (auto &technique : _techniques)
+			{
+				if (technique.annotations["hidden"].as<bool>())
+					continue;
+
+				technique.hidden = false;
+			}
+		}
+		else
+		{
+			_effects_expanded_state = 3;
+
+			for (auto &uniform : _uniforms)
+			{
+				if (uniform.annotations["hidden"].as<bool>())
+					continue;
+
+				uniform.hidden =
+					std::search(uniform.name.begin(), uniform.name.end(), filter.begin(), filter.end(),
+						[](auto c1, auto c2) {
+					return tolower(c1) == tolower(c2);
+				}) == uniform.name.end() && uniform.effect_filename.find(filter) == std::string::npos;
+			}
+			for (auto &technique : _techniques)
+			{
+				if (technique.annotations["hidden"].as<bool>())
+					continue;
+
+				technique.hidden =
+					std::search(technique.name.begin(), technique.name.end(), filter.begin(), filter.end(),
+						[](auto c1, auto c2) {
+					return tolower(c1) == tolower(c2);
+				}) == technique.name.end() && technique.effect_filename.find(filter) == std::string::npos;
+			}
 		}
 	}
 }
