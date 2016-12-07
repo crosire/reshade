@@ -2846,7 +2846,7 @@ HOOK_EXPORT int WINAPI wglChoosePixelFormat(HDC hdc, const PIXELFORMATDESCRIPTOR
 
 	if (ppfd->iLayerType != PFD_MAIN_PLANE || ppfd->bReserved != 0)
 	{
-		LOG(ERROR) << "> Layered OpenGL contexts of type " << ppfd->iLayerType << " are not supported.";
+		LOG(ERROR) << "> Layered OpenGL contexts of type " << static_cast<int>(ppfd->iLayerType) << " are not supported.";
 
 		SetLastError(ERROR_INVALID_PARAMETER);
 
