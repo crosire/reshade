@@ -15,6 +15,25 @@ HRESULT STDMETHODCALLTYPE Direct3DSwapChain9::QueryInterface(REFIID riid, void *
 		riid == __uuidof(IDirect3DSwapChain9) ||
 		riid == __uuidof(IDirect3DSwapChain9Ex))
 	{
+		#pragma region Update to IDirect3DSwapChain9Ex interface
+		if (!_extended_interface && riid == __uuidof(IDirect3DSwapChain9Ex))
+		{
+			IDirect3DSwapChain9Ex *swapchainex = nullptr;
+
+			if (FAILED(_orig->QueryInterface(IID_PPV_ARGS(&swapchainex))))
+			{
+				return E_NOINTERFACE;
+			}
+
+			_orig->Release();
+
+			LOG(INFO) << "Upgraded 'IDirect3DSwapChain9' object " << this << " to 'IDirect3DSwapChain9Ex'.";
+
+			_orig = swapchainex;
+			_extended_interface = true;
+		}
+		#pragma endregion
+
 		AddRef();
 
 		*ppvObj = this;
