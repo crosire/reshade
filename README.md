@@ -29,7 +29,7 @@ Path | Description
 [/source](/source) | ReShade source code
 [/source/d3d9](/source/d3d9) | Direct3D 9 hooks and runtime implementation
 [/source/d3d10](/source/d3d10) | Direct3D 10 hooks and runtime implementation
-[/source/d3d11](/source/d3d10) | Direct3D 11 hooks and runtime implementation
+[/source/d3d11](/source/d3d11) | Direct3D 11 hooks and runtime implementation
 [/source/dxgi](/source/dxgi) | DXGI hooks
 [/source/opengl](/source/dxgi) | OpenGL hooks and runtime implementation
 [/source/windows](/source/windows) | Network and window management hooks
