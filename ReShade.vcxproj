@@ -49,7 +49,6 @@
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-    <Import Project="deps\Vulkan.props" />
     <Import Project="deps\Windows.props" />
     <Import Project="deps\MinHook.props" />
     <Import Project="deps\gl3w.props" />
