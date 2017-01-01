@@ -1,4 +1,9 @@
-﻿using System.Collections.Generic;
+﻿/**
+ * Copyright (C) 2014 Patrick Mours. All rights reserved.
+ * License: https://github.com/crosire/reshade#license
+ */
+
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;

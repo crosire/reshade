@@ -1,3 +1,8 @@
+/**
+ * Copyright (C) 2014 Patrick Mours. All rights reserved.
+ * License: https://github.com/crosire/reshade#license
+ */
+
 #include "symbol_table.hpp"
 #include "syntax_tree_nodes.hpp"
 

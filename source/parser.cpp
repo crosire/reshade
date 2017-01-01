@@ -1,3 +1,8 @@
+/**
+ * Copyright (C) 2014 Patrick Mours. All rights reserved.
+ * License: https://github.com/crosire/reshade#license
+ */
+
 #include "parser.hpp"
 #include "symbol_table.hpp"
 #include "constant_folding.hpp"
