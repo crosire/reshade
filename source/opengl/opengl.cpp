@@ -36,6 +36,7 @@
 #undef glDrawArraysIndirect
 #undef glDrawArraysInstanced
 #undef glDrawArraysInstancedBaseInstance
+#undef glDrawArraysInstancedEXT
 #undef glDrawBuffer
 #undef glDrawElements
 #undef glDrawElementsBaseVertex
@@ -44,6 +45,7 @@
 #undef glDrawElementsInstancedBaseVertex
 #undef glDrawElementsInstancedBaseInstance
 #undef glDrawElementsInstancedBaseVertexBaseInstance
+#undef glDrawElementsInstancedEXT
 #undef glDrawRangeElements
 #undef glDrawRangeElementsBaseVertex
 #undef glEnable
