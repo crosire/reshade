@@ -1371,6 +1371,10 @@ namespace reshade
 			ImGui::InvisibleButton("splitter", ImVec2(-1, 5));
 			ImGui::PopStyleVar();
 
+			if (ImGui::IsItemHovered())
+			{
+				ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNS);
+			}
 			if (ImGui::IsItemActive())
 			{
 				_variable_editor_height -= ImGui::GetIO().MouseDelta.y;
