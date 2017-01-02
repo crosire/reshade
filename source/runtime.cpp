@@ -1890,7 +1890,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 		char edit_buffer[2048];
 		const float toggle_key_text_offset = ImGui::GetWindowContentRegionWidth() - ImGui::CalcTextSize("Toggle Key").x - 201;
 
-		for (int id = 0; id < static_cast<int>(_technique_count); id++)
+		for (int id = 0, i=0; id < static_cast<int>(_technique_count); id++, i++)
 		{
 			auto &technique = _techniques[id];
 
@@ -1907,7 +1907,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 					ImGui::SetNextTreeNodeOpen((_effects_expanded_state >> 1) != 0);
 
 				current_filename = technique.effect_filename;
-				current_tree_is_closed = !ImGui::TreeNodeEx(technique.effect_filename.c_str(), ImGuiTreeNodeFlags_DefaultOpen);
+				std::string effectNodeLabel = technique.effect_filename + "##filename" + std::to_string(i);
+				current_tree_is_closed = !ImGui::TreeNodeEx(effectNodeLabel.c_str(), ImGuiTreeNodeFlags_DefaultOpen);
 			}
 			if (current_tree_is_closed)
 			{
