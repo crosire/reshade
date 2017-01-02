@@ -1371,6 +1371,10 @@ namespace reshade
 			ImGui::InvisibleButton("splitter", ImVec2(-1, 5));
 			ImGui::PopStyleVar();
 
+			if (ImGui::IsItemHovered())
+			{
+				ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNS);
+			}
 			if (ImGui::IsItemActive())
 			{
 				_variable_editor_height -= ImGui::GetIO().MouseDelta.y;
@@ -1886,7 +1890,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 		char edit_buffer[2048];
 		const float toggle_key_text_offset = ImGui::GetWindowContentRegionWidth() - ImGui::CalcTextSize("Toggle Key").x - 201;
 
-		for (int id = 0; id < static_cast<int>(_technique_count); id++)
+		for (int id = 0, i = 0; id < static_cast<int>(_technique_count); id++, i++)
 		{
 			auto &technique = _techniques[id];
 
@@ -1902,8 +1906,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 				if (_effects_expanded_state & 1)
 					ImGui::SetNextTreeNodeOpen((_effects_expanded_state >> 1) != 0);
 
+				const std::string effect_node_label = technique.effect_filename + "##filename" + std::to_string(i);
 				current_filename = technique.effect_filename;
-				current_tree_is_closed = !ImGui::TreeNodeEx(technique.effect_filename.c_str(), ImGuiTreeNodeFlags_DefaultOpen);
+				current_tree_is_closed = !ImGui::TreeNodeEx(effect_node_label.c_str(), ImGuiTreeNodeFlags_DefaultOpen);
 			}
 			if (current_tree_is_closed)
 			{
