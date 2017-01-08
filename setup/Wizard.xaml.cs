@@ -19,12 +19,16 @@ namespace ReShade.Setup
 {
 	public partial class WizardWindow
 	{
+		private const string CONFIG_EDITOR_MSG = "Show Config Editor";
+
 		bool _isHeadless = false;
 		bool _isElevated = false;
 		string _targetPath = null;
 		string _targetModulePath = null;
 		PEInfo _targetPEInfo = null;
 		string _tempDownloadPath = null;
+
+		private string ConfigFilePath => Path.ChangeExtension(_targetModulePath, ".ini");
 
 		public WizardWindow()
 		{
@@ -297,7 +301,6 @@ namespace ReShade.Setup
 			}
 
 			Title += " Succeeded!";
-			Message.Content = "Done";
 			Glass.HideSystemMenu(this, false);
 
 			if (_isHeadless || MessageBox.Show(this, "Do you wish to download a collection of standard effects from https://github.com/crosire/reshade-shaders?", string.Empty, MessageBoxButton.YesNo) == MessageBoxResult.Yes)
@@ -306,7 +309,7 @@ namespace ReShade.Setup
 			}
 			else
 			{
-				string configFilePath = Path.ChangeExtension(_targetModulePath, ".ini");
+				string configFilePath = ConfigFilePath;
 
 				if (!File.Exists(configFilePath))
 				{
@@ -315,8 +318,11 @@ namespace ReShade.Setup
 					IniFile.WriteValue(configFilePath, "GENERAL", "EffectSearchPaths", targetDirectory);
 					IniFile.WriteValue(configFilePath, "GENERAL", "TextureSearchPaths", targetDirectory);
 				}
+
+				EnableConfigEditor();
 			}
 		}
+
 		void InstallationStep3()
 		{
 			Title = Title.Remove(Title.Length - 11);
@@ -424,7 +430,7 @@ namespace ReShade.Setup
 				}
 			}
 
-			string configFilePath = Path.ChangeExtension(_targetModulePath, ".ini");
+			string configFilePath = ConfigFilePath;
 
 			var effectSearchPaths = new HashSet<string>(IniFile.ReadValue(configFilePath, "GENERAL", "EffectSearchPaths").Split(',').Where(x => x.Length != 0));
 			var textureSearchPaths = new HashSet<string>(IniFile.ReadValue(configFilePath, "GENERAL", "TextureSearchPaths").Split(',').Where(x => x.Length != 0));
@@ -434,13 +440,21 @@ namespace ReShade.Setup
 			IniFile.WriteValue(configFilePath, "GENERAL", "TextureSearchPaths", string.Join(",", textureSearchPaths));
 
 			Title += " Succeeded!";
-			Message.Content = "Done";
+			EnableConfigEditor();
 			Glass.HideSystemMenu(this, false);
 
 			if (_isHeadless)
 			{
 				Environment.Exit(0);
 			}
+		}
+
+		private void EnableConfigEditor()
+		{
+			Message.Content = CONFIG_EDITOR_MSG;
+			SetupButton.IsEnabled = true;
+			SetupButton.Click -= OnSetupButtonClick;
+			SetupButton.Click += (object s, RoutedEventArgs e) => new ConfigEditor(ConfigFilePath) { Owner = this }.ShowDialog();
 		}
 	}
 }
