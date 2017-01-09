@@ -18,9 +18,9 @@ namespace reshade::log
 		const char level_names[][6] = { "INFO ", "ERROR", "WARN " };
 
 		stream << std::right << std::setfill('0')
-			<< std::setw(2) << time.wDay << '/'
-			<< std::setw(2) << time.wMonth << '/'
-			<< std::setw(4) << time.wYear << ' '
+			<< std::setw(4) << time.wYear << '-'
+			<< std::setw(2) << time.wMonth << '-'
+			<< std::setw(2) << time.wDay << 'T'
 			<< std::setw(2) << time.wHour << ':'
 			<< std::setw(2) << time.wMinute << ':'
 			<< std::setw(2) << time.wSecond << ':'
