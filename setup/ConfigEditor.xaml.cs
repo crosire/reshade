@@ -1,69 +1,88 @@
-﻿using Microsoft.Win32;
-using Microsoft.WindowsAPICodePack.Dialogs;
-using System.ComponentModel;
+﻿using System;
+using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Data;
+using System.Windows.Markup;
+
+using Microsoft.Win32;
+using Microsoft.WindowsAPICodePack.Dialogs;
 
 namespace ReShade.Setup
 {
 	/// <summary>
 	/// Interaction logic for ConfigEditor.xaml
 	/// </summary>
-	public partial class ConfigEditor : Window
+	public partial class ConfigEditor
 	{
-		private const string INI_SECTION = "GENERAL";
+		private const string IniSectionName = "GENERAL";
 
-		private string _configFilePath;
+		private readonly string _configFilePath;
 
 		public ConfigEditor(string configPath)
 		{
 			InitializeComponent();
 			_configFilePath = configPath;
 
-			_load();
-			Closing += (object sender, CancelEventArgs args) => _save();
+			Presets.TextChanged += (s, e) =>
+			{
+				PresetOptions.Collection = (Presets.Text ?? "").Split(',')
+					.Where(f => !string.IsNullOrWhiteSpace(f))
+					.Select((f, i) => new PresetComboItem { Text = Path.GetFileName(f), Value = i });
+			};
+
+			BtnSave.Click += (s, e) => { Save(); Close(); };
+			BtnReload.Click += (s, e) => Load();
+			BtnCancel.Click += (s, e) => Close();
+
+			Load();
 		}
 
-		private void _writeValue(string key, string value)
+		private void WriteValue(string key, string value)
 		{
-			IniFile.WriteValue(_configFilePath, INI_SECTION, key, value);
+			IniFile.WriteValue(_configFilePath, IniSectionName, key, NullIfBlank(value));
 		}
 
-		private string _readValue(string key, string defaultValue = null)
+		private string ReadValue(string key, string defaultValue = null)
 		{
-			return IniFile.ReadValue(_configFilePath, INI_SECTION, key, defaultValue);
+			string value = IniFile.ReadValue(_configFilePath, IniSectionName, key, defaultValue);
+			return NullIfBlank(value) ?? defaultValue;
 		}
 
-		private void _save()
+		private void Save()
 		{
-			_writeValue("PresetFiles", Presets.Text);
-			_writeValue("EffectSearchPaths", EffectsPath.Text);
-			_writeValue("TextureSearchPaths", TexturesPath.Text);
-			_writeValue("ScreenshotPath", ScreenshotsPath.Text);
+			WriteValue("PresetFiles", Presets.Text);
+			WriteValue("CurrentPreset", PresetSelect.SelectedValue?.ToString());
+			WriteValue("EffectSearchPaths", EffectsPath.Text);
+			WriteValue("TextureSearchPaths", TexturesPath.Text);
+			WriteValue("ScreenshotPath", ScreenshotsPath.Text);
 
-			_writeValue("PerformanceMode", _checkboxValue(PerformanceMode.IsChecked));
-			_writeValue("ShowFPS", _checkboxValue(ShowFPS.IsChecked));
-			_writeValue("ShowClock", _checkboxValue(ShowClock.IsChecked));
+			WriteValue("PerformanceMode", CheckboxValue(PerformanceMode.IsChecked));
+			WriteValue("ShowFPS", CheckboxValue(ShowFps.IsChecked));
+			WriteValue("ShowClock", CheckboxValue(ShowClock.IsChecked));
 
-			var tutProgress = _readValue("TutorialProgress", "0");
+			string tutProgress = ReadValue("TutorialProgress", "0");
 			var skipTut = SkipTut.IsChecked;
-			_writeValue("TutorialProgress", skipTut.HasValue ? (skipTut.Value ? "4" : "0") : tutProgress);
+			WriteValue("TutorialProgress", skipTut.HasValue ? (skipTut.Value ? "4" : "0") : tutProgress);
 		}
 
-		private void _load()
+		private void Load()
 		{
 			if (File.Exists(_configFilePath))
 			{
-				Presets.Text = _readValue("PresetFiles");
-				EffectsPath.Text = _readValue("EffectSearchPaths");
-				TexturesPath.Text = _readValue("TextureSearchPaths");
-				ScreenshotsPath.Text = _readValue("ScreenshotPath");
+				Presets.Text = ReadValue("PresetFiles");
+				PresetSelect.SelectedIndex = Convert.ToInt32(ReadValue("CurrentPreset", "-1")) + 1;
+				EffectsPath.Text = ReadValue("EffectSearchPaths");
+				TexturesPath.Text = ReadValue("TextureSearchPaths");
+				ScreenshotsPath.Text = ReadValue("ScreenshotPath");
 
-				PerformanceMode.IsChecked = _readValue("PerformanceMode") == "1";
-				ShowFPS.IsChecked = _readValue("ShowFPS") == "1";
-				ShowClock.IsChecked = _readValue("ShowClock") == "1";
+				PerformanceMode.IsChecked = ReadValue("PerformanceMode") == "1";
+				ShowFps.IsChecked = ReadValue("ShowFPS") == "1";
+				ShowClock.IsChecked = ReadValue("ShowClock") == "1";
 
-				var tutProgress = _readValue("TutorialProgress", "0");
+				string tutProgress = ReadValue("TutorialProgress", "0");
 				if (tutProgress == "0" || tutProgress == "4")
 				{
 					SkipTut.IsThreeState = false;
@@ -79,11 +98,9 @@ namespace ReShade.Setup
 			}
 		}
 
-		private string _checkboxValue(bool? check) => (check.HasValue && check.Value ? "1" : "0");
-
-		private void btnPreset_Clicked(object sender, RoutedEventArgs e)
+		private void BtnPresets_Clicked(object sender, RoutedEventArgs e)
 		{
-			var origFirstValue = (Presets.Text ?? "").Split(',')[0];
+			string origFirstValue = (Presets.Text ?? "").Split(',')[0];
 
 			var dlg = new OpenFileDialog
 			{
@@ -96,17 +113,16 @@ namespace ReShade.Setup
 				FileName = Path.GetFileName(origFirstValue)
 			};
 
-			var result = dlg.ShowDialog(this);
-			if (result.HasValue && result.Value)
+			if (dlg.ShowDialog(this).Value)
 			{
 				Presets.Text = string.Join(",", dlg.FileNames);
 			}
 		}
 
-		private void _chooseFolderDialog(object sender, RoutedEventArgs e)
+		private void ChooseFolderDialog(object sender, RoutedEventArgs e)
 		{
 			var target = e.Source as FrameworkElement;
-			var origFirstValue = (target.Tag as string ?? "").Split(',')[0];
+			string origFirstValue = (target.Tag as string ?? "").Split(',')[0].TrimEnd(Path.PathSeparator);
 
 			var dlg = new CommonOpenFileDialog
 			{
@@ -121,6 +137,41 @@ namespace ReShade.Setup
 			{
 				target.Tag = string.Join(",", dlg.FileNames);
 			}
+		}
+
+		// Force select the first item when there is no selection
+		private void PresetSelect_SelectionChanged(object sender, SelectionChangedEventArgs e)
+		{
+			PresetSelect.SelectedItem = PresetSelect.SelectedItem ?? PresetSelect.Items[0];
+		}
+
+		private static string CheckboxValue(bool? check) => (check.HasValue && check.Value ? "1" : "0");
+
+		private static string NullIfBlank(string s) => string.IsNullOrWhiteSpace(s) ? null : s;
+	}
+
+	public struct PresetComboItem
+	{
+		public string Text { get; set; }
+		public int? Value { get; set; }
+	}
+
+	[ValueConversion(typeof(int), typeof(Visibility))]
+	public class ComboSizeToVisibilityConverter : MarkupExtension, IValueConverter
+	{
+		public override object ProvideValue(IServiceProvider serviceProvider)
+		{
+			return this;
+		}
+
+		public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+		{
+			return (System.Convert.ToInt32(value) > 1 ? Visibility.Visible : Visibility.Collapsed);
+		}
+
+		public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+		{
+			throw new NotImplementedException();
 		}
 	}
 }
