@@ -651,6 +651,8 @@ namespace reshade
 	{
 		filesystem::path path(s_reshade_dll_path);
 		path.replace_extension(".ini");
+		if (!filesystem::exists(path))
+			path = s_reshade_dll_path.parent_path() / "ReShade.ini";
 		const ini_file config(path);
 
 		const int menu_key[3] = { _menu_key.keycode, _menu_key.ctrl ? 1 : 0, _menu_key.shift ? 1 : 0 };
@@ -776,6 +778,8 @@ namespace reshade
 	{
 		filesystem::path path(s_reshade_dll_path);
 		path.replace_extension(".ini");
+		if (!filesystem::exists(path))
+			path = s_reshade_dll_path.parent_path() / "ReShade.ini";
 		ini_file config(path);
 
 		config.set("INPUT", "KeyMenu", { _menu_key.keycode, _menu_key.ctrl ? 1 : 0, _menu_key.shift ? 1 : 0 });
