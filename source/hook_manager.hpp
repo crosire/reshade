@@ -9,7 +9,14 @@
 #include "filesystem.hpp"
 
 #define HOOK_EXPORT extern "C"
-#define VTABLE(object) (*reinterpret_cast<reshade::hook::address **>(object))
+
+template <typename T>
+inline reshade::hook::address *vtable_from_instance(T *instance)
+{
+	static_assert(std::is_polymorphic<T>::value, "can only get virtual function table from polymorphic types");
+
+	return *reinterpret_cast<reshade::hook::address **>(instance);
+}
 
 namespace reshade::hooks
 {
