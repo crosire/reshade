@@ -25,9 +25,6 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ReShade FX", "ReShadeFX.vcxproj", "{D1C2099B-BEC7-4993-8947-01D4A1F7EAE2}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ReShade Setup", "setup\ReShade Setup.csproj", "{3B7009FA-0B09-4F27-8126-0885E66A5679}"
-	ProjectSection(ProjectDependencies) = postProject
-		{0401ADF5-D085-4A3D-95B2-D9B7896BB338} = {0401ADF5-D085-4A3D-95B2-D9B7896BB338}
-	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -39,24 +36,6 @@ Global
 		Release|ReShade Setup = Release|ReShade Setup
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{0401ADF5-D085-4A3D-95B2-D9B7896BB338}.Debug|32-bit.ActiveCfg = Debug|Win32
-		{0401ADF5-D085-4A3D-95B2-D9B7896BB338}.Debug|32-bit.Build.0 = Debug|Win32
-		{0401ADF5-D085-4A3D-95B2-D9B7896BB338}.Debug|64-bit.ActiveCfg = Debug|x64
-		{0401ADF5-D085-4A3D-95B2-D9B7896BB338}.Debug|64-bit.Build.0 = Debug|x64
-		{0401ADF5-D085-4A3D-95B2-D9B7896BB338}.Debug|ReShade Setup.ActiveCfg = Debug|Win32
-		{0401ADF5-D085-4A3D-95B2-D9B7896BB338}.Release|32-bit.ActiveCfg = Release|Win32
-		{0401ADF5-D085-4A3D-95B2-D9B7896BB338}.Release|32-bit.Build.0 = Release|Win32
-		{0401ADF5-D085-4A3D-95B2-D9B7896BB338}.Release|64-bit.ActiveCfg = Release|x64
-		{0401ADF5-D085-4A3D-95B2-D9B7896BB338}.Release|64-bit.Build.0 = Release|x64
-		{0401ADF5-D085-4A3D-95B2-D9B7896BB338}.Release|ReShade Setup.ActiveCfg = Release|Win32
-		{3B7009FA-0B09-4F27-8126-0885E66A5679}.Debug|32-bit.ActiveCfg = Debug|Any CPU
-		{3B7009FA-0B09-4F27-8126-0885E66A5679}.Debug|64-bit.ActiveCfg = Debug|Any CPU
-		{3B7009FA-0B09-4F27-8126-0885E66A5679}.Debug|ReShade Setup.ActiveCfg = Debug|Any CPU
-		{3B7009FA-0B09-4F27-8126-0885E66A5679}.Debug|ReShade Setup.Build.0 = Debug|Any CPU
-		{3B7009FA-0B09-4F27-8126-0885E66A5679}.Release|32-bit.ActiveCfg = Release|Any CPU
-		{3B7009FA-0B09-4F27-8126-0885E66A5679}.Release|64-bit.ActiveCfg = Release|Any CPU
-		{3B7009FA-0B09-4F27-8126-0885E66A5679}.Release|ReShade Setup.ActiveCfg = Release|Any CPU
-		{3B7009FA-0B09-4F27-8126-0885E66A5679}.Release|ReShade Setup.Build.0 = Release|Any CPU
 		{09C0D610-9B82-40D8-B37E-0D26E3BFF77F}.Debug|32-bit.ActiveCfg = Debug|Win32
 		{09C0D610-9B82-40D8-B37E-0D26E3BFF77F}.Debug|32-bit.Build.0 = Debug|Win32
 		{09C0D610-9B82-40D8-B37E-0D26E3BFF77F}.Debug|64-bit.ActiveCfg = Debug|x64
@@ -97,6 +76,16 @@ Global
 		{723BDEF8-4A39-4961-BDAB-54074012FF47}.Release|64-bit.ActiveCfg = Release|x64
 		{723BDEF8-4A39-4961-BDAB-54074012FF47}.Release|64-bit.Build.0 = Release|x64
 		{723BDEF8-4A39-4961-BDAB-54074012FF47}.Release|ReShade Setup.ActiveCfg = Release|Win32
+		{0401ADF5-D085-4A3D-95B2-D9B7896BB338}.Debug|32-bit.ActiveCfg = Debug|Win32
+		{0401ADF5-D085-4A3D-95B2-D9B7896BB338}.Debug|32-bit.Build.0 = Debug|Win32
+		{0401ADF5-D085-4A3D-95B2-D9B7896BB338}.Debug|64-bit.ActiveCfg = Debug|x64
+		{0401ADF5-D085-4A3D-95B2-D9B7896BB338}.Debug|64-bit.Build.0 = Debug|x64
+		{0401ADF5-D085-4A3D-95B2-D9B7896BB338}.Debug|ReShade Setup.ActiveCfg = Debug|Win32
+		{0401ADF5-D085-4A3D-95B2-D9B7896BB338}.Release|32-bit.ActiveCfg = Release|Win32
+		{0401ADF5-D085-4A3D-95B2-D9B7896BB338}.Release|32-bit.Build.0 = Release|Win32
+		{0401ADF5-D085-4A3D-95B2-D9B7896BB338}.Release|64-bit.ActiveCfg = Release|x64
+		{0401ADF5-D085-4A3D-95B2-D9B7896BB338}.Release|64-bit.Build.0 = Release|x64
+		{0401ADF5-D085-4A3D-95B2-D9B7896BB338}.Release|ReShade Setup.ActiveCfg = Release|Win32
 		{D1C2099B-BEC7-4993-8947-01D4A1F7EAE2}.Debug|32-bit.ActiveCfg = Debug|Win32
 		{D1C2099B-BEC7-4993-8947-01D4A1F7EAE2}.Debug|32-bit.Build.0 = Debug|Win32
 		{D1C2099B-BEC7-4993-8947-01D4A1F7EAE2}.Debug|64-bit.ActiveCfg = Debug|x64
@@ -107,16 +96,24 @@ Global
 		{D1C2099B-BEC7-4993-8947-01D4A1F7EAE2}.Release|64-bit.ActiveCfg = Release|x64
 		{D1C2099B-BEC7-4993-8947-01D4A1F7EAE2}.Release|64-bit.Build.0 = Release|x64
 		{D1C2099B-BEC7-4993-8947-01D4A1F7EAE2}.Release|ReShade Setup.ActiveCfg = Release|Win32
+		{3B7009FA-0B09-4F27-8126-0885E66A5679}.Debug|32-bit.ActiveCfg = Debug|Any CPU
+		{3B7009FA-0B09-4F27-8126-0885E66A5679}.Debug|64-bit.ActiveCfg = Debug|Any CPU
+		{3B7009FA-0B09-4F27-8126-0885E66A5679}.Debug|ReShade Setup.ActiveCfg = Debug|Any CPU
+		{3B7009FA-0B09-4F27-8126-0885E66A5679}.Debug|ReShade Setup.Build.0 = Debug|Any CPU
+		{3B7009FA-0B09-4F27-8126-0885E66A5679}.Release|32-bit.ActiveCfg = Release|Any CPU
+		{3B7009FA-0B09-4F27-8126-0885E66A5679}.Release|64-bit.ActiveCfg = Release|Any CPU
+		{3B7009FA-0B09-4F27-8126-0885E66A5679}.Release|ReShade Setup.ActiveCfg = Release|Any CPU
+		{3B7009FA-0B09-4F27-8126-0885E66A5679}.Release|ReShade Setup.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
-		{0401ADF5-D085-4A3D-95B2-D9B7896BB338} = {77CB8FC0-4212-48D5-AB25-BE9B86B0B979}
 		{09C0D610-9B82-40D8-B37E-0D26E3BFF77F} = {11B78243-91C3-4357-9FDD-4EAFBF4EE52B}
 		{9A62233B-0B70-4B48-91E8-35AA666BC32E} = {11B78243-91C3-4357-9FDD-4EAFBF4EE52B}
 		{783FEDFB-5124-4F8C-87BC-70AA8490266B} = {11B78243-91C3-4357-9FDD-4EAFBF4EE52B}
 		{723BDEF8-4A39-4961-BDAB-54074012FF47} = {11B78243-91C3-4357-9FDD-4EAFBF4EE52B}
+		{0401ADF5-D085-4A3D-95B2-D9B7896BB338} = {77CB8FC0-4212-48D5-AB25-BE9B86B0B979}
 		{D1C2099B-BEC7-4993-8947-01D4A1F7EAE2} = {77CB8FC0-4212-48D5-AB25-BE9B86B0B979}
 	EndGlobalSection
 EndGlobal
