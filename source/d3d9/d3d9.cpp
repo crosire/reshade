@@ -107,6 +107,10 @@ HRESULT STDMETHODCALLTYPE IDirect3D9_CreateDevice(IDirect3D9 *pD3D, UINT Adapter
 			device->GetDepthStencilSurface(&device_proxy->_auto_depthstencil);
 			device_proxy->SetDepthStencilSurface(device_proxy->_auto_depthstencil);
 		}
+
+		// Upgrade to extended interface if available
+		com_ptr<IDirect3DDevice9Ex> deviceex;
+		device_proxy->QueryInterface(IID_PPV_ARGS(&deviceex));
 	}
 	else
 	{
