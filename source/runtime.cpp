@@ -1371,8 +1371,8 @@ namespace reshade
 
 		if (_tutorial_index > 2 && !_performance_mode)
 		{
-			ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
-			ImGui::InvisibleButton("splitter", ImVec2(-1, 5));
+			ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0, 0));
+			ImGui::ButtonEx("##splitter", ImVec2(-1, 5));
 			ImGui::PopStyleVar();
 
 			if (ImGui::IsItemHovered())
