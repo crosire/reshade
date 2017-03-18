@@ -192,9 +192,11 @@
     <ProjectReference Include="deps\stb.vcxproj">
       <Project>{723bdef8-4a39-4961-bdab-54074012ff47}</Project>
     </ProjectReference>
+    <ProjectReference Include="ReShadeFX.vcxproj">
+      <Project>{d1c2099b-bec7-4993-8947-01d4a1f7eae2}</Project>
+    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="source\constant_folding.cpp" />
     <ClCompile Include="source\d3d10\d3d10.cpp" />
     <ClCompile Include="source\d3d10\d3d10_device.cpp" />
     <ClCompile Include="source\d3d10\d3d10_effect_compiler.cpp" />
@@ -220,19 +222,15 @@
     <ClCompile Include="source\hook_manager.cpp" />
     <ClCompile Include="source\ini_file.cpp" />
     <ClCompile Include="source\input.cpp" />
-    <ClCompile Include="source\lexer.cpp" />
     <ClCompile Include="source\log.cpp" />
     <ClCompile Include="source\main.cpp" />
     <ClCompile Include="source\opengl\opengl.cpp" />
     <ClCompile Include="source\opengl\opengl_effect_compiler.cpp" />
     <ClCompile Include="source\opengl\opengl_runtime.cpp" />
     <ClCompile Include="source\opengl\opengl_stateblock.cpp" />
-    <ClCompile Include="source\parser.cpp" />
-    <ClCompile Include="source\preprocessor.cpp" />
     <ClCompile Include="source\resource_loading.cpp" />
     <ClCompile Include="source\runtime.cpp" />
     <ClCompile Include="source\runtime_objects.cpp" />
-    <ClCompile Include="source\symbol_table.cpp" />
     <ClCompile Include="source\windows\user32.cpp" />
     <ClCompile Include="source\windows\ws2_32.cpp" />
   </ItemGroup>
@@ -240,7 +238,6 @@
     <ClInclude Include="res\resource.h" />
     <ClInclude Include="res\version.h" />
     <ClInclude Include="source\com_ptr.hpp" />
-    <ClInclude Include="source\constant_folding.hpp" />
     <ClInclude Include="source\critical_section.hpp" />
     <ClInclude Include="source\d3d10\d3d10.hpp" />
     <ClInclude Include="source\d3d10\d3d10_device.hpp" />
@@ -267,22 +264,15 @@
     <ClInclude Include="source\hook_manager.hpp" />
     <ClInclude Include="source\ini_file.hpp" />
     <ClInclude Include="source\input.hpp" />
-    <ClInclude Include="source\lexer.hpp" />
     <ClInclude Include="source\log.hpp" />
     <ClInclude Include="source\moving_average.hpp" />
     <ClInclude Include="source\opengl\opengl_effect_compiler.hpp" />
     <ClInclude Include="source\opengl\opengl_loader.hpp" />
     <ClInclude Include="source\opengl\opengl_runtime.hpp" />
     <ClInclude Include="source\opengl\opengl_stateblock.hpp" />
-    <ClInclude Include="source\parser.hpp" />
-    <ClInclude Include="source\preprocessor.hpp" />
     <ClInclude Include="source\resource_loading.hpp" />
     <ClInclude Include="source\runtime.hpp" />
     <ClInclude Include="source\runtime_objects.hpp" />
-    <ClInclude Include="source\source_location.hpp" />
-    <ClInclude Include="source\symbol_table.hpp" />
-    <ClInclude Include="source\syntax_tree.hpp" />
-    <ClInclude Include="source\syntax_tree_nodes.hpp" />
     <ClInclude Include="source\unicode.hpp" />
     <ClInclude Include="source\variant.hpp" />
   </ItemGroup>
