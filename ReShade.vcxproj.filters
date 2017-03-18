@@ -149,9 +149,6 @@
     <ClInclude Include="source\com_ptr.hpp">
       <Filter>core</Filter>
     </ClInclude>
-    <ClInclude Include="source\critical_section.hpp">
-      <Filter>core</Filter>
-    </ClInclude>
     <ClInclude Include="source\directory_watcher.hpp">
       <Filter>core</Filter>
     </ClInclude>

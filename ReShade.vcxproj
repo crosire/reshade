@@ -238,7 +238,6 @@
     <ClInclude Include="res\resource.h" />
     <ClInclude Include="res\version.h" />
     <ClInclude Include="source\com_ptr.hpp" />
-    <ClInclude Include="source\critical_section.hpp" />
     <ClInclude Include="source\d3d10\d3d10.hpp" />
     <ClInclude Include="source\d3d10\d3d10_device.hpp" />
     <ClInclude Include="source\d3d10\d3d10_effect_compiler.hpp" />

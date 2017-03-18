@@ -5,8 +5,8 @@
 
 #include "log.hpp"
 #include "hook_manager.hpp"
-#include "critical_section.hpp"
 #include <assert.h>
+#include <mutex>
 #include <algorithm>
 #include <vector>
 #include <unordered_map>
@@ -66,7 +66,7 @@ namespace reshade::hooks
 			return exports;
 		}
 
-		critical_section s_cs;
+		std::mutex s_mutex;
 		filesystem::path s_export_hook_path;
 		std::vector<filesystem::path> s_delayed_hook_paths;
 		std::vector<std::pair<hook, hook_method>> s_hooks;
@@ -123,7 +123,7 @@ namespace reshade::hooks
 
 			LOG(INFO) << "> Succeeded.";
 
-			{ const critical_section::lock lock(s_cs);
+			{ const std::lock_guard<std::mutex> lock(s_mutex);
 				s_hooks.emplace_back(std::move(hook), method);
 			}
 
@@ -257,7 +257,7 @@ namespace reshade::hooks
 
 		hook find(hook::address replacement)
 		{
-			const critical_section::lock lock(s_cs);
+			const std::lock_guard<std::mutex> lock(s_mutex);
 			const auto it = std::find_if(s_hooks.cbegin(), s_hooks.cend(),
 				[replacement](const std::pair<hook, hook_method> &hook) {
 					return hook.first.replacement == replacement;
