@@ -431,7 +431,7 @@ namespace reshade::hooks
 
 		if (target_filename == replacement_filename)
 		{
-			LOG(INFO) << "> Delayed.";
+			LOG(INFO) << "> Delayed until first call to an exported function.";
 
 			s_export_hook_path = target_path;
 		}
@@ -457,35 +457,34 @@ namespace reshade::hooks
 
 	hook::address call(hook::address replacement)
 	{
-		{ const critical_section::lock lock(s_cs);
-			if (!s_export_hook_path.empty())
-			{
-				const HMODULE handle = HookLoadLibraryW(s_export_hook_path.wstring().c_str());
-
-				LOG(INFO) << "Installing delayed hooks for " << s_export_hook_path << " ...";
-
-				if (handle != nullptr)
-				{
-					s_export_hook_path = "";
-
-					install(handle, g_module_handle, hook_method::export_hook);
-				}
-				else
-				{
-					LOG(ERROR) << "Failed to load " << s_export_hook_path << "!";
-				}
-			}
-		}
-
 		const hook hook = find(replacement);
 
-		if (!hook.valid())
+		if (hook.valid())
 		{
-			LOG(ERROR) << "Unable to resolve hook for '0x" << replacement << "'!";
+			return hook.call();
+		}
+		else if (!s_export_hook_path.empty())
+		{
+			const HMODULE handle = HookLoadLibraryW(s_export_hook_path.wstring().c_str());
 
-			return nullptr;
+			LOG(INFO) << "Installing export hooks for " << s_export_hook_path << " ...";
+
+			if (handle != nullptr)
+			{
+				install(handle, g_module_handle, hook_method::export_hook);
+			}
+			else
+			{
+				LOG(ERROR) << "Failed to load " << s_export_hook_path << "!";
+			}
+
+			s_export_hook_path = "";
+
+			return call(replacement);
 		}
 
-		return hook.call();
+		LOG(ERROR) << "Unable to resolve hook for '0x" << replacement << "'!";
+
+		return nullptr;
 	}
 }
