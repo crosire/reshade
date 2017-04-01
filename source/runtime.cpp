@@ -1058,6 +1058,8 @@ namespace reshade
 					ImGui::TextColored(ImVec4(1, 0, 0, 1),
 						"There were errors compiling some shaders. "
 						"Open the configuration menu and click on 'Show Log' for more details.");
+
+					_show_error_log = true;
 				}
 			}
 
@@ -1114,7 +1116,8 @@ namespace reshade
 
 			if (_show_error_log)
 			{
-				ImGui::SetNextWindowSize(ImVec2(500, 100), ImGuiSetCond_Once);
+				ImGui::SetNextWindowPosCenter(ImGuiSetCond_Once);
+				ImGui::SetNextWindowSize(ImVec2(800, 300), ImGuiSetCond_Once);
 				ImGui::Begin("Error Log", &_show_error_log);
 				ImGui::PushTextWrapPos();
 
