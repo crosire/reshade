@@ -144,6 +144,7 @@ namespace ReShade.Setup
 
 			Title = "Installing to " + name + " ...";
 			Message.Content = "Analyzing " + name + " ...";
+			MessageDescription.Visibility = Visibility.Collapsed;
 
 			string nameModule = _targetPEInfo.Modules.FirstOrDefault(s =>
 				s.StartsWith("d3d8", StringComparison.OrdinalIgnoreCase) ||
