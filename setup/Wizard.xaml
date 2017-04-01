@@ -27,7 +27,7 @@
 				HorizontalAlignment="Center">
 				<RadioButton
 					x:Name="ApiDirect3D9"
-					Content="Direct3D 8/9"
+					Content="Direct3D 9"
 					HorizontalAlignment="Center"
 					VerticalAlignment="Center"
 					Margin="8,0,0,0"
@@ -59,15 +59,27 @@
 				HorizontalAlignment="Stretch"
 				VerticalAlignment="Stretch"
 				Width="auto">
+				<Grid.RowDefinitions>
+					<RowDefinition Height="Auto" />
+					<RowDefinition Height="Auto" />
+				</Grid.RowDefinitions>
 				<Grid.ColumnDefinitions>
-					<ColumnDefinition Width="*" />
 					<ColumnDefinition Width="*" />
 				</Grid.ColumnDefinitions>
 				<Label
 					x:Name="Message"
+					Grid.Row="0"
 					Grid.Column="0"
-					VerticalContentAlignment="Center"
+					HorizontalAlignment="Center"
+					FontSize="14"
 					Content="Select game" />
+				<Label
+					x:Name="MessageDescription"
+					Grid.Row="1"
+					Grid.Column="0"
+					HorizontalAlignment="Center"
+					FontSize="10"
+					Content="(Press 'Ctrl' while clicking to extract binaries for manual installation)"/>
 			</Grid>
 		</Button>
 	</DockPanel>
