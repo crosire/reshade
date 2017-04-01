@@ -1647,12 +1647,14 @@ namespace reshade
 	}
 	void runtime::draw_overlay_menu_statistics()
 	{
+		const float fps = ImGui::GetIO().Framerate;
+
 		if (ImGui::CollapsingHeader("General", ImGuiTreeNodeFlags_DefaultOpen))
 		{
 			ImGui::Text("Application: %X", std::hash<std::string>()(s_target_executable_path.filename_without_extension().string()));
 			ImGui::Text("Date: %d-%d-%d %d", _date[0], _date[1], _date[2], _date[3]);
 			ImGui::Text("Device: %X %d", _vendor_id, _device_id);
-			ImGui::Text("FPS: %.2f", ImGui::GetIO().Framerate);
+			ImGui::Text("FPS: %.2f", fps);
 			ImGui::PushItemWidth(-1);
 			ImGui::PlotLines("##framerate", _imgui_context->FramerateSecPerFrame, 120, _imgui_context->FramerateSecPerFrameIdx, nullptr, _imgui_context->FramerateSecPerFrameAccum / 120 * 0.5f, _imgui_context->FramerateSecPerFrameAccum / 120 * 1.5f, ImVec2(0, 50));
 			ImGui::PopItemWidth();
@@ -1683,7 +1685,9 @@ namespace reshade
 		{
 			for (const auto &technique : _techniques)
 			{
-				ImGui::Text("%s (%u passes): %f ms", technique.name.c_str(), static_cast<unsigned int>(technique.passes.size()), (technique.average_duration * 1e-6f));
+				const float duration_in_ms = technique.average_duration * 1e-6f;
+				const float estimated_fps_cost = fps * fps * duration_in_ms * 0.001f;
+				ImGui::Text("%s (%u passes): %f ms (~%.2f FPS cost)", technique.name.c_str(), static_cast<unsigned int>(technique.passes.size()), duration_in_ms, estimated_fps_cost);
 			}
 		}
 	}
