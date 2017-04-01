@@ -829,11 +829,13 @@ namespace reshade
 
 		// Reorder techniques
 		std::vector<std::string> technique_list = preset.get("", "Techniques").data();
+		std::vector<std::string> technique_sorting_list = preset.get("", "TechniqueSorting").data();
+		if (technique_sorting_list.empty()) technique_sorting_list = technique_list;
 		std::sort(_techniques.begin(), _techniques.end(),
-			[&technique_list](const auto &lhs, const auto &rhs) {
+			[&technique_sorting_list](const auto &lhs, const auto &rhs) {
 				return
-					(std::find(technique_list.begin(), technique_list.end(), lhs.name) - technique_list.begin()) <
-					(std::find(technique_list.begin(), technique_list.end(), rhs.name) - technique_list.begin());
+					(std::find(technique_sorting_list.begin(), technique_sorting_list.end(), lhs.name) - technique_sorting_list.begin()) <
+					(std::find(technique_sorting_list.begin(), technique_sorting_list.end(), rhs.name) - technique_sorting_list.begin());
 			});
 		for (auto &technique : _techniques)
 		{
@@ -865,7 +867,7 @@ namespace reshade
 			preset.set(variable.effect_filename, variable.name, variant(values, variable.rows * variable.columns));
 		}
 
-		std::vector<std::string> technique_list;
+		std::vector<std::string> technique_list, technique_sorting_list;
 
 		for (const auto &technique : _techniques)
 		{
@@ -874,11 +876,14 @@ namespace reshade
 				technique_list.push_back(technique.name);
 			}
 
+			technique_sorting_list.push_back(technique.name);
+
 			const int toggle_key[4] = { technique.toggle_key, technique.toggle_key_ctrl ? 1 : 0, technique.toggle_key_shift ? 1 : 0, technique.toggle_key_alt ? 1 : 0 };
 			preset.set("", "Key" + technique.name, toggle_key);
 		}
 
 		preset.set("", "Techniques", technique_list);
+		preset.set("", "TechniqueSorting", technique_sorting_list);
 	}
 	void runtime::save_screenshot() const
 	{
