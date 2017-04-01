@@ -36,6 +36,7 @@
 #undef glDrawArraysIndirect
 #undef glDrawArraysInstanced
 #undef glDrawArraysInstancedBaseInstance
+#undef glDrawArraysInstancedARB
 #undef glDrawArraysInstancedEXT
 #undef glDrawBuffer
 #undef glDrawElements
@@ -45,6 +46,7 @@
 #undef glDrawElementsInstancedBaseVertex
 #undef glDrawElementsInstancedBaseInstance
 #undef glDrawElementsInstancedBaseVertexBaseInstance
+#undef glDrawElementsInstancedARB
 #undef glDrawElementsInstancedEXT
 #undef glDrawRangeElements
 #undef glDrawRangeElementsBaseVertex
@@ -56,7 +58,9 @@
 #undef glFramebufferTexture1D
 #undef glFramebufferTexture2D
 #undef glFramebufferTexture3D
+#undef glFramebufferTextureARB
 #undef glFramebufferTextureLayer
+#undef glFramebufferTextureLayerARB
 #undef glFrontFace
 #undef glGenTextures
 #undef glGetBooleanv
