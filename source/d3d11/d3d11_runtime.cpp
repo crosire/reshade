@@ -585,7 +585,7 @@ namespace reshade::d3d11
 	}
 	void d3d11_runtime::on_draw_call(ID3D11DeviceContext *context, unsigned int vertices)
 	{
-		const critical_section::lock lock(_cs);
+		const std::lock_guard<std::mutex> lock(_mutex);
 
 		_vertices += vertices;
 		_drawcalls += 1;
@@ -614,7 +614,7 @@ namespace reshade::d3d11
 	}
 	void d3d11_runtime::on_set_depthstencil_view(ID3D11DepthStencilView *&depthstencil)
 	{
-		const critical_section::lock lock(_cs);
+		const std::lock_guard<std::mutex> lock(_mutex);
 
 		if (_depth_source_table.find(depthstencil) == _depth_source_table.end())
 		{
@@ -651,7 +651,7 @@ namespace reshade::d3d11
 	}
 	void d3d11_runtime::on_get_depthstencil_view(ID3D11DepthStencilView *&depthstencil)
 	{
-		const critical_section::lock lock(_cs);
+		const std::lock_guard<std::mutex> lock(_mutex);
 
 		if (_depthstencil_replacement != nullptr && depthstencil == _depthstencil_replacement)
 		{
@@ -664,7 +664,7 @@ namespace reshade::d3d11
 	}
 	void d3d11_runtime::on_clear_depthstencil_view(ID3D11DepthStencilView *&depthstencil)
 	{
-		const critical_section::lock lock(_cs);
+		const std::lock_guard<std::mutex> lock(_mutex);
 
 		if (_depthstencil_replacement != nullptr && depthstencil == _depthstencil)
 		{
@@ -673,7 +673,7 @@ namespace reshade::d3d11
 	}
 	void d3d11_runtime::on_copy_resource(ID3D11Resource *&dest, ID3D11Resource *&source)
 	{
-		const critical_section::lock lock(_cs);
+		const std::lock_guard<std::mutex> lock(_mutex);
 
 		if (_depthstencil_replacement != nullptr)
 		{
@@ -1075,7 +1075,7 @@ namespace reshade::d3d11
 			}
 		}
 
-		const critical_section::lock lock(_cs);
+		const std::lock_guard<std::mutex> lock(_mutex);
 
 		if (_is_multisampling_enabled || _depth_source_table.empty())
 		{

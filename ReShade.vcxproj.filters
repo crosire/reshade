@@ -4,9 +4,6 @@
     <Filter Include="core">
       <UniqueIdentifier>{7dea67a5-a2de-4e39-94a8-e8f01b6f070f}</UniqueIdentifier>
     </Filter>
-    <Filter Include="core\fx">
-      <UniqueIdentifier>{c7c87b42-c441-48dc-8d08-ce6e2a6ffa9d}</UniqueIdentifier>
-    </Filter>
     <Filter Include="core\hook">
       <UniqueIdentifier>{ed3eb34b-86ef-4bb0-b071-44f1163953bf}</UniqueIdentifier>
     </Filter>
@@ -53,21 +50,6 @@
     </ClCompile>
     <ClCompile Include="source\resource_loading.cpp">
       <Filter>core</Filter>
-    </ClCompile>
-    <ClCompile Include="source\constant_folding.cpp">
-      <Filter>core\fx</Filter>
-    </ClCompile>
-    <ClCompile Include="source\lexer.cpp">
-      <Filter>core\fx</Filter>
-    </ClCompile>
-    <ClCompile Include="source\parser.cpp">
-      <Filter>core\fx</Filter>
-    </ClCompile>
-    <ClCompile Include="source\preprocessor.cpp">
-      <Filter>core\fx</Filter>
-    </ClCompile>
-    <ClCompile Include="source\symbol_table.cpp">
-      <Filter>core\fx</Filter>
     </ClCompile>
     <ClCompile Include="source\hook.cpp">
       <Filter>core\hook</Filter>
@@ -167,9 +149,6 @@
     <ClInclude Include="source\com_ptr.hpp">
       <Filter>core</Filter>
     </ClInclude>
-    <ClInclude Include="source\critical_section.hpp">
-      <Filter>core</Filter>
-    </ClInclude>
     <ClInclude Include="source\directory_watcher.hpp">
       <Filter>core</Filter>
     </ClInclude>
@@ -193,30 +172,6 @@
     </ClInclude>
     <ClInclude Include="source\unicode.hpp">
       <Filter>core</Filter>
-    </ClInclude>
-    <ClInclude Include="source\constant_folding.hpp">
-      <Filter>core\fx</Filter>
-    </ClInclude>
-    <ClInclude Include="source\lexer.hpp">
-      <Filter>core\fx</Filter>
-    </ClInclude>
-    <ClInclude Include="source\parser.hpp">
-      <Filter>core\fx</Filter>
-    </ClInclude>
-    <ClInclude Include="source\preprocessor.hpp">
-      <Filter>core\fx</Filter>
-    </ClInclude>
-    <ClInclude Include="source\symbol_table.hpp">
-      <Filter>core\fx</Filter>
-    </ClInclude>
-    <ClInclude Include="source\syntax_tree.hpp">
-      <Filter>core\fx</Filter>
-    </ClInclude>
-    <ClInclude Include="source\syntax_tree_nodes.hpp">
-      <Filter>core\fx</Filter>
-    </ClInclude>
-    <ClInclude Include="source\source_location.hpp">
-      <Filter>core\fx</Filter>
     </ClInclude>
     <ClInclude Include="source\hook.hpp">
       <Filter>core\hook</Filter>

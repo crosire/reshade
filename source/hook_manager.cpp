@@ -5,8 +5,8 @@
 
 #include "log.hpp"
 #include "hook_manager.hpp"
-#include "critical_section.hpp"
 #include <assert.h>
+#include <mutex>
 #include <algorithm>
 #include <vector>
 #include <unordered_map>
@@ -31,6 +31,19 @@ namespace reshade::hooks
 			unsigned short ordinal;
 		};
 
+		inline HMODULE load_module(const filesystem::path &path)
+		{
+			return LoadLibraryW(path.wstring().c_str());
+		}
+		inline bool is_module_loaded(const filesystem::path &path)
+		{
+			HMODULE handle = nullptr;
+			return GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT, path.wstring().c_str(), &handle) && handle != nullptr;
+		}
+		inline bool is_module_loaded(const filesystem::path &path, HMODULE &out_handle)
+		{
+			return GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_PIN, path.wstring().c_str(), &out_handle) && out_handle != nullptr;
+		}
 		std::vector<module_export> get_module_exports(HMODULE handle)
 		{
 			std::vector<module_export> exports;
@@ -66,11 +79,10 @@ namespace reshade::hooks
 			return exports;
 		}
 
-		critical_section s_cs;
 		filesystem::path s_export_hook_path;
-		std::vector<filesystem::path> s_delayed_hook_paths;
-		std::vector<std::pair<hook, hook_method>> s_hooks;
-		std::unordered_map<hook::address, hook::address *> s_vtable_addresses;
+		std::vector<std::pair<hook, hook_method>> s_hooks; std::mutex s_mutex_hooks;
+		std::vector<filesystem::path> s_delayed_hook_paths; std::mutex s_mutex_delayed_hook_paths;
+		std::unordered_map<hook::address, hook::address *> s_vtable_addresses; std::mutex s_mutex_vtable_addresses;
 
 		bool install(hook::address target, hook::address replacement, hook_method method)
 		{
@@ -123,7 +135,7 @@ namespace reshade::hooks
 
 			LOG(INFO) << "> Succeeded.";
 
-			{ const critical_section::lock lock(s_cs);
+			{ const std::lock_guard<std::mutex> lock(s_mutex_hooks);
 				s_hooks.emplace_back(std::move(hook), method);
 			}
 
@@ -256,8 +268,7 @@ namespace reshade::hooks
 		}
 
 		hook find(hook::address replacement)
-		{
-			const critical_section::lock lock(s_cs);
+		{ const std::lock_guard<std::mutex> lock(s_mutex_hooks);
 			const auto it = std::find_if(s_hooks.cbegin(), s_hooks.cend(),
 				[replacement](const std::pair<hook, hook_method> &hook) {
 					return hook.first.replacement == replacement;
@@ -282,12 +293,12 @@ namespace reshade::hooks
 				return handle;
 			}
 
-			const auto remove = std::remove_if(s_delayed_hook_paths.begin(), s_delayed_hook_paths.end(),
-				[lpFileName](const filesystem::path &path) {
+			{ const std::lock_guard<std::mutex> lock(s_mutex_delayed_hook_paths);
+				const auto remove = std::remove_if(s_delayed_hook_paths.begin(), s_delayed_hook_paths.end(),
+					[lpFileName](const filesystem::path &path) {
 					HMODULE delayed_handle = nullptr;
-					GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_PIN, path.wstring().c_str(), &delayed_handle);
 
-					if (delayed_handle == nullptr)
+					if (!is_module_loaded(path, delayed_handle))
 					{
 						return false;
 					}
@@ -297,7 +308,8 @@ namespace reshade::hooks
 					return install(delayed_handle, g_module_handle, hook_method::function_hook);
 				});
 
-			s_delayed_hook_paths.erase(remove, s_delayed_hook_paths.end());
+				s_delayed_hook_paths.erase(remove, s_delayed_hook_paths.end());
+			}
 
 			return handle;
 		}
@@ -323,12 +335,12 @@ namespace reshade::hooks
 				return handle;
 			}
 
-			const auto remove = std::remove_if(s_delayed_hook_paths.begin(), s_delayed_hook_paths.end(),
-				[lpFileName](const filesystem::path &path) {
+			{ const std::lock_guard<std::mutex> lock(s_mutex_delayed_hook_paths);
+				const auto remove = std::remove_if(s_delayed_hook_paths.begin(), s_delayed_hook_paths.end(),
+					[lpFileName](const filesystem::path &path) {
 					HMODULE delayed_handle = nullptr;
-					GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_PIN, path.wstring().c_str(), &delayed_handle);
 
-					if (delayed_handle == nullptr)
+					if (!is_module_loaded(path, delayed_handle))
 					{
 						return false;
 					}
@@ -338,7 +350,8 @@ namespace reshade::hooks
 					return install(delayed_handle, g_module_handle, hook_method::function_hook);
 				});
 
-			s_delayed_hook_paths.erase(remove, s_delayed_hook_paths.end());
+				s_delayed_hook_paths.erase(remove, s_delayed_hook_paths.end());
+			}
 
 			return handle;
 		}
@@ -383,7 +396,7 @@ namespace reshade::hooks
 		hook::address &target = vtable[offset];
 
 		if (VirtualProtect(&target, sizeof(hook::address), protection, &protection))
-		{
+		{ const std::lock_guard<std::mutex> lock(s_mutex_vtable_addresses);
 			const auto insert = s_vtable_addresses.emplace(target, &target);
 
 			VirtualProtect(&target, sizeof(hook::address), protection, &protection);
@@ -431,16 +444,15 @@ namespace reshade::hooks
 
 		if (target_filename == replacement_filename)
 		{
-			LOG(INFO) << "> Delayed.";
+			LOG(INFO) << "> Delayed until first call to an exported function.";
 
 			s_export_hook_path = target_path;
 		}
 		else
 		{
 			HMODULE handle = nullptr;
-			GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_PIN, target_path.wstring().c_str(), &handle);
 
-			if (handle != nullptr)
+			if (is_module_loaded(target_path, handle))
 			{
 				LOG(INFO) << "> Libraries loaded.";
 
@@ -457,35 +469,32 @@ namespace reshade::hooks
 
 	hook::address call(hook::address replacement)
 	{
-		{ const critical_section::lock lock(s_cs);
-			if (!s_export_hook_path.empty())
-			{
-				const HMODULE handle = HookLoadLibraryW(s_export_hook_path.wstring().c_str());
-
-				LOG(INFO) << "Installing delayed hooks for " << s_export_hook_path << " ...";
-
-				if (handle != nullptr)
-				{
-					s_export_hook_path = "";
-
-					install(handle, g_module_handle, hook_method::export_hook);
-				}
-				else
-				{
-					LOG(ERROR) << "Failed to load " << s_export_hook_path << "!";
-				}
-			}
-		}
-
 		const hook hook = find(replacement);
 
-		if (!hook.valid())
+		if (hook.valid())
 		{
-			LOG(ERROR) << "Unable to resolve hook for '0x" << replacement << "'!";
+			return hook.call();
+		}
+		else if (!is_module_loaded(s_export_hook_path))
+		{
+			const HMODULE handle = load_module(s_export_hook_path);
 
-			return nullptr;
+			LOG(INFO) << "Installing export hooks for " << s_export_hook_path << " ...";
+
+			if (handle != nullptr)
+			{
+				install(handle, g_module_handle, hook_method::export_hook);
+			}
+			else
+			{
+				LOG(ERROR) << "Failed to load " << s_export_hook_path << "!";
+			}
+
+			return call(replacement);
 		}
 
-		return hook.call();
+		LOG(ERROR) << "Unable to resolve hook for '0x" << replacement << "'!";
+
+		return nullptr;
 	}
 }

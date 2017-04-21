@@ -5,9 +5,9 @@
 
 #include "log.hpp"
 #include "hook_manager.hpp"
-#include "critical_section.hpp"
 #include "opengl_runtime.hpp"
 #include <assert.h>
+#include <mutex>
 #include <memory>
 #include <unordered_map>
 #include <unordered_set>
@@ -36,6 +36,7 @@
 #undef glDrawArraysIndirect
 #undef glDrawArraysInstanced
 #undef glDrawArraysInstancedBaseInstance
+#undef glDrawArraysInstancedARB
 #undef glDrawArraysInstancedEXT
 #undef glDrawBuffer
 #undef glDrawElements
@@ -45,6 +46,7 @@
 #undef glDrawElementsInstancedBaseVertex
 #undef glDrawElementsInstancedBaseInstance
 #undef glDrawElementsInstancedBaseVertexBaseInstance
+#undef glDrawElementsInstancedARB
 #undef glDrawElementsInstancedEXT
 #undef glDrawRangeElements
 #undef glDrawRangeElementsBaseVertex
@@ -56,7 +58,9 @@
 #undef glFramebufferTexture1D
 #undef glFramebufferTexture2D
 #undef glFramebufferTexture3D
+#undef glFramebufferTextureARB
 #undef glFramebufferTextureLayer
+#undef glFramebufferTextureLayerARB
 #undef glFrontFace
 #undef glGenTextures
 #undef glGetBooleanv
@@ -107,7 +111,7 @@
 
 DECLARE_HANDLE(HPBUFFERARB);
 
-static critical_section s_cs;
+static std::mutex s_mutex;
 static std::unordered_map<HWND, RECT> s_window_rects;
 static std::unordered_set<HDC> s_pbuffer_device_contexts;
 static std::unordered_map<HGLRC, HGLRC> s_shared_contexts;
@@ -3108,7 +3112,7 @@ HOOK_EXPORT HGLRC WINAPI wglCreateContext(HDC hdc)
 		return nullptr;
 	}
 
-	const critical_section::lock lock(s_cs);
+	const std::lock_guard<std::mutex> lock(s_mutex);
 
 	s_shared_contexts.emplace(hglrc, nullptr);
 
@@ -3211,7 +3215,7 @@ HGLRC WINAPI wglCreateContextAttribsARB(HDC hdc, HGLRC hShareContext, const int 
 		return nullptr;
 	}
 
-	const critical_section::lock lock(s_cs);
+	const std::lock_guard<std::mutex> lock(s_mutex);
 
 	s_shared_contexts.emplace(hglrc, hShareContext);
 
@@ -3311,7 +3315,7 @@ HOOK_EXPORT BOOL WINAPI wglDeleteContext(HGLRC hglrc)
 
 	LOG(INFO) << "Redirecting '" << "wglDeleteContext" << "(" << hglrc << ")' ...";
 
-	const critical_section::lock lock(s_cs);
+	const std::lock_guard<std::mutex> lock(s_mutex);
 
 	for (auto it = s_shared_contexts.begin(); it != s_shared_contexts.end();)
 	{
@@ -3401,7 +3405,7 @@ HDC WINAPI wglGetPbufferDCARB(HPBUFFERARB hPbuffer)
 		return nullptr;
 	}
 
-	const critical_section::lock lock(s_cs);
+	const std::lock_guard<std::mutex> lock(s_mutex);
 
 	s_pbuffer_device_contexts.insert(hdc);
 
@@ -3455,7 +3459,7 @@ HOOK_EXPORT BOOL WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 		return TRUE;
 	}
 	
-	const critical_section::lock lock(s_cs);
+	const std::lock_guard<std::mutex> lock(s_mutex);
 
 	const bool is_pbuffer_device_context = s_pbuffer_device_contexts.find(hdc) != s_pbuffer_device_contexts.end();
 	
@@ -3646,7 +3650,7 @@ int WINAPI wglReleasePbufferDCARB(HPBUFFERARB hPbuffer, HDC hdc)
 		return FALSE;
 	}
 
-	const critical_section::lock lock(s_cs);
+	const std::lock_guard<std::mutex> lock(s_mutex);
 
 	s_pbuffer_device_contexts.erase(hdc);
 
@@ -3672,7 +3676,7 @@ HOOK_EXPORT BOOL WINAPI wglShareLists(HGLRC hglrc1, HGLRC hglrc2)
 		return FALSE;
 	}
 
-	const critical_section::lock lock(s_cs);
+	const std::lock_guard<std::mutex> lock(s_mutex);
 
 	s_shared_contexts[hglrc2] = hglrc1;
 
