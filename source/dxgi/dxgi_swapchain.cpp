@@ -176,16 +176,24 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::GetDevice(REFIID riid, void **ppDevice)
 }
 HRESULT STDMETHODCALLTYPE DXGISwapChain::Present(UINT SyncInterval, UINT Flags)
 {
-	switch (_direct3d_version)
+	// Many new D3D11 games will test swapchain presentation for timing and composition purposes.
+	//
+	//  * These calls are NOT render-related, but rather a status request for the D3D runtime.
+	//  * They should not be reshaded or even counted when determining framerate.
+	//
+	if (! (Flags & DXGI_PRESENT_TEST))
 	{
-		case 10:
-			assert(_runtime != nullptr);
-			std::static_pointer_cast<reshade::d3d10::d3d10_runtime>(_runtime)->on_present();
-			break;
-		case 11:
-			assert(_runtime != nullptr);
-			std::static_pointer_cast<reshade::d3d11::d3d11_runtime>(_runtime)->on_present();
-			break;
+		switch (_direct3d_version)
+		{
+			case 10:
+				assert(_runtime != nullptr);
+				std::static_pointer_cast<reshade::d3d10::d3d10_runtime>(_runtime)->on_present();
+				break;
+			case 11:
+				assert(_runtime != nullptr);
+				std::static_pointer_cast<reshade::d3d11::d3d11_runtime>(_runtime)->on_present();
+				break;
+		}
 	}
 
 	return _orig->Present(SyncInterval, Flags);
@@ -307,16 +315,24 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::Present1(UINT SyncInterval, UINT Presen
 {
 	assert(_interface_version >= 1);
 
-	switch (_direct3d_version)
+	// Many new D3D11 games will test swapchain presentation for timing and composition purposes.
+	//
+	//  * These calls are NOT render-related, but rather a status request for the D3D runtime.
+	//  * They should not be reshaded or even counted when determining framerate.
+	//
+	if (! (PresentFlags & DXGI_PRESENT_TEST))
 	{
-		case 10:
-			assert(_runtime != nullptr);
-			std::static_pointer_cast<reshade::d3d10::d3d10_runtime>(_runtime)->on_present();
-			break;
-		case 11:
-			assert(_runtime != nullptr);
-			std::static_pointer_cast<reshade::d3d11::d3d11_runtime>(_runtime)->on_present();
-			break;
+		switch (_direct3d_version)
+		{
+			case 10:
+				assert(_runtime != nullptr);
+				std::static_pointer_cast<reshade::d3d10::d3d10_runtime>(_runtime)->on_present();
+				break;
+			case 11:
+				assert(_runtime != nullptr);
+				std::static_pointer_cast<reshade::d3d11::d3d11_runtime>(_runtime)->on_present();
+				break;
+		}
 	}
 
 	return static_cast<IDXGISwapChain1 *>(_orig)->Present1(SyncInterval, PresentFlags, pPresentParameters);
