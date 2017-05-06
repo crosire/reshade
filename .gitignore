@@ -8,6 +8,7 @@
 *.cso
 
 # Visual Studio cache files
+.vs/
 ipch/
 *.aps
 *.VC.db
