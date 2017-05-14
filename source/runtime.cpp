@@ -346,7 +346,7 @@ namespace reshade
 			{
 				const int index = variable.annotations["keycode"].as<int>();
 
-				if (index > 0 && index < 5)
+				if (index >= 0 && index < 5)
 				{
 					if (variable.annotations["toggle"].as<bool>())
 					{
