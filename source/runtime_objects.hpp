@@ -16,7 +16,6 @@ namespace reshade
 {
 	enum class texture_filter
 	{
-		anisotropic = 0x55,
 		min_mag_mip_point = 0,
 		min_mag_point_mip_linear = 0x1,
 		min_point_mag_linear_mip_point = 0x4,

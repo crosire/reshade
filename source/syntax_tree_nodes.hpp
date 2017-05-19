@@ -450,7 +450,6 @@ namespace reshadefx::nodes
 			reshade::texture_address_mode address_u = reshade::texture_address_mode::clamp;
 			reshade::texture_address_mode address_v = reshade::texture_address_mode::clamp;
 			reshade::texture_address_mode address_w = reshade::texture_address_mode::clamp;
-			unsigned int max_anisotropy = 1;
 			float min_lod, max_lod = FLT_MAX, lod_bias;
 		} properties;
 	};
