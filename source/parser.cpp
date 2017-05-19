@@ -3296,49 +3296,24 @@ namespace reshadefx
 					unsigned int a = static_cast<unsigned int>(variable->properties.filter), b;
 					scalar_literal_cast(value_literal, 0, b);
 
-					if (b == 3 || variable->properties.filter == reshade::texture_filter::anisotropic)
-					{
-						variable->properties.filter = reshade::texture_filter::anisotropic;
-					}
-					else
-					{
-						b = (a & 0xF) | ((b << 4) & 0x30);
-						variable->properties.filter = static_cast<reshade::texture_filter>(b);
-					}
+					b = (a & 0x0F) | ((b << 4) & 0x30);
+					variable->properties.filter = static_cast<reshade::texture_filter>(b);
 				}
 				else if (name == "MagFilter")
 				{
 					unsigned int a = static_cast<unsigned int>(variable->properties.filter), b;
 					scalar_literal_cast(value_literal, 0, b);
 
-					if (b == 3 || variable->properties.filter == reshade::texture_filter::anisotropic)
-					{
-						variable->properties.filter = reshade::texture_filter::anisotropic;
-					}
-					else
-					{
-						b = (a & 0x33) | ((b << 2) & 0xC);
-						variable->properties.filter = static_cast<reshade::texture_filter>(b);
-					}
+					b = (a & 0x33) | ((b << 2) & 0x0C);
+					variable->properties.filter = static_cast<reshade::texture_filter>(b);
 				}
 				else if (name == "MipFilter")
 				{
 					unsigned int a = static_cast<unsigned int>(variable->properties.filter), b;
 					scalar_literal_cast(value_literal, 0, b);
 
-					if (b == 3 || variable->properties.filter == reshade::texture_filter::anisotropic)
-					{
-						variable->properties.filter = reshade::texture_filter::anisotropic;
-					}
-					else
-					{
-						b = (a & 0x3C) | (b & 0x3);
-						variable->properties.filter = static_cast<reshade::texture_filter>(b);
-					}
-				}
-				else if (name == "MaxAnisotropy")
-				{
-					scalar_literal_cast(value_literal, 0, variable->properties.max_anisotropy);
+					b = (a & 0x3C) | (b & 0x03);
+					variable->properties.filter = static_cast<reshade::texture_filter>(b);
 				}
 				else if (name == "MinLOD" || name == "MaxMipLevel")
 				{

@@ -1550,16 +1550,16 @@ namespace reshade::d3d11
 	}
 	void d3d11_effect_compiler::visit_sampler(const variable_declaration_node *node)
 	{
-		D3D11_SAMPLER_DESC desc;
+		D3D11_SAMPLER_DESC desc = { };
 		desc.Filter = static_cast<D3D11_FILTER>(node->properties.filter);
 		desc.AddressU = static_cast<D3D11_TEXTURE_ADDRESS_MODE>(node->properties.address_u);
 		desc.AddressV = static_cast<D3D11_TEXTURE_ADDRESS_MODE>(node->properties.address_v);
 		desc.AddressW = static_cast<D3D11_TEXTURE_ADDRESS_MODE>(node->properties.address_w);
 		desc.MipLODBias = node->properties.lod_bias;
+		desc.MaxAnisotropy = 1;
+		desc.ComparisonFunc = D3D11_COMPARISON_NEVER;
 		desc.MinLOD = node->properties.min_lod;
 		desc.MaxLOD = node->properties.max_lod;
-		desc.MaxAnisotropy = node->properties.max_anisotropy;
-		desc.ComparisonFunc = D3D11_COMPARISON_NEVER;
 
 		const auto texture = _runtime->find_texture(node->properties.texture->name);
 

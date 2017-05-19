@@ -1493,21 +1493,13 @@ namespace reshade::d3d9
 		sampler.states[D3DSAMP_ADDRESSV] = static_cast<D3DTEXTUREADDRESS>(node->properties.address_v);
 		sampler.states[D3DSAMP_ADDRESSW] = static_cast<D3DTEXTUREADDRESS>(node->properties.address_w);
 		sampler.states[D3DSAMP_BORDERCOLOR] = 0;
+		sampler.states[D3DSAMP_MAGFILTER] = 1 + ((static_cast<unsigned int>(node->properties.filter) & 0x0C) >> 2);
+		sampler.states[D3DSAMP_MINFILTER] = 1 + ((static_cast<unsigned int>(node->properties.filter) & 0x30) >> 4);
+		sampler.states[D3DSAMP_MIPFILTER] = 1 + ((static_cast<unsigned int>(node->properties.filter) & 0x03));
 		sampler.states[D3DSAMP_MIPMAPLODBIAS] = *reinterpret_cast<const DWORD *>(&node->properties.lod_bias);
 		sampler.states[D3DSAMP_MAXMIPLEVEL] = static_cast<DWORD>(std::max(0.0f, node->properties.min_lod));
-		sampler.states[D3DSAMP_MAXANISOTROPY] = node->properties.max_anisotropy;
+		sampler.states[D3DSAMP_MAXANISOTROPY] = 1;
 		sampler.states[D3DSAMP_SRGBTEXTURE] = node->properties.srgb_texture;
-
-		if (node->properties.filter == texture_filter::anisotropic)
-		{
-			sampler.states[D3DSAMP_MINFILTER] = sampler.states[D3DSAMP_MAGFILTER] = sampler.states[D3DSAMP_MIPFILTER] = D3DTEXF_ANISOTROPIC;
-		}
-		else
-		{
-			sampler.states[D3DSAMP_MINFILTER] = 1 + ((static_cast<unsigned int>(node->properties.filter) & 0x30) >> 4);
-			sampler.states[D3DSAMP_MAGFILTER] = 1 + ((static_cast<unsigned int>(node->properties.filter) & 0xC) >> 2);
-			sampler.states[D3DSAMP_MIPFILTER] = 1 + ((static_cast<unsigned int>(node->properties.filter) & 0x3));
-		}
 
 		_samplers[node->name] = sampler;
 	}

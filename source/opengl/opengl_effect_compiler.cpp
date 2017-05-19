@@ -154,7 +154,6 @@ namespace reshade::opengl
 				minfilter = GL_LINEAR_MIPMAP_NEAREST;
 				magfilter = GL_LINEAR;
 				break;
-			case reshade::texture_filter::anisotropic:
 			case reshade::texture_filter::min_mag_mip_linear:
 				minfilter = GL_LINEAR_MIPMAP_LINEAR;
 				magfilter = GL_LINEAR;
@@ -2172,12 +2171,11 @@ namespace reshade::opengl
 		glSamplerParameteri(sampler.id, GL_TEXTURE_WRAP_S, literal_to_wrap_mode(node->properties.address_u));
 		glSamplerParameteri(sampler.id, GL_TEXTURE_WRAP_T, literal_to_wrap_mode(node->properties.address_v));
 		glSamplerParameteri(sampler.id, GL_TEXTURE_WRAP_R, literal_to_wrap_mode(node->properties.address_w));
-		glSamplerParameteri(sampler.id, GL_TEXTURE_MIN_FILTER, minfilter);
 		glSamplerParameteri(sampler.id, GL_TEXTURE_MAG_FILTER, magfilter);
+		glSamplerParameteri(sampler.id, GL_TEXTURE_MIN_FILTER, minfilter);
 		glSamplerParameterf(sampler.id, GL_TEXTURE_LOD_BIAS, node->properties.lod_bias);
 		glSamplerParameterf(sampler.id, GL_TEXTURE_MIN_LOD, node->properties.min_lod);
 		glSamplerParameterf(sampler.id, GL_TEXTURE_MAX_LOD, node->properties.max_lod);
-		glSamplerParameterf(sampler.id, 0x84FE /* GL_TEXTURE_MAX_ANISOTROPY_EXT */, static_cast<GLfloat>(node->properties.max_anisotropy));
 
 		_global_code << "layout(binding = " << _runtime->_effect_samplers.size() << ") uniform sampler2D " << escape_name(node->unique_name) << ";\n";
 
