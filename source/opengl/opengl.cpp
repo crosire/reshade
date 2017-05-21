@@ -3145,7 +3145,10 @@ HGLRC WINAPI wglCreateContextAttribsARB(HDC hdc, HGLRC hShareContext, const int 
 
 	int i = 0, major = 1, minor = 0, flags = 0;
 	bool core = true, compatibility = false;
-	attribute attribs[7] = { 0, 0 };
+#ifdef _DEBUG
+	bool debugFlagAdded = false;
+#endif
+	attribute attribs[8] = { };
 
 	for (const int *attrib = piAttribList; attrib != nullptr && *attrib != 0 && i < 5; attrib += 2, ++i)
 	{
@@ -3162,6 +3165,10 @@ HGLRC WINAPI wglCreateContextAttribsARB(HDC hdc, HGLRC hShareContext, const int 
 				break;
 			case attribute::WGL_CONTEXT_FLAGS_ARB:
 				flags = attrib[1];
+#ifdef _DEBUG
+				attribs[i].value |= attribute::WGL_CONTEXT_DEBUG_BIT_ARB;
+				debugFlagAdded = true;
+#endif
 				break;
 			case attribute::WGL_CONTEXT_PROFILE_MASK_ARB:
 				core = (attrib[1] & attribute::WGL_CONTEXT_CORE_PROFILE_BIT_ARB) != 0;
@@ -3176,8 +3183,11 @@ HGLRC WINAPI wglCreateContextAttribsARB(HDC hdc, HGLRC hShareContext, const int 
 	}
 
 #ifdef _DEBUG
-	attribs[i].name = attribute::WGL_CONTEXT_FLAGS_ARB;
-	attribs[i++].value = flags | attribute::WGL_CONTEXT_DEBUG_BIT_ARB;
+	if ( !debugFlagAdded )
+	{
+		attribs[i].name = attribute::WGL_CONTEXT_FLAGS_ARB;
+		attribs[i++].value = flags | attribute::WGL_CONTEXT_DEBUG_BIT_ARB;
+	}
 #endif
 
 	attribs[i].name = attribute::WGL_CONTEXT_PROFILE_MASK_ARB;
