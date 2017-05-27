@@ -107,6 +107,6 @@ namespace reshade
 		int timeout = 0, timeleft = 0, toggle_key = 0;
 		bool toggle_key_ctrl = false, toggle_key_shift = false, toggle_key_alt = false;
 		moving_average<uint64_t, 60> average_duration;
-		int uniform_storage_offset = 0, uniform_storage_index = -1;
+		ptrdiff_t uniform_storage_offset = 0, uniform_storage_index = -1;
 	};
 }

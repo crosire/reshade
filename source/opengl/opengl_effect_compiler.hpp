@@ -78,6 +78,6 @@ namespace reshade::opengl
 		std::stringstream _global_code, _global_uniforms;
 		const reshadefx::nodes::function_declaration_node *_current_function;
 		std::unordered_map<const reshadefx::nodes::function_declaration_node *, function> _functions;
-		int _uniform_storage_offset = 0, _uniform_buffer_size = 0;
+		GLintptr _uniform_storage_offset = 0, _uniform_buffer_size = 0;
 	};
 }
