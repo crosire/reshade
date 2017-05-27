@@ -535,7 +535,7 @@ namespace reshadefx
 	void lexer::skip(size_t length)
 	{
 		_cur += length;
-		_cur_location.column += length;
+		_cur_location.column += static_cast<unsigned int>(length);
 	}
 	void lexer::skip_space()
 	{

@@ -2226,7 +2226,7 @@ namespace reshade::opengl
 
 		auto &uniform_storage = _runtime->get_uniform_value_storage();
 
-		if (_uniform_storage_offset + _uniform_buffer_size >= uniform_storage.size())
+		if (_uniform_storage_offset + _uniform_buffer_size >= static_cast<ptrdiff_t>(uniform_storage.size()))
 		{
 			uniform_storage.resize(uniform_storage.size() + 128);
 		}

@@ -15,7 +15,7 @@ namespace reshade::d3d11
 	using namespace reshadefx;
 	using namespace reshadefx::nodes;
 
-	static inline UINT roundto16(UINT size)
+	static inline size_t roundto16(size_t size)
 	{
 		return (size + 15) & ~15;
 	}
@@ -225,8 +225,8 @@ namespace reshade::d3d11
 			_constant_buffer_size = roundto16(_constant_buffer_size);
 			_runtime->get_uniform_value_storage().resize(_uniform_storage_offset + _constant_buffer_size);
 
-			const CD3D11_BUFFER_DESC globals_desc(_constant_buffer_size, D3D11_BIND_CONSTANT_BUFFER, D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE);
-			const D3D11_SUBRESOURCE_DATA globals_initial = { _runtime->get_uniform_value_storage().data() + _uniform_storage_offset, _constant_buffer_size };
+			const CD3D11_BUFFER_DESC globals_desc(static_cast<UINT>(_constant_buffer_size), D3D11_BIND_CONSTANT_BUFFER, D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE);
+			const D3D11_SUBRESOURCE_DATA globals_initial = { _runtime->get_uniform_value_storage().data() + _uniform_storage_offset, static_cast<UINT>(_constant_buffer_size) };
 
 			com_ptr<ID3D11Buffer> constant_buffer;
 			_runtime->_device->CreateBuffer(&globals_desc, &globals_initial, &constant_buffer);

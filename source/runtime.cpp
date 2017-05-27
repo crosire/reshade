@@ -747,7 +747,7 @@ namespace reshade
 		imgui_style.Colors[ImGuiCol_PopupBg] = ImVec4(_imgui_col_item_background[0], _imgui_col_item_background[1], _imgui_col_item_background[2], 0.92f);
 
 
-		if (_current_preset >= _preset_files.size())
+		if (_current_preset >= static_cast<ptrdiff_t>(_preset_files.size()))
 		{
 			_current_preset = -1;
 		}
@@ -1230,7 +1230,7 @@ namespace reshade
 
 			ImGui::PushItemWidth(-(30 + ImGui::GetStyle().ItemSpacing.x) * 2 - 1);
 
-			if (ImGui::Combo("##presets", &_current_preset, get_preset_file, this, _preset_files.size()))
+			if (ImGui::Combo("##presets", &_current_preset, get_preset_file, this, static_cast<int>(_preset_files.size())))
 			{
 				save_configuration();
 
@@ -1266,7 +1266,7 @@ namespace reshade
 					{
 						_preset_files.push_back(path);
 
-						_current_preset = _preset_files.size() - 1;
+						_current_preset = static_cast<int>(_preset_files.size()) - 1;
 
 						load_preset(path);
 						save_configuration();
@@ -1300,7 +1300,7 @@ namespace reshade
 					{
 						_preset_files.erase(_preset_files.begin() + _current_preset);
 
-						if (_current_preset == _preset_files.size())
+						if (_current_preset == static_cast<ptrdiff_t>(_preset_files.size()))
 						{
 							_current_preset -= 1;
 						}
