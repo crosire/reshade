@@ -755,7 +755,7 @@ namespace reshade
 		const filesystem::path parent_path = s_reshade_dll_path.parent_path();
 		auto preset_files2 = filesystem::list_files(parent_path, "*.ini");
 		auto preset_files3 = filesystem::list_files(parent_path, "*.txt");
-		preset_files2.insert(preset_files2.end(), preset_files3.begin(), preset_files3.end());
+		preset_files2.insert(preset_files2.end(), std::make_move_iterator(preset_files3.begin()), std::make_move_iterator(preset_files3.end()));
 
 		for (const auto &preset_file : preset_files2)
 		{

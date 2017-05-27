@@ -428,7 +428,7 @@ namespace reshade::opengl
 
 			glBindBuffer(GL_UNIFORM_BUFFER, previous);
 
-			_runtime->_effect_ubos.push_back(std::make_pair(ubo, _uniform_buffer_size));
+			_runtime->_effect_ubos.emplace_back(ubo, _uniform_buffer_size);
 		}
 
 		return _success;

@@ -231,7 +231,7 @@ namespace reshade::d3d11
 			com_ptr<ID3D11Buffer> constant_buffer;
 			_runtime->_device->CreateBuffer(&globals_desc, &globals_initial, &constant_buffer);
 
-			_runtime->_constant_buffers.push_back(constant_buffer);
+			_runtime->_constant_buffers.push_back(std::move(constant_buffer));
 		}
 
 		FreeLibrary(_d3dcompiler_module);
