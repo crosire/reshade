@@ -605,8 +605,8 @@ namespace reshade::d3d9
 		if (technique.uniform_storage_index >= 0)
 		{
 			const auto uniform_storage_data = reinterpret_cast<const float *>(get_uniform_value_storage().data() + technique.uniform_storage_offset);
-			_device->SetVertexShaderConstantF(0, uniform_storage_data, technique.uniform_storage_index);
-			_device->SetPixelShaderConstantF(0, uniform_storage_data, technique.uniform_storage_index);
+			_device->SetVertexShaderConstantF(0, uniform_storage_data, static_cast<UINT>(technique.uniform_storage_index));
+			_device->SetPixelShaderConstantF(0, uniform_storage_data, static_cast<UINT>(technique.uniform_storage_index));
 		}
 
 		for (const auto &pass_object : technique.passes)

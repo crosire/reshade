@@ -20,6 +20,11 @@ public:
 	{
 		reset(copy._object);
 	}
+	com_ptr(com_ptr<T> &&move) : _object(nullptr)
+	{
+		std::swap(_object, move._object);
+	}
+
 	~com_ptr()
 	{
 		reset();
@@ -76,6 +81,18 @@ public:
 	com_ptr<T> &operator=(const com_ptr<T> &copy)
 	{
 		reset(copy._object);
+
+		return *this;
+	}
+	com_ptr<T> &operator=(com_ptr<T> &&move)
+	{
+		if (_object != nullptr)
+		{
+			_object->Release();
+		}
+
+		_object = move._object;
+		move._object = nullptr;
 
 		return *this;
 	}
