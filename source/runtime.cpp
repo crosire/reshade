@@ -181,10 +181,7 @@ namespace reshade
 			{
 				load_textures();
 
-				if (_current_preset >= 0)
-				{
-					load_preset(_preset_files[_current_preset]);
-				}
+				load_current_preset();
 
 				if (_effect_filter_buffer[0] != '\0' && strcmp(_effect_filter_buffer, "Search") != 0)
 				{
@@ -446,18 +443,24 @@ namespace reshade
 
 		if (_is_fast_loading)
 		{
-			const std::unordered_set<std::string> referenced_filenames(fastloading_filenames.begin(), fastloading_filenames.end());
+			LOG(INFO) << "Loading " << fastloading_filenames.size() << " active effect files";
 
-			for (const auto &search_path : _effect_search_paths)
+			for (const auto &effect : fastloading_filenames)
 			{
-				const std::vector<filesystem::path> matching_files = filesystem::list_files(search_path, "*.fx");
+				LOG(INFO) << "Searching for effect file: " << effect;
 
-				for (const auto &file_path : matching_files)
+				for (const auto &search_path : _effect_search_paths)
 				{
-					if (referenced_filenames.count(file_path.filename().string()))
+					auto effect_file = search_path / effect;
+
+					if (exists(effect_file))
 					{
-						_effect_files.push_back(file_path);
+						LOG(INFO) << ">> Found";
+						_effect_files.push_back(std::move(effect_file));
+						break;
 					}
+
+					LOG(INFO) << ">> Not Found";
 				}
 			}
 		}
@@ -808,18 +811,16 @@ namespace reshade
 			}
 		}
 
-		for (auto &search_path : _effect_search_paths)
+		auto to_absolute = [&parent_path](decltype(_preset_files) &paths)
 		{
-			search_path = filesystem::absolute(search_path, parent_path);
-		}
-		for (auto &search_path : _texture_search_paths)
-		{
-			search_path = filesystem::absolute(search_path, parent_path);
-		}
-		for (auto &preset_file : _preset_files)
-		{
-			preset_file = filesystem::absolute(preset_file, parent_path);
-		}
+			for (auto &path : paths)
+			{
+				path = filesystem::absolute(path, parent_path);
+			}
+		};
+		to_absolute(_preset_files);
+		to_absolute(_effect_search_paths);
+		to_absolute(_texture_search_paths);
 	}
 	void runtime::save_configuration() const
 	{
@@ -850,6 +851,7 @@ namespace reshade
 		config.set("STYLE", "ColText", _imgui_col_text);
 		config.set("STYLE", "ColFPSText", _imgui_col_text_fps);
 	}
+
 	void runtime::load_preset(const filesystem::path &path)
 	{
 		ini_file preset(path);
@@ -891,6 +893,13 @@ namespace reshade
 			technique.toggle_key_alt = preset.get("", "Key" + technique.name, toggle_key).as<bool>(3);
 		}
 	}
+	void runtime::load_current_preset()
+	{
+		if (_current_preset >= 0)
+		{
+			load_preset(_preset_files[_current_preset]);
+		}
+	}
 	void runtime::save_preset(const filesystem::path &path) const
 	{
 		ini_file preset(path);
@@ -919,13 +928,14 @@ namespace reshade
 			preset.set(variable.effect_filename, variable.name, variant(values, variable.rows * variable.columns));
 		}
 
-		std::vector<std::string> technique_list, technique_sorting_list, filename_list;
+		std::vector<std::string> technique_list, technique_sorting_list;
+		std::unordered_set<std::string> effects_files;
 
 		for (const auto &technique : _techniques)
 		{
 			if (technique.enabled)
 			{
-				filename_list.push_back(technique.effect_filename);
+				effects_files.emplace(technique.effect_filename);
 				technique_list.push_back(technique.name);
 			}
 
@@ -938,10 +948,18 @@ namespace reshade
 			}
 		}
 
-		preset.set("", "Techniques", technique_list);
-		preset.set("", "TechniqueSorting", technique_sorting_list);
-		preset.set("", "EffectFiles", filename_list);
+		preset.set("", "EffectFiles", variant(std::make_move_iterator(effects_files.cbegin()), std::make_move_iterator(effects_files.cend())));
+		preset.set("", "Techniques", std::move(technique_list));
+		preset.set("", "TechniqueSorting", std::move(technique_sorting_list));
 	}
+	void runtime::save_current_preset() const
+	{
+		if (_current_preset >= 0)
+		{
+			save_preset(_preset_files[_current_preset]);
+		}
+	}
+
 	void runtime::save_screenshot() const
 	{
 		std::vector<uint8_t> data(_width * _height * 4);
@@ -2046,9 +2064,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 			ImGui::PopID();
 
-			if (_current_preset >= 0 && modified)
+			if (modified)
 			{
-				save_preset(_preset_files[_current_preset]);
+				save_current_preset();
 			}
 		}
 
@@ -2080,9 +2098,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 			const std::string label = technique.name + " [" + technique.effect_filename + "]";
 
-			if (ImGui::Checkbox(label.c_str(), &technique.enabled) && _current_preset >= 0)
+			if (ImGui::Checkbox(label.c_str(), &technique.enabled))
 			{
-				save_preset(_preset_files[_current_preset]);
+				save_current_preset();
 			}
 
 			if (ImGui::IsItemActive())
@@ -2132,10 +2150,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 						technique.toggle_key_alt = _input->is_key_down(0x12);
 					}
 
-					if (_current_preset >= 0)
-					{
-						save_preset(_preset_files[_current_preset]);
-					}
+					save_current_preset();
 				}
 			}
 			else if (ImGui::IsItemHovered())
@@ -2160,10 +2175,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 				std::swap(_techniques[hovered_technique_index], _techniques[_selected_technique]);
 				_selected_technique = hovered_technique_index;
 
-				if (_current_preset >= 0)
-				{
-					save_preset(_preset_files[_current_preset]);
-				}
+				save_current_preset();
 			}
 		}
 		else
