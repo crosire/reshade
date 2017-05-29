@@ -426,10 +426,36 @@ namespace reshade
 
 		_effect_files.clear();
 
-		for (const auto &search_path : _effect_search_paths)
+		// Only load active effects
+		if (_performance_mode && _current_preset >= 0)
 		{
-			const auto matching_files = filesystem::list_files(search_path, "*.fx");
-			_effect_files.insert(_effect_files.end(), matching_files.begin(), matching_files.end());
+			ini_file preset(_preset_files[_current_preset]);
+			const auto techniques = preset.get("", "Techniques").data();
+			LOG_INFO() << "Loading " << techniques.size() << " active techniques";
+			for (const auto &technique : techniques)
+			{
+				LOG_INFO() << "Searching for technique file: " << technique;
+				for (const auto &search_path : _effect_search_paths)
+				{
+					auto effect_file = search_path / technique;
+					LOG_INFO() << "> Checking " << effect_file;
+					if (exists(effect_file))
+					{
+						LOG_INFO() << ">> Found";
+						_effect_files.push_back(std::move(effect_file));
+						break;
+					}
+					LOG_INFO() << ">> Not Found";
+				}
+			}
+		}
+		else // Load all
+		{
+			for (const auto &search_path : _effect_search_paths)
+			{
+				const auto matching_files = filesystem::list_files(search_path, "*.fx");
+				_effect_files.insert(_effect_files.end(), matching_files.begin(), matching_files.end());
+			}
 		}
 
 		_reload_remaining_effects = _effect_files.size();
@@ -843,7 +869,7 @@ namespace reshade
 			});
 		for (auto &technique : _techniques)
 		{
-			technique.enabled = std::find(technique_list.begin(), technique_list.end(), technique.name) != technique_list.end();
+			technique.enabled = std::find(technique_list.begin(), technique_list.end(), technique.effect_filename) != technique_list.end();
 
 			const int toggle_key[4] = { technique.toggle_key, technique.toggle_key_ctrl ? 1 : 0, technique.toggle_key_shift ? 1 : 0, technique.toggle_key_alt ? 1 : 0 };
 			technique.toggle_key = preset.get("", "Key" + technique.name, toggle_key).as<int>(0);
@@ -886,10 +912,10 @@ namespace reshade
 		{
 			if (technique.enabled)
 			{
-				technique_list.push_back(technique.name);
+				technique_list.push_back(technique.effect_filename);
 			}
 
-			technique_sorting_list.push_back(technique.name);
+			technique_sorting_list.push_back(technique.effect_filename);
 
 			const int toggle_key[4] = { technique.toggle_key, technique.toggle_key_ctrl ? 1 : 0, technique.toggle_key_shift ? 1 : 0, technique.toggle_key_alt ? 1 : 0 };
 			preset.set("", "Key" + technique.name, toggle_key);
