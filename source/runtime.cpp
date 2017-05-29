@@ -178,10 +178,7 @@ namespace reshade
 			{
 				load_textures();
 
-				if (_current_preset >= 0)
-				{
-					load_preset(_preset_files[_current_preset]);
-				}
+				load_current_preset();
 
 				if (strcmp(_effect_filter_buffer, "Search") != 0)
 				{
@@ -774,18 +771,16 @@ namespace reshade
 			}
 		}
 
-		for (auto &search_path : _effect_search_paths)
+		auto to_absolute = [&parent_path](decltype(_preset_files) &paths)
 		{
-			search_path = filesystem::absolute(search_path, parent_path);
-		}
-		for (auto &search_path : _texture_search_paths)
-		{
-			search_path = filesystem::absolute(search_path, parent_path);
-		}
-		for (auto &preset_file : _preset_files)
-		{
-			preset_file = filesystem::absolute(preset_file, parent_path);
-		}
+			for (auto &path : paths)
+			{
+				path = std::move(filesystem::absolute(path, parent_path));
+			}
+		};
+		to_absolute(_preset_files);
+		to_absolute(_effect_search_paths);
+		to_absolute(_texture_search_paths);
 	}
 	void runtime::save_configuration() const
 	{
@@ -816,6 +811,7 @@ namespace reshade
 		config.set("STYLE", "ColText", _imgui_col_text);
 		config.set("STYLE", "ColFPSText", _imgui_col_text_fps);
 	}
+
 	void runtime::load_preset(const filesystem::path &path)
 	{
 		ini_file preset(path);
@@ -856,6 +852,15 @@ namespace reshade
 			technique.toggle_key_alt = preset.get("", "Key" + technique.name, toggle_key).as<bool>(3);
 		}
 	}
+
+	void runtime::load_current_preset()
+	{
+		if (_current_preset >= 0)
+		{
+			load_preset(_preset_files[_current_preset]);
+		}
+	}
+
 	void runtime::save_preset(const filesystem::path &path) const
 	{
 		ini_file preset(path);
@@ -893,6 +898,15 @@ namespace reshade
 		preset.set("", "Techniques", technique_list);
 		preset.set("", "TechniqueSorting", technique_sorting_list);
 	}
+
+	void runtime::save_current_preset() const
+	{
+		if (_current_preset >= 0)
+		{
+			save_preset(_preset_files[_current_preset]);
+		}
+	}
+
 	void runtime::save_screenshot() const
 	{
 		std::vector<uint8_t> data(_width * _height * 4);
@@ -1894,9 +1908,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 			ImGui::PopID();
 
-			if (_current_preset >= 0 && modified)
+			if (modified)
 			{
-				save_preset(_preset_files[_current_preset]);
+				save_current_preset();
 			}
 		}
 
@@ -1907,6 +1921,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 		ImGui::PopItemWidth();
 	}
+
 	void runtime::draw_overlay_technique_editor()
 	{
 		int hovered_technique_index = -1;
@@ -1942,9 +1957,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 			ImGui::PushID(id);
 
-			if (ImGui::Checkbox(technique.name.c_str(), &technique.enabled) && _current_preset >= 0)
+			if (ImGui::Checkbox(technique.name.c_str(), &technique.enabled))
 			{
-				save_preset(_preset_files[_current_preset]);
+				save_current_preset();
 			}
 
 			if (ImGui::IsItemActive())
@@ -1994,10 +2009,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 						technique.toggle_key_alt = _input->is_key_down(0x12);
 					}
 
-					if (_current_preset >= 0)
-					{
-						save_preset(_preset_files[_current_preset]);
-					}
+					save_current_preset();
 				}
 			}
 			else if (ImGui::IsItemHovered())
@@ -2022,10 +2034,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 				std::swap(_techniques[hovered_technique_index], _techniques[_selected_technique]);
 				_selected_technique = hovered_technique_index;
 
-				if (_current_preset >= 0)
-				{
-					save_preset(_preset_files[_current_preset]);
-				}
+				save_current_preset();
 			}
 		}
 		else
