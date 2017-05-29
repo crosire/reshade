@@ -801,7 +801,7 @@ namespace reshade
 		{
 			for (auto &path : paths)
 			{
-				path = std::move(filesystem::absolute(path, parent_path));
+				path = filesystem::absolute(path, parent_path);
 			}
 		};
 		to_absolute(_preset_files);
