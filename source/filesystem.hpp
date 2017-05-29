@@ -23,7 +23,7 @@ namespace reshade::filesystem
 	public:
 		path() { }
 		path(const char *data) : _data(data) { }
-		path(const std::string &data) : _data(data) { }
+		path(std::string data) : _data(std::move(data)) { }
 
 		bool operator==(const path &other) const;
 		bool operator!=(const path &other) const;

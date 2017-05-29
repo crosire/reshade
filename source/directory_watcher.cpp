@@ -18,7 +18,7 @@ namespace reshade::filesystem
 		_completion_handle = CreateIoCompletionPort(_file_handle, nullptr, reinterpret_cast<ULONG_PTR>(_file_handle), 1);
 
 		OVERLAPPED overlapped = { };
-		ReadDirectoryChangesW(_file_handle, _buffer.data(), _buffer.size(), TRUE, FILE_NOTIFY_CHANGE_LAST_WRITE, nullptr, &overlapped, nullptr);
+		ReadDirectoryChangesW(_file_handle, _buffer.data(), static_cast<DWORD>(_buffer.size()), TRUE, FILE_NOTIFY_CHANGE_LAST_WRITE, nullptr, &overlapped, nullptr);
 	}
 	directory_watcher::~directory_watcher()
 	{
@@ -67,7 +67,7 @@ namespace reshade::filesystem
 
 		overlapped->hEvent = nullptr;
 
-		ReadDirectoryChangesW(_file_handle, _buffer.data(), _buffer.size(), TRUE, FILE_NOTIFY_CHANGE_LAST_WRITE, nullptr, overlapped, nullptr);
+		ReadDirectoryChangesW(_file_handle, _buffer.data(), static_cast<DWORD>(_buffer.size()), TRUE, FILE_NOTIFY_CHANGE_LAST_WRITE, nullptr, overlapped, nullptr);
 
 		return true;
 	}
