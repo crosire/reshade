@@ -5,7 +5,7 @@ ReShade is an advanced, fully generic post-processing injector for games and vid
 
 ## Building
 
-You'll need both Git and Visual Studio 2015 or higher to build ReShade. Latter is required since the project makes use of various C++11 and C++17 features. Additionally a Python installation is necessary for the `gl3w` dependency to build.
+You'll need both Git and Visual Studio 2015 or higher to build ReShade. Latter is required since the project makes use of various C++11 and C++17 features. Additionally a Python 2.7.9 or later (Python 3 is supported as well) installation is necessary for the `gl3w` dependency to build.
 
 1. Clone this repository including all Git submodules
 2. Open the Visual Studio solution
