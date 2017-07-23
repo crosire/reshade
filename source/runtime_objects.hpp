@@ -81,6 +81,15 @@ namespace reshade
 
 	struct texture final
 	{
+		#pragma region Constructors and Assignment Operators
+		texture() = default;
+		texture(texture &&) = default;
+		texture(const texture &) = delete;
+
+		texture &operator=(texture &&) = default;
+		texture &operator=(const texture &) = delete;
+		#pragma endregion
+
 		std::string name, unique_name, effect_filename;
 		unsigned int width = 0, height = 0, levels = 0;
 		texture_format format = texture_format::unknown;
@@ -90,6 +99,15 @@ namespace reshade
 	};
 	struct uniform final
 	{
+		#pragma region Constructors and Assignment Operators
+		uniform() = default;
+		uniform(uniform &&) = default;
+		uniform(const uniform &) = delete;
+
+		uniform &operator=(uniform &&) = default;
+		uniform &operator=(const uniform &) = delete;
+		#pragma endregion
+
 		std::string name, unique_name, effect_filename;
 		uniform_datatype basetype = uniform_datatype::floating_point;
 		uniform_datatype displaytype = uniform_datatype::floating_point;
@@ -100,6 +118,15 @@ namespace reshade
 	};
 	struct technique final
 	{
+		#pragma region Constructors and Assignment Operators
+		technique() = default;
+		technique(technique &&) = default;
+		technique(const technique &) = delete;
+
+		technique &operator=(technique &&) = default;
+		technique &operator=(const technique &) = delete;
+		#pragma endregion
+
 		std::string name, effect_filename;
 		std::vector<std::unique_ptr<base_object>> passes;
 		std::unordered_map<std::string, variant> annotations;
