@@ -23,8 +23,6 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID lpvReserved)
 	{
 		case DLL_PROCESS_ATTACH:
 		{
-			DisableThreadLibraryCalls(hModule);
-
 			g_module_handle = hModule;
 			runtime::s_reshade_dll_path = filesystem::get_module_path(hModule);
 			runtime::s_target_executable_path = filesystem::get_module_path(nullptr);
