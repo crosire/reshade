@@ -3145,7 +3145,7 @@ HGLRC WINAPI wglCreateContextAttribsARB(HDC hdc, HGLRC hShareContext, const int 
 
 	int i = 0, major = 1, minor = 0, flags = 0;
 	bool core = true, compatibility = false;
-	attribute attribs[7] = { 0, 0 };
+	attribute attribs[8] = { };
 
 	for (const int *attrib = piAttribList; attrib != nullptr && *attrib != 0 && i < 5; attrib += 2, ++i)
 	{
@@ -3176,10 +3176,12 @@ HGLRC WINAPI wglCreateContextAttribsARB(HDC hdc, HGLRC hShareContext, const int 
 	}
 
 #ifdef _DEBUG
-	attribs[i].name = attribute::WGL_CONTEXT_FLAGS_ARB;
-	attribs[i++].value = flags | attribute::WGL_CONTEXT_DEBUG_BIT_ARB;
+	flags |= attribute::WGL_CONTEXT_DEBUG_BIT_ARB;
 #endif
 
+	// This works because the specs specifically note that "If an attribute is specified more than once, then the last value specified is used."
+	attribs[i].name = attribute::WGL_CONTEXT_FLAGS_ARB;
+	attribs[i++].value = flags;
 	attribs[i].name = attribute::WGL_CONTEXT_PROFILE_MASK_ARB;
 	attribs[i++].value = compatibility ? attribute::WGL_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB : attribute::WGL_CONTEXT_CORE_PROFILE_BIT_ARB;
 

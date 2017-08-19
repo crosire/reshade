@@ -474,7 +474,8 @@ namespace reshade::opengl
 		// Apply states
 		_stateblock.apply();
 
-		if (gl3wClipControl != nullptr)
+		if (gl3wClipControl != nullptr
+			&& (clip_origin != GL_LOWER_LEFT || clip_depthmode != GL_ZERO_TO_ONE))
 		{
 			glClipControl(clip_origin, clip_depthmode);
 		}

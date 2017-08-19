@@ -15,6 +15,9 @@
     <ClCompile Include="minhook\src\HDE\hde64.c">
       <Filter>HDE</Filter>
     </ClCompile>
+    <ClCompile Include="minhook\src\buffer.c" />
+    <ClCompile Include="minhook\src\hook.c" />
+    <ClCompile Include="minhook\src\trampoline.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="minhook\src\HDE\hde32.h">
@@ -35,5 +38,7 @@
     <ClInclude Include="minhook\include\MinHook.h">
       <Filter>API</Filter>
     </ClInclude>
+    <ClInclude Include="minhook\src\buffer.h" />
+    <ClInclude Include="minhook\src\trampoline.h" />
   </ItemGroup>
 </Project>

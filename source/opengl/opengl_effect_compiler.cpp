@@ -154,7 +154,6 @@ namespace reshade::opengl
 				minfilter = GL_LINEAR_MIPMAP_NEAREST;
 				magfilter = GL_LINEAR;
 				break;
-			case reshade::texture_filter::anisotropic:
 			case reshade::texture_filter::min_mag_mip_linear:
 				minfilter = GL_LINEAR_MIPMAP_LINEAR;
 				magfilter = GL_LINEAR;
@@ -429,7 +428,7 @@ namespace reshade::opengl
 
 			glBindBuffer(GL_UNIFORM_BUFFER, previous);
 
-			_runtime->_effect_ubos.push_back(std::make_pair(ubo, _uniform_buffer_size));
+			_runtime->_effect_ubos.emplace_back(ubo, _uniform_buffer_size);
 		}
 
 		return _success;
@@ -540,25 +539,27 @@ namespace reshade::opengl
 	{
 		if (with_qualifiers)
 		{
-			if (type.has_qualifier(type_node::qualifier_linear))
-				output << "smooth ";
-			if (type.has_qualifier(type_node::qualifier_noperspective))
-				output << "noperspective ";
-			if (type.has_qualifier(type_node::qualifier_centroid))
-				output << "centroid ";
 			if (type.has_qualifier(type_node::qualifier_nointerpolation))
 				output << "flat ";
-			if (type.has_qualifier(type_node::qualifier_inout))
-				output << "inout ";
-			else if (type.has_qualifier(type_node::qualifier_in))
-				output << "in ";
-			else if (type.has_qualifier(type_node::qualifier_out))
-				output << "out ";
-			else if (type.has_qualifier(type_node::qualifier_uniform))
-				output << "uniform ";
+			if (type.has_qualifier(type_node::qualifier_noperspective))
+				output << "noperspective ";
+			if (type.has_qualifier(type_node::qualifier_linear))
+				output << "smooth ";
+			if (type.has_qualifier(type_node::qualifier_centroid))
+				output << "centroid ";
+
 			if (type.has_qualifier(type_node::qualifier_const))
 				output << "const ";
+			else if (type.has_qualifier(type_node::qualifier_uniform))
+				output << "uniform ";
 		}
+
+		if (type.has_qualifier(type_node::qualifier_inout))
+			output << "inout ";
+		else if (type.has_qualifier(type_node::qualifier_in))
+			output << "in ";
+		else if (type.has_qualifier(type_node::qualifier_out))
+			output << "out ";
 
 		switch (type.basetype)
 		{
@@ -2035,11 +2036,11 @@ namespace reshade::opengl
 
 		output << "};\n";
 	}
-	void opengl_effect_compiler::visit(std::stringstream &output, const variable_declaration_node *node, bool with_type)
+	void opengl_effect_compiler::visit(std::stringstream &output, const variable_declaration_node *node, bool with_type, bool with_qualifiers)
 	{
 		if (with_type)
 		{
-			visit(output, node->type);
+			visit(output, node->type, with_qualifiers);
 			output << ' ';
 		}
 
@@ -2085,7 +2086,7 @@ namespace reshade::opengl
 
 		for (size_t i = 0, count = node->parameter_list.size(); i < count; i++)
 		{
-			visit(output, node->parameter_list[i]);
+			visit(output, node->parameter_list[i], true, false);
 
 			if (i < count - 1)
 			{
@@ -2172,12 +2173,11 @@ namespace reshade::opengl
 		glSamplerParameteri(sampler.id, GL_TEXTURE_WRAP_S, literal_to_wrap_mode(node->properties.address_u));
 		glSamplerParameteri(sampler.id, GL_TEXTURE_WRAP_T, literal_to_wrap_mode(node->properties.address_v));
 		glSamplerParameteri(sampler.id, GL_TEXTURE_WRAP_R, literal_to_wrap_mode(node->properties.address_w));
-		glSamplerParameteri(sampler.id, GL_TEXTURE_MIN_FILTER, minfilter);
 		glSamplerParameteri(sampler.id, GL_TEXTURE_MAG_FILTER, magfilter);
+		glSamplerParameteri(sampler.id, GL_TEXTURE_MIN_FILTER, minfilter);
 		glSamplerParameterf(sampler.id, GL_TEXTURE_LOD_BIAS, node->properties.lod_bias);
 		glSamplerParameterf(sampler.id, GL_TEXTURE_MIN_LOD, node->properties.min_lod);
 		glSamplerParameterf(sampler.id, GL_TEXTURE_MAX_LOD, node->properties.max_lod);
-		glSamplerParameterf(sampler.id, 0x84FE /* GL_TEXTURE_MAX_ANISOTROPY_EXT */, static_cast<GLfloat>(node->properties.max_anisotropy));
 
 		_global_code << "layout(binding = " << _runtime->_effect_samplers.size() << ") uniform sampler2D " << escape_name(node->unique_name) << ";\n";
 
@@ -2228,7 +2228,7 @@ namespace reshade::opengl
 
 		auto &uniform_storage = _runtime->get_uniform_value_storage();
 
-		if (_uniform_storage_offset + _uniform_buffer_size >= uniform_storage.size())
+		if (_uniform_storage_offset + _uniform_buffer_size >= static_cast<ptrdiff_t>(uniform_storage.size()))
 		{
 			uniform_storage.resize(uniform_storage.size() + 128);
 		}

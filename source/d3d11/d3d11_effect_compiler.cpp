@@ -15,7 +15,7 @@ namespace reshade::d3d11
 	using namespace reshadefx;
 	using namespace reshadefx::nodes;
 
-	static inline UINT roundto16(UINT size)
+	static inline size_t roundto16(size_t size)
 	{
 		return (size + 15) & ~15;
 	}
@@ -225,13 +225,13 @@ namespace reshade::d3d11
 			_constant_buffer_size = roundto16(_constant_buffer_size);
 			_runtime->get_uniform_value_storage().resize(_uniform_storage_offset + _constant_buffer_size);
 
-			const CD3D11_BUFFER_DESC globals_desc(_constant_buffer_size, D3D11_BIND_CONSTANT_BUFFER, D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE);
-			const D3D11_SUBRESOURCE_DATA globals_initial = { _runtime->get_uniform_value_storage().data() + _uniform_storage_offset, _constant_buffer_size };
+			const CD3D11_BUFFER_DESC globals_desc(static_cast<UINT>(_constant_buffer_size), D3D11_BIND_CONSTANT_BUFFER, D3D11_USAGE_DYNAMIC, D3D11_CPU_ACCESS_WRITE);
+			const D3D11_SUBRESOURCE_DATA globals_initial = { _runtime->get_uniform_value_storage().data() + _uniform_storage_offset, static_cast<UINT>(_constant_buffer_size) };
 
 			com_ptr<ID3D11Buffer> constant_buffer;
 			_runtime->_device->CreateBuffer(&globals_desc, &globals_initial, &constant_buffer);
 
-			_runtime->_constant_buffers.push_back(constant_buffer);
+			_runtime->_constant_buffers.push_back(std::move(constant_buffer));
 		}
 
 		FreeLibrary(_d3dcompiler_module);
@@ -1550,16 +1550,16 @@ namespace reshade::d3d11
 	}
 	void d3d11_effect_compiler::visit_sampler(const variable_declaration_node *node)
 	{
-		D3D11_SAMPLER_DESC desc;
+		D3D11_SAMPLER_DESC desc = { };
 		desc.Filter = static_cast<D3D11_FILTER>(node->properties.filter);
 		desc.AddressU = static_cast<D3D11_TEXTURE_ADDRESS_MODE>(node->properties.address_u);
 		desc.AddressV = static_cast<D3D11_TEXTURE_ADDRESS_MODE>(node->properties.address_v);
 		desc.AddressW = static_cast<D3D11_TEXTURE_ADDRESS_MODE>(node->properties.address_w);
 		desc.MipLODBias = node->properties.lod_bias;
+		desc.MaxAnisotropy = 1;
+		desc.ComparisonFunc = D3D11_COMPARISON_NEVER;
 		desc.MinLOD = node->properties.min_lod;
 		desc.MaxLOD = node->properties.max_lod;
-		desc.MaxAnisotropy = node->properties.max_anisotropy;
-		desc.ComparisonFunc = D3D11_COMPARISON_NEVER;
 
 		const auto texture = _runtime->find_texture(node->properties.texture->name);
 
