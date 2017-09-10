@@ -176,12 +176,9 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::GetDevice(REFIID riid, void **ppDevice)
 }
 HRESULT STDMETHODCALLTYPE DXGISwapChain::Present(UINT SyncInterval, UINT Flags)
 {
-	// Many new D3D11 games will test swapchain presentation for timing and composition purposes.
-	//
-	//  * These calls are NOT render-related, but rather a status request for the D3D runtime.
-	//  * They should not be reshaded or even counted when determining framerate.
-	//
-	if (! (Flags & DXGI_PRESENT_TEST))
+	// Some D3D11 games test swapchain presentation for timing and composition purposes.
+	// These calls are NOT rendering-related, but rather a status request for the D3D runtime and as such should be ignored.
+	if (!(Flags & DXGI_PRESENT_TEST))
 	{
 		switch (_direct3d_version)
 		{
@@ -315,12 +312,9 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::Present1(UINT SyncInterval, UINT Presen
 {
 	assert(_interface_version >= 1);
 
-	// Many new D3D11 games will test swapchain presentation for timing and composition purposes.
-	//
-	//  * These calls are NOT render-related, but rather a status request for the D3D runtime.
-	//  * They should not be reshaded or even counted when determining framerate.
-	//
-	if (! (PresentFlags & DXGI_PRESENT_TEST))
+	// Some D3D11 games test swapchain presentation for timing and composition purposes.
+	// These calls are NOT rendering-related, but rather a status request for the D3D runtime and as such should be ignored.
+	if (!(PresentFlags & DXGI_PRESENT_TEST))
 	{
 		switch (_direct3d_version)
 		{
