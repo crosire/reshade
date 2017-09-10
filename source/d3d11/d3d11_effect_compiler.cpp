@@ -741,6 +741,14 @@ namespace reshade::d3d11
 				part1 = "fwidth(";
 				part2 = ")";
 				break;
+			case intrinsic_expression_node::isinf:
+				part1 = "isinf(";
+				part2 = ")";
+				break;
+			case intrinsic_expression_node::isnan:
+				part1 = "isnan(";
+				part2 = ")";
+				break;
 			case intrinsic_expression_node::ldexp:
 				part1 = "ldexp(";
 				part2 = ", ";
