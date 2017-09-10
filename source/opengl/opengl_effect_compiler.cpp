@@ -1202,6 +1202,16 @@ namespace reshade::opengl
 				visit(output, node->arguments[0]);
 				output << cast1.second << ')';
 				break;
+			case intrinsic_expression_node::isinf:
+				output << "isinf(" << cast1.first;
+				visit(output, node->arguments[0]);
+				output << cast1.second << ')';
+				break;
+			case intrinsic_expression_node::isnan:
+				output << "isnan(" << cast1.first;
+				visit(output, node->arguments[0]);
+				output << cast1.second << ')';
+				break;
 			case intrinsic_expression_node::ldexp:
 				output << "ldexp(" << cast1.first;
 				visit(output, node->arguments[0]);
@@ -2518,7 +2528,7 @@ namespace reshade::opengl
 					parameter->semantic.compare(0, 9, "SV_TARGET") == 0)
 				{
 					source << " _param_" << parameter->name;
-					
+
 					if (parameter->type.is_array())
 					{
 						source << i;
