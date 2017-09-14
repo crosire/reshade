@@ -15,6 +15,7 @@
 #include <stb_image_dds.h>
 #include <stb_image_write.h>
 #include <stb_image_resize.h>
+#include <unordered_set>
 #define IMGUI_DEFINE_MATH_OPERATORS
 #include <imgui.h>
 #include <imgui_internal.h>
@@ -430,14 +431,14 @@ namespace reshade
 		if (_performance_mode && _current_preset >= 0)
 		{
 			ini_file preset(_preset_files[_current_preset]);
-			const auto techniques = preset.get("", "Techniques").data();
-			LOG_INFO() << "Loading " << techniques.size() << " active techniques";
-			for (const auto &technique : techniques)
+			const auto effects = preset.get("", "Effects").data();
+			LOG_INFO() << "Loading " << effects.size() << " active effect files";
+			for (const auto &effect : effects)
 			{
-				LOG_INFO() << "Searching for technique file: " << technique;
+				LOG_INFO() << "Searching for effect file: " << effect;
 				for (const auto &search_path : _effect_search_paths)
 				{
-					auto effect_file = search_path / technique;
+					auto effect_file = search_path / effect;
 					LOG_INFO() << "> Checking " << effect_file;
 					if (exists(effect_file))
 					{
@@ -869,7 +870,7 @@ namespace reshade
 			});
 		for (auto &technique : _techniques)
 		{
-			technique.enabled = std::find(technique_list.begin(), technique_list.end(), technique.effect_filename) != technique_list.end();
+			technique.enabled = std::find(technique_list.begin(), technique_list.end(), technique.name) != technique_list.end();
 
 			const int toggle_key[4] = { technique.toggle_key, technique.toggle_key_ctrl ? 1 : 0, technique.toggle_key_shift ? 1 : 0, technique.toggle_key_alt ? 1 : 0 };
 			technique.toggle_key = preset.get("", "Key" + technique.name, toggle_key).as<int>(0);
@@ -907,22 +908,25 @@ namespace reshade
 		}
 
 		std::vector<std::string> technique_list, technique_sorting_list;
+		std::unordered_set<std::string> effects_files;
 
 		for (const auto &technique : _techniques)
 		{
 			if (technique.enabled)
 			{
-				technique_list.push_back(technique.effect_filename);
+				technique_list.push_back(technique.name);
+				effects_files.emplace(technique.effect_filename);
 			}
 
-			technique_sorting_list.push_back(technique.effect_filename);
+			technique_sorting_list.push_back(technique.name);
 
 			const int toggle_key[4] = { technique.toggle_key, technique.toggle_key_ctrl ? 1 : 0, technique.toggle_key_shift ? 1 : 0, technique.toggle_key_alt ? 1 : 0 };
 			preset.set("", "Key" + technique.name, toggle_key);
 		}
 
-		preset.set("", "Techniques", technique_list);
-		preset.set("", "TechniqueSorting", technique_sorting_list);
+		preset.set("", "Effects", variant(std::make_move_iterator(effects_files.cbegin()), std::make_move_iterator(effects_files.cend())));
+		preset.set("", "Techniques", std::move(technique_list));
+		preset.set("", "TechniqueSorting", std::move(technique_sorting_list));
 	}
 
 	void runtime::save_current_preset() const
