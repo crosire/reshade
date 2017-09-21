@@ -473,7 +473,7 @@ namespace reshade::opengl
 		runtime::on_present();
 
 		// Present image to VR headset
-		if (runtime::s_vr_system != nullptr)
+		if (runtime::s_vr_system_ref_count)
 		{
 			const vr::Texture_t submit_textures[2] = {
 				{ reinterpret_cast<void *>(static_cast<uintptr_t>(_default_backbuffer_rbo[0])), vr::TextureType_OpenGL, vr::ColorSpace_Gamma },

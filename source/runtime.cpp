@@ -22,8 +22,7 @@
 
 namespace reshade
 {
-	vr::IVRSystem *runtime::s_vr_system = nullptr;
-	static unsigned int s_vr_system_ref_count = 0;
+	unsigned int runtime::s_vr_system_ref_count = 0;
 	filesystem::path runtime::s_reshade_dll_path, runtime::s_target_executable_path;
 
 	runtime::runtime(uint32_t renderer) :
@@ -95,7 +94,7 @@ namespace reshade
 		{
 			vr::EVRInitError e = vr::VRInitError_None;
 
-			s_vr_system = vr::VR_Init(&e, vr::EVRApplicationType::VRApplication_Scene);
+			vr::VR_Init(&e, vr::EVRApplicationType::VRApplication_Scene);
 
 			if (e != vr::VRInitError_None || !vr::VRCompositor())
 			{

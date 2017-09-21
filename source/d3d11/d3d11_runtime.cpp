@@ -557,7 +557,7 @@ namespace reshade::d3d11
 		runtime::on_present();
 
 		// Present image to VR headset
-		if (runtime::s_vr_system != nullptr)
+		if (runtime::s_vr_system_ref_count)
 		{
 			const vr::Texture_t submit_textures[2] = {
 				{ _backbuffer_resolved.get(), vr::TextureType_DirectX, vr::ColorSpace_Gamma },
