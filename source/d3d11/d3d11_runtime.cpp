@@ -11,6 +11,7 @@
 #include "resource_loading.hpp"
 #include <imgui.h>
 #include <algorithm>
+#include <openvr.h>
 
 namespace reshade::d3d11
 {
@@ -554,6 +555,24 @@ namespace reshade::d3d11
 
 		// Apply presenting
 		runtime::on_present();
+
+		// Present image to VR headset
+		if (runtime::s_vr_system != nullptr)
+		{
+			const vr::Texture_t submit_textures[2] = {
+				{ _backbuffer_resolved.get(), vr::TextureType_DirectX, vr::ColorSpace_Gamma },
+				{ _backbuffer_resolved.get(), vr::TextureType_DirectX, vr::ColorSpace_Gamma }
+			};
+			const vr::VRTextureBounds_t submit_bounds[2] = {
+				{ 0.0f, 0.0f, 0.5f, 1.0f },
+				{ 0.5f, 0.0f, 1.0f, 1.0f }
+			};
+
+			vr::VRCompositor()->Submit(vr::Eye_Left, &submit_textures[0], &submit_bounds[0], vr::Submit_Default);
+			vr::VRCompositor()->Submit(vr::Eye_Right, &submit_textures[1], &submit_bounds[1], vr::Submit_Default);
+
+			vr::VRCompositor()->PostPresentHandoff();
+		}
 
 		// Copy to back buffer
 		if (_backbuffer_resolved != _backbuffer)

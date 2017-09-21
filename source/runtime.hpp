@@ -14,6 +14,11 @@ struct ImDrawData;
 struct ImFontAtlas;
 struct ImGuiContext;
 
+namespace vr
+{
+	class IVRSystem;
+}
+
 namespace reshade
 {
 	class input;
@@ -181,6 +186,7 @@ namespace reshade
 		uint64_t _framecount = 0;
 		unsigned int _drawcalls = 0, _vertices = 0;
 		std::shared_ptr<input> _input;
+		static vr::IVRSystem *s_vr_system;
 		ImGuiContext *_imgui_context = nullptr;
 		std::unique_ptr<ImFontAtlas> _imgui_font_atlas;
 		std::unique_ptr<base_object> _imgui_font_atlas_texture;

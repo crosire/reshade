@@ -18,9 +18,12 @@
 #define IMGUI_DEFINE_MATH_OPERATORS
 #include <imgui.h>
 #include <imgui_internal.h>
+#include <openvr.h>
 
 namespace reshade
 {
+	vr::IVRSystem *runtime::s_vr_system = nullptr;
+	static unsigned int s_vr_system_ref_count = 0;
 	filesystem::path runtime::s_reshade_dll_path, runtime::s_target_executable_path;
 
 	runtime::runtime(uint32_t renderer) :
@@ -86,6 +89,21 @@ namespace reshade
 			_imgui_font_atlas->AddFontDefault();
 
 		load_configuration();
+
+		// Initialize VR system
+		if (s_vr_system_ref_count++ == 0)
+		{
+			vr::EVRInitError e = vr::VRInitError_None;
+
+			s_vr_system = vr::VR_Init(&e, vr::EVRApplicationType::VRApplication_Scene);
+
+			if (e != vr::VRInitError_None || !vr::VRCompositor())
+			{
+				s_vr_system_ref_count = 0;
+
+				LOG(ERROR) << "Failed to initialize VR system with error code " << e << ".";
+			}
+		}
 	}
 	runtime::~runtime()
 	{
@@ -95,6 +113,12 @@ namespace reshade
 		ImGui::DestroyContext(_imgui_context);
 
 		assert(!_is_initialized && _techniques.empty());
+
+		// Shutdown VR system
+		if (s_vr_system_ref_count && --s_vr_system_ref_count == 0)
+		{
+			vr::VR_Shutdown();
+		}
 	}
 
 	bool runtime::on_init()
@@ -152,6 +176,14 @@ namespace reshade
 		_drawcalls = _vertices = 0;
 		_last_frame_duration = std::chrono::high_resolution_clock::now() - _last_present_time;
 		_last_present_time += _last_frame_duration;
+
+		// Get VR headset poses
+		vr::TrackedDevicePose_t poses[vr::k_unMaxTrackedDeviceCount] = { };
+
+		if (vr::VRCompositor()->WaitGetPoses(poses, vr::k_unMaxTrackedDeviceCount, nullptr, 0) == vr::EVRCompositorError::VRCompositorError_None)
+		{
+			// TODO
+		}
 
 		// Create and save screenshot if associated shortcut is down
 		if (!_screenshot_key_setting_active &&
