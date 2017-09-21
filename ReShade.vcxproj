@@ -50,6 +50,7 @@
   <ImportGroup Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
     <Import Project="deps\Windows.props" />
+    <Import Project="deps\OpenVR.props" />
     <Import Project="deps\MinHook.props" />
     <Import Project="deps\gl3w.props" />
     <Import Project="deps\stb.props" />
