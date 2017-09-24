@@ -192,6 +192,9 @@ namespace reshade
 	private:
 		struct key_shortcut { int keycode; bool ctrl, shift; };
 
+		void init_vr_system();
+		void shutdown_vr_system();
+
 		void reload();
 		void load_configuration();
 		void save_configuration() const;
@@ -211,6 +214,7 @@ namespace reshade
 		void filter_techniques(const std::string &filter);
 
 		const unsigned int _renderer_id;
+		bool _is_vr_enabled = false;
 		bool _is_initialized = false;
 		std::vector<filesystem::path> _effect_files, _preset_files, _effect_search_paths, _texture_search_paths;
 		std::chrono::high_resolution_clock::time_point _start_time, _last_reload_time, _last_present_time;

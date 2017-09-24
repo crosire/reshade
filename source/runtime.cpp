@@ -89,35 +89,18 @@ namespace reshade
 
 		load_configuration();
 
-		// Initialize VR system
-		if (s_vr_system_ref_count++ == 0)
-		{
-			vr::EVRInitError e = vr::VRInitError_None;
-
-			vr::VR_Init(&e, vr::EVRApplicationType::VRApplication_Scene);
-
-			if (e != vr::VRInitError_None || !vr::VRCompositor())
-			{
-				s_vr_system_ref_count = 0;
-
-				LOG(ERROR) << "Failed to initialize VR system with error code " << e << ".";
-			}
-		}
+		init_vr_system();
 	}
 	runtime::~runtime()
 	{
+		shutdown_vr_system();
+
 		ImGui::SetCurrentContext(_imgui_context);
 
 		ImGui::Shutdown();
 		ImGui::DestroyContext(_imgui_context);
 
 		assert(!_is_initialized && _techniques.empty());
-
-		// Shutdown VR system
-		if (s_vr_system_ref_count && --s_vr_system_ref_count == 0)
-		{
-			vr::VR_Shutdown();
-		}
 	}
 
 	bool runtime::on_init()
@@ -179,7 +162,8 @@ namespace reshade
 		// Get VR headset poses
 		vr::TrackedDevicePose_t poses[vr::k_unMaxTrackedDeviceCount] = { };
 
-		if (vr::VRCompositor()->WaitGetPoses(poses, vr::k_unMaxTrackedDeviceCount, nullptr, 0) == vr::EVRCompositorError::VRCompositorError_None)
+		if (vr::VRCompositor() &&
+			vr::VRCompositor()->WaitGetPoses(poses, vr::k_unMaxTrackedDeviceCount, nullptr, 0) == vr::EVRCompositorError::VRCompositorError_None)
 		{
 			// TODO
 		}
@@ -451,6 +435,30 @@ namespace reshade
 			const auto time_technique_finished = std::chrono::high_resolution_clock::now();
 
 			technique.average_duration.append(std::chrono::duration_cast<std::chrono::nanoseconds>(time_technique_finished - time_technique_started).count());
+		}
+	}
+
+	void runtime::init_vr_system()
+	{
+		if (_is_vr_enabled && s_vr_system_ref_count++ == 0)
+		{
+			vr::EVRInitError e = vr::VRInitError_None;
+
+			vr::VR_Init(&e, vr::EVRApplicationType::VRApplication_Scene);
+
+			if (e != vr::VRInitError_None || !vr::VRCompositor())
+			{
+				s_vr_system_ref_count = 0;
+
+				LOG(ERROR) << "Failed to initialize VR system with error code " << e << ".";
+			}
+		}
+	}
+	void runtime::shutdown_vr_system()
+	{
+		if (s_vr_system_ref_count && --s_vr_system_ref_count == 0)
+		{
+			vr::VR_Shutdown();
 		}
 	}
 
@@ -729,6 +737,8 @@ namespace reshade
 		auto &imgui_io = _imgui_context->IO;
 		imgui_io.FontGlobalScale = config.get("GENERAL", "FontGlobalScale", 1.0f).as<float>();
 
+		_is_vr_enabled = config.get("VR", "Enabled", _is_vr_enabled).as<bool>();
+
 		auto &imgui_style = _imgui_context->Style;
 		imgui_style.Alpha = config.get("STYLE", "Alpha", 0.95f).as<float>();
 
@@ -838,6 +848,8 @@ namespace reshade
 		config.set("GENERAL", "ScreenshotFormat", _screenshot_format);
 		config.set("GENERAL", "ShowClock", _show_clock);
 		config.set("GENERAL", "ShowFPS", _show_framerate);
+
+		config.set("VR", "Enabled", _is_vr_enabled);
 
 		const auto &style = _imgui_context->Style;
 		config.set("STYLE", "Alpha", style.Alpha);
@@ -1690,6 +1702,24 @@ namespace reshade
 				save_configuration();
 				load_configuration();
 			}
+		}
+
+		if (ImGui::CollapsingHeader("Virtual Reality", ImGuiTreeNodeFlags_DefaultOpen))
+		{
+			ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyle().Colors[_is_vr_enabled ? ImGuiCol_ButtonActive : ImGuiCol_Button]);
+
+			if (ImGui::Checkbox("Enable", &_is_vr_enabled))
+			{
+				if (_is_vr_enabled)
+					init_vr_system();
+				else
+					shutdown_vr_system();
+
+				save_configuration();
+				load_configuration();
+			}
+
+			ImGui::PopStyleColor();
 		}
 	}
 	void runtime::draw_overlay_menu_statistics()
