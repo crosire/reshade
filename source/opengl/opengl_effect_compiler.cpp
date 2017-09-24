@@ -393,7 +393,7 @@ namespace reshade::opengl
 			}
 			else
 			{
-				visit(_global_code, uniform);
+				visit(_global_code, uniform, true, true, false);
 
 				_global_code << ";\n";
 			}
@@ -535,9 +535,18 @@ namespace reshade::opengl
 		}
 	}
 
-	void opengl_effect_compiler::visit(std::stringstream &output, const type_node &type, bool with_qualifiers)
+	void opengl_effect_compiler::visit(std::stringstream &output, const type_node &type, bool with_qualifiers, bool with_inout)
 	{
-		if (with_qualifiers)
+		if (with_inout)
+		{
+			if (type.has_qualifier(type_node::qualifier_inout))
+				output << "inout ";
+			else if (type.has_qualifier(type_node::qualifier_in))
+				output << "in ";
+			else if (type.has_qualifier(type_node::qualifier_out))
+				output << "out ";
+		}
+		else if (with_qualifiers)
 		{
 			if (type.has_qualifier(type_node::qualifier_nointerpolation))
 				output << "flat ";
@@ -553,13 +562,6 @@ namespace reshade::opengl
 			else if (type.has_qualifier(type_node::qualifier_uniform))
 				output << "uniform ";
 		}
-
-		if (type.has_qualifier(type_node::qualifier_inout))
-			output << "inout ";
-		else if (type.has_qualifier(type_node::qualifier_in))
-			output << "in ";
-		else if (type.has_qualifier(type_node::qualifier_out))
-			output << "out ";
 
 		switch (type.basetype)
 		{
@@ -614,7 +616,7 @@ namespace reshade::opengl
 	{
 		if (!node->type.is_scalar())
 		{
-			visit(output, node->type, false);
+			visit(output, node->type, false, false);
 
 			output << '(';
 		}
@@ -693,7 +695,7 @@ namespace reshade::opengl
 				output << "--";
 				break;
 			case unary_expression_node::cast:
-				visit(output, node->type, false);
+				visit(output, node->type, false, false);
 				output << '(';
 				break;
 		}
@@ -993,7 +995,7 @@ namespace reshade::opengl
 				if (type1.basetype != type_node::datatype_int)
 				{
 					type1.basetype = type_node::datatype_int;
-					visit(output, type1, false);
+					visit(output, type1, false, false);
 					output << '(';
 				}
 
@@ -1012,7 +1014,7 @@ namespace reshade::opengl
 				if (type1.basetype != type_node::datatype_uint)
 				{
 					type1.basetype = type_node::datatype_uint;
-					visit(output, type1, false);
+					visit(output, type1, false, false);
 					output << '(';
 				}
 
@@ -1036,7 +1038,7 @@ namespace reshade::opengl
 				if (!type1.is_floating_point())
 				{
 					type1.basetype = type_node::datatype_float;
-					visit(output, type1, false);
+					visit(output, type1, false, false);
 					output << '(';
 				}
 
@@ -1055,7 +1057,7 @@ namespace reshade::opengl
 				if (!type1.is_floating_point())
 				{
 					type1.basetype = type_node::datatype_float;
-					visit(output, type1, false);
+					visit(output, type1, false, false);
 					output << '(';
 				}
 
@@ -1132,7 +1134,7 @@ namespace reshade::opengl
 				if (!type1.is_floating_point())
 				{
 					type1.basetype = type_node::datatype_float;
-					visit(output, type1, false);
+					visit(output, type1, false, false);
 					output << '(';
 				}
 
@@ -1213,7 +1215,7 @@ namespace reshade::opengl
 				if (!type1.is_floating_point())
 				{
 					type1.basetype = type_node::datatype_float;
-					visit(output, type1, false);
+					visit(output, type1, false, false);
 					output << '(';
 				}
 
@@ -1244,7 +1246,7 @@ namespace reshade::opengl
 				output << "(log2(" << cast1.first;
 				visit(output, node->arguments[0]);
 				output << cast1.second << ") / ";
-				visit(output, node->type, false);
+				visit(output, node->type, false, false);
 				output << "(2.302585093))";
 				break;
 			case intrinsic_expression_node::log2:
@@ -1295,7 +1297,7 @@ namespace reshade::opengl
 				if (!type1.is_floating_point())
 				{
 					type1.basetype = type_node::datatype_float;
-					visit(output, type1, false);
+					visit(output, type1, false, false);
 					output << '(';
 				}
 
@@ -1322,7 +1324,7 @@ namespace reshade::opengl
 				break;
 			case intrinsic_expression_node::rcp:
 				output << '(';
-				visit(output, node->type, false);
+				visit(output, node->type, false, false);
 				output << "(1.0) / ";
 				visit(output, node->arguments[0]);
 				output << ')';
@@ -1374,7 +1376,7 @@ namespace reshade::opengl
 				if (!type1.is_floating_point())
 				{
 					type1.basetype = type_node::datatype_float;
-					visit(output, type1, false);
+					visit(output, type1, false, false);
 					output << '(';
 				}
 
@@ -1570,7 +1572,7 @@ namespace reshade::opengl
 				if (!type1.is_floating_point())
 				{
 					type1.basetype = type_node::datatype_float;
-					visit(output, type1, false);
+					visit(output, type1, false, false);
 					output << '(';
 				}
 
@@ -1749,7 +1751,7 @@ namespace reshade::opengl
 			output << "transpose(";
 		}
 
-		visit(output, node->type, false);
+		visit(output, node->type, false, false);
 		output << '(';
 
 		for (size_t i = 0, count = node->arguments.size(); i < count; i++)
@@ -1775,7 +1777,7 @@ namespace reshade::opengl
 	}
 	void opengl_effect_compiler::visit(std::stringstream &output, const initializer_list_node *node, const type_node &type)
 	{
-		visit(output, type, false);
+		visit(output, type, false, false);
 
 		output << "[](";
 
@@ -1821,7 +1823,7 @@ namespace reshade::opengl
 
 		for (size_t i = 0, count = node->declarator_list.size(); i < count; i++)
 		{
-			visit(output, node->declarator_list[i], with_type);
+			visit(output, node->declarator_list[i], with_type, true, false);
 
 			if (i < count - 1)
 			{
@@ -2024,7 +2026,7 @@ namespace reshade::opengl
 		{
 			for (auto field : node->field_list)
 			{
-				visit(output, field);
+				visit(output, field, true, true, false);
 
 				output << ";\n";
 			}
@@ -2036,11 +2038,11 @@ namespace reshade::opengl
 
 		output << "};\n";
 	}
-	void opengl_effect_compiler::visit(std::stringstream &output, const variable_declaration_node *node, bool with_type, bool with_qualifiers)
+	void opengl_effect_compiler::visit(std::stringstream &output, const variable_declaration_node *node, bool with_type, bool with_qualifiers, bool with_inout)
 	{
 		if (with_type)
 		{
-			visit(output, node->type, with_qualifiers);
+			visit(output, node->type, with_qualifiers, with_inout);
 			output << ' ';
 		}
 
@@ -2080,13 +2082,13 @@ namespace reshade::opengl
 	{
 		_current_function = node;
 
-		visit(output, node->return_type, false);
+		visit(output, node->return_type, false, false);
 
 		output << ' ' << escape_name(node->unique_name) << '(';
 
 		for (size_t i = 0, count = node->parameter_list.size(); i < count; i++)
 		{
-			visit(output, node->parameter_list[i], true, false);
+			visit(output, node->parameter_list[i], true, false, true);
 
 			if (i < count - 1)
 			{
@@ -2185,7 +2187,7 @@ namespace reshade::opengl
 	}
 	void opengl_effect_compiler::visit_uniform(const variable_declaration_node *node)
 	{
-		visit(_global_uniforms, node->type, true);
+		visit(_global_uniforms, node->type, true, false);
 
 		_global_uniforms << ' ' << escape_name(node->unique_name);
 
@@ -2467,7 +2469,7 @@ namespace reshade::opengl
 			{
 				if (parameter->type.is_struct())
 				{
-					visit(source, parameter->type, false);
+					visit(source, parameter->type, false, false);
 
 					source << " _param_" << parameter->name;
 
@@ -2478,7 +2480,7 @@ namespace reshade::opengl
 
 					source << " = ";
 
-					visit(source, parameter->type, false);
+					visit(source, parameter->type, false, false);
 
 					source << '(';
 
@@ -2513,11 +2515,11 @@ namespace reshade::opengl
 
 			if (parameter->type.is_array())
 			{
-				visit(source, parameter->type, false);
+				visit(source, parameter->type, false, false);
 
 				source << " _param_" << parameter->name << "[] = ";
 
-				visit(source, parameter->type, false);
+				visit(source, parameter->type, false, false);
 
 				source << "[](";
 
@@ -2537,7 +2539,7 @@ namespace reshade::opengl
 
 		if (node->return_type.is_struct())
 		{
-			visit(source, node->return_type, false);
+			visit(source, node->return_type, false, false);
 
 			source << ' ';
 		}
@@ -2689,7 +2691,7 @@ namespace reshade::opengl
 
 			output << "layout(location = " << (location + i) << ") ";
 
-			visit(output, type, true);
+			visit(output, type, true, true);
 
 			output << ' ' + name;
 

@@ -28,7 +28,7 @@ namespace reshade::opengl
 
 		void visit(std::stringstream &output, const reshadefx::nodes::statement_node *node);
 		void visit(std::stringstream &output, const reshadefx::nodes::expression_node *node);
-		void visit(std::stringstream &output, const reshadefx::nodes::type_node &type, bool with_qualifiers = true);
+		void visit(std::stringstream &output, const reshadefx::nodes::type_node &type, bool with_qualifiers, bool with_inout);
 		void visit(std::stringstream &output, const reshadefx::nodes::lvalue_expression_node *node);
 		void visit(std::stringstream &output, const reshadefx::nodes::literal_expression_node *node);
 		void visit(std::stringstream &output, const reshadefx::nodes::expression_sequence_node *node);
@@ -54,7 +54,7 @@ namespace reshade::opengl
 		void visit(std::stringstream &output, const reshadefx::nodes::return_statement_node *node);
 		void visit(std::stringstream &output, const reshadefx::nodes::jump_statement_node *node);
 		void visit(std::stringstream &output, const reshadefx::nodes::struct_declaration_node *node);
-		void visit(std::stringstream &output, const reshadefx::nodes::variable_declaration_node *node, bool with_type = true, bool with_qualifiers = true);
+		void visit(std::stringstream &output, const reshadefx::nodes::variable_declaration_node *node, bool with_type, bool with_qualifiers, bool with_inout);
 		void visit(std::stringstream &output, const reshadefx::nodes::function_declaration_node *node);
 
 		void visit_texture(const reshadefx::nodes::variable_declaration_node *node);
