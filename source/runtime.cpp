@@ -19,6 +19,7 @@
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <openvr.h>
+#include <Windows.h>
 
 namespace reshade
 {
@@ -163,9 +164,31 @@ namespace reshade
 		vr::TrackedDevicePose_t poses[vr::k_unMaxTrackedDeviceCount] = { };
 
 		if (vr::VRCompositor() &&
-			vr::VRCompositor()->WaitGetPoses(poses, vr::k_unMaxTrackedDeviceCount, nullptr, 0) == vr::EVRCompositorError::VRCompositorError_None)
+			vr::VRCompositor()->WaitGetPoses(
+				poses, vr::k_unMaxTrackedDeviceCount, nullptr, 0) == vr::EVRCompositorError::VRCompositorError_None)
 		{
-			// TODO
+			for (vr::TrackedDeviceIndex_t i = 0; i < vr::k_unMaxTrackedDeviceCount; i++)
+			{
+				if (!poses[i].bPoseIsValid)
+				{
+					continue;
+				}
+
+				switch (vr::VRSystem()->GetTrackedDeviceClass(i))
+				{
+				case vr::TrackedDeviceClass_HMD:
+					INPUT input;
+					memset(&input, 0, sizeof(input));
+					input.type = INPUT_MOUSE;
+					input.mi.dx = -poses[i].vAngularVelocity.v[1] * _vr_angular_velocity_multiplier[0];
+					input.mi.dy = +poses[i].vAngularVelocity.v[0] * _vr_angular_velocity_multiplier[1];
+					input.mi.dwFlags = MOUSEEVENTF_MOVE | MOUSEEVENTF_MOVE_NOCOALESCE;
+					SendInput(1, &input, sizeof(input));
+					break;
+				case vr::TrackedDeviceClass_Controller:
+					break;
+				}
+			}
 		}
 
 		// Create and save screenshot if associated shortcut is down
@@ -738,6 +761,8 @@ namespace reshade
 		imgui_io.FontGlobalScale = config.get("GENERAL", "FontGlobalScale", 1.0f).as<float>();
 
 		_is_vr_enabled = config.get("VR", "Enabled", _is_vr_enabled).as<bool>();
+		_vr_angular_velocity_multiplier[0] = config.get("VR", "AngularVelocityMultiplier", _vr_angular_velocity_multiplier).as<float>(0);
+		_vr_angular_velocity_multiplier[1] = config.get("VR", "AngularVelocityMultiplier", _vr_angular_velocity_multiplier).as<float>(1);
 
 		auto &imgui_style = _imgui_context->Style;
 		imgui_style.Alpha = config.get("STYLE", "Alpha", 0.95f).as<float>();
@@ -850,6 +875,7 @@ namespace reshade
 		config.set("GENERAL", "ShowFPS", _show_framerate);
 
 		config.set("VR", "Enabled", _is_vr_enabled);
+		config.set("VR", "AngularVelocityMultiplier", _vr_angular_velocity_multiplier);
 
 		const auto &style = _imgui_context->Style;
 		config.set("STYLE", "Alpha", style.Alpha);
@@ -1715,6 +1741,12 @@ namespace reshade
 				else
 					shutdown_vr_system();
 
+				save_configuration();
+				load_configuration();
+			}
+
+			if (ImGui::DragFloat2("Angular Velocity Multiplier", _vr_angular_velocity_multiplier))
+			{
 				save_configuration();
 				load_configuration();
 			}
