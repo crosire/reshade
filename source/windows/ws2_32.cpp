@@ -74,29 +74,53 @@ HOOK_EXPORT int WSAAPI HookWSARecvFrom(SOCKET s, LPWSABUF lpBuffers, DWORD dwBuf
 
 HOOK_EXPORT int WSAAPI HookSend(SOCKET s, const char *buf, int len, int flags)
 {
-	DWORD result = 0;
-	WSABUF buffer = { static_cast<ULONG>(len), const_cast<CHAR *>(buf) };
+	static const auto trampoline = reshade::hooks::call(&HookSend);
 
-	return HookWSASend(s, &buffer, 1, &result, flags, nullptr, nullptr) == 0 ? static_cast<int>(result) : SOCKET_ERROR;
+	const auto num_bytes_send = trampoline(s, buf, len, flags);
+
+	if (num_bytes_send != SOCKET_ERROR)
+	{
+		InterlockedAdd(&g_network_traffic, num_bytes_send);
+	}
+
+	return num_bytes_send;
 }
 HOOK_EXPORT int WSAAPI HookSendTo(SOCKET s, const char *buf, int len, int flags, const struct sockaddr *to, int tolen)
 {
-	DWORD result = 0;
-	WSABUF buffer = { static_cast<ULONG>(len), const_cast<CHAR *>(buf) };
+	static const auto trampoline = reshade::hooks::call(&HookSendTo);
 
-	return HookWSASendTo(s, &buffer, 1, &result, flags, to, tolen, nullptr, nullptr) == 0 ? static_cast<int>(result) : SOCKET_ERROR;
+	const auto num_bytes_send = trampoline(s, buf, len, flags, to, tolen);
+
+	if (num_bytes_send != SOCKET_ERROR)
+	{
+		InterlockedAdd(&g_network_traffic, num_bytes_send);
+	}
+
+	return num_bytes_send;
 }
 HOOK_EXPORT int WSAAPI HookRecv(SOCKET s, char *buf, int len, int flags)
 {
-	DWORD result = 0, flags2 = flags;
-	WSABUF buffer = { static_cast<ULONG>(len), buf };
+	static const auto trampoline = reshade::hooks::call(&HookRecv);
 
-	return HookWSARecv(s, &buffer, 1, &result, &flags2, nullptr, nullptr) == 0 ? static_cast<int>(result) : SOCKET_ERROR;
+	const auto num_bytes_recieved = trampoline(s, buf, len, flags);
+
+	if (num_bytes_recieved != SOCKET_ERROR)
+	{
+		InterlockedAdd(&g_network_traffic, num_bytes_recieved);
+	}
+
+	return num_bytes_recieved;
 }
 HOOK_EXPORT int WSAAPI HookRecvFrom(SOCKET s, char *buf, int len, int flags, struct sockaddr *from, int *fromlen)
 {
-	DWORD result = 0, flags2 = flags;
-	WSABUF buffer = { static_cast<ULONG>(len), buf };
+	static const auto trampoline = reshade::hooks::call(&HookRecvFrom);
 
-	return HookWSARecvFrom(s, &buffer, 1, &result, &flags2, from, fromlen, nullptr, nullptr) == 0 ? static_cast<int>(result) : SOCKET_ERROR;
+	const auto num_bytes_recieved = trampoline(s, buf, len, flags, from, fromlen);
+
+	if (num_bytes_recieved != SOCKET_ERROR)
+	{
+		InterlockedAdd(&g_network_traffic, num_bytes_recieved);
+	}
+
+	return num_bytes_recieved;
 }
