@@ -78,7 +78,15 @@ HRESULT STDMETHODCALLTYPE IDirect3D9_CreateDevice(IDirect3D9 *pD3D, UINT Adapter
 		device->SetSoftwareVertexProcessing(TRUE);
 	}
 
-	if (DeviceType != D3DDEVTYPE_NULLREF)
+	if (pPresentationParameters->Flags & D3DPRESENTFLAG_VIDEO)
+	{
+		LOG(WARNING) << "> Skipping device due to video swapchain.";
+	}
+	else if (DeviceType == D3DDEVTYPE_NULLREF)
+	{
+		LOG(WARNING) << "> Skipping device due to device type being 'D3DDEVTYPE_NULLREF'.";
+	}
+	else
 	{
 		IDirect3DSwapChain9 *swapchain = nullptr;
 		device->GetSwapChain(0, &swapchain);
@@ -111,10 +119,6 @@ HRESULT STDMETHODCALLTYPE IDirect3D9_CreateDevice(IDirect3D9 *pD3D, UINT Adapter
 		// Upgrade to extended interface if available
 		com_ptr<IDirect3DDevice9Ex> deviceex;
 		device_proxy->QueryInterface(IID_PPV_ARGS(&deviceex));
-	}
-	else
-	{
-		LOG(WARNING) << "> Skipping device due to device type being 'D3DDEVTYPE_NULLREF'.";
 	}
 
 	LOG(INFO) << "Returning 'IDirect3DDevice9' object " << *ppReturnedDeviceInterface;
@@ -159,7 +163,15 @@ HRESULT STDMETHODCALLTYPE IDirect3D9Ex_CreateDeviceEx(IDirect3D9Ex *pD3D, UINT A
 		device->SetSoftwareVertexProcessing(TRUE);
 	}
 
-	if (DeviceType != D3DDEVTYPE_NULLREF)
+	if (pPresentationParameters->Flags & D3DPRESENTFLAG_VIDEO)
+	{
+		LOG(WARNING) << "> Skipping device due to video swapchain.";
+	}
+	else if (DeviceType == D3DDEVTYPE_NULLREF)
+	{
+		LOG(WARNING) << "> Skipping device due to device type being 'D3DDEVTYPE_NULLREF'.";
+	}
+	else
 	{
 		IDirect3DSwapChain9 *swapchain = nullptr;
 		device->GetSwapChain(0, &swapchain);
@@ -188,10 +200,6 @@ HRESULT STDMETHODCALLTYPE IDirect3D9Ex_CreateDeviceEx(IDirect3D9Ex *pD3D, UINT A
 			device->GetDepthStencilSurface(&device_proxy->_auto_depthstencil);
 			device_proxy->SetDepthStencilSurface(device_proxy->_auto_depthstencil);
 		}
-	}
-	else
-	{
-		LOG(WARNING) << "> Skipping device due to device type being 'D3DDEVTYPE_NULLREF'.";
 	}
 
 	LOG(INFO) << "Returning 'IDirect3DDevice9Ex' object " << *ppReturnedDeviceInterface;

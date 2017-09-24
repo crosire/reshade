@@ -27,7 +27,8 @@ namespace reshade::opengl
 	{
 		~opengl_pass_data()
 		{
-			glDeleteProgram(program);
+			if (program)
+				glDeleteProgram(program);
 			glDeleteFramebuffers(1, &fbo);
 		}
 
