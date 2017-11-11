@@ -38,7 +38,7 @@ namespace ReShade.Setup
 		}
 		void OnWindowLoaded(object sender, RoutedEventArgs e)
 		{
-			var args = Environment.GetCommandLineArgs();
+			var args = Environment.GetCommandLineArgs().Skip(1).ToArray();
 
 			bool hasApi = false;
 			bool hasTargetPath = false;
@@ -141,7 +141,7 @@ namespace ReShade.Setup
 					var startinfo = new ProcessStartInfo {
 						Verb = "runas",
 						FileName = Assembly.GetExecutingAssembly().Location,
-						Arguments = $"--add \"{dlg.FileName}\" --elevated --left {Left} --top {Top}"
+						Arguments = $"\"{dlg.FileName}\" --elevated --left {Left} --top {Top}"
 					};
 
 					Process.Start(startinfo);
