@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include <dxgi1_4.h>
+#include <dxgi1_5.h>
 
 #include "d3d10/d3d10_device.hpp"
 #include "d3d11/d3d11_device.hpp"
