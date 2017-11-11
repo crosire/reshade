@@ -9,7 +9,14 @@ namespace reshade
 {
 	struct hook
 	{
-		typedef void *address;
+		/// <summary>
+		/// Address of a function.
+		/// </summary>
+		using address = void *;
+
+		/// <summary>
+		/// Enumeration of status codes.
+		/// </summary>
 		enum class status
 		{
 			unknown = -1,
@@ -20,53 +27,47 @@ namespace reshade
 			memory_protection_failure,
 		};
 
-		hook();
-		hook(address target, address replacement);
+		/// <summary>
+		/// Actually enable or disable any queues hooks.
+		/// </summary>
+		static bool apply_queued_actions();
 
 		/// <summary>
 		/// Return whether the hook is valid.
 		/// </summary>
-		bool valid() const;
-		/// <summary>
-		/// Return whether the hook is currently enabled.
-		/// </summary>
-		bool enabled() const;
+		bool valid() const { return target != nullptr && replacement != nullptr && target != replacement; }
 		/// <summary>
 		/// Return whether the hook is currently installed.
 		/// </summary>
-		bool installed() const;
+		bool installed() const { return trampoline != nullptr; }
 		/// <summary>
 		/// Return whether the hook is not currently installed.
 		/// </summary>
-		bool uninstalled() const
-		{
-			return !installed();
-		}
+		bool uninstalled() const { return trampoline == nullptr; }
 
 		/// <summary>
-		/// Enable or disable the hook.
+		/// Enable or disable the hook. This queues the action for later execution in <see cref="apply_queued_actions"/>.
 		/// </summary>
 		/// <param name="enable">Boolean indicating if hook should be enabled or disabled.</param>
-		bool enable(bool enable = true) const;
+		void enable(bool enable) const;
 		/// <summary>
 		/// Install the hook.
 		/// </summary>
-		status install();
+		hook::status install();
 		/// <summary>
 		/// Uninstall the hook.
 		/// </summary>
-		status uninstall();
+		hook::status uninstall();
 
 		/// <summary>
 		/// Return the trampoline function address of the hook.
 		/// </summary>
 		address call() const;
 		template <typename T>
-		inline T call() const
-		{
-			return reinterpret_cast<T>(call());
-		}
+		T call() const { return reinterpret_cast<T>(call()); }
 
-		address target, replacement, trampoline;
+		address target = nullptr;
+		address trampoline = nullptr;
+		address replacement = nullptr;
 	};
 }

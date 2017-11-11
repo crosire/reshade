@@ -25,8 +25,9 @@ namespace reshade::hooks
 	/// </summary>
 	/// <param name="target">The address of the target function.</param>
 	/// <param name="replacement">The address of the hook function.</param>
+	/// <param name="queue_enable">Set this to true to queue the enable action instead of immediately executing it.</param>
 	/// <returns>The status of the hook installation.</returns>
-	bool install(hook::address target, hook::address replacement);
+	bool install(hook::address target, hook::address replacement, bool queue_enable = false);
 	/// <summary>
 	/// Install hook for the specified virtual function table entry.
 	/// </summary>
