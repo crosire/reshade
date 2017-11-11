@@ -13,13 +13,13 @@ using System.Net;
 using System.Reflection;
 using System.Windows;
 using System.Windows.Input;
-using System.Windows.Media;
 using Microsoft.Win32;
 
 namespace ReShade.Setup
 {
 	public partial class WizardWindow
 	{
+		bool _isHeadless = false;
 		bool _isElevated = false;
 		string _targetPath = null;
 		string _targetModulePath = null;
@@ -40,16 +40,63 @@ namespace ReShade.Setup
 		{
 			var args = Environment.GetCommandLineArgs();
 
-			if (args.Length > 2 && args[2] == "ELEVATED")
+			bool hasApi = false;
+			bool hasTargetPath = false;
+
+			for (int i = 0; i < args.Length; i++)
 			{
-				Top = double.Parse(args[3]);
-				Left = double.Parse(args[4]);
-				_isElevated = true;
+				if (args[i] == "--headless")
+				{
+					_isHeadless = true;
+					continue;
+				}
+				if (args[i] == "--elevated")
+				{
+					_isElevated = true;
+					continue;
+				}
+
+				if (i < args.Length - 1)
+				{
+					if (args[i] == "--api")
+					{
+						hasApi = true;
+
+						string api = args[++i];
+						ApiDirect3D9.IsChecked = api == "d3d9";
+						ApiDirectXGI.IsChecked = api == "dxgi" || api == "d3d10" || api == "d3d11";
+						ApiOpenGL.IsChecked = api == "opengl";
+						continue;
+					}
+
+					if (args[i] == "--top")
+					{
+						Top = double.Parse(args[++i]);
+						continue;
+					}
+					if (args[i] == "--left")
+					{
+						Left = double.Parse(args[++i]);
+						continue;
+					}
+				}
+
+				if (File.Exists(args[i]))
+				{
+					hasTargetPath = true;
+
+					_targetPath = args[i];
+				}
 			}
-			if (args.Length > 1 && File.Exists(args[1]))
+
+			if (hasTargetPath)
 			{
-				_targetPath = args[1];
 				InstallationStep1();
+
+				if (hasApi)
+				{
+					InstallationStep2();
+				}
 			}
 		}
 
@@ -94,7 +141,7 @@ namespace ReShade.Setup
 					var startinfo = new ProcessStartInfo {
 						Verb = "runas",
 						FileName = Assembly.GetExecutingAssembly().Location,
-						Arguments = "\"" + dlg.FileName + "\" ELEVATED " + Left + " " + Top
+						Arguments = $"--add \"{dlg.FileName}\" --elevated --left {Left} --top {Top}"
 					};
 
 					Process.Start(startinfo);
@@ -162,7 +209,7 @@ namespace ReShade.Setup
 			bool isApiDXGI = nameModule.StartsWith("dxgi", StringComparison.OrdinalIgnoreCase);
 			bool isApiOpenGL = nameModule.StartsWith("opengl32", StringComparison.OrdinalIgnoreCase);
 
-			if (isApiD3D8)
+			if (isApiD3D8 && !_isHeadless)
 			{
 				MessageBox.Show(this, "It looks like the target application uses Direct3D 8. You'll have to download an additional wrapper from 'http://reshade.me/d3d8to9' which converts all API calls to Direct3D 9 in order to use ReShade.", "Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
 			}
@@ -186,7 +233,7 @@ namespace ReShade.Setup
 
 			string pathModule = _targetModulePath = Path.Combine(Path.GetDirectoryName(_targetPath), nameModule);
 
-			if (File.Exists(pathModule) &&
+			if (File.Exists(pathModule) && !_isHeadless &&
 				MessageBox.Show(this, "Do you want to overwrite the existing installation?", string.Empty, MessageBoxButton.YesNo) != MessageBoxResult.Yes)
 			{
 				Title += " Failed!";
@@ -211,6 +258,11 @@ namespace ReShade.Setup
 				Title += " Failed!";
 				Message.Content = "Unable to write file \"" + pathModule + "\".";
 				Glass.HideSystemMenu(this, false);
+
+				if (_isHeadless)
+				{
+					Environment.Exit(1);
+				}
 				return;
 			}
 
@@ -218,7 +270,7 @@ namespace ReShade.Setup
 			Message.Content = "Done";
 			Glass.HideSystemMenu(this, false);
 
-			if (MessageBox.Show(this, "Do you wish to download a collection of standard effects from https://github.com/crosire/reshade-shaders?", string.Empty, MessageBoxButton.YesNo) == MessageBoxResult.Yes)
+			if (_isHeadless || MessageBox.Show(this, "Do you wish to download a collection of standard effects from https://github.com/crosire/reshade-shaders?", string.Empty, MessageBoxButton.YesNo) == MessageBoxResult.Yes)
 			{
 				InstallationStep3();
 			}
@@ -255,6 +307,11 @@ namespace ReShade.Setup
 						Title += " Failed!";
 						Message.Content = "Unable to download archive.";
 						Glass.HideSystemMenu(this, false);
+
+						if (_isHeadless)
+						{
+							Environment.Exit(1);
+						}
 					}
 					else
 					{
@@ -271,6 +328,11 @@ namespace ReShade.Setup
 				Title += " Failed!";
 				Message.Content = "Unable to download archive.";
 				Glass.HideSystemMenu(this, false);
+
+				if (_isHeadless)
+				{
+					Environment.Exit(1);
+				}
 			}
 		}
 		void InstallationStep4()
@@ -300,19 +362,27 @@ namespace ReShade.Setup
 				Title += " Failed!";
 				Message.Content = "Unable to extract downloaded archive.";
 				Glass.HideSystemMenu(this, false);
+
+				if (_isHeadless)
+				{
+					Environment.Exit(1);
+				}
 				return;
 			}
 
-			var wnd = new SelectWindow(Directory.GetFiles(Path.Combine(shadersDirectoryFinal, "Shaders")));
-			wnd.Owner = this;
-			wnd.ShowDialog();
-
-			foreach (var item in wnd.GetSelection())
+			if (!_isHeadless)
 			{
-				if (item.IsChecked)
-					continue;
+				var wnd = new SelectWindow(Directory.GetFiles(Path.Combine(shadersDirectoryFinal, "Shaders")));
+				wnd.Owner = this;
+				wnd.ShowDialog();
 
-				File.Delete(item.Path);
+				foreach (var item in wnd.GetSelection())
+				{
+					if (item.IsChecked)
+						continue;
+
+					File.Delete(item.Path);
+				}
 			}
 
 			string configFilePath = Path.ChangeExtension(_targetModulePath, ".ini");
@@ -327,6 +397,11 @@ namespace ReShade.Setup
 			Title += " Succeeded!";
 			Message.Content = "Done";
 			Glass.HideSystemMenu(this, false);
+
+			if (_isHeadless)
+			{
+				Environment.Exit(0);
+			}
 		}
 	}
 }
