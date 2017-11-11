@@ -7,7 +7,7 @@
 
 #include "dxgi.hpp"
 
-struct DXGISwapChain : IDXGISwapChain3
+struct DXGISwapChain : IDXGISwapChain4
 {
 	DXGISwapChain(D3D10Device *device, IDXGISwapChain *original, const std::shared_ptr<reshade::runtime> &runtime) :
 		_orig(original),
@@ -90,6 +90,9 @@ struct DXGISwapChain : IDXGISwapChain3
 	virtual HRESULT STDMETHODCALLTYPE CheckColorSpaceSupport(DXGI_COLOR_SPACE_TYPE ColorSpace, UINT *pColorSpaceSupport) override;
 	virtual HRESULT STDMETHODCALLTYPE SetColorSpace1(DXGI_COLOR_SPACE_TYPE ColorSpace) override;
 	virtual HRESULT STDMETHODCALLTYPE ResizeBuffers1(UINT BufferCount, UINT Width, UINT Height, DXGI_FORMAT Format, UINT SwapChainFlags, const UINT *pCreationNodeMask, IUnknown *const *ppPresentQueue) override;
+	#pragma endregion
+	#pragma region IDXGISwapChain4
+	virtual HRESULT STDMETHODCALLTYPE SetHDRMetaData(DXGI_HDR_METADATA_TYPE Type, UINT Size, void *pMetaData) override;
 	#pragma endregion
 
 	LONG _ref = 1;
