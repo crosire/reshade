@@ -5,11 +5,15 @@
 
 #include "d3d9_runtime.hpp"
 #include "d3d9_effect_compiler.hpp"
-#include "constant_folding.hpp"
 #include <assert.h>
 #include <iomanip>
 #include <algorithm>
 #include <d3dcompiler.h>
+
+namespace reshadefx
+{
+	void scalar_literal_cast(const nodes::literal_expression_node *from, size_t i, float &to);
+}
 
 namespace reshade::d3d9
 {

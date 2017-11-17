@@ -47,6 +47,7 @@ namespace reshadefx
 		pass_declaration,
 		technique_declaration,
 	};
+
 	class node abstract
 	{
 		void operator=(const node &) = delete;

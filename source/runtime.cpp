@@ -6,8 +6,8 @@
 #include "log.hpp"
 #include "version.h"
 #include "runtime.hpp"
-#include "parser.hpp"
-#include "preprocessor.hpp"
+#include "effect_parser.hpp"
+#include "effect_preprocessor.hpp"
 #include "input.hpp"
 #include "ini_file.hpp"
 #include <algorithm>
@@ -486,19 +486,18 @@ namespace reshade
 
 		if (!pp.run(path))
 		{
-			LOG(ERROR) << "Failed to preprocess " << path << ":\n" << pp.current_errors();
-			_errors += path.string() + ":\n" + pp.current_errors();
+			LOG(ERROR) << "Failed to preprocess " << path << ":\n" << pp.errors();
+			_errors += path.string() + ":\n" + pp.errors();
 			return;
 		}
 
-		std::string errors;
 		reshadefx::syntax_tree ast;
-		reshadefx::parser parser(ast, errors);
+		reshadefx::parser parser(ast);
 
 		if (!parser.run(pp.current_output()))
 		{
-			LOG(ERROR) << "Failed to compile " << path << ":\n" << errors;
-			_errors += path.string() + ":\n" + errors;
+			LOG(ERROR) << "Failed to compile " << path << ":\n" << parser.errors();
+			_errors += path.string() + ":\n" + parser.errors();
 			return;
 		}
 
@@ -540,6 +539,8 @@ namespace reshade
 				variable->type.qualifiers |= reshadefx::nodes::type_node::qualifier_static | reshadefx::nodes::type_node::qualifier_const;
 			}
 		}
+
+		std::string errors = parser.errors();
 
 		if (!load_effect(ast, errors))
 		{

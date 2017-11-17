@@ -5,8 +5,8 @@
 
 #pragma once
 
+#include "effect_syntax_tree_nodes.hpp"
 #include <list>
-#include "syntax_tree_nodes.hpp"
 
 namespace reshadefx
 {

@@ -6,26 +6,30 @@
 #pragma once
 
 #include <memory>
-#include "lexer.hpp"
-#include "syntax_tree.hpp"
+#include "effect_lexer.hpp"
+#include "effect_syntax_tree.hpp"
 
 namespace reshadefx
 {
-	#pragma region Forward Declarations
-	class symbol_table;
-	#pragma endregion
-
+	/// <summary>
+	/// A parser for the ReShade FX language.
+	/// </summary>
 	class parser
 	{
-		parser(const parser &) = delete;
-		parser &operator=(const parser &) = delete;
-
 	public:
 		/// <summary>
 		/// Construct a new parser instance.
 		/// </summary>
-		parser(syntax_tree &ast, std::string &errors);
+		explicit parser(syntax_tree &ast);
+		parser(const parser &) = delete;
 		~parser();
+
+		parser &operator=(const parser &) = delete;
+
+		/// <summary>
+		/// Gets the list of error messages.
+		/// </summary>
+		const std::string &errors() const { return _errors; }
 
 		/// <summary>
 		/// Parse the provided input string.
@@ -41,21 +45,21 @@ namespace reshadefx
 		void backup();
 		void restore();
 
-		bool peek(char tok) const;
-		bool peek(lexer::tokenid tokid) const;
+		bool peek(tokenid tokid) const;
+		bool peek(char tok) const { return peek(static_cast<tokenid>(tok)); }
 		bool peek_multary_op(enum nodes::binary_expression_node::op &op, unsigned int &precedence) const;
 		void consume();
-		void consume_until(char token);
-		void consume_until(lexer::tokenid tokid);
-		bool accept(char tok);
-		bool accept(lexer::tokenid tokid);
+		void consume_until(tokenid tokid);
+		void consume_until(char tok) { return consume_until(static_cast<tokenid>(tok)); }
+		bool accept(tokenid tokid);
+		bool accept(char tok) { return accept(static_cast<tokenid>(tok)); }
 		bool accept_type_class(nodes::type_node &type);
 		bool accept_type_qualifiers(nodes::type_node &type);
 		bool accept_unary_op(enum nodes::unary_expression_node::op &op);
 		bool accept_postfix_op(enum nodes::unary_expression_node::op &op);
 		bool accept_assignment_op(enum nodes::assignment_expression_node::op &op);
-		bool expect(char tok);
-		bool expect(lexer::tokenid tokid);
+		bool expect(tokenid tokid);
+		bool expect(char tok) { return expect(static_cast<tokenid>(tok)); }
 
 		bool parse_top_level();
 		bool parse_namespace();
@@ -80,9 +84,9 @@ namespace reshadefx
 		bool parse_technique_pass_expression(nodes::expression_node *&expression);
 
 		syntax_tree &_ast;
-		std::string &_errors;
+		std::string _errors;
 		std::unique_ptr<lexer> _lexer, _lexer_backup;
-		lexer::token _token, _token_next, _token_backup;
-		std::unique_ptr<symbol_table> _symbol_table;
+		token _token, _token_next, _token_backup;
+		std::unique_ptr<class symbol_table> _symbol_table;
 	};
 }

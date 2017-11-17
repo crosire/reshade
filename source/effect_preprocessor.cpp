@@ -3,7 +3,7 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-#include "preprocessor.hpp"
+#include "effect_preprocessor.hpp"
 #include <fstream>
 #include <assert.h>
 
@@ -127,7 +127,7 @@ namespace reshadefx
 
 		consume();
 	}
-	bool preprocessor::peek(lexer::tokenid token) const
+	bool preprocessor::peek(tokenid token) const
 	{
 		assert(!_input_stack.empty());
 
@@ -146,7 +146,7 @@ namespace reshadefx
 		input_level._offset = input_level._next_token.offset;
 
 		// Pop input level if lexical analysis has reached the end of it
-		while (_input_stack.top()._next_token == lexer::tokenid::end_of_file)
+		while (_input_stack.top()._next_token == tokenid::end_of_file)
 		{
 			if (!current_if_stack().empty())
 			{
@@ -168,16 +168,16 @@ namespace reshadefx
 			}
 		}
 	}
-	void preprocessor::consume_until(lexer::tokenid token)
+	void preprocessor::consume_until(tokenid token)
 	{
-		while (!accept(token) && !peek(lexer::tokenid::end_of_file))
+		while (!accept(token) && !peek(tokenid::end_of_file))
 		{
 			consume();
 		}
 	}
-	bool preprocessor::accept(lexer::tokenid token)
+	bool preprocessor::accept(tokenid token)
 	{
-		while (peek(lexer::tokenid::space))
+		while (peek(tokenid::space))
 		{
 			consume();
 		}
@@ -191,7 +191,7 @@ namespace reshadefx
 
 		return false;
 	}
-	bool preprocessor::expect(lexer::tokenid token)
+	bool preprocessor::expect(tokenid token)
 	{
 		if (!accept(token))
 		{
@@ -222,35 +222,35 @@ namespace reshadefx
 
 			switch (current_token())
 			{
-				case lexer::tokenid::hash_if:
+				case tokenid::hash_if:
 					parse_if();
-					if (!expect(lexer::tokenid::end_of_line))
-						consume_until(lexer::tokenid::end_of_line);
+					if (!expect(tokenid::end_of_line))
+						consume_until(tokenid::end_of_line);
 					continue;
-				case lexer::tokenid::hash_ifdef:
+				case tokenid::hash_ifdef:
 					parse_ifdef();
-					if (!expect(lexer::tokenid::end_of_line))
-						consume_until(lexer::tokenid::end_of_line);
+					if (!expect(tokenid::end_of_line))
+						consume_until(tokenid::end_of_line);
 					continue;
-				case lexer::tokenid::hash_ifndef:
+				case tokenid::hash_ifndef:
 					parse_ifndef();
-					if (!expect(lexer::tokenid::end_of_line))
-						consume_until(lexer::tokenid::end_of_line);
+					if (!expect(tokenid::end_of_line))
+						consume_until(tokenid::end_of_line);
 					continue;
-				case lexer::tokenid::hash_else:
+				case tokenid::hash_else:
 					parse_else();
-					if (!expect(lexer::tokenid::end_of_line))
-						consume_until(lexer::tokenid::end_of_line);
+					if (!expect(tokenid::end_of_line))
+						consume_until(tokenid::end_of_line);
 					continue;
-				case lexer::tokenid::hash_elif:
+				case tokenid::hash_elif:
 					parse_elif();
-					if (!expect(lexer::tokenid::end_of_line))
-						consume_until(lexer::tokenid::end_of_line);
+					if (!expect(tokenid::end_of_line))
+						consume_until(tokenid::end_of_line);
 					continue;
-				case lexer::tokenid::hash_endif:
+				case tokenid::hash_endif:
 					parse_endif();
-					if (!expect(lexer::tokenid::end_of_line))
-						consume_until(lexer::tokenid::end_of_line);
+					if (!expect(tokenid::end_of_line))
+						consume_until(tokenid::end_of_line);
 					continue;
 			}
 
@@ -261,40 +261,40 @@ namespace reshadefx
 
 			switch (current_token())
 			{
-				case lexer::tokenid::hash_def:
+				case tokenid::hash_def:
 					parse_def();
-					if (!expect(lexer::tokenid::end_of_line))
-						consume_until(lexer::tokenid::end_of_line);
+					if (!expect(tokenid::end_of_line))
+						consume_until(tokenid::end_of_line);
 					continue;
-				case lexer::tokenid::hash_undef:
+				case tokenid::hash_undef:
 					parse_undef();
-					if (!expect(lexer::tokenid::end_of_line))
-						consume_until(lexer::tokenid::end_of_line);
+					if (!expect(tokenid::end_of_line))
+						consume_until(tokenid::end_of_line);
 					continue;
-				case lexer::tokenid::hash_error:
+				case tokenid::hash_error:
 					parse_error();
-					if (!expect(lexer::tokenid::end_of_line))
-						consume_until(lexer::tokenid::end_of_line);
+					if (!expect(tokenid::end_of_line))
+						consume_until(tokenid::end_of_line);
 					continue;
-				case lexer::tokenid::hash_warning:
+				case tokenid::hash_warning:
 					parse_warning();
-					if (!expect(lexer::tokenid::end_of_line))
-						consume_until(lexer::tokenid::end_of_line);
+					if (!expect(tokenid::end_of_line))
+						consume_until(tokenid::end_of_line);
 					continue;
-				case lexer::tokenid::hash_pragma:
+				case tokenid::hash_pragma:
 					parse_pragma();
-					if (!expect(lexer::tokenid::end_of_line))
-						consume_until(lexer::tokenid::end_of_line);
+					if (!expect(tokenid::end_of_line))
+						consume_until(tokenid::end_of_line);
 					continue;
-				case lexer::tokenid::hash_include:
+				case tokenid::hash_include:
 					parse_include();
 					continue;
-				case lexer::tokenid::hash_unknown:
+				case tokenid::hash_unknown:
 					error(current_token().location, "unrecognized preprocessing directive '" + current_token().literal_as_string + "'");
-					consume_until(lexer::tokenid::end_of_line);
+					consume_until(tokenid::end_of_line);
 					continue;
 
-				case lexer::tokenid::end_of_line:
+				case tokenid::end_of_line:
 					if (line.empty())
 					{
 						continue;
@@ -307,7 +307,7 @@ namespace reshadefx
 					line.clear();
 					continue;
 
-				case lexer::tokenid::identifier:
+				case tokenid::identifier:
 					if (evaluate_identifier_as_macro())
 					{
 						continue;
@@ -322,7 +322,7 @@ namespace reshadefx
 	}
 	void preprocessor::parse_def()
 	{
-		if (!expect(lexer::tokenid::identifier))
+		if (!expect(tokenid::identifier))
 		{
 			return;
 		}
@@ -340,21 +340,21 @@ namespace reshadefx
 
 		if (current_lexer().input_string()[macro_name_end_offset] == '(')
 		{
-			accept(lexer::tokenid::parenthesis_open);
+			accept(tokenid::parenthesis_open);
 
 			m.is_function_like = true;
 
-			while (accept(lexer::tokenid::identifier))
+			while (accept(tokenid::identifier))
 			{
 				m.parameters.push_back(current_token().literal_as_string);
 
-				if (!accept(lexer::tokenid::comma))
+				if (!accept(tokenid::comma))
 				{
 					break;
 				}
 			}
 
-			if (accept(lexer::tokenid::ellipsis))
+			if (accept(tokenid::ellipsis))
 			{
 				m.is_variadic = true;
 				m.parameters.push_back("__VA_ARGS__");
@@ -364,7 +364,7 @@ namespace reshadefx
 				return;
 			}
 
-			if (!expect(lexer::tokenid::parenthesis_close))
+			if (!expect(tokenid::parenthesis_close))
 			{
 				return;
 			}
@@ -380,7 +380,7 @@ namespace reshadefx
 	}
 	void preprocessor::parse_undef()
 	{
-		if (!expect(lexer::tokenid::identifier))
+		if (!expect(tokenid::identifier))
 		{
 			return;
 		}
@@ -416,7 +416,7 @@ namespace reshadefx
 		if_level level;
 		level.token = current_token();
 
-		if (!expect(lexer::tokenid::identifier))
+		if (!expect(tokenid::identifier))
 		{
 			return;
 		}
@@ -436,7 +436,7 @@ namespace reshadefx
 		if_level level;
 		level.token = current_token();
 
-		if (!expect(lexer::tokenid::identifier))
+		if (!expect(tokenid::identifier))
 		{
 			return;
 		}
@@ -458,7 +458,7 @@ namespace reshadefx
 			error(keyword_location, "missing #if for #elif");
 			return;
 		}
-		if (current_if_level().token == lexer::tokenid::hash_else)
+		if (current_if_level().token == tokenid::hash_else)
 		{
 			error(keyword_location, "#elif is not allowed after #else");
 			return;
@@ -484,7 +484,7 @@ namespace reshadefx
 			error(keyword_location, "missing #if for #else");
 			return;
 		}
-		if (current_if_level().token == lexer::tokenid::hash_else)
+		if (current_if_level().token == tokenid::hash_else)
 		{
 			error(keyword_location, "#else is not allowed after #else");
 			return;
@@ -515,7 +515,7 @@ namespace reshadefx
 	{
 		const auto keyword_location = current_token().location;
 				
-		if (!expect(lexer::tokenid::string_literal))
+		if (!expect(tokenid::string_literal))
 		{
 			return;
 		}
@@ -526,7 +526,7 @@ namespace reshadefx
 	{
 		const auto keyword_location = current_token().location;
 
-		if (!expect(lexer::tokenid::string_literal))
+		if (!expect(tokenid::string_literal))
 		{
 			return;
 		}
@@ -535,24 +535,24 @@ namespace reshadefx
 	}
 	void preprocessor::parse_pragma()
 	{
-		if (!expect(lexer::tokenid::identifier))
+		if (!expect(tokenid::identifier))
 		{
 			return;
 		}
 
 		std::string pragma = current_token().literal_as_string;
 
-		while (!peek(lexer::tokenid::end_of_line) && !peek(lexer::tokenid::end_of_file))
+		while (!peek(tokenid::end_of_line) && !peek(tokenid::end_of_file))
 		{
 			consume();
 
 			switch (current_token())
 			{
-				case lexer::tokenid::int_literal:
-				case lexer::tokenid::uint_literal:
+				case tokenid::int_literal:
+				case tokenid::uint_literal:
 					pragma += std::to_string(current_token().literal_as_int);
 					break;
-				case lexer::tokenid::identifier:
+				case tokenid::identifier:
 					if (evaluate_identifier_as_macro())
 					{
 						continue;
@@ -579,19 +579,19 @@ namespace reshadefx
 	{
 		const auto keyword_location = current_token().location;
 
-		while (accept(lexer::tokenid::identifier))
+		while (accept(tokenid::identifier))
 		{
 			if (!evaluate_identifier_as_macro())
 			{
 				error(current_token().location, "syntax error: unexpected identifier in #include");
-				consume_until(lexer::tokenid::end_of_line);
+				consume_until(tokenid::end_of_line);
 				return;
 			}
 		}
 
-		if (!expect(lexer::tokenid::string_literal))
+		if (!expect(tokenid::string_literal))
 		{
-			consume_until(lexer::tokenid::end_of_line);
+			consume_until(tokenid::end_of_line);
 			return;
 		}
 
@@ -612,7 +612,7 @@ namespace reshadefx
 			if (!file.is_open())
 			{
 				error(keyword_location, "could not open included file '" + filepath.string() + "'");
-				consume_until(lexer::tokenid::end_of_line);
+				consume_until(tokenid::end_of_line);
 				return;
 			}
 
@@ -663,11 +663,11 @@ namespace reshadefx
 		int stack[128];
 		rpn_token rpn[128];
 		size_t stack_count = 0, rpn_count = 0;
-		lexer::tokenid previous_token = current_token();
+		tokenid previous_token = current_token();
 		const int precedence[] = { 0, 1, 2, 3, 4, 5, 6, 7, 7, 7, 7, 8, 8, 9, 9, 10, 10, 10, 11, 11, 11, 11 };
 
 		// Run shunting-yard algorithm
-		while (!peek(lexer::tokenid::end_of_line))
+		while (!peek(tokenid::end_of_line))
 		{
 			if (stack_count >= _countof(stack) || rpn_count >= _countof(rpn))
 			{
@@ -682,90 +682,90 @@ namespace reshadefx
 
 			switch (current_token())
 			{
-				case lexer::tokenid::exclaim:
+				case tokenid::exclaim:
 					op = op_not;
 					is_left_associative = false;
 					break;
-				case lexer::tokenid::percent:
+				case tokenid::percent:
 					op = op_modulo;
 					break;
-				case lexer::tokenid::ampersand:
+				case tokenid::ampersand:
 					op = op_bitand;
 					break;
-				case lexer::tokenid::star:
+				case tokenid::star:
 					op = op_multiply;
 					break;
-				case lexer::tokenid::plus:
+				case tokenid::plus:
 					is_left_associative =
-						previous_token == lexer::tokenid::int_literal ||
-						previous_token == lexer::tokenid::uint_literal ||
-						previous_token == lexer::tokenid::identifier ||
-						previous_token == lexer::tokenid::parenthesis_close;
+						previous_token == tokenid::int_literal ||
+						previous_token == tokenid::uint_literal ||
+						previous_token == tokenid::identifier ||
+						previous_token == tokenid::parenthesis_close;
 					op = is_left_associative ? op_add : op_plus;
 					break;
-				case lexer::tokenid::minus:
+				case tokenid::minus:
 					is_left_associative =
-						previous_token == lexer::tokenid::int_literal ||
-						previous_token == lexer::tokenid::uint_literal ||
-						previous_token == lexer::tokenid::identifier ||
-						previous_token == lexer::tokenid::parenthesis_close;
+						previous_token == tokenid::int_literal ||
+						previous_token == tokenid::uint_literal ||
+						previous_token == tokenid::identifier ||
+						previous_token == tokenid::parenthesis_close;
 					op = is_left_associative ? op_subtract : op_negate;
 					break;
-				case lexer::tokenid::slash:
+				case tokenid::slash:
 					op = op_divide;
 					break;
-				case lexer::tokenid::less:
+				case tokenid::less:
 					op = op_less;
 					break;
-				case lexer::tokenid::greater:
+				case tokenid::greater:
 					op = op_greater;
 					break;
-				case lexer::tokenid::caret:
+				case tokenid::caret:
 					op = op_bitxor;
 					break;
-				case lexer::tokenid::pipe:
+				case tokenid::pipe:
 					op = op_bitor;
 					break;
-				case lexer::tokenid::tilde:
+				case tokenid::tilde:
 					op = op_bitnot;
 					is_left_associative = false;
 					break;
-				case lexer::tokenid::exclaim_equal:
+				case tokenid::exclaim_equal:
 					op = op_not_equal;
 					break;
-				case lexer::tokenid::ampersand_ampersand:
+				case tokenid::ampersand_ampersand:
 					op = op_and;
 					break;
-				case lexer::tokenid::less_less:
+				case tokenid::less_less:
 					op = op_leftshift;
 					break;
-				case lexer::tokenid::less_equal:
+				case tokenid::less_equal:
 					op = op_less_equal;
 					break;
-				case lexer::tokenid::equal_equal:
+				case tokenid::equal_equal:
 					op = op_equal;
 					break;
-				case lexer::tokenid::greater_greater:
+				case tokenid::greater_greater:
 					op = op_rightshift;
 					break;
-				case lexer::tokenid::greater_equal:
+				case tokenid::greater_equal:
 					op = op_greater_equal;
 					break;
-				case lexer::tokenid::pipe_pipe:
+				case tokenid::pipe_pipe:
 					op = op_or;
 					break;
 			}
 
 			switch (current_token())
 			{
-				case lexer::tokenid::space:
+				case tokenid::space:
 					continue;
-				case lexer::tokenid::parenthesis_open:
+				case tokenid::parenthesis_open:
 				{
 					stack[stack_count++] = op_parentheses;
 					break;
 				}
-				case lexer::tokenid::parenthesis_close:
+				case tokenid::parenthesis_close:
 				{
 					bool matched = false;
 
@@ -790,7 +790,7 @@ namespace reshadefx
 					}
 					break;
 				}
-				case lexer::tokenid::identifier:
+				case tokenid::identifier:
 				{
 					if (evaluate_identifier_as_macro())
 					{
@@ -798,9 +798,9 @@ namespace reshadefx
 					}
 					else if (current_token().literal_as_string == "exists")
 					{
-						const bool has_parentheses = accept(lexer::tokenid::parenthesis_open);
+						const bool has_parentheses = accept(tokenid::parenthesis_open);
 
-						while (accept(lexer::tokenid::identifier))
+						while (accept(tokenid::identifier))
 						{
 							if (!evaluate_identifier_as_macro())
 							{
@@ -809,7 +809,7 @@ namespace reshadefx
 							}
 						}
 
-						if (!expect(lexer::tokenid::string_literal))
+						if (!expect(tokenid::string_literal))
 						{
 							return false;
 						}
@@ -817,7 +817,7 @@ namespace reshadefx
 						const filesystem::path filename = current_token().literal_as_string;
 						const filesystem::path filename_with_current_directory = filesystem::path(_output_location.source).remove_filename() / filename;
 
-						if (has_parentheses && !expect(lexer::tokenid::parenthesis_close))
+						if (has_parentheses && !expect(tokenid::parenthesis_close))
 						{
 							return false;
 						}
@@ -828,16 +828,16 @@ namespace reshadefx
 					}
 					else if (current_token().literal_as_string == "defined")
 					{
-						const bool has_parentheses = accept(lexer::tokenid::parenthesis_open);
+						const bool has_parentheses = accept(tokenid::parenthesis_open);
 
-						if (!expect(lexer::tokenid::identifier))
+						if (!expect(tokenid::identifier))
 						{
 							return false;
 						}
 
 						const bool is_macro_defined = _macros.find(current_token().literal_as_string) != _macros.end();
 
-						if (has_parentheses && !expect(lexer::tokenid::parenthesis_close))
+						if (has_parentheses && !expect(tokenid::parenthesis_close))
 						{
 							return false;
 						}
@@ -852,8 +852,8 @@ namespace reshadefx
 					rpn[rpn_count++].value = 0;
 					break;
 				}
-				case lexer::tokenid::int_literal:
-				case lexer::tokenid::uint_literal:
+				case tokenid::int_literal:
+				case tokenid::uint_literal:
 				{
 					rpn[rpn_count].is_op = false;
 					rpn[rpn_count++].value = current_token().literal_as_int;
@@ -982,7 +982,7 @@ namespace reshadefx
 
 		if (macro.is_function_like)
 		{
-			if (!accept(lexer::tokenid::parenthesis_open))
+			if (!accept(tokenid::parenthesis_open))
 			{
 				return false;
 			}
@@ -996,13 +996,13 @@ namespace reshadefx
 				{
 					consume();
 
-					if (current_token() == lexer::tokenid::parenthesis_open)
+					if (current_token() == tokenid::parenthesis_open)
 					{
 						parentheses_level++;
 					}
 					else if (
-						(current_token() == lexer::tokenid::parenthesis_close && --parentheses_level < 0) ||
-						(current_token() == lexer::tokenid::comma && parentheses_level == 0))
+						(current_token() == tokenid::parenthesis_close && --parentheses_level < 0) ||
+						(current_token() == tokenid::comma && parentheses_level == 0))
 					{
 						break;
 					}
@@ -1052,11 +1052,11 @@ namespace reshadefx
 						break;
 					case macro_replacement_argument:
 						push(arguments.at(*++it) + static_cast<char>(macro_replacement_argument));
-						while (!accept(lexer::tokenid::unknown))
+						while (!accept(tokenid::unknown))
 						{
 							consume();
 
-							if (current_token() == lexer::tokenid::identifier && evaluate_identifier_as_macro())
+							if (current_token() == tokenid::identifier && evaluate_identifier_as_macro())
 							{
 								continue;
 							}
@@ -1081,17 +1081,17 @@ namespace reshadefx
 			return;
 		}
 
-		while (!peek(lexer::tokenid::end_of_file) && !peek(lexer::tokenid::end_of_line))
+		while (!peek(tokenid::end_of_file) && !peek(tokenid::end_of_line))
 		{
 			consume();
 
 			switch (current_token())
 			{
-				case lexer::tokenid::hash:
+				case tokenid::hash:
 				{
-					if (accept(lexer::tokenid::hash))
+					if (accept(tokenid::hash))
 					{
-						if (peek(lexer::tokenid::end_of_line))
+						if (peek(tokenid::end_of_line))
 						{
 							error(current_token().location, "## cannot appear at end of macro text");
 							return;
@@ -1104,7 +1104,7 @@ namespace reshadefx
 					}
 					else if (macro.is_function_like)
 					{
-						if (!expect(lexer::tokenid::identifier))
+						if (!expect(tokenid::identifier))
 						{
 							return;
 						}
@@ -1125,16 +1125,16 @@ namespace reshadefx
 					}
 					break;
 				}
-				case lexer::tokenid::backslash:
+				case tokenid::backslash:
 				{
-					if (peek(lexer::tokenid::end_of_line))
+					if (peek(tokenid::end_of_line))
 					{
 						consume();
 						continue;
 					}
 					break;
 				}
-				case lexer::tokenid::identifier:
+				case tokenid::identifier:
 				{
 					const auto it = std::find(macro.parameters.begin(), macro.parameters.end(), current_token().literal_as_string);
 

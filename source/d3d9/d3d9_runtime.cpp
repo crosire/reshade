@@ -6,7 +6,7 @@
 #include "log.hpp"
 #include "d3d9_runtime.hpp"
 #include "d3d9_effect_compiler.hpp"
-#include "lexer.hpp"
+#include "effect_lexer.hpp"
 #include "input.hpp"
 #include <imgui.h>
 #include <algorithm>
