@@ -1561,7 +1561,7 @@ namespace reshade::d3d11
 		desc.MinLOD = node->properties.min_lod;
 		desc.MaxLOD = node->properties.max_lod;
 
-		const auto texture = _runtime->find_texture(node->properties.texture->name);
+		const auto texture = _runtime->find_texture(node->properties.texture->unique_name);
 
 		if (texture == nullptr)
 		{
@@ -1707,7 +1707,7 @@ namespace reshade::d3d11
 				continue;
 			}
 
-			const auto texture = _runtime->find_texture(node->render_targets[i]->name);
+			const auto texture = _runtime->find_texture(node->render_targets[i]->unique_name);
 
 			if (texture == nullptr)
 			{

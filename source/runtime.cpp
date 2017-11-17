@@ -637,7 +637,7 @@ namespace reshade
 
 			if (!filesystem::exists(path))
 			{
-				_errors += "Source '" + path.string() + "' for texture '" + texture.name + "' could not be found.";
+				_errors += "Source '" + path.string() + "' for texture '" + texture.name + "' could not be found.\n";
 
 				LOG(ERROR) << "> Source " << path << " for texture '" << texture.name << "' could not be found.";
 				continue;

@@ -88,8 +88,8 @@ namespace reshade
 		/// <summary>
 		/// Find the texture with the specified name.
 		/// </summary>
-		/// <param name="name">The name of the texture.</param>
-		texture *find_texture(const std::string &name);
+		/// <param name="unique_name">The name of the texture.</param>
+		texture *find_texture(const std::string &unique_name);
 
 		/// <summary>
 		/// Return a reference to the internal uniform storage buffer.

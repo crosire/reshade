@@ -536,46 +536,64 @@ namespace reshadefx
 
 	bool symbol_table::insert(symbol symbol, bool global)
 	{
+		// Make sure the symbol does not exist yet
 		if (symbol->id != nodeid::function_declaration && find(symbol->name, _current_scope, true))
 		{
 			return false;
 		}
 
+		// Insertion routine which keeps the symbol stack sorted by namespace level
+		const auto insert_sorted = [](auto &vec, const auto &item) {
+			return vec.insert(
+				std::upper_bound(vec.begin(), vec.end(), item,
+					[](auto lhs, auto rhs) {
+						return lhs.first.namespace_level < rhs.first.namespace_level;
+					}), item);
+		};
+
+		// Global symbols are accessible from every scope
 		if (global)
 		{
 			scope scope = { "", 0, 0 };
 
+			// Walk scope chain from global scope back to current one
 			for (size_t pos = 0; pos != std::string::npos; pos = _current_scope.name.find("::", pos))
 			{
-				pos += 2;
+				// Extract scope name
+				scope.name = _current_scope.name.substr(0, pos += 2);
+				const auto previous_scope_name = _current_scope.name.substr(pos);
 
-				scope.name = _current_scope.name.substr(0, pos);
+				// Insert symbol into this scope
+				insert_sorted(_symbol_stack[previous_scope_name + symbol->name], std::make_pair(scope, symbol));
 
-				_symbol_stack[_current_scope.name.substr(pos) + symbol->name].emplace_back(scope, symbol);
-
+				// Continue walking up the scope chain
 				scope.level = ++scope.namespace_level;
 			}
 		}
 		else
 		{
-			_symbol_stack[symbol->name].emplace_back(_current_scope, symbol);
+			// This is a local symbol so it's sufficient to update the symbol stack with just the current scope
+			insert_sorted(_symbol_stack[symbol->name], std::make_pair(_current_scope, symbol));
 		}
 
 		return true;
 	}
 	symbol symbol_table::find(const std::string &name) const
 	{
+		// Default to start search with current scope and walk back the scope chain
 		return find(name, _current_scope, false);
 	}
 	symbol symbol_table::find(const std::string &name, const scope &scope, bool exclusive) const
 	{
 		const auto it = _symbol_stack.find(name);
 
+		// Check if symbol does exist
 		if (it == _symbol_stack.end() || it->second.empty())
 		{
 			return nullptr;
 		}
 
+		// Walk up the scope chain starting at the requested scope level and find a matching symbol
 		symbol result = nullptr;
 		const auto &scope_list = it->second;
 
