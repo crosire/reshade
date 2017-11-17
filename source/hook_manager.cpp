@@ -8,6 +8,7 @@
 #include <assert.h>
 #include <mutex>
 #include <algorithm>
+#include <tuple>
 #include <vector>
 #include <unordered_map>
 #include <Windows.h>
@@ -77,15 +78,13 @@ namespace
 	}
 
 	reshade::filesystem::path s_export_hook_path;
-	std::vector<std::pair<reshade::hook, hook_method>> s_hooks; std::mutex s_mutex_hooks;
+	std::vector<std::tuple<const char *, reshade::hook, hook_method>> s_hooks; std::mutex s_mutex_hooks;
 	std::vector<reshade::filesystem::path> s_delayed_hook_paths; std::mutex s_mutex_delayed_hook_paths;
 	std::unordered_map<reshade::hook::address, reshade::hook::address *> s_vtable_addresses; std::mutex s_mutex_vtable_addresses;
 
-	bool install_internal(reshade::hook::address target, reshade::hook::address replacement, hook_method method)
+	bool install_internal(const char *name, reshade::hook &hook, hook_method method)
 	{
-		LOG(INFO) << "Installing hook for '0x" << target << "' with '0x" << replacement << "' using method " << static_cast<int>(method) << " ...";
-
-		reshade::hook hook { target, target, replacement };
+		LOG(INFO) << "Installing hook for '" << name << "' at 0x" << hook.target << " with 0x" << hook.replacement << " using method " << static_cast<int>(method) << " ...";
 
 		auto status = reshade::hook::status::unknown;
 
@@ -104,11 +103,11 @@ namespace
 			case hook_method::vtable_hook:
 			{
 				DWORD protection = PAGE_READWRITE;
-				const auto target_address = s_vtable_addresses.at(target);
+				const auto target_address = s_vtable_addresses.at(hook.target);
 
 				if (VirtualProtect(target_address, sizeof(*target_address), protection, &protection))
 				{
-					*target_address = replacement;
+					*target_address = hook.replacement;
 
 					VirtualProtect(target_address, sizeof(*target_address), protection, &protection);
 
@@ -124,7 +123,7 @@ namespace
 
 		if (status != reshade::hook::status::success)
 		{
-			LOG(ERROR) << "Failed to install hook for '0x" << target << "' with status code " << static_cast<int>(status) << ".";
+			LOG(ERROR) << "Failed to install hook for '" << name << "' with status code " << static_cast<int>(status) << ".";
 
 			return false;
 		}
@@ -132,7 +131,7 @@ namespace
 		LOG(INFO) << "> Succeeded.";
 
 		{ const std::lock_guard<std::mutex> lock(s_mutex_hooks);
-			s_hooks.emplace_back(std::move(hook), method);
+			s_hooks.push_back(std::make_tuple(name, hook, method));
 		}
 
 		return true;
@@ -154,7 +153,7 @@ namespace
 		}
 
 		size_t install_count = 0;
-		std::vector<std::pair<reshade::hook::address, reshade::hook::address>> matches;
+		std::vector<std::tuple<const char *, reshade::hook::address, reshade::hook::address>> matches;
 		matches.reserve(replacement_exports.size());
 
 		LOG(INFO) << "> Dumping matches in export table:";
@@ -183,7 +182,7 @@ namespace
 			{
 				LOG(INFO) << "  | 0x" << std::setw(16) << symbol.address << " | " << std::setw(7) << symbol.ordinal << " | " << std::setw(50) << symbol.name << " |";
 
-				matches.push_back({ symbol.address, it->address });
+				matches.push_back(std::make_tuple(symbol.name, symbol.address, it->address));
 			}
 		}
 
@@ -193,7 +192,12 @@ namespace
 		// Hook matching exports
 		for (const auto &match : matches)
 		{
-			if (install_internal(match.first, match.second, method))
+			reshade::hook hook;
+			hook.target = std::get<1>(match);
+			hook.trampoline = hook.target;
+			hook.replacement = std::get<2>(match);
+
+			if (install_internal(std::get<0>(match), hook, method))
 			{
 				install_count++;
 			}
@@ -201,9 +205,9 @@ namespace
 
 		return install_count != 0;
 	}
-	bool uninstall_internal(reshade::hook &hook, hook_method method)
+	bool uninstall_internal(const char *name, reshade::hook &hook, hook_method method)
 	{
-		LOG(INFO) << "Uninstalling hook for '0x" << hook.target << "' ...";
+		LOG(INFO) << "Uninstalling hook for '" << name << "' ...";
 
 		if (hook.uninstalled())
 		{
@@ -251,7 +255,7 @@ namespace
 
 		if (status != reshade::hook::status::success)
 		{
-			LOG(WARNING) << "Failed to uninstall hook for '0x" << hook.target << "' with status code " << static_cast<int>(status) << ".";
+			LOG(WARNING) << "Failed to uninstall hook for '" << name << "' with status code " << static_cast<int>(status) << ".";
 
 			return false;
 		}
@@ -267,10 +271,10 @@ namespace
 	{ const std::lock_guard<std::mutex> lock(s_mutex_hooks);
 		const auto it = std::find_if(s_hooks.cbegin(), s_hooks.cend(),
 			[replacement](const auto &hook) {
-				return hook.first.replacement == replacement;
+				return std::get<1>(hook).replacement == replacement;
 			});
 
-		return it != s_hooks.cend() ? it->first : reshade::hook { };
+		return it != s_hooks.cend() ? std::get<1>(*it) : reshade::hook { };
 	}
 	template <typename T>
 	inline T call_unchecked(T replacement)
@@ -291,7 +295,7 @@ namespace
 
 		{ const std::lock_guard<std::mutex> lock(s_mutex_delayed_hook_paths);
 			const auto remove = std::remove_if(s_delayed_hook_paths.begin(), s_delayed_hook_paths.end(),
-				[lpFileName](const reshade::filesystem::path &path) {
+				[lpFileName](const auto &path) {
 				HMODULE delayed_handle = nullptr;
 
 				if (!is_module_loaded(path, delayed_handle))
@@ -333,7 +337,7 @@ namespace
 
 		{ const std::lock_guard<std::mutex> lock(s_mutex_delayed_hook_paths);
 			const auto remove = std::remove_if(s_delayed_hook_paths.begin(), s_delayed_hook_paths.end(),
-				[lpFileName](const reshade::filesystem::path &path) {
+				[lpFileName](const auto &path) {
 				HMODULE delayed_handle = nullptr;
 
 				if (!is_module_loaded(path, delayed_handle))
@@ -364,7 +368,7 @@ namespace
 	}
 }
 
-bool reshade::hooks::install(hook::address target, hook::address replacement, bool queue_enable)
+bool reshade::hooks::install(const char *name, hook::address target, hook::address replacement, bool queue_enable)
 {
 	assert(target != nullptr);
 	assert(replacement != nullptr);
@@ -374,16 +378,21 @@ bool reshade::hooks::install(hook::address target, hook::address replacement, bo
 		return false;
 	}
 
-	const hook hook = find_internal(replacement);
+	hook hook = find_internal(replacement);
 
 	if (hook.installed())
 	{
 		return target == hook.target;
 	}
+	else
+	{
+		hook.target = target;
+		hook.replacement = replacement;
+	}
 
-	return install_internal(target, replacement, hook_method::function_hook) && (!queue_enable || hook::apply_queued_actions());
+	return install_internal(name, hook, hook_method::function_hook) && (!queue_enable || hook::apply_queued_actions());
 }
-bool reshade::hooks::install(hook::address vtable[], unsigned int offset, hook::address replacement)
+bool reshade::hooks::install(const char *name, hook::address vtable[], unsigned int offset, hook::address replacement)
 {
 	assert(vtable != nullptr);
 	assert(replacement != nullptr);
@@ -399,7 +408,9 @@ bool reshade::hooks::install(hook::address vtable[], unsigned int offset, hook::
 
 		if (insert.second)
 		{
-			if (target != replacement && install_internal(target, replacement, hook_method::vtable_hook))
+			hook hook { target, target, replacement };
+
+			if (target != replacement && install_internal(name, hook, hook_method::vtable_hook))
 			{
 				return true;
 			}
@@ -419,27 +430,29 @@ void reshade::hooks::uninstall()
 	LOG(INFO) << "Uninstalling " << s_hooks.size() << " hook(s) ...";
 
 	// Disable all hooks in a single batch job
-	for (auto &hook : s_hooks)
+	for (auto &hook_info : s_hooks)
 	{
-		hook.first.enable(false);
+		const hook &hook = std::get<1>(hook_info);
+
+		hook.enable(false);
 	}
 
 	hook::apply_queued_actions();
 
 	// Afterwards remove all hooks from the list
-	for (auto &hook : s_hooks)
+	for (auto &hook_info : s_hooks)
 	{
-		uninstall_internal(hook.first, hook.second);
+		uninstall_internal(std::get<0>(hook_info), std::get<1>(hook_info), std::get<2>(hook_info));
 	}
 
 	s_hooks.clear();
 }
 void reshade::hooks::register_module(const filesystem::path &target_path)
 {
-	install(reinterpret_cast<hook::address>(&LoadLibraryA), reinterpret_cast<hook::address>(&HookLoadLibraryA), true);
-	install(reinterpret_cast<hook::address>(&LoadLibraryExA), reinterpret_cast<hook::address>(&HookLoadLibraryExA), true);
-	install(reinterpret_cast<hook::address>(&LoadLibraryW), reinterpret_cast<hook::address>(&HookLoadLibraryW), true);
-	install(reinterpret_cast<hook::address>(&LoadLibraryExW), reinterpret_cast<hook::address>(&HookLoadLibraryExW), true);
+	install("LoadLibraryA", reinterpret_cast<hook::address>(&LoadLibraryA), reinterpret_cast<hook::address>(&HookLoadLibraryA), true);
+	install("LoadLibraryExA", reinterpret_cast<hook::address>(&LoadLibraryExA), reinterpret_cast<hook::address>(&HookLoadLibraryExA), true);
+	install("LoadLibraryW", reinterpret_cast<hook::address>(&LoadLibraryW), reinterpret_cast<hook::address>(&HookLoadLibraryW), true);
+	install("LoadLibraryExW", reinterpret_cast<hook::address>(&LoadLibraryExW), reinterpret_cast<hook::address>(&HookLoadLibraryExW), true);
 
 	hook::apply_queued_actions();
 
