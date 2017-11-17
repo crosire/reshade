@@ -397,7 +397,7 @@ namespace reshade
 				{
 					technique.enabled = false;
 					technique.timeleft = 0;
-					technique.average_duration.clear();
+					technique.average_cpu_duration.clear();
 				}
 			}
 			else if (!_toggle_key_setting_active &&
@@ -410,7 +410,7 @@ namespace reshade
 
 			if (!technique.enabled)
 			{
-				technique.average_duration.clear();
+				technique.average_cpu_duration.clear();
 				continue;
 			}
 
@@ -420,7 +420,7 @@ namespace reshade
 
 			const auto time_technique_finished = std::chrono::high_resolution_clock::now();
 
-			technique.average_duration.append(std::chrono::duration_cast<std::chrono::nanoseconds>(time_technique_finished - time_technique_started).count());
+			technique.average_cpu_duration.append(std::chrono::duration_cast<std::chrono::nanoseconds>(time_technique_finished - time_technique_started).count());
 		}
 	}
 
@@ -1708,29 +1708,56 @@ namespace reshade
 	}
 	void runtime::draw_overlay_menu_statistics()
 	{
-		const float fps = ImGui::GetIO().Framerate;
-
 		if (ImGui::CollapsingHeader("General", ImGuiTreeNodeFlags_DefaultOpen))
 		{
-			ImGui::Text("Application: %X", std::hash<std::string>()(s_target_executable_path.filename_without_extension().string()));
-			ImGui::Text("Date: %d-%d-%d %d", _date[0], _date[1], _date[2], _date[3]);
-			ImGui::Text("Device: %X %d", _vendor_id, _device_id);
-			ImGui::Text("FPS: %.2f", fps);
 			ImGui::PushItemWidth(-1);
-			ImGui::PlotLines("##framerate", _imgui_context->FramerateSecPerFrame, 120, _imgui_context->FramerateSecPerFrameIdx, nullptr, _imgui_context->FramerateSecPerFrameAccum / 120 * 0.5f, _imgui_context->FramerateSecPerFrameAccum / 120 * 1.5f, ImVec2(0, 50));
+			ImGui::PlotLines("##framerate",
+				_imgui_context->FramerateSecPerFrame, 120,
+				_imgui_context->FramerateSecPerFrameIdx,
+				nullptr,
+				_imgui_context->FramerateSecPerFrameAccum / 120 * 0.5f,
+				_imgui_context->FramerateSecPerFrameAccum / 120 * 1.5f,
+				ImVec2(0, 50));
 			ImGui::PopItemWidth();
+
 			uint64_t post_processing_time = 0;
+
 			for (const auto &technique : _techniques)
-				post_processing_time += technique.average_duration;
-			ImGui::Text("Post-Processing: %f ms", (post_processing_time * 1e-6f));
-			ImGui::Text("Draw Calls: %u (%u vertices)", _drawcalls, _vertices);
-			ImGui::Text("Frame %llu: %f ms", _framecount + 1, _last_frame_duration.count() * 1e-6f);
-			ImGui::Text("Timer: %f ms", std::fmod(std::chrono::duration_cast<std::chrono::nanoseconds>(_last_present_time - _start_time).count() * 1e-6f, 16777216.0f));
-			ImGui::Text("Network (traffic per frame): %u B", g_network_traffic);
+			{
+				post_processing_time += technique.average_cpu_duration;
+			}
+
+			ImGui::BeginGroup();
+			ImGui::TextUnformatted("Application:");
+			ImGui::TextUnformatted("Date:");
+			ImGui::TextUnformatted("Device:");
+			ImGui::TextUnformatted("FPS:");
+			ImGui::TextUnformatted("Post-Processing:");
+			ImGui::TextUnformatted("Draw Calls:");
+			ImGui::Text("Frame %llu:", _framecount + 1);
+			ImGui::TextUnformatted("Timer:");
+			ImGui::TextUnformatted("Network:");
+			ImGui::EndGroup();
+
+			ImGui::SameLine(ImGui::GetWindowWidth() * 0.333f);
+
+			ImGui::BeginGroup();
+			ImGui::Text("%X", std::hash<std::string>()(s_target_executable_path.filename_without_extension().string()));
+			ImGui::Text("%d-%d-%d %d", _date[0], _date[1], _date[2], _date[3]);
+			ImGui::Text("%X %d", _vendor_id, _device_id);
+			ImGui::Text("%.2f", ImGui::GetIO().Framerate);
+			ImGui::Text("%f ms (CPU)", (post_processing_time * 1e-6f));
+			ImGui::Text("%u (%u vertices)", _drawcalls, _vertices);
+			ImGui::Text("%f ms", _last_frame_duration.count() * 1e-6f);
+			ImGui::Text("%f ms", std::fmod(std::chrono::duration_cast<std::chrono::nanoseconds>(_last_present_time - _start_time).count() * 1e-6f, 16777216.0f));
+			ImGui::Text("%u B", g_network_traffic);
+			ImGui::EndGroup();
 		}
 
 		if (ImGui::CollapsingHeader("Textures", ImGuiTreeNodeFlags_DefaultOpen))
 		{
+			ImGui::BeginGroup();
+
 			for (const auto &texture : _textures)
 			{
 				if (texture.impl_reference != texture_reference::none)
@@ -1738,18 +1765,87 @@ namespace reshade
 					continue;
 				}
 
-				ImGui::Text("%s: %ux%u+%u (~%u kB)", texture.name.c_str(), texture.width, texture.height, (texture.levels - 1), (texture.width * texture.height * 4) / 1000);
+				ImGui::Text("%s", texture.name.c_str());
 			}
+
+			ImGui::EndGroup();
+			ImGui::SameLine(ImGui::GetWindowWidth() * 0.333f);
+			ImGui::BeginGroup();
+
+			for (const auto& texture : _textures)
+			{
+				if (texture.impl_reference != texture_reference::none)
+				{
+					continue;
+				}
+
+				ImGui::Text("%ux%u +%u ", texture.width, texture.height, (texture.levels - 1));
+			}
+
+			ImGui::EndGroup();
+			ImGui::SameLine(ImGui::GetWindowWidth() * 0.666f);
+			ImGui::BeginGroup();
+
+			for (const auto& texture : _textures)
+			{
+				if (texture.impl_reference != texture_reference::none)
+				{
+					continue;
+				}
+
+				ImGui::Text("~%u kB", (texture.width * texture.height * 4) / 1024);
+			}
+
+			ImGui::EndGroup();
 		}
 
 		if (ImGui::CollapsingHeader("Techniques", ImGuiTreeNodeFlags_DefaultOpen))
 		{
+			ImGui::BeginGroup();
+
 			for (const auto &technique : _techniques)
 			{
-				const float duration_in_ms = technique.average_duration * 1e-6f;
-				const float estimated_fps_cost = fps * fps * duration_in_ms * 0.001f;
-				ImGui::Text("%s (%u passes): %f ms (~%.2f FPS cost)", technique.name.c_str(), static_cast<unsigned int>(technique.passes.size()), duration_in_ms, estimated_fps_cost);
+				if (technique.enabled)
+				{
+					if (technique.passes.size() > 1)
+					{
+						ImGui::Text("%s (%u passes)", technique.name.c_str(), static_cast<unsigned int>(technique.passes.size()));
+					}
+					else
+					{
+						ImGui::Text("%s", technique.name.c_str());
+					}
+				}
+				else
+				{
+					if (technique.passes.size() > 1)
+					{
+						ImGui::TextDisabled("%s (%u passes)", technique.name.c_str(), static_cast<unsigned int>(technique.passes.size()));
+					}
+					else
+					{
+						ImGui::TextDisabled("%s", technique.name.c_str());
+					}
+				}
 			}
+
+			ImGui::EndGroup();
+			ImGui::SameLine(ImGui::GetWindowWidth() * 0.333f);
+			ImGui::BeginGroup();
+
+			for (const auto &technique : _techniques)
+			{
+				if (technique.enabled)
+				{
+					ImGui::Text("%f ms (CPU)", (technique.average_cpu_duration * 1e-6f));
+				}
+				else
+				{
+					ImGui::TextUnformatted(" ");
+				}
+			}
+
+			ImGui::EndGroup();
 		}
 	}
 	void runtime::draw_overlay_menu_about()
