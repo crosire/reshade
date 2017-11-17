@@ -183,7 +183,7 @@ namespace reshade
 					load_preset(_preset_files[_current_preset]);
 				}
 
-				if (strcmp(_effect_filter_buffer, "Search") != 0)
+				if (_effect_filter_buffer[0] != '\0' && strcmp(_effect_filter_buffer, "Search") != 0)
 				{
 					filter_techniques(_effect_filter_buffer);
 				}
@@ -1922,25 +1922,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 				continue;
 			}
 
-			if (current_filename != technique.effect_filename)
-			{
-				if (!current_tree_is_closed)
-					ImGui::TreePop();
-				if (_effects_expanded_state & 1)
-					ImGui::SetNextTreeNodeOpen((_effects_expanded_state >> 1) != 0);
-
-				current_filename = technique.effect_filename;
-				std::string effectNodeLabel = technique.effect_filename + "##filename" + std::to_string(i);
-				current_tree_is_closed = !ImGui::TreeNodeEx(effectNodeLabel.c_str(), ImGuiTreeNodeFlags_DefaultOpen);
-			}
-			if (current_tree_is_closed)
-			{
-				continue;
-			}
-
 			ImGui::PushID(id);
 
-			if (ImGui::Checkbox(technique.name.c_str(), &technique.enabled) && _current_preset >= 0)
+			const std::string label = technique.name + " [" + technique.effect_filename + "]";
+
+			if (ImGui::Checkbox(label.c_str(), &technique.enabled) && _current_preset >= 0)
 			{
 				save_preset(_preset_files[_current_preset]);
 			}
