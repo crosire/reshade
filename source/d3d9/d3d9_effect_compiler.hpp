@@ -5,9 +5,9 @@
 
 #pragma once
 
+#include "effect_syntax_tree.hpp"
 #include <sstream>
 #include <unordered_set>
-#include "syntax_tree.hpp"
 
 namespace reshade::d3d9
 {

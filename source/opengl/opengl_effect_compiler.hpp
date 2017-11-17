@@ -5,8 +5,8 @@
 
 #pragma once
 
+#include "effect_syntax_tree.hpp"
 #include <sstream>
-#include "syntax_tree.hpp"
 
 namespace reshade::opengl
 {

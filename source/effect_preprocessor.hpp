@@ -9,11 +9,14 @@
 #include <vector>
 #include <unordered_map>
 #include <memory>
-#include "lexer.hpp"
+#include "effect_lexer.hpp"
 #include "filesystem.hpp"
 
 namespace reshadefx
 {
+	/// <summary>
+	/// A C-style pre-processor implementation.
+	/// </summary>
 	class preprocessor
 	{
 	public:
@@ -28,8 +31,8 @@ namespace reshadefx
 		bool add_macro_definition(const std::string &name, const macro &macro);
 		bool add_macro_definition(const std::string &name, const std::string &value = "1");
 
+		const std::string &errors() const { return _errors; }
 		const std::string &current_output() const { return _output; }
-		const std::string &current_errors() const { return _errors; }
 		const std::vector<std::string> &current_pragmas() const { return _pragmas; }
 
 		bool run(const reshade::filesystem::path &file_path);
@@ -38,7 +41,7 @@ namespace reshadefx
 	private:
 		struct if_level
 		{
-			lexer::token token;
+			token token;
 			bool value, skipping;
 			if_level *parent;
 		};
@@ -49,13 +52,13 @@ namespace reshadefx
 				_lexer(new lexer(text, false, false, true, false)),
 				_parent(parent)
 			{
-				_next_token.id = lexer::tokenid::unknown;
+				_next_token.id = tokenid::unknown;
 				_next_token.offset = _next_token.length = 0;
 			}
 
 			std::string _name;
 			std::unique_ptr<lexer> _lexer;
-			lexer::token _next_token;
+			token _next_token;
 			size_t _offset;
 			std::stack<if_level> _if_stack;
 			input_level *_parent;
@@ -65,15 +68,15 @@ namespace reshadefx
 		void warning(const location &location, const std::string &message);
 
 		lexer &current_lexer();
-		inline lexer::token current_token() const { return _token; }
+		inline token current_token() const { return _token; }
 		std::stack<if_level> &current_if_stack();
 		if_level &current_if_level();
 		void push(const std::string &input, const std::string &name = std::string());
-		bool peek(lexer::tokenid token) const;
+		bool peek(tokenid token) const;
 		void consume();
-		void consume_until(lexer::tokenid token);
-		bool accept(lexer::tokenid token);
-		bool expect(lexer::tokenid token);
+		void consume_until(tokenid token);
+		bool accept(tokenid token);
+		bool expect(tokenid token);
 
 		void parse();
 		void parse_def();
@@ -96,7 +99,7 @@ namespace reshadefx
 		void create_macro_replacement_list(macro &macro);
 
 		bool _success = true;
-		lexer::token _token;
+		token _token;
 		std::stack<input_level> _input_stack;
 		location _output_location;
 		std::string _output, _errors, _current_token_raw_data;

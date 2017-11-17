@@ -6,7 +6,7 @@
 #include "log.hpp"
 #include "d3d11_runtime.hpp"
 #include "d3d11_effect_compiler.hpp"
-#include "lexer.hpp"
+#include "effect_lexer.hpp"
 #include "input.hpp"
 #include "resource_loading.hpp"
 #include <imgui.h>

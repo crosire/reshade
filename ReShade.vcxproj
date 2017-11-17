@@ -223,7 +223,7 @@
     <ClCompile Include="source\ini_file.cpp" />
     <ClCompile Include="source\input.cpp" />
     <ClCompile Include="source\log.cpp" />
-    <ClCompile Include="source\main.cpp" />
+    <ClCompile Include="source\dllmain.cpp" />
     <ClCompile Include="source\opengl\opengl.cpp" />
     <ClCompile Include="source\opengl\opengl_effect_compiler.cpp" />
     <ClCompile Include="source\opengl\opengl_runtime.cpp" />
@@ -272,7 +272,7 @@
     <ClInclude Include="source\resource_loading.hpp" />
     <ClInclude Include="source\runtime.hpp" />
     <ClInclude Include="source\runtime_objects.hpp" />
-    <ClInclude Include="source\unicode.hpp" />
+    <ClInclude Include="source\string_codecvt.hpp" />
     <ClInclude Include="source\variant.hpp" />
   </ItemGroup>
   <ItemGroup>
