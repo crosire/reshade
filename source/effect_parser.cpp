@@ -1225,6 +1225,7 @@ namespace reshadefx
 
 			if (accept(tokenid::colon_colon))
 			{
+				scope.name = "::";
 				scope.namespace_level = scope.level = 0;
 				exclusive = true;
 			}

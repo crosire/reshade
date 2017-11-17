@@ -1483,7 +1483,7 @@ namespace reshade::d3d9
 	}
 	void d3d9_effect_compiler::visit_sampler(const variable_declaration_node *node)
 	{
-		const auto texture = _runtime->find_texture(node->properties.texture->name);
+		const auto texture = _runtime->find_texture(node->properties.texture->unique_name);
 
 		if (texture == nullptr)
 		{
@@ -1724,7 +1724,7 @@ namespace reshade::d3d9
 				break;
 			}
 
-			const auto texture = _runtime->find_texture(node->render_targets[i]->name);
+			const auto texture = _runtime->find_texture(node->render_targets[i]->unique_name);
 
 			if (texture == nullptr)
 			{
