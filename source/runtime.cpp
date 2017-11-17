@@ -873,7 +873,8 @@ namespace reshade
 			});
 		for (auto &technique : _techniques)
 		{
-			technique.enabled = std::find(technique_list.begin(), technique_list.end(), technique.name) != technique_list.end();
+			// Ignore preset if "enabled" annotation is set
+			technique.enabled = technique.annotations["enabled"].as<bool>() || std::find(technique_list.begin(), technique_list.end(), technique.name) != technique_list.end();
 
 			const int toggle_key[4] = { technique.toggle_key, technique.toggle_key_ctrl ? 1 : 0, technique.toggle_key_shift ? 1 : 0, technique.toggle_key_alt ? 1 : 0 };
 			technique.toggle_key = preset.get("", "Key" + technique.name, toggle_key).as<int>(0);
