@@ -54,6 +54,8 @@ namespace reshade
 		auto &imgui_style = _imgui_context->Style;
 		imgui_io.Fonts = _imgui_font_atlas.get();
 		imgui_io.IniFilename = nullptr;
+		imgui_io.GetClipboardTextFn = nullptr; // Disabled because the default implementation attempts to access GImGui at application exit
+		imgui_io.SetClipboardTextFn = nullptr;
 		imgui_io.KeyMap[ImGuiKey_Tab] = 0x09; // VK_TAB
 		imgui_io.KeyMap[ImGuiKey_LeftArrow] = 0x25; // VK_LEFT
 		imgui_io.KeyMap[ImGuiKey_RightArrow] = 0x27; // VK_RIGHT
