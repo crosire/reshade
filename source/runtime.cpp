@@ -11,6 +11,7 @@
 #include "input.hpp"
 #include "ini_file.hpp"
 #include <algorithm>
+#include <unordered_set>
 #include <stb_image.h>
 #include <stb_image_dds.h>
 #include <stb_image_write.h>
@@ -429,10 +430,37 @@ namespace reshade
 
 		_effect_files.clear();
 
-		for (const auto &search_path : _effect_search_paths)
+		if (_current_preset >= 0 && _performance_mode && !_show_menu)
 		{
-			const auto matching_files = filesystem::list_files(search_path, "*.fx");
-			_effect_files.insert(_effect_files.end(), matching_files.begin(), matching_files.end());
+			// Fast loading: Only load effect files that are actually used in the active preset
+			const std::vector<std::string> section_names = ini_file(_preset_files[_current_preset]).section_names();
+			const std::unordered_set<std::string> referenced_filenames(section_names.begin(), section_names.end());
+
+			for (const auto &search_path : _effect_search_paths)
+			{
+				const std::vector<filesystem::path> matching_files = filesystem::list_files(search_path, "*.fx");
+
+				for (const auto &file_path : matching_files)
+				{
+					if (referenced_filenames.count(file_path.filename().string()))
+					{
+						_effect_files.push_back(file_path);
+					}
+				}
+			}
+
+			_is_fast_loading = true;
+		}
+		else
+		{
+			for (const auto &search_path : _effect_search_paths)
+			{
+				const std::vector<filesystem::path> matching_files = filesystem::list_files(search_path, "*.fx");
+
+				_effect_files.insert(_effect_files.end(), matching_files.begin(), matching_files.end());
+			}
+
+			_is_fast_loading = false;
 		}
 
 		_reload_remaining_effects = _effect_files.size();
@@ -858,9 +886,18 @@ namespace reshade
 	{
 		ini_file preset(path);
 
+		std::unordered_set<std::string> active_effect_filenames;
+		for (const auto &technique : _techniques)
+		{
+			if (technique.enabled)
+			{
+				active_effect_filenames.insert(technique.effect_filename);
+			}
+		}
+
 		for (const auto &variable : _uniforms)
 		{
-			if (variable.annotations.count("source"))
+			if (variable.annotations.count("source") || !active_effect_filenames.count(variable.effect_filename))
 			{
 				continue;
 			}
@@ -884,8 +921,11 @@ namespace reshade
 
 			technique_sorting_list.push_back(technique.name);
 
-			const int toggle_key[4] = { technique.toggle_key, technique.toggle_key_ctrl ? 1 : 0, technique.toggle_key_shift ? 1 : 0, technique.toggle_key_alt ? 1 : 0 };
-			preset.set("", "Key" + technique.name, toggle_key);
+			if (technique.toggle_key != 0)
+			{
+				const int toggle_key[4] = { technique.toggle_key, technique.toggle_key_ctrl ? 1 : 0, technique.toggle_key_shift ? 1 : 0, technique.toggle_key_alt ? 1 : 0 };
+				preset.set("", "Key" + technique.name, toggle_key);
+			}
 		}
 
 		preset.set("", "Techniques", technique_list);
@@ -1109,6 +1149,13 @@ namespace reshade
 
 			if (_show_menu)
 			{
+				if (_is_fast_loading)
+				{
+					// Need to do a full reload since some effects might be missing due to fast loading
+					reload();
+					return;
+				}
+
 				ImGui::SetNextWindowPos(ImVec2(_width * 0.5f, _height * 0.5f), ImGuiCond_Once, ImVec2(0.5f, 0.5f));
 				ImGui::SetNextWindowSize(ImVec2(710, 650), ImGuiCond_Once);
 				ImGui::Begin("ReShade " VERSION_STRING_FILE " by crosire###Main", &_show_menu,
