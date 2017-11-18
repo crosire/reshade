@@ -428,7 +428,7 @@ namespace reshade::opengl
 		// Force Direct3D coordinate conventions
 		GLint clip_origin, clip_depthmode;
 
-		if (gl3wClipControl != nullptr)
+		if (gl3wProcs.gl.ClipControl != nullptr)
 		{
 			glGetIntegerv(GL_CLIP_ORIGIN, &clip_origin);
 			glGetIntegerv(GL_CLIP_DEPTH_MODE, &clip_depthmode);
@@ -474,7 +474,7 @@ namespace reshade::opengl
 		// Apply states
 		_stateblock.apply();
 
-		if (gl3wClipControl != nullptr
+		if (gl3wProcs.gl.ClipControl != nullptr
 			&& (clip_origin != GL_LOWER_LEFT || clip_depthmode != GL_ZERO_TO_ONE))
 		{
 			glClipControl(clip_origin, clip_depthmode);
