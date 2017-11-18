@@ -111,7 +111,10 @@ namespace reshade
 		_is_initialized = true;
 		_last_reload_time = std::chrono::high_resolution_clock::now();
 
-		reload();
+		if (!_no_reload_on_init)
+		{
+			reload();
+		}
 
 		return true;
 	}
@@ -721,6 +724,7 @@ namespace reshade
 		config.get("GENERAL", "ShowClock", _show_clock);
 		config.get("GENERAL", "ShowFPS", _show_framerate);
 		config.get("GENERAL", "FontGlobalScale", _imgui_context->IO.FontGlobalScale);
+		config.get("GENERAL", "NoReloadOnInit", _no_reload_on_init);
 
 		config.get("STYLE", "Alpha", _imgui_context->Style.Alpha);
 		config.get("STYLE", "ColBackground", _imgui_col_background);
@@ -824,6 +828,7 @@ namespace reshade
 		config.set("GENERAL", "ShowClock", _show_clock);
 		config.set("GENERAL", "ShowFPS", _show_framerate);
 		config.set("GENERAL", "FontGlobalScale", _imgui_context->IO.FontGlobalScale);
+		config.set("GENERAL", "NoReloadOnInit", _no_reload_on_init);
 
 		config.set("STYLE", "Alpha", _imgui_context->Style.Alpha);
 		config.set("STYLE", "ColBackground", _imgui_col_background);
