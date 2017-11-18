@@ -195,7 +195,9 @@ namespace reshade
 		void load_configuration();
 		void save_configuration() const;
 		void load_preset(const filesystem::path &path);
+		void load_current_preset();
 		void save_preset(const filesystem::path &path) const;
+		void save_current_preset() const;
 		void save_screenshot() const;
 
 		void draw_overlay();

@@ -24,6 +24,9 @@ namespace reshade
 		variant(const std::string &value) : _values(1, value) { }
 		template <>
 		variant(const std::vector<std::string> &values) : _values(values) { }
+		variant(const std::vector<std::string> &&values) : _values(std::move(values)) { }
+		template<class InputIt>
+		variant(InputIt first, InputIt last) : _values(first, last) { }
 		template <>
 		variant(const filesystem::path &value) : variant(value.string()) { }
 		template <>
