@@ -16,7 +16,6 @@
 #include <stb_image_dds.h>
 #include <stb_image_write.h>
 #include <stb_image_resize.h>
-#include <unordered_set>
 #define IMGUI_DEFINE_MATH_OPERATORS
 #include <imgui.h>
 #include <imgui_internal.h>
