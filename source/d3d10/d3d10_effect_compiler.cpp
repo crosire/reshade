@@ -1456,6 +1456,21 @@ namespace reshade::d3d10
 
 	void d3d10_effect_compiler::visit_texture(const variable_declaration_node *node)
 	{
+		const auto existing_texture = _runtime->find_texture(node->unique_name);
+
+		if (existing_texture != nullptr)
+		{
+			if (node->semantic.empty() && (
+				existing_texture->width != node->properties.width ||
+				existing_texture->height != node->properties.height ||
+				existing_texture->levels != node->properties.levels ||
+				existing_texture->format != node->properties.format))
+			{
+				error(node->location, existing_texture->effect_filename + " already created a texture with the same name but different dimensions; textures are shared across all effects, so either rename the variable or adjust the dimensions so they match");
+			}
+			return;
+		}
+
 		texture obj;
 		D3D10_TEXTURE2D_DESC texdesc = { };
 		obj.name = node->name;
