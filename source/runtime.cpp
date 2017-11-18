@@ -432,11 +432,21 @@ namespace reshade
 
 		_effect_files.clear();
 
+		std::vector<std::string> fastloading_filenames;
+
 		if (_current_preset >= 0 && _performance_mode && !_show_menu)
 		{
+			const ini_file preset(_preset_files[_current_preset]);
+
 			// Fast loading: Only load effect files that are actually used in the active preset
-			const std::vector<std::string> section_names = ini_file(_preset_files[_current_preset]).section_names();
-			const std::unordered_set<std::string> referenced_filenames(section_names.begin(), section_names.end());
+			fastloading_filenames = preset.get("", "EffectFiles").data();
+		}
+
+		_is_fast_loading = !fastloading_filenames.empty();
+
+		if (_is_fast_loading)
+		{
+			const std::unordered_set<std::string> referenced_filenames(fastloading_filenames.begin(), fastloading_filenames.end());
 
 			for (const auto &search_path : _effect_search_paths)
 			{
@@ -450,8 +460,6 @@ namespace reshade
 					}
 				}
 			}
-
-			_is_fast_loading = true;
 		}
 		else
 		{
@@ -461,8 +469,6 @@ namespace reshade
 
 				_effect_files.insert(_effect_files.end(), matching_files.begin(), matching_files.end());
 			}
-
-			_is_fast_loading = false;
 		}
 
 		_reload_remaining_effects = _effect_files.size();
@@ -913,12 +919,13 @@ namespace reshade
 			preset.set(variable.effect_filename, variable.name, variant(values, variable.rows * variable.columns));
 		}
 
-		std::vector<std::string> technique_list, technique_sorting_list;
+		std::vector<std::string> technique_list, technique_sorting_list, filename_list;
 
 		for (const auto &technique : _techniques)
 		{
 			if (technique.enabled)
 			{
+				filename_list.push_back(technique.effect_filename);
 				technique_list.push_back(technique.name);
 			}
 
@@ -933,6 +940,7 @@ namespace reshade
 
 		preset.set("", "Techniques", technique_list);
 		preset.set("", "TechniqueSorting", technique_sorting_list);
+		preset.set("", "EffectFiles", filename_list);
 	}
 	void runtime::save_screenshot() const
 	{

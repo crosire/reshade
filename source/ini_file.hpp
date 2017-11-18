@@ -20,14 +20,6 @@ namespace reshade
 		variant get(const std::string &section, const std::string &key, const variant &default = variant()) const;
 		void set(const std::string &section, const std::string &key, const variant &value);
 
-		std::vector<std::string> section_names() const
-		{
-			std::vector<std::string> res;
-			for (const auto &it : _sections)
-				res.push_back(it.first);
-			return res;
-		}
-
 	private:
 		void load();
 		void save() const;
