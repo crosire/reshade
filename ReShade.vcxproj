@@ -224,10 +224,11 @@
     <ClCompile Include="source\input.cpp" />
     <ClCompile Include="source\log.cpp" />
     <ClCompile Include="source\dllmain.cpp" />
-    <ClCompile Include="source\opengl\opengl.cpp" />
     <ClCompile Include="source\opengl\opengl_effect_compiler.cpp" />
     <ClCompile Include="source\opengl\opengl_runtime.cpp" />
     <ClCompile Include="source\opengl\opengl_stateblock.cpp" />
+    <ClCompile Include="source\opengl\stubs_gl.cpp" />
+    <ClCompile Include="source\opengl\stubs_wgl.cpp" />
     <ClCompile Include="source\resource_loading.cpp" />
     <ClCompile Include="source\runtime.cpp" />
     <ClCompile Include="source\runtime_objects.cpp" />
@@ -266,9 +267,10 @@
     <ClInclude Include="source\log.hpp" />
     <ClInclude Include="source\moving_average.hpp" />
     <ClInclude Include="source\opengl\opengl_effect_compiler.hpp" />
-    <ClInclude Include="source\opengl\opengl_loader.hpp" />
     <ClInclude Include="source\opengl\opengl_runtime.hpp" />
     <ClInclude Include="source\opengl\opengl_stateblock.hpp" />
+    <ClInclude Include="source\opengl\opengl_stubs.hpp" />
+    <ClInclude Include="source\opengl\opengl_stubs_internal.hpp" />
     <ClInclude Include="source\resource_loading.hpp" />
     <ClInclude Include="source\runtime.hpp" />
     <ClInclude Include="source\runtime_objects.hpp" />

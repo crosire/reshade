@@ -3,14 +3,13 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-#pragma once
-
 #include <GL/gl3w.h>
 
 #ifndef NDEBUG
 
 #include <cstdio>
 
+#ifndef GLCHECK
 #define GLCHECK(call) \
 	{ \
 		glGetError(); \
@@ -22,6 +21,7 @@
 			MessageBoxA(nullptr, __m, 0, MB_ICONERROR); \
 		} \
 	}
+#endif
 
 #undef glActiveShaderProgram
 #define glActiveShaderProgram(...)                         GLCHECK(gl3wProcs.gl.ActiveShaderProgram(__VA_ARGS__))

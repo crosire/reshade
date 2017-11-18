@@ -129,9 +129,6 @@
     <ClCompile Include="source\dxgi\dxgi_swapchain.cpp">
       <Filter>hooks\dxgi</Filter>
     </ClCompile>
-    <ClCompile Include="source\opengl\opengl.cpp">
-      <Filter>hooks\opengl</Filter>
-    </ClCompile>
     <ClCompile Include="source\opengl\opengl_effect_compiler.cpp">
       <Filter>hooks\opengl</Filter>
     </ClCompile>
@@ -139,6 +136,12 @@
       <Filter>hooks\opengl</Filter>
     </ClCompile>
     <ClCompile Include="source\opengl\opengl_stateblock.cpp">
+      <Filter>hooks\opengl</Filter>
+    </ClCompile>
+    <ClCompile Include="source\opengl\stubs_gl.cpp">
+      <Filter>hooks\opengl</Filter>
+    </ClCompile>
+    <ClCompile Include="source\opengl\stubs_wgl.cpp">
       <Filter>hooks\opengl</Filter>
     </ClCompile>
     <ClCompile Include="source\windows\user32.cpp">
@@ -251,13 +254,16 @@
     <ClInclude Include="source\opengl\opengl_effect_compiler.hpp">
       <Filter>hooks\opengl</Filter>
     </ClInclude>
-    <ClInclude Include="source\opengl\opengl_loader.hpp">
-      <Filter>hooks\opengl</Filter>
-    </ClInclude>
     <ClInclude Include="source\opengl\opengl_runtime.hpp">
       <Filter>hooks\opengl</Filter>
     </ClInclude>
     <ClInclude Include="source\opengl\opengl_stateblock.hpp">
+      <Filter>hooks\opengl</Filter>
+    </ClInclude>
+    <ClInclude Include="source\opengl\opengl_stubs.hpp">
+      <Filter>hooks\opengl</Filter>
+    </ClInclude>
+    <ClInclude Include="source\opengl\opengl_stubs_internal.hpp">
       <Filter>hooks\opengl</Filter>
     </ClInclude>
     <ClInclude Include="res\resource.h">
