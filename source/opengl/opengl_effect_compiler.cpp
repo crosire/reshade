@@ -2151,6 +2151,11 @@ namespace reshade::opengl
 		{
 			_runtime->update_texture_reference(obj, texture_reference::depth_buffer);
 		}
+		else if (!node->semantic.empty())
+		{
+			error(node->location, "invalid semantic");
+			return;
+		}
 		else
 		{
 			obj_data->should_delete = true;
