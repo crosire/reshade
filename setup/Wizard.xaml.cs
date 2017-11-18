@@ -131,9 +131,10 @@ namespace ReShade.Setup
 
 			if (dlg.ShowDialog(this) == true)
 			{
-				if (_isElevated || IsWritable(Path.GetDirectoryName(dlg.FileName)))
+				_targetPath = dlg.FileName;
+
+				if (_isElevated || IsWritable(Path.GetDirectoryName(_targetPath)))
 				{
-					_targetPath = dlg.FileName;
 					InstallationStep1();
 				}
 				else
@@ -141,7 +142,7 @@ namespace ReShade.Setup
 					var startinfo = new ProcessStartInfo {
 						Verb = "runas",
 						FileName = Assembly.GetExecutingAssembly().Location,
-						Arguments = $"\"{dlg.FileName}\" --elevated --left {Left} --top {Top}"
+						Arguments = $"\"{_targetPath}\" --elevated --left {Left} --top {Top}"
 					};
 
 					Process.Start(startinfo);
@@ -153,17 +154,31 @@ namespace ReShade.Setup
 		}
 		void OnSetupButtonDragDrop(object sender, DragEventArgs e)
 		{
-			if (!e.Data.GetDataPresent(DataFormats.FileDrop))
-			{
-				return;
-			}
-
-			var files = e.Data.GetData(DataFormats.FileDrop, true) as string[];
-
-			if (files != null)
+			if (e.Data.GetData(DataFormats.FileDrop, true) is string[] files && files.Length >= 1)
 			{
 				_targetPath = files[0];
-				InstallationStep1();
+
+				if (File.Exists(_targetPath))
+				{
+					if (_isElevated || IsWritable(Path.GetDirectoryName(_targetPath)))
+					{
+						InstallationStep1();
+					}
+					else
+					{
+						var startinfo = new ProcessStartInfo
+						{
+							Verb = "runas",
+							FileName = Assembly.GetExecutingAssembly().Location,
+							Arguments = $"\"{_targetPath}\" --elevated --left {Left} --top {Top}"
+						};
+
+						Process.Start(startinfo);
+
+						Close();
+						return;
+					}
+				}
 			}
 		}
 
@@ -296,28 +311,26 @@ namespace ReShade.Setup
 			_tempDownloadPath = Path.GetTempFileName();
 
 			var client = new WebClient();
-			client.DownloadProgressChanged += (object sender, DownloadProgressChangedEventArgs e)
-				=> {
-					Message.Content = "Downloading ... (" + ((100 * e.BytesReceived) / e.TotalBytesToReceive) + "%)";
-				};
-			client.DownloadFileCompleted += (object sender, System.ComponentModel.AsyncCompletedEventArgs e)
-				=> {
-					if (e.Error != null || e.Cancelled)
-					{
-						Title += " Failed!";
-						Message.Content = "Unable to download archive.";
-						Glass.HideSystemMenu(this, false);
+			client.DownloadFileCompleted += (object sender, System.ComponentModel.AsyncCompletedEventArgs e) => {
+				if (e.Error != null || e.Cancelled)
+				{
+					Title += " Failed!";
+					Message.Content = "Unable to download archive.";
+					Glass.HideSystemMenu(this, false);
 
-						if (_isHeadless)
-						{
-							Environment.Exit(1);
-						}
-					}
-					else
+					if (_isHeadless)
 					{
-						InstallationStep4();
+						Environment.Exit(1);
 					}
-				};
+				}
+				else
+				{
+					InstallationStep4();
+				}
+			};
+			client.DownloadProgressChanged += (object sender, DownloadProgressChangedEventArgs e) => {
+				Message.Content = "Downloading ... (" + ((100 * e.BytesReceived) / e.TotalBytesToReceive) + "%)";
+			};
 
 			try
 			{
@@ -378,10 +391,17 @@ namespace ReShade.Setup
 
 				foreach (var item in wnd.GetSelection())
 				{
-					if (item.IsChecked)
-						continue;
-
-					File.Delete(item.Path);
+					if (!item.IsChecked)
+					{
+						try
+						{
+							File.Delete(item.Path);
+						}
+						catch
+						{
+							continue;
+						}
+					}
 				}
 			}
 
