@@ -844,27 +844,28 @@ namespace reshade
 
 		for (auto &variable : _uniforms)
 		{
+			int values_int[16] = {};
+			unsigned int values_uint[16] = {};
+			float values_float[16] = {};
+
 			switch (variable.basetype)
 			{
-			case uniform_datatype::signed_integer: {
-					int values_int[16] = { };
-					get_uniform_value(variable, values_int, 16);
-					preset.get(variable.effect_filename, variable.name, values_int);
-					set_uniform_value(variable, values_int, 16);
-				} break;
+			case uniform_datatype::signed_integer:
+				get_uniform_value(variable, values_int, 16);
+				preset.get(variable.effect_filename, variable.name, values_int);
+				set_uniform_value(variable, values_int, 16);
+				break;
 			case uniform_datatype::boolean:
-			case uniform_datatype::unsigned_integer: {
-				unsigned int values_uint[16] = { };
+			case uniform_datatype::unsigned_integer:
 				get_uniform_value(variable, values_uint, 16);
 				preset.get(variable.effect_filename, variable.name, values_uint);
 				set_uniform_value(variable, values_uint, 16);
-				} break;
-			case uniform_datatype::floating_point: {
-				float values_float[16] = { };
+				break;
+			case uniform_datatype::floating_point:
 				get_uniform_value(variable, values_float, 16);
 				preset.get(variable.effect_filename, variable.name, values_float);
 				set_uniform_value(variable, values_float, 16);
-				} break;
+				break;
 			}
 		}
 
@@ -919,12 +920,28 @@ namespace reshade
 				continue;
 			}
 
-			float values[16] = { };
-			get_uniform_value(variable, values, 16);
+			int values_int[16] = {};
+			unsigned int values_uint[16] = {};
+			float values_float[16] = {};
 
 			assert(variable.rows * variable.columns < 16);
 
-			preset.set(variable.effect_filename, variable.name, variant(values, variable.rows * variable.columns));
+			switch (variable.basetype)
+			{
+			case uniform_datatype::signed_integer:
+				get_uniform_value(variable, values_int, 16);
+				preset.set(variable.effect_filename, variable.name, variant(values_int, variable.rows * variable.columns));
+				break;
+			case uniform_datatype::boolean:
+			case uniform_datatype::unsigned_integer:
+				get_uniform_value(variable, values_uint, 16);
+				preset.set(variable.effect_filename, variable.name, variant(values_uint, variable.rows * variable.columns));
+				break;
+			case uniform_datatype::floating_point:
+				get_uniform_value(variable, values_float, 16);
+				preset.set(variable.effect_filename, variable.name, variant(values_float, variable.rows * variable.columns));
+				break;
+			}
 		}
 
 		std::vector<std::string> technique_list, technique_sorting_list;
