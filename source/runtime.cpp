@@ -1245,11 +1245,8 @@ namespace reshade
 		// Render ImGui widgets and windows
 		ImGui::Render();
 
-		if (_input_processing_mode != 0)
-		{
-			_input->block_mouse_input(imgui_io.WantCaptureMouse || (_input_processing_mode == 2 && _show_menu));
-			_input->block_keyboard_input(imgui_io.WantCaptureKeyboard || (_input_processing_mode == 2 && _show_menu));
-		}
+		_input->block_mouse_input(_input_processing_mode != 0 && (imgui_io.WantCaptureMouse || (_input_processing_mode == 2 && _show_menu)));
+		_input->block_keyboard_input(_input_processing_mode != 0 && (imgui_io.WantCaptureKeyboard || (_input_processing_mode == 2 && _show_menu)));
 
 		render_imgui_draw_data(ImGui::GetDrawData());
 	}
