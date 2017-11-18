@@ -37,12 +37,16 @@ namespace reshade
 			"RESHADE_DEPTH_INPUT_IS_UPSIDE_DOWN=0",
 			"RESHADE_DEPTH_INPUT_IS_REVERSED=0",
 			"RESHADE_DEPTH_INPUT_IS_LOGARITHMIC=0" }),
-		_menu_key({ 0x71, false, true }), // VK_F2 + VK_SHIFT
-		_screenshot_key({ 0x2C, false, false }), // VK_SNAPSHOT
-		_effects_key({ }),
+		_menu_key_data(),
+		_screenshot_key_data(),
+		_effects_key_data(),
 		_screenshot_path(s_target_executable_path.parent_path()),
 		_variable_editor_height(300)
 	{
+		_menu_key_data[0] = 0x71; // VK_F2
+		_menu_key_data[2] = true; // VK_SHIFT
+		_screenshot_key_data[0] = 0x2C; // VK_SNAPSHOT
+
 		_configuration_path = s_reshade_dll_path;
 		_configuration_path.replace_extension(".ini");
 		if (!filesystem::exists(_configuration_path))
@@ -158,7 +162,7 @@ namespace reshade
 
 		// Create and save screenshot if associated shortcut is down
 		if (!_screenshot_key_setting_active &&
-			_input->is_key_pressed(_screenshot_key.keycode, _screenshot_key.ctrl, _screenshot_key.shift, false))
+			_input->is_key_pressed(_screenshot_key_data[0], _screenshot_key_data[1] != 0, _screenshot_key_data[2] != 0, false))
 		{
 			save_screenshot();
 		}
@@ -192,7 +196,7 @@ namespace reshade
 	}
 	void runtime::on_present_effect()
 	{
-		if (_input->is_key_pressed(_effects_key.keycode, _effects_key.ctrl, _effects_key.shift, false))
+		if (_input->is_key_pressed(_effects_key_data[0], _effects_key_data[1] != 0, _effects_key_data[2] != 0, false))
 		{
 			_effects_enabled = !_effects_enabled;
 		}
@@ -400,8 +404,8 @@ namespace reshade
 				}
 			}
 			else if (!_toggle_key_setting_active &&
-				_input->is_key_pressed(technique.toggle_key, technique.toggle_key_ctrl, technique.toggle_key_shift, technique.toggle_key_alt) ||
-				(technique.toggle_key >= 0x01 && technique.toggle_key <= 0x06 && _input->is_mouse_button_pressed(technique.toggle_key - 1)))
+				_input->is_key_pressed(technique.toggle_key_data[0], technique.toggle_key_data[1] != 0, technique.toggle_key_data[2] != 0, technique.toggle_key_data[3] != 0) ||
+				(technique.toggle_key_data[0] >= 0x01 && technique.toggle_key_data[0] <= 0x06 && _input->is_mouse_button_pressed(technique.toggle_key_data[0] - 1)))
 			{
 				technique.enabled = !technique.enabled;
 				technique.timeleft = technique.enabled ? technique.timeout : 0;
@@ -436,7 +440,7 @@ namespace reshade
 			const ini_file preset(_preset_files[_current_preset]);
 
 			// Fast loading: Only load effect files that are actually used in the active preset
-			fastloading_filenames = preset.get("", "Effects").data();
+			preset.get("", "Effects", fastloading_filenames);
 		}
 
 		_is_fast_loading = !fastloading_filenames.empty();
@@ -452,8 +456,6 @@ namespace reshade
 				for (const auto &search_path : _effect_search_paths)
 				{
 					auto effect_file = search_path / effect;
-
-					LOG(INFO) << "> Checking " << effect_file;
 
 					if (exists(effect_file))
 					{
@@ -557,23 +559,19 @@ namespace reshade
 				}
 
 				const auto initializer = static_cast<reshadefx::nodes::literal_expression_node *>(variable->initializer_expression);
-				const auto data = preset.get(path.filename().string(), variable->name);
 
-				for (unsigned int i = 0; i < std::min(variable->type.rows, static_cast<unsigned int>(data.data().size())); i++)
+				switch (initializer->type.basetype)
 				{
-					switch (initializer->type.basetype)
-					{
-						case reshadefx::nodes::type_node::datatype_int:
-							initializer->value_int[i] = data.as<int>(i);
-							break;
-						case reshadefx::nodes::type_node::datatype_bool:
-						case reshadefx::nodes::type_node::datatype_uint:
-							initializer->value_uint[i] = data.as<unsigned int>(i);
-							break;
-						case reshadefx::nodes::type_node::datatype_float:
-							initializer->value_float[i] = data.as<float>(i);
-							break;
-					}
+					case reshadefx::nodes::type_node::datatype_int:
+						preset.get(path.filename().string(), variable->name, initializer->value_int);
+						break;
+					case reshadefx::nodes::type_node::datatype_bool:
+					case reshadefx::nodes::type_node::datatype_uint:
+						preset.get(path.filename().string(), variable->name, initializer->value_uint);
+						break;
+					case reshadefx::nodes::type_node::datatype_float:
+						preset.get(path.filename().string(), variable->name, initializer->value_float);
+						break;
 				}
 
 				variable->type.qualifiers ^= reshadefx::nodes::type_node::qualifier_uniform;
@@ -620,10 +618,10 @@ namespace reshade
 			technique.enabled = technique.annotations["enabled"].as<bool>();
 			technique.hidden = technique.annotations["hidden"].as<bool>();
 			technique.timeleft = technique.timeout = technique.annotations["timeout"].as<int>();
-			technique.toggle_key = technique.annotations["toggle"].as<int>();
-			technique.toggle_key_ctrl = technique.annotations["togglectrl"].as<bool>();
-			technique.toggle_key_shift = technique.annotations["toggleshift"].as<bool>();
-			technique.toggle_key_alt = technique.annotations["togglealt"].as<bool>();
+			technique.toggle_key_data[0] = technique.annotations["toggle"].as<unsigned int>();
+			technique.toggle_key_data[1] = technique.annotations["togglectrl"].as<bool>() ? 1 : 0;
+			technique.toggle_key_data[2] = technique.annotations["toggleshift"].as<bool>() ? 1 : 0;
+			technique.toggle_key_data[3] = technique.annotations["togglealt"].as<bool>() ? 1 : 0;
 		}
 	}
 	void runtime::load_textures()
@@ -706,96 +704,72 @@ namespace reshade
 	{
 		const ini_file config(_configuration_path);
 
-		const int menu_key[3] = { _menu_key.keycode, _menu_key.ctrl ? 1 : 0, _menu_key.shift ? 1 : 0 };
-		_menu_key.keycode = config.get("INPUT", "KeyMenu", menu_key).as<int>();
-		_menu_key.ctrl = config.get("INPUT", "KeyMenu", menu_key).as<bool>(1);
-		_menu_key.shift = config.get("INPUT", "KeyMenu", menu_key).as<bool>(2);
-		const int screenshot_key[3] = { _screenshot_key.keycode, _screenshot_key.ctrl ? 1 : 0, _screenshot_key.shift ? 1 : 0 };
-		_screenshot_key.keycode = config.get("INPUT", "KeyScreenshot", screenshot_key).as<int>();
-		_screenshot_key.ctrl = config.get("INPUT", "KeyScreenshot", screenshot_key).as<bool>(1);
-		_screenshot_key.shift = config.get("INPUT", "KeyScreenshot", screenshot_key).as<bool>(2);
-		const int effects_key[3] = { _effects_key.keycode, _effects_key.ctrl ? 1 : 0, _effects_key.shift ? 1 : 0 };
-		_effects_key.keycode = config.get("INPUT", "KeyEffects", effects_key).as<int>();
-		_effects_key.ctrl = config.get("INPUT", "KeyEffects", effects_key).as<bool>(1);
-		_effects_key.shift = config.get("INPUT", "KeyEffects", effects_key).as<bool>(2);
+		config.get("INPUT", "KeyMenu", _menu_key_data);
+		config.get("INPUT", "KeyScreenshot", _screenshot_key_data);
+		config.get("INPUT", "KeyEffects", _effects_key_data);
+		config.get("INPUT", "InputProcessing", _input_processing_mode);
 
-		_performance_mode = config.get("GENERAL", "PerformanceMode", _performance_mode).as<bool>();
-		_input_processing_mode = config.get("INPUT", "InputProcessing", _input_processing_mode).as<int>();
-		const auto effect_search_paths = config.get("GENERAL", "EffectSearchPaths", _effect_search_paths).data();
-		_effect_search_paths.assign(effect_search_paths.begin(), effect_search_paths.end());
-		const auto texture_search_paths = config.get("GENERAL", "TextureSearchPaths", _texture_search_paths).data();
-		_texture_search_paths.assign(texture_search_paths.begin(), texture_search_paths.end());
-		_preprocessor_definitions = config.get("GENERAL", "PreprocessorDefinitions", _preprocessor_definitions).data();
-		const auto preset_files = config.get("GENERAL", "PresetFiles", _preset_files).data();
-		_preset_files.assign(preset_files.begin(), preset_files.end());
-		_current_preset = config.get("GENERAL", "CurrentPreset", _current_preset).as<int>();
-		_tutorial_index = config.get("GENERAL", "TutorialProgress", _tutorial_index).as<unsigned int>();
+		config.get("GENERAL", "PerformanceMode", _performance_mode);
+		config.get("GENERAL", "EffectSearchPaths", _effect_search_paths);
+		config.get("GENERAL", "TextureSearchPaths", _texture_search_paths);
+		config.get("GENERAL", "PreprocessorDefinitions", _preprocessor_definitions);
+		config.get("GENERAL", "PresetFiles", _preset_files);
+		config.get("GENERAL", "CurrentPreset", _current_preset);
+		config.get("GENERAL", "TutorialProgress", _tutorial_index);
+		config.get("GENERAL", "ScreenshotPath", _screenshot_path);
+		config.get("GENERAL", "ScreenshotFormat", _screenshot_format);
+		config.get("GENERAL", "ShowClock", _show_clock);
+		config.get("GENERAL", "ShowFPS", _show_framerate);
+		config.get("GENERAL", "FontGlobalScale", _imgui_context->IO.FontGlobalScale);
 
-		_screenshot_path = config.get("GENERAL", "ScreenshotPath", _screenshot_path).as<filesystem::path>();
-		_screenshot_format = config.get("GENERAL", "ScreenshotFormat", 0).as<int>();
+		config.get("STYLE", "Alpha", _imgui_context->Style.Alpha);
+		config.get("STYLE", "ColBackground", _imgui_col_background);
+		config.get("STYLE", "ColItemBackground", _imgui_col_item_background);
+		config.get("STYLE", "ColActive", _imgui_col_active);
+		config.get("STYLE", "ColText", _imgui_col_text);
+		config.get("STYLE", "ColFPSText", _imgui_col_text_fps);
 
-		_show_clock = config.get("GENERAL", "ShowClock", _show_clock).as<bool>();
-		_show_framerate = config.get("GENERAL", "ShowFPS", _show_framerate).as<bool>();
-
-		auto &imgui_io = _imgui_context->IO;
-		imgui_io.FontGlobalScale = config.get("GENERAL", "FontGlobalScale", 1.0f).as<float>();
-
-		auto &imgui_style = _imgui_context->Style;
-		imgui_style.Alpha = config.get("STYLE", "Alpha", 0.95f).as<float>();
-
-		for (size_t i = 0; i < 3; i++)
-			_imgui_col_background[i] = config.get("STYLE", "ColBackground", _imgui_col_background).as<float>(i);
-		for (size_t i = 0; i < 3; i++)
-			_imgui_col_item_background[i] = config.get("STYLE", "ColItemBackground", _imgui_col_item_background).as<float>(i);
-		for (size_t i = 0; i < 3; i++)
-			_imgui_col_active[i] = config.get("STYLE", "ColActive", _imgui_col_active).as<float>(i);
-		for (size_t i = 0; i < 3; i++)
-			_imgui_col_text[i] = config.get("STYLE", "ColText", _imgui_col_text).as<float>(i);
-		for (size_t i = 0; i < 3; i++)
-			_imgui_col_text_fps[i] = config.get("STYLE", "ColFPSText", _imgui_col_text_fps).as<float>(i);
-
-		imgui_style.Colors[ImGuiCol_Text] = ImVec4(_imgui_col_text[0], _imgui_col_text[1], _imgui_col_text[2], 1.00f);
-		imgui_style.Colors[ImGuiCol_TextDisabled] = ImVec4(_imgui_col_text[0], _imgui_col_text[1], _imgui_col_text[2], 0.58f);
-		imgui_style.Colors[ImGuiCol_WindowBg] = ImVec4(_imgui_col_background[0], _imgui_col_background[1], _imgui_col_background[2], 1.00f);
-		imgui_style.Colors[ImGuiCol_ChildWindowBg] = ImVec4(_imgui_col_item_background[0], _imgui_col_item_background[1], _imgui_col_item_background[2], 0.00f);
-		imgui_style.Colors[ImGuiCol_Border] = ImVec4(_imgui_col_text[0], _imgui_col_text[1], _imgui_col_text[2], 0.30f);
-		imgui_style.Colors[ImGuiCol_FrameBg] = ImVec4(_imgui_col_item_background[0], _imgui_col_item_background[1], _imgui_col_item_background[2], 1.00f);
-		imgui_style.Colors[ImGuiCol_FrameBgHovered] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.68f);
-		imgui_style.Colors[ImGuiCol_FrameBgActive] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 1.00f);
-		imgui_style.Colors[ImGuiCol_TitleBg] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.45f);
-		imgui_style.Colors[ImGuiCol_TitleBgCollapsed] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.35f);
-		imgui_style.Colors[ImGuiCol_TitleBgActive] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.78f);
-		imgui_style.Colors[ImGuiCol_MenuBarBg] = ImVec4(_imgui_col_item_background[0], _imgui_col_item_background[1], _imgui_col_item_background[2], 0.57f);
-		imgui_style.Colors[ImGuiCol_ScrollbarBg] = ImVec4(_imgui_col_item_background[0], _imgui_col_item_background[1], _imgui_col_item_background[2], 1.00f);
-		imgui_style.Colors[ImGuiCol_ScrollbarGrab] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.31f);
-		imgui_style.Colors[ImGuiCol_ScrollbarGrabHovered] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.78f);
-		imgui_style.Colors[ImGuiCol_ScrollbarGrabActive] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 1.00f);
-		imgui_style.Colors[ImGuiCol_ComboBg] = ImVec4(_imgui_col_item_background[0], _imgui_col_item_background[1], _imgui_col_item_background[2], 1.00f);
-		imgui_style.Colors[ImGuiCol_CheckMark] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.80f);
-		imgui_style.Colors[ImGuiCol_SliderGrab] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.24f);
-		imgui_style.Colors[ImGuiCol_SliderGrabActive] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 1.00f);
-		imgui_style.Colors[ImGuiCol_Button] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.44f);
-		imgui_style.Colors[ImGuiCol_ButtonHovered] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.86f);
-		imgui_style.Colors[ImGuiCol_ButtonActive] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 1.00f);
-		imgui_style.Colors[ImGuiCol_Header] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.76f);
-		imgui_style.Colors[ImGuiCol_HeaderHovered] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.86f);
-		imgui_style.Colors[ImGuiCol_HeaderActive] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 1.00f);
-		imgui_style.Colors[ImGuiCol_Separator] = ImVec4(_imgui_col_text[0], _imgui_col_text[1], _imgui_col_text[2], 0.32f);
-		imgui_style.Colors[ImGuiCol_SeparatorHovered] = ImVec4(_imgui_col_text[0], _imgui_col_text[1], _imgui_col_text[2], 0.78f);
-		imgui_style.Colors[ImGuiCol_SeparatorActive] = ImVec4(_imgui_col_text[0], _imgui_col_text[1], _imgui_col_text[2], 1.00f);
-		imgui_style.Colors[ImGuiCol_ResizeGrip] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.20f);
-		imgui_style.Colors[ImGuiCol_ResizeGripHovered] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.78f);
-		imgui_style.Colors[ImGuiCol_ResizeGripActive] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 1.00f);
-		imgui_style.Colors[ImGuiCol_CloseButton] = ImVec4(_imgui_col_text[0], _imgui_col_text[1], _imgui_col_text[2], 0.16f);
-		imgui_style.Colors[ImGuiCol_CloseButtonHovered] = ImVec4(_imgui_col_text[0], _imgui_col_text[1], _imgui_col_text[2], 0.39f);
-		imgui_style.Colors[ImGuiCol_CloseButtonActive] = ImVec4(_imgui_col_text[0], _imgui_col_text[1], _imgui_col_text[2], 1.00f);
-		imgui_style.Colors[ImGuiCol_PlotLines] = ImVec4(_imgui_col_text[0], _imgui_col_text[1], _imgui_col_text[2], 0.63f);
-		imgui_style.Colors[ImGuiCol_PlotLinesHovered] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 1.00f);
-		imgui_style.Colors[ImGuiCol_PlotHistogram] = ImVec4(_imgui_col_text[0], _imgui_col_text[1], _imgui_col_text[2], 0.63f);
-		imgui_style.Colors[ImGuiCol_PlotHistogramHovered] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 1.00f);
-		imgui_style.Colors[ImGuiCol_TextSelectedBg] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.43f);
-		imgui_style.Colors[ImGuiCol_PopupBg] = ImVec4(_imgui_col_item_background[0], _imgui_col_item_background[1], _imgui_col_item_background[2], 0.92f);
-
+		_imgui_context->Style.Colors[ImGuiCol_Text] = ImVec4(_imgui_col_text[0], _imgui_col_text[1], _imgui_col_text[2], 1.00f);
+		_imgui_context->Style.Colors[ImGuiCol_TextDisabled] = ImVec4(_imgui_col_text[0], _imgui_col_text[1], _imgui_col_text[2], 0.58f);
+		_imgui_context->Style.Colors[ImGuiCol_WindowBg] = ImVec4(_imgui_col_background[0], _imgui_col_background[1], _imgui_col_background[2], 1.00f);
+		_imgui_context->Style.Colors[ImGuiCol_ChildWindowBg] = ImVec4(_imgui_col_item_background[0], _imgui_col_item_background[1], _imgui_col_item_background[2], 0.00f);
+		_imgui_context->Style.Colors[ImGuiCol_Border] = ImVec4(_imgui_col_text[0], _imgui_col_text[1], _imgui_col_text[2], 0.30f);
+		_imgui_context->Style.Colors[ImGuiCol_FrameBg] = ImVec4(_imgui_col_item_background[0], _imgui_col_item_background[1], _imgui_col_item_background[2], 1.00f);
+		_imgui_context->Style.Colors[ImGuiCol_FrameBgHovered] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.68f);
+		_imgui_context->Style.Colors[ImGuiCol_FrameBgActive] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 1.00f);
+		_imgui_context->Style.Colors[ImGuiCol_TitleBg] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.45f);
+		_imgui_context->Style.Colors[ImGuiCol_TitleBgCollapsed] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.35f);
+		_imgui_context->Style.Colors[ImGuiCol_TitleBgActive] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.78f);
+		_imgui_context->Style.Colors[ImGuiCol_MenuBarBg] = ImVec4(_imgui_col_item_background[0], _imgui_col_item_background[1], _imgui_col_item_background[2], 0.57f);
+		_imgui_context->Style.Colors[ImGuiCol_ScrollbarBg] = ImVec4(_imgui_col_item_background[0], _imgui_col_item_background[1], _imgui_col_item_background[2], 1.00f);
+		_imgui_context->Style.Colors[ImGuiCol_ScrollbarGrab] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.31f);
+		_imgui_context->Style.Colors[ImGuiCol_ScrollbarGrabHovered] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.78f);
+		_imgui_context->Style.Colors[ImGuiCol_ScrollbarGrabActive] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 1.00f);
+		_imgui_context->Style.Colors[ImGuiCol_ComboBg] = ImVec4(_imgui_col_item_background[0], _imgui_col_item_background[1], _imgui_col_item_background[2], 1.00f);
+		_imgui_context->Style.Colors[ImGuiCol_CheckMark] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.80f);
+		_imgui_context->Style.Colors[ImGuiCol_SliderGrab] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.24f);
+		_imgui_context->Style.Colors[ImGuiCol_SliderGrabActive] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 1.00f);
+		_imgui_context->Style.Colors[ImGuiCol_Button] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.44f);
+		_imgui_context->Style.Colors[ImGuiCol_ButtonHovered] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.86f);
+		_imgui_context->Style.Colors[ImGuiCol_ButtonActive] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 1.00f);
+		_imgui_context->Style.Colors[ImGuiCol_Header] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.76f);
+		_imgui_context->Style.Colors[ImGuiCol_HeaderHovered] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.86f);
+		_imgui_context->Style.Colors[ImGuiCol_HeaderActive] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 1.00f);
+		_imgui_context->Style.Colors[ImGuiCol_Separator] = ImVec4(_imgui_col_text[0], _imgui_col_text[1], _imgui_col_text[2], 0.32f);
+		_imgui_context->Style.Colors[ImGuiCol_SeparatorHovered] = ImVec4(_imgui_col_text[0], _imgui_col_text[1], _imgui_col_text[2], 0.78f);
+		_imgui_context->Style.Colors[ImGuiCol_SeparatorActive] = ImVec4(_imgui_col_text[0], _imgui_col_text[1], _imgui_col_text[2], 1.00f);
+		_imgui_context->Style.Colors[ImGuiCol_ResizeGrip] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.20f);
+		_imgui_context->Style.Colors[ImGuiCol_ResizeGripHovered] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.78f);
+		_imgui_context->Style.Colors[ImGuiCol_ResizeGripActive] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 1.00f);
+		_imgui_context->Style.Colors[ImGuiCol_CloseButton] = ImVec4(_imgui_col_text[0], _imgui_col_text[1], _imgui_col_text[2], 0.16f);
+		_imgui_context->Style.Colors[ImGuiCol_CloseButtonHovered] = ImVec4(_imgui_col_text[0], _imgui_col_text[1], _imgui_col_text[2], 0.39f);
+		_imgui_context->Style.Colors[ImGuiCol_CloseButtonActive] = ImVec4(_imgui_col_text[0], _imgui_col_text[1], _imgui_col_text[2], 1.00f);
+		_imgui_context->Style.Colors[ImGuiCol_PlotLines] = ImVec4(_imgui_col_text[0], _imgui_col_text[1], _imgui_col_text[2], 0.63f);
+		_imgui_context->Style.Colors[ImGuiCol_PlotLinesHovered] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 1.00f);
+		_imgui_context->Style.Colors[ImGuiCol_PlotHistogram] = ImVec4(_imgui_col_text[0], _imgui_col_text[1], _imgui_col_text[2], 0.63f);
+		_imgui_context->Style.Colors[ImGuiCol_PlotHistogramHovered] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 1.00f);
+		_imgui_context->Style.Colors[ImGuiCol_TextSelectedBg] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.43f);
+		_imgui_context->Style.Colors[ImGuiCol_PopupBg] = ImVec4(_imgui_col_item_background[0], _imgui_col_item_background[1], _imgui_col_item_background[2], 0.92f);
 
 		if (_current_preset >= static_cast<ptrdiff_t>(_preset_files.size()))
 		{
@@ -809,20 +783,22 @@ namespace reshade
 
 		for (const auto &preset_file : preset_files2)
 		{
-			if (std::find(_preset_files.begin(), _preset_files.end(), preset_file) == _preset_files.end() &&
-				!ini_file(preset_file).get("", "Techniques").data().empty())
+			const ini_file preset(preset_file);
+
+			std::vector<std::string> techniques;
+			preset.get("", "Techniques", techniques);
+
+			if (std::find(_preset_files.begin(), _preset_files.end(), preset_file) == _preset_files.end() && !techniques.empty())
 			{
 				_preset_files.push_back(preset_file);
 			}
 		}
 
-		auto to_absolute = [&parent_path](decltype(_preset_files) &paths)
-		{
+		auto to_absolute = [&parent_path](auto &paths) {
 			for (auto &path : paths)
-			{
 				path = filesystem::absolute(path, parent_path);
-			}
 		};
+
 		to_absolute(_preset_files);
 		to_absolute(_effect_search_paths);
 		to_absolute(_texture_search_paths);
@@ -831,9 +807,9 @@ namespace reshade
 	{
 		ini_file config(_configuration_path);
 
-		config.set("INPUT", "KeyMenu", { _menu_key.keycode, _menu_key.ctrl ? 1 : 0, _menu_key.shift ? 1 : 0 });
-		config.set("INPUT", "KeyScreenshot", { _screenshot_key.keycode, _screenshot_key.ctrl ? 1 : 0, _screenshot_key.shift ? 1 : 0 });
-		config.set("INPUT", "KeyEffects", { _effects_key.keycode, _effects_key.ctrl ? 1 : 0, _effects_key.shift ? 1 : 0 });
+		config.set("INPUT", "KeyMenu", _menu_key_data);
+		config.set("INPUT", "KeyScreenshot", _screenshot_key_data);
+		config.set("INPUT", "KeyEffects", _effects_key_data);
 		config.set("INPUT", "InputProcessing", _input_processing_mode);
 
 		config.set("GENERAL", "PerformanceMode", _performance_mode);
@@ -847,9 +823,9 @@ namespace reshade
 		config.set("GENERAL", "ScreenshotFormat", _screenshot_format);
 		config.set("GENERAL", "ShowClock", _show_clock);
 		config.set("GENERAL", "ShowFPS", _show_framerate);
+		config.set("GENERAL", "FontGlobalScale", _imgui_context->IO.FontGlobalScale);
 
-		const auto &style = _imgui_context->Style;
-		config.set("STYLE", "Alpha", style.Alpha);
+		config.set("STYLE", "Alpha", _imgui_context->Style.Alpha);
 		config.set("STYLE", "ColBackground", _imgui_col_background);
 		config.set("STYLE", "ColItemBackground", _imgui_col_item_background);
 		config.set("STYLE", "ColActive", _imgui_col_active);
@@ -863,39 +839,52 @@ namespace reshade
 
 		for (auto &variable : _uniforms)
 		{
-			float values[16] = { };
-			get_uniform_value(variable, values, 16);
-
-			const auto preset_values = preset.get(variable.effect_filename, variable.name, variant(values, 16));
-
-			for (unsigned int i = 0; i < 16; i++)
+			switch (variable.basetype)
 			{
-				values[i] = preset_values.as<float>(i);
+			case uniform_datatype::signed_integer: {
+					int values_int[16] = { };
+					get_uniform_value(variable, values_int, 16);
+					preset.get(variable.effect_filename, variable.name, values_int);
+					set_uniform_value(variable, values_int, 16);
+				} break;
+			case uniform_datatype::boolean:
+			case uniform_datatype::unsigned_integer: {
+				unsigned int values_uint[16] = { };
+				get_uniform_value(variable, values_uint, 16);
+				preset.get(variable.effect_filename, variable.name, values_uint);
+				set_uniform_value(variable, values_uint, 16);
+				} break;
+			case uniform_datatype::floating_point: {
+				float values_float[16] = { };
+				get_uniform_value(variable, values_float, 16);
+				preset.get(variable.effect_filename, variable.name, values_float);
+				set_uniform_value(variable, values_float, 16);
+				} break;
 			}
-
-			set_uniform_value(variable, values, 16);
 		}
 
 		// Reorder techniques
-		std::vector<std::string> technique_list = preset.get("", "Techniques").data();
-		std::vector<std::string> technique_sorting_list = preset.get("", "TechniqueSorting").data();
-		if (technique_sorting_list.empty()) technique_sorting_list = technique_list;
+		std::vector<std::string> technique_list;
+		preset.get("", "Techniques", technique_list);
+		std::vector<std::string> technique_sorting_list;
+		preset.get("", "TechniqueSorting", technique_sorting_list);
+
+		if (technique_sorting_list.empty())
+			technique_sorting_list = technique_list;
+
 		std::sort(_techniques.begin(), _techniques.end(),
 			[&technique_sorting_list](const auto &lhs, const auto &rhs) {
 				return
 					(std::find(technique_sorting_list.begin(), technique_sorting_list.end(), lhs.name) - technique_sorting_list.begin()) <
 					(std::find(technique_sorting_list.begin(), technique_sorting_list.end(), rhs.name) - technique_sorting_list.begin());
 			});
+
 		for (auto &technique : _techniques)
 		{
 			// Ignore preset if "enabled" annotation is set
 			technique.enabled = technique.annotations["enabled"].as<bool>() || std::find(technique_list.begin(), technique_list.end(), technique.name) != technique_list.end();
 
-			const int toggle_key[4] = { technique.toggle_key, technique.toggle_key_ctrl ? 1 : 0, technique.toggle_key_shift ? 1 : 0, technique.toggle_key_alt ? 1 : 0 };
-			technique.toggle_key = preset.get("", "Key" + technique.name, toggle_key).as<int>(0);
-			technique.toggle_key_ctrl = preset.get("", "Key" + technique.name, toggle_key).as<bool>(1);
-			technique.toggle_key_shift = preset.get("", "Key" + technique.name, toggle_key).as<bool>(2);
-			technique.toggle_key_alt = preset.get("", "Key" + technique.name, toggle_key).as<bool>(3);
+			preset.get("", "Key" + technique.name, technique.toggle_key_data);
 		}
 	}
 	void runtime::load_current_preset()
@@ -946,10 +935,9 @@ namespace reshade
 
 			technique_sorting_list.push_back(technique.name);
 
-			if (technique.toggle_key != 0)
+			if (technique.toggle_key_data[0] != 0)
 			{
-				const int toggle_key[4] = { technique.toggle_key, technique.toggle_key_ctrl ? 1 : 0, technique.toggle_key_shift ? 1 : 0, technique.toggle_key_alt ? 1 : 0 };
-				preset.set("", "Key" + technique.name, toggle_key);
+				preset.set("", "Key" + technique.name, technique.toggle_key_data);
 			}
 		}
 
@@ -1044,7 +1032,7 @@ namespace reshade
 		const bool show_splash = std::chrono::duration_cast<std::chrono::seconds>(_last_present_time - _last_reload_time).count() < 5;
 
 		if (!_overlay_key_setting_active &&
-			_input->is_key_pressed(_menu_key.keycode, _menu_key.ctrl, _menu_key.shift, false))
+			_input->is_key_pressed(_menu_key_data[0], _menu_key_data[1], _menu_key_data[2], false))
 		{
 			_show_menu = !_show_menu;
 		}
@@ -1126,9 +1114,9 @@ namespace reshade
 			{
 				ImGui::Text(
 					"Press '%s%s%s' to open the configuration menu.",
-					_menu_key.ctrl ? "Ctrl + " : "",
-					_menu_key.shift ? "Shift + " : "",
-					keyboard_keys[_menu_key.keycode]);
+					_menu_key_data[1] ? "Ctrl + " : "",
+					_menu_key_data[2] ? "Shift + " : "",
+					keyboard_keys[_menu_key_data[0]]);
 
 				if (_errors.find("error") != std::string::npos)
 				{
@@ -1283,9 +1271,9 @@ namespace reshade
 		if (!_effects_enabled)
 		{
 			ImGui::Text("Effects are disabled. Press '%s%s%s' to enable them again.",
-				_effects_key.ctrl ? "Ctrl + " : "",
-				_effects_key.shift ? "Shift + " : "",
-				keyboard_keys[_effects_key.keycode]);
+				_effects_key_data[1] ? "Ctrl + " : "",
+				_effects_key_data[2] ? "Shift + " : "",
+				keyboard_keys[_effects_key_data[0]]);
 		}
 
 		bool continue_tutorial = false;
@@ -1541,11 +1529,11 @@ namespace reshade
 	{
 		char edit_buffer[2048];
 
-		const auto copy_key_shortcut_to_edit_buffer = [&edit_buffer](const key_shortcut &shortcut) {
+		const auto copy_key_shortcut_to_edit_buffer = [&edit_buffer](const auto &shortcut) {
 			size_t offset = 0;
-			if (shortcut.ctrl) memcpy(edit_buffer, "Ctrl + ", 8), offset += 7;
-			if (shortcut.shift) memcpy(edit_buffer + offset, "Shift + ", 9), offset += 8;
-			memcpy(edit_buffer + offset, keyboard_keys[shortcut.keycode], sizeof(*keyboard_keys));
+			if (shortcut[1]) memcpy(edit_buffer, "Ctrl + ", 8), offset += 7;
+			if (shortcut[2]) memcpy(edit_buffer + offset, "Shift + ", 9), offset += 8;
+			memcpy(edit_buffer + offset, keyboard_keys[shortcut[0]], sizeof(*keyboard_keys));
 		};
 		const auto copy_vector_to_edit_buffer = [&edit_buffer](const std::vector<std::string> &data) {
 			size_t offset = 0;
@@ -1572,9 +1560,9 @@ namespace reshade
 
 		if (ImGui::CollapsingHeader("General", ImGuiTreeNodeFlags_DefaultOpen))
 		{
-			assert(_menu_key.keycode < 256);
+			assert(_menu_key_data[0] < 256);
 
-			copy_key_shortcut_to_edit_buffer(_menu_key);
+			copy_key_shortcut_to_edit_buffer(_menu_key_data);
 
 			ImGui::InputText("Overlay Key", edit_buffer, sizeof(edit_buffer), ImGuiInputTextFlags_ReadOnly);
 
@@ -1588,9 +1576,9 @@ namespace reshade
 
 				if (last_key_pressed != 0 && (last_key_pressed < 0x10 || last_key_pressed > 0x11))
 				{
-					_menu_key.keycode = last_key_pressed;
-					_menu_key.ctrl = _input->is_key_down(0x11);
-					_menu_key.shift = _input->is_key_down(0x10);
+					_menu_key_data[0] = last_key_pressed;
+					_menu_key_data[1] = _input->is_key_down(0x11);
+					_menu_key_data[2] = _input->is_key_down(0x10);
 
 					save_configuration();
 				}
@@ -1600,9 +1588,9 @@ namespace reshade
 				ImGui::SetTooltip("Click in the field and press any key to change the shortcut to that key.");
 			}
 
-			assert(_effects_key.keycode < 256);
+			assert(_effects_key_data[0] < 256);
 
-			copy_key_shortcut_to_edit_buffer(_effects_key);
+			copy_key_shortcut_to_edit_buffer(_effects_key_data);
 
 			ImGui::InputText("Effects Toggle Key", edit_buffer, sizeof(edit_buffer), ImGuiInputTextFlags_ReadOnly);
 
@@ -1612,9 +1600,9 @@ namespace reshade
 
 				if (last_key_pressed != 0 && (last_key_pressed < 0x10 || last_key_pressed > 0x11))
 				{
-					_effects_key.keycode = last_key_pressed;
-					_effects_key.ctrl = _input->is_key_down(0x11);
-					_effects_key.shift = _input->is_key_down(0x10);
+					_effects_key_data[0] = last_key_pressed;
+					_effects_key_data[1] = _input->is_key_down(0x11);
+					_effects_key_data[2] = _input->is_key_down(0x10);
 
 					save_configuration();
 				}
@@ -1676,9 +1664,9 @@ namespace reshade
 
 		if (ImGui::CollapsingHeader("Screenshots", ImGuiTreeNodeFlags_DefaultOpen))
 		{
-			assert(_screenshot_key.keycode < 256);
+			assert(_screenshot_key_data[0] < 256);
 
-			copy_key_shortcut_to_edit_buffer(_screenshot_key);
+			copy_key_shortcut_to_edit_buffer(_screenshot_key_data);
 
 			ImGui::InputText("Screenshot Key", edit_buffer, sizeof(edit_buffer), ImGuiInputTextFlags_ReadOnly);
 
@@ -1692,9 +1680,9 @@ namespace reshade
 
 				if (last_key_pressed != 0 && (last_key_pressed < 0x10 || last_key_pressed > 0x11))
 				{
-					_screenshot_key.keycode = last_key_pressed;
-					_screenshot_key.ctrl = _input->is_key_down(0x11);
-					_screenshot_key.shift = _input->is_key_down(0x10);
+					_screenshot_key_data[0] = last_key_pressed;
+					_screenshot_key_data[1] = _input->is_key_down(0x11);
+					_screenshot_key_data[2] = _input->is_key_down(0x10);
 
 					save_configuration();
 				}
@@ -2117,13 +2105,13 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 				hovered_technique_index = id;
 			}
 
-			assert(technique.toggle_key < 256);
+			assert(technique.toggle_key_data[0] < 256);
 
 			size_t offset = 0;
-			if (technique.toggle_key_ctrl) memcpy(edit_buffer, "Ctrl + ", 8), offset += 7;
-			if (technique.toggle_key_shift) memcpy(edit_buffer + offset, "Shift + ", 9), offset += 8;
-			if (technique.toggle_key_alt) memcpy(edit_buffer + offset, "Alt + ", 7), offset += 6;
-			memcpy(edit_buffer + offset, keyboard_keys[technique.toggle_key], sizeof(*keyboard_keys));
+			if (technique.toggle_key_data[1]) memcpy(edit_buffer, "Ctrl + ", 8), offset += 7;
+			if (technique.toggle_key_data[2]) memcpy(edit_buffer + offset, "Shift + ", 9), offset += 8;
+			if (technique.toggle_key_data[3]) memcpy(edit_buffer + offset, "Alt + ", 7), offset += 6;
+			memcpy(edit_buffer + offset, keyboard_keys[technique.toggle_key_data[0]], sizeof(*keyboard_keys));
 
 			ImGui::SameLine(toggle_key_text_offset);
 			ImGui::TextUnformatted("Toggle Key");
@@ -2142,17 +2130,17 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 				{
 					if (last_key_pressed == 0x08) // Backspace
 					{
-						technique.toggle_key = 0;
-						technique.toggle_key_ctrl = false;
-						technique.toggle_key_shift = false;
-						technique.toggle_key_alt = false;
+						technique.toggle_key_data[0] = 0;
+						technique.toggle_key_data[1] = 0;
+						technique.toggle_key_data[2] = 0;
+						technique.toggle_key_data[3] = 0;
 					}
 					else if (last_key_pressed < 0x10 || last_key_pressed > 0x12)
 					{
-						technique.toggle_key = last_key_pressed;
-						technique.toggle_key_ctrl = _input->is_key_down(0x11);
-						technique.toggle_key_shift = _input->is_key_down(0x10);
-						technique.toggle_key_alt = _input->is_key_down(0x12);
+						technique.toggle_key_data[0] = last_key_pressed;
+						technique.toggle_key_data[1] = _input->is_key_down(0x11);
+						technique.toggle_key_data[2] = _input->is_key_down(0x10);
+						technique.toggle_key_data[3] = _input->is_key_down(0x12);
 					}
 
 					save_current_preset();

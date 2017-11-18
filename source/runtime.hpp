@@ -189,8 +189,6 @@ namespace reshade
 		std::vector<technique> _techniques;
 
 	private:
-		struct key_shortcut { int keycode; bool ctrl, shift; };
-
 		void reload();
 		void load_configuration();
 		void save_configuration() const;
@@ -230,9 +228,9 @@ namespace reshade
 		int _current_preset = -1;
 		int _selected_technique = -1;
 		int _input_processing_mode = 2;
-		key_shortcut _menu_key;
-		key_shortcut _screenshot_key;
-		key_shortcut _effects_key;
+		unsigned int _menu_key_data[3];
+		unsigned int _screenshot_key_data[3];
+		unsigned int _effects_key_data[3];
 		filesystem::path _configuration_path;
 		filesystem::path _screenshot_path;
 		bool _show_menu = false;

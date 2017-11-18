@@ -143,28 +143,4 @@ namespace reshade
 			file << std::endl;
 		}
 	}
-
-	variant ini_file::get(const std::string &section, const std::string &key, const variant &default) const
-	{
-		const auto it1 = _sections.find(section);
-
-		if (it1 == _sections.end())
-		{
-			return default;
-		}
-
-		const auto it2 = it1->second.find(key);
-
-		if (it2 == it1->second.end())
-		{
-			return default;
-		}
-
-		return it2->second;
-	}
-	void ini_file::set(const std::string &section, const std::string &key, const variant &value)
-	{
-		_modified = true;
-		_sections[section][key] = value;
-	}
 }
