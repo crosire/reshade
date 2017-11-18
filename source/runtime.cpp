@@ -959,6 +959,9 @@ namespace reshade
 
 			if (technique.toggle_key_data[0] != 0)
 			{
+				// Make sure techniques that are disabled but can be enabled via hotkey are loaded during fast loading too
+				effects_files.emplace(technique.effect_filename);
+
 				preset.set("", "Key" + technique.name, technique.toggle_key_data);
 			}
 		}
