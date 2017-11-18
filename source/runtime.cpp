@@ -1862,7 +1862,7 @@ namespace reshade
 	void runtime::draw_overlay_menu_about()
 	{
 		ImGui::PushTextWrapPos();
-		ImGui::TextUnformatted(R"(Copyright 2014 Patrick Mours. All rights reserved.
+		ImGui::TextUnformatted(R"(Copyright (C) 2014 Patrick Mours. All rights reserved.
 
 https://github.com/crosire/reshade
 
@@ -1887,7 +1887,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 		}
 		if (ImGui::CollapsingHeader("Hacker Disassembler Engine 32/64 C"))
 		{
-			ImGui::TextUnformatted(R"(Copyright (c) 2008-2009, Vyacheslav Patkov. All rights reserved.
+			ImGui::TextUnformatted(R"(Copyright (C) 2008-2009 Vyacheslav Patkov. All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
 
@@ -1898,7 +1898,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 		}
 		if (ImGui::CollapsingHeader("dear imgui"))
 		{
-			ImGui::TextUnformatted(R"(Copyright (c) 2014-2015 Omar Cornut and ImGui contributors
+			ImGui::TextUnformatted(R"(Copyright (C) 2014-2015 Omar Cornut and ImGui contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
