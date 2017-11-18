@@ -1463,6 +1463,11 @@ namespace reshade::d3d9
 		{
 			_runtime->update_texture_reference(obj, texture_reference::depth_buffer);
 		}
+		else if (!node->semantic.empty())
+		{
+			error(node->location, "invalid semantic");
+			return;
+		}
 		else
 		{
 			DWORD usage = 0;

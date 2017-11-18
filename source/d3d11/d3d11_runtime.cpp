@@ -493,19 +493,14 @@ namespace reshade::d3d11
 	{
 		runtime::on_reset_effect();
 
-		for (auto it : _effect_sampler_states)
-		{
-			it->Release();
-		}
-
 		_effect_sampler_descs.clear();
 		_effect_sampler_states.clear();
 		_constant_buffers.clear();
 
 		_effect_shader_resources.resize(3);
-		_effect_shader_resources[0] = _backbuffer_texture_srv[0].get();
-		_effect_shader_resources[1] = _backbuffer_texture_srv[1].get();
-		_effect_shader_resources[2] = _depthstencil_texture_srv.get();
+		_effect_shader_resources[0] = _backbuffer_texture_srv[0];
+		_effect_shader_resources[1] = _backbuffer_texture_srv[1];
+		_effect_shader_resources[2] = _depthstencil_texture_srv;
 	}
 	void d3d11_runtime::on_present()
 	{
@@ -546,8 +541,8 @@ namespace reshade::d3d11
 			_immediate_context->RSSetState(_effect_rasterizer_state.get());
 
 			// Setup samplers
-			_immediate_context->VSSetSamplers(0, static_cast<UINT>(_effect_sampler_states.size()), _effect_sampler_states.data());
-			_immediate_context->PSSetSamplers(0, static_cast<UINT>(_effect_sampler_states.size()), _effect_sampler_states.data());
+			_immediate_context->VSSetSamplers(0, static_cast<UINT>(_effect_sampler_states.size()), reinterpret_cast<ID3D11SamplerState *const *>(_effect_sampler_states.data()));
+			_immediate_context->PSSetSamplers(0, static_cast<UINT>(_effect_sampler_states.size()), reinterpret_cast<ID3D11SamplerState *const *>(_effect_sampler_states.data()));
 
 			on_present_effect();
 		}
@@ -849,13 +844,13 @@ namespace reshade::d3d11
 			_immediate_context->CopyResource(_backbuffer_texture.get(), _backbuffer_resolved.get());
 
 			// Setup shader resources
-			_immediate_context->VSSetShaderResources(0, static_cast<UINT>(pass.shader_resources.size()), pass.shader_resources.data());
-			_immediate_context->PSSetShaderResources(0, static_cast<UINT>(pass.shader_resources.size()), pass.shader_resources.data());
+			_immediate_context->VSSetShaderResources(0, static_cast<UINT>(pass.shader_resources.size()), reinterpret_cast<ID3D11ShaderResourceView *const *>(pass.shader_resources.data()));
+			_immediate_context->PSSetShaderResources(0, static_cast<UINT>(pass.shader_resources.size()), reinterpret_cast<ID3D11ShaderResourceView *const *>(pass.shader_resources.data()));
 
 			// Setup render targets
 			if (static_cast<UINT>(pass.viewport.Width) == _width && static_cast<UINT>(pass.viewport.Height) == _height)
 			{
-				_immediate_context->OMSetRenderTargets(D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT, pass.render_targets, _default_depthstencil.get());
+				_immediate_context->OMSetRenderTargets(D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT, reinterpret_cast<ID3D11RenderTargetView *const *>(pass.render_targets), _default_depthstencil.get());
 
 				if (!is_default_depthstencil_cleared)
 				{
@@ -866,19 +861,19 @@ namespace reshade::d3d11
 			}
 			else
 			{
-				_immediate_context->OMSetRenderTargets(D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT, pass.render_targets, nullptr);
+				_immediate_context->OMSetRenderTargets(D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT, reinterpret_cast<ID3D11RenderTargetView *const *>(pass.render_targets), nullptr);
 			}
 
 			_immediate_context->RSSetViewports(1, &pass.viewport);
 
 			if (pass.clear_render_targets)
 			{
-				for (const auto target : pass.render_targets)
+				for (const auto &target : pass.render_targets)
 				{
 					if (target != nullptr)
 					{
 						const float color[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
-						_immediate_context->ClearRenderTargetView(target, color);
+						_immediate_context->ClearRenderTargetView(target.get(), color);
 					}
 				}
 			}
@@ -898,7 +893,7 @@ namespace reshade::d3d11
 			_immediate_context->PSSetShaderResources(0, static_cast<UINT>(pass.shader_resources.size()), null);
 
 			// Update shader resources
-			for (const auto resource : pass.render_target_resources)
+			for (const auto &resource : pass.render_target_resources)
 			{
 				if (resource == nullptr)
 				{
@@ -910,7 +905,7 @@ namespace reshade::d3d11
 
 				if (resource_desc.Texture2D.MipLevels > 1)
 				{
-					_immediate_context->GenerateMips(resource);
+					_immediate_context->GenerateMips(resource.get());
 				}
 			}
 		}
@@ -1253,10 +1248,10 @@ namespace reshade::d3d11
 		}
 
 		// Update effect textures
-		_effect_shader_resources[2] = _depthstencil_texture_srv.get();
+		_effect_shader_resources[2] = _depthstencil_texture_srv;
 		for (const auto &technique : _techniques)
 			for (const auto &pass : technique.passes)
-				pass->as<d3d11_pass_data>()->shader_resources[2] = _depthstencil_texture_srv.get();
+				pass->as<d3d11_pass_data>()->shader_resources[2] = _depthstencil_texture_srv;
 
 		return true;
 	}
