@@ -694,6 +694,14 @@ namespace reshade::d3d9
 				part1 = "fwidth(";
 				part2 = ")";
 				break;
+			case intrinsic_expression_node::isinf:
+				part1 = "isinf(";
+				part2 = ")";
+				break;
+			case intrinsic_expression_node::isnan:
+				part1 = "isnan(";
+				part2 = ")";
+				break;
 			case intrinsic_expression_node::ldexp:
 				part1 = "ldexp(";
 				part2 = ", ";
@@ -1377,7 +1385,7 @@ namespace reshade::d3d9
 		if (node->type.is_array())
 		{
 			output << '[';
-			
+
 			if (node->type.array_length > 0)
 			{
 				output << node->type.array_length;
