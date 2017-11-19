@@ -165,6 +165,6 @@ struct Direct3DDevice9 : IDirect3DDevice9Ex
 	bool _extended_interface;
 	Direct3DSwapChain9 *_implicit_swapchain = nullptr;
 	std::vector<Direct3DSwapChain9 *> _additional_swapchains;
-	IDirect3DSurface9 *_auto_depthstencil = nullptr;
+	com_ptr<IDirect3DSurface9> _auto_depthstencil;
 	bool _use_software_rendering = false;
 };
