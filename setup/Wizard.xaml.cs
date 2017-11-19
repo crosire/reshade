@@ -407,8 +407,8 @@ namespace ReShade.Setup
 
 			string configFilePath = Path.ChangeExtension(_targetModulePath, ".ini");
 
-			var effectSearchPaths = new HashSet<string>(IniFile.ReadValue(configFilePath, "GENERAL", "EffectSearchPaths", targetDirectory).Split(','));
-			var textureSearchPaths = new HashSet<string>(IniFile.ReadValue(configFilePath, "GENERAL", "TextureSearchPaths", targetDirectory).Split(','));
+			var effectSearchPaths = new HashSet<string>(IniFile.ReadValue(configFilePath, "GENERAL", "EffectSearchPaths").Split(',').Where(x => x.Length != 0));
+			var textureSearchPaths = new HashSet<string>(IniFile.ReadValue(configFilePath, "GENERAL", "TextureSearchPaths").Split(',').Where(x => x.Length != 0));
 			effectSearchPaths.Add(Path.Combine(shadersDirectoryFinal, "Shaders"));
 			textureSearchPaths.Add(Path.Combine(shadersDirectoryFinal, "Textures"));
 			IniFile.WriteValue(configFilePath, "GENERAL", "EffectSearchPaths", string.Join(",", effectSearchPaths));
