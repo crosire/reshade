@@ -10,6 +10,9 @@
     <Filter Include="core\runtime">
       <UniqueIdentifier>{ecdb23a8-21dc-4334-b5cf-2ea57d27001d}</UniqueIdentifier>
     </Filter>
+    <Filter Include="core\utility">
+      <UniqueIdentifier>{d3347d57-7868-467f-a688-fe9c6adc8e5c}</UniqueIdentifier>
+    </Filter>
     <Filter Include="hooks">
       <UniqueIdentifier>{3c3eb495-1eeb-4c7c-b58f-3bbcf24758f6}</UniqueIdentifier>
     </Filter>
@@ -36,19 +39,7 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="source\directory_watcher.cpp">
-      <Filter>core</Filter>
-    </ClCompile>
-    <ClCompile Include="source\filesystem.cpp">
-      <Filter>core</Filter>
-    </ClCompile>
-    <ClCompile Include="source\ini_file.cpp">
-      <Filter>core</Filter>
-    </ClCompile>
-    <ClCompile Include="source\log.cpp">
-      <Filter>core</Filter>
-    </ClCompile>
-    <ClCompile Include="source\resource_loading.cpp">
+    <ClCompile Include="source\dllmain.cpp">
       <Filter>core</Filter>
     </ClCompile>
     <ClCompile Include="source\hook.cpp">
@@ -60,14 +51,26 @@
     <ClCompile Include="source\input.cpp">
       <Filter>core\runtime</Filter>
     </ClCompile>
-    <ClCompile Include="source\main.cpp">
-      <Filter>core\runtime</Filter>
-    </ClCompile>
     <ClCompile Include="source\runtime.cpp">
       <Filter>core\runtime</Filter>
     </ClCompile>
     <ClCompile Include="source\runtime_objects.cpp">
       <Filter>core\runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="source\directory_watcher.cpp">
+      <Filter>core\utility</Filter>
+    </ClCompile>
+    <ClCompile Include="source\filesystem.cpp">
+      <Filter>core\utility</Filter>
+    </ClCompile>
+    <ClCompile Include="source\ini_file.cpp">
+      <Filter>core\utility</Filter>
+    </ClCompile>
+    <ClCompile Include="source\resource_loading.cpp">
+      <Filter>core\utility</Filter>
+    </ClCompile>
+    <ClCompile Include="source\log.cpp">
+      <Filter>core\utility</Filter>
     </ClCompile>
     <ClCompile Include="source\d3d9\d3d9.cpp">
       <Filter>hooks\d3d9</Filter>
@@ -126,9 +129,6 @@
     <ClCompile Include="source\dxgi\dxgi_swapchain.cpp">
       <Filter>hooks\dxgi</Filter>
     </ClCompile>
-    <ClCompile Include="source\opengl\opengl.cpp">
-      <Filter>hooks\opengl</Filter>
-    </ClCompile>
     <ClCompile Include="source\opengl\opengl_effect_compiler.cpp">
       <Filter>hooks\opengl</Filter>
     </ClCompile>
@@ -136,6 +136,12 @@
       <Filter>hooks\opengl</Filter>
     </ClCompile>
     <ClCompile Include="source\opengl\opengl_stateblock.cpp">
+      <Filter>hooks\opengl</Filter>
+    </ClCompile>
+    <ClCompile Include="source\opengl\stubs_gl.cpp">
+      <Filter>hooks\opengl</Filter>
+    </ClCompile>
+    <ClCompile Include="source\opengl\stubs_wgl.cpp">
       <Filter>hooks\opengl</Filter>
     </ClCompile>
     <ClCompile Include="source\windows\user32.cpp">
@@ -146,33 +152,6 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="source\com_ptr.hpp">
-      <Filter>core</Filter>
-    </ClInclude>
-    <ClInclude Include="source\directory_watcher.hpp">
-      <Filter>core</Filter>
-    </ClInclude>
-    <ClInclude Include="source\filesystem.hpp">
-      <Filter>core</Filter>
-    </ClInclude>
-    <ClInclude Include="source\ini_file.hpp">
-      <Filter>core</Filter>
-    </ClInclude>
-    <ClInclude Include="source\log.hpp">
-      <Filter>core</Filter>
-    </ClInclude>
-    <ClInclude Include="source\moving_average.hpp">
-      <Filter>core</Filter>
-    </ClInclude>
-    <ClInclude Include="source\resource_loading.hpp">
-      <Filter>core</Filter>
-    </ClInclude>
-    <ClInclude Include="source\variant.hpp">
-      <Filter>core</Filter>
-    </ClInclude>
-    <ClInclude Include="source\unicode.hpp">
-      <Filter>core</Filter>
-    </ClInclude>
     <ClInclude Include="source\hook.hpp">
       <Filter>core\hook</Filter>
     </ClInclude>
@@ -187,6 +166,33 @@
     </ClInclude>
     <ClInclude Include="source\runtime_objects.hpp">
       <Filter>core\runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="source\variant.hpp">
+      <Filter>core\utility</Filter>
+    </ClInclude>
+    <ClInclude Include="source\moving_average.hpp">
+      <Filter>core\utility</Filter>
+    </ClInclude>
+    <ClInclude Include="source\string_codecvt.hpp">
+      <Filter>core\utility</Filter>
+    </ClInclude>
+    <ClInclude Include="source\com_ptr.hpp">
+      <Filter>core\utility</Filter>
+    </ClInclude>
+    <ClInclude Include="source\resource_loading.hpp">
+      <Filter>core\utility</Filter>
+    </ClInclude>
+    <ClInclude Include="source\directory_watcher.hpp">
+      <Filter>core\utility</Filter>
+    </ClInclude>
+    <ClInclude Include="source\filesystem.hpp">
+      <Filter>core\utility</Filter>
+    </ClInclude>
+    <ClInclude Include="source\ini_file.hpp">
+      <Filter>core\utility</Filter>
+    </ClInclude>
+    <ClInclude Include="source\log.hpp">
+      <Filter>core\utility</Filter>
     </ClInclude>
     <ClInclude Include="source\d3d9\d3d9.hpp">
       <Filter>hooks\d3d9</Filter>
@@ -248,13 +254,16 @@
     <ClInclude Include="source\opengl\opengl_effect_compiler.hpp">
       <Filter>hooks\opengl</Filter>
     </ClInclude>
-    <ClInclude Include="source\opengl\opengl_loader.hpp">
-      <Filter>hooks\opengl</Filter>
-    </ClInclude>
     <ClInclude Include="source\opengl\opengl_runtime.hpp">
       <Filter>hooks\opengl</Filter>
     </ClInclude>
     <ClInclude Include="source\opengl\opengl_stateblock.hpp">
+      <Filter>hooks\opengl</Filter>
+    </ClInclude>
+    <ClInclude Include="source\opengl\opengl_stubs.hpp">
+      <Filter>hooks\opengl</Filter>
+    </ClInclude>
+    <ClInclude Include="source\opengl\opengl_stubs_internal.hpp">
       <Filter>hooks\opengl</Filter>
     </ClInclude>
     <ClInclude Include="res\resource.h">

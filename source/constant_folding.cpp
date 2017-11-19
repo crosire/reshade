@@ -3,9 +3,7 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-#include "syntax_tree.hpp"
-#include "constant_folding.hpp"
-
+#include "effect_syntax_tree.hpp"
 #include <algorithm>
 
 namespace reshadefx

@@ -3,7 +3,6 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-#include "opengl_loader.hpp"
 #include "opengl_stateblock.hpp"
 
 namespace reshade::opengl

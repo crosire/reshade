@@ -434,20 +434,20 @@ HOOK_EXPORT HRESULT WINAPI DXGID3D10RegisterLayers(const void *pLayers, UINT Num
 
 HOOK_EXPORT HRESULT WINAPI CreateDXGIFactory(REFIID riid, void **ppFactory)
 {
-	OLECHAR riidString[40];
-	StringFromGUID2(riid, riidString, ARRAYSIZE(riidString));
+	OLECHAR riid_string[40];
+	StringFromGUID2(riid, riid_string, ARRAYSIZE(riid_string));
 
-	LOG(INFO) << "Redirecting '" << "CreateDXGIFactory" << "(" << riidString << ", " << ppFactory << ")' ...";
+	LOG(INFO) << "Redirecting 'CreateDXGIFactory(" << riid_string << ", " << ppFactory << ")' ...";
 	LOG(INFO) << "> Passing on to 'CreateDXGIFactory1':";
 
 	return CreateDXGIFactory1(riid, ppFactory);
 }
 HOOK_EXPORT HRESULT WINAPI CreateDXGIFactory1(REFIID riid, void **ppFactory)
 {
-	OLECHAR riidString[40];
-	StringFromGUID2(riid, riidString, ARRAYSIZE(riidString));
+	OLECHAR riid_string[40];
+	StringFromGUID2(riid, riid_string, ARRAYSIZE(riid_string));
 
-	LOG(INFO) << "Redirecting '" << "CreateDXGIFactory1" << "(" << riidString << ", " << ppFactory << ")' ...";
+	LOG(INFO) << "Redirecting 'CreateDXGIFactory1(" << riid_string << ", " << ppFactory << ")' ...";
 
 	const HRESULT hr = reshade::hooks::call(&CreateDXGIFactory1)(riid, ppFactory);
 
@@ -461,27 +461,40 @@ HOOK_EXPORT HRESULT WINAPI CreateDXGIFactory1(REFIID riid, void **ppFactory)
 	IDXGIFactory *const factory = static_cast<IDXGIFactory *>(*ppFactory);
 	IDXGIFactory2 *factory2 = nullptr;
 
-	reshade::hooks::install(vtable_from_instance(factory), 10, reinterpret_cast<reshade::hook::address>(&IDXGIFactory_CreateSwapChain));
+	reshade::hooks::install("IDXGIFactory::CreateSwapChain", vtable_from_instance(factory), 10, reinterpret_cast<reshade::hook::address>(&IDXGIFactory_CreateSwapChain));
 
 	if (SUCCEEDED(factory->QueryInterface(&factory2)))
 	{
-		reshade::hooks::install(vtable_from_instance(factory2), 15, reinterpret_cast<reshade::hook::address>(&IDXGIFactory2_CreateSwapChainForHwnd));
-		reshade::hooks::install(vtable_from_instance(factory2), 16, reinterpret_cast<reshade::hook::address>(&IDXGIFactory2_CreateSwapChainForCoreWindow));
-		reshade::hooks::install(vtable_from_instance(factory2), 24, reinterpret_cast<reshade::hook::address>(&IDXGIFactory2_CreateSwapChainForComposition));
+		reshade::hooks::install("IDXGIFactory2::CreateSwapChainForHwnd", vtable_from_instance(factory2), 15, reinterpret_cast<reshade::hook::address>(&IDXGIFactory2_CreateSwapChainForHwnd));
+		reshade::hooks::install("IDXGIFactory2::CreateSwapChainForCoreWindow", vtable_from_instance(factory2), 16, reinterpret_cast<reshade::hook::address>(&IDXGIFactory2_CreateSwapChainForCoreWindow));
+		reshade::hooks::install("IDXGIFactory2::CreateSwapChainForComposition", vtable_from_instance(factory2), 24, reinterpret_cast<reshade::hook::address>(&IDXGIFactory2_CreateSwapChainForComposition));
 
 		factory2->Release();
 	}
 
-	LOG(INFO) << "Returning 'IDXGIFactory' object " << *ppFactory;
+	LOG(INFO) << "Returning 'IDXGIFactory1' object " << *ppFactory;
 
 	return S_OK;
 }
 HOOK_EXPORT HRESULT WINAPI CreateDXGIFactory2(UINT flags, REFIID riid, void **ppFactory)
 {
-	OLECHAR riidString[40];
-	StringFromGUID2(riid, riidString, ARRAYSIZE(riidString));
+	OLECHAR riid_string[40];
+	StringFromGUID2(riid, riid_string, ARRAYSIZE(riid_string));
 
-	LOG(INFO) << "Redirecting '" << "CreateDXGIFactory2" << "(" << flags << ", " << riidString << ", " << ppFactory << ")' ...";
+	LOG(INFO) << "Redirecting 'CreateDXGIFactory2(" << flags << ", " << riid_string << ", " << ppFactory << ")' ...";
+
+	ULONGLONG verinfo_condition_mask = 0;
+	VER_SET_CONDITION(verinfo_condition_mask, VER_MAJORVERSION, VER_EQUAL);
+	VER_SET_CONDITION(verinfo_condition_mask, VER_MINORVERSION, VER_LESS_EQUAL);
+
+	OSVERSIONINFOEX verinfo_windows8 = { sizeof(OSVERSIONINFOEX), 6, 2 };
+
+	if (VerifyVersionInfo(&verinfo_windows8, VER_MAJORVERSION | VER_MINORVERSION, verinfo_condition_mask) != FALSE)
+	{
+		LOG(INFO) << "> Passing on to 'CreateDXGIFactory1':";
+
+		return CreateDXGIFactory1(riid, ppFactory);
+	}
 
 #ifdef _DEBUG
 	flags |= DXGI_CREATE_FACTORY_DEBUG;
@@ -499,18 +512,18 @@ HOOK_EXPORT HRESULT WINAPI CreateDXGIFactory2(UINT flags, REFIID riid, void **pp
 	IDXGIFactory *const factory = static_cast<IDXGIFactory *>(*ppFactory);
 	IDXGIFactory2 *factory2 = nullptr;
 
-	reshade::hooks::install(vtable_from_instance(factory), 10, reinterpret_cast<reshade::hook::address>(&IDXGIFactory_CreateSwapChain));
+	reshade::hooks::install("IDXGIFactory::CreateSwapChain", vtable_from_instance(factory), 10, reinterpret_cast<reshade::hook::address>(&IDXGIFactory_CreateSwapChain));
 
 	if (SUCCEEDED(factory->QueryInterface(&factory2)))
 	{
-		reshade::hooks::install(vtable_from_instance(factory2), 15, reinterpret_cast<reshade::hook::address>(&IDXGIFactory2_CreateSwapChainForHwnd));
-		reshade::hooks::install(vtable_from_instance(factory2), 16, reinterpret_cast<reshade::hook::address>(&IDXGIFactory2_CreateSwapChainForCoreWindow));
-		reshade::hooks::install(vtable_from_instance(factory2), 24, reinterpret_cast<reshade::hook::address>(&IDXGIFactory2_CreateSwapChainForComposition));
+		reshade::hooks::install("IDXGIFactory2::CreateSwapChainForHwnd", vtable_from_instance(factory2), 15, reinterpret_cast<reshade::hook::address>(&IDXGIFactory2_CreateSwapChainForHwnd));
+		reshade::hooks::install("IDXGIFactory2::CreateSwapChainForCoreWindow", vtable_from_instance(factory2), 16, reinterpret_cast<reshade::hook::address>(&IDXGIFactory2_CreateSwapChainForCoreWindow));
+		reshade::hooks::install("IDXGIFactory2::CreateSwapChainForComposition", vtable_from_instance(factory2), 24, reinterpret_cast<reshade::hook::address>(&IDXGIFactory2_CreateSwapChainForComposition));
 
 		factory2->Release();
 	}
 
-	LOG(INFO) << "Returning 'IDXGIFactory' object " << *ppFactory;
+	LOG(INFO) << "Returning 'IDXGIFactory2' object " << *ppFactory;
 
 	return S_OK;
 }

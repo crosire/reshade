@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include "opengl_loader.hpp"
+#include "opengl_stubs.hpp"
 
 namespace reshade::opengl
 {

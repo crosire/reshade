@@ -47,6 +47,7 @@ namespace reshadefx
 		pass_declaration,
 		technique_declaration,
 	};
+
 	class node abstract
 	{
 		void operator=(const node &) = delete;
@@ -120,7 +121,7 @@ namespace reshadefx::nodes
 		int array_length;
 		struct struct_declaration_node *definition;
 	};
-	
+
 	struct expression_node abstract : public node
 	{
 		type_node type;
@@ -248,6 +249,8 @@ namespace reshadefx::nodes
 			frac,
 			frexp,
 			fwidth,
+			isinf,
+			isnan,
 			ldexp,
 			length,
 			lerp,

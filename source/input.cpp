@@ -76,11 +76,13 @@ namespace reshade
 		bool is_mouse_message = details.message >= WM_MOUSEFIRST && details.message <= WM_MOUSELAST;
 		bool is_keyboard_message = details.message >= WM_KEYFIRST && details.message <= WM_KEYLAST;
 
+		// Ignore messages that are not related to mouse or keyboard input
 		if (details.message != WM_INPUT && !is_mouse_message && !is_keyboard_message)
 		{
 			return false;
 		}
 
+		// Some games process input on a child window of the swapchain window so make sure input is handled on the parent window
 		const HWND parent = GetParent(details.hwnd);
 
 		if (parent != nullptr)
@@ -90,30 +92,33 @@ namespace reshade
 
 		const std::lock_guard<std::mutex> lock(s_mutex);
 
+		// Remove any expired entry from the list
+		for (auto it = s_windows.begin(); it != s_windows.end();)
+			it->second.expired() ? it = s_windows.erase(it) : ++it;
+
+		// Look up the window in the list of known input windows
 		auto input_window = s_windows.find(details.hwnd);
 		const auto raw_input_window = s_raw_input_windows.find(details.hwnd);
 
 		if (input_window == s_windows.end() && raw_input_window != s_raw_input_windows.end())
 		{
-			// This is a raw input message. Just reroute it to the first window for now, since it is rare to have more than one active at a time.
-			input_window = s_windows.begin();
+			// Reroute this raw input message to the window with the most rendering
+			input_window = std::max_element(s_windows.begin(), s_windows.end(),
+				[](auto lhs, auto rhs) { return lhs.second.lock()->_frame_count < rhs.second.lock()->_frame_count; });
 		}
 
 		if (input_window == s_windows.end())
 		{
 			return false;
 		}
-		else if (input_window->second.expired())
-		{
-			s_windows.erase(input_window);
-			return false;
-		}
 
-		RAWINPUT raw_data = { };
+		RAWINPUT raw_data = {};
 		UINT raw_data_size = sizeof(raw_data);
+
 		const auto input_lock = input_window->second.lock();
 		input &input = *input_lock;
 
+		// Calculate window client mouse position
 		ScreenToClient(static_cast<HWND>(input._window), &details.pt);
 
 		input._mouse_position[0] = details.pt.x;
@@ -362,6 +367,8 @@ namespace reshade
 
 	void input::next_frame()
 	{
+		_frame_count++;
+
 		for (auto &state : _keys)
 		{
 			state &= ~0x8;

@@ -5,11 +5,15 @@
 
 #include "d3d9_runtime.hpp"
 #include "d3d9_effect_compiler.hpp"
-#include "constant_folding.hpp"
 #include <assert.h>
 #include <iomanip>
 #include <algorithm>
 #include <d3dcompiler.h>
+
+namespace reshadefx
+{
+	void scalar_literal_cast(const nodes::literal_expression_node *from, size_t i, float &to);
+}
 
 namespace reshade::d3d9
 {
@@ -688,6 +692,14 @@ namespace reshade::d3d9
 				break;
 			case intrinsic_expression_node::fwidth:
 				part1 = "fwidth(";
+				part2 = ")";
+				break;
+			case intrinsic_expression_node::isinf:
+				part1 = "isinf(";
+				part2 = ")";
+				break;
+			case intrinsic_expression_node::isnan:
+				part1 = "isnan(";
 				part2 = ")";
 				break;
 			case intrinsic_expression_node::ldexp:
@@ -1373,7 +1385,7 @@ namespace reshade::d3d9
 		if (node->type.is_array())
 		{
 			output << '[';
-			
+
 			if (node->type.array_length > 0)
 			{
 				output << node->type.array_length;
@@ -1417,6 +1429,21 @@ namespace reshade::d3d9
 
 	void d3d9_effect_compiler::visit_texture(const variable_declaration_node *node)
 	{
+		const auto existing_texture = _runtime->find_texture(node->unique_name);
+
+		if (existing_texture != nullptr)
+		{
+			if (node->semantic.empty() && (
+				existing_texture->width != node->properties.width ||
+				existing_texture->height != node->properties.height ||
+				existing_texture->levels != node->properties.levels ||
+				existing_texture->format != node->properties.format))
+			{
+				error(node->location, existing_texture->effect_filename + " already created a texture with the same name but different dimensions; textures are shared across all effects, so either rename the variable or adjust the dimensions so they match");
+			}
+			return;
+		}
+
 		texture obj;
 		obj.impl = std::make_unique<d3d9_tex_data>();
 		const auto obj_data = obj.impl->as<d3d9_tex_data>();
@@ -1435,6 +1462,11 @@ namespace reshade::d3d9
 		else if (node->semantic == "DEPTH" || node->semantic == "SV_DEPTH")
 		{
 			_runtime->update_texture_reference(obj, texture_reference::depth_buffer);
+		}
+		else if (!node->semantic.empty())
+		{
+			error(node->location, "invalid semantic");
+			return;
 		}
 		else
 		{
@@ -1479,7 +1511,7 @@ namespace reshade::d3d9
 	}
 	void d3d9_effect_compiler::visit_sampler(const variable_declaration_node *node)
 	{
-		const auto texture = _runtime->find_texture(node->properties.texture->name);
+		const auto texture = _runtime->find_texture(node->properties.texture->unique_name);
 
 		if (texture == nullptr)
 		{
@@ -1720,7 +1752,7 @@ namespace reshade::d3d9
 				break;
 			}
 
-			const auto texture = _runtime->find_texture(node->render_targets[i]->name);
+			const auto texture = _runtime->find_texture(node->render_targets[i]->unique_name);
 
 			if (texture == nullptr)
 			{

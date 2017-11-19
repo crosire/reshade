@@ -741,6 +741,14 @@ namespace reshade::d3d11
 				part1 = "fwidth(";
 				part2 = ")";
 				break;
+			case intrinsic_expression_node::isinf:
+				part1 = "isinf(";
+				part2 = ")";
+				break;
+			case intrinsic_expression_node::isnan:
+				part1 = "isnan(";
+				part2 = ")";
+				break;
 			case intrinsic_expression_node::ldexp:
 				part1 = "ldexp(";
 				part2 = ", ";
@@ -1456,76 +1464,112 @@ namespace reshade::d3d11
 
 	void d3d11_effect_compiler::visit_texture(const variable_declaration_node *node)
 	{
-		texture obj;
-		D3D11_TEXTURE2D_DESC texdesc = { };
-		obj.name = node->name;
-		obj.unique_name = node->unique_name;
-		obj.annotations = node->annotation_list;
-		texdesc.Width = obj.width = node->properties.width;
-		texdesc.Height = obj.height = node->properties.height;
-		texdesc.MipLevels = obj.levels = node->properties.levels;
-		texdesc.ArraySize = 1;
-		texdesc.Format = literal_to_format(obj.format = node->properties.format);
-		texdesc.SampleDesc.Count = 1;
-		texdesc.SampleDesc.Quality = 0;
-		texdesc.Usage = D3D11_USAGE_DEFAULT;
-		texdesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
-		texdesc.MiscFlags = D3D11_RESOURCE_MISC_GENERATE_MIPS;
-
 		size_t texture_register_index, texture_register_index_srgb;
 
-		if (node->semantic == "COLOR" || node->semantic == "SV_TARGET")
-		{
-			obj.width = _runtime->frame_width();
-			obj.height = _runtime->frame_height();
-			obj.impl_reference = texture_reference::back_buffer;
+		const auto existing_texture = _runtime->find_texture(node->unique_name);
 
-			texture_register_index = 0;
-			texture_register_index_srgb = 1;
-		}
-		else if (node->semantic == "DEPTH" || node->semantic == "SV_DEPTH")
+		if (existing_texture != nullptr)
 		{
-			obj.width = _runtime->frame_width();
-			obj.height = _runtime->frame_height();
-			obj.impl_reference = texture_reference::depth_buffer;
+			if (node->semantic == "COLOR" || node->semantic == "SV_TARGET")
+			{
+				texture_register_index = 0;
+				texture_register_index_srgb = 1;
+			}
+			else if (node->semantic == "DEPTH" || node->semantic == "SV_DEPTH")
+			{
+				texture_register_index = 2;
+				texture_register_index_srgb = 2;
+			}
+			else if (!node->semantic.empty())
+			{
+				error(node->location, "invalid semantic");
+				return;
+			}
+			else
+			{
+				if (existing_texture->width != node->properties.width ||
+					existing_texture->height != node->properties.height ||
+					existing_texture->levels != node->properties.levels ||
+					existing_texture->format != node->properties.format)
+				{
+					error(node->location, existing_texture->effect_filename + " already created a texture with the same name but different dimensions; textures are shared across all effects, so either rename the variable or adjust the dimensions so they match");
+					return;
+				}
 
-			texture_register_index = 2;
-			texture_register_index_srgb = 2;
+				const auto obj_data = existing_texture->impl->as<d3d11_tex_data>();
+
+				texture_register_index = std::distance(_runtime->_effect_shader_resources.begin(), std::find(_runtime->_effect_shader_resources.begin(), _runtime->_effect_shader_resources.end(), obj_data->srv[0]));
+
+				if (obj_data->srv[1] != nullptr)
+				{
+					texture_register_index_srgb = std::distance(_runtime->_effect_shader_resources.begin(), std::find(_runtime->_effect_shader_resources.begin(), _runtime->_effect_shader_resources.end(), obj_data->srv[1]));
+				}
+				else
+				{
+					texture_register_index_srgb = texture_register_index;
+				}
+			}
 		}
 		else
 		{
-			obj.impl = std::make_unique<d3d11_tex_data>();
-			const auto obj_data = obj.impl->as<d3d11_tex_data>();
+			texture obj;
+			D3D11_TEXTURE2D_DESC texdesc = { };
+			obj.name = node->name;
+			obj.unique_name = node->unique_name;
+			obj.annotations = node->annotation_list;
+			texdesc.Width = obj.width = node->properties.width;
+			texdesc.Height = obj.height = node->properties.height;
+			texdesc.MipLevels = obj.levels = node->properties.levels;
+			texdesc.ArraySize = 1;
+			texdesc.Format = literal_to_format(obj.format = node->properties.format);
+			texdesc.SampleDesc.Count = 1;
+			texdesc.SampleDesc.Quality = 0;
+			texdesc.Usage = D3D11_USAGE_DEFAULT;
+			texdesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
+			texdesc.MiscFlags = D3D11_RESOURCE_MISC_GENERATE_MIPS;
 
-			HRESULT hr = _runtime->_device->CreateTexture2D(&texdesc, nullptr, &obj_data->texture);
-
-			if (FAILED(hr))
+			if (node->semantic == "COLOR" || node->semantic == "SV_TARGET")
 			{
-				error(node->location, "'ID3D11Device::CreateTexture2D' failed with error code " + std::to_string(static_cast<unsigned long>(hr)) + "!");
+				obj.width = _runtime->frame_width();
+				obj.height = _runtime->frame_height();
+				obj.impl_reference = texture_reference::back_buffer;
+
+				texture_register_index = 0;
+				texture_register_index_srgb = 1;
+			}
+			else if (node->semantic == "DEPTH" || node->semantic == "SV_DEPTH")
+			{
+				obj.width = _runtime->frame_width();
+				obj.height = _runtime->frame_height();
+				obj.impl_reference = texture_reference::depth_buffer;
+
+				texture_register_index = 2;
+				texture_register_index_srgb = 2;
+			}
+			else if (!node->semantic.empty())
+			{
+				error(node->location, "invalid semantic");
 				return;
 			}
-
-			D3D11_SHADER_RESOURCE_VIEW_DESC srvdesc = { };
-			srvdesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-			srvdesc.Texture2D.MipLevels = texdesc.MipLevels;
-			srvdesc.Format = make_format_normal(texdesc.Format);
-
-			hr = _runtime->_device->CreateShaderResourceView(obj_data->texture.get(), &srvdesc, &obj_data->srv[0]);
-
-			if (FAILED(hr))
+			else
 			{
-				error(node->location, "'ID3D11Device::CreateShaderResourceView' failed with error code " + std::to_string(static_cast<unsigned long>(hr)) + "!");
-				return;
-			}
+				obj.impl = std::make_unique<d3d11_tex_data>();
+				const auto obj_data = obj.impl->as<d3d11_tex_data>();
 
-			srvdesc.Format = make_format_srgb(texdesc.Format);
+				HRESULT hr = _runtime->_device->CreateTexture2D(&texdesc, nullptr, &obj_data->texture);
 
-			texture_register_index = _runtime->_effect_shader_resources.size();
-			_runtime->_effect_shader_resources.push_back(obj_data->srv[0].get());
+				if (FAILED(hr))
+				{
+					error(node->location, "'ID3D11Device::CreateTexture2D' failed with error code " + std::to_string(static_cast<unsigned long>(hr)) + "!");
+					return;
+				}
 
-			if (srvdesc.Format != texdesc.Format)
-			{
-				hr = _runtime->_device->CreateShaderResourceView(obj_data->texture.get(), &srvdesc, &obj_data->srv[1]);
+				D3D11_SHADER_RESOURCE_VIEW_DESC srvdesc = { };
+				srvdesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+				srvdesc.Texture2D.MipLevels = texdesc.MipLevels;
+				srvdesc.Format = make_format_normal(texdesc.Format);
+
+				hr = _runtime->_device->CreateShaderResourceView(obj_data->texture.get(), &srvdesc, &obj_data->srv[0]);
 
 				if (FAILED(hr))
 				{
@@ -1533,20 +1577,36 @@ namespace reshade::d3d11
 					return;
 				}
 
-				texture_register_index_srgb = _runtime->_effect_shader_resources.size();
-				_runtime->_effect_shader_resources.push_back(obj_data->srv[1].get());
+				srvdesc.Format = make_format_srgb(texdesc.Format);
+
+				texture_register_index = _runtime->_effect_shader_resources.size();
+				_runtime->_effect_shader_resources.push_back(obj_data->srv[0]);
+
+				if (srvdesc.Format != texdesc.Format)
+				{
+					hr = _runtime->_device->CreateShaderResourceView(obj_data->texture.get(), &srvdesc, &obj_data->srv[1]);
+
+					if (FAILED(hr))
+					{
+						error(node->location, "'ID3D11Device::CreateShaderResourceView' failed with error code " + std::to_string(static_cast<unsigned long>(hr)) + "!");
+						return;
+					}
+
+					texture_register_index_srgb = _runtime->_effect_shader_resources.size();
+					_runtime->_effect_shader_resources.push_back(obj_data->srv[1]);
+				}
+				else
+				{
+					texture_register_index_srgb = texture_register_index;
+				}
 			}
-			else
-			{
-				texture_register_index_srgb = texture_register_index;
-			}
+
+			_runtime->add_texture(std::move(obj));
 		}
 
 		_global_code << "Texture2D " <<
 			node->unique_name << " : register(t" << texture_register_index << "), __" <<
 			node->unique_name << "SRGB : register(t" << texture_register_index_srgb << ");\n";
-
-		_runtime->add_texture(std::move(obj));
 	}
 	void d3d11_effect_compiler::visit_sampler(const variable_declaration_node *node)
 	{
@@ -1561,7 +1621,7 @@ namespace reshade::d3d11
 		desc.MinLOD = node->properties.min_lod;
 		desc.MaxLOD = node->properties.max_lod;
 
-		const auto texture = _runtime->find_texture(node->properties.texture->name);
+		const auto texture = _runtime->find_texture(node->properties.texture->unique_name);
 
 		if (texture == nullptr)
 		{
@@ -1697,8 +1757,8 @@ namespace reshade::d3d11
 		}
 
 		const int target_index = node->srgb_write_enable ? 1 : 0;
-		pass.render_targets[0] = _runtime->_backbuffer_rtv[target_index].get();
-		pass.render_target_resources[0] = _runtime->_backbuffer_texture_srv[target_index].get();
+		pass.render_targets[0] = _runtime->_backbuffer_rtv[target_index];
+		pass.render_target_resources[0] = _runtime->_backbuffer_texture_srv[target_index];
 
 		for (unsigned int i = 0; i < 8; i++)
 		{
@@ -1707,7 +1767,7 @@ namespace reshade::d3d11
 				continue;
 			}
 
-			const auto texture = _runtime->find_texture(node->render_targets[i]->name);
+			const auto texture = _runtime->find_texture(node->render_targets[i]->unique_name);
 
 			if (texture == nullptr)
 			{
@@ -1745,8 +1805,8 @@ namespace reshade::d3d11
 				}
 			}
 
-			pass.render_targets[i] = texture_impl->rtv[target_index].get();
-			pass.render_target_resources[i] = texture_impl->srv[target_index].get();
+			pass.render_targets[i] = texture_impl->rtv[target_index];
+			pass.render_target_resources[i] = texture_impl->srv[target_index];
 		}
 
 		if (pass.viewport.Width == 0 && pass.viewport.Height == 0)
@@ -1802,7 +1862,7 @@ namespace reshade::d3d11
 			com_ptr<ID3D11Resource> res1;
 			srv->GetResource(&res1);
 
-			for (auto rtv : pass.render_targets)
+			for (const auto &rtv : pass.render_targets)
 			{
 				if (rtv == nullptr)
 				{
@@ -1814,7 +1874,7 @@ namespace reshade::d3d11
 
 				if (res1 == res2)
 				{
-					srv = nullptr;
+					srv.reset();
 					break;
 				}
 			}

@@ -4,7 +4,6 @@
  */
 
 #include "hook.hpp"
-
 #include <assert.h>
 #include <MinHook.h>
 
@@ -12,60 +11,23 @@ namespace reshade
 {
 	static unsigned long s_reference_count = 0;
 
-	hook::hook() : target(nullptr), replacement(nullptr), trampoline(nullptr)
-	{
-	}
-	hook::hook(address target, address replacement) : target(target), replacement(replacement), trampoline(nullptr)
-	{
-	}
-
-	bool hook::valid() const
-	{
-		return target != nullptr && replacement != nullptr && target != replacement;
-	}
-	bool hook::enabled() const
-	{
-		if (!valid())
-		{
-			return false;
-		}
-
-		const MH_STATUS statuscode = MH_EnableHook(target);
-
-		if (statuscode == MH_ERROR_ENABLED)
-		{
-			return true;
-		}
-
-		MH_DisableHook(target);
-
-		return false;
-	}
-	bool hook::installed() const
-	{
-		return trampoline != nullptr;
-	}
-
-	bool hook::enable(bool enable) const
+	void hook::enable(bool enable) const
 	{
 		if (enable)
 		{
-			const MH_STATUS statuscode = MH_EnableHook(target);
-
-			return statuscode == MH_OK || statuscode == MH_ERROR_ENABLED;
+			MH_QueueEnableHook(target);
 		}
 		else
 		{
-			const MH_STATUS statuscode = MH_DisableHook(target);
-
-			return statuscode == MH_OK || statuscode == MH_ERROR_DISABLED;
+			MH_QueueDisableHook(target);
 		}
 	}
+
 	hook::status hook::install()
 	{
 		if (!valid())
 		{
-			return status::unsupported_function;
+			return hook::status::unsupported_function;
 		}
 
 		if (s_reference_count++ == 0)
@@ -77,9 +39,9 @@ namespace reshade
 
 		if (statuscode == MH_OK || statuscode == MH_ERROR_ALREADY_CREATED)
 		{
-			enable();
+			enable(true);
 
-			return status::success;
+			return hook::status::success;
 		}
 
 		if (--s_reference_count == 0)
@@ -87,24 +49,24 @@ namespace reshade
 			MH_Uninitialize();
 		}
 
-		return static_cast<status>(statuscode);
+		return static_cast<hook::status>(statuscode);
 	}
 	hook::status hook::uninstall()
 	{
 		if (!valid())
 		{
-			return status::unsupported_function;
+			return hook::status::unsupported_function;
 		}
 
 		const MH_STATUS statuscode = MH_RemoveHook(target);
 
 		if (statuscode == MH_ERROR_NOT_CREATED)
 		{
-			return status::success;
+			return hook::status::success;
 		}
 		else if (statuscode != MH_OK)
 		{
-			return static_cast<status>(statuscode);
+			return static_cast<hook::status>(statuscode);
 		}
 
 		trampoline = nullptr;
@@ -114,7 +76,7 @@ namespace reshade
 			MH_Uninitialize();
 		}
 
-		return status::success;
+		return hook::status::success;
 	}
 
 	hook::address hook::call() const
@@ -122,5 +84,10 @@ namespace reshade
 		assert(installed());
 
 		return trampoline;
+	}
+
+	bool hook::apply_queued_actions()
+	{
+		return MH_ApplyQueued() == MH_OK;
 	}
 }

@@ -25,10 +25,10 @@ namespace reshade::d3d10
 		com_ptr<ID3D10DepthStencilState> depth_stencil_state;
 		UINT stencil_reference;
 		bool clear_render_targets;
-		ID3D10RenderTargetView *render_targets[D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT];
-		ID3D10ShaderResourceView *render_target_resources[D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT];
+		com_ptr<ID3D10RenderTargetView> render_targets[D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT];
+		com_ptr<ID3D10ShaderResourceView> render_target_resources[D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT];
 		D3D10_VIEWPORT viewport;
-		std::vector<ID3D10ShaderResourceView *> shader_resources;
+		std::vector<com_ptr<ID3D10ShaderResourceView>> shader_resources;
 	};
 
 	class d3d10_runtime : public runtime
@@ -59,9 +59,9 @@ namespace reshade::d3d10
 		com_ptr<ID3D10Texture2D> _backbuffer_texture;
 		com_ptr<ID3D10RenderTargetView> _backbuffer_rtv[3];
 		com_ptr<ID3D10ShaderResourceView> _backbuffer_texture_srv[2], _depthstencil_texture_srv;
-		std::vector<ID3D10SamplerState *> _effect_sampler_states;
+		std::vector<com_ptr<ID3D10SamplerState>> _effect_sampler_states;
 		std::unordered_map<size_t, size_t> _effect_sampler_descs;
-		std::vector<ID3D10ShaderResourceView *> _effect_shader_resources;
+		std::vector<com_ptr<ID3D10ShaderResourceView>> _effect_shader_resources;
 		std::vector<com_ptr<ID3D10Buffer>> _constant_buffers;
 
 	private:

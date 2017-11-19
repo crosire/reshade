@@ -22,12 +22,12 @@ namespace reshade
 	{
 		_techniques.push_back(std::move(technique));
 	}
-	texture *runtime::find_texture(const std::string &name)
+	texture *runtime::find_texture(const std::string &unique_name)
 	{
 		const auto it = std::find_if(_textures.begin(), _textures.end(),
-			[name](const auto &item)
+			[unique_name](const auto &item)
 			{
-				return item.name == name;
+				return item.unique_name == unique_name;
 			});
 
 		return it != _textures.end() ? &(*it) : nullptr;

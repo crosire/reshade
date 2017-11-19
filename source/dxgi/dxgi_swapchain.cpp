@@ -22,7 +22,8 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::QueryInterface(REFIID riid, void **ppvO
 		riid == __uuidof(IDXGISwapChain) ||
 		riid == __uuidof(IDXGISwapChain1) ||
 		riid == __uuidof(IDXGISwapChain2) ||
-		riid == __uuidof(IDXGISwapChain3))
+		riid == __uuidof(IDXGISwapChain3) ||
+		riid == __uuidof(IDXGISwapChain4))
 	{
 		#pragma region Update to IDXGISwapChain1 interface
 		if (riid == __uuidof(IDXGISwapChain1) && _interface_version < 1)
@@ -76,6 +77,24 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::QueryInterface(REFIID riid, void **ppvO
 
 			_orig = swapchain3;
 			_interface_version = 3;
+		}
+		#pragma endregion
+		#pragma region Update to IDXGISwapChain4 interface
+		if (riid == __uuidof(IDXGISwapChain4) && _interface_version < 4)
+		{
+			IDXGISwapChain4 *swapchain4 = nullptr;
+
+			if (FAILED(_orig->QueryInterface(&swapchain4)))
+			{
+				return E_NOINTERFACE;
+			}
+
+			_orig->Release();
+
+			LOG(INFO) << "Upgraded 'IDXGISwapChain" << (_interface_version > 0 ? std::to_string(_interface_version) : "") << "' object " << this << " to 'IDXGISwapChain4'.";
+
+			_orig = swapchain4;
+			_interface_version = 4;
 		}
 		#pragma endregion
 
@@ -485,4 +504,12 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers1(UINT BufferCount, UINT W
 	}
 
 	return hr;
+}
+
+// IDXGISwapChain5
+HRESULT STDMETHODCALLTYPE DXGISwapChain::SetHDRMetaData(DXGI_HDR_METADATA_TYPE Type, UINT Size, void *pMetaData)
+{
+	assert(_interface_version >= 4);
+
+	return static_cast<IDXGISwapChain4 *>(_orig)->SetHDRMetaData(Type, Size, pMetaData);
 }

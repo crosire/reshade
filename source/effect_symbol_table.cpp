@@ -3,8 +3,8 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-#include "symbol_table.hpp"
-#include "syntax_tree_nodes.hpp"
+#include "effect_symbol_table.hpp"
+#include "effect_syntax_tree_nodes.hpp"
 
 #include <assert.h>
 #include <algorithm>
@@ -216,6 +216,14 @@ namespace reshadefx
 			intrinsic("fwidth", intrinsic_expression_node::fwidth, type_node::datatype_float, 2, 1, type_node::datatype_float, 2, 1),
 			intrinsic("fwidth", intrinsic_expression_node::fwidth, type_node::datatype_float, 3, 1, type_node::datatype_float, 3, 1),
 			intrinsic("fwidth", intrinsic_expression_node::fwidth, type_node::datatype_float, 4, 1, type_node::datatype_float, 4, 1),
+			intrinsic("isinf", intrinsic_expression_node::isinf, type_node::datatype_float, 1, 1, type_node::datatype_float, 1, 1),
+			intrinsic("isinf", intrinsic_expression_node::isinf, type_node::datatype_float, 2, 1, type_node::datatype_float, 2, 1),
+			intrinsic("isinf", intrinsic_expression_node::isinf, type_node::datatype_float, 3, 1, type_node::datatype_float, 3, 1),
+			intrinsic("isinf", intrinsic_expression_node::isinf, type_node::datatype_float, 4, 1, type_node::datatype_float, 4, 1),
+			intrinsic("isnan", intrinsic_expression_node::isnan, type_node::datatype_float, 1, 1, type_node::datatype_float, 1, 1),
+			intrinsic("isnan", intrinsic_expression_node::isnan, type_node::datatype_float, 2, 1, type_node::datatype_float, 2, 1),
+			intrinsic("isnan", intrinsic_expression_node::isnan, type_node::datatype_float, 3, 1, type_node::datatype_float, 3, 1),
+			intrinsic("isnan", intrinsic_expression_node::isnan, type_node::datatype_float, 4, 1, type_node::datatype_float, 4, 1),
 			intrinsic("ldexp", intrinsic_expression_node::ldexp, type_node::datatype_float, 1, 1, type_node::datatype_float, 1, 1, type_node::datatype_float, 1, 1),
 			intrinsic("ldexp", intrinsic_expression_node::ldexp, type_node::datatype_float, 2, 1, type_node::datatype_float, 2, 1, type_node::datatype_float, 2, 1),
 			intrinsic("ldexp", intrinsic_expression_node::ldexp, type_node::datatype_float, 3, 1, type_node::datatype_float, 3, 1, type_node::datatype_float, 3, 1),
@@ -275,6 +283,9 @@ namespace reshadefx
 			intrinsic("mul", intrinsic_expression_node::mul, type_node::datatype_float, 2, 1, type_node::datatype_float, 2, 2, type_node::datatype_float, 2, 1),
 			intrinsic("mul", intrinsic_expression_node::mul, type_node::datatype_float, 3, 1, type_node::datatype_float, 3, 3, type_node::datatype_float, 3, 1),
 			intrinsic("mul", intrinsic_expression_node::mul, type_node::datatype_float, 4, 1, type_node::datatype_float, 4, 4, type_node::datatype_float, 4, 1),
+			intrinsic("mul", intrinsic_expression_node::mul, type_node::datatype_float, 2, 2, type_node::datatype_float, 2, 2, type_node::datatype_float, 2, 2),
+			intrinsic("mul", intrinsic_expression_node::mul, type_node::datatype_float, 3, 3, type_node::datatype_float, 3, 3, type_node::datatype_float, 3, 3),
+			intrinsic("mul", intrinsic_expression_node::mul, type_node::datatype_float, 4, 4, type_node::datatype_float, 4, 4, type_node::datatype_float, 4, 4),
 			intrinsic("normalize", intrinsic_expression_node::normalize, type_node::datatype_float, 1, 1, type_node::datatype_float, 1, 1),
 			intrinsic("normalize", intrinsic_expression_node::normalize, type_node::datatype_float, 2, 1, type_node::datatype_float, 2, 1),
 			intrinsic("normalize", intrinsic_expression_node::normalize, type_node::datatype_float, 3, 1, type_node::datatype_float, 3, 1),
@@ -365,6 +376,64 @@ namespace reshadefx
 			intrinsic("trunc", intrinsic_expression_node::trunc, type_node::datatype_float, 3, 1, type_node::datatype_float, 3, 1),
 			intrinsic("trunc", intrinsic_expression_node::trunc, type_node::datatype_float, 4, 1, type_node::datatype_float, 4, 1),
 		};
+
+		int compare_functions(const call_expression_node *call, const function_declaration_node *function1, const function_declaration_node *function2)
+		{
+			if (function2 == nullptr)
+			{
+				return -1;
+			}
+
+			const size_t count = call->arguments.size();
+
+			bool function1_viable = true;
+			bool function2_viable = true;
+			const auto function1_ranks = static_cast<unsigned int *>(alloca(count * sizeof(unsigned int)));
+			const auto function2_ranks = static_cast<unsigned int *>(alloca(count * sizeof(unsigned int)));
+
+			for (size_t i = 0; i < count; ++i)
+			{
+				function1_ranks[i] = type_node::rank(call->arguments[i]->type, function1->parameter_list[i]->type);
+
+				if (function1_ranks[i] == 0)
+				{
+					function1_viable = false;
+					break;
+				}
+			}
+			for (size_t i = 0; i < count; ++i)
+			{
+				function2_ranks[i] = type_node::rank(call->arguments[i]->type, function2->parameter_list[i]->type);
+
+				if (function2_ranks[i] == 0)
+				{
+					function2_viable = false;
+					break;
+				}
+			}
+
+			if (!(function1_viable && function2_viable))
+			{
+				return function2_viable - function1_viable;
+			}
+
+			std::sort(function1_ranks, function1_ranks + count, std::greater<unsigned int>());
+			std::sort(function2_ranks, function2_ranks + count, std::greater<unsigned int>());
+
+			for (size_t i = 0; i < count; ++i)
+			{
+				if (function1_ranks[i] < function2_ranks[i])
+				{
+					return -1;
+				}
+				else if (function2_ranks[i] < function1_ranks[i])
+				{
+					return +1;
+				}
+			}
+
+			return 0;
+		}
 	}
 
 	unsigned int nodes::type_node::rank(const type_node &src, const type_node &dst)
@@ -412,56 +481,6 @@ namespace reshadefx
 		}
 
 		return rank;
-	}
-	bool get_call_ranks(const call_expression_node *call, const function_declaration_node *function, unsigned int ranks[])
-	{
-		for (size_t i = 0, count = call->arguments.size(); i < count; ++i)
-		{
-			ranks[i] = type_node::rank(call->arguments[i]->type, function->parameter_list[i]->type);
-
-			if (ranks[i] == 0)
-			{
-				return false;
-			}
-		}
-
-		return true;
-	}
-	int compare_functions(const call_expression_node *call, const function_declaration_node *function1, const function_declaration_node *function2)
-	{
-		if (function2 == nullptr)
-		{
-			return -1;
-		}
-
-		const size_t count = call->arguments.size();
-
-		const auto function1_ranks = static_cast<unsigned int *>(alloca(count * sizeof(unsigned int)));
-		const bool function1_viable = get_call_ranks(call, function1, function1_ranks);
-		const auto function2_ranks = static_cast<unsigned int *>(alloca(count * sizeof(unsigned int)));
-		const bool function2_viable = get_call_ranks(call, function2, function2_ranks);
-
-		if (!(function1_viable && function2_viable))
-		{
-			return function2_viable - function1_viable;
-		}
-
-		std::sort(function1_ranks, function1_ranks + count, std::greater<unsigned int>());
-		std::sort(function2_ranks, function2_ranks + count, std::greater<unsigned int>());
-
-		for (size_t i = 0; i < count; ++i)
-		{
-			if (function1_ranks[i] < function2_ranks[i])
-			{
-				return -1;
-			}
-			else if (function2_ranks[i] < function1_ranks[i])
-			{
-				return +1;
-			}
-		}
-
-		return 0;
 	}
 
 	symbol_table::symbol_table()
@@ -528,46 +547,64 @@ namespace reshadefx
 
 	bool symbol_table::insert(symbol symbol, bool global)
 	{
+		// Make sure the symbol does not exist yet
 		if (symbol->id != nodeid::function_declaration && find(symbol->name, _current_scope, true))
 		{
 			return false;
 		}
 
+		// Insertion routine which keeps the symbol stack sorted by namespace level
+		const auto insert_sorted = [](auto &vec, const auto &item) {
+			return vec.insert(
+				std::upper_bound(vec.begin(), vec.end(), item,
+					[](auto lhs, auto rhs) {
+						return lhs.first.namespace_level < rhs.first.namespace_level;
+					}), item);
+		};
+
+		// Global symbols are accessible from every scope
 		if (global)
 		{
 			scope scope = { "", 0, 0 };
 
+			// Walk scope chain from global scope back to current one
 			for (size_t pos = 0; pos != std::string::npos; pos = _current_scope.name.find("::", pos))
 			{
-				pos += 2;
+				// Extract scope name
+				scope.name = _current_scope.name.substr(0, pos += 2);
+				const auto previous_scope_name = _current_scope.name.substr(pos);
 
-				scope.name = _current_scope.name.substr(0, pos);
+				// Insert symbol into this scope
+				insert_sorted(_symbol_stack[previous_scope_name + symbol->name], std::make_pair(scope, symbol));
 
-				_symbol_stack[_current_scope.name.substr(pos) + symbol->name].emplace_back(scope, symbol);
-
+				// Continue walking up the scope chain
 				scope.level = ++scope.namespace_level;
 			}
 		}
 		else
 		{
-			_symbol_stack[symbol->name].emplace_back(_current_scope, symbol);
+			// This is a local symbol so it's sufficient to update the symbol stack with just the current scope
+			insert_sorted(_symbol_stack[symbol->name], std::make_pair(_current_scope, symbol));
 		}
 
 		return true;
 	}
 	symbol symbol_table::find(const std::string &name) const
 	{
+		// Default to start search with current scope and walk back the scope chain
 		return find(name, _current_scope, false);
 	}
 	symbol symbol_table::find(const std::string &name, const scope &scope, bool exclusive) const
 	{
 		const auto it = _symbol_stack.find(name);
 
+		// Check if symbol does exist
 		if (it == _symbol_stack.end() || it->second.empty())
 		{
 			return nullptr;
 		}
 
+		// Walk up the scope chain starting at the requested scope level and find a matching symbol
 		symbol result = nullptr;
 		const auto &scope_list = it->second;
 

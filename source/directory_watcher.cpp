@@ -4,7 +4,7 @@
  */
 
 #include "directory_watcher.hpp"
-#include "unicode.hpp"
+#include "string_codecvt.hpp"
 
 #include <Windows.h>
 
@@ -14,7 +14,7 @@ namespace reshade::filesystem
 		_path(path),
 		_buffer(sizeof(FILE_NOTIFY_INFORMATION) + MAX_PATH * sizeof(WCHAR))
 	{
-		_file_handle = CreateFileW(utf8_to_utf16(path.string()).c_str(), FILE_LIST_DIRECTORY, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED, nullptr);
+		_file_handle = CreateFileW(path.wstring().c_str(), FILE_LIST_DIRECTORY, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED, nullptr);
 		_completion_handle = CreateIoCompletionPort(_file_handle, nullptr, reinterpret_cast<ULONG_PTR>(_file_handle), 1);
 
 		OVERLAPPED overlapped = { };
@@ -47,7 +47,7 @@ namespace reshade::filesystem
 
 		while (true)
 		{
-			std::string filename = utf16_to_utf8(record->FileName, record->FileNameLength / sizeof(WCHAR));
+			const std::string filename = utf16_to_utf8(record->FileName, record->FileNameLength / sizeof(WCHAR));
 
 			if (filename != s_last_filename || s_last_tick_count + 2000 < current_tick_count)
 			{

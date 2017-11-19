@@ -3,250 +3,255 @@
  * License: https://github.com/crosire/reshade#license
  */
 
-#include "parser.hpp"
-#include "symbol_table.hpp"
-#include "constant_folding.hpp"
+#include "effect_parser.hpp"
+#include "effect_symbol_table.hpp"
 #include <algorithm>
 
 namespace reshadefx
 {
 	using namespace nodes;
 
-	const std::string get_token_name(lexer::tokenid id)
+	void scalar_literal_cast(const nodes::literal_expression_node *from, size_t i, int &to);
+	void scalar_literal_cast(const nodes::literal_expression_node *from, size_t i, unsigned int &to);
+	void scalar_literal_cast(const nodes::literal_expression_node *from, size_t i, float &to);
+	void vector_literal_cast(const nodes::literal_expression_node *from, size_t k, nodes::literal_expression_node *to, size_t j);
+
+	nodes::expression_node *fold_constant_expression(syntax_tree &ast, nodes::expression_node *expression);
+
+	const std::string get_token_name(tokenid id)
 	{
 		switch (id)
 		{
 			default:
-			case lexer::tokenid::unknown:
+			case tokenid::unknown:
 				return "unknown";
-			case lexer::tokenid::end_of_file:
+			case tokenid::end_of_file:
 				return "end of file";
-			case lexer::tokenid::exclaim:
+			case tokenid::exclaim:
 				return "!";
-			case lexer::tokenid::hash:
+			case tokenid::hash:
 				return "#";
-			case lexer::tokenid::dollar:
+			case tokenid::dollar:
 				return "$";
-			case lexer::tokenid::percent:
+			case tokenid::percent:
 				return "%";
-			case lexer::tokenid::ampersand:
+			case tokenid::ampersand:
 				return "&";
-			case lexer::tokenid::parenthesis_open:
+			case tokenid::parenthesis_open:
 				return "(";
-			case lexer::tokenid::parenthesis_close:
+			case tokenid::parenthesis_close:
 				return ")";
-			case lexer::tokenid::star:
+			case tokenid::star:
 				return "*";
-			case lexer::tokenid::plus:
+			case tokenid::plus:
 				return "+";
-			case lexer::tokenid::comma:
+			case tokenid::comma:
 				return ",";
-			case lexer::tokenid::minus:
+			case tokenid::minus:
 				return "-";
-			case lexer::tokenid::dot:
+			case tokenid::dot:
 				return ".";
-			case lexer::tokenid::slash:
+			case tokenid::slash:
 				return "/";
-			case lexer::tokenid::colon:
+			case tokenid::colon:
 				return ":";
-			case lexer::tokenid::semicolon:
+			case tokenid::semicolon:
 				return ";";
-			case lexer::tokenid::less:
+			case tokenid::less:
 				return "<";
-			case lexer::tokenid::equal:
+			case tokenid::equal:
 				return "=";
-			case lexer::tokenid::greater:
+			case tokenid::greater:
 				return ">";
-			case lexer::tokenid::question:
+			case tokenid::question:
 				return "?";
-			case lexer::tokenid::at:
+			case tokenid::at:
 				return "@";
-			case lexer::tokenid::bracket_open:
+			case tokenid::bracket_open:
 				return "[";
-			case lexer::tokenid::backslash:
+			case tokenid::backslash:
 				return "\\";
-			case lexer::tokenid::bracket_close:
+			case tokenid::bracket_close:
 				return "]";
-			case lexer::tokenid::caret:
+			case tokenid::caret:
 				return "^";
-			case lexer::tokenid::brace_open:
+			case tokenid::brace_open:
 				return "{";
-			case lexer::tokenid::pipe:
+			case tokenid::pipe:
 				return "|";
-			case lexer::tokenid::brace_close:
+			case tokenid::brace_close:
 				return "}";
-			case lexer::tokenid::tilde:
+			case tokenid::tilde:
 				return "~";
-			case lexer::tokenid::exclaim_equal:
+			case tokenid::exclaim_equal:
 				return "!=";
-			case lexer::tokenid::percent_equal:
+			case tokenid::percent_equal:
 				return "%=";
-			case lexer::tokenid::ampersand_ampersand:
+			case tokenid::ampersand_ampersand:
 				return "&&";
-			case lexer::tokenid::ampersand_equal:
+			case tokenid::ampersand_equal:
 				return "&=";
-			case lexer::tokenid::star_equal:
+			case tokenid::star_equal:
 				return "*=";
-			case lexer::tokenid::plus_plus:
+			case tokenid::plus_plus:
 				return "++";
-			case lexer::tokenid::plus_equal:
+			case tokenid::plus_equal:
 				return "+=";
-			case lexer::tokenid::minus_minus:
+			case tokenid::minus_minus:
 				return "--";
-			case lexer::tokenid::minus_equal:
+			case tokenid::minus_equal:
 				return "-=";
-			case lexer::tokenid::arrow:
+			case tokenid::arrow:
 				return "->";
-			case lexer::tokenid::ellipsis:
+			case tokenid::ellipsis:
 				return "...";
-			case lexer::tokenid::slash_equal:
+			case tokenid::slash_equal:
 				return "|=";
-			case lexer::tokenid::colon_colon:
+			case tokenid::colon_colon:
 				return "::";
-			case lexer::tokenid::less_less_equal:
+			case tokenid::less_less_equal:
 				return "<<=";
-			case lexer::tokenid::less_less:
+			case tokenid::less_less:
 				return "<<";
-			case lexer::tokenid::less_equal:
+			case tokenid::less_equal:
 				return "<=";
-			case lexer::tokenid::equal_equal:
+			case tokenid::equal_equal:
 				return "==";
-			case lexer::tokenid::greater_greater_equal:
+			case tokenid::greater_greater_equal:
 				return ">>=";
-			case lexer::tokenid::greater_greater:
+			case tokenid::greater_greater:
 				return ">>";
-			case lexer::tokenid::greater_equal:
+			case tokenid::greater_equal:
 				return ">=";
-			case lexer::tokenid::caret_equal:
+			case tokenid::caret_equal:
 				return "^=";
-			case lexer::tokenid::pipe_equal:
+			case tokenid::pipe_equal:
 				return "|=";
-			case lexer::tokenid::pipe_pipe:
+			case tokenid::pipe_pipe:
 				return "||";
-			case lexer::tokenid::identifier:
+			case tokenid::identifier:
 				return "identifier";
-			case lexer::tokenid::reserved:
+			case tokenid::reserved:
 				return "reserved word";
-			case lexer::tokenid::true_literal:
+			case tokenid::true_literal:
 				return "true";
-			case lexer::tokenid::false_literal:
+			case tokenid::false_literal:
 				return "false";
-			case lexer::tokenid::int_literal:
-			case lexer::tokenid::uint_literal:
+			case tokenid::int_literal:
+			case tokenid::uint_literal:
 				return "integral literal";
-			case lexer::tokenid::float_literal:
-			case lexer::tokenid::double_literal:
+			case tokenid::float_literal:
+			case tokenid::double_literal:
 				return "floating point literal";
-			case lexer::tokenid::string_literal:
+			case tokenid::string_literal:
 				return "string literal";
-			case lexer::tokenid::namespace_:
+			case tokenid::namespace_:
 				return "namespace";
-			case lexer::tokenid::struct_:
+			case tokenid::struct_:
 				return "struct";
-			case lexer::tokenid::technique:
+			case tokenid::technique:
 				return "technique";
-			case lexer::tokenid::pass:
+			case tokenid::pass:
 				return "pass";
-			case lexer::tokenid::for_:
+			case tokenid::for_:
 				return "for";
-			case lexer::tokenid::while_:
+			case tokenid::while_:
 				return "while";
-			case lexer::tokenid::do_:
+			case tokenid::do_:
 				return "do";
-			case lexer::tokenid::if_:
+			case tokenid::if_:
 				return "if";
-			case lexer::tokenid::else_:
+			case tokenid::else_:
 				return "else";
-			case lexer::tokenid::switch_:
+			case tokenid::switch_:
 				return "switch";
-			case lexer::tokenid::case_:
+			case tokenid::case_:
 				return "case";
-			case lexer::tokenid::default_:
+			case tokenid::default_:
 				return "default";
-			case lexer::tokenid::break_:
+			case tokenid::break_:
 				return "break";
-			case lexer::tokenid::continue_:
+			case tokenid::continue_:
 				return "continue";
-			case lexer::tokenid::return_:
+			case tokenid::return_:
 				return "return";
-			case lexer::tokenid::discard_:
+			case tokenid::discard_:
 				return "discard";
-			case lexer::tokenid::extern_:
+			case tokenid::extern_:
 				return "extern";
-			case lexer::tokenid::static_:
+			case tokenid::static_:
 				return "static";
-			case lexer::tokenid::uniform_:
+			case tokenid::uniform_:
 				return "uniform";
-			case lexer::tokenid::volatile_:
+			case tokenid::volatile_:
 				return "volatile";
-			case lexer::tokenid::precise:
+			case tokenid::precise:
 				return "precise";
-			case lexer::tokenid::in:
+			case tokenid::in:
 				return "in";
-			case lexer::tokenid::out:
+			case tokenid::out:
 				return "out";
-			case lexer::tokenid::inout:
+			case tokenid::inout:
 				return "inout";
-			case lexer::tokenid::const_:
+			case tokenid::const_:
 				return "const";
-			case lexer::tokenid::linear:
+			case tokenid::linear:
 				return "linear";
-			case lexer::tokenid::noperspective:
+			case tokenid::noperspective:
 				return "noperspective";
-			case lexer::tokenid::centroid:
+			case tokenid::centroid:
 				return "centroid";
-			case lexer::tokenid::nointerpolation:
+			case tokenid::nointerpolation:
 				return "nointerpolation";
-			case lexer::tokenid::void_:
+			case tokenid::void_:
 				return "void";
-			case lexer::tokenid::bool_:
-			case lexer::tokenid::bool2:
-			case lexer::tokenid::bool3:
-			case lexer::tokenid::bool4:
-			case lexer::tokenid::bool2x2:
-			case lexer::tokenid::bool3x3:
-			case lexer::tokenid::bool4x4:
+			case tokenid::bool_:
+			case tokenid::bool2:
+			case tokenid::bool3:
+			case tokenid::bool4:
+			case tokenid::bool2x2:
+			case tokenid::bool3x3:
+			case tokenid::bool4x4:
 				return "bool type";
-			case lexer::tokenid::int_:
-			case lexer::tokenid::int2:
-			case lexer::tokenid::int3:
-			case lexer::tokenid::int4:
-			case lexer::tokenid::int2x2:
-			case lexer::tokenid::int3x3:
-			case lexer::tokenid::int4x4:
+			case tokenid::int_:
+			case tokenid::int2:
+			case tokenid::int3:
+			case tokenid::int4:
+			case tokenid::int2x2:
+			case tokenid::int3x3:
+			case tokenid::int4x4:
 				return "int type";
-			case lexer::tokenid::uint_:
-			case lexer::tokenid::uint2:
-			case lexer::tokenid::uint3:
-			case lexer::tokenid::uint4:
-			case lexer::tokenid::uint2x2:
-			case lexer::tokenid::uint3x3:
-			case lexer::tokenid::uint4x4:
+			case tokenid::uint_:
+			case tokenid::uint2:
+			case tokenid::uint3:
+			case tokenid::uint4:
+			case tokenid::uint2x2:
+			case tokenid::uint3x3:
+			case tokenid::uint4x4:
 				return "uint type";
-			case lexer::tokenid::float_:
-			case lexer::tokenid::float2:
-			case lexer::tokenid::float3:
-			case lexer::tokenid::float4:
-			case lexer::tokenid::float2x2:
-			case lexer::tokenid::float3x3:
-			case lexer::tokenid::float4x4:
+			case tokenid::float_:
+			case tokenid::float2:
+			case tokenid::float3:
+			case tokenid::float4:
+			case tokenid::float2x2:
+			case tokenid::float3x3:
+			case tokenid::float4x4:
 				return "float type";
-			case lexer::tokenid::vector:
+			case tokenid::vector:
 				return "vector";
-			case lexer::tokenid::matrix:
+			case tokenid::matrix:
 				return "matrix";
-			case lexer::tokenid::string_:
+			case tokenid::string_:
 				return "string";
-			case lexer::tokenid::texture:
+			case tokenid::texture:
 				return "texture";
-			case lexer::tokenid::sampler:
+			case tokenid::sampler:
 				return "sampler";
 		}
 	}
 
-	parser::parser(syntax_tree &ast, std::string &errors) :
+	parser::parser(syntax_tree &ast) :
 		_ast(ast),
-		_errors(errors),
 		_symbol_table(new symbol_table())
 	{
 	}
@@ -261,7 +266,7 @@ namespace reshadefx
 
 		consume();
 
-		while (!peek(lexer::tokenid::end_of_file))
+		while (!peek(tokenid::end_of_file))
 		{
 			if (!parse_top_level())
 			{
@@ -317,11 +322,7 @@ namespace reshadefx
 		_token_next = _token_backup;
 	}
 
-	bool parser::peek(char tok) const
-	{
-		return peek(static_cast<lexer::tokenid>(tok));
-	}
-	bool parser::peek(lexer::tokenid tokid) const
+	bool parser::peek(tokenid tokid) const
 	{
 		return _token_next.id == tokid;
 	}
@@ -330,22 +331,14 @@ namespace reshadefx
 		_token = _token_next;
 		_token_next = _lexer->lex();
 	}
-	void parser::consume_until(char token)
+	void parser::consume_until(tokenid tokid)
 	{
-		consume_until(static_cast<lexer::tokenid>(token));
-	}
-	void parser::consume_until(lexer::tokenid tokid)
-	{
-		while (!accept(tokid) && !peek(lexer::tokenid::end_of_file))
+		while (!accept(tokid) && !peek(tokenid::end_of_file))
 		{
 			consume();
 		}
 	}
-	bool parser::accept(char tok)
-	{
-		return accept(static_cast<lexer::tokenid>(tok));
-	}
-	bool parser::accept(lexer::tokenid tokid)
+	bool parser::accept(tokenid tokid)
 	{
 		if (peek(tokid))
 		{
@@ -356,11 +349,7 @@ namespace reshadefx
 
 		return false;
 	}
-	bool parser::expect(char tok)
-	{
-		return expect(static_cast<lexer::tokenid>(tok));
-	}
-	bool parser::expect(lexer::tokenid tokid)
+	bool parser::expect(tokenid tokid)
 	{
 		if (!accept(tokid))
 		{
@@ -378,7 +367,7 @@ namespace reshadefx
 		type.definition = nullptr;
 		type.array_length = 0;
 
-		if (peek(lexer::tokenid::identifier))
+		if (peek(tokenid::identifier))
 		{
 			type.rows = type.cols = 0;
 			type.basetype = type_node::datatype_struct;
@@ -396,7 +385,7 @@ namespace reshadefx
 				return false;
 			}
 		}
-		else if (accept(lexer::tokenid::vector))
+		else if (accept(tokenid::vector))
 		{
 			type.rows = 4, type.cols = 1;
 			type.basetype = type_node::datatype_float;
@@ -417,7 +406,7 @@ namespace reshadefx
 					return false;
 				}
 
-				if (!(expect(',') && expect(lexer::tokenid::int_literal)))
+				if (!(expect(',') && expect(tokenid::int_literal)))
 				{
 					return false;
 				}
@@ -437,7 +426,7 @@ namespace reshadefx
 				}
 			}
 		}
-		else if (accept(lexer::tokenid::matrix))
+		else if (accept(tokenid::matrix))
 		{
 			type.rows = 4, type.cols = 4;
 			type.basetype = type_node::datatype_float;
@@ -458,7 +447,7 @@ namespace reshadefx
 					return false;
 				}
 
-				if (!(expect(',') && expect(lexer::tokenid::int_literal)))
+				if (!(expect(',') && expect(tokenid::int_literal)))
 				{
 					return false;
 				}
@@ -472,7 +461,7 @@ namespace reshadefx
 
 				type.rows = _token.literal_as_int;
 
-				if (!(expect(',') && expect(lexer::tokenid::int_literal)))
+				if (!(expect(',') && expect(tokenid::int_literal)))
 				{
 					return false;
 				}
@@ -498,128 +487,128 @@ namespace reshadefx
 
 			switch (_token_next.id)
 			{
-				case lexer::tokenid::void_:
+				case tokenid::void_:
 					type.basetype = type_node::datatype_void;
 					break;
-				case lexer::tokenid::bool_:
+				case tokenid::bool_:
 					type.rows = 1, type.cols = 1;
 					type.basetype = type_node::datatype_bool;
 					break;
-				case lexer::tokenid::bool2:
+				case tokenid::bool2:
 					type.rows = 2, type.cols = 1;
 					type.basetype = type_node::datatype_bool;
 					break;
-				case lexer::tokenid::bool2x2:
+				case tokenid::bool2x2:
 					type.rows = 2, type.cols = 2;
 					type.basetype = type_node::datatype_bool;
 					break;
-				case lexer::tokenid::bool3:
+				case tokenid::bool3:
 					type.rows = 3, type.cols = 1;
 					type.basetype = type_node::datatype_bool;
 					break;
-				case lexer::tokenid::bool3x3:
+				case tokenid::bool3x3:
 					type.rows = 3, type.cols = 3;
 					type.basetype = type_node::datatype_bool;
 					break;
-				case lexer::tokenid::bool4:
+				case tokenid::bool4:
 					type.rows = 4, type.cols = 1;
 					type.basetype = type_node::datatype_bool;
 					break;
-				case lexer::tokenid::bool4x4:
+				case tokenid::bool4x4:
 					type.rows = 4, type.cols = 4;
 					type.basetype = type_node::datatype_bool;
 					break;
-				case lexer::tokenid::int_:
+				case tokenid::int_:
 					type.rows = 1, type.cols = 1;
 					type.basetype = type_node::datatype_int;
 					break;
-				case lexer::tokenid::int2:
+				case tokenid::int2:
 					type.rows = 2, type.cols = 1;
 					type.basetype = type_node::datatype_int;
 					break;
-				case lexer::tokenid::int2x2:
+				case tokenid::int2x2:
 					type.rows = 2, type.cols = 2;
 					type.basetype = type_node::datatype_int;
 					break;
-				case lexer::tokenid::int3:
+				case tokenid::int3:
 					type.rows = 3, type.cols = 1;
 					type.basetype = type_node::datatype_int;
 					break;
-				case lexer::tokenid::int3x3:
+				case tokenid::int3x3:
 					type.rows = 3, type.cols = 3;
 					type.basetype = type_node::datatype_int;
 					break;
-				case lexer::tokenid::int4:
+				case tokenid::int4:
 					type.rows = 4, type.cols = 1;
 					type.basetype = type_node::datatype_int;
 					break;
-				case lexer::tokenid::int4x4:
+				case tokenid::int4x4:
 					type.rows = 4, type.cols = 4;
 					type.basetype = type_node::datatype_int;
 					break;
-				case lexer::tokenid::uint_:
+				case tokenid::uint_:
 					type.rows = 1, type.cols = 1;
 					type.basetype = type_node::datatype_uint;
 					break;
-				case lexer::tokenid::uint2:
+				case tokenid::uint2:
 					type.rows = 2, type.cols = 1;
 					type.basetype = type_node::datatype_uint;
 					break;
-				case lexer::tokenid::uint2x2:
+				case tokenid::uint2x2:
 					type.rows = 2, type.cols = 2;
 					type.basetype = type_node::datatype_uint;
 					break;
-				case lexer::tokenid::uint3:
+				case tokenid::uint3:
 					type.rows = 3, type.cols = 1;
 					type.basetype = type_node::datatype_uint;
 					break;
-				case lexer::tokenid::uint3x3:
+				case tokenid::uint3x3:
 					type.rows = 3, type.cols = 3;
 					type.basetype = type_node::datatype_uint;
 					break;
-				case lexer::tokenid::uint4:
+				case tokenid::uint4:
 					type.rows = 4, type.cols = 1;
 					type.basetype = type_node::datatype_uint;
 					break;
-				case lexer::tokenid::uint4x4:
+				case tokenid::uint4x4:
 					type.rows = 4, type.cols = 4;
 					type.basetype = type_node::datatype_uint;
 					break;
-				case lexer::tokenid::float_:
+				case tokenid::float_:
 					type.rows = 1, type.cols = 1;
 					type.basetype = type_node::datatype_float;
 					break;
-				case lexer::tokenid::float2:
+				case tokenid::float2:
 					type.rows = 2, type.cols = 1;
 					type.basetype = type_node::datatype_float;
 					break;
-				case lexer::tokenid::float2x2:
+				case tokenid::float2x2:
 					type.rows = 2, type.cols = 2;
 					type.basetype = type_node::datatype_float;
 					break;
-				case lexer::tokenid::float3:
+				case tokenid::float3:
 					type.rows = 3, type.cols = 1;
 					type.basetype = type_node::datatype_float;
 					break;
-				case lexer::tokenid::float3x3:
+				case tokenid::float3x3:
 					type.rows = 3, type.cols = 3;
 					type.basetype = type_node::datatype_float;
 					break;
-				case lexer::tokenid::float4:
+				case tokenid::float4:
 					type.rows = 4, type.cols = 1;
 					type.basetype = type_node::datatype_float;
 					break;
-				case lexer::tokenid::float4x4:
+				case tokenid::float4x4:
 					type.rows = 4, type.cols = 4;
 					type.basetype = type_node::datatype_float;
 					break;
-				case lexer::tokenid::string_:
+				case tokenid::string_:
 					type.basetype = type_node::datatype_string;
 					break;
-				case lexer::tokenid::texture:
+				case tokenid::texture:
 					type.basetype = type_node::datatype_texture;
 					break;
-				case lexer::tokenid::sampler:
+				case tokenid::sampler:
 					type.basetype = type_node::datatype_sampler;
 					break;
 				default:
@@ -636,60 +625,60 @@ namespace reshadefx
 		unsigned int qualifiers = 0;
 
 		// Storage
-		if (accept(lexer::tokenid::extern_))
+		if (accept(tokenid::extern_))
 		{
 			qualifiers |= type_node::qualifier_extern;
 		}
-		if (accept(lexer::tokenid::static_))
+		if (accept(tokenid::static_))
 		{
 			qualifiers |= type_node::qualifier_static;
 		}
-		if (accept(lexer::tokenid::uniform_))
+		if (accept(tokenid::uniform_))
 		{
 			qualifiers |= type_node::qualifier_uniform;
 		}
-		if (accept(lexer::tokenid::volatile_))
+		if (accept(tokenid::volatile_))
 		{
 			qualifiers |= type_node::qualifier_volatile;
 		}
-		if (accept(lexer::tokenid::precise))
+		if (accept(tokenid::precise))
 		{
 			qualifiers |= type_node::qualifier_precise;
 		}
 
-		if (accept(lexer::tokenid::in))
+		if (accept(tokenid::in))
 		{
 			qualifiers |= type_node::qualifier_in;
 		}
-		if (accept(lexer::tokenid::out))
+		if (accept(tokenid::out))
 		{
 			qualifiers |= type_node::qualifier_out;
 		}
-		if (accept(lexer::tokenid::inout))
+		if (accept(tokenid::inout))
 		{
 			qualifiers |= type_node::qualifier_inout;
 		}
 
 		// Modifiers
-		if (accept(lexer::tokenid::const_))
+		if (accept(tokenid::const_))
 		{
 			qualifiers |= type_node::qualifier_const;
 		}
 
 		// Interpolation
-		if (accept(lexer::tokenid::linear))
+		if (accept(tokenid::linear))
 		{
 			qualifiers |= type_node::qualifier_linear;
 		}
-		if (accept(lexer::tokenid::noperspective))
+		if (accept(tokenid::noperspective))
 		{
 			qualifiers |= type_node::qualifier_noperspective;
 		}
-		if (accept(lexer::tokenid::centroid))
+		if (accept(tokenid::centroid))
 		{
 			qualifiers |= type_node::qualifier_centroid;
 		}
-		if (accept(lexer::tokenid::nointerpolation))
+		if (accept(tokenid::nointerpolation))
 		{
 			qualifiers |= type_node::qualifier_nointerpolation;
 		}
@@ -742,22 +731,22 @@ namespace reshadefx
 	{
 		switch (_token_next.id)
 		{
-			case lexer::tokenid::exclaim:
+			case tokenid::exclaim:
 				op = unary_expression_node::logical_not;
 				break;
-			case lexer::tokenid::plus:
+			case tokenid::plus:
 				op = unary_expression_node::none;
 				break;
-			case lexer::tokenid::minus:
+			case tokenid::minus:
 				op = unary_expression_node::negate;
 				break;
-			case lexer::tokenid::tilde:
+			case tokenid::tilde:
 				op = unary_expression_node::bitwise_not;
 				break;
-			case lexer::tokenid::plus_plus:
+			case tokenid::plus_plus:
 				op = unary_expression_node::pre_increase;
 				break;
-			case lexer::tokenid::minus_minus:
+			case tokenid::minus_minus:
 				op = unary_expression_node::pre_decrease;
 				break;
 			default:
@@ -772,10 +761,10 @@ namespace reshadefx
 	{
 		switch (_token_next.id)
 		{
-			case lexer::tokenid::plus_plus:
+			case tokenid::plus_plus:
 				op = unary_expression_node::post_increase;
 				break;
-			case lexer::tokenid::minus_minus:
+			case tokenid::minus_minus:
 				op = unary_expression_node::post_decrease;
 				break;
 			default:
@@ -790,79 +779,79 @@ namespace reshadefx
 	{
 		switch (_token_next.id)
 		{
-			case lexer::tokenid::percent:
+			case tokenid::percent:
 				op = binary_expression_node::modulo;
 				precedence = 11;
 				break;
-			case lexer::tokenid::ampersand:
+			case tokenid::ampersand:
 				op = binary_expression_node::bitwise_and;
 				precedence = 6;
 				break;
-			case lexer::tokenid::star:
+			case tokenid::star:
 				op = binary_expression_node::multiply;
 				precedence = 11;
 				break;
-			case lexer::tokenid::plus:
+			case tokenid::plus:
 				op = binary_expression_node::add;
 				precedence = 10;
 				break;
-			case lexer::tokenid::minus:
+			case tokenid::minus:
 				op = binary_expression_node::subtract;
 				precedence = 10;
 				break;
-			case lexer::tokenid::slash:
+			case tokenid::slash:
 				op = binary_expression_node::divide;
 				precedence = 11;
 				break;
-			case lexer::tokenid::less:
+			case tokenid::less:
 				op = binary_expression_node::less;
 				precedence = 8;
 				break;
-			case lexer::tokenid::greater:
+			case tokenid::greater:
 				op = binary_expression_node::greater;
 				precedence = 8;
 				break;
-			case lexer::tokenid::question:
+			case tokenid::question:
 				op = binary_expression_node::none;
 				precedence = 1;
 				break;
-			case lexer::tokenid::caret:
+			case tokenid::caret:
 				op = binary_expression_node::bitwise_xor;
 				precedence = 5;
 				break;
-			case lexer::tokenid::pipe:
+			case tokenid::pipe:
 				op = binary_expression_node::bitwise_or;
 				precedence = 4;
 				break;
-			case lexer::tokenid::exclaim_equal:
+			case tokenid::exclaim_equal:
 				op = binary_expression_node::not_equal;
 				precedence = 7;
 				break;
-			case lexer::tokenid::ampersand_ampersand:
+			case tokenid::ampersand_ampersand:
 				op = binary_expression_node::logical_and;
 				precedence = 3;
 				break;
-			case lexer::tokenid::less_less:
+			case tokenid::less_less:
 				op = binary_expression_node::left_shift;
 				precedence = 9;
 				break;
-			case lexer::tokenid::less_equal:
+			case tokenid::less_equal:
 				op = binary_expression_node::less_equal;
 				precedence = 8;
 				break;
-			case lexer::tokenid::equal_equal:
+			case tokenid::equal_equal:
 				op = binary_expression_node::equal;
 				precedence = 7;
 				break;
-			case lexer::tokenid::greater_greater:
+			case tokenid::greater_greater:
 				op = binary_expression_node::right_shift;
 				precedence = 9;
 				break;
-			case lexer::tokenid::greater_equal:
+			case tokenid::greater_equal:
 				op = binary_expression_node::greater_equal;
 				precedence = 8;
 				break;
-			case lexer::tokenid::pipe_pipe:
+			case tokenid::pipe_pipe:
 				op = binary_expression_node::logical_or;
 				precedence = 2;
 				break;
@@ -876,37 +865,37 @@ namespace reshadefx
 	{
 		switch (_token_next.id)
 		{
-			case lexer::tokenid::equal:
+			case tokenid::equal:
 				op = assignment_expression_node::none;
 				break;
-			case lexer::tokenid::percent_equal:
+			case tokenid::percent_equal:
 				op = assignment_expression_node::modulo;
 				break;
-			case lexer::tokenid::ampersand_equal:
+			case tokenid::ampersand_equal:
 				op = assignment_expression_node::bitwise_and;
 				break;
-			case lexer::tokenid::star_equal:
+			case tokenid::star_equal:
 				op = assignment_expression_node::multiply;
 				break;
-			case lexer::tokenid::plus_equal:
+			case tokenid::plus_equal:
 				op = assignment_expression_node::add;
 				break;
-			case lexer::tokenid::minus_equal:
+			case tokenid::minus_equal:
 				op = assignment_expression_node::subtract;
 				break;
-			case lexer::tokenid::slash_equal:
+			case tokenid::slash_equal:
 				op = assignment_expression_node::divide;
 				break;
-			case lexer::tokenid::less_less_equal:
+			case tokenid::less_less_equal:
 				op = assignment_expression_node::left_shift;
 				break;
-			case lexer::tokenid::greater_greater_equal:
+			case tokenid::greater_greater_equal:
 				op = assignment_expression_node::right_shift;
 				break;
-			case lexer::tokenid::caret_equal:
+			case tokenid::caret_equal:
 				op = assignment_expression_node::bitwise_xor;
 				break;
-			case lexer::tokenid::pipe_equal:
+			case tokenid::pipe_equal:
 				op = assignment_expression_node::bitwise_or;
 				break;
 			default:
@@ -1064,7 +1053,7 @@ namespace reshadefx
 
 			type = node->type;
 		}
-		else if (accept(lexer::tokenid::true_literal))
+		else if (accept(tokenid::true_literal))
 		{
 			const auto literal = _ast.make_node<literal_expression_node>(location);
 			literal->type.basetype = type_node::datatype_bool;
@@ -1075,7 +1064,7 @@ namespace reshadefx
 			node = literal;
 			type = literal->type;
 		}
-		else if (accept(lexer::tokenid::false_literal))
+		else if (accept(tokenid::false_literal))
 		{
 			const auto literal = _ast.make_node<literal_expression_node>(location);
 			literal->type.basetype = type_node::datatype_bool;
@@ -1086,7 +1075,7 @@ namespace reshadefx
 			node = literal;
 			type = literal->type;
 		}
-		else if (accept(lexer::tokenid::int_literal))
+		else if (accept(tokenid::int_literal))
 		{
 			literal_expression_node *const literal = _ast.make_node<literal_expression_node>(location);
 			literal->type.basetype = type_node::datatype_int;
@@ -1097,7 +1086,7 @@ namespace reshadefx
 			node = literal;
 			type = literal->type;
 		}
-		else if (accept(lexer::tokenid::uint_literal))
+		else if (accept(tokenid::uint_literal))
 		{
 			const auto literal = _ast.make_node<literal_expression_node>(location);
 			literal->type.basetype = type_node::datatype_uint;
@@ -1108,7 +1097,7 @@ namespace reshadefx
 			node = literal;
 			type = literal->type;
 		}
-		else if (accept(lexer::tokenid::float_literal))
+		else if (accept(tokenid::float_literal))
 		{
 			const auto literal = _ast.make_node<literal_expression_node>(location);
 			literal->type.basetype = type_node::datatype_float;
@@ -1119,7 +1108,7 @@ namespace reshadefx
 			node = literal;
 			type = literal->type;
 		}
-		else if (accept(lexer::tokenid::double_literal))
+		else if (accept(tokenid::double_literal))
 		{
 			const auto literal = _ast.make_node<literal_expression_node>(location);
 			literal->type.basetype = type_node::datatype_float;
@@ -1130,7 +1119,7 @@ namespace reshadefx
 			node = literal;
 			type = literal->type;
 		}
-		else if (accept(lexer::tokenid::string_literal))
+		else if (accept(tokenid::string_literal))
 		{
 			const auto literal = _ast.make_node<literal_expression_node>(location);
 			literal->type.basetype = type_node::datatype_string;
@@ -1138,7 +1127,7 @@ namespace reshadefx
 			literal->type.rows = literal->type.cols = 0, literal->type.array_length = 0;
 			literal->value_string = _token.literal_as_string;
 
-			while (accept(lexer::tokenid::string_literal))
+			while (accept(tokenid::string_literal))
 			{
 				literal->value_string += _token.literal_as_string;
 			}
@@ -1234,8 +1223,9 @@ namespace reshadefx
 			bool exclusive;
 			std::string identifier;
 
-			if (accept(lexer::tokenid::colon_colon))
+			if (accept(tokenid::colon_colon))
 			{
+				scope.name = "::";
 				scope.namespace_level = scope.level = 0;
 				exclusive = true;
 			}
@@ -1245,7 +1235,7 @@ namespace reshadefx
 				exclusive = false;
 			}
 
-			if (exclusive ? expect(lexer::tokenid::identifier) : accept(lexer::tokenid::identifier))
+			if (exclusive ? expect(tokenid::identifier) : accept(tokenid::identifier))
 			{
 				identifier = _token.literal_as_string;
 			}
@@ -1254,9 +1244,9 @@ namespace reshadefx
 				return false;
 			}
 
-			while (accept(lexer::tokenid::colon_colon))
+			while (accept(tokenid::colon_colon))
 			{
-				if (!expect(lexer::tokenid::identifier))
+				if (!expect(tokenid::identifier))
 				{
 					return false;
 				}
@@ -1387,7 +1377,7 @@ namespace reshadefx
 		#pragma endregion
 
 		#pragma region Postfix
-		while (!peek(lexer::tokenid::end_of_file))
+		while (!peek(tokenid::end_of_file))
 		{
 			location = _token_next.location;
 
@@ -1418,7 +1408,7 @@ namespace reshadefx
 			}
 			else if (accept('.'))
 			{
-				if (!expect(lexer::tokenid::identifier))
+				if (!expect(tokenid::identifier))
 				{
 					return false;
 				}
@@ -1923,7 +1913,7 @@ namespace reshadefx
 		// Attributes
 		while (accept('['))
 		{
-			if (expect(lexer::tokenid::identifier))
+			if (expect(tokenid::identifier))
 			{
 				const auto attribute = _token.literal_as_string;
 
@@ -1958,7 +1948,7 @@ namespace reshadefx
 		}
 
 		#pragma region If
-		if (accept(lexer::tokenid::if_))
+		if (accept(tokenid::if_))
 		{
 			const auto newstatement = _ast.make_node<if_statement_node>(_token.location);
 			newstatement->attributes = attributes;
@@ -1982,7 +1972,7 @@ namespace reshadefx
 
 			statement = newstatement;
 
-			if (accept(lexer::tokenid::else_))
+			if (accept(tokenid::else_))
 			{
 				return parse_statement(newstatement->statement_when_false);
 			}
@@ -1992,7 +1982,7 @@ namespace reshadefx
 		#pragma endregion
 
 		#pragma region Switch
-		if (accept(lexer::tokenid::switch_))
+		if (accept(tokenid::switch_))
 		{
 			const auto newstatement = _ast.make_node<switch_statement_node>(_token.location);
 			newstatement->attributes = attributes;
@@ -2014,15 +2004,15 @@ namespace reshadefx
 				return false;
 			}
 
-			while (!peek('}') && !peek(lexer::tokenid::end_of_file))
+			while (!peek('}') && !peek(tokenid::end_of_file))
 			{
 				const auto casenode = _ast.make_node<case_statement_node>(_token_next.location);
 
-				while (accept(lexer::tokenid::case_) || accept(lexer::tokenid::default_))
+				while (accept(tokenid::case_) || accept(tokenid::default_))
 				{
 					expression_node *label = nullptr;
 
-					if (_token.id == lexer::tokenid::case_)
+					if (_token.id == tokenid::case_)
 					{
 						if (!parse_expression(label))
 						{
@@ -2076,7 +2066,7 @@ namespace reshadefx
 		#pragma endregion
 
 		#pragma region For
-		if (accept(lexer::tokenid::for_))
+		if (accept(tokenid::for_))
 		{
 			const auto newstatement = _ast.make_node<for_statement_node>(_token.location);
 			newstatement->attributes = attributes;
@@ -2149,7 +2139,7 @@ namespace reshadefx
 		#pragma endregion
 
 		#pragma region While
-		if (accept(lexer::tokenid::while_))
+		if (accept(tokenid::while_))
 		{
 			const auto newstatement = _ast.make_node<while_statement_node>(_token.location);
 			newstatement->attributes = attributes;
@@ -2189,13 +2179,13 @@ namespace reshadefx
 		#pragma endregion
 
 		#pragma region DoWhile
-		if (accept(lexer::tokenid::do_))
+		if (accept(tokenid::do_))
 		{
 			const auto newstatement = _ast.make_node<while_statement_node>(_token.location);
 			newstatement->attributes = attributes;
 			newstatement->is_do_while = true;
 
-			if (!(parse_statement(newstatement->statement_list) && expect(lexer::tokenid::while_) && expect('(') && parse_expression(newstatement->condition) && expect(')') && expect(';')))
+			if (!(parse_statement(newstatement->statement_list) && expect(tokenid::while_) && expect('(') && parse_expression(newstatement->condition) && expect(')') && expect(';')))
 			{
 				return false;
 			}
@@ -2214,7 +2204,7 @@ namespace reshadefx
 		#pragma endregion
 
 		#pragma region Break
-		if (accept(lexer::tokenid::break_))
+		if (accept(tokenid::break_))
 		{
 			const auto newstatement = _ast.make_node<jump_statement_node>(_token.location);
 			newstatement->attributes = attributes;
@@ -2227,7 +2217,7 @@ namespace reshadefx
 		#pragma endregion
 
 		#pragma region Continue
-		if (accept(lexer::tokenid::continue_))
+		if (accept(tokenid::continue_))
 		{
 			const auto newstatement = _ast.make_node<jump_statement_node>(_token.location);
 			newstatement->attributes = attributes;
@@ -2240,7 +2230,7 @@ namespace reshadefx
 		#pragma endregion
 
 		#pragma region Return
-		if (accept(lexer::tokenid::return_))
+		if (accept(tokenid::return_))
 		{
 			const auto newstatement = _ast.make_node<return_statement_node>(_token.location);
 			newstatement->attributes = attributes;
@@ -2292,7 +2282,7 @@ namespace reshadefx
 		#pragma endregion
 
 		#pragma region Discard
-		if (accept(lexer::tokenid::discard_))
+		if (accept(tokenid::discard_))
 		{
 			const auto newstatement = _ast.make_node<return_statement_node>(_token.location);
 			newstatement->attributes = attributes;
@@ -2348,7 +2338,7 @@ namespace reshadefx
 			_symbol_table->enter_scope();
 		}
 
-		while (!peek('}') && !peek(lexer::tokenid::end_of_file))
+		while (!peek('}') && !peek(tokenid::end_of_file))
 		{
 			statement_node *compound_statement = nullptr;
 
@@ -2361,7 +2351,7 @@ namespace reshadefx
 
 				unsigned level = 0;
 
-				while (!peek(lexer::tokenid::end_of_file))
+				while (!peek(tokenid::end_of_file))
 				{
 					if (accept('{'))
 					{
@@ -2416,7 +2406,7 @@ namespace reshadefx
 				return false;
 			}
 
-			if (!expect(lexer::tokenid::identifier))
+			if (!expect(tokenid::identifier))
 			{
 				return false;
 			}
@@ -2442,11 +2432,11 @@ namespace reshadefx
 	{
 		type_node type = { type_node::datatype_void };
 
-		if (peek(lexer::tokenid::namespace_))
+		if (peek(tokenid::namespace_))
 		{
 			return parse_namespace();
 		}
-		else if (peek(lexer::tokenid::struct_))
+		else if (peek(tokenid::struct_))
 		{
 			struct_declaration_node *structure = nullptr;
 
@@ -2460,7 +2450,7 @@ namespace reshadefx
 				return false;
 			}
 		}
-		else if (peek(lexer::tokenid::technique))
+		else if (peek(tokenid::technique))
 		{
 			technique_declaration_node *technique = nullptr;
 
@@ -2473,7 +2463,7 @@ namespace reshadefx
 		}
 		else if (parse_type(type))
 		{
-			if (!expect(lexer::tokenid::identifier))
+			if (!expect(tokenid::identifier))
 			{
 				return false;
 			}
@@ -2495,7 +2485,7 @@ namespace reshadefx
 
 				do
 				{
-					if (count++ > 0 && !(expect(',') && expect(lexer::tokenid::identifier)))
+					if (count++ > 0 && !(expect(',') && expect(tokenid::identifier)))
 					{
 						return false;
 					}
@@ -2532,12 +2522,12 @@ namespace reshadefx
 	}
 	bool parser::parse_namespace()
 	{
-		if (!accept(lexer::tokenid::namespace_))
+		if (!accept(tokenid::namespace_))
 		{
 			return false;
 		}
 
-		if (!expect(lexer::tokenid::identifier))
+		if (!expect(tokenid::identifier))
 		{
 			return false;
 		}
@@ -2620,7 +2610,7 @@ namespace reshadefx
 				warning(_token.location, 4717, "type prefixes for annotations are deprecated");
 			}
 
-			if (!expect(lexer::tokenid::identifier))
+			if (!expect(tokenid::identifier))
 			{
 				return false;
 			}
@@ -2662,14 +2652,14 @@ namespace reshadefx
 	}
 	bool parser::parse_struct(struct_declaration_node *&structure)
 	{
-		if (!accept(lexer::tokenid::struct_))
+		if (!accept(tokenid::struct_))
 		{
 			return false;
 		}
 
 		structure = _ast.make_node<struct_declaration_node>(_token.location);
 
-		if (accept(lexer::tokenid::identifier))
+		if (accept(tokenid::identifier))
 		{
 			structure->name = _token.literal_as_string;
 
@@ -2734,7 +2724,7 @@ namespace reshadefx
 					return false;
 				}
 
-				if (!expect(lexer::tokenid::identifier))
+				if (!expect(tokenid::identifier))
 				{
 					consume_until('}');
 
@@ -2752,7 +2742,7 @@ namespace reshadefx
 
 				if (accept(':'))
 				{
-					if (!expect(lexer::tokenid::identifier))
+					if (!expect(tokenid::identifier))
 					{
 						consume_until('}');
 
@@ -2832,7 +2822,7 @@ namespace reshadefx
 				return false;
 			}
 
-			if (!expect(lexer::tokenid::identifier))
+			if (!expect(tokenid::identifier))
 			{
 				_symbol_table->leave_scope();
 
@@ -2907,7 +2897,7 @@ namespace reshadefx
 
 			if (accept(':'))
 			{
-				if (!expect(lexer::tokenid::identifier))
+				if (!expect(tokenid::identifier))
 				{
 					_symbol_table->leave_scope();
 
@@ -2930,7 +2920,7 @@ namespace reshadefx
 
 		if (accept(':'))
 		{
-			if (!expect(lexer::tokenid::identifier))
+			if (!expect(tokenid::identifier))
 			{
 				_symbol_table->leave_scope();
 
@@ -3048,7 +3038,7 @@ namespace reshadefx
 
 		if (accept(':'))
 		{
-			if (!expect(lexer::tokenid::identifier))
+			if (!expect(tokenid::identifier))
 			{
 				return false;
 			}
@@ -3203,7 +3193,7 @@ namespace reshadefx
 
 		while (!peek('}'))
 		{
-			if (!expect(lexer::tokenid::identifier))
+			if (!expect(tokenid::identifier))
 			{
 				return false;
 			}
@@ -3347,7 +3337,7 @@ namespace reshadefx
 	{
 		backup();
 
-		if (accept(lexer::tokenid::identifier))
+		if (accept(tokenid::identifier))
 		{
 			const std::pair<const char *, unsigned int> s_values[] = {
 				{ "NONE", 0 },
@@ -3410,14 +3400,14 @@ namespace reshadefx
 	}
 	bool parser::parse_technique(technique_declaration_node *&technique)
 	{
-		if (!accept(lexer::tokenid::technique))
+		if (!accept(tokenid::technique))
 		{
 			return false;
 		}
 
 		const auto location = _token.location;
 
-		if (!expect(lexer::tokenid::identifier))
+		if (!expect(tokenid::identifier))
 		{
 			return false;
 		}
@@ -3454,14 +3444,14 @@ namespace reshadefx
 	}
 	bool parser::parse_technique_pass(pass_declaration_node *&pass)
 	{
-		if (!expect(lexer::tokenid::pass))
+		if (!expect(tokenid::pass))
 		{
 			return false;
 		}
 
 		pass = _ast.make_node<pass_declaration_node>(_token.location);
 
-		if (accept(lexer::tokenid::identifier))
+		if (accept(tokenid::identifier))
 		{
 			pass->unique_name = pass->name = _token.literal_as_string;
 		}
@@ -3473,7 +3463,7 @@ namespace reshadefx
 
 		while (!peek('}'))
 		{
-			if (!expect(lexer::tokenid::identifier))
+			if (!expect(tokenid::identifier))
 			{
 				return false;
 			}
@@ -3617,7 +3607,7 @@ namespace reshadefx
 		scope scope;
 		bool exclusive;
 
-		if (accept(lexer::tokenid::colon_colon))
+		if (accept(tokenid::colon_colon))
 		{
 			scope.namespace_level = scope.level = 0;
 			exclusive = true;
@@ -3628,7 +3618,7 @@ namespace reshadefx
 			exclusive = false;
 		}
 
-		if (exclusive ? expect(lexer::tokenid::identifier) : accept(lexer::tokenid::identifier))
+		if (exclusive ? expect(tokenid::identifier) : accept(tokenid::identifier))
 		{
 			const std::pair<const char *, unsigned int> s_enums[] = {
 				{ "NONE", pass_declaration_node::NONE },
@@ -3686,7 +3676,7 @@ namespace reshadefx
 				}
 			}
 
-			while (accept(lexer::tokenid::colon_colon) && expect(lexer::tokenid::identifier))
+			while (accept(tokenid::colon_colon) && expect(tokenid::identifier))
 			{
 				identifier += "::" + _token.literal_as_string;
 			}

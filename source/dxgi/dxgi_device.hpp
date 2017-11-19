@@ -7,7 +7,7 @@
 
 #include "dxgi.hpp"
 
-struct DXGIDevice : IDXGIDevice3
+struct DXGIDevice : IDXGIDevice4
 {
 	DXGIDevice(IDXGIDevice1 *original, D3D10Device *direct3d_device) :
 		_orig(original),
@@ -50,6 +50,10 @@ struct DXGIDevice : IDXGIDevice3
 	#pragma endregion
 	#pragma region IDXGIDevice3
 	virtual void STDMETHODCALLTYPE Trim() override;
+	#pragma endregion
+	#pragma region IDXGIDevice4
+	virtual HRESULT STDMETHODCALLTYPE OfferResources1(UINT NumResources, IDXGIResource *const *ppResources, DXGI_OFFER_RESOURCE_PRIORITY Priority, UINT Flags) override;
+	virtual HRESULT STDMETHODCALLTYPE ReclaimResources1(UINT NumResources, IDXGIResource *const *ppResources, DXGI_RECLAIM_RESOURCE_RESULTS *pResults) override;
 	#pragma endregion
 
 	LONG _ref = 1;

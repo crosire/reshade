@@ -57,5 +57,6 @@ namespace reshade
 		uint8_t _keys[256] = { }, _mouse_buttons[5] = { };
 		short _mouse_wheel_delta = 0;
 		unsigned int _mouse_position[2] = { };
+		uint64_t _frame_count = 0;
 	};
 }
