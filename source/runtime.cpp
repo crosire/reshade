@@ -1493,7 +1493,7 @@ namespace reshade
 			if (_tutorial_index == 3)
 			{
 				tutorial_text =
-					"This is the list of variables. It contains all tweakable options the effects expose. All values here apply in real-time. Press 'Ctrl' and click on a widget to manually edit the value.\n\n"
+					"This is the list of variables. It contains all tweakable options the effects expose. All values here apply in real-time. Double click on a widget to manually edit the value.\n\n"
 					"Enter text in the box at the top to filter it and search for specific variables.\n\n"
 					"Once you have finished tweaking your preset, be sure to go to the 'Settings' tab and change the 'Usage Mode' to 'Performance Mode'. "
 					"This will recompile all shaders into a more optimal representation that gives a significant performance boost, but will disable variable tweaking and this list.";
@@ -1956,6 +1956,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 	}
 	void runtime::draw_overlay_variable_editor()
 	{
+		const ImGuiID popup_id = ImGui::GetID("Performance Mode Hint");
+
 		ImGui::PushItemWidth(ImGui::GetWindowWidth() * 0.5f);
 
 		bool current_tree_is_closed = true;
@@ -2082,6 +2084,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 			if (modified)
 			{
 				save_current_preset();
+
+				if (_tutorial_index == 4)
+				{
+					ImGui::OpenPopupEx(popup_id, false);
+				}
 			}
 		}
 
@@ -2091,6 +2098,25 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 		}
 
 		ImGui::PopItemWidth();
+
+		if (_tutorial_index == 4 && ImGui::BeginPopupEx(popup_id, ImGuiWindowFlags_ShowBorders))
+		{
+			ImGui::TextUnformatted(
+				"Don't forget to switch to 'Performance Mode' once you are done editing (on the 'Settings' tab).\n"
+				"This will drastically increase runtime performance and loading times on next launch\n"
+				"(Only effect files that are active in the current preset are loaded then instead of the entire list).");
+
+			if (ImGui::Button("Ok", ImVec2(-1, 0)))
+			{
+				ImGui::CloseCurrentPopup();
+
+				_tutorial_index++;
+
+				save_configuration();
+			}
+
+			ImGui::EndPopup();
+		}
 	}
 	void runtime::draw_overlay_technique_editor()
 	{
