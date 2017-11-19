@@ -51,6 +51,13 @@ HRESULT STDMETHODCALLTYPE IDirect3D9_CreateDevice(IDirect3D9 *pD3D, UINT Adapter
 		return D3DERR_INVALIDCALL;
 	}
 
+	if ((BehaviorFlags & D3DCREATE_ADAPTERGROUP_DEVICE) != 0)
+	{
+		LOG(WARNING) << "Adapter group devices are unsupported.";
+
+		return D3DERR_NOTAVAILABLE;
+	}
+
 	dump_present_parameters(*pPresentationParameters);
 
 	const bool use_software_rendering = (BehaviorFlags & D3DCREATE_SOFTWARE_VERTEXPROCESSING) != 0;
@@ -113,7 +120,7 @@ HRESULT STDMETHODCALLTYPE IDirect3D9_CreateDevice(IDirect3D9 *pD3D, UINT Adapter
 		if (pp.EnableAutoDepthStencil)
 		{
 			device->GetDepthStencilSurface(&device_proxy->_auto_depthstencil);
-			device_proxy->SetDepthStencilSurface(device_proxy->_auto_depthstencil);
+			device_proxy->SetDepthStencilSurface(device_proxy->_auto_depthstencil.get());
 		}
 
 		// Upgrade to extended interface if available
@@ -134,6 +141,13 @@ HRESULT STDMETHODCALLTYPE IDirect3D9Ex_CreateDeviceEx(IDirect3D9Ex *pD3D, UINT A
 	if (pPresentationParameters == nullptr)
 	{
 		return D3DERR_INVALIDCALL;
+	}
+
+	if ((BehaviorFlags & D3DCREATE_ADAPTERGROUP_DEVICE) != 0)
+	{
+		LOG(WARNING) << "Adapter group devices are unsupported.";
+
+		return D3DERR_NOTAVAILABLE;
 	}
 
 	dump_present_parameters(*pPresentationParameters);
@@ -198,7 +212,7 @@ HRESULT STDMETHODCALLTYPE IDirect3D9Ex_CreateDeviceEx(IDirect3D9Ex *pD3D, UINT A
 		if (pp.EnableAutoDepthStencil)
 		{
 			device->GetDepthStencilSurface(&device_proxy->_auto_depthstencil);
-			device_proxy->SetDepthStencilSurface(device_proxy->_auto_depthstencil);
+			device_proxy->SetDepthStencilSurface(device_proxy->_auto_depthstencil.get());
 		}
 	}
 

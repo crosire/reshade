@@ -60,11 +60,7 @@ ULONG STDMETHODCALLTYPE Direct3DDevice9::Release()
 {
 	if (--_ref == 0)
 	{
-		if (_auto_depthstencil != nullptr)
-		{
-			_auto_depthstencil->Release();
-			_auto_depthstencil = nullptr;
-		}
+		_auto_depthstencil.reset();
 
 		assert(_implicit_swapchain != nullptr);
 
@@ -230,11 +226,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Reset(D3DPRESENT_PARAMETERS *pPresent
 
 	runtime->on_reset();
 
-	if (_auto_depthstencil != nullptr)
-	{
-		_auto_depthstencil->Release();
-		_auto_depthstencil = nullptr;
-	}
+	_auto_depthstencil.reset();
 
 	const HRESULT hr = _orig->Reset(pPresentationParameters);
 
@@ -256,7 +248,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::Reset(D3DPRESENT_PARAMETERS *pPresent
 	if (pp.EnableAutoDepthStencil)
 	{
 		_orig->GetDepthStencilSurface(&_auto_depthstencil);
-		SetDepthStencilSurface(_auto_depthstencil);
+		SetDepthStencilSurface(_auto_depthstencil.get());
 	}
 
 	return hr;
@@ -920,11 +912,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ResetEx(D3DPRESENT_PARAMETERS *pPrese
 
 	runtime->on_reset();
 
-	if (_auto_depthstencil != nullptr)
-	{
-		_auto_depthstencil->Release();
-		_auto_depthstencil = nullptr;
-	}
+	_auto_depthstencil.reset();
 
 	const HRESULT hr = static_cast<IDirect3DDevice9Ex *>(_orig)->ResetEx(pPresentationParameters, pFullscreenDisplayMode);
 
@@ -946,7 +934,7 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::ResetEx(D3DPRESENT_PARAMETERS *pPrese
 	if (pp.EnableAutoDepthStencil)
 	{
 		_orig->GetDepthStencilSurface(&_auto_depthstencil);
-		SetDepthStencilSurface(_auto_depthstencil);
+		SetDepthStencilSurface(_auto_depthstencil.get());
 	}
 
 	return hr;
