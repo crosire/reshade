@@ -1,7 +1,7 @@
 ﻿using System.Reflection;
 
 [assembly: AssemblyTitle("ReShade Setup")]
-[assembly: AssemblyVersion("1.3.0.0")]
+[assembly: AssemblyVersion("1.4.0.0")]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("crosire")]
