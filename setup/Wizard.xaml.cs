@@ -108,15 +108,17 @@ namespace ReShade.Setup
 		{
 			if (Keyboard.Modifiers == ModifierKeys.Control)
 			{
+				Assembly assembly = Assembly.GetExecutingAssembly();
+
 				try
 				{
 					using (FileStream file = File.Create("ReShade32.dll"))
 					{
-						Assembly.GetExecutingAssembly().GetManifestResourceStream("ReShade.Setup.ReShade32.dll").CopyTo(file);
+						assembly.GetManifestResourceStream("ReShade.Setup.ReShade32.dll").CopyTo(file);
 					}
 					using (FileStream file = File.Create("ReShade64.dll"))
 					{
-						Assembly.GetExecutingAssembly().GetManifestResourceStream("ReShade.Setup.ReShade64.dll").CopyTo(file);
+						assembly.GetManifestResourceStream("ReShade.Setup.ReShade64.dll").CopyTo(file);
 					}
 				}
 				catch (Exception ex)
