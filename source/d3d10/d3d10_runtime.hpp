@@ -30,6 +30,13 @@ namespace reshade::d3d10
 		D3D10_VIEWPORT viewport;
 		std::vector<com_ptr<ID3D10ShaderResourceView>> shader_resources;
 	};
+	struct d3d10_technique_data : base_object
+	{
+		bool query_in_flight = false;
+		com_ptr<ID3D10Query> timestamp_disjoint;
+		com_ptr<ID3D10Query> timestamp_query_beg;
+		com_ptr<ID3D10Query> timestamp_query_end;
+	};
 
 	class d3d10_runtime : public runtime
 	{

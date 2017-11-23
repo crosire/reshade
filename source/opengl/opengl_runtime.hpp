@@ -43,6 +43,17 @@ namespace reshade::opengl
 		GLboolean color_mask[4] = { };
 		bool srgb = false, blend = false, stencil_test = false, clear_render_targets = true;
 	};
+	struct opengl_technique_data : base_object
+	{
+		~opengl_technique_data()
+		{
+			glDeleteQueries(1, &query);
+		}
+
+		GLuint query = 0;
+		bool query_in_flight = false;
+	};
+
 	struct opengl_sampler
 	{
 		GLuint id;
