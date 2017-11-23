@@ -2204,8 +2204,12 @@ namespace reshade::opengl
 	void opengl_effect_compiler::visit_technique(const technique_declaration_node *node)
 	{
 		technique obj;
+		obj.impl = std::make_unique<opengl_technique_data>();
 		obj.name = node->name;
 		obj.annotations = node->annotation_list;
+
+		const auto obj_data = obj.impl->as<opengl_technique_data>();
+		glGenQueries(1, &obj_data->query);
 
 		if (_uniform_buffer_size != 0)
 		{

@@ -1764,11 +1764,13 @@ namespace reshade
 				ImVec2(0, 50));
 			ImGui::PopItemWidth();
 
-			uint64_t post_processing_time = 0;
+			uint64_t post_processing_time_cpu = 0;
+			uint64_t post_processing_time_gpu = 0;
 
 			for (const auto &technique : _techniques)
 			{
-				post_processing_time += technique.average_cpu_duration;
+				post_processing_time_cpu += technique.average_cpu_duration;
+				post_processing_time_gpu += technique.average_gpu_duration;
 			}
 
 			ImGui::BeginGroup();
@@ -1790,11 +1792,26 @@ namespace reshade
 			ImGui::Text("%d-%d-%d %d", _date[0], _date[1], _date[2], _date[3]);
 			ImGui::Text("%X %d", _vendor_id, _device_id);
 			ImGui::Text("%.2f", ImGui::GetIO().Framerate);
-			ImGui::Text("%f ms (CPU)", (post_processing_time * 1e-6f));
+			ImGui::Text("%f ms (CPU)", (post_processing_time_cpu * 1e-6f));
 			ImGui::Text("%u (%u vertices)", _drawcalls, _vertices);
 			ImGui::Text("%f ms", _last_frame_duration.count() * 1e-6f);
 			ImGui::Text("%f ms", std::fmod(std::chrono::duration_cast<std::chrono::nanoseconds>(_last_present_time - _start_time).count() * 1e-6f, 16777216.0f));
 			ImGui::Text("%u B", g_network_traffic);
+			ImGui::EndGroup();
+
+			ImGui::SameLine(ImGui::GetWindowWidth() * 0.666f);
+
+			ImGui::BeginGroup();
+			ImGui::NewLine();
+			ImGui::NewLine();
+			ImGui::NewLine();
+			ImGui::NewLine();
+
+			if (post_processing_time_gpu != 0)
+			{
+				ImGui::Text("%f ms (GPU)", (post_processing_time_gpu * 1e-6f));
+			}
+
 			ImGui::EndGroup();
 		}
 
@@ -1824,20 +1841,6 @@ namespace reshade
 				}
 
 				ImGui::Text("%ux%u +%u ", texture.width, texture.height, (texture.levels - 1));
-			}
-
-			ImGui::EndGroup();
-			ImGui::SameLine(ImGui::GetWindowWidth() * 0.666f);
-			ImGui::BeginGroup();
-
-			for (const auto& texture : _textures)
-			{
-				if (texture.impl_reference != texture_reference::none)
-				{
-					continue;
-				}
-
-				ImGui::Text("~%u kB", (texture.width * texture.height * 4) / 1024);
 			}
 
 			ImGui::EndGroup();
@@ -1885,7 +1888,23 @@ namespace reshade
 				}
 				else
 				{
-					ImGui::TextUnformatted(" ");
+					ImGui::NewLine();
+				}
+			}
+
+			ImGui::EndGroup();
+			ImGui::SameLine(ImGui::GetWindowWidth() * 0.666f);
+			ImGui::BeginGroup();
+
+			for (const auto &technique : _techniques)
+			{
+				if (technique.enabled && technique.average_gpu_duration != 0)
+				{
+					ImGui::Text("%f ms (GPU)", (technique.average_gpu_duration * 1e-6f));
+				}
+				else
+				{
+					ImGui::NewLine();
 				}
 			}
 

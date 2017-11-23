@@ -31,6 +31,13 @@ namespace reshade::d3d11
 		D3D11_VIEWPORT viewport;
 		std::vector<com_ptr<ID3D11ShaderResourceView>> shader_resources;
 	};
+	struct d3d11_technique_data : base_object
+	{
+		bool query_in_flight = false;
+		com_ptr<ID3D11Query> timestamp_disjoint;
+		com_ptr<ID3D11Query> timestamp_query_beg;
+		com_ptr<ID3D11Query> timestamp_query_end;
+	};
 
 	class d3d11_runtime : public runtime
 	{

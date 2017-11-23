@@ -1714,8 +1714,17 @@ namespace reshade::d3d10
 	void d3d10_effect_compiler::visit_technique(const technique_declaration_node *node)
 	{
 		technique obj;
+		obj.impl = std::make_unique<d3d10_technique_data>();
 		obj.name = node->name;
 		obj.annotations = node->annotation_list;
+
+		auto obj_data = obj.impl->as<d3d10_technique_data>();
+		D3D10_QUERY_DESC query_desc = { };
+		query_desc.Query = D3D10_QUERY_TIMESTAMP;
+		_runtime->_device->CreateQuery(&query_desc, &obj_data->timestamp_query_beg);
+		_runtime->_device->CreateQuery(&query_desc, &obj_data->timestamp_query_end);
+		query_desc.Query = D3D10_QUERY_TIMESTAMP_DISJOINT;
+		_runtime->_device->CreateQuery(&query_desc, &obj_data->timestamp_disjoint);
 
 		if (_constant_buffer_size != 0)
 		{
