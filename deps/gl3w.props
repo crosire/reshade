@@ -5,8 +5,6 @@
     <ClCompile>
       <AdditionalIncludeDirectories>$(SolutionDir)deps\gl3w\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
-    <Link>
-      <AdditionalDependencies>gl3W.lib;%(AdditionalDependencies)</AdditionalDependencies>
-    </Link>
+    <Link />
   </ItemDefinitionGroup>
 </Project>

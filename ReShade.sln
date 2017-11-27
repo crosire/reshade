@@ -31,6 +31,16 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ReShade FX", "ReShadeFX.vcx
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ReShade Setup", "setup\ReShade Setup.csproj", "{3B7009FA-0B09-4F27-8126-0885E66A5679}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{ADA6E710-C2CA-4D83-B1B1-0A519F903A12}"
+	ProjectSection(SolutionItems) = preProject
+		common.props = common.props
+		deps\gl3w.props = deps\gl3w.props
+		deps\ImGui.props = deps\ImGui.props
+		deps\MinHook.props = deps\MinHook.props
+		deps\stb.props = deps\stb.props
+		deps\Windows.props = deps\Windows.props
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug App|32-bit = Debug App|32-bit
