@@ -1,0 +1,67 @@
+﻿<Window x:Class="ReShade.Setup.ConfigEditor"
+		Title="ReShade Config Editor"
+		xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+		xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+		xmlns:src="clr-namespace:ReShade.Setup"
+		Width="525"
+		MinWidth="525"
+		Height="260"
+		MinHeight="260"
+		MaxHeight="260"
+		ResizeMode="CanResizeWithGrip"
+		WindowStartupLocation="CenterOwner"
+		WindowStyle="ToolWindow"
+>
+	<StackPanel Margin="5">
+		<DockPanel LastChildFill="True" Margin="0,5">
+			<Label Content="Presets" />
+			<ComboBox Name="PresetSelect" DockPanel.Dock="Left" DisplayMemberPath="Text" SelectedValuePath="Value" SelectedIndex="0" Visibility="{Binding Items.Count, Converter={src:ComboSizeToVisibilityConverter}, RelativeSource={RelativeSource Self}}" Margin="0,0,5,0" SelectionChanged="PresetSelect_SelectionChanged">
+				<ComboBox.ItemsSource>
+					<CompositeCollection>
+						<src:PresetComboItem Text="Select Active"/>
+						<CollectionContainer x:Name="PresetOptions" />
+					</CompositeCollection>
+				</ComboBox.ItemsSource>
+			</ComboBox>
+		    <Button Name="BtnPresets" Content="..." Padding="5,0" DockPanel.Dock="Right" Click="BtnPresets_Clicked" />
+			<TextBox Name="Presets" />
+		</DockPanel>
+		<DockPanel LastChildFill="True" Margin="0,5">
+			<Label Content="Effects Path" />
+			<Button Name="BtnEffects" Content="..." Padding="5,0" DockPanel.Dock="Right" Click="ChooseFolderDialog" />
+			<TextBox Name="EffectsPath" Text="{Binding Tag, ElementName=BtnEffects, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+		</DockPanel>
+		<DockPanel LastChildFill="True" Margin="0,5">
+			<Label Content="Textures Path" />
+			<Button Name="BtnTextures" Content="..." Padding="5,0" DockPanel.Dock="Right" Click="ChooseFolderDialog" />
+			<TextBox Name="TexturesPath" Text="{Binding Tag, ElementName=BtnTextures, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+		</DockPanel>
+		<DockPanel LastChildFill="True" Margin="0,5">
+			<Label Content="Screenshots Path" />
+			<Button Name="BtnScreenshots" Content="..." Padding="5,0" DockPanel.Dock="Right" Click="ChooseFolderDialog" />
+			<TextBox Name="ScreenshotsPath" Text="{Binding Tag, ElementName=BtnScreenshots, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+		</DockPanel>
+		<Grid Margin="0,5">
+			<Grid.ColumnDefinitions>
+				<ColumnDefinition />
+				<ColumnDefinition />
+				<ColumnDefinition />
+				<ColumnDefinition />
+			</Grid.ColumnDefinitions>
+			<CheckBox Grid.Column="0" HorizontalAlignment="Center" Content="Performance Mode" Name="PerformanceMode"/>
+			<CheckBox Grid.Column="1" HorizontalAlignment="Center" Content="Show FPS" Name="ShowFps" />
+			<CheckBox Grid.Column="2" HorizontalAlignment="Center" Content="Show Clock" Name="ShowClock" />
+			<CheckBox Grid.Column="3" HorizontalAlignment="Center" Content="Skip Tutorial" Name="SkipTut" />
+		</Grid>
+		<Grid Margin="0,5" Height="32">
+			<Grid.ColumnDefinitions>
+				<ColumnDefinition />
+				<ColumnDefinition />
+				<ColumnDefinition />
+			</Grid.ColumnDefinitions>
+			<Button Grid.Column="0" Margin="5,0" Name="BtnSave" Content="Save" />
+			<Button Grid.Column="1" Margin="5,0" Name="BtnReload" Content="Reload" />
+			<Button Grid.Column="2" Margin="5,0" Name="BtnCancel" Content="Cancel" />
+		</Grid>
+	</StackPanel>
+</Window>
