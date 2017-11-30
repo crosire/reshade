@@ -42,10 +42,11 @@ namespace reshade
 
 		unsigned short key_to_text(unsigned int keycode) const;
 
-		bool is_blocking_mouse_input() const { return _block_mouse; }
-		bool is_blocking_keyboard_input() const { return _block_keyboard; }
 		void block_mouse_input(bool enable);
 		void block_keyboard_input(bool enable);
+
+		bool is_blocking_mouse_input() const { return _block_mouse; }
+		bool is_blocking_keyboard_input() const { return _block_keyboard; }
 
 		void next_frame();
 
