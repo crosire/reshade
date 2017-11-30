@@ -5,6 +5,7 @@
 
 #include "log.hpp"
 #include "input.hpp"
+#include "hook_manager.hpp"
 #include <Windows.h>
 #include <assert.h>
 #include <mutex>
@@ -365,6 +366,23 @@ namespace reshade
 		_block_keyboard = enable;
 	}
 
+	static inline bool is_blocking_mouse_input()
+	{
+		const auto predicate = [](auto input_window) {
+			return input_window.second.lock()->is_blocking_mouse_input();
+		};
+
+		return std::any_of(reshade::s_windows.cbegin(), reshade::s_windows.cend(), predicate);
+	}
+	static inline bool is_blocking_keyboard_input()
+	{
+		const auto predicate = [](auto input_window) {
+			return input_window.second.lock()->is_blocking_keyboard_input();
+		};
+
+		return std::any_of(reshade::s_windows.cbegin(), reshade::s_windows.cend(), predicate);
+	}
+
 	void input::next_frame()
 	{
 		_frame_count++;
@@ -397,4 +415,172 @@ namespace reshade
 			_keys[VK_SNAPSHOT] = 0x88;
 		}
 	}
+}
+
+HOOK_EXPORT BOOL WINAPI HookGetMessageA(LPMSG lpMsg, HWND hWnd, UINT wMsgFilterMin, UINT wMsgFilterMax)
+{
+	static const auto trampoline = reshade::hooks::call(&HookGetMessageA);
+
+	if (!trampoline(lpMsg, hWnd, wMsgFilterMin, wMsgFilterMax))
+	{
+		return FALSE;
+	}
+
+	assert(lpMsg != nullptr);
+
+	if (lpMsg->hwnd != nullptr && reshade::input::handle_window_message(lpMsg))
+	{
+		// Change message so it is ignored by the recipient window
+		lpMsg->message = WM_NULL;
+	}
+
+	return TRUE;
+}
+HOOK_EXPORT BOOL WINAPI HookGetMessageW(LPMSG lpMsg, HWND hWnd, UINT wMsgFilterMin, UINT wMsgFilterMax)
+{
+	static const auto trampoline = reshade::hooks::call(&HookGetMessageW);
+
+	if (!trampoline(lpMsg, hWnd, wMsgFilterMin, wMsgFilterMax))
+	{
+		return FALSE;
+	}
+
+	assert(lpMsg != nullptr);
+
+	if (lpMsg->hwnd != nullptr && reshade::input::handle_window_message(lpMsg))
+	{
+		// Change message so it is ignored by the recipient window
+		lpMsg->message = WM_NULL;
+	}
+
+	return TRUE;
+}
+HOOK_EXPORT BOOL WINAPI HookPeekMessageA(LPMSG lpMsg, HWND hWnd, UINT wMsgFilterMin, UINT wMsgFilterMax, UINT wRemoveMsg)
+{
+	static const auto trampoline = reshade::hooks::call(&HookPeekMessageA);
+
+	if (!trampoline(lpMsg, hWnd, wMsgFilterMin, wMsgFilterMax, wRemoveMsg))
+	{
+		return FALSE;
+	}
+
+	assert(lpMsg != nullptr);
+
+	if (lpMsg->hwnd != nullptr && (wRemoveMsg & PM_REMOVE) != 0 && reshade::input::handle_window_message(lpMsg))
+	{
+		// Change message so it is ignored by the recipient window
+		lpMsg->message = WM_NULL;
+	}
+
+	return TRUE;
+}
+HOOK_EXPORT BOOL WINAPI HookPeekMessageW(LPMSG lpMsg, HWND hWnd, UINT wMsgFilterMin, UINT wMsgFilterMax, UINT wRemoveMsg)
+{
+	static const auto trampoline = reshade::hooks::call(&HookPeekMessageW);
+
+	if (!trampoline(lpMsg, hWnd, wMsgFilterMin, wMsgFilterMax, wRemoveMsg))
+	{
+		return FALSE;
+	}
+
+	assert(lpMsg != nullptr);
+
+	if (lpMsg->hwnd != nullptr && (wRemoveMsg & PM_REMOVE) != 0 && reshade::input::handle_window_message(lpMsg))
+	{
+		// Change message so it is ignored by the recipient window
+		lpMsg->message = WM_NULL;
+	}
+
+	return TRUE;
+}
+
+HOOK_EXPORT BOOL WINAPI HookRegisterRawInputDevices(PCRAWINPUTDEVICE pRawInputDevices, UINT uiNumDevices, UINT cbSize)
+{
+	LOG(INFO) << "Redirecting '" << "RegisterRawInputDevices" << "(" << pRawInputDevices << ", " << uiNumDevices << ", " << cbSize << ")' ...";
+
+	for (UINT i = 0; i < uiNumDevices; ++i)
+	{
+		const auto &device = pRawInputDevices[i];
+
+		LOG(INFO) << "> Dumping device registration at index " << i << ":";
+		LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
+		LOG(INFO) << "  | Parameter                               | Value                                   |";
+		LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
+		LOG(INFO) << "  | UsagePage                               | " << std::setw(39) << std::hex << device.usUsagePage << std::dec << " |";
+		LOG(INFO) << "  | Usage                                   | " << std::setw(39) << std::hex << device.usUsage << std::dec << " |";
+		LOG(INFO) << "  | Flags                                   | " << std::setw(39) << std::hex << device.dwFlags << std::dec << " |";
+		LOG(INFO) << "  | TargetWindow                            | " << std::setw(39) << device.hwndTarget << " |";
+		LOG(INFO) << "  +-----------------------------------------+-----------------------------------------+";
+
+		if (device.usUsagePage != 1 || device.hwndTarget == nullptr)
+		{
+			continue;
+		}
+
+		reshade::input::register_window_with_raw_input(device.hwndTarget, device.usUsage == 0x06 && (device.dwFlags & RIDEV_NOLEGACY) != 0, device.usUsage == 0x02 && (device.dwFlags & RIDEV_NOLEGACY) != 0);
+	}
+
+	if (!reshade::hooks::call(&HookRegisterRawInputDevices)(pRawInputDevices, uiNumDevices, cbSize))
+	{
+		LOG(WARNING) << "> 'RegisterRawInputDevices' failed with error code " << GetLastError() << "!";
+
+		return FALSE;
+	}
+
+	return TRUE;
+}
+
+HOOK_EXPORT BOOL WINAPI HookPostMessageA(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
+{
+	if (reshade::is_blocking_mouse_input() && Msg == WM_MOUSEMOVE)
+	{
+		return TRUE;
+	}
+
+	static const auto trampoline = reshade::hooks::call(&HookPostMessageA);
+
+	return trampoline(hWnd, Msg, wParam, lParam);
+}
+HOOK_EXPORT BOOL WINAPI HookPostMessageW(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
+{
+	if (reshade::is_blocking_mouse_input() && Msg == WM_MOUSEMOVE)
+	{
+		return TRUE;
+	}
+
+	static const auto trampoline = reshade::hooks::call(&HookPostMessageW);
+
+	return trampoline(hWnd, Msg, wParam, lParam);
+}
+
+POINT last_cursor_position = { };
+
+HOOK_EXPORT BOOL WINAPI HookSetCursorPosition(int X, int Y)
+{
+	if (reshade::is_blocking_mouse_input())
+	{
+		last_cursor_position.x = X;
+		last_cursor_position.y = Y;
+
+		return TRUE;
+	}
+
+	static const auto trampoline = reshade::hooks::call(&HookSetCursorPosition);
+
+	return trampoline(X, Y);
+}
+HOOK_EXPORT BOOL WINAPI HookGetCursorPosition(LPPOINT lpPoint)
+{
+	if (reshade::is_blocking_mouse_input())
+	{
+		assert(lpPoint != nullptr);
+
+		*lpPoint = last_cursor_position;
+
+		return TRUE;
+	}
+
+	static const auto trampoline = reshade::hooks::call(&HookGetCursorPosition);
+
+	return trampoline(lpPoint);
 }
