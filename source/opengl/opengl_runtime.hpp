@@ -39,7 +39,7 @@ namespace reshade::opengl
 		GLsizei viewport_width = 0, viewport_height = 0;
 		GLenum draw_buffers[8] = { };
 		GLenum stencil_func = GL_NONE, stencil_op_fail = GL_NONE, stencil_op_z_fail = GL_NONE, stencil_op_z_pass = GL_NONE;
-		GLenum blend_eq_color = GL_NONE, blend_eq_alpha = GL_NONE, blend_src = GL_NONE, blend_dest = GL_NONE;
+		GLenum blend_eq_color = GL_NONE, blend_eq_alpha = GL_NONE, blend_src = GL_NONE, blend_dest = GL_NONE, blend_src_alpha = GL_NONE, blend_dest_alpha = GL_NONE;
 		GLboolean color_mask[4] = { };
 		bool srgb = false, blend = false, stencil_test = false, clear_render_targets = true;
 	};

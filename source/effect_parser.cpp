@@ -3567,9 +3567,17 @@ namespace reshadefx
 				{
 					scalar_literal_cast(value_literal, 0, pass->src_blend);
 				}
+				else if (passstate == "SrcBlendAlpha")
+				{
+					scalar_literal_cast(value_literal, 0, pass->src_blend_alpha);
+				}
 				else if (passstate == "DestBlend")
 				{
 					scalar_literal_cast(value_literal, 0, pass->dest_blend);
+				}
+				else if (passstate == "DestBlend")
+				{
+					scalar_literal_cast(value_literal, 0, pass->dest_blend_alpha);
 				}
 				else if (passstate == "StencilFunc")
 				{

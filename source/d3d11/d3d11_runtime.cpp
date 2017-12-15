@@ -865,8 +865,7 @@ namespace reshade::d3d11
 			_immediate_context->VSSetShader(pass.vertex_shader.get(), nullptr, 0);
 			_immediate_context->PSSetShader(pass.pixel_shader.get(), nullptr, 0);
 
-			const float blendfactor[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
-			_immediate_context->OMSetBlendState(pass.blend_state.get(), blendfactor, D3D11_DEFAULT_SAMPLE_MASK);
+			_immediate_context->OMSetBlendState(pass.blend_state.get(), nullptr, D3D11_DEFAULT_SAMPLE_MASK);
 			_immediate_context->OMSetDepthStencilState(pass.depth_stencil_state.get(), pass.stencil_reference);
 
 			// Save back buffer of previous pass

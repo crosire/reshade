@@ -848,8 +848,7 @@ namespace reshade::d3d10
 			_device->VSSetShader(pass.vertex_shader.get());
 			_device->PSSetShader(pass.pixel_shader.get());
 
-			const float blendfactor[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
-			_device->OMSetBlendState(pass.blend_state.get(), blendfactor, D3D10_DEFAULT_SAMPLE_MASK);
+			_device->OMSetBlendState(pass.blend_state.get(), nullptr, D3D10_DEFAULT_SAMPLE_MASK);
 			_device->OMSetDepthStencilState(pass.depth_stencil_state.get(), pass.stencil_reference);
 
 			// Save back buffer of previous pass
