@@ -369,7 +369,7 @@ namespace reshade
 	static inline bool is_blocking_mouse_input()
 	{
 		const auto predicate = [](auto input_window) {
-			return input_window.second.lock()->is_blocking_mouse_input();
+			return !input_window.second.expired() && input_window.second.lock()->is_blocking_mouse_input();
 		};
 
 		return std::any_of(reshade::s_windows.cbegin(), reshade::s_windows.cend(), predicate);
@@ -377,7 +377,7 @@ namespace reshade
 	static inline bool is_blocking_keyboard_input()
 	{
 		const auto predicate = [](auto input_window) {
-			return input_window.second.lock()->is_blocking_keyboard_input();
+			return !input_window.second.expired() && input_window.second.lock()->is_blocking_keyboard_input();
 		};
 
 		return std::any_of(reshade::s_windows.cbegin(), reshade::s_windows.cend(), predicate);
