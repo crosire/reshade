@@ -25,20 +25,49 @@ namespace reshade::d3d10
 		{
 			case pass_declaration_node::ZERO:
 				return D3D10_BLEND_ZERO;
+			default:
 			case pass_declaration_node::ONE:
 				return D3D10_BLEND_ONE;
+			case pass_declaration_node::SRCCOLOR:
+				return D3D10_BLEND_SRC_COLOR;
+			case pass_declaration_node::INVSRCCOLOR:
+				return D3D10_BLEND_INV_SRC_COLOR;
+			case pass_declaration_node::SRCALPHA:
+				return D3D10_BLEND_SRC_ALPHA;
+			case pass_declaration_node::INVSRCALPHA:
+				return D3D10_BLEND_INV_SRC_ALPHA;
+			case pass_declaration_node::DESTALPHA:
+				return D3D10_BLEND_DEST_ALPHA;
+			case pass_declaration_node::INVDESTALPHA:
+				return D3D10_BLEND_INV_DEST_ALPHA;
+			case pass_declaration_node::DESTCOLOR:
+				return D3D10_BLEND_DEST_COLOR;
+			case pass_declaration_node::INVDESTCOLOR:
+				return D3D10_BLEND_INV_DEST_COLOR;
 		}
-
-		return static_cast<D3D10_BLEND>(value);
 	}
 	static D3D10_STENCIL_OP literal_to_stencil_op(unsigned int value)
 	{
-		if (value == pass_declaration_node::ZERO)
+		switch (value)
 		{
-			return D3D10_STENCIL_OP_ZERO;
+			default:
+			case pass_declaration_node::KEEP:
+				return D3D10_STENCIL_OP_KEEP;
+			case pass_declaration_node::ZERO:
+				return D3D10_STENCIL_OP_ZERO;
+			case pass_declaration_node::REPLACE:
+				return D3D10_STENCIL_OP_REPLACE;
+			case pass_declaration_node::INCRSAT:
+				return D3D10_STENCIL_OP_INCR_SAT;
+			case pass_declaration_node::DECRSAT:
+				return D3D10_STENCIL_OP_DECR_SAT;
+			case pass_declaration_node::INVERT:
+				return D3D10_STENCIL_OP_INVERT;
+			case pass_declaration_node::INCR:
+				return D3D10_STENCIL_OP_INCR;
+			case pass_declaration_node::DECR:
+				return D3D10_STENCIL_OP_DECR;
 		}
-
-		return static_cast<D3D10_STENCIL_OP>(value);
 	}
 	static DXGI_FORMAT literal_to_format(texture_format value)
 	{
@@ -1847,6 +1876,8 @@ namespace reshade::d3d10
 		bdesc.BlendOpAlpha = static_cast<D3D10_BLEND_OP>(node->blend_op_alpha);
 		bdesc.SrcBlend = literal_to_blend_func(node->src_blend);
 		bdesc.DestBlend = literal_to_blend_func(node->dest_blend);
+		bdesc.SrcBlendAlpha = literal_to_blend_func(node->src_blend_alpha);
+		bdesc.DestBlendAlpha = literal_to_blend_func(node->dest_blend_alpha);
 
 		for (UINT i = 1; i < 8; i++)
 		{

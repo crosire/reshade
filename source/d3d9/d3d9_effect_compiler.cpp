@@ -30,20 +30,49 @@ namespace reshade::d3d9
 		{
 			case pass_declaration_node::ZERO:
 				return D3DBLEND_ZERO;
+			default:
 			case pass_declaration_node::ONE:
 				return D3DBLEND_ONE;
+			case pass_declaration_node::SRCCOLOR:
+				return D3DBLEND_SRCCOLOR;
+			case pass_declaration_node::INVSRCCOLOR:
+				return D3DBLEND_INVSRCCOLOR;
+			case pass_declaration_node::SRCALPHA:
+				return D3DBLEND_SRCALPHA;
+			case pass_declaration_node::INVSRCALPHA:
+				return D3DBLEND_INVSRCALPHA;
+			case pass_declaration_node::DESTALPHA:
+				return D3DBLEND_DESTALPHA;
+			case pass_declaration_node::INVDESTALPHA:
+				return D3DBLEND_INVDESTALPHA;
+			case pass_declaration_node::DESTCOLOR:
+				return D3DBLEND_DESTCOLOR;
+			case pass_declaration_node::INVDESTCOLOR:
+				return D3DBLEND_INVDESTCOLOR;
 		}
-
-		return static_cast<D3DBLEND>(value);
 	}
 	static D3DSTENCILOP literal_to_stencil_op(unsigned int value)
 	{
-		if (value == pass_declaration_node::ZERO)
+		switch (value)
 		{
-			return D3DSTENCILOP_ZERO;
+			default:
+			case pass_declaration_node::KEEP:
+				return D3DSTENCILOP_KEEP;
+			case pass_declaration_node::ZERO:
+				return D3DSTENCILOP_ZERO;
+			case pass_declaration_node::REPLACE:
+				return D3DSTENCILOP_REPLACE;
+			case pass_declaration_node::INCRSAT:
+				return D3DSTENCILOP_INCRSAT;
+			case pass_declaration_node::DECRSAT:
+				return D3DSTENCILOP_DECRSAT;
+			case pass_declaration_node::INVERT:
+				return D3DSTENCILOP_INVERT;
+			case pass_declaration_node::INCR:
+				return D3DSTENCILOP_INCR;
+			case pass_declaration_node::DECR:
+				return D3DSTENCILOP_DECR;
 		}
-
-		return static_cast<D3DSTENCILOP>(value);
 	}
 	static D3DFORMAT literal_to_format(texture_format value)
 	{
@@ -1727,8 +1756,8 @@ namespace reshade::d3d9
 		device->SetRenderState(D3DRS_BLENDFACTOR, 0xFFFFFFFF);
 		device->SetRenderState(D3DRS_SRGBWRITEENABLE, node->srgb_write_enable);
 		device->SetRenderState(D3DRS_SEPARATEALPHABLENDENABLE, false);
-		device->SetRenderState(D3DRS_SRCBLENDALPHA, D3DBLEND_ONE);
-		device->SetRenderState(D3DRS_DESTBLENDALPHA, D3DBLEND_ZERO);
+		device->SetRenderState(D3DRS_SRCBLENDALPHA, literal_to_blend_func(node->src_blend_alpha));
+		device->SetRenderState(D3DRS_DESTBLENDALPHA, literal_to_blend_func(node->dest_blend_alpha));
 		device->SetRenderState(D3DRS_BLENDOPALPHA, static_cast<D3DBLENDOP>(node->blend_op_alpha));
 		device->SetRenderState(D3DRS_FOGENABLE, false);
 		device->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);

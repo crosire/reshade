@@ -2243,6 +2243,8 @@ namespace reshade::opengl
 		pass.blend_eq_alpha = literal_to_blend_eq(node->blend_op_alpha);
 		pass.blend_src = literal_to_blend_func(node->src_blend);
 		pass.blend_dest = literal_to_blend_func(node->dest_blend);
+		pass.blend_src_alpha = literal_to_blend_func(node->src_blend_alpha);
+		pass.blend_dest_alpha = literal_to_blend_func(node->dest_blend_alpha);
 		pass.stencil_reference = node->stencil_reference_value;
 		pass.srgb = node->srgb_write_enable;
 		pass.clear_render_targets = node->clear_render_targets;

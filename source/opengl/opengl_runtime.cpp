@@ -742,7 +742,7 @@ namespace reshade::opengl
 			// Setup states
 			glUseProgram(pass.program);
 			glColorMask(pass.color_mask[0], pass.color_mask[1], pass.color_mask[2], pass.color_mask[3]);
-			glBlendFunc(pass.blend_src, pass.blend_dest);
+			glBlendFuncSeparate(pass.blend_src, pass.blend_dest, pass.blend_src_alpha, pass.blend_dest_alpha);
 			glBlendEquationSeparate(pass.blend_eq_color, pass.blend_eq_alpha);
 			glStencilFunc(pass.stencil_func, pass.stencil_reference, pass.stencil_read_mask);
 			glStencilOp(pass.stencil_op_fail, pass.stencil_op_z_fail, pass.stencil_op_z_pass);
