@@ -549,6 +549,18 @@ namespace reshade::opengl
 	{
 		if (with_inout)
 		{
+			if (with_qualifiers)
+			{
+				if (type.has_qualifier(type_node::qualifier_nointerpolation))
+					output << "flat ";
+				if (type.has_qualifier(type_node::qualifier_noperspective))
+					output << "noperspective ";
+				if (type.has_qualifier(type_node::qualifier_linear))
+					output << "smooth ";
+				if (type.has_qualifier(type_node::qualifier_centroid))
+					output << "centroid ";
+			}
+
 			if (type.has_qualifier(type_node::qualifier_inout))
 				output << "inout ";
 			else if (type.has_qualifier(type_node::qualifier_in))
@@ -558,15 +570,6 @@ namespace reshade::opengl
 		}
 		else if (with_qualifiers)
 		{
-			if (type.has_qualifier(type_node::qualifier_nointerpolation))
-				output << "flat ";
-			if (type.has_qualifier(type_node::qualifier_noperspective))
-				output << "noperspective ";
-			if (type.has_qualifier(type_node::qualifier_linear))
-				output << "smooth ";
-			if (type.has_qualifier(type_node::qualifier_centroid))
-				output << "centroid ";
-
 			if (type.has_qualifier(type_node::qualifier_const))
 				output << "const ";
 			else if (type.has_qualifier(type_node::qualifier_uniform))
