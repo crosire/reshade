@@ -252,7 +252,7 @@ HOOK_EXPORT void WINAPI D3DPERF_SetOptions(DWORD dwOptions)
 	UNREFERENCED_PARAMETER(dwOptions);
 
 #ifdef _DEBUG
-	reshade::hooks::call(&D3DPERF_SetOptions)(0);
+	//reshade::hooks::call(&D3DPERF_SetOptions)(0);
 #endif
 }
 HOOK_EXPORT DWORD WINAPI D3DPERF_GetStatus()

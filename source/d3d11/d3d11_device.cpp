@@ -7,6 +7,7 @@
 #include "d3d11_device.hpp"
 #include "d3d11_device_context.hpp"
 #include "../dxgi/dxgi_device.hpp"
+#include "depth_counter_tracker.hpp"
 
 // ID3D11Device
 HRESULT STDMETHODCALLTYPE D3D11Device::QueryInterface(REFIID riid, void **ppvObj)
@@ -184,7 +185,25 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateRenderTargetView(ID3D11Resource *pR
 }
 HRESULT STDMETHODCALLTYPE D3D11Device::CreateDepthStencilView(ID3D11Resource *pResource, const D3D11_DEPTH_STENCIL_VIEW_DESC *pDesc, ID3D11DepthStencilView **ppDepthStencilView)
 {
-	return _orig->CreateDepthStencilView(pResource, pDesc, ppDepthStencilView);
+	HRESULT to_return = _orig->CreateDepthStencilView(pResource, pDesc, ppDepthStencilView);
+
+	// log the size of the depth stencil created so we can use that info later on when the view is used. 
+	D3D11_TEXTURE2D_DESC texture_desc;
+	com_ptr<ID3D11Resource> resource;
+	com_ptr<ID3D11Texture2D> texture;
+	ID3D11DepthStencilView* createdView = *ppDepthStencilView;
+	createdView->GetResource(&resource);
+	if (FAILED(resource->QueryInterface(&texture)))
+	{
+		return to_return;
+	}
+	texture->GetDesc(&texture_desc);
+
+	const depthstencil_size sizeInfo = { texture_desc.Width, texture_desc.Height };
+	createdView->AddRef();
+	_depthstencil_sizes_per_instance.emplace(createdView, sizeInfo);
+
+	return to_return;
 }
 HRESULT STDMETHODCALLTYPE D3D11Device::CreateInputLayout(const D3D11_INPUT_ELEMENT_DESC *pInputElementDescs, UINT NumElements, const void *pShaderBytecodeWithInputSignature, SIZE_T BytecodeLength, ID3D11InputLayout **ppInputLayout)
 {
@@ -509,4 +528,60 @@ void STDMETHODCALLTYPE D3D11Device::ReadFromSubresource(void *pDstData, UINT Dst
 	assert(_interface_version >= 3);
 
 	static_cast<ID3D11Device3 *>(_orig)->ReadFromSubresource(pDstData, DstRowPitch, DstDepthPitch, pSrcResource, SrcSubresource, pSrcBox);
+}
+
+void D3D11Device::clear_commandlist_counters()
+{
+	const std::lock_guard<std::mutex> lock(_counters_per_commandlist_mutex);
+
+	_counters_per_commandlist.clear();
+	// clean out of scope depth stencils
+	for (auto it = _depthstencil_sizes_per_instance.begin(); it != _depthstencil_sizes_per_instance.end();)
+	{
+		const auto depthstencil = it->first;
+		if ((depthstencil->AddRef(), depthstencil->Release()) == 1)
+		{
+			// yep
+			it = _depthstencil_sizes_per_instance.erase(it);
+		}
+		else
+		{
+			++it;
+		}
+	}
+}
+
+void D3D11Device::merge_commandlist_counters_in_counter_map(ID3D11CommandList* commandList, depth_counter_tracker& counters_destination)
+{
+	const std::lock_guard<std::mutex> lock(_counters_per_commandlist_mutex);
+
+	auto counters_for_commandlist = _counters_per_commandlist.find(commandList);
+	if (counters_for_commandlist == _counters_per_commandlist.end())
+	{
+		return;
+	}
+	counters_destination.merge(counters_for_commandlist->second);
+}
+
+// Merges the counters in counters_source in the counters_per_commandlist for the commandlist specified.
+void D3D11Device::merge_counters_per_commandlist(ID3D11CommandList* commandList, depth_counter_tracker& counters_source)
+{
+	const std::lock_guard<std::mutex> lock(_counters_per_commandlist_mutex);
+
+	auto entry = _counters_per_commandlist.find(commandList);
+	if (entry == _counters_per_commandlist.end())
+	{
+		depth_counter_tracker counters_per_depthstencil;
+		counters_per_depthstencil.merge(counters_source);
+		_counters_per_commandlist.emplace(commandList, counters_per_depthstencil);
+	}
+	else
+	{
+		entry->second.merge(counters_source);
+	}
+}
+
+std::unordered_map<ID3D11DepthStencilView*, depthstencil_size> const& D3D11Device::get_depthstencil_sizes()
+{
+	return _depthstencil_sizes_per_instance;
 }

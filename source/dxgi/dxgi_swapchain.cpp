@@ -6,6 +6,8 @@
 #include "log.hpp"
 #include "dxgi_swapchain.hpp"
 #include <algorithm>
+#include "d3d11\depth_counter_tracker.hpp"
+#include "d3d11\d3d11_device_context.hpp"
 
 // IDXGISwapChain
 HRESULT STDMETHODCALLTYPE DXGISwapChain::QueryInterface(REFIID riid, void **ppvObj)
@@ -207,7 +209,12 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::Present(UINT SyncInterval, UINT Flags)
 				break;
 			case 11:
 				assert(_runtime != nullptr);
-				std::static_pointer_cast<reshade::d3d11::d3d11_runtime>(_runtime)->on_present();
+				auto device_proxy = static_cast<D3D11Device *>(_direct3d_device);
+				D3D11DeviceContext* immediate_context = device_proxy->_immediate_context;
+				depth_counter_tracker& tracker = immediate_context->get_depth_counter_tracker();
+				std::static_pointer_cast<reshade::d3d11::d3d11_runtime>(_runtime)->on_present(tracker, device_proxy->_depthstencil_sizes_per_instance);
+				immediate_context->clear_depthstencil_counters();
+				device_proxy->clear_commandlist_counters();
 				break;
 		}
 	}
@@ -343,7 +350,12 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::Present1(UINT SyncInterval, UINT Presen
 				break;
 			case 11:
 				assert(_runtime != nullptr);
-				std::static_pointer_cast<reshade::d3d11::d3d11_runtime>(_runtime)->on_present();
+				auto device_proxy = static_cast<D3D11Device *>(_direct3d_device);
+				D3D11DeviceContext* immediate_context = device_proxy->_immediate_context;
+				depth_counter_tracker& tracker = immediate_context->get_depth_counter_tracker();
+				std::static_pointer_cast<reshade::d3d11::d3d11_runtime>(_runtime)->on_present(tracker, device_proxy->_depthstencil_sizes_per_instance);
+				immediate_context->clear_depthstencil_counters();
+				device_proxy->clear_commandlist_counters();
 				break;
 		}
 	}
