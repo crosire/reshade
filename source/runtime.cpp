@@ -159,7 +159,6 @@ namespace reshade
 		// Advance various statistics
 		g_network_traffic = 0;
 		_framecount++;
-		_drawcalls = _vertices = 0;
 		_last_frame_duration = std::chrono::high_resolution_clock::now() - _last_present_time;
 		_last_present_time += _last_frame_duration;
 
@@ -196,6 +195,8 @@ namespace reshade
 				}
 			}
 		}
+
+		_drawcalls = _vertices = 0;
 	}
 	void runtime::on_present_effect()
 	{

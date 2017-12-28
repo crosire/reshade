@@ -11,6 +11,7 @@
 #include "resource_loading.hpp"
 #include <imgui.h>
 #include <algorithm>
+#include "d3d11_device_context.hpp"
 
 namespace reshade::d3d11
 {
@@ -502,14 +503,16 @@ namespace reshade::d3d11
 		_effect_shader_resources[1] = _backbuffer_texture_srv[1];
 		_effect_shader_resources[2] = _depthstencil_texture_srv;
 	}
-	void d3d11_runtime::on_present()
+	void d3d11_runtime::on_present(draw_call_tracker& tracker)
 	{
-		if (!is_initialized() || _drawcalls == 0)
+		_drawcalls = tracker.drawcalls();
+		_vertices = tracker.vertices();
+		if (!is_initialized() || _drawcalls==0)
 		{
 			return;
 		}
 
-		detect_depth_source();
+		detect_depth_source(tracker);
 
 		// Evaluate queries
 		for (technique &technique : _techniques)
@@ -595,118 +598,9 @@ namespace reshade::d3d11
 
 			_immediate_context->Draw(3, 0);
 		}
-
 		// Apply previous device state
 		_stateblock.apply_and_release();
 	}
-	void d3d11_runtime::on_draw_call(ID3D11DeviceContext *context, unsigned int vertices)
-	{
-		const std::lock_guard<std::mutex> lock(_mutex);
-
-		_vertices += vertices;
-		_drawcalls += 1;
-
-		com_ptr<ID3D11DepthStencilView> current_depthstencil;
-
-		context->OMGetRenderTargets(0, nullptr, &current_depthstencil);
-
-		if (current_depthstencil == nullptr ||
-			current_depthstencil == _default_depthstencil)
-		{
-			return;
-		}
-		if (current_depthstencil == _depthstencil_replacement)
-		{
-			current_depthstencil = _depthstencil;
-		}
-
-		const auto it = _depth_source_table.find(current_depthstencil.get());
-
-		if (it != _depth_source_table.end())
-		{
-			it->second.drawcall_count = _drawcalls;
-			it->second.vertices_count += vertices;
-		}
-	}
-	void d3d11_runtime::on_set_depthstencil_view(ID3D11DepthStencilView *&depthstencil)
-	{
-		const std::lock_guard<std::mutex> lock(_mutex);
-
-		if (_depth_source_table.find(depthstencil) == _depth_source_table.end())
-		{
-			D3D11_TEXTURE2D_DESC texture_desc;
-			com_ptr<ID3D11Resource> resource;
-			com_ptr<ID3D11Texture2D> texture;
-
-			depthstencil->GetResource(&resource);
-
-			if (FAILED(resource->QueryInterface(&texture)))
-			{
-				return;
-			}
-
-			texture->GetDesc(&texture_desc);
-
-			// Early depth stencil rejection
-			if (texture_desc.Width != _width || texture_desc.Height != _height || texture_desc.SampleDesc.Count > 1)
-			{
-				return;
-			}
-
-			depthstencil->AddRef();
-
-			// Begin tracking new depth stencil
-			const depth_source_info info = { texture_desc.Width, texture_desc.Height };
-			_depth_source_table.emplace(depthstencil, info);
-		}
-
-		if (_depthstencil_replacement != nullptr && depthstencil == _depthstencil)
-		{
-			depthstencil = _depthstencil_replacement.get();
-		}
-	}
-	void d3d11_runtime::on_get_depthstencil_view(ID3D11DepthStencilView *&depthstencil)
-	{
-		const std::lock_guard<std::mutex> lock(_mutex);
-
-		if (_depthstencil_replacement != nullptr && depthstencil == _depthstencil_replacement)
-		{
-			depthstencil->Release();
-
-			depthstencil = _depthstencil.get();
-
-			depthstencil->AddRef();
-		}
-	}
-	void d3d11_runtime::on_clear_depthstencil_view(ID3D11DepthStencilView *&depthstencil)
-	{
-		const std::lock_guard<std::mutex> lock(_mutex);
-
-		if (_depthstencil_replacement != nullptr && depthstencil == _depthstencil)
-		{
-			depthstencil = _depthstencil_replacement.get();
-		}
-	}
-	void d3d11_runtime::on_copy_resource(ID3D11Resource *&dest, ID3D11Resource *&source)
-	{
-		const std::lock_guard<std::mutex> lock(_mutex);
-
-		if (_depthstencil_replacement != nullptr)
-		{
-			com_ptr<ID3D11Resource> resource;
-			_depthstencil->GetResource(&resource);
-
-			if (dest == resource)
-			{
-				dest = _depthstencil_texture.get();
-			}
-			if (source == resource)
-			{
-				source = _depthstencil_texture.get();
-			}
-		}
-	}
-
 	void d3d11_runtime::capture_frame(uint8_t *buffer) const
 	{
 		if (_backbuffer_format != DXGI_FORMAT_R8G8B8A8_UNORM &&
@@ -1080,77 +974,44 @@ namespace reshade::d3d11
 		}
 	}
 
-	void d3d11_runtime::detect_depth_source()
+	void d3d11_runtime::detect_depth_source(draw_call_tracker& tracker)
 	{
 		static int cooldown = 0, traffic = 0;
 
+		bool aborted = false;
 		if (cooldown-- > 0)
 		{
 			traffic += g_network_traffic > 0;
-			return;
+			aborted = true;
 		}
 		else
 		{
 			cooldown = 30;
-
 			if (traffic > 10)
 			{
 				traffic = 0;
 				create_depthstencil_replacement(nullptr);
-				return;
+				aborted = true;
 			}
 			else
 			{
 				traffic = 0;
 			}
 		}
-
-		const std::lock_guard<std::mutex> lock(_mutex);
-
-		if (_is_multisampling_enabled || _depth_source_table.empty())
+		if (_is_multisampling_enabled)
 		{
-			return;
+			aborted = true;
 		}
-
-		depth_source_info best_info = { 0 };
-		ID3D11DepthStencilView *best_match = nullptr;
-
-		for (auto it = _depth_source_table.begin(); it != _depth_source_table.end();)
+		if (!aborted)
 		{
-			const auto depthstencil = it->first;
-			auto &depthstencil_info = it->second;
-
-			if ((depthstencil->AddRef(), depthstencil->Release()) == 1)
+			ID3D11DepthStencilView *best_match = tracker.get_best_depth_stencil(_width, _height);
+			if (best_match != nullptr && _depthstencil != best_match)
 			{
-				depthstencil->Release();
-
-				it = _depth_source_table.erase(it);
-				continue;
+				create_depthstencil_replacement(best_match);
 			}
-			else
-			{
-				++it;
-			}
-
-			if (depthstencil_info.drawcall_count == 0)
-			{
-				continue;
-			}
-
-			if ((depthstencil_info.vertices_count * (1.2f - float(depthstencil_info.drawcall_count) / _drawcalls)) >= (best_info.vertices_count * (1.2f - float(best_info.drawcall_count) / _drawcalls)))
-			{
-				best_match = depthstencil;
-				best_info = depthstencil_info;
-			}
-
-			depthstencil_info.drawcall_count = depthstencil_info.vertices_count = 0;
-		}
-
-		if (best_match != nullptr && _depthstencil != best_match)
-		{
-			create_depthstencil_replacement(best_match);
 		}
 	}
+
 	bool d3d11_runtime::create_depthstencil_replacement(ID3D11DepthStencilView *depthstencil)
 	{
 		_depthstencil.reset();

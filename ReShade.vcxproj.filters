@@ -57,9 +57,6 @@
     <ClCompile Include="source\runtime_objects.cpp">
       <Filter>core\runtime</Filter>
     </ClCompile>
-    <ClCompile Include="source\directory_watcher.cpp">
-      <Filter>core\utility</Filter>
-    </ClCompile>
     <ClCompile Include="source\filesystem.cpp">
       <Filter>core\utility</Filter>
     </ClCompile>
@@ -150,6 +147,12 @@
     <ClCompile Include="source\windows\ws2_32.cpp">
       <Filter>hooks\windows</Filter>
     </ClCompile>
+    <ClCompile Include="source\directory_watcher.cpp">
+      <Filter>core\utility</Filter>
+    </ClCompile>
+    <ClCompile Include="source\d3d11\draw_call_tracker.cpp">
+      <Filter>hooks\d3d11</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="source\hook.hpp">
@@ -180,9 +183,6 @@
       <Filter>core\utility</Filter>
     </ClInclude>
     <ClInclude Include="source\resource_loading.hpp">
-      <Filter>core\utility</Filter>
-    </ClInclude>
-    <ClInclude Include="source\directory_watcher.hpp">
       <Filter>core\utility</Filter>
     </ClInclude>
     <ClInclude Include="source\filesystem.hpp">
@@ -271,6 +271,12 @@
     </ClInclude>
     <ClInclude Include="res\version.h">
       <Filter>resources</Filter>
+    </ClInclude>
+    <ClInclude Include="source\directory_watcher.hpp">
+      <Filter>core\utility</Filter>
+    </ClInclude>
+    <ClInclude Include="source\d3d11\draw_call_tracker.hpp">
+      <Filter>hooks\d3d11</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

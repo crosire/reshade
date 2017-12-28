@@ -7,6 +7,7 @@
 #include "d3d11_device.hpp"
 #include "d3d11_device_context.hpp"
 #include "../dxgi/dxgi_device.hpp"
+#include "draw_call_tracker.hpp"
 
 // ID3D11Device
 HRESULT STDMETHODCALLTYPE D3D11Device::QueryInterface(REFIID riid, void **ppvObj)
@@ -148,6 +149,8 @@ ULONG STDMETHODCALLTYPE D3D11Device::Release()
 		assert(_ref <= 0);
 
 		LOG(INFO) << "Destroyed 'ID3D11Device" << (_interface_version > 0 ? std::to_string(_interface_version) : "") << "' object " << this << ".";
+
+		perform_counterdata_cleanup();
 
 		delete this;
 	}
@@ -509,4 +512,46 @@ void STDMETHODCALLTYPE D3D11Device::ReadFromSubresource(void *pDstData, UINT Dst
 	assert(_interface_version >= 3);
 
 	static_cast<ID3D11Device3 *>(_orig)->ReadFromSubresource(pDstData, DstRowPitch, DstDepthPitch, pSrcResource, SrcSubresource, pSrcBox);
+}
+
+// performs a clean up of all the counter data
+void D3D11Device::perform_counterdata_cleanup()
+{
+	const std::lock_guard<std::mutex> lock(_counters_per_commandlist_mutex);
+	for (auto commandcounters : _counters_per_commandlist)
+	{
+		commandcounters.second.reset();
+	}
+	_counters_per_commandlist.clear();
+}
+
+// merges the counters logged for the specified command list in the counters destination tracker specified
+void D3D11Device::merge_commandlist_counters_in_counter_map(ID3D11CommandList* command_list, reshade::d3d11::draw_call_tracker& counters_destination)
+{
+	const std::lock_guard<std::mutex> lock(_counters_per_commandlist_mutex);
+
+	auto counters_for_commandlist = _counters_per_commandlist.find(command_list);
+	if (counters_for_commandlist == _counters_per_commandlist.end())
+	{
+		return;
+	}
+	counters_destination.merge(counters_for_commandlist->second);
+}
+
+// Merges the counters in counters_source in the counters_per_commandlist for the commandlist specified.
+void D3D11Device::merge_counters_per_commandlist(ID3D11CommandList* command_list, reshade::d3d11::draw_call_tracker& counters_source)
+{
+	const std::lock_guard<std::mutex> lock(_counters_per_commandlist_mutex);
+
+	auto entry = _counters_per_commandlist.find(command_list);
+	if (entry == _counters_per_commandlist.end())
+	{
+		reshade::d3d11::draw_call_tracker counters_per_depthstencil;
+		counters_per_depthstencil.merge(counters_source);
+		_counters_per_commandlist.emplace(command_list, counters_per_depthstencil);
+	}
+	else
+	{
+		entry->second.merge(counters_source);
+	}
 }
