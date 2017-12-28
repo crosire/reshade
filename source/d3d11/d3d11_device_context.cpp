@@ -161,12 +161,12 @@ void STDMETHODCALLTYPE D3D11DeviceContext::VSSetShader(ID3D11VertexShader *pVert
 void STDMETHODCALLTYPE D3D11DeviceContext::DrawIndexed(UINT IndexCount, UINT StartIndexLocation, INT BaseVertexLocation)
 {
 	_orig->DrawIndexed(IndexCount, StartIndexLocation, BaseVertexLocation);
-	log_drawcall_stats_for_depthstencil(IndexCount);
+	log_drawcall(IndexCount);
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::Draw(UINT VertexCount, UINT StartVertexLocation)
 {
 	_orig->Draw(VertexCount, StartVertexLocation);
-	log_drawcall_stats_for_depthstencil(VertexCount);
+	log_drawcall(VertexCount);
 }
 HRESULT STDMETHODCALLTYPE D3D11DeviceContext::Map(ID3D11Resource *pResource, UINT Subresource, D3D11_MAP MapType, UINT MapFlags, D3D11_MAPPED_SUBRESOURCE *pMappedResource)
 {
@@ -195,12 +195,12 @@ void STDMETHODCALLTYPE D3D11DeviceContext::IASetIndexBuffer(ID3D11Buffer *pIndex
 void STDMETHODCALLTYPE D3D11DeviceContext::DrawIndexedInstanced(UINT IndexCountPerInstance, UINT InstanceCount, UINT StartIndexLocation, INT BaseVertexLocation, UINT StartInstanceLocation)
 {
 	_orig->DrawIndexedInstanced(IndexCountPerInstance, InstanceCount, StartIndexLocation, BaseVertexLocation, StartInstanceLocation);
-	log_drawcall_stats_for_depthstencil(IndexCountPerInstance * InstanceCount);
+	log_drawcall(IndexCountPerInstance * InstanceCount);
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::DrawInstanced(UINT VertexCountPerInstance, UINT InstanceCount, UINT StartVertexLocation, UINT StartInstanceLocation)
 {
 	_orig->DrawInstanced(VertexCountPerInstance, InstanceCount, StartVertexLocation, StartInstanceLocation);
-	log_drawcall_stats_for_depthstencil(VertexCountPerInstance * InstanceCount);
+	log_drawcall(VertexCountPerInstance * InstanceCount);
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::GSSetConstantBuffers(UINT StartSlot, UINT NumBuffers, ID3D11Buffer *const *ppConstantBuffers)
 {
@@ -271,17 +271,17 @@ void STDMETHODCALLTYPE D3D11DeviceContext::SOSetTargets(UINT NumBuffers, ID3D11B
 void STDMETHODCALLTYPE D3D11DeviceContext::DrawAuto()
 {
 	_orig->DrawAuto();
-	log_drawcall_stats_for_depthstencil(0);
+	log_drawcall(0);
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::DrawIndexedInstancedIndirect(ID3D11Buffer *pBufferForArgs, UINT AlignedByteOffsetForArgs)
 {
 	_orig->DrawIndexedInstancedIndirect(pBufferForArgs, AlignedByteOffsetForArgs);
-	log_drawcall_stats_for_depthstencil(0);
+	log_drawcall(0);
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::DrawInstancedIndirect(ID3D11Buffer *pBufferForArgs, UINT AlignedByteOffsetForArgs)
 {
 	_orig->DrawInstancedIndirect(pBufferForArgs, AlignedByteOffsetForArgs);
-	log_drawcall_stats_for_depthstencil(0);
+	log_drawcall(0);
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::Dispatch(UINT ThreadGroupCountX, UINT ThreadGroupCountY, UINT ThreadGroupCountZ)
 {
@@ -578,12 +578,12 @@ UINT STDMETHODCALLTYPE D3D11DeviceContext::GetContextFlags()
 HRESULT STDMETHODCALLTYPE D3D11DeviceContext::FinishCommandList(BOOL RestoreDeferredContextState, ID3D11CommandList **ppCommandList)
 {
 	HRESULT to_return = _orig->FinishCommandList(RestoreDeferredContextState, ppCommandList);
-	log_active_depthstencil_drawcalls();
+	log_drawcall_stats_in_tracker();
 	if (nullptr != ppCommandList && _depthstencil_counters.drawcalls() > 0)
 	{
 		_device->merge_counters_per_commandlist(*ppCommandList, _depthstencil_counters);
 	}
-	clear_depthstencil_counters();
+	clear_drawcall_stats();
 	return to_return;
 }
 D3D11_DEVICE_CONTEXT_TYPE STDMETHODCALLTYPE D3D11DeviceContext::GetType()
@@ -790,23 +790,24 @@ void STDMETHODCALLTYPE D3D11DeviceContext::GetHardwareProtectionState(BOOL *pHwP
 }
 
 // Local methods. The depth stencil ref counters aren't updated as the objects themselves are simply used for keys in maps, not as objects. 
-// sets the active depth stencil to the one specified. The active depth stencil is used for counting drawcalls. 
 void D3D11DeviceContext::set_active_depthstencil(ID3D11DepthStencilView* pDepthStencilView)
 {
 	if (_active_depthstencil == pDepthStencilView)
 	{
 		return;
 	}
-	log_active_depthstencil_drawcalls();
+	log_drawcall_stats_in_tracker();
 	_active_depthstencil = pDepthStencilView;
 	if (nullptr != pDepthStencilView)
 	{
 		_depthstencil_counters.track_depthstencil(pDepthStencilView);
 	}
 }
-// logs a draw call for the set active depth stencil (if any). 
-void D3D11DeviceContext::log_drawcall_stats_for_depthstencil(UINT vertices)
+
+void D3D11DeviceContext::log_drawcall(UINT vertices)
 {
+	_total_drawcalls++;
+	_total_vertices += vertices;
 	if (nullptr == _active_depthstencil)
 	{
 		return;
@@ -814,16 +815,23 @@ void D3D11DeviceContext::log_drawcall_stats_for_depthstencil(UINT vertices)
 	_active_depthstencil_drawcalls++;
 	_active_depthstencil_vertices += vertices;
 }
-// clears any depth stencil counters and releases pointers to the tracked depth stencil views. It also resets the active depth stencil. 
-void D3D11DeviceContext::clear_depthstencil_counters()
+
+void D3D11DeviceContext::clear_drawcall_stats()
 {
 	_active_depthstencil.reset();
-	_depthstencil_counters.reset();
 	_active_depthstencil_drawcalls = 0;
 	_active_depthstencil_vertices = 0;
+	_depthstencil_counters.reset();
+	_total_drawcalls = 0;
+	_total_vertices = 0;
 }
-void D3D11DeviceContext::log_active_depthstencil_drawcalls()
+
+void D3D11DeviceContext::log_drawcall_stats_in_tracker()
 {
+	_depthstencil_counters.update_drawcalls(_total_drawcalls);
+	_depthstencil_counters.update_vertices(_total_vertices);
+	_total_drawcalls = 0;
+	_total_vertices = 0;
 	if (nullptr != _active_depthstencil && _active_depthstencil_drawcalls>0)
 	{
 		_depthstencil_counters.log_drawcalls(_active_depthstencil.get(), _active_depthstencil_drawcalls, _active_depthstencil_vertices);
@@ -831,8 +839,9 @@ void D3D11DeviceContext::log_active_depthstencil_drawcalls()
 		_active_depthstencil_vertices = 0;
 	}
 }
+
 depth_counter_tracker& D3D11DeviceContext::get_depth_counter_tracker()
 {
-	log_active_depthstencil_drawcalls();
+	log_drawcall_stats_in_tracker();
 	return _depthstencil_counters;
 }

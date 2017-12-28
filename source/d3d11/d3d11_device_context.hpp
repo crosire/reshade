@@ -192,9 +192,9 @@ struct D3D11DeviceContext : ID3D11DeviceContext3
 
 	// local methods
 	void set_active_depthstencil(ID3D11DepthStencilView* pDepthStencilView);
-	void log_drawcall_stats_for_depthstencil(UINT vertices);
-	void clear_depthstencil_counters();
-	void log_active_depthstencil_drawcalls();
+	void log_drawcall(UINT vertices);
+	void clear_drawcall_stats();
+	void log_drawcall_stats_in_tracker();
 	depth_counter_tracker& get_depth_counter_tracker();
 	
 	// fields
@@ -203,6 +203,8 @@ struct D3D11DeviceContext : ID3D11DeviceContext3
 	UINT _vertices = 0;
 	UINT _active_depthstencil_drawcalls = 0;
 	UINT _active_depthstencil_vertices = 0;
+	UINT _total_drawcalls = 0;
+	UINT _total_vertices = 0;
 	ID3D11DeviceContext *_orig;
 	unsigned int _interface_version;
 	D3D11Device *const _device;

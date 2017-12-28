@@ -197,28 +197,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::GetDevice(REFIID riid, void **ppDevice)
 }
 HRESULT STDMETHODCALLTYPE DXGISwapChain::Present(UINT SyncInterval, UINT Flags)
 {
-	// Some D3D11 games test swapchain presentation for timing and composition purposes.
-	// These calls are NOT rendering-related, but rather a status request for the D3D runtime and as such should be ignored.
-	if (!(Flags & DXGI_PRESENT_TEST))
-	{
-		switch (_direct3d_version)
-		{
-			case 10:
-				assert(_runtime != nullptr);
-				std::static_pointer_cast<reshade::d3d10::d3d10_runtime>(_runtime)->on_present();
-				break;
-			case 11:
-				assert(_runtime != nullptr);
-				auto device_proxy = static_cast<D3D11Device *>(_direct3d_device);
-				D3D11DeviceContext* immediate_context = device_proxy->_immediate_context;
-				depth_counter_tracker& tracker = immediate_context->get_depth_counter_tracker();
-				std::static_pointer_cast<reshade::d3d11::d3d11_runtime>(_runtime)->on_present(tracker, device_proxy->_depthstencil_sizes_per_instance);
-				immediate_context->clear_depthstencil_counters();
-				device_proxy->clear_commandlist_counters();
-				break;
-		}
-	}
-
+	perform_present(Flags);
 	return _orig->Present(SyncInterval, Flags);
 }
 HRESULT STDMETHODCALLTYPE DXGISwapChain::GetBuffer(UINT Buffer, REFIID riid, void **ppSurface)
@@ -337,29 +316,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::GetCoreWindow(REFIID refiid, void **ppU
 HRESULT STDMETHODCALLTYPE DXGISwapChain::Present1(UINT SyncInterval, UINT PresentFlags, const DXGI_PRESENT_PARAMETERS *pPresentParameters)
 {
 	assert(_interface_version >= 1);
-
-	// Some D3D11 games test swapchain presentation for timing and composition purposes.
-	// These calls are NOT rendering-related, but rather a status request for the D3D runtime and as such should be ignored.
-	if (!(PresentFlags & DXGI_PRESENT_TEST))
-	{
-		switch (_direct3d_version)
-		{
-			case 10:
-				assert(_runtime != nullptr);
-				std::static_pointer_cast<reshade::d3d10::d3d10_runtime>(_runtime)->on_present();
-				break;
-			case 11:
-				assert(_runtime != nullptr);
-				auto device_proxy = static_cast<D3D11Device *>(_direct3d_device);
-				D3D11DeviceContext* immediate_context = device_proxy->_immediate_context;
-				depth_counter_tracker& tracker = immediate_context->get_depth_counter_tracker();
-				std::static_pointer_cast<reshade::d3d11::d3d11_runtime>(_runtime)->on_present(tracker, device_proxy->_depthstencil_sizes_per_instance);
-				immediate_context->clear_depthstencil_counters();
-				device_proxy->clear_commandlist_counters();
-				break;
-		}
-	}
-
+	perform_present(PresentFlags);
 	return static_cast<IDXGISwapChain1 *>(_orig)->Present1(SyncInterval, PresentFlags, pPresentParameters);
 }
 BOOL STDMETHODCALLTYPE DXGISwapChain::IsTemporaryMonoSupported()
@@ -524,4 +481,28 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::SetHDRMetaData(DXGI_HDR_METADATA_TYPE T
 	assert(_interface_version >= 4);
 
 	return static_cast<IDXGISwapChain4 *>(_orig)->SetHDRMetaData(Type, Size, pMetaData);
+}
+
+void DXGISwapChain::perform_present(UINT PresentFlags)
+{
+	// Some D3D11 games test swapchain presentation for timing and composition purposes.
+	// These calls are NOT rendering-related, but rather a status request for the D3D runtime and as such should be ignored.
+	if (!(PresentFlags & DXGI_PRESENT_TEST))
+	{
+		switch (_direct3d_version)
+		{
+		case 10:
+			assert(_runtime != nullptr);
+			std::static_pointer_cast<reshade::d3d10::d3d10_runtime>(_runtime)->on_present();
+			break;
+		case 11:
+			assert(_runtime != nullptr);
+			auto device_proxy = static_cast<D3D11Device *>(_direct3d_device);
+			auto immediate_context_proxy = device_proxy->_immediate_context;
+			std::static_pointer_cast<reshade::d3d11::d3d11_runtime>(_runtime)->on_present(immediate_context_proxy->get_depth_counter_tracker(), device_proxy->_depthstencil_sizes_per_instance);
+			immediate_context_proxy->clear_drawcall_stats();
+			device_proxy->perform_post_present_cleanup();
+			break;
+		}
+	}
 }

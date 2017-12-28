@@ -5,7 +5,8 @@
 
 struct depthstencil_size
 {
-	UINT width, height = 0;
+	UINT width = 0;
+	UINT height = 0;
 };
 
 class depth_counter_tracker
@@ -21,7 +22,9 @@ public:
 	void merge(depth_counter_tracker& source);
 
 	UINT drawcalls() { return _drawcalls; }
+	void update_drawcalls(UINT amount) { _drawcalls += amount; }
 	UINT vertices() { return _vertices; }
+	void update_vertices(UINT amount) { _vertices += amount; }
 
 private:
 	struct depthstencil_counter_info
@@ -32,7 +35,7 @@ private:
 
 	depthstencil_size get_depth_stencil_size(std::unordered_map<ID3D11DepthStencilView*, depthstencil_size> const& depthstencils, ID3D11DepthStencilView* view);
 
-	std::unordered_map<ID3D11DepthStencilView*, depthstencil_counter_info> _counters_per_used_depthstencil;	// a depthstencil that's used on this context is added to this table and on every draw call the counters are updated for the active depthstencil.
+	std::unordered_map<ID3D11DepthStencilView*, depthstencil_counter_info> _counters_per_used_depthstencil;	
 	UINT _drawcalls = 0;
 	UINT _vertices = 0;
 };

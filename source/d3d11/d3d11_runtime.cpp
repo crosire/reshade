@@ -598,7 +598,6 @@ namespace reshade::d3d11
 
 			_immediate_context->Draw(3, 0);
 		}
-		_drawcalls = _vertices = 0;
 		// Apply previous device state
 		_stateblock.apply_and_release();
 	}
@@ -975,6 +974,8 @@ namespace reshade::d3d11
 		}
 	}
 
+	// depthstencils are the created depth stencils from the device. the tracker is the accumulated drawcall counts for all work done on the immediate context
+	// (direct or indirect through commandlists)
 	void d3d11_runtime::detect_depth_source(depth_counter_tracker& tracker, std::unordered_map<ID3D11DepthStencilView*, depthstencil_size> const& depthstencils)
 	{
 		static int cooldown = 0, traffic = 0;
@@ -1006,15 +1007,13 @@ namespace reshade::d3d11
 		if (!aborted)
 		{
 			ID3D11DepthStencilView *best_match = tracker.get_best_depth_stencil(depthstencils, _width, _height);
-			if (!aborted)
+			if (best_match != nullptr && _depthstencil != best_match)
 			{
-				if (best_match != nullptr && _depthstencil != best_match)
-				{
-					create_depthstencil_replacement(best_match);
-				}
+				create_depthstencil_replacement(best_match);
 			}
 		}
 	}
+
 	bool d3d11_runtime::create_depthstencil_replacement(ID3D11DepthStencilView *depthstencil)
 	{
 		_depthstencil.reset();

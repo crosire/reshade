@@ -34,8 +34,6 @@ void depth_counter_tracker::log_drawcalls(ID3D11DepthStencilView* depthstencil, 
 	}
 	counters->second.drawcall_count += drawcalls;
 	counters->second.vertices_count += vertices;
-	_drawcalls += drawcalls;
-	_vertices += vertices;
 }
 
 void depth_counter_tracker::reset()
@@ -81,9 +79,10 @@ ID3D11DepthStencilView* depth_counter_tracker::get_best_depth_stencil(std::unord
 		{
 			continue;
 		}
-		// get the specs of this depthstencil. if it's of a size different than our window, ignore it. 
 		auto sizeinfo = get_depth_stencil_size(depthstencils, depthstencil);
 		bool size_mismatch = false;
+		// if the size of the depth stencil has the size of the window, we'll look at its counters. If it doesn't we'll try some heuristics, like
+		// aspect ratio equivalence or whether the height is 1 off, which is sometimes the case in some games. 
 		if (sizeinfo.width != width)
 		{
 			size_mismatch = true;
@@ -116,7 +115,6 @@ ID3D11DepthStencilView* depth_counter_tracker::get_best_depth_stencil(std::unord
 	return best_match;
 }
 
-
 depthstencil_size depth_counter_tracker::get_depth_stencil_size(std::unordered_map<ID3D11DepthStencilView*, depthstencil_size> const& depthstencils, ID3D11DepthStencilView* view)
 {
 	// no need for a lock, as it's called from the present call. 
@@ -136,7 +134,7 @@ depthstencil_size depth_counter_tracker::get_depth_stencil_size(std::unordered_m
 	auto &size_info = entry->second;
 	if ((depthstencil->AddRef(), depthstencil->Release()) == 1)
 	{
-		// already out of scope, ignore, so return default.
+		// already out of scope, ignore, so return default. Clean up later on will remove this one. 
 		return to_return;
 	}
 	else

@@ -105,7 +105,7 @@ struct D3D11Device : ID3D11Device3
 	void merge_counters_per_commandlist(ID3D11CommandList* commandList, depth_counter_tracker& counters_source);
 	void merge_commandlist_counters_in_counter_map(ID3D11CommandList* commandList, depth_counter_tracker& counters_destination);
 	std::unordered_map<ID3D11DepthStencilView*, depthstencil_size> const& get_depthstencil_sizes();
-	void clear_commandlist_counters();
+	void perform_post_present_cleanup();
 
 	LONG _ref = 1;
 	ID3D11Device *_orig;
@@ -114,6 +114,6 @@ struct D3D11Device : ID3D11Device3
 	D3D11DeviceContext *_immediate_context = nullptr;
 	std::vector<std::shared_ptr<reshade::d3d11::d3d11_runtime>> _runtimes;
 	std::unordered_map<ID3D11DepthStencilView*, depthstencil_size> _depthstencil_sizes_per_instance;
-	std::unordered_map<ID3D11CommandList*, depth_counter_tracker> _counters_per_commandlist;	// logged drawcalls / vertices per depth stencil per command list, which are then merged into the device context where the command list is executed on
+	std::unordered_map<ID3D11CommandList*, depth_counter_tracker> _counters_per_commandlist;
 	std::mutex _counters_per_commandlist_mutex;
 };
