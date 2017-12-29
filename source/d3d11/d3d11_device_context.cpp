@@ -111,7 +111,7 @@ ULONG STDMETHODCALLTYPE D3D11DeviceContext::Release()
 		LOG(INFO) << "Destroyed 'ID3D11DeviceContext" << (_interface_version > 0 ? std::to_string(_interface_version) : "") << "' object " << this << ".";
 
 		// clear the trackers
-		_depthstencil_counters.reset();
+		clear_drawcall_stats();
 
 		delete this;
 	}

@@ -150,6 +150,8 @@ ULONG STDMETHODCALLTYPE D3D11Device::Release()
 
 		LOG(INFO) << "Destroyed 'ID3D11Device" << (_interface_version > 0 ? std::to_string(_interface_version) : "") << "' object " << this << ".";
 
+		perform_post_resizebuffers_cleanup();
+
 		delete this;
 	}
 
