@@ -230,6 +230,10 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Wi
 			break;
 		case 11:
 			assert(_runtime != nullptr);
+			auto device_proxy = static_cast<D3D11Device *>(_direct3d_device);
+			device_proxy->perform_post_resizebuffers_cleanup();
+			auto immediate_context_proxy = device_proxy->_immediate_context;
+			immediate_context_proxy->clear_drawcall_stats();
 			std::static_pointer_cast<reshade::d3d11::d3d11_runtime>(_runtime)->on_reset();
 			break;
 	}

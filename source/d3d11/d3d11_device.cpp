@@ -150,6 +150,8 @@ ULONG STDMETHODCALLTYPE D3D11Device::Release()
 
 		LOG(INFO) << "Destroyed 'ID3D11Device" << (_interface_version > 0 ? std::to_string(_interface_version) : "") << "' object " << this << ".";
 
+		perform_post_resizebuffers_cleanup();
+
 		delete this;
 	}
 
@@ -546,6 +548,15 @@ void D3D11Device::perform_post_present_cleanup()
 
 	const std::lock_guard<std::mutex> lock(_counters_per_commandlist_mutex);
 	_counters_per_commandlist.clear();
+}
+
+void D3D11Device::perform_post_resizebuffers_cleanup()
+{
+	for (auto it : _depthstencil_sizes_per_instance)
+	{
+		it.first->Release();
+	}
+	_depthstencil_sizes_per_instance.clear();
 }
 
 void D3D11Device::merge_commandlist_counters_in_counter_map(ID3D11CommandList* commandList, depth_counter_tracker& counters_destination)
