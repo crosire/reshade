@@ -106,6 +106,7 @@ struct D3D11Device : ID3D11Device3
 	void merge_commandlist_counters_in_counter_map(ID3D11CommandList* commandList, depth_counter_tracker& counters_destination);
 	std::unordered_map<ID3D11DepthStencilView*, depthstencil_size> const& get_depthstencil_sizes();
 	void perform_post_present_cleanup();
+	void perform_post_resizebuffers_cleanup();
 
 	LONG _ref = 1;
 	ID3D11Device *_orig;
