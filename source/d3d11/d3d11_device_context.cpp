@@ -792,7 +792,7 @@ void STDMETHODCALLTYPE D3D11DeviceContext::GetHardwareProtectionState(BOOL *pHwP
 	static_cast<ID3D11DeviceContext3 *>(_orig)->GetHardwareProtectionState(pHwProtectionEnable);
 }
 
-// Local methods. The depth stencil ref counters aren't updated as the objects themselves are simply used for keys in maps, not as objects. 
+// Local methods. 
 void D3D11DeviceContext::set_active_depthstencil(ID3D11DepthStencilView* pDepthStencilView)
 {
 	if (_active_depthstencil == pDepthStencilView)
