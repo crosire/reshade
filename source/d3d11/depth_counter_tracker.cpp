@@ -16,6 +16,7 @@ void depth_counter_tracker::track_depthstencil(ID3D11DepthStencilView* to_track)
 		if (_counters_per_used_depthstencil.find(to_track) == _counters_per_used_depthstencil.end())
 		{
 			const depthstencil_counter_info counters = {};
+			to_track->AddRef();
 			_counters_per_used_depthstencil.emplace(to_track, counters);
 		}
 	}
@@ -38,6 +39,10 @@ void depth_counter_tracker::log_drawcalls(ID3D11DepthStencilView* depthstencil, 
 
 void depth_counter_tracker::reset()
 {
+	for (auto it : _counters_per_used_depthstencil)
+	{
+		it.first->Release();
+	}
 	_counters_per_used_depthstencil.clear();
 	_drawcalls = 0;
 	_vertices = 0;
@@ -48,13 +53,13 @@ void depth_counter_tracker::merge(depth_counter_tracker& source)
 	_drawcalls += source.drawcalls();
 	_vertices += source.vertices();
 
-	// copy entries in source into this, if key is already there, update counters accordingly. 
 	for (auto source_entry : source._counters_per_used_depthstencil)
 	{
 		auto destination_entry = _counters_per_used_depthstencil.find(source_entry.first);
 		if (destination_entry == _counters_per_used_depthstencil.end())
 		{
 			const depthstencil_counter_info counters = { source_entry.second.drawcall_count, source_entry.second.vertices_count };
+			source_entry.first->AddRef();
 			_counters_per_used_depthstencil.emplace(source_entry.first, counters);
 		}
 		else
@@ -64,8 +69,8 @@ void depth_counter_tracker::merge(depth_counter_tracker& source)
 		}
 	}
 }
-	
-ID3D11DepthStencilView* depth_counter_tracker::get_best_depth_stencil(std::unordered_map<ID3D11DepthStencilView*, depthstencil_size> const& depthstencils, UINT width, UINT height)
+
+ID3D11DepthStencilView* depth_counter_tracker::get_best_depth_stencil(UINT width, UINT height)
 {
 	depthstencil_counter_info best_info = { 0 };
 	ID3D11DepthStencilView *best_match = nullptr;
@@ -79,7 +84,22 @@ ID3D11DepthStencilView* depth_counter_tracker::get_best_depth_stencil(std::unord
 		{
 			continue;
 		}
-		auto sizeinfo = get_depth_stencil_size(depthstencils, depthstencil);
+
+		// Determine depthstencil size on-the-fly. We execute this code in present, and this isn't slow anyway. 
+		// Caching the size infos has the downside that if the game uses dynamic supersampling/resolution scaling, we end up
+		// with a lot of depthstencils which are likely out of scope leading to memory leaks. 
+		depthstencil_size sizeinfo;
+		D3D11_TEXTURE2D_DESC texture_desc;
+		com_ptr<ID3D11Resource> resource;
+		com_ptr<ID3D11Texture2D> texture;
+		depthstencil->GetResource(&resource);
+		if (!FAILED(resource->QueryInterface(&texture)))
+		{
+			texture->GetDesc(&texture_desc);
+			sizeinfo.width = texture_desc.Width;
+			sizeinfo.height = texture_desc.Height;
+		}
+
 		bool size_mismatch = false;
 		// if the size of the depth stencil has the size of the window, we'll look at its counters. If it doesn't we'll try some heuristics, like
 		// aspect ratio equivalence or whether the height is 1 off, which is sometimes the case in some games. 
@@ -115,31 +135,3 @@ ID3D11DepthStencilView* depth_counter_tracker::get_best_depth_stencil(std::unord
 	return best_match;
 }
 
-depthstencil_size depth_counter_tracker::get_depth_stencil_size(std::unordered_map<ID3D11DepthStencilView*, depthstencil_size> const& depthstencils, ID3D11DepthStencilView* view)
-{
-	// no need for a lock, as it's called from the present call. 
-	depthstencil_size to_return;
-	if (nullptr == view)
-	{
-		return to_return;
-	}
-
-	auto entry = depthstencils.find(view);
-	if (entry == depthstencils.end())
-	{
-		return to_return;
-	}
-
-	const auto depthstencil = entry->first;
-	auto &size_info = entry->second;
-	if ((depthstencil->AddRef(), depthstencil->Release()) == 1)
-	{
-		// already out of scope, ignore, so return default. Clean up later on will remove this one. 
-		return to_return;
-	}
-	else
-	{
-		to_return = size_info;
-	}
-	return to_return;
-}

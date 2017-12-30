@@ -135,7 +135,7 @@ ULONG STDMETHODCALLTYPE DXGISwapChain::Release()
 			case 11:
 			{
 				assert(_runtime != nullptr);
-
+				perform_callcounter_cleanup();
 				auto &runtimes = static_cast<D3D11Device *>(_direct3d_device)->_runtimes;
 				const auto runtime = std::static_pointer_cast<reshade::d3d11::d3d11_runtime>(_runtime);
 				runtime->on_reset();
@@ -230,10 +230,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Wi
 			break;
 		case 11:
 			assert(_runtime != nullptr);
-			auto device_proxy = static_cast<D3D11Device *>(_direct3d_device);
-			device_proxy->perform_post_resizebuffers_cleanup();
-			auto immediate_context_proxy = device_proxy->_immediate_context;
-			immediate_context_proxy->clear_drawcall_stats();
+			perform_callcounter_cleanup();
 			std::static_pointer_cast<reshade::d3d11::d3d11_runtime>(_runtime)->on_reset();
 			break;
 	}
@@ -437,6 +434,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers1(UINT BufferCount, UINT W
 			break;
 		case 11:
 			assert(_runtime != nullptr);
+			perform_callcounter_cleanup();
 			std::static_pointer_cast<reshade::d3d11::d3d11_runtime>(_runtime)->on_reset();
 			break;
 	}
@@ -503,10 +501,19 @@ void DXGISwapChain::perform_present(UINT PresentFlags)
 			assert(_runtime != nullptr);
 			auto device_proxy = static_cast<D3D11Device *>(_direct3d_device);
 			auto immediate_context_proxy = device_proxy->_immediate_context;
-			std::static_pointer_cast<reshade::d3d11::d3d11_runtime>(_runtime)->on_present(immediate_context_proxy->get_depth_counter_tracker(), device_proxy->_depthstencil_sizes_per_instance);
+			std::static_pointer_cast<reshade::d3d11::d3d11_runtime>(_runtime)->on_present(immediate_context_proxy->get_depth_counter_tracker());
 			immediate_context_proxy->clear_drawcall_stats();
-			device_proxy->perform_post_present_cleanup();
+			device_proxy->perform_counterdata_cleanup();
 			break;
 		}
 	}
+}
+
+
+void DXGISwapChain::perform_callcounter_cleanup()
+{
+	auto device_proxy = static_cast<D3D11Device *>(_direct3d_device);
+	device_proxy->perform_counterdata_cleanup();
+	auto immediate_context_proxy = device_proxy->_immediate_context;
+	immediate_context_proxy->clear_drawcall_stats();
 }
