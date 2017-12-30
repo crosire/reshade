@@ -503,7 +503,7 @@ namespace reshade::d3d11
 		_effect_shader_resources[1] = _backbuffer_texture_srv[1];
 		_effect_shader_resources[2] = _depthstencil_texture_srv;
 	}
-	void d3d11_runtime::on_present(depth_counter_tracker& tracker, std::unordered_map<ID3D11DepthStencilView*, depthstencil_size> const& depthstencils)
+	void d3d11_runtime::on_present(depth_counter_tracker& tracker)
 	{
 		_drawcalls = tracker.drawcalls();
 		_vertices = tracker.vertices();
@@ -512,7 +512,7 @@ namespace reshade::d3d11
 			return;
 		}
 
-		detect_depth_source(tracker, depthstencils);
+		detect_depth_source(tracker);
 
 		// Evaluate queries
 		for (technique &technique : _techniques)
@@ -974,9 +974,7 @@ namespace reshade::d3d11
 		}
 	}
 
-	// depthstencils are the created depth stencils from the device. the tracker is the accumulated drawcall counts for all work done on the immediate context
-	// (direct or indirect through commandlists)
-	void d3d11_runtime::detect_depth_source(depth_counter_tracker& tracker, std::unordered_map<ID3D11DepthStencilView*, depthstencil_size> const& depthstencils)
+	void d3d11_runtime::detect_depth_source(depth_counter_tracker& tracker)
 	{
 		static int cooldown = 0, traffic = 0;
 
@@ -1006,7 +1004,7 @@ namespace reshade::d3d11
 		}
 		if (!aborted)
 		{
-			ID3D11DepthStencilView *best_match = tracker.get_best_depth_stencil(depthstencils, _width, _height);
+			ID3D11DepthStencilView *best_match = tracker.get_best_depth_stencil(_width, _height);
 			if (best_match != nullptr && _depthstencil != best_match)
 			{
 				create_depthstencil_replacement(best_match);

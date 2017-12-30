@@ -97,6 +97,7 @@ struct DXGISwapChain : IDXGISwapChain4
 
 	// local methods
 	void perform_present(UINT PresentFlags);
+	void perform_callcounter_cleanup();
 
 	// fields
 	LONG _ref = 1;
