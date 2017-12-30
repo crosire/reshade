@@ -187,22 +187,7 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateRenderTargetView(ID3D11Resource *pR
 }
 HRESULT STDMETHODCALLTYPE D3D11Device::CreateDepthStencilView(ID3D11Resource *pResource, const D3D11_DEPTH_STENCIL_VIEW_DESC *pDesc, ID3D11DepthStencilView **ppDepthStencilView)
 {
-	HRESULT to_return = _orig->CreateDepthStencilView(pResource, pDesc, ppDepthStencilView);
-
-	//// log the size of the depth stencil created so we can use that info later on when the view is used. 
-	//D3D11_TEXTURE2D_DESC texture_desc;
-	//com_ptr<ID3D11Resource> resource;
-	//com_ptr<ID3D11Texture2D> texture;
-	//ID3D11DepthStencilView* createdView = *ppDepthStencilView;
-	//createdView->GetResource(&resource);
-	//if (!FAILED(resource->QueryInterface(&texture)))
-	//{
-	//	texture->GetDesc(&texture_desc);
-	//	const depthstencil_size sizeInfo = { texture_desc.Width, texture_desc.Height };
-	//	createdView->AddRef();
-	//	_depthstencil_sizes_per_instance.emplace(createdView, sizeInfo);
-	//}
-	return to_return;
+	return _orig->CreateDepthStencilView(pResource, pDesc, ppDepthStencilView);
 }
 HRESULT STDMETHODCALLTYPE D3D11Device::CreateInputLayout(const D3D11_INPUT_ELEMENT_DESC *pInputElementDescs, UINT NumElements, const void *pShaderBytecodeWithInputSignature, SIZE_T BytecodeLength, ID3D11InputLayout **ppInputLayout)
 {
