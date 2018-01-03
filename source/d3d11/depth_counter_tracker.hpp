@@ -3,12 +3,6 @@
 #include <d3d11.h>
 #include <unordered_map>
 
-struct depthstencil_size
-{
-	UINT width = 0;
-	UINT height = 0;
-};
-
 class depth_counter_tracker
 {
 public:
