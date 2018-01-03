@@ -88,7 +88,6 @@ ID3D11DepthStencilView* depth_counter_tracker::get_best_depth_stencil(UINT width
 		// Determine depthstencil size on-the-fly. We execute this code in present, and this isn't slow anyway. 
 		// Caching the size infos has the downside that if the game uses dynamic supersampling/resolution scaling, we end up
 		// with a lot of depthstencils which are likely out of scope leading to memory leaks. 
-		depthstencil_size sizeinfo;
 		D3D11_TEXTURE2D_DESC texture_desc;
 		com_ptr<ID3D11Resource> resource;
 		com_ptr<ID3D11Texture2D> texture;
@@ -96,21 +95,19 @@ ID3D11DepthStencilView* depth_counter_tracker::get_best_depth_stencil(UINT width
 		if (!FAILED(resource->QueryInterface(&texture)))
 		{
 			texture->GetDesc(&texture_desc);
-			sizeinfo.width = texture_desc.Width;
-			sizeinfo.height = texture_desc.Height;
 		}
 
 		bool size_mismatch = false;
 		// if the size of the depth stencil has the size of the window, we'll look at its counters. If it doesn't we'll try some heuristics, like
 		// aspect ratio equivalence or whether the height is 1 off, which is sometimes the case in some games. 
-		if (sizeinfo.width != width)
+		if (texture_desc.Width != width)
 		{
 			size_mismatch = true;
 		}
-		if (sizeinfo.height != height)
+		if (texture_desc.Height != height)
 		{
 			// check if height is uneven, some games round depthsize height to an even number.
-			if (sizeinfo.height != (height - 1) && sizeinfo.height != (height + 1))
+			if (texture_desc.Height != (height - 1) && texture_desc.Height != (height + 1))
 			{
 				// not a matching height
 				size_mismatch = true;
@@ -119,7 +116,7 @@ ID3D11DepthStencilView* depth_counter_tracker::get_best_depth_stencil(UINT width
 		if (size_mismatch)
 		{
 			// check aspect ratio. 
-			float stencilaspectratio = ((float)sizeinfo.width) / ((float)sizeinfo.height);
+			float stencilaspectratio = ((float)texture_desc.Width) / ((float)texture_desc.Height);
 			if (fabs(stencilaspectratio - aspect_ratio) > 0.1f)
 			{
 				// still no match, not a good fit
