@@ -92,10 +92,11 @@ ID3D11DepthStencilView* depth_counter_tracker::get_best_depth_stencil(UINT width
 		com_ptr<ID3D11Resource> resource;
 		com_ptr<ID3D11Texture2D> texture;
 		depthstencil->GetResource(&resource);
-		if (!FAILED(resource->QueryInterface(&texture)))
+		if (FAILED(resource->QueryInterface(&texture)))
 		{
-			texture->GetDesc(&texture_desc);
+			continue;
 		}
+		texture->GetDesc(&texture_desc);
 
 		bool size_mismatch = false;
 		// if the size of the depth stencil has the size of the window, we'll look at its counters. If it doesn't we'll try some heuristics, like
