@@ -843,7 +843,7 @@ void D3D11DeviceContext::log_drawcall_stats_in_tracker()
 	}
 }
 
-depth_counter_tracker& D3D11DeviceContext::get_depth_counter_tracker()
+reshade::d3d11::draw_call_tracker& D3D11DeviceContext::get_depth_counter_tracker()
 {
 	log_drawcall_stats_in_tracker();
 	return _depthstencil_counters;

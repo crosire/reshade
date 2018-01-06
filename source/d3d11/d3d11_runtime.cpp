@@ -503,7 +503,7 @@ namespace reshade::d3d11
 		_effect_shader_resources[1] = _backbuffer_texture_srv[1];
 		_effect_shader_resources[2] = _depthstencil_texture_srv;
 	}
-	void d3d11_runtime::on_present(depth_counter_tracker& tracker)
+	void d3d11_runtime::on_present(draw_call_tracker& tracker)
 	{
 		_drawcalls = tracker.drawcalls();
 		_vertices = tracker.vertices();
@@ -974,7 +974,7 @@ namespace reshade::d3d11
 		}
 	}
 
-	void d3d11_runtime::detect_depth_source(depth_counter_tracker& tracker)
+	void d3d11_runtime::detect_depth_source(draw_call_tracker& tracker)
 	{
 		static int cooldown = 0, traffic = 0;
 
