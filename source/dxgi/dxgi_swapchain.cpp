@@ -6,7 +6,7 @@
 #include "log.hpp"
 #include "dxgi_swapchain.hpp"
 #include <algorithm>
-#include "d3d11\depth_counter_tracker.hpp"
+#include "d3d11\draw_call_tracker.hpp"
 #include "d3d11\d3d11_device_context.hpp"
 
 // IDXGISwapChain
