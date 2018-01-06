@@ -7,7 +7,7 @@
 #include "d3d11_device.hpp"
 #include "d3d11_device_context.hpp"
 #include "../dxgi/dxgi_device.hpp"
-#include "depth_counter_tracker.hpp"
+#include "draw_call_tracker.hpp"
 
 // ID3D11Device
 HRESULT STDMETHODCALLTYPE D3D11Device::QueryInterface(REFIID riid, void **ppvObj)
@@ -520,14 +520,13 @@ void D3D11Device::perform_counterdata_cleanup()
 	const std::lock_guard<std::mutex> lock(_counters_per_commandlist_mutex);
 	for (auto commandcounters : _counters_per_commandlist)
 	{
-		commandcounters.first->Release();
 		commandcounters.second.reset();
 	}
 	_counters_per_commandlist.clear();
 }
 
 // merges the counters logged for the specified command list in the counters destination tracker specified
-void D3D11Device::merge_commandlist_counters_in_counter_map(ID3D11CommandList* command_list, depth_counter_tracker& counters_destination)
+void D3D11Device::merge_commandlist_counters_in_counter_map(ID3D11CommandList* command_list, reshade::d3d11::draw_call_tracker& counters_destination)
 {
 	const std::lock_guard<std::mutex> lock(_counters_per_commandlist_mutex);
 
@@ -540,16 +539,15 @@ void D3D11Device::merge_commandlist_counters_in_counter_map(ID3D11CommandList* c
 }
 
 // Merges the counters in counters_source in the counters_per_commandlist for the commandlist specified.
-void D3D11Device::merge_counters_per_commandlist(ID3D11CommandList* command_list, depth_counter_tracker& counters_source)
+void D3D11Device::merge_counters_per_commandlist(ID3D11CommandList* command_list, reshade::d3d11::draw_call_tracker& counters_source)
 {
 	const std::lock_guard<std::mutex> lock(_counters_per_commandlist_mutex);
 
 	auto entry = _counters_per_commandlist.find(command_list);
 	if (entry == _counters_per_commandlist.end())
 	{
-		depth_counter_tracker counters_per_depthstencil;
+		reshade::d3d11::draw_call_tracker counters_per_depthstencil;
 		counters_per_depthstencil.merge(counters_source);
-		command_list->AddRef();
 		_counters_per_commandlist.emplace(command_list, counters_per_depthstencil);
 	}
 	else

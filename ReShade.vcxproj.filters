@@ -150,7 +150,7 @@
     <ClCompile Include="source\directory_watcher.cpp">
       <Filter>core\utility</Filter>
     </ClCompile>
-    <ClCompile Include="source\d3d11\depth_counter_tracker.cpp">
+    <ClCompile Include="source\d3d11\draw_call_tracker.cpp">
       <Filter>hooks\d3d11</Filter>
     </ClCompile>
   </ItemGroup>
@@ -275,7 +275,7 @@
     <ClInclude Include="source\directory_watcher.hpp">
       <Filter>core\utility</Filter>
     </ClInclude>
-    <ClInclude Include="source\d3d11\depth_counter_tracker.hpp">
+    <ClInclude Include="source\d3d11\draw_call_tracker.hpp">
       <Filter>hooks\d3d11</Filter>
     </ClInclude>
   </ItemGroup>
