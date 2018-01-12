@@ -1666,7 +1666,7 @@ namespace reshade::d3d11
 
 		if (it == _runtime->_effect_sampler_descs.end())
 		{
-			ID3D11SamplerState *sampler = nullptr;
+			com_ptr<ID3D11SamplerState> sampler;
 
 			HRESULT hr = _runtime->_device->CreateSamplerState(&desc, &sampler);
 
@@ -1676,7 +1676,7 @@ namespace reshade::d3d11
 				return;
 			}
 
-			_runtime->_effect_sampler_states.push_back(sampler);
+			_runtime->_effect_sampler_states.push_back(std::move(sampler));
 			it = _runtime->_effect_sampler_descs.emplace(desc_hash, _runtime->_effect_sampler_states.size() - 1).first;
 		}
 

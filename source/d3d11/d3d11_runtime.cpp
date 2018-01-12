@@ -598,6 +598,7 @@ namespace reshade::d3d11
 
 			_immediate_context->Draw(3, 0);
 		}
+
 		// Apply previous device state
 		_stateblock.apply_and_release();
 	}
