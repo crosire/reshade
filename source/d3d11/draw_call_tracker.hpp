@@ -2,20 +2,10 @@
 
 #include <d3d11.h>
 #include <unordered_map>
-#include <com_ptr.hpp>
+#include "com_ptr.hpp"
 
 namespace reshade::d3d11
 {
-	struct draw_call_tracker_hasher
-	{
-		std::size_t operator()(const com_ptr<ID3D11DepthStencilView>& p) const
-		{
-			using std::hash;
-			return hash<ID3D11DepthStencilView*>()(p.get());
-		}
-	};
-
-
 	class draw_call_tracker
 	{
 	public:
@@ -40,7 +30,7 @@ namespace reshade::d3d11
 			UINT vertices_count = 0;
 		};
 
-		std::unordered_map<com_ptr<ID3D11DepthStencilView>, depthstencil_counter_info, draw_call_tracker_hasher> _counters_per_used_depthstencil;
+		std::unordered_map<com_ptr<ID3D11DepthStencilView>, depthstencil_counter_info> _counters_per_used_depthstencil;
 		UINT _drawcalls = 0;
 		UINT _vertices = 0;
 	};
