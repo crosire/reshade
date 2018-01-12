@@ -507,7 +507,7 @@ namespace reshade::d3d11
 	{
 		_drawcalls = tracker.drawcalls();
 		_vertices = tracker.vertices();
-		if (!is_initialized() || _drawcalls==0)
+		if (!is_initialized())
 		{
 			return;
 		}
