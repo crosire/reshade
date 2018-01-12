@@ -397,6 +397,8 @@ namespace reshade
 		}
 
 		_mouse_wheel_delta = 0;
+		_last_mouse_position[0] = _mouse_position[0];
+		_last_mouse_position[1] = _mouse_position[1];
 
 		// Update caps lock state
 		_keys[VK_CAPITAL] |= GetKeyState(VK_CAPITAL) & 0x1;
