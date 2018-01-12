@@ -233,6 +233,7 @@ namespace reshade
 		unsigned int _effects_key_data[3];
 		filesystem::path _configuration_path;
 		filesystem::path _screenshot_path;
+		std::string _focus_effect;
 		bool _show_menu = false;
 		bool _show_error_log = false;
 		bool _show_clock = false;
