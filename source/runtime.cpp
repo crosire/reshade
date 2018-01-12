@@ -2157,6 +2157,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 		char edit_buffer[2048];
 		const float toggle_key_text_offset = ImGui::GetWindowContentRegionWidth() - ImGui::CalcTextSize("Toggle Key").x - 201;
 
+		_toggle_key_setting_active = false;
+
 		for (int id = 0, i = 0; id < static_cast<int>(_technique_count); id++, i++)
 		{
 			auto &technique = _techniques[id];
@@ -2201,8 +2203,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 			ImGui::TextUnformatted("Toggle Key");
 			ImGui::SameLine();
 			ImGui::InputTextEx("##ToggleKey", edit_buffer, sizeof(edit_buffer), ImVec2(200, 0), ImGuiInputTextFlags_ReadOnly);
-
-			_toggle_key_setting_active = false;
 
 			if (ImGui::IsItemActive())
 			{
