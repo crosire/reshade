@@ -9,6 +9,7 @@
 #include <d3d11_3.h>
 #include "runtime.hpp"
 #include "d3d11_stateblock.hpp"
+#include "draw_call_tracker.hpp"
 
 namespace reshade::d3d11
 {
@@ -47,13 +48,7 @@ namespace reshade::d3d11
 		bool on_init(const DXGI_SWAP_CHAIN_DESC &desc);
 		void on_reset();
 		void on_reset_effect() override;
-		void on_present();
-		void on_draw_call(ID3D11DeviceContext *context, unsigned int vertices);
-		void on_set_depthstencil_view(ID3D11DepthStencilView *&depthstencil);
-		void on_get_depthstencil_view(ID3D11DepthStencilView *&depthstencil);
-		void on_clear_depthstencil_view(ID3D11DepthStencilView *&depthstencil);
-		void on_copy_resource(ID3D11Resource *&dest, ID3D11Resource *&source);
-
+		void on_present(draw_call_tracker& tracker);
 		void capture_frame(uint8_t *buffer) const override;
 		bool load_effect(const reshadefx::syntax_tree &ast, std::string &errors) override;
 		bool update_texture(texture &texture, const uint8_t *data) override;
@@ -75,19 +70,13 @@ namespace reshade::d3d11
 		std::vector<com_ptr<ID3D11Buffer>> _constant_buffers;
 
 	private:
-		struct depth_source_info
-		{
-			UINT width, height;
-			UINT drawcall_count, vertices_count;
-		};
-
 		bool init_backbuffer_texture();
 		bool init_default_depth_stencil();
 		bool init_fx_resources();
 		bool init_imgui_resources();
 		bool init_imgui_font_atlas();
 
-		void detect_depth_source();
+		void detect_depth_source(draw_call_tracker& tracker);
 		bool create_depthstencil_replacement(ID3D11DepthStencilView *depthstencil);
 
 		bool _is_multisampling_enabled = false;
@@ -97,7 +86,6 @@ namespace reshade::d3d11
 		com_ptr<ID3D11DepthStencilView> _depthstencil, _depthstencil_replacement;
 		com_ptr<ID3D11Texture2D> _depthstencil_texture;
 		com_ptr<ID3D11DepthStencilView> _default_depthstencil;
-		std::unordered_map<ID3D11DepthStencilView *, depth_source_info> _depth_source_table;
 		com_ptr<ID3D11VertexShader> _copy_vertex_shader;
 		com_ptr<ID3D11PixelShader> _copy_pixel_shader;
 		com_ptr<ID3D11SamplerState> _copy_sampler;

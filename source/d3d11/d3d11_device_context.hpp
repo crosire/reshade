@@ -6,6 +6,7 @@
 #pragma once
 
 #include "d3d11.hpp"
+#include "draw_call_tracker.hpp"
 
 struct D3D11DeviceContext : ID3D11DeviceContext3
 {
@@ -189,8 +190,22 @@ struct D3D11DeviceContext : ID3D11DeviceContext3
 	virtual void STDMETHODCALLTYPE GetHardwareProtectionState(BOOL *pHwProtectionEnable) override;
 	#pragma endregion
 
+	// local methods
+	void set_active_depthstencil(ID3D11DepthStencilView* pDepthStencilView);
+	void log_drawcall(UINT vertices);
+	void clear_drawcall_stats();
+	void log_drawcall_stats_in_tracker();
+	reshade::d3d11::draw_call_tracker& get_depth_counter_tracker();
+	
+	// fields
 	LONG _ref = 1;
+	UINT _active_depthstencil_drawcalls = 0;
+	UINT _active_depthstencil_vertices = 0;
+	UINT _total_drawcalls = 0;
+	UINT _total_vertices = 0;
 	ID3D11DeviceContext *_orig;
 	unsigned int _interface_version;
 	D3D11Device *const _device;
+	com_ptr<ID3D11DepthStencilView> _active_depthstencil;
+	reshade::d3d11::draw_call_tracker _depthstencil_counters;
 };

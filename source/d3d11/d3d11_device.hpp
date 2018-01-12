@@ -6,6 +6,7 @@
 #pragma once
 
 #include "d3d11.hpp"
+#include "draw_call_tracker.hpp"
 
 struct D3D11Device : ID3D11Device3
 {
@@ -101,10 +102,16 @@ struct D3D11Device : ID3D11Device3
 	virtual void STDMETHODCALLTYPE ReadFromSubresource(void *pDstData, UINT DstRowPitch, UINT DstDepthPitch, ID3D11Resource *pSrcResource, UINT SrcSubresource, const D3D11_BOX *pSrcBox) override;
 	#pragma endregion
 
+	void merge_counters_per_commandlist(ID3D11CommandList* command_list, reshade::d3d11::draw_call_tracker& counters_source);
+	void merge_commandlist_counters_in_counter_map(ID3D11CommandList* command_list, reshade::d3d11::draw_call_tracker& counters_destination);
+	void perform_counterdata_cleanup();
+	
 	LONG _ref = 1;
 	ID3D11Device *_orig;
 	unsigned int _interface_version;
 	struct DXGIDevice *_dxgi_device = nullptr;
 	D3D11DeviceContext *_immediate_context = nullptr;
 	std::vector<std::shared_ptr<reshade::d3d11::d3d11_runtime>> _runtimes;
+	std::unordered_map<ID3D11CommandList*, reshade::d3d11::draw_call_tracker> _counters_per_commandlist;
+	std::mutex _counters_per_commandlist_mutex;
 };
