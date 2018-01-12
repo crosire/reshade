@@ -498,7 +498,7 @@ namespace reshade::d3d10
 	}
 	void d3d10_runtime::on_present()
 	{
-		if (!is_initialized() || _drawcalls == 0)
+		if (!is_initialized())
 		{
 			return;
 		}
@@ -515,9 +515,9 @@ namespace reshade::d3d10
 				UINT64 timestamp0, timestamp1;
 				D3D10_QUERY_DATA_TIMESTAMP_DISJOINT disjoint;
 
-				if (SUCCEEDED(technique_data.timestamp_disjoint->GetData(&disjoint, sizeof(disjoint), D3D10_ASYNC_GETDATA_DONOTFLUSH)) &&
-					SUCCEEDED(technique_data.timestamp_query_beg->GetData(&timestamp0, sizeof(timestamp0), D3D10_ASYNC_GETDATA_DONOTFLUSH)) &&
-					SUCCEEDED(technique_data.timestamp_query_end->GetData(&timestamp1, sizeof(timestamp1), D3D10_ASYNC_GETDATA_DONOTFLUSH)))
+				if (technique_data.timestamp_disjoint->GetData(&disjoint, sizeof(disjoint), D3D10_ASYNC_GETDATA_DONOTFLUSH) == S_OK &&
+					technique_data.timestamp_query_beg->GetData(&timestamp0, sizeof(timestamp0), D3D10_ASYNC_GETDATA_DONOTFLUSH) == S_OK &&
+					technique_data.timestamp_query_end->GetData(&timestamp1, sizeof(timestamp1), D3D10_ASYNC_GETDATA_DONOTFLUSH) == S_OK)
 				{
 					if (!disjoint.Disjoint)
 						technique.average_gpu_duration.append((timestamp1 - timestamp0) * 1'000'000'000 / disjoint.Frequency);

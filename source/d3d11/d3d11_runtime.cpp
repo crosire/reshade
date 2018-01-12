@@ -524,9 +524,9 @@ namespace reshade::d3d11
 				UINT64 timestamp0, timestamp1;
 				D3D11_QUERY_DATA_TIMESTAMP_DISJOINT disjoint_data;
 
-				if (SUCCEEDED(_immediate_context->GetData(technique_data.timestamp_disjoint.get(), &disjoint_data, sizeof(disjoint_data), D3D11_ASYNC_GETDATA_DONOTFLUSH)) &&
-					SUCCEEDED(_immediate_context->GetData(technique_data.timestamp_query_beg.get(), &timestamp0, sizeof(timestamp0), D3D11_ASYNC_GETDATA_DONOTFLUSH)) &&
-					SUCCEEDED(_immediate_context->GetData(technique_data.timestamp_query_end.get(), &timestamp1, sizeof(timestamp1), D3D11_ASYNC_GETDATA_DONOTFLUSH)))
+				if (_immediate_context->GetData(technique_data.timestamp_disjoint.get(), &disjoint_data, sizeof(disjoint_data), D3D11_ASYNC_GETDATA_DONOTFLUSH) == S_OK &&
+					_immediate_context->GetData(technique_data.timestamp_query_beg.get(), &timestamp0, sizeof(timestamp0), D3D11_ASYNC_GETDATA_DONOTFLUSH) == S_OK &&
+					_immediate_context->GetData(technique_data.timestamp_query_end.get(), &timestamp1, sizeof(timestamp1), D3D11_ASYNC_GETDATA_DONOTFLUSH) == S_OK)
 				{
 					if (!disjoint_data.Disjoint)
 						technique.average_gpu_duration.append((timestamp1 - timestamp0) * 1'000'000'000 / disjoint_data.Frequency);
