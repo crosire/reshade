@@ -13,10 +13,113 @@
 
 HMODULE g_module_handle = nullptr;
 
-BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID lpvReserved)
-{
-	UNREFERENCED_PARAMETER(lpvReserved);
+#if defined(APPLICATION)
 
+#include "d3d11/d3d11.hpp"
+
+static LRESULT CALLBACK WndProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
+{
+	switch (Msg)
+	{
+	case WM_DESTROY:
+		PostQuitMessage(0);
+		break;
+	}
+
+	return DefWindowProc(hWnd, Msg, wParam, lParam);
+}
+
+int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
+{
+	using namespace reshade;
+
+	g_module_handle = hInstance;
+	runtime::s_reshade_dll_path = filesystem::get_module_path(nullptr);
+	runtime::s_target_executable_path = filesystem::get_module_path(nullptr);
+
+	log::open(filesystem::path(runtime::s_reshade_dll_path).replace_extension(".log"));
+
+	hooks::register_module("d3d11.dll");
+	hooks::register_module("dxgi.dll");
+	hooks::register_module("user32.dll");
+
+	const auto d3d11_module = LoadLibrary(TEXT("d3d11.dll"));
+
+	// Register window class
+	{
+		WNDCLASS wc = { sizeof(wc) };
+		wc.hInstance = hInstance;
+		wc.style = CS_HREDRAW | CS_VREDRAW;
+		wc.lpszClassName = TEXT("Test");
+		wc.lpfnWndProc = &WndProc;
+
+		RegisterClass(&wc);
+	}
+
+	// Create and show window instance
+	const HWND window_handle = CreateWindow(TEXT("test"), TEXT("ReShade ") TEXT(VERSION_STRING_FILE) TEXT(" by crosire"), WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU, 0, 0, 1024, 800, nullptr, nullptr, hInstance, nullptr);
+
+	if (window_handle == nullptr)
+	{
+		return 0;
+	}
+
+	ShowWindow(window_handle, nCmdShow);
+
+	// Initialize Direct3D 11
+	com_ptr<ID3D11Device> device;
+	com_ptr<ID3D11DeviceContext> immediate_context;
+	com_ptr<IDXGISwapChain> swapchain;
+	{
+		RECT client_rect;
+		GetClientRect(window_handle, &client_rect);
+
+		DXGI_SWAP_CHAIN_DESC scdesc = {};
+		scdesc.BufferCount = 1;
+		scdesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+		scdesc.BufferDesc.Width = client_rect.right - client_rect.left;
+		scdesc.BufferDesc.Height = client_rect.bottom - client_rect.top;
+		scdesc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		scdesc.SampleDesc = { 1, 0 };
+		scdesc.Windowed = true;
+		scdesc.OutputWindow = window_handle;
+
+		if (FAILED(D3D11CreateDeviceAndSwapChain(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, D3D11_CREATE_DEVICE_DEBUG, nullptr, 0, D3D11_SDK_VERSION, &scdesc, &swapchain, &device, nullptr, &immediate_context)))
+		{
+			return 0;
+		}
+	}
+
+	com_ptr<ID3D11Texture2D> backbuffer;
+	swapchain->GetBuffer(0, IID_PPV_ARGS(&backbuffer));
+	com_ptr<ID3D11RenderTargetView> target;
+	device->CreateRenderTargetView(backbuffer.get(), nullptr, &target);
+
+	// Run main loop
+	MSG msg = {};
+
+	while (msg.message != WM_QUIT)
+	{
+		while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
+		{
+			DispatchMessage(&msg);
+		}
+
+		const float color[4] = { 1, 1, 1, 1 };
+		immediate_context->ClearRenderTargetView(target.get(), color);
+
+		swapchain->Present(1, 0);
+	}
+
+	FreeLibrary(d3d11_module);
+
+	return static_cast<int>(msg.wParam);
+}
+
+#else
+
+BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID)
+{
 	using namespace reshade;
 
 	switch (fdwReason)
@@ -62,3 +165,5 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD fdwReason, LPVOID lpvReserved)
 
 	return TRUE;
 }
+
+#endif
