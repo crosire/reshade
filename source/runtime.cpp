@@ -1996,11 +1996,22 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 			{
 				if (!current_tree_is_closed)
 					ImGui::TreePop();
-				if (_effects_expanded_state & 1)
+
+				const bool is_focused = _focus_effect == variable.effect_filename;
+
+				if (is_focused)
+					ImGui::SetNextTreeNodeOpen(true);
+				else if (_effects_expanded_state & 1)
 					ImGui::SetNextTreeNodeOpen((_effects_expanded_state >> 1) != 0);
 
 				current_filename = variable.effect_filename;
 				current_tree_is_closed = !ImGui::TreeNodeEx(variable.effect_filename.c_str(), ImGuiTreeNodeFlags_DefaultOpen);
+
+				if (is_focused)
+				{
+					ImGui::SetScrollHere(0.0f);
+					_focus_effect.clear();
+				}
 			}
 			if (current_tree_is_closed)
 			{
@@ -2171,6 +2182,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 			if (ImGui::IsItemHovered(ImGuiHoveredFlags_RectOnly))
 			{
 				hovered_technique_index = id;
+			}
+
+			if (ImGui::IsItemClicked(0) && ImGui::IsMouseDoubleClicked(0))
+			{
+				_focus_effect = technique.effect_filename;
 			}
 
 			assert(technique.toggle_key_data[0] < 256);
