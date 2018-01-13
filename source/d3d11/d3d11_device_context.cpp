@@ -7,6 +7,34 @@
 #include "d3d11_device.hpp"
 #include "d3d11_device_context.hpp"
 
+void D3D11DeviceContext::log_drawcall(UINT vertices)
+{
+	_draw_call_tracker.log_drawcalls(1, vertices);
+
+	if (_active_depthstencil != nullptr)
+	{
+		_draw_call_tracker.log_drawcalls(_active_depthstencil.get(), 1, vertices);
+	}
+}
+void D3D11DeviceContext::set_active_depthstencil(ID3D11DepthStencilView* pDepthStencilView)
+{
+	if (pDepthStencilView != _active_depthstencil)
+	{
+		_active_depthstencil = pDepthStencilView;
+
+		if (pDepthStencilView != nullptr)
+		{
+			_draw_call_tracker.track_depthstencil(pDepthStencilView);
+		}
+	}
+}
+
+void D3D11DeviceContext::clear_drawcall_stats()
+{
+	_draw_call_tracker.reset();
+	_active_depthstencil.reset();
+}
+
 // ID3D11DeviceContext
 HRESULT STDMETHODCALLTYPE D3D11DeviceContext::QueryInterface(REFIID riid, void **ppvObj)
 {
@@ -23,7 +51,7 @@ HRESULT STDMETHODCALLTYPE D3D11DeviceContext::QueryInterface(REFIID riid, void *
 		riid == __uuidof(ID3D11DeviceContext2) ||
 		riid == __uuidof(ID3D11DeviceContext3))
 	{
-#pragma region Update to ID3D11DeviceContext1 interface
+		#pragma region Update to ID3D11DeviceContext1 interface
 		if (riid == __uuidof(ID3D11DeviceContext1) && _interface_version < 1)
 		{
 			ID3D11DeviceContext1 *devicecontext1 = nullptr;
@@ -40,8 +68,8 @@ HRESULT STDMETHODCALLTYPE D3D11DeviceContext::QueryInterface(REFIID riid, void *
 			_orig = devicecontext1;
 			_interface_version = 1;
 		}
-#pragma endregion
-#pragma region Update to ID3D11DeviceContext2 interface
+		#pragma endregion
+		#pragma region Update to ID3D11DeviceContext2 interface
 		if (riid == __uuidof(ID3D11DeviceContext2) && _interface_version < 2)
 		{
 			ID3D11DeviceContext2 *devicecontext2 = nullptr;
@@ -58,8 +86,8 @@ HRESULT STDMETHODCALLTYPE D3D11DeviceContext::QueryInterface(REFIID riid, void *
 			_orig = devicecontext2;
 			_interface_version = 2;
 		}
-#pragma endregion
-#pragma region Update to ID3D11DeviceContext3 interface
+		#pragma endregion
+		#pragma region Update to ID3D11DeviceContext3 interface
 		if (riid == __uuidof(ID3D11DeviceContext3) && _interface_version < 3)
 		{
 			ID3D11DeviceContext3 *devicecontext3 = nullptr;
@@ -76,7 +104,7 @@ HRESULT STDMETHODCALLTYPE D3D11DeviceContext::QueryInterface(REFIID riid, void *
 			_orig = devicecontext3;
 			_interface_version = 3;
 		}
-#pragma endregion
+		#pragma endregion
 
 		AddRef();
 
@@ -353,10 +381,11 @@ void STDMETHODCALLTYPE D3D11DeviceContext::ResolveSubresource(ID3D11Resource *pD
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::ExecuteCommandList(ID3D11CommandList *pCommandList, BOOL RestoreContextState)
 {
-	if (nullptr!=pCommandList)
+	if (pCommandList != nullptr)
 	{
-		_device->merge_commandlist_counters_in_counter_map(pCommandList, _depthstencil_counters);
+		_device->merge_commandlist_trackers(pCommandList, _draw_call_tracker);
 	}
+
 	_orig->ExecuteCommandList(pCommandList, RestoreContextState);
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::HSSetShaderResources(UINT StartSlot, UINT NumViews, ID3D11ShaderResourceView *const *ppShaderResourceViews)
@@ -577,14 +606,17 @@ UINT STDMETHODCALLTYPE D3D11DeviceContext::GetContextFlags()
 }
 HRESULT STDMETHODCALLTYPE D3D11DeviceContext::FinishCommandList(BOOL RestoreDeferredContextState, ID3D11CommandList **ppCommandList)
 {
-	HRESULT to_return = _orig->FinishCommandList(RestoreDeferredContextState, ppCommandList);
-	log_drawcall_stats_in_tracker();
-	if (nullptr != ppCommandList && _depthstencil_counters.drawcalls() > 0)
+	const HRESULT hr = _orig->FinishCommandList(RestoreDeferredContextState, ppCommandList);
+
+	if (SUCCEEDED(hr) && ppCommandList != nullptr && _draw_call_tracker.drawcalls() > 0)
 	{
-		_device->merge_counters_per_commandlist(*ppCommandList, _depthstencil_counters);
+		_device->add_commandlist_trackers(*ppCommandList, _draw_call_tracker);
 	}
-	clear_drawcall_stats();
-	return to_return;
+
+	_draw_call_tracker.reset();
+	_active_depthstencil.reset();
+
+	return hr;
 }
 D3D11_DEVICE_CONTEXT_TYPE STDMETHODCALLTYPE D3D11DeviceContext::GetType()
 {
@@ -787,61 +819,4 @@ void STDMETHODCALLTYPE D3D11DeviceContext::GetHardwareProtectionState(BOOL *pHwP
 	assert(_interface_version >= 3);
 
 	static_cast<ID3D11DeviceContext3 *>(_orig)->GetHardwareProtectionState(pHwProtectionEnable);
-}
-
-// Local methods. 
-void D3D11DeviceContext::set_active_depthstencil(ID3D11DepthStencilView* pDepthStencilView)
-{
-	if (_active_depthstencil == pDepthStencilView)
-	{
-		return;
-	}
-	log_drawcall_stats_in_tracker();
-	_active_depthstencil = pDepthStencilView;
-	if (nullptr != pDepthStencilView)
-	{
-		_depthstencil_counters.track_depthstencil(pDepthStencilView);
-	}
-}
-
-void D3D11DeviceContext::log_drawcall(UINT vertices)
-{
-	_total_drawcalls++;
-	_total_vertices += vertices;
-	if (nullptr == _active_depthstencil)
-	{
-		return;
-	}
-	_active_depthstencil_drawcalls++;
-	_active_depthstencil_vertices += vertices;
-}
-
-void D3D11DeviceContext::clear_drawcall_stats()
-{
-	_active_depthstencil.reset();
-	_active_depthstencil_drawcalls = 0;
-	_active_depthstencil_vertices = 0;
-	_depthstencil_counters.reset();
-	_total_drawcalls = 0;
-	_total_vertices = 0;
-}
-
-void D3D11DeviceContext::log_drawcall_stats_in_tracker()
-{
-	_depthstencil_counters.update_drawcalls(_total_drawcalls);
-	_depthstencil_counters.update_vertices(_total_vertices);
-	_total_drawcalls = 0;
-	_total_vertices = 0;
-	if (nullptr != _active_depthstencil && _active_depthstencil_drawcalls>0)
-	{
-		_depthstencil_counters.log_drawcalls(_active_depthstencil.get(), _active_depthstencil_drawcalls, _active_depthstencil_vertices);
-		_active_depthstencil_drawcalls = 0;
-		_active_depthstencil_vertices = 0;
-	}
-}
-
-reshade::d3d11::draw_call_tracker& D3D11DeviceContext::get_depth_counter_tracker()
-{
-	log_drawcall_stats_in_tracker();
-	return _depthstencil_counters;
 }

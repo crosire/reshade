@@ -5,9 +5,39 @@
 
 #include "log.hpp"
 #include "dxgi_swapchain.hpp"
+#include "../d3d11/d3d11_device_context.hpp"
 #include <algorithm>
-#include "d3d11\draw_call_tracker.hpp"
-#include "d3d11\d3d11_device_context.hpp"
+
+void DXGISwapChain::perform_present(UINT PresentFlags)
+{
+	// Some D3D11 games test presentation for timing and composition purposes.
+	// These calls are NOT rendering-related, but rather a status request for the D3D runtime and as such should be ignored.
+	if (!(PresentFlags & DXGI_PRESENT_TEST))
+	{
+		switch (_direct3d_version)
+		{
+		case 10:
+			assert(_runtime != nullptr);
+			std::static_pointer_cast<reshade::d3d10::d3d10_runtime>(_runtime)->on_present();
+			break;
+		case 11:
+			assert(_runtime != nullptr);
+			std::static_pointer_cast<reshade::d3d11::d3d11_runtime>(_runtime)->on_present(static_cast<D3D11Device *>(_direct3d_device)->_immediate_context->_draw_call_tracker);
+			clear_drawcall_stats();
+			break;
+		}
+	}
+}
+
+void DXGISwapChain::clear_drawcall_stats()
+{
+	assert(_direct3d_version == 11);
+
+	const auto device_proxy = static_cast<D3D11Device *>(_direct3d_device);
+	const auto immediate_context_proxy = device_proxy->_immediate_context;
+	immediate_context_proxy->clear_drawcall_stats();
+	device_proxy->clear_drawcall_stats();
+}
 
 // IDXGISwapChain
 HRESULT STDMETHODCALLTYPE DXGISwapChain::QueryInterface(REFIID riid, void **ppvObj)
@@ -135,7 +165,9 @@ ULONG STDMETHODCALLTYPE DXGISwapChain::Release()
 			case 11:
 			{
 				assert(_runtime != nullptr);
-				perform_callcounter_cleanup();
+
+				clear_drawcall_stats();
+
 				auto &runtimes = static_cast<D3D11Device *>(_direct3d_device)->_runtimes;
 				const auto runtime = std::static_pointer_cast<reshade::d3d11::d3d11_runtime>(_runtime);
 				runtime->on_reset();
@@ -230,7 +262,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers(UINT BufferCount, UINT Wi
 			break;
 		case 11:
 			assert(_runtime != nullptr);
-			perform_callcounter_cleanup();
+			clear_drawcall_stats();
 			std::static_pointer_cast<reshade::d3d11::d3d11_runtime>(_runtime)->on_reset();
 			break;
 	}
@@ -434,7 +466,7 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::ResizeBuffers1(UINT BufferCount, UINT W
 			break;
 		case 11:
 			assert(_runtime != nullptr);
-			perform_callcounter_cleanup();
+			clear_drawcall_stats();
 			std::static_pointer_cast<reshade::d3d11::d3d11_runtime>(_runtime)->on_reset();
 			break;
 	}
@@ -483,37 +515,4 @@ HRESULT STDMETHODCALLTYPE DXGISwapChain::SetHDRMetaData(DXGI_HDR_METADATA_TYPE T
 	assert(_interface_version >= 4);
 
 	return static_cast<IDXGISwapChain4 *>(_orig)->SetHDRMetaData(Type, Size, pMetaData);
-}
-
-void DXGISwapChain::perform_present(UINT PresentFlags)
-{
-	// Some D3D11 games test swapchain presentation for timing and composition purposes.
-	// These calls are NOT rendering-related, but rather a status request for the D3D runtime and as such should be ignored.
-	if (!(PresentFlags & DXGI_PRESENT_TEST))
-	{
-		switch (_direct3d_version)
-		{
-		case 10:
-			assert(_runtime != nullptr);
-			std::static_pointer_cast<reshade::d3d10::d3d10_runtime>(_runtime)->on_present();
-			break;
-		case 11:
-			assert(_runtime != nullptr);
-			auto device_proxy = static_cast<D3D11Device *>(_direct3d_device);
-			auto immediate_context_proxy = device_proxy->_immediate_context;
-			std::static_pointer_cast<reshade::d3d11::d3d11_runtime>(_runtime)->on_present(immediate_context_proxy->get_depth_counter_tracker());
-			immediate_context_proxy->clear_drawcall_stats();
-			device_proxy->perform_counterdata_cleanup();
-			break;
-		}
-	}
-}
-
-
-void DXGISwapChain::perform_callcounter_cleanup()
-{
-	auto device_proxy = static_cast<D3D11Device *>(_direct3d_device);
-	device_proxy->perform_counterdata_cleanup();
-	auto immediate_context_proxy = device_proxy->_immediate_context;
-	immediate_context_proxy->clear_drawcall_stats();
 }

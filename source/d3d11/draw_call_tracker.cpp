@@ -1,68 +1,61 @@
 #include "draw_call_tracker.hpp"
-#include "com_ptr.hpp"
 #include <math.h>
-
 
 namespace reshade::d3d11
 {
-
-	draw_call_tracker::draw_call_tracker() :
-		_drawcalls(0),
-		_vertices(0)
-	{ }
-
-	draw_call_tracker::~draw_call_tracker() { }
-
-	void draw_call_tracker::track_depthstencil(ID3D11DepthStencilView* to_track)
+	void draw_call_tracker::merge(const draw_call_tracker& source)
 	{
-		if (nullptr != to_track)
+		_counters.vertices += source.vertices();
+		_counters.drawcalls += source.drawcalls();
+
+		for (auto source_entry : source._counters_per_used_depthstencil)
 		{
-			if (_counters_per_used_depthstencil.find(to_track) == _counters_per_used_depthstencil.end())
+			const auto destination_entry = _counters_per_used_depthstencil.find(source_entry.first);
+
+			if (destination_entry == _counters_per_used_depthstencil.end())
 			{
-				const depthstencil_counter_info counters = {};
-				_counters_per_used_depthstencil.emplace(to_track, counters);
+				_counters_per_used_depthstencil.emplace(source_entry.first, source_entry.second);
+			}
+			else
+			{
+				destination_entry->second.vertices += source_entry.second.vertices;
+				destination_entry->second.drawcalls += source_entry.second.drawcalls;
 			}
 		}
-	}
-
-	void draw_call_tracker::log_drawcalls(ID3D11DepthStencilView* depthstencil, UINT drawcalls, UINT vertices)
-	{
-		assert(nullptr != depthstencil && drawcalls > 0);
-
-		const auto counters = _counters_per_used_depthstencil.find(depthstencil);
-		if (counters == _counters_per_used_depthstencil.end())
-		{
-			return;
-		}
-		counters->second.drawcall_count += drawcalls;
-		counters->second.vertices_count += vertices;
 	}
 
 	void draw_call_tracker::reset()
 	{
+		_counters.vertices = 0;
+		_counters.drawcalls = 0;
 		_counters_per_used_depthstencil.clear();
-		_drawcalls = 0;
-		_vertices = 0;
 	}
 
-	void draw_call_tracker::merge(draw_call_tracker& source)
+	void draw_call_tracker::track_depthstencil(ID3D11DepthStencilView* depthstencil)
 	{
-		_drawcalls += source.drawcalls();
-		_vertices += source.vertices();
+		assert(depthstencil != nullptr);
 
-		for (auto source_entry : source._counters_per_used_depthstencil)
+		if (_counters_per_used_depthstencil.find(depthstencil) == _counters_per_used_depthstencil.end())
 		{
-			auto destination_entry = _counters_per_used_depthstencil.find(source_entry.first);
-			if (destination_entry == _counters_per_used_depthstencil.end())
-			{
-				const depthstencil_counter_info counters = { source_entry.second.drawcall_count, source_entry.second.vertices_count };
-				_counters_per_used_depthstencil.emplace(source_entry.first, counters);
-			}
-			else
-			{
-				destination_entry->second.drawcall_count += source_entry.second.drawcall_count;
-				destination_entry->second.vertices_count += source_entry.second.vertices_count;
-			}
+			_counters_per_used_depthstencil.emplace(depthstencil, depthstencil_counter_info());
+		}
+	}
+
+	void draw_call_tracker::log_drawcalls(UINT drawcalls, UINT vertices)
+	{
+		_counters.vertices += vertices;
+		_counters.drawcalls += drawcalls;
+	}
+	void draw_call_tracker::log_drawcalls(ID3D11DepthStencilView* depthstencil, UINT drawcalls, UINT vertices)
+	{
+		assert(depthstencil != nullptr && drawcalls > 0);
+
+		const auto counters = _counters_per_used_depthstencil.find(depthstencil);
+
+		if (counters != _counters_per_used_depthstencil.end())
+		{
+			counters->second.vertices += vertices;
+			counters->second.drawcalls += drawcalls;
 		}
 	}
 
@@ -76,7 +69,7 @@ namespace reshade::d3d11
 		{
 			const auto depthstencil = it.first;
 			auto &depthstencil_info = it.second;
-			if (depthstencil_info.drawcall_count == 0)
+			if (depthstencil_info.drawcalls == 0)
 			{
 				continue;
 			}
@@ -120,7 +113,7 @@ namespace reshade::d3d11
 					continue;
 				}
 			}
-			if (depthstencil_info.drawcall_count >= best_info.drawcall_count)
+			if (depthstencil_info.drawcalls >= best_info.drawcalls)
 			{
 				best_match = depthstencil.get();
 				best_info = depthstencil_info;
