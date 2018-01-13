@@ -7,6 +7,7 @@
 #include "d3d9_effect_compiler.hpp"
 #include <assert.h>
 #include <iomanip>
+#include <fstream>
 #include <algorithm>
 #include <d3dcompiler.h>
 
@@ -150,6 +151,14 @@ namespace reshade::d3d9
 		_skip_shader_optimization(skipoptimization),
 		_current_function(nullptr)
 	{
+#if RESHADE_DUMP_NATIVE_SHADERS
+		if (_ast.techniques.size() == 0)
+			return;
+		_dump_filename = _ast.techniques[0]->location.source;
+		_dump_filename = "ReShade-ShaderDump-" + _dump_filename.filename_without_extension().string() + ".hlsl";
+
+		std::ofstream(_dump_filename.string(), std::ios::trunc);
+#endif
 	}
 
 	bool d3d9_effect_compiler::run()
@@ -2018,6 +2027,22 @@ namespace reshade::d3d9
 
 		source << "}\n";
 
+		const std::string source_str = source.str();
+
+#if RESHADE_DUMP_NATIVE_SHADERS
+		if (!_dumped_shaders.count(node->unique_name))
+		{
+			std::ofstream dumpfile(_dump_filename.string(), std::ios::app);
+
+			if (dumpfile.is_open())
+			{
+				dumpfile << "#ifdef RESHADE_SHADER_" << shadertype << "_" << node->unique_name << std::endl << source_str << "#endif" << std::endl << std::endl;
+
+				_dumped_shaders.insert(node->unique_name);
+			}
+		}
+#endif
+
 		UINT flags = 0;
 		com_ptr<ID3DBlob> compiled, errors;
 
@@ -2027,7 +2052,6 @@ namespace reshade::d3d9
 		}
 
 		const auto D3DCompile = reinterpret_cast<pD3DCompile>(GetProcAddress(_d3dcompiler_module, "D3DCompile"));
-		const std::string source_str = source.str();
 		HRESULT hr = D3DCompile(source_str.c_str(), source_str.size(), nullptr, nullptr, nullptr, "__main", (shadertype + "_3_0").c_str(), flags, 0, &compiled, &errors);
 
 		if (errors != nullptr)

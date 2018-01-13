@@ -7,6 +7,7 @@
 
 #include "effect_syntax_tree.hpp"
 #include <sstream>
+#include <unordered_set>
 
 namespace reshade::opengl
 {
@@ -79,5 +80,9 @@ namespace reshade::opengl
 		const reshadefx::nodes::function_declaration_node *_current_function;
 		std::unordered_map<const reshadefx::nodes::function_declaration_node *, function> _functions;
 		GLintptr _uniform_storage_offset = 0, _uniform_buffer_size = 0;
+#if RESHADE_DUMP_NATIVE_SHADERS
+		filesystem::path _dump_filename;
+		std::unordered_set<std::string> _dumped_shaders;
+#endif
 	};
 }

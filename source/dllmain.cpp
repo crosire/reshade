@@ -13,7 +13,7 @@
 
 HMODULE g_module_handle = nullptr;
 
-#if defined(APPLICATION)
+#if defined(RESHADE_TEST_APPLICATION)
 
 #include "d3d11/d3d11.hpp"
 

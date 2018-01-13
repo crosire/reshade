@@ -7,6 +7,7 @@
 
 #include "effect_syntax_tree.hpp"
 #include <sstream>
+#include <unordered_set>
 
 namespace reshade::d3d11
 {
@@ -71,5 +72,9 @@ namespace reshade::d3d11
 		bool _skip_shader_optimization, _is_in_parameter_block = false, _is_in_function_block = false;
 		size_t _uniform_storage_offset = 0, _constant_buffer_size = 0;
 		HMODULE _d3dcompiler_module = nullptr;
+#if RESHADE_DUMP_NATIVE_SHADERS
+		filesystem::path _dump_filename;
+		std::unordered_set<std::string> _dumped_shaders;
+#endif
 	};
 }
