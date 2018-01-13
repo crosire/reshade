@@ -7,6 +7,47 @@
 #include "d3d11_device.hpp"
 #include "d3d11_device_context.hpp"
 #include "../dxgi/dxgi_device.hpp"
+#include "draw_call_tracker.hpp"
+
+void D3D11Device::add_commandlist_trackers(ID3D11CommandList* command_list, const reshade::d3d11::draw_call_tracker &tracker_source)
+{
+	assert(command_list != nullptr);
+
+	const std::lock_guard<std::mutex> lock(_trackers_per_commandlist_mutex);
+
+	// Merges the counters in counters_source in the counters_per_commandlist for the command list specified
+	const auto it = _trackers_per_commandlist.find(command_list);
+
+	if (it == _trackers_per_commandlist.end())
+	{
+		_trackers_per_commandlist.emplace(command_list, tracker_source);
+	}
+	else
+	{
+		it->second.merge(tracker_source);
+	}
+}
+void D3D11Device::merge_commandlist_trackers(ID3D11CommandList* command_list, reshade::d3d11::draw_call_tracker &tracker_destination)
+{
+	assert(command_list != nullptr);
+
+	const std::lock_guard<std::mutex> lock(_trackers_per_commandlist_mutex);
+
+	// Merges the counters logged for the specified command list in the counters destination tracker specified
+	const auto it = _trackers_per_commandlist.find(command_list);
+
+	if (it != _trackers_per_commandlist.end())
+	{
+		tracker_destination.merge(it->second);
+	}
+}
+
+void D3D11Device::clear_drawcall_stats()
+{
+	const std::lock_guard<std::mutex> lock(_trackers_per_commandlist_mutex);
+
+	_trackers_per_commandlist.clear();
+}
 
 // ID3D11Device
 HRESULT STDMETHODCALLTYPE D3D11Device::QueryInterface(REFIID riid, void **ppvObj)

@@ -37,15 +37,18 @@ namespace reshade
 		bool is_any_mouse_button_pressed() const;
 		bool is_any_mouse_button_released() const;
 		short mouse_wheel_delta() const { return _mouse_wheel_delta; }
+		int mouse_movement_delta_x() const { return _mouse_position[0] - _last_mouse_position[0]; }
+		int mouse_movement_delta_y() const { return _mouse_position[1] - _last_mouse_position[1]; }
 		unsigned int mouse_position_x() const { return _mouse_position[0]; }
 		unsigned int mouse_position_y() const { return _mouse_position[1]; }
 
 		unsigned short key_to_text(unsigned int keycode) const;
 
-		bool is_blocking_mouse_input() const { return _block_mouse; }
-		bool is_blocking_keyboard_input() const { return _block_keyboard; }
 		void block_mouse_input(bool enable);
 		void block_keyboard_input(bool enable);
+
+		bool is_blocking_mouse_input() const { return _block_mouse; }
+		bool is_blocking_keyboard_input() const { return _block_keyboard; }
 
 		void next_frame();
 
@@ -57,6 +60,7 @@ namespace reshade
 		uint8_t _keys[256] = { }, _mouse_buttons[5] = { };
 		short _mouse_wheel_delta = 0;
 		unsigned int _mouse_position[2] = { };
+		unsigned int _last_mouse_position[2] = { };
 		uint64_t _frame_count = 0;
 	};
 }

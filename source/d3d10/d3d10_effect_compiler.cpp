@@ -25,20 +25,49 @@ namespace reshade::d3d10
 		{
 			case pass_declaration_node::ZERO:
 				return D3D10_BLEND_ZERO;
+			default:
 			case pass_declaration_node::ONE:
 				return D3D10_BLEND_ONE;
+			case pass_declaration_node::SRCCOLOR:
+				return D3D10_BLEND_SRC_COLOR;
+			case pass_declaration_node::INVSRCCOLOR:
+				return D3D10_BLEND_INV_SRC_COLOR;
+			case pass_declaration_node::SRCALPHA:
+				return D3D10_BLEND_SRC_ALPHA;
+			case pass_declaration_node::INVSRCALPHA:
+				return D3D10_BLEND_INV_SRC_ALPHA;
+			case pass_declaration_node::DESTALPHA:
+				return D3D10_BLEND_DEST_ALPHA;
+			case pass_declaration_node::INVDESTALPHA:
+				return D3D10_BLEND_INV_DEST_ALPHA;
+			case pass_declaration_node::DESTCOLOR:
+				return D3D10_BLEND_DEST_COLOR;
+			case pass_declaration_node::INVDESTCOLOR:
+				return D3D10_BLEND_INV_DEST_COLOR;
 		}
-
-		return static_cast<D3D10_BLEND>(value);
 	}
 	static D3D10_STENCIL_OP literal_to_stencil_op(unsigned int value)
 	{
-		if (value == pass_declaration_node::ZERO)
+		switch (value)
 		{
-			return D3D10_STENCIL_OP_ZERO;
+			default:
+			case pass_declaration_node::KEEP:
+				return D3D10_STENCIL_OP_KEEP;
+			case pass_declaration_node::ZERO:
+				return D3D10_STENCIL_OP_ZERO;
+			case pass_declaration_node::REPLACE:
+				return D3D10_STENCIL_OP_REPLACE;
+			case pass_declaration_node::INCRSAT:
+				return D3D10_STENCIL_OP_INCR_SAT;
+			case pass_declaration_node::DECRSAT:
+				return D3D10_STENCIL_OP_DECR_SAT;
+			case pass_declaration_node::INVERT:
+				return D3D10_STENCIL_OP_INVERT;
+			case pass_declaration_node::INCR:
+				return D3D10_STENCIL_OP_INCR;
+			case pass_declaration_node::DECR:
+				return D3D10_STENCIL_OP_DECR;
 		}
-
-		return static_cast<D3D10_STENCIL_OP>(value);
 	}
 	static DXGI_FORMAT literal_to_format(texture_format value)
 	{
@@ -1632,7 +1661,7 @@ namespace reshade::d3d10
 
 		if (it == _runtime->_effect_sampler_descs.end())
 		{
-			ID3D10SamplerState *sampler = nullptr;
+			com_ptr<ID3D10SamplerState> sampler;
 
 			HRESULT hr = _runtime->_device->CreateSamplerState(&desc, &sampler);
 
@@ -1642,7 +1671,7 @@ namespace reshade::d3d10
 				return;
 			}
 
-			_runtime->_effect_sampler_states.push_back(sampler);
+			_runtime->_effect_sampler_states.push_back(std::move(sampler));
 			it = _runtime->_effect_sampler_descs.emplace(desc_hash, _runtime->_effect_sampler_states.size() - 1).first;
 		}
 
@@ -1714,8 +1743,17 @@ namespace reshade::d3d10
 	void d3d10_effect_compiler::visit_technique(const technique_declaration_node *node)
 	{
 		technique obj;
+		obj.impl = std::make_unique<d3d10_technique_data>();
 		obj.name = node->name;
 		obj.annotations = node->annotation_list;
+
+		auto obj_data = obj.impl->as<d3d10_technique_data>();
+		D3D10_QUERY_DESC query_desc = { };
+		query_desc.Query = D3D10_QUERY_TIMESTAMP;
+		_runtime->_device->CreateQuery(&query_desc, &obj_data->timestamp_query_beg);
+		_runtime->_device->CreateQuery(&query_desc, &obj_data->timestamp_query_end);
+		query_desc.Query = D3D10_QUERY_TIMESTAMP_DISJOINT;
+		_runtime->_device->CreateQuery(&query_desc, &obj_data->timestamp_disjoint);
 
 		if (_constant_buffer_size != 0)
 		{
@@ -1838,6 +1876,8 @@ namespace reshade::d3d10
 		bdesc.BlendOpAlpha = static_cast<D3D10_BLEND_OP>(node->blend_op_alpha);
 		bdesc.SrcBlend = literal_to_blend_func(node->src_blend);
 		bdesc.DestBlend = literal_to_blend_func(node->dest_blend);
+		bdesc.SrcBlendAlpha = literal_to_blend_func(node->src_blend_alpha);
+		bdesc.DestBlendAlpha = literal_to_blend_func(node->dest_blend_alpha);
 
 		for (UINT i = 1; i < 8; i++)
 		{

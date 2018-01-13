@@ -38,7 +38,7 @@ namespace reshade
 		_preprocessor_definitions({
 			"RESHADE_DEPTH_LINEARIZATION_FAR_PLANE=1000.0",
 			"RESHADE_DEPTH_INPUT_IS_UPSIDE_DOWN=0",
-			"RESHADE_DEPTH_INPUT_IS_REVERSED=0",
+			"RESHADE_DEPTH_INPUT_IS_REVERSED=1",
 			"RESHADE_DEPTH_INPUT_IS_LOGARITHMIC=0" }),
 		_menu_key_data(),
 		_screenshot_key_data(),
@@ -166,7 +166,6 @@ namespace reshade
 		// Advance various statistics
 		g_network_traffic = 0;
 		_framecount++;
-		_drawcalls = _vertices = 0;
 		_last_frame_duration = std::chrono::high_resolution_clock::now() - _last_present_time;
 		_last_present_time += _last_frame_duration;
 
@@ -234,6 +233,8 @@ namespace reshade
 				}
 			}
 		}
+
+		_drawcalls = _vertices = 0;
 	}
 	void runtime::on_present_effect()
 	{
@@ -395,6 +396,12 @@ namespace reshade
 
 				set_uniform_value(variable, values, 2);
 			}
+			else if (source == "mousedelta")
+			{
+				const float values[2] = { static_cast<float>(_input->mouse_movement_delta_x()), static_cast<float>(_input->mouse_movement_delta_y()) };
+
+				set_uniform_value(variable, values, 2);
+			}
 			else if (source == "mousebutton")
 			{
 				const int index = variable.annotations["keycode"].as<int>();
@@ -442,6 +449,7 @@ namespace reshade
 					technique.enabled = false;
 					technique.timeleft = 0;
 					technique.average_cpu_duration.clear();
+					technique.average_gpu_duration.clear();
 				}
 			}
 			else if (!_toggle_key_setting_active &&
@@ -455,6 +463,7 @@ namespace reshade
 			if (!technique.enabled)
 			{
 				technique.average_cpu_duration.clear();
+				technique.average_gpu_duration.clear();
 				continue;
 			}
 
@@ -1192,7 +1201,7 @@ namespace reshade
 				ImGuiWindowFlags_NoFocusOnAppearing);
 
 			ImGui::TextUnformatted("ReShade " VERSION_STRING_FILE " by crosire");
-			ImGui::TextUnformatted("Visit http://reshade.me for news, updates, shaders and discussion.");
+			ImGui::TextUnformatted("Visit https://reshade.me for news, updates, shaders and discussion.");
 
 			ImGui::Spacing();
 
@@ -1856,11 +1865,13 @@ namespace reshade
 				ImVec2(0, 50));
 			ImGui::PopItemWidth();
 
-			uint64_t post_processing_time = 0;
+			uint64_t post_processing_time_cpu = 0;
+			uint64_t post_processing_time_gpu = 0;
 
 			for (const auto &technique : _techniques)
 			{
-				post_processing_time += technique.average_cpu_duration;
+				post_processing_time_cpu += technique.average_cpu_duration;
+				post_processing_time_gpu += technique.average_gpu_duration;
 			}
 
 			ImGui::BeginGroup();
@@ -1882,11 +1893,26 @@ namespace reshade
 			ImGui::Text("%d-%d-%d %d", _date[0], _date[1], _date[2], _date[3]);
 			ImGui::Text("%X %d", _vendor_id, _device_id);
 			ImGui::Text("%.2f", ImGui::GetIO().Framerate);
-			ImGui::Text("%f ms (CPU)", (post_processing_time * 1e-6f));
+			ImGui::Text("%f ms (CPU)", (post_processing_time_cpu * 1e-6f));
 			ImGui::Text("%u (%u vertices)", _drawcalls, _vertices);
 			ImGui::Text("%f ms", _last_frame_duration.count() * 1e-6f);
 			ImGui::Text("%f ms", std::fmod(std::chrono::duration_cast<std::chrono::nanoseconds>(_last_present_time - _start_time).count() * 1e-6f, 16777216.0f));
 			ImGui::Text("%u B", g_network_traffic);
+			ImGui::EndGroup();
+
+			ImGui::SameLine(ImGui::GetWindowWidth() * 0.666f);
+
+			ImGui::BeginGroup();
+			ImGui::NewLine();
+			ImGui::NewLine();
+			ImGui::NewLine();
+			ImGui::NewLine();
+
+			if (post_processing_time_gpu != 0)
+			{
+				ImGui::Text("%f ms (GPU)", (post_processing_time_gpu * 1e-6f));
+			}
+
 			ImGui::EndGroup();
 		}
 
@@ -1916,20 +1942,6 @@ namespace reshade
 				}
 
 				ImGui::Text("%ux%u +%u ", texture.width, texture.height, (texture.levels - 1));
-			}
-
-			ImGui::EndGroup();
-			ImGui::SameLine(ImGui::GetWindowWidth() * 0.666f);
-			ImGui::BeginGroup();
-
-			for (const auto& texture : _textures)
-			{
-				if (texture.impl_reference != texture_reference::none)
-				{
-					continue;
-				}
-
-				ImGui::Text("~%u kB", (texture.width * texture.height * 4) / 1024);
 			}
 
 			ImGui::EndGroup();
@@ -1977,7 +1989,23 @@ namespace reshade
 				}
 				else
 				{
-					ImGui::TextUnformatted(" ");
+					ImGui::NewLine();
+				}
+			}
+
+			ImGui::EndGroup();
+			ImGui::SameLine(ImGui::GetWindowWidth() * 0.666f);
+			ImGui::BeginGroup();
+
+			for (const auto &technique : _techniques)
+			{
+				if (technique.enabled && technique.average_gpu_duration != 0)
+				{
+					ImGui::Text("%f ms (GPU)", (technique.average_gpu_duration * 1e-6f));
+				}
+				else
+				{
+					ImGui::NewLine();
 				}
 			}
 
@@ -2068,11 +2096,22 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 			{
 				if (!current_tree_is_closed)
 					ImGui::TreePop();
-				if (_effects_expanded_state & 1)
+
+				const bool is_focused = _focus_effect == variable.effect_filename;
+
+				if (is_focused)
+					ImGui::SetNextTreeNodeOpen(true);
+				else if (_effects_expanded_state & 1)
 					ImGui::SetNextTreeNodeOpen((_effects_expanded_state >> 1) != 0);
 
 				current_filename = variable.effect_filename;
 				current_tree_is_closed = !ImGui::TreeNodeEx(variable.effect_filename.c_str(), ImGuiTreeNodeFlags_DefaultOpen);
+
+				if (is_focused)
+				{
+					ImGui::SetScrollHere(0.0f);
+					_focus_effect.clear();
+				}
 			}
 			if (current_tree_is_closed)
 			{
@@ -2218,6 +2257,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 		char edit_buffer[2048];
 		const float toggle_key_text_offset = ImGui::GetWindowContentRegionWidth() - ImGui::CalcTextSize("Toggle Key").x - 201;
 
+		_toggle_key_setting_active = false;
+
 		for (int id = 0, i = 0; id < static_cast<int>(_technique_count); id++, i++)
 		{
 			auto &technique = _techniques[id];
@@ -2245,6 +2286,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 				hovered_technique_index = id;
 			}
 
+			if (ImGui::IsItemClicked(0) && ImGui::IsMouseDoubleClicked(0))
+			{
+				_focus_effect = technique.effect_filename;
+			}
+
 			assert(technique.toggle_key_data[0] < 256);
 
 			size_t offset = 0;
@@ -2257,8 +2303,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 			ImGui::TextUnformatted("Toggle Key");
 			ImGui::SameLine();
 			ImGui::InputTextEx("##ToggleKey", edit_buffer, sizeof(edit_buffer), ImVec2(200, 0), ImGuiInputTextFlags_ReadOnly);
-
-			_toggle_key_setting_active = false;
 
 			if (ImGui::IsItemActive())
 			{

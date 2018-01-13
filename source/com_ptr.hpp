@@ -6,6 +6,7 @@
 #pragma once
 
 #include <assert.h>
+#include <functional>
 
 template <typename T>
 class com_ptr
@@ -125,3 +126,15 @@ public:
 private:
 	T *_object;
 };
+
+namespace std
+{
+	template <typename T>
+	struct hash<com_ptr<T>>
+	{
+		size_t operator()(const com_ptr<T> &ptr) const
+		{
+			return std::hash<T *>()(ptr.get());
+		}
+	};
+}

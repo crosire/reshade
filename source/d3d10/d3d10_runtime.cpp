@@ -498,12 +498,33 @@ namespace reshade::d3d10
 	}
 	void d3d10_runtime::on_present()
 	{
-		if (!is_initialized() || _drawcalls == 0)
+		if (!is_initialized())
 		{
 			return;
 		}
 
 		detect_depth_source();
+
+		// Evaluate queries
+		for (technique &technique : _techniques)
+		{
+			d3d10_technique_data &technique_data = *technique.impl->as<d3d10_technique_data>();
+
+			if (technique.enabled && technique_data.query_in_flight)
+			{
+				UINT64 timestamp0, timestamp1;
+				D3D10_QUERY_DATA_TIMESTAMP_DISJOINT disjoint;
+
+				if (technique_data.timestamp_disjoint->GetData(&disjoint, sizeof(disjoint), D3D10_ASYNC_GETDATA_DONOTFLUSH) == S_OK &&
+					technique_data.timestamp_query_beg->GetData(&timestamp0, sizeof(timestamp0), D3D10_ASYNC_GETDATA_DONOTFLUSH) == S_OK &&
+					technique_data.timestamp_query_end->GetData(&timestamp1, sizeof(timestamp1), D3D10_ASYNC_GETDATA_DONOTFLUSH) == S_OK)
+				{
+					if (!disjoint.Disjoint)
+						technique.average_gpu_duration.append((timestamp1 - timestamp0) * 1'000'000'000 / disjoint.Frequency);
+					technique_data.query_in_flight = false;
+				}
+			}
+		}
 
 		// Capture device state
 		_stateblock.capture();
@@ -784,6 +805,14 @@ namespace reshade::d3d10
 
 	void d3d10_runtime::render_technique(const technique &technique)
 	{
+		d3d10_technique_data &technique_data = *technique.impl->as<d3d10_technique_data>();
+
+		if (!technique_data.query_in_flight)
+		{
+			technique_data.timestamp_disjoint->Begin();
+			technique_data.timestamp_query_beg->End();
+		}
+
 		bool is_default_depthstencil_cleared = false;
 
 		// Setup shader constants
@@ -819,8 +848,7 @@ namespace reshade::d3d10
 			_device->VSSetShader(pass.vertex_shader.get());
 			_device->PSSetShader(pass.pixel_shader.get());
 
-			const float blendfactor[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
-			_device->OMSetBlendState(pass.blend_state.get(), blendfactor, D3D10_DEFAULT_SAMPLE_MASK);
+			_device->OMSetBlendState(pass.blend_state.get(), nullptr, D3D10_DEFAULT_SAMPLE_MASK);
 			_device->OMSetDepthStencilState(pass.depth_stencil_state.get(), pass.stencil_reference);
 
 			// Save back buffer of previous pass
@@ -891,6 +919,13 @@ namespace reshade::d3d10
 					_device->GenerateMips(resource.get());
 				}
 			}
+		}
+
+		if (!technique_data.query_in_flight)
+		{
+			technique_data.timestamp_query_end->End();
+			technique_data.timestamp_disjoint->End();
+			technique_data.query_in_flight = true;
 		}
 	}
 	void d3d10_runtime::render_imgui_draw_data(ImDrawData *draw_data)

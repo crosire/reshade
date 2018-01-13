@@ -130,10 +130,14 @@ namespace reshade
 		std::string name, effect_filename;
 		std::vector<std::unique_ptr<base_object>> passes;
 		std::unordered_map<std::string, variant> annotations;
-		bool enabled = false, hidden = false;
-		int timeout = 0, timeleft = 0;
-		unsigned int toggle_key_data[4];
+		bool hidden = false;
+		bool enabled = false;
+		int32_t timeout = 0;
+		int32_t timeleft = 0;
+		uint32_t toggle_key_data[4];
 		moving_average<uint64_t, 60> average_cpu_duration;
+		moving_average<uint64_t, 60> average_gpu_duration;
 		ptrdiff_t uniform_storage_offset = 0, uniform_storage_index = -1;
+		std::unique_ptr<base_object> impl;
 	};
 }

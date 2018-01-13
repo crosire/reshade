@@ -409,6 +409,21 @@ namespace reshade::opengl
 
 		detect_depth_source();
 
+		// Evalute queries
+		for (technique &technique : _techniques)
+		{
+			opengl_technique_data &technique_data = *technique.impl->as<opengl_technique_data>();
+
+			if (technique.enabled && technique_data.query_in_flight)
+			{
+				GLuint64 elapsed_time = 0;
+				glGetQueryObjectui64v(technique_data.query, GL_QUERY_RESULT, &elapsed_time);
+
+				technique.average_gpu_duration.append(elapsed_time);
+				technique_data.query_in_flight = false;
+			}
+		}
+
 		// Capture states
 		_stateblock.capture();
 
@@ -715,6 +730,11 @@ namespace reshade::opengl
 
 	void opengl_runtime::render_technique(const technique &technique)
 	{
+		opengl_technique_data &technique_data = *technique.impl->as<opengl_technique_data>();
+
+		if (!technique_data.query_in_flight)
+			glBeginQuery(GL_TIME_ELAPSED, technique_data.query);
+
 		// Clear depth stencil
 		glBindFramebuffer(GL_FRAMEBUFFER, _default_backbuffer_fbo);
 		glClearBufferfi(GL_DEPTH_STENCIL, 0, 1.0f, 0);
@@ -741,7 +761,7 @@ namespace reshade::opengl
 			// Setup states
 			glUseProgram(pass.program);
 			glColorMask(pass.color_mask[0], pass.color_mask[1], pass.color_mask[2], pass.color_mask[3]);
-			glBlendFunc(pass.blend_src, pass.blend_dest);
+			glBlendFuncSeparate(pass.blend_src, pass.blend_dest, pass.blend_src_alpha, pass.blend_dest_alpha);
 			glBlendEquationSeparate(pass.blend_eq_color, pass.blend_eq_alpha);
 			glStencilFunc(pass.stencil_func, pass.stencil_reference, pass.stencil_read_mask);
 			glStencilOp(pass.stencil_op_fail, pass.stencil_op_z_fail, pass.stencil_op_z_pass);
@@ -814,6 +834,10 @@ namespace reshade::opengl
 				}
 			}
 		}
+
+		if (!technique_data.query_in_flight)
+			glEndQuery(GL_TIME_ELAPSED);
+		technique_data.query_in_flight = true;
 	}
 	void opengl_runtime::render_imgui_draw_data(ImDrawData *draw_data)
 	{

@@ -108,13 +108,26 @@ namespace ReShade.Setup
 		{
 			if (Keyboard.Modifiers == ModifierKeys.Control)
 			{
-				using (FileStream file = File.Create("ReShade32.dll"))
+				Assembly assembly = Assembly.GetExecutingAssembly();
+
+				try
 				{
-					Assembly.GetExecutingAssembly().GetManifestResourceStream("ReShade.Setup.ReShade32.dll").CopyTo(file);
+					using (FileStream file = File.Create("ReShade32.dll"))
+					{
+						assembly.GetManifestResourceStream("ReShade.Setup.ReShade32.dll").CopyTo(file);
+					}
+					using (FileStream file = File.Create("ReShade64.dll"))
+					{
+						assembly.GetManifestResourceStream("ReShade.Setup.ReShade64.dll").CopyTo(file);
+					}
 				}
-				using (FileStream file = File.Create("ReShade64.dll"))
+				catch (Exception ex)
 				{
-					Assembly.GetExecutingAssembly().GetManifestResourceStream("ReShade.Setup.ReShade64.dll").CopyTo(file);
+					Title = "Failed!";
+					Message.Content = "Unable to extract files.";
+					MessageDescription.Content = ex.Message;
+					SetupButton.IsEnabled = false;
+					return;
 				}
 
 				Close();
@@ -268,10 +281,12 @@ namespace ReShade.Setup
 					stream.CopyTo(file);
 				}
 			}
-			catch
+			catch (Exception ex)
 			{
 				Title += " Failed!";
 				Message.Content = "Unable to write file \"" + pathModule + "\".";
+				MessageDescription.Visibility = Visibility.Visible;
+				MessageDescription.Content = ex.Message;
 				Glass.HideSystemMenu(this, false);
 
 				if (_isHeadless)
@@ -336,10 +351,12 @@ namespace ReShade.Setup
 			{
 				client.DownloadFileAsync(new Uri("https://github.com/crosire/reshade-shaders/archive/master.zip"), _tempDownloadPath);
 			}
-			catch
+			catch (Exception ex)
 			{
 				Title += " Failed!";
 				Message.Content = "Unable to download archive.";
+				MessageDescription.Visibility = Visibility.Visible;
+				MessageDescription.Content = ex.Message;
 				Glass.HideSystemMenu(this, false);
 
 				if (_isHeadless)
@@ -370,10 +387,12 @@ namespace ReShade.Setup
 
 				Directory.Move(shadersDirectoryExtracted, shadersDirectoryFinal);
 			}
-			catch
+			catch (Exception ex)
 			{
 				Title += " Failed!";
 				Message.Content = "Unable to extract downloaded archive.";
+				MessageDescription.Visibility = Visibility.Visible;
+				MessageDescription.Content = ex.Message;
 				Glass.HideSystemMenu(this, false);
 
 				if (_isHeadless)

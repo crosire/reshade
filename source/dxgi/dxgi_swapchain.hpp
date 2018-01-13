@@ -95,6 +95,10 @@ struct DXGISwapChain : IDXGISwapChain4
 	virtual HRESULT STDMETHODCALLTYPE SetHDRMetaData(DXGI_HDR_METADATA_TYPE Type, UINT Size, void *pMetaData) override;
 	#pragma endregion
 
+	void perform_present(UINT PresentFlags);
+
+	void clear_drawcall_stats();
+
 	LONG _ref = 1;
 	IDXGISwapChain *_orig;
 	unsigned int _interface_version;
