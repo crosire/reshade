@@ -2412,7 +2412,7 @@ namespace reshade::opengl
 			{
 				for (auto field : parameter->type.definition->field_list)
 				{
-					visit_shader_param(source, field->type, parameter->type.qualifiers, "_param_" + parameter->name + "_" + field->name, field->semantic, shadertype);
+					visit_shader_param(source, field->type, parameter->type.qualifiers | field->type.qualifiers, "_param_" + parameter->name + "_" + field->name, field->semantic, shadertype);
 				}
 			}
 			else
