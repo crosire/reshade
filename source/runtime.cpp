@@ -35,7 +35,7 @@ namespace reshade
 		_preprocessor_definitions({
 			"RESHADE_DEPTH_LINEARIZATION_FAR_PLANE=1000.0",
 			"RESHADE_DEPTH_INPUT_IS_UPSIDE_DOWN=0",
-			"RESHADE_DEPTH_INPUT_IS_REVERSED=0",
+			"RESHADE_DEPTH_INPUT_IS_REVERSED=1",
 			"RESHADE_DEPTH_INPUT_IS_LOGARITHMIC=0" }),
 		_menu_key_data(),
 		_screenshot_key_data(),
