@@ -7,8 +7,8 @@
 #include "opengl_effect_compiler.hpp"
 #include <assert.h>
 #include <iomanip>
+#include <fstream>
 #include <algorithm>
-#include <unordered_set>
 
 namespace reshade::opengl
 {
@@ -376,6 +376,14 @@ namespace reshade::opengl
 		_errors(errors),
 		_current_function(nullptr)
 	{
+#if RESHADE_DUMP_NATIVE_SHADERS
+		if (_ast.techniques.size() == 0)
+			return;
+		_dump_filename = _ast.techniques[0]->location.source;
+		_dump_filename = "ReShade-ShaderDump-" + _dump_filename.filename_without_extension().string() + ".glsl";
+
+		std::ofstream(_dump_filename.string(), std::ios::trunc);
+#endif
 	}
 
 	bool opengl_effect_compiler::run()
@@ -2607,6 +2615,20 @@ namespace reshade::opengl
 		const std::string source_str = source.str();
 		const GLchar *src = source_str.c_str();
 		const GLsizei len = static_cast<GLsizei>(source_str.size());
+
+#if RESHADE_DUMP_NATIVE_SHADERS
+		if (!_dumped_shaders.count(node->unique_name))
+		{
+			std::ofstream dumpfile(_dump_filename.string(), std::ios::app);
+
+			if (dumpfile.is_open())
+			{
+				dumpfile << "#ifdef RESHADE_SHADER_" << shadertype << "_" << node->unique_name << std::endl << source_str << "#endif" << std::endl << std::endl;
+
+				_dumped_shaders.insert(node->unique_name);
+			}
+		}
+#endif
 
 		glShaderSource(shader, 1, &src, &len);
 		glCompileShader(shader);

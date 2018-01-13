@@ -83,5 +83,9 @@ namespace reshade::d3d9
 		std::unordered_map<std::string, d3d9_sampler> _samplers;
 		std::unordered_map<const reshadefx::nodes::function_declaration_node *, function> _functions;
 		HMODULE _d3dcompiler_module = nullptr;
+#if RESHADE_DUMP_NATIVE_SHADERS
+		filesystem::path _dump_filename;
+		std::unordered_set<std::string> _dumped_shaders;
+#endif
 	};
 }
