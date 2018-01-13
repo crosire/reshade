@@ -505,8 +505,9 @@ namespace reshade::d3d11
 	}
 	void d3d11_runtime::on_present(draw_call_tracker& tracker)
 	{
-		_drawcalls = tracker.drawcalls();
 		_vertices = tracker.vertices();
+		_drawcalls = tracker.drawcalls();
+
 		if (!is_initialized())
 		{
 			return;
@@ -979,11 +980,10 @@ namespace reshade::d3d11
 	{
 		static int cooldown = 0, traffic = 0;
 
-		bool aborted = false;
 		if (cooldown-- > 0)
 		{
 			traffic += g_network_traffic > 0;
-			aborted = true;
+			return;
 		}
 		else
 		{
@@ -992,24 +992,24 @@ namespace reshade::d3d11
 			{
 				traffic = 0;
 				create_depthstencil_replacement(nullptr);
-				aborted = true;
+				return;
 			}
 			else
 			{
 				traffic = 0;
 			}
 		}
+
 		if (_is_multisampling_enabled)
 		{
-			aborted = true;
+			return;
 		}
-		if (!aborted)
+
+		ID3D11DepthStencilView *const best_match = tracker.get_best_depth_stencil(_width, _height);
+
+		if (best_match != nullptr && _depthstencil != best_match)
 		{
-			ID3D11DepthStencilView *best_match = tracker.get_best_depth_stencil(_width, _height);
-			if (best_match != nullptr && _depthstencil != best_match)
-			{
-				create_depthstencil_replacement(best_match);
-			}
+			create_depthstencil_replacement(best_match);
 		}
 	}
 
