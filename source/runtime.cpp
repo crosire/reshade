@@ -411,6 +411,7 @@ namespace reshade
 					technique.enabled = false;
 					technique.timeleft = 0;
 					technique.average_cpu_duration.clear();
+					technique.average_gpu_duration.clear();
 				}
 			}
 			else if (!_toggle_key_setting_active &&
@@ -424,6 +425,7 @@ namespace reshade
 			if (!technique.enabled)
 			{
 				technique.average_cpu_duration.clear();
+				technique.average_gpu_duration.clear();
 				continue;
 			}
 
