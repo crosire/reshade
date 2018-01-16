@@ -10,3 +10,6 @@
 [submodule "gl3w"]
 	path = deps/gl3w
 	url = https://github.com/skaslev/gl3w.git
+[submodule "openvr"]
+	path = deps/openvr
+	url = https://github.com/ValveSoftware/openvr.git

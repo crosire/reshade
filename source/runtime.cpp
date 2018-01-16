@@ -19,9 +19,12 @@
 #define IMGUI_DEFINE_MATH_OPERATORS
 #include <imgui.h>
 #include <imgui_internal.h>
+#include <openvr.h>
+#include <Windows.h>
 
 namespace reshade
 {
+	unsigned int runtime::s_vr_system_ref_count = 0;
 	filesystem::path runtime::s_reshade_dll_path, runtime::s_target_executable_path;
 
 	runtime::runtime(uint32_t renderer) :
@@ -93,9 +96,13 @@ namespace reshade
 			_imgui_font_atlas->AddFontDefault();
 
 		load_configuration();
+
+		init_vr_system();
 	}
 	runtime::~runtime()
 	{
+		shutdown_vr_system();
+
 		ImGui::SetCurrentContext(_imgui_context);
 
 		ImGui::Shutdown();
@@ -161,6 +168,37 @@ namespace reshade
 		_framecount++;
 		_last_frame_duration = std::chrono::high_resolution_clock::now() - _last_present_time;
 		_last_present_time += _last_frame_duration;
+
+		// Get VR headset poses
+		vr::TrackedDevicePose_t poses[vr::k_unMaxTrackedDeviceCount] = { };
+
+		if (vr::VRCompositor() &&
+			vr::VRCompositor()->WaitGetPoses(
+				poses, vr::k_unMaxTrackedDeviceCount, nullptr, 0) == vr::EVRCompositorError::VRCompositorError_None)
+		{
+			for (vr::TrackedDeviceIndex_t i = 0; i < vr::k_unMaxTrackedDeviceCount; i++)
+			{
+				if (!poses[i].bPoseIsValid)
+				{
+					continue;
+				}
+
+				switch (vr::VRSystem()->GetTrackedDeviceClass(i))
+				{
+				case vr::TrackedDeviceClass_HMD:
+					INPUT input;
+					memset(&input, 0, sizeof(input));
+					input.type = INPUT_MOUSE;
+					input.mi.dx = -poses[i].vAngularVelocity.v[1] * _vr_angular_velocity_multiplier[0];
+					input.mi.dy = +poses[i].vAngularVelocity.v[0] * _vr_angular_velocity_multiplier[1];
+					input.mi.dwFlags = MOUSEEVENTF_MOVE | MOUSEEVENTF_MOVE_NOCOALESCE;
+					SendInput(1, &input, sizeof(input));
+					break;
+				case vr::TrackedDeviceClass_Controller:
+					break;
+				}
+			}
+		}
 
 		// Create and save screenshot if associated shortcut is down
 		if (!_screenshot_key_setting_active &&
@@ -436,6 +474,30 @@ namespace reshade
 			const auto time_technique_finished = std::chrono::high_resolution_clock::now();
 
 			technique.average_cpu_duration.append(std::chrono::duration_cast<std::chrono::nanoseconds>(time_technique_finished - time_technique_started).count());
+		}
+	}
+
+	void runtime::init_vr_system()
+	{
+		if (_is_vr_enabled && s_vr_system_ref_count++ == 0)
+		{
+			vr::EVRInitError e = vr::VRInitError_None;
+
+			vr::VR_Init(&e, vr::EVRApplicationType::VRApplication_Scene);
+
+			if (e != vr::VRInitError_None || !vr::VRCompositor())
+			{
+				s_vr_system_ref_count = 0;
+
+				LOG(ERROR) << "Failed to initialize VR system with error code " << e << ".";
+			}
+		}
+	}
+	void runtime::shutdown_vr_system()
+	{
+		if (s_vr_system_ref_count && --s_vr_system_ref_count == 0)
+		{
+			vr::VR_Shutdown();
 		}
 	}
 
@@ -735,6 +797,9 @@ namespace reshade
 		config.get("GENERAL", "FontGlobalScale", _imgui_context->IO.FontGlobalScale);
 		config.get("GENERAL", "NoReloadOnInit", _no_reload_on_init);
 
+		config.get("VR", "Enabled", _is_vr_enabled);
+		config.get("VR", "AngularVelocityMultiplier", _vr_angular_velocity_multiplier);
+
 		config.get("STYLE", "Alpha", _imgui_context->Style.Alpha);
 		config.get("STYLE", "ColBackground", _imgui_col_background);
 		config.get("STYLE", "ColItemBackground", _imgui_col_item_background);
@@ -838,6 +903,9 @@ namespace reshade
 		config.set("GENERAL", "ShowFPS", _show_framerate);
 		config.set("GENERAL", "FontGlobalScale", _imgui_context->IO.FontGlobalScale);
 		config.set("GENERAL", "NoReloadOnInit", _no_reload_on_init);
+
+		config.set("VR", "Enabled", _is_vr_enabled);
+		config.set("VR", "AngularVelocityMultiplier", _vr_angular_velocity_multiplier);
 
 		config.set("STYLE", "Alpha", _imgui_context->Style.Alpha);
 		config.set("STYLE", "ColBackground", _imgui_col_background);
@@ -1757,6 +1825,30 @@ namespace reshade
 				save_configuration();
 				load_configuration();
 			}
+		}
+
+		if (ImGui::CollapsingHeader("Virtual Reality", ImGuiTreeNodeFlags_DefaultOpen))
+		{
+			ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyle().Colors[_is_vr_enabled ? ImGuiCol_ButtonActive : ImGuiCol_Button]);
+
+			if (ImGui::Checkbox("Enable", &_is_vr_enabled))
+			{
+				if (_is_vr_enabled)
+					init_vr_system();
+				else
+					shutdown_vr_system();
+
+				save_configuration();
+				load_configuration();
+			}
+
+			if (ImGui::DragFloat2("Angular Velocity Multiplier", _vr_angular_velocity_multiplier))
+			{
+				save_configuration();
+				load_configuration();
+			}
+
+			ImGui::PopStyleColor();
 		}
 	}
 	void runtime::draw_overlay_menu_statistics()

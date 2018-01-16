@@ -187,8 +187,12 @@ namespace reshade
 		std::vector<texture> _textures;
 		std::vector<uniform> _uniforms;
 		std::vector<technique> _techniques;
+		static unsigned int s_vr_system_ref_count;
 
 	private:
+		void init_vr_system();
+		void shutdown_vr_system();
+
 		void reload();
 		void load_configuration();
 		void save_configuration() const;
@@ -210,6 +214,7 @@ namespace reshade
 		void filter_techniques(const std::string &filter);
 
 		const unsigned int _renderer_id;
+		bool _is_vr_enabled = false;
 		bool _is_initialized = false;
 		std::vector<filesystem::path> _effect_files;
 		std::vector<filesystem::path> _preset_files;
@@ -258,5 +263,6 @@ namespace reshade
 		size_t _texture_count = 0;
 		size_t _uniform_count = 0;
 		size_t _technique_count = 0;
+		float _vr_angular_velocity_multiplier[2] = { 10, 10 };
 	};
 }
