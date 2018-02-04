@@ -10,6 +10,7 @@
 # Visual Studio cache files
 .vs/
 ipch/
+packages/
 *.aps
 *.VC.db
 *.VC.opendb
