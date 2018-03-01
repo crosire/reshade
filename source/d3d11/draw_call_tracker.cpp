@@ -1,4 +1,5 @@
 #include "draw_call_tracker.hpp"
+#include "log.hpp"
 #include <math.h>
 
 namespace reshade::d3d11
@@ -12,28 +13,43 @@ namespace reshade::d3d11
 		{
 			const auto destination_entry = _counters_per_used_depthstencil.find(source_entry.first);
 
-			if (destination_entry == _counters_per_used_depthstencil.end())
+			if (reshade::runtime::depth_buffer_retrieval_mode == reshade::runtime::depth_buffer_retrieval_mode::POST_PROCESS)
 			{
-				_counters_per_used_depthstencil.emplace(source_entry.first, source_entry.second);
-			}
-			else
-			{
-				destination_entry->second.vertices += source_entry.second.vertices;
-				destination_entry->second.drawcalls += source_entry.second.drawcalls;
+				if (destination_entry == _counters_per_used_depthstencil.end())
+				{
+					_counters_per_used_depthstencil.emplace(source_entry.first, source_entry.second);
+				}
+				else
+				{
+					destination_entry->second.vertices += source_entry.second.vertices;
+					destination_entry->second.drawcalls += source_entry.second.drawcalls;
+				}
 			}
 		}
 	}
 
-	void draw_call_tracker::reset()
+	void draw_call_tracker::reset(bool ball)
 	{
 		_counters.vertices = 0;
 		_counters.drawcalls = 0;
-		_counters_per_used_depthstencil.clear();
+
+		if (ball == true)
+		{
+			_counters_per_used_depthstencil.clear();
+			_active_depth_texture.reset();
+		}
+	}
+
+	void draw_call_tracker::set_depth_texture(ID3D11Texture2D* depth_texture)
+	{
+		assert(depth_texture != nullptr);
+
+		_active_depth_texture = depth_texture;
 	}
 
 	void draw_call_tracker::track_depthstencil(ID3D11DepthStencilView* depthstencil)
 	{
-		assert(depthstencil != nullptr);
+		// assert(depthstencil != nullptr);
 
 		if (_counters_per_used_depthstencil.find(depthstencil) == _counters_per_used_depthstencil.end())
 		{
@@ -59,20 +75,34 @@ namespace reshade::d3d11
 		}
 	}
 
-	ID3D11DepthStencilView* draw_call_tracker::get_best_depth_stencil(UINT width, UINT height)
+	ID3D11DepthStencilView* draw_call_tracker::get_best_depth_stencil(std::string host_process_name, std::unordered_map<std::string, runtime::game> game_list, UINT drawcalls, const com_ptr<ID3D11Device> device, const com_ptr<ID3D11DeviceContext> devicecontext, UINT width, UINT height)
 	{
 		depthstencil_counter_info best_info = { 0 };
 		ID3D11DepthStencilView *best_match = nullptr;
 		float aspect_ratio = ((float)width) / ((float)height);
+		static runtime::game current_game =
+			game_list.count(host_process_name) ?
+			game_list[host_process_name] :
+			runtime::game::UNKNOWN;
+		reshade::runtime::OM_iter = 0;
 
 		for (auto it : _counters_per_used_depthstencil)
 		{
 			const auto depthstencil = it.first;
 			auto &depthstencil_info = it.second;
-			if (depthstencil_info.drawcalls == 0)
+			float twfactor = 1.0f;
+			float thfactor = 1.0f;
+
+			if (reshade::runtime::depth_buffer_retrieval_mode == reshade::runtime::depth_buffer_retrieval_mode::POST_PROCESS)
 			{
-				continue;
+				if (depthstencil_info.drawcalls == 0 || depthstencil_info.vertices == 0)
+				{
+					continue;
+				}
 			}
+
+			D3D11_DEPTH_STENCIL_VIEW_DESC desc;
+			depthstencil.get()->GetDesc(&desc);
 
 			// Determine depthstencil size on-the-fly. We execute this code in present, and this isn't slow anyway. 
 			// Caching the size infos has the downside that if the game uses dynamic supersampling/resolution scaling, we end up
@@ -87,38 +117,77 @@ namespace reshade::d3d11
 			}
 			texture->GetDesc(&texture_desc);
 
-			bool size_mismatch = false;
-			// if the size of the depth stencil has the size of the window, we'll look at its counters. If it doesn't we'll try some heuristics, like
-			// aspect ratio equivalence or whether the height is 1 off, which is sometimes the case in some games. 
 			if (texture_desc.Width != width)
 			{
-				size_mismatch = true;
+				twfactor = (float)width / texture_desc.Width;
 			}
 			if (texture_desc.Height != height)
 			{
-				// check if height is uneven, some games round depthsize height to an even number.
-				if (texture_desc.Height != (height - 1) && texture_desc.Height != (height + 1))
-				{
-					// not a matching height
-					size_mismatch = true;
-				}
+				thfactor = (float)height / texture_desc.Height;
 			}
-			if (size_mismatch)
+
+			// check aspect ratio. 
+			float stencilaspectratio = ((float)texture_desc.Width) / ((float)texture_desc.Height);
+			if (fabs(stencilaspectratio - aspect_ratio) > 0.1f)
 			{
-				// check aspect ratio. 
-				float stencilaspectratio = ((float)texture_desc.Width) / ((float)texture_desc.Height);
-				if (fabs(stencilaspectratio - aspect_ratio) > 0.1f)
+				// no match, not a good fit
+				continue;
+			}
+
+			if (twfactor > 2.0f || thfactor > 2.0f)
+			{
+				continue;
+			}
+
+			if (twfactor < 0.5f || thfactor < 0.5f)
+			{
+				continue;
+			}
+
+			// we check that the texture format is one of the correct depth buffer format
+			if (texture_desc.Format != DXGI_FORMAT_R16_TYPELESS && texture_desc.Format != DXGI_FORMAT_R32_TYPELESS && texture_desc.Format != DXGI_FORMAT_R24G8_TYPELESS && texture_desc.Format != DXGI_FORMAT_R32G8X24_TYPELESS)
+			{
+				continue;
+			}
+
+			if (reshade::runtime::depth_buffer_texture_format != DXGI_FORMAT_UNKNOWN)
+			{
+				// we check the texture format, if filtered
+				if (texture_desc.Format != reshade::runtime::depth_buffer_texture_format)
 				{
-					// still no match, not a good fit
 					continue;
 				}
 			}
-			if (depthstencil_info.drawcalls >= best_info.drawcalls)
+
+			if (reshade::runtime::depth_buffer_retrieval_mode == reshade::runtime::depth_buffer_retrieval_mode::POST_PROCESS)
+			{
+				bool heuristic_result = (depthstencil_info.vertices * (1.2f - float(depthstencil_info.drawcalls) / drawcalls)) >= (best_info.vertices * (1.2f - float(best_info.drawcalls) / drawcalls));
+
+				if (heuristic_result == true)
+				{
+					best_match = depthstencil.get();
+					best_info.vertices = depthstencil_info.vertices;
+					best_info.drawcalls = depthstencil_info.drawcalls;
+				}
+			}
+
+			if (reshade::runtime::depth_buffer_retrieval_mode == reshade::runtime::depth_buffer_retrieval_mode::BEFORE_CLEARING_STAGE || reshade::runtime::depth_buffer_retrieval_mode == reshade::runtime::depth_buffer_retrieval_mode::AT_OM_STAGE)
 			{
 				best_match = depthstencil.get();
-				best_info = depthstencil_info;
 			}
 		}
+
 		return best_match;
+	}
+
+	ID3D11Texture2D* draw_call_tracker::get_depth_texture()
+	{
+		reshade::runtime::OM_iter = 0;
+		return _active_depth_texture.get();
+	}
+
+	draw_call_tracker::depthstencil_counter_info draw_call_tracker::get_counters()
+	{
+		return _counters;
 	}
 }

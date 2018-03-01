@@ -1,7 +1,7 @@
 /**
- * Copyright (C) 2014 Patrick Mours. All rights reserved.
- * License: https://github.com/crosire/reshade#license
- */
+* Copyright (C) 2014 Patrick Mours. All rights reserved.
+* License: https://github.com/crosire/reshade#license
+*/
 
 #include "log.hpp"
 #include "version.h"
@@ -10,6 +10,7 @@
 #include "effect_preprocessor.hpp"
 #include "input.hpp"
 #include "ini_file.hpp"
+#include "utility.hpp"
 #include <algorithm>
 #include <unordered_set>
 #include <stb_image.h>
@@ -19,10 +20,17 @@
 #define IMGUI_DEFINE_MATH_OPERATORS
 #include <imgui.h>
 #include <imgui_internal.h>
+#include <dxgiformat.h>
 
 namespace reshade
 {
 	filesystem::path runtime::s_reshade_dll_path, runtime::s_target_executable_path;
+	unsigned int runtime::screen_width = 0;
+	unsigned int runtime::screen_height = 0;
+	unsigned int runtime::depth_buffer_retrieval_mode = depth_buffer_retrieval_mode::BEFORE_CLEARING_STAGE; // "before depth buffer clearing" retrieval mode by default
+	unsigned int runtime::depth_buffer_clearing_number = 0; // usually, the second depth buffer clearing is the good one
+	unsigned int runtime::depth_buffer_texture_format = DXGI_FORMAT_UNKNOWN; // no depth buffer texture filtering by default
+	unsigned int runtime::OM_iter = 0;
 
 	runtime::runtime(uint32_t renderer) :
 		_renderer_id(renderer),
@@ -33,10 +41,10 @@ namespace reshade
 		_effect_search_paths({ s_reshade_dll_path.parent_path() }),
 		_texture_search_paths({ s_reshade_dll_path.parent_path() }),
 		_preprocessor_definitions({
-			"RESHADE_DEPTH_LINEARIZATION_FAR_PLANE=1000.0",
-			"RESHADE_DEPTH_INPUT_IS_UPSIDE_DOWN=0",
-			"RESHADE_DEPTH_INPUT_IS_REVERSED=1",
-			"RESHADE_DEPTH_INPUT_IS_LOGARITHMIC=0" }),
+		"RESHADE_DEPTH_LINEARIZATION_FAR_PLANE=1000.0",
+		"RESHADE_DEPTH_INPUT_IS_UPSIDE_DOWN=0",
+		"RESHADE_DEPTH_INPUT_IS_REVERSED=1",
+		"RESHADE_DEPTH_INPUT_IS_LOGARITHMIC=0" }),
 		_menu_key_data(),
 		_screenshot_key_data(),
 		_effects_key_data(),
@@ -110,6 +118,8 @@ namespace reshade
 
 		_is_initialized = true;
 		_last_reload_time = std::chrono::high_resolution_clock::now();
+		_init_game_list(_game_list);
+		_host_process_name = _get_host_app();
 
 		if (!_no_reload_on_init)
 		{
@@ -231,25 +241,25 @@ namespace reshade
 			{
 				switch (variable.basetype)
 				{
-					case uniform_datatype::boolean:
-					{
-						const bool even = (_framecount % 2) == 0;
-						set_uniform_value(variable, &even, 1);
-						break;
-					}
-					case uniform_datatype::signed_integer:
-					case uniform_datatype::unsigned_integer:
-					{
-						const unsigned int framecount = static_cast<unsigned int>(_framecount % UINT_MAX);
-						set_uniform_value(variable, &framecount, 1);
-						break;
-					}
-					case uniform_datatype::floating_point:
-					{
-						const float framecount = static_cast<float>(_framecount % 16777216);
-						set_uniform_value(variable, &framecount, 1);
-						break;
-					}
+				case uniform_datatype::boolean:
+				{
+					const bool even = (_framecount % 2) == 0;
+					set_uniform_value(variable, &even, 1);
+					break;
+				}
+				case uniform_datatype::signed_integer:
+				case uniform_datatype::unsigned_integer:
+				{
+					const unsigned int framecount = static_cast<unsigned int>(_framecount % UINT_MAX);
+					set_uniform_value(variable, &framecount, 1);
+					break;
+				}
+				case uniform_datatype::floating_point:
+				{
+					const float framecount = static_cast<float>(_framecount % 16777216);
+					set_uniform_value(variable, &framecount, 1);
+					break;
+				}
 				}
 			}
 			else if (source == "pingpong")
@@ -297,25 +307,25 @@ namespace reshade
 
 				switch (variable.basetype)
 				{
-					case uniform_datatype::boolean:
-					{
-						const bool even = (timer % 2) == 0;
-						set_uniform_value(variable, &even, 1);
-						break;
-					}
-					case uniform_datatype::signed_integer:
-					case uniform_datatype::unsigned_integer:
-					{
-						const unsigned int timer_int = static_cast<unsigned int>(timer % UINT_MAX);
-						set_uniform_value(variable, &timer_int, 1);
-						break;
-					}
-					case uniform_datatype::floating_point:
-					{
-						const float timer_float = std::fmod(static_cast<float>(timer * 1e-6f), 16777216.0f);
-						set_uniform_value(variable, &timer_float, 1);
-						break;
-					}
+				case uniform_datatype::boolean:
+				{
+					const bool even = (timer % 2) == 0;
+					set_uniform_value(variable, &even, 1);
+					break;
+				}
+				case uniform_datatype::signed_integer:
+				case uniform_datatype::unsigned_integer:
+				{
+					const unsigned int timer_int = static_cast<unsigned int>(timer % UINT_MAX);
+					set_uniform_value(variable, &timer_int, 1);
+					break;
+				}
+				case uniform_datatype::floating_point:
+				{
+					const float timer_float = std::fmod(static_cast<float>(timer * 1e-6f), 16777216.0f);
+					set_uniform_value(variable, &timer_float, 1);
+					break;
+				}
 				}
 			}
 			else if (source == "key")
@@ -437,6 +447,29 @@ namespace reshade
 
 			technique.average_cpu_duration.append(std::chrono::duration_cast<std::chrono::nanoseconds>(time_technique_finished - time_technique_started).count());
 		}
+	}
+
+	std::string const runtime::_get_host_app(void)
+	{
+
+		wchar_t host_app[_MAX_PATH * 2] = {};
+		utility::getHostApp(host_app);
+		std::wstring ws(host_app);
+		std::string str(ws.begin(), ws.end());
+		return str;
+	}
+
+	void const runtime::_init_game_list(std::unordered_map<std::string, game> &game_list)
+	{
+		game_list.emplace("ACOrigins.exe", game::ACO);
+		game_list.emplace("Elex.exe", game::ELEX);
+		game_list.emplace("pCARS2.exe", game::PCARS2);
+		game_list.emplace("pCARS2AVX.exe", game::PCARS2AVX);
+		game_list.emplace("Titanfall2.exe", game::TITANFALL2);
+		game_list.emplace("Titanfall2_trial.exe", game::TITANFALL2_TRIAL);
+		game_list.emplace("ShadowOfWar.exe", game::SOW);
+		game_list.emplace("AOM_Release_Final.exe", game::AOM_RELEASE_FINAL);
+		game_list.emplace("AOM.exe", game::AOM);
 	}
 
 	void runtime::reload()
@@ -574,16 +607,16 @@ namespace reshade
 
 				switch (initializer->type.basetype)
 				{
-					case reshadefx::nodes::type_node::datatype_int:
-						preset.get(path.filename().string(), variable->name, initializer->value_int);
-						break;
-					case reshadefx::nodes::type_node::datatype_bool:
-					case reshadefx::nodes::type_node::datatype_uint:
-						preset.get(path.filename().string(), variable->name, initializer->value_uint);
-						break;
-					case reshadefx::nodes::type_node::datatype_float:
-						preset.get(path.filename().string(), variable->name, initializer->value_float);
-						break;
+				case reshadefx::nodes::type_node::datatype_int:
+					preset.get(path.filename().string(), variable->name, initializer->value_int);
+					break;
+				case reshadefx::nodes::type_node::datatype_bool:
+				case reshadefx::nodes::type_node::datatype_uint:
+					preset.get(path.filename().string(), variable->name, initializer->value_uint);
+					break;
+				case reshadefx::nodes::type_node::datatype_float:
+					preset.get(path.filename().string(), variable->name, initializer->value_float);
+					break;
 				}
 
 				variable->type.qualifiers ^= reshadefx::nodes::type_node::qualifier_uniform;
@@ -735,6 +768,10 @@ namespace reshade
 		config.get("GENERAL", "FontGlobalScale", _imgui_context->IO.FontGlobalScale);
 		config.get("GENERAL", "NoReloadOnInit", _no_reload_on_init);
 
+		config.get("DEPTH_BUFFER_DETECTION", "DepthBufferRetrievalMode", depth_buffer_retrieval_mode);
+		config.get("DEPTH_BUFFER_DETECTION", "DepthBufferTextureFormat", depth_buffer_texture_format);
+		config.get("DEPTH_BUFFER_DETECTION", "DepthBufferClearingNumber", depth_buffer_clearing_number);
+
 		config.get("STYLE", "Alpha", _imgui_context->Style.Alpha);
 		config.get("STYLE", "ColBackground", _imgui_col_background);
 		config.get("STYLE", "ColItemBackground", _imgui_col_item_background);
@@ -839,6 +876,10 @@ namespace reshade
 		config.set("GENERAL", "FontGlobalScale", _imgui_context->IO.FontGlobalScale);
 		config.set("GENERAL", "NoReloadOnInit", _no_reload_on_init);
 
+		config.set("DEPTH_BUFFER_DETECTION", "DepthBufferRetrievalMode", depth_buffer_retrieval_mode);
+		config.set("DEPTH_BUFFER_DETECTION", "DepthBufferTextureFormat", depth_buffer_texture_format);
+		config.set("DEPTH_BUFFER_DETECTION", "DepthBufferClearingNumber", depth_buffer_clearing_number);
+
 		config.set("STYLE", "Alpha", _imgui_context->Style.Alpha);
 		config.set("STYLE", "ColBackground", _imgui_col_background);
 		config.set("STYLE", "ColItemBackground", _imgui_col_item_background);
@@ -889,10 +930,10 @@ namespace reshade
 
 		std::sort(_techniques.begin(), _techniques.end(),
 			[&technique_sorting_list](const auto &lhs, const auto &rhs) {
-				return
-					(std::find(technique_sorting_list.begin(), technique_sorting_list.end(), lhs.name) - technique_sorting_list.begin()) <
-					(std::find(technique_sorting_list.begin(), technique_sorting_list.end(), rhs.name) - technique_sorting_list.begin());
-			});
+			return
+				(std::find(technique_sorting_list.begin(), technique_sorting_list.end(), lhs.name) - technique_sorting_list.begin()) <
+				(std::find(technique_sorting_list.begin(), technique_sorting_list.end(), rhs.name) - technique_sorting_list.begin());
+		});
 
 		for (auto &technique : _techniques)
 		{
@@ -1009,17 +1050,17 @@ namespace reshade
 		{
 			stbi_write_func *const func =
 				[](void *context, void *data, int size) {
-					fwrite(data, 1, size, static_cast<FILE *>(context));
-				};
+				fwrite(data, 1, size, static_cast<FILE *>(context));
+			};
 
 			switch (_screenshot_format)
 			{
-				case 0:
-					success = stbi_write_bmp_to_func(func, file, _width, _height, 4, data.data()) != 0;
-					break;
-				case 1:
-					success = stbi_write_png_to_func(func, file, _width, _height, 4, data.data(), 0) != 0;
-					break;
+			case 0:
+				success = stbi_write_bmp_to_func(func, file, _width, _height, 4, data.data()) != 0;
+				break;
+			case 1:
+				success = stbi_write_png_to_func(func, file, _width, _height, 4, data.data(), 0) != 0;
+				break;
 			}
 
 			fclose(file);
@@ -1265,9 +1306,9 @@ namespace reshade
 		{
 			ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImGui::GetStyle().ItemSpacing * 2);
 
-			const char *const menu_items[] = { "Home", "Settings", "Statistics", "About" };
+			const char *const menu_items[] = { "Home", "Settings", "Depth Buffer detection settings", "Statistics", "About" };
 
-			for (int i = 0; i < 4; i++)
+			for (int i = 0; i < 5; i++)
 			{
 				if (ImGui::Selectable(menu_items[i], _menu_index == i, 0, ImVec2(ImGui::CalcTextSize(menu_items[i]).x, 0)))
 				{
@@ -1283,18 +1324,21 @@ namespace reshade
 
 		switch (_menu_index)
 		{
-			case 0:
-				draw_overlay_menu_home();
-				break;
-			case 1:
-				draw_overlay_menu_settings();
-				break;
-			case 2:
-				draw_overlay_menu_statistics();
-				break;
-			case 3:
-				draw_overlay_menu_about();
-				break;
+		case 0:
+			draw_overlay_menu_home();
+			break;
+		case 1:
+			draw_overlay_menu_settings();
+			break;
+		case 2:
+			draw_overlay_menu_depth_buffer_detection_settings();
+			break;
+		case 3:
+			draw_overlay_menu_statistics();
+			break;
+		case 4:
+			draw_overlay_menu_about();
+			break;
 		}
 	}
 	void runtime::draw_overlay_menu_home()
@@ -1361,7 +1405,7 @@ namespace reshade
 
 			if (ImGui::BeginPopup("Add Preset"))
 			{
-				char buf[260] = { };
+				char buf[260] = {};
 
 				if (ImGui::InputText("Name", buf, sizeof(buf), ImGuiInputTextFlags_EnterReturnsTrue))
 				{
@@ -1759,6 +1803,83 @@ namespace reshade
 			}
 		}
 	}
+	void runtime::draw_overlay_menu_depth_buffer_detection_settings()
+	{
+		if (ImGui::CollapsingHeader("General", ImGuiTreeNodeFlags_DefaultOpen))
+		{
+			assert(_menu_key_data[0] < 256);
+
+			int depth_buffer_retrieval_mode_index = depth_buffer_retrieval_mode;
+
+			if (ImGui::Combo("Depth detection retrieval mode", &depth_buffer_retrieval_mode_index, "Post process\0Before depth Buffer Clearing\0At output merger state\0"))
+			{
+				_depth_buffer_settings_changed = true;
+				depth_buffer_retrieval_mode = depth_buffer_retrieval_mode_index;
+
+				save_configuration();
+			}
+
+			if (depth_buffer_retrieval_mode == depth_buffer_retrieval_mode::BEFORE_CLEARING_STAGE)
+			{
+				int depth_buffer_clearing_number_index = depth_buffer_clearing_number;
+
+				if (ImGui::Combo("Depth buffer clearing number", &depth_buffer_clearing_number_index, "None\0First\0Second\0Third\0Fourth\0Fifth\0Sixth\0Seventh\0Eighth\0Ninth\0"))
+				{
+					_depth_buffer_settings_changed = true;
+					depth_buffer_clearing_number = depth_buffer_clearing_number_index;
+
+					save_configuration();
+				}
+			}
+
+			int depth_buffer_texture_format_index = 0;
+
+			switch (depth_buffer_texture_format)
+			{
+			case DXGI_FORMAT_UNKNOWN:
+				depth_buffer_texture_format_index = 0;
+				break;
+			case DXGI_FORMAT_R16_TYPELESS:
+				depth_buffer_texture_format_index = 1;
+				break;
+			case DXGI_FORMAT_R32_TYPELESS:
+				depth_buffer_texture_format_index = 2;
+				break;
+			case DXGI_FORMAT_R24G8_TYPELESS:
+				depth_buffer_texture_format_index = 3;
+				break;
+			case DXGI_FORMAT_R32G8X24_TYPELESS:
+				depth_buffer_texture_format_index = 4;
+				break;
+			}
+
+			if (ImGui::Combo("Depth texture format", &depth_buffer_texture_format_index, "DXGI_FORMAT_UNKNOWN\0DXGI_FORMAT_R16_TYPELESS\0DXGI_FORMAT_R32_TYPELESS\0DXGI_FORMAT_R24G8_TYPELESS\0DXGI_FORMAT_R32G8X24_TYPELESS\0"))
+			{
+				_depth_buffer_settings_changed = true;
+
+				switch (depth_buffer_texture_format_index)
+				{
+				case 0:
+					depth_buffer_texture_format = DXGI_FORMAT_UNKNOWN;
+					break;
+				case 1:
+					depth_buffer_texture_format = DXGI_FORMAT_R16_TYPELESS;
+					break;
+				case 2:
+					depth_buffer_texture_format = DXGI_FORMAT_R32_TYPELESS;
+					break;
+				case 3:
+					depth_buffer_texture_format = DXGI_FORMAT_R24G8_TYPELESS;
+					break;
+				case 4:
+					depth_buffer_texture_format = DXGI_FORMAT_R32G8X24_TYPELESS;
+					break;
+				}
+
+				save_configuration();
+			}
+		}
+	}
 	void runtime::draw_overlay_menu_statistics()
 	{
 		if (ImGui::CollapsingHeader("General", ImGuiTreeNodeFlags_DefaultOpen))
@@ -2035,82 +2156,82 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 			switch (variable.displaytype)
 			{
-				case uniform_datatype::boolean:
+			case uniform_datatype::boolean:
+			{
+				bool data[1] = { };
+				get_uniform_value(variable, data, 1);
+
+				int index = data[0] ? 0 : 1;
+
+				if (ImGui::Combo(ui_label.c_str(), &index, "On\0Off\0"))
 				{
-					bool data[1] = { };
-					get_uniform_value(variable, data, 1);
+					data[0] = index == 0;
+					modified = true;
 
-					int index = data[0] ? 0 : 1;
-
-					if (ImGui::Combo(ui_label.c_str(), &index, "On\0Off\0"))
-					{
-						data[0] = index == 0;
-						modified = true;
-
-						set_uniform_value(variable, data, 1);
-					}
-					else if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0))
-					{
-						data[0] = !data[0];
-						modified = true;
-
-						set_uniform_value(variable, data, 1);
-					}
-					break;
+					set_uniform_value(variable, data, 1);
 				}
-				case uniform_datatype::signed_integer:
-				case uniform_datatype::unsigned_integer:
+				else if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0))
 				{
-					int data[4] = { };
-					get_uniform_value(variable, data, 4);
+					data[0] = !data[0];
+					modified = true;
 
-					if (ui_type == "drag")
-					{
-						modified = ImGui::DragIntN(ui_label.c_str(), data, variable.rows, variable.annotations["ui_step"].as<float>(), variable.annotations["ui_min"].as<int>(), variable.annotations["ui_max"].as<int>(), nullptr);
-					}
-					else if (ui_type == "combo")
-					{
-						modified = ImGui::Combo(ui_label.c_str(), data, variable.annotations["ui_items"].as<std::string>().c_str());
-					}
-					else
-					{
-						modified = ImGui::InputIntN(ui_label.c_str(), data, variable.rows, 0);
-					}
-
-					if (modified)
-					{
-						set_uniform_value(variable, data, 4);
-					}
-					break;
+					set_uniform_value(variable, data, 1);
 				}
-				case uniform_datatype::floating_point:
+				break;
+			}
+			case uniform_datatype::signed_integer:
+			case uniform_datatype::unsigned_integer:
+			{
+				int data[4] = { };
+				get_uniform_value(variable, data, 4);
+
+				if (ui_type == "drag")
 				{
-					float data[4] = { };
-					get_uniform_value(variable, data, 4);
-
-					if (ui_type == "drag")
-					{
-						modified = ImGui::DragFloatN(ui_label.c_str(), data, variable.rows, variable.annotations["ui_step"].as<float>(), variable.annotations["ui_min"].as<float>(), variable.annotations["ui_max"].as<float>(), "%.3f", 1.0f);
-					}
-					else if (ui_type == "input" || (ui_type.empty() && variable.rows < 3))
-					{
-						modified = ImGui::InputFloatN(ui_label.c_str(), data, variable.rows, 8, 0);
-					}
-					else if (variable.rows == 3)
-					{
-						modified = ImGui::ColorEdit3(ui_label.c_str(), data);
-					}
-					else if (variable.rows == 4)
-					{
-						modified = ImGui::ColorEdit4(ui_label.c_str(), data);
-					}
-
-					if (modified)
-					{
-						set_uniform_value(variable, data, 4);
-					}
-					break;
+					modified = ImGui::DragIntN(ui_label.c_str(), data, variable.rows, variable.annotations["ui_step"].as<float>(), variable.annotations["ui_min"].as<int>(), variable.annotations["ui_max"].as<int>(), nullptr);
 				}
+				else if (ui_type == "combo")
+				{
+					modified = ImGui::Combo(ui_label.c_str(), data, variable.annotations["ui_items"].as<std::string>().c_str());
+				}
+				else
+				{
+					modified = ImGui::InputIntN(ui_label.c_str(), data, variable.rows, 0);
+				}
+
+				if (modified)
+				{
+					set_uniform_value(variable, data, 4);
+				}
+				break;
+			}
+			case uniform_datatype::floating_point:
+			{
+				float data[4] = { };
+				get_uniform_value(variable, data, 4);
+
+				if (ui_type == "drag")
+				{
+					modified = ImGui::DragFloatN(ui_label.c_str(), data, variable.rows, variable.annotations["ui_step"].as<float>(), variable.annotations["ui_min"].as<float>(), variable.annotations["ui_max"].as<float>(), "%.3f", 1.0f);
+				}
+				else if (ui_type == "input" || (ui_type.empty() && variable.rows < 3))
+				{
+					modified = ImGui::InputFloatN(ui_label.c_str(), data, variable.rows, 8, 0);
+				}
+				else if (variable.rows == 3)
+				{
+					modified = ImGui::ColorEdit3(ui_label.c_str(), data);
+				}
+				else if (variable.rows == 4)
+				{
+					modified = ImGui::ColorEdit4(ui_label.c_str(), data);
+				}
+
+				if (modified)
+				{
+					set_uniform_value(variable, data, 4);
+				}
+				break;
+			}
 			}
 
 			if (ImGui::IsItemHovered() && !ui_tooltip.empty())

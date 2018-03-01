@@ -1,7 +1,7 @@
 /**
- * Copyright (C) 2014 Patrick Mours. All rights reserved.
- * License: https://github.com/crosire/reshade#license
- */
+* Copyright (C) 2014 Patrick Mours. All rights reserved.
+* License: https://github.com/crosire/reshade#license
+*/
 
 #pragma once
 
@@ -30,18 +30,18 @@ struct D3D11DeviceContext : ID3D11DeviceContext3
 	D3D11DeviceContext(const D3D11DeviceContext &) = delete;
 	D3D11DeviceContext &operator=(const D3D11DeviceContext &) = delete;
 
-	#pragma region IUnknown
+#pragma region IUnknown
 	virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObj) override;
 	virtual ULONG STDMETHODCALLTYPE AddRef() override;
 	virtual ULONG STDMETHODCALLTYPE Release() override;
-	#pragma endregion
-	#pragma region ID3D11DeviceChild
+#pragma endregion
+#pragma region ID3D11DeviceChild
 	virtual void STDMETHODCALLTYPE GetDevice(ID3D11Device **ppDevice) override;
 	virtual HRESULT STDMETHODCALLTYPE GetPrivateData(REFGUID guid, UINT *pDataSize, void *pData) override;
 	virtual HRESULT STDMETHODCALLTYPE SetPrivateData(REFGUID guid, UINT DataSize, const void *pData) override;
 	virtual HRESULT STDMETHODCALLTYPE SetPrivateDataInterface(REFGUID guid, const IUnknown *pData) override;
-	#pragma endregion
-	#pragma region ID3D11DeviceContext
+#pragma endregion
+#pragma region ID3D11DeviceContext
 	virtual void STDMETHODCALLTYPE VSSetConstantBuffers(UINT StartSlot, UINT NumBuffers, ID3D11Buffer *const *ppConstantBuffers) override;
 	virtual void STDMETHODCALLTYPE PSSetShaderResources(UINT StartSlot, UINT NumViews, ID3D11ShaderResourceView *const *ppShaderResourceViews) override;
 	virtual void STDMETHODCALLTYPE PSSetShader(ID3D11PixelShader *pPixelShader, ID3D11ClassInstance *const *ppClassInstances, UINT NumClassInstances) override;
@@ -150,8 +150,8 @@ struct D3D11DeviceContext : ID3D11DeviceContext3
 	virtual UINT STDMETHODCALLTYPE GetContextFlags() override;
 	virtual HRESULT STDMETHODCALLTYPE FinishCommandList(BOOL RestoreDeferredContextState, ID3D11CommandList **ppCommandList) override;
 	virtual D3D11_DEVICE_CONTEXT_TYPE STDMETHODCALLTYPE GetType() override;
-	#pragma endregion
-	#pragma region ID3D11DeviceContext1
+#pragma endregion
+#pragma region ID3D11DeviceContext1
 	virtual void STDMETHODCALLTYPE CopySubresourceRegion1(ID3D11Resource *pDstResource, UINT DstSubresource, UINT DstX, UINT DstY, UINT DstZ, ID3D11Resource *pSrcResource, UINT SrcSubresource, const D3D11_BOX *pSrcBox, UINT CopyFlags) override;
 	virtual void STDMETHODCALLTYPE UpdateSubresource1(ID3D11Resource *pDstResource, UINT DstSubresource, const D3D11_BOX *pDstBox, const void *pSrcData, UINT SrcRowPitch, UINT SrcDepthPitch, UINT CopyFlags) override;
 	virtual void STDMETHODCALLTYPE DiscardResource(ID3D11Resource *pResource) override;
@@ -171,8 +171,8 @@ struct D3D11DeviceContext : ID3D11DeviceContext3
 	virtual void STDMETHODCALLTYPE SwapDeviceContextState(ID3DDeviceContextState *pState, ID3DDeviceContextState **ppPreviousState) override;
 	virtual void STDMETHODCALLTYPE ClearView(ID3D11View *pView, const FLOAT Color[4], const D3D11_RECT *pRect, UINT NumRects) override;
 	virtual void STDMETHODCALLTYPE DiscardView1(ID3D11View *pResourceView, const D3D11_RECT *pRects, UINT NumRects) override;
-	#pragma endregion
-	#pragma region ID3D11DeviceContext2
+#pragma endregion
+#pragma region ID3D11DeviceContext2
 	virtual HRESULT STDMETHODCALLTYPE UpdateTileMappings(ID3D11Resource *pTiledResource, UINT NumTiledResourceRegions, const D3D11_TILED_RESOURCE_COORDINATE *pTiledResourceRegionStartCoordinates, const D3D11_TILE_REGION_SIZE *pTiledResourceRegionSizes, ID3D11Buffer *pTilePool, UINT NumRanges, const UINT *pRangeFlags, const UINT *pTilePoolStartOffsets, const UINT *pRangeTileCounts, UINT Flags) override;
 	virtual HRESULT STDMETHODCALLTYPE CopyTileMappings(ID3D11Resource *pDestTiledResource, const D3D11_TILED_RESOURCE_COORDINATE *pDestRegionStartCoordinate, ID3D11Resource *pSourceTiledResource, const D3D11_TILED_RESOURCE_COORDINATE *pSourceRegionStartCoordinate, const D3D11_TILE_REGION_SIZE *pTileRegionSize, UINT Flags) override;
 	virtual void STDMETHODCALLTYPE CopyTiles(ID3D11Resource *pTiledResource, const D3D11_TILED_RESOURCE_COORDINATE *pTileRegionStartCoordinate, const D3D11_TILE_REGION_SIZE *pTileRegionSize, ID3D11Buffer *pBuffer, UINT64 BufferStartOffsetInBytes, UINT Flags) override;
@@ -183,22 +183,32 @@ struct D3D11DeviceContext : ID3D11DeviceContext3
 	virtual void STDMETHODCALLTYPE SetMarkerInt(LPCWSTR pLabel, INT Data) override;
 	virtual void STDMETHODCALLTYPE BeginEventInt(LPCWSTR pLabel, INT Data) override;
 	virtual void STDMETHODCALLTYPE EndEvent() override;
-	#pragma endregion
-	#pragma region ID3D11DeviceContext3
+#pragma endregion
+#pragma region ID3D11DeviceContext3
 	virtual void STDMETHODCALLTYPE Flush1(D3D11_CONTEXT_TYPE ContextType, HANDLE hEvent) override;
 	virtual void STDMETHODCALLTYPE SetHardwareProtectionState(BOOL HwProtectionEnable) override;
 	virtual void STDMETHODCALLTYPE GetHardwareProtectionState(BOOL *pHwProtectionEnable) override;
-	#pragma endregion
+#pragma endregion
 
 	void log_drawcall(UINT vertices);
+	ID3D11DepthStencilView *copy_depthstencil(ID3D11DepthStencilView *depthstencil);
+	com_ptr<ID3D11Texture2D> copy_depth_texture(D3D11_TEXTURE2D_DESC texture_desc, ID3D11Texture2D *depthtexture);
+	bool check_depthstencil(ID3D11DepthStencilView* pDepthStencilView, com_ptr<ID3D11Texture2D> texture, D3D11_TEXTURE2D_DESC texture_desc);
 	void set_active_depthstencil(ID3D11DepthStencilView* pDepthStencilView);
+	void set_active_OM_depthstencil(ID3D11DepthStencilView* pDepthStencilView);
+	void set_active_cleared_depthstencil(ID3D11DepthStencilView* pDepthStencilView);
 
 	void clear_drawcall_stats();
 
 	LONG _ref = 1;
+	unsigned int _vertices_treshold = 10000;
 	ID3D11DeviceContext *_orig;
 	unsigned int _interface_version;
 	D3D11Device *const _device;
 	com_ptr<ID3D11DepthStencilView> _active_depthstencil;
+	com_ptr<ID3D11Texture2D> _depth_texture;
 	reshade::d3d11::draw_call_tracker _draw_call_tracker;
+	static unsigned int _clear_DSV_iter;
+	static unsigned int _best_vertices;
+	static unsigned int _best_drawcalls;
 };

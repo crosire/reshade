@@ -1,7 +1,7 @@
 /**
- * Copyright (C) 2014 Patrick Mours. All rights reserved.
- * License: https://github.com/crosire/reshade#license
- */
+* Copyright (C) 2014 Patrick Mours. All rights reserved.
+* License: https://github.com/crosire/reshade#license
+*/
 
 #pragma once
 
@@ -31,14 +31,70 @@ namespace reshade
 	class runtime abstract
 	{
 	public:
+		enum class game
+		{
+			ACO,                // Assassin's Creed Origins
+			PCARS2,				// Project Cars 2
+			PCARS2AVX,			// Project Cars 2 - other exe
+			TITANFALL2,			// TitanFall 2
+			TITANFALL2_TRIAL,   // TitanFall 2 - trial exe
+			SOW,     			// Shadow Of War
+			ELEX,     			// Elex
+			AOM_RELEASE_FINAL,  // Agents Of Mahyem
+			AOM,     			// Agents Of Mahyem - other exe
+			UNKNOWN
+		};
+
+		enum depth_buffer_retrieval_mode {
+			POST_PROCESS = 0,
+			BEFORE_CLEARING_STAGE = 1,
+			AT_OM_STAGE = 2
+		};
+
+		enum depth_buffer_texture_type {
+			BOTH = 0,
+			DEPTH_BUFFER = 1,
+			STENCIL_BUFFER = 2
+		};
+
+		enum class allowed_technique
+		{
+			DISPLAY_DEPTH,
+			SUPER_DEPTH_3D,
+			POLYNOMIAL_BARREL_DISTORTION_M,
+			POLYNOMIAL_BARREL_DISTORTION_S,
+			MXAO
+		};
+
 		/// <summary>
 		/// File path to the current module.
 		/// </summary>
 		static filesystem::path s_reshade_dll_path;
 		/// <summary>
+		/// screen width
+		/// </summary>
+		static unsigned int screen_width;
+		/// <summary>
+		/// screen height
+		/// </summary>
+		static unsigned int screen_height;
+		/// <summary>
 		/// File path to the current executable.
 		/// </summary>
 		static filesystem::path s_target_executable_path;
+		/// <summary>
+		/// Depth buffer retrieval mode (post process, before depth Buffer Clearing)
+		/// </summary>
+		static unsigned int depth_buffer_retrieval_mode;
+		/// <summary>
+		/// Depth buffer clearing number
+		/// </summary>
+		static unsigned int depth_buffer_clearing_number;
+		/// <summary>
+		/// Depth buffer texture format
+		/// </summary>
+		static unsigned int depth_buffer_texture_format;
+		static unsigned int OM_iter;
 
 		/// <summary>
 		/// Construct a new runtime instance.
@@ -119,6 +175,7 @@ namespace reshade
 		void set_uniform_value(uniform &variable, const float *values, size_t count);
 
 	protected:
+
 		/// <summary>
 		/// Callback function called when the runtime is initialized.
 		/// </summary>
@@ -176,6 +233,17 @@ namespace reshade
 		/// <param name="data">The draw data to render.</param>
 		virtual void render_imgui_draw_data(ImDrawData *draw_data) = 0;
 
+		/// <summary>
+		/// retrieve host app name.
+		/// </summary>
+		/// <param name="data">The draw data to render.</param>
+		std::string const _get_host_app(void);
+		/// <summary>
+		/// init game list
+		/// </summary>
+		/// <param name="data">The draw data to render.</param>
+		void const _init_game_list(std::unordered_map<std::string, game> &game_list);
+
 		unsigned int _width = 0, _height = 0;
 		unsigned int _vendor_id = 0, _device_id = 0;
 		uint64_t _framecount = 0;
@@ -187,6 +255,10 @@ namespace reshade
 		std::vector<texture> _textures;
 		std::vector<uniform> _uniforms;
 		std::vector<technique> _techniques;
+		std::string _host_process_name;
+		std::unordered_map<std::string, game> _game_list;
+		bool _depth_buffer_settings_changed = false;
+		bool _whitelist_enabled = false;
 
 	private:
 		void reload();
@@ -202,6 +274,7 @@ namespace reshade
 		void draw_overlay_menu();
 		void draw_overlay_menu_home();
 		void draw_overlay_menu_settings();
+		void draw_overlay_menu_depth_buffer_detection_settings();
 		void draw_overlay_menu_statistics();
 		void draw_overlay_menu_about();
 		void draw_overlay_variable_editor();
@@ -220,7 +293,7 @@ namespace reshade
 		std::chrono::high_resolution_clock::time_point _last_present_time;
 		std::chrono::high_resolution_clock::duration _last_frame_duration;
 		std::vector<unsigned char> _uniform_data_storage;
-		int _date[4] = { };
+		int _date[4] = {};
 		std::string _errors;
 		std::vector<std::string> _preprocessor_definitions;
 		int _menu_index = 0;
@@ -253,7 +326,7 @@ namespace reshade
 		float _variable_editor_height = 0.0f;
 		unsigned int _tutorial_index = 0;
 		unsigned int _effects_expanded_state = 2;
-		char _effect_filter_buffer[64] = { };
+		char _effect_filter_buffer[64] = {};
 		size_t _reload_remaining_effects = 0;
 		size_t _texture_count = 0;
 		size_t _uniform_count = 0;
