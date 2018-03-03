@@ -2360,6 +2360,7 @@ namespace reshade::opengl
 			glGetProgramInfoLog(pass.program, logsize, nullptr, &log.front());
 
 			glDeleteProgram(pass.program);
+			pass.program = 0;
 
 			_errors += log;
 			error(node->location, "program linking failed");

@@ -348,23 +348,9 @@ HOOK_EXPORT int   WINAPI wglSetLayerPaletteEntries(HDC hdc, int iLayerPlane, int
 HOOK_EXPORT HGLRC WINAPI wglCreateContext(HDC hdc)
 {
 	LOG(INFO) << "Redirecting '" << "wglCreateContext" << "(" << hdc << ")' ...";
+	LOG(INFO) << "> Passing on to 'wglCreateLayerContext' ...";
 
-	const HGLRC hglrc = reshade::hooks::call(&wglCreateContext)(hdc);
-
-	if (hglrc == nullptr)
-	{
-		LOG(WARNING) << "> 'wglCreateContext' failed with error code " << (GetLastError() & 0xFFFF) << "!";
-
-		return nullptr;
-	}
-
-	{ const std::lock_guard<std::mutex> lock(s_mutex);
-		s_shared_contexts.emplace(hglrc, nullptr);
-	}
-
-	LOG(INFO) << "> Returned OpenGL context: " << hglrc;
-
-	return hglrc;
+	return wglCreateLayerContext(hdc, 0);
 }
 			HGLRC WINAPI wglCreateContextAttribsARB(HDC hdc, HGLRC hShareContext, const int *piAttribList)
 {
@@ -495,9 +481,22 @@ HOOK_EXPORT HGLRC WINAPI wglCreateLayerContext(HDC hdc, int iLayerPlane)
 		return nullptr;
 	}
 
-	LOG(INFO) << "> Passing on to 'wglCreateContext':";
+	const HGLRC hglrc = reshade::hooks::call(&wglCreateLayerContext)(hdc, iLayerPlane);
 
-	return wglCreateContext(hdc);
+	if (hglrc == nullptr)
+	{
+		LOG(WARNING) << "> 'wglCreateLayerContext' failed with error code " << (GetLastError() & 0xFFFF) << "!";
+
+		return nullptr;
+	}
+
+	{ const std::lock_guard<std::mutex> lock(s_mutex);
+		s_shared_contexts.emplace(hglrc, nullptr);
+	}
+
+	LOG(INFO) << "> Returned OpenGL context: " << hglrc;
+
+	return hglrc;
 }
 HOOK_EXPORT BOOL  WINAPI wglCopyContext(HGLRC hglrcSrc, HGLRC hglrcDst, UINT mask)
 {
