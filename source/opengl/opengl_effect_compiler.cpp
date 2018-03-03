@@ -2528,6 +2528,19 @@ namespace reshade::opengl
 				const std::string swizzle[3] = { "x", "xy", "xyz" };
 
 				source << "vec4(0, 0, 0, 1);\n_return." << swizzle[node->return_type.rows - 1] << " = ";
+
+				if (node->return_type.is_vector())
+				{
+					source << "vec" << node->return_type.rows << '(';
+				}
+				else
+				{
+					source << "float(";
+				}
+			}
+			else
+			{
+				source << '(';
 			}
 		}
 
@@ -2554,7 +2567,14 @@ namespace reshade::opengl
 			}
 		}
 
-		source << ");\n";
+		source << ')';
+
+		if (!node->return_type.is_void())
+		{
+			source << ')';
+		}
+
+		source << ";\n";
 
 		for (auto parameter : node->parameter_list)
 		{
@@ -2650,6 +2670,12 @@ namespace reshade::opengl
 	void opengl_effect_compiler::visit_shader_param(std::stringstream &output, type_node type, unsigned int qualifier, const std::string &name, const std::string &semantic, unsigned int shadertype)
 	{
 		type.qualifiers = static_cast<unsigned int>(qualifier);
+
+		// OpenGL does not allow varying of type boolean
+		if (type.basetype = type_node::datatype_bool)
+		{
+			type.basetype = type_node::datatype_float;
+		}
 
 		unsigned long location = 0;
 
