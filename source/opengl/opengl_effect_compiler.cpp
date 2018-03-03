@@ -637,6 +637,11 @@ namespace reshade::opengl
 	{
 		if (!node->type.is_scalar())
 		{
+			if (node->type.is_matrix())
+			{
+				output << "transpose(";
+			}
+
 			visit(output, node->type, false, false);
 
 			output << '(';
@@ -668,6 +673,11 @@ namespace reshade::opengl
 
 		if (!node->type.is_scalar())
 		{
+			if (node->type.is_matrix())
+			{
+				output << ')';
+			}
+
 			output << ')';
 		}
 	}
