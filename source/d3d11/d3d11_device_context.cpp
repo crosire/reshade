@@ -222,8 +222,7 @@ void D3D11DeviceContext::set_active_cleared_depthstencil(ID3D11DepthStencilView*
 		{
 			if (reshade::runtime::depth_buffer_clearing_number == 0 || reshade::runtime::depth_buffer_clearing_number == _clear_DSV_iter)
 			{
-				_active_depthstencil = copy_depthstencil(pDepthStencilView);
-				_draw_call_tracker.track_depthstencil(_active_depthstencil.get());
+				set_active_depthstencil(pDepthStencilView);
 				// copy the depth stencil texture
 				_depth_texture = copy_depth_texture(texture_desc, texture.get());
 
