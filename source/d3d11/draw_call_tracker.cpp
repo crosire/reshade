@@ -186,8 +186,19 @@ namespace reshade::d3d11
 		return _active_depth_texture.get();
 	}
 
-	draw_call_tracker::depthstencil_counter_info draw_call_tracker::get_counters()
+	draw_call_tracker::depthstencil_counter_info draw_call_tracker::get_counters(ID3D11DepthStencilView* depthstencil)
 	{
-		return _counters;
+		for (auto it : _counters_per_used_depthstencil)
+		{
+			const auto current_depthstencil = it.first;
+			auto &depthstencil_info = it.second;
+
+			if (current_depthstencil == depthstencil)
+			{
+				return depthstencil_info;
+			}
+		}
+
+		return depthstencil_counter_info();
 	}
 }

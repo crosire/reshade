@@ -189,13 +189,13 @@ void D3D11DeviceContext::set_active_cleared_depthstencil(ID3D11DepthStencilView*
 			return;
 		}
 
-		reshade::d3d11::draw_call_tracker::depthstencil_counter_info counters = _draw_call_tracker.get_counters();
+		reshade::d3d11::draw_call_tracker::depthstencil_counter_info counters = _draw_call_tracker.get_counters(pDepthStencilView);
+		set_active_depthstencil(pDepthStencilView);
 
 		if (counters.vertices > _vertices_treshold && counters.vertices > _best_vertices)
 		{
 			if (reshade::runtime::depth_buffer_clearing_number == 0 || reshade::runtime::depth_buffer_clearing_number == _clear_DSV_iter)
 			{
-				set_active_depthstencil(pDepthStencilView);
 				// copy the depth stencil texture
 				_depth_texture = copy_depth_texture(texture_desc, texture.get());
 				_draw_call_tracker.set_depth_texture(_depth_texture.get());
@@ -203,6 +203,7 @@ void D3D11DeviceContext::set_active_cleared_depthstencil(ID3D11DepthStencilView*
 
 			_best_vertices = counters.vertices;
 			_best_drawcalls = counters.vertices;
+			// _draw_call_tracker.reset(false);
 			_clear_DSV_iter++;
 		}
 	}

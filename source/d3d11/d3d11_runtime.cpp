@@ -1050,119 +1050,122 @@ namespace reshade::d3d11
 				_depthstencil->GetResource(reinterpret_cast<ID3D11Resource **>(&_depthstencil_texture));
 			}
 
-			D3D11_TEXTURE2D_DESC texdesc;
-			_depthstencil_texture->GetDesc(&texdesc);
-
-			HRESULT hr = S_OK;
-
-			if ((texdesc.BindFlags & D3D11_BIND_SHADER_RESOURCE) == 0)
+			if(_depthstencil_texture != nullptr)
 			{
-				_depthstencil_texture.reset();
+				D3D11_TEXTURE2D_DESC texdesc;
+				_depthstencil_texture->GetDesc(&texdesc);
 
-				switch (texdesc.Format)
+				HRESULT hr = S_OK;
+
+				if ((texdesc.BindFlags & D3D11_BIND_SHADER_RESOURCE) == 0)
 				{
-				case DXGI_FORMAT_R16_TYPELESS:
-				case DXGI_FORMAT_D16_UNORM:
-					texdesc.Format = DXGI_FORMAT_R16_TYPELESS;
-					break;
-				case DXGI_FORMAT_R32_TYPELESS:
-				case DXGI_FORMAT_D32_FLOAT:
-					texdesc.Format = DXGI_FORMAT_R32_TYPELESS;
-					break;
-				default:
-				case DXGI_FORMAT_R24G8_TYPELESS:
-				case DXGI_FORMAT_D24_UNORM_S8_UINT:
-					texdesc.Format = DXGI_FORMAT_R24G8_TYPELESS;
-					break;
-				case DXGI_FORMAT_R32G8X24_TYPELESS:
-				case DXGI_FORMAT_D32_FLOAT_S8X24_UINT:
-					texdesc.Format = DXGI_FORMAT_R32G8X24_TYPELESS;
-					break;
-				}
-
-				texdesc.BindFlags = D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_SHADER_RESOURCE;
-
-				hr = _device->CreateTexture2D(&texdesc, nullptr, &_depthstencil_texture);
-
-				if (SUCCEEDED(hr))
-				{
-					D3D11_DEPTH_STENCIL_VIEW_DESC dsvdesc = { };
-					dsvdesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
+					_depthstencil_texture.reset();
 
 					switch (texdesc.Format)
 					{
 					case DXGI_FORMAT_R16_TYPELESS:
-						dsvdesc.Format = DXGI_FORMAT_D16_UNORM;
+					case DXGI_FORMAT_D16_UNORM:
+						texdesc.Format = DXGI_FORMAT_R16_TYPELESS;
 						break;
 					case DXGI_FORMAT_R32_TYPELESS:
-						dsvdesc.Format = DXGI_FORMAT_D32_FLOAT;
+					case DXGI_FORMAT_D32_FLOAT:
+						texdesc.Format = DXGI_FORMAT_R32_TYPELESS;
 						break;
+					default:
 					case DXGI_FORMAT_R24G8_TYPELESS:
-						dsvdesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+					case DXGI_FORMAT_D24_UNORM_S8_UINT:
+						texdesc.Format = DXGI_FORMAT_R24G8_TYPELESS;
 						break;
 					case DXGI_FORMAT_R32G8X24_TYPELESS:
-						dsvdesc.Format = DXGI_FORMAT_D32_FLOAT_S8X24_UINT;
+					case DXGI_FORMAT_D32_FLOAT_S8X24_UINT:
+						texdesc.Format = DXGI_FORMAT_R32G8X24_TYPELESS;
 						break;
 					}
 
-					hr = _device->CreateDepthStencilView(_depthstencil_texture.get(), &dsvdesc, &_depthstencil_replacement);
-				}
-			}
+					texdesc.BindFlags = D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_SHADER_RESOURCE;
 
-			if (FAILED(hr))
-			{
-				LOG(ERROR) << "Failed to create depth stencil replacement texture! HRESULT is '" << std::hex << hr << std::dec << "'.";
+					hr = _device->CreateTexture2D(&texdesc, nullptr, &_depthstencil_texture);
 
-				return false;
-			}
-
-			D3D11_SHADER_RESOURCE_VIEW_DESC srvdesc = { };
-			srvdesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-			srvdesc.Texture2D.MipLevels = 1;
-
-			switch (texdesc.Format)
-			{
-			case DXGI_FORMAT_R16_TYPELESS:
-				srvdesc.Format = DXGI_FORMAT_R16_FLOAT;
-				break;
-			case DXGI_FORMAT_R32_TYPELESS:
-				srvdesc.Format = DXGI_FORMAT_R32_FLOAT;
-				break;
-			case DXGI_FORMAT_R24G8_TYPELESS:
-				srvdesc.Format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
-				break;
-			case DXGI_FORMAT_R32G8X24_TYPELESS:
-				srvdesc.Format = DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS;
-				break;
-			}
-
-			hr = _device->CreateShaderResourceView(_depthstencil_texture.get(), &srvdesc, &_depthstencil_texture_srv);
-
-			if (FAILED(hr))
-			{
-				LOG(ERROR) << "Failed to create depth stencil replacement resource view! HRESULT is '" << std::hex << hr << std::dec << "'.";
-
-				return false;
-			}
-
-			if (depth_buffer_retrieval_mode == depth_buffer_retrieval_mode::POST_PROCESS && _depthstencil != _depthstencil_replacement)
-			{
-				// Update auto depth stencil
-				com_ptr<ID3D11DepthStencilView> current_depthstencil;
-				ID3D11RenderTargetView *targets[D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT] = { nullptr };
-
-				_immediate_context->OMGetRenderTargets(D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT, targets, &current_depthstencil);
-
-				if (current_depthstencil != nullptr && current_depthstencil == _depthstencil)
-				{
-					_immediate_context->OMSetRenderTargets(D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT, targets, _depthstencil_replacement.get());
-				}
-
-				for (UINT i = 0; i < D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT; ++i)
-				{
-					if (targets[i] != nullptr)
+					if (SUCCEEDED(hr))
 					{
-						targets[i]->Release();
+						D3D11_DEPTH_STENCIL_VIEW_DESC dsvdesc = { };
+						dsvdesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
+
+						switch (texdesc.Format)
+						{
+						case DXGI_FORMAT_R16_TYPELESS:
+							dsvdesc.Format = DXGI_FORMAT_D16_UNORM;
+							break;
+						case DXGI_FORMAT_R32_TYPELESS:
+							dsvdesc.Format = DXGI_FORMAT_D32_FLOAT;
+							break;
+						case DXGI_FORMAT_R24G8_TYPELESS:
+							dsvdesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+							break;
+						case DXGI_FORMAT_R32G8X24_TYPELESS:
+							dsvdesc.Format = DXGI_FORMAT_D32_FLOAT_S8X24_UINT;
+							break;
+						}
+
+						hr = _device->CreateDepthStencilView(_depthstencil_texture.get(), &dsvdesc, &_depthstencil_replacement);
+					}
+				}
+
+				if (FAILED(hr))
+				{
+					LOG(ERROR) << "Failed to create depth stencil replacement texture! HRESULT is '" << std::hex << hr << std::dec << "'.";
+
+					return false;
+				}
+
+				D3D11_SHADER_RESOURCE_VIEW_DESC srvdesc = { };
+				srvdesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+				srvdesc.Texture2D.MipLevels = 1;
+
+				switch (texdesc.Format)
+				{
+				case DXGI_FORMAT_R16_TYPELESS:
+					srvdesc.Format = DXGI_FORMAT_R16_FLOAT;
+					break;
+				case DXGI_FORMAT_R32_TYPELESS:
+					srvdesc.Format = DXGI_FORMAT_R32_FLOAT;
+					break;
+				case DXGI_FORMAT_R24G8_TYPELESS:
+					srvdesc.Format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
+					break;
+				case DXGI_FORMAT_R32G8X24_TYPELESS:
+					srvdesc.Format = DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS;
+					break;
+				}
+
+				hr = _device->CreateShaderResourceView(_depthstencil_texture.get(), &srvdesc, &_depthstencil_texture_srv);
+
+				if (FAILED(hr))
+				{
+					LOG(ERROR) << "Failed to create depth stencil replacement resource view! HRESULT is '" << std::hex << hr << std::dec << "'.";
+
+					return false;
+				}
+
+				if (depth_buffer_retrieval_mode == depth_buffer_retrieval_mode::POST_PROCESS && _depthstencil != _depthstencil_replacement)
+				{
+					// Update auto depth stencil
+					com_ptr<ID3D11DepthStencilView> current_depthstencil;
+					ID3D11RenderTargetView *targets[D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT] = { nullptr };
+
+					_immediate_context->OMGetRenderTargets(D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT, targets, &current_depthstencil);
+
+					if (current_depthstencil != nullptr && current_depthstencil == _depthstencil)
+					{
+						_immediate_context->OMSetRenderTargets(D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT, targets, _depthstencil_replacement.get());
+					}
+
+					for (UINT i = 0; i < D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT; ++i)
+					{
+						if (targets[i] != nullptr)
+						{
+							targets[i]->Release();
+						}
 					}
 				}
 			}
