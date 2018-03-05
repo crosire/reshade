@@ -144,12 +144,6 @@ namespace reshade::d3d11
 				continue;
 			}
 
-			// we check that the texture format is one of the correct depth buffer format
-			if (texture_desc.Format != DXGI_FORMAT_R16_TYPELESS && texture_desc.Format != DXGI_FORMAT_R32_TYPELESS && texture_desc.Format != DXGI_FORMAT_R24G8_TYPELESS && texture_desc.Format != DXGI_FORMAT_R32G8X24_TYPELESS)
-			{
-				continue;
-			}
-
 			if (reshade::runtime::depth_buffer_texture_format != DXGI_FORMAT_UNKNOWN)
 			{
 				// we check the texture format, if filtered
@@ -161,9 +155,7 @@ namespace reshade::d3d11
 
 			if (reshade::runtime::depth_buffer_retrieval_mode == reshade::runtime::depth_buffer_retrieval_mode::POST_PROCESS)
 			{
-				bool heuristic_result = (depthstencil_info.vertices * (1.2f - float(depthstencil_info.drawcalls) / drawcalls)) >= (best_info.vertices * (1.2f - float(best_info.drawcalls) / drawcalls));
-
-				if (heuristic_result == true)
+				if (depthstencil_info.drawcalls >= best_info.drawcalls)
 				{
 					best_match = depthstencil.get();
 					best_info.vertices = depthstencil_info.vertices;
@@ -186,19 +178,8 @@ namespace reshade::d3d11
 		return _active_depth_texture.get();
 	}
 
-	draw_call_tracker::depthstencil_counter_info draw_call_tracker::get_counters(ID3D11DepthStencilView* depthstencil)
+	draw_call_tracker::depthstencil_counter_info draw_call_tracker::get_counters()
 	{
-		for (auto it : _counters_per_used_depthstencil)
-		{
-			const auto current_depthstencil = it.first;
-			auto &depthstencil_info = it.second;
-
-			if (current_depthstencil == depthstencil)
-			{
-				return depthstencil_info;
-			}
-		}
-
-		return depthstencil_counter_info();
+		return _counters;
 	}
 }
