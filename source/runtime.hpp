@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include <dxgiformat.h>
 #include <chrono>
 #include "filesystem.hpp"
 #include "runtime_objects.hpp"
@@ -57,14 +58,6 @@ namespace reshade
 		/// </summary>
 		static filesystem::path s_reshade_dll_path;
 		/// <summary>
-		/// screen width
-		/// </summary>
-		static unsigned int screen_width;
-		/// <summary>
-		/// screen height
-		/// </summary>
-		static unsigned int screen_height;
-		/// <summary>
 		/// File path to the current executable.
 		/// </summary>
 		static filesystem::path s_target_executable_path;
@@ -79,8 +72,6 @@ namespace reshade
 		/// <summary>
 		/// Depth buffer texture format
 		/// </summary>
-		unsigned int depth_buffer_texture_format;
-		unsigned int OM_iter;
 
 		/// <summary>
 		/// Construct a new runtime instance.
@@ -240,9 +231,8 @@ namespace reshade
 		std::vector<texture> _textures;
 		std::vector<uniform> _uniforms;
 		std::vector<technique> _techniques;
-		std::string _host_process_name;
 		bool _depth_buffer_settings_changed = false;
-		bool _whitelist_enabled = false;
+		unsigned int _depth_buffer_texture_format = DXGI_FORMAT_UNKNOWN; // no depth buffer texture filtering by default
 
 	private:
 		void reload();

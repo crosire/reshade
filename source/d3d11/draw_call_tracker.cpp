@@ -75,12 +75,11 @@ namespace reshade::d3d11
 		}
 	}
 
-	ID3D11DepthStencilView* draw_call_tracker::get_best_depth_stencil(std::string host_process_name, std::unordered_map<std::string, runtime::game> game_list, UINT drawcalls, const com_ptr<ID3D11Device> device, const com_ptr<ID3D11DeviceContext> devicecontext, UINT width, UINT height)
+	ID3D11DepthStencilView* draw_call_tracker::get_best_depth_stencil(UINT drawcalls, const com_ptr<ID3D11Device> device, const com_ptr<ID3D11DeviceContext> devicecontext, UINT width, UINT height, UINT depth_buffer_texture_format)
 	{
 		depthstencil_counter_info best_info = { 0 };
 		ID3D11DepthStencilView *best_match = nullptr;
 		float aspect_ratio = ((float)width) / ((float)height);
-		reshade::runtime::OM_iter = 0;
 
 		for (auto it : _counters_per_used_depthstencil)
 		{
@@ -140,10 +139,10 @@ namespace reshade::d3d11
 				continue;
 			}
 
-			if (reshade::runtime::depth_buffer_texture_format != DXGI_FORMAT_UNKNOWN)
+			if (depth_buffer_texture_format != DXGI_FORMAT_UNKNOWN)
 			{
 				// we check the texture format, if filtered
-				if (texture_desc.Format != reshade::runtime::depth_buffer_texture_format)
+				if (texture_desc.Format != depth_buffer_texture_format)
 				{
 					continue;
 				}
@@ -170,7 +169,6 @@ namespace reshade::d3d11
 
 	ID3D11Texture2D* draw_call_tracker::get_depth_texture()
 	{
-		reshade::runtime::OM_iter = 0;
 		return _active_depth_texture.get();
 	}
 

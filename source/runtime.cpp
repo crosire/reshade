@@ -10,7 +10,6 @@
 #include "effect_preprocessor.hpp"
 #include "input.hpp"
 #include "ini_file.hpp"
-#include "utility.hpp"
 #include <algorithm>
 #include <unordered_set>
 #include <stb_image.h>
@@ -20,17 +19,12 @@
 #define IMGUI_DEFINE_MATH_OPERATORS
 #include <imgui.h>
 #include <imgui_internal.h>
-#include <dxgiformat.h>
 
 namespace reshade
 {
 	filesystem::path runtime::s_reshade_dll_path, runtime::s_target_executable_path;
-	unsigned int runtime::screen_width = 0;
-	unsigned int runtime::screen_height = 0;
 	unsigned int runtime::depth_buffer_retrieval_mode = depth_buffer_retrieval_mode::POST_PROCESS; // "Post process" retrieval mode by default (the former retrieval mode of Reshade)
 	unsigned int runtime::depth_buffer_clearing_number = 0; // usually, the second depth buffer clearing is the good one
-	unsigned int runtime::depth_buffer_texture_format = DXGI_FORMAT_UNKNOWN; // no depth buffer texture filtering by default
-	unsigned int runtime::OM_iter = 0;
 
 	runtime::runtime(uint32_t renderer) :
 		_renderer_id(renderer),
@@ -447,16 +441,6 @@ namespace reshade
 		}
 	}
 
-	std::string const runtime::_get_host_app(void)
-	{
-
-		wchar_t host_app[_MAX_PATH * 2] = {};
-		utility::getHostApp(host_app);
-		std::wstring ws(host_app);
-		std::string str(ws.begin(), ws.end());
-		return str;
-	}
-
 	void runtime::reload()
 	{
 		on_reset_effect();
@@ -754,8 +738,8 @@ namespace reshade
 		config.get("GENERAL", "NoReloadOnInit", _no_reload_on_init);
 
 		config.get("DEPTH_BUFFER_DETECTION", "DepthBufferRetrievalMode", depth_buffer_retrieval_mode);
-		config.get("DEPTH_BUFFER_DETECTION", "DepthBufferTextureFormat", depth_buffer_texture_format);
 		config.get("DEPTH_BUFFER_DETECTION", "DepthBufferClearingNumber", depth_buffer_clearing_number);
+		config.get("DEPTH_BUFFER_DETECTION", "DepthBufferTextureFormat", _depth_buffer_texture_format);
 
 		config.get("STYLE", "Alpha", _imgui_context->Style.Alpha);
 		config.get("STYLE", "ColBackground", _imgui_col_background);
@@ -862,8 +846,8 @@ namespace reshade
 		config.set("GENERAL", "NoReloadOnInit", _no_reload_on_init);
 
 		config.set("DEPTH_BUFFER_DETECTION", "DepthBufferRetrievalMode", depth_buffer_retrieval_mode);
-		config.set("DEPTH_BUFFER_DETECTION", "DepthBufferTextureFormat", depth_buffer_texture_format);
 		config.set("DEPTH_BUFFER_DETECTION", "DepthBufferClearingNumber", depth_buffer_clearing_number);
+		config.set("DEPTH_BUFFER_DETECTION", "DepthBufferTextureFormat", _depth_buffer_texture_format);
 
 		config.set("STYLE", "Alpha", _imgui_context->Style.Alpha);
 		config.set("STYLE", "ColBackground", _imgui_col_background);
@@ -1819,23 +1803,23 @@ namespace reshade
 
 			int depth_buffer_texture_format_index = 0;
 
-			switch (depth_buffer_texture_format)
+			switch (_depth_buffer_texture_format)
 			{
-			case DXGI_FORMAT_UNKNOWN:
-				depth_buffer_texture_format_index = 0;
-				break;
-			case DXGI_FORMAT_R16_TYPELESS:
-				depth_buffer_texture_format_index = 1;
-				break;
-			case DXGI_FORMAT_R32_TYPELESS:
-				depth_buffer_texture_format_index = 2;
-				break;
-			case DXGI_FORMAT_R24G8_TYPELESS:
-				depth_buffer_texture_format_index = 3;
-				break;
-			case DXGI_FORMAT_R32G8X24_TYPELESS:
-				depth_buffer_texture_format_index = 4;
-				break;
+				case DXGI_FORMAT_UNKNOWN:
+					depth_buffer_texture_format_index = 0;
+					break;
+				case DXGI_FORMAT_R16_TYPELESS:
+					depth_buffer_texture_format_index = 1;
+					break;
+				case DXGI_FORMAT_R32_TYPELESS:
+					depth_buffer_texture_format_index = 2;
+					break;
+				case DXGI_FORMAT_R24G8_TYPELESS:
+					depth_buffer_texture_format_index = 3;
+					break;
+				case DXGI_FORMAT_R32G8X24_TYPELESS:
+					depth_buffer_texture_format_index = 4;
+					break;
 			}
 
 			if (ImGui::Combo("Depth texture format", &depth_buffer_texture_format_index, "DXGI_FORMAT_UNKNOWN\0DXGI_FORMAT_R16_TYPELESS\0DXGI_FORMAT_R32_TYPELESS\0DXGI_FORMAT_R24G8_TYPELESS\0DXGI_FORMAT_R32G8X24_TYPELESS\0"))
@@ -1845,19 +1829,19 @@ namespace reshade
 				switch (depth_buffer_texture_format_index)
 				{
 				case 0:
-					depth_buffer_texture_format = DXGI_FORMAT_UNKNOWN;
+					_depth_buffer_texture_format = DXGI_FORMAT_UNKNOWN;
 					break;
 				case 1:
-					depth_buffer_texture_format = DXGI_FORMAT_R16_TYPELESS;
+					_depth_buffer_texture_format = DXGI_FORMAT_R16_TYPELESS;
 					break;
 				case 2:
-					depth_buffer_texture_format = DXGI_FORMAT_R32_TYPELESS;
+					_depth_buffer_texture_format = DXGI_FORMAT_R32_TYPELESS;
 					break;
 				case 3:
-					depth_buffer_texture_format = DXGI_FORMAT_R24G8_TYPELESS;
+					_depth_buffer_texture_format = DXGI_FORMAT_R24G8_TYPELESS;
 					break;
 				case 4:
-					depth_buffer_texture_format = DXGI_FORMAT_R32G8X24_TYPELESS;
+					_depth_buffer_texture_format = DXGI_FORMAT_R32G8X24_TYPELESS;
 					break;
 				}
 

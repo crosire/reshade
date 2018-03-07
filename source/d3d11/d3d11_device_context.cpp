@@ -7,10 +7,6 @@
 #include "d3d11_device.hpp"
 #include "d3d11_device_context.hpp"
 
-unsigned int D3D11DeviceContext::_clear_DSV_iter = 1;
-unsigned int D3D11DeviceContext::_best_vertices = 0;
-unsigned int D3D11DeviceContext::_best_drawcalls = 0;
-
 void D3D11DeviceContext::log_drawcall(UINT vertices)
 {
 	_draw_call_tracker.log_drawcalls(1, vertices);
@@ -115,7 +111,8 @@ ID3D11DepthStencilView *D3D11DeviceContext::copy_depthstencil(ID3D11DepthStencil
 
 bool D3D11DeviceContext::check_depthstencil(ID3D11DepthStencilView* pDepthStencilView, com_ptr<ID3D11Texture2D> texture, D3D11_TEXTURE2D_DESC texture_desc)
 {	
-	float aspect_ratio = ((float)reshade::runtime::screen_width) / ((float)reshade::runtime::screen_height);
+	screen_dimensions();
+	float aspect_ratio = ((float)_screen_width) / ((float)_screen_height);
 	float twfactor = 1.0f;
 	float thfactor = 1.0f;
 
@@ -125,13 +122,13 @@ bool D3D11DeviceContext::check_depthstencil(ID3D11DepthStencilView* pDepthStenci
 		return false;
 	}
 
-	if (texture_desc.Width != reshade::runtime::screen_width)
+	if (texture_desc.Width != _screen_width)
 	{
-		twfactor = (float)reshade::runtime::screen_width / texture_desc.Width;
+		twfactor = (float)_screen_width / texture_desc.Width;
 	}
-	if (texture_desc.Height != reshade::runtime::screen_height)
+	if (texture_desc.Height != _screen_height)
 	{
-		thfactor = (float)reshade::runtime::screen_height / texture_desc.Height;
+		thfactor = (float)_screen_height / texture_desc.Height;
 	}
 
 	// check if aspect ratio is similar to the back buffer one
@@ -179,7 +176,7 @@ void D3D11DeviceContext::set_active_OM_depthstencil(ID3D11DepthStencilView* pDep
 			return;
 		}
 
-		if (reshade::runtime::OM_iter >= _clear_DSV_iter)
+		if (_OM_iter >= _clear_DSV_iter)
 		{
 			set_active_depthstencil(pDepthStencilView);
 			// copy the depth stencil texture
@@ -247,6 +244,14 @@ void D3D11DeviceContext::clear_drawcall_stats()
 	_draw_call_tracker.reset(true);
 	_active_depthstencil.reset();
 	_depth_texture.reset();
+}
+
+void D3D11DeviceContext::screen_dimensions()
+{
+	const auto runtime = _device->_runtimes.front();
+
+	_screen_width = static_cast<FLOAT>(runtime->frame_width());
+	_screen_height = static_cast<FLOAT>(runtime->frame_height());
 }
 
 // ID3D11DeviceContext
@@ -500,7 +505,7 @@ void STDMETHODCALLTYPE D3D11DeviceContext::OMSetRenderTargets(UINT NumViews, ID3
 		set_active_OM_depthstencil(pDepthStencilView);
 	}
 
-	reshade::runtime::OM_iter++;
+	_OM_iter++;
 	_orig->OMSetRenderTargets(NumViews, ppRenderTargetViews, pDepthStencilView);
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::OMSetRenderTargetsAndUnorderedAccessViews(UINT NumRTVs, ID3D11RenderTargetView *const *ppRenderTargetViews, ID3D11DepthStencilView *pDepthStencilView, UINT UAVStartSlot, UINT NumUAVs, ID3D11UnorderedAccessView *const *ppUnorderedAccessViews, const UINT *pUAVInitialCounts)
@@ -515,7 +520,7 @@ void STDMETHODCALLTYPE D3D11DeviceContext::OMSetRenderTargetsAndUnorderedAccessV
 		set_active_OM_depthstencil(pDepthStencilView);
 	}
 
-	reshade::runtime::OM_iter++;
+	_OM_iter++;
 	_orig->OMSetRenderTargetsAndUnorderedAccessViews(NumRTVs, ppRenderTargetViews, pDepthStencilView, UAVStartSlot, NumUAVs, ppUnorderedAccessViews, pUAVInitialCounts);
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::OMSetBlendState(ID3D11BlendState *pBlendState, const FLOAT BlendFactor[4], UINT SampleMask)

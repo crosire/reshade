@@ -425,8 +425,6 @@ namespace reshade::d3d11
 	{
 		_width = desc.BufferDesc.Width;
 		_height = desc.BufferDesc.Height;
-		screen_width = desc.BufferDesc.Width;
-		screen_height = desc.BufferDesc.Height;
 		_backbuffer_format = desc.BufferDesc.Format;
 		_is_multisampling_enabled = desc.SampleDesc.Count > 1;
 		_input = input::register_window(desc.OutputWindow);
@@ -1021,7 +1019,7 @@ namespace reshade::d3d11
 			return;
 		}
 
-		ID3D11DepthStencilView *const best_match = tracker.get_best_depth_stencil(_host_process_name, _game_list, _drawcalls, _device.get(), _immediate_context.get(), _width, _height);
+		ID3D11DepthStencilView *const best_match = tracker.get_best_depth_stencil(_drawcalls, _device.get(), _immediate_context.get(), _width, _height, _depth_buffer_texture_format);
 
 		if (best_match != nullptr)
 		{
