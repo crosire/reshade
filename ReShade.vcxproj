@@ -40,7 +40,7 @@
     <TargetName>ReShade32</TargetName>
   </PropertyGroup>
   <PropertyGroup Label="Configuration" Condition="'$(Platform)'=='x64'">
-    <TargetName>Reshade64</TargetName>
+    <TargetName>ReShade64</TargetName>
   </PropertyGroup>
   <PropertyGroup Label="Configuration" Condition="'$(Configuration)'=='Debug'">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
