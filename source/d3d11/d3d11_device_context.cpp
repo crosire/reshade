@@ -218,7 +218,7 @@ void D3D11DeviceContext::set_active_cleared_depthstencil(ID3D11DepthStencilView*
 
 		reshade::d3d11::draw_call_tracker::depthstencil_counter_info counters = _draw_call_tracker.get_counters();
 
-		if (counters.vertices > _vertices_treshold && counters.vertices > _best_vertices)
+		if (counters.vertices > _VERTICES_TRESHOLD && counters.vertices > _best_vertices)
 		{
 			if (reshade::runtime::depth_buffer_clearing_number == 0 || reshade::runtime::depth_buffer_clearing_number == _clear_DSV_iter)
 			{

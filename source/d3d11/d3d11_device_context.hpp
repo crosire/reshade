@@ -8,6 +8,8 @@
 #include "d3d11.hpp"
 #include "draw_call_tracker.hpp"
 
+#define _VERTICES_TRESHOLD 10000
+
 struct D3D11DeviceContext : ID3D11DeviceContext3
 {
 	D3D11DeviceContext(D3D11Device *device, ID3D11DeviceContext  *original) :
@@ -201,7 +203,6 @@ struct D3D11DeviceContext : ID3D11DeviceContext3
 	void clear_drawcall_stats();
 
 	LONG _ref = 1;
-	unsigned int _vertices_treshold = 10000;
 	ID3D11DeviceContext *_orig;
 	unsigned int _interface_version;
 	D3D11Device *const _device;
