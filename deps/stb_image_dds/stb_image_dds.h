@@ -345,7 +345,7 @@ static stbi_uc *stbi__dds_load(stbi__context *s, int *x, int *y, int *comp, int 
 
 	if (is_compressed)
 	{
-#pragma region Compressed
+		#pragma region Compressed
 		if (header.sPixelFormat.dwFourCC & MAKEFOURCC('D', 'X', '1', '0'))
 		{
 			stbi__getn(s, (stbi_uc *)(&header2), sizeof(DDS_HEADER_DXT10));
@@ -439,11 +439,11 @@ static stbi_uc *stbi__dds_load(stbi__context *s, int *x, int *y, int *comp, int 
 				}
 			}
 		}/* per cubemap face */
-#pragma endregion
+		#pragma endregion
 	}
 	else
 	{
-#pragma region Uncompressed
+		#pragma region Uncompressed
 		DXT_family = 0;
 
 		if (header.sPixelFormat.dwRGBBitCount != 0)
@@ -496,7 +496,7 @@ static stbi_uc *stbi__dds_load(stbi__context *s, int *x, int *y, int *comp, int 
 				dds_data[i + 2] = temp;
 			}
 		}
-#pragma endregion
+		#pragma endregion
 	}
 
 	// Finished decompressing into RGBA, adjust the y size if we have a cubemap

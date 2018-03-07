@@ -1,7 +1,7 @@
 /**
-* Copyright (C) 2014 Patrick Mours. All rights reserved.
-* License: https://github.com/crosire/reshade#license
-*/
+ * Copyright (C) 2014 Patrick Mours. All rights reserved.
+ * License: https://github.com/crosire/reshade#license
+ */
 
 #include "log.hpp"
 #include "d3d11_runtime.hpp"
