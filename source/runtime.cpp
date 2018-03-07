@@ -1275,9 +1275,9 @@ namespace reshade
 		{
 			ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImGui::GetStyle().ItemSpacing * 2);
 
-			const char *const menu_items[] = { "Home", "Settings", "Depth Buffer detection settings", "Statistics", "About" };
+			const char *const menu_items[] = { "Home", "Settings", "Statistics", "About" };
 
-			for (int i = 0; i < 5; i++)
+			for (int i = 0; i < 4; i++)
 			{
 				if (ImGui::Selectable(menu_items[i], _menu_index == i, 0, ImVec2(ImGui::CalcTextSize(menu_items[i]).x, 0)))
 				{
@@ -1300,12 +1300,9 @@ namespace reshade
 			draw_overlay_menu_settings();
 			break;
 		case 2:
-			draw_overlay_menu_depth_buffer_detection_settings();
-			break;
-		case 3:
 			draw_overlay_menu_statistics();
 			break;
-		case 4:
+		case 3:
 			draw_overlay_menu_about();
 			break;
 		}
@@ -1706,6 +1703,8 @@ namespace reshade
 			}
 		}
 
+		draw_overlay_menu_depth_buffer_detection_settings();
+
 		if (ImGui::CollapsingHeader("Screenshots", ImGuiTreeNodeFlags_DefaultOpen))
 		{
 			assert(_screenshot_key_data[0] < 256);
@@ -1774,7 +1773,7 @@ namespace reshade
 	}
 	void runtime::draw_overlay_menu_depth_buffer_detection_settings()
 	{
-		if (ImGui::CollapsingHeader("General", ImGuiTreeNodeFlags_DefaultOpen))
+		if (ImGui::CollapsingHeader("Depth buffer detection settings", ImGuiTreeNodeFlags_DefaultOpen))
 		{
 			assert(_menu_key_data[0] < 256);
 
