@@ -515,7 +515,6 @@ namespace reshade::d3d11
 			return;
 		}
 
-		// LOG(INFO) << "Call to detect_depth_source(tracker)";
 		detect_depth_source(tracker);
 
 		// Evaluate queries

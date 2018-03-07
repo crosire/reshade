@@ -49,7 +49,7 @@ namespace reshade::d3d11
 
 	void draw_call_tracker::track_depthstencil(ID3D11DepthStencilView* depthstencil)
 	{
-		// assert(depthstencil != nullptr);
+		assert(depthstencil != nullptr);
 
 		if (_counters_per_used_depthstencil.find(depthstencil) == _counters_per_used_depthstencil.end())
 		{
@@ -80,10 +80,6 @@ namespace reshade::d3d11
 		depthstencil_counter_info best_info = { 0 };
 		ID3D11DepthStencilView *best_match = nullptr;
 		float aspect_ratio = ((float)width) / ((float)height);
-		static runtime::game current_game =
-			game_list.count(host_process_name) ?
-			game_list[host_process_name] :
-			runtime::game::UNKNOWN;
 		reshade::runtime::OM_iter = 0;
 
 		for (auto it : _counters_per_used_depthstencil)

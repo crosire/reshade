@@ -118,8 +118,6 @@ namespace reshade
 
 		_is_initialized = true;
 		_last_reload_time = std::chrono::high_resolution_clock::now();
-		_init_game_list(_game_list);
-		_host_process_name = _get_host_app();
 
 		if (!_no_reload_on_init)
 		{
@@ -457,19 +455,6 @@ namespace reshade
 		std::wstring ws(host_app);
 		std::string str(ws.begin(), ws.end());
 		return str;
-	}
-
-	void const runtime::_init_game_list(std::unordered_map<std::string, game> &game_list)
-	{
-		game_list.emplace("ACOrigins.exe", game::ACO);
-		game_list.emplace("Elex.exe", game::ELEX);
-		game_list.emplace("pCARS2.exe", game::PCARS2);
-		game_list.emplace("pCARS2AVX.exe", game::PCARS2AVX);
-		game_list.emplace("Titanfall2.exe", game::TITANFALL2);
-		game_list.emplace("Titanfall2_trial.exe", game::TITANFALL2_TRIAL);
-		game_list.emplace("ShadowOfWar.exe", game::SOW);
-		game_list.emplace("AOM_Release_Final.exe", game::AOM_RELEASE_FINAL);
-		game_list.emplace("AOM.exe", game::AOM);
 	}
 
 	void runtime::reload()

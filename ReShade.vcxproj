@@ -40,7 +40,7 @@
     <TargetName>ReShade32</TargetName>
   </PropertyGroup>
   <PropertyGroup Label="Configuration" Condition="'$(Platform)'=='x64'">
-    <TargetName>Reshade64</TargetName>
+    <TargetName>ReShade64</TargetName>
   </PropertyGroup>
   <PropertyGroup Label="Configuration" Condition="'$(Configuration)'=='Debug'">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
@@ -268,7 +268,6 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="source\utility.cpp" />
     <ClCompile Include="source\d3d10\d3d10.cpp" />
     <ClCompile Include="source\d3d10\d3d10_device.cpp" />
     <ClCompile Include="source\d3d10\d3d10_effect_compiler.cpp" />
@@ -350,7 +349,6 @@
     <ClInclude Include="source\runtime_objects.hpp" />
     <ClInclude Include="source\string_codecvt.hpp" />
     <ClInclude Include="source\variant.hpp" />
-    <ClInclude Include="source\utility.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="res\resource.rc" />

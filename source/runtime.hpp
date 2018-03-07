@@ -31,20 +31,6 @@ namespace reshade
 	class runtime abstract
 	{
 	public:
-		enum class game
-		{
-			ACO,                // Assassin's Creed Origins
-			PCARS2,				// Project Cars 2
-			PCARS2AVX,			// Project Cars 2 - other exe
-			TITANFALL2,			// TitanFall 2
-			TITANFALL2_TRIAL,   // TitanFall 2 - trial exe
-			SOW,     			// Shadow Of War
-			ELEX,     			// Elex
-			AOM_RELEASE_FINAL,  // Agents Of Mahyem
-			AOM,     			// Agents Of Mahyem - other exe
-			UNKNOWN
-		};
-
 		enum depth_buffer_retrieval_mode {
 			POST_PROCESS = 0,
 			BEFORE_CLEARING_STAGE = 1,
@@ -93,8 +79,8 @@ namespace reshade
 		/// <summary>
 		/// Depth buffer texture format
 		/// </summary>
-		static unsigned int depth_buffer_texture_format;
-		static unsigned int OM_iter;
+		unsigned int depth_buffer_texture_format;
+		unsigned int OM_iter;
 
 		/// <summary>
 		/// Construct a new runtime instance.
@@ -242,7 +228,6 @@ namespace reshade
 		/// init game list
 		/// </summary>
 		/// <param name="data">The draw data to render.</param>
-		void const _init_game_list(std::unordered_map<std::string, game> &game_list);
 
 		unsigned int _width = 0, _height = 0;
 		unsigned int _vendor_id = 0, _device_id = 0;
@@ -256,7 +241,6 @@ namespace reshade
 		std::vector<uniform> _uniforms;
 		std::vector<technique> _techniques;
 		std::string _host_process_name;
-		std::unordered_map<std::string, game> _game_list;
 		bool _depth_buffer_settings_changed = false;
 		bool _whitelist_enabled = false;
 
