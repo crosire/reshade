@@ -250,6 +250,7 @@ void D3D11DeviceContext::set_active_cleared_depthstencil(ID3D11DepthStencilView*
 void D3D11DeviceContext::clear_drawcall_stats()
 {
 	_clear_DSV_iter = 1;
+	_OM_iter = 0;
 	_best_vertices = 0;
 	_best_drawcalls = 0;
 	_draw_call_tracker.reset(true);
