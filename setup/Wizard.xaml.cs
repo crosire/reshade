@@ -331,10 +331,12 @@ namespace ReShade.Setup
 
 			var client = new WebClient();
 			client.DownloadFileCompleted += (object sender, System.ComponentModel.AsyncCompletedEventArgs e) => {
-				if (e.Error != null || e.Cancelled)
+				if (e.Error != null)
 				{
 					Title += " Failed!";
 					Message.Content = "Unable to download archive.";
+					MessageDescription.Visibility = Visibility.Visible;
+					MessageDescription.Content = e.Error.Message;
 					Glass.HideSystemMenu(this, false);
 
 					if (_isHeadless)
