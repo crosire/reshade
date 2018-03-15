@@ -1018,7 +1018,17 @@ namespace reshade::d3d11
 			return;
 		}
 
-		ID3D11DepthStencilView *const best_match = tracker.get_best_depth_stencil(_drawcalls, _device.get(), _immediate_context.get(), _width, _height, _depth_buffer_texture_format);
+		const DXGI_FORMAT depth_texture_formats[] = {
+			DXGI_FORMAT_UNKNOWN,
+			DXGI_FORMAT_R16_TYPELESS,
+			DXGI_FORMAT_R32_TYPELESS,
+			DXGI_FORMAT_R24G8_TYPELESS,
+			DXGI_FORMAT_R32G8X24_TYPELESS
+		};
+
+		assert(_depth_buffer_texture_format >= 0 && _depth_buffer_texture_format < ARRAYSIZE(depth_texture_formats));
+
+		ID3D11DepthStencilView *const best_match = tracker.get_best_depth_stencil(_device.get(), _immediate_context.get(), _width, _height, depth_texture_formats[_depth_buffer_texture_format]);
 
 		if (best_match != nullptr)
 		{

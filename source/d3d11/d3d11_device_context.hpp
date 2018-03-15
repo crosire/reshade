@@ -153,8 +153,8 @@ struct D3D11DeviceContext : ID3D11DeviceContext3
 	virtual UINT STDMETHODCALLTYPE GetContextFlags() override;
 	virtual HRESULT STDMETHODCALLTYPE FinishCommandList(BOOL RestoreDeferredContextState, ID3D11CommandList **ppCommandList) override;
 	virtual D3D11_DEVICE_CONTEXT_TYPE STDMETHODCALLTYPE GetType() override;
-#pragma endregion
-#pragma region ID3D11DeviceContext1
+	#pragma endregion
+	#pragma region ID3D11DeviceContext1
 	virtual void STDMETHODCALLTYPE CopySubresourceRegion1(ID3D11Resource *pDstResource, UINT DstSubresource, UINT DstX, UINT DstY, UINT DstZ, ID3D11Resource *pSrcResource, UINT SrcSubresource, const D3D11_BOX *pSrcBox, UINT CopyFlags) override;
 	virtual void STDMETHODCALLTYPE UpdateSubresource1(ID3D11Resource *pDstResource, UINT DstSubresource, const D3D11_BOX *pDstBox, const void *pSrcData, UINT SrcRowPitch, UINT SrcDepthPitch, UINT CopyFlags) override;
 	virtual void STDMETHODCALLTYPE DiscardResource(ID3D11Resource *pResource) override;
@@ -196,7 +196,7 @@ struct D3D11DeviceContext : ID3D11DeviceContext3
 	void log_drawcall(UINT vertices);
 	ID3D11DepthStencilView *copy_depthstencil(ID3D11DepthStencilView *depthstencil);
 	com_ptr<ID3D11Texture2D> copy_depth_texture(D3D11_TEXTURE2D_DESC texture_desc, ID3D11Texture2D *depthtexture);
-	bool check_depthstencil(ID3D11DepthStencilView* pDepthStencilView, com_ptr<ID3D11Texture2D> texture, D3D11_TEXTURE2D_DESC texture_desc);
+	bool check_depthstencil(com_ptr<ID3D11Texture2D> texture, D3D11_TEXTURE2D_DESC texture_desc);
 	void set_active_depthstencil(ID3D11DepthStencilView* pDepthStencilView);
 	void set_active_OM_depthstencil(ID3D11DepthStencilView* pDepthStencilView);
 	void set_active_cleared_depthstencil(ID3D11DepthStencilView* pDepthStencilView);

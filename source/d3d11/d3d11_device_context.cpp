@@ -109,7 +109,7 @@ ID3D11DepthStencilView *D3D11DeviceContext::copy_depthstencil(ID3D11DepthStencil
 	return depthStencilView_copy;
 }
 
-bool D3D11DeviceContext::check_depthstencil(ID3D11DepthStencilView* pDepthStencilView, com_ptr<ID3D11Texture2D> texture, D3D11_TEXTURE2D_DESC texture_desc)
+bool D3D11DeviceContext::check_depthstencil(com_ptr<ID3D11Texture2D> texture, D3D11_TEXTURE2D_DESC texture_desc)
 {	
 	screen_dimensions();
 	float aspect_ratio = ((float)_screen_width) / ((float)_screen_height);
@@ -171,7 +171,7 @@ void D3D11DeviceContext::set_active_OM_depthstencil(ID3D11DepthStencilView* pDep
 			return;
 		}
 
-		if (!check_depthstencil(pDepthStencilView, texture, texture_desc))
+		if (!check_depthstencil(texture, texture_desc))
 		{
 			return;
 		}
@@ -208,7 +208,7 @@ void D3D11DeviceContext::set_active_cleared_depthstencil(ID3D11DepthStencilView*
 			return;
 		}
 
-		if (!check_depthstencil(pDepthStencilView, texture, texture_desc))
+		if (!check_depthstencil(texture, texture_desc))
 		{
 			return;
 		}

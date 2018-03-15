@@ -5,7 +5,6 @@
 
 #pragma once
 
-#include <dxgiformat.h>
 #include <chrono>
 #include "filesystem.hpp"
 #include "runtime_objects.hpp"
@@ -32,13 +31,15 @@ namespace reshade
 	class runtime abstract
 	{
 	public:
-		enum depth_buffer_retrieval_mode {
+		enum depth_buffer_retrieval_mode
+		{
 			POST_PROCESS = 0,
 			BEFORE_CLEARING_STAGE = 1,
 			AT_OM_STAGE = 2
 		};
 
-		enum depth_buffer_texture_type {
+		enum depth_buffer_texture_type
+		{
 			BOTH = 0,
 			DEPTH_BUFFER = 1,
 			STENCIL_BUFFER = 2
@@ -69,9 +70,6 @@ namespace reshade
 		/// Depth buffer clearing number
 		/// </summary>
 		static unsigned int depth_buffer_clearing_number;
-		/// <summary>
-		/// Depth buffer texture format
-		/// </summary>
 
 		/// <summary>
 		/// Construct a new runtime instance.
@@ -220,8 +218,8 @@ namespace reshade
 		std::vector<texture> _textures;
 		std::vector<uniform> _uniforms;
 		std::vector<technique> _techniques;
+		int _depth_buffer_texture_format = 0; // No depth buffer texture filtering by default
 		bool _depth_buffer_settings_changed = false;
-		unsigned int _depth_buffer_texture_format = DXGI_FORMAT_UNKNOWN; // no depth buffer texture filtering by default
 
 	private:
 		void reload();

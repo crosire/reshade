@@ -1800,49 +1800,9 @@ namespace reshade
 				}
 			}
 
-			int depth_buffer_texture_format_index = 0;
-
-			switch (_depth_buffer_texture_format)
-			{
-				case DXGI_FORMAT_UNKNOWN:
-					depth_buffer_texture_format_index = 0;
-					break;
-				case DXGI_FORMAT_R16_TYPELESS:
-					depth_buffer_texture_format_index = 1;
-					break;
-				case DXGI_FORMAT_R32_TYPELESS:
-					depth_buffer_texture_format_index = 2;
-					break;
-				case DXGI_FORMAT_R24G8_TYPELESS:
-					depth_buffer_texture_format_index = 3;
-					break;
-				case DXGI_FORMAT_R32G8X24_TYPELESS:
-					depth_buffer_texture_format_index = 4;
-					break;
-			}
-
-			if (ImGui::Combo("Depth texture format", &depth_buffer_texture_format_index, "DXGI_FORMAT_UNKNOWN\0DXGI_FORMAT_R16_TYPELESS\0DXGI_FORMAT_R32_TYPELESS\0DXGI_FORMAT_R24G8_TYPELESS\0DXGI_FORMAT_R32G8X24_TYPELESS\0"))
+			if (ImGui::Combo("Depth texture format", &_depth_buffer_texture_format, "DXGI_FORMAT_UNKNOWN\0DXGI_FORMAT_R16_TYPELESS\0DXGI_FORMAT_R32_TYPELESS\0DXGI_FORMAT_R24G8_TYPELESS\0DXGI_FORMAT_R32G8X24_TYPELESS\0"))
 			{
 				_depth_buffer_settings_changed = true;
-
-				switch (depth_buffer_texture_format_index)
-				{
-				case 0:
-					_depth_buffer_texture_format = DXGI_FORMAT_UNKNOWN;
-					break;
-				case 1:
-					_depth_buffer_texture_format = DXGI_FORMAT_R16_TYPELESS;
-					break;
-				case 2:
-					_depth_buffer_texture_format = DXGI_FORMAT_R32_TYPELESS;
-					break;
-				case 3:
-					_depth_buffer_texture_format = DXGI_FORMAT_R24G8_TYPELESS;
-					break;
-				case 4:
-					_depth_buffer_texture_format = DXGI_FORMAT_R32G8X24_TYPELESS;
-					break;
-				}
 
 				save_configuration();
 			}
@@ -2160,7 +2120,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 					else if (ui_type == "combo")
 					{
 						modified = ImGui::Combo(ui_label.c_str(), data, variable.annotations["ui_items"].as<std::string>().c_str());
-						}
+					}
 					else
 					{
 						modified = ImGui::InputIntN(ui_label.c_str(), data, variable.rows, 0);
@@ -2179,7 +2139,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 					if (ui_type == "drag")
 					{
-					modified = ImGui::DragFloatN(ui_label.c_str(), data, variable.rows, variable.annotations["ui_step"].as<float>(), variable.annotations["ui_min"].as<float>(), variable.annotations["ui_max"].as<float>(), "%.3f", 1.0f);
+						modified = ImGui::DragFloatN(ui_label.c_str(), data, variable.rows, variable.annotations["ui_step"].as<float>(), variable.annotations["ui_min"].as<float>(), variable.annotations["ui_max"].as<float>(), "%.3f", 1.0f);
 					}
 					else if (ui_type == "input" || (ui_type.empty() && variable.rows < 3))
 					{
