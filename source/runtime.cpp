@@ -35,10 +35,10 @@ namespace reshade
 		_effect_search_paths({ s_reshade_dll_path.parent_path() }),
 		_texture_search_paths({ s_reshade_dll_path.parent_path() }),
 		_preprocessor_definitions({
-		"RESHADE_DEPTH_LINEARIZATION_FAR_PLANE=1000.0",
-		"RESHADE_DEPTH_INPUT_IS_UPSIDE_DOWN=0",
-		"RESHADE_DEPTH_INPUT_IS_REVERSED=1",
-		"RESHADE_DEPTH_INPUT_IS_LOGARITHMIC=0" }),
+			"RESHADE_DEPTH_LINEARIZATION_FAR_PLANE=1000.0",
+			"RESHADE_DEPTH_INPUT_IS_UPSIDE_DOWN=0",
+			"RESHADE_DEPTH_INPUT_IS_REVERSED=1",
+			"RESHADE_DEPTH_INPUT_IS_LOGARITHMIC=0" }),
 		_menu_key_data(),
 		_screenshot_key_data(),
 		_effects_key_data(),
@@ -233,25 +233,25 @@ namespace reshade
 			{
 				switch (variable.basetype)
 				{
-				case uniform_datatype::boolean:
-				{
-					const bool even = (_framecount % 2) == 0;
-					set_uniform_value(variable, &even, 1);
-					break;
-				}
-				case uniform_datatype::signed_integer:
-				case uniform_datatype::unsigned_integer:
-				{
-					const unsigned int framecount = static_cast<unsigned int>(_framecount % UINT_MAX);
-					set_uniform_value(variable, &framecount, 1);
-					break;
-				}
-				case uniform_datatype::floating_point:
-				{
-					const float framecount = static_cast<float>(_framecount % 16777216);
-					set_uniform_value(variable, &framecount, 1);
-					break;
-				}
+					case uniform_datatype::boolean:
+					{
+						const bool even = (_framecount % 2) == 0;
+						set_uniform_value(variable, &even, 1);
+						break;
+					}
+					case uniform_datatype::signed_integer:
+					case uniform_datatype::unsigned_integer:
+					{
+						const unsigned int framecount = static_cast<unsigned int>(_framecount % UINT_MAX);
+						set_uniform_value(variable, &framecount, 1);
+						break;
+					}
+					case uniform_datatype::floating_point:
+					{
+						const float framecount = static_cast<float>(_framecount % 16777216);
+						set_uniform_value(variable, &framecount, 1);
+						break;
+					}
 				}
 			}
 			else if (source == "pingpong")
@@ -299,25 +299,25 @@ namespace reshade
 
 				switch (variable.basetype)
 				{
-				case uniform_datatype::boolean:
-				{
-					const bool even = (timer % 2) == 0;
-					set_uniform_value(variable, &even, 1);
-					break;
-				}
-				case uniform_datatype::signed_integer:
-				case uniform_datatype::unsigned_integer:
-				{
-					const unsigned int timer_int = static_cast<unsigned int>(timer % UINT_MAX);
-					set_uniform_value(variable, &timer_int, 1);
-					break;
-				}
-				case uniform_datatype::floating_point:
-				{
-					const float timer_float = std::fmod(static_cast<float>(timer * 1e-6f), 16777216.0f);
-					set_uniform_value(variable, &timer_float, 1);
-					break;
-				}
+					case uniform_datatype::boolean:
+					{
+						const bool even = (timer % 2) == 0;
+						set_uniform_value(variable, &even, 1);
+						break;
+					}
+					case uniform_datatype::signed_integer:
+					case uniform_datatype::unsigned_integer:
+					{
+						const unsigned int timer_int = static_cast<unsigned int>(timer % UINT_MAX);
+						set_uniform_value(variable, &timer_int, 1);
+						break;
+					}
+					case uniform_datatype::floating_point:
+					{
+						const float timer_float = std::fmod(static_cast<float>(timer * 1e-6f), 16777216.0f);
+						set_uniform_value(variable, &timer_float, 1);
+						break;
+					}
 				}
 			}
 			else if (source == "key")
@@ -899,10 +899,10 @@ namespace reshade
 
 		std::sort(_techniques.begin(), _techniques.end(),
 			[&technique_sorting_list](const auto &lhs, const auto &rhs) {
-			return
-				(std::find(technique_sorting_list.begin(), technique_sorting_list.end(), lhs.name) - technique_sorting_list.begin()) <
-				(std::find(technique_sorting_list.begin(), technique_sorting_list.end(), rhs.name) - technique_sorting_list.begin());
-		});
+				return
+					(std::find(technique_sorting_list.begin(), technique_sorting_list.end(), lhs.name) - technique_sorting_list.begin()) <
+					(std::find(technique_sorting_list.begin(), technique_sorting_list.end(), rhs.name) - technique_sorting_list.begin());
+			});
 
 		for (auto &technique : _techniques)
 		{
@@ -1019,8 +1019,8 @@ namespace reshade
 		{
 			stbi_write_func *const func =
 				[](void *context, void *data, int size) {
-				fwrite(data, 1, size, static_cast<FILE *>(context));
-			};
+					fwrite(data, 1, size, static_cast<FILE *>(context));
+				};
 
 			switch (_screenshot_format)
 			{
@@ -1371,7 +1371,7 @@ namespace reshade
 
 			if (ImGui::BeginPopup("Add Preset"))
 			{
-				char buf[260] = {};
+				char buf[260] = { };
 
 				if (ImGui::InputText("Name", buf, sizeof(buf), ImGuiInputTextFlags_EnterReturnsTrue))
 				{
@@ -2124,82 +2124,82 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 			switch (variable.displaytype)
 			{
-			case uniform_datatype::boolean:
-			{
-				bool data[1] = { };
-				get_uniform_value(variable, data, 1);
-
-				int index = data[0] ? 0 : 1;
-
-				if (ImGui::Combo(ui_label.c_str(), &index, "On\0Off\0"))
+				case uniform_datatype::boolean:
 				{
-					data[0] = index == 0;
-					modified = true;
+					bool data[1] = { };
+					get_uniform_value(variable, data, 1);
 
-					set_uniform_value(variable, data, 1);
+					int index = data[0] ? 0 : 1;
+
+					if (ImGui::Combo(ui_label.c_str(), &index, "On\0Off\0"))
+					{
+						data[0] = index == 0;
+						modified = true;
+
+						set_uniform_value(variable, data, 1);
+					}
+					else if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0))
+					{
+						data[0] = !data[0];
+						modified = true;
+
+						set_uniform_value(variable, data, 1);
+					}
+					break;
 				}
-				else if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0))
+				case uniform_datatype::signed_integer:
+				case uniform_datatype::unsigned_integer:
 				{
-					data[0] = !data[0];
-					modified = true;
+					int data[4] = { };
+					get_uniform_value(variable, data, 4);
 
-					set_uniform_value(variable, data, 1);
-				}
-				break;
-			}
-			case uniform_datatype::signed_integer:
-			case uniform_datatype::unsigned_integer:
-			{
-				int data[4] = { };
-				get_uniform_value(variable, data, 4);
+					if (ui_type == "drag")
+					{
+						modified = ImGui::DragIntN(ui_label.c_str(), data, variable.rows, variable.annotations["ui_step"].as<float>(), variable.annotations["ui_min"].as<int>(), variable.annotations["ui_max"].as<int>(), nullptr);
+					}
+					else if (ui_type == "combo")
+					{
+						modified = ImGui::Combo(ui_label.c_str(), data, variable.annotations["ui_items"].as<std::string>().c_str());
+						}
+					else
+					{
+						modified = ImGui::InputIntN(ui_label.c_str(), data, variable.rows, 0);
+					}
 
-				if (ui_type == "drag")
-				{
-					modified = ImGui::DragIntN(ui_label.c_str(), data, variable.rows, variable.annotations["ui_step"].as<float>(), variable.annotations["ui_min"].as<int>(), variable.annotations["ui_max"].as<int>(), nullptr);
+					if (modified)
+					{
+						set_uniform_value(variable, data, 4);
+					}
+					break;
 				}
-				else if (ui_type == "combo")
+				case uniform_datatype::floating_point:
 				{
-					modified = ImGui::Combo(ui_label.c_str(), data, variable.annotations["ui_items"].as<std::string>().c_str());
-				}
-				else
-				{
-					modified = ImGui::InputIntN(ui_label.c_str(), data, variable.rows, 0);
-				}
+					float data[4] = { };
+					get_uniform_value(variable, data, 4);
 
-				if (modified)
-				{
-					set_uniform_value(variable, data, 4);
-				}
-				break;
-			}
-			case uniform_datatype::floating_point:
-			{
-				float data[4] = { };
-				get_uniform_value(variable, data, 4);
-
-				if (ui_type == "drag")
-				{
+					if (ui_type == "drag")
+					{
 					modified = ImGui::DragFloatN(ui_label.c_str(), data, variable.rows, variable.annotations["ui_step"].as<float>(), variable.annotations["ui_min"].as<float>(), variable.annotations["ui_max"].as<float>(), "%.3f", 1.0f);
-				}
-				else if (ui_type == "input" || (ui_type.empty() && variable.rows < 3))
-				{
-					modified = ImGui::InputFloatN(ui_label.c_str(), data, variable.rows, 8, 0);
-				}
-				else if (variable.rows == 3)
-				{
-					modified = ImGui::ColorEdit3(ui_label.c_str(), data);
-				}
-				else if (variable.rows == 4)
-				{
-					modified = ImGui::ColorEdit4(ui_label.c_str(), data);
-				}
+					}
+					else if (ui_type == "input" || (ui_type.empty() && variable.rows < 3))
+					{
+						modified = ImGui::InputFloatN(ui_label.c_str(), data, variable.rows, 8, 0);
+					}
+					else if (variable.rows == 3)
+					{
+						modified = ImGui::ColorEdit3(ui_label.c_str(), data);
+					}
+					else if (variable.rows == 4)
+					{
+						modified = ImGui::ColorEdit4(ui_label.c_str(), data);
+					}
 
-				if (modified)
-				{
-					set_uniform_value(variable, data, 4);
+					if (modified)
+					{
+						set_uniform_value(variable, data, 4);
+					}
+					break;
 				}
-				break;
-			}
 			}
 
 			if (ImGui::IsItemHovered() && !ui_tooltip.empty())

@@ -980,7 +980,6 @@ namespace reshade::d3d11
 	{
 		static int cooldown = 0, traffic = 0;
 
-
 		if (cooldown-- > 0)
 		{
 			traffic += g_network_traffic > 0;
