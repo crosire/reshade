@@ -574,16 +574,16 @@ namespace reshade
 
 				switch (initializer->type.basetype)
 				{
-					case reshadefx::nodes::type_node::datatype_int:
-						preset.get(path.filename().string(), variable->name, initializer->value_int);
-						break;
-					case reshadefx::nodes::type_node::datatype_bool:
-					case reshadefx::nodes::type_node::datatype_uint:
-						preset.get(path.filename().string(), variable->name, initializer->value_uint);
-						break;
-					case reshadefx::nodes::type_node::datatype_float:
-						preset.get(path.filename().string(), variable->name, initializer->value_float);
-						break;
+				case reshadefx::nodes::type_node::datatype_int:
+					preset.get(path.filename().string(), variable->name, initializer->value_int);
+					break;
+				case reshadefx::nodes::type_node::datatype_bool:
+				case reshadefx::nodes::type_node::datatype_uint:
+					preset.get(path.filename().string(), variable->name, initializer->value_uint);
+					break;
+				case reshadefx::nodes::type_node::datatype_float:
+					preset.get(path.filename().string(), variable->name, initializer->value_float);
+					break;
 				}
 
 				variable->type.qualifiers ^= reshadefx::nodes::type_node::qualifier_uniform;
@@ -889,9 +889,8 @@ namespace reshade
 
 		std::sort(_techniques.begin(), _techniques.end(),
 			[&technique_sorting_list](const auto &lhs, const auto &rhs) {
-				return
-					(std::find(technique_sorting_list.begin(), technique_sorting_list.end(), lhs.name) - technique_sorting_list.begin()) <
-					(std::find(technique_sorting_list.begin(), technique_sorting_list.end(), rhs.name) - technique_sorting_list.begin());
+				return (std::find(technique_sorting_list.begin(), technique_sorting_list.end(), lhs.name) - technique_sorting_list.begin()) <
+					   (std::find(technique_sorting_list.begin(), technique_sorting_list.end(), rhs.name) - technique_sorting_list.begin());
 			});
 
 		for (auto &technique : _techniques)
@@ -1007,19 +1006,18 @@ namespace reshade
 
 		if (_wfopen_s(&file, path.wstring().c_str(), L"wb") == 0)
 		{
-			stbi_write_func *const func =
-				[](void *context, void *data, int size) {
-					fwrite(data, 1, size, static_cast<FILE *>(context));
-				};
+			stbi_write_func *const func = [](void *context, void *data, int size) {
+				fwrite(data, 1, size, static_cast<FILE *>(context));
+			};
 
 			switch (_screenshot_format)
 			{
-				case 0:
-					success = stbi_write_bmp_to_func(func, file, _width, _height, 4, data.data()) != 0;
-					break;
-				case 1:
-					success = stbi_write_png_to_func(func, file, _width, _height, 4, data.data(), 0) != 0;
-					break;
+			case 0:
+				success = stbi_write_bmp_to_func(func, file, _width, _height, 4, data.data()) != 0;
+				break;
+			case 1:
+				success = stbi_write_png_to_func(func, file, _width, _height, 4, data.data(), 0) != 0;
+				break;
 			}
 
 			fclose(file);
@@ -1283,18 +1281,18 @@ namespace reshade
 
 		switch (_menu_index)
 		{
-			case 0:
-				draw_overlay_menu_home();
-				break;
-			case 1:
-				draw_overlay_menu_settings();
-				break;
-			case 2:
-				draw_overlay_menu_statistics();
-				break;
-			case 3:
-				draw_overlay_menu_about();
-				break;
+		case 0:
+			draw_overlay_menu_home();
+			break;
+		case 1:
+			draw_overlay_menu_settings();
+			break;
+		case 2:
+			draw_overlay_menu_statistics();
+			break;
+		case 3:
+			draw_overlay_menu_about();
+			break;
 		}
 	}
 	void runtime::draw_overlay_menu_home()
