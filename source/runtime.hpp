@@ -5,7 +5,6 @@
 
 #pragma once
 
-#include <dxgiformat.h>
 #include <chrono>
 #include "filesystem.hpp"
 #include "runtime_objects.hpp"
@@ -32,13 +31,15 @@ namespace reshade
 	class runtime abstract
 	{
 	public:
-		enum depth_buffer_retrieval_mode {
+		enum depth_buffer_retrieval_mode
+		{
 			POST_PROCESS = 0,
 			BEFORE_CLEARING_STAGE = 1,
 			AT_OM_STAGE = 2
 		};
 
-		enum depth_buffer_texture_type {
+		enum depth_buffer_texture_type
+		{
 			BOTH = 0,
 			DEPTH_BUFFER = 1,
 			STENCIL_BUFFER = 2
@@ -69,9 +70,6 @@ namespace reshade
 		/// Depth buffer clearing number
 		/// </summary>
 		static unsigned int depth_buffer_clearing_number;
-		/// <summary>
-		/// Depth buffer texture format
-		/// </summary>
 
 		/// <summary>
 		/// Construct a new runtime instance.
@@ -152,7 +150,6 @@ namespace reshade
 		void set_uniform_value(uniform &variable, const float *values, size_t count);
 
 	protected:
-
 		/// <summary>
 		/// Callback function called when the runtime is initialized.
 		/// </summary>
@@ -210,16 +207,6 @@ namespace reshade
 		/// <param name="data">The draw data to render.</param>
 		virtual void render_imgui_draw_data(ImDrawData *draw_data) = 0;
 
-		/// <summary>
-		/// retrieve host app name.
-		/// </summary>
-		/// <param name="data">The draw data to render.</param>
-		std::string const _get_host_app(void);
-		/// <summary>
-		/// init game list
-		/// </summary>
-		/// <param name="data">The draw data to render.</param>
-
 		unsigned int _width = 0, _height = 0;
 		unsigned int _vendor_id = 0, _device_id = 0;
 		uint64_t _framecount = 0;
@@ -231,8 +218,8 @@ namespace reshade
 		std::vector<texture> _textures;
 		std::vector<uniform> _uniforms;
 		std::vector<technique> _techniques;
+		int _depth_buffer_texture_format = 0; // No depth buffer texture filtering by default
 		bool _depth_buffer_settings_changed = false;
-		unsigned int _depth_buffer_texture_format = DXGI_FORMAT_UNKNOWN; // no depth buffer texture filtering by default
 
 	private:
 		void reload();
@@ -267,7 +254,7 @@ namespace reshade
 		std::chrono::high_resolution_clock::time_point _last_present_time;
 		std::chrono::high_resolution_clock::duration _last_frame_duration;
 		std::vector<unsigned char> _uniform_data_storage;
-		int _date[4] = {};
+		int _date[4] = { };
 		std::string _errors;
 		std::vector<std::string> _preprocessor_definitions;
 		int _menu_index = 0;
@@ -300,7 +287,7 @@ namespace reshade
 		float _variable_editor_height = 0.0f;
 		unsigned int _tutorial_index = 0;
 		unsigned int _effects_expanded_state = 2;
-		char _effect_filter_buffer[64] = {};
+		char _effect_filter_buffer[64] = { };
 		size_t _reload_remaining_effects = 0;
 		size_t _texture_count = 0;
 		size_t _uniform_count = 0;

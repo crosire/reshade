@@ -109,7 +109,7 @@ ID3D11DepthStencilView *D3D11DeviceContext::copy_depthstencil(ID3D11DepthStencil
 	return depthStencilView_copy;
 }
 
-bool D3D11DeviceContext::check_depthstencil(ID3D11DepthStencilView* pDepthStencilView, com_ptr<ID3D11Texture2D> texture, D3D11_TEXTURE2D_DESC texture_desc)
+bool D3D11DeviceContext::check_depthstencil(com_ptr<ID3D11Texture2D> texture, D3D11_TEXTURE2D_DESC texture_desc)
 {	
 	screen_dimensions();
 	float aspect_ratio = ((float)_screen_width) / ((float)_screen_height);
@@ -171,7 +171,7 @@ void D3D11DeviceContext::set_active_OM_depthstencil(ID3D11DepthStencilView* pDep
 			return;
 		}
 
-		if (!check_depthstencil(pDepthStencilView, texture, texture_desc))
+		if (!check_depthstencil(texture, texture_desc))
 		{
 			return;
 		}
@@ -208,7 +208,7 @@ void D3D11DeviceContext::set_active_cleared_depthstencil(ID3D11DepthStencilView*
 			return;
 		}
 
-		if (!check_depthstencil(pDepthStencilView, texture, texture_desc))
+		if (!check_depthstencil(texture, texture_desc))
 		{
 			return;
 		}
@@ -282,7 +282,7 @@ HRESULT STDMETHODCALLTYPE D3D11DeviceContext::QueryInterface(REFIID riid, void *
 		riid == __uuidof(ID3D11DeviceContext2) ||
 		riid == __uuidof(ID3D11DeviceContext3))
 	{
-#pragma region Update to ID3D11DeviceContext1 interface
+		#pragma region Update to ID3D11DeviceContext1 interface
 		if (riid == __uuidof(ID3D11DeviceContext1) && _interface_version < 1)
 		{
 			ID3D11DeviceContext1 *devicecontext1 = nullptr;
@@ -299,8 +299,8 @@ HRESULT STDMETHODCALLTYPE D3D11DeviceContext::QueryInterface(REFIID riid, void *
 			_orig = devicecontext1;
 			_interface_version = 1;
 		}
-#pragma endregion
-#pragma region Update to ID3D11DeviceContext2 interface
+		#pragma endregion
+		#pragma region Update to ID3D11DeviceContext2 interface
 		if (riid == __uuidof(ID3D11DeviceContext2) && _interface_version < 2)
 		{
 			ID3D11DeviceContext2 *devicecontext2 = nullptr;
@@ -317,8 +317,8 @@ HRESULT STDMETHODCALLTYPE D3D11DeviceContext::QueryInterface(REFIID riid, void *
 			_orig = devicecontext2;
 			_interface_version = 2;
 		}
-#pragma endregion
-#pragma region Update to ID3D11DeviceContext3 interface
+		#pragma endregion
+		#pragma region Update to ID3D11DeviceContext3 interface
 		if (riid == __uuidof(ID3D11DeviceContext3) && _interface_version < 3)
 		{
 			ID3D11DeviceContext3 *devicecontext3 = nullptr;
@@ -335,7 +335,7 @@ HRESULT STDMETHODCALLTYPE D3D11DeviceContext::QueryInterface(REFIID riid, void *
 			_orig = devicecontext3;
 			_interface_version = 3;
 		}
-#pragma endregion
+		#pragma endregion
 
 		AddRef();
 
