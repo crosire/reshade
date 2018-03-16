@@ -83,13 +83,7 @@ namespace reshade
 			return false;
 		}
 
-		// Some games process input on a child window of the swapchain window so make sure input is handled on the parent window
 		const HWND parent = GetParent(details.hwnd);
-
-		if (parent != nullptr)
-		{
-			details.hwnd = parent;
-		}
 
 		const std::lock_guard<std::mutex> lock(s_mutex);
 
@@ -99,6 +93,7 @@ namespace reshade
 
 		// Look up the window in the list of known input windows
 		auto input_window = s_windows.find(details.hwnd);
+		auto input_window_parent = s_windows.find(parent);
 		const auto raw_input_window = s_raw_input_windows.find(details.hwnd);
 
 		if (input_window == s_windows.end() && raw_input_window != s_raw_input_windows.end())
@@ -106,6 +101,11 @@ namespace reshade
 			// Reroute this raw input message to the window with the most rendering
 			input_window = std::max_element(s_windows.begin(), s_windows.end(),
 				[](auto lhs, auto rhs) { return lhs.second.lock()->_frame_count < rhs.second.lock()->_frame_count; });
+		}
+		if (input_window == s_windows.end() && input_window_parent != s_windows.end())
+		{
+			// Some games process input on a child window of the swapchain window so make sure input is handled on the parent window
+			input_window = input_window_parent;
 		}
 
 		if (input_window == s_windows.end())
