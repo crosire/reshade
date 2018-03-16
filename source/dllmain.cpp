@@ -16,6 +16,7 @@ HMODULE g_module_handle = nullptr;
 #if defined(RESHADE_TEST_APPLICATION)
 
 #include "d3d11/d3d11.hpp"
+#include "opengl/opengl_stubs.hpp"
 
 static LRESULT CALLBACK WndProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
 {
@@ -39,11 +40,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 
 	log::open(filesystem::path(runtime::s_reshade_dll_path).replace_extension(".log"));
 
-	hooks::register_module("d3d11.dll");
-	hooks::register_module("dxgi.dll");
 	hooks::register_module("user32.dll");
-
-	const auto d3d11_module = LoadLibrary(TEXT("d3d11.dll"));
 
 	// Register window class
 	{
@@ -65,6 +62,13 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 	}
 
 	ShowWindow(window_handle, nCmdShow);
+
+	MSG msg = {};
+
+#if RESHADE_TEST_APPLICATION == 1
+	hooks::register_module("dxgi.dll");
+	hooks::register_module("d3d11.dll");
+	const auto d3d11_module = LoadLibrary(TEXT("d3d11.dll"));
 
 	// Initialize Direct3D 11
 	com_ptr<ID3D11Device> device;
@@ -95,9 +99,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 	com_ptr<ID3D11RenderTargetView> target;
 	device->CreateRenderTargetView(backbuffer.get(), nullptr, &target);
 
-	// Run main loop
-	MSG msg = {};
-
 	while (msg.message != WM_QUIT)
 	{
 		while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
@@ -112,6 +113,50 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 	}
 
 	FreeLibrary(d3d11_module);
+#endif
+#if RESHADE_TEST_APPLICATION == 2
+	hooks::register_module("opengl32.dll");
+	const auto opengl_module = LoadLibrary(TEXT("opengl32.dll"));
+
+	// Initialize OpenGL
+	const HDC hdc = GetDC(window_handle);
+
+	PIXELFORMATDESCRIPTOR pfd = { sizeof(pfd) };
+	pfd.nVersion = 1;
+	pfd.dwFlags = PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER;
+	pfd.iPixelType = PFD_TYPE_RGBA;
+	pfd.cColorBits = 32;
+
+	const int pf = ChoosePixelFormat(hdc, &pfd);
+	SetPixelFormat(hdc, pf, &pfd);
+
+	const HGLRC hglrc = wglCreateContext(hdc);
+
+	if (hglrc == nullptr)
+	{
+		return 0;
+	}
+
+	wglMakeCurrent(hdc, hglrc);
+
+	while (msg.message != WM_QUIT)
+	{
+		while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
+		{
+			DispatchMessage(&msg);
+		}
+
+		glClearColor(1, 1, 1, 1);
+		glClear(GL_COLOR_BUFFER_BIT);
+
+		SwapBuffers(hdc);
+	}
+
+	wglMakeCurrent(nullptr, nullptr);
+	wglDeleteContext(hglrc);
+
+	FreeLibrary(opengl_module);
+#endif
 
 	return static_cast<int>(msg.wParam);
 }

@@ -6,22 +6,18 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Markup;
-
 using Microsoft.Win32;
 using Microsoft.WindowsAPICodePack.Dialogs;
 
 namespace ReShade.Setup
 {
-	/// <summary>
-	/// Interaction logic for ConfigEditor.xaml
-	/// </summary>
-	public partial class ConfigEditor
+	public partial class SettingsWindow
 	{
 		private const string IniSectionName = "GENERAL";
 
 		private readonly string _configFilePath;
 
-		public ConfigEditor(string configPath)
+		public SettingsWindow(string configPath)
 		{
 			InitializeComponent();
 			_configFilePath = configPath;

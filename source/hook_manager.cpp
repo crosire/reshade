@@ -496,7 +496,7 @@ reshade::hook::address reshade::hooks::call(hook::address replacement)
 	{
 		return hook.call();
 	}
-	else if (!s_export_hook_path.empty() && !is_module_loaded(s_export_hook_path))
+	else if (!s_export_hook_path.empty())
 	{
 		const HMODULE handle = load_module(s_export_hook_path);
 
@@ -505,6 +505,8 @@ reshade::hook::address reshade::hooks::call(hook::address replacement)
 		if (handle != nullptr)
 		{
 			install_internal(handle, g_module_handle, hook_method::export_hook);
+
+			s_export_hook_path = "";
 
 			return call(replacement);
 		}

@@ -899,10 +899,9 @@ namespace reshade
 
 		std::sort(_techniques.begin(), _techniques.end(),
 			[&technique_sorting_list](const auto &lhs, const auto &rhs) {
-			return
-				(std::find(technique_sorting_list.begin(), technique_sorting_list.end(), lhs.name) - technique_sorting_list.begin()) <
-				(std::find(technique_sorting_list.begin(), technique_sorting_list.end(), rhs.name) - technique_sorting_list.begin());
-		});
+				return (std::find(technique_sorting_list.begin(), technique_sorting_list.end(), lhs.name) - technique_sorting_list.begin()) <
+					   (std::find(technique_sorting_list.begin(), technique_sorting_list.end(), rhs.name) - technique_sorting_list.begin());
+			});
 
 		for (auto &technique : _techniques)
 		{
@@ -1017,8 +1016,7 @@ namespace reshade
 
 		if (_wfopen_s(&file, path.wstring().c_str(), L"wb") == 0)
 		{
-			stbi_write_func *const func =
-				[](void *context, void *data, int size) {
+			stbi_write_func *const func = [](void *context, void *data, int size) {
 				fwrite(data, 1, size, static_cast<FILE *>(context));
 			};
 

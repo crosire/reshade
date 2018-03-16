@@ -19,8 +19,6 @@ namespace ReShade.Setup
 {
 	public partial class WizardWindow
 	{
-		private const string CONFIG_EDITOR_MSG = "Show Config Editor";
-
 		bool _isHeadless = false;
 		bool _isElevated = false;
 		string _targetPath = null;
@@ -333,10 +331,12 @@ namespace ReShade.Setup
 
 			var client = new WebClient();
 			client.DownloadFileCompleted += (object sender, System.ComponentModel.AsyncCompletedEventArgs e) => {
-				if (e.Error != null || e.Cancelled)
+				if (e.Error != null)
 				{
 					Title += " Failed!";
 					Message.Content = "Unable to download archive.";
+					MessageDescription.Visibility = Visibility.Visible;
+					MessageDescription.Content = e.Error.Message;
 					Glass.HideSystemMenu(this, false);
 
 					if (_isHeadless)
@@ -440,21 +440,22 @@ namespace ReShade.Setup
 			IniFile.WriteValue(configFilePath, "GENERAL", "TextureSearchPaths", string.Join(",", textureSearchPaths));
 
 			Title += " Succeeded!";
-			EnableConfigEditor();
 			Glass.HideSystemMenu(this, false);
 
 			if (_isHeadless)
 			{
 				Environment.Exit(0);
 			}
+
+			EnableConfigEditor();
 		}
 
 		private void EnableConfigEditor()
 		{
-			Message.Content = CONFIG_EDITOR_MSG;
+			Message.Content = "Edit ReShade settings";
 			SetupButton.IsEnabled = true;
 			SetupButton.Click -= OnSetupButtonClick;
-			SetupButton.Click += (object s, RoutedEventArgs e) => new ConfigEditor(ConfigFilePath) { Owner = this }.ShowDialog();
+			SetupButton.Click += (object s, RoutedEventArgs e) => new SettingsWindow(ConfigFilePath) { Owner = this }.ShowDialog();
 		}
 	}
 }

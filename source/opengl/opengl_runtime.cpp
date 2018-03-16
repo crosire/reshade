@@ -401,7 +401,7 @@ namespace reshade::opengl
 	}
 	void opengl_runtime::on_present()
 	{
-		if (!is_initialized() || _drawcalls == 0)
+		if (!is_initialized())
 		{
 			return;
 		}
