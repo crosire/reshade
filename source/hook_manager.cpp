@@ -293,7 +293,9 @@ namespace
 			return handle;
 		}
 
-		{ const std::lock_guard<std::mutex> lock(s_mutex_delayed_hook_paths);
+		// Ignore this call if unable to acquire the mutex to avoid possible deadlock
+		if (std::unique_lock<std::mutex> lock(s_mutex_delayed_hook_paths, std::try_to_lock); lock.owns_lock())
+		{
 			const auto remove = std::remove_if(s_delayed_hook_paths.begin(), s_delayed_hook_paths.end(),
 				[lpFileName](const auto &path) {
 				HMODULE delayed_handle = nullptr;
@@ -309,6 +311,10 @@ namespace
 			});
 
 			s_delayed_hook_paths.erase(remove, s_delayed_hook_paths.end());
+		}
+		else
+		{
+			LOG(WARNING) << "Ignoring 'LoadLibraryA(\"" << lpFileName << "\")' call to avoid possible deadlock.";
 		}
 
 		return handle;
@@ -335,7 +341,9 @@ namespace
 			return handle;
 		}
 
-		{ const std::lock_guard<std::mutex> lock(s_mutex_delayed_hook_paths);
+		// Ignore this call if unable to acquire the mutex to avoid possible deadlock
+		if (std::unique_lock<std::mutex> lock(s_mutex_delayed_hook_paths, std::try_to_lock); lock.owns_lock())
+		{
 			const auto remove = std::remove_if(s_delayed_hook_paths.begin(), s_delayed_hook_paths.end(),
 				[lpFileName](const auto &path) {
 				HMODULE delayed_handle = nullptr;
@@ -351,6 +359,10 @@ namespace
 			});
 
 			s_delayed_hook_paths.erase(remove, s_delayed_hook_paths.end());
+		}
+		else
+		{
+			LOG(WARNING) << "Ignoring 'LoadLibraryA(\"" << lpFileName << "\")' call to avoid possible deadlock.";
 		}
 
 		return handle;
