@@ -23,7 +23,7 @@
 namespace reshade
 {
 	filesystem::path runtime::s_reshade_dll_path, runtime::s_target_executable_path;
-	unsigned int runtime::depth_buffer_retrieval_mode = depth_buffer_retrieval_mode::POST_PROCESS; // "Post process" retrieval mode by default (the former retrieval mode of Reshade)
+	unsigned int runtime::depth_buffer_retrieval_mode = depth_buffer_retrieval_mode::post_process; // "Post process" retrieval mode by default (the former retrieval mode of Reshade)
 	unsigned int runtime::depth_buffer_clearing_number = 0; // usually, the second depth buffer clearing is the good one
 
 	runtime::runtime(uint32_t renderer) :
@@ -1785,7 +1785,7 @@ namespace reshade
 				save_configuration();
 			}
 
-			if (depth_buffer_retrieval_mode == depth_buffer_retrieval_mode::BEFORE_CLEARING_STAGE)
+			if (depth_buffer_retrieval_mode == depth_buffer_retrieval_mode::before_clearing_stage)
 			{
 				int depth_buffer_clearing_number_index = depth_buffer_clearing_number;
 

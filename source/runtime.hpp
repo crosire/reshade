@@ -33,25 +33,9 @@ namespace reshade
 	public:
 		enum depth_buffer_retrieval_mode
 		{
-			POST_PROCESS = 0,
-			BEFORE_CLEARING_STAGE = 1,
-			AT_OM_STAGE = 2
-		};
-
-		enum depth_buffer_texture_type
-		{
-			BOTH = 0,
-			DEPTH_BUFFER = 1,
-			STENCIL_BUFFER = 2
-		};
-
-		enum class allowed_technique
-		{
-			DISPLAY_DEPTH,
-			SUPER_DEPTH_3D,
-			POLYNOMIAL_BARREL_DISTORTION_M,
-			POLYNOMIAL_BARREL_DISTORTION_S,
-			MXAO
+			post_process = 0,
+			before_clearing_stage = 1,
+			at_om_stage = 2
 		};
 
 		/// <summary>

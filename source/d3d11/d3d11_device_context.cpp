@@ -253,7 +253,7 @@ void D3D11DeviceContext::clear_drawcall_stats()
 	_OM_iter = 0;
 	_best_vertices = 0;
 	_best_drawcalls = 0;
-	_draw_call_tracker.reset(true);
+	_draw_call_tracker.reset();
 	_active_depthstencil.reset();
 	_depth_texture.reset();
 }
@@ -507,12 +507,12 @@ void STDMETHODCALLTYPE D3D11DeviceContext::GSSetSamplers(UINT StartSlot, UINT Nu
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::OMSetRenderTargets(UINT NumViews, ID3D11RenderTargetView *const *ppRenderTargetViews, ID3D11DepthStencilView *pDepthStencilView)
 {
-	if (reshade::runtime::depth_buffer_retrieval_mode == reshade::runtime::depth_buffer_retrieval_mode::POST_PROCESS)
+	if (reshade::runtime::depth_buffer_retrieval_mode == reshade::runtime::depth_buffer_retrieval_mode::post_process)
 	{
 		set_active_depthstencil(pDepthStencilView);
 	}
 
-	if (reshade::runtime::depth_buffer_retrieval_mode == reshade::runtime::depth_buffer_retrieval_mode::AT_OM_STAGE)
+	if (reshade::runtime::depth_buffer_retrieval_mode == reshade::runtime::depth_buffer_retrieval_mode::at_om_stage)
 	{
 		set_active_OM_depthstencil(pDepthStencilView);
 	}
@@ -522,12 +522,12 @@ void STDMETHODCALLTYPE D3D11DeviceContext::OMSetRenderTargets(UINT NumViews, ID3
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::OMSetRenderTargetsAndUnorderedAccessViews(UINT NumRTVs, ID3D11RenderTargetView *const *ppRenderTargetViews, ID3D11DepthStencilView *pDepthStencilView, UINT UAVStartSlot, UINT NumUAVs, ID3D11UnorderedAccessView *const *ppUnorderedAccessViews, const UINT *pUAVInitialCounts)
 {
-	if (reshade::runtime::depth_buffer_retrieval_mode == reshade::runtime::depth_buffer_retrieval_mode::POST_PROCESS)
+	if (reshade::runtime::depth_buffer_retrieval_mode == reshade::runtime::depth_buffer_retrieval_mode::post_process)
 	{
 		set_active_depthstencil(pDepthStencilView);
 	}
 
-	if (reshade::runtime::depth_buffer_retrieval_mode == reshade::runtime::depth_buffer_retrieval_mode::AT_OM_STAGE)
+	if (reshade::runtime::depth_buffer_retrieval_mode == reshade::runtime::depth_buffer_retrieval_mode::at_om_stage)
 	{
 		set_active_OM_depthstencil(pDepthStencilView);
 	}
@@ -612,7 +612,7 @@ void STDMETHODCALLTYPE D3D11DeviceContext::ClearUnorderedAccessViewFloat(ID3D11U
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::ClearDepthStencilView(ID3D11DepthStencilView *pDepthStencilView, UINT ClearFlags, FLOAT Depth, UINT8 Stencil)
 {
-	if (reshade::runtime::depth_buffer_retrieval_mode == reshade::runtime::depth_buffer_retrieval_mode::BEFORE_CLEARING_STAGE)
+	if (reshade::runtime::depth_buffer_retrieval_mode == reshade::runtime::depth_buffer_retrieval_mode::before_clearing_stage)
 	{
 		set_active_cleared_depthstencil(pDepthStencilView);
 	}
@@ -869,7 +869,7 @@ HRESULT STDMETHODCALLTYPE D3D11DeviceContext::FinishCommandList(BOOL RestoreDefe
 		_device->add_commandlist_trackers(*ppCommandList, _draw_call_tracker);
 	}
 
-	_draw_call_tracker.reset(true);
+	_draw_call_tracker.reset();
 	_active_depthstencil.reset();
 
 	return hr;

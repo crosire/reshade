@@ -1,5 +1,4 @@
 #include "draw_call_tracker.hpp"
-#include "log.hpp"
 #include <math.h>
 
 namespace reshade::d3d11
@@ -13,7 +12,7 @@ namespace reshade::d3d11
 		{
 			const auto destination_entry = _counters_per_used_depthstencil.find(source_entry.first);
 
-			if (reshade::runtime::depth_buffer_retrieval_mode == reshade::runtime::depth_buffer_retrieval_mode::POST_PROCESS)
+			if (reshade::runtime::depth_buffer_retrieval_mode == reshade::runtime::depth_buffer_retrieval_mode::post_process)
 			{
 				if (destination_entry == _counters_per_used_depthstencil.end())
 				{
@@ -28,16 +27,12 @@ namespace reshade::d3d11
 		}
 	}
 
-	void draw_call_tracker::reset(bool ball)
+	void draw_call_tracker::reset()
 	{
 		_counters.vertices = 0;
 		_counters.drawcalls = 0;
-
-		if (ball == true)
-		{
-			_counters_per_used_depthstencil.clear();
-			_active_depth_texture.reset();
-		}
+		_counters_per_used_depthstencil.clear();
+		_active_depth_texture.reset();
 	}
 
 	void draw_call_tracker::set_depth_texture(ID3D11Texture2D* depth_texture)
@@ -88,7 +83,7 @@ namespace reshade::d3d11
 			float twfactor = 1.0f;
 			float thfactor = 1.0f;
 
-			if (reshade::runtime::depth_buffer_retrieval_mode == reshade::runtime::depth_buffer_retrieval_mode::POST_PROCESS)
+			if (reshade::runtime::depth_buffer_retrieval_mode == reshade::runtime::depth_buffer_retrieval_mode::post_process)
 			{
 				if (depthstencil_info.drawcalls == 0 || depthstencil_info.vertices == 0)
 				{
@@ -148,7 +143,7 @@ namespace reshade::d3d11
 				}
 			}
 
-			if (reshade::runtime::depth_buffer_retrieval_mode == reshade::runtime::depth_buffer_retrieval_mode::POST_PROCESS)
+			if (reshade::runtime::depth_buffer_retrieval_mode == reshade::runtime::depth_buffer_retrieval_mode::post_process)
 			{
 				if (depthstencil_info.drawcalls >= best_info.drawcalls)
 				{
@@ -158,7 +153,7 @@ namespace reshade::d3d11
 				}
 			}
 
-			if (reshade::runtime::depth_buffer_retrieval_mode == reshade::runtime::depth_buffer_retrieval_mode::BEFORE_CLEARING_STAGE || reshade::runtime::depth_buffer_retrieval_mode == reshade::runtime::depth_buffer_retrieval_mode::AT_OM_STAGE)
+			if (reshade::runtime::depth_buffer_retrieval_mode == reshade::runtime::depth_buffer_retrieval_mode::before_clearing_stage || reshade::runtime::depth_buffer_retrieval_mode == reshade::runtime::depth_buffer_retrieval_mode::at_om_stage)
 			{
 				best_match = depthstencil.get();
 			}

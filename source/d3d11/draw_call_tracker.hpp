@@ -20,7 +20,7 @@ namespace reshade::d3d11
 		UINT drawcalls() const { return _counters.drawcalls; }
 
 		void merge(const draw_call_tracker& source);
-		void reset(bool ball);
+		void reset();
 
 		void track_depthstencil(ID3D11DepthStencilView* to_track);
 		void set_depth_texture(ID3D11Texture2D* depth_texture);
