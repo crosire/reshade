@@ -2682,7 +2682,7 @@ namespace reshade::opengl
 		type.qualifiers = static_cast<unsigned int>(qualifier);
 
 		// OpenGL does not allow varying of type boolean
-		if (type.basetype = type_node::datatype_bool)
+		if (type.basetype == type_node::datatype_bool)
 		{
 			type.basetype = type_node::datatype_float;
 		}
