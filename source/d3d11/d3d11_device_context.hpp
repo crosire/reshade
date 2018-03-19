@@ -213,8 +213,8 @@ struct D3D11DeviceContext : ID3D11DeviceContext3
 	reshade::d3d11::draw_call_tracker _draw_call_tracker;
 	FLOAT _screen_width = 0;
 	FLOAT _screen_height = 0;
-	std::atomic<unsigned int> _clear_DSV_iter = 1;
-	std::atomic<unsigned int> _OM_iter = 0;
-	std::atomic<unsigned int> _best_vertices = 0;
-	std::atomic<unsigned int> _best_drawcalls = 0;
+	unsigned int _clear_DSV_iter = 1;
+	unsigned int _OM_iter = 0;
+	unsigned int _best_vertices = 0;
+	unsigned int _best_drawcalls = 0;
 };
