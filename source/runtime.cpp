@@ -1701,8 +1701,6 @@ namespace reshade
 			}
 		}
 
-		draw_overlay_menu_depth_buffer_detection_settings();
-
 		if (ImGui::CollapsingHeader("Screenshots", ImGuiTreeNodeFlags_DefaultOpen))
 		{
 			assert(_screenshot_key_data[0] < 256);
@@ -1768,16 +1766,16 @@ namespace reshade
 				load_configuration();
 			}
 		}
-	}
-	void runtime::draw_overlay_menu_depth_buffer_detection_settings()
-	{
-		if (ImGui::CollapsingHeader("Depth buffer detection settings", ImGuiTreeNodeFlags_DefaultOpen))
+
+		const bool is_d3d11 = (_renderer_id & 0xb000) != 0;
+
+		if (is_d3d11 && ImGui::CollapsingHeader("Buffer Detection", ImGuiTreeNodeFlags_DefaultOpen))
 		{
 			assert(_menu_key_data[0] < 256);
 
 			int depth_buffer_retrieval_mode_index = depth_buffer_retrieval_mode;
 
-			if (ImGui::Combo("Depth detection retrieval mode", &depth_buffer_retrieval_mode_index, "Post process\0Before depth Buffer Clearing\0At output merger state\0"))
+			if (ImGui::Combo("Depth detection retrieval mode", &depth_buffer_retrieval_mode_index, "Post Process\0Before Clearing\0At Output Merger Stage\0"))
 			{
 				_depth_buffer_settings_changed = true;
 				depth_buffer_retrieval_mode = depth_buffer_retrieval_mode_index;

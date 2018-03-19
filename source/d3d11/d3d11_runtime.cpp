@@ -11,7 +11,6 @@
 #include "resource_loading.hpp"
 #include <imgui.h>
 #include <algorithm>
-#include "d3d11_device_context.hpp"
 
 namespace reshade::d3d11
 {

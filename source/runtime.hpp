@@ -219,7 +219,6 @@ namespace reshade
 		void draw_overlay_menu();
 		void draw_overlay_menu_home();
 		void draw_overlay_menu_settings();
-		void draw_overlay_menu_depth_buffer_detection_settings();
 		void draw_overlay_menu_statistics();
 		void draw_overlay_menu_about();
 		void draw_overlay_variable_editor();
