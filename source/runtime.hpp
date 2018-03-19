@@ -31,6 +31,13 @@ namespace reshade
 	class runtime abstract
 	{
 	public:
+		enum depth_buffer_retrieval_mode
+		{
+			post_process = 0,
+			before_clearing_stage = 1,
+			at_om_stage = 2
+		};
+
 		/// <summary>
 		/// File path to the current module.
 		/// </summary>
@@ -39,6 +46,14 @@ namespace reshade
 		/// File path to the current executable.
 		/// </summary>
 		static filesystem::path s_target_executable_path;
+		/// <summary>
+		/// Depth buffer retrieval mode (post process, before depth Buffer Clearing)
+		/// </summary>
+		static unsigned int depth_buffer_retrieval_mode;
+		/// <summary>
+		/// Depth buffer clearing number
+		/// </summary>
+		static unsigned int depth_buffer_clearing_number;
 
 		/// <summary>
 		/// Construct a new runtime instance.
@@ -187,6 +202,8 @@ namespace reshade
 		std::vector<texture> _textures;
 		std::vector<uniform> _uniforms;
 		std::vector<technique> _techniques;
+		int _depth_buffer_texture_format = 0; // No depth buffer texture filtering by default
+		bool _depth_buffer_settings_changed = false;
 
 	private:
 		void reload();
@@ -202,6 +219,7 @@ namespace reshade
 		void draw_overlay_menu();
 		void draw_overlay_menu_home();
 		void draw_overlay_menu_settings();
+		void draw_overlay_menu_depth_buffer_detection_settings();
 		void draw_overlay_menu_statistics();
 		void draw_overlay_menu_about();
 		void draw_overlay_variable_editor();

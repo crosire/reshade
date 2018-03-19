@@ -5,8 +5,11 @@
 
 #pragma once
 
+#include <atomic>
 #include "d3d11.hpp"
 #include "draw_call_tracker.hpp"
+
+#define _VERTICES_TRESHOLD 10000
 
 struct D3D11DeviceContext : ID3D11DeviceContext3
 {
@@ -191,14 +194,27 @@ struct D3D11DeviceContext : ID3D11DeviceContext3
 	#pragma endregion
 
 	void log_drawcall(UINT vertices);
+	ID3D11DepthStencilView *copy_depthstencil(ID3D11DepthStencilView *depthstencil);
+	com_ptr<ID3D11Texture2D> copy_depth_texture(D3D11_TEXTURE2D_DESC texture_desc, ID3D11Texture2D *depthtexture);
+	bool check_depthstencil(com_ptr<ID3D11Texture2D> texture, D3D11_TEXTURE2D_DESC texture_desc);
 	void set_active_depthstencil(ID3D11DepthStencilView* pDepthStencilView);
+	void set_active_OM_depthstencil(ID3D11DepthStencilView* pDepthStencilView);
+	void set_active_cleared_depthstencil(ID3D11DepthStencilView* pDepthStencilView);
 
 	void clear_drawcall_stats();
+	void screen_dimensions();
 
 	LONG _ref = 1;
 	ID3D11DeviceContext *_orig;
 	unsigned int _interface_version;
 	D3D11Device *const _device;
 	com_ptr<ID3D11DepthStencilView> _active_depthstencil;
+	com_ptr<ID3D11Texture2D> _depth_texture;
 	reshade::d3d11::draw_call_tracker _draw_call_tracker;
+	FLOAT _screen_width = 0;
+	FLOAT _screen_height = 0;
+	unsigned int _clear_DSV_iter = 1;
+	unsigned int _OM_iter = 0;
+	unsigned int _best_vertices = 0;
+	unsigned int _best_drawcalls = 0;
 };

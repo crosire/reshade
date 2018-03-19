@@ -77,7 +77,7 @@ namespace reshade::d3d11
 		bool init_imgui_font_atlas();
 
 		void detect_depth_source(draw_call_tracker& tracker);
-		bool create_depthstencil_replacement(ID3D11DepthStencilView *depthstencil);
+		bool create_depthstencil_replacement(draw_call_tracker& tracker, ID3D11DepthStencilView *depthstencil);
 
 		bool _is_multisampling_enabled = false;
 		DXGI_FORMAT _backbuffer_format = DXGI_FORMAT_UNKNOWN;
