@@ -1307,6 +1307,8 @@ namespace reshade
 	}
 	void runtime::draw_overlay_menu_home()
 	{
+		ImGui::PushID("Home");
+
 		if (!_effects_enabled)
 		{
 			ImGui::Text("Effects are disabled. Press '%s%s%s' to enable them again.",
@@ -1563,9 +1565,13 @@ namespace reshade
 				save_configuration();
 			}
 		}
+
+		ImGui::PopID();
 	}
 	void runtime::draw_overlay_menu_settings()
 	{
+		ImGui::PushID("Settings");
+
 		char edit_buffer[2048];
 
 		const auto copy_key_shortcut_to_edit_buffer = [&edit_buffer](const auto &shortcut) {
@@ -1803,9 +1809,13 @@ namespace reshade
 				save_configuration();
 			}
 		}
+
+		ImGui::PopID();
 	}
 	void runtime::draw_overlay_menu_statistics()
 	{
+		ImGui::PushID("Statistics");
+
 		if (ImGui::CollapsingHeader("General", ImGuiTreeNodeFlags_DefaultOpen))
 		{
 			ImGui::PushItemWidth(-1);
@@ -1964,9 +1974,13 @@ namespace reshade
 
 			ImGui::EndGroup();
 		}
+
+		ImGui::PopID();
 	}
 	void runtime::draw_overlay_menu_about()
 	{
+		ImGui::PushID("About");
+
 		ImGui::PushTextWrapPos();
 		ImGui::TextUnformatted(R"(Copyright (C) 2014 Patrick Mours. All rights reserved.
 
@@ -2026,6 +2040,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 		}
 
 		ImGui::PopTextWrapPos();
+
+		ImGui::PopID();
 	}
 	void runtime::draw_overlay_variable_editor()
 	{
