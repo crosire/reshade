@@ -206,6 +206,8 @@ namespace reshade
 		bool _depth_buffer_settings_changed = false;
 
 	private:
+		static bool check_for_update(unsigned long latest_version[3]);
+
 		void reload();
 		void load_configuration();
 		void save_configuration() const;
@@ -251,6 +253,8 @@ namespace reshade
 		filesystem::path _configuration_path;
 		filesystem::path _screenshot_path;
 		std::string _focus_effect;
+		bool _needs_update = false;
+		unsigned long _latest_version[3] = { };
 		bool _show_menu = false;
 		bool _show_error_log = false;
 		bool _show_clock = false;

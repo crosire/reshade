@@ -153,6 +153,9 @@
     <ClCompile Include="source\d3d11\draw_call_tracker.cpp">
       <Filter>hooks\d3d11</Filter>
     </ClCompile>
+    <ClCompile Include="source\update_check.cpp">
+      <Filter>core\utility</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="source\hook.hpp">

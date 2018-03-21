@@ -54,6 +54,8 @@ namespace reshade
 		if (!filesystem::exists(_configuration_path))
 			_configuration_path = s_reshade_dll_path.parent_path() / "ReShade.ini";
 
+		_needs_update = check_for_update(_latest_version);
+
 		ImGui::SetCurrentContext(_imgui_context);
 
 		auto &imgui_io = _imgui_context->IO;
@@ -1141,7 +1143,17 @@ namespace reshade
 				ImGuiWindowFlags_NoFocusOnAppearing);
 
 			ImGui::TextUnformatted("ReShade " VERSION_STRING_FILE " by crosire");
-			ImGui::TextUnformatted("Visit https://reshade.me for news, updates, shaders and discussion.");
+
+			if (_needs_update)
+			{
+				ImGui::TextColored(ImVec4(1, 1, 0, 1),
+					"An update is available! Please visit https://reshade.me and install the new version (v%lu.%lu.%lu).",
+					_latest_version[0], _latest_version[1], _latest_version[2]);
+			}
+			else
+			{
+				ImGui::TextUnformatted("Visit https://reshade.me for news, updates, shaders and discussion.");
+			}
 
 			ImGui::Spacing();
 
