@@ -27,7 +27,7 @@ namespace reshade::d3d11
 		void log_drawcalls(UINT drawcalls, UINT vertices);
 		void log_drawcalls(ID3D11DepthStencilView* depthstencil, UINT drawcalls, UINT vertices);
 
-		ID3D11DepthStencilView* get_best_depth_stencil(const com_ptr<ID3D11Device> device, const com_ptr<ID3D11DeviceContext> devicecontext, UINT width, UINT height, DXGI_FORMAT depth_buffer_texture_format);
+		ID3D11DepthStencilView* get_best_depth_stencil(UINT width, UINT height, DXGI_FORMAT depth_buffer_texture_format);
 		ID3D11Texture2D* get_depth_texture();
 		depthstencil_counter_info get_counters();
 

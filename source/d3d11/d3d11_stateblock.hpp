@@ -13,10 +13,10 @@ namespace reshade::d3d11
 	class d3d11_stateblock
 	{
 	public:
-		explicit d3d11_stateblock(const com_ptr<ID3D11Device> &device);
+		explicit d3d11_stateblock(ID3D11Device *device);
 		~d3d11_stateblock();
 
-		void capture(const com_ptr<ID3D11DeviceContext> &devicecontext);
+		void capture(ID3D11DeviceContext *devicecontext);
 		void apply_and_release();
 
 	private:

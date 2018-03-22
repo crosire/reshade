@@ -17,7 +17,7 @@ namespace reshade::d3d10
 		}
 	}
 
-	d3d10_stateblock::d3d10_stateblock(const com_ptr<ID3D10Device> &device)
+	d3d10_stateblock::d3d10_stateblock(ID3D10Device *device)
 	{
 		ZeroMemory(this, sizeof(*this));
 

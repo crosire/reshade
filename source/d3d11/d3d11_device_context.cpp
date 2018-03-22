@@ -19,7 +19,7 @@ void D3D11DeviceContext::log_drawcall(UINT vertices)
 
 com_ptr<ID3D11Texture2D> D3D11DeviceContext::copy_depth_texture(D3D11_TEXTURE2D_DESC texture_desc, ID3D11Texture2D *depth_texture)
 {
-	com_ptr<ID3D11Texture2D> depth_texture_copy = nullptr;
+	com_ptr<ID3D11Texture2D> depth_texture_copy;
 
 	switch (texture_desc.Format)
 	{

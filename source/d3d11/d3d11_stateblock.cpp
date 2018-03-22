@@ -17,7 +17,7 @@ namespace reshade::d3d11
 		}
 	}
 
-	d3d11_stateblock::d3d11_stateblock(const com_ptr<ID3D11Device> &device)
+	d3d11_stateblock::d3d11_stateblock(ID3D11Device *device)
 	{
 		ZeroMemory(this, sizeof(*this));
 
@@ -29,7 +29,7 @@ namespace reshade::d3d11
 		release_all_device_objects();
 	}
 
-	void d3d11_stateblock::capture(const com_ptr<ID3D11DeviceContext> &devicecontext)
+	void d3d11_stateblock::capture(ID3D11DeviceContext *devicecontext)
 	{
 		_device_context = devicecontext;
 

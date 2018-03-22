@@ -70,7 +70,7 @@ namespace reshade::d3d11
 		}
 	}
 
-	ID3D11DepthStencilView* draw_call_tracker::get_best_depth_stencil(const com_ptr<ID3D11Device> device, const com_ptr<ID3D11DeviceContext> devicecontext, UINT width, UINT height, DXGI_FORMAT depth_buffer_texture_format)
+	ID3D11DepthStencilView* draw_call_tracker::get_best_depth_stencil(UINT width, UINT height, DXGI_FORMAT depth_buffer_texture_format)
 	{
 		depthstencil_counter_info best_info = { 0 };
 		ID3D11DepthStencilView *best_match = nullptr;

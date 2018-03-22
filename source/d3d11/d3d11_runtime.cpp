@@ -1027,7 +1027,7 @@ namespace reshade::d3d11
 
 		assert(_depth_buffer_texture_format >= 0 && _depth_buffer_texture_format < ARRAYSIZE(depth_texture_formats));
 
-		ID3D11DepthStencilView *const best_match = tracker.get_best_depth_stencil(_device.get(), _immediate_context.get(), _width, _height, depth_texture_formats[_depth_buffer_texture_format]);
+		ID3D11DepthStencilView *const best_match = tracker.get_best_depth_stencil(_width, _height, depth_texture_formats[_depth_buffer_texture_format]);
 
 		if (best_match != nullptr)
 		{

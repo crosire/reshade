@@ -12,20 +12,28 @@ template <typename T>
 class com_ptr
 {
 public:
-	com_ptr() : _object(nullptr) { }
-	com_ptr(T *object) : _object(nullptr)
+	com_ptr()
+		: _object(nullptr) { }
+	com_ptr(std::nullptr_t)
+		: _object(nullptr) { }
+	com_ptr(T *object, bool own = false)
+		: _object(object)
 	{
-		reset(object);
+		if (!own && _object != nullptr)
+		{
+			_object->AddRef();
+		}
 	}
-	com_ptr(const com_ptr<T> &copy) : _object(nullptr)
+	com_ptr(const com_ptr<T> &ptr)
+		: _object(nullptr)
 	{
-		reset(copy._object);
+		reset(ptr._object);
 	}
-	com_ptr(com_ptr<T> &&move) : _object(nullptr)
+	com_ptr(com_ptr<T> &&ptr)
+		: _object(nullptr)
 	{
-		std::swap(_object, move._object);
+		std::swap(_object, ptr._object);
 	}
-
 	~com_ptr()
 	{
 		reset();

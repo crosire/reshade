@@ -13,7 +13,7 @@ namespace reshade::d3d10
 	class d3d10_stateblock
 	{
 	public:
-		explicit d3d10_stateblock(const com_ptr<ID3D10Device> &device);
+		explicit d3d10_stateblock(ID3D10Device *device);
 		~d3d10_stateblock();
 
 		void capture();
