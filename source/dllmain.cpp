@@ -15,6 +15,7 @@ HMODULE g_module_handle = nullptr;
 
 #if defined(RESHADE_TEST_APPLICATION)
 
+#include "d3d9/d3d9.hpp"
 #include "d3d11/d3d11.hpp"
 #include "opengl/opengl_stubs.hpp"
 
@@ -66,6 +67,45 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 	MSG msg = {};
 
 #if RESHADE_TEST_APPLICATION == 1
+	hooks::register_module("d3d9.dll");
+	const auto d3d9_module = LoadLibrary(TEXT("d3d9.dll"));
+
+	// Initialize Direct3D 9
+	com_ptr<IDirect3D9> d3d(Direct3DCreate9(D3D_SDK_VERSION), true);
+	com_ptr<IDirect3DDevice9> device;
+	{
+		RECT client_rect;
+		GetClientRect(window_handle, &client_rect);
+
+		D3DPRESENT_PARAMETERS pp = {};
+		pp.BackBufferCount = 1;
+		pp.BackBufferWidth = client_rect.right - client_rect.left;
+		pp.BackBufferHeight = client_rect.bottom - client_rect.top;
+		pp.Windowed = true;
+		pp.hDeviceWindow = window_handle;
+		pp.SwapEffect = D3DSWAPEFFECT_DISCARD;
+
+		if (d3d == nullptr || FAILED(d3d->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, window_handle, D3DCREATE_HARDWARE_VERTEXPROCESSING, &pp, &device)))
+		{
+			return 0;
+		}
+	}
+
+	while (msg.message != WM_QUIT)
+	{
+		while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
+		{
+			DispatchMessage(&msg);
+		}
+
+		device->Clear(0, nullptr, D3DCLEAR_TARGET, 0xFF7F7F7F, 0, 0);
+
+		device->Present(nullptr, nullptr, nullptr, nullptr);
+	}
+
+	FreeLibrary(d3d9_module);
+#endif
+#if RESHADE_TEST_APPLICATION == 2
 	hooks::register_module("dxgi.dll");
 	hooks::register_module("d3d11.dll");
 	const auto d3d11_module = LoadLibrary(TEXT("d3d11.dll"));
@@ -106,7 +146,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 			DispatchMessage(&msg);
 		}
 
-		const float color[4] = { 1, 1, 1, 1 };
+		const float color[4] = { 0.5f, 0.5f, 0.5f, 1.0f };
 		immediate_context->ClearRenderTargetView(target.get(), color);
 
 		swapchain->Present(1, 0);
@@ -114,7 +154,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 
 	FreeLibrary(d3d11_module);
 #endif
-#if RESHADE_TEST_APPLICATION == 2
+#if RESHADE_TEST_APPLICATION == 3
 	hooks::register_module("opengl32.dll");
 	const auto opengl_module = LoadLibrary(TEXT("opengl32.dll"));
 
@@ -146,7 +186,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 			DispatchMessage(&msg);
 		}
 
-		glClearColor(1, 1, 1, 1);
+		glClearColor(0.5f, 0.5f, 0.5f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT);
 
 		SwapBuffers(hdc);
