@@ -751,6 +751,10 @@ namespace reshade::d3d9
 
 		// Setup render state: fixed-pipeline, alpha-blending, no face culling, no depth testing
 		_device->SetRenderTarget(0, _backbuffer_resolved.get());
+		for (DWORD target = 1; target < _num_simultaneous_rendertargets; target++)
+		{
+			_device->SetRenderTarget(target, nullptr);
+		}
 		_device->SetDepthStencilSurface(nullptr);
 		_device->SetStreamSource(0, _imgui_vertex_buffer.get(), 0, sizeof(vertex));
 		_device->SetIndices(_imgui_index_buffer.get());
