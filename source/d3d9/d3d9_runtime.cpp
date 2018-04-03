@@ -154,7 +154,7 @@ namespace reshade::d3d9
 		D3DLOCKED_RECT font_atlas_rect;
 		com_ptr<IDirect3DTexture9> font_atlas;
 
-		const HRESULT hr = _device->CreateTexture(width, height, 1, D3DUSAGE_DYNAMIC, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &font_atlas, nullptr);
+		HRESULT hr = _device->CreateTexture(width, height, 1, D3DUSAGE_DYNAMIC, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &font_atlas, nullptr);
 
 		if (FAILED(hr) || FAILED(font_atlas->LockRect(0, &font_atlas_rect, nullptr, 0)))
 		{
@@ -173,6 +173,62 @@ namespace reshade::d3d9
 		obj.texture = font_atlas;
 
 		_imgui_font_atlas_texture = std::make_unique<d3d9_tex_data>(obj);
+
+		if (hr = _device->BeginStateBlock(); SUCCEEDED(hr))
+		{
+			_device->SetFVF(D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1);
+			_device->SetPixelShader(nullptr);
+			_device->SetVertexShader(nullptr);
+			_device->SetRenderState(D3DRS_ZENABLE, false);
+			_device->SetRenderState(D3DRS_FILLMODE, D3DFILL_SOLID);
+			_device->SetRenderState(D3DRS_ALPHATESTENABLE, false);
+			_device->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
+			_device->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
+			_device->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
+			_device->SetRenderState(D3DRS_ALPHABLENDENABLE, true);
+			_device->SetRenderState(D3DRS_FOGENABLE, false);
+			_device->SetRenderState(D3DRS_STENCILENABLE, false);
+			_device->SetRenderState(D3DRS_CLIPPING, false);
+			_device->SetRenderState(D3DRS_LIGHTING, false);
+			_device->SetRenderState(D3DRS_COLORWRITEENABLE, D3DCOLORWRITEENABLE_RED | D3DCOLORWRITEENABLE_GREEN | D3DCOLORWRITEENABLE_BLUE | D3DCOLORWRITEENABLE_ALPHA);
+			_device->SetRenderState(D3DRS_SCISSORTESTENABLE, true);
+			_device->SetRenderState(D3DRS_BLENDOP, D3DBLENDOP_ADD);
+			_device->SetRenderState(D3DRS_SRGBWRITEENABLE, false);
+			_device->SetRenderState(D3DRS_BLENDOPALPHA, D3DBLENDOP_ADD);
+			_device->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATE);
+			_device->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
+			_device->SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
+			_device->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_MODULATE);
+			_device->SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
+			_device->SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
+			_device->SetSamplerState(0, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
+			_device->SetSamplerState(0, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
+
+			const D3DMATRIX identity_mat = {
+				1.0f, 0.0f, 0.0f, 0.0f,
+				0.0f, 1.0f, 0.0f, 0.0f,
+				0.0f, 0.0f, 1.0f, 0.0f,
+				0.0f, 0.0f, 0.0f, 1.0f
+			};
+			const D3DMATRIX ortho_projection = {
+				2.0f / _width, 0.0f, 0.0f, 0.0f,
+				0.0f, -2.0f / _height, 0.0f, 0.0f,
+				0.0f, 0.0f, 0.5f, 0.0f,
+				-(_width + 1.0f) / _width, (_height + 1.0f) / _height, 0.5f, 1.0f
+			};
+
+			_device->SetTransform(D3DTS_WORLD, &identity_mat);
+			_device->SetTransform(D3DTS_VIEW, &identity_mat);
+			_device->SetTransform(D3DTS_PROJECTION, &ortho_projection);
+
+			hr = _device->EndStateBlock(&_imgui_state);
+		}
+
+		if (FAILED(hr))
+		{
+			LOG(ERROR) << "Failed to create state block! HRESULT is '" << std::hex << hr << std::dec << "'.";
+			return false;
+		}
 
 		return true;
 	}
@@ -230,6 +286,8 @@ namespace reshade::d3d9
 		_imgui_index_buffer.reset();
 		_imgui_vertex_buffer_size = 0;
 		_imgui_index_buffer_size = 0;
+
+		_imgui_state.reset();
 
 		// Clear depth source table
 		for (auto &it : _depth_source_table)
@@ -758,47 +816,7 @@ namespace reshade::d3d9
 		_device->SetDepthStencilSurface(nullptr);
 		_device->SetStreamSource(0, _imgui_vertex_buffer.get(), 0, sizeof(vertex));
 		_device->SetIndices(_imgui_index_buffer.get());
-		_device->SetFVF(D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1);
-		_device->SetPixelShader(nullptr);
-		_device->SetVertexShader(nullptr);
-		_device->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
-		_device->SetRenderState(D3DRS_LIGHTING, false);
-		_device->SetRenderState(D3DRS_ZENABLE, false);
-		_device->SetRenderState(D3DRS_ALPHABLENDENABLE, true);
-		_device->SetRenderState(D3DRS_ALPHATESTENABLE, false);
-		_device->SetRenderState(D3DRS_BLENDOP, D3DBLENDOP_ADD);
-		_device->SetRenderState(D3DRS_BLENDOPALPHA, D3DBLENDOP_ADD);
-		_device->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
-		_device->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
-		_device->SetRenderState(D3DRS_STENCILENABLE, false);
-		_device->SetRenderState(D3DRS_SCISSORTESTENABLE, true);
-		_device->SetRenderState(D3DRS_SRGBWRITEENABLE, false);
-		_device->SetRenderState(D3DRS_COLORWRITEENABLE, D3DCOLORWRITEENABLE_RED | D3DCOLORWRITEENABLE_GREEN | D3DCOLORWRITEENABLE_BLUE | D3DCOLORWRITEENABLE_ALPHA);
-		_device->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATE);
-		_device->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
-		_device->SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
-		_device->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_MODULATE);
-		_device->SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
-		_device->SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
-		_device->SetSamplerState(0, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
-		_device->SetSamplerState(0, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
-
-		const D3DMATRIX identity_mat = {
-			1.0f, 0.0f, 0.0f, 0.0f,
-			0.0f, 1.0f, 0.0f, 0.0f,
-			0.0f, 0.0f, 1.0f, 0.0f,
-			0.0f, 0.0f, 0.0f, 1.0f
-		};
-		const D3DMATRIX ortho_projection = {
-			2.0f / _width, 0.0f, 0.0f, 0.0f,
-			0.0f, -2.0f / _height, 0.0f, 0.0f,
-			0.0f, 0.0f, 0.5f, 0.0f,
-			-(_width + 1.0f) / _width, (_height + 1.0f) / _height, 0.5f, 1.0f
-		};
-
-		_device->SetTransform(D3DTS_WORLD, &identity_mat);
-		_device->SetTransform(D3DTS_VIEW, &identity_mat);
-		_device->SetTransform(D3DTS_PROJECTION, &ortho_projection);
+		_imgui_state->Apply();
 
 		// Render command lists
 		UINT vtx_offset = 0, idx_offset = 0;

@@ -80,7 +80,7 @@ namespace reshade::d3d9
 		UINT _behavior_flags, _num_simultaneous_rendertargets, _num_samplers;
 		bool _is_multisampling_enabled = false;
 		D3DFORMAT _backbuffer_format = D3DFMT_UNKNOWN;
-		com_ptr<IDirect3DStateBlock9> _stateblock;
+		com_ptr<IDirect3DStateBlock9> _stateblock, _imgui_state;
 		com_ptr<IDirect3DSurface9> _depthstencil, _depthstencil_replacement, _default_depthstencil;
 		std::unordered_map<IDirect3DSurface9 *, depth_source_info> _depth_source_table;
 
