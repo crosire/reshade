@@ -2063,6 +2063,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 		bool current_tree_is_closed = true;
 		std::string current_filename;
+		std::string current_category;
 
 		for (int id = 0; id < static_cast<int>(_uniform_count); id++)
 		{
@@ -2103,6 +2104,18 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 			const auto ui_type = variable.annotations["ui_type"].as<std::string>();
 			const auto ui_label = variable.annotations.count("ui_label") ? variable.annotations.at("ui_label").as<std::string>() : variable.name;
 			const auto ui_tooltip = variable.annotations["ui_tooltip"].as<std::string>();
+			const auto ui_category = variable.annotations["ui_category"].as<std::string>();
+
+			if (!ui_category.empty() && current_category != ui_category)
+			{
+				current_category = ui_category;
+
+				const float text_width = ImGui::CalcTextSize(ui_category.c_str()).x;
+				const float region_width = ImGui::CalcItemWidth();
+				ImGui::Dummy(ImVec2((region_width - text_width) / 2, 0));
+				ImGui::SameLine();
+				ImGui::TextUnformatted(ui_category.c_str());
+			}
 
 			ImGui::PushID(id);
 
