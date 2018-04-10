@@ -39,8 +39,6 @@ namespace reshade
 		short mouse_wheel_delta() const { return _mouse_wheel_delta; }
 		int mouse_movement_delta_x() const { return _mouse_position[0] - _last_mouse_position[0]; }
 		int mouse_movement_delta_y() const { return _mouse_position[1] - _last_mouse_position[1]; }
-		short mouse_raw_delta_x() const { return _mouse_raw_delta[0]; }
-		short mouse_raw_delta_y() const { return _mouse_raw_delta[1]; }
 		unsigned int mouse_position_x() const { return _mouse_position[0]; }
 		unsigned int mouse_position_y() const { return _mouse_position[1]; }
 
@@ -63,7 +61,6 @@ namespace reshade
 		short _mouse_wheel_delta = 0;
 		unsigned int _mouse_position[2] = { };
 		unsigned int _last_mouse_position[2] = { };
-		short _mouse_raw_delta[2] = { };
 		uint64_t _frame_count = 0;
 	};
 }

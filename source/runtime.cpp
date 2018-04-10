@@ -368,12 +368,6 @@ namespace reshade
 
 				set_uniform_value(variable, values, 2);
 			}
-			else if (source == "mouseraw")
-			{
-				const float values[3] = { static_cast<float>(_input->mouse_raw_delta_x()), static_cast<float>(_input->mouse_raw_delta_y()), static_cast<float>(_input->mouse_wheel_delta()) };
-
-				set_uniform_value(variable, values, 3);
-			}
 			else if (source == "mousebutton")
 			{
 				const int index = variable.annotations["keycode"].as<int>();
