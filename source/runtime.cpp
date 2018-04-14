@@ -1793,7 +1793,7 @@ namespace reshade
 			}
 		}
 
-		const bool is_d3d11 = (_renderer_id & 0xb000) != 0;
+		const bool is_d3d11 = _renderer_id >= 0xb000 && _renderer_id < 0xc000;;
 
 		if (is_d3d11 && ImGui::CollapsingHeader("Buffer Detection", ImGuiTreeNodeFlags_DefaultOpen))
 		{
