@@ -377,19 +377,19 @@ namespace ReShade.Setup
 			string shadersDirectoryFinal = Path.Combine(targetDirectory, "reshade-shaders");
 			string shadersDirectoryExtracted = Path.Combine(targetDirectory, "reshade-shaders-master");
 
+			// Delete existing directories since "ExtractToDirectory" fails if the target is not empty
+			if (Directory.Exists(shadersDirectoryFinal))
+			{
+				try { Directory.Delete(shadersDirectoryFinal, true); } catch { }
+			}
+			if (Directory.Exists(shadersDirectoryExtracted))
+			{
+				try { Directory.Delete(shadersDirectoryExtracted, true); } catch { }
+			}
+
 			try
 			{
-				if (Directory.Exists(shadersDirectoryFinal))
-				{
-					Directory.Delete(shadersDirectoryFinal, true);
-				}
-				if (Directory.Exists(shadersDirectoryExtracted))
-				{
-					Directory.Delete(shadersDirectoryExtracted, true);
-				}
-
 				ZipFile.ExtractToDirectory(_tempDownloadPath, targetDirectory);
-				File.Delete(_tempDownloadPath);
 
 				Directory.Move(shadersDirectoryExtracted, shadersDirectoryFinal);
 			}
@@ -407,6 +407,9 @@ namespace ReShade.Setup
 				}
 				return;
 			}
+
+			// Ignore exceptions on file deletion
+			try { File.Delete(_tempDownloadPath); } catch { }
 
 			if (!_isHeadless)
 			{
