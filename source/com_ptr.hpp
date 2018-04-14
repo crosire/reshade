@@ -106,29 +106,35 @@ public:
 		return *this;
 	}
 
-	bool operator==(T *other) const
+	bool operator==(T *rhs) const
 	{
-		return _object == other;
+		return _object == rhs;
 	}
-	bool operator==(const com_ptr<T> &other) const
+	bool operator==(const com_ptr<T> &rhs) const
 	{
-		return _object == other._object;
+		return _object == rhs._object;
 	}
-	friend bool operator==(T *left, const com_ptr<T> &right)
+	friend bool operator==(T *lhs, const com_ptr<T> &rhs)
 	{
-		return right.operator==(left);
+		return rhs.operator==(lhs);
 	}
-	bool operator!=(T *other) const
+	bool operator!=(T *rhs) const
 	{
-		return _object != other;
+		return _object != rhs;
 	}
-	bool operator!=(const com_ptr<T> &other) const
+	bool operator!=(const com_ptr<T> &rhs) const
 	{
-		return _object != other._object;
+		return _object != rhs._object;
 	}
-	friend bool operator!=(T *left, const com_ptr<T> &right)
+	friend bool operator!=(T *lhs, const com_ptr<T> &rhs)
 	{
-		return right.operator!=(left);
+		return rhs.operator!=(lhs);
+	}
+
+	// Default operator used for sorting
+	friend bool operator<(const com_ptr<T> &lhs, const com_ptr<T> &rhs)
+	{
+		return lhs._object < rhs._object;
 	}
 
 private:

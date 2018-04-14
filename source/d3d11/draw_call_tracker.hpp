@@ -1,7 +1,7 @@
 #pragma once
 
 #include <d3d11.h>
-#include <unordered_map>
+#include <map>
 #include "com_ptr.hpp"
 
 namespace reshade::d3d11
@@ -11,6 +11,8 @@ namespace reshade::d3d11
 	public:
 		UINT vertices() const { return _counters.vertices; }
 		UINT drawcalls() const { return _counters.drawcalls; }
+
+		const auto &depthstencil_counters() const { return _counters_per_used_depthstencil; }
 
 		void merge(const draw_call_tracker &source);
 		void reset();
@@ -32,6 +34,7 @@ namespace reshade::d3d11
 		};
 
 		depthstencil_counter_info _counters;
-		std::unordered_map<com_ptr<ID3D11DepthStencilView>, depthstencil_counter_info> _counters_per_used_depthstencil;
+		// Use "std::map" instead of "std::unordered_map" so that the iteration order is guaranteed
+		std::map<com_ptr<ID3D11DepthStencilView>, depthstencil_counter_info> _counters_per_used_depthstencil;
 	};
 }

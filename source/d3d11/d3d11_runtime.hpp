@@ -87,6 +87,7 @@ namespace reshade::d3d11
 		d3d11_stateblock _stateblock;
 		com_ptr<ID3D11Texture2D> _backbuffer, _backbuffer_resolved;
 		com_ptr<ID3D11DepthStencilView> _depthstencil, _depthstencil_replacement;
+		ID3D11DepthStencilView *_best_depth_stencil_overwrite = nullptr;
 		com_ptr<ID3D11Texture2D> _depthstencil_texture;
 		com_ptr<ID3D11DepthStencilView> _default_depthstencil;
 		com_ptr<ID3D11VertexShader> _copy_vertex_shader;

@@ -978,6 +978,45 @@ namespace reshade::d3d11
 
 	void d3d11_runtime::detect_depth_source(draw_call_tracker &tracker)
 	{
+		ImGui::SetCurrentContext(_imgui_context);
+
+		if (_depth_buffer_debug && ImGui::Begin("Depth Buffer Debug", &_depth_buffer_debug))
+		{
+			for (const auto &it : tracker.depthstencil_counters())
+			{
+				char label[512] = "";
+				sprintf_s(label, "%s0x%p", (it.first == _depthstencil ? "> " : "  "), it.first.get());
+
+				if (bool value = _best_depth_stencil_overwrite == it.first; ImGui::Checkbox(label, &value))
+				{
+					_best_depth_stencil_overwrite = value ? it.first.get() : nullptr;
+
+					com_ptr<ID3D11Texture2D> texture = it.second.texture;
+
+					if (texture == nullptr && _best_depth_stencil_overwrite != nullptr)
+					{
+						com_ptr<ID3D11Resource> resource;
+						_best_depth_stencil_overwrite->GetResource(&resource);
+
+						resource->QueryInterface(&texture);
+					}
+
+					create_depthstencil_replacement(_best_depth_stencil_overwrite, texture.get());
+				}
+
+				ImGui::SameLine();
+
+				ImGui::Text("| %u draw calls ==> %u vertices", it.second.drawcalls, it.second.vertices);
+			}
+
+			ImGui::End();
+		}
+
+		if (_best_depth_stencil_overwrite != nullptr)
+		{
+			return;
+		}
+
 		static int cooldown = 0, traffic = 0;
 
 		if (cooldown-- > 0)

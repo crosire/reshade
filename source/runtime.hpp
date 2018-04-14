@@ -44,7 +44,7 @@ namespace reshade
 		/// Construct a new runtime instance.
 		/// </summary>
 		/// <param name="renderer">A unique number identifying the renderer implementation.</param>
-		explicit runtime(uint32_t renderer);
+		runtime(uint32_t renderer);
 		virtual ~runtime();
 
 		/// <summary>
@@ -188,6 +188,7 @@ namespace reshade
 		std::vector<uniform> _uniforms;
 		std::vector<technique> _techniques;
 		int _depth_buffer_texture_format = 0; // No depth buffer texture format filter by default
+		bool _depth_buffer_debug = false;
 		bool _depth_buffer_before_clear = false;
 
 	private:

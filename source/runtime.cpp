@@ -108,6 +108,16 @@ namespace reshade
 
 	bool runtime::on_init()
 	{
+		// Finish initializing ImGui
+		ImGui::SetCurrentContext(_imgui_context);
+		auto &imgui_io = ImGui::GetIO();
+		imgui_io.DeltaTime = 0.0f;
+		imgui_io.DisplaySize.x = static_cast<float>(_width);
+		imgui_io.DisplaySize.y = static_cast<float>(_height);
+		imgui_io.Fonts->TexID = _imgui_font_atlas_texture.get();
+
+		ImGui::NewFrame();
+
 		LOG(INFO) << "Recreated runtime environment on runtime " << this << ".";
 
 		_is_initialized = true;
@@ -128,6 +138,16 @@ namespace reshade
 		{
 			return;
 		}
+
+		// Reset ImGui and clean up current frame
+		ImGui::SetCurrentContext(_imgui_context);
+		auto &imgui_io = ImGui::GetIO();
+		imgui_io.DeltaTime = 0.0f;
+		imgui_io.DisplaySize.x = 0;
+		imgui_io.DisplaySize.y = 0;
+		imgui_io.Fonts->TexID = nullptr;
+
+		ImGui::EndFrame();
 
 		_imgui_font_atlas_texture.reset();
 
@@ -1077,21 +1097,11 @@ namespace reshade
 			_show_menu = !_show_menu;
 		}
 
-		if (!(_show_menu || _show_clock || _show_framerate || _show_error_log || show_splash))
-		{
-			_input->block_mouse_input(false);
-			_input->block_keyboard_input(false);
-			return;
-		}
-
 		// Update ImGui configuration
 		ImGui::SetCurrentContext(_imgui_context);
 
 		auto &imgui_io = ImGui::GetIO();
 		imgui_io.DeltaTime = _last_frame_duration.count() * 1e-9f;
-		imgui_io.DisplaySize.x = static_cast<float>(_width);
-		imgui_io.DisplaySize.y = static_cast<float>(_height);
-		imgui_io.Fonts->TexID = _imgui_font_atlas_texture.get();
 		imgui_io.MouseDrawCursor = _show_menu;
 
 		imgui_io.KeyCtrl = _input->is_key_down(0x11); // VK_CONTROL
@@ -1121,10 +1131,9 @@ namespace reshade
 			imgui_io.FontGlobalScale = ImClamp(imgui_io.FontGlobalScale + imgui_io.MouseWheel * 0.10f, 1.0f, 2.50f);
 		}
 
-		// Create ImGui widgets and windows
-		ImGui::NewFrame();
 		_effects_expanded_state &= 2;
 
+		// Create ImGui widgets and windows
 		if (show_splash)
 		{
 			ImGui::SetNextWindowPos(ImVec2(10, 10));
@@ -1274,6 +1283,8 @@ namespace reshade
 		_input->block_keyboard_input(_input_processing_mode != 0 && (imgui_io.WantCaptureKeyboard || (_input_processing_mode == 2 && _show_menu)));
 
 		render_imgui_draw_data(ImGui::GetDrawData());
+
+		ImGui::NewFrame();
 	}
 	void runtime::draw_overlay_menu()
 	{
@@ -1777,6 +1788,7 @@ namespace reshade
 			if (modified)
 			{
 				save_configuration();
+				// Style is applied in "load_configuration".
 				load_configuration();
 			}
 		}
@@ -1794,6 +1806,11 @@ namespace reshade
 			if (modified)
 			{
 				save_configuration();
+			}
+
+			if (ImGui::Button("Show Debug Window", ImVec2(ImGui::CalcItemWidth(), 0)))
+			{
+				_depth_buffer_debug = true;
 			}
 		}
 
