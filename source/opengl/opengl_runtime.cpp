@@ -402,13 +402,13 @@ namespace reshade::opengl
 	void opengl_runtime::on_present()
 	{
 		if (!is_initialized())
-		{
 			return;
-		}
+
+		runtime::on_frame();
 
 		detect_depth_source();
 
-		// Evalute queries
+		// Evaluate queries
 		for (technique &technique : _techniques)
 		{
 			opengl_technique_data &technique_data = *technique.impl->as<opengl_technique_data>();

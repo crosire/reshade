@@ -300,17 +300,15 @@ namespace reshade::d3d9
 	void d3d9_runtime::on_present()
 	{
 		if (!is_initialized())
-		{
 			return;
-		}
-
-		detect_depth_source();
 
 		// Begin post processing
 		if (FAILED(_device->BeginScene()))
-		{
 			return;
-		}
+
+		runtime::on_frame();
+
+		detect_depth_source();
 
 		// Capture device state
 		_stateblock->Capture();
@@ -916,6 +914,7 @@ namespace reshade::d3d9
 			create_depthstencil_replacement(best_match);
 		}
 	}
+
 	bool d3d9_runtime::create_depthstencil_replacement(IDirect3DSurface9 *depthstencil)
 	{
 		_depthstencil.reset();

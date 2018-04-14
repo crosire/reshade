@@ -504,13 +504,13 @@ namespace reshade::d3d11
 	}
 	void d3d11_runtime::on_present(draw_call_tracker &tracker)
 	{
+		if (!is_initialized())
+			return;
+
 		_vertices = tracker.vertices();
 		_drawcalls = tracker.drawcalls();
 
-		if (!is_initialized())
-		{
-			return;
-		}
+		runtime::on_frame();
 
 		detect_depth_source(tracker);
 

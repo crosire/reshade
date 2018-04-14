@@ -109,14 +109,9 @@ namespace reshade
 	bool runtime::on_init()
 	{
 		// Finish initializing ImGui
-		ImGui::SetCurrentContext(_imgui_context);
-		auto &imgui_io = ImGui::GetIO();
-		imgui_io.DeltaTime = 0.0f;
-		imgui_io.DisplaySize.x = static_cast<float>(_width);
-		imgui_io.DisplaySize.y = static_cast<float>(_height);
-		imgui_io.Fonts->TexID = _imgui_font_atlas_texture.get();
-
-		ImGui::NewFrame();
+		_imgui_context->IO.DisplaySize.x = static_cast<float>(_width);
+		_imgui_context->IO.DisplaySize.y = static_cast<float>(_height);
+		_imgui_context->IO.Fonts->TexID = _imgui_font_atlas_texture.get();
 
 		LOG(INFO) << "Recreated runtime environment on runtime " << this << ".";
 
@@ -139,15 +134,10 @@ namespace reshade
 			return;
 		}
 
-		// Reset ImGui and clean up current frame
-		ImGui::SetCurrentContext(_imgui_context);
-		auto &imgui_io = ImGui::GetIO();
-		imgui_io.DeltaTime = 0.0f;
-		imgui_io.DisplaySize.x = 0;
-		imgui_io.DisplaySize.y = 0;
-		imgui_io.Fonts->TexID = nullptr;
-
-		ImGui::EndFrame();
+		// Reset ImGui settings
+		_imgui_context->IO.DisplaySize.x = 0;
+		_imgui_context->IO.DisplaySize.y = 0;
+		_imgui_context->IO.Fonts->TexID = nullptr;
 
 		_imgui_font_atlas_texture.reset();
 
@@ -168,7 +158,7 @@ namespace reshade
 		_uniform_count = 0;
 		_technique_count = 0;
 	}
-	void runtime::on_present()
+	void runtime::on_frame()
 	{
 		// Get current time and date
 		time_t t = std::time(nullptr); tm tm;
@@ -184,6 +174,44 @@ namespace reshade
 		_last_frame_duration = std::chrono::high_resolution_clock::now() - _last_present_time;
 		_last_present_time += _last_frame_duration;
 
+		// Update ImGui configuration
+		ImGui::SetCurrentContext(_imgui_context);
+		auto &imgui_io = _imgui_context->IO;
+		imgui_io.DeltaTime = _last_frame_duration.count() * 1e-9f;
+		imgui_io.MouseDrawCursor = _show_menu;
+
+		imgui_io.KeyCtrl = _input->is_key_down(0x11); // VK_CONTROL
+		imgui_io.KeyShift = _input->is_key_down(0x10); // VK_SHIFT
+		imgui_io.KeyAlt = _input->is_key_down(0x12); // VK_MENU
+		imgui_io.MousePos.x = static_cast<float>(_input->mouse_position_x());
+		imgui_io.MousePos.y = static_cast<float>(_input->mouse_position_y());
+		imgui_io.MouseWheel += _input->mouse_wheel_delta();
+
+		for (unsigned int i = 0; i < 256; i++)
+		{
+			imgui_io.KeysDown[i] = _input->is_key_down(i);
+
+			if (_input->is_key_pressed(i))
+			{
+				imgui_io.AddInputCharacter(_input->key_to_text(i));
+			}
+		}
+		for (unsigned int i = 0; i < 5; i++)
+		{
+			imgui_io.MouseDown[i] = _input->is_mouse_button_down(i);
+		}
+
+		if (imgui_io.KeyCtrl)
+		{
+			// Change global font scale if user presses the control key and moves the mouse wheel
+			imgui_io.FontGlobalScale = ImClamp(imgui_io.FontGlobalScale + imgui_io.MouseWheel * 0.10f, 1.0f, 2.50f);
+		}
+
+		ImGui::NewFrame();
+
+	}
+	void runtime::on_present()
+	{
 		// Create and save screenshot if associated shortcut is down
 		if (!_screenshot_key_setting_active &&
 			_input->is_key_pressed(_screenshot_key_data[0], _screenshot_key_data[1] != 0, _screenshot_key_data[2] != 0, false))
@@ -1097,40 +1125,6 @@ namespace reshade
 			_show_menu = !_show_menu;
 		}
 
-		// Update ImGui configuration
-		ImGui::SetCurrentContext(_imgui_context);
-
-		auto &imgui_io = ImGui::GetIO();
-		imgui_io.DeltaTime = _last_frame_duration.count() * 1e-9f;
-		imgui_io.MouseDrawCursor = _show_menu;
-
-		imgui_io.KeyCtrl = _input->is_key_down(0x11); // VK_CONTROL
-		imgui_io.KeyShift = _input->is_key_down(0x10); // VK_SHIFT
-		imgui_io.KeyAlt = _input->is_key_down(0x12); // VK_MENU
-		imgui_io.MousePos.x = static_cast<float>(_input->mouse_position_x());
-		imgui_io.MousePos.y = static_cast<float>(_input->mouse_position_y());
-		imgui_io.MouseWheel += _input->mouse_wheel_delta();
-
-		for (unsigned int i = 0; i < 256; i++)
-		{
-			imgui_io.KeysDown[i] = _input->is_key_down(i);
-
-			if (_input->is_key_pressed(i))
-			{
-				imgui_io.AddInputCharacter(_input->key_to_text(i));
-			}
-		}
-		for (unsigned int i = 0; i < 5; i++)
-		{
-			imgui_io.MouseDown[i] = _input->is_mouse_button_down(i);
-		}
-
-		if (imgui_io.KeyCtrl)
-		{
-			// Change global font scale if user presses the control key and moves the mouse wheel
-			imgui_io.FontGlobalScale = ImClamp(imgui_io.FontGlobalScale + imgui_io.MouseWheel * 0.10f, 1.0f, 2.50f);
-		}
-
 		_effects_expanded_state &= 2;
 
 		// Create ImGui widgets and windows
@@ -1199,7 +1193,7 @@ namespace reshade
 			{
 				ImGui::SetNextWindowPos(ImVec2(_width - 80.f, 0));
 				ImGui::SetNextWindowSize(ImVec2(80, 100));
-				ImGui::PushFont(imgui_io.Fonts->Fonts[1]);
+				ImGui::PushFont(_imgui_context->IO.Fonts->Fonts[1]);
 				ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(_imgui_col_text_fps[0], _imgui_col_text_fps[1], _imgui_col_text_fps[2], 1.0f));
 				ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4());
 				ImGui::Begin("FPS", nullptr,
@@ -1219,7 +1213,7 @@ namespace reshade
 				}
 				if (_show_framerate)
 				{
-					ImGui::Text("%.0f fps", imgui_io.Framerate);
+					ImGui::Text("%.0f fps", _imgui_context->IO.Framerate);
 					ImGui::Text("%*lld ms", 3, std::chrono::duration_cast<std::chrono::milliseconds>(_last_frame_duration).count());
 				}
 
@@ -1279,12 +1273,10 @@ namespace reshade
 		// Render ImGui widgets and windows
 		ImGui::Render();
 
-		_input->block_mouse_input(_input_processing_mode != 0 && (imgui_io.WantCaptureMouse || (_input_processing_mode == 2 && _show_menu)));
-		_input->block_keyboard_input(_input_processing_mode != 0 && (imgui_io.WantCaptureKeyboard || (_input_processing_mode == 2 && _show_menu)));
+		_input->block_mouse_input(_input_processing_mode != 0 && (_imgui_context->IO.WantCaptureMouse || (_input_processing_mode == 2 && _show_menu)));
+		_input->block_keyboard_input(_input_processing_mode != 0 && (_imgui_context->IO.WantCaptureKeyboard || (_input_processing_mode == 2 && _show_menu)));
 
 		render_imgui_draw_data(ImGui::GetDrawData());
-
-		ImGui::NewFrame();
 	}
 	void runtime::draw_overlay_menu()
 	{
@@ -1525,7 +1517,7 @@ namespace reshade
 			}
 			if (ImGui::IsItemActive())
 			{
-				_variable_editor_height -= ImGui::GetIO().MouseDelta.y;
+				_variable_editor_height -= _imgui_context->IO.MouseDelta.y;
 			}
 
 			if (_tutorial_index == 3)
@@ -1859,7 +1851,7 @@ namespace reshade
 			ImGui::Text("%X", std::hash<std::string>()(s_target_executable_path.filename_without_extension().string()));
 			ImGui::Text("%d-%d-%d %d", _date[0], _date[1], _date[2], _date[3]);
 			ImGui::Text("%X %d", _vendor_id, _device_id);
-			ImGui::Text("%.2f", ImGui::GetIO().Framerate);
+			ImGui::Text("%.2f", _imgui_context->IO.Framerate);
 			ImGui::Text("%f ms (CPU)", (post_processing_time_cpu * 1e-6f));
 			ImGui::Text("%u (%u vertices)", _drawcalls, _vertices);
 			ImGui::Text("%f ms", _last_frame_duration.count() * 1e-6f);

@@ -135,6 +135,7 @@ namespace reshade
 		/// <summary>
 		/// Callback function called every frame.
 		/// </summary>
+		void on_frame();
 		void on_present();
 		/// <summary>
 		/// Callback function called to apply the post-processing effects to the screen.

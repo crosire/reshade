@@ -499,9 +499,9 @@ namespace reshade::d3d10
 	void d3d10_runtime::on_present()
 	{
 		if (!is_initialized())
-		{
 			return;
-		}
+
+		runtime::on_frame();
 
 		detect_depth_source();
 
