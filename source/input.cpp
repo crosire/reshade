@@ -86,12 +86,15 @@ namespace reshade
 		auto input_window = s_windows.find(details.hwnd);
 		const auto raw_input_window = s_raw_input_windows.find(details.hwnd);
 
-		// Walk through the window chain and until an known window is found
-		EnumChildWindows(details.hwnd, [](HWND hwnd, LPARAM lparam) -> BOOL {
-			auto &input_window = *reinterpret_cast<decltype(s_windows)::iterator *>(lparam);
-			// Return true to continue enumeration
-			return (input_window = s_windows.find(hwnd)) == s_windows.end();
-		}, reinterpret_cast<LPARAM>(&input_window));
+		if (input_window == s_windows.end())
+		{
+			// Walk through the window chain and until an known window is found
+			EnumChildWindows(details.hwnd, [](HWND hwnd, LPARAM lparam) -> BOOL {
+				auto &input_window = *reinterpret_cast<decltype(s_windows)::iterator *>(lparam);
+				// Return true to continue enumeration
+				return (input_window = s_windows.find(hwnd)) == s_windows.end();
+			}, reinterpret_cast<LPARAM>(&input_window));
+		}
 
 		if (input_window == s_windows.end() && raw_input_window != s_raw_input_windows.end())
 		{
