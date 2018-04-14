@@ -1419,7 +1419,7 @@ namespace reshade::opengl
 				visit(output, node->arguments[0]);
 				output << ", " << cast2.first;
 				visit(output, node->arguments[1]);
-				output << cast2.second << " * ivec2(1, -1) + ivec2(0, 1))";
+				output << cast2.second << ")";
 				break;
 			}
 			case intrinsic_expression_node::texture_gather:
@@ -2395,7 +2395,7 @@ namespace reshade::opengl
 			"void _sincos(vec3 x, out vec3 s, out vec3 c) { s = sin(x), c = cos(x); }"
 			"void _sincos(vec4 x, out vec4 s, out vec4 c) { s = sin(x), c = cos(x); }\n"
 			"vec4 _textureLod(sampler2D s, vec4 c) { return textureLod(s, c.xy, c.w); }\n"
-			"vec4 _texelFetch(sampler2D s, ivec4 c) { return texelFetch(s, c.xy, c.w); }\n"
+			"vec4 _texelFetch(sampler2D s, ivec4 c) { return texelFetch(s, c.xy - ivec2(vec2(0, 1.0 - 1.0 / exp2(float(c.w))) * textureSize(s, 0)), c.w); }\n"
 			"#define _textureLodOffset(s, c, offset) textureLodOffset(s, (c).xy, (c).w, offset)\n";
 
 		if (_uniform_buffer_size != 0)
