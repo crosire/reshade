@@ -16,7 +16,6 @@
 #include <stb_image_dds.h>
 #include <stb_image_write.h>
 #include <stb_image_resize.h>
-#define IMGUI_DEFINE_MATH_OPERATORS
 #include <imgui.h>
 #include <imgui_internal.h>
 
@@ -29,7 +28,6 @@ namespace reshade
 		_start_time(std::chrono::high_resolution_clock::now()),
 		_last_frame_duration(std::chrono::milliseconds(1)),
 		_imgui_context(ImGui::CreateContext()),
-		_imgui_font_atlas(std::make_unique<ImFontAtlas>()),
 		_effect_search_paths({ s_reshade_dll_path.parent_path() }),
 		_texture_search_paths({ s_reshade_dll_path.parent_path() }),
 		_preprocessor_definitions({
@@ -54,14 +52,9 @@ namespace reshade
 
 		_needs_update = check_for_update(_latest_version);
 
-		ImGui::SetCurrentContext(_imgui_context);
-
 		auto &imgui_io = _imgui_context->IO;
 		auto &imgui_style = _imgui_context->Style;
-		imgui_io.Fonts = _imgui_font_atlas.get();
 		imgui_io.IniFilename = nullptr;
-		imgui_io.GetClipboardTextFn = nullptr; // Disabled because the default implementation attempts to access GImGui at application exit
-		imgui_io.SetClipboardTextFn = nullptr;
 		imgui_io.KeyMap[ImGuiKey_Tab] = 0x09; // VK_TAB
 		imgui_io.KeyMap[ImGuiKey_LeftArrow] = 0x25; // VK_LEFT
 		imgui_io.KeyMap[ImGuiKey_RightArrow] = 0x27; // VK_RIGHT
@@ -82,25 +75,25 @@ namespace reshade
 		imgui_io.KeyMap[ImGuiKey_Y] = 'Y';
 		imgui_io.KeyMap[ImGuiKey_Z] = 'Z';
 		imgui_style.WindowRounding = 0.0f;
-		imgui_style.ChildWindowRounding = 0.0f;
+		imgui_style.WindowBorderSize = 0.0f;
+		imgui_style.ChildRounding = 0.0f;
 		imgui_style.FrameRounding = 0.0f;
 		imgui_style.ScrollbarRounding = 0.0f;
 		imgui_style.GrabRounding = 0.0f;
 
-		_imgui_font_atlas->AddFontDefault();
+		ImGui::SetCurrentContext(nullptr);
+
+		imgui_io.Fonts->AddFontDefault();
 		const auto font_path = filesystem::get_special_folder_path(filesystem::special_folder::windows) / "Fonts" / "consolab.ttf";
 		if (filesystem::exists(font_path))
-			_imgui_font_atlas->AddFontFromFileTTF(font_path.string().c_str(), 18.0f);
+			imgui_io.Fonts->AddFontFromFileTTF(font_path.string().c_str(), 18.0f);
 		else
-			_imgui_font_atlas->AddFontDefault();
+			imgui_io.Fonts->AddFontDefault();
 
 		load_configuration();
 	}
 	runtime::~runtime()
 	{
-		ImGui::SetCurrentContext(_imgui_context);
-
-		ImGui::Shutdown();
 		ImGui::DestroyContext(_imgui_context);
 
 		assert(!_is_initialized && _techniques.empty());
@@ -109,9 +102,10 @@ namespace reshade
 	bool runtime::on_init()
 	{
 		// Finish initializing ImGui
-		_imgui_context->IO.DisplaySize.x = static_cast<float>(_width);
-		_imgui_context->IO.DisplaySize.y = static_cast<float>(_height);
-		_imgui_context->IO.Fonts->TexID = _imgui_font_atlas_texture.get();
+		auto &imgui_io = _imgui_context->IO;
+		imgui_io.DisplaySize.x = static_cast<float>(_width);
+		imgui_io.DisplaySize.y = static_cast<float>(_height);
+		imgui_io.Fonts->TexID = _imgui_font_atlas_texture.get();
 
 		LOG(INFO) << "Recreated runtime environment on runtime " << this << ".";
 
@@ -135,9 +129,10 @@ namespace reshade
 		}
 
 		// Reset ImGui settings
-		_imgui_context->IO.DisplaySize.x = 0;
-		_imgui_context->IO.DisplaySize.y = 0;
-		_imgui_context->IO.Fonts->TexID = nullptr;
+		auto &imgui_io = _imgui_context->IO;
+		imgui_io.DisplaySize.x = 0;
+		imgui_io.DisplaySize.y = 0;
+		imgui_io.Fonts->TexID = nullptr;
 
 		_imgui_font_atlas_texture.reset();
 
@@ -798,7 +793,7 @@ namespace reshade
 		_imgui_context->Style.Colors[ImGuiCol_Text] = ImVec4(_imgui_col_text[0], _imgui_col_text[1], _imgui_col_text[2], 1.00f);
 		_imgui_context->Style.Colors[ImGuiCol_TextDisabled] = ImVec4(_imgui_col_text[0], _imgui_col_text[1], _imgui_col_text[2], 0.58f);
 		_imgui_context->Style.Colors[ImGuiCol_WindowBg] = ImVec4(_imgui_col_background[0], _imgui_col_background[1], _imgui_col_background[2], 1.00f);
-		_imgui_context->Style.Colors[ImGuiCol_ChildWindowBg] = ImVec4(_imgui_col_item_background[0], _imgui_col_item_background[1], _imgui_col_item_background[2], 0.00f);
+		_imgui_context->Style.Colors[ImGuiCol_ChildBg] = ImVec4(_imgui_col_item_background[0], _imgui_col_item_background[1], _imgui_col_item_background[2], 0.00f);
 		_imgui_context->Style.Colors[ImGuiCol_Border] = ImVec4(_imgui_col_text[0], _imgui_col_text[1], _imgui_col_text[2], 0.30f);
 		_imgui_context->Style.Colors[ImGuiCol_FrameBg] = ImVec4(_imgui_col_item_background[0], _imgui_col_item_background[1], _imgui_col_item_background[2], 1.00f);
 		_imgui_context->Style.Colors[ImGuiCol_FrameBgHovered] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.68f);
@@ -811,7 +806,7 @@ namespace reshade
 		_imgui_context->Style.Colors[ImGuiCol_ScrollbarGrab] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.31f);
 		_imgui_context->Style.Colors[ImGuiCol_ScrollbarGrabHovered] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.78f);
 		_imgui_context->Style.Colors[ImGuiCol_ScrollbarGrabActive] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 1.00f);
-		_imgui_context->Style.Colors[ImGuiCol_ComboBg] = ImVec4(_imgui_col_item_background[0], _imgui_col_item_background[1], _imgui_col_item_background[2], 1.00f);
+		_imgui_context->Style.Colors[ImGuiCol_PopupBg] = ImVec4(_imgui_col_item_background[0], _imgui_col_item_background[1], _imgui_col_item_background[2], 0.92f);
 		_imgui_context->Style.Colors[ImGuiCol_CheckMark] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.80f);
 		_imgui_context->Style.Colors[ImGuiCol_SliderGrab] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.24f);
 		_imgui_context->Style.Colors[ImGuiCol_SliderGrabActive] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 1.00f);
@@ -827,15 +822,11 @@ namespace reshade
 		_imgui_context->Style.Colors[ImGuiCol_ResizeGrip] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.20f);
 		_imgui_context->Style.Colors[ImGuiCol_ResizeGripHovered] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.78f);
 		_imgui_context->Style.Colors[ImGuiCol_ResizeGripActive] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 1.00f);
-		_imgui_context->Style.Colors[ImGuiCol_CloseButton] = ImVec4(_imgui_col_text[0], _imgui_col_text[1], _imgui_col_text[2], 0.16f);
-		_imgui_context->Style.Colors[ImGuiCol_CloseButtonHovered] = ImVec4(_imgui_col_text[0], _imgui_col_text[1], _imgui_col_text[2], 0.39f);
-		_imgui_context->Style.Colors[ImGuiCol_CloseButtonActive] = ImVec4(_imgui_col_text[0], _imgui_col_text[1], _imgui_col_text[2], 1.00f);
 		_imgui_context->Style.Colors[ImGuiCol_PlotLines] = ImVec4(_imgui_col_text[0], _imgui_col_text[1], _imgui_col_text[2], 0.63f);
 		_imgui_context->Style.Colors[ImGuiCol_PlotLinesHovered] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 1.00f);
 		_imgui_context->Style.Colors[ImGuiCol_PlotHistogram] = ImVec4(_imgui_col_text[0], _imgui_col_text[1], _imgui_col_text[2], 0.63f);
 		_imgui_context->Style.Colors[ImGuiCol_PlotHistogramHovered] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 1.00f);
 		_imgui_context->Style.Colors[ImGuiCol_TextSelectedBg] = ImVec4(_imgui_col_active[0], _imgui_col_active[1], _imgui_col_active[2], 0.43f);
-		_imgui_context->Style.Colors[ImGuiCol_PopupBg] = ImVec4(_imgui_col_item_background[0], _imgui_col_item_background[1], _imgui_col_item_background[2], 0.92f);
 
 		if (_current_preset >= static_cast<ptrdiff_t>(_preset_files.size()))
 		{
@@ -1131,7 +1122,7 @@ namespace reshade
 		if (show_splash)
 		{
 			ImGui::SetNextWindowPos(ImVec2(10, 10));
-			ImGui::SetNextWindowSize(ImVec2(_width - 20.0f, ImGui::GetItemsLineHeightWithSpacing() * 3), ImGuiCond_Appearing);
+			ImGui::SetNextWindowSize(ImVec2(_width - 20.0f, ImGui::GetFrameHeightWithSpacing() * 3), ImGuiCond_Appearing);
 			ImGui::Begin("Splash Screen", nullptr,
 				ImGuiWindowFlags_NoTitleBar |
 				ImGuiWindowFlags_NoScrollbar |
@@ -1173,7 +1164,7 @@ namespace reshade
 
 				if (_errors.find("error") != std::string::npos)
 				{
-					ImGui::SetWindowSize(ImVec2(_width - 20.0f, ImGui::GetItemsLineHeightWithSpacing() * 4));
+					ImGui::SetWindowSize(ImVec2(_width - 20.0f, ImGui::GetFrameHeightWithSpacing() * 4));
 
 					ImGui::Spacing();
 					ImGui::TextColored(ImVec4(1, 0, 0, 1),
@@ -1485,12 +1476,12 @@ namespace reshade
 					"Enter text in the box at the top to filter it and search for specific techniques.\n\n"
 					"Click on a technique to enable or disable it or drag it to a new location in the list to change the order in which the effects are applied.";
 
-				ImGui::PushStyleColor(ImGuiCol_ChildWindowBg, ImVec4(1, 0, 0, 1));
+				ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(1, 0, 0, 1));
 			}
 
 			ImGui::Spacing();
 
-			const float bottom_height = _performance_mode ? ImGui::GetItemsLineHeightWithSpacing() + ImGui::GetStyle().ItemSpacing.y : _variable_editor_height;
+			const float bottom_height = _performance_mode ? ImGui::GetFrameHeightWithSpacing() + ImGui::GetStyle().ItemSpacing.y : _variable_editor_height;
 
 			if (ImGui::BeginChild("##techniques", ImVec2(-1, -bottom_height), true))
 			{
@@ -1528,10 +1519,10 @@ namespace reshade
 					"Once you have finished tweaking your preset, be sure to go to the 'Settings' tab and change the 'Usage Mode' to 'Performance Mode'. "
 					"This will recompile all shaders into a more optimal representation that gives a significant performance boost, but will disable variable tweaking and this list.";
 
-				ImGui::PushStyleColor(ImGuiCol_ChildWindowBg, ImVec4(1, 0, 0, 1));
+				ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(1, 0, 0, 1));
 			}
 
-			const float bottom_height = ImGui::GetItemsLineHeightWithSpacing() + ImGui::GetStyle().ItemSpacing.y + (_tutorial_index == 3 ? 125 : 0);
+			const float bottom_height = ImGui::GetFrameHeightWithSpacing() + ImGui::GetStyle().ItemSpacing.y + (_tutorial_index == 3 ? 125 : 0);
 
 			if (ImGui::BeginChild("##variables", ImVec2(-1, -bottom_height), true))
 			{
@@ -1564,7 +1555,7 @@ namespace reshade
 		}
 		else
 		{
-			ImGui::BeginChildFrame(0, ImVec2(-1, 125));
+			ImGui::BeginChildFrame(ImGui::GetID("Tutorial Frame"), ImVec2(-1, 125));
 			ImGui::TextWrapped(tutorial_text);
 			ImGui::EndChildFrame();
 
@@ -2041,8 +2032,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 	}
 	void runtime::draw_overlay_variable_editor()
 	{
-		const ImGuiID popup_id = ImGui::GetID("Performance Mode Hint");
-
 		ImGui::PushItemWidth(ImGui::GetWindowWidth() * 0.5f);
 
 		bool current_tree_is_closed = true;
@@ -2196,7 +2185,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 				if (_tutorial_index == 4)
 				{
-					ImGui::OpenPopupEx(popup_id, false);
+					ImGui::OpenPopup("Performance Mode Hint");
 				}
 			}
 		}
@@ -2208,7 +2197,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 		ImGui::PopItemWidth();
 
-		if (_tutorial_index == 4 && ImGui::BeginPopupEx(popup_id, ImGuiWindowFlags_ShowBorders))
+		ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f);
+
+		if (_tutorial_index == 4 && ImGui::BeginPopup("Performance Mode Hint"))
 		{
 			ImGui::TextUnformatted(
 				"Don't forget to switch to 'Performance Mode' once you are done editing (on the 'Settings' tab).\n"
@@ -2226,6 +2217,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 			ImGui::EndPopup();
 		}
+
+		ImGui::PopStyleVar();
 	}
 	void runtime::draw_overlay_technique_editor()
 	{

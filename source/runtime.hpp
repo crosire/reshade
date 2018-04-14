@@ -183,7 +183,6 @@ namespace reshade
 		unsigned int _drawcalls = 0, _vertices = 0;
 		std::shared_ptr<input> _input;
 		ImGuiContext *_imgui_context = nullptr;
-		std::unique_ptr<ImFontAtlas> _imgui_font_atlas;
 		std::unique_ptr<base_object> _imgui_font_atlas_texture;
 		std::vector<texture> _textures;
 		std::vector<uniform> _uniforms;
