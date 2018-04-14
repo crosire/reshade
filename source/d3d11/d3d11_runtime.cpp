@@ -502,7 +502,7 @@ namespace reshade::d3d11
 		_effect_shader_resources[1] = _backbuffer_texture_srv[1];
 		_effect_shader_resources[2] = _depthstencil_texture_srv;
 	}
-	void d3d11_runtime::on_present(draw_call_tracker& tracker)
+	void d3d11_runtime::on_present(draw_call_tracker &tracker)
 	{
 		_vertices = tracker.vertices();
 		_drawcalls = tracker.drawcalls();
@@ -602,6 +602,7 @@ namespace reshade::d3d11
 		// Apply previous device state
 		_stateblock.apply_and_release();
 	}
+
 	void d3d11_runtime::capture_frame(uint8_t *buffer) const
 	{
 		if (_backbuffer_format != DXGI_FORMAT_R8G8B8A8_UNORM &&
@@ -975,7 +976,7 @@ namespace reshade::d3d11
 		}
 	}
 
-	void d3d11_runtime::detect_depth_source(draw_call_tracker& tracker)
+	void d3d11_runtime::detect_depth_source(draw_call_tracker &tracker)
 	{
 		static int cooldown = 0, traffic = 0;
 
@@ -983,7 +984,7 @@ namespace reshade::d3d11
 		{
 			traffic += g_network_traffic > 0;
 
-			if (depth_buffer_retrieval_mode == depth_buffer_retrieval_mode::post_process)
+			if (!_depth_buffer_before_clear)
 			{
 				return;
 			}
@@ -994,22 +995,13 @@ namespace reshade::d3d11
 			if (traffic > 10)
 			{
 				traffic = 0;
-				create_depthstencil_replacement(tracker, nullptr);
+				create_depthstencil_replacement(nullptr, nullptr);
 				return;
 			}
 			else
 			{
 				traffic = 0;
 			}
-		}
-
-		// refresh depth buffer after detection settings has changed
-		if (_depth_buffer_settings_changed == true)
-		{
-			create_depthstencil_replacement(tracker, nullptr);
-			_depthstencil = nullptr;
-			_depth_buffer_settings_changed = false;
-			return;
 		}
 
 		if (_is_multisampling_enabled)
@@ -1027,15 +1019,15 @@ namespace reshade::d3d11
 
 		assert(_depth_buffer_texture_format >= 0 && _depth_buffer_texture_format < ARRAYSIZE(depth_texture_formats));
 
-		ID3D11DepthStencilView *const best_match = tracker.get_best_depth_stencil(_width, _height, depth_texture_formats[_depth_buffer_texture_format]);
+		const auto [best_match, best_match_texture] = tracker.find_best_depth_stencil(_width, _height, depth_texture_formats[_depth_buffer_texture_format]);
 
 		if (best_match != nullptr)
 		{
-			create_depthstencil_replacement(tracker, best_match);
+			create_depthstencil_replacement(best_match, best_match_texture);
 		}
 	}
 
-	bool d3d11_runtime::create_depthstencil_replacement(draw_call_tracker& tracker, ID3D11DepthStencilView *depthstencil)
+	bool d3d11_runtime::create_depthstencil_replacement(ID3D11DepthStencilView *depthstencil, ID3D11Texture2D *texture)
 	{
 		_depthstencil.reset();
 		_depthstencil_replacement.reset();
@@ -1044,16 +1036,10 @@ namespace reshade::d3d11
 
 		if (depthstencil != nullptr)
 		{
-			_depthstencil = depthstencil;
+			assert(texture != nullptr);
 
-			if (depth_buffer_retrieval_mode == depth_buffer_retrieval_mode::before_clearing_stage)
-			{
-				_depthstencil_texture = tracker.get_depth_texture();
-			}
-			else
-			{
-				_depthstencil->GetResource(reinterpret_cast<ID3D11Resource **>(&_depthstencil_texture));
-			}
+			_depthstencil = depthstencil;
+			_depthstencil_texture = texture;
 
 			D3D11_TEXTURE2D_DESC texdesc;
 			_depthstencil_texture->GetDesc(&texdesc);
@@ -1150,25 +1136,22 @@ namespace reshade::d3d11
 				return false;
 			}
 
-			if (depth_buffer_retrieval_mode == depth_buffer_retrieval_mode::post_process && _depthstencil != _depthstencil_replacement)
+			// Update auto depth stencil
+			com_ptr<ID3D11DepthStencilView> current_depthstencil;
+			ID3D11RenderTargetView *targets[D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT] = { nullptr };
+
+			_immediate_context->OMGetRenderTargets(D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT, targets, &current_depthstencil);
+
+			if (current_depthstencil != nullptr && current_depthstencil == _depthstencil)
 			{
-				// Update auto depth stencil
-				com_ptr<ID3D11DepthStencilView> current_depthstencil;
-				ID3D11RenderTargetView *targets[D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT] = { nullptr };
+				_immediate_context->OMSetRenderTargets(D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT, targets, _depthstencil_replacement.get());
+			}
 
-				_immediate_context->OMGetRenderTargets(D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT, targets, &current_depthstencil);
-
-				if (current_depthstencil != nullptr && current_depthstencil == _depthstencil)
+			for (UINT i = 0; i < D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT; ++i)
+			{
+				if (targets[i] != nullptr)
 				{
-					_immediate_context->OMSetRenderTargets(D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT, targets, _depthstencil_replacement.get());
-				}
-
-				for (UINT i = 0; i < D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT; ++i)
-				{
-					if (targets[i] != nullptr)
-					{
-						targets[i]->Release();
-					}
+					targets[i]->Release();
 				}
 			}
 		}

@@ -16,8 +16,13 @@ void D3D11DeviceContext::log_drawcall(UINT vertices)
 		_draw_call_tracker.log_drawcalls(_active_depthstencil.get(), 1, vertices);
 	}
 }
+void D3D11DeviceContext::clear_drawcall_stats()
+{
+	_draw_call_tracker.reset();
+	_active_depthstencil.reset();
+}
 
-com_ptr<ID3D11Texture2D> D3D11DeviceContext::copy_depth_texture(D3D11_TEXTURE2D_DESC texture_desc, ID3D11Texture2D *depth_texture)
+static inline com_ptr<ID3D11Texture2D> copy_texture(D3D11DeviceContext *devicecontext, D3D11_TEXTURE2D_DESC &texture_desc, ID3D11Texture2D *depth_texture)
 {
 	com_ptr<ID3D11Texture2D> depth_texture_copy;
 
@@ -44,7 +49,8 @@ com_ptr<ID3D11Texture2D> D3D11DeviceContext::copy_depth_texture(D3D11_TEXTURE2D_
 
 	texture_desc.BindFlags = D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_SHADER_RESOURCE;
 
-	HRESULT hr = _device->CreateTexture2D(&texture_desc, nullptr, &depth_texture_copy);
+	// TODO: Avoid texture creation every frame
+	HRESULT hr = devicecontext->_device->CreateTexture2D(&texture_desc, nullptr, &depth_texture_copy);
 
 	if (FAILED(hr))
 	{
@@ -52,218 +58,72 @@ com_ptr<ID3D11Texture2D> D3D11DeviceContext::copy_depth_texture(D3D11_TEXTURE2D_
 		return nullptr;
 	}
 
-	this->CopyResource(depth_texture_copy.get(), depth_texture);
+	devicecontext->CopyResource(depth_texture_copy.get(), depth_texture);
 
 	return depth_texture_copy;
 }
 
-ID3D11DepthStencilView *D3D11DeviceContext::copy_depthstencil(ID3D11DepthStencilView *depthStencilView)
+void D3D11DeviceContext::track_active_depthstencil(ID3D11DepthStencilView *pDepthStencilView)
 {
-	ID3D11DepthStencilView *depthStencilView_copy = nullptr;
+	assert(!_device->_runtimes.empty());
 
-	D3D11_TEXTURE2D_DESC texdesc;
-	com_ptr<ID3D11Resource> resource;
-	com_ptr<ID3D11Texture2D> texture;
-	com_ptr<ID3D11Texture2D> depthstencil_texture;
-	depthStencilView->GetResource(&resource);
-	if (FAILED(resource->QueryInterface(&texture)))
+	if (pDepthStencilView != _active_depthstencil)
 	{
-		return nullptr;
-	}
-	texture->GetDesc(&texdesc);
+		_active_depthstencil = pDepthStencilView;
 
-	depthstencil_texture = texture.get();
+		const auto runtime = _device->_runtimes.front();
 
-	_draw_call_tracker.set_depth_texture(depthstencil_texture.get());
-
-	D3D11_DEPTH_STENCIL_VIEW_DESC dsvdesc = {};
-	dsvdesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
-
-	switch (texdesc.Format)
-	{
-		case DXGI_FORMAT_R16_TYPELESS:
-			dsvdesc.Format = DXGI_FORMAT_D16_UNORM;
-			break;
-		case DXGI_FORMAT_R32_TYPELESS:
-			dsvdesc.Format = DXGI_FORMAT_D32_FLOAT;
-			break;
-		case DXGI_FORMAT_R24G8_TYPELESS:
-			dsvdesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-			break;
-		case DXGI_FORMAT_R32G8X24_TYPELESS:
-			dsvdesc.Format = DXGI_FORMAT_D32_FLOAT_S8X24_UINT;
-			break;
-		default:
-			dsvdesc.Format = texdesc.Format;
-			break;
-	}
-
-	HRESULT hr = _device->CreateDepthStencilView(texture.get(), &dsvdesc, &depthStencilView_copy);
-
-	if (FAILED(hr))
-	{
-		LOG(ERROR) << "Failed to create depth stencil view copy! HRESULT is '" << std::hex << hr << std::dec << "'.";
-		return nullptr;
-	}
-
-	return depthStencilView_copy;
-}
-
-bool D3D11DeviceContext::check_depthstencil(com_ptr<ID3D11Texture2D> texture, D3D11_TEXTURE2D_DESC texture_desc)
-{	
-	screen_dimensions();
-	float aspect_ratio = ((float)_screen_width) / ((float)_screen_height);
-	float twfactor = 1.0f;
-	float thfactor = 1.0f;
-
-	// check the depthstencil flag
-	if (texture_desc.BindFlags != (D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_SHADER_RESOURCE) && texture_desc.BindFlags != D3D11_BIND_DEPTH_STENCIL)
-	{
-		return false;
-	}
-
-	if (texture_desc.Width != _screen_width)
-	{
-		twfactor = (float)_screen_width / texture_desc.Width;
-	}
-	if (texture_desc.Height != _screen_height)
-	{
-		thfactor = (float)_screen_height / texture_desc.Height;
-	}
-
-	// check if aspect ratio is similar to the back buffer one
-	float stencilaspectratio = ((float)texture_desc.Width) / ((float)texture_desc.Height);
-	if (fabs(stencilaspectratio - aspect_ratio) > 0.1f)
-	{
-		return false;
-	}
-
-	return true;
-}
-
-void D3D11DeviceContext::set_active_depthstencil(ID3D11DepthStencilView* pDepthStencilView)
-{
-	if (pDepthStencilView != nullptr)
-	{
-		if (pDepthStencilView != _active_depthstencil)
+		if (pDepthStencilView != nullptr && !runtime->_depth_buffer_before_clear)
 		{
-			_active_depthstencil = pDepthStencilView;
-			_draw_call_tracker.track_depthstencil(_active_depthstencil.get());
+			_draw_call_tracker.track_depthstencil(pDepthStencilView);
 		}
 	}
 }
-
-void D3D11DeviceContext::set_active_OM_depthstencil(ID3D11DepthStencilView* pDepthStencilView)
+void D3D11DeviceContext::track_cleared_depthstencil(ID3D11DepthStencilView *pDepthStencilView)
 {
-	if (pDepthStencilView != nullptr)
-	{
-		com_ptr<ID3D11Texture2D> texture;
-		com_ptr<ID3D11Resource> resource;
-		D3D11_TEXTURE2D_DESC texture_desc;
+	assert(!_device->_runtimes.empty());
 
-		pDepthStencilView->GetResource(&resource);
-		if (!FAILED(resource->QueryInterface(&texture)))
-		{
-			texture->GetDesc(&texture_desc);
-		}
-		else
-		{
-			return;
-		}
-
-		if (!check_depthstencil(texture, texture_desc))
-		{
-			return;
-		}
-
-		if (_OM_iter >= _clear_DSV_iter)
-		{
-			set_active_depthstencil(pDepthStencilView);
-			// copy the depth stencil texture
-			_depth_texture = texture.get();
-
-			if (_depth_texture != nullptr)
-			{
-				_draw_call_tracker.set_depth_texture(_depth_texture.get());
-			}
-		}
-	}
-}
-
-void D3D11DeviceContext::set_active_cleared_depthstencil(ID3D11DepthStencilView* pDepthStencilView)
-{
-	if (pDepthStencilView != nullptr)
-	{
-		com_ptr<ID3D11Texture2D> texture;
-		com_ptr<ID3D11Resource> resource;
-		D3D11_TEXTURE2D_DESC texture_desc;
-
-		pDepthStencilView->GetResource(&resource);
-		if (!FAILED(resource->QueryInterface(&texture)))
-		{
-			texture->GetDesc(&texture_desc);
-		}
-		else
-		{
-			return;
-		}
-
-		if (!check_depthstencil(texture, texture_desc))
-		{
-			return;
-		}
-
-		reshade::d3d11::draw_call_tracker::depthstencil_counter_info counters = _draw_call_tracker.get_counters();
-
-		if (reshade::runtime::depth_buffer_clearing_number == 0)
-		{
-			set_active_depthstencil(pDepthStencilView);
-			// copy the depth stencil texture
-			_depth_texture = copy_depth_texture(texture_desc, texture.get());
-
-			if (_depth_texture != nullptr)
-			{
-				_draw_call_tracker.set_depth_texture(_depth_texture.get());
-			}
-		}
-		else if(reshade::runtime::depth_buffer_clearing_number == _clear_DSV_iter)
-		{
-			if (counters.vertices > _VERTICES_TRESHOLD && counters.vertices > _best_vertices)
-			{
-				set_active_depthstencil(pDepthStencilView);
-				// copy the depth stencil texture
-				_depth_texture = copy_depth_texture(texture_desc, texture.get());
-
-				if (_depth_texture != nullptr)
-				{
-					_draw_call_tracker.set_depth_texture(_depth_texture.get());
-				}
-
-				_best_vertices = counters.vertices;
-				_best_drawcalls = counters.vertices;
-				_clear_DSV_iter++;
-			}
-		}
-	}
-}
-
-void D3D11DeviceContext::clear_drawcall_stats()
-{
-	_clear_DSV_iter = 1;
-	_OM_iter = 0;
-	_best_vertices = 0;
-	_best_drawcalls = 0;
-	_draw_call_tracker.reset();
-	_active_depthstencil.reset();
-	_depth_texture.reset();
-}
-
-void D3D11DeviceContext::screen_dimensions()
-{
 	const auto runtime = _device->_runtimes.front();
 
-	_screen_width = static_cast<FLOAT>(runtime->frame_width());
-	_screen_height = static_cast<FLOAT>(runtime->frame_height());
+	if (!runtime->_depth_buffer_before_clear)
+	{
+		return;
+	}
+
+	assert(pDepthStencilView != nullptr);
+
+	// Retrieve texture from depth stencil
+	com_ptr<ID3D11Resource> resource;
+	pDepthStencilView->GetResource(&resource);
+
+	com_ptr<ID3D11Texture2D> texture;
+	if (FAILED(resource->QueryInterface(&texture)))
+	{
+		return;
+	}
+
+	D3D11_TEXTURE2D_DESC desc;
+	texture->GetDesc(&desc);
+
+	// Check if aspect ratio is similar to the back buffer one
+	const float screen_aspect_ratio = float(runtime->frame_width()) / float(runtime->frame_height());
+	const float texture_aspect_ratio = float(desc.Width) / float(desc.Height);
+
+	if (fabs(texture_aspect_ratio - screen_aspect_ratio) > 0.1f)
+	{
+		return;
+	}
+
+	// Ignore depth stencils that were not used much during rendering or are tracked already
+	const UINT VERTICES_THRESHOLD = 10000;
+
+	if (_draw_call_tracker.vertices() < VERTICES_THRESHOLD || _draw_call_tracker.check_depthstencil(pDepthStencilView))
+	{
+		return;
+	}
+
+	// Copy the depth stencil texture and track the associated depth stencil
+	_draw_call_tracker.track_depthstencil(pDepthStencilView, copy_texture(this, desc, texture.get()));
 }
 
 // ID3D11DeviceContext
@@ -507,32 +367,14 @@ void STDMETHODCALLTYPE D3D11DeviceContext::GSSetSamplers(UINT StartSlot, UINT Nu
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::OMSetRenderTargets(UINT NumViews, ID3D11RenderTargetView *const *ppRenderTargetViews, ID3D11DepthStencilView *pDepthStencilView)
 {
-	if (reshade::runtime::depth_buffer_retrieval_mode == reshade::runtime::depth_buffer_retrieval_mode::post_process)
-	{
-		set_active_depthstencil(pDepthStencilView);
-	}
+	track_active_depthstencil(pDepthStencilView);
 
-	if (reshade::runtime::depth_buffer_retrieval_mode == reshade::runtime::depth_buffer_retrieval_mode::at_om_stage)
-	{
-		set_active_OM_depthstencil(pDepthStencilView);
-	}
-
-	_OM_iter++;
 	_orig->OMSetRenderTargets(NumViews, ppRenderTargetViews, pDepthStencilView);
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::OMSetRenderTargetsAndUnorderedAccessViews(UINT NumRTVs, ID3D11RenderTargetView *const *ppRenderTargetViews, ID3D11DepthStencilView *pDepthStencilView, UINT UAVStartSlot, UINT NumUAVs, ID3D11UnorderedAccessView *const *ppUnorderedAccessViews, const UINT *pUAVInitialCounts)
 {
-	if (reshade::runtime::depth_buffer_retrieval_mode == reshade::runtime::depth_buffer_retrieval_mode::post_process)
-	{
-		set_active_depthstencil(pDepthStencilView);
-	}
+	track_active_depthstencil(pDepthStencilView);
 
-	if (reshade::runtime::depth_buffer_retrieval_mode == reshade::runtime::depth_buffer_retrieval_mode::at_om_stage)
-	{
-		set_active_OM_depthstencil(pDepthStencilView);
-	}
-
-	_OM_iter++;
 	_orig->OMSetRenderTargetsAndUnorderedAccessViews(NumRTVs, ppRenderTargetViews, pDepthStencilView, UAVStartSlot, NumUAVs, ppUnorderedAccessViews, pUAVInitialCounts);
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::OMSetBlendState(ID3D11BlendState *pBlendState, const FLOAT BlendFactor[4], UINT SampleMask)
@@ -612,10 +454,7 @@ void STDMETHODCALLTYPE D3D11DeviceContext::ClearUnorderedAccessViewFloat(ID3D11U
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::ClearDepthStencilView(ID3D11DepthStencilView *pDepthStencilView, UINT ClearFlags, FLOAT Depth, UINT8 Stencil)
 {
-	if (reshade::runtime::depth_buffer_retrieval_mode == reshade::runtime::depth_buffer_retrieval_mode::before_clearing_stage)
-	{
-		set_active_cleared_depthstencil(pDepthStencilView);
-	}
+	track_cleared_depthstencil(pDepthStencilView);
 
 	_orig->ClearDepthStencilView(pDepthStencilView, ClearFlags, Depth, Stencil);
 }

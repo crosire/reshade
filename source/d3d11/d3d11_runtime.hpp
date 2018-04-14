@@ -49,6 +49,7 @@ namespace reshade::d3d11
 		void on_reset();
 		void on_reset_effect() override;
 		void on_present(draw_call_tracker& tracker);
+
 		void capture_frame(uint8_t *buffer) const override;
 		bool load_effect(const reshadefx::syntax_tree &ast, std::string &errors) override;
 		bool update_texture(texture &texture, const uint8_t *data) override;
@@ -69,6 +70,8 @@ namespace reshade::d3d11
 		std::vector<com_ptr<ID3D11ShaderResourceView>> _effect_shader_resources;
 		std::vector<com_ptr<ID3D11Buffer>> _constant_buffers;
 
+		using runtime::_depth_buffer_before_clear;
+
 	private:
 		bool init_backbuffer_texture();
 		bool init_default_depth_stencil();
@@ -77,7 +80,7 @@ namespace reshade::d3d11
 		bool init_imgui_font_atlas();
 
 		void detect_depth_source(draw_call_tracker& tracker);
-		bool create_depthstencil_replacement(draw_call_tracker& tracker, ID3D11DepthStencilView *depthstencil);
+		bool create_depthstencil_replacement(ID3D11DepthStencilView *depthstencil, ID3D11Texture2D *texture);
 
 		bool _is_multisampling_enabled = false;
 		DXGI_FORMAT _backbuffer_format = DXGI_FORMAT_UNKNOWN;

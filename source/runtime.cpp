@@ -23,8 +23,6 @@
 namespace reshade
 {
 	filesystem::path runtime::s_reshade_dll_path, runtime::s_target_executable_path;
-	unsigned int runtime::depth_buffer_retrieval_mode = depth_buffer_retrieval_mode::post_process; // "Post process" retrieval mode by default (the former retrieval mode of Reshade)
-	unsigned int runtime::depth_buffer_clearing_number = 0; // usually, the second depth buffer clearing is the good one
 
 	runtime::runtime(uint32_t renderer) :
 		_renderer_id(renderer),
@@ -739,9 +737,8 @@ namespace reshade
 		config.get("GENERAL", "FontGlobalScale", _imgui_context->IO.FontGlobalScale);
 		config.get("GENERAL", "NoReloadOnInit", _no_reload_on_init);
 
-		config.get("DEPTH_BUFFER_DETECTION", "DepthBufferRetrievalMode", depth_buffer_retrieval_mode);
-		config.get("DEPTH_BUFFER_DETECTION", "DepthBufferClearingNumber", depth_buffer_clearing_number);
-		config.get("DEPTH_BUFFER_DETECTION", "DepthBufferTextureFormat", _depth_buffer_texture_format);
+		config.get("BUFFER_DETECTION", "DepthBufferRetrievalMode", _depth_buffer_before_clear);
+		config.get("BUFFER_DETECTION", "DepthBufferTextureFormat", _depth_buffer_texture_format);
 
 		config.get("STYLE", "Alpha", _imgui_context->Style.Alpha);
 		config.get("STYLE", "ColBackground", _imgui_col_background);
@@ -847,9 +844,8 @@ namespace reshade
 		config.set("GENERAL", "FontGlobalScale", _imgui_context->IO.FontGlobalScale);
 		config.set("GENERAL", "NoReloadOnInit", _no_reload_on_init);
 
-		config.set("DEPTH_BUFFER_DETECTION", "DepthBufferRetrievalMode", depth_buffer_retrieval_mode);
-		config.set("DEPTH_BUFFER_DETECTION", "DepthBufferClearingNumber", depth_buffer_clearing_number);
-		config.set("DEPTH_BUFFER_DETECTION", "DepthBufferTextureFormat", _depth_buffer_texture_format);
+		config.set("BUFFER_DETECTION", "DepthBufferRetrievalMode", _depth_buffer_before_clear);
+		config.set("BUFFER_DETECTION", "DepthBufferTextureFormat", _depth_buffer_texture_format);
 
 		config.set("STYLE", "Alpha", _imgui_context->Style.Alpha);
 		config.set("STYLE", "ColBackground", _imgui_col_background);
@@ -1791,33 +1787,12 @@ namespace reshade
 		{
 			assert(_menu_key_data[0] < 256);
 
-			int depth_buffer_retrieval_mode_index = depth_buffer_retrieval_mode;
+			bool modified = false;
+			modified |= ImGui::Checkbox("Copy Depth Before Clearing", &_depth_buffer_before_clear);
+			modified |= ImGui::Combo("Depth Texture Format", &_depth_buffer_texture_format, "All\0D16\0D32F\0D24S8\0D32FS8\0");
 
-			if (ImGui::Combo("Depth detection retrieval mode", &depth_buffer_retrieval_mode_index, "Post Process\0Before Clearing\0At Output Merger Stage\0"))
+			if (modified)
 			{
-				_depth_buffer_settings_changed = true;
-				depth_buffer_retrieval_mode = depth_buffer_retrieval_mode_index;
-
-				save_configuration();
-			}
-
-			if (depth_buffer_retrieval_mode == depth_buffer_retrieval_mode::before_clearing_stage)
-			{
-				int depth_buffer_clearing_number_index = depth_buffer_clearing_number;
-
-				if (ImGui::Combo("Depth buffer clearing number", &depth_buffer_clearing_number_index, "None\0First\0Second\0Third\0Fourth\0Fifth\0Sixth\0Seventh\0Eighth\0Ninth\0"))
-				{
-					_depth_buffer_settings_changed = true;
-					depth_buffer_clearing_number = depth_buffer_clearing_number_index;
-
-					save_configuration();
-				}
-			}
-
-			if (ImGui::Combo("Depth texture format", &_depth_buffer_texture_format, "DXGI_FORMAT_UNKNOWN\0DXGI_FORMAT_R16_TYPELESS\0DXGI_FORMAT_R32_TYPELESS\0DXGI_FORMAT_R24G8_TYPELESS\0DXGI_FORMAT_R32G8X24_TYPELESS\0"))
-			{
-				_depth_buffer_settings_changed = true;
-
 				save_configuration();
 			}
 		}
