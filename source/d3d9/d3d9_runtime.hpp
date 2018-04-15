@@ -1,7 +1,7 @@
 /**
-* Copyright (C) 2014 Patrick Mours. All rights reserved.
-* License: https://github.com/crosire/reshade#license
-*/
+ * Copyright (C) 2014 Patrick Mours. All rights reserved.
+ * License: https://github.com/crosire/reshade#license
+ */
 
 #pragma once
 
@@ -26,11 +26,11 @@ namespace reshade::d3d9
 	{
 		com_ptr<IDirect3DVertexShader9> vertex_shader;
 		com_ptr<IDirect3DPixelShader9> pixel_shader;
-		d3d9_sampler samplers[16] = {};
+		d3d9_sampler samplers[16] = { };
 		DWORD sampler_count = 0;
 		com_ptr<IDirect3DStateBlock9> stateblock;
 		bool clear_render_targets = false;
-		IDirect3DSurface9 *render_targets[8] = {};
+		IDirect3DSurface9 *render_targets[8] = { };
 	};
 
 	class d3d9_runtime : public runtime
