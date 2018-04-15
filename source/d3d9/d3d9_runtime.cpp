@@ -1,7 +1,7 @@
 /**
-* Copyright (C) 2014 Patrick Mours. All rights reserved.
-* License: https://github.com/crosire/reshade#license
-*/
+ * Copyright (C) 2014 Patrick Mours. All rights reserved.
+ * License: https://github.com/crosire/reshade#license
+ */
 
 #include "log.hpp"
 #include "d3d9_runtime.hpp"
@@ -54,12 +54,12 @@ namespace reshade::d3d9
 		{
 			switch (_backbuffer_format)
 			{
-			    case D3DFMT_X8R8G8B8:
-				_backbuffer_format = D3DFMT_A8R8G8B8;
-				break;
-			    case D3DFMT_X8B8G8R8:
-				_backbuffer_format = D3DFMT_A8B8G8R8;
-				break;
+			        case D3DFMT_X8R8G8B8:
+				    _backbuffer_format = D3DFMT_A8R8G8B8;
+				    break;
+			        case D3DFMT_X8B8G8R8:
+				    _backbuffer_format = D3DFMT_A8B8G8R8;
+				    break;
 			}
 
 			hr = _device->CreateRenderTarget(_width, _height, _backbuffer_format, D3DMULTISAMPLE_NONE, 0, FALSE, &_backbuffer_resolved, nullptr);
