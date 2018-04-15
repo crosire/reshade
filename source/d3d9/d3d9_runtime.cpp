@@ -55,11 +55,11 @@ namespace reshade::d3d9
 			switch (_backbuffer_format)
 			{
 			        case D3DFMT_X8R8G8B8:
-				    _backbuffer_format = D3DFMT_A8R8G8B8;
-				    break;
+				        _backbuffer_format = D3DFMT_A8R8G8B8;
+			                break;
 			        case D3DFMT_X8B8G8R8:
-				    _backbuffer_format = D3DFMT_A8B8G8R8;
-				    break;
+			                _backbuffer_format = D3DFMT_A8B8G8R8;
+			                break;
 			}
 
 			hr = _device->CreateRenderTarget(_width, _height, _backbuffer_format, D3DMULTISAMPLE_NONE, 0, FALSE, &_backbuffer_resolved, nullptr);
