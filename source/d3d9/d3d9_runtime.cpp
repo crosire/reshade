@@ -169,7 +169,7 @@ namespace reshade::d3d9
 
 		font_atlas->UnlockRect(0);
 
-		d3d9_tex_data obj = {};
+		d3d9_tex_data obj = { };
 		obj.texture = font_atlas;
 
 		_imgui_font_atlas_texture = std::make_unique<d3d9_tex_data>(obj);
@@ -434,19 +434,19 @@ namespace reshade::d3d9
 	{
 		switch (type)
 		{
-		case D3DPT_LINELIST:
-			vertices *= 2;
-			break;
-		case D3DPT_LINESTRIP:
-			vertices += 1;
-			break;
-		case D3DPT_TRIANGLELIST:
-			vertices *= 3;
-			break;
-		case D3DPT_TRIANGLESTRIP:
-		case D3DPT_TRIANGLEFAN:
-			vertices += 2;
-			break;
+			case D3DPT_LINELIST:
+				vertices *= 2;
+				break;
+			case D3DPT_LINESTRIP:
+				vertices += 1;
+				break;
+			case D3DPT_TRIANGLELIST:
+				vertices *= 3;
+				break;
+			case D3DPT_TRIANGLESTRIP:
+			case D3DPT_TRIANGLEFAN:
+				vertices += 2;
+				break;
 		}
 
 		_vertices += vertices;
