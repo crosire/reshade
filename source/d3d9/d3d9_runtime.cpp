@@ -497,7 +497,7 @@ namespace reshade::d3d9
 					return;
 				}
 			}
-
+	
 			depthstencil->AddRef();
 
 			// Begin tracking
@@ -623,30 +623,30 @@ namespace reshade::d3d9
 
 		switch (texture.format)
 		{
-		    case texture_format::r8:
-			for (UINT i = 0; i < size; i += 4, mapped_data += 4)
-				mapped_data[0] = 0,
-				mapped_data[1] = 0,
-				mapped_data[2] = data[i],
-				mapped_data[3] = 0;
-			break;
-		    case texture_format::rg8:
-			for (UINT i = 0; i < size; i += 4, mapped_data += 4)
-				mapped_data[0] = 0,
-				mapped_data[1] = data[i + 1],
-				mapped_data[2] = data[i],
-				mapped_data[3] = 0;
-			break;
-		    case texture_format::rgba8:
-			for (UINT i = 0; i < size; i += 4, mapped_data += 4)
-				mapped_data[0] = data[i + 2],
-				mapped_data[1] = data[i + 1],
-				mapped_data[2] = data[i],
-				mapped_data[3] = data[i + 3];
-			break;
-		    default:
-			std::memcpy(mapped_data, data, size);
-			break;
+			case texture_format::r8:
+				for (UINT i = 0; i < size; i += 4, mapped_data += 4)
+					mapped_data[0] = 0,
+					mapped_data[1] = 0,
+					mapped_data[2] = data[i],
+					mapped_data[3] = 0;
+				break;
+			case texture_format::rg8:
+				for (UINT i = 0; i < size; i += 4, mapped_data += 4)
+					mapped_data[0] = 0,
+					mapped_data[1] = data[i + 1],
+					mapped_data[2] = data[i],
+					mapped_data[3] = 0;
+				break;
+			case texture_format::rgba8:
+				for (UINT i = 0; i < size; i += 4, mapped_data += 4)
+					mapped_data[0] = data[i + 2],
+					mapped_data[1] = data[i + 1],
+					mapped_data[2] = data[i],
+					mapped_data[3] = data[i + 3];
+				break;
+			default:
+				std::memcpy(mapped_data, data, size);
+				break;
 		}
 
 		mem_texture->UnlockRect(0);
