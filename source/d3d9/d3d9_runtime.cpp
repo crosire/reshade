@@ -54,10 +54,10 @@ namespace reshade::d3d9
 		{
 			switch (_backbuffer_format)
 			{
-			case D3DFMT_X8R8G8B8:
+			    case D3DFMT_X8R8G8B8:
 				_backbuffer_format = D3DFMT_A8R8G8B8;
 				break;
-			case D3DFMT_X8B8G8R8:
+			    case D3DFMT_X8B8G8R8:
 				_backbuffer_format = D3DFMT_A8B8G8R8;
 				break;
 			}
@@ -623,28 +623,28 @@ namespace reshade::d3d9
 
 		switch (texture.format)
 		{
-		case texture_format::r8:
+		    case texture_format::r8:
 			for (UINT i = 0; i < size; i += 4, mapped_data += 4)
 				mapped_data[0] = 0,
 				mapped_data[1] = 0,
 				mapped_data[2] = data[i],
 				mapped_data[3] = 0;
 			break;
-		case texture_format::rg8:
+		    case texture_format::rg8:
 			for (UINT i = 0; i < size; i += 4, mapped_data += 4)
 				mapped_data[0] = 0,
 				mapped_data[1] = data[i + 1],
 				mapped_data[2] = data[i],
 				mapped_data[3] = 0;
 			break;
-		case texture_format::rgba8:
+		    case texture_format::rgba8:
 			for (UINT i = 0; i < size; i += 4, mapped_data += 4)
 				mapped_data[0] = data[i + 2],
 				mapped_data[1] = data[i + 1],
 				mapped_data[2] = data[i],
 				mapped_data[3] = data[i + 3];
 			break;
-		default:
+		    default:
 			std::memcpy(mapped_data, data, size);
 			break;
 		}
