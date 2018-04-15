@@ -1,7 +1,7 @@
 /**
- * Copyright (C) 2014 Patrick Mours. All rights reserved.
- * License: https://github.com/crosire/reshade#license
- */
+* Copyright (C) 2014 Patrick Mours. All rights reserved.
+* License: https://github.com/crosire/reshade#license
+*/
 
 #pragma once
 
@@ -26,11 +26,11 @@ namespace reshade::d3d9
 	{
 		com_ptr<IDirect3DVertexShader9> vertex_shader;
 		com_ptr<IDirect3DPixelShader9> pixel_shader;
-		d3d9_sampler samplers[16] = { };
+		d3d9_sampler samplers[16] = {};
 		DWORD sampler_count = 0;
 		com_ptr<IDirect3DStateBlock9> stateblock;
 		bool clear_render_targets = false;
-		IDirect3DSurface9 *render_targets[8] = { };
+		IDirect3DSurface9 *render_targets[8] = {};
 	};
 
 	class d3d9_runtime : public runtime
@@ -41,6 +41,7 @@ namespace reshade::d3d9
 		bool on_init(const D3DPRESENT_PARAMETERS &pp);
 		void on_reset();
 		void on_present();
+		void on_clear(DWORD Flags);
 		void on_draw_call(D3DPRIMITIVETYPE type, UINT count);
 		void on_set_depthstencil_surface(IDirect3DSurface9 *&depthstencil);
 		void on_get_depthstencil_surface(IDirect3DSurface9 *&depthstencil);
@@ -74,14 +75,14 @@ namespace reshade::d3d9
 		bool init_fx_resources();
 		bool init_imgui_font_atlas();
 
-		void detect_depth_source();
-		bool create_depthstencil_replacement(IDirect3DSurface9 *depthstencil);
+		void detect_depth_source(bool on_clear);
+		bool create_depthstencil_replacement(IDirect3DSurface9 *depthstencil, bool on_clear);
 
 		UINT _behavior_flags, _num_simultaneous_rendertargets, _num_samplers;
 		bool _is_multisampling_enabled = false;
 		D3DFORMAT _backbuffer_format = D3DFMT_UNKNOWN;
 		com_ptr<IDirect3DStateBlock9> _stateblock, _imgui_state;
-		com_ptr<IDirect3DSurface9> _depthstencil, _depthstencil_replacement, _default_depthstencil;
+		com_ptr<IDirect3DSurface9> _best_depthstencil, _depthstencil, _depthstencil_replacement, _default_depthstencil;
 		std::unordered_map<IDirect3DSurface9 *, depth_source_info> _depth_source_table;
 
 		com_ptr<IDirect3DVertexBuffer9> _effect_triangle_buffer;
@@ -90,5 +91,7 @@ namespace reshade::d3d9
 		com_ptr<IDirect3DVertexBuffer9> _imgui_vertex_buffer;
 		com_ptr<IDirect3DIndexBuffer9> _imgui_index_buffer;
 		int _imgui_vertex_buffer_size = 0, _imgui_index_buffer_size = 0;
+		unsigned int _clear_DSV_iter = 1;
+		bool _depth_buffer_retrieved_at_clearing_stage = false;
 	};
 }

@@ -188,8 +188,12 @@ namespace reshade
 		std::vector<uniform> _uniforms;
 		std::vector<technique> _techniques;
 		int _depth_buffer_texture_format = 0; // No depth buffer texture format filter by default
+		int _depth_buffer_clearing_number = 0;
+		int _depth_buffer_clearing_flag_number = 6;
 		bool _depth_buffer_debug = false;
 		bool _depth_buffer_before_clear = false;
+		bool _depth_buffer_settings_changed = false;
+		bool _restrict_depth_buffer_dimensions = true;
 
 	private:
 		static bool check_for_update(unsigned long latest_version[3]);

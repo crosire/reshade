@@ -782,6 +782,9 @@ namespace reshade
 
 		config.get("BUFFER_DETECTION", "DepthBufferRetrievalMode", _depth_buffer_before_clear);
 		config.get("BUFFER_DETECTION", "DepthBufferTextureFormat", _depth_buffer_texture_format);
+		config.get("BUFFER_DETECTION", "DepthBufferClearingNumber", _depth_buffer_clearing_number);
+		config.get("BUFFER_DETECTION", "DepthBufferClearingFlagNumber", _depth_buffer_clearing_flag_number);
+		config.get("BUFFER_DETECTION", "RestrictDepthBufferDimensions", _restrict_depth_buffer_dimensions);
 
 		config.get("STYLE", "Alpha", _imgui_context->Style.Alpha);
 		config.get("STYLE", "ColBackground", _imgui_col_background);
@@ -885,6 +888,9 @@ namespace reshade
 
 		config.set("BUFFER_DETECTION", "DepthBufferRetrievalMode", _depth_buffer_before_clear);
 		config.set("BUFFER_DETECTION", "DepthBufferTextureFormat", _depth_buffer_texture_format);
+		config.set("BUFFER_DETECTION", "DepthBufferClearingNumber", _depth_buffer_clearing_number);
+		config.set("BUFFER_DETECTION", "DepthBufferClearingFlagNumber", _depth_buffer_clearing_flag_number);
+		config.set("BUFFER_DETECTION", "RestrictDepthBufferDimensions", _restrict_depth_buffer_dimensions);
 
 		config.set("STYLE", "Alpha", _imgui_context->Style.Alpha);
 		config.set("STYLE", "ColBackground", _imgui_col_background);
@@ -1777,17 +1783,30 @@ namespace reshade
 		}
 
 		const bool is_d3d11 = _renderer_id >= 0xb000 && _renderer_id < 0xc000;;
+		const bool is_d3d9 = _renderer_id >= 0x9000 && _renderer_id < 0xa000;;
 
-		if (is_d3d11 && ImGui::CollapsingHeader("Buffer Detection", ImGuiTreeNodeFlags_DefaultOpen))
+		if (ImGui::CollapsingHeader("Buffer Detection", ImGuiTreeNodeFlags_DefaultOpen))
 		{
 			assert(_menu_key_data[0] < 256);
 
 			bool modified = false;
-			modified |= ImGui::Checkbox("Copy Depth Before Clearing", &_depth_buffer_before_clear);
-			modified |= ImGui::Combo("Depth Texture Format", &_depth_buffer_texture_format, "All\0D16\0D32F\0D24S8\0D32FS8\0");
+
+			if (is_d3d11 || is_d3d9)
+			{
+				modified |= ImGui::Checkbox("Copy Depth Before Clearing", &_depth_buffer_before_clear);
+				modified |= ImGui::Combo("Depth Texture Format", &_depth_buffer_texture_format, "All\0D16\0D32F\0D24S8\0D32FS8\0");
+			}
+
+			if (is_d3d9)
+			{
+				modified |= ImGui::Combo("Depth buffer clearing number", &_depth_buffer_clearing_number, "None\0First\0Second\0Third\0Fourth\0Fifth\0Sixth\0Seventh\0Eighth\0Ninth\0");
+				modified |= ImGui::Combo("Depth buffer clearing flag number", &_depth_buffer_clearing_flag_number, "None\0 1\0 2\0 3\0 4\0 5\0 6\0 7\0 8\0 9\0");
+				modified |= ImGui::Checkbox("Restrict depth buffer dimensions", &_restrict_depth_buffer_dimensions);
+			}
 
 			if (modified)
 			{
+				_depth_buffer_settings_changed = true;
 				save_configuration();
 			}
 
