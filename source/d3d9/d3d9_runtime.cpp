@@ -667,14 +667,14 @@ namespace reshade::d3d9
 
 		switch (id)
 		{
-		case texture_reference::back_buffer:
-			new_reference = _backbuffer_texture;
-			break;
-		case texture_reference::depth_buffer:
-			new_reference = _depthstencil_texture;
-			break;
-		default:
-			return false;
+			case texture_reference::back_buffer:
+				new_reference = _backbuffer_texture;
+				break;
+			case texture_reference::depth_buffer:
+				new_reference = _depthstencil_texture;
+				break;
+			default:
+				return false;
 		}
 
 		texture.impl_reference = id;
