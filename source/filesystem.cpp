@@ -11,19 +11,19 @@
 
 namespace reshade::filesystem
 {
-	bool path::operator==(const path &other) const
-	{
-		return _stricmp(_data.c_str(), other._data.c_str()) == 0;
-	}
-	bool path::operator!=(const path &other) const
-	{
-		return !operator==(other);
-	}
+	//bool path::operator==(const path &other) const
+	//{
+	//	return _stricmp(_data.c_str(), other._data.c_str()) == 0;
+	//}
+	//bool path::operator!=(const path &other) const
+	//{
+	//	return !operator==(other);
+	//}
 
-	std::wstring path::wstring() const
-	{
-		return utf8_to_utf16(_data);
-	}
+	//std::wstring path::wstring() const
+	//{
+	//	return utf8_to_utf16(_data);
+	//}
 
 	std::ostream &operator<<(std::ostream &stream, const path &path)
 	{
@@ -32,7 +32,7 @@ namespace reshade::filesystem
 		GetUserNameW(username, &username_length);
 		username_length -= 1;
 
-		std::wstring result = utf8_to_utf16(path._data);
+		std::wstring result = path.wstring();
 
 		for (size_t start_pos = 0; (start_pos = result.find(username, start_pos)) != std::wstring::npos; start_pos += username_length)
 		{
@@ -42,59 +42,59 @@ namespace reshade::filesystem
 		return stream << '\'' << utf16_to_utf8(result) << '\'';
 	}
 
-	bool path::is_absolute() const
-	{
-		return PathIsRelativeW(utf8_to_utf16(_data).c_str()) == FALSE;
-	}
+	//bool path::is_absolute() const
+	//{
+	//	return PathIsRelativeW(utf8_to_utf16(_data).c_str()) == FALSE;
+	//}
 
-	path path::parent_path() const
-	{
-		WCHAR buffer[MAX_PATH] = { };
-		utf8_to_utf16(_data, buffer);
+	//path path::parent_path() const
+	//{
+	//	WCHAR buffer[MAX_PATH] = { };
+	//	utf8_to_utf16(_data, buffer);
 
-		PathRemoveFileSpecW(buffer);
-		return utf16_to_utf8(buffer);
-	}
-	path path::filename() const
-	{
-		WCHAR buffer[MAX_PATH] = { };
-		utf8_to_utf16(_data, buffer);
+	//	PathRemoveFileSpecW(buffer);
+	//	return utf16_to_utf8(buffer);
+	//}
+	//path path::filename() const
+	//{
+	//	WCHAR buffer[MAX_PATH] = { };
+	//	utf8_to_utf16(_data, buffer);
 
-		return utf16_to_utf8(PathFindFileNameW(buffer));
-	}
-	path path::filename_without_extension() const
-	{
-		WCHAR buffer[MAX_PATH] = { };
-		utf8_to_utf16(_data, buffer);
+	//	return utf16_to_utf8(PathFindFileNameW(buffer));
+	//}
+	//path path::replace_extension() const
+	//{
+	//	WCHAR buffer[MAX_PATH] = { };
+	//	utf8_to_utf16(_data, buffer);
 
-		PathRemoveExtensionW(buffer);
-		return utf16_to_utf8(PathFindFileNameW(buffer));
-	}
-	std::string path::extension() const
-	{
-		WCHAR buffer[MAX_PATH] = { };
-		utf8_to_utf16(_data, buffer);
+	//	PathRemoveExtensionW(buffer);
+	//	return utf16_to_utf8(PathFindFileNameW(buffer));
+	//}
+	//std::string path::extension() const
+	//{
+	//	WCHAR buffer[MAX_PATH] = { };
+	//	utf8_to_utf16(_data, buffer);
 
-		return utf16_to_utf8(PathFindExtensionW(buffer));
-	}
+	//	return utf16_to_utf8(PathFindExtensionW(buffer));
+	//}
 
-	path &path::replace_extension(const std::string &extension)
-	{
-		WCHAR buffer[MAX_PATH] = { };
-		utf8_to_utf16(_data, buffer);
+	//path &path::replace_extension(const std::string &extension)
+	//{
+	//	WCHAR buffer[MAX_PATH] = { };
+	//	utf8_to_utf16(_data, buffer);
 
-		PathRenameExtensionW(buffer, utf8_to_utf16(extension).c_str());
-		return operator=(utf16_to_utf8(buffer));
-	}
+	//	PathRenameExtensionW(buffer, utf8_to_utf16(extension).c_str());
+	//	return operator=(utf16_to_utf8(buffer));
+	//}
 
-	path path::operator/(const path &more) const
-	{
-		WCHAR buffer[MAX_PATH] = { };
-		utf8_to_utf16(_data, buffer);
+	//path path::operator/(const path &more) const
+	//{
+	//	WCHAR buffer[MAX_PATH] = { };
+	//	utf8_to_utf16(_data, buffer);
 
-		PathAppendW(buffer, utf8_to_utf16(more.string()).c_str());
-		return utf16_to_utf8(buffer);
-	}
+	//	PathAppendW(buffer, utf8_to_utf16(more.string()).c_str());
+	//	return utf16_to_utf8(buffer);
+	//}
 
 	bool exists(const path &path)
 	{
@@ -104,9 +104,10 @@ namespace reshade::filesystem
 	{
 		for (const auto &path : paths)
 		{
-			auto result = absolute(filename, path);
+			auto result = reshade::filesystem::absolute(filename, path);
 
-			if (exists(result))
+			// could also use std::experimental::filesystem::exists
+			if (reshade::filesystem::exists(result))
 			{
 				return result;
 			}
