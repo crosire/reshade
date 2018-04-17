@@ -8,14 +8,15 @@
 #include <string>
 #include <codecvt>
 #include <algorithm>
+#include <nowide/convert.hpp>
 
 inline std::string utf16_to_utf8(const std::wstring &s)
 {
-	return std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>>().to_bytes(s);
+	return nowide::narrow(s);
 }
 inline std::string utf16_to_utf8(const wchar_t *s, size_t len)
 {
-	return std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>>().to_bytes(s, s + len);
+	return nowide::narrow(std::wstring(s, len));
 }
 
 template <size_t OUTSIZE>
@@ -27,11 +28,11 @@ inline void utf16_to_utf8(const std::wstring &s, char(&target)[OUTSIZE])
 
 inline std::wstring utf8_to_utf16(const std::string &s)
 {
-	return std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>>().from_bytes(s);
+	return nowide::widen(s);
 }
 inline std::wstring utf8_to_utf16(const char *s, size_t len)
 {
-	return std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>>().from_bytes(s, s + len);
+	return nowide::widen(std::string(s, len));
 }
 
 template <size_t OUTSIZE>

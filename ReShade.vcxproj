@@ -102,7 +102,7 @@
       <WarningLevel>Level4</WarningLevel>
       <SDLCheck>true</SDLCheck>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>$(SolutionDir)res;$(SolutionDir)source;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)res;$(SolutionDir)source;$(SolutionDir)deps;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32_LEAN_AND_MEAN;NOMINMAX;IMGUI_DEFINE_MATH_OPERATORS;IMGUI_DISABLE_OBSOLETE_FUNCTIONS;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;_GDI32_;WINSOCK_API_LINKAGE=;WIN64;_DEBUG;%(PreprocessorDefinitions);IMGUI_DISABLE_OBSOLETE_FUNCTIONS</PreprocessorDefinitions>
       <DisableSpecificWarnings>4351;%(DisableSpecificWarnings)</DisableSpecificWarnings>
       <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
@@ -160,7 +160,7 @@
       <WarningLevel>Level4</WarningLevel>
       <SDLCheck>true</SDLCheck>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>$(SolutionDir)res;$(SolutionDir)source;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)res;$(SolutionDir)source;$(SolutionDir)deps;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>RESHADE_TEST_APPLICATION=1;RESHADE_DUMP_NATIVE_SHADERS;D3D_DEBUG_INFO;WIN32_LEAN_AND_MEAN;NOMINMAX;IMGUI_DEFINE_MATH_OPERATORS;IMGUI_DISABLE_OBSOLETE_FUNCTIONS;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;_GDI32_;WINSOCK_API_LINKAGE=;WIN64;_DEBUG;%(PreprocessorDefinitions);IMGUI_DISABLE_OBSOLETE_FUNCTIONS</PreprocessorDefinitions>
       <DisableSpecificWarnings>4351;%(DisableSpecificWarnings)</DisableSpecificWarnings>
       <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
@@ -224,7 +224,7 @@
       <Optimization>MaxSpeed</Optimization>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <FunctionLevelLinking>true</FunctionLevelLinking>
-      <AdditionalIncludeDirectories>$(SolutionDir)res;$(SolutionDir)source;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)res;$(SolutionDir)source;$(SolutionDir)deps;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32_LEAN_AND_MEAN;NOMINMAX;IMGUI_DEFINE_MATH_OPERATORS;IMGUI_DISABLE_OBSOLETE_FUNCTIONS;_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS;_GDI32_;WINSOCK_API_LINKAGE=;WIN64;NDEBUG;%(PreprocessorDefinitions);IMGUI_DISABLE_OBSOLETE_FUNCTIONS</PreprocessorDefinitions>
       <DisableSpecificWarnings>4351;%(DisableSpecificWarnings)</DisableSpecificWarnings>
       <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
