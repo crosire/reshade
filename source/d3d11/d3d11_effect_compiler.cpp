@@ -202,7 +202,7 @@ namespace reshade::d3d11
 		if (_ast.techniques.size() == 0)
 			return;
 		_dump_filename = _ast.techniques[0]->location.source;
-		_dump_filename = "ReShade-ShaderDump-" + _dump_filename.filename_without_extension().string() + ".hlsl";
+		_dump_filename = "ReShade-ShaderDump-" + _dump_filename.replace_extension().string() + ".hlsl";
 
 		std::ofstream(_dump_filename.string(), std::ios::trunc);
 #endif
