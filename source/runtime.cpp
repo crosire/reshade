@@ -559,7 +559,7 @@ namespace reshade
 		pp.add_macro_definition("__VENDOR__", std::to_string(_vendor_id));
 		pp.add_macro_definition("__DEVICE__", std::to_string(_device_id));
 		pp.add_macro_definition("__RENDERER__", std::to_string(_renderer_id));
-		pp.add_macro_definition("__APPLICATION__", std::to_string(std::hash<std::string>()(s_target_executable_path.filename_without_extension().string())));
+		pp.add_macro_definition("__APPLICATION__", std::to_string(std::hash<std::string>()(s_target_executable_path.replace_extension().string())));
 		pp.add_macro_definition("BUFFER_WIDTH", std::to_string(_width));
 		pp.add_macro_definition("BUFFER_HEIGHT", std::to_string(_height));
 		pp.add_macro_definition("BUFFER_RCP_WIDTH", std::to_string(1.0f / static_cast<float>(_width)));
@@ -1044,7 +1044,7 @@ namespace reshade
 
 		char filename[25];
 		ImFormatString(filename, sizeof(filename), " %.4d-%.2d-%.2d %.2d-%.2d-%.2d%s", _date[0], _date[1], _date[2], hour, minute, second, _screenshot_format == 0 ? ".bmp" : ".png");
-		const auto path = _screenshot_path / (s_target_executable_path.filename_without_extension() + filename);
+		const auto path = _screenshot_path / (s_target_executable_path.replace_extension().string() + filename);
 
 		LOG(INFO) << "Saving screenshot to " << path << " ...";
 
@@ -1598,8 +1598,8 @@ namespace reshade
 			edit_buffer[0] = '\0';
 			for (const auto &search_path : search_paths)
 			{
-				memcpy(edit_buffer + offset, search_path.string().c_str(), search_path.length());
-				offset += search_path.length();
+				memcpy(edit_buffer + offset, search_path.string().c_str(), search_path.string().length());
+				offset += search_path.string().length();
 				edit_buffer[offset++] = '\n';
 				edit_buffer[offset] = '\0';
 			}
@@ -1739,7 +1739,7 @@ namespace reshade
 				ImGui::SetTooltip("Click in the field and press any key to change the shortcut to that key.");
 			}
 
-			memcpy(edit_buffer, _screenshot_path.string().c_str(), _screenshot_path.length() + 1);
+			memcpy(edit_buffer, _screenshot_path.string().c_str(), _screenshot_path.string().length() + 1);
 
 			if (ImGui::InputText("Screenshot Path", edit_buffer, sizeof(edit_buffer)))
 			{
@@ -1839,7 +1839,7 @@ namespace reshade
 			ImGui::SameLine(ImGui::GetWindowWidth() * 0.333f);
 
 			ImGui::BeginGroup();
-			ImGui::Text("%X", std::hash<std::string>()(s_target_executable_path.filename_without_extension().string()));
+			ImGui::Text("%X", std::hash<std::string>()(s_target_executable_path.replace_extension().string()));
 			ImGui::Text("%d-%d-%d %d", _date[0], _date[1], _date[2], _date[3]);
 			ImGui::Text("%X %d", _vendor_id, _device_id);
 			ImGui::Text("%.2f", _imgui_context->IO.Framerate);

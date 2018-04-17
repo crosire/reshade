@@ -470,8 +470,8 @@ void reshade::hooks::register_module(const filesystem::path &target_path)
 
 	LOG(INFO) << "Registering hooks for " << target_path << " ...";
 
-	const auto target_filename = target_path.filename_without_extension();
-	const auto replacement_filename = filesystem::get_module_path(g_module_handle).filename_without_extension();
+	const auto target_filename = filesystem::path(target_path).replace_extension();
+	const auto replacement_filename = filesystem::get_module_path(g_module_handle).replace_extension();
 
 	if (target_filename == replacement_filename)
 	{
