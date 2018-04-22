@@ -55,7 +55,7 @@
 				<ColumnDefinition />
 				<ColumnDefinition />
 			</Grid.ColumnDefinitions>
-			<Button Grid.Column="0" Margin="5,0" Name="BtnSave" Content="Save" />
+			<Button Grid.Column="0" Margin="5,0" Name="BtnSave" Content="OK" />
 			<Button Grid.Column="1" Margin="5,0" Name="BtnReload" Content="Reload" />
 			<Button Grid.Column="2" Margin="5,0" Name="BtnCancel" Content="Cancel" />
 		</Grid>
