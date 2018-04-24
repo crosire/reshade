@@ -1108,7 +1108,7 @@ namespace reshade
 
 	void runtime::draw_overlay()
 	{
-		const bool show_splash = std::chrono::duration_cast<std::chrono::seconds>(_last_present_time - _last_reload_time).count() < 5;
+		const bool show_splash = (_last_present_time - _last_reload_time) < std::chrono::seconds(5);
 
 		if (!_overlay_key_setting_active &&
 			_input->is_key_pressed(_menu_key_data[0], _menu_key_data[1], _menu_key_data[2], false))
