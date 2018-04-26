@@ -5,6 +5,5 @@
     <ClCompile>
       <AdditionalIncludeDirectories>$(SolutionDir)deps\gl3w\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
-    <Link />
   </ItemDefinitionGroup>
 </Project>

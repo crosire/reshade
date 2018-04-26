@@ -5,6 +5,5 @@
     <ClCompile>
       <AdditionalIncludeDirectories>$(SolutionDir)deps\minhook\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
-    <Link />
   </ItemDefinitionGroup>
 </Project>
