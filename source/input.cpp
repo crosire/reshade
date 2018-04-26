@@ -6,9 +6,10 @@
 #include "log.hpp"
 #include "input.hpp"
 #include "hook_manager.hpp"
-#include <Windows.h>
 #include <assert.h>
+#include <Windows.h>
 #include <mutex>
+#include <algorithm>
 #include <unordered_map>
 
 namespace reshade

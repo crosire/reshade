@@ -10,3 +10,6 @@
 [submodule "gl3w"]
 	path = deps/gl3w
 	url = https://github.com/skaslev/gl3w.git
+[submodule "utfcpp"]
+	path = deps/utfcpp
+	url = https://github.com/nemtrif/utfcpp

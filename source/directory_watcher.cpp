@@ -4,8 +4,6 @@
  */
 
 #include "directory_watcher.hpp"
-#include "string_codecvt.hpp"
-
 #include <Windows.h>
 
 namespace reshade::filesystem
@@ -40,14 +38,14 @@ namespace reshade::filesystem
 		}
 
 		static DWORD s_last_tick_count = 0;
-		static std::string s_last_filename;
+		static std::wstring s_last_filename;
 
 		auto record = reinterpret_cast<const FILE_NOTIFY_INFORMATION *>(_buffer.data());
 		const auto current_tick_count = GetTickCount();
 
 		while (true)
 		{
-			const std::string filename = utf16_to_utf8(record->FileName, record->FileNameLength / sizeof(WCHAR));
+			const std::wstring filename(record->FileName, record->FileNameLength / sizeof(WCHAR));
 
 			if (filename != s_last_filename || s_last_tick_count + 2000 < current_tick_count)
 			{

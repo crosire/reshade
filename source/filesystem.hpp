@@ -22,8 +22,10 @@ namespace reshade::filesystem
 	{
 	public:
 		path() { }
-		path(const char *data) : _data(data) { }
-		path(std::string data) : _data(std::move(data)) { }
+		path(const char *data) : path(std::string(data)) { }
+		path(const wchar_t *data) : path(std::wstring(data)) { }
+		path(const std::string &data);
+		path(const std::wstring &data);
 
 		bool operator==(const path &other) const;
 		bool operator!=(const path &other) const;
@@ -41,10 +43,10 @@ namespace reshade::filesystem
 		path parent_path() const;
 		path filename() const;
 		path filename_without_extension() const;
-		std::string extension() const;
+		path extension() const;
 
 		path &remove_filename() { return operator=(parent_path()); }
-		path &replace_extension(const std::string &extension);
+		path &replace_extension(const path &extension);
 
 		path operator/(const path &more) const;
 		path operator+(char c) const { return _data + c; }

@@ -4,13 +4,20 @@
  */
 
 #include "filesystem.hpp"
-#include "string_codecvt.hpp"
-
+#include <utf8/unchecked.h>
 #include <ShlObj.h>
 #include <Shlwapi.h>
 
 namespace reshade::filesystem
 {
+	path::path(const std::string &data) : _data(data)
+	{
+	}
+	path::path(const std::wstring &data) 
+	{
+		utf8::unchecked::utf16to8(data.begin(), data.end(), std::back_inserter(_data));
+	}
+
 	bool path::operator==(const path &other) const
 	{
 		return _stricmp(_data.c_str(), other._data.c_str()) == 0;
@@ -22,7 +29,9 @@ namespace reshade::filesystem
 
 	std::wstring path::wstring() const
 	{
-		return utf8_to_utf16(_data);
+		std::wstring data;
+		utf8::unchecked::utf8to16(_data.begin(), _data.end(), std::back_inserter(data));
+		return data;
 	}
 
 	std::ostream &operator<<(std::ostream &stream, const path &path)
@@ -32,68 +41,66 @@ namespace reshade::filesystem
 		GetUserNameW(username, &username_length);
 		username_length -= 1;
 
-		std::wstring result = utf8_to_utf16(path._data);
+		std::wstring resultw = path.wstring();
 
-		for (size_t start_pos = 0; (start_pos = result.find(username, start_pos)) != std::wstring::npos; start_pos += username_length)
+		for (size_t start_pos = 0; (start_pos = resultw.find(username, start_pos)) != std::wstring::npos; start_pos += username_length)
 		{
-			result.replace(start_pos, username_length, username_length, '*');
+			resultw.replace(start_pos, username_length, username_length, '*');
 		}
 
-		return stream << '\'' << utf16_to_utf8(result) << '\'';
+		std::string result;
+		result.reserve(resultw.capacity());
+		utf8::unchecked::utf16to8(result.begin(), result.end(), std::back_inserter(result));
+
+		return stream << '\'' << result << '\'';
 	}
 
 	bool path::is_absolute() const
 	{
-		return PathIsRelativeW(utf8_to_utf16(_data).c_str()) == FALSE;
+		return PathIsRelativeW(wstring().c_str()) == FALSE;
 	}
 
 	path path::parent_path() const
 	{
 		WCHAR buffer[MAX_PATH] = { };
-		utf8_to_utf16(_data, buffer);
-
+		utf8::unchecked::utf8to16(_data.begin(), _data.end(), buffer);
 		PathRemoveFileSpecW(buffer);
-		return utf16_to_utf8(buffer);
+		return buffer;
 	}
 	path path::filename() const
 	{
 		WCHAR buffer[MAX_PATH] = { };
-		utf8_to_utf16(_data, buffer);
-
-		return utf16_to_utf8(PathFindFileNameW(buffer));
+		utf8::unchecked::utf8to16(_data.begin(), _data.end(), buffer);
+		return PathFindFileNameW(buffer);
 	}
 	path path::filename_without_extension() const
 	{
 		WCHAR buffer[MAX_PATH] = { };
-		utf8_to_utf16(_data, buffer);
-
+		utf8::unchecked::utf8to16(_data.begin(), _data.end(), buffer);
 		PathRemoveExtensionW(buffer);
-		return utf16_to_utf8(PathFindFileNameW(buffer));
+		return PathFindFileNameW(buffer);
 	}
-	std::string path::extension() const
+	path path::extension() const
 	{
 		WCHAR buffer[MAX_PATH] = { };
-		utf8_to_utf16(_data, buffer);
-
-		return utf16_to_utf8(PathFindExtensionW(buffer));
+		utf8::unchecked::utf8to16(_data.begin(), _data.end(), buffer);
+		return PathFindExtensionW(buffer);
 	}
 
-	path &path::replace_extension(const std::string &extension)
+	path &path::replace_extension(const path &extension)
 	{
 		WCHAR buffer[MAX_PATH] = { };
-		utf8_to_utf16(_data, buffer);
-
-		PathRenameExtensionW(buffer, utf8_to_utf16(extension).c_str());
-		return operator=(utf16_to_utf8(buffer));
+		utf8::unchecked::utf8to16(_data.begin(), _data.end(), buffer);
+		PathRenameExtensionW(buffer, extension.wstring().c_str());
+		return operator=(buffer);
 	}
 
 	path path::operator/(const path &more) const
 	{
 		WCHAR buffer[MAX_PATH] = { };
-		utf8_to_utf16(_data, buffer);
-
-		PathAppendW(buffer, utf8_to_utf16(more.string()).c_str());
-		return utf16_to_utf8(buffer);
+		utf8::unchecked::utf8to16(_data.begin(), _data.end(), buffer);
+		PathAppendW(buffer, more.wstring().c_str());
+		return buffer;
 	}
 
 	bool exists(const path &path)
@@ -117,14 +124,12 @@ namespace reshade::filesystem
 	path absolute(const path &filename, const path &parent_path)
 	{
 		if (filename.is_absolute())
-		{
 			return filename;
-		}
 
 		WCHAR result[MAX_PATH] = { };
-		PathCombineW(result, utf8_to_utf16(parent_path.string()).c_str(), utf8_to_utf16(filename.string()).c_str());
+		PathCombineW(result, parent_path.wstring().c_str(), filename.wstring().c_str());
 
-		return utf16_to_utf8(result);
+		return result;
 	}
 
 	path get_module_path(void *handle)
@@ -132,7 +137,7 @@ namespace reshade::filesystem
 		WCHAR result[MAX_PATH] = { };
 		GetModuleFileNameW(static_cast<HMODULE>(handle), result, MAX_PATH);
 
-		return utf16_to_utf8(result);
+		return result;
 	}
 	path get_special_folder_path(special_folder id)
 	{
@@ -150,7 +155,7 @@ namespace reshade::filesystem
 				GetWindowsDirectoryW(result, MAX_PATH);
 		}
 
-		return utf16_to_utf8(result);
+		return result;
 	}
 
 	std::vector<path> list_files(const path &path, const std::string &mask, bool recursive)
@@ -173,7 +178,7 @@ namespace reshade::filesystem
 
 		do
 		{
-			const auto filename = utf16_to_utf8(ffd.cFileName);
+			const filesystem::path filename(ffd.cFileName);
 
 			if (ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
 			{

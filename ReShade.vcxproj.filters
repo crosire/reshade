@@ -179,9 +179,6 @@
     <ClInclude Include="source\moving_average.hpp">
       <Filter>core\utility</Filter>
     </ClInclude>
-    <ClInclude Include="source\string_codecvt.hpp">
-      <Filter>core\utility</Filter>
-    </ClInclude>
     <ClInclude Include="source\com_ptr.hpp">
       <Filter>core\utility</Filter>
     </ClInclude>
