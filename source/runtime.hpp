@@ -249,6 +249,7 @@ namespace reshade
 		bool _is_fast_loading = false;
 		bool _no_reload_on_init = false;
 		bool _performance_mode = false;
+		bool _save_imgui_window_state = false;
 		bool _overlay_key_setting_active = false;
 		bool _screenshot_key_setting_active = false;
 		bool _toggle_key_setting_active = false;

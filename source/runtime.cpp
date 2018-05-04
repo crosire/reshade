@@ -779,6 +779,9 @@ namespace reshade
 		config.get("GENERAL", "ShowFPS", _show_framerate);
 		config.get("GENERAL", "FontGlobalScale", _imgui_context->IO.FontGlobalScale);
 		config.get("GENERAL", "NoReloadOnInit", _no_reload_on_init);
+		config.get("GENERAL", "SaveWindowState", _save_imgui_window_state);
+
+		_imgui_context->IO.IniFilename = _save_imgui_window_state ? "ReShadeGUI.ini" : nullptr;
 
 		config.get("BUFFER_DETECTION", "DepthBufferRetrievalMode", _depth_buffer_before_clear);
 		config.get("BUFFER_DETECTION", "DepthBufferTextureFormat", _depth_buffer_texture_format);
@@ -882,6 +885,7 @@ namespace reshade
 		config.set("GENERAL", "ShowFPS", _show_framerate);
 		config.set("GENERAL", "FontGlobalScale", _imgui_context->IO.FontGlobalScale);
 		config.set("GENERAL", "NoReloadOnInit", _no_reload_on_init);
+		config.set("GENERAL", "SaveWindowState", _save_imgui_window_state);
 
 		config.set("BUFFER_DETECTION", "DepthBufferRetrievalMode", _depth_buffer_before_clear);
 		config.set("BUFFER_DETECTION", "DepthBufferTextureFormat", _depth_buffer_texture_format);
@@ -1222,8 +1226,8 @@ namespace reshade
 					return;
 				}
 
-				ImGui::SetNextWindowPos(ImVec2(_width * 0.5f, _height * 0.5f), ImGuiCond_Once, ImVec2(0.5f, 0.5f));
-				ImGui::SetNextWindowSize(ImVec2(710, 650), ImGuiCond_Once);
+				ImGui::SetNextWindowPos(ImVec2(_width * 0.5f, _height * 0.5f), ImGuiCond_FirstUseEver, ImVec2(0.5f, 0.5f));
+				ImGui::SetNextWindowSize(ImVec2(710, 650), ImGuiCond_FirstUseEver);
 				ImGui::Begin("ReShade " VERSION_STRING_FILE " by crosire###Main", &_show_menu,
 					ImGuiWindowFlags_MenuBar |
 					ImGuiWindowFlags_NoCollapse);
@@ -1235,8 +1239,8 @@ namespace reshade
 
 			if (_show_error_log)
 			{
-				ImGui::SetNextWindowPos(ImVec2(_width * 0.5f, _height * 0.5f), ImGuiCond_Once, ImVec2(0.5f, 0.5f));
-				ImGui::SetNextWindowSize(ImVec2(800, 300), ImGuiCond_Once);
+				ImGui::SetNextWindowPos(ImVec2(_width * 0.5f, _height * 0.5f), ImGuiCond_FirstUseEver, ImVec2(0.5f, 0.5f));
+				ImGui::SetNextWindowSize(ImVec2(800, 300), ImGuiCond_FirstUseEver);
 				ImGui::Begin("Error Log", &_show_error_log);
 				ImGui::PushTextWrapPos();
 
