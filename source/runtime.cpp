@@ -2038,6 +2038,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 	{
 		ImGui::PushItemWidth(ImGui::GetWindowWidth() * 0.5f);
 
+		bool open_tutorial_popup = false;
 		bool current_tree_is_closed = true;
 		std::string current_filename;
 		std::string current_category;
@@ -2187,10 +2188,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 			{
 				save_current_preset();
 
-				if (_tutorial_index == 4)
-				{
-					ImGui::OpenPopup("Performance Mode Hint");
-				}
+				open_tutorial_popup = _tutorial_index == 4;
 			}
 		}
 
@@ -2200,6 +2198,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 		}
 
 		ImGui::PopItemWidth();
+
+		if (open_tutorial_popup)
+		{
+			ImGui::OpenPopup("Performance Mode Hint");
+		}
 
 		ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f);
 
