@@ -65,23 +65,31 @@ static inline com_ptr<ID3D11Texture2D> copy_texture(D3D11DeviceContext *deviceco
 
 void D3D11DeviceContext::track_active_depthstencil(ID3D11DepthStencilView *pDepthStencilView)
 {
-	assert(!_device->_runtimes.empty());
-
-	if (pDepthStencilView != _active_depthstencil)
+	if (pDepthStencilView == _active_depthstencil)
 	{
-		_active_depthstencil = pDepthStencilView;
+		return;
+	}
 
-		const auto runtime = _device->_runtimes.front();
+	_active_depthstencil = pDepthStencilView;
 
-		if (pDepthStencilView != nullptr && !runtime->_depth_buffer_before_clear)
-		{
-			_draw_call_tracker.track_depthstencil(pDepthStencilView);
-		}
+	if (_device->_runtimes.empty())
+	{
+		return;
+	}
+
+	const auto runtime = _device->_runtimes.front();
+
+	if (pDepthStencilView != nullptr && !runtime->_depth_buffer_before_clear)
+	{
+		_draw_call_tracker.track_depthstencil(pDepthStencilView);
 	}
 }
 void D3D11DeviceContext::track_cleared_depthstencil(ID3D11DepthStencilView *pDepthStencilView)
 {
-	assert(!_device->_runtimes.empty());
+	if (_device->_runtimes.empty())
+	{
+		return;
+	}
 
 	const auto runtime = _device->_runtimes.front();
 
