@@ -2134,7 +2134,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 					}
 					else if (ui_type == "combo")
 					{
-						modified = ImGui::Combo(ui_label.c_str(), data, variable.annotations["ui_items"].as<std::string>().c_str());
+						std::string items = variable.annotations["ui_items"].as<std::string>();
+						if (!items.empty() && items.back() != '\0')
+							items.push_back('\0');
+
+						modified = ImGui::Combo(ui_label.c_str(), data, items.c_str());
 					}
 					else
 					{
