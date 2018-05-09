@@ -1023,6 +1023,11 @@ namespace reshade
 
 				preset.set("", "Key" + technique.name, technique.toggle_key_data);
 			}
+			else if (int value = 0; preset.get("", "Key" + technique.name, value), value != 0)
+			{
+				// Clear toggle key data
+				preset.set("", "Key" + technique.name, 0);
+			}
 		}
 
 		preset.set("", "Effects", variant(std::make_move_iterator(effects_files.cbegin()), std::make_move_iterator(effects_files.cend())));
@@ -2135,6 +2140,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 					else if (ui_type == "combo")
 					{
 						std::string items = variable.annotations["ui_items"].as<std::string>();
+
+						// Make sure list is terminated with a zero in case user forgot so no invalid memory is read accidentally
 						if (!items.empty() && items.back() != '\0')
 							items.push_back('\0');
 
