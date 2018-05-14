@@ -542,7 +542,11 @@ namespace reshade
 		LOG(INFO) << "Compiling " << path << " ...";
 
 		reshadefx::preprocessor pp;
-		pp.add_include_path(path.parent_path());
+
+		if (path.is_absolute())
+		{
+			pp.add_include_path(path.parent_path());
+		}
 
 		for (const auto &include_path : _effect_search_paths)
 		{
@@ -848,12 +852,16 @@ namespace reshade
 			std::vector<std::string> techniques;
 			preset.get("", "Techniques", techniques);
 
-			if (std::find(_preset_files.begin(), _preset_files.end(), preset_file) == _preset_files.end() && !techniques.empty())
+			if (!techniques.empty() && std::find_if(_preset_files.begin(), _preset_files.end(),
+				[&preset_file, &parent_path](const auto &path) {
+					return preset_file.filename() == path.filename() && (path.parent_path() == parent_path || !path.is_absolute());
+				}) == _preset_files.end())
 			{
 				_preset_files.push_back(preset_file);
 			}
 		}
 
+#if 0
 		auto to_absolute = [&parent_path](auto &paths) {
 			for (auto &path : paths)
 				path = filesystem::absolute(path, parent_path);
@@ -862,6 +870,7 @@ namespace reshade
 		to_absolute(_preset_files);
 		to_absolute(_effect_search_paths);
 		to_absolute(_texture_search_paths);
+#endif
 	}
 	void runtime::save_configuration() const
 	{
