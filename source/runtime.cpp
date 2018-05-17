@@ -92,12 +92,12 @@ namespace reshade
 
 		load_configuration();
 
-		_menu_items.push_back(std::make_pair("Home", [this]() { this->draw_overlay_menu_home(); }));
-		_selected_menu = _menu_items.back().second;
+		subscribe_to_menu("Home", [this]() { this->draw_overlay_menu_home(); });
+		_selected_menu = _menu_callables.back().second;
 
-		_menu_items.push_back(std::make_pair("Settings", [this]() { this->draw_overlay_menu_settings(); }));
-		_menu_items.push_back(std::make_pair("Statistics", [this]() {  this->draw_overlay_menu_statistics(); }));
-		_menu_items.push_back(std::make_pair("About", [this]() { this->draw_overlay_menu_about(); }));
+		subscribe_to_menu("Settings", [this]() { this->draw_overlay_menu_settings(); });
+		subscribe_to_menu("Statistics", [this]() { this->draw_overlay_menu_statistics(); });
+		subscribe_to_menu("About", [this]() { this->draw_overlay_menu_about(); });
 	}
 	runtime::~runtime()
 	{
@@ -1300,7 +1300,7 @@ namespace reshade
 		{
 			ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImGui::GetStyle().ItemSpacing * 2);
 
-			for (auto &[label, function] : _menu_items) {
+			for (auto &[label, function] : _menu_callables) {
 				if (ImGui::Selectable(label.c_str(), &_selected_menu == &function, 0, ImVec2(ImGui::CalcTextSize(label.c_str()).x, 0)))
 				{
 					_selected_menu = function;
@@ -1780,27 +1780,6 @@ namespace reshade
 				save_configuration();
 				// Style is applied in "load_configuration".
 				load_configuration();
-			}
-		}
-
-		const bool is_d3d11 = _renderer_id >= 0xb000 && _renderer_id < 0xc000;;
-
-		if (is_d3d11 && ImGui::CollapsingHeader("Buffer Detection", ImGuiTreeNodeFlags_DefaultOpen))
-		{
-			assert(_menu_key_data[0] < 256);
-
-			bool modified = false;
-			modified |= ImGui::Checkbox("Copy Depth Before Clearing", &_depth_buffer_before_clear);
-			modified |= ImGui::Combo("Depth Texture Format", &_depth_buffer_texture_format, "All\0D16\0D32F\0D24S8\0D32FS8\0");
-
-			if (modified)
-			{
-				save_configuration();
-			}
-
-			if (ImGui::Button("Show Debug Window", ImVec2(ImGui::CalcItemWidth(), 0)))
-			{
-				_depth_buffer_debug = true;
 			}
 		}
 

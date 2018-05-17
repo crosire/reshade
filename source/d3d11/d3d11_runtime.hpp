@@ -79,6 +79,8 @@ namespace reshade::d3d11
 		bool init_imgui_resources();
 		bool init_imgui_font_atlas();
 
+		void draw_debug_menu();
+
 		void detect_depth_source(draw_call_tracker& tracker);
 		bool create_depthstencil_replacement(ID3D11DepthStencilView *depthstencil, ID3D11Texture2D *texture);
 
@@ -106,5 +108,6 @@ namespace reshade::d3d11
 		com_ptr<ID3D11BlendState> _imgui_blend_state;
 		com_ptr<ID3D11DepthStencilState> _imgui_depthstencil_state;
 		int _imgui_vertex_buffer_size = 0, _imgui_index_buffer_size = 0;
+		draw_call_tracker _current_tracker;
 	};
 }

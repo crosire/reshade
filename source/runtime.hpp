@@ -123,6 +123,8 @@ namespace reshade
 		void set_uniform_value(uniform &variable, const unsigned int *values, size_t count);
 		void set_uniform_value(uniform &variable, const float *values, size_t count);
 
+		void subscribe_to_menu(std::string label, void_callable function) { _menu_callables.push_back(std::make_pair(label, function)); };
+
 	protected:
 		/// <summary>
 		/// Callback function called when the runtime is initialized.
@@ -196,7 +198,7 @@ namespace reshade
 		bool _depth_buffer_debug = false;
 		bool _depth_buffer_before_clear = false;
 
-		std::vector<std::pair<std::string, void_callable>> _menu_items;
+		std::vector<std::pair<std::string, void_callable>> _menu_callables;
 
 	private:
 		static bool check_for_update(unsigned long latest_version[3]);
