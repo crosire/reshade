@@ -101,9 +101,6 @@
       <Command>
       </Command>
     </CustomBuildStep>
-    <PostBuildEvent>
-      <Command>del "C:\ProgramData\NVIDIA Corporation\NVIDIA Direct3D SDK 11\Bin\dxgi.dll" &amp;&amp; mklink "C:\ProgramData\NVIDIA Corporation\NVIDIA Direct3D SDK 11\Bin\dxgi.dll" $(TargetPath)</Command>
-    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>

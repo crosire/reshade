@@ -30,7 +30,6 @@ namespace reshade::log
 	};
 
 	extern std::ofstream stream;
-	extern level last_level;
 	extern std::ostringstream linestream;
 	extern int log_level;
 	extern std::mutex _mutex;
