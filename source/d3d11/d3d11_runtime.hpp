@@ -70,9 +70,13 @@ namespace reshade::d3d11
 		std::vector<com_ptr<ID3D11ShaderResourceView>> _effect_shader_resources;
 		std::vector<com_ptr<ID3D11Buffer>> _constant_buffers;
 
-		using runtime::_depth_buffer_before_clear;
+		bool depth_buffer_before_clear() { return _depth_buffer_before_clear; }
 
 	private:
+		int _depth_buffer_texture_format = 0; // No depth buffer texture format filter by default
+		bool _depth_buffer_debug = false;
+		bool _depth_buffer_before_clear = false;
+
 		bool init_backbuffer_texture();
 		bool init_default_depth_stencil();
 		bool init_fx_resources();

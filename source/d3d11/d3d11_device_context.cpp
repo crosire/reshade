@@ -79,7 +79,7 @@ void D3D11DeviceContext::track_active_depthstencil(ID3D11DepthStencilView *pDept
 
 	const auto runtime = _device->_runtimes.front();
 
-	if (pDepthStencilView != nullptr && !runtime->_depth_buffer_before_clear)
+	if (pDepthStencilView != nullptr && !runtime->depth_buffer_before_clear())
 	{
 		_draw_call_tracker.track_depthstencil(pDepthStencilView);
 	}
@@ -93,7 +93,7 @@ void D3D11DeviceContext::track_cleared_depthstencil(ID3D11DepthStencilView *pDep
 
 	const auto runtime = _device->_runtimes.front();
 
-	if (!runtime->_depth_buffer_before_clear)
+	if (!runtime->depth_buffer_before_clear())
 	{
 		return;
 	}

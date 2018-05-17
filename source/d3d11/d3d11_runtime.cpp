@@ -48,6 +48,14 @@ namespace reshade::d3d11
 		_device_id = adapter_desc.DeviceId;
 
 		subscribe_to_menu("DX11", [this]() { this->draw_debug_menu(); });
+		subscribe_to_load_config([this](const ini_file& config) {
+			config.get("DX11_BUFFER_DETECTION", "DepthBufferRetrievalMode", _depth_buffer_before_clear);
+			config.get("DX11_BUFFER_DETECTION", "DepthBufferTextureFormat", _depth_buffer_texture_format);
+		});
+		subscribe_to_save_config([this](ini_file& config) {
+			config.set("DX11_BUFFER_DETECTION", "DepthBufferRetrievalMode", _depth_buffer_before_clear);
+			config.set("DX11_BUFFER_DETECTION", "DepthBufferTextureFormat", _depth_buffer_texture_format);
+		});
 	}
 
 	bool d3d11_runtime::init_backbuffer_texture()
@@ -989,10 +997,10 @@ namespace reshade::d3d11
 			modified |= ImGui::Checkbox("Copy Depth Before Clearing", &_depth_buffer_before_clear);
 			modified |= ImGui::Combo("Depth Texture Format", &_depth_buffer_texture_format, "All\0D16\0D32F\0D24S8\0D32FS8\0");
 
-			//if (modified)
-			//{
-			//	save_configuration();
-			//}
+			if (modified)
+			{
+				runtime::save_configuration();
+			}
 
 			for (const auto &it : _current_tracker.depthstencil_counters())
 			{

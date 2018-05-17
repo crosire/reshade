@@ -7,6 +7,7 @@
 
 #include <chrono>
 #include "filesystem.hpp"
+#include "ini_file.hpp"
 #include <map>
 #include <functional>
 #include <string>
@@ -32,6 +33,8 @@ extern volatile long g_network_traffic;
 namespace reshade
 {
 	typedef std::function<void()> void_callable;
+	typedef std::function<void(ini_file&)> void_config_callable;
+	typedef std::function<void(const ini_file&)> void_config_const_callable;
 
 	class runtime abstract
 	{
@@ -124,6 +127,8 @@ namespace reshade
 		void set_uniform_value(uniform &variable, const float *values, size_t count);
 
 		void subscribe_to_menu(std::string label, void_callable function) { _menu_callables.push_back(std::make_pair(label, function)); };
+		void subscribe_to_save_config(void_config_callable function) { _save_config_callables.push_back(function); ini_file config(_configuration_path); function(config); };
+		void subscribe_to_load_config(void_config_const_callable function) { _load_config_callables.push_back(function); ini_file config(_configuration_path); function(config); };
 
 	protected:
 		/// <summary>
@@ -194,18 +199,18 @@ namespace reshade
 		std::vector<texture> _textures;
 		std::vector<uniform> _uniforms;
 		std::vector<technique> _techniques;
-		int _depth_buffer_texture_format = 0; // No depth buffer texture format filter by default
-		bool _depth_buffer_debug = false;
-		bool _depth_buffer_before_clear = false;
 
 		std::vector<std::pair<std::string, void_callable>> _menu_callables;
+		std::vector<void_config_const_callable> _load_config_callables;
+		std::vector<void_config_callable> _save_config_callables;
+
+		void save_configuration() const;
 
 	private:
 		static bool check_for_update(unsigned long latest_version[3]);
 
 		void reload();
 		void load_configuration();
-		void save_configuration() const;
 		void load_preset(const filesystem::path &path);
 		void load_current_preset();
 		void save_preset(const filesystem::path &path) const;

@@ -794,9 +794,6 @@ namespace reshade
 
 		_imgui_context->IO.IniFilename = _save_imgui_window_state ? "ReShadeGUI.ini" : nullptr;
 
-		config.get("BUFFER_DETECTION", "DepthBufferRetrievalMode", _depth_buffer_before_clear);
-		config.get("BUFFER_DETECTION", "DepthBufferTextureFormat", _depth_buffer_texture_format);
-
 		config.get("STYLE", "Alpha", _imgui_context->Style.Alpha);
 		config.get("STYLE", "ColBackground", _imgui_col_background);
 		config.get("STYLE", "ColItemBackground", _imgui_col_item_background);
@@ -878,6 +875,11 @@ namespace reshade
 		to_absolute(_effect_search_paths);
 		to_absolute(_texture_search_paths);
 #endif
+
+		for (auto &function : _load_config_callables) {
+			function(config);
+		}
+
 	}
 	void runtime::save_configuration() const
 	{
@@ -903,15 +905,16 @@ namespace reshade
 		config.set("GENERAL", "NoReloadOnInit", _no_reload_on_init);
 		config.set("GENERAL", "SaveWindowState", _save_imgui_window_state);
 
-		config.set("BUFFER_DETECTION", "DepthBufferRetrievalMode", _depth_buffer_before_clear);
-		config.set("BUFFER_DETECTION", "DepthBufferTextureFormat", _depth_buffer_texture_format);
-
 		config.set("STYLE", "Alpha", _imgui_context->Style.Alpha);
 		config.set("STYLE", "ColBackground", _imgui_col_background);
 		config.set("STYLE", "ColItemBackground", _imgui_col_item_background);
 		config.set("STYLE", "ColActive", _imgui_col_active);
 		config.set("STYLE", "ColText", _imgui_col_text);
 		config.set("STYLE", "ColFPSText", _imgui_col_text_fps);
+
+		for (auto &function : _save_config_callables) {
+			function(config);
+		}
 	}
 
 	void runtime::load_preset(const filesystem::path &path)
