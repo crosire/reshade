@@ -517,8 +517,8 @@ namespace reshade::d3d11
 		if (!is_initialized())
 			return;
 
-		_vertices = tracker.vertices();
-		_drawcalls = tracker.drawcalls();
+		_vertices = tracker.total_vertices();
+		_drawcalls = tracker.total_drawcalls();
 
 		_current_tracker = tracker;
 		detect_depth_source(tracker);
@@ -1022,7 +1022,31 @@ namespace reshade::d3d11
 
 				ImGui::SameLine();
 
-				ImGui::Text("| %u draw calls ==> %u vertices", it.second.drawcalls, it.second.vertices);
+				std::string additional_view_label = it.second.additional_views.size() > 0 ? "(" : "";
+				unsigned int i = 1;
+				for (auto const&[key, val] : it.second.additional_views) {
+					additional_view_label += std::to_string(val.drawcalls) + (i < it.second.additional_views.size() ? ", " : "");
+					i++;
+				}
+				additional_view_label += it.second.additional_views.size() > 0 ? ")" : "";
+
+				ImGui::Text("| %u draw calls ==> %u vertices, %u additional rendertargets %s", it.second.counter.drawcalls, it.second.counter.vertices, it.second.additional_views.size(), additional_view_label.c_str());
+			}
+
+			ImGui::Text("Is Multisampled : %s", _is_multisampling_enabled ? "true" : "false");
+
+			for (const auto &[buffer, counter] : tracker.constant_counters())
+			{
+				if (counter.pixelshaders > 0 && counter.vertexshaders > 0 && counter.mapped < .10 * counter.vertexshaders) {
+					D3D11_BUFFER_DESC desc;
+					buffer->GetDesc(&desc);
+
+					if (desc.ByteWidth > 1000) {
+						continue;
+					}
+
+					ImGui::Text("cbuffer %p, vertexshaders: %5u pixelshaders: %5u mapped: %5u bytewidth: %5u", buffer, counter.vertexshaders, counter.pixelshaders, counter.mapped, desc.ByteWidth);
+				}
 			}
 		}
 	}
