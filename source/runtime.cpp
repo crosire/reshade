@@ -147,7 +147,6 @@ namespace reshade
 		_uniforms.clear();
 		_techniques.clear();
 		_uniform_data_storage.clear();
-		_errors.clear();
 
 		_texture_count = 0;
 		_uniform_count = 0;
@@ -591,7 +590,6 @@ namespace reshade
 		if (!pp.run(path))
 		{
 			LOG(ERROR) << "Failed to preprocess " << path << ":\n" << pp.errors();
-			_errors += path.string() + ":\n" + pp.errors();
 			return;
 		}
 
@@ -601,7 +599,6 @@ namespace reshade
 		if (!parser.run(pp.current_output()))
 		{
 			LOG(ERROR) << "Failed to compile " << path << ":\n" << parser.errors();
-			_errors += path.string() + ":\n" + parser.errors();
 			return;
 		}
 
@@ -645,7 +642,6 @@ namespace reshade
 		if (!load_effect(ast, errors))
 		{
 			LOG(ERROR) << "Failed to compile " << path << ":\n" << errors;
-			_errors += path.string() + ":\n" + errors;
 			_textures.erase(_textures.begin() + _texture_count, _textures.end());
 			_uniforms.erase(_uniforms.begin() + _uniform_count, _uniforms.end());
 			_techniques.erase(_techniques.begin() + _technique_count, _techniques.end());
@@ -658,7 +654,6 @@ namespace reshade
 		else
 		{
 			LOG(WARNING) << "> Successfully compiled with warnings:\n" << errors;
-			_errors += path.string() + ":\n" + errors;
 		}
 
 		for (size_t i = _uniform_count, max = _uniform_count = _uniforms.size(); i < max; i++)
@@ -707,8 +702,6 @@ namespace reshade
 
 			if (!filesystem::exists(path))
 			{
-				_errors += "Source '" + path.string() + "' for texture '" + texture.name + "' could not be found.\n";
-
 				LOG(ERROR) << "> Source " << path << " for texture '" << texture.name << "' could not be found.";
 				continue;
 			}
@@ -753,8 +746,6 @@ namespace reshade
 
 			if (!success)
 			{
-				_errors += "Unable to load source for texture '" + texture.name + "'!";
-
 				LOG(ERROR) << "> Source " << path << " for texture '" << texture.name << "' could not be loaded! Make sure it is of a compatible file format.";
 				continue;
 			}
@@ -1179,18 +1170,6 @@ namespace reshade
 					_menu_key_data[1] ? "Ctrl + " : "",
 					_menu_key_data[2] ? "Shift + " : "",
 					keyboard_keys[_menu_key_data[0]]);
-
-				if (_errors.find("error") != std::string::npos)
-				{
-					ImGui::SetWindowSize(ImVec2(_width - 20.0f, ImGui::GetFrameHeightWithSpacing() * 4));
-
-					ImGui::Spacing();
-					ImGui::TextColored(ImVec4(1, 0, 0, 1),
-						"There were errors compiling some shaders. "
-						"Open the configuration menu and click on 'Show Log' for more details.");
-
-					_show_error_log = true;
-				}
 			}
 
 			ImGui::End();
@@ -1248,33 +1227,6 @@ namespace reshade
 
 				draw_overlay_menu();
 
-				ImGui::End();
-			}
-
-			if (_show_error_log)
-			{
-				ImGui::SetNextWindowPos(ImVec2(_width * 0.5f, _height * 0.5f), ImGuiCond_FirstUseEver, ImVec2(0.5f, 0.5f));
-				ImGui::SetNextWindowSize(ImVec2(800, 300), ImGuiCond_FirstUseEver);
-				ImGui::Begin("Error Log", &_show_error_log);
-				ImGui::PushTextWrapPos();
-
-				for (const auto &line : split(_errors, '\n'))
-				{
-					ImVec4 textcol(1, 1, 1, 1);
-
-					if (line.find("error") != std::string::npos)
-					{
-						textcol = ImVec4(1, 0, 0, 1);
-					}
-					else if (line.find("warning") != std::string::npos)
-					{
-						textcol = ImVec4(1, 1, 0, 1);
-					}
-
-					ImGui::TextColored(textcol, line.c_str());
-				}
-
-				ImGui::PopTextWrapPos();
 				ImGui::End();
 			}
 		}
@@ -1565,11 +1517,6 @@ namespace reshade
 			}
 
 			ImGui::SameLine();
-
-			if (ImGui::Button("Show Log", ImVec2(ImGui::GetWindowContentRegionWidth() * 0.5f - 5, 0)))
-			{
-				_show_error_log = true;
-			}
 		}
 		else
 		{
@@ -1978,6 +1925,48 @@ namespace reshade
 			}
 
 			ImGui::EndGroup();
+		}
+
+		if (ImGui::CollapsingHeader("Error Log", ImGuiTreeNodeFlags_DefaultOpen))
+		{
+
+			static ImGuiTextFilter filter;
+			filter.Draw();
+
+			std::vector<std::string> lines;
+			for (auto &line : reshade::log::lines) {
+				if (filter.PassFilter(line.c_str())) {
+					lines.push_back(line);
+				}
+			}
+
+			static bool word_wrap = false;
+			ImGui::Checkbox("Word Wrap", &word_wrap);
+
+			ImGui::BeginChild("ScrollingRegion", ImVec2(0, 350), false, ImGuiWindowFlags_HorizontalScrollbar);
+			ImGuiListClipper clipper(lines.size(), ImGui::GetTextLineHeightWithSpacing());
+			for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; ++i)
+			{
+				ImVec4 color = ImColor(255, 255, 255);
+				if (lines[i].find("WARN |") != std::string::npos) {
+					color = ImColor(255, 255, 100);
+				}
+				else if (lines[i].find("ERROR |") != std::string::npos) {
+					color = ImColor(255, 100, 100);
+				}
+				else if (lines[i].find("DEBUG |") != std::string::npos) {
+					color = ImColor(100, 100, 255);
+				}
+
+				ImGui::PushStyleColor(ImGuiCol_Text, color);
+				if(word_wrap) ImGui::PushTextWrapPos();
+				ImGui::TextUnformatted(lines[i].c_str());
+				if(word_wrap) ImGui::PopTextWrapPos();
+				ImGui::PopStyleColor();
+			}
+			clipper.End();
+			ImGui::EndChild();
+			ImGui::Separator();
 		}
 
 		ImGui::PopID();
