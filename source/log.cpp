@@ -11,7 +11,6 @@ namespace reshade::log
 {
 	std::ofstream stream;
 	std::ostringstream linestream;
-	level last_level;
 	int log_level = 3;
 	std::mutex _mutex;
 	std::vector<std::string> lines;
@@ -20,7 +19,6 @@ namespace reshade::log
 	{
 		SYSTEMTIME time;
 		GetLocalTime(&time);
-		last_level = level;
 
 		std::ostringstream tmp;
 		const char level_names[][6] = { "ERROR", "WARN", "DEBUG", "INFO" };
