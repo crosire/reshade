@@ -31,7 +31,6 @@ namespace reshade::log
 
 	extern std::ofstream stream;
 	extern std::ostringstream linestream;
-	extern int log_level;
 	extern std::mutex _mutex;
 	extern std::vector<std::string> lines;
 
@@ -45,31 +44,31 @@ namespace reshade::log
 		{
 			stream << value;
 			linestream << value;
-			
 			return *this;
 		}
+
+		template <>
+		inline message &operator<<(const std::wstring &message)
+		{
+			static_assert(sizeof(std::wstring::value_type) == sizeof(uint16_t), "expected 'std::wstring' to use UTF-16 encoding");
+			std::string utf8_message;
+			utf8_message.reserve(message.size());
+			utf8::unchecked::utf16to8(message.begin(), message.end(), std::back_inserter(utf8_message));
+			return operator<<(utf8_message);
+		}
+
 		inline message &operator<<(const char *message)
 		{
 			stream << message;
 			linestream << message;
-
 			return *this;
-		}
-		template <>
-		inline message &operator<<(const std::wstring &message)
-		{
-			std::string utf8message;
-			utf8::unchecked::utf16to8(message.begin(), message.end(), std::back_inserter(utf8message));
-			return operator<<(utf8message);
-
-
 		}
 		inline message &operator<<(const wchar_t *message)
 		{
-			std::wstring wmessage = std::wstring(message);
-			std::string utf8message;
-			utf8::unchecked::utf16to8(wmessage.begin(), wmessage.end(), std::back_inserter(utf8message));
-			return operator<<(utf8message);
+			static_assert(sizeof(wchar_t) == sizeof(uint16_t), "expected 'wchar_t' to use UTF-16 encoding");
+			std::string utf8_message;
+			utf8::unchecked::utf16to8(message, message + wcslen(message), std::back_inserter(utf8_message));
+			return operator<<(utf8_message);
 		}
 	};
 
