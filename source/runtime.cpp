@@ -64,8 +64,10 @@ namespace reshade
 		imgui_io.KeyMap[ImGuiKey_PageDown] = 0x22; // VK_NEXT
 		imgui_io.KeyMap[ImGuiKey_Home] = 0x24; // VK_HOME
 		imgui_io.KeyMap[ImGuiKey_End] = 0x23; // VK_END
+		imgui_io.KeyMap[ImGuiKey_Insert] = 0x2D; // VK_INSERT
 		imgui_io.KeyMap[ImGuiKey_Delete] = 0x2E; // VK_DELETE
 		imgui_io.KeyMap[ImGuiKey_Backspace] = 0x08; // VK_BACK
+		imgui_io.KeyMap[ImGuiKey_Space] = 0x20; // VK_SPACE
 		imgui_io.KeyMap[ImGuiKey_Enter] = 0x0D; // VK_RETURN
 		imgui_io.KeyMap[ImGuiKey_Escape] = 0x1B; // VK_ESCAPE
 		imgui_io.KeyMap[ImGuiKey_A] = 'A';
@@ -2144,7 +2146,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 					if (ui_type == "drag")
 					{
-						modified = ImGui::DragIntN(ui_label.c_str(), data, variable.rows, variable.annotations["ui_step"].as<float>(), variable.annotations["ui_min"].as<int>(), variable.annotations["ui_max"].as<int>(), nullptr);
+						const int ui_min = variable.annotations["ui_min"].as<int>();
+						const int ui_max = variable.annotations["ui_max"].as<int>();
+						const float ui_step = variable.annotations["ui_step"].as<float>();
+
+						modified = ImGui::DragScalarN(ui_label.c_str(), ImGuiDataType_S32, data, variable.rows, ui_step, &ui_min, &ui_max);
 					}
 					else if (ui_type == "combo")
 					{
@@ -2158,7 +2164,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 					}
 					else
 					{
-						modified = ImGui::InputIntN(ui_label.c_str(), data, variable.rows, 0);
+						modified = ImGui::InputScalarN(ui_label.c_str(), ImGuiDataType_S32, data, variable.rows);
 					}
 
 					if (modified)
@@ -2174,11 +2180,15 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 					if (ui_type == "drag")
 					{
-						modified = ImGui::DragFloatN(ui_label.c_str(), data, variable.rows, variable.annotations["ui_step"].as<float>(), variable.annotations["ui_min"].as<float>(), variable.annotations["ui_max"].as<float>(), "%.3f", 1.0f);
+						const float ui_min = variable.annotations["ui_min"].as<float>();
+						const float ui_max = variable.annotations["ui_max"].as<float>();
+						const float ui_step = variable.annotations["ui_step"].as<float>();
+
+						modified = ImGui::DragScalarN(ui_label.c_str(), ImGuiDataType_Float, data, variable.rows, ui_step, &ui_min, &ui_max, "%.3f");
 					}
 					else if (ui_type == "input" || (ui_type.empty() && variable.rows < 3))
 					{
-						modified = ImGui::InputFloatN(ui_label.c_str(), data, variable.rows, 8, 0);
+						modified = ImGui::InputScalarN(ui_label.c_str(), ImGuiDataType_Float, data, variable.rows);
 					}
 					else if (variable.rows == 3)
 					{
