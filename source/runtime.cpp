@@ -76,6 +76,8 @@ namespace reshade
 		imgui_io.KeyMap[ImGuiKey_X] = 'X';
 		imgui_io.KeyMap[ImGuiKey_Y] = 'Y';
 		imgui_io.KeyMap[ImGuiKey_Z] = 'Z';
+		imgui_io.NavActive = true;
+		imgui_io.ConfigFlags = ImGuiConfigFlags_NavEnableKeyboard;
 		imgui_style.WindowRounding = 0.0f;
 		imgui_style.WindowBorderSize = 0.0f;
 		imgui_style.ChildRounding = 0.0f;
