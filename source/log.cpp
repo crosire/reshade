@@ -6,12 +6,10 @@
 #include "log.hpp"
 #include <Windows.h>
 
-
 namespace reshade::log
 {
 	std::ofstream stream;
 	std::ostringstream linestream;
-	int log_level = 3;
 	std::mutex _mutex;
 	std::vector<std::string> lines;
 
