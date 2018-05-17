@@ -7,6 +7,9 @@
 
 #include <chrono>
 #include "filesystem.hpp"
+#include <map>
+#include <functional>
+#include <string>
 #include "runtime_objects.hpp"
 
 #pragma region Forward Declarations
@@ -28,6 +31,8 @@ extern volatile long g_network_traffic;
 
 namespace reshade
 {
+	typedef std::function<void()> void_callable;
+
 	class runtime abstract
 	{
 	public:
@@ -191,6 +196,8 @@ namespace reshade
 		bool _depth_buffer_debug = false;
 		bool _depth_buffer_before_clear = false;
 
+		std::vector<std::pair<std::string, void_callable>> _menu_items;
+
 	private:
 		static bool check_for_update(unsigned long latest_version[3]);
 
@@ -228,7 +235,7 @@ namespace reshade
 		int _date[4] = { };
 		std::string _errors;
 		std::vector<std::string> _preprocessor_definitions;
-		int _menu_index = 0;
+		void_callable _selected_menu;
 		int _screenshot_format = 0;
 		int _current_preset = -1;
 		int _selected_technique = -1;

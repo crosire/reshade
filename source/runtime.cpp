@@ -91,6 +91,13 @@ namespace reshade
 			imgui_io.Fonts->AddFontDefault();
 
 		load_configuration();
+
+		_menu_items.push_back(std::make_pair("Home", [this]() { this->draw_overlay_menu_home(); }));
+		_selected_menu = _menu_items.back().second;
+
+		_menu_items.push_back(std::make_pair("Settings", [this]() { this->draw_overlay_menu_settings(); }));
+		_menu_items.push_back(std::make_pair("Statistics", [this]() {  this->draw_overlay_menu_statistics(); }));
+		_menu_items.push_back(std::make_pair("About", [this]() { this->draw_overlay_menu_about(); }));
 	}
 	runtime::~runtime()
 	{
@@ -1293,15 +1300,11 @@ namespace reshade
 		{
 			ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImGui::GetStyle().ItemSpacing * 2);
 
-			const char *const menu_items[] = { "Home", "Settings", "Statistics", "About" };
-
-			for (int i = 0; i < 4; i++)
-			{
-				if (ImGui::Selectable(menu_items[i], _menu_index == i, 0, ImVec2(ImGui::CalcTextSize(menu_items[i]).x, 0)))
+			for (auto &[label, function] : _menu_items) {
+				if (ImGui::Selectable(label.c_str(), &_selected_menu == &function, 0, ImVec2(ImGui::CalcTextSize(label.c_str()).x, 0)))
 				{
-					_menu_index = i;
+					_selected_menu = function;
 				}
-
 				ImGui::SameLine();
 			}
 
@@ -1309,21 +1312,7 @@ namespace reshade
 			ImGui::EndMenuBar();
 		}
 
-		switch (_menu_index)
-		{
-		case 0:
-			draw_overlay_menu_home();
-			break;
-		case 1:
-			draw_overlay_menu_settings();
-			break;
-		case 2:
-			draw_overlay_menu_statistics();
-			break;
-		case 3:
-			draw_overlay_menu_about();
-			break;
-		}
+		_selected_menu();
 	}
 	void runtime::draw_overlay_menu_home()
 	{
