@@ -1249,9 +1249,9 @@ namespace reshade
 		{
 			ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImGui::GetStyle().ItemSpacing * 2);
 
-			const char *const menu_items[] = { "Home", "Settings", "Statistics", "About" };
+			const char *const menu_items[] = { "Home", "Settings", "Statistics", "Log", "About" };
 
-			for (int i = 0; i < 4; i++)
+			for (int i = 0; i < _countof(menu_items); i++)
 			{
 				if (ImGui::Selectable(menu_items[i], _menu_index == i, 0, ImVec2(ImGui::CalcTextSize(menu_items[i]).x, 0)))
 				{
@@ -1277,6 +1277,9 @@ namespace reshade
 			draw_overlay_menu_statistics();
 			break;
 		case 3:
+			draw_overlay_menu_log();
+			break;
+		case 4:
 			draw_overlay_menu_about();
 			break;
 		}
@@ -1515,7 +1518,7 @@ namespace reshade
 		{
 			ImGui::Spacing();
 
-			if (ImGui::Button("Reload", ImVec2(ImGui::GetWindowContentRegionWidth() * 0.5f - 5, 0)))
+			if (ImGui::Button("Reload", ImVec2(-1, 0)))
 			{
 				reload();
 			}
@@ -1931,47 +1934,46 @@ namespace reshade
 			ImGui::EndGroup();
 		}
 
-		if (ImGui::CollapsingHeader("Error Log", ImGuiTreeNodeFlags_DefaultOpen))
+		ImGui::PopID();
+	}
+	void runtime::draw_overlay_menu_log()
+	{
+		ImGui::PushID("Log");
+
+		static ImGuiTextFilter filter; // TODO: Better make this a member of the runtime class, in case there are multiple instances.
+		filter.Draw();
+
+		std::vector<std::string> lines;
+		for (auto &line : reshade::log::lines)
+			if (filter.PassFilter(line.c_str()))
+				lines.push_back(line);
+
+		ImGui::SameLine(0, 20);
+		ImGui::Checkbox("Word Wrap", &_log_wordwrap);
+
+		ImGuiListClipper clipper(lines.size(), ImGui::GetTextLineHeightWithSpacing());
+
+		for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; ++i)
 		{
+			ImVec4 textcol(1, 1, 1, 1);
 
-			static ImGuiTextFilter filter;
-			filter.Draw();
+			if (lines[i].find("ERROR |") != std::string::npos)
+				textcol = ImVec4(1, 0, 0, 1);
+			else if (lines[i].find("WARN |") != std::string::npos)
+				textcol = ImVec4(1, 1, 0, 1);
+			else if (lines[i].find("DEBUG |") != std::string::npos)
+				textcol = ImColor(100, 100, 255);
 
-			std::vector<std::string> lines;
-			for (auto &line : reshade::log::lines) {
-				if (filter.PassFilter(line.c_str())) {
-					lines.push_back(line);
-				}
-			}
+			ImGui::PushStyleColor(ImGuiCol_Text, textcol);
+			if (_log_wordwrap) ImGui::PushTextWrapPos();
 
-			static bool word_wrap = false;
-			ImGui::Checkbox("Word Wrap", &word_wrap);
+			ImGui::TextUnformatted(lines[i].c_str());
 
-			ImGui::BeginChild("ScrollingRegion", ImVec2(0, 350), false, ImGuiWindowFlags_HorizontalScrollbar);
-			ImGuiListClipper clipper(lines.size(), ImGui::GetTextLineHeightWithSpacing());
-			for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; ++i)
-			{
-				ImVec4 color = ImColor(255, 255, 255);
-				if (lines[i].find("WARN |") != std::string::npos) {
-					color = ImColor(255, 255, 100);
-				}
-				else if (lines[i].find("ERROR |") != std::string::npos) {
-					color = ImColor(255, 100, 100);
-				}
-				else if (lines[i].find("DEBUG |") != std::string::npos) {
-					color = ImColor(100, 100, 255);
-				}
-
-				ImGui::PushStyleColor(ImGuiCol_Text, color);
-				if(word_wrap) ImGui::PushTextWrapPos();
-				ImGui::TextUnformatted(lines[i].c_str());
-				if(word_wrap) ImGui::PopTextWrapPos();
-				ImGui::PopStyleColor();
-			}
-			clipper.End();
-			ImGui::EndChild();
-			ImGui::Separator();
+			if (_log_wordwrap) ImGui::PopTextWrapPos();
+			ImGui::PopStyleColor();
 		}
+
+		clipper.End();
 
 		ImGui::PopID();
 	}

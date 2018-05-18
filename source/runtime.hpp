@@ -208,6 +208,7 @@ namespace reshade
 		void draw_overlay_menu_home();
 		void draw_overlay_menu_settings();
 		void draw_overlay_menu_statistics();
+		void draw_overlay_menu_log();
 		void draw_overlay_menu_about();
 		void draw_overlay_variable_editor();
 		void draw_overlay_technique_editor();
@@ -251,6 +252,7 @@ namespace reshade
 		bool _overlay_key_setting_active = false;
 		bool _screenshot_key_setting_active = false;
 		bool _toggle_key_setting_active = false;
+		bool _log_wordwrap = false;
 		float _imgui_col_background[3] = { 0.275f, 0.275f, 0.275f };
 		float _imgui_col_item_background[3] = { 0.447f, 0.447f, 0.447f };
 		float _imgui_col_active[3] = { 0.2f, 0.2f, 1.0f };
