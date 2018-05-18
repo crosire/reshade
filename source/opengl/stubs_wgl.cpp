@@ -19,7 +19,7 @@ static std::mutex s_mutex;
 static std::unordered_map<HWND, RECT> s_window_rects;
 static std::unordered_set<HDC> s_pbuffer_device_contexts;
 static std::unordered_map<HGLRC, HGLRC> s_shared_contexts;
-std::unordered_map<HDC, std::shared_ptr<reshade::opengl::opengl_runtime>> g_opengl_runtimes;
+std::unordered_map<HDC, reshade::opengl::opengl_runtime *> g_opengl_runtimes;
 
 HOOK_EXPORT int   WINAPI wglChoosePixelFormat(HDC hdc, const PIXELFORMATDESCRIPTOR *ppfd)
 {
@@ -506,7 +506,7 @@ HOOK_EXPORT BOOL  WINAPI wglDeleteContext(HGLRC hglrc)
 {
 	if (hglrc == wglGetCurrentContext())
 	{
-		// Unset the the rendering context if it's the calling thread's current one
+		// Unset the rendering context if it's the calling thread's current one
 		wglMakeCurrent(nullptr, nullptr);
 	}
 
@@ -584,6 +584,8 @@ HOOK_EXPORT BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 			LOG(INFO) << "> Cleaning up runtime " << it->second << " ...";
 
 			it->second->on_reset();
+
+			delete it->second;
 
 			g_opengl_runtimes.erase(it);
 		}
@@ -722,7 +724,7 @@ HOOK_EXPORT BOOL  WINAPI wglMakeCurrent(HDC hdc, HGLRC hglrc)
 
 		if (gl3wIsSupported(4, 3))
 		{
-			const auto runtime = std::make_shared<reshade::opengl::opengl_runtime>(hdc);
+			const auto runtime = new reshade::opengl::opengl_runtime(hdc);
 
 			g_opengl_runtimes[hdc] = runtime;
 
@@ -902,7 +904,7 @@ HOOK_EXPORT BOOL  WINAPI wglSwapBuffers(HDC hdc)
 
 			if (!(rect.right == 0 && rect.bottom == 0) && !it->second->on_init(static_cast<unsigned int>(rect.right), static_cast<unsigned int>(rect.bottom)))
 			{
-				LOG(ERROR) << "Failed to recreate OpenGL runtime environment on runtime " << it->second.get() << ".";
+				LOG(ERROR) << "Failed to recreate OpenGL runtime environment on runtime " << it->second << ".";
 			}
 
 			rectPrevious = rect;
