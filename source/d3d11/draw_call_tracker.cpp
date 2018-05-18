@@ -1,6 +1,7 @@
 #include "draw_call_tracker.hpp"
 #include "runtime.hpp"
 #include <math.h>
+#include "log.hpp"
 
 namespace reshade::d3d11
 {
@@ -67,7 +68,7 @@ namespace reshade::d3d11
 					}
 					else {
 						// This shouldn't happen - it means somehow someone has called "draw" with a rendertarget without calling track_rendertargets first
-						assert(false);
+						LOG(ERROR) << "Draw has been called on an untracked rendertarget.";
 					}
 				}
 			}
@@ -133,21 +134,18 @@ namespace reshade::d3d11
 		}
 	}
 
-	std::pair<ID3D11DepthStencilView *, ID3D11Texture2D *> draw_call_tracker::find_best_depth_stencil(UINT width, UINT height, DXGI_FORMAT format)
+	draw_call_tracker::intermediate_snapshot_info draw_call_tracker::find_best_snapshot(UINT width, UINT height, DXGI_FORMAT format)
 	{
 		const float aspect_ratio = float(width) / float(height);
 
-		intermediate_snapshot_info  best_info = { };
-		std::pair<ID3D11DepthStencilView *, ID3D11Texture2D *> best_match = { };
+		intermediate_snapshot_info best_snapshot;
 
-		for (const auto &[depthstencil, snapshot] : _counters_per_used_depthstencil)
+		for (auto &[depthstencil, snapshot] : _counters_per_used_depthstencil)
 		{
-
 			if (snapshot.counter.drawcalls == 0 || snapshot.counter.vertices == 0)
 			{
 				continue;
 			}
-
 
 			if (snapshot.texture == nullptr)
 			{
@@ -160,11 +158,12 @@ namespace reshade::d3d11
 					continue;
 				}
 
-				best_info.texture = texture;
+				snapshot.texture = texture;
 			}
 
 			D3D11_TEXTURE2D_DESC desc;
-			best_info.texture->GetDesc(&desc);
+			snapshot.texture->GetDesc(&desc);
+
 			assert((desc.BindFlags & D3D11_BIND_DEPTH_STENCIL) != 0);
 
 			// Check aspect ratio
@@ -185,16 +184,12 @@ namespace reshade::d3d11
 				continue;
 			}
 
-			if (snapshot.counter.drawcalls >= best_info.counter.drawcalls)
+			if (snapshot.counter.drawcalls >= best_snapshot.counter.drawcalls)
 			{
-				best_info = snapshot;
+				best_snapshot = snapshot;
 			}
 		}
 
-		// Warning: Reference to this object is lost after leaving the scope.
-		// But that should be fine since either this tracker or the depth stencil should still have a reference on it left so that it stays alive.
-		std::pair<ID3D11DepthStencilView *, ID3D11Texture2D *> response = {best_info.depthstencil.get(), best_info.texture.get()};
-
-		return response;
+		return best_snapshot;
 	}
 }

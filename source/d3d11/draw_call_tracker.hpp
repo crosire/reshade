@@ -40,7 +40,7 @@ namespace reshade::d3d11
 		void track_rendertargets(ID3D11DepthStencilView *depthstencil, com_ptr<ID3D11Texture2D> texture, UINT numviews, ID3D11RenderTargetView *const *ppRenderTargetViews);
 		void update_tracked_depthtexture(ID3D11DepthStencilView *depthstencil, com_ptr<ID3D11Texture2D> texture);
 
-		std::pair<ID3D11DepthStencilView *, ID3D11Texture2D *> find_best_depth_stencil(UINT width, UINT height, DXGI_FORMAT format);
+		intermediate_snapshot_info find_best_snapshot(UINT width, UINT height, DXGI_FORMAT format);
 
 	private:
 		draw_counter _global_counter;

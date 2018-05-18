@@ -1099,11 +1099,11 @@ namespace reshade::d3d11
 
 		assert(_depth_buffer_texture_format >= 0 && _depth_buffer_texture_format < ARRAYSIZE(depth_texture_formats));
 
-		const auto [best_match, best_match_texture] = tracker.find_best_depth_stencil(_width, _height, depth_texture_formats[_depth_buffer_texture_format]);
+		auto best_snapshot = tracker.find_best_snapshot(_width, _height, depth_texture_formats[_depth_buffer_texture_format]);
 
-		if (best_match != nullptr)
+		if (best_snapshot.depthstencil != nullptr)
 		{
-			create_depthstencil_replacement(best_match, best_match_texture);
+			create_depthstencil_replacement(best_snapshot.depthstencil.get(), best_snapshot.texture.get());
 		}
 	}
 
