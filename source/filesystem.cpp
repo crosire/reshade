@@ -50,7 +50,7 @@ namespace reshade::filesystem
 
 		std::string result;
 		result.reserve(resultw.capacity());
-		utf8::unchecked::utf16to8(result.begin(), result.end(), std::back_inserter(result));
+		utf8::unchecked::utf16to8(resultw.begin(), resultw.end(), std::back_inserter(result));
 
 		return stream << '\'' << result << '\'';
 	}
