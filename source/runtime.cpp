@@ -64,8 +64,10 @@ namespace reshade
 		imgui_io.KeyMap[ImGuiKey_PageDown] = 0x22; // VK_NEXT
 		imgui_io.KeyMap[ImGuiKey_Home] = 0x24; // VK_HOME
 		imgui_io.KeyMap[ImGuiKey_End] = 0x23; // VK_END
+		imgui_io.KeyMap[ImGuiKey_Insert] = 0x2D; // VK_INSERT
 		imgui_io.KeyMap[ImGuiKey_Delete] = 0x2E; // VK_DELETE
 		imgui_io.KeyMap[ImGuiKey_Backspace] = 0x08; // VK_BACK
+		imgui_io.KeyMap[ImGuiKey_Space] = 0x20; // VK_SPACE
 		imgui_io.KeyMap[ImGuiKey_Enter] = 0x0D; // VK_RETURN
 		imgui_io.KeyMap[ImGuiKey_Escape] = 0x1B; // VK_ESCAPE
 		imgui_io.KeyMap[ImGuiKey_A] = 'A';
@@ -74,6 +76,8 @@ namespace reshade
 		imgui_io.KeyMap[ImGuiKey_X] = 'X';
 		imgui_io.KeyMap[ImGuiKey_Y] = 'Y';
 		imgui_io.KeyMap[ImGuiKey_Z] = 'Z';
+		imgui_io.NavActive = true;
+		imgui_io.ConfigFlags = ImGuiConfigFlags_NavEnableKeyboard;
 		imgui_style.WindowRounding = 0.0f;
 		imgui_style.WindowBorderSize = 0.0f;
 		imgui_style.ChildRounding = 0.0f;
@@ -97,6 +101,7 @@ namespace reshade
 
 		subscribe_to_menu("Settings", [this]() { this->draw_overlay_menu_settings(); });
 		subscribe_to_menu("Statistics", [this]() { this->draw_overlay_menu_statistics(); });
+		subscribe_to_menu("Log", [this]() { this->draw_overlay_menu_log(); });
 		subscribe_to_menu("About", [this]() { this->draw_overlay_menu_about(); });
 	}
 	runtime::~runtime()
@@ -154,7 +159,6 @@ namespace reshade
 		_uniforms.clear();
 		_techniques.clear();
 		_uniform_data_storage.clear();
-		_errors.clear();
 
 		_texture_count = 0;
 		_uniform_count = 0;
@@ -598,7 +602,6 @@ namespace reshade
 		if (!pp.run(path))
 		{
 			LOG(ERROR) << "Failed to preprocess " << path << ":\n" << pp.errors();
-			_errors += path.string() + ":\n" + pp.errors();
 			return;
 		}
 
@@ -608,7 +611,6 @@ namespace reshade
 		if (!parser.run(pp.current_output()))
 		{
 			LOG(ERROR) << "Failed to compile " << path << ":\n" << parser.errors();
-			_errors += path.string() + ":\n" + parser.errors();
 			return;
 		}
 
@@ -652,7 +654,6 @@ namespace reshade
 		if (!load_effect(ast, errors))
 		{
 			LOG(ERROR) << "Failed to compile " << path << ":\n" << errors;
-			_errors += path.string() + ":\n" + errors;
 			_textures.erase(_textures.begin() + _texture_count, _textures.end());
 			_uniforms.erase(_uniforms.begin() + _uniform_count, _uniforms.end());
 			_techniques.erase(_techniques.begin() + _technique_count, _techniques.end());
@@ -665,7 +666,6 @@ namespace reshade
 		else
 		{
 			LOG(WARNING) << "> Successfully compiled with warnings:\n" << errors;
-			_errors += path.string() + ":\n" + errors;
 		}
 
 		for (size_t i = _uniform_count, max = _uniform_count = _uniforms.size(); i < max; i++)
@@ -714,8 +714,6 @@ namespace reshade
 
 			if (!filesystem::exists(path))
 			{
-				_errors += "Source '" + path.string() + "' for texture '" + texture.name + "' could not be found.\n";
-
 				LOG(ERROR) << "> Source " << path << " for texture '" << texture.name << "' could not be found.";
 				continue;
 			}
@@ -760,8 +758,6 @@ namespace reshade
 
 			if (!success)
 			{
-				_errors += "Unable to load source for texture '" + texture.name + "'!";
-
 				LOG(ERROR) << "> Source " << path << " for texture '" << texture.name << "' could not be loaded! Make sure it is of a compatible file format.";
 				continue;
 			}
@@ -1189,18 +1185,6 @@ namespace reshade
 					_menu_key_data[1] ? "Ctrl + " : "",
 					_menu_key_data[2] ? "Shift + " : "",
 					keyboard_keys[_menu_key_data[0]]);
-
-				if (_errors.find("error") != std::string::npos)
-				{
-					ImGui::SetWindowSize(ImVec2(_width - 20.0f, ImGui::GetFrameHeightWithSpacing() * 4));
-
-					ImGui::Spacing();
-					ImGui::TextColored(ImVec4(1, 0, 0, 1),
-						"There were errors compiling some shaders. "
-						"Open the configuration menu and click on 'Show Log' for more details.");
-
-					_show_error_log = true;
-				}
 			}
 
 			ImGui::End();
@@ -1260,40 +1244,13 @@ namespace reshade
 
 				ImGui::End();
 			}
-
-			if (_show_error_log)
-			{
-				ImGui::SetNextWindowPos(ImVec2(_width * 0.5f, _height * 0.5f), ImGuiCond_FirstUseEver, ImVec2(0.5f, 0.5f));
-				ImGui::SetNextWindowSize(ImVec2(800, 300), ImGuiCond_FirstUseEver);
-				ImGui::Begin("Error Log", &_show_error_log);
-				ImGui::PushTextWrapPos();
-
-				for (const auto &line : split(_errors, '\n'))
-				{
-					ImVec4 textcol(1, 1, 1, 1);
-
-					if (line.find("error") != std::string::npos)
-					{
-						textcol = ImVec4(1, 0, 0, 1);
-					}
-					else if (line.find("warning") != std::string::npos)
-					{
-						textcol = ImVec4(1, 1, 0, 1);
-					}
-
-					ImGui::TextColored(textcol, line.c_str());
-				}
-
-				ImGui::PopTextWrapPos();
-				ImGui::End();
-			}
 		}
 
 		// Render ImGui widgets and windows
 		ImGui::Render();
 
-		_input->block_mouse_input(_input_processing_mode != 0 && (_imgui_context->IO.WantCaptureMouse || (_input_processing_mode == 2 && _show_menu)));
-		_input->block_keyboard_input(_input_processing_mode != 0 && (_imgui_context->IO.WantCaptureKeyboard || (_input_processing_mode == 2 && _show_menu)));
+		_input->block_mouse_input(_input_processing_mode != 0 && _show_menu && (_imgui_context->IO.WantCaptureMouse || _input_processing_mode == 2));
+		_input->block_keyboard_input(_input_processing_mode != 0 && _show_menu && (_imgui_context->IO.WantCaptureKeyboard || _input_processing_mode == 2));
 
 		render_imgui_draw_data(ImGui::GetDrawData());
 	}
@@ -1551,17 +1508,12 @@ namespace reshade
 		{
 			ImGui::Spacing();
 
-			if (ImGui::Button("Reload", ImVec2(ImGui::GetWindowContentRegionWidth() * 0.5f - 5, 0)))
+			if (ImGui::Button("Reload", ImVec2(-1, 0)))
 			{
 				reload();
 			}
 
 			ImGui::SameLine();
-
-			if (ImGui::Button("Show Log", ImVec2(ImGui::GetWindowContentRegionWidth() * 0.5f - 5, 0)))
-			{
-				_show_error_log = true;
-			}
 		}
 		else
 		{
@@ -1953,6 +1905,47 @@ namespace reshade
 
 		ImGui::PopID();
 	}
+	void runtime::draw_overlay_menu_log()
+	{
+		ImGui::PushID("Log");
+
+		static ImGuiTextFilter filter; // TODO: Better make this a member of the runtime class, in case there are multiple instances.
+		filter.Draw();
+
+		std::vector<std::string> lines;
+		for (auto &line : reshade::log::lines)
+			if (filter.PassFilter(line.c_str()))
+				lines.push_back(line);
+
+		ImGui::SameLine(0, 20);
+		ImGui::Checkbox("Word Wrap", &_log_wordwrap);
+
+		ImGuiListClipper clipper(lines.size(), ImGui::GetTextLineHeightWithSpacing());
+
+		for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; ++i)
+		{
+			ImVec4 textcol(1, 1, 1, 1);
+
+			if (lines[i].find("ERROR |") != std::string::npos)
+				textcol = ImVec4(1, 0, 0, 1);
+			else if (lines[i].find("WARN |") != std::string::npos)
+				textcol = ImVec4(1, 1, 0, 1);
+			else if (lines[i].find("DEBUG |") != std::string::npos)
+				textcol = ImColor(100, 100, 255);
+
+			ImGui::PushStyleColor(ImGuiCol_Text, textcol);
+			if (_log_wordwrap) ImGui::PushTextWrapPos();
+
+			ImGui::TextUnformatted(lines[i].c_str());
+
+			if (_log_wordwrap) ImGui::PopTextWrapPos();
+			ImGui::PopStyleColor();
+		}
+
+		clipper.End();
+
+		ImGui::PopID();
+	}
 	void runtime::draw_overlay_menu_about()
 	{
 		ImGui::PushID("About");
@@ -2115,7 +2108,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 					if (ui_type == "drag")
 					{
-						modified = ImGui::DragIntN(ui_label.c_str(), data, variable.rows, variable.annotations["ui_step"].as<float>(), variable.annotations["ui_min"].as<int>(), variable.annotations["ui_max"].as<int>(), nullptr);
+						const int ui_min = variable.annotations["ui_min"].as<int>();
+						const int ui_max = variable.annotations["ui_max"].as<int>();
+						const float ui_step = variable.annotations["ui_step"].as<float>();
+
+						modified = ImGui::DragScalarN(ui_label.c_str(), ImGuiDataType_S32, data, variable.rows, ui_step, &ui_min, &ui_max);
 					}
 					else if (ui_type == "combo")
 					{
@@ -2129,7 +2126,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 					}
 					else
 					{
-						modified = ImGui::InputIntN(ui_label.c_str(), data, variable.rows, 0);
+						modified = ImGui::InputScalarN(ui_label.c_str(), ImGuiDataType_S32, data, variable.rows);
 					}
 
 					if (modified)
@@ -2145,11 +2142,15 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 					if (ui_type == "drag")
 					{
-						modified = ImGui::DragFloatN(ui_label.c_str(), data, variable.rows, variable.annotations["ui_step"].as<float>(), variable.annotations["ui_min"].as<float>(), variable.annotations["ui_max"].as<float>(), "%.3f", 1.0f);
+						const float ui_min = variable.annotations["ui_min"].as<float>();
+						const float ui_max = variable.annotations["ui_max"].as<float>();
+						const float ui_step = variable.annotations["ui_step"].as<float>();
+
+						modified = ImGui::DragScalarN(ui_label.c_str(), ImGuiDataType_Float, data, variable.rows, ui_step, &ui_min, &ui_max, "%.3f");
 					}
 					else if (ui_type == "input" || (ui_type.empty() && variable.rows < 3))
 					{
-						modified = ImGui::InputFloatN(ui_label.c_str(), data, variable.rows, 8, 0);
+						modified = ImGui::InputScalarN(ui_label.c_str(), ImGuiDataType_Float, data, variable.rows);
 					}
 					else if (variable.rows == 3)
 					{

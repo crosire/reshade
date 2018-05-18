@@ -17,6 +17,7 @@ public:
 	{
 		_index = 0;
 		_average = 0;
+		_tick_sum = 0;
 
 		for (size_t i = 0; i < SAMPLES; i++)
 		{
