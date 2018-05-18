@@ -97,10 +97,6 @@
     <PreBuildEvent>
       <Command>tools\verbuild res\version.h -c</Command>
     </PreBuildEvent>
-    <CustomBuildStep>
-      <Command>
-      </Command>
-    </CustomBuildStep>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
