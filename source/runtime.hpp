@@ -226,7 +226,6 @@ namespace reshade
 		std::chrono::high_resolution_clock::duration _last_frame_duration;
 		std::vector<unsigned char> _uniform_data_storage;
 		int _date[4] = { };
-		std::string _errors;
 		std::vector<std::string> _preprocessor_definitions;
 		int _menu_index = 0;
 		int _screenshot_format = 0;
@@ -242,7 +241,6 @@ namespace reshade
 		bool _needs_update = false;
 		unsigned long _latest_version[3] = { };
 		bool _show_menu = false;
-		bool _show_error_log = false;
 		bool _show_clock = false;
 		bool _show_framerate = false;
 		bool _effects_enabled = true;
