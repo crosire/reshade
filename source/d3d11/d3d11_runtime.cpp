@@ -47,7 +47,7 @@ namespace reshade::d3d11
 		_vendor_id = adapter_desc.VendorId;
 		_device_id = adapter_desc.DeviceId;
 
-		subscribe_to_menu("DX11", [this]() { this->draw_debug_menu(); });
+		subscribe_to_menu("DX11", [this]() { draw_debug_menu(); });
 		subscribe_to_load_config([this](const ini_file& config) {
 			config.get("DX11_BUFFER_DETECTION", "DepthBufferRetrievalMode", _depth_buffer_before_clear);
 			config.get("DX11_BUFFER_DETECTION", "DepthBufferTextureFormat", _depth_buffer_texture_format);
@@ -987,8 +987,6 @@ namespace reshade::d3d11
 
 	void d3d11_runtime::draw_debug_menu()
 	{
-		ImGui::PushID("DX11");
-
 		if (ImGui::CollapsingHeader("Buffer Detection", ImGuiTreeNodeFlags_DefaultOpen))
 		{
 			bool modified = false;
@@ -1027,13 +1025,10 @@ namespace reshade::d3d11
 				ImGui::Text("| %u draw calls ==> %u vertices", it.second.drawcalls, it.second.vertices);
 			}
 		}
-
-		ImGui::PopID();
 	}
 
 	void d3d11_runtime::detect_depth_source(draw_call_tracker &tracker)
 	{
-		
 		if (_best_depth_stencil_overwrite != nullptr)
 		{
 			return;
