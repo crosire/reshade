@@ -1240,18 +1240,21 @@ namespace reshade
 				{
 					// Need to do a full reload since some effects might be missing due to fast loading
 					reload();
-					return;
+
+					assert(!_is_fast_loading);
 				}
+				else
+				{
+					ImGui::SetNextWindowPos(ImVec2(_width * 0.5f, _height * 0.5f), ImGuiCond_FirstUseEver, ImVec2(0.5f, 0.5f));
+					ImGui::SetNextWindowSize(ImVec2(730, 650), ImGuiCond_FirstUseEver);
+					ImGui::Begin("ReShade " VERSION_STRING_FILE " by crosire###Main", &_show_menu,
+						ImGuiWindowFlags_MenuBar |
+						ImGuiWindowFlags_NoCollapse);
 
-				ImGui::SetNextWindowPos(ImVec2(_width * 0.5f, _height * 0.5f), ImGuiCond_FirstUseEver, ImVec2(0.5f, 0.5f));
-				ImGui::SetNextWindowSize(ImVec2(730, 650), ImGuiCond_FirstUseEver);
-				ImGui::Begin("ReShade " VERSION_STRING_FILE " by crosire###Main", &_show_menu,
-					ImGuiWindowFlags_MenuBar |
-					ImGuiWindowFlags_NoCollapse);
+					draw_overlay_menu();
 
-				draw_overlay_menu();
-
-				ImGui::End();
+					ImGui::End();
+				}
 			}
 		}
 
