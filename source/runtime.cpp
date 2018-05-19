@@ -101,8 +101,6 @@ namespace reshade
 		subscribe_to_menu("Statistics", [this]() { draw_overlay_menu_statistics(); });
 		subscribe_to_menu("Log", [this]() { draw_overlay_menu_log(); });
 		subscribe_to_menu("About", [this]() { draw_overlay_menu_about(); });
-
-		_selected_menu_callback = _menu_callables[0].second;
 	}
 	runtime::~runtime()
 	{
@@ -1261,11 +1259,13 @@ namespace reshade
 		{
 			ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImGui::GetStyle().ItemSpacing * 2);
 
-			for (const auto &[label, function] : _menu_callables)
+			for (size_t i = 0; i < _menu_callables.size(); ++i)
 			{
-				if (ImGui::Selectable(label.c_str(), &_selected_menu_callback == &function, 0, ImVec2(ImGui::CalcTextSize(label.c_str()).x, 0)))
+				const std::string &label = _menu_callables[i].first;
+
+				if (ImGui::Selectable(label.c_str(), _menu_index == i, 0, ImVec2(ImGui::CalcTextSize(label.c_str()).x, 0)))
 				{
-					_selected_menu_callback = function;
+					_menu_index = i;
 				}
 
 				ImGui::SameLine();
@@ -1275,9 +1275,7 @@ namespace reshade
 			ImGui::EndMenuBar();
 		}
 
-		assert(_selected_menu_callback != nullptr);
-
-		_selected_menu_callback();
+		_menu_callables[_menu_index].second();
 	}
 	void runtime::draw_overlay_menu_home()
 	{

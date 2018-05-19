@@ -269,7 +269,7 @@ namespace reshade
 		std::vector<std::pair<std::string, std::function<void()>>> _menu_callables;
 		std::vector<std::function<void(const ini_file &)>> _load_config_callables;
 		std::vector<std::function<void(ini_file &)>> _save_config_callables;
-		std::function<void()> _selected_menu_callback;
+		size_t _menu_index = 0;
 		int _screenshot_format = 0;
 		int _current_preset = -1;
 		int _selected_technique = -1;
