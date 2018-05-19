@@ -1234,7 +1234,7 @@ namespace reshade
 				}
 
 				ImGui::SetNextWindowPos(ImVec2(_width * 0.5f, _height * 0.5f), ImGuiCond_FirstUseEver, ImVec2(0.5f, 0.5f));
-				ImGui::SetNextWindowSize(ImVec2(710, 650), ImGuiCond_FirstUseEver);
+				ImGui::SetNextWindowSize(ImVec2(730, 650), ImGuiCond_FirstUseEver);
 				ImGui::Begin("ReShade " VERSION_STRING_FILE " by crosire###Main", &_show_menu,
 					ImGuiWindowFlags_MenuBar |
 					ImGuiWindowFlags_NoCollapse);
@@ -1931,7 +1931,7 @@ namespace reshade
 
 			if (lines[i].find("ERROR |") != std::string::npos)
 				textcol = ImVec4(1, 0, 0, 1);
-			else if (lines[i].find("WARN |") != std::string::npos)
+			else if (lines[i].find("WARN  |") != std::string::npos)
 				textcol = ImVec4(1, 1, 0, 1);
 			else if (lines[i].find("DEBUG |") != std::string::npos)
 				textcol = ImColor(100, 100, 255);
