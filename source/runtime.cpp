@@ -1951,7 +1951,7 @@ namespace reshade
 		ImGui::SameLine(0, 20);
 		ImGui::Checkbox("Word Wrap", &_log_wordwrap);
 
-		ImGuiListClipper clipper(lines.size(), ImGui::GetTextLineHeightWithSpacing());
+		ImGuiListClipper clipper(static_cast<int>(lines.size()), ImGui::GetTextLineHeightWithSpacing());
 
 		for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; ++i)
 		{
