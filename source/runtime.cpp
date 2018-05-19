@@ -1570,8 +1570,8 @@ namespace reshade
 			edit_buffer[0] = '\0';
 			for (const auto &search_path : search_paths)
 			{
-				memcpy(edit_buffer + offset, search_path.string().c_str(), search_path.length());
-				offset += search_path.length();
+				memcpy(edit_buffer + offset, search_path.string().c_str(), search_path.string().length());
+				offset += search_path.string().length();
 				edit_buffer[offset++] = '\n';
 				edit_buffer[offset] = '\0';
 			}
@@ -1711,7 +1711,7 @@ namespace reshade
 				ImGui::SetTooltip("Click in the field and press any key to change the shortcut to that key.");
 			}
 
-			memcpy(edit_buffer, _screenshot_path.string().c_str(), _screenshot_path.length() + 1);
+			memcpy(edit_buffer, _screenshot_path.string().c_str(), _screenshot_path.string().length() + 1);
 
 			if (ImGui::InputText("Screenshot Path", edit_buffer, sizeof(edit_buffer)))
 			{
