@@ -57,7 +57,8 @@ namespace reshade::d3d9
 		com_ptr<IDirect3DDevice9> _device;
 		com_ptr<IDirect3DSwapChain9> _swapchain;
 
-		com_ptr<IDirect3DSurface9> _backbuffer, _backbuffer_resolved;
+		com_ptr<IDirect3DSurface9> _backbuffer;
+		com_ptr<IDirect3DSurface9> _backbuffer_resolved;
 		com_ptr<IDirect3DTexture9> _backbuffer_texture;
 		com_ptr<IDirect3DSurface9> _backbuffer_texture_surface;
 		com_ptr<IDirect3DTexture9> _depthstencil_texture;
@@ -74,19 +75,27 @@ namespace reshade::d3d9
 		bool init_fx_resources();
 		bool init_imgui_font_atlas();
 
+		void draw_debug_menu();
+
 		void detect_depth_source();
 		bool create_depthstencil_replacement(IDirect3DSurface9 *depthstencil);
 
-		UINT _behavior_flags, _num_simultaneous_rendertargets, _num_samplers;
+		UINT _behavior_flags;
+		UINT _num_samplers;
+		UINT _num_simultaneous_rendertargets;
+		bool _disable_intz = false;
 		bool _is_multisampling_enabled = false;
 		D3DFORMAT _backbuffer_format = D3DFMT_UNKNOWN;
-		com_ptr<IDirect3DStateBlock9> _stateblock, _imgui_state;
-		com_ptr<IDirect3DSurface9> _depthstencil, _depthstencil_replacement, _default_depthstencil;
+		com_ptr<IDirect3DStateBlock9> _app_state;
+		com_ptr<IDirect3DSurface9> _depthstencil;
+		com_ptr<IDirect3DSurface9> _depthstencil_replacement;
+		com_ptr<IDirect3DSurface9> _default_depthstencil;
 		std::unordered_map<IDirect3DSurface9 *, depth_source_info> _depth_source_table;
 
 		com_ptr<IDirect3DVertexBuffer9> _effect_triangle_buffer;
 		com_ptr<IDirect3DVertexDeclaration9> _effect_triangle_layout;
 
+		com_ptr<IDirect3DStateBlock9> _imgui_state;
 		com_ptr<IDirect3DVertexBuffer9> _imgui_vertex_buffer;
 		com_ptr<IDirect3DIndexBuffer9> _imgui_index_buffer;
 		int _imgui_vertex_buffer_size = 0, _imgui_index_buffer_size = 0;

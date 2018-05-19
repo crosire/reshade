@@ -40,6 +40,14 @@ namespace reshade::d3d9
 		_behavior_flags = creation_params.BehaviorFlags;
 		_num_samplers = caps.MaxSimultaneousTextures;
 		_num_simultaneous_rendertargets = std::min(caps.NumSimultaneousRTs, DWORD(8));
+
+		subscribe_to_menu("DX9", [this]() { draw_debug_menu(); });
+		subscribe_to_load_config([this](const ini_file& config) {
+			config.get("DX9_BUFFER_DETECTION", "DisableINTZ", _disable_intz);
+		});
+		subscribe_to_save_config([this](ini_file& config) {
+			config.set("DX9_BUFFER_DETECTION", "DisableINTZ", _disable_intz);
+		});
 	}
 
 	bool d3d9_runtime::init_backbuffer_texture()
@@ -241,7 +249,7 @@ namespace reshade::d3d9
 		_is_multisampling_enabled = pp.MultiSampleType != D3DMULTISAMPLE_NONE;
 		_input = input::register_window(pp.hDeviceWindow);
 
-		if (FAILED(_device->CreateStateBlock(D3DSBT_ALL, &_stateblock)))
+		if (FAILED(_device->CreateStateBlock(D3DSBT_ALL, &_app_state)))
 		{
 			return false;
 		}
@@ -266,7 +274,7 @@ namespace reshade::d3d9
 		runtime::on_reset();
 
 		// Destroy resources
-		_stateblock.reset();
+		_app_state.reset();
 
 		_backbuffer.reset();
 		_backbuffer_resolved.reset();
@@ -309,7 +317,7 @@ namespace reshade::d3d9
 		detect_depth_source();
 
 		// Capture device state
-		_stateblock->Capture();
+		_app_state->Capture();
 
 		BOOL software_rendering_enabled;
 		D3DVIEWPORT9 viewport;
@@ -360,7 +368,7 @@ namespace reshade::d3d9
 		}
 
 		// Apply previous device state
-		_stateblock->Apply();
+		_app_state->Apply();
 
 		for (DWORD target = 0; target < _num_simultaneous_rendertargets; target++)
 		{
@@ -843,6 +851,25 @@ namespace reshade::d3d9
 		}
 	}
 
+	void d3d9_runtime::draw_debug_menu()
+	{
+		if (ImGui::CollapsingHeader("Buffer Detection", ImGuiTreeNodeFlags_DefaultOpen))
+		{
+			if (ImGui::Checkbox("Disable replacement with INTZ format", &_disable_intz))
+			{
+				runtime::save_config();
+
+				// Force depth-stencil replacement recreation
+				_depthstencil = nullptr;
+			}
+
+			for (const auto &it : _depth_source_table)
+			{
+				ImGui::Text("%s0x%p | %u draw calls ==> %u vertices", (it.first == _depthstencil ? "> " : "  "), it.first, it.second.drawcall_count, it.second.vertices_count);
+			}
+		}
+	}
+
 	void d3d9_runtime::detect_depth_source()
 	{
 		static int cooldown = 0, traffic = 0;
@@ -921,12 +948,15 @@ namespace reshade::d3d9
 
 		if (depthstencil != nullptr)
 		{
+			D3DSURFACE_DESC desc;
+			depthstencil->GetDesc(&desc);
+
 			_depthstencil = depthstencil;
 
-			D3DSURFACE_DESC desc;
-			_depthstencil->GetDesc(&desc);
-
-			if (desc.Format != D3DFMT_INTZ && desc.Format != D3DFMT_DF16 && desc.Format != D3DFMT_DF24)
+			if (!_disable_intz &&
+				desc.Format != D3DFMT_INTZ &&
+				desc.Format != D3DFMT_DF16 &&
+				desc.Format != D3DFMT_DF24)
 			{
 				D3DDISPLAYMODE displaymode;
 				_swapchain->GetDisplayMode(&displaymode);
@@ -981,7 +1011,14 @@ namespace reshade::d3d9
 			{
 				_depthstencil_replacement = _depthstencil;
 
-				_depthstencil_replacement->GetContainer(IID_PPV_ARGS(&_depthstencil_texture));
+				const HRESULT hr = _depthstencil_replacement->GetContainer(IID_PPV_ARGS(&_depthstencil_texture));
+
+				if (FAILED(hr))
+				{
+					LOG(ERROR) << "Failed to retrieve texture from depth surface! HRESULT is '" << std::hex << hr << std::dec << "'.";
+
+					return false;
+				}
 			}
 		}
 
