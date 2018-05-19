@@ -520,8 +520,6 @@ namespace reshade::d3d11
 		_vertices = tracker.vertices();
 		_drawcalls = tracker.drawcalls();
 
-		runtime::on_frame();
-
 		_current_tracker = tracker;
 		detect_depth_source(tracker);
 

@@ -404,8 +404,6 @@ namespace reshade::opengl
 		if (!is_initialized())
 			return;
 
-		runtime::on_frame();
-
 		detect_depth_source();
 
 		// Evaluate queries

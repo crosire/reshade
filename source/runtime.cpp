@@ -162,7 +162,7 @@ namespace reshade
 		_uniform_count = 0;
 		_technique_count = 0;
 	}
-	void runtime::on_frame()
+	void runtime::on_present()
 	{
 		// Get current time and date
 		time_t t = std::time(nullptr); tm tm;
@@ -178,44 +178,6 @@ namespace reshade
 		_last_frame_duration = std::chrono::high_resolution_clock::now() - _last_present_time;
 		_last_present_time += _last_frame_duration;
 
-		// Update ImGui configuration
-		ImGui::SetCurrentContext(_imgui_context);
-		auto &imgui_io = _imgui_context->IO;
-		imgui_io.DeltaTime = _last_frame_duration.count() * 1e-9f;
-		imgui_io.MouseDrawCursor = _show_menu;
-
-		imgui_io.KeyCtrl = _input->is_key_down(0x11); // VK_CONTROL
-		imgui_io.KeyShift = _input->is_key_down(0x10); // VK_SHIFT
-		imgui_io.KeyAlt = _input->is_key_down(0x12); // VK_MENU
-		imgui_io.MousePos.x = static_cast<float>(_input->mouse_position_x());
-		imgui_io.MousePos.y = static_cast<float>(_input->mouse_position_y());
-		imgui_io.MouseWheel += _input->mouse_wheel_delta();
-
-		for (unsigned int i = 0; i < 256; i++)
-		{
-			imgui_io.KeysDown[i] = _input->is_key_down(i);
-
-			if (_input->is_key_pressed(i))
-			{
-				imgui_io.AddInputCharacter(_input->key_to_text(i));
-			}
-		}
-		for (unsigned int i = 0; i < 5; i++)
-		{
-			imgui_io.MouseDown[i] = _input->is_mouse_button_down(i);
-		}
-
-		if (imgui_io.KeyCtrl)
-		{
-			// Change global font scale if user presses the control key and moves the mouse wheel
-			imgui_io.FontGlobalScale = ImClamp(imgui_io.FontGlobalScale + imgui_io.MouseWheel * 0.10f, 0.2f, 2.50f);
-		}
-
-		ImGui::NewFrame();
-
-	}
-	void runtime::on_present()
-	{
 		// Create and save screenshot if associated shortcut is down
 		if (!_screenshot_key_setting_active &&
 			_input->is_key_pressed(_screenshot_key_data[0], _screenshot_key_data[1] != 0, _screenshot_key_data[2] != 0, false))
@@ -1140,6 +1102,41 @@ namespace reshade
 		}
 
 		_effects_expanded_state &= 2;
+
+		// Update ImGui configuration
+		ImGui::SetCurrentContext(_imgui_context);
+		auto &imgui_io = _imgui_context->IO;
+		imgui_io.DeltaTime = _last_frame_duration.count() * 1e-9f;
+		imgui_io.MouseDrawCursor = _show_menu;
+
+		imgui_io.KeyCtrl = _input->is_key_down(0x11); // VK_CONTROL
+		imgui_io.KeyShift = _input->is_key_down(0x10); // VK_SHIFT
+		imgui_io.KeyAlt = _input->is_key_down(0x12); // VK_MENU
+		imgui_io.MousePos.x = static_cast<float>(_input->mouse_position_x());
+		imgui_io.MousePos.y = static_cast<float>(_input->mouse_position_y());
+		imgui_io.MouseWheel += _input->mouse_wheel_delta();
+
+		for (unsigned int i = 0; i < 256; i++)
+		{
+			imgui_io.KeysDown[i] = _input->is_key_down(i);
+
+			if (_input->is_key_pressed(i))
+			{
+				imgui_io.AddInputCharacter(_input->key_to_text(i));
+			}
+		}
+		for (unsigned int i = 0; i < 5; i++)
+		{
+			imgui_io.MouseDown[i] = _input->is_mouse_button_down(i);
+		}
+
+		if (imgui_io.KeyCtrl)
+		{
+			// Change global font scale if user presses the control key and moves the mouse wheel
+			imgui_io.FontGlobalScale = ImClamp(imgui_io.FontGlobalScale + imgui_io.MouseWheel * 0.10f, 0.2f, 2.50f);
+		}
+
+		ImGui::NewFrame();
 
 		// Create ImGui widgets and windows
 		if (show_splash)

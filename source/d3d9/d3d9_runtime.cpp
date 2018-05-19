@@ -306,8 +306,6 @@ namespace reshade::d3d9
 		if (FAILED(_device->BeginScene()))
 			return;
 
-		runtime::on_frame();
-
 		detect_depth_source();
 
 		// Capture device state
