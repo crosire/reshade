@@ -6,7 +6,9 @@
 #pragma once
 
 #include <chrono>
+#include <functional>
 #include "filesystem.hpp"
+#include "ini_file.hpp"
 #include "runtime_objects.hpp"
 
 #pragma region Forward Declarations
@@ -118,6 +120,38 @@ namespace reshade
 		void set_uniform_value(uniform &variable, const unsigned int *values, size_t count);
 		void set_uniform_value(uniform &variable, const float *values, size_t count);
 
+		/// <summary>
+		/// Register a function to be called when the menu is drawn.
+		/// </summary>
+		/// <param name="label">Name of the tab in the menu bar.</param>
+		/// <param name="function">The callback function.</param>
+		void subscribe_to_menu(std::string label, std::function<void()> function)
+		{
+			_menu_callables.push_back({ label, function });
+		}
+		/// <summary>
+		/// Register a function to be called when user configuration is loaded.
+		/// </summary>
+		/// <param name="function">The callback function.</param>
+		void subscribe_to_load_config(std::function<void(const ini_file &)> function)
+		{
+			_load_config_callables.push_back(function);
+
+			const ini_file config(_configuration_path);
+			function(config);
+		}
+		/// <summary>
+		/// Register a function to be called when user configuration is stored.
+		/// </summary>
+		/// <param name="function">The callback function.</param>
+		void subscribe_to_save_config(std::function<void(ini_file &)> function)
+		{
+			_save_config_callables.push_back(function);
+
+			ini_file config(_configuration_path);
+			function(config);
+		}
+
 	protected:
 		/// <summary>
 		/// Callback function called when the runtime is initialized.
@@ -167,6 +201,15 @@ namespace reshade
 		virtual bool update_texture(texture &texture, const uint8_t *data) = 0;
 
 		/// <summary>
+		/// Load user configuration from disk.
+		/// </summary>
+		void load_config();
+		/// <summary>
+		/// Save user configuration to disk.
+		/// </summary>
+		void save_config() const;
+
+		/// <summary>
 		/// Render all passes in a technique.
 		/// </summary>
 		/// <param name="technique">The technique to render.</param>
@@ -187,16 +230,11 @@ namespace reshade
 		std::vector<texture> _textures;
 		std::vector<uniform> _uniforms;
 		std::vector<technique> _techniques;
-		int _depth_buffer_texture_format = 0; // No depth buffer texture format filter by default
-		bool _depth_buffer_debug = false;
-		bool _depth_buffer_before_clear = false;
 
 	private:
 		static bool check_for_update(unsigned long latest_version[3]);
 
 		void reload();
-		void load_configuration();
-		void save_configuration() const;
 		void load_preset(const filesystem::path &path);
 		void load_current_preset();
 		void save_preset(const filesystem::path &path) const;
@@ -228,7 +266,10 @@ namespace reshade
 		std::vector<unsigned char> _uniform_data_storage;
 		int _date[4] = { };
 		std::vector<std::string> _preprocessor_definitions;
-		int _menu_index = 0;
+		std::vector<std::pair<std::string, std::function<void()>>> _menu_callables;
+		std::vector<std::function<void(const ini_file &)>> _load_config_callables;
+		std::vector<std::function<void(ini_file &)>> _save_config_callables;
+		size_t _menu_index = 0;
 		int _screenshot_format = 0;
 		int _current_preset = -1;
 		int _selected_technique = -1;

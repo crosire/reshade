@@ -70,14 +70,20 @@ namespace reshade::d3d11
 		std::vector<com_ptr<ID3D11ShaderResourceView>> _effect_shader_resources;
 		std::vector<com_ptr<ID3D11Buffer>> _constant_buffers;
 
-		using runtime::_depth_buffer_before_clear;
+		bool depth_buffer_before_clear() { return _depth_buffer_before_clear; }
 
 	private:
+		int _depth_buffer_texture_format = 0; // No depth buffer texture format filter by default
+		bool _depth_buffer_debug = false;
+		bool _depth_buffer_before_clear = false;
+
 		bool init_backbuffer_texture();
 		bool init_default_depth_stencil();
 		bool init_fx_resources();
 		bool init_imgui_resources();
 		bool init_imgui_font_atlas();
+
+		void draw_debug_menu();
 
 		void detect_depth_source(draw_call_tracker& tracker);
 		bool create_depthstencil_replacement(ID3D11DepthStencilView *depthstencil, ID3D11Texture2D *texture);
@@ -106,5 +112,6 @@ namespace reshade::d3d11
 		com_ptr<ID3D11BlendState> _imgui_blend_state;
 		com_ptr<ID3D11DepthStencilState> _imgui_depthstencil_state;
 		int _imgui_vertex_buffer_size = 0, _imgui_index_buffer_size = 0;
+		draw_call_tracker _current_tracker;
 	};
 }
