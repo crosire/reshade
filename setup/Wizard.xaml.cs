@@ -320,7 +320,6 @@ namespace ReShade.Setup
 				EnableConfigEditor();
 			}
 		}
-
 		void InstallationStep3()
 		{
 			Title = Title.Remove(Title.Length - 11);
@@ -377,9 +376,13 @@ namespace ReShade.Setup
 			string shadersDirectoryFinal = Path.Combine(targetDirectory, "reshade-shaders");
 			string shadersDirectoryExtracted = Path.Combine(targetDirectory, "reshade-shaders-master");
 
+			string[] installedEffects = null;
+
 			// Delete existing directories since "ExtractToDirectory" fails if the target is not empty
 			if (Directory.Exists(shadersDirectoryFinal))
 			{
+				installedEffects = Directory.GetFiles(Path.Combine(shadersDirectoryFinal, "Shaders")).ToArray();
+
 				try { Directory.Delete(shadersDirectoryFinal, true); } catch { }
 			}
 			if (Directory.Exists(shadersDirectoryExtracted))
@@ -415,6 +418,16 @@ namespace ReShade.Setup
 			{
 				var wnd = new SelectWindow(Directory.GetFiles(Path.Combine(shadersDirectoryFinal, "Shaders")));
 				wnd.Owner = this;
+
+				// If there was an existing installation, select the same effects as previously
+				if (installedEffects != null)
+				{
+					foreach (var item in wnd.GetSelection())
+					{
+						item.IsChecked = installedEffects.Contains(item.Path);
+					}
+				}
+
 				wnd.ShowDialog();
 
 				foreach (var item in wnd.GetSelection())
