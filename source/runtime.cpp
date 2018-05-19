@@ -208,7 +208,7 @@ namespace reshade
 		if (imgui_io.KeyCtrl)
 		{
 			// Change global font scale if user presses the control key and moves the mouse wheel
-			imgui_io.FontGlobalScale = ImClamp(imgui_io.FontGlobalScale + imgui_io.MouseWheel * 0.10f, 1.0f, 2.50f);
+			imgui_io.FontGlobalScale = ImClamp(imgui_io.FontGlobalScale + imgui_io.MouseWheel * 0.10f, 0.2f, 2.50f);
 		}
 
 		ImGui::NewFrame();
@@ -1193,8 +1193,8 @@ namespace reshade
 		{
 			if (!show_splash)
 			{
-				ImGui::SetNextWindowPos(ImVec2(_width - 80.f, 0));
-				ImGui::SetNextWindowSize(ImVec2(80, 100));
+				ImGui::SetNextWindowPos(ImVec2(_width - 200.0f, 0));
+				ImGui::SetNextWindowSize(ImVec2(200.0f, 200.0f));
 				ImGui::PushFont(_imgui_context->IO.Fonts->Fonts[1]);
 				ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(_imgui_col_text_fps[0], _imgui_col_text_fps[1], _imgui_col_text_fps[2], 1.0f));
 				ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4());
@@ -1207,16 +1207,26 @@ namespace reshade
 					ImGuiWindowFlags_NoInputs |
 					ImGuiWindowFlags_NoFocusOnAppearing);
 
+				char temp[512];
+
 				if (_show_clock)
 				{
 					const int hour = _date[3] / 3600;
 					const int minute = (_date[3] - hour * 3600) / 60;
-					ImGui::Text(" %02u%s%02u", hour, _date[3] % 2 ? ":" : " ", minute);
+
+					ImFormatString(temp, sizeof(temp), " %02u%s%02u", hour, _date[3] % 2 ? ":" : " ", minute);
+					ImGui::SetCursorPosX(ImGui::GetWindowContentRegionWidth() - ImGui::CalcTextSize(temp).x);
+					ImGui::TextUnformatted(temp);
 				}
 				if (_show_framerate)
 				{
-					ImGui::Text("%.0f fps", _imgui_context->IO.Framerate);
-					ImGui::Text("%*lld ms", 3, std::chrono::duration_cast<std::chrono::milliseconds>(_last_frame_duration).count());
+					ImFormatString(temp, sizeof(temp), "%.0f fps", _imgui_context->IO.Framerate);
+					ImGui::SetCursorPosX(ImGui::GetWindowContentRegionWidth() - ImGui::CalcTextSize(temp).x);
+					ImGui::TextUnformatted(temp);
+
+					ImFormatString(temp, sizeof(temp), "%*lld ms", 3, std::chrono::duration_cast<std::chrono::milliseconds>(_last_frame_duration).count());
+					ImGui::SetCursorPosX(ImGui::GetWindowContentRegionWidth() - ImGui::CalcTextSize(temp).x);
+					ImGui::TextUnformatted(temp);
 				}
 
 				ImGui::End();
