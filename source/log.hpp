@@ -10,14 +10,12 @@
 #include <sstream>
 #include <utf8/unchecked.h>
 #include "filesystem.hpp"
-#include <mutex>
 
 #define LOG(LEVEL) LOG_##LEVEL()
 #define LOG_INFO() reshade::log::message(reshade::log::level::info)
 #define LOG_ERROR() reshade::log::message(reshade::log::level::error)
 #define LOG_WARNING() reshade::log::message(reshade::log::level::warning)
 #define LOG_DEBUG() reshade::log::message(reshade::log::level::debug)
-
 
 namespace reshade::log
 {
@@ -31,7 +29,6 @@ namespace reshade::log
 
 	extern std::ofstream stream;
 	extern std::ostringstream linestream;
-	extern std::mutex _mutex;
 	extern std::vector<std::string> lines;
 
 	struct message

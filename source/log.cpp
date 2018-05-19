@@ -4,27 +4,33 @@
  */
 
 #include "log.hpp"
+#include <mutex>
+#include <assert.h>
 #include <Windows.h>
 
 namespace reshade::log
 {
 	std::ofstream stream;
 	std::ostringstream linestream;
-	std::mutex _mutex;
 	std::vector<std::string> lines;
+	static std::mutex s_mutex;
 
 	message::message(level level)
 	{
 		SYSTEMTIME time;
 		GetLocalTime(&time);
 
-		std::ostringstream tmp;
-		const char level_names[][6] = { "ERROR", "WARN", "DEBUG", "INFO" };
+		const char level_names[][6] = { "ERROR", "WARN ", "DEBUG", "INFO " };
+		assert(static_cast<unsigned int>(level) - 1 < _countof(level_names));
 
 		// Lock the stream until the message is complete
-		_mutex.lock();
+		s_mutex.lock();
 
-		tmp << std::right << std::setfill('0')
+		// Start a new line
+		linestream.str("");
+		linestream.clear();
+
+		stream << std::right << std::setfill('0')
 			<< std::setw(4) << time.wYear << '-'
 			<< std::setw(2) << time.wMonth << '-'
 			<< std::setw(2) << time.wDay << 'T'
@@ -33,32 +39,26 @@ namespace reshade::log
 			<< std::setw(2) << time.wSecond << ':'
 			<< std::setw(3) << time.wMilliseconds << ' '
 			<< '[' << std::setw(5) << GetCurrentThreadId() << ']' << std::setfill(' ')
-			<< " | " << level_names[static_cast<unsigned int>(level) - 1] << " | " << std::left;
-
-		stream << tmp.str();
-
-		// define a new line
-		linestream.str("");
-		linestream.clear();
-		linestream << tmp.str();
+			<< " | "
+			<< level_names[static_cast<unsigned int>(level) - 1] << " | " << std::left;
+		linestream
+			<< level_names[static_cast<unsigned int>(level) - 1] << " | ";
 	}
 	message::~message()
 	{
+		// Finish the line
 		stream << std::endl;
 		linestream << std::endl;
-		lines.push_back(linestream.str().substr(34));
-		linestream.str("");
-		linestream.clear();
+
+		lines.push_back(linestream.str());
 
 		// The message is finished, we can unlock the stream
-		_mutex.unlock();
+		s_mutex.unlock();
 	}
 
 	bool open(const filesystem::path &path)
 	{
 		stream.open(path.wstring(), std::ios::out | std::ios::trunc);
-		linestream.str("");
-		linestream.clear();
 
 		if (!stream.is_open())
 		{
