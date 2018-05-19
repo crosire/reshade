@@ -987,8 +987,8 @@ namespace reshade::d3d11
 		}
 	}
 
-	void d3d11_runtime::draw_debug_menu() {
-
+	void d3d11_runtime::draw_debug_menu()
+	{
 		ImGui::PushID("DX11");
 
 		if (ImGui::CollapsingHeader("Buffer Detection", ImGuiTreeNodeFlags_DefaultOpen))
@@ -999,7 +999,7 @@ namespace reshade::d3d11
 
 			if (modified)
 			{
-				runtime::save_configuration();
+				runtime::save_config();
 			}
 
 			for (const auto &it : _current_tracker.depthstencil_counters())
@@ -1031,7 +1031,6 @@ namespace reshade::d3d11
 		}
 
 		ImGui::PopID();
-
 	}
 
 	void d3d11_runtime::detect_depth_source(draw_call_tracker &tracker)

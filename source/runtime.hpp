@@ -6,11 +6,9 @@
 #pragma once
 
 #include <chrono>
+#include <functional>
 #include "filesystem.hpp"
 #include "ini_file.hpp"
-#include <map>
-#include <functional>
-#include <string>
 #include "runtime_objects.hpp"
 
 #pragma region Forward Declarations
@@ -32,10 +30,6 @@ extern volatile long g_network_traffic;
 
 namespace reshade
 {
-	typedef std::function<void()> void_callable;
-	typedef std::function<void(ini_file&)> void_config_callable;
-	typedef std::function<void(const ini_file&)> void_config_const_callable;
-
 	class runtime abstract
 	{
 	public:
@@ -126,9 +120,37 @@ namespace reshade
 		void set_uniform_value(uniform &variable, const unsigned int *values, size_t count);
 		void set_uniform_value(uniform &variable, const float *values, size_t count);
 
-		void subscribe_to_menu(std::string label, void_callable function) { _menu_callables.push_back(std::make_pair(label, function)); };
-		void subscribe_to_save_config(void_config_callable function) { _save_config_callables.push_back(function); ini_file config(_configuration_path); function(config); };
-		void subscribe_to_load_config(void_config_const_callable function) { _load_config_callables.push_back(function); ini_file config(_configuration_path); function(config); };
+		/// <summary>
+		/// Register a function to be called when the menu is drawn.
+		/// </summary>
+		/// <param name="label">Name of the tab in the menu bar.</param>
+		/// <param name="function">The callback function.</param>
+		void subscribe_to_menu(std::string label, std::function<void()> function)
+		{
+			_menu_callables.push_back({ label, function });
+		}
+		/// <summary>
+		/// Register a function to be called when user configuration is loaded.
+		/// </summary>
+		/// <param name="function">The callback function.</param>
+		void subscribe_to_load_config(std::function<void(const ini_file &)> function)
+		{
+			_load_config_callables.push_back(function);
+
+			const ini_file config(_configuration_path);
+			function(config);
+		}
+		/// <summary>
+		/// Register a function to be called when user configuration is stored.
+		/// </summary>
+		/// <param name="function">The callback function.</param>
+		void subscribe_to_save_config(std::function<void(ini_file &)> function)
+		{
+			_save_config_callables.push_back(function);
+
+			ini_file config(_configuration_path);
+			function(config);
+		}
 
 	protected:
 		/// <summary>
@@ -179,6 +201,15 @@ namespace reshade
 		virtual bool update_texture(texture &texture, const uint8_t *data) = 0;
 
 		/// <summary>
+		/// Load user configuration from disk.
+		/// </summary>
+		void load_config();
+		/// <summary>
+		/// Save user configuration to disk.
+		/// </summary>
+		void save_config() const;
+
+		/// <summary>
 		/// Render all passes in a technique.
 		/// </summary>
 		/// <param name="technique">The technique to render.</param>
@@ -200,17 +231,10 @@ namespace reshade
 		std::vector<uniform> _uniforms;
 		std::vector<technique> _techniques;
 
-		std::vector<std::pair<std::string, void_callable>> _menu_callables;
-		std::vector<void_config_const_callable> _load_config_callables;
-		std::vector<void_config_callable> _save_config_callables;
-
-		void save_configuration() const;
-
 	private:
 		static bool check_for_update(unsigned long latest_version[3]);
 
 		void reload();
-		void load_configuration();
 		void load_preset(const filesystem::path &path);
 		void load_current_preset();
 		void save_preset(const filesystem::path &path) const;
@@ -242,7 +266,10 @@ namespace reshade
 		std::vector<unsigned char> _uniform_data_storage;
 		int _date[4] = { };
 		std::vector<std::string> _preprocessor_definitions;
-		void_callable _selected_menu;
+		std::vector<std::pair<std::string, std::function<void()>>> _menu_callables;
+		std::vector<std::function<void(const ini_file &)>> _load_config_callables;
+		std::vector<std::function<void(ini_file &)>> _save_config_callables;
+		std::function<void()> _selected_menu_callback;
 		int _screenshot_format = 0;
 		int _current_preset = -1;
 		int _selected_technique = -1;
