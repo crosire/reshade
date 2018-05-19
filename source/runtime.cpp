@@ -1306,6 +1306,11 @@ namespace reshade
 			"The window size is variable as well, just grab the bottom right corner and move it around.\n\n"
 			"Click on the 'Continue' button to continue the tutorial.";
 
+		if (_performance_mode && _tutorial_index <= 3)
+		{
+			_tutorial_index = 4;
+		}
+
 		if (_tutorial_index > 0)
 		{
 			if (_tutorial_index == 1)
