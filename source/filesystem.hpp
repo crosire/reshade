@@ -37,7 +37,6 @@ namespace reshade::filesystem
 		friend std::ostream &operator<<(std::ostream &stream, const path &path);
 
 		bool empty() const { return _data.empty(); }
-		size_t length() const { return _data.length(); }
 		bool is_absolute() const;
 
 		path parent_path() const;
