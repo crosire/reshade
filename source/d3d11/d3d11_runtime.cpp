@@ -1049,7 +1049,7 @@ namespace reshade::d3d11
 					likely_camera_transform_buffer = true;
 				}
 
-				ImGui::Text("%s 0x%p | used in %3u vertexshaders and %3u pixelshaders, mapped %3u times, %3u bytes", likely_camera_transform_buffer ? ">" : " ", buffer, counter.vertexshaders, counter.pixelshaders, counter.mapped, desc.ByteWidth);
+				ImGui::Text("%s 0x%p | used in %3u vertex shaders and %3u pixel shaders, mapped %3u times, %3u bytes", likely_camera_transform_buffer ? ">" : " ", buffer.get(), counter.vertexshaders, counter.pixelshaders, counter.mapped, desc.ByteWidth);
 			}
 		}
 	}
