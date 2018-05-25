@@ -9,7 +9,8 @@ namespace reshade::d3d11
 	class draw_call_tracker
 	{
 	public:
-		struct draw_counter {
+		struct draw_stats
+		{
 			UINT vertices = 0;
 			UINT drawcalls = 0;
 			UINT mapped = 0;
@@ -19,9 +20,9 @@ namespace reshade::d3d11
 		struct intermediate_snapshot_info
 		{
 			com_ptr<ID3D11DepthStencilView> depthstencil;
-			draw_counter counter;
+			draw_stats stats;
 			com_ptr<ID3D11Texture2D> texture;
-			std::map<com_ptr<ID3D11RenderTargetView>, draw_counter> additional_views;
+			std::map<com_ptr<ID3D11RenderTargetView>, draw_stats> additional_views;
 		};
 
 		UINT total_vertices() const { return _global_counter.vertices; }
@@ -43,9 +44,9 @@ namespace reshade::d3d11
 		intermediate_snapshot_info find_best_snapshot(UINT width, UINT height, DXGI_FORMAT format);
 
 	private:
-		draw_counter _global_counter;
+		draw_stats _global_counter;
 
 		std::map<com_ptr<ID3D11DepthStencilView>, intermediate_snapshot_info> _counters_per_used_depthstencil;
-		std::map<com_ptr<ID3D11Buffer>, draw_counter> _counters_per_constant_buffer;
+		std::map<com_ptr<ID3D11Buffer>, draw_stats> _counters_per_constant_buffer;
 	};
 }

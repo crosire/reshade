@@ -1022,7 +1022,7 @@ namespace reshade::d3d11
 
 				ImGui::SameLine();
 
-				ImGui::Text("| %u draw calls ==> %u vertices", it.second.counter.drawcalls, it.second.counter.vertices);
+				ImGui::Text("| %u draw calls ==> %u vertices", it.second.stats.drawcalls, it.second.stats.vertices);
 			}
 		}
 	}
