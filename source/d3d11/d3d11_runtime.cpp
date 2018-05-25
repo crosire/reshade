@@ -987,7 +987,7 @@ namespace reshade::d3d11
 
 	void d3d11_runtime::draw_debug_menu()
 	{
-		if (ImGui::CollapsingHeader("Buffer Detection", ImGuiTreeNodeFlags_DefaultOpen))
+		if (ImGui::CollapsingHeader("Depth and Intermediate Buffers", ImGuiTreeNodeFlags_DefaultOpen))
 		{
 			bool modified = false;
 			modified |= ImGui::Checkbox("Copy depth before clearing", &_depth_buffer_before_clear);
@@ -998,16 +998,19 @@ namespace reshade::d3d11
 				runtime::save_config();
 			}
 
-			for (const auto &it : _current_tracker.depthstencil_counters())
+			ImGui::Text("\nDepth Buffers: (intermediate buffer draw calls in parentheses)");
+			ImGui::Text("Is Multisampled : %s", _is_multisampling_enabled ? "true" : "false");
+
+			for (const auto &[depthstencil, snapshot] : _current_tracker.depthstencil_counters())
 			{
 				char label[512] = "";
-				sprintf_s(label, "%s0x%p", (it.first == _depthstencil ? "> " : "  "), it.first.get());
+				sprintf_s(label, "%s0x%p", (depthstencil == _depthstencil ? "> " : "  "), depthstencil.get());
 
-				if (bool value = _best_depth_stencil_overwrite == it.first; ImGui::Checkbox(label, &value))
+				if (bool value = _best_depth_stencil_overwrite == depthstencil; ImGui::Checkbox(label, &value))
 				{
-					_best_depth_stencil_overwrite = value ? it.first.get() : nullptr;
+					_best_depth_stencil_overwrite = value ? depthstencil.get() : nullptr;
 
-					com_ptr<ID3D11Texture2D> texture = it.second.texture;
+					com_ptr<ID3D11Texture2D> texture = snapshot.texture;
 
 					if (texture == nullptr && _best_depth_stencil_overwrite != nullptr)
 					{
@@ -1022,7 +1025,31 @@ namespace reshade::d3d11
 
 				ImGui::SameLine();
 
-				ImGui::Text("| %u draw calls ==> %u vertices", it.second.stats.drawcalls, it.second.stats.vertices);
+				std::string additional_view_label = snapshot.additional_views.size() > 0 ? "(" : "";
+				unsigned int i = 1;
+				for (auto const&[key, val] : snapshot.additional_views) {
+					additional_view_label += std::to_string(val.drawcalls) + (i < snapshot.additional_views.size() ? ", " : "");
+					i++;
+				}
+				additional_view_label += snapshot.additional_views.size() > 0 ? ")" : "";
+
+				ImGui::Text("| %3u draw calls ==> %3u vertices, %3u additional rendertargets %s", snapshot.stats.drawcalls, snapshot.stats.vertices, snapshot.additional_views.size(), additional_view_label.c_str());
+			}
+		}
+
+		if (ImGui::CollapsingHeader("Constant Buffers", ImGuiTreeNodeFlags_DefaultOpen))
+		{
+			for (const auto &[buffer, counter] : _current_tracker.constant_counters())
+			{
+				bool likely_camera_transform_buffer = false;
+				D3D11_BUFFER_DESC desc;
+				buffer->GetDesc(&desc);
+
+				if (counter.pixelshaders > 0 && counter.vertexshaders > 0 && counter.mapped < .10 * counter.vertexshaders && desc.ByteWidth > 1000) {
+					likely_camera_transform_buffer = true;
+				}
+
+				ImGui::Text("%s 0x%p | used in %3u vertexshaders and %3u pixelshaders, mapped %3u times, %3u bytes", likely_camera_transform_buffer ? ">" : " ", buffer, counter.vertexshaders, counter.pixelshaders, counter.mapped, desc.ByteWidth);
 			}
 		}
 	}
