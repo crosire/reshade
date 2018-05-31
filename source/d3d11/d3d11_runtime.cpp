@@ -987,6 +987,9 @@ namespace reshade::d3d11
 
 	void d3d11_runtime::draw_debug_menu()
 	{
+		ImGui::Text("MSAA is %s", _is_multisampling_enabled ? "active" : "inactive");
+		ImGui::Spacing();
+
 		if (ImGui::CollapsingHeader("Depth and Intermediate Buffers", ImGuiTreeNodeFlags_DefaultOpen))
 		{
 			bool modified = false;
@@ -998,42 +1001,53 @@ namespace reshade::d3d11
 				runtime::save_config();
 			}
 
-			ImGui::Text("\nDepth Buffers: (intermediate buffer draw calls in parentheses)");
-			ImGui::Text("Is Multisampled : %s", _is_multisampling_enabled ? "true" : "false");
-
-			for (const auto &[depthstencil, snapshot] : _current_tracker.depthstencil_counters())
+			if (!_current_tracker.depthstencil_counters().empty())
 			{
-				char label[512] = "";
-				sprintf_s(label, "%s0x%p", (depthstencil == _depthstencil ? "> " : "  "), depthstencil.get());
+				ImGui::Spacing();
+				ImGui::Text("Depth Buffers: (intermediate buffer draw calls in parentheses)");
 
-				if (bool value = _best_depth_stencil_overwrite == depthstencil; ImGui::Checkbox(label, &value))
+				for (const auto &[depthstencil, snapshot] : _current_tracker.depthstencil_counters())
 				{
-					_best_depth_stencil_overwrite = value ? depthstencil.get() : nullptr;
+					char label[512] = "";
+					sprintf_s(label, "%s0x%p", (depthstencil == _depthstencil ? "> " : "  "), depthstencil.get());
 
-					com_ptr<ID3D11Texture2D> texture = snapshot.texture;
-
-					if (texture == nullptr && _best_depth_stencil_overwrite != nullptr)
+					if (bool value = _best_depth_stencil_overwrite == depthstencil; ImGui::Checkbox(label, &value))
 					{
-						com_ptr<ID3D11Resource> resource;
-						_best_depth_stencil_overwrite->GetResource(&resource);
+						_best_depth_stencil_overwrite = value ? depthstencil.get() : nullptr;
 
-						resource->QueryInterface(&texture);
+						com_ptr<ID3D11Texture2D> texture = snapshot.texture;
+
+						if (texture == nullptr && _best_depth_stencil_overwrite != nullptr)
+						{
+							com_ptr<ID3D11Resource> resource;
+							_best_depth_stencil_overwrite->GetResource(&resource);
+
+							resource->QueryInterface(&texture);
+						}
+
+						create_depthstencil_replacement(_best_depth_stencil_overwrite, texture.get());
 					}
 
-					create_depthstencil_replacement(_best_depth_stencil_overwrite, texture.get());
+					ImGui::SameLine();
+
+					std::string additional_view_label;
+
+					if (!snapshot.additional_views.empty())
+					{
+						additional_view_label += '(';
+
+						for (auto const &[view, stats] : snapshot.additional_views)
+							additional_view_label += std::to_string(stats.drawcalls) + ", ";
+
+						// Remove last ", " from string
+						additional_view_label.pop_back();
+						additional_view_label.pop_back();
+
+						additional_view_label += ')';
+					}
+
+					ImGui::Text("| %5u draw calls ==> %8u vertices, %2u additional render target%c %s", snapshot.stats.drawcalls, snapshot.stats.vertices, snapshot.additional_views.size(), snapshot.additional_views.size() != 1 ? 's' : ' ', additional_view_label.c_str());
 				}
-
-				ImGui::SameLine();
-
-				std::string additional_view_label = snapshot.additional_views.size() > 0 ? "(" : "";
-				unsigned int i = 1;
-				for (auto const&[key, val] : snapshot.additional_views) {
-					additional_view_label += std::to_string(val.drawcalls) + (i < snapshot.additional_views.size() ? ", " : "");
-					i++;
-				}
-				additional_view_label += snapshot.additional_views.size() > 0 ? ")" : "";
-
-				ImGui::Text("| %3u draw calls ==> %3u vertices, %3u additional rendertargets %s", snapshot.stats.drawcalls, snapshot.stats.vertices, snapshot.additional_views.size(), additional_view_label.c_str());
 			}
 		}
 
@@ -1042,14 +1056,14 @@ namespace reshade::d3d11
 			for (const auto &[buffer, counter] : _current_tracker.constant_counters())
 			{
 				bool likely_camera_transform_buffer = false;
+
 				D3D11_BUFFER_DESC desc;
 				buffer->GetDesc(&desc);
 
-				if (counter.pixelshaders > 0 && counter.vertexshaders > 0 && counter.mapped < .10 * counter.vertexshaders && desc.ByteWidth > 1000) {
+				if (counter.ps_uses > 0 && counter.vs_uses > 0 && counter.mapped < .10 * counter.vs_uses && desc.ByteWidth > 1000)
 					likely_camera_transform_buffer = true;
-				}
 
-				ImGui::Text("%s 0x%p | used in %3u vertex shaders and %3u pixel shaders, mapped %3u times, %3u bytes", likely_camera_transform_buffer ? ">" : " ", buffer.get(), counter.vertexshaders, counter.pixelshaders, counter.mapped, desc.ByteWidth);
+				ImGui::Text("%s 0x%p | used in %4u vertex shaders and %4u pixel shaders, mapped %3u times, %8u bytes", likely_camera_transform_buffer ? ">" : " ", buffer.get(), counter.vs_uses, counter.ps_uses, counter.mapped, desc.ByteWidth);
 			}
 		}
 	}
@@ -1102,11 +1116,11 @@ namespace reshade::d3d11
 
 		assert(_depth_buffer_texture_format >= 0 && _depth_buffer_texture_format < ARRAYSIZE(depth_texture_formats));
 
-		auto best_snapshot = tracker.find_best_snapshot(_width, _height, depth_texture_formats[_depth_buffer_texture_format]);
+		const auto best_snapshot = tracker.find_best_snapshot(_width, _height, depth_texture_formats[_depth_buffer_texture_format]);
 
 		if (best_snapshot.depthstencil != nullptr)
 		{
-			create_depthstencil_replacement(best_snapshot.depthstencil.get(), best_snapshot.texture.get());
+			create_depthstencil_replacement(best_snapshot.depthstencil, best_snapshot.texture.get());
 		}
 	}
 

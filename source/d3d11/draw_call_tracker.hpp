@@ -14,12 +14,12 @@ namespace reshade::d3d11
 			UINT vertices = 0;
 			UINT drawcalls = 0;
 			UINT mapped = 0;
-			UINT vertexshaders = 0;
-			UINT pixelshaders = 0;
+			UINT vs_uses = 0;
+			UINT ps_uses = 0;
 		};
 		struct intermediate_snapshot_info
 		{
-			com_ptr<ID3D11DepthStencilView> depthstencil;
+			ID3D11DepthStencilView *depthstencil = nullptr; // No need to use a 'com_ptr' here since '_counters_per_used_depthstencil' already keeps a reference
 			draw_stats stats;
 			com_ptr<ID3D11Texture2D> texture;
 			std::map<ID3D11RenderTargetView *, draw_stats> additional_views;

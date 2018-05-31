@@ -14,8 +14,8 @@ namespace reshade::d3d11
 		{
 			_counters_per_constant_buffer[buffer].vertices += snapshot.vertices;
 			_counters_per_constant_buffer[buffer].drawcalls += snapshot.drawcalls;
-			_counters_per_constant_buffer[buffer].pixelshaders += snapshot.pixelshaders;
-			_counters_per_constant_buffer[buffer].vertexshaders += snapshot.vertexshaders;
+			_counters_per_constant_buffer[buffer].ps_uses += snapshot.ps_uses;
+			_counters_per_constant_buffer[buffer].vs_uses += snapshot.vs_uses;
 		}
 
 		for (const auto &[depthstencil, snapshot] : source._counters_per_used_depthstencil)
@@ -77,7 +77,7 @@ namespace reshade::d3d11
 				}
 				else
 				{
-					// This shouldn't happen - it means somehow someone has called "draw" with a render target without calling track_rendertargets first
+					// This shouldn't happen - it means somehow someone has called 'on_draw' with a render target without calling 'track_rendertargets' first
 					LOG(ERROR) << "Draw has been called on an untracked render target.";
 				}
 			}
@@ -92,7 +92,7 @@ namespace reshade::d3d11
 			// Uses the default drawcalls = 0 the first time around.
 			if (vscbuffers[i] != nullptr)
 			{
-				_counters_per_constant_buffer[vscbuffers[i]].vertexshaders += 1;
+				_counters_per_constant_buffer[vscbuffers[i]].vs_uses += 1;
 			}
 		}
 
@@ -104,7 +104,7 @@ namespace reshade::d3d11
 			// Uses the default drawcalls = 0 the first time around.
 			if (pscbuffers[i] != nullptr)
 			{
-				_counters_per_constant_buffer[pscbuffers[i]].pixelshaders += 1;
+				_counters_per_constant_buffer[pscbuffers[i]].ps_uses += 1;
 			}
 		}
 	}
