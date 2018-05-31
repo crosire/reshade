@@ -280,7 +280,8 @@ void STDMETHODCALLTYPE D3D11DeviceContext::Draw(UINT VertexCount, UINT StartVert
 }
 HRESULT STDMETHODCALLTYPE D3D11DeviceContext::Map(ID3D11Resource *pResource, UINT Subresource, D3D11_MAP MapType, UINT MapFlags, D3D11_MAPPED_SUBRESOURCE *pMappedResource)
 {
-	_draw_call_tracker.on_map(this, pResource);
+	_draw_call_tracker.on_map(pResource);
+
 	return _orig->Map(pResource, Subresource, MapType, MapFlags, pMappedResource);
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::Unmap(ID3D11Resource *pResource, UINT Subresource)

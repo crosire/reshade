@@ -1,7 +1,7 @@
 #include "draw_call_tracker.hpp"
+#include "log.hpp"
 #include "runtime.hpp"
 #include <math.h>
-#include "log.hpp"
 
 namespace reshade::d3d11
 {
@@ -10,18 +10,18 @@ namespace reshade::d3d11
 		_global_counter.vertices += source.total_vertices();
 		_global_counter.drawcalls += source.total_drawcalls();
 
-		for (const auto &[depthstencil, snapshot] : source._counters_per_used_depthstencil)
-		{
-			_counters_per_used_depthstencil[depthstencil].stats.vertices += snapshot.stats.vertices;
-			_counters_per_used_depthstencil[depthstencil].stats.drawcalls += snapshot.stats.drawcalls;
-		}
-
 		for (const auto &[buffer, snapshot] : source._counters_per_constant_buffer)
 		{
 			_counters_per_constant_buffer[buffer].vertices += snapshot.vertices;
 			_counters_per_constant_buffer[buffer].drawcalls += snapshot.drawcalls;
 			_counters_per_constant_buffer[buffer].pixelshaders += snapshot.pixelshaders;
 			_counters_per_constant_buffer[buffer].vertexshaders += snapshot.vertexshaders;
+		}
+
+		for (const auto &[depthstencil, snapshot] : source._counters_per_used_depthstencil)
+		{
+			_counters_per_used_depthstencil[depthstencil].stats.vertices += snapshot.stats.vertices;
+			_counters_per_used_depthstencil[depthstencil].stats.drawcalls += snapshot.stats.drawcalls;
 		}
 	}
 
@@ -33,82 +33,79 @@ namespace reshade::d3d11
 		_counters_per_constant_buffer.clear();
 	}
 
+	void draw_call_tracker::on_map(ID3D11Resource *pResource)
+	{
+		D3D11_RESOURCE_DIMENSION dim;
+		pResource->GetType(&dim);
+
+		if (dim == D3D11_RESOURCE_DIMENSION_BUFFER)
+		{
+			_counters_per_constant_buffer[static_cast<ID3D11Buffer *>(pResource)].mapped += 1;
+		}
+	}
+
 	void draw_call_tracker::on_draw(ID3D11DeviceContext *context, UINT vertices)
 	{
 		_global_counter.vertices += vertices;
 		_global_counter.drawcalls += 1;
 
-		ID3D11RenderTargetView *rendertargets[D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT] = { nullptr };
-		ID3D11DepthStencilView *depthstencil = nullptr;
+		com_ptr<ID3D11RenderTargetView> targets[D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT];
+		com_ptr<ID3D11DepthStencilView> depthstencil;
 
-		context->OMGetRenderTargets(D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT, rendertargets, &depthstencil);
+		context->OMGetRenderTargets(D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT, reinterpret_cast<ID3D11RenderTargetView **>(targets), &depthstencil);
 
-		if (depthstencil == nullptr) {
-			// this is a draw call with no depthstencil
+		if (depthstencil == nullptr)
+			// This is a draw call with no depth stencil
 			return;
-		}
 
-		const auto intermediate_snapshot = _counters_per_used_depthstencil.find(depthstencil);
-
-		if (intermediate_snapshot != _counters_per_used_depthstencil.end())
+		if (const auto intermediate_snapshot = _counters_per_used_depthstencil.find(depthstencil); intermediate_snapshot != _counters_per_used_depthstencil.end())
 		{
 			intermediate_snapshot->second.stats.vertices += vertices;
 			intermediate_snapshot->second.stats.drawcalls += 1;
 
 			// Find the render targets, if they exist, and update their counts
-			for (unsigned int i = 0; i < D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT; i++)
+			for (UINT i = 0; i < D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT; i++)
 			{
-				if (rendertargets[i] != nullptr) {
-					auto it = intermediate_snapshot->second.additional_views.find(rendertargets[i]);
-					if (it != intermediate_snapshot->second.additional_views.end())
-					{
-						it->second.vertices += vertices;
-						it->second.drawcalls += 1;
-					}
-					else {
-						// This shouldn't happen - it means somehow someone has called "draw" with a rendertarget without calling track_rendertargets first
-						LOG(ERROR) << "Draw has been called on an untracked rendertarget.";
-					}
+				// Ignore empty slots
+				if (targets[i] == nullptr)
+					continue;
+
+				if (const auto it = intermediate_snapshot->second.additional_views.find(targets[i]); it != intermediate_snapshot->second.additional_views.end())
+				{
+					it->second.vertices += vertices;
+					it->second.drawcalls += 1;
+				}
+				else
+				{
+					// This shouldn't happen - it means somehow someone has called "draw" with a render target without calling track_rendertargets first
+					LOG(ERROR) << "Draw has been called on an untracked render target.";
 				}
 			}
 		}
 
-		// Capture constant buffers that are used when depthstencils are drawn
-		ID3D11Buffer *vscbuffers[D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT] = { nullptr };
-		context->VSGetConstantBuffers(0, D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT, vscbuffers);
+		// Capture constant buffers that are used when depth stencils are drawn
+		com_ptr<ID3D11Buffer> vscbuffers[D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT];
+		context->VSGetConstantBuffers(0, ARRAYSIZE(vscbuffers), reinterpret_cast<ID3D11Buffer **>(vscbuffers));
 
-		for (unsigned int i = 0; i < D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT; i++)
+		for (UINT i = 0; i < ARRAYSIZE(vscbuffers); i++)
 		{
-			// uses the default drawcalls = 0 the first time around.
+			// Uses the default drawcalls = 0 the first time around.
 			if (vscbuffers[i] != nullptr)
 			{
 				_counters_per_constant_buffer[vscbuffers[i]].vertexshaders += 1;
 			}
 		}
 
-		ID3D11Buffer *pscbuffers[D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT] = { nullptr };
-		context->PSGetConstantBuffers(0, D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT, pscbuffers);
+		com_ptr<ID3D11Buffer> pscbuffers[D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT];
+		context->PSGetConstantBuffers(0, ARRAYSIZE(pscbuffers), reinterpret_cast<ID3D11Buffer **>(pscbuffers));
 
-		for (unsigned int i = 0; i < D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT; i++)
+		for (UINT i = 0; i < ARRAYSIZE(pscbuffers); i++)
 		{
-			// uses the default drawcalls = 0 the first time around.
+			// Uses the default drawcalls = 0 the first time around.
 			if (pscbuffers[i] != nullptr)
 			{
 				_counters_per_constant_buffer[pscbuffers[i]].pixelshaders += 1;
 			}
-		}
-
-	}
-
-	void draw_call_tracker::on_map(ID3D11DeviceContext *context, ID3D11Resource *pResource)
-	{
-
-		D3D11_RESOURCE_DIMENSION dim;
-		pResource->GetType(&dim);
-
-		if (dim == D3D11_RESOURCE_DIMENSION_BUFFER)
-		{
-			_counters_per_constant_buffer[static_cast<ID3D11Buffer*>(pResource)].mapped += 1;
 		}
 	}
 
@@ -117,26 +114,25 @@ namespace reshade::d3d11
 		return _counters_per_used_depthstencil.find(depthstencil) != _counters_per_used_depthstencil.end();
 	}
 
-	void draw_call_tracker::track_rendertargets(ID3D11DepthStencilView *depthstencil, com_ptr<ID3D11Texture2D> texture, UINT numviews, ID3D11RenderTargetView *const *ppRenderTargetViews)
+	void draw_call_tracker::track_rendertargets(ID3D11DepthStencilView *depthstencil, com_ptr<ID3D11Texture2D> texture, UINT num_views, ID3D11RenderTargetView *const *views)
 	{
 		assert(depthstencil != nullptr);
 
-		// if depthstencil is not already being tracked, this will create it
-		_counters_per_used_depthstencil[depthstencil].depthstencil = _counters_per_used_depthstencil[depthstencil].depthstencil == nullptr ? depthstencil : _counters_per_used_depthstencil[depthstencil].depthstencil;
-		_counters_per_used_depthstencil[depthstencil].texture = _counters_per_used_depthstencil[depthstencil].texture == nullptr ? texture : _counters_per_used_depthstencil[depthstencil].texture;
+		if (_counters_per_used_depthstencil[depthstencil].texture == nullptr)
+			_counters_per_used_depthstencil[depthstencil].texture = texture;
+		if (_counters_per_used_depthstencil[depthstencil].depthstencil == nullptr)
+			_counters_per_used_depthstencil[depthstencil].depthstencil = depthstencil;
 
-		for (unsigned int i = 0; i < numviews; i++)
+		for (UINT i = 0; i < num_views; i++)
 		{
-			// if the rendertarget isn't being tracked, this will create it
-			_counters_per_used_depthstencil[depthstencil].additional_views[ppRenderTargetViews[i]].drawcalls += 1;
+			// If the render target isn't being tracked, this will create it
+			_counters_per_used_depthstencil[depthstencil].additional_views[views[i]].drawcalls += 1;
 		}
-
 	}
 
 	void draw_call_tracker::update_tracked_depthtexture(ID3D11DepthStencilView *depthstencil, com_ptr<ID3D11Texture2D> texture)
 	{
-		auto it = _counters_per_used_depthstencil.find(depthstencil);
-		if (it != _counters_per_used_depthstencil.end())
+		if (const auto it = _counters_per_used_depthstencil.find(depthstencil); it != _counters_per_used_depthstencil.end())
 		{
 			it->second.texture = texture;
 		}

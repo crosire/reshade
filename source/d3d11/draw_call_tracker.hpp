@@ -34,11 +34,11 @@ namespace reshade::d3d11
 		void merge(const draw_call_tracker &source);
 		void reset();
 
+		void on_map(ID3D11Resource *pResource);
 		void on_draw(ID3D11DeviceContext *context, UINT vertices);
-		void on_map(ID3D11DeviceContext *context, ID3D11Resource *pResource);
 
 		bool check_depthstencil(ID3D11DepthStencilView *depthstencil) const;
-		void track_rendertargets(ID3D11DepthStencilView *depthstencil, com_ptr<ID3D11Texture2D> texture, UINT numviews, ID3D11RenderTargetView *const *ppRenderTargetViews);
+		void track_rendertargets(ID3D11DepthStencilView *depthstencil, com_ptr<ID3D11Texture2D> texture, UINT num_views, ID3D11RenderTargetView *const *views);
 		void update_tracked_depthtexture(ID3D11DepthStencilView *depthstencil, com_ptr<ID3D11Texture2D> texture);
 
 		intermediate_snapshot_info find_best_snapshot(UINT width, UINT height, DXGI_FORMAT format);
