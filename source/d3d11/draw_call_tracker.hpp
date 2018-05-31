@@ -22,7 +22,7 @@ namespace reshade::d3d11
 			com_ptr<ID3D11DepthStencilView> depthstencil;
 			draw_stats stats;
 			com_ptr<ID3D11Texture2D> texture;
-			std::map<com_ptr<ID3D11RenderTargetView>, draw_stats> additional_views;
+			std::map<ID3D11RenderTargetView *, draw_stats> additional_views;
 		};
 
 		UINT total_vertices() const { return _global_counter.vertices; }

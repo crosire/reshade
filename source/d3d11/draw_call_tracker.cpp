@@ -70,7 +70,7 @@ namespace reshade::d3d11
 				if (targets[i] == nullptr)
 					continue;
 
-				if (const auto it = intermediate_snapshot->second.additional_views.find(targets[i]); it != intermediate_snapshot->second.additional_views.end())
+				if (const auto it = intermediate_snapshot->second.additional_views.find(targets[i].get()); it != intermediate_snapshot->second.additional_views.end())
 				{
 					it->second.vertices += vertices;
 					it->second.drawcalls += 1;
