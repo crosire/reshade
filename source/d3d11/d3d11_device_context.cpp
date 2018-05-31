@@ -36,7 +36,7 @@ bool D3D11DeviceContext::_save_depth_texture(ID3D11DepthStencilView *pDepthStenc
 
 	const auto runtime = _device->_runtimes.front();
 
-	if (!runtime->_depth_buffer_before_clear)
+	if (!runtime->depth_buffer_before_clear())
 	{
 		return false;
 	}
@@ -70,7 +70,7 @@ bool D3D11DeviceContext::_save_depth_texture(ID3D11DepthStencilView *pDepthStenc
 	}
 
 	// in case the depth texture is retrieved, we make a copy of it and store it in an ordered map, to use it after in the final rendering stage
-	if (runtime->_depth_buffer_clearing_number == 0 || _device->_clear_DSV_iter <= runtime->_depth_buffer_clearing_number)
+	if (runtime->depth_buffer_clearing_number() == 0 || _device->_clear_DSV_iter <= runtime->depth_buffer_clearing_number())
 	{
 		// selection of the appropriate destination texture, acording to the depth texture format and dimensions
 		com_ptr<ID3D11Texture2D> depth_texture_save = runtime->select_depth_texture_save(desc);
@@ -84,13 +84,13 @@ bool D3D11DeviceContext::_save_depth_texture(ID3D11DepthStencilView *pDepthStenc
 		// this way, we can retrieve this content in the final rendering stage
 		this->CopyResource(depth_texture_save.get(), texture.get());
 		// store the saved texture in a specific ordered map
-		runtime->track_depthtexture(_device->_clear_DSV_iter, texture.get(), depth_texture_save);
+		runtime->track_depth_texture(_device->_clear_DSV_iter, texture.get(), depth_texture_save);
 	}
-	else if (runtime->_depth_buffer_debug)
+	else
 	{
 		// store a null depth texture in the ordered map, in order to display it even if the user choosed a previous cleared texture
 		// doing so, the texture is still visible in the depth buffer selection window and the user can choose it
-		runtime->track_depthtexture(_device->_clear_DSV_iter, texture.get(), nullptr);
+		runtime->track_depth_texture(_device->_clear_DSV_iter, texture.get(), nullptr);
 	}
 	_replace_depth_texture = false;
 	_device->_clear_DSV_iter++;

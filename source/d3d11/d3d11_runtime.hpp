@@ -60,7 +60,9 @@ namespace reshade::d3d11
 		com_ptr<ID3D11Texture2D> select_depth_texture_save(D3D11_TEXTURE2D_DESC &texture_desc);
 		void track_depth_texture(UINT index, com_ptr<ID3D11Texture2D> src_texture, com_ptr<ID3D11Texture2D> dest_texture);
 
+		const auto &depth_buffer_before_clear() const { return _depth_buffer_before_clear; }
 		const auto &cleared_depth_textures() const { return _cleared_depth_textures; }
+		const auto &depth_buffer_clearing_number() const { return _depth_buffer_clearing_number; }
 
 		struct depth_texture_save_info
 		{
@@ -85,6 +87,7 @@ namespace reshade::d3d11
 		std::unordered_map<UINT, com_ptr<ID3D11Texture2D>> _depth_texture_saves;
 
 	private:
+		int _depth_buffer_texture_format = 0;
 		bool _depth_buffer_selection_displayed = false;
 		bool _depth_buffer_before_clear = false;
 		int _depth_buffer_clearing_number = 0; // depth buffer autoselection by default
@@ -129,6 +132,6 @@ namespace reshade::d3d11
 		draw_call_tracker _current_tracker;
 		bool _auto_detect_cleared_depth_buffer = false;
 		std::map<UINT, depth_texture_save_info> _cleared_depth_textures;
-		std::mutex _cleared_depth_texture_mutex;
+		std::mutex _cleared_depth_textures_mutex;
 	};
 }

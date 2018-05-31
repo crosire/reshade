@@ -50,9 +50,11 @@ namespace reshade::d3d11
 		subscribe_to_menu("DX11", [this]() { draw_select_depth_buffer_menu(); });
 		subscribe_to_load_config([this](const ini_file& config) {
 			config.get("DX11_BUFFER_DETECTION", "DepthBufferRetrievalMode", _depth_buffer_before_clear);
+			config.get("DX11_BUFFER_DETECTION", "DepthBufferClearingNumber", _depth_buffer_clearing_number);
 		});
 		subscribe_to_save_config([this](ini_file& config) {
 			config.set("DX11_BUFFER_DETECTION", "DepthBufferRetrievalMode", _depth_buffer_before_clear);
+			config.set("DX11_BUFFER_DETECTION", "DepthBufferClearingNumber", _depth_buffer_clearing_number);
 		});
 	}
 
@@ -320,11 +322,11 @@ namespace reshade::d3d11
 		// fill the ordered map with the saved depth texture
 		if (it == _cleared_depth_textures.end())
 		{
-			_cleared_depth_textures.emplace(index, reshade::d3d11::d3d11_runtime::texture_counter_info{ src_texture, src_texture_desc, dest_texture });
+			_cleared_depth_textures.emplace(index, reshade::d3d11::d3d11_runtime::depth_texture_save_info{ src_texture, src_texture_desc, dest_texture });
 		}
 		else
 		{
-			it->second = reshade::d3d11::d3d11_runtime::texture_counter_info{ src_texture, src_texture_desc, dest_texture };
+			it->second = reshade::d3d11::d3d11_runtime::depth_texture_save_info{ src_texture, src_texture_desc, dest_texture };
 		}
 	}
 	/* function that selects the best cleared depth texture according to the clearing number defined in the configuration settings */
@@ -332,7 +334,7 @@ namespace reshade::d3d11
 	{
 		ID3D11Texture2D *best_match = nullptr;
 
-		for (const auto &it : cleared_depth_textures())
+		for (const auto &it : _cleared_depth_textures)
 		{
 			UINT i = it.first;
 			auto &texture_counter_info = it.second;
@@ -648,9 +650,7 @@ namespace reshade::d3d11
 
 		_current_tracker = tracker;
 		detect_depth_source(tracker);
-
-		_cleared_depth_textures.clear();
-
+		
 		// Evaluate queries
 		for (technique &technique : _techniques)
 		{
@@ -710,6 +710,9 @@ namespace reshade::d3d11
 
 		// Apply presenting
 		runtime::on_present();
+
+		// clear the depth texture map
+		_cleared_depth_textures.clear();
 
 		// Copy to back buffer
 		if (_backbuffer_resolved != _backbuffer)
@@ -1121,6 +1124,8 @@ namespace reshade::d3d11
 			bool modified = false;
 			modified |= ImGui::Checkbox("Copy depth before clearing", &_depth_buffer_before_clear);
 
+			ImGui::Text("");
+
 			if (!_depth_buffer_before_clear)
 			{
 				for (const auto &it : _current_tracker.depthstencil_counters())
@@ -1156,8 +1161,16 @@ namespace reshade::d3d11
 
 				for (const auto &it : _cleared_depth_textures)
 				{
-					char label[512] = "";
-					sprintf_s(label, "%u", i);
+					char label[512] = "";					
+
+					if (it.first == _selected_depth_buffer_texture_index)
+					{
+						sprintf_s(label, "> %u", i);
+					}
+					else
+					{
+						sprintf_s(label, "  %u", i);
+					}
 
 					if (bool value = _depth_buffer_clearing_number == i; ImGui::Checkbox(label, &value))
 					{
@@ -1177,19 +1190,7 @@ namespace reshade::d3d11
 
 					ImGui::SameLine();
 
-					if (it.first == _selected_depth_buffer_texture_index)
-					{
-						sprintf_s(label, "%s0x%p", "> ", it.first);
-					}
-					else
-					{
-						sprintf_s(label, "%s0x%p", " ", it.first);
-					}
-					ImGui::Text("| %s", label);
-
-					ImGui::SameLine();
-
-					ImGui::Text("| %u", it.second.src_texture);
+					ImGui::Text("| %p", it.second.src_texture);
 
 					ImGui::SameLine(); ImGui::SameLine();
 
@@ -1197,22 +1198,31 @@ namespace reshade::d3d11
 
 					ImGui::SameLine();
 
-					ImGui::Text("| %u", it.second.src_texture_desc.Height);
+					ImGui::Text("x%u", it.second.src_texture_desc.Height);
 
 					if (it.second.dest_texture != nullptr)
 					{
 						ImGui::SameLine();
 
-						ImGui::Text("=> %u", it.second.dest_texture);
+						ImGui::Text("=> %p", it.second.dest_texture);
 					}
 
 					i++;
 				}
+
+				ImGui::Text("");
+
+				if (_auto_detect_cleared_depth_buffer)
+				{
+					ImGui::Text("Auto detect depth buffer texture");
+				}
+
+				ImGui::Text("Depth texture number %u selected", static_cast<unsigned int>(_selected_depth_buffer_texture_index));
 			}
 
 			if (_depth_buffer_before_clear && _auto_detect_cleared_depth_buffer && _cleared_depth_textures.size() > 0)
 			{
-				_selected_depth_buffer_texture_index = _depth_textures.size();
+				_selected_depth_buffer_texture_index = _cleared_depth_textures.size();
 			}
 
 			if (modified)
