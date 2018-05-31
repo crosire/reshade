@@ -47,6 +47,7 @@ void D3D11Device::clear_drawcall_stats()
 	const std::lock_guard<std::mutex> lock(_trackers_per_commandlist_mutex);
 
 	_trackers_per_commandlist.clear();
+	_clear_DSV_iter = 1;
 }
 
 // ID3D11Device

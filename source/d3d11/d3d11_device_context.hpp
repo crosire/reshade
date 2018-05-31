@@ -196,9 +196,11 @@ struct D3D11DeviceContext : ID3D11DeviceContext3
 
 	void track_active_depthstencil(ID3D11DepthStencilView* pDepthStencilView);
 	void track_cleared_depthstencil(ID3D11DepthStencilView* pDepthStencilView);
+	bool _save_depth_texture(ID3D11DepthStencilView *pDepthStencilView);
 
 	LONG _ref = 1;
 	ID3D11DeviceContext *_orig;
+	bool _replace_depth_texture = false;
 	unsigned int _interface_version;
 	D3D11Device *const _device;
 	com_ptr<ID3D11DepthStencilView> _active_depthstencil;

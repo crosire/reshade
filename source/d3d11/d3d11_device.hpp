@@ -115,4 +115,5 @@ struct D3D11Device : ID3D11Device3
 	std::vector<std::shared_ptr<reshade::d3d11::d3d11_runtime>> _runtimes;
 	std::unordered_map<ID3D11CommandList *, reshade::d3d11::draw_call_tracker> _trackers_per_commandlist;
 	std::mutex _trackers_per_commandlist_mutex;
+	unsigned int _clear_DSV_iter = 1;
 };
