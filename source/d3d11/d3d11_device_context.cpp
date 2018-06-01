@@ -22,7 +22,7 @@ void D3D11DeviceContext::clear_drawcall_stats()
 	_active_depthstencil.reset();
 }
 /* fonction that saves the depth texture associated to a depthstencil view, in order to use it in the final rendering stage */
-bool D3D11DeviceContext::_save_depth_texture(ID3D11DepthStencilView *pDepthStencilView)
+bool D3D11DeviceContext::save_depth_texture(ID3D11DepthStencilView *pDepthStencilView)
 {
 	if (pDepthStencilView == nullptr)
 	{
@@ -36,7 +36,7 @@ bool D3D11DeviceContext::_save_depth_texture(ID3D11DepthStencilView *pDepthStenc
 
 	const auto runtime = _device->_runtimes.front();
 
-	if (!runtime->depth_buffer_before_clear())
+	if (!runtime->depth_buffer_before_clear)
 	{
 		return false;
 	}
@@ -63,14 +63,14 @@ bool D3D11DeviceContext::_save_depth_texture(ID3D11DepthStencilView *pDepthStenc
 
 	// In some cases (TitanFall2, for instance) the dimensions of the cleared depth texture are greater than the back buffer ones, because it is embedded in a greater rect
 	// As there is no easy way to stretch it, we try to replace it with the next depth texture retrieved with the OMSetRenderTargets method (this works well in TitanFall2 or Middle Earth Shadow Of War)
-	if (float(desc.Width) > float(runtime->frame_width()))
+	if (desc.Width > runtime->frame_width())
 	{
 		_replace_depth_texture = true;
 		return false;
 	}
 
 	// in case the depth texture is retrieved, we make a copy of it and store it in an ordered map, to use it after in the final rendering stage
-	if (runtime->depth_buffer_clearing_number() == 0 || _device->_clear_DSV_iter <= runtime->depth_buffer_clearing_number())
+	if (runtime->depth_buffer_clearing_number == 0 || _device->_clear_DSV_iter <= runtime->depth_buffer_clearing_number)
 	{
 		// selection of the appropriate destination texture, acording to the depth texture format and dimensions
 		com_ptr<ID3D11Texture2D> depth_texture_save = runtime->select_depth_texture_save(desc);
@@ -118,7 +118,7 @@ void D3D11DeviceContext::track_active_depthstencil(ID3D11DepthStencilView *pDept
 		return;
 	}
 
-	if (!_save_depth_texture(pDepthStencilView))
+	if (!save_depth_texture(pDepthStencilView))
 	{
 		return;
 	}
@@ -130,7 +130,7 @@ void D3D11DeviceContext::track_cleared_depthstencil(ID3D11DepthStencilView *pDep
 	_replace_depth_texture = false;
 
 	// Save texture from depth stencil
-	_save_depth_texture(pDepthStencilView);
+	save_depth_texture(pDepthStencilView);
 }
 
 // ID3D11DeviceContext

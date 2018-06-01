@@ -49,12 +49,12 @@ namespace reshade::d3d11
 
 		subscribe_to_menu("DX11", [this]() { draw_select_depth_buffer_menu(); });
 		subscribe_to_load_config([this](const ini_file& config) {
-			config.get("DX11_BUFFER_DETECTION", "DepthBufferRetrievalMode", _depth_buffer_before_clear);
-			config.get("DX11_BUFFER_DETECTION", "DepthBufferClearingNumber", _depth_buffer_clearing_number);
+			config.get("DX11_BUFFER_DETECTION", "DepthBufferRetrievalMode", depth_buffer_before_clear);
+			config.get("DX11_BUFFER_DETECTION", "DepthBufferClearingNumber", depth_buffer_clearing_number);
 		});
 		subscribe_to_save_config([this](ini_file& config) {
-			config.set("DX11_BUFFER_DETECTION", "DepthBufferRetrievalMode", _depth_buffer_before_clear);
-			config.set("DX11_BUFFER_DETECTION", "DepthBufferClearingNumber", _depth_buffer_clearing_number);
+			config.set("DX11_BUFFER_DETECTION", "DepthBufferRetrievalMode", depth_buffer_before_clear);
+			config.set("DX11_BUFFER_DETECTION", "DepthBufferClearingNumber", depth_buffer_clearing_number);
 		});
 	}
 
@@ -317,12 +317,12 @@ namespace reshade::d3d11
 		// check if it is really a depth texture
 		assert((src_texture_desc.BindFlags & D3D11_BIND_DEPTH_STENCIL) != 0);
 
-		const auto it = _cleared_depth_textures.find(index);
+		const auto it = cleared_depth_textures.find(index);
 
 		// fill the ordered map with the saved depth texture
-		if (it == _cleared_depth_textures.end())
+		if (it == cleared_depth_textures.end())
 		{
-			_cleared_depth_textures.emplace(index, reshade::d3d11::d3d11_runtime::depth_texture_save_info{ src_texture, src_texture_desc, dest_texture });
+			cleared_depth_textures.emplace(index, reshade::d3d11::d3d11_runtime::depth_texture_save_info{ src_texture, src_texture_desc, dest_texture });
 		}
 		else
 		{
@@ -334,7 +334,7 @@ namespace reshade::d3d11
 	{
 		ID3D11Texture2D *best_match = nullptr;
 
-		for (const auto &it : _cleared_depth_textures)
+		for (const auto &it : cleared_depth_textures)
 		{
 			UINT i = it.first;
 			auto &texture_counter_info = it.second;
@@ -712,7 +712,7 @@ namespace reshade::d3d11
 		runtime::on_present();
 
 		// clear the depth texture map
-		_cleared_depth_textures.clear();
+		cleared_depth_textures.clear();
 
 		// Copy to back buffer
 		if (_backbuffer_resolved != _backbuffer)
@@ -1121,11 +1121,11 @@ namespace reshade::d3d11
 		if (ImGui::CollapsingHeader("Buffer Detection", ImGuiTreeNodeFlags_DefaultOpen))
 		{
 			bool modified = false;
-			modified |= ImGui::Checkbox("Copy depth before clearing", &_depth_buffer_before_clear);
+			modified |= ImGui::Checkbox("Copy depth before clearing", &depth_buffer_before_clear);
 
 			ImGui::Text("");
 
-			if (!_depth_buffer_before_clear)
+			if (!depth_buffer_before_clear)
 			{
 				for (const auto &it : _current_tracker.depthstencil_counters())
 				{
@@ -1158,7 +1158,7 @@ namespace reshade::d3d11
 			{
 				unsigned int i = 1;
 
-				for (const auto &it : _cleared_depth_textures)
+				for (const auto &it : cleared_depth_textures)
 				{
 					char label[512] = "";					
 
@@ -1171,18 +1171,18 @@ namespace reshade::d3d11
 						sprintf_s(label, "  %u", i);
 					}
 
-					if (bool value = _depth_buffer_clearing_number == i; ImGui::Checkbox(label, &value))
+					if (bool value = depth_buffer_clearing_number == i; ImGui::Checkbox(label, &value))
 					{
 						if (value)
 						{
-							_depth_buffer_clearing_number = _selected_depth_buffer_texture_index = i;
-							_auto_detect_cleared_depth_buffer = false;
+							depth_buffer_clearing_number = _selected_depth_buffer_texture_index = i;
+							auto_detect_cleared_depth_buffer = false;
 							modified = true;
 						}
 						else
 						{
-							_depth_buffer_clearing_number = 0;
-							_auto_detect_cleared_depth_buffer = true;
+							depth_buffer_clearing_number = 0;
+							auto_detect_cleared_depth_buffer = true;
 							modified = true;
 						}
 					}
@@ -1191,7 +1191,7 @@ namespace reshade::d3d11
 
 					ImGui::Text("| %p", it.second.src_texture);
 
-					ImGui::SameLine(); ImGui::SameLine();
+					ImGui::SameLine();
 
 					ImGui::Text("| %u", it.second.src_texture_desc.Width);
 
@@ -1211,7 +1211,7 @@ namespace reshade::d3d11
 
 				ImGui::Text("");
 
-				if (_auto_detect_cleared_depth_buffer)
+				if (auto_detect_cleared_depth_buffer)
 				{
 					ImGui::Text("Auto detect depth buffer texture");
 				}
@@ -1219,9 +1219,9 @@ namespace reshade::d3d11
 				ImGui::Text("Depth texture number %u selected", static_cast<unsigned int>(_selected_depth_buffer_texture_index));
 			}
 
-			if (_depth_buffer_before_clear && _auto_detect_cleared_depth_buffer && _cleared_depth_textures.size() > 0)
+			if (depth_buffer_before_clear && auto_detect_cleared_depth_buffer && cleared_depth_textures.size() > 0)
 			{
-				_selected_depth_buffer_texture_index = _cleared_depth_textures.size();
+				_selected_depth_buffer_texture_index = cleared_depth_textures.size();
 			}
 
 			if (modified)
@@ -1278,7 +1278,7 @@ namespace reshade::d3d11
 		ID3D11DepthStencilView *best_match = nullptr;
 		ID3D11Texture2D *best_match_texture = nullptr;
 
-		if (!_depth_buffer_before_clear)
+		if (!depth_buffer_before_clear)
 		{
 			const auto[best_match, best_match_texture] = tracker.find_best_depth_stencil(_width, _height, depth_texture_formats[_depth_buffer_texture_format]);
 		}
@@ -1290,7 +1290,7 @@ namespace reshade::d3d11
 			// For the moment, the best we can do is retrieve all the depth textures that has been cleared in the rendering pipeline, then select one of them (by default, the last one)
 			// In the future, maybe we could find a way to retrieve depth texture statistics (number of draw calls and number of vertices), so Reshade could automatically select the best one
 			best_match = _default_depthstencil.get();
-			best_match_texture = find_best_cleared_depth_buffer_texture(depth_texture_formats[_depth_buffer_texture_format], _depth_buffer_clearing_number);
+			best_match_texture = find_best_cleared_depth_buffer_texture(depth_texture_formats[_depth_buffer_texture_format], depth_buffer_clearing_number);
 		}		
 
 		if (best_match == nullptr || best_match_texture == nullptr)

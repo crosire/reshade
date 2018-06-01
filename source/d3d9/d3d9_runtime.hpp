@@ -75,7 +75,7 @@ namespace reshade::d3d9
 		bool init_fx_resources();
 		bool init_imgui_font_atlas();
 
-		void draw_debug_menu();
+		void draw_select_depth_buffer_menu();
 
 		void detect_depth_source();
 		bool create_depthstencil_replacement(IDirect3DSurface9 *depthstencil);

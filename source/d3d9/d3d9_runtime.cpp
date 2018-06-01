@@ -41,7 +41,7 @@ namespace reshade::d3d9
 		_num_samplers = caps.MaxSimultaneousTextures;
 		_num_simultaneous_rendertargets = std::min(caps.NumSimultaneousRTs, DWORD(8));
 
-		subscribe_to_menu("DX9", [this]() { draw_debug_menu(); });
+		subscribe_to_menu("DX9", [this]() { draw_select_depth_buffer_menu(); });
 		subscribe_to_load_config([this](const ini_file& config) {
 			config.get("DX9_BUFFER_DETECTION", "DisableINTZ", _disable_intz);
 		});
@@ -851,7 +851,7 @@ namespace reshade::d3d9
 		}
 	}
 
-	void d3d9_runtime::draw_debug_menu()
+	void d3d9_runtime::draw_select_depth_buffer_menu()
 	{
 		if (ImGui::CollapsingHeader("Buffer Detection", ImGuiTreeNodeFlags_DefaultOpen))
 		{
