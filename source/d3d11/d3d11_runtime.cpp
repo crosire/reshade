@@ -1120,7 +1120,6 @@ namespace reshade::d3d11
 	{
 		if (ImGui::CollapsingHeader("Buffer Detection", ImGuiTreeNodeFlags_DefaultOpen))
 		{
-			_depth_buffer_selection_displayed = true;
 			bool modified = false;
 			modified |= ImGui::Checkbox("Copy depth before clearing", &_depth_buffer_before_clear);
 
@@ -1229,10 +1228,6 @@ namespace reshade::d3d11
 			{
 				runtime::save_config();
 			}
-		}
-		else
-		{
-			_depth_buffer_selection_displayed = false;
 		}
 	}
 

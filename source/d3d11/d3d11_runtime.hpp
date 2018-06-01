@@ -88,7 +88,6 @@ namespace reshade::d3d11
 
 	private:
 		int _depth_buffer_texture_format = 0;
-		bool _depth_buffer_selection_displayed = false;
 		bool _depth_buffer_before_clear = false;
 		int _depth_buffer_clearing_number = 0; // depth buffer autoselection by default
 		unsigned int _selected_depth_buffer_texture_index = 0;
