@@ -365,8 +365,8 @@ namespace reshade::d3d11
 
 			// the _cleared_dept_textures ordered map stores the depth textures, according to the order of clearing
 			// if depth_buffer_clearing_number == 0, the auto select mode is defined, so the last cleared depth texture is retrieved
-			// if the user selects a clearing number and the number of the cleared depth texture is greater or equal than it, the texture corresponding to this number is retrieved
-			// if the user selects a clearing number and the number of the cleared depth texture is lower than it, the last cleared depth texture is retrieved
+			// if the user selects a clearing number and the number of cleared depth textures is greater or equal than it, the texture corresponding to this number is retrieved
+			// if the user selects a clearing number and the number of cleared depth textures is lower than it, the last cleared depth texture is retrieved
 			best_match = texture.get();
 		}
 
