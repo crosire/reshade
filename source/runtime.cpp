@@ -1917,16 +1917,24 @@ namespace reshade
 	}
 	void runtime::draw_overlay_menu_log()
 	{
+		if (ImGui::Button("Clear Log"))
+		{
+			reshade::log::lines.clear();
+		}
+
+		ImGui::SameLine();
+		ImGui::Checkbox("Word Wrap", &_log_wordwrap);
+		ImGui::SameLine();
+
 		static ImGuiTextFilter filter; // TODO: Better make this a member of the runtime class, in case there are multiple instances.
-		filter.Draw();
+		filter.Draw("Filter (inc, -exc)", -150);
 
 		std::vector<std::string> lines;
 		for (auto &line : reshade::log::lines)
 			if (filter.PassFilter(line.c_str()))
 				lines.push_back(line);
 
-		ImGui::SameLine(0, 20);
-		ImGui::Checkbox("Word Wrap", &_log_wordwrap);
+		ImGui::BeginChild("log");
 
 		ImGuiListClipper clipper(static_cast<int>(lines.size()), ImGui::GetTextLineHeightWithSpacing());
 
@@ -1951,6 +1959,8 @@ namespace reshade
 		}
 
 		clipper.End();
+
+		ImGui::EndChild();
 	}
 	void runtime::draw_overlay_menu_about()
 	{
