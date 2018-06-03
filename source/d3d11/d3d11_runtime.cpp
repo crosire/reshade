@@ -1,7 +1,7 @@
 /**
- * Copyright (C) 2014 Patrick Mours. All rights reserved.
- * License: https://github.com/crosire/reshade#license
- */
+* Copyright (C) 2014 Patrick Mours. All rights reserved.
+* License: https://github.com/crosire/reshade#license
+*/
 
 #include "log.hpp"
 #include "d3d11_runtime.hpp"
@@ -222,9 +222,9 @@ namespace reshade::d3d11
 			_height,
 			1, 1,
 			DXGI_FORMAT_D24_UNORM_S8_UINT,
-			{ 1, 0 },
-			D3D11_USAGE_DEFAULT,
-			D3D11_BIND_DEPTH_STENCIL
+		{ 1, 0 },
+		D3D11_USAGE_DEFAULT,
+		D3D11_BIND_DEPTH_STENCIL
 		};
 
 		com_ptr<ID3D11Texture2D> depth_stencil_texture;
@@ -302,76 +302,6 @@ namespace reshade::d3d11
 
 		return depth_texture_save;
 	}
-	/* function that keeps track of a cleared depth texture in an ordered map, in order to retrieve it at the final rendering stage */
-	/* gathers some extra infos in order to display it on a select window */
-	void d3d11_runtime::track_depth_texture(UINT index, com_ptr<ID3D11Texture2D> src_texture, com_ptr<ID3D11Texture2D> dest_texture)
-	{
-		assert(src_texture != nullptr);
-
-		// when called from a device context, we must ensure that no conflict occurs
-		const std::lock_guard<std::mutex> lock(_cleared_depth_textures_mutex);
-
-		D3D11_TEXTURE2D_DESC src_texture_desc;
-		src_texture->GetDesc(&src_texture_desc);
-
-		// check if it is really a depth texture
-		assert((src_texture_desc.BindFlags & D3D11_BIND_DEPTH_STENCIL) != 0);
-
-		const auto it = cleared_depth_textures.find(index);
-
-		// fill the ordered map with the saved depth texture
-		if (it == cleared_depth_textures.end())
-		{
-			cleared_depth_textures.emplace(index, reshade::d3d11::d3d11_runtime::depth_texture_save_info{ src_texture, src_texture_desc, dest_texture });
-		}
-		else
-		{
-			it->second = reshade::d3d11::d3d11_runtime::depth_texture_save_info{ src_texture, src_texture_desc, dest_texture };
-		}
-	}
-	/* function that selects the best cleared depth texture according to the clearing number defined in the configuration settings */
-	ID3D11Texture2D *d3d11_runtime::find_best_cleared_depth_buffer_texture(DXGI_FORMAT format, UINT depth_buffer_clearing_number)
-	{
-		ID3D11Texture2D *best_match = nullptr;
-
-		for (const auto &it : cleared_depth_textures)
-		{
-			UINT i = it.first;
-			auto &texture_counter_info = it.second;
-
-			com_ptr<ID3D11Texture2D> texture;
-
-			if (texture_counter_info.dest_texture == nullptr)
-			{
-				continue;
-			}
-
-			texture = texture_counter_info.dest_texture;
-
-			D3D11_TEXTURE2D_DESC desc;
-			texture->GetDesc(&desc);
-
-			// Check texture format
-			if (format != DXGI_FORMAT_UNKNOWN && desc.Format != format)
-			{
-				// No match, texture format does not equal filter
-				continue;
-			}
-			
-			if (depth_buffer_clearing_number != 0 && i > depth_buffer_clearing_number)
-			{
-				continue;
-			}
-
-			// the _cleared_dept_textures ordered map stores the depth textures, according to the order of clearing
-			// if depth_buffer_clearing_number == 0, the auto select mode is defined, so the last cleared depth texture is retrieved
-			// if the user selects a clearing number and the number of cleared depth textures is greater or equal than it, the texture corresponding to this number is retrieved
-			// if the user selects a clearing number and the number of cleared depth textures is lower than it, the last cleared depth texture is retrieved
-			best_match = texture.get();
-		}
-
-		return best_match;
-	}
 	bool d3d11_runtime::init_fx_resources()
 	{
 		D3D11_RASTERIZER_DESC desc = { };
@@ -399,8 +329,8 @@ namespace reshade::d3d11
 			// Create the input layout
 			const D3D11_INPUT_ELEMENT_DESC input_layout[] = {
 				{ "POSITION", 0, DXGI_FORMAT_R32G32_FLOAT, 0, offsetof(ImDrawVert, pos), D3D11_INPUT_PER_VERTEX_DATA, 0 },
-				{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, offsetof(ImDrawVert, uv), D3D11_INPUT_PER_VERTEX_DATA, 0 },
-				{ "COLOR", 0, DXGI_FORMAT_R8G8B8A8_UNORM, 0, offsetof(ImDrawVert, col), D3D11_INPUT_PER_VERTEX_DATA, 0 },
+			{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, offsetof(ImDrawVert, uv), D3D11_INPUT_PER_VERTEX_DATA, 0 },
+			{ "COLOR", 0, DXGI_FORMAT_R8G8B8A8_UNORM, 0, offsetof(ImDrawVert, col), D3D11_INPUT_PER_VERTEX_DATA, 0 },
 			};
 
 			hr = _device->CreateInputLayout(input_layout, _countof(input_layout), vs.data, vs.data_size, &_imgui_input_layout);
@@ -521,9 +451,9 @@ namespace reshade::d3d11
 			static_cast<UINT>(height),
 			1, 1,
 			DXGI_FORMAT_R8G8B8A8_UNORM,
-			{ 1, 0 },
-			D3D11_USAGE_DEFAULT,
-			D3D11_BIND_SHADER_RESOURCE
+		{ 1, 0 },
+		D3D11_USAGE_DEFAULT,
+		D3D11_BIND_SHADER_RESOURCE
 		};
 		const D3D11_SUBRESOURCE_DATA tex_data = {
 			pixels,
@@ -650,7 +580,7 @@ namespace reshade::d3d11
 
 		_current_tracker = tracker;
 		detect_depth_source(tracker);
-		
+
 		// Evaluate queries
 		for (technique &technique : _techniques)
 		{
@@ -710,9 +640,6 @@ namespace reshade::d3d11
 
 		// Apply presenting
 		runtime::on_present();
-
-		// clear the depth texture map
-		cleared_depth_textures.clear();
 
 		// Copy to back buffer
 		if (_backbuffer_resolved != _backbuffer)
@@ -1158,9 +1085,9 @@ namespace reshade::d3d11
 			{
 				unsigned int i = 1;
 
-				for (const auto &it : cleared_depth_textures)
+				for (const auto &it : _current_tracker.cleared_depth_textures())
 				{
-					char label[512] = "";					
+					char label[512] = "";
 
 					if (it.first == _selected_depth_buffer_texture_index)
 					{
@@ -1219,9 +1146,9 @@ namespace reshade::d3d11
 				ImGui::Text("Depth texture number %u selected", static_cast<unsigned int>(_selected_depth_buffer_texture_index));
 			}
 
-			if (depth_buffer_before_clear && auto_detect_cleared_depth_buffer && cleared_depth_textures.size() > 0)
+			if (depth_buffer_before_clear && auto_detect_cleared_depth_buffer && _current_tracker.cleared_depth_textures().size() > 0)
 			{
-				_selected_depth_buffer_texture_index = cleared_depth_textures.size();
+				_selected_depth_buffer_texture_index = _current_tracker.cleared_depth_textures().size();
 			}
 
 			if (modified)
@@ -1233,6 +1160,11 @@ namespace reshade::d3d11
 
 	void d3d11_runtime::detect_depth_source(draw_call_tracker &tracker)
 	{
+		if (depth_buffer_before_clear == true)
+		{
+			_best_depth_stencil_overwrite = nullptr;
+		}
+
 		if (_best_depth_stencil_overwrite != nullptr)
 		{
 			return;
@@ -1290,8 +1222,8 @@ namespace reshade::d3d11
 			// For the moment, the best we can do is retrieve all the depth textures that has been cleared in the rendering pipeline, then select one of them (by default, the last one)
 			// In the future, maybe we could find a way to retrieve depth texture statistics (number of draw calls and number of vertices), so Reshade could automatically select the best one
 			best_match = _default_depthstencil.get();
-			best_match_texture = find_best_cleared_depth_buffer_texture(depth_texture_formats[_depth_buffer_texture_format], depth_buffer_clearing_number);
-		}		
+			best_match_texture = tracker.find_best_cleared_depth_buffer_texture(depth_texture_formats[_depth_buffer_texture_format], depth_buffer_clearing_number);
+		}
 
 		if (best_match == nullptr || best_match_texture == nullptr)
 		{

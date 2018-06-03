@@ -1,7 +1,7 @@
 /**
- * Copyright (C) 2014 Patrick Mours. All rights reserved.
- * License: https://github.com/crosire/reshade#license
- */
+* Copyright (C) 2014 Patrick Mours. All rights reserved.
+* License: https://github.com/crosire/reshade#license
+*/
 
 #pragma once
 
@@ -57,20 +57,11 @@ namespace reshade::d3d11
 		void render_technique(const technique &technique) override;
 		void render_imgui_draw_data(ImDrawData *data) override;
 
-		com_ptr<ID3D11Texture2D> select_depth_texture_save(D3D11_TEXTURE2D_DESC &texture_desc);
-		void track_depth_texture(UINT index, com_ptr<ID3D11Texture2D> src_texture, com_ptr<ID3D11Texture2D> dest_texture);
+		com_ptr<ID3D11Texture2D> d3d11_runtime::select_depth_texture_save(D3D11_TEXTURE2D_DESC &texture_desc);
 
-		struct depth_texture_save_info
-		{
-			com_ptr<ID3D11Texture2D> src_texture;
-			D3D11_TEXTURE2D_DESC src_texture_desc;
-			com_ptr<ID3D11Texture2D> dest_texture;
-		};
-		
 		bool depth_buffer_before_clear = false;
 		bool auto_detect_cleared_depth_buffer = false;
-		int depth_buffer_clearing_number = 0; // depth buffer autoselection by default
-		std::map<UINT, depth_texture_save_info> cleared_depth_textures;
+		unsigned int depth_buffer_clearing_number = 0; // depth buffer autoselection by default
 
 		com_ptr<ID3D11Device> _device;
 		com_ptr<ID3D11DeviceContext> _immediate_context;
@@ -101,7 +92,6 @@ namespace reshade::d3d11
 
 		void detect_depth_source(draw_call_tracker& tracker);
 		bool create_depthstencil_replacement(ID3D11DepthStencilView *depthstencil, ID3D11Texture2D *texture);
-		ID3D11Texture2D *find_best_cleared_depth_buffer_texture(DXGI_FORMAT format, UINT depth_buffer_clearing_number);
 
 		bool _is_multisampling_enabled = false;
 		DXGI_FORMAT _backbuffer_format = DXGI_FORMAT_UNKNOWN;
@@ -128,6 +118,5 @@ namespace reshade::d3d11
 		com_ptr<ID3D11DepthStencilState> _imgui_depthstencil_state;
 		int _imgui_vertex_buffer_size = 0, _imgui_index_buffer_size = 0;
 		draw_call_tracker _current_tracker;
-		std::mutex _cleared_depth_textures_mutex;
 	};
 }

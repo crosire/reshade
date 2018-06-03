@@ -1,7 +1,7 @@
 /**
- * Copyright (C) 2014 Patrick Mours. All rights reserved.
- * License: https://github.com/crosire/reshade#license
- */
+* Copyright (C) 2014 Patrick Mours. All rights reserved.
+* License: https://github.com/crosire/reshade#license
+*/
 
 #include "log.hpp"
 #include "d3d11_device.hpp"
@@ -84,13 +84,13 @@ bool D3D11DeviceContext::save_depth_texture(ID3D11DepthStencilView *pDepthStenci
 		// this way, we can retrieve this content in the final rendering stage
 		this->CopyResource(depth_texture_save.get(), texture.get());
 		// store the saved texture in a specific ordered map
-		runtime->track_depth_texture(_device->_clear_DSV_iter, texture.get(), depth_texture_save);
+		_draw_call_tracker.track_depth_texture(_device->_clear_DSV_iter, texture.get(), depth_texture_save);
 	}
 	else
 	{
 		// store a null depth texture in the ordered map, in order to display it even if the user choosed a previous cleared texture
 		// doing so, the texture is still visible in the depth buffer selection window and the user can choose it
-		runtime->track_depth_texture(_device->_clear_DSV_iter, texture.get(), nullptr);
+		_draw_call_tracker.track_depth_texture(_device->_clear_DSV_iter, texture.get(), nullptr);
 	}
 	_replace_depth_texture = false;
 	_device->_clear_DSV_iter++;
@@ -149,7 +149,7 @@ HRESULT STDMETHODCALLTYPE D3D11DeviceContext::QueryInterface(REFIID riid, void *
 		riid == __uuidof(ID3D11DeviceContext2) ||
 		riid == __uuidof(ID3D11DeviceContext3))
 	{
-		#pragma region Update to ID3D11DeviceContext1 interface
+#pragma region Update to ID3D11DeviceContext1 interface
 		if (riid == __uuidof(ID3D11DeviceContext1) && _interface_version < 1)
 		{
 			ID3D11DeviceContext1 *devicecontext1 = nullptr;
@@ -166,8 +166,8 @@ HRESULT STDMETHODCALLTYPE D3D11DeviceContext::QueryInterface(REFIID riid, void *
 			_orig = devicecontext1;
 			_interface_version = 1;
 		}
-		#pragma endregion
-		#pragma region Update to ID3D11DeviceContext2 interface
+#pragma endregion
+#pragma region Update to ID3D11DeviceContext2 interface
 		if (riid == __uuidof(ID3D11DeviceContext2) && _interface_version < 2)
 		{
 			ID3D11DeviceContext2 *devicecontext2 = nullptr;
@@ -184,8 +184,8 @@ HRESULT STDMETHODCALLTYPE D3D11DeviceContext::QueryInterface(REFIID riid, void *
 			_orig = devicecontext2;
 			_interface_version = 2;
 		}
-		#pragma endregion
-		#pragma region Update to ID3D11DeviceContext3 interface
+#pragma endregion
+#pragma region Update to ID3D11DeviceContext3 interface
 		if (riid == __uuidof(ID3D11DeviceContext3) && _interface_version < 3)
 		{
 			ID3D11DeviceContext3 *devicecontext3 = nullptr;
@@ -202,7 +202,7 @@ HRESULT STDMETHODCALLTYPE D3D11DeviceContext::QueryInterface(REFIID riid, void *
 			_orig = devicecontext3;
 			_interface_version = 3;
 		}
-		#pragma endregion
+#pragma endregion
 
 		AddRef();
 
@@ -710,7 +710,7 @@ HRESULT STDMETHODCALLTYPE D3D11DeviceContext::FinishCommandList(BOOL RestoreDefe
 {
 	const HRESULT hr = _orig->FinishCommandList(RestoreDeferredContextState, ppCommandList);
 
-	if (SUCCEEDED(hr) && ppCommandList != nullptr && _draw_call_tracker.drawcalls() > 0)
+	if (SUCCEEDED(hr) && ppCommandList != nullptr)
 	{
 		_device->add_commandlist_trackers(*ppCommandList, _draw_call_tracker);
 	}
