@@ -1,7 +1,7 @@
 /**
-* Copyright (C) 2014 Patrick Mours. All rights reserved.
-* License: https://github.com/crosire/reshade#license
-*/
+ * Copyright (C) 2014 Patrick Mours. All rights reserved.
+ * License: https://github.com/crosire/reshade#license
+ */
 
 #include "log.hpp"
 #include "d3d11_runtime.hpp"
@@ -222,9 +222,9 @@ namespace reshade::d3d11
 			_height,
 			1, 1,
 			DXGI_FORMAT_D24_UNORM_S8_UINT,
-		{ 1, 0 },
-		D3D11_USAGE_DEFAULT,
-		D3D11_BIND_DEPTH_STENCIL
+			{ 1, 0 },
+			D3D11_USAGE_DEFAULT,
+			D3D11_BIND_DEPTH_STENCIL
 		};
 
 		com_ptr<ID3D11Texture2D> depth_stencil_texture;
@@ -329,8 +329,8 @@ namespace reshade::d3d11
 			// Create the input layout
 			const D3D11_INPUT_ELEMENT_DESC input_layout[] = {
 				{ "POSITION", 0, DXGI_FORMAT_R32G32_FLOAT, 0, offsetof(ImDrawVert, pos), D3D11_INPUT_PER_VERTEX_DATA, 0 },
-			{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, offsetof(ImDrawVert, uv), D3D11_INPUT_PER_VERTEX_DATA, 0 },
-			{ "COLOR", 0, DXGI_FORMAT_R8G8B8A8_UNORM, 0, offsetof(ImDrawVert, col), D3D11_INPUT_PER_VERTEX_DATA, 0 },
+				{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, offsetof(ImDrawVert, uv), D3D11_INPUT_PER_VERTEX_DATA, 0 },
+				{ "COLOR", 0, DXGI_FORMAT_R8G8B8A8_UNORM, 0, offsetof(ImDrawVert, col), D3D11_INPUT_PER_VERTEX_DATA, 0 },
 			};
 
 			hr = _device->CreateInputLayout(input_layout, _countof(input_layout), vs.data, vs.data_size, &_imgui_input_layout);
@@ -451,9 +451,9 @@ namespace reshade::d3d11
 			static_cast<UINT>(height),
 			1, 1,
 			DXGI_FORMAT_R8G8B8A8_UNORM,
-		{ 1, 0 },
-		D3D11_USAGE_DEFAULT,
-		D3D11_BIND_SHADER_RESOURCE
+			{ 1, 0 },
+			D3D11_USAGE_DEFAULT,
+			D3D11_BIND_SHADER_RESOURCE
 		};
 		const D3D11_SUBRESOURCE_DATA tex_data = {
 			pixels,
