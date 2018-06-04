@@ -386,7 +386,9 @@ namespace reshade
 
 				if (index >= 0 && index < 5)
 				{
-					if (variable.annotations["toggle"].as<bool>())
+					const std::string mode = variable.annotations["mode"].as<std::string>();
+
+					if (mode == "toggle" || variable.annotations["toggle"].as<bool>())
 					{
 						bool current = false;
 						get_uniform_value(variable, &current, 1);
@@ -397,6 +399,12 @@ namespace reshade
 
 							set_uniform_value(variable, &current, 1);
 						}
+					}
+					else if (mode == "press")
+					{
+						const bool state = _input->is_mouse_button_pressed(index);
+
+						set_uniform_value(variable, &state, 1);
 					}
 					else
 					{
