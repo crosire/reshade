@@ -753,6 +753,7 @@ namespace reshade
 		config.get("GENERAL", "ShowClock", _show_clock);
 		config.get("GENERAL", "ShowFPS", _show_framerate);
 		config.get("GENERAL", "FontGlobalScale", _imgui_context->IO.FontGlobalScale);
+		config.get("GENERAL", "NoFontScaling", _no_font_scaling);
 		config.get("GENERAL", "NoReloadOnInit", _no_reload_on_init);
 		config.get("GENERAL", "SaveWindowState", _save_imgui_window_state);
 
@@ -1138,7 +1139,7 @@ namespace reshade
 			imgui_io.MouseDown[i] = _input->is_mouse_button_down(i);
 		}
 
-		if (imgui_io.KeyCtrl)
+		if (imgui_io.KeyCtrl && !_no_font_scaling)
 		{
 			// Change global font scale if user presses the control key and moves the mouse wheel
 			imgui_io.FontGlobalScale = ImClamp(imgui_io.FontGlobalScale + imgui_io.MouseWheel * 0.10f, 0.2f, 2.50f);
