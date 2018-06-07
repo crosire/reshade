@@ -1086,9 +1086,17 @@ namespace reshade::d3d11
 			}
 			else
 			{
-				modified |= ImGui::Checkbox("Extended depth buffer detection", &extended_depth_buffer_detection);
+				bool extended_modified = false;
+				extended_modified |= ImGui::Checkbox("Extended depth buffer detection", &extended_depth_buffer_detection);
 
 				ImGui::Text("");
+
+				if (extended_modified)
+				{
+					depth_buffer_clearing_number = _selected_depth_buffer_texture_index = 0;
+				}
+
+				modified |= extended_modified;
 
 				_current_tracker.keep_cleared_depth_textures();
 
