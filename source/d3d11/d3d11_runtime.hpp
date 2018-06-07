@@ -43,6 +43,13 @@ namespace reshade::d3d11
 	class d3d11_runtime : public runtime
 	{
 	public:
+		struct depth_texture_save_info
+		{
+			com_ptr<ID3D11Texture2D> src_texture;
+			D3D11_TEXTURE2D_DESC src_texture_desc;
+			com_ptr<ID3D11Texture2D> dest_texture;
+			bool cleared = false;
+		};
 		d3d11_runtime(ID3D11Device *device, IDXGISwapChain *swapchain);
 
 		bool on_init(const DXGI_SWAP_CHAIN_DESC &desc);
@@ -61,6 +68,7 @@ namespace reshade::d3d11
 
 		bool depth_buffer_before_clear = false;
 		bool auto_detect_cleared_depth_buffer = false;
+		bool extended_depth_buffer_detection = false;
 		unsigned int depth_buffer_clearing_number = 0; // depth buffer autoselection by default
 
 		com_ptr<ID3D11Device> _device;
@@ -79,6 +87,7 @@ namespace reshade::d3d11
 		std::unordered_map<UINT, com_ptr<ID3D11Texture2D>> _depth_texture_saves;
 
 	private:
+
 		int _depth_buffer_texture_format = 0;
 		unsigned int _selected_depth_buffer_texture_index = 0;
 
@@ -118,5 +127,6 @@ namespace reshade::d3d11
 		com_ptr<ID3D11DepthStencilState> _imgui_depthstencil_state;
 		int _imgui_vertex_buffer_size = 0, _imgui_index_buffer_size = 0;
 		draw_call_tracker _current_tracker;
+		std::map<UINT, depth_texture_save_info> _displayed_depth_textures;
 	};
 }

@@ -148,7 +148,7 @@ namespace reshade::d3d11
 	}
 	/* function that keeps track of a cleared depth texture in an ordered map, in order to retrieve it at the final rendering stage */
 	/* gathers some extra infos in order to display it on a select window */
-	void draw_call_tracker::track_depth_texture(UINT index, com_ptr<ID3D11Texture2D> src_texture, com_ptr<ID3D11Texture2D> dest_texture)
+	void draw_call_tracker::track_depth_texture(UINT index, com_ptr<ID3D11Texture2D> src_texture, com_ptr<ID3D11DepthStencilView> src_depthstencil, com_ptr<ID3D11Texture2D> dest_texture, bool cleared)
 	{
 		assert(src_texture != nullptr);
 
@@ -163,17 +163,45 @@ namespace reshade::d3d11
 		// fill the ordered map with the saved depth texture
 		if (it == _cleared_depth_textures.end())
 		{
-			_cleared_depth_textures.emplace(index, depth_texture_save_info{ src_texture, src_texture_desc, dest_texture });
+			_cleared_depth_textures.emplace(index, depth_texture_save_info{ src_texture, src_depthstencil, src_texture_desc, dest_texture, cleared });
 		}
 		else
 		{
-			it->second = depth_texture_save_info{ src_texture, src_texture_desc, dest_texture };
+			it->second = depth_texture_save_info{ src_texture, src_depthstencil, src_texture_desc, dest_texture, cleared };
+		}
+	}
+	/* function that keeps only the depth textures that has been retrieved before the last depthstencil clearance */
+	void draw_call_tracker::keep_cleared_depth_textures()
+	{
+		std::map<UINT, depth_texture_save_info> result;
+		std::map<UINT, depth_texture_save_info>::reverse_iterator it = _cleared_depth_textures.rbegin();
+		UINT i = 1;
+
+		// reverse loop on the cleared depth textures map
+		while (it != _cleared_depth_textures.rend())
+		{
+			// if the last cleared depthstencil is found, exit
+			if (it->second.cleared == true)
+			{
+				return;
+			}
+			else
+			{
+				// remove the depth texture if it was retrieved after the last clearance of the depthstencil
+				it = std::map<UINT, depth_texture_save_info>::reverse_iterator(_cleared_depth_textures.erase(std::next(it).base()));
+				continue;
+			}			
+			
+			it++;
 		}
 	}
 	/* function that selects the best cleared depth texture according to the clearing number defined in the configuration settings */
 	ID3D11Texture2D *draw_call_tracker::find_best_cleared_depth_buffer_texture(DXGI_FORMAT format, UINT depth_buffer_clearing_number)
 	{
 		ID3D11Texture2D *best_match = nullptr;
+
+		// ensure to work only on the depth textures retrieved before the last depthstencil clearance
+		keep_cleared_depth_textures();
 
 		for (const auto &it : _cleared_depth_textures)
 		{

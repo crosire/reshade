@@ -22,7 +22,7 @@ void D3D11DeviceContext::clear_drawcall_stats()
 	_active_depthstencil.reset();
 }
 /* fonction that saves the depth texture associated to a depthstencil view, in order to use it in the final rendering stage */
-bool D3D11DeviceContext::save_depth_texture(ID3D11DepthStencilView *pDepthStencilView)
+bool D3D11DeviceContext::save_depth_texture(ID3D11DepthStencilView *pDepthStencilView, bool cleared)
 {
 	if (pDepthStencilView == nullptr)
 	{
@@ -37,6 +37,11 @@ bool D3D11DeviceContext::save_depth_texture(ID3D11DepthStencilView *pDepthStenci
 	const auto runtime = _device->_runtimes.front();
 
 	if (!runtime->depth_buffer_before_clear)
+	{
+		return false;
+	}
+
+	if (!cleared && !runtime->extended_depth_buffer_detection)
 	{
 		return false;
 	}
@@ -65,12 +70,11 @@ bool D3D11DeviceContext::save_depth_texture(ID3D11DepthStencilView *pDepthStenci
 	// As there is no easy way to stretch it, we try to replace it with the next depth texture retrieved with the OMSetRenderTargets method (this works well in TitanFall2 or Middle Earth Shadow Of War)
 	if (desc.Width > runtime->frame_width())
 	{
-		_replace_depth_texture = true;
 		return false;
 	}
 
 	// in case the depth texture is retrieved, we make a copy of it and store it in an ordered map, to use it after in the final rendering stage
-	if (runtime->depth_buffer_clearing_number == 0 || _device->_clear_DSV_iter <= runtime->depth_buffer_clearing_number)
+	if ((runtime->depth_buffer_clearing_number == 0 && cleared == true) || _device->_clear_DSV_iter <= runtime->depth_buffer_clearing_number)
 	{
 		// selection of the appropriate destination texture, acording to the depth texture format and dimensions
 		com_ptr<ID3D11Texture2D> depth_texture_save = runtime->select_depth_texture_save(desc);
@@ -83,16 +87,16 @@ bool D3D11DeviceContext::save_depth_texture(ID3D11DepthStencilView *pDepthStenci
 		// copy the depth texture. This is necessary because the content of the depth texture is cleared.
 		// this way, we can retrieve this content in the final rendering stage
 		this->CopyResource(depth_texture_save.get(), texture.get());
-		// store the saved texture in a specific ordered map
-		_draw_call_tracker.track_depth_texture(_device->_clear_DSV_iter, texture.get(), depth_texture_save);
+
+		// store the saved texture in a specific ordered map		
+		_draw_call_tracker.track_depth_texture(_device->_clear_DSV_iter, texture.get(), pDepthStencilView, depth_texture_save, cleared);
 	}
 	else
 	{
 		// store a null depth texture in the ordered map, in order to display it even if the user choosed a previous cleared texture
 		// doing so, the texture is still visible in the depth buffer selection window and the user can choose it
-		_draw_call_tracker.track_depth_texture(_device->_clear_DSV_iter, texture.get(), nullptr);
+		_draw_call_tracker.track_depth_texture(_device->_clear_DSV_iter, texture.get(), pDepthStencilView, nullptr, cleared);
 	}
-	_replace_depth_texture = false;
 	_device->_clear_DSV_iter++;
 	return true;
 }
@@ -111,26 +115,12 @@ void D3D11DeviceContext::track_active_depthstencil(ID3D11DepthStencilView *pDept
 	_active_depthstencil = pDepthStencilView;
 	_draw_call_tracker.track_depthstencil(pDepthStencilView);
 
-	// In some cases (TitanFall2, for instance) the cleared depth texture is greater than the viewport, because it is embedded in a greater rect
-	// As there is no easy way to stretch it, we try to replace it with the next depth texture retrieved with the OMSetRenderTargets method (this works well in TitanFall2 or Middle Earth Shadow Of War)
-	if (!_replace_depth_texture)
-	{
-		return;
-	}
-
-	if (!save_depth_texture(pDepthStencilView))
-	{
-		return;
-	}
-
-	_replace_depth_texture = false;
+	save_depth_texture(pDepthStencilView, false);
 }
 void D3D11DeviceContext::track_cleared_depthstencil(ID3D11DepthStencilView *pDepthStencilView)
 {
-	_replace_depth_texture = false;
-
 	// Save texture from depth stencil
-	save_depth_texture(pDepthStencilView);
+	save_depth_texture(pDepthStencilView, true);
 }
 
 // ID3D11DeviceContext

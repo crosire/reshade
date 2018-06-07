@@ -50,10 +50,13 @@ namespace reshade::d3d11
 		subscribe_to_menu("DX11", [this]() { draw_select_depth_buffer_menu(); });
 		subscribe_to_load_config([this](const ini_file& config) {
 			config.get("DX11_BUFFER_DETECTION", "DepthBufferRetrievalMode", depth_buffer_before_clear);
+			config.get("DX11_BUFFER_DETECTION", "ExtendedDepthBufferDetection", extended_depth_buffer_detection);
 			config.get("DX11_BUFFER_DETECTION", "DepthBufferClearingNumber", depth_buffer_clearing_number);
+			auto_detect_cleared_depth_buffer = depth_buffer_clearing_number > 0 ? false : true;
 		});
 		subscribe_to_save_config([this](ini_file& config) {
 			config.set("DX11_BUFFER_DETECTION", "DepthBufferRetrievalMode", depth_buffer_before_clear);
+			config.set("DX11_BUFFER_DETECTION", "ExtendedDepthBufferDetection", extended_depth_buffer_detection);
 			config.set("DX11_BUFFER_DETECTION", "DepthBufferClearingNumber", depth_buffer_clearing_number);
 		});
 	}
@@ -1083,13 +1086,19 @@ namespace reshade::d3d11
 			}
 			else
 			{
-				unsigned int i = 1;
+				modified |= ImGui::Checkbox("Extended depth buffer detection", &extended_depth_buffer_detection);
+
+				ImGui::Text("");
+
+				_current_tracker.keep_cleared_depth_textures();
+
+				UINT i = 1;
 
 				for (const auto &it : _current_tracker.cleared_depth_textures())
 				{
 					char label[512] = "";
 
-					if (it.first == _selected_depth_buffer_texture_index)
+					if (i == _selected_depth_buffer_texture_index)
 					{
 						sprintf_s(label, "> %u", i);
 					}
@@ -1113,6 +1122,10 @@ namespace reshade::d3d11
 							modified = true;
 						}
 					}
+
+					ImGui::SameLine();
+
+					ImGui::Text("=> 0x%p", it.second.src_depthstencil);
 
 					ImGui::SameLine();
 
@@ -1141,14 +1154,10 @@ namespace reshade::d3d11
 				if (auto_detect_cleared_depth_buffer)
 				{
 					ImGui::Text("Auto detect depth buffer texture");
+					_selected_depth_buffer_texture_index = _current_tracker.cleared_depth_textures().size();
 				}
 
 				ImGui::Text("Depth texture number %u selected", static_cast<unsigned int>(_selected_depth_buffer_texture_index));
-			}
-
-			if (depth_buffer_before_clear && auto_detect_cleared_depth_buffer && _current_tracker.cleared_depth_textures().size() > 0)
-			{
-				_selected_depth_buffer_texture_index = _current_tracker.cleared_depth_textures().size();
 			}
 
 			if (modified)

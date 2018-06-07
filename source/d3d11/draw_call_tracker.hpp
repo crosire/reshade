@@ -24,13 +24,16 @@ namespace reshade::d3d11
 		bool check_depthstencil(ID3D11DepthStencilView *depthstencil) const;
 		void track_depthstencil(ID3D11DepthStencilView *depthstencil, com_ptr<ID3D11Texture2D> texture = nullptr);
 
-		void track_depth_texture(UINT index, com_ptr<ID3D11Texture2D> src_texture, com_ptr<ID3D11Texture2D> dest_texture);
+		void track_depth_texture(UINT index, com_ptr<ID3D11Texture2D> src_texture, com_ptr<ID3D11DepthStencilView> src_depthstencil, com_ptr<ID3D11Texture2D> dest_texture, bool cleared);
+		void keep_cleared_depth_textures();
 
 		struct depth_texture_save_info
 		{
 			com_ptr<ID3D11Texture2D> src_texture;
+			com_ptr<ID3D11DepthStencilView> src_depthstencil;
 			D3D11_TEXTURE2D_DESC src_texture_desc;
 			com_ptr<ID3D11Texture2D> dest_texture;
+			bool cleared = false;
 		};
 
 		std::pair<ID3D11DepthStencilView *, ID3D11Texture2D *> find_best_depth_stencil(UINT width, UINT height, DXGI_FORMAT format);
