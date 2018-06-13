@@ -7,9 +7,9 @@
 #include "d3d11_device.hpp"
 #include "d3d11_device_context.hpp"
 #include "../dxgi/dxgi_device.hpp"
-#include "draw_call_tracker.hpp"
+#include "d3d11_draw_call_tracker.hpp"
 
-void D3D11Device::add_commandlist_trackers(ID3D11CommandList* command_list, const reshade::d3d11::draw_call_tracker &tracker_source)
+void D3D11Device::add_commandlist_trackers(ID3D11CommandList* command_list, const reshade::d3d11::d3d11_draw_call_tracker &tracker_source)
 {
 	assert(command_list != nullptr);
 
@@ -27,7 +27,7 @@ void D3D11Device::add_commandlist_trackers(ID3D11CommandList* command_list, cons
 		it->second.merge(tracker_source);
 	}
 }
-void D3D11Device::merge_commandlist_trackers(ID3D11CommandList* command_list, reshade::d3d11::draw_call_tracker &tracker_destination)
+void D3D11Device::merge_commandlist_trackers(ID3D11CommandList* command_list, reshade::d3d11::d3d11_draw_call_tracker &tracker_destination)
 {
 	assert(command_list != nullptr);
 

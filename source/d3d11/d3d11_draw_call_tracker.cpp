@@ -1,11 +1,11 @@
-#include "draw_call_tracker.hpp"
+#include "d3d11_draw_call_tracker.hpp"
 #include "log.hpp"
 #include "runtime.hpp"
 #include <math.h>
 
 namespace reshade::d3d11
 {
-	void draw_call_tracker::merge(const draw_call_tracker& source)
+	void d3d11_draw_call_tracker::merge(const d3d11_draw_call_tracker& source)
 	{
 		_global_counter.vertices += source.total_vertices();
 		_global_counter.drawcalls += source.total_drawcalls();
@@ -38,7 +38,7 @@ namespace reshade::d3d11
 #endif
 	}
 
-	void draw_call_tracker::reset()
+	void d3d11_draw_call_tracker::reset()
 	{
 		_global_counter.vertices = 0;
 		_global_counter.drawcalls = 0;
@@ -51,7 +51,7 @@ namespace reshade::d3d11
 #endif
 	}
 
-	void draw_call_tracker::on_map(ID3D11Resource *resource)
+	void d3d11_draw_call_tracker::on_map(ID3D11Resource *resource)
 	{
 		UNREFERENCED_PARAMETER(resource);
 
@@ -66,7 +66,7 @@ namespace reshade::d3d11
 #endif
 	}
 
-	void draw_call_tracker::on_draw(ID3D11DeviceContext *context, UINT vertices)
+	void d3d11_draw_call_tracker::on_draw(ID3D11DeviceContext *context, UINT vertices)
 	{
 		UNREFERENCED_PARAMETER(context);
 
@@ -137,12 +137,12 @@ namespace reshade::d3d11
 	}
 
 #if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
-	bool draw_call_tracker::check_depthstencil(ID3D11DepthStencilView *depthstencil) const
+	bool d3d11_draw_call_tracker::check_depthstencil(ID3D11DepthStencilView *depthstencil) const
 	{
 		return _counters_per_used_depthstencil.find(depthstencil) != _counters_per_used_depthstencil.end();
 	}
 
-	void draw_call_tracker::track_rendertargets(ID3D11DepthStencilView *depthstencil, UINT num_views, ID3D11RenderTargetView *const *views)
+	void d3d11_draw_call_tracker::track_rendertargets(ID3D11DepthStencilView *depthstencil, UINT num_views, ID3D11RenderTargetView *const *views)
 	{
 		assert(depthstencil != nullptr);
 
@@ -155,7 +155,7 @@ namespace reshade::d3d11
 			_counters_per_used_depthstencil[depthstencil].additional_views[views[i]].drawcalls += 1;
 		}
 	}
-	void draw_call_tracker::track_depth_texture(UINT index, com_ptr<ID3D11Texture2D> src_texture, com_ptr<ID3D11DepthStencilView> src_depthstencil, com_ptr<ID3D11Texture2D> dest_texture, bool cleared)
+	void d3d11_draw_call_tracker::track_depth_texture(UINT index, com_ptr<ID3D11Texture2D> src_texture, com_ptr<ID3D11DepthStencilView> src_depthstencil, com_ptr<ID3D11Texture2D> dest_texture, bool cleared)
 	{
 		// Function that keeps track of a cleared depth texture in an ordered map in order to retrieve it at the final rendering stage
 		assert(src_texture != nullptr);
@@ -170,15 +170,15 @@ namespace reshade::d3d11
 		// fill the ordered map with the saved depth texture
 		if (const auto it = _cleared_depth_textures.find(index); it == _cleared_depth_textures.end())
 		{
-			_cleared_depth_textures.emplace(index, depth_texture_save_info { src_texture, src_depthstencil, src_texture_desc, dest_texture, cleared });
+			_cleared_depth_textures.emplace(index, depth_texture_save_info{ src_texture, src_depthstencil, src_texture_desc, dest_texture, cleared });
 		}
 		else
 		{
-			it->second = depth_texture_save_info { src_texture, src_depthstencil, src_texture_desc, dest_texture, cleared };
+			it->second = depth_texture_save_info{ src_texture, src_depthstencil, src_texture_desc, dest_texture, cleared };
 		}
 	}
 
-	draw_call_tracker::intermediate_snapshot_info draw_call_tracker::find_best_snapshot(UINT width, UINT height)
+	d3d11_draw_call_tracker::intermediate_snapshot_info d3d11_draw_call_tracker::find_best_snapshot(UINT width, UINT height)
 	{
 		const float aspect_ratio = float(width) / float(height);
 
@@ -227,7 +227,7 @@ namespace reshade::d3d11
 		return best_snapshot;
 	}
 
-	void draw_call_tracker::keep_cleared_depth_textures()
+	void d3d11_draw_call_tracker::keep_cleared_depth_textures()
 	{
 		// Function that keeps only the depth textures that has been retrieved before the last depth stencil clearance
 		std::map<UINT, depth_texture_save_info>::reverse_iterator it = _cleared_depth_textures.rbegin();
@@ -244,7 +244,7 @@ namespace reshade::d3d11
 		}
 	}
 
-	ID3D11Texture2D *draw_call_tracker::find_best_cleared_depth_buffer_texture(UINT depth_buffer_clearing_number)
+	ID3D11Texture2D *d3d11_draw_call_tracker::find_best_cleared_depth_buffer_texture(UINT depth_buffer_clearing_number)
 	{
 		// Function that selects the best cleared depth texture according to the clearing number defined in the configuration settings
 		ID3D11Texture2D *best_match = nullptr;

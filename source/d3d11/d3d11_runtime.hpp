@@ -1,7 +1,7 @@
 /**
- * Copyright (C) 2014 Patrick Mours. All rights reserved.
- * License: https://github.com/crosire/reshade#license
- */
+* Copyright (C) 2014 Patrick Mours. All rights reserved.
+* License: https://github.com/crosire/reshade#license
+*/
 
 #pragma once
 
@@ -9,7 +9,7 @@
 #include <d3d11_3.h>
 #include "runtime.hpp"
 #include "d3d11_stateblock.hpp"
-#include "draw_call_tracker.hpp"
+#include "d3d11_draw_call_tracker.hpp"
 
 namespace reshade::d3d11
 {
@@ -48,7 +48,7 @@ namespace reshade::d3d11
 		bool on_init(const DXGI_SWAP_CHAIN_DESC &desc);
 		void on_reset();
 		void on_reset_effect() override;
-		void on_present(draw_call_tracker& tracker);
+		void on_present(d3d11_draw_call_tracker& tracker);
 
 		void capture_frame(uint8_t *buffer) const override;
 		bool load_effect(const reshadefx::syntax_tree &ast, std::string &errors) override;
@@ -89,7 +89,7 @@ namespace reshade::d3d11
 		void draw_debug_menu();
 
 #if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
-		void detect_depth_source(draw_call_tracker& tracker);
+		void detect_depth_source(d3d11_draw_call_tracker& tracker);
 		bool create_depthstencil_replacement(ID3D11DepthStencilView *depthstencil, ID3D11Texture2D *texture);
 #endif
 
@@ -128,6 +128,6 @@ namespace reshade::d3d11
 		com_ptr<ID3D11BlendState> _imgui_blend_state;
 		com_ptr<ID3D11DepthStencilState> _imgui_depthstencil_state;
 		int _imgui_vertex_buffer_size = 0, _imgui_index_buffer_size = 0;
-		draw_call_tracker _current_tracker;
+		d3d11_draw_call_tracker _current_tracker;
 	};
 }

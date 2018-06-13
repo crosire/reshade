@@ -9,7 +9,7 @@
 
 namespace reshade::d3d11
 {
-	class draw_call_tracker
+	class d3d11_draw_call_tracker
 	{
 	public:
 		struct draw_stats
@@ -42,7 +42,7 @@ namespace reshade::d3d11
 		const auto &constant_buffer_counters() const { return _counters_per_constant_buffer; }
 #endif
 
-		void merge(const draw_call_tracker &source);
+		void merge(const d3d11_draw_call_tracker &source);
 		void reset();
 
 		void on_map(ID3D11Resource *pResource);
