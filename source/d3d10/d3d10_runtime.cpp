@@ -44,6 +44,19 @@ namespace reshade::d3d10
 			
 		_vendor_id = adapter_desc.VendorId;
 		_device_id = adapter_desc.DeviceId;
+
+		subscribe_to_menu("DX10", [this]() { draw_select_depth_buffer_menu(); });
+		subscribe_to_load_config([this](const ini_file& config) {
+			config.get("DX10_BUFFER_DETECTION", "DepthBufferRetrievalMode", depth_buffer_before_clear);
+			config.get("DX10_BUFFER_DETECTION", "ExtendedDepthBufferDetection", extended_depth_buffer_detection);
+			config.get("DX10_BUFFER_DETECTION", "DepthBufferClearingNumber", depth_buffer_clearing_number);
+			auto_detect_cleared_depth_buffer = depth_buffer_clearing_number > 0 ? false : true;
+		});
+		subscribe_to_save_config([this](ini_file& config) {
+			config.set("DX10_BUFFER_DETECTION", "DepthBufferRetrievalMode", depth_buffer_before_clear);
+			config.set("DX10_BUFFER_DETECTION", "ExtendedDepthBufferDetection", extended_depth_buffer_detection);
+			config.set("DX10_BUFFER_DETECTION", "DepthBufferClearingNumber", depth_buffer_clearing_number);
+		});
 	}
 
 	bool d3d10_runtime::init_backbuffer_texture()
@@ -235,6 +248,62 @@ namespace reshade::d3d10
 		hr = _device->CreateDepthStencilView(depth_stencil_texture.get(), nullptr, &_default_depthstencil);
 
 		return SUCCEEDED(hr);
+	}
+	/* function that selects the appropriate texture where we want to save the depth texture before it is cleared  */
+	/* if this texture is null, create it according to the dimensions and the format of the depth texture */
+	/* Doing so, we avoid to create a new texture each time the depth texture is saved */
+	com_ptr<ID3D10Texture2D> d3d10_runtime::select_depth_texture_save(D3D10_TEXTURE2D_DESC &texture_desc)
+	{
+		// select the texture format according to the depth texture's one
+		switch (texture_desc.Format)
+		{
+		case DXGI_FORMAT_R16_TYPELESS:
+		case DXGI_FORMAT_D16_UNORM:
+			texture_desc.Format = DXGI_FORMAT_R16_TYPELESS;
+			break;
+		case DXGI_FORMAT_R32_TYPELESS:
+		case DXGI_FORMAT_D32_FLOAT:
+			texture_desc.Format = DXGI_FORMAT_R32_TYPELESS;
+			break;
+		default:
+		case DXGI_FORMAT_R24G8_TYPELESS:
+		case DXGI_FORMAT_D24_UNORM_S8_UINT:
+			texture_desc.Format = DXGI_FORMAT_R24G8_TYPELESS;
+			break;
+		case DXGI_FORMAT_R32G8X24_TYPELESS:
+		case DXGI_FORMAT_D32_FLOAT_S8X24_UINT:
+			texture_desc.Format = DXGI_FORMAT_R32G8X24_TYPELESS;
+			break;
+		}
+
+		// create an unique index based on the dept texture format and dimensions
+		UINT idx = texture_desc.Format * texture_desc.Width * texture_desc.Height;
+
+		const auto it = _depth_texture_saves.find(idx);
+		com_ptr<ID3D10Texture2D> depth_texture_save = nullptr;
+
+		// Create the saved texture pointed by the index if it does not already exist
+		if (it == _depth_texture_saves.end())
+		{
+			texture_desc.BindFlags = D3D10_BIND_DEPTH_STENCIL | D3D10_BIND_SHADER_RESOURCE;
+
+			HRESULT hr = _device->CreateTexture2D(&texture_desc, nullptr, &depth_texture_save);
+
+			if (FAILED(hr))
+			{
+				LOG(ERROR) << "Failed to create depth texture copy! HRESULT is '" << std::hex << hr << std::dec << "'.";
+				return nullptr;
+			}
+
+			_depth_texture_saves.emplace(idx, depth_texture_save);
+		}
+		// If the saved texture pointed by the index exists, use it (save resources and perfs)
+		else
+		{
+			depth_texture_save = it->second;
+		}
+
+		return depth_texture_save;
 	}
 	bool d3d10_runtime::init_fx_resources()
 	{
@@ -463,6 +532,8 @@ namespace reshade::d3d10
 		_depthstencil_texture.reset();
 		_depthstencil_texture_srv.reset();
 
+		_depth_texture_saves.clear();
+
 		_default_depthstencil.reset();
 		_copy_vertex_shader.reset();
 		_copy_pixel_shader.reset();
@@ -496,12 +567,16 @@ namespace reshade::d3d10
 		_effect_shader_resources[1] = _backbuffer_texture_srv[1];
 		_effect_shader_resources[2] = _depthstencil_texture_srv;
 	}
-	void d3d10_runtime::on_present()
+	void d3d10_runtime::on_present(d3d10_draw_call_tracker &tracker)
 	{
 		if (!is_initialized())
 			return;
 
-		detect_depth_source();
+		_vertices = tracker.vertices();
+		_drawcalls = tracker.drawcalls();
+
+		_current_tracker = tracker;
+		detect_depth_source(tracker);
 
 		// Evaluate queries
 		for (technique &technique : _techniques)
@@ -589,85 +664,6 @@ namespace reshade::d3d10
 		// Apply previous device state
 		_stateblock.apply_and_release();
 	}
-	void d3d10_runtime::on_draw_call(UINT vertices)
-	{
-		_vertices += vertices;
-		_drawcalls += 1;
-
-		com_ptr<ID3D10DepthStencilView> current_depthstencil;
-
-		_device->OMGetRenderTargets(0, nullptr, &current_depthstencil);
-
-		if (current_depthstencil == nullptr || current_depthstencil == _default_depthstencil)
-		{
-			return;
-		}
-		if (current_depthstencil == _depthstencil_replacement)
-		{
-			current_depthstencil = _depthstencil;
-		}
-
-		const auto it = _depth_source_table.find(current_depthstencil.get());
-
-		if (it != _depth_source_table.end())
-		{
-			it->second.drawcall_count = _drawcalls;
-			it->second.vertices_count += vertices;
-		}
-	}
-	void d3d10_runtime::on_set_depthstencil_view(ID3D10DepthStencilView *&depthstencil)
-	{
-		if (_depth_source_table.find(depthstencil) == _depth_source_table.end())
-		{
-			D3D10_TEXTURE2D_DESC texture_desc;
-			com_ptr<ID3D10Resource> resource;
-			com_ptr<ID3D10Texture2D> texture;
-
-			depthstencil->GetResource(&resource);
-
-			if (FAILED(resource->QueryInterface(&texture)))
-			{
-				return;
-			}
-
-			texture->GetDesc(&texture_desc);
-
-			// Early depth stencil rejection
-			if (texture_desc.Width != _width || texture_desc.Height != _height || texture_desc.SampleDesc.Count > 1)
-			{
-				return;
-			}
-
-			depthstencil->AddRef();
-
-			// Begin tracking new depth stencil
-			const depth_source_info info = { texture_desc.Width, texture_desc.Height };
-			_depth_source_table.emplace(depthstencil, info);
-		}
-
-		if (_depthstencil_replacement != nullptr && depthstencil == _depthstencil)
-		{
-			depthstencil = _depthstencil_replacement.get();
-		}
-	}
-	void d3d10_runtime::on_get_depthstencil_view(ID3D10DepthStencilView *&depthstencil)
-	{
-		if (_depthstencil_replacement != nullptr && depthstencil == _depthstencil_replacement)
-		{
-			depthstencil->Release();
-
-			depthstencil = _depthstencil.get();
-
-			depthstencil->AddRef();
-		}
-	}
-	void d3d10_runtime::on_clear_depthstencil_view(ID3D10DepthStencilView *&depthstencil)
-	{
-		if (_depthstencil_replacement != nullptr && depthstencil == _depthstencil)
-		{
-			depthstencil = _depthstencil_replacement.get();
-		}
-	}
 	void d3d10_runtime::on_copy_resource(ID3D10Resource *&dest, ID3D10Resource *&source)
 	{
 		if (_depthstencil_replacement != nullptr)
@@ -685,7 +681,6 @@ namespace reshade::d3d10
 			}
 		}
 	}
-
 	void d3d10_runtime::capture_frame(uint8_t *buffer) const
 	{
 		if (_backbuffer_format != DXGI_FORMAT_R8G8B8A8_UNORM &&
@@ -1058,8 +1053,147 @@ namespace reshade::d3d10
 		}
 	}
 
-	void d3d10_runtime::detect_depth_source()
+	void d3d10_runtime::draw_select_depth_buffer_menu()
 	{
+		if (ImGui::CollapsingHeader("Buffer Detection", ImGuiTreeNodeFlags_DefaultOpen))
+		{
+			bool modified = false;
+			modified |= ImGui::Checkbox("Copy depth before clearing", &depth_buffer_before_clear);
+
+			ImGui::Text("");
+
+			if (!depth_buffer_before_clear)
+			{
+				for (const auto &it : _current_tracker.depthstencil_counters())
+				{
+					char label[512] = "";
+					sprintf_s(label, "%s0x%p", (it.first == _depthstencil ? "> " : "  "), it.first.get());
+
+					if (bool value = _best_depth_stencil_overwrite == it.first; ImGui::Checkbox(label, &value))
+					{
+						_best_depth_stencil_overwrite = value ? it.first.get() : nullptr;
+
+						com_ptr<ID3D10Texture2D> texture = it.second.texture;
+
+						if (texture == nullptr && _best_depth_stencil_overwrite != nullptr)
+						{
+							com_ptr<ID3D10Resource> resource;
+							_best_depth_stencil_overwrite->GetResource(&resource);
+
+							resource->QueryInterface(&texture);
+						}
+
+						create_depthstencil_replacement(_best_depth_stencil_overwrite, texture.get());
+					}
+
+					ImGui::SameLine();
+
+					ImGui::Text("| %u draw calls ==> %u vertices", it.second.drawcalls, it.second.vertices);
+				}
+			}
+			else
+			{
+				bool extended_modified = false;
+				extended_modified |= ImGui::Checkbox("Extended depth buffer detection", &extended_depth_buffer_detection);
+
+				ImGui::Text("");
+
+				if (extended_modified)
+				{
+					depth_buffer_clearing_number = _selected_depth_buffer_texture_index = 0;
+				}
+
+				modified |= extended_modified;
+
+				_current_tracker.keep_cleared_depth_textures();
+
+				UINT i = 1;
+
+				for (const auto &it : _current_tracker.cleared_depth_textures())
+				{
+					char label[512] = "";
+
+					if (i == _selected_depth_buffer_texture_index)
+					{
+						sprintf_s(label, "> %u", i);
+					}
+					else
+					{
+						sprintf_s(label, "  %u", i);
+					}
+
+					if (bool value = depth_buffer_clearing_number == i; ImGui::Checkbox(label, &value))
+					{
+						if (value)
+						{
+							depth_buffer_clearing_number = _selected_depth_buffer_texture_index = i;
+							auto_detect_cleared_depth_buffer = false;
+							modified = true;
+						}
+						else
+						{
+							depth_buffer_clearing_number = 0;
+							auto_detect_cleared_depth_buffer = true;
+							modified = true;
+						}
+					}
+
+					ImGui::SameLine();
+
+					ImGui::Text("=> 0x%p", it.second.src_depthstencil);
+
+					ImGui::SameLine();
+
+					ImGui::Text("| %p", it.second.src_texture);
+
+					ImGui::SameLine();
+
+					ImGui::Text("| %u", it.second.src_texture_desc.Width);
+
+					ImGui::SameLine();
+
+					ImGui::Text("x%u", it.second.src_texture_desc.Height);
+
+					if (it.second.dest_texture != nullptr)
+					{
+						ImGui::SameLine();
+
+						ImGui::Text("=> %p", it.second.dest_texture);
+					}
+
+					i++;
+				}
+
+				ImGui::Text("");
+
+				if (auto_detect_cleared_depth_buffer)
+				{
+					ImGui::Text("Auto detect depth buffer texture");
+					_selected_depth_buffer_texture_index = _current_tracker.cleared_depth_textures().size();
+				}
+
+				ImGui::Text("Depth texture number %u selected", static_cast<unsigned int>(_selected_depth_buffer_texture_index));
+			}
+
+			if (modified)
+			{
+				runtime::save_config();
+			}
+		}
+	}
+
+	void d3d10_runtime::detect_depth_source(d3d10_draw_call_tracker &tracker)
+	{
+		if (depth_buffer_before_clear == true)
+		{
+			_best_depth_stencil_overwrite = nullptr;
+		}
+
+		if (_best_depth_stencil_overwrite != nullptr)
+		{
+			return;
+		}
+
 		static int cooldown = 0, traffic = 0;
 
 		if (cooldown-- > 0)
@@ -1070,11 +1204,10 @@ namespace reshade::d3d10
 		else
 		{
 			cooldown = 30;
-
 			if (traffic > 10)
 			{
 				traffic = 0;
-				create_depthstencil_replacement(nullptr);
+				create_depthstencil_replacement(nullptr, nullptr);
 				return;
 			}
 			else
@@ -1083,51 +1216,48 @@ namespace reshade::d3d10
 			}
 		}
 
-		if (_is_multisampling_enabled || _depth_source_table.empty())
+		if (_is_multisampling_enabled)
 		{
 			return;
 		}
 
-		depth_source_info best_info = { 0 };
+		const DXGI_FORMAT depth_texture_formats[] = {
+			DXGI_FORMAT_UNKNOWN,
+			DXGI_FORMAT_R16_TYPELESS,
+			DXGI_FORMAT_R32_TYPELESS,
+			DXGI_FORMAT_R24G8_TYPELESS,
+			DXGI_FORMAT_R32G8X24_TYPELESS
+		};
+
+		assert(_depth_buffer_texture_format >= 0 && _depth_buffer_texture_format < ARRAYSIZE(depth_texture_formats));
+
 		ID3D10DepthStencilView *best_match = nullptr;
+		ID3D10Texture2D *best_match_texture = nullptr;
 
-		for (auto it = _depth_source_table.begin(); it != _depth_source_table.end();)
+		if (!depth_buffer_before_clear)
 		{
-			const auto depthstencil = it->first;
-			auto &depthstencil_info = it->second;
-
-			if ((depthstencil->AddRef(), depthstencil->Release()) == 1)
-			{
-				depthstencil->Release();
-
-				it = _depth_source_table.erase(it);
-				continue;
-			}
-			else
-			{
-				++it;
-			}
-
-			if (depthstencil_info.drawcall_count == 0)
-			{
-				continue;
-			}
-
-			if ((depthstencil_info.vertices_count * (1.2f - float(depthstencil_info.drawcall_count) / _drawcalls)) >= (best_info.vertices_count * (1.2f - float(best_info.drawcall_count) / _drawcalls)))
-			{
-				best_match = depthstencil;
-				best_info = depthstencil_info;
-			}
-
-			depthstencil_info.drawcall_count = depthstencil_info.vertices_count = 0;
+			const auto[best_match, best_match_texture] = tracker.find_best_depth_stencil(_width, _height, depth_texture_formats[_depth_buffer_texture_format]);
+		}
+		else
+		{
+			// At the final rendering stage, it is fine to rely on the depthstencil to select the best depth texture
+			// But when we retrieve the depth textures before the final rendering stage, there is chance that one or many different depth textures are associated to the same depthstencil (for instance, in Bioshock 2)
+			// In this case, we cannot use the depthstencil to determine which depth texture is the good one, so we can use the default depth stencil
+			// For the moment, the best we can do is retrieve all the depth textures that has been cleared in the rendering pipeline, then select one of them (by default, the last one)
+			// In the future, maybe we could find a way to retrieve depth texture statistics (number of draw calls and number of vertices), so Reshade could automatically select the best one
+			best_match = _default_depthstencil.get();
+			best_match_texture = tracker.find_best_cleared_depth_buffer_texture(depth_texture_formats[_depth_buffer_texture_format], depth_buffer_clearing_number);
 		}
 
-		if (best_match != nullptr && _depthstencil != best_match)
+		if (best_match == nullptr || best_match_texture == nullptr)
 		{
-			create_depthstencil_replacement(best_match);
+			return;
 		}
+
+		create_depthstencil_replacement(best_match, best_match_texture);
 	}
-	bool d3d10_runtime::create_depthstencil_replacement(ID3D10DepthStencilView *depthstencil)
+
+	bool d3d10_runtime::create_depthstencil_replacement(ID3D10DepthStencilView *depthstencil, ID3D10Texture2D *texture)
 	{
 		_depthstencil.reset();
 		_depthstencil_replacement.reset();
@@ -1136,9 +1266,10 @@ namespace reshade::d3d10
 
 		if (depthstencil != nullptr)
 		{
-			_depthstencil = depthstencil;
+			assert(texture != nullptr);
 
-			_depthstencil->GetResource(reinterpret_cast<ID3D10Resource **>(&_depthstencil_texture));
+			_depthstencil = depthstencil;
+			_depthstencil_texture = texture;
 
 			D3D10_TEXTURE2D_DESC texdesc;
 			_depthstencil_texture->GetDesc(&texdesc);
@@ -1151,23 +1282,23 @@ namespace reshade::d3d10
 
 				switch (texdesc.Format)
 				{
-					case DXGI_FORMAT_R16_TYPELESS:
-					case DXGI_FORMAT_D16_UNORM:
-						texdesc.Format = DXGI_FORMAT_R16_TYPELESS;
-						break;
-					case DXGI_FORMAT_R32_TYPELESS:
-					case DXGI_FORMAT_D32_FLOAT:
-						texdesc.Format = DXGI_FORMAT_R32_TYPELESS;
-						break;
-					default:
-					case DXGI_FORMAT_R24G8_TYPELESS:
-					case DXGI_FORMAT_D24_UNORM_S8_UINT:
-						texdesc.Format = DXGI_FORMAT_R24G8_TYPELESS;
-						break;
-					case DXGI_FORMAT_R32G8X24_TYPELESS:
-					case DXGI_FORMAT_D32_FLOAT_S8X24_UINT:
-						texdesc.Format = DXGI_FORMAT_R32G8X24_TYPELESS;
-						break;
+				case DXGI_FORMAT_R16_TYPELESS:
+				case DXGI_FORMAT_D16_UNORM:
+					texdesc.Format = DXGI_FORMAT_R16_TYPELESS;
+					break;
+				case DXGI_FORMAT_R32_TYPELESS:
+				case DXGI_FORMAT_D32_FLOAT:
+					texdesc.Format = DXGI_FORMAT_R32_TYPELESS;
+					break;
+				default:
+				case DXGI_FORMAT_R24G8_TYPELESS:
+				case DXGI_FORMAT_D24_UNORM_S8_UINT:
+					texdesc.Format = DXGI_FORMAT_R24G8_TYPELESS;
+					break;
+				case DXGI_FORMAT_R32G8X24_TYPELESS:
+				case DXGI_FORMAT_D32_FLOAT_S8X24_UINT:
+					texdesc.Format = DXGI_FORMAT_R32G8X24_TYPELESS;
+					break;
 				}
 
 				texdesc.BindFlags = D3D10_BIND_DEPTH_STENCIL | D3D10_BIND_SHADER_RESOURCE;
@@ -1181,26 +1312,22 @@ namespace reshade::d3d10
 
 					switch (texdesc.Format)
 					{
-						case DXGI_FORMAT_R16_TYPELESS:
-							dsvdesc.Format = DXGI_FORMAT_D16_UNORM;
-							break;
-						case DXGI_FORMAT_R32_TYPELESS:
-							dsvdesc.Format = DXGI_FORMAT_D32_FLOAT;
-							break;
-						case DXGI_FORMAT_R24G8_TYPELESS:
-							dsvdesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-							break;
-						case DXGI_FORMAT_R32G8X24_TYPELESS:
-							dsvdesc.Format = DXGI_FORMAT_D32_FLOAT_S8X24_UINT;
-							break;
+					case DXGI_FORMAT_R16_TYPELESS:
+						dsvdesc.Format = DXGI_FORMAT_D16_UNORM;
+						break;
+					case DXGI_FORMAT_R32_TYPELESS:
+						dsvdesc.Format = DXGI_FORMAT_D32_FLOAT;
+						break;
+					case DXGI_FORMAT_R24G8_TYPELESS:
+						dsvdesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+						break;
+					case DXGI_FORMAT_R32G8X24_TYPELESS:
+						dsvdesc.Format = DXGI_FORMAT_D32_FLOAT_S8X24_UINT;
+						break;
 					}
 
 					hr = _device->CreateDepthStencilView(_depthstencil_texture.get(), &dsvdesc, &_depthstencil_replacement);
 				}
-			}
-			else
-			{
-				_depthstencil_replacement = _depthstencil;
 			}
 
 			if (FAILED(hr))
@@ -1216,18 +1343,18 @@ namespace reshade::d3d10
 
 			switch (texdesc.Format)
 			{
-				case DXGI_FORMAT_R16_TYPELESS:
-					srvdesc.Format = DXGI_FORMAT_R16_FLOAT;
-					break;
-				case DXGI_FORMAT_R32_TYPELESS:
-					srvdesc.Format = DXGI_FORMAT_R32_FLOAT;
-					break;
-				case DXGI_FORMAT_R24G8_TYPELESS:
-					srvdesc.Format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
-					break;
-				case DXGI_FORMAT_R32G8X24_TYPELESS:
-					srvdesc.Format = DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS;
-					break;
+			case DXGI_FORMAT_R16_TYPELESS:
+				srvdesc.Format = DXGI_FORMAT_R16_FLOAT;
+				break;
+			case DXGI_FORMAT_R32_TYPELESS:
+				srvdesc.Format = DXGI_FORMAT_R32_FLOAT;
+				break;
+			case DXGI_FORMAT_R24G8_TYPELESS:
+				srvdesc.Format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
+				break;
+			case DXGI_FORMAT_R32G8X24_TYPELESS:
+				srvdesc.Format = DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS;
+				break;
 			}
 
 			hr = _device->CreateShaderResourceView(_depthstencil_texture.get(), &srvdesc, &_depthstencil_texture_srv);
@@ -1239,25 +1366,22 @@ namespace reshade::d3d10
 				return false;
 			}
 
-			if (_depthstencil != _depthstencil_replacement)
+			// Update auto depth stencil
+			com_ptr<ID3D10DepthStencilView> current_depthstencil;
+			ID3D10RenderTargetView *targets[D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT] = { nullptr };
+
+			_device->OMGetRenderTargets(D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, targets, &current_depthstencil);
+
+			if (current_depthstencil != nullptr && current_depthstencil == _depthstencil)
 			{
-				// Update auto depth stencil
-				com_ptr<ID3D10DepthStencilView> current_depthstencil;
-				ID3D10RenderTargetView *targets[D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT] = { nullptr };
+				_device->OMSetRenderTargets(D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, targets, _depthstencil_replacement.get());
+			}
 
-				_device->OMGetRenderTargets(D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, targets, &current_depthstencil);
-
-				if (current_depthstencil == _depthstencil)
+			for (UINT i = 0; i < D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT; ++i)
+			{
+				if (targets[i] != nullptr)
 				{
-					_device->OMSetRenderTargets(D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT, targets, _depthstencil_replacement.get());
-				}
-
-				for (UINT i = 0; i < D3D10_SIMULTANEOUS_RENDER_TARGET_COUNT; ++i)
-				{
-					if (targets[i] != nullptr)
-					{
-						targets[i]->Release();
-					}
+					targets[i]->Release();
 				}
 			}
 		}

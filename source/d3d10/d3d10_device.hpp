@@ -6,6 +6,7 @@
 #pragma once
 
 #include "d3d10.hpp"
+#include "d3d10_draw_call_tracker.hpp"
 
 struct D3D10Device : ID3D10Device1
 {
@@ -123,8 +124,18 @@ struct D3D10Device : ID3D10Device1
 	virtual D3D10_FEATURE_LEVEL1 STDMETHODCALLTYPE GetFeatureLevel() override;
 	#pragma endregion
 
+	void log_drawcall(UINT vertices);
+	void clear_drawcall_stats();
+
+	void track_active_depthstencil(ID3D10DepthStencilView* pDepthStencilView);
+	void track_cleared_depthstencil(ID3D10DepthStencilView* pDepthStencilView);
+	bool save_depth_texture(ID3D10DepthStencilView *pDepthStencilView, bool cleared);
+
 	LONG _ref = 1;
 	ID3D10Device1 *_orig;
 	struct DXGIDevice *_dxgi_device = nullptr;
 	std::vector<std::shared_ptr<reshade::d3d10::d3d10_runtime>> _runtimes;
+	com_ptr<ID3D10DepthStencilView> _active_depthstencil;
+	reshade::d3d10::d3d10_draw_call_tracker _draw_call_tracker;
+	unsigned int _clear_DSV_iter = 1;
 };

@@ -18,7 +18,7 @@ void DXGISwapChain::perform_present(UINT PresentFlags)
 		{
 		case 10:
 			assert(_runtime != nullptr);
-			std::static_pointer_cast<reshade::d3d10::d3d10_runtime>(_runtime)->on_present();
+			std::static_pointer_cast<reshade::d3d10::d3d10_runtime>(_runtime)->on_present(static_cast<D3D10Device *>(_direct3d_device)->_draw_call_tracker);
 			break;
 		case 11:
 			assert(_runtime != nullptr);
