@@ -112,7 +112,7 @@ namespace reshade::d3d10
 			D3D10_TEXTURE2D_DESC desc;
 			texture->GetDesc(&desc);
 
-			assert((desc.BindFlags & D3D11_BIND_DEPTH_STENCIL) != 0);
+			assert((desc.BindFlags & D3D10_BIND_DEPTH_STENCIL) != 0);
 
 			// Check aspect ratio
 			const float width_factor = desc.Width != width ? float(width) / desc.Width : 1.0f;
@@ -156,7 +156,7 @@ namespace reshade::d3d10
 		src_texture->GetDesc(&src_texture_desc);
 
 		// check if it is really a depth texture
-		assert((src_texture_desc.BindFlags & D3D11_BIND_DEPTH_STENCIL) != 0);
+		assert((src_texture_desc.BindFlags & D3D10_BIND_DEPTH_STENCIL) != 0);
 
 		const auto it = _cleared_depth_textures.find(index);
 
