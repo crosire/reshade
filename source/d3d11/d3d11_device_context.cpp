@@ -80,6 +80,7 @@ bool D3D11DeviceContext::save_depth_texture(ID3D11DepthStencilView *pDepthStenci
 		_draw_call_tracker.track_depth_texture(_device->_clear_DSV_iter, texture.get(), pDepthStencilView, nullptr, cleared);
 	}
 
+	// TODO: This is unsafe if multiple device contexts are used on multiple threads
 	_device->_clear_DSV_iter++;
 
 	return true;

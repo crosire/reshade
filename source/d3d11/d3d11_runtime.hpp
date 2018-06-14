@@ -1,7 +1,7 @@
 /**
-* Copyright (C) 2014 Patrick Mours. All rights reserved.
-* License: https://github.com/crosire/reshade#license
-*/
+ * Copyright (C) 2014 Patrick Mours. All rights reserved.
+ * License: https://github.com/crosire/reshade#license
+ */
 
 #pragma once
 
@@ -43,13 +43,6 @@ namespace reshade::d3d11
 	class d3d11_runtime : public runtime
 	{
 	public:
-		struct depth_texture_save_info
-		{
-			com_ptr<ID3D11Texture2D> src_texture;
-			D3D11_TEXTURE2D_DESC src_texture_desc;
-			com_ptr<ID3D11Texture2D> dest_texture;
-			bool cleared = false;
-		};
 		d3d11_runtime(ID3D11Device *device, IDXGISwapChain *swapchain);
 
 		bool on_init(const DXGI_SWAP_CHAIN_DESC &desc);
@@ -64,12 +57,7 @@ namespace reshade::d3d11
 		void render_technique(const technique &technique) override;
 		void render_imgui_draw_data(ImDrawData *data) override;
 
-		com_ptr<ID3D11Texture2D> d3d11_runtime::select_depth_texture_save(D3D11_TEXTURE2D_DESC &texture_desc);
-
-		bool depth_buffer_before_clear = false;
-		bool auto_detect_cleared_depth_buffer = false;
-		bool extended_depth_buffer_detection = false;
-		unsigned int depth_buffer_clearing_number = 0; // depth buffer autoselection by default
+		com_ptr<ID3D11Texture2D> select_depth_texture_save(D3D11_TEXTURE2D_DESC &texture_desc);
 
 		com_ptr<ID3D11Device> _device;
 		com_ptr<ID3D11DeviceContext> _immediate_context;
@@ -84,11 +72,22 @@ namespace reshade::d3d11
 		std::vector<com_ptr<ID3D11ShaderResourceView>> _effect_shader_resources;
 		std::vector<com_ptr<ID3D11Buffer>> _constant_buffers;
 
+		bool depth_buffer_before_clear = false;
+		bool auto_detect_cleared_depth_buffer = false;
+		bool extended_depth_buffer_detection = false;
+		unsigned int depth_buffer_clearing_number = 0; // depth buffer autoselection by default
 		std::unordered_map<UINT, com_ptr<ID3D11Texture2D>> _depth_texture_saves;
 
 	private:
+		struct depth_texture_save_info
+		{
+			com_ptr<ID3D11Texture2D> src_texture;
+			D3D11_TEXTURE2D_DESC src_texture_desc;
+			com_ptr<ID3D11Texture2D> dest_texture;
+			bool cleared = false;
+		};
 
-		int _depth_buffer_texture_format = 0;
+		int _depth_buffer_texture_format = 0; // No depth buffer texture format filter by default
 		unsigned int _selected_depth_buffer_texture_index = 0;
 
 		bool init_backbuffer_texture();

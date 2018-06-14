@@ -58,6 +58,7 @@ namespace reshade::d3d11
 		};
 
 		draw_stats _global_counter;
+
 		// Use "std::map" instead of "std::unordered_map" so that the iteration order is guaranteed
 		std::map<com_ptr<ID3D11DepthStencilView>, intermediate_snapshot_info> _counters_per_used_depthstencil;
 		std::map<com_ptr<ID3D11Buffer>, draw_stats> _counters_per_constant_buffer;

@@ -50,12 +50,14 @@ namespace reshade::d3d11
 		subscribe_to_menu("DX11", [this]() { draw_debug_menu(); });
 		subscribe_to_load_config([this](const ini_file& config) {
 			config.get("DX11_BUFFER_DETECTION", "DepthBufferRetrievalMode", depth_buffer_before_clear);
+			config.get("DX11_BUFFER_DETECTION", "DepthBufferTextureFormat", _depth_buffer_texture_format);
 			config.get("DX11_BUFFER_DETECTION", "ExtendedDepthBufferDetection", extended_depth_buffer_detection);
 			config.get("DX11_BUFFER_DETECTION", "DepthBufferClearingNumber", depth_buffer_clearing_number);
-			auto_detect_cleared_depth_buffer = depth_buffer_clearing_number > 0 ? false : true;
+			auto_detect_cleared_depth_buffer = depth_buffer_clearing_number == 0;
 		});
 		subscribe_to_save_config([this](ini_file& config) {
 			config.set("DX11_BUFFER_DETECTION", "DepthBufferRetrievalMode", depth_buffer_before_clear);
+			config.set("DX11_BUFFER_DETECTION", "DepthBufferTextureFormat", _depth_buffer_texture_format);
 			config.set("DX11_BUFFER_DETECTION", "ExtendedDepthBufferDetection", extended_depth_buffer_detection);
 			config.set("DX11_BUFFER_DETECTION", "DepthBufferClearingNumber", depth_buffer_clearing_number);
 		});
