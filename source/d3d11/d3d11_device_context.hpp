@@ -191,10 +191,9 @@ struct D3D11DeviceContext : ID3D11DeviceContext3
 	virtual void STDMETHODCALLTYPE GetHardwareProtectionState(BOOL *pHwProtectionEnable) override;
 	#pragma endregion
 
-	void log_drawcall(UINT vertices);
 	void clear_drawcall_stats();
 
-	void track_active_depthstencil(ID3D11DepthStencilView* pDepthStencilView);
+	void track_active_rendertargets(UINT NumViews, ID3D11RenderTargetView *const *ppRenderTargetViews, ID3D11DepthStencilView *pDepthStencilView);
 	void track_cleared_depthstencil(ID3D11DepthStencilView* pDepthStencilView);
 	bool save_depth_texture(ID3D11DepthStencilView *pDepthStencilView, bool cleared);
 
@@ -202,6 +201,5 @@ struct D3D11DeviceContext : ID3D11DeviceContext3
 	ID3D11DeviceContext *_orig;
 	unsigned int _interface_version;
 	D3D11Device *const _device;
-	com_ptr<ID3D11DepthStencilView> _active_depthstencil;
 	reshade::d3d11::draw_call_tracker _draw_call_tracker;
 };

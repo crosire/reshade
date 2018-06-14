@@ -7,47 +7,29 @@
 #include "d3d11_device.hpp"
 #include "d3d11_device_context.hpp"
 
-void D3D11DeviceContext::log_drawcall(UINT vertices)
-{
-	_draw_call_tracker.log_drawcalls(1, vertices);
-
-	if (_active_depthstencil != nullptr)
-	{
-		_draw_call_tracker.log_drawcalls(_active_depthstencil.get(), 1, vertices);
-	}
-}
 void D3D11DeviceContext::clear_drawcall_stats()
 {
 	_draw_call_tracker.reset();
-	_active_depthstencil.reset();
 }
-/* fonction that saves the depth texture associated to a depthstencil view, in order to use it in the final rendering stage */
+
 bool D3D11DeviceContext::save_depth_texture(ID3D11DepthStencilView *pDepthStencilView, bool cleared)
 {
-	if (pDepthStencilView == nullptr)
-	{
-		return false;
-	}
-
 	if (_device->_runtimes.empty())
-	{
 		return false;
-	}
 
 	const auto runtime = _device->_runtimes.front();
 
 	if (!runtime->depth_buffer_before_clear)
-	{
 		return false;
-	}
-
 	if (!cleared && !runtime->extended_depth_buffer_detection)
-	{
 		return false;
-	}
 
+	assert(pDepthStencilView != nullptr);
+
+	// Retrieve texture from depth stencil
 	com_ptr<ID3D11Resource> resource;
 	pDepthStencilView->GetResource(&resource);
+
 	com_ptr<ID3D11Texture2D> texture;
 	if (FAILED(resource->QueryInterface(&texture)))
 	{
@@ -66,17 +48,17 @@ bool D3D11DeviceContext::save_depth_texture(ID3D11DepthStencilView *pDepthStenci
 		return false;
 	}
 
-	// In some cases (TitanFall2, for instance) the dimensions of the cleared depth texture are greater than the back buffer ones, because it is embedded in a greater rect
-	// As there is no easy way to stretch it, we try to replace it with the next depth texture retrieved with the OMSetRenderTargets method (this works well in TitanFall2 or Middle Earth Shadow Of War)
+	// In some cases (TitanFall2, for instance) the dimensions of the cleared depth texture are greater than the back buffer ones, because it is embedded in a greater rectangle.
+	// As there is no easy way to stretch it, we try to replace it with the next depth texture retrieved with the OMSetRenderTargets method (this works well in TitanFall2 or Middle Earth Shadow Of War).
 	if (desc.Width > runtime->frame_width())
 	{
 		return false;
 	}
 
-	// in case the depth texture is retrieved, we make a copy of it and store it in an ordered map, to use it after in the final rendering stage
-	if ((runtime->depth_buffer_clearing_number == 0 && cleared == true) || _device->_clear_DSV_iter <= runtime->depth_buffer_clearing_number)
+	// In case the depth texture is retrieved, we make a copy of it and store it in an ordered map to use it later in the final rendering stage.
+	if ((runtime->depth_buffer_clearing_number == 0 && cleared) || (_device->_clear_DSV_iter <= runtime->depth_buffer_clearing_number))
 	{
-		// selection of the appropriate destination texture, acording to the depth texture format and dimensions
+		// Select an appropriate destination texture
 		com_ptr<ID3D11Texture2D> depth_texture_save = runtime->select_depth_texture_save(desc);
 
 		if (depth_texture_save == nullptr)
@@ -84,42 +66,39 @@ bool D3D11DeviceContext::save_depth_texture(ID3D11DepthStencilView *pDepthStenci
 			return false;
 		}
 
-		// copy the depth texture. This is necessary because the content of the depth texture is cleared.
-		// this way, we can retrieve this content in the final rendering stage
+		// Copy the depth texture. This is necessary because the content of the depth texture is cleared.
+		// This way, we can retrieve this content in the final rendering stage
 		this->CopyResource(depth_texture_save.get(), texture.get());
 
-		// store the saved texture in a specific ordered map		
+		// Store the saved texture in the ordered map.
 		_draw_call_tracker.track_depth_texture(_device->_clear_DSV_iter, texture.get(), pDepthStencilView, depth_texture_save, cleared);
 	}
 	else
 	{
-		// store a null depth texture in the ordered map, in order to display it even if the user choosed a previous cleared texture
-		// doing so, the texture is still visible in the depth buffer selection window and the user can choose it
+		// Store a null depth texture in the ordered map in order to display it even if the user chose a previous cleared texture.
+		// This way the texture will still be visible in the depth buffer selection window and the user can choose it.
 		_draw_call_tracker.track_depth_texture(_device->_clear_DSV_iter, texture.get(), pDepthStencilView, nullptr, cleared);
 	}
+
 	_device->_clear_DSV_iter++;
+
 	return true;
 }
-void D3D11DeviceContext::track_active_depthstencil(ID3D11DepthStencilView *pDepthStencilView)
+
+void D3D11DeviceContext::track_active_rendertargets(UINT NumViews, ID3D11RenderTargetView *const *ppRenderTargetViews, ID3D11DepthStencilView *pDepthStencilView)
 {
 	if (pDepthStencilView == nullptr)
-	{
 		return;
-	}
 
-	if (pDepthStencilView == _active_depthstencil)
-	{
-		return;
-	}
-
-	_active_depthstencil = pDepthStencilView;
-	_draw_call_tracker.track_depthstencil(pDepthStencilView);
+	_draw_call_tracker.track_rendertargets(pDepthStencilView, NumViews, ppRenderTargetViews);
 
 	save_depth_texture(pDepthStencilView, false);
 }
 void D3D11DeviceContext::track_cleared_depthstencil(ID3D11DepthStencilView *pDepthStencilView)
 {
-	// Save texture from depth stencil
+	if (pDepthStencilView == nullptr)
+		return;
+
 	save_depth_texture(pDepthStencilView, true);
 }
 
@@ -277,15 +256,17 @@ void STDMETHODCALLTYPE D3D11DeviceContext::VSSetShader(ID3D11VertexShader *pVert
 void STDMETHODCALLTYPE D3D11DeviceContext::DrawIndexed(UINT IndexCount, UINT StartIndexLocation, INT BaseVertexLocation)
 {
 	_orig->DrawIndexed(IndexCount, StartIndexLocation, BaseVertexLocation);
-	log_drawcall(IndexCount);
+	_draw_call_tracker.on_draw(this, IndexCount);
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::Draw(UINT VertexCount, UINT StartVertexLocation)
 {
 	_orig->Draw(VertexCount, StartVertexLocation);
-	log_drawcall(VertexCount);
+	_draw_call_tracker.on_draw(this, VertexCount);
 }
 HRESULT STDMETHODCALLTYPE D3D11DeviceContext::Map(ID3D11Resource *pResource, UINT Subresource, D3D11_MAP MapType, UINT MapFlags, D3D11_MAPPED_SUBRESOURCE *pMappedResource)
 {
+	_draw_call_tracker.on_map(pResource);
+
 	return _orig->Map(pResource, Subresource, MapType, MapFlags, pMappedResource);
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::Unmap(ID3D11Resource *pResource, UINT Subresource)
@@ -311,12 +292,12 @@ void STDMETHODCALLTYPE D3D11DeviceContext::IASetIndexBuffer(ID3D11Buffer *pIndex
 void STDMETHODCALLTYPE D3D11DeviceContext::DrawIndexedInstanced(UINT IndexCountPerInstance, UINT InstanceCount, UINT StartIndexLocation, INT BaseVertexLocation, UINT StartInstanceLocation)
 {
 	_orig->DrawIndexedInstanced(IndexCountPerInstance, InstanceCount, StartIndexLocation, BaseVertexLocation, StartInstanceLocation);
-	log_drawcall(IndexCountPerInstance * InstanceCount);
+	_draw_call_tracker.on_draw(this, IndexCountPerInstance * InstanceCount);
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::DrawInstanced(UINT VertexCountPerInstance, UINT InstanceCount, UINT StartVertexLocation, UINT StartInstanceLocation)
 {
 	_orig->DrawInstanced(VertexCountPerInstance, InstanceCount, StartVertexLocation, StartInstanceLocation);
-	log_drawcall(VertexCountPerInstance * InstanceCount);
+	_draw_call_tracker.on_draw(this, VertexCountPerInstance * InstanceCount);
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::GSSetConstantBuffers(UINT StartSlot, UINT NumBuffers, ID3D11Buffer *const *ppConstantBuffers)
 {
@@ -364,13 +345,13 @@ void STDMETHODCALLTYPE D3D11DeviceContext::GSSetSamplers(UINT StartSlot, UINT Nu
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::OMSetRenderTargets(UINT NumViews, ID3D11RenderTargetView *const *ppRenderTargetViews, ID3D11DepthStencilView *pDepthStencilView)
 {
-	track_active_depthstencil(pDepthStencilView);
+	track_active_rendertargets(NumViews, ppRenderTargetViews, pDepthStencilView);
 
 	_orig->OMSetRenderTargets(NumViews, ppRenderTargetViews, pDepthStencilView);
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::OMSetRenderTargetsAndUnorderedAccessViews(UINT NumRTVs, ID3D11RenderTargetView *const *ppRenderTargetViews, ID3D11DepthStencilView *pDepthStencilView, UINT UAVStartSlot, UINT NumUAVs, ID3D11UnorderedAccessView *const *ppUnorderedAccessViews, const UINT *pUAVInitialCounts)
 {
-	track_active_depthstencil(pDepthStencilView);
+	track_active_rendertargets(NumRTVs, ppRenderTargetViews, pDepthStencilView);
 
 	_orig->OMSetRenderTargetsAndUnorderedAccessViews(NumRTVs, ppRenderTargetViews, pDepthStencilView, UAVStartSlot, NumUAVs, ppUnorderedAccessViews, pUAVInitialCounts);
 }
@@ -389,17 +370,17 @@ void STDMETHODCALLTYPE D3D11DeviceContext::SOSetTargets(UINT NumBuffers, ID3D11B
 void STDMETHODCALLTYPE D3D11DeviceContext::DrawAuto()
 {
 	_orig->DrawAuto();
-	log_drawcall(0);
+	_draw_call_tracker.on_draw(this, 0);
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::DrawIndexedInstancedIndirect(ID3D11Buffer *pBufferForArgs, UINT AlignedByteOffsetForArgs)
 {
 	_orig->DrawIndexedInstancedIndirect(pBufferForArgs, AlignedByteOffsetForArgs);
-	log_drawcall(0);
+	_draw_call_tracker.on_draw(this, 0);
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::DrawInstancedIndirect(ID3D11Buffer *pBufferForArgs, UINT AlignedByteOffsetForArgs)
 {
 	_orig->DrawInstancedIndirect(pBufferForArgs, AlignedByteOffsetForArgs);
-	log_drawcall(0);
+	_draw_call_tracker.on_draw(this, 0);
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::Dispatch(UINT ThreadGroupCountX, UINT ThreadGroupCountY, UINT ThreadGroupCountZ)
 {
@@ -700,13 +681,12 @@ HRESULT STDMETHODCALLTYPE D3D11DeviceContext::FinishCommandList(BOOL RestoreDefe
 {
 	const HRESULT hr = _orig->FinishCommandList(RestoreDeferredContextState, ppCommandList);
 
-	if (SUCCEEDED(hr) && ppCommandList != nullptr)
+	if (SUCCEEDED(hr) && ppCommandList != nullptr && _draw_call_tracker.total_drawcalls() > 0)
 	{
 		_device->add_commandlist_trackers(*ppCommandList, _draw_call_tracker);
 	}
 
 	_draw_call_tracker.reset();
-	_active_depthstencil.reset();
 
 	return hr;
 }
