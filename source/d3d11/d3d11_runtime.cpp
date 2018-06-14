@@ -47,7 +47,7 @@ namespace reshade::d3d11
 		_vendor_id = adapter_desc.VendorId;
 		_device_id = adapter_desc.DeviceId;
 
-		subscribe_to_menu("DX11", [this]() { draw_select_depth_buffer_menu(); });
+		subscribe_to_menu("DX11", [this]() { draw_debug_menu(); });
 		subscribe_to_load_config([this](const ini_file& config) {
 			config.get("DX11_BUFFER_DETECTION", "DepthBufferRetrievalMode", depth_buffer_before_clear);
 			config.get("DX11_BUFFER_DETECTION", "ExtendedDepthBufferDetection", extended_depth_buffer_detection);
@@ -1046,7 +1046,7 @@ namespace reshade::d3d11
 		}
 	}
 
-	void d3d11_runtime::draw_select_depth_buffer_menu()
+	void d3d11_runtime::draw_debug_menu()
 	{
 		if (ImGui::CollapsingHeader("Buffer Detection", ImGuiTreeNodeFlags_DefaultOpen))
 		{

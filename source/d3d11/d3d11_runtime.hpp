@@ -97,7 +97,7 @@ namespace reshade::d3d11
 		bool init_imgui_resources();
 		bool init_imgui_font_atlas();
 
-		void draw_select_depth_buffer_menu();
+		void draw_debug_menu();
 
 		void detect_depth_source(draw_call_tracker& tracker);
 		bool create_depthstencil_replacement(ID3D11DepthStencilView *depthstencil, ID3D11Texture2D *texture);
