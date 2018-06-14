@@ -1000,8 +1000,8 @@ namespace reshade::d3d11
 		if (ImGui::CollapsingHeader("Depth and Intermediate Buffers", ImGuiTreeNodeFlags_DefaultOpen))
 		{
 			bool modified = false;
-			modified |= ImGui::Checkbox("Copy depth before clearing", &depth_buffer_before_clear);
 			modified |= ImGui::Combo("Depth Texture Format", &_depth_buffer_texture_format, "All\0D16\0D32F\0D24S8\0D32FS8\0");
+			modified |= ImGui::Checkbox("Copy depth before clearing", &depth_buffer_before_clear);
 
 			if (depth_buffer_before_clear)
 			{
@@ -1013,6 +1013,9 @@ namespace reshade::d3d11
 				}
 
 				_current_tracker.keep_cleared_depth_textures();
+
+				ImGui::Spacing();
+				ImGui::Text("Depth Buffers: (intermediate buffer draw calls in parentheses)");
 
 				UINT i = 1;
 
