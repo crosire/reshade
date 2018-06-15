@@ -273,9 +273,9 @@ namespace reshade
 		int _current_preset = -1;
 		int _selected_technique = -1;
 		int _input_processing_mode = 2;
-		unsigned int _menu_key_data[3];
-		unsigned int _screenshot_key_data[3];
-		unsigned int _effects_key_data[3];
+		unsigned int _menu_key_data[4];
+		unsigned int _screenshot_key_data[4];
+		unsigned int _effects_key_data[4];
 		filesystem::path _configuration_path;
 		filesystem::path _screenshot_path;
 		std::string _focus_effect;
