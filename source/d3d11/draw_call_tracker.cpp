@@ -23,6 +23,16 @@ namespace reshade::d3d11
 			_counters_per_used_depthstencil[depthstencil].stats.vertices += snapshot.stats.vertices;
 			_counters_per_used_depthstencil[depthstencil].stats.drawcalls += snapshot.stats.drawcalls;
 		}
+
+		for (auto source_entry : source._cleared_depth_textures)
+		{
+			const auto destination_entry = _cleared_depth_textures.find(source_entry.first);
+
+			if (destination_entry == _cleared_depth_textures.end())
+			{
+				_cleared_depth_textures.emplace(source_entry.first, source_entry.second);
+			}
+		}
 	}
 
 	void draw_call_tracker::reset()
@@ -31,6 +41,7 @@ namespace reshade::d3d11
 		_global_counter.drawcalls = 0;
 		_counters_per_used_depthstencil.clear();
 		_counters_per_constant_buffer.clear();
+		_cleared_depth_textures.clear();
 	}
 
 	void draw_call_tracker::on_map(ID3D11Resource *pResource)

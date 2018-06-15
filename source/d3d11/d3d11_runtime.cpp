@@ -1008,7 +1008,6 @@ namespace reshade::d3d11
 				if (ImGui::Checkbox("Extended depth buffer detection", &extended_depth_buffer_detection))
 				{
 					depth_buffer_clearing_number = _selected_depth_buffer_texture_index = 0;
-
 					modified = true;
 				}
 
@@ -1198,7 +1197,10 @@ namespace reshade::d3d11
 			// In the future, maybe we could find a way to retrieve depth texture statistics (number of draw calls and number of vertices), so ReShade could automatically select the best one
 			ID3D11Texture2D *const best_match_texture = tracker.find_best_cleared_depth_buffer_texture(depth_texture_formats[_depth_buffer_texture_format], depth_buffer_clearing_number);
 
-			create_depthstencil_replacement(_default_depthstencil.get(), best_match_texture);
+			if (best_match_texture != nullptr)
+			{
+				create_depthstencil_replacement(_default_depthstencil.get(), best_match_texture);
+			}
 			return;
 		}
 

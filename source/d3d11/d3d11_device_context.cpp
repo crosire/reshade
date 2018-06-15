@@ -48,8 +48,6 @@ bool D3D11DeviceContext::save_depth_texture(ID3D11DepthStencilView *pDepthStenci
 		return false;
 	}
 
-	// In some cases (TitanFall2, for instance) the dimensions of the cleared depth texture are greater than the back buffer ones, because it is embedded in a greater rectangle.
-	// As there is no easy way to stretch it, we try to replace it with the next depth texture retrieved with the OMSetRenderTargets method (this works well in TitanFall2 or Middle Earth Shadow Of War).
 	if (desc.Width > runtime->frame_width())
 	{
 		return false;
@@ -682,7 +680,7 @@ HRESULT STDMETHODCALLTYPE D3D11DeviceContext::FinishCommandList(BOOL RestoreDefe
 {
 	const HRESULT hr = _orig->FinishCommandList(RestoreDeferredContextState, ppCommandList);
 
-	if (SUCCEEDED(hr) && ppCommandList != nullptr && _draw_call_tracker.total_drawcalls() > 0)
+	if (SUCCEEDED(hr) && ppCommandList != nullptr)
 	{
 		_device->add_commandlist_trackers(*ppCommandList, _draw_call_tracker);
 	}
