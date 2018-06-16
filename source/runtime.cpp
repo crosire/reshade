@@ -76,7 +76,6 @@ namespace reshade
 		imgui_io.KeyMap[ImGuiKey_X] = 'X';
 		imgui_io.KeyMap[ImGuiKey_Y] = 'Y';
 		imgui_io.KeyMap[ImGuiKey_Z] = 'Z';
-		imgui_io.NavActive = true;
 		imgui_io.ConfigFlags = ImGuiConfigFlags_NavEnableKeyboard;
 		imgui_style.WindowRounding = 0.0f;
 		imgui_style.WindowBorderSize = 0.0f;
@@ -216,7 +215,7 @@ namespace reshade
 	}
 	void runtime::on_present_effect()
 	{
-		if (_input->is_key_pressed(_effects_key_data[0], _effects_key_data[1] != 0, _effects_key_data[2] != 0, false))
+		if (!_toggle_key_setting_active && _input->is_key_pressed(_effects_key_data[0], _effects_key_data[1] != 0, _effects_key_data[2] != 0, _effects_key_data[3] != 0))
 		{
 			_effects_enabled = !_effects_enabled;
 		}
@@ -1105,7 +1104,7 @@ namespace reshade
 		const bool show_splash = (_last_present_time - _last_reload_time) < std::chrono::seconds(5);
 
 		if (!_overlay_key_setting_active &&
-			_input->is_key_pressed(_menu_key_data[0], _menu_key_data[1], _menu_key_data[2], false))
+			_input->is_key_pressed(_menu_key_data[0], _menu_key_data[1], _menu_key_data[2], _menu_key_data[3]))
 		{
 			_show_menu = !_show_menu;
 		}
@@ -1186,9 +1185,10 @@ namespace reshade
 			else
 			{
 				ImGui::Text(
-					"Press '%s%s%s' to open the configuration menu.",
+					"Press '%s%s%s%s' to open the configuration menu.",
 					_menu_key_data[1] ? "Ctrl + " : "",
 					_menu_key_data[2] ? "Shift + " : "",
+					_menu_key_data[3] ? "Alt + " : "",
 					keyboard_keys[_menu_key_data[0]]);
 			}
 
@@ -1304,9 +1304,10 @@ namespace reshade
 	{
 		if (!_effects_enabled)
 		{
-			ImGui::Text("Effects are disabled. Press '%s%s%s' to enable them again.",
+			ImGui::Text("Effects are disabled. Press '%s%s%s%s' to enable them again.",
 				_effects_key_data[1] ? "Ctrl + " : "",
 				_effects_key_data[2] ? "Shift + " : "",
+				_effects_key_data[3] ? "Alt + " : "",
 				keyboard_keys[_effects_key_data[0]]);
 		}
 
@@ -1563,10 +1564,35 @@ namespace reshade
 	{
 		char edit_buffer[2048];
 
-		const auto copy_key_shortcut_to_edit_buffer = [&edit_buffer](const auto &shortcut) {
+		const auto update_key_data = [&](unsigned int key_data[4]) {
+			const unsigned int last_key_pressed = _input->last_key_pressed();
+
+			if (last_key_pressed != 0)
+			{
+				if (last_key_pressed == 0x08) // Backspace
+				{
+					key_data[0] = 0;
+					key_data[1] = 0;
+					key_data[2] = 0;
+					key_data[3] = 0;
+				}
+				else if (last_key_pressed < 0x10 || last_key_pressed > 0x12)
+				{
+					key_data[0] = last_key_pressed;
+					key_data[1] = _input->is_key_down(0x11);
+					key_data[2] = _input->is_key_down(0x10);
+					key_data[3] = _input->is_key_down(0x12);
+				}
+
+				save_config();
+			}
+		};
+
+		const auto copy_key_shortcut_to_edit_buffer = [&edit_buffer](const unsigned int shortcut[4]) {
 			size_t offset = 0;
 			if (shortcut[1]) memcpy(edit_buffer, "Ctrl + ", 8), offset += 7;
 			if (shortcut[2]) memcpy(edit_buffer + offset, "Shift + ", 9), offset += 8;
+			if (shortcut[3]) memcpy(edit_buffer + offset, "Alt + ", 7), offset += 6;
 			memcpy(edit_buffer + offset, keyboard_keys[shortcut[0]], sizeof(*keyboard_keys));
 		};
 		const auto copy_vector_to_edit_buffer = [&edit_buffer](const std::vector<std::string> &data) {
@@ -1606,16 +1632,7 @@ namespace reshade
 			{
 				_overlay_key_setting_active = true;
 
-				const unsigned int last_key_pressed = _input->last_key_pressed();
-
-				if (last_key_pressed != 0 && (last_key_pressed < 0x10 || last_key_pressed > 0x11))
-				{
-					_menu_key_data[0] = last_key_pressed;
-					_menu_key_data[1] = _input->is_key_down(0x11);
-					_menu_key_data[2] = _input->is_key_down(0x10);
-
-					save_config();
-				}
+				update_key_data(_menu_key_data);
 			}
 			else if (ImGui::IsItemHovered())
 			{
@@ -1628,18 +1645,13 @@ namespace reshade
 
 			ImGui::InputText("Effects Toggle Key", edit_buffer, sizeof(edit_buffer), ImGuiInputTextFlags_ReadOnly);
 
+			_toggle_key_setting_active = false;
+
 			if (ImGui::IsItemActive())
 			{
-				const unsigned int last_key_pressed = _input->last_key_pressed();
+				_toggle_key_setting_active = true;
 
-				if (last_key_pressed != 0 && (last_key_pressed < 0x10 || last_key_pressed > 0x11))
-				{
-					_effects_key_data[0] = last_key_pressed;
-					_effects_key_data[1] = _input->is_key_down(0x11);
-					_effects_key_data[2] = _input->is_key_down(0x10);
-
-					save_config();
-				}
+				update_key_data(_effects_key_data);
 			}
 			else if (ImGui::IsItemHovered())
 			{
@@ -1710,16 +1722,7 @@ namespace reshade
 			{
 				_screenshot_key_setting_active = true;
 
-				const unsigned int last_key_pressed = _input->last_key_pressed();
-
-				if (last_key_pressed != 0 && (last_key_pressed < 0x10 || last_key_pressed > 0x11))
-				{
-					_screenshot_key_data[0] = last_key_pressed;
-					_screenshot_key_data[1] = _input->is_key_down(0x11);
-					_screenshot_key_data[2] = _input->is_key_down(0x10);
-
-					save_config();
-				}
+				update_key_data(_screenshot_key_data);
 			}
 			else if (ImGui::IsItemHovered())
 			{

@@ -12,6 +12,7 @@ void D3D11DeviceContext::clear_drawcall_stats()
 	_draw_call_tracker.reset();
 }
 
+#if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
 bool D3D11DeviceContext::save_depth_texture(ID3D11DepthStencilView *pDepthStencilView, bool cleared)
 {
 	if (_device->_runtimes.empty())
@@ -100,6 +101,7 @@ void D3D11DeviceContext::track_cleared_depthstencil(ID3D11DepthStencilView *pDep
 
 	save_depth_texture(pDepthStencilView, true);
 }
+#endif
 
 // ID3D11DeviceContext
 HRESULT STDMETHODCALLTYPE D3D11DeviceContext::QueryInterface(REFIID riid, void **ppvObj)
@@ -264,7 +266,9 @@ void STDMETHODCALLTYPE D3D11DeviceContext::Draw(UINT VertexCount, UINT StartVert
 }
 HRESULT STDMETHODCALLTYPE D3D11DeviceContext::Map(ID3D11Resource *pResource, UINT Subresource, D3D11_MAP MapType, UINT MapFlags, D3D11_MAPPED_SUBRESOURCE *pMappedResource)
 {
+#if RESHADE_DX11_CAPTURE_CONSTANT_BUFFERS
 	_draw_call_tracker.on_map(pResource);
+#endif
 
 	return _orig->Map(pResource, Subresource, MapType, MapFlags, pMappedResource);
 }
@@ -344,13 +348,17 @@ void STDMETHODCALLTYPE D3D11DeviceContext::GSSetSamplers(UINT StartSlot, UINT Nu
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::OMSetRenderTargets(UINT NumViews, ID3D11RenderTargetView *const *ppRenderTargetViews, ID3D11DepthStencilView *pDepthStencilView)
 {
+#if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
 	track_active_rendertargets(NumViews, ppRenderTargetViews, pDepthStencilView);
+#endif
 
 	_orig->OMSetRenderTargets(NumViews, ppRenderTargetViews, pDepthStencilView);
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::OMSetRenderTargetsAndUnorderedAccessViews(UINT NumRTVs, ID3D11RenderTargetView *const *ppRenderTargetViews, ID3D11DepthStencilView *pDepthStencilView, UINT UAVStartSlot, UINT NumUAVs, ID3D11UnorderedAccessView *const *ppUnorderedAccessViews, const UINT *pUAVInitialCounts)
 {
+#if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
 	track_active_rendertargets(NumRTVs, ppRenderTargetViews, pDepthStencilView);
+#endif
 
 	_orig->OMSetRenderTargetsAndUnorderedAccessViews(NumRTVs, ppRenderTargetViews, pDepthStencilView, UAVStartSlot, NumUAVs, ppUnorderedAccessViews, pUAVInitialCounts);
 }
@@ -431,7 +439,9 @@ void STDMETHODCALLTYPE D3D11DeviceContext::ClearUnorderedAccessViewFloat(ID3D11U
 }
 void STDMETHODCALLTYPE D3D11DeviceContext::ClearDepthStencilView(ID3D11DepthStencilView *pDepthStencilView, UINT ClearFlags, FLOAT Depth, UINT8 Stencil)
 {
+#if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
 	track_cleared_depthstencil(pDepthStencilView);
+#endif
 
 	_orig->ClearDepthStencilView(pDepthStencilView, ClearFlags, Depth, Stencil);
 }

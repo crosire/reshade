@@ -10,14 +10,7 @@ namespace reshade::d3d11
 		_global_counter.vertices += source.total_vertices();
 		_global_counter.drawcalls += source.total_drawcalls();
 
-		for (const auto &[buffer, snapshot] : source._counters_per_constant_buffer)
-		{
-			_counters_per_constant_buffer[buffer].vertices += snapshot.vertices;
-			_counters_per_constant_buffer[buffer].drawcalls += snapshot.drawcalls;
-			_counters_per_constant_buffer[buffer].ps_uses += snapshot.ps_uses;
-			_counters_per_constant_buffer[buffer].vs_uses += snapshot.vs_uses;
-		}
-
+#if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
 		for (const auto &[depthstencil, snapshot] : source._counters_per_used_depthstencil)
 		{
 			_counters_per_used_depthstencil[depthstencil].stats.vertices += snapshot.stats.vertices;
@@ -33,33 +26,54 @@ namespace reshade::d3d11
 				_cleared_depth_textures.emplace(source_entry.first, source_entry.second);
 			}
 		}
+#endif
+#if RESHADE_DX11_CAPTURE_CONSTANT_BUFFERS
+		for (const auto &[buffer, snapshot] : source._counters_per_constant_buffer)
+		{
+			_counters_per_constant_buffer[buffer].vertices += snapshot.vertices;
+			_counters_per_constant_buffer[buffer].drawcalls += snapshot.drawcalls;
+			_counters_per_constant_buffer[buffer].ps_uses += snapshot.ps_uses;
+			_counters_per_constant_buffer[buffer].vs_uses += snapshot.vs_uses;
+		}
+#endif
 	}
 
 	void draw_call_tracker::reset()
 	{
 		_global_counter.vertices = 0;
 		_global_counter.drawcalls = 0;
+#if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
 		_counters_per_used_depthstencil.clear();
-		_counters_per_constant_buffer.clear();
 		_cleared_depth_textures.clear();
+#endif
+#if RESHADE_DX11_CAPTURE_CONSTANT_BUFFERS
+		_counters_per_constant_buffer.clear();
+#endif
 	}
 
-	void draw_call_tracker::on_map(ID3D11Resource *pResource)
+	void draw_call_tracker::on_map(ID3D11Resource *resource)
 	{
+		UNREFERENCED_PARAMETER(resource);
+
+#if RESHADE_DX11_CAPTURE_CONSTANT_BUFFERS
 		D3D11_RESOURCE_DIMENSION dim;
-		pResource->GetType(&dim);
+		resource->GetType(&dim);
 
 		if (dim == D3D11_RESOURCE_DIMENSION_BUFFER)
 		{
-			_counters_per_constant_buffer[static_cast<ID3D11Buffer *>(pResource)].mapped += 1;
+			_counters_per_constant_buffer[static_cast<ID3D11Buffer *>(resource)].mapped += 1;
 		}
+#endif
 	}
 
 	void draw_call_tracker::on_draw(ID3D11DeviceContext *context, UINT vertices)
 	{
+		UNREFERENCED_PARAMETER(context);
+
 		_global_counter.vertices += vertices;
 		_global_counter.drawcalls += 1;
 
+#if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
 		com_ptr<ID3D11RenderTargetView> targets[D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT];
 		com_ptr<ID3D11DepthStencilView> depthstencil;
 
@@ -93,7 +107,8 @@ namespace reshade::d3d11
 				}
 			}
 		}
-
+#endif
+#if RESHADE_DX11_CAPTURE_CONSTANT_BUFFERS
 		// Capture constant buffers that are used when depth stencils are drawn
 		com_ptr<ID3D11Buffer> vscbuffers[D3D11_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT];
 		context->VSGetConstantBuffers(0, ARRAYSIZE(vscbuffers), reinterpret_cast<ID3D11Buffer **>(vscbuffers));
@@ -118,8 +133,10 @@ namespace reshade::d3d11
 				_counters_per_constant_buffer[pscbuffers[i]].ps_uses += 1;
 			}
 		}
+#endif
 	}
 
+#if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
 	bool draw_call_tracker::check_depthstencil(ID3D11DepthStencilView *depthstencil) const
 	{
 		return _counters_per_used_depthstencil.find(depthstencil) != _counters_per_used_depthstencil.end();
@@ -288,4 +305,5 @@ namespace reshade::d3d11
 
 		return best_match;
 	}
+#endif
 }

@@ -57,7 +57,9 @@ namespace reshade::d3d11
 		void render_technique(const technique &technique) override;
 		void render_imgui_draw_data(ImDrawData *data) override;
 
+#if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
 		com_ptr<ID3D11Texture2D> select_depth_texture_save(D3D11_TEXTURE2D_DESC &texture_desc);
+#endif
 
 		com_ptr<ID3D11Device> _device;
 		com_ptr<ID3D11DeviceContext> _immediate_context;
@@ -75,10 +77,23 @@ namespace reshade::d3d11
 		bool depth_buffer_before_clear = false;
 		bool auto_detect_cleared_depth_buffer = false;
 		bool extended_depth_buffer_detection = false;
-		unsigned int depth_buffer_clearing_number = 0; // depth buffer autoselection by default
+		unsigned int depth_buffer_clearing_number = 0; // Depth buffer auto-selection by default
 		std::unordered_map<UINT, com_ptr<ID3D11Texture2D>> _depth_texture_saves;
 
 	private:
+		bool init_backbuffer_texture();
+		bool init_default_depth_stencil();
+		bool init_fx_resources();
+		bool init_imgui_resources();
+		bool init_imgui_font_atlas();
+
+		void draw_debug_menu();
+
+#if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
+		void detect_depth_source(draw_call_tracker& tracker);
+		bool create_depthstencil_replacement(ID3D11DepthStencilView *depthstencil, ID3D11Texture2D *texture);
+#endif
+
 		struct depth_texture_save_info
 		{
 			com_ptr<ID3D11Texture2D> src_texture;
@@ -89,17 +104,7 @@ namespace reshade::d3d11
 
 		int _depth_buffer_texture_format = 0; // No depth buffer texture format filter by default
 		unsigned int _selected_depth_buffer_texture_index = 0;
-
-		bool init_backbuffer_texture();
-		bool init_default_depth_stencil();
-		bool init_fx_resources();
-		bool init_imgui_resources();
-		bool init_imgui_font_atlas();
-
-		void draw_debug_menu();
-
-		void detect_depth_source(draw_call_tracker& tracker);
-		bool create_depthstencil_replacement(ID3D11DepthStencilView *depthstencil, ID3D11Texture2D *texture);
+		std::map<UINT, depth_texture_save_info> _displayed_depth_textures;
 
 		bool _is_multisampling_enabled = false;
 		DXGI_FORMAT _backbuffer_format = DXGI_FORMAT_UNKNOWN;
@@ -126,6 +131,5 @@ namespace reshade::d3d11
 		com_ptr<ID3D11DepthStencilState> _imgui_depthstencil_state;
 		int _imgui_vertex_buffer_size = 0, _imgui_index_buffer_size = 0;
 		draw_call_tracker _current_tracker;
-		std::map<UINT, depth_texture_save_info> _displayed_depth_textures;
 	};
 }
