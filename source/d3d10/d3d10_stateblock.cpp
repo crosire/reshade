@@ -39,6 +39,8 @@ namespace reshade::d3d10
 		_device->RSGetState(&_rs_state);
 		_device->RSGetViewports(&_rs_num_viewports, nullptr);
 		_device->RSGetViewports(&_rs_num_viewports, _rs_viewports);
+		_device->RSGetScissorRects(&_rs_num_scissor_rects, nullptr);
+		_device->RSGetScissorRects(&_rs_num_scissor_rects, _rs_scissor_rects);
 
 		_device->VSGetShader(&_vs);
 		_device->VSGetConstantBuffers(0, ARRAYSIZE(_vs_constant_buffers), _vs_constant_buffers);
@@ -66,6 +68,7 @@ namespace reshade::d3d10
 
 		_device->RSSetState(_rs_state);
 		_device->RSSetViewports(_rs_num_viewports, _rs_viewports);
+		_device->RSSetScissorRects(_rs_num_scissor_rects, _rs_scissor_rects);
 
 		_device->VSSetShader(_vs);
 		_device->VSSetConstantBuffers(0, ARRAYSIZE(_vs_constant_buffers), _vs_constant_buffers);

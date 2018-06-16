@@ -1270,7 +1270,10 @@ namespace reshade
 		_input->block_mouse_input(_input_processing_mode != 0 && _show_menu && (_imgui_context->IO.WantCaptureMouse || _input_processing_mode == 2));
 		_input->block_keyboard_input(_input_processing_mode != 0 && _show_menu && (_imgui_context->IO.WantCaptureKeyboard || _input_processing_mode == 2));
 
-		render_imgui_draw_data(ImGui::GetDrawData());
+		if (const auto draw_data = ImGui::GetDrawData(); draw_data != nullptr && draw_data->CmdListsCount != 0 && draw_data->TotalVtxCount != 0)
+		{
+			render_imgui_draw_data(draw_data);
+		}
 	}
 	void runtime::draw_overlay_menu()
 	{
