@@ -1018,14 +1018,14 @@ namespace reshade::d3d11
 				_current_tracker.keep_cleared_depth_textures();
 
 				ImGui::Spacing();
-				ImGui::Text("Depth Buffers: (intermediate buffer draw calls in parentheses)");
+				ImGui::TextUnformatted("Depth Buffers:");
 
 				UINT i = 1;
 
 				for (const auto &it : _current_tracker.cleared_depth_textures())
 				{
 					char label[512] = "";
-					sprintf_s(label, "%s%u", (i == _selected_depth_buffer_texture_index ? "> " : "  "), i);
+					sprintf_s(label, "%s%2u", (i == _selected_depth_buffer_texture_index ? "> " : "  "), i);
 
 					if (bool value = depth_buffer_clearing_number == i; ImGui::Checkbox(label, &value))
 					{
@@ -1061,8 +1061,9 @@ namespace reshade::d3d11
 
 				if (auto_detect_cleared_depth_buffer)
 				{
-					ImGui::Text("Auto detect depth buffer texture");
-					_selected_depth_buffer_texture_index = _current_tracker.cleared_depth_textures().size();
+					ImGui::TextUnformatted("Auto detect depth buffer texture");
+
+					_selected_depth_buffer_texture_index = static_cast<UINT>(_current_tracker.cleared_depth_textures().size());
 				}
 
 				ImGui::Text("Depth texture number %u selected", _selected_depth_buffer_texture_index);
@@ -1070,7 +1071,7 @@ namespace reshade::d3d11
 			else if (!_current_tracker.depth_buffer_counters().empty())
 			{
 				ImGui::Spacing();
-				ImGui::Text("Depth Buffers: (intermediate buffer draw calls in parentheses)");
+				ImGui::TextUnformatted("Depth Buffers: (intermediate buffer draw calls in parentheses)");
 
 				for (const auto &[depthstencil, snapshot] : _current_tracker.depth_buffer_counters())
 				{
