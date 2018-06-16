@@ -126,8 +126,8 @@ namespace ReShade.Setup
 				catch (Exception ex)
 				{
 					Title = "Failed!";
-					Message.Content = "Unable to extract files.";
-					MessageDescription.Content = ex.Message;
+					Message.Text = "Unable to extract files.";
+					MessageDescription.Text = ex.Message;
 					SetupButton.IsEnabled = false;
 					return;
 				}
@@ -220,7 +220,7 @@ namespace ReShade.Setup
 			_targetPEInfo = new PEInfo(_targetPath);
 
 			Title = "Installing to " + name + " ...";
-			Message.Content = "Analyzing " + name + " ...";
+			Message.Text = "Analyzing " + name + " ...";
 			MessageDescription.Visibility = Visibility.Collapsed;
 
 			string nameModule = _targetPEInfo.Modules.FirstOrDefault(s =>
@@ -244,7 +244,7 @@ namespace ReShade.Setup
 				MessageBox.Show(this, "It looks like the target application uses Direct3D 8. You'll have to download an additional wrapper from 'http://reshade.me/d3d8to9' which converts all API calls to Direct3D 9 in order to use ReShade.", "Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
 			}
 
-			Message.Content = "Select rendering API";
+			Message.Text = "Select rendering API";
 			ApiGroup.IsEnabled = true;
 			ApiDirect3D9.IsChecked = isApiD3D9;
 			ApiDirectXGI.IsChecked = isApiDXGI;
@@ -267,7 +267,7 @@ namespace ReShade.Setup
 				MessageBox.Show(this, "Do you want to overwrite the existing installation?", string.Empty, MessageBoxButton.YesNo) != MessageBoxResult.Yes)
 			{
 				Title += " Failed!";
-				Message.Content = "Existing installation found.";
+				Message.Text = "Existing installation found.";
 				Glass.HideSystemMenu(this, false);
 				return;
 			}
@@ -286,9 +286,9 @@ namespace ReShade.Setup
 			catch (Exception ex)
 			{
 				Title += " Failed!";
-				Message.Content = "Unable to write file \"" + pathModule + "\".";
+				Message.Text = "Unable to write file \"" + pathModule + "\".";
 				MessageDescription.Visibility = Visibility.Visible;
-				MessageDescription.Content = ex.Message;
+				MessageDescription.Text = ex.Message;
 				Glass.HideSystemMenu(this, false);
 
 				if (_isHeadless)
@@ -323,7 +323,7 @@ namespace ReShade.Setup
 		void InstallationStep3()
 		{
 			Title = Title.Remove(Title.Length - 11);
-			Message.Content = "Downloading ...";
+			Message.Text = "Downloading ...";
 			Glass.HideSystemMenu(this);
 
 			_tempDownloadPath = Path.GetTempFileName();
@@ -333,9 +333,9 @@ namespace ReShade.Setup
 				if (e.Error != null)
 				{
 					Title += " Failed!";
-					Message.Content = "Unable to download archive.";
+					Message.Text = "Unable to download archive.";
 					MessageDescription.Visibility = Visibility.Visible;
-					MessageDescription.Content = e.Error.Message;
+					MessageDescription.Text = e.Error.Message;
 					Glass.HideSystemMenu(this, false);
 
 					if (_isHeadless)
@@ -349,7 +349,7 @@ namespace ReShade.Setup
 				}
 			};
 			client.DownloadProgressChanged += (object sender, DownloadProgressChangedEventArgs e) => {
-				Message.Content = "Downloading ... (" + ((100 * e.BytesReceived) / e.TotalBytesToReceive) + "%)";
+				Message.Text = "Downloading ... (" + ((100 * e.BytesReceived) / e.TotalBytesToReceive) + "%)";
 			};
 
 			try
@@ -359,9 +359,9 @@ namespace ReShade.Setup
 			catch (Exception ex)
 			{
 				Title += " Failed!";
-				Message.Content = "Unable to download archive.";
+				Message.Text = "Unable to download archive.";
 				MessageDescription.Visibility = Visibility.Visible;
-				MessageDescription.Content = ex.Message;
+				MessageDescription.Text = ex.Message;
 				Glass.HideSystemMenu(this, false);
 
 				if (_isHeadless)
@@ -399,15 +399,13 @@ namespace ReShade.Setup
 			catch (Exception ex)
 			{
 				Title += " Failed!";
-				Message.Content = "Unable to extract downloaded archive.";
+				Message.Text = "Unable to extract downloaded archive.";
 				MessageDescription.Visibility = Visibility.Visible;
-				MessageDescription.Content = ex.Message;
+				MessageDescription.Text = ex.Message;
 				Glass.HideSystemMenu(this, false);
 
 				if (_isHeadless)
-				{
 					Environment.Exit(1);
-				}
 				return;
 			}
 
@@ -468,7 +466,7 @@ namespace ReShade.Setup
 
 		private void EnableConfigEditor()
 		{
-			Message.Content = "Edit ReShade settings";
+			Message.Text = "Edit ReShade settings";
 			SetupButton.IsEnabled = true;
 			SetupButton.Click -= OnSetupButtonClick;
 			SetupButton.Click += (object s, RoutedEventArgs e) => new SettingsWindow(ConfigFilePath) { Owner = this }.ShowDialog();
