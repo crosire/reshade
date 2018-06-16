@@ -521,7 +521,10 @@ namespace reshade::d3d11
 		_drawcalls = tracker.total_drawcalls();
 
 		_current_tracker = tracker;
+
+#if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
 		detect_depth_source(tracker);
+#endif
 
 		// Evaluate queries
 		for (technique &technique : _techniques)
@@ -990,6 +993,7 @@ namespace reshade::d3d11
 		ImGui::Text("MSAA is %s", _is_multisampling_enabled ? "active" : "inactive");
 		ImGui::Spacing();
 
+#if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
 		if (ImGui::CollapsingHeader("Depth and Intermediate Buffers", ImGuiTreeNodeFlags_DefaultOpen))
 		{
 			bool modified = false;
@@ -1001,12 +1005,12 @@ namespace reshade::d3d11
 				runtime::save_config();
 			}
 
-			if (!_current_tracker.depthstencil_counters().empty())
+			if (!_current_tracker.depth_buffer_counters().empty())
 			{
 				ImGui::Spacing();
 				ImGui::Text("Depth Buffers: (intermediate buffer draw calls in parentheses)");
 
-				for (const auto &[depthstencil, snapshot] : _current_tracker.depthstencil_counters())
+				for (const auto &[depthstencil, snapshot] : _current_tracker.depth_buffer_counters())
 				{
 					char label[512] = "";
 					sprintf_s(label, "%s0x%p", (depthstencil == _depthstencil ? "> " : "  "), depthstencil.get());
@@ -1050,10 +1054,11 @@ namespace reshade::d3d11
 				}
 			}
 		}
-
+#endif
+#if RESHADE_DX11_CAPTURE_CONSTANT_BUFFERS
 		if (ImGui::CollapsingHeader("Constant Buffers", ImGuiTreeNodeFlags_DefaultOpen))
 		{
-			for (const auto &[buffer, counter] : _current_tracker.constant_counters())
+			for (const auto &[buffer, counter] : _current_tracker.constant_buffer_counters())
 			{
 				bool likely_camera_transform_buffer = false;
 
@@ -1066,8 +1071,10 @@ namespace reshade::d3d11
 				ImGui::Text("%s 0x%p | used in %4u vertex shaders and %4u pixel shaders, mapped %3u times, %8u bytes", likely_camera_transform_buffer ? ">" : " ", buffer.get(), counter.vs_uses, counter.ps_uses, counter.mapped, desc.ByteWidth);
 			}
 		}
+#endif
 	}
 
+#if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
 	void d3d11_runtime::detect_depth_source(draw_call_tracker &tracker)
 	{
 		if (_best_depth_stencil_overwrite != nullptr)
@@ -1261,4 +1268,5 @@ namespace reshade::d3d11
 
 		return true;
 	}
+#endif
 }
