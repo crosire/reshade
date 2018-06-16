@@ -317,7 +317,7 @@ namespace ReShade.Setup
 					IniFile.WriteValue(configFilePath, "GENERAL", "TextureSearchPaths", targetDirectory);
 				}
 
-				EnableConfigEditor();
+				EnableSettingsWindow();
 			}
 		}
 		void InstallationStep3()
@@ -329,6 +329,7 @@ namespace ReShade.Setup
 			_tempDownloadPath = Path.GetTempFileName();
 
 			var client = new WebClient();
+
 			client.DownloadFileCompleted += (object sender, System.ComponentModel.AsyncCompletedEventArgs e) => {
 				if (e.Error != null)
 				{
@@ -339,15 +340,14 @@ namespace ReShade.Setup
 					Glass.HideSystemMenu(this, false);
 
 					if (_isHeadless)
-					{
 						Environment.Exit(1);
-					}
 				}
 				else
 				{
 					InstallationStep4();
 				}
 			};
+
 			client.DownloadProgressChanged += (object sender, DownloadProgressChangedEventArgs e) => {
 				Message.Text = "Downloading ... (" + ((100 * e.BytesReceived) / e.TotalBytesToReceive) + "%)";
 			};
@@ -365,36 +365,39 @@ namespace ReShade.Setup
 				Glass.HideSystemMenu(this, false);
 
 				if (_isHeadless)
-				{
 					Environment.Exit(1);
-				}
 			}
 		}
 		void InstallationStep4()
 		{
-			string targetDirectory = Path.GetDirectoryName(_targetPath);
-			string shadersDirectoryFinal = Path.Combine(targetDirectory, "reshade-shaders");
-			string shadersDirectoryExtracted = Path.Combine(targetDirectory, "reshade-shaders-master");
+			Message.Text = "Extracting ...";
+
+			string tempPath = Path.Combine(Path.GetTempPath(), "reshade-shaders-master");
+			string tempPathShaders = Path.Combine(tempPath, "Shaders");
+			string tempPathTextures = Path.Combine(tempPath, "Textures");
+			string targetPath = Path.Combine(Path.GetDirectoryName(_targetPath), "reshade-shaders");
+			string targetPathShaders = Path.Combine(targetPath, "Shaders");
+			string targetPathTextures = Path.Combine(targetPath, "Textures");
 
 			string[] installedEffects = null;
 
-			// Delete existing directories since "ExtractToDirectory" fails if the target is not empty
-			if (Directory.Exists(shadersDirectoryFinal))
+			if (Directory.Exists(targetPath))
 			{
-				installedEffects = Directory.GetFiles(Path.Combine(shadersDirectoryFinal, "Shaders")).ToArray();
-
-				try { Directory.Delete(shadersDirectoryFinal, true); } catch { }
-			}
-			if (Directory.Exists(shadersDirectoryExtracted))
-			{
-				try { Directory.Delete(shadersDirectoryExtracted, true); } catch { }
+				installedEffects = Directory.GetFiles(targetPathShaders).ToArray();
 			}
 
 			try
 			{
-				ZipFile.ExtractToDirectory(_tempDownloadPath, targetDirectory);
+				if (Directory.Exists(tempPath)) // Delete existing directories since extraction fails if the target is not empty
+					Directory.Delete(tempPath, true);
 
-				Directory.Move(shadersDirectoryExtracted, shadersDirectoryFinal);
+				ZipFile.ExtractToDirectory(_tempDownloadPath, Path.GetTempPath());
+
+				MoveFiles(tempPathShaders, targetPathShaders);
+				MoveFiles(tempPathTextures, targetPathTextures);
+
+				File.Delete(_tempDownloadPath);
+				Directory.Delete(tempPath, true);
 			}
 			catch (Exception ex)
 			{
@@ -409,12 +412,9 @@ namespace ReShade.Setup
 				return;
 			}
 
-			// Ignore exceptions on file deletion
-			try { File.Delete(_tempDownloadPath); } catch { }
-
 			if (!_isHeadless)
 			{
-				var wnd = new SelectWindow(Directory.GetFiles(Path.Combine(shadersDirectoryFinal, "Shaders")));
+				var wnd = new SelectWindow(Directory.GetFiles(targetPathShaders));
 				wnd.Owner = this;
 
 				// If there was an existing installation, select the same effects as previously
@@ -444,27 +444,61 @@ namespace ReShade.Setup
 				}
 			}
 
-			string configFilePath = ConfigFilePath;
+			var effectSearchPaths = IniFile.ReadValue(ConfigFilePath, "GENERAL", "EffectSearchPaths").Split(',').Where(x => x.Length != 0).ToList();
+			var textureSearchPaths = IniFile.ReadValue(ConfigFilePath, "GENERAL", "TextureSearchPaths").Split(',').Where(x => x.Length != 0).ToList();
 
-			var effectSearchPaths = new HashSet<string>(IniFile.ReadValue(configFilePath, "GENERAL", "EffectSearchPaths").Split(',').Where(x => x.Length != 0));
-			var textureSearchPaths = new HashSet<string>(IniFile.ReadValue(configFilePath, "GENERAL", "TextureSearchPaths").Split(',').Where(x => x.Length != 0));
-			effectSearchPaths.Add(Path.Combine(shadersDirectoryFinal, "Shaders"));
-			textureSearchPaths.Add(Path.Combine(shadersDirectoryFinal, "Textures"));
-			IniFile.WriteValue(configFilePath, "GENERAL", "EffectSearchPaths", string.Join(",", effectSearchPaths));
-			IniFile.WriteValue(configFilePath, "GENERAL", "TextureSearchPaths", string.Join(",", textureSearchPaths));
+			AddSearchPath(effectSearchPaths, targetPathShaders);
+			AddSearchPath(textureSearchPaths, targetPathTextures);
+
+			IniFile.WriteValue(ConfigFilePath, "GENERAL", "EffectSearchPaths", string.Join(",", effectSearchPaths));
+			IniFile.WriteValue(ConfigFilePath, "GENERAL", "TextureSearchPaths", string.Join(",", textureSearchPaths));
 
 			Title += " Succeeded!";
 			Glass.HideSystemMenu(this, false);
 
 			if (_isHeadless)
-			{
 				Environment.Exit(0);
-			}
 
-			EnableConfigEditor();
+			EnableSettingsWindow();
 		}
 
-		private void EnableConfigEditor()
+		private void MoveFiles(string sourcePath, string targetPath)
+		{
+			if (!Directory.Exists(targetPath))
+			{
+				Directory.CreateDirectory(targetPath);
+			}
+
+			foreach (string source in Directory.GetFiles(sourcePath))
+			{
+				string target = targetPath + source.Replace(sourcePath, string.Empty);
+
+				File.Copy(source, target, true);
+			}
+		}
+
+		private void AddSearchPath(List<string> searchPaths, string newPath)
+		{
+			Directory.SetCurrentDirectory(Path.GetDirectoryName(_targetPath));
+
+			bool pathExists = false;
+
+			foreach (var searchPath in searchPaths)
+			{
+				if (Path.GetFullPath(searchPath) == newPath)
+				{
+					pathExists = true;
+					break;
+				}
+			}
+
+			if (!pathExists)
+			{
+				searchPaths.Add(newPath);
+			}
+		}
+
+		private void EnableSettingsWindow()
 		{
 			Message.Text = "Edit ReShade settings";
 			SetupButton.IsEnabled = true;
