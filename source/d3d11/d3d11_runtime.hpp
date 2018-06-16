@@ -75,10 +75,8 @@ namespace reshade::d3d11
 		std::vector<com_ptr<ID3D11Buffer>> _constant_buffers;
 
 		bool depth_buffer_before_clear = false;
-		bool auto_detect_cleared_depth_buffer = false;
 		bool extended_depth_buffer_detection = false;
-		unsigned int depth_buffer_clearing_number = 0; // Depth buffer auto-selection by default
-		std::unordered_map<UINT, com_ptr<ID3D11Texture2D>> _depth_texture_saves;
+		unsigned int cleared_depth_buffer_index = 0;
 
 	private:
 		bool init_backbuffer_texture();
@@ -103,8 +101,8 @@ namespace reshade::d3d11
 		};
 
 		int _depth_buffer_texture_format = 0; // No depth buffer texture format filter by default
-		unsigned int _selected_depth_buffer_texture_index = 0;
 		std::map<UINT, depth_texture_save_info> _displayed_depth_textures;
+		std::unordered_map<UINT, com_ptr<ID3D11Texture2D>> _depth_texture_saves;
 
 		bool _is_multisampling_enabled = false;
 		DXGI_FORMAT _backbuffer_format = DXGI_FORMAT_UNKNOWN;

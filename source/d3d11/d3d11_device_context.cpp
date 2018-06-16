@@ -55,7 +55,7 @@ bool D3D11DeviceContext::save_depth_texture(ID3D11DepthStencilView *pDepthStenci
 	}
 
 	// In case the depth texture is retrieved, we make a copy of it and store it in an ordered map to use it later in the final rendering stage.
-	if ((runtime->depth_buffer_clearing_number == 0 && cleared) || (_device->_clear_DSV_iter <= runtime->depth_buffer_clearing_number))
+	if ((runtime->cleared_depth_buffer_index == 0 && cleared) || (_device->_clear_DSV_iter <= runtime->cleared_depth_buffer_index))
 	{
 		// Select an appropriate destination texture
 		com_ptr<ID3D11Texture2D> depth_texture_save = runtime->select_depth_texture_save(desc);
