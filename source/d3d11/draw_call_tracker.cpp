@@ -178,7 +178,7 @@ namespace reshade::d3d11
 		}
 	}
 
-	draw_call_tracker::intermediate_snapshot_info draw_call_tracker::find_best_snapshot(UINT width, UINT height, DXGI_FORMAT format)
+	draw_call_tracker::intermediate_snapshot_info draw_call_tracker::find_best_snapshot(UINT width, UINT height)
 	{
 		const float aspect_ratio = float(width) / float(height);
 
@@ -215,13 +215,6 @@ namespace reshade::d3d11
 			if (fabs(texture_aspect_ratio - aspect_ratio) > 0.1f || width_factor > 2.0f || height_factor > 2.0f || width_factor < 0.5f || height_factor < 0.5f)
 			{
 				// No match, not a good fit
-				continue;
-			}
-
-			// Check texture format
-			if (format != DXGI_FORMAT_UNKNOWN && desc.Format != format)
-			{
-				// No match, texture format does not equal filter
 				continue;
 			}
 

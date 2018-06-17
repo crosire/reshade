@@ -55,7 +55,7 @@ namespace reshade::d3d11
 
 		void keep_cleared_depth_textures();
 
-		intermediate_snapshot_info find_best_snapshot(UINT width, UINT height, DXGI_FORMAT format);
+		intermediate_snapshot_info find_best_snapshot(UINT width, UINT height);
 		ID3D11Texture2D *find_best_cleared_depth_buffer_texture(UINT depth_buffer_clearing_number);
 #endif
 

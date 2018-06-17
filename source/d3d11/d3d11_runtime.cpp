@@ -1188,17 +1188,7 @@ namespace reshade::d3d11
 			return;
 		}
 
-		const DXGI_FORMAT depth_texture_formats[] = {
-			DXGI_FORMAT_UNKNOWN,
-			DXGI_FORMAT_R16_TYPELESS,
-			DXGI_FORMAT_R32_TYPELESS,
-			DXGI_FORMAT_R24G8_TYPELESS,
-			DXGI_FORMAT_R32G8X24_TYPELESS
-		};
-
-		assert(depth_buffer_texture_format >= 0 && depth_buffer_texture_format < ARRAYSIZE(depth_texture_formats));
-
-		const auto best_snapshot = tracker.find_best_snapshot(_width, _height, depth_texture_formats[depth_buffer_texture_format]);
+		const auto best_snapshot = tracker.find_best_snapshot(_width, _height);
 
 		if (best_snapshot.depthstencil != nullptr)
 		{
