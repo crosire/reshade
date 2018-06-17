@@ -251,7 +251,7 @@ namespace reshade::d3d11
 		}
 	}
 
-	ID3D11Texture2D *draw_call_tracker::find_best_cleared_depth_buffer_texture(DXGI_FORMAT format, UINT depth_buffer_clearing_number)
+	ID3D11Texture2D *draw_call_tracker::find_best_cleared_depth_buffer_texture(UINT depth_buffer_clearing_number)
 	{
 		// Function that selects the best cleared depth texture according to the clearing number defined in the configuration settings
 		ID3D11Texture2D *best_match = nullptr;
@@ -275,13 +275,6 @@ namespace reshade::d3d11
 
 			D3D11_TEXTURE2D_DESC desc;
 			texture->GetDesc(&desc);
-
-			// Check texture format
-			if (format != DXGI_FORMAT_UNKNOWN && desc.Format != format)
-			{
-				// No match, texture format does not equal filter
-				continue;
-			}
 
 			if (depth_buffer_clearing_number != 0 && i > depth_buffer_clearing_number)
 			{

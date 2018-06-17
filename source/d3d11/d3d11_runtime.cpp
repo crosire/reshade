@@ -50,13 +50,13 @@ namespace reshade::d3d11
 		subscribe_to_menu("DX11", [this]() { draw_debug_menu(); });
 		subscribe_to_load_config([this](const ini_file& config) {
 			config.get("DX11_BUFFER_DETECTION", "DepthBufferRetrievalMode", depth_buffer_before_clear);
-			config.get("DX11_BUFFER_DETECTION", "DepthBufferTextureFormat", _depth_buffer_texture_format);
+			config.get("DX11_BUFFER_DETECTION", "DepthBufferTextureFormat", depth_buffer_texture_format);
 			config.get("DX11_BUFFER_DETECTION", "ExtendedDepthBufferDetection", extended_depth_buffer_detection);
 			config.get("DX11_BUFFER_DETECTION", "DepthBufferClearingNumber", cleared_depth_buffer_index);
 		});
 		subscribe_to_save_config([this](ini_file& config) {
 			config.set("DX11_BUFFER_DETECTION", "DepthBufferRetrievalMode", depth_buffer_before_clear);
-			config.set("DX11_BUFFER_DETECTION", "DepthBufferTextureFormat", _depth_buffer_texture_format);
+			config.set("DX11_BUFFER_DETECTION", "DepthBufferTextureFormat", depth_buffer_texture_format);
 			config.set("DX11_BUFFER_DETECTION", "ExtendedDepthBufferDetection", extended_depth_buffer_detection);
 			config.set("DX11_BUFFER_DETECTION", "DepthBufferClearingNumber", cleared_depth_buffer_index);
 		});
@@ -1003,7 +1003,15 @@ namespace reshade::d3d11
 		if (ImGui::CollapsingHeader("Depth and Intermediate Buffers", ImGuiTreeNodeFlags_DefaultOpen))
 		{
 			bool modified = false;
-			modified |= ImGui::Combo("Depth Texture Format", &_depth_buffer_texture_format, "All\0D16\0D32F\0D24S8\0D32FS8\0");
+			modified |= ImGui::Combo("Depth Texture Format", &depth_buffer_texture_format, "All\0D16\0D32F\0D24S8\0D32FS8\0");
+
+			if (modified)
+			{
+				_current_tracker.reset();
+				create_depthstencil_replacement(nullptr, nullptr);
+				return;
+			}
+
 			modified |= ImGui::Checkbox("Copy depth before clearing", &depth_buffer_before_clear);
 
 			if (depth_buffer_before_clear)
@@ -1164,16 +1172,6 @@ namespace reshade::d3d11
 			return;
 		}
 
-		const DXGI_FORMAT depth_texture_formats[] = {
-			DXGI_FORMAT_UNKNOWN,
-			DXGI_FORMAT_R16_TYPELESS,
-			DXGI_FORMAT_R32_TYPELESS,
-			DXGI_FORMAT_R24G8_TYPELESS,
-			DXGI_FORMAT_R32G8X24_TYPELESS
-		};
-
-		assert(_depth_buffer_texture_format >= 0 && _depth_buffer_texture_format < ARRAYSIZE(depth_texture_formats));
-
 		if (depth_buffer_before_clear)
 		{
 			// At the final rendering stage, it is fine to rely on the depth stencil to select the best depth texture
@@ -1181,7 +1179,7 @@ namespace reshade::d3d11
 			// In this case, we cannot use the depth stencil to determine which depth texture is the good one, so we can use the default depth stencil
 			// For the moment, the best we can do is retrieve all the depth textures that has been cleared in the rendering pipeline, then select one of them (by default, the last one)
 			// In the future, maybe we could find a way to retrieve depth texture statistics (number of draw calls and number of vertices), so ReShade could automatically select the best one
-			ID3D11Texture2D *const best_match_texture = tracker.find_best_cleared_depth_buffer_texture(depth_texture_formats[_depth_buffer_texture_format], cleared_depth_buffer_index);
+			ID3D11Texture2D *const best_match_texture = tracker.find_best_cleared_depth_buffer_texture(cleared_depth_buffer_index);
 
 			if (best_match_texture != nullptr)
 			{
@@ -1190,7 +1188,17 @@ namespace reshade::d3d11
 			return;
 		}
 
-		const auto best_snapshot = tracker.find_best_snapshot(_width, _height, depth_texture_formats[_depth_buffer_texture_format]);
+		const DXGI_FORMAT depth_texture_formats[] = {
+			DXGI_FORMAT_UNKNOWN,
+			DXGI_FORMAT_R16_TYPELESS,
+			DXGI_FORMAT_R32_TYPELESS,
+			DXGI_FORMAT_R24G8_TYPELESS,
+			DXGI_FORMAT_R32G8X24_TYPELESS
+		};
+
+		assert(depth_buffer_texture_format >= 0 && depth_buffer_texture_format < ARRAYSIZE(depth_texture_formats));
+
+		const auto best_snapshot = tracker.find_best_snapshot(_width, _height, depth_texture_formats[depth_buffer_texture_format]);
 
 		if (best_snapshot.depthstencil != nullptr)
 		{

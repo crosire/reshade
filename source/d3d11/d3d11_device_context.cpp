@@ -13,6 +13,71 @@ void D3D11DeviceContext::clear_drawcall_stats()
 }
 
 #if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
+
+bool D3D11DeviceContext::check_depth_texture_format(ID3D11DepthStencilView *pDepthStencilView)
+{
+	if (pDepthStencilView == nullptr)
+	{
+		return false;
+	}
+
+	if (_device->_runtimes.empty())
+		return false;
+
+	const auto runtime = _device->_runtimes.front();
+
+	// Retrieve texture from depth stencil
+	com_ptr<ID3D11Resource> resource;
+	pDepthStencilView->GetResource(&resource);
+
+	com_ptr<ID3D11Texture2D> texture;
+	if (FAILED(resource->QueryInterface(&texture)))
+	{
+		return false;
+	}
+
+	D3D11_TEXTURE2D_DESC desc;
+	texture->GetDesc(&desc); DXGI_FORMAT depth_texture_format = desc.Format;
+
+	switch (depth_texture_format)
+	{
+	case DXGI_FORMAT_R16_TYPELESS:
+	case DXGI_FORMAT_D16_UNORM:
+		depth_texture_format = DXGI_FORMAT_R16_TYPELESS;
+		break;
+	case DXGI_FORMAT_R32_TYPELESS:
+	case DXGI_FORMAT_D32_FLOAT:
+		depth_texture_format = DXGI_FORMAT_R32_TYPELESS;
+		break;
+	default:
+	case DXGI_FORMAT_R24G8_TYPELESS:
+	case DXGI_FORMAT_D24_UNORM_S8_UINT:
+		depth_texture_format = DXGI_FORMAT_R24G8_TYPELESS;
+		break;
+	case DXGI_FORMAT_R32G8X24_TYPELESS:
+	case DXGI_FORMAT_D32_FLOAT_S8X24_UINT:
+		depth_texture_format = DXGI_FORMAT_R32G8X24_TYPELESS;
+		break;
+	}
+
+	const DXGI_FORMAT depth_texture_formats[] = {
+		DXGI_FORMAT_UNKNOWN,
+		DXGI_FORMAT_R16_TYPELESS,
+		DXGI_FORMAT_R32_TYPELESS,
+		DXGI_FORMAT_R24G8_TYPELESS,
+		DXGI_FORMAT_R32G8X24_TYPELESS
+	};
+
+	assert(runtime->depth_buffer_texture_format >= 0 && runtime->depth_buffer_texture_format < ARRAYSIZE(depth_texture_formats));
+
+	if (depth_texture_formats[runtime->depth_buffer_texture_format] != DXGI_FORMAT_UNKNOWN && depth_texture_format != depth_texture_formats[runtime->depth_buffer_texture_format])
+	{
+		return false;
+	}
+
+	return true;
+}
+
 bool D3D11DeviceContext::save_depth_texture(ID3D11DepthStencilView *pDepthStencilView, bool cleared)
 {
 	if (_device->_runtimes.empty())
@@ -52,7 +117,7 @@ bool D3D11DeviceContext::save_depth_texture(ID3D11DepthStencilView *pDepthStenci
 	if (desc.Width > runtime->frame_width())
 	{
 		return false;
-	}
+	}	
 
 	// In case the depth texture is retrieved, we make a copy of it and store it in an ordered map to use it later in the final rendering stage.
 	if ((runtime->cleared_depth_buffer_index == 0 && cleared) || (_device->_clear_DSV_iter <= runtime->cleared_depth_buffer_index))
@@ -349,7 +414,10 @@ void STDMETHODCALLTYPE D3D11DeviceContext::GSSetSamplers(UINT StartSlot, UINT Nu
 void STDMETHODCALLTYPE D3D11DeviceContext::OMSetRenderTargets(UINT NumViews, ID3D11RenderTargetView *const *ppRenderTargetViews, ID3D11DepthStencilView *pDepthStencilView)
 {
 #if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
-	track_active_rendertargets(NumViews, ppRenderTargetViews, pDepthStencilView);
+	if (check_depth_texture_format(pDepthStencilView))
+	{
+		track_active_rendertargets(NumViews, ppRenderTargetViews, pDepthStencilView);
+	}
 #endif
 
 	_orig->OMSetRenderTargets(NumViews, ppRenderTargetViews, pDepthStencilView);
@@ -357,7 +425,10 @@ void STDMETHODCALLTYPE D3D11DeviceContext::OMSetRenderTargets(UINT NumViews, ID3
 void STDMETHODCALLTYPE D3D11DeviceContext::OMSetRenderTargetsAndUnorderedAccessViews(UINT NumRTVs, ID3D11RenderTargetView *const *ppRenderTargetViews, ID3D11DepthStencilView *pDepthStencilView, UINT UAVStartSlot, UINT NumUAVs, ID3D11UnorderedAccessView *const *ppUnorderedAccessViews, const UINT *pUAVInitialCounts)
 {
 #if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
-	track_active_rendertargets(NumRTVs, ppRenderTargetViews, pDepthStencilView);
+	if (check_depth_texture_format(pDepthStencilView))
+	{
+		track_active_rendertargets(NumRTVs, ppRenderTargetViews, pDepthStencilView);
+	}
 #endif
 
 	_orig->OMSetRenderTargetsAndUnorderedAccessViews(NumRTVs, ppRenderTargetViews, pDepthStencilView, UAVStartSlot, NumUAVs, ppUnorderedAccessViews, pUAVInitialCounts);
@@ -440,7 +511,10 @@ void STDMETHODCALLTYPE D3D11DeviceContext::ClearUnorderedAccessViewFloat(ID3D11U
 void STDMETHODCALLTYPE D3D11DeviceContext::ClearDepthStencilView(ID3D11DepthStencilView *pDepthStencilView, UINT ClearFlags, FLOAT Depth, UINT8 Stencil)
 {
 #if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
-	track_cleared_depthstencil(pDepthStencilView);
+	if (check_depth_texture_format(pDepthStencilView))
+	{
+		track_cleared_depthstencil(pDepthStencilView);
+	}
 #endif
 
 	_orig->ClearDepthStencilView(pDepthStencilView, ClearFlags, Depth, Stencil);
