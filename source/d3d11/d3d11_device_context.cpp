@@ -41,23 +41,23 @@ bool D3D11DeviceContext::check_depth_texture_format(ID3D11DepthStencilView *pDep
 
 	switch (depth_texture_format)
 	{
-	case DXGI_FORMAT_R16_TYPELESS:
-	case DXGI_FORMAT_D16_UNORM:
-		depth_texture_format = DXGI_FORMAT_R16_TYPELESS;
-		break;
-	case DXGI_FORMAT_R32_TYPELESS:
-	case DXGI_FORMAT_D32_FLOAT:
-		depth_texture_format = DXGI_FORMAT_R32_TYPELESS;
-		break;
-	default:
-	case DXGI_FORMAT_R24G8_TYPELESS:
-	case DXGI_FORMAT_D24_UNORM_S8_UINT:
-		depth_texture_format = DXGI_FORMAT_R24G8_TYPELESS;
-		break;
-	case DXGI_FORMAT_R32G8X24_TYPELESS:
-	case DXGI_FORMAT_D32_FLOAT_S8X24_UINT:
-		depth_texture_format = DXGI_FORMAT_R32G8X24_TYPELESS;
-		break;
+		case DXGI_FORMAT_R16_TYPELESS:
+		case DXGI_FORMAT_D16_UNORM:
+			depth_texture_format = DXGI_FORMAT_R16_TYPELESS;
+			break;
+		case DXGI_FORMAT_R32_TYPELESS:
+		case DXGI_FORMAT_D32_FLOAT:
+			depth_texture_format = DXGI_FORMAT_R32_TYPELESS;
+			break;
+		default:
+		case DXGI_FORMAT_R24G8_TYPELESS:
+		case DXGI_FORMAT_D24_UNORM_S8_UINT:
+			depth_texture_format = DXGI_FORMAT_R24G8_TYPELESS;
+			break;
+		case DXGI_FORMAT_R32G8X24_TYPELESS:
+		case DXGI_FORMAT_D32_FLOAT_S8X24_UINT:
+			depth_texture_format = DXGI_FORMAT_R32G8X24_TYPELESS;
+			break;
 	}
 
 	const DXGI_FORMAT depth_texture_formats[] = {
