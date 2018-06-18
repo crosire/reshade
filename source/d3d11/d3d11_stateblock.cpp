@@ -50,6 +50,8 @@ namespace reshade::d3d11
 		_device_context->RSGetState(&_rs_state);
 		_device_context->RSGetViewports(&_rs_num_viewports, nullptr);
 		_device_context->RSGetViewports(&_rs_num_viewports, _rs_viewports);
+		_device_context->RSGetScissorRects(&_rs_num_scissor_rects, nullptr);
+		_device_context->RSGetScissorRects(&_rs_num_scissor_rects, _rs_scissor_rects);
 
 		_vs_num_class_instances = ARRAYSIZE(_vs_class_instances);
 		_device_context->VSGetShader(&_vs, _vs_class_instances, &_vs_num_class_instances);
@@ -100,6 +102,7 @@ namespace reshade::d3d11
 
 		_device_context->RSSetState(_rs_state);
 		_device_context->RSSetViewports(_rs_num_viewports, _rs_viewports);
+		_device_context->RSSetScissorRects(_rs_num_scissor_rects, _rs_scissor_rects);
 
 		_device_context->VSSetShader(_vs, _vs_class_instances, _vs_num_class_instances);
 		_device_context->VSSetConstantBuffers(0, ARRAYSIZE(_vs_constant_buffers), _vs_constant_buffers);

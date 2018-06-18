@@ -51,6 +51,8 @@ namespace reshade::d3d11
 		ID3D11RasterizerState *_rs_state;
 		UINT _rs_num_viewports;
 		D3D11_VIEWPORT _rs_viewports[D3D11_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE];
+		UINT _rs_num_scissor_rects;
+		D3D11_RECT _rs_scissor_rects[D3D11_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE];
 		ID3D11PixelShader *_ps;
 		UINT _ps_num_class_instances;
 		ID3D11ClassInstance *_ps_class_instances[256];

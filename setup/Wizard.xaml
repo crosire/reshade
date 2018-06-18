@@ -66,20 +66,21 @@
 				<Grid.ColumnDefinitions>
 					<ColumnDefinition Width="*" />
 				</Grid.ColumnDefinitions>
-				<Label
+				<TextBlock
 					x:Name="Message"
 					Grid.Row="0"
 					Grid.Column="0"
 					HorizontalAlignment="Center"
 					FontSize="14"
-					Content="Select game" />
-				<Label
+					Text="Select game" />
+				<TextBlock
 					x:Name="MessageDescription"
 					Grid.Row="1"
 					Grid.Column="0"
 					HorizontalAlignment="Center"
 					FontSize="10"
-					Content="(Press 'Ctrl' while clicking to extract binaries for manual installation)"/>
+					TextWrapping="WrapWithOverflow"
+					Text="(Press 'Ctrl' while clicking to extract binaries for manual installation)"/>
 			</Grid>
 		</Button>
 	</DockPanel>

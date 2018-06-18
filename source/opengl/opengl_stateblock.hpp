@@ -25,6 +25,7 @@ namespace reshade::opengl
 		GLint _textures2d[32], _samplers[32];
 		GLint _active_texture;
 		GLint _viewport[4];
+		GLint _scissor_rect[4];
 		GLint _scissor_test;
 		GLint _blend;
 		GLint _blend_src, _blend_dest;

@@ -39,6 +39,8 @@ namespace reshade::d3d10
 		ID3D10RasterizerState *_rs_state;
 		UINT _rs_num_viewports;
 		D3D10_VIEWPORT _rs_viewports[D3D10_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE];
+		UINT _rs_num_scissor_rects;
+		D3D10_RECT _rs_scissor_rects[D3D10_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE];
 		ID3D10PixelShader *_ps;
 		ID3D10Buffer *_ps_constant_buffers[D3D10_COMMONSHADER_CONSTANT_BUFFER_API_SLOT_COUNT];
 		ID3D10SamplerState *_ps_sampler_states[D3D10_COMMONSHADER_SAMPLER_SLOT_COUNT];

@@ -28,6 +28,7 @@ namespace reshade::opengl
 		}
 
 		glGetIntegerv(GL_VIEWPORT, _viewport);
+		glGetIntegerv(GL_SCISSOR_BOX, _scissor_rect);
 		_scissor_test = glIsEnabled(GL_SCISSOR_TEST);
 		_blend = glIsEnabled(GL_BLEND);
 		glGetIntegerv(GL_BLEND_SRC, &_blend_src);
@@ -76,6 +77,7 @@ namespace reshade::opengl
 
 		glActiveTexture(_active_texture);
 		glViewport(_viewport[0], _viewport[1], _viewport[2], _viewport[3]);
+		glScissor(_scissor_rect[0], _scissor_rect[1], _scissor_rect[2], _scissor_rect[3]);
 		if (_scissor_test) { glEnable(GL_SCISSOR_TEST); }
 		else { glDisable(GL_SCISSOR_TEST); }
 		if (_blend) { glEnable(GL_BLEND); }

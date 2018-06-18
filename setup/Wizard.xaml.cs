@@ -126,8 +126,8 @@ namespace ReShade.Setup
 				catch (Exception ex)
 				{
 					Title = "Failed!";
-					Message.Content = "Unable to extract files.";
-					MessageDescription.Content = ex.Message;
+					Message.Text = "Unable to extract files.";
+					MessageDescription.Text = ex.Message;
 					SetupButton.IsEnabled = false;
 					return;
 				}
@@ -220,7 +220,7 @@ namespace ReShade.Setup
 			_targetPEInfo = new PEInfo(_targetPath);
 
 			Title = "Installing to " + name + " ...";
-			Message.Content = "Analyzing " + name + " ...";
+			Message.Text = "Analyzing " + name + " ...";
 			MessageDescription.Visibility = Visibility.Collapsed;
 
 			string nameModule = _targetPEInfo.Modules.FirstOrDefault(s =>
@@ -244,7 +244,7 @@ namespace ReShade.Setup
 				MessageBox.Show(this, "It looks like the target application uses Direct3D 8. You'll have to download an additional wrapper from 'http://reshade.me/d3d8to9' which converts all API calls to Direct3D 9 in order to use ReShade.", "Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
 			}
 
-			Message.Content = "Select rendering API";
+			Message.Text = "Select rendering API";
 			ApiGroup.IsEnabled = true;
 			ApiDirect3D9.IsChecked = isApiD3D9;
 			ApiDirectXGI.IsChecked = isApiDXGI;
@@ -267,7 +267,7 @@ namespace ReShade.Setup
 				MessageBox.Show(this, "Do you want to overwrite the existing installation?", string.Empty, MessageBoxButton.YesNo) != MessageBoxResult.Yes)
 			{
 				Title += " Failed!";
-				Message.Content = "Existing installation found.";
+				Message.Text = "Existing installation found.";
 				Glass.HideSystemMenu(this, false);
 				return;
 			}
@@ -286,9 +286,9 @@ namespace ReShade.Setup
 			catch (Exception ex)
 			{
 				Title += " Failed!";
-				Message.Content = "Unable to write file \"" + pathModule + "\".";
+				Message.Text = "Unable to write file \"" + pathModule + "\".";
 				MessageDescription.Visibility = Visibility.Visible;
-				MessageDescription.Content = ex.Message;
+				MessageDescription.Text = ex.Message;
 				Glass.HideSystemMenu(this, false);
 
 				if (_isHeadless)
@@ -317,39 +317,39 @@ namespace ReShade.Setup
 					IniFile.WriteValue(configFilePath, "GENERAL", "TextureSearchPaths", targetDirectory);
 				}
 
-				EnableConfigEditor();
+				EnableSettingsWindow();
 			}
 		}
 		void InstallationStep3()
 		{
 			Title = Title.Remove(Title.Length - 11);
-			Message.Content = "Downloading ...";
+			Message.Text = "Downloading ...";
 			Glass.HideSystemMenu(this);
 
 			_tempDownloadPath = Path.GetTempFileName();
 
 			var client = new WebClient();
+
 			client.DownloadFileCompleted += (object sender, System.ComponentModel.AsyncCompletedEventArgs e) => {
 				if (e.Error != null)
 				{
 					Title += " Failed!";
-					Message.Content = "Unable to download archive.";
+					Message.Text = "Unable to download archive.";
 					MessageDescription.Visibility = Visibility.Visible;
-					MessageDescription.Content = e.Error.Message;
+					MessageDescription.Text = e.Error.Message;
 					Glass.HideSystemMenu(this, false);
 
 					if (_isHeadless)
-					{
 						Environment.Exit(1);
-					}
 				}
 				else
 				{
 					InstallationStep4();
 				}
 			};
+
 			client.DownloadProgressChanged += (object sender, DownloadProgressChangedEventArgs e) => {
-				Message.Content = "Downloading ... (" + ((100 * e.BytesReceived) / e.TotalBytesToReceive) + "%)";
+				Message.Text = "Downloading ... (" + ((100 * e.BytesReceived) / e.TotalBytesToReceive) + "%)";
 			};
 
 			try
@@ -359,64 +359,62 @@ namespace ReShade.Setup
 			catch (Exception ex)
 			{
 				Title += " Failed!";
-				Message.Content = "Unable to download archive.";
+				Message.Text = "Unable to download archive.";
 				MessageDescription.Visibility = Visibility.Visible;
-				MessageDescription.Content = ex.Message;
+				MessageDescription.Text = ex.Message;
 				Glass.HideSystemMenu(this, false);
 
 				if (_isHeadless)
-				{
 					Environment.Exit(1);
-				}
 			}
 		}
 		void InstallationStep4()
 		{
-			string targetDirectory = Path.GetDirectoryName(_targetPath);
-			string shadersDirectoryFinal = Path.Combine(targetDirectory, "reshade-shaders");
-			string shadersDirectoryExtracted = Path.Combine(targetDirectory, "reshade-shaders-master");
+			Message.Text = "Extracting ...";
+
+			string tempPath = Path.Combine(Path.GetTempPath(), "reshade-shaders-master");
+			string tempPathShaders = Path.Combine(tempPath, "Shaders");
+			string tempPathTextures = Path.Combine(tempPath, "Textures");
+			string targetPath = Path.Combine(Path.GetDirectoryName(_targetPath), "reshade-shaders");
+			string targetPathShaders = Path.Combine(targetPath, "Shaders");
+			string targetPathTextures = Path.Combine(targetPath, "Textures");
 
 			string[] installedEffects = null;
 
-			// Delete existing directories since "ExtractToDirectory" fails if the target is not empty
-			if (Directory.Exists(shadersDirectoryFinal))
+			if (Directory.Exists(targetPath))
 			{
-				installedEffects = Directory.GetFiles(Path.Combine(shadersDirectoryFinal, "Shaders")).ToArray();
-
-				try { Directory.Delete(shadersDirectoryFinal, true); } catch { }
-			}
-			if (Directory.Exists(shadersDirectoryExtracted))
-			{
-				try { Directory.Delete(shadersDirectoryExtracted, true); } catch { }
+				installedEffects = Directory.GetFiles(targetPathShaders).ToArray();
 			}
 
 			try
 			{
-				ZipFile.ExtractToDirectory(_tempDownloadPath, targetDirectory);
+				if (Directory.Exists(tempPath)) // Delete existing directories since extraction fails if the target is not empty
+					Directory.Delete(tempPath, true);
 
-				Directory.Move(shadersDirectoryExtracted, shadersDirectoryFinal);
+				ZipFile.ExtractToDirectory(_tempDownloadPath, Path.GetTempPath());
+
+				MoveFiles(tempPathShaders, targetPathShaders);
+				MoveFiles(tempPathTextures, targetPathTextures);
+
+				File.Delete(_tempDownloadPath);
+				Directory.Delete(tempPath, true);
 			}
 			catch (Exception ex)
 			{
 				Title += " Failed!";
-				Message.Content = "Unable to extract downloaded archive.";
+				Message.Text = "Unable to extract downloaded archive.";
 				MessageDescription.Visibility = Visibility.Visible;
-				MessageDescription.Content = ex.Message;
+				MessageDescription.Text = ex.Message;
 				Glass.HideSystemMenu(this, false);
 
 				if (_isHeadless)
-				{
 					Environment.Exit(1);
-				}
 				return;
 			}
 
-			// Ignore exceptions on file deletion
-			try { File.Delete(_tempDownloadPath); } catch { }
-
 			if (!_isHeadless)
 			{
-				var wnd = new SelectWindow(Directory.GetFiles(Path.Combine(shadersDirectoryFinal, "Shaders")));
+				var wnd = new SelectWindow(Directory.GetFiles(targetPathShaders));
 				wnd.Owner = this;
 
 				// If there was an existing installation, select the same effects as previously
@@ -446,29 +444,63 @@ namespace ReShade.Setup
 				}
 			}
 
-			string configFilePath = ConfigFilePath;
+			var effectSearchPaths = IniFile.ReadValue(ConfigFilePath, "GENERAL", "EffectSearchPaths").Split(',').Where(x => x.Length != 0).ToList();
+			var textureSearchPaths = IniFile.ReadValue(ConfigFilePath, "GENERAL", "TextureSearchPaths").Split(',').Where(x => x.Length != 0).ToList();
 
-			var effectSearchPaths = new HashSet<string>(IniFile.ReadValue(configFilePath, "GENERAL", "EffectSearchPaths").Split(',').Where(x => x.Length != 0));
-			var textureSearchPaths = new HashSet<string>(IniFile.ReadValue(configFilePath, "GENERAL", "TextureSearchPaths").Split(',').Where(x => x.Length != 0));
-			effectSearchPaths.Add(Path.Combine(shadersDirectoryFinal, "Shaders"));
-			textureSearchPaths.Add(Path.Combine(shadersDirectoryFinal, "Textures"));
-			IniFile.WriteValue(configFilePath, "GENERAL", "EffectSearchPaths", string.Join(",", effectSearchPaths));
-			IniFile.WriteValue(configFilePath, "GENERAL", "TextureSearchPaths", string.Join(",", textureSearchPaths));
+			AddSearchPath(effectSearchPaths, targetPathShaders);
+			AddSearchPath(textureSearchPaths, targetPathTextures);
+
+			IniFile.WriteValue(ConfigFilePath, "GENERAL", "EffectSearchPaths", string.Join(",", effectSearchPaths));
+			IniFile.WriteValue(ConfigFilePath, "GENERAL", "TextureSearchPaths", string.Join(",", textureSearchPaths));
 
 			Title += " Succeeded!";
 			Glass.HideSystemMenu(this, false);
 
 			if (_isHeadless)
-			{
 				Environment.Exit(0);
-			}
 
-			EnableConfigEditor();
+			EnableSettingsWindow();
 		}
 
-		private void EnableConfigEditor()
+		private void MoveFiles(string sourcePath, string targetPath)
 		{
-			Message.Content = "Edit ReShade settings";
+			if (!Directory.Exists(targetPath))
+			{
+				Directory.CreateDirectory(targetPath);
+			}
+
+			foreach (string source in Directory.GetFiles(sourcePath))
+			{
+				string target = targetPath + source.Replace(sourcePath, string.Empty);
+
+				File.Copy(source, target, true);
+			}
+		}
+
+		private void AddSearchPath(List<string> searchPaths, string newPath)
+		{
+			Directory.SetCurrentDirectory(Path.GetDirectoryName(_targetPath));
+
+			bool pathExists = false;
+
+			foreach (var searchPath in searchPaths)
+			{
+				if (Path.GetFullPath(searchPath) == newPath)
+				{
+					pathExists = true;
+					break;
+				}
+			}
+
+			if (!pathExists)
+			{
+				searchPaths.Add(newPath);
+			}
+		}
+
+		private void EnableSettingsWindow()
+		{
+			Message.Text = "Edit ReShade settings";
 			SetupButton.IsEnabled = true;
 			SetupButton.Click -= OnSetupButtonClick;
 			SetupButton.Click += (object s, RoutedEventArgs e) => new SettingsWindow(ConfigFilePath) { Owner = this }.ShowDialog();
