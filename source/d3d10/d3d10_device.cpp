@@ -16,70 +16,6 @@ void D3D10Device::clear_drawcall_stats()
 
 #if RESHADE_DX10_CAPTURE_DEPTH_BUFFERS
 
-bool D3D10Device::check_depth_texture_format(ID3D10DepthStencilView *pDepthStencilView)
-{
-	if (pDepthStencilView == nullptr)
-	{
-		return false;
-	}
-
-	if (this->_runtimes.empty())
-		return false;
-
-	const auto runtime = this->_runtimes.front();
-
-	// Retrieve texture from depth stencil
-	com_ptr<ID3D10Resource> resource;
-	pDepthStencilView->GetResource(&resource);
-
-	com_ptr<ID3D10Texture2D> texture;
-	if (FAILED(resource->QueryInterface(&texture)))
-	{
-		return false;
-	}
-
-	D3D10_TEXTURE2D_DESC desc;
-	texture->GetDesc(&desc); DXGI_FORMAT depth_texture_format = desc.Format;
-
-	switch (depth_texture_format)
-	{
-	case DXGI_FORMAT_R16_TYPELESS:
-	case DXGI_FORMAT_D16_UNORM:
-		depth_texture_format = DXGI_FORMAT_R16_TYPELESS;
-		break;
-	case DXGI_FORMAT_R32_TYPELESS:
-	case DXGI_FORMAT_D32_FLOAT:
-		depth_texture_format = DXGI_FORMAT_R32_TYPELESS;
-		break;
-	default:
-	case DXGI_FORMAT_R24G8_TYPELESS:
-	case DXGI_FORMAT_D24_UNORM_S8_UINT:
-		depth_texture_format = DXGI_FORMAT_R24G8_TYPELESS;
-		break;
-	case DXGI_FORMAT_R32G8X24_TYPELESS:
-	case DXGI_FORMAT_D32_FLOAT_S8X24_UINT:
-		depth_texture_format = DXGI_FORMAT_R32G8X24_TYPELESS;
-		break;
-	}
-
-	const DXGI_FORMAT depth_texture_formats[] = {
-		DXGI_FORMAT_UNKNOWN,
-		DXGI_FORMAT_R16_TYPELESS,
-		DXGI_FORMAT_R32_TYPELESS,
-		DXGI_FORMAT_R24G8_TYPELESS,
-		DXGI_FORMAT_R32G8X24_TYPELESS
-	};
-
-	assert(runtime->depth_buffer_texture_format >= 0 && runtime->depth_buffer_texture_format < ARRAYSIZE(depth_texture_formats));
-
-	if (depth_texture_formats[runtime->depth_buffer_texture_format] != DXGI_FORMAT_UNKNOWN && depth_texture_format != depth_texture_formats[runtime->depth_buffer_texture_format])
-	{
-		return false;
-	}
-
-	return true;
-}
-
 bool D3D10Device::save_depth_texture(ID3D10DepthStencilView *pDepthStencilView, bool cleared)
 {
 	if (this->_runtimes.empty())
@@ -137,13 +73,13 @@ bool D3D10Device::save_depth_texture(ID3D10DepthStencilView *pDepthStencilView, 
 		this->CopyResource(depth_texture_save.get(), texture.get());
 
 		// Store the saved texture in the ordered map.
-		_draw_call_tracker.track_depth_texture(this->_clear_DSV_iter, texture.get(), pDepthStencilView, depth_texture_save, cleared);
+		_draw_call_tracker.track_depth_texture(runtime->depth_buffer_texture_format, this->_clear_DSV_iter, texture.get(), pDepthStencilView, depth_texture_save, cleared);
 	}
 	else
 	{
 		// Store a null depth texture in the ordered map in order to display it even if the user chose a previous cleared texture.
 		// This way the texture will still be visible in the depth buffer selection window and the user can choose it.
-		_draw_call_tracker.track_depth_texture(this->_clear_DSV_iter, texture.get(), pDepthStencilView, nullptr, cleared);
+		_draw_call_tracker.track_depth_texture(runtime->depth_buffer_texture_format, this->_clear_DSV_iter, texture.get(), pDepthStencilView, nullptr, cleared);
 	}
 
 	// TODO: This is unsafe if multiple device contexts are used on multiple threads
@@ -154,10 +90,15 @@ bool D3D10Device::save_depth_texture(ID3D10DepthStencilView *pDepthStencilView, 
 
 void D3D10Device::track_active_rendertargets(UINT NumViews, ID3D10RenderTargetView *const *ppRenderTargetViews, ID3D10DepthStencilView *pDepthStencilView)
 {
+	if (this->_runtimes.empty())
+		return;
+
+	const auto runtime = this->_runtimes.front();
+
 	if (pDepthStencilView == nullptr)
 		return;
 
-	_draw_call_tracker.track_rendertargets(pDepthStencilView, NumViews, ppRenderTargetViews);
+	_draw_call_tracker.track_rendertargets(runtime->depth_buffer_texture_format, pDepthStencilView, NumViews, ppRenderTargetViews);
 
 	save_depth_texture(pDepthStencilView, false);
 }
@@ -331,10 +272,7 @@ void STDMETHODCALLTYPE D3D10Device::GSSetSamplers(UINT StartSlot, UINT NumSample
 void STDMETHODCALLTYPE D3D10Device::OMSetRenderTargets(UINT NumViews, ID3D10RenderTargetView *const *ppRenderTargetViews, ID3D10DepthStencilView *pDepthStencilView)
 {
 #if RESHADE_DX10_CAPTURE_DEPTH_BUFFERS
-	if (check_depth_texture_format(pDepthStencilView))
-	{
-		track_active_rendertargets(NumViews, ppRenderTargetViews, pDepthStencilView);
-	}
+	track_active_rendertargets(NumViews, ppRenderTargetViews, pDepthStencilView);
 #endif
 
 	_orig->OMSetRenderTargets(NumViews, ppRenderTargetViews, pDepthStencilView);
@@ -392,10 +330,7 @@ void STDMETHODCALLTYPE D3D10Device::ClearRenderTargetView(ID3D10RenderTargetView
 void STDMETHODCALLTYPE D3D10Device::ClearDepthStencilView(ID3D10DepthStencilView *pDepthStencilView, UINT ClearFlags, FLOAT Depth, UINT8 Stencil)
 {
 #if RESHADE_DX10_CAPTURE_DEPTH_BUFFERS
-	if (check_depth_texture_format(pDepthStencilView))
-	{
-		track_cleared_depthstencil(pDepthStencilView);
-	}
+	track_cleared_depthstencil(pDepthStencilView);
 #endif
 
 	_orig->ClearDepthStencilView(pDepthStencilView, ClearFlags, Depth, Stencil);

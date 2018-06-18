@@ -49,9 +49,10 @@ namespace reshade::d3d11
 		void on_draw(ID3D11DeviceContext *context, UINT vertices);
 
 #if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
+		bool check_depth_texture_format(int depth_buffer_texture_format, ID3D11DepthStencilView *pDepthStencilView);
 		bool check_depthstencil(ID3D11DepthStencilView *depthstencil) const;
-		void track_rendertargets(ID3D11DepthStencilView *depthstencil, UINT num_views, ID3D11RenderTargetView *const *views);
-		void track_depth_texture(UINT index, com_ptr<ID3D11Texture2D> src_texture, com_ptr<ID3D11DepthStencilView> src_depthstencil, com_ptr<ID3D11Texture2D> dest_texture, bool cleared);
+		void track_rendertargets(int depth_buffer_texture_format, ID3D11DepthStencilView *depthstencil, UINT num_views, ID3D11RenderTargetView *const *views);
+		void track_depth_texture(int depth_buffer_texture_format, UINT index, com_ptr<ID3D11Texture2D> src_texture, com_ptr<ID3D11DepthStencilView> src_depthstencil, com_ptr<ID3D11Texture2D> dest_texture, bool cleared);
 
 		void keep_cleared_depth_textures();
 

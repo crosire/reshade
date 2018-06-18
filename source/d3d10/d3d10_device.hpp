@@ -127,7 +127,6 @@ struct D3D10Device : ID3D10Device1
 	void clear_drawcall_stats();
 
 #if RESHADE_DX10_CAPTURE_DEPTH_BUFFERS
-	bool check_depth_texture_format(ID3D10DepthStencilView *pDepthStencilView);
 	bool save_depth_texture(ID3D10DepthStencilView *pDepthStencilView, bool cleared);
 
 	void track_active_rendertargets(UINT NumViews, ID3D10RenderTargetView *const *ppRenderTargetViews, ID3D10DepthStencilView *pDepthStencilView);
