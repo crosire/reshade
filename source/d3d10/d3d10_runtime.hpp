@@ -43,14 +43,6 @@ namespace reshade::d3d10
 	{
 	public:
 		d3d10_runtime(ID3D10Device1 *device, IDXGISwapChain *swapchain);
-		
-		struct depth_texture_save_info
-		{
-			com_ptr<ID3D10Texture2D> src_texture;
-			D3D10_TEXTURE2D_DESC src_texture_desc;
-			com_ptr<ID3D10Texture2D> dest_texture;
-			bool cleared = false;
-		};
 
 		bool on_init(const DXGI_SWAP_CHAIN_DESC &desc);
 		void on_reset();
@@ -65,12 +57,9 @@ namespace reshade::d3d10
 		void render_technique(const technique &technique) override;
 		void render_imgui_draw_data(ImDrawData *data) override;
 
-		com_ptr<ID3D10Texture2D> d3d10_runtime::select_depth_texture_save(D3D10_TEXTURE2D_DESC &texture_desc);
-
-		bool depth_buffer_before_clear = false;
-		bool auto_detect_cleared_depth_buffer = false;
-		bool extended_depth_buffer_detection = false;
-		unsigned int depth_buffer_clearing_number = 0; // depth buffer autoselection by default
+#if RESHADE_DX10_CAPTURE_DEPTH_BUFFERS
+		com_ptr<ID3D10Texture2D> select_depth_texture_save(D3D10_TEXTURE2D_DESC &texture_desc);
+#endif
 
 		com_ptr<ID3D10Device1> _device;
 		com_ptr<IDXGISwapChain> _swapchain;
@@ -83,7 +72,10 @@ namespace reshade::d3d10
 		std::vector<com_ptr<ID3D10ShaderResourceView>> _effect_shader_resources;
 		std::vector<com_ptr<ID3D10Buffer>> _constant_buffers;
 
-		std::unordered_map<UINT, com_ptr<ID3D10Texture2D>> _depth_texture_saves;
+		bool depth_buffer_before_clear = false;
+		bool extended_depth_buffer_detection = false;
+		unsigned int cleared_depth_buffer_index = 0;
+		int depth_buffer_texture_format = 0; // No depth buffer texture format filter by default
 
 	private:
 
@@ -96,10 +88,23 @@ namespace reshade::d3d10
 		bool init_imgui_resources();
 		bool init_imgui_font_atlas();
 
-		void draw_select_depth_buffer_menu();
+		void draw_debug_menu();
 
+#if RESHADE_DX10_CAPTURE_DEPTH_BUFFERS
 		void detect_depth_source(d3d10_draw_call_tracker& tracker);
 		bool create_depthstencil_replacement(ID3D10DepthStencilView *depthstencil, ID3D10Texture2D *texture);
+#endif
+
+		struct depth_texture_save_info
+		{
+			com_ptr<ID3D10Texture2D> src_texture;
+			D3D10_TEXTURE2D_DESC src_texture_desc;
+			com_ptr<ID3D10Texture2D> dest_texture;
+			bool cleared = false;
+		};
+
+		std::map<UINT, depth_texture_save_info> _displayed_depth_textures;
+		std::unordered_map<UINT, com_ptr<ID3D10Texture2D>> _depth_texture_saves;
 
 		bool _is_multisampling_enabled = false;
 		DXGI_FORMAT _backbuffer_format = DXGI_FORMAT_UNKNOWN;
@@ -125,6 +130,5 @@ namespace reshade::d3d10
 		com_ptr<ID3D10DepthStencilState> _imgui_depthstencil_state;
 		int _imgui_vertex_buffer_size = 0, _imgui_index_buffer_size = 0;
 		d3d10_draw_call_tracker _current_tracker;
-		std::map<UINT, depth_texture_save_info> _displayed_depth_textures;
 	};
 }

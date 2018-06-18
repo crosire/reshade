@@ -4,29 +4,62 @@
 #include <map>
 #include "com_ptr.hpp"
 
+#define RESHADE_DX10_CAPTURE_DEPTH_BUFFERS 1
+#define RESHADE_DX10_CAPTURE_CONSTANT_BUFFERS 0
+
 namespace reshade::d3d10
 {
 	class d3d10_draw_call_tracker
 	{
 	public:
-		UINT vertices() const { return _counters.vertices; }
-		UINT drawcalls() const { return _counters.drawcalls; }
+		struct draw_stats
+		{
+			UINT vertices = 0;
+			UINT drawcalls = 0;
+			UINT mapped = 0;
+			UINT vs_uses = 0;
+			UINT ps_uses = 0;
+		};
 
-		const auto &depthstencil_counters() const { return _counters_per_used_depthstencil; }
+#if RESHADE_DX10_CAPTURE_DEPTH_BUFFERS
+		struct intermediate_snapshot_info
+		{
+			ID3D10DepthStencilView *depthstencil = nullptr; // No need to use a 'com_ptr' here since '_counters_per_used_depthstencil' already keeps a reference
+			draw_stats stats;
+			com_ptr<ID3D10Texture2D> texture;
+			std::map<ID3D10RenderTargetView *, draw_stats> additional_views;
+		};
+#endif
+
+		UINT total_vertices() const { return _global_counter.vertices; }
+		UINT total_drawcalls() const { return _global_counter.drawcalls; }
+
+#if RESHADE_DX10_CAPTURE_DEPTH_BUFFERS
+		const auto &depth_buffer_counters() const { return _counters_per_used_depthstencil; }
 		const auto &cleared_depth_textures() const { return _cleared_depth_textures; }
+#endif
+#if RESHADE_DX10_CAPTURE_CONSTANT_BUFFERS
+		const auto &constant_buffer_counters() const { return _counters_per_constant_buffer; }
+#endif
 
 		void merge(const d3d10_draw_call_tracker &source);
 		void reset();
 
-		void log_drawcalls(UINT drawcalls, UINT vertices);
-		void log_drawcalls(ID3D10DepthStencilView *depthstencil, UINT drawcalls, UINT vertices);
+		void on_map(ID3D10Resource *pResource);
+		void on_draw(ID3D10Device *device, UINT vertices);
 
+#if RESHADE_DX10_CAPTURE_DEPTH_BUFFERS
 		bool check_depthstencil(ID3D10DepthStencilView *depthstencil) const;
-		void track_depthstencil(ID3D10DepthStencilView *depthstencil, com_ptr<ID3D10Texture2D> texture = nullptr);
-
+		void track_rendertargets(ID3D10DepthStencilView *depthstencil, UINT num_views, ID3D10RenderTargetView *const *views);
 		void track_depth_texture(UINT index, com_ptr<ID3D10Texture2D> src_texture, com_ptr<ID3D10DepthStencilView> src_depthstencil, com_ptr<ID3D10Texture2D> dest_texture, bool cleared);
+
 		void keep_cleared_depth_textures();
 
+		intermediate_snapshot_info find_best_snapshot(UINT width, UINT height);
+		ID3D10Texture2D *find_best_cleared_depth_buffer_texture(UINT depth_buffer_clearing_number);
+#endif
+
+	private:
 		struct depth_texture_save_info
 		{
 			com_ptr<ID3D10Texture2D> src_texture;
@@ -36,20 +69,14 @@ namespace reshade::d3d10
 			bool cleared = false;
 		};
 
-		std::pair<ID3D10DepthStencilView *, ID3D10Texture2D *> find_best_depth_stencil(UINT width, UINT height, DXGI_FORMAT format);
-		ID3D10Texture2D *find_best_cleared_depth_buffer_texture(DXGI_FORMAT format, UINT depth_buffer_clearing_number);
-
-	private:
-		struct depthstencil_counter_info
-		{
-			UINT vertices = 0;
-			UINT drawcalls = 0;
-			com_ptr<ID3D10Texture2D> texture;
-		};
-
-		depthstencil_counter_info _counters;
+		draw_stats _global_counter;
+#if RESHADE_DX10_CAPTURE_DEPTH_BUFFERS
 		// Use "std::map" instead of "std::unordered_map" so that the iteration order is guaranteed
-		std::map<com_ptr<ID3D10DepthStencilView>, depthstencil_counter_info> _counters_per_used_depthstencil;
+		std::map<com_ptr<ID3D10DepthStencilView>, intermediate_snapshot_info> _counters_per_used_depthstencil;
 		std::map<UINT, depth_texture_save_info> _cleared_depth_textures;
+#endif
+#if RESHADE_DX10_CAPTURE_CONSTANT_BUFFERS
+		std::map<com_ptr<ID3D10Buffer>, draw_stats> _counters_per_constant_buffer;
+#endif
 	};
 }

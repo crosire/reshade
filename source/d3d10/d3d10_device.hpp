@@ -124,12 +124,15 @@ struct D3D10Device : ID3D10Device1
 	virtual D3D10_FEATURE_LEVEL1 STDMETHODCALLTYPE GetFeatureLevel() override;
 	#pragma endregion
 
-	void log_drawcall(UINT vertices);
 	void clear_drawcall_stats();
 
-	void track_active_depthstencil(ID3D10DepthStencilView* pDepthStencilView);
-	void track_cleared_depthstencil(ID3D10DepthStencilView* pDepthStencilView);
+#if RESHADE_DX10_CAPTURE_DEPTH_BUFFERS
+	bool check_depth_texture_format(ID3D10DepthStencilView *pDepthStencilView);
 	bool save_depth_texture(ID3D10DepthStencilView *pDepthStencilView, bool cleared);
+
+	void track_active_rendertargets(UINT NumViews, ID3D10RenderTargetView *const *ppRenderTargetViews, ID3D10DepthStencilView *pDepthStencilView);
+	void track_cleared_depthstencil(ID3D10DepthStencilView* pDepthStencilView);
+#endif
 
 	LONG _ref = 1;
 	ID3D10Device1 *_orig;
