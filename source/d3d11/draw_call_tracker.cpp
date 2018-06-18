@@ -137,7 +137,7 @@ namespace reshade::d3d11
 
 #if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
 
-	bool draw_call_tracker::check_depth_texture_format(unsigned int depth_buffer_texture_format, ID3D11DepthStencilView *pDepthStencilView)
+	bool draw_call_tracker::check_depth_texture_format(int depth_buffer_texture_format, ID3D11DepthStencilView *pDepthStencilView)
 	{
 		if (pDepthStencilView == nullptr)
 		{
@@ -200,7 +200,7 @@ namespace reshade::d3d11
 		return _counters_per_used_depthstencil.find(depthstencil) != _counters_per_used_depthstencil.end();
 	}
 
-	void draw_call_tracker::track_rendertargets(unsigned int depth_buffer_texture_format, ID3D11DepthStencilView *depthstencil, UINT num_views, ID3D11RenderTargetView *const *views)
+	void draw_call_tracker::track_rendertargets(int depth_buffer_texture_format, ID3D11DepthStencilView *depthstencil, UINT num_views, ID3D11RenderTargetView *const *views)
 	{
 		assert(depthstencil != nullptr);
 
@@ -218,7 +218,7 @@ namespace reshade::d3d11
 			_counters_per_used_depthstencil[depthstencil].additional_views[views[i]].drawcalls += 1;
 		}
 	}
-	void draw_call_tracker::track_depth_texture(unsigned int depth_buffer_texture_format, UINT index, com_ptr<ID3D11Texture2D> src_texture, com_ptr<ID3D11DepthStencilView> src_depthstencil, com_ptr<ID3D11Texture2D> dest_texture, bool cleared)
+	void draw_call_tracker::track_depth_texture(int depth_buffer_texture_format, UINT index, com_ptr<ID3D11Texture2D> src_texture, com_ptr<ID3D11DepthStencilView> src_depthstencil, com_ptr<ID3D11Texture2D> dest_texture, bool cleared)
 	{
 		// Function that keeps track of a cleared depth texture in an ordered map in order to retrieve it at the final rendering stage
 		assert(src_texture != nullptr);
