@@ -1,6 +1,5 @@
 #include "draw_call_tracker.hpp"
 #include "log.hpp"
-#include "runtime.hpp"
 #include <math.h>
 
 namespace reshade::d3d11
@@ -137,14 +136,78 @@ namespace reshade::d3d11
 	}
 
 #if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
+
+	bool draw_call_tracker::check_depth_texture_format(unsigned int depth_buffer_texture_format, ID3D11DepthStencilView *pDepthStencilView)
+	{
+		if (pDepthStencilView == nullptr)
+		{
+			return false;
+		}		
+
+		// Retrieve texture from depth stencil
+		com_ptr<ID3D11Resource> resource;
+		pDepthStencilView->GetResource(&resource);
+
+		com_ptr<ID3D11Texture2D> texture;
+		if (FAILED(resource->QueryInterface(&texture)))
+		{
+			return false;
+		}
+
+		D3D11_TEXTURE2D_DESC desc;
+		texture->GetDesc(&desc); DXGI_FORMAT depth_texture_format = desc.Format;
+
+		switch (depth_texture_format)
+		{
+		case DXGI_FORMAT_R16_TYPELESS:
+		case DXGI_FORMAT_D16_UNORM:
+			depth_texture_format = DXGI_FORMAT_R16_TYPELESS;
+			break;
+		case DXGI_FORMAT_R32_TYPELESS:
+		case DXGI_FORMAT_D32_FLOAT:
+			depth_texture_format = DXGI_FORMAT_R32_TYPELESS;
+			break;
+		default:
+		case DXGI_FORMAT_R24G8_TYPELESS:
+		case DXGI_FORMAT_D24_UNORM_S8_UINT:
+			depth_texture_format = DXGI_FORMAT_R24G8_TYPELESS;
+			break;
+		case DXGI_FORMAT_R32G8X24_TYPELESS:
+		case DXGI_FORMAT_D32_FLOAT_S8X24_UINT:
+			depth_texture_format = DXGI_FORMAT_R32G8X24_TYPELESS;
+			break;
+		}
+
+		const DXGI_FORMAT depth_texture_formats[] = {
+			DXGI_FORMAT_UNKNOWN,
+			DXGI_FORMAT_R16_TYPELESS,
+			DXGI_FORMAT_R32_TYPELESS,
+			DXGI_FORMAT_R24G8_TYPELESS,
+			DXGI_FORMAT_R32G8X24_TYPELESS
+		};
+
+		assert(runtime->depth_buffer_texture_format >= 0 && runtime->depth_buffer_texture_format < ARRAYSIZE(depth_texture_formats));
+
+		if (depth_texture_formats[depth_buffer_texture_format] != DXGI_FORMAT_UNKNOWN && depth_texture_format != depth_texture_formats[depth_buffer_texture_format])
+		{
+			return false;
+		}
+
+		return true;
+	}
 	bool draw_call_tracker::check_depthstencil(ID3D11DepthStencilView *depthstencil) const
 	{
 		return _counters_per_used_depthstencil.find(depthstencil) != _counters_per_used_depthstencil.end();
 	}
 
-	void draw_call_tracker::track_rendertargets(ID3D11DepthStencilView *depthstencil, UINT num_views, ID3D11RenderTargetView *const *views)
+	void draw_call_tracker::track_rendertargets(unsigned int depth_buffer_texture_format, ID3D11DepthStencilView *depthstencil, UINT num_views, ID3D11RenderTargetView *const *views)
 	{
 		assert(depthstencil != nullptr);
+
+		if (!check_depth_texture_format(depth_buffer_texture_format, depthstencil))
+		{
+			return;
+		}
 
 		if (_counters_per_used_depthstencil[depthstencil].depthstencil == nullptr)
 			_counters_per_used_depthstencil[depthstencil].depthstencil = depthstencil;
@@ -155,10 +218,15 @@ namespace reshade::d3d11
 			_counters_per_used_depthstencil[depthstencil].additional_views[views[i]].drawcalls += 1;
 		}
 	}
-	void draw_call_tracker::track_depth_texture(UINT index, com_ptr<ID3D11Texture2D> src_texture, com_ptr<ID3D11DepthStencilView> src_depthstencil, com_ptr<ID3D11Texture2D> dest_texture, bool cleared)
+	void draw_call_tracker::track_depth_texture(unsigned int depth_buffer_texture_format, UINT index, com_ptr<ID3D11Texture2D> src_texture, com_ptr<ID3D11DepthStencilView> src_depthstencil, com_ptr<ID3D11Texture2D> dest_texture, bool cleared)
 	{
 		// Function that keeps track of a cleared depth texture in an ordered map in order to retrieve it at the final rendering stage
 		assert(src_texture != nullptr);
+
+		if (!check_depth_texture_format(depth_buffer_texture_format, src_depthstencil.get()))
+		{
+			return;
+		}
 
 		// Gather some extra info for later display
 		D3D11_TEXTURE2D_DESC src_texture_desc;
