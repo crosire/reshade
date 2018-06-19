@@ -186,7 +186,7 @@ namespace reshade::d3d11
 			DXGI_FORMAT_R32G8X24_TYPELESS
 		};
 
-		assert(runtime->depth_buffer_texture_format >= 0 && runtime->depth_buffer_texture_format < ARRAYSIZE(depth_texture_formats));
+		assert(depth_buffer_texture_format >= 0 && depth_buffer_texture_format < ARRAYSIZE(depth_texture_formats));
 
 		if (depth_texture_formats[depth_buffer_texture_format] != DXGI_FORMAT_UNKNOWN && depth_texture_format != depth_texture_formats[depth_buffer_texture_format])
 		{
