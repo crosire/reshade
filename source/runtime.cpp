@@ -1220,7 +1220,7 @@ namespace reshade
 					const int hour = _date[3] / 3600;
 					const int minute = (_date[3] - hour * 3600) / 60;
 
-					ImFormatString(temp, sizeof(temp), " %02u%s%02u", hour, _date[3] % 2 ? ":" : " ", minute);
+					ImFormatString(temp, sizeof(temp), " %02u:%02u", hour, minute);
 					ImGui::SetCursorPosX(ImGui::GetWindowContentRegionWidth() - ImGui::CalcTextSize(temp).x);
 					ImGui::TextUnformatted(temp);
 				}
