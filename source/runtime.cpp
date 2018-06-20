@@ -2045,7 +2045,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 		bool open_tutorial_popup = false;
 		bool current_tree_is_closed = true;
-		bool current_category_is_closed = true;
+		bool current_category_is_closed = false;
 		std::string current_filename;
 		std::string current_category;
 
@@ -2092,24 +2092,21 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 			if (current_category != ui_category)
 			{
-				if (!current_category_is_closed)
-					ImGui::TreePop();
-
-				current_category = ui_category;
-
 				if (!ui_category.empty())
 				{
-					const float text_width = ImGui::CalcTextSize(ui_category.c_str()).x;
-					const float region_width = ImGui::CalcItemWidth();
-					ImGui::Dummy(ImVec2((region_width - text_width) / 2, 0));
-					ImGui::SameLine();
+					std::string category;
+					for (float x = 0, space_x = ImGui::CalcTextSize(" ").x, width = (ImGui::CalcItemWidth() - ImGui::CalcTextSize(ui_category.c_str()).x) / 2 - 42; x < width; x += space_x)
+						category += ' ';
+					category += ui_category;
 
-					current_category_is_closed = !ImGui::TreeNodeEx(ui_category.c_str(), ImGuiTreeNodeFlags_DefaultOpen);
+					current_category_is_closed = !ImGui::TreeNodeEx(category.c_str(), ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_NoTreePushOnOpen);
 				}
 				else
 				{
-					current_category_is_closed = true;
+					current_category_is_closed = false;
 				}
+
+				current_category = ui_category;
 			}
 			if (current_category_is_closed)
 			{
@@ -2227,10 +2224,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 			}
 		}
 
-		if (!current_category_is_closed)
-		{
-			ImGui::TreePop();
-		}
 		if (!current_tree_is_closed)
 		{
 			ImGui::TreePop();
