@@ -1,7 +1,7 @@
 /**
- * Copyright (C) 2014 Patrick Mours. All rights reserved.
- * License: https://github.com/crosire/reshade#license
- */
+* Copyright (C) 2014 Patrick Mours. All rights reserved.
+* License: https://github.com/crosire/reshade#license
+*/
 
 #include "log.hpp"
 #include "d3d11_runtime.hpp"
@@ -49,12 +49,16 @@ namespace reshade::d3d11
 
 		subscribe_to_menu("DX11", [this]() { draw_debug_menu(); });
 		subscribe_to_load_config([this](const ini_file& config) {
-			config.get("DX11_BUFFER_DETECTION", "DepthBufferRetrievalMode", _depth_buffer_before_clear);
-			config.get("DX11_BUFFER_DETECTION", "DepthBufferTextureFormat", _depth_buffer_texture_format);
+			config.get("DX11_BUFFER_DETECTION", "DepthBufferRetrievalMode", depth_buffer_before_clear);
+			config.get("DX11_BUFFER_DETECTION", "DepthBufferTextureFormat", depth_buffer_texture_format);
+			config.get("DX11_BUFFER_DETECTION", "ExtendedDepthBufferDetection", extended_depth_buffer_detection);
+			config.get("DX11_BUFFER_DETECTION", "DepthBufferClearingNumber", cleared_depth_buffer_index);
 		});
 		subscribe_to_save_config([this](ini_file& config) {
-			config.set("DX11_BUFFER_DETECTION", "DepthBufferRetrievalMode", _depth_buffer_before_clear);
-			config.set("DX11_BUFFER_DETECTION", "DepthBufferTextureFormat", _depth_buffer_texture_format);
+			config.set("DX11_BUFFER_DETECTION", "DepthBufferRetrievalMode", depth_buffer_before_clear);
+			config.set("DX11_BUFFER_DETECTION", "DepthBufferTextureFormat", depth_buffer_texture_format);
+			config.set("DX11_BUFFER_DETECTION", "ExtendedDepthBufferDetection", extended_depth_buffer_detection);
+			config.set("DX11_BUFFER_DETECTION", "DepthBufferClearingNumber", cleared_depth_buffer_index);
 		});
 	}
 
@@ -222,9 +226,9 @@ namespace reshade::d3d11
 			_height,
 			1, 1,
 			DXGI_FORMAT_D24_UNORM_S8_UINT,
-			{ 1, 0 },
-			D3D11_USAGE_DEFAULT,
-			D3D11_BIND_DEPTH_STENCIL
+		{ 1, 0 },
+		D3D11_USAGE_DEFAULT,
+		D3D11_BIND_DEPTH_STENCIL
 		};
 
 		com_ptr<ID3D11Texture2D> depth_stencil_texture;
@@ -273,8 +277,8 @@ namespace reshade::d3d11
 			// Create the input layout
 			const D3D11_INPUT_ELEMENT_DESC input_layout[] = {
 				{ "POSITION", 0, DXGI_FORMAT_R32G32_FLOAT, 0, offsetof(ImDrawVert, pos), D3D11_INPUT_PER_VERTEX_DATA, 0 },
-				{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, offsetof(ImDrawVert, uv), D3D11_INPUT_PER_VERTEX_DATA, 0 },
-				{ "COLOR", 0, DXGI_FORMAT_R8G8B8A8_UNORM, 0, offsetof(ImDrawVert, col), D3D11_INPUT_PER_VERTEX_DATA, 0 },
+			{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, offsetof(ImDrawVert, uv), D3D11_INPUT_PER_VERTEX_DATA, 0 },
+			{ "COLOR", 0, DXGI_FORMAT_R8G8B8A8_UNORM, 0, offsetof(ImDrawVert, col), D3D11_INPUT_PER_VERTEX_DATA, 0 },
 			};
 
 			hr = _device->CreateInputLayout(input_layout, _countof(input_layout), vs.data, vs.data_size, &_imgui_input_layout);
@@ -395,9 +399,9 @@ namespace reshade::d3d11
 			static_cast<UINT>(height),
 			1, 1,
 			DXGI_FORMAT_R8G8B8A8_UNORM,
-			{ 1, 0 },
-			D3D11_USAGE_DEFAULT,
-			D3D11_BIND_SHADER_RESOURCE
+		{ 1, 0 },
+		D3D11_USAGE_DEFAULT,
+		D3D11_BIND_SHADER_RESOURCE
 		};
 		const D3D11_SUBRESOURCE_DATA tex_data = {
 			pixels,
@@ -479,6 +483,8 @@ namespace reshade::d3d11
 		_depthstencil_texture.reset();
 		_depthstencil_texture_srv.reset();
 
+		_depth_texture_saves.clear();
+
 		_default_depthstencil.reset();
 		_copy_vertex_shader.reset();
 		_copy_pixel_shader.reset();
@@ -512,7 +518,7 @@ namespace reshade::d3d11
 		_effect_shader_resources[1] = _backbuffer_texture_srv[1];
 		_effect_shader_resources[2] = _depthstencil_texture_srv;
 	}
-	void d3d11_runtime::on_present(draw_call_tracker &tracker)
+	void d3d11_runtime::on_present(d3d11_draw_call_tracker &tracker)
 	{
 		if (!is_initialized())
 			return;
@@ -698,28 +704,28 @@ namespace reshade::d3d11
 
 		switch (texture.format)
 		{
-			case texture_format::r8:
-			{
-				std::vector<uint8_t> data2(texture.width * texture.height);
-				for (size_t i = 0, k = 0; i < texture.width * texture.height * 4; i += 4, k++)
-					data2[k] = data[i];
-				_immediate_context->UpdateSubresource(texture_impl->texture.get(), 0, nullptr, data2.data(), texture.width, texture.width * texture.height);
-				break;
-			}
-			case texture_format::rg8:
-			{
-				std::vector<uint8_t> data2(texture.width * texture.height * 2);
-				for (size_t i = 0, k = 0; i < texture.width * texture.height * 4; i += 4, k += 2)
-					data2[k] = data[i],
-					data2[k + 1] = data[i + 1];
-				_immediate_context->UpdateSubresource(texture_impl->texture.get(), 0, nullptr, data2.data(), texture.width * 2, texture.width * texture.height * 2);
-				break;
-			}
-			default:
-			{
-				_immediate_context->UpdateSubresource(texture_impl->texture.get(), 0, nullptr, data, texture.width * 4, texture.width * texture.height * 4);
-				break;
-			}
+		case texture_format::r8:
+		{
+			std::vector<uint8_t> data2(texture.width * texture.height);
+			for (size_t i = 0, k = 0; i < texture.width * texture.height * 4; i += 4, k++)
+				data2[k] = data[i];
+			_immediate_context->UpdateSubresource(texture_impl->texture.get(), 0, nullptr, data2.data(), texture.width, texture.width * texture.height);
+			break;
+		}
+		case texture_format::rg8:
+		{
+			std::vector<uint8_t> data2(texture.width * texture.height * 2);
+			for (size_t i = 0, k = 0; i < texture.width * texture.height * 4; i += 4, k += 2)
+				data2[k] = data[i],
+				data2[k + 1] = data[i + 1];
+			_immediate_context->UpdateSubresource(texture_impl->texture.get(), 0, nullptr, data2.data(), texture.width * 2, texture.width * texture.height * 2);
+			break;
+		}
+		default:
+		{
+			_immediate_context->UpdateSubresource(texture_impl->texture.get(), 0, nullptr, data, texture.width * 4, texture.width * texture.height * 4);
+			break;
+		}
 		}
 
 		if (texture.levels > 1)
@@ -997,18 +1003,61 @@ namespace reshade::d3d11
 		if (ImGui::CollapsingHeader("Depth and Intermediate Buffers", ImGuiTreeNodeFlags_DefaultOpen))
 		{
 			bool modified = false;
-			modified |= ImGui::Checkbox("Copy depth before clearing", &_depth_buffer_before_clear);
-			modified |= ImGui::Combo("Depth Texture Format", &_depth_buffer_texture_format, "All\0D16\0D32F\0D24S8\0D32FS8\0");
+			modified |= ImGui::Combo("Depth Texture Format", &depth_buffer_texture_format, "All\0D16\0D32F\0D24S8\0D32FS8\0");
 
 			if (modified)
 			{
-				runtime::save_config();
+				_current_tracker.reset();
+				create_depthstencil_replacement(nullptr, nullptr);
+				return;
 			}
 
-			if (!_current_tracker.depth_buffer_counters().empty())
+			modified |= ImGui::Checkbox("Copy depth before clearing", &depth_buffer_before_clear);
+
+			if (depth_buffer_before_clear)
+			{
+				if (ImGui::Checkbox("Extended depth buffer detection", &extended_depth_buffer_detection))
+				{
+					cleared_depth_buffer_index = 0;
+					modified = true;
+				}
+
+				_current_tracker.keep_cleared_depth_textures();
+
+				ImGui::Spacing();
+				ImGui::TextUnformatted("Depth Buffers:");
+
+				UINT current_index = 1;
+
+				for (const auto &it : _current_tracker.cleared_depth_textures())
+				{
+					char label[512] = "";
+					sprintf_s(label, "%s%2u", (current_index == cleared_depth_buffer_index ? "> " : "  "), current_index);
+
+					if (bool value = cleared_depth_buffer_index == current_index; ImGui::Checkbox(label, &value))
+					{
+						cleared_depth_buffer_index = value ? current_index : 0;
+						modified = true;
+					}
+
+					ImGui::SameLine();
+
+					ImGui::Text("=> 0x%p | 0x%p | %ux%u", it.second.src_depthstencil.get(), it.second.src_texture.get(), it.second.src_texture_desc.Width, it.second.src_texture_desc.Height);
+
+					if (it.second.dest_texture != nullptr)
+					{
+						ImGui::SameLine();
+
+						ImGui::Text("=> %p", it.second.dest_texture.get());
+					}
+
+					current_index++;
+				}
+			}
+			else if (!_current_tracker.depth_buffer_counters().empty())
 			{
 				ImGui::Spacing();
-				ImGui::Text("Depth Buffers: (intermediate buffer draw calls in parentheses)");
+				ImGui::TextUnformatted("Depth Buffers: (intermediate buffer draw calls in parentheses)");
 
 				for (const auto &[depthstencil, snapshot] : _current_tracker.depth_buffer_counters())
 				{
@@ -1053,6 +1102,11 @@ namespace reshade::d3d11
 					ImGui::Text("| %5u draw calls ==> %8u vertices, %2u additional render target%c %s", snapshot.stats.drawcalls, snapshot.stats.vertices, snapshot.additional_views.size(), snapshot.additional_views.size() != 1 ? 's' : ' ', additional_view_label.c_str());
 				}
 			}
+
+			if (modified)
+			{
+				runtime::save_config();
+			}
 		}
 #endif
 #if RESHADE_DX11_CAPTURE_CONSTANT_BUFFERS
@@ -1075,8 +1129,13 @@ namespace reshade::d3d11
 	}
 
 #if RESHADE_DX11_CAPTURE_DEPTH_BUFFERS
-	void d3d11_runtime::detect_depth_source(draw_call_tracker &tracker)
+	void d3d11_runtime::detect_depth_source(d3d11_draw_call_tracker &tracker)
 	{
+		if (depth_buffer_before_clear)
+		{
+			_best_depth_stencil_overwrite = nullptr;
+		}
+
 		if (_best_depth_stencil_overwrite != nullptr)
 		{
 			return;
@@ -1088,7 +1147,7 @@ namespace reshade::d3d11
 		{
 			traffic += g_network_traffic > 0;
 
-			if (!_depth_buffer_before_clear)
+			if (!depth_buffer_before_clear)
 			{
 				return;
 			}
@@ -1113,17 +1172,23 @@ namespace reshade::d3d11
 			return;
 		}
 
-		const DXGI_FORMAT depth_texture_formats[] = {
-			DXGI_FORMAT_UNKNOWN,
-			DXGI_FORMAT_R16_TYPELESS,
-			DXGI_FORMAT_R32_TYPELESS,
-			DXGI_FORMAT_R24G8_TYPELESS,
-			DXGI_FORMAT_R32G8X24_TYPELESS
-		};
+		if (depth_buffer_before_clear)
+		{
+			// At the final rendering stage, it is fine to rely on the depth stencil to select the best depth texture
+			// But when we retrieve the depth textures before the final rendering stage, there is chance that one or many different depth textures are associated to the same depth stencil (for instance, in Bioshock 2)
+			// In this case, we cannot use the depth stencil to determine which depth texture is the good one, so we can use the default depth stencil
+			// For the moment, the best we can do is retrieve all the depth textures that has been cleared in the rendering pipeline, then select one of them (by default, the last one)
+			// In the future, maybe we could find a way to retrieve depth texture statistics (number of draw calls and number of vertices), so ReShade could automatically select the best one
+			ID3D11Texture2D *const best_match_texture = tracker.find_best_cleared_depth_buffer_texture(cleared_depth_buffer_index);
 
-		assert(_depth_buffer_texture_format >= 0 && _depth_buffer_texture_format < ARRAYSIZE(depth_texture_formats));
+			if (best_match_texture != nullptr)
+			{
+				create_depthstencil_replacement(_default_depthstencil.get(), best_match_texture);
+			}
+			return;
+		}
 
-		const auto best_snapshot = tracker.find_best_snapshot(_width, _height, depth_texture_formats[_depth_buffer_texture_format]);
+		const auto best_snapshot = tracker.find_best_snapshot(_width, _height);
 
 		if (best_snapshot.depthstencil != nullptr)
 		{
@@ -1156,23 +1221,23 @@ namespace reshade::d3d11
 
 				switch (texdesc.Format)
 				{
-					case DXGI_FORMAT_R16_TYPELESS:
-					case DXGI_FORMAT_D16_UNORM:
-						texdesc.Format = DXGI_FORMAT_R16_TYPELESS;
-						break;
-					case DXGI_FORMAT_R32_TYPELESS:
-					case DXGI_FORMAT_D32_FLOAT:
-						texdesc.Format = DXGI_FORMAT_R32_TYPELESS;
-						break;
-					default:
-					case DXGI_FORMAT_R24G8_TYPELESS:
-					case DXGI_FORMAT_D24_UNORM_S8_UINT:
-						texdesc.Format = DXGI_FORMAT_R24G8_TYPELESS;
-						break;
-					case DXGI_FORMAT_R32G8X24_TYPELESS:
-					case DXGI_FORMAT_D32_FLOAT_S8X24_UINT:
-						texdesc.Format = DXGI_FORMAT_R32G8X24_TYPELESS;
-						break;
+				case DXGI_FORMAT_R16_TYPELESS:
+				case DXGI_FORMAT_D16_UNORM:
+					texdesc.Format = DXGI_FORMAT_R16_TYPELESS;
+					break;
+				case DXGI_FORMAT_R32_TYPELESS:
+				case DXGI_FORMAT_D32_FLOAT:
+					texdesc.Format = DXGI_FORMAT_R32_TYPELESS;
+					break;
+				default:
+				case DXGI_FORMAT_R24G8_TYPELESS:
+				case DXGI_FORMAT_D24_UNORM_S8_UINT:
+					texdesc.Format = DXGI_FORMAT_R24G8_TYPELESS;
+					break;
+				case DXGI_FORMAT_R32G8X24_TYPELESS:
+				case DXGI_FORMAT_D32_FLOAT_S8X24_UINT:
+					texdesc.Format = DXGI_FORMAT_R32G8X24_TYPELESS;
+					break;
 				}
 
 				texdesc.BindFlags = D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_SHADER_RESOURCE;
@@ -1186,18 +1251,18 @@ namespace reshade::d3d11
 
 					switch (texdesc.Format)
 					{
-						case DXGI_FORMAT_R16_TYPELESS:
-							dsvdesc.Format = DXGI_FORMAT_D16_UNORM;
-							break;
-						case DXGI_FORMAT_R32_TYPELESS:
-							dsvdesc.Format = DXGI_FORMAT_D32_FLOAT;
-							break;
-						case DXGI_FORMAT_R24G8_TYPELESS:
-							dsvdesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-							break;
-						case DXGI_FORMAT_R32G8X24_TYPELESS:
-							dsvdesc.Format = DXGI_FORMAT_D32_FLOAT_S8X24_UINT;
-							break;
+					case DXGI_FORMAT_R16_TYPELESS:
+						dsvdesc.Format = DXGI_FORMAT_D16_UNORM;
+						break;
+					case DXGI_FORMAT_R32_TYPELESS:
+						dsvdesc.Format = DXGI_FORMAT_D32_FLOAT;
+						break;
+					case DXGI_FORMAT_R24G8_TYPELESS:
+						dsvdesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+						break;
+					case DXGI_FORMAT_R32G8X24_TYPELESS:
+						dsvdesc.Format = DXGI_FORMAT_D32_FLOAT_S8X24_UINT;
+						break;
 					}
 
 					hr = _device->CreateDepthStencilView(_depthstencil_texture.get(), &dsvdesc, &_depthstencil_replacement);
@@ -1217,18 +1282,18 @@ namespace reshade::d3d11
 
 			switch (texdesc.Format)
 			{
-				case DXGI_FORMAT_R16_TYPELESS:
-					srvdesc.Format = DXGI_FORMAT_R16_FLOAT;
-					break;
-				case DXGI_FORMAT_R32_TYPELESS:
-					srvdesc.Format = DXGI_FORMAT_R32_FLOAT;
-					break;
-				case DXGI_FORMAT_R24G8_TYPELESS:
-					srvdesc.Format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
-					break;
-				case DXGI_FORMAT_R32G8X24_TYPELESS:
-					srvdesc.Format = DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS;
-					break;
+			case DXGI_FORMAT_R16_TYPELESS:
+				srvdesc.Format = DXGI_FORMAT_R16_FLOAT;
+				break;
+			case DXGI_FORMAT_R32_TYPELESS:
+				srvdesc.Format = DXGI_FORMAT_R32_FLOAT;
+				break;
+			case DXGI_FORMAT_R24G8_TYPELESS:
+				srvdesc.Format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
+				break;
+			case DXGI_FORMAT_R32G8X24_TYPELESS:
+				srvdesc.Format = DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS;
+				break;
 			}
 
 			hr = _device->CreateShaderResourceView(_depthstencil_texture.get(), &srvdesc, &_depthstencil_texture_srv);
@@ -1267,6 +1332,64 @@ namespace reshade::d3d11
 				pass->as<d3d11_pass_data>()->shader_resources[2] = _depthstencil_texture_srv;
 
 		return true;
+	}
+
+	com_ptr<ID3D11Texture2D> d3d11_runtime::select_depth_texture_save(D3D11_TEXTURE2D_DESC &texture_desc)
+	{
+		/* function that selects the appropriate texture where we want to save the depth texture before it is cleared  */
+		/* if this texture is null, create it according to the dimensions and the format of the depth texture */
+		/* Doing so, we avoid to create a new texture each time the depth texture is saved */
+
+		// select the texture format according to the depth texture's one
+		switch (texture_desc.Format)
+		{
+		case DXGI_FORMAT_R16_TYPELESS:
+		case DXGI_FORMAT_D16_UNORM:
+			texture_desc.Format = DXGI_FORMAT_R16_TYPELESS;
+			break;
+		case DXGI_FORMAT_R32_TYPELESS:
+		case DXGI_FORMAT_D32_FLOAT:
+			texture_desc.Format = DXGI_FORMAT_R32_TYPELESS;
+			break;
+		default:
+		case DXGI_FORMAT_R24G8_TYPELESS:
+		case DXGI_FORMAT_D24_UNORM_S8_UINT:
+			texture_desc.Format = DXGI_FORMAT_R24G8_TYPELESS;
+			break;
+		case DXGI_FORMAT_R32G8X24_TYPELESS:
+		case DXGI_FORMAT_D32_FLOAT_S8X24_UINT:
+			texture_desc.Format = DXGI_FORMAT_R32G8X24_TYPELESS;
+			break;
+		}
+
+		// create an unique index based on the dept texture format and dimensions
+		UINT idx = texture_desc.Format * texture_desc.Width * texture_desc.Height;
+
+		const auto it = _depth_texture_saves.find(idx);
+		com_ptr<ID3D11Texture2D> depth_texture_save = nullptr;
+
+		// Create the saved texture pointed by the index if it does not already exist
+		if (it == _depth_texture_saves.end())
+		{
+			texture_desc.BindFlags = D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_SHADER_RESOURCE;
+
+			HRESULT hr = _device->CreateTexture2D(&texture_desc, nullptr, &depth_texture_save);
+
+			if (FAILED(hr))
+			{
+				LOG(ERROR) << "Failed to create depth texture copy! HRESULT is '" << std::hex << hr << std::dec << "'.";
+				return nullptr;
+			}
+
+			_depth_texture_saves.emplace(idx, depth_texture_save);
+		}
+		// If the saved texture pointed by the index exists, use it (save resources and perfs)
+		else
+		{
+			depth_texture_save = it->second;
+		}
+
+		return depth_texture_save;
 	}
 #endif
 }

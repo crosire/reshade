@@ -271,6 +271,7 @@
   <ItemGroup>
     <ClCompile Include="source\d3d10\d3d10.cpp" />
     <ClCompile Include="source\d3d10\d3d10_device.cpp" />
+    <ClCompile Include="source\d3d10\d3d10_draw_call_tracker.cpp" />
     <ClCompile Include="source\d3d10\d3d10_effect_compiler.cpp" />
     <ClCompile Include="source\d3d10\d3d10_runtime.cpp" />
     <ClCompile Include="source\d3d10\d3d10_stateblock.cpp" />
@@ -280,7 +281,7 @@
     <ClCompile Include="source\d3d11\d3d11_effect_compiler.cpp" />
     <ClCompile Include="source\d3d11\d3d11_runtime.cpp" />
     <ClCompile Include="source\d3d11\d3d11_stateblock.cpp" />
-    <ClCompile Include="source\d3d11\draw_call_tracker.cpp" />
+    <ClCompile Include="source\d3d11\d3d11_draw_call_tracker.cpp" />
     <ClCompile Include="source\d3d9\d3d9.cpp" />
     <ClCompile Include="source\d3d9\d3d9_device.cpp" />
     <ClCompile Include="source\d3d9\d3d9_effect_compiler.cpp" />
@@ -315,6 +316,7 @@
     <ClInclude Include="source\com_ptr.hpp" />
     <ClInclude Include="source\d3d10\d3d10.hpp" />
     <ClInclude Include="source\d3d10\d3d10_device.hpp" />
+    <ClInclude Include="source\d3d10\d3d10_draw_call_tracker.hpp" />
     <ClInclude Include="source\d3d10\d3d10_effect_compiler.hpp" />
     <ClInclude Include="source\d3d10\d3d10_runtime.hpp" />
     <ClInclude Include="source\d3d10\d3d10_stateblock.hpp" />
@@ -324,7 +326,7 @@
     <ClInclude Include="source\d3d11\d3d11_effect_compiler.hpp" />
     <ClInclude Include="source\d3d11\d3d11_runtime.hpp" />
     <ClInclude Include="source\d3d11\d3d11_stateblock.hpp" />
-    <ClInclude Include="source\d3d11\draw_call_tracker.hpp" />
+    <ClInclude Include="source\d3d11\d3d11_draw_call_tracker.hpp" />
     <ClInclude Include="source\d3d9\d3d9.hpp" />
     <ClInclude Include="source\d3d9\d3d9_device.hpp" />
     <ClInclude Include="source\d3d9\d3d9_effect_compiler.hpp" />

@@ -6,7 +6,7 @@
 #pragma once
 
 #include "d3d11.hpp"
-#include "draw_call_tracker.hpp"
+#include "d3d11_draw_call_tracker.hpp"
 
 struct D3D11Device : ID3D11Device3
 {
@@ -102,8 +102,8 @@ struct D3D11Device : ID3D11Device3
 	virtual void STDMETHODCALLTYPE ReadFromSubresource(void *pDstData, UINT DstRowPitch, UINT DstDepthPitch, ID3D11Resource *pSrcResource, UINT SrcSubresource, const D3D11_BOX *pSrcBox) override;
 	#pragma endregion
 
-	void add_commandlist_trackers(ID3D11CommandList* command_list, const reshade::d3d11::draw_call_tracker &tracker_source);
-	void merge_commandlist_trackers(ID3D11CommandList* command_list, reshade::d3d11::draw_call_tracker &tracker_destination);
+	void add_commandlist_trackers(ID3D11CommandList* command_list, const reshade::d3d11::d3d11_draw_call_tracker &tracker_source);
+	void merge_commandlist_trackers(ID3D11CommandList* command_list, reshade::d3d11::d3d11_draw_call_tracker &tracker_destination);
 
 	void clear_drawcall_stats();
 
@@ -113,6 +113,7 @@ struct D3D11Device : ID3D11Device3
 	struct DXGIDevice *_dxgi_device = nullptr;
 	D3D11DeviceContext *_immediate_context = nullptr;
 	std::vector<std::shared_ptr<reshade::d3d11::d3d11_runtime>> _runtimes;
-	std::unordered_map<ID3D11CommandList *, reshade::d3d11::draw_call_tracker> _trackers_per_commandlist;
+	std::unordered_map<ID3D11CommandList *, reshade::d3d11::d3d11_draw_call_tracker> _trackers_per_commandlist;
 	std::mutex _trackers_per_commandlist_mutex;
+	unsigned int _clear_DSV_iter = 1;
 };
