@@ -1007,6 +1007,7 @@ namespace reshade::d3d11
 
 			if (modified)
 			{
+				runtime::save_config();
 				_current_tracker.reset();
 				create_depthstencil_replacement(nullptr, nullptr);
 				return;
