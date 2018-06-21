@@ -34,8 +34,9 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::QueryInterface(REFIID riid, void **pp
 
 			_orig->Release();
 
-			LOG(INFO) << "Upgraded 'IDirect3DDevice9' object " << this << " to 'IDirect3DDevice9Ex'.";
-
+#if RESHADE_VERBOSE_LOG
+			LOG(DEBUG) << "Upgraded 'IDirect3DDevice9' object " << this << " to 'IDirect3DDevice9Ex'.";
+#endif
 			_orig = deviceex;
 			_extended_interface = 1;
 		}
@@ -80,8 +81,9 @@ ULONG STDMETHODCALLTYPE Direct3DDevice9::Release()
 	{
 		assert(_ref <= 0);
 
-		LOG(INFO) << "Destroyed 'IDirect3DDevice9" << (_extended_interface ? "Ex" : "") << "' object " << this << ".";
-
+#if RESHADE_VERBOSE_LOG
+		LOG(DEBUG) << "Destroyed 'IDirect3DDevice9" << (_extended_interface ? "Ex" : "") << "' object " << this << ".";
+#endif
 		delete this;
 	}
 
@@ -178,7 +180,9 @@ HRESULT STDMETHODCALLTYPE Direct3DDevice9::CreateAdditionalSwapChain(D3DPRESENT_
 	_additional_swapchains.push_back(swapchain_proxy);
 	*ppSwapChain = swapchain_proxy;
 
-	LOG(INFO) << "Returning 'IDirect3DSwapChain9' object: " << *ppSwapChain;
+#if RESHADE_VERBOSE_LOG
+	LOG(DEBUG) << "Returning 'IDirect3DSwapChain9' object: " << *ppSwapChain;
+#endif
 
 	return D3D_OK;
 }

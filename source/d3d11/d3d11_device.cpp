@@ -77,8 +77,9 @@ HRESULT STDMETHODCALLTYPE D3D11Device::QueryInterface(REFIID riid, void **ppvObj
 
 			_orig->Release();
 
-			LOG(INFO) << "Upgraded 'ID3D11Device' object " << this << " to 'ID3D11Device1'.";
-
+#if RESHADE_VERBOSE_LOG
+			LOG(DEBUG) << "Upgraded 'ID3D11Device' object " << this << " to 'ID3D11Device1'.";
+#endif
 			_orig = device1;
 			_interface_version = 1;
 
@@ -100,8 +101,9 @@ HRESULT STDMETHODCALLTYPE D3D11Device::QueryInterface(REFIID riid, void **ppvObj
 
 			_orig->Release();
 
-			LOG(INFO) << "Upgraded 'ID3D11Device" << (_interface_version > 0 ? std::to_string(_interface_version) : "") << "' object " << this << " to 'ID3D11Device2'.";
-
+#if RESHADE_VERBOSE_LOG
+			LOG(DEBUG) << "Upgraded 'ID3D11Device" << (_interface_version > 0 ? std::to_string(_interface_version) : "") << "' object " << this << " to 'ID3D11Device2'.";
+#endif
 			_orig = device2;
 			_interface_version = 2;
 
@@ -123,8 +125,9 @@ HRESULT STDMETHODCALLTYPE D3D11Device::QueryInterface(REFIID riid, void **ppvObj
 
 			_orig->Release();
 
-			LOG(INFO) << "Upgraded 'ID3D11Device" << (_interface_version > 0 ? std::to_string(_interface_version) : "") << "' object " << this << " to 'ID3D11Device3'.";
-
+#if RESHADE_VERBOSE_LOG
+			LOG(DEBUG) << "Upgraded 'ID3D11Device" << (_interface_version > 0 ? std::to_string(_interface_version) : "") << "' object " << this << " to 'ID3D11Device3'.";
+#endif
 			_orig = device3;
 			_interface_version = 3;
 
@@ -188,8 +191,9 @@ ULONG STDMETHODCALLTYPE D3D11Device::Release()
 	{
 		assert(_ref <= 0);
 
-		LOG(INFO) << "Destroyed 'ID3D11Device" << (_interface_version > 0 ? std::to_string(_interface_version) : "") << "' object " << this << ".";
-
+#if RESHADE_VERBOSE_LOG
+		LOG(DEBUG) << "Destroyed 'ID3D11Device" << (_interface_version > 0 ? std::to_string(_interface_version) : "") << "' object " << this << ".";
+#endif
 		delete this;
 	}
 
@@ -311,7 +315,9 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDeferredContext(UINT ContextFlags, 
 
 	*ppDeferredContext = new D3D11DeviceContext(this, *ppDeferredContext);
 
-	LOG(INFO) << "Returning 'ID3D11DeviceContext' object " << *ppDeferredContext;
+#if RESHADE_VERBOSE_LOG
+	LOG(DEBUG) << "Returning 'ID3D11DeviceContext' object " << *ppDeferredContext;
+#endif
 
 	return S_OK;
 }
@@ -423,7 +429,9 @@ HRESULT STDMETHODCALLTYPE D3D11Device::CreateDeferredContext1(UINT ContextFlags,
 
 	*ppDeferredContext = new D3D11DeviceContext(this, *ppDeferredContext);
 
-	LOG(INFO) << "Returning 'ID3D11DeviceContext1' object " << *ppDeferredContext;
+#if RESHADE_VERBOSE_LOG
+	LOG(DEBUG) << "Returning 'ID3D11DeviceContext1' object " << *ppDeferredContext;
+#endif
 
 	return S_OK;
 }

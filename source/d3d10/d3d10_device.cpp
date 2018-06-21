@@ -70,7 +70,7 @@ ULONG STDMETHODCALLTYPE D3D10Device::Release()
 	{
 		assert(_ref <= 0);
 
-		LOG(INFO) << "Destroyed 'ID3D10Device1' object " << this << ".";
+		LOG(DEBUG) << "Destroyed 'ID3D10Device1' object " << this << ".";
 
 		delete this;
 	}

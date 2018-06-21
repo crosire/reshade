@@ -21,10 +21,10 @@ namespace reshade::log
 {
 	enum class level
 	{
-		info = 4,
+		info = 3,
 		error = 1,
 		warning = 2,
-		debug = 3,
+		debug = 4,
 	};
 
 	extern std::ofstream stream;

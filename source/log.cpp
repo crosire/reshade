@@ -20,7 +20,7 @@ namespace reshade::log
 		SYSTEMTIME time;
 		GetLocalTime(&time);
 
-		const char level_names[][6] = { "ERROR", "WARN ", "DEBUG", "INFO " };
+		const char level_names[][6] = { "ERROR", "WARN ", "INFO ", "DEBUG" };
 		assert(static_cast<unsigned int>(level) - 1 < _countof(level_names));
 
 		// Lock the stream until the message is complete
@@ -31,9 +31,11 @@ namespace reshade::log
 		linestream.clear();
 
 		stream << std::right << std::setfill('0')
+#if RESHADE_VERBOSE_LOG
 			<< std::setw(4) << time.wYear << '-'
 			<< std::setw(2) << time.wMonth << '-'
 			<< std::setw(2) << time.wDay << 'T'
+#endif
 			<< std::setw(2) << time.wHour << ':'
 			<< std::setw(2) << time.wMinute << ':'
 			<< std::setw(2) << time.wSecond << ':'

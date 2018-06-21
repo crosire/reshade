@@ -464,7 +464,7 @@ HOOK_EXPORT HGLRC WINAPI wglCreateContext(HDC hdc)
 		}
 	}
 
-	LOG(INFO) << "> Returned OpenGL context: " << hglrc;
+	LOG(INFO) << "> Returning OpenGL context: " << hglrc;
 
 	return hglrc;
 }
@@ -494,7 +494,7 @@ HOOK_EXPORT HGLRC WINAPI wglCreateLayerContext(HDC hdc, int iLayerPlane)
 		s_shared_contexts.emplace(hglrc, nullptr);
 	}
 
-	LOG(INFO) << "> Returned OpenGL context: " << hglrc;
+	LOG(INFO) << "> Returning OpenGL context: " << hglrc;
 
 	return hglrc;
 }
@@ -808,7 +808,9 @@ HOOK_EXPORT HGLRC WINAPI wglGetCurrentContext()
 		return nullptr;
 	}
 
-	LOG(INFO) << "> Returned pbuffer: " << hpbuffer;
+#if RESHADE_VERBOSE_LOG
+	LOG(DEBUG) << "> Returning pixel buffer: " << hpbuffer;
+#endif
 
 	return hpbuffer;
 }
@@ -846,7 +848,9 @@ HOOK_EXPORT HGLRC WINAPI wglGetCurrentContext()
 		s_pbuffer_device_contexts.insert(hdc);
 	}
 
-	LOG(INFO) << "> Returned pixel buffer device context: " << hdc;
+#if RESHADE_VERBOSE_LOG
+	LOG(DEBUG) << "> Returning pixel buffer device context: " << hdc;
+#endif
 
 	return hdc;
 }
